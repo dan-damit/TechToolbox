@@ -253,7 +253,10 @@ Invoke-AADSyncRemote -ComputerName 'aadconnect01.contoso.com' -Port 5986 -Enable
 Loads the configs from config.json manually if needed
 
 ```powershell
-Get-GetToolboxConfig
+Get-ToolboxConfig
+
+# Show Effective Config switch
+Get-ToolboxConfig -ShowEffectiveConfig
 ```
 
 ---

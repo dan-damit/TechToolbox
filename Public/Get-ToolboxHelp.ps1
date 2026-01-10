@@ -1,4 +1,3 @@
-
 function Get-ToolboxHelp {
     <#
     .SYNOPSIS
@@ -7,8 +6,30 @@ function Get-ToolboxHelp {
     [CmdletBinding()]
     param(
         [string]$Name,
-        [switch]$List
+        [switch]$List,
+        [switch]$ShowEffectiveConfig,
+        [switch]$AsJson
     )
+
+    # Load merged runtime config
+    $Config = Get-TechToolboxConfig
+
+    # Show effective configuration
+    if ($ShowEffectiveConfig) {
+        Write-Host ""
+        Write-Host "TechToolbox Effective Configuration" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+
+        if ($AsJson) {
+            $Config | ConvertTo-Json -Depth 10
+        }
+        else {
+            $Config | Format-List
+        }
+
+        Write-Host ""
+        return
+    }
 
     # List all public functions
     if ($List) {
