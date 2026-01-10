@@ -24,6 +24,7 @@ enterprise-grade PowerShell module.
   - [Get-TechToolboxConfig](#get-techtoolboxconfig)
   - [Set-PageFileSize](#set-pagefilesize)
   - [Invoke-DownloadsCleanup](#invoke-downloadscleanup)
+  - [Invoke-SubnetScan](#invoke-subnetscan)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -272,6 +273,19 @@ Remotely set initial and maximum sizes of the pagefile in MB.
 ```
 
 ---
+
+### Invoke-SubnetScan
+
+This function gathers Network related details of a subnet. It can be run locally
+or remote via PSRemoting.
+
+```powershell
+ # Local subnet usage example
+ Invoke-SubnetScan -CIDR "192.168.1.0/24"
+ 
+ # Remote invocation example
+ Invoke-SubnetScan -CIDR "10.0.0.0/16" -ComputerName "RemoteHost"
+```
 
 ## Design & Conventions
 
