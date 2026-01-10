@@ -15,6 +15,7 @@ enterprise-grade PowerShell module.
 - [Getting Started](#getting-started)
 - [Configuration](#configuration)
 - [Public Commands](#public-commands)
+  - [Get-Help](#get-help)
   - [Clear-BrowserProfileData](#clear-browserprofiledata)
   - [Get-RemoteInstalledSoftware](#get-remoteinstalledsoftware)
   - [Invoke-PurviewPurge](#invoke-purviewpurgeref)
@@ -138,6 +139,16 @@ Create `Config\config.json` and tailor to your environment. Below is a **minimal
 
 ## Public Commands
 
+### Get-Help
+
+A standard help function.
+
+```powershell
+Get-Help
+```
+
+---
+
 ### Clear-BrowserProfileData
 
 Deletes cache, cookies, and (optionally) local storage for **Chrome/Edge** profiles. Supports `-WhatIf/-Confirm`.
@@ -252,10 +263,10 @@ Remotely set initial and maximum sizes of the pagefile in MB.
 
 ```powershell
 # Usage of defaults (grabbed from config.json)
- Set-PageFileSize -ComputerName "Server01.domain.local"
+Set-PageFileSize -ComputerName "Server01.domain.local"
 
- # Set via parameters during script call
- Set-PageFileSize -ComputerName "Server01.domain.local" -InitialSize 4096 -MaximumSize 8192 -Path "C:\pagefile.sys"
+# Set via parameters during script call
+Set-PageFileSize -ComputerName "Server01.domain.local" -InitialSize 4096 -MaximumSize 8192 -Path "C:\pagefile.sys"
  ```
 
  ---
@@ -265,11 +276,11 @@ Remotely set initial and maximum sizes of the pagefile in MB.
  Recurses through user folders and removes files older than the cutoffyear
 
  ```powershell
- # Invokes downloads cleanup on a remote workstation
- Invoke-DownloadsCleanup -ComputerName "Workstation01"
+# Invokes downloads cleanup on a remote workstation
+Invoke-DownloadsCleanup -ComputerName "Workstation01"
 
- # Invoke locally
- Invoke-DownloadsCleanup -Local -CutoffYear 2020
+# Invoke locally
+Invoke-DownloadsCleanup -Local -CutoffYear 2020
 ```
 
 ---
@@ -280,11 +291,11 @@ This function gathers Network related details of a subnet. It can be run locally
 or remote via PSRemoting.
 
 ```powershell
- # Local subnet usage example
- Invoke-SubnetScan -CIDR "192.168.1.0/24"
+# Local subnet usage example
+Invoke-SubnetScan -CIDR "192.168.1.0/24"
  
- # Remote invocation example
- Invoke-SubnetScan -CIDR "10.0.0.0/16" -ComputerName "RemoteHost"
+# Remote invocation example
+Invoke-SubnetScan -CIDR "10.0.0.0/16" -ComputerName "RemoteHost"
 ```
 
 ## Design & Conventions
