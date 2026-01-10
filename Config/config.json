@@ -27,7 +27,9 @@
       "ewmaAlpha": 0.15,
       "displayAlpha": 0.1,
       "defaultPort": 80,
-      "exportCsv": true
+      "exportCsv": true,
+      "resolveNames": true,
+      "httpBanner": true
     },
     "output": {
       "writeTable": true,
@@ -38,7 +40,7 @@
       "consolidated": false,
       "throttleLimit": 32,
       "promptForCredentials": true,
-      "outDir": "C:\\LogsAndExports\\Exports\\RemoteSoftwareInventory"
+      "outDir": "C:\\LogsAndExports\\TechToolbox\\Exports\\RemoteSoftwareInventory"
     },
     "compliance": {
       "searchBatchSize": 50,
@@ -59,7 +61,7 @@
       "promptForMissingInputs": true,
       "defaultLookbackHours": 48,
       "autoExport": false,
-      "defaultExportFolder": "C:\\LogsAndExports\\Exports\\MessageTraces"
+      "defaultExportFolder": "C:\\LogsAndExports\\TechToolbox\\Exports\\MessageTraces"
     },
     "batteryReport": {
       "reportPath": "C:\\Temp\\battery-report.html",
