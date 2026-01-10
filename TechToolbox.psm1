@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:ModuleRoot = Split-Path -Parent $PSCommandPath
-$script:ConfigPath = Join-Path $script:ModuleRoot 'Config\config.json'
+$script:ConfigPath = Join-Path $script:ModuleRoot '..\Config\config.json'
 $script:Config = $null
 
 # Load Private first
