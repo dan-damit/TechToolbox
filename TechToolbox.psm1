@@ -30,6 +30,15 @@ ForEach-Object {
     $_.BaseName
 }
 
+# Load all C# interop classes recursively
+$interopRoot = Join-Path $PSScriptRoot '..\Private\Interop'
+
+if (Test-Path $interopRoot) {
+    Get-ChildItem -Path $interopRoot -Filter '*.cs' -Recurse | ForEach-Object {
+        Add-Type -Path $_.FullName -ErrorAction Stop
+    }
+}
+
 $script:TechToolboxConfig = $null # Clear any cached config
 
 Export-ModuleMember -Function $publicFunctions
