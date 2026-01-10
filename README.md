@@ -15,7 +15,7 @@ enterprise-grade PowerShell module.
 - [Getting Started](#getting-started)
 - [Configuration](#configuration)
 - [Public Commands](#public-commands)
-  - [Get-Help](#get-help)
+  - [Get-ToolboxHelp](#get-toolboxhelp)
   - [Clear-BrowserProfileData](#clear-browserprofiledata)
   - [Get-RemoteInstalledSoftware](#get-remoteinstalledsoftware)
   - [Invoke-PurviewPurge](#invoke-purviewpurgeref)
@@ -139,12 +139,12 @@ Create `Config\config.json` and tailor to your environment. Below is a **minimal
 
 ## Public Commands
 
-### Get-Help
+### Get-ToolboxHelp
 
 A standard help function.
 
 ```powershell
-Get-Help
+Get-ToolboxHelp
 ```
 
 ---
