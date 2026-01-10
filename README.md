@@ -26,6 +26,7 @@ enterprise-grade PowerShell module.
   - [Set-PageFileSize](#set-pagefilesize)
   - [Invoke-DownloadsCleanup](#invoke-downloadscleanup)
   - [Invoke-SubnetScan](#invoke-subnetscan)
+  - [Test-PathAs](#test-pathas)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -297,6 +298,20 @@ Invoke-SubnetScan -CIDR "192.168.1.0/24"
 # Remote invocation example
 Invoke-SubnetScan -CIDR "10.0.0.0/16" -ComputerName "RemoteHost"
 ```
+
+---
+
+### Test-PathAs
+
+This will utilize an impersionation helper to test directory or file access
+using a supplied set of credentials
+
+```powershell
+# Test share access as:
+Test-PathAs -Path "\\server\share\installer.msi" -Credential $cred
+```
+
+---
 
 ## Design & Conventions
 
