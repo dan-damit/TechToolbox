@@ -2,6 +2,20 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Show logo on module import
+$logo = @"
+ _______        _       _______          _ _           
+|__   __|      | |     |__   __|        | | |          
+   | | ___  ___| |__      | | ___   ___ | | | ___ _ __ 
+   | |/ _ \/ __| '_ \     | |/ _ \ / _ \| | |/ _ \ '__|
+   | |  __/ (__| | | |    | | (_) | (_) | | |  __/ |   
+   |_|\___|\___|_| |_|    |_|\___/ \___/|_|_|\___|_|   
+
+                 Technician-Grade Toolkit
+"@
+
+Write-Host $logo -ForegroundColor Cyan
+
 $script:ModuleRoot = Split-Path -Parent $PSCommandPath
 $script:ConfigPath = Join-Path $script:ModuleRoot '..\Config\config.json'
 $script:Config = $null
