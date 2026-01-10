@@ -18,6 +18,7 @@ A PowerShell 7+ module for day-to-day IT automation: browser profile cleanup, re
   - [Invoke-AADSyncRemote](#invoke-aadsyncremote)
   - [Get-TechToolboxConfig](#get-techtoolboxconfig)
   - [Set-PageFileSize](#set-pagefilesize)
+  - [Invoke-DownloadsCleanup](#invoke-downloadscleanup)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -252,6 +253,20 @@ Remotely set initial and maximum sizes of the pagefile in MB.
  ```
 
  ---
+
+ ### Invoke-DownloadsCleanup
+
+ Recurses through user folders and removes files older than the cutoffyear
+
+ ```powershell
+ # Invokes downloads cleanup on a remote workstation
+ Invoke-DownloadsCleanup -ComputerName "Workstation01"
+
+ # Invoke locally
+ Invoke-DownloadsCleanup -Local -CutoffYear 2020
+```
+
+---
 
 ## Design & Conventions
 
