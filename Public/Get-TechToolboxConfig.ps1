@@ -1,5 +1,9 @@
 
 function Get-TechToolboxConfig {
+    <#
+    .SYNOPSIS
+        Loads and returns the TechToolbox configuration from config.json.
+    #>
     [CmdletBinding()]
     param(
         [Parameter()] [object] $Config,
@@ -35,17 +39,20 @@ function Get-TechToolboxConfig {
 
     # Load JSON
     try {
-        $Config = Get-Content -Path $found -Raw | ConvertFrom-Json
+        $raw = Get-Content -Path $found -Raw | ConvertFrom-Json
     }
     catch {
         throw "Failed to read or parse config.json from '$found': $($_.Exception.Message)"
     }
 
     # Validate required root keys
-    $names = $Config.PSObject.Properties.Name
+    $names = $raw.PSObject.Properties.Name
     if (-not ($names -contains 'settings')) {
         throw "Missing required key 'settings' in config.json."
     }
+
+    # Normalize entire config into hashtables
+    $Config = ConvertTo-Hashtable $raw
 
     # Cache and return
     $script:TechToolboxConfig = $Config
