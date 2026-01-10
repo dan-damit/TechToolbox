@@ -7,7 +7,7 @@ $script:ConfigPath = Join-Path $script:ModuleRoot 'Config\config.json'
 $script:Config = $null
 
 # Load Private first
-Get-ChildItem -Path (Join-Path $script:ModuleRoot 'Private') -Filter *.ps1 -File -ErrorAction SilentlyContinue |
+Get-ChildItem "$PSScriptRoot\Private" -Recurse -Filter *.ps1 |
 ForEach-Object { . $_.FullName }
 
 # Load Public and export only those

@@ -5,12 +5,29 @@
     "exportDirectory": "C:\\LogsAndExports\\Exports\\TechToolbox"
   },
   "settings": {
+    "defaults": {
+      "promptForHostname": true,
+      "promptForCredentials": true,
+      "promptForDateRanges": true,
+      "promptForCaseName": true,
+      "promptForSearchName": true,
+      "promptForKqlQuery": true
+    },
     "logging": {
       "enableConsole": true,
       "enableFileLogging": false,
       "includeTimestamps": true,
       "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
       "minimumLevel": "Info"
+    },
+    "subnetScan": {
+      "pingTimeoutMs": 250,
+      "tcpTimeoutMs": 500,
+      "httpTimeoutMs": 1000,
+      "ewmaAlpha": 0.15,
+      "displayAlpha": 0.1,
+      "defaultPort": 80,
+      "exportCsv": true
     },
     "output": {
       "writeTable": true,
@@ -71,14 +88,6 @@
       "skipLocalStorage": false,
       "defaultBrowser": "All",
       "defaultProfiles": null
-    },
-    "defaults": {
-      "promptForHostname": true,
-      "promptForCredentials": true,
-      "promptForDateRanges": true,
-      "promptForCaseName": true,
-      "promptForSearchName": true,
-      "promptForKqlQuery": true
     },
     "pagefile": {
       "defaultPath": "C:\\pagefile.sys",
