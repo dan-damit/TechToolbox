@@ -1,5 +1,5 @@
 
-function Get-Help {
+function Get-ToolboxHelp {
     <#
     .SYNOPSIS
         Provides help information for TechToolbox public commands.
@@ -47,11 +47,11 @@ function Get-Help {
     Write-Host "automation, and environment-agnostic workflows."
     Write-Host ""
     Write-Host "Common Commands:"
-    Write-Host "  Get-Help -List"
-    Write-Host "  Get-Help Invoke-SubnetScan"
+    Write-Host "  Get-ToolboxHelp -List"
+    Write-Host "  Get-ToolboxHelp Invoke-SubnetScan"
     Write-Host "  Invoke-SubnetScan -CIDR 192.168.1.0/24"
     Write-Host ""
     Write-Host "For full help on any command:"
-    Write-Host "  Get-Help <CommandName>"
+    Write-Host "  Get-ToolboxHelp <CommandName>"
     Write-Host ""
 }
