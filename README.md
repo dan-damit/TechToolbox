@@ -1,9 +1,8 @@
-
 # TechToolbox
 
 A PowerShell 7+ module for day-to-day IT automation: browser profile cleanup,
 remote software inventory, Purview eDiscovery workflows, EXO message trace,
-battery health parsing, AAD Connect remote sync, and more.  
+battery health parsing, AAD Connect remote sync, and more.
 
 This is a new project to fold the scripts that I use the most into an
 enterprise-grade PowerShell module.
@@ -146,6 +145,9 @@ A standard help function.
 
 ```powershell
 Get-ToolboxHelp
+
+# Show Effective Config switch
+Get-ToolboxConfig -ShowEffectiveConfig
 ```
 
 ---
@@ -253,10 +255,7 @@ Invoke-AADSyncRemote -ComputerName 'aadconnect01.contoso.com' -Port 5986 -Enable
 Loads the configs from config.json manually if needed
 
 ```powershell
-Get-ToolboxConfig
-
-# Show Effective Config switch
-Get-ToolboxConfig -ShowEffectiveConfig
+Get-TechToolboxConfig
 ```
 
 ---
@@ -271,15 +270,15 @@ Set-PageFileSize -ComputerName "Server01.domain.local"
 
 # Set via parameters during script call
 Set-PageFileSize -ComputerName "Server01.domain.local" -InitialSize 4096 -MaximumSize 8192 -Path "C:\pagefile.sys"
- ```
+```
 
- ---
+---
 
- ### Invoke-DownloadsCleanup
+### Invoke-DownloadsCleanup
 
- Recurses through user folders and removes files older than the cutoffyear
+Recurses through user folders and removes files older than the cutoffyear
 
- ```powershell
+```powershell
 # Invokes downloads cleanup on a remote workstation
 Invoke-DownloadsCleanup -ComputerName "Workstation01"
 
@@ -297,7 +296,7 @@ or remote via PSRemoting.
 ```powershell
 # Local subnet usage example
 Invoke-SubnetScan -CIDR "192.168.1.0/24"
- 
+
 # Remote invocation example
 Invoke-SubnetScan -CIDR "10.0.0.0/16" -ComputerName "RemoteHost"
 ```
