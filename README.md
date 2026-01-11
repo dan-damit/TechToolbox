@@ -55,7 +55,7 @@ Get-Help Clear-BrowserProfileData -Detailed
 
 Create `Config\config.json` and tailor to your environment. Below is a **minimal
 example** with commonly used sections. Omit any you do not need; defaults will
-be applied where sensible. The full default is located [here.](https://github.com/dan-damit/TechToolbox/blob/main/Config/config.json)
+be applied where sensible. The full config.json is located [here.](https://github.com/dan-damit/TechToolbox/blob/main/Config/config.json)
 
 ```json
 {
