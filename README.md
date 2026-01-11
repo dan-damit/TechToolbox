@@ -44,7 +44,7 @@ Import-Module .\TechToolbox -Force
 Get-Command -Module TechToolbox | Sort-Object Name
 
 # View help for any command
-Get-Help Clear-BrowserProfileData -Detailed
+Get-ToolboxHelp Clear-BrowserProfileData -Detailed
 ```
 
 > The module auto-loads functions from `Private/` (helpers) and `Public/` (exported), and caches configuration via `Get-TechToolboxConfig`.
