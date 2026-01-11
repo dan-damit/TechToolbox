@@ -174,8 +174,6 @@ Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName "Case-001" -S
 Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName "Case-001" -SearchName "CustodianSearch-01" -WhatIf
 ```
 
-> Internally calls: `New-MailboxSearchClone`, `Wait-SearchCompletion`, `Invoke-HardDelete`, `Wait-PurgeCompletion` (private helpers).
-
 ---
 
 ### Get-MessageTrace
