@@ -162,7 +162,7 @@ Get-RemoteInstalledSoftware -ComputerName srv01,srv02 -WhatIf
 
 ---
 
-### Invoke-PurviewPurge (ref)
+### Invoke-PurviewPurge
 
 End-to-end **Purview HardDelete** workflow: connect, clone/create mailbox-only search, wait for completion, submit purge, optional disconnect.
 
