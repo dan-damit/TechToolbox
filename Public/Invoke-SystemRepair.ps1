@@ -7,6 +7,33 @@ function Invoke-SystemRepair {
         StartComponentCleanup, ResetBase, SFC, and Windows Update component
         reset) in a TechToolbox-style function with optional remote execution
         and credential support.
+    .PARAMETER RestoreHealth
+        Runs DISM /RestoreHealth.
+    .PARAMETER StartComponentCleanup
+        Runs DISM /StartComponentCleanup.
+    .PARAMETER ResetBase
+        Runs DISM /StartComponentCleanup /ResetBase.
+    .PARAMETER SfcScannow
+        Runs SFC /scannow.
+    .PARAMETER ResetUpdateComponents
+        Resets Windows Update components.
+    .PARAMETER ComputerName
+        Specifies the remote computer name to run the operations on. If not
+        specified, and -Local is not set, the function will check the config for
+        a default computer name.
+    .PARAMETER Local
+        If set, forces local execution regardless of ComputerName or config
+        settings.
+    .PARAMETER Credential
+        Specifies the credentials to use for remote execution. Ignored if -Local
+        is set.
+    .EXAMPLE
+        Invoke-SystemRepair -RestoreHealth -SfcScannow
+        Runs DISM RestoreHealth and SFC /scannow locally.
+    .EXAMPLE
+        Invoke-SystemRepair -RestoreHealth -ComputerName "Client01" -Credential (Get-Credential)
+        Runs DISM RestoreHealth on the remote computer "Client01" using the
+        specified credentials.
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(

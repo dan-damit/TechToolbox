@@ -27,6 +27,7 @@ enterprise-grade PowerShell module.
   - [Invoke-SubnetScan](#invoke-subnetscan)
   - [Test-PathAs](#test-pathas)
   - [Copy-Directory](#copy-directory)
+  - [Invoke-SystemRepair](#invoke-systemrepair)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -299,6 +300,21 @@ Copy-Directory
 
 # Usage with params
 Copy-Directory -Source "\\File01\Share\HR" -DestinationRoot "\\Mgmt01\Archive"
+```
+
+---
+
+### Invoke-SystemRepair
+
+A small collection of commonly used built in system repair tools. These can be
+run locally with -Local switch; remote with -ComputerName.
+
+```powershell
+# Run locally
+Invoke-SystemRepair -RestoreHealth -Local
+
+# Run remote
+Invoke-SystemRepair -RestoreHealth -ComputerName "Client01" -Credential (Get-Credential)
 ```
 
 ---
