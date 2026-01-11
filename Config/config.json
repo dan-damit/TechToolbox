@@ -25,7 +25,10 @@
       "autoEnableDiagnostics": true,
       "parseMode": "simple",
       "maxLogSizeMB": 50,
-      "logPath": "C:\\LogsAndExports\\Logs\\TechToolbox\\DNS"
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\DNS"
+    },
+    "copyDirectory": {
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy"
     },
     "subnetScan": {
       "pingTimeoutMs": 250,
