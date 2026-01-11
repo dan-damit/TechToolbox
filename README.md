@@ -36,7 +36,7 @@ enterprise-grade PowerShell module.
 ## Getting Started
 
 ```powershell
-# PowerShell 7+ recommended
+# This module is designed for PowerShell 7
 # Import module from a local path
 Import-Module .\TechToolbox -Force
 
@@ -57,81 +57,54 @@ Create `Config\config.json` and tailor to your environment. Below is a **minimal
 
 ```json
 {
-  "Paths": {
-    "LogDirectory": "C:\\LogsAndExports\\Logs\\TechToolbox",
-    "ExportDirectory": "C:\\LogsAndExports\\Exports\\TechToolbox",
-    "TempDirectory": "C:\\Temp\\TechToolbox"
+  "paths": {
+    "temp": "C:\\Temp\\TechToolbox",
+    "logs": "C:\\LogsAndExports\\Logs\\TechToolbox",
+    "exportDirectory": "C:\\LogsAndExports\\Exports\\TechToolbox"
   },
-  "Logging": {
-    "EnableConsole": true,
-    "EnableFileLogging": false,
-    "IncludeTimestamps": true,
-    "LogFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
-    "MinimumLevel": "Info"
-  },
-  "Defaults": {
-    "PromptForHostname": true,
-    "PromptForCredentials": true,
-    "PromptForDateRanges": true
-  },
-  "BrowserCleanup": {
-    "KillProcesses": true,
-    "SleepAfterKillMs": 1500,
-    "IncludeCookies": true,
-    "IncludeCache": true,
-    "SkipLocalStorage": false,
-    "DefaultBrowser": "All",
-    "DefaultProfiles": []
-  },
-  "RemoteSoftwareInventory": {
-    "IncludeAppx": false,
-    "Consolidated": false,
-    "ThrottleLimit": 32,
-    "SessionOptions": {
-      "SkipCACheck": false,
-      "SkipCNCheck": false,
-      "SkipRevocationCheck": false,
-      "UseSsl": false
-    }
-  },
-  "ExchangeOnline": {
-    "ShowProgress": false,
-    "AutoDisconnectPrompt": true
-  },
-  "MessageTrace": {
-    "PromptForMissingInputs": true,
-    "DefaultLookbackHours": 48,
-    "AutoExport": false,
-    "DefaultExportFolder": "C:\\LogsAndExports\\Exports\\MessageTraces"
-  },
-  "Purview": {
-    "AutoConnect": true,
-    "AutoDisconnectPrompt": true,
-    "Search": {
-      "MaxAttempts": 40,
-      "DelaySeconds": 10
+  "settings": {
+    "defaults": {
+      "promptForHostname": true,
+      "promptForCredentials": true,
+      "promptForDateRanges": true,
+      "promptForCaseName": true,
+      "promptForSearchName": true,
+      "promptForKqlQuery": true
     },
-    "Purge": {
-      "TimeoutSeconds": 1200,
-      "PollSeconds": 5,
-      "RequireConfirmation": true
+    "logging": {
+      "enableConsole": true,
+      "enableFileLogging": false,
+      "includeTimestamps": true,
+      "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
+      "minimumLevel": "Info"
     },
-    "Defaults": {
-      "PromptForCaseName": true,
-      "PromptForSearchName": true,
-      "PromptForKqlQuery": true
+    "dnsLogging": {
+      "enabled": true,
+      "autoEnableDiagnostics": true,
+      "parseMode": "simple",
+      "maxLogSizeMB": 50,
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\DNS"
+    },
+    "copyDirectory": {
+      "runRemote": true,
+      "defaultComputerName": null,
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
+      "retryCount": 2,
+      "waitSeconds": 5,
+      "copyFlags": ["/E", "/COPYALL"],
+      "mirror": false
+    },
+    "subnetScan": {
+      "pingTimeoutMs": 250,
+      "tcpTimeoutMs": 500,
+      "httpTimeoutMs": 1000,
+      "ewmaAlpha": 0.15,
+      "displayAlpha": 0.1,
+      "defaultPort": 80,
+      "exportCsv": true,
+      "resolveNames": true,
+      "httpBanner": true
     }
-  },
-  "BatteryReport": {
-    "ReportPath": "C:\\Temp\\battery-report.html",
-    "OutputJson": "C:\\Temp\\installed-batteries.json",
-    "DebugInfo": "C:\\Temp\\installed-batteries_debug.txt",
-    "WaitTimeoutSeconds": 10
-  },
-  "AADSync": {
-    "DefaultPort": 5985,
-    "DefaultPolicyType": "Delta",
-    "AllowKerberos": true
   }
 }
 ```
