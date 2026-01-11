@@ -26,6 +26,7 @@ enterprise-grade PowerShell module.
   - [Invoke-DownloadsCleanup](#invoke-downloadscleanup)
   - [Invoke-SubnetScan](#invoke-subnetscan)
   - [Test-PathAs](#test-pathas)
+  - [Copy-Directory](#copy-directory)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -311,6 +312,20 @@ using a supplied set of credentials
 ```powershell
 # Test share access as:
 Test-PathAs -Path "\\server\share\installer.msi" -Credential $cred
+```
+
+---
+
+### Copy-Directory
+
+Utilizes robocopy to copy data from one dir to another
+
+```powershell
+# Auto prompting for source and destination
+Copy-Directory
+
+# Usage with params
+Copy-Directory -Source "\\File01\Share\HR" -DestinationRoot "\\Mgmt01\Archive"
 ```
 
 ---

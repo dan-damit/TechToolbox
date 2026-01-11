@@ -28,7 +28,13 @@
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\DNS"
     },
     "copyDirectory": {
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy"
+      "runRemote": true,
+      "defaultComputerName": null,
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
+      "retryCount": 2,
+      "waitSeconds": 5,
+      "copyFlags": ["/E", "/COPYALL"],
+      "mirror": false
     },
     "subnetScan": {
       "pingTimeoutMs": 250,
