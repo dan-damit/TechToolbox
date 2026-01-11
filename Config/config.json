@@ -47,6 +47,11 @@
       "resolveNames": true,
       "httpBanner": true
     },
+    "systemRepair": {
+      "runRemote": true,
+      "defaultComputerName": null,
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair"
+    },
     "output": {
       "writeTable": true,
       "encoding": "UTF8"
