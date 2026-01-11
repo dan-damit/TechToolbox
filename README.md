@@ -123,7 +123,7 @@ A standard help function.
 Get-ToolboxHelp
 
 # Show Effective Config switch
-Get-ToolboxConfig -ShowEffectiveConfig
+Get-ToolboxHelp -ShowEffectiveConfig
 ```
 
 ---
