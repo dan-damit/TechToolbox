@@ -1,6 +1,6 @@
 @{
     RootModule           = 'TechToolbox.psm1'
-    ModuleVersion        = '2.0.0'
+    ModuleVersion        = '2.1.0'
     Author               = 'Dan Damit'
     CompanyName          = 'Value Added Companies'
     Description          = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows.'
