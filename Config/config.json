@@ -20,6 +20,13 @@
       "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
       "minimumLevel": "Info"
     },
+    "dnsLogging": {
+      "enabled": true,
+      "autoEnableDiagnostics": true,
+      "parseMode": "simple",
+      "maxLogSizeMB": 50,
+      "logPath": "C:\\LogsAndExports\\Logs\\TechToolbox\\DNS"
+    },
     "subnetScan": {
       "pingTimeoutMs": 250,
       "tcpTimeoutMs": 500,
