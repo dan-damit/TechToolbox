@@ -26,7 +26,7 @@ function Invoke-TTDownloadsCleanup {
 
     # Load config
     $cfg = Get-TechToolboxConfig
-    $dlCfg = $cfg.settings.downloadsCleanup
+    $dlCfg = $cfg["settings"]["downloadsCleanup"]
 
     # Defaults
     if (-not $CutoffYear) { $CutoffYear = $dlCfg.cutoffYear }

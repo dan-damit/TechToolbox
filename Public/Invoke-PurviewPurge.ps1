@@ -37,21 +37,15 @@ function Invoke-PurviewPurge {
     )
 
     try {
-        # 0) Config & prompt defaults (normalized camelCase)
+        # Load config
         $cfg = Get-TechToolboxConfig
-        $purv = $cfg.settings.purview
-        $defaults = $cfg.settings.defaults
+        $purv = $cfg["settings"]["purview"]
+        $defaults = $cfg["settings"]["defaults"]
 
-        # Defaults: keep prompting behavior if config is absent
-        $promptCase = $defaults.promptForCaseName
-        if ($null -eq $promptCase) { $promptCase = $true }
-        $promptSearch = $defaults.promptForSearchName
-        if ($null -eq $promptSearch) { $promptSearch = $true }
-
-        $autoConnect = $purv.autoConnect
-        if ($null -eq $autoConnect) { $autoConnect = $true }
-        $autoDisconnect = $purv.autoDisconnectPrompt
-        if ($null -eq $autoDisconnect) { $autoDisconnect = $true }
+        $promptCase = $defaults["promptForCaseName"] ?? $true
+        $promptSearch = $defaults["promptForSearchName"] ?? $true
+        $autoConnect = $purv["autoConnect"] ?? $true
+        $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true
 
         # 1) Import EXO module (private helper)
         Import-ExchangeOnlineModule

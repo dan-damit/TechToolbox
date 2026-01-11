@@ -18,7 +18,7 @@ function Set-PageFileSize {
 
     # Load config
     $cfg = Get-TechToolboxConfig
-    $pfCfg = $cfg.settings.pagefile
+    $pfCfg = $cfg["settings"]["pagefile"]
 
     # Defaults from config
     if (-not $Path) { $Path = $pfCfg.defaultPath }

@@ -47,8 +47,7 @@ function Invoke-SubnetScan {
     )
 
     # Load config
-    $cfg = Get-TechToolboxConfig
-    $scanCfg = $cfg.settings.subnetScan
+    $scanCfg = $cfg["settings"]["subnetScan"]
 
     # Apply defaults
     if (-not $Port) { $Port = $scanCfg.defaultPort }
