@@ -25,8 +25,8 @@ function Write-Log {
 
     # --- Load normalized config ---
     $cfg = Get-TechToolboxConfig
-    $log = $cfg.settings.logging
-    $paths = $cfg.paths
+    $log = $cfg["settings"]["logging"]
+    $paths = $cfg["paths"]
 
     # --- Level filtering (MinimumLevel from config) ---
     $severityMap = @{
@@ -37,13 +37,13 @@ function Write-Log {
     }
 
     # Default to Info if config is missing/invalid
-    $minLevel = $log.minimumLevel
+    $minLevel = $log["minimumLevel"]
     if (-not $severityMap.ContainsKey($minLevel)) { $minLevel = 'Info' }
     if ($severityMap[$Level] -lt $severityMap[$minLevel]) { return }
 
     # --- Build entry (timestamps optional for file) ---
     $timestamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
-    $entry = if ($log.includeTimestamps) {
+    $entry = if ($log["includeTimestamps"]) {
         "[{0}] [{1}] {2}" -f $timestamp, $Level.ToUpper(), $Message
     }
     else {
@@ -51,7 +51,7 @@ function Write-Log {
     }
 
     # --- Console/Streams ---
-    if ($log.enableConsole) {
+    if ($log["enableConsole"]) {
         switch ($Level) {
             'Info' { Write-Information -MessageData $Message -Tags 'TechToolbox', 'Info' }
             'Ok' { Write-Information -MessageData $Message -Tags 'TechToolbox', 'Ok' }
@@ -61,20 +61,20 @@ function Write-Log {
     }
 
     # --- File logging ---
-    if ($log.enableFileLogging -and $paths.logs) {
+    if ($log["enableFileLogging"] -and $paths["logs"]) {
         try {
-            if (-not (Test-Path -LiteralPath $paths.logs)) {
-                New-Item -ItemType Directory -Path $paths.logs -Force | Out-Null
+            if (-not (Test-Path -LiteralPath $paths["logs"])) {
+                New-Item -ItemType Directory -Path $paths["logs"] -Force | Out-Null
             }
 
-            $fileName = $log.logFileNameFormat
+            $fileName = $log["logFileNameFormat"]
             if ([string]::IsNullOrWhiteSpace($fileName)) {
                 $fileName = 'TechToolbox_{yyyyMMdd}.log'
             }
 
             # Honor pattern "TechToolbox_{yyyyMMdd}.log"
-            $fileName = $fileName -replace '\{yyyyMMdd\}', (Get-Date -Format 'yyyyMMdd')
-            $logFile = Join-Path -Path $paths.logs -ChildPath $fileName
+            $fileName = $log["logFileNameFormat"] ?? 'TechToolbox_{yyyyMMdd}.log'
+            $logFile = Join-Path -Path $paths["logs"] -ChildPath $fileName
 
             # Reliable append with StreamWriter
             $sw = [System.IO.StreamWriter]::new($logFile, $true)
