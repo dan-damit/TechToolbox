@@ -6,19 +6,9 @@ function Get-TechToolboxConfig {
     #>
     [CmdletBinding()]
     param(
-        [Parameter()] [object] $Config,
-        [Parameter()] [string] $Path
+        [Parameter()] [string] $Path,
+        [switch] $PreserveRoot
     )
-
-    # If caller passed -Config, skip loading/caching entirely
-    if ($PSBoundParameters.ContainsKey('Config')) {
-        return $Config
-    }
-
-    # If cached and no -Path override, reuse it
-    if ($script:TechToolboxConfig -and -not $PSBoundParameters.ContainsKey('Path')) {
-        return $script:TechToolboxConfig
-    }
 
     # Build candidate paths
     $candidatePaths = @()
@@ -40,21 +30,71 @@ function Get-TechToolboxConfig {
     # Load JSON
     try {
         $raw = Get-Content -Path $found -Raw | ConvertFrom-Json
+        Write-Host $raw
     }
     catch {
         throw "Failed to read or parse config.json from '$found': $($_.Exception.Message)"
     }
 
-    # Validate required root keys
-    $names = $raw.PSObject.Properties.Name
-    if (-not ($names -contains 'settings')) {
+    # Validate required root keys case-insensitively
+    $rootNames = $raw.PSObject.Properties.Name | ForEach-Object { $_.ToLower() }
+    if (-not ($rootNames -contains 'settings')) {
         throw "Missing required key 'settings' in config.json."
     }
 
-    # Normalize entire config into hashtables
-    $Config = ConvertTo-Hashtable $raw
+    # Recursive normalizer: PSCustomObject, IDictionary, arrays -> hashtables/arrays
+    function ConvertTo-Hashtable {
+        param([Parameter(ValueFromPipeline)] $InputObject)
 
-    # Cache and return
-    $script:TechToolboxConfig = $Config
-    return $Config
+        process {
+            if ($null -eq $InputObject) {
+                return $null
+            }
+
+            # PSCustomObject (JSON objects)
+            if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
+                $hash = @{}
+                foreach ($prop in $InputObject.PSObject.Properties) {
+                    $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
+                }
+                return $hash
+            }
+
+            # IDictionary / Hashtable
+            if ($InputObject -is [System.Collections.IDictionary]) {
+                $hash = @{}
+                foreach ($key in $InputObject.Keys) {
+                    $hash[$key] = ConvertTo-Hashtable $InputObject[$key]
+                }
+                return $hash
+            }
+
+            # Enumerable (arrays) but not string
+            if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
+                $list = @()
+                foreach ($item in $InputObject) {
+                    $list += (ConvertTo-Hashtable $item)
+                }
+                return $list
+            }
+
+            # Scalar
+            return $InputObject
+        }
+    }
+
+    # Normalize entire config or preserve root as PSCustomObject with normalized children
+    if ($PreserveRoot) {
+        $obj = [PSCustomObject]@{}
+        foreach ($prop in $raw.PSObject.Properties) {
+            $value = ConvertTo-Hashtable $prop.Value
+            $obj | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $value
+        }
+        $script:TechToolboxConfig = $obj
+    }
+    else {
+        $script:TechToolboxConfig = & ConvertTo-Hashtable $raw
+    }
+
+    return $script:TechToolboxConfig
 }

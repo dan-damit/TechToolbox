@@ -17,7 +17,10 @@ Write-Host $logo -ForegroundColor Cyan
 
 $script:ModuleRoot = Split-Path -Parent $PSCommandPath
 $script:ConfigPath = Join-Path $script:ModuleRoot '..\Config\config.json'
+
+# Clear any cached config
 $script:Config = $null
+$script:TechToolboxConfig = $null
 
 # Load Private first
 Get-ChildItem "$PSScriptRoot\Private" -Recurse -Filter *.ps1 |
@@ -39,6 +42,14 @@ if (Test-Path $interopRoot) {
     }
 }
 
-$script:TechToolboxConfig = $null # Clear any cached config
+# Attempt to preload and cache the config for interactive convenience
+try {
+    $script:TechToolboxConfig = Get-TechToolboxConfig -Path $script:ConfigPath -PreserveRoot -ErrorAction Stop
+}
+catch {
+    Write-Host "TechToolbox: config preload failed: $($_.Exception.Message)"
+    # keep $script:TechToolboxConfig as $null so callers can detect and handle missing config
+    $script:TechToolboxConfig = $null
+}
 
 Export-ModuleMember -Function $publicFunctions
