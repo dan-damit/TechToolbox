@@ -30,7 +30,6 @@ function Get-TechToolboxConfig {
     # Load JSON
     try {
         $raw = Get-Content -Path $found -Raw | ConvertFrom-Json
-        Write-Host $raw
     }
     catch {
         throw "Failed to read or parse config.json from '$found': $($_.Exception.Message)"
