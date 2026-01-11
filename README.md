@@ -193,10 +193,10 @@ End-to-end **Purview HardDelete** workflow: connect, clone/create mailbox-only s
 
 ```powershell
 # Normal run
-Invoke-PurviewPurge -UserPrincipalName admin@contoso.com -CaseName "Case-001" -SearchName "CustodianSearch-01"
+Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName "Case-001" -SearchName "CustodianSearch-01"
 
 # Preview purge submission
-Invoke-PurviewPurge -UserPrincipalName admin@contoso.com -CaseName "Case-001" -SearchName "CustodianSearch-01" -WhatIf
+Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName "Case-001" -SearchName "CustodianSearch-01" -WhatIf
 ```
 
 > Internally calls: `New-MailboxSearchClone`, `Wait-SearchCompletion`, `Invoke-HardDelete`, `Wait-PurgeCompletion` (private helpers).
@@ -209,13 +209,13 @@ Runs **EXO V2** message trace by RFC822 Message-ID, shows summary and per-recipi
 
 ```powershell
 # 24-hour lookback window (defaults from config)
-Get-MessageTrace -MessageId '<abc123@contoso.com>'
+Get-MessageTrace -MessageId '<abc123@company.com>'
 
 # Custom date window
-Get-MessageTrace -MessageId '<abc123@contoso.com>' -StartDate (Get-Date).AddHours(-12) -EndDate (Get-Date)
+Get-MessageTrace -MessageId '<abc123@company.com>' -StartDate (Get-Date).AddHours(-12) -EndDate (Get-Date)
 
 # Auto-export to default folder
-Get-MessageTrace -MessageId '<abc123@contoso.com>' -WhatIf
+Get-MessageTrace -MessageId '<abc123@company.com>' -WhatIf
 ```
 
 ---
@@ -246,7 +246,7 @@ Invoke-AADSyncRemote -ComputerName 'aadconnect01'
 Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Initial -UseKerberos -WhatIf
 
 # HTTPS WinRM (5986) with transcript in Logs
-Invoke-AADSyncRemote -ComputerName 'aadconnect01.contoso.com' -Port 5986 -EnableTranscript
+Invoke-AADSyncRemote -ComputerName 'aadconnect01.company.com' -Port 5986 -EnableTranscript
 ```
 
 ---
@@ -362,8 +362,8 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 # Smoke tests (dry runs)
 Clear-BrowserProfileData -WhatIf
 Get-RemoteInstalledSoftware -ComputerName srv01 -WhatIf
-Invoke-PurviewPurge -UserPrincipalName you@contoso.com -CaseName Case-001 -SearchName Search-001 -WhatIf
-Get-MessageTrace -MessageId '<test@contoso.com>' -WhatIf
+Invoke-PurviewPurge -UserPrincipalName you@company.com -CaseName Case-001 -SearchName Search-001 -WhatIf
+Get-MessageTrace -MessageId '<test@company.com>' -WhatIf
 Get-BatteryHealth -WhatIf
 Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
 ```
