@@ -71,7 +71,7 @@ function Invoke-SystemRepair {
     # --- Config hook (future-friendly) ---
     $cfg = Get-TechToolboxConfig
     $settings = $cfg["settings"]
-    $repair = $settings["systemRepair"]  # optional now; we can flesh this out later
+    $repair = $settings["systemRepair"] 
 
     $runRemoteDefault = $repair["runRemote"] ?? $true
 
