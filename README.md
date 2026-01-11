@@ -4,7 +4,7 @@ A PowerShell 7+ module for day-to-day IT automation: browser profile cleanup,
 remote software inventory, Purview eDiscovery workflows, EXO message trace,
 battery health parsing, AAD Connect remote sync, and more.
 
-This is a new project to fold the scripts that I use the most into an
+This is a new project to fold all (okay most) of my scripts into an
 enterprise-grade PowerShell module.
 
 ---
