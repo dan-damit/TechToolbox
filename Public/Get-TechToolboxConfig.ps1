@@ -1,56 +1,52 @@
-
 function Get-TechToolboxConfig {
     <#
     .SYNOPSIS
         Loads and returns the TechToolbox configuration from config.json.
+    .PARAMETER Path
+        Optional path to the config.json file. If not provided, the default
+        location relative to the module is used.
     #>
     [CmdletBinding()]
     param(
-        [Parameter()] [string] $Path,
-        [switch] $PreserveRoot
+        [Parameter()] [string] $Path
     )
 
-    # Build candidate paths
-    $candidatePaths = @()
-    if ($Path) { $candidatePaths += $Path }
-
-    if ($PSCommandPath) {
-        $moduleDir = Split-Path -Parent $PSCommandPath
-        $candidatePaths += (Join-Path $moduleDir '..\Config\config.json')
+    # Determine config path (explicit override wins)
+    if ($Path) {
+        $configPath = $Path
+    }
+    else {
+        # Resolve module directory
+        $moduleDir = Split-Path -Parent $PSScriptRoot
+        $configPath = Join-Path $moduleDir 'Config\config.json'
     }
 
-    $candidatePaths += (Join-Path (Get-Location).Path 'config.json')
-
-    # Find first existing config.json
-    $found = $candidatePaths | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-    if (-not $found) {
-        throw "config.json not found. Provide -Path or ensure a config.json exists in the module or current directory."
+    # Validate path
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        throw "config.json not found at '$configPath'. Provide -Path or ensure the module's Config folder contains config.json."
     }
 
     # Load JSON
     try {
-        $raw = Get-Content -Path $found -Raw | ConvertFrom-Json
+        $raw = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
     }
     catch {
-        throw "Failed to read or parse config.json from '$found': $($_.Exception.Message)"
+        throw "Failed to read or parse config.json from '$configPath': $($_.Exception.Message)"
     }
 
-    # Validate required root keys case-insensitively
+    # Validate required root keys
     $rootNames = $raw.PSObject.Properties.Name | ForEach-Object { $_.ToLower() }
     if (-not ($rootNames -contains 'settings')) {
         throw "Missing required key 'settings' in config.json."
     }
 
-    # Recursive normalizer: PSCustomObject, IDictionary, arrays -> hashtables/arrays
+    # Recursive normalizer
     function ConvertTo-Hashtable {
         param([Parameter(ValueFromPipeline)] $InputObject)
 
         process {
-            if ($null -eq $InputObject) {
-                return $null
-            }
+            if ($null -eq $InputObject) { return $null }
 
-            # PSCustomObject (JSON objects)
             if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
                 $hash = @{}
                 foreach ($prop in $InputObject.PSObject.Properties) {
@@ -59,7 +55,6 @@ function Get-TechToolboxConfig {
                 return $hash
             }
 
-            # IDictionary / Hashtable
             if ($InputObject -is [System.Collections.IDictionary]) {
                 $hash = @{}
                 foreach ($key in $InputObject.Keys) {
@@ -68,32 +63,20 @@ function Get-TechToolboxConfig {
                 return $hash
             }
 
-            # Enumerable (arrays) but not string
             if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
                 $list = @()
                 foreach ($item in $InputObject) {
-                    $list += (ConvertTo-Hashtable $item)
+                    $list += ConvertTo-Hashtable $item
                 }
                 return $list
             }
 
-            # Scalar
             return $InputObject
         }
     }
 
-    # Normalize entire config or preserve root as PSCustomObject with normalized children
-    if ($PreserveRoot) {
-        $obj = [PSCustomObject]@{}
-        foreach ($prop in $raw.PSObject.Properties) {
-            $value = ConvertTo-Hashtable $prop.Value
-            $obj | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $value
-        }
-        $script:TechToolboxConfig = $obj
-    }
-    else {
-        $script:TechToolboxConfig = & ConvertTo-Hashtable $raw
-    }
+    # Always normalize to nested hashtables
+    $script:TechToolboxConfig = ConvertTo-Hashtable $raw
 
     return $script:TechToolboxConfig
 }

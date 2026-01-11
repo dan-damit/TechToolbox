@@ -15,12 +15,9 @@ $logo = @"
 
 Write-Host $logo -ForegroundColor Cyan
 
+# Set module root and config path
 $script:ModuleRoot = Split-Path -Parent $PSCommandPath
-$script:ConfigPath = Join-Path $script:ModuleRoot '..\Config\config.json'
-
-# Clear any cached config
-$script:Config = $null
-$script:TechToolboxConfig = $null
+$script:ConfigPath = Join-Path $script:ModuleRoot '\Config\config.json'
 
 # Load Private first
 Get-ChildItem "$PSScriptRoot\Private" -Recurse -Filter *.ps1 |
@@ -34,7 +31,7 @@ ForEach-Object {
 }
 
 # Load all C# interop classes recursively
-$interopRoot = Join-Path $PSScriptRoot '..\Private\Interop'
+$interopRoot = Join-Path $PSScriptRoot 'Private\Interop'
 
 if (Test-Path $interopRoot) {
     Get-ChildItem -Path $interopRoot -Filter '*.cs' -Recurse | ForEach-Object {
@@ -44,7 +41,7 @@ if (Test-Path $interopRoot) {
 
 # Attempt to preload and cache the config for interactive convenience
 try {
-    $script:TechToolboxConfig = Get-TechToolboxConfig -Path $script:ConfigPath -PreserveRoot -ErrorAction Stop
+    $script:TechToolboxConfig = Get-TechToolboxConfig -Path $script:ConfigPath
 }
 catch {
     Write-Host "TechToolbox: config preload failed: $($_.Exception.Message)"
