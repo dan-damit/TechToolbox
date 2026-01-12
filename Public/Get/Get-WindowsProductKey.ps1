@@ -3,6 +3,19 @@ function Get-WindowsActivationInfo {
     .SYNOPSIS
     Retrieves Windows activation information, including OEM product key, partial
     product keys, and activation report.
+    .DESCRIPTION
+    This function gathers Windows activation details from the local or a remote
+    computer using CIM and WMI. It retrieves the OEM product key, partial product
+    keys, and the output of the SLMGR /DLV command. The results are exported to a
+    timestamped log file in a configured directory.
+    .PARAMETER ComputerName
+    The name of the computer to query. Defaults to the local computer.
+    .PARAMETER Credential
+    Optional PSCredential for remote connections.
+    .EXAMPLE
+    Get-WindowsActivationInfo -ComputerName "RemotePC" -Credential (Get-Credential)
+    .EXAMPLE
+    Get-WindowsActivationInfo
     #>
     [CmdletBinding()]
     param(

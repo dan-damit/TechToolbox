@@ -28,6 +28,7 @@ enterprise-grade PowerShell module.
   - [Test-PathAs](#test-pathas)
   - [Copy-Directory](#copy-directory)
   - [Invoke-SystemRepair](#invoke-systemrepair)
+  - [Get-WindowsActivationInfo](#get-windowsactivationinfo)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -315,6 +316,20 @@ Invoke-SystemRepair -RestoreHealth -Local
 
 # Run remote
 Invoke-SystemRepair -RestoreHealth -ComputerName "Client01" -Credential (Get-Credential)
+```
+
+---
+
+### Get-WindowsActivationInfo
+
+This tool retrieves Windows Activation info either locall or on a remote client
+
+```powershell
+# Run locally
+Get-WindowsActivationInfo 
+
+# Run Remote
+Get-WindowsActivationInfo -ComputerName "RemotePC" -Credential (Get-Credential)
 ```
 
 ---
