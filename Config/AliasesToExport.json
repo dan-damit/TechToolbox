@@ -1,0 +1,11 @@
+
+{
+  "aliases": [
+    {
+      "name": "sanity_check",
+      "target": "Invoke-SanityCheck",
+      "export": true,
+      "description": "Easter egg command to run a humorous sanity check."
+    }
+  ]
+}

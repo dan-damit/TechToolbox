@@ -1,4 +1,20 @@
-function sanity_check {
+function Invoke-SanityCheck {
+    <#
+    .SYNOPSIS
+        Performs a basic sanity check on the current user.
+    .DESCRIPTION
+        This function simulates a sanity check by outputting humorous messages
+        about the user's and module's sanity levels.
+    .EXAMPLE
+        sanity_check
+        Runs the sanity check and displays the results.
+    .INPUTS
+        None. You cannot pipe objects to sanity_check.
+    .OUTPUTS
+        None. This function does not return any output.
+    .LINK
+        [TechToolbox](https://github.com/dan-damit/TechToolbox)
+    #>
     Write-Host "Running sanity_check..." -ForegroundColor DarkCyan
     Start-Sleep -Milliseconds 300
 
@@ -9,8 +25,8 @@ function sanity_check {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAoMKcgCsTUAiP3
-# fy4Jeuz6/qGbLo3rz1K/ORx9RJTCLaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCADZkV5dUsSsxfC
+# CQF6oED+9/PdHwUvTVh6uk7M48n+XqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -143,34 +159,34 @@ function sanity_check {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDw9ExYQV2P
-# uRvV90sg9UDl62BY3t/wDqPexHjUbnNcoDANBgkqhkiG9w0BAQEFAASCAgAAkfBw
-# fFUswu3SflQTwhX+LbHHv7t6JmrsFASNin0ERr9qHgxojNLhaOvj+Kf8heMPJ7G2
-# aHhNAozEJHzreYB/C/QC1wC1esCanA+GJyjA0f/izXy+7dZjbgribDpAYOrYcM47
-# qRLMKXS+erhW2gvjHbjsZNPbK2s5/Vg2kADtWY5KtNlEsr/sBZvHarl93jpbB7dx
-# qmjQUn7nzqO6HM869GS+BAd/ofBpfD7Ijy/9JXYCl677Ykizz3agni1CuBtjYOOp
-# cftZOhtGoLOsdkbIvkZhcHPwwyNrm0GU8ouTsF8uUiILA6AK7ZB4NykaEn1DAy9c
-# XL49V7CL/uPKLrDZoQaZuadMyRUe8RhelPIrHzG1lWH4qdFwWjvrT/oSYXhctp0P
-# yfEgc76pV2msjm40HaJwa+ttZEfkm0ob01ZQGiV/fowI+QU3OsZ1ySi3sc4zTV/H
-# jkua7mCbqMWF3twt2UmkML/ZPTtbsXApEPhazvaH+3H+PLZYGHvXG96qjYXPe++Y
-# 3kTFerATUK0vtr0rzdnak9VsswdHFiXJ4PulykppLnmg4fVX1HGKV+DaYPoDrRPm
-# LEaQ7gudEsZd6bcGNjHR0Lm+O4TxOcAHN1Iw0WSgLGYQqX14r2TvUMaPxlXQnkaB
-# 2UyJbz4SMt7n0EH1i6R7GMjYwfGzJVLIhgOa5qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDU84BMqTsR
+# Xiypha1N4dE4DRkv+m6GNZHtSflLUPit4DANBgkqhkiG9w0BAQEFAASCAgCtX9gM
+# Cn82hiGYtc6LwgDJqIjuVdLjqTxC/LqNClKS+9ab8joTxc1emjNsHAgSpbXssuLW
+# gJwopSfLSZTvwfolG0HUrWYX2JNHvvNE31vmTT5jf0XZFxDoVXE4hKjEu5vJIJjN
+# GKO0sZebeAVWAT7UG7yuBttCAQIL1Yew7xem77s1FHSr7gE5BawfHEZYPQaUuXAV
+# wbt0Xel4KfiIbVlcfmpkcvSQMeEqymJttG1+CoExmDXbeOTAFsaHro2zLCSfUZB5
+# V88iyqez0CL4A37yQK+/TVIWqyFAD4RviO/z/Ne0m4Bhx5p6eynCs2rS+BFoUj0P
+# +jJijOCUSrVEoo+Ap7P0O88cy9PRlLT2sElSVlY9xc0SJxuhFW8R8W+i0hoepPRY
+# IxQY6b3QnaqL8is3rstHaqpAt3UzMYWp5zejFeM2Ibi6iuoLGxeMnZlUtrv3/PIk
+# XPaIy6It5r9YK32OrY8YNQejB5c8OJRanyQEwKG1+TQKYuKbbDacI1rhSgqNTM7m
+# IxW36tfxJt0pDl1uet+jetXy/0I4EwK11KD2AOZIqOyY8VFvd3itwCbeqDqf3o6r
+# Ww3gV+GQteaBCwNQQWk1t0B7YSxPTCZpJjKndGa4v1uY4gLvLmHMtbLueN7ooHgh
+# NPo5HoXn8ZIVq+XVTKBRieLOhdSdNeiEE5SjaqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNDMyNDlaMC8GCSqGSIb3DQEJBDEiBCA0Jaf4Sz7BTJiZVALZ
-# AjRLhovKjb0WEj/WDvcNIplZqzANBgkqhkiG9w0BAQEFAASCAgAMv/eXRzuHqd8I
-# u90avd0uxdWWBS9xVopHwP+E1irBcnxo28yOqOlfEwLkAWznrdTZXYCXSY/mQ6jq
-# jeJyPC7uCt0uj3qC07xm22vnJE7tFMziQswPzK69C8GBVhUo4dTTi14FBHlSPkBA
-# v/703vOnqkh+tPRtXQuRL+D5TEHwPnvK00E8cFYg2kIg8JTbPtvodnMbwrKAjrKn
-# K+W/ufwuc1+nElG08Zt8YMhJXR9lfG5MmnDZqKd3lBNFhNuAaAISzmhfFtYqpE0q
-# CIEZpbTrfk6qp5Ti7KjYaU33WGY5zvhBRKxdXi+YXL9eW5UZPvrcEQD5nV4wjbzU
-# J/SisC5IRAfwhs8KZg+AXaZzINK2dt2EV9jY6nHjaaE14laZfCRF6VYFclWy46O+
-# cg7nJZzQeAkfsO4SWK9SgfqXQHSO4xs8x66aJGp0txOeeLRhSGtNe6tqsEWlwC7n
-# H+cngXpg8rfaq3AYnSH5m+tRnbRnPTgcWEwEL7ZLKBOmr8Hg4bYijd/h4xATAHh5
-# kb/FZDaGTb0AcStpSVanB41xMdbyL4UrTqPqq2/pV9lUa8ZdCnhk1LDexQZB3FwD
-# 48cOAK2dvVRabU9ksrQVKlmeGc2twf07kt3HG7woGjf2fhfKBXCL82P96VOwwwqN
-# BLh+OOydsOPLFIbX5WtqUZdvapU1rg==
+# BTEPFw0yNjAxMTIyMjE4MTdaMC8GCSqGSIb3DQEJBDEiBCBICsBXV9PGiBkBa1RT
+# KL7mMiV7engMSwdcOF/QLcn0RTANBgkqhkiG9w0BAQEFAASCAgBhJgCSVlEcZFkL
+# z1blYLcMqDTbJITJm2nV+TBwKCX0ReqbcmMGyE8NdTb3WUudV8+/plArGA5eOiMZ
+# 1qPc9S+t/o+0EPJc03WTNzE8a3kOuO8aPSyCXasxsJKIgVrAo1KGs3Xz1968lonc
+# vBN/54+CpnUs36ZicXj5WxFCkjdClRrm68Rua1sIgmtkNGDPTitWp94NQ8cgMIcy
+# ZSIoWfGo6gnRzVPi5JzDoC/btfHv4ODyaDgBy3TulfMt/t9SfqP8QU17xRAGJwAg
+# mu4WRsMyUEo49bxjBe0ECAQtQAQ7S9Gsir0lfKGK0CDZ+zjHxAm1whL9NpjCIlET
+# PWJ4BPB9Qv2cR4cehiKhu1jP4rKcHqijTaSXwC6gnXxcCOt4quo0+s1yda7A+Mwv
+# eXjUULLyXJVaFUyrURgHqJpBNKt7ddi/3RZTNZoL2LGgEBZFgoZtjFX534zu9y42
+# FJwpJhA90RCPXHsIVK3AnwGPksePfInY9IAB3TTVo+Q+kpWF17FFfELH5fcTcpU5
+# TRXRFntNTT4eJVlBJMl5OXk3YS85qaTec44Hy3e79w1lk38a0FYQOzQ5inFhCh1B
+# jme5S+wOZDhuqZuCnL0/ohpl4+Q1B+VEB3vT7vPqfjEvimCihK/9fPH0UI1gttCX
+# o+XG+l2xML2i7KgS0arEx3c/sx6Xsg==
 # SIG # End signature block

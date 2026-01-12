@@ -27,6 +27,10 @@ function Invoke-SystemRepair {
     .PARAMETER Credential
         Specifies the credentials to use for remote execution. Ignored if -Local
         is set.
+    .INPUTS
+        None. You cannot pipe objects to Invoke-SystemRepair.
+    .OUTPUTS
+        None. Output is written to the Information stream.
     .EXAMPLE
         Invoke-SystemRepair -RestoreHealth -SfcScannow
         Runs DISM RestoreHealth and SFC /scannow locally.
@@ -34,6 +38,8 @@ function Invoke-SystemRepair {
         Invoke-SystemRepair -RestoreHealth -ComputerName "Client01" -Credential (Get-Credential)
         Runs DISM RestoreHealth on the remote computer "Client01" using the
         specified credentials.
+    .LINK
+        [TechToolbox](https://github.com/dan-damit/TechToolbox)
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
@@ -138,8 +144,8 @@ function Invoke-SystemRepair {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDt+mf5iA2Zu3cg
-# rtf7lNa2nKO4/3uv1IpEHCfuFkwZIqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDtcr7PvwqmajtL
+# lKGj4OmFnq8sMbp179aWqc0loikbNqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -272,34 +278,34 @@ function Invoke-SystemRepair {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCIyXLcptXx
-# 2ltde7sqXasgigrwpWmsUvItwOPLwu5JlTANBgkqhkiG9w0BAQEFAASCAgCQERe7
-# LbUKEg2k3tLW68VMjqN5uImrB2s3uA3+0MvXUDwJKhtJ6UVXHajb6e0rk4tAnsPx
-# puaY0mEstF3o2JbzsjNYxUXiiZU6mQtNililPax+SEvtxew5e/B85xVPkDkM5NTs
-# LVMdoQCYZWQO660Towy0gcnXl4HlWSSzkdWhCBpE4WFUWDOjkN1ZaxIvTY7XRr11
-# MxBEwYH767kIEKw9GaK9I9L/h0LZ+sk3tZqApPtOgcqynE+ovrFUx4RhhgAg18KX
-# M0IqhmK5ZzP4cttUhD50kbV4x/YLT2tDEm6w9/AIdW3v+iQ3JL2WvJLwXZAu3k0V
-# 3U4JWR6OJysZX8sUblwb261doTKPY9rEAs5in5MFw2CtI9t2fa2MYotNiEcR3T+w
-# q0eJigj7YmjQIaru5rCkg4mRlThsZrB/ch/etxcL3Dx0ZymlZE1jxUDAxJUfjigS
-# Xfrtin7laR3n1/IUF4GiUcw/N7lWAQl09dnZzcbIfvYW2hivTx0wTouGdcJJwvm6
-# 2S6NSJ+HijgvSjD51Jb4lbJ0QZTU5HEchbis5l//ebowT8nwSTBLMTtb3lQ1esJy
-# V4lg7GjpFOw25NitH/ij5zaiG5u1c9qS85YykVDKBTvPCWZSnA7zNfrIWu64LfY+
-# jY0e53I/BWCh+oJsKab8BZgjgvn7E0RBs5OMgaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCACLsx8+tcc
+# f4poP29ga91C0edHxONa6NlDm1fnDnEooTANBgkqhkiG9w0BAQEFAASCAgB34Dzz
+# 4TmUjM2qjkMZnOUVeaaHuHtbE/0bU15b4bm3p+hwtqLFy1EsvmdDtNglw1vms9d5
+# lsfLmtmxFvPqwkgGD7swIdjiEwVb/MbE7PCWsdvtcyPiy8jeoXLkzDvnCQ35f5Bx
+# 3dm8gEhG+f+/0WQ5Y0jZK6yrE9kSLsGpli/ftdo7LlDnYln9Sz7i9c/oxHHMPlQi
+# Jxoi2EAWm2KyEBRsdMJ+ZYp2wwX8SxEImR5ExeVigltrcnGGOQL1R8DIF6QSXTXy
+# 3nF1ywAVltsYxTUTosp3zcnNd+UabBTpz5/Y/JXH02VGMNthrf8o0EqHgufRC0jH
+# pV6C5D8jAiz1OgGFebzGgzQJU+cGqpq5LsH4MoCEfqzOY5fZTZ4rTZgVfJkuHOzg
+# aaRYpeelc5VOo8wvl7Bkppu1drkRpj2v8ILCIXc03ysaA1vAt3BKOJQAtnn+7RBw
+# hUYx2OQpY2kgWgyyBMpxjmvwsp36/3QAxkpQ/7WVBA/2YVScz0Hfsgn4IsjAFleG
+# 09KENAvszgcWNfLPV1EjTt35TX+H6UEefA/M1yULlwy6W7tYkwGaXLvb0Fd7Vg1m
+# IEDRUkWXFPzWdpYMfzTgXT+3Jj0lm5GcMFKNb11WS6j4IAQWACiTiCNes+cZwQgf
+# PrjX1Czv8b7g7q/71s4wOhSnEZ41g95RztDkpKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNDMyNTNaMC8GCSqGSIb3DQEJBDEiBCDNkz+QI29DvBngUL/p
-# eFLzf3qpMxnZd6Lcbi62Me+uvzANBgkqhkiG9w0BAQEFAASCAgDEidiHWYRYZ5Nd
-# OAv4/WXZZvHgH4qRlPqdOz9Jv5J5noEdIDA31mFotgMHFHxRl7iYsecXQU/ltWLK
-# T6YSQA2An3qFkarQOlad3pFODph4QHvigtLjsnpzsjO2YF32BdhkHHEiVNJUOfvP
-# Q5yEfYsqj+AUW8R48yGTEJNzu1QXnxns3AgL4bu9Lq5w0aYjSOZNqTbadpHY6gcu
-# l9GuNbpErj4+Q5xZw9x/o7602goXtkWAmEw2u4xtZSd2Rk11BHttwkfkWrhb3D8O
-# FgIJyjPUTlLfwYRSV+56B5r7xDGxYTY0Fu6cX+mYfP32ZOqwk6xq7S0104gXTI9L
-# X9CnIaqZAPW4UJLSUJLD8D1KyFRAMhejiu5L+ALXtNZn8RDjLNgfU7zXpnhiiAga
-# 3nGA6ofd6RQKpqzIdpAZCY6ik8rYDhoonlGIqmWcgQkm/9iaYe9VaBono4wMJi3V
-# Yb6Nm6c8O2O3pJAfF034blnsRA6dVwMWPqEve4yURH9ZEOcuglvR88YBMKfVY87R
-# V0POy0SzZ80YG5LyObpCt8/LtWtdRXZLDZR9wyKT9oHY9YkAczMVtcazF4ByVQpg
-# wVcznUwOjWuFFJexcYvefp1kYofXfVSLlF5BGzlMAl+F0Zxspe7Z8r2nmPz8sWOI
-# ucZaYlZbtHc9wwx8VZoQRnq955BiDQ==
+# BTEPFw0yNjAxMTIyMjE4MjBaMC8GCSqGSIb3DQEJBDEiBCBTGUVotAEXSU8CsMIU
+# dr8aHKvKb/WnW7au9fMOWRS30DANBgkqhkiG9w0BAQEFAASCAgBCVhZJbZAXiJh/
+# aSGFKwyyYEcWoFErPWvqpcPALaZofJfTDW3oxZS+unBpfwDIoyGmYbHgZ6IgADww
+# /8zgrzHeGgR8FIq00Q61vQ2t9v9ik6YQ5SXr66/wvEMksIcndCl2EuoUYbWz69fQ
+# HlfbHPkBKedQv0z9yAMc6Jr527srIaA2z2v48gi4mijsePkl6hlPF9QIM8+r/cZV
+# O/TrudSrSupY1BQjNhmBJrcIpzfFLMKY6rp+suGE6dPzuTaOR/uyE588qSUOL3EK
+# 7TYkGuAxnzttAj4gI/O9pNRKHTBj1vl/xu+ovT+mGngw743VOrQLzMBsMuLCJfH7
+# T1PCIbAiGwo0o9VkU12tgb2qcTeCyxhfU4T/y44xmtrhaHM48T7veHiJKUZvt7ho
+# 1nQSvgo/UwiK1PXEhyUMem2RNGhdIPamVovLMzoHn94OueKsko1ZepVLlCgWt+u8
+# mW3vflnMbSnc2fPEg4RLrwnSeyTys4tonXHbAf3al79mpa9yBXSkxsSnoNGrUrcO
+# RUJrkSyS/SzkY/jsGesGz+87/L2yMkilQrDOepjGDHfug0TanK/ljo+gKBdpxl/Y
+# a9G5015Sz8EVlk1oAFG6/Nl+aZ2IGuG8+DVFPTwSpYVaR5urVcotQLv1oGuZ82DD
+# FsHjHIUfLg6Lxve2Ifw55KTU13QoWA==
 # SIG # End signature block

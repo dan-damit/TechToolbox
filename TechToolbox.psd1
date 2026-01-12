@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.2.3'
+ModuleVersion = '2.2.5'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -74,8 +74,9 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Get-BatteryHe
                'Get-TechToolboxConfig', 'Get-ToolboxHelp', 'Get-WindowsProductKey', 
                'Invoke-AADSyncRemote', 'Invoke-DownloadsCleanup', 
                'Invoke-PurviewPurge', 'Invoke-SubnetScan', 'Invoke-SystemRepair', 
-               'Reset-WindowsUpdateComponents', 'Set-PageFileSize', 
-               'Set-ProxyAddress', 'Start-DnsQueryLogger', 'Test-PathAs'
+               'New-OnPremUserFromTemplate', 'Reset-WindowsUpdateComponents', 
+               'Set-PageFileSize', 'Set-ProxyAddress', 'Start-DnsQueryLogger', 
+               'Test-PathAs'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
@@ -84,7 +85,7 @@ CmdletsToExport = '*'
 VariablesToExport = '*'
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = '*'
+AliasesToExport = 'sanity_check'
 
 # DSC resources to export from this module
 # DscResourcesToExport = @()
