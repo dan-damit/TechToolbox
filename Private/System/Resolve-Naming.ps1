@@ -1,94 +1,44 @@
-function Get-TechToolboxConfig {
-    <#
-    .SYNOPSIS
-        Loads and returns the TechToolbox configuration from config.json.
-    .PARAMETER Path
-        Optional path to the config.json file. If not provided, the default
-        location relative to the module is used.
-    .OUTPUTS
-        Hashtable representing the configuration.
-    .EXAMPLE
-        Get-TechToolboxConfig -Path "C:\TechToolbox\Config\config.json"
-    #>
-    [CmdletBinding()]
+function Resolve-Naming {
     param(
-        [Parameter()] [string] $Path
+        [hashtable]$Naming,
+        [string]$GivenName,
+        [string]$Surname
     )
+    $f = New-ADUserNormalize $GivenName
+    $l = New-ADUserNormalize $Surname
 
-    # Determine config path (explicit override wins)
-    if ($Path) {
-        $configPath = $Path
-    }
-    else {
-        # Reliable module root when code is running inside an imported module
-        $moduleDir = $ExecutionContext.SessionState.Module.ModuleBase
-        $configPath = Join-Path $moduleDir 'Config\Config.json'
-    }
-
-    # Validate path
-    if (-not (Test-Path -LiteralPath $configPath)) {
-        throw "config.json not found at '$configPath'. Provide -Path or ensure the module's Config folder contains config.json."
+    # UPN prefix
+    switch ($Naming.upnPattern) {
+        'first.last' { $upnPrefix = "$f.$l" }
+        'flast' { $upnPrefix = '{0}{1}' -f $f.Substring(0, 1), $l }
+        default { $upnPrefix = "$f.$l" }
     }
 
-    # Load JSON
-    try {
-        $raw = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-    }
-    catch {
-        throw "Failed to read or parse config.json from '$configPath': $($_.Exception.Message)"
-    }
-
-    # Validate required root keys
-    $rootNames = $raw.PSObject.Properties.Name | ForEach-Object { $_.ToLower() }
-    if (-not ($rootNames -contains 'settings')) {
-        throw "Missing required key 'settings' in config.json."
+    # SAM
+    switch ($Naming.samPattern) {
+        'first.last' { $sam = "$f.$l" }
+        'flast' { $sam = '{0}{1}' -f $f.Substring(0, 1), $l }
+        default { $sam = '{0}{1}' -f $f.Substring(0, 1), $l }
     }
 
-    # Recursive normalizer
-    function ConvertTo-Hashtable {
-        param([Parameter(ValueFromPipeline)] $InputObject)
-
-        process {
-            if ($null -eq $InputObject) { return $null }
-
-            if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
-                $hash = @{}
-                foreach ($prop in $InputObject.PSObject.Properties) {
-                    $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
-                }
-                return $hash
-            }
-
-            if ($InputObject -is [System.Collections.IDictionary]) {
-                $hash = @{}
-                foreach ($key in $InputObject.Keys) {
-                    $hash[$key] = ConvertTo-Hashtable $InputObject[$key]
-                }
-                return $hash
-            }
-
-            if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
-                $list = @()
-                foreach ($item in $InputObject) {
-                    $list += ConvertTo-Hashtable $item
-                }
-                return $list
-            }
-
-            return $InputObject
-        }
+    # Mail nickname
+    switch ($Naming.mailNicknamePattern) {
+        'first.last' { $alias = "$f.$l" }
+        'flast' { $alias = '{0}{1}' -f $f.Substring(0, 1), $l }
+        default { $alias = "$f.$l" }
     }
 
-    # Always normalize to nested hashtables
-    $script:TechToolboxConfig = ConvertTo-Hashtable $raw
-
-    return $script:TechToolboxConfig
+    [pscustomobject]@{
+        UpnPrefix = $upnPrefix
+        Sam       = $sam
+        Alias     = $alias
+    }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC6Rb2XKQSi/4Gw
-# 78GqIeF3HkNIO4VtoY8Fb3FrgHvne6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA3ZJEM6hOtyUsY
+# vCDRZbo2gTETh3NXEOtJwfP2OM3Sk6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -221,34 +171,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCFLipN/cot
-# IAhN4lpD7LGNuODUq3Sc+ri9GIPtLNWCXzANBgkqhkiG9w0BAQEFAASCAgCRBHjd
-# NuI1bRTBoQIsP659t3qLhXRsp2ih7sAAnrd020Vj//S6ty/LMaCBG9Dn2gGetVI7
-# zqdgpu61znEGtEkm+WCfEApucE1hFdMJxgEc/qKe0Zhcz/8g6A574ROjfDe/vVAQ
-# N4QBMz7e1smG742SYEZeVfG3plzAXgI4I1XzIUJU45L13/W2eIdMlm6pIoR1By2f
-# nF+qxCtfbDVuHqQRVQK7Xb5W9WCMYCbCRMLbDKCItxnLd7XEjBnfybnOuU/Hhdzy
-# +nTkg/1JVApFPYlQQv/2pVAZhXp9WCTT7PeSFZz4/vGcO9FD/gr9eDCxzYpBJMdf
-# ROnTT1E3hTqJiwChWodZBh1yjUYpckQVgb/UrkykUc7hAK/loD6c+n0K2FpLJXO9
-# nNW4UzwYjxLLFrrrZE+5lBlCQMHbYBI/3NmmGx8aSLssa58NH88q2q31ApsAjVpa
-# i9SvEJc+n3EATlpxA+Xy/DOTd9QC4h40O0FTjIe8530zXZdQQ7uez1Ly4OovvxFC
-# q/sUfX8OyFXFEffvqQUU3xdf/AlSC+AM1Ovwih4ewrZOsbavWjJPjH/CuvwYy7PN
-# P75McK50DQep2nL29+HX+EVE0mkDbvxn7oeTQ8Sco7aS0M/dte9j6igL5QRxnk8I
-# EI/e0YKiWwrjsPkkimM0t7U5HcZXoTHUv19FXKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBalnyC+u4v
+# pue5bk25gKmhZkGsCIOFJZlF/jczPxH/ZzANBgkqhkiG9w0BAQEFAASCAgAOBkQD
+# CUFFqIwDMQ0eBT2X7rZkLh+mp9AY04hz3I3ni+bp8Vx5kMCxu7BUY+LP8FxbzQEy
+# cW3V/OWcrftED8bsNApOwchKZ42UoNEEf+URlgQHo5rSOAXYO6Ds+ENkKLbLjVpw
+# PifgriDropiV7/e/MYnaoWCJtZ/OhPbIHhlIEBUNG6RYOPq5KgdjVWMGrHxmpwy+
+# DHq2E5nr/yVeeN6rLG+IRt8RE+JEJMIzgIwXN/jNVPneDn42w7xrjlRHMLCwzrIw
+# TH/hggtItHcqi31jxQpcLUbtpBzDYDoeEVkSV521iB72G5eJQxp+H673VNbFq9+W
+# sclUnYkUjCfj+LE3ImJhh+s4F4ti4YdaOgr31IQ9SclIXON0/zOkSixfjgNNIhzx
+# Rr5anmjACz0KFsQju1yipwl84zUsjAazOb6P3zWXTWNXIz63+ygm84Rn4iOjU8fe
+# 7Mm4XbUFQwzdFzQMUuqPFGMCEZoKUjEr0f6/bzmmkEY9AJvBvLSKQwYv7w9/K2Ed
+# Xq+mXvltxRr1hRYZJbC/04tDnzz+S3lnyXoL0lDCcYEuaBo0l4+L1fHzuYjNeXrI
+# TaWVfmtx8JrRErhAFXPFPk57SKK5ixkn/vTd+rsNwXjJu43Kbrda9ght5PjDNFX+
+# p2QBknYEPCgu2uZmrOY8EzZdupsKr0L9CErbG6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNTEwMTlaMC8GCSqGSIb3DQEJBDEiBCAAdBfIqTRAvRN2PzJf
-# ve3jy1fs3B26Nz3RgrBFedYJpjANBgkqhkiG9w0BAQEFAASCAgCAfgGfZiefbqJk
-# MuqSDfB2Oif8K58syRibKGtC0MBmp91uS4GsXQEcecQ8jtYbFbVuYwXwKdhOAlO9
-# oV7zhfERGeW1PudIiHioKkOJUi4aOcK0TnbDxeiCqSLSvzwQyF6kXEu6OWypECnI
-# t3Q2sC5DsFmQiUZZHYkbpNl8B+Q1jmt0oL99w4RuPyYX7zyb7balTda6mn0lSHq+
-# 986B+wV3/D90OjNEiKsXOAYorPVRzpEbbPEG6608cVAsJ6NOMufNhRT6bk44Cf27
-# QF6JPMx+2VXOInziqemL3gZDXnx4TeL2Vwc7+lR+hMig1X327anXqEwjtpzyy0ed
-# 7u/HR9/Pb6SCtDWwgconLDwu7hK09UpIHsWZICbjj7HQJUr3ShXxqe2CeB6btohW
-# rFcmcmNCCMj2MR/aezfxS3vNDC8ZL4RMYM5Z6fwMR7BiZUazYX3oUVjy60LsgxQy
-# MfdhHKfss5wJmOFYlgtRiXfZ1A+752rzrXbOJRv38fJfJG/QFMwKGQsE2/uxx7qk
-# fXoTMs04lHoj1y4h/JwARYAUYWDbQdlfM5ZQfWhTsj5ucFl3ED1lx1wYrKsh5tOI
-# Y8fuC+jjhMoGHor8yzlWdfSoqOYLl30H4pn/btsG6k6svZbhluLo1wcd8HLAPPGc
-# beBQCky9UDmIyL/bzJGumcVexNHc2Q==
+# BTEPFw0yNjAxMTIxODQ0MTJaMC8GCSqGSIb3DQEJBDEiBCC0iZZHzXdYj0r0MwUw
+# TV6rvvMnCqdxZ0zVXSulRHQbFzANBgkqhkiG9w0BAQEFAASCAgAKpuN7TdK0l5yx
+# UuPL7hyCOSxHuYDmloxH+2UUazqquhSt8tvCakZUKERdNor/kOdoz80f7Y+W+kDM
+# tIJCA09+D1ZnVc9ucQAp3ycChYMrzMfzgRHtE5loAiNyGMyS8BxZxlvNfaVnjcrf
+# fJe/Q2UT4Dclt+OLmV4z+vHrpc7xPEwnlaZAoUDPpsQP+1zM7saAR8axIew3ztUa
+# WAhxqg6Rw/j3WqNccaVgQFrEN0KY6jVd3xHCpfpVnAhErCyH4SZKOdKdHGzGpkqk
+# Z5ABPrBLueHpUtcDKUwxE4lYKmXIupkoKRh2NBtdkFuwvtwDXSs+7f30ZzdMmAGO
+# Bvvz+RTUTFe9CrImrqGzrdk3lOfnqRHO7V/rGdbnvt/x1ho+XgLAz7D+hcJA6TWm
+# vW96QO+rsVw1thzVvRofp8XBfWccPsLEMwakVeh3ADFbVPKi003eSGYBSFP+TxcV
+# Q5Z2QZ2smaZ/Z9hK7EgSKQ0yTe7PmgFTJGdn17JfvuCTrhxI9W1hnZ/37TsNsBCs
+# n1rKZ16/64UZKgFhC0Y5VBsRuC3wXAwcxGOXkolraY9lS1IWYricy1a81ecrOhia
+# XO+6vDGLX+9Njg6i/YKiNm822JCDMJhpicJpO9wcti778rjxjgI2C7E704qyU/mr
+# tqfVBGGEtV4b+5wW4eSlCyK9axkYxg==
 # SIG # End signature block

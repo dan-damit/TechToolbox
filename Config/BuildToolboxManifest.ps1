@@ -1,94 +1,122 @@
-function Get-TechToolboxConfig {
-    <#
-    .SYNOPSIS
-        Loads and returns the TechToolbox configuration from config.json.
-    .PARAMETER Path
-        Optional path to the config.json file. If not provided, the default
-        location relative to the module is used.
-    .OUTPUTS
-        Hashtable representing the configuration.
-    .EXAMPLE
-        Get-TechToolboxConfig -Path "C:\TechToolbox\Config\config.json"
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter()] [string] $Path
-    )
 
-    # Determine config path (explicit override wins)
-    if ($Path) {
-        $configPath = $Path
-    }
-    else {
-        # Reliable module root when code is running inside an imported module
-        $moduleDir = $ExecutionContext.SessionState.Module.ModuleBase
-        $configPath = Join-Path $moduleDir 'Config\Config.json'
-    }
+<#
+.SYNOPSIS
+    Update the TechToolbox module manifest (TechToolbox.psd1) to export all
+    public functions.
+.DESCRIPTION
+    This script scans the 'Public' directory under the specified module root
+    (e.g., C:\TechToolbox\Public) for all .ps1 files, extracts their base names,
+    and updates the TechToolbox.psd1 manifest to export those functions.
 
-    # Validate path
-    if (-not (Test-Path -LiteralPath $configPath)) {
-        throw "config.json not found at '$configPath'. Provide -Path or ensure the module's Config folder contains config.json."
-    }
+    It can also optionally regenerate the module GUID and/or bump the patch
+    version of the module.
+.PARAMETER ModuleRoot
+    The root directory of the TechToolbox module (e.g., C:\TechToolbox).
+.PARAMETER ManifestPath
+    The path to the module manifest file. Defaults to 'TechToolbox.psd1' under
+    the ModuleRoot.
+.PARAMETER RegenerateGuid
+    If specified, a new GUID will be generated for the module.
 
-    # Load JSON
+.PARAMETER AutoVersionPatch
+    If specified, the patch version (x.y.Z) of the module will be incremented.
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)] # Module root directory
+    [string]$ModuleRoot,
+
+    [switch]$AutoVersionPatch,    # bump patch version (x.y.Z)
+
+    [string]$ManifestPath = (Join-Path $ModuleRoot 'TechToolbox.psd1'),
+
+    [switch]$RegenerateGuid     # force a new GUID
+)
+
+function Get-PublicFunctionNames {
+    param([string]$PublicDir)
+    Get-ChildItem -Path $PublicDir -Recurse -Filter *.ps1 -File |
+    Select-Object -ExpandProperty BaseName |
+    Sort-Object -Unique
+}
+
+# 1) Discover Public functions
+$publicDir = Join-Path $ModuleRoot 'Public'
+$publicFunctions = Get-PublicFunctionNames -PublicDir $publicDir
+
+if (-not $publicFunctions) {
+    Write-Warning "No public functions found under '$publicDir'."
+}
+
+# 2) Read existing manifest to preserve fields
+if (-not (Test-Path $ManifestPath)) {
+    throw "Manifest not found: $ManifestPath"
+}
+$manifest = Import-PowerShellDataFile -Path $ManifestPath
+
+# 3) Compute GUID: reuse unless told to regenerate
+$guid = if ($RegenerateGuid -or -not $manifest.Guid) {
+    [guid]::NewGuid().Guid
+}
+else {
+    $manifest.Guid
+}
+
+# 4) Compute version: bump patch if requested
+$moduleVersion = $manifest.ModuleVersion
+if ($AutoVersionPatch) {
     try {
-        $raw = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+        $ver = [version]$moduleVersion
+        $moduleVersion = [version]::new($ver.Major, $ver.Minor, ($ver.Build -lt 0 ? 0 : $ver.Build + 1))
     }
     catch {
-        throw "Failed to read or parse config.json from '$configPath': $($_.Exception.Message)"
+        Write-Warning "ModuleVersion '$moduleVersion' not a valid [version]; keeping as-is."
     }
-
-    # Validate required root keys
-    $rootNames = $raw.PSObject.Properties.Name | ForEach-Object { $_.ToLower() }
-    if (-not ($rootNames -contains 'settings')) {
-        throw "Missing required key 'settings' in config.json."
-    }
-
-    # Recursive normalizer
-    function ConvertTo-Hashtable {
-        param([Parameter(ValueFromPipeline)] $InputObject)
-
-        process {
-            if ($null -eq $InputObject) { return $null }
-
-            if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
-                $hash = @{}
-                foreach ($prop in $InputObject.PSObject.Properties) {
-                    $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
-                }
-                return $hash
-            }
-
-            if ($InputObject -is [System.Collections.IDictionary]) {
-                $hash = @{}
-                foreach ($key in $InputObject.Keys) {
-                    $hash[$key] = ConvertTo-Hashtable $InputObject[$key]
-                }
-                return $hash
-            }
-
-            if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
-                $list = @()
-                foreach ($item in $InputObject) {
-                    $list += ConvertTo-Hashtable $item
-                }
-                return $list
-            }
-
-            return $InputObject
-        }
-    }
-
-    # Always normalize to nested hashtables
-    $script:TechToolboxConfig = ConvertTo-Hashtable $raw
-
-    return $script:TechToolboxConfig
 }
+
+# 5) Update manifest using Update-ModuleManifest
+$updateParams = @{
+    Path          = $ManifestPath
+    ModuleVersion = $moduleVersion
+    Guid          = $guid
+}
+
+if ($manifest.CmdletsToExport) {
+    $updateParams['CmdletsToExport'] = $manifest.CmdletsToExport
+}
+
+if ($manifest.AliasesToExport) {
+    $updateParams['AliasesToExport'] = $manifest.AliasesToExport
+}
+
+if ($manifest.VariablesToExport) {
+    $updateParams['VariablesToExport'] = $manifest.VariablesToExport
+}
+
+if ($manifest.RootModule) {
+    $updateParams['RootModule'] = $manifest.RootModule
+}
+
+if ($publicFunctions) {
+    $updateParams['FunctionsToExport'] = $publicFunctions
+}
+else {
+    $updateParams['FunctionsToExport'] = @()
+}
+
+Update-ModuleManifest @updateParams
+
+Write-Host "Manifest updated:"
+Write-Host "  Path:        $ManifestPath"
+Write-Host "  GUID:        $guid"
+Write-Host "  Version:     $moduleVersion"
+Write-Host "  Functions:   $($publicFunctions -join ', ')"
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC6Rb2XKQSi/4Gw
-# 78GqIeF3HkNIO4VtoY8Fb3FrgHvne6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCGdeQJ/2ZfjlhP
+# IInO9AOgO7AMFh6lGSt7c07Fdrj4NqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -221,34 +249,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCFLipN/cot
-# IAhN4lpD7LGNuODUq3Sc+ri9GIPtLNWCXzANBgkqhkiG9w0BAQEFAASCAgCRBHjd
-# NuI1bRTBoQIsP659t3qLhXRsp2ih7sAAnrd020Vj//S6ty/LMaCBG9Dn2gGetVI7
-# zqdgpu61znEGtEkm+WCfEApucE1hFdMJxgEc/qKe0Zhcz/8g6A574ROjfDe/vVAQ
-# N4QBMz7e1smG742SYEZeVfG3plzAXgI4I1XzIUJU45L13/W2eIdMlm6pIoR1By2f
-# nF+qxCtfbDVuHqQRVQK7Xb5W9WCMYCbCRMLbDKCItxnLd7XEjBnfybnOuU/Hhdzy
-# +nTkg/1JVApFPYlQQv/2pVAZhXp9WCTT7PeSFZz4/vGcO9FD/gr9eDCxzYpBJMdf
-# ROnTT1E3hTqJiwChWodZBh1yjUYpckQVgb/UrkykUc7hAK/loD6c+n0K2FpLJXO9
-# nNW4UzwYjxLLFrrrZE+5lBlCQMHbYBI/3NmmGx8aSLssa58NH88q2q31ApsAjVpa
-# i9SvEJc+n3EATlpxA+Xy/DOTd9QC4h40O0FTjIe8530zXZdQQ7uez1Ly4OovvxFC
-# q/sUfX8OyFXFEffvqQUU3xdf/AlSC+AM1Ovwih4ewrZOsbavWjJPjH/CuvwYy7PN
-# P75McK50DQep2nL29+HX+EVE0mkDbvxn7oeTQ8Sco7aS0M/dte9j6igL5QRxnk8I
-# EI/e0YKiWwrjsPkkimM0t7U5HcZXoTHUv19FXKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCALPGU8rrhg
+# GLKmOew201+LW72Cf7lbeB9A71l4rPwxDzANBgkqhkiG9w0BAQEFAASCAgCCVwUm
+# xFDa/acz4RhhLOMyX6WRSzKdqmZqDHFrF7PtDEDvEVLVwIdxVjnLv6Th6VIAyJkt
+# 76qoK/2Fk8Piek/A/Z1hxdGnouhg5NeUD1Ps5uhhab97UJTMfbCC3oT128WMxK5/
+# SqRniyFK2lsJRl4eSbnDcc/cZUCZJFn21OhjYROeynABxK7OaLmz/AJfeOj9mjB6
+# 0x5F2/cdAmUY0L3OEvpsA8X0JWdfoofGXozzW7FjJGa1gCdg/KDrCOsYW8+t9xTK
+# v6CN/466szcCPnU2ZF8nKqEP+t1eI69acrjd+iv4IW+dSlm2AZrbDCzdjONPa808
+# wT3NbJz85w7HtH7MjSK7Ip5hfOLV/lyW2vCYzmeueOPgDu3/u13TQDa6bTqstsT3
+# LnERlgu95uQnTM4O2NMviDfPWQhdV0MlZnzksh/kz1QqM+TwCn3EMj1REtssdFOR
+# RLu9LHSgRCqRtm/pCfTWTj448PyV9/wS0RdSIpp7TTv82e5vvQ7l1XZskBZYOQVm
+# lUYaT0tFIIYsIp0SLpNMMbp1WmzXSUNUjyNiFq0ucmhXbqSuHZwDdFcuJQoOERa6
+# MAXm9IXD9iX/9To0sVip6ZnlivP8dUNYBcQ47H89LSaAXQvAgRROP5oh0jE+tFcw
+# /SAMTvJELPLo0EA5cv+UfLgtZ+ODFXYTjTWKKqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNTEwMTlaMC8GCSqGSIb3DQEJBDEiBCAAdBfIqTRAvRN2PzJf
-# ve3jy1fs3B26Nz3RgrBFedYJpjANBgkqhkiG9w0BAQEFAASCAgCAfgGfZiefbqJk
-# MuqSDfB2Oif8K58syRibKGtC0MBmp91uS4GsXQEcecQ8jtYbFbVuYwXwKdhOAlO9
-# oV7zhfERGeW1PudIiHioKkOJUi4aOcK0TnbDxeiCqSLSvzwQyF6kXEu6OWypECnI
-# t3Q2sC5DsFmQiUZZHYkbpNl8B+Q1jmt0oL99w4RuPyYX7zyb7balTda6mn0lSHq+
-# 986B+wV3/D90OjNEiKsXOAYorPVRzpEbbPEG6608cVAsJ6NOMufNhRT6bk44Cf27
-# QF6JPMx+2VXOInziqemL3gZDXnx4TeL2Vwc7+lR+hMig1X327anXqEwjtpzyy0ed
-# 7u/HR9/Pb6SCtDWwgconLDwu7hK09UpIHsWZICbjj7HQJUr3ShXxqe2CeB6btohW
-# rFcmcmNCCMj2MR/aezfxS3vNDC8ZL4RMYM5Z6fwMR7BiZUazYX3oUVjy60LsgxQy
-# MfdhHKfss5wJmOFYlgtRiXfZ1A+752rzrXbOJRv38fJfJG/QFMwKGQsE2/uxx7qk
-# fXoTMs04lHoj1y4h/JwARYAUYWDbQdlfM5ZQfWhTsj5ucFl3ED1lx1wYrKsh5tOI
-# Y8fuC+jjhMoGHor8yzlWdfSoqOYLl30H4pn/btsG6k6svZbhluLo1wcd8HLAPPGc
-# beBQCky9UDmIyL/bzJGumcVexNHc2Q==
+# BTEPFw0yNjAxMTIxNjQ2MDNaMC8GCSqGSIb3DQEJBDEiBCCmqt/7c/Vw1zhLM9sq
+# 52HwzwwQDt25M3h+QahxB/t0DTANBgkqhkiG9w0BAQEFAASCAgDEIdWV5iVow1G1
+# b8VdgkGM8n6+e6grL+iL9pc7Zo97afOg5dybtkKyisHCRPlzL+m2KCX23F9wgVSj
+# RVRL6BhXFV2b3OpIA/p3neRpRt6E1gZFEla1slavEQ8oVVaJxOza7iejYSNintU1
+# YSmuqv1cTmytP4/ZmdDwtRa089cbnCb3qSA6uLuPkYdwWUhrb46r2mQzqkjh1QW0
+# OfwpZvvhk19BuK8AYwAXXmCrqJbbsOyKCf+abef1g/LjWZn8clUDvPtjmw0IR97t
+# pqiX3G2wfiA+VlU/pMAyUzeUWgWGQh/JupCzW0iuQ9dIdOr2arr3OLE1vcB40rAX
+# jcnq4geLUSj59nIj7F0B2bK3Zw863xdVDtzsxMSIq58nvptG54VDtBU6iyeQrdBn
+# xDRyOyyTPumYwWK9sw3uRhCeQYyIYlZ8aznAX1FmEI34VVBoPOXY1ltRt0uqo2zy
+# oKuHcCrV28i4RVkViklxUrsyaXntwehyGutH5fhrzqL02TqcO6k+DBtQT1u8UdJN
+# xWRq2km+7b66cM52RsEbWfbNvbZ6eabLRUtgHVUGJPECcYC7P/UWf10Z5w8CgG2o
+# dnBGy5PIa1jqWFKvls6zanOWGIsApn+K+LfRTJEPG63o1zkWywZ9lyeUPtDBQYfC
+# KMdRi61RVt8yUScfdG8iR3wzH6eRUA==
 # SIG # End signature block

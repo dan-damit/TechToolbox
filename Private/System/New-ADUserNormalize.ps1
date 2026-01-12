@@ -1,94 +1,9 @@
-function Get-TechToolboxConfig {
-    <#
-    .SYNOPSIS
-        Loads and returns the TechToolbox configuration from config.json.
-    .PARAMETER Path
-        Optional path to the config.json file. If not provided, the default
-        location relative to the module is used.
-    .OUTPUTS
-        Hashtable representing the configuration.
-    .EXAMPLE
-        Get-TechToolboxConfig -Path "C:\TechToolbox\Config\config.json"
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter()] [string] $Path
-    )
-
-    # Determine config path (explicit override wins)
-    if ($Path) {
-        $configPath = $Path
-    }
-    else {
-        # Reliable module root when code is running inside an imported module
-        $moduleDir = $ExecutionContext.SessionState.Module.ModuleBase
-        $configPath = Join-Path $moduleDir 'Config\Config.json'
-    }
-
-    # Validate path
-    if (-not (Test-Path -LiteralPath $configPath)) {
-        throw "config.json not found at '$configPath'. Provide -Path or ensure the module's Config folder contains config.json."
-    }
-
-    # Load JSON
-    try {
-        $raw = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-    }
-    catch {
-        throw "Failed to read or parse config.json from '$configPath': $($_.Exception.Message)"
-    }
-
-    # Validate required root keys
-    $rootNames = $raw.PSObject.Properties.Name | ForEach-Object { $_.ToLower() }
-    if (-not ($rootNames -contains 'settings')) {
-        throw "Missing required key 'settings' in config.json."
-    }
-
-    # Recursive normalizer
-    function ConvertTo-Hashtable {
-        param([Parameter(ValueFromPipeline)] $InputObject)
-
-        process {
-            if ($null -eq $InputObject) { return $null }
-
-            if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
-                $hash = @{}
-                foreach ($prop in $InputObject.PSObject.Properties) {
-                    $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
-                }
-                return $hash
-            }
-
-            if ($InputObject -is [System.Collections.IDictionary]) {
-                $hash = @{}
-                foreach ($key in $InputObject.Keys) {
-                    $hash[$key] = ConvertTo-Hashtable $InputObject[$key]
-                }
-                return $hash
-            }
-
-            if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
-                $list = @()
-                foreach ($item in $InputObject) {
-                    $list += ConvertTo-Hashtable $item
-                }
-                return $list
-            }
-
-            return $InputObject
-        }
-    }
-
-    # Always normalize to nested hashtables
-    $script:TechToolboxConfig = ConvertTo-Hashtable $raw
-
-    return $script:TechToolboxConfig
-}
+function New-ADUserNormalize([string]$s) { ($s -replace '\s+', '').ToLower() }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC6Rb2XKQSi/4Gw
-# 78GqIeF3HkNIO4VtoY8Fb3FrgHvne6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC5qYekTuCqDxOm
+# XtiwthIoWhIcOlSeYw63KjumriGmw6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -221,34 +136,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCFLipN/cot
-# IAhN4lpD7LGNuODUq3Sc+ri9GIPtLNWCXzANBgkqhkiG9w0BAQEFAASCAgCRBHjd
-# NuI1bRTBoQIsP659t3qLhXRsp2ih7sAAnrd020Vj//S6ty/LMaCBG9Dn2gGetVI7
-# zqdgpu61znEGtEkm+WCfEApucE1hFdMJxgEc/qKe0Zhcz/8g6A574ROjfDe/vVAQ
-# N4QBMz7e1smG742SYEZeVfG3plzAXgI4I1XzIUJU45L13/W2eIdMlm6pIoR1By2f
-# nF+qxCtfbDVuHqQRVQK7Xb5W9WCMYCbCRMLbDKCItxnLd7XEjBnfybnOuU/Hhdzy
-# +nTkg/1JVApFPYlQQv/2pVAZhXp9WCTT7PeSFZz4/vGcO9FD/gr9eDCxzYpBJMdf
-# ROnTT1E3hTqJiwChWodZBh1yjUYpckQVgb/UrkykUc7hAK/loD6c+n0K2FpLJXO9
-# nNW4UzwYjxLLFrrrZE+5lBlCQMHbYBI/3NmmGx8aSLssa58NH88q2q31ApsAjVpa
-# i9SvEJc+n3EATlpxA+Xy/DOTd9QC4h40O0FTjIe8530zXZdQQ7uez1Ly4OovvxFC
-# q/sUfX8OyFXFEffvqQUU3xdf/AlSC+AM1Ovwih4ewrZOsbavWjJPjH/CuvwYy7PN
-# P75McK50DQep2nL29+HX+EVE0mkDbvxn7oeTQ8Sco7aS0M/dte9j6igL5QRxnk8I
-# EI/e0YKiWwrjsPkkimM0t7U5HcZXoTHUv19FXKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA5bgu6mIxF
+# +mdcA4wCuX01XMs+an+j6sUPhsgeQM9QIzANBgkqhkiG9w0BAQEFAASCAgABQthG
+# e+fKgKVWsQ16PRoiVozuKg/W49uuSpyy4yZ9FhiiWNZcXvw94KtyD+livGcZStU5
+# nzwFTmAuKzXRBD+Cu06tdcbbL30FvJgaahLQmNFE+7VcdvnemZU8fMiIoQD5Lui+
+# y/1NsNociVt62TywH4IdUUeaTch0UUM5KVRzR65bTqE6B0enFmJlY1l1VbSGb+AM
+# W8zEkM4slqKT0JNo3jgH9MYxD+ERP8Pkabpv3PkFZWoPew4s1PZLCKRGoKJ6kcQ/
+# ltjX9S0zaPO9sPi1kXFo4MsaOjadH8VVkUcY8u7t5pIUMyRU4SHgBcGl5sGGDqf2
+# xDXH+oIGWIhNxCBFFozYTA+nyCN7jgARbYI/NqxEZkSpKoRW6A14q9RX59gXkxCj
+# oMISHNQ15GFpJr+ms6XUqAJiMt05gjPT1pvo+/lAuqRsQdicN6cBSaipQXCQk10H
+# MSi2dupZ5z9vlDFQvejMJYzJ2ACvRxiM6APFkJ8Ab3acITynYCZ4xO7S9fD6mU1X
+# H75RsLhX5wBNZgGcJyOjwNMJ5dfM34cXccefoCIS5wCwxawrpNLIp8Mt8NFGFPc4
+# RgRJ8votMopDJwKu1OLHiW29tY4LzgUD7hAF6wRgY4itMoaXk0S9zgWmvPK+goDx
+# O7Q2g4TpY6WxrCWXh6Q4UXTQmpd+CNJP3RCM1aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNTEwMTlaMC8GCSqGSIb3DQEJBDEiBCAAdBfIqTRAvRN2PzJf
-# ve3jy1fs3B26Nz3RgrBFedYJpjANBgkqhkiG9w0BAQEFAASCAgCAfgGfZiefbqJk
-# MuqSDfB2Oif8K58syRibKGtC0MBmp91uS4GsXQEcecQ8jtYbFbVuYwXwKdhOAlO9
-# oV7zhfERGeW1PudIiHioKkOJUi4aOcK0TnbDxeiCqSLSvzwQyF6kXEu6OWypECnI
-# t3Q2sC5DsFmQiUZZHYkbpNl8B+Q1jmt0oL99w4RuPyYX7zyb7balTda6mn0lSHq+
-# 986B+wV3/D90OjNEiKsXOAYorPVRzpEbbPEG6608cVAsJ6NOMufNhRT6bk44Cf27
-# QF6JPMx+2VXOInziqemL3gZDXnx4TeL2Vwc7+lR+hMig1X327anXqEwjtpzyy0ed
-# 7u/HR9/Pb6SCtDWwgconLDwu7hK09UpIHsWZICbjj7HQJUr3ShXxqe2CeB6btohW
-# rFcmcmNCCMj2MR/aezfxS3vNDC8ZL4RMYM5Z6fwMR7BiZUazYX3oUVjy60LsgxQy
-# MfdhHKfss5wJmOFYlgtRiXfZ1A+752rzrXbOJRv38fJfJG/QFMwKGQsE2/uxx7qk
-# fXoTMs04lHoj1y4h/JwARYAUYWDbQdlfM5ZQfWhTsj5ucFl3ED1lx1wYrKsh5tOI
-# Y8fuC+jjhMoGHor8yzlWdfSoqOYLl30H4pn/btsG6k6svZbhluLo1wcd8HLAPPGc
-# beBQCky9UDmIyL/bzJGumcVexNHc2Q==
+# BTEPFw0yNjAxMTIxODQ0MTJaMC8GCSqGSIb3DQEJBDEiBCA7PbhTxJkemm0YsnFG
+# Z99DMNxilOaqMpqw290HOv5mqTANBgkqhkiG9w0BAQEFAASCAgC5Sh4cduVqce9K
+# rjjMNqi0fU/SS7BWCSYjLQWOyXyPvBeXBvsmRS5ylIYBOv45DxfFSYPYJ6Rfq/tG
+# O83QMpwnmUQBJexHaeoUCyZUBKdlzesH0rIlA30zM4F8P2v3tTTYFAwQm4bLAECE
+# dmflRWQDLQvjoFywLw0JtzDPd0xdH0SEuBeZar+aU0YN4nT4JntGSvqiXIHVWYRC
+# wAREjyvx2lXGTVuTwahJT7AQoinictpNe5VA+P3TZfaFbi0KeKgfHc3NFBo0huQL
+# FB/8cVOBildY2X7rbN9eAvGPWtOlu+0wZyPBIjPLkFQmg5TMGsS38Lhywx1oOQkV
+# scmO1VFF0Nn4wEumqeOSByfD+CfbH3qE9ktQh4+H240SEomfpwoQPecLDn+sP0h2
+# 4IFITNugzHYP0N/E2i/TM/2/Ji7k9mEwJiIkIW+rOZYchpFndRGNbc2eembXNLg1
+# lSMP8au+j9frpEytWFHp01HmH7HFrKTu2OMeQAjv9alJxOhmO6/m5YntSeZSyWA+
+# 7hOSP6hOoWJQbe+16sksdubuj4oh1p3bjlHaQOGaDg5+iRpySAQvCrI+EYL6mJ9c
+# 2l7iwzs+vmT4/X7ZZdUYJxjsDKxFHKJEUTEKj2Rrklyi/7jafOn6F5Y10MuQ4K51
+# m5qnXe3bzndxGc4Y0tuuuMh19xYlZQ==
 # SIG # End signature block

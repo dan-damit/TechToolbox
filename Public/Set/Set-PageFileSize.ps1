@@ -3,6 +3,21 @@ function Set-PageFileSize {
     <#
     .SYNOPSIS
         Sets the pagefile size on a remote computer via CIM/WMI.
+    .DESCRIPTION
+        This cmdlet connects to a remote computer using PowerShell remoting and
+        configures the pagefile size according to user input or specified parameters.
+        It can also prompt for a reboot to apply the changes.
+    .PARAMETER ComputerName
+        The name of the remote computer to configure the pagefile on.
+    .PARAMETER InitialSize
+        The initial size of the pagefile in MB. If not provided, the user will be
+        prompted to enter a value within configured limits.
+    .PARAMETER MaximumSize
+        The maximum size of the pagefile in MB. If not provided, the user will be
+        prompted to enter a value within configured limits.
+    .PARAMETER Path
+        The path to the pagefile. If not provided, the default path from the config
+        will be used.
     .EXAMPLE
         Set-PageFileSize -ComputerName "Server01.domain.local"
     .EXAMPLE
