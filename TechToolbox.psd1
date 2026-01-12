@@ -6,7 +6,7 @@
     Description          = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows.'
     PowerShellVersion    = '7.5.3'
     CompatiblePSEditions = @('Core')
-    FunctionsToExport    = @('*')  # Can list explicitly later if needed
+    FunctionsToExport    = @() # Exported via TechToolbox.psm1
     CmdletsToExport      = @()
     VariablesToExport    = @('*')
     AliasesToExport      = @('*')
