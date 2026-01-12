@@ -30,6 +30,7 @@ enterprise-grade PowerShell module.
   - [Invoke-SystemRepair](#invoke-systemrepair)
   - [Get-WindowsActivationInfo](#get-windowsactivationinfo)
   - [Reset-WindowsUpdateComponents](#reset-windowsupdatecomponents)
+  - [Set-ProxyAddress](#set-proxyaddress)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -345,6 +346,17 @@ Reset-WindowsUpdateComponents
 
 # Reset on a remote host
 Reset-WindowsUpdateComponents -ComputerName "RemotePC" -Credential (Get-Credential)
+```
+
+---
+
+### Set-ProxyAddress
+
+A simple tool to set SMTP: address for a user's AD Object
+
+```powershell
+# Usage:
+Set-ProxyAddress -Username "jdoe" -ProxyAddress "jdoe@example.com"
 ```
 
 ---
