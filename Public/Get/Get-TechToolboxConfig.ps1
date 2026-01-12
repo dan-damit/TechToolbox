@@ -2,13 +2,21 @@ function Get-TechToolboxConfig {
     <#
     .SYNOPSIS
         Loads and returns the TechToolbox configuration from config.json.
+    .DESCRIPTION
+        This cmdlet reads the config.json file located in the Config folder of
+        the TechToolbox module and returns its contents as a hashtable. If no
+        path is provided, it uses the default location relative to the module.
     .PARAMETER Path
         Optional path to the config.json file. If not provided, the default
         location relative to the module is used.
+    .INPUTS
+        None. You cannot pipe objects to Get-TechToolboxConfig.
     .OUTPUTS
         Hashtable representing the configuration.
     .EXAMPLE
         Get-TechToolboxConfig -Path "C:\TechToolbox\Config\config.json"
+    .LINK
+        [TechToolbox](https://github.com/dan-damit/TechToolbox)
     #>
     [CmdletBinding()]
     param(
@@ -87,8 +95,8 @@ function Get-TechToolboxConfig {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDQaC50pW/J3G4G
-# cwElEOYAKjhPzgbRcD2mmi8WrofOu6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDUC86kj4N5KQmX
+# sKJg6/WQCdZ5+3MmK2QDQ/bYoFJB26CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -221,34 +229,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAsfgNiOQ/4
-# 2uaKtvVfM4Qb9TNZpLmV4ziv3bfAS4PfyzANBgkqhkiG9w0BAQEFAASCAgCySyA+
-# iXHm9lOAT88XC+go+acNgRORPISPqKq56uQRNgGQa3oRJgExeYTTQx8T3R43Un+Y
-# 3i3lT7BeCYc2ms/M//FpP4O8ALuhyDtYQc1gdZqnYc8/m9ZU0IlQUfOHcJbb4RX9
-# TMBK8qUuJdRqcxiuUKf1Ir1U7LbuBTIA55KG2rAHXMcWiFZQuMFDY98M/0aOK7GG
-# MChS6rsld5wFd8nYwLdYKY28Si4B1HAMOqofdu+J/PAAK0Y8U6rjNFJIvfacov+9
-# 4epRG/5rkBNWNsZpysjVOMq499tEPNEYvXZW9yA2DHb/paU2WtGOt4QhrQWFHsBo
-# hY0DqbtKlSIigFskRR2jB3mWhwj2sBOlMLeswriSnLj+h67dWPGLkcOnGVcIuzRH
-# cnKYPauJULakDSHLa5vMWmuDMuCeaxOf2WpgqqX+8132yQLrD7vA/fg5vcYGx4cm
-# TtxjKzeAr5U0CRI45GEeXFiiq83lZL8MPzPLV7JQYriA4tRPpdk+WkHpGVAjeKkV
-# FCZfhn0MxAnofuKO9Jmxtrw6NkH7UI2i1VCUCDPRMxZgpzJ7i5KS5yqFbQ53BozL
-# TSGcYekYTJjviAbsHtGGwSJLjKWr6asE3i5k7yhbNQLOH1kc12j513efrw91EsrV
-# 27EXxP3JHyRHiAwxf4ruHPRWskYNkrLX2Q+W/qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDmU+NFIHMS
+# YQsSLa9dRBgWsxbj9HtE6zpm/FWHDAB3HzANBgkqhkiG9w0BAQEFAASCAgCnYsSG
+# zsbiNBwk3C8z2tZZ3DtjrOj6LYwhJyds47zPD0+zh0nd4z+2TEvSDpQPjOXKzv7z
+# dKlL9/qtF/WFozY99W+ykuYwy+98xS5uKyaFufo6YzXy6d8XBSFp9LdIbrAf0BUe
+# JNCI1s5fmq3pp43sYtBpTbFUQ6ToCqo7ZEokSI4ypzIenXSq5AqEBLaAJxtubUjV
+# cxbnma4v0FLqYoFizu4HDEQvr+z4ievbVX3mIVH+N3FmdruftiRuwY7BMkKl1lrW
+# vNKlsQYfZ4YEYhmGUFdPwgPTGx/ISiWEiJcZlDJrbgMlhTQZ8EyEX9VnN7as4B4Z
+# tpHJP2aTKL9op3QZqacT/s3oWg72dv8jN2GXS6NaxeS9L9PTvkOqS68YIVKjdQKR
+# PBnS9SHa9FOWgHbNce7AaklnuIg8L/F+45Gx4Ho7Vl/ctXV0cIuhPt6MFA0AH2lJ
+# k5Ke6qB9zkcUX6JJ0Q+qDgTe8ZiIZYqAFGitP9V7z8AHArV2Bwi3yltYUk3kiXA2
+# ZNKzrQYhygwWragDjy8STpLD9rsU/rNXxsgM16kRmSVAU5Ldg2A3CU/ifu+zhcFH
+# xc5Gkeg+K6LnpgiKacFlkaI0UU1haF9cX7KlebRykANvhxHB7ze23zEqwFLu2sbB
+# J1CQTnopCZqj6xOM+eqVib4Q0BL0wR+0/SgZNKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIyMTE3MDhaMC8GCSqGSIb3DQEJBDEiBCAzDHJOBXyMn+F2JG/F
-# V9p3M7j9R9XH1C/kX9asHfXvBjANBgkqhkiG9w0BAQEFAASCAgBne6VtWIS8NhuU
-# z+vq16L3psz3maWTYK0LwgP1Fm6B4wPSbhkY5zCEyq66QfLUyYaYcvu7mp/bLntT
-# 48BA9biSZL2IsPsDNwjwSwt0vocwjnF/5SYQG6WwlpT+FYQE//zBM3+5QGjttgoW
-# Fa6XQ2JPHuwFZi/8Djwk33h27EibcV0CdfdGk5ackvw5R7uhHFbGNzGOzbaAGcO0
-# txV9aMCHSyJOUkX1f3GVVvmiNzyAsqdSMSKQO+YlZ30Dqx8gL6Qg0nX8z7iakT/p
-# 1xlx2nnjoSSpVWn3sH5p/xKQRoWPKyJH0TLKlkzqvMCwSXYF8tskefGZ/BeSkdwJ
-# ReTx4tIPGGMM4/A8BEbXUsjBkU08B+/Ihi1H9SX7tnsl3Mj5ZdOy0/pt2PUeAtui
-# Q2RAkky+V7ASKv8HqNKXtsQRav3ASmwEHB7MVKZ8TDH74GM6i+E5Zc2Q0286AEJo
-# lS70dwD/AaKFSRHvl05U1RqbtOxjCKVSmcV8WFlHD3w5QeJxNHTTaLbWBIhsy4Vx
-# 8aj2c7yFjFEzoYYONUWsNXWjW7xT7/OFml8LPHbLfC8h4bLnaIgaiQ7+NyB1RekF
-# 4p9BGxL7RoPhNRMQlKo4eWlwoi4K7SwwHG7ANPUDqjGlALklIf+FYQtgZynYKPvM
-# pG2//iYhGnL+2uey8BHcmYthl6cTZw==
+# BTEPFw0yNjAxMTIyMjE4MTlaMC8GCSqGSIb3DQEJBDEiBCAlvNzVXPqQJt+MvxgW
+# p0OtORVFIZ/GwiolLthHiIVnYDANBgkqhkiG9w0BAQEFAASCAgAaZSY6vq8ZmIB0
+# O22n4X+qIhrbAqwct1pm+iS8HU+/m9dDtVpvDUW2TGc7NtfUfX7tEA87JC6TpnJe
+# TW1OzUUgd0ofOCdgWtkamRCBaDhyVYuD3UPe0p+e12mQW8+9+5cleSqXWi+tpCau
+# TKcQxRCIDpts5hjaiJ2XL9oH7RJU1nCtN3JcVN5xsW+cL/7B6QrHHRLumYeIEuR2
+# NRa3RZMmWFzUXwVPW62Iy4DB0HILMPmBS1rrw5gA9VSnjoJSOYhMTBntRhuN9SNY
+# Vnb9FoyM8rGVwUIM9xWms8ibuPcp/8mWZFiEYvdJ1txLuR0QUPE5NPKj2jwU0Sqf
+# bY7RdkVs6qBsFAKjcqXRWw+CqMFPBDNHwo9pzUY7W6UeTtt/xh6grjlXcrCoV82f
+# BXUGfWOOQm9mUFlH/S5EXX93OfFthzAy8Wb03MS76bAMbtRy+ZqOS4rUR2IM5SUt
+# GIvyuQyXwgawf9i1EjxRjDf4FRmdpJMONUMhvu0z3EPtAPzIuwCpf5JtpEiZQZ1J
+# 9Lwb120w3s6kgjnalPpJ0338/dI9H2emJkppNAME6nW2WgwSiZVsBxdaNx0Mtrsu
+# MyvigCE16mVYytQ4W8BtlR+RN2lRGm6jNfFE1Dbj5ueagEgznAKXkP+VGS+vDmo/
+# OTnlNVDlxoZ/CWKifkV4x1N9KeCCCQ==
 # SIG # End signature block

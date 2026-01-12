@@ -20,6 +20,8 @@
 
 .PARAMETER AutoVersionPatch
     If specified, the patch version (x.y.Z) of the module will be incremented.
+.PARAMETER AliasesToExport
+    An array of alias names to export from the module.
 #>
 [CmdletBinding()]
 param(
@@ -30,8 +32,33 @@ param(
 
     [string]$ManifestPath = (Join-Path $ModuleRoot 'TechToolbox.psd1'),
 
-    [switch]$RegenerateGuid     # force a new GUID
+    [switch]$RegenerateGuid,    # force a new GUID
+
+    [string[]]$AliasesToExport = @()
 )
+
+function Get-AliasesFromJson {
+    param([string]$ConfigDir)
+
+    $path = Join-Path $ConfigDir 'AliasesToExport.json'
+    if (-not (Test-Path $path)) {
+        Write-Warning "Alias config not found at '$path'; no aliases will be exported."
+        return @()
+    }
+
+    try {
+        $json = Get-Content -Raw -Path $path | ConvertFrom-Json
+        $aliases = @($json.aliases)
+        $exportable = $aliases |
+        Where-Object { $_.export -and $_.name } |
+        Select-Object -ExpandProperty name
+        return ($exportable | Sort-Object -Unique)
+    }
+    catch {
+        Write-Warning "Failed to parse alias config '$path': $($_.Exception.Message)"
+        return @()
+    }
+}
 
 function Get-PublicFunctionNames {
     param([string]$PublicDir)
@@ -75,6 +102,9 @@ if ($AutoVersionPatch) {
 }
 
 # 5) Update manifest using Update-ModuleManifest
+$configDir = Join-Path $ModuleRoot 'Config'
+$aliasesToExport = Get-AliasesFromJson -ConfigDir $configDir
+
 $updateParams = @{
     Path          = $ManifestPath
     ModuleVersion = $moduleVersion
@@ -83,10 +113,6 @@ $updateParams = @{
 
 if ($manifest.CmdletsToExport) {
     $updateParams['CmdletsToExport'] = $manifest.CmdletsToExport
-}
-
-if ($manifest.AliasesToExport) {
-    $updateParams['AliasesToExport'] = $manifest.AliasesToExport
 }
 
 if ($manifest.VariablesToExport) {
@@ -100,6 +126,11 @@ if ($manifest.RootModule) {
 if ($publicFunctions) {
     $updateParams['FunctionsToExport'] = $publicFunctions
 }
+
+if ($AliasesToExport) {
+    $updateParams['AliasesToExport'] = $aliasesToExport
+}
+
 else {
     $updateParams['FunctionsToExport'] = @()
 }
@@ -111,12 +142,13 @@ Write-Host "  Path:        $ManifestPath"
 Write-Host "  GUID:        $guid"
 Write-Host "  Version:     $moduleVersion"
 Write-Host "  Functions:   $($publicFunctions -join ', ')"
+Write-Host "  Aliases:     $($AliasesToExport -join ', ')"
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCGdeQJ/2ZfjlhP
-# IInO9AOgO7AMFh6lGSt7c07Fdrj4NqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCByPvqkd6Pe/Xo0
+# 2tEPcIx6DTsFAfAIiE7MEogRsMWVMqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -249,34 +281,34 @@ Write-Host "  Functions:   $($publicFunctions -join ', ')"
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCALPGU8rrhg
-# GLKmOew201+LW72Cf7lbeB9A71l4rPwxDzANBgkqhkiG9w0BAQEFAASCAgCCVwUm
-# xFDa/acz4RhhLOMyX6WRSzKdqmZqDHFrF7PtDEDvEVLVwIdxVjnLv6Th6VIAyJkt
-# 76qoK/2Fk8Piek/A/Z1hxdGnouhg5NeUD1Ps5uhhab97UJTMfbCC3oT128WMxK5/
-# SqRniyFK2lsJRl4eSbnDcc/cZUCZJFn21OhjYROeynABxK7OaLmz/AJfeOj9mjB6
-# 0x5F2/cdAmUY0L3OEvpsA8X0JWdfoofGXozzW7FjJGa1gCdg/KDrCOsYW8+t9xTK
-# v6CN/466szcCPnU2ZF8nKqEP+t1eI69acrjd+iv4IW+dSlm2AZrbDCzdjONPa808
-# wT3NbJz85w7HtH7MjSK7Ip5hfOLV/lyW2vCYzmeueOPgDu3/u13TQDa6bTqstsT3
-# LnERlgu95uQnTM4O2NMviDfPWQhdV0MlZnzksh/kz1QqM+TwCn3EMj1REtssdFOR
-# RLu9LHSgRCqRtm/pCfTWTj448PyV9/wS0RdSIpp7TTv82e5vvQ7l1XZskBZYOQVm
-# lUYaT0tFIIYsIp0SLpNMMbp1WmzXSUNUjyNiFq0ucmhXbqSuHZwDdFcuJQoOERa6
-# MAXm9IXD9iX/9To0sVip6ZnlivP8dUNYBcQ47H89LSaAXQvAgRROP5oh0jE+tFcw
-# /SAMTvJELPLo0EA5cv+UfLgtZ+ODFXYTjTWKKqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC4+OLYZovM
+# Hqh1kbl4ISDCJFQ23JcYiuNhZQ4Gbufs0jANBgkqhkiG9w0BAQEFAASCAgDOsOX8
+# Qn+0AczZcy7eClID3RdoCXzMTDBadUbMmoU4HJrfgiusKy35dXHvYvq8HyNnJQNX
+# xpI+cPDuER9tGm/zjPLj2N1rVgZ+xWcmkhYAs54WREYJVcxYzNWE9QhHBekWBfGA
+# WADQD3S70duwiiJO+W1a64xdP8LZgOEELWSLlMcgwM3ZFnuJ2TV14cYJJDa35+4t
+# +rokReAUfwo0NUvmLTX9qUP3aynky/O/3Jlz3rbbt7ZBbwNshks8iL75LgEN9TLv
+# KjUzE8j11pD4k3GcQguSLWQkaQF2Jn7Fjth/xGan+hMb2+UjySP0VEkSaP5bHXq8
+# jxSk8vfD/2+LeJx9dfk+90AuuNUli1cEfEHo92f7iu5IRaGqgOB7y39MkSqm4owt
+# 2jikxJINjfXqlfxRYYifSP/Jdg/SND6iZz1GIQr7SzonLPxsLuKgkZSM2gDqMdGl
+# TNPY1xbuHt7M38ibjuavrPkiRPlcZYk16YyOE4hD439MSMGcxfZJIiKHq/rUkXO6
+# iV+PVa8DintWGhE95OgQ4f70dkVGVNMea5wH/H4qHRXZ3GxSnQWu1EltgIXTvZR+
+# 1hWV0H3642hwqltqC8YcFNWV4VVsAngFW3l0lKsslx34yApCacKyU31fl6iq2EZk
+# ULhcIsP0eHvQSqwyguMFjtPuXXiq7SOC44ZIQ6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNjQ2MDNaMC8GCSqGSIb3DQEJBDEiBCCmqt/7c/Vw1zhLM9sq
-# 52HwzwwQDt25M3h+QahxB/t0DTANBgkqhkiG9w0BAQEFAASCAgDEIdWV5iVow1G1
-# b8VdgkGM8n6+e6grL+iL9pc7Zo97afOg5dybtkKyisHCRPlzL+m2KCX23F9wgVSj
-# RVRL6BhXFV2b3OpIA/p3neRpRt6E1gZFEla1slavEQ8oVVaJxOza7iejYSNintU1
-# YSmuqv1cTmytP4/ZmdDwtRa089cbnCb3qSA6uLuPkYdwWUhrb46r2mQzqkjh1QW0
-# OfwpZvvhk19BuK8AYwAXXmCrqJbbsOyKCf+abef1g/LjWZn8clUDvPtjmw0IR97t
-# pqiX3G2wfiA+VlU/pMAyUzeUWgWGQh/JupCzW0iuQ9dIdOr2arr3OLE1vcB40rAX
-# jcnq4geLUSj59nIj7F0B2bK3Zw863xdVDtzsxMSIq58nvptG54VDtBU6iyeQrdBn
-# xDRyOyyTPumYwWK9sw3uRhCeQYyIYlZ8aznAX1FmEI34VVBoPOXY1ltRt0uqo2zy
-# oKuHcCrV28i4RVkViklxUrsyaXntwehyGutH5fhrzqL02TqcO6k+DBtQT1u8UdJN
-# xWRq2km+7b66cM52RsEbWfbNvbZ6eabLRUtgHVUGJPECcYC7P/UWf10Z5w8CgG2o
-# dnBGy5PIa1jqWFKvls6zanOWGIsApn+K+LfRTJEPG63o1zkWywZ9lyeUPtDBQYfC
-# KMdRi61RVt8yUScfdG8iR3wzH6eRUA==
+# BTEPFw0yNjAxMTIyMjE4MTVaMC8GCSqGSIb3DQEJBDEiBCBj9xdLdOYwjtoE51Hr
+# LB8zcg3/whwiLtAIKCee+JmChTANBgkqhkiG9w0BAQEFAASCAgAPDeBiMbs3c4fu
+# CCS/wsDj5x0+AiggLxn2zUrhtC48R4yztXR1T6HI2l+6oqjZsUYsjyHj+otYVhgR
+# Qw2fupk6T0RziwxWI8Ifc1uu5D52DcSfRrf81ca7PMVrRLg6l07V2WHTv0HAWwSB
+# dukE2mZYc1o77RPR5yXyoUcQPiICAgBXH9wSbCseK5ibSqblbgnHyGuYG7pjoksw
+# Oo42hQALbnSJx+TEbHxvmM3cV70q/Dg8/YzTbC/Pof8N4w2ocFOMG3nKVYQJNrY3
+# 0aGLEvcUocYrtZmehJ+E3gRrmG/V0XCJ+YqhTdgn3HRY2aEK7/fbdBLkD2LgVv6d
+# 2VYWrthefNX3kt0EET38dhTSNMmeR8rPycBOzuc/MhgfMMa8n9IpQZMv0qv2wGgz
+# kVS53xJQi2nCs0El/18g6kTx7ShxVt7oNcB93zJ12hp0/eXwHlTMf5wVwe/gwUYn
+# ygwTte3xyv4lXZJk0pPG5OvKBoClwvKYSe6WcCbGYIfJIEFy61FnL2wT7rs9do8p
+# G3weBqdibkfbtl74/+/1Uhi+nQGXJeEbsTJbvC/h6HtVGf2G0OYN+Gw7vojAh0dj
+# hK0+xT7HhNV/zoR/llyiBTtU1icwz9jZgJ4NxfYv3Tbt41phVF61chzHAmwrYKmJ
+# NUTHWI1oMlCa4nW/1fEGoz1EFUTKRA==
 # SIG # End signature block

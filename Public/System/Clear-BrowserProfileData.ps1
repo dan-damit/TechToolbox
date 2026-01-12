@@ -1,14 +1,17 @@
 function Clear-BrowserProfileData {
     <#
     .SYNOPSIS
-        Clears cache, cookies, and optional local storage for Chrome/Edge profiles.
+        Clears cache, cookies, and optional local storage for Chrome/Edge
+        profiles.
     .DESCRIPTION
-        Stops browser processes (optional), discovers Chromium profile folders, and clears
-        cache/cookies/local storage per switches. Logging is centralized via Write-Log.
+        Stops browser processes (optional), discovers Chromium profile folders,
+        and clears cache/cookies/local storage per switches. Logging is
+        centralized via Write-Log.
     .PARAMETER Browser
         Chrome, Edge, or All. Default: All.
     .PARAMETER Profiles
-        One or more profile names to target (e.g., 'Default','Profile 1'). If omitted, all known profiles.
+        One or more profile names to target (e.g., 'Default','Profile 1'). If
+        omitted, all known profiles.
     .PARAMETER IncludeCookies
         Clears cookie databases. Default: $true
     .PARAMETER IncludeCache
@@ -19,10 +22,22 @@ function Clear-BrowserProfileData {
         Attempts to stop browser processes before deletion. Default: $true
     .PARAMETER SleepAfterKillMs
         Milliseconds to wait after killing processes. Default: 1500
+    .INPUTS
+        None. You cannot pipe objects to Clear-BrowserProfileData.
+    .OUTPUTS
+        [PSCustomObject] with properties:
+            Browser             - The browser processed (Chrome/Edge)
+            Profile             - The profile name processed
+            CacheCleared        - $true if cache was cleared
+            CookiesCleared      - $true if cookies were cleared
+            LocalStorageCleared - $true if local storage was cleared
+            Timestamp           - DateTime of operation
     .EXAMPLE
         Clear-BrowserProfileData -Browser Chrome -Profiles 'Default','Profile 2' -WhatIf
     .EXAMPLE
         Clear-BrowserProfileData -Browser All -IncludeCache:$true -IncludeCookies:$false -Confirm
+    .LINK
+        [TechToolbox](https://github.com/dan-damit/TechToolbox)
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
@@ -161,8 +176,8 @@ function Clear-BrowserProfileData {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBjxzoO3bKDyWXp
-# hS2ghpyzi7svcOXTEJju6onb02CZ26CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCen7wGLAUrpWr+
+# Zk2wknXeCEcciwfG3Cx6PTeslZ4YAKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -295,34 +310,34 @@ function Clear-BrowserProfileData {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCARi8sI53XC
-# 13vLv1y9CiJSUxJcD6bT949bkChD/R2tnDANBgkqhkiG9w0BAQEFAASCAgCbrw1x
-# o2+PKRiNPsQQZ3UNkGEhClPRSjdAPQHv/5JsYjS0pkKKQqS889rBWEjKILA1iJ/h
-# LrtTOrpnp/PPvaNAIpkCa1td7Ew6szkVwyOrm/rtzKyPFyt0i+l5QiLXwlyroeZL
-# beb6tW5DjSyYVnxVE59tYBb4R9If+vNkAcHqf2cJFTvO497JOtKTPpi1bx8CgGTV
-# C4ELRJXhJ8QEDwoEIy9zDJBL3mrH93R6QMlZ5P0w7YC/dMcCjcxneiEckEXIClKb
-# 1S+RawSV6sPxU2rzDW8Sp+vNGoxsix7WkDYfEF3OiW++HGWPL+9U0cF6vdMYHNNQ
-# nJlR4cOHBYO3fPPApjUbXMgqHSlxYOvl32XLRVvswlvQnvMAP2E5nTEtsF2k+aIO
-# kxEWJOwZkXEZum4TP3GONm1WHfvtMoLoAD+5r9B5BBmT6MgU6A8OYSaxahW+gyQD
-# hY4qR+uneDgheomaizmxh+cVaZPw8+3HAhw1hm9ka/FT13N66+GheRBZ93RWtbwM
-# dqdslON1lcmrORyGTZtjdUee6ayXr9PV2StMVFhZeQJ0cDsv3j4w7pE0U/NxRvRn
-# d7QoSYvZkUz6+rEi0drNzcCCFC1PlxR+xQgPOcVmsSQ4p5txPhpOlQU6d8TjDGPv
-# 4KFmxeZ7w3dE8suJk1mdgsYThVI7vs5O3+/X0aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDYpa7RjgXY
+# eg6bIpHZIbc8vzv0FyvP5qPc5oNVLCt1GDANBgkqhkiG9w0BAQEFAASCAgBy+x+G
+# xtCmYGKNxI0gJD1RcP4F/Yprms/l1sMIReH2/twRO4WGS7tltKbA2s2OnWeStanj
+# 5363QABG1cI4nT5ovOCQAMoKw2S6VXw8PiR0rscrRYGhrQcls1GT8f7b5R04Hy+S
+# EbpxxrWOeC5FUdkwZQf5rFhmPsEy+N8FDLqGI4j2alEl+VzzpX1i3zgurI73Eqdp
+# DCGF1eI0wPgtDaVtlmg9hSHIYXsfI0b8GtOFli46tVFhwukZuewvIQ4lLL4aoFdZ
+# 65URsG2UFV4JO7IpioBoBhmIXRxRjmrbNjpCT/WOby6ToJ8wSHZ978yUZ6tqgOt0
+# 1CN7oTd7cs5ygHL88uawSMssjHe9/M6MgsztlC0u8+83lRRw+AuIgJZiImPu6lE1
+# NlraDgG16CY8Q0+jscPm+ZQ/WG7++kY/V8AV8ny5dR0GmC9RpdoRkMtWRZ1Jqxye
+# wCdc0HQ0QF8wPeXQsvlPpmOEmXIXYgq0uvqDsmenUptHLboExHjH8nVPSEYUnXgD
+# caq/GGUKI/ks7ztTQ99Urrx4EOcPw0AaiSJAGJHXLCqif/WUpyHwf14yUDM7RKTs
+# mvnVffuqv6A5cVLVvxBGo2KngO+YK7jYPcc7TZA3fCDPGODF3+PnQcnjZ3Sr8Qtg
+# yVCLqoQFEQdxZyQYSDwCPilulOEJWhtmVIRnI6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNDMyNTRaMC8GCSqGSIb3DQEJBDEiBCA2F9J7ycgsSeWzCNs1
-# 1jYPP8fLW4gz3EN2ram4xl9RQTANBgkqhkiG9w0BAQEFAASCAgAXqcZRxNA58f1C
-# dPqjkz/KsLjim/Wi9GoSZZt+Xwn3dvydTX3TO95RsDNaXOXzMz6Flhu1xXFvyFoS
-# XQQd95EEQ+ser7AYOdoXfykf30a4bGQOyFVN1wo0+RLguinKf6EyfUb9kYAaPpvh
-# Z87zInM2+SYiaZJKVQEwUMpcbJ30hVJdN4bLRTwET8VmPUgUQije/6jmGBc9vcbu
-# pnWOz5AK730/P5H8GBj1ycvu8JmEAdMT9CkaxEEFJ75c8UDbOTM1KpfgtAHBadcP
-# fJfn2807Mj7oVO4dUfqxnhLGz7+6Yz5NBN3IA6Hfj66Ua2ZHHVupRBEgJB2o1wEI
-# MBdESyDHGhnIFMYZIpnKMOtEHrodd2AqFxPLsdUXGVatMhxRH3c7N89gQvE48TzG
-# FftlEB6I1BPhw1tSwgHYXCB8oSR+MnnFAL0VYZ6iehooAH70lBZYyT9qGkb3MDoO
-# XlVh5CUQDpjljUcphKF/GXyIlI7yyFsqQuqxcBCyDWNKcmWsSrZVItCFGNFMSs2h
-# 2K4gzuHOWuUcUIFv3p4/mL69UBfV8yzcYRQ11+eKysl30XgsHgIIOvqFk4wp8ihL
-# 274ZoRz/TRp5RWRHDucNGjW5e85ujFjmgO9J59BMTypqjQtIBdKjzxDdaxl55iRB
-# sMnMIyPcVTt4njPTVuk4OurHcZoHCQ==
+# BTEPFw0yNjAxMTIyMjE4MjJaMC8GCSqGSIb3DQEJBDEiBCBOkEt8/VkS5Kugw6Ou
+# ijFvNrmIiyVeF2XWEXD2NVAN4zANBgkqhkiG9w0BAQEFAASCAgBm8AwkUW/uABpB
+# hoaQtGbXnV4EJ0IQ5rPWwNox+DbuMnM9V5VLbTXWQF1/6aIcmZIZ+T5PkM3nK3Lf
+# HSY2gtr7GDjH6XF4YNWvFoXFXhgHRM9SoBIQMYnVz1c40fEIKsxnGON/8s0zk2gW
+# nOmqlpgxxpZLNfXr5OOQ1yTt68anGBCW1hboTIiLu7sXhL/XfjMHthZyyNC17AsH
+# lHEBYyXxRC40ike7p0lv6imTh05grWRfKM3rFDaJG+M58RRdxoF2ITXUdHT5TYFb
+# lQCphCs38bsGezHyG0xWwf985KEK3GwfepIQplTmbvRPSuyBU9Vj/yfiZLp05pjS
+# vZiEUnImVTnwMUCQawX4OuVsxWyZkojO3do3h7LgaamhADnvJfQs1/Pyp/1ewuWn
+# iEDfhHqlZTSyS6AiPf9UM69dx206bdKzH7oGhnDPRPfLqcogII/dr1gXZzWp/Sam
+# QPGdOmCCftBS+NvuM/CQ3UiOvaEr7M6kgWMDCDEIldq0aB3O1uqpgh6iNMtYDEx/
+# EyypCyTRSiqjTiAYQLlBpeyzgqskipaXUdFycYxWWE/mu8HQQpkPrNrXn632+TLi
+# cgb2Yx5LY3mKALj8zcariZ2oeUei9yDuJPDXqA3FnzVaNcD7Xxsyhf6Mfz8kcVYI
+# IUfy9+qIk8+Ch+DPU6I1Vpv0HHtYcA==
 # SIG # End signature block
