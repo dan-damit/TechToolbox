@@ -3,6 +3,15 @@ function Start-DnsQueryLogger {
     <#
     .SYNOPSIS
         Starts real-time DNS query logging using the Windows DNS debug log.
+    .DESCRIPTION
+        This cmdlet starts logging DNS queries by enabling the Windows DNS debug log.
+        It reads configuration settings from the TechToolbox config.json file to
+        determine if DNS logging is enabled, the log file path, and parsing mode.
+        If logging is enabled, it ensures the log directory exists and starts the
+        DNS query logger.
+    .EXAMPLE
+        Start-DnsQueryLogger
+        Starts the DNS query logger based on the configuration settings.
     #>
     [CmdletBinding()]
     param()

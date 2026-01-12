@@ -130,7 +130,15 @@
       "tenantId": "e1b83792-ab2b-418b-9481-fe12c76f201e",
       "clientId": "9c0e43db-f3fc-4bba-9530-10b5d063730b",
       "organizationName": "valueaddedcompanies.onmicrosoft.com",
-      "authorityUrl": "https://login.microsoftonline.com"
+      "authorityUrl": "https://login.microsoftonline.com",
+      "defaultUsageLocation": "US",
+      "defaultMailboxLanguage": "en-US",
+      "upnSuffix": "vadtek.com"
+    },
+    "naming": {
+      "upnPattern": "first.last",
+      "samPattern": "flast",
+      "mailNicknamePattern": "first.last"
     }
   }
 }

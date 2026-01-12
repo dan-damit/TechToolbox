@@ -2,6 +2,22 @@ function Get-ToolboxHelp {
     <#
     .SYNOPSIS
         Provides help information for TechToolbox public commands.
+    .DESCRIPTION
+        The Get-ToolboxHelp cmdlet displays help information for TechToolbox
+        public commands. It can show an overview of the module, list all
+        available commands, or provide detailed help for a specific command.
+        Additionally, it can display the effective configuration settings used
+        by TechToolbox.
+    .PARAMETER Name
+        The name of the TechToolbox command to get help for.
+    .PARAMETER List
+        Switch to list all available TechToolbox commands.
+    .PARAMETER ShowEffectiveConfig
+        Switch to display the effective configuration settings used by
+        TechToolbox.
+    .PARAMETER AsJson
+        When used with -ShowEffectiveConfig, outputs the configuration in JSON
+        format.
     #>
     [CmdletBinding()]
     param(
@@ -13,6 +29,37 @@ function Get-ToolboxHelp {
 
     # Load merged runtime config
     $Config = Get-TechToolboxConfig
+    
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor DarkCyan
+    Write-Host "        TechToolbox Help Center         " -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor DarkCyan
+    Write-Host ""
+    Write-Host "A technician-grade PowerShell toolkit for:" -ForegroundColor Gray
+    Write-Host "  • Diagnostics" -ForegroundColor Gray
+    Write-Host "  • Automation" -ForegroundColor Gray
+    Write-Host "  • Environment-agnostic workflows" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    Write-Host " Common Commands:" -ForegroundColor White
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Get-ToolboxHelp -List" -ForegroundColor Yellow
+    Write-Host "    Displays all available commands." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Get-ToolboxHelp Invoke-SubnetScan" -ForegroundColor Yellow
+    Write-Host "    Shows detailed help for Invoke-SubnetScan." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Invoke-SubnetScan -CIDR 192.168.1.0/24" -ForegroundColor Yellow
+    Write-Host "    Scans the specified subnet for active hosts." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    Write-Host " For full help on any command:" -ForegroundColor White
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Get-ToolboxHelp <CommandName>" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor DarkCyan
 
     # Show effective configuration
     if ($ShowEffectiveConfig) {
@@ -34,7 +81,7 @@ function Get-ToolboxHelp {
     # List all public functions
     if ($List) {
         Write-Host ""
-        Write-Host "TechToolbox Public Commands" -ForegroundColor Cyan
+        Write-Host "TechToolbox Commands" -ForegroundColor Cyan
         Write-Host "----------------------------------------"
         Get-Command -Module TechToolbox |
         Where-Object { $_.CommandType -eq 'Function' } |
@@ -60,21 +107,157 @@ function Get-ToolboxHelp {
         return
     }
 
-    # Default: show module overview
-    Write-Host ""
-    Write-Host "TechToolbox Help" -ForegroundColor Cyan
-    Write-Host "----------------------------------------"
-    Write-Host "A technician-grade PowerShell toolkit for diagnostics,"
-    Write-Host "automation, and environment-agnostic workflows."
-    Write-Host ""
-    Write-Host "Common Commands:"
-    Write-Host "  Get-ToolboxHelp -List"
-    Write-Host "  Get-ToolboxHelp Invoke-SubnetScan"
-    Write-Host "  Invoke-SubnetScan -CIDR 192.168.1.0/24"
-    Write-Host ""
-    Write-Host "For full help on any command:"
-    Write-Host "  Get-ToolboxHelp <CommandName>"
-    Write-Host ""
+    # Clear-BrowserProfileData
+    if ($Name -eq 'Clear-BrowserProfileData') {
+        Write-Host ""
+        Write-Host "Clear-BrowserProfileData" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Invoke-SubnetScan
+    if ($Name -eq 'Invoke-SubnetScan') {
+        Write-Host ""
+        Write-Host "Invoke-SubnetScan" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Get-RemoteInstalledSoftware
+    if ($Name -eq 'Get-RemoteInstalledSoftware') {
+        Write-Host ""
+        Write-Host "Get-RemoteInstalledSoftware" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # New-OnPremUserFromTemplate
+    if ($Name -eq 'New-OnPremUserFromTemplate') {
+        Write-Host ""
+        Write-Host "New-OnPremUserFromTemplate" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Get-BatteryHealth
+    if ($Name -eq 'Get-BatteryHealth') {
+        Write-Host ""
+        Write-Host "Get-BatteryHealth" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Get-MessageTrace
+    if ($Name -eq 'Get-MessageTrace') {
+        Write-Host ""
+        Write-Host "Get-MessageTrace" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Get-TechToolboxConfig
+    if ($Name -eq 'Get-TechToolboxConfig') {
+        Write-Host ""
+        Write-Host "Get-TechToolboxConfig" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Get-ToolboxHelp
+    if ($Name -eq 'Get-ToolboxHelp') {
+        Write-Host ""
+        Write-Host "Get-ToolboxHelp" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Get-WindowsProductKey
+    if ($Name -eq 'Get-WindowsProductKey') {
+        Write-Host ""
+        Write-Host "Get-WindowsProductKey" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Invoke-AADSyncRemote
+    if ($Name -eq 'Invoke-AADSyncRemote') {
+        Write-Host ""
+        Write-Host "Invoke-AADSyncRemote" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Invoke-DownloadsCleanup
+    if ($Name -eq 'Invoke-DownloadsCleanup') {
+        Write-Host ""
+        Write-Host "Invoke-DownloadsCleanup" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Invoke-PurviewPurge
+    if ($Name -eq 'Invoke-PurviewPurge') {
+        Write-Host ""
+        Write-Host "Invoke-PurviewPurge" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Invoke-SystemRepair
+    if ($Name -eq 'Invoke-SystemRepair') {
+        Write-Host ""
+        Write-Host "Invoke-SystemRepair" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Set-PageFileSize
+    if ($Name -eq 'Set-PageFileSize') {
+        Write-Host ""
+        Write-Host "Set-PageFileSize" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Set-ProxyAddress
+    if ($Name -eq 'Set-ProxyAddress') {
+        Write-Host ""
+        Write-Host "Set-ProxyAddress" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Start-DnsQueryLogger
+    if ($Name -eq 'Start-DnsQueryLogger') {
+        Write-Host ""
+        Write-Host "Start-DnsQueryLogger" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Copy-Directory
+    if ($Name -eq 'Copy-Directory') {
+        Write-Host ""
+        Write-Host "Copy-Directory" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Reset-WindowsUpdateComponents
+    if ($Name -eq 'Reset-WindowsUpdateComponents') {
+        Write-Host ""
+        Write-Host "Reset-WindowsUpdateComponents" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Test-PathAs
+    if ($Name -eq 'Test-PathAs') {
+        Write-Host ""
+        Write-Host "Test-PathAs" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor

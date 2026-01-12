@@ -31,6 +31,7 @@ enterprise-grade PowerShell module.
   - [Get-WindowsActivationInfo](#get-windowsactivationinfo)
   - [Reset-WindowsUpdateComponents](#reset-windowsupdatecomponents)
   - [Set-ProxyAddress](#set-proxyaddress)
+  - [New-OnPremUserFromTemplate](#new-onpremuserfromtemplate)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -357,6 +358,17 @@ A simple tool to set SMTP: address for a user's AD Object
 ```powershell
 # Usage:
 Set-ProxyAddress -Username "jdoe" -ProxyAddress "jdoe@example.com"
+```
+
+---
+
+### New-OnPremUserFromTemplate
+
+Automated ADUser creation with -TemplateIdentity "user_to_copy_from" support
+
+```powershell
+# Example:
+New-OnPremUserFromTemplate -TemplateIdentity "jdoe" -GivenName "John" -Surname "Smith" -DisplayName "John Smith" -TargetOU "OU=Users,DC=example,DC=com"
 ```
 
 ---

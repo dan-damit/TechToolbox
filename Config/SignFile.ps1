@@ -1,94 +1,160 @@
-function Get-TechToolboxConfig {
-    <#
-    .SYNOPSIS
-        Loads and returns the TechToolbox configuration from config.json.
-    .PARAMETER Path
-        Optional path to the config.json file. If not provided, the default
-        location relative to the module is used.
-    .OUTPUTS
-        Hashtable representing the configuration.
-    .EXAMPLE
-        Get-TechToolboxConfig -Path "C:\TechToolbox\Config\config.json"
-    #>
-    [CmdletBinding()]
+
+<#
+.SYNOPSIS
+    Signs all .ps1 scripts in a user-provided directory using a fixed code signing
+    certificate from Cert:\CurrentUser\My, identified by thumbprint.
+
+.DESCRIPTION
+    - Prompts for the target script directory.
+    - Optionally recurses through subfolders.
+    - Signs with SHA256. Optional timestamp server.
+    - Skips already validly signed files (optional).
+    - Outputs per-file status and a final summary.
+
+.NOTES
+    Author: Dan.Damit (https://github.com/dan-damit)
+    Requires: PowerShell 5.1+ (Set-AuthenticodeSignature), cert with private key in CurrentUser\My.
+#>
+
+# --- Configuration: fixed thumbprint for VADTEK Code Signing cert ---
+$Thumbprint = '7168509FC1A2AE7AFC4C40342D6A8FED7413029C'
+
+function Get-CodeSigningCertByThumbprint {
     param(
-        [Parameter()] [string] $Path
+        [Parameter(Mandatory = $true)][string]$Thumb
     )
 
-    # Determine config path (explicit override wins)
-    if ($Path) {
-        $configPath = $Path
-    }
-    else {
-        # Reliable module root when code is running inside an imported module
-        $moduleDir = $ExecutionContext.SessionState.Module.ModuleBase
-        $configPath = Join-Path $moduleDir 'Config\Config.json'
-    }
+    # Look in CurrentUser\My (private key required for signing)
+    $cert = Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |
+    Where-Object { $_.Thumbprint -eq $Thumb }
 
-    # Validate path
-    if (-not (Test-Path -LiteralPath $configPath)) {
-        throw "config.json not found at '$configPath'. Provide -Path or ensure the module's Config folder contains config.json."
+    # Optional fallback to LocalMachine\My
+    if (-not $cert) {
+        $cert = Get-ChildItem Cert:\LocalMachine\My -ErrorAction SilentlyContinue |
+        Where-Object { $_.Thumbprint -eq $Thumb }
     }
 
-    # Load JSON
-    try {
-        $raw = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+    if (-not $cert) {
+        Write-Error "Signing certificate with thumbprint $Thumb was not found in CurrentUser\My or LocalMachine\My."
+        return $null
     }
-    catch {
-        throw "Failed to read or parse config.json from '$configPath': $($_.Exception.Message)"
-    }
-
-    # Validate required root keys
-    $rootNames = $raw.PSObject.Properties.Name | ForEach-Object { $_.ToLower() }
-    if (-not ($rootNames -contains 'settings')) {
-        throw "Missing required key 'settings' in config.json."
+    if (-not $cert.HasPrivateKey) {
+        Write-Error "Found certificate ($($cert.Subject)) but it has NO private key. Re-import the PFX with the private key."
+        return $null
     }
 
-    # Recursive normalizer
-    function ConvertTo-Hashtable {
-        param([Parameter(ValueFromPipeline)] $InputObject)
+    Write-Host ("Using certificate: {0} | Thumbprint: {1} | Expires: {2}" -f $cert.Subject, $cert.Thumbprint, $cert.NotAfter) -ForegroundColor Cyan
+    return $cert
+}
 
-        process {
-            if ($null -eq $InputObject) { return $null }
+function Update-SignScriptsByThumbprint {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Thumb,
+        [string]$TimestampServer = 'http://timestamp.digicert.com'
+    )
 
-            if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
-                $hash = @{}
-                foreach ($prop in $InputObject.PSObject.Properties) {
-                    $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
+    # Prompt for directory
+    do {
+        $dirInput = Read-Host "Enter the directory containing .ps1 scripts"
+        if ([string]::IsNullOrWhiteSpace($dirInput)) {
+            Write-Host "Directory cannot be empty." -ForegroundColor Yellow
+            continue
+        }
+
+        $resolved = Resolve-Path -LiteralPath $dirInput -ErrorAction SilentlyContinue
+        if ($resolved) { $dir = $resolved.Path } else {
+            Write-Host "Path not found. Please enter a valid directory." -ForegroundColor Yellow
+            $dir = $null
+        }
+    } while (-not $dir)
+
+    # Recurse prompt
+    $recurseInput = Read-Host "Recurse into subfolders? (Y/N) [Default: N]"
+    $recurse = $false
+    if ($recurseInput -match '^(?i)y(es)?$') { $recurse = $true }
+
+    # Skip already validly signed prompt
+    $skipSignedInput = Read-Host "Skip scripts already validly signed? (Y/N) [Default: Y]"
+    $skipSigned = $true
+    if ($skipSignedInput -match '^(?i)n(o)?$') { $skipSigned = $false }
+
+    # Find scripts
+    $searchParams = @{ Path = "$dir\*"; Include = '*.ps1','*.psm1'; File = $true }
+    if ($recurse) { $searchParams['Recurse'] = $true }
+    $scripts = Get-ChildItem @searchParams
+
+    if (-not $scripts -or $scripts.Count -eq 0) {
+        Write-Host "No .ps1 files found in the selected path." -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host ("Found {0} script(s) to sign." -f $scripts.Count) -ForegroundColor Cyan
+
+    # Get cert by thumbprint
+    $cert = Get-CodeSigningCertByThumbprint -Thumb $Thumb
+    if (-not $cert) { return }
+
+    $success = 0
+    $skipped = 0
+    $failed = 0
+
+    foreach ($file in $scripts) {
+        try {
+            if ($skipSigned) {
+                $sig = Get-AuthenticodeSignature -FilePath $file.FullName
+                if ($sig.Status -eq 'Valid') {
+                    Write-Host ("[SKIP] {0} -> already validly signed." -f $file.FullName) -ForegroundColor DarkYellow
+                    $skipped++
+                    continue
                 }
-                return $hash
             }
 
-            if ($InputObject -is [System.Collections.IDictionary]) {
-                $hash = @{}
-                foreach ($key in $InputObject.Keys) {
-                    $hash[$key] = ConvertTo-Hashtable $InputObject[$key]
-                }
-                return $hash
+            $params = @{
+                FilePath      = $file.FullName
+                Certificate   = $cert
+                HashAlgorithm = 'SHA256'
             }
+            if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
 
-            if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
-                $list = @()
-                foreach ($item in $InputObject) {
-                    $list += ConvertTo-Hashtable $item
-                }
-                return $list
+            $result = Set-AuthenticodeSignature @params
+            $status = $result.Status
+            $message = $result.StatusMessage
+
+            if ($status -eq 'Valid') {
+                Write-Host ("[OK] {0}" -f $file.FullName) -ForegroundColor Green
+                $success++
             }
-
-            return $InputObject
+            else {
+                Write-Host ("[WARN] {0} -> Status: {1} | {2}" -f $file.FullName, $status, $message) -ForegroundColor Yellow
+                if ($result.SignerCertificate -and $result.SignerCertificate.NotAfter -lt (Get-Date)) {
+                    Write-Host "   ❗ Certificate appears expired." -ForegroundColor Red
+                }
+                $failed++
+            }
+        }
+        catch {
+            Write-Host ("[ERROR] {0} -> {1}" -f $file.FullName, $_.Exception.Message) -ForegroundColor Red
+            $failed++
         }
     }
 
-    # Always normalize to nested hashtables
-    $script:TechToolboxConfig = ConvertTo-Hashtable $raw
+    Write-Host "----------------------------------------"
+    Write-Host ("Signing complete. Success: {0} | Skipped: {1} | Failed/Warnings: {2}" -f $success, $skipped, $failed) -ForegroundColor Cyan
 
-    return $script:TechToolboxConfig
+    # Execution policy hint
+    $ep = Get-ExecutionPolicy
+    Write-Host ("`nCurrent execution policy: {0}. Ensure it allows running signed scripts (e.g., RemoteSigned or AllSigned)." -f $ep) -ForegroundColor DarkCyan
 }
+
+# --- Run ---
+Update-SignScriptsByThumbprint -Thumb $Thumbprint
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC6Rb2XKQSi/4Gw
-# 78GqIeF3HkNIO4VtoY8Fb3FrgHvne6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAl1AYjXs9zkrHP
+# 15GM7bCEuCwnR3gulYWPe6rI2M5ivaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -221,34 +287,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCFLipN/cot
-# IAhN4lpD7LGNuODUq3Sc+ri9GIPtLNWCXzANBgkqhkiG9w0BAQEFAASCAgCRBHjd
-# NuI1bRTBoQIsP659t3qLhXRsp2ih7sAAnrd020Vj//S6ty/LMaCBG9Dn2gGetVI7
-# zqdgpu61znEGtEkm+WCfEApucE1hFdMJxgEc/qKe0Zhcz/8g6A574ROjfDe/vVAQ
-# N4QBMz7e1smG742SYEZeVfG3plzAXgI4I1XzIUJU45L13/W2eIdMlm6pIoR1By2f
-# nF+qxCtfbDVuHqQRVQK7Xb5W9WCMYCbCRMLbDKCItxnLd7XEjBnfybnOuU/Hhdzy
-# +nTkg/1JVApFPYlQQv/2pVAZhXp9WCTT7PeSFZz4/vGcO9FD/gr9eDCxzYpBJMdf
-# ROnTT1E3hTqJiwChWodZBh1yjUYpckQVgb/UrkykUc7hAK/loD6c+n0K2FpLJXO9
-# nNW4UzwYjxLLFrrrZE+5lBlCQMHbYBI/3NmmGx8aSLssa58NH88q2q31ApsAjVpa
-# i9SvEJc+n3EATlpxA+Xy/DOTd9QC4h40O0FTjIe8530zXZdQQ7uez1Ly4OovvxFC
-# q/sUfX8OyFXFEffvqQUU3xdf/AlSC+AM1Ovwih4ewrZOsbavWjJPjH/CuvwYy7PN
-# P75McK50DQep2nL29+HX+EVE0mkDbvxn7oeTQ8Sco7aS0M/dte9j6igL5QRxnk8I
-# EI/e0YKiWwrjsPkkimM0t7U5HcZXoTHUv19FXKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBpHkd/Jr/x
+# DAIBXZdh40A4i7M6IoXAzY9+dxdXL4h1IDANBgkqhkiG9w0BAQEFAASCAgC24i1+
+# GP0xL4w39GVBKrPOKKNokQYu91grSMWPegXFiYy8Ea+7ZgG/H/YdWga3lVkWXejb
+# ndJphN3Tc79UnuEzmsjLUoIUkkcgF+Abp9s/NOwh5ukiDYiY/oH/qIArd1l3xLwn
+# EJRGAD0jliekZ9Ez19OZm42JvQqRLYlQk/Xjxvn1YpavcUDu1lkrICZzvcn4k3sH
+# PdnlulBHTj6PefoZCGwBzGAdYTf6WU6pMZsHuG9FmFlrP3mCe1hT9LgUwUS3wwKK
+# xwrGxCoK7XtPcP9MKXOsGLMvF/PgmMT7oD0yiz7fvV+TfWFsaVIRvlQqZFBzfyWn
+# ogB3xesiy8UktrEc9HC4gNKE5E9wqipPVYJJ/CoewBUBZnJ9ob6f4yTFKj/CtmSR
+# pbyr6Vpp0v0yuhuBRRy4CsHKyuQ59vmJx3REVsvzIFcvUQvslrjHPJdZ3A+F+WiK
+# 81n6TwTAyXHOOEdMbHlOTD3OScxrE1W8N9oKapSfUBDHM8fATNbNmNMcTPkJPxJM
+# 7lQRQ5Kam7vgAT9XRQ+70B3UXoQi6MQYxujtY5Ya5uHLWaKF2k4Wvi11tllVo4ju
+# /vabzjcwEF+DeWjoPj6MwoMbRaoE0IPlI+lTFgzSPylhNlji4sewLkMVb8D9tI70
+# x00qENzOApFsnpH2l2cll1Df56YRDC4HrEDTXqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNTEwMTlaMC8GCSqGSIb3DQEJBDEiBCAAdBfIqTRAvRN2PzJf
-# ve3jy1fs3B26Nz3RgrBFedYJpjANBgkqhkiG9w0BAQEFAASCAgCAfgGfZiefbqJk
-# MuqSDfB2Oif8K58syRibKGtC0MBmp91uS4GsXQEcecQ8jtYbFbVuYwXwKdhOAlO9
-# oV7zhfERGeW1PudIiHioKkOJUi4aOcK0TnbDxeiCqSLSvzwQyF6kXEu6OWypECnI
-# t3Q2sC5DsFmQiUZZHYkbpNl8B+Q1jmt0oL99w4RuPyYX7zyb7balTda6mn0lSHq+
-# 986B+wV3/D90OjNEiKsXOAYorPVRzpEbbPEG6608cVAsJ6NOMufNhRT6bk44Cf27
-# QF6JPMx+2VXOInziqemL3gZDXnx4TeL2Vwc7+lR+hMig1X327anXqEwjtpzyy0ed
-# 7u/HR9/Pb6SCtDWwgconLDwu7hK09UpIHsWZICbjj7HQJUr3ShXxqe2CeB6btohW
-# rFcmcmNCCMj2MR/aezfxS3vNDC8ZL4RMYM5Z6fwMR7BiZUazYX3oUVjy60LsgxQy
-# MfdhHKfss5wJmOFYlgtRiXfZ1A+752rzrXbOJRv38fJfJG/QFMwKGQsE2/uxx7qk
-# fXoTMs04lHoj1y4h/JwARYAUYWDbQdlfM5ZQfWhTsj5ucFl3ED1lx1wYrKsh5tOI
-# Y8fuC+jjhMoGHor8yzlWdfSoqOYLl30H4pn/btsG6k6svZbhluLo1wcd8HLAPPGc
-# beBQCky9UDmIyL/bzJGumcVexNHc2Q==
+# BTEPFw0yNjAxMTIxNTU3NThaMC8GCSqGSIb3DQEJBDEiBCDXxUjGRLUC29bCB0w6
+# mqgRY/inMZKQKUxa37J5ZSSdQjANBgkqhkiG9w0BAQEFAASCAgCCLpThWvRxtF0k
+# YH4yiIDphs1fqXeACRPGHx0Ej20RLiwivex4XAqdvkh42GvrhDTwipiAq03sWJD4
+# BZlNZyyOAzG6/ObSPJxnfoSwSKgALj8plCB+zTP7/G7rhi7YVKNANgRnoCNcoZi7
+# tgkvtXY6QX8IABj1Ge2wZevQHOnTUfmw4F7ZdmzVWchLRHRYraWPR+p3DL7/qHp8
+# NjpKkMh65/zV6wYVCuFJ5rhazvBsz+mctcN5pRg5oqnlGF4Vkg5YkqcW5BWpG0Fi
+# uQgUif7qGpqaOAWFxYkYrTBN3Bv4Mvf0xfHkIzwiPIdpU2lInO6Qq8hr0mgynBde
+# ukGIFUpyqhOnp5jas1rT6K/GoIPJfWJDzW6taBuGY2yRX68GtfCkXNSdSOTVI8I0
+# 7XD5mV6Xb+sMzEfHvr6vTJlCKxJW4pLqDlxX6ZY5VBnTbJrVCVcTQ9hUWGw1T97l
+# 3SQQiKBZETWs0wufovhsBiJZltHmzd7YqS4XDMbuS2Iff9FWfMV2BYXQeNHYer5K
+# mWOJwOx1HT+wnKko8th2MsCLd12sH3sU+Tj4tSg36sCRN8PVDUIj5CiwgrH9F1l8
+# W6GKThw3jU6TvGvRSSCidXWS4jphW5/LrjEkhODbWUL87r7XTLKdvVdAJK04K6Wu
+# hE2cwC7VBqwxdnkoHlRPoywaChK7aQ==
 # SIG # End signature block

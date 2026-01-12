@@ -3,8 +3,31 @@ function Copy-Directory {
     .SYNOPSIS
         Copies a directory to another directory using Robocopy.
     .DESCRIPTION
-        Supports local or remote execution via PowerShell Remoting.
-        Uses config-driven defaults for logging, flags, retries, and mirror behavior.
+        Supports local or remote execution via PowerShell Remoting. Uses
+        config-driven defaults for logging, flags, retries, and mirror behavior.
+    .PARAMETER Source
+        The source directory to copy.
+    .PARAMETER DestinationRoot
+        The root destination directory where the source folder will be copied.
+        The final destination will be DestinationRoot\SourceFolderName.
+    .PARAMETER ComputerName
+        The name of the remote computer to perform the copy on. If omitted, the
+        copy is performed locally unless -Local is specified.
+    .PARAMETER Local
+        Switch to force local execution of the copy.
+    .PARAMETER Mirror
+        Switch to enable mirror mode (/MIR) for the copy, which deletes files in
+        the destination that no longer exist in the source.
+    .PARAMETER Credential
+        Optional PSCredential to use for remote connections.
+    .OUTPUTS
+        The final destination path where the directory was copied.
+    .EXAMPLE
+        Copy-Directory -Source "C:\Data\FolderA" -DestinationRoot "D:\Backup"
+        Copies FolderA to D:\Backup\FolderA locally.
+    .EXAMPLE
+        Copy-Directory -Source "C:\Data\FolderA" -DestinationRoot "D:\Backup" -ComputerName "Server01"
+        Copies FolderA to D:\Backup\FolderA on the remote computer Server01.
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(

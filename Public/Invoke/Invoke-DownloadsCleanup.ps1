@@ -3,6 +3,11 @@ function Invoke-TTDownloadsCleanup {
     <#
     .SYNOPSIS
         Cleans up old files from Downloads folders on local or remote machines.
+    .DESCRIPTION
+        This cmdlet connects to a specified remote computer (or the local machine
+        if -Local is used) and scans all user Downloads folders for files last
+        modified on or before a specified cutoff year. Those files are deleted to
+        help free up disk space and reduce clutter.
     .PARAMETER ComputerName
         The name of the remote computer to clean up. If omitted, -Local must be
         used.
