@@ -24,7 +24,7 @@ Get-ChildItem "$PSScriptRoot\Private" -Recurse -Filter *.ps1 |
 ForEach-Object { . $_.FullName }
 
 # Load Public and export only those
-$publicFunctions = Get-ChildItem -Path (Join-Path $script:ModuleRoot 'Public') -Filter *.ps1 -File -ErrorAction SilentlyContinue |
+$publicFunctions = Get-ChildItem -Path (Join-Path $script:ModuleRoot 'Public') -Recurse -Filter *.ps1 -File |
 ForEach-Object {
     . $_.FullName
     $_.BaseName
