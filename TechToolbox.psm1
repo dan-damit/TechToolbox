@@ -26,7 +26,7 @@ foreach ($file in $privateFiles) {
     . $file.FullName
 }
 
-# --- Load aliases from Config/AliasesToExport.json and define them ---
+# Define aliases from JSON
 $aliasesConfigPath = Join-Path $script:ModuleRoot 'Config/AliasesToExport.json'
 if (Test-Path $aliasesConfigPath) {
     try {
@@ -36,26 +36,19 @@ if (Test-Path $aliasesConfigPath) {
         foreach ($a in $aliasItems) {
             if (-not $a.name -or -not $a.target) { continue }
 
-            # Ensure target exists (private function was already dot-sourced)
-            $targetCmd = Get-Command -Name $a.target -ErrorAction SilentlyContinue
-            if (-not $targetCmd) {
+            # Check target exists (should, since Private already loaded)
+            if (-not (Get-Command -Name $a.target -ErrorAction SilentlyContinue)) {
                 Write-Verbose "Alias '$($a.name)' target '$($a.target)' not found; skipping."
                 continue
             }
 
-            # Create alias scoped to the module (default scope) so it can be exported
+            # Create alias in module scope (default); manifest will export it
             Set-Alias -Name $a.name -Value $a.target
-
-            # OPTIONAL: If exporting aliases here instead of via manifest, uncomment:
-            # if ($a.export) { Export-ModuleMember -Alias $a.name }
         }
     }
     catch {
         Write-Warning "Failed to load aliases from '$aliasesConfigPath': $($_.Exception.Message)"
     }
-}
-else {
-    Write-Verbose "Alias config not found: $aliasesConfigPath"
 }
 
 # 3) Load Public, collect names, and export only those
@@ -103,8 +96,8 @@ catch {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBwDlvTYAIzeK36
-# i6bsXawAvAM7AtnKZ0NRK7X1l5CPiqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA0JDYeX0BXzw4r
+# p+m5ApfFZXoLcExEXDrYMQLeg/G1DqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -237,34 +230,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBzBtCP24Ro
-# JvAd4U6IIyISYh/y0Wx5AnzI15EiNE6DwDANBgkqhkiG9w0BAQEFAASCAgCfTrJH
-# +RHp4vs5WoeBho9wiTBFimtosnyRtPh2di+zaQr9QrIBZ+By1dasGJwR+2DHUSwU
-# CCI9bu7YF4KWp1oynws8Qe4A92pl2+VxXfDg9AgYGJXktHHHwOJlc3KPnSUeiXez
-# qTC+zgl1slzFyBiUcDnR5dHgmXNAhzqdBCW4B6GfE4IdNN1THV7+PWgL+tSCewAx
-# Bq9TWBw1cQYbygwyc1Qvcg0XDon6YF6rdVve7fA0TYHcyZy6i3hMOLweT7dEzg85
-# fBxqiOjL0kwCPP0poE3PFxkUcbX2d5Ly4CZrs/Tg1MFfKX9A2Hw/P/kCrqqYAhga
-# ljPjHsIcWlqNpd57ikToGgwbiN5cLQRDxG1Vq5fPGNLf0UhzwBzexlX7TShA30qA
-# 8bL5fA+feGNB0E2kC8M7SbIbOYQxlvvfiztRfdr4dlBG6B47P1fp4Q7SqLQVQl+p
-# tz3aUAVYKyUF+LDgHFHfE3qUjjSidzKNWDCCFa9k33QiOFmN7AKlh+FW4+OSe3oN
-# x5VXr/VRxKw2Qg+zTH6Zzxug3J+8DMBIFhLI2mm+WfPLGu9Tu3cKqpqo7ISIe8sP
-# 8El0ajoAVOH/xY3NNb4PdHi4vcMLznaYXiJzVyX2JTxJQqobAA8DF/yVICzLIF6P
-# JSeZnzKZbPMhRwSGRYd8yPXHVZz4cYtzAGWI36GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAefM4+StDJ
+# vAByp5uTv6n8yGMLNL2GBA8GWEkrCMaF+zANBgkqhkiG9w0BAQEFAASCAgBr3kYR
+# 4GCJFsNcB4QCNmNNpMqG6f9lpjtOIH+zcgPtCLgJz5Zb4vZRXiTDaTb9gmpHVLwh
+# GXi/yjifXIi2ujd3vt1HmXEQsHAb0GUKQvjMKvcPl/lNgiflV7Au/xDuCnPeLkJC
+# C+cdl0hTTKHjsZmO/9OAhkgPApz5LWnamzWwnljUKdqD+Sj8KyoPcbyg/Ah704a4
+# w8l3XuXeKhhFMyZwnJzQ/849yZQ38kjtyVEENHF3z3Ftqb/v4ng3z+PJJQnpKz91
+# ns1s3v9d1PUL7jOD9KVPyUZ8xBM5EI2Q0ZfZMgRyT6FgoLJAUmuD5KUCS1p10+gL
+# xHpI+vw9pTZWzER5I51OTZhxbso7p1vbS7OePOVgBl+Z9BBTpcWsVBJ5hqMlEX8z
+# QmbQ0s2nCFMDFkl+MXmI3Y48FCbweYCVEnGaGp71jYp70KAFPAz09NbhD2Ur4Xmk
+# p+cPzohrMBhkKb0qBP2g+KgzlS8TjZJrBuiZhN0U/SvAlVk+82dmv7lD33DtFRkE
+# ShrVZrpLggx3vPKTsn2stJCXai7EJliX/732ruJXu8yMyoWm03Kg4Le4ofLM0/S4
+# NESUHVHACFoP6VubxZUaBOJXniqLGNmjIXYSRVw4M10j9DSTbJvnTKZ2JYRN9q37
+# N1YUuqXU3qsrtllxdvz3sdfxM7IWcqIwNnBJiaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIyMjE4MjNaMC8GCSqGSIb3DQEJBDEiBCCDuoI1m3KFAWlc8S5E
-# VWLF8qnzyTvf7pRqztKwBp466TANBgkqhkiG9w0BAQEFAASCAgBV5nTWZywh1PFj
-# 3/pHHVW9Xrs2Eqod3hh3+PIb4YldmSzYFUpVD9kPSX1Dbv7YWXJUFfpj/Jqfase4
-# KIOWcgvwr6tOBiiGZz9p2GcRHDe/Kf4o/kr99DBUEMtdQVQBvnI3fzsj36ILu32t
-# TBsujS0PYUjZEA0a+zmOG1SVoje04qmaKEHSh27peDHJad8I62RoNvPIl98MUKHU
-# PhDBIlbS9/XUHhg8zpjIwuiL10RnENN1LWTEYV2tnXWmLxniB+xoaFuv+qfY/9Q9
-# whfz6ziNYt8YHXMqDa7g4EJM85F7GaSO+FWP95VtIF7VVxvaGx/+c2bhDj2NSlVi
-# xPT+KrLS4GN2bkYlelmqLj97r+cWRiZ82vdRW+FPcd4BdtP472kAdi1yNipkYqPX
-# Pip6G3LCzdSEhyNnZphDZaqJ/fVKoMDgt+DxOJh8u4QwriJ93t47EelOOQrt4Wzo
-# 4VLKXVwUDWlTge8/ASKfrdnuEHc1qMlpT/DIptCMvWPWA7OMmB/AI2g1hKIcZr0U
-# b5d0iqR6Vu1S1CuFjTl9pQRQIGUo1PfmaiorcSLJyuQmQjz3W1w/3DXjP2kwaL3w
-# SUj2tzRWt13o1XvmtkcklwDxWdlM2tE3D9dMxEB877UgKo0tqc3azQsCRsXsMyKz
-# O5lePE/9M6zXFVApxcrkUvdNDept9w==
+# BTEPFw0yNjAxMTIyMjE5MTlaMC8GCSqGSIb3DQEJBDEiBCDVbMAv8AxXn7ZtcRqX
+# cCj6cE8j+7N6LuO+oCWZDW535jANBgkqhkiG9w0BAQEFAASCAgAXyOBCXpZ5DyO/
+# SiTHIEyiGQlbGIYAiM0Q7LQ12viplOCRKt03FESvonhpmic2x3WqlIc9ckV1XCXq
+# ep1xcTQs+08YmAS+gagkVKYyfPZwZnwoo0abwyYOq7dqugz2jR7hOT8TBKQrDfUV
+# MO9dtWbj4GCtkiAfjLt7cd18aTal+r4vQCD5g+PO1/x3yIQ5AVY6Sf00kbxPAD5d
+# YYwo749YNKvM3Gjv8F/sMnS9IWcGJ1Dpdog1vNKXKJ1SgFMimuktqcvTBG6PQYPh
+# osa2n3LWdgS49HcE5Wt/UDsybxqMqAdwzdFPdFGuaK7exblFSe1p3qCBIsdKYpFI
+# /vgPbx0Y9aJbveggOO6gD44gqlQtNqu6+kQU6mkZTMiKjLe5qGX4fHniYaxFdqL2
+# Xzpne2hK0LWujOaV4PGE+OENi7LzvqLWTnKS+gHyPq9WMkPDCB1Db49Tn/x7UZg+
+# GyJNhIC1N0SJRJxboXscL5l9b2/mpWNOXG0OvKfR9nX5aAAR3og5j/PrtwIaCSSu
+# T/eDCAY5fMClmKelF5TMREsI/KoHeQ2VeExG3QHF8Na2hs+i0d8LEwMJtkZEA/Gk
+# Zk8a9rF5LChN5tEzDNZ8qtn9Y9ULUKzFOZEySi6MeBPOlRWVAzxG2JGm17+OGRi0
+# 4J2VNXlwVyAaSQ7ThvdH/kkwUcYHNQ==
 # SIG # End signature block
