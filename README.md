@@ -29,6 +29,7 @@ enterprise-grade PowerShell module.
   - [Copy-Directory](#copy-directory)
   - [Invoke-SystemRepair](#invoke-systemrepair)
   - [Get-WindowsActivationInfo](#get-windowsactivationinfo)
+  - [Reset-WindowsUpdateComponents](#reset-windowsupdatecomponents)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -322,7 +323,7 @@ Invoke-SystemRepair -RestoreHealth -ComputerName "Client01" -Credential (Get-Cre
 
 ### Get-WindowsActivationInfo
 
-This tool retrieves Windows Activation info either locall or on a remote client
+This tool retrieves Windows Activation info either locally or on a remote client
 
 ```powershell
 # Run locally
@@ -330,6 +331,20 @@ Get-WindowsActivationInfo
 
 # Run Remote
 Get-WindowsActivationInfo -ComputerName "RemotePC" -Credential (Get-Credential)
+```
+
+---
+
+### Reset-WindowsUpdateComponents
+
+A module for resetting winodws update components locally or on a remote host
+
+```powershell
+# Run locally
+Reset-WindowsUpdateComponents
+
+# Reset on a remote host
+Reset-WindowsUpdateComponents -ComputerName "RemotePC" -Credential (Get-Credential)
 ```
 
 ---

@@ -52,6 +52,9 @@
       "defaultComputerName": null,
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair"
     },
+    "windowsUpdate": {
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate"
+    },
     "output": {
       "writeTable": true,
       "encoding": "UTF8"
