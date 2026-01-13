@@ -1,4 +1,4 @@
-function Get-WindowsActivationInfo {
+function Get-WindowsProductKey {
     <#
     .SYNOPSIS
     Retrieves Windows activation information, including OEM product key, partial
@@ -34,7 +34,7 @@ function Get-WindowsActivationInfo {
     )
 
     # Determine export root from config
-    $exportRoot = $script:TechToolboxConfig["settings"]["licensing"]["logDir"]
+    $exportRoot = $script:TechToolboxConfig["settings"]["windowsActivation"]["logDir"]
     if (-not (Test-Path -LiteralPath $exportRoot)) {
         New-Item -Path $exportRoot -ItemType Directory -Force | Out-Null
     }
@@ -117,7 +117,10 @@ function Get-WindowsActivationInfo {
 
     # Build timestamped filename
     $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
-    $exportPath = Join-Path $exportRoot ("ActivationInfo_{0}_{1}.txt" -f $ComputerName, $timestamp)
+    $fileName = $script:TechToolboxConfig["settings"]["windowsActivation"]["fileNameFormat"]
+    $fileName = $fileName -replace '{computer}', $ComputerName
+    $fileName = $fileName -replace '{yyyyMMdd-HHmmss}', $timestamp
+    $exportPath = Join-Path $exportRoot $fileName
 
     # Build export content
     $logContent = @()
@@ -153,8 +156,8 @@ function Get-WindowsActivationInfo {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAsVeuVqG1hbZEV
-# x1YLUe4LyrTX0l6YdwBemm5a4lSVaaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAYl16GZsnIuCBR
+# kF+box9E2K2HyknPY5ELnct/8UBfYaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -287,34 +290,34 @@ function Get-WindowsActivationInfo {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDDZFWaLGxu
-# fAwbMheuj1I3OvonVvIVN+SSDrMK9ClXqzANBgkqhkiG9w0BAQEFAASCAgDb5Y0M
-# UjnTEUwLWf9y3yNeR5mhRMfLiQ1xwJ5gqzIjRUwzOLifNJx4Nwr0qGOlef2Xi/EN
-# EMz48uMqmDZOVfezL7XmHYfZgb9kLfV/jzkelrvmuJ60eouQgZ+R1VXH8GHlREkO
-# LNLmU9l2FDG+MjabN89MaABJSf4KkiaJFdPabgJXo5B4ooJmZ+PnRTSvPGMCCBOq
-# QEQ9XL8F25opAIvi6Hl8MPT+76wr6L7vAnAl6LRTnDJtWbgGrVv/8Wj4aKsEodne
-# 89dnn3cLzhYlBjS7EpN5kILncP7SkInHI7Cmfj8Xab6YRJzyCqOnZwPKBz8D2Mtb
-# 5ZMoyjPooR/dV8fvH2v9eOuJ8oJIW5awJrBM0GM/lLFNr+uyVOh3N6jnERO+v7C6
-# 01PjCoJ7XJ/mYOvQVoqD1/4Bq7zVNw9HvNoHRP9xNV91VRtpfTonmmL1TP7hjP93
-# ttwQ3/52JHI9xtEiOl9O5/vYjbQdQEztXuEnEJTV8R6dyOunOe3QmbZOSc2RLkiw
-# YqAt8BcSjVlEUZGm+GdxFDb6qqUKMghidTbHM4rj5tj549o9uBJhdg82NNadHjaV
-# 3C97VH330ebkftctMpaN5+wkFUuNIHvRbyrzzdqG/PyMWpBf5mN1/D9ovdtm65AK
-# RIX9kf9dHJBMNmLbZLI9uqSKjt7gbYTh/WnOnKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCIv9aD6W/D
+# cPRooXoVlGjzLfel+pU4bibGQ+ClHycM7zANBgkqhkiG9w0BAQEFAASCAgAsCSwb
+# CbNDdA5GIKI87swnaRG9yKVN2sgTPFfuavsyYs5Ddv0YFnVXkuavjwxIOCwWMin+
+# tmtGAM0tS+YA5GeUxlj0Rq/X2tHpOq4ZxWcFDEiImlLR0e9M62N5IQJj2ksPK2kP
+# /vSnEWV3gEkN8YYj2ezsGBgWoxnpVmOvzixgCMXIGXnSpfBoGXxhTrmT9K/sp/vK
+# hRrwIM5Bmf/avEKXIVofenEzd4n0TQyUq0ZJFeNZ0CyMeThZUr2LwB5iTZhJeIUv
+# aXCq5pulFuVswsIaAA/q9wvOvtYM1GEk3/gqkAixOUYJFgOvWD3/hnmr3mxEp67v
+# GuRPEhpj4YHxeaRKcY5TNzJMggIJwgF5lQdklxXxFEgH6osvYj8oU1Re6XrmHqe8
+# R3RS31OiZY8UGFNksAW0oxFB4cMec5+07LzbtLSvAXNGI/ytWW9QyqAnypOWNsjE
+# 6B8PlHWOu2wYfDHIZAnIQSaCOyZ7LvUmlgYdqIMlw+d4pbl5Yj4BVYG0WCqy6Ash
+# G5swr5631URR1Ge1/y4BdCfqkR7CDHMddX/jhNEh1dBOIpwJgo+MF5KBdCyf7SsO
+# ZovLJg09Zj80Vz/1kqO2hUTPlBOwEO9BZOul4k0oNYI1PRjmYP8mICQgTjg+JWcy
+# nRjTnKoGQ1oCNofYnlWIy0ScjbkqW1LTphwkyaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIyMjE4MTlaMC8GCSqGSIb3DQEJBDEiBCD7G1/DHOq/6qhECP8y
-# ko61I+CxOFZjX/6INdNVYFQ5EDANBgkqhkiG9w0BAQEFAASCAgANwNn5IvFIkxUE
-# 8IfP3aDKcvLVITTjS4i+qCoVQtcC7hU8ZvZfo5qH0iDYx8POVdYImwmurb2Z4Ikf
-# +34iXTiVDTcVvSwF7flzrm2oaS2+NswFzpDzU1h4jesKsRrYkzMScaJfl3rkSemZ
-# FU9C7Gyn3lwWV0EEMJGignhRkVuzlD5vjCOfO+OCXu4TgtNoLbtmq3oV36BgMyI2
-# rJnTkeIfjA6Ad54oxLN6pqyUdSoqq32WBFq9YRrt9zCJ8afMmijr0ELdV95MuYgV
-# 6G3bHhLl+6iWE1YnQEzvPCOodYtkDgX48ZdRRgkIK0lI8hwUbNUlWK74vIv5Nkpl
-# CovylYvkxW4aVYWUTTnTcoU/aW1nFjgSMRitVBLJC90gKeXHlQxYZXhc7yjJb/Dl
-# k0zac/GXkK6/wcoOqRFLkhXXWx2Ys0WfCH/HyTitprNqfBHRxB+niibCqbF6k2cz
-# zFiu6C7TUSfVj5kYzuU9MA7jYNNP/gQIhOBee9TvAmzLE6cUOcHzOGVTbI8tGG9/
-# FernBr1J0uWsmoWedLhZk4K2bKU5ihSzVz5Ok3H2lTNH3xcwqbXDCPflhbvlHtY6
-# NmFy13MbPjqIGcWXU/kK08MbQCrbVDxxFzBxvcyUber3du7fAArcz2LUF2r29co6
-# ms24IP1imfntzvXarfycF3rb/Zy0Jg==
+# BTEPFw0yNjAxMTMxNDUzNTRaMC8GCSqGSIb3DQEJBDEiBCAIbzdmZodEZjoAYkdC
+# I15jjnLV3vDzLZlPZydDd/UphzANBgkqhkiG9w0BAQEFAASCAgB2OtME4ohomvDT
+# FTNBEeJWowd+ni0KiEY2A+/0Vt3rrXFRQGoDcWbFsHARVn5+OBjdVcQSSFedcpwt
+# N3CxZhOnz2CL5cKVYVfw0h/eEI8JT+yWGaEvVwFwtasKP0p1Xpcitwz6hNignGku
+# 1AP1fkl7jxSqdGpjvxypxqJp3zCSCCRA2UjuTIwWZNjop/HwDPXngVoxXXjrfOSO
+# //2G5xw1E4yvDYlTkral+UMaVMPc3uIXZb59t8G3l8oeeRH1nMhupxU0T4x850d+
+# tTjcGdU/QS5HYUttga/PjMI2h26vbBFMcXj8prk/jMRol7uaddCjuLMgjx6BOJfW
+# 2d6/MzHxV1KgvXU1Y4aWVu9qyfsd2uLnpNYN3HBSgFs/h9pPLJc8PYJmv7NGcH0h
+# voKdH6x7Sz2oE5tEUS+gOYO5QWKB6OcOD4Ss9xXWM0DNsgnLuqXoB/YtNtBUUX2+
+# y+F+xdZTpxBevehxjhQ/IqTrt5c8HJwui+2KZx1RdAhzf6pUHEOPLAURZwnCY/mb
+# KWX0b2Now1kJO9fqM0ucsq5/rVfOrJQSi/qdD6B8fEkILN9T5DXlfHpcBAeTNNeW
+# 11rdZs/MD2ATAh92OGami1GFlhuLx3qIXSJy63GLwOpHoLdUaPYpZMDCiG9tM5Yy
+# eCdLsIRfyPgMszTW8FXaFUBioUA5dw==
 # SIG # End signature block
