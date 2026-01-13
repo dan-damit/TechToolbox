@@ -79,6 +79,29 @@ function Get-ModulesFromConfig {
     return $null
 }
 
+function Get-ModulesFromManifest {
+    # $script:ModuleRoot and TechToolbox.psd1 assumed co-located
+    $manifestPath = Join-Path $script:ModuleRoot 'TechToolbox.psd1'
+    if (-not (Test-Path $manifestPath)) { return $null }
+    try {
+        $m = Import-PowerShellDataFile -Path $manifestPath
+        if ($m.ModuleList) { return $m.ModuleList }
+    }
+    catch {
+        Write-Verbose "Failed to read ModuleList from manifest: $($_.Exception.Message)"
+    }
+    return $null
+}
+
+# Prefer manifest's ModuleList, then config.json, then fallback
+$ModuleList = Get-ModulesFromManifest
+if (-not $ModuleList) { $ModuleList = Get-ModulesFromConfig }
+if (-not $ModuleList) {
+    $ModuleList = @(
+        @{ Name = 'ExchangeOnlineManagement'; Version = '3.9.0'; Bundled = $true; Required = $true; Defer = $true }
+    )
+}
+
 function Initialize-TechToolboxModules {
     <#
     .SYNOPSIS
@@ -318,8 +341,8 @@ _InvokeModuleImport
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBJYTTgcnVPrlte
-# GBXeNXTdYvsQXb+wkAjpvCGS8y0/XKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCd5lCcrAyS1v0W
+# S+38gw3YtWwQjJODHILHW2L2WDTT36CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -452,34 +475,34 @@ _InvokeModuleImport
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA74Camhv0j
-# tVp1WdR2m/EYRQyVAEZ8tX+C81/jLn86QzANBgkqhkiG9w0BAQEFAASCAgC3109S
-# gLeJYrpdOQ42Nphhqf3nIgdOwz6gBV+9uM8XNnQlOWcQ41eJYEJKukfLdr1NTgCU
-# caDK9RFD4IjuOi7f3Sapgfw/D6Nb/E0HhiCzW2MSl89Cz/BNnqmcV6T7Xt5UCTvB
-# 2w6kEKVAjY8lYPMYFsXxUdgxN6n/63o3rbdQIvbuAe8eW1fez3Lr3lpInOsz1szn
-# 616iy19wQ8oCCeVmZ3dMzMHf1ToFcdU4+gY/+vyHGvtZJQ7+paBHP9NyacLUuixY
-# JplOebJuO/+uCSpUyjCj/OdhkNoWn+TXyWs9UnFQfwHNtvSm73BKxN6LnzLrk7qO
-# 1vQQmOmpq6lZ92qcO8V5BSzuX9JNg6tR5EsIF+MmJLJlKCu7cd7M4Ytuq+AR8jhU
-# onqbdZPRGxmqfLEHjh+JJyKJ42EG3gsTAP8SVGACsZGsWaNctwLvCi5agAj3itrn
-# yNHda9X3sHEAsrynG5P7y4Fg1+BUMQzoVRpU02dgDtq5q1DzqprlY+66L/560i/W
-# uCo/GJMm1gP/ejJyHVzXSAuxpwreeJKDR193Vf7ylDHtshJHih7L8ZNCf1HgqfmX
-# z3jagyoETxfweI8EqsqExYHQqWMYlQpFMKkvl9hTKnpsrzOaheywGB/dnRyV8VdX
-# inyJtNRppofCvm8DUKYOeY/474xRaeqpdWPfzKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBJui7xwyAD
+# 4wkhpa+TOFpjJDIQz7994gn4rtWh3c3arjANBgkqhkiG9w0BAQEFAASCAgCT243v
+# HCWvjSKSfInGGJ4Fwg4R7vC7Y+ETV7TzWubIuTSGx23fOEUn+nu6wp2LnfvT/wX3
+# sL5Ppg/Cyfuej8Ms1MWXVuN02eav1QHyahHk++9h0vdRWKQrBCFEg7NAbnoSzx6d
+# LBDckkBEg/DT0Z8W+FhvYPpQ3Sbn2AVdIZEvqAb0OtvBDv3KQ/KW8Jc99qJVDhgo
+# Zo2QRxMyvtU8LNyj5a346uFSEGOnO4hd4zPSMy1JszbAaTlbo12clsWCZVtsrZ5C
+# fuzmPfaJLm6dZLx8IKi4/2lI/TKpb3EdpLkD0q2MJ/aUTm8jNKONTXQZqeiDZtg0
+# RCigepipxVcFcbErV1rivmc0kHAL7ZLF25M+u2LlE3rq7Nhl6BgTknf9WjvUwD+v
+# I76EBev3g5Pnyu5fj1mhCsNS7aq0fe9aBoaZ4Z1Q0EG5F+g93/F5g3CmaALrkfMd
+# p0EClejMxzHWjEg0/1GPi7DNNzEqCIOwveXz0RCidi5f3PGp+VaAH4B6XcuXRvKl
+# 5XAQ7j4N15eeexS16U/k/r6H2yR3R4SyudJafGXYULRwm82QhlhVQQ8bGSsAAX4F
+# SHsHASy0eb83YbztJpfbTdNSXSNzC7ZE+SPvofK4y0U9tD70iFIhpBko6QMkNUdZ
+# eMVmJWWaDr48B27Zabtpr+dHJCZRdJyn7E57CaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTMxNDUzNTRaMC8GCSqGSIb3DQEJBDEiBCCpl+LYE0EgkWmFRaYr
-# LVq8WmdrgpjemlO8sthIgXM9BjANBgkqhkiG9w0BAQEFAASCAgAAAh9DxX+m+vf0
-# cGVjXBFQcfW+booacwNkZ9ZC+AOKVHUvjznzzwgVoJrdDf6tOcztxjVDb4ecRO54
-# AapKKxl5pntvMGMVS0AlHXH2tcvNwxrUlr1/vR2A0Boquv/89pleAMheWeK0El5E
-# gCq7LExdCTx0dfagKC7T2/Unrz7dVxsLCpflP59uGzFU2yeQbx6+KNfF7djFZ5VA
-# cs7h8BC/Ij+gMAoAXPl38/r91OeBPs01DVrbXdXlXpYKKX3shsLWiQs/eYTJIumU
-# cn/agA2AQ8JNVlSGY2aSmICdaFmf1fIjv3JXEsINlD1YptXEnG3RP5T+KAUVReyJ
-# iYrbw5VK211YKcAFgM4v/r+5ujsHTf9D43Jht5OydkCEbF4Ax+UYYdQ57HrJMCwg
-# /e56f1XwfS8q/tTOPLZBZQMRj5Jh4tF7d6V1Mw5L9KK6T/hG/g4wwBuhZ8htJlI5
-# N//R/jA/z3ki8FhEy7nihnnSEfmBcAJ8sq8gm6/lC5kYDYZs2zOFVdEV2zpMrygM
-# K4Z4VzK+IjfH4GJAibQBn3dic9zszacJAsaSolMaE760JpEBIqrtL2Pe9o/09Fqu
-# SRHYzhTlzH2G/FqtroSoTv105EYuY2YsQujGRXJdLqD+Bgv1AIRCzgNZNi/NcHq6
-# LpN4VmZuBvOD/85DeFd1goTONCKEIg==
+# BTEPFw0yNjAxMTMxNzU1MDFaMC8GCSqGSIb3DQEJBDEiBCDz9V81VfV+KSEOP1rE
+# 2zIJ5YWr52RhYs+jlyMdJVG4yTANBgkqhkiG9w0BAQEFAASCAgANEGHspSF62fJp
+# JWAhl4Q97sifn2DK0Y80J/KVKbPwufhevuK506nRkRqVA3hcnF9milFHWU0VUI+z
+# xS8KTNd23jmriCz/z6+wO1wnOiG+UUCv6PcBp22923aJLi39gpvckc/NOS9HAW6a
+# 8PvbT6pcT5OUdVls/3XTajbZzV/o+UGuHiYJiZ57asCZbkJkVCPPBQ72dBdtAG8H
+# bqB+g1VxU1qs94Vl1rh6HtrJ+mhbgoWgRIhUgXCV43m+YN6MixFdkxs6Wj4c0iFh
+# Wmc/5HE2BE+81JRdoZVjiYbErQMgz7WJr9uvRGR2/nj/Wwrts1Ek/LCA8EoZk2ni
+# lierMCFFzwzy9IOvgTvdwYU1Yw0oxrtRxAPORIxsakwgsDon8X27/klpcdGcER5P
+# u0hNz+ApRn/bbE/6EEK/5WUMZIuNykhbpaWbpacgmemoNNo8dAfw51UvnSCGnNTT
+# JYClRNfg2dSS74t2J7ieILQ3IZxFNv5J5pikZuEa5KmsFo2lQxoF0HmOunQT+BkO
+# MOq4pyrzrCLDTtYcIB1rnp1N3EHPV1TyCGPYBZbDmTZy/BmzUAHQnr4qxqqdy9tO
+# AzGYKoHAkIjP4lne43/NyHjhjyS/uZ83QXCYmwLiJyPOAA0WWIEEai9Fu8LcRpO/
+# Psgr0QPzeuIkBBID01LQY91Fn8ABBg==
 # SIG # End signature block
