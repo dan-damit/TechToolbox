@@ -1,94 +1,48 @@
 
 function Write-Log {
-    <#
-    .SYNOPSIS
-        Centralized logging for TechToolbox (Info/Ok/Warn/Error).
-    .DESCRIPTION
-        Uses module config (paths, settings.logging) and writes to PowerShell
-        streams and (optionally) to a daily log file.
-    .PARAMETER Level
-        One of: Info, Ok, Warn, Error.
-    .PARAMETER Message
-        Text to log.
-    .EXAMPLE
-        Write-Log -Level Info -Message "Starting task."
-    #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [ValidateSet('Info', 'Ok', 'Warn', 'Error')]
-        [string] $Level,
-
-        [Parameter(Mandatory)]
-        [string] $Message
+        [ValidateSet('Error','Warn','Info','Ok')][string]$Level,
+        [string]$Message
     )
 
-    # --- Load normalized config ---
-    $cfg = Get-TechToolboxConfig
-    $log = $cfg["settings"]["logging"]
-    $paths = $cfg["paths"]
+    # Null-safe config read
+    $enableConsole = $false
+    $logFile       = $null
+    try {
+        if ($script:log -is [hashtable]) {
+            $enableConsole = [bool]$script:log['enableConsole']
+            $logFile       = $script:log['logFile']
+        }
+    } catch { }
 
-    # --- Level filtering (MinimumLevel from config) ---
-    $severityMap = @{
-        'Info'  = 1
-        'Ok'    = 2
-        'Warn'  = 3
-        'Error' = 4
-    }
-
-    # Default to Info if config is missing/invalid
-    $minLevel = $log["minimumLevel"]
-    if (-not $severityMap.ContainsKey($minLevel)) { $minLevel = 'Info' }
-    if ($severityMap[$Level] -lt $severityMap[$minLevel]) { return }
-
-    # --- Build entry (timestamps optional for file) ---
+    # Timestamp for file logging
     $timestamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
-    $entry = if ($log["includeTimestamps"]) {
-        "[{0}] [{1}] {2}" -f $timestamp, $Level.ToUpper(), $Message
-    }
-    else {
-        "[{0}] {1}" -f $Level.ToUpper(), $Message
-    }
+    $formatted = "$timestamp [$Level] $Message"
 
-    # --- Console/Streams ---
-    if ($log["enableConsole"]) {
+    # --- Console output with color ---
+    if ($enableConsole) {
         switch ($Level) {
-            'Info' { Write-Information -MessageData $Message -Tags 'TechToolbox', 'Info' }
-            'Ok' { Write-Information -MessageData $Message -Tags 'TechToolbox', 'Ok' }
-            'Warn' { Write-Warning     -Message $Message }
-            'Error' { Write-Error       -Message $Message }
+            'Info'  { Write-Host $Message -ForegroundColor Cyan }
+            'Ok'    { Write-Host $Message -ForegroundColor Green }
+            'Warn'  { Write-Host $Message -ForegroundColor Yellow }
+            'Error' { Write-Host $Message -ForegroundColor Red }
         }
+    } else {
+        # Always surface critical issues even if console is off
+        if ($Level -eq 'Error') { Write-Error $Message }
+        elseif ($Level -eq 'Warn') { Write-Warning $Message }
     }
 
-    # --- File logging ---
-    if ($log["enableFileLogging"] -and $paths["logs"]) {
+    # --- File logging if configured ---
+    if ($logFile) {
         try {
-            if (-not (Test-Path -LiteralPath $paths["logs"])) {
-                New-Item -ItemType Directory -Path $paths["logs"] -Force | Out-Null
+            Add-Content -Path $logFile -Value $formatted
+        } catch {
+            # Fallback: warn if file write fails
+            if ($enableConsole) {
+                Write-Host "Failed to write log to ${logFile}: $($_.Exception.Message)" -ForegroundColor Yellow
             }
-
-            $fileName = $log["logFileNameFormat"]
-            if ([string]::IsNullOrWhiteSpace($fileName)) {
-                $fileName = 'TechToolbox_{yyyyMMdd}.log'
-            }
-
-            # Honor pattern "TechToolbox_{yyyyMMdd}.log"
-            $fileName = $log["logFileNameFormat"] ?? 'TechToolbox_{yyyyMMdd}.log'
-            $logFile = Join-Path -Path $paths["logs"] -ChildPath $fileName
-
-            # Reliable append with StreamWriter
-            $sw = [System.IO.StreamWriter]::new($logFile, $true)
-            try {
-                $sw.WriteLine($entry)
-            }
-            finally {
-                $sw.Flush()
-                $sw.Dispose()
-            }
-        }
-        catch {
-            # Fall back to warning stream if file write fails
-            Write-Warning ("Write-Log failed to write to file: {0}" -f $_.Exception.Message)
         }
     }
 }
@@ -96,8 +50,8 @@ function Write-Log {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAiXK4iIsf5HEj2
-# c8J32OMn0wLq/GelIOB4m759jaPZZaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC6p9b/HrZE6IQ3
+# k4/PfFxCg2KEBZ6C01P1BgaZXpCFj6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -230,34 +184,34 @@ function Write-Log {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBDd1Yrlhh9
-# Bhb9NJ6mUaSZnSpJZhfL15N1OgXOioteeTANBgkqhkiG9w0BAQEFAASCAgC795v7
-# p+PAr/sZNPNheRnq6LjIlcl/inaaEKcnNhEX1Ehs+ET9KVthk2m2DkMEehkVWixl
-# uUY8nxgiKmXPE1ydKprgWnmZOX4juEwbTAutiUFWEZ7c86nFxGFTulN5FQ7QsjtZ
-# gNT3mhgKLcDGxLjav/l/rl4t3ueuMecRc7ESMZyMZYOPer8iTckrC6twKFN6KARK
-# EedhYAPBnZAAUimFymAlHF0I4AS0WEM6Qovp0LfJv8TcOF6ol389D7cKWqKkD00G
-# CB1fu5bcBxj4/LTfTGob6Plp9kTk0QKxNYxo4N3howeNxVkNFXc0PHymCDkSzWrJ
-# s3Izy6C0sOyVQ97VMUJgQlSWzNgRNdpiqDqh1MmlayCllXACtdgvThsAJnw4NZyp
-# TpTx91v/S5kuSKH4fg6odLgnMV1DsmYR8gnTq0ZZbfX6/OEUz02n1hvyJ3gQHL3s
-# IkHf/hiWCi0OXk5KEN5RctyTCtVERHg9ZIE8lEO7FKhZoIYfP20geVfrxOe97sAn
-# b2ma/hMLUmE4goYTK04OBiq1RqsxHiNEA2+NWf/dyL4bH5NU/20Ki4Z+/K+Ssz2E
-# X+XOkS5kNEFmBqnADmk3UT7pTSbJm8wtAMOFNzHxMDdD9jO6dh6otbBoVK3fH7kU
-# CUFNEHGUkVy4epod3cfOWliPUny8xIjW7ruUyqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC3jU+Nsm3z
+# 0dTzgQDFsLwqdvEMzErSoNR4Oww5u2geaTANBgkqhkiG9w0BAQEFAASCAgACZYQ2
+# oss4GkcCWqSzJZZb3/hdVDznZPPtHSl65f4v0XikUicysq9PfyrpFvMGzDMz4bBT
+# tv1Fj84sDCgrhsWkDRVm3B28YGwa3dGexluRwn+JpSIRBnTG82zw6fYytjJ7S4tB
+# HR9W54QgEh1A4xkzFMUGnH7qJ6JyoRHpLVWvIVADtgLWLGzusnv8dOgdN5wW5oy0
+# gfWYYuQgSL8/uB2IMvn5yrirPNMNJ7O9yFYoEShplprcQc14vanZ5Rj9ldk71i0r
+# NTdJAoViOW8Qk3PQtvNOv1yCVR6BAqjeuppxhCTxYNFAObOV0mV9f5gz8eR13Gx0
+# Czwi38046X2UgVguNH9Fne6hDXpR5RWNHDjjYyBa65ExhZ0QTVVuAULmilgq7kyN
+# OFs2i8CInBorp84/IQe7+8FIYO6+Catvb5roqCmwr7GoO1J0UaFKauoWeEJnhBQ/
+# D/p8tsvhzHetNq8JL1RNduQn89pyVTmClcPM2v5QNyTk+ruTq6WD6iMaRTpKO5TO
+# LAKAF6FKHGvhOWGKHSppWKInVTbZUax4DvwIHLDqgyJhI/raI80mUPreFxsT6mI6
+# wWmYehqQ/q2ACCSAhHws636p9GCW05oI3dX5VMTd2odxRAkcJ8Z3TAthvNVnXlpt
+# R+WKj2EXMYWHSNXfN1TszF54OR9A/aHq+Q24naGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNDMyNDZaMC8GCSqGSIb3DQEJBDEiBCAPxnhTdN+FuSOMfQc9
-# VMXsGlxL400kW0h0BHxj6jaNxzANBgkqhkiG9w0BAQEFAASCAgBanBwVK2dCJaHQ
-# DS13q/z0G0cq0Tx3cxItYqNZRlU/UHVza7NPin3y27vII/iigm4bM1lMKH5pFZIK
-# yoakAUYqg2VJ00lIVtwklnDEGUDHhUnMH6WfccCJW37QeOKQPw534cx7Cemk4pgJ
-# fXVkLcheYBRVWogaUJ7cjQO5V6UVNMduIrJ05R2cOeiXZwcs+3/zREH6GFGC/CBO
-# 8U5HdnDkR9xT55/L4n4mu2nGYYkC6Os13Ij3rnGQlqe5rF1ygJNKkNzujT6eOvWx
-# fdPk8z+rfYJLNtuPnvHR+Zm8sYKL19ymOP6IIvcFIcOLbwx73BWxuK4PyZBuPajR
-# 8hpeyJZYTKGfWNe+MVBjeolGNZKDej8uMuJpXmnnVNyBZOEDqjo0ooFJNfP5qNkr
-# EoESHjrgH8ZEairtE0vy271gFLqCTqM/d/IPVX8uJYbqjYo/3qLzLfSJd23/uUXm
-# kxVf8aWv4XBKQ9PN7W23sJnZq1WS3zOHQUG3g3lbRnfj9VvtcAnTwUDcJDV1YOe6
-# srovghP89u/Ky9iMxnjJBfaTcYc8xEf0EKfnA/qGH7Vt02qgyV7r0vEMlZ0LfKgC
-# bq5qETPbfinD+iObKo9abwtmlJZrB0yh01sypwzTEI8nqY4WTDKRcxA9aqajh9VF
-# kf52Sf2qKgi5V2Ky5H4V7VWdPiGxjA==
+# BTEPFw0yNjAxMTMyMjExMjBaMC8GCSqGSIb3DQEJBDEiBCCyXr8gF9TW05TeCFgD
+# XqGPHmt90CHGV/tk7kefqs40/zANBgkqhkiG9w0BAQEFAASCAgCnYSE3We/k+rxv
+# WUpN5Emq0SjoYgQyZy059aveNtCjo8s165A83O3fjRWr/TU4c5j/mgByxS8ExdnO
+# 0uSXUjLd1eoxV/3RLU5t8BayGbz3QjXs7G72dQZRauC3z8JlTWOApCsCbJrpgsuM
+# bRt3/vc4Yx2bea0G1Di9FVORqMAMmKjvCaDPZU/gkiqt4EEs7VNwnibns8MCHoPS
+# Y6RzPvaYGDVP5oXFhn3Zr1yxmG2DpoDZYZVZQVoq2PPydUM+MFoY0p4a5bQBXpdO
+# wpXt0YNlhqDhNkjKk8QAyYp6mwk0+eUm5J0wX61L1uy8iS5rmr3+jFoqgpz2oO/i
+# g4i7viJFIQ8R5aAX6GYlrO4MJW4cqN3ki6isMcSsNSvHm8qgjCDDJadjS0dMsdAr
+# +JPndz/ObdiHzh3RbvO0CJAATkCFo0da8E6F1kDm/WCRrbN5gKDdJVZHjK9CtExM
+# Oa6mE9HM3sHmE+kiD8tjLEKGBZZXNEBBKZdMfivRVPHUymBdbZIvObyeF0c/3cVp
+# 2QFIN6gCKYZPgmjTjVLqCY3KqeIZs1C6JNsZpZD0XlkNa3LFiA6bnqtDagze8PMf
+# 30327iB2G+mZRh4jvQF9MEDil/ZAXApF88rUqCGyrr0GmXfcd1JXNVEcHjScNw/n
+# VscKI9xGE9EqcnCoEGxsH/9ibHhX9A==
 # SIG # End signature block
