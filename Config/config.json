@@ -22,12 +22,14 @@
       "promptForDateRanges": true,
       "promptForCaseName": true,
       "promptForSearchName": true,
-      "promptForKqlQuery": true
+      "promptForKqlQuery": true,
+      "showProgress": true
     },
     "logging": {
       "enableConsole": true,
-      "enableFileLogging": false,
+      "enableFileLogging": true,
       "includeTimestamps": true,
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs",
       "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
       "minimumLevel": "Info"
     },
@@ -42,6 +44,8 @@
       "runRemote": true,
       "defaultComputerName": null,
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
+      "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
       "retryCount": 2,
       "waitSeconds": 5,
       "copyFlags": ["/E", "/COPYALL"],
@@ -61,15 +65,19 @@
     "systemRepair": {
       "runRemote": true,
       "defaultComputerName": null,
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair"
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair",
+      "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log"
     },
     "windowsUpdate": {
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate"
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate",
+      "logFileNameFormat": "WindowsUpdate_{yyyyMMdd}.log"
     },
     "windowsActivation": {
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsActivation",
-      "writeToExports": false,
-      "fileNameFormat": "ActivationInfo_{computer}_{yyyyMMdd-HHmmss}.txt"
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsActivation",
+      "logFileNameFormat": "ActivationInfo_{computer}_{yyyyMMdd-HHmmss}.txt"
     },
     "output": {
       "writeTable": true,
@@ -80,7 +88,9 @@
       "consolidated": false,
       "throttleLimit": 32,
       "promptForCredentials": true,
-      "outDir": "C:\\LogsAndExports\\TechToolbox\\Exports\\RemoteSoftwareInventory"
+      "outDir": "C:\\LogsAndExports\\TechToolbox\\Exports\\RemoteSoftwareInventory",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\RemoteSoftwareInventory",
+      "logFileNameFormat": "RemoteSoftwareInventory_{yyyyMMdd}.log"
     },
     "compliance": {
       "searchBatchSize": 50,

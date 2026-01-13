@@ -11,40 +11,68 @@ function Invoke-PurviewPurge {
         submits a HardDelete purge. Uses Write-Log and supports
         -WhatIf/-Confirm.
     .PARAMETER UserPrincipalName
-        UPN used to connect to Purview (e.g., user@domain.com).
+        The UPN to use for connecting to Purview (Exchange Online).
     .PARAMETER CaseName
-        eDiscovery case name/ID.
+        The eDiscovery Case Name/ID containing the Compliance Search to clone.
     .PARAMETER SearchName
-        Original Compliance Search name/ID to clone (or leave empty to create
-        new per clone logic).
-    .INPUTS
-        None. You cannot pipe objects to Invoke-PurviewPurge.
-    .OUTPUTS
-        None. Output is written to the Information stream.
+        The original Compliance Search Name/ID to clone. If omitted, a new
+        mailbox-only search will be created via prompted KQL query.
+    .PARAMETER Log
+        A hashtable of logging configuration options to merge into the module-
+        scope logging bag. See Get-TechToolboxConfig "settings.logging" for
+        available keys.
+    .PARAMETER ShowProgress
+        Switch to enable console logging/progress output for this invocation.
     .EXAMPLE
-        Invoke-PurviewPurge -UserPrincipalName "user@domain.com" -CaseName "Case123" -SearchName "SearchABC"
-    .NOTES
-        Calls other TechToolbox functions: New-MailboxSearchClone,
-        Wait-SearchCompletion, Invoke-HardDelete.
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
+        PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" `
+            -CaseName "Legal Case 123" -SearchName "Original Search"
     #>
+
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string]$UserPrincipalName,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string]$CaseName,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string]$SearchName
+        [Parameter()][ValidateNotNullOrEmpty()][string]$UserPrincipalName,
+        [Parameter()][ValidateNotNullOrEmpty()][string]$CaseName,
+        [Parameter()][ValidateNotNullOrEmpty()][string]$SearchName,
+        [Parameter()][hashtable]$Log,
+        [switch]$ShowProgress
     )
 
+    # Global safety
+    $ErrorActionPreference = 'Stop'
+    Set-StrictMode -Version Latest
+ 
+    # Defensive: guarantee $script:log exists in this module scope
+    if (-not (Get-Variable -Name log -Scope Script -ErrorAction SilentlyContinue)) {
+        Set-Variable -Name log -Scope Script -Value @{ enableConsole = $false }
+    }
+
+    # --- Ensure a module-scope logging bag exists, then merge ---
+    if (-not ($script:log -is [hashtable])) {
+        # Safe defaults; do not assume console until asked
+        $script:log = @{ enableConsole = $false }
+    }
+    if ($Log) {
+        foreach ($k in $Log.Keys) { $script:log[$k] = $Log[$k] }
+    }
+
+    # Allow caller to force console on via -ShowProgress
+    if ($ShowProgress) { $script:log["enableConsole"] = $true }
+
+    # Turn on Information/Verbose streams BEFORE try if console requested
+    if ($script:log["enableConsole"]) {
+        $InformationPreference = 'Continue'
+        $VerbosePreference = 'Continue'
+    }
+
+    # Initialize any variables referenced in finally (StrictMode-safe)
+    [bool]$autoDisconnect = $false
+
     try {
+        # Initialize for StrictMode safety
+        [string]$cloneName = $null
+        $searchObj = $null
+        [bool]$submitted = $false
+
         # Load config
         $cfg = Get-TechToolboxConfig
         $purv = $cfg["settings"]["purview"]
@@ -53,22 +81,16 @@ function Invoke-PurviewPurge {
         $promptCase = $defaults["promptForCaseName"] ?? $true
         $promptSearch = $defaults["promptForSearchName"] ?? $true
         $autoConnect = $purv["autoConnect"] ?? $true
-        $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true
+        $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true   # now set for finally
 
-        # 1) Import EXO module (private helper)
-        Ensure-ExchangeOnlineModule
+        # Import EXO module
+        Ensure-ExchangeOnlineModule -ErrorAction Stop
 
-        # 2) Prompt for missing inputs (config-driven)
-        if (-not $UserPrincipalName) {
-            $UserPrincipalName = Read-Host "Enter UPN (e.g., user@domain.com)"
-        }
+        # Prompt inputs
+        if (-not $UserPrincipalName) { $UserPrincipalName = Read-Host "Enter UPN (e.g., user@domain.com)" }
         if (-not $CaseName) {
-            if ($promptCase) {
-                $CaseName = Read-Host "Enter eDiscovery Case Name/ID"
-            }
-            else {
-                throw "CaseName is required but prompting is disabled by config."
-            }
+            if ($promptCase) { $CaseName = Read-Host "Enter eDiscovery Case Name/ID" }
+            else { throw "CaseName is required but prompting is disabled by config." }
         }
         if (-not $SearchName) {
             if ($promptSearch) {
@@ -79,64 +101,76 @@ function Invoke-PurviewPurge {
             }
         }
 
-        # 3) Connect to Purview if enabled by config (private helper)
+        # Connect (IPPS/ Purview) if enabled
         if ($autoConnect) {
-            Connect-PurviewSearchOnly -UserPrincipalName $UserPrincipalName
+            Connect-PurviewSearchOnly -UserPrincipalName $UserPrincipalName -ErrorAction Stop
         }
         else {
             Write-Log -Level Info -Message "AutoConnect disabled by config; ensure an active Purview session exists."
         }
 
-        # 4) Clone or create mailbox-only search
+        # Clone or create mailbox-only search (filter output to the string name)
         Write-Log -Level Info -Message ("Cloning/creating mailbox-only search from '{0}' in case '{1}'..." -f $SearchName, $CaseName)
-        $cloneName = New-MailboxSearchClone -CaseName $CaseName -OriginalSearchName $SearchName
 
-        
-        # 5) Wait for search to complete (Private helper)
-        Write-Log -Level Info -Message ("Waiting for search '{0}' in case '{1}' to complete..." -f $cloneName, $CaseName)
-        # Resolve timeouts from config (fallbacks if config is absent/invalid)
-        $timeout = $purv.purge.timeoutSeconds
-        if ([int]$timeout -le 0) { $timeout = 1200 }
-        $poll = $purv.purge.pollSeconds
-        if ([int]$poll -le 0) { $poll = 5 }
-        $searchObj = Wait-SearchCompletion -SearchName $cloneName -CaseName $CaseName `
-            -TimeoutSeconds ([int]$timeout) -PollSeconds ([int]$poll)
+        $cloneName = New-MailboxSearchClone -CaseName $CaseName -OriginalSearchName $SearchName |
+        Where-Object { $_ -is [string] } |
+        Select-Object -First 1
+
+        if ([string]::IsNullOrWhiteSpace($cloneName)) { throw "Clone name was not resolved to a string." }
+        Write-Log -Level Ok -Message ("Clone name: '{0}'" -f $cloneName)
+
+        # Wait for search completion
+        $timeout = [int]$purv.purge.timeoutSeconds; if ($timeout -le 0) { $timeout = 1200 }
+        $poll = [int]$purv.purge.pollSeconds; if ($poll -le 0) { $poll = 5 }
+
+        Write-Log -Level Info -Message ("Waiting for search '{0}' (case '{1}') to complete (timeout={2}s, poll={3}s)..." -f $cloneName, $CaseName, $timeout, $poll)
+        $searchObj = Wait-SearchCompletion -SearchName $cloneName -CaseName $CaseName -TimeoutSeconds $timeout -PollSeconds $poll -ErrorAction Stop
+
         if ($null -eq $searchObj) { throw "Search object not returned for '$cloneName' (case '$CaseName')." }
+        Write-Log -Level Ok -Message ("Search status: {0}; Items: {1}" -f $searchObj.Status, $searchObj.Items)
         if ($searchObj.Items -le 0) { throw "Search '$cloneName' returned 0 mailbox items. Purge aborted." }
-        Write-Log -Level Ok -Message ("Search '{0}' completed with {1} item(s)." -f $cloneName, $searchObj.Items)
 
-        # 6) Submit HardDelete purge (respects -WhatIf/-Confirm)
+        # Submit HardDelete purge (respects -WhatIf/-Confirm)
         if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $cloneName), 'Submit Purview HardDelete purge')) {
-            Invoke-HardDelete -SearchName $cloneName -CaseName $CaseName -WhatIf:$WhatIfPreference -Confirm:$false
-            Write-Log -Level Ok -Message ("[Done] Purview HardDelete purge submitted for search '{0}' in case '{1}'." -f $cloneName, $CaseName)
+            $null = Invoke-HardDelete -SearchName $cloneName -CaseName $CaseName -Confirm:$false -ErrorAction Stop
+            $submitted = $true
+            Write-Log -Level Ok -Message ("[Done] Purview HardDelete purge submitted for '{0}' in case '{1}'." -f $cloneName, $CaseName)
         }
         else {
             Write-Log -Level Info -Message "Purge submission skipped due to -WhatIf/-Confirm."
         }
+
+        # Final breadcrumb
+        Write-Log -Level Ok -Message ("Summary: clone='{0}' status='{1}' items={2} purgeSubmitted={3}" -f $cloneName, $searchObj.Status, $searchObj.Items, $submitted)
     }
     catch {
-        Write-Log -Level Error -Message ("[ERROR] {0}" -f $_.Exception.Message)
+        # Guaranteed-visible error; avoids relying on $script:log in early failure
+        Write-Error ("[ERROR] {0}" -f $_.Exception.Message)
+
+        # If console enabled, also use your logger
+        if ($script:log["enableConsole"]) {
+            Write-Log -Level Error -Message ("[ERROR] {0}" -f $_.Exception.Message)
+        }
         throw
     }
     finally {
-        # 7) Optional disconnect prompt (config-driven)
         if ($autoDisconnect) {
             $disconnect = Read-Host "Disconnect Exchange Online session now? (Y/N)"
             if ($disconnect -match '^(?i)(Y|YES)$') {
                 try {
                     Disconnect-ExchangeOnline -Confirm:$false
-                    Write-Log -Level Info -Message "Disconnected from Exchange Online."
+                    if ($script:log["enableConsole"]) { Write-Log -Level Info -Message "Disconnected from Exchange Online." }
                 }
                 catch {
-                    Write-Log -Level Warn -Message ("Failed to disconnect cleanly: {0}" -f $_.Exception.Message)
+                    if ($script:log["enableConsole"]) { Write-Log -Level Warn -Message ("Failed to disconnect cleanly: {0}" -f $_.Exception.Message) }
                 }
             }
             else {
-                Write-Log -Level Info -Message "Session remains connected."
+                if ($script:log["enableConsole"]) { Write-Log -Level Info -Message "Session remains connected." }
             }
         }
         else {
-            Write-Log -Level Info -Message "AutoDisconnectPrompt disabled by config; leaving session as-is."
+            if ($script:log["enableConsole"]) { Write-Log -Level Info -Message "AutoDisconnectPrompt disabled by config; leaving session as-is." }
         }
     }
 }
@@ -144,8 +178,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDkH65UEU2PwyyF
-# LoN+ZMpb4PhcIptDh9Tr6787kPrIkaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC71Lh1HNbjSsHa
+# gWSj2fpyPQI6iNQVyftGpYRMPONyT6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -278,34 +312,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA463d1WUo4
-# J5xciBYXO7mIplgyCM0SM2workF7eMUiWjANBgkqhkiG9w0BAQEFAASCAgA5BNuY
-# TRI4nRDrMLf9M5u6xl2oOWuREEGAAfFoSb2Ib0mDgGEuCXc8D0sJrDfnxYgmgah7
-# Q+FeV6Sksjr8khbnSQ/PSi2ppWaSK4Fx8CHvXpO8C7I36qRWcFezgGom5PEhmoHC
-# vc3fzoVOImMsO9+j1xFS+cJ5GrnHjiDQlFmAZo/OV9FSMa8E5LWGYVGLJjXH6r05
-# 34shEEN5hWMyh75L0EFOae0PDriK+JnTMtY5VdtUOKPd7mOhZzi8M6RYr+Wrj/zd
-# KPYCzLlxlx/mH460duVZ0vQPGRZ/SXZzBS4uAIn+N54bykhiTqrYasrXJFZ/oOr/
-# xL3QncPR48pKehNnDd1kKO4noAvDb63SgFrPssdmE0VEBJ8QoJbInx/so5WBv2BT
-# gphn7Xtz7sq/lZtfvf92M/bUqXyRQf7VOjnXvG5Ije/sJCvYE48Eifit6E9ojuq5
-# 9ctwVN8H5tU/GaMI0jJZFN67rBilIZPcB4o7WXdwYv9bG8/QOWpNQTZeKksn108B
-# qPVcbtsSVnL/iMh3VJIL3WBj35bWky8p2To5gLTJ41iLUZpXXesnvmBRnBPKb1MH
-# 78L8axLNLyk5ew7ti/UBlnCxG7o3ddawc+S3iAgmV3ahTQC049HG1ZAuaAHFBS6x
-# uIr1flEqprJtNuuoN5oscMu0TzgnnNc+6wCENaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAd1igU43S1
+# j0dbAyqVPvYhISboq0JpE8jRcF9DuyJMNzANBgkqhkiG9w0BAQEFAASCAgC8Fsnf
+# 87FsnUceon9JfcmZOrTcewy/r/PLwQoJwg+JSkVPaB1ojvb7GJBJOt+NTJT0pKKG
+# D+SYJYZlGQnyAjdzSVWAPJlsGZNvdU5ODWn+bTZ6FXi+AryBV+ahqTY4org6tYXm
+# QoXnjjliuO5vD/na748k1qWbNWvEbV9hhOQ96zprTPoPxScwI3y1rZY6vmqxAVjI
+# ENLDAF4fO0q91sH3pz//qV+n0Eb8sIZbIvTAVFM4zmg7bUE6ZGFF92PjkMSpIcbL
+# GaWTEVbzIgCATBMXvuKKDte++jlO22NNakIbzqzr144Egu40KPMiYP50i22Crk8a
+# 0XuVmTqlK0EcxedyMW/LqhMmYb8/3lC+knmBRjbOuNEN+DsvAuJr6dLrlzFFezXI
+# pkNIjd446fa6bd+0T763se/9ZDa79yXoppbaVZj67DG3/HoR3FunHGRs6H6IuSoJ
+# b8oRS3fkt/87X9wcrzZ68uEc1Bud8l4pnmb6FtAnRO8BD+g1b1vauo3AnZw6gWWH
+# /P2EW3OKhSZbQrXLN8hPxaJcLqOgUQbgC8W0W2kIJSpV1zUOo7QDlSF9+iQvCGxS
+# gdFkhbM9m5opCAEYGLyGKLlIx14XsEsadhwOe6p5d3iqtIL6mNMDRXDshrFhVtCy
+# XDWA6qxqR5nLnFV58GNIao4gqebtGFyVCqDneaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTMxNzU1MDBaMC8GCSqGSIb3DQEJBDEiBCBWAn40Q2GaKg294PBc
-# W0EOpEnqaZ52Pfz73Pe5jemi2jANBgkqhkiG9w0BAQEFAASCAgBWFt30VtPu8wu0
-# 3VBRmAtHHbf8Q0Gf1Rk0IZaK3E971k2whYCTNC6GtS6lZni2oCrSPCg0DSc0UA0Y
-# qM0zOT2EVsfyl0C7TqO/OuW/fNU80Jwq2Rgz1jAlbonu4iKz2zCBn/5++aRcmHPZ
-# pehp4OxH6mQS7SZHqnq+a4PttDvxiblpt7eEQqUXdN+Wn5d0jDkDM2ePZ6Il1u5/
-# 4sUkvtNGguBrV5eMmevXT0nwQvMxZG4RNFjXEk5kKHEP7kOae8K9M9UsfKM/gddw
-# 0V6Nq17KvTPzNsNEcZAgs1F7XKlKUz2SfVXFl1dJeAW9JJJjMkXA8Ri47bBpYKB3
-# NxMm8HmwLN7LEqq1LA9+7CrMfWxfjhH0G1S04cxbcq3oolTz86zP2yz3CNAjDqQz
-# 2cZvG08/EvPvxlpa2tidxgLQRPmFZP9VXsu4zY4znIfGgX++Ia2CrWx9zTbI/1Tr
-# THdaRYvs81RWcqQCw1OPKId1SY6fCkzZheqrL1zS84m1KcchF0rhNajg+Bx3QxP7
-# nM8LTHNSQFmzgU/1+GidCfylbqEYAROK1B396XukwFLIHOvVqFydregQFGY/mQUk
-# A4T+65hXxjjBU+zPHXieFXmtK22iujmKOvEpu9/U2VwpRdrfQfvEGjv6JkwtJmns
-# FqGcGwLoorLBAqHW8DhMhe2dUebRBQ==
+# BTEPFw0yNjAxMTMyMjExMjJaMC8GCSqGSIb3DQEJBDEiBCATJP1IxUl0uc80PzVI
+# 70LaSm1l8+k+umilZcbHMON3STANBgkqhkiG9w0BAQEFAASCAgCVRH9bECByxPkm
+# LnbWxEDQ56iPp8mwxvFX2PmGBbXe0Wi+2ZUQrgL4afip4WfN8AzxGtLRE9iRJ9wL
+# W6pkvmzgKN82rDWwP8EyDlcLSjEp0CWkh6GZkbjvNB8MjqiEqalYiIhoGQ+gvvlm
+# udvaeTcLKDWTHMWtYXVvGGhhjPaeW5i1MBIUPZxAYHlv85MT0NC4kM4yLr0YYwZ8
+# TR+XlVn/FEElEzCv+5hhAyPozkoJU3P5Az1mpiSUkDz/9oBLiatOz42eiXJUf1Xv
+# AQgiV62L0LVUaoXWiz78gocVjZuQFTpawx0A+Jw1qdx6X957bY/4Vw2Wekx0OPz8
+# pS77cU7RRWoCWE6dtmT5jBPb+ZgGCeh3jDWZoEsxhnveqS6K0OYmD7zIM5DLnqoe
+# JtCUzyD7KsfBMZZk1VTpF1wLQFpYoz4OOzby+jshR4b1U2Fg7lwV+V+vnOxyU9fY
+# gCL8gAqMnt+FqCe4wZfFuU5+L4ybYXguAWbArLfwNLzA3JMmB1Nhhm07PjOmchFO
+# 9whCIJldiwQAmAnfSRQ5mr5yorFoBDYoW0OM2oOAD7FASfQrO+3RCvqa3bi4PFzU
+# mjb4pdXpoE6hwdhjnjBYWC4JI/hE6uxoVCYZbxasJbZxRGRSJMq+zf7DxsJYMrf1
+# EJCoifcaGC563VSNuuJBMrumuFt/Mw==
 # SIG # End signature block

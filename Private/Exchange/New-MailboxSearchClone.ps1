@@ -1,3 +1,4 @@
+
 function New-MailboxSearchClone {
     <#
     .SYNOPSIS
@@ -5,89 +6,70 @@ function New-MailboxSearchClone {
         with a user-provided KQL query.
     #>
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$CaseName,
         [Parameter()][string]$OriginalSearchName
     )
 
-    # --- Config (normalized camelCase) ---
     $cfg = Get-TechToolboxConfig
     $defaults = $cfg["settings"]["defaults"]
-
-    # PS7 null-coalescing: default to $true if missing
     $promptKql = $defaults["promptForKqlQuery"] ?? $true
-
     $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
 
-    # --- No original search name: prompt for KQL ---
     if ([string]::IsNullOrWhiteSpace($OriginalSearchName)) {
-
-        if (-not $promptKql) {
-            throw "OriginalSearchName missing and KQL prompting disabled by config."
-        }
-
-        Write-Log -Level Info -Message "No search name provided. Prompting for KQL query..."
+        if (-not $promptKql) { throw "OriginalSearchName missing and KQL prompting disabled by config." }
+        $null = Write-Log -Level Info -Message "No search name provided. Prompting for KQL query..."
         $customQuery = Read-Host "Enter KQL query"
-
-        if ([string]::IsNullOrWhiteSpace($customQuery)) {
-            throw "Custom query cannot be empty."
-        }
+        if ([string]::IsNullOrWhiteSpace($customQuery)) { throw "Custom query cannot be empty." }
 
         $newSearchName = "CMS-$timestamp"
-        Write-Log -Level Info -Message "Creating mailbox-only search '$newSearchName'..."
+        $null = Write-Log -Level Info -Message "Creating mailbox-only search '$newSearchName'..."
 
-        New-ComplianceSearch -Name $newSearchName -Case $CaseName -ExchangeLocation All `
+        $null = New-ComplianceSearch -Name $newSearchName -Case $CaseName -ExchangeLocation All `
             -ContentMatchQuery $customQuery -AllowNotFoundExchangeLocationsEnabled $true -ErrorAction Stop
 
-        Start-ComplianceSearch -Identity $newSearchName
+        $null = Start-ComplianceSearch -Identity $newSearchName -ErrorAction Stop
         return $newSearchName
     }
 
-    # --- Clone path ---
     try {
         $orig = Get-ComplianceSearch -Identity $OriginalSearchName -Case $CaseName -ErrorAction Stop
         $query = $orig.ContentMatchQuery
-
-        if ([string]::IsNullOrWhiteSpace($query)) {
-            throw "Original search has no ContentMatchQuery."
-        }
+        if ([string]::IsNullOrWhiteSpace($query)) { throw "Original search has no ContentMatchQuery." }
 
         $cloneName = "$OriginalSearchName-MO-$timestamp"
-        Write-Log -Level Info -Message "Cloning mailbox-only search '$cloneName'..."
+        $null = Write-Log -Level Info -Message "Cloning mailbox-only search '$cloneName'..."
 
-        New-ComplianceSearch -Name $cloneName -Case $CaseName -ExchangeLocation All `
+        $null = New-ComplianceSearch -Name $cloneName -Case $CaseName -ExchangeLocation All `
             -ContentMatchQuery $query -AllowNotFoundExchangeLocationsEnabled $true -ErrorAction Stop
 
-        Start-ComplianceSearch -Identity $cloneName
+        $null = Start-ComplianceSearch -Identity $cloneName -ErrorAction Stop
         return $cloneName
     }
     catch {
-        Write-Log -Level Warn -Message "Search '$OriginalSearchName' not found or invalid. Prompting for KQL query..."
-
-        if (-not $promptKql) {
-            throw "Original search not found and KQL prompting disabled by config."
-        }
+        $null = Write-Log -Level Warn -Message "Search '$OriginalSearchName' not found or invalid. Prompting for KQL query..."
+        if (-not $promptKql) { throw "Original search not found and KQL prompting disabled by config." }
 
         $customQuery = Read-Host "Enter KQL query"
-        if ([string]::IsNullOrWhiteSpace($customQuery)) {
-            throw "Custom query cannot be empty."
-        }
+        if ([string]::IsNullOrWhiteSpace($customQuery)) { throw "Custom query cannot be empty." }
 
         $newSearchName = "CMS-$timestamp"
-        Write-Log -Level Info -Message "Creating mailbox-only search '$newSearchName'..."
+        $null = Write-Log -Level Info -Message "Creating mailbox-only search '$newSearchName'..."
 
-        New-ComplianceSearch -Name $newSearchName -Case $CaseName -ExchangeLocation All `
+        $null = New-ComplianceSearch -Name $newSearchName -Case $CaseName -ExchangeLocation All `
             -ContentMatchQuery $customQuery -AllowNotFoundExchangeLocationsEnabled $true -ErrorAction Stop
 
-        Start-ComplianceSearch -Identity $newSearchName
+        $null = Start-ComplianceSearch -Identity $newSearchName -ErrorAction Stop
         return $newSearchName
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlyKrF2vGULtz6
-# 4UMlMzInRCT1gyDOkc+WsBpb+InD56CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAULTTDH/hHv8iU
+# xTGQid+3d6WvSVMDr9HFjM1w+N1YEKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -220,34 +202,34 @@ function New-MailboxSearchClone {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB5m3pWp52z
-# lcsp9dOP1AjBYaFj28TLrrNIj76avp0JVDANBgkqhkiG9w0BAQEFAASCAgAgGrsg
-# TRgZGTErmRgTxWr5A0bmiBK2oa8WU4u9KCtDQHBni/20a78tDBhJZUA9ZD55zn/p
-# eLJiX59L1ytqCL5bd4JFILaKligb4Z33BxbQFv1GKdqm5J2VN8UPqa+MJbfCBKq2
-# NEtVKf7GlKaPSOCOi73kT6DnnwnzOoRBwUI2qnkR/88LqDgxMnbDkww9Smv6zF5e
-# 9yUUm7xvWaO7Q64JYghd8Y/Z+wZkCpkwx8JQGPnONCOW+0VYF5Sosl5ggRwEscGf
-# 4Fl/weooW2uo+dXBBhnQ45ni0tiHm0Vge+0jkay1fSySoZYjChw7QqGIMy3i/epv
-# PtGCj8DcNJgUGi8F//qI47sAQYQDrYkCwc5JYbMjRy93EMw7Zrq0P6I0eCIR4ca1
-# uXm/LwT6KvQK+sBkU/6WSqRvonSprHKDcSXkO4++2D0bFUnkFgPm9SRLetErqVZ5
-# SirxuXt5E2wMQ+xJ5nX7HZ+G1rzxy9SRUkKOwZE2WGcEMIgsbondmgVy70/UaBMy
-# trXuXycUQSfRpGyiJYBki0mcIG1g55LWV7S0x61SpB5inx8DC2JbspA8Cu1CQScU
-# mwUuIIKSG2m16AzywXkyYv2auAST8NGuNAStSEqvkoSbFK+00Fk5GWg1FBJ7wD6W
-# 6EaOZmovN7KUsCpIRVzhR/8mUjekHeTlMIXJQ6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCax5AhirDy
+# jVITRTuBjnrG6y6WYF6OQmd7IScK2aLc5zANBgkqhkiG9w0BAQEFAASCAgCMkO11
+# bhrc1zyGE6lsPN6+ey7QU6bOAJ/Y7N49J0VUs5ts1VO313s+9476ZnmkgZG4Vwnl
+# PSiMRv4hIkrk+6TZdKBtp/BCvVm8hLblbue7ZFpDpMpTkrFruFsnm4k/r8AZu4ub
+# Wd7y6eKqq1HVlbe/VXO3IiQ1DO+7Rhwk7WVOIgPNBggcZcMvnPsTZ/WrtANN6Hvc
+# cFAbPEaf7SlrRRgYrhKoRgRPbIeh/KdGUPGoMlNFCysg8vGCGTO3ixUsOw7NQkJV
+# mlAnkWH6sXqp6xMhcs34WdVhqpXW6eOmv+pMZb/wfoW/wZOk2ox4McXJBD50Adh6
+# 5osAnYecMlFHgoZ7KEcC/0jfz3fll2ORq/gXi76EkGkRtrN5DGf3ZeRXJ4thMM9K
+# YwgXUfM745uQcKaQY9jBGzSKdzhBO+1nsjPFjNIzz+iBRTyadGzsdgpoBKPajD2g
+# YgzAIlKG/dKFPsFAD1QQ+mK/HXKZz97/8cYl1JOYIAceI2dUyGrzKMBDkv7sZapi
+# eGzbXa2BtuhBiJhxsi9bmm1Ez6us+h7WenRAACaGr6O0EgbBgA29B+LYJ9owhPtt
+# ANvlDuGuAJD/0AyA6oDm/EvcGyv4esrzT1F/oU7pGv96DdSHHS+XbNxCJguPtW1M
+# GI2GvLKkXZBSxds+JvmgaiY14RYHzTqZsPDhOqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNDMyNDZaMC8GCSqGSIb3DQEJBDEiBCBKOq55nuowY8gU4hF+
-# vK3/7/NQYqwyH3QnAMTHMKxb0jANBgkqhkiG9w0BAQEFAASCAgB10ftoEPFXNdn7
-# OZn9CKJrMvOdRVT5AxKolHU/KWEUOm+KD43brMhE79zwtix+c5OK/MdC3l34K+AX
-# 5BwUHGBX4+dr3bLrbrKEvLvBHSIqIkEhwA28+sAsSdVpx6uZOV18P+z2jjaFGAmU
-# ppbxZbn8m2aBn5/Ekq2CJqCfy8/gvc5UImOEZbOEOhySzSZpYAk0qH4kUa3lvnC7
-# SyV/d4Vxwb+pJyXwmGWHSMy4jLnBUYiEGoEMYwEay7WNWM8JmNYgaj/SOuixoIbJ
-# UT3cLYQDGCArWl9zdhR0D8GIojPTL6B2K7C6zYh1Djk36RsofFOdcAUtGcstASi0
-# saBZRujeqH86wrqqqLwrkjz5vOPavFsLjaWNVa/6rhPi7/+YO2VqBVymlWhPS/Pz
-# Opy2NK0mdlH5M1LM4/9/yZ2JQcRcxmeX10UqUYtjjwJvKKDM7ealogKt5Lqegbrf
-# 1LHtSjn+vgA3qI5LY57tfaMPyjKotCegy2RWgzEnAFTM8cFZdnfGgFHSW447Z0Ne
-# 5+Ny9F4htM21AgRTr3yNS6VQMzHISc6w4sWcrOJbOIZb4//bXTnRL3Pg+vMEmzkr
-# uvQfzH8gitx9bjzsu1ScMAUFryX1JFe7yaco4gT3CxazFOi3e2iVJCouGHvFbHA1
-# WB/ODUqDtfouL9NkDJay9OnwP0vwJA==
+# BTEPFw0yNjAxMTMyMjExMjBaMC8GCSqGSIb3DQEJBDEiBCB2s3Tg5kCKvgnMyhJl
+# hCUcGXgMCYJi7I/pa/F7hz6JYjANBgkqhkiG9w0BAQEFAASCAgCN3Q/ByMMMCCQu
+# 7wyVuvPeIx/sRC5pY+KSFAvg/ObViHzT37t30dRzpeMMakffAP75aq1ldfbLJqo3
+# GBdc/+Q8ELXNzzbBY76nLC3CkRSWW2dbhLO03wGy+6QaO3Aqms1iKQSNqFB9GT+K
+# Ar1TVu+aFCZK6yIG5QLDu0MLJ9tz9dM/GEZL+OSvTExym8GkHF4xQ3p41u0R2PpQ
+# S18fS9TYa9oaO5DUaiPLZCgaO1Bd3WcaO4eOmI2DQl6TA0dN7v4LM5A3K+ca/2si
+# TeLNndbm28oixs/hRGsRc1+PQmnfQwkz+A4JTl8qYeIoaJ0VjJLklGnUxVb9JzkF
+# iksWfW7afJw9KzloOUIburMRrLUwQY3AI0jPm00HE/nKy9Po6owmziBzFjJUgNIp
+# CDXwPWLlhT/AAGdL0iXLmZUe8iwSXsAjv+OPuCJhab6ctLmz8jdhV1Vthf3yLd0U
+# OjO0ANakWCPSd71PzRVJSybG41fhyXhQEI+g1BvgTXWq7d1Kvu4KJviUqPghue76
+# wms6R1tg93uxuGtNevXFg/ov8U1kreDAwByU/20dk/qVTNvPO+jPnM8p7jOD0bk+
+# VtiEbVwGegNH99X5RweO61JJ1kfkzAL5e2yDfH4Yqwbd94CSfIQkoCvgRIfnylBT
+# StnmT9sYUIevhGZFKFzp0FsSFpbtvA==
 # SIG # End signature block
