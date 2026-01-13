@@ -1,8 +1,8 @@
 {
   "paths": {
     "temp": "C:\\Temp\\TechToolbox",
-    "logs": "C:\\LogsAndExports\\Logs\\TechToolbox",
-    "exportDirectory": "C:\\LogsAndExports\\Exports\\TechToolbox"
+    "logs": "C:\\LogsAndExports\\TechToolbox\\Logs",
+    "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports"
   },
   "settings": {
     "defaults": {
@@ -54,6 +54,11 @@
     },
     "windowsUpdate": {
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate"
+    },
+    "windowsActivation": {
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsActivation",
+      "writeToExports": false,
+      "fileNameFormat": "ActivationInfo_{computer}_{yyyyMMdd-HHmmss}.txt"
     },
     "output": {
       "writeTable": true,

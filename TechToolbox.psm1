@@ -17,7 +17,29 @@ Write-Host $logo -ForegroundColor Cyan
 
 # 1) Module root & config path (use ModuleBase for reliability)
 $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:ConfigPath = Join-Path $script:ModuleRoot 'Config/config.json'
+$script:ConfigPath = Join-Path $script:ModuleRoot 'Config\config.json'
+
+try {
+    if (Test-Path -LiteralPath $script:ConfigPath -PathType Leaf) {
+        $cfg = Get-TechToolboxConfig -Path $script:ConfigPath
+        if ($cfg) {
+            $script:TechToolboxConfig = $cfg
+            Write-Verbose "TechToolbox: config preloaded from $script:ConfigPath"
+        }
+        else {
+            Write-Verbose "TechToolbox: config returned null from $script:ConfigPath"
+            $script:TechToolboxConfig = $null
+        }
+    }
+    else {
+        Write-Verbose "TechToolbox: config path not found: $script:ConfigPath"
+        $script:TechToolboxConfig = $null
+    }
+}
+catch {
+    Write-Verbose ("TechToolbox: config preload failed: {0}" -f $_.Exception.Message)
+    $script:TechToolboxConfig = $null
+}
 
 # 2) Load Private first
 $privateRoot = Join-Path $script:ModuleRoot 'Private'
@@ -27,7 +49,7 @@ foreach ($file in $privateFiles) {
 }
 
 # Define aliases from JSON
-$aliasesConfigPath = Join-Path $script:ModuleRoot 'Config/AliasesToExport.json'
+$aliasesConfigPath = Join-Path $script:ModuleRoot 'Config\AliasesToExport.json'
 $aliasItems = @()
 
 if (Test-Path $aliasesConfigPath) {
@@ -103,8 +125,8 @@ catch {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBhnVKkW2UrSPy6
-# 2bwqrFZpfDunsI7kTfYdztJ6GHLpa6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBJYTTgcnVPrlte
+# GBXeNXTdYvsQXb+wkAjpvCGS8y0/XKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -237,34 +259,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBrrowke9gy
-# Rwj8LyN2jlKVhcD/2mWC448w0AuUdYKznDANBgkqhkiG9w0BAQEFAASCAgCfyp5g
-# mezjlx6XeV5bAKtUjJZ/lB9fLXytTEZv5HQEuikINRjGtbwPNxW7E+royhANy6PJ
-# xMKXHEZveAq3BF+V/gZk8do2DgS49CqWgz/lKv5+OquubabHNx02TCOGlhDrsJ43
-# LzwsKs7hxMLSE4hD38Zng2JvICdkw6rtG/AwQwd0SD0y0NRtZQGaPYpRQiuvbAEs
-# rhladUgvvkGaARya1I+5tr8E8PjpcutA9pTCMGOoWhSUzM6GuNmvPSyX49atlw4r
-# kxu93nonDsRUc9B1kJzrnC8YytsXNffdtZzLCnu+sV0ssV03WwLbzDHXXlc3pngF
-# cDTo1yPJw8ixoFO1B+yEggfH2gywrPctDyx9KjK2/TRyOmXAaPkMeGgTQ3lzO8IO
-# e3y9O0a9PpuN12mvxjyuDj/BYKSHo1b83pCscD3k9NKciazI2wgiDDm/ED8jKxoR
-# FEBRNDpQYpkt49G9U3YaWO4L+1fZTuDNUZCQ+FSDDqTRE7rRhHWnBXHl8BOj91ip
-# u345zJFQBtl9F3a6JPWm2RBGbdcPlC/1IBNQRwW256KrMrMT8B4/fLBTR5NpDqdS
-# clDTamGA1fwMb+4nn+rXdL0tzlTJs8wJnTGCwFo5pHXkKtN6o15NJAaK8Re0ZeLw
-# BsOL65uvWKssMwwwlek6Mzj9uRtVGq+idwCzdaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA74Camhv0j
+# tVp1WdR2m/EYRQyVAEZ8tX+C81/jLn86QzANBgkqhkiG9w0BAQEFAASCAgC3109S
+# gLeJYrpdOQ42Nphhqf3nIgdOwz6gBV+9uM8XNnQlOWcQ41eJYEJKukfLdr1NTgCU
+# caDK9RFD4IjuOi7f3Sapgfw/D6Nb/E0HhiCzW2MSl89Cz/BNnqmcV6T7Xt5UCTvB
+# 2w6kEKVAjY8lYPMYFsXxUdgxN6n/63o3rbdQIvbuAe8eW1fez3Lr3lpInOsz1szn
+# 616iy19wQ8oCCeVmZ3dMzMHf1ToFcdU4+gY/+vyHGvtZJQ7+paBHP9NyacLUuixY
+# JplOebJuO/+uCSpUyjCj/OdhkNoWn+TXyWs9UnFQfwHNtvSm73BKxN6LnzLrk7qO
+# 1vQQmOmpq6lZ92qcO8V5BSzuX9JNg6tR5EsIF+MmJLJlKCu7cd7M4Ytuq+AR8jhU
+# onqbdZPRGxmqfLEHjh+JJyKJ42EG3gsTAP8SVGACsZGsWaNctwLvCi5agAj3itrn
+# yNHda9X3sHEAsrynG5P7y4Fg1+BUMQzoVRpU02dgDtq5q1DzqprlY+66L/560i/W
+# uCo/GJMm1gP/ejJyHVzXSAuxpwreeJKDR193Vf7ylDHtshJHih7L8ZNCf1HgqfmX
+# z3jagyoETxfweI8EqsqExYHQqWMYlQpFMKkvl9hTKnpsrzOaheywGB/dnRyV8VdX
+# inyJtNRppofCvm8DUKYOeY/474xRaeqpdWPfzKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTMxMzU2MzFaMC8GCSqGSIb3DQEJBDEiBCDumK3HrjHptlXuqAfw
-# LAimLQPeJOjuhcwkLbACyt7vVjANBgkqhkiG9w0BAQEFAASCAgBL6x8NwSUkvJeE
-# ydyNRGrd30eN13Gtc3Oxw1N9yGI6h4o7KFmAO6I095y2/g3Ghh1YmGzAfO6k6yYY
-# lAm/pvLPbsKgZ1JlbAIq7egTgVTQB2j8U0UrPbF9dM4sDJaj1+bgp57K5Ts4bgCN
-# JOaFfNDkZOj061ahBVeVLPt+4GFWHNH+Rzv1ZKoJ4NVq52I58ssXAL/wRfOtJTSm
-# uZ5dQrqYnGO6hIjErGhpujPqQviBPsKJYYJ6YLA7HEO+2oNQUft6hA2RQzw0SYj5
-# omwWCgD0vDDmCtLFWNr3Hm31UT7z6A7gHKO9C+IwEua2qhzSoBbbvQDcJTG2YOP9
-# JYKBZK6E+gbbi4y8Jq064VI1HyVG6WiL3Mfxhdyu1VrO2AAA+Npbt0+z3mOclCDB
-# TjplAww3nH6x6r9mUa42Rh/v1jGe9Jv8m5t9w2ZWYh0aAIiNJecjBncVVNP8vdGn
-# WpfqX12dWkYcctVFmBaC1moOO0XOcKhm7gLzuKRNVpZTHshUDNghLyTJ5Wc1dU3C
-# twANB+dSi2Z9fP5k+cjIrMfl4pnD5QaPpI5Q8Bh2EqDeOECBLkqocd4FTagtL9+n
-# IZGPdWVmCes9b7J999xYqsTHNW+PslsshXvrU4KL2I6gFALYHW8JQ6y2p9HpjHKl
-# VRIGkhls3r5Vr00A7w3Cv+GGGfQ3UQ==
+# BTEPFw0yNjAxMTMxNDUzNTRaMC8GCSqGSIb3DQEJBDEiBCCpl+LYE0EgkWmFRaYr
+# LVq8WmdrgpjemlO8sthIgXM9BjANBgkqhkiG9w0BAQEFAASCAgAAAh9DxX+m+vf0
+# cGVjXBFQcfW+booacwNkZ9ZC+AOKVHUvjznzzwgVoJrdDf6tOcztxjVDb4ecRO54
+# AapKKxl5pntvMGMVS0AlHXH2tcvNwxrUlr1/vR2A0Boquv/89pleAMheWeK0El5E
+# gCq7LExdCTx0dfagKC7T2/Unrz7dVxsLCpflP59uGzFU2yeQbx6+KNfF7djFZ5VA
+# cs7h8BC/Ij+gMAoAXPl38/r91OeBPs01DVrbXdXlXpYKKX3shsLWiQs/eYTJIumU
+# cn/agA2AQ8JNVlSGY2aSmICdaFmf1fIjv3JXEsINlD1YptXEnG3RP5T+KAUVReyJ
+# iYrbw5VK211YKcAFgM4v/r+5ujsHTf9D43Jht5OydkCEbF4Ax+UYYdQ57HrJMCwg
+# /e56f1XwfS8q/tTOPLZBZQMRj5Jh4tF7d6V1Mw5L9KK6T/hG/g4wwBuhZ8htJlI5
+# N//R/jA/z3ki8FhEy7nihnnSEfmBcAJ8sq8gm6/lC5kYDYZs2zOFVdEV2zpMrygM
+# K4Z4VzK+IjfH4GJAibQBn3dic9zszacJAsaSolMaE760JpEBIqrtL2Pe9o/09Fqu
+# SRHYzhTlzH2G/FqtroSoTv105EYuY2YsQujGRXJdLqD+Bgv1AIRCzgNZNi/NcHq6
+# LpN4VmZuBvOD/85DeFd1goTONCKEIg==
 # SIG # End signature block
