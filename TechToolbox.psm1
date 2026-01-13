@@ -61,19 +61,18 @@ function Write-Diag {
 }
 
 function Get-ModulesFromConfig {
-    # Reads Modules from the already-preloaded config if present; otherwise attempts to parse.
-    # Returns $null if no valid section found.
+    <#
+    .SYNOPSIS
+    Returns Modules array from the already-preloaded $script:TechToolboxConfig.
+    .DESCRIPTION
+    This function assumes the config was preloaded AFTER dot-sourcing Private.
+    If config isn't loaded or has no Modules, returns $null.
+    #>
+    [CmdletBinding()]
+    param()
+
     if ($script:TechToolboxConfig -and $script:TechToolboxConfig.Modules) {
         return $script:TechToolboxConfig.Modules
-    }
-    if (Test-Path -LiteralPath $script:ConfigPath -PathType Leaf) {
-        try {
-            $cfg = Get-TechToolboxConfig -Path $script:ConfigPath
-            if ($cfg -and $cfg.Modules) { return $cfg.Modules }
-        }
-        catch {
-            Write-Warning "Failed to parse '$script:ConfigPath' for Modules: $($_.Exception.Message)"
-        }
     }
     return $null
 }

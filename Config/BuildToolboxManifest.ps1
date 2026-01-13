@@ -202,14 +202,32 @@ $moduleListSpec = @(
 )
 
 # --- 5.2) Put rich module metadata in PrivateData ---
+# --- Normalize PrivateData from the existing manifest ---
+# Start with an empty hashtable so it's always indexing into a hashtable.
 $pd = @{}
+
+# If the existing PrivateData is a hashtable, clone it (avoid reference issues)
 if ($manifest.PrivateData -is [hashtable]) {
-    # clone to avoid mutating the deserialized object directly
     $pd = @{} + $manifest.PrivateData
 }
-if (-not $pd.ContainsKey('TechToolbox')) { $pd['TechToolbox'] = @{} }
+elseif ($manifest.PrivateData) {
+    # If it's some other type (string/object), don't carry it forward blindly.
+    # Optionally, try to preserve PSData if it exists as a property.
+    try {
+        if ($manifest.PrivateData.PSData -is [hashtable]) {
+            $pd['PSData'] = @{} + $manifest.PrivateData.PSData
+        }
+    }
+    catch { }
+}
 
-$pd['TechToolbox']['Modules'] = @(
+# Ensure TechToolbox is a hashtable (create or replace if it's not)
+if (-not $pd.ContainsKey('TechToolbox') -or -not ($pd['TechToolbox'] -is [hashtable])) {
+    $pd['TechToolbox'] = @{}
+}
+
+# Build/replace the Modules array under your TechToolbox key
+$pd['TechToolbox']['Dependencies'] = @(
     @{
         Name     = 'ExchangeOnlineManagement'
         Version  = '3.9.0'
@@ -217,11 +235,16 @@ $pd['TechToolbox']['Modules'] = @(
         Required = $true
         Defer    = $true
     }
-    # ... add others here ...
+    # ...add others here...
 )
 
-# --- 6) Build a complete manifest descriptor for Update-ModuleManifest ---
+# --- Build a schema-valid ModuleList for the manifest (ModuleSpecification[]) ---
+# Note: ModuleList must use ModuleSpecification keys (ModuleName, ModuleVersion/RequiredVersion, Guid)
+$moduleListSpec = @(
+    @{ ModuleName = 'ExchangeOnlineManagement'; RequiredVersion = '3.9.0' }
+)
 
+# --- Assemble the new manifest payload ---
 $newManifest = @{
     Path              = $ManifestPath
     RootModule        = $manifest.RootModule
@@ -235,50 +258,17 @@ $newManifest = @{
     RequiredModules   = $manifest.RequiredModules
     CmdletsToExport   = $manifest.CmdletsToExport
     VariablesToExport = $manifest.VariablesToExport
+
+    # Explicitly set these:
+    FunctionsToExport = $publicFunctions
+    AliasesToExport   = $resolvedAliasesToExport
+
+    # Standards-compliant list (for manifest validation)
     ModuleList        = $moduleListSpec
+
+    # Richer metadata lives safely under PrivateData
     PrivateData       = $pd
 }
-
-# Optional fields — only include if non-null
-$optionalKeys = @(
-    'PowerShellHostName',
-    'PowerShellHostVersion',
-    'DotNetFrameworkVersion',
-    'ClrVersion',
-    'ProcessorArchitecture',
-    'RequiredAssemblies',
-    'ScriptsToProcess',
-    'TypesToProcess',
-    'FormatsToProcess',
-    'NestedModules',
-    'FileList',
-    #'ModuleList',
-    'TypesToExport',
-    'FormatsToExport'
-)
-
-foreach ($key in $optionalKeys) {
-    $value = $manifest.$key
-    if ($null -ne $value -and $value -ne '') {
-        $newManifest[$key] = $value
-    }
-}
-
-# Always set FunctionsToExport to the discovered public functions (even if empty)
-$newManifest['FunctionsToExport'] = $publicFunctions
-
-# Only set AliasesToExport if we actually have any
-if ($resolvedAliasesToExport) {
-    $newManifest['AliasesToExport'] = $resolvedAliasesToExport
-}
-else {
-    # If the existing manifest had aliases and is now none, Can choose to clear
-    # them or preserve them. Here the choice was to clear them explicitly for
-    # deterministic builds.
-    $newManifest['AliasesToExport'] = @()
-}
-
-# --- 7) Apply changes via Update-ModuleManifest ---
 
 if ($PSCmdlet.ShouldProcess($ManifestPath, "Update module manifest")) {
     Update-ModuleManifest @newManifest
@@ -290,6 +280,7 @@ if ($PSCmdlet.ShouldProcess($ManifestPath, "Update module manifest")) {
     Write-Host "  Functions:   $($publicFunctions -join ', ')"
     Write-Host "  Aliases:     $($resolvedAliasesToExport -join ', ')"
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
