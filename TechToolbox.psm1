@@ -71,8 +71,8 @@ function Get-ModulesFromConfig {
     [CmdletBinding()]
     param()
 
-    if ($script:TechToolboxConfig -and $script:TechToolboxConfig.Modules) {
-        return $script:TechToolboxConfig.Modules
+    if ($script:TechToolboxConfig -and $script:TechToolboxConfig.Dependencies) {
+        return $script:TechToolboxConfig.Dependencies
     }
     return $null
 }
@@ -84,8 +84,8 @@ function Get-ModulesFromManifest {
         $m = Import-PowerShellDataFile -Path $manifestPath
 
         # Prefer our custom, rich metadata:
-        if ($m.PrivateData -and $m.PrivateData.TechToolbox -and $m.PrivateData.TechToolbox.Modules) {
-            return $m.PrivateData.TechToolbox.Modules
+        if ($m.PrivateData -and $m.PrivateData.TechToolbox -and $m.PrivateData.TechToolbox.Dependencies) {
+            return $m.PrivateData.TechToolbox.Dependencies
         }
 
         # (Optional) Fallback: map a bare ModuleList to a simple array
