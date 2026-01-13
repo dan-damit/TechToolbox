@@ -5,7 +5,7 @@
     "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports"
   },
 
-  "Modules": [
+  "Dependencies": [
     {
       "Name": "ExchangeOnlineManagement",
       "Version": "3.9.0",
