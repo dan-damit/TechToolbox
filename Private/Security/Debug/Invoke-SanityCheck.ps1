@@ -16,10 +16,12 @@ function Invoke-SanityCheck {
         [TechToolbox](https://github.com/dan-damit/TechToolbox)
     #>
     Write-Host "Running sanity_check..." -ForegroundColor DarkCyan
-    Start-Sleep -Milliseconds 300
+    Start-Sleep -Milliseconds 3000
 
     Write-Host "Operator sanity: questionable" -ForegroundColor Yellow
+    Start-Sleep -Milliseconds 2000
     Write-Host "Module sanity: excellent" -ForegroundColor Green
+    Start-Sleep -Milliseconds 2000
     Write-Host "Proceed with caution." -ForegroundColor DarkYellow
 }
 # SIG # Begin signature block

@@ -28,6 +28,8 @@ foreach ($file in $privateFiles) {
 
 # Define aliases from JSON
 $aliasesConfigPath = Join-Path $script:ModuleRoot 'Config/AliasesToExport.json'
+$aliasItems = @()
+
 if (Test-Path $aliasesConfigPath) {
     try {
         $aliasJson = Get-Content -Raw -Path $aliasesConfigPath | ConvertFrom-Json
@@ -51,6 +53,11 @@ if (Test-Path $aliasesConfigPath) {
     }
 }
 
+# Collect aliases that should be exported
+$exportableAliases = $aliasItems |
+Where-Object { $_.export -and $_.name } |
+Select-Object -ExpandProperty name
+
 # 3) Load Public, collect names, and export only those
 $publicRoot = Join-Path $script:ModuleRoot 'Public'
 $publicFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File -ErrorAction SilentlyContinue
@@ -62,11 +69,11 @@ foreach ($file in $publicFiles) {
     $publicFunctionNames += $file.BaseName
 }
 
-if ($publicFunctionNames.Count -gt 0) {
-    Export-ModuleMember -Function $publicFunctionNames
+if ($publicFunctionNames.Count -gt 0 -or $exportableAliases.Count -gt 0) {
+    Export-ModuleMember -Function $publicFunctionNames -Alias $exportableAliases
 }
 else {
-    Write-Verbose "TechToolbox: no public functions found under '$publicRoot'."
+    Write-Verbose "TechToolbox: no public functions or aliases found to export."
 }
 
 # 4) Load all C# interop classes recursively
