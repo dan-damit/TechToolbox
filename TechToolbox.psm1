@@ -15,6 +15,7 @@ $logo = @"
 
 Write-Host $logo -ForegroundColor Cyan
 
+
 # 1) Module root & config path (use ModuleBase for reliability)
 $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
 $script:ConfigPath = Join-Path $script:ModuleRoot 'Config\config.json'
@@ -47,6 +48,192 @@ $privateFiles = Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File -E
 foreach ($file in $privateFiles) {
     . $file.FullName
 }
+
+# ----- Initialization helpers (folded in) -----
+
+# Module-level init state
+$script:ToolboxInitialized = $false
+$script:ToolboxInitTimestamp = $null
+
+function Write-Diag {
+    param([string]$Message)
+    # Use -Verbose on Import-Module or Initialize-Toolbox to surface details
+    Write-Verbose $Message
+}
+
+function Get-ModulesFromConfig {
+    # Reads Modules from the already-preloaded config if present; otherwise attempts to parse.
+    # Returns $null if no valid section found.
+    if ($script:TechToolboxConfig -and $script:TechToolboxConfig.Modules) {
+        return $script:TechToolboxConfig.Modules
+    }
+    if (Test-Path -LiteralPath $script:ConfigPath -PathType Leaf) {
+        try {
+            $cfg = Get-TechToolboxConfig -Path $script:ConfigPath
+            if ($cfg -and $cfg.Modules) { return $cfg.Modules }
+        }
+        catch {
+            Write-Warning "Failed to parse '$script:ConfigPath' for Modules: $($_.Exception.Message)"
+        }
+    }
+    return $null
+}
+
+function Initialize-TechToolboxModules {
+    <#
+    .SYNOPSIS
+    Prepares PSModulePath, resolves bundled modules, optionally defers import.
+
+    .DESCRIPTION
+    - Prepends .\Modules to PSModulePath
+    - Reads Modules list from config.json (if present) or falls back to EXO 3.9.0 (bundled)
+    - If a module entry sets 'Defer'=$true, it won't import until Ensure-* is called.
+    #>
+    [CmdletBinding()]
+    param(
+        [switch]$ForceReload
+    )
+
+    $modulesPath = Join-Path $script:ModuleRoot 'Modules'
+    if (Test-Path $modulesPath) {
+        $paths = $env:PSModulePath -split ';' | ForEach-Object { $_.Trim() }
+        if (-not ($paths -contains $modulesPath)) {
+            $env:PSModulePath = "$modulesPath;$env:PSModulePath"
+            Write-Diag "Prepended bundled Modules path: $modulesPath"
+        }
+        else {
+            Write-Diag "Bundled Modules path already present: $modulesPath"
+        }
+    }
+    else {
+        Write-Verbose "Bundled Modules path not found: $modulesPath"
+    }
+
+    $ModuleList = Get-ModulesFromConfig
+    if (-not $ModuleList) {
+        # Hardcoded fallback — Option A
+        $ModuleList = @(
+            @{
+                Name     = 'ExchangeOnlineManagement'
+                Version  = '3.9.0'
+                Bundled  = $true
+                Required = $true
+                Defer    = $true
+            }
+        )
+    }
+
+    foreach ($m in $ModuleList) {
+        $name = $m.Name
+        $version = [version]$m.Version
+        $bundled = [bool]$m.Bundled
+        $required = [bool]$m.Required
+        $defer = [bool]$m.Defer
+
+        if ($defer -and -not $ForceReload) {
+            Write-Diag "Deferred import for $name $version."
+            continue
+        }
+
+        $available = Get-Module -ListAvailable $name | Where-Object { $_.Version -eq $version }
+        if (-not $available -and $bundled) {
+            $bundledPath = Join-Path $modulesPath (Join-Path $name $m.Version)
+            if (Test-Path $bundledPath) {
+                Write-Diag "Found bundled path for $name $version $bundledPath"
+            }
+            else {
+                Write-Warning "Bundled path missing for $name $version at '$bundledPath'."
+            }
+        }
+
+        try {
+            Import-Module $name -RequiredVersion $version -Force -ErrorAction Stop
+            Write-Diag "Imported $name $version."
+        }
+        catch {
+            Write-Warning "Failed to import $name $version $($_.Exception.Message)"
+            if ($required) { throw "Required module missing: $name $($version.ToString())" }
+        }
+    }
+}
+
+function Ensure-ExchangeOnlineModule {
+    <#
+    .SYNOPSIS
+    Imports ExchangeOnlineManagement (Option A) just-in-time from bundled path.
+
+    .PARAMETER RequiredVersion
+    Defaults to 3.9.0.
+    #>
+    [CmdletBinding()]
+    param(
+        [string]$RequiredVersion = '3.9.0'
+    )
+
+    $name = 'ExchangeOnlineManagement'
+    $version = [version]$RequiredVersion
+
+    $alreadyLoaded = Get-Module -Name $name | Where-Object { $_.Version -eq $version }
+    if ($alreadyLoaded) {
+        Write-Diag "EXO $version already loaded."
+        return
+    }
+
+    $available = Get-Module -ListAvailable $name | Where-Object { $_.Version -eq $version }
+    if (-not $available) {
+        Initialize-TechToolboxModules -ForceReload
+        $available = Get-Module -ListAvailable $name | Where-Object { $_.Version -eq $version }
+        if (-not $available) {
+            throw "ExchangeOnlineManagement $($version.ToString()) not available in PSModulePath. Check bundled Modules."
+        }
+    }
+
+    Import-Module $name -RequiredVersion $version -Force
+    Write-Diag "Loaded ExchangeOnlineManagement $version."
+}
+
+function _InvokeModuleImport {
+    <#
+    .SYNOPSIS
+    Idempotent one-time initialization (called on import and by Initialize-Toolbox).
+    #>
+    [CmdletBinding()]
+    param(
+        [switch]$Force,
+        [string]$ConfigPath = $script:ConfigPath
+    )
+
+    if ($script:ToolboxInitialized -and -not $Force) { return }
+
+    # Light-touch env prep; respects 'Defer'
+    Initialize-TechToolboxModules
+
+    $script:ToolboxInitialized = $true
+    $script:ToolboxInitTimestamp = Get-Date
+    Write-Verbose "TechToolbox initialized at $script:ToolboxInitTimestamp"
+}
+
+function Initialize-Toolbox {
+    <#
+    .SYNOPSIS
+    Public entry point to initialize TechToolbox (paths, config, deferred modules).
+
+    .PARAMETER Force
+    Re-runs initialization even if already initialized.
+
+    .PARAMETER ConfigPath
+    Optional path to config.json.
+    #>
+    [CmdletBinding()]
+    param(
+        [switch]$Force,
+        [string]$ConfigPath = $script:ConfigPath
+    )
+
+    _InvokeModuleImport -Force:$Force -ConfigPath $ConfigPath
+}
+
+# ----- End initialization helpers -----
 
 # Define aliases from JSON
 $aliasesConfigPath = Join-Path $script:ModuleRoot 'Config\AliasesToExport.json'
@@ -121,6 +308,12 @@ catch {
     Write-Host "TechToolbox: config preload failed: $($_.Exception.Message)"
     $script:TechToolboxConfig = $null  # Allow callers to detect missing config
 }
+
+# 6) Export public Initialize-Toolbox entry point (in addition to Public\*)
+Export-ModuleMember -Function Initialize-Toolbox
+
+# 7) Auto-init on module import (toggle ON/OFF as you prefer)
+_InvokeModuleImport
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor

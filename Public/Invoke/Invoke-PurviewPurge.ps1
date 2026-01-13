@@ -56,7 +56,7 @@ function Invoke-PurviewPurge {
         $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true
 
         # 1) Import EXO module (private helper)
-        Import-ExchangeOnlineModule
+        Ensure-ExchangeOnlineModule
 
         # 2) Prompt for missing inputs (config-driven)
         if (-not $UserPrincipalName) {
