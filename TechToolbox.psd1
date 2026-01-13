@@ -72,7 +72,7 @@ RequiredModules = @(@{ModuleName = 'ExchangeOnlineManagement'; ModuleVersion = '
 FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Get-BatteryHealth', 
                'Get-MessageTrace', 'Get-RemoteInstalledSoftware', 
                'Get-TechToolboxConfig', 'Get-ToolboxHelp', 'Get-WindowsProductKey', 
-               'Invoke-AADSyncRemote', 'Invoke-DownloadsCleanup', 
+               'Invoke-AADSyncRemote', 'Invoke-DownloadsCleanup', 'Invoke-EXOReport', 
                'Invoke-PurviewPurge', 'Invoke-SCW', 'Invoke-SubnetScan', 
                'Invoke-SystemRepair', 'New-OnPremUserFromTemplate', 
                'Reset-WindowsUpdateComponents', 'Set-PageFileSize', 
@@ -91,13 +91,16 @@ AliasesToExport = 'sanity_check'
 # DscResourcesToExport = @()
 
 # List of all modules packaged with this module
-# ModuleList = @()
+ModuleList = @(@{ModuleName = 'ExchangeOnlineManagement'; RequiredVersion = '3.9.0'; })
 
 # List of all files packaged with this module
 # FileList = @()
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
+
+    #TechToolbox of this module
+    TechToolbox = 'System.Collections.Hashtable'
 
     PSData = @{
 
@@ -127,7 +130,7 @@ PrivateData = @{
 
     } # End of PSData hashtable
 
- } # End of PrivateData hashtable
+} # End of PrivateData hashtable
 
 # HelpInfo URI of this module
 # HelpInfoURI = ''

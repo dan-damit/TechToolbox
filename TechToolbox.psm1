@@ -79,15 +79,38 @@ function Get-ModulesFromConfig {
 }
 
 function Get-ModulesFromManifest {
-    # $script:ModuleRoot and TechToolbox.psd1 assumed co-located
     $manifestPath = Join-Path $script:ModuleRoot 'TechToolbox.psd1'
     if (-not (Test-Path $manifestPath)) { return $null }
     try {
         $m = Import-PowerShellDataFile -Path $manifestPath
-        if ($m.ModuleList) { return $m.ModuleList }
+
+        # Prefer our custom, rich metadata:
+        if ($m.PrivateData -and $m.PrivateData.TechToolbox -and $m.PrivateData.TechToolbox.Modules) {
+            return $m.PrivateData.TechToolbox.Modules
+        }
+
+        # (Optional) Fallback: map a bare ModuleList to a simple array
+        if ($m.ModuleList) {
+            $mapped = foreach ($item in $m.ModuleList) {
+                # ModuleSpecification can be string or hashtable; normalize
+                if ($item -is [string]) {
+                    @{ Name = $item; Version = $null; Bundled = $false; Required = $false; Defer = $true }
+                }
+                else {
+                    @{
+                        Name     = $item.ModuleName
+                        Version  = $item.RequiredVersion ?? $item.ModuleVersion
+                        Bundled  = $false
+                        Required = $false
+                        Defer    = $true
+                    }
+                }
+            }
+            if ($mapped) { return $mapped }
+        }
     }
     catch {
-        Write-Verbose "Failed to read ModuleList from manifest: $($_.Exception.Message)"
+        Write-Verbose "Failed to read modules from manifest: $($_.Exception.Message)"
     }
     return $null
 }
@@ -340,8 +363,8 @@ _InvokeModuleImport
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCd5lCcrAyS1v0W
-# S+38gw3YtWwQjJODHILHW2L2WDTT36CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAfWGVrlt9x+8AW
+# E1/JsJ8YBrUMwO8XHskGNWesPmHz5qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -474,34 +497,34 @@ _InvokeModuleImport
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBJui7xwyAD
-# 4wkhpa+TOFpjJDIQz7994gn4rtWh3c3arjANBgkqhkiG9w0BAQEFAASCAgCT243v
-# HCWvjSKSfInGGJ4Fwg4R7vC7Y+ETV7TzWubIuTSGx23fOEUn+nu6wp2LnfvT/wX3
-# sL5Ppg/Cyfuej8Ms1MWXVuN02eav1QHyahHk++9h0vdRWKQrBCFEg7NAbnoSzx6d
-# LBDckkBEg/DT0Z8W+FhvYPpQ3Sbn2AVdIZEvqAb0OtvBDv3KQ/KW8Jc99qJVDhgo
-# Zo2QRxMyvtU8LNyj5a346uFSEGOnO4hd4zPSMy1JszbAaTlbo12clsWCZVtsrZ5C
-# fuzmPfaJLm6dZLx8IKi4/2lI/TKpb3EdpLkD0q2MJ/aUTm8jNKONTXQZqeiDZtg0
-# RCigepipxVcFcbErV1rivmc0kHAL7ZLF25M+u2LlE3rq7Nhl6BgTknf9WjvUwD+v
-# I76EBev3g5Pnyu5fj1mhCsNS7aq0fe9aBoaZ4Z1Q0EG5F+g93/F5g3CmaALrkfMd
-# p0EClejMxzHWjEg0/1GPi7DNNzEqCIOwveXz0RCidi5f3PGp+VaAH4B6XcuXRvKl
-# 5XAQ7j4N15eeexS16U/k/r6H2yR3R4SyudJafGXYULRwm82QhlhVQQ8bGSsAAX4F
-# SHsHASy0eb83YbztJpfbTdNSXSNzC7ZE+SPvofK4y0U9tD70iFIhpBko6QMkNUdZ
-# eMVmJWWaDr48B27Zabtpr+dHJCZRdJyn7E57CaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBR2q2n0Ob8
+# wMlQUMo9kDIys8Ziu+C9+SuXbLKAmZh2YjANBgkqhkiG9w0BAQEFAASCAgBHYeKO
+# rYbkfn7TOZnaMK88tS0IiirhE/rOhbmRlwopIZY9Pv/1xD39s3f7wbkiAlUabv8J
+# knENvdxpd2wp0ocDQtP6mLc8oEoAurjKy/Ssqaq8DCJumGPnhvuTMs3JYOO9y/fh
+# tSq0S5LU3xiLNcU0zUCdXuTReIqzcqwJF3mzIaWCy4eUi3VQCGHwmJjMfK90uoAw
+# 2I8qhuXkemfjYfdSXNFuD4tT8K0zycVrnYlYk6HKiRs+vmrq10I5OnxBv5Lg90r/
+# jeI5v0hFu4WZPyhFmCvQMiEwU57XFQOEU7RzdFettBeo7a1mV4BE208jZ63jpUiF
+# g2HUJpU1DgbyDSwLRqGRV4DL485dyVWQXrywLLIOZmXSPyfkX3QDt4Va1qXkVHcW
+# 0VD8F31PA+YimZL7wZED63g5lSPalgNClGJH6xZaeuaIIHv50KgXC6KqDW2gdr1E
+# jPneQkCuvLR+fEEL/bDTrG3SrxFcSXDp9aDUMopod6Au0qjLM3w/DhgBY+k5ak8M
+# 7aZ9KLiHXp5pv6WCVIIDATD4soqRES7UExOigjo5BoRAw9VvvdeTfEw4YaHLeNNN
+# hWE/Mo0OSrbMUuK2ZAtQEhXo7EZ4qS/+u5Q/ZSqLBN9N3R2MDSofX9qYR8a5PsN8
+# m4ZDwDRn5YqZ6VW8tzqRsWingIyLtA8yIjrQ9qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTMxNzU1MDFaMC8GCSqGSIb3DQEJBDEiBCDz9V81VfV+KSEOP1rE
-# 2zIJ5YWr52RhYs+jlyMdJVG4yTANBgkqhkiG9w0BAQEFAASCAgANEGHspSF62fJp
-# JWAhl4Q97sifn2DK0Y80J/KVKbPwufhevuK506nRkRqVA3hcnF9milFHWU0VUI+z
-# xS8KTNd23jmriCz/z6+wO1wnOiG+UUCv6PcBp22923aJLi39gpvckc/NOS9HAW6a
-# 8PvbT6pcT5OUdVls/3XTajbZzV/o+UGuHiYJiZ57asCZbkJkVCPPBQ72dBdtAG8H
-# bqB+g1VxU1qs94Vl1rh6HtrJ+mhbgoWgRIhUgXCV43m+YN6MixFdkxs6Wj4c0iFh
-# Wmc/5HE2BE+81JRdoZVjiYbErQMgz7WJr9uvRGR2/nj/Wwrts1Ek/LCA8EoZk2ni
-# lierMCFFzwzy9IOvgTvdwYU1Yw0oxrtRxAPORIxsakwgsDon8X27/klpcdGcER5P
-# u0hNz+ApRn/bbE/6EEK/5WUMZIuNykhbpaWbpacgmemoNNo8dAfw51UvnSCGnNTT
-# JYClRNfg2dSS74t2J7ieILQ3IZxFNv5J5pikZuEa5KmsFo2lQxoF0HmOunQT+BkO
-# MOq4pyrzrCLDTtYcIB1rnp1N3EHPV1TyCGPYBZbDmTZy/BmzUAHQnr4qxqqdy9tO
-# AzGYKoHAkIjP4lne43/NyHjhjyS/uZ83QXCYmwLiJyPOAA0WWIEEai9Fu8LcRpO/
-# Psgr0QPzeuIkBBID01LQY91Fn8ABBg==
+# BTEPFw0yNjAxMTMxODU0MzZaMC8GCSqGSIb3DQEJBDEiBCAQuyE0uxIWkhtoNjoc
+# LBMqL6QWJFLl6Bzl+GeP0ahbNjANBgkqhkiG9w0BAQEFAASCAgANPKZKeTe+HPsI
+# DhzhHUf9JzFYvMuFFR5QOXcjaypTetu/BXqF0jCpK+NRmmlA+Jknci1fgB/3c09A
+# SC///vONqZWWybnBaeD7vrlEB1BW7mQt4MpHEqjHNmHAOo9xG418M/aYOIJANfUA
+# uqD8FOfAtF+cZebAHAqdbZqPM9cel24Oh3WS42E4PrzGom/VfF9RMSu7R4MEenky
+# GmQK65YTh7Xrq44H0IrMKIeW5EgFIC04Qh3hHRQA2yGVd6nZhTxr7FEdwC78vdUB
+# 2fmU96ZVdpAtALe4NYaoo4hqMTXEo3a0jxXxxxi239quHHpxVJl4lxwvxpqvPH2K
+# w+zsIr5cfyyq17OhNrovYUStJKpHjIco3y/tfXHy6XdBhye/Bg9MojJzcBAHuloR
+# v/ZMeIfSn4CwBamy2lFXJtPUDg6Lc3oX1a1D0XU/yye+RY2Gvf8b1rCz67/PJ+/u
+# 1NpiJ81YlHUtXXhX7ivtNnBSpqov3rY0VPVY8/fvUH8M3iUhMbdR5twUhpiR9n2g
+# jjsTIJ4Y1oLPMToIKRKjzuIEuEsaRRHK97b1BuGF9e6bFwsSkJEdzMxNodDtr4Sz
+# lRg26rNs12ffFwwIglMd+2Y/6j63WOFcPOESi0a/C/7WPIQgnuyxAjdOzS79AtYp
+# tDe/SHhC4G3BQX4pyekdzkM5kzyNlw==
 # SIG # End signature block

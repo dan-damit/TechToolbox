@@ -32,8 +32,7 @@
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [Parameter(Mandatory)]
-    [string]$ModuleRoot,
+    [string]$ModuleRoot = (Split-Path -Parent $PSScriptRoot),
 
     [switch]$AutoVersionPatch,
 
@@ -193,14 +192,36 @@ else {
     $resolvedAliasesToExport = Get-AliasesFromJson -ConfigDir $configDir
 }
 
-# --- 5.1) Ensure ModuleList carries EXO 3.9.0 (bundled/pinned) ---
-$moduleListUpdated = Update-ModuleListEntry -Manifest $manifest `
-    -Name 'ExchangeOnlineManagement' -Version '3.9.0' `
-    -Bundled $true -Required $true -Defer $true
+# --- 5.1) Build a schema-valid ModuleList for the manifest ---
+# ModuleSpecification requires: ModuleName + (ModuleVersion OR RequiredVersion)
+$moduleListSpec = @(
+    @{
+        ModuleName      = 'ExchangeOnlineManagement'
+        RequiredVersion = '3.9.0'
+    }
+)
 
+# --- 5.2) Put rich module metadata in PrivateData ---
+$pd = @{}
+if ($manifest.PrivateData -is [hashtable]) {
+    # clone to avoid mutating the deserialized object directly
+    $pd = @{} + $manifest.PrivateData
+}
+if (-not $pd.ContainsKey('TechToolbox')) { $pd['TechToolbox'] = @{} }
 
+$pd['TechToolbox']['Modules'] = @(
+    @{
+        Name     = 'ExchangeOnlineManagement'
+        Version  = '3.9.0'
+        Bundled  = $true
+        Required = $true
+        Defer    = $true
+    }
+    # ... add others here ...
+)
 
 # --- 6) Build a complete manifest descriptor for Update-ModuleManifest ---
+
 $newManifest = @{
     Path              = $ManifestPath
     RootModule        = $manifest.RootModule
@@ -214,10 +235,9 @@ $newManifest = @{
     RequiredModules   = $manifest.RequiredModules
     CmdletsToExport   = $manifest.CmdletsToExport
     VariablesToExport = $manifest.VariablesToExport
-    PrivateData       = $manifest.PrivateData
-    ModuleList        = $moduleListUpdated
+    ModuleList        = $moduleListSpec
+    PrivateData       = $pd
 }
-
 
 # Optional fields — only include if non-null
 $optionalKeys = @(
@@ -273,8 +293,8 @@ if ($PSCmdlet.ShouldProcess($ManifestPath, "Update module manifest")) {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBrt1n2xSklwcRr
-# jMV7d/xef1Ete6CDsnYpeufD3KWGsKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA402S0X43EZvc/
+# IWyzqyT3xO+j53C/DSzt1wn9AaH2YqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -407,34 +427,34 @@ if ($PSCmdlet.ShouldProcess($ManifestPath, "Update module manifest")) {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCALex2ob+Ve
-# ZJ6CLq1bnvvhI0uFvJuYWwluMGprYtGZGzANBgkqhkiG9w0BAQEFAASCAgBJbhTn
-# Lv8yLGMKGQF9iFvwMMJTJ6owOWQETrjsLKQ6sONbhPCe/lnfj2S2D4y//4/FXXc+
-# IwPpxZBRha7ZplzlT4raTjufgD7+Blrh3l2CPNLhSCuk75eMIE+3Tt9R6RIrT2o3
-# bgB0zWN9+arxtfXOwOQ7o1ogVds/XNRKw5T33gaz7SVCXNBMe5W6kaVKdYtK7rta
-# 9vVpTV2ziDPTcHPP5JnVAwXVTvH+gy08Y6FY2HzETg8nq9U4e5PWIbi5c6LrGIV1
-# ly39F695lUjFQ7Hrp/YmE6ZZktqjH2IzlgkeL4FNh3TnGCrOZjGtzAtVnONgBvz8
-# Az9bPz6cHQCVs46nKJCg1zcyE/wZ2jBBdkdPcYSrAkqpca4qcYQQB3Q9yHT/xJMG
-# PCqMbYnzqEFZbGpPDn9pk0Ij2x8d+jHXf56i9k5GFFOtopc9mLjIZUuiu1VxRZ7r
-# 0qjdGdWrI2Uv34Th1rTGgwdmYy4Mf3GUeZg8r4cG0FIIVFfFM9KC2WAgzbPdmdvt
-# z2c0neROxR3SNKbpnxxzp5YlkCPfSEvqs9/vwTdNCXXFplE3yeNTO7ykErILky4i
-# XGfVoyowx9IDzeyD1gnEf3SWsrR5HJ57ThwxJtcJYRPJ7QsZ8ShwUGf+0X34Fynn
-# AHCnRKMNFKQALYTt1JwHpT0aqj2hKAMhKfE5YKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCANkMx6opbe
+# e74JHBl/73Tx5AzHq4/QNPoaokBQCfL1GzANBgkqhkiG9w0BAQEFAASCAgAWmP58
+# CItfyUGcBvKacWfsgaGHNumbkmOQf83uD3vKACTngLfEmLcwnvfsPX18m4VJN3gL
+# 8BEFlJZdd/xAk1cm19tf/L9KCs3XKA0/lVyGzQI6X7jXaZCZgUJSKZ7muLqSYzeB
+# b6ANqb0INczaVFOvTa5AqE6enGUIoTfNf/jothG7+MfIFR9uAU+RA0xstZxTd6g8
+# j1nGVe7DG0T6d44kGbFtShrY8YNnejIU6ffhYW5p8SOL9hsz7uN1XalIrj1Yv5kv
+# 1tMSjEn5RWMh7iYJY6fypAHRPsr8nY0JScrNcofoL4ocN98hy9/MhRQLXEDCNODX
+# 0dN0OX8zc5FBhNzTbQdsDSLzOKW8fJJ6N17MVtOLq/28MudSOJ6qc73Ql8EnnaGB
+# bMTa1FKaqz6zMgmNQ7Xy8/vZrxB+cqOnm786HgzTfn5x+r/lzEbWTt6+zUQSjvzo
+# gq1Q0O1CU6Jm05cJwDDOpxEeDU111omx0T29G+KK+yWNt+v183RJlHUeAnNnsq4L
+# PmlNLkCv6CXJj1qaqWL7lnHNkp0s70dRKgZ7NNO1kpcTOh6WB7OD5nlpA52zFyTb
+# AY3WHPnzzIS7N0Z+mt6GmQIjB1Wfmzf2PQkTLHA64xYyGK84aSnucQ/pMNWIIlFy
+# Q/MjnkBcP7Mg8iC7PM7DThqjGX6kPymrrQl61qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTMxNzU0NTdaMC8GCSqGSIb3DQEJBDEiBCBlNg7B9ACAkUkxhnib
-# 6nyXUcXFsC+y0EILTnk5HjJ97jANBgkqhkiG9w0BAQEFAASCAgAWI0IbVw2NiQmJ
-# RYde5jkUtE80jSH0e3DG8GZXxDD7kGVPFEXyfgpxhznMpmJyJsaXqOLF+997OeyA
-# WNY2GjvqG8o6Mdok3OAhWhhsuqwBcCVjgYZGuFRRy/sl8CYbz5KNCSwmSLyRZqWA
-# IHhxBg446IfLFCLdlfpksBU1HYmqMKqVQv7Dwb/zJ9CGnA7k8NkjQwvK2VBXi6Mx
-# Vpu6qzJd7BKrMQjcYkp9LCMGUfff6bWBGRGWDlx+QiApFS3Xc5SzoqHb0qTvSuTx
-# OWa67VVnmMcjYHh4dSFm6rvYT/WnSGUCEpYRq0kkRY46fBI7YGQIb+yjiiH6LRT0
-# 1bPyqrHMf5R5Ql2ryDCq/epI1equGSE3DjH61crNPfZacRDrz/ZAJp6sBar6WmhP
-# XYb59iTH6fFwZrGx9P16QjNPr6BZMr9gKmb3mAiX26ytiBf4lv5EqBc9VlwIAWR8
-# GBUgjvyNo704Efl0P5DbUXI1Hq2z9ISmGEnFQ6wvA6yJIAtGUvU8q5Qzl9PE5iqV
-# i72XdyhWNA4+UM4/k+lsQmdpJBl0IH2GbbsYT55ISa15OlStpTaWB4QnBP3f2DoA
-# O7leWI0pyTUCKCaDwgMaJhX+QQsk2WPsmazkiF4iH7/H7E1sreyGQp8PAml2ZgLc
-# sicBgsGHHG/t3cYPWueYvgq4GcPZzg==
+# BTEPFw0yNjAxMTMxODU0MzNaMC8GCSqGSIb3DQEJBDEiBCAzIPECvZ7YUeGwsn7q
+# 2biUvoNR2+eBoEtkJv35GC33dzANBgkqhkiG9w0BAQEFAASCAgBvk7aCJGUGQy03
+# xm1oi6dMgVwS44HARn8+UwxuAjZdTzGFX0GJcziTnln5deuWwdZwzDLUA+/eDGDb
+# WKVUWKUEWIQnPG4uE3fOm9IvdDq2GWOgPUQuaDVYhZ/dtCJQddC2ZoovgGvBoDl8
+# iYjfftva66S1qrCNZZWF6eUT6dsGwD4wc9JZG2HOoOteHlXgbZW8aTcUqZi8Jf01
+# /7WvYfg468wS2wuiGCIBYvPWrevdX7M7U6I0rTG3mjz6Ejb6eQtqcJsoO/BysZAo
+# eQy0ziad7+0db3Ww6ZMDBncy3ewRxkXDau+sxLhn96xPUhMwASOF75ViG8Tw28XN
+# a3cMl0t16grgjEw2KkJBi/IwHT6MjxAXoa3TYTsara2vZFAQpd8pbQvv2s57odr7
+# XUiOqfgJ6g8+j9t/HGf6EWSLTiERqKIhqs/Ceuj/xCoDlmTPZZYY4AD86/w012pY
+# JmDD86GoxXMcsVisFRnc7CTSjfGw5tTf0aDT1EIvHo7M879KLlG+lmQkXgyBBcQP
+# eRwwpO6HZ1zDwaLIeKHZ8SKJnCFluwsvp0xr1qi3Bc2EMbnKeY/gde80sAoXmgy6
+# Kfa/q0FreuHE+405eRt2TNnHYTxK8GGFbcjtm3MWKjCT/VXH0pld33KCcXMAlVcI
+# 523hrcfA50+EWTAkIc4Va95h6DWMpw==
 # SIG # End signature block
