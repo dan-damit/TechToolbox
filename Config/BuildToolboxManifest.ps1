@@ -44,6 +44,70 @@ param(
     [string[]]$AliasesToExport
 )
 
+function Update-ModuleListEntry {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Manifest,
+
+        [Parameter(Mandatory)]
+        [string]$Name,
+
+        [Parameter(Mandatory)]
+        [string]$Version,
+
+        [bool]$Bundled = $true,
+        [bool]$Required = $true,
+        [bool]$Defer = $true
+    )
+
+    # Normalize the existing ModuleList to an array of hashtables
+    $current = @()
+    if ($Manifest.ContainsKey('ModuleList') -and $Manifest.ModuleList) {
+        $raw = $Manifest.ModuleList
+        if ($raw -is [System.Collections.IEnumerable]) {
+            foreach ($item in $raw) {
+                # Accept either hashtables or psd1-typed dictionaries
+                if ($item -is [hashtable]) { $current += $item }
+                else {
+                    # Convert to hashtable as best-effort
+                    $ht = @{}
+                    foreach ($prop in $item.PSObject.Properties) { $ht[$prop.Name] = $prop.Value }
+                    $current += $ht
+                }
+            }
+        }
+    }
+
+    # Upsert entry for ExchangeOnlineManagement
+    $updated = $false
+    for ($i = 0; $i -lt $current.Count; $i++) {
+        $itm = $current[$i]
+        if (($itm.Name -eq $Name) -or ($itm['Name'] -eq $Name)) {
+            $itm['Name'] = $Name
+            $itm['Version'] = $Version
+            $itm['Bundled'] = [bool]$Bundled
+            $itm['Required'] = [bool]$Required
+            $itm['Defer'] = [bool]$Defer
+            $current[$i] = $itm
+            $updated = $true
+            break
+        }
+    }
+
+    if (-not $updated) {
+        $current += @{
+            Name     = $Name
+            Version  = $Version
+            Bundled  = [bool]$Bundled
+            Required = [bool]$Required
+            Defer    = [bool]$Defer
+        }
+    }
+
+    return $current
+}
+
 function Get-AliasesFromJson {
     param([string]$ConfigDir)
 
@@ -129,8 +193,14 @@ else {
     $resolvedAliasesToExport = Get-AliasesFromJson -ConfigDir $configDir
 }
 
+# --- 5.1) Ensure ModuleList carries EXO 3.9.0 (bundled/pinned) ---
+$moduleListUpdated = Update-ModuleListEntry -Manifest $manifest `
+    -Name 'ExchangeOnlineManagement' -Version '3.9.0' `
+    -Bundled $true -Required $true -Defer $true
+
+
+
 # --- 6) Build a complete manifest descriptor for Update-ModuleManifest ---
-# Start with a hashtable preserving as much as possible
 $newManifest = @{
     Path              = $ManifestPath
     RootModule        = $manifest.RootModule
@@ -145,7 +215,9 @@ $newManifest = @{
     CmdletsToExport   = $manifest.CmdletsToExport
     VariablesToExport = $manifest.VariablesToExport
     PrivateData       = $manifest.PrivateData
+    ModuleList        = $moduleListUpdated
 }
+
 
 # Optional fields — only include if non-null
 $optionalKeys = @(
@@ -160,7 +232,7 @@ $optionalKeys = @(
     'FormatsToProcess',
     'NestedModules',
     'FileList',
-    'ModuleList',
+    #'ModuleList',
     'TypesToExport',
     'FormatsToExport'
 )
@@ -201,8 +273,8 @@ if ($PSCmdlet.ShouldProcess($ManifestPath, "Update module manifest")) {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBjq8P5EassGIrb
-# NqgspHVT75myqf2Cb7qM0kwPSOroLqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBrt1n2xSklwcRr
+# jMV7d/xef1Ete6CDsnYpeufD3KWGsKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -335,34 +407,34 @@ if ($PSCmdlet.ShouldProcess($ManifestPath, "Update module manifest")) {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAITN4l50U8
-# tpMmzXR2f8LzFeCE62QMEjnZRQbQ9evRuTANBgkqhkiG9w0BAQEFAASCAgAcHI2s
-# vI1UzCqGJ9bkZhCgy5Hf4FmA41JL/ZwRPnvyTnEaBHBAM1BT+B2EfZqjHXmPEtZv
-# 1jZGVhIWSbP0LKRtluxbcGxvgPVYJBWFayz0YkugZEaRlGtPwkW9O4mB8QF4a3Jd
-# +EffEWZf5ATya0d/caN7Svqs89UqODCECT4zi89oTtSZ3Xe3mPnjB6c20cJV5wsF
-# SH6jZ5y7+X3KF8ZY5N6zAjxtYE3pX8G6epn87+xgdNRZ5LIIJ9FF1+xhxmAU73HN
-# DpX0OQWUJHsvoLpOuipPBt8XXFjcfWgrom1GbDJ/cWUVWpJvZnB0pVM288VvR3og
-# wrAlBo7E6JtTNZZC1CASa+3pTSPw5dQMT/Pnyc+NEpx1L4QWRwpTYdOJljTsntt9
-# HJb2f07Szl9s3xJYk8FVQA47h9hwjabsyiK5IB8zTsRWiSlMvbXD6jQuJ/VC4tt5
-# ZRRg6NeaOOpFeOnJnUqC/23OwvfK2d4bg5zyac0WT1G28bEhropp/SIBXVFG6bg0
-# yo+e8bWsIXe8FrmFi1ArssCNaYoRTvAY+ngYKQ7K3ie1AMiWAQGKB5RoB3WbZ6GB
-# Laj+pjuEu2EM8QNU9hYcGi8WpxMTb/dajOlylHX+RIKqF8TGzSgrEvKbWzu7GLWK
-# AhSoOhf6mhf4VZ9ebW5skzjHyY0b4hjXSxT/NaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCALex2ob+Ve
+# ZJ6CLq1bnvvhI0uFvJuYWwluMGprYtGZGzANBgkqhkiG9w0BAQEFAASCAgBJbhTn
+# Lv8yLGMKGQF9iFvwMMJTJ6owOWQETrjsLKQ6sONbhPCe/lnfj2S2D4y//4/FXXc+
+# IwPpxZBRha7ZplzlT4raTjufgD7+Blrh3l2CPNLhSCuk75eMIE+3Tt9R6RIrT2o3
+# bgB0zWN9+arxtfXOwOQ7o1ogVds/XNRKw5T33gaz7SVCXNBMe5W6kaVKdYtK7rta
+# 9vVpTV2ziDPTcHPP5JnVAwXVTvH+gy08Y6FY2HzETg8nq9U4e5PWIbi5c6LrGIV1
+# ly39F695lUjFQ7Hrp/YmE6ZZktqjH2IzlgkeL4FNh3TnGCrOZjGtzAtVnONgBvz8
+# Az9bPz6cHQCVs46nKJCg1zcyE/wZ2jBBdkdPcYSrAkqpca4qcYQQB3Q9yHT/xJMG
+# PCqMbYnzqEFZbGpPDn9pk0Ij2x8d+jHXf56i9k5GFFOtopc9mLjIZUuiu1VxRZ7r
+# 0qjdGdWrI2Uv34Th1rTGgwdmYy4Mf3GUeZg8r4cG0FIIVFfFM9KC2WAgzbPdmdvt
+# z2c0neROxR3SNKbpnxxzp5YlkCPfSEvqs9/vwTdNCXXFplE3yeNTO7ykErILky4i
+# XGfVoyowx9IDzeyD1gnEf3SWsrR5HJ57ThwxJtcJYRPJ7QsZ8ShwUGf+0X34Fynn
+# AHCnRKMNFKQALYTt1JwHpT0aqj2hKAMhKfE5YKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTMxMzU2MjlaMC8GCSqGSIb3DQEJBDEiBCB4pbf/XLcLlnL9NlvP
-# qAVgX9w1CXsqD2CCDFlj/6Sr9zANBgkqhkiG9w0BAQEFAASCAgCLjmAM839Pmzbc
-# XfPXNOXs6D3kydLtVVNda3I9UdUiUQEXYYbqPoSypOFIEwN1OsyatiuwRtgTVFEW
-# DCnnN7APUZAOqRhep1IujSgcVq17XELMffmcaWCoF1E83re6Alewjx06CDd2ULSe
-# lenUmWAK8fB0el3ODBMd4FFNfk9N0B9lRMh58zUh0dhggSINrkfLuBh5miMEj1Mn
-# 0Cw/DRx00ppkJ9WM8aVO9eu0+U6MA9HjCqDJ81lWEVzM2nCj3e14XA5yxHnGqA2+
-# z3HqyLCXbQhnWWp43V5xKWyPLGg6DuXoHcVOw5FqXAokeR/IJqAfrTb42+mXJErz
-# +hr14P3WRdfpkJp4elcRZJQe5YA1Rn0gqHLdV1qwo0PZV0qA4qs8wF0j1vRRrw1i
-# QbMCvdBUrJrMudoqJ1orQhWFHcfjIYhH9NggqFdrs3aVdJIj+RoyshkYJV0lrdJJ
-# JZ2gibPfrsWNnodD434PWZb873DiXm1zFHK4ErSzeIL16PvyzG12N0Bm6Fxx7pK+
-# hd19XpRBPoQNNfVi0GhOb2SZxZgvnKlAAq6w0CEOyspD3xk19mSwkIzVlUmVETD4
-# /AYf7IKpq2HsoZqNHMu83rGAeLA9wuxn3+moGrDDQrHqMeu3yzlQi4Npiu0pJRJO
-# /ctTO6tp7ceyO5IfLHlUaABqb5uaIw==
+# BTEPFw0yNjAxMTMxNzU0NTdaMC8GCSqGSIb3DQEJBDEiBCBlNg7B9ACAkUkxhnib
+# 6nyXUcXFsC+y0EILTnk5HjJ97jANBgkqhkiG9w0BAQEFAASCAgAWI0IbVw2NiQmJ
+# RYde5jkUtE80jSH0e3DG8GZXxDD7kGVPFEXyfgpxhznMpmJyJsaXqOLF+997OeyA
+# WNY2GjvqG8o6Mdok3OAhWhhsuqwBcCVjgYZGuFRRy/sl8CYbz5KNCSwmSLyRZqWA
+# IHhxBg446IfLFCLdlfpksBU1HYmqMKqVQv7Dwb/zJ9CGnA7k8NkjQwvK2VBXi6Mx
+# Vpu6qzJd7BKrMQjcYkp9LCMGUfff6bWBGRGWDlx+QiApFS3Xc5SzoqHb0qTvSuTx
+# OWa67VVnmMcjYHh4dSFm6rvYT/WnSGUCEpYRq0kkRY46fBI7YGQIb+yjiiH6LRT0
+# 1bPyqrHMf5R5Ql2ryDCq/epI1equGSE3DjH61crNPfZacRDrz/ZAJp6sBar6WmhP
+# XYb59iTH6fFwZrGx9P16QjNPr6BZMr9gKmb3mAiX26ytiBf4lv5EqBc9VlwIAWR8
+# GBUgjvyNo704Efl0P5DbUXI1Hq2z9ISmGEnFQ6wvA6yJIAtGUvU8q5Qzl9PE5iqV
+# i72XdyhWNA4+UM4/k+lsQmdpJBl0IH2GbbsYT55ISa15OlStpTaWB4QnBP3f2DoA
+# O7leWI0pyTUCKCaDwgMaJhX+QQsk2WPsmazkiF4iH7/H7E1sreyGQp8PAml2ZgLc
+# sicBgsGHHG/t3cYPWueYvgq4GcPZzg==
 # SIG # End signature block
