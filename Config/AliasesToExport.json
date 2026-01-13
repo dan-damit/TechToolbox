@@ -2,8 +2,8 @@
   "aliases": [
     {
       "name": "sanity_check",
-      "target": "<ModuleBase>\\Private\\Security\\Debug\\Invoke-SanityCheck.ps1",
-      "export": false,
+      "target": "Invoke-SCW",
+      "export": true,
       "description": "Easter egg command to run a humorous sanity check."
     }
   ]
