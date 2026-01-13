@@ -4,6 +4,17 @@
     "logs": "C:\\LogsAndExports\\TechToolbox\\Logs",
     "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports"
   },
+
+  "Modules": [
+    {
+      "Name": "ExchangeOnlineManagement",
+      "Version": "3.9.0",
+      "Bundled": true,
+      "Required": true,
+      "Defer": true
+    }
+  ],
+  
   "settings": {
     "defaults": {
       "promptForHostname": true,
