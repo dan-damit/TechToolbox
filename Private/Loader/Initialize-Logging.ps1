@@ -1,29 +1,129 @@
+
 function Initialize-Logging {
-    if (-not $script:log) {
+    <#
+    .SYNOPSIS
+        Initializes TechToolbox logging settings from $script:TechToolboxConfig.
+
+    .OUTPUTS
+        [hashtable] - Resolved logging settings.
+    #>
+
+    # Ensure a single $script:log state hashtable
+    if (-not $script:log -or -not ($script:log -is [hashtable])) {
         $script:log = @{
             enableConsole = $true
             logFile       = $null
+            encoding      = 'utf8'    # you can expose this via config later
         }
     }
 
     $cfg = $script:TechToolboxConfig
-    if (-not $cfg) { return }
-
-    $logDir = $cfg["paths"]["logs"]
-    $logFile = $cfg["settings"]["logging"]["logFile"]
-
-    if (-not $logFile -and $logDir) {
-        $logFile = Join-Path $logDir ("TechToolbox_{0:yyyyMMdd}.log" -f (Get-Date))
+    if (-not $cfg) {
+        # Keep graceful behavior: console logging only
+        $script:log.enableConsole = $true
+        $script:log.logFile = $null
+        Write-Verbose "Initialize-Logging: No TechToolboxConfig present; using console-only logging."
+        return $script:log
     }
 
-    $script:log['enableConsole'] = $cfg["settings"]["logging"]["enableConsole"]
+    # Safe extraction helpers
+    function Get-CfgValue {
+        param(
+            [Parameter(Mandatory)] [hashtable] $Root,
+            [Parameter(Mandatory)] [string[]] $Path
+        )
+        $node = $Root
+        foreach ($k in $Path) {
+            if ($node -is [hashtable] -and $node.ContainsKey($k)) {
+                $node = $node[$k]
+            }
+            else {
+                return $null
+            }
+        }
+        return $node
+    }
+
+    $logDirRaw = Get-CfgValue -Root $cfg -Path @('paths', 'logs')
+    $logFileRaw = Get-CfgValue -Root $cfg -Path @('settings', 'logging', 'logFile')
+    $enableRaw = Get-CfgValue -Root $cfg -Path @('settings', 'logging', 'enableConsole')
+
+    # Normalize enableConsole to boolean
+    $enableConsole = switch ($enableRaw) {
+        $true { $true }
+        $false { $false }
+        default {
+            if ($null -eq $enableRaw) { $script:log.enableConsole } else {
+                # Handle strings like "true"/"false"
+                $t = "$enableRaw".ToLowerInvariant()
+                if ($t -in @('true', '1', 'yes', 'y')) { $true } elseif ($t -in @('false', '0', 'no', 'n')) { $false } else { $script:log.enableConsole }
+            }
+        }
+    }
+
+    # Resolve logFile
+    $logFile = $null
+    if ($logFileRaw) {
+        # If relative, resolve under logDir (if present) else make absolute via current location
+        if ([System.IO.Path]::IsPathRooted($logFileRaw)) {
+            $logFile = $logFileRaw
+        }
+        elseif ($logDirRaw) {
+            $logFile = Join-Path -Path $logDirRaw -ChildPath $logFileRaw
+        }
+        else {
+            $logFile = (Resolve-Path -LiteralPath $logFileRaw -ErrorAction Ignore)?.Path
+            if (-not $logFile) { $logFile = (Join-Path (Get-Location) $logFileRaw) }
+        }
+    }
+    elseif ($logDirRaw) {
+        $logFile = Join-Path $logDirRaw ("TechToolbox_{0:yyyyMMdd}.log" -f (Get-Date))
+    }
+
+    # Create directory if needed
+    if ($logFile) {
+        try {
+            $parent = Split-Path -Path $logFile -Parent
+            if ($parent -and -not (Test-Path -LiteralPath $parent)) {
+                [System.IO.Directory]::CreateDirectory($parent) | Out-Null
+            }
+        }
+        catch {
+            Write-Warning "Initialize-Logging: Failed to create log directory '$parent'. Using console-only logging. Error: $($_.Exception.Message)"
+            $logFile = $null
+            $enableConsole = $true
+        }
+    }
+
+    # Optional: pre-create file to verify writability
+    if ($logFile) {
+        try {
+            if (-not (Test-Path -LiteralPath $logFile)) {
+                New-Item -ItemType File -Path $logFile -Force | Out-Null
+            }
+            # quick write/append test
+            Add-Content -LiteralPath $logFile -Value ("`n--- Logging initialized {0:yyyy-MM-dd HH:mm:ss.fff} ---" -f (Get-Date)) -Encoding utf8
+        }
+        catch {
+            Write-Warning "Initialize-Logging: Unable to write to '$logFile'. Falling back to console-only. Error: $($_.Exception.Message)"
+            $logFile = $null
+            $enableConsole = $true
+        }
+    }
+
+    # Persist resolved settings
+    $script:log['enableConsole'] = $enableConsole
     $script:log['logFile'] = $logFile
+    $script:log['encoding'] = 'utf8' # consistent encoding
+
+    return $script:log
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCoupRuPOIVpcQq
-# WvqrhB4+CsWozJK+34Emv3rHWrPoSKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBZD78HVW7ilDib
+# zk3JcI3HkfIQDyoCBuMOpwo80RjUDKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -156,34 +256,34 @@ function Initialize-Logging {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBTc6ttUxs3
-# 8TIzSxiEf54WqLw/V+inX1iG/9rdXUawJDANBgkqhkiG9w0BAQEFAASCAgBL/IIP
-# qSMqziYgZHQ6vNGgYU18BStqM5fGGrWJHo/+pgiJ0fx3JmIq7yHZSzGs3PocVLMJ
-# 4okWGyFkRbcmTe4wnxqCv+SmBxH1ymMeYr45zL9t8EWDP6MvwW7qxaoaKYdDCoKF
-# oDzxkaet653eUI3j1TAJOwl07pwHQmF1m4FQkLENKTrSz9VAR8SxDyx2NAYmnR44
-# +EhXdc9DbWqbS/0F6b/wJy9Bd1jXlTLOLPO37lIgOccu53yF7U6Mku/ipYsLqpVT
-# 21Ej/Bd5tReM190j5dGNnamDZ3TDcI3UpE0u5dpMK8ezAiWL64MrtcZ8guTEZ4uV
-# MC7uHbP1FT5lJy5azVWxK7rN24IYT4EL7Yv1etucaRN3Kh58sZkOwCvjToGSekjX
-# rctuOV4a2ljdt2wwKRiIR4zwWUPekaESgN44F8HkBzJr0lT0tYmeku8z2V2ZssOV
-# OfnzrIHqd8dkwwAQU5haNoKKmX0CyIfIXdnlBLSNJ6lOaV+ftjXKayzJ/FwtNmoG
-# oN3DyiZ1l39g2te3M+aCP7DLXAlWpmjwuaByFFlcSEgvHI00MFp//pV7Ddr4z0wK
-# eMNrpvph5dbq9lxQlPqxuaqAHZpLhQ8z4gvno0N0ybfWsrDuNcHm0KJJyeE7yHNW
-# D/Te9OueLk/W/Nb2HEGYeXZBfleio/KcbeC5eaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCBydldOzqK
+# gM6NRqGwounkvq98UaCqbAqJ074NWP4/fDANBgkqhkiG9w0BAQEFAASCAgB1elcu
+# GVV8/w2tseONLADWn1Um+Ncnte36dh/RV5hJfrQ4ib/J2GplF4vsJe7CYrH+sUdF
+# 77qi7rMG7JXb6ktgJTdUy/SDecy4xr7MZ6gFQOHskIkmo5aIW34EJK1h1tXHuk06
+# Otbwv0858by3RHsdp5iryVx2AnaQH/P4FmX4vLtFqucyXzc1peJ7Th++Hnhan2KZ
+# P0pj9H+pKEf3nYhXTVJPGTjl5RrWnIy6Ovuml2jq+nYuKzJgZP99YRayEX7eN5Je
+# Hh7pXThJawPjcGvX1o6MFDY6t38t2gVT6AePevFsRu+1iv685+pmzLQuX8ZRTF5O
+# eCfvmJiNpukezcSP5sjAi+1Cz40YIgnZxsqS7wBMS2SoO40Y2dlXUq7Ud5pWboHe
+# M0YKe2hDLdjS8ITKcn8j0G2u3yrsTGxTenbJHoJ4CWFi2CnoPraOMIFoOebxpOji
+# ISGa6Bff7YbwnCXtvd///KPV37OsNvgTEMg5r4H2+gSsJrbpZbTMnEVwdhcHxR1i
+# VpSBFNNMeUvyrTAvx20+1EEQ3EUaXFRSB83pWQwpe3yPC5wHbPdeJ+kiQDz9Jld6
+# Qpo3amGybgb3vvZhT4NMlG3I1qAg4n6LAWPtmG2vIdDUBYm7vgJRBtY4U85Iuch1
+# cu4MV+5iQrDORA1+te3aFP7tOIBg0qXco42p66GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTQxMzU4NTlaMC8GCSqGSIb3DQEJBDEiBCAOMlynQj3XOjLKFU8D
-# dXSISNJ83tZTukrUQ7qFwy8VujANBgkqhkiG9w0BAQEFAASCAgBq1V6TzVhVu4ah
-# zLMkl4rOX/EK4HdQ8d/yhRA02UraTEqp/X4upunsTB0JUT6lj71iNJ81oPDo7C1/
-# hCh+XfD9ikQHdzqKXW7kIWtAmCw+TZrM5bnlfa0rjmmXqZz1FVQFobdjkDLdtXkK
-# 6DvE65DnxR/DaECEtRBTcNHljaEauEQq7ObQz9Z+GC21BtoTltYSLJ7VXXog0uKE
-# 5FQBTJQdyXUP2arMoVDN6xFTmtC6LvPODeJ8bf00TMW+5UbbG7q+IsVh/GEyHeF4
-# j00Fsr8Fc9h51yjFWTIJcwVJO7+/X8snqNWEoxdtQyazyOwsq5J0t745I0pzgY5w
-# 8iZVCn8CvhFIV7Kjm4jsey4rQDQW3TSP1gizzxQkdEBjVFLfPUn2gryG0OeWnMbx
-# muWsawtSRkyWDIZ3WKhWK1HPztDavkskVXh+PgpIgiSGl8nR0Oc7c5Lh05ZFW2g1
-# FbnI+FDkAQAfpOdp05ZLYcg79PJ8ev0SLUHYqz801eLHrFCQM2qQ+qK7t2OkfG/i
-# Y7hL9Xf1spNOpdcQWdrW+e9W4BFumCxZa/TjnImn9DuPos/5V2v256KWTtaUh8ch
-# lDRu7YlpX3+HuNvRoyRCf1wpIBLDm/MKipX6cPokVBcMA8tB6WJ8XSA+z3/LF166
-# wX5N8wvTqmXK4+PJ10uFNs8Hj8GKeg==
+# BTEPFw0yNjAxMTQxNjUwNDFaMC8GCSqGSIb3DQEJBDEiBCAmKEDBvbB9WOrw/+c4
+# LnJi5O9COPyYi31Ckl2lzI8B6DANBgkqhkiG9w0BAQEFAASCAgBaNd4wi/EmVKOz
+# N68lcNgL1fvXAj5UxO86D9uCR9ifoJsSIDN1HN1Y7Qugk46cf47MbVQ+fEmx6Xeg
+# lUnMeknx7j4BLjTbFt/KxbHh2JYBe02AeNkJxq+kowZxKOXMJ1aBkQFz/PhiRlMX
+# cYcV2YgtWyAs+3eTEdzjo3NIOtHjPGmT1RLNth0EUsiHIK2f0vJ5/75uzZXNkqKg
+# xs2W5R3ngKwHAfmXIu48sOClCRyRysBDeFn42BrFPhcWk5VzHY8+GFFTqbK1zylN
+# wHQqyNogaRrxpvkdIXPNQurmo+M0+mCdxxpXbiXAUC4J70keoDzQ1d41Ff3fXktZ
+# +Lc106qXZ9mDRC878zWa9xN4/LF1hwWx/M7JWWVF/ZQNziKrPDpEZjcCZbMFtFLi
+# GRaaIS9dd/UFy1t89byU+bgXXMcSGn1eLZKJhCfZXImSBZG4/y0BV1jCj+tpAVKD
+# xQDEoaMXU5jDJ6tah/rE2yWkzvD89+gwBhgdqWNqYaGN0mbUFlBT4EbGEpatDicg
+# KPML2M7J6JcXbufrwKTbwrpUPUJMH/OUXikumcp0obCuXRqb2eltupOYjx8uB7J0
+# 8o+k8bAzxmQxy/3Q2cOQhmAJcXWYHQ1hirnogWPQkuC01qHurMOpwSOipNoSCsbc
+# 5FACaip4JasPBQ+DwWVRhWiqNptKoA==
 # SIG # End signature block

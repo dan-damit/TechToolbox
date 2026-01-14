@@ -51,42 +51,56 @@ function Clear-BrowserProfileData {
         [bool]$SkipLocalStorage = $false,
 
         [bool]$KillProcesses = $true,
-        [int] $SleepAfterKillMs = 1500
+        [int]  $SleepAfterKillMs = 1500
     )
 
     begin {
         # --- Config & Defaults ---
         $cfg = Get-TechToolboxConfig
-        $bc = $cfg["settings"]["browserCleanup"]
+
+        # Resolve settings.browserCleanup safely (works for hashtables or PSCustomObjects)
+        $bc = @{}
+        if ($cfg) {
+            $settings = $cfg['settings']
+            if ($null -eq $settings) { $settings = $cfg.settings }
+            if ($settings) {
+                $bc = $settings['browserCleanup']
+                if ($null -eq $bc) { $bc = $settings.browserCleanup }
+            }
+            if ($null -eq $bc) { $bc = @{} }
+        }
 
         # Apply config-driven defaults only when the parameter wasn't provided
-        $IncludeCache = $PSBoundParameters.ContainsKey('IncludeCache')      ? $IncludeCache      : ([bool]($bc["includeCache"] ?? $IncludeCache))
-        $IncludeCookies = $PSBoundParameters.ContainsKey('IncludeCookies')    ? $IncludeCookies    : ([bool]($bc["includeCookies"] ?? $IncludeCookies))
-        $SkipLocalStorage = $PSBoundParameters.ContainsKey('SkipLocalStorage')  ? $SkipLocalStorage  : ([bool]($bc["skipLocalStorage"] ?? $SkipLocalStorage))
-        $KillProcesses = $PSBoundParameters.ContainsKey('KillProcesses')     ? $KillProcesses     : ([bool]($bc["killProcesses"] ?? $KillProcesses))
-        $SleepAfterKillMs = $PSBoundParameters.ContainsKey('SleepAfterKillMs')  ? $SleepAfterKillMs  : ([int] ($bc["sleepAfterKillMs"] ?? $SleepAfterKillMs))
+        if (-not $PSBoundParameters.ContainsKey('IncludeCache') -and $bc.ContainsKey('includeCache')) { $IncludeCache = [bool]$bc['includeCache'] }
+        if (-not $PSBoundParameters.ContainsKey('IncludeCookies') -and $bc.ContainsKey('includeCookies')) { $IncludeCookies = [bool]$bc['includeCookies'] }
+        if (-not $PSBoundParameters.ContainsKey('SkipLocalStorage') -and $bc.ContainsKey('skipLocalStorage')) { $SkipLocalStorage = [bool]$bc['skipLocalStorage'] }
+        if (-not $PSBoundParameters.ContainsKey('KillProcesses') -and $bc.ContainsKey('killProcesses')) { $KillProcesses = [bool]$bc['killProcesses'] }
+        if (-not $PSBoundParameters.ContainsKey('SleepAfterKillMs') -and $bc.ContainsKey('sleepAfterKillMs')) { $SleepAfterKillMs = [int] $bc['sleepAfterKillMs'] }
 
         # Browser (string default)
         if (-not $PSBoundParameters.ContainsKey('Browser') -and [string]::IsNullOrWhiteSpace($Browser)) {
-            $Browser = [string]($bc["defaultBrowser"] ?? $Browser)
+            if ($bc.ContainsKey('defaultBrowser') -and $bc['defaultBrowser']) {
+                $Browser = [string]$bc['defaultBrowser']
+            }
         }
 
         # Profiles (array or string)
-        if (-not $PSBoundParameters.ContainsKey('Profiles') -and $null -ne $bc["defaultProfiles"]) {
+        if (-not $PSBoundParameters.ContainsKey('Profiles') -and $bc.ContainsKey('defaultProfiles') -and $null -ne $bc['defaultProfiles']) {
+            $dp = $bc['defaultProfiles']
             $Profiles = @(
-                if ($bc["defaultProfiles"] -is [System.Collections.IEnumerable] -and -not ($bc["defaultProfiles"] -is [string])) {
-                    $bc["defaultProfiles"]
-                }
-                else {
-                    "$($bc["defaultProfiles"])"
-                }
+                if ($dp -is [System.Collections.IEnumerable] -and -not ($dp -is [string])) { $dp }
+                else { "$dp" }
             )
+        }
+
+        # Metadata per browser
+        $BrowserMeta = @{
+            Chrome = @{ ProcessName = 'chrome'; DisplayName = 'Google Chrome' }
+            Edge   = @{ ProcessName = 'msedge'; DisplayName = 'Microsoft Edge' }
         }
     }
 
     process {
-        $results = New-Object System.Collections.Generic.List[object]
-
         $targetBrowsers = switch ($Browser) {
             'Chrome' { @('Chrome') }
             'Edge' { @('Edge') }
@@ -100,22 +114,26 @@ function Clear-BrowserProfileData {
             Write-Information "Include Cookies: $IncludeCookies"
             Write-Information "Skip Local Storage: $SkipLocalStorage"
             Write-Information "Kill Processes: $KillProcesses"
-            Write-Information ("Profiles filter: {0}" -f ($Profiles -join ', '))
+            Write-Information ("Profiles filter: {0}" -f (($Profiles ?? @()) -join ', '))
             Write-Information "======================="
         }
 
         foreach ($b in $targetBrowsers) {
             Write-Log -Level Info -Message "=== Processing $b ==="
 
+            $browserName = $BrowserMeta[$b].DisplayName
+            $processName = $BrowserMeta[$b].ProcessName
+
+            # Optional: stop processes
             if ($KillProcesses) {
-                if ($PSCmdlet.ShouldProcess("Browser processes: $browserName", "Stop processes")) {
+                if ($PSCmdlet.ShouldProcess("$browserName ($processName)", "Stop processes")) {
                     Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
                     Start-Sleep -Milliseconds $SleepAfterKillMs
                 }
             }
 
             $userData = Get-BrowserUserDataPath -Browser $b
-            $profileDirs = Get-BrowserProfileFolders -UserDataPath $userData
+            $profileDirs = @(Get-BrowserProfileFolders -UserDataPath $userData)  # ensure array
 
             if (-not $profileDirs -or $profileDirs.Count -eq 0) {
                 Write-Log -Level Warn -Message "No profiles found for $b at '$userData'."
@@ -124,8 +142,9 @@ function Clear-BrowserProfileData {
 
             Write-Log -Level Info -Message ("Discovered profiles: {0}" -f ($profileDirs.Name -join ', '))
 
+            # Optional filter by provided profile names
             if ($Profiles) {
-                $profileDirs = $profileDirs | Where-Object { $Profiles -contains $_.Name }
+                $profileDirs = @($profileDirs | Where-Object { $Profiles -contains $_.Name })
                 Write-Log -Level Info -Message ("Filtered profiles: {0}" -f ($profileDirs.Name -join ', '))
                 if (-not $profileDirs -or $profileDirs.Count -eq 0) {
                     Write-Log -Level Warn -Message "No profiles remain after filtering. Skipping $b."
@@ -134,50 +153,50 @@ function Clear-BrowserProfileData {
             }
 
             foreach ($prof in $profileDirs) {
-                $profileName = $prof.Name
-                $profilePath = $prof.FullName
+                # Support DirectoryInfo or string
+                $profileName = try { $prof.Name } catch { Split-Path -Path $prof -Leaf }
+                $profilePath = try { $prof.FullName } catch { [string]$prof }
 
                 Write-Log -Level Info -Message "Profile: '$profileName' ($profilePath)"
 
-                if (Test-Path $cookiePath) {
-                    if ($PSCmdlet.ShouldProcess($cookiePath, "Delete cookies")) {
-                        Remove-Item -Path $cookiePath -Force -ErrorAction Continue
-                    }
+                # Cookies & Local Storage
+                if ($IncludeCookies) {
+                    $cookieStatus = Clear-CookiesForProfile -ProfilePath $profilePath -SkipLocalStorage:$SkipLocalStorage
+                    # (No output—driver consumes status silently; use $cookieStatus for debug if needed)
+                }
+                else {
+                    Write-Log -Level Info -Message "Cookies deletion skipped by configuration."
                 }
 
-                if (Test-Path $cachePath) {
-                    if ($PSCmdlet.ShouldProcess($cachePath, "Delete cache folder")) {
-                        Remove-Item -Path $cachePath -Recurse -Force -ErrorAction Continue
-                    }
+                # Cache
+                if ($IncludeCache) {
+                    # If your cache helper returns status, capture silently to avoid tables
+                    $cacheStatus = Clear-CacheForProfile -ProfilePath $profilePath
+                    # Or: $null = Clear-CacheForProfile -ProfilePath $profilePath
                 }
+                else {
+                    Write-Log -Level Info -Message "Cache deletion skipped by configuration."
+                }
+
                 Write-Log -Level Ok -Message "Finished: $profileName"
-
-                $results.Add([PSCustomObject]@{
-                        Browser             = $b
-                        Profile             = $profileName
-                        CacheCleared        = $IncludeCache
-                        CookiesCleared      = $IncludeCookies
-                        LocalStorageCleared = (-not $SkipLocalStorage)
-                        Timestamp           = (Get-Date)
-                    })
             }
 
             Write-Log -Level Ok -Message "=== Completed $b ==="
         }
 
-        return $results
+        # No PSCustomObject results returned
+        return
     }
 
     end {
         Write-Log -Level Ok -Message "All requested browser profile cleanup completed."
     }
 }
-
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCen7wGLAUrpWr+
-# Zk2wknXeCEcciwfG3Cx6PTeslZ4YAKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCY6MhczFR8MnHo
+# Sp/LQmxWF12F9XYRsYmyCQkdqdHPvqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -310,34 +329,34 @@ function Clear-BrowserProfileData {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDYpa7RjgXY
-# eg6bIpHZIbc8vzv0FyvP5qPc5oNVLCt1GDANBgkqhkiG9w0BAQEFAASCAgBy+x+G
-# xtCmYGKNxI0gJD1RcP4F/Yprms/l1sMIReH2/twRO4WGS7tltKbA2s2OnWeStanj
-# 5363QABG1cI4nT5ovOCQAMoKw2S6VXw8PiR0rscrRYGhrQcls1GT8f7b5R04Hy+S
-# EbpxxrWOeC5FUdkwZQf5rFhmPsEy+N8FDLqGI4j2alEl+VzzpX1i3zgurI73Eqdp
-# DCGF1eI0wPgtDaVtlmg9hSHIYXsfI0b8GtOFli46tVFhwukZuewvIQ4lLL4aoFdZ
-# 65URsG2UFV4JO7IpioBoBhmIXRxRjmrbNjpCT/WOby6ToJ8wSHZ978yUZ6tqgOt0
-# 1CN7oTd7cs5ygHL88uawSMssjHe9/M6MgsztlC0u8+83lRRw+AuIgJZiImPu6lE1
-# NlraDgG16CY8Q0+jscPm+ZQ/WG7++kY/V8AV8ny5dR0GmC9RpdoRkMtWRZ1Jqxye
-# wCdc0HQ0QF8wPeXQsvlPpmOEmXIXYgq0uvqDsmenUptHLboExHjH8nVPSEYUnXgD
-# caq/GGUKI/ks7ztTQ99Urrx4EOcPw0AaiSJAGJHXLCqif/WUpyHwf14yUDM7RKTs
-# mvnVffuqv6A5cVLVvxBGo2KngO+YK7jYPcc7TZA3fCDPGODF3+PnQcnjZ3Sr8Qtg
-# yVCLqoQFEQdxZyQYSDwCPilulOEJWhtmVIRnI6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBuFcYlqC+W
+# chqfZHGTH5N+gwsOtrrZabioW0yHto3isjANBgkqhkiG9w0BAQEFAASCAgCG3hKq
+# WB9SWxNT45rUnWFZdgvIAAd+lAYscPyO1ylem+q4JgdyVY1w65wNQ0S/s1phBxXQ
+# IZHiO5MNJbU/SdySTnO/mNYIu0NAPBgYb3h3so4xNadGQ7n5k+pdK9EEqtQ98m2E
+# 4WCrpr16BIknAKXR/NyiRduSpe2zD3xCph73bGo7rTCrTrtXAafBMLFpz7HqvHHd
+# zX2vNqam9LBf7HwnCDa+Eej87M9VJg0nl7CabeRYfThB9LDSfeFQoMxcMFZx3SaM
+# hDid+og21lusspq/0guyXJ8LVk9opyr5EuEBES8R8mKpXgW+4esxDr5tkElwhihx
+# sOgpXHFXMHGAxGGlDB61oAbhjSoFN+Nip5pM2EnAvmIebA8aMB1GDGiDYdzCUOd4
+# h1y2N4E8WDV7ij6p0YopWwn6CFGTRfXus46UtTBsaQcoKfOE7hvgZ3X/x91dwrGA
+# j+Hsl20bX0H9l8eLqv4lYnpUc4YBaW3RdXM0aJLAwdapaY+21tFteuDefLRsqxZH
+# ji8+ywrUAN6NtPGIAHFnUJqIjE4rkuRSZvi0HW31nRSqoaarWYG3PxHrWo8YvqwB
+# HPVXdJIvl61X0Pz/n/YdmIoA7hecZeZ1gsH+TvpleRp3s2QMCny0LEr71GWGdSqZ
+# Szi0VlLOgwVYFhRMCZYkYgnwLlHQ/R1kqiPAXaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIyMjE4MjJaMC8GCSqGSIb3DQEJBDEiBCBOkEt8/VkS5Kugw6Ou
-# ijFvNrmIiyVeF2XWEXD2NVAN4zANBgkqhkiG9w0BAQEFAASCAgBm8AwkUW/uABpB
-# hoaQtGbXnV4EJ0IQ5rPWwNox+DbuMnM9V5VLbTXWQF1/6aIcmZIZ+T5PkM3nK3Lf
-# HSY2gtr7GDjH6XF4YNWvFoXFXhgHRM9SoBIQMYnVz1c40fEIKsxnGON/8s0zk2gW
-# nOmqlpgxxpZLNfXr5OOQ1yTt68anGBCW1hboTIiLu7sXhL/XfjMHthZyyNC17AsH
-# lHEBYyXxRC40ike7p0lv6imTh05grWRfKM3rFDaJG+M58RRdxoF2ITXUdHT5TYFb
-# lQCphCs38bsGezHyG0xWwf985KEK3GwfepIQplTmbvRPSuyBU9Vj/yfiZLp05pjS
-# vZiEUnImVTnwMUCQawX4OuVsxWyZkojO3do3h7LgaamhADnvJfQs1/Pyp/1ewuWn
-# iEDfhHqlZTSyS6AiPf9UM69dx206bdKzH7oGhnDPRPfLqcogII/dr1gXZzWp/Sam
-# QPGdOmCCftBS+NvuM/CQ3UiOvaEr7M6kgWMDCDEIldq0aB3O1uqpgh6iNMtYDEx/
-# EyypCyTRSiqjTiAYQLlBpeyzgqskipaXUdFycYxWWE/mu8HQQpkPrNrXn632+TLi
-# cgb2Yx5LY3mKALj8zcariZ2oeUei9yDuJPDXqA3FnzVaNcD7Xxsyhf6Mfz8kcVYI
-# IUfy9+qIk8+Ch+DPU6I1Vpv0HHtYcA==
+# BTEPFw0yNjAxMTQxNjUwNDJaMC8GCSqGSIb3DQEJBDEiBCDa1RIbEv1BWwrgR3Gg
+# /OUt97cUStQOgWiNXllWqWA+RDANBgkqhkiG9w0BAQEFAASCAgCTxAUJhl2gu0oW
+# D4pVS5NMBpNBPF5OCXI+JKRrTLAkttPK8X/Mt/qxq6BFqcal96WL/9iIt33Aq+gC
+# +gXyLyelg3BGLiBwD1gDNcgdDRIm8ESstTCA2IeYpoNVTebDsyjQv9VWNxI8BFYV
+# 9/KU6EkUJejHLh+sZ5xdiU3tZ50+yCQ5NlRURnjaQ93vL/xcXNvXv6qmvISpDfZ9
+# B0c6vfKEg8IpoUtpnhyQswfY+3hW1Xxzu/nc55Q3vYqq1FMIKsZqmjqahXxB8mQa
+# ObONNGlfxq+aicOofvN4M+I14v4tes86QoZvUFMyb0HUQcy+PWP/ZLqt1p8RvaA7
+# vcx0b6iTlbBKUBkFiOJx7iNU0ovlUjAgsw4mxbDNZ7qy/0om0r9fcbf8HSqMI4rE
+# ibAb0ljKuI5h2pcBig+NWrDS0RMwrpP3cPLD3ht7xzv2KqtOoij5k0pVjdTje0rN
+# 60thF8NdxEGUTUcdCWP5N7wWQggvl6XnJIjzvHClcifVI6Y9STiFvP6tMMy2nji5
+# uyIG1Lh+scxiXEqxeDqEzbv0oKBpV10xWWSBPzCJ6saSyOgZYtqR8NjjaiphygBk
+# iKj0NMCpleEGsrn0WL2yNZSIlDKoHuUdoW7B6vjzwmlZVtwXsHFh6boX+Hx7iO3c
+# TOic8cXp6+2OSu6DBuoqIPalcJPswA==
 # SIG # End signature block

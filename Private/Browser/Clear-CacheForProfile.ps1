@@ -1,14 +1,7 @@
 
 function Clear-CacheForProfile {
-    <#
-    .SYNOPSIS
-        Clears multiple cache locations for a Chromium profile.
-    #>
     [CmdletBinding(SupportsShouldProcess = $true)]
-    param(
-        [Parameter(Mandatory)]
-        [string]$ProfilePath
-    )
+    param([Parameter(Mandatory)][string]$ProfilePath)
 
     $cacheTargets = @(
         (Join-Path $ProfilePath 'Cache'),
@@ -19,13 +12,13 @@ function Clear-CacheForProfile {
         (Join-Path $ProfilePath 'Network\Cache')
     )
 
+    $removedCount = 0
     foreach ($cachePath in $cacheTargets) {
         try {
             if (Test-Path -LiteralPath $cachePath) {
                 if ($PSCmdlet.ShouldProcess($cachePath, 'Clear cache contents')) {
-                    # Remove contents not the folder itself
-                    $target = Join-Path $cachePath '*'
-                    Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction SilentlyContinue
+                    Remove-Item -LiteralPath (Join-Path $cachePath '*') -Recurse -Force -ErrorAction SilentlyContinue
+                    $removedCount++
                     Write-Log -Level Ok -Message "Cleared cache content: $cachePath"
                 }
             }
@@ -37,13 +30,18 @@ function Clear-CacheForProfile {
             Write-Log -Level Warn -Message ("Error clearing cache at '{0}': {1}" -f $cachePath, $_.Exception.Message)
         }
     }
+
+    [PSCustomObject]@{
+        CacheTargetsProcessed = $cacheTargets.Count
+        CacheTargetsCleared   = $removedCount
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlOHvRjo075q0u
-# vWzy8qTZfHeMd9V5X+3ax7YmDtaSa6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBGua6Tfj7KbOeS
+# iJ+xmBtXQhXQthu30JCvGVuYs5pwW6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -176,34 +174,34 @@ function Clear-CacheForProfile {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC5GawSjZvB
-# YiRA8a6kx5amHUsxrD9/Gw5MnIvqoMJMpDANBgkqhkiG9w0BAQEFAASCAgCiXYl2
-# OcmnZvqGowPdJjX4H71xHNwu0U+pSeW5OIM7P5w8OBgKRQwqAVMWPfaf9udX0VrF
-# arbXQKV0i4oVFD3UTFu2hFT77UgHMtQWKgx2NdY+4cTJeyUg9INa2RVInsEFEIGW
-# ONxFPu6hSTALcwQU/ziD1fNIA7HtSrPoLMhvJNsYORzeShgpZYNmO2jiZXrn4I8N
-# ATRj2dK40HdG2JjGYzRp/dH4VNix9luSOvipEDm8y5hQ1mBtjnUQ8OdUxo2wOKT+
-# NwTKjhOB3L1EIZv/YsWSFZSxNzRm2p2Fus6LlbnkvnFgmH0J3rUkEA8AFXeUc9UQ
-# IZOpy37vg2hYPdE/N1rSDV6YHgiusSWhVQ+k7VCKLh4LImeUPQ50vxFEO/o8+/eX
-# gjOVe3OjVOSgr7+vrMjHw6qVerkfjxRB9rCT58f/P9+Lg7t7xbKf0tzZ4VG/+jNU
-# XkFq0knXT9wXB1wsOyocGvX7eYHDm8qq1AS0XOBAI295ANfwWYbCsOX3rY/RNQUP
-# 11PQXqiaUFA0EgF2+fUZjSxzt/21IQ4xgBXkmuxtDcZ1xiJPT+6AqSCDTjIDf9+i
-# Wi3cE+VnIpZLxd2djNkAhuSWB5qZnoNsk73K0QfL31GxxZ/DyVMksInrfLbyU6xT
-# KVNYzbwciNax+AHvGyuUB5e4im5Perb1yF3UJqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDCpGfzVW3d
+# ftZjwO8wv1r3BXkVcn4AqKBML1WJugj3ITANBgkqhkiG9w0BAQEFAASCAgBYjHI0
+# BVqCGawF+l+f6iqvgbPn8pPAIeJ3SqGFqYhGEzO7ipEcKVw3vOly9jOGY1BGlGsE
+# UgXPUr36qvuccJWgqeSuoQ9635FywGyXL8TGuSNxpw/7VATd7hdIozMAtLM4OQMh
+# erK+FIdhZkkBZ3rBqu+PQaHjIfSS/IJ3FJcU0+FvnNpgpmP333/EBWF+AuFKTf/w
+# Vf4XVLWMNFEtHh9Z1YgeNsFiP7Ios2tBoVzrXk11RonPWS2fFDn9Hc/kDh4ihdwp
+# 08l070q2V+9u7BoCzX/idMAJT9Id0wI4/eHpSxAjLD9WtbvvhI4pAAG0xybstN5p
+# GE42zdThFW8DcZVDQYmGy3EhakY6EyZGqQ1f+e+i+snF0ZeDFquMnBdDRZwZCW03
+# 5Jvcn3eJtSLPkAZh5hrQz01etSG0Wyua6WP3ZXTJsN1/jb3Ayvh4jOblkOJrVFV4
+# 8Jgp9utOxk9FbocgET6Xr+c32y8wkLMu4vNvoSoNEXDWdB8haQ0xiyNloZSMVLsI
+# QM9oO6ggo/CZDFmFXYC1xkdhhUnxiopewOqqU02HlYHjLHni1gKmxpbJytlgml8q
+# 0iCM1kJn2C/F86E1+hGUQppmigRjtfC8YC3S8FVmyce/RR/QS2twEd66teJkGs2O
+# Qbun96Bt1At6KnN0HLEXGBBfi/dUMDlH6C9D06GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMDkyMDQyMjJaMC8GCSqGSIb3DQEJBDEiBCBLdlGiQdmtObgAySPX
-# g6hQOrc1augkAzAauOWU8T0uvDANBgkqhkiG9w0BAQEFAASCAgCf9/Dmju3AslWy
-# Lok3nOgTxmwLEeZNlEDBbN0xh+9BrZEIrKki8uVBnUZrj6sT6g6avytx/QF06TRQ
-# cxSRFsVuX2q/pVG3hVZVvUtianprYHTTZz9Y3jMiVfxaM+5uiXn4SkuDNJqkLElh
-# k/YhFoDc46dn97h3QwpxCmGsowKlOHyz0B1+/6pRAtLsT9EB+6RM2xghIRs1Zolq
-# LcnGsxCpeYlWJFx5wIH+BTRbXqVZIIq7/SeTtXvJ1MPfvM8jetjqrQGkedHvUScL
-# tRAY5DceUnK02o0zmzJDxwnohgSaVywGvRY3urJBQ0rFH4UEhxJvriHqmmNzpzjS
-# DPyPoq4IJHDd95o8em0jYaRlTSa2NNTWCel5qcRdArAh9TzvFD6HXrUMfCGaOI+2
-# ECibleO6mUCEVoDGxsl3hLRbXSyWniD7loRjH2jISeZHcSd8F9cjnM6MzORRHCjK
-# qI4PJrIsOAhD6k1fMQMfVbh7keX04k1r8f/aRvjT42xSAbJ3g+ql8QyNAZ6s0Ry/
-# LOLzTCxuBrzYEaV8AUnbj4RqtmSK2MVfsZQL8ILW2K18yUcMgSb0RNIdj5VVuMSm
-# aINDsBzyqZ37TZRJJHUwbrt/jKtR7WWhP3LzRcKrsAFyw7r+gxIl6BDYbj/NCCed
-# W2oPZyLbmyZWrBIHgeddSvqoynRTQw==
+# BTEPFw0yNjAxMTQxNjUwMzlaMC8GCSqGSIb3DQEJBDEiBCAVKjGZVO6pWfJFk83u
+# PBNzr8yrvEGznt+odAinNn2FdDANBgkqhkiG9w0BAQEFAASCAgCWBKdBf2ZktUQQ
+# XzYZ0cpkq1gnzMki3xzUqitU2o6AB2IemTKk69lfDvGg9b+dZOsBqDAJhlym5IFC
+# D61Dk8GtTauXyhmY+3vIrfTnQSXeNLjfJohTE0NHKbAKxAc1IHmoYaO6zWBmFg3B
+# yWcyhktKWkSuxz3FFVVzw0vJSNo1mnOswUEK0OLIoWTQwdH+qKHHhbrM0+5H+BJB
+# W858KW4jlgFjDCUWlqBsOPWU0OFnY8rUSQKDTUjaSW2uAIzQLqRMiB+NVU6RswQ3
+# m7wWoYlU3Gy+HQtaJyNSdThTjMV1LUj052yeMNGW9orSfrvzQRlZg0t3hwmmGas/
+# N0wMLHex+rT57F4db5RSvpR6+NFB9oc5zV/5/jIs+3FHSFRLOYjvPpt9UtzbBY0H
+# yZPwXXGyd07UNwvpcE2zOOCHjilNWRJnNLN3zE+SitZdrTliZnm7XNYwRAWgn+Ur
+# qWyRLTekO8Es9avvLRVcMgbYwAJK/fSfygSioOz3GNzrOSTi3SBLDBvEthNOlC3+
+# iQZZB/8gNhpOuVKut/y4EnvvNo0vyMf8pfIiHnQN2B2MTOxm1wT1/V9zLKlJrO25
+# wsGDlJfHK1XDUaiukNdPrFs1M89eXJ/u+56UeBWKF/g0NCZt5BcLe1ym8GsGTkuC
+# VYbLRGgpiy1ur3omTyCffWWp2FUWXg==
 # SIG # End signature block

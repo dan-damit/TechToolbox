@@ -1,9 +1,5 @@
 
 function Clear-CookiesForProfile {
-    <#
-    .SYNOPSIS
-        Deletes Chromium cookie DB files and (optionally) Local Storage.
-    #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
         [Parameter(Mandatory)]
@@ -13,6 +9,7 @@ function Clear-CookiesForProfile {
         [bool]$SkipLocalStorage = $false
     )
 
+    # Common cookie DB targets (SQLite + journal)
     $cookieTargets = @(
         (Join-Path $ProfilePath 'Network\Cookies'),
         (Join-Path $ProfilePath 'Network\Cookies-journal'),
@@ -20,16 +17,30 @@ function Clear-CookiesForProfile {
         (Join-Path $ProfilePath 'Cookies-journal')
     )
 
+    $cookiesRemoved = $false
     foreach ($cookiesPath in $cookieTargets) {
         try {
             if (Test-Path -LiteralPath $cookiesPath) {
                 if ($PSCmdlet.ShouldProcess($cookiesPath, 'Delete cookie DB')) {
+                    # Attempt a rename first to get around file locks
+                    $tmp = "$cookiesPath.bak.$([guid]::NewGuid().ToString('N'))"
+                    $renamed = $false
+                    try {
+                        Rename-Item -LiteralPath $cookiesPath -NewName (Split-Path -Path $tmp -Leaf) -ErrorAction Stop
+                        $renamed = $true
+                        $cookiesPath = $tmp
+                    }
+                    catch {
+                        # If rename fails (e.g., path not a file or locked), continue with direct delete
+                    }
+
                     Remove-Item -LiteralPath $cookiesPath -Force -ErrorAction SilentlyContinue
-                    Write-Log -Level Ok -Message "Removed cookie DB: $cookiesPath"
+                    $cookiesRemoved = $true
+                    Write-Log -Level Ok -Message ("Removed cookie DB: {0}" -f $cookiesPath)
                 }
             }
             else {
-                Write-Log -Level Info -Message "Cookie DB not present: $cookiesPath"
+                Write-Log -Level Info -Message ("Cookie DB not present: {0}" -f $cookiesPath)
             }
         }
         catch {
@@ -37,30 +48,57 @@ function Clear-CookiesForProfile {
         }
     }
 
+    $localStorageCleared = $false
+    $localTargets = @()
     if (-not $SkipLocalStorage) {
+        # Core local storage path
         $localStoragePath = Join-Path $ProfilePath 'Local Storage'
-        if (Test-Path -LiteralPath $localStoragePath) {
-            try {
-                if ($PSCmdlet.ShouldProcess($localStoragePath, 'Clear Local Storage')) {
-                    Remove-Item -LiteralPath (Join-Path $localStoragePath '*') -Recurse -Force -ErrorAction SilentlyContinue
-                    Write-Log -Level Ok -Message "Cleared Local Storage: $localStoragePath"
+        $localTargets += $localStoragePath
+
+        # Optional modern/related site data (uncomment any you want)
+        $localTargets += @(
+            (Join-Path $ProfilePath 'Local Storage\leveldb'),
+            (Join-Path $ProfilePath 'IndexedDB'),
+            (Join-Path $ProfilePath 'Session Storage')
+            # (Join-Path $ProfilePath 'Web Storage')    # rare / variant
+            # (Join-Path $ProfilePath 'Storage')         # umbrella in some builds
+        )
+
+        foreach ($lt in $localTargets | Select-Object -Unique) {
+            if (Test-Path -LiteralPath $lt) {
+                try {
+                    if ($PSCmdlet.ShouldProcess($lt, 'Clear Local Storage/Site Data')) {
+                        Remove-Item -LiteralPath (Join-Path $lt '*') -Recurse -Force -ErrorAction SilentlyContinue
+                        $localStorageCleared = $true
+                        Write-Log -Level Ok -Message ("Cleared local storage/site data: {0}" -f $lt)
+                    }
+                }
+                catch {
+                    Write-Log -Level Warn -Message ("Error clearing local storage at '{0}': {1}" -f $lt, $_.Exception.Message)
                 }
             }
-            catch {
-                Write-Log -Level Warn -Message ("Error clearing Local Storage: {0}" -f $_.Exception.Message)
+            else {
+                Write-Log -Level Info -Message ("Local storage path not present: {0}" -f $lt)
             }
         }
-        else {
-            Write-Log -Level Info -Message "Local Storage path not present: $localStoragePath"
-        }
+    }
+    else {
+        Write-Log -Level Info -Message "Local storage cleanup skipped by configuration."
+    }
+
+    # Return practical status for the driver
+    [PSCustomObject]@{
+        CookiesRemoved       = $cookiesRemoved
+        LocalStorageCleared  = $localStorageCleared
+        CookieTargetsChecked = $cookieTargets.Count
+        LocalTargetsChecked  = $localTargets.Count
     }
 }
-
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCmHOEz3eWQ5Ztu
-# D1o99WGObItP6Ed2pChLpv5K5ERMM6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCmGoPkTlNOXjEl
+# MRqZwmd64ctWwPAo1G+xINQ7VF6dHKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -193,34 +231,34 @@ function Clear-CookiesForProfile {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA8UWmYYS+h
-# K6TPtKzL44hGytF9wALLWsGDQumM27mC9TANBgkqhkiG9w0BAQEFAASCAgC3ZmM5
-# 14fhkMSQOBqHBtCsun0sGmVA1hG6CkqzbBpQc12ov19pDntGpCzBZzPXzn2ZdC5W
-# RP+JgVPKcxv4NKFk4enpIymysUr8NLhMHkIC3qRDHzkQKqWmB421aiUPKv0JVQMq
-# nBGLQcfeh8AfO+uGb6bxWQtd6zIJpjC+jI25dSRq1MVlmlPZbRT6I3U0ccjhXILA
-# E78lL/zDMMN6kZyuowHpvGDL7vHIcWIlsyhXjYaalQEuqW+pVOQDgkIT6RFjRkS6
-# sUeeelFKKofxL3HECrn5y3am0uTESbd4gnAW4M77QD/vACKiHRxVz26T8nlwDE0d
-# 9XmhOcFd8GSniF4cdDDU0eZzdAHgnpIzcUoAimFy7IHDFIYz3/QQmNVR93PNrsNu
-# LM1JEGYziwWAGfN4IfrqmTFaYmk8QzRzzHEjz+A02ioBYpVuAyXzm6lyHCJ552mY
-# 72Nz90FIfLRiuLQbvTGPvOwQyVQ/DN5r8MqGhNTTqcm3m0dH+TB7P5HmZe4Y+MSl
-# I//emrcbOK+kQmRu/ocOnSm92KoUK7Xnj5e/lae3cBUacTO1+hKqa3r+ov3dU69f
-# LSXzsgqivds33Bn7rcoaX3mghUP+O83JqZ0Xe3s9kyOSjNClLZqhpivY1BMqXmqG
-# w4Fz7hd9FROZLYS9mRA4SkrR/6z/xJjPkCDPdaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCWyw3vrq3Y
+# cRe1dGRgTyvdJrKTkZiSY2CHbd+Y6ZXKFzANBgkqhkiG9w0BAQEFAASCAgCjFEF+
+# uCBKCYe962b5HuoGBbA9T6/pxzLWgSiotMQGsWlP0xlV4mw401ZxykdKhx3ebrY5
+# xLMmN5iptuevSa4TnXkM2SVFSjNfMBTn9g5RDj5NMXlAcJcLneI71MqCag8EhKBy
+# UKSPhmT/P81/MTsUbIu8VUz04VENs3ERF0Mo3ZpPvWsDcdhCAq9nGlz4Z7rMzzv6
+# 9znakfb6br4qo/nByvn75aqEtkTpOFZCg0BwYuQrUlAVgWv9FPEEmvQSCcHLVwe/
+# PlgI2UiRrAx78zbyxv/EPh534Z6qZu9KvrY1Dg+lBJ3becHPEWf/N1yjpyEAyUfR
+# jBQDOM6xdg6jyymkwmD1i0C38rfN3wJlW8tPV5EugeP1tRrNKXBJ4xcVVfGfJ4tt
+# pULjsXcvKM+W5/aGwgnJ2CGWYapRYtx7rU3bACfaPPfrt6+ztf+qdU6CG36fLho1
+# eA6GQzo4WZoSGvOh/KkoZiQpgucDgfKmY01QgjjrkhdirgX0y4uUYZxOdibW5jC2
+# y97inX+7mjGklhX3c3D5Qz+kI2cFEpCNKhbX5KE3JM3sHN8gvJ9alMilrfAZ2A2S
+# BKhhd32O+vesEjOWyojPg5DiGkxgke7cELOqyQ3ibfo9GraTQKvxueb12rrKE2cv
+# U0zbk+FZcTTH99xgwTLXK+aN2idGJkIhIk4iT6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMDkyMDQyMjJaMC8GCSqGSIb3DQEJBDEiBCCkH5aHC+W6rEtskWSU
-# ZiEAUQgd87DaVs9iXI1QCQjOXDANBgkqhkiG9w0BAQEFAASCAgAM0FhPiTAd/oRV
-# Ihs2zMt6bGyqNdtYeYxMJj5nmu0iOePzhII3ORWeoce/cpVL7SCUKRVfGDqMvn8o
-# i+jqqFdoVxTriYTkkOp4qD/iY4czSRmowOdBZxUmt3UVk970GtIguUQnwu1B6uID
-# PIUaQcWHEhxIwDogm69o7FWVNTtdm9pTJekNg75G/0vfcNpwPwRGyuQuKb4O5Goi
-# B+5LDSavnrMD7zvVt43HzKGXIngQ7FHWPxsQjE7n+Z+LltrT6fr7ZZEfMPSJ6sMc
-# DaCUgV41YBKsrTww2PRsoBhRwPEBlYseDqwMMVczqCNvakSDUBjS6CVH7/RoibLB
-# z/oHvHa1B7XT/Wiyi0iRXsMIwgIWeLSxEbz354qULyRXX42GJfeOyTeLDAaUPo33
-# l19lXhsjjTqFgvpu+4SccS1nzExZxtp2h8o2rfWnRZJge6JnVMMcVAtdu7NApt33
-# IGoF5kyg/NHc8OdE3sE19pOldzOD/nMoShHQOZkM53mNlzF90V3zvnGqOWv6ArwO
-# dUms+5JidcsK7Zy0izhzjeO6CmcxPaNpE9CwNZV30k3TGnWv7TldvbqEsulo1FD3
-# Q5iChmq4tCJQkFwVt/wkv1c/yfMCKghrbWfnNN5CJNxIwSCI7qFAItFUwo2/94PH
-# 7Hx8CrZi5znvw332oFxFrRSSppXt0A==
+# BTEPFw0yNjAxMTQxNjUwNDBaMC8GCSqGSIb3DQEJBDEiBCDYIBx92jLhYV/YS5aq
+# NF1zvLyzVhjY13IyEwfZmIx5jjANBgkqhkiG9w0BAQEFAASCAgCquZ8WHJZi0qct
+# WFFnRIeR8hw/EjkvCyTLO5BKkLfZyflOhr++MDFM+glpoeeRj4OCoGSAb0uQHQHB
+# zeGeISesbVC30+z60HupZiDImPMd+cCsHZvAjhRgqkfOfUpG209aGfhFS/AZgF7l
+# L9MeUD6z5As2mF//rUBslzEP2Cg2y4Am29Qs9yjiaa6exjxvyVHAd2mZqs52y2KU
+# mlA1A7tHlz7ya+qVqnlpCsjxAlugV3DHUPAbASkJehcJ/JELkp38Ew/mYKpPlGo4
+# BxDvizP5B0c+PC302LmA5uMQLnR2Ycd7lQng8/lN919GF7yvvZbFnI0Mo9TLqXW4
+# 2LBfS87edRSwirzCo3Fvk6mWG5zqWXH3xMOzo4Zb3f9+QTQ6GuIbeZNDtccZuR7U
+# o3vhakadkHM2LN2vjlfS5dOGtrG7IRHzmho4c8BbuaBkzQj2quzHqejui4Yz10bm
+# J1AG6aX3VlaAyC4HA/iRHGZNSqJ/T3grFk8ijJJVdTNJ2E0XwJYeAJof7P1GD9Si
+# eC6Q4n6Qo4EZxSqi3Bxu3ZKgQt8xary/+Qh/6y/mrcBha6T6GzI7ZaJgigcEq4RH
+# kUiF49PiHNtTDLQCPaqB1Cfdec+Tucfn9gFW6zP6BxO4fxtKzs+oNyQoqodYE6/i
+# qWwQb60f9RhFOxsopua5iG/nwQDePg==
 # SIG # End signature block

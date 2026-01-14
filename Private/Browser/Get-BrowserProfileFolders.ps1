@@ -1,12 +1,17 @@
+
 function Get-BrowserProfileFolders {
     <#
     .SYNOPSIS
-        Returns Chromium profile directories (Default, Profile N).
+    Returns Chromium profile directories (Default, Profile N, Guest Profile).
+    Excludes System Profile by default.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$UserDataPath
+        [string]$UserDataPath,
+
+        [Parameter()]
+        [switch]$IncludeAllNames  # when set, return all directories except 'System Profile'
     )
 
     if (-not (Test-Path -LiteralPath $UserDataPath)) {
@@ -14,15 +19,31 @@ function Get-BrowserProfileFolders {
         return @()
     }
 
-    Get-ChildItem -Path $UserDataPath -Directory -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -eq 'Default' -or $_.Name -match '^Profile \d+$' }
+    $dirs = Get-ChildItem -Path $UserDataPath -Directory -ErrorAction SilentlyContinue
+
+    if ($IncludeAllNames) {
+        # Return everything except System Profile
+        return $dirs | Where-Object { $_.Name -ne 'System Profile' }
+    }
+
+    # Default filter: typical Chromium profiles
+    $profiles = $dirs | Where-Object {
+        $_.Name -eq 'Default' -or
+        $_.Name -match '^Profile \d+$' -or
+        $_.Name -eq 'Guest Profile'
+    }
+
+    # Exclude internal/system profile explicitly
+    $profiles = $profiles | Where-Object { $_.Name -ne 'System Profile' }
+
+    return $profiles
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBFGAR+NvU0r37s
-# CrMfpXcu7bEA2JP6ScgHBZ02bBBkyaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC8YxegmnNct88s
+# ZpsAGSPyGYxWNBhlcAs52xb4DxkqvqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -155,34 +176,34 @@ function Get-BrowserProfileFolders {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCUnJ1nZbM+
-# Ul7KUPg6DHY7r8HouRMGZx4U2UrgBzg74DANBgkqhkiG9w0BAQEFAASCAgCdEH3h
-# aAlRDo14W+Ztp06yTCZfal7oORpMFpPLhB3McafJ7z3kM+vXYEHLaKfvaAN4h4Te
-# TK9XvwC0fUbvrk9RLqd7K2z7mTh0oFafo442AgrXR4gAfwpqWKK2qY7AQ1Gaf687
-# mrKmWgoOZ6MQspl8iwvneFmDusIfzs5c09WA5B5833PWHSl6S7dyzR80pIGgilCS
-# 4H1xqvWjtJoatSSEoW204IMb4Kv9yuhYI4jVFRpIS1Jd2H5ZYmQJtCK8h9FnyJFp
-# hCoquMtaDP5IwxHyUbYL0MYF3JSMON0WUxRXXb8TAwq3hyDg5k0EVMYkq7Gz4Uel
-# t+A/xIvWs614ajHs/3qcU9XwVdGeFyEZw7dG2F2ET0g6Eo+PGN/ip+fT1AJuZRpf
-# FiOVb0cIej8WD0x515ZiAoeDV68gaHNCDZ/HBsL1tWtn+QY+Z6J/swylZpItX8NE
-# H9epE/aF34qaKBNx6GAIEm3kFt9RGEKcEF2Z7TZl0dJUIJ2Ku0m788YLzzW0Fcnt
-# Po21EwpK66cjzuc/Y/20V9iZJb0ARlUf7LAnzakRy4yqrAGIYpG+pAnkQ/k2+tvV
-# WHzHl+Om2GSCzZ5bwYlS+Ud13p+kDHytRE/qdDJ8CvrfTXgQb7VVjvRsJGUmhFmC
-# to9MIysLufd19wZCgr35tSsOFr5J5ACVMSRxvKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAOImtOMroe
+# qQvaG2hUoiwCAJ3Nj2s82cqeCW+ETED70DANBgkqhkiG9w0BAQEFAASCAgCyUrTb
+# EaiZ6s1lDrNJFdgCEVvNFbLGM8cd1sygfMxfF7DqKLYrV0mz3cZ1TnQdR/eJtb2l
+# SnZXqzXt7bJgACFkwgdmplKEp632Vnil1WGWoJItwlXznh4VeCuYGdIwWhUfr1gT
+# iyvvPKLNItZpNsvyZW2vnpLtjihmHKdYD6Bz1PigFrRJg7V3zmWK+JgOrgFYJ6QE
+# K8rgYZUjYPICoamhdHj0H4VolftquYQzvqOGIS7M360BhMYKNri6vOOkgfy0VQAv
+# FNJSxTCGs//9rxRZL/yGjTixmuNNAB9s201liUroBRl91jBnBhZIlhhZ5R6pZ0aB
+# 8qHphxkuty2jQZPci8rZsLZOCVsghfPI199Gfp4nDAH6ObXFWHyjs8TIzk6VBZ10
+# iGt2chenA5Gg9Fj4mp8mxGHQ+St7d/3y6Qvs3L7kFf7XrH+s5bCbFd5Bi2vIl9xW
+# YDx0sf55wziGf0Ih9GzgzMHYXAXvKE9BfP+4YUKbbGWGtRUYBj+D8bbv03TFrQ3s
+# etgsTUDyozVRLQIan5TH2EaUsm+8CC4ibmAd+5Kp+3F+fw1vsWXkkEgkEIg//dpx
+# oj/vc5HvXcHjkHw//mR/vXf3ewCv19Rp8g9GVFOXZIZ4VkkMM/5rtOfUfz/lZ/4q
+# jOTULAydVTpbaUclRPAmgBrzULP0WwUtHr6aNqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMDkyMDQyMjVaMC8GCSqGSIb3DQEJBDEiBCB+ek+eu8syM8zU9XZX
-# jxuWG6FkryA79oyVia2p9qMPqjANBgkqhkiG9w0BAQEFAASCAgAucVHerFQPnNgy
-# 4so5m842AOhzE7qxYi0aS1Hih8pBgXM8p021NP3+vyup0R4KlvES/+YgW6itW0mB
-# /bkHU+/DoBj9R5Y63wmNCSUTe9/Zk4aknYlU8ckYArR8pSlT0Ywz8BnWgb20g9NA
-# Lgk4phf5ZH5t6/JFLrhyt4nV8Byp6UQGRLrDQz46mE6KdyygsbzM2t9x29wdGnQS
-# kk9XuQTNnoitfAtwZR6+EqWhPNF7iVNBmvI/kBWJdVIcsHGGRA8DaN8MjzyIXioR
-# 15aSJ/+R+h8WK4GCP35rUvyYq/h24EMS5UCI3Bzh9aA2F98DFLtQZRsg8iGlb2vT
-# pM8YOAkBF6+vJ/1eDP3k6irxaqrhbhCA1J2TvOboe+vWCZZaFh/bXG3cr9gQw3qy
-# exrW/5VLU2DjYPA0SWulw0Lb0dlpCSz7N1t606Ot1iRjvX5kujJdKJIzCjO3hGjM
-# d+vODafYwY6xOEgh9ntoxnsxrZb/ubWjhLJk7dL42Si0hepa6EKbLZbPhejIQTjP
-# MRtZHaZaTKkwfgewDsXTnq0jPH+aqVZMYQPmwLKBNdj2xhxlqDK9mv8QqjsG4jUZ
-# 84vXPzsu91QwJLFFS5b/50/bfp9DOTBWMHYXbIPOivt5KsDTP0dPEfVOXJcHtyqx
-# OENNWTsVwnBIy1S98WLm4Tf3BtkKcA==
+# BTEPFw0yNjAxMTQxNjUwNDBaMC8GCSqGSIb3DQEJBDEiBCAxTRhLvmiVoNvaZZer
+# mVyHXiLOZwxsabDEOH0H9iUqZDANBgkqhkiG9w0BAQEFAASCAgDO4eRc7NRtSJR5
+# hKeEM/92/OBduV4L1oQvK/Hn5WWUdJNKMRvIZNKYgzHfZVuJQPMYvvNQ4EimpRo6
+# airg2dT+rGVW3AIeKOMs5n4gRLBSAiCQFcOGTrMp3j9xXHqeTJOM1liKdW1suhxu
+# dJEfO7RaWn0jeNh40rB+xy+lo6aREc+CKbA5gwPGmTc7tHk0j/PPzXDOjiws8c3t
+# FRr8qRO6kd++3psoz4IiaGGbxoPVZupTZC1vC6InALkfstrcO0b5IeauWYaDKwJZ
+# yr8D/vE+954LfqRU09kEO4FuC9oWjOb/HI31Jfd9W5bh9uQKqa4qGgVXUXqhO3P7
+# ojGynBSH8sqMg5MSi4q9PacnI/G+YA+lJOh86Jpek7SZ4lqfLY4Xz4Z4oWL++5UL
+# vS5KVpSPk9+B1Cik+fOZYdySmzJZjaJFztgGhRRSsEupgCXAuwNHs48BOLpX3cHI
+# oXp/IrdIFBbHohHhT6Fzj+9Z+13KPxMCDiwnDi6dh7/kGaYpXR+KVy2Uqv79HF8g
+# m1FuDWyhvU2wlqIrm7PqbH6lXsSaiw70xjZ5i4ETeqn8ZVcgCiCPH1GW6AqJGpPu
+# i4bke88UtrGtWaHYGrjyUy60iNJluLEOGj41u53cxik1EERViyiBixRr2pLGI/R8
+# dMz0WUU9HwAzCu8BULgdB+IU04Hj7A==
 # SIG # End signature block

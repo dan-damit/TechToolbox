@@ -1,7 +1,8 @@
+
 function Get-BrowserUserDataPath {
     <#
     .SYNOPSIS
-        Returns the Chromium 'User Data' path for Chrome/Edge on Windows.
+    Returns the Chromium 'User Data' path for Chrome/Edge on Windows.
     #>
     [CmdletBinding()]
     param(
@@ -9,17 +10,31 @@ function Get-BrowserUserDataPath {
         [ValidateSet('Chrome', 'Edge')]
         [string]$Browser
     )
-    switch ($Browser) {
-        'Chrome' { Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data' }
-        'Edge' { Join-Path $env:LOCALAPPDATA 'Microsoft\Edge\User Data' }
+
+    $base = $env:LOCALAPPDATA
+    if ([string]::IsNullOrWhiteSpace($base)) {
+        Write-Log -Level Error -Message "LOCALAPPDATA is not set; cannot resolve User Data path."
+        return $null
     }
+
+    $path = switch ($Browser) {
+        'Chrome' { Join-Path $base 'Google\Chrome\User Data' }
+        'Edge' { Join-Path $base 'Microsoft\Edge\User Data' }
+    }
+
+    if (-not (Test-Path -LiteralPath $path)) {
+        Write-Log -Level Warn -Message "User Data path not found for ${Browser}: $path"
+        # still return it; the caller will handle empty profile enumeration gracefully
+    }
+
+    return $path
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDsbpuqt+UYRdmj
-# LhEDmwvemwE0c71BVrvgSnunADSgkqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBphStmFKAgagW6
+# Qy8ANFC2+qNMRTKVpCN6FsQFJOtJ6qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -152,34 +167,34 @@ function Get-BrowserUserDataPath {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBoPcBBvJI6
-# 8QTl3OD4TWYOIxiSOfoaOupzhruvTM51YjANBgkqhkiG9w0BAQEFAASCAgCOe/3B
-# vHAYa4VRsmSPCu9EiSOkAWrRBW/r12LpNXykmCvXUEKXfOOC6qHOsCG4Jghsp3a3
-# Sp5FxRUA6CCh2SsYLE8xnegpClw8e0J0KwblZOwYIHqamN9VTzAFFPB3wWNPFjkR
-# 5wuFq9Kows2CTt9HLzPRlsT6fVeHKX9ZkdVXk5pZ1nxJ9ImlsunSBmMZ43pP/Ays
-# oZiKUm35a6Av4g90GxhOwXwYqTuQz5xvb2aQQ/FA1qojhp7wmqqOupl8JynLk/PN
-# TW4jiHVLgf4zZUxb1sGzvrOqo83IrvCKz5wsggCZCSKLIOXifgl7SjyAXEebXuVu
-# mf0hN4rFcs7gUuW3/MUZwQaDRia8n1ZviIBafSAlOTZvcGm/WPCpYf+yptAgoWSf
-# 7XbLKuhOdS7s3WHkDzdyS8Krm1olYI+HETFsLHpwGB/IuRTa2/bGnTYPNE5CfO6G
-# bu4bJAjL2TsApYY8OkFVXZnyMslJKkNws8DVV12IUIe10V5hpbERlq9YVHH8dZEG
-# MkNT4AvgvZ77wlYEXaDFEw+2D8/vrnRSFdZ2rXEkBe8KEQE4jFJRZthQZ/UArD1p
-# kJ1CqCI/TCfsgoQhS3Omnb4GM/rwbexxEooLk0xrxBuxDwiRM8xfZYnMLNlj/CLp
-# 6ZcTzolGxmBpbFnC5O+JZy8ONROg7SH3nW03daGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBA1Nh6OTWl
+# ZYCDJFIyMl/reCZdOZyIVmB826qbUVZtRTANBgkqhkiG9w0BAQEFAASCAgBVZ4uj
+# rKRmUSriE2vwAb5rzim95rQ/LttypNGcoG7Zvv5iMsP365md3eJcIh636dDl1wgM
+# NgV3OVwYB4YB0p8wmw0+a8EIfoHzO6PZmkQ5t3kzaB2nR25Fs5XQ/OfNBQVg897K
+# wSYFjVY+fCy7ozZVSspHhQTI5GOFXdk8Bu1nnlMfdSzdRvORKnqVhcEYSVOWg8yG
+# O+pUYvyXMUBtU3VHoXZsMff5pS9niBbUD6aEVIWsRBwj2fFTECZLuoaGSu/Z9qpr
+# d8h+ipPQNIcfTjVqn+KoYZ9P8M86xr1TQ53LMiYhM185eb1ejKaBldnXIE5K2W1u
+# H17XgEqgg/wRu6xyE+B85cDj7gqlLlGKecJrH60wbcEDO5XuFeToc9HkL7mV1ygZ
+# q+YucSF23XbdovbTuEXC96ggTpz9M7ZUDDtEFKZ6lPSPxkyQWb8GFhE56z5+hZDk
+# ZHNA5+ZIavlO54A5Kgdhai7FTgHNfU2h9KG2to1ZobwizVVDRuZbILpMKEX03rTF
+# C+GAo8wNgtzBDV22ax27W40zt95+YNG7VXi41T43QMFkYie/oTOw6XRqNtw4U2Ay
+# 9Tu3PyEUjo5Cvm4gaVOGTbp0St3Fo79ZqObvdf9r5mK/+j8xaagKSCfMqkYvJs//
+# TRR9qRdDaNXaAwptzBjKVu51nyXDHcREPaPReaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMDkyMDQyMjVaMC8GCSqGSIb3DQEJBDEiBCC0cHDOq+svhwDXdnLn
-# 7GEQVSUNOS3GIVS6gA50YLS6lTANBgkqhkiG9w0BAQEFAASCAgB++DEFW9ugXvH6
-# G9D1a9jm9I7EZ/K8QGfA6RRRAiC8XFibzqJQXhzoQ7VQuHrUnUHOyfz5pLTGjDmA
-# 59ptoeahWj45WBewHSOCmi6huXLU4CVbHrHGyZ63Q+c8GoptJO9Jw9UlOwx88fbS
-# wP73i/FcbmBfrhF+8KFsT3E3H1Kx4p0b3Zifj8HYHMRQpMygy/loUGIoFdWziTj2
-# hpj+NdW8223HpWZv1HU++ReuzJEOFogUcDyP9DZ+F/uDMGdMLSP54JlI7ZLXF7HU
-# OIdtv249vDWfMZKxtpe/OkmbI5uX8PnOuDzWWN5SsYUZ0QdikjsEQ6Oi5GBZggJG
-# H1VgVvSek/VHH14sqBfYpMCCvmajWq2sjj+IGsYZdkBBPLzQen2F9wWIKz+b/E5K
-# 2cdMGe8QHbZFF0AJ49QB84vHJQQTDrtsTA0Y0mfYVx2ZPY2D5aAHTCKevhc6mSIc
-# 61aQY+p6MB3C9tWJVJLn5ZCTE8F2aK9YgiHEBIIXRKJluu5QhXme1ZNg8NxZERUD
-# DzZ29xwtW+vst6ZLHR4+U7VuFIbpJ96hVRnxPwy0Sm3A4SpYuuMz/Q8ZuaW8xVYt
-# /DCzw2YZu4m+JqcxdoBM+Z151THcZ+By5nf7HY3N8/gBmIYVNVee+uRgGQYY1sl+
-# HSkn1T/SvT8oTQDkICDQu/NU1PUOyw==
+# BTEPFw0yNjAxMTQxNjUwNDBaMC8GCSqGSIb3DQEJBDEiBCB5ycM+y77m1fef4J4D
+# QaJYnVGL08cKEPrxKNY3Bc4TEzANBgkqhkiG9w0BAQEFAASCAgCefr/k++XQh5pv
+# 5kXB1TSxk5PviOshSDGebo3xHAbDaA/ORGcYWDkMc3IchVwNGWM/FSsmTKXX/SRC
+# HX1ye0H+R0eOnY6WSjUTDW/XHql9kCp11cWK+1Hz9F5BRb3ZpxIdqjIP1LvAZjUy
+# EldhLZUmaTMTa5GKW3AkwZ0vkgQ93P2tu9Q1eFFhvxePVwAVsU18bgYlpZME8oh1
+# hw+5UIc17TVFPpCTAteZumydnH71inN4WdQ9PFPaa8M8U6W7UGjYUrFkEnQpD0fq
+# Yii4C1hVoYikxmtrvev3Juh7A3SaSXhYJafAELcfYS7CZJ++IadIgHyOmfblG3kJ
+# xLWw+nkgysFI04ucqcma9oPCrB7zWUlw8lHLiFZixQa+5ZK51JPoIlecr7RZQCsG
+# Wikra/fCiADzPU5jWEIRjyOLHImIharEPApoIEaK1xCe7QVq4VikibzEQ47fwDgn
+# dQODOVZ69/JCKFHwbdRcWt8qNZhwaZYFD1sVzsWswML+vGkCsmbGphlWluyTwmi+
+# LnD8rzOuwyyxUQuPab6uhr+9s2JVXbfa+KSkZ6k10VGPuLK2aG8cuJKePiuQaSMd
+# XtSP592aw9w8ROSqlT/J+pcv6LpJxMi+1OUabutJRvgHYgqfzTSa5vQBtlEejuKu
+# gW+SYn/Ist87ioNnxvn31Y1FDUhc7g==
 # SIG # End signature block
