@@ -74,15 +74,17 @@ function Invoke-PurviewPurge {
 
         $autoConnect = $purv["autoConnect"] ?? $true
         $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true
-        $timeoutSeconds = int; if ($timeoutSeconds -le 0) { $timeoutSeconds = 1200 }
-        $pollSeconds = int; if ($pollSeconds -le 0) { $pollSeconds = 5 }
+        $timeoutSeconds = $purv["timeoutSeconds"] ?? 1200
+        if ($timeoutSeconds -le 0) { $timeoutSeconds = 1200 }
+        $pollSeconds = $purv["pollSeconds"] ?? 5
+        if ($pollSeconds -le 0) { $pollSeconds = 5 }
 
         # Default behavior matches GUI: All mailboxes + include unindexed, unless caller overrides
         $useAllMailboxes = $AllMailboxes.IsPresent -or (-not $MailboxList) # true if no list provided
         $includeUnidx = $IncludeUnindexedItems.IsPresent
         if (-not $IncludeUnindexedItems.IsPresent) {
             # Allow config to drive default if not explicitly set by caller
-            $includeUnidx = bool
+            $includeUnidx = [bool]($purv["includeUnindexedItems"] ?? $true)
         }
 
         # Prompt for query if not provided and your defaults allow prompting
@@ -211,8 +213,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAzHpsm3pxdiZBL
-# 8ES3utN2ic8R2hI337ef0di5HI8ZyqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCEY9HSOpXwade7
+# rQ6zJSbSs1CdDgAZTl1qvvHzLxs0mKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -345,34 +347,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD0CFGEhlrY
-# Ce84iefBhVcmTx7Fr6Zt5VvDaEd6+/zNYTANBgkqhkiG9w0BAQEFAASCAgCdKdcp
-# DqFnroOj6tOdrcyrApYgPKXdC35ikjIfmKljfEahdTe/WRMh6jQ2y1lw4akOX1BF
-# iAtOiMTuVj95gDpLSkkAkb21NHIFz6/qkU9LJZ9+guoMN9iWDvuq8NfFi/d8k/sE
-# TKmods8dcjTwaQZMGNp+P7Fi9S0TwtKj6mw6nBhimNWVowrnDZGhvjUhZ3m5RVxh
-# 5F7KmyGsy5z2RTtZIkrRMDQ7vF2keg39EqIF5XKsM0zptUBCA7h03+6gSGVQZxQr
-# nfI8en+cxmlOWFEzfW7SaPL21CgX+oQFeDNdHJHAqHSPhXdoObdM0ErUjP4HdvO9
-# tptMBmfk5xnzUfxGW/l5RMMNpFHzIw2PP15XblAsaTYdeYezwB5FJw1Bt3pQ5OYG
-# WyfIv/aM8l+ve9d/FaEBA8LOpQAPF8o9bPlE+7BknbPIrxy+3ekY1JST+A78QfB5
-# g3ub6iCrAauifK/ypp3lYwcbZ7f8PfvLerxGVV6q8vBR/2QqNqMDYjOiglvPUB4D
-# 9jHT1KxCjEz/366jI51yXBIaLKhXF+q3DpaYR9LPMUFAYp+Tlgs+44rC4wMITHEM
-# 6zB6Wdji/m54Nt89LX8VI1Zrw4cEVy0dIdzAVLq0dliUHODEqtIqfsejnop/KFef
-# iLQYsn0+j+wnEsmGB0tcLfeuFo6u+LUq3SRKqKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCYQEGtETm9
+# WSmbz2rbyMvfpTegoJZMc7ZJHoNhCeOsJDANBgkqhkiG9w0BAQEFAASCAgCnAGHQ
+# BdwZkLEZeMmoGkQrG55UJBNZ7ZlEVMj+EgKOTroWnnZwoIqwuxZLeYsGfnK08a0w
+# PisKnl9KMowyTTf/OAYwTajB9v+a+V1H30lP6ebDsRP9Uy2FP9CvX1VL9JzwR1RG
+# IJWbj6DIujgedXtC0cjIGWFgnTEbboFboVrZsk2GUhOiUwLZHUKuEQOCRCDMm0hX
+# B9s0IZNAG2WhILGukNGpgnBRLzxlAIK7jl7Bt5GhpaasfB04kogyTK+Dp1phjFlC
+# fx2Nlq7Jw4uIn8XcMRJJKUVeOMWt2N+5ueMCRKNUOyT66+FcrY9GRP8AE1T6/vXZ
+# xQxHJ6F23S2obS+bCvlp2BNl/4bBRFoljWm8sxTLYQNIbW7ahJ/n3eG8GFyk6k43
+# 0dfhrp+hG76LOc8VTslKL5MsZAD1Sm1YFJ0ouVQ7JMgj3fUVjZaLXOT3VMhipVnP
+# HkMVYtpE1htjx8QpjnbedwteCI+22FjHRw4kVVd25a6/BRqXF89OK/Fcs3HrdhDx
+# CM2sFV/wB/7BXsYtMvsYPiQGsEe8/nsCWuRsYRQqTyATMM+LM3IpGxzsCk3YeGAv
+# Rtu18wOhvb6kgea39gPIqrrQusDKGU37FGS3MWyed46ZZN5oSbY/186Y5e/azpa/
+# 4DFjYvA1t+enX9gl4gcn/QKol++1SGJ4j8/23qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTQyMjU0MDlaMC8GCSqGSIb3DQEJBDEiBCBBWlU1SQpFMtKsAz4E
-# u0QodkwuaKiDpmW8jl9XDfMM5zANBgkqhkiG9w0BAQEFAASCAgC791lqIrKbIOvk
-# oONYYjEYELx05IKetHO3MFjzlHCVUwgWoS/J9ZmGawPO8wWCgm9cxkOyhwDOYwha
-# 9T3kLmhxcVA5jY3rn7uHdci2BzJaD8Ssev0uUfPd6srxQpsgfH5PEeOz0zk9yTbF
-# iJ2HShAeG6zvvuUUFh4eYhBOik5gTU+lgYUogCsbbZyRX8NdN4gu8YcWD8CXvf2T
-# 4oynqDZHPI35cxLeeruOVzsR6rs0QWcCoEsf6RA7ZKTvDzn1LoqLcW4T4Z+QuDCR
-# pfj29FobIrDXsGSoZLHoWxuR+HKazvrXWaHL610nMTzMO7xxNsKsZNsNGz1Sw94f
-# lp3KLOdM690GdIbhGENkEX41HKqE8CZ8pKzXiWFRDtaq9q4mSH1w81fgM8jQGx9p
-# KTQjuSOBFxF+R5nXMAMHvi/Ptpmhr7BxIp76aZZ5bbzdijmj/GsrbNEajLTmA4do
-# 1tN/DSnD2qHdWmiJxTILyiUQ3P89BkHpe5aY31LdLQd4Aoua5tb1TNeiS3MTyzRJ
-# ZO0uSehVMsI5PnBIPnlbhHonutwHL94+McudZd84dSlLjhR5Df0P5FiSZMqhfz0D
-# sKCK2mtDxSadkFJUDz12Rlspt+8dZ5vhF7OUG++Gg/mq17QU6wHJAMJnYKX5hs/U
-# dA2J6SxNytDjYZs3A30u3ne6gXxPGA==
+# BTEPFw0yNjAxMTQyMjU3NDhaMC8GCSqGSIb3DQEJBDEiBCDw8LH8pyIMWGIGLmrb
+# 8s8zO1JNMWNTifWq8U7QLQ3+wzANBgkqhkiG9w0BAQEFAASCAgAV+CzDiYveSkFT
+# 5E9/VJbuJubpXCqPeRHNsdMDO/w5pil05WPavaGarP+K9DohWuwe4zRAYnWJjrQ3
+# l0k0v+IvqXB06b6wx33Wd6QIZ6ki1oaplaVrGWX2aX069LI+YZ7/3RAK1R6bmOPF
+# JanY16ams//J8j1ZympRr+qBnwd94uF1IsnKLzcLpmFtN4qYB8NX23d155MJ1fzI
+# 9OoyUBC5UdBUbIj8SObbpMrD69h6G2TVOs1yeFmiLK44k4kcDW2234Xfq/YKMtnm
+# ZQ8l/weLj+o/zX3b4O1AOs9XPuMB+TroiKpHsDQF8bUUwPKgmTdM4ElefsjB8hdo
+# 4oKDlTmxhDnQXoPjPNhiIxDvc81SvJUfQW0LMz1VadCbTTF1SRd63r2A3lB4Pa0A
+# gp4ncJsxr83ZGvVlf5d3PgliP5xIKq9s7bfwInW4iUX40+dmHpBRCK4M7IoJOU35
+# TZc3Mk/bjS1PeiChVZ8Z8HUBErOH75BiL6hbRbm3vuKr0krs/OxSHuirYZ4qQ5Os
+# 4ivAs/KVYCJR4wR+AnKz8/I+E6IAkkn+uS9LDFm30m85UIMVtlp7dPY1ywRodXcx
+# Bf53XY4j5wSzk51+MkjGfZRuurxy57QkCT8KXE0U7P6picytNLFEE/LBu15sXz/5
+# /a+BQ0uik/vNMgmRiEfQ0SfuhYBWXg==
 # SIG # End signature block
