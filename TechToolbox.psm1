@@ -13,26 +13,27 @@ Write-Host @"
 
 # Predefine module-level variables
 $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$loaderRoot = Join-Path $script:ModuleRoot 'Private\Loader'
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
 $script:log = $null
 $script:ConfigPath = $null
 $script:ModuleDependencies = $null
-# Dot-source loader helpers
-Get-ChildItem -Path $loaderRoot -Filter *.ps1 | ForEach-Object {
-    . $_.FullName
+# Load all private functions
+$privateRoot = Join-Path $script:ModuleRoot 'Private'
+Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
+ForEach-Object { . $_.FullName }
+# Load all public functions
+$publicRoot = Join-Path $script:ModuleRoot 'Public'
+$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
+$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
+    . $file.FullName
+    $file.BaseName
 }
 # Run initialization pipeline
 Initialize-Config
-Initialize-PrivateFunctions
 Initialize-Logging
 # Module dependency resolution
 $script:ModuleDependencies = Get-ModuleDependencies
 Initialize-Modules -Dependencies $script:ModuleDependencies
-# Public function initialization
-$publicFunctions = Initialize-PublicFunctions
 # Interop
 Initialize-Interop
 # Export public functions + aliases
-Export-ModuleMember -Function $publicFunctions
+Export-ModuleMember -Function $publicFunctionNames

@@ -22,15 +22,11 @@ function Build-ToolboxManifest {
         $ModuleRoot = Split-Path -Parent $PSScriptRoot
     }
 
-    # Dot-source loader helpers
-    $loaderRoot = Join-Path $ModuleRoot 'Private\Loader'
+    # Dot-source builder helpers
     $builderRoot = Join-Path $ModuleRoot 'Private\Builder'
-
-    foreach ($root in @($loaderRoot, $builderRoot)) {
-        if (Test-Path $root) {
-            Get-ChildItem -Path $root -Filter *.ps1 -File |
-            ForEach-Object { . $_.FullName }
-        }
+    if (Test-Path $builderRoot) {
+        Get-ChildItem -Path $builderRoot -Filter *.ps1 -File |
+        ForEach-Object { . $_.FullName }
     }
 
     $manifestPath = Join-Path $ModuleRoot 'TechToolbox.psd1'
