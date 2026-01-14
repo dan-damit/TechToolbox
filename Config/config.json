@@ -31,6 +31,7 @@
       "includeTimestamps": true,
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs",
       "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
+      "logFile": "TechToolbox.log",
       "minimumLevel": "Info"
     },
     "dnsLogging": {
