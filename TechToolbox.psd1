@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.2.6'
+ModuleVersion = '2.2.14'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -85,7 +85,7 @@ CmdletsToExport = '*'
 VariablesToExport = '*'
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = 'sanity_check'
+AliasesToExport = @()
 
 # DSC resources to export from this module
 # DscResourcesToExport = @()

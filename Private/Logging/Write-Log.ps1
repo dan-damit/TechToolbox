@@ -2,19 +2,20 @@
 function Write-Log {
     [CmdletBinding()]
     param(
-        [ValidateSet('Error','Warn','Info','Ok')][string]$Level,
+        [ValidateSet('Error', 'Warn', 'Info', 'Ok')][string]$Level,
         [string]$Message
     )
 
     # Null-safe config read
     $enableConsole = $false
-    $logFile       = $null
+    $logFile = $null
     try {
         if ($script:log -is [hashtable]) {
             $enableConsole = [bool]$script:log['enableConsole']
-            $logFile       = $script:log['logFile']
+            $logFile = $script:log['logFile']
         }
-    } catch { }
+    }
+    catch { }
 
     # Timestamp for file logging
     $timestamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
@@ -23,12 +24,13 @@ function Write-Log {
     # --- Console output with color ---
     if ($enableConsole) {
         switch ($Level) {
-            'Info'  { Write-Host $Message -ForegroundColor Cyan }
-            'Ok'    { Write-Host $Message -ForegroundColor Green }
-            'Warn'  { Write-Host $Message -ForegroundColor Yellow }
+            'Info' { Write-Host $Message -ForegroundColor Cyan }
+            'Ok' { Write-Host $Message -ForegroundColor Green }
+            'Warn' { Write-Host $Message -ForegroundColor Yellow }
             'Error' { Write-Host $Message -ForegroundColor Red }
         }
-    } else {
+    }
+    else {
         # Always surface critical issues even if console is off
         if ($Level -eq 'Error') { Write-Error $Message }
         elseif ($Level -eq 'Warn') { Write-Warning $Message }
@@ -38,7 +40,8 @@ function Write-Log {
     if ($logFile) {
         try {
             Add-Content -Path $logFile -Value $formatted
-        } catch {
+        }
+        catch {
             # Fallback: warn if file write fails
             if ($enableConsole) {
                 Write-Host "Failed to write log to ${logFile}: $($_.Exception.Message)" -ForegroundColor Yellow

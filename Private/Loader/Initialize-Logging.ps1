@@ -1,7 +1,7 @@
 function Initialize-Logging {
     if (-not $script:log) {
         $script:log = @{
-            enableConsole = $false
+            enableConsole = $true
             logFile       = $null
         }
     }
