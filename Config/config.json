@@ -100,7 +100,9 @@
     "aadSync": {
       "defaultPort": 5985,
       "defaultPolicyType": "Delta",
-      "allowKerberos": true
+      "allowKerberos": true,
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\AADSync",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\AADSync"
     },
     "exchangeOnline": {
       "autoConnect": true,
