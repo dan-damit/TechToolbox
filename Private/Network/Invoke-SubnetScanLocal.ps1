@@ -1,192 +1,169 @@
 
 function Invoke-SubnetScanLocal {
     <#
-    .SYNOPSIS
-        This is the scanning engine for consumption by Invoke-SubnetScan.ps1.
-    .DESCRIPTION
-        This function performs a subnet scan on the local machine, given a CIDR
-        notation. It pings each host in the subnet, optionally resolves hostnames,
-        checks for HTTP banners, and can export results to a CSV file.
-    .NOTES
-        This function is intended to be called internally by Invoke-SubnetScan.ps1
-    #>
+.SYNOPSIS
+    Scanning engine used by Invoke-SubnetScan.ps1.
+.DESCRIPTION
+    Pings each host in a CIDR, (optionally) resolves names, tests port,
+    grabs HTTP banner; returns *only responding hosts*. Export is off by default
+    so orchestrator can export consistently to settings.subnetScan.exportDir.
+#>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [string]$CIDR,
-
+        [Parameter(Mandatory)] [string]$CIDR,
         [int]$Port,
-
         [switch]$ResolveNames,
         [switch]$HttpBanner,
         [switch]$ExportCsv
     )
 
-    # Load config
-    $cfg = Get-TechToolboxConfig
-    $scanCfg = $cfg.settings.subnetScan
+    Set-StrictMode -Version Latest
+    $oldEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Stop'
 
-    # Apply defaults
-    if (-not $Port) { $Port = $scanCfg.defaultPort }
-    if (-not $ResolveNames) { $ResolveNames = $scanCfg.resolveNames }
-    if (-not $HttpBanner) { $HttpBanner = $scanCfg.httpBanner }
-    if (-not $ExportCsv) { $ExportCsv = $scanCfg.exportCsv }
+    try {
+        # --- CONFIG ---
+        $cfg = Get-TechToolboxConfig -Verbose
+        if (-not $cfg) { throw "TechToolbox config is null/empty. Ensure Config\config.json exists and is valid JSON." }
+        $scanCfg = $cfg['settings']?['subnetScan']
+        if (-not $scanCfg) { throw "Config missing 'settings.subnetScan'." }
 
-    Write-Log -Level Info -Message "Local subnet scan starting for $CIDR"
+        # Defaults (only if not passed)
+        if (-not $PSBoundParameters.ContainsKey('Port')) { $Port = $scanCfg['defaultPort'] ?? 80 }
+        if (-not $PSBoundParameters.ContainsKey('ResolveNames')) { $ResolveNames = [bool]($scanCfg['resolveNames'] ?? $false) }
+        if (-not $PSBoundParameters.ContainsKey('HttpBanner')) { $HttpBanner = [bool]($scanCfg['httpBanner'] ?? $false) }
+        if (-not $PSBoundParameters.ContainsKey('ExportCsv')) { $ExportCsv = [bool]($scanCfg['exportCsv'] ?? $false) }
 
-    # Expand CIDR into IP list
-    $ips = Get-IPsFromCIDR -CIDR $CIDR
-    if (-not $ips -or $ips.Count -eq 0) {
-        Write-Log -Level Warn -Message "No hosts found for CIDR $CIDR"
-        return @()
-    }
+        # Timeouts / smoothing
+        $pingTimeoutMs = $scanCfg['pingTimeoutMs'] ?? 1000
+        $tcpTimeoutMs = $scanCfg['tcpTimeoutMs'] ?? 1000
+        $httpTimeoutMs = $scanCfg['httpTimeoutMs'] ?? 1500
+        $ewmaAlpha = $scanCfg['ewmaAlpha'] ?? 0.30
+        $displayAlpha = $scanCfg['displayAlpha'] ?? 0.50
 
-    Write-Log -Level Info -Message "Scanning $($ips.Count) hosts..."
-
-    # Prepare results list
-    $results = [System.Collections.Generic.List[PSObject]]::new()
-
-    # Initialize timing + smoothing state
-    $pingTimeoutMs = $scanCfg.pingTimeoutMs
-    $ewmaAlpha = $scanCfg.ewmaAlpha
-    $displayAlpha = $scanCfg.displayAlpha
-
-    $avgHostMs = 0.0
-    $displayPct = 0.0
-    $current = 0
-    $total = $ips.Count
-    $online = 0
-
-    # Create ping object
-    $ping = New-Object System.Net.NetworkInformation.Ping
-
-    # --- MAIN SCAN LOOP ---
-    foreach ($ip in $ips) {
-
-        $hostSw = [System.Diagnostics.Stopwatch]::StartNew()
-
-        # Prepare result object
-        $result = [PSCustomObject]@{
-            IP         = $ip
-            Responded  = $false
-            RTTms      = $null
-            MacAddress = $null
-            PTR        = $null
-            NetBIOS    = $null
-            Mdns       = $null
-            PortOpen   = $false
-            ServerHdr  = $null
-            Timestamp  = (Get-Date)
+        # Expand CIDR → IP list
+        $ips = Get-IPsFromCIDR -CIDR $CIDR
+        if (-not $ips -or $ips.Count -eq 0) {
+            Write-Log -Level Warn -Message "No hosts found for CIDR $CIDR"
+            return @()
         }
 
-        try {
-            # Ping host
-            $reply = $ping.Send($ip, $pingTimeoutMs)
+        Write-Log -Level Info -Message "Scanning $($ips.Count) hosts..."
 
-            if ($reply -and $reply.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+        $results = [System.Collections.Generic.List[psobject]]::new()
 
-                $result.Responded = $true
-                $result.RTTms = $reply.RoundtripTime
-                $online++
+        # Progress telemetry
+        $avgHostMs = 0.0
+        $displayPct = 0.0
+        $current = 0
+        $total = $ips.Count
+        $online = 0
 
-                # MAC lookup (local only)
-                try { $result.MacAddress = Get-MacAddress -ip $ip } catch {}
+        $ping = [System.Net.NetworkInformation.Ping]::new()
 
-                # Name resolution (PTR → NetBIOS → mDNS)
-                if ($ResolveNames) {
-                    try { $result.PTR = Get-ReverseDns -ip $ip } catch {}
+        foreach ($ip in $ips) {
+            $hostSw = [System.Diagnostics.Stopwatch]::StartNew()
 
-                    if (-not $result.PTR) {
-                        try { $result.NetBIOS = Get-NetbiosName -ip $ip } catch {}
+            $result = [pscustomobject]@{
+                IP         = $ip
+                Responded  = $false
+                RTTms      = $null
+                MacAddress = $null
+                PTR        = $null
+                NetBIOS    = $null
+                Mdns       = $null
+                PortOpen   = $false
+                ServerHdr  = $null
+                Timestamp  = Get-Date
+            }
+
+            try {
+                $reply = $ping.Send($ip, $pingTimeoutMs)
+
+                if ($reply -and $reply.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                    $result.Responded = $true
+                    $result.RTTms = $reply.RoundtripTime
+                    $online++
+
+                    try { $result.MacAddress = Get-MacAddress -ip $ip } catch {}
+
+                    if ($ResolveNames) {
+                        try { $result.PTR = Get-ReverseDns -ip $ip } catch {}
+                        if (-not $result.PTR) { try { $result.NetBIOS = Get-NetbiosName -ip $ip } catch {} }
+                        if (-not $result.PTR -and -not $result.NetBIOS) { try { $result.Mdns = Get-MdnsName -ip $ip } catch {} }
                     }
 
-                    if (-not $result.PTR -and -not $result.NetBIOS) {
-                        try { $result.Mdns = Get-MdnsName -ip $ip } catch {}
-                    }
-                }
+                    try { $result.PortOpen = Test-TcpPort -ip $ip -port $Port -timeoutMs $tcpTimeoutMs } catch {}
 
-                # TCP port test
-                try { $result.PortOpen = Test-TcpPort -ip $ip -port $Port -timeoutMs $scanCfg.tcpTimeoutMs } catch {}
-
-                # HTTP banner detection
-                if ($HttpBanner -and $result.PortOpen) {
-                    try {
-                        $hdrs = Get-HttpInfo -ip $ip -port $Port -timeoutMs $scanCfg.httpTimeoutMs
-                        if ($hdrs -and $hdrs['Server']) {
-                            $result.ServerHdr = $hdrs['Server']
+                    if ($HttpBanner -and $result.PortOpen) {
+                        try {
+                            $hdrs = Get-HttpInfo -ip $ip -port $Port -timeoutMs $httpTimeoutMs
+                            if ($hdrs -and $hdrs['Server']) { $result.ServerHdr = $hdrs['Server'] }
                         }
+                        catch {}
                     }
-                    catch {}
+
+                    # Add only responding hosts
+                    $results.Add($result)
                 }
             }
-        }
-        catch {
-            # treat as no response
-        }
-        finally {
-            $hostSw.Stop()
-            $durMs = $hostSw.Elapsed.TotalMilliseconds
-
-            # EWMA smoothing for per-host duration
-            if ($avgHostMs -le 0) {
-                $avgHostMs = $durMs
+            catch {
+                # ignore host-level exceptions; treat as no response
             }
-            else {
-                $avgHostMs = ($ewmaAlpha * $durMs) + ((1 - $ewmaAlpha) * $avgHostMs)
+            finally {
+                $hostSw.Stop()
+                $durMs = $hostSw.Elapsed.TotalMilliseconds
+
+                if ($avgHostMs -le 0) { $avgHostMs = $durMs }
+                else { $avgHostMs = ($ewmaAlpha * $durMs) + ((1 - $ewmaAlpha) * $avgHostMs) }
+
+                $current++
+                $actualPct = ($current / $total) * 100
+                $displayPct = ($displayAlpha * $actualPct) + ((1 - $displayAlpha) * $displayPct)
+
+                $remaining = $total - $current
+                $etaMs = [math]::Max(0, $avgHostMs * $remaining)
+                $eta = [TimeSpan]::FromMilliseconds($etaMs)
+
+                Show-ProgressBanner -current $current -total $total -displayPct $displayPct -eta $eta
             }
-
-            $current++
-
-            # Actual percent
-            $actualPct = ($current / $total) * 100
-
-            # Smooth displayed percent
-            $displayPct = ($displayAlpha * $actualPct) + ((1 - $displayAlpha) * $displayPct)
-
-            # ETA calculation
-            $remaining = $total - $current
-            $etaMs = [math]::Max(0, $avgHostMs * $remaining)
-            $eta = [TimeSpan]::FromMilliseconds($etaMs)
-
-            # Update progress bar
-            Show-ProgressBanner -current $current -total $total -displayPct $displayPct -eta $eta
-
-            # Store result
-            $results.Add($result)
         }
+
+        $ping.Dispose()
+        Write-Log -Level Ok -Message "Local subnet scan complete. $online hosts responded."
+
+        # Remote-side export when explicitly requested (used by ExportTarget=Remote)
+        if ($ExportCsv -and $results.Count -gt 0) {
+            try {
+                $exportDir = $scanCfg['exportDir']
+                if (-not $exportDir) { throw "Config 'settings.subnetScan.exportDir' is missing." }
+                if (-not (Test-Path -LiteralPath $exportDir)) {
+                    New-Item -ItemType Directory -Path $exportDir -Force | Out-Null
+                }
+                $cidrSafe = $CIDR -replace '[^\w\-\.]', '_'
+                $csvPath = Join-Path $exportDir ("subnet-scan-{0}-{1}.csv" -f $cidrSafe, (Get-Date -Format 'yyyyMMdd-HHmmss'))
+                $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8 -Force
+                Write-Log -Level Ok -Message "Results exported to $csvPath"
+            }
+            catch {
+                Write-Log -Level Error -Message "Failed to export CSV: $($_.Exception.Message)"
+            }
+        }
+        elseif ($ExportCsv) {
+            Write-Log -Level Warn -Message "Export skipped: no responding hosts."
+        }
+
+        return $results
     }
-
-    # Dispose ping object
-    $ping.Dispose()
-
-    Write-Log -Level Ok -Message "Local subnet scan complete. $online hosts responded."
-
-    # Export CSV if requested
-    if ($ExportCsv) {
-        try {
-            $exportDir = $cfg.settings.paths.ExportDirectory
-            if (-not (Test-Path $exportDir)) {
-                New-Item -ItemType Directory -Path $exportDir -Force | Out-Null
-            }
-
-            $csvPath = Join-Path $exportDir ("subnet-scan-$($CIDR.Replace('/','-'))-{0}.csv" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
-
-            $results | Export-Csv -Path $csvPath -NoTypeInformation -Force
-
-            Write-Log -Level Ok -Message "Results exported to $csvPath"
-        }
-        catch {
-            Write-Log -Level Error -Message "Failed to export CSV: $($_.Exception.Message)"
-        }
+    finally {
+        $ErrorActionPreference = $oldEAP
     }
-
-    return $results
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBksAvr/7q/vv2z
-# 9iMkzwkKeFZIX6PS6OPvOTlPgk0W8qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB4vQ0+06We+YD9
+# hoobyoqB8UBoqogghZmwRMqCFJX9LaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -319,34 +296,34 @@ function Invoke-SubnetScanLocal {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXPcb25vfy
-# FRGE6YSp/PZZrLt5i+HuDunkerlFXBgjMjANBgkqhkiG9w0BAQEFAASCAgA6LZOH
-# K8GxFQc7xgsXnSWVRcnz2sqkab4bRgx/XLHaG+LAE5G4h1r4o49EqT7J/8wU4lm+
-# V0FwO3uqR7L3BEtA3xEiZyNJ0eZGGhEcBAm63xAHtdTFqTNNZduukXfIFP7ELjOO
-# keyXCOcjcYMXaUnnM9kqcBqoRZnQH2uhxZFLhtKMZ9v0wu+Fkf5R3k+EZtWz7iAW
-# Hk/d3+5psvaN3dfDrQrYA4hxjaJuWuylAaLcZJqS5lBGzi1rgkYIglrz+igPF2Ba
-# pjnMRD0dQBUQP4ENL/gD/kF+22G8EZaXAkD1/j8vPD6fr6lPAlT2Cx4Ourra0Eno
-# ZMYxcsbwpyZKvgCR22FkGyU3ZPZWdpi9zs6xMTTO9daVwP3vDJhH5adHkXG2CCEX
-# UYh6XvoKojOnp5IcDiiKL0PIASbzVDaMP5a42qG2fBZTrYxwNiCYOaYMmfHGH+FL
-# HDNiesozpQCQbS1ggHn42ufHEUZ1zeNVAVNELtn8/pT3ZLuXqYUt5mzEaoDFT4Ys
-# SOgGE89j+3NarY9nperIXSt5sjF1D3wgox18sbJ5YC082pR9And0U0zdc8rxefeV
-# 42/HSL+wmFNzWpDLJf3MkVQ34W7RC4JGhBdZ8+YiBYSXqE0LZw4oJ0RLFP4V/vdn
-# ISb4vyFXQ8px8taIkW29DPxdtGmP1l5IeJ9pEaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA95OO/5A/t
+# EvTbg+Yzo6pilfRRmX3qheZTS6Jlk4hMtjANBgkqhkiG9w0BAQEFAASCAgBZgxIe
+# zwMm47A7F982Un5FFRRXuakpIhYd8HD8Oa/vaAoa39mpMC4k0horoTK1hHqPyULU
+# xp8135hZHyIw99nkEMxyR9qYX04qFbFceM01JS/PR5yDa7oFanjW5XA1W0+TBien
+# UGwkqoQpaHxB0/iZR6Q1zq1DV5U+YK47n2j1XpTfEVybCt7iB3nlrRy6cipoLKlJ
+# mKNS7OfBWE9peU8fFQUsui48JoH2UsxseVEjnwrErYzvjEb9i6tSnIX5FF0aBbVk
+# q8D3aImuqnb9nPka9irf9C2JOtbMXs/p9iJF1cAgTtZJF8evMKQegzHroMhPGL7g
+# cMXKyNqE+4Eamyv4hL6OMNzZtBPhwkiOy5Yzx9/y7k04y73edRd5vOrjupIB4FXR
+# X8JzwOwfv0yyPKJTGjntCm8h8jSxx2+akrdrd7bCtpjW25Rofl6RUK93DEFZuyFL
+# fbb54V6Gc0pBKM5GiHYYMlMFhMjaz7RPOnCtVKfWpUm/9SXJEHgEM+bcPVz7J6iT
+# xGABoem8y/ksgVOqy/LR8mvFCftRkJHEuJzHVAq/3sFKuWj0GXOmQQlkrNkUSnf4
+# j/77Uxh5b5DPZuV/KzttylLYFqxBh+rLxZ/OzU04PJm0kgl08lorV2Rzn6GoBo7j
+# OmGJAKBQOmKmYB76qeg4jENOLEAoF2Aa747ixKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNDMyNDdaMC8GCSqGSIb3DQEJBDEiBCCDgAj+VHKLRwv6jIBe
-# zuTsfuevbynRddsmPBtNtrSFpTANBgkqhkiG9w0BAQEFAASCAgAi5O0iSiCPDQVM
-# Ld7Qsn7yao0GFkq8Ln8tb3o4K/lzbOODB2mVky/CrYfqc2dFiReSXbBc0sNJaLGV
-# /1aQ0Tgne203fR1daQzTiAPLtLgd3rU39CUVkzrbvuqQgkO93oucmMTZ93CxLZAD
-# Inzg+pWu1zPGxkF8vl1fknHoQGtKXq+wzeCJWL4GGfpqoJD6anRew5cKwJ1eepcn
-# 2qZ+neGs4v6wfaW/k/zHoLXDEXO0HOYmN6Ut7NrtMj9xMJtyP00WGPZNpoLWh2gB
-# KqmAG/+t67wPo2yc49s1oW2XnVJnvZ7pq77jpAXRSAbmObKbGEJtWFRJUlfF4R0x
-# wWP5+s0wGkkhJhrf1M6cSGMvdh4TRM5W2OO/EDVpXfHAMvRVEEOUip5m5i0jjqGg
-# Q0Y+Pgo00Tl3HjrQcY6p8IO5SWwO7mgxfr+cZ0hEilwBuYYAKTMHuElrS9U01l+u
-# Pqy6y5T4dDO62RCTtv99byXZqEuLGzf+Mpm9fyS/Pyk1qp3H+rmNjfgDL2f1CUQZ
-# TnYLtDIuiZW4B9v8VLVCDPOdM+6BOII3LopAJmyDWf4TmHhdu0Ug4Q5nEALmp5CD
-# nJHIFJuRGy09kmCD3xDXLMYw5kvQHrxE7+f5AgTu7YCqWmejfvZ2K1JuYyYO43U2
-# m7OMnt7G4gcOpeAU+Sa6hhEJYOvZ7w==
+# BTEPFw0yNjAxMTQyMjQxNDhaMC8GCSqGSIb3DQEJBDEiBCD6vAydhthYGtiNWl8R
+# 6IGRzp823STrTs5GOzQa4DUkcTANBgkqhkiG9w0BAQEFAASCAgAYkJx+jYg09fY4
+# e4abBhlRNUy9K7By6IXmPi0VbKHbAKcxStTyn5NHbtdFZHFLwDvpB+bCXkK8Av6V
+# gDAatCnUmLjRDrqK1jsz/oNuIXehDVIPsJDv1Vu6Sp65HBTeiy+BADiSKr7WR/Kw
+# KKQgwf+LV/pAn+BusKq2CqrvA8aNWr7tl5m5fjxezmB0UpbV8hVN8ytcHItcVDkQ
+# 9EqnJA1dn5S54RzMvdq2PsALT+JT1v8D72Md/Cht0aUsvI2D2rsPURc/Mr3PEvqz
+# 5K/ySuImN9qJM7Lmu5cSOit6wwxX3P8pFcLMtATjKEDTNTQKWRdEh3cZmGoRUYGF
+# r1XtNU0Qb6qW+iN68xdnUqZD2cq/5+ICqQ14FBATn6EQ1BBrKh0+TPLEl3eu+hRl
+# 5LHa+CD+vTx5GV4vgnAxyE5Oy2uErRSeKyZXjBKdJszH9niXURUo3k+5y8FTqiMk
+# 81kpTBUEfoeG+jqf+cP7foWIAP/oHvSa3Xzb3nLZToteMEN30jWuZIXvAS9QhJGn
+# 7R67JSjDn7HsYGPId64u56ACZYDCc6CkIvB1RPRKRmybtwB26w9HjVq7Dikpdyxv
+# 6neqqbjVOBchwAsFlHzaj951hrOOtTqbI6rNFBjnOnAJ+yTzrLxR1w80HTuZPub4
+# fbkfMU+69jVT0oTGI4MbqKP983KwkQ==
 # SIG # End signature block

@@ -63,7 +63,8 @@
       "resolveNames": true,
       "httpBanner": true,
       "logFile": "SubnetScan.log",
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SubnetScan"
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SubnetScan",
+      "exportDir": "C:\\LogsAndExports\\TechToolbox\\Exports\\SubnetScan"
     },
     "systemRepair": {
       "runRemote": true,

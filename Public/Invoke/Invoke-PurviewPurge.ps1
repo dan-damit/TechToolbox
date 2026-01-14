@@ -27,12 +27,24 @@ function Invoke-PurviewPurge {
         PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" `
             -CaseName "Legal Case 123" -SearchName "Original Search"
     #>
-
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(
-        [Parameter()][ValidateNotNullOrEmpty()][string]$UserPrincipalName,
-        [Parameter()][ValidateNotNullOrEmpty()][string]$CaseName,
-        [Parameter()][ValidateNotNullOrEmpty()][string]$SearchName,
+        [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$UserPrincipalName,
+        [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$CaseName,
+
+        # The KQL/keyword query to match items to purge (e.g., 'from:(*@*.broobe.*)')
+        [Parameter()][ValidateNotNullOrEmpty()][string]$ContentMatchQuery,
+
+        # Scope controls: default is All mailboxes. If you specify MailboxList, that overrides All.
+        [Parameter()][string[]]$MailboxList,
+        [Parameter()][switch]$AllMailboxes,
+
+        # Include partially indexed content (recommended when matching GUI behavior)
+        [Parameter()][switch]$IncludeUnindexedItems,
+
+        # Optional naming override/prefix; the function will add a timestamp suffix to ensure uniqueness
+        [Parameter()][ValidateNotNullOrEmpty()][string]$SearchNamePrefix = "TTX-Purge",
+
         [Parameter()][hashtable]$Log,
         [switch]$ShowProgress
     )
@@ -40,68 +52,52 @@ function Invoke-PurviewPurge {
     # Global safety
     $ErrorActionPreference = 'Stop'
     Set-StrictMode -Version Latest
- 
+
     # Defensive: guarantee $script:log exists in this module scope
     if (-not (Get-Variable -Name log -Scope Script -ErrorAction SilentlyContinue)) {
         Set-Variable -Name log -Scope Script -Value @{ enableConsole = $false }
     }
 
-    # --- Ensure a module-scope logging bag exists, then merge ---
-    if (-not ($script:log -is [hashtable])) {
-        # Safe defaults; do not assume console until asked
-        $script:log = @{ enableConsole = $false }
-    }
-    if ($Log) {
-        foreach ($k in $Log.Keys) { $script:log[$k] = $Log[$k] }
-    }
-
-    # Allow caller to force console on via -ShowProgress
+    # Ensure a module-scope logging bag exists, then merge
+    if (-not ($script:log -is [hashtable])) { $script:log = @{ enableConsole = $false } }
+    if ($Log) { foreach ($k in $Log.Keys) { $script:log[$k] = $Log[$k] } }
     if ($ShowProgress) { $script:log["enableConsole"] = $true }
 
-    # Turn on Information/Verbose streams BEFORE try if console requested
-    if ($script:log["enableConsole"]) {
-        $InformationPreference = 'Continue'
-        $VerbosePreference = 'Continue'
-    }
-
-    # Initialize any variables referenced in finally (StrictMode-safe)
+    # Initialize StrictMode-safe variables
     [bool]$autoDisconnect = $false
 
     try {
-        # Initialize for StrictMode safety
-        [string]$cloneName = $null
-        $searchObj = $null
-        [bool]$submitted = $false
-
-        # Load config
+        # ---- Config & defaults ----
         $cfg = Get-TechToolboxConfig
         $purv = $cfg["settings"]["purview"]
         $defaults = $cfg["settings"]["defaults"]
 
-        $promptCase = $defaults["promptForCaseName"] ?? $true
-        $promptSearch = $defaults["promptForSearchName"] ?? $true
         $autoConnect = $purv["autoConnect"] ?? $true
-        $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true   # now set for finally
+        $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true
+        $timeoutSeconds = int; if ($timeoutSeconds -le 0) { $timeoutSeconds = 1200 }
+        $pollSeconds = int; if ($pollSeconds -le 0) { $pollSeconds = 5 }
 
-        # Import EXO module
-        Ensure-ExchangeOnlineModule -ErrorAction Stop
-
-        # Prompt inputs
-        if (-not $UserPrincipalName) { $UserPrincipalName = Read-Host "Enter UPN (e.g., user@domain.com)" }
-        if (-not $CaseName) {
-            if ($promptCase) { $CaseName = Read-Host "Enter eDiscovery Case Name/ID" }
-            else { throw "CaseName is required but prompting is disabled by config." }
+        # Default behavior matches GUI: All mailboxes + include unindexed, unless caller overrides
+        $useAllMailboxes = $AllMailboxes.IsPresent -or (-not $MailboxList) # true if no list provided
+        $includeUnidx = $IncludeUnindexedItems.IsPresent
+        if (-not $IncludeUnindexedItems.IsPresent) {
+            # Allow config to drive default if not explicitly set by caller
+            $includeUnidx = bool
         }
-        if (-not $SearchName) {
-            if ($promptSearch) {
-                $SearchName = Read-Host "Enter original Compliance Search Name/ID in case '$CaseName' (or press Enter to create new)"
+
+        # Prompt for query if not provided and your defaults allow prompting
+        $promptQuery = $defaults["promptForContentMatchQuery"] ?? $true
+        if (-not $ContentMatchQuery) {
+            if ($promptQuery) {
+                $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (e.g., from:(*@*.broobe.*))"
             }
             else {
-                Write-Log -Level Info -Message "No SearchName provided and prompting disabled; proceeding to clone/create."
+                throw "ContentMatchQuery is required but prompting is disabled by config."
             }
         }
 
-        # Connect (IPPS/ Purview) if enabled
+        # ---- Module & session ----
+        Ensure-ExchangeOnlineModule -ErrorAction Stop
         if ($autoConnect) {
             Connect-PurviewSearchOnly -UserPrincipalName $UserPrincipalName -ErrorAction Stop
         }
@@ -109,45 +105,82 @@ function Invoke-PurviewPurge {
             Write-Log -Level Info -Message "AutoConnect disabled by config; ensure an active Purview session exists."
         }
 
-        # Clone or create mailbox-only search (filter output to the string name)
-        Write-Log -Level Info -Message ("Cloning/creating mailbox-only search from '{0}' in case '{1}'..." -f $SearchName, $CaseName)
+        # ---- Build a unique search name ----
+        $ts = (Get-Date).ToString("yyyyMMdd-HHmmss")
+        $baseName = "{0}-{1}" -f $SearchNamePrefix, $CaseName
+        $searchName = "{0}-{1}" -f $baseName, $ts
 
-        $cloneName = New-MailboxSearchClone -CaseName $CaseName -OriginalSearchName $SearchName |
-        Where-Object { $_ -is [string] } |
-        Select-Object -First 1
+        # ---- Determine Exchange scope ----
+        $exchangeScope = $null
+        if ($useAllMailboxes) {
+            $exchangeScope = "All"
+        }
+        else {
+            if ($MailboxList.Count -eq 0) {
+                throw "MailboxList was specified but is empty."
+            }
+            $exchangeScope = $MailboxList
+        }
 
-        if ([string]::IsNullOrWhiteSpace($cloneName)) { throw "Clone name was not resolved to a string." }
-        Write-Log -Level Ok -Message ("Clone name: '{0}'" -f $cloneName)
+        Write-Log -Level Info -Message ("Creating mailbox-only Compliance Search '{0}' in case '{1}'..." -f $searchName, $CaseName)
+        Write-Log -Level Info -Message ("Query: {0}" -f $ContentMatchQuery)
+        Write-Log -Level Info -Message ("Scope: ExchangeLocation={0}; IncludeUnindexedItems={1}" -f ($(if ($useAllMailboxes) { 'All' } else { $MailboxList -join ', ' }), $includeUnidx))
 
-        # Wait for search completion
-        $timeout = [int]$purv.purge.timeoutSeconds; if ($timeout -le 0) { $timeout = 1200 }
-        $poll = [int]$purv.purge.pollSeconds; if ($poll -le 0) { $poll = 5 }
+        # ---- Create the mailbox-only search ----
+        # Note: For mailbox-only, we set only -ExchangeLocation and omit SharePoint/OneDrive
+        $newParams = @{
+            Name                  = $searchName
+            Case                  = $CaseName
+            ExchangeLocation      = $exchangeScope
+            ContentMatchQuery     = $ContentMatchQuery
+            IncludeUnindexedItems = $includeUnidx
+        }
 
-        Write-Log -Level Info -Message ("Waiting for search '{0}' (case '{1}') to complete (timeout={2}s, poll={3}s)..." -f $cloneName, $CaseName, $timeout, $poll)
-        $searchObj = Wait-SearchCompletion -SearchName $cloneName -CaseName $CaseName -TimeoutSeconds $timeout -PollSeconds $poll -ErrorAction Stop
+        # Create (respects WhatIf)
+        if ($PSCmdlet.ShouldProcess(("Case '{0}'" -f $CaseName), ("Create compliance search '{0}' (mailbox-only)" -f $searchName))) {
+            $null = New-ComplianceSearch @newParams
+            Write-Log -Level Ok -Message ("Search created: {0}" -f $searchName)
+        }
+        else {
+            Write-Log -Level Info -Message "Creation skipped due to -WhatIf/-Confirm."
+            return
+        }
 
-        if ($null -eq $searchObj) { throw "Search object not returned for '$cloneName' (case '$CaseName')." }
+        # Start (respects WhatIf)
+        if ($PSCmdlet.ShouldProcess(("Search '{0}'" -f $searchName), 'Start compliance search')) {
+            Start-ComplianceSearch -Identity $searchName
+            Write-Log -Level Info -Message ("Search started: {0}" -f $searchName)
+        }
+        else {
+            Write-Log -Level Info -Message "Start skipped due to -WhatIf/-Confirm."
+            return
+        }
+
+        # ---- Wait until completion ----
+        Write-Log -Level Info -Message ("Waiting for search '{0}' to complete (timeout={1}s, poll={2}s)..." -f $searchName, $timeoutSeconds, $pollSeconds)
+        $searchObj = Wait-SearchCompletion -SearchName $searchName -CaseName $CaseName -TimeoutSeconds $timeoutSeconds -PollSeconds $pollSeconds -ErrorAction Stop
+
+        if ($null -eq $searchObj) { throw "Search object not returned for '$searchName' (case '$CaseName')." }
         Write-Log -Level Ok -Message ("Search status: {0}; Items: {1}" -f $searchObj.Status, $searchObj.Items)
-        if ($searchObj.Items -le 0) { throw "Search '$cloneName' returned 0 mailbox items. Purge aborted." }
 
-        # Submit HardDelete purge (respects -WhatIf/-Confirm)
-        if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $cloneName), 'Submit Purview HardDelete purge')) {
-            $null = Invoke-HardDelete -SearchName $cloneName -CaseName $CaseName -Confirm:$false -ErrorAction Stop
-            $submitted = $true
-            Write-Log -Level Ok -Message ("[Done] Purview HardDelete purge submitted for '{0}' in case '{1}'." -f $cloneName, $CaseName)
+        if ($searchObj.Items -le 0) {
+            throw "Search '$searchName' returned 0 mailbox items. Purge aborted."
+        }
+
+        # ---- Purge (HardDelete) via your helper ----
+        if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $searchName), 'Submit Purview HardDelete purge')) {
+            $null = Invoke-HardDelete -SearchName $searchName -CaseName $CaseName -Confirm:$false -ErrorAction Stop
+            Write-Log -Level Ok -Message ("[Done] Purview HardDelete purge submitted for '{0}' in case '{1}'." -f $searchName, $CaseName)
         }
         else {
             Write-Log -Level Info -Message "Purge submission skipped due to -WhatIf/-Confirm."
         }
 
-        # Final breadcrumb
-        Write-Log -Level Ok -Message ("Summary: clone='{0}' status='{1}' items={2} purgeSubmitted={3}" -f $cloneName, $searchObj.Status, $searchObj.Items, $submitted)
+        # ---- Summary ----
+        Write-Log -Level Ok -Message ("Summary: search='{0}' status='{1}' items={2} purgeSubmitted={3}" -f $searchName, $searchObj.Status, $searchObj.Items, $true)
     }
     catch {
-        # Guaranteed-visible error; avoids relying on $script:log in early failure
         Write-Error ("[ERROR] {0}" -f $_.Exception.Message)
-
-        # If console enabled, also use your logger
         if ($script:log["enableConsole"]) {
             Write-Log -Level Error -Message ("[ERROR] {0}" -f $_.Exception.Message)
         }
@@ -174,12 +207,13 @@ function Invoke-PurviewPurge {
         }
     }
 }
+``
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC71Lh1HNbjSsHa
-# gWSj2fpyPQI6iNQVyftGpYRMPONyT6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBOpB2FqdHZ5RfN
+# OOFP7nypYOgtJ2LqT8V+UmrjMtjDN6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -312,34 +346,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAd1igU43S1
-# j0dbAyqVPvYhISboq0JpE8jRcF9DuyJMNzANBgkqhkiG9w0BAQEFAASCAgC8Fsnf
-# 87FsnUceon9JfcmZOrTcewy/r/PLwQoJwg+JSkVPaB1ojvb7GJBJOt+NTJT0pKKG
-# D+SYJYZlGQnyAjdzSVWAPJlsGZNvdU5ODWn+bTZ6FXi+AryBV+ahqTY4org6tYXm
-# QoXnjjliuO5vD/na748k1qWbNWvEbV9hhOQ96zprTPoPxScwI3y1rZY6vmqxAVjI
-# ENLDAF4fO0q91sH3pz//qV+n0Eb8sIZbIvTAVFM4zmg7bUE6ZGFF92PjkMSpIcbL
-# GaWTEVbzIgCATBMXvuKKDte++jlO22NNakIbzqzr144Egu40KPMiYP50i22Crk8a
-# 0XuVmTqlK0EcxedyMW/LqhMmYb8/3lC+knmBRjbOuNEN+DsvAuJr6dLrlzFFezXI
-# pkNIjd446fa6bd+0T763se/9ZDa79yXoppbaVZj67DG3/HoR3FunHGRs6H6IuSoJ
-# b8oRS3fkt/87X9wcrzZ68uEc1Bud8l4pnmb6FtAnRO8BD+g1b1vauo3AnZw6gWWH
-# /P2EW3OKhSZbQrXLN8hPxaJcLqOgUQbgC8W0W2kIJSpV1zUOo7QDlSF9+iQvCGxS
-# gdFkhbM9m5opCAEYGLyGKLlIx14XsEsadhwOe6p5d3iqtIL6mNMDRXDshrFhVtCy
-# XDWA6qxqR5nLnFV58GNIao4gqebtGFyVCqDneaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCygbhxjHUU
+# z3FjldonE+w7dNKOxNCMzXvLZYTvqU26ITANBgkqhkiG9w0BAQEFAASCAgDArU0b
+# SE/QbT9v3cLuEOT8yods1DCtDbMioe8chxS4be6tCDmrtwDsvAZCbV5A+ENOuJm+
+# yKsmVVXe3+KzWbjRc2NGhQywOrGNzqZYZQli8aF/Vtl1hwbWeCHzdfujtkSBazkd
+# tKRkgHe7BmJmx5kTce//RWluNF2DLcRcUUTQsB3PNFEehmJfOLcry5hFIMiwtPPy
+# E+0V0LKcJf6boMrgVQtdH+hv/+lQ4ppNROMQnK86StVPFEjFOCKQHcFG13q8IU2U
+# 7OLbQjA056LCFnNxBmrkeqNK+taleoZcGNhqKoZcuiEsQim4bN/CHS5294Xt5GZg
+# rMauJQEKmxr59yx5l52XB597Tx0pUPDqTUsIq7NETHrO9hRmmnKjDlNJKNbQZhYc
+# oR1bLcs+EkCcZvSsVB7qxcZ7Fi11PCQpCvrrslgV9Xo0VNzBgtojDEHYZewPf5Ye
+# vNMZX9vsVuliUfgquwsVaDctNtHSv6QyEVIlTjOhkFCifyj1YXqL0K0QwecCgi8s
+# UeJhU2jBZUWEI0FvWAEHIySc8qowGEWVkiVMaY26gXN7CdNBNiC5UPl9zFQKdNVn
+# aLWrQWRGHnTLRW8tcRFvidKLC+FSaqt1RQmYGG5Ng2a8LrtSrjWSnM4fWO1h0W6V
+# S7Ds5Xtnqh80EHOYC1ZMbctuFMM6KuRFh/33mqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTMyMjExMjJaMC8GCSqGSIb3DQEJBDEiBCATJP1IxUl0uc80PzVI
-# 70LaSm1l8+k+umilZcbHMON3STANBgkqhkiG9w0BAQEFAASCAgCVRH9bECByxPkm
-# LnbWxEDQ56iPp8mwxvFX2PmGBbXe0Wi+2ZUQrgL4afip4WfN8AzxGtLRE9iRJ9wL
-# W6pkvmzgKN82rDWwP8EyDlcLSjEp0CWkh6GZkbjvNB8MjqiEqalYiIhoGQ+gvvlm
-# udvaeTcLKDWTHMWtYXVvGGhhjPaeW5i1MBIUPZxAYHlv85MT0NC4kM4yLr0YYwZ8
-# TR+XlVn/FEElEzCv+5hhAyPozkoJU3P5Az1mpiSUkDz/9oBLiatOz42eiXJUf1Xv
-# AQgiV62L0LVUaoXWiz78gocVjZuQFTpawx0A+Jw1qdx6X957bY/4Vw2Wekx0OPz8
-# pS77cU7RRWoCWE6dtmT5jBPb+ZgGCeh3jDWZoEsxhnveqS6K0OYmD7zIM5DLnqoe
-# JtCUzyD7KsfBMZZk1VTpF1wLQFpYoz4OOzby+jshR4b1U2Fg7lwV+V+vnOxyU9fY
-# gCL8gAqMnt+FqCe4wZfFuU5+L4ybYXguAWbArLfwNLzA3JMmB1Nhhm07PjOmchFO
-# 9whCIJldiwQAmAnfSRQ5mr5yorFoBDYoW0OM2oOAD7FASfQrO+3RCvqa3bi4PFzU
-# mjb4pdXpoE6hwdhjnjBYWC4JI/hE6uxoVCYZbxasJbZxRGRSJMq+zf7DxsJYMrf1
-# EJCoifcaGC563VSNuuJBMrumuFt/Mw==
+# BTEPFw0yNjAxMTQyMjQxNDlaMC8GCSqGSIb3DQEJBDEiBCARIClkcibeKdagPXRF
+# WHlx8uFAsWyP9REKkWATyMXdGTANBgkqhkiG9w0BAQEFAASCAgCCejmEdCp4XJHo
+# soqxrA4MZCDiv2ZXBtWxB4rCdx0KPcRQBZMQYPuY8SKbTqdN+q/aSwE41Ne8l88D
+# hOjcXE+zjmm1v328rFUJNNfCPbZvaNcYtuJ8kHgPdUpMkw014h/C97g0rP40Dx7V
+# Ww+ioeWh6a0K/8anylwajBZ7hf31sPXygpPA1oxk0izC68W9w2a8L+fw5JwQK4mU
+# yGMsEpvQs8AkWbqz/gOYaFOkAVPo64pvHqoxhTE+aP4Al5an5ZKsIqkLW98W0pC2
+# 6/hVY4KxgycLWpkMdAlW4qlADM2BLUj8MYfq111lV66S+k13A96tpnz/VVD1+MFY
+# LueEOYPxqbWUxRgF9QpiYxLI7A4wcoQWh7c3uGgr5IPM66mYTgGCAqN+tTYjh32r
+# iFAc4ELZJTTw9bkcpOL4fCpFMQlUF/pTB9PPamAzWr4f3ksHqXU5ZA2pGmfLPseT
+# XixCHVtaCtoykaXlAELnM6WWYHyNicqPwpEdZHXD5JwS6g2Y8pIVq+iBviOXppfW
+# saqFuyskIQm/3nlHMNx9/fx6DIlI1E1rBDo+A3N4YPUUrCy/zr6qHjGC1NJLSRb/
+# fZRwZz0F4kOhyECZY65JJC2Sk+MrPxSlY0K7iWU5wF/RAoopiWBsXwcxspzcJ1Jb
+# 83FN4ZXi+JUkFv7oCm5rHeqUAmYPmA==
 # SIG # End signature block
