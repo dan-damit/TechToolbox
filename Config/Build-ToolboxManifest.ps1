@@ -1,10 +1,20 @@
+<#
+.SYNOPSIS
+Builds and updates the TechToolbox module manifest.
+#>
+
+param(
+    [switch]$AutoVersionPatch,
+    [switch]$RegenerateGuid,
+    [string]$ModuleRoot = (Split-Path -Parent $PSScriptRoot)
+)
+
 function Build-ToolboxManifest {
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [string]$ModuleRoot = (Split-Path -Parent $PSScriptRoot),
+        [string]$ModuleRoot,
         [switch]$AutoVersionPatch,
-        [switch]$RegenerateGuid,
-        [string[]]$AliasesToExport
+        [switch]$RegenerateGuid
     )
 
     # Determine module root if not provided
@@ -32,10 +42,6 @@ function Build-ToolboxManifest {
     # --- Compute new values ---
     $functions = Get-PublicFunctionNames $publicDir
 
-    if (-not $AliasesToExport) {
-        $AliasesToExport = Get-AliasesFromJson $configDir
-    }
-
     $guid = if ($RegenerateGuid) { [guid]::NewGuid().Guid } else { $manifest.Guid }
 
     $version = if ($AutoVersionPatch) {
@@ -58,7 +64,6 @@ function Build-ToolboxManifest {
     $new.ModuleVersion = $version
     $new.Guid = $guid
     $new.FunctionsToExport = $functions
-    $new.AliasesToExport = $AliasesToExport
     $new.ModuleList = $moduleList
     $new.PrivateData = $privateData
 
@@ -68,35 +73,44 @@ function Build-ToolboxManifest {
             Old = $manifest.ModuleVersion
             New = $version
         }
+
         Guid        = [pscustomobject]@{
             Old = $manifest.Guid
             New = $guid
         }
+
         Functions   = [pscustomobject]@{
             Added   = $functions | Where-Object { $_ -notin $manifest.FunctionsToExport }
             Removed = $manifest.FunctionsToExport | Where-Object { $_ -notin $functions }
         }
-        Aliases     = [pscustomobject]@{
-            Old = $manifest.AliasesToExport
-            New = $AliasesToExport
-        }
+
         ModuleList  = [pscustomobject]@{
             Old = $manifest.ModuleList
             New = $moduleList
         }
+
         PrivateData = [pscustomobject]@{
             Old = $manifest.PrivateData
             New = $privateData
         }
     }
 
-
     # --- Write manifest ---
     if ($PSCmdlet.ShouldProcess($manifestPath, "Update manifest")) {
-        Update-ModuleManifest @new
+        Update-ModuleManifest -Path $manifestPath `
+            -ModuleVersion $new.ModuleVersion `
+            -Guid $new.Guid `
+            -FunctionsToExport $new.FunctionsToExport `
+            -PrivateData $new.PrivateData `
+            -ModuleList $new.ModuleList
     }
 
     # --- Output summary object ---
     return $result | Format-List *
 }
-Build-ToolboxManifest @PSBoundParameters
+
+# --- Execute function with script parameters ---
+Build-ToolboxManifest `
+    -ModuleRoot $ModuleRoot `
+    -AutoVersionPatch:$AutoVersionPatch `
+    -RegenerateGuid:$RegenerateGuid 

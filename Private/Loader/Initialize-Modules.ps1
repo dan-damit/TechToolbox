@@ -1,4 +1,6 @@
 function Initialize-Modules {
+    param([array]$Dependencies)
+
     $modulesPath = Join-Path $script:ModuleRoot 'Modules'
     if (Test-Path $modulesPath) {
         if (-not ($env:PSModulePath -split ';' | ForEach-Object Trim | Contains $modulesPath)) {
@@ -6,10 +8,9 @@ function Initialize-Modules {
         }
     }
 
-    $list = $script:TechToolboxConfig.Dependencies
-    if (-not $list) { return }
+    if (-not $Dependencies) { return }
 
-    foreach ($m in $list) {
+    foreach ($m in $Dependencies) {
         if ($m.Defer) { continue }
 
         try {

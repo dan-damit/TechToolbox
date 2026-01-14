@@ -11,35 +11,28 @@ Write-Host @"
                  Technician-Grade Toolkit
 "@ -ForegroundColor Cyan
 
-# Module root
+# Predefine module-level variables
 $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
 $loaderRoot = Join-Path $script:ModuleRoot 'Private\Loader'
-
+$privateRoot = Join-Path $script:ModuleRoot 'Private'
+$publicRoot = Join-Path $script:ModuleRoot 'Public'
+$script:log = $null
+$script:ConfigPath = $null
+$script:ModuleDependencies = $null
 # Dot-source loader helpers
 Get-ChildItem -Path $loaderRoot -Filter *.ps1 | ForEach-Object {
     . $_.FullName
 }
-
 # Run initialization pipeline
 Initialize-Config
+Initialize-PrivateFunctions
 Initialize-Logging
-
 # Module dependency resolution
 $script:ModuleDependencies = Get-ModuleDependencies
-
 Initialize-Modules -Dependencies $script:ModuleDependencies
-
-# Aliases + Public functions
-$exportableAliases = Initialize-Aliases
-Resolve-Aliases -Aliases $exportableAliases
-
-$publicFunctionNames = Initialize-PublicFunctions
-
+# Public function initialization
+$publicFunctions = Initialize-PublicFunctions
 # Interop
 Initialize-Interop
-
 # Export public functions + aliases
-Export-ModuleMember -Function $publicFunctionNames -Alias $exportableAliases
-
-# Auto-init
-Initialize-Toolbox
+Export-ModuleMember -Function $publicFunctions
