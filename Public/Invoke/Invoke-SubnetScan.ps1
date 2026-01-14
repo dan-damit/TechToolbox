@@ -1,285 +1,199 @@
+
 function Invoke-SubnetScan {
     <#
-    .SYNOPSIS
-        Scans a subnet for active hosts and returns details to CSV.
-    .DESCRIPTION
-        This function orchestrates a subnet scan, either locally or on a
-        remote computer, based on the provided parameters. It supports options
-        for port scanning, DNS name resolution, HTTP banner grabbing, and CSV
-        export of results. The actual scanning logic is handled by the
-        Invoke-SubnetScanLocal function.
-    .PARAMETER CIDR
-        The subnet to scan in CIDR notation (e.g.,
-    .PARAMETER ComputerName
-        The name of the remote computer to run the scan on. If not provided,
-        the scan runs locally.
-    .PARAMETER Port
-        The port to check for HTTP banners. Default is defined in config.
-    .PARAMETER ResolveNames
-        Switch to enable DNS name resolution for active hosts. Default is
-        defined in config.
-    .PARAMETER HttpBanner
-        Switch to enable HTTP banner grabbing. Default is defined in config.
-    .PARAMETER ExportCsv
-        Switch to enable exporting results to a CSV file. Default is defined
-        in config.
-    .PARAMETER LocalOnly
-        Switch to force local execution of the scan, even if ComputerName is
-        provided. Default is false.
-    .INPUTS
-        None. You cannot pipe objects to Invoke-SubnetScan.
-    .OUTPUTS
-        [pscustomobject] entries summarizing scan results per host.
-    .EXAMPLE
-        Invoke-SubnetScan -CIDR "192.168.1.0/24"
-    .EXAMPLE
-        Invoke-SubnetScan -CIDR "10.0.0.0/16" -ComputerName "RemoteHost"
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-    #>
+.SYNOPSIS
+    Scans a subnet (locally or remotely) and can export results to CSV.
+.DESCRIPTION
+    Orchestrates a subnet scan by calling Invoke-SubnetScanLocal. Applies
+    defaults from config.settings.subnetScan and exports locally to
+    config.settings.subnetScan.exportDir when -ExportCsv is requested. Can also
+    execute the scan on a remote host if -ComputerName is specified.
+.PARAMETER ComputerName
+    Specifies the remote computer on which to execute the subnet scan. If
+    not specified, the scan will be executed locally.
+.PARAMETER Port
+    Specifies the TCP port to test on each host. Defaults to the value in
+    config.settings.subnetScan.defaultPort or 80 if not specified.
+.PARAMETER ResolveNames
+    Switch to enable name resolution (PTR → NetBIOS → mDNS) for each host.
+    Defaults to the value in config.settings.subnetScan.resolveNames or
+    $false if not specified.
+.PARAMETER HttpBanner
+    Switch to enable HTTP banner retrieval for each host. Defaults to the
+    value in config.settings.subnetScan.httpBanner or $false if not specified.
+.PARAMETER ExportCsv
+    Switch to enable exporting scan results to CSV. Defaults to the value in
+    config.settings.subnetScan.exportCsv or $false if not specified.
+.PARAMETER LocalOnly
+    Switch to force the scan to execute locally, even if -ComputerName is
+    specified.
+.INPUTS
+    None
+.OUTPUTS
+    System.Collections.Generic.List[PSCustomObject]
+#>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$CIDR,
 
+        # Remote options
         [string]$ComputerName,
+        [ValidateSet('WSMan', 'SSH')]
+        [string]$Transport = 'WSMan',
+        [pscredential]$Credential,       # WSMan (domain/local); SSH (username only if not using key)
+        [string]$UserName,               # SSH user if not using -Credential
+        [string]$KeyFilePath,            # SSH key (optional)
+        [switch]$LocalOnly,
 
+        # Scan behavior (nullable by omission; we default from config)
         [int]$Port,
-
         [switch]$ResolveNames,
         [switch]$HttpBanner,
+
+        # Export control
         [switch]$ExportCsv,
-        [switch]$LocalOnly
+        [ValidateSet('Local', 'Remote')]
+        [string]$ExportTarget = 'Local'
     )
 
-    # Load config
-    $scanCfg = $cfg["settings"]["subnetScan"]
-
-    # Apply defaults
-    if (-not $Port) { $Port = $scanCfg.defaultPort }
-    if (-not $ResolveNames) { $ResolveNames = $scanCfg.resolveNames }
-    if (-not $HttpBanner) { $HttpBanner = $scanCfg.httpBanner }
-    if (-not $ExportCsv) { $ExportCsv = $scanCfg.exportCsv }
-
-    Write-Log -Level Info -Message "Starting subnet scan for $CIDR"
-
-    # Determine execution mode
-    $runLocal = $LocalOnly -or (-not $ComputerName)
-
-    if ($runLocal) {
-        Write-Log -Level Info -Message "Executing subnet scan locally."
-        return Invoke-SubnetScanLocal -CIDR $CIDR -Port $Port -ResolveNames:$ResolveNames -HttpBanner:$HttpBanner -ExportCsv:$ExportCsv
-    }
-
-    # Remote execution
-    Write-Log -Level Info -Message "Executing subnet scan on remote host: $ComputerName"
-
-    $creds = $null
-    if ($cfg.settings.defaults.promptForCredentials) {
-        $creds = Get-Credential -Message "Enter credentials for $ComputerName"
-    }
+    Set-StrictMode -Version Latest
+    $oldEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Stop'
 
     try {
-        $session = New-PSSession -ComputerName $ComputerName -Credential $creds
-        Write-Log -Level Ok -Message "Connected to $ComputerName."
-    }
-    catch {
-        Write-Log -Level Error -Message "Failed to create PSSession: $($_.Exception.Message)"
-        return
-    }
+        # --- CONFIG & DEFAULTS ---
+        $cfg = Get-TechToolboxConfig -Verbose
+        if (-not $cfg) { throw "TechToolbox config is null/empty. Ensure Config\config.json exists and is valid JSON." }
 
-    try {
-        $result = Invoke-Command -Session $session -ScriptBlock {
-            param($CIDR, $Port, $ResolveNames, $HttpBanner, $scanCfg)
+        # Keep ?. tight (no whitespace between ? and . /  )
+        $scanCfg = $cfg['settings']?['subnetScan']
+        if (-not $scanCfg) { throw "Config missing 'settings.subnetScan'." }
 
-            # -------------------------------
-            # INLINE LOCAL SCAN ENGINE BELOW
-            # -------------------------------
+        # Defaults only if user didn’t supply
+        if (-not $PSBoundParameters.ContainsKey('Port')) { $Port = $scanCfg['defaultPort'] ?? 80 }
+        if (-not $PSBoundParameters.ContainsKey('ResolveNames')) { $ResolveNames = [bool]($scanCfg['resolveNames'] ?? $false) }
+        if (-not $PSBoundParameters.ContainsKey('HttpBanner')) { $HttpBanner = [bool]($scanCfg['httpBanner'] ?? $false) }
+        if (-not $PSBoundParameters.ContainsKey('ExportCsv')) { $ExportCsv = [bool]($scanCfg['exportCsv'] ?? $false) }
 
-            function Get-IPsFromCIDR {
-                param([string]$CIDR)
-                $parts = $CIDR -split '/'
-                $baseIP = $parts[0]
-                $prefix = [int]$parts[1]
+        # Local export dir resolved now (used when ExportTarget=Local)
+        $localExportDir = $scanCfg['exportDir']
+        if ($ExportCsv -and $ExportTarget -eq 'Local') {
+            if (-not $localExportDir) { throw "Config 'settings.subnetScan.exportDir' is missing." }
+            if (-not (Test-Path -LiteralPath $localExportDir)) {
+                New-Item -ItemType Directory -Path $localExportDir -Force | Out-Null
+            }
+        }
 
-                $ipBytes = [System.Net.IPAddress]::Parse($baseIP).GetAddressBytes()
-                [Array]::Reverse($ipBytes)
-                $ipInt = [BitConverter]::ToUInt32($ipBytes, 0)
+        Write-Log -Level Info -Message ("SubnetScan: CIDR={0} Port={1} ResolveNames={2} HttpBanner={3} ExportCsv={4} Target={5}" -f `
+                $CIDR, $Port, $ResolveNames, $HttpBanner, $ExportCsv, $ExportTarget)
 
-                $hostBits = 32 - $prefix
-                $numHosts = [math]::Pow(2, $hostBits) - 2
-                if ($numHosts -lt 1) { return @() }
+        # --- EXECUTION LOCATION ---
+        $runLocal = $LocalOnly -or (-not $ComputerName)
+        $results = $null
 
-                $startIP = $ipInt + 1
+        if ($runLocal) {
+            Write-Log -Level Info -Message "Executing subnet scan locally."
+            # Worker should not export in local mode if ExportTarget=Local (we export here)
+            $doRemoteExport = $false
+            $results = Invoke-SubnetScanLocal -CIDR $CIDR -Port $Port -ResolveNames:$ResolveNames -HttpBanner:$HttpBanner -ExportCsv:$doRemoteExport
+        }
+        else {
+            Write-Log -Level Info -Message "Executing subnet scan on remote host: $ComputerName via $Transport"
 
-                $list = for ($i = 0; $i -lt $numHosts; $i++) {
-                    $cur = $startIP + $i
-                    $b = [BitConverter]::GetBytes($cur)
-                    [Array]::Reverse($b)
-                    [System.Net.IPAddress]::Parse(($b -join '.')).ToString()
+            # Build session
+            $session = $null
+            try {
+                if ($Transport -eq 'WSMan') {
+                    $session = New-PSSession -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop
                 }
+                else {
+                    # SSH remoting (PowerShell 7+)
+                    if (-not $UserName -and $Credential) { $UserName = $Credential.UserName }
+                    if (-not $UserName) { throw "For SSH transport, specify -UserName or -Credential." }
 
-                return , $list
+                    $sshParams = @{ HostName = $ComputerName; UserName = $UserName; ErrorAction = 'Stop' }
+                    if ($KeyFilePath) { $sshParams['KeyFilePath'] = $KeyFilePath }
+                    elseif ($Credential) { $sshParams['Password'] = $Credential.GetNetworkCredential().Password }
+
+                    $session = New-PSSession @sshParams
+                }
+                Write-Log -Level Ok -Message "Connected to $ComputerName."
+            }
+            catch {
+                Write-Log -Level Error -Message "Failed to create PSSession: $($_.Exception.Message)"
+                return
             }
 
-            function Test-TcpPort {
-                param([string]$ip, [int]$port, [int]$timeoutMs)
-                try {
-                    $client = New-Object System.Net.Sockets.TcpClient
-                    $ar = $client.BeginConnect($ip, $port, $null, $null)
-                    if (-not $ar.AsyncWaitHandle.WaitOne($timeoutMs)) { $client.Close(); return $false }
-                    $client.EndConnect($ar)
-                    $client.Close()
-                    return $true
-                }
-                catch { return $false }
-            }
+            try {
+                # Ensure TechToolbox module is present & importable on remote
+                $moduleRoot = 'C:\TechToolbox'
+                $moduleManifest = Join-Path $moduleRoot 'TechToolbox.psd1'
 
-            function Get-MacAddress {
-                param([string]$ip)
-                try {
-                    $arp = arp -a | Where-Object { $_ -match $ip }
-                    if ($arp -match '([0-9a-f]{2}[-:]){5}[0-9a-f]{2}') {
-                        return $matches[0].ToUpper()
-                    }
-                    return $null
-                }
-                catch { return $null }
-            }
+                $remoteHasModule = Invoke-Command -Session $session -ScriptBlock {
+                    param($moduleManifestPath)
+                    Test-Path -LiteralPath $moduleManifestPath
+                } -ArgumentList $moduleManifest
 
-            function Get-ReverseDns {
-                param([string]$ip)
-                try { (Resolve-DnsName -Name $ip -Type PTR -ErrorAction Stop).NameHost } catch { $null }
-            }
-
-            function Get-NetbiosName {
-                param([string]$ip)
-                try {
-                    $output = & nbtstat -A $ip 2>$null
-                    if ($output) {
-                        $line = $output | Select-String "<00>" -First 1
-                        if ($line) { return ($line -split '\s+')[0] }
-                    }
-                    return $null
-                }
-                catch { return $null }
-            }
-
-            function Get-MdnsName {
-                param([string]$ip)
-                try {
-                    $arpEntry = arp -a | Where-Object { $_ -match $ip }
-                    if ($arpEntry -and $arpEntry -match '([a-zA-Z0-9\-]+\.local)') {
-                        return $matches[1]
-                    }
-
-                    $mdnsName = Resolve-DnsName -Name "$ip.in-addr.arpa" -Type PTR -ErrorAction Stop |
-                    Where-Object { $_.NameHost -like '*.local' } |
-                    Select-Object -ExpandProperty NameHost -First 1
-
-                    return $mdnsName
-                }
-                catch { return $null }
-            }
-
-            function Get-HttpInfo {
-                param([string]$ip, [int]$port, [int]$timeoutMs)
-                try {
-                    $req = [System.Net.WebRequest]::Create("http://$ip`:$port/")
-                    $req.Timeout = $timeoutMs
-                    $req.Method = "HEAD"
-                    $resp = $req.GetResponse()
-                    $headers = @{}
-                    $resp.Headers | ForEach-Object { $headers[$_.Key] = $_.Value }
-                    $resp.Close()
-                    return $headers
-                }
-                catch { return $null }
-            }
-
-            # Begin scan
-            $ips = Get-IPsFromCIDR $CIDR
-            $results = [System.Collections.Generic.List[PSObject]]::new()
-
-            $ping = New-Object System.Net.NetworkInformation.Ping
-
-            $avgHostMs = 0.0
-            $current = 0
-            $total = $ips.Count
-            $online = 0
-
-            foreach ($ip in $ips) {
-
-                $hostSw = [System.Diagnostics.Stopwatch]::StartNew()
-
-                $result = [PSCustomObject]@{
-                    IP         = $ip
-                    Responded  = $false
-                    RTTms      = $null
-                    MacAddress = $null
-                    PTR        = $null
-                    NetBIOS    = $null
-                    Mdns       = $null
-                    PortOpen   = $false
-                    ServerHdr  = $null
-                    Timestamp  = (Get-Date)
+                if (-not $remoteHasModule) {
+                    Write-Log -Level Info -Message "TechToolbox not found on remote; copying module..."
+                    # Copy the whole folder (adjust if your layout differs)
+                    Copy-Item -ToSession $session -Path 'C:\TechToolbox' -Destination 'C:\' -Recurse -Force
                 }
 
-                try {
-                    $reply = $ping.Send($ip, $scanCfg.pingTimeoutMs)
+                # Import module and run worker
+                $doRemoteExport = $ExportCsv -and ($ExportTarget -eq 'Remote')
 
-                    if ($reply -and $reply.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                $results = Invoke-Command -Session $session -ScriptBlock {
+                    param($CIDR, $Port, $ResolveNames, $HttpBanner, $DoExport)
 
-                        $result.Responded = $true
-                        $result.RTTms = $reply.RoundtripTime
-                        $online++
+                    # Import module
+                    Import-Module 'C:\TechToolbox\TechToolbox.psd1' -Force -ErrorAction Stop
 
-                        try { $result.MacAddress = Get-MacAddress $ip } catch {}
-
-                        if ($ResolveNames) {
-                            try { $result.PTR = Get-ReverseDns $ip } catch {}
-                            if (-not $result.PTR) { try { $result.NetBIOS = Get-NetbiosName $ip } catch {} }
-                            if (-not $result.PTR -and -not $result.NetBIOS) { try { $result.Mdns = Get-MdnsName $ip } catch {} }
-                        }
-
-                        try { $result.PortOpen = Test-TcpPort $ip $Port $scanCfg.tcpTimeoutMs } catch {}
-
-                        if ($HttpBanner -and $result.PortOpen) {
-                            try {
-                                $hdrs = Get-HttpInfo $ip $Port $scanCfg.httpTimeoutMs
-                                if ($hdrs -and $hdrs['Server']) { $result.ServerHdr = $hdrs['Server'] }
-                            }
-                            catch {}
-                        }
-                    }
-                }
-                catch {}
-
-                $hostSw.Stop()
-                $results.Add($result)
+                    Invoke-SubnetScanLocal -CIDR $CIDR -Port $Port -ResolveNames:$ResolveNames -HttpBanner:$HttpBanner -ExportCsv:$DoExport
+                } -ArgumentList $CIDR, $Port, $ResolveNames, $HttpBanner, $doRemoteExport
             }
+            catch {
+                Write-Log -Level Error -Message "Remote scan failed: $($_.Exception.Message)"
+                return
+            }
+            finally {
+                if ($session) { Remove-PSSession $session }
+            }
+        }
 
-            $ping.Dispose()
-            return $results
+        # Export locally (only if requested & results present)
+        if ($ExportCsv -and $ExportTarget -eq 'Local' -and $results) {
+            try {
+                $cidrSafe = $CIDR -replace '[^\w\-\.]', '_'
+                $csvPath = Join-Path $localExportDir ("subnet-scan-{0}-{1}.csv" -f $cidrSafe, (Get-Date -Format 'yyyyMMdd-HHmmss'))
+                $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8 -Force
+                Write-Log -Level Ok -Message "Results exported to $csvPath"
+            }
+            catch {
+                Write-Log -Level Error -Message "Failed to export CSV: $($_.Exception.Message)"
+            }
+        }
 
-        } -ArgumentList $CIDR, $Port, $ResolveNames, $HttpBanner, $scanCfg
-    }
-    catch {
-        Write-Log -Level Error -Message "Remote scan failed: $($_.Exception.Message)"
-        return
+        # Console summary (responders only)
+        if ($results) {
+            Write-Host "Discovered hosts:" -ForegroundColor DarkYellow
+            $results |
+            Select-Object IP, RTTms, MacAddress, NetBIOS, PTR, Mdns, PortOpen, ServerHdr |
+            Format-Table -AutoSize
+        }
+
+        return $results
     }
     finally {
-        Remove-PSSession $session
+        $ErrorActionPreference = $oldEAP
     }
-
-    Write-Log -Level Ok -Message "Remote subnet scan complete."
-    return $result
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCArmWU8sSyFEK/4
-# F75ClpH89SkZ2/174pxjavle5TGNiaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCIyBc5I4U9M7WY
+# 1UkPaz7qYLVbdxIvzBScvL9BtcOotKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -412,34 +326,34 @@ function Invoke-SubnetScan {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAGAYqg6IWT
-# 7+Y2PmS2Cs4x/TrgHmkkOyj2lrTIAbai7DANBgkqhkiG9w0BAQEFAASCAgDbYfW5
-# uZ+Wk9u2xXTcDctvvIbZFD36KXL3uuOG84zOxhVl1dDQ9wlNqR46abyow02z1PHe
-# yXPgMUJ3rD1cTNy0bVgYG7ZjGwEXnfQ8U69K3nwAEVg+RNnFcew372vt0tYIyJlW
-# 1ssNw0LFLgUJkkH5FTXgrxU24o+k41GHcSmaNiJ69P5JS6efqT5jiQ3Ue/QJAtPE
-# OSH+01GlRK547dmR1gzPASpE9ORxOQHre3Yu4vWiYgPy8Uc600coJCoMQ+3r+9Up
-# Id8IWTiSLss8Gqr2xjsmSuzxI2kFZ5yQ/l5VBgQ9sMMO60hnSujUf9QeFK1+5uOS
-# VJwuTBot/wn1zkON16YrkdsYPG851gIecuQ8dQAocu5kH1+9OjijS4DE0vpcyPbL
-# 4Yvw1/ZfT67Qjiilm9gDiYFU/nSzFizwx2mblnG6Q5xnDOyMwwnMkf79juXbz2zh
-# mrasQwtYF1wP9ByM1kn/+KSRl4ZGFbf5EnVD766yZZg+nivuHir1TgFESuSxNwK3
-# w4y/BgAOpzTXd5zxWiAaEXqvJ/Ojy4m7JEPBkczZImKcStWqPglqFkv9AE0EEqdn
-# r+ThKZJt5z0MKnxxNQDdUVA6BAKVGyyy4UM7sjxG2Cl7J1BSZu6MTzpcIy1CRFZy
-# OiiSMaBYylmYnYDijcZ5Elefd1N+bgCD/Hw3RqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAH6GWDPnLg
+# gexljYeJeWyYN9OCh5cLvSbmjqiG3m4KZzANBgkqhkiG9w0BAQEFAASCAgA8OLFo
+# ovtA19WwOJiQnOSg/wGX8uCeKf11ponDQGOd3X4sal1lJmwVqIw/nkpsTERwwLT+
+# HcUo2peLrpCj8Nj+uiUIzuOpRf58qAxh6sm5I7BiKBZoU0QwSW5IcNU41ao4cs/Y
+# HKzlxROW9OAONfBu+keABbRHH5lLrcVSsamHwzuXpv61J7XOq4LpOaKOpRIYC4J3
+# /sTeDtV2mUbTm8RoNZOkCaJWX8HntEEAuVJMngDUgIy9kykBAkUt+RmRlJdQ7r5h
+# 1Y0Hn8fSL4H+ZKvFPEcGtAKCP7Cu9QekwFC4jL2A/yI0oVNDWtCU2LnQtHwYSnu9
+# wZb5YPc7lEaQbuGP+eg8Nfo+1M019DJ4BRT/Vx4bGPJaHa7nNoRMBpNWNpYSojEr
+# TcBUxoWBx1MDHFcor7x82+X4Sa9ofnBZf1/p/fc79Qgc9qKCqcLV2b0LXACSSBqQ
+# IYgAGdF1tTJQatKhkQ1Lm5uEqPrHofTzfbj9UdhCxF8jVde77xCgDXuLz1pxtGNj
+# v2q3bv+eAZKWNuc3Zy9YDa8oKOIKpLBKvdZTiMLlY6R1Z3pTqKDsyRrRugvxrdZU
+# SIbMBWvSRbpMDAK5KtYcM50k2cmyWO2TxaswpFvMrznerv3I0llto+Yxkgpvham5
+# PhVJc6d9owL1+5iCak1YcyAtijQqH15pyiStGKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIyMjE4MjBaMC8GCSqGSIb3DQEJBDEiBCDCnH5kr9vuqSnvdQvt
-# p5QUOhx1sUAMHxlaJUcFQDQl+DANBgkqhkiG9w0BAQEFAASCAgBQVFNtz5IlUQol
-# XI1lnJvkJ/zVBW34s08xaw2qN603YJE8WqaF/lhg/GDyFE24OPyUAifortVnzyIy
-# 3Vf1Tfcl6qv3dZM19EjoA/2DjTmQPIcv2r/T380FBxynXyrFN8h2j6RMdOLDWPce
-# t5sKBEsC+ATVF1FNpTroNfslInYY/AqZinAJWi3s6crhsDrwqHHoWEoBASOqlFsc
-# 8X0M/dPwduFVRtbLUAcTabBQpghq5Z6Acp0GzSanlOdSiDvtL4yaF2fNgb66ehwe
-# 4oJeMPmj/m8J+rmJ44z1uuReX+0Epvw/UJyxnt/T2Ji5ZrrEgacQ+6nj53QCH899
-# ZUi5Lv9IZDxXabZ8+jDycPCRQPhRIT2LUbcGbwj/2HwJlUtQOkt57gRILTzdt9m/
-# PJ2S7fUTsJHR+MJANL5vGxITtMixmLTlnSGYXaHcR+7nYD0BXwoKhE8/LI9kjd7c
-# jk7uA9Wtbih5gMQZYTVHlAqMMJID++i1104eZejSd8KTLHYw04Qurmi1HceHRYX4
-# enPGJc1bRJnNnCC0kMPqL14Q4GGG0p8o//dOZEOOmUDpsY9hnebixlMgG5fwpTb+
-# PMz/8QldcFRGomdQYAtKkGzzWtkQszv5QAwN+DPUhHYbaIL3lqpEcNelSVpfEn3T
-# EDBmZXGPJsQuPk9AgGf9oIAuBmBNHQ==
+# BTEPFw0yNjAxMTQyMjQxNDlaMC8GCSqGSIb3DQEJBDEiBCCKixYIx02kJR9EGHhl
+# MEFL1smLgNtO96UL40rOwaS9ADANBgkqhkiG9w0BAQEFAASCAgCHxiMBm56C73eM
+# r5h/dQlIrskxg4MFEnz7fw/gDkinigExwJUdBylaiZBSnSAn/GHfI8C3NHlnb/8K
+# aAHwpHUe6uBskJd6Kx3BKoxTEYg162zPZonQ9MYq+pBE083BfEoJqWnGh4Gugqa1
+# UMTJsojAqvUJQMwvJVGe+ReGvzLEt0xlCiRptIpL0XVQQ6UJUGv1Ah0aXOE406aM
+# h/7BP2wsjKz612tFINFNW5l46MdmbFEGPT3Zv+jzmL64+s2j6Ar+zlQoE/fPFPGh
+# FfHhi8EsLQnbR649rvtWyDaB4NWoAsp7axQDdsWve6NWtw2xVJGWUEGQd30nuX0v
+# 3xThXfLvsc2MB2vFfNqMVYQ9Ev55nI5hyppp+Emn4DhF+Usf7//ETVTTnpllBLG6
+# /xLXsHu7sjScNoFQxh2pFlhRLoOr59QF6EBjhmIwlXLG0iYkbkygkAdcOMwgPvAm
+# BFbCmloin3lpiwHE70+k0vZhEmnLN6V5Cy0Kqf5rqmlcrREYDJgiC9yWy1U53ftN
+# q+/LieGlgeoMU/ewj31PCXV4pnjrzSedQC9JS+PZyNeuGdpK9+YCZJb1iwEIh/lt
+# EfgKiOdwQro9X6O3QRyv9qXoiN8vc17Nl4sC8/qjPfxJJo1Ll7eBbQlyKTYmCzcs
+# lMH1prcIDKBMzxP5mF+AAjwHmg4I+Q==
 # SIG # End signature block
