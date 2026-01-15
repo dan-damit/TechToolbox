@@ -1,5 +1,5 @@
 
-function Invoke-TTDownloadsCleanup {
+function Invoke-DownloadsCleanup {
     <#
     .SYNOPSIS
         Cleans up old files from Downloads folders on local or remote machines.
@@ -40,8 +40,8 @@ function Invoke-TTDownloadsCleanup {
     $dlCfg = $cfg["settings"]["downloadsCleanup"]
 
     # Defaults
-    if (-not $CutoffYear) { $CutoffYear = $dlCfg.cutoffYear }
-    $dryRun = $dlCfg.dryRun
+    if (-not $CutoffYear) { $CutoffYear = $dlCfg["cutoffYear"] }
+    $dryRun = $dlCfg["dryRun"]
 
     # If -Local is used, ignore ComputerName entirely
     if ($Local) {
@@ -132,7 +132,7 @@ function Invoke-TTDownloadsCleanup {
 
     # Prompt for credentials if config says so
     $creds = $null
-    if ($cfg.settings.defaults.promptForCredentials) {
+    if ($cfg["settings"]["defaults"]["promptForCredentials"]) {
         $creds = Get-Credential -Message "Enter credentials for $ComputerName"
     }
 
@@ -226,8 +226,8 @@ function Invoke-TTDownloadsCleanup {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQwFt/GGg70mm8
-# n90ZdDRczgGSA2EwoapulAZudWY9+KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDbUUlOCgkaMsgg
+# tJ+hCXoMHBlAm6fvmywD+P3QTY7ZLaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -360,34 +360,34 @@ function Invoke-TTDownloadsCleanup {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBVx3ISCfW4
-# bncH+BgACsMhnwPp75KeCeh3dbrIpi3itjANBgkqhkiG9w0BAQEFAASCAgB+SV3X
-# w2veU0SEwHfzdqOCxyLOy0Juik7iPAIdXdQW4JywORiQN9ur7rUJ8S8qBHCPz9o/
-# quSAA9x+ih+BtVqQ8F6BFxIUXlYIYCarmCX38E0FHesK3AKwZCfLd91zy3DB/A/B
-# ydRi1ttEYdEa0D4OC9q9loni3g26II9blCF5LBXhFfiCuvKQoUSWMhQcKHtqjHsK
-# 26byvtyVFiqj8jf9+2S7fTauUwgSTxqI1MMf9JVqfKeCz07Vwomfe1uUGUwBoBAF
-# NXNzOXTahqbHFmVbLCGuqBF1tC7HzuuEKvVhvgcgwZrF940r+03pgb9K/tUftf+N
-# 2bJyWppZxVvaKWWTin8f10w1bdmeQmYkWGCnYAn2lFYLWyJpzBv8rW2fjeC4hu+a
-# Yiol4Gv1nKl41dRxocWoK4ihH9gh+0RVb+73iESbztaDPNE461pIQvrjwb+EhnjV
-# QF6McKijuedrI2lzSqD0ldZV1PvQyLV2FBwawYGckQBWkaFPUxcwRKdYyZFQBJxi
-# AIMlSTQFPrWR48i+IBXY6NZoP//3F2o0Hjagc808mjHUuB138+BbZNHGxZoNlXsP
-# I3akhRAxN6VXuH0OKqOTqwMsYDLR8jBuCisQt3wbqN7KGjWbnhFdoXTH5SPMriM6
-# yznRH/IK1uW9HZ6fMq23/B+s2tXgS34XB3r5wqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDhjDoGH4KL
+# YE6CUB9pJ8cAS7lZT48ftzjDfHifSyW76TANBgkqhkiG9w0BAQEFAASCAgAwszhi
+# kcW1HHlUE0GOeQH7ngtHrQQr/KMkYs+eGQZVo1fQKZzsrT6EicU/XIdMsT3X0FgN
+# dMm4wlBVCAgZl7DQInfJWRUw86gt5a33e5At0ICD9h3AbNtl9xV4nw/LCs/qbt+S
+# weawjlxaKfY52ZKEmX1aAmFfdbQh2uEumcNZWIYwCJtfHWfmChOqEfOaXhXNZXYM
+# /c3G4PVZywppZn6FMg8KGSl/QMAkiRB7aBFq3fEzuChMnuPkGm9619nClNBydnRP
+# CV01gM1QMqkS5+iLZJoMC7D++/2ttEJ6cVeiR7Kyq4/1y65+FVslq1VFx42L6Opv
+# BvREBaa0bWBdVNOgLiPT7xhyqdrTCxdDYH8tfK3ZoGr6kafiwDkEguVULwHHVrUZ
+# NpDQS34nC6PpQyNLIUmtxL9+HqVyJ06Eg+TYRd3hY+lB3ajygKY3X7+epG3ADDQ/
+# S1QtkJO9eNtutHDffUl6pactc0Ml2/oUPag9t/X7QTGZn2V6EJvujY270H9BDscL
+# YNYuFp4xFKrAlROAqJhvAeRXAz1zmVRLj2Le4VQmtHmFY1lDPLEgNwMhkqNamo7p
+# YH/yO9RD2li3G7wuaQGl+Z21BzRqzTFiXupjLSwpf0Mcv44aH/luQasn9BP2J8He
+# Nc/nEo9NPTfAylIaN4X3KdtnIbmQ3FRqqmYt3qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIyMjE4MjBaMC8GCSqGSIb3DQEJBDEiBCC2JRk17nf6c+eIR7/k
-# tnr8IuAmXObyjL6xlxF/6Ztg0zANBgkqhkiG9w0BAQEFAASCAgA+y/xEMwxdPlr8
-# 35O5RJE6lkeAy1dzajIJePIGogpWZiZHl/Ws3xhm7ktrWnrhmodtOBuJ2dU3cD8V
-# lgf8sbJqA3NYYzCR60FbxTm/tBRM2hukk25pUT0tNmY+HiXMbfWG2gySsMg7ODOe
-# PZjC8vZASdouGhqVVmMA4wxwhi0n++cJ7gEBXxLdzrs9joDqOOw3XRrd7N2nJhDz
-# ubTzBliKXJa3gVY+dwUOAgFlUvUriWremyq9UNLolIA2KemGdh4RHBmiz9qXZUcI
-# zPNNWDNnbwUlFu4aJxCahMZFVHQC3np73QSJR7pDCLkOAMa85wlddmLepGx4jqyd
-# u61EJfGfDZPlpJtL/M2Ph7DFAnSnC35Am7gbxZnWZYjVGDt9sby66bol4LEgstH2
-# VKI6TOG0od7uNemtNFFSY5UnvbC622zeL9kKvlCSPdgPMCXh2YjI1AooVbThDjzD
-# 2yBFrLJqMwYTCZXjYkdfcBbHkMcjsnpUsNlxDPu+fcmdc3w2KNdsyukLwRRE5zdc
-# 2jWUZOGEy0jbHfKeA2/j0CI4OEmviKAVwL13HJ7godW+LQw2fuUKgJ3/l7q4TI9z
-# 5jS3UU++FoEMqTt1mmzqU/qTPFkr+ie1U4j9ET+uGCqNwyDeSEX+C3ut3yK+rvyR
-# DE6WaAQBzhUY1QgdbqraE3feOrwbrQ==
+# BTEPFw0yNjAxMTUwMzM3NTRaMC8GCSqGSIb3DQEJBDEiBCDvnSgxc3nAysDFB3z3
+# CzKIpOUXJt/eptWwJ6vDcLXLHzANBgkqhkiG9w0BAQEFAASCAgBvd426vNt7IGuj
+# t7TYsvj/mHlILZdU4xGz4mQ7GaiQIU9+uSEZenKy4b4bgvqMHeSdP+l6Y9JP3pI0
+# +O+JHGGV9XU0GJVomBf0Z31fLpIiZ6fgd9s4rsGkwHlKKzzGZxHA15czT+ExsYrZ
+# qCaIMA/IB3J2WiEQwdbBzn2w7nFoTQuorSDhXkz91NWAZDAvNRArUctuhTEZedUk
+# JAm8CNBtoCDrUrYPQkCIHpn2GyhhJXRmOQFAEWsRlQF7gDtE3QHzhE7FyfYJpWbp
+# GdEA7Kg1cPaImP9uuDb/RO2s0ECqDLmbm4nak8xII0gJX1FVlalSa+gRPYnfp9Ey
+# gdDPPOfZiDQYh5I7f0DswLiWhspRQFS4yRs5WBXYbH1k60w5UOvXJEJ3uQRt040K
+# Bscmxta1VByjnCdUpVhZHbNShyT2/3V8un8+fjSzMSYkMGGOiqSd9J/4EdXkeEG4
+# YVBmDW3axpPRP3x7UBOIfPw5hLEJ1MMw0xGq5kcd+ZKvu6DivBnwkGXvJH7rfmzX
+# yQYVg3JjjzWEPriLvnuCNL3QvXt5hlplARE/ZYZz29hHRXEFjT3BWoNNjWB/dN2P
+# LkBAbonqWCcEop3j2XdtibWejBixm88r3mrtNhI6y7W0zd7LaEzUQM6lCm7z9/zS
+# 8GSIs/4Yi5CRsjx2JKJF5Eeu3RjhQA==
 # SIG # End signature block

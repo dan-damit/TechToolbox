@@ -14,15 +14,12 @@ function Invoke-AADSyncRemote {
     .PARAMETER PolicyType
         Sync policy type: Delta or Initial. Default pulled from config
         (AADSync.DefaultPolicyType).
-    .PARAMETER UseKerberos
-        Use Kerberos authentication instead of prompting for credentials.
-        Default pulled from config (AADSync.AllowKerberos).
-    .PARAMETER EnableTranscript
-        Start a transcript in the Logs directory (TechToolbox
-        Paths.LogDirectory) with timestamped name.
     .PARAMETER Port
         WinRM port: 5985 (HTTP) or 5986 (HTTPS). Default pulled from config
         (AADSync.DefaultPort).
+    .PARAMETER Credential
+        PSCredential for remote connection. If not supplied, Kerberos auth
+        is used.
     .INPUTS
         None. You cannot pipe objects to Invoke-AADSyncRemote.
     .OUTPUTS
@@ -38,37 +35,32 @@ function Invoke-AADSyncRemote {
     param(
         [Parameter()] [string]$ComputerName,
         [Parameter()] [ValidateSet('Delta', 'Initial')] [string]$PolicyType,
-        [Parameter()] [switch]$UseKerberos,
-        [Parameter()] [switch]$EnableTranscript,
-        [Parameter()] [ValidateSet(5985, 5986)] [int]$Port
+        [Parameter()] [ValidateSet(5985, 5986)] [int]$Port,
+        [Parameter()] [pscredential]$Credential
     )
 
-    # --- Config & defaults (normalized camelCase) ---
+    # --- Config & defaults ---
     $cfg = Get-TechToolboxConfig
     $aadSync = $cfg["settings"]["aadSync"]
     $defaults = $cfg["settings"]["defaults"]
 
-    # PolicyType (prefer parameter, otherwise config, otherwise safe default)
+    # PolicyType (parameter > config > fallback)
     if (-not $PSBoundParameters.ContainsKey('PolicyType') -or [string]::IsNullOrWhiteSpace($PolicyType)) {
         $PolicyType = $aadSync["defaultPolicyType"]
         if ([string]::IsNullOrWhiteSpace($PolicyType)) { $PolicyType = 'Delta' }
     }
 
-    # Port (prefer parameter, otherwise config, otherwise safe default 5985)
+    # Port (parameter > config > fallback)
     if (-not $PSBoundParameters.ContainsKey('Port') -or $Port -eq 0) {
         $Port = [int]$aadSync["defaultPort"]
         if ($Port -eq 0) { $Port = 5985 }
     }
 
-    # Kerberos flag (prefer parameter; if omitted and allowed by config, enable)
-    if (-not $PSBoundParameters.ContainsKey('UseKerberos')) {
-        if ($aadSync["allowKerberos"]) { $UseKerberos = [switch]::Present }
-    }
-
-    # Prompt if missing, controlled by config defaults
+    # Prompt for hostname if missing
     if ([string]::IsNullOrWhiteSpace($ComputerName)) {
         $shouldPromptHost = $defaults["promptForHostname"]
         if ($null -eq $shouldPromptHost) { $shouldPromptHost = $true }
+
         if ($shouldPromptHost) {
             $ComputerName = Read-Host -Prompt 'Enter the FQDN or hostname of the AAD Connect server'
         }
@@ -78,51 +70,29 @@ function Invoke-AADSyncRemote {
     }
     $ComputerName = $ComputerName.Trim()
 
-    # --- Transcript (optional) ---
-    $transcriptPath = $null
-    if ($EnableTranscript) {
-        $logDir = $cfg["paths"]["logs"]
-        if ([string]::IsNullOrWhiteSpace($logDir)) { $logDir = (Get-Location).Path }
-        $transcriptPath = Join-Path -Path $logDir -ChildPath ("AADSync_{0:yyyyMMdd_HHmmss}.log" -f (Get-Date))
-
-        try {
-            if ($PSCmdlet.ShouldProcess($transcriptPath, 'Start transcript')) {
-                Start-Transcript -Path $transcriptPath -ErrorAction Stop | Out-Null
-                Write-Log -Level Info -Message ("Transcript started: {0}" -f $transcriptPath)
-            }
-        }
-        catch {
-            Write-Log -Level Warn -Message ("Could not start transcript: {0}" -f $_.Exception.Message)
-        }
-    }
-
-    # --- DNS pre-check (non-blocking) ---
-    Write-Log -Level Info -Message "Performing local pre-checks..."
-    try {
-        $resolved = Resolve-DnsName -Name $ComputerName -ErrorAction Stop
-        $resolvedName = if ($resolved.NameHost) { $resolved.NameHost } else { $resolved.Name }
-        Write-Log -Level Ok -Message ("DNS resolution succeeded: {0}" -f $resolvedName)
-    }
-    catch {
-        Write-Log -Level Warn -Message ("DNS resolution failed for '{0}': {1} — proceeding anyway." -f $ComputerName, $_.Exception.Message)
-    }
-
-    # --- Connect session ---
+    # --- Connect session (credential-based only) ---
     $session = $null
     try {
         Write-Log -Level Info -Message ("Creating remote session to {0} on port {1} ..." -f $ComputerName, $Port)
-        $session = Connect-AADSyncRemoteSession -ComputerName $ComputerName -Port $Port -UseKerberos:$UseKerberos.IsPresent -WhatIf:$WhatIfPreference -Confirm:$false
-        Write-Log -Level Ok -Message ( $UseKerberos ? "Session established using Kerberos." : "Session established using supplied credentials." )
+
+        $session = New-PSSession -ComputerName $ComputerName `
+            -Port $Port `
+            -UseSSL:($Port -eq 5986) `
+            -Credential $Credential `
+            -Authentication Default `
+            -ErrorAction Stop
+
+        Write-Log -Level Ok -Message "Session established using supplied credentials."
     }
     catch {
         Write-Log -Level Error -Message ("Failed to create remote session: {0}" -f $_.Exception.Message)
-        if ($EnableTranscript) { try { Stop-Transcript | Out-Null } catch {} }
         return
     }
 
     # --- Remote check + sync trigger ---
     try {
         Write-Log -Level Info -Message ("Checking ADSync module and service state on {0} ..." -f $ComputerName)
+
         $precheck = Test-AADSyncRemote -Session $session
         if ($precheck.Status -eq 'PreCheckFailed') {
             Write-Log -Level Error -Message ("Remote pre-checks failed: {0}" -f $precheck.Errors)
@@ -132,7 +102,7 @@ function Invoke-AADSyncRemote {
         $result = Invoke-RemoteADSyncCycle -Session $session -PolicyType $PolicyType -WhatIf:$WhatIfPreference -Confirm:$false
         Write-Log -Level Ok -Message ("Sync ({0}) triggered successfully on {1}." -f $PolicyType, $ComputerName)
 
-        # Pretty table to Information stream (no Write-Host)
+        # Pretty table to Information stream
         $table = $result | Format-Table ComputerName, PolicyType, Status, Errors -AutoSize | Out-String
         Write-Information $table
     }
@@ -145,18 +115,13 @@ function Invoke-AADSyncRemote {
             Remove-PSSession -Session $session -ErrorAction SilentlyContinue
             Write-Log -Level Info -Message "Remote session closed."
         }
-        if ($EnableTranscript -and $transcriptPath) {
-            try { Stop-Transcript | Out-Null } catch {}
-            Write-Log -Level Info -Message ("Transcript saved: {0}" -f $transcriptPath)
-        }
     }
 }
-
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBBc2oZzDvyukCo
-# wXoogccPgjP1QK7iUPp0csWqs+nQoKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBrDYCyjqN+nQov
+# AXVTZco6CnhjI9bj5zjRNyaWIAQuZ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -289,34 +254,34 @@ function Invoke-AADSyncRemote {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA+ZlAt2jBp
-# ZGUo1KJygV5rAs8lmf8xGddYrdjcNgCMCjANBgkqhkiG9w0BAQEFAASCAgCZsIPT
-# Q1iwmqrVQrHZi3Tgif7g10rRIvdBVaIneYowg9CeMyyIBjh7+86vuqVgmCt+fjMX
-# 6niEO/eMkze92kR/Q3rxYFLCsFaYSyeZUree5SrcJhNIlge9E217lI3sCkVBO/Gc
-# BV1lCvU/t9DqCgxbxwLuw3hNeen2EQiLuzmI9Ko+yPw1X1lxKWUJ/2Zy3ekKf5HG
-# ziQHC27mb+9ZnI0HRxVIeltG5X46v9N0f6aO75ouLzvr0zAX8YeaAjDqB57YmLJ8
-# U+4sasCSnfdHa5VOMvqh/3VE1FiutD5FJQzPiznJFbYpje3qjEvoZEBZscSmz56j
-# yP+CWU0HuFXrh/lA4nLaUVaTwKg/OXL8j0TftvVNlg5VqFlttfrPs1ajvyGneQiZ
-# KKS6VO5K7AdWx9FzG4VLgu7GrUymwOPIbc8sMw5F+JFIQop28fX9FRsQYoi54YU/
-# PiIuebudVrhga2cevJbkUE+SzPo9lvX2QEIfTXiWgYuGgNLHV70z+AzPCRCrTs+A
-# 3zJYVSgd1NKOadcDDt/VGu01mPsilqqtlQCBCvK3BAIVSFtQzVm91iphduEIcUOU
-# 9pFsPx7OjTxoTEpShNYARWOi/+SRM9xPsh0K5p0yFbDelpb5rrnBdMNc5O4mcmT4
-# +774qmlUFhyWEMQmWnAI3h3MpSHF0qf7wdheNKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBoE1mN5KMP
+# jKk370xQvKDdrOa40F3MsQ6Vt0uIBH46bTANBgkqhkiG9w0BAQEFAASCAgDD3KBw
+# gajK6Tl3UFHS1c8/EPW8uX5EIOArpGLcJQR0XmZVjLX11Lah0HMLKussCVtlkRj9
+# QMrOdO1RGGkC060LNM3/t3ECjveYLMLLqdvIRhNMiJL1S0VHvb+xbyBUYAfCBnSQ
+# m5zyjW3OjRpr7Al/CKO1MDr1jqWGaNKNutgv/5bG+AgPE2bScZwMkbW2QmH63cvi
+# PM+409q929EiYeMjfnxPsTX63OdQP6fcz05+IuNKqh7FNwvKfXC7lVZc03T5NCXJ
+# v/WO4KENEf9HbKfo18YGN7pyluZ0pjUDQakg0LHoc0g9D7+a4SEocEcuJDdPEJWf
+# zAWmj9AMZma8ZtNhyyy4byg/lgfO6KaFTT4J/oSFqTa6Ewd4lblxG0XsJM0pyGQJ
+# DRR2LJ4mpo629zocDIeFM7yaouun4M/MOxYeo5cHjsnx9e4N6NgvDZUFLwpj/wJ7
+# ehXFoiHD8iyLyjFicGL0SQHX6Ds85TQY3GFe4LxfzeBAtgJO+XtfoA2OHSewVHpH
+# goZAum7WkKatzVzsLuRuQv74eUHEgFuI5J8IXqCvXI0M0qlVipI6KXfM5DNlOg3U
+# i/IgcpQMk8VatuUH8Sk5NQUVbIc8rag5WrBVb9XxwT/5Gh0d/qyG4lyPIkrKQlKA
+# Hf6PVtB+IfxOiajQvkDSEPYz+zEoT0qnqApvcKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIyMjE4MTlaMC8GCSqGSIb3DQEJBDEiBCC1FLg3qzNyyqEkNoF5
-# o3HZPDSlsRffNZorM3QtxHRiEzANBgkqhkiG9w0BAQEFAASCAgAGDBpeC6LUV3qr
-# hmtgHDSkidrmlSgKANOAN8MKYZMg7JcN3PFFI7a/yhKUGZyWPyx8f2oMrfgKRIlK
-# AxY6m4qYEYuVw6R4DCN1wpnDRmcp8Pz2H6P0WvX9ZPsCOj6wvVpL8iJsII6iARaN
-# a1dfeNleCMDmMYC5oJ5HiUwr+WlDW8LX7J4YKG+ptZiPCoZVQL3pnPlkSq9tYdhj
-# Q/93WusftTheJT0uXvF+g5RP5kriu5Fos+3t7DoyrAP2xgVErsrn1qEilqEL7Y+k
-# JtdPL2hdsYTb6JxuKFkoOSfmgB9EurkatRonMGiQKnAwBCVmBYiVEAoVFfp3+uOo
-# eMicrttW6rfdWixlStnIR40pZwVMmJh5U6iYlLbIWa0WXSwYmvMfCYedGiZlCf5f
-# ZPKD6jAUi7YmfgPMFyHMCK0AaTqL85ENTYHoyKt1p3MXt33dtImmvNY274w9XJ8e
-# We2NttvsOxfHlGDkVy+4QWBe3SCjrSf5DcgMKRPdrouiYrv2bOHQmop1vyAT3ZlB
-# +zJR1bgMS0Fm+0iPbXGfdhMfdWUqndClXYOmEU52U4JbnO717RQNgBHtDd4x84fW
-# LtRlAUYRtdK+bjSpQKZz7qLnw3mca47eXRmnhmtcDaSfa4kPCknXOnNucGfAKW7Z
-# enuFmivenqP4jvXZXn9/foo/8OR4lA==
+# BTEPFw0yNjAxMTUwMzM3NTNaMC8GCSqGSIb3DQEJBDEiBCBxezwOIhDfjIUC+hJj
+# g0bjcWq91ZR4x955yTSKH0Xo3TANBgkqhkiG9w0BAQEFAASCAgCg0oT8D0FwBj7j
+# tDraK9cp3ILchN/JzvdgdR0BiYOQVvdc7oabRf8JrnZGc5QVwa7aZAWHTIBkmVqs
+# KwuPznUsPDd4449umHiKzEzc+JVbfMCVzvLt0jCqMtw9jHqRj3y2KGjoX3j9RWsP
+# 6GHooJlbOjU3UayG2FVidR8flAopYZapWAZsGUUp+iBhUUQJ1aE/0S1B+5F7MOMI
+# OuTU9Ki6Mg89lUjy47CUxo41wbu2D4VehIfLD0wF1W5f8uhkWM+UlOwsoBt2W+QN
+# wTdhY6cs8RTbrDCq8GwGqhwf2FAa4cH6P8nhpPC6syACnpCB44LEHxEK4Wv9BJPg
+# 0gYXC9VFHldugOUTK2UPcjm8L2hcQY9XC6nU3QLbm8xkIM34izQ82te77a6uhhIe
+# P8MK/tRAig1NHiXNfjM9Z4ebd1Fv7WwT0Ow+TJ+Tn9hdmd2SxqJA+cHS+WieCSSa
+# BG2MCEOG+d12i1BCCXpl9oWuTMcJlJM6BgRoHsID/BXxpIN0CD1LOMIACuFxtFlE
+# jy63sQlYIZtqpNiNb5Ri8MxcwCPBHtDC/R4yuYgeqGkR8avAoaRL3qZAtwx7r75w
+# I7Qou3Qgv8kLEtN+b4opXO3kYrbTpI1LKlb3VDEixKnLk3YWza/IEhlHxwv4JOQ/
+# X381k1gOq8GnutGHfsusqc7wFdzRGw==
 # SIG # End signature block
