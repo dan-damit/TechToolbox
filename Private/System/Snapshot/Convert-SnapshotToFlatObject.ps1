@@ -1,142 +1,41 @@
-function Get-SystemSnapshot {
-    <#
-    .SYNOPSIS
-        Collects a technician-grade system snapshot from a local or remote
-        machine.
-
-    .DESCRIPTION
-        Gathers OS, hardware, CPU, memory, disk, network, identity, and
-        service/role information from a target system. Returns a structured
-        object and exports a CSV to the configured snapshot export directory.
-
-    .PARAMETER ComputerName
-        Optional. If omitted, collects a snapshot of the local system.
-
-    .PARAMETER Credential
-        Optional. Required only for remote systems when not using current
-        credentials.
-
-    .EXAMPLE
-        Get-SystemSnapshot
-
-    .EXAMPLE
-        Get-SystemSnapshot -ComputerName SERVER01 -Credential (Get-Credential)
-    .INPUTS
-        None. You cannot pipe objects to Get-SystemSnapshot.
-    .OUTPUTS
-        PSCustomObject. A structured object containing the system snapshot data.
-    #>
+function Convert-SnapshotToFlatObject {
     [CmdletBinding()]
     param(
-        [string]$ComputerName,
-        [pscredential]$Credential,
-        [object]$Snapshot
+        [hashtable]$Snapshot
     )
 
-    # --- Load config ---
-    $cfg = Get-TechToolboxConfig
-    $snapshotCfg = $cfg["settings"]["systemSnapshot"]
-    $exportPath = $snapshotCfg["exportPath"]
+    $flat = @{}
 
-    if ([string]::IsNullOrWhiteSpace($exportPath)) {
-        $exportPath = Join-Path $script:ModuleRoot "Exports"
-    }
+    foreach ($key in $Snapshot.Keys) {
+        $value = $Snapshot[$key]
 
-    # Ensure export directory exists
-    if (-not (Test-Path $exportPath)) {
-        try {
-            New-Item -ItemType Directory -Path $exportPath -Force | Out-Null
-        }
-        catch {
-            Write-Log -Level Error -Message ("Failed to create export directory '{0}': {1}" -f $exportPath, $_.Exception.Message)
-            throw
-        }
-    }
+        switch ($value.GetType().Name) {
 
-    # --- Determine local vs remote ---
-    $isRemote = -not [string]::IsNullOrWhiteSpace($ComputerName)
+            # Nested hashtable → flatten with prefix
+            'Hashtable' {
+                foreach ($subKey in $value.Keys) {
+                    $flat["${key}_${subKey}"] = $value[$subKey]
+                }
+            }
 
-    if ($isRemote) {
-        Write-Log -Level Info -Message ("Collecting system snapshot from remote system '{0}'..." -f $ComputerName)
-    }
-    else {
-        Write-Log -Level Info -Message "Collecting system snapshot from local system..."
-        $ComputerName = $env:COMPUTERNAME
-    }
+            # Arrays (disks, NICs, services) → join into readable strings
+            'Object[]' {
+                $flat[$key] = ($value | ConvertTo-Json -Compress)
+            }
 
-    # --- Build session if remote ---
-    $session = $null
-    if ($isRemote) {
-        try {
-            $session = New-PSSession -ComputerName $ComputerName `
-                -Credential $Credential `
-                -Authentication Default `
-                -ErrorAction Stop
-
-            Write-Log -Level Ok -Message ("Remote session established to {0}" -f $ComputerName)
-        }
-        catch {
-            Write-Log -Level Error -Message ("Failed to create remote session: {0}" -f $_.Exception.Message)
-            return
+            default {
+                $flat[$key] = $value
+            }
         }
     }
 
-    # --- Collect datasets via private helpers ---
-    try {
-        $osInfo = Get-SnapshotOS      -Session $session
-        $cpuInfo = Get-SnapshotCPU     -Session $session
-        $memoryInfo = Get-SnapshotMemory  -Session $session
-        $diskInfo = Get-SnapshotDisks   -Session $session
-        $netInfo = Get-SnapshotNetwork -Session $session
-        $identity = Get-SnapshotIdentity -Session $session
-        $services = Get-SnapshotServices -Session $session
-    }
-    catch {
-        Write-Log -Level Error -Message ("Snapshot collection failed: {0}" -f $_.Exception.Message)
-        if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
-        throw
-    }
-
-    # --- Close session if remote ---
-    if ($session) {
-        Remove-PSSession -Session $session -ErrorAction SilentlyContinue
-        Write-Log -Level Info -Message "Remote session closed."
-    }
-
-    # --- Build final snapshot object ---
-    $snapshot = [pscustomobject]@{
-        ComputerName = $ComputerName
-        Timestamp    = (Get-Date)
-        OS           = $osInfo
-        CPU          = $cpuInfo
-        Memory       = $memoryInfo
-        Disks        = $diskInfo
-        Network      = $netInfo
-        Identity     = $identity
-        Services     = $services
-    }
-
-    # --- Export CSV ---
-    $fileName = "SystemSnapshot_{0}_{1:yyyyMMdd_HHmmss}.csv" -f $ComputerName, (Get-Date)
-    $csvPath = Join-Path $exportPath $fileName
-
-    try {
-        $flat = Convert-SnapshotToFlatObject -Snapshot $snapshot
-        $flat | Export-Csv -Path $csvPath -NoTypeInformation -Force
-        Write-Log -Level Ok -Message ("Snapshot exported to {0}" -f $csvPath)
-    }
-    catch {
-        Write-Log -Level Warn -Message ("Failed to export snapshot CSV: {0}" -f $_.Exception.Message)
-    }
-
-    # --- Output snapshot object ---
-    return $snapshot
+    return [pscustomobject]$flat
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBjv4X1jKZ0mcUT
-# 2b0M5eLeDWII47vwCy6p5kof5MuREKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBA0rE3NAWKmHpV
+# OoTPFXT61p+NxK38IJlbDV8I81lqHKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -269,34 +168,34 @@ function Get-SystemSnapshot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC1cen/7tgd
-# 3yQuJNH2ExHn/mVrmeStXLdjVKxckkEoojANBgkqhkiG9w0BAQEFAASCAgAnTkJE
-# KXCn6y3ee/DUr6EUsGlrlSNXo4wrjkY775eN6nsspHwfqPHGFlp1SnO4w5sP9mBk
-# 8c4NCT3q0xmHowM7WQp1Jwo7WNkQfB/vdSNeD0fEqC03KH/4cn2ejBgEoHhISdJ+
-# E6cScpd7OOnnSP5ndOW/6WqqGqU021MPPx/SHyu7fgSAs1J1l1X6nBH7QngbSiX2
-# VU4fnO72i2YNHx3iAyfMSaB/SodPqO9meYHRyg2SiqDINsCr9J3H3ihI4a9tTD1M
-# LeRDA3jnVv+HQyKLxq2+bb7vHFzpOGiS69UDroYrONRn4wvcGw7a9urfDiuxIDCM
-# 9M4qnv0RIdbj7y1qP4IAJn52oqLXQ2xYftK38klon/3PRkMjUQYsuuv2cYP9jQtU
-# 3KGOka+/tE8KsZAu/oJ8es/RhZLcH+PyR4kaL1oj9vRqCSPpmxk8YvjDVCN0qFOZ
-# tuUPt8675QWcAODWdjyV05qxXf+RGX655hVgNfbLHgS5KU4/uS+i+QWeBSHgiqqx
-# y5lyInBjffvp77ll3JgteaMd/BEchfRf0ALPmUix7lIe3ymP98/wnVidBwqZ6KWq
-# VeGyK8gxPcHfjKnrDpIkV6Z33maq9eT20mm5nIbnQnZYTqY2RcNQT3Xrs7BXwLeT
-# GfdIF5QTTokyS+AlwzWYEODLesEFKHB2b39Fa6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDCyjRU387n
+# 7tGA4s4S8GrcSe7/OqBE2c3ImM2riT0ajzANBgkqhkiG9w0BAQEFAASCAgC631hW
+# Sk3hIR5EBQsXDhR2YLjVV2KgU27AV8GV1v8mf2RG7wsGE/x7oV1SBFTNViTz0Pq8
+# bmDDz0SeHnAU0zw5DFnexwLy/he4JHbXjt5PzPZazE1KaI5qryAeQU7vJZugVhOP
+# EnLB0XZglcHubk5nK+nzzq6cuX7/3oxAf872OsoaKjEvx/Z5yGhALh4mRCTARn4R
+# ywWQrb1HHVzE04GxMZUMNLAdArw/A126OCV91Bq2NsHGBpgYyPLP6AA/75CmlMqH
+# 3kwJCT0dpfzNjyJqJ8qB1Z5dc/F1CVBfmM+5qqB0fMkLDHxZqrtWRsreOSMx6FuX
+# 7tg58+GJ4ZJvU2N0TX6+JCQdXYhPFGfX0HTIfCQaipORotJ88N8vUfm7WsO4UuHa
+# YHWeEEEDEzExFQXsMyQb7tJxHoaBPFl9+uBepebLZa9G4FtC6aUJLnWanS92OFuD
+# 4+oI1xzomyq43kqfpI7GktGI9c8JWJYoEZugC0Zr985xsRkeJb2B5N/GgDMokUUz
+# 7/vQUE2QpiI+EoiiGhNE4EZA9r6v7+gzUbsBqVlpFZmIBT9Wg3pilnFobXYaV4Zi
+# IZwftMT4yYU4yUg/CrhOKXbBAY51tKvIUFq/390BCQX0xYHL/sJqt8yQMFdHrWiV
+# lgXFovsDHK8ZrqBk3hY5Giy7952VkR/3cD/dE6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTUwNDQ1MjVaMC8GCSqGSIb3DQEJBDEiBCD+BeqC+8ZW2MF9/sHg
-# IGkVvWoQPVLZ5p/isNkLgtK5zzANBgkqhkiG9w0BAQEFAASCAgAMPZPjroflKABH
-# KjdDYauUuHnixgkWfkDXmayE1N84HHeI6GGbulpUTx8f7j2/3ejEegD+fhMUq6uK
-# 5NjaMR1KyIWp8+jFo6Z6v36pcdPua5GQ0qV3LQ/WjCp9+BTy/QROT4MgooiEZ4or
-# olfKsE1mLCNaBmbQRJFlmJodFbMWkwOHb0gvvsO2u7yI3WrI20l2CoosNXKC3mAo
-# UiuHcAnUwDsVuKtidDekjJ4grVyZLdKc1tWuuIwhB0fnT9stOmfpljEhK/vf55Z3
-# J0tiIbqMWG2LOsyQiXnbU0GvhwlEsm5YiiNEWCWYhTRC3pZYEkOVtkJEXl4BRlhI
-# CGocrJZClow2xDk8xngKdyxVwgUfwJfnyvpjeLUqBZYN63NnqeKIBNEQKZLSq3qw
-# ARAJDJ8cUtyPUdk7jsINN0sLp3SnkGjlSVdxHN4tI6xEB9+6prTUKlx952bzgczA
-# pE2+cxNTEOE+hQIRxM8LUnfMvoEdPxpumnPjIUPDnSN0hklavOlFp88pWaVdGdCI
-# AXAnTky1xBIKs7AI1RFaj+zmis9CAn8qsbXHGmhrwIAfwydzs9P813qpfhif4D43
-# GJ3g8yhByXMGwU3HFmDky6bpAw++gaTu2XHuaNOsnQq9LpfagZ2DmdUgVOjApCka
-# sxACnWUW54TUCm+kWgsYzcdb5df6gA==
+# BTEPFw0yNjAxMTUwNDQyMzJaMC8GCSqGSIb3DQEJBDEiBCCsNbwI7jD7NK4ER3eu
+# 79SfPWMbnebe/X9oTCmsJtsguTANBgkqhkiG9w0BAQEFAASCAgBLDH/Dyb0lu6ay
+# 8ioauJOCGRJF2ctB5/Nfu1aO9GCLF22qB6Dkgd07bz2raVwa13sXC3cP/Y/kZuv/
+# YAjfGdCDP2NkMTwhEfNDqYqRCEg3rFnBBw4ywbABftQNamPQisguyL1l8hHaaP6S
+# v8SeVMxTaUldvtMjMte/CbusmjrZ8JcyH2Dz5VLas1bAXn+q/XxyLNBlM5BOg8Lg
+# xhv/j1DM9gdXWvTTGKMum8q0t8pCzBJWJnUVbYpBa2h5hyhKZ1SXp1C0uUSWFC6B
+# 5m8VtJJBn32z3RqlnmfcutpPLWIN8mgB1iKDISIluSfM5bUjLkhiLybu0XrOaQEA
+# bHI5TyMkvyf2n6zbLcgGDfTgTc94MT/E1EomjNFxqVGnn7L3Xy5rTcxA3xZMdecZ
+# iKxPM/DzG0PrBCFZJQXWXDMZQpHvbpw+LEh4fE75lVkGT3pMaL17QuTdenoY8UMH
+# 0a+emlOi8zlzfvYlMKyOOU+WM2bln2Ue9MK+c1BtMM7JoyXGtgxR5EcuEoCWKnVk
+# pmq9Fy9gEXeB31l1ZY1NdIXubaMnc1IbHf5VQLo9KqYqhnzMiexpcPtTRMP+oVvZ
+# 9jkGnl6+dgsdzAKFV0ImgXIe0qbhthG7qPUUPMEGD884hlBy+4HRgf9mStEkUxCv
+# 3i+IgdhJDpHbd0MgLEqKOIuD6MibIA==
 # SIG # End signature block
