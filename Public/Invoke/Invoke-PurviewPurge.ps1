@@ -39,9 +39,6 @@ function Invoke-PurviewPurge {
         [Parameter()][string[]]$MailboxList,
         [Parameter()][switch]$AllMailboxes,
 
-        # Include partially indexed content (recommended when matching GUI behavior)
-        [Parameter()][switch]$IncludeUnindexedItems,
-
         # Optional naming override/prefix; the function will add a timestamp suffix to ensure uniqueness
         [Parameter()][ValidateNotNullOrEmpty()][string]$SearchNamePrefix = "TTX-Purge",
 
@@ -65,11 +62,14 @@ function Invoke-PurviewPurge {
 
     # Initialize StrictMode-safe variables
     [bool]$autoDisconnect = $false
+    [bool]$useAllMailboxes = $true
 
     try {
         # ---- Config & defaults ----
         $cfg = Get-TechToolboxConfig
         $purv = $cfg["settings"]["purview"]
+        $defaults = $cfg["settings"]["defaults"]
+        $useAllMailboxes = $purv["defaultAllMailboxes"] ?? $true
         $defaults = $cfg["settings"]["defaults"]
 
         $autoConnect = $purv["autoConnect"] ?? $true
@@ -78,24 +78,29 @@ function Invoke-PurviewPurge {
         if ($timeoutSeconds -le 0) { $timeoutSeconds = 1200 }
         $pollSeconds = $purv["pollSeconds"] ?? 5
         if ($pollSeconds -le 0) { $pollSeconds = 5 }
-
-        # Default behavior matches GUI: All mailboxes + include unindexed, unless caller overrides
-        $useAllMailboxes = $AllMailboxes.IsPresent -or (-not $MailboxList) # true if no list provided
-        $includeUnidx = $IncludeUnindexedItems.IsPresent
-        if (-not $IncludeUnindexedItems.IsPresent) {
-            # Allow config to drive default if not explicitly set by caller
-            $includeUnidx = [bool]($purv["includeUnindexedItems"] ?? $true)
-        }
-
-        # Prompt for query if not provided and your defaults allow prompting
+      
+        # --- Validate the KQL before proceeding; prompt until valid ---
         $promptQuery = $defaults["promptForContentMatchQuery"] ?? $true
-        if (-not $ContentMatchQuery) {
-            if ($promptQuery) {
-                $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (e.g., from:(*@*.broobe.*))"
+        while ($true) {
+            if (-not $ContentMatchQuery) {
+                if ($promptQuery) {
+                    $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (e.g., from:(\"*@pm-bounces.broobe.*\" OR \"*@broobe.*\") AND subject:\"Aligned Assets\")"
+                }
+                else {
+                    throw "ContentMatchQuery is required but prompting is disabled by config."
+                }
             }
-            else {
-                throw "ContentMatchQuery is required but prompting is disabled by config."
+
+            $normRef = [ref]''
+            $isValid = Test-ContentMatchQuery -Query $ContentMatchQuery -Normalize -NormalizedQuery $normRef
+            if ($isValid) {
+                # Optionally adopt normalized query form
+                $ContentMatchQuery = $normRef.Value
+                break
             }
+
+            Write-Host "[KQL ERROR] The ContentMatchQuery appears invalid (unbalanced parentheses/quotes or unsupported property). Please re-enter." -ForegroundColor Yellow
+            $ContentMatchQuery = $null
         }
 
         # ---- Module & session ----
@@ -126,16 +131,15 @@ function Invoke-PurviewPurge {
 
         Write-Log -Level Info -Message ("Creating mailbox-only Compliance Search '{0}' in case '{1}'..." -f $searchName, $CaseName)
         Write-Log -Level Info -Message ("Query: {0}" -f $ContentMatchQuery)
-        Write-Log -Level Info -Message ("Scope: ExchangeLocation={0}; IncludeUnindexedItems={1}" -f ($(if ($useAllMailboxes) { 'All' } else { $MailboxList -join ', ' }), $includeUnidx))
 
+        
         # ---- Create the mailbox-only search ----
         # Note: For mailbox-only, we set only -ExchangeLocation and omit SharePoint/OneDrive
         $newParams = @{
-            Name                  = $searchName
-            Case                  = $CaseName
-            ExchangeLocation      = $exchangeScope
-            ContentMatchQuery     = $ContentMatchQuery
-            IncludeUnindexedItems = $includeUnidx
+            Name              = $searchName
+            Case              = $CaseName
+            ExchangeLocation  = $exchangeScope
+            ContentMatchQuery = $ContentMatchQuery
         }
 
         # Create (respects WhatIf)
@@ -148,7 +152,17 @@ function Invoke-PurviewPurge {
             return
         }
 
-        # Start (respects WhatIf)
+        # Guards against "object not found" on Start-ComplianceSearch right after creation
+        $regTimeout = int
+        $regPoll = int
+        Write-Log -Level Info -Message ("Waiting for search '{0}' to register (timeout={1}s, poll={2}s)..." -f $searchName, $regTimeout, $regPoll)
+
+        $registered = Wait-ComplianceSearchRegistration -SearchName $searchName -TimeoutSeconds $regTimeout -PollSeconds $regPoll
+        if (-not $registered) {
+            throw "Search object '$searchName' was not visible after creation (waited ${regTimeout}s). Aborting."
+        }
+
+        # ---- Start the search after registration ----
         if ($PSCmdlet.ShouldProcess(("Search '{0}'" -f $searchName), 'Start compliance search')) {
             Start-ComplianceSearch -Identity $searchName
             Write-Log -Level Info -Message ("Search started: {0}" -f $searchName)
@@ -213,8 +227,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCEY9HSOpXwade7
-# rQ6zJSbSs1CdDgAZTl1qvvHzLxs0mKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBCwryIWjpq5ddp
+# lk2YdJww24HJGXOW88aF7sThiBmCZ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -347,34 +361,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCYQEGtETm9
-# WSmbz2rbyMvfpTegoJZMc7ZJHoNhCeOsJDANBgkqhkiG9w0BAQEFAASCAgCnAGHQ
-# BdwZkLEZeMmoGkQrG55UJBNZ7ZlEVMj+EgKOTroWnnZwoIqwuxZLeYsGfnK08a0w
-# PisKnl9KMowyTTf/OAYwTajB9v+a+V1H30lP6ebDsRP9Uy2FP9CvX1VL9JzwR1RG
-# IJWbj6DIujgedXtC0cjIGWFgnTEbboFboVrZsk2GUhOiUwLZHUKuEQOCRCDMm0hX
-# B9s0IZNAG2WhILGukNGpgnBRLzxlAIK7jl7Bt5GhpaasfB04kogyTK+Dp1phjFlC
-# fx2Nlq7Jw4uIn8XcMRJJKUVeOMWt2N+5ueMCRKNUOyT66+FcrY9GRP8AE1T6/vXZ
-# xQxHJ6F23S2obS+bCvlp2BNl/4bBRFoljWm8sxTLYQNIbW7ahJ/n3eG8GFyk6k43
-# 0dfhrp+hG76LOc8VTslKL5MsZAD1Sm1YFJ0ouVQ7JMgj3fUVjZaLXOT3VMhipVnP
-# HkMVYtpE1htjx8QpjnbedwteCI+22FjHRw4kVVd25a6/BRqXF89OK/Fcs3HrdhDx
-# CM2sFV/wB/7BXsYtMvsYPiQGsEe8/nsCWuRsYRQqTyATMM+LM3IpGxzsCk3YeGAv
-# Rtu18wOhvb6kgea39gPIqrrQusDKGU37FGS3MWyed46ZZN5oSbY/186Y5e/azpa/
-# 4DFjYvA1t+enX9gl4gcn/QKol++1SGJ4j8/23qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCThl2Hki6A
+# N4/riPNgpzm8tJ7tAvs3s66Ax3ucg4aqNjANBgkqhkiG9w0BAQEFAASCAgBrRCuM
+# 6aSu8liuDGdjPHhbjxUUVYHvlxKF8GDvziBhrUtCDyFjzFaLUJkkVXeWnP5yoUUb
+# Dy7XctQxU/NwMx94ugPoUKKVji0yzVBU8YLQoMLy/sQcntdfZ11DUFXX9zrpZmQK
+# Ps7SLLg/tC3PaYwLcC+OX9jz+vO8A/FAml2fYIXLOvzA9dVo4B2V6Jnb5kjJDfGn
+# OZjcJXj98lIsnExYPaPtiEjMOrBbiTur1u+dw9PC8fmXjBnMRdSSBSwWVSd5YQ2w
+# oYzqy2pP/S7jugxipGOY7+Tf36xiRD2ZQtj3F7ek7dauagr/Lfuh3WwHHGibe5vI
+# ofDaV3H5Sbj8VzpGfcOj4hFkX29hMxhBJqx7VVunS445dM8JwKL+/0ESvxR3Nz6E
+# BRa+zuh39W8qhtv263rMKadVe3/1rML2WA76mG+QtLvHOGyq8ewBks9Y4cJLDnYc
+# xQM1Fc69KIEVOBlBzhB8zEZqBHPpIc+3Mh0d5FCSZrzBkMYUgUdw5HIevNmDaicd
+# tS73g7a4wmatyl0ePmgjeOkWLJqMJ8Gn1Y+F5c+iy9a5beZCHEdx4w8rqMPyPvN6
+# QqiHG3Oe3IksfKZLymvssudJvMfHlXqdEmkug7xUbEtVd7+LH3seaPY4Q+GrqHHA
+# 0Iwb5p5ehOHzW0StuC3PjaOedEu8ZV0bp56FqKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTQyMjU3NDhaMC8GCSqGSIb3DQEJBDEiBCDw8LH8pyIMWGIGLmrb
-# 8s8zO1JNMWNTifWq8U7QLQ3+wzANBgkqhkiG9w0BAQEFAASCAgAV+CzDiYveSkFT
-# 5E9/VJbuJubpXCqPeRHNsdMDO/w5pil05WPavaGarP+K9DohWuwe4zRAYnWJjrQ3
-# l0k0v+IvqXB06b6wx33Wd6QIZ6ki1oaplaVrGWX2aX069LI+YZ7/3RAK1R6bmOPF
-# JanY16ams//J8j1ZympRr+qBnwd94uF1IsnKLzcLpmFtN4qYB8NX23d155MJ1fzI
-# 9OoyUBC5UdBUbIj8SObbpMrD69h6G2TVOs1yeFmiLK44k4kcDW2234Xfq/YKMtnm
-# ZQ8l/weLj+o/zX3b4O1AOs9XPuMB+TroiKpHsDQF8bUUwPKgmTdM4ElefsjB8hdo
-# 4oKDlTmxhDnQXoPjPNhiIxDvc81SvJUfQW0LMz1VadCbTTF1SRd63r2A3lB4Pa0A
-# gp4ncJsxr83ZGvVlf5d3PgliP5xIKq9s7bfwInW4iUX40+dmHpBRCK4M7IoJOU35
-# TZc3Mk/bjS1PeiChVZ8Z8HUBErOH75BiL6hbRbm3vuKr0krs/OxSHuirYZ4qQ5Os
-# 4ivAs/KVYCJR4wR+AnKz8/I+E6IAkkn+uS9LDFm30m85UIMVtlp7dPY1ywRodXcx
-# Bf53XY4j5wSzk51+MkjGfZRuurxy57QkCT8KXE0U7P6picytNLFEE/LBu15sXz/5
-# /a+BQ0uik/vNMgmRiEfQ0SfuhYBWXg==
+# BTEPFw0yNjAxMTUxNTE0MzdaMC8GCSqGSIb3DQEJBDEiBCCGbkBToe/zb352Qt3e
+# ovsdS7wizdCo+Q1VqZfyaeq95jANBgkqhkiG9w0BAQEFAASCAgASjUB/KnqazS9Y
+# 83U0e1PEzzkLJURwup33E+liO23BZbMyXCo45bOJN7WOfkm2OzsJHQtO9+siWiEd
+# atms6DT2T5HBecdTes+q0qvsfPTDqdjKc7BmJfG8lUVzuZDyHEKNWNlQz3yPXeBp
+# R8gcuw1glk6OPy9lFi25kLgMAwWE2kiesxtUZ1Oma+RRsAEBKP+xC8Y7fLBRS5EH
+# UTFF0JB3JOIn2v0q9oqFepJFWdvVvYDxQF/Pi5K8STt/i+apt/xOvVhzkCzYQyLb
+# w//g5lE493UxTrpejzQRtK4IaNQh99h6VYmBRAFmwLO+z/jOy3RK2ZMcnxCEWk1j
+# PCMcP6UeSepgwLvmEL5j5WVO+Ta9gHo85YuG+rgUZ9Sq09Wcnrqp6yZYXhiob7FM
+# ExIV98e/hqKxJx3DqX+DCmStAO8PP6p3t0p5fbAbWV9iFpCFDXrYfM1hJ4Q+UH9I
+# Cwl86Ej+1pARlJhX4a5vrsgUOQ6Ix7aIHf4BMxo7FIJmOm/dhXIWodTQPNGnkmii
+# 1HpX2PbFLCZU1ZI9ltP+dnX2fVAUfvKhScn8A0sgVd6QD1rpBddC0W/pYb/w821p
+# z8KhHZ/J8Ouv6dqF11kUVLYIF9kZ/aSlfDRbwrtDGa+WAXRfjzWs8ai9IbJr8WQ7
+# 77iQVFvaY64rNM919tpzSu+t70nMWQ==
 # SIG # End signature block

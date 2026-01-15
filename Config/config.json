@@ -130,6 +130,9 @@
     "purview": {
       "autoConnect": true,
       "autoDisconnectPrompt": true,
+      "defaultAllMailboxes": true,
+      "registrationWaitSeconds": 90,
+      "registrationPollSeconds": 3,
       "search": {
         "maxAttempts": 40,
         "delaySeconds": 10
