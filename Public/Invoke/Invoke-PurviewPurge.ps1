@@ -14,9 +14,11 @@ function Invoke-PurviewPurge {
         The UPN to use for connecting to Purview (Exchange Online).
     .PARAMETER CaseName
         The eDiscovery Case Name/ID containing the Compliance Search to clone.
-    .PARAMETER SearchName
-        The original Compliance Search Name/ID to clone. If omitted, a new
-        mailbox-only search will be created via prompted KQL query.
+    .PARAMETER ContentMatchQuery
+        The KQL/keyword query to match items to purge (e.g.,
+        'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned
+        Assets"'). If omitted, a new mailbox-only search will be created via
+        prompted KQL query.
     .PARAMETER Log
         A hashtable of logging configuration options to merge into the module-
         scope logging bag. See Get-TechToolboxConfig "settings.logging" for
@@ -25,19 +27,15 @@ function Invoke-PurviewPurge {
         Switch to enable console logging/progress output for this invocation.
     .EXAMPLE
         PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" `
-            -CaseName "Legal Case 123" -SearchName "Original Search"
+            -CaseName "Legal Case 123" -ContentMatchQuery 'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"'
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(
         [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$UserPrincipalName,
         [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$CaseName,
 
-        # The KQL/keyword query to match items to purge (e.g., 'from:(*@*.broobe.*)')
+        # The KQL/keyword query to match items to purge (e.g., 'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"')
         [Parameter()][ValidateNotNullOrEmpty()][string]$ContentMatchQuery,
-
-        # Scope controls: default is All mailboxes. If you specify MailboxList, that overrides All.
-        [Parameter()][string[]]$MailboxList,
-        [Parameter()][switch]$AllMailboxes,
 
         # Optional naming override/prefix; the function will add a timestamp suffix to ensure uniqueness
         [Parameter()][ValidateNotNullOrEmpty()][string]$SearchNamePrefix = "TTX-Purge",
@@ -62,45 +60,65 @@ function Invoke-PurviewPurge {
 
     # Initialize StrictMode-safe variables
     [bool]$autoDisconnect = $false
-    [bool]$useAllMailboxes = $true
 
     try {
         # ---- Config & defaults ----
         $cfg = Get-TechToolboxConfig
         $purv = $cfg["settings"]["purview"]
         $defaults = $cfg["settings"]["defaults"]
-        $useAllMailboxes = $purv["defaultAllMailboxes"] ?? $true
-        $defaults = $cfg["settings"]["defaults"]
 
         $autoConnect = $purv["autoConnect"] ?? $true
         $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true
-        $timeoutSeconds = $purv["timeoutSeconds"] ?? 1200
+
+        # Support both legacy and purge.* keys in config
+        $timeoutSeconds = [int]$purv["timeoutSeconds"]
         if ($timeoutSeconds -le 0) { $timeoutSeconds = 1200 }
-        $pollSeconds = $purv["pollSeconds"] ?? 5
+        $pollSeconds = [int]$purv["pollSeconds"]
         if ($pollSeconds -le 0) { $pollSeconds = 5 }
-      
-        # --- Validate the KQL before proceeding; prompt until valid ---
+
+        # Registration wait (configurable)
+        $regTimeout = [int]$purv["registrationWaitSeconds"]
+        if ($regTimeout -le 0) { $regTimeout = 90 }
+        $regPoll = [int]$purv["registrationPollSeconds"]
+        if ($regPoll -le 0) { $regPoll = 3 }
+        
+        # ----- Query prompt + validation/normalization -----
         $promptQuery = $defaults["promptForContentMatchQuery"] ?? $true
+
         while ($true) {
-            if (-not $ContentMatchQuery) {
+            if ([string]::IsNullOrWhiteSpace($ContentMatchQuery)) {
                 if ($promptQuery) {
-                    $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (e.g., from:(\"*@pm-bounces.broobe.*\" OR \"*@broobe.*\") AND subject:\"Aligned Assets\")"
+                    $ContentMatchQuery = Read-Host 'Enter ContentMatchQuery (e.g., from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets")'
                 }
                 else {
                     throw "ContentMatchQuery is required but prompting is disabled by config."
                 }
             }
 
-            $normRef = [ref]''
-            $isValid = Test-ContentMatchQuery -Query $ContentMatchQuery -Normalize -NormalizedQuery $normRef
-            if ($isValid) {
-                # Optionally adopt normalized query form
-                $ContentMatchQuery = $normRef.Value
-                break
+            $normRef = [ref] $null
+            $isValid = $false
+            try {
+                $isValid = Test-ContentMatchQuery -Query $ContentMatchQuery -Normalize -NormalizedQuery $normRef
+            }
+            catch {
+                # If the validator ever throws, treat as invalid and re-prompt
+                Write-Warning ("Validator error: {0}" -f $_.Exception.Message)
+                $ContentMatchQuery = $null
+                continue
             }
 
-            Write-Host "[KQL ERROR] The ContentMatchQuery appears invalid (unbalanced parentheses/quotes or unsupported property). Please re-enter." -ForegroundColor Yellow
-            $ContentMatchQuery = $null
+            if (-not $isValid) {
+                Write-Warning "KQL appears invalid (unbalanced quotes/parentheses or unsupported property). Please re-enter."
+                $ContentMatchQuery = $null
+                continue
+            }
+
+            # Valid: commit normalized value (if provided) and break
+            if ($normRef.Value) {
+                $ContentMatchQuery = $normRef.Value
+            }
+            Write-Log -Level Info -Message ("Final ContentMatchQuery: {0}" -f $ContentMatchQuery)
+            break
         }
 
         # ---- Module & session ----
@@ -117,33 +135,19 @@ function Invoke-PurviewPurge {
         $baseName = "{0}-{1}" -f $SearchNamePrefix, $CaseName
         $searchName = "{0}-{1}" -f $baseName, $ts
 
-        # ---- Determine Exchange scope ----
-        $exchangeScope = $null
-        if ($useAllMailboxes) {
-            $exchangeScope = "All"
-        }
-        else {
-            if ($MailboxList.Count -eq 0) {
-                throw "MailboxList was specified but is empty."
-            }
-            $exchangeScope = $MailboxList
-        }
-
         Write-Log -Level Info -Message ("Creating mailbox-only Compliance Search '{0}' in case '{1}'..." -f $searchName, $CaseName)
-        Write-Log -Level Info -Message ("Query: {0}" -f $ContentMatchQuery)
+        Write-Log -Level Info -Message "Scope: ExchangeLocation=All"
 
-        
-        # ---- Create the mailbox-only search ----
-        # Note: For mailbox-only, we set only -ExchangeLocation and omit SharePoint/OneDrive
+        # ---- Create the mailbox-only search (ALL mailboxes) ----
         $newParams = @{
             Name              = $searchName
             Case              = $CaseName
-            ExchangeLocation  = $exchangeScope
+            ExchangeLocation  = 'All'
             ContentMatchQuery = $ContentMatchQuery
         }
 
         # Create (respects WhatIf)
-        if ($PSCmdlet.ShouldProcess(("Case '{0}'" -f $CaseName), ("Create compliance search '{0}' (mailbox-only)" -f $searchName))) {
+        if ($PSCmdlet.ShouldProcess(("Case '{0}'" -f $CaseName), ("Create compliance search '{0}' (mailbox-only / All mailboxes)" -f $searchName))) {
             $null = New-ComplianceSearch @newParams
             Write-Log -Level Ok -Message ("Search created: {0}" -f $searchName)
         }
@@ -152,11 +156,8 @@ function Invoke-PurviewPurge {
             return
         }
 
-        # Guards against "object not found" on Start-ComplianceSearch right after creation
-        $regTimeout = int
-        $regPoll = int
+        # ---- Wait until the search object is registered/visible ----
         Write-Log -Level Info -Message ("Waiting for search '{0}' to register (timeout={1}s, poll={2}s)..." -f $searchName, $regTimeout, $regPoll)
-
         $registered = Wait-ComplianceSearchRegistration -SearchName $searchName -TimeoutSeconds $regTimeout -PollSeconds $regPoll
         if (-not $registered) {
             throw "Search object '$searchName' was not visible after creation (waited ${regTimeout}s). Aborting."
@@ -183,7 +184,7 @@ function Invoke-PurviewPurge {
             throw "Search '$searchName' returned 0 mailbox items. Purge aborted."
         }
 
-        # ---- Purge (HardDelete) via your helper ----
+        # ---- Purge (HardDelete) via your existing helper ----
         if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $searchName), 'Submit Purview HardDelete purge')) {
             $null = Invoke-HardDelete -SearchName $searchName -CaseName $CaseName -Confirm:$false -ErrorAction Stop
             Write-Log -Level Ok -Message ("[Done] Purview HardDelete purge submitted for '{0}' in case '{1}'." -f $searchName, $CaseName)
@@ -223,12 +224,11 @@ function Invoke-PurviewPurge {
         }
     }
 }
-
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBCwryIWjpq5ddp
-# lk2YdJww24HJGXOW88aF7sThiBmCZ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAc5MGESn78kyKb
+# t79cNpnozFjb+auTw3/kTx+3TMMWrqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -361,34 +361,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCThl2Hki6A
-# N4/riPNgpzm8tJ7tAvs3s66Ax3ucg4aqNjANBgkqhkiG9w0BAQEFAASCAgBrRCuM
-# 6aSu8liuDGdjPHhbjxUUVYHvlxKF8GDvziBhrUtCDyFjzFaLUJkkVXeWnP5yoUUb
-# Dy7XctQxU/NwMx94ugPoUKKVji0yzVBU8YLQoMLy/sQcntdfZ11DUFXX9zrpZmQK
-# Ps7SLLg/tC3PaYwLcC+OX9jz+vO8A/FAml2fYIXLOvzA9dVo4B2V6Jnb5kjJDfGn
-# OZjcJXj98lIsnExYPaPtiEjMOrBbiTur1u+dw9PC8fmXjBnMRdSSBSwWVSd5YQ2w
-# oYzqy2pP/S7jugxipGOY7+Tf36xiRD2ZQtj3F7ek7dauagr/Lfuh3WwHHGibe5vI
-# ofDaV3H5Sbj8VzpGfcOj4hFkX29hMxhBJqx7VVunS445dM8JwKL+/0ESvxR3Nz6E
-# BRa+zuh39W8qhtv263rMKadVe3/1rML2WA76mG+QtLvHOGyq8ewBks9Y4cJLDnYc
-# xQM1Fc69KIEVOBlBzhB8zEZqBHPpIc+3Mh0d5FCSZrzBkMYUgUdw5HIevNmDaicd
-# tS73g7a4wmatyl0ePmgjeOkWLJqMJ8Gn1Y+F5c+iy9a5beZCHEdx4w8rqMPyPvN6
-# QqiHG3Oe3IksfKZLymvssudJvMfHlXqdEmkug7xUbEtVd7+LH3seaPY4Q+GrqHHA
-# 0Iwb5p5ehOHzW0StuC3PjaOedEu8ZV0bp56FqKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA/0Wyj557q
+# pqeIdpw5BGkAXiEFbOwAbChMdKiawXIKCzANBgkqhkiG9w0BAQEFAASCAgB71AAd
+# iWKOjEWWV3TOiqc3ycTgtEMraW0L0bNkjTaEzIzsRV2OL5VchQKBKr2goQcGv42t
+# I23LbcW+sy2A0c62qHV7rbODh3Ke489ysHo/9CwpTHEwQ+YfWuFjYasrOI6jkl21
+# CG/fiqWzVChOSxxxsacqtHQh/nV0gkEVWqCUxYIoGNx6aEhKwfTIIkErxL0KXTjV
+# 6gnQDZoLsXWRCsiqCPRtCb9UpCUJGy3BQu7jVXKVQ3xMoxpQfP4ADPvE8xdE6j3g
+# iFCKxEvQWWA/FNZ9uHMkHzeS1YQr+A2E0hE17m0fNE+3VwYqlilSV4iWi5eLSm6X
+# EyFAEEPv8q4K8OLGEFh6qbpAU8MzNLQ0RqkfFJmg2f8IERY4aysgUSfbZa/ZcApD
+# /d0ufs0jyWeZWCuuHdM8Pxeum81sfT5GOrbQrzaJqHi1wzPS7MOuIQ4iOC7E2sld
+# zwlJKEj/jKLkXW8f4p3CH66r8debrAlXB71NCeMQbEezWqJUR+Lsl2varRF6TupO
+# 3jq3hUogfZ0iC5EENGPkLDS3YzbBXmN+t/hRTfiCHvj96mFtEJ9RCWVtlRp3lrvO
+# 7czC8CWNylB/TY5YF3VlYL15Nt/aP27murD6ywS8t7DfTJ8FTGsKXcB1hXYPT2ka
+# ej6dwN7eH09KB4/UugIBt6vFiDayget/sIZxy6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTUxNTE0MzdaMC8GCSqGSIb3DQEJBDEiBCCGbkBToe/zb352Qt3e
-# ovsdS7wizdCo+Q1VqZfyaeq95jANBgkqhkiG9w0BAQEFAASCAgASjUB/KnqazS9Y
-# 83U0e1PEzzkLJURwup33E+liO23BZbMyXCo45bOJN7WOfkm2OzsJHQtO9+siWiEd
-# atms6DT2T5HBecdTes+q0qvsfPTDqdjKc7BmJfG8lUVzuZDyHEKNWNlQz3yPXeBp
-# R8gcuw1glk6OPy9lFi25kLgMAwWE2kiesxtUZ1Oma+RRsAEBKP+xC8Y7fLBRS5EH
-# UTFF0JB3JOIn2v0q9oqFepJFWdvVvYDxQF/Pi5K8STt/i+apt/xOvVhzkCzYQyLb
-# w//g5lE493UxTrpejzQRtK4IaNQh99h6VYmBRAFmwLO+z/jOy3RK2ZMcnxCEWk1j
-# PCMcP6UeSepgwLvmEL5j5WVO+Ta9gHo85YuG+rgUZ9Sq09Wcnrqp6yZYXhiob7FM
-# ExIV98e/hqKxJx3DqX+DCmStAO8PP6p3t0p5fbAbWV9iFpCFDXrYfM1hJ4Q+UH9I
-# Cwl86Ej+1pARlJhX4a5vrsgUOQ6Ix7aIHf4BMxo7FIJmOm/dhXIWodTQPNGnkmii
-# 1HpX2PbFLCZU1ZI9ltP+dnX2fVAUfvKhScn8A0sgVd6QD1rpBddC0W/pYb/w821p
-# z8KhHZ/J8Ouv6dqF11kUVLYIF9kZ/aSlfDRbwrtDGa+WAXRfjzWs8ai9IbJr8WQ7
-# 77iQVFvaY64rNM919tpzSu+t70nMWQ==
+# BTEPFw0yNjAxMTUxOTM1MTNaMC8GCSqGSIb3DQEJBDEiBCDIExwSpXHJUii6rgQ0
+# /PIETxDmyk2BZt3cmpkJ9kG4wzANBgkqhkiG9w0BAQEFAASCAgDP1KWXuY+nmq0D
+# +Ax2ak2OJ0Py/VZTAfATw4vMjOrVGw1KbI2RbkxDlZ6YMYM/trJ5DWVfoPN9dXom
+# /ASGurnEcp8FxKqJ4sUrn0hvbUH/mG6tmBUfB9PJneUqORXLQ0ybecYRXIDkd089
+# b7Ro1fLszh+7qEa91IL65Vje9ndDWCD7StUY9M6ef2Wc8o8QEKGc+taABH3V8Ksa
+# FDtPvkJhU02FCnORcybqx+WRiRYcFSZcscF+VOtcY8cSj27MDCHQRH+DNQjEbZbQ
+# HQ4shjzoSnoFuz8RM26H6X8MXJbiwMMT9RE4uA9uQKHuTnousef2QgvCFnDaZPwn
+# I9HwQ7urgykcvzNidCiFdT7X31d+x+ovFC3tt2j8+W0LDeD6/iIQ0fhYijJOMtIL
+# wvIYNwQ2T+a0qRXAU9ih8hwDezv8TffiMj7xNrCe051xXX9OpFZn9obEMH0/7G7F
+# 2rQo2r7L0VlobbQjkRXG7qnk4/o7xbAq3wzUYG7UTY482trtB4odUH7VxfVrdyzx
+# n8Dfsc9KrLdN6dpdZhdsjhxOmqvxMmtzk7l5rdLnKsE7KzwrOQDMYe/acp5I6iWX
+# +YRY+CjWjBDoAY9hbT/EaElJvxa8ai1/dvKzKsThH+hq7DtSH3kmWNUxoqgRSLAP
+# SZXCOX5TpliyF+pNAqdPnUt9Y4PIrw==
 # SIG # End signature block
