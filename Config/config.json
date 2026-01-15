@@ -14,7 +14,7 @@
       "Defer": true
     }
   ],
-  
+
   "settings": {
     "defaults": {
       "promptForHostname": true,
@@ -175,6 +175,11 @@
       "upnPattern": "first.last",
       "samPattern": "flast",
       "mailNicknamePattern": "first.last"
+    },
+    "systemSnapshot": {
+      "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemSnapshot",
+      "includeRoles": true,
+      "includeServices": true
     }
   }
 }
