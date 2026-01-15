@@ -119,7 +119,10 @@
     "messageTrace": {
       "promptForMissingInputs": true,
       "defaultLookbackHours": 48,
-      "autoExport": false,
+      "autoExport": true,
+      "timestampFormat": "yyyyMMdd-HHmmss",
+      "summaryFileNamePattern": "MessageTraceSummary_{0}.csv",
+      "detailsFileNamePattern": "MessageTraceDetails_{0}.csv",
       "defaultExportFolder": "C:\\LogsAndExports\\TechToolbox\\Exports\\MessageTraces"
     },
     "batteryReport": {

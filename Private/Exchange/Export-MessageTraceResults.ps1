@@ -21,6 +21,12 @@ function Export-MessageTraceResults {
         [Parameter(Mandatory)][string]$ExportFolder
     )
 
+    $cfg = Get-TechToolboxConfig
+    $ExportFolder = $cfg["settings"]["messageTrace"]["defaultExportFolder"]
+    $summaryPattern = $cfg["settings"]["messageTrace"]["summaryFileNamePattern"]
+    $detailsPattern = $cfg["settings"]["messageTrace"]["detailsFileNamePattern"]
+    $tsFormat = $cfg["settings"]["messageTrace"]["timestampFormat"]
+
     try {
         if ($PSCmdlet.ShouldProcess($ExportFolder, 'Ensure export folder')) {
             if (-not (Test-Path -LiteralPath $ExportFolder)) {
@@ -28,9 +34,9 @@ function Export-MessageTraceResults {
             }
         }
 
-        $ts = (Get-Date).ToString('yyyyMMdd-HHmmss')
-        $sumPath = Join-Path -Path $ExportFolder -AdditionalChildPath ("MessageTraceSummary_{0}.csv" -f $ts)
-        $detPath = Join-Path -Path $ExportFolder -AdditionalChildPath ("MessageTraceDetails_{0}.csv" -f $ts)
+        $ts = (Get-Date).ToString($tsFormat)
+        $sumPath = Join-Path -Path $ExportFolder -ChildPath ($summaryPattern -f $ts)
+        $detPath = Join-Path -Path $ExportFolder -ChildPath ($detailsPattern -f $ts)
 
         if ($PSCmdlet.ShouldProcess($sumPath, 'Export summary CSV')) {
             $Summary | Export-Csv -Path $sumPath -NoTypeInformation -Encoding UTF8 -UseQuotes AsNeeded
@@ -58,8 +64,8 @@ function Export-MessageTraceResults {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCArkAU9BBJh/8c5
-# IZXBokEjLe6cNPb8FqvIgVtAJHLmIaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA65u/uDxFgt4sK
+# ES6SD+9NpocVv7pcev/qC1vF41AjjqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -192,34 +198,34 @@ function Export-MessageTraceResults {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCjyUkp3GFR
-# rF6aRzl5IDohhHAgzqdBQl24etyMwzDnTDANBgkqhkiG9w0BAQEFAASCAgBYQxSI
-# 6HQAg64wrdpPx2R6uACFIhPWjEbM/lR2sELYR16yeYVxLAjAVZWljp9xsxdD6PRr
-# P3E5+YEXDdTR7DICaI4wR6TE4NMtw2pVLX5+Gnpl/p2BVnxxOqiK0DrckoXA5DFe
-# NHfpahLsS5gglsyFbif0DnhRj8mvETZFOYTk9x9V19sPurCDcUdOa4s0Wbp2iSmt
-# 9of8w7rYHpmvSS0XEMSCY/xa8AXDTAQjGTENp/XT0IcqelmmupSi3ApLzcHkKaCi
-# 9bmPyy41ffcYwycY6nnFVGYY6HX4oIXW9oX3PSCubr6g2bPtzQ5RPU1j3WT7l/Hi
-# Bs9zj+vXSQ6jQJMXk7oYpWlxoMyFGGhTs5A/vMaOeC9cmM/hG3itL3tpXpyAOZh6
-# ZnDkzjrUYzNAShjRqGmweheX8Glfz3t6ceh0xAIZ9lOdfCLdxgnLClGv0WtUKelo
-# P1Kge+qpp+zattsK6BbE+MxBZML3i7e5PX4ruQcbB8ATjnT48H3h3+Zv4M3t+9Fq
-# 2TOXW/QMnwxuSoUNtWprjdBQ5xr8atobZutvBJBAxobVN0LUO1CiwxNVawsrlH8n
-# d4u7FL9HlEJT91NyVf3sTMF0e5LgdjRPJXkIg7mTshR9TEUv0r31MO4CJTExzPwV
-# ZKZbgLTet9JI1U+Mm7kncJ+eawTWBameJYQWwqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDJewh4olCn
+# sk8U9peZcAAfmrzE9XnIQNP6+Jm4gGjIjjANBgkqhkiG9w0BAQEFAASCAgCa3lAr
+# HNJL/vJKF0VO6PNSsMHrL7if0DBpUa1EJOSJrmxFT+6okRO+5Gzo0EBsvJOTZaQU
+# UGaga+J/0nNVRggMKXF5U4P8KWWOq9Siy+vZpAI8dGUg8d1HL9a6VOm50F0AFz7c
+# YrxsF2PfAwJQDwUfTjiVV0LUlySUEpxTkf957YUPxjxC7eqkDz57FUcgPF8VkbDk
+# xUwt82CUGUyJ3PaNo+PII7kmAP2+c+Pbx0i81PZq2cH1iAzUI9FkVQtA+h0UKyNE
+# WMCEVX+nBnzgsY1Jc1rUX0ywJNS8lMH9rRrDpBBT0gvjG/4GmKzIYWLbKtwi1ncu
+# 4sqK55ip8Jk05SWIXZKiOW89BY3aVu5imyWrPbe+A73iBvti+n6i/kCQwclMMAEY
+# g12FkbrI6W0Ac9E6cNJXjAllMhh8XQhN5E2/70kMZ9mEGRGV1lphAnO3//xNNJ5E
+# v/Y26ouizEpdHMa9Wj0nadol9gPYq0qEaX8XlrM6KOBjYErBoLWzGuio8WWulWPW
+# aKisK08AznNpNroTV4fsTz0ug5ObcTS8yi7PBxnv3uayB/ZIgfXsediUTj8Gp548
+# c+hEKcoFoxJ947EfPrmZZ3g+xgp7+5OIHkZXNVIxegNfnxXkn9Xy6eyzrdWlyNp9
+# yEk++RkETisyKH9LvlpVUEQ+5qx4OIBDPvZlwqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNDMyNDZaMC8GCSqGSIb3DQEJBDEiBCDftg06GYf6u+721Fyh
-# pUDD7H9CxFLUZmyqgTaFIaUxDDANBgkqhkiG9w0BAQEFAASCAgBvhUmPA4TMVT0S
-# jFA1ZmEfQ4xn3dU1ladmQjCQIibAvm55VLjps/ssNbPuh7CkYz6xjq4mfovk5XSP
-# nO6psx481uuZcHt3uf1Dlt+1dhDFghZ5dKIREUw+05BO8SQeloh3oc5nCNaJNjFz
-# sBC39U3M1Vltmm0594/H96qUu+Syd1psAqVglGHPJXJuhuq0BHlKFaJsjY/C4+xr
-# En3ECFOEQeASEUhAUtpaT1g/vp9UgJ+GNW4W8BwxlhOqgs3UzLrIxMjBqke3GkWM
-# SaWhqTTnUQYMbMl/G/bcxzzanhTMHuupQn2SfZPVzHX+fgAWLTJnt0Prcq/29Rw7
-# 4fYujbd+s2L5BxBv+zRS6cWJuhb+lzl4s0k8twdyGGcTiVw8CrNTYgwTnUpGzrFy
-# bQMLZVc0L5CNpzdfpTKMldtLSU5G1Iz54XSs4kxrpWKuOWNWEOuaoF9ziltNyZs8
-# 0IGyPlayEDy9Xh+fQcmpAnOJYGTM0B+9GbpQDQWZg4HOHsUHceztILabR1lxpbu7
-# kHq1wMvc6MwUuh2FJpJKw0eFPRXT5T1jeWznLzAuhm4qybaglBs85CA6HuQKcJBE
-# DG9e3D03xUfmNq3T2bpuaDSf/OC01LFmu1Ovlg//+1niG17uM3xNF+6eW/imdA5s
-# JjuhZ2ezPo9/OulQbhZuVmbzFB8Qcg==
+# BTEPFw0yNjAxMTUyMTExNDJaMC8GCSqGSIb3DQEJBDEiBCBWYDjBYBge0ex4NPj4
+# MMsmq2uHSUScNCMmHpDmknOcgjANBgkqhkiG9w0BAQEFAASCAgAO4GsSITSgXNLS
+# 29W6Tum1pmSzn5Tx2H3016NbJdkKp6dA6wQn712/TJbT6FDYPwwjoiI8rFH39br4
+# um2zReQKBH8mzeABvuTo6FFAFVAMJDF++N9M/+Kilpn9f/WpGWkuxo8oCseP3Egv
+# N8BMRUaTonoAeZQ1zZL2qkqZ78ysg+BiAFVry4owuwYJby88skqsmpSU2a0tIsDc
+# Yi61myp5XoUwzu702VidovLF90/EGjC6+VI6pahRQmAucHsKwyZuSdNFU1bHIgS+
+# QYEE1UTQxhqmCsP0RSwLL95ufCVeM4FTS9Mnr52Dghqe7GkJyaS5IOgAsd+j4cug
+# CPJNL0VVLNuiug4Wp0eufKulVHsFTT/gUs3H9nD+ALsnMDwzva5ZNffAWvPSmKlz
+# f4qetTHoV5M0fdxR2TqC5dCZtJzrkOLFRab7c+/2ombk27Im66gKvSsXnrnDHnoC
+# bt0MqxzdEsLPHmXIPHzDSUi4mtddhaVEBhrz50wqBPaHtkT3lt8vmZIB17LM7jix
+# LaFFWyMStKxq3+Vw2JYwoOdgmLu387vjQaiNMoSICnS3RXiW3u+tWwgpwR++wS/B
+# oFBqrCLhzr/yIoWydPSqlnxZ9iExPVDF2kmJbizPUuuBqkNpAcc0Luv7ZDXPQ8PD
+# DN8mEXMUVrNqA869FqF20OIoyUNvyw==
 # SIG # End signature block
