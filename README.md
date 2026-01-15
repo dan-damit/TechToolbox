@@ -32,6 +32,7 @@ enterprise-grade PowerShell module.
   - [Reset-WindowsUpdateComponents](#reset-windowsupdatecomponents)
   - [Set-ProxyAddress](#set-proxyaddress)
   - [New-OnPremUserFromTemplate](#new-onpremuserfromtemplate)
+  - [Get-SystemSnapshot](#get-systemsnapshot)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -369,6 +370,18 @@ Automated ADUser creation with -TemplateIdentity "user_to_copy_from" support
 ```powershell
 # Example:
 New-OnPremUserFromTemplate -TemplateIdentity "jdoe" -GivenName "John" -Surname "Smith" -DisplayName "John Smith" -TargetOU "OU=Users,DC=example,DC=com"
+```
+
+---
+
+### Get-SystemSnapshot
+
+Gets details about a system, local or remote, and outputs to console and eports
+to CSV
+
+```powershell
+# Local and remote support
+Get-SystemSnapshot -ComputerName SERVER01 -Credential (Get-Credential)
 ```
 
 ---
