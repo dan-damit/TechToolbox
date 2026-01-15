@@ -8,6 +8,11 @@ function Test-ContentMatchQuery {
     )
 
     # Trim and basic checks
+    if ([string]::IsNullOrWhiteSpace($Query)) {
+        if ($NormalizedQuery) { $NormalizedQuery.Value = $null }
+        return $false
+    }
+
     $q = $Query.Trim()
 
     # 1) Balanced parentheses
@@ -20,7 +25,8 @@ function Test-ContentMatchQuery {
     if ($stack -ne 0) { return $false }     # unbalanced overall
 
     # 2) Balanced quotes (simple even-count check; covers most cases)
-    $quoteCount = ($q.ToCharArray() | Where-Object { $_ -eq '"' }).Count
+    $quoteArray = $q.ToCharArray() | Where-Object { $_ -eq '"' }
+    $quoteCount = @($quoteArray).Count       # ensure array semantics
     if (($quoteCount % 2) -ne 0) { return $false }
 
     # 3) Allowed property names (adjust as you need)
@@ -29,20 +35,17 @@ function Test-ContentMatchQuery {
         'subject', 'body', 'sent', 'received', 'attachment', 'attachments',
         'kind', 'size', 'importance'
     )
-    # Find tokens that look like <prop>:
+
     $propMatches = [regex]::Matches($q, '(?i)\b([a-z]+)\s*:')
+    # MatchCollection.Count is safe, but we don't need it—just iterate
     foreach ($m in $propMatches) {
         $prop = $m.Groups[1].Value.ToLowerInvariant()
-        if ($allowed -notcontains $prop) {
-            return $false
-        }
+        if ($allowed -notcontains $prop) { return $false }
     }
 
     # 4) Optional normalization for common wildcard mistakes
     $norm = $q
     if ($Normalize) {
-        # Ensure wildcard terms containing @ or * are quoted
-        # e.g., from:(*@contoso.com) -> from:("*@contoso.com")
         $norm = [regex]::Replace(
             $norm,
             '(?i)(from|to|cc|bcc)\s*:\s*\(\s*([^)]*)\s*\)',
@@ -50,7 +53,7 @@ function Test-ContentMatchQuery {
                 param($m)
                 $prop = $m.Groups[1].Value
                 $inner = $m.Groups[2].Value
-                # Split OR terms and quote them if they contain @ or *
+                # Split OR terms and quote them if they contain @ or * and aren't already quoted
                 $parts = $inner -split '(?i)\s+OR\s+'
                 $parts = $parts | ForEach-Object {
                     $p = $_.Trim()
@@ -61,18 +64,15 @@ function Test-ContentMatchQuery {
         )
     }
 
-    if ($NormalizedQuery) {
-        $NormalizedQuery.Value = $norm
-    }
-
+    if ($NormalizedQuery) { $NormalizedQuery.Value = $norm }
     return $true
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCADmQYb/Uix3/oC
-# vvJ/UIoXGQ7+5L6JsX8FPTbj9Q69q6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCDRm1oPOHrxUjA
+# XA+tV/cxn9CG75sWZPV1zZdkC3xQgKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -205,34 +205,34 @@ function Test-ContentMatchQuery {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC67w1LFC2T
-# syhmgO56s4jpke6C5J4r2ObmrLptJ8UTODANBgkqhkiG9w0BAQEFAASCAgA+s1l4
-# Feide+FAb2yLuR+V+v9xZ2FSrZqu3GbfMOlqvZFY12fEcoNQDZgVQDukBNdPgFkh
-# nuGT3Tuqp5eMYde+DoyKevtaQOEEUMGkr25Qucn5rpB8sQNoqq14jjWVICCElnv0
-# 1Sy/z0D7n/5dJP7MJVsJ/leCd4wGmVCZ91IeYVNllFYvv56ldoIkTISn4nh4gZOz
-# 8gmjtTYkOqZod5GQ0Y55XwPIXro96M0qQlY7+VP2Z4HexBtlmiuo71CGdS1goJWP
-# Z6wAe1KN0MSNbyP/sommXCUtOjjDT2MVbKjV92FWrj/HGYWYeDuOy2VMebnL+M7A
-# vtKGgQb9K7R1pdmaW06LqW0Hs/UjGgtJH4M24Jrb+iKyCzmHaICadLQdPQF20VR1
-# xhX3V0NPAfKpq1RtLRggoRqQB6jKUwzGKDBV6x6CyTMXWDE1pVahTnJOVsJnOiCJ
-# 3T0vDguEYQbMEGKOEZW9+Cr2cbbJcDboyM3GqCd3Bkwr29ItPxrVQnnsKAPei2Eq
-# oESWGfLGTAJ+zT71YKpS9trUKczCq3F0m67wVnwxkH41uf+ZSgPHQ5HnJ3ZymwMt
-# QoqwetOzHSb5n4r+HcSP57xZGZ8Pm0S/sXqWmh1euFb93/khk2jMBiINTPKdvEpl
-# 6nrO8kca7bE81Zif8HCYGFV2m9w+YuytWKioOKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBGEOjTfext
+# Y3ZENgQZdYV1tqYFdtIY17Ze873vbEQc0zANBgkqhkiG9w0BAQEFAASCAgBIZCXy
+# 1E2M+jKVrMJ5FU0Kf1ehpOJtkrdgPycgBpwJ1VKvbTNW4+TUjKMYBB5OvwX+oJEG
+# 3rEFXGNUs8uYXePz/l4cEC6iT4Qcx04Gd+D+9jSJDMNzM9XhqVxDIt96knPcnw3w
+# JLhGKly70Uzj/H5dBXAypzxXof9jQ6VWlwALtI0ZsNs2rP7+C1MlkV7GFOuURpeq
+# 5P3qw7PH4nHw5BfQMJsGnVGekDJ/qkRHEzPlT/ECnrWrVJkGSJmKhvzKvaiPHU7o
+# vunhkzDc2vE2acs+0F0QU3FgVIMIOna5qgG7BrzkMwCS17Xkn1G72nufS/snJYqH
+# Ix7bHWCC4Nkp+WEKGYjdBg8uEyBkSgSGct41AeV7mfKIx7wluPwh6SQyESB2LUfl
+# 4Gs6v65zm1lo9atQQah9O6lfQx9ehXhoHsroyx35DM5uPnT4UJN8QAUkOzEoRDe5
+# yflU2FxKoGtXjMJooFvwzvzBiG1CQDJ05H+N2sOB/Je2i2DqjxbUQFDh+jHBvitu
+# 5IS4379rvBOnDn5g6UCq1o1Oj50XPO5NKvt1yDse0v7nDtes7Oh9f6ox+HOxxshL
+# 0IWUHMuMjTxRLzyyF/1VNHQy5oRekpyaJBuHVMB7mwraQBcjeIIRnh/BA7sin5Jk
+# 3ICg7xr9liMSrZw1yEbg8U7jtwRBpkXZ2F4x0aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTUxNTE0MzZaMC8GCSqGSIb3DQEJBDEiBCCuGGm7Zqi+Idqrmwx3
-# ahbRVqp0lR6gWIhGy5jgC9ou2zANBgkqhkiG9w0BAQEFAASCAgAlImSwSO3CYXhQ
-# SQEIo6bXkcPyFw8cNySE2iRh9eXDV+Nqg2UW74fAfnt77ghg9mX+QigSwyyPp1zl
-# 9l6c0UzXjK9506oIbJQ6wvRcyS0CZmszqVCyJjuDSDVnko4smbxNQusm6Xq40ILF
-# pLjgSqb8rLoUehx7kj0S61OePkO+ZhlwAiml27R/vbjFzLGPPK2lTtcNEbMgXOuG
-# 8Mi/FwBM4SecQdKNco82Lx8xw8ucUONnZ/rgNery+LXN84FFrU/Eb8PqBeCL1m2P
-# iqIhCKMP5Tkjdh9AM60IzcgurqP4j7QeETGDP3KwJBerT5ztyEfrBmnpQ8UpIHjA
-# 7D2TVce/nbDKR/byMnTU1MA2LjjYJswQ1zAjdBiMHfFa+btxIclNIXv4HtZ9CE1w
-# m266R3pY8itV+xQH4mZD23iDMsyaAnvVmd3AvOb6/mAiUy0uyOEfucJLAqcfVRSV
-# IiJQ2WlpRPTDPpg3vWucyLhzIAJ3zYpU0SiOLOV10oQJYZOwfd6ZorCjaeyU7AZz
-# 8g4CXmuYFajyRdoz2lNsr7H8HOo1FiMMe7FgsshdVsEu86plP0Zgpk0BEF69Dp6b
-# fw6zjlZIdMYE+mcoirGkrIjRGEupPBkI6wXyJ+0ejNao/pd4tjIxovJvu1pDq3Uf
-# MhDh3g/4B7jb4HPZ0JLccG6AbNy+yg==
+# BTEPFw0yNjAxMTUxOTM1MTFaMC8GCSqGSIb3DQEJBDEiBCDDy7YugfrMhoLg4Nh1
+# htyN8qfWRKqCay/cg4yCVWN7nzANBgkqhkiG9w0BAQEFAASCAgBJOuaKbQZ8Vhi1
+# PJqjuBY7pkgWhkTqOI/hbyv4vyD0F2EBmm3YCMk7mS26YSu6IqGPtKXiuvNK6CpE
+# 1XThBTL1j5tr0eJAnixEAbO19Be+CG4TjZLRJKcUrUzlGB7MDJFK0h6PA/ZbjVkQ
+# DUaN4M7rFQfx7PaO2b8yP0ngeX0OCuOC+zqSqRpLUXzJJBzciGGRgha1sN+Lr3OX
+# Pl4Y9HHN4+lOeoQM/ZU7sKHKChE45oAOArjtueErfYUMSbzNDUWDk2TNHfpSL4Rx
+# YN/1l7gwisH4RzGARx051DTXt/fI+68Ca2eVGf9seNhZa6YLQpJgqgLMGB52pGvU
+# kqmk435BOpce4GaNjOG1t0XfQlDgs0E5oBRj9yuN5YeH2TpXdO+10maTXs4BtyxU
+# U/1OklW94Iik9WQVIu9//P1cI8BpZcfXDiFiMkF1sgIxFwZ3SbA1ME7MYu10CsH4
+# Od9oxczFVwlBgSvO7UvkocIgxnryJ9QPR81EobRYMN15D1PVnct3cMwsggK8HS3b
+# DBeeAi1Rt3Tr5GS7n7WQ++9+4qRH+J46Pyy+jPmufmr+jPyPAfJ75qxelq+LF9E1
+# GKGoVOYGsAPscnKv4ft9u07uisHTs5nmc1ybTHLKM+QMRvJOMeKEkJ+yNKm6eNxc
+# Xr1cP3AwuXSKWnApA91DFBXAQQgqLA==
 # SIG # End signature block

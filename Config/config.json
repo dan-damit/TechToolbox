@@ -23,6 +23,7 @@
       "promptForCaseName": true,
       "promptForSearchName": true,
       "promptForKqlQuery": true,
+      "promptForContentMatchQuery": true,
       "showProgress": true
     },
     "logging": {
@@ -133,6 +134,7 @@
       "defaultAllMailboxes": true,
       "registrationWaitSeconds": 90,
       "registrationPollSeconds": 3,
+      "promptForContentMatchQuery": true,
       "search": {
         "maxAttempts": 40,
         "delaySeconds": 10
