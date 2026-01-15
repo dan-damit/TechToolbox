@@ -1,28 +1,44 @@
+
 function Convert-SnapshotToFlatObject {
     [CmdletBinding()]
     param(
-        [hashtable]$Snapshot
+        [Parameter(Mandatory, ValueFromPipeline)]
+        [object]$Snapshot
     )
+
+    # Normalize to hashtable
+    if ($Snapshot -isnot [hashtable]) {
+        if ($Snapshot -is [pscustomobject]) {
+            $h = @{}
+            foreach ($p in $Snapshot.PSObject.Properties) { $h[$p.Name] = $p.Value }
+            $Snapshot = $h
+        }
+        else {
+            throw "Unsupported snapshot type: $($Snapshot.GetType().FullName)"
+        }
+    }
 
     $flat = @{}
 
     foreach ($key in $Snapshot.Keys) {
         $value = $Snapshot[$key]
 
-        switch ($value.GetType().Name) {
+        if ($null -eq $value) {
+            $flat[$key] = $null
+            continue
+        }
 
-            # Nested hashtable → flatten with prefix
+        $typeName = $value.GetType().Name
+
+        switch ($typeName) {
             'Hashtable' {
                 foreach ($subKey in $value.Keys) {
                     $flat["${key}_${subKey}"] = $value[$subKey]
                 }
             }
-
-            # Arrays (disks, NICs, services) → join into readable strings
             'Object[]' {
-                $flat[$key] = ($value | ConvertTo-Json -Compress)
+                $flat[$key] = ($value | ConvertTo-Json -Depth 10 -Compress)
             }
-
             default {
                 $flat[$key] = $value
             }
@@ -31,11 +47,12 @@ function Convert-SnapshotToFlatObject {
 
     return [pscustomobject]$flat
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBA0rE3NAWKmHpV
-# OoTPFXT61p+NxK38IJlbDV8I81lqHKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBmrbShSNDHAba9
+# q6y4BIbmzk881Wo69dsnpnM8Y3nnVqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -168,34 +185,34 @@ function Convert-SnapshotToFlatObject {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDCyjRU387n
-# 7tGA4s4S8GrcSe7/OqBE2c3ImM2riT0ajzANBgkqhkiG9w0BAQEFAASCAgC631hW
-# Sk3hIR5EBQsXDhR2YLjVV2KgU27AV8GV1v8mf2RG7wsGE/x7oV1SBFTNViTz0Pq8
-# bmDDz0SeHnAU0zw5DFnexwLy/he4JHbXjt5PzPZazE1KaI5qryAeQU7vJZugVhOP
-# EnLB0XZglcHubk5nK+nzzq6cuX7/3oxAf872OsoaKjEvx/Z5yGhALh4mRCTARn4R
-# ywWQrb1HHVzE04GxMZUMNLAdArw/A126OCV91Bq2NsHGBpgYyPLP6AA/75CmlMqH
-# 3kwJCT0dpfzNjyJqJ8qB1Z5dc/F1CVBfmM+5qqB0fMkLDHxZqrtWRsreOSMx6FuX
-# 7tg58+GJ4ZJvU2N0TX6+JCQdXYhPFGfX0HTIfCQaipORotJ88N8vUfm7WsO4UuHa
-# YHWeEEEDEzExFQXsMyQb7tJxHoaBPFl9+uBepebLZa9G4FtC6aUJLnWanS92OFuD
-# 4+oI1xzomyq43kqfpI7GktGI9c8JWJYoEZugC0Zr985xsRkeJb2B5N/GgDMokUUz
-# 7/vQUE2QpiI+EoiiGhNE4EZA9r6v7+gzUbsBqVlpFZmIBT9Wg3pilnFobXYaV4Zi
-# IZwftMT4yYU4yUg/CrhOKXbBAY51tKvIUFq/390BCQX0xYHL/sJqt8yQMFdHrWiV
-# lgXFovsDHK8ZrqBk3hY5Giy7952VkR/3cD/dE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAT+Cv435Nx
+# Y44L24BaPRicSRh83B3xHY2uYpSB60VkGDANBgkqhkiG9w0BAQEFAASCAgDSkWRx
+# MKRFMD+gl+StxzUxKXq+xVKOgfSMBM/PUCbHkYyz/Wlo0u3v4ROlQc5w6Rba+OI9
+# Urmex9lFyg9qzyqW2iLIwtAk+Y0kDekqu/JNVLFp/3axnXKAkrpsmvyl/HpGro+B
+# 3Vh+4UKrS1QAk4jkAe+7Vz3UTfoVmEO+7BoYomK6GoZNiHyWaMOAa8O4haDPtRCH
+# Kf3FpjjIkfT0ImixScq6ecHuQf/vfqS7JMjVm3QfZvsMMavGyrlbaH7jgHF6k/bI
+# PzpWfbDaSsg4eqrQYkOhWLjivglu9tqwD53ubN4Pqov+6ztxZLmGIisNds1eOCuE
+# 3zITrB+vrhartA1mOOTB6d0oLm6WvaD5co3+Gy1Px3L1ES/WRJ8+ZM4jYWJGZOqv
+# Ptw7IMoPrPdZiZGqrFB/fFU+PELVrKP00lDxIzmKKIlkGt2Pe/zv/005ibMwhqBf
+# hOM2mC3eiaJ+KO4QjMX3NNjG0D/jPoBndbI3zD6GBIAZrIubtNObFku7/zJUYRSX
+# cLYOWe4WS4kXQiz1dmX5r+tPiv7YreZzOyH/i7JP/NLsI3BcGKEMcawF7YzE3jYJ
+# bHM7wOmJIQXPsMfLhfFJLAzMEj2BQ2veWc6EJWyvi7PwTwVXfqS5PbjtAtpTVI2Q
+# 8PzYX1kjuFW+zMxPFLXdmiTaxGbG4cJYYgJ2f6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTUwNDQyMzJaMC8GCSqGSIb3DQEJBDEiBCCsNbwI7jD7NK4ER3eu
-# 79SfPWMbnebe/X9oTCmsJtsguTANBgkqhkiG9w0BAQEFAASCAgBLDH/Dyb0lu6ay
-# 8ioauJOCGRJF2ctB5/Nfu1aO9GCLF22qB6Dkgd07bz2raVwa13sXC3cP/Y/kZuv/
-# YAjfGdCDP2NkMTwhEfNDqYqRCEg3rFnBBw4ywbABftQNamPQisguyL1l8hHaaP6S
-# v8SeVMxTaUldvtMjMte/CbusmjrZ8JcyH2Dz5VLas1bAXn+q/XxyLNBlM5BOg8Lg
-# xhv/j1DM9gdXWvTTGKMum8q0t8pCzBJWJnUVbYpBa2h5hyhKZ1SXp1C0uUSWFC6B
-# 5m8VtJJBn32z3RqlnmfcutpPLWIN8mgB1iKDISIluSfM5bUjLkhiLybu0XrOaQEA
-# bHI5TyMkvyf2n6zbLcgGDfTgTc94MT/E1EomjNFxqVGnn7L3Xy5rTcxA3xZMdecZ
-# iKxPM/DzG0PrBCFZJQXWXDMZQpHvbpw+LEh4fE75lVkGT3pMaL17QuTdenoY8UMH
-# 0a+emlOi8zlzfvYlMKyOOU+WM2bln2Ue9MK+c1BtMM7JoyXGtgxR5EcuEoCWKnVk
-# pmq9Fy9gEXeB31l1ZY1NdIXubaMnc1IbHf5VQLo9KqYqhnzMiexpcPtTRMP+oVvZ
-# 9jkGnl6+dgsdzAKFV0ImgXIe0qbhthG7qPUUPMEGD884hlBy+4HRgf9mStEkUxCv
-# 3i+IgdhJDpHbd0MgLEqKOIuD6MibIA==
+# BTEPFw0yNjAxMTUyMDEzMTlaMC8GCSqGSIb3DQEJBDEiBCDRray0tcajXlREZvNb
+# T6HBxJZv2fw1RWZjWlH2ppcu8TANBgkqhkiG9w0BAQEFAASCAgAe9wJ/fv9R9kpT
+# N0sm98ZJS6ADVjuxsrMxKhep3u2jRzKrId9rOADbiGc+f8QcYNFC/+Nl1O6hRvjW
+# 47QJdBHqjF17LLEyf5I+hALx3hNvwUX0IvCffbQevBHWf3rkOoOyfVHY034y8V92
+# 4YnCBkFU2vOtqajtwKEpshU1kd0/j4okGU3K3Yg9Ma1I3QSiZ8ocgOKcj1WgVnam
+# a+KlLy01/hTnV5PhqeIAmnCy2beyz/pUnLYNlrz9zcBt0AjGrSp1btNbGAPhbyuk
+# mdT0bYQ+KkJtPR7yqU/f+4/4mcaFDbijgZrzUw55RSgak6m8ZgYrW6EALrq+aiio
+# d3FCl+joGFG3F+z/nFZ+oUkVr49Zn9M5I9Fd7xno5TUhqYjobd1tce5KJTbN/GW8
+# GUPiqA8EQtlmdBCUsgKmvyqIJvpPglqHzsHqhsj+i0PChYodxL46Uqi76yRJdx2/
+# NIn3xIlSJU67lGyOuAXlnAoDBom4hKEzO1ykQ3vIIcCJyaRKR27aHGa1WkwbLuss
+# 8q15uzejZzhZuqxlkwE5cz6f47/1uAPcpO8WOAPJCxvN0pYMei6vddBj7fu8iy52
+# KneYNu636uGq9WzKUTjjubXgkZED2L4S4Ueqnr1wgl3VSxg3J4Y8PF0npX29QnCS
+# MCYxPOgdOI3movZB2iumTCWPNCxiXw==
 # SIG # End signature block
