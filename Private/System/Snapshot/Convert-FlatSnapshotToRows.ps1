@@ -1,79 +1,47 @@
-function Convert-SnapshotToFlatObject {
+function Convert-FlatSnapshotToRows {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory, ValueFromPipeline)]
-        [object]$Snapshot
+        [Parameter(Mandatory)]
+        [object]$FlatObject
     )
 
-    # Normalize to hashtable
-    if ($Snapshot -isnot [hashtable]) {
-        if ($Snapshot -is [pscustomobject]) {
-            $h = @{}
-            foreach ($p in $Snapshot.PSObject.Properties) {
-                $h[$p.Name] = $p.Value
-            }
-            $Snapshot = $h
-        }
-        else {
-            throw "Unsupported snapshot type: $($Snapshot.GetType().FullName)"
-        }
-    }
+    $rows = @()
 
-    $flat = @{}
+    # Determine groups by prefix before first underscore
+    $groups = $FlatObject.PSObject.Properties.Name |
+    Group-Object { $_.Split('_')[0] } |
+    Sort-Object Name
 
-    foreach ($key in $Snapshot.Keys) {
-        $value = $Snapshot[$key]
+    foreach ($group in $groups) {
 
-        if ($null -eq $value) {
-            $flat[$key] = $null
-            continue
+        # Insert a section header row
+        $rows += [pscustomobject]@{
+            Label = "# $($group.Name)"
+            Value = ""
         }
 
-        $typeName = $value.GetType().Name
-
-        switch ($typeName) {
-
-            # Nested hashtable → prefix keys
-            'Hashtable' {
-                foreach ($subKey in $value.Keys) {
-                    $flat["${key}_${subKey}"] = $value[$subKey]
-                }
+        # Insert each key/value in this group
+        foreach ($key in $group.Group) {
+            $rows += [pscustomobject]@{
+                Label = $key
+                Value = $FlatObject.$key
             }
+        }
 
-            # Arrays → index + prefix
-            'Object[]' {
-                $index = 0
-                foreach ($item in $value) {
-
-                    # If the array element is a hashtable, flatten it too
-                    if ($item -is [hashtable]) {
-                        foreach ($subKey in $item.Keys) {
-                            $flat["${key}${index}_${subKey}"] = $item[$subKey]
-                        }
-                    }
-                    else {
-                        # Fallback: JSON encode the item
-                        $flat["${key}${index}"] = ($item | ConvertTo-Json -Depth 10 -Compress)
-                    }
-
-                    $index++
-                }
-            }
-
-            # Everything else → direct assignment
-            default {
-                $flat[$key] = $value
-            }
+        # Blank line between groups
+        $rows += [pscustomobject]@{
+            Label = ""
+            Value = ""
         }
     }
 
-    return [pscustomobject]$flat
+    return $rows
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCZzc7RRRVLOIFH
-# FFI1aAzL9clMPfL/+oOxwmspOVMbvKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBCe1L7dz1GSfxq
+# jhTr0FUjXiqYRDU98VUxigbF02hp4aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -206,34 +174,34 @@ function Convert-SnapshotToFlatObject {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAKZWfnU10F
-# TFJsPh8xlfzCbR2cX0JXxeFhYxGm+jL1+TANBgkqhkiG9w0BAQEFAASCAgC5dwnU
-# YLBKT6uRiusBHkZ6DnMhjE+f0NNnXfW9kYlKUQTJ+KN6qtrVrWhDjf2WZTIcCvZB
-# 3c4gBu1ahy768cMv2jdNrjbSFAjtVlQ3e9A21Dzf05JMlyqNlLXgD0FSHo34G1ca
-# PSLbMSWbGGfamjSaibBld7t2x63rWDLM7qDKr+WWAWLp/H67n94YJNWe3DJ5xhxE
-# nRVC/0I4TvSwfX3U5QLQccxKgEGrXBSHEEdc1DGprbpzxLTkg6IqbECLerJGTyo1
-# pm+p5oauw0GIQfZPY0HvWGL4f/wvfx41a7Xh2G81X89EFbI/xJSP4rMdQQzLEjro
-# uTFMViQLPAEoICijvjU4aMr1VHWpBSfnWvyRfZmitiCwwpRaEQ5fsPPyOhyI0Tno
-# lbfd0xSwqS2QABI89HM7WbIqusMuaA0s/MpeWk6VMQ7NtmzlbxBH4BOWFReqV4D1
-# gUTNFilgOXJMVvypQ0mc9n7Kr3pMkECD/qg8OfLXQGsmb+aAJhh1LC9frkyDCbhJ
-# fgsn/895XY2k9tB7H/CTNF8U/4Fdqo0HFw2akqeDWhWlVg6ruZW9coHdmcKBN0sA
-# hFWMciG5bKwcXxInEkQ+7eICCBibbXqpd00pqVV4fIYSSZ+Ac/Vd6GOtZRom9oN3
-# sA6AhPcUF8pHR8P/UH0eTBSZCwx/8Vl4yMUXHKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC89wcQtu1R
+# RMqGi7n1vvmIN1HDsr61QTmkwGAQAxLSTzANBgkqhkiG9w0BAQEFAASCAgDbJkz8
+# rHaO0SytV1i1mZZa86E6uHmBGgdWPKxavpFqTR6MTE5LnE3amu+rXW2Bt7ndgItK
+# lMUmdwitjnV6+OobyUYFr2yRWOPdD9bkaWffJzUzqRQ8Zc8/8ibt0er/iUMJ9ydK
+# lZTiU162wyST061XkalbJ4rBcVInWKX+dVxv6KYGA4uQPdHcGcz6r9su3PtgDsMQ
+# q8WisCTviwURyBA9Y+u8bzcTe9leLbOSm7ohtZR+dyDgUO/Cn85IkF3hANW392WI
+# Rv+87cgteIbqUNaMikuws1oOxX/h/kakMDvHpzamaYUc3yWgHFEWcCUqWAXcsaur
+# tGh+hV+tPacWzZrmer/bS0t/fenpid9jPYVcGOIzSGjPykVg4ZHkC6EwsUdDNvg2
+# ed/aAMCEPYTysnKepYcq8BJ1cgDOCzXs4jabRATMkyaNHlAmPu7ZI3i+/C5lJR8a
+# iFEAAvyRPGLkgQuVby4yVNgEwSfWms3pEBo8Gil7V0wVop0qnbQndDO08EGbdUFx
+# W4kVs6va/lrwUgLCVllPqtAOXutwemgiGzewg1T/nj8luUU9/rF5M2buhqXYaczZ
+# WiOBspa3GjEQAyT0iX2SeKWbs4JwptEbakYVO+/2WtFv7p3IBqgAmBfDX1yUKtxc
+# Kars20AhTWvczK8xmlxOpfzBKJ3HJkLRf1j5AqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTUyMzUxMzVaMC8GCSqGSIb3DQEJBDEiBCAJFcF5jZMrDUjObAm6
-# 7jMF9Vdah7rUSTngcLURlb/OYDANBgkqhkiG9w0BAQEFAASCAgBNdQM0lLYWz3lL
-# YKmkVD5NYXHMOJuLoX+ADI9VXVz5gy8UJlMe8cZehkRtGW9ONxCYns3WZemDcsTV
-# aS+pSZObqX9SNV3EvheK9yt4nJI5Dhoog8YCBXFumYo7O12YyT+YimOWm1gvqfKE
-# 3BEyl/RKWz6EcciANq41syqzVslHo61Zv6IcJ3DVYPK1UUaZJx7JBjQ8MK8Hb0NL
-# fZIeCJ90f8oqdO6NcecUXBLj7u2hqzMosT8XFmwSKjGNfFCtdoV4VkjoiYO0cjmz
-# AAyEDes2W+RkNujNru1PxfIjL4ja9YtkftBbcKO3KVZM9D23GvxSZx0EoafTtqbQ
-# AaJKyY+A900EKJQ2EbvpX6IQzGgAvszLKEMIg26YnSnVK517pmoVwTs6E/2bLHxm
-# kiiv+S29k/Dqj+NWW8kXC9jr1rg/n5C9aJX7lv3Ok8McRNTrkXtexboLCmbyJYyF
-# kuvDisjA8QROE63/Bbqst9UW9h0zSftekZ7fp6L0GV6YPnMObbot/JfLIPdNApI6
-# FSftcGauurq1FQ2Xckzq3KETzhuWubtAvzkPIXO9ueT21W8MLlQ1qIYp1Dzjs39h
-# A5pRBTeI8j6n5Y5ojXXulebXJwsiGllR1Fug0kGBzCGFK7kSAb5EEyUkaZGxk6Ro
-# nK+4gkBTbfdoQEqEqX7CRw6nEW9wIQ==
+# BTEPFw0yNjAxMTUyMzUxMzVaMC8GCSqGSIb3DQEJBDEiBCB6ev0DD30nff7aeetd
+# k8i1Ej7A3Bd71k/HlaHkeB6XeDANBgkqhkiG9w0BAQEFAASCAgBo+TjDNCTpuODZ
+# dhv5hHoAuHXEf75QsvccM9jYT9GOB9/Llw9LYDpjiynHMG5aNSibGlit+Z7tP2jX
+# p9mXKOtbq5KZHzoQJu/eJXhNkeElKYjb1RwPXIL/Kn5gExo+D0PAdLrQDYIPS6Rt
+# jTAa7QYf5x2B5TmOneVtrOCz8Wk+upsITnW48mG3Vu1x0w6uYkhEQvQ1/Ilgl5RU
+# McWAT7gN4HIQK5XU9U6OHrgcgwE6uWOsSigceCmznSB78/R11YyboTJcsT7A4G+l
+# cTlbTRZe195YGavb4HYVEHLDTRajAcx9mztGfi351cOLaDO8Gz+KJRwgVDAL5fkA
+# R871J3edS2B7jgneHcqTKpD7dCOg5LX3X8Jdis3GRCyk9B4DNlgd2Vy/5elAuxdZ
+# aH4UVJLmTD/7eQJC00MnoWqdNJaMzKiKCnTfBJHiLhVM6dSMSUhfYJpaJ1Tw7fOG
+# aMdai/kdE17qvLniYCxfRxHZmrEfvzYSHTpy+2FvTXh+ZMxOQ0PmeSev4BN3qHA9
+# V6MJdkiYozZGEDlxCQkZuo+Vtz7f3qUVfLrEYazooqCzkcUbMCSOIKciFTZOw/2J
+# XUkU7fih/0OOYgFSxzna7jmte6d2ZAmDr51C0zj1F0s8N9ZlJFfzJp42u5J6X1RM
+# DuXSqEzCOkpd7p1ygNaggm5Tf+1gqQ==
 # SIG # End signature block
