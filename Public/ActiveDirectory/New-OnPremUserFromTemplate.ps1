@@ -2,255 +2,272 @@
 function New-OnPremUserFromTemplate {
     <#
     .SYNOPSIS
-        Create a new on-premises AD user based on a template user.
+    Create a new on-premises AD user based on a template user.
+
     .DESCRIPTION
-        This cmdlet creates a new Active Directory user by copying attributes
-        and group memberships from a specified template user. The new user's
-        naming conventions (UPN, SAM, mailNickname) are derived from
-        configuration settings unless overridden.
+    Creates a new Active Directory user by copying attributes and group
+    memberships from a specified template user. Naming (UPN, SAM, alias) derives
+    from config unless overridden.
+
     .PARAMETER TemplateIdentity
-        The identity (sAMAccountName, distinguishedName, etc.) of the template
-        user to copy attributes and group memberships from.
+    Identity (sAMAccountName, DN, SID, GUID) of the template user to copy.
+
     .PARAMETER TemplateSearch
-        A hashtable of attribute-value pairs to search for the template user.
+    Hashtable of attribute=value pairs to locate the template (first match
+    wins).
+
     .PARAMETER GivenName
-        The given (first) name of the new user.
+    First name of the new user.
+
     .PARAMETER Surname
-        The surname (last name) of the new user.
+    Last name of the new user.
+
     .PARAMETER DisplayName
-        The display name of the new user.
+    Display name of the new user.
+
     .PARAMETER TargetOU
-        The distinguished name of the OU where the new user will be created. If
-        not provided, the template user's OU will be used.
+    DistinguishedName of the OU to create the user in. Defaults to template’s
+    OU.
+
     .PARAMETER SamAccountName
-        The sAMAccountName of the new user. If not provided, it will be derived
-        from naming conventions.
+    sAMAccountName for the new user. Derived if omitted.
+
     .PARAMETER UpnPrefix
-        The UPN prefix of the new user. If not provided, it will be derived from
-        naming conventions.
+    UPN prefix for the new user. Derived if omitted.
+
     .PARAMETER MailNickname
-        The mailNickname (alias) of the new user. If not provided, it will be
-        derived from naming conventions.
+    Mail alias for the new user. Derived if omitted.
+
     .PARAMETER CopyAttributes
-        An array of attribute names to copy from the template user to the new
-        user.
+    Attributes to copy from template to the new user.
+
     .PARAMETER ExcludedGroups
-        An array of group names to exclude when copying group memberships from
-        the template user.
+    Group names to exclude when copying memberships.
+
     .PARAMETER InitialPasswordLength
-        The length of the initial random password for the new user.
-    .EXAMPLE
-        New-OnPremUserFromTemplate -TemplateIdentity "jdoe" -GivenName "John" -Surname "Smith" -DisplayName "John Smith" -TargetOU "OU=Users,DC=example,DC=com"
+    Length of the generated initial password.
+
+    .PARAMETER Credential
+    Directory credential to run AD operations as.
+
+    .PARAMETER Server
+    Optional DC to target (avoid replication latency during create+modify).
     #>
-    
-    function New-OnPremUserFromTemplate {
-        [CmdletBinding(SupportsShouldProcess)]
-        param(
-            [Parameter(ParameterSetName = 'ByIdentity')]
-            [string]$TemplateIdentity,
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(ParameterSetName = 'ByIdentity')]
+        [string]$TemplateIdentity,
 
-            [Parameter(ParameterSetName = 'BySearch')]
-            [hashtable]$TemplateSearch,
+        [Parameter(ParameterSetName = 'BySearch')]
+        [hashtable]$TemplateSearch,
 
-            [Parameter(Mandatory)]
-            [string]$GivenName,
+        [Parameter(Mandatory)]
+        [string]$GivenName,
 
-            [Parameter(Mandatory)]
-            [string]$Surname,
+        [Parameter(Mandatory)]
+        [string]$Surname,
 
-            [Parameter(Mandatory)]
-            [string]$DisplayName,
+        [Parameter(Mandatory)]
+        [string]$DisplayName,
 
-            [string]$TargetOU,
+        [string]$TargetOU,
 
-            [string]$SamAccountName,
-            [string]$UpnPrefix,
-            [string]$MailNickname,
+        [string]$SamAccountName,
+        [string]$UpnPrefix,
+        [string]$MailNickname,
 
-            [string[]]$CopyAttributes = @(
-                'department', 'title', 'physicalDeliveryOfficeName', 'telephoneNumber',
-                'streetAddress', 'l', 'st', 'postalCode', 'company',
-                'extensionAttribute1', 'extensionAttribute2', 'extensionAttribute3'
-            ),
+        [string[]]$CopyAttributes = @(
+            'department', 'title', 'physicalDeliveryOfficeName', 'telephoneNumber',
+            'streetAddress', 'l', 'st', 'postalCode', 'company',
+            'extensionAttribute1', 'extensionAttribute2', 'extensionAttribute3'
+        ),
 
-            [string[]]$ExcludedGroups = @(
-                'Domain Admins', 'Enterprise Admins', 'Schema Admins', 'Administrators',
-                'Protected Users', 'Server Operators', 'Account Operators', 'Backup Operators',
-                'Print Operators', 'Read-only Domain Controllers', 'Enterprise Read-only Domain Controllers'
-            ),
+        [string[]]$ExcludedGroups = @(
+            'Domain Admins', 'Enterprise Admins', 'Schema Admins', 'Administrators',
+            'Protected Users', 'Server Operators', 'Account Operators', 'Backup Operators',
+            'Print Operators', 'Read-only Domain Controllers', 'Enterprise Read-only Domain Controllers'
+        ),
 
-            [int]$InitialPasswordLength = 16,
+        [int]$InitialPasswordLength = 16,
 
-            # NEW:
-            [Parameter(Mandatory)]
-            [pscredential]$Credential,
+        [Parameter(Mandatory)]
+        [pscredential]$Credential,
 
-            # Optional but recommended to avoid cross-DC surprises
-            [string]$Server
-        )
+        [string]$Server
+    )
 
-        begin {
-            Import-Module ActiveDirectory -ErrorAction Stop
+    begin {
+        $ErrorActionPreference = 'Stop'
+        Set-StrictMode -Version Latest
 
-            # Load config if not provided
-            $Config = Get-TechToolboxConfig
-            if (-not $Config.ContainsKey('settings')) {
-                throw "Config missing root 'settings' object (hashtable)."
-            }
-            if (-not $Config['settings'].ContainsKey('tenant')) {
-                throw "Config missing 'settings.tenant'."
-            }
-            if (-not $Config['settings'].ContainsKey('naming')) {
-                throw "Config missing 'settings.naming'."
-            }
+        Import-Module ActiveDirectory -ErrorAction Stop
 
-            $Tenant = $Config['settings']['tenant']
-            $Naming = $Config['settings']['naming']
+        # Load config (throws if missing essentials)
+        $cfg = Get-TechToolboxConfig
+        $Tenant = $cfg['settings']['tenant']
+        $Naming = $cfg['settings']['naming']
 
-            if (-not $Tenant.ContainsKey('upnSuffix') -or [string]::IsNullOrWhiteSpace($Tenant['upnSuffix'])) {
-                throw "Config upnSuffix is required (e.g., 'company.com')."
-            }
-
-            # Build a base splat for AD cmdlets
-            $adBase = @{ Credential = $Credential }
-            if ($Server) { $adBase['Server'] = $Server }
-
-            # Expose to process block
-            Set-Variable -Name "Tenant" -Value $Tenant -Scope 1
-            Set-Variable -Name "Naming" -Value $Naming -Scope 1
-            Set-Variable -Name "adBase" -Value $adBase -Scope 1
+        if (-not $Tenant.ContainsKey('upnSuffix') -or [string]::IsNullOrWhiteSpace($Tenant['upnSuffix'])) {
+            throw "Config upnSuffix is required (e.g., 'company.com')."
         }
 
-        process {
-            # 1) Resolve template user
-            $templateUser = $null
-            switch ($PSCmdlet.ParameterSetName) {
-                'ByIdentity' {
-                    $templateUser = Get-ADUser @adBase -Identity $TemplateIdentity -Properties * -ErrorAction Stop
-                }
-                'BySearch' {
-                    if (-not $TemplateSearch) { throw "Provide -TemplateSearch (e.g., @{ Username='jdoe'; Title='Engineer' })." }
-                    $ldapFilterParts = foreach ($k in $TemplateSearch.Keys) {
-                        $val = [System.Text.RegularExpressions.Regex]::Escape($TemplateSearch[$k])
-                        "($k=$val)"
-                    }
-                    $ldapFilter = "(&" + ($ldapFilterParts -join '') + ")"
-                    $templateUser = Get-ADUser @adBase -LDAPFilter $ldapFilter -Properties * -ErrorAction Stop | Select-Object -First 1
-                    if (-not $templateUser) { throw "No template user matched filter $ldapFilter." }
-                }
-                default { throw "Unexpected parameter set." }
-            }
+        # Base splat for AD cmdlets
+        $adBase = @{ Credential = $Credential }
+        if ($Server) { $adBase['Server'] = $Server }
 
-            Write-Verbose "Template: $($templateUser.SamAccountName) / $($templateUser.UserPrincipalName)"
-
-            # 2) Derive naming via config.settings.naming (unless caller overrides)
-            if (-not $UpnPrefix -or -not $SamAccountName -or -not $MailNickname) {
-                $nm = Resolve-Naming -Naming $Naming -GivenName $GivenName -Surname $Surname
-                if (-not $UpnPrefix) { $UpnPrefix = $nm.UpnPrefix }
-                if (-not $SamAccountName) { $SamAccountName = $nm.Sam }
-                if (-not $MailNickname) { $MailNickname = $nm.Alias }
-            }
-
-            $newUpn = "$UpnPrefix@$($Tenant.upnSuffix)"
-
-            # 3) Resolve target OU (default to template's OU)
-            if (-not $TargetOU) {
-                $TargetOU = ($templateUser.DistinguishedName -replace '^CN=.*?,')
-            }
-
-            # 4) Idempotency check
-            $exists = Get-ADUser @adBase -LDAPFilter "(userPrincipalName=$newUpn)" -ErrorAction SilentlyContinue
-            if ($exists) {
-                Write-Warning "User UPN '$newUpn' already exists. Aborting."
-                return
-            }
-
-            # 5) Create new user
-            $initialPassword = New-RandomPassword -length $InitialPasswordLength -nonAlpha 3
-            $securePass = ConvertTo-SecureString $initialPassword -AsPlainText -Force
-
-            $newParams = @{
-                Name                  = $DisplayName
-                GivenName             = $GivenName
-                Surname               = $Surname
-                SamAccountName        = $SamAccountName
-                UserPrincipalName     = $newUpn
-                Enabled               = $false
-                Path                  = $TargetOU
-                ChangePasswordAtLogon = $true
-                AccountPassword       = $securePass
-            }
-
-            if ($PSCmdlet.ShouldProcess($newUpn, "Create AD user")) {
-                New-ADUser @adBase @newParams
-                Write-Verbose "Created: $newUpn in $TargetOU"
-            }
-
-            # 6) Copy selected attributes from template
-            $setParams = @{}
-            foreach ($attr in $CopyAttributes) {
-                $val = $templateUser.$attr
-                if ($null -ne $val -and $val -ne '') { $setParams[$attr] = $val }
-            }
-
-            # Mail + mailNickname + proxyAddresses
-            $primaryProxy = "SMTP:$UpnPrefix@$($Tenant.upnSuffix)"
-            $otherProxies = @()
-            $templateProxies = $templateUser.proxyAddresses
-            if ($templateProxies) {
-                $otherProxies = $templateProxies | Where-Object { $_ -notmatch '^SMTP:' }
-            }
-            $proxiesToSet = @($primaryProxy) + $otherProxies
-
-            $setParams['mail'] = $newUpn
-            $setParams['mailNickname'] = $MailNickname
-
-            if ($PSCmdlet.ShouldProcess($newUpn, "Apply attributes")) {
-                if ($setParams.Count -gt 0) {
-                    Set-ADUser @adBase -Identity $SamAccountName @setParams
-                }
-                # Note: proxyAddresses is multivalued; use -Add to set initial values
-                Set-ADUser @adBase -Identity $SamAccountName -Add @{ proxyAddresses = $proxiesToSet } -ErrorAction SilentlyContinue
-                Write-Verbose "Attributes + proxyAddresses applied."
-            }
-
-            # 7) Copy group memberships (exclude known admin/builtin)
-            $tmplGroupDNs = (Get-ADUser @adBase $templateUser -Property memberOf).memberOf
-            $tmplGroupNames = foreach ($dn in ($tmplGroupDNs ?? @())) {
-                (Get-ADGroup @adBase -Identity $dn -ErrorAction SilentlyContinue).Name
-            }
-
-            $toAdd = $tmplGroupNames | Where-Object { $_ -and ($ExcludedGroups -notcontains $_) }
-            if ($PSCmdlet.ShouldProcess($newUpn, "Add group memberships")) {
-                foreach ($gName in $toAdd) {
-                    try {
-                        Add-ADGroupMember @adBase -Identity $gName -Members $SamAccountName -ErrorAction Stop
-                        Write-Verbose "Added to: $gName"
-                    }
-                    catch {
-                        Write-Warning "Group add failed '$gName': $($_.Exception.Message)"
-                    }
-                }
-            }
-
-            # 8) Output summary (don’t Write-Host password; return it as part of object so the caller can handle securely)
-            [pscustomobject]@{
-                UserPrincipalName = $newUpn
-                SamAccountName    = $SamAccountName
-                DisplayName       = $DisplayName
-                TargetOU          = $TargetOU
-                CopiedAttributes  = $CopyAttributes
-                GroupsAdded       = $toAdd
-                InitialPassword   = $initialPassword
-            }
-        }
+        # Expose to process block
+        Set-Variable -Name "Tenant" -Value $Tenant -Scope 1
+        Set-Variable -Name "Naming" -Value $Naming -Scope 1
+        Set-Variable -Name "adBase"  -Value $adBase -Scope 1
     }
+
+    process {
+        # Breadcrumb #1: entering function
+        Write-Log -Level Info -Message ("Entering New-OnPremUserFromTemplate (ParamSet={0})" -f $PSCmdlet.ParameterSetName)
+
+        # 1) Resolve template user
+        $templateUser = $null
+        switch ($PSCmdlet.ParameterSetName) {
+            'ByIdentity' {
+                $templateUser = Get-ADUser @adBase -Identity $TemplateIdentity -Properties * -ErrorAction Stop
+            }
+            'BySearch' {
+                if (-not $TemplateSearch) { throw "Provide -TemplateSearch (e.g., @{ title='Engineer'; company='Contoso' })." }
+                $ldapFilterParts = foreach ($k in $TemplateSearch.Keys) {
+                    $val = [System.Text.RegularExpressions.Regex]::Escape($TemplateSearch[$k])
+                    "($k=$val)"
+                }
+                $ldapFilter = "(&" + ($ldapFilterParts -join '') + ")"
+                $templateUser = Get-ADUser @adBase -LDAPFilter $ldapFilter -Properties * -ErrorAction Stop |
+                Select-Object -First 1
+                if (-not $templateUser) { throw "No template user matched filter $ldapFilter." }
+            }
+            default { throw "Unexpected parameter set." }
+        }
+
+        Write-Log -Level Info -Message ("Template resolved: {0} ({1})" -f $templateUser.SamAccountName, $templateUser.UserPrincipalName)
+
+        # 2) Derive naming via config (unless caller overrides)
+        if (-not $UpnPrefix -or -not $SamAccountName -or -not $MailNickname) {
+            $nm = Resolve-Naming -Naming $Naming -GivenName $GivenName -Surname $Surname
+            if (-not $UpnPrefix) { $UpnPrefix = $nm.UpnPrefix }
+            if (-not $SamAccountName) { $SamAccountName = $nm.Sam }
+            if (-not $MailNickname) { $MailNickname = $nm.Alias }
+        }
+
+        $newUpn = "$UpnPrefix@$($Tenant.upnSuffix)"
+
+        # 3) Resolve target OU (default to template's OU)
+        if (-not $TargetOU) {
+            $TargetOU = ($templateUser.DistinguishedName -replace '^CN=.*?,')
+        }
+
+        Write-Log -Level Info -Message ("Provisioning: DisplayName='{0}', Sam='{1}', UPN='{2}', OU='{3}'" -f $DisplayName, $SamAccountName, $newUpn, $TargetOU)
+
+        # 4) Idempotency check
+        $exists = Get-ADUser @adBase -LDAPFilter "(userPrincipalName=$newUpn)" -ErrorAction SilentlyContinue
+        if ($exists) {
+            Write-Log -Level Warn -Message "User UPN '$newUpn' already exists. Aborting."
+            return
+        }
+
+        # 5) Create new user
+        $initialPassword = New-RandomPassword -length $InitialPasswordLength -nonAlpha 3
+        $securePass = ConvertTo-SecureString $initialPassword -AsPlainText -Force
+
+        $newParams = @{
+            Name                  = $DisplayName
+            GivenName             = $GivenName
+            Surname               = $Surname
+            SamAccountName        = $SamAccountName
+            UserPrincipalName     = $newUpn
+            Enabled               = $true     # set $false if you prefer disabled on creation
+            Path                  = $TargetOU
+            ChangePasswordAtLogon = $true
+            AccountPassword       = $securePass
+        }
+
+        if ($PSCmdlet.ShouldProcess($newUpn, "Create AD user")) {
+            New-ADUser @adBase @newParams
+            Write-Log -Level Ok -Message ("Created AD user: {0}" -f $newUpn)
+        }
+
+        # 6) Copy selected attributes from template
+        $setParams = @{}
+        foreach ($attr in $CopyAttributes) {
+            $val = $templateUser.$attr
+            if ($null -ne $val -and $val -ne '') { $setParams[$attr] = $val }
+        }
+
+        # Mail + mailNickname + proxyAddresses
+        $primaryProxy = "SMTP:$UpnPrefix@$($Tenant.upnSuffix)"
+        $otherProxies = @()
+        $templateProxies = $templateUser.proxyAddresses
+        if ($templateProxies) {
+            $otherProxies = $templateProxies | Where-Object { $_ -notmatch '^SMTP:' }
+        }
+        $proxiesToSet = @($primaryProxy) + $otherProxies
+
+        $setParams['mail'] = $newUpn
+        $setParams['mailNickname'] = $MailNickname
+
+        if ($PSCmdlet.ShouldProcess($newUpn, "Apply attributes")) {
+            if ($setParams.Count -gt 0) {
+                Set-ADUser @adBase -Identity $SamAccountName @setParams
+            }
+            # proxyAddresses is multivalued; use -Add for initial set
+            Set-ADUser @adBase -Identity $SamAccountName -Add @{ proxyAddresses = $proxiesToSet } -ErrorAction SilentlyContinue
+            Write-Log -Level Ok -Message "Attributes + proxyAddresses applied."
+        }
+
+        # 7) Copy group memberships (exclude known admin/builtin)
+        $tmplGroupDNs = (Get-ADUser @adBase -Identity $templateUser.DistinguishedName -Property memberOf).memberOf
+        if (-not $tmplGroupDNs) { $tmplGroupDNs = @() }
+
+        $tmplGroupNames = foreach ($dn in $tmplGroupDNs) {
+            (Get-ADGroup @adBase -Identity $dn -ErrorAction SilentlyContinue).Name
+        }
+
+        $toAdd = $tmplGroupNames | Where-Object { $_ -and ($ExcludedGroups -notcontains $_) }
+
+        if ($PSCmdlet.ShouldProcess($newUpn, "Add group memberships")) {
+            $added = 0
+            foreach ($gName in $toAdd) {
+                try {
+                    Add-ADGroupMember @adBase -Identity $gName -Members $SamAccountName -ErrorAction Stop
+                    $added++
+                    Write-Log -Level Info -Message ("Added to: {0}" -f $gName)
+                }
+                catch {
+                    Write-Log -Level Warn -Message ("Group add failed '{0}': {1}" -f $gName, $_.Exception.Message)
+                }
+            }
+            Write-Log -Level Ok -Message ("Group additions complete: {0} added" -f $added)
+        }
+
+        # 8) Output summary (force visible + return)
+        $result = [pscustomobject]@{
+            UserPrincipalName = $newUpn
+            SamAccountName    = $SamAccountName
+            DisplayName       = $DisplayName
+            TargetOU          = $TargetOU
+            CopiedAttributes  = $CopyAttributes
+            GroupsAdded       = $toAdd
+            InitialPassword   = $initialPassword  # caller is responsible for secure handling
+        }
+
+        # Force a visible summary even if caller pipes to Out-Null
+        $result | Format-List | Out-Host
+    }
+
+    end { }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB91UJCxoVSqLx1
-# wZEs90lkaGQW/BFJBiNknU9jTpOwQaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA8SUTiNcvoEJ2h
+# vRItK5m9yRiyh9jqPeZ+9fXq6MUG/6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -383,34 +400,34 @@ function New-OnPremUserFromTemplate {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCm/AVkZV6N
-# 4Sim+U2gM/roGyqHHWpCMfhAXuJFXpBdNzANBgkqhkiG9w0BAQEFAASCAgBqUnU9
-# a8kD0poDy4ExgVi8fGKlzzbOY5/PsZZM/dV0vf7dJ4J+jHsjKIHJ7geXW3sKbQZo
-# clI9lvnmH86znBLLgzO17MeIAzxNT9b9caxF+aKBDlUFT6TQwVIA/UG0DL5GhKH2
-# LvfTFJnOPhy5yjg5KVFLg68ivXHvp1S0B+v3gEqKQRAiKL7RfL+jJn/u7TIBvXpc
-# QJw6kMlcYz61NQgVaFvbiE3Yz0SkemIfRJlggHaYxqgV5k1YWlQM2DPJcpW30hly
-# RRayAqUCcpeAr1+ehAVmQURgkqE2XJNTOuIz985gyYT+eG2TwgBDKI16/t650rFN
-# seiJWCxbsM7l894bQV9hVO1fmmNKy0wHVK9iYyq8bvDIhL3Bd/eg5JxJeCek8xv2
-# yVHPE3YabmSmgXD3eijJfqvZS17OVrdO1HcnxbbqtZp9FpQuGmk/UgPd1F/ndTsO
-# ahwuFDPFAdPgs2aV6VyxhfNTVEf6sIvawNebguqaRGAPKaghD/i+KN0Zvb0xvSvY
-# MzuALNS6jkH7QkIJd3HG39KfZFZdL2g4S8KZtrKoWnKIkqSJ4fPdqmm81X/l/fTz
-# DELP2B/xqsZyJ8hD+5Aq9v6i5nBrr50jOOLrYafZnxgg9CjXVspLlXTWLbH4Wi1P
-# hb5pE/GeljEDGzhNlRsTGhEKDhOxQwtTUg+zm6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAHJFHNcPnX
+# kOM189kLbSoiSEO2TJERG358Mr1oCTUyZTANBgkqhkiG9w0BAQEFAASCAgCQqVDA
+# C6kS2BKq3hl5wa7oamgiNOmlm3vApmvLnEQZ/jpaHkcGcM9E9+apvpa7d/KwTrIB
+# wtmJpqPfYY5BayRnoxuhGlZn/JknumBZ7YZKLEDTHoGXN//z++3ujiFGb+JwpQGA
+# hZU8OxzFosY5aiG1EKDRXWqDTgLS7alkCJyuzk0ZkV3MTKy+b/Z5KgJbOP+SPZP4
+# yJLHyNlciyCrVxOeOsRdQaQ00HyZkN2eRqms5PjoMxzNrIjhOPko2gzf/PqkdZOj
+# e+VbcM+e4xwEc41QgGxGP7DBJk6k/SPRkmVpo8ZmDNJOPtnBOM3T4pTJRgcMYb/A
+# 38/rgUpI6yWyOaWEHcZ4FQ4QbYs0NiT73PJ845qAdL1JfJRbK0GWpniELoEhZucN
+# KLyBdrPSmC0NmqlmHfO9ApDaVSMIJ1IYfKCTyGr4R4HiHKWiQt5CLAyo9fv+A7HC
+# o4Q0PVYcTYjyFI2oFD8JavyL6oni6aTZJgc8X3m0uUHy3ZiaZvyq57kkXyx+9Igr
+# CPg5WlpS08M1jrvOwV7D1T8fRjE6kbu81ESZ8P0PIwGPcqTp6+IBy7wD8oSElgXF
+# o7zw/IgFot9YTLStfQxqOwHdgiyZRDz2wnfw33Y8AkNems8MgLxjd4sncFrTJKU8
+# upRos3yUaYElbr3MoNXWHrQqu2/YbGrN2mUp56GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTUyMTU1MjVaMC8GCSqGSIb3DQEJBDEiBCCVnKuNu6CsaOR7BPHN
-# TZvLp1Q5COD0sYt8XRBgAeNSVDANBgkqhkiG9w0BAQEFAASCAgC1PLgPJ1+aKHD0
-# wI42wvkVDji32TWzN70sbsmaVuchmqoATNA17dTPMYba9lNIyiD9PETWmLAdYkYJ
-# 4GvaOqM7rK2MWdWIWo8EygNuWd9DFE+DDdVnArXrpJa3M2ooFQ4gKkyNvxKiotyj
-# XxKvTFIlt3C5tkSJOZuTNXS1dxwofzQ/5xCuY4G+jwhjvTNKkR5h2rBwzo2MwFGO
-# urZIstsjYRxt1SpYpoS6+MTcCNj02sX6erxoOZSGElSf21WTyecMsqdRg3AEjppn
-# RNw2VyvDl09YRODJHMedERltvqKjwLuDZqwbfjckmv9SY3nVq3uCh3jZEdW6Evzy
-# em3RZs+ixaGbcEua/XkX8nx6RbbFPUwZwLX3MaQX3S5SVjA9WyJeR/ZRAIJGIQ5o
-# jSEfr7E54raYc+6cTAsP0Hon+mwhHK3GDHyPG6an7BM1Aqju1/VLsSFrOaAgjVDd
-# Kr66TiR7WW8jABZ6HH0YXNyhJaI+Ep0njcADLQYvaVM+0qouJ3+VtpRkFo6L3KV5
-# MZRywMIjOfM4RrUfq6eYqizupVJzddPu9Xr5kxfyLaMGhetRZBBRkQGg68P2bonV
-# wfQhHg/vtBYxhW2UQSqruPBlZ7qFQZXK3v66ln5lNdDObfytV8kEiR3vWYZQhtW7
-# Pe+rZ3QN8ZkDBgvsJLOOylzK3ZS91w==
+# BTEPFw0yNjAxMTUyMjQ2MTNaMC8GCSqGSIb3DQEJBDEiBCAhxTMYrDf6DwONa25l
+# dEX6/AsYF5fVjbF1yuy18Afu/DANBgkqhkiG9w0BAQEFAASCAgAve8Jgimyr8kNY
+# Bw2NmKCrt1m6W6yBXuBE7HYq3FWs9BNgUE+Af7N4VhdbjmE5XQWuDWLu8kAIuxxY
+# uaM/rtnjci47AFTZ4z3h8rSJlKiPqpm9JeBUmcII7GO/rF+UiIuCP9xepnp6j9t5
+# UZnyUPtXXgNvfRNitElHT7M/THwVSS15JiUMCb6J7qryGGS/mZA8EA+GB6ZNZ/kn
+# f0TOfBsV4Bt3M/QBolQQ6Oq7gHHPY/4cSDvyK/kQnuhvkTJ1Yz3+vHMpCzSNzRPP
+# ovkIfUB1hm+JK+H6JvV2MQykBTtGP+1N0QZBMsHvxSKcqK9cT3dnYQ2GHDbpwQuO
+# uGujhEz9fVrShCrWGpMVY4LaMMcoMZliLKq1Rjr4eOQDgFt/TrUWukcxAMXUCFqW
+# gKqtcVWQq5EeCzPzNOLd0aiheua+97jg5rrMgvGa7Pa+4loQAUsZ4NdZ7f59aU2n
+# RmndCF/ZCi1fDWME77tZUJDYSmwqmisBMNXA2CGSfnrOAl65f5fBcvGFvXpuUDwh
+# kj0eav5QTnDD0MZ5tZ7GU25WL3YDXUL6AtJvPagvTnKBfN6+QGj2kYIMUdlW9X1Q
+# neaLgWMry8Zp3HP47AmlyBgZcTmBQU8QrmbBKv2m4NmGYwQ7D3GOF6sKN8Ao9SLR
+# AXdJgW11+RZCeJPpqx0CQzR+JwTFvg==
 # SIG # End signature block
