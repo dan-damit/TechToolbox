@@ -44,20 +44,20 @@ function Get-BatteryHealth {
 
     # ReportPath
     if (-not $PSBoundParameters.ContainsKey('ReportPath') -or [string]::IsNullOrWhiteSpace($ReportPath)) {
-        if ($null -ne $br.reportPath -and -not [string]::IsNullOrWhiteSpace($br.reportPath)) {
-            $ReportPath = [string]$br.reportPath
+        if ($null -ne $br["reportPath"] -and -not [string]::IsNullOrWhiteSpace($br["reportPath"])) {
+            $ReportPath = [string]$br["reportPath"]
         }
     }
     # OutputJson
     if (-not $PSBoundParameters.ContainsKey('OutputJson') -or [string]::IsNullOrWhiteSpace($OutputJson)) {
-        if ($null -ne $br.outputJson -and -not [string]::IsNullOrWhiteSpace($br.outputJson)) {
-            $OutputJson = [string]$br.outputJson
+        if ($null -ne $br["outputJson"] -and -not [string]::IsNullOrWhiteSpace($br["outputJson"])) {
+            $OutputJson = [string]$br["outputJson"]
         }
     }
     # DebugInfo
     if (-not $PSBoundParameters.ContainsKey('DebugInfo') -or [string]::IsNullOrWhiteSpace($DebugInfo)) {
-        if ($null -ne $br.debugInfo -and -not [string]::IsNullOrWhiteSpace($br.debugInfo)) {
-            $DebugInfo = [string]$br.debugInfo
+        if ($null -ne $br["debugInfo"] -and -not [string]::IsNullOrWhiteSpace($br["debugInfo"])) {
+            $DebugInfo = [string]$br["debugInfo"]
         }
     }
 
@@ -116,8 +116,8 @@ function Get-BatteryHealth {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCguRHcs70UnayN
-# nKvIUB3ZGsBFqKK38JblPG5MOLzga6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCUXwkSseh15IVq
+# modYP+lp+Te48d1Ew7F751uR8H0yFaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -250,34 +250,34 @@ function Get-BatteryHealth {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDz9YaShJTH
-# NSkH2D+Lbh8aMDLstPgZrnpoyRcxU1AsbDANBgkqhkiG9w0BAQEFAASCAgC5Cv0H
-# XXj7cvGTxjq3ZWxc60tZt4B9gOV4yz1Z7Qo8IIzQInKz87vk4ttBn5MFI/hn1bbL
-# SDmu2Kn5ZRGTjdr2mf8I72ZsM7FpQTlVR36fnITZkQeRDLkWF22PV5bYNOsGmqwm
-# 7CuZX4jPNompbWHyUVKlw2LlKNevkfxDpxQOlBlkyQTctxQZegCUkUV1iPYHWpe5
-# eTHVYwPIXRjBE1d2+9/N7QDVoH2eIvNvslY1XuD267Pa3CEqdr7SqXE2BbQ+uOhq
-# 5/OOVv33B3fDRIA4jLFH/ZYd7AQXZn1QB4UeAa6XAYeACmwkiwvYHvH+0tVV/jJt
-# is0EiOXV0PVO5TLZEce3yL5E0bR61PYwOKAqUin1VF9ztMIi+nud2oU1yNR9FShv
-# Ho3T9K5I95vZSp6sF1afgUWuQuXUvlIaEklkkk0IHRiS1t5gjZ330hRBAQjmACpo
-# 0kPw+IyoK5hp8MIqTa0W54nnMW0Z948WT8JVftZWyM9EaSqTebdt3/KnEbp/oma3
-# 3uaZsdEPO0FLpnmhrJkHzyrGWgyW29dNB0n3IVtn+bKn05LpjyuuJvQsZr9BEKIZ
-# IkT8FrH/i6AgVGfCwpP5GBFc6KfTDaMnHMAZFrq9UsbiUmsVYGunOsCQ1LJdD7Zg
-# Df5I4xN3mWK4DCQ+Fdc3G2WxKKihPjazWNUfH6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCASn6d1/36W
+# i+ruXT0rtVud4hcET4lf4rOSY2W2rax93TANBgkqhkiG9w0BAQEFAASCAgBjOCGN
+# hGmgSiOEPpzOmx09NYo/iXT6M7ouHzHHJ3ccuv2/cKL9ZOw1B3DiM20gtp3LNGp9
+# NJRgOkU54XJxhDxc3jPSniOsWaLoj8PjpYm1kRQ+CN1BCFgOY7Kp94hWYKoIm6ZG
+# L6fJh4vGMYQMmQGOXKd4hkonfwIKNxI8ycZ+qIjEbZoD8BcC9Ht05CmlB58ILSfv
+# wDV4a+cET83fR/j0bTAovMYWuwruyjbYnedEdtqNTlgh1CiS+xz7YUgT1ceC17EN
+# NIAhfmot+nliMo4y6m5beVFu0Ok+tCpSw1u/2XxiiSNqLhedtuMcqW9XiAOaUfIL
+# QwM5um4pvHYfLnnX/UApuoTyI4rILmpgLo6XGh04ogt4TZ4FrA520AZQsrI+3o0w
+# NB9wVHuUi+HtHb30ASdQX6Wx6xAN9rH6ubsB/JG393NVst/5/4+cMzSH9U2uLTmc
+# UZ8UWhnIeeDO/ms6+o97eo9OF/adv5vcp7KYtfzYeZ7h4CzysdhHDKiQG681RKDx
+# EuimVsgapIjGUVcge9iizx4ye2/dOQ/3RmerNAfHmNtfrHJCRezFp5GfgUrwXlCD
+# n3soMNYwVjBfC23ewsCwEJxpur91hR2MypjwxxDWbtR/VuOs8WVaZRuCZC1auFKq
+# 6qpAHKFnZU2RJambWXwMb9oJMZFDgEwG51zYaqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIyMjE4MThaMC8GCSqGSIb3DQEJBDEiBCAIarr1ybWQnI9lsZm5
-# jxocvK106RBAMhck9vZMc5rVyTANBgkqhkiG9w0BAQEFAASCAgBkM/+EGpV+Xa1C
-# P4VNkBwxCDcGWLOa6izMuR5rJ/2j5hHY/vFdB1j7zg3ovTvMN0G7wGKIZPzWj0Ws
-# OwGK952CawjNsjPRdG0Im8em404I8CGWm+000Nw9sklSK9D2P1CFvVa8CpLEzb9n
-# S1ftS6uz8j16zxo77affyOYue+pxcdRQ6NDQRKp0zeJrJGZC3V5siAbtg0oyJBwB
-# hFsqICmq7lGkbN/ljK4829D18H5XacS/khAIeO60OLO7zPiCuV0JPB8FMvWYP+PN
-# xDNP0lVbQKRrIO/nlSAzxCYp0SxQkc+4l3ZVaL1jB9MSqUeVBJdG0/Pnzj/ns7R+
-# IThzUKWF4YiTCmYWOmKPgj9awOrfuuiveMyfnLnLieadt+4QPg6xM4isnx61YDDD
-# 1QA5Cd2JnjjdNlTosfHvE9tmdVUrx13MRsLg0o3GfPx1TDIhaVkzYEGYRN5xgbog
-# ZoKS8xTlHTQiMjdmHZNqa5+QSlbpeAucsr2kiGrEd0Jqx3dMItHNX+wv/f1TfERY
-# vVnCw1CaKaXgMQD1qcFw8fs0wJ0P1f/IVOnXcF9lwG6dz1r8C7kamFwNccUdLCh7
-# hYAYDDUjPbGi+N/KeIAlqnswvQQG4OGycaHdXZUyPVyMh+YNuQpNjFvz9pPHrljf
-# ZiMa0jTNzIANisBWZUsnMnFZYXeMIA==
+# BTEPFw0yNjAxMTUwMzM3NTNaMC8GCSqGSIb3DQEJBDEiBCBdZhubHgPhwjHo9zuc
+# GyRadrlMgFICsByYDHm+6wWbijANBgkqhkiG9w0BAQEFAASCAgA7zB2PJb74nFM6
+# ssy+NXyMO0sX7LCrU8Xvl+FDPAkz8SkKaTnQNk4zplnD9oqQPtEVJmicfjBgFmqh
+# NJ/Dksq9a9PWF1vHraiIs9TPCQd7x0qYkB9zX+0Ul5IFTHWbGrYnN+pL+ID9MgSq
+# BBYQshBzSQ1q3qqJpwX0UhYhOsQXe5FqScwJoset08vQ9xp/v+r/+DIXtLbpHaIQ
+# QcDvbOlw20yX+QLSzOvRcnz21dbfsi62EywuvI/2jKgJdLeOullHXYnBiU1aVnWn
+# eMfn8v+DcCD0UcB3tNqmUkZO53GYYNKbkfwxIzQKSbN1ss0HcJRoOOwdi9rmfa5c
+# 31wIws+Md4xr/HsDkXV9PufeElkA8BlSZCMuqaK2mMBtaqwyRBo90wuCQagGY0Ee
+# 5B6XEp5rXHdaTSdcm6zNe7+Ve5BbONw6Tz0gvjni9yPR+ouzqu6Essqn5Mh/kEdy
+# qApamyv4iMTZ37l2Gx6T7D8PzY6+KfMj5nQQUTCNJX7CX8bAJKjDmbq+I8BHClxL
+# MwlIDolnkCoFtJrCo5kQ242nT/n6KiHyK4d/5YhauffPixrPWqv4tNZkVijBvrr0
+# BwvnzNfWBOUgYBXtQUhZ6B1hjWRikUFkYSz03BvKyK2B3AHLsBhCg7ABanXzms0D
+# Q0u92N73ZBwnV9mMiVUSz6ayRLXGeg==
 # SIG # End signature block
