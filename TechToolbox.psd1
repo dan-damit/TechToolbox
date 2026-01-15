@@ -71,12 +71,13 @@ RequiredModules = @(@{ModuleName = 'ExchangeOnlineManagement'; ModuleVersion = '
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Get-BatteryHealth', 
                'Get-MessageTrace', 'Get-RemoteInstalledSoftware', 
-               'Get-TechToolboxConfig', 'Get-ToolboxHelp', 'Get-WindowsProductKey', 
-               'Invoke-AADSyncRemote', 'Invoke-DownloadsCleanup', 'Invoke-EXOReport', 
-               'Invoke-PurviewPurge', 'Invoke-SCW', 'Invoke-SubnetScan', 
-               'Invoke-SystemRepair', 'New-OnPremUserFromTemplate', 
-               'Reset-WindowsUpdateComponents', 'Set-PageFileSize', 
-               'Set-ProxyAddress', 'Start-DnsQueryLogger', 'Test-PathAs'
+               'Get-SystemSnapshot', 'Get-TechToolboxConfig', 'Get-ToolboxHelp', 
+               'Get-WindowsProductKey', 'Invoke-AADSyncRemote', 
+               'Invoke-DownloadsCleanup', 'Invoke-EXOReport', 'Invoke-PurviewPurge', 
+               'Invoke-SCW', 'Invoke-SubnetScan', 'Invoke-SystemRepair', 
+               'New-OnPremUserFromTemplate', 'Reset-WindowsUpdateComponents', 
+               'Set-PageFileSize', 'Set-ProxyAddress', 'Start-DnsQueryLogger', 
+               'Test-PathAs'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
