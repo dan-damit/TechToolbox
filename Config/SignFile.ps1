@@ -1,8 +1,8 @@
 
 <#
 .SYNOPSIS
-    Signs all .ps1 scripts in a user-provided directory using a fixed code signing
-    certificate from Cert:\CurrentUser\My, identified by thumbprint.
+    Signs all .ps1 scripts in a user-provided directory using a fixed code
+    signing certificate from Cert:\CurrentUser\My, identified by thumbprint.
 
 .DESCRIPTION
     - Prompts for the target script directory.
@@ -10,11 +10,37 @@
     - Signs with SHA256. Optional timestamp server.
     - Skips already validly signed files (optional).
     - Outputs per-file status and a final summary.
+.PARAMETER Thumb
+    The thumbprint of the code signing certificate to use.
+.PARAMETER TimestampServer
+    Optional URL of a timestamp server to use when signing.
+.PARAMETER ScriptDirectory
+    The directory containing .ps1/.psm1 scripts to sign. If not provided,
+    prompts the user.
+.PARAMETER Recurse
+    If specified, recurses into subfolders to find scripts.
+.PARAMETER SkipValidSigs
+    If specified, skips scripts that are already validly signed.
+.EXAMPLE
+    Update-SignScriptsByThumbprint -Thumb '7168509FC1A2AE7AFC4C40342D6A8FED7413029C' -ScriptDirectory 'C:\TechToolbox\Scripts' -Recurse
+
+    Signs all .ps1 and .psm1 scripts in C:\TechToolbox\Scripts and its subfolders,
+    using the specified certificate thumbprint, skipping already validly signed files.
+.INPUTS
+    None. You cannot pipe objects to this function.
+.OUTPUTS
+    None. Output is written to the console.
 
 .NOTES
-    Author: Dan.Damit (https://github.com/dan-damit)
-    Requires: PowerShell 5.1+ (Set-AuthenticodeSignature), cert with private key in CurrentUser\My.
+    Author: Dan.Damit (https://github.com/dan-damit) Requires: PowerShell 5.1+
+    (Set-AuthenticodeSignature), cert with private key in CurrentUser\My.
 #>
+
+param(
+    [string]$ScriptDirectory,
+    [switch]$Recurse,
+    [switch]$SkipValidSigs
+)
 
 # --- Configuration: fixed thumbprint for VADTEK Code Signing cert ---
 $Thumbprint = '7168509FC1A2AE7AFC4C40342D6A8FED7413029C'
@@ -24,22 +50,23 @@ function Get-CodeSigningCertByThumbprint {
         [Parameter(Mandatory = $true)][string]$Thumb
     )
 
-    # Look in CurrentUser\My (private key required for signing)
+    # Look in CurrentUser\My
     $cert = Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |
     Where-Object { $_.Thumbprint -eq $Thumb }
 
-    # Optional fallback to LocalMachine\My
+    # Fallback to LocalMachine\My
     if (-not $cert) {
         $cert = Get-ChildItem Cert:\LocalMachine\My -ErrorAction SilentlyContinue |
         Where-Object { $_.Thumbprint -eq $Thumb }
     }
 
     if (-not $cert) {
-        Write-Error "Signing certificate with thumbprint $Thumb was not found in CurrentUser\My or LocalMachine\My."
+        Write-Error "Signing certificate with thumbprint $Thumb was not found."
         return $null
     }
+
     if (-not $cert.HasPrivateKey) {
-        Write-Error "Found certificate ($($cert.Subject)) but it has NO private key. Re-import the PFX with the private key."
+        Write-Error "Found certificate but it has NO private key. Re-import the PFX."
         return $null
     }
 
@@ -50,48 +77,80 @@ function Get-CodeSigningCertByThumbprint {
 function Update-SignScriptsByThumbprint {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)][string]$Thumb,
-        [string]$TimestampServer = 'http://timestamp.digicert.com'
+        [Parameter(Mandatory = $true)]
+        [string]$Thumb,
+
+        [string]$TimestampServer = 'http://timestamp.digicert.com',
+
+        [string]$ScriptDirectory,
+        [switch]$Recurse,
+        [switch]$SkipValidSigs
     )
 
-    # Prompt for directory
-    do {
-        $dirInput = Read-Host "Enter the directory containing .ps1 scripts"
-        if ([string]::IsNullOrWhiteSpace($dirInput)) {
-            Write-Host "Directory cannot be empty." -ForegroundColor Yellow
-            continue
+    # --- Resolve Script Directory ---
+    if (-not $ScriptDirectory) {
+        do {
+            $dirInput = Read-Host "Enter the directory containing .ps1 scripts"
+            if ([string]::IsNullOrWhiteSpace($dirInput)) {
+                Write-Host "Directory cannot be empty." -ForegroundColor Yellow
+                continue
+            }
+
+            $resolved = Resolve-Path -LiteralPath $dirInput -ErrorAction SilentlyContinue
+            if ($resolved) {
+                $ScriptDirectory = $resolved.Path
+            }
+            else {
+                Write-Host "Path not found. Please enter a valid directory." -ForegroundColor Yellow
+                $ScriptDirectory = $null
+            }
+        } while (-not $ScriptDirectory)
+    }
+    else {
+        $resolved = Resolve-Path -LiteralPath $ScriptDirectory -ErrorAction SilentlyContinue
+        if ($resolved) {
+            $ScriptDirectory = $resolved.Path
         }
-
-        $resolved = Resolve-Path -LiteralPath $dirInput -ErrorAction SilentlyContinue
-        if ($resolved) { $dir = $resolved.Path } else {
-            Write-Host "Path not found. Please enter a valid directory." -ForegroundColor Yellow
-            $dir = $null
+        else {
+            throw "ScriptDirectory '$ScriptDirectory' does not exist."
         }
-    } while (-not $dir)
+    }
 
-    # Recurse prompt
-    $recurseInput = Read-Host "Recurse into subfolders? (Y/N) [Default: N]"
-    $recurse = $false
-    if ($recurseInput -match '^(?i)y(es)?$') { $recurse = $true }
+    # --- Recurse Prompt ---
+    if (-not $PSBoundParameters.ContainsKey('Recurse')) {
+        $recurseInput = Read-Host "Recurse into subfolders? (Y/N) [Default: N]"
+        if ($recurseInput -match '^(?i)y(es)?$') { $Recurse = $true }
+    }
 
-    # Skip already validly signed prompt
-    $skipSignedInput = Read-Host "Skip scripts already validly signed? (Y/N) [Default: Y]"
-    $skipSigned = $true
-    if ($skipSignedInput -match '^(?i)n(o)?$') { $skipSigned = $false }
+    # --- Skip Valid Signatures Prompt ---
+    if (-not $PSBoundParameters.ContainsKey('SkipValidSigs')) {
+        $skipInput = Read-Host "Skip scripts already validly signed? (Y/N) [Default: Y]"
+        if ($skipInput -match '^(?i)n(o)?$') {
+            $SkipValidSigs = $false
+        }
+        else {
+            $SkipValidSigs = $true
+        }
+    }
 
-    # Find scripts
-    $searchParams = @{ Path = "$dir\*"; Include = '*.ps1','*.psm1'; File = $true }
-    if ($recurse) { $searchParams['Recurse'] = $true }
+    # --- Find Scripts ---
+    $searchParams = @{
+        Path    = "$ScriptDirectory\*"
+        Include = '*.ps1', '*.psm1'
+        File    = $true
+    }
+    if ($Recurse) { $searchParams['Recurse'] = $true }
+
     $scripts = Get-ChildItem @searchParams
 
     if (-not $scripts -or $scripts.Count -eq 0) {
-        Write-Host "No .ps1 files found in the selected path." -ForegroundColor Yellow
+        Write-Host "No .ps1 or .psm1 files found in the selected path." -ForegroundColor Yellow
         return
     }
 
     Write-Host ("Found {0} script(s) to sign." -f $scripts.Count) -ForegroundColor Cyan
 
-    # Get cert by thumbprint
+    # --- Get Certificate ---
     $cert = Get-CodeSigningCertByThumbprint -Thumb $Thumb
     if (-not $cert) { return }
 
@@ -101,7 +160,7 @@ function Update-SignScriptsByThumbprint {
 
     foreach ($file in $scripts) {
         try {
-            if ($skipSigned) {
+            if ($SkipValidSigs) {
                 $sig = Get-AuthenticodeSignature -FilePath $file.FullName
                 if ($sig.Status -eq 'Valid') {
                     Write-Host ("[SKIP] {0} -> already validly signed." -f $file.FullName) -ForegroundColor DarkYellow
@@ -118,15 +177,13 @@ function Update-SignScriptsByThumbprint {
             if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
 
             $result = Set-AuthenticodeSignature @params
-            $status = $result.Status
-            $message = $result.StatusMessage
 
-            if ($status -eq 'Valid') {
+            if ($result.Status -eq 'Valid') {
                 Write-Host ("[OK] {0}" -f $file.FullName) -ForegroundColor Green
                 $success++
             }
             else {
-                Write-Host ("[WARN] {0} -> Status: {1} | {2}" -f $file.FullName, $status, $message) -ForegroundColor Yellow
+                Write-Host ("[WARN] {0} -> Status: {1} | {2}" -f $file.FullName, $result.Status, $result.StatusMessage) -ForegroundColor Yellow
                 if ($result.SignerCertificate -and $result.SignerCertificate.NotAfter -lt (Get-Date)) {
                     Write-Host "   ❗ Certificate appears expired." -ForegroundColor Red
                 }
@@ -142,19 +199,17 @@ function Update-SignScriptsByThumbprint {
     Write-Host "----------------------------------------"
     Write-Host ("Signing complete. Success: {0} | Skipped: {1} | Failed/Warnings: {2}" -f $success, $skipped, $failed) -ForegroundColor Cyan
 
-    # Execution policy hint
     $ep = Get-ExecutionPolicy
     Write-Host ("`nCurrent execution policy: {0}. Ensure it allows running signed scripts (e.g., RemoteSigned or AllSigned)." -f $ep) -ForegroundColor DarkCyan
 }
 
 # --- Run ---
-Update-SignScriptsByThumbprint -Thumb $Thumbprint
-
+Update-SignScriptsByThumbprint -Thumb $Thumbprint -ScriptDirectory $ScriptDirectory -Recurse:$Recurse -SkipValidSigs:$SkipValidSigs
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAl1AYjXs9zkrHP
-# 15GM7bCEuCwnR3gulYWPe6rI2M5ivaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpp3kQQBUeKHhs
+# 3DkqvlX3+69O0dVfZkT+aILKZJx4TaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -287,34 +342,34 @@ Update-SignScriptsByThumbprint -Thumb $Thumbprint
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBpHkd/Jr/x
-# DAIBXZdh40A4i7M6IoXAzY9+dxdXL4h1IDANBgkqhkiG9w0BAQEFAASCAgC24i1+
-# GP0xL4w39GVBKrPOKKNokQYu91grSMWPegXFiYy8Ea+7ZgG/H/YdWga3lVkWXejb
-# ndJphN3Tc79UnuEzmsjLUoIUkkcgF+Abp9s/NOwh5ukiDYiY/oH/qIArd1l3xLwn
-# EJRGAD0jliekZ9Ez19OZm42JvQqRLYlQk/Xjxvn1YpavcUDu1lkrICZzvcn4k3sH
-# PdnlulBHTj6PefoZCGwBzGAdYTf6WU6pMZsHuG9FmFlrP3mCe1hT9LgUwUS3wwKK
-# xwrGxCoK7XtPcP9MKXOsGLMvF/PgmMT7oD0yiz7fvV+TfWFsaVIRvlQqZFBzfyWn
-# ogB3xesiy8UktrEc9HC4gNKE5E9wqipPVYJJ/CoewBUBZnJ9ob6f4yTFKj/CtmSR
-# pbyr6Vpp0v0yuhuBRRy4CsHKyuQ59vmJx3REVsvzIFcvUQvslrjHPJdZ3A+F+WiK
-# 81n6TwTAyXHOOEdMbHlOTD3OScxrE1W8N9oKapSfUBDHM8fATNbNmNMcTPkJPxJM
-# 7lQRQ5Kam7vgAT9XRQ+70B3UXoQi6MQYxujtY5Ya5uHLWaKF2k4Wvi11tllVo4ju
-# /vabzjcwEF+DeWjoPj6MwoMbRaoE0IPlI+lTFgzSPylhNlji4sewLkMVb8D9tI70
-# x00qENzOApFsnpH2l2cll1Df56YRDC4HrEDTXqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDisZRo5XYs
+# /1DLJMf8CDSoiZmHOClrwyoQVAve8cNuPjANBgkqhkiG9w0BAQEFAASCAgCvUUTS
+# Utub0V6ESK25FZOJ6qppykKyHle/v6st4vQR0bKVszYHj6ByjoRwuAEuDODPZwsK
+# FYhA1N4oNO6c3HMerQKWkmZBQ0QWe4F6+IQz/aqnpEdc9iwWZpUaYuuHHWbUBTSa
+# 0/FF5oc/oMSvocHSjj6i3SvuKwKDLEASCIzr1JmpC5odgGEHZg/BGHXVk/I3DBZy
+# 7AUgUdn6I+S4BLwPFDHwnatG1L1T91jzol6tZYz31VEANDQkaDomQRcu2GAKWyFX
+# phScgc5y96P/rXZ028TRGnvz1H7CZO0y5TQZYLMEUBXf1/1QQlQvZYyGR1JAzPdg
+# D46FQo6TTrfK6SKCL1/pdL1tioHYPBVLMLiTbpSRV6i/IDuXvISH429+x7ioMCH4
+# Jr3WsJ5yKsZJwzRXTV0ZedNYiKX8ga8JVxGaq8Dnv/RjHRsNeUI9NfQY0msiTQjt
+# sbrbVmwces0Mgxg71OEAVorj9lhuCADRslKg6jEzEcc0MDJnhv7Ikpt2xFoWk5e+
+# FUXHajJETGT5qsRw3j2cEIbzGr4MBY8xrnFVlxJBs9eqbiP4U8zU6SCoOeGcFrlY
+# bCH+B9t26kLeIievnMASqw+f7lomgogjPITsFxfY7EH9PsY+greEMxQ5+7oTs76C
+# 86BTa/8tgy7o/1XNNJq+h48b0KwIr7OYX0K8+6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTIxNTU3NThaMC8GCSqGSIb3DQEJBDEiBCDXxUjGRLUC29bCB0w6
-# mqgRY/inMZKQKUxa37J5ZSSdQjANBgkqhkiG9w0BAQEFAASCAgCCLpThWvRxtF0k
-# YH4yiIDphs1fqXeACRPGHx0Ej20RLiwivex4XAqdvkh42GvrhDTwipiAq03sWJD4
-# BZlNZyyOAzG6/ObSPJxnfoSwSKgALj8plCB+zTP7/G7rhi7YVKNANgRnoCNcoZi7
-# tgkvtXY6QX8IABj1Ge2wZevQHOnTUfmw4F7ZdmzVWchLRHRYraWPR+p3DL7/qHp8
-# NjpKkMh65/zV6wYVCuFJ5rhazvBsz+mctcN5pRg5oqnlGF4Vkg5YkqcW5BWpG0Fi
-# uQgUif7qGpqaOAWFxYkYrTBN3Bv4Mvf0xfHkIzwiPIdpU2lInO6Qq8hr0mgynBde
-# ukGIFUpyqhOnp5jas1rT6K/GoIPJfWJDzW6taBuGY2yRX68GtfCkXNSdSOTVI8I0
-# 7XD5mV6Xb+sMzEfHvr6vTJlCKxJW4pLqDlxX6ZY5VBnTbJrVCVcTQ9hUWGw1T97l
-# 3SQQiKBZETWs0wufovhsBiJZltHmzd7YqS4XDMbuS2Iff9FWfMV2BYXQeNHYer5K
-# mWOJwOx1HT+wnKko8th2MsCLd12sH3sU+Tj4tSg36sCRN8PVDUIj5CiwgrH9F1l8
-# W6GKThw3jU6TvGvRSSCidXWS4jphW5/LrjEkhODbWUL87r7XTLKdvVdAJK04K6Wu
-# hE2cwC7VBqwxdnkoHlRPoywaChK7aQ==
+# BTEPFw0yNjAxMTcwNDA4MzNaMC8GCSqGSIb3DQEJBDEiBCBKpNoskv8jbFLgshVZ
+# SDg6AgRYTKSxAr5/BcK1Nx3/2zANBgkqhkiG9w0BAQEFAASCAgBcKfdIWCNSS0f9
+# p8bbhtWP8xjAb08vnjmBsAe+gywuT6gNGwQyjnEJ3YQIrmB1kYWiOYf9sbTCKCQT
+# UjQFkxiLxj0Pk5St+mCMdn5O+Im0PLV4IGhcpy9IWkqzLoOD+SZSmHaBJNwUwVIk
+# eccHla5UVFsCZhGn+P4HTScwpspsaa42U5VScQPzo8sXKh2UedjIu8vV8W0GRuXB
+# LfDCCIUz0ipF8y3cxtO54bJgjNWBxuRGJEE+9bG+o4a8Mvakr+TZ3yWbsBcR9/Je
+# VFkfejRJwfQl4xEwb6Tn/a2N9TXez+A8s3+UfVlBGqDXq2H41AwWniWOOAAEBPr9
+# QjHaw+M6fZ6vAvsKtqhOzVq6iZUW/MRT5wxgAioMLiFL6hMyfJLAA4pwzdBlv2Kl
+# bAg8DQyTez8+YYwgthfHYCeKYubTU624d7BRRTKBtjAboRvBmYxWrSr9Ke5MzZmz
+# CkCNPXTMVozFrcEYS6+8LLM5mqOtGRqV7JV4VYmmwL5lZG77sXn0HVkN8nSB4p66
+# 3hk6JX2KdVB2oHoygE1pxgoJGLwRaMCfYEp/rgHNkUzDR2blxugHwdRz0g/DC3vb
+# VJZrjjXS3Keo/iABtBg2JfcggZiSmWEsCU4NT/3NTr/lEcOA7Iu0zY64fAx5trgM
+# ywsX28hWOuADymVlAvBgDnJrrFBHmw==
 # SIG # End signature block

@@ -189,10 +189,12 @@
       "includeRoles": true,
       "includeServices": true
     },
-    "licenseMap": {
-      "6fd2c87f-b296-42f0-b197-1e91e994b900": "Microsoft 365 E3",
-      "c42b9cae-ea4f-4ab7-9717-81576235ccac": "Exchange Online Plan 2",
-      "94763226-9b3c-4e75-a931-5c89701abe66": "Teams Phone Standard"
+    "userSearch": {
+      "licenseMap": {
+        "6fd2c87f-b296-42f0-b197-1e91e994b900": "Microsoft 365 E3",
+        "c42b9cae-ea4f-4ab7-9717-81576235ccac": "Exchange Online Plan 2",
+        "94763226-9b3c-4e75-a931-5c89701abe66": "Teams Phone Standard"
+      }
     }
   }
 }

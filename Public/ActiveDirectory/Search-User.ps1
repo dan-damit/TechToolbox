@@ -20,15 +20,24 @@ function Search-User {
         [string]$Identity
     )
 
+    $cfg = Get-TechToolboxConfig
+    $search = $cfg['settings']['userSearch']
+    $licenseMap = $search['settings']['userSearch']['licenseMap']
+
+    # Ensure EXO connection
+    Import-ExchangeOnlineModule
+    Connect-ExchangeOnlineIfNeeded
+    Write-Log -Level Info -Message "Connected to Exchange Online."
+
     Write-Log -Level Info -Message ("Searching for user '{0}' across M365 services..." -f $Identity)
 
     # --- Query each service ---
-    $entra = Get-EntraUser   -Identity $Identity
+    $entra = Get-EntraUser    -Identity $Identity
     $exo = Get-ExchangeUser -Identity $Identity
-    $teams = Get-TeamsUser   -Identity $Identity
-    $azureAD = Get-AzureADUser -Identity $Identity  # fallback
+    $teams = Get-TeamsUser    -Identity $Identity
+    $azureAD = Get-AzureADUser  -Identity $Identity
 
-    # --- Normalize into a unified record ---
+    # --- Normalize ---
     $user = Format-UserRecord -Entra $entra -Exchange $exo -Teams $teams -AzureAD $azureAD
 
     if (-not $user) {
@@ -43,8 +52,8 @@ function Search-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBbH9HauKJGG1Tt
-# a25u9Wu4TgsAzCy9sk4N+DOVqrYTcqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCByGxSsTdLPGWDz
+# VCf/F3W4W1vXWnA8dVAjRQwO4RftP6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -177,34 +186,34 @@ function Search-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCfbGCy90lu
-# e4zbzffNskfQofVc3Zr4/2aNd0Z2HX2IlzANBgkqhkiG9w0BAQEFAASCAgDRJd2W
-# lVpcOk4gHj9ukw4j27sCMxYueKJDDP7kz4WPz52HqQArWBaZaQsYqCg7uBZkYQSP
-# 3IBbaVrziWDV3J+IRUBbqr/JOQ/yuU3wS7acuNLLc3frb+2VlrdLHh4PRTLOgyZo
-# b2ogv65T6dT9ag3BGmTSnL894tuKulQriYG2IBcwh/JjdNc1I/fqo428ISqcP+Ab
-# 5tthzOxBstw1tKXaJOYy631NtnCwgcqUdsKfC+ihcGkHXUY91++4HfyJZTIOV650
-# S436Wx01+h8Bh5oKx7ssqiD42N1XTr5xj7+UyNK5+8/7gbYwVQctMTvbsyntMsJv
-# OFtkhyFbcbKx+TAZIjhr8axFMlcXTeWZrH0PNGJJyKciVlXULiYSfk35TTOazmlJ
-# og4zFkmEk7t3H8R9k4ump1d0flKYybzLoERo5l0Lkbe8LNHLuxEK82LTliXXLUB/
-# +k2VokKsxlNBmfrEjBH0cDapJJ7yQpCmGkQ+YlrSw7paVvqpwLJs3B6eSbEJPfjF
-# 6za9QszY5AaUq2CUIOcdC/nDTzwpVv0KyD0PDuad2dVmu3mlVDbckyEVYAiCaaDx
-# Ao/MYm6HXLAQ43DfbSgeQze4bqDzhJp4ODmpk4QJ3ju36wU6dAaLTT3EsohubrGj
-# uTyje86J/LsnkR/rNtCYU2YB/08PUU21t0008aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBCKysNPfpV
+# VWrYFxv14iUZVfk+E6ArTDsV4eoKC/uEUzANBgkqhkiG9w0BAQEFAASCAgC6j17X
+# 0zaT6HepLRpcdlGjKL7ATagd2q+pFx7o+b/rR29kyeijY2nrtQf3dxw5d7G7cT4j
+# fCN4u4G5nT+KBFUSdCp2vf18nlV4Ue+YviRbTP5vexwrk1HSjYqSXaQgaIneqhDc
+# WoZOnqkRE19nsQjFkS29BU5nwhLa9SvycqdloqYkcGM9WXlXIKB7IheG934W7zKJ
+# V1qqKlKLboAjcOu9Ax2f2OCUJsr75TZYbX9YC7EqpZ3u+8G5RadVjFm9Ye2FF3xZ
+# AqLVbwVjOrJXi/mA2Dz+9sfQvGzQDr5ZXtL9L9tnRpLVB5McErQF7ML55OB9zivU
+# gM8FlB0zz61F99WMVEcnR74Ol51q0b6fhyHCG/dRE87aqeQdMUhMRmRZnpd0gRJd
+# H+TDlMDLjuZi2+OrMAeTumMcimx57i7LBo4FPy1uJ3w1bqZuUJUbLsUdjnQ1BInc
+# T3mmuJfsNKOM48vh5VzWaYj2UWtpALI6FPhgzL+xT4Jn5JUtMetxu4Dd6A/oQ/ZZ
+# ysiQfkZqTzDdxpWQAEQDZlcKD9FZ7Mni69YRWEaMdtTzFnKDo9fd0i0ZpJL6+5ZE
+# Q23X3h2qhpsXnNv1CmzEtq1Ubejw0uUlwzbfRdNVo674VgKBqMGHiuqcftyJOOqu
+# laWyqh97NcxfRYvJitMH2pX5JVafuInVnKSoWKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTcwMzM4MTlaMC8GCSqGSIb3DQEJBDEiBCCZWD76KBNDEy/4nk6x
-# 6mYIVGe4WUBDYssp1xw6kjLPcDANBgkqhkiG9w0BAQEFAASCAgAIlT/KdfjSb0jZ
-# UB30t/Y2TwQr/DrLGHrVEiMh4CSOrFl2YcKEma/9eaSkeM8+L2/TmOretdMG/rT+
-# NiQBHA2Xy1uf6TUm9EVkZV4Akm63NB93LWNr9JJKek+YTcm+TiIOqb1UX4LBcR1B
-# BFQJxlZH+plTFuVW+o/xiC1m/AOTrVB+6FfC4nG0Pu1BWwc3tegxfeCxfGxVkG6l
-# 3QyS7vVKF3f3SITS+RgGr3gbdDZp5bxvMqomyRJ20ODe61GJV4BGLUSuLtu+0cLo
-# TNQVmhAk65CWTJBWja50HVH6LRpK0TBxRjaN/HkXRKabk6qccrlsoICKvfpT75Ko
-# 4IPrZ5PIydbu8fBjShEMDo9lNJ/AdjPACrIoeadhslLiWI1xnrDd5zKMo067nAMC
-# QzUkk7u1hwRkI7KU9Z8DJLYcGZBINAy4TXSS6FC4Txa5y239GKEfGPIZqkSp9gRP
-# IPFb5ScorlYURUglTyDMvQnv3eBpkwgw3Jr/nTbqghN87jWTOh6ji6yHoQWrWKq2
-# GJF+rBoIsZnXF+qDw2cBpHVwwFODFT6zsSnLPeHM0/xgmS6AW+DBvh+LOmsSh29q
-# FXjuJsc5DBGMzhNOdSnrZOFqs8yTiyKyxzuaSrMdeJyoouKih+ZJ8NSsArxUedeD
-# whrXs3WQOzgCZCdxasph4tog6j02vw==
+# BTEPFw0yNjAxMTcwMzUxMThaMC8GCSqGSIb3DQEJBDEiBCALMywT/+hPt5JJSCOw
+# fNZOmkF4zt6u2yGvKZnCZZO6PTANBgkqhkiG9w0BAQEFAASCAgCs5S2c2YNlN0DQ
+# 4cxzH04koaIdIaafNwtbixk0FBZcrhNAecPGccZ0YYaNqExYbkdckQ8Rs/Z4OTlB
+# ukHfDzBlJokvDaKWv3Vq1rL8+Grfm/7AMa1qjmzg01ic/aHtvElMniP7g8WRyTpU
+# LvnNBFieRsh7Q8XFT/jItXK99udZRvTz6Uge62YjPijI2sU+sBL4C8qNU6T3GjnW
+# lhHs1ClqxPTUxQVnX7oY+ox3cmKrkfbvkyNTi48RijlBNHc64FMcvjBPuCCty2gl
+# OZOwaEhjfLyCNlrWxeKS/9zbwiYHOAWry0uk/oB6KTsb6l1ofOVV+r2buml1gUd3
+# wcoX5gucFP5tm/2yX+s0O0I5YLTRH+QrAnm8jPinSuTthXeTHhHft12YtAKttQSu
+# Qupy1Qt7LTJa3x2oS/Y5+TwXiUHi3nnU3wHdgAZcacE3JGl5msZB8a7E0+WxR3bn
+# bcKo1msd1h13/eoOWwcss3WPWqoUKNFuq2eE+FcVaEDRBXijBwPXyOOERN9neX+A
+# bou3+LycEJBQiZgUw12OavePPAgnG6sGQnPGWc4vzckSk6NtFjS9f8lbJ75TiST2
+# oOosj0pK/b7hZVZUP5x4U7YCQk8GsdmXyt4ppx8iSqAI+5kc0KCjagvpU0tdo3g+
+# +thuT034vdZRW1YGG39xtbE4ptAIYQ==
 # SIG # End signature block
