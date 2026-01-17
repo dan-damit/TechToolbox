@@ -33,6 +33,7 @@ enterprise-grade PowerShell module.
   - [Set-ProxyAddress](#set-proxyaddress)
   - [New-OnPremUserFromTemplate](#new-onpremuserfromtemplate)
   - [Get-SystemSnapshot](#get-systemsnapshot)
+  - [Search-User](#search-user)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -382,6 +383,18 @@ to CSV
 ```powershell
 # Local and remote support
 Get-SystemSnapshot -ComputerName SERVER01 -Credential (Get-Credential)
+```
+
+---
+
+### Search-User
+
+This grabs several values assigned to a user (input at runtime) and returns to
+console
+
+```powershell
+# EXAMPLE
+Search-User -Identity "user@example.com"
 ```
 
 ---
