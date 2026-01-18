@@ -1,116 +1,40 @@
-function Disable-User {
-    <#
-    .SYNOPSIS
-        Performs a full hybrid offboarding workflow for a user.
-    .DESCRIPTION
-        This function disables a user account in Active Directory and Entra ID,
-        removes licenses, cleans up group memberships, and performs other
-        offboarding tasks as configured.
-
-        If "useHybridAutoDisable" is enabled in the config, cloud actions will
-        be skipped here and handled automatically by AAD Connect.
-
-        The function logs each step and returns a summary object with results.
-    .PARAMETER Identity
-        The user to offboard. Can be SamAccountName, UserPrincipalName, or
-        ObjectId.
-    .EXAMPLE
-        Disable-User -Identity "jdoe"
-    .INPUTS
-        String
-    .OUTPUTS
-        PSCustomObject with results of each step.
-    #>
-    [CmdletBinding(SupportsShouldProcess)]
+function SignOut-TeamsUser {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$Identity
     )
 
-    Write-Log -Level Info -Message ("Starting Disable-User workflow for '{0}'..." -f $Identity)
+    Write-Log -Level Info -Message ("Signing out Teams sessions for: {0}" -f $Identity)
 
-    # --- Load config ---
-    $cfg = Get-TechToolboxConfig
-    $off = $cfg['settings']["offboarding"]
+    try {
+        # Revoke all refresh tokens (Teams, Outlook, mobile, web, etc.)
+        Revoke-MgUserSignInSession -UserId $Identity -ErrorAction Stop
 
-    # --- Resolve user (Search-User gives us AD + Entra + EXO identity) ---
-    $user = Search-User -Identity $Identity
-    if (-not $user) {
-        Write-Log -Level Error -Message "User not found. Aborting offboarding."
-        return
-    }
+        Write-Log -Level Ok -Message ("Teams and M365 sessions revoked for: {0}" -f $Identity)
 
-    # --- Prepare results container ---
-    $results = @{}
-
-    # --- AD Disable ---
-    if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Disable AD account")) {
-        $results.ADDisable = Disable-ADUserAccount `
-            -SamAccountName $user.SamAccountName `
-            -DisabledOU $off.disabledOU
-    }
-
-    # --- Move to Disabled OU (if not handled inside Disable-ADUserAccount) ---
-    if ($off.disabledOU -and -not $results.ADDisable.MovedToOU) {
-        if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Move AD user to Disabled OU")) {
-            $results.MoveOU = Move-UserToDisabledOU `
-                -SamAccountName $user.SamAccountName `
-                -TargetOU $off.disabledOU
+        return [pscustomobject]@{
+            Action   = "SignOut-TeamsUser"
+            Identity = $Identity
+            Success  = $true
         }
     }
+    catch {
+        Write-Log -Level Error -Message ("Failed to revoke Teams sessions for {0}: {1}" -f $Identity, $_.Exception.Message)
 
-    # --- Optional: Cleanup AD groups ---
-    if ($off.cleanupADGroups) {
-        if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Cleanup AD group memberships")) {
-            $results.ADGroups = Cleanup-ADUserGroups -SamAccountName $user.SamAccountName
+        return [pscustomobject]@{
+            Action   = "SignOut-TeamsUser"
+            Identity = $Identity
+            Success  = $false
+            Error    = $_.Exception.Message
         }
     }
-
-    # --- Hybrid auto-disable mode ---
-    if ($off.useHybridAutoDisable) {
-        Write-Log -Level Info -Message "Hybrid auto-disable enabled. Cloud actions will be handled automatically."
-        Write-OffboardingSummary -User $user -Results $results
-        Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}'." -f $user.UserPrincipalName)
-        return [pscustomobject]$results
-    }
-
-    # --- Cloud actions (only if auto-disable is OFF) ---
-    Write-Log -Level Info -Message "Proceeding with cloud offboarding actions..."
-
-    # Ensure Graph + EXO connections
-    Connect-MgGraphIfNeeded
-    Connect-ExchangeOnlineIfNeeded -ShowProgress:$cfg['settings']['exchangeOnline']['showProgress']
-
-    # Disable Entra ID account
-    $results.EntraDisable = Disable-EntraUser -ObjectId $user.ObjectId
-
-    # Remove Entra licenses
-    $results.Licenses = Remove-EntraUserLicenses -ObjectId $user.ObjectId
-
-    # Cleanup Entra groups
-    $results.EntraGroups = Cleanup-UserGroups -ObjectId $user.ObjectId
-
-    # Sign out of Teams
-    $results.Teams = SignOut-TeamsUser -Identity $user.UserPrincipalName
-
-    # Convert mailbox to shared
-    $results.Mailbox = Convert-MailboxToShared -Identity $user.UserPrincipalName
-
-    # Grant manager mailbox access
-    $results.ManagerAccess = Grant-ManagerMailboxAccess -Identity $user.UserPrincipalName
-
-    # --- Summary report ---
-    Write-OffboardingSummary -User $user -Results $results
-
-    Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}'." -f $user.UserPrincipalName)
-
-    return [pscustomobject]$results
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDEqPDM4sQZ/8Hk
-# /Ic7P2w5W9xX0uVpIiDoLaDJGgbcGqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB1uFia/DYGvnwR
+# 1hPLWQ1aPsCzt9x6cjP8OhtJ2ACSoKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -243,34 +167,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBjdxWhwXK+
-# WJeh0/rlbtBXbn1yin/fAJqL0YQBVoDhYDANBgkqhkiG9w0BAQEFAASCAgAHYX5q
-# Z7JN5z1iqrDzzSJNvgelu/rxllY6Kq97oJgmhZPoaEhjWoh+bZ77UqMXTsOTMLwW
-# /nZdzMgREuc/JK9kL3/0Y8F4X/rQ0dhc2Nha3WIWOrYVzMdBg/FC2CICp19w9mxf
-# hqBRzPk3IpdaZXlvFZwEbxbH2vf8U4BxT7a9ziz6UszbCbY1YPJU2hEkjPrQ5qSA
-# SRHJxOiCml6HadaBMTp+vVc09gm/LBNZVUBBNHjVfPlZn8770TE0SoZ26weQwIM6
-# xZTLj6nI1UEWFcr4g6kjpnY2B0JpGjndjAOqSnyPQcX4mySQ8MW9QlE7a3Vt5dAK
-# dZIWIg6kC2KrH2It5Cor+aGgDvyEoe/hgQKw2JeW5j/JQ6Yfze2bOPlSCBmjAt89
-# gaYC1UwAYKcSRa2PKSz0CMCkbo1pl9AdM1AycRej9KUx3XD8YAwl7sykh72O51aR
-# dm0rebWnhcD5jCYbQ18GjyoAhmCqGE1v2jRg7lq+MvRN4jPPsSdZsxXlzRMxrqs9
-# +uRdeJwnDZWhWiHNYR+ynm44Zko9gbqvV1KjqeA4l9J3zB+u23DeRDs8r2RN2aSt
-# KVuI44GfN7NvqcKVtkkq02YDrxRTwXmiEqadvQ0aYMAnhtUpcGMmuR1sMoWXK8ts
-# yV/oAp174Taq4yoRPUS4bVxdMv8gMzsEWS4WuaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAl0Z7RUYUy
+# Nc8o7foTzlnTh/GA40E4DkCzCqkpT9YN8TANBgkqhkiG9w0BAQEFAASCAgCiq1NH
+# NPUkBkQgP5+bYFbL8vdM2TdPGKAD5xFqKV7oYPHITlzV3+vW9ogxE2Cq2KDnCPMa
+# KSLvLLIZy9oBKTNq+90IFNJ6uhLc6qY2WZUDiTlyofxh18Ck2owHmXRk7TAqTxKp
+# yAlrMbE/qjTSBcL6Ue+jQEQQy9E+B2+wW1X9488hJLgNPGCllKqZ6ykVw55iE/+W
+# TY6TRU361wLqG+d5cBjH1MpN+sDiIoSfNUcCqOhH3dvKQTpf6o3ejy7NoYOWIemg
+# n2vomaH2z2hJE12EW+upTcXR7+FhwpKvKlw1d0ksb6QDZTBU6WmYoRxWP/PTcrbP
+# AQgwwBWUU7ApzIBxprD+sI7r8l1ZW64UypBKsG/Ts4Nd0coFny2WzZyfSe/n3cA7
+# HkYxFcxBSxf6xUvJt3ZQ2wM62hE9/66BLTIsFqBKGHGgQRVVkM7d/tcxVT8OKP3P
+# mwGGK9ftau9NcOVf9v/dhyPphnJsVMM8nQ8cprrUa7KMnWyO+S8DDN7o5wR+1wyc
+# SGidBkeAXX9PSqVab5tqRNfKGzl6eH0NKvFocUwVOBV5mxbE//dW1OKd3+bfqJMu
+# o4xk3f7acHaWV42F90L4us5yS5AnxjISVqilOKotMOCSrxSxVjCHNxm8DxISZOte
+# F0nHDpu39PN+hqD7ScvjdI70dipoFE+vvAlyU6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTgxODI0MDZaMC8GCSqGSIb3DQEJBDEiBCA1vDlEzodMxCjvw7YN
-# jYsOggVeB6OJXZyScMzxYauhlTANBgkqhkiG9w0BAQEFAASCAgDDtB+xQe4bkucv
-# tL1z6GmX3BI3Q0cEjRXB98hYQ7Vg2wg39u1YFcPoD6/UTnzkafIkej3PBRcfVYLC
-# Fxuxkn2QpnYR5iUsmoP6GmnP85T2tQlhGSoiTEIapsfoSsQzstYXCl7bu2CxF/T0
-# rU2c+IVQEYl7MIY00I2horKIMLSATQBqg/P25ZmXtyBzD6sCLaNU7nXZPNDjr8g/
-# oqs1XPtgwzAB100QXYKjCmFwcKBSzd0roqYUK+wNPIoH51g4VAQML1Z8WkgSGrSP
-# zIuoPI0JeTefFVmRyP7KWy0mt+qMLj1cFJHyBCm8J1+T5MmXw2ufatancZrikinX
-# 1lZLh6i0LOYBPUAt1BbBB5JYeHY1m3qNzoTLrKU6uvk9n9UXfAkPkLd4BTIDM2IL
-# LUnIz6NK2b+0sYpq1k3E7JRjQ59ZYdapB/AGGsedGZLl0/hrIa8xwNAdN+/nW9Ma
-# ZZFgU49iVZKJfuFICQWFVjH4MyRByL3mOUEvlVDM9mSQRAC5QxUZw/20m2IfnfQr
-# JBt3wgrOi1WHdqelF2B6ooHu2M7VVsBj/CDAHDLdBSo0AB6o6dGPNwWGjg6EYvvE
-# qFRjI+jV6BCcH9DUj+yqxlvtcUhuWxExuucxDnP87/48JhLGKWynzjmM75BP3rno
-# LgdtcxO9xzhLg3eew4L8TpFJ30CQ6g==
+# BTEPFw0yNjAxMTgxODI0MDZaMC8GCSqGSIb3DQEJBDEiBCAMde9yI1oGqxLA9T+o
+# QnFPkJoxdtuccGGlDLPG9udjGjANBgkqhkiG9w0BAQEFAASCAgBwp4MRK12B44iy
+# RxneCURzoF7fade4/Gi6FBE8GPonqxZO7b/TMClT4+VjGolHjXkjeOlB8c+TSBqW
+# Gx/4RgXRyxeVwQpTeeiOu3YrTJRkVUxtLsBsHxe8ytU9JaEAsS4yx957Gx/40XMU
+# A+0Liq2e63lGjL51rzsehDoKefuLF+45L50ExubTiQGgEh98hecDuGEz3gEEk2Wj
+# /4ODPe4MXrvEjBN4irQJX2IxHSAgucoucWFzO5FGlnh1lxToofxQNNUkVieR49MU
+# 1h7vUdeFRMPrJ2nORbKVC6bZ9ff5cAZZjOTXvNZuhMoCwrO09mUrBV1Ssq/o6RzD
+# MQo1h7OYdruVLIFjzpLdLtbKdPY5g3vhG9NyvuH8+NK7+uYuQv2MsvPq2AvrL34i
+# TuoKrIx5Rxxeh+ddUvhb47L5S9bM11TURURhxyHI+XQlnJPPIscrFybPGnTT1EOx
+# 8MWmjOCjHudzXebaulfjpCLJiZm2U9MUSgNf4n01LJBVqYICa6JDGG2Y47i2gFlD
+# NWhgBACAC42mU85NfYYI/aG3gcQjA4/DIkEtPj/2iroMggmkzXz3wYPMwkX22dNp
+# aAsLoXOcrGxgQX2RqJb9uvouVTjjvDWy43F0+XGR07x6EL4mrQbiSJ3ezYphRmuv
+# Qt2paZhJrsLpvheQaJsVJzdFdZZflQ==
 # SIG # End signature block
