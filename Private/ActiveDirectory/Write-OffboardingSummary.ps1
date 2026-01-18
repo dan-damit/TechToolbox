@@ -11,8 +11,19 @@ function Write-OffboardingSummary {
     Write-Log -Level Info -Message ("Writing offboarding summary for: {0}" -f $User.UserPrincipalName)
 
     try {
-        # Build output folder
-        $root = Join-Path $env:TEMP "TechToolbox-Offboarding"
+        # Load config
+        $cfg = Get-TechToolboxConfig
+        $off = $cfg['settings']['offboarding'] 
+
+        # Determine output directory from config
+        $root = $off.logDir
+        if (-not $root) {
+            # Fallback for safety
+            $root = Join-Path $env:TEMP "TechToolbox-Offboarding"
+            Write-Log -Level Warn -Message "offboarding.logDir not found in config. Using TEMP fallback."
+        }
+
+        # Ensure directory exists
         if (-not (Test-Path $root)) {
             New-Item -Path $root -ItemType Directory | Out-Null
         }
@@ -44,7 +55,6 @@ function Write-OffboardingSummary {
             $lines += "[{0}]" -f $step.Action
             $lines += "  Success: {0}" -f $step.Success
 
-            # Dump all properties except Action/Success
             foreach ($p in $step.PSObject.Properties.Name) {
                 if ($p -in @("Action", "Success")) { continue }
                 $value = $step.$p
@@ -82,8 +92,8 @@ function Write-OffboardingSummary {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBiRIlGOoEkfSLh
-# o3gBL094iafAyEY09xCQDNa72JndDaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAdIQ7CsueeBh2X
+# YdfaFPGwJpIKrm9w5g2U/1xEknzR36CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -216,34 +226,34 @@ function Write-OffboardingSummary {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDqdyOfqLYW
-# hXh9ayuNJwautmudKR7/fQvkWSvGKtUPwTANBgkqhkiG9w0BAQEFAASCAgA2AlbH
-# HE+AcgbM2do8fReAGXG32fSAGrxtFphBdzJ/ay8fsIuuN09IrovtztRcHYAH0XZ/
-# PP4NGu7yflUBoN1H8+olkKzRB9b2Mj1gXg78ABhB8dJTaHDu3SQ4dp282iU6F89i
-# r6fb7BL7aT4kWJrgbOj4s7ekG2u/52YfOcrxQIcTFW/Kr70C+eO1YdUbWhcexFp9
-# N0q3+GhkoY1P6ixWj7Z/oznPRyg2W2kCg9CBCgqckk+CRtQW5nCl7xJxAS4LBjUH
-# dzCHmF5hE4vEXnV7qd1DcbmMFQSRni7Tsr++KyT6/52E7hRu977x8MVHSlEthQEI
-# VtgIh2Z1vutDaqJtunEoNFij9dNzHjXJP7wAMoKia1blKLg2YLf2oOB8XpwX2z57
-# NoOscYBSzvKB+O6tU8zHlkFeUZT5iM69uaD27CAJ1ZDAlMA4bSAhGyEXU5W574bt
-# VjOj8oNtqI97wggbhBLpJHbVmQD3FkW77WMM4rXHGVaKr2U2oUjFZbvnKx+lGTTG
-# Uah4x0HBYPTxjt8cAHOd8UMxp8b9nE3l2PkoDrePkclx6ZQQZ146gOve2LBtaeBb
-# BtH4zc0vT3vPwzNW+zJNQd6LTYNWbYki19PRMnBD70CitPn+Cixqfpn3JwKsXE6P
-# 3ra4y8RV4g2qYwdevLe3xWUEG/ps7BuBWI3bLqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDCePu0r5KY
+# r0igdG5wbSPgh1oUJCCToNM1bbzKCsttejANBgkqhkiG9w0BAQEFAASCAgAKexdw
+# QwKNasR8TaTf9NNABlGCw3dF6tjiGnYgxUbgXzRfcwYx1h13WwnltgT0Arx8KvvP
+# r3Tjw34yUA/IV1Sio0voMhKyNqv/VtBF3lKQUO8BMovrWRriFsRFOsPY1024M1XO
+# oNKlOvyDwbD2teRANVyORVHAZmM9/Vt9R19W/zXPpBZyQ2IBTm5O/8Lc0DVO1HW8
+# pgXaFW1fgi2NEgxEEbkRjNVIg1Zaz5hGERroX8Dlqy8JuhzeqtaqEf7rf6oAQVlh
+# EwBZYQTJrwHy4BlElVjTa9Y3RDvtm0Iy4f+IwVbUjaUKpktadaaHMXG6Y0NBP4Wr
+# yCnws6dBVq9GUdzj+68quwd+w9qcA+GhD1Jgw8oL2tVc2xahoONfeGnaeKHxdX9j
+# Y2zdppw1iO6BpUFIhreXuwoTjUR0tsS+Fcfuf5iZLEXPqywJ6h/xQMmC8ge4aze/
+# 9twAovA5JiBMDhRti8TxTirpzUuM6WlCBzMMzIH/L50oLzzQdR/s7l6SweiAaG0h
+# 0hzS/KW0mI3jw9YivrBgbQ2KZGluKW8pCAzegkUXr5EY5+OM345eK9x2ISg1+tyb
+# wwTE20cVKbACdsc05YlkBYHKOdYUBCMMgOogP1RabJz7oOpc8S+23oKoIscOMd70
+# +FrHTTa4lDpS8FwG3RbN+NtT3Y5+nN68Lyck7qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTgxODI0MDVaMC8GCSqGSIb3DQEJBDEiBCABNEe1RHGre+xOOPtp
-# wV/sk9DIQ8Zji8ZsRpDwuHMcxDANBgkqhkiG9w0BAQEFAASCAgBUvwa5zVDiPZqW
-# JzLgc03YHGtkgZjnNchzMUkaTpu97rodBtCOhtEuotSYAfSExo5NB5IMU+bSd24r
-# aTNN4vqlhBhieIuh/jJh7gdWOsMdb9sozC5QrjTsDVAFzVyUJSygT4d+qBUaPqEp
-# 8WCOifLnWg4RHiRIEkKvPdczg9YP191mu6a+VuUNRoDdSm21qBDzWP/mz9JRmSxl
-# zmuuSUdyqEmmv3yuWS+j1UJAzOInwDRQvUqvrnQH20YRuGR5pk4D0Cf9Sl4hsYDq
-# kt9BuyNUWeB7i/jfBISdALT2SHDst6EaYx2oXMzypO2gHBQ3vgEuytuMyz19BMGa
-# pVoHQG7xMgQTEtnwiCBPKpbAjNmKZ4y8e1eA4lhnHXenz+oBOHWv8yU5xWI/hlhw
-# oFlBjhZpX+kLgQOeuEr6MQLv+2odGJB7gbJupuZYrf17geIBsyygt46W/Wl0psEx
-# Dl7YRGsb1sHUM0l5F47hrvu0bAadImJ6O/IQ6SRfgPVj4pimsGBWdz/oyAttQJSl
-# 2mrJYdY6tBLTJOmCXD9d9bSSJaUCl/ZfqCdmCDYD6fWyZXMFs4W2qFn5HKvt4pf9
-# m8TTEOMKEdxFgCWTDWnIpT0qyzV4iKmqcRj1CPKSNbwE2c9+JZi6WgJRUAO8KQPQ
-# fvORN/gGy6oZ2UHnB3+x0YGiKQTglA==
+# BTEPFw0yNjAxMTgxODQxMjFaMC8GCSqGSIb3DQEJBDEiBCCoNYt7UUhfIqp9QByZ
+# JRCuf1Idqq0AoCaE4Na6qNHqzjANBgkqhkiG9w0BAQEFAASCAgDAjLHataQik3Jf
+# 161sOWFiWhlasBN4+Y4YH71f1pco6KnD85gZJ034I6jHe2ZPEFrViojN48yxbfom
+# sMCqjjPEOyVxBMuiwyBwvWD/wihj+EgcoGz2giYj1tqDZtvXgHw5rocmhtyjstWe
+# e/vkEq4AE/NurqnYfe0ItQCfP1qklpdmsalTj/dI8+g0o94/0ceq9ILt+6vd5HD1
+# iXEYn9pT4TrP2l02LmmAXpckeZGj4nIRrpDOu8jWTKn/eGXqfdygrwBRsYEkI9dx
+# J33CQLZ6tA05XBN3H5HspMsGx69Z7GOWtCrdCZ2Rvqk6wB9ZGDk774O/6x7qsprg
+# luqvwNoVon3fYhMSyCGrYGpDHd9JQWe11/AHyUFdi+5AanqyQ8eCAEowNfoTRQMJ
+# AMlLx0hamXtw6zwysJ2qZIvu6SW1746H62MlDg7YmPaJDxh7XPMM+V6hyfUlpSVe
+# jeBSf9fiqNX/dS4qdk27B6R+hFDeE7y5Z+RrZXgCE9GHcON2J81DpziQ3yuNsTpU
+# rquGGGyFiENWmIYWG6FJ5eYStXB3fKfZm3WOqnKRIxdOQ4J8TP9tCKwPhD2Y/VpF
+# JuezNA1YjPh+njJ/rBGZys0+aSkWxQICBkQcTCGqtI/6ho2P5uH9E7/1DyHAMPeb
+# SSxn7uiUKjmqXEIdDr/A1ZjTqLqSmQ==
 # SIG # End signature block
