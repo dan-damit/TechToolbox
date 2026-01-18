@@ -193,7 +193,27 @@
       "licenseMap": {
         "6fd2c87f-b296-42f0-b197-1e91e994b900": "Microsoft 365 E3",
         "c42b9cae-ea4f-4ab7-9717-81576235ccac": "Exchange Online Plan 2",
-        "94763226-9b3c-4e75-a931-5c89701abe66": "Teams Phone Standard"
+        "94763226-9b3c-4e75-a931-5c89701abe66": "Teams Phone Standard",
+
+        "f30db892-07e9-47e9-837c-80727f46fd3d": "Microsoft 365 Business Premium",
+        "c2273bd0-dff7-4215-9ef5-2c7bcfb06425": "Microsoft 365 Business Standard",
+        "e6778190-713e-4e4f-9119-8b8238de25df": "Microsoft 365 Business Basic",
+
+        "18181a46-0d4e-45cd-891e-60aabd171b4e": "Microsoft 365 F1",
+        "4b9405b0-7788-4568-add1-99614e613b69": "Microsoft 365 F3",
+
+        "05e9a617-0261-4cee-bb44-138d3ef5d965": "Office 365 E3",
+        "06ebc4ee-1bb5-47dd-8120-11324bc54e06": "Office 365 E5",
+
+        "c7df2760-2c81-4ef7-b578-5b5392b571df": "Microsoft 365 E5",
+
+        "4b585984-651b-448a-9e53-3b10f069cf7f": "Exchange Online Plan 1",
+
+        "9c0dab89-a30c-4117-86e7-97bda240acd2": "Visio Plan 1",
+        "e7bfbdf0-0a0b-4d8b-bd3d-7c6f0f2b5c3a": "Visio Plan 2",
+
+        "a4585165-0533-458a-bf7c-5e2d8c699c13": "Project Plan 1",
+        "53818b1b-4a27-454b-8896-0dba576410e6": "Project Plan 3"
       }
     }
   }

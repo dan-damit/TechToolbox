@@ -1,16 +1,22 @@
-
 function Get-MessageTrace {
     <#
     .SYNOPSIS
-        Queries Exchange Online message trace (V2) by RFC822 Message-ID, shows
-        summary & per-recipient details, and optionally exports CSVs.
+        Queries Exchange Online message trace (V2) using MessageId, Sender,
+        Recipient, Subject, or any combination. Shows summary & per-recipient
+        details, and optionally exports CSVs.
     .DESCRIPTION
         Connects to Exchange Online if not already connected, resolves a time
-        window (explicit or config-based lookback), runs Get-MessageTraceV2 and
-        Get-MessageTraceDetailV2, writes tables to Information stream, and
+        window (explicit or config-based lookback), dynamically builds filters
+        for Get-MessageTraceV2, writes tables to Information stream, and
         exports CSVs when enabled.
     .PARAMETER MessageId
         RFC822 Message-ID value from message headers (e.g., <GUID@domain.com>).
+    .PARAMETER Sender
+        Sender email address to filter on.
+    .PARAMETER Recipient
+        Recipient email address to filter on.
+    .PARAMETER Subject
+        Subject keyword or full subject line to filter on.
     .PARAMETER StartDate
         UTC start datetime for the trace window.
     .PARAMETER EndDate
@@ -18,86 +24,78 @@ function Get-MessageTrace {
     .PARAMETER ExportFolder
         Destination folder for CSV exports. If omitted, config defaults apply
         when AutoExport is enabled.
-    .INPUTS
-        None. You cannot pipe objects to Get-MessageTrace.
-    .OUTPUTS
-        None. Output is written to the Information stream and/or exported as
-        CSV files.
     .EXAMPLE
-        Get-MessageTrace -MessageId '<abc123@company.com>' -StartDate (Get-Date).AddHours(-24) -EndDate (Get-Date)
+        Get-MessageTrace -Sender "john@company.com" -StartDate (Get-Date).AddHours(-24)
     .EXAMPLE
-        Get-MessageTrace -MessageId '<abc123@company.com>' -WhatIf
-        # Preview directory creation/CSV export without writing files.
-    .NOTES
-        Uses Get-MessageTraceV2 / Get-MessageTraceDetailV2; retention and
-        latency apply per EXO limits.
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
+        Get-MessageTrace -Subject "invoice" -Recipient "billing@company.com"
+    .EXAMPLE
+        Get-MessageTrace -MessageId '<abc123@company.com>'
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
     param(
         [Parameter()][string]  $MessageId,
+        [Parameter()][string]  $Sender,
+        [Parameter()][string]  $Recipient,
+        [Parameter()][string]  $Subject,
         [Parameter()][datetime]$StartDate,
         [Parameter()][datetime]$EndDate,
         [Parameter()][string]  $ExportFolder
     )
 
-    # --- Config & defaults (normalized camelCase) ---
+    # --- Config & defaults ---
     $cfg = Get-TechToolboxConfig
     $exo = $cfg["settings"]["exchangeOnline"]
     $mt = $cfg["settings"]["messageTrace"]
-
-    # Prompting and defaults (parameter-aware)
-    if (-not $PSBoundParameters.ContainsKey('MessageId')) {
-        # Use config-driven prompting; default to $true if unset
-        $promptInputs = $mt["promptForMissingInputs"]
-        if ($null -eq $promptInputs) { $promptInputs = $true }
-    }
-    else {
-        # If MessageId is supplied, no need to prompt
-        $promptInputs = $false
-    }
 
     # Lookback hours (safe default)
     $lookbackHours = [int]$mt["defaultLookbackHours"]
     if ($lookbackHours -le 0) { $lookbackHours = 48 }
 
-    # Auto export flag from config
+    # Auto export flag
     $autoExport = [bool]$mt["autoExport"]
-    # Resolve export folder default (falls back to paths.exportDirectory)
+
+    # Resolve export folder default
     $defaultExport = $mt["defaultExportFolder"]
     if ([string]::IsNullOrWhiteSpace($defaultExport)) {
         $defaultExport = $cfg["paths"]["exportDirectory"]
     }
 
-    # Resolve StartDate and EndDate defaults if not provided
-    if ([string]::IsNullOrWhiteSpace($StartDate)) { $StartDate = (Get-Date).AddHours(-$lookbackHours) }
-    if ([string]::IsNullOrWhiteSpace($EndDate)) { $EndDate = (Get-Date) }
+    # Resolve StartDate/EndDate defaults
+    if (-not $StartDate) { $StartDate = (Get-Date).AddHours(-$lookbackHours) }
+    if (-not $EndDate) { $EndDate = (Get-Date) }
 
-    # --- Connect to EXO if needed ---
+    # --- Validate search criteria ---
+    if (-not $MessageId -and -not $Sender -and -not $Recipient -and -not $Subject) {
+        Write-Log -Level Error -Message "You must specify at least one of: MessageId, Sender, Recipient, Subject."
+        throw "At least one search filter is required."
+    }
+
+    # --- Connect to EXO ---
     Connect-ExchangeOnlineIfNeeded -ShowProgress:([bool]$exo.showProgress)
 
-    # --- Gather inputs (prompting only if allowed by config) ---
-    if ([string]::IsNullOrWhiteSpace($MessageId) -and $promptInputs) {
-        $MessageId = Read-Host "Enter RFC822 Message-ID (from message header)"
-    }
-    if ([string]::IsNullOrWhiteSpace($MessageId)) {
-        Write-Log -Level Error -Message "MessageId is required."
-        throw "MessageId is required."
+    # --- Build dynamic filter set ---
+    $params = @{
+        StartDate = $StartDate
+        EndDate   = $EndDate
     }
 
-    # Resolve time window (StartDate/EndDate can be provided or inferred via lookback)
-    $window = Resolve-MessageTraceWindow -StartDate $StartDate -EndDate $EndDate -LookbackHours $lookbackHours
-    $StartDate = $window.StartDate
-    $EndDate = $window.EndDate
+    if ($MessageId) { $params.MessageId = $MessageId }
+    if ($Sender) { $params.SenderAddress = $Sender }
+    if ($Recipient) { $params.RecipientAddress = $Recipient }
+    if ($Subject) { $params.Subject = $Subject }
 
-    Write-Log -Level Info -Message ("Searching for Message-ID: {0}" -f $MessageId)
-    Write-Log -Level Info -Message ("Time window (UTC): {0} to {1}" -f $StartDate.ToString('u'), $EndDate.ToString('u'))
+    # --- Log filters ---
+    Write-Log -Level Info -Message "Message trace filters:"
+    Write-Log -Level Info -Message ("  MessageId : {0}" -f ($MessageId ?? "<none>"))
+    Write-Log -Level Info -Message ("  Sender    : {0}" -f ($Sender ?? "<none>"))
+    Write-Log -Level Info -Message ("  Recipient : {0}" -f ($Recipient ?? "<none>"))
+    Write-Log -Level Info -Message ("  Subject   : {0}" -f ($Subject ?? "<none>"))
+    Write-Log -Level Info -Message ("  Window    : {0} → {1}" -f $StartDate.ToString('u'), $EndDate.ToString('u'))
 
-    # --- Main trace logic (summary + details) ---
+    # --- Run summary trace ---
     try {
         Write-Log -Level Info -Message "Running Get-MessageTraceV2..."
-        $summary = Get-MessageTraceV2 -MessageId $MessageId -StartDate $StartDate -EndDate $EndDate -ErrorAction Stop
+        $summary = Get-MessageTraceV2 @params -ErrorAction Stop
     }
     catch {
         Write-Log -Level Error -Message ("Get-MessageTraceV2 failed: {0}" -f $_.Exception.Message)
@@ -105,26 +103,31 @@ function Get-MessageTrace {
     }
 
     if (-not $summary -or $summary.Count -eq 0) {
-        Write-Log -Level Warn -Message "No results found. Check the date window (V2 traces have retention limits)."
+        Write-Log -Level Warn -Message "No results found. Check filters and date window."
         return
     }
 
-    # Summary table (to Information stream)
+    # Summary table
     $summaryView = $summary | Select-Object Received, SenderAddress, RecipientAddress, Subject, Status, MessageTraceId
     Write-Log -Level Ok -Message "Summary results:"
-    $summaryStr = $summaryView | Format-Table -AutoSize | Out-String
-    Write-Log -Level Info -Message $summaryStr
+    Write-Log -Level Info -Message ($summaryView | Format-Table -AutoSize | Out-String)
 
-    # Details per recipient
+    # --- Details ---
     Write-Log -Level Info -Message "Enumerating per-recipient details..."
     $detailsAll = @()
+
     foreach ($row in $summary) {
         $mtid = $row.MessageTraceId
         $rcpt = $row.RecipientAddress
         if (-not $mtid -or -not $rcpt) { continue }
+
         try {
             $details = Get-MessageTraceDetailV2 -MessageTraceId $mtid -RecipientAddress $rcpt -ErrorAction Stop
-            $detailsView = $details | Select-Object @{n = 'Recipient'; e = { $rcpt } }, @{n = 'MessageTraceId'; e = { $mtid } }, Date, Event, Detail
+            $detailsView = $details | Select-Object `
+            @{n = 'Recipient'; e = { $rcpt } },
+            @{n = 'MessageTraceId'; e = { $mtid } },
+            Date, Event, Detail
+
             $detailsAll += $detailsView
         }
         catch {
@@ -134,23 +137,31 @@ function Get-MessageTrace {
 
     if ($detailsAll.Count -gt 0) {
         Write-Log -Level Ok -Message "Details:"
-        $detailsStr = $detailsAll | Format-Table -AutoSize | Out-String
-        Write-Log -Level Info -Message $detailsStr
+        Write-Log -Level Info -Message ($detailsAll | Format-Table -AutoSize | Out-String)
     }
     else {
         Write-Log -Level Warn -Message "No detail records returned."
     }
 
-    # --- Export (config-driven) ---
+    # --- Export ---
     $shouldExport = $autoExport -or (-not [string]::IsNullOrWhiteSpace($ExportFolder))
     if ($shouldExport) {
-        if ([string]::IsNullOrWhiteSpace($ExportFolder)) { $ExportFolder = $defaultExport }
-        Export-MessageTraceResults -Summary $summaryView -Details $detailsAll -ExportFolder $ExportFolder -WhatIf:$WhatIfPreference -Confirm:$false
+        if ([string]::IsNullOrWhiteSpace($ExportFolder)) {
+            $ExportFolder = $defaultExport
+        }
+
+        Export-MessageTraceResults `
+            -Summary $summaryView `
+            -Details $detailsAll `
+            -ExportFolder $ExportFolder `
+            -WhatIf:$WhatIfPreference `
+            -Confirm:$false
     }
 
-    # --- Optional disconnect prompt (config-driven) ---
+    # --- Optional disconnect ---
     $promptDisconnect = $exo.autoDisconnectPrompt
     if ($null -eq $promptDisconnect) { $promptDisconnect = $true }
+
     if ($promptDisconnect) {
         $resp = Read-Host "Disconnect from Exchange Online? (Y/N)"
         if ($resp -match '^(?i)(Y|YES)$') {
@@ -164,12 +175,11 @@ function Get-MessageTrace {
         }
     }
 }
-
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDYjt/PFE9LI3eN
-# 6TSkocOAhlZcf9L3HMPRhzmtzb4LHqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDdJ9yVzb10iE+M
+# URiglhLm+tc0S1vol/fhRbN0/iA/CKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -302,34 +312,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCznEl7Iuu5
-# hpcmZqUY1dGiRe0cfdrANkaMJPYHgJQMTjANBgkqhkiG9w0BAQEFAASCAgBVgWDl
-# d+D99/iM0BAo8n+jFnziZhhJrBmOBhlZk/tUZZm6MuMh4B+bB3jIuf7nQBOF6UWD
-# uwcy0sSAchpfDjloNTge+L9rvGILG+Pjq8jcX7K9Op9ZesHoz2DhNqaq1EWJQfU/
-# jV1zr2c1RhKWQQQY8QMd5G8ifIFgcpoa44IhbASj8t/ei1cS0k4NNQxEE47Iuyx1
-# p3RtxMLt33a69SCBKFS2GiyOueBQeQ0HtRQGr1m0B3tdLiiqqJSoY/2LLczcPocq
-# J34J8fW2TpnHHzQamCTjRqzpa0BnEbBhibv2x6Jpn6jW2T0COyU2SVt5xZhNWS2w
-# EMZQmdx/aDVN17mdOYWTbHtDseoRTg72qta6YODe/44viaP12b8ynOnx9BjDQrrH
-# 2j38890Bcu/BzPqxmMee6ouL/UTWkRSLeiA1RTOF0bHbixjzT2DhULkRNLOphiI9
-# PHDHtITGXeQNErKf9JWBErTHEen1kIjvapyvwbN6XtobUxx1GqOXN2wBPzHGd3Ma
-# x/HUIgf4bWOcerTFgaYqygxlneUFzjBkCwWWVFxSZ9ROHVJOgqg62JsV8jRw5r9X
-# DVFmY1DZLblhNDzGChYGmGz3aPUWiec8Im8M7yog2QMK5wrR/P6wOQ5u+txc2bha
-# fLS7w0ZRQzx6cjPcH/PsSJ/2fkpkw3JxUne6k6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBcbS8X3OAy
+# XOse5D18FdxUJMnBvW0ttFL7lHC/36+j/TANBgkqhkiG9w0BAQEFAASCAgCdQhwS
+# QZvSxEsPSPGf1gK7Fz1ZPoa8UpHb0Kggr6PvcDDTsZhVTgwqCxKoUv+lWMGfMcbC
+# 0fWu7YdB0j+qUzJ4ZbcE80vOYAW4zb/yRMuNIJPpDe0VQd3Dre0+0TrU/i599sJM
+# e7x2xWtHva+HR2EjCgvNHkCO/p8t6MqsX+ljIe846frye+lYpwqrpcvdBvbvMGdx
+# AHHNZ5JqpOhlMxCR6l4errltHOVhyJiEbLT4ncEpl+IDuDfWRvSBql6Sl1lqNYxB
+# fEaobyVGJQyXljm0OMk62cv7qDNzIBnbhEXuVgnUsplaOv4wNsyALJ/bmeijxJ8r
+# jVBghZKIqsS3xP4Ax0ZkN8++fUuspFwGLzkwQDJl/3ePO+KKsI1bjePcatxW8v42
+# iGGgO1qK5/Y9sCeCWkqkeO6jjU9KjikgSFQoYk03Ipr6KAYSb2nQ+G1/TP2/MGXU
+# 9gUbRnfqkKwjDKhiwNubbwv1odi8xNWgsq5gLCPtXI2MUX5ll5jITEpxv8A+jlIs
+# L/SPsqtl2X5TuRIO6zjKhcrFxGCzUJxi1YDEOjdMFhhhFb5pqZOBH6I2fM0aFO7X
+# flivrkTNpii7+nHktXFik+JkCwRLzh3oD/qf+mOmUfXLoIIw3RaCZ38B3a/EA3NF
+# jqQ1Bjq/Q0+ECyMJtCfjOeUCPsBHM8QolLypK6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTUyMTExNDRaMC8GCSqGSIb3DQEJBDEiBCBceIHEgPdnPVg2wckD
-# MpicrceaqfPUx5/Tj8z9e5+zWTANBgkqhkiG9w0BAQEFAASCAgDQKCtuhoP0ZK4M
-# yWmLLnegVZ2K5nrUquMO7/WlZxzxK52/N8evztwQaUvZs3Mj+rISXryP2ft+OljB
-# rM6BZLBy/0ALd733x4oN7A+QgaExhpmNMjTtxN4PrWWsNlUgGC2Q+jTL/zK+dX/q
-# g/QyvuWn1YZf7xYjdIhfvZmsCtig1AF6rXXIJL3OhUYgAMWVepGUYpV/WpSoCr7U
-# c/Ylc3ppY0yXdllfW2Mc2VioK7W5sng9IR3+5TOpRGH4eINpggN66geWeW9GWBgj
-# axuAlfpoYk3HulElc30lAypr1qcCkO/+OjNYnjge+3LZlUwiXhaB1aLm3EyTBfBK
-# sy9L2JRSdaoWdpsSc8jR8Sm5dnAgjblhljFMQQi6OMGRkZr1epM6d5NE6wHqyAhn
-# t5uO+BUkJGhjLIVCCDEX4v/AS85rRJ/6ApQKPzVU+8bO3m6oDx9Q3SnglYGoc3oY
-# J72VKuKNNoORLWZD+aaXVI0GA1J99sNHTOBBKuuIUa/e1OvaBWtHjookNaHCdTiY
-# 57wtchptyX9cDjDtGXPQ7ZSVL+1rVeJuy/xFtMq1ugRdksjtzNtU3ZpC5HCKwYWm
-# sjKn2ytRBKZuIL+ehKoyUoXVq8tvaIu/3xANCgU0el2kVQ0ybtgbpm3TWCqQijPs
-# plm0ZPwVUn2CTBiUvbE5Lm+Brnu3YA==
+# BTEPFw0yNjAxMTgxNzQ0MTBaMC8GCSqGSIb3DQEJBDEiBCDa+jTld4ajgMtlv7/X
+# jLaji3y77kn9O/zzsDFFyc8YgTANBgkqhkiG9w0BAQEFAASCAgCv53KvZo3yH5EZ
+# Jl6fXtz4o02uq4WHqUYoIEefKv5PE7GVzz3prGjPnOD9I+dlyJT6a6qymoJg+FEh
+# X60ohg01mWDi1qREWWTpDBxaItWhkcvmm3FYPljZsnw18pD4/rLrYPl6Z+wbIWWn
+# TbIQF2Kl18hNY6eG83rk2t7fE92g6eMahMDDze1eHIDWgZ1OG1sVBIC3U6F+TcHp
+# KFCizjyreZTSgHsn4gmBfemgvJJB7m00Xl2z6X3fsvX2gnfggfv6RvS0rvkGrcsL
+# KXpRG7XKE29s54sHy5DDLM4oJr0wjx0YVZNyPXPmC/x5QkMMtwn5fctsCLXsb1d9
+# A997oLgooH5qt090UpSTGGTu5QyjSYHJX+s4O8pmNA1Pu03TE1uef9FfxoRSL6dZ
+# kEEU6bpCyjL73THXCZcbG/Pl4JDUkIpTD5pEhoHOE4alRkXELBUlWrfh+gWCL1Hm
+# VAhPE4amy2PteR8Lr5XJ2HeKso5OzHvk3B3H4C9YcYlv65t2fbDvTg/2TLLSpXj4
+# AK00z6E2iBBEcui3Pvulfk30IMeiCnFd5R/teMUk6rbv26DBeVww+9QTbiDoJiiG
+# RB7qRUOw3h4IhHDqnk0FtFovzWag0xKxqIJapY/B58ewo7LatGG7aUi9QSO28eny
+# DbZR7p5d998BE8tuKf+f3ujQV+TJ6A==
 # SIG # End signature block
