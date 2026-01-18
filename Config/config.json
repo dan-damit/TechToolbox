@@ -218,7 +218,11 @@
     },
     "offboarding": {
       "disabledOU": "OU=Disabled Users,OU=Corp,DC=company,DC=com",
-      "useHybridAutoDisable": false
+      "useHybridAutoDisable": false,
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
+      "logFileNameFormat": "Offboarding_{yyyyMMdd}.log",
+      "logFile": "Offboarding.log",
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding"
     }
   }
 }
