@@ -215,6 +215,10 @@
         "a4585165-0533-458a-bf7c-5e2d8c699c13": "Project Plan 1",
         "53818b1b-4a27-454b-8896-0dba576410e6": "Project Plan 3"
       }
+    },
+    "offboarding": {
+      "disabledOU": "OU=Disabled Users,OU=Corp,DC=company,DC=com",
+      "useHybridAutoDisable": true
     }
   }
 }
