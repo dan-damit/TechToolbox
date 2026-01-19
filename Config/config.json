@@ -225,8 +225,8 @@
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding"
     },
     "largeFileSearch": {
-      "DefaultSearchDirectory": ["C:\\", "D:\\"],
-      "DefaultMinSizeMB": 256,
+      "defaultSearchDirectory": ["C:\\", "D:\\"],
+      "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch",
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv"
     }
