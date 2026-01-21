@@ -114,7 +114,8 @@
     "exchangeOnline": {
       "autoConnect": true,
       "autoDisconnectPrompt": true,
-      "showProgress": false
+      "showProgress": true,
+      "includeInOffboarding": true
     },
     "messageTrace": {
       "promptForMissingInputs": true,
@@ -190,6 +191,8 @@
       "includeServices": true
     },
     "userSearch": {
+      "includeEXO": true,
+      "includeTeams": true,
       "licenseMap": {
         "6fd2c87f-b296-42f0-b197-1e91e994b900": "Microsoft 365 E3",
         "c42b9cae-ea4f-4ab7-9717-81576235ccac": "Exchange Online Plan 2",
@@ -217,12 +220,17 @@
       }
     },
     "offboarding": {
-      "disabledOU": "OU=Non-Sync OU,OU=Users - ServiceAccounts,DC=vadtek,DC=com",
-      "useHybridAutoDisable": false,
+      "disabledOU": "",
+      "cleanupADGroups": false,
+      "includeEXO": true,
+      "useHybridAutoDisable": true,
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
       "logFileNameFormat": "Offboarding_{yyyyMMdd}.log",
       "logFile": "Offboarding.log",
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding"
+    },
+    "teams": {
+      "includeInOffboarding": true
     },
     "largeFileSearch": {
       "defaultSearchDirectory": ["C:\\", "D:\\"],
