@@ -3,180 +3,122 @@ function Connect-MgGraphIfNeeded {
     [CmdletBinding()]
     param()
 
-    Write-Log -Level Info -Message "Checking Microsoft Graph connection..."
+    Write-Log -Level Info -Message "Checking Microsoft Graph connection (PS7+)..."
+
+    Get-GraphModule
 
     $oldEAP = $ErrorActionPreference
     $ErrorActionPreference = 'Stop'
     try {
-        # --- Load config (optional fields) ---
-        $cfg = $null
-        try { $cfg = Get-TechToolboxConfig } catch { }
-        $graphCfg = $cfg['settings']['graph']
-        $tenantId = $graphCfg['tenantId']
-        $environment = $graphCfg['environment']  # e.g., 'Global','USGov','USGovDoD','China'
-        $profile = $graphCfg['profile']      # e.g., 'v1.0' or 'beta'
+        # Config (PS7+)
+        $cfg = Get-TechToolboxConfig
+        $graphCfg = $cfg['settings.graph']
 
-        # Delegated scopes
+        $tenantId = $graphCfg['tenantId']
+        $environment = $graphCfg['environment']
+        if ([string]::IsNullOrWhiteSpace($environment)) { $environment = 'Global' }
+        $profile = $graphCfg['profile']
+
         $requiredScopes = $graphCfg['scopes']
         if (-not $requiredScopes -or $requiredScopes.Count -eq 0) {
-            $requiredScopes = @(
-                'User.Read.All',
-                'Group.ReadWrite.All',
-                'Directory.ReadWrite.All',
-                'AuditLog.Read.All'
-            )
+            $requiredScopes = @('User.Read.All', 'Group.ReadWrite.All', 'Directory.ReadWrite.All', 'AuditLog.Read.All')
             Write-Log -Level Warn -Message "Graph scopes not found in config. Using fallback defaults."
         }
 
-        # App-only (optional)
-        $useAppOnly = [bool]$graphCfg?.appOnly?.enabled
-        $clientId = $graphCfg?.appOnly?.clientId
-        $certThumbprint = $graphCfg?.appOnly?.certThumbprint
-        $clientSecret = $graphCfg?.appOnly?.clientSecret  # not recommended, but supported
-        $authorityHost = $null  # derived from environment
+        # $useAppOnly = [bool]$graphCfg['appOnly']['enabled']
+        # $clientId = $graphCfg['appOnly']['clientId']
+        # $certThumbprint = $graphCfg['appOnly']['certThumbprint']
+        # $clientSecret = $graphCfg['appOnly']['clientSecret']
 
-        # --- Ensure module available ---
-        $mgModules = Get-Module Microsoft.Graph.Authentication -ListAvailable -ErrorAction SilentlyContinue
-        if (-not $mgModules) {
-            Write-Log -Level Error -Message "Microsoft.Graph.Authentication module is not installed or not discoverable in PSModulePath."
-            return [pscustomobject]@{
-                Action           = 'Connect-MgGraphIfNeeded'
-                Connected        = $false
-                AlreadyConnected = $false
-                Success          = $false
-                Error            = 'Microsoft.Graph.Authentication not found'
-            }
-        }
-
-        # --- Map environment to Microsoft.Graph environment name ---
-        switch -Regex ($environment) {
-            '^USGovDoD$' { $envName = 'USGovDoD' ; break }
-            '^USGov' { $envName = 'USGov'    ; break }
-            '^China' { $envName = 'China'    ; break }
-            default { $envName = 'Global'   ; break }
-        }
-
-        # Set environment once (idempotent)
-        try {
-            Select-MgEnvironment -Name $envName -ErrorAction Stop
-            Write-Log -Level Info -Message ("Graph environment: {0}" -f $envName)
-        }
-        catch {
-            Write-Log -Level Warn -Message ("Unable to select Graph environment '{0}': {1}" -f $envName, $_.Exception.Message)
-        }
-
-        # Profile (v1.0/beta)
+        # Environment & profile (PS7 Graph SDK)
+        Select-MgEnvironment -Name $environment -ErrorAction Stop
         if ($profile) {
-            try {
-                Select-MgProfile -Name $profile -ErrorAction Stop
-                Write-Log -Level Info -Message ("Graph profile: {0}" -f $profile)
-            }
-            catch {
-                Write-Log -Level Warn -Message ("Unable to select Graph profile '{0}': {1}" -f $profile, $_.Exception.Message)
-            }
+            Select-MgProfile -Name $profile -ErrorAction Stop
         }
 
-        # --- Inspect current context (may be null or incomplete) ---
+        # Current context inspection
         $current = $null
-        try { $current = Get-MgContext } catch { }
+        try { $current = Get-MgContext } catch {}
 
         $hasContext = $false
-        $hasAllScopes = $false
         $isAppOnlyCtx = $false
         $currentScopes = @()
-        $currentAccount = $null
         $currentTenant = $null
-        $currentEnv = $null
 
         if ($current) {
             $hasContext = $true
-            $currentScopes = @($current.Scopes) | Where-Object { $_ -and $_.Trim() -ne '' }
-            $currentAccount = $current.Account
+            $isAppOnlyCtx = ([bool]$current.ClientId -and -not $current.Account)
             $currentTenant = $current.TenantId
-            $currentEnv = $current.Environment
-
-            # App-only contexts typically have no 'Account' (or a service principal indicator)
-            $isAppOnlyCtx = [bool]$current.ClientId -and -not $current.Account
-
-            # Verify scopes only for delegated context
             if (-not $isAppOnlyCtx) {
-                $missing = $requiredScopes | Where-Object { $_ -notin $currentScopes }
-                $hasAllScopes = -not $missing
-            }
-            else {
-                $hasAllScopes = $true  # Not applicable in app-only
+                $currentScopes = @($current.Scopes) | Where-Object { $_ }
             }
         }
 
-        # If context is valid and satisfies requirements, keep it
-        if ($hasContext -and $hasAllScopes -and (-not $tenantId -or $tenantId -eq $currentTenant)) {
-            Write-Log -Level Info -Message ("Already connected to Graph as {0} (Tenant: {1}; Env: {2}; Mode: {3})" -f `
-                ($currentAccount ?? "<app-only>"), ($currentTenant ?? "<unknown>"), ($currentEnv ?? "<unknown>"), (if ($isAppOnlyCtx) { 'AppOnly' } else { 'Delegated' }))
-            return [pscustomobject]@{
-                Action           = 'Connect-MgGraphIfNeeded'
-                Connected        = $true
-                AlreadyConnected = $true
-                Account          = $currentAccount
-                TenantId         = $currentTenant
-                Environment      = $currentEnv
-                Profile          = $profile
-                Mode             = (if ($isAppOnlyCtx) { 'AppOnly' } else { 'Delegated' })
-                Scopes           = $currentScopes
-                Success          = $true
-            }
-        }
-
-        # If we’re here, either no context, wrong tenant, missing scopes, or we want app-only
+        # Determine if reconnect is needed
+        $needsReconnect = $false
         if ($hasContext) {
-            Write-Log -Level Info -Message "Disconnecting existing Graph context to establish a fresh session..."
-            try { Disconnect-MgGraph -ErrorAction SilentlyContinue } catch { }
+            if ($tenantId -and $currentTenant -and ($tenantId -ne $currentTenant)) {
+                $needsReconnect = $true
+            }
+            elseif (-not $isAppOnlyCtx -and -not $useAppOnly) {
+                $missing = $requiredScopes | Where-Object { $_ -notin $currentScopes }
+                if ($missing) { $needsReconnect = $true }
+            }
+            elseif ($useAppOnly -and -not $isAppOnlyCtx) {
+                $needsReconnect = $true
+            }
         }
 
-        if ($useAppOnly) {
-            # --- App-only auth ---
-            if (-not $tenantId) { throw "App-only requested but 'settings.graph.tenantId' not provided." }
-            if (-not $clientId) { throw "App-only requested but 'settings.graph.appOnly.clientId' not provided." }
+        if ($needsReconnect) {
+            Write-Log -Level Info -Message "Disconnecting existing Graph context to re-establish with required settings..."
+            try { Disconnect-MgGraph -ErrorAction SilentlyContinue } catch {}
+            $hasContext = $false
+        }
 
-            Write-Log -Level Info -Message "Connecting to Microsoft Graph (App-Only)..."
-            if ($certThumbprint) {
-                Connect-MgGraph -TenantId $tenantId -ClientId $clientId -CertificateThumbprint $certThumbprint -Environment $envName -NoWelcome -ErrorAction Stop
-            }
-            elseif ($clientSecret) {
-                Connect-MgGraph -TenantId $tenantId -ClientId $clientId -ClientSecret $clientSecret -Environment $envName -NoWelcome -ErrorAction Stop
+        if (-not $hasContext) {
+            if ($useAppOnly) {
+                if (-not $tenantId) { throw "App-only requested but 'settings.graph.tenantId' not provided." }
+                if (-not $clientId) { throw "App-only requested but 'settings.graph.appOnly.clientId' not provided." }
+
+                Write-Log -Level Info -Message "Connecting to Microsoft Graph (App-Only)..."
+                if ($certThumbprint) {
+                    Connect-MgGraph -TenantId $tenantId -ClientId $clientId -CertificateThumbprint $certThumbprint -NoWelcome -ErrorAction Stop
+                }
+                elseif ($clientSecret) {
+                    Connect-MgGraph -TenantId $tenantId -ClientId $clientId -ClientSecret $clientSecret -NoWelcome -ErrorAction Stop
+                }
+                else {
+                    throw "App-only requested but neither 'certThumbprint' nor 'clientSecret' provided."
+                }
             }
             else {
-                throw "App-only requested but neither 'certThumbprint' nor 'clientSecret' provided."
-            }
-        }
-        else {
-            # --- Delegated (scopes) ---
-            Write-Log -Level Info -Message "Connecting to Microsoft Graph (Delegated scopes)..."
-            if ($tenantId) {
-                Connect-MgGraph -Scopes $requiredScopes -TenantId $tenantId -Environment $envName -NoWelcome -ErrorAction Stop
-            }
-            else {
-                Connect-MgGraph -Scopes $requiredScopes -Environment $envName -NoWelcome -ErrorAction Stop
+                Write-Log -Level Info -Message "Connecting to Microsoft Graph (Delegated scopes)..."
+                if ($tenantId) {
+                    Connect-MgGraph -Scopes $requiredScopes -TenantId $tenantId -NoWelcome -ErrorAction Stop
+                }
+                else {
+                    Connect-MgGraph -Scopes $requiredScopes -NoWelcome -ErrorAction Stop
+                }
             }
         }
 
-        # Verify context post-connect
+        # Verify connection
         $ctx = Get-MgContext
-        $isAppOnly = ([bool]$ctx.ClientId -and -not $ctx.Account)
-        $scopesOut = @($ctx.Scopes) | Where-Object { $_ -and $_.Trim() -ne '' }
+        $mode = if ([bool]$ctx.ClientId -and -not $ctx.Account) { 'AppOnly' } else { 'Delegated' }
 
-        Write-Log -Level Ok -Message ("Connected to Graph as {0} (Tenant: {1}; Env: {2}; Mode: {3})" -f `
-            ($ctx.Account ?? "<app-only>"), ($ctx.TenantId ?? "<unknown>"), ($ctx.Environment ?? $envName), (if ($isAppOnly) { 'AppOnly' } else { 'Delegated' }))
+        Write-Log -Level Ok -Message ("Connected to Graph as {0} (Tenant: {1}; Env: {2}; Profile: {3}; Mode: {4})" -f `
+            ($ctx.Account ?? '<app-only>'), ($ctx.TenantId ?? '<unknown>'), ($environment), ($profile ?? '<default>'), $mode)
 
         return [pscustomobject]@{
             Action           = 'Connect-MgGraphIfNeeded'
             Connected        = $true
-            AlreadyConnected = $false
+            AlreadyConnected = $hasContext
             Account          = $ctx.Account
             TenantId         = $ctx.TenantId
-            Environment      = ($ctx.Environment ?? $envName)
+            Environment      = $environment
             Profile          = $profile
-            Mode             = (if ($isAppOnly) { 'AppOnly' } else { 'Delegated' })
-            Scopes           = $scopesOut
+            Mode             = $mode
+            Scopes           = @($ctx.Scopes)
             Success          = $true
         }
     }
@@ -197,8 +139,8 @@ function Connect-MgGraphIfNeeded {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDc2Xk6nYs+HcjY
-# FUN6x8EtySbV/dhZ1HOQBWyBbAFJ+qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDJ+EeYbf95bEoZ
+# SknVy+3t248JQDaEbVCGLKUCshKhfKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -331,34 +273,34 @@ function Connect-MgGraphIfNeeded {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBu9SIFqJHm
-# dJFwtK4a+gxNK307tkGE1/9jAS7UaefALTANBgkqhkiG9w0BAQEFAASCAgC7XGDy
-# JFsrFJe/Nh+3M5KWNUidp2C8RhWsJXtPKWHeu8Wa5xsLPu7YNZ/chLzChlprXd+J
-# o6pIBiw+G7M9NM3wOH59TEDZoH6Z7bD8Vnj3qxs8sSVtlL2KlqME0c2tG95U0SUp
-# LJI/VCeI/G3wBnDZ/IiYu6Z8PcgxCw47J/HfZ6SCuYsYnmBfjvnbkMTG+fTNm8D0
-# y+dkOSiuQpcrWnV/DiW/xpun+/qAJljzWkFQYagNCc+3caaa36zNlk57yo7QLCHv
-# cbJ+qsJwYb0+8TAmWth2NMd3mcLlCMd6fFngmkSB3FAFPh90oo4uxQIEc5zUzZv0
-# Ssld9mwEwvX4QBApvf9vVAWM06YgwZok0wcXAD6/S9NtxXMyyjVV4CQgfq6XX2m1
-# bzqM4gwmMwu+dA8xTj+7hpCfyoUVRZNF5PUpOAHp8X7a+X0E5B1uYVkjB9FzXiLu
-# /tgdmXoOeuHkTu4ruDcGcq2p/akGSM0117Kc3N3rP4OB5A4arlt9Vm2lTuNsRT7A
-# nK5poCtFYgWi8OrLsZEloF7tlebTwe4htFluwj/r4g+0S6ktjl662x3mqEmfF43l
-# YggBRB/0B+v5nbUkJeT8BXdGr7Q0ShmCJ+8xXopk13REiscPzxzar+dpYa6OsiuM
-# ijoUFaJiNHZEDic3d2lG7GdRxcCvJwTSxtrRkKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDr0rtGkCy6
+# f03CqQZ78tfVEZBUbw0Gj97VhowCJ1S2LTANBgkqhkiG9w0BAQEFAASCAgBWzK9Q
+# sNKM78atEb/Cz6JsSVBmxPHJxAPojg2yXGeDwyNncueNnsWSMvNBEzwXv+Rhm0ij
+# 4++91x1Hlb2T6nn57p6gIumk98gLwPnP5eSJ45/Ba/fH8KYnFmY7RfizyfDNHzTt
+# F8MpjXUmzo1Ew8dHvNA7JRfMhuWovwCksn3ECwuRN3zMl8Dw7Rr8lYPfh7Xmi4Rr
+# lMTvuQ+WeIpZ9+z6QppQhkVRRXLcVQbgm266v+lqAfagqeWNH7y8SM3sCi9sD1Iu
+# mkwCNGqx73Ja0mujpgDBKqSX/97ak+auzY1HbtnT3tgUZQPOFd3lfh+A9rE9u1nq
+# TRQAiuD/JfK/8s+CgylsdpaNmRegylA+TurhLfbr6vbzS8uurHjmpRF2Hs33sNQZ
+# IHfHoAy2TtSScTj/HWYr3ZT5EMT6PRZC55RdgUljXYdlwFoglAumdMCzTtQNpPMA
+# Otxu+3VI6+JG3HcILFMbcAd7NQZe8OlhpN1r/PnHWYZvFVURCpcODr3RjcofN7zO
+# 4IVAm1ADd5h24bjHXRq5hvOdK/Vv48UpopnUCIUA6L6+0Gj5fSsca6hDw6z0vw3a
+# oFWA6gI6vBxPnY9paaR8lSMMucKtW3B/MntJu9RGQ3xtGOXG6QZdq9ewIViJgugd
+# 0+cy1Q9Jdzeo90FkgfcvbKtxaJm9qYAm2M4eGaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjExODI5MzhaMC8GCSqGSIb3DQEJBDEiBCDd3fW6IMwAw+8Cd8c0
-# m0aW6YG0hw4xWeMOkLyL2LzEaTANBgkqhkiG9w0BAQEFAASCAgCKCSic37gDUNmE
-# wnUHS5/9SQn9KPhnbJQPk1cf4SfC6yv+VpM+4xRNC/oYw0wVK2uTM5O2kcyBgzDO
-# Q/1XbNmPXhv+BJmu4p8A0FhPrDddsdotXe8ngbjv+bDtXBkU61qnAMU+Cy7sAQtm
-# TeqGEeLQfEErum68kIX+TCzpkHevKcYCIYPdoJR5Vs82G5dFvyEMo89j7pBHEBTM
-# ArpkP3xUVuT5SSlPMtjlM38DmHdQwJjN4C+U37lA7kjX1wAzdPpNT3lYqNjR1O89
-# 7GSvSAGefa5K6cgYNC0d7RCbGNg/TO7zgv8+FIl9kNQryJuShffGepcIJDMYGC1U
-# TfzVJ5OgCHqOc2bZk4QXuEpi4x3OWr54TmoUXIwTeyf5j6/Y6uN8Dx8f8MuQNvpf
-# CzZrpb7YnQhBwShQo1mrw1+CxyzFnFquL/sIJwqZYY3XR/987CAyDMyW5kET8oDa
-# dkYhMBB0EEaXg+WuiQOJLrSeCRBm8pNodDqexO71PExCpjIwKJ8LZAIDi1F1f3FF
-# ty9TGKMlxcPgLggQp13GbcTtbWQQnCcgB/rbOBTEhdl4d8SjGBku5TGLQJv/FaDY
-# eUSSvPgTAcy7uZGR7HD+08vIaxm1kPDK5EbVKvdp05A4yKPFgd/AMDGcpy2i3xA9
-# VQ5wM44XDLUIkWerke/wCPkySnMfXg==
+# BTEPFw0yNjAxMjExODU1NDhaMC8GCSqGSIb3DQEJBDEiBCCtTFfgiEOo5XadP7BQ
+# glCeN9pz6Gl/3PkDWjRvMSSuqzANBgkqhkiG9w0BAQEFAASCAgCSUHLOvBH3pT+T
+# 3b/rxmlo4ITBL4KgwEUxlNhtKKu//ZaeM0LgUTsffpiTQggfJ/epSqgKp1xGD2st
+# i9VVUPFmroTYWOgDesH8kzuVK6ZadydmYmHo5HfnjK3Twnw9hl84N4opsx6W8FbZ
+# yoHIz33plVe7XCNrfCpmRVPeXSllH46HLw79EafFBG/1IVDZtMFuwNS6DlrMjhCH
+# dCr59B3U69G09D7z2+2pjNgX7LJUxTnwJaayr+nu/CeX4MvTF+VbQZiKvvKh17Ot
+# 2YI7bBtruNqZNpkzXL1xzCPwd36m7XISZZuGzOpm19bO7m+lX8mGRKDSFfHc1Tgu
+# 9Rp1BnYCDGbLRcZPU/Zg7ZrvOgTfpAFoxX54cR54WEAUl9+TstkOSrmyNQJMuhgj
+# KUpAxIAcY3CRPmcQaw71niBxdR5JF/4yaVun7lKC5eXyXGIh64fWW0MNGd6Zre9u
+# u5pRMpsrtKqZk5JawIFRBNZJHYVGGNKeNTA4FPFOvQvA/7ToFmmDNZhUZVPTJGD1
+# ZhWxkz8MlDBznGmxDoxLTbFk1yiGiSq3r9ruXc12P6dV2FgsdUi41RHSD19BgwIZ
+# aIFlfRq4R9PXco59q2bXUE6oxZ7XG19nm8gBY5g9EKk4ghkCYsINpt6KWlDYqzGR
+# 1Z3dvjVd5rppL74vGTca4cmkrrAWqA==
 # SIG # End signature block

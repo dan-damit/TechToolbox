@@ -1,62 +1,30 @@
-function Format-UserRecord {
+
+function Get-GraphModule {
     [CmdletBinding()]
-    param(
-        $Entra,
-        $Exchange,
-        $Teams,
-        $AzureAD
-    )
+    param()
 
-    if (-not $Entra -and -not $Exchange -and -not $Teams -and -not $AzureAD) {
-        return $null
-    }
+    Write-Log -Level Info -Message "Checking Microsoft Graph SDK (PS7+)..."
 
-    # License names (config-driven)
-    $licenseNames = @()
-    if ($Entra -and $Entra.AssignedLicenses) {
-        $licenseNames = $Entra.AssignedLicenses.SkuId | ForEach-Object {
-            $cfg["settings"]["licenseMap"][$_] ?? $_
-        }
+    $hasAuth = Get-Module Microsoft.Graph.Authentication -ListAvailable -ErrorAction SilentlyContinue
+    $hasRoot = Get-Module Microsoft.Graph                -ListAvailable -ErrorAction SilentlyContinue
+
+    if (-not $hasAuth -or -not $hasRoot) {
+        Write-Log -Level Warn -Message "Microsoft Graph SDK not fully present. Installing Microsoft.Graph for CurrentUser..."
+        Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+        Write-Log -Level Ok -Message "Microsoft.Graph installed."
     }
 
-    # Group membership
-    $groups = if ($Entra) { 
-        Get-EntraUserGroups -ObjectId $Entra.Id 
-    }
-    else { 
-        @() 
-    }
+    Import-Module Microsoft.Graph.Authentication -Force -ErrorAction Stop
+    Import-Module Microsoft.Graph                -Force -ErrorAction Stop
 
-    # Mailbox size
-    $mailboxStats = $null
-    if ($Exchange) {
-        $mailboxStats = Get-ExchangeMailboxSize -Identity $Exchange.PrimarySmtpAddress
-    }
-
-    return [pscustomobject]@{
-        UserPrincipalName = $Entra.UserPrincipalName ?? $Exchange.PrimarySmtpAddress ?? $AzureAD.UserPrincipalName
-        DisplayName       = $Entra.DisplayName ?? $Exchange.DisplayName ?? $AzureAD.DisplayName
-        ObjectId          = $Entra.Id ?? $AzureAD.ObjectId
-        MailboxType       = $Exchange.RecipientTypeDetails
-        Licenses          = $licenseNames
-        Groups            = $groups
-        MailboxSizeGB     = $mailboxStats.SizeGB
-        MailboxItemCount  = $mailboxStats.Items
-        TeamsEnabled      = [bool]$Teams
-        LastSignIn        = $Entra.SignInActivity.LastSignInDateTime
-        Raw               = @{
-            Entra    = $Entra
-            Exchange = $Exchange
-            Teams    = $Teams
-            AzureAD  = $AzureAD
-        }
-    }
+    Write-Log -Level Ok -Message "Microsoft.Graph modules imported."
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAIKASStO0Qwxf7
-# IhiRPJcw5EvZkC+h5kSLemxzBaKER6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCaXBkrP3T2fweT
+# 0oquCJaFq/yOPmLaSzkiv5ifoysg/qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -189,34 +157,34 @@ function Format-UserRecord {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBWfd8O+DLy
-# RKZGomy2zoRYT43l7f/wRYYVYnLCJ6moCzANBgkqhkiG9w0BAQEFAASCAgA8LBY/
-# e9t2HmcxYqncJk1KREv8dsfRNc4EIJFqy5zdHr1WAdz38DbhWRuVO3KmH1/V+BLc
-# BW7X33yTI9ye8cs4w0fmx0BhWos/jupoBFXJvfySmIRqz25SWSoDGjmloIzE+GY8
-# zCvQT5oD4vG6Hv+e9VTkcFjeOt3bHoOWCzHfl7Lq//2nU3Z8Kyed/8PQWH8qHfHN
-# HHL4qLcTm0xfnhaGC73v6B/KrUaO0noNjJ3qjOO0AynDXSOhTuiS7pV8pEeqF2qR
-# rc1zedQjyxSkoDwFuklrw9OJncwP/Q680NgXCbCdQzbQ5SDBSWceCSai9aswJLwv
-# a9EAXaiQ/jH4NbUHCfFPR5Oq3R3B8vzTB3dI/UTcEi03Xj2bIqOkRK4AgyE4iM6C
-# Z8kS2H1AySgQR/p6jQZIACPZWOT24eBwF5zMiWIOdaIzIU/AVxY5Kwk1ZJmULQSx
-# Wgg1CpTzlLi3kUfY710ihlZfbb4c6VGRvBv/UDyl1maULYxHmi/eCk21zoa1uKZ8
-# CjbmosJxJWyAOpVqmgYPLWoLwSgVMCi+B9zLdXmO4l7RquwLQ25IacNokp3zf6VM
-# 1pfPgu42h55J268lqU3T9lg0bS64sTYBXMcMX1BMgKtDaE8H0ske7aSzxvCFANQl
-# SaHESB0F19ky4mJ7LI5hajIB3fNrs69ZpbI8kaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD+bL+uxqkg
+# ISt+ciNa12exvxl7ldRY0pUx3t2sCZxxwTANBgkqhkiG9w0BAQEFAASCAgAr33ge
+# 19ScpvftL+xmjqBA6iXd5OqFQ+9TauPdKzuIdGJ9KS5rFqxjvLZ6H6yeCk7mXsuu
+# dNXktqysrLc80w39j5fkUUeip82q+U7hfk1SS1GdGd30y3G7BHxrlhVKbgfUIfOq
+# XeZNZS5QHRF+k3RVr0BWsGb4hh7WnXZh2EhUCyqcfxaQ4AygcPNnTb6lGn+Qe6rs
+# NXj7npRznZxGPARMBhUIyeqgUKvLdB7p/EN/e7cp73Pe7WBJUGdlbFh2GFyw60p+
+# 7cjzQ3T6xVdBKD2GAlAU2cMAWymYOFurDbP4zITUFUVmodGGHdfu3zz/BGMzrMO6
+# 3sfEBgABey4ala2TtRgy+ApxsW4PXNCc8p3PNSiIM3jlX7+HM8K9nuyw+AypoZrX
+# +g8qmSPF/jA9dTcj/qS0n5O5pEGmJ/Mfyg0qeMpuoiIxDHg/XiuIRTvj8GwgwZz9
+# uNAW4C9vVpFrsi4B7/qJV0T9Hvovcbb95WqlyNZDvj9DKuKV/qPnDs3adOC46GkD
+# o+wJTDLpp8XznjXt4BHdOWzDRw2UHsdwopi4plfzOui1ld/QHV7JrHqxmaEuFH09
+# t7yA5ltPdEyvtIocos+fBS8IERipSENJYlCe1AySGWtM6O2//l/L/mR5S3lEUnYL
+# Vqs/WCZNBXyZJxf8sFaZvbqR+vCncMxpHQmpdKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTcwMzM4MThaMC8GCSqGSIb3DQEJBDEiBCD027weuRJLCV4JswiE
-# dQrGfQBWt7rh0qawQukQewaa8jANBgkqhkiG9w0BAQEFAASCAgBxj17atZVqc7r+
-# DDKfBTYp3B6j6Lb9gjjJIemAjyS061XDPThbmsLgb17+AYi5r2XZV4nK4Mt54IIj
-# uYg7f9dQiDPBFtZZvQdEvsqUxXw5AtId+jES4kUkScfwF7y2+aGD7evgir8eMlFW
-# kyI+HvJIf9WvoEa/5hVsj5J5oz42HBt8ljNHQYuUtS8EkMcQEqgnv3VsJbvjgqC6
-# CcqLPNw5qgeZfJRxI3Mtn3bKJKswb4YP0F8RSt2MSw53gJDqHFDgqKOU8/7tO3hA
-# m0A3R6FzweXxUgGGP0dyj/UUWZRjejoqvtwQk9hBG3Ag6ufFxnJpl0ezr/g1PVoZ
-# aFwlnrJnbUkj2r29bNcoQ+zP2WCensosNrRF79HKf7V/DSkwz/CSKLVO5m1kasgl
-# ICLX3wyKmZ88fBzkDcGjTcgNHuVWtAt7Zc2MZwym497szJhBbBCdAw/EBQW3OT+3
-# 09Y7wPwOE3McYTO6eDe9TZ7FFuQAwmH4GBSil2X+GOOqbsgDa9YAh0E3ZoF/ZABo
-# uLDq82CEudUjHKY3Yu/U7dAaudQMZmmiGiXn6O4nSePAr+f0UKrcQK35RjjrdUxq
-# fwPm7qAmswW8my4rXmqdDUfc2+PyB4Z2lnD39jclLt/Nb7NcTF6AkiYmiXzvK27M
-# FLvZI3ldLF9hXX2jj9xcl+Qe79av3w==
+# BTEPFw0yNjAxMjExODU1NDlaMC8GCSqGSIb3DQEJBDEiBCBy2Eo22uQGtx+6UHYQ
+# zmnoT7Av60A7u3+OIazHVCaHazANBgkqhkiG9w0BAQEFAASCAgBwGehjlVbYQxIc
+# sAcgsBVUKgIVFfJeU2+Aruc7KLHrNcwGO5Ik1c+6EUtCsOWt3+Sz0Zo7niB8B8Uc
+# g+cvCI7m0/XddN9lP4zyltI9cvGgB44WrB4v3H6SdjmmZDjeGPSm1ARsutKBo0+v
+# ovb4nl3H4lJoYSbdSWvDMxqYRXPp9oNY0s8S+fKwEquZW8sDXogTIHFHa2iVyg+5
+# 9VHz58USHsQzvA1WcixmDtGlpKRPQQl8GQ4UV7rxQUDTx+tt14mst/tSxcnbEkB+
+# Do7+JNdqaEEBqcji8r/CZpRcp/CS29mFmPXQ9YIHOKgnRPs9T+MJ5rAYr/Rwuajt
+# PzZqiLM6YZmMgoFJxx74M6G1NGL+NjjMRaMAXKyx+Whi0dBSV1Yctsae25RHlyc/
+# lTY2LAtJsPNivbRwcWaOe+A6j/7AcsJH0C9IpQCO0sQcHG915zBGFjnx+fHCXy1W
+# a+5L8z+qc+aZOkTRS5ACDHSpGWfkobJ3n20tZ9ZCDQRgQBvnnBNIRMSAnofTQC11
+# T4esvkIa2Dkee88IqRP1hK61Yjgj3nsjI0IgmNFdWoFIMNLfZANgOzt9qYgkz3Qb
+# NSIDWztFAuz524d6ttCwqVwYA6aUf1hY0IdN6bDEP9oUs9zgjMC71SMaUXQkPTCF
+# IRHFCORsHXEaYkqfiibF1T9CUEq4PA==
 # SIG # End signature block
