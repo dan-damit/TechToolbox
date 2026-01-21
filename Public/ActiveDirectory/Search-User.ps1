@@ -2,62 +2,80 @@
 function Search-User {
     <#
     .SYNOPSIS
-        Searches for a user across AD + M365 services and returns a unified record.
+        Searches for a user across AD (+ optionally EXO/Teams) and returns a unified record.
     .DESCRIPTION
-        Queries AD (if available), Entra (Graph), Exchange Online, and Teams.
-        Normalizes via Format-UserRecord. Returns $null if no match.
+        Graph/Entra lookups are excluded. This function resolves the user from:
+          - Active Directory (primary)
+          - Exchange Online (optional, if wrappers exist and requested/available)
+          - Microsoft Teams (optional, if wrappers exist and requested/available)
+        Normalizes via Format-UserRecord and returns $null if no match.
     .PARAMETER Identity
-        UPN, SamAccountName, or AAD ObjectId (GUID).
+        UPN or SamAccountName (GUID/ObjectId is not supported in this Graph-free variant).
+    .PARAMETER IncludeEXO
+        When present, attempts to query Exchange Online (Get-ExchangeUser wrapper).
+    .PARAMETER IncludeTeams
+        When present, attempts to query Teams (Get-TeamsUser wrapper).
     .EXAMPLE
         Search-User -Identity "jdoe"
+    .EXAMPLE
+        Search-User -Identity "jdoe@contoso.com" -IncludeEXO
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Identity
+        [string]$Identity,
+
+        [switch]$IncludeEXO,
+        [switch]$IncludeTeams
     )
 
     $oldEAP = $ErrorActionPreference
     $ErrorActionPreference = 'Stop'
     try {
-        # --- Config ---
+        # --- Config (block/dot) ---
         $cfg = Get-TechToolboxConfig
-        $search = $cfg['settings']['userSearch']
-        if (-not $search) { throw "Config missing settings.userSearch node." }
-
-        # FIXED: correct path for licenseMap (if used later)
-        $licenseMap = $search['licenseMap']
+        $searchCfg = $cfg.settings.userSearch
+        if (-not $searchCfg) { throw "Config missing settings.userSearch node." }
 
         # --- Resolve helper availability ---
         $hasAD = !!(Get-Module ActiveDirectory -ListAvailable -ErrorAction SilentlyContinue)
-        $hasGraphWrapper = !!(Get-Command Connect-MgGraphIfNeeded -ErrorAction SilentlyContinue)
-        $hasTeamsWrapper = !!(Get-Command Connect-MicrosoftTeamsIfNeeded -ErrorAction SilentlyContinue)
         $hasEXOWrapper = !!(Get-Command Connect-ExchangeOnlineIfNeeded -ErrorAction SilentlyContinue)
+        $hasTeamsWrap = !!(Get-Command Connect-MicrosoftTeamsIfNeeded -ErrorAction SilentlyContinue)
 
-        # --- Connect to services (best-effort) ---
-        if ($hasEXOWrapper) {
-            Import-ExchangeOnlineModule -ErrorAction SilentlyContinue
-            Connect-ExchangeOnlineIfNeeded -ShowProgress:$true
-            Write-Log -Level Info -Message "Connected to Exchange Online."
+        # --- Optional: connect to EXO/Teams if requested and available ---
+        $exo = $null
+        $teams = $null
+
+        if ($IncludeEXO) {
+            if ($hasEXOWrapper) {
+                if (Get-Command Import-ExchangeOnlineModule -ErrorAction SilentlyContinue) {
+                    Import-ExchangeOnlineModule -ErrorAction SilentlyContinue
+                }
+                Connect-ExchangeOnlineIfNeeded -ShowProgress:$true
+                Write-Log -Level Info -Message "Connected to Exchange Online."
+            }
+            else {
+                Write-Log -Level Debug -Message "Exchange Online wrapper not found; skipping EXO connection."
+            }
         }
 
-        if ($hasGraphWrapper) {
-            Connect-MgGraphIfNeeded
-            Write-Log -Level Info -Message "Connected to Microsoft Graph."
+        if ($IncludeTeams) {
+            if ($hasTeamsWrap) {
+                Connect-MicrosoftTeamsIfNeeded
+                Write-Log -Level Info -Message "Connected to Microsoft Teams."
+            }
+            else {
+                Write-Log -Level Debug -Message "Teams wrapper not found; skipping Teams connection."
+            }
         }
 
-        if ($hasTeamsWrapper) {
-            Connect-MicrosoftTeamsIfNeeded
-            Write-Log -Level Info -Message "Connected to Microsoft Teams."
-        }
-
-        Write-Log -Level Info -Message ("Searching for user '{0}' across AD/Entra/EXO/Teams..." -f $Identity)
+        Write-Log -Level Info -Message ("Searching for user '{0}' across AD{1}{2}..." -f `
+                $Identity, ($IncludeEXO ? '/EXO' : ''), ($IncludeTeams ? '/Teams' : ''))
 
         # --- AD lookup first (important for SAM + DN) ---
         $ad = $null
         if ($hasAD) {
             Import-Module ActiveDirectory -ErrorAction SilentlyContinue | Out-Null
-            # UPN vs SAM heuristic
             $isUPN = ($Identity -match '^[^@\s]+@[^@\s]+\.[^@\s]+$')
             try {
                 if ($isUPN) {
@@ -66,42 +84,58 @@ function Search-User {
                 else {
                     $ad = Get-ADUser -Filter "SamAccountName -eq '$Identity'" -Properties * -ErrorAction SilentlyContinue
                 }
+
                 if ($ad -is [array]) {
                     if ($ad.Count -gt 1) { throw "Multiple AD users matched '$Identity'." }
                     elseif ($ad.Count -eq 1) { $ad = $ad[0] } else { $ad = $null }
                 }
             }
-            catch { Write-Log -Level Warn -Message ("[Search-User][AD] {0}" -f $_.Exception.Message) }
+            catch {
+                Write-Log -Level Warn -Message ("[Search-User][AD] {0}" -f $_.Exception.Message)
+            }
+        }
+        else {
+            Write-Log -Level Debug -Message "[Search-User] ActiveDirectory module not found; skipping AD lookup."
         }
 
-        # --- Cloud lookups via your helper wrappers ---
-        # NOTE: Keeping your helper names as-is; assuming they perform the actual API calls.
-        $entra = $null
-        $exo = $null
-        $teams = $null
-        $azureAD = $null
+        # --- Optional: EXO lookup (no Graph dependency) ---
+        if ($IncludeEXO -and (Get-Command Get-ExchangeUser -ErrorAction SilentlyContinue)) {
+            try {
+                $exo = Get-ExchangeUser -Identity $Identity
+            }
+            catch {
+                Write-Log -Level Warn -Message ("[Search-User][EXO] {0}" -f $_.Exception.Message)
+            }
+        }
 
-        try { if (Get-Command Get-EntraUser    -ErrorAction SilentlyContinue) { $entra = Get-EntraUser     -Identity $Identity } } catch { Write-Log -Level Warn -Message ("[Search-User][Entra] {0}" -f $_.Exception.Message) }
-        try { if (Get-Command Get-ExchangeUser -ErrorAction SilentlyContinue) { $exo = Get-ExchangeUser  -Identity $Identity } } catch { Write-Log -Level Warn -Message ("[Search-User][EXO] {0}" -f $_.Exception.Message) }
-        try { if (Get-Command Get-TeamsUser    -ErrorAction SilentlyContinue) { $teams = Get-TeamsUser     -Identity $Identity } } catch { Write-Log -Level Warn -Message ("[Search-User][Teams] {0}" -f $_.Exception.Message) }
-        try { if (Get-Command Get-AzureADUser  -ErrorAction SilentlyContinue) { $azureAD = Get-AzureADUser   -Identity $Identity } } catch { Write-Log -Level Warn -Message ("[Search-User][AzureAD] {0}" -f $_.Exception.Message) }
+        # --- Optional: Teams lookup (no Graph dependency) ---
+        if ($IncludeTeams -and (Get-Command Get-TeamsUser -ErrorAction SilentlyContinue)) {
+            try {
+                $teams = Get-TeamsUser -Identity $Identity
+            }
+            catch {
+                Write-Log -Level Warn -Message ("[Search-User][Teams] {0}" -f $_.Exception.Message)
+            }
+        }
 
-        # --- Normalize (your existing mapper) ---
+        # --- Normalize (Format-UserRecord must exist) ---
         if (-not (Get-Command Format-UserRecord -ErrorAction SilentlyContinue)) {
             throw "Format-UserRecord not found. Ensure it is dot-sourced from Private and available."
         }
 
-        $user = Format-UserRecord -AD $ad -Entra $entra -Exchange $exo -Teams $teams -AzureAD $azureAD
+        # Entra/AzureAD excluded on purpose (Graph-free)
+        $user = Format-UserRecord -AD $ad -Exchange $exo -Teams $teams
 
         if (-not $user) {
-            Write-Log -Level Warn -Message ("No user found matching '{0}' (AD/Entra/EXO/Teams returned no usable record)." -f $Identity)
+            Write-Log -Level Warn -Message ("No user found matching '{0}' (AD{1}{2} returned no usable record)." -f `
+                    $Identity, ($IncludeEXO ? '/EXO' : ''), ($IncludeTeams ? '/Teams' : ''))
             return $null
         }
 
-        # Sanity: ensure the orchestrator-required fields are present
+        # In Graph-free mode, ObjectId may be missing (that’s OK in hybrid auto-disable)
         $missing = @()
-        foreach ($k in 'SamAccountName', 'UserPrincipalName', 'ObjectId') {
-            if (-not $user.PSObject.Properties[$k] -or [string]::IsNullOrWhiteSpace([string]$user.$k)) { $missing += $k }
+        foreach ($k in 'SamAccountName', 'UserPrincipalName') {
+            if (-not $user.$k) { $missing += $k }
         }
         if ($missing) {
             Write-Log -Level Warn -Message ("User record missing fields: {0}. Downstream steps may fail." -f ($missing -join ', '))
@@ -122,8 +156,8 @@ function Search-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD3XEGS7EYEPhxK
-# xqGUfVXIZKz5MAnJG7F3cN2Oo/vzTqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCApe6HsMPEIegSp
+# 1RXDQomkKJppyGi4PP9XryMvpU63B6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -256,34 +290,34 @@ function Search-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDbzqbFbKFR
-# IdD9R3NTYkNmV1hAxaavHtNnsHwaeDw+ATANBgkqhkiG9w0BAQEFAASCAgCJ0djL
-# lrm4NIriyD/u9yprHmI2xQM93x4AS7k/26QRX2sta5Dgz64iwR1mc6HoWKMLy7K2
-# zeaZECVWIRsc8oBpfTTznwkJ+mllFfL21D8QHTBstHdIV4Idyn/sIZYAb/71uc0x
-# XzOvdW+fXABb5DGkJcnLx71CG0WOlJRWZs8ws1+/V8mC+eBg39SNAi3AjGExRIcf
-# lxTnzjUQsopomT8ta3A2FUUfoYhZ0bI0/r6wtjnusBN47tkw4uFlhodbF9/tMKCN
-# 8oJn4UWNtJME6SjlkYT0CRc7lqJFlhPlf/QF/hqJS7nKq4Otf5i8i4sK52GqQWog
-# gbPJdy4zB1qRVMnhFog1y8b63CpXQeUEGxi/S97NtatEn10zweZZzk7rTAsRfGvn
-# rXURutoIu4aONT9PqMMJMmoTLWcGrih0Hrt87cf2kp89QSRQdfHI5nQjv+OTxgj2
-# WBqV03uL0DB2blB+soDe/+6ehAgnGAvQqL8Lfpxotexz8A1unynnkFLgLUnqIeiM
-# wDqW6kSifPnwdDGFGHdgB162ChANP3qHD4Tm8+C7QfABC7pNDK5QtlgVcwtgUxzf
-# RFI3fcoBZZNPH6o3xzuWH38h4mA2my/DEiasxwLDHimtQAXgS5KibiAiPTPuBh0r
-# djyTSoenkNhSzXUutyby2XsG5Z2EYtQ8oGNyAaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDsDOcCIET+
+# 8QeNFJXtf2aT0fu9JFJniszoxIcJrkt+ajANBgkqhkiG9w0BAQEFAASCAgAqKOZv
+# 4VuH35vDrIfpibPX7JHYxfCSS2Q9F6dQp/ja/t/brx26kqVj4Xse6Qn7gXxDG97D
+# xjpWw0NdZi8iyjZ0L2NpVVZYwVhGUTodeKNGjFIhrMYH1ygeVJ4z9VOqoMCscHKM
+# gMOkfUWBME66kxNs5LQCvxmVwET14BHwbDgdW0/nUwCzL1Xwt/xdGhimHTboZnn8
+# VZQpGJBWMn0zbh4by4xXmqVT0tpQyYrlp5EvNpJzEO55AM3CBjysIm3ZIDo2hyzN
+# 7JzOMOFpslvuqWWa4/sXdKhwhNdGIiANQgIjha3R1iUDehgXmTkOLsnHZJRR/kQ6
+# T/Ey+rJGJcMNn+c5rcV8XHBQhutSaW9JoDgReU10K8l+BYOgbGy2M+49oLEXZW/q
+# hfLpqmgVsTYt58gmTZIU9wjtIoCxqt4UvzgAQNTZqROAZKr98HtbKeqWpbzPZjs3
+# GrC9iZ+XPvi+qOLPEJePW4iljlSqxQoqmeUt9LtNFQ1g2Vjq3JLQaR/A+MXBJFFy
+# B202hPeKP6gjvJeMP4GgOzENiDOSSVzCguAiZwbn+BgpGvfSE03ORqa2Xf1mjc4H
+# 0niFrIqeoWWgd9Sh2b+HopVEovsgUqQYExKDTx3ety5EULwU/CLEMOfmqEi0v4Vt
+# qyRYJSSVboAr0gLcon/tImfm0Ysn5zENJJ63QaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjExODIxNTZaMC8GCSqGSIb3DQEJBDEiBCAVUG6AC5L/YaouURrQ
-# vT0zOiPodXuulsCVhprBFqHvYzANBgkqhkiG9w0BAQEFAASCAgAQTEF47NqpLblk
-# 0Kg/bi8IGuO3SoOZ3hipT9Zg1O9WVpxhQBypru+9bV6CsOORKJoU/+ZTxQgSuF15
-# Fs6MIkF2WGk6o4xH5niS104uBSxLAvPy60nnosAImXw9RgahDLeY3czrjRIMtKKP
-# PY/6HnHlMRdoCvVx+0a1LM9VONsQ5oNzp/ldkconI6C/k6hMmGYFg9zob9foMqhS
-# kikjOOLgbpb0TAGklZhIIhuRkSv1v47dyfSC7Ugcx0XIKrqO3jkfvBUKE6iJqIJs
-# JVRjh2oqu6Mew0lX49pVuTInEudi2PixwKS9MLN7XzBSW1t8lYcp1Uihng5PokRe
-# 7xWT4Bd2s11kXO8C1naudiI0RdJT/O8r+Lu6MFcsaS3dlz7/A3iM0SB4xLsbh70F
-# 7XZboHWkYDIIIEW8WsuxymTzwVR5qrFDl2/br+PO4HLjRcklZsPYujTB0jV8PLYt
-# y8CeL0CUiZLsYGX6Lz8MOj7P0xnZb/CrMPMg1JR6m3Gd2U+cJFGd/zIlDVhu6Ch3
-# W/q53eaow+bfHOpuxqa/KtX97BndTB/JXGoYY6v/bd0YhsFHij5r4VvtlhWe4Wl5
-# V7io+Dt71yaZE158ArpxMA/Njc0HAd0rqtxnmUbgcfpcqu1+XpfbO+w37gV2idS9
-# tkQly0hyChxhlKrzZ2Rxuku4WnNf/g==
+# BTEPFw0yNjAxMjExOTIxNTFaMC8GCSqGSIb3DQEJBDEiBCCRfOcSv0XZPg3kyrZN
+# LBUteWSZnnz5r04TbmcV/AfIDTANBgkqhkiG9w0BAQEFAASCAgAg1Z/UfNOwwMSt
+# L142TigNAXNXszCEtgjyStG5k+ABeWjZ1Xx5K1eZVNU91awsN/L3cbCK9b5SdDSR
+# spW3MRHem5nQZd1qXOrb2MgUzlEFBM3ICewZeEKlykdd/DngQBj9g7xTNt5H9yxB
+# mJCvRQgFLZjBbeMB9PUdTrWDSlpXiUmoyZ9VH7qjeewIRyE2h06ZkavcPfU8pE4J
+# dPnHhMybeQMSYnDWJbyhrt42DShq4Od+JSFPVL/s6PwaLF70S+vqwQavmxBSSV6S
+# x4H1E65rjwCj4sGIaSJx1WU2h4ItUvJyyG7Hzrq5AHNKse2zWf3rZFwClUoyaiiH
+# 5EUkrWmLeLOKduCYNPKR6k+sWsa+x8u6VBTI4fPgWh9voc7LIkjeiFdtLiKJXBoI
+# F72nWseB/x+6txKJzsbOojZ1oMLzx/E5prZsXn9xjjaLGk7SEMTfTlZPIz+MeNFI
+# YWgEXkYCizfMh87rLxcYBZIky44OLZoNp2x9uGz8+PndPFag5A23z7QWt91Vn6hC
+# aKI3qAUULgp7midYTSGzi4DsiCzH3BPuHT0HrD5tzjqoE+3CtUtI/XeDAAIn0B/6
+# 11pzfIGNJJMGrEuWtD/jERXsj+C3jH7xLjyautNuI3GfSkm+Fp/i/xCe0ZoNOU76
+# 9+6NBRyS3GPWf/TLFoN/ouFBrNFUxA==
 # SIG # End signature block
