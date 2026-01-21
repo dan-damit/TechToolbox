@@ -95,7 +95,10 @@ function Get-MessageTrace {
     # --- Run summary trace ---
     try {
         Write-Log -Level Info -Message "Running Get-MessageTraceV2..."
-        $summary = Get-MessageTraceV2 @params -ErrorAction Stop
+        $cmd = Get-Command Get-MessageTraceV2 -CommandType Cmdlet -ErrorAction Stop |
+        Where-Object { $_.ModuleName -like 'tmpEXO_*' }
+        if (-not $cmd) { throw "Get-MessageTraceV2 not available (did you connect to EXO?)." }
+        $summary = & $cmd @params -ErrorAction Stop
     }
     catch {
         Write-Log -Level Error -Message ("Get-MessageTraceV2 failed: {0}" -f $_.Exception.Message)
@@ -108,7 +111,7 @@ function Get-MessageTrace {
     }
 
     # Summary table
-    $summaryView = $summary | Select-Object Received, SenderAddress, RecipientAddress, Subject, Status, MessageTraceId
+    $summaryView = $summary | Select-Object ReceivedTime, SenderAddress, RecipientAddress, Subject, Status, MessageTraceId
     Write-Log -Level Ok -Message "Summary results:"
     Write-Log -Level Info -Message ($summaryView | Format-Table -AutoSize | Out-String)
 
@@ -178,8 +181,8 @@ function Get-MessageTrace {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDdJ9yVzb10iE+M
-# URiglhLm+tc0S1vol/fhRbN0/iA/CKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAaZxchiK9KkLNh
+# AvU6ujB1Klx2EEpOoPKbvOHGevjJ6KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -312,34 +315,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBcbS8X3OAy
-# XOse5D18FdxUJMnBvW0ttFL7lHC/36+j/TANBgkqhkiG9w0BAQEFAASCAgCdQhwS
-# QZvSxEsPSPGf1gK7Fz1ZPoa8UpHb0Kggr6PvcDDTsZhVTgwqCxKoUv+lWMGfMcbC
-# 0fWu7YdB0j+qUzJ4ZbcE80vOYAW4zb/yRMuNIJPpDe0VQd3Dre0+0TrU/i599sJM
-# e7x2xWtHva+HR2EjCgvNHkCO/p8t6MqsX+ljIe846frye+lYpwqrpcvdBvbvMGdx
-# AHHNZ5JqpOhlMxCR6l4errltHOVhyJiEbLT4ncEpl+IDuDfWRvSBql6Sl1lqNYxB
-# fEaobyVGJQyXljm0OMk62cv7qDNzIBnbhEXuVgnUsplaOv4wNsyALJ/bmeijxJ8r
-# jVBghZKIqsS3xP4Ax0ZkN8++fUuspFwGLzkwQDJl/3ePO+KKsI1bjePcatxW8v42
-# iGGgO1qK5/Y9sCeCWkqkeO6jjU9KjikgSFQoYk03Ipr6KAYSb2nQ+G1/TP2/MGXU
-# 9gUbRnfqkKwjDKhiwNubbwv1odi8xNWgsq5gLCPtXI2MUX5ll5jITEpxv8A+jlIs
-# L/SPsqtl2X5TuRIO6zjKhcrFxGCzUJxi1YDEOjdMFhhhFb5pqZOBH6I2fM0aFO7X
-# flivrkTNpii7+nHktXFik+JkCwRLzh3oD/qf+mOmUfXLoIIw3RaCZ38B3a/EA3NF
-# jqQ1Bjq/Q0+ECyMJtCfjOeUCPsBHM8QolLypK6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA6V54NwTiU
+# CwW6l6vdoAZOvqnDkIU/AkG8LiKUCTXr1TANBgkqhkiG9w0BAQEFAASCAgC7MFqU
+# xQxlumrOklKrdQFvaAK9/2EHuEQnvs47YywaI8PajCKohHvDMf4SBhUJU8xeaNCz
+# mUZZUbdB+Ol5L1IAzVQ+kM2B2SkY8nJLT2bVzV+ILiGjeLNAieap5nqySLrY0yXj
+# WVhQdWeMghUdYU9EZedzepaxalxeE92x+5I/MzGp57ImoXmzPBSPU8/R+48pef+O
+# xCkv5dH7QuoyfeZlz5S2FhJsS/2KppTLL2WTFJTt7jX+HbU18/ZtW7H3ttDfRM5V
+# wfhlP2Tzn0AXP5vZZ65A9CspFBG/WYhFS7bp1C1rksZfjOjg2P6Xd73pu2PRb44Z
+# ttuiLyFIw9qjSBFUpL1xqeNLLcl3Eo5z6XgiWHElJNXVj1BnLXWiT/CbOGhiFaH/
+# GX5pHJiz/vAp6WI8Zcu1MYIbIjRX2JCCMg0fw5vBbB1CWGgAKzFPYs2PV9DuP0fR
+# ogvhBt27EFCWpbi7kjYNyBIwSYMK1j9oZxO5wOyJXn5tdY6YmzC6XYX7At3+J0Yp
+# v9S9xf/JWdwR2A7yOPAJWOGzV6AFbe2uKFiICvx6Iw1R4n45iuG9So8QlEF0iyHa
+# aQpobR5FswftZs+yRAEwygUuNHv0Siy730Nj0UXe5UvQJ9zxeDmWYjb7go8ROZjz
+# 2JOqUYufMrfXW6zBIekyrU5JV/i4ADmXsPM9B6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTgxNzQ0MTBaMC8GCSqGSIb3DQEJBDEiBCDa+jTld4ajgMtlv7/X
-# jLaji3y77kn9O/zzsDFFyc8YgTANBgkqhkiG9w0BAQEFAASCAgCv53KvZo3yH5EZ
-# Jl6fXtz4o02uq4WHqUYoIEefKv5PE7GVzz3prGjPnOD9I+dlyJT6a6qymoJg+FEh
-# X60ohg01mWDi1qREWWTpDBxaItWhkcvmm3FYPljZsnw18pD4/rLrYPl6Z+wbIWWn
-# TbIQF2Kl18hNY6eG83rk2t7fE92g6eMahMDDze1eHIDWgZ1OG1sVBIC3U6F+TcHp
-# KFCizjyreZTSgHsn4gmBfemgvJJB7m00Xl2z6X3fsvX2gnfggfv6RvS0rvkGrcsL
-# KXpRG7XKE29s54sHy5DDLM4oJr0wjx0YVZNyPXPmC/x5QkMMtwn5fctsCLXsb1d9
-# A997oLgooH5qt090UpSTGGTu5QyjSYHJX+s4O8pmNA1Pu03TE1uef9FfxoRSL6dZ
-# kEEU6bpCyjL73THXCZcbG/Pl4JDUkIpTD5pEhoHOE4alRkXELBUlWrfh+gWCL1Hm
-# VAhPE4amy2PteR8Lr5XJ2HeKso5OzHvk3B3H4C9YcYlv65t2fbDvTg/2TLLSpXj4
-# AK00z6E2iBBEcui3Pvulfk30IMeiCnFd5R/teMUk6rbv26DBeVww+9QTbiDoJiiG
-# RB7qRUOw3h4IhHDqnk0FtFovzWag0xKxqIJapY/B58ewo7LatGG7aUi9QSO28eny
-# DbZR7p5d998BE8tuKf+f3ujQV+TJ6A==
+# BTEPFw0yNjAxMjExNzEzMzRaMC8GCSqGSIb3DQEJBDEiBCCSdaRmv4EXrjfB/sXg
+# IZh2xQZ91irITKE2rjud5XF5WDANBgkqhkiG9w0BAQEFAASCAgBmvyESgc7IZBu/
+# hkyQBxGod9LTjJLs/1UvOofoN4YfbBANnhZie8nz7+zCx7b38oDqdGJjW27BS5Ow
+# LSfmE9nn0grTN14Gk3uVuVlzdqAVuZGhPM48cFGL5TcaB13cZyMkIDoVMqSL5R4e
+# r5CLkJzeBkVTftVkb5xZ9Lwhpj8gclFiJ1SRYAaOy+GSf1BJ7usU6Jr5JDa4CBlM
+# NKACWKJkZWydEZnlGdrES4+fBRlqdyKqLLtJw6OuGtK1MDTOcnCUNPNpjWHte/o0
+# 6XsfYBUSKqGr8jPmvkqiKEMaVEt4wf6IAH6tE66Db/BPxA30hjvW47SQa43XFxWq
+# xzl3d+bHNoc0Ql65Y2MmFnSDuA4IFIlT7S5wGY+5jbvAhNKQHl+4yj4Ot9lDNjb/
+# M9h+5/+r+UnfC65dPc+L3jvuRDTWtxcse27Z/ZCQzlMh7roqvwaJTERQBG+YeDrC
+# QeSOEEJvi2altcP/8SfPDTyLY9fgygenmw4vqGaQpxiTR5Qh75O6kRDfiJiJfkEP
+# iG12HBGwMGoQgkqd7U9XCX2TjTdLu0g+s6yoxunUx0J2s/FBCVQqSXCUJF3Jom1I
+# Ne23BBTjHhwREJ4+zAIW7WwJNZ44iEpwVIvqcqiwRVCRwAXkCU5hauUXcFxgemaf
+# 3yWM9uW1OPIlzjVyyhT5ibuSRDroJg==
 # SIG # End signature block
