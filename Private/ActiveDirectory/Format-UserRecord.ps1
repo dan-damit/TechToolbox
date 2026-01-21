@@ -1,123 +1,155 @@
 
-function Disable-User {
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+function Format-UserRecord {
+    <#
+    .SYNOPSIS
+        Normalizes user data from AD, Entra (Graph), EXO, Teams, and AzureAD to a single record.
+    .DESCRIPTION
+        Accepts raw objects from various sources and produces a unified PSCustomObject
+        with SamAccountName, UPN, ObjectId, DN, etc. Includes raw objects for debugging.
+    .PARAMETER AD
+        Raw AD user object (Get-ADUser -Properties * result).
+    .PARAMETER Entra
+        Raw Entra/Microsoft Graph user object.
+    .PARAMETER Exchange
+        Raw EXO mailbox/user object.
+    .PARAMETER Teams
+        Raw Teams user object (e.g., Get-CsOnlineUser wrapper).
+    .PARAMETER AzureAD
+        Raw legacy AzureAD user object.
+    .OUTPUTS
+        PSCustomObject
+    #>
+    [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [string]$Identity
+        [Parameter(ValueFromPipelineByPropertyName)]
+        $AD,
+
+        [Parameter(ValueFromPipelineByPropertyName)]
+        $Entra,
+
+        [Parameter(ValueFromPipelineByPropertyName)]
+        $Exchange,
+
+        [Parameter(ValueFromPipelineByPropertyName)]
+        $Teams,
+
+        [Parameter(ValueFromPipelineByPropertyName)]
+        $AzureAD
     )
 
-    # Fail fast on script errors in helpers
     $oldEAP = $ErrorActionPreference
     $ErrorActionPreference = 'Stop'
     try {
-        Write-Log -Level Info -Message ("Starting Disable-User workflow for '{0}'..." -f $Identity)
+        # Initialize common fields
+        $sam = $null
+        $upn = $null
+        $dn = $null
+        $mail = $null
+        $dn = $null
+        $name = $null
+        $objId = $null
 
-        # --- Load config
-        $cfg = Get-TechToolboxConfig
-        if (-not $cfg) { throw "Get-TechToolboxConfig returned null. Check your config path and schema." }
+        $foundInAD = $false
+        $foundInEntra = $false
+        $foundInEXO = $false
 
-        $settings = $cfg['settings']
-        if (-not $settings) { throw "Config missing 'settings' node." }
-
-        $off = $settings['offboarding']
-        if (-not $off) { throw "Config missing 'settings.offboarding' node." }
-
-        # Validate keys used below
-        if ($off.containsKey('disabledOU') -and [string]::IsNullOrWhiteSpace($off.disabledOU)) {
-            Write-Log -Level Warn -Message "settings.offboarding.disabledOU is empty; will skip OU move."
+        # --- AD extraction ---
+        if ($AD) {
+            $foundInAD = $true
+            if ($AD.PSObject.Properties['SamAccountName']) { $sam = $AD.SamAccountName }
+            if ($AD.PSObject.Properties['UserPrincipalName']) { $upn = $upn ?? $AD.UserPrincipalName }
+            if ($AD.PSObject.Properties['Mail']) { $mail = $mail ?? $AD.Mail }
+            if ($AD.PSObject.Properties['DistinguishedName']) { $dn = $AD.DistinguishedName }
+            if ($AD.PSObject.Properties['Name']) { $name = $name ?? $AD.Name }
         }
 
-        # --- Resolve user
-        Write-Log -Level Info -Message ("Offboarding: Resolving user '{0}'..." -f $Identity)
-        $user = Search-User -Identity $Identity
-        if (-not $user) {
-            throw "User '$Identity' not found by Search-User."
-        }
+        # --- Entra (Graph) extraction ---
+        if ($Entra) {
+            $foundInEntra = $true
+            # Id, UPN, DisplayName, Mail are the usual suspects
+            if ($Entra.PSObject.Properties['Id']) { $objId = $Entra.Id }
+            if ($Entra.PSObject.Properties['UserPrincipalName']) { $upn = $upn ?? $Entra.UserPrincipalName }
+            if ($Entra.PSObject.Properties['DisplayName']) { $name = $name ?? $Entra.DisplayName }
+            if ($Entra.PSObject.Properties['Mail']) { $mail = $mail ?? $Entra.Mail }
 
-        $results = [ordered]@{}
-
-        # --- AD Disable
-        Write-Log -Level Info -Message ("Offboarding: Disabling AD account for '{0}'..." -f $user.SamAccountName)
-        if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Disable AD account")) {
-            $results.ADDisable = Disable-ADUserAccount `
-                -SamAccountName $user.SamAccountName `
-                -DisabledOU $off.disabledOU
-        }
-
-        # Normalize return for safe property access
-        $movedHandled = $false
-        if ($results.ADDisable) {
-            if ($results.ADDisable -is [hashtable]) {
-                $movedHandled = [bool]$results.ADDisable['MovedToOU']
+            # Try to pull onPremisesSamAccountName if present (varies by SDK/model)
+            if ($sam -eq $null) {
+                # 1) Some Graph SDKs expose it directly:
+                if ($Entra.PSObject.Properties['OnPremisesSamAccountName']) {
+                    $sam = $Entra.OnPremisesSamAccountName
+                }
+                # 2) Others only via AdditionalProperties bag:
+                elseif ($Entra.PSObject.Properties['AdditionalProperties'] -and $Entra.AdditionalProperties) {
+                    if ($Entra.AdditionalProperties.ContainsKey('onPremisesSamAccountName')) {
+                        $sam = $Entra.AdditionalProperties['onPremisesSamAccountName']
+                    }
+                }
             }
-            else {
-                $movedHandled = [bool]$results.ADDisable.MovedToOU
+
+            # If still no mail, default to UPN for convenience
+            if (-not $mail -and $upn) { $mail = $upn }
+        }
+
+        # --- Exchange Online extraction ---
+        if ($Exchange) {
+            $foundInEXO = $true
+            if (-not $mail) {
+                if ($Exchange.PSObject.Properties['PrimarySmtpAddress']) { $mail = $Exchange.PrimarySmtpAddress }
+                elseif ($Exchange.PSObject.Properties['WindowsEmailAddress']) { $mail = $Exchange.WindowsEmailAddress }
+            }
+            if (-not $upn -and $Exchange.PSObject.Properties['UserPrincipalName']) {
+                $upn = $Exchange.UserPrincipalName
+            }
+            if (-not $name -and $Exchange.PSObject.Properties['DisplayName']) {
+                $name = $Exchange.DisplayName
             }
         }
 
-        # --- Move to Disabled OU if needed
-        if ($off.disabledOU -and -not $movedHandled) {
-            Write-Log -Level Info -Message ("Offboarding: Moving '{0}' to Disabled OU..." -f $user.SamAccountName)
-            if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Move AD user to Disabled OU")) {
-                $results.MoveOU = Move-UserToDisabledOU `
-                    -SamAccountName $user.SamAccountName `
-                    -TargetOU $off.disabledOU
-            }
+        # --- Legacy AzureAD extraction (optional) ---
+        if ($AzureAD) {
+            if (-not $objId -and $AzureAD.PSObject.Properties['ObjectId']) { $objId = $AzureAD.ObjectId }
+            if (-not $upn -and $AzureAD.PSObject.Properties['UserPrincipalName']) { $upn = $AzureAD.UserPrincipalName }
+            if (-not $name -and $AzureAD.PSObject.Properties['DisplayName']) { $name = $AzureAD.DisplayName }
+            if (-not $mail -and $AzureAD.PSObject.Properties['Mail']) { $mail = $AzureAD.Mail }
         }
 
-        # --- Optional: Cleanup AD groups
-        if ($off.cleanupADGroups) {
-            Write-Log -Level Info -Message ("Offboarding: Cleaning AD group memberships for '{0}'..." -f $user.SamAccountName)
-            if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Cleanup AD group memberships")) {
-                $results.ADGroups = Remove-ADUserGroups -SamAccountName $user.SamAccountName
-            }
+        # Backfill SAM from AD if still missing
+        if (-not $sam -and $AD -and $AD.PSObject.Properties['SamAccountName']) {
+            $sam = $AD.SamAccountName
         }
 
-        # --- Hybrid auto-disable mode
-        if ($off.useHybridAutoDisable) {
-            Write-Log -Level Info -Message "Hybrid auto-disable enabled. Cloud actions will be handled by AAD Connect."
-            Write-OffboardingSummary -User $user -Results $results
-            Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}'." -f $user.UserPrincipalName)
-            return [pscustomobject]$results
+        # If nothing meaningful was found, return $null
+        if (-not ($sam -or $upn -or $objId -or $mail)) {
+            return $null
         }
 
-        # --- Cloud actions
-        Write-Log -Level Info -Message "Proceeding with cloud offboarding actions..."
-        Write-Log -Level Info -Message ("Offboarding: Connecting to cloud services for '{0}'..." -f $user.SamAccountName)
+        $source =
+        if ($foundInAD -and $foundInEntra) { 'Hybrid' }
+        elseif ($foundInEntra) { 'Entra' }
+        elseif ($foundInAD) { 'AD' }
+        elseif ($foundInEXO) { 'EXO' }
+        else { 'Unknown' }
 
-        Connect-MgGraphIfNeeded
-        Connect-ExchangeOnlineIfNeeded -ShowProgress:$settings['exchangeOnline']['showProgress']
-
-        Write-Log -Level Info -Message ("Offboarding: Disabling Entra account for '{0}'..." -f $user.SamAccountName)
-        $results.EntraDisable = Disable-EntraUser -ObjectId $user.ObjectId
-
-        Write-Log -Level Info -Message ("Offboarding: Removing Entra licenses for '{0}'..." -f $user.SamAccountName)
-        $results.Licenses = Remove-EntraUserLicenses -ObjectId $user.ObjectId
-
-        Write-Log -Level Info -Message ("Offboarding: Cleaning Entra groups for '{0}'..." -f $user.SamAccountName)
-        $results.EntraGroups = Remove-UserGroups -ObjectId $user.ObjectId
-
-        Write-Log -Level Info -Message ("Offboarding: Signing out of Teams for '{0}'..." -f $user.UserPrincipalName)
-        $results.Teams = Remove-TeamsUser -Identity $user.UserPrincipalName
-
-        Write-Log -Level Info -Message ("Offboarding: Converting mailbox to shared for '{0}'..." -f $user.UserPrincipalName)
-        $results.Mailbox = Convert-MailboxToShared -Identity $user.UserPrincipalName
-
-        Write-Log -Level Info -Message ("Offboarding: Granting manager access for '{0}'..." -f $user.UserPrincipalName)
-        $results.ManagerAccess = Grant-ManagerMailboxAccess -Identity $user.UserPrincipalName
-
-        # --- Summary
-        Write-Log -Level Info -Message ("Offboarding: Generating summary for '{0}'..." -f $user.UserPrincipalName)
-        Write-OffboardingSummary -User $user -Results $results
-
-        Write-Log -Level Info -Message ("Offboarding: Completed for '{0}'." -f $user.UserPrincipalName)
-        Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}'." -f $user.UserPrincipalName)
-        return [pscustomobject]$results
+        # Produce normalized record
+        [pscustomobject]@{
+            SamAccountName    = $sam
+            UserPrincipalName = $upn
+            DisplayName       = $name
+            ObjectId          = $objId
+            DistinguishedName = $dn
+            Mail              = $mail
+            Source            = $source
+            FoundInAD         = [bool]$foundInAD
+            FoundInEntra      = [bool]$foundInEntra
+            FoundInEXO        = [bool]$foundInEXO
+            RawAD             = $AD
+            RawMg             = $Entra
+            RawEXO            = $Exchange
+        }
     }
     catch {
-        Write-Log -Level Info -Message ("Offboarding: Completed for '{0}'." -f $user.UserPrincipalName)
-        Write-Log -Level Error -Message ("Disable-User failed: {0}" -f $_.Exception.Message)
-        throw  # rethrow to surface in console/CI
+        Write-Log -Level Error -Message ("[Format-UserRecord] Failed: {0}" -f $_.Exception.Message)
+        throw
     }
     finally {
         $ErrorActionPreference = $oldEAP
@@ -127,8 +159,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBYzUAP9nRRq/HC
-# 3MhngZ2jSYh7gf4n8oBvDbXR/0KXuKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCANF2yZeFK9HkMu
+# kyETrqqqv8mMffSDfOqYiq9dPl27RqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -261,34 +293,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAdmv8hNyMf
-# q0FfcL8qG3EXF/olkdp8oUWSYuzbaqc+wDANBgkqhkiG9w0BAQEFAASCAgAF7bDU
-# KU0b3eyfXx70usAcnau3fsOFd+bpeIwP3gq3KvrxfecYr+JE/EwBHHSahntD8XQv
-# YPXIGIW/8fZJ2oPCyxxl5FPmGItlnBuXyDaWeh0AfFsUPLYm7XwLB0ordUJDYiVy
-# sf4anazWfBaBRUaGX9e1xpAFTb7nvnG6qBiN+r0z2P1JEHB1J6/Se0jgIhi4tFXT
-# PsW/h4th+EulWVW6XLZMYmSETPdpp9Wot7wvfV06TF4Vf7B0qXNzwuMsAowbHpmW
-# Nqa4ftf90ftPZwk8AEu88jvKNsZvgPVQrVLtq2cT5tMdUJ3KuNhr2XLCH59T0MS1
-# 6Fzuv3rbXY0bfC1zFD324JXFb7x3yAc2pegmaM1ZrfwcGpnxajp4yN4+fd1n+gbV
-# 4PmvXSCN1TXVb3dTEtkNeEukw2XIklEjzSVC9scMs19cTXbiftfnB96WuVEeodu8
-# yys4w3wO06XzD9VPGBKDsCO+L7ijEnRuLVyH7qcbEVjhxoPEYaROmwfoJyVNMo3s
-# ntYrhmAxeZXTNnrw2nkP6RaW8MbWV7k2Nhwpiu+NQbIxYzjADv55dSMSi73p4/bz
-# 91mEO4/RmJjPbGmy0gjwRmBCfuY/ceac79vtf0isFuqEOzBy5+Ci3FCeveDu5B2v
-# FRgvsvg94uF0YwSk2mcei6qXcCpT8Xt+6P9aOaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCsHY4qVAWJ
+# sGv2REWwnsRB3pb9nLBr5xgE8ehov/11WjANBgkqhkiG9w0BAQEFAASCAgATv49D
+# 4Wz5ON2nogCyeN4yBLcSV4Fr9UlQuQKAnd8MWuUuB16C0EQ2kYWmCO/8Cu8ZBHZG
+# hASvMQ0Ye/6fThxIWSLamZjgq66DQGEZPoiBvQI4OQKR2hVqcGNmIT3BUdU8unm4
+# xzAaoTQ57qXrvOMd0rhCOLZJ/fwazUvWHyIg4e/p72BD7SQXEJoDzFJBwzqb8D1/
+# W8ugt1n94KSqJPasRYxOm6pbMyj5mVHBFf5GrRcCNsB7fuyMVmuf7FSbLK1qwVh1
+# dDfo/bZUYrebpkbyKu63aw/4Q1Y86rTFT9EBkmmPnUwnFPS3lwk3L8t0d/3C2jjr
+# /Gv6rRFZOZxrL7azJ13pDzSngq3/xuIQvEInqiFzVQX0n77x9tzq6B8+FriYTHIS
+# kyAUd1E4LLRUvMdC8fum/5DpuhvkkoMbpKcsESgfkHB+jAbh5ph8GbEf+KDZ8SLg
+# q9A+6GsPdMckxYobOS24YDNVY/tJ72yQzM8A1P6eZcJQkWi5kI44W3MtPAMb7Xhs
+# SiRofX/pCDcvHjxvwpL/19FXW+rO+JsBQG5lpu18iIIcpCP8NtOs9Zdfx8blsPs4
+# gp9mHEVkXP78VsADxqCom0BPFt0bS18SaD1K4yWZOnTOuiQeRZSqWH6hXGqb6GnI
+# qYshZELbQdXwZvi0czvBP5x7W2b+pOOPkFtWPKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjExODA3NTlaMC8GCSqGSIb3DQEJBDEiBCAOYANgn5rRz3PKcd6X
-# We3Hkxk1B7EpNvNXAYO0lEXI5zANBgkqhkiG9w0BAQEFAASCAgBXRDJp8ZmUC5Hs
-# zyOko3b+/PtZ1c4JwwLNJrPN9KgeSsp0PD2MMiO8zd5Jo97EbjH44eQx5gHZfZwl
-# u5cOjYx2R/0PneM9YlwWbzyFYjYXn4gwTM9DU0pUkUjTxbpHa+BiG9fZ/wstsTl3
-# fboR4ekyxUFbYGxoGgLh4oBKmB09mEXfGZKwrj6ZN7rrp75pc6c1mTRJWKD6wKd8
-# 3Js7lQLy0PhgPhan0E7uqYaPhPMPdixlNZYrCl0AV2nZkEAyKTEvHHNw/EXe86Ur
-# c4cpVWWIMcy4aN2VBH6Y8GZoDFjX0VD0kLxwlQ0Plt8K0RcV8/9t0swmyVXm6RrV
-# 6CHTdzfk5c/DAfnPD0XNaNUpQbenh4kL35XVtHq4zuuH0lY8S3am3U294ELiwNvH
-# sTePLrtB81yEH9JShnbaO/gBasTKgV2CJbPZ15RAeU2V7mMSRKG9T3+E3O7Capwz
-# G2xzm2YtZg+saxJfA+dVsP38PIVvtfKLz2SLKPchPyabWayQre8mnBSF0BWVg5ZZ
-# 173uOc+G2/ewAAT4ruzvxSmvneG8nelirfie3aY4FHkWh1WqU2Ixy0Hiwxz06cga
-# kZXUKWM90UaN0Jq3Fy3DvU2/lgBKbOznpQhV0F/P3tXfbWCHbEp4ibx2tAqnrU5+
-# 7RPC7aLLPrPN0+pFkgjRpryfAn2zOg==
+# BTEPFw0yNjAxMjExODI1MzdaMC8GCSqGSIb3DQEJBDEiBCBq17DWmTWoXiFvnPsV
+# UcXP+6vsCMMJwFOys8jV5zQK6TANBgkqhkiG9w0BAQEFAASCAgBuLi4KRtJ95tvb
+# hZStAUbi1f41JI2Y6Gf47PLTCdBcCjUstCEpal3FTEBcZnNSDG7kYBrGpfgzef0J
+# xw/gRF8vdNWoy4srBq/Cw9Ga8iwyHtSxIMzx6qxq0/do0RNbmOLHjJ/25TpvIvw4
+# 9IBx8YzFPOFB+cWgULYbVcvmmqli8Rk9mElRd/lLBNjCtjHCF99Yl+kMmUcKA1Vy
+# u7mmBH8bXZAeqFq+WSEkro2R5sLOtIv34OV9k0Pufyyaq1FnmNcL7XyAnN3sBlXt
+# B+q41VeMihz2ISvgXohOirjwzivPQjP/A7Mz6fyOafYS9YE/Sm3nJ1l1lsJo2Y4D
+# Tf8qsPKXXluDhq/EzEBdjluE9WzMa2zbC6TfwuQ/fGqKlCQiQQjdDgnDEP2wH0i4
+# /hDDWlhtmiodwN3GSrvG0T8AtuYjetQ5xT187RQI8juxRUGPscQ4VCC+tGOuf+15
+# N4GreMGpwv+kxnvyVEVqKP3kF+GkiKqOcNKHDX2zrX4FN8/SISzUK4nPlPAzKPhF
+# j9ElSzBAc757svGNwCYKX+znFF3mX43s8IYKwUJSts2Yz8j/cKRbtsdvDaMuHI92
+# QZ08nscaHv9/QfNTHDXaoBfQ5fA+5Vj/Orti5AU5V1Pxy0EP4HK7MXm41FtCZZg/
+# RkMY+cEH6XE3duTz1TNEf4ZCabSGRA==
 # SIG # End signature block

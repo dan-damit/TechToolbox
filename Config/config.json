@@ -217,7 +217,7 @@
       }
     },
     "offboarding": {
-      "disabledOU": "OU=Disabled Users,OU=Corp,DC=company,DC=com",
+      "disabledOU": "OU=Non-Sync OU,OU=Users - ServiceAccounts,DC=vadtek,DC=com",
       "useHybridAutoDisable": false,
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
       "logFileNameFormat": "Offboarding_{yyyyMMdd}.log",
@@ -229,6 +229,23 @@
       "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch",
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv"
+    },
+    "graph": {
+      "tenantId": "e1b83792-ab2b-418b-9481-fe12c76f201e",
+      "environment": "Global",
+      "profile": "v1.0",
+      "scopes": [
+        "User.Read.All",
+        "Group.ReadWrite.All",
+        "Directory.ReadWrite.All",
+        "AuditLog.Read.All"
+      ],
+      "appOnly": {
+        "enabled": false,
+        "clientId": "",
+        "certThumbprint": "",
+        "clientSecret": ""
+      }
     }
   }
 }
