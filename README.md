@@ -35,6 +35,7 @@ enterprise-grade PowerShell module.
   - [Get-SystemSnapshot](#get-systemsnapshot)
   - [Search-User](#search-user)
   - [Disable-User](#disable-user)
+  - [Remove-Printers](#remove-printers)]
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -408,6 +409,16 @@ tasks
 ```powershell
 # Example usage
 Disable-User -Identity 'jdoe' -IncludeEXO -IncludeTeams
+```
+
+---
+
+This tool cleans up the spooler and removes installed print queues, optional
+params include driver removal and/or ports
+
+```powershell
+# Example usage
+Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru
 ```
 
 ---
