@@ -26,6 +26,15 @@
       "promptForContentMatchQuery": true,
       "showProgress": true
     },
+    "passwords": {
+      "default": {
+        "style": "Readable",
+        "length": 12,
+        "digits": 2,
+        "separator": ""
+      },
+      "wordListPath": "C:\\TechToolbox\\Config\\wordlist.txt"
+    },
     "logging": {
       "enableConsole": true,
       "enableFileLogging": true,
@@ -183,7 +192,13 @@
     "naming": {
       "upnPattern": "flast",
       "samPattern": "flast",
-      "copyAttributes": ["description", "department", "company", "office", "manager"]
+      "copyAttributes": [
+        "description",
+        "department",
+        "company",
+        "office",
+        "manager"
+      ]
     },
     "systemSnapshot": {
       "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemSnapshot",

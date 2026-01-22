@@ -1,89 +1,64 @@
 
-function New-RandomPassword {
+function Get-NewPassword {
     [CmdletBinding()]
     param(
-        [ValidateRange(8, 256)]
-        [int]$Length = 16,
+        [ValidateSet('Random', 'Readable', 'Passphrase')]
+        [string]$Style,
 
-        # At least this many non-alphanumeric (symbols)
-        [ValidateRange(0, 64)]
-        [int]$NonAlpha = 3,
+        [int]$Length,
 
-        # Exclude look-alike chars like O/0, l/1 if desired
-        [switch]$NoAmbiguous
+        [int]$Digits,
+
+        [string]$Separator,
+
+        [switch]$IncludeSymbol,
+
+        [switch]$NoAmbiguous,
+
+        [int]$NonAlpha,
+
+        [string[]]$DisallowTokens = @()
     )
 
-    # Character sets
-    $upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    $lower = 'abcdefghijklmnopqrstuvwxyz'
-    $digits = '0123456789'
-    $symbols = '!@#$%^&*_-+=?'
+    # Load config (block/dot style)
+    $configPath = 'C:\TechToolbox\Config\config.json'
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        throw "Config not found at $configPath"
+    }
+    $cfg = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
 
-    if ($NoAmbiguous) {
-        $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'   # no I, O
-        $lower = 'abcdefghijkmnpqrstuvwxyz'   # no l, o
-        $digits = '23456789'                   # no 0, 1
-        # symbols are generally fine as-is
+    $wlPath = $cfg.settings.passwords.wordListPath
+    $def = $cfg.settings.passwords.default
+
+    # Apply defaults only if not explicitly passed
+    if (-not $PSBoundParameters.ContainsKey('Style') -and $def.style) { $Style = $def.style }
+    if (-not $PSBoundParameters.ContainsKey('Length') -and $def.length) { $Length = [int]$def.length }
+    if (-not $PSBoundParameters.ContainsKey('Digits') -and $def.digits) { $Digits = [int]$def.digits }
+    if (-not $PSBoundParameters.ContainsKey('Separator') -and $def.separator -ne $null) { $Separator = [string]$def.separator }
+
+    # Random style-only param default (keep symbols off by default per your plan)
+    if ($Style -eq 'Random' -and -not $PSBoundParameters.ContainsKey('NonAlpha')) {
+        $NonAlpha = 0
     }
 
-    # We will ensure at least: 1 upper, 1 lower, 1 digit, and $NonAlpha symbols.
-    $minRequired = 3 + $NonAlpha
-    if ($Length -lt $minRequired) {
-        throw "Requested Length $Length is less than required minimum $minRequired (1 upper + 1 lower + 1 digit + $NonAlpha symbol(s))."
-    }
-
-    # RNG helpers (PS 7+ has GetInt32; PS 5.1 fallback uses modulo)
-    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    $hasGetInt32 = [bool]([System.Security.Cryptography.RandomNumberGenerator].GetMethod('GetInt32', [type[]]@([int], [int])))
-    function Get-RandomIndex {
-        param([int]$MaxExclusive)
-        if ($MaxExclusive -le 0) { return 0 }
-        if ($hasGetInt32) {
-            return [System.Security.Cryptography.RandomNumberGenerator]::GetInt32(0, $MaxExclusive)
-        }
-        else {
-            # PS 5.1 fallback
-            $b = New-Object byte[] 4
-            $rng.GetBytes($b)
-            return [Math]::Abs([BitConverter]::ToInt32($b, 0) % $MaxExclusive)
-        }
-    }
-
-    # Collect mandatory characters
-    $chars = New-Object System.Collections.Generic.List[char]
-    $chars.Add($upper[ (Get-RandomIndex $upper.Length) ])
-    $chars.Add($lower[ (Get-RandomIndex $lower.Length) ])
-    $chars.Add($digits[(Get-RandomIndex $digits.Length)])
-
-    for ($i = 0; $i -lt $NonAlpha; $i++) {
-        $chars.Add($symbols[(Get-RandomIndex $symbols.Length)])
-    }
-
-    # Fill the rest from the union of all sets
-    $all = ($upper + $lower + $digits + $symbols).ToCharArray()
-    while ($chars.Count -lt $Length) {
-        $chars.Add($all[(Get-RandomIndex $all.Length)])
-    }
-
-    # Fisher–Yates shuffle with RNG
-    for ($i = $chars.Count - 1; $i -gt 0; $i--) {
-        $j = Get-RandomIndex ($i + 1)
-        if ($j -ne $i) {
-            $tmp = $chars[$i]; $chars[$i] = $chars[$j]; $chars[$j] = $tmp
-        }
-    }
-
-    # Cleanup RNG
-    $rng.Dispose()
-
-    -join $chars
+    # Call the generator provided earlier (must be in scope / module)
+    New-RandomPassword `
+        -Style ($Style ? $Style : 'Readable') `
+        -Length ($Length ? $Length : 12) `
+        -Digits ($Digits ? $Digits : 2) `
+        -Separator ($Separator ? $Separator : '') `
+        -IncludeSymbol:$IncludeSymbol `
+        -NoAmbiguous:$NoAmbiguous `
+        -NonAlpha ($NonAlpha ? $NonAlpha : 0) `
+        -WordListPath $wlPath `
+        -DisallowTokens $DisallowTokens
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCQLf1qu5NcCU1p
-# 1qpcCDH8TSRWkAVVtFreJOpX0mL3sKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCEyUK5CkE2vEoI
+# kfhi4NdsgtEQBalRLh4RC6XvTyi97qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -216,34 +191,34 @@ function New-RandomPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvOsJadAQY
-# tMc1vocSj3zpy/WHHI1G8B6vc2gJGxZQMzANBgkqhkiG9w0BAQEFAASCAgAVvG1w
-# yJtSan/Md7OtnvnZ+GXRpNho25BOvcExkIe4+wSfQGfZpCtRDQLE5q51AH905KoZ
-# fe2mbPqjrw5MLk7Hwdvnoy0ELVBCiv1QWsvUz+m3A34iLSs5dOcAfB55NbHKwN5u
-# Piko2TLPO34fsfZgg/aVhGz252xbbp6NG3RjX8P7MzHGbKM9f/LfrSUI3gZ1bzni
-# eq5D7gJuqwMADAUj0/KPZjnVnQm+OVk+quLaQ0/kgQ7bWth2fSbZO8WZ77J5vZv4
-# CS2RreKoDFPSQ2varHdBDJbA6sCZwvbioSdS3utnmjYomn08ChqhnxZ+fT1jghQI
-# 874+yKB3sEqRexpFXNVgOzoUttte0GXOAEFVBIVqVEfHvapd6IDb2P7PgQjCT1Fu
-# 9CX/5iDdcmsRLSAfTUJdMzYSFHoD2To3dPT5gPeB9Py9xDiWUvIGREblOu7751tz
-# HtpMCGNxSlQfS2o96tuFzd/1aupMgnzYgjL14DOlBVYJfCuof4y2UkGdIfA6t4VH
-# ZPApZ+WaFW1KjL1yJZ4RD+9+a62rYEk/3zxnpcubQIuWgbm8a9zyBkExYy1Tr4oh
-# buAf2OEaBtih4/BmICEIDjuLr/K3jFjeJFxJ7bYvSmlyYWiMDBY7utUyV5NJNgkO
-# 4mlHBPU5OYzGm11EkN2g/SMgrUEt3AVyLj9R8aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBWk+MWAmbf
+# 8xqAbygJBkegvgLCdv7P1MsxdA6wk0KwtTANBgkqhkiG9w0BAQEFAASCAgCItCNG
+# HYVhQjK6eklrzYG07rAYmefnZ8G++mLuP51mRNb62G6luvZZCnqt4m0x4g3d+8aT
+# qfcEuusK52zhkPf1a45wY5NUnuZ//HguJwRKhUphM+10IQZ1spxc8TtAnleRw0XW
+# MFbuAzuWsmInm+Gb/iUdEC4/CYw0v0Lau5jiVWsGZhA4ujUdSiwp5z9zbJIHgTqF
+# pq9KpLWyPjXGVUC4gbdR6LX2q5k7WY+RYHeXqCD1yCfqB1gse7kJaDM6K5kBxomD
+# KLMTcHCR/34ly7+bSdhCMiy5mf2ko21D+gu0oKphBiuNoxQl0Sblj2D0ZUiYy9h8
+# 5PgM5VvHn1ltKBx+848b9JJVqAuTI9jjjo7lkdVByfoGRDoiWZQ/BLbvDqvpCO+Y
+# 2fEdEJxNvFE+t7v7CGokBnagolvUMy0iA27kPBjsNCnAoA2M2JXkpPWXFZ+TXOnb
+# 0Xkg+dOnbHcIHv8Q9Weut4KcUtirZqaNWJnYGDZz2KHiq6eMLbqWRq0UhrtszmnD
+# spWAzNZ7gw+pyZiPsH9PlMGz0BVh/EbakZGoP/UWcPaL+crwJtRkACFSddi3OLU/
+# wdyAyJhHanQ20P1ywlslCDGt0Udx6ocbBunt8P/R2jnTG/tAlFimgqjZ+bHGnKsE
+# WEqYDUGBoNcJ3XhYwfVRisOsS0eId0/EDcZ3DaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTUyMjQ2MTNaMC8GCSqGSIb3DQEJBDEiBCARVYsuuu6YNeUd5SLj
-# dSG8e727iIzH+bVsF7BvPG0vWzANBgkqhkiG9w0BAQEFAASCAgA94AVlpGIZzOvo
-# gOvgNPp/VPFFHIj8qUU1Egg3G0upkCdUy7wYmzyEBFKzo4s2PhA+gMfzWz7YDreU
-# NBECLLL9wusq9yxUUe+iotw4+QC1gM82F6LUrVEgY60muULqD6NAQdLWeQx4IMJ+
-# SitMPQNivieeP3aFXKWMKkcSaGyr/RVfYqJqlT3VcHXfE4fRYyKJBnodHiU0uRGJ
-# oyHBV8LIk3WvE46mbdkSpDqgZlenpgp6kRAjhBZ9qfGkXfaTkjUKKh7lO9refbU/
-# oWCXmwmW8snXpLja2mu+QarFUW2P6geztFTxstuwvszDO+M4y8BMzUqFUHhQVrXY
-# NnddUBghA38zKP4IqbhxQOd2DMQ3gLmEIbs2Ual2RsEZvYqnd7pV6qHXShmKiqeR
-# kLz5eudjm/GRhfj43eZmk1/gURxYfG4WROSgcjfVB6V8OnlNYo1Z8d1yy5MmyDnb
-# qYz3ILQ70ykRhPE7FvSkhpAuCU4Oz0cxRBflz2WF/RzKBbjqEN+5YptrNKsLmINJ
-# 1N76FihzVfhDUcuAyGlN1qUZ3cH4+ZxOcFxFzpwiCKTN4ANEnaAgmdFVLYR27KTL
-# k/UJyCmfjnFOAXr/Igon+lLtqVWLJUBQrcOJUh46tOmG2GhPigOKrhoGiDbKU7h0
-# tdTs1ZioUrhc2C1hk4jopAeEif41MA==
+# BTEPFw0yNjAxMjIxOTQxNTZaMC8GCSqGSIb3DQEJBDEiBCCEp/omLYEJYvL/jpEy
+# Kd8IIKviyAJVwaEEJKIOm4aTpTANBgkqhkiG9w0BAQEFAASCAgClfYeC62UfQhGJ
+# 4GYsc2jhmIoNA9RqYjCnR2rW4BSfBglik/1NdWI24lO1MQO5DF8WSmHkonoLJwP+
+# B5QmWhLVeYDoyMRzo7FVWkhl9K3Be4EYCBp3i19RaKuPLuB3nOTqbIu63shNW4pt
+# lUmOn60AkI0cPuz53D9WKipi6KtOE/E2X8zfxsx3WTEhAf/299+aRJyTT5K7+uv5
+# EmaJUsBMVe2T6WpPOMQ6DH73xogd0bPqAVXHB95kUiY3+jlhwysxYNWr3ym1PZHr
+# bIRwl9sSiKgcpt0UR9pJnF6GADfjdKuZIsLKT0bGuZzMguFlcDMS+RT06T4gBkHQ
+# bd6HKkmTOxqrnmm3BI18vRyWACMgfWlRj3WpeNtY0N3eY05XaxZeotWEjKEm3FpC
+# 12Y6LaC8ObaOuCwuszIIHYZFgYhCBggtTtVJiIwJ6PriiupxQxIU0ocb3+f6mkeV
+# hAHyBtMXCi6ikhz0BrHB0cNbVSMC2NyiKyZJgG1p4W2ZCx63X5UIKEg9h7iuK9n0
+# qYYEQ9IR3Keys2QE/M/wQe4717XlnkzQ0z+TApvwNLqJHvfglP3vYnYNkpRMa6UM
+# WyrRX/D2ZzaGAl9z7jguuye9dClwM9E0XVwbqgDdi+ut5HGzEGdeENRtUIJ5DBtm
+# AfxC6v3pwIYl2lXlDDfHjFNPLRprpg==
 # SIG # End signature block
