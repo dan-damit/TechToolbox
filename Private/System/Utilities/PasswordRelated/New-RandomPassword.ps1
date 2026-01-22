@@ -88,16 +88,16 @@ function New-RandomPassword {
     )
 
     # Character sets
-    $upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    $lower = 'abcdefghijklmnopqrstuvwxyz'
-    $digits = '0123456789'
-    $symbols = '!@#$%^&*_-+=?'
+    $UpperSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    $LowerSet = 'abcdefghijklmnopqrstuvwxyz'
+    $DigitSet = '0123456789'
+    $SymbolSet = '!@#$%^&*_-+=?'
 
     if ($NoAmbiguous) {
-        $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'     # no I, O
-        $lower = 'abcdefghijkmnpqrstuvwxyz'     # no l, o
-        $digits = '23456789'                     # no 0, 1
-        # symbols: keep as-is (generally fine)
+        $UpperSet = 'ABCDEFGHJKLMNPQRSTUVWXYZ'      # no I, O
+        $LowerSet = 'abcdefghijkmnpqrstuvwxyz'      # no l, o
+        $DigitSet = '23456789'                      # no 0, 1
+        # symbols ok as-is
     }
 
     # Crypto RNG helpers
@@ -118,8 +118,8 @@ function New-RandomPassword {
     }
 
     function Get-RandomChar {
-        param([string]$Set)
-        $Set[(Get-RandomIndex $Set.Length)]
+        param([string]$DigitSet)
+        $DigitSet[(Get-RandomIndex $DigitSet.Length)]
     }
 
     function Get-RandomFromList {
@@ -186,15 +186,13 @@ function New-RandomPassword {
 
                 # Collect mandatory characters
                 $chars = New-Object System.Collections.Generic.List[char]
-                $chars.Add((Get-RandomChar $upper))
-                $chars.Add((Get-RandomChar $lower))
-                $chars.Add((Get-RandomChar $digits))
-                for ($i = 0; $i -lt $NonAlpha; $i++) {
-                    $chars.Add((Get-RandomChar $symbols))
-                }
+                $chars.Add((Get-RandomChar $UpperSet))
+                $chars.Add((Get-RandomChar $LowerSet))
+                $chars.Add((Get-RandomChar $DigitSet))
+                for ($i = 0; $i -lt $NonAlpha; $i++) { $chars.Add((Get-RandomChar $SymbolSet)) }
 
                 # Fill remaining with union of sets (respecting NonAlpha=0 if you want no symbols)
-                $all = ($upper + $lower + $digits + ($NonAlpha -gt 0 ? $symbols : '')).ToCharArray()
+                $all = ($UpperSet + $LowerSet + $DigitSet + ($NonAlpha -gt 0 ? $SymbolSet : '')).ToCharArray()
                 while ($chars.Count -lt $Length) {
                     $chars.Add($all[(Get-RandomIndex $all.Length)])
                 }
@@ -222,12 +220,12 @@ function New-RandomPassword {
                         }
                     }
 
-                    $digitsStr = -join (1..$Digits | ForEach-Object { Get-RandomChar $digits })
+                    $digitsStr = -join (1..$Digits | ForEach-Object { Get-RandomChar $DigitSet })
                     $parts = @($wordsOut -join $Separator, $digitsStr)
 
                     if ($IncludeSymbol) {
                         # Insert symbol at a random position among parts
-                        $sym = Get-RandomChar $symbols
+                        $sym = Get-RandomChar $SymbolSet
                         $insertPos = Get-RandomIndex ($parts.Count + 1)
                         $parts = ($parts[0..($insertPos - 1)] + $sym + $parts[$insertPos..($parts.Count - 1)]) -join ''
                     }
@@ -240,7 +238,7 @@ function New-RandomPassword {
                     # Ensure minimum length (pad with lowercase if short)
                     if ($candidate.Length -lt $Length) {
                         $padCount = $Length - $candidate.Length
-                        $pad = -join (1..$padCount | ForEach-Object { Get-RandomChar $lower })
+                        $pad = -join (1..$padCount | ForEach-Object { Get-RandomChar $LowerSet })
                         $candidate += $pad
                     }
 
@@ -275,16 +273,16 @@ function New-RandomPassword {
                     }
 
                     $core = ($picked -join $Separator)
-                    $digitsStr = -join (1..$Digits | ForEach-Object { Get-RandomChar $digits })
+                    $digitsStr = -join (1..$Digits | ForEach-Object { Get-RandomChar $DigitsSet })
                     $candidate = $core + $digitsStr
 
                     if ($IncludeSymbol) {
-                        $candidate += (Get-RandomChar $symbols)
+                        $candidate += (Get-RandomChar $SymbolSet)
                     }
 
                     if ($candidate.Length -lt $Length) {
                         $padCount = $Length - $candidate.Length
-                        $pad = -join (1..$padCount | ForEach-Object { Get-RandomChar $lower })
+                        $pad = -join (1..$padCount | ForEach-Object { Get-RandomChar $LowerSet })
                         $candidate += $pad
                     }
 
@@ -309,8 +307,8 @@ function New-RandomPassword {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBeBiV/XCpVxbst
-# OcB22yPmSaJ9rI4KEZ9arrxVkvd5jKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA2g9FBkosOUtNj
+# Re4uUr4ZGcWCJTuDQwjkD4quvcAZ7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -443,34 +441,34 @@ function New-RandomPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBF2h1UMJMW
-# Oy1foueWj6mDgCcuH3fOHN5L35B7gZp8STANBgkqhkiG9w0BAQEFAASCAgBI+fP+
-# 54oJbnW7rw3R8OlPDHS/Ybt7MZGHKI3dUdL5wjmZkrThgj5O/VziTL4MORN7w2DZ
-# Gy/7PvEQ98fPAbJ4YLJ7cJ8zXZjPqdal/E90Hxb52idHdxGzJbjpPgRpkvSzMR72
-# QsUvITFe/l1KzrqUN437giYcNfmzly0HR+h8ywlZIGHbvN+xNd6i2PAOcw64FpAZ
-# /IVl9ZBpKlgPx+ZOhOvQzgrIof+lgtEv5iZBueZMDfpAnK46jXUHJVkBFnRJ3a56
-# ykwk4LimUpRFKw21NJ1MKlv7xxRq6WDExWynDsX6MTa04TcQU56phN2uw25butPl
-# WO/MnIHVMaUD5EuoPI8vjdbd1A2ACE524gZR2VbtIddgcP3gWILF70cUzNmKqsNs
-# 3XaSj1IYz7m3Z/MUsZZzVhBcGGs5ch4RISuUJHgAvlZu8zBBpIBNQ91hnoqE0/yd
-# oGY34aaMUlnufyPx+IDHpTv+WeVP1eLYV9DZy7/b96f2CMyotUikY0l6WTvi+kpW
-# pW93ME2ooJIRMw6UCRaLjR6FHKnkCVTo9iBnEyx2zcf+QgUaaVQj70gE+Uedm1mW
-# 8TZxBjR1uEBXaFKnFJxxNLIr2F7E7bCZrJetMEvmON8ZOHIMf1hHB4kk+feVxq/S
-# IyWqYX94kqmXrcalGlOCmb7ufbcecGDoVKqV4KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD/js+wnHd4
+# gBM4z5KXtbRnt53HBeb+jd9XZlTyoM+gSTANBgkqhkiG9w0BAQEFAASCAgC+vhpu
+# hN/lwzVPj+rDrWBlqQp5PpFdRtXlw9t4UhV0ELFxxIbxwIiNshMTgGmDDt2mcdvG
+# y8mK1Ra0zCweqqhVTcxwu6/wyCFNSAi2jEkLF9xugL5SCie17qsaPLKbwUKjC7p1
+# UqGlhc0ejmdes1lUmYiSIi8y/8xXR5IIdzmqdfwfyIBjFksrrab1MC7AsCv71sLR
+# 7z4rumApijOQQEaSqb8ELrcHiH8ymTGQEbHStXC6H+RYWHM6SsOi+bn5crlEzvRZ
+# 3gjru3Bn9PsW40tytOTTwWIETnxjqf+8KGAt0R6Js1QIPQ96iuu6Ia1KtclZTt9X
+# QOQ9PUzmgvuSaXemV5NePNifaFbtHmu+c2dbbgM8lLzBmeOgrORMChI/QhVn1xkM
+# hqL8xUyK1Rq1uc/nF5TCTSPA3GznOFn8hIiiwfeVdFAUM70IPDMylq3dachjzF0S
+# A8siH9GCqN/Bj3AC1Ff6Mjq+wOgEiG1jMe/sqVw5UlZnMl9AQyT/LtH/iw5sqqyJ
+# 2aLMZSiZw6rgMdGfS45E8ddiCiltuXNF6aynLD4xhhIefaGRVB3HSXTj91899q2X
+# e9SN/UlMZE+Z47EYA/lKnq4vpRl7X6dQDf5EFHIJnLqRnn/BAIFWcLTSm+TvwZSH
+# k+O1pb1Sktfz2SYkVJrARM3qccqCcejA7BTNm6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjIxOTU4NThaMC8GCSqGSIb3DQEJBDEiBCD4Vf8lC+ImTZvO/Snj
-# I7FieHOKlElsZLyJbVMxr/luITANBgkqhkiG9w0BAQEFAASCAgDFKE5xxg2jxj/I
-# Tsv28g5AnXyBI90Si+mJTe8kYtUb+hEYN/4RfXDrw5lLr4pWj4ACPR4YIjjC5cfN
-# YBfvZ6xpx81Rk8VjBU+fEakMy2Sg20nPRlC99MfqjJrPHTBtCv+bTlBtiFjmLDUK
-# M5V5IDX8U6wavWMQzVV3sUearyCmOxpAH66K1M+1wtmBi26WHKzszmYUFrIfyYrY
-# yuZiU/Vz0DX/RIFsRflGli8Q5cmkeKR4/s9qIr2wZAM4i1cbD1zt3ruDB6d7WeLt
-# ZFyxW25g+TP+/RVpCk+GGxtymf/0RJpkUv9CqcHk/GQj+IyYTckj20bva2Io8Vdj
-# drwvSrVxfS8upq+mBNmSwXBA4bLtNWAzfh7kHCd/7S+gH+mfXnWf1jCu4Q2zsoA9
-# pTYSMadbE7fYQbVsbvj/PY+/wFz4M/zlKff5o4sKCe9lKItlU3L+1/8XPUyUmFrG
-# O5xwyI19D/1tviJuHVZ3UorK3phfLhjsPFe4EhwdhXAB4OOeb3ucJ7MVsCbU1o0C
-# Q07ZDMldvB/mwZGStBMo/cbvrhPNue7Tcs6QnpKeflskEcnP7wkUm3Zh+4KU2OeF
-# Pels3FGqexioYQ/16pBqL5wvHF3/pjNhUL7YJg4Dx4jXa+iHhoeHTSS2hu4GrKZx
-# Hu0Va2UdlK38h0Pyx7Ua4NhFqAJfUg==
+# BTEPFw0yNjAxMjIyMjQwMDJaMC8GCSqGSIb3DQEJBDEiBCBs6212vHJdVZ9Lg1d5
+# JZXweEd/iDM5YtPLGMU7I27ByTANBgkqhkiG9w0BAQEFAASCAgDOqzSE9iV0gWY+
+# Hq8rbmYl+kTfPxPX1fvU5VyPRvr8JdYBfTYmtZnesQX4EJg9b83c+bzXEHmB4QS4
+# pXhAbZ55Fm9CF+iA3ZfUYWhwJ62WW+mitGV27YrnBeLZuGs+KFjJoldec5yLuv6r
+# nz1o8lJLJeWU78qMjeWU/AtbYlyK2fXMHHcqbYZHXMXkfSrxqLDhrIrq3tO0vyMV
+# XiXnmgWwHUczbJyPZ8iFzrI2PyGT9thELdPCx0vHXSTqWewDypk/DZkDn4x10akk
+# F/gSFBmwC1lzN5Ej/XnVn2/RsY2I1S77Yr6XnO2Dw8CVmDKPGjgDavNHSU4Gvzvb
+# T5mTRJeJHgnAbYW31eryU6L4clQz/koyKWNDfJx9VQ7BQ3vOb4uhhz2pNAVmrC6l
+# fcbIG5t6MkE9p2chgGZfuRHQJ0EQSuE5BV6g8vutYGrE7IMWOjRTTZjx8NtYkRus
+# o2djlnU6mQP3XoigCGMB7ag4B9keVUKYMV+h+OfR0RdxTIuKF8Vqv1wkEILOhj3+
+# TJdOX73n7RU9O6xxyogHibD1bGraMEJoHYT+tlLnJi6j1fBVRfluu0R1npZPCox7
+# EFOPozfc8EairfRAga6aD2kcMuNIbBlRFGRb/19Tm772AEVew4ja/GyVub4NhotI
+# SMTFiO17X5W/and+5MQ5CExkUgZ47w==
 # SIG # End signature block
