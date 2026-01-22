@@ -181,9 +181,9 @@
       "upnSuffix": "vadtek.com"
     },
     "naming": {
-      "upnPattern": "first.last",
+      "upnPattern": "flast",
       "samPattern": "flast",
-      "mailNicknamePattern": "first.last"
+      "copyAttributes": ["description", "department", "company", "office", "manager"]
     },
     "systemSnapshot": {
       "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemSnapshot",
