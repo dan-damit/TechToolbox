@@ -35,7 +35,7 @@ enterprise-grade PowerShell module.
   - [Get-SystemSnapshot](#get-systemsnapshot)
   - [Search-User](#search-user)
   - [Disable-User](#disable-user)
-  - [Remove-Printers](#remove-printers)]
+  - [Remove-Printers](#remove-printers)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
