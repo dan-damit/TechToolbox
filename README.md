@@ -413,6 +413,8 @@ Disable-User -Identity 'jdoe' -IncludeEXO -IncludeTeams
 
 ---
 
+### Remove-Printers
+
 This tool cleans up the spooler and removes installed print queues, optional
 params include driver removal and/or ports
 
