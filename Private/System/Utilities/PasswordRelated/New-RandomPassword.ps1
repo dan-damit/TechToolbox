@@ -144,7 +144,7 @@ function New-RandomPassword {
             $list = Get-Content -LiteralPath $Path -ErrorAction Stop | Where-Object { $_ -match '^[A-Za-z]{3,10}$' }
         }
         if (-not $list -or $list.Count -lt 100) {
-            # Fallback mini list (you can replace with your own file at C:\TechToolbox\Config\wordlist.txt)
+            # Fallback mini list if wordlist.txt fails to load
             $list = @(
                 'river', 'stone', 'blue', 'green', 'tiger', 'forest', 'echo', 'delta', 'nova', 'ember', 'maple', 'cedar', 'birch', 'pine',
                 'silver', 'shadow', 'crimson', 'cobalt', 'onyx', 'raven', 'falcon', 'otter', 'fox', 'wolf', 'lynx', 'badger', 'eagle',
@@ -309,8 +309,8 @@ function New-RandomPassword {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD3CIEJRRuz+kbc
-# Hg8DWigzbUgnXO0ki/4E/lMOayJdTqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBeBiV/XCpVxbst
+# OcB22yPmSaJ9rI4KEZ9arrxVkvd5jKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -443,34 +443,34 @@ function New-RandomPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB9woKesxTa
-# CbS+w6mylQ057d4EzyT4+voUr88IvPBXYzANBgkqhkiG9w0BAQEFAASCAgAyANeY
-# LfL2lvIcCy8mexAejTdg7VFjvhAm3kB6Cq6RV3n0UPoYxKsRZWMU4iT54aZJM3GC
-# EJa0LMrcjOLnLsi31k/bKZpE8MVVocVlrmN87a8kq/eaq9LmMaqfsEToYBQjQ9V8
-# p/w9/6kqvDnAbJjyjpY6zesYR3wlcVXlvKcLUMuP5w4doPbVAE0Oz/VrPITuFJlx
-# Oq3Nz03/06IeTyaTvJCitIXE4HarPLdHsJhzSjx7eqUglxA8Ak9OwnuqZvEhKhIc
-# jFcZE5Nv5tBmFKgnYQnHZ8COKnS+CLdZWJFQuhCUzD7GVllWlxwT1wvL1+9pfiPH
-# QAzo4369axB5TViMPYOMRKV/bb2hgEbzvmwWpFHBUpSYE7eCfcJsrLsyyGAUuF91
-# yjuJU+4mbI7joBd2UmeYvlXSuu/ZrNXwd8FO83CNaWQJJcLULGINALptQf2/j8i4
-# 6+2OHfiSilT62IDnC1SHvlbVg+rKplb15qlUuXAqEj4cJ1IzuN3DjouTBXsbMOzZ
-# XtDiLMUu5IDyftCKF1VQ1UytPUEu5gguE9bGfUGL7xfwmwhkKRTyCTtZ1xyg+aGn
-# mgCS2Ed3Y1hMXsXRJjiuJC1Tjn+uL7D9eWmx35xoWxp0CDH6qMChiX7xjj4Pqz6X
-# LJDc/hZlZjC6qbu7VlnrnRv8Og/wygy25d6kgaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBF2h1UMJMW
+# Oy1foueWj6mDgCcuH3fOHN5L35B7gZp8STANBgkqhkiG9w0BAQEFAASCAgBI+fP+
+# 54oJbnW7rw3R8OlPDHS/Ybt7MZGHKI3dUdL5wjmZkrThgj5O/VziTL4MORN7w2DZ
+# Gy/7PvEQ98fPAbJ4YLJ7cJ8zXZjPqdal/E90Hxb52idHdxGzJbjpPgRpkvSzMR72
+# QsUvITFe/l1KzrqUN437giYcNfmzly0HR+h8ywlZIGHbvN+xNd6i2PAOcw64FpAZ
+# /IVl9ZBpKlgPx+ZOhOvQzgrIof+lgtEv5iZBueZMDfpAnK46jXUHJVkBFnRJ3a56
+# ykwk4LimUpRFKw21NJ1MKlv7xxRq6WDExWynDsX6MTa04TcQU56phN2uw25butPl
+# WO/MnIHVMaUD5EuoPI8vjdbd1A2ACE524gZR2VbtIddgcP3gWILF70cUzNmKqsNs
+# 3XaSj1IYz7m3Z/MUsZZzVhBcGGs5ch4RISuUJHgAvlZu8zBBpIBNQ91hnoqE0/yd
+# oGY34aaMUlnufyPx+IDHpTv+WeVP1eLYV9DZy7/b96f2CMyotUikY0l6WTvi+kpW
+# pW93ME2ooJIRMw6UCRaLjR6FHKnkCVTo9iBnEyx2zcf+QgUaaVQj70gE+Uedm1mW
+# 8TZxBjR1uEBXaFKnFJxxNLIr2F7E7bCZrJetMEvmON8ZOHIMf1hHB4kk+feVxq/S
+# IyWqYX94kqmXrcalGlOCmb7ufbcecGDoVKqV4KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjIxOTQxNTZaMC8GCSqGSIb3DQEJBDEiBCBV5gRsmsid8J0BNF+I
-# qhA6whmSmWOdsDQX5QkIthJrDTANBgkqhkiG9w0BAQEFAASCAgBkyGmIUC+LQx9o
-# obXfsCNF1JgDIxnrc9O6atueGlTkpPblammeL6L7t3iPyvHkouX7v+xPp5FJTw0h
-# Bsg6/a5CHJGkS5MI7R78aUfp1sdc9sB3YGWquq+udilGSM4AjcYk5D4oH22J+xuS
-# 35OmVVIhu5Kfkivs19B3DpCdfC3av6WpyPRTRkVTjVHvfReDPdqvo6Tgl1eW8PUJ
-# KEFBET53Qt2YLhaAGu9+kWYAheXqFaAUbEEJE42LbvyFWqaItF9BJHR5c+Bq1b9A
-# mSmdB5nqiN9I+GaBRnqSfLpsTttkXIKnQx+h2+kFDedNPzmxd+PZLp+LAA/Jn51F
-# pD02ZRMFksGSKnwX/1jp1yIyvfelAwALrvjIbvGDWZ9XnbFgcunqx1WSLQB8TIKW
-# vVQ6KayHuoutKdrmVTSeDNYFHvFWGkGeBbeMq9IoeW+Uf7zkx6rLZ7ofgb4HZAMP
-# OxU/yMQVwSslrdLS/CvywBePObcQC4ltbR9XTGLog6VXilNbeeSc+XmMIRcrrV9u
-# mC661CXyldJgOCDGy7IpQg/YvRSAyTCM6xM4LeKGy3OaTCeosdSVo2xwRaUaVlsc
-# CBaVPwVe6CsBajzIf9+qFfmE0n/0uzb9zqZjSdEj5LALAWMfO6DNlZW/fj03O85B
-# s7Wma6uUnx6dbchEFp9m5FwYmXQE3A==
+# BTEPFw0yNjAxMjIxOTU4NThaMC8GCSqGSIb3DQEJBDEiBCD4Vf8lC+ImTZvO/Snj
+# I7FieHOKlElsZLyJbVMxr/luITANBgkqhkiG9w0BAQEFAASCAgDFKE5xxg2jxj/I
+# Tsv28g5AnXyBI90Si+mJTe8kYtUb+hEYN/4RfXDrw5lLr4pWj4ACPR4YIjjC5cfN
+# YBfvZ6xpx81Rk8VjBU+fEakMy2Sg20nPRlC99MfqjJrPHTBtCv+bTlBtiFjmLDUK
+# M5V5IDX8U6wavWMQzVV3sUearyCmOxpAH66K1M+1wtmBi26WHKzszmYUFrIfyYrY
+# yuZiU/Vz0DX/RIFsRflGli8Q5cmkeKR4/s9qIr2wZAM4i1cbD1zt3ruDB6d7WeLt
+# ZFyxW25g+TP+/RVpCk+GGxtymf/0RJpkUv9CqcHk/GQj+IyYTckj20bva2Io8Vdj
+# drwvSrVxfS8upq+mBNmSwXBA4bLtNWAzfh7kHCd/7S+gH+mfXnWf1jCu4Q2zsoA9
+# pTYSMadbE7fYQbVsbvj/PY+/wFz4M/zlKff5o4sKCe9lKItlU3L+1/8XPUyUmFrG
+# O5xwyI19D/1tviJuHVZ3UorK3phfLhjsPFe4EhwdhXAB4OOeb3ucJ7MVsCbU1o0C
+# Q07ZDMldvB/mwZGStBMo/cbvrhPNue7Tcs6QnpKeflskEcnP7wkUm3Zh+4KU2OeF
+# Pels3FGqexioYQ/16pBqL5wvHF3/pjNhUL7YJg4Dx4jXa+iHhoeHTSS2hu4GrKZx
+# Hu0Va2UdlK38h0Pyx7Ua4NhFqAJfUg==
 # SIG # End signature block
