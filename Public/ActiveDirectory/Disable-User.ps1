@@ -1,5 +1,36 @@
 
 function Disable-User {
+    <#
+    .SYNOPSIS
+        Disables an Active Directory user account and performs offboarding
+        tasks.
+    .DESCRIPTION
+        Disables an Active Directory user account, moves it to a specified OU,
+        removes group memberships, and optionally performs cloud offboarding
+        tasks such as converting Exchange Online mailboxes to shared and signing
+        the user out of Microsoft Teams. This function is designed to be
+        Graph-free, relying on other functions that do not require Microsoft
+        Graph.
+    .PARAMETER Identity
+        The identity of the user to disable. Can be a sAMAccountName, UPN, or
+        other identifier.
+    .PARAMETER IncludeEXO
+        Switch to include Exchange Online offboarding tasks (convert mailbox to
+        shared, grant manager access). Default behavior can be set in the config
+        file.
+    .PARAMETER IncludeTeams
+        Switch to include Microsoft Teams offboarding tasks (sign out user).
+        Default behavior can be set in the config file.
+    .PARAMETER TriggerAADSync
+        Switch to trigger an Azure AD Connect delta sync after disabling the
+        user in Active Directory.
+    .INPUTS
+        String (Identity)
+    .OUTPUTS
+        PSCustomObject containing the results of each offboarding step.
+    .EXAMPLE
+        Disable-User -Identity 'jdoe' -IncludeEXO -IncludeTeams
+    #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     param(
         [Parameter(Mandatory)]
@@ -164,8 +195,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAieQISYxg4xJj0
-# 8JqcDasg4/WXxk/Rkcgmmy3HbUbT8KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBuI3lcP4E5/YZY
+# ZVTQypDo6RVRqGeoTV+MEnjmr06AAqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -298,34 +329,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBuzmk4tI07
-# 1BJNCaGBFE3qZkRy1+vLH7FvvEjIEbWVlTANBgkqhkiG9w0BAQEFAASCAgC2Qa7Y
-# LkEpPcG4oFjqazkjOyoe8SNgPlau9R8t+uu9ImuW8yLR0VN1FKxOgrBm2dXn2/ou
-# 8STWMuAXIB8QIaXVUkt1NhG5SF2dC+yD5r2VPv+pjEUfoHoN7GW6wqX9OuKcg2Un
-# HXDMP+ngibgPe7nLEwrcfpnQlBGPhMV0kKbmXIfb3+Nx7zzfSxMbWUb8ylBKAEZB
-# bvg8fIYD89OvstQlwIlVpmWnNwVgR4Ph6MNVBWqX2OCFK5HXyT6DE2ySr78/MXIv
-# mCf8X/uJb7XSeadVoKFKlrsDwA78n4tL24vhgQYUpH2M2uivxYlcf1K/7ZCSmMS3
-# qLsHUeaTCDt1q3/IJEIHi4d9fGIMQPh2d4suQri+qcdaJHL0n9tTU5oM7FhpYqbg
-# 0meyQ0GptMLF5LgCbIS+i6LOsLGeSHN1u71aYvvpHptPkr8MH2wo76IDUbjCEjxv
-# h7x6jxiGzRQ5APbaqXvyg8Fz+uCBDWtz1Saj1OCKlVXZu63DmiDodJr27JYpmnfv
-# 4e6MOrFHUPptXLVmA3tLiI65Sdb/LVca0OQdBBHOHoILTAW984VDaLOut96Mx7Lx
-# i9nU+YAJP5mPcY4Fwth79NU/ED830sv5bSUkmEjVO8k99dDiOiPxp04PL6d2koaD
-# odjtPFyUtetQ1ggTvwcgXRouLOOSfTwG7IY79aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCk3ibyeFoX
+# plkcqSnonn+aKMWnvQRQYJcN70aL7IP4DjANBgkqhkiG9w0BAQEFAASCAgBIIv4j
+# sBcirzcay5kSJxHtBWAhNo9R8Au9JOjJ8PaaeG7eiAUVaDOqW8jYwNOdW6w8dGiY
+# E0Jf5Bo3UhM1y1KkFAgKWhg4BzaVqNXg/3AXMysoBGXWKlN00dl1Uw55dJtfQC7F
+# EQeH9bHT/KKfA8RWlqwAAc9O3RawohKNfAWhQ4ISqc7WgUJuMayP8+zlpf27XIad
+# VVxbDzp9290rBVs/qOQuxHB6iahFOzdkYwb1xjV18Bluu6AEnPyhvJoMHeXQT8mC
+# sh7ItSpyweV23Bl+Q93ROKOTwtfXhdrJ8la4sWd+lVFry81lm99OHpHAvyNo9Hs3
+# kXQZmMUZhGpnVXoHo7xDtMwvGgK5lUb1Or3sjMpcjdPIPAIvxrBlijS/UKD5d6r4
+# Fn9cVL9hf4K13k6TrgYmCK80qR2vzPQAl9h/XgK6/oMYXPWviDrJ4hWoWVem6yhh
+# aUEso9u5f+VfRFAFB7a6e6x18vVwyCjIUx9XUUrs27bzzq8ZkUPz11Lw5qArruwi
+# TijHXE3KTqJcQII1iI4byApyKNV3jLTA2yOqt8N6cfFcU37o4AkptOguM/SE2McE
+# /ymES9TQ7GIas8yRFTjY3TfwvKt3gxw7qaPuQs3Djf1+0Vug6Z3ukv+qTyB0FcHI
+# v4j+jcEPZ7hb9wUgbCTzQKQ0Z5FXjAsQcFSOGaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjExOTU1NDBaMC8GCSqGSIb3DQEJBDEiBCCiqbB79PWEvFXSkhB9
-# p3/owzvokvvmkRfaSAZErefx+DANBgkqhkiG9w0BAQEFAASCAgBxAyyVhF7w4SJC
-# kZERMYgTwh3BX8wKidAkjm/Z8yQJWUA65HPx8vvEA3f7ZwaAjWWOTmM7TXzoSfQL
-# lPGFqgAF4ZlB9byZqqccox4PkydPPVaKyCJSpOAr6gn5I0gx9lkljh7XJfZc0j12
-# Fn2EdgGPvh6gvWjj7S+FHas0jUxlkJuhqiarperCsFLKVoQDn44n+7cOmlzVJ0Ms
-# hwAUntqnAkGcUNXZfbEWfEdQ2DipZor+1mLyhwz4dVqglzRVY3LCi3hL8/71uHxD
-# ijQX7L41Dcsjr6mwDHlASwTe3beg4WFiyCEAiA965QKpVGctl2URFqpTpmaLkF0P
-# OLac7Va/plSr6IDpFTHg7A/rZ7LJGBY8eL9sIfvgkDC5znsrmVdGkhK21nLXpNvd
-# UXPT7lkntk0kw6E/Ew2YN1vEDlgNgIgooR4BL0uK31fCCABb1UXuAzd+A8sNhvvZ
-# HeWoOMuBO+3bGdw7us56JXetJ26J6uT48O2KIHBTglQhCmTtbHceNSXYwckU2FTS
-# /WrL/lzpE/s2joDCiceJxggfZan4q6qb0K4NTWILjJAY5CYHMbg5x9fZCQXbXAvM
-# VZTbXf+OLNT6qYuM+aRVCs/PNTeNo46nKXZ9vX5Lz6uZem/DGXjI0S1OLzesMiID
-# NqCx3HJfeJL8JfYbvLaIvMclOqxo7Q==
+# BTEPFw0yNjAxMjIwMTQxNDZaMC8GCSqGSIb3DQEJBDEiBCDMVxpEwjrl65KUqkpr
+# gBZVbnMt21RDxghu9tac/nq9JDANBgkqhkiG9w0BAQEFAASCAgBPLJ/UKQTQxhcY
+# zbAyKEaRRvM9lXLCd2nSvXTRYm9EjqT/JhiTlm4EeLxu7J+bn8mskveZshSw9ZPe
+# i1pOCujwAykdisgf7H4fbm7epqMtn88ZmqllAFxaIF02W+OnHXjI4Wh/futwirlG
+# ZQ1xwLl/ybOu9OREPVeu1XrzzEMznrUA1HboQkA87eenq+ENRpkt+rh/RhdsRrLV
+# ZWpoob9AL2g0JlSLaIE30nSXl5SWTUOB7PFDLUj7kWaWTyFHzumAsLznOFKKkSUj
+# cN0O4G4oVOkltYfuEz54VClCHzKdV0K34Y8ruqMk70d5J2ICgBVidvl+t9ly9asY
+# wyd6QjaMG8XxIapfGo/1qQprRDMAAuqIPcrgk7QqYoC39au0lNEZEzCd2CFUZtWN
+# 5y6moXNfIbBsfxQcKdNaltHXgMmEoh59y0wXTnJ++WQvEzW5PmDkHLlqfacvin7+
+# 9q5F6ae6xE9tH/LyijRn41DoeO8MKjM307WtH1BLqsnbfFYOnv0DLQqZf9ILPXPS
+# nuZumpjJkXcAy8xVla9PQilS670Oo9sT6PbvfcT8pWrlSzVZ+CrEO7OQ1u1j6TOr
+# NJNd5DWFfh1qxZe5vs8T1QOCL4pfjc+roZtsE4I8fmoPImWPe8sJwQKIQ9i8pSXW
+# nO/guvRWRrMKt3qEzg6cometCAw4Dg==
 # SIG # End signature block
