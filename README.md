@@ -34,6 +34,7 @@ enterprise-grade PowerShell module.
   - [New-OnPremUserFromTemplate](#new-onpremuserfromtemplate)
   - [Get-SystemSnapshot](#get-systemsnapshot)
   - [Search-User](#search-user)
+  - [Disable-User](#disable-user)
 - [Design & Conventions](#design--conventions)
 - [Troubleshooting](#troubleshooting)
 - [Development & QA](#development--qa)
@@ -395,6 +396,18 @@ console
 ```powershell
 # EXAMPLE
 Search-User -Identity "user@example.com"
+```
+
+---
+
+### Disable-User
+
+This routine will disable -Identity <username> in on-prem AD with some other
+tasks
+
+```powershell
+# Example usage
+Disable-User -Identity 'jdoe' -IncludeEXO -IncludeTeams
 ```
 
 ---
