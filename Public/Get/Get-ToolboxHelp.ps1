@@ -299,6 +299,14 @@ function Get-ToolboxHelp {
         Write-Host "----------------------------------------"
         return
     }
+
+    #Remove-Printers
+    if ($Name -eq 'Remove-Printers') {
+        Write-Host ""
+        Write-Host "Remove-Printers" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
