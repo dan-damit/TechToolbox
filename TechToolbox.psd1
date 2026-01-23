@@ -113,7 +113,7 @@ PrivateData = @{
         LicenseUri = 'https://opensource.org/licenses/MIT'
 
         # A URL to the main website for this project.
-        ProjectUri = 'https://github.com/dan-damit/Scripts-and-Snippets/tree/main/PowerShell/TechToolbox'
+        ProjectUri = 'https://github.com/dan-damit/TechToolbox'
 
         # A URL to an icon representing this module.
         # IconUri = ''
