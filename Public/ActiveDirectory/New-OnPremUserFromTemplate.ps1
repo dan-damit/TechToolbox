@@ -112,7 +112,7 @@ function New-OnPremUserFromTemplate {
         }
         # Ensure it's an array of strings
         $CopyAttributes = @($CopyAttributes | ForEach-Object { $_.ToString() }) | Where-Object { $_ -and $_.Trim() -ne '' }
-  
+
         # Map config-friendly names -> LDAP names (keyed lowercase for case-insensitive lookup)
         $configToLdap = @{
             'description' = 'description'
@@ -121,7 +121,7 @@ function New-OnPremUserFromTemplate {
             'office'      = 'physicalDeliveryOfficeName'
             'manager'     = 'manager'
         }
-     
+
         # Compute the LDAP attributes to request for the template user
         $CopyLdapAttrs = foreach ($name in $CopyAttributes) {
             $key = $name.ToLowerInvariant()
@@ -190,7 +190,7 @@ function New-OnPremUserFromTemplate {
                 $templateUser = Get-ADUser @adBase -Identity $TemplateIdentity -Properties $CopyLdapAttrs
             }
             'BySearch' {
-                if (-not $TemplateSearch) { throw "Provide -TemplateSearch (e.g., @{ title='Engineer'; company='Contoso' })." }
+                if (-not $TemplateSearch) { throw "Provide -TemplateSearch (e.g., @{ title='Engineer'; company='Company' })." }
                 $ldapFilterParts = foreach ($k in $TemplateSearch.Keys) {
                     $val = [System.Text.RegularExpressions.Regex]::Escape($TemplateSearch[$k])
                     "($k=$val)"
@@ -227,7 +227,7 @@ function New-OnPremUserFromTemplate {
             Write-Log -Level Warn -Message "User UPN '$newUpn' already exists. Aborting."
             return
         }
-        
+
         # 5) Create new user
         $initialPassword = Get-NewPassword -length $InitialPasswordLength -nonAlpha 3
         $securePass = ConvertTo-SecureString $initialPassword -AsPlainText -Force
@@ -249,7 +249,7 @@ function New-OnPremUserFromTemplate {
             New-ADUser @adBase @newParams
             Write-Log -Level Ok -Message ("Created AD user: {0}" -f $newUpn)
         }
-        
+
         # 6) Copy selected attributes from template (uses mappings from begin{})
         $friendlyProps = @{}
         $otherAttrs = @{}
@@ -297,7 +297,7 @@ function New-OnPremUserFromTemplate {
             }
             Write-Log -Level Ok -Message "Copied attributes applied from template."
         }
-    
+
         # 7) proxyAddresses — single primary at creation (idempotent)
         $primaryProxy = "SMTP:$UpnPrefix@$($Tenant.upnSuffix)"
         $proxiesToSet = @($primaryProxy)
@@ -353,8 +353,8 @@ function New-OnPremUserFromTemplate {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDhb0IxB7uP//Xs
-# t6EAzc9aSigRAeKob2yAWv7hsBUe2KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBuZCPGUQEAr5o8
+# QlpHi7LDk59IFC4Jg17It4ruMna32qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -487,34 +487,34 @@ function New-OnPremUserFromTemplate {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBcYY5AYlAr
-# bi4esdPI8+r3hH0GtYFrTr8E1qPXBaON0DANBgkqhkiG9w0BAQEFAASCAgBde5wo
-# IO323x2UnoEZ3XcR7AluMmLnnbrX7WjcD9tT/dbM8rIR0c+1VH7BzqSxNtLzM9ER
-# FYPSxbmh0pZBU6f6gIaBF5eFKSjGLvmfy7KNx/WNhg5LWi4EkALV2mah3MeAyoqw
-# ma3wq7s/tTS3qdbj0OL2BP8LQfuQcab/ds/mL1tSSq6v2HR5W9nWWrvnxpMZMAS4
-# U5t8OuEVn/R+Wo7VrGgR+I0fHuiNNd3agfHrtLr0ooDwAOcDnhRm50tITllWU1if
-# v4X8a2JEfh+Iny/KRE659SOL3DdEo4+2ZYVEU8ooB/zzxL1fm47VXZmIlW4ErvtA
-# J3XJdvXSFDufrkacIhS1O7C1T160ctz76jWDxS1ydzfbusVSSBmh6H5gMQJYAEnk
-# u/4Io/vdubknji2ntFnzJ8s0XtseWe6pZNPI/Wa4V5Z4GaDUGuGlLZ5wfI47RRac
-# 22Es8HJQq1vwQthlUe+NPyBy1JjRETYS5hNWsRgl9ujeLEYhH83De8fz3kpsvwgh
-# U7LgQ8Uzfzsvq5SGuRw+FzScH/NUNqsztF41x2twhhLgxGOt3rGmOxakXqBcFsLK
-# sWIkqRAaJYWGKtqyqebhk/Pb0Tp7csHNRvHeVB9T0BN3Hk2mZKj930ttKELb9YGg
-# ogb06tORVpRWQ80fixmK+SqcxcKP0VQX0f59p6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDbaCNKJHuG
+# X1/5aGA3bdyA0FYrgEM5y2u7C6mCP1i2oDANBgkqhkiG9w0BAQEFAASCAgDUnjPQ
+# p+HD/GRYvf0N+ItlmUMJFcs37+H+Y0iBjTXQLWo4lI3pvDfjdkF/RjTPF8me/gia
+# CNzzUBvFVJMdJCLSwgoRc0FzXgA7m9z0bx80sH3WdWI2uypZe40ZIfICnVvNNjon
+# 4kcOT7/vkZxbIdXM2BnWaKaw+k1SaK/hvmXu7vFmxf4atKdLCvDoNu2qnYuvuVRX
+# fsT8GEwtBOOkjjSUFzAMxq5AtyyxJsVbLTYUd1TsRsMFHYWn4ecy9zAn3lq7rTah
+# r3J2Z/vZ7kfcgpHXNYivK3Q1vMcljzpT2Z9c6TxdbiM51rRG9Ln0RKlYu+nJrtsB
+# FwdrLkQNL34rLk/s2sI/EisdHQq7yisC1EgMX/0F7KbDgSk/3cB0C8WyBg3Ma4XO
+# 8NuJOMIaajg4B+gYxqQXkvXBmA0p5wudNc6zVzkIaE2lLVRKAxspbtnAMvPi34R8
+# T55jDd7joYE99+a8+TV9ULGWaTarn6DPUedU3nnlh+6Eaas7pNRPj3CCXbH5pfsD
+# o0UBY4qi1HuROBUoMk0Yjephhw7/pzUUrZrjylAIatD7hVJEpczOYfwFexFB5vXx
+# PrPx2Fc+HkXUtkEw/w89UGRw2tXQ9clMdwX0XgN6uuzl8t6WWeTWG8+IYAo45fEk
+# zHqy2htk3YkICvdW3wqd/Kviry7HpfR7YPERKaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjIxOTQxNTdaMC8GCSqGSIb3DQEJBDEiBCDhKckyUIwQ7uB10+YR
-# ZFY+492qe4WEJdnMdyhXmvZplzANBgkqhkiG9w0BAQEFAASCAgDPSaFp5asaCPfX
-# Pp0PuQcfXOFcfiDqFlMpW7SpxYheU6x9fN4cVVWfj1EDeIzv5fWCoUcuK/qJyrGK
-# PtJDURGWLiljpVDICzPfx+TzjoHHOVjIwqy3zSgZzAVL2M9MAY369wRbM0vL0ufA
-# /yb3njqt+1GPtmGk14Y7O62XK1PqQuR4lnukfYWZUC/iV4wCEMMfuuAsRYtjSuqG
-# 3Q+vBpx5sxhPBBv2pxqruVqjo75iJ92J1n5eofCVKCjG44pIQmWajQHu2uhHnw9Y
-# zk7Cwrqbcjq/5LhiFLG7GaDhQGcyjl4zegH+w+pKImNbZuhzh4XZgrEQovHjZuF3
-# nBEr63N4RqtMu9AQMbeA0MXPASie59/z+e8kx8/u+2NskDtMM9j2YrZGFUCUApGn
-# 40kLrQA53MOfNBrfw03cGfqSP8ispTbOiob8qK9O9kK8mXr971mLY02W5ktplVzp
-# 03AGUibbItYJgZRdPReGeFH1396WkQ+5WtVwsgRGYhmOdyCFsIrNPIRT52AEY75n
-# Qgnhh/6DilTaetWiAVH8hjvt+qLm4uBDqhMiXFHaCKnrIhwtGxNr40EAJNYIc3A8
-# rIxiSLjTpGxDxAA1/Vj/EII3dkhehjlL8wIbr4ogSpJMbNsoyOjLwM+ara91xv6r
-# Fy7W9yDxgpcR8JCrTTrulf9+m859KA==
+# BTEPFw0yNjAxMjUxNDQyMzdaMC8GCSqGSIb3DQEJBDEiBCByRnidgHyoVN2FCLIP
+# W0DTZROBbWrlxHlpAYFiPyNjYjANBgkqhkiG9w0BAQEFAASCAgAdXCcjEHe6OUP/
+# 3u1Cn1o5XBAfJm/tpujOcZ3gsqZHG0/XxYyldC4Hb3I7lX9O35pUbGai5/6GY81a
+# 6qNw0J0m7iQNkD73WTdMAXINgCw27DP1oClwchc5ZE22/GGgE5KhzNrsh+lpQ2zS
+# HdwHgwsqtwvwj405izMOTS+hQW80RgaBRmhPx7mak4vajdlOfmBiYh8hWg47dnmB
+# 02lv2yzWBFPnXsIY6MsxZd72S9oIov1hrm37bJnJck5DUQbfF3s/GsyHTO1yhKP8
+# cf6TGWv3WyoVVEoQtivsmj3KPLIazhJVjhQ8M9dWQ+Z0D+ZDaZcmhYeU2n5PmRw2
+# jV54ADT9++9U8ak+5ERT/ZtbKjrDVjEVirk0Fprpdh1M/iuHkkTChIlZHqgRoswY
+# zZw7nwMdXb1JIUmIgig6ZjOR5GlKdXAGhtaYyC7PivADIsgShpsn2sgYSAk5FlTT
+# cG0mhcRQugqGK6W3gpLZ/8RnV4bCZNHQ3cAy1HG+2AqBFqTmldBZjsCgTQ8EWsll
+# iVk7cL4qMmrD1DSv7xjQTQtLLEANggWQbjh5AAj+Dqiykb1rAds1pLOv/VS8+SzG
+# ES5BhuRgYH27qtWX0RVN6Rhu85efQH5w8Bjs5Q9goAWtek33WqrDCtHnbbmZl4qd
+# XSyYwWa0Wiiigcg99DzFQ1nRAb7Vcw==
 # SIG # End signature block

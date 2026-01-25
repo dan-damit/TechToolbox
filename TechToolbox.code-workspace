@@ -62,7 +62,34 @@
         "diffEditor.ignoreTrimWhitespace": false,
         "[jsonc]": {
             "editor.defaultFormatter": "vscode.json-language-features"
-        }
+        },
+        "cSpell.words": [
+            "aadconnect",
+            "abcdefghijkmnpqrstuvwxyz",
+            "ABCDEFGHJKLMNPQRSTUVWXYZ",
+            "autofetch",
+            "batteryreport",
+            "COPYALL",
+            "cutoffyear",
+            "Damit",
+            "eamodio",
+            "ewma",
+            "flast",
+            "jdoe",
+            "lookback",
+            "MSIX",
+            "oderwat",
+            "onmicrosoft",
+            "pscredential",
+            "pscustomobject",
+            "Stroustrup",
+            "tmpl",
+            "vadtek",
+            "valueaddedcompanies",
+            "Visio",
+            "wordlist",
+            "yzhang"
+        ]
     },
     // ------------------------------
     // Recommended Extensions
