@@ -1,8 +1,80 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {}
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        // ------------------------------
+        // File & Folder Visibility
+        // ------------------------------
+        "files.exclude": {
+            "**/.git": true,
+            "**/.vscode": false,
+            "Logs": true,
+            "Exports": true,
+            "Tests/Output": true,
+            "Dependencies/EXO/obj": true,
+            "Dependencies/EXO/bin": true
+        },
+        "search.exclude": {
+            "Logs": true,
+            "Exports": true,
+            "Tests/Output": true
+        },
+        // ------------------------------
+        // PowerShell Development
+        // ------------------------------
+        "powershell.integratedConsole.showOnStartup": false,
+        "powershell.codeFormatting.preset": "Stroustrup",
+        "powershell.codeFormatting.useCorrectCasing": true,
+        "powershell.scriptAnalysis.enable": true,
+        "powershell.scriptAnalysis.settingsPath": "./PSScriptAnalyzerSettings.psd1",
+        // ------------------------------
+        // Editor Behavior
+        // ------------------------------
+        "editor.defaultFormatter": "ms-vscode.powershell",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.rulers": [
+            100,
+            140
+        ],
+        "editor.wordWrap": "off",
+        "editor.renderWhitespace": "boundary",
+        // ------------------------------
+        // File Hygiene
+        // ------------------------------
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "files.encoding": "utf8",
+        // ------------------------------
+        // Terminal Defaults
+        // ------------------------------
+        "terminal.integrated.defaultProfile.windows": "PowerShell",
+        "terminal.integrated.cwd": "${workspaceFolder}",
+        // ------------------------------
+        // Git & Diff Quality of Life
+        // ------------------------------
+        "git.confirmSync": false,
+        "git.autofetch": true,
+        "diffEditor.ignoreTrimWhitespace": false,
+        "[jsonc]": {
+            "editor.defaultFormatter": "vscode.json-language-features"
+        }
+    },
+    // ------------------------------
+    // Recommended Extensions
+    // ------------------------------
+    "extensions": {
+        "recommendations": [
+            "ms-vscode.powershell",
+            "eamodio.gitlens",
+            "streetsidesoftware.code-spell-checker",
+            "yzhang.markdown-all-in-one",
+            "ms-azuretools.vscode-docker",
+            "oderwat.indent-rainbow"
+        ]
+    }
 }
