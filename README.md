@@ -11,34 +11,36 @@ enterprise-grade PowerShell module.
 
 ## Contents
 
-- [Getting Started](#getting-started)
-- [Configuration](#configuration)
-- [Public Commands](#public-commands)
-  - [Get-ToolboxHelp](#get-toolboxhelp)
-  - [Clear-BrowserProfileData](#clear-browserprofiledata)
-  - [Get-RemoteInstalledSoftware](#get-remoteinstalledsoftware)
-  - [Invoke-PurviewPurge](#invoke-purviewpurgeref)
-  - [Get-MessageTrace](#get-messagetrace)
-  - [Get-BatteryHealth](#get-batteryhealth)
-  - [Invoke-AADSyncRemote](#invoke-aadsyncremote)
-  - [Get-TechToolboxConfig](#get-techtoolboxconfig)
-  - [Set-PageFileSize](#set-pagefilesize)
-  - [Invoke-DownloadsCleanup](#invoke-downloadscleanup)
-  - [Invoke-SubnetScan](#invoke-subnetscan)
-  - [Test-PathAs](#test-pathas)
-  - [Copy-Directory](#copy-directory)
-  - [Invoke-SystemRepair](#invoke-systemrepair)
-  - [Get-WindowsActivationInfo](#get-windowsactivationinfo)
-  - [Reset-WindowsUpdateComponents](#reset-windowsupdatecomponents)
-  - [Set-ProxyAddress](#set-proxyaddress)
-  - [New-OnPremUserFromTemplate](#new-onpremuserfromtemplate)
-  - [Get-SystemSnapshot](#get-systemsnapshot)
-  - [Search-User](#search-user)
-  - [Disable-User](#disable-user)
-  - [Remove-Printers](#remove-printers)
-- [Design & Conventions](#design--conventions)
-- [Troubleshooting](#troubleshooting)
-- [Development & QA](#development--qa)
+- [TechToolbox](#techtoolbox)
+  - [Contents](#contents)
+  - [Getting Started](#getting-started)
+  - [Configuration](#configuration)
+  - [Public Commands](#public-commands)
+    - [Get-ToolboxHelp](#get-toolboxhelp)
+    - [Clear-BrowserProfileData](#clear-browserprofiledata)
+    - [Get-RemoteInstalledSoftware](#get-remoteinstalledsoftware)
+    - [Invoke-PurviewPurge](#invoke-purviewpurge)
+    - [Get-MessageTrace](#get-messagetrace)
+    - [Get-BatteryHealth](#get-batteryhealth)
+    - [Invoke-AADSyncRemote](#invoke-aadsyncremote)
+    - [Get-TechToolboxConfig](#get-techtoolboxconfig)
+    - [Set-PageFileSize](#set-pagefilesize)
+    - [Invoke-DownloadsCleanup](#invoke-downloadscleanup)
+    - [Invoke-SubnetScan](#invoke-subnetscan)
+    - [Test-PathAs](#test-pathas)
+    - [Copy-Directory](#copy-directory)
+    - [Invoke-SystemRepair](#invoke-systemrepair)
+    - [Get-WindowsActivationInfo](#get-windowsactivationinfo)
+    - [Reset-WindowsUpdateComponents](#reset-windowsupdatecomponents)
+    - [Set-ProxyAddress](#set-proxyaddress)
+    - [New-OnPremUserFromTemplate](#new-onpremuserfromtemplate)
+    - [Get-SystemSnapshot](#get-systemsnapshot)
+    - [Search-User](#search-user)
+    - [Disable-User](#disable-user)
+    - [Remove-Printers](#remove-printers)
+  - [Design \& Conventions](#design--conventions)
+  - [Troubleshooting](#troubleshooting)
+  - [Development \& QA](#development--qa)
 
 ---
 
@@ -288,7 +290,7 @@ Invoke-SubnetScan -CIDR "10.0.0.0/16" -ComputerName "RemoteHost"
 
 ### Test-PathAs
 
-This will utilize an impersionation helper to test directory or file access
+This will utilize an impersonation helper to test directory or file access
 using a supplied set of credentials
 
 ```powershell
@@ -333,7 +335,7 @@ This tool retrieves Windows Activation info either locally or on a remote client
 
 ```powershell
 # Run locally
-Get-WindowsActivationInfo 
+Get-WindowsActivationInfo
 
 # Run Remote
 Get-WindowsActivationInfo -ComputerName "RemotePC" -Credential (Get-Credential)
@@ -343,7 +345,7 @@ Get-WindowsActivationInfo -ComputerName "RemotePC" -Credential (Get-Credential)
 
 ### Reset-WindowsUpdateComponents
 
-A module for resetting winodws update components locally or on a remote host
+A module for resetting windows update components locally or on a remote host
 
 ```powershell
 # Run locally
@@ -379,7 +381,7 @@ New-OnPremUserFromTemplate -TemplateIdentity "jdoe" -GivenName "John" -Surname "
 
 ### Get-SystemSnapshot
 
-Gets details about a system, local or remote, and outputs to console and eports
+Gets details about a system, local or remote, and outputs to console and exports
 to CSV
 
 ```powershell
@@ -465,6 +467,6 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
 
 ---
 
-**Author:** Dan Damit  
-**License:** Internal use  
+**Author:** Dan Damit
+**License:** Internal use
 **Version:** 0.3.0
