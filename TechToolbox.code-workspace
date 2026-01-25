@@ -68,6 +68,7 @@
             "abcdefghijkmnpqrstuvwxyz",
             "ABCDEFGHJKLMNPQRSTUVWXYZ",
             "advapi",
+            "aouy",
             "Authenticode",
             "autofetch",
             "batteryreport",
@@ -83,7 +84,11 @@
             "Damit",
             "dism",
             "Dnscache",
+            "dnut",
+            "dotjoshjohnson",
+            "dsznajder",
             "eamodio",
+            "esbenp",
             "ewma",
             "flast",
             "hashtables",
@@ -116,9 +121,11 @@
             "qmgr",
             "rundll",
             "scannow",
+            "sharma",
             "SHRFAX",
             "SLMGR",
             "SMBIOSBIOS",
+            "sonali",
             "splwow",
             "Stroustrup",
             "subfolders",
@@ -142,7 +149,14 @@
             "streetsidesoftware.code-spell-checker",
             "yzhang.markdown-all-in-one",
             "ms-azuretools.vscode-docker",
-            "oderwat.indent-rainbow"
+            "oderwat.indent-rainbow",
+            "esbenp.prettier-vscode",
+            "tal7aouy.rainbow-brackets",
+            "sonali-sharma.colorful-carbon",
+            "dnut.rewrap-revived",
+            "dotjoshjohnson.xml",
+            "github.copilot-chat",
+            "dsznajder.es7-react-js-snippets"
         ]
     }
 }
