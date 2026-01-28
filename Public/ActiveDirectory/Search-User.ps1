@@ -26,7 +26,8 @@ function Search-User {
         [string]$Identity,
 
         [switch]$IncludeEXO,
-        [switch]$IncludeTeams
+        [switch]$IncludeTeams,
+        [pscredential]$Credential
     )
 
     $oldEAP = $ErrorActionPreference
@@ -77,14 +78,21 @@ function Search-User {
         if ($hasAD) {
             Import-Module ActiveDirectory -ErrorAction SilentlyContinue | Out-Null
             $isUPN = ($Identity -match '^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+            # Build common AD params and only add -Credential when supplied
+            $adParams = @{
+                Properties  = '*'
+                ErrorAction = 'SilentlyContinue'
+            }
+            if ($Credential) { $adParams.Credential = $Credential }
+
             try {
                 if ($isUPN) {
-                    $ad = Get-ADUser -Filter "UserPrincipalName -eq '$Identity'" -Properties * -ErrorAction SilentlyContinue
+                    $ad = Get-ADUser -Filter "UserPrincipalName -eq '$Identity'" @adParams
                 }
                 else {
-                    $ad = Get-ADUser -Filter "SamAccountName -eq '$Identity'" -Properties * -ErrorAction SilentlyContinue
+                    $ad = Get-ADUser -Filter "SamAccountName -eq '$Identity'"   @adParams
                 }
-
                 if ($ad -is [array]) {
                     if ($ad.Count -gt 1) { throw "Multiple AD users matched '$Identity'." }
                     elseif ($ad.Count -eq 1) { $ad = $ad[0] } else { $ad = $null }
@@ -156,8 +164,8 @@ function Search-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCApe6HsMPEIegSp
-# 1RXDQomkKJppyGi4PP9XryMvpU63B6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA7tUy9aP7VHzBH
+# XueuKpwY3fKPLLcvO56HZsu3u66zaqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -290,34 +298,34 @@ function Search-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDsDOcCIET+
-# 8QeNFJXtf2aT0fu9JFJniszoxIcJrkt+ajANBgkqhkiG9w0BAQEFAASCAgAqKOZv
-# 4VuH35vDrIfpibPX7JHYxfCSS2Q9F6dQp/ja/t/brx26kqVj4Xse6Qn7gXxDG97D
-# xjpWw0NdZi8iyjZ0L2NpVVZYwVhGUTodeKNGjFIhrMYH1ygeVJ4z9VOqoMCscHKM
-# gMOkfUWBME66kxNs5LQCvxmVwET14BHwbDgdW0/nUwCzL1Xwt/xdGhimHTboZnn8
-# VZQpGJBWMn0zbh4by4xXmqVT0tpQyYrlp5EvNpJzEO55AM3CBjysIm3ZIDo2hyzN
-# 7JzOMOFpslvuqWWa4/sXdKhwhNdGIiANQgIjha3R1iUDehgXmTkOLsnHZJRR/kQ6
-# T/Ey+rJGJcMNn+c5rcV8XHBQhutSaW9JoDgReU10K8l+BYOgbGy2M+49oLEXZW/q
-# hfLpqmgVsTYt58gmTZIU9wjtIoCxqt4UvzgAQNTZqROAZKr98HtbKeqWpbzPZjs3
-# GrC9iZ+XPvi+qOLPEJePW4iljlSqxQoqmeUt9LtNFQ1g2Vjq3JLQaR/A+MXBJFFy
-# B202hPeKP6gjvJeMP4GgOzENiDOSSVzCguAiZwbn+BgpGvfSE03ORqa2Xf1mjc4H
-# 0niFrIqeoWWgd9Sh2b+HopVEovsgUqQYExKDTx3ety5EULwU/CLEMOfmqEi0v4Vt
-# qyRYJSSVboAr0gLcon/tImfm0Ysn5zENJJ63QaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBjcMShYkDJ
+# BcjLTTSZGzj3lUE/9Exr4IxeejZauEwxgzANBgkqhkiG9w0BAQEFAASCAgAfFmue
+# HaBMPPbDBMOGhfQJUHjTAZt54FwUnVv0cgQaAnvkhXRPjsT0qfCb7dYnQCaKhfwd
+# UHU/sTqEsdwQmO4X4cmgOf0ULw/oUsrGDwY4nXQePuS6FBJ20Q3+UDkmpx3o0VNm
+# rYyEJnNciamdFsoxlzP/TUCSuSQo2CfGhjhKRHyzvlYVlQG+IXqnDOzCKt4J3ns6
+# /p3EJFNsWwCKZ6ZM3HinSFkoQVKY1ZnXdJGbPzL+WjQAFS9q/Rj4yHoOcACcLnG5
+# gMTuL4FK4LabTZ9j+aRpvD8+1Zx/d4uJWg7uUSaHaOiLDcm5Kd9On+bQXBC6Xibz
+# pKlkR1jYPrulSd6IZXmwEOlabTyAv4nZgmfICocH640ak4sSnelR0Iox3GsygISr
+# 0yLaTmyHkZ/1FW0qj6qNbDU4HkwobnCUpyAvlBzcJTXg5qsP2Pm7SPs+iNHZJGR0
+# T4qSxA790vmIesyggYWo/drWLh8IWugZbREKdDUfCWn8SmL4EWH/1LUXgUy/8ym/
+# SddivCYvBj5RliC3znAT734X6pX12WyQHM0gDYHc2gJgRfQJmQJd0ADe26d7pOmY
+# VnvReyoi0IfBzJ3cWRli0WDCVkRtHvq6cx3fHVCz6gJf9JR+DVXhRP5387taC/qK
+# 8svacXm9931NYLxxQUkH00COlHZQdmOAn6xNm6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjExOTIxNTFaMC8GCSqGSIb3DQEJBDEiBCCRfOcSv0XZPg3kyrZN
-# LBUteWSZnnz5r04TbmcV/AfIDTANBgkqhkiG9w0BAQEFAASCAgAg1Z/UfNOwwMSt
-# L142TigNAXNXszCEtgjyStG5k+ABeWjZ1Xx5K1eZVNU91awsN/L3cbCK9b5SdDSR
-# spW3MRHem5nQZd1qXOrb2MgUzlEFBM3ICewZeEKlykdd/DngQBj9g7xTNt5H9yxB
-# mJCvRQgFLZjBbeMB9PUdTrWDSlpXiUmoyZ9VH7qjeewIRyE2h06ZkavcPfU8pE4J
-# dPnHhMybeQMSYnDWJbyhrt42DShq4Od+JSFPVL/s6PwaLF70S+vqwQavmxBSSV6S
-# x4H1E65rjwCj4sGIaSJx1WU2h4ItUvJyyG7Hzrq5AHNKse2zWf3rZFwClUoyaiiH
-# 5EUkrWmLeLOKduCYNPKR6k+sWsa+x8u6VBTI4fPgWh9voc7LIkjeiFdtLiKJXBoI
-# F72nWseB/x+6txKJzsbOojZ1oMLzx/E5prZsXn9xjjaLGk7SEMTfTlZPIz+MeNFI
-# YWgEXkYCizfMh87rLxcYBZIky44OLZoNp2x9uGz8+PndPFag5A23z7QWt91Vn6hC
-# aKI3qAUULgp7midYTSGzi4DsiCzH3BPuHT0HrD5tzjqoE+3CtUtI/XeDAAIn0B/6
-# 11pzfIGNJJMGrEuWtD/jERXsj+C3jH7xLjyautNuI3GfSkm+Fp/i/xCe0ZoNOU76
-# 9+6NBRyS3GPWf/TLFoN/ouFBrNFUxA==
+# BTEPFw0yNjAxMjgyMTQxMTZaMC8GCSqGSIb3DQEJBDEiBCA1n27acsP4wpCix2B5
+# v6u21qtXY5DtZSgDN25BRlS9SjANBgkqhkiG9w0BAQEFAASCAgBw4+7Vhh9j5HaB
+# C6OJKaZh7PHAKb5KjbqlLZIntqpbx1M1eUvRdNyigos7RssRqnaecgGpu5R0zS1t
+# no7fr7fioaaYcZXfQI7fUIRQBDM6HvAQBr3zPfR0KAkoWzHIxvuuYw0ivE8Wbjgr
+# q2dGBWlTRJuMNBpa6tqyViexX/wvHirB6Mm8zNSQETgvwV3JrrQaPBJ55JbltQFL
+# MToLCI/Eqi9ctcfsme77M2TGaW0gqACLQaf/FGlbCU4ei0jMiB3m4peBZF3yQlSP
+# ImL0uWnbZ1wZhyp3UAE4zqdbPzmQaWCufvLiobKwJkKSVrE5hOCgWobOfQGiKkc9
+# 55jKcoMCbncl66IWx0vMtPjhurRMmLe+8Jnd9x2X3fibVAQ7l5wpQqxnrIZG+pl+
+# pyCD/AhPtZ3iIIMm/5ygg2sDoOrKFeDm/L/cvRd6pHmRteWZb1bFVKYrCIsTUYty
+# QRkvDkKe6uRx7RbTcaalAmBNtPIEmvLFJxAHABzZllmVg0PiZmh9k9k0J/MnPGdB
+# 15ypkHr9mXGmr1ZQiuCH7wfCI4Q3khSD5eTlrhgkhfrbzab5wcAypgjaI5yIMrFw
+# lbCnJlzMleNNJXiSFgSYN+RIw54E4P37hm8VWrs7WmxAyBQMNQ0U038C+qHirXbo
+# /PDbNiCXzjW2Z2IevkPTryNksIWH3w==
 # SIG # End signature block
