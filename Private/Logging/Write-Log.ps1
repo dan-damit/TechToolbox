@@ -2,27 +2,71 @@
 function Write-Log {
     [CmdletBinding()]
     param(
-        [ValidateSet('Error', 'Warn', 'Info', 'Ok', 'Debug')][string]$Level,
+        [ValidateSet('Error', 'Warn', 'Info', 'Ok', 'Debug')]
+        [string]$Level,
         [string]$Message
     )
 
-    # Null-safe config read
+    # ---- Resolve effective logging settings ----
     $enableConsole = $false
     $logFile = $null
+    $includeTimestamps = $true
+
     try {
         if ($script:log -is [hashtable]) {
-            $enableConsole = [bool]$script:log['enableConsole']
-            $logFile = $script:log['logFile']
+            $enableConsole = [bool]  $script:log['enableConsole']
+            $logFile = [string]$script:log['logFile']
+            if ($script:log.ContainsKey('includeTimestamps')) {
+                $includeTimestamps = [bool]$script:log['includeTimestamps']
+            }
+        }
+        elseif ($script:cfg -and $script:cfg.settings -and $script:cfg.settings.logging) {
+            # Fallback to config if $script:log wasn't initialized yet (rare)
+            $enableConsole = [bool]$script:cfg.settings.logging.enableConsole
+            # Compose a best-effort file path
+            $logPath = [string]$script:cfg.settings.logging.logPath
+            $fileFmt = [string]$script:cfg.settings.logging.logFileNameFormat
+            $baseFile = [string]$script:cfg.settings.logging.logFile
+
+            # Simple template resolver
+            $resolvedName = $null
+            if ($fileFmt) {
+                $now = Get-Date
+                $resolvedName = $fileFmt.
+                Replace('{yyyyMMdd}', $now.ToString('yyyyMMdd')).
+                Replace('{yyyyMMdd-HHmmss}', $now.ToString('yyyyMMdd-HHmmss')).
+                Replace('{computer}', $env:COMPUTERNAME)
+            }
+            if ([string]::IsNullOrWhiteSpace($resolvedName)) {
+                if (-not [string]::IsNullOrWhiteSpace($baseFile)) {
+                    $resolvedName = $baseFile
+                }
+                else {
+                    $resolvedName = 'TechToolbox.log'
+                }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($logPath)) {
+                $logPath = $logPath.TrimEnd('\', '/')
+                $logFile = Join-Path $logPath $resolvedName
+            }
+            else {
+                $logFile = $resolvedName
+            }
+
+            if ($script:cfg.settings.logging.PSObject.Properties.Name -contains 'includeTimestamps') {
+                $includeTimestamps = [bool]$script:cfg.settings.logging.includeTimestamps
+            }
         }
     }
-    catch { }
+    catch {
+        # Don’t throw—fall back to safe defaults
+    }
 
-    # Timestamp for file logging
-    $timestamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
-    $formatted = "$timestamp [$Level] $Message"
+    # ---- Formatting ----
+    $timestamp = if ($includeTimestamps) { (Get-Date).ToString('yyyy-MM-dd HH:mm:ss') + ' ' } else { '' }
+    $formatted = "${timestamp}[$Level] $Message"
 
-    # --- Console output with color ---
-
+    # ---- Console output with color ----
     if ($enableConsole) {
         switch ($Level) {
             'Info' { Write-Host $Message -ForegroundColor Gray }
@@ -34,18 +78,39 @@ function Write-Log {
         }
     }
     else {
-        # Always surface critical issues even if console is off
+        # Surface critical issues even if console is off
         if ($Level -eq 'Error') { Write-Error $Message }
         elseif ($Level -eq 'Warn') { Write-Warning $Message }
     }
 
-    # --- File logging if configured ---
+    # ---- File logging (defensive) ----
     if ($logFile) {
         try {
-            Add-Content -Path $logFile -Value $formatted
+            # If we were handed a directory, compose a default file name
+            $leaf = Split-Path -Path $logFile -Leaf
+            if ([string]::IsNullOrWhiteSpace($leaf)) {
+                # It's a directory, append a default file name
+                $logFile = Join-Path $logFile 'TechToolbox.log'
+                $leaf = Split-Path -Path $logFile -Leaf
+            }
+
+            # Ensure parent directory exists
+            $dir = Split-Path -Path $logFile -Parent
+            if (-not [string]::IsNullOrWhiteSpace($dir) -and -not (Test-Path $dir)) {
+                New-Item -Path $dir -ItemType Directory -Force | Out-Null
+            }
+
+            # Only write if we definitely have a file name
+            if (-not [string]::IsNullOrWhiteSpace($leaf)) {
+                Add-Content -Path $logFile -Value $formatted
+            }
+            else {
+                if ($enableConsole) {
+                    Write-Host "Write-Log: Skipping file write; invalid logFile path (no filename): $logFile" -ForegroundColor Yellow
+                }
+            }
         }
         catch {
-            # Fallback: warn if file write fails
             if ($enableConsole) {
                 Write-Host "Failed to write log to ${logFile}: $($_.Exception.Message)" -ForegroundColor Yellow
             }
@@ -56,8 +121,8 @@ function Write-Log {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDVZrX0Xn/5XtUs
-# dUUrVUekQNqO/O5Cte396KB5qTlzT6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDVId2BpfDcBCLp
+# WbuskIUCx5uaTetIgHw0U+0ONkYFHaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -190,34 +255,34 @@ function Write-Log {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvWLruEA/4
-# XFoo7V5Yaa2LFnVgv4/U2wbAWmtxWedEjDANBgkqhkiG9w0BAQEFAASCAgB6MUSI
-# 0qwVHflUyVFYXQqUHLCf3gSbeF55wdYrI+0SFm1S+CNsHK1SeJv+BokqlsmzB7Kn
-# CJKq8YEFD3LAOLwyMJaENC06QSddJeDbJwoDlEQ4mlVM7NJhuGbFKlRhzoOJRNAv
-# U/DtvhuDKKvs7RWry9B5JQgUmc8ePLqWajb4A1q5A4eAdbjIMt7NF3c+xmAnwJtF
-# VWjjLGvzo+4oxfAddxl/qBo/zwKqE3S7YKUUcLbPIUTVUjMB5o2LAWm6Ymtxr7Yr
-# TCqtagexugKc+ErZ/EmN/Z75D5XjZ8cJYvZLqZHEDfjzYaGFEYviRpxinXdVUv1G
-# dtQKrNuUafajutYpykPJzG7glMawulZ9TKO6f4ptQHti1jTmVZnZZdWk17aY4M0N
-# yJK9+TsKRXb4uoTzmspsOrsHMkW7wVqHaIocEROQjOQUleVbCtiTGE1QYWWssFeB
-# rMTW+pHNWspnv6Y1cM7lWlSXMKR3OCPTzGZnaZPaMa3Tpkosptwu0kONQ7mfoXQK
-# 4VxLjVDj/xiTohZ1Q/T2lKpy4KtbMOy8xO3vGGEYGX4NFobzs9Bh6raJxRqe40QM
-# mthj65dD5bxk+7R87JV4zcgbvZOUESaJjagqkiiR6f/FmavthYzUrewxVX3hRwiw
-# 60bhKbp3Swt9rFFLqepF5W2mlhJd5bfIh3dU9KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDh1cU+Sykx
+# AFZSXe7/ceoBT2quUHQnSs9pgBgl/4TLizANBgkqhkiG9w0BAQEFAASCAgA19cDw
+# r69h6acXmZzORr3+/Iqr1z+ruPGR66KH2G80UI28Vgxol1RgMsOs+Eto3HTDZmBI
+# 6DyWjwZ//0/YdsV81atMNz5aoRIhgFs0cTfC9sosakMzlEwp8SexVtOh4uS9ZxRN
+# ipl+gEXJg+gN6b1nfXeI6+zMe4FBQtDwWhwzou1KpTmeshex4KWTsx77ThjEy1Gm
+# 8QgUxYSCFy36kTSQ3TVIXwVZ7cETxjgkuaseFTknQ9pRjxyUiWc1zel088ggy5jH
+# WYkAE1/No8QCWBsZzgyLRcvHX0alG5sh1b1Q9Ad7JuzIpoGPkywuuY8G7TohPMv2
+# wmAzVC55J6H0rPN4FInoe4/ScEexsP7spvZ/XgDLaiFWFEER+tSG9v5jpWfQBMjy
+# r2wAB4MsvhZqsd+Q69Vbc34Nv3OWEycGRWdcao6+GYXilh1BtWevMMIBO6QrBj7Y
+# VJlb+i0MvNfE599GxB4nqEX3KMYy20WQJcICihUnm5j6EJ+acdolTo/Ka7RSLiIq
+# pY2oykLv9OFQoXqQRqpkFpgtXsFnGaFz6obGaOp3jOZDm7zX7AYB09mOpzts2FBI
+# 3qWB3kn1rc4wfvcf+FtsiZW0EZdjYmO3Q0RbzrSC8+WkRuz3OFkE5gTdC06ic+fX
+# zhD3h8vC3bL2cN9HzN8I1LIb5auKCZ0qybbEx6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjcxOTIyMTZaMC8GCSqGSIb3DQEJBDEiBCBC75i/m2OF1KRp0t5w
-# XP6bC4imPza/73IoAptx9lUQSDANBgkqhkiG9w0BAQEFAASCAgCXwff2+N124L4l
-# geFkbieEd/Bvy8mgPsaU9lK+Ir2faAhAGi/r5lpMHPHTqP6tgDMcX6Fcm9qOyjKD
-# Z0MAirv/vrVuOqlTu0xC6qKJmTM0OmEsdvAvGUH2UWDVnYP4EgDYeoklHcExovmm
-# BonVBLQKrz0UqO8m7bmcRCLGtimwELh9JjAXTLR/AzPeX7uR8xvLOsRxV9Tn4YKR
-# 8uP/gFnI91v5XT96UTsmr1XPtGD1oiZJataYuBceZTnXp67BSfHscAsK0lNxhp3u
-# gr3TYeHJcQfjXLkHKHuqsWZzHC/4RRyjw15Zz9h7GiZt4e7vV43OVNZUqKKf7UmT
-# 5TWTTfOBnEnVOkHvb3aDm1eHM4fftk4KDeA3FCA6/ngVUN+YmlHKa9d7aoPTK9tz
-# UMcW6i2QmmfsSEbwPXEFQcc8bJMwSlz7KsNC2V8DcgAkwIr6xBbKnpwDPhAyveqL
-# F6la86qCYlsNmJUz7eZmlT9lwNy0x8OMy55FMnqyLD7DufBggc7Pqv72su99hYTo
-# E5YSsKGqzG2/5yZoGCwWNLK8Qlxa/2VoXHXIG2/Y3jhmMPaFI+nbtSuXznuSoRqN
-# Zvg5LnxAmZoLeQYKJZmyhhb5oj0K1iOMejYCQy9sfknl2H9efMQ4C0luGzh/v9LR
-# 1ePzANye8V6lxJig6rSv3L22AExSpQ==
+# BTEPFw0yNjAxMjgxNzM3NTdaMC8GCSqGSIb3DQEJBDEiBCDY6o2146LOm4NCb0w9
+# Lt+n5Vm8GnyG2sXUos8EQUCLwjANBgkqhkiG9w0BAQEFAASCAgB2pyA+PAH/++1A
+# ihcplxpLfQ+iwSD3T0WIPAEM7evrgSPRdOHT7lfnl9FmjyKfR/WfWgMzsLHxv/u4
+# /IxD9WelWPj0+5IXCfgl7a1lixnlbElBAhkpxjpA7CBl3V3WRtV71m7Q/uWQEMgh
+# 78lsGxQadcIPxPct9X9sbOsOli+jzZoEn447yGc8OvnyPSsOPb2p6Wh1soc7uYgD
+# UsrUUQ16cdbo8u1Wqgt1hEj2H0Gep8XvnWOeik3zLBzcIurxNZTgJFnDqWxkpUuC
+# N/e1BMgzJfIzMLo4gVwgfTiWHVQX3aWACKw5mxQPuz51VH8VxgCe75v2nDf/8/+S
+# 976ihjyyUzLc4P8zdKsl0VFtBG6/075AURa8SAL4z7SzealTgYw0LEjdEeJcRmUu
+# VhLuHN+07Rq5R9yoBoFkAtzss4Y06fC+54dd118KyoSHaOOGG7IlXtyWD4wJ9hbw
+# yJJsGK7ZBvatyQ6VEvUxVr5TN+cLRv86z2geer+K7gYe/p7EQLxv/7f1cCDiWUS3
+# 4Ngku2R2ugBNym5+MIVJF4xoVA09q785GcKlmu0iGaa1V1mM+Z/uSZX2qBplk2o4
+# S54OI7AhLV+5IGZZxY3pmP9qneJ4rm9T8kxRgvkHaRwKO4J0U+6yC3jZX6TMEigv
+# GuB49TQl73ZBqizcFzG8MbPZO4N7UA==
 # SIG # End signature block

@@ -1,23 +1,39 @@
-function Initialize-Config {
-    $path = Join-Path $script:ModuleRoot 'Config\config.json'
 
-    if (Test-Path $path) {
-        try {
-            $script:TechToolboxConfig = Get-TechToolboxConfig -Path $path
-        }
-        catch {
-            $script:TechToolboxConfig = $null
-        }
+function Initialize-Config {
+    [CmdletBinding()]
+    param()
+
+    # Ensure ModuleRoot is set
+    if (-not $script:ModuleRoot) {
+        $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
     }
-    else {
-        $script:TechToolboxConfig = $null
+
+    # Paths
+    $configDir = Join-Path $script:ModuleRoot 'Config'
+    $script:ConfigPath = Join-Path $configDir 'config.json'
+
+    # Ensure config dir exists (but do NOT create or modify config.json here)
+    if (-not (Test-Path -LiteralPath $configDir)) {
+        New-Item -Path $configDir -ItemType Directory -Force | Out-Null
     }
+
+    # Load config.json as hashtable using your authoritative loader
+    try {
+        $script:cfg = Get-TechToolboxConfig -Path $script:ConfigPath  # returns a nested hashtable
+    }
+    catch {
+        throw "[Initialize-Config] Failed to load config.json from '$script:ConfigPath': $($_.Exception.Message)"
+    }
+
+    # Optional: back-compat alias, if any code still references TechToolboxConfig
+    $script:TechToolboxConfig = $script:cfg
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCOEgMc7l4Cgbam
-# vIwJXWb3W9cnR62n3l8r+T6d3RrgDqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCtKUCTnRzA3Mkn
+# /1ERAdQm/UfAB4KxYpEw0hNSzvSwJqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -150,34 +166,34 @@ function Initialize-Config {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBFvtGMwp5d
-# UYPxRm8JcT32TqGZm6Hjh8unBxqJWp09ajANBgkqhkiG9w0BAQEFAASCAgC6bwb1
-# MMA4ACo86K0M40+aGMADW8vxigaqECepqIqiSFwrH4nJAdfBdRQsEfO8+UpVME/8
-# KsEaRzzc23URbYZyJkyVqyZ5U4T278jGuaNVOopNThm0qTeYcMKu8wRyBuNZU1At
-# wQKWTiUj1Vsa/FyMp3wyJjuvE66ifBhU+LlDWz00EPQ+DFqmOhIXFJxLVXZ7ygeZ
-# J2v+hgPCzHn7gsj01KfWkhg0vqGhqdFJS4pFBrsnAxOkMIDnPAVA3DAq9AedPZ6N
-# jampTEo79KiF/KRyqQwm3ELrY4wG/dzmQIJ8GOhsjdDDlBUI9hKTV7B3IMsJJMLT
-# zpxyhDYlLGtIbc4YKX0Bve5yf0LY0zHJOqjeLwydAGncHAxl7Y8n6XEFT3p1Ccw0
-# oPyWaKJcdfOe9o8CA4BkdsLk+uv6FySRib2IshGTCaamecppAiGbnMjVr2H9iIia
-# Cgvd0uhSceni3yIcrvtLSkYVzRlpvKYDjyLrk77sgX49iRfHRTnbAc8nd7O7aZ5P
-# hBONyUgRdrxK5XZ1LJ+mINCwP6XvPq//Q7wv/B//xGQ1zfThgBsY0heh9t9vaY+A
-# 0JzxI0K74B959GA977/ubK+dNJ8SYpgDai4pWKcgBKYA1UobhUmorURBhIKdAuEU
-# POj24hi2Ku2mp/QluNlQDfxX5SS1Ox27PAF9D6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBtBzL1a99h
+# oNPQ9m2jLlGIVElAvdGLWQ0iZQb3j3qe1jANBgkqhkiG9w0BAQEFAASCAgDbYs8G
+# JiJ8uD3Bvu72+82f8Hf35703HkBNR/vejG1Dg91KnVmTb5rDjdxL2+U4bkiVWCRs
+# 6/K6n/+xrv1ohiWH9P7UkqztFeGdnYTpzFC2oL090FAHQ856d7TYi5x4Dn4jCB9s
+# CX7lGvxaExv6oIkL3zXgDJqLgz5CGaauwuKHS/F8BKdc66mt9rI+Mbi/B2STHdMP
+# AvOyWiX4iLhytwJxbMI1bUfcioZLsi8sLEy62t32QFvhBxrslCT3CpK8S5KVDlUI
+# 52ETwLttPWoCSOzCD3IdC0AKiBDIg8MoCe8/tbooTqVSSqfWj/uu0IiokZjOp/0Q
+# OrvqtbpVTekTn8AthShgpNvKzgxdsLq+pThUDb+DSV26N+38X5L6lH72gMtN2Y11
+# AOr8/PibUclZbW/Nw2J2j0MGDBYVmPaC/BbVsSS7En5hiRmo6ibW8FwoAIyqVvbx
+# 7iqWVDjR231g/gGxRl9ulcVli/6qBdnNVGFPF1ACF9/CgU3PGK3FfprdU8cRZUHa
+# VEOGxvuCoxaUKddI/6zZrPLS8jj3E7JIjAtr34Wy26D8acCVNAzYgHrjGq6GrNpE
+# gAvUldE5Iq9PnJzzTOIVc0dDyp0JtXwftEhUcgLQysaBDdqgibbPZHSmZWYUO9vl
+# 4DVIslxMPRRL3SJIzQRXoQlXVoXeGaS4nDYF2KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTQxMzU4NThaMC8GCSqGSIb3DQEJBDEiBCDdq90HjOr96K7dHNum
-# wRLDT/jaA3g9HWhIuqnDmWht0zANBgkqhkiG9w0BAQEFAASCAgBguycux/NULzL+
-# pqlOQQhevXy3QhcyejIGzTB+POEma4UKbEJ7sOK7oPGm+pgdOPkyeEnhnKuBHBAQ
-# jxUw7LLoSz/9r/Vwws4Xi6uXV10n9VPz9si3zCcx1WuGiX5ktg6C8jw8r/HLE1Ld
-# w9+CO5yZe89cNQfLafPIc1IBJB6neadg/DjL2eDRHNosbyHI+k74kl7uCMMHVa4Q
-# R6vbksdUZ09hhuNKTs8OT4FvhB73zV/IuVPQvxBmSaKgcWxXPg2zrMNnyBOKyoLX
-# DO8pvWWbLoGYW6Qm8YlKyATj3b65n7Gbj4v7c/ZA6YWWDrNjH6XWfuVlCwwxUZ8u
-# iH5hRhSCnOBCyHYREtqDVn99F3akDnlUK1OGUX9uYtFdHa1iMDECvceWCWstsiaV
-# ZQ4OK8zb9ynwFAf+2rdpSfnT6sZIGI4AI/qnhSuB7157UCfB+KkL81otS6GkzbD0
-# 9FRfj27wYbRvHEohNzoJQJDoIomBkp2VsyB4JRqb+GpHwlPR2KzxxsPsFU2HRSsl
-# N9jOtvIMBxTN7fbUsQ9154czoc2wENmXzcEtwfutRuXm/xKq7nBQb0OrndD3e2u7
-# gWszaRqjYxCRXtMF3hYBW8hIFMDNPGhjLGMuxPQLcacq+FDGSG6sWsbRzXSVcgwV
-# qUFm5wQi69ogUJ3lhBj0kf1OQ08KzQ==
+# BTEPFw0yNjAxMjgxODI5NDBaMC8GCSqGSIb3DQEJBDEiBCC2WIZrOGLT0BwJQw19
+# UdlRjwOhYBo/T2IMwgI+K6wGrTANBgkqhkiG9w0BAQEFAASCAgAH8oWtWk8OFisk
+# ZcbHG49lwWICCRAccnJWssF9TGAqv55QGPOGhCAVaccauXxOuxQbWvtdDIB7Pntz
+# x7zR9JnJNLTjwRKRjxxVAhMgtFiEkoE79AL0+GxTREqN6D3VL9uQsY/wpvVBFntE
+# K+wKw8orQmX6jbJE3Xs9u470D7rM+wqSH5c1rIMw+/of+xRC0oemuQMWBBpoqu49
+# F7+BZzOJql2UTpoEUibbZKWO1nCZtFsvxKr0nkhtUs3nbR036aOsOltjxwZPlKMy
+# 76hI+zFgCxiz5knDQFyueVgAD6HzTFreqY3yzKnxxS/jdOAwMcNMAJEbk21vm0/f
+# C3JCm0dIOJOh0A9eweLdLgTDLutCSzqJdJr9i6HWm4MnCnNzObhaIdn3Y4s2BiHs
+# /aUCMlG0mSW6Mmd7mgTKHwd7I19gWuRGPzG5VwV3ReoJMpp/yyYcEaIEjYi2usP9
+# aptCxfNRTWYS3c8xTJJyHS6QrkngdBWHUZsThfaBcSOLm2XDqubyP0Poe0A0t6XN
+# efKMbZoOmnEJzajZCkv4PhHSIyoOd3nm/IzEfH+9xg3zFFDye7ke0a7hJhQkQrq8
+# 2ZaP7oOO4jbX2BI6uAwNCrs8EjOMGEFMf1rzHp1hAE5x7qUYQDcIQ+oRbGv8OckL
+# 1bj3K97NT6XRchi+3odZdDm/PgiwzA==
 # SIG # End signature block
