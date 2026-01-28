@@ -38,6 +38,9 @@ enterprise-grade PowerShell module.
     - [Search-User](#search-user)
     - [Disable-User](#disable-user)
     - [Remove-Printers](#remove-printers)
+    - [Initialize-DomainAdminCred](#initialize-domainadmincred)
+    - [Get-DomainAdminCredential](#get-domainadmincredential)
+    - [Enable-NetFx3](#enable-netfx3)
   - [Design \& Conventions](#design--conventions)
   - [Troubleshooting](#troubleshooting)
   - [Development \& QA](#development--qa)
@@ -423,6 +426,60 @@ params include driver removal and/or ports
 ```powershell
 # Example usage
 Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru
+```
+
+---
+
+### Initialize-DomainAdminCred
+
+This function will prompt for and save the domain admin credential in the
+config.json. The password will be stored encrypted.
+
+```powershell
+# Example
+Initialize-DomainAdminCred
+```
+
+---
+
+### Get-DomainAdminCredential
+
+This function will dictate how you handle the stored credential. This also
+allows for the credential to be stored in a variable for use in the console
+session.
+
+```powershell
+.EXAMPLE
+# Just get the cred (from memory or disk); prompt only if missing
+$cred = Get-DomainAdminCredential -PassThr
+.EXAMPLE
+# Force a new prompt and persist to config.json
+$cred = Get-DomainAdminCredential -ForcePrompt -Persist -PassThr
+.EXAMPLE
+# Clear stored username/password in config.json and in-memory cache
+Get-DomainAdminCredential -Clear -Confirm
+```
+
+---
+
+### Enable-NetFx3
+
+This tool will enable dotNET 3.5 SP1 either locally, or on a target remote
+machine
+
+```powershell
+.EXAMPLE
+    # Local machine, online
+    Enable-NetFx3 -Validate
+.EXAMPLE
+    # Local machine, offline ISO mounted as D:
+    Enable-NetFx3 -Source "D:\sources\sxs" -Validate
+.EXAMPLE
+    # Remote machine(s) with stored domain admin credential
+    $cred = Get-DomainAdminCredential Enable-NetFx3 -ComputerName "PC01","PC02"
+    -Credential $cred -Source "\\files\Win11\sources\sxs" -TimeoutMinutes 45
+    -Validate
+    # Returns per-target objects instead of a hard exit.
 ```
 
 ---
