@@ -1,56 +1,98 @@
 
-Set-StrictMode -Version Latest
+function Initialize-DomainAdminCred {
+    <#
+    .SYNOPSIS
+    Initializes the Domain Admin Credential in the session by loading from
+    config or prompting the user.
+    .DESCRIPTION
+    This function checks if the domain admin credential is stored in the
+    configuration. If not, it prompts the user to enter the credential via
+    Get-Credential, stores it securely in the config file, and reconstructs
+    the PSCredential object for use in the current session.
+    .EXAMPLE
+    Initialize-DomainAdminCred
+    Initializes the domain admin credential for the session.
+    .NOTES
+    This will pull credentials from
+    $script:cfg.settings.passwords.domainAdminCred. And set it to
+    $script:domainAdminCred for session use.
+    #>
+    [CmdletBinding()]
+    param()
 
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
+    Write-Log -Level 'Debug' -Message "[Initialize-DomainAdminCred] Starting credential initialization."
 
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Cyan
-Write-Host ""
+    # Ensure config is loaded
+    if (-not $script:cfg) {
+        Write-Log -Level 'Error' -Message "[Initialize-DomainAdminCred] Config not loaded. Initialize-Config must run first."
+        throw "[Initialize-DomainAdminCred] Config not loaded."
+    }
 
-# Predefine module-level variables
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
+    # Navigate to credential node safely
+    $credNode = $null
+    try {
+        $credNode = $script:cfg.settings.passwords.domainAdminCred
+    }
+    catch {
+        # Create missing hierarchy
+        if (-not $script:cfg.settings) { $script:cfg.settings = @{} }
+        if (-not $script:cfg.settings.passwords) { $script:cfg.settings.passwords = @{} }
+        $credNode = $null
+    }
 
-# Load all private functions
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-ForEach-Object { . $_.FullName }
+    # Determine if prompting is required
+    $needCred = $false
+    if (-not $credNode) { $needCred = $true }
+    elseif (-not $credNode.username) { $needCred = $true }
+    elseif (-not $credNode.password) { $needCred = $true }
 
-# Load all public functions
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    . $file.FullName
-    $file.BaseName
+    if ($needCred) {
+        Write-Log -Level 'Warn' -Message "[Initialize-DomainAdminCred] No stored domain admin credentials found. Prompting user."
+
+        $cred = Get-Credential -Message "Enter Domain Admin Credential"
+
+        # Ensure config branch exists
+        if (-not $script:cfg.settings.passwords) {
+            $script:cfg.settings.passwords = @{}
+        }
+
+        # Store updated credential
+        $script:cfg.settings.passwords.domainAdminCred = @{
+            username = $cred.UserName
+            password = ConvertFrom-SecureString $cred.Password
+        }
+
+        # Save updated config.json
+        $configPath = $script:ConfigPath
+        try {
+            $script:cfg | ConvertTo-Json -Depth 25 | Set-Content -Path $configPath
+            Write-Log -Level 'Ok' -Message "[Initialize-DomainAdminCred] Saved domainAdminCred to $configPath"
+        }
+        catch {
+            Write-Log -Level 'Error' -Message "[Initialize-DomainAdminCred] Failed to write config: $($_.Exception.Message)"
+            throw
+        }
+    }
+
+    # Reconstruct PSCredential for session use
+    try {
+        $username = $script:cfg.settings.passwords.domainAdminCred.username
+        $securePwd = $script:cfg.settings.passwords.domainAdminCred.password | ConvertTo-SecureString
+        $script:domainAdminCred = New-Object -TypeName PSCredential -ArgumentList $username, $securePwd
+
+        Write-Log -Level 'Debug' -Message "[Initialize-DomainAdminCred] Domain admin credential loaded into session."
+    }
+    catch {
+        Write-Log -Level 'Error' -Message "[Initialize-DomainAdminCred] Failed to build PSCredential: $($_.Exception.Message)"
+        throw
+    }
 }
-
-# Run initialization pipeline
-try {
-    Initialize-Config
-    Initialize-Logging
-    $script:ModuleDependencies = Get-ModuleDependencies
-    Initialize-Modules -Dependencies $script:ModuleDependencies
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw $_
-}
-# Export public functions + aliases
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCCp6GV4uuUoMbk
-# Kve40RJAg1ijwbULFS0htS+VwXhVY6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBgGxpGgnrkFzek
+# elo4LuzUawIOurPgxaHELVWqJdvuUKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -183,34 +225,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBPrkCQ26++
-# GhuFks8cb8ti7u0vYz+PhRDA+zJ+1crM+TANBgkqhkiG9w0BAQEFAASCAgAFb1GV
-# Le9GY8oCYHIgNnBWTIQj7qidW02DzafcfloN4GibUeE83NY7rNq66s8U/xb85meS
-# 8VdmFS3IoHzh6YvNmpcr/csdSmGfK8OK+YYHmg1uHdeps7ECOnhVurmLRaDn9tvF
-# tbf97/c+AahkhTpafSX4dBWjKUvO105Vsh073rHKdiAW1EQIv7bA5nS9tJuOi5//
-# GEgqHwuJWhP5vqDPrZpuTSKtPmd9PhT82lV9FgQJ2Vit+koILyeHcMBtVwCgSRQ6
-# Li02Y2zJy3MVknbB2g3p9ObcVWVbTavW/xkQElctV8sr4cVxeh5IJnJq0EC/J8/I
-# XLaOOk5QD9SFo3U/rSOW/Z3kk6raeQpVZRacAiyzi80m3E8BzkR9rt14q7TjBYXX
-# UodpQepHILOA+ci93iHZYK7stxGQdZgdc3e9XKmQD+CWXRdBQYBpR0DHKJf9OzUe
-# lVT0PYKTpsa0r8fHhf6/sUaCsK1+4OvPVvdaqjL0apzHEmf3yqnh5qE4MpP7BxU2
-# VY6+U+azN71D1nOCOSyYR613x0iVXxPwfbyIWJs5woFE1ZSzbifdfpuu4McOMO+a
-# 7qTvJSmmgWdJDJ9hjoeNmN7MjUpoWqC26cpdd8VDEO8vQB2SsbtdpL5dz+qgFfKS
-# lUXj5xqvTedF3tTBBvP/ZeWuN9E6kO5YFp+ldKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDUFLGRxa4T
+# jY7dgac/yUlQJ5iiDvqONFxsHb3Zu/+DjzANBgkqhkiG9w0BAQEFAASCAgBh0Qai
+# mgaj9Ug8rUvVHuZ9OvBzKRC7kQgwNLNbI9rTwRe/wT8cpdI/tfNBNGBcp40za0bj
+# BXIaG4XRWcfgjUXa3EUKmIiHwMQ6e7WD0qR1tw0oBuCF9Pd3px8Qhr+IvSfBqsR1
+# lQr8yRii46g22XGZxFkpzh8SacycQoDntsv9Jhh2AOZDXqzBeay7Ig9URLHLo4aH
+# n8qOP49THg1P7OIMEnsiwqIaqIQcHUOF/xfeGb01YIsT2P3AurmxI5xAivlpI7P7
+# wmLZEeQYgEtd2ezUULg7isw7AgTN8Lfvkz96oUfwGGZ0w/aE6ZRNVqUoJxk0bl1z
+# 8HzLFuXdjNrxDcw2qE1u6Iob3E643I8hy0nMpRNLZPxfa+cco96Yf83UaUE9W4EC
+# YdS2Udxs7FUY9HW1QTi7RRVAQf0GF2I+oOysQvn3j4t4IdrsW76ZZ2eVp4cIEnam
+# +YI3lnd25bjlz9s4q1MsooMvTilCSSOH1BbTdxUu+kZKWE6+IUG08IWPMZ9tieB6
+# 7zCSr5B61T6tHBZOeAuGfrBUda0z9qLyyRNrE6FCwEvop8EEFepbq1KQZhOvr8jN
+# T0gdgp1AD/GI68vx65fuuFE9qQyHkLRn5iprccvJYPAxaKiADnRJii+rnDp3nsBN
+# XdVEiJ2j090iwyfAVCVmwcCjnZbs/XCZ5jXjf6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjgxOTA5NDNaMC8GCSqGSIb3DQEJBDEiBCCoJv2Y/AxluR4ZQ6Uh
-# oDfifqig4Uwau9hNU3ekqRWt8TANBgkqhkiG9w0BAQEFAASCAgCPUNc+usOKImI8
-# rEae5J6yccwYGOx1+wu5RY1pQdDQ/E0tCg12U7Ng2H/n1OEVQY3Q+bIgW3Iq6M56
-# 5ZBfxFvBW0xsydisK6qxvbBCl1X8VV9vvzW96vATC5RwgprmcOWRH8C/6VcrbxnO
-# //8ihf1IYufLPwQg1JF1sl6zvY267AxlZavpSwstiGTAZjO8dQ1HsDe00gTYDxV3
-# m7anWUCZYsi21ySg/oG7Ro9JFQ7l+U7gvP/8UDS7YbZ/1RoAU27UVSRlXVb66Odw
-# JlMlzZkZ2wgEEbx+gzxwHQLN4n4Yi0lZqPkpM4NBKxRW4gEFetrQV6bATxBcMg3p
-# 1YxEtt6FV8ZbcUnIg7yv9/qyfD+mws1LBpsEyGAdAWwVgKup2L7LlBPOFlfEHMYk
-# EXunVLqcn9jaGYLLaBInRXOSfZQA4eI5fcYZ35iMSwHgRdg0CRhHxd0kr1MjJKaX
-# 8ffF2YdmNIc/BwAnklkAb6oO/f4lmXew6vQaDBwhHb58wb0D6kiz1NaMOu3CP78u
-# 3aqJ6ePppcBQi3a9T0IFBz6LREQ7o8cgFCQ3fUrHI+VwEbXOh98tQ1fo+kZHuaL6
-# HJUG7KWyWAEO/fs+Nh2RK/LSGWXcywjbpFlrqyQfDYdfjp4Wx+UCK5dryupx+VjS
-# zDHMpZ+l3+VhUT7Ifne4YKyWT1DGmw==
+# BTEPFw0yNjAxMjgxOTE3MjFaMC8GCSqGSIb3DQEJBDEiBCByhDFNM2CY/CbxczTB
+# /3f9RLE04KVI1QyNJvPHKBwyuDANBgkqhkiG9w0BAQEFAASCAgBPwaMHqOtYsnbD
+# ZQVLF5nb3bh4FjijlLLwJ0s92CuvyUdLNI2djm+uSjF1rrmW9+enK1/wrRox4b45
+# sp9stKYZzSWQt4VyedmfnCMpIBbAn78f67lRg46p1UUfygnv7nsFeLo7tg/bQdnj
+# 2ZXV8L4EQpJyjwLyCsUSfvJZxn6QVQhO6GQvmaf+qYnIuKwpfhf606M51ZtA4LTv
+# dzEgv7SaxBGxj13U7LZBU7EELUyWki3gpE5BXpPx1AtXEzRKyOqCsUQTLosVDQtZ
+# NGN4zh0jZ7BDv25zmXcoYJ92nC0Un9Sxv1wje5UWPq8b2krurcSS5koWIs+aV3Tp
+# UQCidXHNosrfhY6v1UkJ8QAyiDIJ4cD/tLyrW840CEEC7+FEc80L51UYIZHM1mXY
+# 2jHa3Hprc4dlB8wdEJ9634acd/f08W7CHpB2i43UgWyzQ8FASuHLY7GdSvfZzhx+
+# O16YRm0Tr/zf8mIJ0/lbHiNg35QFEkp6R2lSljwcE6HoAriokHB07L913kUH7I1h
+# o4Ij1U7CdnCoAyujJ+FYOdGmuv8K3MdSxfTq1NHde6ADvHvb/VEqJNGtKyx/Cteq
+# sqtnwEM/1QNwQ/yY5qSSzuA9GYMXsJHrRSeKlswrL4IAXRZbdCVGF9IjI+bRgjLp
+# AsnLC+r57c4dNB8hrH1jYLN+3hgvDQ==
 # SIG # End signature block

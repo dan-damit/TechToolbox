@@ -86,10 +86,12 @@
             "Dnscache",
             "dnut",
             "dotjoshjohnson",
+            "DPAPI",
             "dsznajder",
             "eamodio",
             "esbenp",
             "ewma",
+            "featurename",
             "flast",
             "hashtables",
             "hdrs",
@@ -99,6 +101,7 @@
             "jdoe",
             "Lanman",
             "leveldb",
+            "Linq",
             "lookback",
             "Mdns",
             "msiserver",
@@ -106,6 +109,7 @@
             "mtid",
             "MYPC",
             "Netbios",
+            "netfx",
             "nics",
             "Nologo",
             "oderwat",
@@ -119,6 +123,7 @@
             "psobject",
             "purv",
             "qmgr",
+            "runas",
             "rundll",
             "scannow",
             "sharma",
@@ -135,9 +140,9 @@
             "valueaddedcompanies",
             "Visio",
             "wordlist",
+            "writability",
             "wuauserv",
-            "yzhang",
-            "writability"
+            "yzhang"
         ]
     },
     // ------------------------------
