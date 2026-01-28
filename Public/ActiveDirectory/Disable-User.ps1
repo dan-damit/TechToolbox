@@ -39,9 +39,7 @@ function Disable-User {
         # Optional toggles for cloud tasks that don't require Graph
         [switch]$IncludeEXO,     # Convert mailbox to shared, grant manager access
         [switch]$IncludeTeams,   # Sign out / cleanup via Teams wrapper (if present)
-
-        # Optional: trigger AAD Connect delta sync after AD actions
-        [switch]$TriggerAADSync
+        [pscredential]$Credential
     )
 
     # Ensure $user exists for safe logging even if resolution fails
@@ -77,6 +75,7 @@ function Disable-User {
                 IncludeEXO   = $IncludeEXO
                 IncludeTeams = $IncludeTeams
             }
+            if ($Credential) { $suParams.Credential = $Credential }
             $user = Search-User @suParams
         }
         catch {
@@ -89,9 +88,12 @@ function Disable-User {
         # --- AD Disable
         Write-Log -Level Info -Message ("Offboarding: Disabling AD account for '{0}'..." -f $user.SamAccountName)
         if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Disable AD account")) {
-            $results.ADDisable = Disable-ADUserAccount `
-                -SamAccountName $user.SamAccountName `
-                -DisabledOU $off.disabledOU
+            $disableParams = @{
+                SamAccountName = $user.SamAccountName
+                DisabledOU     = $off.disabledOU
+            }
+            if ($Credential) { $disableParams.Credential = $Credential }   # NEW
+            $results.ADDisable = Disable-ADUserAccount @disableParams
         }
 
         # Normalize return for safe property access
@@ -109,9 +111,12 @@ function Disable-User {
         if ($off.disabledOU -and -not $movedHandled) {
             Write-Log -Level Info -Message ("Offboarding: Moving '{0}' to Disabled OU..." -f $user.SamAccountName)
             if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Move AD user to Disabled OU")) {
-                $results.MoveOU = Move-UserToDisabledOU `
-                    -SamAccountName $user.SamAccountName `
-                    -TargetOU $off.disabledOU
+                $moveParams = @{
+                    SamAccountName = $user.SamAccountName
+                    TargetOU       = $off.disabledOU
+                }
+                if ($Credential) { $moveParams.Credential = $Credential }  # NEW
+                $results.MoveOU = Move-UserToDisabledOU @moveParams
             }
         }
 
@@ -119,20 +124,9 @@ function Disable-User {
         if ($off.cleanupADGroups) {
             Write-Log -Level Info -Message ("Offboarding: Cleaning AD group memberships for '{0}'..." -f $user.SamAccountName)
             if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Cleanup AD group memberships")) {
-                $results.ADGroups = Remove-ADUserGroups -SamAccountName $user.SamAccountName
-            }
-        }
-
-        # --- Optional: trigger AAD Connect delta sync (Graph-free)
-        if ($TriggerAADSync -and (Get-Command Invoke-AADSyncDelta -ErrorAction SilentlyContinue)) {
-            try {
-                Write-Log -Level Info -Message "Offboarding: Triggering AAD Connect delta sync..."
-                $scopeId = if ($user.UserPrincipalName) { $user.UserPrincipalName } else { $user.SamAccountName }
-                $results.AADSync = Invoke-AADSyncDelta -User $scopeId -ErrorAction Stop
-            }
-            catch {
-                Write-Log -Level Warn -Message ("AAD Connect delta sync failed: {0}" -f $_.Exception.Message)
-                $results.AADSync = [pscustomobject]@{ Success = $false; Error = $_.Exception.Message }
+                $grpParams = @{ SamAccountName = $user.SamAccountName }
+                if ($Credential) { $grpParams.Credential = $Credential }   # NEW
+                $results.ADGroups = Remove-ADUserGroups @grpParams
             }
         }
 
@@ -195,8 +189,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBuI3lcP4E5/YZY
-# ZVTQypDo6RVRqGeoTV+MEnjmr06AAqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA6ZTl7jwfzO3y6
+# wAjRCGo6pvYyMp5YFtzdxF9M8kJT26CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -329,34 +323,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCk3ibyeFoX
-# plkcqSnonn+aKMWnvQRQYJcN70aL7IP4DjANBgkqhkiG9w0BAQEFAASCAgBIIv4j
-# sBcirzcay5kSJxHtBWAhNo9R8Au9JOjJ8PaaeG7eiAUVaDOqW8jYwNOdW6w8dGiY
-# E0Jf5Bo3UhM1y1KkFAgKWhg4BzaVqNXg/3AXMysoBGXWKlN00dl1Uw55dJtfQC7F
-# EQeH9bHT/KKfA8RWlqwAAc9O3RawohKNfAWhQ4ISqc7WgUJuMayP8+zlpf27XIad
-# VVxbDzp9290rBVs/qOQuxHB6iahFOzdkYwb1xjV18Bluu6AEnPyhvJoMHeXQT8mC
-# sh7ItSpyweV23Bl+Q93ROKOTwtfXhdrJ8la4sWd+lVFry81lm99OHpHAvyNo9Hs3
-# kXQZmMUZhGpnVXoHo7xDtMwvGgK5lUb1Or3sjMpcjdPIPAIvxrBlijS/UKD5d6r4
-# Fn9cVL9hf4K13k6TrgYmCK80qR2vzPQAl9h/XgK6/oMYXPWviDrJ4hWoWVem6yhh
-# aUEso9u5f+VfRFAFB7a6e6x18vVwyCjIUx9XUUrs27bzzq8ZkUPz11Lw5qArruwi
-# TijHXE3KTqJcQII1iI4byApyKNV3jLTA2yOqt8N6cfFcU37o4AkptOguM/SE2McE
-# /ymES9TQ7GIas8yRFTjY3TfwvKt3gxw7qaPuQs3Djf1+0Vug6Z3ukv+qTyB0FcHI
-# v4j+jcEPZ7hb9wUgbCTzQKQ0Z5FXjAsQcFSOGaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBsXjPA8hl3
+# I97IRUpRdsbGlRgyz6E22LB+aM1e8AfG9zANBgkqhkiG9w0BAQEFAASCAgCHMzJ2
+# R7be71N3xE3h2CEOOkjWytW09Bobp4o+SJl1v+zs8EJ22a1yPi5J+WfM4+GxgNTn
+# YMKX/n0cQMcsQKfG1HxMDO8+zCBRoHjM3XvN29vDPGgbULEer2sXSEn3iADwZ9QE
+# M9PglInjsgwCYiuTMhgjnLmJrXecnrjnST7b0KG0ekRZVHQ26gqRsk+/TWPzG96k
+# qoemPh/pKgsx1ZWhzasuguY8frzOWVfUungScRcjDioLCM/6czV3G8Kr9fNBJqOd
+# 7JES+YdY+FB/N1kGZ1cOw6bMV/QSKog+RjxFTTf21+tyb1QCHdNIva6cnTJAYO8R
+# tSdm5y/pJRkeGdA5u28m/eEzJeZLonXF0FjDEuhPdVRbPS6qkG3+c9Ac7x99IPhZ
+# hHrJBIxIrQPgMuXIqlpUlVef/C6sPObGXrF3bAjJBOeiMu08781DNi9lZd/yEiN4
+# TpgcsNbxgR5XLFyHfEuaLPjiSgXkWgq21wWYxiFNuih5SPiskejMaYIfvTYLKyac
+# gj4k0kbYnWKHnh7lXNo79PirWYcGg1uJ6YGsirZ4l+DF8H3sYV/ikq40SfeUQs1W
+# 9m4mdVvc00HDPtecRwSUW2KK9Bsorf8jRsQDYRJ+6W9AL55rr3tH0xqzyNDfpjMP
+# bCTLuTKAacUm6yAPkZOm4RZYGHlLcTzstgiUYKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjIwMTQxNDZaMC8GCSqGSIb3DQEJBDEiBCDMVxpEwjrl65KUqkpr
-# gBZVbnMt21RDxghu9tac/nq9JDANBgkqhkiG9w0BAQEFAASCAgBPLJ/UKQTQxhcY
-# zbAyKEaRRvM9lXLCd2nSvXTRYm9EjqT/JhiTlm4EeLxu7J+bn8mskveZshSw9ZPe
-# i1pOCujwAykdisgf7H4fbm7epqMtn88ZmqllAFxaIF02W+OnHXjI4Wh/futwirlG
-# ZQ1xwLl/ybOu9OREPVeu1XrzzEMznrUA1HboQkA87eenq+ENRpkt+rh/RhdsRrLV
-# ZWpoob9AL2g0JlSLaIE30nSXl5SWTUOB7PFDLUj7kWaWTyFHzumAsLznOFKKkSUj
-# cN0O4G4oVOkltYfuEz54VClCHzKdV0K34Y8ruqMk70d5J2ICgBVidvl+t9ly9asY
-# wyd6QjaMG8XxIapfGo/1qQprRDMAAuqIPcrgk7QqYoC39au0lNEZEzCd2CFUZtWN
-# 5y6moXNfIbBsfxQcKdNaltHXgMmEoh59y0wXTnJ++WQvEzW5PmDkHLlqfacvin7+
-# 9q5F6ae6xE9tH/LyijRn41DoeO8MKjM307WtH1BLqsnbfFYOnv0DLQqZf9ILPXPS
-# nuZumpjJkXcAy8xVla9PQilS670Oo9sT6PbvfcT8pWrlSzVZ+CrEO7OQ1u1j6TOr
-# NJNd5DWFfh1qxZe5vs8T1QOCL4pfjc+roZtsE4I8fmoPImWPe8sJwQKIQ9i8pSXW
-# nO/guvRWRrMKt3qEzg6cometCAw4Dg==
+# BTEPFw0yNjAxMjgyMTQxMTZaMC8GCSqGSIb3DQEJBDEiBCAa6bGjm94iV2AbZKS8
+# 7zzGPV/wAuI71TPrBULODU0L2jANBgkqhkiG9w0BAQEFAASCAgAWugrYObyBbMYb
+# pbi7r5a7yElSh23QPW5ObalYl0iIJnTo23Ab8RJ4IR1kd9sFCDDyiP2rITfPoj3s
+# /cUaiFP2zRbpAdm/7Uhp8G74u/mC9fQO7q5jQSNC88bSnNGfcHodLuvdSZ/bIDCP
+# NU0qOUibx/F8eJjlbGaN+ItvXYTPIaIQmL3F1LdXXezKU7dLCJ+UGGi9b8nNzHXO
+# jDn3WFYJEkZtxTpsYIOzF4XZOkBvU6WrU9gmb3oWeFhPEXiM7KEuQA1UarlXyQfe
+# oczWfA1kmvpOClAsH/MhmehP0KEF070+8YPulHrxTtpztqjg05UmYdfcjElGja8H
+# 6EKO5v2GUEf2YqJbY119iz0W0h9FYIe94V9FnZqsG5RqDNpWkrSnCcqK8cH+Tvd+
+# oH3tAhksk4i3SB6CASwi6Si5qPGQlNxXf3wuZ28FtV3F7JG2jub7D93th25ZvY98
+# e3mSqZ16nYxLSUObzz+tQ1tZqRlysvAkFtFX/BWV2A1aAfYr8Jv4Rz0SzY2K+ZeP
+# 463Qy3C7UbJ2yqlOVxnFOTAPpVbjI4X7LxdlnBHa5UQ6ncR8o2XjcBTEgrIoG3Ym
+# 5FYUOlolat6kzwWTrlD9DyIvtIMzt3L1BFaO+O1b1u643jnRgZO9JHhD67sb3bUl
+# TMY9vjFtRA203V1m3nrg75akCBg9nw==
 # SIG # End signature block
