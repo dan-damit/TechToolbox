@@ -451,10 +451,10 @@ session.
 ```powershell
 .EXAMPLE
 # Just get the cred (from memory or disk); prompt only if missing
-$cred = Get-DomainAdminCredential -PassThr
+$cred = Get-DomainAdminCredential -PassThru
 .EXAMPLE
 # Force a new prompt and persist to config.json
-$cred = Get-DomainAdminCredential -ForcePrompt -Persist -PassThr
+$cred = Get-DomainAdminCredential -ForcePrompt -Persist -PassThru
 .EXAMPLE
 # Clear stored username/password in config.json and in-memory cache
 Get-DomainAdminCredential -Clear -Confirm
