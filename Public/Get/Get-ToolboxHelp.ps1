@@ -38,7 +38,7 @@ function Get-ToolboxHelp {
 
     # Load merged runtime config
     $Config = Get-TechToolboxConfig
-    
+
     Write-Host ""
     Write-Host "========================================" -ForegroundColor DarkCyan
     Write-Host "        TechToolbox Help Center         " -ForegroundColor Cyan
@@ -307,12 +307,36 @@ function Get-ToolboxHelp {
         Write-Host "----------------------------------------"
         return
     }
+
+    # Initialize-DomainAdminCred
+    if ($Name -eq 'Initialize-DomainAdminCred') {
+        Write-Host ""
+        Write-Host "Initialize-DomainAdminCred" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Get-DomainAdminCredential
+    if ($Name -eq 'Get-DomainAdminCredential') {
+        Write-Host ""
+        Write-Host "Get-DomainAdminCredential" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
+
+    # Enable-NetFx3
+    if ($Name -eq 'Enable-NetFx3') {
+        Write-Host ""
+        Write-Host "Enable-NetFx3" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+        return
+    }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpZzT4WfduD9HN
-# EVPmKRBkUcg0FGjkGk8CLvBOb2ZiD6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC5jx61uWaP0he1
+# iUK3rbI61KmeUlFRHc0U/Ep4jw42uaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -445,34 +469,34 @@ function Get-ToolboxHelp {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD9BtGmGnkE
-# o+HpqyoVyjKCaMvs861Dr6woHZl6soIihDANBgkqhkiG9w0BAQEFAASCAgCXAThC
-# K57xFU0oE2Rys7+202M6FErFfZLU8rHm/iXRhDEVVnsYrowxwXVi0FJO8nYwgmRz
-# ZJIcBdSdnES0hKPEbtiW1801NmB39GFChFj8/zEEHC7XsYa7HbBIF+6jRMI6KJ3W
-# uFx4RI96m/j5tjixb06PudeEszwqjVF2j6yCG9KcRcvUTeGg7k9YnSh1pB+9rbd+
-# hZu+KvUR9+7b8NqZxjQQvkrP0R2CdIADa4ckDq1BujS92Ya2oEu8fimVdxDjUc0w
-# GHphV7lgKbUvyxu0r9Bn+vZgVnHIxbrFT6uVWC2yFKfiWWYfnfOL3cptw/9Zio0e
-# WcGB2PT3pwRHWIKb1Dq+cO9sfRuREIPMRXa2+vGqB/Q0udsidXUpmZZjAcmfUQ7o
-# 1TvZMBi+OepBpAEbpM4mgsQcv8EacZcymOErDBeoco+AGA2Lh8rmzaINMWuL/83k
-# d4IpdFPnnVz2tPHAw6WpSKlus4V2SjJB7I5cATp860t5ABFF3XkxZtwWULy8yZcZ
-# OQl5SapV0C+p+KXhyz1h2K65E9SW0241VzvLvdkaagvBVOL7GfHMCOWGi5ibr9aX
-# fdQp9r1nYrVXcKJaqstuMt1wLdRmAH645HD5B6CWh6znbFh5Iq26PrBzGgaxDK3p
-# H6e3d73aSdoFjry/lfmg4sx18/nEDAqHrynVVKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA7Di93nzsR
+# sHBZvfawIi07mJPpUCG6glvDLlZY/qJ1/DANBgkqhkiG9w0BAQEFAASCAgCCDQZe
+# tJP2Ro0Pc7cTozNIgzK/N9uSbg5JG1BpJ6HKoAyjKroPVhzDzzdWBS1RZ9raOWcx
+# TX+t1k2stVTP0Kd4UkN8AGiMQCuDowEsynO1I/0H/krDQ9A74iEjKOIAQROl8QG/
+# HlgTGb0VUj4nsuxtXLy2W34YjueDa2g5tP/gk+7WK/cYnP6zntlHoQ9BO3izvu27
+# BQTBON0NzdXmgI/AkSIG29Y1pTS7sFiAvj2+bxByIfjFbJd+pKP3MV8KK7wN0044
+# c8fWhtcI4thCiEFHNpsP11Yt6NJ8q00r/HCJITznOYTiJ+vJkv5UZTVyZdAJJ7/f
+# IcSUw+Q1AH69jGCKUWTc/viioV9Tc3Y0qBC8EYzIjwe54UIbBABC46N8A/jBPRpT
+# aF2mSUdEqnQF4i5o1wPRlSbbYgWPBspWE2hjV9xzqVP6XWiFgIp6DXlTeS4+Lr6k
+# hANY5tqhp7kuXiS4ZDoowOV3MvPX4mRCdpqPdf725xlbQHJmebl/AMJRB+FWujFz
+# R/U5px/FNCn47OqkmLTmN0CsnrWhH3w/QONOBwr/zdDcUtTR0/U2amO0tQFykEO6
+# rMAk222XfKikedwW4vy+Bob/++Vv8gZeBla2vz4/tmcdK68ttL7bwx+Bi7NsZxg6
+# N32tC0pxCicyA8LY1keRBNm/d2GlRr0xOchDwaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjIxNjE4NTlaMC8GCSqGSIb3DQEJBDEiBCD3JWqepO07zCAAlJbW
-# YBggetwUml9/DW0gT+EwK3YpfDANBgkqhkiG9w0BAQEFAASCAgAZkQ7L5jaukmlm
-# 6T7HWaRIiK9e+F4gldenV2vZgS8adD2RImJxoN9JwdynHO6kCo9hp0z77hUu7qJ9
-# kRtTbdcFh4cmqkGq2M9UliAQ/Zec8WIJb2BBUrUz+u7VWPcuKXchZTbhyk5Xkrg6
-# OwJ4bLk+p2H3zslfYJEDBxHrlrGmnN2VddFH0T01UtKLkF2rtPSywCLViflo2jjo
-# xOgpZBpWK28XUp4nVmy+gv4C9+1PaPAlQs56rAbDcDY+0RjZpD3nzRPQA1Vybu1D
-# 59h1i0b3962ub+DngEiOQg0XiwfWnG/taTj+dkrNaDJug/90QfG37HavPyIb9SGP
-# xUKjhpP7eZVrJx9EmxlIZ+mi4VB4HR/uDiU1Nuicen5uxPSFrt5Kvsga6g9JL4wN
-# 7LxgHBTd60w67PBSquWCfUZxzEdN5c2Da9H8JWoSgnEKajaAw3B3IEgyS/XdBVcU
-# w27mExQQ4mGk1ZoBtXfuqL+CuAYVo4isFOSsf5ovcnmmZAYK+eqLgV5jgeUy7MVy
-# g7rDpsRgqJIKDN2Naao05w+9wv5hA1/dKbIjEVIguLOURO+BqDOuutBBcMcFsBZa
-# opwNLdICs+onJL9mr6K2aXO0EXidntUqboGzlVKtq7JdTWAiRDCJejWk5w4j3Kb1
-# /fit80nbnmO/BykDJt/e40iy6/Gueg==
+# BTEPFw0yNjAxMjgxOTIyMTdaMC8GCSqGSIb3DQEJBDEiBCAQq88rf8I7FbDqSR9l
+# PqqLEIh2MjYM/JX+TDepNBM2fTANBgkqhkiG9w0BAQEFAASCAgCzaOWM7vutS/m6
+# 40BqHAUlVm2FePjDUAwpRvpqT+U5gcsbL13zhMp6EKxB4nPzKztRq6WDbRdm/rLS
+# hRNtI93t2RUMO+o4ODtiJb2puFfTUZtToLbPUzg5xJoUEDRLXs7YI7Gx6tm2Rb5n
+# F57bojtYt+CzhS0vdGv65QT4b29FqM8vsOaf2cKu2/U0nTfm6QoDxY5OJbDoQqxk
+# 9CANLM44AcNQUlpPYD8FncCVgyid6y9vEmop9cYvI8x0RYBixYZfr6AdAztXa8kS
+# kzbJ4p7lo/4AR35GTE3/hWI+Evj+4uStBS0kHxlemExVbzNpZddoXO9jC/6PQo4B
+# Za4ppcw4icWNAjKsN2L/LiKX6f1wV0mmbunXi/xOShgGI6LpDIryvhO4iFjqnNgz
+# Vf6UWDH0BeXpijlHcdEZBzYDE+NUf8R2tzzW5RiA3J7H7ny0EWt4VNDzAs5i5RaA
+# JT6J1ataWkp6ZVSmw1edug5Lsw2mu3Yl11bu+kXjValeTUDlRKCEU78nLkCHu7/Z
+# xNEOmwx/KnD25RMQoOZqZd/8ySufu866LQoGCAPQ8P/p3XxMKE2A/IW75p7RDS30
+# izDtBkegmZpN8g2cKqqpozjl36Cd/Lxg7vC8m3ZiMha+mxDTO7lVN8T6JBjVMtfK
+# rC7XUT++0z8NpvIXsbLN+mBUCSZNuw==
 # SIG # End signature block
