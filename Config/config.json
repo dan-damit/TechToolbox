@@ -68,33 +68,33 @@
     },
     "remoteSoftwareInventory": {
       "outDir": "C:\\LogsAndExports\\TechToolbox\\Exports\\RemoteSoftwareInventory",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\RemoteSoftwareInventory",
       "consolidated": false,
       "logFile": "RemoteSoftwareInventory.log",
-      "logFileNameFormat": "RemoteSoftwareInventory_{yyyyMMdd}.log",
       "promptForCredentials": true,
       "includeAppx": false,
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\RemoteSoftwareInventory",
+      "logFileNameFormat": "RemoteSoftwareInventory_{yyyyMMdd}.log",
       "throttleLimit": 32
     },
     "browserCleanup": {
-      "includeCookies": true,
+      "defaultBrowser": "All",
       "killProcesses": true,
       "includeCache": true,
       "sleepAfterKillMs": 1500,
       "logFile": "BrowserCleanup.log",
       "skipLocalStorage": false,
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\BrowserCleanup",
-      "defaultBrowser": "All",
+      "includeCookies": true,
       "defaultProfiles": null
     },
     "logging": {
       "enableConsole": true,
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs",
       "minimumLevel": "Info",
       "includeTimestamps": true,
+      "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
       "logFile": "TechToolbox.log",
       "enableFileLogging": true,
-      "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log"
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs"
     },
     "tenant": {
       "defaultUsageLocation": "US",
@@ -118,17 +118,17 @@
       "useHybridAutoDisable": true,
       "disabledOU": "",
       "logFile": "Offboarding.log",
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
       "logFileNameFormat": "Offboarding_{yyyyMMdd}.log",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
       "cleanupADGroups": false,
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding"
     },
     "systemRepair": {
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair",
       "runRemote": true,
-      "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair",
       "defaultComputerName": null,
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair"
+      "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log"
     },
     "exchangeOnline": {
       "autoDisconnectPrompt": true,
@@ -201,29 +201,29 @@
         "/E",
         "/COPYALL"
       ],
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
       "retryCount": 2,
       "mirror": false
     },
     "largeFileSearch": {
-      "defaultMinSizeMB": 256,
+      "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultSearchDirectory": [
         "C:\\",
         "D:\\"
       ],
-      "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch",
-      "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv"
+      "defaultMinSizeMB": 256,
+      "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch"
     },
     "defaults": {
       "showProgress": true,
       "promptForHostname": true,
       "promptForDateRanges": true,
       "promptForKqlQuery": true,
-      "promptForCaseName": true,
       "promptForCredentials": true,
+      "promptForCaseName": true,
       "promptForContentMatchQuery": true,
       "promptForSearchName": true
     },
@@ -253,9 +253,9 @@
       ],
       "appOnly": {
         "enabled": false,
-        "certThumbprint": "",
+        "clientId": "",
         "clientSecret": "",
-        "clientId": ""
+        "certThumbprint": ""
       },
       "environment": "Global",
       "profile": "v1.0"
@@ -270,8 +270,8 @@
     "Bundled": true,
     "Version": "3.9.0",
     "Name": "ExchangeOnlineManagement",
-    "Defer": true,
-    "Required": true
+    "Required": true,
+    "Defer": true
   },
   "schemaVersion": 1
 }
