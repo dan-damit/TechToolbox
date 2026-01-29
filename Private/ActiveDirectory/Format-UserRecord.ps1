@@ -1,166 +1,285 @@
-
 function Format-UserRecord {
     <#
     .SYNOPSIS
-        Normalizes user data from AD, Entra (Graph), EXO, Teams, and AzureAD to a single record.
+        Normalizes user data from local Active Directory (AD-only) to a single
+        record.
     .DESCRIPTION
-        Accepts raw objects from various sources and produces a unified PSCustomObject
-        with SamAccountName, UPN, ObjectId, DN, etc. Includes raw objects for debugging.
+        Accepts a raw AD user object (Get-ADUser -Properties * recommended) and
+        outputs a unified PSCustomObject, including:
+          - Identity: Sam, UPN, DisplayName, ObjectGuid, DN
+          - Mailbox: Primary SMTP (from proxyAddresses), all SMTP aliases
+          - Useful attributes: Enabled, WhenCreated, LastLogon, Department,
+            Title
+          - Manager resolution: name, UPN, sAM, mail (from manager DN)
+          - MemberOf resolution: group Name, sAM, Scope/Category (from DNs)
+            Caches manager and group lookups within the session to avoid
+            repeated queries.
     .PARAMETER AD
         Raw AD user object (Get-ADUser -Properties * result).
-    .PARAMETER Entra
-        Raw Entra/Microsoft Graph user object.
-    .PARAMETER Exchange
-        Raw EXO mailbox/user object.
-    .PARAMETER Teams
-        Raw Teams user object (e.g., Get-CsOnlineUser wrapper).
-    .PARAMETER AzureAD
-        Raw legacy AzureAD user object.
+    .PARAMETER Server
+        Optional domain controller to target (e.g., dc01.domain.local).
+    .PARAMETER Credential
+        Optional PSCredential for AD lookups (manager/group resolution).
+    .PARAMETER ResolveManager
+        Resolve Manager DN to user details (default: On).
+    .PARAMETER ResolveGroups
+        Resolve MemberOf DNs to group details (default: On).
     .OUTPUTS
         PSCustomObject
     #>
     [CmdletBinding()]
     param(
-        [Parameter(ValueFromPipelineByPropertyName)]
+        [Parameter(ValueFromPipelineByPropertyName, Mandatory = $true)]
         $AD,
 
-        [Parameter(ValueFromPipelineByPropertyName)]
-        $Entra,
+        [string]$Server,
+        [pscredential]$Credential,
 
-        [Parameter(ValueFromPipelineByPropertyName)]
-        $Exchange,
-
-        [Parameter(ValueFromPipelineByPropertyName)]
-        $Teams,
-
-        [Parameter(ValueFromPipelineByPropertyName)]
-        $AzureAD
+        [switch]$ResolveManager,
+        [switch]$ResolveGroups
     )
 
-    $oldEAP = $ErrorActionPreference
-    $ErrorActionPreference = 'Stop'
-    try {
-        # Initialize common fields
-        $sam = $null
-        $upn = $null
-        $dn = $null
-        $mail = $null
-        $dn = $null
-        $name = $null
-        $objId = $null
-
-        $foundInAD = $false
-        $foundInEntra = $false
-        $foundInEXO = $false
-
-        # --- AD extraction ---
-        if ($AD) {
-            $foundInAD = $true
-            if ($AD.PSObject.Properties['SamAccountName']) { $sam = $AD.SamAccountName }
-            if ($AD.PSObject.Properties['UserPrincipalName']) { $upn = $upn ?? $AD.UserPrincipalName }
-            if ($AD.PSObject.Properties['Mail']) { $mail = $mail ?? $AD.Mail }
-            if ($AD.PSObject.Properties['DistinguishedName']) { $dn = $AD.DistinguishedName }
-            if ($AD.PSObject.Properties['Name']) { $name = $name ?? $AD.Name }
+    begin {
+        # Prepare caches (module/script-scoped, session-lifetime)
+        if (-not (Get-Variable -Name __TT_ManagerCache -Scope Script -ErrorAction SilentlyContinue)) {
+            Set-Variable -Name __TT_ManagerCache -Scope Script -Value (@{}) -Force
+        }
+        if (-not (Get-Variable -Name __TT_GroupCache -Scope Script -ErrorAction SilentlyContinue)) {
+            Set-Variable -Name __TT_GroupCache -Scope Script -Value (@{}) -Force
         }
 
-        # --- Entra (Graph) extraction ---
-        if ($Entra) {
-            $foundInEntra = $true
-            # Id, UPN, DisplayName, Mail are the usual suspects
-            if ($Entra.PSObject.Properties['Id']) { $objId = $Entra.Id }
-            if ($Entra.PSObject.Properties['UserPrincipalName']) { $upn = $upn ?? $Entra.UserPrincipalName }
-            if ($Entra.PSObject.Properties['DisplayName']) { $name = $name ?? $Entra.DisplayName }
-            if ($Entra.PSObject.Properties['Mail']) { $mail = $mail ?? $Entra.Mail }
+        # Prepare caches (session-scoped)
+        if (-not $script:__TT_ManagerCache) { $script:__TT_ManagerCache = @{} }
+        if (-not $script:__TT_GroupCache) { $script:__TT_GroupCache = @{} }
 
-            # Try to pull onPremisesSamAccountName if present (varies by SDK/model)
-            if ($sam -eq $null) {
-                # 1) Some Graph SDKs expose it directly:
-                if ($Entra.PSObject.Properties['OnPremisesSamAccountName']) {
-                    $sam = $Entra.OnPremisesSamAccountName
+        function Convert-FileTimeSafe {
+            param([Nullable[long]]$FileTime)
+            if (-not $FileTime) { return $null }
+            try { [DateTime]::FromFileTimeUtc([Int64]$FileTime) } catch { $null }
+        }
+
+        function Get-CachedADUserByDn {
+            param([string]$Dn, [string]$Server, [pscredential]$Credential)
+            if (-not $Dn) { return $null }
+            $key = $Dn.ToLowerInvariant()
+            if ($script:__TT_ManagerCache.ContainsKey($key)) { return $script:__TT_ManagerCache[$key] }
+
+            if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
+                throw "ActiveDirectory module is not available. Install RSAT or run on a domain-joined admin workstation."
+            }
+            Import-Module ActiveDirectory -ErrorAction Stop
+
+            try {
+                $p = @{
+                    Identity    = $Dn
+                    Properties  = @('DisplayName', 'UserPrincipalName', 'SamAccountName', 'mail')
+                    ErrorAction = 'Stop'
                 }
-                # 2) Others only via AdditionalProperties bag:
-                elseif ($Entra.PSObject.Properties['AdditionalProperties'] -and $Entra.AdditionalProperties) {
-                    if ($Entra.AdditionalProperties.ContainsKey('onPremisesSamAccountName')) {
-                        $sam = $Entra.AdditionalProperties['onPremisesSamAccountName']
+                if ($Server) { $p['Server'] = $Server }
+                if ($Credential) { $p['Credential'] = $Credential }
+                $u = Get-ADUser @p
+                $script:__TT_ManagerCache[$key] = $u
+                return $u
+            }
+            catch {
+                $script:__TT_ManagerCache[$key] = $null
+                return $null
+            }
+        }
+
+        function Get-CachedADGroupByDn {
+            param([string]$Dn, [string]$Server, [pscredential]$Credential)
+            if (-not $Dn) { return $null }
+            $key = $Dn.ToLowerInvariant()
+            if ($script:__TT_GroupCache.ContainsKey($key)) { return $script:__TT_GroupCache[$key] }
+
+            if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
+                throw "ActiveDirectory module is not available. Install RSAT or run on a domain-joined admin workstation."
+            }
+            Import-Module ActiveDirectory -ErrorAction Stop
+
+            try {
+                $p = @{
+                    Identity    = $Dn
+                    Properties  = @('Name', 'SamAccountName', 'GroupCategory', 'GroupScope')
+                    ErrorAction = 'Stop'
+                }
+                if ($Server) { $p['Server'] = $Server }
+                if ($Credential) { $p['Credential'] = $Credential }
+                $g = Get-ADGroup @p
+                $script:__TT_GroupCache[$key] = $g
+                return $g
+            }
+            catch {
+                $script:__TT_GroupCache[$key] = $null
+                return $null
+            }
+        }
+
+        function Parse-ProxyAddresses {
+            param([object]$AdUser)
+            $raw = @()
+            if ($AdUser -and $AdUser.PSObject.Properties['proxyAddresses'] -and $AdUser.proxyAddresses) {
+                $raw = @($AdUser.proxyAddresses)
+            }
+            $primary = ($raw | Where-Object { $_ -is [string] -and $_.StartsWith('SMTP:') } | Select-Object -First 1)
+            $primaryEmail = if ($primary) { $primary.Substring(5) } else { $null }
+
+            # All SMTP (primary + aliases), normalized to bare addresses
+            $allSmtp = $raw |
+            Where-Object { $_ -is [string] -and $_ -match '^(?i)smtp:' } |
+            ForEach-Object { $_ -replace '^(?i)smtp:', '' }
+
+            [pscustomobject]@{
+                PrimarySmtp = $primaryEmail
+                AllSmtp     = $allSmtp
+                Raw         = $raw
+            }
+        }
+    }
+
+    process {
+        $oldEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Stop'
+        try {
+            if (-not $AD) { return $null }
+
+            # Core identity fields
+            $sam = $AD.PSObject.Properties['SamAccountName']    ? $AD.SamAccountName    : $null
+            $upn = $AD.PSObject.Properties['UserPrincipalName'] ? $AD.UserPrincipalName : $null
+            $dn = $AD.PSObject.Properties['DistinguishedName'] ? $AD.DistinguishedName : $null
+            $mail = $AD.PSObject.Properties['Mail']              ? $AD.Mail              : $null
+            $name = if ($AD.PSObject.Properties['DisplayName'] -and $AD.DisplayName) { $AD.DisplayName } elseif ($AD.PSObject.Properties['Name']) { $AD.Name } else { $null }
+
+            # ProxyAddresses -> mailbox (primary + aliases)
+            $px = Parse-ProxyAddresses -AdUser $AD
+            $primarySmtp = $px.PrimarySmtp
+            $allSmtp = $px.AllSmtp
+            $proxyRaw = $px.Raw
+
+            # Fill Mail using primary SMTP, then UPN if still blank
+            if (-not $mail -and $primarySmtp) { $mail = $primarySmtp }
+            if (-not $mail -and $upn) { $mail = $upn }
+
+            # Manager resolution (DN -> user)
+            $mgrDn = $AD.PSObject.Properties['Manager'] ? $AD.Manager : $null
+            $mgrUpn = $null; $mgrName = $null; $mgrSam = $null; $mgrMail = $null
+            if ($ResolveManager -and $mgrDn) {
+                $mgr = Get-CachedADUserByDn -Dn $mgrDn -Server $Server -Credential $Credential
+                if ($mgr) {
+                    $mgrUpn = $mgr.UserPrincipalName
+                    $mgrName = $mgr.DisplayName
+                    $mgrSam = $mgr.SamAccountName
+                    $mgrMail = $mgr.mail
+                }
+            }
+
+            # Group resolution
+            $memberOfDn = @()
+            if ($AD.PSObject.Properties['MemberOf'] -and $AD.MemberOf) { $memberOfDn = @($AD.MemberOf) }
+
+            $memberOfResolved = @()
+            $memberOfNames = @()
+            $memberOfSams = @()
+
+            if ($ResolveGroups -and $memberOfDn.Count -gt 0) {
+                foreach ($gDn in $memberOfDn) {
+                    $g = Get-CachedADGroupByDn -Dn $gDn -Server $Server -Credential $Credential
+                    if ($g) {
+                        $memberOfResolved += [pscustomobject]@{
+                            Name              = $g.Name
+                            SamAccountName    = $g.SamAccountName
+                            GroupScope        = $g.GroupScope
+                            GroupCategory     = $g.GroupCategory
+                            DistinguishedName = $g.DistinguishedName
+                            ObjectGuid        = $g.ObjectGuid
+                        }
+                        $memberOfNames += $g.Name
+                        $memberOfSams += $g.SamAccountName
+                    }
+                    else {
+                        $memberOfResolved += [pscustomobject]@{
+                            Name              = $null
+                            SamAccountName    = $null
+                            GroupScope        = $null
+                            GroupCategory     = $null
+                            DistinguishedName = $gDn
+                            ObjectGuid        = $null
+                        }
                     }
                 }
             }
 
-            # If still no mail, default to UPN for convenience
-            if (-not $mail -and $upn) { $mail = $upn }
-        }
-
-        # --- Exchange Online extraction ---
-        if ($Exchange) {
-            $foundInEXO = $true
-            if (-not $mail) {
-                if ($Exchange.PSObject.Properties['PrimarySmtpAddress']) { $mail = $Exchange.PrimarySmtpAddress }
-                elseif ($Exchange.PSObject.Properties['WindowsEmailAddress']) { $mail = $Exchange.WindowsEmailAddress }
+            # LastLogonTimestamp -> DateTime (UTC)
+            $lastLogon = $null
+            if ($AD.PSObject.Properties['lastLogonTimestamp'] -and $AD.lastLogonTimestamp) {
+                $lastLogon = Convert-FileTimeSafe $AD.lastLogonTimestamp
             }
-            if (-not $upn -and $Exchange.PSObject.Properties['UserPrincipalName']) {
-                $upn = $Exchange.UserPrincipalName
+
+            # Emit normalized AD-only record
+            [pscustomobject]@{
+                # Identity
+                SamAccountName          = $sam
+                UserPrincipalName       = $upn
+                DisplayName             = $name
+                ObjectGuid              = $AD.ObjectGuid
+                DistinguishedName       = $dn
+
+                # Mailbox / addresses
+                Mail                    = $mail
+                PrimarySmtpAddress      = $primarySmtp
+                SmtpAddresses           = $allSmtp
+                ProxyAddressesRaw       = $proxyRaw
+                MailNickname            = ($AD.PSObject.Properties['mailNickname'] ? $AD.mailNickname : $null)
+
+                # AD attributes
+                Enabled                 = ($AD.PSObject.Properties['Enabled']      ? [bool]$AD.Enabled : $null)
+                WhenCreated             = ($AD.PSObject.Properties['whenCreated']  ? $AD.whenCreated   : $null)
+                LastLogon               = $lastLogon
+                Department              = ($AD.PSObject.Properties['Department']   ? $AD.Department    : $null)
+                Title                   = ($AD.PSObject.Properties['Title']        ? $AD.Title         : $null)
+
+                # Manager (resolved)
+                ManagerDn               = $mgrDn
+                ManagerUpn              = $mgrUpn
+                ManagerName             = $mgrName
+                ManagerSamAccountName   = $mgrSam
+                ManagerMail             = $mgrMail
+
+                # Group membership (resolved)
+                MemberOfDn              = $memberOfDn
+                MemberOfNames           = $memberOfNames
+                MemberOfSamAccountNames = $memberOfSams
+                MemberOfResolved        = $memberOfResolved
+
+                # Provenance
+                Source                  = 'AD'
+                FoundInAD               = $true
+
+                # Raw for troubleshooting
+                RawAD                   = $AD
             }
-            if (-not $name -and $Exchange.PSObject.Properties['DisplayName']) {
-                $name = $Exchange.DisplayName
+        }
+        catch {
+            if (Get-Command -Name Write-Log -ErrorAction SilentlyContinue) {
+                Write-Log -Level Error -Message ("[Format-UserRecord] Failed: {0}" -f $_.Exception.Message)
             }
+            else {
+                Write-Error ("[Format-UserRecord] Failed: {0}" -f $_.Exception.Message)
+            }
+            throw
         }
-
-        # --- Legacy AzureAD extraction (optional) ---
-        if ($AzureAD) {
-            if (-not $objId -and $AzureAD.PSObject.Properties['ObjectId']) { $objId = $AzureAD.ObjectId }
-            if (-not $upn -and $AzureAD.PSObject.Properties['UserPrincipalName']) { $upn = $AzureAD.UserPrincipalName }
-            if (-not $name -and $AzureAD.PSObject.Properties['DisplayName']) { $name = $AzureAD.DisplayName }
-            if (-not $mail -and $AzureAD.PSObject.Properties['Mail']) { $mail = $AzureAD.Mail }
+        finally {
+            $ErrorActionPreference = $oldEAP
         }
-
-        # Backfill SAM from AD if still missing
-        if (-not $sam -and $AD -and $AD.PSObject.Properties['SamAccountName']) {
-            $sam = $AD.SamAccountName
-        }
-
-        # If nothing meaningful was found, return $null
-        if (-not ($sam -or $upn -or $objId -or $mail)) {
-            return $null
-        }
-
-        $source =
-        if ($foundInAD -and $foundInEntra) { 'Hybrid' }
-        elseif ($foundInEntra) { 'Entra' }
-        elseif ($foundInAD) { 'AD' }
-        elseif ($foundInEXO) { 'EXO' }
-        else { 'Unknown' }
-
-        # Produce normalized record
-        [pscustomobject]@{
-            SamAccountName    = $sam
-            UserPrincipalName = $upn
-            DisplayName       = $name
-            ObjectId          = $objId
-            DistinguishedName = $dn
-            Mail              = $mail
-            Source            = $source
-            FoundInAD         = [bool]$foundInAD
-            FoundInEntra      = [bool]$foundInEntra
-            FoundInEXO        = [bool]$foundInEXO
-            RawAD             = $AD
-            RawMg             = $Entra
-            RawEXO            = $Exchange
-        }
-    }
-    catch {
-        Write-Log -Level Error -Message ("[Format-UserRecord] Failed: {0}" -f $_.Exception.Message)
-        throw
-    }
-    finally {
-        $ErrorActionPreference = $oldEAP
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCANF2yZeFK9HkMu
-# kyETrqqqv8mMffSDfOqYiq9dPl27RqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAZJlxP+0oZp7G4
+# Yiu1+NLaAuTYyCfoQLxA75C1n2mjxaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -293,34 +412,34 @@ function Format-UserRecord {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCsHY4qVAWJ
-# sGv2REWwnsRB3pb9nLBr5xgE8ehov/11WjANBgkqhkiG9w0BAQEFAASCAgATv49D
-# 4Wz5ON2nogCyeN4yBLcSV4Fr9UlQuQKAnd8MWuUuB16C0EQ2kYWmCO/8Cu8ZBHZG
-# hASvMQ0Ye/6fThxIWSLamZjgq66DQGEZPoiBvQI4OQKR2hVqcGNmIT3BUdU8unm4
-# xzAaoTQ57qXrvOMd0rhCOLZJ/fwazUvWHyIg4e/p72BD7SQXEJoDzFJBwzqb8D1/
-# W8ugt1n94KSqJPasRYxOm6pbMyj5mVHBFf5GrRcCNsB7fuyMVmuf7FSbLK1qwVh1
-# dDfo/bZUYrebpkbyKu63aw/4Q1Y86rTFT9EBkmmPnUwnFPS3lwk3L8t0d/3C2jjr
-# /Gv6rRFZOZxrL7azJ13pDzSngq3/xuIQvEInqiFzVQX0n77x9tzq6B8+FriYTHIS
-# kyAUd1E4LLRUvMdC8fum/5DpuhvkkoMbpKcsESgfkHB+jAbh5ph8GbEf+KDZ8SLg
-# q9A+6GsPdMckxYobOS24YDNVY/tJ72yQzM8A1P6eZcJQkWi5kI44W3MtPAMb7Xhs
-# SiRofX/pCDcvHjxvwpL/19FXW+rO+JsBQG5lpu18iIIcpCP8NtOs9Zdfx8blsPs4
-# gp9mHEVkXP78VsADxqCom0BPFt0bS18SaD1K4yWZOnTOuiQeRZSqWH6hXGqb6GnI
-# qYshZELbQdXwZvi0czvBP5x7W2b+pOOPkFtWPKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB9lbvb94RJ
+# Nmmszrxwai+n+qVDTtGBGYOaA+lUn8lKXDANBgkqhkiG9w0BAQEFAASCAgCu9Al+
+# 9ki+ppb5zLUWjyCwnWFsTZ2Aha3iUmMuJDrWMgWXjElLYc/KLQbBhttME1rV06gm
+# c8AFx+3beTaI/4AMhir8QxaROvOLzwfC7aDVBwOvIEG67LHRh6cCgcw9Ttlxthnu
+# NpbGgLT7M6MkDgqMUwpeFfeq76YXl1ZQfpZrwErJ9s3v0FiVusmDgoJ57TfNPb2d
+# n8TbG/WQS/tXA5a+1cZvQvlEum1pNEmIqnBXhbwDhOP/6Zaw0nkJ6vefrL2LkwDb
+# w1RVzOM5xRXMXgw7L9qWd/vb6C6SO6nN3HgD8XT7mCcoDcndxUUP5fk5WgRlk32L
+# 1RkipxCVt4FxFrzPj2WvmHihdA6/wxo4RupBKru8wKF5j2pms72Oj+CwoRVe5n6G
+# DxX70RO2qSQ0TW2T1NID0OE4jtQvSQBVf7gPvXUPCU7F8ePqELR++QqRnzs+uDXK
+# DDsVSCCXxLQ7i0Iqk12MS1gVIF2Oaw24a9etzoWWItsg6OSJxz4lhRvMx41hDWaJ
+# GtNzococJ2hRihPG3aSM6eGb6aD2ic+kywIUTexNdR7W7yQQxzkP4E65b1CPAXGD
+# Ctf/IdkbwTL7OY1K40nJ9RZdPp5zzCucDMhZZ7yhOW1Z1kbHx3Amz9Zx19OV+U/L
+# FLfsj8imru8lLMpBNxTbEtEDM/x7JseovSMHSaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjExODI1MzdaMC8GCSqGSIb3DQEJBDEiBCBq17DWmTWoXiFvnPsV
-# UcXP+6vsCMMJwFOys8jV5zQK6TANBgkqhkiG9w0BAQEFAASCAgBuLi4KRtJ95tvb
-# hZStAUbi1f41JI2Y6Gf47PLTCdBcCjUstCEpal3FTEBcZnNSDG7kYBrGpfgzef0J
-# xw/gRF8vdNWoy4srBq/Cw9Ga8iwyHtSxIMzx6qxq0/do0RNbmOLHjJ/25TpvIvw4
-# 9IBx8YzFPOFB+cWgULYbVcvmmqli8Rk9mElRd/lLBNjCtjHCF99Yl+kMmUcKA1Vy
-# u7mmBH8bXZAeqFq+WSEkro2R5sLOtIv34OV9k0Pufyyaq1FnmNcL7XyAnN3sBlXt
-# B+q41VeMihz2ISvgXohOirjwzivPQjP/A7Mz6fyOafYS9YE/Sm3nJ1l1lsJo2Y4D
-# Tf8qsPKXXluDhq/EzEBdjluE9WzMa2zbC6TfwuQ/fGqKlCQiQQjdDgnDEP2wH0i4
-# /hDDWlhtmiodwN3GSrvG0T8AtuYjetQ5xT187RQI8juxRUGPscQ4VCC+tGOuf+15
-# N4GreMGpwv+kxnvyVEVqKP3kF+GkiKqOcNKHDX2zrX4FN8/SISzUK4nPlPAzKPhF
-# j9ElSzBAc757svGNwCYKX+znFF3mX43s8IYKwUJSts2Yz8j/cKRbtsdvDaMuHI92
-# QZ08nscaHv9/QfNTHDXaoBfQ5fA+5Vj/Orti5AU5V1Pxy0EP4HK7MXm41FtCZZg/
-# RkMY+cEH6XE3duTz1TNEf4ZCabSGRA==
+# BTEPFw0yNjAxMjkxOTU4MzhaMC8GCSqGSIb3DQEJBDEiBCDNAwqqMUYWjcYlEB+U
+# NkqUbbkg9qrSgsoP6HJrthLRzjANBgkqhkiG9w0BAQEFAASCAgBG50gXIq0vviJ9
+# 1NHK4ehJeAzdrhvqz9H/3GObtBYwlkzjnnUZGwHz2w5dldcfN2MK1c+6bmPPdghr
+# b6JjCChIf8AJCKRx4xDJTdmvGJ5ezXWuRmpDGPNUoF4j+SuS+MaaYhxiGYmMV4f+
+# MY3bZuNcS5ZMMMjuwIyjb508pyqL4NAYqAtT+Yn7OJtB0/FEgoOKZ+wyeaLac5r0
+# vaU/yLuHfTxNy1lgj2n5EofJKSOpkCWOCuL8jeHLNy4QRkWPF81xh8Y26wqTaYet
+# mjQLKTCdZCgZWRjghq0+bKOkITA5dRuwqSWtLwCFfCQ8Wf8JRksa72pTNdVxEY28
+# rLEOnor+M66ZBCbjqJRhhRDKauAWFDVGUbUcGArujWdJ7gWP/5xRw76Ef2nKwfgV
+# w4hE40jWmyjPeRabx2ecVyLxyJ0JuebdxwM484rF6n65nMxeO92dsuJeLbHIva9I
+# AuMu3/IiWiyZvHQVhGhkUNBHSwlqvjrYv3mw4l+sSAMWp94P3GnMm7OHLuwHC16n
+# 16MABlb/Z9v3TO3Bs0wf+Nd0cxCYyVB3vFROEHndNvUsDYND+rSLHzMgL0ygklXs
+# 5bZPKYhl7ZPA2Gv9SDrIzgXz8zaJx6f5CrOKsobTTPAvBCuEoQHq4zZcCgdp6e7J
+# HpNYrRdwOBUmeTeJjP7l5YMFBeQ0JA==
 # SIG # End signature block
