@@ -1,20 +1,44 @@
-
 function Search-User {
     <#
     .SYNOPSIS
-        Searches for a user across AD (+ optionally EXO/Teams) and returns a unified record.
+        Searches for a user in AD (primary) and optionally EXO/Teams, returns a
+        unified record.
     .DESCRIPTION
         Graph/Entra lookups are excluded. This function resolves the user from:
-          - Active Directory (primary)
-          - Exchange Online (optional, if wrappers exist and requested/available)
-          - Microsoft Teams (optional, if wrappers exist and requested/available)
-        Normalizes via Format-UserRecord and returns $null if no match.
+          - Active Directory (primary, with optional proxyAddresses/mail search)
+          - Exchange Online (optional, if wrappers exist and
+            requested/available)
+          - Microsoft Teams (optional, if wrappers exist and
+            requested/available) Normalizes via Format-UserRecord. Returns $null
+            if no match unless -AllowMultiple.
     .PARAMETER Identity
-        UPN or SamAccountName (GUID/ObjectId is not supported in this Graph-free variant).
+        UPN or SamAccountName. If not found exactly, falls back to broader LDAP
+        (displayName/mail/proxyAddresses).
     .PARAMETER IncludeEXO
-        When present, attempts to query Exchange Online (Get-ExchangeUser wrapper).
+        When present, attempts to query Exchange Online (Get-ExchangeUser
+        wrapper).
     .PARAMETER IncludeTeams
         When present, attempts to query Teams (Get-TeamsUser wrapper).
+    .PARAMETER Server
+        Optional domain controller to target (overrides config).
+    .PARAMETER SearchBase
+        Optional SearchBase (overrides config).
+    .PARAMETER SearchScope
+        LDAP search scope (Base|OneLevel|Subtree). Default from config or
+        Subtree.
+    .PARAMETER Credential
+        PSCredential used for AD queries (and for manager/group resolution).
+    .PARAMETER EnableProxyAddressSearch
+        Include proxyAddresses in fallback LDAP search. Default: On.
+    .PARAMETER EnableMailSearch
+        Include mail attribute in fallback LDAP search. Default: On.
+    .PARAMETER ResolveManager
+        Resolve Manager to UPN/Name/SAM/Mail. Default: On.
+    .PARAMETER ResolveGroups
+        Resolve MemberOf to Name/SAM/Scope/Category. Default: On.
+    .PARAMETER AllowMultiple
+        Return all matches when more than one user is found. Default: Off
+        (throws).
     .EXAMPLE
         Search-User -Identity "jdoe"
     .EXAMPLE
@@ -27,7 +51,21 @@ function Search-User {
 
         [switch]$IncludeEXO,
         [switch]$IncludeTeams,
-        [pscredential]$Credential
+
+        [string]$Server,
+        [string]$SearchBase,
+        [ValidateSet('Base', 'OneLevel', 'Subtree')]
+        [string]$SearchScope,
+
+        [pscredential]$Credential,
+
+        [switch]$EnableProxyAddressSearch,
+        [switch]$EnableMailSearch,
+
+        [switch]$ResolveManager,
+        [switch]$ResolveGroups,
+
+        [switch]$AllowMultiple
     )
 
     $oldEAP = $ErrorActionPreference
@@ -35,20 +73,37 @@ function Search-User {
     try {
         # --- Config (block/dot) ---
         $cfg = Get-TechToolboxConfig
+        $adCfg = $cfg.settings.ad
         $searchCfg = $cfg.settings.userSearch
-        if (-not $searchCfg) { throw "Config missing settings.userSearch node." }
+
+        if (-not $adCfg) { throw "Config missing settings.ad node." }
+        if (-not $searchCfg) { Write-Log -Level Warn -Message "Config missing settings.userSearch node (using defaults)." }
+
+        # Defaults from config (override with parameters if provided)
+        if (-not $Server) { $Server = $adCfg.domainController }
+        if (-not $SearchBase) { $SearchBase = $adCfg.searchBase }
+        if (-not $SearchScope) { $SearchScope = $adCfg.searchScope ? $adCfg.searchScope : 'Subtree' }
+
+        # Behavior toggles (default ON unless explicitly disabled)
+        if (-not $PSBoundParameters.ContainsKey('EnableProxyAddressSearch')) { $EnableProxyAddressSearch = $true }
+        if (-not $PSBoundParameters.ContainsKey('EnableMailSearch')) { $EnableMailSearch = $true }
+        if (-not $PSBoundParameters.ContainsKey('ResolveManager')) { $ResolveManager = $true }
+        if (-not $PSBoundParameters.ContainsKey('ResolveGroups')) { $ResolveGroups = $true }
 
         # --- Resolve helper availability ---
         $hasAD = !!(Get-Module ActiveDirectory -ListAvailable -ErrorAction SilentlyContinue)
-        $hasEXOWrapper = !!(Get-Command Connect-ExchangeOnlineIfNeeded -ErrorAction SilentlyContinue)
+        $hasEXOWrap = !!(Get-Command Connect-ExchangeOnlineIfNeeded -ErrorAction SilentlyContinue)
         $hasTeamsWrap = !!(Get-Command Connect-MicrosoftTeamsIfNeeded -ErrorAction SilentlyContinue)
+
+        if (-not $hasAD) { throw "ActiveDirectory module not found. Install RSAT or run on a domain-joined admin workstation." }
+        Import-Module ActiveDirectory -ErrorAction Stop | Out-Null
 
         # --- Optional: connect to EXO/Teams if requested and available ---
         $exo = $null
         $teams = $null
 
         if ($IncludeEXO) {
-            if ($hasEXOWrapper) {
+            if ($hasEXOWrap) {
                 if (Get-Command Import-ExchangeOnlineModule -ErrorAction SilentlyContinue) {
                     Import-ExchangeOnlineModule -ErrorAction SilentlyContinue
                 }
@@ -70,87 +125,120 @@ function Search-User {
             }
         }
 
-        Write-Log -Level Info -Message ("Searching for user '{0}' across AD{1}{2}..." -f `
+        Write-Log -Level Info -Message ("Searching for user '{0}' in AD{1}{2}..." -f `
                 $Identity, ($IncludeEXO ? '/EXO' : ''), ($IncludeTeams ? '/Teams' : ''))
 
-        # --- AD lookup first (important for SAM + DN) ---
-        $ad = $null
-        if ($hasAD) {
-            Import-Module ActiveDirectory -ErrorAction SilentlyContinue | Out-Null
-            $isUPN = ($Identity -match '^[^@\s]+@[^@\s]+\.[^@\s]+$')
+        # --- Helpers ---
+        function Escape-LdapFilterValue {
+            param([Parameter(Mandatory)] [string]$Value)
+            # RFC 4515 escaping: \ * ( ) NUL -> escaped hex
+            $v = $Value.Replace('\', '\5c').Replace('*', '\2a').Replace('(', '\28').Replace(')', '\29')
+            # NUL not likely in user input; keep for completeness
+            $v = ($v -replace '\x00', '\00')
+            return $v
+        }
 
-            # Build common AD params and only add -Credential when supplied
-            $adParams = @{
-                Properties  = '*'
-                ErrorAction = 'SilentlyContinue'
+        # AD property set needed by Format-UserRecord
+        $props = @(
+            'displayName', 'userPrincipalName', 'samAccountName', 'mail', 'mailNickname',
+            'proxyAddresses', 'enabled', 'whenCreated', 'lastLogonTimestamp',
+            'department', 'title', 'manager', 'memberOf', 'distinguishedName', 'objectGuid'
+        )
+
+        $common = @{
+            Properties  = $props
+            ErrorAction = 'Stop'
+        }
+        if ($Server) { $common['Server'] = $Server }
+        if ($SearchBase) { $common['SearchBase'] = $SearchBase }
+        if ($SearchScope) { $common['SearchScope'] = $SearchScope }
+        if ($Credential) { $common['Credential'] = $Credential }
+
+        $adUsers = @()
+
+        # --- 1) Exact match attempt (UPN or SAM) ---
+        $isUPN = ($Identity -match '^[^@\s]+@[^@\s]+\.[^@\s]+$')
+        $idEsc = Escape-LdapFilterValue $Identity
+        $exactLdap = if ($isUPN) { "(userPrincipalName=$idEsc)" } else { "(sAMAccountName=$idEsc)" }
+
+        try {
+            $adUsers = Get-ADUser @common -LDAPFilter $exactLdap
+        }
+        catch {
+            Write-Log -Level Warn -Message ("[Search-User][AD/Exact] {0}" -f $_.Exception.Message)
+        }
+
+        # --- 2) Fallback broader search (displayName/mail/proxyAddresses) if none found ---
+        if (-not $adUsers -or $adUsers.Count -eq 0) {
+            $terms = @(
+                "(sAMAccountName=$idEsc)"
+                "(userPrincipalName=$idEsc)"
+                "(displayName=*$idEsc*)"
+            )
+
+            if ($EnableMailSearch) {
+                $terms += "(mail=$idEsc)"
             }
-            if ($Credential) { $adParams.Credential = $Credential }
+            if ($EnableProxyAddressSearch) {
+                # proxyAddresses is case-sensitive on the prefix; include both primary & aliases
+                $terms += "(proxyAddresses=SMTP:$idEsc)"
+                $terms += "(proxyAddresses=smtp:$idEsc)"
+            }
 
+            $ldap = "(|{0})" -f ($terms -join '')
             try {
-                if ($isUPN) {
-                    $ad = Get-ADUser -Filter "UserPrincipalName -eq '$Identity'" @adParams
-                }
-                else {
-                    $ad = Get-ADUser -Filter "SamAccountName -eq '$Identity'"   @adParams
-                }
-                if ($ad -is [array]) {
-                    if ($ad.Count -gt 1) { throw "Multiple AD users matched '$Identity'." }
-                    elseif ($ad.Count -eq 1) { $ad = $ad[0] } else { $ad = $null }
-                }
+                $adUsers = Get-ADUser @common -LDAPFilter $ldap
             }
             catch {
-                Write-Log -Level Warn -Message ("[Search-User][AD] {0}" -f $_.Exception.Message)
+                Write-Log -Level Warn -Message ("[Search-User][AD/Fallback] {0}" -f $_.Exception.Message)
             }
         }
-        else {
-            Write-Log -Level Debug -Message "[Search-User] ActiveDirectory module not found; skipping AD lookup."
+
+        if (-not $adUsers -or $adUsers.Count -eq 0) {
+            Write-Log -Level Warn -Message ("No AD user found matching '{0}'." -f $Identity)
+            return $null
         }
 
-        # --- Optional: EXO lookup (no Graph dependency) ---
+        # --- Handle multiplicity ---
+        if (($adUsers | Measure-Object).Count -gt 1 -and -not $AllowMultiple) {
+            $names = ($adUsers | Select-Object -First 5 | ForEach-Object { $_.SamAccountName }) -join ', '
+            throw "Multiple AD users matched '$Identity' (e.g., $names). Use -AllowMultiple to return all."
+        }
+
+        # --- Optional: EXO & Teams (if wrappers exist and were requested) ---
+        $exo = $null
         if ($IncludeEXO -and (Get-Command Get-ExchangeUser -ErrorAction SilentlyContinue)) {
-            try {
-                $exo = Get-ExchangeUser -Identity $Identity
-            }
-            catch {
-                Write-Log -Level Warn -Message ("[Search-User][EXO] {0}" -f $_.Exception.Message)
-            }
+            try { $exo = Get-ExchangeUser -Identity $Identity } catch { Write-Log -Level Warn -Message ("[Search-User][EXO] {0}" -f $_.Exception.Message) }
         }
-
-        # --- Optional: Teams lookup (no Graph dependency) ---
+        $teams = $null
         if ($IncludeTeams -and (Get-Command Get-TeamsUser -ErrorAction SilentlyContinue)) {
-            try {
-                $teams = Get-TeamsUser -Identity $Identity
-            }
-            catch {
-                Write-Log -Level Warn -Message ("[Search-User][Teams] {0}" -f $_.Exception.Message)
-            }
+            try { $teams = Get-TeamsUser -Identity $Identity } catch { Write-Log -Level Warn -Message ("[Search-User][Teams] {0}" -f $_.Exception.Message) }
         }
 
-        # --- Normalize (Format-UserRecord must exist) ---
+        # --- Normalize via Format-UserRecord ---
         if (-not (Get-Command Format-UserRecord -ErrorAction SilentlyContinue)) {
             throw "Format-UserRecord not found. Ensure it is dot-sourced from Private and available."
         }
 
-        # Entra/AzureAD excluded on purpose (Graph-free)
-        $user = Format-UserRecord -AD $ad -Exchange $exo -Teams $teams
+        $normalized = $adUsers | ForEach-Object {
+            Format-UserRecord -AD $_ -Server $Server -Credential $Credential `
+                -ResolveManager:$ResolveManager -ResolveGroups:$ResolveGroups
+        }
 
-        if (-not $user) {
-            Write-Log -Level Warn -Message ("No user found matching '{0}' (AD{1}{2} returned no usable record)." -f `
-                    $Identity, ($IncludeEXO ? '/EXO' : ''), ($IncludeTeams ? '/Teams' : ''))
+        if (-not $normalized) {
+            Write-Log -Level Warn -Message ("No usable record produced for '{0}'." -f $Identity)
             return $null
         }
 
-        # In Graph-free mode, ObjectId may be missing (that’s OK in hybrid auto-disable)
-        $missing = @()
-        foreach ($k in 'SamAccountName', 'UserPrincipalName') {
-            if (-not $user.$k) { $missing += $k }
+        if ($AllowMultiple) {
+            Write-Log -Level Ok -Message ("{0} user(s) found and normalized." -f (($normalized | Measure-Object).Count))
+            return $normalized
         }
-        if ($missing) {
-            Write-Log -Level Warn -Message ("User record missing fields: {0}. Downstream steps may fail." -f ($missing -join ', '))
+        else {
+            $one = $normalized | Select-Object -First 1
+            Write-Log -Level Ok -Message ("User '{0}' found and normalized." -f $one.UserPrincipalName)
+            return $one
         }
-
-        Write-Log -Level Ok -Message ("User '{0}' found and normalized." -f $user.UserPrincipalName)
-        return $user
     }
     catch {
         Write-Log -Level Error -Message ("[Search-User] Failed: {0}" -f $_.Exception.Message)
@@ -164,8 +252,8 @@ function Search-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA7tUy9aP7VHzBH
-# XueuKpwY3fKPLLcvO56HZsu3u66zaqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD0TWKFbgO1QMfR
+# 4lps/Ib5UtRN291G7j9fOnCEZJoI0aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -298,34 +386,34 @@ function Search-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBjcMShYkDJ
-# BcjLTTSZGzj3lUE/9Exr4IxeejZauEwxgzANBgkqhkiG9w0BAQEFAASCAgAfFmue
-# HaBMPPbDBMOGhfQJUHjTAZt54FwUnVv0cgQaAnvkhXRPjsT0qfCb7dYnQCaKhfwd
-# UHU/sTqEsdwQmO4X4cmgOf0ULw/oUsrGDwY4nXQePuS6FBJ20Q3+UDkmpx3o0VNm
-# rYyEJnNciamdFsoxlzP/TUCSuSQo2CfGhjhKRHyzvlYVlQG+IXqnDOzCKt4J3ns6
-# /p3EJFNsWwCKZ6ZM3HinSFkoQVKY1ZnXdJGbPzL+WjQAFS9q/Rj4yHoOcACcLnG5
-# gMTuL4FK4LabTZ9j+aRpvD8+1Zx/d4uJWg7uUSaHaOiLDcm5Kd9On+bQXBC6Xibz
-# pKlkR1jYPrulSd6IZXmwEOlabTyAv4nZgmfICocH640ak4sSnelR0Iox3GsygISr
-# 0yLaTmyHkZ/1FW0qj6qNbDU4HkwobnCUpyAvlBzcJTXg5qsP2Pm7SPs+iNHZJGR0
-# T4qSxA790vmIesyggYWo/drWLh8IWugZbREKdDUfCWn8SmL4EWH/1LUXgUy/8ym/
-# SddivCYvBj5RliC3znAT734X6pX12WyQHM0gDYHc2gJgRfQJmQJd0ADe26d7pOmY
-# VnvReyoi0IfBzJ3cWRli0WDCVkRtHvq6cx3fHVCz6gJf9JR+DVXhRP5387taC/qK
-# 8svacXm9931NYLxxQUkH00COlHZQdmOAn6xNm6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB0adWz+AQw
+# 4YZFXl0VwSq1yMAi/kWGE5r2eoxZj1A8ozANBgkqhkiG9w0BAQEFAASCAgAij1+p
+# 4v3VsBSgOWlvuH2vpYUWHxt4fJgQYjrlNpmTFrWuZgbXjN3UoHdFNiAd5Dw1hOkS
+# Wz+yigIeDGagx5Fipr390dpisxusqelpwKQljBt+Rcv6eA/kbPv3Dl7jg3TgZG50
+# o7gO8D4ZS6TvC4sODRB1YAw6Q6MimqmnQhr87eVHPetYDwo14ggwdNYXFfEZmVYW
+# +JIf+2Q0IsKyTbniuFWml9DJOXYLkzwQmn1uhYH+zTDIA8YtDVspG5fcw0UU0+YU
+# SwTg/9ViwGLAWr6QEeAk4bZw5isemKNMl82TGmy27zSKM/TLLRR55KuPncraNVvM
+# 91YGlruMiv+G3ZIrnmu5tp5WCfx7gynL67urhwh8PncJ8CIqeNk0I90yWQKRiLXY
+# 6Vc9ESn38lZe/ZYAeCm6uMlR0K99S0Atq8NYE1tRTW2DAVPAY3q3WVM0ax1iGZA9
+# js+nHEdisxBeLMq3xG+kIxpXo3ZfXRUOhtQSXfffw75Od2KOOEofHHbXryJIsnKk
+# 8IuhNT9M7ivAib7w3VW5e4TRV3fRqWW9g+1CJ0ZQvNhDAgsaOiy/pxCT51tzmhlq
+# qOxwkLRLEPX4H+3JRb8VHNoFJ3bhDW66MmmyCQ+vkXNTZrL62eEOOsfLVnl/rVsp
+# JKTBqLGt/6pTdOTpeXXlxVr2Qs13RQggTw4vUaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjgyMTQxMTZaMC8GCSqGSIb3DQEJBDEiBCA1n27acsP4wpCix2B5
-# v6u21qtXY5DtZSgDN25BRlS9SjANBgkqhkiG9w0BAQEFAASCAgBw4+7Vhh9j5HaB
-# C6OJKaZh7PHAKb5KjbqlLZIntqpbx1M1eUvRdNyigos7RssRqnaecgGpu5R0zS1t
-# no7fr7fioaaYcZXfQI7fUIRQBDM6HvAQBr3zPfR0KAkoWzHIxvuuYw0ivE8Wbjgr
-# q2dGBWlTRJuMNBpa6tqyViexX/wvHirB6Mm8zNSQETgvwV3JrrQaPBJ55JbltQFL
-# MToLCI/Eqi9ctcfsme77M2TGaW0gqACLQaf/FGlbCU4ei0jMiB3m4peBZF3yQlSP
-# ImL0uWnbZ1wZhyp3UAE4zqdbPzmQaWCufvLiobKwJkKSVrE5hOCgWobOfQGiKkc9
-# 55jKcoMCbncl66IWx0vMtPjhurRMmLe+8Jnd9x2X3fibVAQ7l5wpQqxnrIZG+pl+
-# pyCD/AhPtZ3iIIMm/5ygg2sDoOrKFeDm/L/cvRd6pHmRteWZb1bFVKYrCIsTUYty
-# QRkvDkKe6uRx7RbTcaalAmBNtPIEmvLFJxAHABzZllmVg0PiZmh9k9k0J/MnPGdB
-# 15ypkHr9mXGmr1ZQiuCH7wfCI4Q3khSD5eTlrhgkhfrbzab5wcAypgjaI5yIMrFw
-# lbCnJlzMleNNJXiSFgSYN+RIw54E4P37hm8VWrs7WmxAyBQMNQ0U038C+qHirXbo
-# /PDbNiCXzjW2Z2IevkPTryNksIWH3w==
+# BTEPFw0yNjAxMjkxOTQ2MzNaMC8GCSqGSIb3DQEJBDEiBCAeaZ4NVFW3BjltHWbJ
+# EA/uLBFD+5qiLMW+kX2d9jK4AzANBgkqhkiG9w0BAQEFAASCAgCFObUG5rjh2p1E
+# m3LsGY7HyUpwwozlslwZAvh7IbD7I4Kqh7jQtoNRD20qqoXBzNNnNp80mq9xvjXI
+# BHoF4khNYsL3xr9y/d82Ol7dFG6DsW73VGCoLKfdHHuQxvsFZC/fGtD2qmfUX/12
+# SxwkkTI54DCuYObi5aEP+nBvgOJgSepD6AoM2c0b44kjU+kHbeLXQwqJJXGR/f9E
+# Z5QUV37RElmod4hZsq+fZrlXKzer4+B1joChXJtoKc/xiv3iIdIUp++0gC+eHo5x
+# XR9rZtxt66hoPhGfYo64cFsw3R5uIl8qkBPHqJlZMJPrMzBEX/+Xp0GD8AbQXlm+
+# ZEox7U2j4EXvSLtnP5d4PAvF/h90SyCKrH2YBmTNWpqqzyF5D7SPiN5L2lqIuuvH
+# Ba3jBMmbKT7iT6xg1iBs+SmDgI0NciN2nBn9H6EKvbHnMA3MATpDEUGStKhL9tAk
+# JU4iJxxFGfAhNYTkFRUHJjeggY5nRdvH4GcuuZu2YoxFPzfrwCWt79yMON4Hvx2C
+# i155ZclzanTQvVLmqQ/YR5h8G9GiMTykG3OqFFUY/09UL/usf2qYLqAlGRvXtqls
+# 4uLK6wIDMoaTcKQjcOpZsNjcVSUpGVikZmmmV3wVdavCXbJTERE+xNHshhnyHNDd
+# aRY3BXIfg48lYIP3c/kI9ygvscoPMw==
 # SIG # End signature block
