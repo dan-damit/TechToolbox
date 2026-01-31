@@ -34,7 +34,7 @@
         // Editor Behavior
         // ------------------------------
         "editor.defaultFormatter": "ms-vscode.powershell",
-        "editor.formatOnSave": false,
+        "editor.formatOnSave": true,
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
         "editor.rulers": [
@@ -46,7 +46,7 @@
         // ------------------------------
         // File Hygiene
         // ------------------------------
-        "files.trimTrailingWhitespace": true,
+        "files.trimTrailingWhitespace": false,
         "files.insertFinalNewline": true,
         "files.encoding": "utf8",
         // ------------------------------
