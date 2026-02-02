@@ -46,7 +46,7 @@
         // ------------------------------
         // File Hygiene
         // ------------------------------
-        "files.trimTrailingWhitespace": true,
+        "files.trimTrailingWhitespace": false,
         "files.insertFinalNewline": true,
         "files.encoding": "utf8",
         // ------------------------------
