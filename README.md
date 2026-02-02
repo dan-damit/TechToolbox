@@ -450,14 +450,14 @@ session.
 
 ```powershell
 .EXAMPLE
-# Just get the cred (from memory or disk); prompt only if missing
-$cred = Get-DomainAdminCredential -PassThru
+    # Just get the cred (from memory or disk); prompt only if missing
+    $cred = Get-DomainAdminCredential -PassThru
 .EXAMPLE
-# Force a new prompt and persist to config.json
-$cred = Get-DomainAdminCredential -ForcePrompt -Persist -PassThru
+    # Force a new prompt and persist to config.json
+    $cred = Get-DomainAdminCredential -ForcePrompt -Persist -PassThru
 .EXAMPLE
-# Clear stored username/password in config.json and in-memory cache
-Get-DomainAdminCredential -Clear -Confirm
+    # Clear stored username/password in config.json and in-memory cache
+    Get-DomainAdminCredential -Clear -Confirm
 ```
 
 ---
@@ -524,6 +524,6 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
 
 ---
 
-**Author:** Dan Damit
-**License:** Internal use
-**Version:** 0.3.0
+**Author:** Dan Damit  
+**License:** Internal use  
+**Version:** 0.7.0
