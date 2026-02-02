@@ -13,7 +13,7 @@ function Write-OffboardingSummary {
     try {
         # Load config
         $cfg = Get-TechToolboxConfig
-        $off = $cfg['settings']['offboarding'] 
+        $off = $cfg['settings']['offboarding']
 
         # Determine output directory from config
         $root = $off.logDir
@@ -41,7 +41,6 @@ function Write-OffboardingSummary {
         $lines += "User:              {0}" -f $User.UserPrincipalName
         $lines += "Display Name:      {0}" -f $User.DisplayName
         $lines += "SamAccountName:    {0}" -f $User.SamAccountName
-        $lines += "ObjectId:          {0}" -f $User.ObjectId
         $lines += "Timestamp:         {0}" -f (Get-Date)
         $lines += ""
         $lines += "-----------------------------------------------"
@@ -92,8 +91,8 @@ function Write-OffboardingSummary {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAdIQ7CsueeBh2X
-# YdfaFPGwJpIKrm9w5g2U/1xEknzR36CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD14og9lY18wD27
+# pL4F1Gun2ILonSd2Vwfg4oCb5CkAU6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -226,34 +225,34 @@ function Write-OffboardingSummary {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDCePu0r5KY
-# r0igdG5wbSPgh1oUJCCToNM1bbzKCsttejANBgkqhkiG9w0BAQEFAASCAgAKexdw
-# QwKNasR8TaTf9NNABlGCw3dF6tjiGnYgxUbgXzRfcwYx1h13WwnltgT0Arx8KvvP
-# r3Tjw34yUA/IV1Sio0voMhKyNqv/VtBF3lKQUO8BMovrWRriFsRFOsPY1024M1XO
-# oNKlOvyDwbD2teRANVyORVHAZmM9/Vt9R19W/zXPpBZyQ2IBTm5O/8Lc0DVO1HW8
-# pgXaFW1fgi2NEgxEEbkRjNVIg1Zaz5hGERroX8Dlqy8JuhzeqtaqEf7rf6oAQVlh
-# EwBZYQTJrwHy4BlElVjTa9Y3RDvtm0Iy4f+IwVbUjaUKpktadaaHMXG6Y0NBP4Wr
-# yCnws6dBVq9GUdzj+68quwd+w9qcA+GhD1Jgw8oL2tVc2xahoONfeGnaeKHxdX9j
-# Y2zdppw1iO6BpUFIhreXuwoTjUR0tsS+Fcfuf5iZLEXPqywJ6h/xQMmC8ge4aze/
-# 9twAovA5JiBMDhRti8TxTirpzUuM6WlCBzMMzIH/L50oLzzQdR/s7l6SweiAaG0h
-# 0hzS/KW0mI3jw9YivrBgbQ2KZGluKW8pCAzegkUXr5EY5+OM345eK9x2ISg1+tyb
-# wwTE20cVKbACdsc05YlkBYHKOdYUBCMMgOogP1RabJz7oOpc8S+23oKoIscOMd70
-# +FrHTTa4lDpS8FwG3RbN+NtT3Y5+nN68Lyck7qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCLY02mKuYR
+# 4wFGfIUdK/rtsZvVRf9LCrksTcCY6goirDANBgkqhkiG9w0BAQEFAASCAgBaxCtu
+# duLzaQJXNfCNqzqbaN1l3Ik2ocPGhqLIYYYSBydMPAaU6kiKfNf3ZiopiqppRKcJ
+# MhhclAJ+D9P8pvT9GjcKwdG13Kn7JkOYs+SgeXBMc8ZOmnVQB45Bt/3kK+3x4U3G
+# 0lAci2dG6ogeELbJqksWFuKVugtUvuNOvXC1FyMxWwFBWnYXjtuejTXOCGxkpLpQ
+# fos5IR5KQfNTmluwrECNgF87OkvQzdKhQBa9PNR65Wz8fVN7uJn6Tvg/ZSRFGtyZ
+# IUHLV+irNgaHB82SHtbTkzQmHUEY28UfKvzPGWxnfULwIZGgQcymb4/tUz9HxYhI
+# uJe5RWR+Dz4XUshdC5KSqL1lD4I2zMI/ZGU8LS0ufHuASpVf0iZW5h84lKtLlSEm
+# bGWcaGCp4Rvi9543QXavchi7MnGyCh60psI2pWkQoNvCALes9R/9G0tBKPBbCs/s
+# RTIrGXVHmCS1gRqRjE5yarua726e9o7wsP4AvD5sDUpQJmuIh+Dm9fyhdyDVklec
+# GOJfHzPEedEGg2p/qsNqeKj2KrGR8L19Knx9qy37mBd3xrY5CzpxcnW9lvj/1cIg
+# rGGyLkMyLeKXct+3ITYHGVzjXCY/2RAiaHqZwPPKRcUnuQjzdufXh1V74j9B7nb+
+# ExN2G0bsVQ65oyWJzd65T+Hkm7Q3pnHAsl3Q6qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTgxODQxMjFaMC8GCSqGSIb3DQEJBDEiBCCoNYt7UUhfIqp9QByZ
-# JRCuf1Idqq0AoCaE4Na6qNHqzjANBgkqhkiG9w0BAQEFAASCAgDAjLHataQik3Jf
-# 161sOWFiWhlasBN4+Y4YH71f1pco6KnD85gZJ034I6jHe2ZPEFrViojN48yxbfom
-# sMCqjjPEOyVxBMuiwyBwvWD/wihj+EgcoGz2giYj1tqDZtvXgHw5rocmhtyjstWe
-# e/vkEq4AE/NurqnYfe0ItQCfP1qklpdmsalTj/dI8+g0o94/0ceq9ILt+6vd5HD1
-# iXEYn9pT4TrP2l02LmmAXpckeZGj4nIRrpDOu8jWTKn/eGXqfdygrwBRsYEkI9dx
-# J33CQLZ6tA05XBN3H5HspMsGx69Z7GOWtCrdCZ2Rvqk6wB9ZGDk774O/6x7qsprg
-# luqvwNoVon3fYhMSyCGrYGpDHd9JQWe11/AHyUFdi+5AanqyQ8eCAEowNfoTRQMJ
-# AMlLx0hamXtw6zwysJ2qZIvu6SW1746H62MlDg7YmPaJDxh7XPMM+V6hyfUlpSVe
-# jeBSf9fiqNX/dS4qdk27B6R+hFDeE7y5Z+RrZXgCE9GHcON2J81DpziQ3yuNsTpU
-# rquGGGyFiENWmIYWG6FJ5eYStXB3fKfZm3WOqnKRIxdOQ4J8TP9tCKwPhD2Y/VpF
-# JuezNA1YjPh+njJ/rBGZys0+aSkWxQICBkQcTCGqtI/6ho2P5uH9E7/1DyHAMPeb
-# SSxn7uiUKjmqXEIdDr/A1ZjTqLqSmQ==
+# BTEPFw0yNjAyMDIxNjEwMzdaMC8GCSqGSIb3DQEJBDEiBCDutj6a56cR8oWIFCA8
+# THpukSYO9MQb4tRJ9iBl9kaH/TANBgkqhkiG9w0BAQEFAASCAgBbBrJPptnALBn2
+# KGEnrgR+HJJgYT/C8iRq1hcMvCTi7qE2iTguGSaXQL3XjMdIhIVAaSz4ug4tHoFM
+# fEqxBkOqdtZkadzRhZzINEjmK45BR42n+Uvo2/h8IQIEl+cMhDQ0YR+PbZF4Woks
+# GqNiXxQ62Mi3FwjMOdD4ugiG+yCVs5eqAbEgZyxSZWgx42l4u7sEIxtadlVWAmz4
+# sqS3PzJnagoaWMj32QrbtlprNwQ8TMjJywJbbDin7oXGKOsW3240iTC/eYqtPpB9
+# sN+ltlU9SlvHqFSVrdE/SqJN98ORJby0Ny/JDBjrsvVJ8YDrLbwOcPaYEuarpaha
+# /Fj3Ui2FS62MoUklcuaWgEekb3FH0q3u6Mo8tiNxgBfvD+feJjg5SuFhYwj5mZHm
+# bJA0imMGQGpUJJw8p1ybzLZ399Mxreq81cRbxBovXChwIwdYTXYNc46VmG0RB/7m
+# ZHN0kx9yJllI9qUgNLuC8+XWrJQkM5U/+X5q5ImaxwPggt0ekynP1sxg9iwqDkbF
+# QlZq/Q+8sUbjfTb3FXleERchuJDUBUSeWaZk4DSnPo+oVjDljebZmClcNzSHztRx
+# 5uIzIrOw03qrqR+NOX+3v9j7GwYfwZz5AGJvQgE72E8O/mZ3iSOvgHmrJcbVGx6e
+# //yQSPcfWijAIZ5c6E93kraqIfcw/g==
 # SIG # End signature block
