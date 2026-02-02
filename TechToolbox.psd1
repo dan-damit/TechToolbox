@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.2.52'
+ModuleVersion = '2.2.53'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -74,12 +74,13 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User'
                'Get-DomainAdminCredential', 'Get-MessageTrace', 
                'Get-RemoteInstalledSoftware', 'Get-SystemSnapshot', 
                'Get-TechToolboxConfig', 'Get-ToolboxHelp', 'Get-WindowsProductKey', 
-               'Initialize-DomainAdminCred', 'Invoke-AADSyncRemote', 
-               'Invoke-DownloadsCleanup', 'Invoke-EXOReport', 'Invoke-PurviewPurge', 
-               'Invoke-SCW', 'Invoke-SubnetScan', 'Invoke-SystemRepair', 
-               'New-OnPremUserFromTemplate', 'Remove-Printers', 
-               'Reset-WindowsUpdateComponents', 'Search-User', 'Set-PageFileSize', 
-               'Set-ProxyAddress', 'Start-DnsQueryLogger', 'Test-PathAs'
+               'Initialize-DomainAdminCred', 'Initialize-TTWordList', 
+               'Invoke-AADSyncRemote', 'Invoke-DownloadsCleanup', 'Invoke-EXOReport', 
+               'Invoke-PurviewPurge', 'Invoke-SCW', 'Invoke-SubnetScan', 
+               'Invoke-SystemRepair', 'New-OnPremUserFromTemplate', 
+               'Remove-Printers', 'Reset-WindowsUpdateComponents', 'Search-User', 
+               'Set-PageFileSize', 'Set-ProxyAddress', 'Start-DnsQueryLogger', 
+               'Test-PathAs'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
