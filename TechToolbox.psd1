@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.2.53'
+ModuleVersion = '0.2.68'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -51,13 +51,13 @@ PowerShellVersion = '7.5.3'
 # ProcessorArchitecture = ''
 
 # Modules that must be imported into the global environment prior to importing this module
-RequiredModules = @(@{ModuleName = 'ExchangeOnlineManagement'; ModuleVersion = '3.9.2'; })
+# RequiredModules = @()
 
 # Assemblies that must be loaded prior to importing this module
 # RequiredAssemblies = @()
 
 # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-# ScriptsToProcess = @()
+ScriptsToProcess = 'Bootstrap.Dependencies.ps1'
 
 # Type files (.ps1xml) to be loaded when importing this module
 # TypesToProcess = @()
@@ -95,13 +95,16 @@ AliasesToExport = @()
 # DscResourcesToExport = @()
 
 # List of all modules packaged with this module
-ModuleList = @(@{ModuleName = 'ExchangeOnlineManagement'; RequiredVersion = '3.9.0'; })
+ModuleList = @(@{ModuleName = 'ExchangeOnlineManagement'; RequiredVersion = '3.9.2'; })
 
 # List of all files packaged with this module
 # FileList = @()
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
+
+    #TechToolboxDependencies of this module
+    TechToolboxDependencies =  @('System.Collections.Hashtable')
 
     #TechToolbox of this module
     TechToolbox = 'System.Collections.Hashtable'

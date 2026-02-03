@@ -1,10 +1,13 @@
 function Initialize-Modules {
     param([array]$Dependencies)
 
-    $modulesPath = Join-Path $script:ModuleRoot 'Modules'
+    $modulesPath = Join-Path $script:ModuleRoot 'Dependencies'
+
     if (Test-Path $modulesPath) {
-        if (-not ($env:PSModulePath -split ';' | ForEach-Object Trim | Contains $modulesPath)) {
-            $env:PSModulePath = "$modulesPath;$env:PSModulePath"
+        # Use platform-correct path separator and robust "already added" check
+        $paths = $env:PSModulePath -split [IO.Path]::PathSeparator
+        if ($paths -notcontains $modulesPath) {
+            $env:PSModulePath = ($modulesPath + [IO.Path]::PathSeparator + $env:PSModulePath)
         }
     }
 
@@ -14,18 +17,28 @@ function Initialize-Modules {
         if ($m.Defer) { continue }
 
         try {
-            Import-Module $m.Name -RequiredVersion $m.Version -Force -ErrorAction Stop
+            if ($m.Version) {
+                Import-Module -Name $m.Name -RequiredVersion $m.Version -Force -ErrorAction Stop
+            }
+            else {
+                Import-Module -Name $m.Name -Force -ErrorAction Stop
+            }
         }
         catch {
-            if ($m.Required) { throw }
+            if ($m.Required) {
+                throw "Failed to import required module '$($m.Name)' version '$($m.Version)'. $_"
+            }
+            else {
+                Write-Warning "Optional module '$($m.Name)' could not be imported. $_"
+            }
         }
     }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDdYJwjGlUO997S
-# yo1jA/ASgWRMA92+i0tsM5/D4MyIyKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB1mYTtxDnVr9Gj
+# 3VVaV1G/zrusj0bHXv7UUw2468ErgKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -158,34 +171,34 @@ function Initialize-Modules {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC8hBkr/tj8
-# fVosiv2t298+uXVWKB8GpMCeOklG42GeDjANBgkqhkiG9w0BAQEFAASCAgAjfCkk
-# XYh1oqB/B2fVd/kt4LLVZ1B1rxZTWR+qCDTq3oxuTZyhfKQVl/bA0itgWLGEVZdN
-# d3PvlTIcBwKf7zes/c7a1fpSNcL/5TNkut4TiQaSsqaPNdKm8Om2nO6NcUIhk57x
-# kJy5VybSAXcuI3JEKzMHJOEw0btmWzl0ZcaSCs7iBwkYAbcNpBkFzlXDfMPkfILN
-# Yhx/hCVLKl9aLHtcEv7bMIiQv2mFQr61n0J2bHsXIkYcjgMcbhrY93Tfq7DzTIFK
-# Ss6VqIny+uZSabfxOGdox2/uHaoSrP+xEm29YRhi0aDUs0jOKaRMGTQ75EQ1guWh
-# gh+nCrVUMEACbo8ghgQ4D3SbK+FWn6sl8/CKwRaysam3ESy627qvjIZi+usA4lpn
-# 8VZl57AJcHa7KaG8ClWfWfcjG3QKxXf+xTVeePYWVXbmLw/Ozc8Nld+aKCtm1Mgv
-# pU76iOemv/a4zsRx/XE81IzoNcmMcmQN2XAnxRkQS3Y7/FssbTjUhBtqNUcING7v
-# R2uSFUYKGmZJYmQ/DtXaYnjyEZ13Jqe0qqPNN5PTKgM21SPapVm477LgJTFSttOL
-# /PTrRMhObV21G4WyagGhrskFhITkCpW1kjD09Ykn6NNZNdcQbyRIvPofsfO3S5es
-# XtKw9S8ozY04uaREA7qR139fCfmxej1uwqrLsKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCAwR2VudjS
+# JE08F05AkaWVQC7jhD0eUQeEOKY1S5EkrDANBgkqhkiG9w0BAQEFAASCAgDCbCbs
+# GvgC25t1KyhRZKyelKqWS7lDuPg+wTVEQz+QNbP6Fb8JR6gaBpwB+xLUS0gL1FSs
+# zriU9p0ttM3nMLhRxmLJbLccavdbgR+xv7wt2ZiYXltagqHK9nJGMk06TkMpPSr7
+# j00ipvosryUbmtcEetycxGP03TlPZsg2KPXcNJMvb28KDchPf+2AT8+4ujVFXc8c
+# aPGBP6OrVyygmqkiYcdgkheSoKnZCYDanh3ewlNpOGs3QtVTebCdQ4CiTszX9Fzw
+# 5j7BRoohvD4GjprVf6FfOL3QZakPFfJ55BQFElca1UMOGwwniPFT1r99ftbxRXpW
+# YVvyDaHC3l+2wdMTOKitlrAq5mOiuh4jZbNKm9AfwwvlrYx4SI/mN0I1zbnSDehE
+# leBft8ism/rLZ5BaV5s16Y457tsp2UNSjZ0oyzfztkbmI2ePNXZr7cx36um2dH7o
+# 1SqBLDqWbG+q/cEklfUvjwZYphSeuSeQtrz1bu8Ia7rTjxTSDS8kRV5pn321K1UL
+# n2T9qqawhbWS3kVeGkykUc7imaYPBZpt2ERNJpk7welHxQkh/hZ/y17+sqslT62p
+# i5rx192hpUHzpaRa+0v0DyvKhfiqKw3rHXXKJi6F0oa6wtpQXAkKBoJ9j7Q774ZB
+# 88JiyQI3e6MPfOD3G5E0chLcyF1P0nFyGU7iUaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTQxMzU4NTlaMC8GCSqGSIb3DQEJBDEiBCA3t7GGoRX89MStcbHA
-# C7se964SlaBGRo5UjchMVBsvpTANBgkqhkiG9w0BAQEFAASCAgBcmUBhgb9QwkTc
-# NCzkfiTqrCvXXG1zHBbQyujvOYZoLtCJAlOu9wvx2mtEbGetArmnybwT8kxAtcYR
-# yoTv9q0iWrRGziR1ypMJvNrDWt4u1FZG0JbmzXmHYu0fHiCF3bPQBSYrypDDTFur
-# gtvhGMA/AB6gk5289+mgP1Oq65u4xCSwxRxdAzk3SjsXtCVkVsUAUlfiXaEjI9hL
-# 37C7+IjCj68fmEy3UDt68YJKpzIv4THuZX+v6f/sDDyQNAcSqZEVOCo2D8/+jALF
-# IdwksFipxSy1YnBrnnB2AUc2H4T6cfdhvFvWwZu9fKDPxULAsokt5hd0N/8Wytb/
-# nADIFHh3gUYsadToVruGyXVKYvtO60FYTn2GDiaLyx+VSE9KfEsz1bAS40efLM7G
-# nPb6mnJDO32EPWIgJxxngyXniKQpSm6z1F4jAZOTe2fXsroHpH++VqO7/IyYaeSH
-# B2Te6Lldk1xg0Rl6SwX7kHgPma3jIrC8w7h9XY4xLRPYmTf4Q+klY7loTHkzhiyx
-# TJz5Ef9vC3HKL8gUKMLQ1+BTmPeidPM0Aom7H0rk+laHdxapAOvgG6jDvF5QnLfi
-# AwY5kDWKcVlyvf6WTfMGdnwm04ndKMt71oCccq4rsXH8JCepp2/Okdc2RsmHdPlt
-# GkGjyUzl6QZSiJD+Gbn6KDXNux+hWw==
+# BTEPFw0yNjAyMDMxNjU5NTFaMC8GCSqGSIb3DQEJBDEiBCAmm4Yz49DudIkLTj41
+# Ji/pK+UeGjUMIYLlNfYa9dgT4TANBgkqhkiG9w0BAQEFAASCAgCc4gMOFu8QScAO
+# Falo2PH1YE58pR+WrhvW3D0wXFhIYi9AiJ9O7LteIKV2QqIdpsS+CmX6d7x0mruP
+# CnUr4B4euc+VBjVSUVqZ0V+i9pZ1Eha7oT7ffl7aYb+xHPrE21Qlrg334RhdFpn9
+# este3jeuqD2pF+nQJhnjCGFH0lACtbFZLtsISiNPDY3ljigHLLlARCHtBAGEw6BT
+# 4PGjRkEXbSreZkuQ+PuAKZhZUhCOByYSAuXYUdEzqsG1/4ocms6RLb61ewB8uPiL
+# AkUtZOo0H6UUbno9gOtE7RcGd0PeI1NrT4Hb7J1kOE7H08Yt3kFv3AURgnWZJ189
+# 2xkoE6lNsGFZnUSp0IA9gNUSqoZVHLiYlnjg4Z/LcgyCgKXuIUHkw2F9S6FmHloJ
+# GHvm1sa1kR2pQ8Km9olQ2YawRiTRpykrQEIZg+ztBruQxhOV44a96uhgHU6t0tR9
+# rVSFDBDsgJxLZTHXtu0+/WI0yoHTWhcQs0q+QbPWXltgkoeCGFuG5ch/gwl+DMJQ
+# 2bcdDJd2y38oln88ylV1BKEhbqYagzxCFS+nlHBVXYwdips9175xv1CyJDY67pmD
+# RPAsLi/2MOAH3q3/+Pa4Az0odgvZqkee+JhTdKCcLceH36zjBamvAA/aqX4RMc8z
+# lv2o/FAnAlFB4arauPibHKVcc9YcjQ==
 # SIG # End signature block
