@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.2.68'
+ModuleVersion = '0.2.69'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -57,7 +57,7 @@ PowerShellVersion = '7.5.3'
 # RequiredAssemblies = @()
 
 # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-ScriptsToProcess = 'Bootstrap.Dependencies.ps1'
+# ScriptsToProcess = @()
 
 # Type files (.ps1xml) to be loaded when importing this module
 # TypesToProcess = @()
@@ -69,18 +69,7 @@ ScriptsToProcess = 'Bootstrap.Dependencies.ps1'
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User', 
-               'Enable-NetFx3', 'Find-LargeFiles', 'Get-BatteryHealth', 
-               'Get-DomainAdminCredential', 'Get-MessageTrace', 
-               'Get-RemoteInstalledSoftware', 'Get-SystemSnapshot', 
-               'Get-TechToolboxConfig', 'Get-ToolboxHelp', 'Get-WindowsProductKey', 
-               'Initialize-DomainAdminCred', 'Initialize-TTWordList', 
-               'Invoke-AADSyncRemote', 'Invoke-DownloadsCleanup', 'Invoke-EXOReport', 
-               'Invoke-PurviewPurge', 'Invoke-SCW', 'Invoke-SubnetScan', 
-               'Invoke-SystemRepair', 'New-OnPremUserFromTemplate', 
-               'Remove-Printers', 'Reset-WindowsUpdateComponents', 'Search-User', 
-               'Set-PageFileSize', 'Set-ProxyAddress', 'Start-DnsQueryLogger', 
-               'Test-PathAs'
+FunctionsToExport = '*'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
@@ -103,11 +92,11 @@ ModuleList = @(@{ModuleName = 'ExchangeOnlineManagement'; RequiredVersion = '3.9
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
 
-    #TechToolboxDependencies of this module
-    TechToolboxDependencies =  @('System.Collections.Hashtable')
-
     #TechToolbox of this module
     TechToolbox = 'System.Collections.Hashtable'
+
+    #TechToolboxDependencies of this module
+    TechToolboxDependencies =  @('System.Collections.Hashtable')
 
     PSData = @{
 
