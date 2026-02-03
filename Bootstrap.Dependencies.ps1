@@ -1,119 +1,9 @@
-<#
-.SYNOPSIS
-Builds and updates the TechToolbox module manifest.
-#>
-
-param(
-    [switch]$AutoVersionPatch,
-    [switch]$RegenerateGuid,
-    [string]$ModuleRoot = (Split-Path -Parent $PSScriptRoot)
-)
-
-function Build-ToolboxManifest {
-    [CmdletBinding(SupportsShouldProcess)]
-    param(
-        [string]$ModuleRoot,
-        [switch]$AutoVersionPatch,
-        [switch]$RegenerateGuid
-    )
-
-    # Determine module root if not provided
-    if (-not $ModuleRoot) {
-        $ModuleRoot = Split-Path -Parent $PSScriptRoot
-    }
-
-    # Dot-source builder helpers (optional)
-    $builderRoot = Join-Path $ModuleRoot 'Private\Builder'
-    if (Test-Path $builderRoot) {
-        Get-ChildItem -Path $builderRoot -Filter *.ps1 -File |
-        ForEach-Object { . $_.FullName }
-    }
-
-    # Paths
-    $manifestPath = Join-Path $ModuleRoot 'TechToolbox.psd1'
-    $publicDir = Join-Path $ModuleRoot 'Public'
-    $depsDir = Join-Path $ModuleRoot 'Dependencies'
-    $bootstrapRel = 'Bootstrap.Dependencies.ps1'
-    $bootstrap = Join-Path $ModuleRoot $bootstrapRel
-
-    # Read existing manifest
-    $manifest = Import-PowerShellDataFile $manifestPath
-
-    # --- Compute new values ---
-    if (Get-Command Get-PublicFunctionNames -ErrorAction SilentlyContinue) {
-        $functions = Get-PublicFunctionNames $publicDir
-    }
-    else {
-        # Fallback: enumerate Public\*.ps1 and export by base name
-        $functions = Get-ChildItem -Path $publicDir -Recurse -Filter *.ps1 -File |
-        Select-Object -ExpandProperty BaseName
-    }
-
-    $guid = if ($RegenerateGuid) { [guid]::NewGuid().Guid } else { $manifest.Guid }
-
-    $version = if ($AutoVersionPatch) {
-        if (Get-Command Bump-Version -ErrorAction SilentlyContinue) {
-            Bump-Version $manifest.ModuleVersion
-        }
-        else {
-            $ver = [version]$manifest.ModuleVersion
-            [version]::new($ver.Major, $ver.Minor, $ver.Build + 1)
-        }
-    }
-    else {
-        $manifest.ModuleVersion
-    }
-
-    # --- Declare dependencies (extend as needed) ---
-    $dependencies = @(
-        @{ Name = 'ExchangeOnlineManagement'; Version = '3.9.2'; Bundled = $true; Required = $true; Defer = $true }
-    )
-
-    # Build ModuleList (your helper or a fallback)
-    if (Get-Command Build-ModuleList -ErrorAction SilentlyContinue) {
-        $moduleList = Build-ModuleList $dependencies
-    }
-    else {
-        $moduleList = $dependencies | ForEach-Object {
-            @{
-                ModuleName    = $_.Name
-                ModuleVersion = $_.Version
-                Bundled       = $_.Bundled
-                Required      = $_.Required
-                Defer         = $_.Defer
-            }
-        }
-    }
-
-    # --- PrivateData.PSData ---
-    # Start from existing PSData to preserve other fields you may have
-    $psdata = [ordered]@{}
-    if ($manifest.PrivateData -and $manifest.PrivateData.PSData) {
-        $psdata = [ordered]@{} + $manifest.PrivateData.PSData
-    }
-
-    # 1) TechToolboxDependencies (rich objects your initializer consumes)
-    $psdata.TechToolboxDependencies = $dependencies
-
-    # 2) ExternalModuleDependencies (names only; for documentation/package managers)
-    $existingExternal = @()
-    if ($psdata.ExternalModuleDependencies) {
-        $existingExternal = @($psdata.ExternalModuleDependencies) | ForEach-Object { [string]$_ }
-    }
-    $depNames = $dependencies.Name | Select-Object -Unique
-    $psdata.ExternalModuleDependencies = @($existingExternal + $depNames | Select-Object -Unique)
-
-    # Rebuild PrivateData
-    $privateData = [ordered]@{ PSData = $psdata }
-
-    # --- Ensure bootstrap script exists (preprend Dependencies to PSModulePath) ---
-    if (-not (Test-Path $bootstrap)) {
-        $bootstrapText = @'
 # Bootstrap.Dependencies.ps1
 # Ensures the module-local 'Dependencies' folder is at the front of PSModulePath
 # before the rest of TechToolbox loads. Safe and idempotent.
 
 try {
+    # Resolve the module base for this script (works under ScriptsToProcess)
     $moduleBase = $PSScriptRoot
     if (-not $moduleBase) {
         $moduleBase = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -138,64 +28,12 @@ catch {
     # Non-fatal; TechToolbox will still attempt to adjust path at runtime.
     # Write-Verbose "Failed to set PSModulePath: $($_.Exception.Message)"
 }
-'@
-        Set-Content -LiteralPath $bootstrap -Value $bootstrapText -Encoding UTF8 -Force
-    }
-
-    # ScriptsToProcess should include the bootstrap (relative path)
-    $scriptsToProcess = @($bootstrapRel)
-
-    # --- Clone and update ---
-    $new = $manifest.Clone()
-    $new['Path'] = $manifestPath
-    $new.ModuleVersion = $version
-    $new.Guid = $guid
-    $new.FunctionsToExport = $functions
-    $new.ModuleList = $moduleList
-    $new.PrivateData = $privateData
-
-    # --- Compute change summary BEFORE writing ---
-    $result = [pscustomobject]@{
-        Version             = [pscustomobject]@{ Old = $manifest.ModuleVersion; New = $version }
-        Guid                = [pscustomobject]@{ Old = $manifest.Guid; New = $guid }
-        Functions           = [pscustomobject]@{
-            Added   = $functions | Where-Object { $_ -notin $manifest.FunctionsToExport }
-            Removed = $manifest.FunctionsToExport | Where-Object { $_ -notin $functions }
-        }
-        ModuleList          = [pscustomobject]@{ Old = $manifest.ModuleList; New = $moduleList }
-        PrivateData         = [pscustomobject]@{ Old = $manifest.PrivateData; New = $privateData }
-        ScriptsToProcess    = [pscustomobject]@{ Old = $manifest.ScriptsToProcess; New = $scriptsToProcess }
-        RequiredModules     = [pscustomobject]@{ Old = $manifest.RequiredModules; New = @() }
-        ExternalDepsPreview = $psdata.ExternalModuleDependencies
-    }
-
-    # --- Write manifest ---
-    if ($PSCmdlet.ShouldProcess($manifestPath, "Update manifest")) {
-        Update-ModuleManifest -Path $manifestPath `
-            -ModuleVersion      $new.ModuleVersion `
-            -Guid               $new.Guid `
-            -FunctionsToExport  $new.FunctionsToExport `
-            -PrivateData        $new.PrivateData `
-            -ModuleList         $new.ModuleList `
-            -ScriptsToProcess   $scriptsToProcess `
-            # -RequiredModules    @()              # keep this empty; we bootstrap & import at runtime
-    }
-
-    # --- Output summary object ---
-    return $result | Format-List *
-}
-
-# --- Execute function with script parameters ---
-Build-ToolboxManifest `
-    -ModuleRoot $ModuleRoot `
-    -AutoVersionPatch:$AutoVersionPatch `
-    -RegenerateGuid:$RegenerateGuid
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBe0P2ywKlzxxUT
-# zM6FQrzVwq+0jLIp2BSMnKo43K37WqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBmKzlMFXm9eU7v
+# GGsrZEQDjyD6AEkGDPSn36Io0lEJC6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -328,34 +166,34 @@ Build-ToolboxManifest `
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDqnpX5dKBO
-# +QVcxxOmvfAmKVuAjkdikzVXwMFRS6gimzANBgkqhkiG9w0BAQEFAASCAgBkK+g5
-# rZzWwZZGh5VjKEWTZ7Si5k5oojM6r4tbxf42sWMP2/9+XPslynImpT29LJqRrAcB
-# HbKglW8Bjp29R2WKJgn2gVLzczi4JrLyer3JaR0ou2IknCpDXjb80DdsihyUy9Wl
-# XXiblE1es+wxIEGrkc2qUoV8PGmrnApnAhlqX5vl4ksglEJ/QEKgucEhhQW7Hi7l
-# QQItt95loiVAXPW5zHm4wtVbtGvjbodDqOaMH+61qi1iu6JNDLlsEsI0ojiRCcB4
-# 0yObXTU4/PI6tNhsxWXYVG4PQL+GCm29yUc0sb/kHmlYsQwx3P2mD78rPqBgTvYp
-# j09bkLWet0iR6bBU19Eeb3ImY97w1obF+XtFUq0FRJdSr7vVmv7L3PvP5PAqPtyy
-# /zKMD478lh0Vow/wJPHJsrjUHUxZtm4eV3XaZ50CyU+fd8Alem9dcGv/7GIqbTVd
-# kViKrXnPxcQy4ApmfxKUGl7ywCzSQV6aN6V17g/vCxoG7sOPSdM3IhcK9hgycD8o
-# qS/pZSREe23ufPEtPmACoqXchYtNjT+W+2tibx6lFJJ05il0fSmfl+fDnqIGIc9B
-# 7TSsd/NHSWc/MhR2T9hi0ZZQOon7lX+DotCJeVHEO/bVr72p72J8XmiHp+nJRpbb
-# 2tP6BJFtz3ytTEkuwZMnHIdRzjUkjm8sk/NfraGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBtUfTAvOAo
+# EIu1W4BdgjbGtUQXdERB+bG+x+KsklR6czANBgkqhkiG9w0BAQEFAASCAgAVXv3K
+# 9o6Dac/vJsZFIKwMMkMrnKhcmioxj9D5kRph0d2/IhRtviQpz07H0WtLblIuSC5N
+# gjYLRTn4/FFTro2S+JH62XsHNU3HomoWWG1JD0d1ju2MXaub7fSpL9G9wBbkibT3
+# 95mUG08Vl37qO/ZikCO4kNbk0W+0BQDOG55VdDeW7jSRp4enBEhpkJCCqG5HXDfI
+# /YEcSPrU38ErKgFzKvdEafLZWtu8uxuqikJsXHYKnyl91JtXWpwBDveRAEAMtRiG
+# oD1SnWNZiE34ju2Cgf2w28WRHm6vPL72f0XNd/cF79GFD3CUFdNofIvIMX+xAGpH
+# q2IBAWiGs199/MExmFxKenalAjTHPFBfM65ENfQDXzTeBtZA9S7q0iBALXlfcSyL
+# LgryjN6hBe4LjYA15NPY0EmkEiuEtKiJUj+22bldH0vcmmlPP1coQwcNKF6IjFX0
+# w+ZEblWOVh6XYSPdqQ09/dr/sB0twrpvcnwr1TydEpRu92pY2mfmG2MZ33D8ggB2
+# +kEyB5L8esrc3VltJPxrvN820fl4TFzUfn9JE8DFwHhFahM+esSc0pKdC7fo6+ts
+# aNGjo8k8Ax3PonsHksrxo0RSeYQbj3mmECgKn7LK98PplpwvgA2CI05RMJT2Zrr8
+# dsmQV6zvx8X9V2UfDFoblsaGHvlLHB5TjlSj/6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDMyMjA1MzRaMC8GCSqGSIb3DQEJBDEiBCC2WwcBhcX5eH8B5WZQ
-# rVSGYWAdFCI2xHkkJp2uuZkLmDANBgkqhkiG9w0BAQEFAASCAgAI9wMdUC2BPNac
-# 51JYR9MZJ+ID97tTMhVb9oWwydWfrdkz2YQGBLbGJcOvlGjKxfkMMvOJsFYYDyjR
-# dUfkJCr0ckF71dgnyoeg2cVdzdIIcXsTJvX5RT1BitBhkTzoVrt+bM4CLWUzsS6x
-# z6EAzgBtMgwrJygzcGIPWHC1tDdA55UK3Ux5IFaYJjNMMo1IAXwHSD5m0g3ncld/
-# 7dMC4hdqeLeGJze+LXfSJjXmhX34NaX9khw6RF/umyZyZvlKIKDmuE+ufTlyaBCW
-# P+kTyx8hqvMiMCtY1eCbzP2grQORoBTjgFVsB/E2X1cIf9uE9OtNRg4PA/0j83Vi
-# 9L92GrS5V1aJdAMLKUizDTSqia398OsNxmywkO5a/8pLq1hoq8XIXfje8yL/WXXg
-# Wf4Zb/G0693pJYL3NlQoHbzwwU4IT4JNfJkNNsa08rdresoOGEhEDxeQdU4D+bD8
-# lAe/LuAsKwe3aVSpP1x9vHjzzMrZLGP0yTBt88jKhsl4WQNxm1Y9IulNtiigdkjf
-# IEL+dB0xuyKbDjXefPl2ULfnwxgYiU5mh1GOjsE4Mkazr2CzyT1p6LxTLVf04iVE
-# 10zyu876bMuNPys7A+8EZBorHlC9jnG/US4F1Zv9B8viQWMxInh9Qq1VEaMaVjBb
-# kgG4ssgy/Do0XhKaH1nlZ/LAnfJzPA==
+# BTEPFw0yNjAyMDMxNzE1MzRaMC8GCSqGSIb3DQEJBDEiBCDPuvjI3XgN+vxYnPNL
+# 842VscLIDrPcP5+lFX6CmsnK5DANBgkqhkiG9w0BAQEFAASCAgCMAzpZQn8eZV01
+# eQMC/VuLTkxC60RmUagvEKDuiu2uN3BQgH4xLMk0CZ0YJ/RJMu+VUi3qI4p0GCv9
+# cgkwqTb4BwPzO7iRosDY8nW3zaKN7/nEdamkd+vGLbtOndFuXOXi/IJ0Erq4cZNY
+# Ex/1Ps7s+e4sUd0j4XQK53Fv3sVv0Jf6UkiiUGZhKDoZ+Gz/XZJwdgNyHs4R4e4h
+# beUC/wX+cKNketdVUMo7wfZsamdRSI3FRrB5PGuaWWTzZXlIaASQCpdYv9wNJ7kH
+# 88YPiG6NQLT2UH8Iz/SRctuvhWqlCGNAVKjWB3GfILwJJqMzBnEhST8jCa3jRy8g
+# XvICViYs5TXaLW2JiI0Q6cVpGFpj+XcQsAVzAMooSPYC6Uo60jCNWk6KjaHs0q7T
+# pjq3+4BvzhZh+7RuiYLOg78NLrVy+VwzABwkqrGX4OmPxKYVqhnzir3WyiQ5ZeBQ
+# 6Rh2jy/0iCPH2suhYdwQXq0t73cWCal7fX+M5wDXFyx5ZPGJH5Hn2/uIiP2XLJLW
+# 9xFZ1W+xqm1Xx/t7N5p3xmBKL/Fy821ZL6/y0ajgi9XUN/dFeTE5vC46b35MEnSP
+# K8kqRl6h4688MMfjFLsCafHNcab+222XLqic0cWHWATTuL5waOnxuC2I/KdTW/nE
+# 3hvGrPkwuJXOIIDm4scOOX5h8RSmjw==
 # SIG # End signature block

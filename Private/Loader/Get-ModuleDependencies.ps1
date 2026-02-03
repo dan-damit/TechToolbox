@@ -4,10 +4,19 @@ function Get-ModuleDependencies {
         Returns the module dependency list for TechToolbox.
 
     .DESCRIPTION
-        Priority:
-        1. Manifest PrivateData.TechToolbox.Dependencies
-        2. Config.json (settings.dependencies)
-        3. Hardcoded fallback (ExchangeOnlineManagement 3.9.0)
+        Priority (first source found wins):
+        1. Manifest: PrivateData.PSData.TechToolboxDependencies (preferred)
+        2. Manifest: PrivateData.TechToolbox.Dependencies     (legacy/back-compat)
+        3. Config.json: settings.dependencies
+        4. Hardcoded fallback (ExchangeOnlineManagement 3.9.2)
+
+        Each dependency object is normalized to include:
+          Name (required)
+          Version (optional, exact)
+          MinimumVersion (optional)
+          Bundled (bool; default $true)
+          Required (bool; default $true)
+          Defer (bool; default $true)
     #>
     [CmdletBinding()]
     param(
@@ -15,13 +24,65 @@ function Get-ModuleDependencies {
         [string]$ConfigPath = $script:ConfigPath
     )
 
-    # --- 1) Manifest PrivateData ---
+    function Normalize-Dependency {
+        param([hashtable]$h)
+
+        if (-not $h.Name) {
+            Write-Warning "Dependency missing 'Name'; entry will be ignored: $(($h | Out-String).Trim())"
+            return $null
+        }
+
+        # Clone to avoid mutating caller’s hashtable
+        $dep = @{}
+        $dep.Name = [string]$h.Name
+        if ($h.ContainsKey('Version') -and $h.Version) {
+            $dep.Version = [string]$h.Version
+        }
+        if ($h.ContainsKey('MinimumVersion') -and $h.MinimumVersion) {
+            $dep.MinimumVersion = [string]$h.MinimumVersion
+        }
+
+        # Defaults
+        $dep.Bundled = if ($h.ContainsKey('Bundled')) { [bool]$h.Bundled }  else { $true }
+        $dep.Required = if ($h.ContainsKey('Required')) { [bool]$h.Required } else { $true }
+        $dep.Defer = if ($h.ContainsKey('Defer')) { [bool]$h.Defer }    else { $true }
+
+        # If both Version and MinimumVersion provided, keep both; Import-Module will prefer -RequiredVersion in your initializer.
+
+        return [pscustomobject]$dep
+    }
+
+    function Normalize-List {
+        param($list)
+        $out = New-Object System.Collections.Generic.List[object]
+        foreach ($item in @($list)) {
+            switch ($item.GetType().Name) {
+                'Hashtable' { $n = Normalize-Dependency -h $item; if ($n) { $out.Add($n) } }
+                'PSCustomObject' {
+                    $n = Normalize-Dependency -h (@{} + $item.PSObject.Properties |
+                        ForEach-Object { @{ ($_.Name) = $_.Value } } | ForEach-Object { $_ })
+                    if ($n) { $out.Add($n) }
+                }
+                default {
+                    Write-Warning "Unsupported dependency entry type '$($item.GetType().FullName)'; ignoring."
+                }
+            }
+        }
+        return $out
+    }
+
+    # --- 1) Manifest: Preferred (PrivateData.PSData.TechToolboxDependencies) ---
     try {
-        if (Test-Path $ManifestPath) {
+        if (Test-Path -LiteralPath $ManifestPath) {
             $m = Import-PowerShellDataFile -Path $ManifestPath
             $pd = $m.PrivateData
+            if ($pd -and $pd.PSData -and $pd.PSData.TechToolboxDependencies) {
+                return (Normalize-List $pd.PSData.TechToolboxDependencies)
+            }
+
+            # --- 2) Manifest: Legacy (PrivateData.TechToolbox.Dependencies) ---
             if ($pd -and $pd.TechToolbox -and $pd.TechToolbox.Dependencies) {
-                return $pd.TechToolbox.Dependencies
+                return (Normalize-List $pd.TechToolbox.Dependencies)
             }
         }
     }
@@ -29,12 +90,12 @@ function Get-ModuleDependencies {
         Write-Verbose "Get-ModuleDependencies: manifest read failed: $($_.Exception.Message)"
     }
 
-    # --- 2) Config.json ---
+    # --- 3) Config.json ---
     try {
-        if (Test-Path $ConfigPath) {
+        if ($ConfigPath -and (Test-Path -LiteralPath $ConfigPath)) {
             $cfg = Get-TechToolboxConfig -Path $ConfigPath
-            if ($cfg.settings.dependencies) {
-                return $cfg.settings.dependencies
+            if ($cfg -and $cfg.settings -and $cfg.settings.dependencies) {
+                return (Normalize-List $cfg.settings.dependencies)
             }
         }
     }
@@ -42,22 +103,24 @@ function Get-ModuleDependencies {
         Write-Verbose "Get-ModuleDependencies: config read failed: $($_.Exception.Message)"
     }
 
-    # --- 3) Hardcoded fallback ---
+    # --- 4) Hardcoded fallback ---
     return @(
-        @{
-            Name     = 'ExchangeOnlineManagement'
-            Version  = '3.9.0'
-            Bundled  = $true
-            Required = $true
-            Defer    = $true
+        [pscustomobject]@{
+            Name           = 'ExchangeOnlineManagement'
+            Version        = '3.9.2'
+            MinimumVersion = $null
+            Bundled        = $true
+            Required       = $true
+            Defer          = $true
         }
     )
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB4MBjQmBSxYqbD
-# KF1yL8ULB8PD5aex+RQkS/K63jEANqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDVLvq49mpMja7a
+# NjX9bY0WIAAUXnzlj43fkvGrJDQocKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -190,34 +253,34 @@ function Get-ModuleDependencies {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDt/vBUtcxz
-# XbS2zuETzCVWwCGlEikmzDoySGEpzoTfcjANBgkqhkiG9w0BAQEFAASCAgCVye0+
-# Y5yhNM/RXd1iegxbje/Xwms4Pzjz3YYIUvlhdUTCEzc484NrtS/qVlL1w0X+QJgr
-# 4joSrFxlmdVhF1uiBcBQI8PNhZFTDWnOnT75Af1+h4Nhz4IzVUAUgK3VipcHVii0
-# IVSWb9P7tzSNxCgBzezYDrGmxYdnzWgfLwhnZPotV2m/2PMfCRwTk1odSxGbUxC/
-# 6HZq/Zz3HYJU4k7lqWqhawHHjLcc9S2/AH+dAVe9Tr9IBSjeHHaqxmJPk71OzXsq
-# Hw0uc1JXYYOb5nwPTIpZzqzJ7DMjxdBdmIJiNiWkoNYZOG6kKryBBzJ/hH5sO523
-# PI3eOfPNd4mvlz0zX08EtcbMZk+BvyYhYEGnuCBDHKfOVi9PUJmw4JfCMDrzqOnZ
-# Gisf+GE7oRmvQHW6khMRxYrHrmT3BFA7tocCB1RjS+JQKZSQVdipqWxMVaXwPP8n
-# 9gCAChACjelG+jN5hN6wAELTB2BDskuOF+xUHM6NnviJFMPGwKIPen/CJ/BrN3Mr
-# ut5vkAuc8Oq6umhInHSgX0vdHBhUM2Q1pc4lMckyDFjtdnl6m1SOw7XUKKggIoTA
-# 8QfsdWcWNSx0cu/i4fJBeqaegErlNCa/nHh3eAtZLf2s/ByDYa+xQe2EXGLGm7qf
-# renRLbPRw1/A/k4FWo1yNXlDschmVtkrMBwwu6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDAnDSQtjkE
+# UDwRRAsL0POYRuHo2O5wGQ5YZqu4FWraIzANBgkqhkiG9w0BAQEFAASCAgAdn/Iw
+# xlBYIFT+1pDWe+579/0ic2r1dgmMSmpth4pxEcvT/89wvKT/1j14AfkPtKd04Yhf
+# 5WIhvpNr4iDzpnhryrZUaESfJbI6uZ/DDH8brPxUOeuCNYv2sKGR+APpLA74E4iA
+# Hb5ncAfLhKq1U/yKCbVPoU6NjJqfajdYcqmnctfNRg+pZVtffldatlFsHlQ1qNkr
+# RgNJ/oKbNWmuBnQY/4ENqp1V2LNw1fBAE4NTuxa5Z+wbMWUB04k6S4K4z6WK+keT
+# qrUl0s83HrQnFHuy8GCFCAu1gbqDku0bbDChJtGO8TwX9jhB6PZotZfWd/lnnRJf
+# MkQuCLefKD+CvpujUBA/Y5DphQ/2EmeTTJe7k2diLvDStjj/fOhbzC6ZG/CMH8tZ
+# XfpExJ6OuOoW8o/LvtRPs/xgOJNbsKXMueF/y6wn6b/x1YvbbIOqDLJ1ZdiwAwv1
+# LylZHqRefHX9rxdwZD7AuUYhhoRmXADtBYHmPi2xeCq83PLDy19aKhlXq5ClfKv5
+# w0yXs6fg35m5P1rH4qPq6h4UevWxf2lKKLx+hhqk6TGoJrRM+UDxJJQnnTPA2wgJ
+# 1Xfimlcj+B6VDJNV2TUIVXGJP/zSGznzD6XNJqTJKutN5nr3DPriFffwskUSHJo9
+# vh+HQ+qGmmW/B23VZQZD14hxAKqLG0OltLS7XaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTQxMzU4NThaMC8GCSqGSIb3DQEJBDEiBCBMR+j4h/UR7EMpvAOB
-# aOUKJqmcU+LJjlZ6mALmcKSwnjANBgkqhkiG9w0BAQEFAASCAgDIXC8t5iXWXWbe
-# otzNlL5gDqU/PeCQqfU7nhWDR7iOtJRzRLqfZVSsBHqiuGbRFrB/v2EZ1nsUX/nb
-# hIwqTXLh5YFNR4s3YzB11xcM7LFq2lQLfVhLGO4H/ddXZ9jGgXZL9O4QJKX/J/B7
-# oUhCvphrImxf/L9aPeUwZS1WAMq9C6ig/gTaMWnv4tWXioW7DJfsm9dj1Up69Bxo
-# yQJsv0UcvrPj4fllbKJ+Uuk67ebn2A5+Jw2O9jxJhsT4DjR1s4revYHJCjGMX6QB
-# E+FAYZYs3GUZOEG84vpvKZ1LP4QR93snBsj+tPzKgFGZUNxqFYris5qiftcqp4Oq
-# DTaWip/biKUuF3DMU2/LeATqyhlpIQdFpRnxW06MrsZTZmPguKpcQrOQO4/EXYqC
-# ASvha7J3OF0x3fxmE+8JJnImzmn+lnztApPtfnXj2G3o503/DlSfrrxh0voAgeZa
-# NtP6dBfzCNTWOlpH+zihc2hmuB3X9XtrZZnNQNl0mLUW7g2C1q2cBVQ9OTSlCWuS
-# m3U1Cz8ErQ0JMZNfN2KPa5fvV09keUQxYgQFitS4McXfuvYtZNmx3shJkMtpB231
-# i3fs1i0neKjaRWJvim2bgI/eaiOsdVlfAWZEbxPDdEku13cOQfqzxq2AOXvH16oC
-# 1cLniq0vjvy3NIRNT1c8iDX+Ejh0mg==
+# BTEPFw0yNjAyMDMyMjA1MzhaMC8GCSqGSIb3DQEJBDEiBCD1JKGAZlD6NgWsDehA
+# mERVHgqW4fMecpDTlEsE2JPzTzANBgkqhkiG9w0BAQEFAASCAgBJliHmwjMEdlX6
+# qxDfxP8VGVjivQE5MR+mlJZGs65DYhcb7quQrn5Z8RNMMadMqaluqqWJQw2uNBzu
+# dqQ/QtTud6IBiYZwn6KIc+3G2qY/vGhcgp4jx046EzLkTxFLiiwXrrxX9G5bJxyj
+# nF38JW/GKkYdoKUv99cu7w85MVLYMzs3nVphB4P1rLUvyYpiqUci4yv0UF5ygxHJ
+# lQm22XABn5DQT4gN3UNfdRcfn/NoanjS6d6t5FJRnO+3rQP+aLDGcmpOu4G1ngTn
+# Eoh+vOcbt4AX6qeFAr2O5TcHEvdqPn5OXkGGC4sp+0K7EHvP0I9Z5B2lIjI8pFbP
+# TopdM+GpOjjeWN4zeqOx5/j+dWwhRLXAFf2+sZSgsJdaR58eKLvkpCBbdL2zYt+i
+# Q1oHBmmX31Mv+PHgKBLKYLzd5FBPP8RgZBjx8yD3UawkNgPqY8ISjvUqrq59HB+O
+# PNRPc8XynMqct5KbMEemKBwZvnVT8W13DpZ73i2zg8Dg25Sv0b3K6MbWVo4NGKGC
+# NK6Gect390RaRtwimyfXwq/7Af1tJ2UiY3bBspKQDDPSq5Noy/sis06m6PYXTAd2
+# uRqn6MKImCVxyNBswiwAO5HkHXvEWJt/YE6CQHpSsV7MsjjO7ujAVPYWYfSkMhTt
+# 3U2jBrPhCtwXvJ5f9/xnfKf5iv2QvA==
 # SIG # End signature block

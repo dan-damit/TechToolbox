@@ -90,6 +90,7 @@
             "DPAPI",
             "dsznajder",
             "eamodio",
+            "emberly",
             "esbenp",
             "ewma",
             "featurename",
@@ -118,9 +119,11 @@
             "pnputil",
             "PORTPROMPT",
             "precheck",
+            "preprend",
             "printui",
             "pscredential",
             "pscustomobject",
+            "psdata",
             "psobject",
             "purv",
             "qmgr",
@@ -145,8 +148,7 @@
             "wordlist",
             "writability",
             "wuauserv",
-            "yzhang",
-            "emberly"
+            "yzhang"
         ]
     },
     // ------------------------------
