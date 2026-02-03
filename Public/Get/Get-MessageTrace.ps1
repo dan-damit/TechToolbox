@@ -64,6 +64,11 @@ function Get-MessageTrace {
     if (-not $StartDate) { $StartDate = (Get-Date).AddHours(-$lookbackHours) }
     if (-not $EndDate) { $EndDate = (Get-Date) }
 
+    if ($StartDate -ge $EndDate) {
+        Write-Log -Level Error -Message "StartDate must be earlier than EndDate."
+        throw "Invalid date window."
+    }
+
     # --- Validate search criteria ---
     if (-not $MessageId -and -not $Sender -and -not $Recipient -and -not $Subject) {
         Write-Log -Level Error -Message "You must specify at least one of: MessageId, Sender, Recipient, Subject."
@@ -73,16 +78,17 @@ function Get-MessageTrace {
     # --- Connect to EXO ---
     Connect-ExchangeOnlineIfNeeded -ShowProgress:([bool]$exo.showProgress)
 
-    # --- Build dynamic filter set ---
-    $params = @{
-        StartDate = $StartDate
-        EndDate   = $EndDate
+    # --- Base filter set (V2) ---
+    $baseParams = @{
+        StartDate   = $StartDate
+        EndDate     = $EndDate
+        ResultSize  = 5000           # V2 supports up to 5000 per call
+        ErrorAction = 'Stop'
     }
-
-    if ($MessageId) { $params.MessageId = $MessageId }
-    if ($Sender) { $params.SenderAddress = $Sender }
-    if ($Recipient) { $params.RecipientAddress = $Recipient }
-    if ($Subject) { $params.Subject = $Subject }
+    if ($MessageId) { $baseParams.MessageId = $MessageId }
+    if ($Sender) { $baseParams.SenderAddress = $Sender }
+    if ($Recipient) { $baseParams.RecipientAddress = $Recipient }
+    if ($Subject) { $baseParams.Subject = $Subject } # SubjectFilterType optional; default behavior is typically 'contains'
 
     # --- Log filters ---
     Write-Log -Level Info -Message "Message trace filters:"
@@ -90,34 +96,105 @@ function Get-MessageTrace {
     Write-Log -Level Info -Message ("  Sender    : {0}" -f ($Sender ?? "<none>"))
     Write-Log -Level Info -Message ("  Recipient : {0}" -f ($Recipient ?? "<none>"))
     Write-Log -Level Info -Message ("  Subject   : {0}" -f ($Subject ?? "<none>"))
-    Write-Log -Level Info -Message ("  Window    : {0} → {1}" -f $StartDate.ToString('u'), $EndDate.ToString('u'))
+    Write-Log -Level Info -Message ("  Window    : {0} → {1} (UTC shown by EXO)" -f $StartDate.ToString('u'), $EndDate.ToString('u'))
 
-    # --- Run summary trace ---
+    # --- Resolve cmdlets without relying on tmpEXO_* ---
     try {
-        Write-Log -Level Info -Message "Running Get-MessageTraceV2..."
-        $cmd = Get-Command Get-MessageTraceV2 -CommandType Cmdlet -ErrorAction Stop |
-        Where-Object { $_.ModuleName -like 'tmpEXO_*' }
-        if (-not $cmd) { throw "Get-MessageTraceV2 not available (did you connect to EXO?)." }
-        $summary = & $cmd @params -ErrorAction Stop
+        $getTraceCmd = Get-Command -Name Get-MessageTraceV2      -CommandType Cmdlet -ErrorAction Stop
+        $getDetailCmd = Get-Command -Name Get-MessageTraceDetailV2 -CommandType Cmdlet -ErrorAction Stop
     }
     catch {
-        Write-Log -Level Error -Message ("Get-MessageTraceV2 failed: {0}" -f $_.Exception.Message)
+        Write-Log -Level Error -Message ("Message Trace V2 cmdlets not available. Are you connected to EXO? {0}" -f $_.Exception.Message)
         throw
     }
 
-    if (-not $summary -or $summary.Count -eq 0) {
-        Write-Log -Level Warn -Message "No results found. Check filters and date window."
+    # --- Helper: throttle-aware invoker with retries for transient 429/5xx ---
+    function Invoke-WithBackoff {
+        param([scriptblock]$Block)
+        $delay = 1
+        for ($i = 1; $i -le 5; $i++) {
+            try { return & $Block }
+            catch {
+                $msg = $_.Exception.Message
+                if ($msg -match 'Too many requests|429|throttle|temporarily unavailable|5\d{2}') {
+                    Write-Log -Level Warn -Message ("Transient/throttle error (attempt {0}/5): {1} — sleeping {2}s" -f $i, $msg, $delay)
+                    Start-Sleep -Seconds $delay
+                    $delay = [Math]::Min($delay * 2, 30)
+                    continue
+                }
+                throw
+            }
+        }
+        throw "Exceeded retry attempts."
+    }
+
+    # --- Chunk the query into ≤10-day slices and walk >5k results using StartingRecipientAddress ---
+    #     Per MS Learn: no pagination; to query subsequent data, use StartingRecipientAddress and the prior 'Recipient address' + 'Received Time' values. (Timestamps are UTC)
+    #     Also note the tenant cap: 100 requests / 5-minute window.
+    #     We'll pace our calls with small waits to stay friendly.  [3](https://learn.microsoft.com/en-us/powershell/module/exchangepowershell/get-messagetracev2?view=exchange-ps)[4](https://techcommunity.microsoft.com/blog/exchange/announcing-general-availability-ga-of-the-new-message-trace-in-exchange-online/4420243)
+
+    $sliceStart = $StartDate
+    $summary = New-Object System.Collections.Generic.List[object]
+
+    while ($sliceStart -lt $EndDate) {
+        $sliceEnd = [datetime]::MinValue
+        # End of this slice is at most 10 days ahead, but never beyond requested EndDate.
+        $tmp = $sliceStart.AddDays(10)
+        $sliceEnd = if ($tmp -lt $EndDate) { $tmp } else { $EndDate }
+
+        Write-Log -Level Info -Message ("Query slice: {0} → {1}" -f $sliceStart.ToString('u'), $sliceEnd.ToString('u'))
+
+        $continuationRecipient = $null
+        $continuationEndUtc = $sliceEnd   # we’ll move this backward as we walk
+
+        do {
+            $callParams = $baseParams.Clone()
+            $callParams.StartDate = $sliceStart
+            $callParams.EndDate = $continuationEndUtc
+
+            if ($continuationRecipient) {
+                $callParams.StartingRecipientAddress = $continuationRecipient
+            }
+
+            $batch = Invoke-WithBackoff { & $getTraceCmd @callParams }
+
+            if ($batch -and $batch.Count -gt 0) {
+                # Append
+                $summary.AddRange($batch)
+
+                # Compute continuation tokens using the last row’s RecipientAddress + Received (UTC)
+                $last = $batch | Sort-Object Received -Descending | Select-Object -Last 1
+                $continuationRecipient = $last.RecipientAddress
+                $continuationEndUtc = $last.Received
+
+                # Gentle pacing to respect 100-requests/5-min cap when loops are heavy
+                Start-Sleep -Milliseconds 200
+            }
+            else {
+                $continuationRecipient = $null
+            }
+
+            # Continue if we exactly hit the ResultSize cap; otherwise we’re done for this slice
+        } while ($batch.Count -ge $baseParams.ResultSize)
+
+        $sliceStart = $sliceEnd
+    }
+
+    if ($summary.Count -eq 0) {
+        Write-Log -Level Warn -Message "No results found. Check filters, UTC vs. local time, and the 10-day-per-call limit."
         return
     }
 
-    # Summary table
-    $summaryView = $summary | Select-Object ReceivedTime, SenderAddress, RecipientAddress, Subject, Status, MessageTraceId
-    Write-Log -Level Ok -Message "Summary results:"
-    Write-Log -Level Info -Message ($summaryView | Format-Table -AutoSize | Out-String)
+    # Summary table (V2 uses Received in UTC)
+    $summaryView = $summary |
+    Select-Object Received, SenderAddress, RecipientAddress, Subject, Status, MessageTraceId
+
+    Write-Log -Level Ok -Message ("Summary results ({0}):" -f $summaryView.Count)
+    Write-Log -Level Info -Message ($summaryView | Sort-Object Received | Format-Table -AutoSize | Out-String)
 
     # --- Details ---
     Write-Log -Level Info -Message "Enumerating per-recipient details..."
-    $detailsAll = @()
+    $detailsAll = New-Object System.Collections.Generic.List[object]
 
     foreach ($row in $summary) {
         $mtid = $row.MessageTraceId
@@ -125,13 +202,14 @@ function Get-MessageTrace {
         if (-not $mtid -or -not $rcpt) { continue }
 
         try {
-            $details = Get-MessageTraceDetailV2 -MessageTraceId $mtid -RecipientAddress $rcpt -ErrorAction Stop
-            $detailsView = $details | Select-Object `
-            @{n = 'Recipient'; e = { $rcpt } },
-            @{n = 'MessageTraceId'; e = { $mtid } },
-            Date, Event, Detail
-
-            $detailsAll += $detailsView
+            $details = Invoke-WithBackoff { & $getDetailCmd -MessageTraceId $mtid -RecipientAddress $rcpt -ErrorAction Stop }
+            if ($details) {
+                $detailsView = $details | Select-Object `
+                @{n = 'Recipient'; e = { $rcpt } },
+                @{n = 'MessageTraceId'; e = { $mtid } },
+                Date, Event, Detail
+                $detailsAll.AddRange($detailsView)
+            }
         }
         catch {
             Write-Log -Level Warn -Message ("Failed to get details for {0} / MTID {1}: {2}" -f $rcpt, $mtid, $_.Exception.Message)
@@ -139,7 +217,7 @@ function Get-MessageTrace {
     }
 
     if ($detailsAll.Count -gt 0) {
-        Write-Log -Level Ok -Message "Details:"
+        Write-Log -Level Ok -Message ("Details ({0} rows):" -f $detailsAll.Count)
         Write-Log -Level Info -Message ($detailsAll | Format-Table -AutoSize | Out-String)
     }
     else {
@@ -153,12 +231,14 @@ function Get-MessageTrace {
             $ExportFolder = $defaultExport
         }
 
-        Export-MessageTraceResults `
-            -Summary $summaryView `
-            -Details $detailsAll `
-            -ExportFolder $ExportFolder `
-            -WhatIf:$WhatIfPreference `
-            -Confirm:$false
+        if ($PSCmdlet.ShouldProcess($ExportFolder, "Export message trace results")) {
+            Export-MessageTraceResults `
+                -Summary $summaryView `
+                -Details $detailsAll `
+                -ExportFolder $ExportFolder `
+                -WhatIf:$WhatIfPreference `
+                -Confirm:$false
+        }
     }
 
     # --- Optional disconnect ---
@@ -181,8 +261,8 @@ function Get-MessageTrace {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAaZxchiK9KkLNh
-# AvU6ujB1Klx2EEpOoPKbvOHGevjJ6KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA03Ic/SiN5HyDj
+# BEGFz6+vQsdZ+fNws2SZnSfkqlGy96CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -315,34 +395,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA6V54NwTiU
-# CwW6l6vdoAZOvqnDkIU/AkG8LiKUCTXr1TANBgkqhkiG9w0BAQEFAASCAgC7MFqU
-# xQxlumrOklKrdQFvaAK9/2EHuEQnvs47YywaI8PajCKohHvDMf4SBhUJU8xeaNCz
-# mUZZUbdB+Ol5L1IAzVQ+kM2B2SkY8nJLT2bVzV+ILiGjeLNAieap5nqySLrY0yXj
-# WVhQdWeMghUdYU9EZedzepaxalxeE92x+5I/MzGp57ImoXmzPBSPU8/R+48pef+O
-# xCkv5dH7QuoyfeZlz5S2FhJsS/2KppTLL2WTFJTt7jX+HbU18/ZtW7H3ttDfRM5V
-# wfhlP2Tzn0AXP5vZZ65A9CspFBG/WYhFS7bp1C1rksZfjOjg2P6Xd73pu2PRb44Z
-# ttuiLyFIw9qjSBFUpL1xqeNLLcl3Eo5z6XgiWHElJNXVj1BnLXWiT/CbOGhiFaH/
-# GX5pHJiz/vAp6WI8Zcu1MYIbIjRX2JCCMg0fw5vBbB1CWGgAKzFPYs2PV9DuP0fR
-# ogvhBt27EFCWpbi7kjYNyBIwSYMK1j9oZxO5wOyJXn5tdY6YmzC6XYX7At3+J0Yp
-# v9S9xf/JWdwR2A7yOPAJWOGzV6AFbe2uKFiICvx6Iw1R4n45iuG9So8QlEF0iyHa
-# aQpobR5FswftZs+yRAEwygUuNHv0Siy730Nj0UXe5UvQJ9zxeDmWYjb7go8ROZjz
-# 2JOqUYufMrfXW6zBIekyrU5JV/i4ADmXsPM9B6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDVLa+Ei/oZ
+# mHax/mxLbhWTnkM1Jwems6wTINUYHj1VvjANBgkqhkiG9w0BAQEFAASCAgDYdQR+
+# J9y9VNGtQWDpug/BFogASG3qzPeL/xwYidux+Ui54JqeLYQRORQnOxr3YO3t2lft
+# INeAtGfaTibBeeqe4pEDlW+8wevO8gOwsqY4Q5vwOlE7THVvPYW5aiPmABdiHrmM
+# 6g80gMSEv9dR6n5VboEAWYO9TvY4UHYLWHu9vXPScx5vhdvb6TtssFIVqTUhOdK+
+# ZuwpsFT1zK83OFtHCKmChLlyY6p/eTVHej+0t0NVGwzz3+09L2SWnZjlLkOZYevJ
+# LALIO2WyKW8/wMzECDUvR/vZNJc0unXia5YzsibLwrq/vV5eNJOggZyyaEaKvNTl
+# bQEj8XLEnb49/pDi6kbCAiqrA5YXxmip6Dpp4Q5pENd75+eSAh5cmfPMQywXe6NN
+# Apkiy1R24P81CiUqM0RgODOPJt55WN5N7IX5JuXbrpPpmIYsb990dczwHD5lyDrL
+# 8gsenwyqxFgiiFRTtzxbtAjvJBy+XNg9TJdm7ErfspPO+dY2JsgUVWVkg24ZVQLm
+# JOg/AS+0NJKXF514l2Gcg0aZ2x0sKBVqEOSdq6MU4hE+jVxYYkXT11w55yCK+iOk
+# +8KvO2iCJtIu+6ftJI1CXQ108TTZeE9L9C8znrO9mIezIZB/XhCykR0fvKpgvxA5
+# Y5tPU8x3OGCoF+duKEYvHjEyok1MzZsHOkEL16GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjExNzEzMzRaMC8GCSqGSIb3DQEJBDEiBCCSdaRmv4EXrjfB/sXg
-# IZh2xQZ91irITKE2rjud5XF5WDANBgkqhkiG9w0BAQEFAASCAgBmvyESgc7IZBu/
-# hkyQBxGod9LTjJLs/1UvOofoN4YfbBANnhZie8nz7+zCx7b38oDqdGJjW27BS5Ow
-# LSfmE9nn0grTN14Gk3uVuVlzdqAVuZGhPM48cFGL5TcaB13cZyMkIDoVMqSL5R4e
-# r5CLkJzeBkVTftVkb5xZ9Lwhpj8gclFiJ1SRYAaOy+GSf1BJ7usU6Jr5JDa4CBlM
-# NKACWKJkZWydEZnlGdrES4+fBRlqdyKqLLtJw6OuGtK1MDTOcnCUNPNpjWHte/o0
-# 6XsfYBUSKqGr8jPmvkqiKEMaVEt4wf6IAH6tE66Db/BPxA30hjvW47SQa43XFxWq
-# xzl3d+bHNoc0Ql65Y2MmFnSDuA4IFIlT7S5wGY+5jbvAhNKQHl+4yj4Ot9lDNjb/
-# M9h+5/+r+UnfC65dPc+L3jvuRDTWtxcse27Z/ZCQzlMh7roqvwaJTERQBG+YeDrC
-# QeSOEEJvi2altcP/8SfPDTyLY9fgygenmw4vqGaQpxiTR5Qh75O6kRDfiJiJfkEP
-# iG12HBGwMGoQgkqd7U9XCX2TjTdLu0g+s6yoxunUx0J2s/FBCVQqSXCUJF3Jom1I
-# Ne23BBTjHhwREJ4+zAIW7WwJNZ44iEpwVIvqcqiwRVCRwAXkCU5hauUXcFxgemaf
-# 3yWM9uW1OPIlzjVyyhT5ibuSRDroJg==
+# BTEPFw0yNjAyMDMxNjM3MTVaMC8GCSqGSIb3DQEJBDEiBCB2l24Dr0zer1RHQLYw
+# ICqOgfkxkCahJ3BQTGQ5+0UoVjANBgkqhkiG9w0BAQEFAASCAgAkndno9pnEjGFT
+# 4BON/uNb/Qj7agCHqxJnxdMFV4VDjgD4FsaOf4OQQHzeB/oXjMbqZfqbnk+g6hIi
+# JzTDGDbs3n1BFezpvgf44Pj20lkZmn4t4r2UDUdCHMeVKtMNhW0LQ3Me3BZ9GShZ
+# qjItLfK4aH/ukIiOdbHSSi6raKweRCQvFdLBvR/HSoEQQS3VYIzxcvy0LF2vVGxK
+# gAm1Kk816h0LT4xyAOESsLFX/KgPHPcCF0p8uzB/uf0pzvr3UCtFu035p73/NIE6
+# IIkh1iAnHE8VZdsSLK1u9/7e3xxU1eNo9Fkf9gUhpyEznQh7iZFoZE5fFj+Zw97x
+# FKWK+a7dNh2FEZM6jeCOA8eUxkI/sFSS/0O7Ji0IrebK0FJobuTDVtrzilCXzfph
+# bdaOLyrctJ+RXCOwLuIkxdRy5YXbxL/xgDRSHCOsujsEk8cFYwZIK/TEwYz4hBAp
+# D9Syi7KBkf+mDMT/wrG+v4VsTkDV/ZNRomqvyURhT2UK8QRokyrVN8g7jpGfiHBS
+# 0wp33KMi/rQ7lPsDcr6lm5G65tye9nQsja/DnwKnX3aMrTjKcLC8txRpBTx7PhDW
+# cYTt4GhTPBPEFHRWK6OLZYo4m3Au0nSYosmYtqkVXKWYf0TuwqPDjKggcoLEnlwL
+# NoVfZePiATjD2oRGszpU6fq0rMinAA==
 # SIG # End signature block
