@@ -1,17 +1,86 @@
-
 function Import-ExchangeOnlineModule {
-    if (-not (Get-Module -Name ExchangeOnlineManagement -ListAvailable |
-            Where-Object { $_.Version -eq [version]'3.9.0' })) {
-        Initialize-TechToolboxModules
+    [CmdletBinding()]
+    param(
+        # Explicit override beats config.json if provided (useful for testing).
+        [Version]$RequiredVersionOverride,
+
+        # Fallback if config is missing/invalid. Adjust if you change your in-house pin.
+        [Version]$FallbackRequiredVersion = [version]'3.9.2',
+
+        # Lightweight progress notes
+        [switch]$VerboseStatus
+    )
+
+    # Resolve required version: override → config → fallback
+    $requiredVersion = $null
+
+    if ($RequiredVersionOverride) {
+        $requiredVersion = $RequiredVersionOverride
     }
-    Import-Module ExchangeOnlineManagement -RequiredVersion 3.9.0 -Force
+    else {
+        try {
+            $cfg = Get-TechToolboxConfig
+            # Your schema: exchangeOnline.exoVersion
+            $verString = $cfg.settings.exchangeOnline.exoVersion
+            if ([string]::IsNullOrWhiteSpace($verString)) {
+                if ($VerboseStatus) { Write-Log -Level Info -Message "TTB: exchangeOnline.exoVersion missing; using fallback $FallbackRequiredVersion" -ForegroundColor Yellow }
+                $requiredVersion = $FallbackRequiredVersion
+            }
+            else {
+                try {
+                    $requiredVersion = [version]$verString
+                }
+                catch {
+                    if ($VerboseStatus) { Write-Log -Level Info -Message "TTB: exchangeOnline.exoVersion '$verString' invalid; using fallback $FallbackRequiredVersion" -ForegroundColor Yellow }
+                    $requiredVersion = $FallbackRequiredVersion
+                }
+            }
+        }
+        catch {
+            if ($VerboseStatus) { Write-Log -Level Info -Message "TTB: config load failed; using fallback $FallbackRequiredVersion. $_" -ForegroundColor Yellow }
+            $requiredVersion = $FallbackRequiredVersion
+        }
+    }
+
+    if ($VerboseStatus) { Write-Log -Level Info -Message "TTB: Required ExchangeOnlineManagement version → $requiredVersion" -ForegroundColor Cyan }
+
+    # Fast no-op if the exact version is already loaded
+    $loaded = Get-Module -Name ExchangeOnlineManagement
+    if ($loaded -and $loaded.Version -eq $requiredVersion) {
+        if ($VerboseStatus) { Write-Log -Level Info -Message "TTB: ExchangeOnlineManagement v$($loaded.Version) already loaded (no-op)." -ForegroundColor Green }
+        return
+    }
+
+    # Verify the exact version is installed somewhere in PSModulePath
+    $available = Get-Module -Name ExchangeOnlineManagement -ListAvailable |
+    Where-Object { $_.Version -eq $requiredVersion } |
+    Select-Object -First 1
+
+    if (-not $available) {
+        $paths = $env:PSModulePath -split [IO.Path]::PathSeparator
+        $pathsText = ($paths | ForEach-Object { " - $_" }) -join [Environment]::NewLine
+        throw @"
+TechToolbox: ExchangeOnlineManagement v$requiredVersion is not installed or not discoverable.
+Check PSModulePath locations:
+$pathsText
+
+Fix options:
+ - Install-Module ExchangeOnlineManagement -RequiredVersion $requiredVersion
+ - Or place the module under a PSModulePath directory (offline/in-house)
+"@
+    }
+
+    # Import the exact version; avoid -Force to not stomp an already-good load
+    if ($VerboseStatus) { Write-Log -Level Info -Message "TTB: Importing ExchangeOnlineManagement v$requiredVersion ..." -ForegroundColor Cyan }
+    Import-Module -Name ExchangeOnlineManagement -RequiredVersion $requiredVersion -ErrorAction Stop
+    if ($VerboseStatus) { Write-Log -Level Info -Message "TTB: ExchangeOnlineManagement v$requiredVersion imported." -ForegroundColor Green }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAKryRjeOnu7Ngi
-# P3nFgbHJwVIpeC/5ZgIxzQxtoZLQDKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAhvLQ++W/8x+91
+# zJgvx99zIaCZqQ754Wn4UAg/VPdjsKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -144,34 +213,34 @@ function Import-ExchangeOnlineModule {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD4Tq4XJkLS
-# +nuKwfqc54p0kEGBAw11CS5KL1KnfvdwKjANBgkqhkiG9w0BAQEFAASCAgA5ernL
-# OSZwdEYvAEcIxncw7hOcbgWWYmqWUhJyeGygAvRHNw0yXD1Cr8C5cavQv6w8zgj9
-# xpK3/qoNzwfflbJTfv43q+/hOKrqtVXHO6MbHJZRsILOyvYEBVpm/Bt2axhNXlqK
-# fXXTR5nHc+4fqa2pzuNCzKq/hGDIU+FMBsZIVVbCb3xSp0PYigwmMAPo+poYug3g
-# pjR37cebW2SlfPFbGLp6zZLgGGFbc1nKNbLyfRaSPGE3MjfpclExQKP7lWz/T2il
-# zq9e6N1NI4neG8uFEgpGXAu1/8q8tJydqD9GuKF0MTg+D+x4rSrWVgjm8yf3yU9h
-# wpmYk9GyDt6wLvZGo/sqz2RyBXvXWQulfqjUqS7e6kjhNOzXTJt39YxKSYhnPM/T
-# 7+lTQAKWIigRYyWQqz5IsQYY7E9wHBy2yzy0bhs3rHpO4f8SL+ByZFWTha88Sb2k
-# CX/Ie9QtlOsS9ZDtvMgTKcnAIO+u5CgYpCF3p8/Q6H2gKx/KiIAT3vrcmroeO1+H
-# nAbLS2NPlflK2se3uMPU/iluz3XIv0rAd/WBXfGgT+Vm95fNVWozO6u4HzIjjug/
-# DXg8sjVS1Nc92febvekiJtsiHAaNKHQjxE8VGqrgZt0+E+nJVDuE0IX4OlSQd4pR
-# +IqOeTxg3CcOBpFULUR0GCb6+1hYL5xVEptRQaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB4XOyttE7F
+# HCVC+XwzI//whdYAIcioIZvD+RWqXzF7iTANBgkqhkiG9w0BAQEFAASCAgCkPQZA
+# wODLJM8i8hyxX/wJcadcYgHC0ljzVNZwf5ioPNKEP/u1iUv9PVc8w6kLbpUFyrQ+
+# W4ytyomPboStrx0/ec8hOh1oxorz0hwd84cg2O7hHYRmFTHPpkoX/VpGxqc0oGgA
+# nq0AmlpiCC2EGMGlkA71sXMwENqX73Cv0ybz9nr+omlSSNdjG74Vf6hqVaSB/WDl
+# cpP2JEQEI8OzumESw+bCkYv+lJPtr2rDSaORtPl5TN3Reagu+wJGUA8qzF8ylFFN
+# AIAxHPFCjKicg9Mwa9fFtURn5GMA5lXQ79jFTuD2gM1sYSk1B4YM06AZM9Pyd5Mc
+# Xz81A9PeUSs9IvhHgiSJ+91oj6XlRG/O/jUpr9mNNLgFsrXhy2vIj2QQv886C7/g
+# OqN4FENTPnxjCiIuAgGp/A/vTjC30x00utboolN6p2sqtg+W4ir5gtE/MpI240Qj
+# DYkg3fUwsoGXkYKRDKiJmpnVZs+Zb9wG4cHn2xHoiZSeboz3PR4HE7uJMwSWQ96Q
+# pDoCfVmQ4DfKWDLVbcfQydWUY9a9c0jwy22bgRBxQbo2YvZenBExA9+sXBPab66J
+# qipsRZJ9hDLgulYmGICU/xvUXlaN6GwTOP0/WvG018goeVsAEOURTyDGRxt9ZTI6
+# d/8L2gQT64diOpCzAoEAGMwA15TgE6SfbtqNZaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTcwMzUxMTdaMC8GCSqGSIb3DQEJBDEiBCC850mWE7gwhXi/uwqV
-# XWmKshiS2UGusZVe9ANJ2z/hXTANBgkqhkiG9w0BAQEFAASCAgBqsQuwAVNgiuW6
-# Be6AnrzVtp7zpEtGTrFshaYwA150u/rAa+Q2+zEHu/13pR0fcWh5hdkNXK61EZCN
-# REnkmfderBSqwJRpI0A+IaYxCZGbRLbODdcTPKttzZNY60Dw5MLT3Obr5oFPoihr
-# 3aYRWo1d+HiTrWqtx8AHkbdKUXSJMGAm9sIsGdQrDSy4WlsP/OVKbAiTlaDI2sI2
-# xI899T8LPS/oEYUbbtBHEhhTLoaY9VpTUYAZceXuT3588h60IcuKxDV7Z3s/LxND
-# 6FF0iLODyOTtMMkO9DwuXTOGF5U9O1jlJ45IIgbb3NQrDPPCyx2Zy1yG8VZ+sl3g
-# Oxv2KbrJxkYHnV6y/QjA5118UxfhZXBnVFVqRfvureIxdnf3cB1Unb7/x5S8jdic
-# f1sSFTRenfdrH84fwvbpqEq2GDCkdIYWaxTmS2gxpnvQwFyzJH596HHPtrGgRsDh
-# ddB6AX6ngowkreBoLYjU29gdX3aP/3amQ+/i+ldyM5D4kKzDTjDerVPyK50Wkcki
-# VqXoff+uvZb1FNmMUZzMx32TauJCFNdvhSvpbaKcOgvs88aMiVoHDoA1//zGcmtG
-# b3UunN+sPuLh54mvErPq/bnauLdO2TTo7mwm+wJSZ1Bw8dS0+MQhvqrih9ZAjdVH
-# 7gA4wcXC1pFbFQpa5ZX2k1h9RwuDhg==
+# BTEPFw0yNjAyMDMyMzAxMjZaMC8GCSqGSIb3DQEJBDEiBCCoGCM5Qo87P3/MnBqA
+# WKODBQhApKEi0UdWV3c4Ewk3/DANBgkqhkiG9w0BAQEFAASCAgAMik9fMiRpNODV
+# buj8qZdpd/WWseb/VU8llTZP3Bp3qvSDoYy+9uRiaw6dH+IQ5S4bmjc9yyOcEwek
+# 9upAvYS78tEFEbyXfvpRMVfMqU4+vx7ylLM2f7DESZgd2ZqiGg5H25y3MyvGlibv
+# GKFxOkO3wx+aIq2jI0z3bJH7hVPsDKtfusGJzl4cVa/9CmEPQnv5YVzgCsUIgQxa
+# wp/IrAFDjKH/xWY61KJo1W2sCIEMtu5GHRnt+jk5fcg0nvPbF2EdBPE4l7zV9iSk
+# Pak0aV3TfO0P2u9oWPuFass3FVhhmyC1BH0z7ieDQ7HKtIuovVoZgIPLPQCxE97v
+# biaUo8TtLlR7zisuCXuSp8NAGHtlwO84Wg3mGNPvBZjDB1nDBiFq71slFpMIa+sL
+# dz67bNZa4WCfq8HTnZai5VAtd6FAbdNJH9J5n7EnkLt1P6qvlzOOrtH9hiAGkq76
+# N4ZfyzOLmUZNtgFFaGqlDrQbqqQVkbRQR7MsED/82cFosBW9xv6eT4DI7tAx3i+y
+# phSb7LIAcoqzn13q1RSMygq6RvgRw/5A9xp8jzzp7Gh9Q3eBYNQ4WHSGQlsATt0u
+# ceFN9dYSfYTheyBDLSZ/mRDAQdjAinkqaAOZXwMyRTwEbEs1a9hiqTUvlYQovnmX
+# auefPMZXkXUAlhqrCXS+8UtkdXhxRw==
 # SIG # End signature block

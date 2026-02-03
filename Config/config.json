@@ -165,10 +165,7 @@
       "includeTeams": true
     },
     "downloadsCleanup": {
-      "excludeExtensions": [
-        ".pst",
-        ".ost"
-      ],
+      "excludeExtensions": [".pst", ".ost"],
       "includeExtensions": null,
       "dryRun": false,
       "cutoffYear": 2024
@@ -214,10 +211,7 @@
     },
     "copyDirectory": {
       "runRemote": true,
-      "copyFlags": [
-        "/E",
-        "/COPYALL"
-      ],
+      "copyFlags": ["/E", "/COPYALL"],
       "defaultComputerName": null,
       "mirror": false,
       "waitSeconds": 5,
@@ -264,16 +258,14 @@
       "includeInOffboarding": true,
       "showProgress": true,
       "autoConnect": true,
-      "autoDisconnectPrompt": true
+      "autoDisconnectPrompt": true,
+      "exoVersion": "3.9.2"
     },
     "largeFileSearch": {
       "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch",
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
-      "defaultSearchDirectory": [
-        "C:\\",
-        "D:\\"
-      ]
+      "defaultSearchDirectory": ["C:\\", "D:\\"]
     },
     "naming": {
       "copyAttributes": [
