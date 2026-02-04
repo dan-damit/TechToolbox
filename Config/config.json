@@ -231,7 +231,6 @@
       "registrationWaitSeconds": 90,
       "promptForContentMatchQuery": true,
       "registrationPollSeconds": 3,
-      "autoDisconnectPrompt": true,
       "purge": {
         "timeoutSeconds": 1200,
         "requireConfirmation": true,
