@@ -151,7 +151,6 @@ function Get-MessageTrace {
             [Parameter()][string] $SenderAddress,
             [Parameter()][string] $RecipientAddress,
             [Parameter()][string] $Subject,
-            [Parameter()][string] $SubjectFilterType = 'contains',
             [Parameter()][int]    $ResultSize = 5000
         )
         # Docs: V2 supports 90 days history but only 10 days per request; up to 5000 rows; times are returned as UTC.  [Learn]
@@ -182,7 +181,6 @@ function Get-MessageTrace {
                 if ($SenderAddress) { $params.SenderAddress = $SenderAddress }
                 if ($RecipientAddress) { $params.RecipientAddress = $RecipientAddress }
                 if ($Subject) { $params.Subject = $Subject }
-                if ($SubjectFilterType) { $params.SubjectFilterType = $SubjectFilterType } # startswith | endswith |contains
 
                 if ($continuationRecipient) {
                     $params.StartingRecipientAddress = $continuationRecipient
@@ -229,7 +227,6 @@ function Get-MessageTrace {
         -SenderAddress    $Sender `
         -RecipientAddress $Recipient `
         -Subject          $Subject `
-        -SubjectFilterType $subjectFilterType `
         -ResultSize       5000
 
     if (-not $summary -or $summary.Count -eq 0) {
@@ -313,8 +310,8 @@ function Get-MessageTrace {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDM0TFoJaZZd5/k
-# np3gJvRojH34Bj7QbYXDq57BCULTU6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDMyMO+p/9nuv/e
+# LrJqYvOer+huZvIx4NQlJi6vzztx+KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -447,34 +444,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBb5PVs60Jg
-# vVBwA2IJpAchcENhFcxq2hTVLUwRl8A7FzANBgkqhkiG9w0BAQEFAASCAgDd9vjE
-# 7b0J4qe6rVueFI9eDV1Kev/61itgs2se1eOU5GX8d7L7URnBSvte19hjag9cu0Kc
-# YL/c76WXnRZgG+Zfq3H1gePWIet4+e4Ka+gAIih7iOVuzVeDoNyYYp+uV/ApFPRO
-# 08xZCnCR97VKx3rNmD8/s0QDV1xlccnOPdeqIXEVPeilQS1fcOamIcOeXekEl1sF
-# Q1+oTQmFYVCDiIK37QM9Akiz/Icnvqv09709AZpyB8weMS6l2zHwemjVIgd5cL3p
-# uhQ+Z6u25RPUWIxplaEDMdgYZ5r4urAMKYosMPb7S+KBTzOMPe5SyDrOey5WtT2x
-# 3HaHhiHlUCIVwJ6C3PxQtlUn7lNbRg/Kg9Xt4IsvqLZJWFL6wZ4GDnUKu6ObdYKI
-# ZjXRa9ZXILU+TXGmmKZa5cHEOluXlB471uWnWsUC4BN8BaLNGzcsTfPI5B4CyJFE
-# 42DLZz6oj8HCe9X5WniKnPMPXW1aDNaW/Xr3JBOuRSWluT5AZhoWNjVraIan155x
-# uGFfhormeZyxU/bklvKqdrLIKZKWibHvD6ilp5KKjp43a0WTQtUH2Uy/zc5ugUW7
-# oqDKO6D/ENzhJT+AY7Y1YSSARDQ3xH9TCwnrp04/z1v1jkxEeus0iqc4N+t0xwjW
-# veyX3OaSJgshYtWfup/mASAUczW/ncMs8F3ip6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCicFgmWiKC
+# wogO4ukyR/WkIar4jVJQvnXUg19XL4lbyzANBgkqhkiG9w0BAQEFAASCAgAP1L04
+# Kv51WRPkAs65iX+3vjOYYF1jpoF2ehVTPHS/7Ewg+NVdAkAqWCki6h4v8OWIFEgW
+# w0cWXsAv4IAJBkmUBAfLITXE240eOovmO/YrWWEUzUeZSM8PPObp2gPoBorUXWL/
+# 4Ks/0jxO5z/WlNKdtMaMXSOhiWMcCCzH6E53jgMgX4eDkhgmu+Zo0keVdixllfUB
+# FrMkIDSrTOUZDwAnHAQJ0Z7Xsgu55Gbwo6PaqCeIV4i/QCSMHpNaHwLniGqFfNFA
+# Y4xVMoZukHqV9kmOy+SM5P1fMwI8RVVOQUkueqUjny2t8e/cdacqiGRrk3vla3dY
+# 0HYWk6iYdP3jsmf5FdkL0OjMTDKCl7aYhO4nQcRKxk800nRXy2xDAslb5q7fxZ0y
+# ZXpILs+4YyxVM4xsez0dBCKbrqY040p43Gyjl6kVeemJMt/ED+Z9WKdTuFhn/BsS
+# /xzQ+Tlp2aHrhdNY7axZq2jbS8DE75Ksjdp07m1k/M3NR1R06UaBBNyOB9yfihYN
+# BFh6ERl7mp9qcLCa2I4Wh+XPGyNvRsr+QSgFpqRO15TXilUC7Gm24oSFv1WBlaM2
+# NOPp8rnxo2hp6/RsYGP9ICcEhUmhvt3uJZpm0qoBBGT9y7uovgHRW00pyAP5y60p
+# sQ/sBeJhhuaZ1iaY44ZIC4y+q1S5JmrzqiVs8KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDQxOTUwNTBaMC8GCSqGSIb3DQEJBDEiBCB9mhPweJytr3b7n3Ar
-# JKc2NCF3UR6mVwF3Vbip0vUxfTANBgkqhkiG9w0BAQEFAASCAgCeTqLz3jzX7OxW
-# cPU/uW3Ti2IdWNDvLHjCR+sn5a+Zf5Gi7DiPYSzFli3JS504bQH0d7xDGqgt2sHC
-# 0PPl6iColxM23fKz/di0xX827iSGoyA75qyD5Ow5PpaioVNIEab84SC7yzLzsEvq
-# 7dKu4MG8aVMnGDNf8+x0vfOYl0Dfvc6keFZAaKvmftbDXA3guNz1vgnXWLQR+5KO
-# HAN4nBha3Z2w51i85VDjXQi6SpU8007DJOp1pgt28AtXMvUcyhTSWLbWXjB1u1rX
-# pl3nljj/cI0KjdwUmFYbQDjoaTRpZdozWH7y0J8rnNhxF0gNV8UmB3gn1c7/S/fm
-# Us5TcVW+o5iJ+pj9TRHBSbu559V55bqXStoHutxaNZeDHIEcODcV9e44fR5Xd/76
-# 6Dv9fXaWxiJam10uvxJot4KT4jB9z/c+MiFjlQrxSRjsCpFib67gQUynZJUcALEB
-# eM+ApPvXtaT0ejK9E3l1TksgGFYyN6VU/V0huXdlwegWBzGLhgNaYIyjxiAgPvw/
-# DL1Wi99/W8zCsR4Bz4v+wIqu6Uii4fw1ez/68nm0hxWA+uocrQ9DhC7migAeJytB
-# gvVOMVJC/J0xOll/UPRLsc1P90kfzeGl4fEHyeiqzn6zJf3BXcoG/CbrC3CRdKIV
-# acSQjgX4PY+JbpzM2xm+FRlOw5S7Eg==
+# BTEPFw0yNjAyMDQyMTQ0MDZaMC8GCSqGSIb3DQEJBDEiBCC3+ttYpY/nv4BZgac1
+# 8P1pasuHz6GcGNaum6BdRpItWzANBgkqhkiG9w0BAQEFAASCAgCzXdFxYjqBSfMY
+# XrLBPT6g08clnB9ItzFeW8Ym21Wk4uOQer1qILxj0V9rOGSFPTKmEgRAWrE01FF0
+# pBvVN3UgApfK95qGRv7a4kIZtxFLTEL/XLdn1N4SFa7i7YprsgW/5I9BGfzI/+wh
+# MDBWBPvy5Pphw43/tM3TTrhhvMaI2Swo+PNmCX8HFSN4zjmC5ueHURslIj7EPcK+
+# v9vHtXXPiLGrYj0t3riSp4r13lADoE2GJmC4k6iNyAgazLpF95ZsL0WscIHeJCvr
+# dObDjvcngDh3DpUOOzPOV1RiJ0f8n6HYrvnOK5i8aPO3Rl0pD1/SogLM05fUyhmo
+# VmfPM7v6h8JBZf3Gdd8g2SuvDIuhNehEqnRsyjP6VZqN2PY3U/ykSbMuJwaSGz/u
+# OyZQxCq0sG4oVEIH5D8UAhya+wjB4AjZP/x1OulWbVK8DRpw5GzEKGPggVUCrIfe
+# dUFTiXS2YU2Zd6QH1REUYam+41+miPUXEMzANGApVfhn3rBRp8/8UBMQPCwpcWrt
+# GZcnJ9HF3lbfnu9iVZSkBEm7xvMpxKwgyP7rp5Y3ffz4mC4P8hUB0+4OlNo9+vzv
+# w4phJ5WRZ1y6ajrlZ5smEgbnNNFmHI/JuWE6q2dQXAq3+5t/Z26unYD/3Th8l2Rm
+# 8coc+jGq8d0Aetb8QrhE2SxWdc3OBQ==
 # SIG # End signature block
