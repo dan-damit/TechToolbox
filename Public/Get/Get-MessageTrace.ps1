@@ -1,36 +1,41 @@
-function Get-MessageTrace {
+function Get-MessageTrace { 
     <#
     .SYNOPSIS
-        Queries Exchange Online message trace (V2) using MessageId, Sender,
-        Recipient, Subject, or any combination. Shows summary & per-recipient
-        details, and optionally exports CSVs.
+    Retrieve Exchange Online message trace summary and details using V2 cmdlets
+    with chunking and throttling handling.
     .DESCRIPTION
-        Connects to Exchange Online if not already connected, resolves a time
-        window (explicit or config-based lookback), dynamically builds filters
-        for Get-MessageTraceV2, writes tables to Information stream, and
-        exports CSVs when enabled.
+    This cmdlet retrieves message trace summary and details from Exchange Online
+    using the V2 cmdlets (Get-MessageTraceV2 and Get-MessageTraceDetailV2). It
+    handles chunking for date ranges over 10 days and manages throttling with
+    exponential backoff retries. The cmdlet supports filtering by MessageId,
+    Sender, Recipient, and Subject, and can automatically export results to CSV.
     .PARAMETER MessageId
-        RFC822 Message-ID value from message headers (e.g., <GUID@domain.com>).
+    Filter by specific Message ID.
     .PARAMETER Sender
-        Sender email address to filter on.
+    Filter by sender email address.
     .PARAMETER Recipient
-        Recipient email address to filter on.
+    Filter by recipient email address.
     .PARAMETER Subject
-        Subject keyword or full subject line to filter on.
+    Filter by email subject.
     .PARAMETER StartDate
-        UTC start datetime for the trace window.
+    Start of the date range for the message trace (default: now - configured
+    lookback).
     .PARAMETER EndDate
-        UTC end datetime for the trace window.
+    End of the date range for the message trace (default: now).
     .PARAMETER ExportFolder
-        Destination folder for CSV exports. If omitted, config defaults apply
-        when AutoExport is enabled.
+    Folder path to export results. If not specified, uses default from config.
     .EXAMPLE
-        Get-MessageTrace -Sender "john@company.com" -StartDate (Get-Date).AddHours(-24)
-    .EXAMPLE
-        Get-MessageTrace -Subject "invoice" -Recipient "billing@company.com"
-    .EXAMPLE
-        Get-MessageTrace -MessageId '<abc123@company.com>'
+    Get-MessageTrace -Sender "user@example.com" -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date)
+    Retrieves message traces for the specified sender over the last 7 days.
+    .NOTES
+    Requires Exchange Online V2 cmdlets (3.7.0+). Ensure you are connected to
+    Exchange Online before running this cmdlet.
+    .INPUTS
+    None.
+    .OUTPUTS
+    None. Outputs are logged to the console and optionally exported to CSV.
     #>
+
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
     param(
         [Parameter()][string]  $MessageId,
@@ -47,6 +52,9 @@ function Get-MessageTrace {
     $exo = $cfg["settings"]["exchangeOnline"]
     $mt = $cfg["settings"]["messageTrace"]
 
+    # Make sure our in-house EXO module is imported
+    Import-ExchangeOnlineModule  # v3.7.0+ exposes V2 cmdlets after connect
+
     # Lookback hours (safe default)
     $lookbackHours = [int]$mt["defaultLookbackHours"]
     if ($lookbackHours -le 0) { $lookbackHours = 48 }
@@ -59,6 +67,10 @@ function Get-MessageTrace {
     if ([string]::IsNullOrWhiteSpace($defaultExport)) {
         $defaultExport = $cfg["paths"]["exportDirectory"]
     }
+
+    # Resolve Subject filter type if present in config; default to 'contains'
+    $subjectFilterType = $mt["subjectFilterType"]
+    if ([string]::IsNullOrWhiteSpace($subjectFilterType)) { $subjectFilterType = 'contains' }
 
     # Resolve StartDate/EndDate defaults
     if (-not $StartDate) { $StartDate = (Get-Date).AddHours(-$lookbackHours) }
@@ -75,34 +87,34 @@ function Get-MessageTrace {
         throw "At least one search filter is required."
     }
 
-    # --- Connect to EXO ---
-    Import-ExchangeOnlineModule -VerboseStatus:$false
-    Connect-ExchangeOnlineIfNeeded -ShowProgress:([bool]$exo.showProgress)
-
-    # --- Base filter set (V2) ---
-    $baseParams = @{
-        StartDate   = $StartDate
-        EndDate     = $EndDate
-        ResultSize  = 5000           # V2 supports up to 5000 per call
-        ErrorAction = 'Stop'
+    # --- Ensure EXO connection and V2 availability ---
+    # V2 cmdlets are only available after Connect-ExchangeOnline (they load into tmpEXO_*).
+    # We'll auto-connect (quietly) if V2 isn't visible, then re-check.  (Docs: GA + V2 usage)  [TechCommunity + Learn]
+    function Confirm-EXOConnected {
+        if (-not (Get-Command -Name Get-MessageTraceV2 -ErrorAction SilentlyContinue)) {
+            if (Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue) {
+                try {
+                    # Prefer your wrapper if present
+                    if (Get-Command -Name Connect-ExchangeOnlineIfNeeded -ErrorAction SilentlyContinue) {
+                        Connect-ExchangeOnlineIfNeeded -ShowProgress:([bool]$exo.showProgress)
+                    }
+                    else {
+                        Connect-ExchangeOnline -ShowBanner:$false | Out-Null
+                    }
+                }
+                catch {
+                    Write-Log -Level Error -Message ("Failed to connect to Exchange Online: {0}" -f $_.Exception.Message)
+                    throw
+                }
+            }
+        }
     }
-    if ($MessageId) { $baseParams.MessageId = $MessageId }
-    if ($Sender) { $baseParams.SenderAddress = $Sender }
-    if ($Recipient) { $baseParams.RecipientAddress = $Recipient }
-    if ($Subject) { $baseParams.Subject = $Subject } # SubjectFilterType optional; default behavior is typically 'contains'
+    Confirm-EXOConnected
 
-    # --- Log filters ---
-    Write-Log -Level Info -Message "Message trace filters:"
-    Write-Log -Level Info -Message ("  MessageId : {0}" -f ($MessageId ?? "<none>"))
-    Write-Log -Level Info -Message ("  Sender    : {0}" -f ($Sender ?? "<none>"))
-    Write-Log -Level Info -Message ("  Recipient : {0}" -f ($Recipient ?? "<none>"))
-    Write-Log -Level Info -Message ("  Subject   : {0}" -f ($Subject ?? "<none>"))
-    Write-Log -Level Info -Message ("  Window    : {0} → {1} (UTC shown by EXO)" -f $StartDate.ToString('u'), $EndDate.ToString('u'))
-
-    # --- Resolve cmdlets without relying on tmpEXO_* ---
+    # Resolve cmdlets (they are Functions exported from tmpEXO_* after connect)
     try {
-        $getTraceCmd = Get-Command -Name Get-MessageTraceV2      -CommandType Cmdlet -ErrorAction Stop
-        $getDetailCmd = Get-Command -Name Get-MessageTraceDetailV2 -CommandType Cmdlet -ErrorAction Stop
+        $getTraceCmd = Get-Command -Name Get-MessageTraceV2       -ErrorAction Stop
+        $getDetailCmd = Get-Command -Name Get-MessageTraceDetailV2 -ErrorAction Stop
     }
     catch {
         Write-Log -Level Error -Message ("Message Trace V2 cmdlets not available. Are you connected to EXO? {0}" -f $_.Exception.Message)
@@ -129,68 +141,107 @@ function Get-MessageTrace {
         throw "Exceeded retry attempts."
     }
 
-    # --- Chunk the query into ≤10-day slices and walk >5k results using StartingRecipientAddress ---
-    #     Per MS Learn: no pagination; to query subsequent data, use StartingRecipientAddress and the prior 'Recipient address' + 'Received Time' values. (Timestamps are UTC)
-    #     Also note the tenant cap: 100 requests / 5-minute window.
-    #     We'll pace our calls with small waits to stay friendly.  [3](https://learn.microsoft.com/en-us/powershell/module/exchangepowershell/get-messagetracev2?view=exchange-ps)[4](https://techcommunity.microsoft.com/blog/exchange/announcing-general-availability-ga-of-the-new-message-trace-in-exchange-online/4420243)
+    # --- Chunked V2 invoker (≤10-day slices + continuation when >5k rows) ---
+    function Invoke-MessageTraceV2Chunked {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][datetime]$StartDate,
+            [Parameter(Mandatory)][datetime]$EndDate,
+            [Parameter()][string] $MessageId,
+            [Parameter()][string] $SenderAddress,
+            [Parameter()][string] $RecipientAddress,
+            [Parameter()][string] $Subject,
+            [Parameter()][string] $SubjectFilterType = 'contains',
+            [Parameter()][int]    $ResultSize = 5000
+        )
+        # Docs: V2 supports 90 days history but only 10 days per request; up to 5000 rows; times are returned as UTC.  [Learn]
+        # When result size is exceeded, query subsequent data by using StartingRecipientAddress and EndDate with
+        # the values from the previous result's Recipient address and Received time.  [Learn]
+        $sliceStart = $StartDate
+        $endLimit = $EndDate
+        $maxSpan = [TimeSpan]::FromDays(10)
+        $results = New-Object System.Collections.Generic.List[object]
 
-    $sliceStart = $StartDate
-    $summary = New-Object System.Collections.Generic.List[object]
+        while ($sliceStart -lt $endLimit) {
+            $sliceEnd = $sliceStart.Add($maxSpan)
+            if ($sliceEnd -gt $endLimit) { $sliceEnd = $endLimit }
 
-    while ($sliceStart -lt $EndDate) {
-        $sliceEnd = [datetime]::MinValue
-        # End of this slice is at most 10 days ahead, but never beyond requested EndDate.
-        $tmp = $sliceStart.AddDays(10)
-        $sliceEnd = if ($tmp -lt $EndDate) { $tmp } else { $EndDate }
+            Write-Information ("[Trace] Querying slice {0:u} → {1:u}" -f $sliceStart.ToUniversalTime(), $sliceEnd.ToUniversalTime()) -InformationAction Continue
 
-        Write-Log -Level Info -Message ("Query slice: {0} → {1}" -f $sliceStart.ToString('u'), $sliceEnd.ToString('u'))
+            $continuationRecipient = $null
+            $continuationEndUtc = $sliceEnd
 
-        $continuationRecipient = $null
-        $continuationEndUtc = $sliceEnd   # we’ll move this backward as we walk
+            do {
+                $params = @{
+                    StartDate   = $sliceStart
+                    EndDate     = $continuationEndUtc
+                    ResultSize  = $ResultSize
+                    ErrorAction = 'Stop'
+                }
+                if ($MessageId) { $params.MessageId = $MessageId }
+                if ($SenderAddress) { $params.SenderAddress = $SenderAddress }
+                if ($RecipientAddress) { $params.RecipientAddress = $RecipientAddress }
+                if ($Subject) { $params.Subject = $Subject }
+                if ($SubjectFilterType) { $params.SubjectFilterType = $SubjectFilterType } # startswith | endswith |contains
 
-        do {
-            $callParams = $baseParams.Clone()
-            $callParams.StartDate = $sliceStart
-            $callParams.EndDate = $continuationEndUtc
+                if ($continuationRecipient) {
+                    $params.StartingRecipientAddress = $continuationRecipient
+                }
 
-            if ($continuationRecipient) {
-                $callParams.StartingRecipientAddress = $continuationRecipient
-            }
+                $batch = Invoke-WithBackoff { & $getTraceCmd @params }
 
-            $batch = Invoke-WithBackoff { & $getTraceCmd @callParams }
+                if ($batch -and $batch.Count -gt 0) {
+                    $results.AddRange($batch)
 
-            if ($batch -and $batch.Count -gt 0) {
-                # Append
-                $summary.AddRange($batch)
+                    # Continuation: use the oldest row's RecipientAddress and Received (UTC)
+                    $last = $batch | Sort-Object Received -Descending | Select-Object -Last 1
+                    $continuationRecipient = $last.RecipientAddress
+                    $continuationEndUtc = $last.Received
 
-                # Compute continuation tokens using the last row’s RecipientAddress + Received (UTC)
-                $last = $batch | Sort-Object Received -Descending | Select-Object -Last 1
-                $continuationRecipient = $last.RecipientAddress
-                $continuationEndUtc = $last.Received
+                    # Pace to respect tenant throttling (100 req / 5 min)
+                    Start-Sleep -Milliseconds 200
+                }
+                else {
+                    $continuationRecipient = $null
+                }
 
-                # Gentle pacing to respect 100-requests/5-min cap when loops are heavy
-                Start-Sleep -Milliseconds 200
-            }
-            else {
-                $continuationRecipient = $null
-            }
+            } while ($batch.Count -ge $ResultSize)
 
-            # Continue if we exactly hit the ResultSize cap; otherwise we’re done for this slice
-        } while ($batch.Count -ge $baseParams.ResultSize)
+            $sliceStart = $sliceEnd
+        }
 
-        $sliceStart = $sliceEnd
+        return $results
     }
 
-    if ($summary.Count -eq 0) {
+    # --- Log filters (friendly) ---
+    Write-Log -Level Info -Message "Message trace filters:"
+    Write-Log -Level Info -Message ("  MessageId : {0}" -f ($MessageId ?? '<none>'))
+    Write-Log -Level Info -Message ("  Sender    : {0}" -f ($Sender ?? '<none>'))
+    Write-Log -Level Info -Message ("  Recipient : {0}" -f ($Recipient ?? '<none>'))
+    Write-Log -Level Info -Message ("  Subject   : {0}" -f ($Subject ?? '<none>'))
+    Write-Log -Level Info -Message ("  Window    : {0} → {1} (UTC shown by EXO)" -f $StartDate.ToString('u'), $EndDate.ToString('u'))
+
+    # --- Execute (chunked) ---
+    $summary = Invoke-MessageTraceV2Chunked `
+        -StartDate        $StartDate `
+        -EndDate          $EndDate `
+        -MessageId        $MessageId `
+        -SenderAddress    $Sender `
+        -RecipientAddress $Recipient `
+        -Subject          $Subject `
+        -SubjectFilterType $subjectFilterType `
+        -ResultSize       5000
+
+    if (-not $summary -or $summary.Count -eq 0) {
         Write-Log -Level Warn -Message "No results found. Check filters, UTC vs. local time, and the 10-day-per-call limit."
         return
     }
 
-    # Summary table (V2 uses Received in UTC)
+    # Summary view (EXO returns UTC timestamps)
     $summaryView = $summary |
     Select-Object Received, SenderAddress, RecipientAddress, Subject, Status, MessageTraceId
 
-    Write-Log -Level Ok -Message ("Summary results ({0}):" -f $summaryView.Count)
+    Write-Log -Level Ok   -Message ("Summary results ({0}):" -f $summaryView.Count)
     Write-Log -Level Info -Message ($summaryView | Sort-Object Received | Format-Table -AutoSize | Out-String)
 
     # --- Details ---
@@ -218,7 +269,7 @@ function Get-MessageTrace {
     }
 
     if ($detailsAll.Count -gt 0) {
-        Write-Log -Level Ok -Message ("Details ({0} rows):" -f $detailsAll.Count)
+        Write-Log -Level Ok   -Message ("Details ({0} rows):" -f $detailsAll.Count)
         Write-Log -Level Info -Message ($detailsAll | Format-Table -AutoSize | Out-String)
     }
     else {
@@ -262,8 +313,8 @@ function Get-MessageTrace {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCj6mv27Mo/fxT2
-# h3PyBY/RXdpe7dZTbf9lObHkw0KZQqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDM0TFoJaZZd5/k
+# np3gJvRojH34Bj7QbYXDq57BCULTU6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -396,34 +447,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCXJzHbxw2S
-# K0Fj+X7iSfr41Q/TJQJOUxfe/ZwUSBThyDANBgkqhkiG9w0BAQEFAASCAgDJeAoQ
-# Kgr0QaYnNGoD8sXuifhdXD86PsM72ZZ/Ds/i7r7VL4/CDApeftvHgLHfqUbF1okh
-# QAVFE1vvr4RuiRltxJTVLmbGMDzo08CnUfljKgNMb8Vm0DWYG1VD0P0yVc/Pp3Oz
-# 4C7vTfVB4U2VKcihAzpxQgtMLNNXPQarQToY9h5cjIlrl40a95lEEJn6BOsOuKvo
-# SHCRAJMbCzF45iQHTQb982GiNPjYrzdK4+yf/Pm5SpLOl31qfgJmSRgZrLhOgJ09
-# hCwrxmjWVGFJlGu6jD4MiSAxTJnfu7dvIdhEk8JJ8dwetmS/D7lQGBkH6TLawRnx
-# ERQoK8cvbY3kgXKlnwwIQpU0a1tWAv/0bWG7WmsEWA5vYEd/qfYoHXJ+6oSWaQ41
-# U9AsyQc4+BGtkrYoVJ7oJAhJ40zViROUySJHeNmCJw1OdzEsxJLxh4YcfQ6SRtnr
-# 7nZnIqvFSVPKhdNkAUk/Jqo2hSPLVVFmQHFutfbs6+8iVcD+2jX57Hc5gcOnvQI8
-# 8zNYIy+XTbyylDq5Bvpitoj1lIIcGmNPWu7P0R2oj7OVXF/jD5PCzLfzu5kEiKyv
-# VE2XDsH79eUlTbEPfB7AeBvDAT4C5xihiYfDsezMYqfy6Dqg5hbueXLw6/SLDiui
-# Ad/asgku0wk8RfHIv0AJnZ/9IKfVi7Iwdyam6KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBb5PVs60Jg
+# vVBwA2IJpAchcENhFcxq2hTVLUwRl8A7FzANBgkqhkiG9w0BAQEFAASCAgDd9vjE
+# 7b0J4qe6rVueFI9eDV1Kev/61itgs2se1eOU5GX8d7L7URnBSvte19hjag9cu0Kc
+# YL/c76WXnRZgG+Zfq3H1gePWIet4+e4Ka+gAIih7iOVuzVeDoNyYYp+uV/ApFPRO
+# 08xZCnCR97VKx3rNmD8/s0QDV1xlccnOPdeqIXEVPeilQS1fcOamIcOeXekEl1sF
+# Q1+oTQmFYVCDiIK37QM9Akiz/Icnvqv09709AZpyB8weMS6l2zHwemjVIgd5cL3p
+# uhQ+Z6u25RPUWIxplaEDMdgYZ5r4urAMKYosMPb7S+KBTzOMPe5SyDrOey5WtT2x
+# 3HaHhiHlUCIVwJ6C3PxQtlUn7lNbRg/Kg9Xt4IsvqLZJWFL6wZ4GDnUKu6ObdYKI
+# ZjXRa9ZXILU+TXGmmKZa5cHEOluXlB471uWnWsUC4BN8BaLNGzcsTfPI5B4CyJFE
+# 42DLZz6oj8HCe9X5WniKnPMPXW1aDNaW/Xr3JBOuRSWluT5AZhoWNjVraIan155x
+# uGFfhormeZyxU/bklvKqdrLIKZKWibHvD6ilp5KKjp43a0WTQtUH2Uy/zc5ugUW7
+# oqDKO6D/ENzhJT+AY7Y1YSSARDQ3xH9TCwnrp04/z1v1jkxEeus0iqc4N+t0xwjW
+# veyX3OaSJgshYtWfup/mASAUczW/ncMs8F3ip6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDMyMzAxMjlaMC8GCSqGSIb3DQEJBDEiBCCix5n1zlPeu29ByUAQ
-# LsdhMktm+k2R3OqVs5A70uME1DANBgkqhkiG9w0BAQEFAASCAgBt00ITZaJvfs6T
-# AGk8pw5w5khb+TVAtQzWbaWOto6QEUmUKZ21/8VWikXK0zrl4st6CHlU49AM3TrJ
-# Jo0ln7Z4fKliUAUYpLGl6oueb16gyrRLyAVW0OWPWdUawGWxyQSQzdygt0RBtMu+
-# WZE1Rp1LM6424Kn/G5ctlowYh/jCppcUFy7OWVi+xsCeKhOkaei3crxDQ279hzx6
-# mA79csY1xuXhKQmr7lVMbcq5t5Adg7rNcNG/luLhmW25QvKVMFhWmICgTMI4OYrm
-# uXSnmRR77TpCvi2POxBGVeKmJj6LONtxgYbfz1a8+DK+GAm/1BJgaOk3gqebUdXK
-# gKeUUqd3qQeIOha4HdknHRFUiIiyALqeZUo+PVjc5Xn3salhRsYsH59/dwW/cs7s
-# OGVOlwW3zLBwDMk6GsWAL6W86U0JZzU9alEWaBgoT4Y733ywk9ZY/lFtN8JrSUoH
-# 6I9XfhgB48mSXM78JyrTbB8YgfSccPtpeOKislYO+LwpfVAb5NcM5c8DxRrqo7UT
-# Ll7fwo3+bFYXHhJELE+fLeY9dlVjTBxL2KuH6ptM6Nipgmvx7a0cs0cq0PWKsToz
-# w/ZOrSlnLogL2fThb/euGDopvWEQtZI3hgDf4C62pzZQmIRD4ZXynutrHEniwVpW
-# lnPsaGMoYIEro5xX04PO7sqeTtRUKQ==
+# BTEPFw0yNjAyMDQxOTUwNTBaMC8GCSqGSIb3DQEJBDEiBCB9mhPweJytr3b7n3Ar
+# JKc2NCF3UR6mVwF3Vbip0vUxfTANBgkqhkiG9w0BAQEFAASCAgCeTqLz3jzX7OxW
+# cPU/uW3Ti2IdWNDvLHjCR+sn5a+Zf5Gi7DiPYSzFli3JS504bQH0d7xDGqgt2sHC
+# 0PPl6iColxM23fKz/di0xX827iSGoyA75qyD5Ow5PpaioVNIEab84SC7yzLzsEvq
+# 7dKu4MG8aVMnGDNf8+x0vfOYl0Dfvc6keFZAaKvmftbDXA3guNz1vgnXWLQR+5KO
+# HAN4nBha3Z2w51i85VDjXQi6SpU8007DJOp1pgt28AtXMvUcyhTSWLbWXjB1u1rX
+# pl3nljj/cI0KjdwUmFYbQDjoaTRpZdozWH7y0J8rnNhxF0gNV8UmB3gn1c7/S/fm
+# Us5TcVW+o5iJ+pj9TRHBSbu559V55bqXStoHutxaNZeDHIEcODcV9e44fR5Xd/76
+# 6Dv9fXaWxiJam10uvxJot4KT4jB9z/c+MiFjlQrxSRjsCpFib67gQUynZJUcALEB
+# eM+ApPvXtaT0ejK9E3l1TksgGFYyN6VU/V0huXdlwegWBzGLhgNaYIyjxiAgPvw/
+# DL1Wi99/W8zCsR4Bz4v+wIqu6Uii4fw1ez/68nm0hxWA+uocrQ9DhC7migAeJytB
+# gvVOMVJC/J0xOll/UPRLsc1P90kfzeGl4fEHyeiqzn6zJf3BXcoG/CbrC3CRdKIV
+# acSQjgX4PY+JbpzM2xm+FRlOw5S7Eg==
 # SIG # End signature block

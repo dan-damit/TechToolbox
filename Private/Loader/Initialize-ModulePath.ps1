@@ -1,81 +1,46 @@
+function Initialize-ModulePath {
+    [CmdletBinding()]
+    param(
+        [ValidateSet('User', 'Machine')]
+        [string]$Scope = 'User',
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
+        [Parameter()]
+        [string]$ModuleRoot = 'C:\TechToolbox\'
+    )
 
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
+    # Ensure directory exists
+    if (-not (Test-Path -LiteralPath $ModuleRoot)) {
+        New-Item -ItemType Directory -Path $ModuleRoot -Force | Out-Null
+        Write-Information "Created module root: [$ModuleRoot]" -InformationAction Continue
+    }
 
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
+    # Load persisted PSModulePath for the chosen scope (seed from process if empty)
+    $current = [Environment]::GetEnvironmentVariable('PSModulePath', $Scope)
+    if ([string]::IsNullOrWhiteSpace($current)) { $current = $env:PSModulePath }
 
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
+    $sep = ';'
+    $parts = $current -split $sep | Where-Object { $_ -and $_.Trim() } | Select-Object -Unique
+    $needsAdd = -not ($parts | Where-Object { $_.TrimEnd('\') -ieq $ModuleRoot.TrimEnd('\') })
 
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
-
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
-}
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
-}
-
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+    if ($needsAdd) {
+        $new = @($parts + $ModuleRoot) -join $sep
+        [Environment]::SetEnvironmentVariable('PSModulePath', $new, $Scope)
     }
     else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
+    }
+
+    # Ensure the current session sees it immediately
+    $sessionHas = ($env:PSModulePath -split $sep) | Where-Object { $_.TrimEnd('\') -ieq $ModuleRoot.TrimEnd('\') }
+    if (-not $sessionHas) {
+        $env:PSModulePath = ($env:PSModulePath.TrimEnd($sep) + $sep + $ModuleRoot).Trim($sep)
     }
 }
-
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
-}
-
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBtEWV5+JSPNITH
-# 0hvZ5RZY1WdQJ627WeimFMS52n43eqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBGBejz+QmY0vV9
+# edKgvq6is+vTYn4THBrsGX7IJ16LVqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -208,34 +173,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBc3aLGseFK
-# hnVRbZ1RcmXWE4XB+fU3z0HE4nf5DKBGDzANBgkqhkiG9w0BAQEFAASCAgCASKO5
-# ZqWNVDe0f1A/nWqP3U0voOYIbDdjJmieA18FM5zwjhd2lGrkMYP0FHDqWDKLwaCl
-# JSMVHoCiGXmrO1ZDvS/hzGGDeHIKTXfonWc4jGinYCkzVFLhGkMaL7nDrgMoI2Bp
-# oh3uxfcnSjWsLzWnJMcoGBmDmbeYt8eWL/0J0aO+WHLzG+ugyuE5DxWK6FA26A48
-# rAEx42FJPmPKdodZX5QN45BuPpjBrW5UAhna/rAmISn8PuxpzZPk0peQZ0TlyhQG
-# VQRRM/LVOIBZ1PyPNPxlJlS6U550KvskX4ARXSLYiYPaesgj9Bd0B3KarZAg0QE8
-# 2NOP9C5pLdDzATnCI9dhJ0xgHYr8dstZLZvM1tVR2/hIagwHxvA4VzqCTumgPz+v
-# UHEFJHdB0UFRvIqbQyPbIPUwgPlkMKDWvHoeCoq5kUKuxZZ4v8ve3tOAWpBcdoDJ
-# G3HYnvNBMJAgiqXAA/36NRfXnDxnBHh2hpdn5idyumnHyZIuJgU2ga/ofmxwht7r
-# S0TwgTB85jMhS5POJlXPWsZxJtq2oDGsh2duS2QfAtSlQXRT8fy1Nw/xUdtS2mVi
-# udaKLProZkaVeXva4AJm2tDeNZYq7UdKqbGCuRkpg0ZqM+2pjW3/tsQr4peib8G9
-# heyJNw0D787HJb8w6I5HxDlEDIk/HX5AZkd6DaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXmhYV/+Jd
+# poe61os/x7MwArOTX5Hxh9lnrSOOw8kUjDANBgkqhkiG9w0BAQEFAASCAgAmt4Yp
+# fIrRz/04Cr2gkQcgMP7KHz/yibnZRo8J/tn8qZV6XTqZgCCMO6r4JtLFpoOOA2IX
+# VK9CMo0Gsh4pRBH8F9lfR1LxCZ5muqGGfI15Xunc4ui5/iOvci1RGscaEbowM73T
+# LwGmUAeI+D2XCI3X4LgmdTJ5H9+v66QNRJcmKHc+RqzOBX3QWjsOSKOY1ulBt7m/
+# p94LRZ8XiCinUMVAN3KWjobcLyDasyZdT+JksGjYBkOabZ8dUSmdBzAY/fRnXNZp
+# vzeNl1RNEf5GGb0kWN80mmL7eVfdEq3aHpi1Ro119ctixXZEkgCLsyBMjnptpyAy
+# 1xrSJLeU5OLClE3+MUVxslv+SZXOQr4OhiFgRLPS/Y3XP7+ttAjXSFEXNo1L8nVA
+# a7KZeKmJqm2zkkTl9c23Ox+fcpOAfBFYls/FQEAsWKFj1eAG85TDIF/sPeLOuvDO
+# NPHv8KMSZE+srjalpS4m0D45vYixV/IqYQsLNy/AJOajNgTibcfNNWP2jNDoh5p7
+# PjfazmB08e0jJDY93EpDZGb91JfNN354zN0Ff+omt1HqEKyQzu0ET95XGtHH+V2T
+# TpxlpF6b9W6VVWByScYpAW/Gxj0UAARoaRPr3HR6xDN1ZSsUHk1CUWYTTSoLOzzv
+# muF2WINatBcOHBpoKpt+jMRv13xQXAcBIFpIH6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDQyMTEwNTBaMC8GCSqGSIb3DQEJBDEiBCBewR4FpMZAplQhtGW4
-# RmEr7WbH4f2dMj6EhUdznYhBEzANBgkqhkiG9w0BAQEFAASCAgDALBLi2ZqQRCi0
-# nCZqqB5giltPQG1TjsTDT6mFTcrVjRNqvQsX8AVb/5V7n0oxYR+GjsJ5IjtbZKxi
-# QJYEp2U3tMhTmc1Dqj1AA0isCGbu+mrLLWRyiPYnJKP94V3bLoRiq2d+f7quN/D4
-# r9GvM7+NJXYzpw29IV2AdBD0WuwyDOJ5BRJxyXsS2nZLURGJpQGH2MJsKLT3SZRp
-# 7nVXY2XjhjPFAtl9LmUBOxD6BdYmg7QDAHNg9prR4TyOX03wwHCnJz810QHzjfmV
-# 5A0SUZhifuDPeXAG6JpaCs9KOlWzgUJbRUdBtiE2ygM3LJibmnKUIJJAh8b7QCsy
-# J70Op9OxF+njHsvg+sFksAUyKmL1/7EoJ35PQ9O0cToO9qe7vJIf4TmqMb5SgYto
-# rP3vhpI+S8sWUlxYCMyY0Qy3eTTTLqjmg+uP4lZvnWduWRMI4KajmjsYcS9nsdNk
-# 3eL6/tGTsayCiQ4YgxdjCPatN7wDKHvTjwmlTelV2ul7UOwSGSBSstQctHYJo4wm
-# OQ775MnZL43RDKhFP1n+06Exzgee0TXuCydD1rj8KAshJgyuE94WRATrGELL5JJd
-# CjnWwZrYZQJx8Xt6g2M88fRINvre0qNpE4db07nGmWkwcDq5fTcHvbtzLc6KMlpD
-# gCoowzBLJakO+qtcoLObVqCQy52+Wg==
+# BTEPFw0yNjAyMDQyMDA0MzRaMC8GCSqGSIb3DQEJBDEiBCAxW1XOtWtAauzoL7dd
+# AOHVDObGo5xoiMBEL96aHygYLjANBgkqhkiG9w0BAQEFAASCAgCZjwxV2mVaRAK2
+# T0c3ED/pYI/U5awUmcxrf9ey4iaTyYBPzIF9PW1jW3b8mq67Hp9lCeqTEpGPho5M
+# ek2eej2hLrsZobwG1U9oKIvDjwRZJOL09asGeG1zUwkFxMUY9PEwLrTxtIwF211H
+# 0FOZd2pqjObcoWiVLYx/sCRVePgD4w0H1NV3u9LehSMwiUoQ5SbaDYD7hkTnP7/C
+# NDwnk+wCLWs5KoTZ3XGPRR0sPTmlr+nlVqCCwyjJasWGJjq0DV+VGX1yW3g8ArFr
+# NH9Oo1bsJkh/by/OlG+BbTsJFfp1r4ryp1SvdZG94qhWe1fVLt61GfiU5OnFBsmj
+# jp2A9qMZmGRDLmmgwNPv9+o4iVLbDpQIQ2vNWclQcftiYPvDL9reUHMFrAxx3q/N
+# 45bSySmIRmV2V/3kpP/u719Jmanv22Ux/jdn6k3jp/avf58x+mCJd0vOyNxwLp9W
+# O0TvjF5ikukKRNfGYWXAX2hwwBJWtBCNNdzzGN+5+FJua1S/rKSIZqvyEbpsmzDe
+# aQklZXvnw/exAEHqrlJJwG45zrJ1b1nvo5kWvY/lVNfTdgM6dIq2tG64nbNGuKTs
+# t3iyvg1uR4RiRNLLQltddPV5XzFB6kx8EbddIP/ZmTuhIyVpDrxI67g/VBvYyKZ2
+# Pkd7iLIW6F3voEtA5BUfkqSQK608uQ==
 # SIG # End signature block

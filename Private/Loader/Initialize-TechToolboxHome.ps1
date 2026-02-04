@@ -1,81 +1,132 @@
+function Initialize-TechToolboxHome {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter()][string]$HomePath = 'C:\TechToolbox',
+        [Parameter()][string]$SourcePath,       # <-- optional override
+        [switch]$Force,
+        [switch]$Quiet
+    )
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
+    $ErrorActionPreference = 'Stop'
 
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
-
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
-
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
-
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
-
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
-}
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
-}
-
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+    # Resolve Source (module files location)
+    if (-not $SourcePath -or [string]::IsNullOrWhiteSpace($SourcePath)) {
+        if ($script:ModuleRoot) {
+            $SourcePath = $script:ModuleRoot
+        }
+        elseif ($MyInvocation.PSScriptRoot) {
+            $SourcePath = $MyInvocation.PSScriptRoot
+        }
+        elseif ($ExecutionContext.SessionState.Module.ModuleBase) {
+            $SourcePath = $ExecutionContext.SessionState.Module.ModuleBase
+        }
     }
-    else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
+
+    if (-not $SourcePath) {
+        Write-Error "Initialize-TechToolboxHome: Unable to determine source path (ModuleRoot/PSScriptRoot not set)."
+        return
     }
-}
 
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
-}
+    $src = [System.IO.Path]::GetFullPath($SourcePath)
+    $home = [System.IO.Path]::GetFullPath($HomePath)
 
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
+    Write-Verbose ("[Init] Source: {0}" -f $src)
+    Write-Verbose ("[Init] Home:   {0}" -f $home)
+
+    if (-not (Test-Path -LiteralPath $src)) {
+        Write-Error "Initialize-TechToolboxHome: Source path not found: $src"
+        return
+    }
+
+    # Short-circuit if already running from home
+    if ($src.TrimEnd('\') -ieq $home.TrimEnd('\')) {
+        Write-Verbose "Already running from $home — skipping copy."
+        return
+    }
+
+    # Read module version (optional)
+    $manifest = Join-Path $src 'TechToolbox.psd1'
+    $version = '0.0.0-dev'
+    if (Test-Path $manifest) {
+        try {
+            $data = Import-PowerShellDataFile -Path $manifest
+            if ($data.ModuleVersion) { $version = $data.ModuleVersion }
+        }
+        catch { Write-Warning "Unable to read module version from psd1." }
+    }
+
+    # Check install stamp
+    $stampDir = Join-Path $home '.ttb'
+    $stampFile = Join-Path $stampDir 'install.json'
+    if (-not $Force -and (Test-Path $stampFile)) {
+        try {
+            $stamp = Get-Content $stampFile -Raw | ConvertFrom-Json
+            if ($stamp.version -eq $version) {
+                Write-Information "TechToolbox v$version already installed at $home." -InformationAction Continue
+                return
+            }
+        }
+        catch { Write-Warning "Unable to parse existing install.json." }
+    }
+
+    # Ensure destination exists
+    if (-not (Test-Path $home)) {
+        if ($PSCmdlet.ShouldProcess($home, "Create destination folder")) {
+            New-Item -ItemType Directory -Path $home -Force | Out-Null
+            Write-Verbose "Created: $home"
+        }
+    }
+
+    # Manual confirmation unless -Quiet
+    if (-not $Quiet) {
+        $resp = Read-Host "Copy TechToolbox $version to $home? (Y/N)"
+        if ($resp -notmatch '^(?i)y(es)?$') {
+            Write-Information "Copy aborted." -InformationAction Continue
+            return
+        }
+    }
+
+    # Perform copy via robocopy
+    $robocopy = "$env:SystemRoot\System32\robocopy.exe"
+    if (-not (Test-Path $robocopy)) { throw "robocopy.exe not found." }
+
+    Write-Information "Copying TechToolbox to $home..." -InformationAction Continue
+
+    # Exclude common dev/volatile dirs if you want; otherwise keep it simple
+    $args = @("`"$src`"", "`"$home`"", '/MIR', '/COPY:DAT', '/R:2', '/W:1', '/NFL', '/NDL', '/NP', '/NJH', '/NJS')
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $robocopy
+    $psi.Arguments = $args -join ' '
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $output = $p.StandardOutput.ReadToEnd()
+    $p.WaitForExit()
+
+    if ($p.ExitCode -gt 7) {
+        Write-Verbose $output
+        throw "Robocopy failed with exit code $($p.ExitCode)."
+    }
+
+    # Write install stamp
+    if (-not (Test-Path $stampDir)) { New-Item -ItemType Directory -Path $stampDir -Force | Out-Null }
+    $stampJson = @{
+        version      = "$version"
+        source       = "$src"
+        installedUtc = (Get-Date).ToUniversalTime().ToString('o')
+    } | ConvertTo-Json -Depth 3
+    Set-Content -Path $stampFile -Value $stampJson -Encoding UTF8
+
+    Write-Information "TechToolbox v$version installed to $home." -InformationAction Continue
+}
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBtEWV5+JSPNITH
-# 0hvZ5RZY1WdQJ627WeimFMS52n43eqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDR2NuFTgqbjqRG
+# u4Cl/KFwCMZ3THa8pX7fd/WZC3+WSaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -208,34 +259,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBc3aLGseFK
-# hnVRbZ1RcmXWE4XB+fU3z0HE4nf5DKBGDzANBgkqhkiG9w0BAQEFAASCAgCASKO5
-# ZqWNVDe0f1A/nWqP3U0voOYIbDdjJmieA18FM5zwjhd2lGrkMYP0FHDqWDKLwaCl
-# JSMVHoCiGXmrO1ZDvS/hzGGDeHIKTXfonWc4jGinYCkzVFLhGkMaL7nDrgMoI2Bp
-# oh3uxfcnSjWsLzWnJMcoGBmDmbeYt8eWL/0J0aO+WHLzG+ugyuE5DxWK6FA26A48
-# rAEx42FJPmPKdodZX5QN45BuPpjBrW5UAhna/rAmISn8PuxpzZPk0peQZ0TlyhQG
-# VQRRM/LVOIBZ1PyPNPxlJlS6U550KvskX4ARXSLYiYPaesgj9Bd0B3KarZAg0QE8
-# 2NOP9C5pLdDzATnCI9dhJ0xgHYr8dstZLZvM1tVR2/hIagwHxvA4VzqCTumgPz+v
-# UHEFJHdB0UFRvIqbQyPbIPUwgPlkMKDWvHoeCoq5kUKuxZZ4v8ve3tOAWpBcdoDJ
-# G3HYnvNBMJAgiqXAA/36NRfXnDxnBHh2hpdn5idyumnHyZIuJgU2ga/ofmxwht7r
-# S0TwgTB85jMhS5POJlXPWsZxJtq2oDGsh2duS2QfAtSlQXRT8fy1Nw/xUdtS2mVi
-# udaKLProZkaVeXva4AJm2tDeNZYq7UdKqbGCuRkpg0ZqM+2pjW3/tsQr4peib8G9
-# heyJNw0D787HJb8w6I5HxDlEDIk/HX5AZkd6DaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDfSbeqDrP5
+# MC/wxTJVCzi6ZasotCR0O6EQwGbbSEQZ1jANBgkqhkiG9w0BAQEFAASCAgCyIpSl
+# No4qarwfUmNa0w7gTZPcUNSAP2YX8yp8cZnyCSyOWlJLC+qsuOnK0JN4rrYT07iy
+# 7E78BGoK5G2o2MExvDcBaRfFS17ArOo6V8nlVtNEMIv1wyiBcTmXu8zbxE1eKA2N
+# DS4eTWm9IZm0YKrKoDfGL92Lz8j0j0rgnRY/jx/FhLN7aO9YpH0RWhiMGN4599oy
+# SH+rOhMqvTMd79wfTmTF7MGllEn7PTdU0BW1IhUmRf/bR1UPn1bFfQtKrJxpyDh1
+# UE3wI3lXV025z5J7RJXW6gMNSSghLjZOgFCmBrz8N0toRzT361xUMxqFGB7zncHc
+# FmTlRUj/cWz/3391IJLC+K8YfeobPAlsTDBPM7Vsp6++I1L7XRI3Uw0Vao//fJSc
+# 67kvn1FJdjN/B0kS6BT7FWrDnnM5Wr98arC24156l9eBJ07iI1Ek6X9RD+5mUL/9
+# EY4gUDbbn8PVU8f89BzVZNBaMOPoeq0TcY9BJrpJS5ONTGU+WIMynuWBooLtMUMN
+# fzWAeMksNirVsMRkSI3iUfQ6XE0dMpvreuXnzItAO9lV6EHMBerfd0F3S6ck+aRI
+# TXrfyJmVuZuI1gFwTmfBtCxuEMyqrcz22/rO2MvT88P0ub+we7Qf8dll3i2MPnox
+# 0xYmPQTAzC6dkaeq1eRy42UHeHaG98AB77tKHaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDQyMTEwNTBaMC8GCSqGSIb3DQEJBDEiBCBewR4FpMZAplQhtGW4
-# RmEr7WbH4f2dMj6EhUdznYhBEzANBgkqhkiG9w0BAQEFAASCAgDALBLi2ZqQRCi0
-# nCZqqB5giltPQG1TjsTDT6mFTcrVjRNqvQsX8AVb/5V7n0oxYR+GjsJ5IjtbZKxi
-# QJYEp2U3tMhTmc1Dqj1AA0isCGbu+mrLLWRyiPYnJKP94V3bLoRiq2d+f7quN/D4
-# r9GvM7+NJXYzpw29IV2AdBD0WuwyDOJ5BRJxyXsS2nZLURGJpQGH2MJsKLT3SZRp
-# 7nVXY2XjhjPFAtl9LmUBOxD6BdYmg7QDAHNg9prR4TyOX03wwHCnJz810QHzjfmV
-# 5A0SUZhifuDPeXAG6JpaCs9KOlWzgUJbRUdBtiE2ygM3LJibmnKUIJJAh8b7QCsy
-# J70Op9OxF+njHsvg+sFksAUyKmL1/7EoJ35PQ9O0cToO9qe7vJIf4TmqMb5SgYto
-# rP3vhpI+S8sWUlxYCMyY0Qy3eTTTLqjmg+uP4lZvnWduWRMI4KajmjsYcS9nsdNk
-# 3eL6/tGTsayCiQ4YgxdjCPatN7wDKHvTjwmlTelV2ul7UOwSGSBSstQctHYJo4wm
-# OQ775MnZL43RDKhFP1n+06Exzgee0TXuCydD1rj8KAshJgyuE94WRATrGELL5JJd
-# CjnWwZrYZQJx8Xt6g2M88fRINvre0qNpE4db07nGmWkwcDq5fTcHvbtzLc6KMlpD
-# gCoowzBLJakO+qtcoLObVqCQy52+Wg==
+# BTEPFw0yNjAyMDQyMTEwNDdaMC8GCSqGSIb3DQEJBDEiBCAyzykWjfjTwCqPj5Gp
+# 217r57mwtASYpksPrAEDR3TQXzANBgkqhkiG9w0BAQEFAASCAgAJL+xPzVDLH/Of
+# nz5fRbR61XAIlyfxBRuGKtry+/jFNkpmz7cMO3T4sX19GxPra21097OS8lP9WEH0
+# +po85ZxexPp5iauz8Eu6LCX2t/+79yBuemPDEhlwNbbiUEMakGPotXVcSARrZxqc
+# jBLOYkddRgXTp8+DIBkjemrfZZElTnMuSz2sfUKpayN1r48lCKu+pBGmVKX4Ivsa
+# 5DiOeVKdd1viDrZ4SovNqLQYXyn1HOh6Fuycz7ZdadnnKC/+HKomErkqN0i3j4RQ
+# WYSaJPOAbAJ7rg7iPWb93V/KvWX13nhoyQgOb3BIB142JeRz+lslbYQnqYQKXo6u
+# t+Tt0spBnOiYUN7dkEAif+dVbgdlq4thStsVwvnWs8wTYRjy8cCKDFNTVxRTHLfu
+# YZodRYX4gIt1/xF52TqNR75AMHuIjQMDbphwBcAkoBp298MiJieDqC6l3IMtk6Wt
+# 7Fa71uckHwRsDXTZG6/zGlBNQMYEIpiRrvejZx48TvhDW+HQZcpnR3ccHAZaP3O5
+# PIhSB35/lV4P2RL+o1Fce9yl0lZIQcXXrJUqwi2DKDN+XFoguCJXprB46aANf5Co
+# xtPLQ8c8z2yLtz+yDbPRDaeuWq8P8Gl3TspZjVIUy7vsf914jVJ3ahfKLi/1jXqC
+# KwX/QucAoE18uQJIWiAVrO9Xr6Xn6Q==
 # SIG # End signature block
