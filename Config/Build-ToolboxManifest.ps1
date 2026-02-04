@@ -46,26 +46,13 @@ function Build-ToolboxManifest {
         $psdata = [ordered]@{} + $manifest.PrivateData.PSData
     }
 
-    $keysToRemove = @('TechToolboxDependencies', 'ExternalModuleDependencies')
-    foreach ($k in $keysToRemove) {
-        if ($psdata.Contains($k)) { [void]$psdata.Remove($k) }
-    }
-
     $privateData = if ($psdata.Count -gt 0) { [ordered]@{ PSData = $psdata } } else { @{} }
 
     # --- Change summary BEFORE writing ---
     $result = [pscustomobject]@{
-        Version                = [pscustomobject]@{ Old = $manifest.ModuleVersion; New = $version }
-        Guid                   = [pscustomobject]@{ Old = $manifest.Guid; New = $guid }
-        FunctionsToExport      = '*'
-        PrivateDataRemovedKeys = $keysToRemove | Where-Object { $manifest.PrivateData.PSData.Contains($_) }
-        Notes                  = @(
-            "FunctionsToExport='*'",
-            "ModuleList cleared",
-            "ScriptsToProcess cleared",
-            "RequiredModules cleared",
-            "No bootstrap or preload pipeline in manifest"
-        )
+        Version           = [pscustomobject]@{ Old = $manifest.ModuleVersion; New = $version }
+        Guid              = [pscustomobject]@{ Old = $manifest.Guid; New = $guid }
+        FunctionsToExport = '*'
     }
 
     # --- Write manifest ---
@@ -89,8 +76,8 @@ Build-ToolboxManifest `
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCkL7FWV2iM8NYl
-# ZSYpuZkNZTGVk7kXphrufLwy+1JGfKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDrz1mD3nYb738s
+# YxJC19o1Fbtqyqxm+gWqZcVoqQT3XaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -223,34 +210,34 @@ Build-ToolboxManifest `
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAc76+Glojb
-# HIwqcdhk2RJ1UrjV9sZ1SDRCuGrfIlyItTANBgkqhkiG9w0BAQEFAASCAgCmQ6md
-# 5wLcqstrtvDWa8zvZvO1aB6I5vMBQDipmFGucbXzKNiguGgK0ZoRpelJQTS0oJeS
-# ViCMA7r77JIlM3SjqlM1ymIuqpgBOOUbO3+jsShykbumY5JJ/pkF+cyicN7J5F5G
-# yaUYbQ1dtW6j6hvHkpFlh7HyfLLzBl1GLtiLZGiyuMhIy+2c17wqKv0Tk2gLzUZE
-# QYJiOvhqcJiAfufNU31FnO7wK1T1z0nIcOtsXy6z7OFrU2Qd7PAJZR8BEXL7GXIH
-# o1mp+nxIn07VhBF921tPflPw0H8tI+uI8iQJrlbIcEqDe68LioVqdl7d0SwlS88R
-# WsigvbLHo9Ak1BpVQRHMNNE58xeziUxwkmlJRoa7v+dvEnx1A5xIkxCFUUdD4Ms/
-# elZMrW8rWHH51MDNwQmcGdOpGKmidMrbeC7Ub5evCcCi0XfuzIYcpQ1JlspTq7M0
-# hCV0X91DbuK/ACMYRlbL71uepXS81MR+jbpI71F+0vVfQqejx2ax05UeGbATJXTx
-# p9K3Yq/d5UYfm3UGrpZ3l8sNE3wQdTpKl8iGRMgg9JM0/d2W9qsE88f46bdOvjIN
-# m0UiO2Y5iK7rebje2DRav7O/kTCMbBFK5ygmjzZ8lBjxplFWIiHDmVQP5LCrxDny
-# xzyBqWmctY1tQIsPhdsW2vUy5xFKZwYt/MBqkKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCjGR+OtrRj
+# 6h35hHfydDy/Z/Xwr4zsOnktZwFdv/HM6jANBgkqhkiG9w0BAQEFAASCAgBoNEgC
+# UpRSi2J/koPlhdJ95koRBCfOL42lILks8G1CyzJpYLLqrVbObfl5fmcQhoB6wWmb
+# cDtcTXVXbQrIMT+1UTgn2/fhOjUvsEKazqD0Ul0MQUpIACa4q1kzTZlGJ1sbubsE
+# +Ed8qwzVWs0UOTZ4HvU/wurlPbFgvCPoB5Kz1PKOHg90UAea+kmbGkWQnnsoOANx
+# CQW9w5aiNS9xCEPz3LOZMahbB0HaNFljzHT75WtyOT88o97CRZlqJWnhiZL73vLl
+# FGIyxIbfHmauVto5lLK8JqdPDUAbonNP4vh+zkUmXFezoThjOZifZPxIkNCE1o7W
+# xc9J7hhj0ktYRm3sVswBcafIbEdCtHMafS/aMyw9yLUTPp/X/DYN38u54TxnXfOO
+# 7inRhbSw5zDciwBo9y9VFWkOJLM3WXoEd0p3h4T23B69YSIT2YE0zZIcbgPc36lZ
+# 5fM1Pv261mxSD8QSTvbFXDFrxwLVm5G8qGzd4bVe7eMfDATJzSxFkxT/RrsbHEnJ
+# YH53Z2a9eswq2qDoI6kGuepPCWxMXuveYIOBAiiOJAgc8Us7nzk4uCq/gXYu8LGa
+# r6DkepdDUbCY15bHblCLORGH4bDg9+itmw0xW5v2ptd9t7DR3xtCSQoEtWRVZPA3
+# cMm+LPGX/GpeGOv7Ko/cUBSJSub1KxsOHJJY3KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDMyMjQ3MzlaMC8GCSqGSIb3DQEJBDEiBCAT+2yc/qXgA8aV58ug
-# TnPCK+fXqWhArOAzPpXJKBXr8jANBgkqhkiG9w0BAQEFAASCAgBJ8U2W9Yy/kGFE
-# /OkRVRkpch+45O9myzrgHlIcDf1jqijhGtAXAoS6GpJfnblZ2nMmZF2iHumQwBf9
-# a7OW4inpslBglIaHWkBaAiYQbj612kJye+pq7/oPaIZy3DE76W0WbZS0eny6EnQM
-# YISERxuzC6pbC+CGJnM3RpRY1j35NVw3cA4a59Fsl53PrkiciIMxa8FHEpyjWdXt
-# XCcwNOrHhM1IbphpAttWn55/bapjKg0AbVeoxtYV4s79+HWoq+4LC0OCelkwPdYo
-# ilWBmH3YaVo8aAUxFtQaJopBu6UmBI8uvoec31fMkuwCqEE2gtuSmTqYrPw8kHzp
-# cIuzAaLMha+qZtq4A1SXjFjQMzMq2Ycy1rAxrQpx16EjowgyCPh0h+EyKouxaqsd
-# ugb2udv0nd6RyCPaRFBmFmSKXAlRKXY1aUOZarnsLjrpVlNy2kKbG6MdfOZ8L41a
-# FgYkW2x5zvIIpETYXMxA+vSQr13hO3gQhvSUjMcDqQ2Kk4KnHPXabsytJt9HI+4N
-# tZ6CDrMXf3+Cp25i9KrztR0aAtWH0QANzuzhamLgW/KlGyp32kQrhuRZFPNGdorw
-# cQ0MlZqOdafvzTBVBsRunx+RwW5KJ2m5TAyEMNCoQwkpj7PrZhFjBknq2bJ1m+l9
-# mCAn0KsZQZEQQGqcpwyYJ1ivIm/lKQ==
+# BTEPFw0yNjAyMDQwMTI4NTZaMC8GCSqGSIb3DQEJBDEiBCBxK/lcKiJ4x6pUZhGq
+# W03Ml65TSiV798QZJobcQX70OTANBgkqhkiG9w0BAQEFAASCAgCxR4GmMWe6yHvb
+# fqDWZEibQbOOw0Jl8TlZav+iNqULZ2qcJRj7+67LWV4yAh6IIMOl22porI3koHzy
+# HAW0waTCVuUGkGTx4IR4N+Xpx7BggosA39+4hV5QV6ETOpUQb+5hzS3iL/Gnzdxw
+# jcAj3F7wrJaj42hHo+vtp6qt7b3DnyVIyYKuAQuSJG2GbK2rEfkmIKVBotAKxt4s
+# Z+0Lqp7DGWOAUtBbIc9Vy7vIiw4p99XYOpldib28Ec1nnxXjQsmMxk7ViCjlW0gG
+# tTX8+uKotts7cNHRGWivg3jFQWCMoNoRKYKUNo3uQmcYNdp8BDo7kFKhE5iSfvG4
+# RPZwiHC3ZXxgZsICvZf20+tcSuX5NiO2LTrYC6fpAaIEcPItAI2qkQVY4dT6JIck
+# D1czIzG13/lJGnWszdUDPyM/R49QxSmZncFIFdIogE+X40jELpKRXZhjfG7Uuijk
+# ulrwbNgayfISs39djEwzh7kMO8O+0l/WxynuLbvbP6tc6EK+AVKpvrpjtyu1u6Qc
+# Hp2o7J+m316zva5GWFq4Gf8atcnQ4zCQSrQKjZR1Kz6vH02KmiTOdccN/Q4A8nEc
+# KKphBG6MG175zvTOXUDpGZ4QlxN+9Q6IBv25+ecHxCk85Qpcn+690O0WcUZsRckC
+# Yhd1murV6wOc8AU2ygVI/3pNLMWM5w==
 # SIG # End signature block
