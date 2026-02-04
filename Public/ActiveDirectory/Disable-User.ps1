@@ -58,6 +58,9 @@ function Disable-User {
         $off = $settings.offboarding
         if (-not $off) { throw "Config missing 'settings.offboarding' node." }
 
+        $exo = $settings.exchangeOnline
+        if (-not $exo) { throw "Config missing 'settings.exchangeOnline' node." }
+
         # Respect config defaults for EXO/Teams/AADSync if caller didn't pass switches
         if (-not $PSBoundParameters.ContainsKey('IncludeEXO') -and $settings.exchangeOnline.includeInOffboarding) { $IncludeEXO = $true }
         if (-not $PSBoundParameters.ContainsKey('IncludeTeams') -and $settings.teams.includeInOffboarding) { $IncludeTeams = $true }
@@ -184,13 +187,14 @@ function Disable-User {
         Write-Log -Level Error -Message ("Disable-User failed for '{0}': {1}" -f $who, $_.Exception.Message)
         throw  # rethrow to surface in console/CI
     }
+    finally { [void](Invoke-DisconnectExchangeOnline -ExchangeOnline $exo) }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA6ZTl7jwfzO3y6
-# wAjRCGo6pvYyMp5YFtzdxF9M8kJT26CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCFdmoG9JGvPVnn
+# BqL+JYXp8pSh/dBzkC5N7EFXBgpNI6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -323,34 +327,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBsXjPA8hl3
-# I97IRUpRdsbGlRgyz6E22LB+aM1e8AfG9zANBgkqhkiG9w0BAQEFAASCAgCHMzJ2
-# R7be71N3xE3h2CEOOkjWytW09Bobp4o+SJl1v+zs8EJ22a1yPi5J+WfM4+GxgNTn
-# YMKX/n0cQMcsQKfG1HxMDO8+zCBRoHjM3XvN29vDPGgbULEer2sXSEn3iADwZ9QE
-# M9PglInjsgwCYiuTMhgjnLmJrXecnrjnST7b0KG0ekRZVHQ26gqRsk+/TWPzG96k
-# qoemPh/pKgsx1ZWhzasuguY8frzOWVfUungScRcjDioLCM/6czV3G8Kr9fNBJqOd
-# 7JES+YdY+FB/N1kGZ1cOw6bMV/QSKog+RjxFTTf21+tyb1QCHdNIva6cnTJAYO8R
-# tSdm5y/pJRkeGdA5u28m/eEzJeZLonXF0FjDEuhPdVRbPS6qkG3+c9Ac7x99IPhZ
-# hHrJBIxIrQPgMuXIqlpUlVef/C6sPObGXrF3bAjJBOeiMu08781DNi9lZd/yEiN4
-# TpgcsNbxgR5XLFyHfEuaLPjiSgXkWgq21wWYxiFNuih5SPiskejMaYIfvTYLKyac
-# gj4k0kbYnWKHnh7lXNo79PirWYcGg1uJ6YGsirZ4l+DF8H3sYV/ikq40SfeUQs1W
-# 9m4mdVvc00HDPtecRwSUW2KK9Bsorf8jRsQDYRJ+6W9AL55rr3tH0xqzyNDfpjMP
-# bCTLuTKAacUm6yAPkZOm4RZYGHlLcTzstgiUYKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDd+vZxdwyh
+# jDYD72aulIIFat9YGkhk5xjYsn/VAcY1kzANBgkqhkiG9w0BAQEFAASCAgBcMNTm
+# 5HBHf0rXKuD3VP9WiGIIVozwXwRxk/RTHxuXdxp4UYlL0R8sOw50gSxm5F7hIhWu
+# km53WXM6uwERtO6gyoZNqiFYKADDPNnAZQ5WglLFnPvcLwi0iRcy3+CrosO6g32m
+# c1ZtoDNJGFYR30AfQc/Cm2Ur2/swPjyz10DHrdHdOerbLwa+P5haOznQgwxN9d4v
+# ehGrBjHY2hsXX/yWrdr0OuaBoWAGvn/nWTO2GPZ/rGZbySLlFDQIbAILeLWBfTTg
+# ZP8znSnfY6VZP9Oa3MQycwSPjwd2x2M+7oGJlZLDROO9HCW44YVo93iV6DeYtTjs
+# rRVsmI9XWnbuVLx1YkuBjhGm9WSzszTs0cdgNoprL0FMw9xGBos9RA/5xcQgPFo1
+# 0quv+e5pbd90MiNMZnrXHXGE6h+5Qryg1ACOx1efAoMYec7KqvdCcqQDSR5ZV+Fy
+# ++s463De8IALBDkk4sv5Tq3wGO/8dQHj4n8Oo8l1HCiDm+m99viQXs0xlQlhGvHO
+# KGPJJ4QFsF7FoBkYuwRfcClRhioL1jyFV62cKxfnE/x58srjltoLyA/SCHLKWo9L
+# NA/PsVH/2IfdMs/JyrESmQlTcI/QO9B4GcU8ip13iFu4krKnmHKoSaH3WHgt495o
+# /LTdKzkLKH+x7XokmVwMyzFy1DNGtGGxGx2VuaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjgyMTQxMTZaMC8GCSqGSIb3DQEJBDEiBCAa6bGjm94iV2AbZKS8
-# 7zzGPV/wAuI71TPrBULODU0L2jANBgkqhkiG9w0BAQEFAASCAgAWugrYObyBbMYb
-# pbi7r5a7yElSh23QPW5ObalYl0iIJnTo23Ab8RJ4IR1kd9sFCDDyiP2rITfPoj3s
-# /cUaiFP2zRbpAdm/7Uhp8G74u/mC9fQO7q5jQSNC88bSnNGfcHodLuvdSZ/bIDCP
-# NU0qOUibx/F8eJjlbGaN+ItvXYTPIaIQmL3F1LdXXezKU7dLCJ+UGGi9b8nNzHXO
-# jDn3WFYJEkZtxTpsYIOzF4XZOkBvU6WrU9gmb3oWeFhPEXiM7KEuQA1UarlXyQfe
-# oczWfA1kmvpOClAsH/MhmehP0KEF070+8YPulHrxTtpztqjg05UmYdfcjElGja8H
-# 6EKO5v2GUEf2YqJbY119iz0W0h9FYIe94V9FnZqsG5RqDNpWkrSnCcqK8cH+Tvd+
-# oH3tAhksk4i3SB6CASwi6Si5qPGQlNxXf3wuZ28FtV3F7JG2jub7D93th25ZvY98
-# e3mSqZ16nYxLSUObzz+tQ1tZqRlysvAkFtFX/BWV2A1aAfYr8Jv4Rz0SzY2K+ZeP
-# 463Qy3C7UbJ2yqlOVxnFOTAPpVbjI4X7LxdlnBHa5UQ6ncR8o2XjcBTEgrIoG3Ym
-# 5FYUOlolat6kzwWTrlD9DyIvtIMzt3L1BFaO+O1b1u643jnRgZO9JHhD67sb3bUl
-# TMY9vjFtRA203V1m3nrg75akCBg9nw==
+# BTEPFw0yNjAyMDQyMjM5MzFaMC8GCSqGSIb3DQEJBDEiBCAtvxSy5hiUX3ZchR+f
+# bQFVDcgc+ha4xV/XaFs2eVIqxjANBgkqhkiG9w0BAQEFAASCAgCwEHJNuud0Q482
+# NaiIW1wWOmopYq+pi6KaLAWHg9uWI9oSxqCvt3QeRd6S3dUjFoosNgWhAoBFxI3z
+# zb/g4VV+4yNNJcE2+QIgwxHJFJKwK7l05GRYL94Pb3yHGEQfPtjx2K5009vO/A+J
+# dpZD4iZsmbIE8JSCa2ubBy3qyZUJdB32w5urdXvYy4DqYMAvFeW/Eq1rzhdBPUS1
+# u0nkUSqN8lVssNUoHtZq/Gb2j6tMhBzwUuwXC2N3xz8Shyu75UMZvt3XSjo8Z/EZ
+# dYbKfiWwtdGwPdqQCaMvafQgsDoOb8DT3+GmpipfECAYXsh4ppLWn6gcLv8dJWOT
+# kV1S6A2impwvTwiHw6455RE03/OXWNo/omiGEoQl/CtoeBeIdr7/1kfZLV0mxCns
+# Htw71tHSXZpVVQuSF2FZ2CZhddy3JsnwjbSi7/vQBQSU/dU1V4/p4MEHzIywl0t7
+# 3JMAgjU+wSFaN49y5j7aZ6Qa1AFOqj+L+NErR9pnsbF3UMcZkJlYfu0Q+qd71+vq
+# siZ8npu6xmelu50hfs/pFu6rgcrdJ//amQfGsndwpZ44pmkaVA+GQotlkLuiLvI7
+# kuHprLh6oGsOXtiruJYzl//umOVvERKp8xpWyvcZikfrxIDazpz2unWYaV3PGC90
+# cT3xWrmigC7/SH+5qJsnnr2RX00ofw==
 # SIG # End signature block
