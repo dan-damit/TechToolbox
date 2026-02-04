@@ -1,10 +1,51 @@
-function Prompt-DisconnectExchangeOnline {
-    [CmdletBinding(SupportsShouldProcess = $false)]
+function Invoke-DisconnectExchangeOnline {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([bool])]
     param(
-        [switch]$Force
+        # Either pass the full config or omit and it will try $global:cfg
+        [pscustomobject]$Config,
+
+        # Or pass just the exchangeOnline section explicitly
+        [pscustomobject]$ExchangeOnline,
+
+        # Skip prompting and disconnect.
+        [switch]$Force,
+
+        # Suppress prompting (opposite of Force: don’t disconnect unless forced).
+        [switch]$NoPrompt
     )
 
-    # If available, check whether there is an active EXO connection
+    # --- Resolve configuration ---
+    $exoCfg = $null
+
+    if ($PSBoundParameters.ContainsKey('ExchangeOnline') -and $ExchangeOnline) {
+        $exoCfg = $ExchangeOnline
+    }
+    elseif ($PSBoundParameters.ContainsKey('Config') -and $Config) {
+        # If full config was provided (has settings.exchangeOnline), use that
+        if ($Config.PSObject.Properties.Name -contains 'settings' -and
+            $Config.settings -and
+            $Config.settings.PSObject.Properties.Name -contains 'exchangeOnline') {
+            $exoCfg = $Config.settings.exchangeOnline
+        }
+        # Or if we were given the exchangeOnline section directly (has autoDisconnectPrompt), use it
+        elseif ($Config.PSObject.Properties.Name -contains 'autoDisconnectPrompt') {
+            $exoCfg = $Config
+        }
+    }
+    elseif ($global:cfg) {
+        $exoCfg = $global:cfg.settings.exchangeOnline
+    }
+
+    # Default: prompt unless config says otherwise
+    $autoPrompt = $true
+    if ($exoCfg -and $null -ne $exoCfg.autoDisconnectPrompt) {
+        $autoPrompt = [bool]$exoCfg.autoDisconnectPrompt
+    }
+
+    $shouldPrompt = $autoPrompt -and -not $Force -and -not $NoPrompt
+
+    # --- Connection check ---
     $isConnected = $false
     try {
         if (Get-Command Get-ConnectionInformation -ErrorAction SilentlyContinue) {
@@ -12,47 +53,57 @@ function Prompt-DisconnectExchangeOnline {
             $isConnected = $conn -and $conn.State -eq 'Connected'
         }
         else {
-            # Fallback heuristic: attempt a benign EXO call or assume connected if module session exists.
-            # Keeping it conservative (don’t probe) – you can adjust based on your environment.
+            # Older module: we can't reliably check; assume connected and let disconnect handle it
             $isConnected = $true
         }
     }
     catch {
-        # If we can’t determine, be conservative
+        # If uncertain, err on the side of attempting a disconnect
         $isConnected = $true
     }
 
     if (-not $isConnected) {
         Write-Log -Level Info -Message "No active Exchange Online session detected."
-        return
+        return $true
     }
 
-    $shouldDisconnect = $Force
-    if (-not $shouldDisconnect) {
+    # --- Decide whether to proceed ---
+    $proceed = $false
+    if ($Force) {
+        $proceed = $true
+    }
+    elseif ($shouldPrompt) {
         $resp = Read-Host -Prompt "Disconnect from Exchange Online? (y/N)"
-        $shouldDisconnect = $resp -match '^(y|yes)$'
+        $proceed = ($resp.Trim() -match '^(y|yes)$')
     }
 
-    if (-not $shouldDisconnect) {
+    if (-not $proceed) {
         Write-Log -Level Info -Message "Keeping Exchange Online session connected."
-        return
+        return $false
     }
 
-    try {
-        Disconnect-ExchangeOnline -Confirm:$false
-        Write-Log -Level Info -Message "Disconnected from Exchange Online."
+    # --- Disconnect ---
+    if ($PSCmdlet.ShouldProcess('Exchange Online session', 'Disconnect')) {
+        try {
+            Disconnect-ExchangeOnline -Confirm:$false
+            Write-Log -Level Info -Message "Disconnected from Exchange Online."
+            return $true
+        }
+        catch {
+            Write-Log -Level Warn -Message ("Failed to disconnect cleanly: {0}" -f $_.Exception.Message)
+            Write-Log -Level Info -Message "Session may remain connected."
+            return $false
+        }
     }
-    catch {
-        Write-Log -Level Warn -Message ("Failed to disconnect cleanly: {0}" -f $_.Exception.Message)
-        Write-Log -Level Info -Message "Session may remain connected."
-    }
+
+    return $false
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCLuvp8e1HA9KB6
-# HeqYWtMigvmK+VCCvyXN7uXzCv+XxqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDu6cpsVuUhGBQM
+# g94HqyEujzNbJOZvhJtItRcwfj+/bKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -185,34 +236,34 @@ function Prompt-DisconnectExchangeOnline {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAlWFTbP5L8
-# YHmkpL+syJjXdI1apYbWqAU5TPXpCEfzbjANBgkqhkiG9w0BAQEFAASCAgB+GUer
-# hT3HiTCWhj2DZ+w1otCX8K0a23MxCf2oItBSAQBRLqIjd9LSNEhUp0h5cUl5mnv8
-# jtysTxTx3V++e0TUSbn1M0PzdNxKq6pyClXpy1K4DPyWlShdFnlfd+gv/PjrzvMP
-# CIJ/Y2cs7AotZ0TIJQ1PQ7Y0pNWw7jrDGUDVZQCgk2IqVEnsSadCFJb02BeM3ejg
-# KUoFFoktD6gKs26waC8PlZphyBxdCc0JCpBlaLvGqDksaQ7IHa2cVTLf3GnmdpV1
-# E5Y3BvfxcWxKPQXmlcl3LsLn3Rqfm8HBJj2BXUK0aaXaZzVamQ15EQtbml/Seay8
-# 9Bu/v7YQFF08K8J1NlbI5omEhgWw7n+tnUZV8HP4I2zaGjUgMicdszVG8ElY8Z1N
-# q8X/MSrfBLKdeY7g+qhGWvh1onCB6KgWbSRs3PKr1VUxHvycGCY7RaKZtUwZquAY
-# BwLKKIyHkzG+t4380ER8Ky3cM5MRuVqE34HA4JDzY6FEw+r09+HwF8PgDHwewE3U
-# NfFEISNpJ7s3VaiXRCmdfwsZxjD5LmiCRrLl4pxi51KmWjzdeO1QdifY1DpPehK8
-# w7QMj+DXVpmVT4F2rnXIHCdLjz6tA6urNOBTLuVjurlCO9MAriT0r1Obr+1SZwqW
-# AaQT7JVqSZpzloXyvw9hZLTuESekgHQmBiCvzKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD8WYb+kD44
+# INWF1JrOPUjxTUWKtrQC6G0ALrj0fbAMiTANBgkqhkiG9w0BAQEFAASCAgCcxjPt
+# VPOjLWrMD3d7PzS7plnUYZPeg106R5WAHfwv9o5uz8WJjXgr5iHtqiXUkr7CyI35
+# AsP40+MYCsjdvD1sI5lwR0FGh1vzedL1DSlB8Zv5Nsb8R5PWPFZkm+BagbrdKch1
+# jAnye+fdSq4KqQ7pCy86QXJ1xGad68x2FOGxZNSTYipv1CWbKxeiVs5ETwRX3YaU
+# /z8EskKbg43xQpuLf2orZ9J3/r/X2lBZrIZduWz1vTFQYCvpFJ3f3R33DYKOZFD2
+# Mp+TJUt4TPQCa31OGo3Nzc6lMme7/5nszRjTvK06JdbqXJepj/iW5zRZN3ZlN9+5
+# K7MlBs+qktM1MhclvMojs3Kl5p1NXPIyhFmwD+fv/lXQvwLFL1l0473v4C1fJKxR
+# 3ZYL5ghPx5bv88JpmfN3MZWiSmzHyiuxbwX2q+R6XI6leVNPatrddaF2urMu3ale
+# p/iIYKbOWqegdEg+1w1LBw3jHOem/gsj/ngcVVA3JU6v+N5M7gxs36fO8AJWGvpc
+# ZxDstoCoRXOeur7VukkgxHCcb8YpOc63GuHApopN45oEyq0Fid7vdJtBpMusggAw
+# +9o68wiroLMcUe8yFV8Kgzd67zvWCwcIU4AvqIurK4FOP/GW08buDaBQ3yakVGIl
+# fQq9X4IHZ6kvhS7C5D0r3rWnEWRzrFcUoz0jPaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDQyMjA0MDFaMC8GCSqGSIb3DQEJBDEiBCCGbdc2Tkv89sDbSXMX
-# 6UhSLj5226dKWcnFzJVzlm61pTANBgkqhkiG9w0BAQEFAASCAgBMqqxsndgRbqUM
-# L6SZ5tzbINr0wAMelE6SoAM3MQz3ZctZT1nslchab76tNA2o63gRENRTRDHJwWhi
-# m6kbelINFsLH6SycRmmMTdGxfk7uKVLhyFoGSox8H/TqiOg1Zo1jHg+oTIa2r5Co
-# eBJUSmBbYBHeKgHrc9boxVptzlx0ab8dMHAfHWp1enNoI37jjFgeccqkpe3IUMX7
-# QHQTo636Lebcdc1/Vw/WnDCqATm6ICLA42slBViN1DJpjMk5Obttd8OEOUrO7FVi
-# r6kDYiE596nfp7gNc62ujxmUHCWx0TELNXZIijEwwv6kShAgF6Vi5D9IlENcmtKP
-# Wz63LIkCnLCbpJjDMsfZRIsnBZexbYuSVG2hT3+yvMFgKXEOn6X/8DZXqD81MWeh
-# rR81kFpkEqtQOYUCZaq4nzmjc3zGTkX984asButAdIxmS0T606wiGrZPiFJXpTd1
-# IlAC9g1KxDhqnBANyJSh3q237/6p3ysRT0C03cSQaemqNjYE/KRL9gqqz2WJ/533
-# PUpiz9bm8Pnw06KQeVnQY5DcoGB4j7WkOdR3b151ST2B3zyE0b1x7Be2XmFazkIi
-# GZBs9AiW9HS3VrKPVDgCg1L7CNXhXAubPFXCFogxGmHLE8/zpfaO3iRv0KLM4qPU
-# xnzpZpWaztNR+5LtFyQjTtEpSRFu6g==
+# BTEPFw0yNjAyMDQyMjM5MzBaMC8GCSqGSIb3DQEJBDEiBCB71rJiJ0vj04jf/OrB
+# rjHvGSGvEYlRZP6mFhbhonBB2zANBgkqhkiG9w0BAQEFAASCAgCEKgIPr/oR3bin
+# 9np3ndPwzMSMS84ocf+TXl52DwA9PKj7BuTAVod8irOm9Kcd3IsZ/r7pU1LwVpQb
+# lV4y3F5q2IXGjeeOGVz6rIHMJRCQws2cL2Tw6qEpPYAwxZ0CyUyZIu4qBQ4rbgEM
+# X5QZUT2iPViieKYV+igj2KVmRqju0De1/t2cPyGURmXO+VusmYpbLcaf4v3mo/96
+# +3ZSa2y/W1UP7LoTcSi+lLQ9rLd9gb7hKNL6Ezn2j7GomrQh/4rjBMlGUbLrq6xH
+# xxH32rGeqBjkzvKiy2HsP7An/mYdU9HqDCQzUvb9o3XSa+tCHKTILBzo3CXHecew
+# 4NOjWjZgyWKNb5gvtcT/Wu1EhegkhTAXC7ftKXpzvkXt0P0gbXAgP1WQHZI0nlI3
+# T1PsxcAADXSwaDXva1D5ruMFmk59PkKvmVufYcMHZndPnQAkShzHNaVZ2PfYdN+L
+# 6qsgQgwCryxdYjuANcbtW/ztU/+vds9yZQeh8qVw6Mt43JwebDHR4gUB9xRDqpSN
+# z4n1vwOPFTUXbngl/G5KIKc0cgerYKADINvW/YBCt+whWX2NH1anqVCRlR+yKHQF
+# FARQ1gVLgjNJQLnCRGt/WRvBEJIeEZdNLACfUKN1+TcsyQ+OKCMuAqVxBPQzMJQh
+# jNWJele6LQFmBzt8rBLDr+TSMacBNg==
 # SIG # End signature block

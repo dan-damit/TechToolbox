@@ -48,27 +48,12 @@ function Invoke-PurviewPurge {
     $ErrorActionPreference = 'Stop'
     Set-StrictMode -Version Latest
 
-    # Defensive: guarantee $script:log exists in this module scope
-    if (-not (Get-Variable -Name log -Scope Script -ErrorAction SilentlyContinue)) {
-        Set-Variable -Name log -Scope Script -Value @{ enableConsole = $false }
-    }
-
-    # Ensure a module-scope logging bag exists, then merge
-    if (-not ($script:log -is [hashtable])) { $script:log = @{ enableConsole = $false } }
-    if ($Log) { foreach ($k in $Log.Keys) { $script:log[$k] = $Log[$k] } }
-    if ($ShowProgress) { $script:log["enableConsole"] = $true }
-
-    # Initialize StrictMode-safe variables
-    [bool]$autoDisconnect = $false
-
     try {
         # ---- Config & defaults ----
         $cfg = Get-TechToolboxConfig
         $purv = $cfg["settings"]["purview"]
         $defaults = $cfg["settings"]["defaults"]
-
-        $autoConnect = $purv["autoConnect"] ?? $true
-        $autoDisconnect = $purv["autoDisconnectPrompt"] ?? $true
+        $exo = $cfg["settings"]["exchangeOnline"]
 
         # Support both legacy and purge.* keys in config
         $timeoutSeconds = [int]$purv["timeoutSeconds"]
@@ -204,31 +189,14 @@ function Invoke-PurviewPurge {
         throw
     }
     finally {
-        if ($autoDisconnect) {
-            $disconnect = Read-Host "Disconnect Exchange Online session now? (Y/N)"
-            if ($disconnect -match '^(?i)(Y|YES)$') {
-                try {
-                    Disconnect-ExchangeOnline -Confirm:$false
-                    if ($script:log["enableConsole"]) { Write-Log -Level Info -Message "Disconnected from Exchange Online." }
-                }
-                catch {
-                    if ($script:log["enableConsole"]) { Write-Log -Level Warn -Message ("Failed to disconnect cleanly: {0}" -f $_.Exception.Message) }
-                }
-            }
-            else {
-                if ($script:log["enableConsole"]) { Write-Log -Level Info -Message "Session remains connected." }
-            }
-        }
-        else {
-            if ($script:log["enableConsole"]) { Write-Log -Level Info -Message "AutoDisconnectPrompt disabled by config; leaving session as-is." }
-        }
+        [void](Invoke-DisconnectExchangeOnline -ExchangeOnline $exo)
     }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDn220BhQb1lKv0
-# 7YJlNtcUwjhd2E8Y+Kr9qB7AtqGIQ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBq0ov9PizSj5BV
+# N6vpTbzyqSfa2mOcbbnK6nY65CzV0aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -361,34 +329,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB4zgZIPkUR
-# QJeYn6DntCLLCv4RpzjNTAZYcFkykKhOnjANBgkqhkiG9w0BAQEFAASCAgAXxqEF
-# dam/NOHDrkwyKxkoYo54iFbJ8a420O/BS3uMfkiNGdqD3jBCEpaj6pP3KA0tBry5
-# WaIP0m5xtfyYt6BPlAF7wIQkFHtrKHxS7dWhRoBxPyDuYiIOiBdWbKmK19MaAaDo
-# henqNCUHpV3qHlcXjBPlRJGt1ypE3ALEJQBf6Tp2fB9yQiHXRKwYNIxDTKLmCuws
-# nMgGLJ3ibRILJKm80BY8MbcjofuNt5qgi+Ca09Dpk0QC3VmZs2Mqfks69SDgpg8v
-# d8lVDnjUlPJ07fenYxJsn35rYOYBvknfIpIDoAPODX0lPZMITFyp4NnGxTGirx7O
-# IdGMat/+XRDk+zRJ7jGIMsJNQtMy7TYHfbrVaTNWh4OcxF707IO17yUa6Kur15o3
-# MbyxIEoF9WJbL94RKVpTyId3zKMULtpij35gd/m1RvYw+4Dyr4cJeWk/cwwnduI6
-# FVbtZPDjm+bkdMtUrmSAlIe4UApOgEjLLvy1nsToqidXAY4nH9lOkYhGeW119/Jd
-# 92TfkC+GfKe/JaQ0SAjLJtK5PpTGrzgtDyFlNo3sWUjR1xkyF35dIw1FQ+sosGZ3
-# +fOaFTb1IkCltY8xR9jcUEBNZ9T0qXgAiFT6jxOLAUBh+GJlJNN24PDTwxgT66fE
-# t2r3gPyht8JD554FKxr04NwnP6z92awyXa8UQ6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBzsV/vO9UK
+# MISSv6E77kcgm8ogyTkH6OJsm4fiYwZXUjANBgkqhkiG9w0BAQEFAASCAgBhaHR7
+# vcwGSZWOMCb95NABU2Aaj2bY6/Gf+xjNpctOWenJ60LFqbuAZIA9+2anOM/moEhP
+# 9ZYzaY8ikSe+0Jfk2IL5Opkn0esjc03H96SfZhVyVqulvYgx7h165bCGCZw1Bjcd
+# cNFiPGKkSzRj6ghlDD0beft1+mz2k9RWUrddZYc2gcH8Wcwx5+g2IV1jYAQ9TjjN
+# 7dzN9Qm+VYOmgGIN5CLg/veIWmwKfkc4+6BMFhPSKViS91T0tyHUQxSwyFanuCT+
+# vypQIATU5tcm/QuHLzKO7ozb+W8E09PgZOK18oDr+a8oFn3eOIt/8ZWsP9ONghbS
+# 4ZGicwdTkDiKvOJXEJB+xmlOxN/krpTZJU736VF4b2xpvUE0t+iDV4Cl3AhFNvHi
+# 2VqqWGTpM9SPjB5zXmqBg2p7kZTZAR8yCYmt3mkVggPfaFL5sP1RuoUM4XS5MnWc
+# LzXAOaJCiW/VXYk0l3Vfs/wHMH4ympt4gqfyuAZgy/s7zsaTzEWD4tDZaZR6RH5p
+# aDszI9ZfmNaSvbFoN6xEEuMDoQqYlo4373H/1qaNSV/N4xyttQcyirYeR6kHCHja
+# HodQ94aejeaK0Hch5j77A6EvCHIS+HinHb4RmIBplp7OFATtYVJLo+iswfViGVU6
+# CvxoI91QSaRMnVSD3ai3JDYok+FJvsuHmFx+46GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMTcwMzUxMThaMC8GCSqGSIb3DQEJBDEiBCBjP/oRU8ReIiu9WBGq
-# Y538sc+QBMjUgi8NGc21r3G3zTANBgkqhkiG9w0BAQEFAASCAgBFbLSuaZRkxdS1
-# 4l3FyEfVLJUnH6TZT3UfYYnlMxbUG6PYUkZvXbLn/lA3RpDbJLScTNMNCXRvFqrj
-# BVEJe/13W5NjkJGNgj5mPtLJx9lfEnNtpJ1PK7divs71DdIm2bFgYT+u2OB+T4/N
-# DxzUtaAqnb/0YA0j1mF0dIYqrTZFocFt5FnRiL6v6tPOynZph2vKAJnFRalnFsFb
-# aNmFA2yGIDw9ejVceAmoHAJh3m5fiRfmQMoI1SGeup97yd6mX8T8V4AGESaGm9kV
-# 14Li4y4+DYnueCqKdlc3Bp5xMUEwiWkqi8l6xroa38ZMX6ypzJq4tDt+HLegMndU
-# QPf53EMTHxzTWyFwHWWAA4d1kZ3U3/z44l+7CSMc2bGhkTqSwzqJiDbxuHNbKGun
-# AfPvFNtEtztD7ceruK4XvCiq+KusAGWxwXPGv2eMFXSeWQL8L3fkXCkmInQL1/QS
-# 5TN2jsfIrL0ii2YWIHipnEIcZNuurSiHUkfpaHW+NFOWuSt5Vh4MA9+5PDgU8oJb
-# 8ikC5fItVkkFOyc7nEj0GcYp0lt1E1FevhnaMeBI24IE2W9oJhJx8o7XW14MVEwJ
-# d673x7OgNRddVTOX4c4a1BMD8Wka4QJ3B43Lpu2AqmH18VRwpSJsPWcxJkSnGvsm
-# VrK8H2DK0O3qzE6SnOLaHH/sEGWcVw==
+# BTEPFw0yNjAyMDQyMjM5MzJaMC8GCSqGSIb3DQEJBDEiBCANksMmTLthiVr6M+DZ
+# 7JNTHVm857Mzl6VRFQLUDrIkZDANBgkqhkiG9w0BAQEFAASCAgCCzdLNNZ0QGBdF
+# jY6EVh+wuax6HE65otM3U/6fKeTbHC+lfKik4vDxJBpdRllZ2vQ17cei/r7fkNUn
+# E9RwijaMUnDb0t2wuXJ9yJm04Ge+JEKgtj9aAENr4fVC9oeVDnryf0G+5c8Aw/6B
+# 8o79S73uLKz38QQf/7sQ9SbuAs9+Tjsv7dqmS0lPW7eJWOmXcfh1weagZDOHqMAr
+# 5MkCcABZRS/t35gUQIjSzD3BXdUBeOErfYmwS5t4ZUea/SGp+CUGD1dV5gpRVexk
+# ysZekx7lDAQjtaV1OloegXCbPH8OMa4o44mmjHuA51z5202GdpgZmCyBs0vnbw9H
+# Wbwyciy0Cv9QepAmlc+E97WqM8siz37bQm2zP3fL2KDBSOs0FSSIqxjwlwt3PHiz
+# yZvZfd3BkHtYVegyky0Eqaf69QAl5t42I7+EZhT7RgoT33bXwQ8D1v2BSmnJMdZJ
+# D+y/1c84Nh4ibpCUMj1LsgirngrevmItzohQB331cROnaYnyCWQWz73XR2nGlMt8
+# Sscy7yk4CZ7kiZ8zCJZcUkKM08qTSy35zjUcEkTxasCUz73D1JfYWKgXGTk0sEhV
+# u+qWFAsdaRADTKieEHvPllWdbKPDHz1fVGMun8NYvD64TdtjxcFsOxdzSczmZuQo
+# RwOAOl1fHpAszSLnszkdvA4BWu+TvA==
 # SIG # End signature block
