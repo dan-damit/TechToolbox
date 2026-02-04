@@ -1,81 +1,137 @@
+function Initialize-Environment {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        # Where to persist the PATH change. 'Machine' requires elevation.
+        [ValidateSet('User', 'Machine')]
+        [string]$Scope = 'User',
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
+        # The dependency path you want to ensure on PATH.
+        [Parameter()]
+        [string]$DependencyPath = 'C:\TechToolbox\Dependencies',
 
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
+        # Create the dependency directory if it doesn't exist.
+        [switch]$CreateIfMissing
+    )
 
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
+    $infoAction = if ($PSBoundParameters.ContainsKey('InformationAction')) { $InformationPreference } else { 'Continue' }
 
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
+    # 1) Normalize target path early
+    try {
+        $normalizedPath = [System.IO.Path]::GetFullPath($DependencyPath)
+    }
+    catch {
+        Write-Warning "Initialize-Environment: Invalid path: [$DependencyPath]. $_"
+        return
+    }
 
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
+    # 2) Ensure directory exists (optional)
+    if (-not (Test-Path -LiteralPath $normalizedPath)) {
+        if ($CreateIfMissing) {
+            try {
+                $null = New-Item -ItemType Directory -Path $normalizedPath -Force
+                Write-Information "Created directory: [$normalizedPath]" -InformationAction $infoAction
+            }
+            catch {
+                Write-Warning "Failed to create directory [$normalizedPath]: $($_.Exception.Message)"
+                return
+            }
+        }
+        else {
+            Write-Information "Dependency path does not exist: [$normalizedPath]. Skipping PATH update." -InformationAction $infoAction
+            return
+        }
+    }
 
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
+    # 3) Read current PATH for chosen scope
+    $currentPathRaw = [Environment]::GetEnvironmentVariable('Path', $Scope)
+
+    # 4) Normalize & de-duplicate PATH parts (case-insensitive comparison)
+    $sep = ';'
+    $parts =
+    ($currentPathRaw -split $sep) |
+    Where-Object { $_ -and $_.Trim() } |
+    ForEach-Object { $_.Trim() } |
+    Select-Object -Unique
+
+    # Use case-insensitive membership check
+    $contains = $false
+    foreach ($p in $parts) {
+        if ($p.TrimEnd('\') -ieq $normalizedPath.TrimEnd('\')) {
+            $contains = $true
+            break
+        }
+    }
+
+    if (-not $contains) {
+        $newPath = @($parts + $normalizedPath) -join $sep
+
+        if ($PSCmdlet.ShouldProcess("$Scope PATH", "Add [$normalizedPath]")) {
+            try {
+                [Environment]::SetEnvironmentVariable('Path', $newPath, $Scope)
+                Write-Information "Added [$normalizedPath] to $Scope PATH." -InformationAction $infoAction
+            }
+            catch {
+                Write-Warning "Failed to update $Scope PATH: $($_.Exception.Message)"
+                return
+            }
+
+            # 5) Ensure current session has it immediately
+            $sessionHas = $false
+            foreach ($p in ($env:Path -split $sep)) {
+                if ($p.Trim() -and ($p.TrimEnd('\') -ieq $normalizedPath.TrimEnd('\'))) {
+                    $sessionHas = $true
+                    break
+                }
+            }
+            if (-not $sessionHas) {
+                $env:Path = ($env:Path.TrimEnd($sep) + $sep + $normalizedPath).Trim($sep)
+            }
+
+            # 6) Broadcast WM_SETTINGCHANGE so new processes pick up changes
+            try {
+                $signature = @'
+using System;
+using System.Runtime.InteropServices;
+public static class NativeMethods {
+  [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)]
+  public static extern IntPtr SendMessageTimeout(
+    IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags,
+    uint uTimeout, out UIntPtr lpdwResult);
 }
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
-}
-
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+'@
+                Add-Type -TypeDefinition $signature -ErrorAction SilentlyContinue | Out-Null
+                $HWND_BROADCAST = [IntPtr]0xffff
+                $WM_SETTINGCHANGE = 0x1A
+                $SMTO_ABORTIFHUNG = 0x0002
+                $result = [UIntPtr]::Zero
+                [void][NativeMethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', $SMTO_ABORTIFHUNG, 5000, [ref]$result)
+                Write-Verbose "Broadcasted WM_SETTINGCHANGE (Environment)."
+            }
+            catch {
+                Write-Verbose "Failed to broadcast WM_SETTINGCHANGE: $($_.Exception.Message)"
+            }
+        }
     }
     else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
+        # Ensure current session also has the normalized casing/version
+        $needsSessionAppend = $true
+        foreach ($p in ($env:Path -split ';')) {
+            if ($p.Trim() -and ($p.TrimEnd('\') -ieq $normalizedPath.TrimEnd('\'))) {
+                $needsSessionAppend = $false
+                break
+            }
+        }
+        if ($needsSessionAppend) {
+            $env:Path = ($env:Path.TrimEnd(';') + ';' + $normalizedPath).Trim(';')
+        }
     }
 }
-
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
-}
-
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBtEWV5+JSPNITH
-# 0hvZ5RZY1WdQJ627WeimFMS52n43eqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDN4nNA65OxSNcV
+# XoiLpmVjv/1FMKxKzQnUgnO6p2zroqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -208,34 +264,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBc3aLGseFK
-# hnVRbZ1RcmXWE4XB+fU3z0HE4nf5DKBGDzANBgkqhkiG9w0BAQEFAASCAgCASKO5
-# ZqWNVDe0f1A/nWqP3U0voOYIbDdjJmieA18FM5zwjhd2lGrkMYP0FHDqWDKLwaCl
-# JSMVHoCiGXmrO1ZDvS/hzGGDeHIKTXfonWc4jGinYCkzVFLhGkMaL7nDrgMoI2Bp
-# oh3uxfcnSjWsLzWnJMcoGBmDmbeYt8eWL/0J0aO+WHLzG+ugyuE5DxWK6FA26A48
-# rAEx42FJPmPKdodZX5QN45BuPpjBrW5UAhna/rAmISn8PuxpzZPk0peQZ0TlyhQG
-# VQRRM/LVOIBZ1PyPNPxlJlS6U550KvskX4ARXSLYiYPaesgj9Bd0B3KarZAg0QE8
-# 2NOP9C5pLdDzATnCI9dhJ0xgHYr8dstZLZvM1tVR2/hIagwHxvA4VzqCTumgPz+v
-# UHEFJHdB0UFRvIqbQyPbIPUwgPlkMKDWvHoeCoq5kUKuxZZ4v8ve3tOAWpBcdoDJ
-# G3HYnvNBMJAgiqXAA/36NRfXnDxnBHh2hpdn5idyumnHyZIuJgU2ga/ofmxwht7r
-# S0TwgTB85jMhS5POJlXPWsZxJtq2oDGsh2duS2QfAtSlQXRT8fy1Nw/xUdtS2mVi
-# udaKLProZkaVeXva4AJm2tDeNZYq7UdKqbGCuRkpg0ZqM+2pjW3/tsQr4peib8G9
-# heyJNw0D787HJb8w6I5HxDlEDIk/HX5AZkd6DaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCtjmLzd20e
+# MHgM+/NVPLMAo8WJ5bqV6m354Tc28jFUZzANBgkqhkiG9w0BAQEFAASCAgApeIma
+# ScLWqrbV4yo219LmwsW1cwmw+wG4Se7yDViwbPOz1qmjmRW1ZJqb0ffc6PWvY8cE
+# ljWfjygSzV1zglReRT4FLPBEPH5k91CVDFcq0j3FOAmVF7EsZaDVQSxZSKdruTwJ
+# gJRkXuYqCv+4ujbPDO6AiIG8VVU8dv9Pl1bczbDBb3fq+UX4ucObSHvFt/OWUA+P
+# KFv6XgdjvyVIr5jRYq//6a5mInGaR0xG6EYhVXvDhWZVdFsJxARpMs03u2z8Toi6
+# Hm/wnZSnP6dRgBdC0XG4veddccElo+uriaRzKkylavU+A9aetiVwLH5Fx92jxX4N
+# fOnF/hTda8o9KXr7B5/BUTojG8Nvia2Uevi55Fc9L6nbm9Dvn/fHpIX9sepxjAGL
+# Fw/08KTCHU+MV+wO/XHgZyuWOqxY3daTEKaazCrbppujHsN0itPLUdV3GxrSrleK
+# vRwe3zm4GyPbTFD7r9d/dYyVlbvFuEVLdhzDo1dWZcm01UXOZbrbE0n6vu0TcKDr
+# 64lwTq/TUIpzmomVb4KiKI3o7WDgy8PTVgQYjZiICTki2bHrfS5WCyxxJCwpl8UZ
+# qhNHaEToGgJo68W3Rj1uFqOxL53W8BcqnAxu1Mew+YHa2cLNR9F90TCqw/wpVfnN
+# CGWgaQq/SDBDMIn1Y+vlF/OSVHu/hC0ueQtDZqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDQyMTEwNTBaMC8GCSqGSIb3DQEJBDEiBCBewR4FpMZAplQhtGW4
-# RmEr7WbH4f2dMj6EhUdznYhBEzANBgkqhkiG9w0BAQEFAASCAgDALBLi2ZqQRCi0
-# nCZqqB5giltPQG1TjsTDT6mFTcrVjRNqvQsX8AVb/5V7n0oxYR+GjsJ5IjtbZKxi
-# QJYEp2U3tMhTmc1Dqj1AA0isCGbu+mrLLWRyiPYnJKP94V3bLoRiq2d+f7quN/D4
-# r9GvM7+NJXYzpw29IV2AdBD0WuwyDOJ5BRJxyXsS2nZLURGJpQGH2MJsKLT3SZRp
-# 7nVXY2XjhjPFAtl9LmUBOxD6BdYmg7QDAHNg9prR4TyOX03wwHCnJz810QHzjfmV
-# 5A0SUZhifuDPeXAG6JpaCs9KOlWzgUJbRUdBtiE2ygM3LJibmnKUIJJAh8b7QCsy
-# J70Op9OxF+njHsvg+sFksAUyKmL1/7EoJ35PQ9O0cToO9qe7vJIf4TmqMb5SgYto
-# rP3vhpI+S8sWUlxYCMyY0Qy3eTTTLqjmg+uP4lZvnWduWRMI4KajmjsYcS9nsdNk
-# 3eL6/tGTsayCiQ4YgxdjCPatN7wDKHvTjwmlTelV2ul7UOwSGSBSstQctHYJo4wm
-# OQ775MnZL43RDKhFP1n+06Exzgee0TXuCydD1rj8KAshJgyuE94WRATrGELL5JJd
-# CjnWwZrYZQJx8Xt6g2M88fRINvre0qNpE4db07nGmWkwcDq5fTcHvbtzLc6KMlpD
-# gCoowzBLJakO+qtcoLObVqCQy52+Wg==
+# BTEPFw0yNjAyMDQxOTAyNDZaMC8GCSqGSIb3DQEJBDEiBCASr9yKyvDTrdosf0xk
+# cA8DvKspn3OFM8SBm7oCGpdK5jANBgkqhkiG9w0BAQEFAASCAgB6TkltTvN2z90u
+# u3Rqn5Qfmj3JcZLl0/akUtmn/iFJq000lgC4cPmbszzY2fZszr3DuBfVO7cuxknr
+# y0vgLqIQvnDf4c3glKn8pDwwOeE1h/6DQAEjWVQ1TCULG15soh24V1+1uB6DLIQN
+# vDl8JSB+kwVX/FA62unYeW4knWTTd1QBwgGmKMcrvGEwpFGcksLuuqgrz09mszbj
+# rjsqG3ZHc0tTrXiKZP8pYuQgtTISP5FQ2owg0L68yV9ImbPQ2/Jte+wZFQHabw+r
+# GgehV5bCpe0jkPmxa5vfLPJp+PUMgem3GfbXpEYV5g0M0/DtJc7q+nRH41xx9ObX
+# DcMq8INeMTpDQFWCbaJpNM9Tu9TSPNX7HDpx2SLRBaT/coup/6XqQRaiIvpXGf5s
+# 4jQkq3b/wXFZmNaLAYivfusCxWbPW+TMfMP8p9MHeX1KGsYfh275lrxN2LGGlltv
+# SLLZuzfpgNnOXtt5BdrQaIvyMFKo15GoBHhYGgLVaGNab319/OSBuxE+vSovPzi/
+# Reesb0S/pdFLe5g7ovaHiHv+9+GTIyR644QcsSveelwJYHCbFA1mg+TRqOIfhFA4
+# g0tgR1ui/jO+pPccjnNVFYrkDLsblAztnMS1qlogBghbh0yUpRxVrswvrjHWS+eD
+# ooq06mXhBWCCqKwdOsTDSSlTpMqHSQ==
 # SIG # End signature block

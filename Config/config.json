@@ -5,11 +5,12 @@
     "temp": "C:\\Temp\\TechToolbox"
   },
   "Dependencies": {
+    "DependencyRoot": "C:\\TechToolbox\\Dependencies",
     "Required": true,
     "Bundled": true,
     "Name": "ExchangeOnlineManagement",
     "Defer": true,
-    "Version": "3.9.0"
+    "requiredVersion": "3.9.2"
   },
   "settings": {
     "systemSnapshot": {
@@ -258,8 +259,7 @@
       "includeInOffboarding": true,
       "showProgress": true,
       "autoConnect": true,
-      "autoDisconnectPrompt": true,
-      "exoVersion": "3.9.2"
+      "autoDisconnectPrompt": true
     },
     "largeFileSearch": {
       "defaultMinSizeMB": 256,
