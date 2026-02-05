@@ -1,162 +1,243 @@
 function Get-AutodiscoverXmlInteractive {
     <#
     .SYNOPSIS
-        Interactive Autodiscover XML probe for Exchange/Office365 mailboxes.
-    .DESCRIPTION
-        This function prompts the user for an email address, AcceptableResponseSchema,
-        Autodiscover URL, and credentials, then constructs and sends an Autodiscover
-        XML request to the specified endpoint. The response is saved to a file and
-        key information is displayed in the console.
+        Interactive (or parameterized) Autodiscover XML probe for
+        Exchange/Hosted/M365.
 
-        This is useful for troubleshooting Autodiscover issues with Exchange or
-        Office365 mailboxes.
+    .DESCRIPTION
+        Prompts (or accepts params) for Email, Schema, URI, and Credentials;
+        POSTs the Outlook Autodiscover request; follows redirects; saves the
+        XML; and summarizes common nodes. Hardened for DNS/connection errors and
+        missing ResponseUri.
+
+    .PARAMETER Email
+        Mailbox UPN/email to test. If omitted, prompts.
+
+    .PARAMETER Uri
+        Full Autodiscover endpoint (e.g.,
+        https://autodiscover.domain.com/autodiscover/autodiscover.xml). If
+        omitted, will suggest
+        https://autodiscover.<domain>/autodiscover/autodiscover.xml.
+
+    .PARAMETER Schema
+        AcceptableResponseSchema. Defaults to 2006a.
+
+    .PARAMETER TryAllPaths
+        If set, will attempt a sequence of common endpoints derived from the
+        email's domain.
+
     .EXAMPLE
         Get-AutodiscoverXmlInteractive
-        Runs the interactive Autodiscover XML probe.
+
+    .EXAMPLE
+        Get-AutodiscoverXmlInteractive -Email user@domain.com -Uri https://autodiscover.domain.com/autodiscover/autodiscover.xml
+
+    .EXAMPLE
+        Get-AutodiscoverXmlInteractive -Email user@domain.com -TryAllPaths
     #>
     [CmdletBinding()]
-    param()
-
-    Write-Log -Level Info -Message "=== Autodiscover XML Probe (Interactive) ==="
-
-    # 1) Email address prompt (with simple validation)
-    do {
-        $email = Read-Host "Enter the mailbox Email Address (e.g., user@domain.com)"
-        $valid = $email -match '^[^@\s]+@[^@\s]+\.[^@\s]+$'
-        if (-not $valid) { Write-Log -Level Warn -Message "That doesn't look like a valid email address." }
-    } until ($valid)
-
-    # 2) Let the user pick an AcceptableResponseSchema
-    $schemas = @(
-        'http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a',
-        'http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006'
+    param(
+        [Parameter(Position = 0)]
+        [string] $Email,
+        [Parameter(Position = 1)]
+        [string] $Uri,
+        [ValidateSet('http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a',
+            'http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006')]
+        [string] $Schema = 'http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a',
+        [switch] $TryAllPaths
     )
-    Write-Log -Level Info -Message "`nChoose AcceptableResponseSchema:"
-    $schemas | ForEach-Object -Begin { $i = 1 } -Process {
-        Write-Log -Level Info -Message "[$i] $_"
-        $i++
+
+    Write-Log -Level Info -Message "=== Autodiscover XML Probe (Interactive/Param) ==="
+
+    # 1) Email
+    while ([string]::IsNullOrWhiteSpace($Email) -or $Email -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
+        if ($Email) { Write-Log -Level Warn -Message "That doesn't look like a valid email address." }
+        $Email = Read-Host "Enter the mailbox Email Address (e.g., user@domain.com)"
     }
-    do {
-        $choice = Read-Host "Enter number (default 1)"
-        if ([string]::IsNullOrWhiteSpace($choice)) { $choice = 1 }
-        $ok = ($choice -as [int]) -and ($choice -ge 1) -and ($choice -le $schemas.Count)
-        if (-not $ok) { Write-Log -Level Warn -Message "Please choose 1..$($schemas.Count)." }
-    } until ($ok)
-    $schema = $schemas[$choice - 1]
+    $domain = $Email.Split('@')[-1]
 
-    # 3) Offer to derive the Autodiscover URL from email domain
-    $domain = $email.Split('@')[-1]
-    $derivedUri = "https://autodiscover.$domain/autodiscover/autodiscover.xml"
-    Write-Log -Level Info -Message "`nDetected domain: $domain"
-    Write-Log -Level Info -Message "Suggested Autodiscover URI: $derivedUri"
-
-    $uri = Read-Host "Enter Autodiscover URI or press Enter to use the suggestion"
-    if ([string]::IsNullOrWhiteSpace($uri)) {
-        $uri = $derivedUri
+    # 2) URI (build suggestion if not provided)
+    $suggested = "https://autodiscover.$domain/autodiscover/autodiscover.xml"
+    if ([string]::IsNullOrWhiteSpace($Uri)) {
+        Write-Log -Level Info -Message "Detected domain: $domain"
+        Write-Log -Level Info -Message "Suggested Autodiscover URI: $suggested"
+        $Uri = Read-Host "Enter Autodiscover URI or press Enter to use the suggestion"
+        if ([string]::IsNullOrWhiteSpace($Uri)) { $Uri = $suggested }
     }
 
-    # 4) Prompt for credentials
+    # Helper: normalize URI and ensure well-known path
+    function Resolve-AutodiscoverUri {
+        param([string]$InputUri)
+        try {
+            $u = [Uri]$InputUri
+            if (-not $u.Scheme.StartsWith("http")) { throw "URI must start with http or https." }
+            if ($u.Host -match '\.xml$') { throw "Hostname ends with .xml (`"$($u.Host)`"). Remove the .xml from the host." }
+
+            $path = $u.AbsolutePath.TrimEnd('/')
+            if ([string]::IsNullOrWhiteSpace($path) -or $path -eq "/") {
+                # Bare host/root → append the well-known path
+                $normalized = ($u.GetLeftPart([System.UriPartial]::Authority)).TrimEnd('/') + "/autodiscover/autodiscover.xml"
+            }
+            elseif ($path -match '/autodiscover/?$') {
+                # '/autodiscover' → append final segment
+                $normalized = ($u.GetLeftPart([System.UriPartial]::Authority)).TrimEnd('/') + "/autodiscover/autodiscover.xml"
+            }
+            else {
+                # Leave as-is if user pointed directly at an XML endpoint
+                $normalized = $u.AbsoluteUri
+            }
+            return $normalized
+        }
+        catch {
+            throw "Invalid URI '$InputUri': $($_.Exception.Message)"
+        }
+    }
+
+    $Uri = Resolve-AutodiscoverUri -InputUri $Uri
+
+    # Candidate list if -TryAllPaths is set
+    $candidates = @($Uri)
+    if ($TryAllPaths) {
+        $candidates = @(
+            "https://autodiscover.$domain/autodiscover/autodiscover.xml",
+            "https://$domain/autodiscover/autodiscover.xml",
+            "https://mail.$domain/autodiscover/autodiscover.xml"
+        ) | Select-Object -Unique
+    }
+
+    # 3) Credentials
     Write-Log -Level Info -Message ""
-    $cred = Get-Credential -Message "Enter credentials for $email (or the mailbox being tested)"
+    $cred = Get-Credential -Message "Enter credentials for $Email (or the mailbox being tested)"
 
-    # 5) Build the request body (Outlook request schema)
+    # 4) Request body
     $body = @"
 <?xml version="1.0" encoding="utf-8"?>
 <Autodiscover xmlns="http://schemas.microsoft.com/exchange/autodiscover/outlook/requestschema/2006">
   <Request>
-    <EMailAddress>$email</EMailAddress>
-    <AcceptableResponseSchema>$schema</AcceptableResponseSchema>
+    <EMailAddress>$Email</EMailAddress>
+    <AcceptableResponseSchema>$Schema</AcceptableResponseSchema>
   </Request>
 </Autodiscover>
 "@
 
-    # 6) Optional headers (some servers are picky about UA)
     $headers = @{
-        "User-Agent" = "AutodiscoverProber/1.0"
+        "User-Agent" = "AutodiscoverProber/1.3"
         "Accept"     = "text/xml, application/xml"
     }
 
-    # 7) Send the POST and capture details
-    Write-Log -Level Info -Message "`nPosting to: $uri"
-    try {
-        $resp = Invoke-WebRequest `
-            -Uri $uri `
-            -Method POST `
-            -Headers $headers `
-            -ContentType "text/xml" `
-            -Body $body `
-            -Credential $cred `
-            -MaximumRedirection 10 `
-            -AllowUnencryptedAuthentication:$false `
-            -ErrorAction Stop
-
-        # Show final URL in case of redirects
-        $finalUri = if ($resp.BaseResponse -and $resp.BaseResponse.ResponseUri) {
-            $resp.BaseResponse.ResponseUri.AbsoluteUri
+    # 5) Probe loop (single or multiple URIs)
+    foreach ($candidate in $candidates) {
+        # DNS pre-check
+        try {
+            Write-Log -Level Info -Message "`nChecking DNS for host: $([Uri]$candidate)"
+            $null = Resolve-DnsName -Name ([Uri]$candidate).Host -ErrorAction Stop
+            Write-Log -Level Info -Message "DNS OK."
         }
-        else {
-            $uri
+        catch {
+            Write-Log -Level Warn -Message "DNS check failed: $($_.Exception.Message)"
+            if (-not $TryAllPaths) { return }
+            else { continue }
         }
 
-        Write-Log -Level Info -Message "`nHTTP Status: $($resp.StatusCode) $($resp.StatusDescription)"
-        Write-Log -Level Info -Message "Final Endpoint: $finalUri"
+        Write-Log -Level Info -Message "`nPosting to: $candidate"
+        try {
+            $resp = Invoke-WebRequest `
+                -Uri $candidate `
+                -Method POST `
+                -Headers $headers `
+                -ContentType "text/xml" `
+                -Body $body `
+                -Credential $cred `
+                -MaximumRedirection 10 `
+                -AllowUnencryptedAuthentication:$false `
+                -ErrorAction Stop
 
-        # 8) Parse/prettify XML (if present)
-        if ($resp.Content) {
-            try {
-                [xml]$xml = $resp.Content
-                # Save and pretty-print
-                $stamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
-                $outFile = Join-Path $PWD "Autodiscover_$($domain)_$stamp.xml"
-                $xml.Save($outFile)
-                Write-Log -Level Info -Message "Saved XML to: $outFile"
-
-                # Display a summarized view of key nodes if present
-                Write-Log -Level Info -Message "`n--- Key Autodiscover Nodes (if available) ---"
-                $ns = New-Object System.Xml.XmlNamespaceManager($xml.NameTable)
-                $ns.AddNamespace("a", "http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a")
-                $ns.AddNamespace("r", "http://schemas.microsoft.com/exchange/autodiscover/responseschema/2006")
-
-                # Try common nodes used by many providers
-                $ews = $xml.SelectNodes("//a:Protocol[a:Type='EXPR' or a:Type='EXCH']/a:ExternalEwsUrl", $ns)
-                if ($ews) {
-                    $ews | ForEach-Object { Write-Log -Level Info -Message ("EWS External URL: " + $_.'#text') }
-                }
-
-                $intEws = $xml.SelectNodes("//a:Protocol[a:Type='EXCH']/a:InternalEwsUrl", $ns)
-                if ($intEws) {
-                    $intEws | ForEach-Object { Write-Log -Level Info -Message ("EWS Internal URL: " + $_.'#text') }
-                }
-
-                $mapi = $xml.SelectNodes("//a:Protocol[a:Type='EXCH']/a:Server", $ns)
-                if ($mapi) {
-                    $mapi | ForEach-Object { Write-Log -Level Info -Message ("MAPI/HTTP Server: " + $_.'#text') }
-                }
-
-                Write-Log -Level Info -Message "------------------------------------------------"
+            $finalUri = $null
+            if ($resp.BaseResponse -and $resp.BaseResponse.ResponseUri) {
+                $finalUri = $resp.BaseResponse.ResponseUri.AbsoluteUri
             }
-            catch {
-                Write-Log -Level Warn -Message "Response received, but could not parse as XML. Raw content below:"
-                Write-Log -Level Info -Message $resp.Content
+
+            Write-Log -Level Info -Message "`nHTTP Status: $($resp.StatusCode) $($resp.StatusDescription)"
+            if ($finalUri) { Write-Log -Level Info -Message "Final Endpoint: $finalUri" }
+
+            if ($resp.Content) {
+                try {
+                    [xml]$xml = $resp.Content
+                    $stamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
+                    $outFile = Join-Path $PWD "Autodiscover_$($domain)_$stamp.xml"
+                    $xml.Save($outFile)
+                    Write-Log -Level Info -Message "Saved XML to: $outFile"
+
+                    # Summarize common nodes if present
+                    Write-Log -Level Info -Message "`n--- Key Autodiscover Nodes (if available) ---"
+                    $ns = New-Object System.Xml.XmlNamespaceManager($xml.NameTable)
+                    $ns.AddNamespace("a", "http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a")
+                    $ns.AddNamespace("r", "http://schemas.microsoft.com/exchange/autodiscover/responseschema/2006")
+
+                    $ewsExt = $xml.SelectNodes("//a:Protocol[a:Type='EXPR' or a:Type='EXCH']/a:ExternalEwsUrl", $ns)
+                    $ewsInt = $xml.SelectNodes("//a:Protocol[a:Type='EXCH']/a:InternalEwsUrl", $ns)
+                    $mapiSrv = $xml.SelectNodes("//a:Protocol[a:Type='EXCH']/a:Server", $ns)
+
+                    if ($ewsExt) { $ewsExt | ForEach-Object { Write-Log -Level Info -Message ("EWS External URL: " + $_.'#text') } }
+                    if ($ewsInt) { $ewsInt | ForEach-Object { Write-Log -Level Info -Message ("EWS Internal URL: " + $_.'#text') } }
+                    if ($mapiSrv) { $mapiSrv | ForEach-Object { Write-Log -Level Info -Message ("MAPI/HTTP Server: " + $_.'#text') } }
+
+                    Write-Log -Level Info -Message "------------------------------------------------"
+                }
+                catch {
+                    Write-Log -Level Warn -Message "Response received but not valid XML. Raw content follows:"
+                    Write-Log -Level Info -Message $resp.Content
+                }
             }
+            else {
+                Write-Log -Level Warn -Message "No content returned."
+            }
+
+            # Success: stop probing
+            return
         }
-        else {
-            Write-Log -Level Warn -Message "No content returned."
+        catch {
+            # Don't throw a new exception by touching missing properties
+            Write-Log -Level Error -Message ("Request failed: " + $_.Exception.Message)
+
+            $respObj = $null
+            if ($_.Exception.PSObject.Properties.Name -contains 'Response') {
+                $respObj = $_.Exception.Response
+            }
+            elseif ($_.Exception.PSObject.Properties.Name -contains 'ResponseMessage') {
+                $respObj = $_.Exception.ResponseMessage
+            }
+
+            $uriProp = $null
+            if ($respObj -and $respObj.PSObject.Properties.Name -contains 'ResponseUri') {
+                $uriProp = $respObj.ResponseUri
+            }
+            elseif ($respObj -and $respObj.PSObject.Properties.Name -contains 'RequestMessage') {
+                $uriProp = $respObj.RequestMessage.RequestUri
+            }
+            if ($uriProp) {
+                Write-Log -Level Info -Message ("Final Endpoint (on error): " + $uriProp.AbsoluteUri)
+            }
+
+            if (-not $TryAllPaths) { return }
+            else {
+                Write-Log -Level Warn -Message "Trying next candidate endpoint..."
+                Start-Sleep -Milliseconds 200
+            }
         }
     }
-    catch {
-        Write-Error ("Request failed: " + $_.Exception.Message)
-        if ($_.Exception.Response -and $_.Exception.Response.ResponseUri) {
-            Write-Log -Level Info -Message ("Final Endpoint (on error): " + $_.Exception.Response.ResponseUri.AbsoluteUri)
-        }
+
+    # If we got here with TryAllPaths, everything failed
+    if ($TryAllPaths) {
+        Write-Log -Level Error -Message "All Autodiscover candidates failed for $Email"
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAPK+w7cwHbP0WU
-# Jzrrl1VM3FJdjKwMHbaP49gjILfLjaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA1z8GZPbyRMMBT
+# G8W3oJgUF5j0bO5NkFFvXi59YschUaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -289,34 +370,34 @@ function Get-AutodiscoverXmlInteractive {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCNg0xoPwgC
-# GF3UX/tEf7iCXu+w8m7Cme6aav1/pF7pYDANBgkqhkiG9w0BAQEFAASCAgAn9Oox
-# FMh6/xnpd8ZSIOpygmQHP3M7Evsf7G1mKtRRVlX/cWGpRKn2VXy7jh9zA9g8Kb4P
-# Gz+7su13n+7z64tAJ8a0E2IHgzT6t6uMdan5MffeTwsvzCdQudy/XnvzLgFqb2PM
-# l6Ls25GBTnHZzc49isSAl6T41mNGZK1PRU+m/LeE2/OXYV8WLhy7EPKIqLrTS/Aw
-# u/zjCw3+5bS/8n6UIttT31RvYS0I7nVqsNRmNYLh2TTuWlnurYtynvg5u/pPsnRa
-# tvgB/dLZ/evgd+vq7UORORoAx+WxzkVHDShLA0wi6pKNfiOlZcN5jqjcEIEP3Ejw
-# kofO8Cow2VGcN1CGPDZG9yf15bGHi3NBUEoe1zaDonAZT2gOD91A0kq3aUIc2g2P
-# qRSbkDJHmehPlY6986hhCPWCkkKmnmBhQU56vZA7LtXYsuhzDRUXDPlK0k8Vl8Yq
-# VsWzLCI5VVpT5R8/V7eu/iLQaQWXWSupWxmuVVHWAUeASkgL5mjxGaenEq37u1Kx
-# VoKEnXV3fuSQLw596nQxQGByN2FhbTHYZMMqSYY8KOkrOIfRcJXpC9VaBchKtjEf
-# Bv2Z/h4iuINrWI/aJP/Zv29S3knYK1mKYm8mkXDaw2ZQN71e68qY3cmfMgomNJO1
-# 6FF2JdpmIN/beWGNCXzbgjS3+OlFQDJKsHc2LaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB82nZIW8zV
+# Tck03fe/WjGKBEBG8Fy2+aXckFh+eweMkTANBgkqhkiG9w0BAQEFAASCAgDPRB7O
+# ACujHo6cxGvFpFggvGI9vXTAhP1bFj43A2w6SPYA+UbNIlKAepnPEv3wxMH/yWeF
+# yvgdfPm2WX3StZGm1uhFGNSGei0I2aNxos3kmZIfD8BPGA/fJ5FIV/HFWKJmvrB5
+# b76iAlZl46B4SrskUi5bpSYTBjqeSlXuBpHYBTtx0Z9J6Fnk04FfrEJwyTI1Gl3C
+# E1IvKuUCUqNpD5q5c0e9VvCBIh5iuGkRIRR5iT9uGoMWmyJouAMhivM4IjK4aMYJ
+# qYlZkqg4HxZt5hnazaBdtkbYoFtWJlI6hV7A6bgBftddYq6EwosYm9dIOAVnTDVI
+# OD9IswQ9U4NkHvWNBCIeFrAAhdP+jxVmH/BZJUNysEk7afVjnBYGls4/uPq+V4zx
+# GWhOXMXHRGAnTawbVsXqBQezquLGJ7ppHyKUQfHVci9cQcAu+q0W3yXRaK584Ixa
+# m3Om9nKqgsVgmPhCKXcAHyyzodPYAVBKte+Y3ExXQj34w+TE7jyOzD21Toy6MjRH
+# az4mLLCuwNuETyhZMz6F2xtwoMccXuIWLTUpe0ahpD5wglb3Rq5Qg/SytgC7THXX
+# seTy/RP9jcfA2l307Sy0kjkdRbEgg6qMeFM/B0DeZl/dbcVf2QLEAEM4SshfjB2K
+# +hOX78XYuwhBamoxSfhA9WWa4Ga4Q9Yhvg6kSqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDUxODUxNTZaMC8GCSqGSIb3DQEJBDEiBCDiVKvKFlraulNEkhB0
-# bLvfKrSgPPNTHXop9kyq0SkP+jANBgkqhkiG9w0BAQEFAASCAgApb5Y9mAdCD1n0
-# VQsqpa1DuuLxJQPGUdtQeT9kHxb0Bp5lVbN7+UCAaydbnRkWKWrVUwFVtNRIvcSk
-# +xGhzLI52eZTvZqB+yBIsn0mB/+d+LjDdJ8RvLq5EDfd4v/kvFXa9MRLatCHOyBu
-# jRsaEHVngMwZOt7C/L7DNY5ItTB35atNIixH5Tuc0rHVuTD6mf/SqaoiyMqb7QX3
-# mlvYBhpe3x/upyT1R79ENBry5cedVFAzCQHYimtSYf37HSoZJKtbCYioYkAg8PC3
-# YMCEwRacghv8q7vaQdVz1F5YGXWD+TEb8YxiOe18LgDkksEboxQyXyQwcD0zCQnV
-# H5R9dUDreoMpEl93XOmoSspetRBxw0t6MnML4Lxp/KD2dEvunvH/72s5X2qLe/hU
-# 05ZKrSsFMNOCYYUzJE4yoPhHM1aTJEGKpa05+6JOhnZrk3Jeu4LBTsQ1r1dCN6+o
-# 9rOWeZJOw3QZUXufSFpenhsII3UH7Os6OsMdlUd6IuOED9TIHpLhCwgg3YRqTFvX
-# VlJOmV4lTg0J4TGE4rlSjIvkh3dE4X00Zf/UI1bBstghjVUapTYyK4pYZI85Ap8Y
-# DlYWERTuonHHczNnb/7ckgJQSy8KDlg1ddzWdhpwKzzhp8T0hBM9nqATr8uYc5XS
-# lKU4EhcEQT52aTM7tvqU/0UOtRP6vQ==
+# BTEPFw0yNjAyMDUyMDE5MjhaMC8GCSqGSIb3DQEJBDEiBCBveOp2AzvfrgtpvMda
+# M3satpvYA/XdxPvbVYixoCLYwzANBgkqhkiG9w0BAQEFAASCAgAVkWSe1atm75/x
+# /BSanlMyyUuTAhmCwCdc3/j36zRYbk2dXYCrURiw77KIAcy5TUPSW4Purv67Kzex
+# hOun/hPBvejUQBqCR1suLXDbkOYUrN4No1+d2XcpMloXXlkr2E1kFgEBsUtea57H
+# +CNv9WUutMerB9HE40+PgKDpxw+wOzlHo5nswkGMVToir/pFMlsdEhzatyb/aMGI
+# QH3BXC5FL1MSYW8WhHEgmWRXPiKIosDn8dXtjaihOYbSKSRdLU1Rym/7IYORUMwO
+# NAbT7g2KB40D/xaqhiwxtUGVHQcbDNoio9Dx1GAWSgWxtwN180PPDQ0viXpCwrxb
+# EXYsjwoOzmTUP3a1MpO2I3M2KLt0HwzzHGf0iU0vS7khVRJn6kpzRXyjW9bs5EgU
+# ySgqyJ3drtmLzC3qP8hPyqszsI1hhUTbIvcTVIusiSR/yDgzf6V2g2ubpOI2u6Sr
+# nwZXtmcWkYW/Hj02uUa0us0T2oNglA42yco+BY6ZXPS5+3PqnSUOlerqQ04hH/qH
+# d8vKfTqMPxRbGJadH5cwkIF/TLABBRNZeBU3fN5zOUIIBsRvO7NN8O0PidKBMBhC
+# XX55IaytOdQdoj2twz7uecyZ4su3xIwZcm42jvNxSTO0VLcDbkpLAK0kwKLZwXDT
+# IxgGC1nygwl8SeUsCqvJDACyeSru+Q==
 # SIG # End signature block
