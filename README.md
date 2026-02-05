@@ -42,7 +42,8 @@ enterprise-grade PowerShell module.
     - [Get-DomainAdminCredential](#get-domainadmincredential)
     - [Enable-NetFx3](#enable-netfx3)
     - [Initialize-TTWordList](#initialize-ttwordlist)
-    - [Get-SystemUptie](#get-systemuptie)
+    - [Get-SystemUptime](#get-systemuptime)
+    - [Get-AutodiscoverXmlInteractive](#get-autodiscoverxmlinteractive)
   - [Design \& Conventions](#design--conventions)
   - [Troubleshooting](#troubleshooting)
   - [Development \& QA](#development--qa)
@@ -496,7 +497,7 @@ Initialize-TTWordList
 
 ---
 
-### Get-SystemUptie
+### Get-SystemUptime
 
 Another simple tool to grab system uptime. Can be used local or remote
 
@@ -506,6 +507,19 @@ Get-SystemUptime
 
 # Via PSRemoting (Requires WinRM enabled)
 Get-SystemUptime -ComputerName "computerName" -Credential (Get-Credential)
+```
+
+---
+
+### Get-AutodiscoverXmlInteractive
+
+This script prompts for inputs, including the autodiscover URI, and retrieves
+the content and displays it in console
+
+```powershell
+# Example
+Get-AutodiscoverXmlInteractive
+# No prarams
 ```
 
 ---
