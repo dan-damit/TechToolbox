@@ -1,33 +1,162 @@
-# Prompt for credentials
-$cred = Get-Credential  # enter ltlsupply.com mailbox credentials
+function Get-AutodiscoverXmlInteractive {
+    <#
+    .SYNOPSIS
+        Interactive Autodiscover XML probe for Exchange/Office365 mailboxes.
+    .DESCRIPTION
+        This function prompts the user for an email address, AcceptableResponseSchema,
+        Autodiscover URL, and credentials, then constructs and sends an Autodiscover
+        XML request to the specified endpoint. The response is saved to a file and
+        key information is displayed in the console.
 
-# Build the Autodiscover XML request body
-$body = @"
+        This is useful for troubleshooting Autodiscover issues with Exchange or
+        Office365 mailboxes.
+    .EXAMPLE
+        Get-AutodiscoverXmlInteractive
+        Runs the interactive Autodiscover XML probe.
+    #>
+    [CmdletBinding()]
+    param()
+
+    Write-Log -Level Info -Message "=== Autodiscover XML Probe (Interactive) ==="
+
+    # 1) Email address prompt (with simple validation)
+    do {
+        $email = Read-Host "Enter the mailbox Email Address (e.g., user@domain.com)"
+        $valid = $email -match '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+        if (-not $valid) { Write-Log -Level Warn -Message "That doesn't look like a valid email address." }
+    } until ($valid)
+
+    # 2) Let the user pick an AcceptableResponseSchema
+    $schemas = @(
+        'http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a',
+        'http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006'
+    )
+    Write-Log -Level Info -Message "`nChoose AcceptableResponseSchema:"
+    $schemas | ForEach-Object -Begin { $i = 1 } -Process {
+        Write-Log -Level Info -Message "[$i] $_"
+        $i++
+    }
+    do {
+        $choice = Read-Host "Enter number (default 1)"
+        if ([string]::IsNullOrWhiteSpace($choice)) { $choice = 1 }
+        $ok = ($choice -as [int]) -and ($choice -ge 1) -and ($choice -le $schemas.Count)
+        if (-not $ok) { Write-Log -Level Warn -Message "Please choose 1..$($schemas.Count)." }
+    } until ($ok)
+    $schema = $schemas[$choice - 1]
+
+    # 3) Offer to derive the Autodiscover URL from email domain
+    $domain = $email.Split('@')[-1]
+    $derivedUri = "https://autodiscover.$domain/autodiscover/autodiscover.xml"
+    Write-Log -Level Info -Message "`nDetected domain: $domain"
+    Write-Log -Level Info -Message "Suggested Autodiscover URI: $derivedUri"
+
+    $uri = Read-Host "Enter Autodiscover URI or press Enter to use the suggestion"
+    if ([string]::IsNullOrWhiteSpace($uri)) {
+        $uri = $derivedUri
+    }
+
+    # 4) Prompt for credentials
+    Write-Log -Level Info -Message ""
+    $cred = Get-Credential -Message "Enter credentials for $email (or the mailbox being tested)"
+
+    # 5) Build the request body (Outlook request schema)
+    $body = @"
 <?xml version="1.0" encoding="utf-8"?>
 <Autodiscover xmlns="http://schemas.microsoft.com/exchange/autodiscover/outlook/requestschema/2006">
   <Request>
-    <EMailAddress>katiec@ltlsupply.com</EMailAddress>
-    <AcceptableResponseSchema>
-      http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a
-    </AcceptableResponseSchema>
+    <EMailAddress>$email</EMailAddress>
+    <AcceptableResponseSchema>$schema</AcceptableResponseSchema>
   </Request>
 </Autodiscover>
 "@
 
-# Send the POST request
-Invoke-WebRequest `
-    -Uri "https://autodiscover.hbscloudservices.com/autodiscover/autodiscover.xml" `
-    -Method POST `
-    -ContentType "text/xml" `
-    -Body $body `
-    -Credential $cred `
-    -UseBasicParsing
+    # 6) Optional headers (some servers are picky about UA)
+    $headers = @{
+        "User-Agent" = "AutodiscoverProber/1.0"
+        "Accept"     = "text/xml, application/xml"
+    }
+
+    # 7) Send the POST and capture details
+    Write-Log -Level Info -Message "`nPosting to: $uri"
+    try {
+        $resp = Invoke-WebRequest `
+            -Uri $uri `
+            -Method POST `
+            -Headers $headers `
+            -ContentType "text/xml" `
+            -Body $body `
+            -Credential $cred `
+            -MaximumRedirection 10 `
+            -AllowUnencryptedAuthentication:$false `
+            -ErrorAction Stop
+
+        # Show final URL in case of redirects
+        $finalUri = if ($resp.BaseResponse -and $resp.BaseResponse.ResponseUri) {
+            $resp.BaseResponse.ResponseUri.AbsoluteUri
+        }
+        else {
+            $uri
+        }
+
+        Write-Log -Level Info -Message "`nHTTP Status: $($resp.StatusCode) $($resp.StatusDescription)"
+        Write-Log -Level Info -Message "Final Endpoint: $finalUri"
+
+        # 8) Parse/prettify XML (if present)
+        if ($resp.Content) {
+            try {
+                [xml]$xml = $resp.Content
+                # Save and pretty-print
+                $stamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
+                $outFile = Join-Path $PWD "Autodiscover_$($domain)_$stamp.xml"
+                $xml.Save($outFile)
+                Write-Log -Level Info -Message "Saved XML to: $outFile"
+
+                # Display a summarized view of key nodes if present
+                Write-Log -Level Info -Message "`n--- Key Autodiscover Nodes (if available) ---"
+                $ns = New-Object System.Xml.XmlNamespaceManager($xml.NameTable)
+                $ns.AddNamespace("a", "http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a")
+                $ns.AddNamespace("r", "http://schemas.microsoft.com/exchange/autodiscover/responseschema/2006")
+
+                # Try common nodes used by many providers
+                $ews = $xml.SelectNodes("//a:Protocol[a:Type='EXPR' or a:Type='EXCH']/a:ExternalEwsUrl", $ns)
+                if ($ews) {
+                    $ews | ForEach-Object { Write-Log -Level Info -Message ("EWS External URL: " + $_.'#text') }
+                }
+
+                $intEws = $xml.SelectNodes("//a:Protocol[a:Type='EXCH']/a:InternalEwsUrl", $ns)
+                if ($intEws) {
+                    $intEws | ForEach-Object { Write-Log -Level Info -Message ("EWS Internal URL: " + $_.'#text') }
+                }
+
+                $mapi = $xml.SelectNodes("//a:Protocol[a:Type='EXCH']/a:Server", $ns)
+                if ($mapi) {
+                    $mapi | ForEach-Object { Write-Log -Level Info -Message ("MAPI/HTTP Server: " + $_.'#text') }
+                }
+
+                Write-Log -Level Info -Message "------------------------------------------------"
+            }
+            catch {
+                Write-Log -Level Warn -Message "Response received, but could not parse as XML. Raw content below:"
+                Write-Log -Level Info -Message $resp.Content
+            }
+        }
+        else {
+            Write-Log -Level Warn -Message "No content returned."
+        }
+    }
+    catch {
+        Write-Error ("Request failed: " + $_.Exception.Message)
+        if ($_.Exception.Response -and $_.Exception.Response.ResponseUri) {
+            Write-Log -Level Info -Message ("Final Endpoint (on error): " + $_.Exception.Response.ResponseUri.AbsoluteUri)
+        }
+    }
+}
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBRMZ85yJzrY2oA
-# sYfkOudUP+mTvbhWq5r17ewuCqHtqKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAPK+w7cwHbP0WU
+# Jzrrl1VM3FJdjKwMHbaP49gjILfLjaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -160,34 +289,34 @@ Invoke-WebRequest `
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDjLd43mieH
-# ndWwYymE7ctAOXxXPqiiBqhuurfcNgGCqTANBgkqhkiG9w0BAQEFAASCAgC2toIL
-# 3BrX3s62/A6VT9BMfFGzWkUimfZmu7FHe8TDurxcRWBGQ6pTYVgqnXgNJc20opDs
-# o67uoYtvvvYScrBVY8237bYVVTL+vOVNUGH0/M8vWC75qfLCVBemkuKVRSk3kjuP
-# 2Ry1q0RqjFPAkOQlfjF2VDLNYcaJfnM3E28kadsN1hTNmzNdgrGSgmkhoU17Qxjv
-# FGkRu3HumMXbIz5x3qMS0oDExorJzEcaRspiVvii79153OFF9rOK3We6A6R/S/co
-# J7WeI+NScPhvzuv1lmUq8Uolij+mDnw06sAg5PH2lDQxvWjwXkaJL3BLWrf5Pw+Z
-# wworLPWZwjCzp3mziwnAzsQqKR/Ve80JS9HQc21A+rPZplAkPMVHqMQ4oPz5nxUD
-# wBJiZZQmvYvktVRAO39kAk8YFZ/hBVZ00DBHilgQFjGm7hSb3HJMw4jD6QihIvqE
-# dS8AKGR9iNczvx8SwYb4W3SfqcdPFz3nJw5Y99aMIDwWE03cTaU1B0Sjp9JZVi+l
-# VwSRVLCrpyc66BKKqjTDxCgadGK9YmTEsolDQ3W7T1sto8F2W2kx4fLLq3yKpd5G
-# AYvHRdijNM3+DSgu62D/I7cY6txZcX+wI1VnXCtWtavsMS5BulkgagnUKQ/xsJkT
-# Nslvv6qNB1uVJ+uY5vSUi++SJTaP3cpNzuiKt6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCNg0xoPwgC
+# GF3UX/tEf7iCXu+w8m7Cme6aav1/pF7pYDANBgkqhkiG9w0BAQEFAASCAgAn9Oox
+# FMh6/xnpd8ZSIOpygmQHP3M7Evsf7G1mKtRRVlX/cWGpRKn2VXy7jh9zA9g8Kb4P
+# Gz+7su13n+7z64tAJ8a0E2IHgzT6t6uMdan5MffeTwsvzCdQudy/XnvzLgFqb2PM
+# l6Ls25GBTnHZzc49isSAl6T41mNGZK1PRU+m/LeE2/OXYV8WLhy7EPKIqLrTS/Aw
+# u/zjCw3+5bS/8n6UIttT31RvYS0I7nVqsNRmNYLh2TTuWlnurYtynvg5u/pPsnRa
+# tvgB/dLZ/evgd+vq7UORORoAx+WxzkVHDShLA0wi6pKNfiOlZcN5jqjcEIEP3Ejw
+# kofO8Cow2VGcN1CGPDZG9yf15bGHi3NBUEoe1zaDonAZT2gOD91A0kq3aUIc2g2P
+# qRSbkDJHmehPlY6986hhCPWCkkKmnmBhQU56vZA7LtXYsuhzDRUXDPlK0k8Vl8Yq
+# VsWzLCI5VVpT5R8/V7eu/iLQaQWXWSupWxmuVVHWAUeASkgL5mjxGaenEq37u1Kx
+# VoKEnXV3fuSQLw596nQxQGByN2FhbTHYZMMqSYY8KOkrOIfRcJXpC9VaBchKtjEf
+# Bv2Z/h4iuINrWI/aJP/Zv29S3knYK1mKYm8mkXDaw2ZQN71e68qY3cmfMgomNJO1
+# 6FF2JdpmIN/beWGNCXzbgjS3+OlFQDJKsHc2LaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDUxNTA3MzNaMC8GCSqGSIb3DQEJBDEiBCABVw0YGkbJCtDMvQKX
-# Pz73aWCdwTpCAfhrKPEtLyOR5zANBgkqhkiG9w0BAQEFAASCAgCulhe9ub5NUX1j
-# fpkD/VxU+BSwC4htcMaWv4pXsjnjTc1jtTsStj1J8//RR9KdDo6BfFthKnB/ST9K
-# 0pW/D6NeZlaemUA+yYnV9693ew8oQUPHxhyOK0Jdl40GLtA/ayss3wvp9c+R88Fg
-# 74GoDRneeXLwmR3zooDakgPXyZABQ+d5isaHPZPuvZoJic62YuvhoUAw0QbRzVq2
-# BrtqQdCEoyirCwNOp4/iuiWKZT98ravIg4Zp4Vajc5cBpqB9Ksd69vNGRSRsBjk5
-# 3WkTyEbhse2iOTDyjH1rAOfkKMrMG+x/FdjiKCNlQDl5MXNvk+mmGDZ5CxquJrKf
-# Mtn2F1XZ1GpXogy5eATNAw2xYS5E7hZAdZFGm21aswYtK33whXKZrAJHqPynBxpF
-# r3y1+7I6zZy+E7+354yZH5T7aHH6wKibNkUTf3hTVVptlSHCq51p3sjWbsi804wR
-# gz+t8Wa5E9/5erzTcX0IV+KL5JwXok1VLPhNaZc5Gqm+xeuF+rL/Dmhpgmno/ypg
-# CrKaRDVkXGOYbIhx2MNYoJ8Zk7yz2HX+pRXz0D4mtG5Lp/q/rf74G1R2bqMSeNlC
-# j0q7nNU7tqWy6or6K3VJmY2HTVU76kNQZDiS9OpM5sCPAi07nJbeiYFA6kyXC/JY
-# MeX9I+Cg2QdQTDVLt5T6bA68gdjjzA==
+# BTEPFw0yNjAyMDUxODUxNTZaMC8GCSqGSIb3DQEJBDEiBCDiVKvKFlraulNEkhB0
+# bLvfKrSgPPNTHXop9kyq0SkP+jANBgkqhkiG9w0BAQEFAASCAgApb5Y9mAdCD1n0
+# VQsqpa1DuuLxJQPGUdtQeT9kHxb0Bp5lVbN7+UCAaydbnRkWKWrVUwFVtNRIvcSk
+# +xGhzLI52eZTvZqB+yBIsn0mB/+d+LjDdJ8RvLq5EDfd4v/kvFXa9MRLatCHOyBu
+# jRsaEHVngMwZOt7C/L7DNY5ItTB35atNIixH5Tuc0rHVuTD6mf/SqaoiyMqb7QX3
+# mlvYBhpe3x/upyT1R79ENBry5cedVFAzCQHYimtSYf37HSoZJKtbCYioYkAg8PC3
+# YMCEwRacghv8q7vaQdVz1F5YGXWD+TEb8YxiOe18LgDkksEboxQyXyQwcD0zCQnV
+# H5R9dUDreoMpEl93XOmoSspetRBxw0t6MnML4Lxp/KD2dEvunvH/72s5X2qLe/hU
+# 05ZKrSsFMNOCYYUzJE4yoPhHM1aTJEGKpa05+6JOhnZrk3Jeu4LBTsQ1r1dCN6+o
+# 9rOWeZJOw3QZUXufSFpenhsII3UH7Os6OsMdlUd6IuOED9TIHpLhCwgg3YRqTFvX
+# VlJOmV4lTg0J4TGE4rlSjIvkh3dE4X00Zf/UI1bBstghjVUapTYyK4pYZI85Ap8Y
+# DlYWERTuonHHczNnb/7ckgJQSy8KDlg1ddzWdhpwKzzhp8T0hBM9nqATr8uYc5XS
+# lKU4EhcEQT52aTM7tvqU/0UOtRP6vQ==
 # SIG # End signature block
