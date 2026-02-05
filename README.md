@@ -41,6 +41,7 @@ enterprise-grade PowerShell module.
     - [Initialize-DomainAdminCred](#initialize-domainadmincred)
     - [Get-DomainAdminCredential](#get-domainadmincredential)
     - [Enable-NetFx3](#enable-netfx3)
+    - [Initialize-TTWordList](#initialize-ttwordlist)
   - [Design \& Conventions](#design--conventions)
   - [Troubleshooting](#troubleshooting)
   - [Development \& QA](#development--qa)
@@ -480,6 +481,16 @@ machine
     -Credential $cred -Source "\\files\Win11\sources\sxs" -TimeoutMinutes 45
     -Validate
     # Returns per-target objects instead of a hard exit.
+```
+
+---
+
+### Initialize-TTWordList
+
+A simple tool to build the Password generator tool's word list
+
+```powershell
+Initialize-TTWordList
 ```
 
 ---
