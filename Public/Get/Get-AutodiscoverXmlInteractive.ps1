@@ -129,7 +129,7 @@ function Get-AutodiscoverXmlInteractive {
     foreach ($candidate in $candidates) {
         # DNS pre-check
         try {
-            Write-Log -Level Info -Message "`nChecking DNS for host: $([Uri]$candidate)"
+            Write-Log -Level Info -Message "`nChecking DNS for host: $(([Uri]$candidate).Host)"
             $null = Resolve-DnsName -Name ([Uri]$candidate).Host -ErrorAction Stop
             Write-Log -Level Info -Message "DNS OK."
         }
@@ -141,6 +141,9 @@ function Get-AutodiscoverXmlInteractive {
 
         Write-Log -Level Info -Message "`nPosting to: $candidate"
         try {
+            Write-Log -Level Info -Message "`nPosting to: $candidate"
+
+            # IMPORTANT: Do NOT throw on HTTP errors; we want to inspect redirects/challenges.
             $resp = Invoke-WebRequest `
                 -Uri $candidate `
                 -Method POST `
@@ -150,12 +153,23 @@ function Get-AutodiscoverXmlInteractive {
                 -Credential $cred `
                 -MaximumRedirection 10 `
                 -AllowUnencryptedAuthentication:$false `
+                -SkipHttpErrorCheck `
                 -ErrorAction Stop
 
+            # Try to capture the final URI if available (it may not exist on some failures)
             $finalUri = $null
-            if ($resp.BaseResponse -and $resp.BaseResponse.ResponseUri) {
+            if ($resp.BaseResponse -and $resp.BaseResponse.PSObject.Properties.Name -contains 'ResponseUri' -and $resp.BaseResponse.ResponseUri) {
                 $finalUri = $resp.BaseResponse.ResponseUri.AbsoluteUri
             }
+
+            # If you want to see what status we actually got:
+            $code = $null
+            $reason = $null
+            if ($resp.PSObject.Properties.Name -contains 'StatusCode') { $code = [int]$resp.StatusCode }
+            if ($resp.PSObject.Properties.Name -contains 'StatusDescription') { $reason = $resp.StatusDescription }
+
+            Write-Log -Level Info -Message ("`nHTTP Status: " + ($(if ($code) { "$code " } else { "" }) + ($reason ?? "")))
+            if ($finalUri) { Write-Log -Level Info -Message "Final Endpoint: $finalUri" }
 
             Write-Log -Level Info -Message "`nHTTP Status: $($resp.StatusCode) $($resp.StatusDescription)"
             if ($finalUri) { Write-Log -Level Info -Message "Final Endpoint: $finalUri" }
@@ -197,27 +211,36 @@ function Get-AutodiscoverXmlInteractive {
             return
         }
         catch {
-            # Don't throw a new exception by touching missing properties
+            # Primary error message only (no secondary exceptions)
             Write-Log -Level Error -Message ("Request failed: " + $_.Exception.Message)
 
+            # Try to surface a helpful endpoint without assuming properties exist
             $respObj = $null
+            $hintUri = $null
+
+            # Windows-style WebException
             if ($_.Exception.PSObject.Properties.Name -contains 'Response') {
-                $respObj = $_.Exception.Response
-            }
-            elseif ($_.Exception.PSObject.Properties.Name -contains 'ResponseMessage') {
-                $respObj = $_.Exception.ResponseMessage
+                try { $respObj = $_.Exception.Response } catch {}
+                if ($respObj -and $respObj.PSObject.Properties.Name -contains 'ResponseUri' -and $respObj.ResponseUri) {
+                    $hintUri = $respObj.ResponseUri.AbsoluteUri
+                }
             }
 
-            $uriProp = $null
-            if ($respObj -and $respObj.PSObject.Properties.Name -contains 'ResponseUri') {
-                $uriProp = $respObj.ResponseUri
+            # PS7 HttpRequestException.ResponseMessage
+            if (-not $hintUri -and $_.Exception.PSObject.Properties.Name -contains 'ResponseMessage') {
+                try {
+                    $respMsg = $_.Exception.ResponseMessage
+                    if ($respMsg -and $respMsg.PSObject.Properties.Name -contains 'RequestMessage' -and $respMsg.RequestMessage) {
+                        $hintUri = $respMsg.RequestMessage.RequestUri.AbsoluteUri
+                    }
+                }
+                catch {}
             }
-            elseif ($respObj -and $respObj.PSObject.Properties.Name -contains 'RequestMessage') {
-                $uriProp = $respObj.RequestMessage.RequestUri
-            }
-            if ($uriProp) {
-                Write-Log -Level Info -Message ("Final Endpoint (on error): " + $uriProp.AbsoluteUri)
-            }
+
+            # Fall back to the candidate we attempted
+            if (-not $hintUri) { $hintUri = $candidate }
+
+            Write-Log -Level Info -Message ("Endpoint (on error): " + $hintUri)
 
             if (-not $TryAllPaths) { return }
             else {
@@ -236,8 +259,8 @@ function Get-AutodiscoverXmlInteractive {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA1z8GZPbyRMMBT
-# G8W3oJgUF5j0bO5NkFFvXi59YschUaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDUVhfaUVUEnk26
+# v6nZKorRM63P9ybVp3lzUlNi8e0rGKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -370,34 +393,34 @@ function Get-AutodiscoverXmlInteractive {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB82nZIW8zV
-# Tck03fe/WjGKBEBG8Fy2+aXckFh+eweMkTANBgkqhkiG9w0BAQEFAASCAgDPRB7O
-# ACujHo6cxGvFpFggvGI9vXTAhP1bFj43A2w6SPYA+UbNIlKAepnPEv3wxMH/yWeF
-# yvgdfPm2WX3StZGm1uhFGNSGei0I2aNxos3kmZIfD8BPGA/fJ5FIV/HFWKJmvrB5
-# b76iAlZl46B4SrskUi5bpSYTBjqeSlXuBpHYBTtx0Z9J6Fnk04FfrEJwyTI1Gl3C
-# E1IvKuUCUqNpD5q5c0e9VvCBIh5iuGkRIRR5iT9uGoMWmyJouAMhivM4IjK4aMYJ
-# qYlZkqg4HxZt5hnazaBdtkbYoFtWJlI6hV7A6bgBftddYq6EwosYm9dIOAVnTDVI
-# OD9IswQ9U4NkHvWNBCIeFrAAhdP+jxVmH/BZJUNysEk7afVjnBYGls4/uPq+V4zx
-# GWhOXMXHRGAnTawbVsXqBQezquLGJ7ppHyKUQfHVci9cQcAu+q0W3yXRaK584Ixa
-# m3Om9nKqgsVgmPhCKXcAHyyzodPYAVBKte+Y3ExXQj34w+TE7jyOzD21Toy6MjRH
-# az4mLLCuwNuETyhZMz6F2xtwoMccXuIWLTUpe0ahpD5wglb3Rq5Qg/SytgC7THXX
-# seTy/RP9jcfA2l307Sy0kjkdRbEgg6qMeFM/B0DeZl/dbcVf2QLEAEM4SshfjB2K
-# +hOX78XYuwhBamoxSfhA9WWa4Ga4Q9Yhvg6kSqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD3dRSuxxwq
+# pJEV0NgCKvkKR9lPg9q4nIkBZP4iTxdHoDANBgkqhkiG9w0BAQEFAASCAgAg3BMq
+# 0PWLRUAfADk612cPSOio2Ylh8zawuJpWV4Dl3sraOpYL1l581aLGpsHdMmg8uphh
+# IuUCQcwROrVeleMw1xeZ/IcPWySToeU8h0XY5fVmX7r0rNcZ7Zvd2WnP6Ja3m1D8
+# MWSvxg1fhqEv16eaFioARMMkybj52HFWU8KIwk82ejw6Wir1mvkF6+Y9tM0CCx2P
+# FfPFarYV4dCaAC4TjWT1lhwaQlZaKyhUYo07jgJkPVP8U8GR/s0X0WfJnt4YFEFd
+# V4lQYTb8LDRXFBArZgndZsvysYaUQnDj9DUyXuSqGJz6UFRZcbGUUkL3wqwDpNYk
+# lkBmo0Ls57SoyPmQpf4nCPBZVXQ8Vj7jLTcT5ZygUFqp1ZDRAhn801c73UasAhIh
+# 1o5+ft4dDEZqyyels1jCe6q+kiYkZ7hFuX2/AQyCd25exYqKS/B4NdLVMhccM5F+
+# 4biI5IgERhOLxFc0UnWUgOgEQHM0JnAl0wsk0P68fTsY75M0xCDSOj740p/mT5BG
+# BVFb+cLnalKGiKJ4bOyKqBK5ztL2aCZ52yPvSNfsfi3P1EjnJdhBY6apIAgPLX2v
+# AMzrKPNoPdJQiighDWYHMeUeo7AMdoxs82K5uSAOF2c8LdWG1FAlXBM5EK6sjjNt
+# hGJCMt00454siNhsTAbn0qNwFMlFTrTI4hgdh6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDUyMDE5MjhaMC8GCSqGSIb3DQEJBDEiBCBveOp2AzvfrgtpvMda
-# M3satpvYA/XdxPvbVYixoCLYwzANBgkqhkiG9w0BAQEFAASCAgAVkWSe1atm75/x
-# /BSanlMyyUuTAhmCwCdc3/j36zRYbk2dXYCrURiw77KIAcy5TUPSW4Purv67Kzex
-# hOun/hPBvejUQBqCR1suLXDbkOYUrN4No1+d2XcpMloXXlkr2E1kFgEBsUtea57H
-# +CNv9WUutMerB9HE40+PgKDpxw+wOzlHo5nswkGMVToir/pFMlsdEhzatyb/aMGI
-# QH3BXC5FL1MSYW8WhHEgmWRXPiKIosDn8dXtjaihOYbSKSRdLU1Rym/7IYORUMwO
-# NAbT7g2KB40D/xaqhiwxtUGVHQcbDNoio9Dx1GAWSgWxtwN180PPDQ0viXpCwrxb
-# EXYsjwoOzmTUP3a1MpO2I3M2KLt0HwzzHGf0iU0vS7khVRJn6kpzRXyjW9bs5EgU
-# ySgqyJ3drtmLzC3qP8hPyqszsI1hhUTbIvcTVIusiSR/yDgzf6V2g2ubpOI2u6Sr
-# nwZXtmcWkYW/Hj02uUa0us0T2oNglA42yco+BY6ZXPS5+3PqnSUOlerqQ04hH/qH
-# d8vKfTqMPxRbGJadH5cwkIF/TLABBRNZeBU3fN5zOUIIBsRvO7NN8O0PidKBMBhC
-# XX55IaytOdQdoj2twz7uecyZ4su3xIwZcm42jvNxSTO0VLcDbkpLAK0kwKLZwXDT
-# IxgGC1nygwl8SeUsCqvJDACyeSru+Q==
+# BTEPFw0yNjAyMDUyMDQ5MzdaMC8GCSqGSIb3DQEJBDEiBCAuWICz+C14asU0juCf
+# 1nuzQU5Ij1OoVLOE80/gXvbicTANBgkqhkiG9w0BAQEFAASCAgCLpQ4r5FELW1x6
+# YKwlqjJV1QDYgEQphYEFUW8sfdkX52eFGuVksmuv3RUbSHOec1g3HjUA7S52kpOw
+# 5t1rJ0lkZSmUCufypC9Hc5s/Cw+Sh87MUqZI7P9816S9Qvu8AD9OTfWTEz+BSZA5
+# 8sqed0WyKqWbutMBjWUj64bdtcNUHZZXES00wfoEX6iRBauqidDyWTIAmP0+Sdvn
+# ptDi1Y1RTq/SWGEHD0pgo7JZxAY5ppkXRNEBS5OTQK+lXMD3RI46Q6UoyOxbz4te
+# YHgwH2FxbIfllctBk0R7wFp6/PeJvrA/TxM5gv2lBtlQJjdmeHTz7bVncMxWCNvZ
+# Wu1Tj3+MHPKZ6J2DlN10ffFzbZzyMx8nQzIqlSvviJ9+NR7ICaF9l//0cSOQhazF
+# +nSQFBZNJJvOBmEYBul/zwOjDOAsHz4o/z9MsW+6AvRPO5eHLTPTIELVCYmEqI8F
+# 7YX0TX91ZKybz5baDK3n23nryctdSPsTe530WtvWRxjd/t6Yn01jfGJHo0xclui9
+# 2C6B3vK2x62VugLFzfjhOknYDjGAiIUlvgrjT3pcQ/4A8JlKFvtBP3a8qiSwt53A
+# 3B1wNyrE1/9zNCyRdlGrnakiPXQjswE/0U6gqTlFkl3/nimKC/WKzsmd1z1sc+GF
+# v/DiTYtzmXgHdbDZH10HrTWBkxuAkA==
 # SIG # End signature block
