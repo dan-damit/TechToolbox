@@ -42,6 +42,7 @@ enterprise-grade PowerShell module.
     - [Get-DomainAdminCredential](#get-domainadmincredential)
     - [Enable-NetFx3](#enable-netfx3)
     - [Initialize-TTWordList](#initialize-ttwordlist)
+    - [Get-SystemUptie](#get-systemuptie)
   - [Design \& Conventions](#design--conventions)
   - [Troubleshooting](#troubleshooting)
   - [Development \& QA](#development--qa)
@@ -491,6 +492,20 @@ A simple tool to build the Password generator tool's word list
 
 ```powershell
 Initialize-TTWordList
+```
+
+---
+
+### Get-SystemUptie
+
+Another simple tool to grab system uptime. Can be used local or remote
+
+```powershell
+# Local example
+Get-SystemUptime
+
+# Via PSRemoting (Requires WinRM enabled)
+Get-SystemUptime -ComputerName "computerName" -Credential (Get-Credential)
 ```
 
 ---
