@@ -1,83 +1,15 @@
-function New-TTSession {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string] $ComputerName,
 
-        [Parameter()]
-        [pscredential] $Credential,
-
-        [Parameter()]
-        [switch] $UseSsh,
-
-        [Parameter()]
-        [int] $Port = 22,
-
-        [Parameter()]
-        [string] $Ps7ConfigName = 'PowerShell.7',
-
-        [Parameter()]
-        [string] $WinPsConfigName = 'Microsoft.PowerShell'
-    )
-
-    # Default to session/global variable when not provided
-    if (-not $Credential -and $Global:TTDomainCred) {
-        $Credential = $Global:TTDomainCred
-    }
-
-    if ($UseSsh) {
-        # SSH doesn’t use PSCredential directly; user@host + key/agent is typical.
-        # If you *must* use password, pass -UserName and rely on SSH prompting or key auth.
-        $params = @{
-            HostName    = $ComputerName
-            ErrorAction = 'Stop'
-        }
-        if ($Credential) {
-            $params.UserName = $Credential.UserName
-            # Password-based SSH isn’t ideal; prefer key-based. If needed, you can set up ssh-agent.
-        }
-        $s = New-PSSession @params -Port $Port
-        $ver = Invoke-Command -Session $s -ScriptBlock { $PSVersionTable.PSVersion.Major }
-        if ($ver -lt 7) { Remove-PSSession $s; throw "Remote PS is <$ver>; need 7+ for your tooling." }
-        return $s
-    }
-    else {
-        # WSMan: try PS7 endpoint, then fall back to WinPS
-        try {
-            $p = @{
-                ComputerName      = $ComputerName
-                ConfigurationName = $Ps7ConfigName
-                ErrorAction       = 'Stop'
-            }
-            if ($Credential) { $p.Credential = $Credential }
-            $s = New-PSSession @p
-            $ver = Invoke-Command -Session $s -ScriptBlock { $PSVersionTable.PSVersion.Major }
-            if ($ver -ge 7) { return $s }
-            Remove-PSSession $s -ErrorAction SilentlyContinue
-        }
-        catch {}
-
-        try {
-            $p = @{
-                ComputerName      = $ComputerName
-                ConfigurationName = $WinPsConfigName
-                ErrorAction       = 'Stop'
-            }
-            if ($Credential) { $p.Credential = $Credential }
-            $s = New-PSSession @p
-            return $s
-        }
-        catch {
-            throw "Failed to open session to ${ComputerName}: $($_.Exception.Message)"
-        }
-    }
+function Test-IsElevated {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $p = New-Object Security.Principal.WindowsPrincipal($id)
+    return $p.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCwfrDt0R61peyG
-# 38UST53sGbeKOGdREN48kVeVUENZ7KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDso+G6ZkeV7V60
+# 4QOSEUURWv1mW3I39UZ4UGKJjjz7S6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -210,34 +142,34 @@ function New-TTSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC96+2ym0SW
-# 1nk8G46NyLHd0K76/iJdxcjt9pk53M9eEDANBgkqhkiG9w0BAQEFAASCAgAohVGz
-# QTzn315hGvttHfyJdJng7gxvhm1UgjpjRaLYk0X98skITQp34kziVNtZCXOMLfmt
-# oeew9myfT3VuQhHBWYm6cM0xZag9TKBv+IWbVsUS6T7Egp4CeK/dtKBtWXsrw5L0
-# pugQKpx39/SrBDAVwRY66EqFrXHvK+3P5nHQYlJyRVnDNbKG/oMuGXJrrJwRbEoi
-# EZkVh3hPY6aE/2rrcRbAEDIGU2RIutD96IEheoM8s7Pa2ISVPRMZ58Cj3zIBRi+V
-# 7OLgYmiqMDbXtQF8pFH0xrdq/r7T5GBWONiHWfNxsnqueRmx/2VqUQimsfzD9VWm
-# 1BggfN5Glbb2oIJBOBz21b0J4FSvvMsy8+8kfkpIeHFHPfdCqgBZ2Bec6dZKtETK
-# 26Z3oY9noIuLTKXW3kN2J9hcP5zP43lNUWY/HYJc5zgLMlPcV9i1ZbYFtU196fHL
-# Kn83Vmj2VL42r9n1fKoTtHIfo3LfDJMJFMk1Psq4HsM9Wm7ckqRZ+jO6GK9/GrYn
-# XE1w78243XSmzplvHpz0sL2JjIZhWp8J2CrXxOPCNF7zkLK5p+KzFTgxRkZr8m3D
-# JOYkvgR8nLRsznTAMsIr0/hMAPP/ng1H5cbSrFbpj3ypDBCU+2MazoGCYKSgHEA+
-# fvSJoram3lA4Ks6adaPzPtRn3zXYjDk9r/OExKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBR+u2udkPo
+# X5Ev3uF5yeH+wIz3QeP86sovhlMKwn6dbTANBgkqhkiG9w0BAQEFAASCAgBjg5/Q
+# rREpdqrJ9E8IZuG9Mrzl6OsPld+ek3v5dHg24cqfJZ+I/WU+okOqkoggvZmKacCk
+# L4TbTSHfKlSVli3BK5fPSvsa4bIPJrvkur/zNRBuFpmiGuvc1dI5nNU7QGUKgmdi
+# g2SxwZz4JbI7p4fQg+phN92s7tdpgOA11TZVdwyDPN4D5o4AAjFpTxfyoGNEYU2p
+# xobybQfJ8oA1OSImrIaXSlEIeSZaol/jpPGxatC/zAlXvSGGN/yTh5bz9S2+9JVX
+# a0LUvRd0xOBAxlx4m571RxjyrCZIUtP12X0+a/35+WaUfi7sXhf2BKDVIiceY2ml
+# orqggtZ1CpwT4HHRGj+0wj9Sswgzkl05Ci9ohjiv7E2QaYO9DflV/9ANgT0HS0Cg
+# 4ROoVv/5PfyYJilzaJvgY8N+uxIgBly3NWCTE6szBvEMaouuz+Nq+XM6IdH/1QDL
+# DnrAIIldvTbCx1VKFVhtdlC7SBCedXAbethimmoLhgS956hmw5YM4XxYLWUtTH1y
+# W6rZ7xbopkmTbBVZHEAR2jVtrmUkJAUpo6G4nLPZgu3VOyFVcF32Hh5lVb12x+8K
+# lU2tPaiTgsnSGpQjfJGU5PWKN5RQ74WVI4d58Ze3vYpus0f2iyI0UA47C3Rw5HPX
+# MYrhCxz3nyjmvBCCfB5Q5oVwJdnRmreQnfx2RKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDUyMDI0MjZaMC8GCSqGSIb3DQEJBDEiBCAR3CkC1vmnRnaIfIw7
-# 3v/bXkuGRWrOymPTcZ4ZQLxy9DANBgkqhkiG9w0BAQEFAASCAgBzH8M50Tgl6bbE
-# BwwbeLK22QQ6MdaObLLp+UmOGMn3Yc10uOxXXSnWRK5SQG1w9OZph1meVkPGei0N
-# QVeUzoduLznz3dLHalTSzF0ROqhMln2kS2Z1lcTa68qXMB48bS9QGYAwZNCW01JF
-# ZrvK5oR/kfZqqT1mXcVLE8lCN06kbIN9FPJyn832BOgZcrn9RVrp7zbLY/pE6r0V
-# zUB2LeOXmxCg6rYa4y20OqFpAgML+a3Ncz6RUlWDIyGzn2C9bKbxJdIyJ7c92I+A
-# uY2KFmJGnHSW5SAptqlq9O5pQ9jPS5n/BXtub5qlFZhai9PXWI7SpvlkOV3J2j40
-# lscQmZwbZdwuvc2GeWT+3p78YmqdLj90j+C1uBhsws1sh+cEQX+TkCDhQNhTW6mg
-# uwsZvx6MzM9vcWbHwpiVH4fUG6d0EsnCNfaaRbGLtZW8PqqjH/zmt161XODblG8P
-# wNnfoKpmaY/5uBNE0PIj7GLdFRc9nsWtpIY4/hRG3sn2grxNoc9eIpCmXuIywYTA
-# qFHK6AuxUiuov/JhSU1ZfRou7xxER4jriIX7YV5Zj/2ompS4IjX6sBjBlGlzXAV7
-# bSahvSLHoL8Yei9m17caetURvWr/7VjAVYtSIlKyQrOE3Tiv7sp6oct96VvEIxvO
-# q1750K25brqh9Se9tOqI4PIMlwrD3Q==
+# BTEPFw0yNjAyMDYxNzU4NDNaMC8GCSqGSIb3DQEJBDEiBCCev60C8aeKuxiGgoUo
+# 4ecRuTXMDvV5fdR/55LjgcYeWzANBgkqhkiG9w0BAQEFAASCAgAWlymZmx/HPB15
+# FYRnnQmk7gTW4YgRQZue/71SXNu0ker99Jw76exAcwdOq5bm4s7LoD25DmyGpFO7
+# Q0EbYfsBJhwFBYpmt4vNOub8OI50TlVjxKQ27RJqaKZM9wUOyfYCjiaM2qdfuIYt
+# DmfPcY8osuH473Z7d6bAF3tDAXJZ9wnM8nqXoylDOCZbNnfX0Wf1mNdit7q7ev9Y
+# GishwWcs05VDgTG2WDioC7BVVnwznm4xBLiMWGTm+MBFdRZLRxJ8kEMnhGUMNjJV
+# ggTjQo7AXSCQyNJ4vLGPWMAjS6pAJ47BUTQn4WufxKxdD3s8QVmHhX8cKJ8IH2Zh
+# m4u2SEA8/PBA7Vw4mbYuC6qepCtPKncH6GJslKcmq/rXzyllowgCYvLl2NWiVmSd
+# awuCtPe/myNQop1MIEKWMw4Wch6Kkjl3H22KYSIBcNoRTzAfPoxnh6KYrAc7KtjK
+# sNNRBt5hkYZaxL0AyPbmP9RZeE1pufy1rYyb79vpp9bKSPnTKVk0zTk8dhrGPTjh
+# z5O0OMl5BENyNO31MHEFi3HNwlPQoyfB1ZanO2E1iBdgpQVqiWGTXs3VGAY+8ety
+# XgWKD0ZQzeUVyxTsOu2y3HedE18vqndCaOU8lxQxxWoaTQwAskzl6IhkyfqhVy+M
+# knYJ8yJ1rWiRlIcOZGkNN6PqqgBcHw==
 # SIG # End signature block

@@ -1,85 +1,74 @@
+function Receive-RemoteFile {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][System.Management.Automation.Runspaces.PSSession]$Session,
+        [Parameter(Mandatory)][string]$RemotePath,
+        [Parameter(Mandatory)][string]$LocalPath,
+        [ValidateSet('FromSession', 'Bytes', 'SMB')]
+        [string]$Mode = 'FromSession'
+    )
+    $comp = $Session.ComputerName
+    $ok = $false
+    $errs = @()
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
-
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
-
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
-
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
-
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
-
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
-}
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
-}
-
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+    switch ($Mode) {
+        'FromSession' {
+            try {
+                Copy-Item -Path $RemotePath -Destination $LocalPath -FromSession $Session -ErrorAction Stop
+                $ok = $true
+            }
+            catch {
+                $errs += "[$comp] FromSession failed: $($_.Exception.Message)"
+            }
+            if ($ok) { break }
+        }
+        'Bytes' {
+            if (-not $ok) {
+                try {
+                    $b64 = Invoke-Command -Session $Session -ScriptBlock {
+                        param($p) [Convert]::ToBase64String([IO.File]::ReadAllBytes($p))
+                    } -ArgumentList $RemotePath -ErrorAction Stop
+                    [IO.File]::WriteAllBytes($LocalPath, [Convert]::FromBase64String($b64))
+                    $ok = $true
+                }
+                catch {
+                    $errs += "[$comp] Bytes failed: $($_.Exception.Message)"
+                }
+            }
+            if ($ok) { break }
+            try {
+                $drive = $RemotePath.Substring(0, 1)
+                $rest = $RemotePath.Substring(2)
+                $unc = "\\$comp\${drive}$" + $rest
+                Copy-Item -Path $unc -Destination $LocalPath -Force -ErrorAction Stop
+                $ok = $true
+            }
+            catch {
+                $errs += "[$comp] SMB failed: $($_.Exception.Message)"
+            }
+        }
+        'SMB' {
+            try {
+                $drive = $RemotePath.Substring(0, 1)
+                $rest = $RemotePath.Substring(2)
+                $unc = "\\$comp\${drive}$" + $rest
+                Copy-Item -Path $unc -Destination $LocalPath -Force -ErrorAction Stop
+                $ok = $true
+            }
+            catch {
+                $errs += "[$comp] SMB failed: $($_.Exception.Message)"
+            }
+        }
     }
-    else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
-    }
-}
 
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
+    if (-not $ok) { throw ($errs -join ' | ') }
 }
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
-}
-
-# Only export the helper when explicitly requested
-if ($env:TT_ExportLocalHelper -eq '1') {
-    Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
-}
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNu9zytqtPE1TZ
-# Pk6IcXklKXg6DxWm3+FjkyoV+iHuz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB3zpXUTzA9dffl
+# o/7zc9s6AimHFBqRuRB8z3wLe6BcUaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -212,34 +201,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAukvd9tzfR
-# r8EtiQHsmNV1+ElSIN8M8hB2mFKtk2unKjANBgkqhkiG9w0BAQEFAASCAgCmTzUV
-# +morIghJN/ogu0IQoSxYwaOsMAzEUXK85xKhfd558HiIEWNBPigGCny+Z6P9xZfu
-# mMw/iz1AHiM5LYYLDODv0r/De22mJBgJfHVSqC6e2CWOVdNUikeppGvQq0Q4jOVw
-# oCDDoXadMNsetbLVYEInenyHc/2/Ymox67LQYDFfNSw8CUDl8T+dd615LvC/J/IP
-# JS/lxCQ4b6lzkPj5x/2LzqG1jzeASh6eXcbwavs4GBxgrLDOuTMneXeHJKF6e76B
-# WiEbHQbQqdR1otClqUKQQs5B4W8quIFpu97UILS+P6+HFyrOmbC+IJbd3Rlej+OL
-# P5uxMRnf1lSWxtIO91oqNPKmxVE1LKCGpaQSkTvqjr3PQfYszlN7cxWqnkxS0FyN
-# R0RICsx7uoPO86iHSpJ9YNRcVN7MqxJkdgaW7gVR6J08VYYenDBOpc2NxE93Ks3N
-# fsxM3wbPKjR+sH2rhlhxKJGIAqcKr8UDrgigY/7hRoPt8zYEA7hccE3RKju5eFPz
-# aFrKmfeaKfboPU8/quNPh7Xt4clr16p/Qn2VwcFobdZFixhRRFc2n1S6QKwzCsOQ
-# e+6cg/CexDsJWdnoTU+8LoGtbIrs8HMlaK1mjyXlmDSdin/3JWmJu29FYJIt2EbN
-# rSFNdNOnrBCiDjLwGnD05hcC0lMxF6+qJnubE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBd4bnMmraU
+# 6UHm3HoyVDn0Rq+WFprjthD4ZKoql5W1cTANBgkqhkiG9w0BAQEFAASCAgCybSlw
+# SeBH70CtW6lcRfPCUU7TTJs5zysw9TnfOOybnbwlWEZHEyq06zKF6WDKpKIp6G/5
+# kkIsCUuNtTpm6v6bTJLqacwvbjbtZ2nxK4CWFKO6bRUmsPc7TdhMnZWJg4kAOit8
+# HsGKSVdJqVIIoEWP80/babzn87b33DusICrIArLFiPF+qddMy8csBM4lMjpIBoeP
+# s53IkD7hox0gtApgwsYeYiasWm0Yd7MG4AisdhbknkmJD4tlPkg/YEeNRuHWepwe
+# QRqBal496Aou8Sj8tBNE9Ovx+rJCjhDqoJCX9ona57ri2H2bxHUgu9ozKYK4kWv6
+# DHJHY+FGbkBCk34zj8di36ZNFRfMa+iIfHSwx+ABWexhOXGQ9PutX4apcyvj8izd
+# +uMhA4YK0bADpqZNZBbLBxd3GEBmrScpdlMxb89VGXi8cjWe3YD8hv7CK/j1uQwm
+# WKXL47hDwdjhSdDv2+DcujixwZ59PVctcUwY/fpMFsHQzTaiLGan/GwkDFWf0LZU
+# IBxqPqdlnIO5M2ck9RQjvTMtHiALQd8pwZ6DfTd2wIvOb1xMxhAawQVMTSC64+Ta
+# HoXJBMRRBgUeTXJWGkqfHWv6V2RqRDGpP8krEbCrxCFd4JBz+6J7V5y6ynh9Q6UP
+# MCoHna45BwAgboecqD2eCrnZkGBALZ5HFjEKCKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDYyMDE5MjFaMC8GCSqGSIb3DQEJBDEiBCBzj2TmOOefNP+mGX9v
-# E6QmVcvrLBk3FZtzjlMdisSN8jANBgkqhkiG9w0BAQEFAASCAgClAMTjJ1L/R8iw
-# 63/0hrpbE3xpKvkj7XPeeFyMKYp66w2yLk/OlUucjSqFJ1eT02xspD4eTwcwhMu0
-# bS0FlhtTBntIn9OZRExZCGs/3CWRS3k2ZFDQXcOvcj4ORVhqPiZXNVT6XIO2IZSC
-# +dy2QcsG0x3HnKX430qmIN2/1yXeNW2lnVNTpZkwZccB6sClt9yu4WRmNTlgv0dQ
-# LLpsDBWohSaMpn4GYKRyCvahnQ3C9zCBonUX3sxEwJ80QaHnJQhk0PKwRZ4boJwR
-# PXaY9swh2AGrkCsy1dApTMDD67BlDWSV5TywEgYOXiWoLsAy3OReSkTtE2dRxEJP
-# 7riQoPc/puXzNcOgAatLyjbXa1USlk+TrEhjbQFG5mkWmqdHFcED4/lNZYsMdKS+
-# 5BHC/BTtfaWCqpeZu9zQESrrdzZC23yPWOv97mH4pvq+43VkK/RdqYk0nLLpscBv
-# to9QKbFfFxvOexSHNjdttWOsEVlQMJdYpaxOiqPrfm9qRuqUc9zDFGuD4VmNflAh
-# uGi38V1uJLT0yp4Y+MguYiEybbEIYyjd4nyTWPPhxAecYC1XOmL+mNgpHchJopT6
-# Wl3BrF30wFopoZ7hrmuvZYD42LHInClFdy5BGLbt+dZU+/rCsab05DuhEHo7j7lm
-# znXOHWntiE0209a/N3CyWOGkE+RiMQ==
+# BTEPFw0yNjAyMDYxODMwMTdaMC8GCSqGSIb3DQEJBDEiBCCYZ0HWfN4DElaTRcHB
+# 4qWtvwx4OT/hUU5j8SSfDY05LDANBgkqhkiG9w0BAQEFAASCAgBECZFW9Pt2PsK4
+# DNbG4AQycIhl3rvKUEou94hj+/3tEhpwywcXOW5ZytB3+eXuniFO9GWWVB6NHDX3
+# 4wlrK4yT9fZH617s9dm9sg6e9VzAls/S6wAW8u69SgBPkQW95EYggDJklsNtz3WD
+# ZrutxXjzcJ0S3Ujp+qqgOZ1b2ofm/9h+Mq62O9o/ihUMq3NaeMRY7at03kSMr53K
+# iKm1emf9bpqa6l9U0Pe2KDxOC1sfar9E1qUvKgSkImihNvDlqm/MHDx8sEWqNDZU
+# baBdylK78DY6cXGiCj/ZFIm5gw8ZBgzCkPjsQ9kLepDLHif42XZOwnbyh1x5VjaD
+# GxegQG0tZ/mwSOJtP69aFpDwvfor6aR/jBAy36WedTIpDE4bojeDmhxT7YLjQHzW
+# LkAdfTUYyiJwwlrEIWNNRMlhkMItb9VMmAip+3lhgXf8ylInEPAArtiFMjqRPwp5
+# Lr9w5q/RO8rHzg7F/dTnEEsU9ma6D3q/n8sZ8WLqLV1N22f6pdF4WjMxc+Uy74K3
+# IeAFhwFuX6iwC5zYFHnzkupE7iZgvDHQWMqGy7NDapZ9Qa+Xtu6GlX3dlNnF9tRZ
+# EgSEojBb4zsN2dIl+1ip8Ak3HRX6VemHLebO5ntzwUTu+1smqJWUJcj1NmUY2/bc
+# id/UnGxO3NrSdN3put1ldbVTauVCUw==
 # SIG # End signature block

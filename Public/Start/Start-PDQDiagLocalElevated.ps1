@@ -1,85 +1,136 @@
+function Start-PDQDiagLocalElevated {
+    <#
+    .SYNOPSIS
+      Open a new elevated PowerShell console (UAC), then run the local PDQ diag
+      under SYSTEM.
+    
+    .DESCRIPTION
+      - Spawns a new console with RunAs (UAC prompt).
+      - In that console: Import-Module TechToolbox, call private
+        Start-PDQDiagLocalSystem.
+      - Captures full transcript to C:\PDQDiagLogs\LocalRun_<timestamp>.log.
+      - On error, writes detailed info and optionally pauses so you can read it.
+    
+    .PARAMETER LocalDropPath
+      Destination folder for the final ZIP. Default: C:\PDQDiagLogs
+    
+    .PARAMETER ExtraPaths
+      Additional files/folders to include.
+    
+    .PARAMETER ConnectDataPath
+      Root for PDQ Connect agent data. Default:
+      "$env:ProgramData\PDQ\PDQConnectAgent"
+    
+    .PARAMETER StayOpen
+      Keep the elevated console open after it finishes (adds -NoExit and a prompt).
+    
+    .PARAMETER ForcePwsh
+      Prefer pwsh.exe explicitly; otherwise auto-detect pwsh then powershell.
+    
+    .EXAMPLE
+      Start-PDQDiagLocalElevated -StayOpen
+    
+    .EXAMPLE
+      Start-PDQDiagLocalElevated -ExtraPaths 'C:\Temp\PDQ','D:\Logs\PDQ'
+    #>
+    [CmdletBinding()]
+    param(
+        [string]  $LocalDropPath = 'C:\PDQDiagLogs',
+        [string[]]$ExtraPaths,
+        [string]  $ConnectDataPath = (Join-Path $env:ProgramData 'PDQ\PDQConnectAgent'),
+        [switch]  $StayOpen,
+        [switch]  $ForcePwsh
+    )
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
+    # Resolve the module path (ensure the elevated console imports the same module)
+    $module = Get-Module -Name TechToolbox -ListAvailable | Select-Object -First 1
+    if (-not $module) { throw "TechToolbox module not found in PSModulePath." }
+    $modulePath = $module.Path
 
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
+    # Ensure local drop path exists (used for transcript and final ZIP)
+    if (-not (Test-Path -LiteralPath $LocalDropPath)) {
+        New-Item -ItemType Directory -Path $LocalDropPath -Force | Out-Null
+    }
 
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
+    # Pre-compute timestamp so both runner + private use the same naming (optional/consistent)
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $finalZip = Join-Path $LocalDropPath ("PDQDiag_{0}_{1}.zip" -f $env:COMPUTERNAME, $timestamp)
+    $logPath = Join-Path $LocalDropPath ("LocalRun_{0}.log" -f $timestamp)
 
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
+    # Safely render ExtraPaths as a PowerShell literal
+    $extraLiteral = if ($ExtraPaths) {
+        $escaped = $ExtraPaths | ForEach-Object { "'" + ($_ -replace "'", "''") + "'" }
+        "@(" + ($escaped -join ',') + ")"
+    }
+    else { '@()' }
 
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
+    # Build the runner script content that will execute in the elevated console
+    $runnerLines = @()
+    $runnerLines += '$ErrorActionPreference = "Continue"'
+    $runnerLines += '$VerbosePreference = "Continue"'
+    $runnerLines += "if (-not (Test-Path -LiteralPath `"$LocalDropPath`")) { New-Item -ItemType Directory -Path `"$LocalDropPath`" -Force | Out-Null }"
+    $runnerLines += "Start-Transcript -Path `"$logPath`" -IncludeInvocationHeader -Force | Out-Null"
+    $runnerLines += "`$modulePath = `"$modulePath`""
+    $runnerLines += 'Import-Module $modulePath -Force'
+    $runnerLines += ""
+    $runnerLines += "Write-Host ('[LOCAL] Running Start-PDQDiagLocalSystem (SYSTEM)...') -ForegroundColor Cyan"
+    $runnerLines += "try {"
+    $runnerLines += "    Start-PDQDiagLocalSystem -LocalDropPath `"$LocalDropPath`" -ConnectDataPath `"$ConnectDataPath`" -ExtraPaths $extraLiteral -Timestamp `"$timestamp`" | Format-List *"
+    $runnerLines += "    Write-Host ('[LOCAL] Expected ZIP: $finalZip') -ForegroundColor Green"
+    $runnerLines += "} catch {"
+    $runnerLines += "    Write-Host ('[ERROR] ' + `$_.Exception.Message) -ForegroundColor Red"
+    $runnerLines += "    if (`$Error.Count -gt 0) {"
+    $runnerLines += "        Write-Host '--- $Error[0] (detailed) ---' -ForegroundColor Yellow"
+    $runnerLines += "        `$Error[0] | Format-List * -Force"
+    $runnerLines += "    }"
+    $runnerLines += "    throw"
+    $runnerLines += "} finally {"
+    $runnerLines += "    Stop-Transcript | Out-Null"
+    $runnerLines += "}"
+    if ($StayOpen) {
+        # Keep the elevated console open so you can review logs/output
+        $runnerLines += "Write-Host 'Transcript saved to: $logPath' -ForegroundColor Yellow"
+        $runnerLines += "Read-Host 'Press Enter to close this elevated window'"
+    }
 
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
-}
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
-}
+    $runnerScript = Join-Path $env:TEMP ("PDQDiag_LocalElevated_{0}.ps1" -f $timestamp)
+    Set-Content -Path $runnerScript -Value ($runnerLines -join [Environment]::NewLine) -Encoding UTF8
 
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+    # Pick host exe (pwsh preferred if available or forced; else Windows PowerShell)
+    $hostExe = $null
+    if ($ForcePwsh) {
+        $hostExe = (Get-Command pwsh.exe -ErrorAction SilentlyContinue)?.Source
+        if (-not $hostExe) { throw "ForcePwsh requested, but pwsh.exe not found." }
     }
     else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
+        $hostExe = (Get-Command pwsh.exe -ErrorAction SilentlyContinue)?.Source
+        if (-not $hostExe) { $hostExe = (Get-Command powershell.exe -ErrorAction SilentlyContinue)?.Source }
+    }
+    if (-not $hostExe) { throw "Neither pwsh.exe nor powershell.exe found on PATH." }
+
+    $prelude = '$env:TT_ExportLocalHelper="1";'
+    $args = @()
+    if ($StayOpen) { $args += '-NoExit' }
+    $args = @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $prelude + " & `"$runnerScript`"")
+
+    # Launch elevated; parent console stays open
+    Start-Process -FilePath $hostExe -Verb RunAs -ArgumentList $args -WindowStyle Normal | Out-Null
+
+    # Emit a quick hint in the parent console
+    [pscustomobject]@{
+        ComputerName = $env:COMPUTERNAME
+        Status       = 'Launched'
+        ZipExpected  = $finalZip
+        Transcript   = $logPath
+        Notes        = "Elevated console opened. Output + errors captured to transcript. Use -StayOpen to keep the window open."
     }
 }
-
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
-}
-
-# Only export the helper when explicitly requested
-if ($env:TT_ExportLocalHelper -eq '1') {
-    Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
-}
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNu9zytqtPE1TZ
-# Pk6IcXklKXg6DxWm3+FjkyoV+iHuz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBWSVdqf/hFb92G
+# q9RGasZae/UsQ3eh6m6RssP7Qby9s6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -212,34 +263,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAukvd9tzfR
-# r8EtiQHsmNV1+ElSIN8M8hB2mFKtk2unKjANBgkqhkiG9w0BAQEFAASCAgCmTzUV
-# +morIghJN/ogu0IQoSxYwaOsMAzEUXK85xKhfd558HiIEWNBPigGCny+Z6P9xZfu
-# mMw/iz1AHiM5LYYLDODv0r/De22mJBgJfHVSqC6e2CWOVdNUikeppGvQq0Q4jOVw
-# oCDDoXadMNsetbLVYEInenyHc/2/Ymox67LQYDFfNSw8CUDl8T+dd615LvC/J/IP
-# JS/lxCQ4b6lzkPj5x/2LzqG1jzeASh6eXcbwavs4GBxgrLDOuTMneXeHJKF6e76B
-# WiEbHQbQqdR1otClqUKQQs5B4W8quIFpu97UILS+P6+HFyrOmbC+IJbd3Rlej+OL
-# P5uxMRnf1lSWxtIO91oqNPKmxVE1LKCGpaQSkTvqjr3PQfYszlN7cxWqnkxS0FyN
-# R0RICsx7uoPO86iHSpJ9YNRcVN7MqxJkdgaW7gVR6J08VYYenDBOpc2NxE93Ks3N
-# fsxM3wbPKjR+sH2rhlhxKJGIAqcKr8UDrgigY/7hRoPt8zYEA7hccE3RKju5eFPz
-# aFrKmfeaKfboPU8/quNPh7Xt4clr16p/Qn2VwcFobdZFixhRRFc2n1S6QKwzCsOQ
-# e+6cg/CexDsJWdnoTU+8LoGtbIrs8HMlaK1mjyXlmDSdin/3JWmJu29FYJIt2EbN
-# rSFNdNOnrBCiDjLwGnD05hcC0lMxF6+qJnubE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCupLxaYHCq
+# +SSkxNDgksr8F0B2OQ+bva9tBokWnEI52DANBgkqhkiG9w0BAQEFAASCAgBmeiji
+# JRai8Y9gvHIaJQ8sPJ9qW3DN7T0EsNrRoyBt5mVKKRPZq6aYyOl5ADNPNd/1KQPA
+# FcnM1YR1KBeEGm3aImrch7lhTiM2ToApb1SzkARkI0lFC/5szkkeuVebVWN5ybY1
+# SUMH/XJLLgMgwEfEarAJIVFGuXR5wmgsA6Hyp9LIAYG/BkNKeh1KRwErISnY5Lzu
+# sh4Sd25TtRvnSI9rLrMGLSCaWvDQg0HAE81OI3lR/Pm6vDf7eYowH7vGYkz1wIsC
+# nMti8oReykbOhZRsIDkkw76bgQ/D6E2kWDiFGSZ+1bBzLSHyTeBLvCnH4tve7shn
+# l4tOqLmqAge0kp0/Gh4D+4WiKQGEbFV3SGNCkFfAnwEH4F2bJxaAIeeLOHR5vl16
+# jMPxb2XqEBNDG0RfTlN8GFiC5GMvKd5I5cFB2XTSfbWztCP2GBxZBcHIygaA1FVh
+# wxhYFNTxPMjSL9Q1hPB4q717+10XmmprPXXCr4vYaorb3zone/ZKJ9d5tMZVmy7h
+# hAU4GFDwZFPNm9iTxlSvpyVQFz62v2UkWzYh7dQklVJUFsq8UUt32I4E99m3Jd/a
+# 3jyRc82usrPhJmbWVzdmeWEkp2Io1AfxYxy080rq6lv6W9rMKhjWRzL/HcyOEeVl
+# /n6YmXBlRacIEQ08qY9xW0RjlxlpOsw7jjbZ3aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDYyMDE5MjFaMC8GCSqGSIb3DQEJBDEiBCBzj2TmOOefNP+mGX9v
-# E6QmVcvrLBk3FZtzjlMdisSN8jANBgkqhkiG9w0BAQEFAASCAgClAMTjJ1L/R8iw
-# 63/0hrpbE3xpKvkj7XPeeFyMKYp66w2yLk/OlUucjSqFJ1eT02xspD4eTwcwhMu0
-# bS0FlhtTBntIn9OZRExZCGs/3CWRS3k2ZFDQXcOvcj4ORVhqPiZXNVT6XIO2IZSC
-# +dy2QcsG0x3HnKX430qmIN2/1yXeNW2lnVNTpZkwZccB6sClt9yu4WRmNTlgv0dQ
-# LLpsDBWohSaMpn4GYKRyCvahnQ3C9zCBonUX3sxEwJ80QaHnJQhk0PKwRZ4boJwR
-# PXaY9swh2AGrkCsy1dApTMDD67BlDWSV5TywEgYOXiWoLsAy3OReSkTtE2dRxEJP
-# 7riQoPc/puXzNcOgAatLyjbXa1USlk+TrEhjbQFG5mkWmqdHFcED4/lNZYsMdKS+
-# 5BHC/BTtfaWCqpeZu9zQESrrdzZC23yPWOv97mH4pvq+43VkK/RdqYk0nLLpscBv
-# to9QKbFfFxvOexSHNjdttWOsEVlQMJdYpaxOiqPrfm9qRuqUc9zDFGuD4VmNflAh
-# uGi38V1uJLT0yp4Y+MguYiEybbEIYyjd4nyTWPPhxAecYC1XOmL+mNgpHchJopT6
-# Wl3BrF30wFopoZ7hrmuvZYD42LHInClFdy5BGLbt+dZU+/rCsab05DuhEHo7j7lm
-# znXOHWntiE0209a/N3CyWOGkE+RiMQ==
+# BTEPFw0yNjAyMDYyMDE5MjFaMC8GCSqGSIb3DQEJBDEiBCDSIfiwvOU7Um2sRLcn
+# kG4HXtHiUgjoRENF1ZWpIp0sgTANBgkqhkiG9w0BAQEFAASCAgB+xNJH3/29x0dm
+# Hygw9/agJPhWdMEhbm4+WUlSPIC0DH7y4CkDeDP7HxUWtNtT51wG+Io7zbW9bByj
+# u8kVb38DyI59SdR3Tj2Ydxwa3sSHyh1rCzP9EjD9pSMMrFrCC2PPK0nNhxc9mZFu
+# 60Zvtpk1etZ49fvFntNhPFoz0jaG4teBQ75P0fTfm5rmOJ2PGLzVgR3Ufd1Pmqqa
+# uHSNWWojy8oV0kX/sq62Ou7mFU+0rwgJoClRFXM8crjxOMGlbE+ySJ5tcgpuTqCG
+# XBB3RwLc7k8xM3mq3O5WYgHcHdFeDmoEuW2sySDGGCmMbUdMc1Wj/sas7yEo2+FX
+# CPsEdovXnW5cK0/TJz8w1RjKsRY11aPnALRh9AYZ/t/PpR79IeRocHVxwNr7fu+m
+# 1KjaVlzz132ooswao1KnA/zJHw9vT+ICW9la9x6yUVa7P2hU3GIIMVXgb9T5TqTH
+# GNaZ0UO+9zcDUY5RmQnPuNehtoCwy/Y//Tky3CQU+yUMda/boZicQhVEjHgclbhd
+# fqgT34ZfdnJwoRZ69MlwGIlX5r+e0VODbmH5ETSP48cIbRK5FSMEHcdXbiFBxTYf
+# 5CiUwPih3Wgered9IY3UWVn51hpN4fhh9GMTt0raeMoGnZoUgJCoQTY1jOG8BKNV
+# 0rAdGS7zkymxtOhJpDfnIaMdgYCs5g==
 # SIG # End signature block

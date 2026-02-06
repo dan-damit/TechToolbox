@@ -1,85 +1,19 @@
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
-
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
-
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
-
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
-
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
-
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
+function Restart-Elevated {
+    param(
+        [string[]]$OriginalArgs = @()
+    )
+    $hostExe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' }
+    $argsLine = [string]::Join(' ', $OriginalArgs)
+    Start-Process -FilePath $hostExe -Verb RunAs -ArgumentList $argsLine
+    exit
 }
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
-}
-
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
-    }
-    else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
-    }
-}
-
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
-}
-
-# Only export the helper when explicitly requested
-if ($env:TT_ExportLocalHelper -eq '1') {
-    Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
-}
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNu9zytqtPE1TZ
-# Pk6IcXklKXg6DxWm3+FjkyoV+iHuz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAngqJ2thXJXD3H
+# 9Wvt4MczJfkSX7Gbsy8E7NJIkdmKpaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -212,34 +146,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAukvd9tzfR
-# r8EtiQHsmNV1+ElSIN8M8hB2mFKtk2unKjANBgkqhkiG9w0BAQEFAASCAgCmTzUV
-# +morIghJN/ogu0IQoSxYwaOsMAzEUXK85xKhfd558HiIEWNBPigGCny+Z6P9xZfu
-# mMw/iz1AHiM5LYYLDODv0r/De22mJBgJfHVSqC6e2CWOVdNUikeppGvQq0Q4jOVw
-# oCDDoXadMNsetbLVYEInenyHc/2/Ymox67LQYDFfNSw8CUDl8T+dd615LvC/J/IP
-# JS/lxCQ4b6lzkPj5x/2LzqG1jzeASh6eXcbwavs4GBxgrLDOuTMneXeHJKF6e76B
-# WiEbHQbQqdR1otClqUKQQs5B4W8quIFpu97UILS+P6+HFyrOmbC+IJbd3Rlej+OL
-# P5uxMRnf1lSWxtIO91oqNPKmxVE1LKCGpaQSkTvqjr3PQfYszlN7cxWqnkxS0FyN
-# R0RICsx7uoPO86iHSpJ9YNRcVN7MqxJkdgaW7gVR6J08VYYenDBOpc2NxE93Ks3N
-# fsxM3wbPKjR+sH2rhlhxKJGIAqcKr8UDrgigY/7hRoPt8zYEA7hccE3RKju5eFPz
-# aFrKmfeaKfboPU8/quNPh7Xt4clr16p/Qn2VwcFobdZFixhRRFc2n1S6QKwzCsOQ
-# e+6cg/CexDsJWdnoTU+8LoGtbIrs8HMlaK1mjyXlmDSdin/3JWmJu29FYJIt2EbN
-# rSFNdNOnrBCiDjLwGnD05hcC0lMxF6+qJnubE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCFNcd6J4zq
+# nMxwyAs9DyRudV4QEfQmHT7JxoN+yU1GPTANBgkqhkiG9w0BAQEFAASCAgCSudOd
+# Wfc44PN1HdXeWys5i8rWZQm1cKeufSpF/asKQ8TmaUZqw0uf58XTqvXtqKugu/SG
+# fM4e8OuvlGj7sKoTYGxmec3B3iAoBa5ZJYQeKJasFTXIjlMtLGp5bV8E0lre3QWx
+# 4TBTb1KzKZsi4/6XOFVOmcxXa9f85O5l2w/wCZ1F63AYf1JZOl3DB502EyVNJQss
+# 0Z6Czbb2hAsKzRfgZ5wJ+ko1Qo0S3+Xt5YBKjAGWDAekKdrjHFC+IYVtFCfNV4hG
+# G9RuPob21/eTu7JqsUcbvDM3c8cOMlmHnGP4v8lqrXlc/Bv9xZsuC81km+bl0mtt
+# FxfD5MwABLvHpag1yNU36aXJCN7IE6CqDJfpwVjFop5NRMYul8m3O8rf7A+vRXZ6
+# XyFRWlVMK76k83plKcIZrOeJuD25GMWBacJfR2jdbWtHBRWnopWJqm6fC85AZlHX
+# a5J8SNJyqs6cB7RDNK4Ou2JA4iya9Tw2YY/3ApwxypBrijq1rpvT/FKD5s5ANg2d
+# +3mVdE9y1+m9NSuxT9cyp62VXVsItUJ2CF3InvmBNy4gCViKKWSNcLvitzQ4/M23
+# 5skKwMPvpY3/xCMUuB4LTHJ7PUlbkw9hHGJJC7LAYxAxNewfhAX2I2Jpy1IbeJC0
+# /jrZrBFXp3Y8c1suAcfelZYbH5XaAQZdo3OGSKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDYyMDE5MjFaMC8GCSqGSIb3DQEJBDEiBCBzj2TmOOefNP+mGX9v
-# E6QmVcvrLBk3FZtzjlMdisSN8jANBgkqhkiG9w0BAQEFAASCAgClAMTjJ1L/R8iw
-# 63/0hrpbE3xpKvkj7XPeeFyMKYp66w2yLk/OlUucjSqFJ1eT02xspD4eTwcwhMu0
-# bS0FlhtTBntIn9OZRExZCGs/3CWRS3k2ZFDQXcOvcj4ORVhqPiZXNVT6XIO2IZSC
-# +dy2QcsG0x3HnKX430qmIN2/1yXeNW2lnVNTpZkwZccB6sClt9yu4WRmNTlgv0dQ
-# LLpsDBWohSaMpn4GYKRyCvahnQ3C9zCBonUX3sxEwJ80QaHnJQhk0PKwRZ4boJwR
-# PXaY9swh2AGrkCsy1dApTMDD67BlDWSV5TywEgYOXiWoLsAy3OReSkTtE2dRxEJP
-# 7riQoPc/puXzNcOgAatLyjbXa1USlk+TrEhjbQFG5mkWmqdHFcED4/lNZYsMdKS+
-# 5BHC/BTtfaWCqpeZu9zQESrrdzZC23yPWOv97mH4pvq+43VkK/RdqYk0nLLpscBv
-# to9QKbFfFxvOexSHNjdttWOsEVlQMJdYpaxOiqPrfm9qRuqUc9zDFGuD4VmNflAh
-# uGi38V1uJLT0yp4Y+MguYiEybbEIYyjd4nyTWPPhxAecYC1XOmL+mNgpHchJopT6
-# Wl3BrF30wFopoZ7hrmuvZYD42LHInClFdy5BGLbt+dZU+/rCsab05DuhEHo7j7lm
-# znXOHWntiE0209a/N3CyWOGkE+RiMQ==
+# BTEPFw0yNjAyMDYxNzU4NDNaMC8GCSqGSIb3DQEJBDEiBCBLoJw3g3AASujs+p/3
+# yiitBUgl1n62IHmG9x4PpkKI/DANBgkqhkiG9w0BAQEFAASCAgAzwuEc5gpSZELL
+# s0mgiABQvZ3qcN2dxHTOsW7eiKbV0arH6wa9pwlB5CelTuv1QPeVDUOkXVcPVxrP
+# MBt2k0uXSDRlKM7KkPddIG1BJvCMRGnO+8BBrqIAi16W1Kmn/Rrgp6iIg7AxyoEZ
+# GZig2MUdV4/jK6XNckmHrOOY0Q7it9fuUvwB3rABGq8aFaZjz3vobgyueMui8wuR
+# oCB5yebyWszojPQyn3pn/IHSZjz29WbT23FN6NXXZxv4eVQvWR5uk1XOU0sUoGmG
+# E1+iKMYU8CLoo54FHBDh1EVQ6EmpEKb7dE8Dpg07Nlplg2HZpyekb3JSL1r06n2J
+# xagMAX+mQo7wAWiV7mO2m13BzTRqnh7bWnGVAYug23k0ila4sVgr+DdO32YXprzg
+# WiL9vCNFPnHviYyjo3drVRITRZRMU2/5BE8GD1stA0QpG+qKKMwvZM55w5rnFSo1
+# a4vn2CDFKOI2t930GF4qmRCWeqLzfSjrduVrHazHrCRv+MR/EyCQGChfYiofEbE5
+# mj4L6HPZ6ColJXd0/6tBqrrPo+T2tJSXH8zV9T+a24/W0CJ+GVdqmSaNsuB/umy3
+# DMWMfim1XzAkzJ5u/fLpz/A/4nmBzPC8uMgqTqeWOiSsPcbpH7o4vbQ6vkqG2r6+
+# WQ4FEbYIrwd4uFxGhVJbuJd7BspDaw==
 # SIG # End signature block
