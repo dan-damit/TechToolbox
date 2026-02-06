@@ -44,6 +44,8 @@ enterprise-grade PowerShell module.
     - [Initialize-TTWordList](#initialize-ttwordlist)
     - [Get-SystemUptime](#get-systemuptime)
     - [Get-AutodiscoverXmlInteractive](#get-autodiscoverxmlinteractive)
+    - [Start-PDQDiagLocalElevated](#start-pdqdiaglocalelevated)
+    - [Get-PDQDiagLogs](#get-pdqdiaglogs)
   - [Design \& Conventions](#design--conventions)
   - [Troubleshooting](#troubleshooting)
   - [Development \& QA](#development--qa)
@@ -519,7 +521,32 @@ the content and displays it in console
 ```powershell
 # Example
 Get-AutodiscoverXmlInteractive
-# No prarams
+# No parameters
+```
+
+---
+
+### Start-PDQDiagLocalElevated
+
+This command is designed to run locally on a workstation or server. It auto
+elevates in a new console so it can copy the things that PDQ Connect support
+will ask for. This is only for environments that use PDQ Connect SaaS.
+
+```powershell
+# Launches the script and forces the elevated console to stay open for review
+Start-PDQDiagLocalElevated -StayOpen
+```
+
+---
+
+### Get-PDQDiagLogs
+
+This is a PSRemoting version of the above. By design, the remote console is
+opened as admin so it doesn't require a relaunch like the local version
+
+```powershell
+# Example
+Get-PDQDiagLogs -ComputerName "server.domain.com" -Credential (Get-Credential)
 ```
 
 ---
