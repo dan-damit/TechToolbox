@@ -4,14 +4,20 @@ $InformationPreference = 'Continue'
 
 # Show logo
 Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
 
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
+ #######                      #######                                           
+    #    ######  ####  #    #    #     ####   ####  #      #####   ####  #    # 
+    #    #      #    # #    #    #    #    # #    # #      #    # #    #  #  #  
+    #    #####  #      ######    #    #    # #    # #      #####  #    #   ##   
+    #    #      #      #    #    #    #    # #    # #      #    # #    #   ##   
+    #    #      #    # #    #    #    #    # #    # #      #    # #    #  #  #  
+    #    ######  ####  #    #    #     ####   ####  ###### #####   ####  #    # 
+                                                                                
+
+ -------------------------------------------------------------------------------
+        TechToolbox PowerShell Module - A Collection of Sysadmin Tools
+
+"@ -ForegroundColor Yellow
 Write-Host ""
 
 # --- Predefine module-level variables ---
@@ -68,7 +74,7 @@ catch {
     throw
 }
 
-# Only export the helper when explicitly requested
+# Only export PDQDiag helper when explicitly requested
 if ($env:TT_ExportLocalHelper -eq '1') {
     Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
 }
@@ -78,8 +84,8 @@ Export-ModuleMember -Function $publicFunctionNames
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNu9zytqtPE1TZ
-# Pk6IcXklKXg6DxWm3+FjkyoV+iHuz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAFU3W34XYd9AvA
+# uyrPl6hYl3XEjnP6QqKbQZR2OMtN6aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -212,34 +218,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAukvd9tzfR
-# r8EtiQHsmNV1+ElSIN8M8hB2mFKtk2unKjANBgkqhkiG9w0BAQEFAASCAgCmTzUV
-# +morIghJN/ogu0IQoSxYwaOsMAzEUXK85xKhfd558HiIEWNBPigGCny+Z6P9xZfu
-# mMw/iz1AHiM5LYYLDODv0r/De22mJBgJfHVSqC6e2CWOVdNUikeppGvQq0Q4jOVw
-# oCDDoXadMNsetbLVYEInenyHc/2/Ymox67LQYDFfNSw8CUDl8T+dd615LvC/J/IP
-# JS/lxCQ4b6lzkPj5x/2LzqG1jzeASh6eXcbwavs4GBxgrLDOuTMneXeHJKF6e76B
-# WiEbHQbQqdR1otClqUKQQs5B4W8quIFpu97UILS+P6+HFyrOmbC+IJbd3Rlej+OL
-# P5uxMRnf1lSWxtIO91oqNPKmxVE1LKCGpaQSkTvqjr3PQfYszlN7cxWqnkxS0FyN
-# R0RICsx7uoPO86iHSpJ9YNRcVN7MqxJkdgaW7gVR6J08VYYenDBOpc2NxE93Ks3N
-# fsxM3wbPKjR+sH2rhlhxKJGIAqcKr8UDrgigY/7hRoPt8zYEA7hccE3RKju5eFPz
-# aFrKmfeaKfboPU8/quNPh7Xt4clr16p/Qn2VwcFobdZFixhRRFc2n1S6QKwzCsOQ
-# e+6cg/CexDsJWdnoTU+8LoGtbIrs8HMlaK1mjyXlmDSdin/3JWmJu29FYJIt2EbN
-# rSFNdNOnrBCiDjLwGnD05hcC0lMxF6+qJnubE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCOxJJliJ1v
+# gI7vt5HozEdu9xUrMa6hTZBhxNkS69nTujANBgkqhkiG9w0BAQEFAASCAgBh4FbL
+# 1fp8VveyT2wn/jHrukYRg5AxbNV+g6R6TQq/IfQe14iPoaYBChKqsbcXGvmYIgsk
+# j3wZS4p7HKHg89BP29AQQmpJEV0TE6ib5Zu9BOiXkN8QuHnpiKEZTexjwqQnFZde
+# noJVN0KKHG4KfNVn1DU2GNcJCfZzbqRj/giSdBOcfjZnatNb8NKhELliDcKLndd/
+# 0ybyw+Zlel9Czp5tk0TQhlfAprfGitVPlON2A0429QkakDNMZ+kEtyTj6xkha7XO
+# zqCKN4ZA1Ne835OWqFygURiBMA1pmoWEfztb5x28044Zr3QRVO9XkyKz77B+1Vlf
+# 6s7RWD+aDW5GWvj6D6kN5kjAQrAvA58ITPv8DxE+GRGoWuleqW042ck+VAeC95FY
+# YPVGyQVQLr9n19Hbhw7ycr7DMqCYcIJdmnMTzEtsPTmP9axjjjJr2HQ+p4yHn1My
+# Zj8kTXkiqSUdZGDiqMGIipbdVHTW5VWM8z+H4gDAxg8vYj7kEEHf58zDbeb15+Zh
+# flamX5O9t96IsYKXDAIFXHrIXVPJyzL2V+P/iTzBOyF4OBTQnN/skBCqgtEcrg/d
+# dytokjce51TTjljMmtOiu5b1g8E9boeIzQ9MbKrALBzSPZwkWHKGOXGPjM1uYqaD
+# cAH00vC7xpoNk4dZIr+xje0IsllQVXuZ0fXU06GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDYyMDE5MjFaMC8GCSqGSIb3DQEJBDEiBCBzj2TmOOefNP+mGX9v
-# E6QmVcvrLBk3FZtzjlMdisSN8jANBgkqhkiG9w0BAQEFAASCAgClAMTjJ1L/R8iw
-# 63/0hrpbE3xpKvkj7XPeeFyMKYp66w2yLk/OlUucjSqFJ1eT02xspD4eTwcwhMu0
-# bS0FlhtTBntIn9OZRExZCGs/3CWRS3k2ZFDQXcOvcj4ORVhqPiZXNVT6XIO2IZSC
-# +dy2QcsG0x3HnKX430qmIN2/1yXeNW2lnVNTpZkwZccB6sClt9yu4WRmNTlgv0dQ
-# LLpsDBWohSaMpn4GYKRyCvahnQ3C9zCBonUX3sxEwJ80QaHnJQhk0PKwRZ4boJwR
-# PXaY9swh2AGrkCsy1dApTMDD67BlDWSV5TywEgYOXiWoLsAy3OReSkTtE2dRxEJP
-# 7riQoPc/puXzNcOgAatLyjbXa1USlk+TrEhjbQFG5mkWmqdHFcED4/lNZYsMdKS+
-# 5BHC/BTtfaWCqpeZu9zQESrrdzZC23yPWOv97mH4pvq+43VkK/RdqYk0nLLpscBv
-# to9QKbFfFxvOexSHNjdttWOsEVlQMJdYpaxOiqPrfm9qRuqUc9zDFGuD4VmNflAh
-# uGi38V1uJLT0yp4Y+MguYiEybbEIYyjd4nyTWPPhxAecYC1XOmL+mNgpHchJopT6
-# Wl3BrF30wFopoZ7hrmuvZYD42LHInClFdy5BGLbt+dZU+/rCsab05DuhEHo7j7lm
-# znXOHWntiE0209a/N3CyWOGkE+RiMQ==
+# BTEPFw0yNjAyMDYyMTA1NDNaMC8GCSqGSIb3DQEJBDEiBCCu3X4t1CEFd26SYcHm
+# UzajDTUIxvkpjaP5tMucyKR1mDANBgkqhkiG9w0BAQEFAASCAgCZwrIFB8KHkRRq
+# wcXOHVeisHHtAeQtM8om525ztv87Y6FsUVVksTgMCthIdn9US4Hs49HtmDckS1/b
+# xjV6gNTMnw16kmTf3MM7jNOhvcZ7Cgc+yDcsurHxn4lrdtrYnK2MJNOWPFyxuKBU
+# N/2hMQCFjmnmJaWJHPjdTgJumC2H+gXwWujNFOGmwm6BqCOccPHgqkAc/Xz17PnB
+# chbkPiiKi9AK0uCbKP75RRxuaJqoiHXbiHni6VurxbI9Fsu+ISv3TEcx0tU1e0ck
+# ff1IcT+x1/A96/lFuJMmr5zAq4+65U0mf7Ws09+nQtdGDnUqzDWYQfc1ozgvBGVG
+# FQ4hN6hAtUnB/GlwEmW1335jjGnc4KLjYZZx39+MAY88dDM2xweilKu4ZldQTfJy
+# 1IIGAjDST4LIgIRfuQ36vLK27NmtI3YlltgJy3+duaHk46aFV9Af1MwylYOTp0MS
+# y7xjI/hw4IweJ+pN/uOpHwnvC8XWIrRo5oU2lD4z9qgtVTIOvvdw1GsH8g8J/6oj
+# IMwdgbflXVRp+0gxLcc33FoPJ8dr+enNdHG7XraaDzr9AwtjOyZ1qYA0ZAeCpKUM
+# zDlrGRKj01H6oHCKCYrIe8w980C8ZbVg1Y0CjpiUcGEfEUlBEOCGdOKT+4L8nY7y
+# vnilyI/vFJBdJ097jZ7pYXcX5ztaqQ==
 # SIG # End signature block
