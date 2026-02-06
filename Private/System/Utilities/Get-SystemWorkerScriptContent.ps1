@@ -1,85 +1,161 @@
+function Get-SystemWorkerScriptContent {
+    @'
+param(
+  [string]$ArgsPath
+)
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
+$ErrorActionPreference = 'Stop'
 
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
+# Read args
+$cfgRaw = if ($ArgsPath -and (Test-Path -LiteralPath $ArgsPath -ErrorAction SilentlyContinue)) {
+  Get-Content -LiteralPath $ArgsPath -Raw -Encoding UTF8
+} else { $null }
 
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
+$cfg = if ($cfgRaw) { $cfgRaw | ConvertFrom-Json } else { $null }
 
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
-
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
-
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
-}
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
+# Extract settings
+$timestamp       = if ($cfg.Timestamp) { [string]$cfg.Timestamp } else { (Get-Date -Format 'yyyyMMdd-HHmmss') }
+$connectPath     = if ($cfg.ConnectDataPath) { [string]$cfg.ConnectDataPath } else { (Join-Path $env:ProgramData 'PDQ\PDQConnectAgent') }
+$extra           = @()
+if ($cfg.ExtraPaths) {
+  # Ensure array type after deserialization
+  if ($cfg.ExtraPaths -is [string]) { $extra = @($cfg.ExtraPaths) }
+  elseif ($cfg.ExtraPaths -is [System.Collections.IEnumerable]) { $extra = @($cfg.ExtraPaths) }
 }
 
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
+# Paths
+$tempRoot = Join-Path $env:windir 'Temp'
+$staging  = Join-Path $tempRoot ("PDQDiag_{0}_{1}" -f $env:COMPUTERNAME,$timestamp)
+$zipPath  = Join-Path $tempRoot ("PDQDiag_{0}_{1}.zip" -f $env:COMPUTERNAME,$timestamp)
+$doneFlg  = Join-Path $staging 'system_done.flag'
 
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+# Clean & create staging
+if (Test-Path $staging) { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue }
+New-Item -ItemType Directory -Path $staging -Force | Out-Null
+
+# Build PDQ paths
+$pdqPaths = @(
+  'C:\ProgramData\Admin Arsenal\PDQ Deploy\Logs'
+  'C:\ProgramData\Admin Arsenal\PDQ Inventory\Logs'
+  'C:\Windows\Temp\PDQDeployRunner'
+  'C:\Windows\Temp\PDQInventory'
+  (Join-Path $env:SystemRoot 'System32\Winevt\Logs\PDQ.com.evtx')  # fallback; we'll export via wevtutil too
+)
+if ($connectPath) {
+  $pdqPaths += (Join-Path $connectPath 'PDQConnectAgent.db')
+  $pdqPaths += (Join-Path $connectPath 'Updates\install.log')
+}
+
+# Normalize extras (PS 5.1-safe)
+$extras = if ($null -eq $extra -or -not $extra) { @() } else { $extra }
+
+# Resilient copy helper (Copy-Item → robocopy /B)
+function Copy-PathResilient {
+  param([string]$SourcePath,[string]$StagingRoot)
+
+  if (-not (Test-Path -LiteralPath $SourcePath -ErrorAction SilentlyContinue)) { return $false }
+
+  $leaf = Split-Path -Leaf $SourcePath
+  $dest = Join-Path $StagingRoot $leaf
+
+  try {
+    $it = Get-Item -LiteralPath $SourcePath -ErrorAction Stop
+    if ($it -is [IO.DirectoryInfo]) {
+      New-Item -ItemType Directory -Path $dest -Force | Out-Null
+      Copy-Item -LiteralPath $SourcePath -Destination $dest -Recurse -Force -ErrorAction Stop
+    } else {
+      Copy-Item -LiteralPath $SourcePath -Destination $dest -Force -ErrorAction Stop
     }
-    else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
+    return $true
+  } catch {
+    $primary = $_.Exception.Message
+    try {
+      $rc = Get-Command robocopy.exe -ErrorAction SilentlyContinue
+      if (-not $rc) { throw "robocopy.exe not found" }
+      $it2 = Get-Item -LiteralPath $SourcePath -ErrorAction SilentlyContinue
+      if ($it2 -is [IO.DirectoryInfo]) {
+        New-Item -ItemType Directory -Path $dest -Force | Out-Null
+        $null = & $rc.Source $SourcePath $dest /E /R:0 /W:0 /NFL /NDL /NJH /NJS /NS /NP /COPY:DAT /B
+      } else {
+        $srcDir = Split-Path -Parent $SourcePath
+        $file   = Split-Path -Leaf   $SourcePath
+        New-Item -ItemType Directory -Path $StagingRoot -Force | Out-Null
+        $null = & $rc.Source $srcDir $StagingRoot $file /R:0 /W:0 /NFL /NDL /NJH /NJS /NS /NP /COPY:DAT /B
+      }
+      if ($LASTEXITCODE -lt 8) { return $true }
+      Add-Content -Path $copyErr -Value ("{0} | robocopy exit {1} | {2}" -f (Get-Date), $LASTEXITCODE, $SourcePath) -Encoding UTF8
+      return $false
+    } catch {
+      Add-Content -Path $copyErr -Value ("{0} | Copy failed: {1} | {2}" -f (Get-Date), $primary, $SourcePath) -Encoding UTF8
+      return $false
     }
+  }
 }
 
-# --- Run the rest of the initialization pipeline ---
+# Merge non-empty paths (no pre-Test-Path to avoid "Access denied" noise)
+$all = @($pdqPaths; $extras) | Where-Object { $_ } | Select-Object -Unique
+foreach ($p in $all) { try { Copy-PathResilient -SourcePath $p -StagingRoot $staging } catch {} }
+
+# Export event log by name (avoids in-use copy issues)
 try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
+  $destEvtx = Join-Path $staging 'PDQ.com.evtx'
+  if (-not (Test-Path -LiteralPath $destEvtx -ErrorAction SilentlyContinue)) {
+    $logName = 'PDQ.com'
+    $wevt = Join-Path $env:windir 'System32\wevtutil.exe'
+    if ($env:PROCESSOR_ARCHITEW6432 -or $env:ProgramW6432) {
+      $sysnative = Join-Path $env:windir 'Sysnative\wevtutil.exe'
+      if (Test-Path -LiteralPath $sysnative) { $wevt = $sysnative }
+    }
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $wevt
+    $psi.Arguments = "epl `"$logName`" `"$destEvtx`""
+    $psi.CreateNoWindow = $true
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError  = $true
+    $p = [Diagnostics.Process]::Start($psi); $p.WaitForExit()
+    if ($p.ExitCode -ne 0) {
+      $err = $p.StandardError.ReadToEnd()
+      Add-Content -Path $copyErr -Value ("{0} | wevtutil failed ({1}): {2}" -f (Get-Date), $p.ExitCode, $err) -Encoding UTF8
+    }
+  }
+} catch {
+  Add-Content -Path $copyErr -Value ("{0} | wevtutil exception: {1}" -f (Get-Date), $_.Exception.Message) -Encoding UTF8
 }
 
-# Only export the helper when explicitly requested
-if ($env:TT_ExportLocalHelper -eq '1') {
-    Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
+# Useful metadata
+try {
+  Get-CimInstance Win32_Service |
+    Where-Object { $_.Name -like 'PDQ*' -or $_.DisplayName -like '*PDQ*' } |
+    Select-Object Name,DisplayName,State,StartMode |
+    Export-Csv -Path (Join-Path $staging 'services.csv') -NoTypeInformation -Encoding UTF8
+} catch {}
+try {
+  Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' |
+    Where-Object { $_.DisplayName -match 'PDQ' -or $_.Publisher -match 'Admin Arsenal' } |
+    Select-Object DisplayName,DisplayVersion,Publisher,InstallDate |
+    Export-Csv -Path (Join-Path $staging 'installed.csv') -NoTypeInformation -Encoding UTF8
+} catch {}
+try {
+  $sys = Get-ComputerInfo -ErrorAction SilentlyContinue
+  if ($sys) { $sys | ConvertTo-Json -Depth 3 | Set-Content -Path (Join-Path $staging 'computerinfo.json') -Encoding UTF8 }
+  $PSVersionTable | Out-String | Set-Content -Path (Join-Path $staging 'psversion.txt') -Encoding UTF8
+} catch {}
+
+# Zip
+if (Test-Path $zipPath) { Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue }
+Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zipPath -Force
+
+# Done flag
+"ZipPath=$zipPath" | Set-Content -Path $doneFlg -Encoding UTF8
+'@
 }
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNu9zytqtPE1TZ
-# Pk6IcXklKXg6DxWm3+FjkyoV+iHuz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDytrroZRSHAZ/R
+# yHct5gr6ZqGSQGWcv4iVk+p6tugItqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -212,34 +288,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAukvd9tzfR
-# r8EtiQHsmNV1+ElSIN8M8hB2mFKtk2unKjANBgkqhkiG9w0BAQEFAASCAgCmTzUV
-# +morIghJN/ogu0IQoSxYwaOsMAzEUXK85xKhfd558HiIEWNBPigGCny+Z6P9xZfu
-# mMw/iz1AHiM5LYYLDODv0r/De22mJBgJfHVSqC6e2CWOVdNUikeppGvQq0Q4jOVw
-# oCDDoXadMNsetbLVYEInenyHc/2/Ymox67LQYDFfNSw8CUDl8T+dd615LvC/J/IP
-# JS/lxCQ4b6lzkPj5x/2LzqG1jzeASh6eXcbwavs4GBxgrLDOuTMneXeHJKF6e76B
-# WiEbHQbQqdR1otClqUKQQs5B4W8quIFpu97UILS+P6+HFyrOmbC+IJbd3Rlej+OL
-# P5uxMRnf1lSWxtIO91oqNPKmxVE1LKCGpaQSkTvqjr3PQfYszlN7cxWqnkxS0FyN
-# R0RICsx7uoPO86iHSpJ9YNRcVN7MqxJkdgaW7gVR6J08VYYenDBOpc2NxE93Ks3N
-# fsxM3wbPKjR+sH2rhlhxKJGIAqcKr8UDrgigY/7hRoPt8zYEA7hccE3RKju5eFPz
-# aFrKmfeaKfboPU8/quNPh7Xt4clr16p/Qn2VwcFobdZFixhRRFc2n1S6QKwzCsOQ
-# e+6cg/CexDsJWdnoTU+8LoGtbIrs8HMlaK1mjyXlmDSdin/3JWmJu29FYJIt2EbN
-# rSFNdNOnrBCiDjLwGnD05hcC0lMxF6+qJnubE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAWcJHIlMqa
+# itPlBi1Wg1duwZCCGtdyP3V4+J9p7QZLnjANBgkqhkiG9w0BAQEFAASCAgBczPgp
+# F/9cvA0RS6u3gS1YMuSgI1hc5++G2Tf+NOWXxwdfP4/m9BnTUjzRtF0o/0H+/pP8
+# xsvRorzSHSBtt5LJSzNxNXnroZYMLhUa17ntNrUq1MPa4xhhE5DRnbg1AcadryuQ
+# RZoqg2zK6zDu9WtvLjVaPOrpI8/JJFuB61yEu92WvCKZwVpCHthV+adQP3qFM9UO
+# tJB5afnVDeWgc3BllTK46vV635HO5w/UAS6a2uMYq8gmf37gChZF+uunW663j2By
+# Q/RWZx6P4r/NXxKrIU2mGBWdSjP8aL4CnGO6ChLYJgPv8467oV4kBjk80sRpLkm1
+# +OsWmPZoZ7ujvIoGs/NWREVvtQOmjJdqKhqaU6BsrTzoJePF0FbdJgfpMY/Jwtzg
+# M/49K/0158EDSwh5qbHVnhXZ8brJolq0geueSYKGGFBguwCjxHMvWb/X0X2loh5f
+# za7ArUx1UByFqhFJyIGACyNOguCJITdfIdEiwv775aTHi+JBVVMwagHedH1dNLWY
+# 3ZNR6azc1Kh0NgBo8ievrG4PZjnEsUBdx7dvW09kEqng3wk8C5biQvvJOijnRT5A
+# 1wgBahLIsy5oAKYImeMLUWTi+ihTHsADMZUnVo7V+p4Ir41z1Lv2Z/OTy+sPgR7z
+# OXB6WMEkPdQYnYjePNt26Gke6upFOIE/oB1LEqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDYyMDE5MjFaMC8GCSqGSIb3DQEJBDEiBCBzj2TmOOefNP+mGX9v
-# E6QmVcvrLBk3FZtzjlMdisSN8jANBgkqhkiG9w0BAQEFAASCAgClAMTjJ1L/R8iw
-# 63/0hrpbE3xpKvkj7XPeeFyMKYp66w2yLk/OlUucjSqFJ1eT02xspD4eTwcwhMu0
-# bS0FlhtTBntIn9OZRExZCGs/3CWRS3k2ZFDQXcOvcj4ORVhqPiZXNVT6XIO2IZSC
-# +dy2QcsG0x3HnKX430qmIN2/1yXeNW2lnVNTpZkwZccB6sClt9yu4WRmNTlgv0dQ
-# LLpsDBWohSaMpn4GYKRyCvahnQ3C9zCBonUX3sxEwJ80QaHnJQhk0PKwRZ4boJwR
-# PXaY9swh2AGrkCsy1dApTMDD67BlDWSV5TywEgYOXiWoLsAy3OReSkTtE2dRxEJP
-# 7riQoPc/puXzNcOgAatLyjbXa1USlk+TrEhjbQFG5mkWmqdHFcED4/lNZYsMdKS+
-# 5BHC/BTtfaWCqpeZu9zQESrrdzZC23yPWOv97mH4pvq+43VkK/RdqYk0nLLpscBv
-# to9QKbFfFxvOexSHNjdttWOsEVlQMJdYpaxOiqPrfm9qRuqUc9zDFGuD4VmNflAh
-# uGi38V1uJLT0yp4Y+MguYiEybbEIYyjd4nyTWPPhxAecYC1XOmL+mNgpHchJopT6
-# Wl3BrF30wFopoZ7hrmuvZYD42LHInClFdy5BGLbt+dZU+/rCsab05DuhEHo7j7lm
-# znXOHWntiE0209a/N3CyWOGkE+RiMQ==
+# BTEPFw0yNjAyMDYxODMwMTdaMC8GCSqGSIb3DQEJBDEiBCDEReURIxS8V3Dgo2iF
+# SYqzc8Sb5Nk2J9KU8Tv8HRKtRzANBgkqhkiG9w0BAQEFAASCAgBifcz0DoXvf4cX
+# MBgRAdD2ZS76YFKjIGiw/OgeXHCbJagK3fHmZGOX/W/WtYOLzcKpWhpoN47kD+rm
+# ntfqpdq41wFCf93+M1BSUlqy1z0uvpRa0e2cSthIjYijQ5ozopADGgS7UQM4z7lT
+# A9F0iTHNPuxFfj32brQ3Obm2oZMmDJSMos5XHAenXR2PoDfkXxYmlt2RJqVjRfk2
+# 0EiG9yo6AfJIt/J5rvYWMZVOn5+hAUnCNtp46rvA1hH85pGIRvi79gbV+w1f2+1D
+# B5dQWlC/4W8u9VXuKJd61hsrrNa/LdP5eafmc4S7RXgziCSiS8ek7A/mZaPiseHJ
+# c0Cr8JY+VL0YpI4bv6qUfW6bYznsEVMZGTe80AZyDQSLp8cO5RC3wYjAci0doOmc
+# fNwdeMIpknrt4d4SvZtSlPYR3h0YjoXKQlWCQZBouPemITI9GRrd9I1rQPnPz/zo
+# +89IogpxpqSSM+kBI6FXazFWl2FTHAW8HnCw2kFSEtE1lPt60lFC8G2/TIiczwes
+# 5KSo/IReN3dOYyINM96eiuDve0janndEjqpVuOxpr4k/xX02IU6oih/yjRWd/PPm
+# qikiIHuaj0VzZYUyadgryk4b8kFH5B+ImNojJt55hId+ykjDVfPbw1gy89KhXx6L
+# uQhKRxAquY4Z577kdtN2mJiRCYZ+7w==
 # SIG # End signature block

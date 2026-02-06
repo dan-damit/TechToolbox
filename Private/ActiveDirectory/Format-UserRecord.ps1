@@ -216,49 +216,108 @@ function Format-UserRecord {
                 $lastLogon = Convert-FileTimeSafe $AD.lastLogonTimestamp
             }
 
+            # --- Password/Expiry calculations (AD-only) ---
+            # "Password never expires" flag (redundancy-safe: uses both the friendly prop and the UAC bit)
+            $PasswordNeverExpires = $false
+            if ($AD.PSObject.Properties['PasswordNeverExpires']) {
+                $PasswordNeverExpires = [bool]$AD.PasswordNeverExpires
+            }
+            if ($AD.PSObject.Properties['userAccountControl']) {
+                # UAC bit 0x10000 = DON'T_EXPIRE_PASSWORD
+                $PasswordNeverExpires = $PasswordNeverExpires -or ( ($AD.userAccountControl -band 0x10000) -ne 0 )
+            }
+
+            # Must change at next logon => pwdLastSet = 0
+            $MustChangePasswordAtNextLogon = $false
+            if ($AD.PSObject.Properties['pwdLastSet']) {
+                $MustChangePasswordAtNextLogon = ($AD.pwdLastSet -eq 0)
+            }
+
+            # Try to get the computed expiry time (works with FGPP)
+            $PasswordExpiryTime = $null
+            if ($AD.PSObject.Properties['msDS-UserPasswordExpiryTimeComputed'] -and $AD.'msDS-UserPasswordExpiryTimeComputed') {
+                try {
+                    $PasswordExpiryTime = [datetime]::FromFileTimeUtc([int64]$AD.'msDS-UserPasswordExpiryTimeComputed').ToLocalTime()
+                }
+                catch {
+                    $PasswordExpiryTime = $null
+                }
+            }
+
+            # Fall back to constructed PasswordExpired if present (some DCs expose it)
+            $PasswordExpired = $null
+            if ($MustChangePasswordAtNextLogon) {
+                $PasswordExpired = $true
+            }
+            elseif ($PasswordNeverExpires) {
+                $PasswordExpired = $false
+            }
+            elseif ($PasswordExpiryTime) {
+                $PasswordExpired = ($PasswordExpiryTime -le (Get-Date))
+            }
+            elseif ($AD.PSObject.Properties['PasswordExpired']) {
+                # Last resort (constructed attribute, not always populated).
+                $PasswordExpired = [bool]$AD.PasswordExpired
+            }
+
+            # Convenience: how many days remain until expiry
+            $DaysUntilPasswordExpiry = $null
+            if ($PasswordExpiryTime) {
+                $DaysUntilPasswordExpiry = [int]([math]::Floor(($PasswordExpiryTime - (Get-Date)).TotalDays))
+            }
+
+            # Emit normalized AD-only record
             # Emit normalized AD-only record
             [pscustomobject]@{
                 # Identity
-                SamAccountName          = $sam
-                UserPrincipalName       = $upn
-                DisplayName             = $name
-                ObjectGuid              = $AD.ObjectGuid
-                DistinguishedName       = $dn
+                SamAccountName                = $sam
+                UserPrincipalName             = $upn
+                DisplayName                   = $name
+                ObjectGuid                    = $AD.ObjectGuid
+                DistinguishedName             = $dn
 
                 # Mailbox / addresses
-                Mail                    = $mail
-                PrimarySmtpAddress      = $primarySmtp
-                SmtpAddresses           = $allSmtp
-                ProxyAddressesRaw       = $proxyRaw
-                MailNickname            = ($AD.PSObject.Properties['mailNickname'] ? $AD.mailNickname : $null)
+                Mail                          = $mail
+                PrimarySmtpAddress            = $primarySmtp
+                SmtpAddresses                 = $allSmtp
+                ProxyAddressesRaw             = $proxyRaw
+                MailNickname                  = ($AD.PSObject.Properties['mailNickname'] ? $AD.mailNickname : $null)
 
                 # AD attributes
-                Enabled                 = ($AD.PSObject.Properties['Enabled']      ? [bool]$AD.Enabled : $null)
-                WhenCreated             = ($AD.PSObject.Properties['whenCreated']  ? $AD.whenCreated   : $null)
-                LastLogon               = $lastLogon
-                Department              = ($AD.PSObject.Properties['Department']   ? $AD.Department    : $null)
-                Title                   = ($AD.PSObject.Properties['Title']        ? $AD.Title         : $null)
+                Enabled                       = ($AD.PSObject.Properties['Enabled']      ? [bool]$AD.Enabled : $null)
+                WhenCreated                   = ($AD.PSObject.Properties['whenCreated']  ? $AD.whenCreated   : $null)
+                LastLogon                     = $lastLogon
+                Department                    = ($AD.PSObject.Properties['Department']   ? $AD.Department    : $null)
+                Title                         = ($AD.PSObject.Properties['Title']        ? $AD.Title         : $null)
 
                 # Manager (resolved)
-                ManagerDn               = $mgrDn
-                ManagerUpn              = $mgrUpn
-                ManagerName             = $mgrName
-                ManagerSamAccountName   = $mgrSam
-                ManagerMail             = $mgrMail
+                ManagerDn                     = $mgrDn
+                ManagerUpn                    = $mgrUpn
+                ManagerName                   = $mgrName
+                ManagerSamAccountName         = $mgrSam
+                ManagerMail                   = $mgrMail
 
                 # Group membership (resolved)
-                MemberOfDn              = $memberOfDn
-                MemberOfNames           = $memberOfNames
-                MemberOfSamAccountNames = $memberOfSams
-                MemberOfResolved        = $memberOfResolved
+                MemberOfDn                    = $memberOfDn
+                MemberOfNames                 = $memberOfNames
+                MemberOfSamAccountNames       = $memberOfSams
+                MemberOfResolved              = $memberOfResolved
+
+                # Password / expiry (AD-only)
+                PasswordExpired               = $PasswordExpired
+                PasswordExpiryTime            = $PasswordExpiryTime
+                DaysUntilPasswordExpiry       = $DaysUntilPasswordExpiry
+                MustChangePasswordAtNextLogon = $MustChangePasswordAtNextLogon
+                PasswordNeverExpires          = $PasswordNeverExpires
 
                 # Provenance
-                Source                  = 'AD'
-                FoundInAD               = $true
+                Source                        = 'AD'
+                FoundInAD                     = $true
 
                 # Raw for troubleshooting
-                RawAD                   = $AD
+                RawAD                         = $AD
             }
+
         }
         catch {
             if (Get-Command -Name Write-Log -ErrorAction SilentlyContinue) {
@@ -278,8 +337,8 @@ function Format-UserRecord {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAZJlxP+0oZp7G4
-# Yiu1+NLaAuTYyCfoQLxA75C1n2mjxaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCt7cwSy8iacOba
+# FdyIIHZEoqMZoqrUuKV9MJdx1JB7tKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -412,34 +471,34 @@ function Format-UserRecord {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB9lbvb94RJ
-# Nmmszrxwai+n+qVDTtGBGYOaA+lUn8lKXDANBgkqhkiG9w0BAQEFAASCAgCu9Al+
-# 9ki+ppb5zLUWjyCwnWFsTZ2Aha3iUmMuJDrWMgWXjElLYc/KLQbBhttME1rV06gm
-# c8AFx+3beTaI/4AMhir8QxaROvOLzwfC7aDVBwOvIEG67LHRh6cCgcw9Ttlxthnu
-# NpbGgLT7M6MkDgqMUwpeFfeq76YXl1ZQfpZrwErJ9s3v0FiVusmDgoJ57TfNPb2d
-# n8TbG/WQS/tXA5a+1cZvQvlEum1pNEmIqnBXhbwDhOP/6Zaw0nkJ6vefrL2LkwDb
-# w1RVzOM5xRXMXgw7L9qWd/vb6C6SO6nN3HgD8XT7mCcoDcndxUUP5fk5WgRlk32L
-# 1RkipxCVt4FxFrzPj2WvmHihdA6/wxo4RupBKru8wKF5j2pms72Oj+CwoRVe5n6G
-# DxX70RO2qSQ0TW2T1NID0OE4jtQvSQBVf7gPvXUPCU7F8ePqELR++QqRnzs+uDXK
-# DDsVSCCXxLQ7i0Iqk12MS1gVIF2Oaw24a9etzoWWItsg6OSJxz4lhRvMx41hDWaJ
-# GtNzococJ2hRihPG3aSM6eGb6aD2ic+kywIUTexNdR7W7yQQxzkP4E65b1CPAXGD
-# Ctf/IdkbwTL7OY1K40nJ9RZdPp5zzCucDMhZZ7yhOW1Z1kbHx3Amz9Zx19OV+U/L
-# FLfsj8imru8lLMpBNxTbEtEDM/x7JseovSMHSaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCwvCe0mtO5
+# k13/Xinp4zkMgAr6SAftQhIvfaPNYjMZcDANBgkqhkiG9w0BAQEFAASCAgB6n2sT
+# oJZ3zHDl2rJChQwRYWIvUCi4+YaiuBZs/hTQuUnWw0Q1Y4Tkwmdp9VydeO4vww56
+# ODMGsWcvRbE1I0x6Z37FhCMEQdvEVSf2MczmljNJRrfiIF9wEaIaD+Q2VdEGrF0e
+# 5scXgS3D0ARJw8IXBgHt2JYj++cy6d6gJEAiFZ9WqViimVmdy0sGFRx79RcaYw3a
+# 8w4bKxlSYMx23/InBhlJjJUrKKK3WlR71Sx+BGlEUiP/h6msy07gQRYFJlh+uNP3
+# VrTYOEzSdxaEf1ZIw0VBKPb6vnGgpj1QdzIQum1ZTPRKdAK9qaw2FEdSwvIJhm9Y
+# yEwK/hXDp+aZSnqCl0vU0pBimXbm8I4qYqvS4UPDcllVg8IKMZiLIRMh930EOdi9
+# JTHCRGAG4L/EwPzoMlbsxrFmYPBpMw/IyvFKvuHwKPQsT+IwXBBGNLEMYFmM1LUk
+# Xt/j2scmQX4HkJ8iCwoNRWbjOa+oysizt0q3kAMNFEMEA2YIqKY+8fPAHQZIgefm
+# eMS42p9PfjqpHRmVt7IBQrsZc8TnS1BTxLrtHGSfUJ4BNJnTdYd0JbOhYqm9zdt0
+# be/VVf7OoYr071xXL+Knds9rObQab06TDmb+xHthTa4sNVXLO9M3xMAixvys0uJm
+# d023lQ889BRJzD+VoiNolVxYCcg/K7JYSX4ALKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAxMjkxOTU4MzhaMC8GCSqGSIb3DQEJBDEiBCDNAwqqMUYWjcYlEB+U
-# NkqUbbkg9qrSgsoP6HJrthLRzjANBgkqhkiG9w0BAQEFAASCAgBG50gXIq0vviJ9
-# 1NHK4ehJeAzdrhvqz9H/3GObtBYwlkzjnnUZGwHz2w5dldcfN2MK1c+6bmPPdghr
-# b6JjCChIf8AJCKRx4xDJTdmvGJ5ezXWuRmpDGPNUoF4j+SuS+MaaYhxiGYmMV4f+
-# MY3bZuNcS5ZMMMjuwIyjb508pyqL4NAYqAtT+Yn7OJtB0/FEgoOKZ+wyeaLac5r0
-# vaU/yLuHfTxNy1lgj2n5EofJKSOpkCWOCuL8jeHLNy4QRkWPF81xh8Y26wqTaYet
-# mjQLKTCdZCgZWRjghq0+bKOkITA5dRuwqSWtLwCFfCQ8Wf8JRksa72pTNdVxEY28
-# rLEOnor+M66ZBCbjqJRhhRDKauAWFDVGUbUcGArujWdJ7gWP/5xRw76Ef2nKwfgV
-# w4hE40jWmyjPeRabx2ecVyLxyJ0JuebdxwM484rF6n65nMxeO92dsuJeLbHIva9I
-# AuMu3/IiWiyZvHQVhGhkUNBHSwlqvjrYv3mw4l+sSAMWp94P3GnMm7OHLuwHC16n
-# 16MABlb/Z9v3TO3Bs0wf+Nd0cxCYyVB3vFROEHndNvUsDYND+rSLHzMgL0ygklXs
-# 5bZPKYhl7ZPA2Gv9SDrIzgXz8zaJx6f5CrOKsobTTPAvBCuEoQHq4zZcCgdp6e7J
-# HpNYrRdwOBUmeTeJjP7l5YMFBeQ0JA==
+# BTEPFw0yNjAyMDYxNjQwMDBaMC8GCSqGSIb3DQEJBDEiBCAdCIIMfNaMpYv8V/MN
+# m/1SREcCV/VY2SzDMqlZ/nlpPjANBgkqhkiG9w0BAQEFAASCAgCyzrxp4Ia1eX0I
+# IalGmXBF5oBwfpyBB3+NCg5H5ocC9KMrT8umao9zCzPv2Js3HeLneuoJ/PmfcdPI
+# 5sLOHWbTlSW83BmNq9GTsZUXZHl5nnx16oz4rSV1Zfc//Cb/5/g2wvQOACLcm9UA
+# nj5FGReR8HCYVKsj2C6eeLU8hnXknuaTySca2+kchN2g3F5FKNXBfZ+WRhT2nHf6
+# hZoB7oz0rF89cWsSaLUrpIsbdhVy2a5R7gJpollCT/ttgBi7VyAxZdisNazXpgnx
+# J+KvKP+90YTDOJmQFgbgjfbyMUdyh/X6E2/pWe2Imhg0HNCnrwQCx2jzJ/fFvy+5
+# 68xqCTID+Vr7WF7SnO9mjbc1q7MZ/zayJtpeyIjWiW5UxCbDFV3HDKALczohc4RP
+# SJ61vEZxxDZ3CyPElDpSZLzlG03vIe3gXM6MSybWEvjm+5d/bz/E7De2nts2OjKI
+# U8ujQ8gfu+qqYYzpTvO9h+cKKUs96noj6lJdEGko334/pGZMHls0+bkmJHGxhpuH
+# WuZevEPEWfo/KSWVUja8Qy0BfViUnPVBkxJDO4rmJMyrYeKJL/8xTMv1u6IWx30P
+# bfWyK3PYyJsL4jFboO9BucayLCv0vDnuuBmcNfPmaprxaJ/aBzwfKt17HRltMpVs
+# j2nu8FVZYjAgOMgpfULUkmtW4yHLBg==
 # SIG # End signature block

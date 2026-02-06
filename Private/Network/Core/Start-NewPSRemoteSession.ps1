@@ -1,85 +1,83 @@
+function Start-NewPSRemoteSession {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string] $ComputerName,
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
+        [Parameter()]
+        [pscredential] $Credential,
 
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
+        [Parameter()]
+        [switch] $UseSsh,
 
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
+        [Parameter()]
+        [int] $Port = 22,
 
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
+        [Parameter()]
+        [string] $Ps7ConfigName = 'PowerShell.7',
 
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
+        [Parameter()]
+        [string] $WinPsConfigName = 'Microsoft.PowerShell'
+    )
 
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
-}
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
-}
+    # Default to session/global variable when not provided
+    if (-not $Credential -and $Global:TTDomainCred) {
+        $Credential = $Global:TTDomainCred
+    }
 
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+    if ($UseSsh) {
+        # SSH doesn’t use PSCredential directly; user@host + key/agent is typical.
+        # If you *must* use password, pass -UserName and rely on SSH prompting or key auth.
+        $params = @{
+            HostName    = $ComputerName
+            ErrorAction = 'Stop'
+        }
+        if ($Credential) {
+            $params.UserName = $Credential.UserName
+            # Password-based SSH isn’t ideal; prefer key-based. If needed, you can set up ssh-agent.
+        }
+        $s = New-PSSession @params -Port $Port
+        $ver = Invoke-Command -Session $s -ScriptBlock { $PSVersionTable.PSVersion.Major }
+        if ($ver -lt 7) { Remove-PSSession $s; throw "Remote PS is <$ver>; need 7+ for your tooling." }
+        return $s
     }
     else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
+        # WSMan: try PS7 endpoint, then fall back to WinPS
+        try {
+            $p = @{
+                ComputerName      = $ComputerName
+                ConfigurationName = $Ps7ConfigName
+                ErrorAction       = 'Stop'
+            }
+            if ($Credential) { $p.Credential = $Credential }
+            $s = New-PSSession @p
+            $ver = Invoke-Command -Session $s -ScriptBlock { $PSVersionTable.PSVersion.Major }
+            if ($ver -ge 7) { return $s }
+            Remove-PSSession $s -ErrorAction SilentlyContinue
+        }
+        catch {}
+
+        try {
+            $p = @{
+                ComputerName      = $ComputerName
+                ConfigurationName = $WinPsConfigName
+                ErrorAction       = 'Stop'
+            }
+            if ($Credential) { $p.Credential = $Credential }
+            $s = New-PSSession @p
+            return $s
+        }
+        catch {
+            throw "Failed to open session to ${ComputerName}: $($_.Exception.Message)"
+        }
     }
 }
-
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
-}
-
-# Only export the helper when explicitly requested
-if ($env:TT_ExportLocalHelper -eq '1') {
-    Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
-}
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNu9zytqtPE1TZ
-# Pk6IcXklKXg6DxWm3+FjkyoV+iHuz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAUQBVe+JKb/BAu
+# w+1llhnXLGyr4B4vfG1bRpWIVYCVI6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -212,34 +210,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAukvd9tzfR
-# r8EtiQHsmNV1+ElSIN8M8hB2mFKtk2unKjANBgkqhkiG9w0BAQEFAASCAgCmTzUV
-# +morIghJN/ogu0IQoSxYwaOsMAzEUXK85xKhfd558HiIEWNBPigGCny+Z6P9xZfu
-# mMw/iz1AHiM5LYYLDODv0r/De22mJBgJfHVSqC6e2CWOVdNUikeppGvQq0Q4jOVw
-# oCDDoXadMNsetbLVYEInenyHc/2/Ymox67LQYDFfNSw8CUDl8T+dd615LvC/J/IP
-# JS/lxCQ4b6lzkPj5x/2LzqG1jzeASh6eXcbwavs4GBxgrLDOuTMneXeHJKF6e76B
-# WiEbHQbQqdR1otClqUKQQs5B4W8quIFpu97UILS+P6+HFyrOmbC+IJbd3Rlej+OL
-# P5uxMRnf1lSWxtIO91oqNPKmxVE1LKCGpaQSkTvqjr3PQfYszlN7cxWqnkxS0FyN
-# R0RICsx7uoPO86iHSpJ9YNRcVN7MqxJkdgaW7gVR6J08VYYenDBOpc2NxE93Ks3N
-# fsxM3wbPKjR+sH2rhlhxKJGIAqcKr8UDrgigY/7hRoPt8zYEA7hccE3RKju5eFPz
-# aFrKmfeaKfboPU8/quNPh7Xt4clr16p/Qn2VwcFobdZFixhRRFc2n1S6QKwzCsOQ
-# e+6cg/CexDsJWdnoTU+8LoGtbIrs8HMlaK1mjyXlmDSdin/3JWmJu29FYJIt2EbN
-# rSFNdNOnrBCiDjLwGnD05hcC0lMxF6+qJnubE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDaUvzGD4Dj
+# sEGNyC59QJ8CEHWlw82cLLKcWyIfplF5MTANBgkqhkiG9w0BAQEFAASCAgBSQqkb
+# 3NGybF81/CRIC2a0hVCyqqRowvEeJ3TjP0l7322J3sm94E7yt2T8PIY6xc7wsRa4
+# XfwbpWyap35v/Mc7GGi0U7AHeNdh8zXpzt04llWwoy+6ZIenoW95ko07JnZtWNxh
+# 0aQFgumZF4DLO9Szq+rmWIEyt/nyjBmj6wOjp3RE3zH52FJNxhdgvW7M6qjaOaN2
+# BdtY5WWnGAKmqYr8QbRJk2SDp5SFuBGwu7GFg8u09bwDNETTUOYtHXiRnnhdm0ef
+# Qbf/pDjCoymwUQBAiMbKWp+VfljPVKXHJuc6t26wjYj3I1Gj9XxKkxCEH5Qi/N9l
+# QYDH4jzI9NYQVV604kDryevqT+xNvPJYlJflTzVtPziwECUcawsNTVrzemY0uBZe
+# CDMynWMdIRYrG68z7tXT2e9QDY2EYcXYOgFBmoF04uWdpAfGw62vP0qRdqrJkSz5
+# POETUUqzSfL6dA4HJw3IpD2rieiqj/I07Zt3Si/grdqtZER8ECDiXC1pWpIMxDhB
+# 8FicwfxmoLf4mm5tsHJ5+xLYSf8e31nAj7baGziGZwrT6sOSTOrZ46ZxmDq9EhVZ
+# wopiQPiHPRDXmK3c+tVEt97tIiO13tsvQbKiXNP5RlvtrU3lKUwNLgA4dDXX8H0a
+# VSbr4QsB1QIrzBydAZdRbJGEO/ONYTFdtSz0aqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDYyMDE5MjFaMC8GCSqGSIb3DQEJBDEiBCBzj2TmOOefNP+mGX9v
-# E6QmVcvrLBk3FZtzjlMdisSN8jANBgkqhkiG9w0BAQEFAASCAgClAMTjJ1L/R8iw
-# 63/0hrpbE3xpKvkj7XPeeFyMKYp66w2yLk/OlUucjSqFJ1eT02xspD4eTwcwhMu0
-# bS0FlhtTBntIn9OZRExZCGs/3CWRS3k2ZFDQXcOvcj4ORVhqPiZXNVT6XIO2IZSC
-# +dy2QcsG0x3HnKX430qmIN2/1yXeNW2lnVNTpZkwZccB6sClt9yu4WRmNTlgv0dQ
-# LLpsDBWohSaMpn4GYKRyCvahnQ3C9zCBonUX3sxEwJ80QaHnJQhk0PKwRZ4boJwR
-# PXaY9swh2AGrkCsy1dApTMDD67BlDWSV5TywEgYOXiWoLsAy3OReSkTtE2dRxEJP
-# 7riQoPc/puXzNcOgAatLyjbXa1USlk+TrEhjbQFG5mkWmqdHFcED4/lNZYsMdKS+
-# 5BHC/BTtfaWCqpeZu9zQESrrdzZC23yPWOv97mH4pvq+43VkK/RdqYk0nLLpscBv
-# to9QKbFfFxvOexSHNjdttWOsEVlQMJdYpaxOiqPrfm9qRuqUc9zDFGuD4VmNflAh
-# uGi38V1uJLT0yp4Y+MguYiEybbEIYyjd4nyTWPPhxAecYC1XOmL+mNgpHchJopT6
-# Wl3BrF30wFopoZ7hrmuvZYD42LHInClFdy5BGLbt+dZU+/rCsab05DuhEHo7j7lm
-# znXOHWntiE0209a/N3CyWOGkE+RiMQ==
+# BTEPFw0yNjAyMDYxODM2NThaMC8GCSqGSIb3DQEJBDEiBCBkZZYxZY11CgAq+aBu
+# kjs0FjDsfIXBMd6d5xK7JfgSzzANBgkqhkiG9w0BAQEFAASCAgC+xZmK3Gm5oRf5
+# vTp94aeKzo7WOFcMjIns60DcQJ+lgLS/f5skzgC897ncKJn+/qhDVzPzNCbrmT0v
+# UHj9HusdgeSky5ACz/U4XDu4hm71glbJRoy/x1Q5xaQQnu4eXYZA/KAxm4mnb0sS
+# H4mZTQxfYTi/C1M5QEjJhf6iK0myp+QNg9Lj4GTM5/ZkRwmj7mqQv54Rrt1CKaRN
+# hBtTby8hF2YXHO9Z5t/E3diNUP+KsURYPsHkkOwFVBOa66mjPqPBps99qrsJaCtY
+# 1wLNViFVeEdT11gpECOCRyVadoCGPHkwyG80yLkvHfwmNEy8qz6ac970Q0e4Dolh
+# MlPYbAttVpUiwCdY3DOtAun6YfJzR+Udj2oegHOFQHk3MjVYFXjXHc6TGxh3B1Z5
+# i0VR7SN61MM42iDB5X6Hc3Yacp6t/GcbJu6KyBo+NGibmTa5wmzRRnJouIiJhPW7
+# u8q6OR2HRnNXF8g5lUuJF0srzyZzxVYI1YJxN2faib5vKjxJjuDEUQJYc4EWBgly
+# zVoOi+CTtcoNFkQVF/v5DFsk8Jny3Mp8hsVGISAwd4IkJMaXOR4dIycx2/JIzBRN
+# NIiPBNes8g99Fu/sxHSfJnZqRklZ0kDQJG0Uasc4ruDJ92RG29vps1LlrHao/iqN
+# XvUSs+xl6oDQePlZfAjAgOg+WpaLcQ==
 # SIG # End signature block

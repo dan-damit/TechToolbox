@@ -1,85 +1,148 @@
+function Invoke-RemoteSystemCollection {
+    <#
+    .SYNOPSIS
+      Run the PDQ diagnostics on a remote host under SYSTEM via a one-shot Scheduled
+      Task.
+    
+    .DESCRIPTION
+      - Sends a small JSON args file and the SYSTEM worker script to the remote host
+        (in C:\Windows\Temp).
+      - Registers a one-time scheduled task to run the worker as SYSTEM.
+      - Waits (up to 180s) for a done flag, then returns the remote staging and zip
+        paths.
+      - Leaves the ZIP in C:\Windows\Temp on the remote for the caller to retrieve.
+      - Cleans up the scheduled task registration and temp files best-effort.
+    
+    .PARAMETER Session
+      A live PSSession to the remote computer.
+    
+    .PARAMETER Timestamp
+      Timestamp string (yyyyMMdd-HHmmss) used in names. Typically generated once by
+      the caller and passed in.
+    
+    .PARAMETER ExtraPaths
+      Additional file/folder paths on the remote target to include in the
+      collection.
+    
+    .PARAMETER ConnectDataPath
+      PDQ Connect agent data root on the remote target. Default (if not provided
+      remotely) is $env:ProgramData\PDQ\PDQConnectAgent Note: Value is passed to the
+      worker; if $null or empty, worker uses its own default.
+    
+    .OUTPUTS
+      PSCustomObject with:
+        - Staging : remote staging folder
+          (C:\Windows\Temp\PDQDiag_<Computer>_<Timestamp>)
+        - ZipPath : remote zip path
+          (C:\Windows\Temp\PDQDiag_<Computer>_<Timestamp>.zip)
+        - Script  : remote worker script path
+        - Args    : remote args JSON path
+    
+    .NOTES
+      Requires Private:Get-SystemWorkerScriptContent to be available in the local
+      module so we can pass its content to the remote.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Management.Automation.Runspaces.PSSession]$Session,
 
-Set-StrictMode -Version Latest
-$InformationPreference = 'Continue'
+        [Parameter(Mandatory)]
+        [string]$Timestamp,
 
-# Show logo
-Write-Host @"
- _____         _       _____           _ _
-|_   _|__  ___| |__   |_   _|__   ___ | | |__   _____  __
-  | |/ _ \/ __| '_ \    | |/ _ \ / _ \| | '_ \ / _ \ \/ /
-  | |  __/ (__| | | |   | | (_) | (_) | | |_) | (_) >  <
-  |_|\___|\___|_| |_|   |_|\___/ \___/|_|_.__/ \___/_/\_\
+        [string[]]$ExtraPaths,
 
-                 Technician-Grade Toolkit
-"@ -ForegroundColor Magenta
-Write-Host ""
+        [string]$ConnectDataPath
+    )
 
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
-
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
-$initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
-
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
-try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
-}
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
-}
-
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+    if (-not (Get-Command -Name Get-SystemWorkerScriptContent -ErrorAction SilentlyContinue)) {
+        throw "Get-SystemWorkerScriptContent is not available. Ensure the private function is loaded in the module."
     }
-    else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
-    }
-}
 
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
-}
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
-}
+    # Pull the worker content locally (here-string) and send it over in one go
+    $workerContent = Get-SystemWorkerScriptContent
 
-# Only export the helper when explicitly requested
-if ($env:TT_ExportLocalHelper -eq '1') {
-    Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
+    # Execute the SYSTEM workflow remotely
+    $res = Invoke-Command -Session $Session -ScriptBlock {
+        param(
+            [string]$ts,
+            [string[]]$extras,
+            [string]$connectPath,
+            [string]$workerText
+        )
+
+        $ErrorActionPreference = 'Stop'
+
+        # Always use C:\Windows\Temp so SYSTEM can read/write
+        $tempRoot = Join-Path $env:windir 'Temp'
+        $argsPath = Join-Path $tempRoot ("PDQDiag_args_{0}.json" -f $ts)
+        $scrPath = Join-Path $tempRoot ("PDQDiag_worker_{0}.ps1" -f $ts)
+        $stagPath = Join-Path $tempRoot ("PDQDiag_{0}_{1}" -f $env:COMPUTERNAME, $ts)
+        $doneFlag = Join-Path $stagPath 'system_done.flag'
+        $zipPath = Join-Path $tempRoot ("PDQDiag_{0}_{1}.zip" -f $env:COMPUTERNAME, $ts)
+
+        # Prepare arguments payload for the worker
+        $payload = [pscustomobject]@{
+            Timestamp       = $ts
+            ConnectDataPath = $connectPath
+            ExtraPaths      = @($extras)
+        } | ConvertTo-Json -Depth 5
+
+        # Write worker + args to remote temp
+        $payload     | Set-Content -Path $argsPath -Encoding UTF8
+        $workerText  | Set-Content -Path $scrPath  -Encoding UTF8
+
+        # Create and start SYSTEM scheduled task
+        $taskName = "PDQDiag-Collect-$ts"
+        $actionArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$scrPath`" -ArgsPath `"$argsPath`""
+        $usedSchtasks = $false
+
+        try {
+            $act = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $actionArgs
+            $task = Register-ScheduledTask -TaskName $taskName -Action $act -RunLevel Highest -User 'SYSTEM' -Force
+            Start-ScheduledTask -TaskName $taskName
+        }
+        catch {
+            # Fallback to schtasks in case scheduled tasks cmdlets are restricted
+            $usedSchtasks = $true
+            & schtasks.exe /Create /TN $taskName /SC ONCE /ST 00:00 /RL HIGHEST /RU SYSTEM /TR ("powershell.exe {0}" -f $actionArgs) /F | Out-Null
+            & schtasks.exe /Run /TN $taskName | Out-Null
+        }
+
+        # Wait up to 180 seconds for the worker to finish
+        $deadline = (Get-Date).AddSeconds(180)
+        while ((Get-Date) -lt $deadline -and -not (Test-Path -LiteralPath $doneFlag -ErrorAction SilentlyContinue)) {
+            Start-Sleep -Seconds 2
+        }
+
+        # Cleanup registration (leave the zip + staging for caller to retrieve/verify)
+        try {
+            if ($usedSchtasks) {
+                & schtasks.exe /Delete /TN $taskName /F | Out-Null
+            }
+            else {
+                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+        catch {}
+
+        # Return the paths for the caller to retrieve/clean
+        [pscustomobject]@{
+            Staging = $stagPath
+            ZipPath = $zipPath
+            Script  = $scrPath
+            Args    = $argsPath
+        }
+    } -ArgumentList $Timestamp, $ExtraPaths, $ConnectDataPath, $workerContent
+
+    return $res
 }
-# --- Export public functions + aliases ---
-Export-ModuleMember -Function $publicFunctionNames
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNu9zytqtPE1TZ
-# Pk6IcXklKXg6DxWm3+FjkyoV+iHuz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCBee7UxgTUytdz
+# DGeU3GsyA17rumvVelwdxsTf/6rMXKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -212,34 +275,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAukvd9tzfR
-# r8EtiQHsmNV1+ElSIN8M8hB2mFKtk2unKjANBgkqhkiG9w0BAQEFAASCAgCmTzUV
-# +morIghJN/ogu0IQoSxYwaOsMAzEUXK85xKhfd558HiIEWNBPigGCny+Z6P9xZfu
-# mMw/iz1AHiM5LYYLDODv0r/De22mJBgJfHVSqC6e2CWOVdNUikeppGvQq0Q4jOVw
-# oCDDoXadMNsetbLVYEInenyHc/2/Ymox67LQYDFfNSw8CUDl8T+dd615LvC/J/IP
-# JS/lxCQ4b6lzkPj5x/2LzqG1jzeASh6eXcbwavs4GBxgrLDOuTMneXeHJKF6e76B
-# WiEbHQbQqdR1otClqUKQQs5B4W8quIFpu97UILS+P6+HFyrOmbC+IJbd3Rlej+OL
-# P5uxMRnf1lSWxtIO91oqNPKmxVE1LKCGpaQSkTvqjr3PQfYszlN7cxWqnkxS0FyN
-# R0RICsx7uoPO86iHSpJ9YNRcVN7MqxJkdgaW7gVR6J08VYYenDBOpc2NxE93Ks3N
-# fsxM3wbPKjR+sH2rhlhxKJGIAqcKr8UDrgigY/7hRoPt8zYEA7hccE3RKju5eFPz
-# aFrKmfeaKfboPU8/quNPh7Xt4clr16p/Qn2VwcFobdZFixhRRFc2n1S6QKwzCsOQ
-# e+6cg/CexDsJWdnoTU+8LoGtbIrs8HMlaK1mjyXlmDSdin/3JWmJu29FYJIt2EbN
-# rSFNdNOnrBCiDjLwGnD05hcC0lMxF6+qJnubE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCChHAoXCtoP
+# O/V4akczcnsJHRw102X2duFkIQmFy1X6ZjANBgkqhkiG9w0BAQEFAASCAgCSVK02
+# RQYJ7d7gtjixIpJd2aEGNSypBbtGV22+QvvRosdkfL+sKeVz1gwy+Nh5pfzJPJ5h
+# pACRxuJDCPW9I34pzS9QlW2TvLmh7QMUKKeXZLw7akGgeWJskQPzg1j6JAuCLNFa
+# dwngNVfwC/ITE5d+xaWLZVvbHGOmLMSa1hc+4XU0yUAZivs+Muj2zzvZB5lC9/ek
+# BL/JpsE3SprPmOHAmRyHM0SBbufEFqslKlQsbfVzCUv6ia8mw2Fe3KH6V8i5uJVc
+# gaFfEBSaJ+ou/0y5Jcnp58UoENaLNwWkdAY1YjrTDLCoss+FhdD/IKUh3d1Ybc6+
+# ePcleT1n7vuBP4OB7zErk7vDypDEIbCzpPVLjCr1NjTSUt3G9AI81BYQihS18g+5
+# ubu/iIHLhchqQkdtrZSKkjkBEd9v97zM1npQAfi3109spQlXhu3k91u50wT38coI
+# 5uzVCWblcLsowO9rhRZli9auvmU5MqgMdQzddZxkK/U1EiYxLhxTaRw7zcec1APr
+# dHGtWu0e2IWBjnE3I4t9QUFAhs6EVz895qGmlZFBxoXI57KamY9ny981nKLZvQ0N
+# UVo6mI3lKTRAXqTWyF0KvFGLbnQGgLs5czS8wLty/oTaN2eu1aiEv3fsztkX/Uc4
+# SAdo0EKTkdxMf+wclnt3vD4NPTuqiasibzKgGaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDYyMDE5MjFaMC8GCSqGSIb3DQEJBDEiBCBzj2TmOOefNP+mGX9v
-# E6QmVcvrLBk3FZtzjlMdisSN8jANBgkqhkiG9w0BAQEFAASCAgClAMTjJ1L/R8iw
-# 63/0hrpbE3xpKvkj7XPeeFyMKYp66w2yLk/OlUucjSqFJ1eT02xspD4eTwcwhMu0
-# bS0FlhtTBntIn9OZRExZCGs/3CWRS3k2ZFDQXcOvcj4ORVhqPiZXNVT6XIO2IZSC
-# +dy2QcsG0x3HnKX430qmIN2/1yXeNW2lnVNTpZkwZccB6sClt9yu4WRmNTlgv0dQ
-# LLpsDBWohSaMpn4GYKRyCvahnQ3C9zCBonUX3sxEwJ80QaHnJQhk0PKwRZ4boJwR
-# PXaY9swh2AGrkCsy1dApTMDD67BlDWSV5TywEgYOXiWoLsAy3OReSkTtE2dRxEJP
-# 7riQoPc/puXzNcOgAatLyjbXa1USlk+TrEhjbQFG5mkWmqdHFcED4/lNZYsMdKS+
-# 5BHC/BTtfaWCqpeZu9zQESrrdzZC23yPWOv97mH4pvq+43VkK/RdqYk0nLLpscBv
-# to9QKbFfFxvOexSHNjdttWOsEVlQMJdYpaxOiqPrfm9qRuqUc9zDFGuD4VmNflAh
-# uGi38V1uJLT0yp4Y+MguYiEybbEIYyjd4nyTWPPhxAecYC1XOmL+mNgpHchJopT6
-# Wl3BrF30wFopoZ7hrmuvZYD42LHInClFdy5BGLbt+dZU+/rCsab05DuhEHo7j7lm
-# znXOHWntiE0209a/N3CyWOGkE+RiMQ==
+# BTEPFw0yNjAyMDYyMDI5MTdaMC8GCSqGSIb3DQEJBDEiBCAch97cIQuwi9+kmW36
+# 0L79oOkrsHAXNBn5ZAKBnBrfzTANBgkqhkiG9w0BAQEFAASCAgA83lLa/flH1CeO
+# BZb2QJpuvt09WA47anGnOwuwW78OOlkWf9Eq6ZGxK0ivjY/q/uK9lLWiRA8moGZV
+# xuXiPH+ZF5Kjoe2miWErdI1xPIEapQ0r5t0SqAdZ68DZ+c7DfUUIidBWuPZTm/sA
+# 2AuUQta2PZpz62YbQY4G1X04nROPBW9+wIgSObl+zopU5+eT4RuMktNIKSC9yfgx
+# C7FDPy9j0bhvgBJn/zGv5nAqgkOHnHowUzsOr65ZKVjpAEyYLeXYsq6HqOhyQrVU
+# zPbZVsuw495zLloSTKEcEVVYP2NLl+7fm8S3Go7QfgDGo+8WX8m1w4yOLd0Gf0L8
+# qavjdqm7k2b253VG5L1T9SzCOmT2ck9YGQBosEC5Am4V+2IKbiGxS8ND4A6L66AX
+# /ekm/4n6DLkXWu8EoIjGp0+i62VcBk/twD7I5x50UfucKHfzc3fza39DOZPcApPu
+# mEx6pmwxXGFjhOZb8ATUFZ51H+zM8KNbjPI+LEhpw+EJf2GP4NKBUPVDoPYOgcen
+# I2ZWk0+dk1qL833DdMWE0OzRCb0Wbv0UIbAgrAGwvyBAxm+pg+H1R0CKhnnJCyXr
+# aWe0XziVtN8HRZp1kddEQlKJw/MoFVoWahlex3csqVQZqOunmECbJ1TVNzFEBmy4
+# G48tWuvID/Ua93yzhEt8JpnH4vs7ZQ==
 # SIG # End signature block
