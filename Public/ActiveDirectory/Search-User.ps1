@@ -49,9 +49,6 @@ function Search-User {
         [Parameter(Mandatory)]
         [string]$Identity,
 
-        [switch]$IncludeEXO,
-        [switch]$IncludeTeams,
-
         [string]$Server,
         [string]$SearchBase,
         [ValidateSet('Base', 'OneLevel', 'Subtree')]
@@ -75,7 +72,6 @@ function Search-User {
         $cfg = Get-TechToolboxConfig
         $adCfg = $cfg.settings.ad
         $searchCfg = $cfg.settings.userSearch
-        $exonline = $cfg.settings.exchangeOnline
 
         if (-not $adCfg) { throw "Config missing settings.ad node." }
         if (-not $searchCfg) { Write-Log -Level Warn -Message "Config missing settings.userSearch node (using defaults)." }
@@ -93,41 +89,20 @@ function Search-User {
 
         # --- Resolve helper availability ---
         $hasAD = !!(Get-Module ActiveDirectory -ListAvailable -ErrorAction SilentlyContinue)
-        $hasEXOWrap = !!(Get-Command Connect-ExchangeOnlineIfNeeded -ErrorAction SilentlyContinue)
-        $hasTeamsWrap = !!(Get-Command Connect-MicrosoftTeamsIfNeeded -ErrorAction SilentlyContinue)
-
         if (-not $hasAD) { throw "ActiveDirectory module not found. Install RSAT or run on a domain-joined admin workstation." }
-        Import-Module ActiveDirectory -ErrorAction Stop | Out-Null
 
-        # --- Optional: connect to EXO/Teams if requested and available ---
-        $exo = $null
-        $teams = $null
-
-        if ($IncludeEXO) {
-            if ($hasEXOWrap) {
-                if (Get-Command Import-ExchangeOnlineModule -ErrorAction SilentlyContinue) {
-                    Import-ExchangeOnlineModule -ErrorAction SilentlyContinue
-                }
-                Connect-ExchangeOnlineIfNeeded -ShowProgress:$true
-                Write-Log -Level Info -Message "Connected to Exchange Online."
-            }
-            else {
-                Write-Log -Level Debug -Message "Exchange Online wrapper not found; skipping EXO connection."
-            }
+        # Import AD but suppress provider’s warning about default drive init
+        $prevWarn = $WarningPreference
+        try {
+            $WarningPreference = 'SilentlyContinue'
+            Import-Module ActiveDirectory -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
+        }
+        finally {
+            $WarningPreference = $prevWarn
         }
 
-        if ($IncludeTeams) {
-            if ($hasTeamsWrap) {
-                Connect-MicrosoftTeamsIfNeeded
-                Write-Log -Level Info -Message "Connected to Microsoft Teams."
-            }
-            else {
-                Write-Log -Level Debug -Message "Teams wrapper not found; skipping Teams connection."
-            }
-        }
-
-        Write-Log -Level Info -Message ("Searching for user '{0}' in AD{1}{2}..." -f `
-                $Identity, ($IncludeEXO ? '/EXO' : ''), ($IncludeTeams ? '/Teams' : ''))
+        # Optional: ensure the AD: drive isn’t lingering (prevents later re-init noise)
+        Remove-PSDrive -Name AD -ErrorAction SilentlyContinue
 
         # --- Helpers ---
         function Escape-LdapFilterValue {
@@ -141,9 +116,10 @@ function Search-User {
 
         # AD property set needed by Format-UserRecord
         $props = @(
-            'displayName', 'userPrincipalName', 'samAccountName', 'mail', 'mailNickname',
+            'displayName', 'userPrincipalName', 'samAccountName', 'mail',
             'proxyAddresses', 'enabled', 'whenCreated', 'lastLogonTimestamp',
-            'department', 'title', 'manager', 'memberOf', 'distinguishedName', 'objectGuid'
+            'department', 'title', 'manager', 'memberOf', 'distinguishedName', 
+            'objectGuid', 'msDS-UserPasswordExpiryTimeComputed'
         )
 
         $common = @{
@@ -206,16 +182,6 @@ function Search-User {
             throw "Multiple AD users matched '$Identity' (e.g., $names). Use -AllowMultiple to return all."
         }
 
-        # --- Optional: EXO & Teams (if wrappers exist and were requested) ---
-        $exo = $null
-        if ($IncludeEXO -and (Get-Command Get-ExchangeUser -ErrorAction SilentlyContinue)) {
-            try { $exo = Get-ExchangeUser -Identity $Identity } catch { Write-Log -Level Warn -Message ("[Search-User][EXO] {0}" -f $_.Exception.Message) }
-        }
-        $teams = $null
-        if ($IncludeTeams -and (Get-Command Get-TeamsUser -ErrorAction SilentlyContinue)) {
-            try { $teams = Get-TeamsUser -Identity $Identity } catch { Write-Log -Level Warn -Message ("[Search-User][Teams] {0}" -f $_.Exception.Message) }
-        }
-
         # --- Normalize via Format-UserRecord ---
         if (-not (Get-Command Format-UserRecord -ErrorAction SilentlyContinue)) {
             throw "Format-UserRecord not found. Ensure it is dot-sourced from Private and available."
@@ -246,7 +212,6 @@ function Search-User {
         throw
     }
     finally {
-        [void](Invoke-DisconnectExchangeOnline -ExchangeOnline $exonline)
         $ErrorActionPreference = $oldEAP
     }
 }
@@ -254,8 +219,8 @@ function Search-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDd4hfGQYpOnSla
-# iklMq2n3nT0j4pgvavko7Z5rQcf2+qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBVGoiWZjGqwHS8
+# tUq1mp0K64k2e+G2enpUmWAhjGYwXaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -388,34 +353,34 @@ function Search-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDmS12wZdu2
-# a5Nrx4a59ouFIqWvM/u6FDPQsjS5TClLATANBgkqhkiG9w0BAQEFAASCAgA6jvGr
-# jl+5fAByVwIl9mYYs+YAQ8ITcV2TGM4eNvdXk9LlU3OtIJK1pmd15DFDHDwYWs6j
-# Be8uq7Zn0zB6dBU8rWPSAZ+SZledKtx3VCsSGzO5jGGfj5FFYdUlN8wYlpc8NZ6M
-# tzyNNrT53rtpQByI6KilH000jQ+IPX+d2Bn0E+pxS4f1d9l4nzMjzkaN+rB0mrXq
-# aRbq5+ZdvfVA/JYaG4u905XRVuyKYneohoMUUsrduHCa7ST9cj6kMC2uRQbF8IO+
-# qkj6jjh26EZ/kBtzwaKci3CuKZQWp6r9LaOpgnldr93avqlfpx8cgAQM696IQW7k
-# pYcYlHaQil/EvOLI203xZ5rmAqnfbL/U1FeDgFbMw9oyhwBaVhg/Ya7UDL6klVtn
-# hnHfVskpHbZuXkHPAAaBWu24xsgX2tol+iV+68LF9OQyFFCCiBEjP5P50io0YFs3
-# FSBvcy7rDrYk4dRm5FxC/uNn37bHlzheQ7rhO3G9mTS26FdCoi5US3pvdhmqq4Zy
-# hLl08ow5RXnNQ0me1KxOIovTq9cMk4UzsuoyumvJZ2eq7mJv8IakvmVQsoKxfbAD
-# D8yULlnjVxHmN7PVEZMPnFQVX90aMYpoVpQSukcgySg+k6Ilsj6BNVaFw/5F1Zze
-# gRBFJ+oeZ6TI5LYhJhLCs0n2PS/xjrXbIvi9x6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAT/mqa4sei
+# u0eVf0Lgd5BbzaEi8MjS8CT1TW1YkV0M4TANBgkqhkiG9w0BAQEFAASCAgDdBX3K
+# An4EGpOorlQG4tbpjr+pmUEqPrwpk/ML2muTCA/pevO1L0dVXWVdUrmG39sRCl3w
+# r2Lpeom56ejfeVrkhVhJTozGnqQRi4alN5KYaKCJNRFOK+SNK0DPxcUR2ryFvCSA
+# bInzXfWm1XZ7y2Jrpp3LB6SRZGiArGZ9Uwd6vEIkgeixQ2zVhVZjtybqNKv7NQkU
+# Wxir+mgmARv8iovmxZodqLxI+XA3+Gk1J3N3DtLJve7R1i+uGrrj5JV0lQP10ZI/
+# gTk7iyQWhfjbkXDkIPHmxyjfMNHtwg4PLDaUjPw/6Ft+vTuR5Jw1tLMw/uFc/+rx
+# wjoUXxA0PudbRTQe8fborxh66JFxh7nK9aJ6e0f8i9GVNfN/uhdRbTreFKNM/tp2
+# 3OR7BUFpckawvFqs4ouTDSUv+UUCgEW13FIwatl61bvNyGOw9pVbaOmpbUYDMpgA
+# fWA0kTjK0aCVl6m829zWA72LodsZHFDwDztvArpRV3vrDoDuMY/4Z2WCqpr7n2Pv
+# ga3ECxAQ14ZzL1Bxe3TJlWkbOE68uiq+hcw6kHhRcKQQcT+EEfuQEHjmKah/BjuG
+# gih4Gufe7L18qx6kGRxnmdkH4DZrm6YbdL9Mr7kJUYW3TtKJ+3NeL9H8jhQCvBFI
+# MpZQqwkeeYZZBUoXVQe01ukASveD75KhkkCUH6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDQyMjM5MzFaMC8GCSqGSIb3DQEJBDEiBCAv6BoKS6r4/5TNmOQr
-# jHdmddZZqdjHS70ZGNQ1mJmtczANBgkqhkiG9w0BAQEFAASCAgCiIHRwF8H5mSYZ
-# 7WmMH04f1lE+GjF3WwAVr+lWNRbjH/fMKgMBbPkkhdmq3HHvSw+KkEVuOzAFjse+
-# ivdoUBHPD/itg8+urDlsHX6OwHMp3TguJSjJJaOyurvumO1miudQl5biwNWh7cJy
-# 3HZKZl9xBxuNaUYAtZpUj2VaXOEToig3mQIzafXaczfkvMsedyR9dVPzIVyW+A17
-# uuI4wAKiEijJ8Ub9M0Wue5kzV6FivdrEq7xenmo7V2ZQGnLl2Ps/7qelQWDYW+e6
-# SAJDmpHLfMI18QrelMKPlgyYBa3J8uNUehxyWQGtgDQ3p4SIG4kX+KdZbu7to643
-# Yr/eWBsl8LAmO6m4a5DvGyEtCGqPxUj66tM8k9dqZINC8P1glyLzwGRdxGV4uDbf
-# +T4MQW59NGzlh71fpvAa7c/hc19mJisC/J9bWeb/fHYvfqrx2+UEnACxWK6nFU6M
-# TeDfyfK+2rCHrjenkG8wyAEAcrapZY1rukbWjbdGeLrZ8vv9NHlCdRraKqIBTwMW
-# EVF6HsCv4Kys7O6JmwUFRUFHaUbunSOyTym3PUae96Bj6LdgUCAVpnjiXXpVbZpD
-# m+75SUS787tx9P2G2Vie5CXPcouEASzwXbLO69uTuQp+JbvpWyUr5Sp4u66l6a/9
-# 3Xfv7B6bzc213VSdGeC1ViDfxVB8ag==
+# BTEPFw0yNjAyMDYyMTMxNTdaMC8GCSqGSIb3DQEJBDEiBCAmDyRDl3q7KFa/PsDE
+# dNBGuPmSELrIUY7oq5vj4XetdTANBgkqhkiG9w0BAQEFAASCAgAv78eQoHq+NX9r
+# /KFvQm3tPfukMBEx3nwlgYKf8SydMe4lYHdS35lSHR34mfdlZlh7jhFne91V+Xj6
+# jrGiHRZiEk87T1qPNJ5YmyHS6kGQU19OvbuBUdvw2evQ/JFDGdqoGGZJZ7AZqgua
+# DbvjY1dq2WzTvn+kLEQ9MLL+Yn4sEyPO7e47ckD8rpzA7Vo3c2ypC1Cq+vZ3TiBD
+# EtpI6lqzvphE23WSgF3Nkmdh7eLnx4+wfEcUPc1cDOIyeElBN2MQ2RtwRZNWnqRG
+# K+hflxn/VoI2VdCKA+8j28QuqBpJX27iXV7WqfaNijHMg9j8YFa6Eqiq+TSn+ajx
+# cWfNoAKWjwPwDd9A1KQAAqvUvz/cflGcSVS9YNzzQPO7vx6ntZRcXf689em/BL9I
+# LtWEAqIjMEJ0z/93TirdAhLimFAaQZPJJRZCwl6rZLnNGqwh6wHtQ9xx2XiZLT4D
+# nD7j+UmOd1kkDaq/RDgfzcrh05Y4npC+aUbSRNxluiLQDZcNiHNdQQ2D8yYAeXlL
+# /kNnqM+Hlg5W1k2YO07iJ/rJCAgfYBr2+ccPnWnxbLHVqAJrP6AwZYmuB7BXX0X1
+# xned+Sf3uDCCxzDuGIi2vfba21N99Q4tldC/gwXns4mEjS2ubFw8VtozEi45+sHh
+# fqfNztJNwayk0HI2BidRmF/VMRvHww==
 # SIG # End signature block
