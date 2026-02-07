@@ -1,0 +1,16 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Explain Code with Local LLM",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "$sel = Get-Clipboard; Import-Module C:/TechToolbox/TechToolbox.psd1; Invoke-CodeExplain -Code $sel | Out-Host"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}

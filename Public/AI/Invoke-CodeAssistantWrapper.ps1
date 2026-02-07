@@ -1,41 +1,25 @@
-function Invoke-LocalLLM {
-    <#
-    .SYNOPSIS
-    Invokes a local LLM to generate a response based on the provided prompt.
-    .PARAMETER Prompt
-    The prompt to send to the local LLM.
-    .PARAMETER Model
-    The model to use for generation (default: "mistral").
-    .EXAMPLE
-    $prompt = "What is the capital of France?"
-    $response = Invoke-LocalLLM -Prompt $prompt
-    #>
+function Invoke-CodeAssistantWrapper {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Prompt,
-
-        [string]$Model = "mistral"
+        [string]$Path
     )
 
-    $body = @{
-        model  = $Model
-        prompt = $Prompt
-    } | ConvertTo-Json
+    if (-not (Test-Path $Path)) {
+        throw "File not found: $Path"
+    }
 
-    $response = Invoke-RestMethod -Uri "http://localhost:11434/api/generate" `
-        -Method Post `
-        -Body $body `
-        -ContentType "application/json"
+    $code = Get-Content $Path -Raw
+    $fileName = [System.IO.Path]::GetFileName($Path)
 
-    return $response.response
+    Invoke-CodeAssistant -Code $code -FileName $fileName
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA4OfomFVXtou7H
-# VeYmvqj45tPMrcbAcaEl3dc8dkixsaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAyhSr3InWj8GER
+# Qn6/AwW2WjKwybHnoqW32xKKdwKFaaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -168,34 +152,34 @@ function Invoke-LocalLLM {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDaAG+koub/
-# 82O1eg5yvkkf/ChoiRK6rp3L7AkxpZEfJTANBgkqhkiG9w0BAQEFAASCAgCMW1qS
-# TW9GbK6T7YXa5uplc769XW1xfpn2Z6yXnZuSWZVTyVzOFHWckFTQteN495RfzTpR
-# INF4PbO/89ivg46j+NSkV0OcJAF9nyH2sOjE7c+BQ4Sgo9gnMdysXJuNITy/wPqC
-# GlwJ6US33Ccwk56fEJKRcwa9AlspgNVH1B6MUpNijbg3tiLnt4brkz5fcYdbc7IZ
-# 6iyAZ3jDsPrvPBeWHvczcQZFehxcvwzlC9sTB5ccePJ7I1dinl+z/MP6LWwZY2KC
-# b/Jf7ghdU+43gawQ95OaP6+uEVmeLWFyfcLX52Y6X9hD3MDZoY4FVuxsitkL1Xxm
-# MkHwxEeXduNB+4+YVBi2R8PQZBlnidUJ9KHT9Xj6Tq/AXgCgv2oH3ykIUspSpEcO
-# wc7ws9bltB9ST2l8x0wMK9wRWb6RRWxvUGurY+DOWjtDLxUXTKhebcsJhrb6XUCV
-# 3u6ywDUgY0G97VWdKvWDy6lm9cq+AWuOaPMYoUOlsWKo1r66XYDvLwLbEuRbcMwE
-# XEL/9QZ1hTaeddsdtWxhY/wi/+T8uhR/lVgbCA9q2Cs5hF1q63Stj74ILIkxq/cJ
-# tIutyCTdZdwEw1hxW/lB0yu44dj+Fy2L0iIF1zDf2q0i6JWyENkq4yVW6H/6NpS8
-# WebUoq2ZRF8SrsnngMZ08Musfbsqcb4y5uE0iKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCnAsLwKdEZ
+# n90ImAqmMXSqPdcRohci6USHIJJQFI2VBDANBgkqhkiG9w0BAQEFAASCAgArtrcY
+# auC2LSE99EbNSPXhI0Do4CbPR6fDM3gtcCeNWjN2Ak8Y5Hfvo9WAMHmoF+YXFQoh
+# ybycQY8CiuvE8mYtGbj79+8ehKyzwB1Ut+UQeokQ6so87vVtntXfa6GX4WBSm82m
+# Ty4UDe4lDhehXAbWvNsRBghFv+TMlqlTH0ivMW/cfr3rLk2+jJMpGoa5ZbuI+2Tt
+# ox065P4Qh8dAPWdC2BhkLlziDsu71j2m/0o9WlThnpJdZR1eyNE+P/mvA9dtYS9t
+# jBJiZiGWzM02cB7IHcZNqsVZ7XXMzmjVsVue0V5l5pn2OXwihZtR+moGRiMYX3kp
+# DNB3KMb4hZOEsOtX6mD9fzWIB2B4XFvakoOnIpasyVBy5eHoLk3ahG9C7wMo/AG1
+# VWmI2d2whoOb18dsYQvLhxGW9QMS3XkW/RuXbQ/S8Zc27DFco3cWJ+WQ91wZ08lo
+# Fm5HXrTlBY8/3eFyhMshi/QaurtZTnOqf/ugw5QD5xaDH7j6zGYbSZHIJ/zCNSoB
+# MCrMeBGGEybqAGs47gkKEKT99UeCf/afmzSfRCpCJfusc8g1WcHKlciS3a9gvmLf
+# bUpHmlZGcAwmSptSefB8KWTcdpZuAiouZ64mCS0RANRzHlzC39z+t0lZb1CQJry6
+# E7suS4/305d72xNTmFdD/6LkWkuzHxO7x5tUvqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMDMxMDRaMC8GCSqGSIb3DQEJBDEiBCBElLr0Y8ZuehaJHKk1
-# PW3hcdQuF8m2zVbWmyMy5RInozANBgkqhkiG9w0BAQEFAASCAgC8dLKdl4D6D72p
-# ahjJptfGFknO+2soYrI5KRQvnmKcocYUEknnrin1bK7ll49wTWQuuZ0/KjvzC2jS
-# hRpSrwl3941jMF6dj9TFiwum3odtgYYqIl0CaABBFOPkLTMvMh49alvSY+Ny2QBS
-# 1LCskTd6B+UjUahAmNkmABIW0T8OKW3EKW/Seq3duTcwXdIpidG+TGTseVYlX10I
-# DtA6B9pFFhAfU21Ir4u2mFMqUz03p+5w2vETLeiLo1ERvU1e861+LJqnOiSEBtLi
-# K4SIDj0B8B2R6oHMWaHzaRbHkR8nNyZ4aG9YN8TDbkqxPy0u1JOClvaBuHWYSMrh
-# Q6KJ59N0c/A+VpMf4YtzO0TEu0q5AGoYy3dfKAacrSiUFYYcvjaTgQ5LoGI7HGNg
-# 23W+6q5srwJ06Fe+Bjd+/RznCcVsfnuzO+LQQhyCO3c/gH5J1w7pFC40VjQMtM5V
-# P/5fkmUgrkfCPacAlRELbGDTtaXWp6lEkIIeZBz/3hux0GRSQeAVsjEH9GEZvY/0
-# YsikcBNH4jdZW5U3EJFWH2fecnG5ws6Y+KMDZluFbg/EfuuVcItNk8U+3z27RI+V
-# bGvsxv0krZH1SXHrnuGYHD+JiWAr4p8TYCYkw5/0OyW/pYv/ViuqhJDg0kgSTPs3
-# Yv5y5O/RUdDJQCzLAQ54AwN6YngJZg==
+# BTEPFw0yNjAyMDcyMzIzMzdaMC8GCSqGSIb3DQEJBDEiBCCs2XRgjFq9O/secsTP
+# qdBHTsy3dVozSGedV+MG57OIJDANBgkqhkiG9w0BAQEFAASCAgC9ebBWoPdJt5y5
+# Wa0KQpUCouJjoI+G6jPZcj50zLMkr6uX/0TNEmIByyn/iZp+cZPo3lQtA0oeNh7w
+# VP7tbu+4ezI5mY9CH+IWfPGonBlLC/Ci3upuI8DtPCabAwBdDVLGE4LQERkxr5UG
+# 7AaUSoNzCNOINNKkNyMaAnQ+HjJOn39kNyk8Knv6+9ZUmnsqGdovL3o68h5bDNA3
+# SMjeQ9+bxr2rl/fL0fluR0YE6U3DEI5uzvS/slID2sVDoafgdNOKfXDO++Bv6hxv
+# E0IS7Qve2yO0gITssbX8x0GtaFQ8ctjJ7Xpg1xbiTk8jAuEIUCC6aoz03hNPI5uM
+# X6BiHw43y4ZZbMo0lBBeAP5GlwjI4UErwS4nK1b91xiQ5K+da/g6fq6ltnwWHJsu
+# C4nVxtD0YulwS4H1ymqvSCOIPdC/eOxtFODJZsKZVhR5zx8QBzycJeD1v0gY0MJc
+# Hcq0VaPLz6qHA1KJSpiMS4bsnQqH4oYb4N7JWd3TD1GVkj4nmz/Mc0yfMrxvtYFN
+# fwbahRRRpfv14bRu60sufgbrtZ1xOh/KnWYUkdZTLcP0V0QRQBgQ+T6xM2QZwQDH
+# mtxL9XRwrKjLFlLZRWfKXeOSUfO5uzXoIAvjq156PE56H//LBbyB52A+jv2yVFX/
+# 2tE0sHK9P27fXje9m6RkmAShnV3e/Q==
 # SIG # End signature block

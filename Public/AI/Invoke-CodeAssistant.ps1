@@ -1,37 +1,79 @@
 function Invoke-CodeAssistant {
-    <#
-    .SYNOPSIS
-    Analyzes code and provides improvements, fixes, and best practices using a
-    local LLM
-    .PARAMETER Code
-    The code to analyze
-    .EXAMPLE
-    $code = @"
-function Get-Data {
-    Write-Output "Hello, World!"
-}
-"@
-    #>
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Code
+        [string]$Code,
+
+        [Parameter(Mandatory)]
+        [string]$FileName
     )
 
-    $prompt = @"
-You are a code assistant. Analyze the following code and provide improvements, fixes, and best practices.
+    # Remove Authenticode signature blocks
+    $cleanCode = $Code -replace '# SIG # Begin signature block(.|\n)*?# SIG # End signature block', '[SIGNATURE BLOCK REMOVED]'
 
-Code:
-$Code
+    # Remove PEM-style blocks
+    $cleanCode = $cleanCode -replace '-----BEGIN [A-Z0-9 ]+-----(.|\n)*?-----END [A-Z0-9 ]+-----', '[PEM BLOCK REMOVED]'
+
+    $prompt = @"
+You are a PowerShell expert.
+
+# Example signature markers:
+#   SIG-BEGIN
+#   SIG-END
+#   CERT-BEGIN
+#   CERT-END
+
+These are cryptographic signatures and should NOT be explained.
+
+Please ONLY explain what could be done to enhance the code's functionality, readability, or performance.
+Also analyze the syntax and structure of the code, and suggest improvements if necessary.
+
+Here is the code:
+
+<<<CODE>>>
+$cleanCode
+<<<ENDCODE>>>
 "@
 
-    Invoke-LocalLLM -Prompt $prompt
+    # Stream to UI, but also capture the full output
+    $result = Invoke-LocalLLM -Prompt $prompt
+
+    # Prepare output folder
+    $timestamp = (Get-Date).ToString("yyyy-MM-dd_HHmmss")
+    $folder = "C:\TechToolbox\CodeAnalysis"
+
+    if (-not (Test-Path $folder)) {
+        New-Item -ItemType Directory -Path $folder | Out-Null
+    }
+
+    # Use the provided filename (without extension)
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+
+    $path = Join-Path $folder "Analysis-$baseName-$timestamp.md"
+
+    $md = @'
+# Code Analysis Report
+Generated: {0}
+
+## Summary
+{1}
+
+## Source Code
+```powershell
+{2}
+```
+'@ -f (Get-Date), $result, $cleanCode
+
+    $md | Out-File -FilePath $path -Encoding UTF8
+    Write-Log -Level OK -Message "`nSaved analysis to: $path"
+
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD/exfqUOC7AW0p
-# RaxHjX76ZjDMZlWxJsLPkneJJOE/PqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDbyjpmIAJ7PoWh
+# nlwwKU/OYocnYNlcyf9FupftSF//s6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -164,34 +206,34 @@ $Code
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCxaVD2/rtG
-# ufn/Y8lP8DsJ7TNDM2j5rV/I45L5Zzu4fTANBgkqhkiG9w0BAQEFAASCAgDEMdvK
-# ZcnglDQIhH3Ew83b9743vZohCTM+fZMJmt3y9q6wbQS0vMxXc15T+Q2Wj5UPFL+I
-# oJbieXluaL46D0x+K5jr+VCfArxPL/R/qeq76fDTJB5aoDVS7MjhGQvT8l2+3MsY
-# CwNredZKohMaToeijcJUkC+uogGmnlpbsFKopWNCQCopA6AUw1vk55IMl/ffbgXm
-# a/enOn8KhqfhP9K8xYBXjPilY0CY7XRkqbedqu7FkNmt0f/jC+c9RJzQhs+dxDFE
-# et7IWZNMAWdDJyCAcpZSFbjImU8IdNC02IC7I+Xr92sjZ8Uz49geOAVeoc4Wq66m
-# HIYGwZ/MfvVlDWWM0f8vpwLjXg0vzcY90PVDw3J9Ju/XptLTboYvOyZDKun9lITC
-# 9oEHl/AeHDcksnFhoNSDEi5LeIrYbg8BmMHLBadyA3cQk6tOhVoA5XtBK0JUSZD/
-# ErvPfOw+27Bkvke+tMT68DCZQewafgXQiNDRWb+JpIcFGX93vzH3Dxlht4gUMGSK
-# gaFhtgF4VzcIzfvy1abndBRJ8B1GH41PaIoIV9ArYHs6kunZkrL2V0Doz/YdekQ8
-# BUBlUun23P1nArAiFPX1VLGLemMPMbd9RtN82Pp6ZM8EA2XKSgAChiwU+b1OfkLm
-# 68q5EvicLg/hVuqDuGX/aV+ZAmqCedxC8cRBP6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCWrj5rQqjg
+# ba5JDhY4RC/zgRerUxMywrz/4s5uqWSLmzANBgkqhkiG9w0BAQEFAASCAgClhojf
+# Sd1KdDEurBqhrs5JZl/SycYPpnYDRZroG7lfB4OcxLBD8HJrTGoLj4CooqFKp2hI
+# j4P6ccz1VzGQAXtBP1ghgCRQmcW8ojD4/ZDlsbuxubxIKvA2Voi0XpOCDskk3/EC
+# YeKzd8/TigPWds8cg2YZ1xfcgX+MBmF+x57c7+yVeZM+raiFGqlaHdCSY1GFFaIs
+# h2VQ3xtA1UCGrdq0Tj1k9sVN2R1iVdhu6z6f9l+txMfhrM42jyUgvqzqoNV1RcHH
+# kleeQtSlwt9IQUdoXHc3vh/UgT9lqQ7M4atx7ubwwqBfI1hMwZbzBQR5ewU8h4rd
+# ALJUFMj+kP1T4kYm7DEqO0BFxsM94u/BAEtYPB9vECta3Q5+KuM9Zn9BRVLODLbp
+# 0sODjmcAt9BZNWb+sLQ1dPKkndE+lLw6xTEQuGN1WWQAgIgFYo1Opp/t6UNK5i8r
+# zI7SSpagM3HZYUnr+rmlwihw0uKQOPwjxeJXLIpG7ilrnZZhZ6WMhDDpsmhhJgjf
+# qZ/Qpdz3Ydys1O/YmDLbKMrGinrxqRI8M+/t/QSPJxyB1cOQnLK+h8CXvfx2if+N
+# 5dW0+2QuZhktZHLZq1Qxj4TxA6kP8nBxplzM9HOrHLFXblXtWNA6uTfWFTmAhHbU
+# Zs27UUkcaHvX7T5eoPllbHKmxH07Vggm43grG6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMDMxMDRaMC8GCSqGSIb3DQEJBDEiBCBMhxbTT+5enXtNJ1zt
-# CYgeCEbImxTcdg3z40T0xTDz3TANBgkqhkiG9w0BAQEFAASCAgAVCyWqlFqBTF9o
-# A8emCS2wAq8ogKIiZ2AxUeeIyYj6gz3IcmMf1kvPeJaSHT++UzPBf4M1C3aWABEf
-# CD2eMtjN7/MMXVL6fmzjrHoWMKEAbMytOw69MTZ9jJFAEzoL52y+HG9otX/Emh+W
-# T9cE18cjoFXOQ150RX9kAjktTME+fJcxC8pVLzVethSBkAzyQrf18DM8PIJYNVA5
-# C9tJFJfc3sIPsAJN+WawuAqCfGrqIIpiQsq+0V3qgyrJ6oX6vfksOv04sD+fFTn7
-# ipVhLozDwsy0i72DTy3Ts03S7xjll36dFslR1zqlbCeAWmyvRI/Cuk6uhJh9/3RF
-# WzGjlpX+wl6UgnudlGy1hi5tIXBg4MYOEhXA43ikbsHpqSxhXyCTegJyDHMLcMU6
-# 7HlQCYONzoU+S3pi2jO2QuxAAcaF+vQSRhJR2tWusZT7xIsgrtLnlAdzOwUyuI8U
-# k72njTjPpFmkBmAdMDfWwdUcEtf08V304tgazBmTXsKL09vqOkQZik+/PaSK6W8C
-# dnK/15g234GpmTEmQrKJU/aaDe+DKeKM+mCPlJNFtESpnxHPRMvUEUcLa9ZYohgy
-# 8tjVb/p3QzzQQLtImcLcBFq7bPPbTGIHmiTzSLuNXlZPPbBidYmR6Hy/DnE6ZOc1
-# EycJtBzmJDmoxp+Wc2fpcSTg8TUfNA==
+# BTEPFw0yNjAyMDcyMzQ0MjhaMC8GCSqGSIb3DQEJBDEiBCAHV/peKkrO8kyHY647
+# nUeMB/I32Nei0FdAxnjU38mNiTANBgkqhkiG9w0BAQEFAASCAgBDVqUyUqQIpIBs
+# M8HkCqpu9aH1Mnqrrexxv/VGw2IaMhPTyOykdNXU9nedvpeHuTj7YTT9jRETNzA4
+# M5/Cfc5EqtejJRLhs9TExfJTXQL3z+ZpAJ96rpXAkhfa657miPl2O10IxRQEyKGC
+# S4gkZCSm3hBRHk72M7ZsN5oxB10IFyPBYUgOQrY7pLHGoT9L8+WGsrKSMF8OOKZu
+# dgjP5oo4rYgkg2L+Z1VncuAN6hua9nju253n1KB19D/MJiQcbkx1BU36RIurGsv1
+# KSgSXhELfwRWxYXd6AVVARUqAziHPIfj2Ng8KKA4z9hU5EzyncquRDSzdueTRsda
+# FM3aLLmFv10dRwa6offPB7gc9wWG4gwGuR6AnfYMpFaTVSEf3eCLWbBDyYzsikgr
+# yYxJ2Vw0ADf5dVeh5sKa18dy0ctWSfOrEJyv9dWLfzOHPWgLry6xJ4S04d+/0eks
+# mUwilcmjUI4ay/gtdO0oj6GBMfj9OJdP8vz5r2v2dm92GSQniw+VCAFI03c1/4GB
+# HLX7ko2boFgz5d162Fg7sU/G2bYv7cdfEom5+EE/5/fcc1RCn4qA8/F3Jdbsd77T
+# f3ldfBg06JjSqNHravg633uRa9vAElAa6l3kohJzgR2/ejSyaHcSaxGvYDShS4TJ
+# woDNNpCrGp9Y4nUmFs/QFAt0uEpaRw==
 # SIG # End signature block
