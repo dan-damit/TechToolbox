@@ -171,7 +171,10 @@
             "writability",
             "wuauserv",
             "yzhang"
-        ]
+        ],
+        "[http]": {
+            "editor.defaultFormatter": "ShinyaSuzuki.rest-formatter"
+        }
     },
     // ------------------------------
     // Recommended Extensions
