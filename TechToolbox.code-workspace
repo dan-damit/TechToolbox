@@ -189,7 +189,8 @@
             "dnut.rewrap-revived",
             "dotjoshjohnson.xml",
             "github.copilot-chat",
-            "dsznajder.es7-react-js-snippets"
+            "dsznajder.es7-react-js-snippets",
+            "humao.rest-client"
         ]
     }
 }
