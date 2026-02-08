@@ -28,23 +28,6 @@ Used internally by all other AI commands.
 
 ---
 
-### ### `Invoke-CodeAssistantFile`
-Convenience wrapper for analyzing a single script file.
-
-**Usage:**
-```powershell
-Invoke-CodeAssistantFile .\Path\To\Script.ps1
-```
-
-This:
-
-- reads the file  
-- extracts the filename  
-- streams the analysis  
-- saves a Markdown report  
-
----
-
 ### ### `Invoke-CodeAssistantFolder`
 Analyzes **every `.ps1` file** in a folder (recursively).
 
@@ -63,20 +46,13 @@ Ideal for reviewing entire modules.
 
 ---
 
-### ### `Invoke-CodeAssistantFolderCombined`
-Combines all `.ps1` files in a folder into a **single large analysis**.
+### ### `Invoke-CodeAssistantWrapper`
+Simple wrapper script to simplify the CLI inputs for the user
 
 **Usage:**
 ```powershell
-Invoke-CodeAssistantFolderCombined -Path C:\TechToolbox\Public
+Invoke-CodeAssistantWrapper .\Path\to\your\script
 ```
-
-This produces:
-
-- one streaming output  
-- one consolidated Markdown report  
-
-Useful for architectural or pattern‑level review.
 
 ---
 
