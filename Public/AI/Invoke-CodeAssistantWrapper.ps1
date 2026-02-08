@@ -1,25 +1,38 @@
 function Invoke-CodeAssistantWrapper {
+    <#
+    .SYNOPSIS
+    A wrapper function for Invoke-CodeAssistant that reads code from a file and
+    passes it to the assistant.
+    .PARAMETER Path
+    The path to the code file to analyze.
+    .PARAMETER Mode
+    The mode of analysis to perform. Valid values are 'General', 'Static',
+    'Security', 'Refactor', 'Tests', and 'Combined'. Default is 'General'.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Path
+        [string]$Path,
+
+        [ValidateSet('General', 'Static', 'Security', 'Refactor', 'Tests', 'Combined')]
+        [string]$Mode = 'General'
     )
 
-    if (-not (Test-Path $Path)) {
+    if (-not (Test-Path -LiteralPath $Path)) {
         throw "File not found: $Path"
     }
 
-    $code = Get-Content $Path -Raw
+    $code = Get-Content -LiteralPath $Path -Raw
     $fileName = [System.IO.Path]::GetFileName($Path)
 
-    Invoke-CodeAssistant -Code $code -FileName $fileName
+    Invoke-CodeAssistant -Code $code -FileName $fileName -Mode $Mode
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAyhSr3InWj8GER
-# Qn6/AwW2WjKwybHnoqW32xKKdwKFaaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD4BcpgYZPuKXYo
+# YhR68CX5Y2v7LTS0suazKjZgUcTxpaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -152,34 +165,34 @@ function Invoke-CodeAssistantWrapper {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCnAsLwKdEZ
-# n90ImAqmMXSqPdcRohci6USHIJJQFI2VBDANBgkqhkiG9w0BAQEFAASCAgArtrcY
-# auC2LSE99EbNSPXhI0Do4CbPR6fDM3gtcCeNWjN2Ak8Y5Hfvo9WAMHmoF+YXFQoh
-# ybycQY8CiuvE8mYtGbj79+8ehKyzwB1Ut+UQeokQ6so87vVtntXfa6GX4WBSm82m
-# Ty4UDe4lDhehXAbWvNsRBghFv+TMlqlTH0ivMW/cfr3rLk2+jJMpGoa5ZbuI+2Tt
-# ox065P4Qh8dAPWdC2BhkLlziDsu71j2m/0o9WlThnpJdZR1eyNE+P/mvA9dtYS9t
-# jBJiZiGWzM02cB7IHcZNqsVZ7XXMzmjVsVue0V5l5pn2OXwihZtR+moGRiMYX3kp
-# DNB3KMb4hZOEsOtX6mD9fzWIB2B4XFvakoOnIpasyVBy5eHoLk3ahG9C7wMo/AG1
-# VWmI2d2whoOb18dsYQvLhxGW9QMS3XkW/RuXbQ/S8Zc27DFco3cWJ+WQ91wZ08lo
-# Fm5HXrTlBY8/3eFyhMshi/QaurtZTnOqf/ugw5QD5xaDH7j6zGYbSZHIJ/zCNSoB
-# MCrMeBGGEybqAGs47gkKEKT99UeCf/afmzSfRCpCJfusc8g1WcHKlciS3a9gvmLf
-# bUpHmlZGcAwmSptSefB8KWTcdpZuAiouZ64mCS0RANRzHlzC39z+t0lZb1CQJry6
-# E7suS4/305d72xNTmFdD/6LkWkuzHxO7x5tUvqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB6dpxkiMuE
+# MCPCSNuDEklfWlaR1PI7C/UaFa50VdiRJDANBgkqhkiG9w0BAQEFAASCAgAW0wHY
+# /iW2XkFBm2mX6QmYiklShEIUSSH9ETzLU5plxC+rwyUBEngFAe/sLSkoLWiMgDFb
+# f34NlHtKWwc9n/pFTEBv6kMTzSt3p07F/qIA5IdLuDNAjhrMHe/Qs67kenML9U11
+# P9vY/Oqu9ZLgSiqQl/wYEOobye6fe3OEzUuSNJEq10yJk4ZFcPHrf7WDqHe/4qJi
+# h0pyq21xXdrrMXZT4toF5JI7EBNucXYmUYRUvIzLwGSSZ0VyB0uvmz12sBDKzGJi
+# eil1Ih8cqkKnE8BidokgyydBg0lQ30JxGgBBctDV+k3KYC+jtXcMf0vdfViI8XjH
+# 646zZYa24s6/reb0A+hIqGOBrTywFxH969VUu6w9K4bNn/u3evML3J3aVoYRZbds
+# GeN0I7JVRmVPQzFjTUNNSHqkb6ebfOuBkTWrHyjYlnKZWnL1tLzLaWUiAn3+oF+X
+# nckY3OZrgVJFNMRYZYsjblmI50mL8ePkuXOxZV6uSjf9gNUITWZZmKC78DZd1u+m
+# X6kLNsIbhg7olmE/IIP398DhhIypsJLGGkvUjK721ZL/iWWoOBxbgQb9WdeKTLrr
+# lNzoLiZINpXpUfZ1srq2L0ZRwvD0TSnWmM0F7+hgP17/Ag8Ir9JN+Ii5an6oKosG
+# xTMTUNGdC+XABNO1U1SQ/dCPY7uK88zGxTi72qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzIzMzdaMC8GCSqGSIb3DQEJBDEiBCCs2XRgjFq9O/secsTP
-# qdBHTsy3dVozSGedV+MG57OIJDANBgkqhkiG9w0BAQEFAASCAgC9ebBWoPdJt5y5
-# Wa0KQpUCouJjoI+G6jPZcj50zLMkr6uX/0TNEmIByyn/iZp+cZPo3lQtA0oeNh7w
-# VP7tbu+4ezI5mY9CH+IWfPGonBlLC/Ci3upuI8DtPCabAwBdDVLGE4LQERkxr5UG
-# 7AaUSoNzCNOINNKkNyMaAnQ+HjJOn39kNyk8Knv6+9ZUmnsqGdovL3o68h5bDNA3
-# SMjeQ9+bxr2rl/fL0fluR0YE6U3DEI5uzvS/slID2sVDoafgdNOKfXDO++Bv6hxv
-# E0IS7Qve2yO0gITssbX8x0GtaFQ8ctjJ7Xpg1xbiTk8jAuEIUCC6aoz03hNPI5uM
-# X6BiHw43y4ZZbMo0lBBeAP5GlwjI4UErwS4nK1b91xiQ5K+da/g6fq6ltnwWHJsu
-# C4nVxtD0YulwS4H1ymqvSCOIPdC/eOxtFODJZsKZVhR5zx8QBzycJeD1v0gY0MJc
-# Hcq0VaPLz6qHA1KJSpiMS4bsnQqH4oYb4N7JWd3TD1GVkj4nmz/Mc0yfMrxvtYFN
-# fwbahRRRpfv14bRu60sufgbrtZ1xOh/KnWYUkdZTLcP0V0QRQBgQ+T6xM2QZwQDH
-# mtxL9XRwrKjLFlLZRWfKXeOSUfO5uzXoIAvjq156PE56H//LBbyB52A+jv2yVFX/
-# 2tE0sHK9P27fXje9m6RkmAShnV3e/Q==
+# BTEPFw0yNjAyMDgwNDE5MzRaMC8GCSqGSIb3DQEJBDEiBCCHeWaHz6woWL2I4IQC
+# MIDzyIZMCne7/9hl6ij2aL2xhTANBgkqhkiG9w0BAQEFAASCAgAoBMqnp779VA/7
+# VDw8GSQGGuOvYg5zvyBzVGypEKtwScPz3r3iJtRCKA++t21e10wp4wW93XY7oXP1
+# gtYnaIF9BrlMESbz+5eV/sjviEnFbuJ9ojDwoZX6DubW7OJk4j8bPIeP6PXdGLQa
+# lj598OCrTgBd4gkWMQ0NadEJCw0oahPAEMe02tBNurqTq52CfG94VtU766jIx9T4
+# TGGx6vhClL0U7bUhrCgtLPl4cKHzqJjmvI8DobI1ddNbAWFuhhXnYxR2ZR0LWiEE
+# NZ6KnCb7VDejvcs6Uq/Ja9dM+IxJanxwupQbqTaYrdHz+7Y8MyGpndPFsePlwVgZ
+# oURdSGe/zraWhBsavQvFaP3O6ng58tolmljfAlJietjfdJ+qrwCWOfqtbj/iMm2r
+# DvofPlcQ671KcTFVdtnyIuTmBOvimyGmSBTI/8Dec39gSdKQV1U1/+Ir2/FLht7/
+# +cnuXZuVjaVua7goexc1KB30TUaUN3NPfqmXW18sSbyEo4mGoZkG5GTSfcAt1zpu
+# LKJNKVqI9HhLs95RhH7msHnIs9lw2QLo9vSdqoIR1Go43DAkM4MvX1Ik8ArNLP6l
+# B+umSZiu4OeGFbr3CJo4Oz1EYJqpMT77h50D8kD705U28Sqg2BfAvR+kmQ1+Cnbm
+# vp81UCgvWStGlO+9Vu4/mgnBtb3xsQ==
 # SIG # End signature block
