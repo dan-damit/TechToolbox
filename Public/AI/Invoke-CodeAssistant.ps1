@@ -1,57 +1,136 @@
 function Invoke-CodeAssistant {
+    <#
+    .SYNOPSIS
+        Analyzes PowerShell code using a local LLM and generates a Markdown
+        report.
+
+    .DESCRIPTION
+        This function:
+        - Accepts raw PowerShell code and a filename.
+        - Removes signature blocks and PEM blocks.
+        - Builds a structured analysis prompt.
+        - Sends the prompt to a local LLM via Invoke-LocalLLM.
+        - Saves a timestamped Markdown report to C:\TechToolbox\CodeAnalysis.
+
+    .PARAMETER Code
+        The raw PowerShell code to analyze.
+
+    .PARAMETER FileName
+        The name of the file the code came from. Used for naming the output
+        report.
+
+    .PARAMETER Encoding
+        Optional output encoding for the Markdown file. Defaults to UTF8.
+
+    .OUTPUTS
+        System.String – The path to the generated Markdown report.
+
+    .NOTES
+        Part of the TechToolbox AI subsystem.
+    #>
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [string]$Code,
 
         [Parameter(Mandatory)]
-        [string]$FileName
+        [ValidateNotNullOrEmpty()]
+        [string]$FileName,
+
+        [ValidateSet('UTF8', 'ASCII', 'Unicode', 'UTF7', 'UTF32', 'Default', 'OEM')]
+        [string]$Encoding = 'UTF8'
     )
 
-    # Remove Authenticode signature blocks
-    $cleanCode = $Code -replace '# SIG # Begin signature block(.|\n)*?# SIG # End signature block', '[SIGNATURE BLOCK REMOVED]'
+    # -------------------------------------------------------------------------
+    # Helper: Remove signature blocks and PEM blocks
+    # -------------------------------------------------------------------------
+    function Remove-SignatureBlocks {
+        param([string]$InputCode)
 
-    # Remove PEM-style blocks
-    $cleanCode = $cleanCode -replace '-----BEGIN [A-Z0-9 ]+-----(.|\n)*?-----END [A-Z0-9 ]+-----', '[PEM BLOCK REMOVED]'
+        # Remove Authenticode signature blocks
+        $clean = $InputCode -replace '(?s)# SIG-BEGIN(.+?)# SIG-END', '[SIGNATURE BLOCK REMOVED]'
 
-    $prompt = @"
+        # Remove PEM-style blocks
+        $clean = $clean -replace '(?s)-----BEGIN [A-Z0-9 ]+-----(.+?)-----END [A-Z0-9 ]+-----', '[PEM BLOCK REMOVED]'
+
+        return $clean
+    }
+
+    # -------------------------------------------------------------------------
+    # Helper: Build the LLM prompt
+    # -------------------------------------------------------------------------
+    function New-CodeAnalysisPrompt {
+        param(
+            [string]$CleanCode
+        )
+
+        return @"
 You are a PowerShell expert.
 
-# Example signature markers:
-#   SIG-BEGIN
-#   SIG-END
-#   CERT-BEGIN
-#   CERT-END
+These are cryptographic signatures and should NOT be explained:
+- SIG-BEGIN / SIG-END
+- CERT-BEGIN / CERT-END
+- PEM blocks
 
-These are cryptographic signatures and should NOT be explained.
-
-Please ONLY explain what could be done to enhance the code's functionality, readability, or performance.
-Also analyze the syntax and structure of the code, and suggest improvements if necessary.
+Please ONLY explain what could be done to enhance the code's:
+- functionality
+- readability
+- performance
+- structure
+- safety
 
 Here is the code:
 
 <<<CODE>>>
-$cleanCode
+$CleanCode
 <<<ENDCODE>>>
 "@
-
-    # Stream to UI, but also capture the full output
-    $result = Invoke-LocalLLM -Prompt $prompt
-
-    # Prepare output folder
-    $timestamp = (Get-Date).ToString("yyyy-MM-dd_HHmmss")
-    $folder = "C:\TechToolbox\CodeAnalysis"
-
-    if (-not (Test-Path $folder)) {
-        New-Item -ItemType Directory -Path $folder | Out-Null
     }
 
-    # Use the provided filename (without extension)
-    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+    # -------------------------------------------------------------------------
+    # Helper: Create output folder safely
+    # -------------------------------------------------------------------------
+    function Ensure-OutputFolder {
+        param([string]$Path)
 
-    $path = Join-Path $folder "Analysis-$baseName-$timestamp.md"
+        if (-not (Test-Path -LiteralPath $Path)) {
+            try {
+                New-Item -ItemType Directory -Path $Path -ErrorAction Stop | Out-Null
+            }
+            catch {
+                Write-Log -Level Error -Message "Failed to create output folder '$Path': $($_.Exception.Message)"
+                throw
+            }
+        }
+    }
 
-    $md = @'
+    # -------------------------------------------------------------------------
+    # Begin main function logic
+    # -------------------------------------------------------------------------
+
+    try {
+        # Clean the code
+        $cleanCode = Remove-SignatureBlocks -InputCode $Code
+
+        # Build prompt
+        $prompt = New-CodeAnalysisPrompt -CleanCode $cleanCode
+
+        # Call local LLM
+        $result = Invoke-LocalLLM -Prompt $prompt
+
+        # Prepare output folder
+        $folder = "C:\TechToolbox\CodeAnalysis"
+        Ensure-OutputFolder -Path $folder
+
+        # Build output path
+        $timestamp = (Get-Date).ToString("yyyy-MM-dd_HHmmss")
+        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+        $path = Join-Path $folder "Analysis-$baseName-$timestamp.md"
+
+        # Build Markdown
+        $md = @'
 # Code Analysis Report
 Generated: {0}
 
@@ -64,16 +143,23 @@ Generated: {0}
 ```
 '@ -f (Get-Date), $result, $cleanCode
 
-    $md | Out-File -FilePath $path -Encoding UTF8
-    Write-Log -Level OK -Message "`nSaved analysis to: $path"
+        # Save Markdown file
+        $md | Out-File -FilePath $path -Encoding $Encoding
 
+        Write-Log -Level Info -Message "Code analysis report saved to: $path"
+        return $path
+    }
+    catch {
+        Write-Log -Level Error -Message "Error in Invoke-CodeAssistant: $($_.Exception.Message)"
+        throw
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDbyjpmIAJ7PoWh
-# nlwwKU/OYocnYNlcyf9FupftSF//s6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCAwxBRFoSjv8jL
+# oshfaBNpgV63I+htEsDXfY8VD1eTiKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -206,34 +292,34 @@ Generated: {0}
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCWrj5rQqjg
-# ba5JDhY4RC/zgRerUxMywrz/4s5uqWSLmzANBgkqhkiG9w0BAQEFAASCAgClhojf
-# Sd1KdDEurBqhrs5JZl/SycYPpnYDRZroG7lfB4OcxLBD8HJrTGoLj4CooqFKp2hI
-# j4P6ccz1VzGQAXtBP1ghgCRQmcW8ojD4/ZDlsbuxubxIKvA2Voi0XpOCDskk3/EC
-# YeKzd8/TigPWds8cg2YZ1xfcgX+MBmF+x57c7+yVeZM+raiFGqlaHdCSY1GFFaIs
-# h2VQ3xtA1UCGrdq0Tj1k9sVN2R1iVdhu6z6f9l+txMfhrM42jyUgvqzqoNV1RcHH
-# kleeQtSlwt9IQUdoXHc3vh/UgT9lqQ7M4atx7ubwwqBfI1hMwZbzBQR5ewU8h4rd
-# ALJUFMj+kP1T4kYm7DEqO0BFxsM94u/BAEtYPB9vECta3Q5+KuM9Zn9BRVLODLbp
-# 0sODjmcAt9BZNWb+sLQ1dPKkndE+lLw6xTEQuGN1WWQAgIgFYo1Opp/t6UNK5i8r
-# zI7SSpagM3HZYUnr+rmlwihw0uKQOPwjxeJXLIpG7ilrnZZhZ6WMhDDpsmhhJgjf
-# qZ/Qpdz3Ydys1O/YmDLbKMrGinrxqRI8M+/t/QSPJxyB1cOQnLK+h8CXvfx2if+N
-# 5dW0+2QuZhktZHLZq1Qxj4TxA6kP8nBxplzM9HOrHLFXblXtWNA6uTfWFTmAhHbU
-# Zs27UUkcaHvX7T5eoPllbHKmxH07Vggm43grG6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCUoshrZytK
+# b6Cz9121GWtSPiZjIf/feDYkRlV4c+jWgzANBgkqhkiG9w0BAQEFAASCAgAA6brN
+# x2XanZ9kOfX4nMTWcndntUBNh8Sv3xjLvusFjFZjIKut8fDloUYqQMkdUx+I82FA
+# G2TFmqQ3gMkqhncLDzw8z/d8sSF7chdrfoHgyAItH3gEt9UhhrU35uet5XVFsfrR
+# sIvDlEUhuGrz1k9+Ib71juZFMEcFkUbmeVOEq7GWL2xVKpu/5QtvCUScQlh4GxQ2
+# QE19XmD4v6LxmboO61l5PaBq4joXe46jKPrSdd7k4Sg+eIkoTCibDxwYRJFTlPbm
+# 9ncfu8H4IrtUBWUraw8GZD/Pqxs88ose91IARkOb0b4UcQDle6WD7dtRfWNXpOyq
+# zcAg3zO67FOpCycZhRIo4ndt6Fu2Abl1aTNc6LArRPDJgtQm1bvHEO2AdkOdbUmh
+# FSuMf5YXE7DacrIG/SuJGeVVAmD0s7rEklkE6aqsTdJZMvwo4FzVpmWSv48i6z2m
+# akQRBCmJVUwFR/SWCimW4wcse5ccrg3HJeKUvtUrZUvARwZ0tBJLDkpKRM2jSoP6
+# rg9YLl4s7HGhXsZWuehmuB1S6jZ9UOpo2+lEQH+KvpKjRTRs/LjRiOSsY3lOlMI+
+# GYfLcHGd7Hsjrb4T20hcyEzb5fgShGiuS5hpyZrAC+Waceu430TkRyayfsb6Hdty
+# aUKiK08BpANsa+VmWTz3NRkppA+bFkfFaSQsZ6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzQ0MjhaMC8GCSqGSIb3DQEJBDEiBCAHV/peKkrO8kyHY647
-# nUeMB/I32Nei0FdAxnjU38mNiTANBgkqhkiG9w0BAQEFAASCAgBDVqUyUqQIpIBs
-# M8HkCqpu9aH1Mnqrrexxv/VGw2IaMhPTyOykdNXU9nedvpeHuTj7YTT9jRETNzA4
-# M5/Cfc5EqtejJRLhs9TExfJTXQL3z+ZpAJ96rpXAkhfa657miPl2O10IxRQEyKGC
-# S4gkZCSm3hBRHk72M7ZsN5oxB10IFyPBYUgOQrY7pLHGoT9L8+WGsrKSMF8OOKZu
-# dgjP5oo4rYgkg2L+Z1VncuAN6hua9nju253n1KB19D/MJiQcbkx1BU36RIurGsv1
-# KSgSXhELfwRWxYXd6AVVARUqAziHPIfj2Ng8KKA4z9hU5EzyncquRDSzdueTRsda
-# FM3aLLmFv10dRwa6offPB7gc9wWG4gwGuR6AnfYMpFaTVSEf3eCLWbBDyYzsikgr
-# yYxJ2Vw0ADf5dVeh5sKa18dy0ctWSfOrEJyv9dWLfzOHPWgLry6xJ4S04d+/0eks
-# mUwilcmjUI4ay/gtdO0oj6GBMfj9OJdP8vz5r2v2dm92GSQniw+VCAFI03c1/4GB
-# HLX7ko2boFgz5d162Fg7sU/G2bYv7cdfEom5+EE/5/fcc1RCn4qA8/F3Jdbsd77T
-# f3ldfBg06JjSqNHravg633uRa9vAElAa6l3kohJzgR2/ejSyaHcSaxGvYDShS4TJ
-# woDNNpCrGp9Y4nUmFs/QFAt0uEpaRw==
+# BTEPFw0yNjAyMDgwMzI5NDNaMC8GCSqGSIb3DQEJBDEiBCByZ1Q3fKBG2wF4vC72
+# mUTlm2BRhjjN2PSurRyr6BQUKTANBgkqhkiG9w0BAQEFAASCAgARiuA42+bC9O5A
+# 5Mh8/W/OGbqcQ45ZN7PDSSFPUZYXxZO3hlkf0glg+ovkXeBEP1bo2nSOvFWkNttl
+# pCZrB/T19X1/cHYgWkmlcrTZNWZX7U26p87b9j0wmfNK8xmUfFE5A0NifdJpr0pg
+# +fXfVX+8nPkwClUlNfR6Fyf5hxetl9iL5ezgR0/7OTzjSJZTX/TV20cYUBuIm7fs
+# JIAS2vt4LJ+mAkIZGN6qKtEw66iDYiBYafDcX2qJ7jse/bu9ThtLyj1OwrNGADr3
+# lcVYaRf+4YEb3hMzNMdkdPpIXu+bi03bf+2KgQOPBZHMPCBrq+Wc/TQKPzjcGgpA
+# 7DJcxOwQhe4qM1JFJzoS7lSzyKbHXa1EKJfdgWMaYOAe1OI/HkIvOT57g/E5R8zw
+# VtW6wdHATZ9q9hu6ScvjzZHSQ3vXrfQpuhtY/GItfelhJ+KHMwrM3RP40MTp+LYk
+# GGH2dIJzR3Ymzkf261TuDpyVw8aoY9P3PRUhAwebnbXll/lst4G2BOsBhKt3wGx6
+# 4krI5CaR2cMOtcPVXGn1L1fRxSOprTpdezXof+ZmBx/LVg4Pld3fWZzlRWTYk/Oj
+# nPCFJPffL8rRkMh6wppSj8cOe6giAZS/S18f2QBDuoi76DbpqYgJPkAyBTQ7niKy
+# +qY+nMlAcW6UnhACTt3bqAFy5PtC6w==
 # SIG # End signature block
