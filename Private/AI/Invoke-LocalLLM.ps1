@@ -1,57 +1,83 @@
 function Invoke-LocalLLM {
-    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$Prompt,
 
-        [string]$Model = "mistral"
+        [string]$Model = 'mistral'
     )
 
-    $body = @{
-        model  = $Model
-        prompt = $Prompt
-    } | ConvertTo-Json
+    const $baseUrl = 'http://localhost:11434/api'
+    const $requestUri = "$baseUrl/generate"
 
-    $handler = New-Object System.Net.Http.HttpClientHandler
-    $client = New-Object System.Net.Http.HttpClient($handler)
+    try {
+        $client = [System.Net.Http.HttpClient]::new()
 
-    $request = New-Object System.Net.Http.HttpRequestMessage
-    $request.Method = [System.Net.Http.HttpMethod]::Post
-    $request.RequestUri = "http://localhost:11434/api/generate"
-    $request.Content = New-Object System.Net.Http.StringContent($body, [System.Text.Encoding]::UTF8, "application/json")
+        $request = [System.Net.Http.HttpRequestMessage]::new()
+        $request.Method = [System.Net.Http.HttpMethod]::Post
+        $request.RequestUri = $requestUri
+        $request.Content = [System.Net.Http.StringContent]::new(
+            ($body = @{
+                model  = $Model
+                prompt = $Prompt
+            } | ConvertTo-Json),
+            [System.Text.Encoding]::UTF8,
+            'application/json'
+        )
 
-    $response = $client.SendAsync($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result
-    $stream = $response.Content.ReadAsStreamAsync().Result
-    $reader = New-Object System.IO.StreamReader($stream)
+        $response = $client.SendAsync($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result
 
-    $fullText = ""
+        if ($response.IsSuccessStatusCode) {
+            $stream = $response.Content.ReadAsStreamAsync().Result
+            $reader = [System.IO.StreamReader]::new($stream)
 
-    while (-not $reader.EndOfStream) {
-        $line = $reader.ReadLine()
+            $fullText = ''
 
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            while (-not $reader.EndOfStream) {
+                $line = $reader.ReadLine
 
-        try {
-            $obj = $line | ConvertFrom-Json
+                if ([string]::IsNullOrWhiteSpace($line)) { continue }
+
+                try {
+                    $obj = $line | ConvertFrom-Json
+                }
+                catch {
+                    # Malformed JSON line; log and continue
+                    Write-Log -Level Warn -Message ("Malformed JSON from LLM stream: {0}" -f $line)
+                    continue
+                }
+
+                if ($null -ne $obj -and $obj.PSObject.Properties.Name -contains 'response' -and $obj.response) {
+                    # Append token to full text
+                    $fullText += $obj.response
+                }
+            }
         }
-        catch {
-            continue
-        }
-
-        if ($obj.response) {
-            $fullText += $obj.response
+        else {
+            throw ("Local LLM endpoint returned HTTP $($response.StatusCode) ($($response.ReasonPhrase))")
         }
     }
+    catch {
+        # Surface a clear error and rethrow for callers if needed
+        Write-Log -Level Error -Message ("Error invoking local LLM: {0}" -f $_)
+        throw $_
+    }
+    finally {
+        if ($null -ne $reader) { $reader.Dispose() }
+        if ($null -ne $stream) { $stream.Dispose() }
+        if ($null -ne $response) { $response.Dispose() }
+        if ($null -ne $request) { $request.Dispose() }
+    }
 
-    Write-Log -Level Info -Message ""
+    Write-Log -Level Info -Message "Local LLM call completed for model '$Model'."
+
     return $fullText
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAWTcLCPF/CKUvf
-# n0E93isBYD0NDp/i2IfIsUajPIQYrqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCABoQKr/kGjk1/3
+# sQK6TbFP3D+86oW+ax+aIs+3BlF78KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -184,34 +210,34 @@ function Invoke-LocalLLM {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCmPOgUPWzO
-# OODzudDinh+sYCfAE70gIj1/1U1NWARhJzANBgkqhkiG9w0BAQEFAASCAgCSc3tL
-# KKTfvvGMvf5lQ5iIoTMPk5/tDnbNI9FWyYiYsAjXE+Rtb9PU7yANnxs2xP1nD1bj
-# 5GvrOLW0aNiqtkmVQtrzTI4/DjJ61TEY8r94boXkJUkvRa2y8HfR7vksJKktTP7E
-# 5oyAQ0gQjpEQ/LZ+8p7/Wnf6iIKhM72Xlk5zAxcB2ISGeXafagMn24e+7ZSlC3Ns
-# D1frcUqnRo7dHL0mmoYmC1P/7iBhmgEsVI3206FYt2Y8sUB1TOlKVAUw31nfXvgm
-# VgSQLYGPFBuaG7u7XMEMHfyXFAXH/NbUIVVZl/vnQ36nEoKX82WNL9idInlFplLi
-# 8GWuTdm0LsR6NsL2GyGRYk3zouwcW3/Nrh9+U/eVS70F4roCbvo8mRRKkgucHrXK
-# jTRiv/rfvGCQ5rMntZBp/+P4QkubIolF2TjgYgNbV/IcINd/X2ziTvLjySCc/nSr
-# OQJe3FmLowOcv4AGicQqz1IxtQguTBqb0RqWOnFRWm0G0g607y580/4KXgPY7++x
-# yk9NLE5+oxUyxJxquTgqhgecKZc1FpvyhiQ9KN6E2x0gVLm0s4PJq0mF+jtpvKS6
-# r01t7GhLRCZ89A2hQPZEWVL/4uDYcLWEErVx4+fWqrq4oL4OiOshBnqvQP6fstXD
-# ihZ8BwpoJEv3tQVyGBNXJ11KvFtVHJAAtNl84KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAEWuMz6ADG
+# zO6K4f8IeEVAbxQwTBBPXp7Vj4BWyLD1+jANBgkqhkiG9w0BAQEFAASCAgAaDbs5
+# fBXiASmPJjav3HOC0MFJjeQGti78EUO6SyK4k/gVV6aUgRMc3rdMbZ1qbK0DGg5J
+# DEW5mngq2PKMG4wX9+lDfPImJFE7D7cZrx/MSC6i0pmNBidRXEG5eFJGiTonK6Mv
+# Da6IwvNYCvnRXqDR3D+VR4gZdXTjIQyflgWz9AvtdCoD+84IKXFKJGfpu47yxqyR
+# 79g8bcaeziedVuFRicOgj0mRaGljhOeuxbZlWRMZ9yesV/WH60lqBN8aWccPodJg
+# iIOcoC23Qv2BwmS9ec+eevub+rOOJZj4prKMEZyWPsKECI6tlrEiVvgcB2LNr6xx
+# mPdsXcLWcNL986QcQ7MaL+VmOrHq0p/9QmjZJYfSS63pxjsvVXIHLFsDP90YmQsF
+# 3WMlNopNwh+SL+zcHMDnLXbaes/7gmx14XozhLlXAIYG3Bcu4B4dEaAZJe9/4bdA
+# ktu34Gg/wYadpTRQdKbdfhpEVLXiPSUnHQ8oXr80dA2Z8FCplk2+t7kgWq4mLwuu
+# nlvG/0g6/qgL4XPCOQuEfwcrvwsTiedbOw1gzIOxUYDSKMa9xsAG4WpjDKDWE5Ey
+# IV5iq+JUFMLnNWdxankLVwVRTnv8FnGiKs0lmzfnuReuFehenqEnYB1R0QPnhAm1
+# b5CH4+627hsBmRDxeDQAlXydVuljau4LuAvfoqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzQ0MjdaMC8GCSqGSIb3DQEJBDEiBCAiLrRj+WvVHmk/dcD9
-# YF9qh7qkUI6spARXStOpohV9+TANBgkqhkiG9w0BAQEFAASCAgBNMDKsA8c7YKj9
-# YdQDfBRjHv0qMD+i++WH6kPY3070pHBTnQBAxM0WFV78OLK535iS92n4e18pe4eH
-# lNjtZLvvRAkaZssGEXiT0PXh0DM7rqBYz2MQ9Joe9pkM3Z9AzxuOxk2cTLO6a3RY
-# ZcPB+ybLqp+I4RrL38PLeT2OSuyikzJ9bepprZOIgUGIWgDvdWXdlNm+NRa7rD6O
-# qvXmiKK7nILBL0mjOFIRH6qq96pext5GaQn/hnnsnxCHMKXqBYmLBkCpQam4VEJK
-# WqkboLFCeEO4c7Mxz632n46Ld6sMOWCzsskz7/TPbmtfUe8JZuNmxe7FSRaLq5Zq
-# 4kvoeVgaXu0EUCeBW86n8paIv2H2DKwulf6D+pnDchsSOVn3FdHtsqdbonBh1G7S
-# T9DBolUwHNFkrSCWmMhIX/iMNLsYV2bsCvCVxI/jjpIZcSO3RFOaNh17hONbidPF
-# CSXSDM5mG88bwxJTY5z+fvNyxs4S10wneOIJFMz+/k3gQbSPJAtnpS5B1PrLvG3B
-# 5+eXyN8xUPzrlhauy1L7OuSKo6srhWtZP6I2stBGpO9EZZ5lpEaK0PfuPLnZ0G8K
-# HJUf/L6rfnrLbEZjgHbQXeHcfwn0KPEheL3G5FCLy9kVndKoWCEVFKqWJX0StMwy
-# /0wTVQr3WN4wXXMzXJOrrPe6MrGR0w==
+# BTEPFw0yNjAyMDgwMzE3MzdaMC8GCSqGSIb3DQEJBDEiBCA1EHpfMXdJ118DvCE8
+# 98V15tVm2zDBlilKQoRvnlXwqTANBgkqhkiG9w0BAQEFAASCAgALALagspuFPdg/
+# LZwIdITTOvmkkbTR3Q/94qkAVtHQ4293UkKqihRhcIT9/rssQygJ4ZWBMJFVPsNr
+# b84WN9CpfFJxavbjnGUBux3h/k1hHbf6a1auuoTi9UuvtBew8Gjop6KVs2VWE730
+# JF2erAdvSynruWnNGmwkLe+9Wc412nedlbxoWT5gKw0l1fSvsAMcY0aYv3lbjSlf
+# 4wcrmxt4KzG3FhNrvCt2RrjQ+sGcknVNgHl7wZ8RMShbAQ4qXCuPz0j9HYeHvDVe
+# Ux9uJ7+2xLEP7sViMWCZX7x3t4B6uPnhl6EISrIPZjW7Xe3DWlB9I9kHjdkkji09
+# mEAZZ42/HykNLzMZLUA0sFyWyqW6mlqx27qVS4zbr2rUIHvott7anQnK4leq4v0c
+# 32ZPnDsMPa5AAosy1SWSITMctDC8RBzVoR0xeNujFc9TRiOjAXOZNs9+QmHBnJ+D
+# 1soWSA6oxoFdav+Nditcp9PxgucbGBonVOLN+vJLSO0FssXk8eupJ/ohavKzZCGy
+# LeS/wSP+juj20p0aytM0+eEF+XQPrsTepaksp5JxzHdtc5VFGXJEbWceElLG/hIS
+# ObKRm1hbJhFASOVSVCHXIIEwkflyIbjjlo1t/10EwtlrqxrGzLlXI01ymyrhUJbd
+# I6q7XfZsZMuAj3FRiaW32VXyijSo3w==
 # SIG # End signature block
