@@ -1,3 +1,20 @@
+# Code Analysis Report
+Generated: 2/7/2026 9:42:53 PM
+
+## Mode
+General
+
+## Summary
+ The code is a PowerShell function named `Invoke-CodeAssistant`. It takes in raw PowerShell code and a filename, removes signature blocks and PEM blocks, builds a mode-specific analysis prompt, sends the prompt to a local Language Model (LLM) via `Invoke-LocalLLM`, saves a timestamped Markdown report to `C:\TechToolbox\CodeAnalysis`.
+
+The function defines helper functions for removing signature blocks and PEM blocks, building general, static analysis, security, refactor, tests, and combined prompts. It also includes a function to create an output folder safely. The main function logic starts by cleaning the code, building the mode-specific prompt, calling the local LLM, preparing the output folder, building the Markdown report, saving the file, and logging the success message.
+
+The code follows PowerShell best practices by using CmdletBinding, parameter validation, and error handling. It also adheres to the Pester testing framework for generating test ideas. However, it does not explicitly enforce comment-based help for functions or cmdlets. The use of a local LLM is an interesting approach but may require further explanation about its implementation and usage.
+
+Overall, the code seems well-structured, maintainable, and follows many best practices. Improvements could include adding comment-based help for functions and providing more explicit error handling when interacting with the local LLM.
+
+## Source Code
+```powershell
 function Invoke-CodeAssistant {
     <#
     .SYNOPSIS
@@ -344,6 +361,7 @@ Generated: {0}
         $md | Out-File -FilePath $path -Encoding $Encoding
 
         Write-Log -Level OK -Message "Saved analysis ($Mode) to: $path"
+        return $path
     }
     catch {
         Write-Log -Level Error -Message "Invoke-CodeAssistant ($Mode) failed: $($_.Exception.Message)"
@@ -354,8 +372,8 @@ Generated: {0}
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCyTfBfCzGG2VGs
-# OsWXT1nAYQhnflQQb9JZTu7oMA6ETaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAvoBTgtxZofJeT
+# BgauESyHLL4I/X3UzVm+DV2STBuZGKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -488,34 +506,36 @@ Generated: {0}
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBhhfKARASE
-# pNPHriIc4xXsS7c+7QeMU6TtQkyO4OAq3zANBgkqhkiG9w0BAQEFAASCAgBEJozN
-# f66suserWD/q7QY7gPvNeNUGH/fu4vyIuKGdCUNfzA80v0/gD8JCfm+hgB7NVrdp
-# nWR5iKbfrA+x3vTYeJeQZ2Q3fj2q6FBHuo8Cz+EYE+QV0vYdQCohSLwAgVRDolB+
-# ONab+gdogTvLct3pVDtTy3hBSzqjhw80wxNtzIzWLeCkDZxEW3ICjJt/X1RyIBmx
-# 6/E1w8fBMEAXjv31vnKKUAlgI/TOmS4M7sbf02SupKl3tm9IcOgfW17DA+41Wraf
-# AxHdw0kFLU0ho9oG/e8ipz/eCuwRSXG/QV0iFJwds7lTq3TF6GdSwRDlmXbhkZmZ
-# AzgtXHJ0BF3VIm6S6Q5AixihRoBj05tqPANJdkugSTHO/ubDjFAfdy0gz8EgUmPK
-# YNMr+THszsK6iqMq1/3uH9yZ+doNkh7lF9hUukRWQAfwrQWnc9nJKhR3ppqJmMaq
-# /wvV8xIKyeX5lnsPkwkxQ3jy9tLr3qqDs9lDjfqA6tjz6dnClllCuElG7J0XRSi3
-# di990GxaG6sDHxcYWcS9RYZztuTKotN/Xz1fq9BKoXXYL32g60bqUYV9qOmqM0Tk
-# G3j33N5gnbcus5emWUiVoLhU3iv8X7Ir5OqJ3OCkBKV3E9FKYQph93MHz0vRMvtU
-# dE9UG39G9vtLu15lCRunZHok5StLi/8BcVeuE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBNIWRjq6NN
+# bVobFdH79eFS1AXrDLJmlfFiY38yCfPbFzANBgkqhkiG9w0BAQEFAASCAgDKmC0W
+# OobXBOyY0Y3qoCdibXe9kRg4mdWpcJ0BcuUhnfHpaU7sVWu7iwQBJ6ZOj4Zc0Y2Q
+# VGuJY3xAmyha5XrYxeZLBFLpKZy1aakOwpCf/SdrIh1KaR0e7MWtHrYMD3tCcUsE
+# Q54GJLvEWJLiwOGLU3lbcZXCG4rVHTL4OI0a3Qac7c6i6Ikt66YvSbzxrLbH/Y8M
+# W7/m8UnS8+MVrYD6SdG2oXuCcdRsuiutXoMxHm8ADI8ChYXeB/YxaQyakaaHB3QP
+# /tRnm0L1ilhBYDCS2+NilfYdn9MmwlGH3YJUPqrKV3SjlK4DFmCdBlwouuquY2y/
+# Rw5p5/C9EasyNhrnHeYzzrZko2LHRKe3Bl/xK48RgbVowFh6qfrSjz3Cwv5am4t9
+# OeKhDcR13TLKNprtniABFmQZ54c4x4gqlB9Hvc/aT3rqMUwBoalgG2B9FaX917OT
+# TZ/twN0jJn2LpU1+eSn8gR08/9Rwgn+b6MURk1xitoAhacWWbpnm+NLJfWb2d7kx
+# 2PrV92XkVXSvczBYO7YWK0BbOIZ/eHtkNxABg7LBEWeMvgvJyZ2wXlvCAXx95coS
+# yJhUwl3wmILN/WC/93QSFiRPozG5rqjqsxlcFZzIN7LXVP67zfc+pvXuoYS1WBcj
+# bqH7O7sbxao4+NhTaA9QvJKW4d2COeZE2U2PrqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDgwMzQ0MjZaMC8GCSqGSIb3DQEJBDEiBCB/QY71avpIQOmE7UiN
-# UbhMsAxsefqxXp5kqDIcAxZekTANBgkqhkiG9w0BAQEFAASCAgAqafzibSkQ+Kl+
-# AGDLWoOEUCrfedV3bllegGeG2Xeh1PoIhSQ60VwwXL/pDMCT9VTfEhkzmY6XPgNd
-# MN/aO+Vd4sCLwg7C9s30CdKXyXtc+AOwvxjWmHUskMmkXIzD9oeMr/ASDXEkMG8j
-# gQnc6koK3+OrNlXNDMDhmEy1EPnb9FO7imlCTIPP/jfoFKf0oCcE4eQBJpc523H3
-# CTn7YWyzp+Fsuvcf+fcnUUk1reE4fU+OkTemANbTSSlOi5N2S0kdOgXO5Jdeh1N5
-# LmB7I5OyYNhMdVyZCRUMsbIpKJ9sflK72w2pvx9O48C0OBWw+mRH+DTB5eHJbYk9
-# adxWtPelIjz68Q8zZDeOKAFoV/2QkO6rZMhl2DbXJx9owljlC36pJs9A/6Ec+Fdd
-# gTFh0cc0iIv8AOoo5XrcYdafGdJiHpXiY4HivV26DrcQSuwbjy1NGe7I/RPuDhql
-# 5x0XbpHNNwmp4Vdku8b8tf0tBbUst9xwdAc30Pva+VVhVlENI/+Hp93rlJYfUDvs
-# RQlCj561LLIDvoNi9FWmkHPrGMZLYobjH3In8UvRpd/c1LUzGi4mzIESJngByRWz
-# /ngjFqFtn930a5Fy+RBDosFiRG1ounKTG3La0JgglYgp25Ww+XqZjVm+eKefE/6p
-# P0kfbUnJDniNjo+aN8J7TeqA0WZmOQ==
+# BTEPFw0yNjAyMDgwMzM2NTJaMC8GCSqGSIb3DQEJBDEiBCBZNqvAc+T7hTo1V4Gq
+# RVibgC7r17AGVbRScqf35Dva6DANBgkqhkiG9w0BAQEFAASCAgCT1TrPOanNPM8m
+# kR43D9ctvbi14d1PASwfyFbmPap8jJX1dULFGl4IM/y/KPqQEf+6aYyvje5WiACo
+# G+uiG/IdYScycf3zZkR4cCL49ZWOv6jTDQsV+OTkKAlqH400cEOIiaFCWnO2fxUX
+# esTlwWu9JIyfmYrdyQJBd+Bbx75uD1Ftzj6YWYrlThHWLTIwKiiIBE3yF/QpHXfi
+# s4XyyfyjveLkdU2S0CFLxe82HSFi5wXQfu0edFBUMbp3osVRBRGqJScvCuoMXvnZ
+# dbvXINW/xbq8SIcwQIDa1ODyJpr+bJWuFRnXh6fS8MWTLBP9WvX7SWykC77m4mVY
+# 99JXjAAV9C5asKlo++aboKwW5firK4b/4RkN/ZvnpgGXmbHb6NqQDEw0zlD+m3G5
+# n3Xl84GApUo9lScOAxsQgjvtMF1AbYruRTDOkKsp6mwpWF7X2HC8Bm5YX4frIrp5
+# wn8BI+RwYYwOlULpHsC4e3fAN/cWvT0KWfBbO9Qveme72ASR4S7xgSe5gmyXaxX4
+# j7pxrJoOB5nURQ+4FRqbLRqjl8b7hUFD/f4JZkj7+bltxul3oBXU9zCJavF/ZcZm
+# 0yeArkjeVMQwfEDbqw88H3hnmUA9cnvU9tumJmkzq3g+Osh0NO5ciCOIajNHveHy
+# zUOcoQk+yhZcDh7FV0zGVxAHzVTd8A==
 # SIG # End signature block
+
+```
