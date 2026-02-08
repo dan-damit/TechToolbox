@@ -66,14 +66,14 @@ function Invoke-CodeAssistant {
     function Remove-SignatureBlocks {
         param([string]$InputCode)
 
-        # Remove Authenticode-style signature regions (commented SIG markers)
-        $clean = $InputCode -replace '(?s)#\s*SIG-BEGIN(.+?)#\s*SIG-END', '[SIGNATURE BLOCK REMOVED]'
-
-        # Also normalize any explicit placeholder you already use
-        $clean = $clean -replace '\[SIGNATURE BLOCK REMOVED\]', '[SIGNATURE BLOCK REMOVED]'
+        # Remove real Authenticode signature blocks
+        $clean = $InputCode -replace '(?is)# SIG # Begin signature block(.+?)# SIG # End signature block', '[SIGNATURE BLOCK REMOVED]'
 
         # Remove PEM-style blocks
-        $clean = $clean -replace '(?s)-----BEGIN [A-Z0-9 ]+-----(.+?)-----END [A-Z0-9 ]+-----', '[PEM BLOCK REMOVED]'
+        $clean = $clean -replace '(?is)-----BEGIN [A-Z0-9 ]+-----(.+?)-----END [A-Z0-9 ]+-----', '[PEM BLOCK REMOVED]'
+
+        # Normalize placeholder (harmless)
+        $clean = $clean -replace '\[SIGNATURE BLOCK REMOVED\]', '[SIGNATURE BLOCK REMOVED]'
 
         return $clean
     }
@@ -181,7 +181,7 @@ Refactor the following script to improve:
 
 Return:
 1. A short summary of the main refactoring goals.
-2. A fully refactored version of the script in a fenced ```powershell code block.
+2. A fully refactored version of the script in a fenced powershell code block.
 3. Any notes about trade-offs or assumptions you made.
 
 Do NOT expand or reconstruct cryptographic signatures or PEM blocks. Leave placeholders as-is.
@@ -209,7 +209,7 @@ Generate Pester test ideas and example tests for the following script. Focus on:
 
 Return:
 1. A list of recommended test scenarios.
-2. Example Pester test code in a fenced ```powershell code block.
+2. Example Pester test code in a fenced powershell code block.
 
 Do NOT expand or reconstruct cryptographic signatures or PEM blocks. Leave placeholders as-is.
 
@@ -256,7 +256,7 @@ Perform a comprehensive analysis of the following script and return your finding
 
 ## Pester Test Ideas
 - Key scenarios to test
-- Example Pester tests (in a fenced ```powershell code block)
+- Example Pester tests (in a fenced powershell code block)
 
 Do NOT expand or reconstruct cryptographic signatures or PEM blocks. Leave placeholders as-is.
 
@@ -354,8 +354,8 @@ Generated: {0}
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCyTfBfCzGG2VGs
-# OsWXT1nAYQhnflQQb9JZTu7oMA6ETaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB75xW0gp/wDAHd
+# BDBz/Dxq5h78nn5iP8PCC8Z0F1zVDKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -488,34 +488,34 @@ Generated: {0}
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBhhfKARASE
-# pNPHriIc4xXsS7c+7QeMU6TtQkyO4OAq3zANBgkqhkiG9w0BAQEFAASCAgBEJozN
-# f66suserWD/q7QY7gPvNeNUGH/fu4vyIuKGdCUNfzA80v0/gD8JCfm+hgB7NVrdp
-# nWR5iKbfrA+x3vTYeJeQZ2Q3fj2q6FBHuo8Cz+EYE+QV0vYdQCohSLwAgVRDolB+
-# ONab+gdogTvLct3pVDtTy3hBSzqjhw80wxNtzIzWLeCkDZxEW3ICjJt/X1RyIBmx
-# 6/E1w8fBMEAXjv31vnKKUAlgI/TOmS4M7sbf02SupKl3tm9IcOgfW17DA+41Wraf
-# AxHdw0kFLU0ho9oG/e8ipz/eCuwRSXG/QV0iFJwds7lTq3TF6GdSwRDlmXbhkZmZ
-# AzgtXHJ0BF3VIm6S6Q5AixihRoBj05tqPANJdkugSTHO/ubDjFAfdy0gz8EgUmPK
-# YNMr+THszsK6iqMq1/3uH9yZ+doNkh7lF9hUukRWQAfwrQWnc9nJKhR3ppqJmMaq
-# /wvV8xIKyeX5lnsPkwkxQ3jy9tLr3qqDs9lDjfqA6tjz6dnClllCuElG7J0XRSi3
-# di990GxaG6sDHxcYWcS9RYZztuTKotN/Xz1fq9BKoXXYL32g60bqUYV9qOmqM0Tk
-# G3j33N5gnbcus5emWUiVoLhU3iv8X7Ir5OqJ3OCkBKV3E9FKYQph93MHz0vRMvtU
-# dE9UG39G9vtLu15lCRunZHok5StLi/8BcVeuE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD4sf1L5t4j
+# UDi1klicmoDE7WnUOUPXHVGxbSdMvcqrpTANBgkqhkiG9w0BAQEFAASCAgAXhibp
+# NylUsrNwzIl5kO7/BQ83ilZHYO0Z+kfbxKnuQ+omKifvijSNe0ySNMxHhUW455Tl
+# 1mRt52WxafnIHXMXjnhVM8/jnKpakLfUyPq3PRDYGZM0c/IM+iuGI2nvwTAlL6Hb
+# Qo8EV7HoNuSyevmsZ97RbnPLQF3+rlrCMu4FTPUNlVexVQwOgvtCCWgKqbGbJiXd
+# gtMxHd0EUuXMjeSO/xVZaXtJG5r0nbXvVgJXIOd+HB3noyQyILHZ2mQI3dJ7olsJ
+# bST+MCXP6ElDYLQflPyqVwMq/g4BtMuaiF+PoaSME+r9ZCgS8CE0Lk12hpc9V+mx
+# GfK7kT07M/8VK9Pkb1vqvvwLIiE4ZFgWebEIBOcEDS1tbRVdK84s0Vgu9nK7W7kk
+# UEl0x8Lwhvy9P6Iii/JQBnNO9zCJi51hGSJbdcPfh4Miruun32vJ4HLpOrNAu1go
+# VvcQgLqqjqwDjUajZ9Ww+ndVuepoLRauMRWTlQBT3f+vgA7LdsEOIkqj21qgZzy0
+# l9y3QWnP1j2tkUn6d8UGkLd4oy1S5Pd7L57lsWQqWyEq2HCxlLswQ7zwC0EG5Fxy
+# y6MX+agBXzejDr9LGRgvzxKA9g0ZpAn9ZUbP1z3JZgreuIWq7ejyrwz0GpplK8VE
+# P8ky1+BkSqRHZTjxS+1ve4KTQGBoqIp/jnJzQKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDgwMzQ0MjZaMC8GCSqGSIb3DQEJBDEiBCB/QY71avpIQOmE7UiN
-# UbhMsAxsefqxXp5kqDIcAxZekTANBgkqhkiG9w0BAQEFAASCAgAqafzibSkQ+Kl+
-# AGDLWoOEUCrfedV3bllegGeG2Xeh1PoIhSQ60VwwXL/pDMCT9VTfEhkzmY6XPgNd
-# MN/aO+Vd4sCLwg7C9s30CdKXyXtc+AOwvxjWmHUskMmkXIzD9oeMr/ASDXEkMG8j
-# gQnc6koK3+OrNlXNDMDhmEy1EPnb9FO7imlCTIPP/jfoFKf0oCcE4eQBJpc523H3
-# CTn7YWyzp+Fsuvcf+fcnUUk1reE4fU+OkTemANbTSSlOi5N2S0kdOgXO5Jdeh1N5
-# LmB7I5OyYNhMdVyZCRUMsbIpKJ9sflK72w2pvx9O48C0OBWw+mRH+DTB5eHJbYk9
-# adxWtPelIjz68Q8zZDeOKAFoV/2QkO6rZMhl2DbXJx9owljlC36pJs9A/6Ec+Fdd
-# gTFh0cc0iIv8AOoo5XrcYdafGdJiHpXiY4HivV26DrcQSuwbjy1NGe7I/RPuDhql
-# 5x0XbpHNNwmp4Vdku8b8tf0tBbUst9xwdAc30Pva+VVhVlENI/+Hp93rlJYfUDvs
-# RQlCj561LLIDvoNi9FWmkHPrGMZLYobjH3In8UvRpd/c1LUzGi4mzIESJngByRWz
-# /ngjFqFtn930a5Fy+RBDosFiRG1ounKTG3La0JgglYgp25Ww+XqZjVm+eKefE/6p
-# P0kfbUnJDniNjo+aN8J7TeqA0WZmOQ==
+# BTEPFw0yNjAyMDgwNDE0MjFaMC8GCSqGSIb3DQEJBDEiBCCJ/iz5DjQS2R1MyDWt
+# XMi/r+wH8GZcb6vx1VqOcKb92DANBgkqhkiG9w0BAQEFAASCAgB386A9e9Uo4UX8
+# 8+XfQwOGSWd4ih/GWf6WN7UhzHSwg07ALEo8R/BOw0FaGfw0mbMHiJeI7buNxOgs
+# nIVD768lzxmBVWhH8newwa/8lSbHJLHVR3qkvS7/ArjiNC9pGlL9UNqsrT3pAhtT
+# R4andIJhexedbMxZDTNaut8nSvu2VqIfLBDlO86M0TMzjSzMG5WaZmILflTJdNsh
+# xyyxbBRamdmckqt1rIbnzi4OLY7OtTyfyLHGpUapYX3bbZfWVltDP2XUCyJ/Jg3x
+# iSw4twRi1JYDb3yVP6GYbekP74xLXF7meQ5JId/1FQeb8jlfOvjhBgzLYJs4O+t4
+# 3nOwVmvVw0sMsUKGrkxC9CdUqnitquDhPLMbT0aF5bxCO2qqur0uVEOgIVIqjBou
+# EF5MYHymLoUvvGKAS31VxkxpsUxNQhylHOjFrUvrcSGvW6B7KiHfAcX01lRHXT/j
+# J9kFLBVAcqeTB5DqrlpgmoRlG1V0a6MCmqoJfXe+mhifFVWppP+5mABvK9gbLbhr
+# m9vlXtkOtk8pvJrAq29GsypA8ZlbGNfo0YhGJVJIrMt/Y6c3JHPQCeP+ODz0Ijgm
+# XcL55Rz5GWpCdqRWnh4KnvbOrZggUBdp4PLngXIjBShMHv4v7Fs8I3PMNFVHr45X
+# 5smHZVJfkZaV2p+xaR2PwpklZrukzg==
 # SIG # End signature block
