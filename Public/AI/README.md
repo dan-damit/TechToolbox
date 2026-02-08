@@ -3,8 +3,7 @@ These commands provide **local, offline PowerShell code analysis** using a local
 They are designed specifically for **Dan’s personal workstation** and are **not intended for cloud use, shared environments, or production systems**.
 
 The goal is to provide fast, private, technician‑grade code review with:
-
-- real‑time streaming output  
+ 
 - signature‑safe preprocessing  
 - Markdown report generation  
 - folder‑level automation  
