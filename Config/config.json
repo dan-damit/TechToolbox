@@ -7,6 +7,9 @@
     "Bundled": true,
     "Required": true
   },
+  "paths": {
+    "logs": "C:\\LogsAndExports\\TechToolbox\\Logs"
+  },
   "settings": {
     "compliance": {
       "searchBatchSize": 50,
@@ -41,8 +44,8 @@
       },
       "wordListPath": "C:\\TechToolbox\\Config\\wordlist.txt",
       "domainAdminCred": {
-        "username": "ddadmin",
-        "password": "01000000d08c9ddf0115d1118c7a00c04fc297eb01000000eaf88a8247d1554d9cce8ee006be05620000000002000000000010660000000100002000000029f1ef5652ebcf43a99524592d00fef9acec20dca0a5cb0f4c1124b07d6b78c4000000000e800000000200002000000037f9dfcdf4a731ea48ff18d173aab3f8442dff320e1c3bf13058ae4a2bd471c130000000a823b5b3e0efe41181e83a2652f38fa3a0cadef7c22e62410861966becedacc4255d88761fbb22397e00d58f8bc8c02c40000000a72166e40875848799baf24e67313206cc26f3968a898b4ee05c31f187c92af26bb0715e6e8d1eeb90c1a1aa9a49cb9a244450b3e3a5d5fdb4a72e8679e722d8"
+        "username": "",
+        "password": ""
       }
     },
     "exchangeOnline": {
@@ -55,13 +58,13 @@
       "model": "qwen2.5-coder:14b"
     },
     "logging": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs",
-      "includeTimestamps": true,
-      "enableFileLogging": true,
-      "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
-      "minimumLevel": "Info",
       "enableConsole": true,
-      "logFile": "TechToolbox.log"
+      "includeTimestamps": true,
+      "logFile": "TechToolbox.log",
+      "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
+      "enableFileLogging": true,
+      "minimumLevel": "Info",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs"
     },
     "graph": {
       "appOnly": {
@@ -132,10 +135,7 @@
       "runRemote": true,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
       "waitSeconds": 5,
-      "copyFlags": [
-        "/E",
-        "/COPYALL"
-      ],
+      "copyFlags": ["/E", "/COPYALL"],
       "mirror": false,
       "retryCount": 2
     },
@@ -161,11 +161,6 @@
       "promptForDateRanges": true,
       "promptForCaseName": true,
       "promptForKqlQuery": true,
-      "paths": {
-        "logs": "C:\\LogsAndExports\\TechToolbox\\Logs",
-        "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports",
-        "temp": "C:\\Temp\\TechToolbox"
-      },
       "promptForContentMatchQuery": true,
       "showProgress": true,
       "promptForSearchName": true
@@ -257,10 +252,7 @@
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch",
-      "defaultSearchDirectory": [
-        "C:\\",
-        "D:\\"
-      ]
+      "defaultSearchDirectory": ["C:\\", "D:\\"]
     },
     "systemRepair": {
       "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
@@ -271,10 +263,7 @@
     },
     "downloadsCleanup": {
       "cutoffYear": 2024,
-      "excludeExtensions": [
-        ".pst",
-        ".ost"
-      ],
+      "excludeExtensions": [".pst", ".ost"],
       "dryRun": false,
       "includeExtensions": null
     },
