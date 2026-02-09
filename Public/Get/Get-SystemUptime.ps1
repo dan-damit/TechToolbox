@@ -4,9 +4,9 @@ function Get-SystemUptime {
         Returns system uptime locally or via PowerShell Remoting.
 
         .DESCRIPTION
-        Defaults to using Win32_OperatingSystem.LastBootUpTime on the target system
-        for maximum reliability across endpoints. Optionally, you can force the
-        TickCount method.
+        Defaults to using Win32_OperatingSystem.LastBootUpTime on the target
+        system for maximum reliability across endpoints. Optionally, you can
+        force the TickCount method.
 
         .PARAMETER ComputerName
         One or more remote computer names. Omit for local system.
@@ -16,8 +16,10 @@ function Get-SystemUptime {
 
         .PARAMETER Method
         Uptime calculation method:
-        - LastBoot (default): (Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
-        - TickCount:         [Environment]::TickCount64 (fast, may be unreliable on some endpoints)
+        - LastBoot (default): (Get-Date) - (Get-CimInstance
+          Win32_OperatingSystem).LastBootUpTime
+        - TickCount:         [Environment]::TickCount64 (fast, may be unreliable
+          on some endpoints)
 
         .EXAMPLE
         Get-SystemUptime
@@ -27,8 +29,9 @@ function Get-SystemUptime {
         Get-SystemUptime -ComputerName SRV01 -Credential (Get-Credential) -Method TickCount
 
         .OUTPUTS
-        PSCustomObject with ComputerName, BootTime, Uptime (TimeSpan), Days/Hours/Minutes/Seconds,
-        TotalSeconds, Method, and (if applicable) Error.
+        PSCustomObject with ComputerName, BootTime, Uptime (TimeSpan),
+        Days/Hours/Minutes/Seconds, TotalSeconds, Method, and (if applicable)
+        Error.
     #>
 
     [CmdletBinding()]
@@ -127,8 +130,8 @@ function Get-SystemUptime {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD2FoGZe6SjL/Sz
-# NmXHvygSwmZ+qK2uQhmV79d2NVRueKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDq+mrEORVXC45N
+# UoWX8ixTCJjckrlXZsLo/qPtEgYiyKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -261,34 +264,34 @@ function Get-SystemUptime {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB6KlRdb9rr
-# 7vTYxERAq9qdKYb+i4yXM2XuAM4p5jyclDANBgkqhkiG9w0BAQEFAASCAgAc0wVS
-# xfvmIb9mttxwCQtnDLWFWFw5HYx/NzUezbdxvfS1dhjnvkKlyM6XvwEG0rgZVY8h
-# ydFPPsrDXwxwgVHqjhIT8Y0RpvWbrn7B3TRfxHm4HAWkjc2CL0Hqw44ZUHFKSDHN
-# s/qPs8tlHiXzX3yuP/R27wQD+lyCqV+3A+p+c9KmvkxnjmGYbL2LEV9gWG7ar0s/
-# OreSJ3lgG1TgNx145z6DNlcIVgYDs940dXKvXsDSIyJauoBrNcTTcSO1QSm6BlK1
-# 8r2N1iUoo+PCIhPPK20vRzMNaHsYdJtb9SmhfQCskJU0sKdowEqzWKXY3kH4qj76
-# Ixwm+9z285HgPruztmUc57QKBByp08XE84TrAI9rXY8xStx/o3nrt7lEBUg/pm80
-# PVptDnSt5HKvaikofNCpFnqPllaKTDVc0SE5koRR47LlRcHeJnKPtLLndQEc2RJa
-# iwjThozHYXgTrNUgsAsZO6oEZftkkPM7KZbFo3DoKPp6PAr+72QXuL1LrzzDHQYb
-# fjbRK4f2kDXI7Bn14P6LYB/62JVef3UvBZMDNTybofpUvEVqe9iYmSaVMzXXwfJU
-# ScjgxciOpIp0i7985wWdqlr10gyWPApO7EfYAqTlkfs07nou1PGujGQ9eeCOSUnv
-# hg2zjYDEHwYS7WZgAOIia5qb8Y16fh38oVseIKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC65DDhTRaY
+# 9sNoogYvusDuZyOzJvW7ll/OqUJOGPL4VTANBgkqhkiG9w0BAQEFAASCAgAe4aPw
+# /i80usX2Qn5xvRkz9d1QK1rVLznJJn2s6Q8PnPEEmGH3+u6BaxZOddR+Lq1PsWMe
+# OSrTCps3P6Qs+aSTtTE48ELZjHgbUJl0cknWwlSj4XymoXl8j7LksoiyVx5cG97B
+# 0GxqDps7tl2xigvJ0gJy87AAc62lSVCVe2cwAwVegbHnSyPMUZA3oMgkszzrN6qd
+# X85Lkv2T2CWT6MWUO44JJZoJr6lIEgJ9Za556G374eguFF9t7QAaVJxwGuME9E0w
+# 9vnS5zlfCaBJ7K3WccTsHKqbv6+7PFb0KbtZJsBHmAJN8pZB9/c3Ytw6hJZIpMS9
+# LiUzwsdtdZhKxpwLFCTRrA21ZisVQaeGcWz5lRCORF2CczVcIK16KorxRlEqxuMi
+# T5jUxEAwRe6SlfKa2hk8AFnRl/h0uzzWE6qZOnBS3dr4VzrVxoqBbZHIoX5HCfOh
+# F4DhVAdlq7lURfZOIhOuzGIdTOyHd1Y5g2Gyj2S4y2+gRU7TUrdhPJ2A4fzMztoD
+# zanA16n+OncmDEPbF8PJ8gh1zYwp90dr0t59um2JwR8hANYWIm+yp3zwiofZ1L7W
+# DOiArvSfgmEdHn/ZUJ5kkb3Yy7wOQ+6lyblLQFJjKpFlOv5FfSLtXVVZ6h+W6DKn
+# 3CcQ8A58AW1gn6rgH/+iYPM3Sd4rn8TrlRmboKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTFaMC8GCSqGSIb3DQEJBDEiBCBYWDMrzkdVwEBaGPFt
-# 3nYBz+4hu847kp5Z8qfutPmfejANBgkqhkiG9w0BAQEFAASCAgBU1zyb6hayztaI
-# zd8Ch6KPsjrzr/W7T3Ot9W41Y1cDG21mtWe+zx/4uOqALLwyA5Uwf3LvsJXbMKBf
-# JPIvqYoB38whnYGioyKKqrHeMSnkJlL5jK4J23ZCIhzMf1X37ikeZ+wPzsK9qY65
-# ectLFexTWFd3Kb2uekZsZn7bngnNw2VyXWWEjuCdTybCjhsJg3+SyINrpqqm2ZhM
-# qVdcmSKsYR5cxnBxQqFgv+0O67WgFwEuea4VbZgKJHRVVz6I3OAa7LHkIS74ePfd
-# hKOhac7k4GyBUob98Cmp/AS6E1krMI4fO2tehsyidQnCC2cduLZNTFLkrjgI4sZ1
-# RG2Ic3jvyMJqY+fx+Y4MRVMOtUokD9d6AuJ9IiQvZ6sYWuvznz/bJoDUdISCAQGX
-# eItV0fqpTZeSQBGAC2Xe/n2YhgDOhrgWhq6h47y0NEQugeE3UdM+aGMPYjqU+/bM
-# krWIib/CpISAT1B7xvUBDke8IJN51/8etLFyJ1kh6t8KvuoVGAZaRqKDkmunZ6ty
-# vlQ6lIHMti9s20fl1NYuu7l8bYvYytrH3vONwMndgGC0q+K4DOekyBko3feG0FFf
-# eueWMJXR/uxUTWolytFEraSvIckpCJakFoiS+dhuBSEYXDgtIp2PFlC+l7uhFSJf
-# 3oiQGWInUv2BKqDw8kY38fvnoocjYA==
+# BTEPFw0yNjAyMDkyMDI0MDJaMC8GCSqGSIb3DQEJBDEiBCDW/09Q1LoVEzZ5xBOr
+# t9rtoDMXil4sqBWNTwPisSyRzzANBgkqhkiG9w0BAQEFAASCAgCqd06DDL9YNpq8
+# tYyojISIi+h7dI815ZarkMsMQ4lZslPXMUrZeaS+wTiSJBtRKDpNS08dpCYHVFlL
+# 70gT5+345f10yGU3+axW5LevpBYS7n9xUA+n2iL9UJP6weGyZOduqgnH+hvl8q3O
+# aA85tgjIX1Y6Le2/rKwDD40LtlmHHqv0NVK/CgpZOVC2yaB93x2yD73wsiQ4ola0
+# M2YvQKipfT3Iklt+ow8U5pTXKyiaOW5vq2yEtFt3nd04gSg3zIrPcZc9+Tk6v4zI
+# as3BZ3h0p56EoxnFv169AOfz/skzvy+/CGisgegs7SZyWnfwEguqMrCJUoWSv74K
+# u6EXohN8xB7uyLpoS2rH8ZYj6vmG9+/VtM0AY+Xi8QZCTZb3Lg72ttyznvOkjQHT
+# pL2NWDYufijzmC2TO0a9J6LCYyabB7I3CYHK4gxWhwofYkUDDq4JEhcExsQ6XVxT
+# ya1QaMVPWKKsUWuEvcCrW5KQV9yC85juSr1xdautI7v5lhBM0M4Y9NMY3Bo+StUu
+# 9hIcz09FATDJrZr136ePLXIjhy9fh64/RG31PicatvrQnHjeAsh59N6LdanC79jO
+# WmZrMfQLvakOub3G44EN01ZhDNUBStE3/EeLRWB231eGoabnt2gYN3tUfqx+xvdC
+# mB5/7bYfaRYSdEOsdnGEex628ap+dA==
 # SIG # End signature block
