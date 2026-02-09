@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.3.5'
+ModuleVersion = '0.3.6'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -92,11 +92,11 @@ AliasesToExport = @()
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
 
-    #TechToolbox of this module
-    TechToolbox = 'System.Collections.Hashtable'
-
     #TechToolboxDependencies of this module
     TechToolboxDependencies =  @('System.Collections.Hashtable')
+
+    #TechToolbox of this module
+    TechToolbox = 'System.Collections.Hashtable'
 
     PSData = @{
 
