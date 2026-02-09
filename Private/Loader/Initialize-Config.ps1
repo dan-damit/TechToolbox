@@ -17,7 +17,7 @@ function Initialize-Config {
         New-Item -Path $configDir -ItemType Directory -Force | Out-Null
     }
 
-    # Load config.json as hashtable using your authoritative loader
+    # Load config.json as hashtable using the authoritative loader
     try {
         $script:cfg = Get-TechToolboxConfig -Path $script:ConfigPath  # returns a nested hashtable
     }
