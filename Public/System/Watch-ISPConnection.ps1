@@ -32,62 +32,64 @@ function Watch-ISPConnection {
       Show status of all sessions (jobs, start time, last heartbeat, etc.).
     #>
 
-    [CmdletBinding(DefaultParameterSetName='Start')]
+    [CmdletBinding(DefaultParameterSetName = 'Start')]
     param(
         # --- START ---
-        [Parameter(ParameterSetName='Start', Mandatory=$true)]
+        [Parameter(ParameterSetName = 'Start', Mandatory = $true)]
         [Alias('FirewallIP')]
         [string]$Target,
 
-        [Parameter(ParameterSetName='Start')]
+        [Parameter(ParameterSetName = 'Start')]
         [ValidateRange(1, 86400)]
         [int]$IntervalSeconds = 10,
 
-        [Parameter(ParameterSetName='Start')]
+        [Parameter(ParameterSetName = 'Start')]
         [ValidateRange(1, 60)]
         [int]$TimeoutSeconds = 3,
 
-        [Parameter(ParameterSetName='Start')]
+        [Parameter(ParameterSetName = 'Start')]
         [string]$SessionName,
 
         # --- STOP ---
-        [Parameter(ParameterSetName='Stop', Mandatory=$true)]
+        [Parameter(ParameterSetName = 'Stop', Mandatory = $true)]
         [switch]$Stop,
 
-        [Parameter(ParameterSetName='Stop', Mandatory=$true)]
+        [Parameter(ParameterSetName = 'Stop', Mandatory = $true)]
         [string]$StopSessionName,
 
         # --- STATUS ---
-        [Parameter(ParameterSetName='Status', Mandatory=$true)]
+        [Parameter(ParameterSetName = 'Status', Mandatory = $true)]
         [switch]$Status
     )
 
     begin {
-        # Module-scoped session registry
-        if (-not $script:ISPWatchSessions) {
-            $script:ISPWatchSessions = @{}
+        # SAFE StrictMode-friendly init
+        $existing = Get-Variable -Name ISPWatchSessions -Scope Script -ErrorAction SilentlyContinue
+        if (-not $existing) {
+            Set-Variable -Name ISPWatchSessions -Scope Script -Value (@{}) -Option None
+        }
+
+        if ($PSCmdlet.ParameterSetName -eq 'Start' -and $IntervalSeconds -lt 1) {
+            throw "IntervalSeconds must be >= 1."
         }
 
         $cfg = Get-TechToolboxConfig
         $rootLogPath = $cfg.settings.ispConnection.logPath
         try {
             $null = New-Item -ItemType Directory -Path $rootLogPath -Force -ErrorAction Stop
-        } catch {
-            Write-Log -Level Error -Message "Failed to create log directory '$rootLogPath': $($_.Exception.Message)"
+        }
+        catch {
+            Write-Log -Level ERROR -Message "Failed to create log directory '$rootLogPath': $($_.Exception.Message)"
             throw
         }
 
         function Normalize-TargetHost {
             param([string]$InputTarget)
-
-            # Try parse as URI first
-            if ([System.Uri]::TryCreate($InputTarget, [System.UriKind]::Absolute, [ref]([ref]$null))) {
-                try {
-                    $u = [uri]$InputTarget
-                    if ($u.Host) { return $u.DnsSafeHost }
-                } catch { }
+            try {
+                $u = [uri]$InputTarget
+                if ($u -and $u.Host) { return $u.DnsSafeHost }
             }
-            # Not a URI; treat as host/IP
+            catch { }
             return $InputTarget
         }
 
@@ -116,11 +118,12 @@ function Watch-ISPConnection {
                 }
 
                 $sessionLogDir = Join-Path $rootLogPath $name
-                $sessionCsv     = Join-Path $sessionLogDir "$name.csv"
+                $sessionCsv = Join-Path $sessionLogDir "$name.csv"
 
                 try {
                     New-Item -ItemType Directory -Path $sessionLogDir -Force | Out-Null
-                } catch {
+                }
+                catch {
                     Write-Log -Level Error -Message "Failed to ensure session log directory '$sessionLogDir': $($_.Exception.Message)"
                     throw
                 }
@@ -137,17 +140,18 @@ function Watch-ISPConnection {
                     while ($true) {
                         $ts = Get-Date
                         $resolved = $null
-                        $success  = $false
-                        $latency  = $null
-                        $errType  = ''
-                        $errMsg   = ''
+                        $success = $false
+                        $latency = $null
+                        $errType = ''
+                        $errMsg = ''
 
                         try {
                             # DNS resolve (optional but useful for logging)
                             try {
                                 $res = Resolve-DnsName -Name $target -Type A -ErrorAction Stop
                                 $resolved = ($res | Select-Object -First 1 -ExpandProperty IPAddress)
-                            } catch {
+                            }
+                            catch {
                                 # If Resolve-DnsName fails (non-Windows or no DNS), continue; ping may still work
                                 $resolved = ''
                             }
@@ -160,15 +164,17 @@ function Watch-ISPConnection {
                                 $latency = ($pong | Select-Object -First 1 -ExpandProperty Latency -ErrorAction SilentlyContinue)
                                 if (-not $latency) { $latency = '' }
                             }
-                        } catch {
+                        }
+                        catch {
                             $errType = $_.Exception.GetType().Name
-                            $errMsg  = ($_.Exception.Message -replace '[\r\n]+',' ')
+                            $errMsg = ($_.Exception.Message -replace '[\r\n]+', ' ')
                         }
 
                         $line = ('{0:o},{1},{2},{3},{4},{5},"{6}"' -f $ts, $target, $resolved, $success, $latency, $errType, $errMsg)
                         try {
                             Add-Content -Path $csvPath -Value $line -Encoding utf8
-                        } catch {
+                        }
+                        catch {
                             # If we can't write logs, there's no point continuing
                             break
                         }
@@ -205,7 +211,8 @@ function Watch-ISPConnection {
                         Stop-Job -Job $job -ErrorAction SilentlyContinue
                         Receive-Job -Job $job -ErrorAction SilentlyContinue | Out-Null
                         Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
-                    } catch { }
+                    }
+                    catch { }
                 }
 
                 $null = $script:ISPWatchSessions.Remove($name)
@@ -220,7 +227,7 @@ function Watch-ISPConnection {
 
                 $script:ISPWatchSessions.GetEnumerator() | ForEach-Object {
                     $Info = $_.Value
-                    $job  = Get-Job -Id $Info.JobId -ErrorAction SilentlyContinue
+                    $job = Get-Job -Id $Info.JobId -ErrorAction SilentlyContinue
                     $state = if ($job) { $job.State } else { 'Unknown' }
                     [pscustomobject]@{
                         SessionName     = $Info.Name
@@ -240,8 +247,8 @@ function Watch-ISPConnection {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAZ1hkL1FhH7DmS
-# 0BAKR+cT8SdmV/ewYnnBzXw8y3xwD6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBUJSXJrmIsvO5o
+# HV9vbG/qxfaJ+GOf2jhOXUxHhslMKqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -374,34 +381,34 @@ function Watch-ISPConnection {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAEbwyvrQXn
-# T0LcuRIH3LQvPHgJBgDSSiUu9tKVkOL5ZDANBgkqhkiG9w0BAQEFAASCAgBQzZvz
-# 4dT8Ysk2KVOtaUDgbYSqywyAYojxZye9bvIhX8sWRHxhg+cYs32d1wOvw9tkWKa9
-# ykpnDl7AUy2+Xyd9jfxaAOrXKp3oTpnlypxc/jQtfLl90eD0mQZDDIKhqG9p+Ak1
-# fltit/d+Xq+pfRy/34ESslEujKCWIv5dja3sTI5NpR2hGERnqN3qSnfQi0NFuu3S
-# xptlGhSPqEWtAFpN2xav4t4Cnvu+wwcqVQybRS3oA94ZzVkli8L9tHwkx90w8ogg
-# awrISH+gBDnlKvXbek7yLpG+RfLngOKRT2pWbi2qQDorYH26yI/riO87DgT4jI1K
-# lqxMCVyUUp9xEBfhg4qph2Vl7UbGNZyfDUaSkUjydeIrqBLEv97VR4jeBOB0bm3C
-# UHwYrHYUW302ys7Sunrpyti16EjgzNBN7aK3aHYqKuwL1kUScO0Jcxb/gTMaEyaE
-# DhC/hS93cc1jcblVsPNsyrO+tyUsRiUwB0M7Ifu2GtzZnV/ikZhDuz2xlEx6GqoM
-# 2E+BJNZvAi1E/r50O8Ik37eviefNT9wG0fWiJF+gRmsv9A5cTqwX87VaJTIcj/M0
-# HzVnf2IbAIxmXvMeJMFZvGiy1uSvXZfy3QRf3edqoY0f60S71djpxXVuwKr+OYrc
-# tqMFrjydA5+vPOpnflsUofwzvCq5vItNiROPnqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCmvSKEgPkL
+# 2rxgL+0+blfkNWqLMr6vYgcT4bKFVCXxdzANBgkqhkiG9w0BAQEFAASCAgAqVUj4
+# GXG+jGepfDEHXbg/MEGRxw6WEQObOIFIQC8KSSLZxBmeCKY3hsxpB/pqL1b3+9je
+# tGBf4u8PtL4/xVmAfSj/zmvpwl/e/GMzrA6y0eMpDvtzXuefkoi4RC7WiQMrHWXk
+# QsEToT5cpBCoD9DmukHX0pxKLitNVIh+Q44cTay/nPvLL06DPbvUvdiCwlfMRqbF
+# RfGPeFXjzJki5EOJ7wByss/6kPbTfgMsAwpKmA1Eb4E2au/Q4/CPEHcRzOXMMcNZ
+# j/dLT+pfTr2b8rhgyoJB2lsIKvia7DYfo04B5fTDl6xsD6iPcOWQYy08AivGq6Vc
+# 13+M0FYavA0Q3YfFqRqOigpmWLCq80LQ5DEEN+fGQlGiWSD1SstivqfaJNFEK0u9
+# wwxqg4EkQl31a7kgoQGOiQaSzpiH3A/a0XLpD+WQ7asL8/W1rp1M4TYGR8Rzki4c
+# DEzgZ0DojSByT4Bw7/SPzR2sYqJDGQRRgA58kYgjPueDTGOkKBVa2356c9kAJgv5
+# y5j68u5/ecMgyUsRIhxQ0hCnrcnO2wFrsw84AYur/78GRjXgL/MYZanXwNzqAu6Y
+# g6g0Mvl76GXTjw8dpmBOC72FlGO8i/gnMZaqW3Gqs44mB9i3/sh3LSckF9s/sZVt
+# 6b6qsHXMuokyEpiAx1sW9Tta5VdNx/4zZi+U8qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDkxNzQ1MjJaMC8GCSqGSIb3DQEJBDEiBCArdf1AgcjMCdv30IjF
-# z1fprl4A/YagcH2ECir1TyT5bDANBgkqhkiG9w0BAQEFAASCAgCxHRiMT2FEGsM6
-# 51BIY+361Yp8rb78Lwvb4O6IEDbZsfn2tMOK9HeC257IJ7iji0RG6jjDtoNCwsFG
-# 2IbqGxzF1ng5ZOkvGWuBdgn3xM2+eIShsoJMizAJiAYv82XjLtShKP6ZnYA6vw7C
-# Xm9K+bMfQZy7+siPmxakhr+0f5nXB10VMO0XpidPd55+imve1GUwAbsgObtlckAf
-# pT1VSyuDWA5tqLE5QGz6+4iPhIFCuTuqKnwX/7VUgE0kxCSkpK2lIGDmWWar8xq5
-# T5QDP0MfDi0C3mN5HDI44BYk4I7olD6AWCPsxNxRKhrD4l93UQrp4S5VYRALkI6z
-# r0jHng9/Qs4eaB7ikUFw8UT6kig3MDUB2FBeGzteq35MDR59gG3dJLrKWt82FB+z
-# qbI+cxBeocCMB50uOjDyViHlzShYiSXdW1B4sgGPYTOn+8u/5Iz3faKKJIpBGPCE
-# SxI1iOW9Mjaneh5sc+7FN8oIR8G69iAGsRxz+zcZusjewh0q90/FJep3iLvUc1qU
-# YDFGxo5urCga69boCwt/hVcuCxz47h8bFyIKwzXSTHgu1IehP850FLVpz6MOEQ08
-# nz1pfJ6KmqgOYJwiorqQ1Dk9lbig9wSI2d2uB+ypZUAV8nkUwtoe1+7RdmVw1gTS
-# Iy0droI5CawM8pjHUqBLKK0scfs2bA==
+# BTEPFw0yNjAyMDkxODAyMjlaMC8GCSqGSIb3DQEJBDEiBCAHadNWXchcwzY27vUQ
+# ICuYhDJv36JLe1GMwpzZgKw5fjANBgkqhkiG9w0BAQEFAASCAgCoKPuuBHc+A54f
+# XT7hOwInOwev3ITEHIqCu124WzIzmwRJNiX+dCGNv0jry9TEJmYjn+G0Y/jMaQtq
+# /k+gyAsrai7VeqBvXm1xUhW6kqO8GTXBl2+a0a+alH9WB4soFGyuyhwnuzjRBmjm
+# ih+GhfmvZYwboaeoDZMuSGdGgXx8xnA39DWSUpLyX1WNr86RCOSeMzKOInx14PAN
+# GG1/4LGY2JkfI204smJsu43MlO/tHkUHp6KwZHE9Ly3SqdmG8ktPqfRTp10RxbuJ
+# VyJaNz2BodcEZW2hXH/RBwC+S45HF6NDmtdHDGZUvHnnPUTKU1YFsvPWabxcbSyU
+# aaKHcGwwX+3vlw5+nJDQVxG1M7dhuxZtC1ljxsewV09NpJEkAbwVqk6cFX6p8S1N
+# 5/DnCWEEytv5cPKa7hxm3TvQ4eFN9mENBI4Z/LDtljxRhjmlUFZqms7LmuFhwA30
+# NGEs7IS/OqXlwhMiu2r3zLrvWzjeKEMpgvruPf2DFNWtR42zLRbU3eXZ798ktSRq
+# XEr5MwU+LjVazQDLhqNoKR/S5GN1LroVvWTFEqP+0uVxmozAL1uJnMAq+b17JDdI
+# oqUbXxUY58VG5Bc2qvJ5rTZsB+oDbHdzQU4ngAjLQoPu3MRAR53RV1AF2EmrSMBf
+# 9E0D5Qb12FUTVHfXGDbi0RNplS/Vyw==
 # SIG # End signature block
