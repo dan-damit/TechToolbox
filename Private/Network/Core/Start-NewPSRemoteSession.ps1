@@ -1,83 +1,157 @@
 function Start-NewPSRemoteSession {
+    <#
+    .SYNOPSIS
+        Create a remote PSSession, preferring PowerShell 7 endpoint (WSMan) with
+        fallback to Windows PowerShell. Also supports SSH transport.
+
+    .DESCRIPTION
+        - For WSMan: tries -ConfigurationName PowerShell.7 first, then falls
+          back to Microsoft.PowerShell.
+        - For SSH: uses New-PSSession -HostName (PowerShell 7+ locally).
+          Supports password or key.
+        - Applies sensible timeouts; returns a live PSSession or throws.
+
+    .PARAMETER ComputerName
+        Target computer (DNS name or IP).
+
+    .PARAMETER Credential
+        PSCredential for WSMan or SSH (username/password). For SSH+Key, Username
+        can come from the credential or -UserName.
+
+    .PARAMETER UseSsh
+        Use SSH transport instead of WSMan.
+
+    .PARAMETER Port
+        SSH port (default 22).
+
+    .PARAMETER Ps7ConfigName
+        WSMan endpoint name for PS7 (default 'PowerShell.7').
+
+    .PARAMETER WinPsConfigName
+        WSMan endpoint name for Windows PowerShell (default
+        'Microsoft.PowerShell').
+
+    .PARAMETER UserName
+        SSH username when not using PSCredential.
+
+    .PARAMETER KeyFilePath
+        SSH private key path (if using key-based auth).
+
+    .PARAMETER ConnectTimeoutSec
+        Open/operation timeout (seconds) used in session options.
+
+    .PARAMETER IdleTimeoutSec
+        Idle timeout (milliseconds) for the session.
+
+    .OUTPUTS
+        System.Management.Automation.Runspaces.PSSession
+    #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [string] $ComputerName,
+        [Parameter(Mandatory)][string]$ComputerName,
+        [pscredential]$Credential,
 
-        [Parameter()]
-        [pscredential] $Credential,
+        [switch]$UseSsh,
+        [int]$Port = 22,
 
-        [Parameter()]
-        [switch] $UseSsh,
+        [string]$Ps7ConfigName = 'PowerShell.7',
+        [string]$WinPsConfigName = 'Microsoft.PowerShell',
 
-        [Parameter()]
-        [int] $Port = 22,
+        [string]$UserName,
+        [string]$KeyFilePath,
 
-        [Parameter()]
-        [string] $Ps7ConfigName = 'PowerShell.7',
-
-        [Parameter()]
-        [string] $WinPsConfigName = 'Microsoft.PowerShell'
+        [int]$ConnectTimeoutSec = 20,
+        [int]$IdleTimeoutSec = 1800000  # 30 minutes
     )
 
-    # Default to session/global variable when not provided
-    if (-not $Credential -and $Global:TTDomainCred) {
-        $Credential = $Global:TTDomainCred
-    }
+    Set-StrictMode -Version Latest
+    $oldEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Stop'
+    try {
+        $sessOpts = New-PSSessionOption -OpenTimeout ($ConnectTimeoutSec * 1000) `
+            -OperationTimeout ($ConnectTimeoutSec * 1000) `
+            -IdleTimeout $IdleTimeoutSec
 
-    if ($UseSsh) {
-        # SSH doesn’t use PSCredential directly; user@host + key/agent is typical.
-        # If you *must* use password, pass -UserName and rely on SSH prompting or key auth.
-        $params = @{
-            HostName    = $ComputerName
-            ErrorAction = 'Stop'
-        }
-        if ($Credential) {
-            $params.UserName = $Credential.UserName
-            # Password-based SSH isn’t ideal; prefer key-based. If needed, you can set up ssh-agent.
-        }
-        $s = New-PSSession @params -Port $Port
-        $ver = Invoke-Command -Session $s -ScriptBlock { $PSVersionTable.PSVersion.Major }
-        if ($ver -lt 7) { Remove-PSSession $s; throw "Remote PS is <$ver>; need 7+ for your tooling." }
-        return $s
-    }
-    else {
-        # WSMan: try PS7 endpoint, then fall back to WinPS
-        try {
-            $p = @{
-                ComputerName      = $ComputerName
-                ConfigurationName = $Ps7ConfigName
-                ErrorAction       = 'Stop'
+        if ($UseSsh) {
+            # Requires PowerShell 7+ locally for -HostName transport
+            if (-not (Get-Command New-PSSession -ParameterName HostName -ErrorAction SilentlyContinue)) {
+                throw "SSH transport requires PowerShell 7+ locally (New-PSSession -HostName)."
             }
-            if ($Credential) { $p.Credential = $Credential }
-            $s = New-PSSession @p
-            $ver = Invoke-Command -Session $s -ScriptBlock { $PSVersionTable.PSVersion.Major }
-            if ($ver -ge 7) { return $s }
-            Remove-PSSession $s -ErrorAction SilentlyContinue
-        }
-        catch {}
 
-        try {
-            $p = @{
-                ComputerName      = $ComputerName
-                ConfigurationName = $WinPsConfigName
+            # Prefer credential if provided; else require -UserName (and either key or will prompt if using -Credential)
+            $sshParams = @{
+                HostName          = $ComputerName
+                Port              = $Port
                 ErrorAction       = 'Stop'
+                ConfigurationName = 'PowerShell'  # PS7 remote default; adjust if you expose custom configs over SSH
+                SessionOption     = $sessOpts
             }
-            if ($Credential) { $p.Credential = $Credential }
-            $s = New-PSSession @p
+
+            if ($KeyFilePath) {
+                $sshParams['KeyFilePath'] = $KeyFilePath
+                if (-not $UserName -and $Credential) { $UserName = $Credential.UserName }
+                if (-not $UserName) { throw "For SSH key auth, specify -UserName or provide PSCredential (for username only)." }
+                $sshParams['UserName'] = $UserName
+            }
+            elseif ($Credential) {
+                $sshParams['UserName'] = $Credential.UserName
+                $sshParams['Password'] = $Credential.GetNetworkCredential().Password
+            }
+            elseif ($UserName) {
+                $sshParams['UserName'] = $UserName
+            }
+            else {
+                throw "For SSH, specify -Credential or -UserName (and optionally -KeyFilePath)."
+            }
+
+            $s = New-PSSession @sshParams
+            Write-Log -Level Ok -Message "Connected to $ComputerName via SSH (port $Port)."
             return $s
         }
-        catch {
-            throw "Failed to open session to ${ComputerName}: $($_.Exception.Message)"
+        else {
+            # WSMan: PS7 endpoint first
+            try {
+                $wsmanParams = @{
+                    ComputerName      = $ComputerName
+                    Credential        = $Credential
+                    ConfigurationName = $Ps7ConfigName
+                    ErrorAction       = 'Stop'
+                    SessionOption     = $sessOpts
+                }
+                $s = New-PSSession @wsmanParams
+                Write-Log -Level Ok -Message "Connected to $ComputerName via WSMan ($Ps7ConfigName)."
+                return $s
+            }
+            catch {
+                # Fallback to Windows PowerShell endpoint
+                $wsmanParams = @{
+                    ComputerName      = $ComputerName
+                    Credential        = $Credential
+                    ConfigurationName = $WinPsConfigName
+                    ErrorAction       = 'Stop'
+                    SessionOption     = $sessOpts
+                }
+                $s = New-PSSession @wsmanParams
+                Write-Log -Level Ok -Message "Connected to $ComputerName via WSMan ($WinPsConfigName)."
+                return $s
+            }
         }
+    }
+    catch {
+        $msg = $_.Exception.Message
+        Write-Log -Level Error -Message "Failed to create PSSession to ${ComputerName}: $msg"
+        throw
+    }
+    finally {
+        $ErrorActionPreference = $oldEAP
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAUQBVe+JKb/BAu
-# w+1llhnXLGyr4B4vfG1bRpWIVYCVI6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBBmig/Rt6Wd5Sb
+# 5kZA9pP+MLOf6rBO8iIETRhSqZXfrKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -210,34 +284,34 @@ function Start-NewPSRemoteSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDaUvzGD4Dj
-# sEGNyC59QJ8CEHWlw82cLLKcWyIfplF5MTANBgkqhkiG9w0BAQEFAASCAgBSQqkb
-# 3NGybF81/CRIC2a0hVCyqqRowvEeJ3TjP0l7322J3sm94E7yt2T8PIY6xc7wsRa4
-# XfwbpWyap35v/Mc7GGi0U7AHeNdh8zXpzt04llWwoy+6ZIenoW95ko07JnZtWNxh
-# 0aQFgumZF4DLO9Szq+rmWIEyt/nyjBmj6wOjp3RE3zH52FJNxhdgvW7M6qjaOaN2
-# BdtY5WWnGAKmqYr8QbRJk2SDp5SFuBGwu7GFg8u09bwDNETTUOYtHXiRnnhdm0ef
-# Qbf/pDjCoymwUQBAiMbKWp+VfljPVKXHJuc6t26wjYj3I1Gj9XxKkxCEH5Qi/N9l
-# QYDH4jzI9NYQVV604kDryevqT+xNvPJYlJflTzVtPziwECUcawsNTVrzemY0uBZe
-# CDMynWMdIRYrG68z7tXT2e9QDY2EYcXYOgFBmoF04uWdpAfGw62vP0qRdqrJkSz5
-# POETUUqzSfL6dA4HJw3IpD2rieiqj/I07Zt3Si/grdqtZER8ECDiXC1pWpIMxDhB
-# 8FicwfxmoLf4mm5tsHJ5+xLYSf8e31nAj7baGziGZwrT6sOSTOrZ46ZxmDq9EhVZ
-# wopiQPiHPRDXmK3c+tVEt97tIiO13tsvQbKiXNP5RlvtrU3lKUwNLgA4dDXX8H0a
-# VSbr4QsB1QIrzBydAZdRbJGEO/ONYTFdtSz0aqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCdryuHAbUt
+# sg0GNaq4R7cBiNXV2MkEOq3J9qmZ26vNfTANBgkqhkiG9w0BAQEFAASCAgBzL9gR
+# D5FqyzUx6sVRlI6M+emwsAm8u6xPN4gK9SVDnk0KrUXVB6UQ31KofInAQiIr+cmH
+# QY+nem61ee0/P/sSLsx29CvXFHWjaKlWKejw86+RVgUFCMD2N/qlu8QkeR3ozQpQ
+# qLoEetUxJ8Ffy5H+5oqlYzPbRIkE5y5BP7V3jMD6LRWYCfNIL0ejndxaq1RIc6IL
+# J/wuYKr8TP7gHGvpGtWugx7b9YcXuMpib4gTPlgG4x5tzd12vRfjDZEezjId8l8x
+# Ay5o/tqVDQUQjDGOCyf8IJ+yVkjWS3q5Net3iXGmB3T1DZTIe43hkirljEsbuLSY
+# xQsfev93uJ8gF+HKuNjvq/1fsFNDZzhT7esiuvfMoKBzn4CLBW4PjsR7l//Zxxr/
+# vVlkP3G2che/QSdb/w35NSjJXEvfH3GHh1rKZqg6zue/z97smx9ynU7NUV+rchsx
+# +2cpoFhw3WWuoRYTRejGHHIUTG4VYNFB6Leb5PTjcr5ger1UJKF1QFPIB92gkGOt
+# i5QKUTI9iI+5oRz7o5s5YWaDqm7h0lFrX9oLREZ9HQXS2YLX2rxplYO3fbsOccRm
+# ukthGdIaCU78MwzoT88GCuPRgJjDyyzTkqtTBYO9R80B6XQKUuyxT5ohOGdEupvd
+# 6kdWsMbZ93tIufeL20xWOfVe/8XNZTjsWoFY1qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDRaMC8GCSqGSIb3DQEJBDEiBCBkZZYxZY11CgAq+aBu
-# kjs0FjDsfIXBMd6d5xK7JfgSzzANBgkqhkiG9w0BAQEFAASCAgAXevoFi52iBl9r
-# 8sSUQOY5ib2dTOL3uWfi365eJ3fKgKWdGFTe6zazBaFbxvI+ZrMUNtokXZ8lDa0S
-# qsaeqEnJayKEdSrW68vSJiW2Z75xtjXegi7PRGvSDUgmfsx0ZTA0jZ41ww8xlPxA
-# uzlFlwRW2Rt379b1JIXVUxofYfOL3hD688IQorV+YiNztDQa+OX0HhHH/fJzB2HZ
-# /XlUapAy8RIDqZtc0yxl+eXh8cYHmTlsU0sACHGqhVM5Ei0KpdEE7XrzXRGCEF7s
-# FiH2/3ICCoUfcf9pBiSWtLMYGsIBy0dvt0gBTftG48n2jlw/3HK9JhOQfYfdPUN+
-# j737cw5A3d0/CRvIzaByCGGY+Mvua63VHNKwuVzs459H/BCJlvpMMwTO22ZrvK0Q
-# Z9XPbRvuePcusdINXLF4NUomwn/5UEvneU1aDbDp+TtfQLA/K5LRGqqypRsaVY57
-# /OfM0GT5HZen8pBD4Edy4ygmeLx4XCOxhdpHgVCPvoPspGwYUb6EgRNloTGS3wBZ
-# TnUct/Ysgj0dKoyfkjKtUqRs2oWhNHD8Iyv2hOcuWRjd3hT+mwRbdHP/1bRJwYTQ
-# 83xPfzYdUs8eDZrdLlm5g41CzW8s51Ddga2QmkzmJu5PwcxBiEQimFPaGwdURGEq
-# oSPsLD3WgkuSxedMd15KQVncE0MJ3Q==
+# BTEPFw0yNjAyMDkyMjM1MzZaMC8GCSqGSIb3DQEJBDEiBCBhKljFJrcyW8ewgt1U
+# rEXhKjk/Cbl2OMhtQB10j+GU/jANBgkqhkiG9w0BAQEFAASCAgBqOLxmFH2RYoGP
+# KL7yxQ+PI/+DGr4lGAqrfCb5DZNo97ID0KJJ2xnvLXv1wDg56YwY5M+wgguJxLE2
+# QxQ2MYq+V76sGqOhd/l0UoqKfAJyHoa85kczmTqe4gSqNFY8AdLTKjHp5RYzNAB5
+# jrpdDBJoQlCXudC97A0Vq0wzHCSKaE1SIZgnpmErUG75oKjH2DJV+DxQDQgVRwgm
+# 9Pk3ibOXK2Kzu/+SgeTWRCwiKLfh+tVNq3CzSWFsuODENbvw4VGBkMVSB5piqszF
+# RKkBjs2hJ6fFmkqYOmPfdNiQoISXsIMPj6keQ/5V3dX6hcLw6o2lLXUFRhWQU2w0
+# tZrbtQ75Eujy+Ss+uElBldK5IgzCzJqAB/4IobHGhjAzhDDMul646/PjCVQvjEf4
+# ujdXQz+uFoTtnh83btlS+mgyGhLTXztfyFBe06s6KJoIKScJmprGdcuqiOnxou0k
+# th0j17zHsb/Kk5SGLcbx0nD9kJJezVCjlWFjADD5bXa9T4QxmrpmD8ETZ+EJWyo3
+# qONYW2kkaE16wCqgEN9PK1XYkdQhN+Ynoa+wtrU86WSyDyy2qN4qPhPnJNvUkjoO
+# 594gb1BZ6KsotgkCJ4enRpNUh6koOFwaWawrBCzLxFXJlrwd7g59vt34EIkXgxEj
+# ItfDNnuWfYPWjYRzUJZYq7iSkWzZzQ==
 # SIG # End signature block

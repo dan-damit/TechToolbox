@@ -1,33 +1,33 @@
-function Get-SystemWorkerScriptContent {
-    @'
+# RemoteSystemCollection.Worker.ps1
 param(
-  [string]$ArgsPath
+    [string]$ArgsPath
 )
 
 $ErrorActionPreference = 'Stop'
 
 # Read args
 $cfgRaw = if ($ArgsPath -and (Test-Path -LiteralPath $ArgsPath -ErrorAction SilentlyContinue)) {
-  Get-Content -LiteralPath $ArgsPath -Raw -Encoding UTF8
-} else { $null }
+    Get-Content -LiteralPath $ArgsPath -Raw -Encoding UTF8
+}
+else { $null }
 
 $cfg = if ($cfgRaw) { $cfgRaw | ConvertFrom-Json } else { $null }
 
 # Extract settings
-$timestamp       = if ($cfg.Timestamp) { [string]$cfg.Timestamp } else { (Get-Date -Format 'yyyyMMdd-HHmmss') }
-$connectPath     = if ($cfg.ConnectDataPath) { [string]$cfg.ConnectDataPath } else { (Join-Path $env:ProgramData 'PDQ\PDQConnectAgent') }
-$extra           = @()
+$timestamp = if ($cfg.Timestamp) { [string]$cfg.Timestamp } else { (Get-Date -Format 'yyyyMMdd-HHmmss') }
+$connectPath = if ($cfg.ConnectDataPath) { [string]$cfg.ConnectDataPath } else { (Join-Path $env:ProgramData 'PDQ\PDQConnectAgent') }
+$extra = @()
 if ($cfg.ExtraPaths) {
-  # Ensure array type after deserialization
-  if ($cfg.ExtraPaths -is [string]) { $extra = @($cfg.ExtraPaths) }
-  elseif ($cfg.ExtraPaths -is [System.Collections.IEnumerable]) { $extra = @($cfg.ExtraPaths) }
+    if ($cfg.ExtraPaths -is [string]) { $extra = @($cfg.ExtraPaths) }
+    elseif ($cfg.ExtraPaths -is [System.Collections.IEnumerable]) { $extra = @($cfg.ExtraPaths) }
 }
 
 # Paths
 $tempRoot = Join-Path $env:windir 'Temp'
-$staging  = Join-Path $tempRoot ("PDQDiag_{0}_{1}" -f $env:COMPUTERNAME,$timestamp)
-$zipPath  = Join-Path $tempRoot ("PDQDiag_{0}_{1}.zip" -f $env:COMPUTERNAME,$timestamp)
-$doneFlg  = Join-Path $staging 'system_done.flag'
+$staging = Join-Path $tempRoot ("PDQDiag_{0}_{1}" -f $env:COMPUTERNAME, $timestamp)
+$zipPath = Join-Path $tempRoot ("PDQDiag_{0}_{1}.zip" -f $env:COMPUTERNAME, $timestamp)
+$doneFlg = Join-Path $staging 'system_done.flag'
+$copyErr = Join-Path $staging 'copy-errors.log'
 
 # Clean & create staging
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue }
@@ -35,15 +35,15 @@ New-Item -ItemType Directory -Path $staging -Force | Out-Null
 
 # Build PDQ paths
 $pdqPaths = @(
-  'C:\ProgramData\Admin Arsenal\PDQ Deploy\Logs'
-  'C:\ProgramData\Admin Arsenal\PDQ Inventory\Logs'
-  'C:\Windows\Temp\PDQDeployRunner'
-  'C:\Windows\Temp\PDQInventory'
-  (Join-Path $env:SystemRoot 'System32\Winevt\Logs\PDQ.com.evtx')  # fallback; we'll export via wevtutil too
+    'C:\ProgramData\Admin Arsenal\PDQ Deploy\Logs'
+    'C:\ProgramData\Admin Arsenal\PDQ Inventory\Logs'
+    'C:\Windows\Temp\PDQDeployRunner'
+    'C:\Windows\Temp\PDQInventory'
+    (Join-Path $env:SystemRoot 'System32\Winevt\Logs\PDQ.com.evtx')
 )
 if ($connectPath) {
-  $pdqPaths += (Join-Path $connectPath 'PDQConnectAgent.db')
-  $pdqPaths += (Join-Path $connectPath 'Updates\install.log')
+    $pdqPaths += (Join-Path $connectPath 'PDQConnectAgent.db')
+    $pdqPaths += (Join-Path $connectPath 'Updates\install.log')
 }
 
 # Normalize extras (PS 5.1-safe)
@@ -51,45 +51,49 @@ $extras = if ($null -eq $extra -or -not $extra) { @() } else { $extra }
 
 # Resilient copy helper (Copy-Item → robocopy /B)
 function Copy-PathResilient {
-  param([string]$SourcePath,[string]$StagingRoot)
+    param([string]$SourcePath, [string]$StagingRoot)
 
-  if (-not (Test-Path -LiteralPath $SourcePath -ErrorAction SilentlyContinue)) { return $false }
+    if (-not (Test-Path -LiteralPath $SourcePath -ErrorAction SilentlyContinue)) { return $false }
 
-  $leaf = Split-Path -Leaf $SourcePath
-  $dest = Join-Path $StagingRoot $leaf
+    $leaf = Split-Path -Leaf $SourcePath
+    $dest = Join-Path $StagingRoot $leaf
 
-  try {
-    $it = Get-Item -LiteralPath $SourcePath -ErrorAction Stop
-    if ($it -is [IO.DirectoryInfo]) {
-      New-Item -ItemType Directory -Path $dest -Force | Out-Null
-      Copy-Item -LiteralPath $SourcePath -Destination $dest -Recurse -Force -ErrorAction Stop
-    } else {
-      Copy-Item -LiteralPath $SourcePath -Destination $dest -Force -ErrorAction Stop
-    }
-    return $true
-  } catch {
-    $primary = $_.Exception.Message
     try {
-      $rc = Get-Command robocopy.exe -ErrorAction SilentlyContinue
-      if (-not $rc) { throw "robocopy.exe not found" }
-      $it2 = Get-Item -LiteralPath $SourcePath -ErrorAction SilentlyContinue
-      if ($it2 -is [IO.DirectoryInfo]) {
-        New-Item -ItemType Directory -Path $dest -Force | Out-Null
-        $null = & $rc.Source $SourcePath $dest /E /R:0 /W:0 /NFL /NDL /NJH /NJS /NS /NP /COPY:DAT /B
-      } else {
-        $srcDir = Split-Path -Parent $SourcePath
-        $file   = Split-Path -Leaf   $SourcePath
-        New-Item -ItemType Directory -Path $StagingRoot -Force | Out-Null
-        $null = & $rc.Source $srcDir $StagingRoot $file /R:0 /W:0 /NFL /NDL /NJH /NJS /NS /NP /COPY:DAT /B
-      }
-      if ($LASTEXITCODE -lt 8) { return $true }
-      Add-Content -Path $copyErr -Value ("{0} | robocopy exit {1} | {2}" -f (Get-Date), $LASTEXITCODE, $SourcePath) -Encoding UTF8
-      return $false
-    } catch {
-      Add-Content -Path $copyErr -Value ("{0} | Copy failed: {1} | {2}" -f (Get-Date), $primary, $SourcePath) -Encoding UTF8
-      return $false
+        $it = Get-Item -LiteralPath $SourcePath -ErrorAction Stop
+        if ($it -is [IO.DirectoryInfo]) {
+            New-Item -ItemType Directory -Path $dest -Force | Out-Null
+            Copy-Item -LiteralPath $SourcePath -Destination $dest -Recurse -Force -ErrorAction Stop
+        }
+        else {
+            Copy-Item -LiteralPath $SourcePath -Destination $dest -Force -ErrorAction Stop
+        }
+        return $true
     }
-  }
+    catch {
+        $primary = $_.Exception.Message
+        try {
+            $rc = Get-Command robocopy.exe -ErrorAction SilentlyContinue
+            if (-not $rc) { throw "robocopy.exe not found" }
+            $it2 = Get-Item -LiteralPath $SourcePath -ErrorAction SilentlyContinue
+            if ($it2 -is [IO.DirectoryInfo]) {
+                New-Item -ItemType Directory -Path $dest -Force | Out-Null
+                $null = & $rc.Source $SourcePath $dest /E /R:0 /W:0 /NFL /NDL /NJH /NJS /NS /NP /COPY:DAT /B
+            }
+            else {
+                $srcDir = Split-Path -Parent $SourcePath
+                $file = Split-Path -Leaf   $SourcePath
+                New-Item -ItemType Directory -Path $StagingRoot -Force | Out-Null
+                $null = & $rc.Source $srcDir $StagingRoot $file /R:0 /W:0 /NFL /NDL /NJH /NJS /NS /NP /COPY:DAT /B
+            }
+            if ($LASTEXITCODE -lt 8) { return $true }
+            Add-Content -Path $copyErr -Value ("{0} | robocopy exit {1} | {2}" -f (Get-Date), $LASTEXITCODE, $SourcePath) -Encoding UTF8
+            return $false
+        }
+        catch {
+            Add-Content -Path $copyErr -Value ("{0} | Copy failed: {1} | {2}" -f (Get-Date), $primary, $SourcePath) -Encoding UTF8
+            return $false
+        }
+    }
 }
 
 # Merge non-empty paths (no pre-Test-Path to avoid "Access denied" noise)
@@ -98,64 +102,69 @@ foreach ($p in $all) { try { Copy-PathResilient -SourcePath $p -StagingRoot $sta
 
 # Export event log by name (avoids in-use copy issues)
 try {
-  $destEvtx = Join-Path $staging 'PDQ.com.evtx'
-  if (-not (Test-Path -LiteralPath $destEvtx -ErrorAction SilentlyContinue)) {
-    $logName = 'PDQ.com'
-    $wevt = Join-Path $env:windir 'System32\wevtutil.exe'
-    if ($env:PROCESSOR_ARCHITEW6432 -or $env:ProgramW6432) {
-      $sysnative = Join-Path $env:windir 'Sysnative\wevtutil.exe'
-      if (Test-Path -LiteralPath $sysnative) { $wevt = $sysnative }
+    $destEvtx = Join-Path $staging 'PDQ.com.evtx'
+    if (-not (Test-Path -LiteralPath $destEvtx -ErrorAction SilentlyContinue)) {
+        $logName = 'PDQ.com'
+        $wevt = Join-Path $env:windir 'System32\wevtutil.exe'
+        $sysnative = Join-Path $env:windir 'Sysnative\wevtutil.exe'
+        if (Test-Path -LiteralPath $sysnative) { $wevt = $sysnative }
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $wevt
+        $psi.Arguments = "epl `"$logName`" `"$destEvtx`""
+        $psi.CreateNoWindow = $true
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $p = [Diagnostics.Process]::Start($psi); $p.WaitForExit()
+        if ($p.ExitCode -ne 0) {
+            $err = $p.StandardError.ReadToEnd()
+            Add-Content -Path $copyErr -Value ("{0} | wevtutil failed ({1}): {2}" -f (Get-Date), $p.ExitCode, $err) -Encoding UTF8
+        }
     }
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $wevt
-    $psi.Arguments = "epl `"$logName`" `"$destEvtx`""
-    $psi.CreateNoWindow = $true
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError  = $true
-    $p = [Diagnostics.Process]::Start($psi); $p.WaitForExit()
-    if ($p.ExitCode -ne 0) {
-      $err = $p.StandardError.ReadToEnd()
-      Add-Content -Path $copyErr -Value ("{0} | wevtutil failed ({1}): {2}" -f (Get-Date), $p.ExitCode, $err) -Encoding UTF8
-    }
-  }
-} catch {
-  Add-Content -Path $copyErr -Value ("{0} | wevtutil exception: {1}" -f (Get-Date), $_.Exception.Message) -Encoding UTF8
+}
+catch {
+    Add-Content -Path $copyErr -Value ("{0} | wevtutil exception: {1}" -f (Get-Date), $_.Exception.Message) -Encoding UTF8
 }
 
 # Useful metadata
 try {
-  Get-CimInstance Win32_Service |
+    Get-CimInstance Win32_Service |
     Where-Object { $_.Name -like 'PDQ*' -or $_.DisplayName -like '*PDQ*' } |
-    Select-Object Name,DisplayName,State,StartMode |
+    Select-Object Name, DisplayName, State, StartMode |
     Export-Csv -Path (Join-Path $staging 'services.csv') -NoTypeInformation -Encoding UTF8
-} catch {}
+}
+catch {}
 try {
-  Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' |
+    Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' |
     Where-Object { $_.DisplayName -match 'PDQ' -or $_.Publisher -match 'Admin Arsenal' } |
-    Select-Object DisplayName,DisplayVersion,Publisher,InstallDate |
+    Select-Object DisplayName, DisplayVersion, Publisher, InstallDate |
     Export-Csv -Path (Join-Path $staging 'installed.csv') -NoTypeInformation -Encoding UTF8
-} catch {}
+}
+catch {}
 try {
-  $sys = Get-ComputerInfo -ErrorAction SilentlyContinue
-  if ($sys) { $sys | ConvertTo-Json -Depth 3 | Set-Content -Path (Join-Path $staging 'computerinfo.json') -Encoding UTF8 }
-  $PSVersionTable | Out-String | Set-Content -Path (Join-Path $staging 'psversion.txt') -Encoding UTF8
-} catch {}
+    $sys = Get-ComputerInfo -ErrorAction SilentlyContinue
+    if ($sys) { $sys | ConvertTo-Json -Depth 3 | Set-Content -Path (Join-Path $staging 'computerinfo.json') -Encoding UTF8 }
+    $PSVersionTable | Out-String | Set-Content -Path (Join-Path $staging 'psversion.txt') -Encoding UTF8
+}
+catch {}
+
+# If folder is empty, drop a readme so Compress-Archive has input
+if (-not (Get-ChildItem -Path $staging -Recurse -Force | Select-Object -First 1)) {
+    "No PDQ artifacts were found." | Set-Content -Path (Join-Path $staging 'readme.txt') -Encoding UTF8
+}
 
 # Zip
 if (Test-Path $zipPath) { Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue }
 Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zipPath -Force
 
-# Done flag
+# Done flag (intentionally after zip so it's not included)
 "ZipPath=$zipPath" | Set-Content -Path $doneFlg -Encoding UTF8
-'@
-}
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDytrroZRSHAZ/R
-# yHct5gr6ZqGSQGWcv4iVk+p6tugItqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCALPS0K9vRKU9ok
+# TP2G+5Wzg+PbvDoGRQqg6aEsxmjaKaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -288,34 +297,34 @@ Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zipPath -Force
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAWcJHIlMqa
-# itPlBi1Wg1duwZCCGtdyP3V4+J9p7QZLnjANBgkqhkiG9w0BAQEFAASCAgBczPgp
-# F/9cvA0RS6u3gS1YMuSgI1hc5++G2Tf+NOWXxwdfP4/m9BnTUjzRtF0o/0H+/pP8
-# xsvRorzSHSBtt5LJSzNxNXnroZYMLhUa17ntNrUq1MPa4xhhE5DRnbg1AcadryuQ
-# RZoqg2zK6zDu9WtvLjVaPOrpI8/JJFuB61yEu92WvCKZwVpCHthV+adQP3qFM9UO
-# tJB5afnVDeWgc3BllTK46vV635HO5w/UAS6a2uMYq8gmf37gChZF+uunW663j2By
-# Q/RWZx6P4r/NXxKrIU2mGBWdSjP8aL4CnGO6ChLYJgPv8467oV4kBjk80sRpLkm1
-# +OsWmPZoZ7ujvIoGs/NWREVvtQOmjJdqKhqaU6BsrTzoJePF0FbdJgfpMY/Jwtzg
-# M/49K/0158EDSwh5qbHVnhXZ8brJolq0geueSYKGGFBguwCjxHMvWb/X0X2loh5f
-# za7ArUx1UByFqhFJyIGACyNOguCJITdfIdEiwv775aTHi+JBVVMwagHedH1dNLWY
-# 3ZNR6azc1Kh0NgBo8ievrG4PZjnEsUBdx7dvW09kEqng3wk8C5biQvvJOijnRT5A
-# 1wgBahLIsy5oAKYImeMLUWTi+ihTHsADMZUnVo7V+p4Ir41z1Lv2Z/OTy+sPgR7z
-# OXB6WMEkPdQYnYjePNt26Gke6upFOIE/oB1LEqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBWx56/tdR7
+# q+t+aZk0RN2cUrnvSKopU0MuS5XLfX4GojANBgkqhkiG9w0BAQEFAASCAgBpei4z
+# XuNsa614Upm8XwdyP87rVrpo3ULpCCBB5RGcHJuMv73k6JpJ6HoXOHr9gCJvFmkS
+# 6gnuogWV3WvacBEVifTpDo5eFQonQa1PD+XZqDI51+p1Goc8/seAlYUxpwHtFQ9N
+# eK+Yay2j8EZkIZ9jv/vdoSURRc3UlFSbBuhXJ0S3zBoYQ2y6Vc2K/FRkWZlAHUKT
+# Uoxk4Syy0PlRwjdm7Z5C0tod8LsrjZW+S+BEjYgsASWqyPNk3NcS46z0T1rowfEr
+# 8SPvZFCgNYpeoTT8gOkXL5wnWakpEQuoisltEpHNBZmnu0TDQGSfgOmxoFRzI6Lm
+# i0TK7dr5wEwU07eC7zkeWPy+KTVVJ9MrW08IGjQzj+w6BAlHaVEcgWy68X9gOt/8
+# xYIMyrgt7q5FRuaacTLWEWYS5yWVCdUtBY+T/ph/wqDftY/K42W+V4q6FwBBK1Yj
+# qcQE/+ejdyZXrLlYVQazDmyfcasH7iCGHcow4Re63ixe29y90LFhvMzmjGzeZWM0
+# 6xgFzNE2Y6HW+kXt84fCLZ6XEWapWNMtLug+hBmlKTO1/8WnPpVhjmb+PUPOc8xo
+# 7Bk1TycI0NpvkEw0MCJwbrh7wBfSfUixYVud06d1T2nibHWrDSVgBcfed+dUN8jr
+# ie0V7ETEIUo+QpCJT86t7FwAraW5dSvyQcJdwKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDhaMC8GCSqGSIb3DQEJBDEiBCDEReURIxS8V3Dgo2iF
-# SYqzc8Sb5Nk2J9KU8Tv8HRKtRzANBgkqhkiG9w0BAQEFAASCAgBkARUJwBRmx7nd
-# LTdSC3+z1MAJ1vfFQdx/OFjSS6TzYosGaM2umAYbtpL44LP6krhlv3pyDlz8j/Es
-# Ng8GUqr4aAjuVYhXjprU6had9InlW6Mz1jXps/p56txtNk7cFwWctVuQieq/pNWH
-# zhA1stxBZA9kP8xpMcEMDynQ5ATPvpgF0a+Q5tWtCPbKPuE0y9B0tjU0HOu+JL01
-# rmpJe9hZ/O6PxRBwLv+wxFI12xyqFUe82R9QF85Txt7ox8Nh1L6VrJZLlsiehH1s
-# JI763qEYwz/Z2rzlDJcYGtWc7sCJIyxiCscPaK1sSsMa1plUMDj00MA/o4d8+5XH
-# 95M8T5OYkGNpW/bZbeDDwZeyQwRbPZD93xICGVayGvIo/9ZPDTjTIJWNraYuivXn
-# +YYZSSmWRYvuOcyDqeseya1Tte4Xs4PJ5FKE7Dm/Kke6VHIpJBqMR90N4aLZ0v+R
-# Qf3pxlnrT8YqUqTjHliSIdYiSUJ/knI9EDQ4u582vaW+oAmYjf/KWaiTa4AFo43K
-# I6MXzjgPSFtLnH6g5Kh9iDei0oca2R3QpYza4fZ5Y2eKk0jANWxGr757n8knUDfO
-# wewy1C/qY1OkNOxdD7Lr9aMGd8epi9Br8LS7g2xCKws8WgYGjW3yN+tTDYHpHFRS
-# XfezFRGlShHdRZ9QcW7XAip7tfrmgg==
+# BTEPFw0yNjAyMDkyMjM1MzlaMC8GCSqGSIb3DQEJBDEiBCDnXlAT2gaI/3LZwbNj
+# 2lEebO+a4boA49MRCqnG9WfC+DANBgkqhkiG9w0BAQEFAASCAgC+Noe2Qocy4Vp3
+# XtBNz+V+mSttdYpQuxt9XESKa+vib4ERDVA/N7PgbFg8cjDDezr73Qex3ofGd07d
+# uWJzprh8hEvsEzQgte14hB4RRWnuoqrXzJlZ9kgIxpnEcHRhJEupo3HhK63ewUo2
+# /YqV+aNHmWxpERYCX8loBfQiRs0phSheWWA0zxkcH6rklox6DmprqQhCvEHDCoLa
+# LyLzIYyruFItyTsz5OkP4YHiyqhJBZ6EQntH8VhRbO2GfyoBHg6alGjPs9wtqhUM
+# EQ1n8hEPUXUWenW95Bgmo9jwUR6CLBoEIFSIJ9CaX2xpC7b5P3P99JLF2u2Ym26y
+# jjsu7IJSBRQA/YgK+AK6L16FjSpeK4vAaR9qkvP76wWYgusan6KGMWEiR6pewl1x
+# 05EAysjGol2OnvjPlI+7Xc/qjam14CW4/h9xLIJYosjC8C7ScqB90yqo1Tk8KV36
+# fUxUTexACYo4GaZT7X+OyOss+y7mJuiLyxvDona9h+CWh5Be72+3679NJ/TzEgnL
+# UKESaZ3SUysfDV17bNxwTV3bknQcPDX49KIuDrCDVWHTLY5DjSldnEVb/F1kxVl8
+# qTOMvEaPUfczZvO1FlYNqZAmvcMFqkUh51/+UbIKclu173NYlLNI3JllvkPbchGw
+# ePvPMbceWB8zb7vdTgXwL33Fc4EvRQ==
 # SIG # End signature block
