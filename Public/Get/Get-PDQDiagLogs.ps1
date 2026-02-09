@@ -1,6 +1,6 @@
 
 function Get-PDQDiagLogs {
-    <#
+  <#
     .SYNOPSIS
       Collect PDQ diagnostics under SYSTEM context (local and remote), zip on
       target, and copy back to C:\PDQDiagLogs on the machine running this script.
@@ -45,118 +45,190 @@ function Get-PDQDiagLogs {
       Get-PDQDiagLogs. -ComputerName PC01,PC02 -ExtraPaths 'C:\Temp\PDQ','D:\Logs\PDQ'
     #>
 
-    [CmdletBinding()]
-    param(
-        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
-        [string[]]$ComputerName = $env:COMPUTERNAME,
+  [CmdletBinding()]
+  param(
+    [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
+    [Alias('CN', 'DNSHostName', 'Computer')]
+    [string[]]$ComputerName = $env:COMPUTERNAME,
 
+    [pscredential]$Credential,
+
+    [string]$LocalDropPath = 'C:\PDQDiagLogs',
+
+    [ValidateSet('FromSession', 'Bytes', 'SMB')]
+    [string]$TransferMode = 'FromSession',
+
+    [string[]]$ExtraPaths,
+
+    [string]$ConnectDataPath = (Join-Path $env:ProgramData 'PDQ\PDQConnectAgent'),
+
+    [switch]$UseSsh,
+    [int]$SshPort = 22,
+
+    [string]$Ps7ConfigName = 'PowerShell.7',
+    [string]$WinPsConfigName = 'Microsoft.PowerShell',
+
+    [switch]$VerifyHash,      # optional: compare SHA256 before cleanup
+    [switch]$NoCleanup        # optional: keep remote artifacts
+  )
+
+  begin {
+    $useUserHelper = [bool](Get-Command -Name Start-NewPSRemoteSession -ErrorAction SilentlyContinue)
+
+    # Local session fallback if helper isn't present
+    function New-ToolboxSession {
+      param(
+        [Parameter(Mandatory)][string]$ComputerName,
         [pscredential]$Credential,
-
-        [string]$LocalDropPath = 'C:\PDQDiagLogs',
-
-        [ValidateSet('FromSession', 'Bytes', 'SMB')]
-        [string]$TransferMode = 'FromSession',
-
-        [string[]]$ExtraPaths,
-
-        [string]$ConnectDataPath = (Join-Path $env:ProgramData 'PDQ\PDQConnectAgent'),
-
         [switch]$UseSsh,
-        [int]$SshPort = 22,
-
+        [int]$Port = 22,
         [string]$Ps7ConfigName = 'PowerShell.7',
         [string]$WinPsConfigName = 'Microsoft.PowerShell'
-    )
+      )
 
-    begin {
-        $UseUserHelper = $false
-        if (Get-Command -Name Start-NewPSRemoteSession -ErrorAction SilentlyContinue) {
-            $UseUserHelper = $true
+      if ($UseSsh) {
+        $sshParams = @{
+          HostName    = $ComputerName
+          Port        = $Port
+          ErrorAction = 'Stop'
         }
-
-        # Ensure local drop path exists on the collector
-        if (-not (Test-Path -LiteralPath $LocalDropPath)) {
-            New-Item -ItemType Directory -Path $LocalDropPath -Force | Out-Null
+        if ($Credential) {
+          $sshParams.UserName = $Credential.UserName
+          $sshParams.Password = $Credential.GetNetworkCredential().Password
         }
-
-        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-        $results = New-Object System.Collections.Generic.List[object]
+        return New-PSSession @sshParams
+      }
+      else {
+        try {
+          return New-PSSession -ComputerName $ComputerName -Credential $Credential `
+            -ConfigurationName $Ps7ConfigName -ErrorAction Stop
+        }
+        catch {
+          return New-PSSession -ComputerName $ComputerName -Credential $Credential `
+            -ConfigurationName $WinPsConfigName -ErrorAction Stop
+        }
+      }
     }
 
-    process {
-        foreach ($comp in $ComputerName) {
-            if ([string]::IsNullOrWhiteSpace($comp)) { continue }
-            $display = $comp
-            $fileName = "PDQDiag_{0}_{1}.zip" -f ($display -replace '[^\w\.-]', '_'), $timestamp
-            $collectorZipPath = Join-Path $LocalDropPath $fileName
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $results = New-Object System.Collections.Generic.List[object]
+  }
 
-            Write-Log -Level Info -Message ("[{0}] Starting collection (SYSTEM)..." -f $display)
+  process {
+    foreach ($comp in $ComputerName) {
+      if ([string]::IsNullOrWhiteSpace($comp)) { continue }
 
-            # Remote
-            $session = $null
-            try {
-                $params = @{
-                    ComputerName    = $comp
-                    Credential      = $Credential
-                    UseSsh          = $UseSsh
-                    Port            = $SshPort
-                    Ps7ConfigName   = $Ps7ConfigName
-                    WinPsConfigName = $WinPsConfigName
+      $display = $comp
+      $fileName = "PDQDiag_{0}_{1}.zip" -f ($display -replace '[^\w\.-]', '_'), $timestamp
+      $collectorZipPath = Join-Path $LocalDropPath $fileName
+
+      Write-Log -Level Info -Message ("[{0}] Starting collection (SYSTEM)..." -f $display)
+
+      # Remote session lifecycle
+      $session = $null
+      try {
+        if ($useUserHelper) {
+          $params = @{
+            ComputerName    = $comp
+            Credential      = $Credential
+            UseSsh          = $UseSsh
+            Port            = $SshPort
+            Ps7ConfigName   = $Ps7ConfigName
+            WinPsConfigName = $WinPsConfigName
+          }
+          $session = Start-NewPSRemoteSession @params
+        }
+        else {
+          $session = New-ToolboxSession -ComputerName $comp -Credential $Credential -UseSsh:$UseSsh -Port $SshPort -Ps7ConfigName $Ps7ConfigName -WinPsConfigName $WinPsConfigName
+        }
+
+        # Run the SYSTEM worker on the remote
+        $remote = Invoke-RemoteSystemCollection -Session $session -Timestamp $timestamp -ExtraPaths $ExtraPaths -ConnectDataPath $ConnectDataPath
+
+        # Make sure the worker actually finished and ZIP exists
+        $completed = $remote.PSObject.Properties['Completed'] -and $remote.Completed
+        if (-not $completed) {
+          # If the new property isn't present, fall back to probing the flag/zip
+          $zipExists = Invoke-Command -Session $session -ScriptBlock { param($p) Test-Path -LiteralPath $p } -ArgumentList $remote.ZipPath
+          if (-not $zipExists) {
+            throw "Remote worker did not complete within the timeout; ZIP not found at $($remote.ZipPath)"
+          }
+        }
+
+        # (Optional) compute remote hash before transfer
+        $remoteHash = $null
+        if ($VerifyHash) {
+          $remoteHash = Invoke-Command -Session $session -ScriptBlock {
+            param($p)
+            if (Test-Path -LiteralPath $p) { (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash } else { $null }
+          } -ArgumentList $remote.ZipPath
+        }
+
+        # Retrieve ZIP to collector
+        Receive-RemoteFile -Session $session -RemotePath $remote.ZipPath -LocalPath $collectorZipPath -Mode $TransferMode
+        Write-Log -Level Info -Message ("[{0}] ZIP retrieved: {1}" -f $comp, $collectorZipPath)
+
+        # (Optional) verify local hash matches
+        if ($VerifyHash -and $remoteHash) {
+          $localHash = (Get-FileHash -LiteralPath $collectorZipPath -Algorithm SHA256).Hash
+          if ($localHash -ne $remoteHash) {
+            throw "Hash mismatch after transfer. Remote=$remoteHash Local=$localHash"
+          }
+          Write-Log -Level Ok -Message ("[{0}] SHA256 verified." -f $comp)
+        }
+
+        # Remote cleanup (optional)
+        if (-not $NoCleanup) {
+          try {
+            Invoke-Command -Session $session -ScriptBlock {
+              param($stag, $zip, $scr, $arg)
+              foreach ($p in @($stag, $zip, $scr, $arg)) {
+                if ($p -and (Test-Path -LiteralPath $p -ErrorAction SilentlyContinue)) {
+                  Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue
                 }
-                $session = Start-NewPSRemoteSession @params
-
-                $remote = Invoke-RemoteSystemCollection -Session $session -Timestamp $timestamp -ExtraPaths $ExtraPaths -ConnectDataPath $ConnectDataPath
-
-                # Retrieve ZIP to collector
-                Receive-RemoteFile -Session $session -RemotePath $remote.ZipPath -LocalPath $collectorZipPath -Mode $TransferMode
-                Write-Log -Level Info -Message ("[{0}] ZIP retrieved: {1}" -f $comp, $collectorZipPath)
-
-                # Remote cleanup
-                try {
-                    Invoke-Command -Session $session -ScriptBlock {
-                        param($stag, $zip, $scr, $arg)
-                        foreach ($p in @($stag, $zip, $scr, $arg)) {
-                            if ($p -and (Test-Path -LiteralPath $p -ErrorAction SilentlyContinue)) {
-                                Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue
-                            }
-                        }
-                    } -ArgumentList $remote.Staging, $remote.ZipPath, $remote.Script, $remote.Args -ErrorAction SilentlyContinue | Out-Null
-                }
-                catch {}
-
-                $results.Add([pscustomobject]@{
-                        ComputerName = $comp
-                        Status       = 'Success'
-                        ZipPath      = $collectorZipPath
-                        Notes        = 'Remote SYSTEM collection'
-                    }) | Out-Null
-            }
-            catch {
-                Write-Log -Level Error -Message ("[{0}] FAILED: {1}" -f $comp, $_.Exception.Message)
-                $results.Add([pscustomobject]@{
-                        ComputerName = $comp
-                        Status       = 'Failed'
-                        ZipPath      = $null
-                        Notes        = $_.Exception.Message
-                    }) | Out-Null
-            }
-            finally {
-                if ($session) { Remove-PSSession $session }
-            }
+              }
+            } -ArgumentList $remote.Staging, $remote.ZipPath, $remote.Script, $remote.Args -ErrorAction SilentlyContinue | Out-Null
+          }
+          catch { }
         }
-    }
 
-    end {
-        # Emit objects (choose formatting at call site)
-        return $results
+        $obj = [pscustomobject]@{
+          ComputerName = $comp
+          Status       = 'Success'
+          ZipPath      = $collectorZipPath
+          Notes        = 'Remote SYSTEM collection'
+        }
+        $results.Add($obj) | Out-Null
+        Write-Output $obj
+      }
+      catch {
+        $msg = $_.Exception.Message
+        Write-Log -Level Error -Message ("[{0}] FAILED: {1}" -f $comp, $msg)
+        $obj = [pscustomobject]@{
+          ComputerName = $comp
+          Status       = 'Failed'
+          ZipPath      = $null
+          Notes        = $msg
+        }
+        $results.Add($obj) | Out-Null
+        Write-Output $obj
+      }
+      finally {
+        if ($session) { Remove-PSSession $session }
+      }
     }
+  }
+
+  end {
+    return
+  }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBgHJeqfo1TLfDU
-# qqhjEUZdizo3HJw4iiAfjbZx0frW5KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAVxNP4+Es1n7ay
+# 6mdIbsvV/tw+95H0lxBSOgnDx3vJz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -289,34 +361,34 @@ function Get-PDQDiagLogs {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAzr2pcmipa
-# J2Pb2JZ+Kko0ixfOkKeShPWfCf0AqHWBRzANBgkqhkiG9w0BAQEFAASCAgCUr2KH
-# f04cVCkvbY/0VT9cnkLEIhtCZi0hPn9B08wLDa36Mblj7tNcBgx35nw4U0UMCTRG
-# HQbIp6gfWhbNgYgCP3CRtYHjnBIr+mLsAU86sZszU5numLSC/AmZNvTE8jSgWb8Q
-# COAgUBUZCyyFq8gnqgySsm8NNu3J5zbIDi4h3bS7yKdq7QwWPtdZicj55p43rWKs
-# WozcTBZ/WkyWeqsZQqgzY7vRK27QWOCQ9ClN3ufL5wMwa850lF03RqXSHEHBVp/3
-# je/NGvJPDBmWo4CevDAsaeA95vMwh/xpd+V+F6toCzxOgQBxGA2e/gy5ZEy2/rTb
-# OzLd8MvDfEFCWnIGOk6Zdupp/Xr/yDHhRAePqhYEJz6ktOJa/dfSDCQ2wAyKFf0d
-# CSCLx3tnb8Y3Yeoc6UmCbVCb2G4NgkOEpWYzGSJkKmMa40/2K0FdYU9IaAeC09SP
-# 0E2u6M9saEYwGx6IDmEduIbQLHDwcSIyIUJbOYCHWgI9UyUkT3tIT9ccAN9nmP2/
-# xFGswkNrNNCBM8TknExx2VgewIc6ltF3MxcxvyVuAnluxjgLFnB4EQa94d4BdEnS
-# c50bTRN1E8aDG7hMTOuPzwjzmz97rXcEwn7OhS8dWp9gqSsAJ2m44ymlJ1N9uUum
-# oo66UIg7uKlRjPfVv1X47CX+yoDgudCuox8/yKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCxWQf5xJ64
+# 3xuY9WNxtWaKJSzdydpYkqcVoZTWdg5KHzANBgkqhkiG9w0BAQEFAASCAgBf7jvr
+# 3PaNwixT2wGKdWkzt2hQY8N69g2BXWhGU+a4SmnQGd3XGzy++6SeTBD7OLzVoVR2
+# BQullqWV5jKrQn8kZBrc5XOdArnfCqhq8ChBLMcGlfTxVdDe5s5YlcQmZwCqGWnQ
+# spZer0ZsyrIPN5oBoHxQ5UAQb3TNk13Ob4RWPR82LRnpi8j2gYA1U4XkUG2rxwL8
+# uY5VGThrsw2bP2ypLKoabucQ8EsQmSxxF1tZrbCTJQxWWnpHIT3B4FB2wTKYd1Y+
+# KM+ouUBO3bIbxsNXGjSwFbNamHkODYE8imp6XVb5TE0EaiMjSy75hL6KXQYVXsof
+# BS8aq6IsgCfNFokk7FdjpEOXDGQ5JLh6V5yg4qUZBGtlfGZVbc74j/GyJqfJIHMS
+# jtGTV/5aMV/fxI6M5A1dsXAxFsUfqRv7W4sTtQofer2hlcHwngdtxUg5juHhxP8Z
+# sYGnR15QkD6iDp+g7JRyjTwj0f9706agzilmTiGT1ARXM7S+hhDwEpF7K5bIDr/X
+# vwqha/plwmc+HO1r8QEbZ/wyW6PDFHM4DXiDzsgjBV3VcF6OghRw0lwZuWpaa3ey
+# sm58cXTXeSdhna52skD5nOy5+tSN/Tuc7iMG9kQkbQt3f7g1mDzx8R7VkN0kuDtm
+# Yg/KBpaT92niapa+5Vaba12faqMgDq+je2T9MaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTBaMC8GCSqGSIb3DQEJBDEiBCDApqoc0hEKS9VKgiG7
-# +1tkQH3yrY5HYusbsVfTRVym2DANBgkqhkiG9w0BAQEFAASCAgAS60vuoPEn8vUX
-# 8FytaZoMWhMaWJaudM4tgl/Dl0Q+iZsTn8Tmex65dhZ3ZAAy4lIKUWv7Siiq86tF
-# zeFzNo5SiEzaIrCpJsLIZ4Ge7gi4TWRYGDWn4ZEpGGpQSq1XnVm7k6nDLviE6i3O
-# wam36X97oSBiDArigDuFHwwptnpL2aXyPRLtuJh9QBrmUMpmEf6vdVTby3sTla2z
-# IeYkAD0Vl2Uu8nXjZmZPizJfW6TKtselKJT55qNEi26vZS0Em/nj7JOuWArc3KQD
-# JnxChYAjZyGp35gZc3cv4zp0cszZH/YYsM+ua3WbMyFUJTgOtnS7V869wTIYRpo2
-# jwWYCl0zqGJwHGAXqBGDNhVu/LvT1uDKGYK9Ta+RkrGcZB52cohFDlyDuad6PamQ
-# dXRYac1RauUQb4vfxJ3bjg4mwjRjHY0odRggAA0t84VISHfsxqls0gOU96yE2ZFu
-# F6LBONFHPpwXD0t2dGt0sss37Nn91xPatPpDoF2/sW0/dvG1q7As7mWcs/IqtCu3
-# 3c3c99jzG/O34HjFXrn4k1qmIPIiqx5/3dQHUuRUfJpH4wsuELim0KLo8ioYjZnb
-# 1EwgHyuXiUKzwIEQIgJRDMwq8ZRQn7mjScFIj+sNfFl1jyiLnuUKpI3EyWuJt9uf
-# IONCgVotrmbN5hPBonUsyjD+w1MQAA==
+# BTEPFw0yNjAyMDkyMjQ0MThaMC8GCSqGSIb3DQEJBDEiBCArNDVNOtGVHDzxmAX9
+# Z2YS8nFRBJoCgWlyBsi7+qmN9zANBgkqhkiG9w0BAQEFAASCAgBqEGob0YtFO2o3
+# iBAq5tLWXuHLiEQ67yCBhefW84xnTJGFJQHDxTc2Qt+c5geJYpxunsOVBc6L3f3M
+# ZR1QFjWV2njlOomy5vi8+AWWn24wYSKn/L3W32/lt3TSQJPK15bzy4TQvuFrvR3n
+# KFUnlNFzNvTRh6Z9WaAgnXQCP0+bJ4oUsMjr34dX9VocUwaXirDorSXvRYC4Ulg5
+# 4R10/OWUlPK+1FQeqIsSFFsTlI33ZM9oCxWBB5GvRq1SUAG5kxP4VQI5btD5Qx1V
+# TipbwesybCK33x2pBtuB1ejYhk/s4T7esMpBhZYTtI3HIDi9SCM21AMnlI1BOSDK
+# bP1EUN9iWM0AzHDTFBs4t0mcEqpNIefhTk56ycSj6xmQb/iZ2EaFrm6P15C6XQP8
+# PKGX34TL9dK+5qmGjcsY51Nd2/NEit48FPVNBK80GKak1h5LcdakOB5ciVuw2H7o
+# Z3zOdE3VEPRs9skAef32l4QgdgZYZN9EH8qhfeXbnZfNFaYgtIdMJtFuSFW80qEq
+# senMiCuuVaUxhTQ4YpAVxNDdhNEvoZiPsUfPk+FM6/tcndPP4nTNSTeXiT1j/w0B
+# SUc8+Ej4md6CCxHtAGsk6QZyCSmkRnzOnkCktEiqApIrAYMZ/X2Ewtr/KFanMuIC
+# 7aKC46jC/Lp6xdfOp2SrStQiflEVtg==
 # SIG # End signature block

@@ -1,148 +1,134 @@
 function Invoke-RemoteSystemCollection {
-    <#
-    .SYNOPSIS
-      Run the PDQ diagnostics on a remote host under SYSTEM via a one-shot Scheduled
-      Task.
-    
-    .DESCRIPTION
-      - Sends a small JSON args file and the SYSTEM worker script to the remote host
-        (in C:\Windows\Temp).
-      - Registers a one-time scheduled task to run the worker as SYSTEM.
-      - Waits (up to 180s) for a done flag, then returns the remote staging and zip
-        paths.
-      - Leaves the ZIP in C:\Windows\Temp on the remote for the caller to retrieve.
-      - Cleans up the scheduled task registration and temp files best-effort.
-    
-    .PARAMETER Session
-      A live PSSession to the remote computer.
-    
-    .PARAMETER Timestamp
-      Timestamp string (yyyyMMdd-HHmmss) used in names. Typically generated once by
-      the caller and passed in.
-    
-    .PARAMETER ExtraPaths
-      Additional file/folder paths on the remote target to include in the
-      collection.
-    
-    .PARAMETER ConnectDataPath
-      PDQ Connect agent data root on the remote target. Default (if not provided
-      remotely) is $env:ProgramData\PDQ\PDQConnectAgent Note: Value is passed to the
-      worker; if $null or empty, worker uses its own default.
-    
-    .OUTPUTS
-      PSCustomObject with:
-        - Staging : remote staging folder
-          (C:\Windows\Temp\PDQDiag_<Computer>_<Timestamp>)
-        - ZipPath : remote zip path
-          (C:\Windows\Temp\PDQDiag_<Computer>_<Timestamp>.zip)
-        - Script  : remote worker script path
-        - Args    : remote args JSON path
-    
-    .NOTES
-      Requires Private:Get-SystemWorkerScriptContent to be available in the local
-      module so we can pass its content to the remote.
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [System.Management.Automation.Runspaces.PSSession]$Session,
+  <#
+.SYNOPSIS
+  Run the PDQ diagnostics on a remote host under SYSTEM via a one-shot Scheduled Task.
 
-        [Parameter(Mandatory)]
-        [string]$Timestamp,
+.DESCRIPTION
+  - Reads Workers\RemoteSystemCollection.Worker.ps1 (local file), sends its text to the remote (C:\Windows\Temp).
+  - Writes a small JSON args file on the remote.
+  - Registers and runs a one-time scheduled task as SYSTEM to execute the worker.
+  - Waits up to -TimeoutSec for completion (done flag).
+  - Returns remote paths; leaves ZIP on the remote for the caller to retrieve.
+#>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)]
+    [System.Management.Automation.Runspaces.PSSession]$Session,
 
-        [string[]]$ExtraPaths,
+    [Parameter(Mandatory)]
+    [string]$Timestamp,
 
-        [string]$ConnectDataPath
-    )
+    [string[]]$ExtraPaths,
+    [string]$ConnectDataPath,
 
-    if (-not (Get-Command -Name Get-SystemWorkerScriptContent -ErrorAction SilentlyContinue)) {
-        throw "Get-SystemWorkerScriptContent is not available. Ensure the private function is loaded in the module."
+    [int]$TimeoutSec = 180
+  )
+
+  Set-StrictMode -Version Latest
+  $oldEAP = $ErrorActionPreference
+  $ErrorActionPreference = 'Stop'
+  try {
+    # --- Load worker content from file ---
+    $workerPath = 'C:\TechToolbox\Workers\RemoteSystemCollection.Worker.ps1'
+    if (-not (Test-Path -LiteralPath $workerPath)) {
+      throw "Worker script not found: $workerPath"
     }
+    $workerContent = Get-Content -LiteralPath $workerPath -Raw -Encoding UTF8
 
-    # Pull the worker content locally (here-string) and send it over in one go
-    $workerContent = Get-SystemWorkerScriptContent
-
-    # Execute the SYSTEM workflow remotely
+    # --- Execute SYSTEM workflow remotely ---
     $res = Invoke-Command -Session $Session -ScriptBlock {
-        param(
-            [string]$ts,
-            [string[]]$extras,
-            [string]$connectPath,
-            [string]$workerText
-        )
+      param(
+        [string]$ts,
+        [string[]]$extras,
+        [string]$connectPath,
+        [string]$workerText,
+        [int]$waitSec
+      )
 
-        $ErrorActionPreference = 'Stop'
+      $ErrorActionPreference = 'Stop'
 
-        # Always use C:\Windows\Temp so SYSTEM can read/write
-        $tempRoot = Join-Path $env:windir 'Temp'
-        $argsPath = Join-Path $tempRoot ("PDQDiag_args_{0}.json" -f $ts)
-        $scrPath = Join-Path $tempRoot ("PDQDiag_worker_{0}.ps1" -f $ts)
-        $stagPath = Join-Path $tempRoot ("PDQDiag_{0}_{1}" -f $env:COMPUTERNAME, $ts)
-        $doneFlag = Join-Path $stagPath 'system_done.flag'
-        $zipPath = Join-Path $tempRoot ("PDQDiag_{0}_{1}.zip" -f $env:COMPUTERNAME, $ts)
+      # Use C:\Windows\Temp so SYSTEM can read/write
+      $tempRoot = Join-Path $env:windir 'Temp'
+      $argsPath = Join-Path $tempRoot ("PDQDiag_args_{0}.json" -f $ts)
+      $scrPath = Join-Path $tempRoot ("PDQDiag_worker_{0}.ps1" -f $ts)
+      $stagPath = Join-Path $tempRoot ("PDQDiag_{0}_{1}" -f $env:COMPUTERNAME, $ts)
+      $doneFlag = Join-Path $stagPath 'system_done.flag'
+      $zipPath = Join-Path $tempRoot ("PDQDiag_{0}_{1}.zip" -f $env:COMPUTERNAME, $ts)
 
-        # Prepare arguments payload for the worker
-        $payload = [pscustomobject]@{
-            Timestamp       = $ts
-            ConnectDataPath = $connectPath
-            ExtraPaths      = @($extras)
-        } | ConvertTo-Json -Depth 5
+      # Prepare args JSON
+      $payload = [pscustomobject]@{
+        Timestamp       = $ts
+        ConnectDataPath = $connectPath
+        ExtraPaths      = @($extras)
+      } | ConvertTo-Json -Depth 5
 
-        # Write worker + args to remote temp
-        $payload     | Set-Content -Path $argsPath -Encoding UTF8
-        $workerText  | Set-Content -Path $scrPath  -Encoding UTF8
+      # Write worker + args to remote temp
+      $payload    | Set-Content -Path $argsPath -Encoding UTF8
+      $workerText | Set-Content -Path $scrPath  -Encoding UTF8
 
-        # Create and start SYSTEM scheduled task
-        $taskName = "PDQDiag-Collect-$ts"
-        $actionArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$scrPath`" -ArgsPath `"$argsPath`""
-        $usedSchtasks = $false
+      # Prefer pwsh.exe if available; else powershell.exe
+      $pwsh = (Get-Command pwsh.exe -ErrorAction SilentlyContinue).Source
+      $exe = if ($pwsh) { 'pwsh.exe' } else { 'powershell.exe' }
+      $actionArgs = if ($pwsh) {
+        "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$scrPath`" -ArgsPath `"$argsPath`""
+      }
+      else {
+        "-NoProfile -ExecutionPolicy Bypass -File `"$scrPath`" -ArgsPath `"$argsPath`""
+      }
 
-        try {
-            $act = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $actionArgs
-            $task = Register-ScheduledTask -TaskName $taskName -Action $act -RunLevel Highest -User 'SYSTEM' -Force
-            Start-ScheduledTask -TaskName $taskName
+      $taskName = "PDQDiag-Collect-$ts"
+      $usedSchtasks = $false
+
+      try {
+        $act = New-ScheduledTaskAction -Execute $exe -Argument $actionArgs
+        $task = Register-ScheduledTask -TaskName $taskName -Action $act -RunLevel Highest -User 'SYSTEM' -Force
+        Start-ScheduledTask -TaskName $taskName
+      }
+      catch {
+        $usedSchtasks = $true
+        & schtasks.exe /Create /TN $taskName /SC ONCE /ST 00:00 /RL HIGHEST /RU SYSTEM /TR ("$exe $actionArgs") /F | Out-Null
+        & schtasks.exe /Run /TN $taskName | Out-Null
+      }
+
+      # Wait up to -TimeoutSec for completion (done flag)
+      $deadline = (Get-Date).AddSeconds($waitSec)
+      while ((Get-Date) -lt $deadline -and -not (Test-Path -LiteralPath $doneFlag -ErrorAction SilentlyContinue)) {
+        Start-Sleep -Seconds 2
+      }
+      $completed = Test-Path -LiteralPath $doneFlag -ErrorAction SilentlyContinue
+
+      # Cleanup task registration only (leave files for caller)
+      try {
+        if ($usedSchtasks) {
+          & schtasks.exe /Delete /TN $taskName /F | Out-Null
         }
-        catch {
-            # Fallback to schtasks in case scheduled tasks cmdlets are restricted
-            $usedSchtasks = $true
-            & schtasks.exe /Create /TN $taskName /SC ONCE /ST 00:00 /RL HIGHEST /RU SYSTEM /TR ("powershell.exe {0}" -f $actionArgs) /F | Out-Null
-            & schtasks.exe /Run /TN $taskName | Out-Null
+        else {
+          Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
+      }
+      catch {}
 
-        # Wait up to 180 seconds for the worker to finish
-        $deadline = (Get-Date).AddSeconds(180)
-        while ((Get-Date) -lt $deadline -and -not (Test-Path -LiteralPath $doneFlag -ErrorAction SilentlyContinue)) {
-            Start-Sleep -Seconds 2
-        }
-
-        # Cleanup registration (leave the zip + staging for caller to retrieve/verify)
-        try {
-            if ($usedSchtasks) {
-                & schtasks.exe /Delete /TN $taskName /F | Out-Null
-            }
-            else {
-                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            }
-        }
-        catch {}
-
-        # Return the paths for the caller to retrieve/clean
-        [pscustomobject]@{
-            Staging = $stagPath
-            ZipPath = $zipPath
-            Script  = $scrPath
-            Args    = $argsPath
-        }
-    } -ArgumentList $Timestamp, $ExtraPaths, $ConnectDataPath, $workerContent
+      [pscustomobject]@{
+        Staging   = $stagPath
+        ZipPath   = $zipPath
+        Script    = $scrPath
+        Args      = $argsPath
+        Completed = [bool]$completed
+      }
+    } -ArgumentList $Timestamp, $ExtraPaths, $ConnectDataPath, $workerContent, $TimeoutSec
 
     return $res
+  }
+  finally {
+    $ErrorActionPreference = $oldEAP
+  }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCBee7UxgTUytdz
-# DGeU3GsyA17rumvVelwdxsTf/6rMXKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCARtVIfTU+sC1bQ
+# crEnAMJ/YegTcyl4ABbLIf/PRinBWqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -275,34 +261,34 @@ function Invoke-RemoteSystemCollection {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCChHAoXCtoP
-# O/V4akczcnsJHRw102X2duFkIQmFy1X6ZjANBgkqhkiG9w0BAQEFAASCAgCSVK02
-# RQYJ7d7gtjixIpJd2aEGNSypBbtGV22+QvvRosdkfL+sKeVz1gwy+Nh5pfzJPJ5h
-# pACRxuJDCPW9I34pzS9QlW2TvLmh7QMUKKeXZLw7akGgeWJskQPzg1j6JAuCLNFa
-# dwngNVfwC/ITE5d+xaWLZVvbHGOmLMSa1hc+4XU0yUAZivs+Muj2zzvZB5lC9/ek
-# BL/JpsE3SprPmOHAmRyHM0SBbufEFqslKlQsbfVzCUv6ia8mw2Fe3KH6V8i5uJVc
-# gaFfEBSaJ+ou/0y5Jcnp58UoENaLNwWkdAY1YjrTDLCoss+FhdD/IKUh3d1Ybc6+
-# ePcleT1n7vuBP4OB7zErk7vDypDEIbCzpPVLjCr1NjTSUt3G9AI81BYQihS18g+5
-# ubu/iIHLhchqQkdtrZSKkjkBEd9v97zM1npQAfi3109spQlXhu3k91u50wT38coI
-# 5uzVCWblcLsowO9rhRZli9auvmU5MqgMdQzddZxkK/U1EiYxLhxTaRw7zcec1APr
-# dHGtWu0e2IWBjnE3I4t9QUFAhs6EVz895qGmlZFBxoXI57KamY9ny981nKLZvQ0N
-# UVo6mI3lKTRAXqTWyF0KvFGLbnQGgLs5czS8wLty/oTaN2eu1aiEv3fsztkX/Uc4
-# SAdo0EKTkdxMf+wclnt3vD4NPTuqiasibzKgGaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBCbjrehIx2
+# I6sgR32Jmvu7WPVZI92v8KxLfkNIlQIVvDANBgkqhkiG9w0BAQEFAASCAgBrF7ML
+# 5BHIKsGBbWYMxfUN49oG7JcENXzV0ZsUplxfmVIuiIS+tMqx1iCAEcHh7TgB8ScX
+# C+v26Owv+3eLiR97kdYBX8JorjwG0uW/4eRN/DXgr8uAX39QJqnioPaknzn7yiyk
+# 353xYdtHSL4oIFmAyAEVJVSqj+Px98zMX0LY+9I3ADNDzKocZuw1hbZ3F4lq6sT4
+# ym6XUi/Rg+ejRtmXcECSwom3BifCCIwfjm+EuQZvHljX4hvJWLfLUMdHZp6U4tuv
+# sPeaEYlVqn3TAyl7vG5uHAEYHXUC9dMY+NyK9ZWvcn9B35/5cywxZiL3okxtu2Jk
+# I1cmJZXmyDcBiN2UxgVFS2aFMODhEc67Ma0lfZA4c/DL7caGsGcRi14A8kwBmpWM
+# tP15i2dYm139qceQo4vVl29hoxBwILAmHTIzzz4/CzbG7q7L0Jx1n7EpEGICwT1l
+# tNef07oEEMxWzwRExxdRVSBsr7AXyX639Wf5VqLbm2cJEnTFk1HaFX/uAqq7enmR
+# L/eCI9nXEGTVJD6wNSjQWTJr6VxtUSlrM9LcbidLEqRWPaEr0q54j7TqGbrBw+6s
+# 1CvMyZFDgnik1CKl7ph6QWXlKEG/fHzm4fjp4EfXQwkD2Qi3Aw75GebmovTLQbwu
+# hUEo5JhgX6+NnuELl4rju43IudS28uLrhUepw6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDhaMC8GCSqGSIb3DQEJBDEiBCAch97cIQuwi9+kmW36
-# 0L79oOkrsHAXNBn5ZAKBnBrfzTANBgkqhkiG9w0BAQEFAASCAgAyAlVCryNWpo9B
-# OQ1ad23fWz5btwi/o6jspRnapWJ8OrlkSqu6QzBlV2ks8nIDQ3I1jeTcx1qeqgxt
-# aAPIUM3sqIWI/6WN/SvuRYw6Y29uRTkpMwhQXHRU4trJJvNPp2XQ0H0tflnof+WC
-# oXi3uZC7vlTImg0dWK3W6UJVnfE3i+3PHXsMF1Zyf5FrwDXPSmBMvXbJ9GsUvKlK
-# p6sz51f2wRv7VqduETBu/oXzhrKZM4zSNzN9s1dHvgG2UGIvmtS6zSKkYtjfALNf
-# zkHnr/16hr5cDQo3TFP6JuTxHlvgNdoypgy8Rs3y9p7zbbPPB5nyl2XeUenC7f2Y
-# 53l5ZeRrYQx9DAOFTgiy9wz2Gx9rVhOp9DUeFYa8bRF4mpLPZ4wkmKjVWcdKrYnh
-# 8973cuWCyqNWGuvbWwwje60UIEsrXzR+s8YFsjGOdidEotEY2ugqq0u/NSGXTMvL
-# t9tGMb2R69z5pK/+EeCQndocPJS4SZocm8C0JjpYw2XAXg452Keo35p1D3faEPkX
-# vC5vjzyi43hIOh9NkPdENLyDWf3u+woFOUnUn9++OGDD0OiV4twpGMQufkrVgQhD
-# bi/RwEgoq68/hhBdqQu0WoST6duM18T9qHa9u29PILCiOoq51IeAbVt0LPIgmof0
-# kDMGmxk+FiadvuAPnpaI4mkXeNb4KQ==
+# BTEPFw0yNjAyMDkyMjQwNDRaMC8GCSqGSIb3DQEJBDEiBCBCtkzM55aD3azn2OjB
+# 6BlB8sICy9LTamGYgUaGMONq8TANBgkqhkiG9w0BAQEFAASCAgB+YDR7P7WiOU6A
+# SJGHMj090wcbFHnZhNJFVV3EO0JhOSbcLPEEwgjOgqPuAdMmdwprvMpvriLu17HN
+# wdjBUbaUh75iNMIc0CTY5IibSgsZxq9Ronxdngd24GzcEEf7cOchZk28zYo73AEx
+# GwdqqQMuT85jqpSjrHvyTLkBpaQF+YhmJZwq/4sQlVoSebWc95/ikgHyf/RH5/6K
+# Pmne/LmvYkVXApu2cXg9Zo16kf29KL3sPOt8mrhUkPrOQ6QwnT6zET+Gcrb2/CiJ
+# 5etkKxA/yf4Vzy+NIYPIFqqNUTEsGb50/JN8ztfFZJQprJqzvBpzRHdTxm1VbYvt
+# tYaT6IJdrZXrUQ/0uRUUV0ha2b8A7DhWuTVmBKIQo+/9IOJMm/EQuHRprzKnVh+J
+# uMswiZNAM7ofTP0i7mBoN58Vgs7zQ1cfLjqzL/cZoKhOhhy8w6AjpPqQeW0eKdPJ
+# RhEDBz2tLUwfmlgzZAciqNgDGO20rcODRJBrFoTOBgCauc3Yzc+8XlHK/31qXB0P
+# ptRWGzeDO+iMNnLxwVX6GCAHemTW2vFVUCsdZ3SnyhuNhsS0Ufo4BdFDDQKknP3l
+# mrzpPVowZKk572ZA08n7OpM4QQsbuy18Ggs5wxQQAKE5BJhpgQbRQRKvyAwuQQob
+# EnqDYDfqKxOCjassgRDOGAk3IfDu/w==
 # SIG # End signature block

@@ -63,10 +63,9 @@ function Invoke-SubnetScan {
 
     try {
         # --- CONFIG & DEFAULTS ---
-        $cfg = Get-TechToolboxConfig -Verbose
+        $cfg = Get-TechToolboxConfig
         if (-not $cfg) { throw "TechToolbox config is null/empty. Ensure Config\config.json exists and is valid JSON." }
 
-        # Keep ?. tight (no whitespace between ? and . /  )
         $scanCfg = $cfg['settings']?['subnetScan']
         if (-not $scanCfg) { throw "Config missing 'settings.subnetScan'." }
 
@@ -101,24 +100,32 @@ function Invoke-SubnetScan {
         else {
             Write-Log -Level Info -Message "Executing subnet scan on remote host: $ComputerName via $Transport"
 
-            # Build session
+            # --- Build session (WSMan / SSH, keep your existing transport switch) ---
             $session = $null
             try {
                 if ($Transport -eq 'WSMan') {
-                    $session = New-PSSession -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop
+                    # Try PS7 endpoint first, then fall back to the default (WinPS 5.1)
+                    try {
+                        $session = New-PSSession -ComputerName $ComputerName -Credential $Credential `
+                            -ConfigurationName 'PowerShell.7' -ErrorAction Stop
+                        Write-Log -Level Ok -Message "Connected to $ComputerName (PowerShell 7 endpoint)."
+                    }
+                    catch {
+                        # Fallback to classic endpoint
+                        $session = New-PSSession -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop
+                        Write-Log -Level Ok -Message "Connected to $ComputerName (Windows PowerShell endpoint)."
+                    }
                 }
                 else {
-                    # SSH remoting (PowerShell 7+)
+                    # SSH remoting (unchanged from your code)
                     if (-not $UserName -and $Credential) { $UserName = $Credential.UserName }
                     if (-not $UserName) { throw "For SSH transport, specify -UserName or -Credential." }
-
                     $sshParams = @{ HostName = $ComputerName; UserName = $UserName; ErrorAction = 'Stop' }
                     if ($KeyFilePath) { $sshParams['KeyFilePath'] = $KeyFilePath }
                     elseif ($Credential) { $sshParams['Password'] = $Credential.GetNetworkCredential().Password }
-
                     $session = New-PSSession @sshParams
+                    Write-Log -Level Ok -Message "Connected to $ComputerName (SSH)."
                 }
-                Write-Log -Level Ok -Message "Connected to $ComputerName."
             }
             catch {
                 Write-Log -Level Error -Message "Failed to create PSSession: $($_.Exception.Message)"
@@ -126,32 +133,26 @@ function Invoke-SubnetScan {
             }
 
             try {
-                # Ensure TechToolbox module is present & importable on remote
-                $moduleRoot = 'C:\TechToolbox'
-                $moduleManifest = Join-Path $moduleRoot 'TechToolbox.psd1'
-
-                $remoteHasModule = Invoke-Command -Session $session -ScriptBlock {
-                    param($moduleManifestPath)
-                    Test-Path -LiteralPath $moduleManifestPath
-                } -ArgumentList $moduleManifest
-
-                if (-not $remoteHasModule) {
-                    Write-Log -Level Info -Message "TechToolbox not found on remote; copying module..."
-                    # Copy the whole folder (adjust if your layout differs)
-                    Copy-Item -ToSession $session -Path 'C:\TechToolbox' -Destination 'C:\' -Recurse -Force
+                # --- No module copy. No import. Just run the worker script remotely. ---
+                $workerPath = 'C:\TechToolbox\Workers\SubnetScan.Worker.ps1'   # local path on YOUR box
+                if (-not (Test-Path -LiteralPath $workerPath)) {
+                    throw "Worker script not found: $workerPath"
                 }
 
-                # Import module and run worker
+                # If the user asked for remote export, pass an explicit dir (keep your config intent)
+                $remoteExportDir = $null
+                if ($ExportCsv -and $ExportTarget -eq 'Remote') {
+                    # Reuse your existing config's exportDir value resolved earlier
+                    $remoteExportDir = $scanCfg['exportDir']
+                    if (-not $remoteExportDir) {
+                        throw "Config 'settings.subnetScan.exportDir' is missing; required for remote export."
+                    }
+                }
+
                 $doRemoteExport = $ExportCsv -and ($ExportTarget -eq 'Remote')
 
-                $results = Invoke-Command -Session $session -ScriptBlock {
-                    param($CIDR, $Port, $ResolveNames, $HttpBanner, $DoExport)
-
-                    # Import module
-                    Import-Module 'C:\TechToolbox\TechToolbox.psd1' -Force -ErrorAction Stop
-
-                    Invoke-SubnetScanLocal -CIDR $CIDR -Port $Port -ResolveNames:$ResolveNames -HttpBanner:$HttpBanner -ExportCsv:$DoExport
-                } -ArgumentList $CIDR, $Port, $ResolveNames, $HttpBanner, $doRemoteExport
+                $results = Invoke-Command -Session $session -FilePath $workerPath `
+                    -ArgumentList $CIDR, $Port, $ResolveNames, $HttpBanner, $doRemoteExport, $remoteExportDir
             }
             catch {
                 Write-Log -Level Error -Message "Remote scan failed: $($_.Exception.Message)"
@@ -192,8 +193,8 @@ function Invoke-SubnetScan {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCIyBc5I4U9M7WY
-# 1UkPaz7qYLVbdxIvzBScvL9BtcOotKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+5rfqAKdU0VKw
+# ixjBQYfhvG6BcpqUUXj1yk1+Zvaq+aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -326,34 +327,34 @@ function Invoke-SubnetScan {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAH6GWDPnLg
-# gexljYeJeWyYN9OCh5cLvSbmjqiG3m4KZzANBgkqhkiG9w0BAQEFAASCAgA8OLFo
-# ovtA19WwOJiQnOSg/wGX8uCeKf11ponDQGOd3X4sal1lJmwVqIw/nkpsTERwwLT+
-# HcUo2peLrpCj8Nj+uiUIzuOpRf58qAxh6sm5I7BiKBZoU0QwSW5IcNU41ao4cs/Y
-# HKzlxROW9OAONfBu+keABbRHH5lLrcVSsamHwzuXpv61J7XOq4LpOaKOpRIYC4J3
-# /sTeDtV2mUbTm8RoNZOkCaJWX8HntEEAuVJMngDUgIy9kykBAkUt+RmRlJdQ7r5h
-# 1Y0Hn8fSL4H+ZKvFPEcGtAKCP7Cu9QekwFC4jL2A/yI0oVNDWtCU2LnQtHwYSnu9
-# wZb5YPc7lEaQbuGP+eg8Nfo+1M019DJ4BRT/Vx4bGPJaHa7nNoRMBpNWNpYSojEr
-# TcBUxoWBx1MDHFcor7x82+X4Sa9ofnBZf1/p/fc79Qgc9qKCqcLV2b0LXACSSBqQ
-# IYgAGdF1tTJQatKhkQ1Lm5uEqPrHofTzfbj9UdhCxF8jVde77xCgDXuLz1pxtGNj
-# v2q3bv+eAZKWNuc3Zy9YDa8oKOIKpLBKvdZTiMLlY6R1Z3pTqKDsyRrRugvxrdZU
-# SIbMBWvSRbpMDAK5KtYcM50k2cmyWO2TxaswpFvMrznerv3I0llto+Yxkgpvham5
-# PhVJc6d9owL1+5iCak1YcyAtijQqH15pyiStGKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBNbgJGIdjt
+# 9kAyxn1+Rqz8Xuc1QA3RST/DbcF7PSZOsjANBgkqhkiG9w0BAQEFAASCAgAbfnJa
+# ytsyBZ979/IERHGwXiGBV3F0zlUTOj+jEZwc85uNhIleEktVBU6yz2x7hWaqPLqr
+# ogvqGZctNmEfYHZZGn7o1L6f8gzN5Ggh4AsVEFXyDtmh9W0dwuoaWEBjDM+cCltw
+# byfL9mto7RgS3Gz5b0dQI7KkRlk514txDQnl/CP/jdAeWB2sMD/iyB620L1lAhTs
+# ogdHb+6iB5wmDVCQfTL4FA6lrulfVjUknj72TnOdqzYFMuqQgltIUZSI2TK7D2K3
+# Y8XBhoP7LXqASzM8c5+8vmwqYr6djRcMNlfy1+uWhyqD3XbZ2RQBaGu5xQCU3uzB
+# t+KkyRZ77ExyPnbZeCLza/FZ81J3koa06Gjya/HYo/MKclTpL5dIgNjqBk2dWCju
+# 0nd1vG7Vj7hzWpIKCwUC2+qLNtPVzC5VXdlk9RnZQ3fZ+pnBxWiSBL38UM16bbW7
+# bMTJ46xhOZJHANM+r2EoAi1lm+bLKntOCc0mA+U41Naj0ajl0yVmyyowpspJjapw
+# wsYjDoby81ralAlZGwJwe+wtQQaMTArH59Ezdi/FwlkFTnQw+/qLhxT5J30Dhi6L
+# UQ+jRBz/1U2vjoE5lhr3zQstAT0OwgbHInG+mi1yXbePDCJU7rCQypWq2Dwxl30a
+# GS2sBRPy6/xgGkariy5MGgLb4qNk0P1K7bj1PaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTJaMC8GCSqGSIb3DQEJBDEiBCCKixYIx02kJR9EGHhl
-# MEFL1smLgNtO96UL40rOwaS9ADANBgkqhkiG9w0BAQEFAASCAgBrf5pPkvG8RGmT
-# qnChcombELDhBxJWEvFGkhWKzLBvR6496bM+cKRhay3eQdHyWYKX/YR3W28J2hIf
-# zDyQWHUQ8Bo4nLuYJKDkW083d3xGfLpo/aoa0gwT6qnEdiD0Ghb3+928F984BArj
-# EkDVHcxzk9gZbGY94sfzhwyzpCxxpUJpABn4wm11iwuYvD4mSZXHmsYmIzkDr4T9
-# IISDj2cWDpv4bWEBn3Vd5vJXu6h7CQCQ5aOnaOSNueJ4M0Jzm7ONxlRtEJbgsoXa
-# NWfW0AacehnbaqK8oWtVA/aXSZr/T4GWYlqVYNkVuo3+aY1+e6Wmz27WThQhMEex
-# TXzZBNtCF6EfC2/pJ+hj1RhQlXnrOXxrzNc+8lr+KDIsN0KUqHZLapKRKTrOz1Sj
-# xw9NeT+qqiMVyTV5SKknrA1AgcOUgZ5MHA5eyL+zUP/5JGN0dUMr5MfRclkMdPvI
-# Dsp5UpuAUsBxH4yl/DGzBUyQsjwAY/t53Ic9WdtW8166Szw7NTCUKfdHhnsbv0FI
-# XwBUSB8FCZbDLrzNk/5HvVUq2HX1E77NZx+58lcq2H4pjWAIfnAJzUuieOx+JYI4
-# WX9GSZg+AHorwX0c//odGkDnpEibrpFkRLrllGFRl6FODj8hfZ+4Dr5zxqzpQR15
-# QIS7i2b6LAdW8BAzG+cABQWH7bj0uA==
+# BTEPFw0yNjAyMDkyMjM1MzlaMC8GCSqGSIb3DQEJBDEiBCDlgeiWEASIxLwB0E/n
+# eBA3Dntz6yhyPe9mel1IMtOfUDANBgkqhkiG9w0BAQEFAASCAgB1uEfXXEwPN5H/
+# mm+ACtvUqPVzXx7ydyp7BCH8t4ugb4vylsYr3ZmUkKefmwlGCqxWGPoagqqBnLh1
+# ROLIxRU0i5Hnaw+JPheHv3UEK60UcQkPyYR/GPXbV+IVB0e/kTAInhNwgcIX0a9g
+# jWtSohjy+5qmMvExw7RAypTwO6DmoJMl3OUWkdBvbaSKtZqvOsPin23X0kt2CVva
+# 4mKKwelUWcv3aVDMBd/njUoB2o/x6jU6fNaUjzF+eTm9Bz15VSpdgspKB1KIxnyu
+# hIKekywq3DzIYxVdZBQl+IcrYxPIkp6gYG6sFqkKwu9yQZv9Q6gzaXB5iuF1Gs+q
+# Vzl5TBuatj+bkvgjGUcuFKG37OKVLpA05oSlJkAQYEz1JhrbIPLiuu1ZXmTIzgPf
+# inJHQxPAivPpctVjv9SqlcLAPAUeMlFfaPsbkRT9BX7T6c05BmroGh13p/7L7H7+
+# Mrc14uylfOzIsQdvtUP491tNkEvbVv25gUU1HyP7LbiUshvmrmoHKykdKeGmQhYL
+# 3+kyd+La03lOC7/w9HZNpX/qVYywIg8AeT6GGJS6GdUy2kheCMQyyZnt1gN3ShOT
+# 2lEFsXt2cD8ha5PSCfcbQNf+q0qGaFBZ97dQfKRz3RtPyi+xT2pKeT3wJBbl+YEn
+# nJddcVqBIUf6zPyn6OCnPzDaRoKJrw==
 # SIG # End signature block
