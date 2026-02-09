@@ -1,0 +1,14 @@
+{
+  "signing": {
+    "thumbprint": "7168509FC1A2AE7AFC4C40342D6A8FED7413029C",
+    "timestamp": "http://timestamp.digicert.com"
+  },
+  "artifacts": {
+    "outDir": ".\\Out"
+  },
+  "quality": {
+    "analyze": false,
+    "failOnPssa": false,
+    "pssaSettings": ".\\PSScriptAnalyzerSettings.psd1"
+  }
+}
