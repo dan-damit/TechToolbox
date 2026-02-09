@@ -30,8 +30,7 @@ enterprise-grade PowerShell module.
   - [Development \& QA](#development--qa)
 
 **There are many more Public Commands available than listed here. Please use
-Get-ToolboxHelp for details on these listed here, as well as those that are not
-listed.**
+Get-ToolboxHelp for details on those listed here, as well as those not listed.**
 
 ---
 
