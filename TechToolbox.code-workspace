@@ -95,6 +95,7 @@
             "dsznajder",
             "eamodio",
             "emberly",
+            "ENDCODE",
             "endswith",
             "esbenp",
             "evtx",
@@ -107,6 +108,7 @@
             "hdrs",
             "HKCU",
             "HKLM",
+            "humao",
             "idempotently",
             "IPPS",
             "jdoe",
@@ -128,6 +130,7 @@
             "nics",
             "Nologo",
             "oderwat",
+            "Ollama",
             "onmicrosoft",
             "pnputil",
             "PORTPROMPT",
@@ -141,6 +144,7 @@
             "psversion",
             "purv",
             "qmgr",
+            "qwen",
             "RSAT",
             "runas",
             "rundll",
@@ -160,6 +164,7 @@
             "subfolders",
             "TCPIP",
             "tmpl",
+            "unvalidated",
             "vadtek",
             "valueaddedcompanies",
             "Visio",
@@ -170,7 +175,10 @@
             "writability",
             "wuauserv",
             "yzhang"
-        ]
+        ],
+        "[http]": {
+            "editor.defaultFormatter": "ShinyaSuzuki.rest-formatter"
+        }
     },
     // ------------------------------
     // Recommended Extensions
@@ -189,7 +197,8 @@
             "dnut.rewrap-revived",
             "dotjoshjohnson.xml",
             "github.copilot-chat",
-            "dsznajder.es7-react-js-snippets"
+            "dsznajder.es7-react-js-snippets",
+            "humao.rest-client"
         ]
     }
 }
