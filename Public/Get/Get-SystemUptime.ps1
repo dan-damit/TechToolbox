@@ -1,137 +1,103 @@
 function Get-SystemUptime {
-    <#
-        .SYNOPSIS
-        Returns system uptime locally or via PowerShell Remoting.
-
-        .DESCRIPTION
-        Defaults to using Win32_OperatingSystem.LastBootUpTime on the target
-        system for maximum reliability across endpoints. Optionally, you can
-        force the TickCount method.
-
-        .PARAMETER ComputerName
-        One or more remote computer names. Omit for local system.
-
-        .PARAMETER Credential
-        Credential for remote sessions.
-
-        .PARAMETER Method
-        Uptime calculation method:
-        - LastBoot (default): (Get-Date) - (Get-CimInstance
-          Win32_OperatingSystem).LastBootUpTime
-        - TickCount:         [Environment]::TickCount64 (fast, may be unreliable
-          on some endpoints)
-
-        .EXAMPLE
-        Get-SystemUptime
-        .EXAMPLE
-        Get-SystemUptime -ComputerName 'SRV01','SRV02'
-        .EXAMPLE
-        Get-SystemUptime -ComputerName SRV01 -Credential (Get-Credential) -Method TickCount
-
-        .OUTPUTS
-        PSCustomObject with ComputerName, BootTime, Uptime (TimeSpan),
-        Days/Hours/Minutes/Seconds, TotalSeconds, Method, and (if applicable)
-        Error.
-    #>
-
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([pscustomobject])]
     param(
-        [Parameter(Position = 0)]
+        [Parameter(Mandatory)]
         [string[]]$ComputerName,
 
-        [System.Management.Automation.PSCredential]$Credential,
+        [pscredential]$Credential,
 
-        [ValidateSet('LastBoot', 'TickCount')]
-        [string]$Method = 'LastBoot'
+        [string]$OutDir,
+
+        [switch]$NoExport,
+
+        [switch]$PreferPS7
     )
 
-    $sb = {
-        param([string]$Method)
+    begin {
+        # Initialize runtime (config/logging/interop/env)
+        Initialize-TechToolboxRuntime
 
-        function Get-UptimeFromLastBoot {
-            $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
-            $boot = $os.LastBootUpTime
-            $now = Get-Date
-            $ts = $now - $boot
-
-            [PSCustomObject]@{
-                ComputerName = $env:COMPUTERNAME
-                BootTime     = $boot
-                Uptime       = $ts
-                Days         = $ts.Days
-                Hours        = $ts.Hours
-                Minutes      = $ts.Minutes
-                Seconds      = $ts.Seconds
-                TotalSeconds = [math]::Round($ts.TotalSeconds, 0)
-                Method       = 'LastBoot'
-            }
+        # Resolve export directory (config → explicit → default)
+        $outCfg = $null
+        if ($script:cfg -and $script:cfg.settings -and $script:cfg.settings.systemUptime) {
+            $outCfg = $script:cfg.settings.systemUptime.exportPath
+        }
+        if (-not $PSBoundParameters.ContainsKey('OutDir')) {
+            if ($outCfg) { $OutDir = [string]$outCfg }
+            else { $OutDir = Join-Path $script:ModuleRoot 'Exports\SystemUptime' }
+        }
+        if (-not (Test-Path -LiteralPath $OutDir)) {
+            New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
         }
 
-        function Get-UptimeFromTickCount {
-            $ms = [System.Environment]::TickCount64
-            # Fallback if the endpoint returns 0 or negative (shouldn't, but we guard it)
-            if ($ms -le 0) {
-                return Get-UptimeFromLastBoot
+        # Resolve worker paths
+        $workerLocal = Join-Path $PSScriptRoot '..\Workers\Get-SystemUptime.worker.ps1'
+        $workerRemote = Join-Path (Get-WorkerBasePath) 'Get-SystemUptime.worker.ps1'
+
+        $all = New-Object System.Collections.Generic.List[object]
+        $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+    }
+
+    process {
+        foreach ($cn in $ComputerName) {
+            $session = $null
+            try {
+                # Session helper
+                Use-Private 'Network\Core\Start-NewPSRemoteSession.ps1' -RequiredFunction 'Start-NewPSRemoteSession'
+                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
+
+                # Ensure worker exists on remote (copy if missing)
+                $exists = Invoke-Command -Session $session -ScriptBlock {
+                    param($p) Test-Path -LiteralPath $p
+                } -ArgumentList $workerRemote
+
+                if (-not $exists) {
+                    $remoteDir = Split-Path -Path $workerRemote -Parent
+                    Invoke-Command -Session $session -ScriptBlock {
+                        param($d)
+                        if (-not (Test-Path -LiteralPath $d)) {
+                            New-Item -ItemType Directory -Path $d -Force | Out-Null
+                        }
+                    } -ArgumentList $remoteDir
+
+                    if ($PSCmdlet.ShouldProcess($workerRemote, "Copy worker to $cn")) {
+                        Copy-Item -ToSession $session -Path $workerLocal -Destination $workerRemote -Force
+                    }
+                }
+
+                # Invoke worker
+                $uptime = Invoke-Command -Session $session -FilePath $workerRemote
+
+                if ($uptime) {
+                    if (-not $NoExport) {
+                        $csv = Join-Path $OutDir ("SystemUptime_{0}_{1}.csv" -f $cn, $stamp)
+                        if ($PSCmdlet.ShouldProcess($csv, "Export uptime CSV")) {
+                            $uptime | Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
+                        }
+                    }
+                    $all.Add($uptime)
+                }
             }
-
-            $ts = [TimeSpan]::FromMilliseconds($ms)
-
-            # Approximate BootTime from TickCount (may differ from LastBoot because TickCount may pause in sleep)
-            $bootApprox = (Get-Date).AddMilliseconds(-$ms)
-
-            [PSCustomObject]@{
-                ComputerName = $env:COMPUTERNAME
-                BootTime     = $bootApprox
-                Uptime       = $ts
-                Days         = $ts.Days
-                Hours        = $ts.Hours
-                Minutes      = $ts.Minutes
-                Seconds      = $ts.Seconds
-                TotalSeconds = [math]::Round($ts.TotalSeconds, 0)
-                Method       = 'TickCount'
+            catch {
+                Write-Log -Level Warn -Message ("{0}: {1}" -f $cn, $_.Exception.Message)
             }
-        }
-
-        try {
-            switch ($Method) {
-                'TickCount' { Get-UptimeFromTickCount }
-                default { Get-UptimeFromLastBoot }
-            }
-        }
-        catch {
-            [PSCustomObject]@{
-                ComputerName = $env:COMPUTERNAME
-                Error        = $_.Exception.Message
-                Method       = $Method
+            finally {
+                if ($session) { Remove-PSSession -Session $session -ErrorAction SilentlyContinue }
             }
         }
     }
 
-    if (-not $ComputerName) {
-        return & $sb -ArgumentList $Method
+    end {
+        $all.ToArray()
     }
-
-    $results = foreach ($cn in $ComputerName) {
-        try {
-            Invoke-Command -ComputerName $cn -ScriptBlock $sb -ArgumentList $Method -Credential $Credential -ErrorAction Stop
-        }
-        catch {
-            [PSCustomObject]@{
-                ComputerName = $cn
-                Error        = $_.Exception.Message
-                Method       = $Method
-            }
-        }
-    }
-
-    return $results
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDq+mrEORVXC45N
-# UoWX8ixTCJjckrlXZsLo/qPtEgYiyKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCV0a3oYkzkcg/L
+# Sn5oKgj8UQX9YCbEsgUcbBTD2ZCd46CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -264,34 +230,34 @@ function Get-SystemUptime {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC65DDhTRaY
-# 9sNoogYvusDuZyOzJvW7ll/OqUJOGPL4VTANBgkqhkiG9w0BAQEFAASCAgAe4aPw
-# /i80usX2Qn5xvRkz9d1QK1rVLznJJn2s6Q8PnPEEmGH3+u6BaxZOddR+Lq1PsWMe
-# OSrTCps3P6Qs+aSTtTE48ELZjHgbUJl0cknWwlSj4XymoXl8j7LksoiyVx5cG97B
-# 0GxqDps7tl2xigvJ0gJy87AAc62lSVCVe2cwAwVegbHnSyPMUZA3oMgkszzrN6qd
-# X85Lkv2T2CWT6MWUO44JJZoJr6lIEgJ9Za556G374eguFF9t7QAaVJxwGuME9E0w
-# 9vnS5zlfCaBJ7K3WccTsHKqbv6+7PFb0KbtZJsBHmAJN8pZB9/c3Ytw6hJZIpMS9
-# LiUzwsdtdZhKxpwLFCTRrA21ZisVQaeGcWz5lRCORF2CczVcIK16KorxRlEqxuMi
-# T5jUxEAwRe6SlfKa2hk8AFnRl/h0uzzWE6qZOnBS3dr4VzrVxoqBbZHIoX5HCfOh
-# F4DhVAdlq7lURfZOIhOuzGIdTOyHd1Y5g2Gyj2S4y2+gRU7TUrdhPJ2A4fzMztoD
-# zanA16n+OncmDEPbF8PJ8gh1zYwp90dr0t59um2JwR8hANYWIm+yp3zwiofZ1L7W
-# DOiArvSfgmEdHn/ZUJ5kkb3Yy7wOQ+6lyblLQFJjKpFlOv5FfSLtXVVZ6h+W6DKn
-# 3CcQ8A58AW1gn6rgH/+iYPM3Sd4rn8TrlRmboKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCNlCTUINaO
+# TkTjvUf9vjgWYZVUjKEtBBRXvGgbSJ2fTTANBgkqhkiG9w0BAQEFAASCAgDHbX9d
+# 9CATk1I5mR0aSl+U9Mz2gSOnLavpgeAAfuC3mxkgxhrJAnd2HAeoIwUnKzcdEwSl
+# 1Py4w1Jc5MV0BpjENhIRg3E76UW9G/L0NhyaPn6EfEP7ZzSv//yJn/toLPOYYSqh
+# nM6awdnvj5C+SnEctPnGjkiyTRXnpCrbdVgGSHHZc37mkAtL3Yl2pypELJO2uGhr
+# qLz7v7MRQEYde69eeLqWI2ioVqdTwkN25Rh5e68HSD293ES2bwy0klMb6UCSr7Aw
+# u7GsqpYIzsLcswYi3R+W7FhgH6Pj5bLcO5pDNtvT4pmSJHB2L1dAlmYJPDMdeLhQ
+# TT2UgqvYbRUxZ4htVDt88lYG4KgjM4HE9fQFvMtuuNw7KEk9n5JborSUpMIkOvbu
+# d0KRPWPzlx/TMGjH7dC6KfA8D6isv5uiFVDQXWnWp+2ps11NgmWtr9Cz5zVN55be
+# d8K+SIcWvHeij1WC2XfB2Nq8kS8n0KQl0t71pg7EHsDgACsazCQsQCOReqCVXwv0
+# WlMtYlAuOTypmVfOQnU9wsaPHWkz9VFdrz09A/qNNjM4A67EFpumXsC6GiVquNqm
+# 9ia/B11H99b0qjSWALIGqGn1x+mqQKxEYvX6UHBWWpbODWRSo9xrNGkkj/apb3G3
+# q7P5A4EowEVMU97IvpkWdhy5WNThwxivf2LsRaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDkyMDI0MDJaMC8GCSqGSIb3DQEJBDEiBCDW/09Q1LoVEzZ5xBOr
-# t9rtoDMXil4sqBWNTwPisSyRzzANBgkqhkiG9w0BAQEFAASCAgCqd06DDL9YNpq8
-# tYyojISIi+h7dI815ZarkMsMQ4lZslPXMUrZeaS+wTiSJBtRKDpNS08dpCYHVFlL
-# 70gT5+345f10yGU3+axW5LevpBYS7n9xUA+n2iL9UJP6weGyZOduqgnH+hvl8q3O
-# aA85tgjIX1Y6Le2/rKwDD40LtlmHHqv0NVK/CgpZOVC2yaB93x2yD73wsiQ4ola0
-# M2YvQKipfT3Iklt+ow8U5pTXKyiaOW5vq2yEtFt3nd04gSg3zIrPcZc9+Tk6v4zI
-# as3BZ3h0p56EoxnFv169AOfz/skzvy+/CGisgegs7SZyWnfwEguqMrCJUoWSv74K
-# u6EXohN8xB7uyLpoS2rH8ZYj6vmG9+/VtM0AY+Xi8QZCTZb3Lg72ttyznvOkjQHT
-# pL2NWDYufijzmC2TO0a9J6LCYyabB7I3CYHK4gxWhwofYkUDDq4JEhcExsQ6XVxT
-# ya1QaMVPWKKsUWuEvcCrW5KQV9yC85juSr1xdautI7v5lhBM0M4Y9NMY3Bo+StUu
-# 9hIcz09FATDJrZr136ePLXIjhy9fh64/RG31PicatvrQnHjeAsh59N6LdanC79jO
-# WmZrMfQLvakOub3G44EN01ZhDNUBStE3/EeLRWB231eGoabnt2gYN3tUfqx+xvdC
-# mB5/7bYfaRYSdEOsdnGEex628ap+dA==
+# BTEPFw0yNjAyMTAyMjM0MDlaMC8GCSqGSIb3DQEJBDEiBCB1HMJY+ep8ulQ5PzBS
+# MjzoC3mIbdPYRvoBCjGMZhYJRTANBgkqhkiG9w0BAQEFAASCAgBNbx0l2omLabN6
+# zxJiB+elnL5jj8Z+SQiawyc864LwGu/CJ6fDE+w5dX6xW4LcA37HnA26OL1tXpp5
+# aSMvxngEQMMMzzdSE5C4kkfPLYv31d7c0geFl3tIAnkCq/ES8yUQBwsjv5xq7WPB
+# fBhYtEAVkZfI0L1YQVFyi/txT4ec/r7H+YjNrZe1GlS0GznNQgQBduBx/LJusJE8
+# IO8+XbI5mOY+WzvlAVupy0RokdlsUTuFfTYOXvH9o1emOaWcLQocb0xs5Lf9iAvN
+# 0xWaeqtlt+dFZ2AAbW7LL+SvLV2vR0W+DHgQtCG2+oKRerVoyfeYjvuuVD3y1PIs
+# QULabHXWGWYFWxtc0CoSIr+Pr5TWkrj5l94HJJDEuUq9BK7O6Wfo75lgwGkx9jNG
+# H4XkTl5UOobOzkzDcuemhIGnj2Vw1Opd1T0LPE3z7zqKY7tpmyGMKrxf6XdypmEi
+# iLMojthAL9+n4NX+9eWzOHNy7bh+i21NiJuUWYfJzes3iTdDUIpyeFfYbF79OH/J
+# xuJE6HaYSATyxoenAUx/K48+XhGJSn1ljYHVxa6//3KuX/9jRZ11iNQYJpi8Nm1R
+# +JTC0UKpCdE6oGU7VX8JeytlH/soZW7kI7nGRIVMKVDqHUUB/K3a7hHUcyi+3C0c
+# SMm5kPPxojStMh2CieGvcNoZEL8CDw==
 # SIG # End signature block

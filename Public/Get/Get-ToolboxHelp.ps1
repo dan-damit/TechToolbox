@@ -3,30 +3,8 @@ function Get-ToolboxHelp {
     .SYNOPSIS
         Provides help information for TechToolbox public commands.
     .DESCRIPTION
-        The Get-ToolboxHelp cmdlet displays help information for TechToolbox
-        public commands. It can show an overview of the module, list all
-        available commands, or provide detailed help for a specific command.
-        Additionally, it can display the effective configuration settings used
-        by TechToolbox.
-    .PARAMETER Name
-        The name of the TechToolbox command to get help for.
-    .PARAMETER List
-        Switch to list all available TechToolbox commands.
-    .PARAMETER ShowEffectiveConfig
-        Switch to display the effective configuration settings used by
-        TechToolbox.
-    .PARAMETER AsJson
-        When used with -ShowEffectiveConfig, outputs the configuration in JSON
-        format.
-    .INPUTS
-        None. You cannot pipe objects to Get-ToolboxHelp.
-    .OUTPUTS
-        None. Output is written to the host.
-    .EXAMPLE
-        Get-ToolboxHelp -List
-        # Lists all available TechToolbox commands.
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
+        Displays overview, lists commands, shows full help for a given command,
+        or prints the effective configuration.
     #>
     [CmdletBinding()]
     param(
@@ -36,9 +14,41 @@ function Get-ToolboxHelp {
         [switch]$AsJson
     )
 
-    # Load merged runtime config
-    $Config = $script:cfg
+    # Ensure runtime (config/logging/etc.) is initialized
+    try {
+        Initialize-TechToolboxRuntime
+    }
+    catch {
+        # If runtime can't init (e.g., config missing), we still want the help text to show.
+        Write-Verbose ("Get-ToolboxHelp: runtime init failed: {0}" -f $_.Exception.Message)
+    }
 
+    # Safe access to config (strict-mode friendly)
+    $configLoaded = $false
+    $Config = $null
+    if (Get-Variable -Name cfg -Scope Script -ErrorAction SilentlyContinue) {
+        $Config = $script:cfg
+        $configLoaded = [bool]$Config
+    }
+
+    # If user explicitly asked for effective config but it's not loaded, try to load it directly
+    if ($ShowEffectiveConfig -and -not $configLoaded) {
+        try {
+            # Resolve default config path the same way Initialize-Config does
+            if (-not $script:ModuleRoot) { $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase }
+            $configDir = Join-Path $script:ModuleRoot 'Config'
+            $cfgPath = Join-Path $configDir 'config.json'
+            if (Test-Path -LiteralPath $cfgPath) {
+                $Config = Get-TechToolboxConfig -Path $cfgPath
+                $configLoaded = [bool]$Config
+            }
+        }
+        catch {
+            Write-Verbose ("Get-ToolboxHelp: direct config load failed: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    # ---------- Presentation ----------
     Write-Host ""
     Write-Host "========================================" -ForegroundColor DarkCyan
     Write-Host "        TechToolbox Help Center         " -ForegroundColor Cyan
@@ -70,11 +80,16 @@ function Get-ToolboxHelp {
     Write-Host ""
     Write-Host "========================================" -ForegroundColor DarkCyan
 
-    # Show effective configuration
+    # ----- Effective configuration requested -----
     if ($ShowEffectiveConfig) {
         Write-Host ""
         Write-Host "TechToolbox Effective Configuration" -ForegroundColor Cyan
         Write-Host "----------------------------------------"
+
+        if (-not $configLoaded) {
+            Write-Host "(configuration not loaded)" -ForegroundColor Yellow
+            return
+        }
 
         if ($AsJson) {
             $Config | ConvertTo-Json -Depth 10
@@ -87,13 +102,16 @@ function Get-ToolboxHelp {
         return
     }
 
-    # List all public functions
+    # ----- List commands -----
     if ($List) {
         Write-Host ""
         Write-Host "TechToolbox Commands" -ForegroundColor Cyan
         Write-Host "----------------------------------------"
-        Get-Command -Module TechToolbox |
-        Where-Object { $_.CommandType -eq 'Function' } |
+        # Use the current module name to be resilient if someone renames it
+        $modName = $PSCmdlet.MyInvocation.MyCommand.ModuleName
+        if (-not $modName) { $modName = 'TechToolbox' }
+
+        Get-Command -Module $modName -CommandType Function |
         Select-Object -ExpandProperty Name |
         Sort-Object |
         ForEach-Object { Write-Host "  $_" }
@@ -101,13 +119,14 @@ function Get-ToolboxHelp {
         return
     }
 
-    # If a specific function was requested
+    # ----- Specific command help -----
     if ($Name) {
         try {
             Write-Host ""
             Write-Host "Help for: $Name" -ForegroundColor Cyan
             Write-Host "----------------------------------------"
-            Get-Help $Name -Full
+            # -Full can be noisy; keep it if that’s your preference
+            Get-Help -Name $Name -Full
             Write-Host ""
         }
         catch {
@@ -415,8 +434,8 @@ function Get-ToolboxHelp {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCACB5l+geWoksdF
-# LeWuBtGZKpBn2ONSkc7+j/2SbYKfO6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBSuk0R89W7pbSu
+# dnAjIIUwvUq/uL21g+J6uoTR8uxEtKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -549,34 +568,34 @@ function Get-ToolboxHelp {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAfX73fJdux
-# qlF0A/P0t3uYKjkR9pL4DDzwbzIcJHjqkTANBgkqhkiG9w0BAQEFAASCAgBSq9jH
-# JugPuIcVLgw/qMcPQCdBWFE7TFhs1Tj/WbwCJkeFIP6/uNpU2OkzXEiSBczfzkbJ
-# K2I5POffmck8Kve5+6GnsiNTMj62pBFK0bj4+rPY6sYALdJqzyI8mhbtMkyOsZZi
-# jVCfQwfEnzNhofNgRwCQHEu7thdiD2IgfXNNjfY+uNu59hY2Qv8B9aD2n+9LpHE2
-# Mkh0xpLcduNol4ZaUnGHs3th5eZZjL9fWXE4oK0kAPc0BDd90IUbzvSQQRnvdxCE
-# 14CERuSWkDsP/LQyLelFQNgTHXFRZmLwe4XHaKniAuKN/fka9RwK36wsTvvpvuCz
-# rSk5qgN0GweQJSyEk/MFi5qNrAFj29N3KdNXIH3mOaEO1fMww3vkZCZWmPQYawIH
-# o7sm+uAka7ojez34JLD5ER4+1oeIvdsKgMwMMEPDgWTZ+UgQfRCz/NtyCfmtp45B
-# Q1A2+AWDkF8GlPtHlEvBl2+0whR82nlwy3PkSTbMnxKwKQnLAJXVMVaRuSgcCqeL
-# 0cKPxpXosHYG3eEPvck5Y2iMWMfZXGtN4TLhpDb+XAmpeTay+gmsJuHPVC1NpDvL
-# /y049IhQ+VwrCTRjhPsZSNyhedsdlFv7QQ0mjCYpFKtmHoQxdKmOvVCMr0jbuLjH
-# V87zCHA8gKgIMq1IiT34QtDtqK/MLh+EXTkNjqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDcR47k5/ke
+# G0CFCaV1iXil7uf85CyZS+dy5YU2k/nxATANBgkqhkiG9w0BAQEFAASCAgA7erhL
+# AdxnYMXwf7YZVx3xvBlcuKC1KDv6RzrZPqJ0DzXKGJrIGfoaceokxUPqMWPOitEu
+# q+U/zgcj+50N01Cws5PiV1tW06caDMy45RcElYgq5aTxFyM7xuNp9sD+rGgebAcF
+# 93S4lZKXA6V+QNIpUaTewAR2gy40oSsl6lnzv/u1OU/kuUYUKGjdwuBkaaU+ONI/
+# zMJvwWwQxIl6wqriYYQ0h9H8gBtZEfATSLFhYSWutRXSSvU8zIgJRR7+ypaqnGI/
+# TFS0jqCbZoSjA8EDL/TM2nGjPfyCV9A90IIWgVBpcvkRk8SnJ7SOPZU39VIYb+9y
+# NU2MyAEAYrxJC324qFtHssYXWm3qvnm9XhyibZnxqBZksNC64V2RyAFyQOWd86Lk
+# 6ZyotCzOJV0AiSfjkPxc7N+jDZhcoiExLZ514knjfdb11Yjia0hS5J/5pTWXGgMA
+# RToP/nwuKZqzMCX1FhkPlrnKVvQtjiqC06vaBRFzyTs9Ko0J7gaEf2oTL8zDRdDW
+# rrlC91wCHfo30qA4KQjC4M8rYJYGcKXUxrsdQv2UsNRk7Oo36lQUvbViJhJwA3BJ
+# L+8e9z1w2qSIpqLWjKcBs+jeuxiNye594sfoZ2OM8sLI0wFkJrd0Id8Sdwy3yR8F
+# 3JCYhK3aPww29qaPqfwUwxXNJsLwBUcc6uv4caGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAxOTU3NDNaMC8GCSqGSIb3DQEJBDEiBCDaxMROXuG/fiu0EljZ
-# PGEY7jlaHMygdKjtwPxf6CZRuzANBgkqhkiG9w0BAQEFAASCAgAqkNG3T6NWQTWM
-# 7pPnzRVUVSc6WAKXxMKMVoqCI2QBzHin4fgvQipWeJqfDQ9Sd38yCRsMOy2d0Juu
-# Ah/MJvGkePyKAUnu6aNGizTZeR/VkuVEsGkaiybFaRFPmkaOjRrtqfYoQ1ZRBKrQ
-# vjr414x8nOvfFC8OrUUiTmaWWANcIBSx9sz2KolrUQZzmuEOkdTzEgbjIAeLJ6jP
-# DQ2vLMlBRCTuXsok72nUlpp3FvnyL0R5LtXfwBA+31aL8FaMs9qAklDNQqZ8ujys
-# Pu1lgqgmLrFB3kEweZmz17zj5zzdXn/XSbmk4+sDx7ImomxFbI2mSr5xJJhwPf0n
-# FTNhja7vGVECes01UilwuD2jjWhc0TKVyHXwFf1ntFLjU/2SpLRJ6pDPXskKOO2B
-# SuFiqdxh05VgK36q4vmUFRAbpAP1k4XQwEToRzaGzZfCywLGeLZ9qzW1HrjK1ey6
-# Gce/TIZYRrN8Mgw5sTs7Ci9GZVpH0r4fyi22ApMeikgtqf6ZL20T34YMrtliL0+s
-# I9gECsG04yvGAtTad9tpN0ITskb+rukOlSNRt85ojKNEKLlzOX+l8S8FVAVGlLJG
-# p9WRgvX/PSx9VvESqU0QS+lrV6qQEpBZId5DpKZ/ViVVsdjF2H9FKqNcBILV6+sR
-# Cqu8Qvfnz3JLI4tiq6dvRpfHxtHsgA==
+# BTEPFw0yNjAyMTAyMDIxMzRaMC8GCSqGSIb3DQEJBDEiBCBYxHJ7jRhQks1Rm1ED
+# tB435pEezQnNonTrR0phI62WmTANBgkqhkiG9w0BAQEFAASCAgBREdNItRujg5XF
+# 7+bQT4vZGUiCVuKl8TmfPA9n3odr8Ve71yMSz1Bp8K04N3JI+PVVUtkmCKUomTWm
+# o7alFCNc5klYrxcil2KLXAD7mW86DAF1SQI9adhzJBbZ1QUjSTxYW7N23k9PCtMs
+# qODjzfL4tpuwk2A5EngWvZwOeSCcbNO1py4hwzfhhHPbXUt7qpvOS3kJ2v19+H0K
+# qrlcSBqnp87zVaVbNPpQDoQZJOc0QQatyKozhnac9iEwTcwSZdUcrbZ1Ui7BsrG+
+# Wi1VOGliKprZ0tlty6HF1dM6VK4GTewvraVyDY++uMTRkL7KSpcryPBoPOPsa3Bh
+# dbxxKZB7auOXp10GTLv0Xz13Y4E3BO5OD9xHzO1A+ESpIITZxfqj+FVsxjUp0q2v
+# ZB0oMEqt8JVfGJszSzUPw+8UnuOzRmOwX34c9maG7NSkth+NkMJXNiAmff/AI1mL
+# 74ZiwTQ4H3DxhjzPYkX3YAB1aS0GZTqGQY/lNTWWJ3YthCnd3yBxQ6vMxAm3WWY6
+# eKPzwBpurleKgEEbvr+NV2pCyMlm4mrfFLrAvpsulNuVwNG6r4zekquFipFBu5Nn
+# v7kfiZHZkLtq9mTwYO3MBdG3M0dt7G3b3Q9XEKjP+tb8hmvnxgQT+8GMgmIQe0j9
+# hZamB0U9kTmV6nmzlWpwWGMOJDJzVw==
 # SIG # End signature block
