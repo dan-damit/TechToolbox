@@ -20,72 +20,130 @@ Write-Host @"
 "@ -ForegroundColor Yellow
 Write-Host ""
 
-# --- Predefine module-level variables ---
-$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
-$script:log = $null
-$script:ConfigPath = $null
-$script:ModuleDependencies = $null
+# --------------------------------------------
+# TechToolbox Loader v2 (fast import)
+# --------------------------------------------
 
-# --- Load the self-install helper FIRST (uses only built-in Write-* emitters) ---
-# Dot-source only the single helper explicitly to can call it before the mass loaders.
+# Predefine script-scoped vars before any reads
+if (-not (Get-Variable -Name ModuleRoot        -Scope Script -ErrorAction SilentlyContinue)) { $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase }
+if (-not (Get-Variable -Name TT_Initialized    -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_Initialized = $false }
+if (-not (Get-Variable -Name TT_RuntimeReady   -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_RuntimeReady = $false }
+if (-not (Get-Variable -Name ConfigPath        -Scope Script -ErrorAction SilentlyContinue)) { $script:ConfigPath = $null }
+if (-not (Get-Variable -Name log               -Scope Script -ErrorAction SilentlyContinue)) { $script:log = $null }
+if (-not (Get-Variable -Name ModuleDependencies -Scope Script -ErrorAction SilentlyContinue)) { $script:ModuleDependencies = $null }
+
+# Guard re-import
+if ($script:TT_Initialized) { return }
+
+# Optional timing (enable with $env:TT_TraceImport=1)
+$__trace = [bool]($env:TT_TraceImport -eq '1')
+$__sw = [System.Diagnostics.Stopwatch]::StartNew()
+function __tt_trace([string]$msg) { if ($__trace) { Write-Verbose ("[TT Import] {0} @ {1}" -f $msg, $__sw.Elapsed) } }
+
+# --- Load ONLY the self-install helper (explicitly) ---
 $initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolboxHome.ps1'
-if (Test-Path $initHelper) { . $initHelper } else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
+if (Test-Path $initHelper) { . $initHelper; __tt_trace "Sourced Initialize-TechToolboxHome.ps1" }
+else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
 
-# --- Run the self-install/self-heal step EARLY ---
-# This may mirror the folder to C:\TechToolbox, but does not change current session paths.
+# --- Gate self-install / self-heal (skip or once) ---
 try {
-    Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
+    if ($env:TT_SkipHomeInit -ne '1') {
+        # Simple sentinel: run only if the destination doesn't exist (or add your own version/sentinel check)
+        if (-not (Test-Path 'C:\TechToolbox\.ready')) {
+            Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
+            # Optional sentinel drop
+            try { New-Item -ItemType File -Path 'C:\TechToolbox\.ready' -Force | Out-Null } catch {}
+            __tt_trace "Initialize-TechToolboxHome executed"
+        }
+        else {
+            __tt_trace "Home already initialized; skipping"
+        }
+    }
+    else {
+        __tt_trace "Home init skipped via TT_SkipHomeInit=1"
+    }
 }
 catch {
     Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
     # Continue; tool can still run from the current location this session.
 }
 
-# --- Now load all other private functions (definitions only; no top-level code) ---
-$privateRoot = Join-Path $script:ModuleRoot 'Private'
-Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 -File |
-Where-Object { $_.FullName -ne $initHelper } |  # avoid reloading the helper we already sourced
-ForEach-Object { . $_.FullName }
-
-# --- Load public functions (definitions only) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFunctionFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-$publicFunctionNames = foreach ($file in $publicFunctionFiles) {
-    # Only dot-source files that actually declare a function to avoid executing scripts by accident
-    if (Select-String -Path $file.FullName -Pattern '^\s*function\s+\w+' -Quiet) {
-        . $file.FullName
-        $file.BaseName
+# --- Define a lazy Private loader for first-use imports ---
+function Use-Private {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RelativePath # e.g., 'Remoting\Start-NewRemoteSession.ps1'
+    )
+    $path = Join-Path $script:ModuleRoot "Private\$RelativePath"
+    if (Test-Path -LiteralPath $path) {
+        . $path
     }
     else {
-        Write-Verbose "Skipped (no function declaration): $($file.FullName)"
+        throw "Private helper not found: $RelativePath"
     }
 }
 
-# --- Run the rest of the initialization pipeline ---
-try {
-    Initialize-ModulePath
-    Initialize-Config
-    Initialize-Logging
-    Initialize-Interop
-    Initialize-Environment
+# --- Do NOT dot-source entire Private tree anymore ---
+# Workers and heavy helper trees must not load at import. They are used on demand.
+
+# --- Load **Public** functions only (1 function per file convention) ---
+$publicRoot = Join-Path $script:ModuleRoot 'Public'
+$publicFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
+foreach ($file in $publicFiles) {
+    # Trust convention: the file defines a function named as the basename
+    # This avoids Select-String scans and is how most PS modules are structured.
+    . $file.FullName
 }
-catch {
-    Write-Error "Module initialization failed: $_"
-    throw
+$publicFunctionNames = $publicFiles.BaseName
+__tt_trace ("Loaded Public functions: {0}" -f ($publicFunctionNames -join ', '))
+
+# --- Lazy runtime initialization (config/logging/etc.) ---
+function Initialize-TechToolboxRuntime {
+    if ($script:TT_RuntimeReady) { return }
+
+    # Only now load the lightweight Private initializers we truly need
+    Use-Private 'Loader\Initialize-ModulePath.ps1'
+    Use-Private 'Loader\Initialize-Config.ps1'
+    Use-Private 'Loader\Initialize-Logging.ps1'
+    Use-Private 'Loader\Initialize-Interop.ps1'
+    Use-Private 'Loader\Initialize-Environment.ps1'
+
+    try {
+        Initialize-ModulePath
+        Initialize-Config
+        Initialize-Logging
+        Initialize-Interop
+        Initialize-Environment
+        $script:TT_RuntimeReady = $true
+    }
+    catch {
+        Write-Error "Runtime initialization failed: $_"
+        throw
+    }
 }
 
-# Only export PDQDiag helper when explicitly requested
+# --- (Optional) lightweight shim to call from public functions at first use ---
+# Example usage inside a public function:
+# Initialize-TechToolboxRuntime
+#   Use-Private 'Remoting\Start-NewRemoteSession.ps1'
+#   ... do work ...
+
+# --- Export public surface ---
+# Only export the known public functions (file basenames). Avoid '*' for faster module analysis cache.
+# PDQDiag helper export stays conditional below.
 if ($env:TT_ExportLocalHelper -eq '1') {
     Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
 }
-# --- Export public functions + aliases ---
 Export-ModuleMember -Function $publicFunctionNames
+
+$script:TT_Initialized = $true
+__tt_trace "Import complete"
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAFU3W34XYd9AvA
-# uyrPl6hYl3XEjnP6QqKbQZR2OMtN6aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCbI8z4cEhioCF9
+# idUD5BZ5Jv7ly9wSaGHAPkWsCEqfkqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -218,34 +276,34 @@ Export-ModuleMember -Function $publicFunctionNames
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCOxJJliJ1v
-# gI7vt5HozEdu9xUrMa6hTZBhxNkS69nTujANBgkqhkiG9w0BAQEFAASCAgBh4FbL
-# 1fp8VveyT2wn/jHrukYRg5AxbNV+g6R6TQq/IfQe14iPoaYBChKqsbcXGvmYIgsk
-# j3wZS4p7HKHg89BP29AQQmpJEV0TE6ib5Zu9BOiXkN8QuHnpiKEZTexjwqQnFZde
-# noJVN0KKHG4KfNVn1DU2GNcJCfZzbqRj/giSdBOcfjZnatNb8NKhELliDcKLndd/
-# 0ybyw+Zlel9Czp5tk0TQhlfAprfGitVPlON2A0429QkakDNMZ+kEtyTj6xkha7XO
-# zqCKN4ZA1Ne835OWqFygURiBMA1pmoWEfztb5x28044Zr3QRVO9XkyKz77B+1Vlf
-# 6s7RWD+aDW5GWvj6D6kN5kjAQrAvA58ITPv8DxE+GRGoWuleqW042ck+VAeC95FY
-# YPVGyQVQLr9n19Hbhw7ycr7DMqCYcIJdmnMTzEtsPTmP9axjjjJr2HQ+p4yHn1My
-# Zj8kTXkiqSUdZGDiqMGIipbdVHTW5VWM8z+H4gDAxg8vYj7kEEHf58zDbeb15+Zh
-# flamX5O9t96IsYKXDAIFXHrIXVPJyzL2V+P/iTzBOyF4OBTQnN/skBCqgtEcrg/d
-# dytokjce51TTjljMmtOiu5b1g8E9boeIzQ9MbKrALBzSPZwkWHKGOXGPjM1uYqaD
-# cAH00vC7xpoNk4dZIr+xje0IsllQVXuZ0fXU06GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAYWTy88txy
+# MBPXDUHGit5GMO4bhzkn7S9sS336Th5IbzANBgkqhkiG9w0BAQEFAASCAgAFqAjG
+# fN9j5cFcm2mTd/bgRUhywn32feZk2KmjTW/aARb1AZrrZqOSfuQtFufYOWg+lOz6
+# BOvcX9uKRT2IG3MkYYPrBZfPPfz+pGsNhzixqda57SSTm5Ja8vu4h4N1wgaBia81
+# SlQZ/LYSlkKnSXPF6LN2hcfCx0qUNbOphPsyQgFr05vS/tTMHCbYqEVmB4RRLs2e
+# DjOs9etfrBUmuUYx8R+S6mGnVLGioFhJYDS5KGN8M8pchMau7BlkEiM6vBD4r4Y5
+# tY92InFq9JwF3vMzoFjfrxoz3QG8x6vpbYrzFNUDrXHmk9UZPyA47S4S91DcSslV
+# LXBda15F3yMB78VxD/yrAGbZHS8a7wX4U3SGtTLGl/pyUVkWGM+ZOFCJbBG8MNmA
+# AboU2WYcO4lclxvTW/81rRwkwaPfVwVZTxE1aeizaqfnUaT1aBLtu6fer2tLn8Gx
+# A5OViShrcARRl6An3VTZTa6gwRyIAQa4c/I6+snBmeernoZ9rGYIx5aZDjwY9e4q
+# /YWFOOWkz0l13dRCe6Agf3DMiWcbzxASIfaUtXGpR8sDQCJtare/6KzYiyItaNNb
+# 9UAefv01qjfOZ5XVX8orK1WgmPlOkp27cu+mxhTvznuO2pA5RaZM1gxS8b1UMI/V
+# APj1+sJSq0T3UnXliW0Pm5wfpSvLXViYJGMDCqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTNaMC8GCSqGSIb3DQEJBDEiBCCu3X4t1CEFd26SYcHm
-# UzajDTUIxvkpjaP5tMucyKR1mDANBgkqhkiG9w0BAQEFAASCAgA7gWW5gLwXo+Or
-# k4n0+bmI1GU64EGh5gAaXvy2ZrG3XpHTALdCkYHMmLB2PSp/SIZX8zyc78ojcdbR
-# DPbImQYBmhKYVULp4n+ZgmpDXMD6kZ44q4693X83jayIQbbk7rXvciu3RR1Zpznq
-# PVIV9rtNEu7UuHQRZMbmb3DX0ogDFPHhMzgbZZGocY819ddCCBfgv2kM8Qebw3WC
-# +Crjg274N0EfhqmlCi8fFbJ4giqSo59ZdY8rbfGAIKytsZpxNyqsUJJYniMzjERt
-# upaPo2YuxK4D0Df9uBay/QhelltiVG6dYiIG7pQ1rXpr6rFl3tpShSanHRMs1Svh
-# LnvNQc/QqzqhfIWmB0Vkvo+k3nkb/W2aM7Ltd4MvNIjuWMH8hkKjbdR7f4I/Vx5R
-# E0CTFfrG4f7fXlZD29MEpQ62B35SrCQDPzcfNhptisELrW6IPnoEVEdNeWFla0C+
-# UJ4fAes9WMnLAv0eTjcdHfJjbGElDIAKdH3YJ4sn+ZxG3YjuNqecyPsA6VSZkI0o
-# fDGZtZ6KcNZ1BswqazoWC5i0lSJ5xzJPuRv35+AoW7z6garhxCub4u2/D6em/ZHi
-# Qp8zpOS2RhRm/WXyz0vPXsJIoEW7ILRiz4Ki/gvju6jFbt1omfHE92subUS4uroI
-# 7Lq+R/a7O0yd4p8ZSCKGq998DPXecg==
+# BTEPFw0yNjAyMTAxOTU1NDVaMC8GCSqGSIb3DQEJBDEiBCBWa3FQxF0EurSRGjJz
+# 5jzEz8eA6lfvxRoWZpMamo+ZNDANBgkqhkiG9w0BAQEFAASCAgAHSvue3edACQQp
+# d6DHgYbuHWHAW1aMBzlC42SokrpWM3K9T4VKUzz937m4JwSu8ZpeNr28X/9csSQX
+# g2xn5M43HZqQz1WrW/t8/XbXeNqsfq0oHxgBWHZ9EtApT25QsDhlVTy3Z4f01Ip7
+# vVfj0xMNobw1MVXAW55rOxDiARE5wczmYI6v9zH3I+YuR5Ic8Yt+1jBgRaTVt2fp
+# ioI5R0kMJbPXpkxN7cbavsnPLeoNQ8XdRtZmzHVwFN7oai8Zgu5HJNvD+MFIiaIS
+# C6DxcR3nTh7dJg5jFsekMm4z0jK3M5sGjeaOeDeVC6EmJp4W67qVsOy/6wk4CMb6
+# f3Eh6uoBKeAYm4M2sh1L00JOus7c0nHcFXJaI3FhJ7RrHnyb6/IeNFOg5Kqr/j/j
+# twUjrwZZQnNkcY4UX0KUAzVC286Z0YgXVA8kcvuvJk8k4vfk1CtQOdfIuaKmDYZF
+# sFzv6xBsKz6laJdDD/1zyAJP2B34WPGcSN1bVl7L7ucDFpQoSaI2RE9if6L8SzM6
+# ohBdGHuoOjg5nDHIGVJ62VgakKpJsVdEdgdwOxlHpfTlP1WTBlANBev4s7736Ytz
+# qyyVNC558ZZtpCEFPIM3Z57xJKpZ1UVumuEdANX64ya2P+RdewF4JhJPDpJ3yxM6
+# eBeZqXZdQEyTxl/BTkOoZh5FXgmGZw==
 # SIG # End signature block

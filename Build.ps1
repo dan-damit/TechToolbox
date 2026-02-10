@@ -61,24 +61,32 @@ $newVersion = if ($AutoVersionPatch) {
 }
 else { $oldVersion }
 
-# Exports: either '*' or function names from Public\
+# Paths
 $publicFolder = Join-Path $ModuleRoot 'Public'
-$publicFuns = @()
-if ($ExportPublic -and (Test-Path $publicFolder)) {
-    $publicFuns = Get-ChildItem -LiteralPath $publicFolder -Filter *.ps1 -File | ForEach-Object {
-        $content = Get-Content -LiteralPath $_.FullName
-        $matches = ($content | Select-String -Pattern '^\s*function\s+([A-Za-z0-9_-]+)\s*\(' -AllMatches).Matches
-        foreach ($m in $matches) { $m.Groups[1].Value }
-    } | Where-Object { $_ } | Sort-Object -Unique
-}
-$functionsToExport = if ($publicFuns.Count -gt 0) { $publicFuns } else { '*' }
+$manifestPath = Join-Path $ModuleRoot 'TechToolbox.psd1'
 
-# Preserve existing PrivateData.PSData (your current behavior)
+# Collect public function names from file basenames
+$publicFiles = Get-ChildItem -LiteralPath $publicFolder -Filter *.ps1 -File -Recurse
+$publicFuns = $publicFiles.BaseName | Sort-Object -Unique
+
+# Fall back to '*' only if nothing found (e.g., dev shell without Public yet)
+$functionsToExport = if ($publicFuns.Count -gt 0) { $publicFuns } else { @('*') }
+
+# Keep aliases explicit (avoid '*') for faster module analysis
+$aliasesToExport = @()  # set to concrete alias names when you have them
+
+# Preserve existing PrivateData.PSData
 $psdata = [ordered]@{}
 if ($manifest.PrivateData -and $manifest.PrivateData.PSData) {
     $psdata = [ordered]@{} + $manifest.PrivateData.PSData
 }
 $privateData = if ($psdata.Count -gt 0) { [ordered]@{ PSData = $psdata } } else { @{} }
+
+# Update manifest once
+Update-ModuleManifest -Path $manifestPath `
+    -FunctionsToExport $functionsToExport `
+    -AliasesToExport   $aliasesToExport `
+    -PrivateData       $privateData
 
 # ---------------- 04. Dirty check & update manifest --------------------------
 $manifestChanged = $false
@@ -216,8 +224,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAY7NTqkoqLhCSI
-# O0wEddjTIx7h3tvCejdNM6Atvdbbs6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBrE29Vu3DvnQhX
+# xloYHoZVF6qfVLqI/jKQRt0JhhwcdqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -350,34 +358,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCsMtiYjZcl
-# 2ylttGV62HWr/kGmU5y/qxNPV7rPWms2VjANBgkqhkiG9w0BAQEFAASCAgBSoR79
-# m03QpnyMtwL4AAl0ptPwZTAprBsGJ9laGTStCjCcLFyIFhP9w07+un1KgOeO8ZJc
-# 5HNqH6snoQEUi7mpFuiecHMjWXqtFQeg6XA3UXl1aaGSwsvIbzuWMasftmYybX2D
-# hfLVfFzAWqssoq51LDoQ/FQtsY0OEadSYDnEZbjrFgeQ3pM8aTpV74dRzfEeQSYG
-# daUnYsjN/Ys8K0xAiO8ZkJabq3Gmpd/jsrbAl0IzHLgEp/wBuwodwn2PDiiqFiFB
-# wfiBieVnO2QI4r174VVHSg7duAlxK75JF3cEcP4XSnt3y55eVfPkbB+uEZ6Kng9G
-# YIUpfeuG0yTawJqz/ib60AKeGYiaaKLu2Zv5lRg3Ba376JQzl9QKSsoEsCdhKYGr
-# WMFwmkcnzMX+4e8K04sVqUoi8uc9/5HjK+c+2r7DN4C3Et+oTqmY99pdzABmu/ss
-# M6wcNz47iNrJz+nYDTgvHoRD6/IczzFvj1d6iGhmdW1E1aclfCFQd5X+1/ZEa9Ue
-# 4VmeBIeX7n5nsukxXtFi0u4Au6B6K4wur5eB27Sa2MSNXWeBR/mDUTU+ARJzTvqQ
-# 4YGjxNicYashDjXmyzE64+2Oajd5rjXEcP1Phy0cEfq/o7IhbteP8CvmwQ76PQyo
-# 6/G+CV/XcBLVF7EJ9iPF/6kagXLlw//HzFNaiaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDxUiP5x2Ko
+# PjVTmtJYd8wl3sYvGUPWyMzbBuYY3NVWuzANBgkqhkiG9w0BAQEFAASCAgBhRDCJ
+# 1u8WznDrLAE9a/CobH0MzP9TDeBUMTJ2QvAhoyMlHrbhjADcSAw6LqBynn8yiNSo
+# qSW5HAh1O6n8MGwmFiZGPpDi63XF5bFzzaAiblCTiOYZppVl4pwzEH4bOx7BMuTd
+# vYBE1SJi7PITYJcHrzadM7JNQiFyXI+Hg1QjYszH9TRFXiC+efcmeVaSl9k1qLHy
+# D+Bq+7J9V5u7YX4BMSw4oVd6GFJ0TEv+xtnqrd9BhdnVFROjpldmbz6q8WMmH0mp
+# jpYDjVBJRBJHW6sxTSmhPzlvaUxxPpwDJT88kUt+9AYFwV29/F0JeYsft8rfQ1YV
+# e3G1t6wjHg4MKW6Z2Yw5P5hLkg/w8M32IGpHiwoQXbt9XyeUo8xQHy5Da2YeoGRK
+# Pu3vJYVwmUnxfS3CGBCx8s8kBb7phhcuvjvX5OzQ5mWciQhIzDSFnGrmcGKaDi2Y
+# yFWyHJkt4fGvvc5g8dNZKWQmny1Bgp/3oTPTUO9LoybDKnhkQkZMI92j9FfSuF5N
+# FVNshKAYgMkyCDHmGUDSzjUTmFlnw0AfJ0Km8/GfmkvWpGuSNYuHfSP837nEiwHQ
+# 4F4yFsVkVurXe+X3TNb0Uu6aiRx1nYHIAGzZQ/CP/BKQsrmPnDJz4/w7s9xu8gUc
+# LXjGKzS0zdqOQNS7RjvCCzaTI7uvPb/8VDunhqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDkyMDE5NThaMC8GCSqGSIb3DQEJBDEiBCAWwcYIHrOlwBnygDCX
-# Ruv6LA2RT5a9DY3e+vSukdx4cjANBgkqhkiG9w0BAQEFAASCAgDP60NO6dbf9Yvt
-# E32gKGZsPBo0JfLhIL4iLsvLU/b/TaRrhqjNlLE3kkMnnYbrKdEOfvbAOe8qrtYp
-# VYZ+vV7aj+Y8AFdjTAYx7SR9ls5q0jMa7b98//CiAFpLd3cdcGizK9WE9S9L63bz
-# 9ABl7RZg66LCSXou2q4LogzdObZJbs1S4mlMETaQsk0uNmk88QF2F1nk1rDbk0QR
-# /pCv64oabX/lK2/dVvJFVT5MgdROsE3dhMoWEvfiojQ32fqb6xBfMHvZB1ejvCF7
-# ZThY7T92M1RI3bRpA7D3nYb4oOtFFpYyH6zmlu1CypUh1ulS6SPYR9vmgJRFHg+h
-# uWRQrHk6WQ+9oXVpkGUbP7hJv4HXPT9qZam+lGid2umUfAOPRmaNuaDx/xSbu6F3
-# hk90DzA73+5dPlKg8ePv/J2eB2vDgAVB+ENMqpViSKPbm2KVXwl1xf8eHVEdD4L2
-# rdLcECpKOD9rIznomF6z/gICT0d5gbEMunvu73E3fGkIl46viA5uFen8kP5g1byI
-# Y+sUbKtjFqNd7QruPV4jPaoBplBH4ZeKECWqTqJy2u2ajw+HokZwEHO3UU978bvL
-# GTLFp/VKUXBZOp7+FhLglmzP1XWoBxl342qRp/sy7Wx6fYdwl9Tah8UjY++mMhW4
-# F2XCbkb0mrpiW6az7RTNKIkRV/Nsfg==
+# BTEPFw0yNjAyMTAxOTI4NDhaMC8GCSqGSIb3DQEJBDEiBCBDrcP/sIxBirXEmSn2
+# 3UXcCoL+xzaRhJ/ZjWXtegRCiDANBgkqhkiG9w0BAQEFAASCAgAcDO/DZ7btgn2G
+# 8OPqnUCesDKaaiFE/FJEIr9/7DAiRCan4bTp4FWSIz6Mvd/KpojFcu+fNloQOoXN
+# y5LrNcWUIrHbZWZwI+pTEYmn3b1hMnFQgClkU4guht1XJOGqzEul8uZjc32bPL+1
+# YFd0MGMRMRU/HvJPz+rhRSq9ObzrxxT1jiiC3vCx4uZ11DU0GVvvvD2p7cnpE5oe
+# gL5EgcSk9DTl+xnWWkMw3DHjS5D8CQK7h5YZOrRCP7+V6HWFAsA9K5Eggb2NFBt7
+# tgSK8BPt8fuaGuJSPwCz1k8sPDq8Xk8DCBVa8tg/31p7L0kgWV5GHbzp+L9g/gE0
+# cSvO8iqd3J42zFMVhKATziaZb26l2yGGCQYkei+dVuQuKXHlW8xzjozNV8ttOQT7
+# U/4xYPevexWtsj917eOHimEcZ+3j2LXpkOqYIYEC2Fqibih2Z+uChkBZKZ8VjmCP
+# DSsQCa7dRMExTenrjLreCCvQZvtUE8QvQICSTxS/YZwWE8cTW9kasrWKYFXl0KKH
+# touolQf75Tn4tt2h+YZj2eDsMSG5IM85X+WLK0vXr8r2IXQTaXbO8y9Dcfi3woVM
+# gFz5YDELf8MO40FeMjETOIOGDHUwQ0rmnZw0TCfDahdaP9+qo0IZBdmA70SdlRue
+# lENjUn3XKAmtOzrIt/HkMggeJQM6JA==
 # SIG # End signature block
