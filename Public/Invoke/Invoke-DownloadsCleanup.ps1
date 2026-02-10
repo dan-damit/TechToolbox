@@ -36,12 +36,11 @@ function Invoke-DownloadsCleanup {
     )
 
     # Load config
-    $cfg = Get-TechToolboxConfig
-    $dlCfg = $cfg["settings"]["downloadsCleanup"]
+    $dlCfg = $script:cfg.settings.downloadsCleanup
 
     # Defaults
-    if (-not $CutoffYear) { $CutoffYear = $dlCfg["cutoffYear"] }
-    $dryRun = $dlCfg["dryRun"]
+    if (-not $CutoffYear) { $CutoffYear = $dlCfg.cutoffYear }
+    $dryRun = $dlCfg.dryRun
 
     # If -Local is used, ignore ComputerName entirely
     if ($Local) {
@@ -132,7 +131,7 @@ function Invoke-DownloadsCleanup {
 
     # Prompt for credentials if config says so
     $creds = $null
-    if ($cfg["settings"]["defaults"]["promptForCredentials"]) {
+    if ($script:cfg.settings.defaults.promptForCredentials) {
         $creds = Get-Credential -Message "Enter credentials for $ComputerName"
     }
 
@@ -226,8 +225,8 @@ function Invoke-DownloadsCleanup {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDbUUlOCgkaMsgg
-# tJ+hCXoMHBlAm6fvmywD+P3QTY7ZLaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQl13O0qJRv1dD
+# CBddmskqXeXHVHni+MFLwm1MDUwnAKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -360,34 +359,34 @@ function Invoke-DownloadsCleanup {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDhjDoGH4KL
-# YE6CUB9pJ8cAS7lZT48ftzjDfHifSyW76TANBgkqhkiG9w0BAQEFAASCAgAwszhi
-# kcW1HHlUE0GOeQH7ngtHrQQr/KMkYs+eGQZVo1fQKZzsrT6EicU/XIdMsT3X0FgN
-# dMm4wlBVCAgZl7DQInfJWRUw86gt5a33e5At0ICD9h3AbNtl9xV4nw/LCs/qbt+S
-# weawjlxaKfY52ZKEmX1aAmFfdbQh2uEumcNZWIYwCJtfHWfmChOqEfOaXhXNZXYM
-# /c3G4PVZywppZn6FMg8KGSl/QMAkiRB7aBFq3fEzuChMnuPkGm9619nClNBydnRP
-# CV01gM1QMqkS5+iLZJoMC7D++/2ttEJ6cVeiR7Kyq4/1y65+FVslq1VFx42L6Opv
-# BvREBaa0bWBdVNOgLiPT7xhyqdrTCxdDYH8tfK3ZoGr6kafiwDkEguVULwHHVrUZ
-# NpDQS34nC6PpQyNLIUmtxL9+HqVyJ06Eg+TYRd3hY+lB3ajygKY3X7+epG3ADDQ/
-# S1QtkJO9eNtutHDffUl6pactc0Ml2/oUPag9t/X7QTGZn2V6EJvujY270H9BDscL
-# YNYuFp4xFKrAlROAqJhvAeRXAz1zmVRLj2Le4VQmtHmFY1lDPLEgNwMhkqNamo7p
-# YH/yO9RD2li3G7wuaQGl+Z21BzRqzTFiXupjLSwpf0Mcv44aH/luQasn9BP2J8He
-# Nc/nEo9NPTfAylIaN4X3KdtnIbmQ3FRqqmYt3qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAv1SDB9dzH
+# MowhAZxwQSSvicWSdF85sP2hkFko15fbkTANBgkqhkiG9w0BAQEFAASCAgCxx91o
+# EUd2rvCvVtsLeXbA5cNig8OOkE2jlJh2nYvkKmLnGN4G42iiZ2+DxFWSZwL1F2mj
+# 4kLs9uBo+M+7GIalnOI4/kFNGJczYuBhIpiVjHnPApxlN+IW7yqNMdevncsFn712
+# AYjBM4wdx4tnBLt1N6WxERPu5/ao37NyUZQZmFihx9RHRBjcZweyO9rQv0dS8bVL
+# WsZBdFVJ5EWsZxZbOmxmn09bMjNc6HZKNvmqAbkbDlNZF3aaWBU+mnc/PNhyIpqm
+# qMAZBBG81qJ+rfQcAXe672K8XTqE7vjVOGQO4oJZCj77cl2nCA7vQCG+9T9vl3h4
+# ywV4NjfcWhOxzQwr1eTNysQGa730wgHBx9DuyB7fAfVPwppTIsxDAMMX7VF1oYps
+# pb7nAQPh6Lg+g+1eNSkG2bc7pBLSvmYUo80fZrDe9QDsNhtAh7QNTBgW5VRKg5JV
+# MBTac4Fq53Bj8uNlqxgj3pbQCvcwPCJSVeLyT6V6KyYpKwcCGlIuZv6G+iOboNbo
+# b7PW8J6V3i/7nUGVrVJNVpKHgPPQdpoOcnRE7Ig0/0/61/Yw3G/Umqf9Ghj2LpEp
+# 6os7h/LErgpgunypjEo3VjtsWvAwgs7amVbzllqA2Hc8IcuYns76o/fskBoDdI+P
+# 2uhqFJ800B9uG+MBDpr1G7fl13+vIx6WANfZlKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTFaMC8GCSqGSIb3DQEJBDEiBCDvnSgxc3nAysDFB3z3
-# CzKIpOUXJt/eptWwJ6vDcLXLHzANBgkqhkiG9w0BAQEFAASCAgC8emSuMQz1nVAj
-# b4LVaveO5Ii5lzlmGW34HXrMkltLUApkF+7cP+iN3j4OGBpJNFeaLaEZpQg3Ozc0
-# 48JMWpAT+1BBzBTV8qmrUnaskWdPJAoSXKcrfM/hXH5AXEDP3ZbXObfaUy61SVNS
-# nz+j41c8XQABA67XEWFYd3KBsHrcO1cS1nfxPR3s2aTA6asCNDfL6vamF8VHGnNW
-# 0rqqa8wRkiDLDjvx4fJbYS1YJRI7Rjg/87HCtGpx7Tm/638C+PTlz0Ja2HdIzdvT
-# 3eQXxEacxMTcQDckkb9Y2klGQzlBYpjar5mCcoPmJ65GTXY4cqBZOtQnL85jB5D6
-# HkwDhvsQ9fMZ8R2g/2Eyj+inarHpnpze0Tyb6pPcx5mPOaIa+oI2le9g+VqoENWr
-# 5TOiByMgKRdFzWzYNg1yzoQvss4b2wcDQhWryIMLf6uHkpIwJengsM6TeIrLqePT
-# iM6g3cA3EtZn/Yn62Elr+e5SY1/9gyTNo7+c0J469G++BstUSTW8NuL53BU/zGJ6
-# cI7hRh4JSz7V9yqrTXvPGAKj5ZNSENEptmCEc8cZUtP3qDVuWJ8WOBzBVC8qwiif
-# dpFA8YyymTFTGXrgM5QCiZ+1Neun6Jz9NY5HBGZY9xuQcGpYhlngPs9oCuuKlawq
-# WYtBhBAFG+jSXwZ465J66S7ddnWSuQ==
+# BTEPFw0yNjAyMTAwNDIxMzlaMC8GCSqGSIb3DQEJBDEiBCAQ5xsPzTCPx2xyPe7X
+# 101Wgc2JDhqGYflp18f/iXX6LDANBgkqhkiG9w0BAQEFAASCAgBOViMOiye56F25
+# HoSsLsOqu58T9TuH92rpj8Cnvzl8iYBMGL+VA2LLbG4ROwI/JhtJx0MzS7t7q3be
+# GUyyqWsiSlXN3A3qQEtlBdMCCZgV/2lgBRqlAkGUwlMskaeyt4GgPRdysxc4jRHg
+# BZdpmobsVsDukfeqPZ4SVyAS4ggjL8slFkS4LyYLnrm4+TGFd4x3TO+fLSau1WB5
+# c5D9kmsLDNmR5QqyIltKPuNIY3N3H5IVtJvI3jfDH66KFOASKuNSWUJra68fdipw
+# ZWarjLxyXIyi0HPjuCjVU4i/S0KUK+TWWO6RLlndU0pRoNg/v3Aadt+IK7FquCNf
+# WG/s7fdUojOJ4WHfQwF5fq+P/5AtjNbLrkLJlWjmD1kgRBO35gyY0P7hNaBNNDJ0
+# eD9+vD3tWBWz0ZMNTBMF7DHQ+CmCG9EjH96VK4mL9lbmv0IMVC5yov+c4fv2MMLx
+# hy+rcZYOH+kG7WVexfIdsCW1EhqAt1f63gnLmhiJImP1IbqicTi0SUVvsg7ZPNTh
+# y/aBoqnWhFfe3crnEpNVvhMj89YiVqtPMwbB8mKWL55vlSJQFD8VXK1xp4jy6MYK
+# 8hotSJoJHNL4cxcYWs7ppRmH42L/LzDk2DIT7tPXmu1J/cWp78//BdkWssg6oxi9
+# zWGWRJoRMYeZPmx7/UNxge2Ynt+WFQ==
 # SIG # End signature block

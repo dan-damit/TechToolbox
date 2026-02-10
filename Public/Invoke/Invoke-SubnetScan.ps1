@@ -63,20 +63,20 @@ function Invoke-SubnetScan {
 
     try {
         # --- CONFIG & DEFAULTS ---
-        $cfg = Get-TechToolboxConfig
+        $cfg = $script:cfg
         if (-not $cfg) { throw "TechToolbox config is null/empty. Ensure Config\config.json exists and is valid JSON." }
 
-        $scanCfg = $cfg['settings']?['subnetScan']
+        $scanCfg = $cfg.settings.subnetScan
         if (-not $scanCfg) { throw "Config missing 'settings.subnetScan'." }
 
         # Defaults only if user didn’t supply
-        if (-not $PSBoundParameters.ContainsKey('Port')) { $Port = $scanCfg['defaultPort'] ?? 80 }
-        if (-not $PSBoundParameters.ContainsKey('ResolveNames')) { $ResolveNames = [bool]($scanCfg['resolveNames'] ?? $false) }
-        if (-not $PSBoundParameters.ContainsKey('HttpBanner')) { $HttpBanner = [bool]($scanCfg['httpBanner'] ?? $false) }
-        if (-not $PSBoundParameters.ContainsKey('ExportCsv')) { $ExportCsv = [bool]($scanCfg['exportCsv'] ?? $false) }
+        if (-not $PSBoundParameters.ContainsKey('Port')) { $Port = $scanCfg.defaultPort ?? 80 }
+        if (-not $PSBoundParameters.ContainsKey('ResolveNames')) { $ResolveNames = [bool]($scanCfg.resolveNames ?? $false) }
+        if (-not $PSBoundParameters.ContainsKey('HttpBanner')) { $HttpBanner = [bool]($scanCfg.httpBanner ?? $false) }
+        if (-not $PSBoundParameters.ContainsKey('ExportCsv')) { $ExportCsv = [bool]($scanCfg.exportCsv ?? $false) }
 
         # Local export dir resolved now (used when ExportTarget=Local)
-        $localExportDir = $scanCfg['exportDir']
+        $localExportDir = $scanCfg.exportDir
         if ($ExportCsv -and $ExportTarget -eq 'Local') {
             if (-not $localExportDir) { throw "Config 'settings.subnetScan.exportDir' is missing." }
             if (-not (Test-Path -LiteralPath $localExportDir)) {
@@ -143,7 +143,7 @@ function Invoke-SubnetScan {
                 $remoteExportDir = $null
                 if ($ExportCsv -and $ExportTarget -eq 'Remote') {
                     # Reuse your existing config's exportDir value resolved earlier
-                    $remoteExportDir = $scanCfg['exportDir']
+                    $remoteExportDir = $scanCfg.exportDir
                     if (-not $remoteExportDir) {
                         throw "Config 'settings.subnetScan.exportDir' is missing; required for remote export."
                     }
@@ -193,8 +193,8 @@ function Invoke-SubnetScan {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+5rfqAKdU0VKw
-# ixjBQYfhvG6BcpqUUXj1yk1+Zvaq+aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDDmPIrq0JZHitL
+# LHwwsBasEfTkSK38lUIS1vFnzvNjOaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -327,34 +327,34 @@ function Invoke-SubnetScan {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBNbgJGIdjt
-# 9kAyxn1+Rqz8Xuc1QA3RST/DbcF7PSZOsjANBgkqhkiG9w0BAQEFAASCAgAbfnJa
-# ytsyBZ979/IERHGwXiGBV3F0zlUTOj+jEZwc85uNhIleEktVBU6yz2x7hWaqPLqr
-# ogvqGZctNmEfYHZZGn7o1L6f8gzN5Ggh4AsVEFXyDtmh9W0dwuoaWEBjDM+cCltw
-# byfL9mto7RgS3Gz5b0dQI7KkRlk514txDQnl/CP/jdAeWB2sMD/iyB620L1lAhTs
-# ogdHb+6iB5wmDVCQfTL4FA6lrulfVjUknj72TnOdqzYFMuqQgltIUZSI2TK7D2K3
-# Y8XBhoP7LXqASzM8c5+8vmwqYr6djRcMNlfy1+uWhyqD3XbZ2RQBaGu5xQCU3uzB
-# t+KkyRZ77ExyPnbZeCLza/FZ81J3koa06Gjya/HYo/MKclTpL5dIgNjqBk2dWCju
-# 0nd1vG7Vj7hzWpIKCwUC2+qLNtPVzC5VXdlk9RnZQ3fZ+pnBxWiSBL38UM16bbW7
-# bMTJ46xhOZJHANM+r2EoAi1lm+bLKntOCc0mA+U41Naj0ajl0yVmyyowpspJjapw
-# wsYjDoby81ralAlZGwJwe+wtQQaMTArH59Ezdi/FwlkFTnQw+/qLhxT5J30Dhi6L
-# UQ+jRBz/1U2vjoE5lhr3zQstAT0OwgbHInG+mi1yXbePDCJU7rCQypWq2Dwxl30a
-# GS2sBRPy6/xgGkariy5MGgLb4qNk0P1K7bj1PaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDWau36F3KW
+# 3MmdgaPcUkIGDsl0Co4S7viMSu5eh7mBbzANBgkqhkiG9w0BAQEFAASCAgBmlSpS
+# 2qRLT7QXBKrs4PdFQCE09cC2JxQUiKmXqeB0rDsuaoXrj02AY9IWTYB+GJ/JXFXj
+# NBDihNrFGkFOywmTeaI8jhp+GJO1IrOUDAGfDLeWTCqkIfWcximgDHuw4ls6dOBK
+# 8I5zLCR3zFjqyEWZEMGA7ETCHaH14eeI88v5/IOm1Fn/VxNSI45ooGg7+bH6d9ah
+# EWJZ/wv85G4sM/ttUHczkDEx26Dxs6gePZ/3MWmKLIWkiLhdFenvTbi7t71YtAnH
+# 4c+XIkj4/KcgRsoKGJV5Rhf5DdPCG1XBTeUdpPsiXzqRF6UisMkJGtNX4yvcbxC8
+# CcwIMXcEfetI6LM0KMlPxzctoadB892hqkElSzTBkf+QA2ymKw3koc29xpqTyqX7
+# O/MEoxZ8krrEskObhDajJDL/hM0ylVjNJ/i2LykRBoVnfpSWdcHoQjvgwUcBda4N
+# ySQ/VpExGRySsNew8pxR8Sr5WRyqEbkJ7owKqZYRvIIhY4yZtEhUN+C4r73CFeAL
+# aQ63pck03vm8wxr7+NsBu86xEoSGyE6w2t1BdQMEuKmJgC8XF9nHQGL7N8fXgn0P
+# PdKRHR7Y3cs3QVF2tuR6v2MGw4ie+xxwjxC0GgBsAoAMwB7lI6Nva1RIb+W9pp88
+# urWDenzWkdNTZ2gYijdAkp9IYHmI7MNwuFrvIKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDkyMjM1MzlaMC8GCSqGSIb3DQEJBDEiBCDlgeiWEASIxLwB0E/n
-# eBA3Dntz6yhyPe9mel1IMtOfUDANBgkqhkiG9w0BAQEFAASCAgB1uEfXXEwPN5H/
-# mm+ACtvUqPVzXx7ydyp7BCH8t4ugb4vylsYr3ZmUkKefmwlGCqxWGPoagqqBnLh1
-# ROLIxRU0i5Hnaw+JPheHv3UEK60UcQkPyYR/GPXbV+IVB0e/kTAInhNwgcIX0a9g
-# jWtSohjy+5qmMvExw7RAypTwO6DmoJMl3OUWkdBvbaSKtZqvOsPin23X0kt2CVva
-# 4mKKwelUWcv3aVDMBd/njUoB2o/x6jU6fNaUjzF+eTm9Bz15VSpdgspKB1KIxnyu
-# hIKekywq3DzIYxVdZBQl+IcrYxPIkp6gYG6sFqkKwu9yQZv9Q6gzaXB5iuF1Gs+q
-# Vzl5TBuatj+bkvgjGUcuFKG37OKVLpA05oSlJkAQYEz1JhrbIPLiuu1ZXmTIzgPf
-# inJHQxPAivPpctVjv9SqlcLAPAUeMlFfaPsbkRT9BX7T6c05BmroGh13p/7L7H7+
-# Mrc14uylfOzIsQdvtUP491tNkEvbVv25gUU1HyP7LbiUshvmrmoHKykdKeGmQhYL
-# 3+kyd+La03lOC7/w9HZNpX/qVYywIg8AeT6GGJS6GdUy2kheCMQyyZnt1gN3ShOT
-# 2lEFsXt2cD8ha5PSCfcbQNf+q0qGaFBZ97dQfKRz3RtPyi+xT2pKeT3wJBbl+YEn
-# nJddcVqBIUf6zPyn6OCnPzDaRoKJrw==
+# BTEPFw0yNjAyMTAwNDIxNDBaMC8GCSqGSIb3DQEJBDEiBCD1Ju/vJ8Z953cWR67h
+# 628l3s/AG56mSzQ7ZOZ3FKHIaDANBgkqhkiG9w0BAQEFAASCAgBg/VK5Awe+hlm6
+# KOpoTDtAF9SmH+dkDZX+rWz9QeNGwjzyRhEad05EnebhepRVhbte/zimmMvgxNaW
+# H6xOMW+C2xwOYksKiK9G8wucw0IFUbriv66L+Un3Hb6dVzY3egC8kQX1MDOcdzj4
+# iqThJraEavSvXNFvuIyXv4195VXIq2ZMT46/5D5w8YLWTK6+bsEs2rhUodY8co/b
+# obQepdGFKBr5opiQzBqlkDVyZi2+FgHErozsvSU8IYn7Dyj9Iq41qG815KGcQz1n
+# DrZS/g2LlF/hm3Th4UdBF01fWs8pg7xbxLaJqVW3dZ3Z0Hiy/VP5TxUAR3D1jRHd
+# gQ7jAiCq5Fom359BX2804HieLoIQXQHM/YBI4djgv45eHiM/U0Z6z+2YT53v/Zsn
+# rKBen9mMxeHV/ntn/fNPjgor0FFuNyRvYQw7xajBvBBFbnbKRE1OHvwqQNl8xrNt
+# gbZQpTJrmS3ho61bThFOXkH+nIpIbF4ptoWf5NP94zb0t/wQvA/TUjMWes5wWNdn
+# ihN19QW3Uvj4Q0afdL2XHYlNOjizo+smbZu65ctGOtzvyqLReI/kG4gbrLlVktM4
+# 3mohARu/rEpyAJMeUUvUaJ/6OBIXUvBfH89MZtfU1FuLamzhdeYW12Z+Tva3twE1
+# HPHbSDa8nTPlGsmX9I2g3/EtOGCcvQ==
 # SIG # End signature block

@@ -5,12 +5,12 @@ function Watch-ISPConnection {
       results.
     
     .DESCRIPTION
-      Starts a background monitoring job that pings the normalized target at the
+      Starts a background monitoring job that pings the formatted target at the
       specified interval and writes CSV rows to a per-session log file. Provides
       Start/Stop/Status.
     
     .PARAMETER Target
-      IP, DNS name, or URL (e.g., https://example.com). URLs will be normalized to
+      IP, DNS name, or URL (e.g., https://example.com). URLs will be formatted to
       host.
     
     .PARAMETER IntervalSeconds
@@ -73,8 +73,7 @@ function Watch-ISPConnection {
             throw "IntervalSeconds must be >= 1."
         }
 
-        $cfg = Get-TechToolboxConfig
-        $rootLogPath = $cfg.settings.ispConnection.logPath
+        $rootLogPath = $script:cfg.settings.ispConnection.logPath
         try {
             $null = New-Item -ItemType Directory -Path $rootLogPath -Force -ErrorAction Stop
         }
@@ -83,7 +82,7 @@ function Watch-ISPConnection {
             throw
         }
 
-        function Normalize-TargetHost {
+        function Format-TargetHost {
             param([string]$InputTarget)
             try {
                 $u = [uri]$InputTarget
@@ -106,9 +105,9 @@ function Watch-ISPConnection {
         switch ($PSCmdlet.ParameterSetName) {
 
             'Start' {
-                $hostOrIp = Normalize-TargetHost -InputTarget $Target
+                $hostOrIp = Format-TargetHost -InputTarget $Target
                 if ([string]::IsNullOrWhiteSpace($hostOrIp)) {
-                    throw "Target '$Target' could not be normalized to a hostname or IP."
+                    throw "Target '$Target' could not be formatted to a hostname or IP."
                 }
 
                 $name = New-SessionName -Base $SessionName
@@ -247,8 +246,8 @@ function Watch-ISPConnection {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBUJSXJrmIsvO5o
-# HV9vbG/qxfaJ+GOf2jhOXUxHhslMKqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCc0b1oRN6ebU0i
+# CQfGE6pqg9AkuxUvgKGrVLhVoihvHaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -381,34 +380,34 @@ function Watch-ISPConnection {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCmvSKEgPkL
-# 2rxgL+0+blfkNWqLMr6vYgcT4bKFVCXxdzANBgkqhkiG9w0BAQEFAASCAgAqVUj4
-# GXG+jGepfDEHXbg/MEGRxw6WEQObOIFIQC8KSSLZxBmeCKY3hsxpB/pqL1b3+9je
-# tGBf4u8PtL4/xVmAfSj/zmvpwl/e/GMzrA6y0eMpDvtzXuefkoi4RC7WiQMrHWXk
-# QsEToT5cpBCoD9DmukHX0pxKLitNVIh+Q44cTay/nPvLL06DPbvUvdiCwlfMRqbF
-# RfGPeFXjzJki5EOJ7wByss/6kPbTfgMsAwpKmA1Eb4E2au/Q4/CPEHcRzOXMMcNZ
-# j/dLT+pfTr2b8rhgyoJB2lsIKvia7DYfo04B5fTDl6xsD6iPcOWQYy08AivGq6Vc
-# 13+M0FYavA0Q3YfFqRqOigpmWLCq80LQ5DEEN+fGQlGiWSD1SstivqfaJNFEK0u9
-# wwxqg4EkQl31a7kgoQGOiQaSzpiH3A/a0XLpD+WQ7asL8/W1rp1M4TYGR8Rzki4c
-# DEzgZ0DojSByT4Bw7/SPzR2sYqJDGQRRgA58kYgjPueDTGOkKBVa2356c9kAJgv5
-# y5j68u5/ecMgyUsRIhxQ0hCnrcnO2wFrsw84AYur/78GRjXgL/MYZanXwNzqAu6Y
-# g6g0Mvl76GXTjw8dpmBOC72FlGO8i/gnMZaqW3Gqs44mB9i3/sh3LSckF9s/sZVt
-# 6b6qsHXMuokyEpiAx1sW9Tta5VdNx/4zZi+U8qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCKYzK7EtF6
+# 0oTG7tn0BqH+OmMLJyiAkV7Xfc/aWjHaJzANBgkqhkiG9w0BAQEFAASCAgCqdGno
+# 8btKJ6ZUe0eD2sQNe0hoxHn/4nN6BD1Gn24X9bvH5vLMXWiYa2QiBKS0/JkZJr/0
+# xHJV8U40pKc2nfJXPod7SRjQICPtneJGfSqDhHTt/7/HpHngbMZs5eDQ/Ms32Trd
+# XDue/+pqVVvBIryEAuVcY8P0ng2ZlQA2Yi4uokuEEZExKE72A7Ke8Mdrh4sNzmY3
+# Bzl/EiF1vK2uMeLPyAqIJtpkltPlKH8JA7WJJXBbaYn3h8T1p8ESoYkTX+UbYPnL
+# o+zxDQukNqeQUJBhIwrljM85JU0WnEtpbXcghe/Y+n7fqbkhjAyHcTjHPFsVEeT0
+# oZcHXwCB1OOL1zG9dI6X6xQEt4wmxtlvqgtQwIadc3min8p0IWDjPH0HrzV6f/A4
+# BIomJ5yIeRytu1Teh/MTYy9/kB9s6TeGVv3Fye5JGZjDnobaV0yRkc+ssN9KSSht
+# bWyRMGrPZo7aqow11Ae2BHh6sxYpl0Mqj2uFf+r/DYaKanecq/WiPCP/qf4pIosD
+# eZ2j23e85uIbbq468uHZZiH4HkZCjAZatCJgN3EhoFnS4wAkuxYmjNhTFoV3efVJ
+# ht7Da9x8eT8/yHFk+jZls9O8x7sVJnt3fIBdfiK33V1JKIpE5UZ9UfTyvy87LZCk
+# eS3iJGm38JTrhIGYKuSVhKUdPqmW3J20NI4ZRqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDkxODAyMjlaMC8GCSqGSIb3DQEJBDEiBCAHadNWXchcwzY27vUQ
-# ICuYhDJv36JLe1GMwpzZgKw5fjANBgkqhkiG9w0BAQEFAASCAgCoKPuuBHc+A54f
-# XT7hOwInOwev3ITEHIqCu124WzIzmwRJNiX+dCGNv0jry9TEJmYjn+G0Y/jMaQtq
-# /k+gyAsrai7VeqBvXm1xUhW6kqO8GTXBl2+a0a+alH9WB4soFGyuyhwnuzjRBmjm
-# ih+GhfmvZYwboaeoDZMuSGdGgXx8xnA39DWSUpLyX1WNr86RCOSeMzKOInx14PAN
-# GG1/4LGY2JkfI204smJsu43MlO/tHkUHp6KwZHE9Ly3SqdmG8ktPqfRTp10RxbuJ
-# VyJaNz2BodcEZW2hXH/RBwC+S45HF6NDmtdHDGZUvHnnPUTKU1YFsvPWabxcbSyU
-# aaKHcGwwX+3vlw5+nJDQVxG1M7dhuxZtC1ljxsewV09NpJEkAbwVqk6cFX6p8S1N
-# 5/DnCWEEytv5cPKa7hxm3TvQ4eFN9mENBI4Z/LDtljxRhjmlUFZqms7LmuFhwA30
-# NGEs7IS/OqXlwhMiu2r3zLrvWzjeKEMpgvruPf2DFNWtR42zLRbU3eXZ798ktSRq
-# XEr5MwU+LjVazQDLhqNoKR/S5GN1LroVvWTFEqP+0uVxmozAL1uJnMAq+b17JDdI
-# oqUbXxUY58VG5Bc2qvJ5rTZsB+oDbHdzQU4ngAjLQoPu3MRAR53RV1AF2EmrSMBf
-# 9E0D5Qb12FUTVHfXGDbi0RNplS/Vyw==
+# BTEPFw0yNjAyMTAwNDIxNDFaMC8GCSqGSIb3DQEJBDEiBCBF92EKYrUOHcrR+zyp
+# ylh0kBZ2x0DTFFbe1GEpnWaZwzANBgkqhkiG9w0BAQEFAASCAgCxkf6Zf3bTNDDt
+# 6+UvdIQ3NexMnrz8x5oUXOyljcw3a/4S55H14fW1d2l5OY1RMkiGFU3LxDhfM4/z
+# QKr9MLTSEmBFZWZ01NUU/fd5pbzK1jLXmA0d9gkxGyKmjxLr0kGZE7xa9Q4J+rYp
+# AClbSgrQ8O5lNGEKQD7J1ba/UAOl/LE9+daL+5dMqsC213gNn+a33X37881GFhx+
+# y+MAyj3NMiNr7oqKMIoEWl8c0TBuei7UFuNsi5uveLj5v8F0w6/dYgGIeKZJ36Ib
+# 2rJlrzLOm5bQU6NBeaDOfe/avSPW1nP411cdHCBsimvEx3jUk9LCkuPhRdOiFCtv
+# GwXR+ESH7iBHNNS6eLevYicV8NSpM9/Ta4e8AtUkZ0fIIPwf2/WESRQMMd4SnpxA
+# SZwiCu60JSQ9wTfc07O1ydOjCExJ9MUVYAt55iYv6dyQb2gBi7usai57RvYDHiwP
+# SPHg5ny/KHSqwYJsW9m6JI0/jFh8HyNi0WO6JrZUMOwYa7yKA9pNvTVIFBY7twVX
+# o7ELztc1dPNJbyPtvpbvCwr7YOG3whLquPglKtI0XysdGKKNhXyxJyXXtKYE9gj3
+# SDlO6A+Dzuy7n6IjWj5S0pRrNYdhr22Z6GUOa5ZvrcgOzmuv6ihQcK/sEWrW4zce
+# PgOvrMxKIB5nFcYoIHvE01SJndX6Ew==
 # SIG # End signature block

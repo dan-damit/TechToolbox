@@ -40,25 +40,24 @@ function Invoke-AADSyncRemote {
     )
 
     # --- Config & defaults ---
-    $cfg = Get-TechToolboxConfig
-    $aadSync = $cfg["settings"]["aadSync"]
-    $defaults = $cfg["settings"]["defaults"]
+    $aadSync = $script:cfg.settings.aadSync
+    $defaults = $script:cfg.settings.defaults
 
     # PolicyType (parameter > config > fallback)
     if (-not $PSBoundParameters.ContainsKey('PolicyType') -or [string]::IsNullOrWhiteSpace($PolicyType)) {
-        $PolicyType = $aadSync["defaultPolicyType"]
+        $PolicyType = $aadSync.defaultPolicyType
         if ([string]::IsNullOrWhiteSpace($PolicyType)) { $PolicyType = 'Delta' }
     }
 
     # Port (parameter > config > fallback)
     if (-not $PSBoundParameters.ContainsKey('Port') -or $Port -eq 0) {
-        $Port = [int]$aadSync["defaultPort"]
+        $Port = [int]$aadSync.defaultPort
         if ($Port -eq 0) { $Port = 5985 }
     }
 
     # Prompt for hostname if missing
     if ([string]::IsNullOrWhiteSpace($ComputerName)) {
-        $shouldPromptHost = $defaults["promptForHostname"]
+        $shouldPromptHost = $defaults.promptForHostname
         if ($null -eq $shouldPromptHost) { $shouldPromptHost = $true }
 
         if ($shouldPromptHost) {
@@ -120,8 +119,8 @@ function Invoke-AADSyncRemote {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBrDYCyjqN+nQov
-# AXVTZco6CnhjI9bj5zjRNyaWIAQuZ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDBY/0ZuNUeWNbC
+# A1vy9gEMvraSP9Fbylg06sIBhBfgsKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -254,34 +253,34 @@ function Invoke-AADSyncRemote {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBoE1mN5KMP
-# jKk370xQvKDdrOa40F3MsQ6Vt0uIBH46bTANBgkqhkiG9w0BAQEFAASCAgDD3KBw
-# gajK6Tl3UFHS1c8/EPW8uX5EIOArpGLcJQR0XmZVjLX11Lah0HMLKussCVtlkRj9
-# QMrOdO1RGGkC060LNM3/t3ECjveYLMLLqdvIRhNMiJL1S0VHvb+xbyBUYAfCBnSQ
-# m5zyjW3OjRpr7Al/CKO1MDr1jqWGaNKNutgv/5bG+AgPE2bScZwMkbW2QmH63cvi
-# PM+409q929EiYeMjfnxPsTX63OdQP6fcz05+IuNKqh7FNwvKfXC7lVZc03T5NCXJ
-# v/WO4KENEf9HbKfo18YGN7pyluZ0pjUDQakg0LHoc0g9D7+a4SEocEcuJDdPEJWf
-# zAWmj9AMZma8ZtNhyyy4byg/lgfO6KaFTT4J/oSFqTa6Ewd4lblxG0XsJM0pyGQJ
-# DRR2LJ4mpo629zocDIeFM7yaouun4M/MOxYeo5cHjsnx9e4N6NgvDZUFLwpj/wJ7
-# ehXFoiHD8iyLyjFicGL0SQHX6Ds85TQY3GFe4LxfzeBAtgJO+XtfoA2OHSewVHpH
-# goZAum7WkKatzVzsLuRuQv74eUHEgFuI5J8IXqCvXI0M0qlVipI6KXfM5DNlOg3U
-# i/IgcpQMk8VatuUH8Sk5NQUVbIc8rag5WrBVb9XxwT/5Gh0d/qyG4lyPIkrKQlKA
-# Hf6PVtB+IfxOiajQvkDSEPYz+zEoT0qnqApvcKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBMdTp8sGyF
+# ZujNlZs+47nB8U0PgvO05LqxvEZL1DIikzANBgkqhkiG9w0BAQEFAASCAgChvf44
+# EuuK6N7Lu+xOxV8qeJhs8vORDQM9o4cC3e48QrSjt+nJLLVG6eE9M7r9Iu4muKdX
+# lFdweXSCzll6aIzqywb1ddIdxVfsw8S/jJvw1PJEMlypRVtFpw6ONArKVFJWqT5D
+# cDWgVf/C+DLIiSmTumIYUM9OpDnd6gC9HA6Ec8iUXZ9Azt2GblgUyxM8FS6tf4PQ
+# /1L/xLbudtQdPoEmSClZgbYIMrCE9sNnfQk1D4dX66D0+nevbmFcOsR0v5ydUfYY
+# 1cwcs5FnM6MpT8OsWToXe58xltx0gMuf+kWejCsNCxfMJNyD5zPyBj4THBBfUY1E
+# rbsboJpGemwxkHX7tup4JFtpRAC2Qcf/VtQ278MXW2BH4Ekw4x0FkQqBQNCtQaY5
+# hTnsA72OKaiA4qY7+bjHefBcFQv08o214BbW3+Z62p3BcjfggaI4EyAqSDDgf96L
+# z961FNsjRI+ie4BFzCdnta1JPS0Tov9gtMVuGlssMIZZqNJWzo7AyaHfvyUxVesS
+# /Fz70Xy5G7W0JycI+v1npl6reWQEf36ZtQF/F1NEfM1TeI9tuhMst8gO78rntTM6
+# mpGym+Afbft7EZv7/LJn5pIeHAz8p5StQtbrmhp41adcsSlNDjL+tUhvrJqMbTIC
+# Y/aZFECoG5R5krqHYLRgAA0zDxm9xRmPOOgACaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTFaMC8GCSqGSIb3DQEJBDEiBCBxezwOIhDfjIUC+hJj
-# g0bjcWq91ZR4x955yTSKH0Xo3TANBgkqhkiG9w0BAQEFAASCAgC2oR8uap1LxLwu
-# AaeH1yl2NCNsc+mTdDKC6NrFQAfUK7HdoR6cra4qu0mrJjwDBbDi+9e1HieSurXQ
-# EYTs2XnpYhCzfkOq4zzI7s1RSBCPR/C/ZTBauISqkFdAcSeKVskpD4Ix4TYXyiXO
-# Npx9N8BXLNWLrkG0+wiefchOV3/GmFxf4s6IQ6hJsLVgC6PliGz5+8cxpGSQ+ozX
-# Su2kGXK7RI5HMp0DilpZS8rBDRlJ7+EEvporJVRG9pBPMug/a66OqNMXkUAVe8qR
-# r5bp9dFgiYIT93/C0d9/f2vHC2FjvfPhxfBvayMLDBGdoJ6XSr2vWgUq7gzCEZR5
-# QN63mFccHlnMh8f+QZr0txitzgSJC+Wj7G+jCfboOzGxud/8UjtrTfCpTf0xzU/3
-# DbJG7IRnF3GxBi0zrX9x8l/I+uOF6tZgeC4Dnwxympwsf/4bZ9YLvdOLRkX4O/Ab
-# Fut1LKBz/6lfucy07RQWLsjJXoJittABE9d8FqfOKm5UwNvNzGcccM9OY71c06uH
-# iOSy3wDX1xG4YsXWYaZljwjEEt9OqNHYcay/ON+koD3tqMyR87jXykMycFbV18pY
-# tofzH5kBC3aRusEx2aFyRtEOmlxRrNsAgrU6NK5OPVoNJbbOemKMaEe0eWRyBKUu
-# JgfmJ4Jzx91aN1ewqElRTSBXNd6EEQ==
+# BTEPFw0yNjAyMTAwNDIxMzlaMC8GCSqGSIb3DQEJBDEiBCB42HSQYLAw4YLky0XT
+# iGt0E6ee0v4owltzwJhw+DWN9jANBgkqhkiG9w0BAQEFAASCAgAcm+ntR8Zx3hqp
+# trMfH//a9JOg0B4CPP+n1Wr636HaPNmbACab5lbkcyRIC6zCQivvra9pHNy7c065
+# 4XfaRfZm/iWBVBTv4RTKW/JAmxreqf1swpxS2mSKsHdQBY2w6oCHrAjRjQsarE6P
+# U3JsLosGhNWbqOS1gqPynezW5LhJZYoxWXnAuAeDiPsYBkZW+fRiQMdX4OmUq54i
+# A1fKbAuCF0/aKvM36JetKKo+DLekfGBVn5XamEeI3rFIFBGFhKFMufeRLVYrBNgu
+# Ia4uYD2rwqpv3RcM9Waf9Lf8DU5Vs1W9yrXbbgZQe9Qpd4clH4T0tFBHDa8bMWQ3
+# fahJ7oCR7ZHmVQuxim3n3On3bGO5gFdGQw8RqcEVtNsflHIUvQ4UDj4d3JkPldbP
+# ffgbhgCGx0D4DRtEPzH/blk27BvkGoYOovoIY7DTw+KsJJmf8VQU5Ph+J/sTQJk2
+# a4r0NnC9G1ILLbTxNF6YTGpUSD7A1tQFiQwsYUiUAzkWoPYPT6CM55xdzWCkE/CK
+# m+xX8NNydHs4wwwluDqE+4sCtXsZD21ywtEpSD4cYLfwDQSDsQXR3i7jY5eAMN55
+# 9urWQ5gvH3z8EsB+mJnIypkqGuM5CHNP+38JUiJhqHCi0AWsMq5TcTW49/fra8cz
+# hUTlDFKgV78iple3RXx6jPbixjcWnw==
 # SIG # End signature block
