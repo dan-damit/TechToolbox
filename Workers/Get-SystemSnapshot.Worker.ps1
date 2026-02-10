@@ -1,90 +1,87 @@
-[CmdletBinding()]
-param()
-
 <#
 .SYNOPSIS
-    Collect memory and (optionally) page file information, worker-friendly.
+    Worker: Build a system snapshot on the remote host by dot-sourcing shipped
+    helpers.
+
 .DESCRIPTION
-    Runs locally on the target host (no remoting, no external logging). Returns
-    simple PSCustomObject values that serialize cleanly.
+    Runs ON the remote computer. Dot-sources the snapshot helper scripts that
+    were copied and expanded to -HelpersPath, invokes them, and emits one
+    PSCustomObject representing the system snapshot. No CSV writing or table
+    formatting here.
 #>
 
-Write-Verbose "Collecting memory information..."
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)]
+    [string]$HelpersPath,
 
-function Convert-KBToGB {
-    param([Nullable[ulong]]$KB)
-    if ($KB -eq $null) { return $null }
-    # KB -> bytes -> GB
-    [math]::Round(( [double]($KB * 1KB) / 1GB ), 2)
+    [switch]$IncludeServices = $true,
+    [switch]$IncludeRoles = $true
+)
+
+# Guard
+if (-not (Test-Path -LiteralPath $HelpersPath)) {
+    throw "HelpersPath '$HelpersPath' not found on remote host."
+}
+
+# Required helpers (only those you ship)
+$required = @(
+    'Get-SnapshotOS.ps1',
+    'Get-SnapshotCPU.ps1',
+    'Get-SnapshotMemory.ps1',
+    'Get-SnapshotDisks.ps1',
+    'Get-SnapshotNetwork.ps1',
+    'Get-SnapshotIdentity.ps1'
+)
+
+# Optional helpers by feature switches
+if ($IncludeServices) { $required += 'Get-SnapshotServices.ps1' }
+
+foreach ($file in $required) {
+    $full = Join-Path $HelpersPath $file
+    if (-not (Test-Path -LiteralPath $full)) {
+        throw "Required helper missing: $full"
+    }
+    . $full
 }
 
 try {
-    # Win32_OperatingSystem: TotalVisibleMemorySize/FreePhysicalMemory are in KB
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
-
-    $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
-    $freeGB = Convert-KBToGB $os.FreePhysicalMemory
-
-    $usedGB = $null
-    if ($totalGB -ne $null -and $freeGB -ne $null) {
-        $usedGB = [math]::Round($totalGB - $freeGB, 2)
+    $osInfo = Get-SnapshotOS -IncludeRoles:$IncludeRoles  # if your OS helper supports it
+    $cpuInfo = Get-SnapshotCPU
+    $memoryInfo = Get-SnapshotMemory
+    $diskInfo = Get-SnapshotDisks
+    $netInfo = Get-SnapshotNetwork
+    $identity = Get-SnapshotIdentity
+    $services = $null
+    if ($IncludeServices) {
+        $services = Get-SnapshotServices
     }
 
-    $pctUsed = $null
-    $pctFree = $null
-    if ($totalGB -ne $null -and $totalGB -gt 0 -and $usedGB -ne $null) {
-        $pctUsed = [math]::Round(($usedGB / $totalGB) * 100, 2)
-        $pctFree = [math]::Round(100 - $pctUsed, 2)
+    $snapshot = [pscustomobject]@{
+        ComputerName = $env:COMPUTERNAME
+        Timestamp    = Get-Date
+        OS           = $osInfo
+        CPU          = $cpuInfo
+        Memory       = $memoryInfo
+        Disks        = $diskInfo
+        Network      = $netInfo
+        Identity     = $identity
+        Services     = $services
     }
 
-    # Optional: Page file usage summary (often handy in a snapshot)
-    $page = $null
-    try {
-        $pf = Get-CimInstance -ClassName Win32_PageFileUsage -ErrorAction SilentlyContinue
-        if ($pf) {
-            # AllocatedBaseSize/CurrentUsage are in MB for PageFileUsage
-            $page = [pscustomobject]@{
-                AllocatedGB  = [math]::Round( ( [double]($pf.AllocatedBaseSize | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                CurrentUseGB = [math]::Round( ( [double]($pf.CurrentUsage     | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                PeakUseGB    = [math]::Round( ( [double]($pf.PeakUsage        | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                Files        = ($pf | Select-Object -ExpandProperty Name)
-            }
-        }
-    }
-    catch {
-        Write-Verbose ("Get-SnapshotMemory(PageFile): {0}" -f $_.Exception.Message)
-    }
-
-    $result = [pscustomobject]@{
-        TotalMemoryGB = $totalGB
-        FreeMemoryGB  = $freeGB
-        UsedMemoryGB  = $usedGB
-        PercentUsed   = $pctUsed
-        PercentFree   = $pctFree
-        PageFile      = $page   # optional nested object; safe for serialization
-    }
-
-    Write-Verbose "Memory information collected."
-    return $result
+    $snapshot
+    exit 0
 }
 catch {
-    Write-Verbose ("Get-SnapshotMemory: {0}" -f $_.Exception.Message)
-    return [pscustomobject]@{
-        TotalMemoryGB = $null
-        FreeMemoryGB  = $null
-        UsedMemoryGB  = $null
-        PercentUsed   = $null
-        PercentFree   = $null
-        PageFile      = $null
-        Error         = $_.Exception.Message
-    }
+    Write-Error ("Snapshot worker failed: {0}" -f $_.Exception.Message)
+    exit 1
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDC2jYn+183qMJS
-# gCWSvY/Fv0sn5g5aqlLSbd2ORXdiSaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCbs2kFyRARQlSt
+# WFD1NJhXFAM8Jh2V3g5LHnLKQ7/w5aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -217,34 +214,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDu67iLr6ze
-# 8ENehFsO17Al11XlfS2o5TvgJvVyIo2NOzANBgkqhkiG9w0BAQEFAASCAgAWStF0
-# eoCOvX5RJ43tWjMBM/Bhn7NNpl6LLKyjchpnI9IKM5wz3+8s1GfpWbef3MXjE8vV
-# ueZOrkI6ijqUO51da6OymSTc29jPhY1BsqyMl0EvYyeKCDAZ97X2t6X4XRW1USIF
-# DnMffiq7bwcCQwvULPfdeMxAMa3OM9kaX/5GHBP7UhbbT6J2uQkOpGah+dLEdkiO
-# kgmdgjxJZM0Ljhs4aO2ldDId5V7CQbMW2P5g30po2h0/V+/eK0JZ9Hzh+eTsapMJ
-# a2w9vTzZ8gYi2XyriAEMbmjGcXIF7vRvHd7qvZ9GzeMc4+kobsZ57IfFynyCY5dW
-# oLHB1R3794MYGySL2+zrG0QMpP3+++Uy33oMhPdaov8NYedqNhfFOvT8X4UO6uq4
-# xjQPKcpbi3t7iCELl0FdWrr6Ad9UnByG3I/kpD9TFFn2IbeTpYQVKc/laY7qFzD3
-# jLGE2Sn7jRV2qm2pd4kkc6LRQt+kDs/iWvuUTqcsYwen6KeOXbtkqI6LnF0nL0t1
-# VjRCQmBZAOBWfzJLenjQEr8H3UwJc6Jk7pbf6AOn52opCL88fHJbHR4osVJVa6pP
-# kDaQ6BXNbIdg4t+q6cPrf8DpgjEZ08wSVhVcQj3zBKlRwHNXgSm1/1XdT9JnEKwG
-# S5LD2FdXfspkqfigJJPcvWNrrpZbPZzouWDS1KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAogtsAVOV0
+# XP/fv72yRf5mUFwaMkRB7+rZP/cMIe/TkjANBgkqhkiG9w0BAQEFAASCAgCvj/zs
+# yfSg+Lc0II6k2bSBn7Dy3qzMrtoU0ASvEJcsE8FZIZtKFmpJ8roNaGcR3dxTx5mm
+# ePGL1EGU4bgiCyPgr5OnzG9MGupJAR4a+NsmedyP0zfDlbz6tOFhMekM1CNNOs/i
+# +LxO8HaziW59Grrp0nTrV8qj3gO3xla0D6RYRFbnHd04alVO+lB2oDKJXhnuM3+4
+# HLfM7bKpfVi9OBRqC6Ck6fAl5lCRodQrq2cuipc4N968NsqclNFFeDUpfcRBG0Jy
+# zfNBiJIIQ0JXuOVviRlIVniy9IhsZI42QD4cSDNLZ3eb332kz0VoV72Cs5BgABDk
+# cGItUOaFAOfolRGb1o8NXtNtlf1dFa6FUpnnMZ0D1+SeHcJnHZ9ces2/SYPEWvMx
+# cDFuVc8E9Fgndb2EH6jcao0QoFgD4mwAhnHm5kMtYFNCkzLflohP5S+ufzoykkD4
+# TIn2Hh6CUcSVwx99e8x1Am7izeUOdRBMIEcjbMkeiFU3COBk6ExY3TL7GuZ9vmUH
+# h+ezfi/di3zie6DTdvErXspO6GmLrt/hf0MM/JIkPJ8l4kytof5m5I8j/n8XTwYr
+# 1BGh8eHhEv+UV+ErKdwO2Hh14+Zib//kMd8cx8GCATmxw7BM9xKP2PE1DxDSVnyH
+# 2XtkLqcbhx5MZoVuMYts8mKAf0DlUdYkRYua6KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAxODM0MjhaMC8GCSqGSIb3DQEJBDEiBCByZUXcxUJuPRHKqBcl
-# /C/iJsJ6RtoXJOiKDZmowPzq3jANBgkqhkiG9w0BAQEFAASCAgAo3mxBuJZccmkh
-# 36hPcfREuBhPexpEdqdV08d3AySiWEWb5rN+egtKwnuweFljSZGuNLitXKMCDk1j
-# USnlKqj1m1mK0czOIPvbIYQByGiOTDTXnxOlJB8wR6D3Mtuo4lxkXjfTiZwK2cL1
-# 3rX982UYhJxK0Q5KKDbBUMCXpwLN3LMzHVSqQfIkx4PTq3Qv0cgynzlw6GzlGOWc
-# 1J8xevm8cus5i0zdHl42KXmmixKRuV8t2xWOSfBTMWglzL3RUD9Dk/U1Jj858Yzg
-# Vyr7frXGb3UTEzUm6t86P9qNyy9PNt7gLqb8Q/mJTF+FoyLosmZ1TGRIxXWty5U2
-# yEjz7TuWe5a60VdofrH+kGVcKTBQTtsY6biQiBsk09noEzBhFxghCWr+snIyfZpR
-# VGDuQ0zgf70+bGxHrw60pm81Y09yQlPast20QOLEE88rOIofs/8lCrdYoVCMKgBY
-# +6S5VGy4SIdhWEiCtWfSdXaB0Uya6HyWn2feNC2FjlF9HT98tyZ5PiB7NQq2QVFA
-# JfsSpAWf5PSdsjxFKjF+50q0zkxzNiUwnlZmhlGCF8DOJR6hnSWO9hCahBeAMXot
-# gUwjpuC3uaHTUgwYqpQJWIx401D/A0EpkNW8SYj8ldX5b0kDuAHn2Xf0LNSCfDcx
-# vKFWM6USGZdL2qr7OjFtK7Lrx2UvTg==
+# BTEPFw0yNjAyMTAxODM0MzFaMC8GCSqGSIb3DQEJBDEiBCDWEBR7bDzSZozCXRJ6
+# PPm5Ud/8LPyIhDQpkQ4fYQe45TANBgkqhkiG9w0BAQEFAASCAgBmKE9pVyLESs6j
+# 30nWSlDx0HqmUcwhgvpQjl9wGqF48vguHE4HyzGHPbxrBSzmwtonvPKfAyEYWPvp
+# SwXyneDrOUVg3V+L7uE8WOKLFwmFtIggFoiyT4mxVajdNyIj1ThQn3KLN2uXFgAp
+# /QQSJHAoblYTHtEinQQjfyVxppzJI38xL2ydeX1g6KfaJsgYWL6X4cQWf6n0XV1u
+# xt8dqT7YaEozKavUEQda/yg0mpaFI/4vgBWZaBoA7kKkI4CZl8SAATNACObKbUBy
+# 1wbfYMLoVALVW+Kafr8QIRTBIr/zIQD4q/ODf6OcnvTyde+AlCx51Ysfj61qi+wa
+# PyrGZ5WR+f/AHULzF45hSeDxQFo3025JPnlP/10sA0WlfJXLF7JusvDjAUQfsSYo
+# ayZ1RHwFXjSx+8lysbm1dLYC+g6rLYdwNkefSwWxLh2Jcd8RCfuDgqu/Avc4/Mo5
+# Af/k5bfZLK2tNghl3DdgfmC/U/8qlelkhD+JaQjE6nqhuPGqtkokg4YekESnfwRs
+# 7Z3PMmGnf0oF75pj5IyPiR4QBxmbkDUhgd/KCVCDVbdvNCo+2A5abQ3jAzBZ7i8v
+# 1v1pXN+VSSjUANiINadlwf9Ri9lncwiQxjvl/ifeZ8DJvyVb434nMcLqM14iX6ZB
+# sFThZFsk2SGYRQ66hG48XNIRZIgMGg==
 # SIG # End signature block

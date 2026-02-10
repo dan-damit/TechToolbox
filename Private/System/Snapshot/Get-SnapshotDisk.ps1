@@ -1,65 +1,62 @@
-function Get-SnapshotDisks {
-    [CmdletBinding()]
-    param(
-        [System.Management.Automation.Runspaces.PSSession]$Session
-    )
+[CmdletBinding()]
+param()
 
-    Write-Log -Level Info -Message "Collecting disk information..."
+<#
+.SYNOPSIS
+    Collect logical disk information (fixed disks only) for the snapshot.
+.DESCRIPTION
+    Designed for the Workers pattern. Runs locally on the target host and
+    returns simple PSCustomObjects that serialize cleanly over remoting.
+#>
 
-    try {
-        # Invoke locally or remotely
-        $volumes = if ($Session) {
-            Invoke-Command -Session $Session -ScriptBlock {
-                Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType = 3"
-            }
-        }
-        else {
-            Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType = 3"
-        }
+Write-Verbose "Collecting disk information..."
+
+try {
+    # Fixed disks only (DriveType = 3)
+    $volumes = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType = 3" -ErrorAction Stop
+}
+catch {
+    Write-Verbose ("Get-SnapshotDisks: {0}" -f $_.Exception.Message)
+    return @()  # Return empty to keep downstream logic stable
+}
+
+$results = New-Object System.Collections.Generic.List[psobject]
+
+foreach ($v in $volumes) {
+    # Safe numeric conversions
+    $sizeGB = if ($null -ne $v.Size -and [double]::TryParse([string]$v.Size, [ref]([double]$null))) {
+        [math]::Round([double]$v.Size / 1GB, 2)
     }
-    catch {
-        Write-Log -Level Error -Message ("Failed to collect disk info: {0}" -f $_.Exception.Message)
-        return @()
+    else { $null }
+
+    $freeGB = if ($null -ne $v.FreeSpace -and [double]::TryParse([string]$v.FreeSpace, [ref]([double]$null))) {
+        [math]::Round([double]$v.FreeSpace / 1GB, 2)
+    }
+    else { $null }
+
+    $pctFree = $null
+    if ($sizeGB -ne $null -and $sizeGB -gt 0 -and $freeGB -ne $null) {
+        $pctFree = [math]::Round(($freeGB / $sizeGB) * 100, 2)
     }
 
-    $results = @()
-
-    foreach ($v in $volumes) {
-        # Convert bytes to GB safely
-        $sizeGB = if ($v.Size) {
-            [math]::Round($v.Size / 1GB, 2)
-        }
-        else { $null }
-
-        $freeGB = if ($v.FreeSpace) {
-            [math]::Round($v.FreeSpace / 1GB, 2)
-        }
-        else { $null }
-
-        $pctFree = if ($sizeGB -and $freeGB -ne $null) {
-            [math]::Round(($freeGB / $sizeGB) * 100, 2)
-        }
-        else { $null }
-
-        $results += @{
+    $results.Add([pscustomobject]@{
             DriveLetter = $v.DeviceID
             VolumeLabel = $v.VolumeName
             FileSystem  = $v.FileSystem
             SizeGB      = $sizeGB
             FreeGB      = $freeGB
             PercentFree = $pctFree
-        }
-    }
-
-    Write-Log -Level Ok -Message "Disk information collected."
-
-    return $results
+        })
 }
+
+Write-Verbose "Disk information collected."
+return $results
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB+s4qNpEShJqjJ
-# JUhLHj1CavjUK582mC979o//XVKQwKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCASfO1KeFmK9xS8
+# dSgosUGLNF/oLvWaAZJpgo9hDcemLaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -192,34 +189,34 @@ function Get-SnapshotDisks {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXocpx3leV
-# N/8d8JjQvpEhCJeY+YpO4v0SFo4NgJWIWjANBgkqhkiG9w0BAQEFAASCAgBPnPsK
-# OgNf4Cgot701iOLbb2tiPOzvRvHi8oh64npIluHGhPmN/fhbZl/ymTPskcMm/lFN
-# 1GBdXIyi2caP1h5MQD+tSlj9E3k509H1TV1j05z4BXaj8+UWPCMKqNVkhBsFkiJa
-# DSy4I+vLhMLyAJDyza2vqnvyvNDOrgzHKC/No1YgYS07TpXID2PYo7QJy0YubdEz
-# Itj9kv9zxk3TNdVzKHRjydJptuC6i8R7d5AzrUNXBO056D9DeADaNUmNQ9LJ+akQ
-# t5a9aRTYsvi3PQtgEy/PrYIfM10N3L3YOj3Uv7pHn1WFVdyFjCNPqTxLkUmkdhSj
-# /O0ro7U/LH8oPM+AeS30ExNmldls2Hjf74lzM/7qtHw8sqwOe1qULgfpZWZiZ4A1
-# iNhfFQRGaUWk5dsG5dlnWTz+XCLCzjxkF1YAwAjPkqD/si0y7+Uagk7knOdVt1gV
-# CV3ZXT/RRtz9lSpy/Xz3aKSCdMfl3sDJ2PER5Tr8pETQ9miC1akmEXR9cqraLyL8
-# ZCKHbVKoG7w4vFHI8PCF/39Yp2v4aEXtkw7kUi9pQiRIBBfG45GJdHPy1LnUlZqj
-# QlddlBuiJrgIKKazQFbl9zkl0idvhzV2G/CO1uGsJPUy1lPTQLDxhjkabAJWmLhI
-# 8Np5/REJJ62wPSoDRPS3+mErqiNAUpVLIHNd0qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBOw1nat9JS
+# rMQwa2axedV2zvHR9sXQMgpPTw+LjmgR6TANBgkqhkiG9w0BAQEFAASCAgDBrGcg
+# fnrFREh7jNTCRDtm7GBtLbXXCySfDi+YQ/FeydU8TgZWi+PGJ5dSwqhPHhZxv1kD
+# oHbj5noxCPJ7Q1QgE5YRrlUua+bY7cjNW+ONziZ1bncx9mZOAdX/fx/AjtDjUqAP
+# a+ZfAwnwFjoZkKLwHZT7ismw+vvOESdl0XmU1oZXVwUF7NpWqBJYL4b9oD/OuDEp
+# 0ho+pUGwLg9YAjEQtPArdWbRIE7eXa8nYOnzVqEzaxsnJZd9k1PwEJeIub/R4ugd
+# MLz6HmQrgzmlB5ZQimp98K09aldPpCfa0gCzodbAQnM0g50W5NJRA51I09wrJTL+
+# +Ii4OSuMLV2auJKIhlgSTpX4/buYRxWOBAcdgWDHXRkNz0IhI0HiEyIOnd10k01C
+# r6Q888BYiqMWkrS7arrCzy66yQWeQJTL7J5RFYBR8rIRyYk0Odd4PPPHaG2kYtmu
+# 0Meu8XGmL1t57SGZlbHXMcbYmBH7C/6q4pZlgD15ftUf4kZScPq3HrMpi8f/7sfy
+# NhqB4Wx/YlaFCoZZ171CJQAqK5qRdxy6p0tViVs5afWKQn309CKrVeoySm5RcNRp
+# hryR2I7hyHI0WcVrhqmtJBBomTBMLBvxk5ecZf9C5OhsmBzMf6qTAFt97TqhFi66
+# tNKELr8Na6OxGI6mg4U0daMYQ0AfzOBmr/MkWaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDdaMC8GCSqGSIb3DQEJBDEiBCDUqEpS8QiZZkPWDC9s
-# 4OT+LEmLp+8aq/tpSq0T4Xv5GTANBgkqhkiG9w0BAQEFAASCAgCJyElDpP0sKcMb
-# LN5LFDtkxzyP2dcSWO3bLjAz4c6SmOgV2Ko4pXY51IbsvIdxbhCJoZMIhH1nTeHl
-# EBgKknGeKQ1qIupWzr5kW+DEcKigvvlGnPmNfYS8clxw8mpUhWMV2lUNf2oqSW7h
-# DKJLYWI2RNJJhpb1++ZsExyQG7g8E0/ThcXT+ZUQT14W1FrOGOUyQQR4ZadoUtUB
-# IV7unKHbIoa/Ty9qf5ZrpJYVnrqqvEzID/bQHLkPEMSZm0fWQv6rarZzsPJi3BF2
-# m4YzgTsYBgwCOgBsDgLW+rN1s0drVhMC9ean8jOZLoddaPqj8mA4X5FQISVmvU/i
-# 2LFaI/ZvuevKF0gDhYkr5p/5CMVdjdUw0H6qg5JexVU5AsEwqs+E7Gqw3fRfGk/2
-# rtW5n8kGNmBiK7CnV0y0rEWORQWZXGP0NWLPQTUoGarBs9QALoekXLcI1b1dAjjM
-# 9oKP/gnw6aHu2v4erkf8cCvg70a5mf4yftYIQ6RaLYGaHfXEKcf6wJuK3kgLN06N
-# h7LcoT9HbMl6/O7o6kGA4TjDzXZDjLtU4TPs9chH80TJlXzAw2dt1viKMJAXz8cD
-# B5sPPWHgJb6L28Ij0rH8Q5VYyakoNRnO7RB0NdEKiaGTqmhMDSZiS12SVTu8BEY7
-# MdkqhVcDNehTt84/uoob372YjrHQUw==
+# BTEPFw0yNjAyMTAxODM0MjhaMC8GCSqGSIb3DQEJBDEiBCDSwN44iNEUO3eN1fcI
+# +1ZsoGhlwoLaj6GWwgOPLoTxSzANBgkqhkiG9w0BAQEFAASCAgDOgJkwuRiTzkD+
+# 0WECMzQG+z9Hjnu6AU27qCGqDxd/cWvy6x0Oea2f35CRXhakTvXrByZiOUoXE7JE
+# dnlZMqv+69dTDzWdXUDNw7KNdIeuC/rD1Tn/OQoKXoEXA4wujWgBNYvDLhd+p1xe
+# TSmKcbBBvFFRUbMSW1hMor1YH3dbx5S+Uu6brYR+NX86Q1M+MXehoxQuAsPv6dHj
+# tuf5gCZxJ9b4JSqPAmslwsAzXxzKYr8yRmo58LzjvJQyBHVZNCCYWhR8wGI9CEXr
+# iLqOr/5T4tw3HZsyQCmTCtj9L3lre99MV1Jo8WUHisqg9/V/ZuCjkwBOXcKeSJRu
+# GrTUvvTqxbALomcHW5zFzvkBMlItgFQHPLrHEwjvn6vm6lI3I3hOzcj/l2ZngIS3
+# JEjk2dSke0TL9MZ5b9hS2sN14NYhZtrN4SzbGkigj2LldfLVMwDZmscE+U0cXXyZ
+# lvQjfLKOCxjISPURMIHoJUgePGfNc9LYe3+mfd/q2kZBeKbaUC/0LbHWvxhDbcH7
+# ZXDVl+RG9vaiXgfadbYqzI2x6n2ie9aPB0+OOhJgK7lFvmKKpxRg7hv0wkLgaAsE
+# wr3MHy7Mgl9zHulSqyyxiv+MhIG8TWa3WOhzk5Xvlw0N6f9KKTwuaNF2E6DR7m4a
+# Vd4LLWIEayMZPc7D0OHXg+6GyTIZWg==
 # SIG # End signature block

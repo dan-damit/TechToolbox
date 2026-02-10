@@ -1,87 +1,109 @@
-function Get-SnapshotServices {
-    [CmdletBinding()]
-    param(
-        [System.Management.Automation.Runspaces.PSSession]$Session
-    )
+[CmdletBinding()]
+param(
+    [ValidateSet('Running', 'Stopped', 'All')]
+    [string]$State = 'Running',
 
-    Write-Log -Level Info -Message "Collecting service and role information..."
+    [string[]]$NameLike,
 
-    # Define the key services we care about
-    $serviceList = @(
-        "ADSync",
-        "Dnscache",
-        "Dhcp",
-        "Dnscache",
-        "W32Time",
-        "Spooler",
-        "WinRM",
-        "LanmanServer",
-        "LanmanWorkstation"
-    )
+    # Include only services whose StartMode is Automatic (includes Delayed start)
+    [switch]$OnlyAuto,
 
-    try {
-        # Invoke locally or remotely
-        $services = if ($Session) {
-            Invoke-Command -Session $Session -ScriptBlock {
-                param($svcNames)
-                Get-Service -Name $svcNames -ErrorAction SilentlyContinue
-            } -ArgumentList ($serviceList)
-        }
-        else {
-            Get-Service -Name $serviceList -ErrorAction SilentlyContinue
-        }
-    }
-    catch {
-        Write-Log -Level Error -Message ("Failed to collect service info: {0}" -f $_.Exception.Message)
-        return @()
-    }
+    # Convenience filter: Automatic (incl. Delayed) but NOT currently Running
+    [switch]$OnlyAutoStopped
+)
 
-    # Pending reboot check
-    $pendingReboot = $false
-    try {
-        $pendingReboot = if ($Session) {
-            Invoke-Command -Session $Session -ScriptBlock {
-                Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -ErrorAction SilentlyContinue
+<#
+.SYNOPSIS
+    Collect Windows services with optional filters; worker-friendly.
+.DESCRIPTION
+    Runs locally on the target host after being dot-sourced by the worker. Emits
+    simple PSCustomObjects that serialize cleanly over remoting. Uses
+    Win32_Service for rich details and augments with DelayedAutoStart via
+    HKLM:\SYSTEM\CurrentControlSet\Services.
+#>
+
+Write-Verbose "Collecting services..."
+
+# Preload DelayedAutoStart values once (faster than per-service lookups)
+$delayedMap = @{}
+try {
+    $svcRoot = 'HKLM:\SYSTEM\CurrentControlSet\Services'
+    if (Test-Path -LiteralPath $svcRoot) {
+        Get-ChildItem -LiteralPath $svcRoot -ErrorAction SilentlyContinue | ForEach-Object {
+            $n = $_.PSChildName
+            try {
+                $v = (Get-ItemProperty -LiteralPath $_.PSPath -Name DelayedAutoStart -ErrorAction SilentlyContinue).DelayedAutoStart
+                if ($null -ne $v) {
+                    # 1 = delayed auto start
+                    $delayedMap[$n] = ([int]$v -eq 1)
+                }
             }
-        }
-        else {
-            Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -ErrorAction SilentlyContinue
+            catch { }
         }
     }
-    catch {
-        # Non-fatal
-        $pendingReboot = $null
-    }
-
-    # Build results
-    $results = @()
-
-    foreach ($svc in $services) {
-        $results += @{
-            Name        = $svc.Name
-            DisplayName = $svc.DisplayName
-            Status      = $svc.Status
-            StartType   = $svc.StartType
-        }
-    }
-
-    # Add reboot flag as a separate entry
-    $results += @{
-        Name        = "PendingReboot"
-        DisplayName = "Pending Reboot State"
-        Status      = $pendingReboot
-        StartType   = $null
-    }
-
-    Write-Log -Level Ok -Message "Service information collected."
-
-    return $results
 }
+catch {
+    Write-Verbose ("Failed to enumerate DelayedAutoStart values: {0}" -f $_.Exception.Message)
+}
+
+# Gather services
+$services = @()
+try {
+    $services = Get-CimInstance -ClassName Win32_Service -ErrorAction Stop
+}
+catch {
+    Write-Verbose ("Get-SnapshotServices: {0}" -f $_.Exception.Message)
+    return @()
+}
+
+# Project to simple objects
+$items = foreach ($s in $services) {
+    [pscustomobject]@{
+        Name             = $s.Name
+        DisplayName      = $s.DisplayName
+        State            = $s.State                 # Running | Stopped | Paused | ...
+        Status           = $s.Status                # OK | Error | ...
+        StartMode        = $s.StartMode             # Auto | Manual | Disabled
+        DelayedAutoStart = $( if ($delayedMap.ContainsKey($s.Name)) { $delayedMap[$s.Name] } else { $null } )
+        StartName        = $s.StartName             # Log On As
+        ProcessId        = $s.ProcessId
+        PathName         = $s.PathName
+        Description      = $s.Description
+        ServiceType      = $s.ServiceType
+    }
+}
+
+# Apply filters
+if ($State -ne 'All') {
+    $items = $items | Where-Object { $_.State -eq $State }
+}
+
+if ($OnlyAuto) {
+    $items = $items | Where-Object {
+        $_.StartMode -eq 'Auto'  # includes Automatic (Delayed) which still reports StartMode='Auto'
+    }
+}
+
+if ($OnlyAutoStopped) {
+    $items = $items | Where-Object {
+        $_.StartMode -eq 'Auto' -and $_.State -ne 'Running'
+    }
+}
+
+if ($NameLike) {
+    # Accept plain strings or regex fragments; OR them together
+    $pattern = ($NameLike | ForEach-Object { [regex]::Escape($_) }) -join '|'
+    $items = $items | Where-Object { $_.Name -match $pattern -or $_.DisplayName -match $pattern }
+}
+
+Write-Verbose ("Services collected: {0}" -f ($items | Measure-Object).Count)
+return $items
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD2bYW5cCUu5aCi
-# 7JyQwu7bytiBtcGA3HzdgxF2XHXzUaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBAggAiZq3qfofu
+# p89Gp3/SRkHQ36pEG3M7ecSzh1YxZKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -214,34 +236,34 @@ function Get-SnapshotServices {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDx+KSJmmj/
-# gRZ3eM45VIkwqHZeCQFoHBMu7x0bOT2G+TANBgkqhkiG9w0BAQEFAASCAgA+VXtE
-# 2L1IxV8HiBoWgGKIJBdfCtG3Av3y+b3HGMa087vtk+fk0cTAoA1ARhlQY9RAam9t
-# x/xJG2ahrOLOIWS3uaiOy+dSUI8Hvjn96spnAV9FpM7jtvN2VMS0s2SgokugCCNm
-# RwPOzD/JxJawKU+bkcCtd2Yic62DB27PZulQYdqt+1J/iOXdVJ/2PJtJd2xr90Ac
-# f5spdv7DUbqH41EbN/jXHyrVi1x24JMijChQIqfd4t+lhMIsITUBY6n0BrJQ2kJD
-# 9dYxevtKjHb2d1spCpCCnJv4rAVr7InrmUnnP/wlKXlRlxBfrejlVvC5muN2NxP1
-# QSQCSJ/E1g8WwQh/caSJSkJJcNwAz+QAAV5sPr/222OpAhbnKRB7R+j3b/rtCitK
-# iabveRraxbaAY/1izUGeQ2EqAv0ZK765xX7G6iLbrXqTCYSjiUx7lao+39WfrbMd
-# RamrSRVUMFIH1zPQtY/rTLoLCwXs4hlyletTC1pWIvVV2B8j9KPwlr+X9Zd5Xvqw
-# 5IZfQZKUOUvuBzh1ro9h/73+PP6OeIESLPIRcgHNHgxTr2FZyowddm0VvLn/Hlpq
-# 24lsKhvi07+Xv5QSzRlR0MHQabkq4KNOwREc/6Ufn6d6Fbv2Ogs7ZscKSaDmjpNM
-# IDejTAyUwDiJD/1m+H2qmJS3Y9v8xBjTDClotqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDWiKJsuOuJ
+# X0aqOxJPRsBYcc3I3evtggBNKaza4BIM1TANBgkqhkiG9w0BAQEFAASCAgDFCNjV
+# q8k9/7xaO0ohsa6sp5UT1l5O9jiJNTrClOfCBwRPIhW0qja5Wcp19b9crBKZQoO7
+# iWhxA+MR94YNTmLcfT79Wo0U7nLvKyyaTYpXY+8iLU4zP46F8egt7OC7aCseSl5w
+# iS6ut/Da4Aj0Ie8gVuUHVsYQHlGexpm7BxRx3f5skFF2NKRWhBQVc4rWlTUndaMz
+# 5QSYl/4/JH2gAfJMMi/KlM17pHLT7xsqkE9r0zuBuKbjHYr8C4Ivgr2M4pu2LCrN
+# qKMm1RryX15NpRKS0NPG2UIbo+5oetuhGoRZExtOqFnHYihDEQQM/Daz6C/fDlcJ
+# V7s65+aDGf129w/TlRexAftPN0njyw59k35Pumm0OzpvvlwUMiFl9AihH0Dyr5qh
+# E/PCMTfTGVwuXiM4EytXUF7PlqJeioHcEGyWuOj82hECxN3BgEpVDx3L9XrfYkFL
+# n9xtxlwvyw8BedDmrcLlmgBxkVQ9FEUATtTRICwrlwnDvQlkK3MbaPHSDrAl3G4A
+# /DaZ0biMbEicv3U+05kp8lOfkOyVmDEAGD9gSkCfo6Jr4/OUvp4VruVDaXNCWAnX
+# CTm+XegMpkkaNX+VKUtXLHFO7KVb/JO/bERKPiTMBv49sKiriTPh1rrC3IwWT58/
+# eRrw0OY3rzBA+HGkQV2Rrm6l7ctltMlA8Aa1c6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDhaMC8GCSqGSIb3DQEJBDEiBCDcCasXzEB3/ppdCuGz
-# 9ep+YBvajzB2M712lB8gzfLgfDANBgkqhkiG9w0BAQEFAASCAgA6wl4/LS157hLw
-# GbZLop0IIZavGMB12ukR3Jn8COCXjg6RMqM0kg3t0AHHSVWlZea2yivFnwGH28Z1
-# rSq2Se/gb/LCluNdziIYSZXQTdOrSSDbdyZkSG+FatpSdV+M3o03dszWhgsBJ6DF
-# SJ330B1u4kKMNsD9aCIlNNb9PV7Lx4ftxKtdoqMMfkTz+CrhdKkcdfYwnv7N+1U1
-# 3njpzn1796JEn1gIl6JfJ4D1naXcJGKcmeIy3AgG5+UL+N+MXCOJ2QN1gZI12P3y
-# 5yvflOrdOJz8tbBDciScrxsQ5n3BL1htcD5oXUixDkJTjBeRcQpX6voncIXt/eQC
-# O4ljY7FIeXnEQXgDQilM+A1C17zI3NlTTtNk+BXy8wu1ha4La3kH4LOcvzzLgjKp
-# K9xJt9i6tkV1sOyJ/591PcwSrQXAuBkFSF1zi7lb2x4bWu3XbPG4VjePTOyangRq
-# JvPidEI2HhuqATxxorCwY2Z8tLMNdS5oPXgRvOfpwRjg+ox/RTyVanNr85oM0X/o
-# o5U0vSJ3jji+CFoBzfpYDKv31FIPyyiyIXE4t/j4Hrl0j2ccpg4pthSaiQfzVFaf
-# ZkxI2TCbQB4muPqVd/fE35u9fAYOgCJd1YMjUJCicDSPMzEXaXKnbMfHEXYdRQ70
-# 2qpBqQYeVREuLlkUOTO7NiosAle+jA==
+# BTEPFw0yNjAyMTAxODM0MjlaMC8GCSqGSIb3DQEJBDEiBCDINmod9M0foXrsRC7w
+# cXrrQfdYAYijOZ0RUS7TiWHLTzANBgkqhkiG9w0BAQEFAASCAgByGfVWhq4gOAjZ
+# 7Nc2xi6ksXMGqHZfyhD7Cw6uttO6li7I12g3LsFvnl+ilLInD5crerKpsrHeBpMG
+# SCorjI/s0NBvKId6MAGWAQ954RUvtK4BVc6SbGpvNHNqvXGUaBwT6HRe+Q549/al
+# +DTOn1NmQwavpAIOnTrVc9z2sXsMC8SAWdwomT5WbbTKAIJbrJXQLfQf5uxLHPZQ
+# JS0IGZvOLJIcRoCAgSUXeKmffwFlX4JCQvSoLdQW4Q1TpRupQltv9tAs7Gtvbm7G
+# jdnC5pMVQpRHbw0i0egzzJ0+RmyEGwuryoRljnDdEBEmZnrC/dZbVEYNV2sJrUjt
+# ucOT0hmNfxyorkG57fRE4ML3YPmk99rLEpYopPg95W6irmOguqQyyukj+Asy7uOH
+# u41CWEvXhirSqz9txq4wejvzh4BvogT8G14mPuJjdoKqxWBn8cT2i5J62UfyNKUy
+# t7bzoZ7BnkTmqwnPYtEqUJc+p6yAgFcdZD5ty07kjkddvkTcnGLVBE47yN54j1Kd
+# Xd3gmmaAn+7Hvla831qMqTAllFV3vA08N9Km5x7GdmZCEPnmMwZWWCXpLLDbevlw
+# F7OwyY4mvZY0r36iTAt/wgF0BIMpCAKofVpP4pQiF9xPrS3FtlXdukSC5EVD3yM4
+# fLHGaNqVHXqdC49HKZ1BPK5zsypuMg==
 # SIG # End signature block
