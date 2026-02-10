@@ -42,17 +42,17 @@ function Invoke-SystemRepairRemote {
 
             if ($RestoreHealth) {
                 Write-Host "Running DISM /RestoreHealth remotely..."
-                Start-Process dism.exe -ArgumentList "/Online","/Cleanup-Image","/RestoreHealth" -NoNewWindow -Wait
+                Start-Process dism.exe -ArgumentList "/Online", "/Cleanup-Image", "/RestoreHealth" -NoNewWindow -Wait
             }
 
             if ($StartComponentCleanup) {
                 Write-Host "Running DISM /StartComponentCleanup remotely..."
-                Start-Process dism.exe -ArgumentList "/Online","/Cleanup-Image","/StartComponentCleanup" -NoNewWindow -Wait
+                Start-Process dism.exe -ArgumentList "/Online", "/Cleanup-Image", "/StartComponentCleanup" -NoNewWindow -Wait
             }
 
             if ($ResetBase) {
                 Write-Host "Running DISM /StartComponentCleanup /ResetBase remotely..."
-                Start-Process dism.exe -ArgumentList "/Online","/Cleanup-Image","/StartComponentCleanup","/ResetBase" -NoNewWindow -Wait
+                Start-Process dism.exe -ArgumentList "/Online", "/Cleanup-Image", "/StartComponentCleanup", "/ResetBase" -NoNewWindow -Wait
             }
 
             if ($SfcScannow) {
@@ -86,8 +86,8 @@ function Invoke-SystemRepairRemote {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCArDTlwjWo4UDj2
-# /Lk29ItMRQnB/+vkiVXljoGZbBr3/aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB1fWzvkEiYaxlV
+# npxWaAnf3tSr7RgCB3j83ewYr4RjFqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -220,34 +220,34 @@ function Invoke-SystemRepairRemote {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBCY1T8ylZR
-# z+iN4LLzaAOUcvQqLZRXXImOAxgBvYycBjANBgkqhkiG9w0BAQEFAASCAgBbC7pe
-# Zqu2NO+eslnkr3QuiQd7yI2VMOBGAxBedg8b+bWAlHP+kCxhrcVYyXui0lDeyS0O
-# NQu25xkk8WtTgqZa5lRHY0ZOeWCfzwy7KTza7mWSLYB6DZ4m5XhOuNQQ6aqBdIjf
-# onvP5foH6QGgpxkm3MOv+6cJTDLIGp4Sl/fEQcsKSrEMZ5+LEXjX96st6P5k3vmu
-# UF383svBBSdQST56z2a7bo1aWGgOs1VxFTvvklpI34XUeC29Pq+xlUOWmNP25gg7
-# Gc+jo7G4Dc9Jlm9n6gzjd6JZMwQnV3F5LRH3qOHXuCR6AdRd51SqatcJe+7COlok
-# ggduHRw6sCztuqmnq5N291SQtt0Y6Ffr0vCQ2O2Y2mHS1QyGDvpf6pltpkmjlBHk
-# qlFm8ujMUAwe7d0dIVkKftae1rYV0DdVLdZGwc7XCkbUAYudRJqUq3GhwrRc+sW4
-# wBdqvLh4DrNnlOLcI5tYZuuk9zmOhGsgUl0gWgy7liudkQMUIxfWb3Wzii0z487m
-# u7uqMmzFeaXd5+YNxm6D184OIVeI7WhkjNOsNLS547cu/8uszQzc6mvf5t3qtRMZ
-# tky3EjHeV879BG47ubSNkexF0OODNxi4z7j+x+tGd/m9hUdGRC5De+yHFEsIHzw8
-# sWp4GcR/rUhw65O99w42cQn9k05RkGZsTg/KgqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAI+R70BQRw
+# vwf5UcnMk7I4at2DZpC46iQrVNq5sysR6DANBgkqhkiG9w0BAQEFAASCAgCIuui+
+# Q/8IkxZeIvcQhLvEF9NuQjQ6XfOOuRP69LAWAsza1ViHkulS6UeRVZ807G4jq7Ix
+# sp7UyNWENuG7BK6S0/cg/1E8/g/bR+xjMMb6isNjMkM9HTahyFj8FRIyHqDSO1rE
+# qwONgOTJHQ7EfgmvheGkUR8MUx3eQ2kuWttfrUtVTpgd/XeLOVrPFJMFA5k5TwAP
+# w25auQQ8qRknE4mgWAys3eNAgQ0tXl1wE+x7UAuGX3dJRkXRS3XYgSkpH1mzyaTV
+# CywkZKZSygBSQYRKJi5E3MuAhTNzriM/BE4ybnbM8WsziF+9tBzHkZnDkn7gzndT
+# H3P2jLgzmFqhRCU6MP4GQDKO4y8+CErZ9luaf/NEOvbsNNbyImm/aVX51KuAAkKt
+# INjYbw7Bvzr7xn6Q32rRvXLlBZtEUuQv9O9xTIpeMVgb4M1aT6PYmYTJj5o+RiH2
+# ZeHdEb1ueNM2Xau/lR30NzqI6DVgWpawzxCrjvk6sCbddaQ5rO3qmcYbDi6zdmyo
+# 26l2P5nV02KxuKg0zQo1tee9zNJnlgWaSQx8gFYDs3q7ASB6eCjZVq6t3GDccHk9
+# tdTGFGrbc37NPoYNn1Ip1PAmnkTbKcJ4hLdtwy49he4Ah3i+iMDD990udirbajeS
+# cSOAMHgR/S69u3ZPWnsY52O3pzlCN/692UqMlaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDdaMC8GCSqGSIb3DQEJBDEiBCB4m74wbhmWdw2pe75w
-# 5wHAdO4XuWBfTW/RmoAslKZGWzANBgkqhkiG9w0BAQEFAASCAgBE4prT469bajFR
-# mWFeb05HCSVJfdMCiEwt6N11JO45FRrcvJXMSploN0ipKTWHF0wceTq+mcF8stiV
-# lM0WYSsv9wFIa9CLnscv5RaGFsgqeK/jmbiDx5r3lX3OeDF/zWHd/6HyFgxfdriZ
-# /35RxoFLXHz63sJYgTRBI75k6MLrEgUDYGy71Lydarn2Yq6Lry5MTBsQRSWgGLtt
-# e5UrAXlMpDGMAIWoPRcuszcqx8MTTkFPqnNEdvE1Iry6yj8hYNPCZPUqSVnI0fJ1
-# 8tsxagU6NKa572/X+AEcirwjTn1SNCrpR9cqdBGsN1TtEdSKxJRWrr+RvyyfD/DG
-# S5HW728avP/jloe1mWtIVSmM7GMCQ8uS0F/1+8p0D3E2rkX0kRaut0PHoNtRDPDE
-# Br9/K3OYqB+AtrdXk3X6RdLXWjpaxzDXXAJ9m4LbzH6werqM18Qijbmvdw65YNsU
-# 4uNTP8zL0i8h59KIZGvCShx1TYSPbhf1UlYpN9LTRq1BysRxpz6Cm7dPREvR5Ggo
-# YNMSH//hdu9rlGslRGzZ69n9jRJKIflLjO7Y2V8T+q9+8UZWKd/LpR2qIrZ0iYDA
-# XnFZkKuDMLwOdxCr1RaQtT1JepSSzI6uItna2K5AnndXqNCbu89wGaCS6n2jSQsu
-# rVH4rELU8O4WggsMrPKoaggRtpXFZQ==
+# BTEPFw0yNjAyMTAwNDIxMzhaMC8GCSqGSIb3DQEJBDEiBCBzjzZttAVPA5ht+8y5
+# IJ5if3l76ZVklwpuI8mVl1Og9jANBgkqhkiG9w0BAQEFAASCAgBYenzuBAlCJrwp
+# l6rXflO+DE8JMUCKNvk7paW0HpRPI+pzTk9BPzBO2s+oqLJQ1mF1x6GscO1hnAcz
+# bvyJv41WiJrt7olEPKE3cps/TXry5jGNF+qLIHBjWA+/lsvqCXkLh+8/067Zsvag
+# xTIzR/eqxzWDcC55NvCQk6cQbbgiQJD4oHI9Q5D8ddjakaEKA2gt0uOfdmIX8lRF
+# uM4nbTngu8v2osvhkuq7GViClgL5pnzUD7cKo6BWNcIyavwJpNO3RRJiemOZf5uv
+# gRGvxgwYDMNpYZjrQ7HMxWQoRsehnZtdojG3lyuw9lVVjychAeCSVgHTFYR/fEOX
+# qoSVINzMFdTso2Lbz+tODJ/KMFh+n+JDSNepnKgycQQJXd65U8mykvEG5sDv9KwN
+# ZZieEAiTlIX3SacyVdv5XsgdEvPpktarPemJivf7HuCf5Kyk4aTXgJWDufCwjDHd
+# nlRnNYz2wY8DQQnTtwrw0uLsqZQ5lrpqZJYm66sJHYel72d2n0rnQPlbtPFz3X87
+# ZIJTBXhLuiVtrKqEW8h2Vn9owL6kQFJqcu4H0kfF2cLR60Sj6O8GrfMIGI48lWs9
+# LE8qRearmCGxZ3mgAicJKsJ5uuMA4ApciXduzJdAYG5zZmNZbtiFfhXvLaAnArtV
+# UylRh3Ty1+xsg9iDn7YputC+0Ncwvw==
 # SIG # End signature block

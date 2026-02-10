@@ -137,14 +137,14 @@ function New-RandomPassword {
         -join $arr
     }
 
-    function Load-WordList {
+    function Import-WordList {
         param([string]$Path, [switch]$NoAmbiguous)
         $list = @()
         if ($Path -and (Test-Path -LiteralPath $Path)) {
             $list = Get-Content -LiteralPath $Path -ErrorAction Stop | Where-Object { $_ -match '^[A-Za-z]{3,10}$' }
         }
         if (-not $list -or $list.Count -lt 100) {
-            # Fallback mini list if wordlist.txt fails to load
+            # Fallback mini list if wordlist.txt fails to Import
             $list = @(
                 'river', 'stone', 'blue', 'green', 'tiger', 'forest', 'echo', 'delta', 'nova', 'ember', 'maple', 'cedar', 'birch', 'pine',
                 'silver', 'shadow', 'crimson', 'cobalt', 'onyx', 'raven', 'falcon', 'otter', 'fox', 'wolf', 'lynx', 'badger', 'eagle',
@@ -164,7 +164,7 @@ function New-RandomPassword {
         return $list
     }
 
-    function Violates-Tokens {
+    function Confirm-Tokens {
         param([string]$Text, [string[]]$Tokens)
         foreach ($t in $Tokens) {
             if ([string]::IsNullOrWhiteSpace($t)) { continue }
@@ -204,7 +204,7 @@ function New-RandomPassword {
 
             'Readable' {
                 # Make at least 2 words capitalized to ensure Upper+Lower, plus digits -> meets 3/4
-                $wl = Load-WordList -Path $WordListPath -NoAmbiguous:$NoAmbiguous
+                $wl = Import-WordList -Path $WordListPath -NoAmbiguous:$NoAmbiguous
                 if ($Words -lt 2) { $Words = 2 } # enforce sane min for readability
 
                 for ($attempt = 0; $attempt -lt $MaxRegenerate; $attempt++) {
@@ -242,7 +242,7 @@ function New-RandomPassword {
                         $candidate += $pad
                     }
 
-                    if ($DisallowTokens.Count -gt 0 -and (Violates-Tokens -Text $candidate -Tokens $DisallowTokens)) {
+                    if ($DisallowTokens.Count -gt 0 -and (Confirm-Tokens -Text $candidate -Tokens $DisallowTokens)) {
                         continue
                     }
 
@@ -257,7 +257,7 @@ function New-RandomPassword {
             'Passphrase' {
                 # Typically 3+ words, lower/title with separator, + digits; length is a minimum
                 if ($Words -lt 3) { $Words = 3 }
-                $wl = Load-WordList -Path $WordListPath -NoAmbiguous:$NoAmbiguous
+                $wl = Import-WordList -Path $WordListPath -NoAmbiguous:$NoAmbiguous
 
                 for ($attempt = 0; $attempt -lt $MaxRegenerate; $attempt++) {
                     $picked = for ($i = 1; $i -le $Words; $i++) { Get-RandomFromList $wl }
@@ -286,7 +286,7 @@ function New-RandomPassword {
                         $candidate += $pad
                     }
 
-                    if ($DisallowTokens.Count -gt 0 -and (Violates-Tokens -Text $candidate -Tokens $DisallowTokens)) {
+                    if ($DisallowTokens.Count -gt 0 -and (Confirm-Tokens -Text $candidate -Tokens $DisallowTokens)) {
                         continue
                     }
 
@@ -307,8 +307,8 @@ function New-RandomPassword {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA2g9FBkosOUtNj
-# Re4uUr4ZGcWCJTuDQwjkD4quvcAZ7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBKgQeoejnpfRna
+# adT4ATZiJOmnRyR80p16p6Gr9iYeC6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -441,34 +441,34 @@ function New-RandomPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD/js+wnHd4
-# gBM4z5KXtbRnt53HBeb+jd9XZlTyoM+gSTANBgkqhkiG9w0BAQEFAASCAgC+vhpu
-# hN/lwzVPj+rDrWBlqQp5PpFdRtXlw9t4UhV0ELFxxIbxwIiNshMTgGmDDt2mcdvG
-# y8mK1Ra0zCweqqhVTcxwu6/wyCFNSAi2jEkLF9xugL5SCie17qsaPLKbwUKjC7p1
-# UqGlhc0ejmdes1lUmYiSIi8y/8xXR5IIdzmqdfwfyIBjFksrrab1MC7AsCv71sLR
-# 7z4rumApijOQQEaSqb8ELrcHiH8ymTGQEbHStXC6H+RYWHM6SsOi+bn5crlEzvRZ
-# 3gjru3Bn9PsW40tytOTTwWIETnxjqf+8KGAt0R6Js1QIPQ96iuu6Ia1KtclZTt9X
-# QOQ9PUzmgvuSaXemV5NePNifaFbtHmu+c2dbbgM8lLzBmeOgrORMChI/QhVn1xkM
-# hqL8xUyK1Rq1uc/nF5TCTSPA3GznOFn8hIiiwfeVdFAUM70IPDMylq3dachjzF0S
-# A8siH9GCqN/Bj3AC1Ff6Mjq+wOgEiG1jMe/sqVw5UlZnMl9AQyT/LtH/iw5sqqyJ
-# 2aLMZSiZw6rgMdGfS45E8ddiCiltuXNF6aynLD4xhhIefaGRVB3HSXTj91899q2X
-# e9SN/UlMZE+Z47EYA/lKnq4vpRl7X6dQDf5EFHIJnLqRnn/BAIFWcLTSm+TvwZSH
-# k+O1pb1Sktfz2SYkVJrARM3qccqCcejA7BTNm6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAbNgfXYW6g
+# UhnWGICDPPKiYBSVW4fAmx5ekS7oedJvSDANBgkqhkiG9w0BAQEFAASCAgCLmEsp
+# x9tIZy++PWzqsF5w3VNnZnETfv84ID1w68qI4FnhP0wqqycmpZb6cMGJXX8nDNZe
+# SqdIZRvhmdHnlYbPRGxm8c+ToLSi1TcZdlO6mH1TBOkvE5FgRfZSzj0gs3on+Ywb
+# koi9rOjGngsNkISzTDjnSv4bW294lqfcIPh/EXTgmQyo7IIWkJfWbJY17f8k4Vzw
+# IpAW87N5ilk9O79Joc2mtlSm2RWWdyjkwIL/CsaXvF/GxXovrrekhbpV+bGrVWCn
+# 2lpSLMEn4dSdrqc7J653quxxB9fAxUsKSWmf7hy2gQBOyem30dgdRdQ5JmOAW0+9
+# FYhsCd6i+12ArwSyRV8NuInR1P2rLJcY28s6Zr6kcGzJa/J3fCU1+Z5JDC4a9w22
+# mUHm0e/Am/QqTG66kXVisevya8AbTXOP5VxShSf+3sBIyBUyCF0o382XK51w5D3o
+# 2mqZcqqIPVDvQTExXhflNvMohsB8R5JN4BmfvrEkcJvAaUwGJQxm9B3TbFHiD/Dq
+# Kx2xoI+VEPdj53j/s0lpYhPqEcQIZxFKEM7RnnxKSJdqjoaugEA1nej4ICyXQ/CE
+# aCAEX/5mVeGhEESZmL5Dmbe+PhC8z18nC8Ers1FT5aVCXAk6qvNJGCFI+O5YOaVC
+# gyzthCdqmeZWgj/oVUVhMwo3xbkgtd9xkNpPmqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDhaMC8GCSqGSIb3DQEJBDEiBCBs6212vHJdVZ9Lg1d5
-# JZXweEd/iDM5YtPLGMU7I27ByTANBgkqhkiG9w0BAQEFAASCAgCeh9Q3xqg3irpT
-# 0jMg4nyBOb5aQwp2/pBZEQtZLvLJTQY6s7ztBIILlcvSkHSrh+Qklw21Lu1b5IUH
-# VvxIzwlWqFNI+9OXck6tCTHoBkD1DFMgQboOvSOR8B2GV28e0pPPMmxjutJLjCBA
-# JnKgPv+MRO4tbXxAzjPRZhM6fFUt0lhJMxZHhZdC696eQzRM5qZ4ux9LAn/uZ0Q1
-# 9b7gTeu3QDFI4nd2sF4KYMhYc3sjlHyEIbbUuOahstEG52I5KpRb7gaPwv4MTI3K
-# ZKTXscu+2SY81S1HsiFebmg5j38BifSDn+hqAmwerQZiSvv3ih5x2RQH0Rc39Edc
-# MgTd2w1IFZK/htcqK3X4ywr1EpEhn0PEV4kFIep2ZlnjtQiqM7EPtq1T/x6EvaTm
-# h5PId070s2c0IPgNgYG9IBDH9WgzNpCUfBAQmy5ax1NPSEmE0ff2X5+8ZaZs4HwX
-# TSySfP1xvOUprvXKThxIo/rZfM4u0imgXwETisGgRpxcY2CMgUvum+QokXBTZAzg
-# h0y19DGyS1oPAxjZN0/WMBvV38fl9uLL+BZbY8fsy2EFiRb7A25PrqkOQGD698+Q
-# zMfEJJV/JmSGsEV54KTcuWs/f5F7cckzgvOdv922rWD7KneoVscL+JrT9RZKGn1e
-# eTRADCxqpQEtTfF15EYWUzQLYIlNUA==
+# BTEPFw0yNjAyMTAwNDIxMzhaMC8GCSqGSIb3DQEJBDEiBCBwd3RYAqHzLfSpGkNU
+# y9tdJ9sp1dfFmFMRw7Td9t2FYzANBgkqhkiG9w0BAQEFAASCAgApZ0cR5phj8GvM
+# l6JSVTuQlrlpuSrjcg7DC55waS1MmJye4FJeHgUPq9lWJwncNWOsAgmv6L3Putpc
+# YTgQYHv6IPJFzCCE3SAdzjne/CpJjbYjfyVLgxaEC3VqPB+VAbfJunItVrudcXYY
+# qhXkgGN5aoOjnkxVjH0XMVLV+YeTGI5CLH4jVdtzly9sJy/TqdfrZV8Rt5Bx396n
+# N69J2U9SwhwjCytlTvUEQT9FLRbaVBoXIXGj28yUVI3/R5wrxX3uLxBKn8rC1GV2
+# iqL0rz31ml4m+1J+FTJfnhADHoViDDG1gdkBYiIgs+BftGCy5MYFLxOAFD8De2te
+# Y1f4ILT9YS3S9AmYcvZfF5MYREuM5PZQgxwAZFUBnRffcekrEmd5tp/rb9h1jhrr
+# /uZPKCKvhOvNs2PnMvS9BuF32tx59QSmSGHgjpaRs2wdu5ClK2QA8PD1P8CYXoou
+# YgiZHF4yohzEr8AK6U9WyiZRU5+OPdn7yzHVmyNp1zOO00Yid5LPPP3xNy+FxjmY
+# RalEII9s3hbCxCMHyblDheVFliB9ZyG56bxYtqyIgSgWUTllEXXz3lWDNd0WDDe8
+# wbwPIMWwky9NzlPAv2LUXMrg7UZ7cqWuVNeW1HNk2/rDTf0WojUEVBWUYV1oA4U4
+# OgJuhP5z2voEKJLLrO9mu6wtPslhug==
 # SIG # End signature block

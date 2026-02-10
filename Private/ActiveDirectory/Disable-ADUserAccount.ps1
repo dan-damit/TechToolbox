@@ -20,7 +20,7 @@ function Disable-ADUserAccount {
         if ($DisabledOU) {
             try {
                 Move-ADObject -Identity (Get-ADUser -Identity $SamAccountName).DistinguishedName `
-                              -TargetPath $DisabledOU -ErrorAction Stop
+                    -TargetPath $DisabledOU -ErrorAction Stop
 
                 Write-Log -Level Ok -Message ("Moved to Disabled OU: {0}" -f $DisabledOU)
                 $moved = $true
@@ -47,7 +47,7 @@ function Disable-ADUserAccount {
         }
 
         return [pscustomobject]@{
-            Action        = "Disable-ADUserAccount"
+            Action         = "Disable-ADUserAccount"
             SamAccountName = $SamAccountName
             Disabled       = $true
             MovedToOU      = $moved
@@ -59,7 +59,7 @@ function Disable-ADUserAccount {
         Write-Log -Level Error -Message ("Failed to disable AD account {0}: {1}" -f $SamAccountName, $_.Exception.Message)
 
         return [pscustomobject]@{
-            Action        = "Disable-ADUserAccount"
+            Action         = "Disable-ADUserAccount"
             SamAccountName = $SamAccountName
             Disabled       = $false
             MovedToOU      = $false
@@ -72,8 +72,8 @@ function Disable-ADUserAccount {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCARnmAe0vD7jhpH
-# osHs8saJuthRS9lVfbMKK+edAjqZSaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBTZz+XJEhVU5K7
+# OYQ7n0VL9BmFL/o8tNiWRd1azPB3EaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -206,34 +206,34 @@ function Disable-ADUserAccount {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC0MveiOK32
-# obtRTvrbDCs3WJOSnbwXUxsUTCxMC/HVCDANBgkqhkiG9w0BAQEFAASCAgCpa6z8
-# zw7/UPb9r9Nkx6EusOlJjY9bvxvVIUzbmDMA1L+y0slL5sAB0M5Q9gSAnyOgT8wD
-# phPXZWrL5mpULzS5kKY8HeibrZzCeR2IQaWh4H7al5Yzt6xJHDcm8fUDmzMGT1qX
-# gsdlOJBuBEr1WoapB47T4mPQ3fw4kVSzxbNy5g8ETbrFt642ddpuvjk7cGn3SeBE
-# l2Nl8BfxEnqcSxmlor9JrNI6ILwIDIBnnVHEXdcaadM30zZ5q6jhWbDCc+y9IBEw
-# KB/nqULgagoOW16ZT7qf9AZjpfz7FCK4XkO5yQmn/Zyq3VvJYuxfW5yBtDapJYmm
-# jjzVo2NknT0iUIYCzZ0crcX1+rIUkje4BtU381ufohjOh4J5hFdFkIHXCRlVR+MX
-# 2zypdQsmZtwdwyhXe5wtLbYjAnkO9Y8AKIoMFao872SP7TPAnZ1uRokLz36FzQg7
-# wF5/lJT9EnqTQrw3OQ8Anhf9/AHHe1wNjRyFJ0l+skKGZxfgm3oTVWs8nbcKxEDl
-# +iWIAnPh2q5NeN2LmMnhNm8uB2aqonIQ3Ge0jJ4iTtx2nDwtjNCoe1QJpSH+cQbp
-# pDx8OchDhXCWa3JulFJu+De7Lh83/n3M9/Bp/KQYJxEbAQcZJY3BJBbvi4uzW4Se
-# jDW2ezdC3eAjmBlf8qc/WfUDelKyaxDEzBfgZaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCEyAxQHraH
+# 2e4ou9Mq+YhjqYSWTSgtaGMOAMzbXqnO+DANBgkqhkiG9w0BAQEFAASCAgCkxnOu
+# /mk8HMLHLkQHwumvpNo2Pom3FgA3H/cxsmIoIFRG2chmkCQbV4L6HF6x0tUrU4Vs
+# cZTRaZSRVwYFywkHpL7Lm6hcogdzXfFATFmRd1tlDUmnOxLKq0RbirUKFnmmjP78
+# mlSc46WHuvvZKS1MU4PBxCy98JWe0DjZZ1dpUFgnhKfDoMDY8sNTwxdXAR9B3fgw
+# mlMdQGDbGfDRJpx1OxRmQnw/d3LatDnfbWD5Kw2GXuHj+l3RDnSr04yhbTNsF9f9
+# 4dpxz88z34MqQOh9PbkGeI3ALS23NLFaVbBaICsyG/emVetDJDg5idRnGm54sA2o
+# L+OgUK0Nov/apnp3ICQhfEhndYunfQ8k7SMjuLnKC+as4MJy3Mp2q6LCe4hPP15W
+# CBEdwN4lcNJErkBTDGEqNZRo5yhLOGn2WbI9EsiQLBYPZHRjPxxjz64BthrbNG1l
+# FpsUksiQzOwWoKI781VjnZcMLhvKXcsefuxAb/H1upCbir+3CxWXMhvzmv4Tni8z
+# FQk/AZTeKdwvooZLOfI3sKOEd81WKtPe9Dw/Rhw9Tx3lVJGgv17bwU8SYlcdtH70
+# uAw00fbzTIkg3Pv5kgpIWoMFoxkCW4ITXO8VD5D/mB29MBnmpei40rcyYtzr5ZGK
+# 7o7BcCUJ1JTj53+bIuz7kSM3C9tlAOC6Q0hSm6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDFaMC8GCSqGSIb3DQEJBDEiBCBd3jdXYD3ZtfEKtpdt
-# yfiLXV+EEkDss3RSam0Ts2zNnDANBgkqhkiG9w0BAQEFAASCAgC3Nq0ApR6x9E2D
-# RWeLG/l5FMXHrXqNB2KSmgl1RyeSkfmcRKrUIXfuJC+QkQ1DlsXlwp7yr8jWNgUi
-# QO/AJL6EPKAQkUBOJll+b+cdtzg+gNWqxzU0T1om2vQ1yFNTPwl1dcYFW8JqHlGJ
-# Y438N9THpR0QNg/3NSssaIX0koDkMeBcOi1hZ/ZTM+AP+uFwGYf1r/xsEb7wpC+q
-# S5krkuhHKqV1yLhVAemI69lpEFj+Q5lt6zxySFTjJAJWBSVlJaJkD1cRarBfzeVK
-# 3arXwmul5mZkBUevK0YFKV4tcujW2QPF0x9BgcvM8jwL5rgbXtI5hHkJ5OrmIvVo
-# jeH4w9KL6MkLQwsH9A18bl1Z2bS3GXatcJrlpO1ESwKVx6FpDhx1cgTOWV1xp3s3
-# EKu1x5ulxvjQlnYzd8DE1PmPwmhymubMX6wcBwbrwm238nmUGops3sZhMSdiCd5s
-# gh4lg+l2cSfvWZ6iOPD8VL2X8v1gqfv7qzo+tddNVvQTVAhJIGfKPaytAOCSvT7Q
-# 8NhHEUBU5H5xFxohsXoAQQkG5EQtUISe3z5avhPLvz/ZKRNIwiKN3zNgjHj4/0DN
-# EOBqvxAmA7pWegg7rWcjv+iPgOvMv3U8UEcLoFTAckaZNev1BYUCPKr0tCiea4G6
-# 8AMYcGLkacFyNN1VALmoy8LDD0iqEw==
+# BTEPFw0yNjAyMTAwNDIxMzZaMC8GCSqGSIb3DQEJBDEiBCDOhaFepKf9+fRqTvmW
+# ywHoafG2gv9pxHaUAvQAs/qTjzANBgkqhkiG9w0BAQEFAASCAgAToXZXA4aY7gPW
+# jtgR8vyOGEGdwbRZ7qQFtwp0TTNFh9DxZV85nxnqUOsmXLJsEH1YLOXh0trJmm1u
+# 38csSnwwta1Sc3++zgn8ZKNXddBuAT8Zju1R398Mq1d3Im0TJW8tBsqRHpVqVO5M
+# /+BtFHUInbVwwKbjeG14LoLivt70kwnNGfxx89POuN1JhuFqehFNYJqcO3I+ITHH
+# Otw6DOmfg2hUnfazPfuMpqeSRaoMRIc65Yex5n8gbmjhl+tPEUkA/5hoGnHe45kg
+# LOMkBB3jgO+mRteGEC1+rrm0ELuCqxNRlE+DZAASoDcKJYHdvzbl7uIznAvj8urb
+# EJXrYbkfPKLlP6gbSEfqhu5vyXSnXc/9kYl7MJbWYwQR/kdQDZpep8/qVfzGN9+6
+# 8rNssr7wYGSb6lcvLNeTYKHojNXekjEHriofjAg+nTnVyC76TEHMVvOcZOQOcE20
+# 38XTb9WXbQRuAljH/Tac3X5JEFQxNJncRnTdKdDzWi+GLKOrgIEWyrlDNVZfVCVE
+# YGnOzQ81yswa1az8+chSVS/8U7zC+7GdzPDK/YODcPsSYwhZENDm8IRzkQzNs96U
+# S98Sg6k8wTMYxOOcwYyko0/mV/VcCgOvXRxeUSnhxWXxtcEtrNGUc/qG7909C6TF
+# +FDRsGV2vP45pXxXr5N8g/T9CpDnlg==
 # SIG # End signature block

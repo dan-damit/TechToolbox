@@ -64,8 +64,22 @@ function Invoke-CodeAssistant {
     # Load Config from JSON
     # -------------------------------------------------------------------------
 
-    $cfg = Get-TechToolboxConfig
-    $model = $cfg.settings.ai.model
+    $model = $script:cfg.settings.ai.model
+    $promptPackPath = $script:cfg.settings.ai.promptPackPath
+
+    # Load prompt pack
+    $PromptPackPath = $promptPackPath
+    if (-not (Test-Path $PromptPackPath)) {
+        throw "Prompt pack not found at $PromptPackPath"
+    }
+
+    $PromptPack = Get-Content $PromptPackPath -Raw | ConvertFrom-Json
+
+    # Select mode config
+    $PromptConfig = $PromptPack.$Mode
+    if (-not $PromptConfig) {
+        throw "Prompt mode '$Mode' not found in prompts.json"
+    }
 
     # -------------------------------------------------------------------------
     # Helper: Remove signature blocks and PEM blocks
@@ -73,240 +87,9 @@ function Invoke-CodeAssistant {
     function Remove-SignatureBlocks {
         param([string]$InputCode)
 
-        # Remove real Authenticode signature blocks
         $clean = $InputCode -replace '(?is)# SIG # Begin signature block(.+?)# SIG # End signature block', '[SIGNATURE BLOCK REMOVED]'
-
-        # Remove PEM-style blocks
         $clean = $clean -replace '(?is)-----BEGIN [A-Z0-9 ]+-----(.+?)-----END [A-Z0-9 ]+-----', '[PEM BLOCK REMOVED]'
-
-        # Normalize placeholder (harmless)
-        $clean = $clean -replace '\[SIGNATURE BLOCK REMOVED\]', '[SIGNATURE BLOCK REMOVED]'
-
         return $clean
-    }
-
-    # -------------------------------------------------------------------------
-    # Helper: Prompt builders for each mode
-    # -------------------------------------------------------------------------
-    function New-GeneralPrompt {
-        param([string]$CleanCode)
-
-        @"
-You are a senior PowerShell engineer.
-
-Please review the following code and provide a concise, practical analysis focused on:
-- functionality
-- readability
-- performance
-- structure
-- maintainability
-- use of PowerShell best practices
-
-Do NOT explain or expand on cryptographic signatures or PEM blocks. They are represented as placeholders.
-
-Here is the code:
-
-<<<CODE>>>
-$CleanCode
-<<<ENDCODE>>>
-"@
-    }
-
-    function New-StaticAnalysisPrompt {
-        param([string]$CleanCode)
-
-        @"
-You are a PowerShell static analysis engine.
-
-Perform a static code analysis of the following script. Focus on:
-- unused variables
-- unreachable code
-- missing or weak error handling
-- missing parameter validation
-- pipeline misuse
-- quoting and path handling issues
-- missing CmdletBinding / SupportsShouldProcess where appropriate
-- missing or weak comment-based help
-
-Provide your findings in a structured, bullet-point format.
-
-Do NOT explain or expand on cryptographic signatures or PEM blocks. They are represented as placeholders.
-
-Here is the code:
-
-<<<CODE>>>
-$CleanCode
-<<<ENDCODE>>>
-"@
-    }
-
-    function New-SecurityPrompt {
-        param([string]$CleanCode)
-
-        @"
-You are a PowerShell security auditor.
-
-Review the following script and identify potential security issues, including:
-- hardcoded credentials, tokens, or secrets
-- insecure file or registry access
-- unvalidated user input
-- unsafe use of Invoke-Expression or external commands
-- insecure network usage (e.g., HTTP instead of HTTPS, weak TLS)
-- missing -ErrorAction Stop where failures must not be ignored
-- privilege escalation risks
-- logging of sensitive data
-
-Provide your findings in a structured format:
-- High-risk issues
-- Medium-risk issues
-- Low-risk issues
-- Recommended mitigations
-
-Do NOT explain or expand on cryptographic signatures or PEM blocks. They are represented as placeholders.
-
-Here is the code:
-
-<<<CODE>>>
-$CleanCode
-<<<ENDCODE>>>
-"@
-    }
-
-    function New-RefactorPrompt {
-        param([string]$CleanCode)
-
-        @"
-You are a senior PowerShell engineer.
-
-Refactor the following script to improve:
-- readability
-- structure and modularity
-- parameter validation
-- error handling
-- logging
-- adherence to PowerShell best practices
-
-Return:
-1. A short summary of the main refactoring goals.
-2. A fully refactored version of the script in a fenced powershell code block.
-3. Any notes about trade-offs or assumptions you made.
-
-Do NOT expand or reconstruct cryptographic signatures or PEM blocks. Leave placeholders as-is.
-
-Here is the code:
-
-<<<CODE>>>
-$CleanCode
-<<<ENDCODE>>>
-"@
-    }
-
-    function New-TestsPrompt {
-        param([string]$CleanCode)
-
-        @"
-You are a PowerShell test engineer.
-
-Generate Pester test ideas and example tests for the following script. Focus on:
-- parameter validation
-- expected behavior for typical inputs
-- edge cases and error conditions
-- security-relevant behaviors
-- interactions with the file system, registry, or network (use mocks where appropriate)
-
-Return:
-1. A list of recommended test scenarios.
-2. Example Pester test code in a fenced powershell code block.
-
-Do NOT expand or reconstruct cryptographic signatures or PEM blocks. Leave placeholders as-is.
-
-Here is the code:
-
-<<<CODE>>>
-$CleanCode
-<<<ENDCODE>>>
-"@
-    }
-
-    function New-CombinedPrompt {
-        param([string]$CleanCode)
-
-        @"
-You are a senior PowerShell engineer, static analysis engine, and security auditor.
-
-Perform a comprehensive analysis of the following script and return your findings in these sections:
-
-## General Review
-- Readability
-- Structure
-- Performance
-- Maintainability
-- Best practices
-
-## Static Analysis
-- Unused variables
-- Unreachable code
-- Error handling
-- Parameter validation
-- Pipeline usage
-- Comment-based help
-
-## Security Review
-- Potential vulnerabilities
-- Hardcoded secrets
-- Unsafe patterns
-- Risk level and mitigations
-
-## Refactor Suggestions
-- High-level refactoring ideas
-- Specific improvements to structure and style
-
-## Pester Test Ideas
-- Key scenarios to test
-- Example Pester tests (in a fenced powershell code block)
-
-Do NOT expand or reconstruct cryptographic signatures or PEM blocks. Leave placeholders as-is.
-
-Here is the code:
-
-<<<CODE>>>
-$CleanCode
-<<<ENDCODE>>>
-"@
-    }
-
-    function New-CodeAnalysisPrompt {
-        param(
-            [string]$CleanCode,
-            [string]$Mode
-        )
-
-        switch ($Mode) {
-            'General' { return New-GeneralPrompt       -CleanCode $CleanCode }
-            'Static' { return New-StaticAnalysisPrompt -CleanCode $CleanCode }
-            'Security' { return New-SecurityPrompt      -CleanCode $CleanCode }
-            'Refactor' { return New-RefactorPrompt      -CleanCode $CleanCode }
-            'Tests' { return New-TestsPrompt         -CleanCode $CleanCode }
-            'Combined' { return New-CombinedPrompt      -CleanCode $CleanCode }
-            default { return New-GeneralPrompt       -CleanCode $CleanCode }
-        }
-    }
-
-    # -------------------------------------------------------------------------
-    # Helper: Create output folder safely
-    # -------------------------------------------------------------------------
-    function Ensure-OutputFolder {
-        param([string]$Path)
-
-        if (-not (Test-Path -LiteralPath $Path)) {
-            try {
-                New-Item -ItemType Directory -Path $Path -ErrorAction Stop | Out-Null
-            }
-            catch {
-                Write-Log -Level Error -Message "Failed to create output folder '$Path': $($_.Exception.Message)"
-                throw
-            }
-        }
     }
 
     # -------------------------------------------------------------------------
@@ -316,15 +99,18 @@ $CleanCode
         # Clean the code
         $cleanCode = Remove-SignatureBlocks -InputCode $Code
 
-        # Build mode-specific prompt
-        $prompt = New-CodeAnalysisPrompt -CleanCode $cleanCode -Mode $Mode
+        # Build prompt from JSON template
+        $prompt = $PromptConfig.user_template.Replace("{{code}}", $cleanCode)
+
+        # Optional: prepend system message if your LLM wrapper supports it
+        # $systemMessage = $PromptConfig.system
 
         # Call local LLM
         $result = Invoke-LocalLLM -Prompt $prompt
 
         # Prepare output folder
         $folder = "C:\TechToolbox\CodeAnalysis"
-        Ensure-OutputFolder -Path $folder
+        if (-not (Test-Path $folder)) { New-Item -ItemType Directory -Path $folder | Out-Null }
 
         # Build output path
         $timestamp = (Get-Date).ToString("yyyy-MM-dd_HHmmss")
@@ -361,8 +147,8 @@ Generated: {0}
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCy7gnzyTUG5X5K
-# dTOLt38WyAjAdThzFdEF53//gfZ9IqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC7za8+w9UbhRM6
+# HIUyxe9ROayRKpdm3OFjzMn1kuqz6qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -495,34 +281,34 @@ Generated: {0}
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB30rUns9me
-# FSNjP5Ck/wfBmpcFKcjnkEbVQg8Hz8k6ITANBgkqhkiG9w0BAQEFAASCAgCqX/1Z
-# HgEz6NnlHIBzilpqAj7RS/gQK+nkVK/GqCRJk3CWdbKZVO6IQJfmtlgRm3f7JmLx
-# qjq6hNAph9RMK15Xo7l3uuAMJidqnuR/9ofT94NlnlEEi92GQIX4N9bfUrUJ+nsN
-# FiNnltFusiewoIdS8utxOe9K16pFVAtebb06CDvrAGKSaIpJOGFl2PTLXxG65t2J
-# aPWb7mrwO2bCUeJi5U97jEG7315Bh8UbWU1haXTWcdOS8Fjo8/6WNGk8OYgrRj3t
-# UMN2wAiELm26V5ZqebUhAAZo3g9QA8afqP4fxYH8KMkxDpbQlYIM4l4ZMMBR/dYq
-# ZQa9TYVqIOhyOe7E24D1FmCERq7nW75K66nwsKbPvARX3/w3DzRWBfN5hnPAh6iX
-# YxIRM3/KWBxnIXC8m3RTYnHoAnio7lEJyD3maLXeENLOPpsXPv11qaUYndB8HmC6
-# 3u57SDOvzoDljVWD/mm+fDrW2OLMCGraS1dfaSiMD97L+7LYn20Ezkyfdwvk4pmN
-# 0jpOjyXk6LUxu2DKvImPwOvwy4iQ4xytW4bOJ6sNPMsZGrmuJd9dCdw7hLBdFzml
-# auQPNA/GuZYzWXVarReYrANh8nzSAtcwNr7WDlM+LZfkGb4ElAfWGqbQyhdvX9rR
-# 83KTxTYinhcEmvkoMMDDla4jDDEziKHMtyQa4qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDV/TwBzzZ3
+# 7xRjWRG7YAWB7mt52eMDy5q0l3Y4SZs70DANBgkqhkiG9w0BAQEFAASCAgB1tQTa
+# 4mcDhsvFADTSYWMtX/C/C75CG8ukXc7ZjI532GBB+QmEQQS4GNj2v00r4JhMOu8g
+# mKrDnycFkfMo13NOqWgUCZyLfkwYCEQ4pCBcVf5caPq4hmBjCPZwdF43VfHnVXIA
+# vK0kREWaHRw79t0vCerRlx9imtIt7zp8M9osESJmBIppGGa4qFQItx0y5iacdbZg
+# Ksm/YqkG1mKdB2YdXf05GTRqfAX9Z2IyMmh0oOaBPTl3vsKCqiyZzMWUzGQTUbCf
+# jbnZE1ktgIyQfbSlfSQd/tWtzsLZghhJWWjMdXePmsPjefMRtgH52E5QaXRlO/S+
+# Q2/SKnXQ/SHw4qxPxt95CRvLpqcaaGeTfw4xV+xEvjFVjx5Bx8ZGYolAZi6FesqM
+# vruypHNVocbtxfJ0y6ZlvmwLFmn3/2+YlBCkBlsvMTMIKpKgoYDNeu/e4CObYzyZ
+# 0JDz3EyBuSX9p3q6HD6WOFolHRaqT7dLRHK2j0m/1BeeIVmEg6NqRcUhTx1qwCNr
+# lVU+bTrZMOxHZwYZ++t4Gol/1oStwXnPxMh6BD1Jnfpllum2ERlSVvj7h90uwH+/
+# +O2UeOYUeBurwBwPx+jhRrS6s0nA6ET8CEYLSPnqEn8V1jyc/up5j2v46Th0fKEm
+# F6P/k7Hc/TW/LLafjz/DW2Mptg7Q4SAM78/8eaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDkxNzQ1MjBaMC8GCSqGSIb3DQEJBDEiBCCBv5yNnqc5sDdcJ31T
-# 5wcRN7d9Aeu7zgeaGwlItFGeqDANBgkqhkiG9w0BAQEFAASCAgBMKKuU+9nFA2i2
-# T8CvpCLqQh+t2vCyAbe9/rY7KEN9j+qKQ2YmlewM8j7+pox2i2r+u7Ct9JfnFAs8
-# RhOV3kNfz0c+aRI5CTOz4jY+dUAMw86D/LkuWi8fdoKtx5RCTVlUlLR+KC3yFFxH
-# +Uok2u3VBa3N38ZziyGZZP2LYx8LcCNJaqZkhk60/xnGc9hJFrwEKhNcMWBY47uv
-# pKo4fdp+OQV1pEHf8DsoVF39oBGmtmqRdlJ86Yr/0kyRbkt6ce8HiHV+lai1JuHb
-# lYrTIWIJlU1X1Xj0Hmch1FUwTWI/tGXLXvQFbKTwHcLPN1TEurX4BEJJoBJSuZZ/
-# crdXOmv0paiNW6/WXe1s8MOUVonz+VqOCuQDFVSTuUHoo2QZ3/xZyC+4zYq8IzTT
-# 9oe4aBcEwBCesJo0260b5MZa54ez4a4ctI3m+/YZ8A/AQsSyK5Wg+2m2yvyh398Q
-# T0pRxwWBeHtfkygl+jUmC0bKvcAsWtrnPIMeEPaRhHjkTyde8oKTdEmKaQJfl0lB
-# MZTmd7CDFlRiwsLt+6NoUTUjQfr6Kc2RbstIyKABgd6vW5azRFGqtgGSnRm2nKEI
-# FQLPJXoeOFPaU7qH3J37cvD2TBZuTXudRk6PJM3ZMWyNixnTrCYSiXTbfL8HxdG9
-# FOdveRZlkqDv09cFrFHN5egg/n3UmA==
+# BTEPFw0yNjAyMTAwNDIxMzlaMC8GCSqGSIb3DQEJBDEiBCDhl7RV7DPsIE7r8Wiy
+# RZlG/V2CD8shSnFGniBb8B0GjDANBgkqhkiG9w0BAQEFAASCAgC8T/g7oXDS4GT/
+# BvtHYw+Gr33QJC+Eamq19/JkgKUX3l6kEnSCmUmFG94n0wjsaRecmqCEdslimlf7
+# ErKZ0WPqlcQpfM8Gn8rAufLQlCfmVHuPxzZlWWEAxRrhCRcZ/LiVDEtBOT3p+U1N
+# ViD3s8ks7B5G4u95qhl+qMA/uiYVUm6h6GsHxpeKfrSZg3XF+c0LnzX1c3oFdhtJ
+# gYdwwxJv4b3f1XV8qyXOsQHfBwCu85uoz5fNBjl6qZvU26qUTSjlzmSojQyIC2sJ
+# cFgtALBv5IQJtqQFbJNk71A3wk2YXxcpD6aE8zXCbDbNE/nHFWgDdO32R1sBUqzo
+# Irx9dwOSaWNRz93F7fB9eku+WD+Yt9qMH6prAQQRkOGYn2zrQ0bSsyWYIDWAPDSb
+# W8Nab2Vo/2QaazX72eY9necouOLV4wbUkcsFP6oPInjS/HWnAbwVrpA5LS9r7fBn
+# R8SwKErzphqDhwpZVIrIu+lL08S/Dm6CpjmItSaAEGiGwC6nRxhHKR9Ep7fYPY1B
+# BYSikk3j/V/52aXIcxUrFuvLBgVOYunA6G359VLL+PhJ//SdpOq3SXPCljWTIXL8
+# mrfBv4LiTBhNayn2nEEFqlZsqt46Ca5Y9M5p51ZCCiXyhzHIGTeK5j7qrIMr2ApU
+# tH7TWFX6nInnLdzAfWFiqvZm4QYF/Q==
 # SIG # End signature block

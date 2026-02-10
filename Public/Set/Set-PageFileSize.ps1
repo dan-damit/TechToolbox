@@ -38,13 +38,12 @@ function Set-PageFileSize {
     )
 
     # Load config
-    $cfg = Get-TechToolboxConfig
-    $pfCfg = $cfg["settings"]["pagefile"]
+    $pfCfg = $script:cfg.settings.pagefile
 
     # Defaults from config
-    if (-not $Path) { $Path = $pfCfg["defaultPath"] }
-    $minSize = $pfCfg["minSizeMB"]
-    $maxSize = $pfCfg["maxSizeMB"]
+    if (-not $Path) { $Path = $pfCfg.defaultPath }
+    $minSize = $pfCfg.minSizeMB
+    $maxSize = $pfCfg.maxSizeMB
 
     # Prompt for sizes locally before remoting
     if (-not $InitialSize) {
@@ -57,7 +56,7 @@ function Set-PageFileSize {
 
     # Credential prompting based on config
     $creds = $null
-    if ($cfg["settings"]["defaults"]["promptForCredentials"]) {
+    if ($script:cfg.settings.defaults.promptForCredentials) {
         $creds = Get-Credential -Message "Enter credentials for $ComputerName"
     }
 
@@ -139,8 +138,8 @@ function Set-PageFileSize {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCTq6NC7OE+z5iO
-# qCJ4KUUN4Gzm7lkDHX9cJGXU63wtIKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCWDZteNU6YIAF4
+# hm3C4UTMLmVbsFoeRYbD9JfM0SeH+qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -273,34 +272,34 @@ function Set-PageFileSize {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCKVp5lDtZp
-# NkZ+Ta51MGGm2df5nuQDtIBEpHLorfDMJTANBgkqhkiG9w0BAQEFAASCAgAmMypE
-# uDT+bEW8RyZxaxNfd0s81ggwQD/fYRDVBKqP3KgPuur6s1K5Q08l0DMikBNvV/R6
-# MKrxo+sqQmuul6TXx60NRfCs8QBKadxevGq0iAarnjuThnxr0aiHi5EN3Sw7C1XV
-# v2rv7w6ZVwEK6SWwWhD9qVyM3BBZra27GZownxoAVZhijKTJFvjiC9Y4Qnide+bC
-# 4f0N3NgUi2xakcwITfFnDu7ipcLtrveVshF48K92Nd7B51iVMpPhDgD/uTVgwCSj
-# QLwPF239RBACjWGsQgOOEhTpNOkdUquErGcGf1yuH16gShq76DrIsW0ZW100Uxli
-# 8SX7tMC+B7UZuV2X6KLJCpy51rSxvhehl0ZB4LOMLip3fRqSbFrZG/9jVgoDVWBC
-# X0A8cIAS1TUyhEQcg6uqwPIyeE4qWul3xQX4N5peLQy9QSRBxNuuqkhQKtOPCe+C
-# UO6cWLPQhtjk1uksg/qunxT6NbrsXx7m2pAeZ/WfJOD0QI/pDVY3PcX1AIgEIXgj
-# cWBfTqvHVOkCqydneyLmTbZpwFvb2odpCNmWtrL4ZgGhBTpPZBWFlFHl20ml+Z7N
-# AQN84oCZAASnMnwRuslubKF5adX9Q3BI4s/+NsfKbx1IjB0piTAM50PJYLNjOmVr
-# 93kx/UbxfFc2qS1abEXxFQbFJ68AS6PgFGVHoqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDZk06oUWC8
+# ZHVuz2KB5zBGKeajw1lhnJXRj5DTe+BDKzANBgkqhkiG9w0BAQEFAASCAgBvsWlV
+# deckLIQHyR2iOYPSm2OO3DLRnqMvxvMOCoMIX6/3koG/1a2JsPN1b6h45SVQDK6b
+# iDn/DpS0r4ha6NCF7s9/GdbkoKh5fRszHa/uvhnEfj2YGs85iGql+qgAsEMZqaRu
+# iUN8lUKoTBB4H1veWlnUzrbfqaPRN4CftyrLwXqaqu8UhdOHAq6VEswjYZPfDnSq
+# 2Ue/vcxNbHCffoGGUllGYsmOlZRMKtOijAz6kxfguCL1BAhMT5fEHkfLhYmSrAzR
+# mer2taRIqlA8m89eFPDtabck75jxW3huXOuq+CVa9drVmCHXgB0QRykwA1Wf6fEJ
+# kqdSIybIhhdsrAj6loqmp8qMqMm7kATajs6OZ7flrNoXJ+Jyx84PcRJKZPBEhg98
+# 4LN34mGSrFjUmzsMEo275QOEEFZ7orHVEJylHPcaK3qnPRsR63xY3XHbNt9fSMCT
+# H6gfNH9nDvL/c/csKO4BiWh3gV2IDb1tNjVWWBABCV8H/zbc1gCFu4Ip5YSCym2a
+# O/bRYyfszTbTv8ClduxlPIb7Ntfsl2be3oj525hdutopPf6wONhgwFBZFQHeyc/P
+# nEOSaVYpmhSkmpLnkSPeHvsVMpBdBaagHQjWoVE3IYCgd3kuroG8b26c8SmzOT6T
+# che0FI4Ml0oPWjDHlQ9iVbiMq+9pLL9jYaqiS6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTJaMC8GCSqGSIb3DQEJBDEiBCBqfdkrzkvon6kZ5AkW
-# CS0UFXGH+piqG+OqYYb+jiSPNzANBgkqhkiG9w0BAQEFAASCAgAqkUV0LuwO3x3w
-# u0opE0u7q+0VLy+rgXgSE6+PjgCua1DvAnmVqEYHMt6QVlG4SJdlmlyrhNx2Bwt1
-# BUn3cImlO00GQxnnnI8Aa3tY5kt0WOHy/PojN4Sk7zKLTJQ4KEsZEDTaqrNkBdys
-# uHU/+OONwFmshn4ETmMm4qqv1EVs1jCFbcondrYvjNsul4Q7SOxKL6oe5B3y9XgE
-# 5eG6Qg+kEEhfi1dVQTEu03msz4dOv35w6UNRHp4qF4R/24ELaboWTOEdtYrr8TBE
-# XvdpbWd/w3klRtJPMl5aXPRYhiBX6/HR9quv9EVaPECANF096ufXo6xQYYrPqPZ+
-# HBS4voO346E2p8cBMTKIsI3QC6nACfMhWtqOnZq8HG9Pa85loHsWmWtBHQNrTzwC
-# KT8/vX6D+3t8C35fBsTHRuR0j5njjljABdEXMTSLDEOSOZrKSrvWop9cSiKIYoWA
-# sj3ZEkeF9JezkARYY72vjXEVC43RwuO43c8WWtIbTvd8+wTyt9zyC+b1q49ml9N7
-# DceamEMJfZcURbprReS4HM8hD5dZpY4yAzf4BgpuuTregOBKdh9eMC8FUeqsh1YZ
-# 675Le3H4oei02yE2P0QDwGKCzgI9vkpWEbHFvfYXHLke5zRcAd8bzx4rS840oXCg
-# TLJRP3Je3LG9GYveAvPAvOs6sWhOaQ==
+# BTEPFw0yNjAyMTAwNDIxNDBaMC8GCSqGSIb3DQEJBDEiBCC0vD1kUv57wWE5+/vU
+# Z6BVSY9r8UdrqHAJMM2AQJhTLzANBgkqhkiG9w0BAQEFAASCAgCbR38g20UVFFx2
+# AdHWkdsNy9+um/kwoptfi6E5/kQZGjL9Vj1uNb+QhmDdbOBA57tCKdKmXO79loan
+# 755aGaKpwcHedoYeIPQcNDQH1Zx4B5PJR+b0zmU/qQzrkFGUmmWW0RIY2PQpVtW7
+# 5tDI2tc9Z4tYk5Kckf5At7vjAabZNreY1r+Nd7i+5MX9TEGNUb8LJiQZuhrPfypU
+# 0bxDsFggMTQYiOWjp/GqEXy6h0/Kys7wez+ZSEFa87CffTVNO6aJcUausfJ4t9Dx
+# nkxlx0qeW8/D6eo/m1/rRdIuY6fC7GkcXxFgrOOqjR7hnBNIqL1hOxfpe0qKQo0c
+# TRSrbXpEeMrguB6n0IfT1EZroz3riSX3u9yG7WQpK/dY+E4HeUbvIKH88fOM+2hL
+# DOwst4n3W8WJLQVSU+mPi5YlN7wlbRCr8M4HBngmXM+FedxZ41FpGcgSYBzWx1dl
+# ei4oec3mzD0AnWQNqYoyIdpU3c79gPUuE5UvOwX1VFqjarie1F9IJNpbF1zjOyZ/
+# i33xVTQvUK4I+f9ac4+xczs1h5lR0raebxNv8ZH8xt5bZRl6qLoMfvOvbJ396LV9
+# vximo3fPYoXVbYYdLBh7YKcou3GZJn5uKYzooDJQ4kwlQLPYPsYcBSeJ+zVIhCpB
+# 9W5O5+qVkjaY+dyL7TT7HPbA7eWvtw==
 # SIG # End signature block

@@ -79,15 +79,14 @@ function Get-RemoteInstalledSoftware {
 
     begin {
         # --- Config & Defaults ---
-        $cfg = Get-TechToolboxConfig
-        $defaults = $cfg["settings"]["remoteSoftwareInventory"] # may be $null if section not present
+        $defaults = $script:cfg.settings.remoteSoftwareInventory # may be $null if section not present
 
         # Apply config-driven defaults if provided
         if ($defaults) {
-            if (-not $PSBoundParameters.ContainsKey('IncludeAppx') -and $defaults["IncludeAppx"]) { $IncludeAppx = [switch]::Present }
-            if (-not $PSBoundParameters.ContainsKey('Consolidated') -and $defaults["Consolidated"]) { $Consolidated = [switch]::Present }
-            if (-not $PSBoundParameters.ContainsKey('ThrottleLimit') -and $defaults["ThrottleLimit"]) { $ThrottleLimit = [int]$defaults["ThrottleLimit"] }
-            if (-not $PSBoundParameters.ContainsKey('OutDir') -and $defaults["OutDir"]) { $OutDir = [string]$defaults["OutDir"] }
+            if (-not $PSBoundParameters.ContainsKey('IncludeAppx') -and $defaults.IncludeAppx) { $IncludeAppx = [switch]::Present }
+            if (-not $PSBoundParameters.ContainsKey('Consolidated') -and $defaults.Consolidated) { $Consolidated = [switch]::Present }
+            if (-not $PSBoundParameters.ContainsKey('ThrottleLimit') -and $defaults.ThrottleLimit) { $ThrottleLimit = [int]$defaults.ThrottleLimit }
+            if (-not $PSBoundParameters.ContainsKey('OutDir') -and $defaults.OutDir) { $OutDir = [string]$defaults.OutDir }
         }
 
         # No SSL/session certificate relaxations: sessionParams intentionally empty
@@ -284,8 +283,8 @@ function Get-RemoteInstalledSoftware {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA9VLGAnGEqISxI
-# fiNQvEtEd2hfaQM4PjSifD2zh4r1+6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDMZzvZzu+q7WVh
+# 3WLZTwTB7Qc3ovHEOUueRNkXdmfCtaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -418,34 +417,34 @@ function Get-RemoteInstalledSoftware {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCKPxa9ObsJ
-# iQqPnY7VrazBPVNXEBxlGArIN2MfG2h0jDANBgkqhkiG9w0BAQEFAASCAgDHcBqc
-# gQXcUV+z5viukoNbHEbSZXxbR/OPIcMvVR6mgAcRLLyFf7Yp4ag5+wkmLctR9aMh
-# 98220K+Qatp44oIj76omWONepMe/8JAz2QLPKaK/qvbg2v+YelyNDoLWGu2sqDPA
-# MagrrQy+PTJ/3e8KFJqFONBXLRTZq6/Fd/finKlgtzLLcRX5XzqQvUqlLMiXvN2k
-# REizSevKhDUIrhwT4I2QXIDBQxDUdBgeD/cV/xB9RiRIhuTC59aP7zyeYTOkkjth
-# 7vT5LMiuBtJXI2EH4Ra6A5kV+ZEk817GF8M2I43WxSuqEVC3Pisn3Esgm4Nqday2
-# /xcPvEM3lD0/bu+5KOaNyHL4eOazm3xGjhIQLxWZ1xCmgAN/CJnUoY/EjhGf68Vb
-# 8lYCD5+fWFb4FVJWAoHjlr6N0OFYPWrpCB/W6uqhbApXLYaKjpG/2DCdSC4yJBCM
-# XrA551jGuU4DBNfVCvH21EkAREbZL4LTzTdbZ+t3lUCQ1FzTbW1JXSKLzflJ6aWJ
-# QKs1uuNIqjLeyQ9N9gKyrjG4N0/88VJI0DAqh0Y1dpN/nIG68aM6rr3sBVDHv5vX
-# X/Pl2026QSKSqT0cnQgaEH99d41icBqsgQp46mKsdOXOEOiQLlvSZ5HMRcE3JETh
-# HHXN2MaLChBLMKzaX/7GcDbfaz/Jpr1tWsY6YqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBg8ETt25nP
+# hpJWrPi4T/HaTjPAZnYxiG5V7HFqA6veqzANBgkqhkiG9w0BAQEFAASCAgBr8KXr
+# ZcxHIQT5+nyb1qOb5C1k8xazhYOL2lmHNTcP3gB32d1HXc+6/zu6d/l0Y52YkYV5
+# xwqVGVn9BKgaxcqGhm7AVRBuuL1NcGigxaHAuA8cObttDAbJWv99opiL54/erc8K
+# CKa3GpXMsQH42GYs1vQpAt7GCahEN/HFfV6/APYVA2L+BUkZcFjlT7zI5tg3iSgd
+# 09tjZIcec6+GTLqpEOE5x6DUCrid7bDh0Uue6iNDUEuQBKkrvp1f0Zpq7d7kUBKu
+# fdL+bwkpdvS7MNnkbUscbQSpJm53jwKlHosurts3MB0nUWWSrzRcVoA47yGH1jym
+# cjSKLG0D0CN73y722F9wDuYUGVPZFH+rBUTGRls9BsGdKiutd2CRbKwldy1PXUFR
+# 4OHgTOj62WW/jzcPCzRacGoZHZgeRt9JbKpfhIuxEnL/4PIwcRyNCVLMieUGH59o
+# KjoMs345XPz+Nn3i04eGVbOmJyllsIZPejPAaLzBiR2s9dpuFypJd1scavas+WGP
+# 81Cpmz0RcLIIbRNZBo5T7xCVJXHlNrm9/7e6zEiWufiY1htHqSw/IItkHSQLAoyI
+# I1jDPYVR6ZBGgycUCM1HGUGc0DjzFWrVvpdYv1XZwKX5PFvYQ/o+NRtMNjtL/C3g
+# 3+gL/LV+ljkqm+89RmaxdZ/+Nb0etNPVJl7KBKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTBaMC8GCSqGSIb3DQEJBDEiBCCYr+js8+bS+ebS76Ts
-# 9DpYegMCAdLFPj5VNdL41TGC2DANBgkqhkiG9w0BAQEFAASCAgA1BIq2jGQJHdgQ
-# C8nrfgfxXsERB/dC/fpdc2KcAeDZL05jBkUfPxf3hzDB0Do+gAKF2pdYyN2OEbK4
-# oxdgIBExvEH9rQVFR4e/3ohLuUHjVs3S2fp7Da+sSUt8opaNjMqgyrI/uiAR3Cs5
-# WL+mergVL0v1WBgmV5q4UGO6xuzVRekwaPwhACVa37owUqMQAHjDs68Hsntk+9qy
-# EDA7NG0LEEFvNHBjC9SidxsNAqZqg+pbPjrOIva5/m8vV3WJLxMFsXjZO1GmmPF1
-# /Prgc1QzKi/smKgsZLQoR8++xLpT6j/drQkiPA/n0c7F3Pwxk4dMUcss6UWgleLA
-# cnyIY02Y5lqJhpPw6msHgrT05KrtXuBDODZonoXC91OkL258Z/l31+yv6pB8AVZV
-# 6iwPs01vlwq1/gnsBxoxPVC2cTR9i8bIP5OgAKJdhOa/iZ9p2UAjHIDznicCO7ST
-# g2cKaVftwGVv/LydkZER9i5A1engLrJlSCd81DkGA1si8eYwWmpEx7CrlF3r25PT
-# N8+4xtJ50oRh+jw8MWPrIgOKWfmcKkN3PsoTtrNJYEpr9bFe8MFuyKgrD02GtDIc
-# yr1gwMHFGHZCYBIDxdcy4DmO9/LEnui0DcXPLl06mMgOkMkgTiO/YnaPPatOxEg9
-# S1XpL0MVzWVuXWQ32HvJndiavZyKwQ==
+# BTEPFw0yNjAyMTAwNDIxMzlaMC8GCSqGSIb3DQEJBDEiBCC1D823AafL/yZlM4XR
+# fN+c5rEvlijzZDOFCd8F0903TzANBgkqhkiG9w0BAQEFAASCAgCxBOSEakki/gDV
+# WIqNgNEeu2FiUqzZLi5H3A+PZVHPbRDFjOOMbnlB/ZsYShcyvVBgUFgb4dqc9Sdn
+# x/3/misxHDCeHdmVbdevfetlp7+yRFdYySXk82rlOcT67yywUSWKusMkzPBLZFIP
+# LWSEmf6wxOZkXV8O09BuRhzaTDv8IQXupJPcj3zv2VhnE33Iq9eIa9YLVVQQIOMH
+# /g+YZqPiMe9DIow97+EVVFRkAeWLTp0WJlZywRiJPbwNxMVdJ8Cw1TTFKy1EQkcF
+# sd2ROOUlSK08b2vT7SPXI1OWeNoOZsKPW/edawuwlKNr3X/P3ZtLBRQC3WCC3cbA
+# G57J2pFldQn2uAvxOzCYtNx96AvLEWV3S/I/LxgDKCvzVCN6SZYc4+13KiH/zfZe
+# VIh7S8bo6Mi9PipzzOYxcLPgvVgMdz6CjpWoWjuWmscKr7rdvEhd4EHGoGthJ4do
+# JxQxNS2KkrakgrTRhpj+YyCPkkLmiZUPXjQWwy6XXmqVXv/5vkp9FMP2/kLP1JW5
+# Tvy3mBy3WAEBfBXno5xsZBUq7oOF3Z2G6jjO0q185jtRaqDf1U++MfFEw54UvC1n
+# oZ4F1+ARiuv5cOD5K9GReTreb5frX75wY5OBZdRA21GrZne6Lz2FXKH8HaY3So2W
+# xyzOSsrL6TVpO0p1fDT1j8MyQlUNRw==
 # SIG # End signature block

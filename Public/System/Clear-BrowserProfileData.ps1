@@ -56,37 +56,37 @@ function Clear-BrowserProfileData {
 
     begin {
         # --- Config & Defaults ---
-        $cfg = Get-TechToolboxConfig
+        $cfg = $script:cfg
 
         # Resolve settings.browserCleanup safely (works for hashtables or PSCustomObjects)
         $bc = @{}
         if ($cfg) {
-            $settings = $cfg['settings']
+            $settings = $cfg.settings
             if ($null -eq $settings) { $settings = $cfg.settings }
             if ($settings) {
-                $bc = $settings['browserCleanup']
+                $bc = $settings.browserCleanup
                 if ($null -eq $bc) { $bc = $settings.browserCleanup }
             }
             if ($null -eq $bc) { $bc = @{} }
         }
 
         # Apply config-driven defaults only when the parameter wasn't provided
-        if (-not $PSBoundParameters.ContainsKey('IncludeCache') -and $bc.ContainsKey('includeCache')) { $IncludeCache = [bool]$bc['includeCache'] }
-        if (-not $PSBoundParameters.ContainsKey('IncludeCookies') -and $bc.ContainsKey('includeCookies')) { $IncludeCookies = [bool]$bc['includeCookies'] }
-        if (-not $PSBoundParameters.ContainsKey('SkipLocalStorage') -and $bc.ContainsKey('skipLocalStorage')) { $SkipLocalStorage = [bool]$bc['skipLocalStorage'] }
-        if (-not $PSBoundParameters.ContainsKey('KillProcesses') -and $bc.ContainsKey('killProcesses')) { $KillProcesses = [bool]$bc['killProcesses'] }
-        if (-not $PSBoundParameters.ContainsKey('SleepAfterKillMs') -and $bc.ContainsKey('sleepAfterKillMs')) { $SleepAfterKillMs = [int] $bc['sleepAfterKillMs'] }
+        if (-not $PSBoundParameters.ContainsKey('IncludeCache') -and $bc.ContainsKey('includeCache')) { $IncludeCache = [bool]$bc.includeCache }
+        if (-not $PSBoundParameters.ContainsKey('IncludeCookies') -and $bc.ContainsKey('includeCookies')) { $IncludeCookies = [bool]$bc.includeCookies }
+        if (-not $PSBoundParameters.ContainsKey('SkipLocalStorage') -and $bc.ContainsKey('skipLocalStorage')) { $SkipLocalStorage = [bool]$bc.skipLocalStorage }
+        if (-not $PSBoundParameters.ContainsKey('KillProcesses') -and $bc.ContainsKey('killProcesses')) { $KillProcesses = [bool]$bc.killProcesses }
+        if (-not $PSBoundParameters.ContainsKey('SleepAfterKillMs') -and $bc.ContainsKey('sleepAfterKillMs')) { $SleepAfterKillMs = [int] $bc.sleepAfterKillMs }
 
         # Browser (string default)
         if (-not $PSBoundParameters.ContainsKey('Browser') -and [string]::IsNullOrWhiteSpace($Browser)) {
-            if ($bc.ContainsKey('defaultBrowser') -and $bc['defaultBrowser']) {
-                $Browser = [string]$bc['defaultBrowser']
+            if ($bc.ContainsKey('defaultBrowser') -and $bc.defaultBrowser) {
+                $Browser = [string]$bc.defaultBrowser
             }
         }
 
         # Profiles (array or string)
-        if (-not $PSBoundParameters.ContainsKey('Profiles') -and $bc.ContainsKey('defaultProfiles') -and $null -ne $bc['defaultProfiles']) {
-            $dp = $bc['defaultProfiles']
+        if (-not $PSBoundParameters.ContainsKey('Profiles') -and $bc.ContainsKey('defaultProfiles') -and $null -ne $bc.defaultProfiles) {
+            $dp = $bc.defaultProfiles
             $Profiles = @(
                 if ($dp -is [System.Collections.IEnumerable] -and -not ($dp -is [string])) { $dp }
                 else { "$dp" }
@@ -195,8 +195,8 @@ function Clear-BrowserProfileData {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCY6MhczFR8MnHo
-# Sp/LQmxWF12F9XYRsYmyCQkdqdHPvqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBwl+5IfP+Ka5Fv
+# rX3+MIxcP7naPwpftD6DxU2Vwy7WC6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -329,34 +329,34 @@ function Clear-BrowserProfileData {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBuFcYlqC+W
-# chqfZHGTH5N+gwsOtrrZabioW0yHto3isjANBgkqhkiG9w0BAQEFAASCAgCG3hKq
-# WB9SWxNT45rUnWFZdgvIAAd+lAYscPyO1ylem+q4JgdyVY1w65wNQ0S/s1phBxXQ
-# IZHiO5MNJbU/SdySTnO/mNYIu0NAPBgYb3h3so4xNadGQ7n5k+pdK9EEqtQ98m2E
-# 4WCrpr16BIknAKXR/NyiRduSpe2zD3xCph73bGo7rTCrTrtXAafBMLFpz7HqvHHd
-# zX2vNqam9LBf7HwnCDa+Eej87M9VJg0nl7CabeRYfThB9LDSfeFQoMxcMFZx3SaM
-# hDid+og21lusspq/0guyXJ8LVk9opyr5EuEBES8R8mKpXgW+4esxDr5tkElwhihx
-# sOgpXHFXMHGAxGGlDB61oAbhjSoFN+Nip5pM2EnAvmIebA8aMB1GDGiDYdzCUOd4
-# h1y2N4E8WDV7ij6p0YopWwn6CFGTRfXus46UtTBsaQcoKfOE7hvgZ3X/x91dwrGA
-# j+Hsl20bX0H9l8eLqv4lYnpUc4YBaW3RdXM0aJLAwdapaY+21tFteuDefLRsqxZH
-# ji8+ywrUAN6NtPGIAHFnUJqIjE4rkuRSZvi0HW31nRSqoaarWYG3PxHrWo8YvqwB
-# HPVXdJIvl61X0Pz/n/YdmIoA7hecZeZ1gsH+TvpleRp3s2QMCny0LEr71GWGdSqZ
-# Szi0VlLOgwVYFhRMCZYkYgnwLlHQ/R1kqiPAXaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCaiaTpsa/w
+# UFSokkZmY6+XJyUxsmjTIs5/uMQqFh6JXjANBgkqhkiG9w0BAQEFAASCAgA5hGEl
+# HNcJoCkvqI0fZr0nYe/OHkbV6H2M1uj4myIy4yu/Vysj5wgt62lkGd1UiRdhL4sY
+# xOK39K5BRwomHi6cBgLJQ5cbT8y5SG5v8/gTygj13BnwAGLPloIK9ZL1pL5vBMWl
+# URIS4/GOuWzN2ulOQ1w8H6ddymae8MTBTxHnZMCK3f99fPyc223/i9LaIFTr2tyR
+# V+whH2AEHtQwpmfTJnblJGzHHeFB8zGXOUa0CmaL6qCODHUghrZbCKRPHqhs+fs9
+# 1pSIfkIUfsjAUP2F/BK4lcZiMRGQw6IZvlrb/p5W2LIeffAL1cgR8dDysCcdr4t+
+# moCu1++XiZQ55G6uPLZ25hUXr9+k7v95A3hBCkDdz5lRtZ7WNWEeLqg++dKR8O3E
+# aWt++xr+D6i0U9hNF/UmaEKoURHsworfK78jNkUus4D1FiHS9oxCvRo9b5J0gn2+
+# rNDiM8LHcg7EmQ+sTzsLhYNMvhsYrydIU9Qt+GG3SbBDXIO4vQz8+vsRQ31ybqiS
+# DhM9jRz9pd3UciVxA8HGNVO7/hOHgUezomK3AM0xe621jIimKRaoZpKvKieEnRPP
+# wINg5HoyEv3WrezKNm1szvqnnzoL+Gt3tBnSotjyOUc+zmuaNVjl4jJY/iH4hNuE
+# 7rRlgOzr2HUPKu8xQXf+FQ7mqB17SX3od8eVxaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTJaMC8GCSqGSIb3DQEJBDEiBCDa1RIbEv1BWwrgR3Gg
-# /OUt97cUStQOgWiNXllWqWA+RDANBgkqhkiG9w0BAQEFAASCAgBiQjO2EYFi3OPZ
-# eEN4pMNnmqtYYSM2lTbyJkaAhA1knLoE3+y87gvZhKkIHNh/LUip45tQjX4DEWtu
-# dhYStgL9sUThEwDxjsCCBDeQx/Swbm+eWOU1YqGE+36E3/tUc7ZZJI7585MUpsCU
-# mS3E5dIYaQl6PsrUQzpRg6kscBpptzsHCf+kfyxD71t+lzFi9bGwfnu7s629Gece
-# w5VTCFNm2yx54nMciq91sVIh63lj2plb38gCrzouZflx2N8kSjOW6f3qNrLGi63t
-# 3WGVaHNQxRTIhhpKM80DqmxvlJfqccrWnM+t4Gg7FJz5PewtyKqF6XggoRzIhhis
-# WexT69qezGRZj3BCWq+vYdtL3PyYU97UFNLsgqn/9s7lQG+7Mch/4W6N9HUy96QN
-# 4oWAcAC3ZZDYVVeBdU9LA/487sTbXqdrWBilnF8hRXbDCQsiPpQp6H9RA56jobNx
-# xCCehsnT2RJz5QHcPNbgSOrnYRnMBV9wGzX4gI39ukvcdvZ2rCdV894REbQAD9CE
-# 7QcN3xupPZMgg8OPUYAHhH/daiUTBRHmLIN+QbpYpFRN3KTOHzKEryCSxj5INJbN
-# SNhUky1ZGeKpipEhusFqk5ygoV+c3EnsUb0uOBfc9g+lxfq/8s1OOK0XO67p+Cax
-# qYwTEoaP7i0UHqSR1eNLFsLZgQ7vjA==
+# BTEPFw0yNjAyMTAwNDIxNDBaMC8GCSqGSIb3DQEJBDEiBCBWQYKHQyBi+vvFuj96
+# Ave+GIot+iYZJUsNgMMB1AgXEzANBgkqhkiG9w0BAQEFAASCAgA3ZdykccXfvh54
+# Uhvt6cuv+AHCe3eJXB50UryZQwwnhN+PnmxWB2vi5FsQd95+CvJsaBClWplgAWLc
+# AgkNKGlwDEcguoVLMlfN9eiCHpwUOSLbob8KnYoae8MAjKtvb3ErmfHyGcp2wFb6
+# 8M9v1IN9Axzo+sm8wpQY4kLJPGwwwmAJrIhvH+eCPtPd38K0LnkwtPx2lSsf8+nN
+# kjFCbplQSfG6XzRSsTahOQbopjrDVOvFdXr2H/EPBuMVgwqKacpXNOzFuLyIlygJ
+# BlbmsMjYoWl4qgXmuj6N399pUU+ZCMglJBOGa5G9ctk7DICjxh4+wksyhZU5v1YJ
+# 1fJ4PTSeNO36vr6iZHx9s01U8oja3lkqH1B0j4GObRlQMEOWVVTiXboXnoj57isT
+# s/8QcOl2Q8UdNqzWoFu7HlaWcy9eMTMT7Uj6gEbkgNIE/+HA+es5JZ5GFGjq+AGJ
+# eGEDp4yzTrccyEPK5sYFvZ1G65cElIClKsvSvXl89bur74JVIgk0YXlJRljbkMqM
+# AaqTzqHNq+UkkDycHPIaX2uQ+6oPomS9mKulUW1PWaoL6djz9zcgS2xCNCXfGyPv
+# W5QtN4ofEHhf0Sw4GriY5h25zyXzkY/F6nYbdoOWfD8d6yu+W6alPjVCrb35H5DS
+# Dq9v15CK6+4z6mQ87iMij7rytg80nw==
 # SIG # End signature block
