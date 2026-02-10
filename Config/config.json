@@ -3,6 +3,17 @@
     "systemSnapshot": {
       "includeRoles": true,
       "includeServices": true,
+      "workerPath": "C:\\TechToolbox\\Workers\\Get-SystemSnapshot.Worker.ps1",
+      "helperFiles": [
+        "Get-SnapshotCPU.ps1",
+        "Get-SnapshotDisks.ps1",
+        "Get-SnapshotIdentity.ps1",
+        "Get-SnapshotMemory.ps1",
+        "Get-SnapshotNetwork.ps1",
+        "Get-SnapshotOS.ps1",
+        "Get-SnapshotServices.ps1"
+      ],
+      "helperPath": "C:\\TechToolbox\\Private\\System\\Snapshot",
       "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemSnapshot"
     },
     "pagefile": {

@@ -1,58 +1,131 @@
-function Get-SnapshotNetwork {
-    [CmdletBinding()]
-    param(
-        [System.Management.Automation.Runspaces.PSSession]$Session
-    )
+[CmdletBinding()]
+param(
+    [switch]$IncludeVirtual,   # include vEthernet, VPN, Docker, etc.
+    [switch]$IncludeDown       # include disconnected/administratively down adapters
+)
 
-    Write-Log -Level Info -Message "Collecting network information..."
+<#
+.SYNOPSIS
+    Collect network adapter and IP configuration (worker-friendly).
+.DESCRIPTION
+    Uses modern NetAdapter/NetTCPIP cmdlets for reliable data. Returns a list of
+    PSCustomObjects, one per relevant adapter, with IPv4/IPv6, DNS, gateway, and
+    basics.
+#>
 
-    try {
-        # Invoke locally or remotely
-        $nics = if ($Session) {
-            Invoke-Command -Session $Session -ScriptBlock {
-                Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration |
-                Where-Object { $_.IPEnabled -eq $true }
+Write-Verbose "Collecting network information..."
+
+function Get-LinkSpeedMbps {
+    param([nullable[UInt64]]$BitsPerSecond)
+    if ($BitsPerSecond -eq $null) { return $null }
+    # Convert bps to Mbps and round
+    [math]::Round(($BitsPerSecond / 1mb), 0)
+}
+
+try {
+    # Base adapter set
+    $adapters = Get-NetAdapter -ErrorAction Stop
+
+    # Filter by state unless IncludeDown
+    if (-not $IncludeDown) {
+        $adapters = $adapters | Where-Object { $_.Status -eq 'Up' }
+    }
+
+    # Filter out common virtuals unless IncludeVirtual
+    if (-not $IncludeVirtual) {
+        $adapters = $adapters | Where-Object {
+            $n = $_.Name
+            $d = $_.InterfaceDescription
+            ($n -notmatch 'vEthernet|Hyper-V|Loopback|isatap|Teredo|Docker|VirtualBox|VMware|Bluetooth|Npcap') -and
+            ($d -notmatch 'vEthernet|Hyper-V|Loopback|isatap|Teredo|Docker|VirtualBox|VMware|Bluetooth|Npcap')
+        }
+    }
+
+    # Gather richer IP config objects in one shot
+    $ipConfigs = Get-NetIPConfiguration -All -ErrorAction SilentlyContinue
+
+    $results = New-Object System.Collections.Generic.List[psobject]
+
+    foreach ($nic in $adapters) {
+        $cfg = $ipConfigs | Where-Object { $_.InterfaceIndex -eq $nic.ifIndex } | Select-Object -First 1
+
+        # IPv4 / IPv6 addresses with prefix lengths
+        $ipv4 = @()
+        $ipv6 = @()
+        if ($cfg -and $cfg.IPv4Address) {
+            $ipv4 = $cfg.IPv4Address | ForEach-Object {
+                [pscustomobject]@{
+                    Address      = $_.IPAddress
+                    PrefixLength = $_.PrefixLength
+                }
             }
         }
-        else {
-            Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration |
-            Where-Object { $_.IPEnabled -eq $true }
+        if ($cfg -and $cfg.IPv6Address) {
+            $ipv6 = $cfg.IPv6Address | ForEach-Object {
+                [pscustomobject]@{
+                    Address      = $_.IPAddress
+                    PrefixLength = $_.PrefixLength
+                }
+            }
         }
-    }
-    catch {
-        Write-Log -Level Error -Message ("Failed to collect network info: {0}" -f $_.Exception.Message)
-        return @()
-    }
 
-    $results = @()
-
-    foreach ($nic in $nics) {
-        # Normalize multi-value fields
-        $ipAddresses = if ($nic.IPAddress) { $nic.IPAddress -join ', ' } else { $null }
-        $dnsServers = if ($nic.DNSServerSearchOrder) { $nic.DNSServerSearchOrder -join ', ' } else { $null }
-        $gateways = if ($nic.DefaultIPGateway) { $nic.DefaultIPGateway -join ', ' } else { $null }
-
-        $results += @{
-            Description = $nic.Description
-            MACAddress  = $nic.MACAddress
-            IPAddresses = $ipAddresses
-            DNSServers  = $dnsServers
-            Gateways    = $gateways
-            DHCPEnabled = $nic.DHCPEnabled
-            DHCPServer  = $nic.DHCPServer
-            Index       = $nic.InterfaceIndex
+        # Gateways (IPv4/IPv6)
+        $gateways = @()
+        if ($cfg -and $cfg.IPv4DefaultGateway) {
+            $gateways += [pscustomobject]@{ Address = $cfg.IPv4DefaultGateway.NextHop; AddressFamily = 'IPv4' }
         }
+        if ($cfg -and $cfg.IPv6DefaultGateway) {
+            $gateways += [pscustomobject]@{ Address = $cfg.IPv6DefaultGateway.NextHop; AddressFamily = 'IPv6' }
+        }
+
+        # DNS servers and suffix
+        $dnsServers = @()
+        if ($cfg -and $cfg.DnsServer) {
+            $dnsServers = $cfg.DnsServer.ServerAddresses
+        }
+        $dnsSuffix = if ($cfg) { $cfg.DnsSuffix } else { $null }
+
+        # Profile (Domain/Private/Public) if available
+        $netProfile = $null
+        try {
+            $profile = Get-NetConnectionProfile -InterfaceIndex $nic.ifIndex -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($profile) { $netProfile = $profile.NetworkCategory }
+        }
+        catch { }
+
+        # Compose object
+        $results.Add([pscustomobject]@{
+                InterfaceAlias       = $nic.Name
+                InterfaceDescription = $nic.InterfaceDescription
+                InterfaceIndex       = $nic.ifIndex
+                MACAddress           = $nic.MacAddress
+                Status               = $nic.Status                 # Up/Down/Disabled
+                LinkSpeedMbps        = Get-LinkSpeedMbps $nic.LinkSpeed
+                MTU                  = $nic.Mtu
+                VlanID               = $nic.VlanID
+                DHCPEnabled          = if ($cfg) { [bool]$cfg.DhcpEnabled } else { $null }
+                DNSSuffix            = $dnsSuffix
+                DNSServers           = $dnsServers                 # array
+                IPv4Addresses        = $ipv4                       # array of {Address, PrefixLength}
+                IPv6Addresses        = $ipv6                       # array of {Address, PrefixLength}
+                Gateways             = $gateways                   # array of {Address, AddressFamily}
+                NetworkProfile       = $netProfile                 # Domain/Private/Public
+            })
     }
 
-    Write-Log -Level Ok -Message "Network information collected."
-
+    Write-Verbose ("Network information collected for {0} adapter(s)." -f $results.Count)
     return $results
 }
+catch {
+    Write-Verbose ("Get-SnapshotNetwork: {0}" -f $_.Exception.Message)
+    return @()
+}
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDvdP6STyp4YCDq
-# 4AsNUwKghInvzJD/w5DpvwF95A3hg6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD8G73FQx/rOtD4
+# EzWZUPWpPIF255Vjh+Df49civyPRZqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -185,34 +258,34 @@ function Get-SnapshotNetwork {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB2JAVabehs
-# AldF5icVrqgy8mdYzwXU9phKG3Tzbcn3HTANBgkqhkiG9w0BAQEFAASCAgBp2SYx
-# WcF/HzOvjaByF4rJS6b1kzWqyNwql1doCmSrl0xCext+iDzKWvmzxG/WPtarFwk4
-# GOLfjKEu7Oq8BI9UHFw/0etNHtYNv9yOEqXbw7PFKyWpdQ7UbIbnp+idQgvEBDRV
-# ufS4f5dyAn81zL0uxnjSOCFE/bK9OBCwqHioQJs6GuTGGnWwlPhmlbSf4OiCwaMC
-# oiPvPHUXVkOGQUNlPC0Edk+1WYSRlROsIEfxg1BZoTBr4g1krr4Odn2hB04R0wlM
-# I9uu8CknT3TlWjCTNw39zIVZs1ghtilpSi6oficPJBBKR94F98E5zhe1T8Q4ddap
-# qK+2k0uDb2DL4Jy5Ai/L+glfj7/Dc8L0OqMfsjNWJTfY0w4omR1HOtakNwpHsWqh
-# /+tdCO1X5vlQLcDoNAiVTVZW9FbrybKCgO1+aMFtigxiXeBrZJVk0laf9j9lp2x6
-# ZymlObEyTuLWUvRTq92ycpKo1nBpoRckM/E07lLXk1xC/i37itRJdtX3nTAzfsVh
-# TfDW1gIdTeyewOe1F9gzsj0j9zk2hsEpvnAYNaasaiml30MF7vnlTd3Rt7xf7pLG
-# an/PomuUrlexPngDKsJPJ6jWipifrTcdCjSi+cAylCUAhxZnF/DGWT5utXeZ3x+n
-# SG1dKyDZsi/PYMyWnMidvf5fFrrKEvWTR5PxaKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCJOnqRm6G7
+# EgyXdmunEsV6uciCCe9sDAk0hcNkXsIoQzANBgkqhkiG9w0BAQEFAASCAgBMUpN7
+# 7Nkg2cjuM2GLt7HBdWwtNG0qNskNLd1PJ9VcCFOUlMPQ1rJi1ghzLSMWqVCXK+nw
+# ps9aSTI84yWzl8W2Joi37UHKbcRmKvf7UUpU7PVDK5vPRBfex/2ArEabzMWQJCei
+# Q9gh7jjxhh6ENDbDixBNYxD3WEpJQBF4oUyP80t5HB33x3gvUWJZdp+c9oDXWwC9
+# u849p6xtWCqmRHzv1ceU1cEqmWmspW2F6F9LbQ8zlT41VJiEVyl+m4b3Oyce3fw5
+# 4X3mdgtbV+i3moyHW5TxWsNrHXkGMVuSOfIt49rScIumtSsJ4BF8sZhmvl0/C4rd
+# iVC2OFhJXeuxW1oJKeZzAe3SORfAQJHFaZCEUaWdc+N29Alrmx/RbJhPWDRC+jL8
+# CRahsBKAFIjMfzwlox+Gyzaz9jQeXFBC8eKoOn/vZhnNyRYRc4zVZlvVhAAK55B+
+# 0cBaLdszZwqadNMZusN0nc6NpMwHRpEETTj7bixwy99ypLZ2BfncubzvwPvI9zsQ
+# FiJePLxnA5n7bkEwtB90W4mvqumsSqBUiQZzfLUCCRB4EGdTATLWNChT66bonfho
+# Hml3Ee97Nf9dRResdwpI20cQ9J/aRFvjm2yGFB1wHZUIUKUOn+EezKDcLuNnm3Ls
+# nVQDyo7N6NFlOC6V/gnY7OcE8luG4hhlCfC+qKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDdaMC8GCSqGSIb3DQEJBDEiBCAOdy45CcB+4x7cD9o0
-# E21NmaQwG8ahlCJsaqb7P1nMQjANBgkqhkiG9w0BAQEFAASCAgA9Cy9NDzq94uBE
-# ocjaV7PNuSdRz68k6Kugb5yw+6o/cqexTRmL4hTVKwz4+Vk9K9vJSMUmi5kAbGA6
-# eb0RXZc58B/2SgMIciMv8CS9sAkhbPTLmGe4WRYL9idNHMGG1owv5AYQv8dCQ71I
-# zCCZ2aoDr8v1Ae1IR/h4FWjDlmx2xzCXppqf+x5Y5OqFBFiFwvwkerJy6UcoEIGv
-# decnqFmWWLzRjndEG/SGSmWrjP0xLks4kI57W2alhaYNKmhvBJKIwf7MYNRSzwm6
-# tWEMyOuiGHPbC5R1a1kI3mofK7y3ZjvfOZkh00H68hpRqfhwbVvPIGQvBTBZrT72
-# Thzbo9iwZnrcJRftfb9miGkLKpBj43CSNoTpQkbKeYkSwyuHYkiEOtEptqmcyH+I
-# +IjMCb1RHtYHC7YKJTkpqUuZ8H3FCx2UwPz063/77wYgpWPE+E4SrfQLuP0ehDfn
-# UEBG356NXMSg6CL3kx36jAh19Bx9jjmoS/lxo6736VmMIzcye84lBGlcobzX7b+R
-# CDdW/hoNx/pV5iethQJGhMwVQqeOtf/otcvB8SuoJNhl72uShrkiKcvqqovUBwbz
-# D6UXEd2LbtadW8t3Od7ted9p3Up4eBMNH4LZ64SeM31TbYIwwklLb1fQXk6VI0Un
-# lCcch5/KAZQN44TBFZaU8cw+vVHwrA==
+# BTEPFw0yNjAyMTAxODM0MjlaMC8GCSqGSIb3DQEJBDEiBCB/z/WQQb5ZlFulDSSg
+# SL/fp1XAuA/ay8GpDJUj5/PYVjANBgkqhkiG9w0BAQEFAASCAgBRnWd5vhs1QS08
+# KFuEjd/NfQRsxeQnYP0nQG7mxSv2uueyK5YxZTFRh0HW3BsagrDbHFoWoT3iBsWt
+# GIcMFqwFo3Ke0jrNgjq2F4Ma5gdrCNCP7438vbGlz6apj9fMTiE46DLxAAHPO+8g
+# vIbLM4cda4MKs9kMocEEv3SzRP/oliUl5xtfveJLuqV3iJMv+BueHQwqzMPI/uR3
+# wKfoQay1wjszXwVxb53jA4pbeSGczKcQW7ZfIVvS9IZNZf0+1dNsojT6KiOonZ/N
+# jtqPC0+VPkwtA+kv/zqEwEUQ1cnpgD1yLZj98UzvxuF24LyHEIKUfjXBNNOp+hQK
+# AktYA6sfjerP0sXgNU/NA3gBOeJzGc2ewCiaFTTBiD9KYK847z0+Z5PYdvJoqxaf
+# UWuJJsFWSfI0sWpoDS3g2kkD26HirHddjIu0p2Z0txsh+L2DtoSEk8i5z8PmZb0m
+# dI4HbdQgZaGDWu2pv3Hn8v3QT3lTZk/Qchwaojz3fjXi+cCqkDXMELgyWV4FQTik
+# TKxE7hCBOpuiZLpko4OeSuo/2ERKjrmLfLCtE//+fltQYLT6znrX3CLWpCib+s1E
+# VFlXOhMpJCoP5ZVKnI7+By/t/mPPL5t3UJuHumMl/DMksWeZlpiu/fGYFNJYdVa0
+# Skkn9ji575uX8zAxsfq0RH2h1+gRCw==
 # SIG # End signature block

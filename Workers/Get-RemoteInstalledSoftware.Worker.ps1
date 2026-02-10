@@ -1,90 +1,128 @@
-[CmdletBinding()]
-param()
-
 <#
 .SYNOPSIS
-    Collect memory and (optionally) page file information, worker-friendly.
+    Worker: Collect installed software from the local computer (remote target).
+
 .DESCRIPTION
-    Runs locally on the target host (no remoting, no external logging). Returns
-    simple PSCustomObject values that serialize cleanly.
+    This script runs *on the remote computer* under PSRemoting. It enumerates
+    uninstall registry keys in HKLM, HKCU, HKU, and optionally AppX/MSIX
+    packages. Output is a flat list of simple PSCustomObjects.
 #>
 
-Write-Verbose "Collecting memory information..."
+[CmdletBinding()]
+param(
+    [switch]$IncludeAppx
+)
 
-function Convert-KBToGB {
-    param([Nullable[ulong]]$KB)
-    if ($KB -eq $null) { return $null }
-    # KB -> bytes -> GB
-    [math]::Round(( [double]($KB * 1KB) / 1GB ), 2)
+function Convert-InstallDate {
+    [CmdletBinding()]
+    param([string]$Raw)
+
+    if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
+
+    $s = $Raw.Trim()
+    if ($s -match '^\d{8}$') {
+        try { return [datetime]::ParseExact($s, 'yyyyMMdd', $null) } catch {}
+    }
+
+    try { return [datetime]::Parse($s) } catch { return $null }
 }
 
-try {
-    # Win32_OperatingSystem: TotalVisibleMemorySize/FreePhysicalMemory are in KB
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+function Get-UninstallFromPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RegPath,
+        [Parameter(Mandatory)][string]$Scope,
+        [Parameter(Mandatory)][string]$Arch
+    )
 
-    $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
-    $freeGB = Convert-KBToGB $os.FreePhysicalMemory
+    $results = @()
 
-    $usedGB = $null
-    if ($totalGB -ne $null -and $freeGB -ne $null) {
-        $usedGB = [math]::Round($totalGB - $freeGB, 2)
-    }
-
-    $pctUsed = $null
-    $pctFree = $null
-    if ($totalGB -ne $null -and $totalGB -gt 0 -and $usedGB -ne $null) {
-        $pctUsed = [math]::Round(($usedGB / $totalGB) * 100, 2)
-        $pctFree = [math]::Round(100 - $pctUsed, 2)
-    }
-
-    # Optional: Page file usage summary (often handy in a snapshot)
-    $page = $null
     try {
-        $pf = Get-CimInstance -ClassName Win32_PageFileUsage -ErrorAction SilentlyContinue
-        if ($pf) {
-            # AllocatedBaseSize/CurrentUsage are in MB for PageFileUsage
-            $page = [pscustomobject]@{
-                AllocatedGB  = [math]::Round( ( [double]($pf.AllocatedBaseSize | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                CurrentUseGB = [math]::Round( ( [double]($pf.CurrentUsage     | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                PeakUseGB    = [math]::Round( ( [double]($pf.PeakUsage        | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                Files        = ($pf | Select-Object -ExpandProperty Name)
+        $keys = Get-ChildItem -Path $RegPath -ErrorAction SilentlyContinue
+        foreach ($k in $keys) {
+            $p = Get-ItemProperty -Path $k.PSPath -ErrorAction SilentlyContinue
+            if ($p.DisplayName) {
+                $results += [PSCustomObject]@{
+                    ComputerName    = $env:COMPUTERNAME
+                    DisplayName     = $p.DisplayName
+                    DisplayVersion  = $p.DisplayVersion
+                    Publisher       = $p.Publisher
+                    InstallDate     = Convert-InstallDate $p.InstallDate
+                    UninstallString = $p.UninstallString
+                    InstallLocation = $p.InstallLocation
+                    EstimatedSizeKB = $p.EstimatedSize
+                    Scope           = $Scope
+                    Architecture    = $Arch
+                    Source          = 'Registry'
+                    RegistryPath    = $k.PSPath
+                }
             }
         }
     }
-    catch {
-        Write-Verbose ("Get-SnapshotMemory(PageFile): {0}" -f $_.Exception.Message)
-    }
+    catch {}
 
-    $result = [pscustomobject]@{
-        TotalMemoryGB = $totalGB
-        FreeMemoryGB  = $freeGB
-        UsedMemoryGB  = $usedGB
-        PercentUsed   = $pctUsed
-        PercentFree   = $pctFree
-        PageFile      = $page   # optional nested object; safe for serialization
-    }
+    return $results
+}
 
-    Write-Verbose "Memory information collected."
-    return $result
-}
-catch {
-    Write-Verbose ("Get-SnapshotMemory: {0}" -f $_.Exception.Message)
-    return [pscustomobject]@{
-        TotalMemoryGB = $null
-        FreeMemoryGB  = $null
-        UsedMemoryGB  = $null
-        PercentUsed   = $null
-        PercentFree   = $null
-        PageFile      = $null
-        Error         = $_.Exception.Message
+# --------------------
+# Begin worker logic
+# --------------------
+$items = @()
+
+# --- Machine HKLM ---
+$items += Get-UninstallFromPath -RegPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x64'
+$items += Get-UninstallFromPath -RegPath "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x86'
+
+# --- Current HKCU ---
+$items += Get-UninstallFromPath -RegPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User(Current)' -Arch 'x64'
+$items += Get-UninstallFromPath -RegPath "HKCU:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User(Current)' -Arch 'x86'
+
+# --- Other HKU hives (logged-on users) ---
+try {
+    $userHives = Get-ChildItem HKU:\ -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match '^HKEY_USERS\\S-1-5-21-' }
+
+    foreach ($hive in $userHives) {
+        $sid = $hive.PSChildName
+        $items += Get-UninstallFromPath -RegPath "HKU:\$sid\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope "User($sid)" -Arch 'x64'
+        $items += Get-UninstallFromPath -RegPath "HKU:\$sid\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope "User($sid)" -Arch 'x86'
     }
 }
+catch {}
+
+# --- AppX/MSIX ---
+if ($IncludeAppx) {
+    try {
+        $items += Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            [PSCustomObject]@{
+                ComputerName    = $env:COMPUTERNAME
+                DisplayName     = $_.Name
+                DisplayVersion  = $_.Version.ToString()
+                Publisher       = $_.Publisher
+                InstallDate     = $null
+                UninstallString = $null
+                InstallLocation = $_.InstallLocation
+                EstimatedSizeKB = $null
+                Scope           = 'Appx(AllUsers)'
+                Architecture    = 'Appx/MSIX'
+                Source          = 'Appx'
+                RegistryPath    = $_.PackageFullName
+            }
+        }
+    }
+    catch {}
+}
+
+# Emit final list
+$items
+exit 0
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDC2jYn+183qMJS
-# gCWSvY/Fv0sn5g5aqlLSbd2ORXdiSaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCfSTDTPtjRIhrl
+# v/HNucAyAEjN7K2A1fTYzPDh9BwTOaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -217,34 +255,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDu67iLr6ze
-# 8ENehFsO17Al11XlfS2o5TvgJvVyIo2NOzANBgkqhkiG9w0BAQEFAASCAgAWStF0
-# eoCOvX5RJ43tWjMBM/Bhn7NNpl6LLKyjchpnI9IKM5wz3+8s1GfpWbef3MXjE8vV
-# ueZOrkI6ijqUO51da6OymSTc29jPhY1BsqyMl0EvYyeKCDAZ97X2t6X4XRW1USIF
-# DnMffiq7bwcCQwvULPfdeMxAMa3OM9kaX/5GHBP7UhbbT6J2uQkOpGah+dLEdkiO
-# kgmdgjxJZM0Ljhs4aO2ldDId5V7CQbMW2P5g30po2h0/V+/eK0JZ9Hzh+eTsapMJ
-# a2w9vTzZ8gYi2XyriAEMbmjGcXIF7vRvHd7qvZ9GzeMc4+kobsZ57IfFynyCY5dW
-# oLHB1R3794MYGySL2+zrG0QMpP3+++Uy33oMhPdaov8NYedqNhfFOvT8X4UO6uq4
-# xjQPKcpbi3t7iCELl0FdWrr6Ad9UnByG3I/kpD9TFFn2IbeTpYQVKc/laY7qFzD3
-# jLGE2Sn7jRV2qm2pd4kkc6LRQt+kDs/iWvuUTqcsYwen6KeOXbtkqI6LnF0nL0t1
-# VjRCQmBZAOBWfzJLenjQEr8H3UwJc6Jk7pbf6AOn52opCL88fHJbHR4osVJVa6pP
-# kDaQ6BXNbIdg4t+q6cPrf8DpgjEZ08wSVhVcQj3zBKlRwHNXgSm1/1XdT9JnEKwG
-# S5LD2FdXfspkqfigJJPcvWNrrpZbPZzouWDS1KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCNY5WDzxCT
+# p+BNHPYsguISB48gHJl8fK624oXOwNzihDANBgkqhkiG9w0BAQEFAASCAgA/iOW7
+# Nq3FCAteVQOA9gL++VbltJ/LwVpR/VWdI/LfFZ2QV+C+C5HMqUTHHTlqymGjuMhC
+# cPgGUN45ptyBxnJVHiLer8CtkewGG4dbvhTPhKfiHRl9jhqjgpe/Rdd/VGttm9gZ
+# APiZLz47Cybnrwcfb+IB1+2fe6pZw8plCvqKemEmtadkimazHQwdKXwp/w19L76d
+# 1q9Do/uVVLfVFnFWVx5+6HitiWo/Cu/68L2UaT7dTCdnDwpfrZ0UzSlTbjShg5OU
+# XoJohg9DCXNo15inFQ9D/PKX+sVoZ7JlSFQmM13gVTUyApC6/pKZhXwpo1yhPgfW
+# 9L3++fPYBaQaFfosiBQ3Hy7oen/N4WMvRJB1Psy8OwUoTEnpQpp59NoNuJCWX/iE
+# jI5A1BIXCOIyuZLY1UMEH8pzlfiDsjhBaFvVl4qfOj7ByfGNgg/VEdDmJe2NzIIu
+# 3+lCta1Io3A370+1h578hECf5LmYtzSqK0qCsyWXiyBsvIjXKUtyRp+GMFRrV3sH
+# s1xgcL6yfk6+J9XuVBWoHQdlO3VyFiQS9ueMFSAIKQSYpQcYIDY+6ifcWEOxQ/5L
+# wRJDiOxqx609EDJ0j/T5F4Sl6kfWtQfRC5YSP1H321Dei9e7BgClBSkqC+e0zZ8S
+# AAVl1TX5Dgmxl928oL9zO0FDA5jE4ytySK/4hqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAxODM0MjhaMC8GCSqGSIb3DQEJBDEiBCByZUXcxUJuPRHKqBcl
-# /C/iJsJ6RtoXJOiKDZmowPzq3jANBgkqhkiG9w0BAQEFAASCAgAo3mxBuJZccmkh
-# 36hPcfREuBhPexpEdqdV08d3AySiWEWb5rN+egtKwnuweFljSZGuNLitXKMCDk1j
-# USnlKqj1m1mK0czOIPvbIYQByGiOTDTXnxOlJB8wR6D3Mtuo4lxkXjfTiZwK2cL1
-# 3rX982UYhJxK0Q5KKDbBUMCXpwLN3LMzHVSqQfIkx4PTq3Qv0cgynzlw6GzlGOWc
-# 1J8xevm8cus5i0zdHl42KXmmixKRuV8t2xWOSfBTMWglzL3RUD9Dk/U1Jj858Yzg
-# Vyr7frXGb3UTEzUm6t86P9qNyy9PNt7gLqb8Q/mJTF+FoyLosmZ1TGRIxXWty5U2
-# yEjz7TuWe5a60VdofrH+kGVcKTBQTtsY6biQiBsk09noEzBhFxghCWr+snIyfZpR
-# VGDuQ0zgf70+bGxHrw60pm81Y09yQlPast20QOLEE88rOIofs/8lCrdYoVCMKgBY
-# +6S5VGy4SIdhWEiCtWfSdXaB0Uya6HyWn2feNC2FjlF9HT98tyZ5PiB7NQq2QVFA
-# JfsSpAWf5PSdsjxFKjF+50q0zkxzNiUwnlZmhlGCF8DOJR6hnSWO9hCahBeAMXot
-# gUwjpuC3uaHTUgwYqpQJWIx401D/A0EpkNW8SYj8ldX5b0kDuAHn2Xf0LNSCfDcx
-# vKFWM6USGZdL2qr7OjFtK7Lrx2UvTg==
+# BTEPFw0yNjAyMTAxNDQzNDBaMC8GCSqGSIb3DQEJBDEiBCA996wMh121IsP47HPI
+# 7daCdAN9B3GMRbtBpnS0ohVKGTANBgkqhkiG9w0BAQEFAASCAgBFllvblUbgEews
+# TEG1c/vcMw9htvlTDuiW6AugLRmCgxxVGsEHJNCR5/IVqvNFjoy1qK5Y+OYebj6s
+# 4+zbox7Y7RDeV+pZgAbZ2QubtWzJbo6lb2nsBmythu66shX05KjJcxjrK9pjIDhv
+# VFzQNPpgcXDb7Hn/kJnDqP+NE/baUxU9kKNT4nZ3VOhFZKg1P1Fm4N8Dd6r1tIad
+# oZS3hBWtx6RJ1H9g/F0Rxb6PCMDmYkaBWRqZay3L3KXTphcUVuMNvD8uPSZhQtKI
+# NFp1rGXmfPc1fyx18Xpmc2UhMYd6b/ox+LZskaUi4JseYky0Bq/5+52yCe9stkku
+# 9eCXDgDY16rIasTTc8oYTFEma7kUfnywECuptRt1aG+j0jjrF2FNhp0Nyq6SZN/b
+# EKRuRj5VpEvexF3XbsrlbjWRwscHobj9/pq0IJe3d+N3du4F7bt3Zhefb95/khKo
+# +RvYu+zTiFT7ra+Befa7+fjbY4n90xmcUb+Aao9RZe6v69nNQ9Wv8sQJG7dekwRD
+# W+XrhTZdG0YfRdFwEcp1JjzoL7iPrG7ynvW4Guf3zagzrJJMAho8s7tPZOeK61iX
+# 224I7ZPu2jbHc/DVForwzDYupOoJA4IVDNZ611cVWx0WGb/m3jIq2R5WXml8lp9/
+# CK2hAPBUicByDhL7SeacFfw5ZhbGBA==
 # SIG # End signature block

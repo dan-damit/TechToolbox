@@ -1,58 +1,91 @@
-function Get-SnapshotCPU {
-    [CmdletBinding()]
-    param(
-        [System.Management.Automation.Runspaces.PSSession]$Session
-    )
+[CmdletBinding()]
+param()
 
-    Write-Log -Level Info -Message "Collecting CPU information..."
+<#
+.SYNOPSIS
+    Collect CPU information (to be executed locally on the target host).
+.DESCRIPTION
+    Designed for the Workers pattern. No remoting, no external logging. Emits a
+    flat summary plus an optional CPUs array when multiple sockets exist.
+#>
 
-    try {
-        # Invoke locally or remotely
-        $cpu = if ($Session) {
-            Invoke-Command -Session $Session -ScriptBlock {
-                Get-CimInstance -ClassName Win32_Processor
-            }
-        }
-        else {
-            Get-CimInstance -ClassName Win32_Processor
+Write-Verbose "Collecting CPU information..."
+
+function Convert-Architecture {
+    param([int]$Code)
+    switch ($Code) {
+        0 { "x86" }
+        1 { "MIPS" }
+        2 { "Alpha" }
+        3 { "PowerPC" }
+        5 { "ARM" }
+        6 { "Itanium" }
+        9 { "x64" }
+        default { [string]$Code }
+    }
+}
+
+try {
+    $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop
+
+    # When multiple sockets exist, pick a representative for the flat summary
+    $first = $cpu | Select-Object -First 1
+
+    # Per-socket detail (safe, simple types only)
+    $perSocket = $cpu | ForEach-Object {
+        [pscustomobject]@{
+            Name              = $_.Name
+            Manufacturer      = $_.Manufacturer
+            MaxClockSpeedMHz  = $_.MaxClockSpeed
+            NumberOfCores     = $_.NumberOfCores
+            LogicalProcessors = $_.NumberOfLogicalProcessors
+            Architecture      = Convert-Architecture -Code $_.Architecture
+            LoadPercentage    = $_.LoadPercentage
+            SocketDesignation = $_.SocketDesignation
+            ProcessorId       = $_.ProcessorId
         }
     }
-    catch {
-        Write-Log -Level Error -Message ("Failed to collect CPU info: {0}" -f $_.Exception.Message)
-        return @{}
+
+    # Flat summary expected by existing flatteners
+    $result = [pscustomobject]@{
+        Name              = $first.Name
+        Manufacturer      = $first.Manufacturer
+        MaxClockSpeedMHz  = $first.MaxClockSpeed
+        NumberOfCores     = $first.NumberOfCores
+        LogicalProcessors = $first.NumberOfLogicalProcessors
+        Architecture      = Convert-Architecture -Code $first.Architecture
+        LoadPercentage    = $first.LoadPercentage
     }
 
-    # Some systems have multiple CPU objects; flatten safely
-    $cpu0 = $cpu | Select-Object -First 1
-
-    $result = @{
-        Name              = $cpu0.Name
-        Manufacturer      = $cpu0.Manufacturer
-        MaxClockSpeedMHz  = $cpu0.MaxClockSpeed
-        NumberOfCores     = $cpu0.NumberOfCores
-        LogicalProcessors = $cpu0.NumberOfLogicalProcessors
-        Architecture      = switch ($cpu0.Architecture) {
-            0 { "x86" }
-            1 { "MIPS" }
-            2 { "Alpha" }
-            3 { "PowerPC" }
-            5 { "ARM" }
-            6 { "Itanium" }
-            9 { "x64" }
-            default { $cpu0.Architecture }
-        }
-        LoadPercentage    = $cpu0.LoadPercentage
+    # Optional: include full detail when there are multiple processors/sockets
+    if (($perSocket | Measure-Object).Count -gt 1) {
+        # Adding an extra property is typically non-breaking for flatteners
+        Add-Member -InputObject $result -NotePropertyName CPUs -NotePropertyValue $perSocket -Force
     }
 
-    Write-Log -Level Ok -Message "CPU information collected."
-
+    Write-Verbose "CPU information collected."
     return $result
 }
+catch {
+    Write-Verbose ("Get-SnapshotCPU: {0}" -f $_.Exception.Message)
+    # Return a minimal object so downstream code doesn't break
+    return [pscustomobject]@{
+        Name              = $null
+        Manufacturer      = $null
+        MaxClockSpeedMHz  = $null
+        NumberOfCores     = $null
+        LogicalProcessors = $null
+        Architecture      = $null
+        LoadPercentage    = $null
+        Error             = $_.Exception.Message
+    }
+}
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD/iT3zwr5jcDk/
-# c4eG/nlfmn3APih3iCe+q7fkgW7ngaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAkLHvxNJlSQAPt
+# Dl9kY6JVOPW1RoDHbVu7pT7holZbB6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -185,34 +218,34 @@ function Get-SnapshotCPU {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCiGN8eueB0
-# BZelo1c+HFO7S2wzBIBthaSbtMAkldgi/jANBgkqhkiG9w0BAQEFAASCAgCTrwAE
-# q4hXAGf0huOB9jy5dD3hpbOrK/T0XDMZ3ImEiqG2uCL06qXK4q5vCZmxi7XRN1ho
-# ApLzy91sbOYogDsYhg9b8nrW8wtHOpSa1fnfmIRRUT0W1UJod9d1d6DgIjuxE1xk
-# HGqURANDgOk+g+UdQMrbUx5281C5nHtyKAy/5pkwVjLppTUbW1HhdaLGuferFYzA
-# x21kN4FSTWMMkVoFZK71soDwQ+vcBDoiIoJyTEdokYy9ivV/8nUiai8INP0A8Dq4
-# dfLd3sEmscZIF/WOWUN760z3vqfj7WwMGMLPG/0633kmrxaCa0zPIgbVOICWaBCA
-# cQyJBhVljOFH09Itxm7iGoPUjfu5uPlkVrrJiwI45IqvGjDbgLqvLOu5WfQPRXlH
-# +muib/ezUS9KcwZhrCOXWu9VUJOmGXE1aFS6L9pC2DdOZNDrhNt5kT2MV3cJd52J
-# R2Cqp0718uBUrzz5OuGthUSVG7953nxaEj+0MT/xs/Q/WkLiqGwE8nfP4vUt4Iy8
-# bKHYSU0MydktjVKgohTw8sJ93jRGMcBy7uvv2oT7hRNOjMP4vNGeRUcvO859KxH3
-# 0hz24TaZH0Rm7QGpwN+Jrj0nBhnT8vDR+m7Yz7utKker+KWZlNvIDBT8oz2uScPF
-# vKr1mH+QrbWkrCaVHQ+r4ySzw6peIoes+HQGWKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAxTIEESVKm
+# 7meqGcoGQPB4DfJ6BlhebQeXGXbrut235TANBgkqhkiG9w0BAQEFAASCAgAFgGxd
+# I0U5utE24+HerSD2pbUA1yUEmq+Egk6Pl8J1sD+Y96XlWu3xjnTHeaWW/3JVfAmK
+# jUS8FKE0G/2821AcruQdVInSeNy24HhApMkOCXB3iyRmW44K3P6b8PI/OcwjfiRc
+# Sq+sv+QnARSk0SYzeEi0PVHV30GLur1UE64FC71pAZnjMsJbcdc/KP6FElxE8tI0
+# oiIFz7O4a5y37vxpPmomBP/F+gNeIn5grpop7SvMK9y3XgNHfm7B+eMUrqXGTDXY
+# 50EaMRt2mt/a74yElzbh7CUW8U7VovL+htNE1GLk8KpojajHOBa2U7Cg/yx/Mdx1
+# wz+dC1RgAeSeLsgFCECGjQHDQVE/Jbu4rPoON19P6O62f9Ny0Pnq18QtxX/9wiAo
+# BVJsiWghK3wbR9hXKdxUtjOgjBRy2guZkosIr1RNWklHUOO13EpBguaRJnisnJ4e
+# cZ4BrB6HUG49moFXn+XA1aGgMm6czAtduFOW0+I5vdxfDQaP5oy9hSLHkoqyNL0J
+# zpJiwLfntlZuEhNH5qEmNFUw8PsRfycllRv3aFss1K5f3tZI/pxcebwwY0kzMM7e
+# wEpc+5JjVT4s0wurgUTMfRBUMvXLFLLdL3KbMXpOSJw5CbbMOFBCZSQrWmyLYP2P
+# uLrbO+Pj6sK1vu5wr+FFzBBmMMB9lxTJg+djO6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDdaMC8GCSqGSIb3DQEJBDEiBCBs1DcDUN+iZw3ngk+X
-# bQ9Icw5z0w1KY+EAQMsbvKbg0jANBgkqhkiG9w0BAQEFAASCAgAwc9KnqRnWRp3v
-# HEBzi/DAiq8wuu7bYizvH3iWfkjV4CLXuhqJqTTiLOhWPBFHJPfXU8Q9GApmQOcF
-# KmJ5nAnR5c2WAp3WEwrdbO/4AJzConcdLkhOHJAccqLRLmlCZNP/QiAPNIDtnSDD
-# 7NjIK7t0mkpUIUlzW6C3t3sgq/vBwHQG9bgKyBnBWzG1IlBfaycVaGslofi/ZOqA
-# FDT4Bow5sLqK+FIKg87j5xRKOJOVFdg8gNkq4lAOd5A2kblbJO/nvyVCWNH+CvLL
-# td9ZZdyVi3WnYgt6MASZr6vv7UmjhupFzX/NHP60lHlGpP1dnHxs4HaARWJOBbGY
-# P+gFcrzKM0iq1JT4CX0G3KzBigE6dD/WafkFs+SjwkUT8KsIHpkdJd9EpdFDzdth
-# PwKvfgsmHHLxMCFispAVTCpMBTMVVibZLAAMGE7XgcrAJvkYsroFKpFQGsFUiCIG
-# N8ZhH3GIgnxRGnnBkbHYq/vc32v2OxNzDZ7gaGFZg6nTuUOIBRAM9HJdc32xGVUe
-# QvGbD1piKIP98n5i/AQYHxR1J1jH7w9lRwGhfBYYUcpjWY1TdJ0aAyZNNM48GIY7
-# 13kIytUMDGGWLTivZDSIZuUjOVIXxstx/crk6gvhMAFn6ZfLRz55ld9MdmFwRDzJ
-# Slo9A6TJKNqjl1zjhYnbfnRVSFWGbg==
+# BTEPFw0yNjAyMTAxODM0MjhaMC8GCSqGSIb3DQEJBDEiBCCsWzz2IKXVzKPL39BX
+# /fwBUeeqq1ghGPu82g4eUpv16DANBgkqhkiG9w0BAQEFAASCAgC/YgP1Z4S2Ap1l
+# 5ea3CfB76aKrHZi+AQJ1z9g5lB9EBkJMICF9V3biA+yxNfKdaFjG4lPg0GCeNBeg
+# wXhSFflAY06xe9wYgADG0OXvF0St2D2xUOiVK81gB8BG1wgxnECbCjzRgvu0M8jH
+# JJJWO4QdkCErwt0034q+H2mW6hG5pA6rn0klX15T8vvEZoAw/C83M7wgyk5K3i/M
+# hCL7b/md3bAFu2JwbkWtQRR0SuZV7VmCOd03l1cEePCuBCa0SLxmxH6b3rQH7hgr
+# mMll0bg4MPiMxgYa2wCiPlk3QzeCO/UCfQEPECr2IpbukSx5M6T/PSqAJlVMfCG5
+# T7B/QlzqWgAfLU0PGWZa+VQrrastXpItGI8WTqsmNTGzgvV6ZEciJltFwg/NorlB
+# FPwtm3myRhieA/ohleqEnn6a7u3acTM5CC8hDWwtiEWQGkItZ+lYBRGXK51IQ8zo
+# xshyfIsqONeI6Bi3gxxuePSCYj3DKpGZPsZjZV1GiiTOONnV+rmTCFdWoQiy67Ow
+# sXnDJ0V8OrZq6cXpWrV3sDu2l0Wx5s0wJdM85BGEtWodGA/FRWqsu7x+bwQdiSdF
+# YZ612B8F8+bXfafMCC8lwLpdwm+iMKcOf4PUmXnApT9b42l/MAMFAua/XhpCnYZh
+# NKgFTk8/TlOkDIKBFOMopr7iFZ+P1g==
 # SIG # End signature block

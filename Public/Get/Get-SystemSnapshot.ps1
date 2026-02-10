@@ -1,142 +1,190 @@
 function Get-SystemSnapshot {
-    <#
-    .SYNOPSIS
-        Collects a technician-grade system snapshot from a local or remote
-        machine.
-
-    .DESCRIPTION
-        Gathers OS, hardware, CPU, memory, disk, network, identity, and
-        service/role information from a target system. Returns a structured
-        object and exports a CSV to the configured snapshot export directory.
-
-    .PARAMETER ComputerName
-        Optional. If omitted, collects a snapshot of the local system.
-
-    .PARAMETER Credential
-        Optional. Required only for remote systems when not using current
-        credentials.
-
-    .EXAMPLE
-        Get-SystemSnapshot
-
-    .EXAMPLE
-        Get-SystemSnapshot -ComputerName SERVER01 -Credential (Get-Credential)
-    .INPUTS
-        None. You cannot pipe objects to Get-SystemSnapshot.
-    .OUTPUTS
-        PSCustomObject. A structured object containing the system snapshot data.
-    #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([pscustomobject])]
     param(
-        [string]$ComputerName,
+        [Parameter(Mandatory)]
+        [string[]]$ComputerName,
+
         [pscredential]$Credential,
-        [object]$Snapshot
+
+        [switch]$IncludeServices,
+        [switch]$IncludeRoles,
+
+        [string]$OutDir,
+
+        [switch]$NoExport,
+
+        [switch]$PreferPS7
     )
 
-    # --- Load config ---
-    $snapshotCfg = $script:cfg.settings.systemSnapshot
-    $exportPath = $snapshotCfg.exportPath
+    begin {
+        # --- Load config defaults ---
+        $ss = $script:cfg.settings.systemSnapshot
+        if (-not $PSBoundParameters.ContainsKey('IncludeServices')) { $IncludeServices = [bool]$ss.includeServices }
+        if (-not $PSBoundParameters.ContainsKey('IncludeRoles')) { $IncludeRoles = [bool]$ss.includeRoles }
+        if (-not $PSBoundParameters.ContainsKey('OutDir')) { $OutDir = if ($ss.exportPath) { [string]$ss.exportPath } else { Join-Path $script:ModuleRoot "Exports\\SystemSnapshot" } }
 
-    if ([string]::IsNullOrWhiteSpace($exportPath)) {
-        $exportPath = Join-Path $script:ModuleRoot "Exports"
-    }
+        if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
 
-    # Ensure export directory exists
-    if (-not (Test-Path $exportPath)) {
+        # Controller-side helper source and list (to zip)
+        $helperSourceDir = if ($ss.helperPath) { [string]$ss.helperPath } else { Join-Path $PSScriptRoot "..\\Private\\System\\Snapshot" }
+        $helperFilesFromCfg = @()
+        if ($ss.helperFiles) { $helperFilesFromCfg = [string[]]$ss.helperFiles }
+
+        # Resolve helper file full paths from the configured list
+        $helperFiles = @()
+        foreach ($name in $helperFilesFromCfg) {
+            $p = Join-Path $helperSourceDir $name
+            if (-not (Test-Path -LiteralPath $p)) {
+                throw "Configured helper not found: $p"
+            }
+            $helperFiles += $p
+        }
+
+        # Prepare a temp zip of helpers
+        $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_SnapshotHelpers_{0}" -f ([guid]::NewGuid()))
+        New-Item -ItemType Directory -Path $tmpRoot -Force | Out-Null
         try {
-            New-Item -ItemType Directory -Path $exportPath -Force | Out-Null
+            foreach ($f in $helperFiles) { Copy-Item -LiteralPath $f -Destination $tmpRoot -Force }
+            $zipPath = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_SnapshotHelpers_{0}.zip" -f ([guid]::NewGuid()))
+            if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
+            Compress-Archive -Path (Join-Path $tmpRoot '*') -DestinationPath $zipPath -Force
+            $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
         }
-        catch {
-            Write-Log -Level Error -Message ("Failed to create export directory '{0}': {1}" -f $exportPath, $_.Exception.Message)
-            throw
+        finally {
+            if (Test-Path -LiteralPath $tmpRoot) { Remove-Item -LiteralPath $tmpRoot -Recurse -Force }
+        }
+
+        # Worker remote path (from config)
+        $workerRemotePath = if ($ss.workerPath) { [string]$ss.workerPath } else { "C:\\TechToolbox\\Workers\\Get-SystemSnapshot.Worker.ps1" }
+
+        # Local flatteners (not shipped; used after results return)
+        $convert1 = Join-Path $PSScriptRoot "..\\Private\\Convert-SnapshotToFlatObject.ps1"
+        $convert2 = Join-Path $PSScriptRoot "..\\Private\\Convert-FlatSnapshotToRows.ps1"
+        if ((-not (Test-Path $convert1)) -or (-not (Test-Path $convert2))) {
+            Write-Verbose "Snapshot flatteners not found; NoExport will be forced."
+            $NoExport = $true
+        }
+
+        $all = New-Object System.Collections.Generic.List[object]
+    }
+
+    process {
+        foreach ($cn in $ComputerName) {
+            $session = $null
+            $remoteTmp = $null
+            try {
+                # Your existing session helper (assumed working)
+                $session = Start-NewRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
+
+                # Remote temp and helper target path
+                $remoteTmp = Invoke-Command -Session $session -ScriptBlock {
+                    $base = Join-Path $env:TEMP ("TT_Snapshot_{0}" -f ([guid]::NewGuid()))
+                    New-Item -ItemType Directory -Path $base -Force | Out-Null
+                    $base
+                }
+
+                $remoteZip = Join-Path $remoteTmp "helpers.zip"
+                $remoteHelpersPath = Join-Path $remoteTmp "helpers"
+
+                # Push the zip
+                Copy-Item -ToSession $session -Path $zipPath -Destination $remoteZip -Force
+
+                # Verify hash and expand
+                $expandedOk = Invoke-Command -Session $session -ScriptBlock {
+                    param($remoteZipParam, $expectedHash, $remoteHelpersParam)
+                    if (-not (Test-Path -LiteralPath $remoteZipParam)) { throw "Remote zip not found: $remoteZipParam" }
+                    $actual = (Get-FileHash -LiteralPath $remoteZipParam -Algorithm SHA256).Hash
+                    if ($actual -ne $expectedHash) {
+                        throw "Hash mismatch for transferred helpers.zip. Expected $expectedHash, got $actual."
+                    }
+                    New-Item -ItemType Directory -Path $remoteHelpersParam -Force | Out-Null
+                    try {
+                        Expand-Archive -Path $remoteZipParam -DestinationPath $remoteHelpersParam -Force
+                    }
+                    catch {
+                        # Fallback for older PS without Expand-Archive
+                        Add-Type -AssemblyName System.IO.Compression.FileSystem
+                        [System.IO.Compression.ZipFile]::ExtractToDirectory($remoteZipParam, $remoteHelpersParam, $true)
+                    }
+                    Test-Path -LiteralPath $remoteHelpersParam
+                } -ArgumentList $remoteZip, $zipHash, $remoteHelpersPath
+
+                if (-not $expandedOk) { throw "Failed to expand helpers on $cn" }
+
+                # Ensure worker exists at configured path on the remote.
+                # If your deployment copies workers to C:\TechToolbox\Workers during install, this will exist.
+                # Otherwise, we can copy it alongside the helpers; here's an optional fallback:
+                $workerExists = Invoke-Command -Session $session -ScriptBlock {
+                    param($p) [bool](Test-Path -LiteralPath $p)
+                } -ArgumentList $workerRemotePath
+
+                if (-not $workerExists) {
+                    # Optional: push the worker from our module to the configured path
+                    $localWorker = Join-Path $PSScriptRoot "..\\Workers\\Get-SystemSnapshot.worker.ps1"
+                    if (Test-Path -LiteralPath $localWorker) {
+                        $remoteDir = Split-Path -Path $workerRemotePath -Parent
+                        Invoke-Command -Session $session -ScriptBlock { param($d) if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null } } -ArgumentList $remoteDir
+                        Copy-Item -ToSession $session -Path $localWorker -Destination $workerRemotePath -Force
+                    }
+                }
+
+                # Invoke the worker (from configured path) with helper folder
+                $args = @(
+                    '-HelpersPath', $remoteHelpersPath
+                )
+                if ($IncludeServices) { $args += '-IncludeServices' }
+                if ($IncludeRoles) { $args += '-IncludeRoles' }
+
+                $snapshot = Invoke-Command -Session $session -FilePath $workerRemotePath -ArgumentList $args
+
+                if ($snapshot) {
+                    if (-not $NoExport) {
+                        . $convert1
+                        . $convert2
+                        $flat = Convert-SnapshotToFlatObject -Snapshot $snapshot
+                        $rows = Convert-FlatSnapshotToRows -FlatObject $flat
+                        $name = "SystemSnapshot_{0}_{1:yyyyMMdd_HHmmss}.csv" -f $cn, (Get-Date)
+                        $csvPath = Join-Path $OutDir $name
+                        if ($PSCmdlet.ShouldProcess($csvPath, "Export system snapshot CSV")) {
+                            $rows | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8 -Force
+                        }
+                    }
+                    $all.Add($snapshot)
+                }
+            }
+            catch {
+                Write-Warning ("{0}: {1}" -f $cn, $_.Exception.Message)
+            }
+            finally {
+                if ($session) {
+                    try {
+                        if ($remoteTmp) {
+                            Invoke-Command -Session $session -ScriptBlock {
+                                param($p)
+                                if (Test-Path -LiteralPath $p) {
+                                    Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue
+                                }
+                            } -ArgumentList $remoteTmp -ErrorAction SilentlyContinue
+                        }
+                    }
+                    catch {}
+                    Remove-PSSession -Session $session -ErrorAction SilentlyContinue
+                }
+            }
         }
     }
 
-    # --- Determine local vs remote ---
-    $isRemote = -not [string]::IsNullOrWhiteSpace($ComputerName)
-
-    if ($isRemote) {
-        Write-Log -Level Info -Message ("Collecting system snapshot from remote system '{0}'..." -f $ComputerName)
+    end {
+        $all.ToArray()
     }
-    else {
-        Write-Log -Level Info -Message "Collecting system snapshot from local system..."
-        $ComputerName = $env:COMPUTERNAME
-    }
-
-    # --- Build session if remote ---
-    $session = $null
-    if ($isRemote) {
-        try {
-            $session = New-PSSession -ComputerName $ComputerName `
-                -Credential $Credential `
-                -Authentication Default `
-                -ErrorAction Stop
-
-            Write-Log -Level Ok -Message ("Remote session established to {0}" -f $ComputerName)
-        }
-        catch {
-            Write-Log -Level Error -Message ("Failed to create remote session: {0}" -f $_.Exception.Message)
-            return
-        }
-    }
-
-    # --- Collect datasets via private helpers ---
-    try {
-        $osInfo = Get-SnapshotOS      -Session $session
-        $cpuInfo = Get-SnapshotCPU     -Session $session
-        $memoryInfo = Get-SnapshotMemory  -Session $session
-        $diskInfo = Get-SnapshotDisks   -Session $session
-        $netInfo = Get-SnapshotNetwork -Session $session
-        $identity = Get-SnapshotIdentity -Session $session
-        $services = Get-SnapshotServices -Session $session
-    }
-    catch {
-        Write-Log -Level Error -Message ("Snapshot collection failed: {0}" -f $_.Exception.Message)
-        if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
-        throw
-    }
-
-    # --- Close session if remote ---
-    if ($session) {
-        Remove-PSSession -Session $session -ErrorAction SilentlyContinue
-        Write-Log -Level Info -Message "Remote session closed."
-    }
-
-    # --- Build final snapshot object ---
-    $snapshot = [pscustomobject]@{
-        ComputerName = $ComputerName
-        Timestamp    = (Get-Date)
-        OS           = $osInfo
-        CPU          = $cpuInfo
-        Memory       = $memoryInfo
-        Disks        = $diskInfo
-        Network      = $netInfo
-        Identity     = $identity
-        Services     = $services
-    }
-
-    # --- Export CSV ---
-    $fileName = "SystemSnapshot_{0}_{1:yyyyMMdd_HHmmss}.csv" -f $ComputerName, (Get-Date)
-    $csvPath = Join-Path $exportPath $fileName
-
-    try {
-        $flat = Convert-SnapshotToFlatObject -Snapshot $snapshot
-        $rows = Convert-FlatSnapshotToRows -FlatObject $flat
-        $rows | Export-Csv -Path $csvPath -NoTypeInformation -Force
-        Write-Log -Level Ok -Message ("Snapshot exported to {0}" -f $csvPath)
-    }
-    catch {
-        Write-Log -Level Warn -Message ("Failed to export snapshot CSV: {0}" -f $_.Exception.Message)
-    }
-
-    # --- Output snapshot object ---
-    return $snapshot
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAp8ItAVXwhADjh
-# tzM0QokLSPhbLeSZHEybTx7Hzq2M1KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAWSuKl+zrYN/EU
+# HNqpgW23Sc+p6v92O64in9g2ylZxBaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -269,34 +317,34 @@ function Get-SystemSnapshot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBr8G5xBUXC
-# JRosSKCjljgPQr2BnD/f5KHix2cM5gU7JTANBgkqhkiG9w0BAQEFAASCAgC/nZ7O
-# 9gZQ14pyVTQhF81JgoJZ+kexkN3xTkScHtl0HUhy3b78xmvdJzDZOPkewdkA85g5
-# ftsRsmSx2gP0vKfHsMEEKfeEGcsfMWoOBib4oPhNn9R5HapYNGGZUlvHihhx0Dyi
-# UcfiIgwSQaNhGtxj6BSQc/mjY9Yn6HnWefV1WAat0vJtdV9J1KBXIyJPQVXZlnlZ
-# LJlH3VNr52Fp9eHmxXWcnuk1LhkV73/gTj4/4MHIuCa/VLM11gvzXW1ISMwHPED8
-# jolEEaTWjNuiQ7hTFRT0JKUQLXK+bx2AQS7G+QxE3Lo85DEycKtMcgSoVt90eXOV
-# thUpPZb+PUFAEQQMn2F8iGw1sS5msn4OidWbvr9EKWtm5kMJQuC+2iKG1uW+ba2M
-# +UyrlNLAIQOJzJ6iGBB8OQPzCxtr5mJixT49OTyWO0v/USKl2L1wHqsY2s5z9HYo
-# sfASdK1BnRcDPIhzOpDGAJQ+5np+VvEC4KOUgX0ROJoCJmtsYe5sSbZJQ9fhIAMj
-# MM5FZS2NWfbsnLJJ0rsN5JcrYNuZSiurdQmsjRDMnUyHPdn7NBJZfJKnMOa6Dy6Q
-# a/b2gcZqEnL0D4BQLo8CR16ggqp1uP1PaqOGZB0IRIC7Id/M2j2sJOFbnBia6awC
-# yLxcS/fmJVPh3Q8lbPZT3gDW9lVGf5DESCLk86GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXYwjNrZvf
+# jJ2E64zpNjJr5Te1Xdk5Ki6VWteZaok3uTANBgkqhkiG9w0BAQEFAASCAgDYJ/0Q
+# lsdlrhsAgxvgOBu1yyajsFpgHlnGV0PlaVbjHEXiBxgfq/wTw2MRzCAoEV7/01Dd
+# QEfJHWRX6GfgDDZTQst8IYWa8KCLyD9SA53hJPTor3i+QmE84sK3e60Bf68uQQmY
+# moDY9rGGfD/ML9ulq6Abc3VONi8GoxHu+8fCucU4c4pUipQx+4kmwG66WnT5iHTy
+# t0yf02gytwTsauc9n8rzR90bUK6rRina4MxQ0u0FvyrfcsGhPIqaAUZdDrrHbEkt
+# P8riKvvHX/+0iMM2j+WAL/jrkJc/Ykm11DlfJEYIPt5qycrMej3VYX32BASP945i
+# Qed8DlFPnkHz+7S7AMN0sBumR7WG7jtCApCtciYzHIstKk/JW43SBe/Ox9BiGokW
+# RhqlnBDGHtV9W0OIZg9O48mvWX4LEIcCfY8GWfJhDyOTMkleZzZndNvByoCfpXUO
+# O77zxXLlBGvAyxHmHXTk0qSTDlx/Nyss5uhU34TJN0C6z0aAKTFcRDmRMu4GZJdg
+# jR/lZWq5oOpM/P7xxOAqJCbAt8fi6LSgiiuunyDboGf4j8IxtxJWkJzAT8LDIHtA
+# FTPSFRTiKr92eaeNYjeyR8B1rqO+47HGLgkb6nkHa7ZXo89sOSe/vLYQLY/YsDM2
+# lV3++usTpUrFHJLf6lp4jmI3oxEK7nzy9iR/4qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAwNDIxMzlaMC8GCSqGSIb3DQEJBDEiBCDn8ltpErK4gUprYcw5
-# fEkQJUMMWT7Ow3F2KvfhkqC0wzANBgkqhkiG9w0BAQEFAASCAgBajVV4JRRl+mxD
-# +ZMybbeBh9dCSddh+F1NBaCjkjf+Xrt5Q5HugZR4Dh9lGVtpntn1cqU/wYyFDHYL
-# r7wr09e798lOu70i944iJhiuJg3RCUufL7ouIrvdkNxqTzoQGUs/DCAkx3yH/1g3
-# +pe7xz3Arx/2Hcs07/KrOgRUYJWXThtJE5DubzGWHQxRG/qmdhW752mOPy1Ov5co
-# klJc6hiVtfc1Wqe1tnDf3SAuACKdr11X863mJ27gMqalgNrITaPn6Qks/UkCaGo4
-# bMp7l3RrGvg7gF1kC1c7D9cRV6PLQlBWV5rDhCG85pVEkmaczslRt2kZrQEewVoo
-# gG9NNnb7bXrDDchMJOr75GMfi848ZsI9Vf5ntKACtHmVlB+5ylDFpS1o+OUDXvlK
-# asq1vkloSO3ZHxkNf6ySi4/H5afJMLujQ/jzGyYdOvEVTBsRCiVn1wfX50DBOJsA
-# GLi5I8xVSCpXFxba2DMEL5Aa3c+mo37czfvqW6qfngvEOttkIHCI1+PBLnw6kL7Z
-# WKP2Z8G4x5s9IFaaTfeBP+ytpZmOAsIVaRaHcBUcZRT+G7tCcQPiDt7o0ujWsZ+/
-# EKdweB9id/jbUjTJbx6/g+CV9Fw3ykoK9GfS0DhaHwTx2m+h3xkdyKBEhFoKamEq
-# 3aBs/teGDDTfYOhqYVXVu8GKq/HqsA==
+# BTEPFw0yNjAyMTAxODM0MzBaMC8GCSqGSIb3DQEJBDEiBCDhh5XxVEaSqEI7G9ZF
+# CtpCKoWVPFGo7IqkW4Prw+uhtDANBgkqhkiG9w0BAQEFAASCAgA8kv5P8G8hudGL
+# Zs4Z3n7GTELODqCGX6kWKN9wEAH8Z2O9YRRFKVum9pWKLjUIjUXH9Vg17Igbzahd
+# mXHEnl3JncvZFvO4VArrokUAPb+ufvJiD/LeSd/i7D8XmWPvRqCM2H5z9NfpBGTr
+# KIuXyAOgXZsqloW/NeVbplNiWOB62O5KPlOqgc7uOSJrKOK/TTsCwKkthdlgGIll
+# LBHnG4T9XuVsKr5r6gFxW+K7UuP6lXjk1pGrLhbtjT9JdPwSvbpAH/Z3mZJc4Iu6
+# 5xRqnzFjr9HwATWffgyPVE8IOkrpxIBwWLvYktEoZ7C6Y8sTtykET3kHUj3KKfF5
+# JSvSikJgHPgwMFqtSfNCJLiew2r+vqBQ2b9uyfqPhx7VB6ib67fUDTM7JOx/xajq
+# UZFTVBiT64wRT4tsXnkvX41FP9klf0hp3WfJIvkAybWKYwKOYuOqmxGELrgZlc+C
+# phylAjiXE1cLgsPRC1w6df8Oy1JtLzWgJY/PJmPaOScF2RtZEZtwprlD07XgfM7o
+# wq0V0JQ5967jMQufN2+RzDQ+rkEYxfrO6xLFPTpfEg9uZa4NETxc5agI8heiF1Ds
+# yVamDM1L7z4Lhh/7SEm7AtZJADh9faBtx92A2Ecb0E70ia94eGrq+KkQjp+p17cN
+# p1U2z67ZiiGtTgFDR9VUzctq0VDJDQ==
 # SIG # End signature block

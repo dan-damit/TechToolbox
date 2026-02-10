@@ -1,290 +1,93 @@
-
 function Get-RemoteInstalledSoftware {
-<#
-    .SYNOPSIS
-    Collects installed software from remote Windows computers via PSRemoting
-    (registry uninstall keys + optional Appx).
-
-    .DESCRIPTION
-    Connects to remote hosts with Invoke-Command, enumerates machine/user
-    uninstall registry entries (x64/x86), optionally includes Appx/MSIX
-    packages, returns objects, writes a summary table to the information stream,
-    and exports per-host CSVs or a consolidated CSV.
-
-    .PARAMETER ComputerName
-    One or more remote computer names to query. (Requires WinRM enabled and
-    appropriate permissions)
-
-    .PARAMETER Credential
-    Credentials used for the remote session. If omitted, current identity is
-    attempted; you may be prompted.
-
-    .PARAMETER IncludeAppx
-    Include Windows Store (Appx/MSIX) packages. Can be slower and requires admin
-    rights on remote hosts.
-
-    .PARAMETER OutDir
-    Output directory for CSV exports. Defaults to TechToolbox config
-    RemoteSoftwareInventory.OutDir or current directory if not set.
-
-    .PARAMETER Consolidated
-    Write a single consolidated CSV for all hosts
-    (InstalledSoftware_AllHosts_<timestamp>.csv). If omitted, writes one CSV per
-    host.
-
-    .PARAMETER ThrottleLimit
-    Concurrency limit for Invoke-Command. Default 32.
-
-    .INPUTS
-        None. You cannot pipe objects to Get-RemoteInstalledSoftware.
-
-    .OUTPUTS
-    [pscustomobject]
-
-    .EXAMPLE
-    Get-RemoteInstalledSoftware -ComputerName server01,server02 -Consolidated
-
-    .EXAMPLE
-    Get-RemoteInstalledSoftware -ComputerName laptop01 -IncludeAppx -Credential (Get-Credential)
-
-    .NOTES
-    Avoids Win32_Product due to performance/repair risk. Requires PSRemoting
-    (WinRM) enabled.
-
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-#>
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
     [OutputType([pscustomobject])]
     param(
-        [Parameter(Mandatory = $true, Position = 0)]
+        [Parameter(Mandatory, Position = 0)]
         [string[]]$ComputerName,
 
-        [Parameter()]
         [System.Management.Automation.PSCredential]$Credential,
 
-        [Parameter()]
         [switch]$IncludeAppx,
 
-        [Parameter()]
         [string]$OutDir,
 
-        [Parameter()]
         [switch]$Consolidated,
 
-        [Parameter()]
         [ValidateRange(1, 128)]
-        [int]$ThrottleLimit = 32
+        [int]$ThrottleLimit = 32,
+
+        [switch]$PreferPS7
     )
 
     begin {
-        # --- Config & Defaults ---
-        $defaults = $script:cfg.settings.remoteSoftwareInventory # may be $null if section not present
-
-        # Apply config-driven defaults if provided
+        # -------------------------
+        # Load config defaults
+        # -------------------------
+        $defaults = $script:cfg.settings.remoteSoftwareInventory
         if ($defaults) {
-            if (-not $PSBoundParameters.ContainsKey('IncludeAppx') -and $defaults.IncludeAppx) { $IncludeAppx = [switch]::Present }
-            if (-not $PSBoundParameters.ContainsKey('Consolidated') -and $defaults.Consolidated) { $Consolidated = [switch]::Present }
+            if (-not $PSBoundParameters.ContainsKey('IncludeAppx') -and $defaults.IncludeAppx) { $IncludeAppx = $true }
+            if (-not $PSBoundParameters.ContainsKey('Consolidated') -and $defaults.Consolidated) { $Consolidated = $true }
             if (-not $PSBoundParameters.ContainsKey('ThrottleLimit') -and $defaults.ThrottleLimit) { $ThrottleLimit = [int]$defaults.ThrottleLimit }
             if (-not $PSBoundParameters.ContainsKey('OutDir') -and $defaults.OutDir) { $OutDir = [string]$defaults.OutDir }
         }
 
-        # No SSL/session certificate relaxations: sessionParams intentionally empty
-        $sessionParams = @{}
+        if (-not $OutDir) { $OutDir = (Get-Location).Path }
 
-        Write-Log -Level Info -Message "PSRemoting will use default WinRM settings (no SSL/certificate overrides)."
-
-        # Credential Prompting
-        if (-not $PSBoundParameters.ContainsKey('Credential')) {
-            Write-Log -Level Info -Message 'No credential provided; you will be prompted (or current identity will be used if allowed).'
-            try {
-                $Credential = Get-Credential -Message 'Enter credentials to connect to remote computers (or Cancel to use current identity)'
-            }
-            catch {
-                # If user cancels, $Credential remains $null; Invoke-Command will try current identity.
-            }
-        }
+        # Worker path
+        $worker = Join-Path $PSScriptRoot "..\Workers\Get-RemoteInstalledSoftware.worker.ps1"
     }
 
     process {
-        # Remote scriptblock that runs on each target
-        $scriptBlock = {
-            param([bool]$IncludeAppx)
+        # Argument passing (simple)
+        $params = @{}
+        if ($IncludeAppx) { $params.IncludeAppx = $true }
 
-            function Convert-InstallDate {
-                [CmdletBinding()]
-                param([string]$Raw)
-                if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
-                $s = $Raw.Trim()
-                if ($s -match '^\d{8}$') {
-                    try { return [datetime]::ParseExact($s, 'yyyyMMdd', $null) } catch {}
-                }
-                try { return [datetime]::Parse($s) } catch { return $null }
-            }
+        $results = Invoke-RemoteWorker `
+            -ComputerName $ComputerName `
+            -ScriptPath $worker `
+            -Parameters $params `
+            -Credential $Credential `
+            -PreferPS7:$PreferPS7 `
+            -ThrottleLimit $ThrottleLimit
 
-            function Get-UninstallFromPath {
-                [CmdletBinding()]
-                param(
-                    [Parameter(Mandatory)][string]$RegPath,
-                    [Parameter(Mandatory)][string]$Scope,
-                    [Parameter(Mandatory)][string]$Arch
-                )
-                $results = @()
-                try {
-                    $keys = Get-ChildItem -Path $RegPath -ErrorAction SilentlyContinue
-                    foreach ($k in $keys) {
-                        $p = Get-ItemProperty -Path $k.PSPath -ErrorAction SilentlyContinue
-                        if ($p.DisplayName) {
-                            $results += [PSCustomObject]@{
-                                ComputerName    = $env:COMPUTERNAME
-                                DisplayName     = $p.DisplayName
-                                DisplayVersion  = $p.DisplayVersion
-                                Publisher       = $p.Publisher
-                                InstallDate     = Convert-InstallDate $p.InstallDate
-                                UninstallString = $p.UninstallString
-                                InstallLocation = $p.InstallLocation
-                                EstimatedSizeKB = $p.EstimatedSize
-                                Scope           = $Scope
-                                Architecture    = $Arch
-                                Source          = 'Registry'
-                                RegistryPath    = $k.PSPath
-                            }
-                        }
-                    }
-                }
-                catch {}
-                return $results
-            }
+        if (-not $results) { return }
 
-            $items = @()
-
-            # Machine-wide installs
-            $items += Get-UninstallFromPath -RegPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x64'
-            $items += Get-UninstallFromPath -RegPath "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x86'
-
-            # Current user hive
-            $items += Get-UninstallFromPath -RegPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User (Current)' -Arch 'x64'
-            $items += Get-UninstallFromPath -RegPath "HKCU:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User (Current)' -Arch 'x86'
-
-            # Other loaded user hives (HKU) - covers logged-on users
-            try {
-                $userHives = Get-ChildItem HKU:\ -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match '^HKEY_USERS\\S-1-5-21-' }
-                foreach ($hive in $userHives) {
-                    $sid = $hive.PSChildName
-                    $x64Path = "HKU:\$sid\Software\Microsoft\Windows\CurrentVersion\Uninstall"
-                    $x86Path = "HKU:\$sid\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
-                    $items += Get-UninstallFromPath -RegPath $x64Path -Scope "User ($sid)" -Arch 'x64'
-                    $items += Get-UninstallFromPath -RegPath $x86Path -Scope "User ($sid)" -Arch 'x86'
-                }
-            }
-            catch {}
-
-            if ($IncludeAppx) {
-                try {
-                    $items += Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue |
-                    ForEach-Object {
-                        [PSCustomObject]@{
-                            ComputerName    = $env:COMPUTERNAME
-                            DisplayName     = $_.Name
-                            DisplayVersion  = $_.Version.ToString()
-                            Publisher       = $_.Publisher
-                            InstallDate     = $null
-                            UninstallString = $null
-                            InstallLocation = $_.InstallLocation
-                            EstimatedSizeKB = $null
-                            Scope           = 'Appx (AllUsers)'
-                            Architecture    = 'Appx/MSIX'
-                            Source          = 'Appx'
-                            RegistryPath    = $_.PackageFullName
-                        }
-                    }
-                }
-                catch {}
-            }
-
-            $items
-        }
-
-        # Execute across one or many computers
-        $results = $null
-        try {
-            $invocationParams = @{
-                ComputerName  = $ComputerName
-                ScriptBlock   = $scriptBlock
-                ArgumentList  = @($IncludeAppx.IsPresent)
-                ErrorAction   = 'Stop'
-                ThrottleLimit = $ThrottleLimit
-            }
-            if ($Credential) { $invocationParams.Credential = $Credential }
-
-            # sessionParams is empty now; kept for symmetry
-            foreach ($k in $sessionParams.Keys) { $invocationParams[$k] = $sessionParams[$k] }
-
-            $results = Invoke-Command @invocationParams
-        }
-        catch {
-            Write-Log -Level Error -Message ("Remote command failed: {0}" -f $_.Exception.Message)
-            return
-        }
-
-        if (-not $results -or $results.Count -eq 0) {
-            Write-Log -Level Warn -Message 'No entries returned. Possible causes: insufficient rights, empty uninstall keys, or connectivity issues.'
-        }
-
-        # Write a tidy table to information stream (avoid Write-Host)
-        $table = $results |
-        Sort-Object ComputerName, DisplayName, DisplayVersion |
-        Format-Table ComputerName, DisplayName, DisplayVersion, Publisher, Scope, Architecture -AutoSize |
-        Out-String
-        Write-Information $table
-
-        # Export CSV(s) (honors -WhatIf/-Confirm)
-        $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+        # -------------------------
+        # CSV Export
+        # -------------------------
+        $timestamp = (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss')
 
         if ($Consolidated) {
-            $consolidatedPath = Join-Path $OutDir ("InstalledSoftware_AllHosts_{0}.csv" -f $stamp)
-            if ($PSCmdlet.ShouldProcess($consolidatedPath, 'Export consolidated CSV')) {
-                try {
-                    $results |
-                    Sort-Object ComputerName, DisplayName, DisplayVersion |
-                    Export-Csv -Path $consolidatedPath -NoTypeInformation -Encoding UTF8
-                    Write-Log -Level Ok -Message ("Consolidated export written: {0}" -f $consolidatedPath)
-                }
-                catch {
-                    Write-Log -Level Warn -Message ("Failed to write consolidated CSV: {0}" -f $_.Exception.Message)
-                }
+            $csv = Join-Path $OutDir "InstalledSoftware_AllHosts_$timestamp.csv"
+            if ($PSCmdlet.ShouldProcess($csv, 'Export consolidated CSV')) {
+                $results | Sort-Object ComputerName, DisplayName, DisplayVersion |
+                Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
             }
         }
         else {
-            # Per-host export
             $grouped = $results | Group-Object ComputerName
             foreach ($g in $grouped) {
-                $csvPath = Join-Path $OutDir ("{0}_InstalledSoftware_{1}.csv" -f $g.Name, $stamp)
-                if ($PSCmdlet.ShouldProcess($csvPath, "Export CSV for $($g.Name)")) {
-                    try {
-                        $g.Group |
-                        Sort-Object DisplayName, DisplayVersion |
-                        Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-                        Write-Log -Level Ok -Message ("{0} export written: {1}" -f $g.Name, $csvPath)
-                    }
-                    catch {
-                        Write-Log -Level Warn -Message ("Failed to write CSV for {0}: {1}" -f $g.Name, $_.Exception.Message)
-                    }
+                $csv = Join-Path $OutDir ("{0}_InstalledSoftware_{1}.csv" -f $g.Name, $timestamp)
+                if ($PSCmdlet.ShouldProcess($csv, "Export CSV for $($g.Name)")) {
+                    $g.Group |
+                    Sort-Object DisplayName, DisplayVersion |
+                    Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
                 }
             }
         }
 
-        # Return objects to pipeline consumers
-        return $results
+        # Return objects to pipeline
+        $results
     }
+
+    end {}
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDMZzvZzu+q7WVh
-# 3WLZTwTB7Qc3ovHEOUueRNkXdmfCtaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAyx/hXSaStWatL
+# GOrtiTyu/bqDhQSU1enztcIWGd9nFKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -417,34 +220,34 @@ function Get-RemoteInstalledSoftware {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBg8ETt25nP
-# hpJWrPi4T/HaTjPAZnYxiG5V7HFqA6veqzANBgkqhkiG9w0BAQEFAASCAgBr8KXr
-# ZcxHIQT5+nyb1qOb5C1k8xazhYOL2lmHNTcP3gB32d1HXc+6/zu6d/l0Y52YkYV5
-# xwqVGVn9BKgaxcqGhm7AVRBuuL1NcGigxaHAuA8cObttDAbJWv99opiL54/erc8K
-# CKa3GpXMsQH42GYs1vQpAt7GCahEN/HFfV6/APYVA2L+BUkZcFjlT7zI5tg3iSgd
-# 09tjZIcec6+GTLqpEOE5x6DUCrid7bDh0Uue6iNDUEuQBKkrvp1f0Zpq7d7kUBKu
-# fdL+bwkpdvS7MNnkbUscbQSpJm53jwKlHosurts3MB0nUWWSrzRcVoA47yGH1jym
-# cjSKLG0D0CN73y722F9wDuYUGVPZFH+rBUTGRls9BsGdKiutd2CRbKwldy1PXUFR
-# 4OHgTOj62WW/jzcPCzRacGoZHZgeRt9JbKpfhIuxEnL/4PIwcRyNCVLMieUGH59o
-# KjoMs345XPz+Nn3i04eGVbOmJyllsIZPejPAaLzBiR2s9dpuFypJd1scavas+WGP
-# 81Cpmz0RcLIIbRNZBo5T7xCVJXHlNrm9/7e6zEiWufiY1htHqSw/IItkHSQLAoyI
-# I1jDPYVR6ZBGgycUCM1HGUGc0DjzFWrVvpdYv1XZwKX5PFvYQ/o+NRtMNjtL/C3g
-# 3+gL/LV+ljkqm+89RmaxdZ/+Nb0etNPVJl7KBKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBCVNpmRFOi
+# ZPHEINQbtXxSaq4vmfivLTTfZtTKeqUh9zANBgkqhkiG9w0BAQEFAASCAgBIRVOJ
+# TWdWO1upzXO9GKMUmZqQEzlJ0iv0Q+jDdixcruoCbAlZX+OtQzg+e+BSkjtu/3nd
+# bMQmhPF3aixi7TwJbQQQcbEcfPTPjLOjzt5NH4Kkl/2YFGrYHvebw+xnxtCr4BAb
+# wxmilJg69A/8kpAr1WLlfBf5e808NWibBP+Oa55a/VIboAk6HjpP+V416YKpWD0L
+# hHvODdBrXWLzr2AWg9TmFyI49gUdJ5pZByrdWnYDCl3l6Q7S52lvni95HtFW45mc
+# GNzrqJ5SogNhvsN0IB4ytYPe/nIoS/sh6mWz7zYed7qc/3rHhpT1Ml1r8pgZiBvi
+# 9BBnWGMxX+tehWpTQeCYxXyXkIKDluBA/NaimfHUtjyhyZXvFavDM9hgguWxmVKr
+# L07XrXQyvyucmFmJjKmhJ8WW91uxNx0kxSZ8N1cLSuQE6+weoTzefJOAQR8mCxSB
+# MSw69sEUl9g4jwVIm/i87SVYq8q7hW5pVI6XO6Fb/Wy6ymD++XDVLj+/TBU8ivFZ
+# 8PjWG5j9rpXnbR3YgSZioGr/7ii5nb2nPB+qDXxakgpR0XcRut1AtJvobz1QopX0
+# UWY9fIbGs4bft7msIvXozFH46KpmrLNXX2CgI89lXL2xwsQPqfTC+OoRKy+TEzMw
+# L7iWtDuZnneWIIPMldnXX1UCdlIIwVKUaNJk06GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAwNDIxMzlaMC8GCSqGSIb3DQEJBDEiBCC1D823AafL/yZlM4XR
-# fN+c5rEvlijzZDOFCd8F0903TzANBgkqhkiG9w0BAQEFAASCAgCxBOSEakki/gDV
-# WIqNgNEeu2FiUqzZLi5H3A+PZVHPbRDFjOOMbnlB/ZsYShcyvVBgUFgb4dqc9Sdn
-# x/3/misxHDCeHdmVbdevfetlp7+yRFdYySXk82rlOcT67yywUSWKusMkzPBLZFIP
-# LWSEmf6wxOZkXV8O09BuRhzaTDv8IQXupJPcj3zv2VhnE33Iq9eIa9YLVVQQIOMH
-# /g+YZqPiMe9DIow97+EVVFRkAeWLTp0WJlZywRiJPbwNxMVdJ8Cw1TTFKy1EQkcF
-# sd2ROOUlSK08b2vT7SPXI1OWeNoOZsKPW/edawuwlKNr3X/P3ZtLBRQC3WCC3cbA
-# G57J2pFldQn2uAvxOzCYtNx96AvLEWV3S/I/LxgDKCvzVCN6SZYc4+13KiH/zfZe
-# VIh7S8bo6Mi9PipzzOYxcLPgvVgMdz6CjpWoWjuWmscKr7rdvEhd4EHGoGthJ4do
-# JxQxNS2KkrakgrTRhpj+YyCPkkLmiZUPXjQWwy6XXmqVXv/5vkp9FMP2/kLP1JW5
-# Tvy3mBy3WAEBfBXno5xsZBUq7oOF3Z2G6jjO0q185jtRaqDf1U++MfFEw54UvC1n
-# oZ4F1+ARiuv5cOD5K9GReTreb5frX75wY5OBZdRA21GrZne6Lz2FXKH8HaY3So2W
-# xyzOSsrL6TVpO0p1fDT1j8MyQlUNRw==
+# BTEPFw0yNjAyMTAxNDQzMzlaMC8GCSqGSIb3DQEJBDEiBCAV9lI+sPrqudp/W6x1
+# Hn0BnJ0+KX5Uten45/o/SVOsmzANBgkqhkiG9w0BAQEFAASCAgCS387zb1t3sml3
+# vJpilMbtSdFFWbGo2T0TNuRw/imsdGe/Pwj/0uv9+5OxqgTu4501ZVoY/VU+L7Ag
+# vQ4mvYkYObqYCw4CT0wDiVQqLayi4mHTzCtxjUaaBNx6xObBbYZIrNn/r58uI4IP
+# mlJPuTdxZX8Sc3lneXh8ldBPnZlZIDE+XPzsEk9qKWqklqkTBBcCZ34D1fvkO9WR
+# Zsm9PjgkwwhRPaqOwuAj5SLg+oaQK4TbSi8dmc+NBjXaDBOsGFQgZ8QohWK+NXwn
+# q+mLIHEYKIKtN+AKV1MnAMIqO5UFwj0m6o4RwiUFmqW2KxLYrKqJ2fC4544ceZ5P
+# uHUQ1X6t2cEO8/Q9+1GX8H5NFNoESlaxKAbdxyKYA5/rrCZpKCbRbZkVdpUg4M+T
+# EVqTjEB355CL6DRZauftcU1SrN28OtT/W4pWUfr5REHAsUkWAfoyajZ+SJXK9orU
+# jTeWJGaj3MfscY3q9CWrnxuNi2GHbc92wnOoDxH1N7NiC7tNVTPWvY4KhEj+XII9
+# Flh/vegLF07SzOWkfaQQg/+FbxmDMhQhmujPBYSsuXI+IR07TfTd1pV4togJVhwn
+# 1QIRNVDeSwnbUenNs1cY4jzYLEXQZffyR1ymDnehY45LujdTrWXVgpLJyHDiQen9
+# a108Lf7ETmjRNfLZW8uQa07lzSbQGg==
 # SIG # End signature block

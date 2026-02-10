@@ -1,80 +1,176 @@
-function Get-SnapshotIdentity {
-    [CmdletBinding()]
-    param(
-        [System.Management.Automation.Runspaces.PSSession]$Session
-    )
+[CmdletBinding()]
+param()
 
-    Write-Log -Level Info -Message "Collecting identity information..."
+<#
+.SYNOPSIS
+    Collect identity details (domain/workgroup, logged-on users, AD site, machine SID).
+.DESCRIPTION
+    Worker-friendly: runs locally on the target, no remoting, no module-specific logging.
+    Emits a simple PSCustomObject safe for remoting serialization.
+#>
 
+Write-Verbose "Collecting identity information..."
+
+function Get-MachineSidSafe {
+    <#
+    .SYNOPSIS
+        Returns the machine SID (S-1-5-21-...).
+    .DESCRIPTION
+        Uses the local account with RID 500 (built-in Administrator) to derive AccountDomainSid,
+        which equals the machine SID on workgroup or the domain SID on domain-joined machines.
+        More robust than assuming the local admin is literally named 'Administrator'.
+    #>
     try {
-        # Computer system info (domain/workgroup, logged-on user)
-        $cs = if ($Session) {
-            Invoke-Command -Session $Session -ScriptBlock {
-                Get-CimInstance -ClassName Win32_ComputerSystem
+        $admin = Get-LocalUser -ErrorAction Stop | Where-Object { $_.SID -match '-500$' } | Select-Object -First 1
+        if ($admin -and $admin.SID) {
+            # AccountDomainSid is the machine (or domain) SID without the RID suffix
+            return $admin.SID.AccountDomainSid.Value
+        }
+    }
+    catch {
+        Write-Verbose ("Get-MachineSidSafe: {0}" -f $_.Exception.Message)
+    }
+    return $null
+}
+
+function Get-AdSiteNameSafe {
+    <#
+    .SYNOPSIS
+        Returns the AD site name if domain-joined and reachable.
+    .DESCRIPTION
+        Tries .NET (System.DirectoryServices.ActiveDirectory) first; falls back to 'nltest /dsgetsite'.
+    #>
+    try {
+        Add-Type -AssemblyName System.DirectoryServices.AccountManagement -ErrorAction SilentlyContinue | Out-Null
+        Add-Type -AssemblyName System.DirectoryServices -ErrorAction SilentlyContinue | Out-Null
+        $site = [System.DirectoryServices.ActiveDirectory.ActiveDirectorySite]::GetComputerSite().Name
+        if ($site) { return $site }
+    }
+    catch {
+        # Fall back to nltest if present
+        try {
+            $nl = (Get-Command nltest -ErrorAction SilentlyContinue)
+            if ($nl) {
+                $out = & nltest /dsgetsite 2>$null
+                if ($LASTEXITCODE -eq 0 -and $out) {
+                    # nltest usually returns the site name on the first line
+                    $line = ($out | Select-Object -First 1).ToString().Trim()
+                    if ($line -and $line -notmatch 'is not a recognized') { return $line }
+                }
             }
         }
-        else {
-            Get-CimInstance -ClassName Win32_ComputerSystem
+        catch {
+            # ignore
         }
+    }
+    return $null
+}
 
-        # Computer SID (optional but useful)
-        $sid = if ($Session) {
-            Invoke-Command -Session $Session -ScriptBlock {
-                (Get-LocalUser -Name "Administrator" -ErrorAction SilentlyContinue |
-                Select-Object -ExpandProperty SID).AccountDomainSid.Value
-            }
-        }
-        else {
-            (Get-LocalUser -Name "Administrator" -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty SID).AccountDomainSid.Value
-        }
+function Get-LoggedOnUsersSafe {
+    <#
+    .SYNOPSIS
+        Attempts to enumerate interactive users.
+    .DESCRIPTION
+        Win32_ComputerSystem.UserName gives a single primary user (console). For RDS or multiple
+        sessions, try 'quser' if available; otherwise fall back to CIM.
+    #>
+    $users = @()
 
-        # AD Site (domain-joined only)
-        $adSite = $null
-        if ($cs.PartOfDomain) {
-            try {
-                $adSite = if ($Session) {
-                    Invoke-Command -Session $Session -ScriptBlock {
-                        ([System.DirectoryServices.ActiveDirectory.ActiveDirectorySite]::GetComputerSite()).Name
+    # quser (qwinsta alternate) is fast and present on most Windows
+    try {
+        $cmd = Get-Command quser -ErrorAction SilentlyContinue
+        if ($cmd) {
+            $lines = & quser 2>$null
+            foreach ($l in $lines) {
+                # Skip headers, parse lines like:
+                # USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME
+                # jdoe                  rdp-tcp#12          2  Active      1:23   2/10/2026 9:15 AM
+                if ($l -match '^\s*(\S+)\s+(.+?)\s+(\d+)\s+(\S+)\s+') {
+                    $users += [pscustomobject]@{
+                        User    = $matches[1]
+                        Session = $matches[2].Trim()
+                        Id      = [int]$matches[3]
+                        State   = $matches[4]
                     }
                 }
-                else {
-                    ([System.DirectoryServices.ActiveDirectory.ActiveDirectorySite]::GetComputerSite()).Name
-                }
-            }
-            catch {
-                # Non-fatal — AD site lookup can fail if DCs are unreachable
-                $adSite = $null
             }
         }
     }
     catch {
-        Write-Log -Level Error -Message ("Failed to collect identity info: {0}" -f $_.Exception.Message)
-        return @{}
+        Write-Verbose ("Get-LoggedOnUsersSafe(quser): {0}" -f $_.Exception.Message)
     }
 
-    # Normalize logged-on user
-    $loggedOn = if ($cs.UserName) { $cs.UserName } else { $null }
-
-    $result = @{
-        ComputerName = $cs.Name
-        DomainJoined = $cs.PartOfDomain
-        Domain       = if ($cs.PartOfDomain) { $cs.Domain } else { $null }
-        Workgroup    = if (-not $cs.PartOfDomain) { $cs.Workgroup } else { $null }
-        LoggedOnUser = $loggedOn
-        ADSite       = $adSite
-        ComputerSID  = $sid
+    if (-not $users) {
+        # Fallback: map Win32_LoggedOnUser to accounts (can include service accounts)
+        try {
+            $rels = Get-CimInstance Win32_LoggedOnUser -ErrorAction Stop
+            # rels has Antecedent (account) and Dependent (logon session)
+            foreach ($r in $rels) {
+                $acc = ($r.Antecedent -replace '^.*Domain="([^"]+)",Name="([^"]+)".*$', '$1\$2')
+                if ($acc -and $users.User -notcontains $acc) {
+                    $users += [pscustomobject]@{
+                        User    = $acc
+                        Session = $null
+                        Id      = $null
+                        State   = $null
+                    }
+                }
+            }
+        }
+        catch {
+            Write-Verbose ("Get-LoggedOnUsersSafe(CIM): {0}" -f $_.Exception.Message)
+        }
     }
 
-    Write-Log -Level Ok -Message "Identity information collected."
+    return $users
+}
 
+try {
+    $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
+
+    $machineSid = Get-MachineSidSafe
+    $adSite = $null
+    if ($cs.PartOfDomain) {
+        $adSite = Get-AdSiteNameSafe
+    }
+
+    $primaryUser = if ($cs.UserName) { $cs.UserName } else { $null }
+    $allUsers = Get-LoggedOnUsersSafe
+
+    $result = [pscustomobject]@{
+        ComputerName  = $cs.Name
+        DomainJoined  = [bool]$cs.PartOfDomain
+        Domain        = if ($cs.PartOfDomain) { $cs.Domain } else { $null }
+        Workgroup     = if (-not $cs.PartOfDomain) { $cs.Workgroup } else { $null }
+        LoggedOnUser  = $primaryUser
+        LoggedOnUsers = $allUsers          # optional richer view
+        ADSite        = $adSite
+        ComputerSID   = $machineSid
+    }
+
+    Write-Verbose "Identity information collected."
     return $result
 }
+catch {
+    Write-Verbose ("Get-SnapshotIdentity: {0}" -f $_.Exception.Message)
+    return [pscustomobject]@{
+        ComputerName  = $env:COMPUTERNAME
+        DomainJoined  = $null
+        Domain        = $null
+        Workgroup     = $null
+        LoggedOnUser  = $null
+        LoggedOnUsers = @()
+        ADSite        = $null
+        ComputerSID   = $null
+        Error         = $_.Exception.Message
+    }
+}
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC1OdnqhgxiFXjp
-# OGOPA3zFSrc4BYG/q5Huf6oWtQaNTaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBq+DQ5dzo2Wy4A
+# BuXdK1YHiayY545cHiG1+o2DeBPeIqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -207,34 +303,34 @@ function Get-SnapshotIdentity {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBLWRPeOMDR
-# 2SM90b7c1fVwh4vfA0VQM//oAQrtrwNZIjANBgkqhkiG9w0BAQEFAASCAgDAPVcy
-# mQF+k7a6X8wh4n22Uub7mTJRdLLfsXKpit3p3IIX0E7nBA+QK+2ipWuFc4uPUd11
-# cgpMSV73EG4EwdL5k+wKuXLhVNQZ2FuwtT3WEeAq5MhCnWqe+cXCZMwX8e4tUvTc
-# qA7RKmv+ZgaV+2Une1L5s7KJg/BgXvO5HXATZ5qMmX5gcFUcynYkfs0SZUVtJNNU
-# zmKsVPJSJrFQL8sVD5S3MRcJEeZd4rto7MtbILrc4Fy+abHDHeykmNjCH64c+mzq
-# HswTjFBNxCBFoyW2mUtbDpJutG8LhwSJLkUcFxDBnRugnh+4SOde77OpgBqfM6Rq
-# 5YgbB7D1/O+05YNCvjMFUaWC1rm4B/y5BCTedWQT8AeeGoDvNf6ld6pFhSkS2s3R
-# EBnEE2ADurcBmLD4NjPtqOA2km23CC+CvDGF4OmZetCqCusFjU0KF8RYeGG+v9Rm
-# wBOU9YJf6Z8K5/BLBs9uEKROsBK1gv2pFnUfN9kVVpxS41yLsiZgQiINPF2dioha
-# LYX5Azwhhax/OhYLd2NfQexdSsqyMLT4cttu9TukZarXyZcBo8oDW1jKie48vS33
-# nAgRuVDVsM2BMp8zuFsU9qcycdBov7pnYpWCtPbrcXVFZqoo0giSmtM1iQcZ0MOX
-# mQE2lqT47TeO8AL8EMZPXF+aoNsDWmcCAavLd6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDeWFuPzzhA
+# jpCoBWmD/Z+Mc3TsVAAa6uqZaEeedXCqQjANBgkqhkiG9w0BAQEFAASCAgDStM1i
+# vZQ3Q2JSSPFiO3kIACj1sH6vGwZNTND/JF+BwbWqOj+rV5hQI8tdfb8qSzJ4eQss
+# Qqzkeh4wuFW8fc7P2dk4t1TeKnhgv0GeIRxwIy8FquEN9jNs/OlAKlXBwfgQ0zR4
+# R58dB/qIH+FvGaz7FwxeRGnxry5XV8ZjFqM+MuI9nzs0kl7nxDHui77PsXqi0w0Y
+# gNhQiQMNy1MrtZnrQjLdOT1r2A2ycAGknUjRdTRHeDvQVojrBXcab1gDukd78jMV
+# OSCkCAnU2VsPJJcAlkq9gEmBhlyYeQ+WP239RnH19UPnkPtOp9IHWUEhg/Rb6A/N
+# goFIpCIoqznizP6D7C2MkKMixzKMj1JSqXV3OC7b95xWazPZkdimpxXNf0Dbc3hE
+# y34h+mLw3/9hCF+CzmX3OHLkHGdUj0Eor9RtBko57Dp4kXKlXrETvjkBb8gc8JFq
+# SjMYLRfbYPgzBIFJ2/I2rz6hb0K3/mqjN4Np039k9xbsxAqkfyrpiJLhU95JkN7i
+# fJVD9wXM2rwMk5bVY+EN41UCeA/MSuc+pcdngcbBZUwXCyWWbXiCLrIW6BMWc1AU
+# 159H9W80ONUhy5ERhL1jVUzo+SlULtXEXzoHvhNMljutQMf5jqqHy4MzbamFQwl7
+# BaZKPaDsJh+/qbL7YMwyjna44R7AH3HbHD/ox6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NDdaMC8GCSqGSIb3DQEJBDEiBCDsywRNu9YASu9hm3Jz
-# jOOSBxNLzqRHMq9oiQVcKkh2JjANBgkqhkiG9w0BAQEFAASCAgBz2CK4jCzShDo2
-# UigdZxw73wgm5VyZmhG+kGosRH+A2ub+zFUrVOM+I5wvrRI1gksFLL7A0nYY+LXj
-# yXrqADcwWfsC3EYA6m9D9LHShNh3r4tIV5wLgKqxNdKFDfT2avSpk5DHuo4K6A3Z
-# ucMz5dOKJ2rTP/NUrJToWdJ/kvZmcRwY23CD89E/z+uS/tQWDUDaNAPRqwJuj9d+
-# r9+fN1HjKpHi+hPkC+Hd9MRbUUUddsMvDibOQn/yJh0Mcy9i6nUjugk+7v6o0tL8
-# nrenu9c+3yAjhyW/ll8LgHBhU+Q7w4X47jj56SCbCmYf2ex2+EUJsk7gAiE9Dqz/
-# IQgQNA4f3xQwqOKX/b3+2QlGtFyeryFE1bu4r0JkReftUFrdkwO7bI1DgjKHVlHj
-# Pw6sQFBg52GKKgD/il35w38wOTw22lG+HAGUdcgxAt5yJ+9zjYzrxqEznJ8p00p/
-# 3dvTHvdJMwVjcb1a6tOPwWjeoBbwovns8vOVBJDq+zAvxPWCSiLtTVyZQ2LOL+5x
-# w95HN1j5Fd0vMXFFDH+WZMushY/1fa0jinfRzS2TsMIPcgJs0LM1oYoXTpN8k/YC
-# 3XQCnlJxQBRkA5uJDvPWY8CzKe4iLGmdgRL2S2ykFR7hoZjq/Z2NNnRCDnCi6eR7
-# qkHowuTrRT2Im5yGsZV2y6Jzfya5mQ==
+# BTEPFw0yNjAyMTAxODM0MjhaMC8GCSqGSIb3DQEJBDEiBCBWevN1KWJxK5N4Qb0R
+# /uIOBO7mkwEqPi/X+UoP1y1CSjANBgkqhkiG9w0BAQEFAASCAgCDTB9kTzDx2Etm
+# pA+/7QTxXMI9y/XoJaeaHa8cT1VS8Fd9epVksRIRi/8ahHg0FuJs7OYSkeSMZSeC
+# UP+7rwTTecuxW6BkIvj34vjI07ci/oShBK2t6RA9QMaNyxUSTSmAeyk+qThH36hP
+# sww8xT0APMaCSOju2tziLNmz5FCpIbV79h9kZPGzUZ5dJF3EXSsv+rTibQzt/XZu
+# jPoWVeqYvBEXH/X+7n2FiPqHzAdekx4hi+3BZe56wIaYDsekYh+oRs9ZC1LvSomh
+# 88IN9ADwJ30Db7tnBiaBPBsgvM9h/lUJgvzEFkjL5c2CNNSfN4Ut2gv/Tz4zTUvX
+# lqBzDLfpKaYyxbLzjI0C6ehM2+CaVEO18FjCTH5u+N2Hk5huXmZetv6vok7Z/RGB
+# qZPmg/yWm/I3tlU5euyFYRP8AzIj8CS4TZZthSyqG7M/jBWxvCP0elSXTjB+JIQF
+# MR1ndZAh9C0lj4Znsh9FN4qCU41ROlW2nQIFlkqraHTvd2Ij0ZW5PAPWfWITd0Ew
+# URDE4OXDQuFSJqT/F4ajghm3O0VigjLn/d/tXinEEP1tBoTWyvkvbBjyVz2RSttm
+# CZcdbzV89blvojxKpgQtEoV+UoRjvA17QUOg1nebPbOuynuOqy822PKHfRugPRHJ
+# c8mXWKTuV7dJS26eUc1ETNoNG2k9FA==
 # SIG # End signature block
