@@ -1,129 +1,107 @@
+function Write-Log {
+    [CmdletBinding()]
+    param(
+        [ValidateSet('Error', 'Warn', 'Info', 'Ok', 'Debug')]
+        [string]$Level,
+        [Parameter(Mandatory)][string]$Message
+    )
 
-function Initialize-Logging {
-    <#
-    .SYNOPSIS
-        Initializes TechToolbox logging settings from $script:TechToolboxConfig.
-
-    .OUTPUTS
-        [hashtable] - Resolved logging settings.
-    #>
-
-    # Ensure a single $script:log state hashtable
-    if (-not $script:log -or -not ($script:log -is [hashtable])) {
-        $script:log = @{
-            enableConsole = $true
-            logFile       = $null
-            encoding      = 'utf8'    # Can expose this via config later
-        }
+    # ---- Fast path guards & mappings ----
+    $log = $script:log
+    if (-not ($log -is [hashtable])) {
+        # If logging wasn't initialized, do a minimal, non-throwing fallback.
+        # Avoid touching $script:cfg to keep this cheap.
+        Write-Host "[$Level] $Message" -ForegroundColor Gray
+        return
     }
 
-    $cfg = $script:cfg
-    if (-not $cfg) {
-        # Keep graceful behavior: console logging only
-        $script:log.enableConsole = $true
-        $script:log.logFile = $null
-        Write-Verbose "Initialize-Logging: No TechToolboxConfig present; using console-only logging."
-        return $script:log
+    # Map level -> int for quick filter (0=Error, 1=Warn, 2=Info/Ok, 3=Debug)
+    switch ($Level) {
+        'Error' { $lvl = 0 }
+        'Warn' { $lvl = 1 }
+        'Info' { $lvl = 2 }
+        'Ok' { $lvl = 2 }
+        'Debug' { $lvl = 3 }
+        default { $lvl = 2 }
     }
+    $min = $log['MinLevel'] ?? 2
+    if ($lvl -gt $min) { return }  # filtered; do nothing (no allocs)
 
-    # Safe extraction helpers
-    function Get-CfgValue {
-        param(
-            [Parameter(Mandatory)] [hashtable] $Root,
-            [Parameter(Mandatory)] [string[]] $Path
-        )
-        $node = $Root
-        foreach ($k in $Path) {
-            if ($node -is [hashtable] -and $node.ContainsKey($k)) {
-                $node = $node[$k]
+    $tsEnabled = $log['IncludeTs'] ?? $true
+    $ts = if ($tsEnabled) { (Get-Date).ToString('yyyy-MM-dd HH:mm:ss ') } else { '' }
+
+    # ---- Console (fast) ----
+    if ($log['enableConsole']) {
+        if ($log['UseAnsi']) {
+            # PS7 ANSI path (single write with escape codes)
+            $color = switch ($Level) {
+                'Error' { "$($PSStyle.Foreground.Red)" }
+                'Warn' { "$($PSStyle.Foreground.Yellow)" }
+                'Ok' { "$($PSStyle.Foreground.Green)" }
+                'Debug' { "$($PSStyle.Foreground.BrightBlack)" }
+                default { "$($PSStyle.Foreground.BrightBlack)" }
             }
-            else {
-                return $null
-            }
-        }
-        return $node
-    }
-
-    $logDirRaw = Get-CfgValue -Root $cfg -Path @('paths', 'logs')
-    $logFileRaw = Get-CfgValue -Root $cfg -Path @('settings', 'logging', 'logFile')
-    $enableRaw = Get-CfgValue -Root $cfg -Path @('settings', 'logging', 'enableConsole')
-
-    # Normalize enableConsole to boolean
-    $enableConsole = switch ($enableRaw) {
-        $true { $true }
-        $false { $false }
-        default {
-            if ($null -eq $enableRaw) { $script:log.enableConsole } else {
-                # Handle strings like "true"/"false"
-                $t = "$enableRaw".ToLowerInvariant()
-                if ($t -in @('true', '1', 'yes', 'y')) { $true } elseif ($t -in @('false', '0', 'no', 'n')) { $false } else { $script:log.enableConsole }
-            }
-        }
-    }
-
-    # Resolve logFile
-    $logFile = $null
-    if ($logFileRaw) {
-        # If relative, resolve under logDir (if present) else make absolute via current location
-        if ([System.IO.Path]::IsPathRooted($logFileRaw)) {
-            $logFile = $logFileRaw
-        }
-        elseif ($logDirRaw) {
-            $logFile = Join-Path -Path $logDirRaw -ChildPath $logFileRaw
+            $reset = $PSStyle.Reset
+            # Single emit to console
+            [Console]::WriteLine("{0}{1}[{2}] {3}{4}" -f $color, $ts, $Level, $Message, $reset)
         }
         else {
-            $logFile = (Resolve-Path -LiteralPath $logFileRaw -ErrorAction Ignore)?.Path
-            if (-not $logFile) { $logFile = (Join-Path (Get-Location) $logFileRaw) }
-        }
-    }
-    elseif ($logDirRaw) {
-        $logFile = Join-Path $logDirRaw ("TechToolbox_{0:yyyyMMdd}.log" -f (Get-Date))
-    }
-
-    # Create directory if needed
-    if ($logFile) {
-        try {
-            $parent = Split-Path -Path $logFile -Parent
-            if ($parent -and -not (Test-Path -LiteralPath $parent)) {
-                [System.IO.Directory]::CreateDirectory($parent) | Out-Null
+            # Legacy host coloring
+            switch ($Level) {
+                'Error' { Write-Host "$ts[$Level] $Message" -ForegroundColor Red }
+                'Warn' { Write-Host "$ts[$Level] $Message" -ForegroundColor Yellow }
+                'Ok' { Write-Host "$ts[$Level] $Message" -ForegroundColor Green }
+                'Debug' { Write-Host "$ts[$Level] $Message" -ForegroundColor DarkGray }
+                default { Write-Host "$ts[$Level] $Message" -ForegroundColor Gray }
             }
         }
-        catch {
-            Write-Warning "Initialize-Logging: Failed to create log directory '$parent'. Using console-only logging. Error: $($_.Exception.Message)"
-            $logFile = $null
-            $enableConsole = $true
-        }
+    }
+    else {
+        # Keep critical surfacing even when console is off
+        if ($Level -eq 'Error') { Write-Error $Message }
+        elseif ($Level -eq 'Warn') { Write-Warning $Message }
     }
 
-    # Optional: pre-create file to verify writability
-    if ($logFile) {
+    # ---- File logging (lazy & reused StreamWriter) ----
+    $path = [string]$log['logFile']
+    if ([string]::IsNullOrWhiteSpace($path)) { return }
+
+    # Lazily create the StreamWriter once
+    if (-not $log['FileWriter']) {
         try {
-            if (-not (Test-Path -LiteralPath $logFile)) {
-                New-Item -ItemType File -Path $logFile -Force | Out-Null
+            $dir = Split-Path -Path $path -Parent
+            if ($dir -and -not (Test-Path -LiteralPath $dir)) {
+                [System.IO.Directory]::CreateDirectory($dir) | Out-Null
             }
-            # quick write/append test
-            Add-Content -LiteralPath $logFile -Value ("`n--- Logging initialized {0:yyyy-MM-dd HH:mm:ss.fff} ---" -f (Get-Date)) -Encoding utf8
+
+            $writer = New-Object System.IO.StreamWriter($path, $true, (New-Object System.Text.UTF8Encoding($false)))
+            $writer.AutoFlush = $true
+            $script:log['FileWriter'] = $writer
         }
         catch {
-            Write-Warning "Initialize-Logging: Unable to write to '$logFile'. Falling back to console-only. Error: $($_.Exception.Message)"
-            $logFile = $null
-            $enableConsole = $true
+            # Fail open: disable file logging for this session
+            $script:log['logFile'] = $null
+            $script:log['FileWriter'] = $null
+            Write-Warning "Write-Log: file open failed ($path): $($_.Exception.Message)"
+            return
         }
     }
 
-    # Persist resolved settings
-    $script:log['enableConsole'] = $enableConsole
-    $script:log['logFile'] = $logFile
-    $script:log['encoding'] = 'utf8' # consistent encoding
+    # Header (once)
+    if (-not $log['HeaderWritten']) {
+        $script:log['FileWriter'].WriteLine( ("--- Logging initialized {0:yyyy-MM-dd HH:mm:ss.fff} ---" -f (Get-Date)) )
+        $script:log['HeaderWritten'] = $true
+    }
 
-    return $script:log
+    # Fast append
+    $script:log['FileWriter'].WriteLine("{0}[{1}] {2}" -f $ts, $Level, $Message)
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCenFWym6O+9DQg
-# PGwDWXdSJEKwT7zX5V8d4W6S4FPuUKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCcFsVlfm+xxIMi
+# x2U15aSXXFFWm0NVyXVGf+njptHobKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -256,34 +234,34 @@ function Initialize-Logging {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAK7MSjdZ5G
-# 42uUGPTI9HT2kHz4XB9BuwjVjzAvUq3ExjANBgkqhkiG9w0BAQEFAASCAgBjzDtq
-# /AfZ4bMLrXz4qNXCTKmNA8IPAVm5xQDNVUpLmZbkf+SqwkP90mqwZC4i6lbNX9i/
-# g0XeivwbYT9KSiET8HTaMzhyuzy4CCuK/YlywCp9Oc8wXArAHRrZdPb5zoQrOl6V
-# bCrjlpw04xTJy0GDl7xdRGNvKZ1laPDHoE0j/KTskNNisyt4PrxotdqWJLyEXdxY
-# 9CFNlYqZvwOX8OATS2z1k2fUDSkU0dUY64IVvUtzBAj4lzfxSEXKqoJ272zdkvaa
-# RcQbRTXiQSj49o8BR3NKxyACkMFSqwI0/U1yh9diIXu1AlpXjynpFHen6PuIP1M9
-# fj/6WmWY+AzJU1UCGJhpCIE8i4HWguUHak5/rAlqnGv/9mz2II2HLEk/lClcRjm5
-# 2rPV39ORCJsHXIUVeSI1K1GbohJ7mskO9V9TmuRs9kL4GXWBnsZZ4KhfcFbzUs1F
-# wo6f96bg7e2wecDjWT8VaZlhR85gbSHWwFaV1IA/QBIVgnGGjUZBYBya0dU18jmS
-# zpzBf6WnsVW12Iir/xXW+FQhljKXbuR8+tCrapgSu4n1Rjscund06LwckkcKxMQE
-# kAAMc0QPIm1jobktrGGkjykd15yxplce02UgG11BeUUXmBdRf+710C6Nin1BaneG
-# 01Pi2j1OJmgupnTz3+2bneSW0DF8QZVsQMDvfqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC0Q8x1FiPC
+# mYC5vkNY+tpUiOUbjejcLZw54lzB1yvK+TANBgkqhkiG9w0BAQEFAASCAgDZo4ul
+# TUuuxWjC5HGFPBK9Y6FmUhBivNp4ouyiQdlTWmX62nyZDpqOKpimiTr5yqIqy69a
+# reHMP7pqOPFYJ5HKiblXZsnZ01AT1SDqxFP4S8/iJaUG7TLUBgU5FcxWLEfeM15U
+# g7g+mnXEIo+ydCB0NNlGauOCUEqS61OHPnRlpeasZI2ewE3mdoA++IBlADzVSJen
+# 6LiWz73Sdoz7rl2DZo6uui4es41T7DciCmzhoeBODf3/BAcPawcvxRJgEE/nXT+7
+# vIyUk3eBDL2T27q+maYUVEaklaD3eSzVucxJcndDLrIAzDEESyp/94YdVqpLO0Te
+# Kz1UqWd80PfYPaL9JxQz72magTQY8qI9xz2itSdpHTsd0cTPOSzvH1UhXqN9P1+B
+# jLBC87EhNjjeUuLYgKXo4gkDZOkMsV/XLY//7IGbD6lA4Gv5+2bBAvfNj6Pm81wh
+# WDo1HipQRcKSyeM+H96vBsjYn1nTt2RG5IlHVRpV0CSbYi7qJfd1D6ZwOPlRLjxg
+# oyEoO3oePD/NPxR1FpTPM+f9KY08TM+UmyHLnL0MoFHTCrRkWD1DhpRllm/nNRMq
+# sQ4jvOupK4zCQKbeFLPrYlHKMRtQ6KLgVwFRBufzdfZvpfqIy0Y8YVSpjVL7f2St
+# GbDSHrCwqat/HJY7oiu78Kkfo4dOmN+cACvRjaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAwNDIxMzdaMC8GCSqGSIb3DQEJBDEiBCDJ0q81/Y0DNF7vXiml
-# 1j9PsXX2Obb4zK6TUJFbVex3YjANBgkqhkiG9w0BAQEFAASCAgDLTf6+obNW0f6b
-# koawrlVNUaS196wFRNQPyNICn9hh1tM2LFDwirxZa2HiB7I/c4VvwbGyWxF/0w9V
-# SmyBmCZXib9NOlKo0/LjmLG5w1nb+0fSYcY6INu+WdoAM8mUhmQ9kxChFtn5mObu
-# hdiflNhypHerKPCTpcMbczMjd2+hdiFBaKd77R2V0k3Hsoebatjd9L1j0HpF8/eQ
-# EsFFB/KFD7R/ws7FnVLq0suvBQSsuDUYftY63eaeiy5JIf2BMJXNiZmDj2te1PS4
-# dsocSYDiYxWpsRM0sBG+Oyav+872kA5PzjSGGyOuYG1YTj/GH2RsYulvfJqAJd00
-# AwFL7G2DTV94NvtuO445nu6BWWPib/EPBDztkqabISRbD55idTZJaEL6NzX768Eq
-# a2fDTOsFZwpearNz5WsJRHDQuMA3gfLr/q2nJZ3a8mPTW3ro4WqddRV5pTypWVzR
-# zA2e/c0i7Cj0Tfni2Y5Qgt+0K8VMLFZhPzOkShnTADipNLQz1+nA5i3VkRpF1M7d
-# kbb5FQxnmYoxnRjLPVuES77Vz+cBZ+UjZvsHzYBfFfQVmlImmg0Y39RTxKbG9dnm
-# fPbZGw8LNe+cSaKikHAxbT1JJLAxXVe0Vai7c0F4oGzmi2VzP0ykiTh4muTxGN/c
-# ZRW21vrBkgYOakxdBCHsYVRmTHRDZg==
+# BTEPFw0yNjAyMTAxOTI4NDZaMC8GCSqGSIb3DQEJBDEiBCAocGD/cHqch5iIBVOn
+# 5FoRjcePhJIzqTEQ+Sxm8YxfcjANBgkqhkiG9w0BAQEFAASCAgBH5GSYhXPbIhwX
+# LL6gFhauwHjZ3AYtp4OdYXAAK6l8p4PMtjAQKjXaOeNC0UU2d+Z7rbNSSs8XyPFW
+# Bq5K8u6krAF1nk2W6I1sQBcZjI+7OfFQzHTjQSg2Bd4ylAFGrt3ML8eiAz3fy2d5
+# 8Cei5T5oBnjMYrrsdbTaRRcqNtHSxdORqkplZgKVWRB+rJCJvImJYq8O1grdzEbW
+# dkhZ+L9Tg/upmP0zJOMTjMrhpYhC7BH5VtjONW6s/kMK8/RsQ+9e/HG86sZGk2Ro
+# UKIxW10R+aEOkqaqox+Y64s+e+oeSvC0JEZBcWeUy1Ke67M2OvMobmOlyouoeKOc
+# teAR9zLRXojTmHYCb3PgrBgTbNAoHuVmLoshdp3NWTqTpv4snMGsvSCmNcXXCRPq
+# KvuF/sApzSrsHLkhGy+BjxHCzvSsPtvhOJnygfPGAoFFe7mSJW+orVqRGcFlGnss
+# zZYDcvB+pZcq0rMM6ATUEB4H5j3VsGrqa0I8js2PUgPe8lgjZWmPCs0kW0zes2WV
+# K882O5tbEKxNr+kxujKRQ41UoVpJTfCkq9sCY823MaCv+UBAsFEBYHYLWp1cyOG+
+# 87CPXueom3nlmgY3W5SJDi1V268ru+us69nxlDaoU4PonH6V/hSyxckLIjyVZkgd
+# fcmOvWjFV/2pb4drXrZ9ipJS7azNjw==
 # SIG # End signature block

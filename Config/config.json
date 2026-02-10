@@ -1,14 +1,38 @@
 {
   "schemaVersion": 1,
   "settings": {
+    "ad": {
+      "allowMultipleMatches": false,
+      "defaultAttributes": [
+        "displayName",
+        "userPrincipalName",
+        "samAccountName",
+        "mail",
+        "mailNickname",
+        "proxyAddresses",
+        "enabled",
+        "whenCreated",
+        "lastLogonTimestamp",
+        "department",
+        "title",
+        "manager",
+        "memberOf",
+        "distinguishedName",
+        "objectGuid"
+      ],
+      "resolveGroups": true,
+      "resolveManager": true,
+      "enableProxyAddressSearch": true,
+      "domainController": "DC-1.vadtek.com",
+      "searchBase": "DC=vadtek,DC=com",
+      "enableMailSearch": true,
+      "searchScope": "Subtree"
+    },
     "largeFileSearch": {
-      "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch",
-      "defaultMinSizeMB": 256,
+      "defaultSearchDirectory": ["C:\\", "D:\\"],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
-      "defaultSearchDirectory": [
-        "C:\\",
-        "D:\\"
-      ]
+      "defaultMinSizeMB": 256,
+      "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch"
     },
     "systemRepair": {
       "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
@@ -17,13 +41,10 @@
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair",
       "runRemote": true
     },
-    "ispConnection": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\ISPConnection"
-    },
     "passwords": {
       "domainAdminCred": {
-        "username": "",
-        "password": ""
+        "username": "ddadmin",
+        "password": "01000000d08c9ddf0115d1118c7a00c04fc297eb01000000eaf88a8247d1554d9cce8ee006be0562000000000200000000001066000000010000200000003406fac6b25a6acad56201bbc36e6a4e399e88bb0c93f5ea96c1204542b8c005000000000e80000000020000200000005551659b2e91b83c71f9af0cd74e90bb7daaba22625a1cf9c291c7e96af1909930000000744ebf3263bb4063b3a4b7c3b72c052308af65e5eab779284becccdf7ffe9b33003b41dd9c5e01cca5c43fad9d888abf40000000cf80b5ab93620a202e55ce7cbad9c94817b88089cf3bbec03b01b492f2be917c86872a69e6c2daa49bc2a01e818439ef89043bd33a61c0e8f6faf5d186aadbbd"
       },
       "wordListPath": "C:\\TechToolbox\\Config\\wordlist.txt",
       "default": {
@@ -32,6 +53,12 @@
         "length": 12,
         "digits": 2
       }
+    },
+    "batteryReport": {
+      "waitTimeoutSeconds": 10,
+      "debugInfo": "C:\\Temp\\installed-batteries_debug.txt",
+      "reportPath": "C:\\Temp\\battery-report.html",
+      "outputJson": "C:\\Temp\\installed-batteries.json"
     },
     "exchangeOnline": {
       "autoDisconnectPrompt": true,
@@ -51,37 +78,31 @@
     },
     "messageTrace": {
       "autoExport": true,
+      "promptForMissingInputs": true,
       "defaultLookbackHours": 48,
-      "detailsFileNamePattern": "MessageTraceDetails_{0}.csv",
       "timestampFormat": "yyyyMMdd-HHmmss",
       "defaultExportFolder": "C:\\LogsAndExports\\TechToolbox\\Exports\\MessageTraces",
       "summaryFileNamePattern": "MessageTraceSummary_{0}.csv",
-      "promptForMissingInputs": true
+      "detailsFileNamePattern": "MessageTraceDetails_{0}.csv"
     },
     "compliance": {
       "maxRetryAttempts": 3,
       "purgeBatchSize": 25,
       "searchBatchSize": 50
     },
-    "batteryReport": {
-      "waitTimeoutSeconds": 10,
-      "debugInfo": "C:\\Temp\\installed-batteries_debug.txt",
-      "reportPath": "C:\\Temp\\battery-report.html",
-      "outputJson": "C:\\Temp\\installed-batteries.json"
-    },
-    "tenant": {
-      "upnSuffix": "vadtek.com",
-      "authorityUrl": "https://login.microsoftonline.com",
-      "organizationName": "valueaddedcompanies.onmicrosoft.com",
-      "clientId": "9c0e43db-f3fc-4bba-9530-10b5d063730b",
-      "defaultMailboxLanguage": "en-US",
-      "defaultUsageLocation": "US",
-      "tenantId": "e1b83792-ab2b-418b-9481-fe12c76f201e"
-    },
     "pagefile": {
       "minSizeMB": 16,
       "defaultPath": "C:\\pagefile.sys",
       "maxSizeMB": 2097152
+    },
+    "tenant": {
+      "authorityUrl": "https://login.microsoftonline.com",
+      "organizationName": "valueaddedcompanies.onmicrosoft.com",
+      "clientId": "9c0e43db-f3fc-4bba-9530-10b5d063730b",
+      "upnSuffix": "vadtek.com",
+      "defaultMailboxLanguage": "en-US",
+      "defaultUsageLocation": "US",
+      "tenantId": "e1b83792-ab2b-418b-9481-fe12c76f201e"
     },
     "purview": {
       "purge": {
@@ -107,8 +128,8 @@
       "logFile": "BrowserCleanup.log",
       "sleepAfterKillMs": 1500,
       "skipLocalStorage": false,
-      "defaultProfiles": null,
-      "defaultBrowser": "All"
+      "defaultBrowser": "All",
+      "defaultProfiles": null
     },
     "logging": {
       "includeTimestamps": true,
@@ -122,16 +143,16 @@
     "defaults": {
       "promptForCaseName": true,
       "promptForSearchName": true,
-      "promptForCredentials": true,
       "promptForKqlQuery": true,
       "promptForHostname": true,
-      "promptForContentMatchQuery": true,
+      "promptForCredentials": true,
       "showProgress": true,
-      "promptForDateRanges": true
+      "promptForDateRanges": true,
+      "promptForContentMatchQuery": true
     },
     "output": {
-      "writeTable": true,
-      "encoding": "UTF8"
+      "encoding": "UTF8",
+      "writeTable": true
     },
     "dnsLogging": {
       "autoEnableDiagnostics": true,
@@ -143,15 +164,15 @@
     "aadSync": {
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\AADSync",
       "defaultPolicyType": "Delta",
+      "defaultPort": 5985,
       "logFile": "AADSync.log",
-      "allowKerberos": true,
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\AADSync",
-      "defaultPort": 5985
+      "allowKerberos": true
     },
     "systemSnapshot": {
       "helperPath": "C:\\TechToolbox\\Private\\System\\Snapshot",
       "workerPath": "C:\\TechToolbox\\Workers\\Get-SystemSnapshot.Worker.ps1",
-      "includeRoles": true,
+      "includeRoles": false,
       "includeServices": true,
       "helperFiles": [
         "Get-SnapshotCPU.ps1",
@@ -165,44 +186,44 @@
       "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemSnapshot"
     },
     "offboarding": {
+      "logFileNameFormat": "Offboarding_{yyyyMMdd}.log",
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
       "includeEXO": true,
       "useHybridAutoDisable": true,
       "disabledOU": "",
-      "cleanupADGroups": false,
       "logFile": "Offboarding.log",
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
-      "logFileNameFormat": "Offboarding_{yyyyMMdd}.log"
+      "cleanupADGroups": false
     },
     "subnetScan": {
       "resolveNames": true,
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SubnetScan",
       "pingTimeoutMs": 250,
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SubnetScan",
       "exportDir": "C:\\LogsAndExports\\TechToolbox\\Exports\\SubnetScan",
       "httpTimeoutMs": 1000,
+      "defaultPort": 80,
       "httpBanner": true,
       "exportCsv": true,
-      "ewmaAlpha": 0.15,
       "tcpTimeoutMs": 500,
       "logFile": "SubnetScan.log",
       "displayAlpha": 0.1,
-      "defaultPort": 80
+      "ewmaAlpha": 0.15
     },
     "userSearch": {
       "licenseMap": {
         "53818b1b-4a27-454b-8896-0dba576410e6": "Project Plan 3",
         "06ebc4ee-1bb5-47dd-8120-11324bc54e06": "Office 365 E5",
-        "05e9a617-0261-4cee-bb44-138d3ef5d965": "Office 365 E3",
-        "4b585984-651b-448a-9e53-3b10f069cf7f": "Exchange Online Plan 1",
-        "9c0dab89-a30c-4117-86e7-97bda240acd2": "Visio Plan 1",
-        "e7bfbdf0-0a0b-4d8b-bd3d-7c6f0f2b5c3a": "Visio Plan 2",
         "4b9405b0-7788-4568-add1-99614e613b69": "Microsoft 365 F3",
+        "a4585165-0533-458a-bf7c-5e2d8c699c13": "Project Plan 1",
+        "9c0dab89-a30c-4117-86e7-97bda240acd2": "Visio Plan 1",
+        "6fd2c87f-b296-42f0-b197-1e91e994b900": "Microsoft 365 E3",
+        "e7bfbdf0-0a0b-4d8b-bd3d-7c6f0f2b5c3a": "Visio Plan 2",
+        "4b585984-651b-448a-9e53-3b10f069cf7f": "Exchange Online Plan 1",
         "94763226-9b3c-4e75-a931-5c89701abe66": "Teams Phone Standard",
         "f30db892-07e9-47e9-837c-80727f46fd3d": "Microsoft 365 Business Premium",
         "18181a46-0d4e-45cd-891e-60aabd171b4e": "Microsoft 365 F1",
-        "a4585165-0533-458a-bf7c-5e2d8c699c13": "Project Plan 1",
         "c2273bd0-dff7-4215-9ef5-2c7bcfb06425": "Microsoft 365 Business Standard",
-        "6fd2c87f-b296-42f0-b197-1e91e994b900": "Microsoft 365 E3",
+        "05e9a617-0261-4cee-bb44-138d3ef5d965": "Office 365 E3",
         "e6778190-713e-4e4f-9119-8b8238de25df": "Microsoft 365 Business Basic",
         "c7df2760-2c81-4ef7-b578-5b5392b571df": "Microsoft 365 E5",
         "c42b9cae-ea4f-4ab7-9717-81576235ccac": "Exchange Online Plan 2"
@@ -211,8 +232,8 @@
       "includeTeams": true
     },
     "windowsUpdate": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate",
       "logFileNameFormat": "WindowsUpdate_{yyyyMMdd}.log",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate",
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate"
     },
     "naming": {
@@ -231,78 +252,48 @@
       "promptPackPath": "C:\\TechToolbox\\AI\\prompts.json"
     },
     "graph": {
-      "tenantId": "e1b83792-ab2b-418b-9481-fe12c76f201e",
-      "appOnly": {
-        "clientId": "",
-        "enabled": false,
-        "certThumbprint": "",
-        "clientSecret": ""
-      },
-      "profile": "v1.0",
       "scopes": [
         "User.Read.All",
         "Group.ReadWrite.All",
         "Directory.ReadWrite.All",
         "AuditLog.Read.All"
       ],
-      "environment": "Global"
+      "tenantId": "e1b83792-ab2b-418b-9481-fe12c76f201e",
+      "environment": "Global",
+      "profile": "v1.0",
+      "appOnly": {
+        "clientId": "",
+        "enabled": false,
+        "certThumbprint": "",
+        "clientSecret": ""
+      }
     },
     "copyDirectory": {
       "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
       "waitSeconds": 5,
       "retryCount": 2,
       "mirror": false,
-      "defaultComputerName": null,
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
       "runRemote": true,
+      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
+      "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": [
-        "/E",
-        "/COPYALL"
-      ]
+      "copyFlags": ["/E", "/COPYALL"]
     },
     "downloadsCleanup": {
       "dryRun": false,
-      "excludeExtensions": [
-        ".pst",
-        ".ost"
-      ],
-      "includeExtensions": null,
-      "cutoffYear": 2024
+      "cutoffYear": 2024,
+      "excludeExtensions": [".pst", ".ost"],
+      "includeExtensions": null
     },
     "teams": {
       "includeInOffboarding": true
     },
-    "ad": {
-      "resolveManager": true,
-      "defaultAttributes": [
-        "displayName",
-        "userPrincipalName",
-        "samAccountName",
-        "mail",
-        "mailNickname",
-        "proxyAddresses",
-        "enabled",
-        "whenCreated",
-        "lastLogonTimestamp",
-        "department",
-        "title",
-        "manager",
-        "memberOf",
-        "distinguishedName",
-        "objectGuid"
-      ],
-      "resolveGroups": true,
-      "allowMultipleMatches": false,
-      "enableProxyAddressSearch": true,
-      "domainController": "DC-1.vadtek.com",
-      "searchBase": "DC=vadtek,DC=com",
-      "enableMailSearch": true,
-      "searchScope": "Subtree"
+    "ispConnection": {
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\ISPConnection"
     },
     "windowsActivation": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsActivation",
       "logFileNameFormat": "ActivationInfo_{computer}_{yyyyMMdd-HHmmss}.txt",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsActivation",
       "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsActivation"
     }
   },
