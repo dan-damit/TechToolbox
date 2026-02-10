@@ -28,6 +28,14 @@
       "enableMailSearch": true,
       "searchScope": "Subtree"
     },
+    "systemUptime": {
+      "logFileNameFormat": "SystemUptime_{yyyyMMdd}.log",
+      "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemUptime",
+      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemUptime"
+    },
+    "workerPath": {
+      "default": "C:\\TechToolbox\\Workers"
+    },
     "largeFileSearch": {
       "defaultSearchDirectory": ["C:\\", "D:\\"],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
