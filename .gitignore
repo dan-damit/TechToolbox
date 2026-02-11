@@ -4,3 +4,4 @@ Derivatives_and_Stand_Alone_Scripts/
 # Files to ignore:
 Autodiscover*
 vcenter*
+.ready
