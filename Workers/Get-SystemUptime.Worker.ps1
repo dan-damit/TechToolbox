@@ -14,21 +14,49 @@
 param()
 
 function Convert-CimDate {
-    param([string]$CimDate)
-    if ([string]::IsNullOrWhiteSpace($CimDate)) { return $null }
-    try { return ([Management.ManagementDateTimeConverter]::ToDateTime($CimDate)) } catch { return $null }
+    param([Parameter(ValueFromPipeline)][object]$CimDate)
+    if ($null -eq $CimDate) { return $null }
+
+    # If it's already a DateTime (CIM), just return it
+    if ($CimDate -is [datetime]) { return [datetime]$CimDate }
+
+    # If it's a non-empty string, try DMTF -> DateTime
+    if ($CimDate -is [string] -and -not [string]::IsNullOrWhiteSpace($CimDate)) {
+        try {
+            return [Management.ManagementDateTimeConverter]::ToDateTime($CimDate)
+        }
+        catch {
+            return $null
+        }
+    }
+
+    return $null
+}
+
+function Format-TimeSpanCompact {
+    param([timespan]$Span)
+    # e.g., "3d 12h 05m 33s" (days omitted if 0)
+    $parts = @()
+    if ($Span.Days -gt 0) { $parts += ("{0}d" -f $Span.Days) }
+    $parts += ("{0:hh}h" -f $Span)
+    $parts += ("{0:mm}m" -f $Span)
+    $parts += ("{0:ss}s" -f $Span)
+    $parts -join ' '
 }
 
 try {
     $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+
+    # Robust conversion — works for CIM datetime or DMTF string
     $lastBoot = Convert-CimDate $os.LastBootUpTime
+
     $uptimeSeconds = $null
     $uptime = $null
 
     if ($lastBoot) {
         $span = (Get-Date) - $lastBoot
         $uptimeSeconds = [int][math]::Round($span.TotalSeconds, 0)
-        $uptime = $span.ToString()
+        $uptime = Format-TimeSpanCompact -Span $span
     }
 
     [pscustomobject]@{
@@ -48,8 +76,8 @@ catch {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA+VBp0RIq9Oax6
-# 9qa3FTA0ST7JLg26wfNYzdFV5J/hw6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC+3/avvCQdr720
+# 5bMJz+tYZ1zHW5sitUD6Y3LCEdWWxKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -182,34 +210,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBfLjExLAlD
-# KPLdqlYIumqKotsiMI1wH9dtbK82ZNg4TTANBgkqhkiG9w0BAQEFAASCAgCWnsJV
-# rHdUPO6Mx38TWUI6mwHvEinWzJSoIhM+vJoaO1v+Vgjz8JlqVJfgWnKUxJ2mhzsP
-# iZsIiX2c35ELVNc12OD5U3htx7xpduOtn/9tFpLhN6HpsYpDVNoJZYDdsYUhIYmC
-# rS2kNw/lHvMah9VXec6JhQSS5Op90a6L6MuIWL5tX2EKbrHMetsXEHX59jIiyskv
-# R/LYQYRat52CKSHBSgPDBXcamLllLeClYmAT21E0RkW7JJQ5Bdu9T5hPoffx67Hv
-# AqhHlWOfXkt/G6h6W5BSKEH0AmlCz2d5MNDETswDGhrU2+vih9ktSoVMMXp51477
-# c1481n8a1ZsfpPThXGEeJeAIaBPOvn+BHSh+6m/rBndgyYDvmDXQsKJSUAY4pgmK
-# PO+yjSSQ/KCCpG50VPC2qGMaPgbfTKftI6k0Zg0582bsU9/tYhSlvVb8fkGfDzwN
-# R7ZlIHuckU+iY/yW2Jiv9uFlviX1cHlA720MFAj97HrrYxFiyr14bA7hygm3xdEH
-# JJWRQ1+F6T4+N+2qMV7blR3jiGnb9RwKWmn+nN3ScO7B8PbAhM7g2U6701DM7jk8
-# p8hrDVmRquHeGkoAw+M/ljF51KPtixso9k1w6lXopSu2N1DF2puxP73p82Cm4Q9X
-# ZvVYEA43Dt+57dr6L7cWhBAQKygn9brVpIG0N6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCthjo5tSMv
+# 5KSzuT5MJqOOUw7OabqtKYSFfLnww19uZzANBgkqhkiG9w0BAQEFAASCAgBNYM+4
+# imjsBi7zSLH7r3bwl1BuEJp0DSheMXmvAa9SvxaJYEZah06sAxsNPbZcN6ccfk6u
+# 9hnhN5FnuAtNBkuOrNd++Vt2bwmgnGcHyIfBKJYsbzdAxPGTUQ5xw+oHXfEMa7tV
+# G7to/q6lNSiXZBuAf+LJ41jTFGUYxI+VWlMj401et7t00xtxz+kmXAuMFqZ0zAlp
+# XEw1kB7sFv/wHGt+ztOusVglbmEngQ5Xwp7lG+kqJ43tXw8xiGUDdnp/FhXYmE8J
+# KQp4jUDzas92TGhhYF3tra44Mz8LTvKkDFUkzMQbA2cv2IbztjtZoiE9JIn7BbwX
+# FF116un6TndrJLSDP8OIkz75FG5yxA0KDUN4a2b+5wUzlqxqtA1NtFNsmQZ8CFkR
+# 9puZXnynxc48qAx9rZSF08Dsrtx8AB9Sj7abuqjbxa+w8KuK28b1qenT4mnNskOe
+# 0HvU32G+agar8EB1KfzLarheZ4BuG78mFPndRE2GhxBJUISW+Mfpy81SqHsZb3G/
+# 7UMLJpuEDElHMi/nbFva0TgM81m46nPdH8evbUm6Sj+qQgw6eEvcBrokaVyUEdLU
+# O53Gf2YeVZt+xxRFkzwlSc41WMRBAHS/G3+lN2GXjKGr+Tcezf5Y/K/IiprfsJhO
+# UAeIfe/I/r72Mx88FrOuEIMIWcMUK5d7rEY546GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ3MTdaMC8GCSqGSIb3DQEJBDEiBCBIG4en28Lx4JX2tQMv
-# EiI7rah39rrVzjZUyAOPwwhaJjANBgkqhkiG9w0BAQEFAASCAgBe27NvUY1VNZZF
-# vdpU3HmuaPQaZbBDzewZAV9ZOM6OwRTPSYOMkWT+b0G3ztvteECoXsMUF97jAeN/
-# zR/A7u32dtZX9GSM5S9z55K/QQ5DgQmlM3p4B8Zv0RETvjS/qWhpiF2V/ddnMgS6
-# PDO5mv/JVonwpnD+0EBeKUHoBGmSLzTCC+NwmD/CUjolqUmHtLkXTX9lRSwoPPgf
-# +No3LInhYNfNr7OIzqqzkb/bX+gCNDS+pwvvti6/hyj57iR3C5//Q6DK3AKj5bPz
-# NQjlET/5NcjaJqZpMxsJ7CyiDE/Kgbio7jNYWAt39882YiPccHofHa1pmYCDVJmF
-# VPOBdMmifI1jFF/ale573wQy2xEZ4sTISpfeI4emEDSScaVKJGC6nyViNOC+YV/o
-# ynsLyRb288ZjOTwDcMmkBr52GlhbiJrAUWOZcnA1tz1oM8A0deD1YwK8hSXVlOh5
-# j3uhfx4TJujQOSdjqqjyeIQa/h15sswi+DOIYoRVn/CNZ9G1WB/+eW85v91oOHK/
-# egPaME1pZmNmty9CJTj3iX1Cj4Q4NSHRGHPSpstJlsAb94W85TjjxqTL/A3Ie+6l
-# UNMJ8kUErCL2z2SgDKjb3vKlW4jSjAIZKQEEr3bixHGT+1N3vxiVV2VzDY8q5suv
-# iK2J64nqoxLUM1MCE3OJN1JJmQu+kQ==
+# BTEPFw0yNjAyMTExNDM3MDRaMC8GCSqGSIb3DQEJBDEiBCCITGQyXzGSuHMlzxVD
+# f36QiJnoWVLuQZ5VuTxGfxbIgDANBgkqhkiG9w0BAQEFAASCAgCGG2zUTeicSIJv
+# w6bmlU2HuKl6BJ8mOHRUyYzvT9xeUP9rcQne+vSGf1sM7bsDtv8+rjp3p6EfgdVP
+# 0HfjNg95jhXbdelbWGdq7ZMXkSIi+xaLQXo8W/+GAR1VaNXrY9S1SP3V/yn9zVKr
+# m8wmFV9pdTetuQD/IxWf7u31lJHeJNCOtGQlHMSWDyr1C4XFDGrEQg9oaClHY4Br
+# cNlVvMNdbGw8NjOzQWauegXxS+mXuP/y12Lzv0oUJCSJ3F7SmVgDeVzEhwEWmGi5
+# IOWqfdE72xkIl1xMxFDOAnC/2khOD5fmQj/X5n7hyjQ4KjoUvf1swnE1hd4p2AQz
+# uKuOcG+edOPPnkkRq5RffigDT5wMSZ6k8WVYpS6D4va+p5tBT2doWcGzgEm6YZWc
+# kK5gi0gKqarwufE9pE4i/d2lVddnhoLMF2RTiYFmC1HJj9fhCtr9HyANUiZRBOIv
+# oOWs/GdN9A9v9jIQYfcadtITbUIChEqJkwlT1jhC35CavUkME5/rUProfMcG5XIT
+# P0d+kqIwIVtkFeaczDJ54f9riL825TGoxFzw0zNbceaVCWSlkJXG7/vaJhEmiFT6
+# JiBmhtnA+sOsiJt9o3XURbalk5OAiVTp1l7i/8yZKmQnXp3mkLGNPSORDciD05JT
+# zvUoC4qx4EgUS0RDpA4x9LlVyK6kRg==
 # SIG # End signature block

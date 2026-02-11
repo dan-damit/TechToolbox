@@ -1,128 +1,21 @@
-function Get-SystemUptime {
-    <#
-    .SYNOPSIS
-    Retrieves the system uptime information from one or more remote computers.
-    .DESCRIPTION
-    This cmdlet connects to remote computers and retrieves their system uptime
-    information.
-    .PARAMETER ComputerName
-    Specifies the names of the computers from which to retrieve system uptime
-    information.
-    .PARAMETER Credential
-    Specifies the credentials to use for connecting to the remote computers.
-    .PARAMETER OutDir
-    Specifies the directory where the output files will be saved.
-    .PARAMETER NoExport
-    If specified, the cmdlet will not export the results to CSV files.
-    .PARAMETER PreferPS7
-    If specified, the cmdlet will prefer PowerShell 7 for remote sessions.
-    #>
-    [CmdletBinding(SupportsShouldProcess)]
-    [OutputType([pscustomobject])]
-    param(
-        [Parameter(Mandatory)]
-        [string[]]$ComputerName,
+function Get-ModuleRoot {
+    $mod = $ExecutionContext.SessionState.Module
+    if ($mod -and $mod.Path) { return (Split-Path -Parent $mod.Path) }
 
-        [pscredential]$Credential,
+    $m = Get-Module -Name TechToolbox -ErrorAction Ignore | Select-Object -First 1
+    if ($m -and $m.Path) { return (Split-Path -Parent $m.Path) }
 
-        [string]$OutDir,
+    if ($PSScriptRoot) { return (Split-Path -Parent $PSScriptRoot) }
+    if ($MyInvocation.MyCommand.Path) { return (Split-Path -Parent $MyInvocation.MyCommand.Path) }
 
-        [switch]$NoExport,
-
-        [switch]$PreferPS7
-    )
-
-    begin {
-        # Lazy-load runtime (config/logging/env/interop)
-        Initialize-TechToolboxRuntime
-
-        # Resolve export directory (config → explicit → default)
-        $outCfg = $null
-        if ($script:cfg -and $script:cfg.settings -and $script:cfg.settings.systemUptime) {
-            $outCfg = $script:cfg.settings.systemUptime.exportPath
-        }
-
-        if (-not $PSBoundParameters.ContainsKey('OutDir')) {
-            if ($outCfg) { 
-                $OutDir = [string]$outCfg 
-            }
-            else { 
-                $OutDir = Join-Path $script:ModuleRoot 'Exports\SystemUptime' 
-            }
-        }
-
-        if (-not (Test-Path -LiteralPath $OutDir)) {
-            New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
-        }
-
-        # Resolve worker paths
-        $workerRemote = Join-Path (Get-WorkerBasePath) 'Get-SystemUptime.worker.ps1'
-
-        $all = New-Object System.Collections.Generic.List[object]
-        $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-    }
-
-    process {
-        foreach ($cn in $ComputerName) {
-            $session = $null
-            try {
-                # Start remote session (private function already loaded)
-                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential
-
-                # Ensure worker exists on remote
-                $exists = Invoke-Command -Session $session -ScriptBlock {
-                    param($p) Test-Path -LiteralPath $p
-                } -ArgumentList $workerRemote
-
-                if (-not $exists) {
-                    $remoteDir = Split-Path -Path $workerRemote -Parent
-
-                    Invoke-Command -Session $session -ScriptBlock {
-                        param($d)
-                        if (-not (Test-Path -LiteralPath $d)) {
-                            New-Item -ItemType Directory -Path $d -Force | Out-Null
-                        }
-                    } -ArgumentList $remoteDir
-
-                    if ($PSCmdlet.ShouldProcess($workerRemote, "Copy worker to $cn")) {
-                        Copy-Item -ToSession $session -Path $workerLocal -Destination $workerRemote -Force
-                    }
-                }
-
-                # Invoke worker
-                $uptime = Invoke-Command -Session $session -FilePath $workerRemote
-
-                if ($uptime) {
-                    if (-not $NoExport) {
-                        $csv = Join-Path $OutDir ("SystemUptime_{0}_{1}.csv" -f $cn, $stamp)
-                        if ($PSCmdlet.ShouldProcess($csv, "Export uptime CSV")) {
-                            $uptime | Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
-                        }
-                    }
-                    $all.Add($uptime)
-                }
-            }
-            catch {
-                Write-Log -Level Warn -Message ("{0}: {1}" -f $cn, $_.Exception.Message)
-            }
-            finally {
-                if ($session) { 
-                    Remove-PSSession -Session $session -ErrorAction SilentlyContinue 
-                }
-            }
-        }
-    }
-
-    end {
-        $all.ToArray()
-    }
+    throw "Unable to resolve TechToolbox module root."
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB5MNLBmsny/9kA
-# 2aa17sewsNAeRXAJnI/T7eEgmcCD7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAwG+hlGe2WyoHP
+# 6Q0bTpqKxOmzDcH8VAOhy31ezAI8nKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -255,34 +148,34 @@ function Get-SystemUptime {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvueqNwT7d
-# aEhs6HlNuEj4PJy/rNOINOROdSy6bMa4NTANBgkqhkiG9w0BAQEFAASCAgChNZ2Z
-# Q7nJUnCBnz9ivhDDJsY9RObZ0Frq1ei/eqcXu3LaTV1wQjaR/jJ42TKyZg6oLEQp
-# HmWmHSLUJqsVnGQef1O2tTkL50eoaInBJs+qbnWFzAF+QwEr97GoiQXc7RT4CT0w
-# Hxw5N2Bed9ucOh4/5cQr+dEytE9xa97MOHFzSk+HLp2TNG1OiFNKIStkYF8R8Mrg
-# niGsJ0CqiW2O0Sxz6I0Uf1MnEXkaK+ZJU4jb2DqF0CU24FMx2GwLrhM/hd87ie/6
-# kHJcIWq5Kmla5uWQLi1sCDoT8GDo/39EVenMIWoK5V84k5wc1+V2xyhjdga4l9BS
-# 0HnUCbjr1bMZlMAUtOBWWKolQVRmLXb4nCO0Wt7wLvuJzCwEnXoRoMUa8W/lY9je
-# DZ0ytADtmmRcm0khR0J6GRwbaXWoF91C8R82omZoE6LWteBP2Xx3Wcl8VrkJwyft
-# 7lhYNl1EHJFrxuOnGNUmTcHB1mTUh11bgiMzpLMMreXJEZzQ234nQ/UZDe94u5Dt
-# +cV6gZtVwhoSCGIEc20IJee86W/+toow0afL9GEUlkabbYm/w12k8R52iO+UILG3
-# eSiloY0hFi1U9hIJYmHce5BUOaju5fAe5qg7AGr9SOL6Axrx7BfYkYFo5K4rryxq
-# LfUtHCAI+9alYXN+AZJ7mHoesuvShik9cUneeqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDuA6acSTV4
+# LN1nR4cjWD2Sb83o9woR8C0NObTOykZ1cjANBgkqhkiG9w0BAQEFAASCAgAW9t1B
+# mdPRfGF32xpWdQDvJydvuSSkEjWU9+/HWdadVzTao//sn985dyzYQ3NQJBcSZooo
+# OxrjJXFg+fTCC3C/6x/OJ3JuhdpHly2+KlcEsSJwVSI+E7BjsrNEzCK4VB4mdOs5
+# 5CYUxY+u/b+ckdbqT9lwVuFrOtEN3koY6Z9re9WLzTdBK/ps9gyHJYusS1iLMncC
+# 6MoTos8thQvvp1HBUXvV3WpCAmt0cds72j4ULGmFndJ9W5QIMe9/hKhE1mZqljpx
+# Yefl5hcK84ovwIStdBRimFbUeSBJJfoJtqeLtwVcF1ktcIFYBVFjSPcS2Ej5uJal
+# WOlvaU0On+fEdvhSnpE9+QEbkWindN+Su39JpWNmx2BPQ41xGS7WDQZ3RaAWovNv
+# ZtvOuZYzDZKYG5wZ2SuxFullFmOmckRChFXig7Mlfon1iZI/M1NMN1+E8QkNaoo3
+# V9LZXS6FxWAdfDWhB2ExPVVj6rtxvVSLgsh3g0iCXGr/KBta4s8XnUVynHUcrxGd
+# bseVrOUVkaCdNWsPUn1cKOwfLx6uf0JrBBMaNSZ03W7VZRj5uTj0PmZkgl4YoJmO
+# RwU+Oen8SMs223LsMgh2cjJ+itv7QMfHteGVOjvHgdPB3rR4dhGPx6D/24zFumCt
+# 9SAnBYT1TlDYFtrHmt3jBys10Tj1+xyhivvS96GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTExNDM3MDNaMC8GCSqGSIb3DQEJBDEiBCB20WyiLqhKFAQwWD7L
-# BStMBy0aHPcwDhkcja0gGekKHzANBgkqhkiG9w0BAQEFAASCAgC+OnyE029RcOju
-# ldb/lzRMAfwcz5tZYfDcgCKHnPrqPaJJdDZ1uY9s2N/cGgAvkFkYrj+i5zb0B42z
-# APwMPV168hQTNx4ohFN4IJH8q9REUUfyKIi8G2YhEdZyqx2gPDcJxd8ivbtMKttd
-# rUbMKNZIm15VmPPvD/FLoQqCIeq7VkCAWY2OKbhGisDRAHDSAG8J/4rvh5/fwAEc
-# JKv24XQMA2yuLlQek8kYO0rlePzvmLK6qNQzAavl9uXuI21VCx8P03wHJvik3srO
-# XDkBSP4y/YNlwld2mzEmiLFItV/Vtsd2lEeC3OF7tSB/Xzdgqq6y1g9jt8YqgZg5
-# YJ0FKLUOU246tZJQwjIwhD++zAks/JDgX7obAYEtB9rzulnxmesUeE4T0e5/OFOC
-# gTcroe6rtimgaeFAGadfPKbWCWr/v0JtcIRL/si4hXNgwfJsoCyFVNzdUzw433bl
-# f0maB+lXciXUvuiD0coB5xs0chV69aD2CqLQHeEM0Bb1MK9eRSmKiweKvyNRryBs
-# MpbnzrGfeIMtHh41J4rcUZ+6fLoBt9VL+GA+cNEgnrfhqlI4nECFNi4qrNVUGfi/
-# Z7odayK2+aHf72YfIisPtt06xs+QGuNq5zyeBZcz39Q4lDG/y90WSqX2s64S07Kj
-# YGDwU1t1GZN4DzoNPBxJqxTVKCogvw==
+# BTEPFw0yNjAyMTExNTA5NTBaMC8GCSqGSIb3DQEJBDEiBCACqck6SkWOPo38l3oW
+# xj7IbCED5WN4IquGi1z6ZrGHjDANBgkqhkiG9w0BAQEFAASCAgAqpuP+Wid1jUyC
+# IVJl9InjzIC4zwTF//Mz/bb43GS8arkvg49RtXBYUGPBjudHjs00hcBbXIQgfU7r
+# hewqwOnX5nJHCTe/34U5KuGCpiWHrS9tY05i+O1iNvjk3KB8rKfnSFsipf/Lczox
+# YlkJJysy7/pbPwcmDO0NCQ+9UsAb8DpC/UNSo4n7xtDXVfZCfNer4y0yUZ4Hc1kh
+# u/6dsYfB/21oQnsjSik8jpRQ02i1IkKB+r69Pjw7cQTeFvgJ9ORrPT3RWhR2MVWe
+# 6xAfa8Oh0AjizlzJAAza4o+12+wzNpparA9hrxkjq6wySrhpVinEsQu9RKnuSboQ
+# 7r9TOutcaMHRmCJxA01QMKlthXosVuLwjQG4figYcG2R0qMj4TgefzYDeDAvsXwR
+# O/CA/s6o1BDLP9joiDwSwseGLrB//f2aFGS+7NwTVQJFn+H7jYkTHMtp6xfaLuZY
+# hFbvpQhAIbnJanKEbkcLuu0vHXUtBEhkIL5RCMlAW3E431tFjbtEs4T7EwgGEZUM
+# yLEGiPL4PdEXRDFYWY7oD6S/p02HxzvPdx1C8VBxxe0fj6J/mMyzixpq8A/djQeB
+# 28P4OoiNADricw3OemAM+o21XADjVVoTEkwj5fM02R7ACPN4uYmOloerfywl/P4T
+# AgqyczJ0WroSQQZcR3IuEDG/VrEmuw==
 # SIG # End signature block
