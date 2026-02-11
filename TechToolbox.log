@@ -16,3 +16,171 @@
 2026-02-10 22:16:24 [Info] Running snapshot helpers locally...
 2026-02-10 22:18:15 [Info] Running snapshot in local mode for localhost
 2026-02-10 22:18:15 [Info] Running snapshot helpers locally...
+2026-02-11 07:50:27 [Debug] [Initialize-DomainAdminCred] Domain admin credential loaded into session.
+2026-02-11 07:52:17 [Error] [ERROR] The property 'timeoutSeconds' cannot be found on this object. Verify that the property exists.
+2026-02-11 07:52:18 [Info] No active Exchange Online session detected.
+2026-02-11 07:57:03 [Info] Final ContentMatchQuery: from:"gspurlock@walbeckgroup.com" AND subject:"Walbec 85732"
+2026-02-11 07:57:03 [Error] [ERROR] The property 'dependencies' cannot be found on this object. Verify that the property exists.
+2026-02-11 07:57:03 [Info] No active Exchange Online session detected.
+2026-02-11 08:00:21 [Info] Final ContentMatchQuery: from:"gspurlock@walbeckgroup.com" AND subject:"Walbec 85732"
+2026-02-11 08:00:21 [Error] [ERROR] The property 'dependencies' cannot be found on this object. Verify that the property exists.
+2026-02-11 08:00:21 [Info] No active Exchange Online session detected.
+2026-02-11 08:02:36 [Debug] [Initialize-DomainAdminCred] Domain admin credential loaded into session.
+2026-02-11 08:03:58 [Error] [ERROR] The variable cannot be validated because the value  is not a valid value for the ContentMatchQuery variable.
+2026-02-11 08:03:58 [Info] No active Exchange Online session detected.
+2026-02-11 08:04:24 [Info] Final ContentMatchQuery: from:"gspurlock@walbecgroup" AND subject:"Walbec 85732"
+2026-02-11 08:04:24 [Error] [ERROR] The property 'dependencies' cannot be found on this object. Verify that the property exists.
+2026-02-11 08:04:24 [Info] No active Exchange Online session detected.
+2026-02-11 08:05:25 [Error] [ERROR] The variable cannot be validated because the value  is not a valid value for the ContentMatchQuery variable.
+2026-02-11 08:05:25 [Info] No active Exchange Online session detected.
+2026-02-11 08:05:46 [Info] Final ContentMatchQuery: from:"gspurlock@walbecgroup" AND subject:"Walbec 85732"
+2026-02-11 08:05:46 [Error] [ERROR] The property 'dependencies' cannot be found on this object. Verify that the property exists.
+2026-02-11 08:05:46 [Info] No active Exchange Online session detected.
+2026-02-11 08:14:29 [Info] Final ContentMatchQuery: from:"gspurlock@walbecgroup" AND subject:"Walbec 85732"
+2026-02-11 08:14:29 [Info] Connecting to Purview (SearchOnly) as ddcloudadmin@vadtek.com...
+2026-02-11 08:15:18 [Ok] Connected to Purview (SearchOnly).
+2026-02-11 08:15:18 [Info] Creating mailbox-only Compliance Search 'TTX-Purge-#INC-140469-20260211-081518' in case '#INC-140469'...
+2026-02-11 08:15:18 [Info] Scope: ExchangeLocation=All
+2026-02-11 08:15:24 [Ok] Search created: TTX-Purge-#INC-140469-20260211-081518
+2026-02-11 08:15:24 [Info] Waiting for search 'TTX-Purge-#INC-140469-20260211-081518' to register (timeout=90s, poll=3s)...
+2026-02-11 08:15:34 [Info] Search started: TTX-Purge-#INC-140469-20260211-081518
+2026-02-11 08:15:34 [Info] Waiting for search 'TTX-Purge-#INC-140469-20260211-081518' to complete (timeout=1200s, poll=5s)...
+2026-02-11 08:15:34 [Info] Monitoring search 'TTX-Purge-#INC-140469-20260211-081518' (Timeout=1200s, Poll=5s)...
+2026-02-11 08:15:37 [Info] Search status: Starting
+2026-02-11 08:15:42 [Info] Search status: Starting
+2026-02-11 08:15:50 [Info] Search status: Starting
+2026-02-11 08:15:57 [Info] Search status: Starting
+2026-02-11 08:16:05 [Info] Search status: Starting
+2026-02-11 08:16:14 [Info] Search status: Starting
+2026-02-11 08:16:21 [Info] Search status: Starting
+2026-02-11 08:16:29 [Info] Search status: Starting
+2026-02-11 08:16:34 [Info] Search status: Starting
+2026-02-11 08:16:42 [Info] Search status: Starting
+2026-02-11 08:16:47 [Info] Search status: Starting
+2026-02-11 08:16:53 [Info] Search status: Starting
+2026-02-11 08:17:01 [Info] Search status: Starting
+2026-02-11 08:17:06 [Info] Search status: Starting
+2026-02-11 08:17:12 [Info] Search status: Starting
+2026-02-11 08:17:19 [Info] Search status: Starting
+2026-02-11 08:17:26 [Info] Search status: Starting
+2026-02-11 08:17:32 [Info] Search status: Starting
+2026-02-11 08:17:37 [Info] Search status: Starting
+2026-02-11 08:17:45 [Info] Search status: Starting
+2026-02-11 08:17:53 [Info] Search status: Starting
+2026-02-11 08:18:03 [Info] Search status: Completed
+2026-02-11 08:18:03 [Ok] Search completed.
+2026-02-11 08:18:03 [Ok] Search status: Completed; Items: 1
+2026-02-11 08:18:03 [Info] Preparing HardDelete purge for 'TTX-Purge-#INC-140469-20260211-081518' in case '#INC-140469'.
+2026-02-11 08:18:03 [Warn] This will permanently delete all items found by the search.
+2026-02-11 08:18:19 [Ok] Purge submitted: 553f9441-5696-4efe-9a02-08de697864e6
+2026-02-11 08:18:19 [Info] Monitoring purge for '553f9441-5696-4efe-9a02-08de697864e6' (Timeout=1200s, Poll=5s)...
+2026-02-11 08:18:20 [Info] Purge status: Starting
+2026-02-11 08:18:26 [Info] Purge status: Starting
+2026-02-11 08:18:34 [Info] Purge status: Starting
+2026-02-11 08:18:41 [Info] Purge status: Starting
+2026-02-11 08:18:49 [Info] Purge status: Starting
+2026-02-11 08:18:57 [Info] Purge status: Starting
+2026-02-11 08:19:03 [Info] Purge status: Starting
+2026-02-11 08:19:08 [Info] Purge status: Starting
+2026-02-11 08:19:18 [Info] Purge status: InProgress
+2026-02-11 08:19:25 [Info] Purge status: Completed
+2026-02-11 08:19:25 [Ok] Purge completed successfully.
+2026-02-11 08:19:25 [Ok] [Done] Purview HardDelete purge submitted for 'TTX-Purge-#INC-140469-20260211-081518' in case '#INC-140469'.
+2026-02-11 08:19:25 [Ok] Summary: search='TTX-Purge-#INC-140469-20260211-081518' status='Completed' items=1 purgeSubmitted=True
+2026-02-11 08:19:29 [Info] Disconnected from Exchange Online.
+2026-02-11 08:24:25 [Warn] localhost: A parameter cannot be found that matches parameter name 'PreferPS7'.
+2026-02-11 08:27:06 [Ok] Connected to SHAW-MXL2203Q6J via WSMan (Microsoft.PowerShell).
+2026-02-11 08:27:53 [Ok] Connected to SHAW-MXL2203Q6J via WSMan (Microsoft.PowerShell).
+2026-02-11 08:37:16 [Ok] Connected to SHAW-MXL2203Q6J via WSMan (Microsoft.PowerShell).
+2026-02-11 08:38:21 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 08:38:21 [Info] Connected to EDI-2.vadtek.com, preparing helpers
+2026-02-11 08:39:27 [Info] Running snapshot in local mode for localhost
+2026-02-11 08:39:27 [Info] Running snapshot helpers locally...
+2026-02-11 08:40:52 [Info] Running snapshot in local mode for localhost
+2026-02-11 08:40:52 [Info] Running snapshot helpers locally...
+2026-02-11 08:57:46 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 08:57:46 [Info] Connected to EDI-2.vadtek.com, preparing helpers
+2026-02-11 09:09:59 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 09:11:10 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 09:12:24 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 09:14:54 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 10:21:08 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 10:25:07 [Info] Entering New-OnPremUserFromTemplate (ParamSet=ByIdentity)
+2026-02-11 10:25:07 [Info] Provisioning: DisplayName='Jonathan Annis', Sam='jannis', UPN='jannis@vadtek.com', OU=''
+2026-02-11 10:25:07 [Ok] Created AD user: jannis@vadtek.com
+2026-02-11 10:25:07 [Ok] Copied attributes applied from template.
+2026-02-11 10:25:07 [Ok] Primary proxyAddress applied.
+2026-02-11 10:25:07 [Ok] Group additions complete: 0 added
+2026-02-11 10:25:49 [Info] Entering New-OnPremUserFromTemplate (ParamSet=ByIdentity)
+2026-02-11 10:25:49 [Info] Template resolved: jajackson (jajackson@vadtek.com)
+2026-02-11 10:25:49 [Info] Provisioning: DisplayName='Jonathan Annis', Sam='jannis', UPN='jannis@vadtek.com', OU='OU=Neenah,OU=Users - Standard,DC=vadtek,DC=com'
+2026-02-11 10:25:50 [Ok] Created AD user: jannis@vadtek.com
+2026-02-11 10:25:50 [Ok] Copied attributes applied from template.
+2026-02-11 10:25:50 [Ok] Primary proxyAddress applied.
+2026-02-11 10:25:50 [Info] Added to: Shipping-NEEN
+2026-02-11 10:25:50 [Info] Added to: NEEN
+2026-02-11 10:25:50 [Info] Added to: VADTEK
+2026-02-11 10:25:50 [Ok] Group additions complete: 3 added
+2026-02-11 10:28:01 [Info] Creating remote session to AADConnect-1.vadtek.com on port 5985 ...
+2026-02-11 10:28:02 [Ok] Session established using supplied credentials.
+2026-02-11 10:28:02 [Info] Checking ADSync module and service state on AADConnect-1.vadtek.com ...
+2026-02-11 10:28:03 [Ok] Sync (Delta) triggered successfully on AADConnect-1.vadtek.com.
+2026-02-11 10:28:03 [Info] Remote session closed.
+2026-02-11 14:26:47 [Ok] Connected to UTILITY-1.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 14:31:17 [Ok] Connected to UTILITY-1.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 14:40:55 [Ok] Connected to UTILITY-1.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 14:41:40 [Ok] Connected to UTILITY-1.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 15:07:19 [Ok] Connected to UTILITY-1.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 15:09:17 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 15:21:06 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 15:25:21 [Ok] Connected to EDI-2.vadtek.com via WSMan (Microsoft.PowerShell).
+2026-02-11 15:34:33 [Info] Final ContentMatchQuery: from:"*@themainconnection.com"
+2026-02-11 15:34:34 [Info] Connecting to Purview (SearchOnly) as ddcloudadmin@vadtek.com...
+2026-02-11 15:35:02 [Ok] Connected to Purview (SearchOnly).
+2026-02-11 15:35:02 [Info] Creating mailbox-only Compliance Search 'TTX-Purge-#INC-140599-20260211-153502' in case '#INC-140599'...
+2026-02-11 15:35:02 [Info] Scope: ExchangeLocation=All
+2026-02-11 15:35:08 [Ok] Search created: TTX-Purge-#INC-140599-20260211-153502
+2026-02-11 15:35:08 [Info] Waiting for search 'TTX-Purge-#INC-140599-20260211-153502' to register (timeout=90s, poll=3s)...
+2026-02-11 15:35:18 [Info] Search started: TTX-Purge-#INC-140599-20260211-153502
+2026-02-11 15:35:18 [Info] Waiting for search 'TTX-Purge-#INC-140599-20260211-153502' to complete (timeout=1200s, poll=5s)...
+2026-02-11 15:35:18 [Info] Monitoring search 'TTX-Purge-#INC-140599-20260211-153502' (Timeout=1200s, Poll=5s)...
+2026-02-11 15:35:21 [Info] Search status: Starting
+2026-02-11 15:35:26 [Info] Search status: Starting
+2026-02-11 15:35:33 [Info] Search status: Starting
+2026-02-11 15:35:41 [Info] Search status: Starting
+2026-02-11 15:35:49 [Info] Search status: Starting
+2026-02-11 15:35:56 [Info] Search status: Starting
+2026-02-11 15:36:02 [Info] Search status: Starting
+2026-02-11 15:36:09 [Info] Search status: Starting
+2026-02-11 15:36:18 [Info] Search status: Starting
+2026-02-11 15:36:24 [Info] Search status: Starting
+2026-02-11 15:36:31 [Info] Search status: Starting
+2026-02-11 15:36:38 [Info] Search status: Starting
+2026-02-11 15:36:44 [Info] Search status: Starting
+2026-02-11 15:36:49 [Info] Search status: Starting
+2026-02-11 15:36:55 [Info] Search status: Starting
+2026-02-11 15:37:01 [Info] Search status: Starting
+2026-02-11 15:37:06 [Info] Search status: Starting
+2026-02-11 15:37:12 [Info] Search status: Starting
+2026-02-11 15:37:17 [Info] Search status: Starting
+2026-02-11 15:37:25 [Info] Search status: Starting
+2026-02-11 15:37:33 [Info] Search status: Starting
+2026-02-11 15:37:42 [Info] Search status: Starting
+2026-02-11 15:37:49 [Info] Search status: Starting
+2026-02-11 15:37:55 [Info] Search status: Starting
+2026-02-11 15:38:01 [Info] Search status: Starting
+2026-02-11 15:38:08 [Info] Search status: Starting
+2026-02-11 15:38:39 [Info] Search status: InProgress
+2026-02-11 15:38:48 [Info] Search status: InProgress
+2026-02-11 15:38:58 [Info] Search status: InProgress
+2026-02-11 15:39:08 [Info] Search status: InProgress
+2026-02-11 15:39:17 [Info] Search status: InProgress
+2026-02-11 15:39:25 [Info] Search status: InProgress
+2026-02-11 15:39:35 [Info] Search status: InProgress
+2026-02-11 15:39:45 [Info] Search status: InProgress
+2026-02-11 15:40:00 [Info] Search status: InProgress
+2026-02-11 15:40:10 [Info] Search status: InProgress
+2026-02-11 15:40:19 [Info] Search status: InProgress
+2026-02-11 15:40:28 [Info] Search status: InProgress
+2026-02-11 15:40:36 [Info] Search status: InProgress
+2026-02-11 15:40:44 [Info] Search status: InProgress

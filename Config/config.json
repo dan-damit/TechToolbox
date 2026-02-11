@@ -185,6 +185,7 @@
       "includeRoles": false,
       "includeServices": true,
       "helperFiles": [
+        "Convert-CimDate.ps1",
         "Get-SnapshotCPU.ps1",
         "Get-SnapshotDisk.ps1",
         "Get-SnapshotIdentity.ps1",

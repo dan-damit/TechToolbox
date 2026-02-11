@@ -1,87 +1,99 @@
-<#
-.SYNOPSIS
-    Worker: Build a system snapshot on the remote host by dot-sourcing shipped
-    helpers.
+function Get-SystemSnapshotCore {
+    <#
+    .SYNOPSIS
+        Worker entry point: builds a system snapshot on the remote host.
 
-.DESCRIPTION
-    Runs ON the remote computer. Dot-sources the snapshot helper scripts that
-    were copied and expanded to -HelpersPath, invokes them, and emits one
-    PSCustomObject representing the system snapshot. No CSV writing or table
-    formatting here.
-#>
+    .DESCRIPTION
+        Runs ON the remote computer. Assumes the caller (Invoke-TTRemoteWorker)
+        has already staged helper scripts onto the remote machine and passed in
+        the resolved HelpersPath. This function dot-sources those helpers and
+        emits a PSCustomObject snapshot. No formatting, no exporting, no exits.
 
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory)]
-    [string]$HelpersPath,
+    .PARAMETER HelpersPath
+        Directory containing helper .ps1 files shipped from the controller.
 
-    [switch]$IncludeServices = $true,
-    [switch]$IncludeRoles = $true
-)
+    .PARAMETER IncludeServices
+        Switch to include service information.
 
-# Guard
-if (-not (Test-Path -LiteralPath $HelpersPath)) {
-    throw "HelpersPath '$HelpersPath' not found on remote host."
-}
+    .PARAMETER IncludeRoles
+        Switch to include server role information (passed through to OS helper).
+    #>
 
-# Required helpers (only those you ship)
-$required = @(
-    'Get-SnapshotOS.ps1',
-    'Get-SnapshotCPU.ps1',
-    'Get-SnapshotMemory.ps1',
-    'Get-SnapshotDisk.ps1',
-    'Get-SnapshotNetwork.ps1',
-    'Get-SnapshotIdentity.ps1'
-)
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$HelpersPath,
 
-# Optional helpers by feature switches
-if ($IncludeServices) { $required += 'Get-SnapshotServices.ps1' }
+        [switch]$IncludeServices = $true,
+        [switch]$IncludeRoles = $true
+    )
 
-foreach ($file in $required) {
-    $full = Join-Path $HelpersPath $file
-    if (-not (Test-Path -LiteralPath $full)) {
-        throw "Required helper missing: $full"
-    }
-    . $full
-}
-
-try {
-    $osInfo = Get-SnapshotOS -IncludeRoles:$IncludeRoles  # if your OS helper supports it
-    $cpuInfo = Get-SnapshotCPU
-    $memoryInfo = Get-SnapshotMemory
-    $diskInfo = Get-SnapshotDisks
-    $netInfo = Get-SnapshotNetwork
-    $identity = Get-SnapshotIdentity
-    $services = $null
-    if ($IncludeServices) {
-        $services = Get-SnapshotServices
+    # ----- Validate helper directory -----
+    if (-not (Test-Path -LiteralPath $HelpersPath)) {
+        throw "HelpersPath '$HelpersPath' not found on remote host."
     }
 
-    $snapshot = [pscustomobject]@{
-        ComputerName = $env:COMPUTERNAME
-        Timestamp    = Get-Date
-        OS           = $osInfo
-        CPU          = $cpuInfo
-        Memory       = $memoryInfo
-        Disks        = $diskInfo
-        Network      = $netInfo
-        Identity     = $identity
-        Services     = $services
+    # ----- Required helpers -----
+    $required = @(
+        'Convert-CimDate.ps1',
+        'Get-SnapshotOS.ps1',
+        'Get-SnapshotCPU.ps1',
+        'Get-SnapshotMemory.ps1',
+        'Get-SnapshotDisk.ps1',
+        'Get-SnapshotNetwork.ps1',
+        'Get-SnapshotIdentity.ps1'
+    )
+
+    # Optional helpers
+    if ($IncludeServices) { $required += 'Get-SnapshotServices.ps1' }
+
+    # Dot-source required helpers
+    foreach ($file in $required) {
+        $full = Join-Path $HelpersPath $file
+        if (-not (Test-Path -LiteralPath $full)) {
+            throw "Required helper missing: $full"
+        }
+        . $full
     }
 
-    $snapshot
-    exit 0
-}
-catch {
-    Write-Error ("Snapshot worker failed: {0}" -f $_.Exception.Message)
-    exit 1
+    # ----- Gather subsystem information -----
+    try {
+        $cimDate = Convert-CimDate
+        $osInfo = Get-SnapshotOS -IncludeRoles:$IncludeRoles
+        $cpuInfo = Get-SnapshotCPU
+        $memoryInfo = Get-SnapshotMemory
+        $diskInfo = Get-SnapshotDisk
+        $netInfo = Get-SnapshotNetwork
+        $identity = Get-SnapshotIdentity
+
+        $services = $null
+        if ($IncludeServices) {
+            $services = Get-SnapshotServices
+        }
+
+        # ----- Build snapshot object -----
+        [pscustomobject]@{
+            ComputerName = $env:COMPUTERNAME
+            Timestamp    = Get-Date
+            OS           = $osInfo
+            CPU          = $cpuInfo
+            Memory       = $memoryInfo
+            Disks        = $diskInfo
+            Network      = $netInfo
+            Identity     = $identity
+            Services     = $services
+        }
+    }
+    catch {
+        throw "Snapshot worker failed: $($_.Exception.Message)"
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAzlZVwSIX37n+A
-# h07oEecK4PAblhdQ0VAhcU8uw36gd6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDTT21cFQE3HEaF
+# tF/WhUPlkqYeewWlNdXQzUkp2Sg23KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -214,34 +226,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC4q/gYDQWJ
-# 0IpryP1Z2AqvNmgFlOqdYSYGAe9IlfM0wTANBgkqhkiG9w0BAQEFAASCAgCDlT6G
-# mu63Mj9OBtLMaqXen+JMqElTuxUqoa4CkhEq0di81l0x0YwSew8as0+V/q+Ry+q6
-# yh6PU/oUdomdjWst/dLb0AotoRPHEYKB2WQRIYofF9rTNfw5f2eY8/qZyrpEWW5T
-# HzA+jJofo5PKnDy4Sx4uv8udKWHYtpFxTDi2QIG+E0tXizfP+7AGfclT9vXkJdGK
-# 2dPttq45J4NL/JlLxbvCzEt7lIfcZV5dRbAYnU0fSHeGWtf67EtiSFUGrkQM3YNh
-# y3wU4TZNTATC/wnzmDOa/9OuOew3+T8PSqhGobU2aJSAcPcN9omBoB9BB7QM8TJA
-# Jlpkh0OBMtYONgpBAr+ddFRVoiIAujr/AlWz0FOEJD44VxpDjw6tEWYOqHpEPy8N
-# aJ8HG85NgzP7REN3xkX78MnFOw3kdSSFS0zU8lxR0RWvjbQZxCsFYytnj70zmoL/
-# hOj9jQX/DGVdFpDXCB/4x132d9+XgCEkwe/CsqZteT7or9vkSMY/qPuu9mc1ixNp
-# iYo/opE9uUuh/tGuBQ2aHrqW13UFP2VbA+xRRB02qo+5vu9HiHJyBVSwVPdZyUWe
-# 7dogPpR5N/wy//B6R4lvDpmnQO6/+QY43ALlIQmAI7fLJJYuS81SMO46q/ICyNPW
-# eIROPFWBoXKHkXdAmoMgtdQpMNvlcSN7Sd2k9aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC6YPP5/9U1
+# xGe1xCUQIQ27pOP4Ubvfef5oDkikY2IPGTANBgkqhkiG9w0BAQEFAASCAgDRG9vL
+# DQj+v/EI6/9vwQ9/7ZtnzY3qpcipV8IB23u95BoERH41FupcdaeBQVafs0JpMIhq
+# aSoGC6EoeCx4yR+OvN79clWsR83Ec3TeeVho5kXzzJKHGjWUlAb0hJ/e9UuiLkEI
+# M308aFJ4PMxY3rKT+UlpgBEHRclQqDzxkU0m/HCahH2ecmUTpKVC5K3+M4Cxbvn+
+# 1nOTBvL0iLXLpwfBSLi6TUqTKFTR9MqKXtklm7txLPgGR9ZtrL/oBzcCH99tM+MR
+# Gsa24RdXXfFvU2flMD5BCPGpZfuaQ1BeNKyUoECb8jXe0tlGR28FMwqqOobsMnF4
+# CUh66g0QCsU2+zYhXIhnY9Wj4BgaLF8u0fGRpQmW5bpEnPsGZwD8fuF8pxSc1wSz
+# XfE0HdpSVSKp5vjrP4MqhKhvHUDeigHy6YXFzMnYLBlm1Rw1w0Kb0h1wQiqk+4ZZ
+# aoph7cCgiJWXy5mRTzhIVFBjRCPEATZXm3iiTkfqoxIZIZ3LWTf2FfJHjv2p3Xd9
+# 6qLWU3eayvyV+oc0UAypppu2yfB3ZE8VpGIvdd+Wxpv5J/3+j2sS0xzzp+ygxOWJ
+# OrIQqmzoAd7qTwXS+H5KNlrTnTnwqmu9f19yFD3uJwPn+1eSAhPCq+kOksvbsrfY
+# OFWiQcQON6Yqid89WEV8HoSSRTKvc9u0omtGNqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwNDE5NDZaMC8GCSqGSIb3DQEJBDEiBCDfg79SmqZwm485VNo2
-# GnKMeYQ9W/gvzx/74/TfrUElVjANBgkqhkiG9w0BAQEFAASCAgDKZS3eR/hIb8H8
-# GHk4/kDrHyVTpPrXVIkGa2yE5sQzN4afYmlyiUDlkL2bn0ciaAr275ae8+Lh/8y9
-# 4WeAgPcW/u5mt9TwMSBeW96oJSteU07dl+bgsGHz9iwLld5MKDhWkmtWnth1aiEK
-# drUbQ6HcHBuJrKXMMoGkOBWH/iNMBTag4mYw7H4BrxzOYK48lFsRY0jwarrcY10V
-# zKiMj1f3AzbKN4ORx8604KW8qr9tGp/90rLWsTKEk5jOouX3vI7zOXGeba9Z6Ta0
-# DnuLggDJFXmz9JPWpexduD8YwSiUl22WwRSidemy+/l9XOUdmlFnzLwwiV2JAQgg
-# 3y+pGfHJoDkWHiMZeltfibXbX49RHVa+FI4b5FoxLYH75PN1GuwFjs4eVSUwxZiH
-# ps+piusRvdmN+BG0nx/NdujFonj300ubk2/8+/2ZSlJyh8RLWsgMRUA0EqXS70m6
-# blmeXbmabhk72pD+skJ8NpbN6iO0fEek6O/JlODHqXhttx2X7OtABnXSxrCwjOWH
-# XJK+562HXRsSVEakxNVsksD8V9f4ZJKcSSvprBYhh2h4Y0hlnrS7y/3HlY4na+3N
-# T+uHYsOQoUVut34uL+hLlLSwyc1GbvBGw2aN5VXh20IE1GG/MNas/KVi+6VFWEvu
-# wuCnyQEVOajPGHG0fTGNeG1kL2uwjQ==
+# BTEPFw0yNjAyMTEyMTIwNThaMC8GCSqGSIb3DQEJBDEiBCBfwWFFLMXtUxw7W1qy
+# DDf7k1gf8QrI62FCY/NGLXtHlzANBgkqhkiG9w0BAQEFAASCAgC2pS/W9rQoc7v5
+# K5QddPWyealZywmOGATNb5ARy//7irlDm1A/2hk9Ez9XR2YNxVKfEepy85xIuDAz
+# Ayn4UDKIPhdmBpuqpdl7B+Qpq1mMQ79cW+SWitaz0qNli4cnLkC+AkNQThH+7fwe
+# WJSh0A544jaKnXwKZQMGV0JjZ+D2rKn1LoVLzDwOO8oWcav3OyOzEwjPdgKY74ZW
+# CqCUpx/iB+SAlnBzIK5wjdBgqRg43QIqbZ33rS4+eES2750l1YWdgsw4Owr1vkUz
+# tRgJaxqL4rB4QM2LmuErkpG4MmukKa6HG4o4/e/G1IiQI38KqnglptU4VBGlj1R6
+# Tp/lzoc/FK5iqdeiLAGyUbi7W2b00MSRHqQnJmPxtUYAGkCqNr0IMUhHtj5b4Lfj
+# iEL3cM/j5UgeSlQCZLr5TBu5Nj/tobyMS1Bqu5BhTDW9bZYfaUT6f4la03NV6DNb
+# cuX1loOjCXnL9wFh7MvZ+kuvPwMWWU4hL3NVh792f2pfeJVhVkrTtFmY2voMeT7v
+# BNvFEphe7ZzgPGzBTXykCZ3KqWo02DIY+jYahNQE6yPCJ5hFjQmNDuUs2qiJBW7o
+# HTZVIhgrQhYuxTdAF6MZYZJnY13pdfmo5N+UfBzGbM8N/R0WuQM8qnlHdDuwi2OG
+# PrgAKo0uB0VK0fwYtrP5Yr5CepEShQ==
 # SIG # End signature block
