@@ -32,6 +32,7 @@ if (-not (Get-Variable -Name ConfigPath        -Scope Script -ErrorAction Silent
 if (-not (Get-Variable -Name log               -Scope Script -ErrorAction SilentlyContinue)) { $script:log = $null }
 if (-not (Get-Variable -Name ModuleDependencies -Scope Script -ErrorAction SilentlyContinue)) { $script:ModuleDependencies = $null }
 if (-not (Get-Variable -Name PrivateLoaded -Scope Script -ErrorAction SilentlyContinue)) { $script:PrivateLoaded = $false }
+if (-not (Get-Variable -Name cfg -Scope Script -ErrorAction SilentlyContinue)) { $script:cfg = $null }
 
 # Guard re-import
 if ($script:TT_Initialized) { return }
@@ -69,33 +70,14 @@ catch {
     # Continue; tool can still run from the current location this session.
 }
 
-# --- Load **Public** functions only (1 function per file convention) ---
-$publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-foreach ($file in $publicFiles) {
-    # Trust convention: the file defines a function named as the basename
-    # This avoids Select-String scans and is how most PS modules are structured.
-    . $file.FullName
-}
-$publicFunctionNames = $publicFiles.BaseName
-__tt_trace ("Loaded Public functions: {0}" -f ($publicFunctionNames -join ', '))
+# --- Load Private functions ---
+$privateRoot = Join-Path $script:ModuleRoot 'Private'
+Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 |
+ForEach-Object { . $_.FullName }
 
 # --- Lazy runtime initialization (config/logging/etc.) ---
-function Initialize-PrivateFunctions {
-    if ($script:PrivateLoaded) { return }
-
-    $privateRoot = Join-Path $script:ModuleRoot 'Private'
-    Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 |
-    ForEach-Object { . $_.FullName }
-
-    $script:PrivateLoaded = $true
-}
-
 function Initialize-TechToolboxRuntime {
     if ($script:TT_RuntimeReady) { return }
-
-    # Ensure all private functions are available
-    Initialize-PrivateFunctions
 
     try {
         Initialize-ModulePath
@@ -112,6 +94,17 @@ function Initialize-TechToolboxRuntime {
     }
 }
 
+# --- Load **Public** functions only (1 function per file convention) ---
+$publicRoot = Join-Path $script:ModuleRoot 'Public'
+$publicFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
+foreach ($file in $publicFiles) {
+    # Trust convention: the file defines a function named as the basename
+    # This avoids Select-String scans and is how most PS modules are structured.
+    . $file.FullName
+}
+$publicFunctionNames = $publicFiles.BaseName
+__tt_trace ("Loaded Public functions: {0}" -f ($publicFunctionNames -join ', '))
+
 if ($env:TT_ExportLocalHelper -eq '1') {
     Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
 }
@@ -123,8 +116,8 @@ __tt_trace "Import complete"
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBRdpoF/0EHC3NC
-# 0b9G1lwYX1QqfMgJj8fr37/LoGYvzqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCPXPR7op8e+n84
+# HDbcZrt3yOv4hUMiYNXFlr5fDlVEZqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -257,34 +250,34 @@ __tt_trace "Import complete"
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDrBvSCrPSL
-# kZJ8oe+yKZfaUGVTdLXTMQovJIGd64KFNjANBgkqhkiG9w0BAQEFAASCAgC2450R
-# PwdzHplEXMHkXm4do/16LW9ppld1BbqMER5U5QVeE7YhfmgMm6LJ/F4vG6tPwRs9
-# 0qdwqbxNf8dgaTHARPQLOoYUlcYraxNuDtyJayYh/VuTkCLI2iwqFlksIqsWQJTb
-# 4Fj85e7pBd/U7FHEi1q5W8nd0gGsYx6hwRpQOqp7cLlkUNIiokFwFqgZu6WUvPgY
-# m0CfpkdTgej8eh/fBSPsmuuJUnYBdmyfL2JVMXzrtLYSNKyLmysHSQReipLTKbha
-# xLqF2ZUXvTYtbOspWezDn50zgezH6PQjL40gWojM45hfBWCwMc3aGrJNn0kAVuC5
-# pEBQi2CNFeYs1nWFjuS21mXskb7IdOGyFG2gLkuVFCbuuK1TopbQfF+EsinUQa5m
-# PiePA0EAZwsWhKiLgNSG6k5fJjRPVJ071OlQAQycJhAfBdTYHpDQ34iz1I428Y5j
-# Ehwz6J1RjhIh66n6tFt69LJtgaVgE2ox4V3ibEDswLfKSmL/gR850ntta/1PYU8w
-# UDu7JmzVfqc5r3AfoRwMLjzP9QnGXkh+tJrwf9UKvaV5xZ15INkcl+ku+JQedOj+
-# Z8Xq/R3AEgRIfs+bVSPMztTb0ZJ48yKpelXKtmla+Kzfjv2y4nCIAitLzehBCD7l
-# bliP9KaIrMgRa4J3HZ40e0NrNF6BsTNs9dYIfKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC97T2BPQAo
+# YMONoWU9/NzTpIKZBoSGoAk7Jib7aIEF1jANBgkqhkiG9w0BAQEFAASCAgA/uwAv
+# 3qh0S+OeJuauB67es5u105w1ZkzVe9N0FgOwWWE/SLL/k4rKoyMLnWr/LUA9Cj4k
+# 8nxpmNRwOR18TQTn09yrE4NWl/1EUZUBNV8z41aeczdtcyW/OVEWjz3H6ErDkoE1
+# LPGPJa8ipUKEB+ARR7rJAlzku5e2L1e58TrrhyfuujDGHA16ho6RUtr4/xVHoneC
+# keWknuRmBHJnbcw36BXJtKHsyG5jrcY7NyLVSWt40s7gccSuXE4Q32Rk1PYioP+w
+# 8Igj4Sx/BSnX1vnJdJ6V5VJ8fapWqgAnqTIuAkLGeoS60BSoY21ffM+Rv0LzIyl8
+# NNUYKH0gXMaobH4iGCMwE9w6XqrybEcK+AJoQXcWoeFq1jgh9h3r7jDqrQGGWHCy
+# 55rZJtvgQqOalx3SLyacEdJ6mC9XJzqGxPaIf5bLLx7pgKVUQsN2SOG+MEI6/6F7
+# zRoEAtxpzi1ux+35uOX/1/hmh1AU6t356EG/UOxcj6Lz8+S7kFSaCFhwCJvC1vUf
+# KDMY9AIxqKVg3zK8S+XEznHf+6+ceRGORkpCw6+L5HRLGH6kLR65347ypjQFhyEn
+# 0TLuYtzZeIqLboVL/wvJUc1IEJ79QsPTCVSNaM/+PnmCWVckqImKSt7G+ED6pHiH
+# nOeiTmkAkbadtZb1LQfzkLmWSDChqca2r595MaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMTE2NTFaMC8GCSqGSIb3DQEJBDEiBCAKGEV950sInDfDD2FT
-# nrs2Fs8cIUMGyLzizzESbHKqXzANBgkqhkiG9w0BAQEFAASCAgAM/T1VYLFIXWiv
-# grhUF3/lMYF90NbVWPuuyZeR+ZOUnpje4AFEtQIGnfH5qLVOQ7J4/2Y/NS9q+axx
-# XaRP+BNU0DGNlomcgFjtT1FHRILlNq+hsU9yIDnpj+Mss52wOKWe6YOQK8FKJaJE
-# HGQLNmZXSGP8yNcXYFTOC/2a4Qh70s5R3Xxnxq2ECaYAoibWNr9wkl55E2HxJjC5
-# 1gqiqQeUvxY4ADebpofBWWdlSR6CnROUgKtC0SwANBsEVXhtUXccQaTJQM5ZZ4M7
-# Azqh4L57Yap++2C0LP2BNv0Dj7Z2cwfKAKn5MTf/MaS4ekil/pToDkIQ8iil5iVZ
-# 2oid4F61eil3gPNeA8FcCtsym8ClnHnFZVvZdtB9TlWE/qUs62Heao47GMNbe5RS
-# 3BPoPZrh0rMRQQjKJhqeydQofkTftyUPyGOXJmAFIX2EOFHClA1oIchDR0ltA8vh
-# 4SZ7O0yqXTY4vqcpykuxKWy47lXjLLTC52iuCRbgt4Cn+KcsyemA3PNtyL/CGU5K
-# 8Os0vsyY1SO0d2tIZnXBdrmSBU4MN/P1R3ezEvaZJEmfhJAgRLWS+pQZlczAE7qp
-# HEqp1p4cDdIz54FV9GJAP+RkTk1wPn5C92GTg9GUyCm05XJxcbYxRApqXQX/YsJI
-# NP1tRfX3s0StrkDL3Nd9v8oRoqdEyg==
+# BTEPFw0yNjAyMTEwMzA2NThaMC8GCSqGSIb3DQEJBDEiBCDYgTtjPW5L7zaPjJu/
+# FcwG3gmrx+qoWRbaqW1h/hWfKDANBgkqhkiG9w0BAQEFAASCAgB37paoPC2WK/9a
+# l7K+VxLL51KIwc741GV0zYmFz7XPFLoLJf3RU+LF7nKdYPyM0/3PXp8AXeDRcMza
+# 8p9uY2czBDLBGsFeZ3cgrJVhWsJlpNkG4NQoEMFbfEYCv4Jqf0FPBArnTqdDJK2R
+# JTuz9ReataEaK2bPqxvBQ0Zs12c/h3FjQmBTSUure79V203QvPbVtLzC15jzbcbb
+# ikvOMa9AkIhBA92IDIH5WzVONG7JPrO92Eje5wI7+kUuFLA92Ln3+dAJrGSq2kew
+# WdSimal4Xe/2uzNK4P4NIHqNELp6DRVrn5uIbe2PaoLP7yTCyBWnlNaW9dhXaeBn
+# 6rFtZiHk/9laQd5tRMoKqRJZA7FpHR8kkf5kI7KWGsm0bkToecuLYimcRdu/H97e
+# TeHOYHPI9tHRQL7e5kcqqKvfwwMBqedh9bVqHVo6Bkvk8DbgSy1MT4mZau1BAvZO
+# 93w0icSbg2d7Y0zcFUh7Jg5YVHW5GBubi4ytkiEyKU/RZkj61mASUIg3HqtoeD/f
+# uaVHh4yC8wI/J1oKn9DPiOTLEfM7JXpnufNYoRI6Bs7S+B0S+zUMppmKUYZfqPsb
+# DALb29t+uI8Cnulz0V8zZ2LE5hhheZWc5lZV3Z6bDomWA7ULsaStqIVNHcZu16ik
+# 8MMyvp66RpymdUpOFf/SRg+wkPSVZA==
 # SIG # End signature block

@@ -1,107 +1,48 @@
-function Write-Log {
+function Initialize-Logging {
     [CmdletBinding()]
-    param(
-        [ValidateSet('Error', 'Warn', 'Info', 'Ok', 'Debug')]
-        [string]$Level,
-        [Parameter(Mandatory)][string]$Message
-    )
+    param()
 
-    # ---- Fast path guards & mappings ----
-    $log = $script:log
-    if (-not ($log -is [hashtable])) {
-        # If logging wasn't initialized, do a minimal, non-throwing fallback.
-        # Avoid touching $script:cfg to keep this cheap.
-        Write-Host "[$Level] $Message" -ForegroundColor Gray
+    # If already initialized, skip
+    if ($script:log -is [hashtable]) { return }
+
+    # Ensure config exists
+    if (-not $script:cfg) {
+        throw "[Initialize-Logging] Config not loaded before logging init."
+    }
+
+    # Pull logging settings from config
+    $settings = $script:cfg.settings.logging
+    if (-not $settings) {
+        # Fail-open: minimal logging
+        $script:log = @{
+            MinLevel      = 2
+            IncludeTs     = $true
+            enableConsole = $true
+            UseAnsi       = $true
+            logFile       = $null
+            FileWriter    = $null
+            HeaderWritten = $false
+        }
         return
     }
 
-    # Map level -> int for quick filter (0=Error, 1=Warn, 2=Info/Ok, 3=Debug)
-    switch ($Level) {
-        'Error' { $lvl = 0 }
-        'Warn' { $lvl = 1 }
-        'Info' { $lvl = 2 }
-        'Ok' { $lvl = 2 }
-        'Debug' { $lvl = 3 }
-        default { $lvl = 2 }
+    # Normalize into the structure Write-Log expects
+    $script:log = @{
+        MinLevel      = $settings.minimumLevelInt ?? 2
+        IncludeTs     = $settings.includeTimestamps ?? $true
+        enableConsole = $settings.enableConsole ?? $true
+        UseAnsi       = $settings.useAnsi ?? $true
+        logFile       = $settings.logFile
+        FileWriter    = $null
+        HeaderWritten = $false
     }
-    $min = $log['MinLevel'] ?? 2
-    if ($lvl -gt $min) { return }  # filtered; do nothing (no allocs)
-
-    $tsEnabled = $log['IncludeTs'] ?? $true
-    $ts = if ($tsEnabled) { (Get-Date).ToString('yyyy-MM-dd HH:mm:ss ') } else { '' }
-
-    # ---- Console (fast) ----
-    if ($log['enableConsole']) {
-        if ($log['UseAnsi']) {
-            # PS7 ANSI path (single write with escape codes)
-            $color = switch ($Level) {
-                'Error' { "$($PSStyle.Foreground.Red)" }
-                'Warn' { "$($PSStyle.Foreground.Yellow)" }
-                'Ok' { "$($PSStyle.Foreground.Green)" }
-                'Debug' { "$($PSStyle.Foreground.BrightBlack)" }
-                default { "$($PSStyle.Foreground.BrightBlack)" }
-            }
-            $reset = $PSStyle.Reset
-            # Single emit to console
-            [Console]::WriteLine("{0}{1}[{2}] {3}{4}" -f $color, $ts, $Level, $Message, $reset)
-        }
-        else {
-            # Legacy host coloring
-            switch ($Level) {
-                'Error' { Write-Host "$ts[$Level] $Message" -ForegroundColor Red }
-                'Warn' { Write-Host "$ts[$Level] $Message" -ForegroundColor Yellow }
-                'Ok' { Write-Host "$ts[$Level] $Message" -ForegroundColor Green }
-                'Debug' { Write-Host "$ts[$Level] $Message" -ForegroundColor DarkGray }
-                default { Write-Host "$ts[$Level] $Message" -ForegroundColor Gray }
-            }
-        }
-    }
-    else {
-        # Keep critical surfacing even when console is off
-        if ($Level -eq 'Error') { Write-Error $Message }
-        elseif ($Level -eq 'Warn') { Write-Warning $Message }
-    }
-
-    # ---- File logging (lazy & reused StreamWriter) ----
-    $path = [string]$log['logFile']
-    if ([string]::IsNullOrWhiteSpace($path)) { return }
-
-    # Lazily create the StreamWriter once
-    if (-not $log['FileWriter']) {
-        try {
-            $dir = Split-Path -Path $path -Parent
-            if ($dir -and -not (Test-Path -LiteralPath $dir)) {
-                [System.IO.Directory]::CreateDirectory($dir) | Out-Null
-            }
-
-            $writer = New-Object System.IO.StreamWriter($path, $true, (New-Object System.Text.UTF8Encoding($false)))
-            $writer.AutoFlush = $true
-            $script:log['FileWriter'] = $writer
-        }
-        catch {
-            # Fail open: disable file logging for this session
-            $script:log['logFile'] = $null
-            $script:log['FileWriter'] = $null
-            Write-Warning "Write-Log: file open failed ($path): $($_.Exception.Message)"
-            return
-        }
-    }
-
-    # Header (once)
-    if (-not $log['HeaderWritten']) {
-        $script:log['FileWriter'].WriteLine( ("--- Logging initialized {0:yyyy-MM-dd HH:mm:ss.fff} ---" -f (Get-Date)) )
-        $script:log['HeaderWritten'] = $true
-    }
-
-    # Fast append
-    $script:log['FileWriter'].WriteLine("{0}[{1}] {2}" -f $ts, $Level, $Message)
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCcFsVlfm+xxIMi
-# x2U15aSXXFFWm0NVyXVGf+njptHobKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlHi1ZpcMUyz+p
+# bIwV5cJAeCG+mzRR5B2qBB8PrwnSQKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -234,34 +175,34 @@ function Write-Log {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC0Q8x1FiPC
-# mYC5vkNY+tpUiOUbjejcLZw54lzB1yvK+TANBgkqhkiG9w0BAQEFAASCAgDZo4ul
-# TUuuxWjC5HGFPBK9Y6FmUhBivNp4ouyiQdlTWmX62nyZDpqOKpimiTr5yqIqy69a
-# reHMP7pqOPFYJ5HKiblXZsnZ01AT1SDqxFP4S8/iJaUG7TLUBgU5FcxWLEfeM15U
-# g7g+mnXEIo+ydCB0NNlGauOCUEqS61OHPnRlpeasZI2ewE3mdoA++IBlADzVSJen
-# 6LiWz73Sdoz7rl2DZo6uui4es41T7DciCmzhoeBODf3/BAcPawcvxRJgEE/nXT+7
-# vIyUk3eBDL2T27q+maYUVEaklaD3eSzVucxJcndDLrIAzDEESyp/94YdVqpLO0Te
-# Kz1UqWd80PfYPaL9JxQz72magTQY8qI9xz2itSdpHTsd0cTPOSzvH1UhXqN9P1+B
-# jLBC87EhNjjeUuLYgKXo4gkDZOkMsV/XLY//7IGbD6lA4Gv5+2bBAvfNj6Pm81wh
-# WDo1HipQRcKSyeM+H96vBsjYn1nTt2RG5IlHVRpV0CSbYi7qJfd1D6ZwOPlRLjxg
-# oyEoO3oePD/NPxR1FpTPM+f9KY08TM+UmyHLnL0MoFHTCrRkWD1DhpRllm/nNRMq
-# sQ4jvOupK4zCQKbeFLPrYlHKMRtQ6KLgVwFRBufzdfZvpfqIy0Y8YVSpjVL7f2St
-# GbDSHrCwqat/HJY7oiu78Kkfo4dOmN+cACvRjaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCrw4TE2vFr
+# K/oN3rZ5Tj2cbMsjoBtGJfoBt4haWJQPPzANBgkqhkiG9w0BAQEFAASCAgAlP4Fr
+# OR1kawPsJgKL3LveGIJU9I8MsJNqiG+Z/GWRfvY5UVdXRCR9tk7Mir6AEYzYnS6T
+# FAOwXz9Xoh7MOcWRRXkB1dJ/C5BMBnjab0QJbhaps0tBimh9sGdRijRP5QHPulch
+# 0O+jCq1sTH3jHRwQwYLKAPVEyhrfnVjXsEJzaFml4P5d2aGz42kz2rfiB4hdDbmD
+# NcyfeDr9ERHSHrmeFafuKjvYnxd7fECYthEvh65v4YJbFzqxGGA2uIYZzhJC4vpx
+# zvl5lifQ0jQqnDl3eAX1ItkJyBEjO47Wq9cM2/fwgYkTXAXOeOoga/dLEjEQQrue
+# wdBUiFx1d1l4HhoUkQxRoJHjqnKrMs0AYKqx0Qm1KVf6BjfECWaG0hJzb7Xy8l+S
+# o7Uo8wZacRLazkFdTb2V5eksBwslBWtAy81F9FOiD2hWGlhSNSJNQjYM2ULNlbIg
+# 5gR1S/MHp2S+6b3ihISAvKLjVBtuKdP0Wz1WuJZsrebxKLKy9rjNHujHRaFgzq+W
+# vHPlXQrS6p7pNCQ0yeBZamIWbSdqHDd9QpADXbVX4N0YMvuDlgKaTbeq2dVRt997
+# ha0cKJh4jGQO3GMpnMXtF1mTaDH/A3uKzPbNghLo4nFPeDorLXgQI7pH8z5k6PK3
+# OdXrB6Rxfw0n/OmQQja77odcBdkhpo/H0OML1KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ1MjZaMC8GCSqGSIb3DQEJBDEiBCAocGD/cHqch5iIBVOn
-# 5FoRjcePhJIzqTEQ+Sxm8YxfcjANBgkqhkiG9w0BAQEFAASCAgCLjs8UBvyXCC77
-# X1uASxWRqYc+hbFrrqbzTl0OWRMOT3KtWYpSYqCHKYPGnU8PzzC8gJ/1AsXOH6Az
-# 8o3gqp0PexK0Sdmg2Pwi4YdSRDOJZmUW41LGi42VRSRT+TpYspD3nX+Q0Q7x1E5I
-# bo4KF/4w77fwrhwZ/6FdF+xMQa5MQGen4BUeo2TMi0pNWf2OxG4mLjcfF2rGbDYM
-# fpSKSHF8ybM2Z8cVSVx8w7TNCr9AVkq6f88l4vALGhleEr5CHncB9SeTG0U/P0Bx
-# Q0k2yuPGBHcwDNppGFw4S4ZsuMF/ibX86za2rai/5SqHbeGVY+JdJk0emjTk3/bk
-# JkbMRT2ugRyrVQJBlPbKsgWh+7rDTc1mjocVTORZrJlJlVMU4PAW2ktZmi7y1R3F
-# tKLij35etzxBPYiXLP4kCAYbYRcI1ph0Zspg2hMcUPIaTwQQ9DfMcIek+EToEJUO
-# 3EsWFnR/fJuIhEil6I6I6ldOXjyPN7wBk2+/ayJGo8INUNvo0g/bS1C3zdNDyG7q
-# SCYEe730Lx9TDTg6MwGR+qmKBwV1kSAhANVXrDNBCpuwByXEKkitYisu14m1lVpK
-# tSB0MuE4ppTyx9ifYHDZ8fE0CqtR4Vc+tny/HWlE6VpqrQg40Vr2NA8yxTqI9mRv
-# ZAyRAKJmNriooTxouOC+H42/EUTjxA==
+# BTEPFw0yNjAyMTEwMzA2NTZaMC8GCSqGSIb3DQEJBDEiBCDWqP8Cq0AdsPCiD10c
+# QpVwkmeQUXIwXoXH05rWOCht1jANBgkqhkiG9w0BAQEFAASCAgCExgjlDehTCmQu
+# BkODtavStyXY3qlbGKT0IKceleKqdc6YglBTaSPd0GSNFxop9K3PTPE26ZhLv8oF
+# GyBAQnafOCkRleq4qd4ZQuPtbqJzOrnLNG32BkceTNUTJ/6XVqFIN1MTJ3K3KQWn
+# ssmwDOPwtmQVpcK3LG0iZeNyh5pc9qtog6V8rKjeH2BGgClwP24skgRknLVuEHhL
+# e1GreZkRK9bLHB66fiotGmfTH5Y0J84b6B2YhcEe7AmA3RLHqUeLFMOUvVUwIDaZ
+# cnfJEeeLtxA8W+hN77vjd84UPyLvtmPeuK5oxD7K5wppRUNcYUhmGe/Q2Bmo9uvc
+# l4yQMREQ3t9oAgckWHf/mGQeKdYZolFziSyyB+ADL9PrgGPdOw+y/w4ZVXLqKAbG
+# /puMomwmRLPPZXCLRAuAqNxsEZtaADs5rQras4VSsvlHN8Ow5Ubn3qdw6r8ksOfa
+# LobcZRxFiwHbu0Go9F5ym/Wb8/1q+tYB+ZbTpq0N39A5TJWhKAIgXw2qwj9XTVAh
+# /q7zobNgYBKQcoVw8wkiNidUiP7oAjxcQs71FVC8IUV/v3W5vl5RShSdXWOf04su
+# TlhIjWZA2WIqOkzF5Qxf1F9ylThvryiSTcZiCeevACPhPU40xhlw+IK6FFKsabAQ
+# 2WaaohDbYe0jF9lcFH9E/QKBNGhBmw==
 # SIG # End signature block

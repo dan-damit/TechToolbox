@@ -1,7 +1,8 @@
-[CmdletBinding()]
-param()
+function Get-SnapshotMemory {
+    [CmdletBinding()]
+    param()
 
-<#
+    <#
 .SYNOPSIS
     Collect memory and (optionally) page file information, worker-friendly.
 .DESCRIPTION
@@ -9,82 +10,82 @@ param()
     simple PSCustomObject values that serialize cleanly.
 #>
 
-Write-Verbose "Collecting memory information..."
+    Write-Verbose "Collecting memory information..."
 
-function Convert-KBToGB {
-    param([Nullable[ulong]]$KB)
-    if ($KB -eq $null) { return $null }
-    # KB -> bytes -> GB
-    [math]::Round(( [double]($KB * 1KB) / 1GB ), 2)
-}
-
-try {
-    # Win32_OperatingSystem: TotalVisibleMemorySize/FreePhysicalMemory are in KB
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
-
-    $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
-    $freeGB = Convert-KBToGB $os.FreePhysicalMemory
-
-    $usedGB = $null
-    if ($totalGB -ne $null -and $freeGB -ne $null) {
-        $usedGB = [math]::Round($totalGB - $freeGB, 2)
+    function Convert-KBToGB {
+        param([Nullable[ulong]]$KB)
+        if ($KB -eq $null) { return $null }
+        # KB -> bytes -> GB
+        [math]::Round(( [double]($KB * 1KB) / 1GB ), 2)
     }
 
-    $pctUsed = $null
-    $pctFree = $null
-    if ($totalGB -ne $null -and $totalGB -gt 0 -and $usedGB -ne $null) {
-        $pctUsed = [math]::Round(($usedGB / $totalGB) * 100, 2)
-        $pctFree = [math]::Round(100 - $pctUsed, 2)
-    }
-
-    # Optional: Page file usage summary (often handy in a snapshot)
-    $page = $null
     try {
-        $pf = Get-CimInstance -ClassName Win32_PageFileUsage -ErrorAction SilentlyContinue
-        if ($pf) {
-            # AllocatedBaseSize/CurrentUsage are in MB for PageFileUsage
-            $page = [pscustomobject]@{
-                AllocatedGB  = [math]::Round( ( [double]($pf.AllocatedBaseSize | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                CurrentUseGB = [math]::Round( ( [double]($pf.CurrentUsage     | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                PeakUseGB    = [math]::Round( ( [double]($pf.PeakUsage        | Measure-Object -Sum ).Sum ) / 1024, 2 )
-                Files        = ($pf | Select-Object -ExpandProperty Name)
+        # Win32_OperatingSystem: TotalVisibleMemorySize/FreePhysicalMemory are in KB
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+
+        $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
+        $freeGB = Convert-KBToGB $os.FreePhysicalMemory
+
+        $usedGB = $null
+        if ($totalGB -ne $null -and $freeGB -ne $null) {
+            $usedGB = [math]::Round($totalGB - $freeGB, 2)
+        }
+
+        $pctUsed = $null
+        $pctFree = $null
+        if ($totalGB -ne $null -and $totalGB -gt 0 -and $usedGB -ne $null) {
+            $pctUsed = [math]::Round(($usedGB / $totalGB) * 100, 2)
+            $pctFree = [math]::Round(100 - $pctUsed, 2)
+        }
+
+        # Optional: Page file usage summary (often handy in a snapshot)
+        $page = $null
+        try {
+            $pf = Get-CimInstance -ClassName Win32_PageFileUsage -ErrorAction SilentlyContinue
+            if ($pf) {
+                # AllocatedBaseSize/CurrentUsage are in MB for PageFileUsage
+                $page = [pscustomobject]@{
+                    AllocatedGB  = [math]::Round( ( [double]($pf.AllocatedBaseSize | Measure-Object -Sum ).Sum ) / 1024, 2 )
+                    CurrentUseGB = [math]::Round( ( [double]($pf.CurrentUsage     | Measure-Object -Sum ).Sum ) / 1024, 2 )
+                    PeakUseGB    = [math]::Round( ( [double]($pf.PeakUsage        | Measure-Object -Sum ).Sum ) / 1024, 2 )
+                    Files        = ($pf | Select-Object -ExpandProperty Name)
+                }
             }
         }
+        catch {
+            Write-Verbose ("Get-SnapshotMemory(PageFile): {0}" -f $_.Exception.Message)
+        }
+
+        $result = [pscustomobject]@{
+            TotalMemoryGB = $totalGB
+            FreeMemoryGB  = $freeGB
+            UsedMemoryGB  = $usedGB
+            PercentUsed   = $pctUsed
+            PercentFree   = $pctFree
+            PageFile      = $page   # optional nested object; safe for serialization
+        }
+
+        Write-Verbose "Memory information collected."
+        return $result
     }
     catch {
-        Write-Verbose ("Get-SnapshotMemory(PageFile): {0}" -f $_.Exception.Message)
-    }
-
-    $result = [pscustomobject]@{
-        TotalMemoryGB = $totalGB
-        FreeMemoryGB  = $freeGB
-        UsedMemoryGB  = $usedGB
-        PercentUsed   = $pctUsed
-        PercentFree   = $pctFree
-        PageFile      = $page   # optional nested object; safe for serialization
-    }
-
-    Write-Verbose "Memory information collected."
-    return $result
-}
-catch {
-    Write-Verbose ("Get-SnapshotMemory: {0}" -f $_.Exception.Message)
-    return [pscustomobject]@{
-        TotalMemoryGB = $null
-        FreeMemoryGB  = $null
-        UsedMemoryGB  = $null
-        PercentUsed   = $null
-        PercentFree   = $null
-        PageFile      = $null
-        Error         = $_.Exception.Message
+        Write-Verbose ("Get-SnapshotMemory: {0}" -f $_.Exception.Message)
+        return [pscustomobject]@{
+            TotalMemoryGB = $null
+            FreeMemoryGB  = $null
+            UsedMemoryGB  = $null
+            PercentUsed   = $null
+            PercentFree   = $null
+            PageFile      = $null
+            Error         = $_.Exception.Message
+        }
     }
 }
-
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDC2jYn+183qMJS
-# gCWSvY/Fv0sn5g5aqlLSbd2ORXdiSaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAqwhzO0WryoO3M
+# VlK1Ztn5eoaSoqcwuz4aRBqF9uvJjaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -217,34 +218,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDu67iLr6ze
-# 8ENehFsO17Al11XlfS2o5TvgJvVyIo2NOzANBgkqhkiG9w0BAQEFAASCAgAWStF0
-# eoCOvX5RJ43tWjMBM/Bhn7NNpl6LLKyjchpnI9IKM5wz3+8s1GfpWbef3MXjE8vV
-# ueZOrkI6ijqUO51da6OymSTc29jPhY1BsqyMl0EvYyeKCDAZ97X2t6X4XRW1USIF
-# DnMffiq7bwcCQwvULPfdeMxAMa3OM9kaX/5GHBP7UhbbT6J2uQkOpGah+dLEdkiO
-# kgmdgjxJZM0Ljhs4aO2ldDId5V7CQbMW2P5g30po2h0/V+/eK0JZ9Hzh+eTsapMJ
-# a2w9vTzZ8gYi2XyriAEMbmjGcXIF7vRvHd7qvZ9GzeMc4+kobsZ57IfFynyCY5dW
-# oLHB1R3794MYGySL2+zrG0QMpP3+++Uy33oMhPdaov8NYedqNhfFOvT8X4UO6uq4
-# xjQPKcpbi3t7iCELl0FdWrr6Ad9UnByG3I/kpD9TFFn2IbeTpYQVKc/laY7qFzD3
-# jLGE2Sn7jRV2qm2pd4kkc6LRQt+kDs/iWvuUTqcsYwen6KeOXbtkqI6LnF0nL0t1
-# VjRCQmBZAOBWfzJLenjQEr8H3UwJc6Jk7pbf6AOn52opCL88fHJbHR4osVJVa6pP
-# kDaQ6BXNbIdg4t+q6cPrf8DpgjEZ08wSVhVcQj3zBKlRwHNXgSm1/1XdT9JnEKwG
-# S5LD2FdXfspkqfigJJPcvWNrrpZbPZzouWDS1KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC8xLfF4jRC
+# GE8Nmu7lvGmtJ5Pe330z51f7GnskHNs9hzANBgkqhkiG9w0BAQEFAASCAgB7Ojj9
+# 8dz2gOkB76QAeC2v94IfIyAvloseJ+6wKjWKdYA0X4D8cBdw3Xz/gJUAiaoAscJO
+# xSP1oGT6JWR7c0uXY3ejaHQuAF7A0KmvrSSn6M9kWMYBUCM9KjtSH0y+oX4f8kSS
+# pi3OdMjQFBoKb4FNorgHNJQFDKqrRwHnMwPOngCqXZGNUVM1Xe5jQuUp0XlnvRoE
+# 84/mDwRickQl0NanzZ0NsFunUzt4Xhxoy3qPsjMa8KSmg/dodaO6iss1E5qG+JUz
+# CZomXUmXm+K1TFiKMBO6g4vxRg6bicSKLLrknUTETI7iPmKu7k0pl6r6/FeiPLWv
+# QgQfTLyRgINuTIZWbW9SE8lH0dP7LyXobxAk55ezU/9JGan/vyvWTh+7teotkBuH
+# +vRZB/SsjcPbVdDFawHl4nQnJ21cB8HvZGEvejba4Jwp7NwctVCvtMaIMj05Bens
+# 3NfjXCSNZe5fscmlym8MA9UW/cL7hxLYupvV4wSzXTiuVbyxWInMzt0WtzjSC2uc
+# MaETT8s2QxWHlQUvX0vtO4Ho0F3pk3w55pb6edBWZN6GDL5fJL62NTd88lgfWClN
+# 3A7UxQR39O9JvH4HqqjcFXLNdaxK6vXiIFcLBvcymYR7JOWJ4eNa6pD07eD5VQYv
+# sOAoMUNiGF5RQLZfs6yH00Wtz0lZ3vNJVimH3KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ2MjRaMC8GCSqGSIb3DQEJBDEiBCByZUXcxUJuPRHKqBcl
-# /C/iJsJ6RtoXJOiKDZmowPzq3jANBgkqhkiG9w0BAQEFAASCAgCprwv+2QzeIGs1
-# g1bPXwIgiZ4YE/SWyKhdTpAsgTwRBmVsyW+pab2h/vJJEyTlR1tJwtem5HLWOakj
-# B+PInTR7NbcBaVfmO6vrWRnPTGRkGfQsd0Xd2/ZXi4PKEUyRpqYMTdAnc9QTHfC5
-# MK2DqLsKnReZV7rOL1O8PPxltDpZif8AeYo22w/XqvytGn6Ko7xy2kEoQC3vjmtT
-# uDGgflWoi87nFy0hHu8wYgXPmQPVVjWaMy8m3aHpWILTJ6fcRfNaVH1P/pKSbkOg
-# C4AepBMSBulQw75VHeLfIZNGwQQlo3bBu4P2YFe9oOpIRNMJu7WnpBBKjiX0QhxK
-# iLOVCqK+72reMm+xAUk9ZUTJypBLttr9mhUtopoUws3nfE7+J3o6XxJwAgfiZPUh
-# 9ixqKFrboAYkAuuu0p5dLgWIF5j5wFsfN6+sUG8vhqKiC5E/8FWXDt998E+wJUg3
-# tEXsX8uNabCPTek54Q/m/78Z+jQTd6kvLnAAhmGhi2VM0ZsVrIIvOKEwYeEtMZ6z
-# z97Wqi0/g7XOFJYlMudjlkKwBq1ZWEoqsphhE0O3iqK21lYQHyitr7ZYY7AM+rdS
-# iE8DFYGBe13P2cpcq1tvln24NEtJRo8f6VTalik8Mj3kyI9e+SrcjSTrwnamA599
-# 0Iel50X8RltZq8jurt++326uDvv/OA==
+# BTEPFw0yNjAyMTEwMjMzNDhaMC8GCSqGSIb3DQEJBDEiBCB8nukFIfqoegue6Ks+
+# wekfNohyf1NQoBw6JQQPCrLqyTANBgkqhkiG9w0BAQEFAASCAgCpSyC0XTMICooU
+# 0g3GDpkkXunO6qbDJ10fSSdTdy0sFzcEgDgJhUaKCRVCH0HOOOKGpKdyDzgP6cqM
+# 8eibK1Ge1uo4eywTs44+kwO/4RKEl71KeSKEekC5jdOyKbb+I+D+wdPy/uQ+KeDH
+# mSiqHcbW+yBjafAOqgRK06qeX1WHZIhEYuA3fcMdinqLDNLTbgVkGogtRAxzGHDL
+# 9vW+pbgZ0UdY+UY4fXQ0PAxNG+6p/vtAIuul3bt4avciq0NVfTs6Nrar5lxyR8mA
+# DMJTW0olEtkEh2VKurhMBjD+hcl2+WVEOxdBmhfXKLkNhQNj/i7VS7xX7FZwUPn0
+# MbYvX3yUN5azoX8LYLi6FPe7esE+EsnuIhpFzeltdgSk7TqTKDyHf3WZ3DcgjRmh
+# qqRcrSODPvNmeFNQNfJUVt9jSs+WWkzBedtEW6vUcBzKBiF4yTgooddeAVs42bgt
+# jJOaAQF+Yr65xByZNIR0k8e4sdLNqiGSePAkLvyvRyPeTCv6KOnrfxF1ZEnF04G4
+# Y1T6/bWMLy46rrCWYCLyqc8MnsFQ8+irMpcUZx5YH1occSiZTIS4t1OM3Jl89WVv
+# lByC1FCpTWrQ8gHItTf5R5tUoXbI/HKpNkW9V8L+mFHUHojxqA1yQFWcSx7r620j
+# /JZjBwXZ4rzdzFUuQAQbgIsXDYMqdA==
 # SIG # End signature block
