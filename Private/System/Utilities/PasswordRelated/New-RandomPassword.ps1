@@ -2,44 +2,55 @@
 function New-RandomPassword {
     <#
     .SYNOPSIS
-        Generates passwords that meet AD "complexity" (3/4 categories) using Random, Readable, or Passphrase styles.
+        Generates passwords that meet AD "complexity" (3/4 categories) using
+        Random, Readable, or Passphrase styles.
 
     .DESCRIPTION
         - Random: cryptographically-random with optional symbols; exact length.
-        - Readable: Two (or more) capitalized words + digits (+ optional symbol); length is a minimum.
-        - Passphrase: 3–4 lower/Title words with separators + digits; length is a minimum.
-        All styles avoid ambiguous characters when -NoAmbiguous is set. You can provide -DisallowTokens
-        to prevent generating passwords that include user-related tokens (e.g., given/surname fragments).
+        - Readable: Two (or more) capitalized words + digits (+ optional
+          symbol); length is a minimum.
+        - Passphrase: 3–4 lower/Title words with separators + digits; length is
+          a minimum. All styles avoid ambiguous characters when -NoAmbiguous is
+          set. You can provide -DisallowTokens to prevent generating passwords
+          that include user-related tokens (e.g., given/surname fragments).
 
     .PARAMETER Length
-        For Random: exact length. For Readable/Passphrase: *minimum* length; will be padded if shorter.
+        For Random: exact length. For Readable/Passphrase: *minimum* length;
+        will be padded if shorter.
 
     .PARAMETER NonAlpha
-        Number of required symbols (Random style only). Set to 0 to omit symbols entirely.
+        Number of required symbols (Random style only). Set to 0 to omit symbols
+        entirely.
 
     .PARAMETER NoAmbiguous
-        Excludes look-alike chars and, for Readable/Passphrase, filters out words containing ambiguous letters.
+        Excludes look-alike chars and, for Readable/Passphrase, filters out
+        words containing ambiguous letters.
 
     .PARAMETER Style
         Random | Readable | Passphrase
 
     .PARAMETER Words
-        Number of words for Readable/Passphrase (Readable defaults 2; Passphrase defaults 3).
+        Number of words for Readable/Passphrase (Readable defaults 2; Passphrase
+        defaults 3).
 
     .PARAMETER Digits
         Number of digits to include (ensures numeric category).
 
     .PARAMETER Separator
-        Character(s) used between words for Readable/Passphrase (e.g., '-', '.', '').
+        Character(s) used between words for Readable/Passphrase (e.g., '-', '.',
+        '').
 
     .PARAMETER IncludeSymbol
-        Adds exactly one symbol in Readable/Passphrase styles (not required for AD).
+        Adds exactly one symbol in Readable/Passphrase styles (not required for
+        AD).
 
     .PARAMETER WordListPath
-        Optional path to a newline-delimited word list. If not supplied or not found, a built-in list is used.
+        Optional path to a newline-delimited word list. If not supplied or not
+        found, a built-in list is used.
 
     .PARAMETER DisallowTokens
-        Array of strings to avoid (case-insensitive). If any token of length >= 3 appears, regenerates.
+        Array of strings to avoid (case-insensitive). If any token of length >=
+        3 appears, regenerates.
 
     .EXAMPLE
         New-RandomPassword -Style Readable -Length 12 -Digits 2
@@ -52,6 +63,9 @@ function New-RandomPassword {
     .EXAMPLE
         New-RandomPassword -Style Random -Length 16 -NonAlpha 0 -NoAmbiguous
         # Example: Hw7t9GZxFv3K2QmN
+
+    .OUTPUTS
+        System.String - The generated password.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Random')]
     param(
@@ -307,8 +321,8 @@ function New-RandomPassword {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBKgQeoejnpfRna
-# adT4ATZiJOmnRyR80p16p6Gr9iYeC6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCDB05O3NbOGphd
+# DlpsufnCcAx0Th2UdBgNG3IUqdkzxqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -441,34 +455,34 @@ function New-RandomPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAbNgfXYW6g
-# UhnWGICDPPKiYBSVW4fAmx5ekS7oedJvSDANBgkqhkiG9w0BAQEFAASCAgCLmEsp
-# x9tIZy++PWzqsF5w3VNnZnETfv84ID1w68qI4FnhP0wqqycmpZb6cMGJXX8nDNZe
-# SqdIZRvhmdHnlYbPRGxm8c+ToLSi1TcZdlO6mH1TBOkvE5FgRfZSzj0gs3on+Ywb
-# koi9rOjGngsNkISzTDjnSv4bW294lqfcIPh/EXTgmQyo7IIWkJfWbJY17f8k4Vzw
-# IpAW87N5ilk9O79Joc2mtlSm2RWWdyjkwIL/CsaXvF/GxXovrrekhbpV+bGrVWCn
-# 2lpSLMEn4dSdrqc7J653quxxB9fAxUsKSWmf7hy2gQBOyem30dgdRdQ5JmOAW0+9
-# FYhsCd6i+12ArwSyRV8NuInR1P2rLJcY28s6Zr6kcGzJa/J3fCU1+Z5JDC4a9w22
-# mUHm0e/Am/QqTG66kXVisevya8AbTXOP5VxShSf+3sBIyBUyCF0o382XK51w5D3o
-# 2mqZcqqIPVDvQTExXhflNvMohsB8R5JN4BmfvrEkcJvAaUwGJQxm9B3TbFHiD/Dq
-# Kx2xoI+VEPdj53j/s0lpYhPqEcQIZxFKEM7RnnxKSJdqjoaugEA1nej4ICyXQ/CE
-# aCAEX/5mVeGhEESZmL5Dmbe+PhC8z18nC8Ers1FT5aVCXAk6qvNJGCFI+O5YOaVC
-# gyzthCdqmeZWgj/oVUVhMwo3xbkgtd9xkNpPmqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBzoJv6XE/M
+# QUMRILgIjeHyx8ZPuvDgBy9hdjZH+xRodzANBgkqhkiG9w0BAQEFAASCAgDGsN37
+# Tn2Iw/QB2+/2hx8hEXBwltYGcoqPVbudR+AHFaqSFKshhaWwvv8/9ChgulHofHr/
+# rcphoh9MQ+ANx/tta5pA7CtXjk8HiIfzI3kbipu8BY1zAkNU23SntrClUvHOKWgp
+# qoRG5CodTcoT6ayWpbo3SHSlW2tZydHuQkKK57tm3ICZ7GLzJY8Ax18sRx81EkA/
+# 7OPdSYHPYnKqTlIedzEBRzfDw8zw6TELq3YjXj+FqMRRx593J79aM1LGASpwv9bt
+# zQOVVy+OaAkNd1LChZtUO3AY4O7ZvVhiCi6qSMqVgGCTia+B8WXJACVIpnbbqgQT
+# ruWrclRlnn5HiZEKFzrGvUCD9puW1hb2ye7A5dE3ffkvyfIo438RfAQI8V+Q9ehs
+# S7NUx6HvLiYPI0abyDj5ylMnUU8Y89GcUxr2Nt484HeUIyg2TP1+sByoMBqm5aZ3
+# puVt7iC5DahUDj4DrUDqEyuf9m40BXPtqf4UMscrI47IMfaL2MF3wtekJMiqdlzA
+# ueP2Djw48F5KgKAVH5wn/77jf45BQ4KULCDSCi78zhxmUcA2wPwrEDhIUPkD2KVG
+# AzisOSIwCp7yKjnF09Dcz01WkK07amls0JtmYjOueK/EptpU3mNXjELSdTSf6pui
+# v7LIfns8i3v32g+zgXXCnQOSRbo6Ww9kx8GCi6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ2MzNaMC8GCSqGSIb3DQEJBDEiBCBwd3RYAqHzLfSpGkNU
-# y9tdJ9sp1dfFmFMRw7Td9t2FYzANBgkqhkiG9w0BAQEFAASCAgAIOzw2pAguI5F/
-# XS01hWiSvzeZZc1Jpv/1+4qXW1ZT7poZLN8HI0V9E6pUicyHwIMnc/sIz9IJ+YYp
-# pT3sw1eaFn13hDohXwWTchULwyawvibjUwrydgEpaKm77aqBZehNGYp9Uc/mB+8p
-# dFk5NP87etimHAAjoNQW2AoK3nRI79nsp7eWimtnQolnJy4H9Bq5mv+SmckEA4B6
-# n1R/AunHXhNNeLwLkIlhK+EOApCUkVj96DxSnMkYR4QZ9zb9MqICSupvg1VQclIO
-# huRehFs5C2In5A3o5W3HInBDYDULWSYWlugJp4XhS0OTLTqCC+qkXoDbmMymsHj9
-# v6BIwUPNk2orAIgYEZkJPUAKNV3IAeAwuqNWS1RQyReSAL3W/lEPcOMLSmHiZ3vt
-# kj1fqVO0pmA0d4mpGF/mQd/gDRTAQtGAGmP3F6kH9RLC3Jn9mDTJA7X5PnyZ1uTM
-# s5XDZt52S+ZTuBfr0MwZ0z5jE0fBwX/FUPElCkZQkMEn27Zn3DSQc/CqpvrK64FZ
-# PQKQ0nwms5YRvLRlnxMJL/ru5uv3CpJWACPrc1L9p/PSlDmSwHaP6LbCfppC+Lfm
-# 2RnEQ9/szrwtYJvBiW8BTOkk5VfHh+dPDePZEMitz1ThmFIVmEUcxuAhfhL9BUkC
-# rObZ0Xqi3EzzihoxBYkBrGlsavzsQA==
+# BTEPFw0yNjAyMTEyMjA2NTNaMC8GCSqGSIb3DQEJBDEiBCC40EJJWsyf6eIJhp3H
+# 2gwSVZtRp5YnL1T02WAvv1ZHezANBgkqhkiG9w0BAQEFAASCAgCApEOTP3aOreDi
+# hXO4Za6u7j4IU+f25OC+9oXoHlRqakVlc1OV7RRLzy09hHOEAktjwSfF1mrHVJMS
+# LGjwq9gtEmpwNPaavU7OEc5tDMVS8v9FvbjIJf9MWvQwz54c9mlDilFrOyR/X6yk
+# N4+LZPgXcoCvm7FtVPAqYT4gyA064+fyojEykj2dYYMhW3irg5paUqUV4Sfau9R9
+# nXHeSKg8msehQIA/aSTv0wcmK6Bhu/E306SGbxqxyjvOfJnE/haRQ5Oo5NoUNtUl
+# CgCEwD8YcMyclXAgMhVT9fKDtjtibYNE/7T1bBNmraaQ0n2oUFnWK16ZmgmmMg5s
+# jLYqgTB5cB12bqRLCmWL+MhMmy6yhVJ3oVtMBl/PCybvuMdzzM9hX2fsf/Mw9eXH
+# C5fyW7gbSVKOzDItbfGDNQNeZCW4UtUZinzu0Dzs0cbS2R3Yd7sL9OmXgB5QWY/f
+# 9vjvabur0rPZo6jlxF5T/fdaY3cezEVksB+1Z/ETiwiYpwQtogSILhbFu2xoXSZB
+# PaElUA30U2eR5uwDzwNbqHO9l2u3jZ+FcE0JbNcfx5rwFcOQhNX3iqmDRAw0GcpE
+# WBQfcOJkSN0Xi97+QvswhMMcnuVPhlNReKv2YK50l+yBMrm/iHNbQeZHtcTJryTg
+# HWkmZIn6ScYIh6InwUvKOR+2UE4+6g==
 # SIG # End signature block

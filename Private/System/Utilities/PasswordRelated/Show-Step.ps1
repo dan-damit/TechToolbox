@@ -1,102 +1,20 @@
-function Initialize-Logging {
-    [CmdletBinding()]
-    param()
-
-    # One-time guard
-    if ($script:log -and $script:log.Initialized) { return $script:log }
-
-    if (-not $script:log -or -not ($script:log -is [hashtable])) {
-        $script:log = @{
-            enableConsole = $true
-            logFile       = $null
-            encoding      = 'utf8'
-            Initialized   = $false
-            FileReady     = $false
-        }
+function Show-Step {
+    param(
+        [string]$Activity,
+        [string]$Status,
+        [int]$Percent
+    )
+    Write-Log -Level Info -Message "$Activity :: $Status"
+    if ($ShowProgress) {
+        Write-Progress -Activity $Activity -Status $Status -PercentComplete $Percent
     }
-
-    $cfg = $script:cfg
-    if (-not $cfg) {
-        $script:log.enableConsole = $true
-        $script:log.logFile = $null
-        $script:log.encoding = 'utf8'
-        $script:log.Initialized = $true
-        Write-Verbose "Initialize-Logging: No config; using console-only."
-        return $script:log
-    }
-
-    function Get-CfgValue {
-        param([hashtable]$Root, [string[]]$Path)
-        $node = $Root
-        foreach ($k in $Path) {
-            if ($node -is [hashtable] -and $node.ContainsKey($k)) { $node = $node[$k] } else { return $null }
-        }
-        $node
-    }
-
-    $logDirRaw = Get-CfgValue -Root $cfg -Path @('paths', 'logs')
-    $logFileRaw = Get-CfgValue -Root $cfg -Path @('settings', 'logging', 'logFile')
-    $enableRaw = Get-CfgValue -Root $cfg -Path @('settings', 'logging', 'enableConsole')
-
-    # enableConsole normalization
-    $enableConsole = switch ($enableRaw) {
-        $true { $true }; $false { $false }
-        default {
-            if ($null -eq $enableRaw) { $script:log.enableConsole }
-            else {
-                $t = "$enableRaw".ToLowerInvariant()
-                if ($t -in @('true', '1', 'yes', 'y')) { $true }
-                elseif ($t -in @('false', '0', 'no', 'n')) { $false }
-                else { $script:log.enableConsole }
-            }
-        }
-    }
-
-    # Resolve log file (no write/touch yet)
-    $logFile = $null
-    if ($logFileRaw) {
-        if ([IO.Path]::IsPathRooted($logFileRaw)) { $logFile = $logFileRaw }
-        elseif ($logDirRaw) { $logFile = Join-Path $logDirRaw $logFileRaw }
-        else {
-            $resolved = Resolve-Path -LiteralPath $logFileRaw -ErrorAction Ignore
-            $logFile = if ($resolved) { $resolved.Path } else { Join-Path (Get-Location) $logFileRaw }
-        }
-    }
-    elseif ($logDirRaw) {
-        $logFile = Join-Path $logDirRaw ("TechToolbox_{0:yyyyMMdd}.log" -f (Get-Date))
-    }
-
-    # Create directory only (defer file write until first log)
-    if ($logFile) {
-        try {
-            $parent = Split-Path -Path $logFile -Parent
-            if ($parent -and -not (Test-Path -LiteralPath $parent)) {
-                [IO.Directory]::CreateDirectory($parent) | Out-Null
-            }
-            $script:log.FileReady = $true
-        }
-        catch {
-            Write-Warning "Initialize-Logging: Dir create failed for '$parent'. Falling back to console-only. Error: $($_.Exception.Message)"
-            $logFile = $null
-            $enableConsole = $true
-            $script:log.FileReady = $false
-        }
-    }
-
-    # Persist resolved settings
-    $script:log['enableConsole'] = $enableConsole
-    $script:log['logFile'] = $logFile
-    $script:log['encoding'] = 'utf8'
-    $script:log['Initialized'] = $true
-
-    return $script:log
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAcjMPjpU+J8s+c
-# c789CTkmDt06ObrPaT5elTh3mMa/26CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAOGGrPB53agNSg
+# YuhlCqTWMZ7trbXcqu+UTZGUurWHo6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -229,34 +147,34 @@ function Initialize-Logging {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCFZp2SYA8A
-# G6n8QqHbuX0vOdVZZOJmML4489eHLmbo6DANBgkqhkiG9w0BAQEFAASCAgDY3GZk
-# VSmwjrRnuYuHQ7h/y3vpwWsIJ/0XwlRA5I8qZgtOimEct4aIXgfcDPriWroBjtMA
-# wtFCH6kUU4saSl2+qdJdvkwhQ7XLwX12a0lUxgRRucFrrhlu9VU3lHHRIb0Co8LJ
-# 0h9DR27ORmrXHW5c62gb61NVqsp+gLjnBb98BJVEtggW/h3golXvMqGyIsFMNP8A
-# aLFAOnH6BodRxLnTOp1A0fT6jVuJQPtXDLlCNVBNvseCdIL3bdh+fNw5leTibvPE
-# epLwuCZ5L4cRq4aEpVw9aMN2pOWL3ay4babk4I2J8ov1bdAtkNnr0KySPrOxb5wU
-# 91tn6Mbl3rYghMT5ceHGTh0X+3BPIQk7LpQ2XDaHdi50E2R9kHNeycMcDRq9y+bA
-# VIc7TC+e9DGmwKpQ4LJQbo6Je1sp8Sa+jgA63/Gc+7pQtc8YtX+hQy8Vgw5Nwx7R
-# jEtYRZbknGStbeZC5/VN9Ib+dUrayZ0vOk6Opv4f5QkCjh3TViONhvTJAwelXkKF
-# Da0lZ/imuALjQv0ztnpvUtc1wuI3YLWxJXQgw6GmQpidcs1W9zpxScI2i1Hz1bRk
-# alYBXpeH7t6erpeCmf8VVXCyxNaPnx1njq4FmAYHRDLto5ATdV/wSRyecL/HMsWI
-# UnSXBwgJA5xmD/tUj2oRuqBX0WqikUKxb/Zu76GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBgC1ram7Zi
+# PqUjKcIvsMzVPl8a3yHbfdvPeUo2/EvQ9zANBgkqhkiG9w0BAQEFAASCAgABdVVL
+# /WS5lcTzeW4t+mWfppNGSv0sV1A0k7diPlNEmpbHVhuHB8qy/pb6b/Bj94JNDZyK
+# bJIQeOJUS8zT2yWCUYjql/2BW3pY4eW0S24aDm2w61Y5n1hcnHOwajRxk097ZEMG
+# r9kpqMtTjsTwvEvFcm+WLcDQRvlfVBFLZQwcN3wOQKdaE9TaK0PglZOYiTsRPXLw
+# sJl2249h6EtKVS7DTfsdsLgukfPVweEX9efhXWwbe3VvCQLgaxBYuQzo352FkN4m
+# iDXtoZLMqgqzLSAGVepk4yOE1bXjFVwuE77uaUUrhfztTxp+qJTqN0ShIJr2QD2g
+# lSgpy26/lz4FV2Iu+Lu9olOj2D/HOx4n7+TdOv5GlQMsXal/X7I1BhF+mVqZDVRN
+# Eg+M0kp9isCB7zmaCeKdx4T5iqRZ/EahdHxamtsPY2UcvsNKonriN++19qZLJhMf
+# HEtj0jqGrexQuMp0Iz1TI76Tz53AeYJN9Cv+odjo5ce1KD/b+tNBFNM4QqoTLnI7
+# wzmcjZQL7k2eHIrySmbMyXahDKIZnaGmu+lLB4FMIMsl/XHQ7xjV/JeUYpscDlwh
+# 1McG8+k7HYD0soVwLdMOCjrz4hR4iLrQMItgncYaJuIfYz6GPOD35R0txWuA63np
+# lpZA619OCq5VIccrcw2Fr0YN7vkRrBngnZrWxaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEyMTQ3MDZaMC8GCSqGSIb3DQEJBDEiBCBw2gU2hrf0/h+X7EgN
-# 72nl7jsG40S+4sH5Igo4HKI6MzANBgkqhkiG9w0BAQEFAASCAgCL3cloiYbqMs11
-# pXBzZW9swyoqSzlHQ82KSNcf/uP4cnQxrqG6POLXg6W0Ua5f22Rb6Zl3mIflRlMc
-# QQI3vbCqqzq0Cbp7R2a/vExfkt2NSW7jygbfzOj2IKas404Fipc6nf/+OHOIJE+Z
-# iua5B/tpsV64I4/9ETXKiz8/+tSrnoz0+N/vne7fiJodFIYRIxIRmDpSVIAW0Dir
-# kPtcdhp3f5FvLYHwUnKB2P6A7QmN8yYanCuPyaieO6flnlw5oJO9R75tEbqMzzcU
-# 5Mxa6RdTDnjG2t1UgkIeySi/xsmASxRS24FkLfkzjvFWbqxgI92bmdHD5K5Qw2z1
-# wdck5q5lW7B6ZzieZmavxzLTk/UDbCSMZpNuIcVlnFkiiekDMPf1yZSb9CGMcFHZ
-# m4iq7Ncz4NPa8IotAsauJx0/3NZur3F2a+NIuwgapnIivM5/BO+rXrv8z/XMCmWT
-# G3reYV+DTCjL0BRNOQv+KJ+DkXKZnbbO6KUlNbMx0LW4epdF+WEcJ8asU3h1GWN6
-# 3YTSqlO/3AcOPoTBG9o4CX/McIkr7L/5lFTcpTPE+2qGDuT3Sn8huUGaxUpAGDmj
-# 4X3z/lrLUHxVsrVhpVkA9KWHaexdTf8QIlLm1v9mR4vmRsGslcRMQxvSf6mUK5Vv
-# kF4sydQBpug/70h63ajU2+NFLla22g==
+# BTEPFw0yNjAyMTEyMjA2NTNaMC8GCSqGSIb3DQEJBDEiBCDSRQVT7JvzlSDEXJRM
+# 6AsndAX/2lu9Irj/+UJGz73RazANBgkqhkiG9w0BAQEFAASCAgBMOSkgAg4ebqOr
+# zJa+bsybJ7Yyko/7Az2QdjXJ2jHU1XPHAt26kQzFjylDf19E2vWPPNqsMUPk3S1r
+# fjwnVFBjT5+ymbA0+EXLyz0cUwPXwuaT+aBMEDU9ssPo2b/uOUB7otKKPTXS824E
+# 42BO0k3h00uCodXG3Q7fhHmvGlIzOdlh6CLK8F9HpBGNFnFYjjaQWRR8+ihpFu1d
+# rteghBU7WbPg9Rqi8T8/p41KEZ4t42tq6pcpmEpd+mwdZDZUOx61sRWY5oR8cGIL
+# zsDnnNGVwdqmmUui+T2KK2weqRtHdsdl3Dax5chtAe3ypDKjnbSGeURax6n/lErg
+# CLzIof5iTZDWFdYoOeu8IcTpsZdbzbHJ439qNzMdk/pitnwr1mT78tga/5Ldsg9U
+# vNFxt3i5waZk6jiQGzowRFRAkZdJM1qu4SIlzmRPU6DneYFdDf6VNwuQ4WO3jofX
+# RzYBBgAcfAw5m0j3Ia60eF5SfQnliB7n+Zt11tu6l6EZ1ejSmf7RkMgsZkuac67I
+# 5Bzvxdww1KubfRhASb1vTONBue11JNWDjtyNhL9v0xuDDqO5C4pf2ofuMcogp6iy
+# pxgSDaf/bPsZVAI+WUwoE2h5u+eTdSyIYntIlI42PW5RVcrr5JFq8HrgORn4V01E
+# mB/eRwm2ih5GzRVqoUan/cbd3tX4VA==
 # SIG # End signature block

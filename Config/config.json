@@ -28,6 +28,10 @@
       "enableMailSearch": true,
       "searchScope": "Subtree"
     },
+    "resetPassword": {
+      "passwordFunctionPath": "C:\\TechToolbox\\Private\\System\\Utilities\\PasswordRelated",
+      "initialPasswordLength": 12
+    },
     "systemUptime": {
       "logFileNameFormat": "SystemUptime_{yyyyMMdd}.log",
       "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemUptime",
