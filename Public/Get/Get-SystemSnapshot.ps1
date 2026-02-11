@@ -1,4 +1,26 @@
 function Get-SystemSnapshot {
+    <#
+    .SYNOPSIS
+    Retrieves a system snapshot from one or more remote computers.
+    .DESCRIPTION
+    This cmdlet connects to remote computers and retrieves a system snapshot of
+    their current state.
+    .PARAMETER ComputerName
+    Specifies the names of the computers from which to retrieve system
+    snapshots.
+    .PARAMETER Credential
+    Specifies the credentials to use for connecting to the remote computers.
+    .PARAMETER IncludeServices
+    If specified, includes service information in the snapshot.
+    .PARAMETER IncludeRoles
+    If specified, includes role information in the snapshot.
+    .PARAMETER OutDir
+    Specifies the directory where the output files will be saved.
+    .PARAMETER NoExport
+    If specified, the cmdlet will not export the results to files.
+    .PARAMETER PreferPS7
+    If specified, the cmdlet will prefer PowerShell 7 for remote sessions.
+    #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([pscustomobject])]
     param(
@@ -19,6 +41,8 @@ function Get-SystemSnapshot {
 
     begin {
         # --- Load config defaults ---
+        Initialize-TechToolboxRuntime
+        Initialize-PrivateFunctions
         $ss = $script:cfg.settings.systemSnapshot
         if (-not $PSBoundParameters.ContainsKey('IncludeServices')) { $IncludeServices = [bool]$ss.includeServices }
         if (-not $PSBoundParameters.ContainsKey('IncludeRoles')) { $IncludeRoles = [bool]$ss.includeRoles }
@@ -183,8 +207,8 @@ function Get-SystemSnapshot {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAWj10VtZLPMFmM
-# 1vsIPWyE+E74Rc9GRQ5Zk/HqiTHaQqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDddIGxS8GaGmPp
+# HkR72jgSGc8Ze7lpPDzEv2FwOH+32qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -317,34 +341,34 @@ function Get-SystemSnapshot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAQbd6QfxDB
-# g7+rdYa0sAtMBECvmH+smfrXKN47dalgQjANBgkqhkiG9w0BAQEFAASCAgBI+W8M
-# c3Ff9Nt9ahqhBidkRz21sMn1AxLMsa/8k5uiOBJ7o8WsegKCv4rH7T/RDeFVsNAS
-# 1QVt485OAXjx7GdQWsOKYlK6Utle1GAwAPpLX6muxtqCPJ8es2T00sDui9VDC6j6
-# 3zNGHFjpz6QefCcdOeAFTmIRSBvN8L1BdnEf98VHqYGu5f/iju8N5+Zpmwfa87Es
-# JQ+1Zbvu2t1KAdheP4qVjfDVCeoqsRnN+g4yp25hMMqqFNWst/IGh++pgTSfZo5S
-# uhx0GHG+HStaiTH08RQ6TIHahkwjGkZhoR4ggKJab1lQBG5Rg3hnec4gr1RCpGf/
-# gPYA8h9wbFG7VaGHbmU8uBuXUuU0XtxAOYUZTajZjiSVN+uIo3f1qk1YO64NlA4d
-# Xgyonwfc6x+lJxJlPutemh0Yi97YsmIIr9rcrc5fK2g20pjl81XEE6sw+rWVhVFv
-# uMXSgE5gfLpFzoC4oQOFV6TomHCjd5rIPR57k7dhO/myMS9ERr5aKXEP3qcKLDcW
-# xgEqEn+IerFItfq2A/Qk+4QV19ia4HbiVOK3e05leaDk0pN7QkM9bQFPqah/G6+d
-# iICwEQxp4iCSHxTPIh4r3/GLmT/cnn3qPAlEp4B12idR22q62YCI5w8bL1ZVvJh8
-# xKscC0TcVxWyYAYH/VtfRYZVVkPydrVCfk1BZaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDipW/frCxQ
+# HMkC++xeKO2fgVgdHNS3YpkwCmo2JVsASDANBgkqhkiG9w0BAQEFAASCAgBdRFvH
+# BeuNFfhS1rp2v6nk8KAjoMRg5HCF8WQn8NI4wHgVJ/IYrHc+EEcC0l5SvvQ3daVB
+# nJz8Is7xsuNzxVdYmrr8RQspPj9Vd5PwsSZAMvbSJOv4oGq26Repd6lInaS3zEon
+# 9qcCqK58lBSDyOSAj79DcvUnvRafXgwwoetYLRJl9bM9gDDfPJt7fZn/b7g0JvwG
+# ZObYcdSkYDZxUSDavrzV5W6A5bTYXogY7iIkuqSaIoJniCtBaNNKsQUDwSd5Zxe/
+# CZvdW1prDrZfED8V2x3yhyifWJpIrjCwOD3jLwhMx6aBSiFg2K++M16a0sxKVQTB
+# DosZ1XGcmrm/F0kRNoE7HsYTzC9M8POFPsmIPkFsbai81a2mfHRdeDDNqPhdsjLu
+# 1HhzFANR1imgMFk3OMBFEEFa1rizMqlD85XwRwPmfF5AAhvEhFzdPoGbFKehFqWf
+# DGSMIrfQq0ymHEB4ipQ/xIP4jUwbaewmUdeOc44xViw+2E/7vWshmNb31vDVObYp
+# FJZwHDTEQpZMYyiimxd1o7BvnSpBi1qg3sliTNQ6qyGk/AIXJCTtUt82vbfyJ8Ty
+# Om87kYHzDO4PLVIjJ0A/9Ag1Jn9soPNIbXfU6uKGmmZ5v8qdov054g+MrNQhuSr7
+# n2UvFOJFt+0hyFfzJIaXDDknxGBf3eHJnLVwnKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAxOTAxMDlaMC8GCSqGSIb3DQEJBDEiBCB+vsu9/eUjHGfVsz8z
-# RgFR79KQiwBi1oPCJ1ycQl+t/jANBgkqhkiG9w0BAQEFAASCAgCmD6N5ZB6nbo1o
-# 0DEOaOl13JK22oX0ODyqIRfleLpV6K5QAtTJtXei1XT9EvQVLWqOTVX2luIbbVbT
-# YNfgkSG1ulxOTKEa0z7/vsMDmiPR9bEJmxMjC9O3HOWCvSnoOTUwGXzeHcVRzK+6
-# O5PJnoOA6se5JZB9r60w1M9z9AZat2zfPDpwKx9kIMUFAo7+NzTKgeQB8SHBuLyP
-# POIV1VZvVFZuqaBtnJKj3P7+sZRNPNl7aGPArwLsEIujWJ3AqApSuqSormIgswn2
-# g8/tiXT4SguBXP+ZQaHzFHVG1eLQjoxu+mDuV6SIondc1JJ7bW3gg0jH3qyAyazS
-# N9hGGsd//QiZVbWsCM/G6OmWCS+fFZlMSOop78MAr8i9u8vj9S4+dLBvqGz7/cQW
-# weKhu1miabsx3JX+V1ZElThWzykLyfzED8GkLOThwQdRhD05lQTJ0doEeSw8nVWZ
-# n9hdXvUhjPCoDW5leHTkhotbF9nMnty5q2EdKoxLIokFi30yqHyXuglolAYW78mX
-# cUtVbUQAOnr0WvX4pu3NcKl8qfUrZRn0BPXFsK2Cd9J/qJlY4AQ3cyNGYCKbzfPc
-# Qw0MBqwaHKN/qIO/jRyn0AVIZ7p7ivUmJYm8Ovyys6VusB0CfFn6e/zsXhN/KViI
-# d9JMde/7TjWxEuYxlCIa0R5ddsNsYQ==
+# BTEPFw0yNjAyMTEwMDQ3MDBaMC8GCSqGSIb3DQEJBDEiBCDaJJ1U8uuUfm9eASVh
+# PrDYOoeq+dWf+q4pb91k8cNFGzANBgkqhkiG9w0BAQEFAASCAgAZGTZ1VdErnRxN
+# k0vqf7wuzoIkba2KPWg7dleZswp+uRzRsF2SseUkuevh3IcfETNpG9YArpxITrkh
+# 9uRcZ/EeU4j2UsIzWharAF5vNxAC+6Omz2SZaKuC1Bf7nIO0s9t8QbRHEINpR688
+# Mn4Cy7dpTBP7il3Gs0/tCMbg/SIotwyE/2YG0HfwwTkWlkohlL1ancP5fUwi+sO6
+# LPlj/g6rYXMM9qfJi1Ze/o6tAvNZsubE61YOwmW1luCTKuWPfPNgP76TIynKQaoa
+# yHbs87uStGBdCPPIjqvxUVnyqoK6ATnc8Y2vjgiE3Oub8u2+10Z99EMm4By4seYi
+# tGghvKKgNYOz3nMahz57Ztd+SOfra3bUGecdF07h1zM0/KgeXgegiQnoBWXJ+Y+0
+# n7fFVgGXqn8Wf1wyJ2dEqhLSR2IRAKnKCUtMd1pBqOAKnAuiZR4LQsCwlbMchmF3
+# gn8INq7/DlIRZ0PxqxiTEeJjY1Pgnc3dH0TzrwA43OzxPutTW+oneSZ32WjmXb1e
+# c7Ey90HMyzZWuJYGEpAtzGGwUaJRtKLqPD67NAN/zd9HejtCz3uOX3hZGZYu5Ook
+# ybrt7McT4wkmrye83BSlD9LTlIeHGVDVy4EzjqhJwo5exa4y+mfeot59KD5mt1HH
+# cEQ+lTJ9/eJrQDMyxhtdyT7I6sF8ZA==
 # SIG # End signature block

@@ -68,26 +68,6 @@ catch {
     # Continue; tool can still run from the current location this session.
 }
 
-# --- Define a lazy Private loader for first-use imports ---
-function Use-Private {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)][string]$RelativePath,       # e.g. 'Network\Core\Start-NewPSRemoteSession.ps1'
-        [string]$RequiredFunction
-    )
-    $path = Join-Path $script:ModuleRoot ("Private\" + $RelativePath)
-
-    if (-not (Test-Path -LiteralPath $path)) {
-        throw "Use-Private: file not found '$RelativePath' (resolved: $path)"
-    }
-    try { . $path }
-    catch { throw "Use-Private: failed to dot-source '$RelativePath' (resolved: $path). Error: $($_.Exception.Message)" }
-
-    if ($RequiredFunction -and -not (Get-Command -Name $RequiredFunction -ErrorAction SilentlyContinue)) {
-        throw "Use-Private: '$RelativePath' did not define required function '$RequiredFunction'."
-    }
-}
-
 # --- Load **Public** functions only (1 function per file convention) ---
 $publicRoot = Join-Path $script:ModuleRoot 'Public'
 $publicFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
@@ -100,15 +80,21 @@ $publicFunctionNames = $publicFiles.BaseName
 __tt_trace ("Loaded Public functions: {0}" -f ($publicFunctionNames -join ', '))
 
 # --- Lazy runtime initialization (config/logging/etc.) ---
+function Initialize-PrivateFunctions {
+    if ($script:PrivateLoaded) { return }
+
+    $privateRoot = Join-Path $script:ModuleRoot 'Private'
+    Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 |
+    ForEach-Object { . $_.FullName }
+
+    $script:PrivateLoaded = $true
+}
+
 function Initialize-TechToolboxRuntime {
     if ($script:TT_RuntimeReady) { return }
 
-    # Only now load the lightweight Private initializers we truly need
-    Use-Private 'Private\Loader\Initialize-ModulePath.ps1'
-    Use-Private 'Private\Loader\Initialize-Config.ps1'
-    Use-Private 'Private\Loader\Initialize-Logging.ps1'
-    Use-Private 'Private\Loader\Initialize-Interop.ps1'
-    Use-Private 'Private\Loader\Initialize-Environment.ps1'
+    # Ensure all private functions are available
+    Initialize-PrivateFunctions
 
     try {
         Initialize-ModulePath
@@ -116,6 +102,7 @@ function Initialize-TechToolboxRuntime {
         Initialize-Logging
         Initialize-Interop
         Initialize-Environment
+
         $script:TT_RuntimeReady = $true
     }
     catch {
@@ -123,20 +110,6 @@ function Initialize-TechToolboxRuntime {
         throw
     }
 }
-
-<#
-------------------------------------------------------------------------------------------------------
-(Optional) lightweight shim to call from public functions at first use
-    Example usage inside a public function:
-    Initialize-TechToolboxRuntime
-        Use-Private 'Remoting\Start-NewRemoteSession.ps1'
-        ... do work ..
-
-Export public surface
-    Only export the known public functions (file basenames). Avoid '*' for faster module analysis cache.
-    PDQDiag helper export stays conditional below.
-------------------------------------------------------------------------------------------------------
-#>
 
 if ($env:TT_ExportLocalHelper -eq '1') {
     Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
@@ -149,8 +122,8 @@ __tt_trace "Import complete"
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB8JQH6duKwQAL0
-# b5GbR6MBPVAWLn0m0N/TGIIX8Uxte6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA/vcf/d+w/nARm
+# 0wcas+wr7NqasLzlPlRwG7qif1p9G6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -283,34 +256,34 @@ __tt_trace "Import complete"
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA+f8+UNgYF
-# bLZI0gOGBCJHGyQ082iTlKHMuyDR4LX7mDANBgkqhkiG9w0BAQEFAASCAgAOddZK
-# 5CrJoEQkFkxdA6FsMdBUCKl/S8pJ1Iw4yiYHb36tbnWoajHphScVPpwiBUDH/G2Q
-# 6o2fi8isy0FkEPV6ICxEw4EMP1i+/jK5SeciyAoIUf/aUnoAM8J9D9sinM+5VhRe
-# RDTrrHMTXHJksGSOFqsahlXKriNLE75Mkmj861cHsMdRnqK6yYhdz2hl4oesu2bD
-# JhmX1fMKz0bF6CTc6IcJRGze6h9l1A13xAtl11f2hC93BX2Ga1w7mgUfAoxtWMny
-# adpaiFyFOnXGOUz0MyyNALS0s4qLPG4DAZkhO8GAeNekx5q8qI43u4g26ECpGpxK
-# TF86J/kbHEs/UGomJVc0On0daw3IsyTTNc1N0P0+JppA0vdVkD1BfihRMvH+mDG/
-# fktUR97CRzonpNlbWWHqE8YYhW4jylTqVtJ0hbtXWK3I7PfvaNZ3d5ZNbZlZGjPF
-# zJVvXiCCZ1pbJh0lR9lnZZyVAsu29s+qVFAITaIfQGaiDECd9ZCwuRrYaHEQoJDd
-# Og4fT6AtbhAwtvap8wRqrs8we1+crGT9tqz1w2SUhPf8GL0PYU+k7UW1Wz3S3T32
-# 2ImnB3LCk1WA7q3d28oiTR6GsNsAH6SMGwVaFB+HyBjoA7KybHeWeVJdJvaKOwNG
-# mpwLXIsEdUKKkn8tQnfiWIje2jmrQkWikW2bTqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBr5Aahxyoz
+# 068sgeSu3t2qeejtY5ThF/Bk7HN92U0ARzANBgkqhkiG9w0BAQEFAASCAgBLvHv3
+# rxPrXW0F6QNH/GRfjephfnZGGtOzGLVc+LiLwU0ZzBDntu/BBjOvRP3owth6O8lo
+# b/isCHmWEyD/MLY+6Fo1QIUpK8O+h/6icK2MV4TZDsfl4oH51D7xBNac56gsTGDp
+# 0qrORiy4LNSKB5AYHENlCHYfvtub7qKPmR2zgXbkR/mt+Fq7s67QpIZiuxsxVCQ/
+# QRdtlTl9YVaG0fk7/SAGirXk7fY5vsMjp8i3B0MJUOJMieiWiUh/hJmFQd5LqqO0
+# q5RO8LdOuPmTBTJiI/6u2m3dLKJpAb1s8uz4UNkS0Myb1AzJvRZoys+WzZ9xU+TW
+# xD4O+VJTs1x1DVF+EhadO2qFCPsJce+0QhXIF9n2g8vYsoT1z6t0fRa6RwmPU+Bn
+# Wi8PnTOKH73pSHk2V36J65Q7vhyMJ+wJZ7CbnMmtd5cyOfba38l7V+4th+LBB3Sc
+# lVVm4PKABFPhloFitRyEn08aZhjaLGSFl1vVeHaV078yRfDkcmYqxxvTH6JwBjfn
+# 68+gRFO4RuyJsXiHPqGSrvy+YU78WfJ76hr1aOuxvlrHeRSCOaGTNnK0suYiQ/71
+# i/1AIhrKbQEKqzi+Lrp2j0j0QogwfZ0+yhFTr+Cj6MACcq3o4/mIbZAC4eFtOkPy
+# DFuw4eum/1OO4jSNsRC6v6DvELTuYB+QhQr7OKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAyMjE4MDVaMC8GCSqGSIb3DQEJBDEiBCCHeyjhCPgYpbS+tyNN
-# Nr40D7YaCZaf8eRQaqLda6e1YzANBgkqhkiG9w0BAQEFAASCAgA1j9URU2g8U6Yc
-# 2cPSShReVzw2HGLra9MWso50NenwP141mweN+7o9mF9Wk+XHQ08//3RRVYRB7m2a
-# Ewd/N27wmY7w9z3Ubv2h+QXXak6I86pKv/BT3FvkMAxft8WnDzcMIyZ+srOFKzb+
-# 4qUMD0huofeVmSALkB/iPd1n1pw/ZReo/HLTZjOwj2i3X4QorOfrLxEIa8Uc3s/W
-# 3uvnCQghwcq/8JFtuhl/LS9JeeEoNFViIpO5odmTKqp4GzqxgZ9/qVKQvhMpNT45
-# 2nLAnCOri19RYmDNMhxbc+FpjDxLVwFVuh7XWTciaQprZjFsBzS1KrVnCB8e1lm/
-# OEj2SOmVErFTsKhPrJWIxB/90snkMj9lqxhnpAYTc/pv8MmyLjNLl2KASmocXZOj
-# sZ0O5/v683Yd/UfC7GfGYj7EPkaUQtL630s+wsWHsVEbfGUWF6hwsOXyye5cp9Ab
-# bhmOHW/BcO6bZuGMzkgpjgG4DSuw+nwr4fXmeUxPd/MYCXuqiD3sZlOX36hJPeSu
-# iyZm2KXZLgArJpdwONDVHqymdVEaz8GDfHdwJQ9HQZq/hNdV/T0xqX+83eAaeLqm
-# /a/yNtfKs3W3GzOHDNoWWXE+s00tnCsgzjWmR2dX5HQ2gTpo6muJ/7rRD6qZILI5
-# Y9aQKglyK+K9hRTU3PnHeiBXdKvWFw==
+# BTEPFw0yNjAyMTEwMDQ3MjFaMC8GCSqGSIb3DQEJBDEiBCDVwyx2TYYH343Vhch1
+# JNHVKi2aHDYdvQ3PPD/yfH/XdzANBgkqhkiG9w0BAQEFAASCAgBFNB9mzL1dRT24
+# DPQYyRubRvW+Wk6DSbqF/8sGLm491FPHx3z3x+EAqLTmLud6cTX5JMs2p28AamiE
+# sbvCE9gZlznEAvZe051vOxQkl5rhkZi2d1E6sVQk6zl/9sOEPlbjqPTudsvd6e8j
+# GyZQblB9rPsiKDK+SainBue1ejawhgebHzNVUNVez9OK4bqNreMnlx1XS3rVGALy
+# LScnUrh6sZcSbaFUXj24Jc3Tq4FEdLGPKT4nhleIK5NWaDyMFADZI9yZiRLh7TdO
+# rEo1RTYP0HpJrPILn7wJj7Pvz4yke97q9lUzHCi8ArxArUV75tqth4rvxVY+TDkc
+# SJlJCvTAaQYzUpgNIU9KVU/xCJju5NS8PrQnWe56w8aGDxVYMCgmVYK/cwFAe/kd
+# 9AjbgeGkdnKd5nmsHGAmI5ldexxI9H/A1J28LV9HF1fJncr6U6EKlPvWLqEGMwYM
+# wQmSp2hnfL7Yoyhbrkr+cAgB97Gt7Sj982oqCTS1WZ+Jc2HSx+l/06jXL/Y6t8E4
+# UcTpXi63sFUoGD63h4QE5OMtN63CMtqjV9qmVLipVWztKVsqbqs41UNDBBxAhvx+
+# MCcZi2MX2NQzYLmohvfvR5tRRvy2oWdM/OUHJkYvu5uMPfcGwqcHYWykoJxNmmrM
+# F+g46rJM1pqxk1S1IVqYrz39/dZ+AQ==
 # SIG # End signature block
