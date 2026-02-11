@@ -71,22 +71,9 @@ function Find-LargeFiles {
 
     begin {
         # Helper: Try to use module's Get-TechToolboxConfig; if not found, fallback to local file.
-        function _Get-Config {
-            $cmd = Get-Command -Name 'Get-TechToolboxConfig' -ErrorAction SilentlyContinue
-            if ($cmd) {
-                try { return Get-TechToolboxConfig } catch { Write-Verbose "Get-TechToolboxConfig failed: $($_.Exception.Message)" }
-            }
-            $defaultPath = 'C:\TechToolbox\Config\config.json'
-            if (Test-Path -LiteralPath $defaultPath) {
-                try {
-                    return Get-Content -LiteralPath $defaultPath -Raw | ConvertFrom-Json -ErrorAction Stop
-                }
-                catch { Write-Verbose "Failed to parse config.json at ${defaultPath}: $($_.Exception.Message)" }
-            }
-            return $null
-        }
-
-        $cfg = _Get-Config
+        Initialize-TechToolboxRuntime
+        Initialize-PrivateFunctions
+        $cfg = $script:cfg
 
         # Resolve MinSizeMB: param > config > default (256)
         if (-not $PSBoundParameters.ContainsKey('MinSizeMB')) {
@@ -243,8 +230,8 @@ function Find-LargeFiles {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCBzh7ZvnhEm7wZ
-# 4eIz1fb0Fbv6qPuXx78uAqOywgLHSqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA3GRj5pP/uosdp
+# ek9cVRtx/3aS1SMaAKRzaiUsh6g/1qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -377,34 +364,34 @@ function Find-LargeFiles {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDYI7OK9Paz
-# vWlobgmj3WUe6vfPfs9yLGEjvF8UH91upTANBgkqhkiG9w0BAQEFAASCAgDAGSRH
-# +u6OFa1RqG7SNQX0NSIIfbQJ309dY03rNbcK2lS9yvSbBZRG4OaHz9bGE8FZ3DT/
-# iHMIUZ3TRBClDtDKnNai/Tr3A5mZqrytTTQAiIXZtPDRmjt3OO8NzLx3rpKE2qgj
-# F5ePgdgC1BPSrIoY/0e+VIOvuFabHLw9EFy6zbeDb4uHOIyhp2y8wYAFuPr2Sgz0
-# 6F+QUlgSuKq5aD2Kb3UGCFzABkouVDBjx/njbyLGBj1S7/ABtySOsId5ampTyjCi
-# QeU7NToz0vjY3SDeP+qIKRNN3CRyhXouzHogoDcbqxbn7gIMKorgGmj7ZtibnMX8
-# OzHD00Kwhx3e5ya4rqiARqJ4QtCsqTd2qJE2Xk1ICcC12MnPPU4hIhENczno+o/s
-# 554H76rSLGPFn4c4YLav7RMLzSahVaFeS4BxND30JJo10ORpz7VbtxlJdtOyFpR+
-# 4Bwf7AzB6a5cncn97TIAIC3vU7pdr3s453qKsTqksw2Qkng8b1vB0w9X9aNVbVFY
-# 9OjV7mIOhvUA7HBtJjnGCTtl5wG1Qylsae9O6bWlJsn4TNuGYTdxI5LBr4hgCkf3
-# Qykb7f7qkbbsEaIRtCDMmqFGgn10Gb/hdU0DIdr6lQDFlgFTAalS7YpJcq9WfFXJ
-# q2jD5zfXhviRyDEmVI/vr2Uw7sNAhwARVGqm96GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAHPLlGR5OQ
+# ziSUMkjtJtEzSVO+ajubGwCXUzMh9caXxDANBgkqhkiG9w0BAQEFAASCAgDBeTPk
+# 1RT6B3Xjh4ItmYs9rXkUFV9TjXG7jeSDmnlhOGJsiRRJ8Ii3glcGh8w/9sJcKAMP
+# tRhGpEWq6YuvEc9gmEWNc+sfD7/efycAnOPyK0TiiUP6YqlfNSALu5Y6GgwMtR9l
+# TuXrp4U11fmY38WsNNWvwIxoFap/nUImfZRkmxonBLVaK9yandXiEdcFcQpdsW1w
+# 5HbNEI3SqrZqvR6h2+KAKMe6FjhF1Rk6yzwU5qQ+jpkuTpp/bNirecz4owyRtpxv
+# Ovl+gHaLklhkNBlBgrpiGEGBkWZ3CpZFtrun2zXWhXSfIcNsZG5qWSNXmMP7Lr/J
+# if0b3jc4vZYBKjmHyfKg21kE6jHL4PtVF19ds9IVtfKJCXARlh8Ucb1H9GPiZhHd
+# GnHGqNqhdL2hdaZyrJV8I36P7gkMinntRzzqd3U6I1K/vtyFbEcdrcM5wI1hrvUl
+# Rrv+HCI3Vhz7A0/TtAPzqTD1BLAT2gr/BR3ZvbPGjsY6hx4zylPqEERbRHGH/VXk
+# ZGdQ18aSva4L4OlOLSJemqXE1E9gusSelLqFkQlM9+Jo/Fc+e8q1xJ+mTIpUal2S
+# UyUvAZS4rwbZED0+3G0uMobhFpgLQVd7KVcytfoV57CvB+FXuHqn9G+foxYE0fxW
+# C0fQYjlEBbAPQ2zoUfJFVI8XFM3uTGom/msMvaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMDcyMzA0NTNaMC8GCSqGSIb3DQEJBDEiBCDWl+4iXVNnXVl6fr3O
-# c+DgY8UfldefAPbNTNLM+uRq4zANBgkqhkiG9w0BAQEFAASCAgCUPPv2KK3PzZiE
-# dCvsxmUqWVPhqpPjgSoOJxkfirO5FbO5sNrhB2CwD3R4IhDWZM/iphTBNJasCkeI
-# tg3uC9nTaUBFh0pkxfwfv4a6BG1reIaeZBS6ZAXsaOAHMDZpLaEZAXdDR5lte0x2
-# 0/MG6/4mXZ02u3l1rVovb+zFXFV3UN5F/DUtznK8xnOGrUF5nRyZ09YNCD9cLJDb
-# pzv8rycfdxuQRg290YMOqlJKKy7C5Wd6J7dBP2j1eFnO5OI1gbByZAgNEgqijDjX
-# ki1Hid87iHxc4MQ8cMvVON5/i9t4ti9UyWANxyxj/5qP5u9Jf9D6QCsgtCmBdKdw
-# cTIJIKrhH7+qspR6gYjJRQ/suCSBIbIEdj+gaPvs88p7zqlUcKFITZw6I/G3o+B9
-# 459HSmuAJgTFONSgww+uBJ3Lxhzlqpg4ortgw7F9sxLZcqUCJTT6WmWNBhRc80fa
-# aykejp80mqWlsxnEE0obJVgshf76VHMfBoqlA7GE1RmSdnlDc1QVJEK7mN8GDYMq
-# yRnvSGhMH2PHvS7l/lfAf7/kRP2NTH7AJFuxkDhRHlJtMLQeLrZKCewv5E5sY/xO
-# TJoYj4mEqFYb5EIX0Io/JnTZxe8jxt1kNdvPlJ9pIOZsr0XlYQFMAsxJL0U2fStc
-# aAsWZcaF0GkymND2IAyoU9E61rKoMg==
+# BTEPFw0yNjAyMTEwMDQ3MTJaMC8GCSqGSIb3DQEJBDEiBCD3eCR4bWfFDforJfHw
+# 8kq9SUL7j1e+X2LhxfV9dVDKlzANBgkqhkiG9w0BAQEFAASCAgAf3od3gWetGkBk
+# GXVM2aOOtDonxkw2sGv/iH6Zm9mSidT6xqf2R8wS8m58DuWVsb+8WaQWiwzEw/r2
+# e1cGfk5tYvhEnFqQrShEk0dyz6d6wTzSlW7Mq47mLuwllFsKRvlvf1MSQYlIQsgH
+# JRPHYdTWllnIjyibdcpEAzZ834UP+LoIZHHGIVPtT2RyUKTgQ25i7b1N1Xy4O6PX
+# F8YnnoomF5pG0Bis/lCeZR+L6NBWWb7CEmQqliKIk9ncoHMVSDxzyJPZZCv9SJ3f
+# N1mo8VSeYWyRsDoWQnbcWBiPhaEawpW6vg5zivm+2Wg4Hf3ONqUfusy/Z5u96KRD
+# W1tvPSycscKm98Ut9D7/OapsPQqG1MfFN1VpBdpH+crYv3wYViVl8KW7ViVjCTi+
+# VjroOOLs2vId5uugwf4QPwqD1Rhaq40nG8zi1zSb3Lc8yXehw5coSF8fZQPhrV3U
+# +aRtYyPXbJSe796yZRo6hitXINQBzBBj13gkk1G8oX2dw3sB72xosv2HG1SpDn4H
+# w1HahgLMK5xhcfHOL8RqdtkBpOF/YSg6vcR1TSpQnr5z7SyHNUxHYcD2AlwR6Y/B
+# m9sxvrg9R2kKNa1CiqdVrntc5dxLv5PPQJ84HrNdbgt+100pM2WwyjPA+cRE4E05
+# JzyRsu8acynpxG6+1XlpcDF9j3cOPg==
 # SIG # End signature block

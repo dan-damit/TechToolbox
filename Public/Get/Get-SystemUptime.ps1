@@ -1,4 +1,22 @@
 function Get-SystemUptime {
+    <#
+    .SYNOPSIS
+    Retrieves the system uptime information from one or more remote computers.
+    .DESCRIPTION
+    This cmdlet connects to remote computers and retrieves their system uptime
+    information.
+    .PARAMETER ComputerName
+    Specifies the names of the computers from which to retrieve system uptime
+    information.
+    .PARAMETER Credential
+    Specifies the credentials to use for connecting to the remote computers.
+    .PARAMETER OutDir
+    Specifies the directory where the output files will be saved.
+    .PARAMETER NoExport
+    If specified, the cmdlet will not export the results to CSV files.
+    .PARAMETER PreferPS7
+    If specified, the cmdlet will prefer PowerShell 7 for remote sessions.
+    #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([pscustomobject])]
     param(
@@ -15,18 +33,27 @@ function Get-SystemUptime {
     )
 
     begin {
-        # Initialize runtime (config/logging/interop/env)
+        # Lazy-load runtime (config/logging/env/interop)
         Initialize-TechToolboxRuntime
+
+        # Lazy-load ALL private functions (once)
+        Initialize-PrivateFunctions
 
         # Resolve export directory (config → explicit → default)
         $outCfg = $null
         if ($script:cfg -and $script:cfg.settings -and $script:cfg.settings.systemUptime) {
             $outCfg = $script:cfg.settings.systemUptime.exportPath
         }
+
         if (-not $PSBoundParameters.ContainsKey('OutDir')) {
-            if ($outCfg) { $OutDir = [string]$outCfg }
-            else { $OutDir = Join-Path $script:ModuleRoot 'Exports\SystemUptime' }
+            if ($outCfg) { 
+                $OutDir = [string]$outCfg 
+            }
+            else { 
+                $OutDir = Join-Path $script:ModuleRoot 'Exports\SystemUptime' 
+            }
         }
+
         if (-not (Test-Path -LiteralPath $OutDir)) {
             New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
         }
@@ -43,17 +70,17 @@ function Get-SystemUptime {
         foreach ($cn in $ComputerName) {
             $session = $null
             try {
-                # Session helper
-                Use-Private 'Network\Core\Start-NewPSRemoteSession.ps1' -RequiredFunction 'Start-NewPSRemoteSession'
+                # Start remote session (private function already loaded)
                 $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
 
-                # Ensure worker exists on remote (copy if missing)
+                # Ensure worker exists on remote
                 $exists = Invoke-Command -Session $session -ScriptBlock {
                     param($p) Test-Path -LiteralPath $p
                 } -ArgumentList $workerRemote
 
                 if (-not $exists) {
                     $remoteDir = Split-Path -Path $workerRemote -Parent
+
                     Invoke-Command -Session $session -ScriptBlock {
                         param($d)
                         if (-not (Test-Path -LiteralPath $d)) {
@@ -83,7 +110,9 @@ function Get-SystemUptime {
                 Write-Log -Level Warn -Message ("{0}: {1}" -f $cn, $_.Exception.Message)
             }
             finally {
-                if ($session) { Remove-PSSession -Session $session -ErrorAction SilentlyContinue }
+                if ($session) { 
+                    Remove-PSSession -Session $session -ErrorAction SilentlyContinue 
+                }
             }
         }
     }
@@ -96,8 +125,8 @@ function Get-SystemUptime {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCV0a3oYkzkcg/L
-# Sn5oKgj8UQX9YCbEsgUcbBTD2ZCd46CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+siqqSV4Cdf6a
+# LstlHerx8lmIMg1QFzDR2TJgb7ON/6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -230,34 +259,34 @@ function Get-SystemUptime {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCNlCTUINaO
-# TkTjvUf9vjgWYZVUjKEtBBRXvGgbSJ2fTTANBgkqhkiG9w0BAQEFAASCAgDHbX9d
-# 9CATk1I5mR0aSl+U9Mz2gSOnLavpgeAAfuC3mxkgxhrJAnd2HAeoIwUnKzcdEwSl
-# 1Py4w1Jc5MV0BpjENhIRg3E76UW9G/L0NhyaPn6EfEP7ZzSv//yJn/toLPOYYSqh
-# nM6awdnvj5C+SnEctPnGjkiyTRXnpCrbdVgGSHHZc37mkAtL3Yl2pypELJO2uGhr
-# qLz7v7MRQEYde69eeLqWI2ioVqdTwkN25Rh5e68HSD293ES2bwy0klMb6UCSr7Aw
-# u7GsqpYIzsLcswYi3R+W7FhgH6Pj5bLcO5pDNtvT4pmSJHB2L1dAlmYJPDMdeLhQ
-# TT2UgqvYbRUxZ4htVDt88lYG4KgjM4HE9fQFvMtuuNw7KEk9n5JborSUpMIkOvbu
-# d0KRPWPzlx/TMGjH7dC6KfA8D6isv5uiFVDQXWnWp+2ps11NgmWtr9Cz5zVN55be
-# d8K+SIcWvHeij1WC2XfB2Nq8kS8n0KQl0t71pg7EHsDgACsazCQsQCOReqCVXwv0
-# WlMtYlAuOTypmVfOQnU9wsaPHWkz9VFdrz09A/qNNjM4A67EFpumXsC6GiVquNqm
-# 9ia/B11H99b0qjSWALIGqGn1x+mqQKxEYvX6UHBWWpbODWRSo9xrNGkkj/apb3G3
-# q7P5A4EowEVMU97IvpkWdhy5WNThwxivf2LsRaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCftoptXlKN
+# SIi3MSe1LOGhdcGfQtvpmLroBlBJ1EYpeTANBgkqhkiG9w0BAQEFAASCAgC6Y7g7
+# oz8vE0ckXlLzbRDwketwA0Gy9Dn925nS6/LRlJmDQu+FQ1DxvmQ8W2l75EEnyOkr
+# n6HDTBI3z6vfP5NnZBfkqe8U0Nuyw4g/ivR5o2olBXIjnYPKR39TAyYxK4b+2kKm
+# eHQQFEjbmSjoRtpT7qsNlzFDFLzHyXp2Fc8dFk7oqK4QHESKlne7OXaclMiuN2/B
+# f1n3MbPbotOEA0FDR0ZmMYcdSl4flMIQVteREsRi/6bSEv2HRBp7wrdB9hE4LRwd
+# vQiYY4qDFCPDLyH9urT0E7hUAfjHVK7AEG09RsPUOVjErCY7aY1UMjFqPfiq++Wm
+# yXIpUJ/yaRJYZ9lUzAondMn1dbeSt8Q5yPsP11xwqLpHicclvyuqeTyyTqN1ZuHt
+# 2IJS5slsVR/fI6LKfpLLOdktq0D/Ctj6AZ9hq8uODJ4H3J9a/RQdE15ol71Ife+N
+# MhHVDftwEfeOdY5Cx3Kh5uD0JeXO2HY4pSbfMfER7r6ptNIcJRT2fyA61xxW1sex
+# Wm4ddlGx5r8Y5RUg8me4xJ7SV30BfYlbNPhKyeIUVswXZQceNBWTt8JHjIt+uCl0
+# XJ4HANKehxe1hJpczkMNj825KjBCLfz8QYgSftAX/6IshtDk8vOmaY9ULARl6/H0
+# e9Ewvh4TP1JqbskkLysZcEl1IwctjBTDq3FBa6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAyMjM0MDlaMC8GCSqGSIb3DQEJBDEiBCB1HMJY+ep8ulQ5PzBS
-# MjzoC3mIbdPYRvoBCjGMZhYJRTANBgkqhkiG9w0BAQEFAASCAgBNbx0l2omLabN6
-# zxJiB+elnL5jj8Z+SQiawyc864LwGu/CJ6fDE+w5dX6xW4LcA37HnA26OL1tXpp5
-# aSMvxngEQMMMzzdSE5C4kkfPLYv31d7c0geFl3tIAnkCq/ES8yUQBwsjv5xq7WPB
-# fBhYtEAVkZfI0L1YQVFyi/txT4ec/r7H+YjNrZe1GlS0GznNQgQBduBx/LJusJE8
-# IO8+XbI5mOY+WzvlAVupy0RokdlsUTuFfTYOXvH9o1emOaWcLQocb0xs5Lf9iAvN
-# 0xWaeqtlt+dFZ2AAbW7LL+SvLV2vR0W+DHgQtCG2+oKRerVoyfeYjvuuVD3y1PIs
-# QULabHXWGWYFWxtc0CoSIr+Pr5TWkrj5l94HJJDEuUq9BK7O6Wfo75lgwGkx9jNG
-# H4XkTl5UOobOzkzDcuemhIGnj2Vw1Opd1T0LPE3z7zqKY7tpmyGMKrxf6XdypmEi
-# iLMojthAL9+n4NX+9eWzOHNy7bh+i21NiJuUWYfJzes3iTdDUIpyeFfYbF79OH/J
-# xuJE6HaYSATyxoenAUx/K48+XhGJSn1ljYHVxa6//3KuX/9jRZ11iNQYJpi8Nm1R
-# +JTC0UKpCdE6oGU7VX8JeytlH/soZW7kI7nGRIVMKVDqHUUB/K3a7hHUcyi+3C0c
-# SMm5kPPxojStMh2CieGvcNoZEL8CDw==
+# BTEPFw0yNjAyMTEwMDQ3MDBaMC8GCSqGSIb3DQEJBDEiBCBJ5pSpqT6ZfcZ0vtmK
+# QB+dWWA1lf/XCZk3ue5xNwtD0zANBgkqhkiG9w0BAQEFAASCAgBsl4Xwqody9lXu
+# 0ZACGe/oSMClGkUWebOVcbPOAUnkvosw7o1SuLJsjmF+mGl6ENiZPuaolSxeRzwH
+# KN0AqeNWyw7ccSgvYsc3PO84xxznNcLpNYnXZQyV7TnD6wpqxBiyLTZ1LXhEUZrL
+# H8yHM/QrTjVIPVFruLMwpkufqu/vkXDQJ1VXYGBEGGY5FM9BL/1xkp2LsUQsSwtn
+# 1mm7baRldLYpdwXw1HVn83prUxpGBWF3vBMgem+a0E5ONpAXR8DM1TnFDXRWK6QE
+# AucBYipfqCqODfLvfMlFX76csjreEy6zxBaYE8mtNeifk8IMBZCwHtPLpQ7E0lhK
+# ZtTddfY4biKXd+WX0byVgrxsgf++RbSzE5C37DIIa8gsVfsH71nYsn0A2FjZMrPW
+# 4wTmd+8qrPthepyOIHk9n9NiUq2pNuCpnhQgo2uyz8vDOW9Ce8bCv9zHStTibe/h
+# Ft/BXkhb7Js164/RLh/AWcpVnPLtvDucqVQfxrOSuaRzJ3SmMRWn9CUrj3HaxInD
+# oZBrKzx86YUVlfwgzzZMBJ2j5wroFSCITwO6YO6NE/mUgjCDwRXGwlHYxP0rWD+5
+# h3kNQewv/QMk7jFA4kE98tujsnZbEa7Io4SALgzU5h2Bbm8Ocd4Ii2HJCgnIOTuv
+# FBKXMKyn9dkC48PSRm5hoMbqHIpmZQ==
 # SIG # End signature block

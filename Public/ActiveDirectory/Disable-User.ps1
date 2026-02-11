@@ -1,27 +1,20 @@
 function Disable-User {
     <#
     .SYNOPSIS
-        Disables an Active Directory user account and performs offboarding
-        tasks.
+    Disables a user account in Active Directory and optionally in Exchange
+    Online and Teams.
     .DESCRIPTION
-        Disables an AD user, moves it to a specified OU, removes group
-        memberships, and optionally performs cloud offboarding tasks (EXO,
-        Teams) without Graph.
+    This function disables a user account in Active Directory. It can also
+    disable the user in Exchange Online and Teams if specified.
     .PARAMETER Identity
-        The identity of the user to disable (sAMAccountName, UPN, etc.).
+    The identity of the user to disable. This can be a username, email address,
+    or other identifier.
     .PARAMETER IncludeEXO
-        Include Exchange Online offboarding (convert to shared, grant manager
-        access).
+    Switch to include disabling the user in Exchange Online.
     .PARAMETER IncludeTeams
-        Include Microsoft Teams offboarding (sign-out / cleanup via wrapper).
+    Switch to include disabling the user in Teams.
     .PARAMETER Credential
-        Optional AD credential for on-prem operations.
-    .INPUTS
-        String (Identity)
-    .OUTPUTS
-        PSCustomObject with step results.
-    .EXAMPLE
-        Disable-User -Identity 'jdoe' -IncludeEXO -IncludeTeams
+    Optional credentials to use for the operation.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     param(
@@ -33,10 +26,14 @@ function Disable-User {
 
     # --- Runtime init (config/logging/env) ---
     Initialize-TechToolboxRuntime
+    Initialize-PrivateFunctions
 
     # StrictMode-friendly nested lookups
     function Get-Cfg {
-        param([Parameter(Mandatory)][hashtable]$Root, [Parameter(Mandatory)][string[]]$Path)
+        param(
+            [Parameter(Mandatory)][hashtable]$Root,
+            [Parameter(Mandatory)][string[]]$Path
+        )
         $node = $Root
         foreach ($k in $Path) {
             if ($node -is [hashtable] -and $node.ContainsKey($k)) { $node = $node[$k] }
@@ -79,13 +76,6 @@ function Disable-User {
         if ($Credential) { $suParams.Credential = $Credential }
         try { $user = Search-User @suParams } catch { throw "Search-User error for '$Identity': $($_.Exception.Message)" }
         if (-not $user) { throw "User '$Identity' not found." }
-
-        # --- Lazy-load AD helpers exactly when needed ---
-        Use-Private 'ActiveDirectory\Disable-ADUserAccount.ps1'  -RequiredFunction 'Disable-ADUserAccount'
-        Use-Private 'ActiveDirectory\Move-UserToDisabledOU.ps1'  -RequiredFunction 'Move-UserToDisabledOU'
-        Use-Private 'ActiveDirectory\Remove-ADUserGroups.ps1'    -RequiredFunction 'Remove-ADUserGroups'
-        Use-Private 'ActiveDirectory\Write-OffboardingSummary.ps1'    -RequiredFunction 'Write-OffboardingSummary'
-        Use-Private 'ActiveDirectory\Format-UserRecord.ps1'    -RequiredFunction 'Format-UserRecord'
 
         # --- Disable AD user ---
         Write-Log -Level Info -Message ("Offboarding: Disabling AD account for '{0}'..." -f $user.SamAccountName)
@@ -133,14 +123,8 @@ function Disable-User {
         # --- Cloud actions (Graph-free) ---
         Write-Log -Level Info -Message "Proceeding with cloud offboarding actions (Graph-free)..."
 
-        # Exchange Online (convert mailbox, grant manager access)
+        # Exchange Online
         if ($IncludeEXO) {
-            Use-Private 'Exchange\Import-ExchangeOnlineIfNeeded.ps1'    -RequiredFunction 'Import-ExchangeOnlineIfNeeded'
-            Use-Private 'Exchange\Connect-ExchangeOnlineIfNeeded.ps1'     -RequiredFunction 'Connect-ExchangeOnlineIfNeeded'
-            Use-Private 'M365\Convert-MailboxToShared.ps1'            -RequiredFunction 'Convert-MailboxToShared'
-            Use-Private 'M365\Grant-ManagerMailboxAccess.ps1'         -RequiredFunction 'Grant-ManagerMailboxAccess'
-            Use-Private 'Exchange\Invoke-DisconnectExchangeOnline.ps1'    -RequiredFunction 'Invoke-DisconnectExchangeOnline'
-
             $showProgress = $false
             if ($exo -and ($exo.PSObject.Properties.Name -contains 'showProgress')) { $showProgress = [bool]$exo.showProgress }
 
@@ -168,11 +152,8 @@ function Disable-User {
             }
         }
 
-        # Teams (Graph-free)
+        # Teams
         if ($IncludeTeams) {
-            Use-Private 'Teams\Connect-MicrosoftTeamsIfNeeded.ps1'  -RequiredFunction 'Connect-MicrosoftTeamsIfNeeded'
-            Use-Private 'Teams\Remove-TeamsUser.ps1'                -RequiredFunction 'Remove-TeamsUser'
-
             try { $null = Connect-MicrosoftTeamsIfNeeded } catch {
                 Write-Log -Level Warn -Message ("Teams connect failed: {0}" -f $_.Exception.Message)
             }
@@ -206,8 +187,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAWM/pht43uGncN
-# hYy1CoAE8+koS1c9VDlCIB3wdBcyIKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA+FE41eNOTTnk2
+# ZoI9yVD1vgtrUOYArCBV3AbhOunxEaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -340,34 +321,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAzYJw3y8/d
-# Ek1hyiBYzfFdm0TKqfscncsDghEVSii95jANBgkqhkiG9w0BAQEFAASCAgCvKtyz
-# DnBo7S8cgi2Wkg9q/+DTDsvKJimwCiedhZ06d1ONlSV0eMvl3DNDouT6Loqx6Iy4
-# gwashG7pOHxAaBKgu+X7ZbV3KoVZHsBPjiLNhnaxRDpN6YN+3lik5XHqjfe2zZ7J
-# dwKhPCdDEmU2QLM/iFxgPx/3exju2kSVJnqh1qMb/0Ez9keDTpSjRgQgqTq1JqfC
-# Y3P/lQWbzS14uB9Dci6QxgJPMFIN+sPRREhz9OdekB+VjdOIMZO/aiPzhLgIdzr7
-# bFb5kI2VGh+4k/wpX0SYT3bXzOl1cq4SGcTN05UqQGdmS0BwCgSsU7M1U+uPnLfo
-# PPUsvrSXEN2oAFCg9e/X0cf5lRWZ+xKTczxfcmFJO4/Frr7szEyQnd8uXMVDIT+m
-# VRujuMN3XHC44gbAszvOfZmFVji2FHK/1iI3NEiIbX8Vos+onl6pVuHE95txjczE
-# VaHPytmIkUvnefOQ1C5lappbEPxugXWnBZ28O0cyRV32Cy5RWKGhjygqGaiyJ2Q3
-# UWfalbruoQpb1aptARi7dCXQe7Y0ywVXixmXnGchaBuZbv9BXWo//J95AgKRGv38
-# mmoWCZq+BBEHAxfPrIpIkdeuNuCNz/CDsPtakx+gFvH0/jbbz7C8ui/4Oa25HYSJ
-# zo+fPLuMVgfJo3yq5aPILy/tuofJru3+m5keIaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDSA66uB0Wh
+# HKF7A4eJ6rKI4QxnNw0Jz7f4OKcHYI5Z1DANBgkqhkiG9w0BAQEFAASCAgAYv5MC
+# i6b1S90bwMqavJ2PEjaektHtzmLs+VKdh51fMA+45MEdYFqzaTYh2Tg2nNn3111y
+# AVYmB4Q/2t/6y5iH6tG85ReBV96t2RbOnglzmvnpSWOvuRl511h+gMOBpI/K8HhF
+# D98NUbSct48bMRy9Rp2Bm0FwyaSQtfphEvuvyUUjiJqdxviPBYaf00SWgRK7893e
+# WG+nAK8BGSWBmeiuXjNQKLWfOnbre08JO9C3M/+eGt7xvPYvtcjzToN+mubd8YxD
+# /0lme8BQdrLKGcoGau+1i3XQCuurV7CgUXxwkQcb1zZD7EBYM3qrrmx3rg/Ec9Iw
+# hrWrmYYoTexs0tbWxT+NmO/1Y7ktgP2aMwkmxj7O7hYW8MZYUKHR4frPazsFme2Y
+# t9UeevtsWXaCSFaPH+oqCpx2cplWJR0cOM7jHOCuvLHMObn1JuIHWyR4z9thS3iZ
+# bAWpURCmo9vIWoIzZ+k5JSrmWkjJ1p/ba1EFDa+iumAbdFVLV0jzHAiio2r2JQYN
+# iHJlZaW9KqeLTXQeL/+ksHJjB9oK8hsAVrxtzVbmr6fa9f+zfIDDgjNyX/HjVZ3u
+# RqcZMIxx+pFEFzdtcM2655F+XQXu5Nw/7lIISqdPt8jhPTzV9QpsEX+23nVQNygP
+# Vmv2s3ECOiCsRrRg30jVzDpZ4Lx3PzfQzLOe56GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTAyMjUzMjdaMC8GCSqGSIb3DQEJBDEiBCB6WyZnssXL3fdRyUcC
-# p+5EXwS+ioRuXAE9ikOuY7b5ZzANBgkqhkiG9w0BAQEFAASCAgBXRT5/xXEjX1kV
-# J9cQiFrfqu/v0fggsawHDlNRoyS6h9uAHWbKYfzXRIsTsdEnuUSJa+qgkwkLMhjt
-# /9d1ueleXoZRW4JPKS8njO3VOIdTKDjd3vyiiWhfaiDC/TazfVjfGA3Vl4Spkw7q
-# Oa1bzE5DyQjSlSr7XludsgJTS3WH3zvI7y3jjJ+qSyAOuXvJmc2atTV2A+Rb0kz7
-# vQmwHSWVmhf1JkT/7pEXalI9AfeFz8DguoWUOstjXiO0UPSWBtYD6qsV3gBuxrXi
-# ZNq1td9cP55VG3xQ6JtQE9hYDBZbD/03nfTe9UdAG21f/ditN63vGwuyE44P2sDL
-# Dje5W7WKfVvW2IWdsxHiJaQKITM91uAa3AT4U7GdGgHM8Q9kwSiml3gMWbATR5An
-# KVeeBev9KkRy/708O0TdlglD9hVR+UEDsgagbNsuqE/Ll0yAXwcmuCNPwMG9jenZ
-# qF8bUJQ8m9t7CyJRWOdr5/6etncch5pxiBDsxHoZyjSRceD3nL2iZE7SGHjt7rhH
-# XNuEKxzqH34Vcn/NXABcxJ2NDW2sofATCSFvpoZQN+tHPcTQgvD/Xznf2wUqXFaL
-# orvD19Iq5VOYXILZlX9fexUQKikOkmmgM/s8ReCITCjcImbffTCYTFdKNcijydWk
-# UjDGnq6riMAaS8aOgMue4jAqS7CkeA==
+# BTEPFw0yNjAyMTEwMDQ2NTJaMC8GCSqGSIb3DQEJBDEiBCAKY44X7Cdh6lv4DrSD
+# ElF0T0wv8SGaAsDZ9Vg5l1rdtTANBgkqhkiG9w0BAQEFAASCAgA1/HaFrJHWj2MB
+# m+wdJTk+jvmTqPOr8veoqTe2FeCguRsOAme+hn3o4NQxQOGhi+gBSTz7FSCTfks8
+# 5y0+f76G/C9daP7MFGTe40BQSK8cdyuhkTurCA37nuenIcNwfvvE9B3ExbLqjLOk
+# K1O9Y4OTpVva24Ps7Dn9Ql3GupfKF4QvQ86tUds1ELAMKynz3vAEchjjBpJcBsxP
+# qPt9LBbRZPT07xrE/1dGQZe6mU9ZNQ0zG5uWXGD6JdPMnfH843V5bM3bz/RKbSjU
+# O0Ah2luFaRyo6Cehb8coCjnxuXTi801CSKeg0S/UZa/u8gfalu9LtZw+Q5RY0W1P
+# CGlYaSBucxaKu+AGLX1G+BszwaGxdfByWhzESybUUHZdlIU2h19DvYTS57jWsvT0
+# Yylltr3drK8J0O1re85U37kpKsI8RETHYWfJAoAQwapgeQiEGKDGROQUZ9AFuinE
+# zDiI06kpIgt9GI3vqYFL3B5j92v5YKBLeuDAxyh35Rb2oXiiXXj1HxMlu+P/k65i
+# YHUG6U6gguAulgQfq7ax51SL8ZcfzzjveITaEDLMO2w3H2MELhhBioL4QNNWDFcj
+# Cz1aGcsTxQPjXAa0DulNt4YRMgThu69sOX7xDQ4AzBFdU/EpOMq0kKrMQoMU1khV
+# FqzDsQ5LYCtkmACgG6qY3nUgbFLflA==
 # SIG # End signature block
