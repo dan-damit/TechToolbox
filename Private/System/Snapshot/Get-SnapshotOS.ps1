@@ -1,9 +1,10 @@
-[CmdletBinding()]
-param(
-    [switch]$IncludeRoles  # When true and ServerManager is available, returns installed roles/features (Server OS)
-)
+function Get-SnapshotOS {
+    [CmdletBinding()]
+    param(
+        [switch]$IncludeRoles  # When true and ServerManager is available, returns installed roles/features (Server OS)
+    )
 
-<#
+    <#
 .SYNOPSIS
     Collect OS details (name/edition/build/version), install & boot times,
     uptime, and optional roles/features.
@@ -13,144 +14,144 @@ param(
     Optionally includes installed roles/features on Server OS.
 #>
 
-Write-Verbose "Collecting OS information..."
+    Write-Verbose "Collecting OS information..."
 
-function Convert-CimDate {
-    param([string]$CimDate)
-    if ([string]::IsNullOrWhiteSpace($CimDate)) { return $null }
-    try { return ([Management.ManagementDateTimeConverter]::ToDateTime($CimDate)) } catch { return $null }
-}
-
-function Get-RegistryValue {
-    param([string]$Path, [string]$Name)
-    try {
-        $item = Get-ItemProperty -Path $Path -ErrorAction Stop
-        return $item.$Name
+    function Convert-CimDate {
+        param([string]$CimDate)
+        if ([string]::IsNullOrWhiteSpace($CimDate)) { return $null }
+        try { return ([Management.ManagementDateTimeConverter]::ToDateTime($CimDate)) } catch { return $null }
     }
-    catch { return $null }
-}
 
-function Get-DomainRoleName {
-    param([int]$Role)
-    switch ($Role) {
-        0 { 'StandaloneWorkstation' }
-        1 { 'MemberWorkstation' }
-        2 { 'StandaloneServer' }
-        3 { 'MemberServer' }
-        4 { 'BackupDomainController' }
-        5 { 'PrimaryDomainController' }
-        default { [string]$Role }
+    function Get-RegistryValue {
+        param([string]$Path, [string]$Name)
+        try {
+            $item = Get-ItemProperty -Path $Path -ErrorAction Stop
+            return $item.$Name
+        }
+        catch { return $null }
     }
-}
 
-# --- Core OS + ComputerSystem ---
-try {
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
-}
-catch {
-    Write-Verbose ("Get-SnapshotOS: failed WMI OS query: {0}" -f $_.Exception.Message)
-    $os = $null
-}
-
-try {
-    $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
-}
-catch {
-    $cs = $null
-}
-
-# --- Registry: CurrentVersion branch (extra build/version fields) ---
-$cvPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
-$productNameReg = Get-RegistryValue -Path $cvPath -Name 'ProductName'
-$editionId = Get-RegistryValue -Path $cvPath -Name 'EditionID'
-$displayVersion = Get-RegistryValue -Path $cvPath -Name 'DisplayVersion'   # Win10/11 modern
-$releaseId = Get-RegistryValue -Path $cvPath -Name 'ReleaseId'        # older Win10
-$currentBuild = Get-RegistryValue -Path $cvPath -Name 'CurrentBuild'
-$currentBuildNum = Get-RegistryValue -Path $cvPath -Name 'CurrentBuildNumber'
-$ubr = Get-RegistryValue -Path $cvPath -Name 'UBR'              # Update Build Revision
-$currentVersion = Get-RegistryValue -Path $cvPath -Name 'CurrentVersion'
-$buildLabEx = Get-RegistryValue -Path $cvPath -Name 'BuildLabEx'
-$installType = Get-RegistryValue -Path $cvPath -Name 'InstallationType' # e.g., Client, Server, Server Core
-
-# --- Install / Boot / Uptime ---
-$installDate = if ($os -and $os.InstallDate) { Convert-CimDate $os.InstallDate } else { $null }
-$lastBoot = if ($os -and $os.LastBootUpTime) { Convert-CimDate $os.LastBootUpTime } else { $null }
-$uptimeSeconds = $null
-$uptime = $null
-if ($lastBoot) {
-    $uptimeSpan = (Get-Date) - $lastBoot
-    $uptimeSeconds = [int][math]::Round($uptimeSpan.TotalSeconds, 0)
-    $uptime = $uptimeSpan.ToString()
-}
-
-# --- Domain role (friendly) ---
-$domainRoleName = if ($cs -and $null -ne $cs.DomainRole) { Get-DomainRoleName -Role $cs.DomainRole } else { $null }
-
-# --- Activation (best-effort) ---
-$activation = $null
-try {
-    # SoftwareLicensingProduct can be noisy; filter to items with a product key and check LicenseStatus=1 (Licensed)
-    $slp = Get-CimInstance -ClassName SoftwareLicensingProduct -ErrorAction SilentlyContinue |
-    Where-Object { $_.PartialProductKey -and $_.LicenseStatus -ne $null } |
-    Select-Object -First 1
-    if ($slp) {
-        $activation = if ($slp.LicenseStatus -eq 1) { 'Licensed' } else { 'Unlicensed' }
-    }
-}
-catch { }
-
-# --- Optional: roles/features on Server OS ---
-$roles = $null
-$rolesCount = $null
-if ($IncludeRoles) {
-    try {
-        if (Get-Module -ListAvailable -Name ServerManager) {
-            Import-Module ServerManager -ErrorAction SilentlyContinue | Out-Null
-            $features = Get-WindowsFeature | Where-Object { $_.Installed }
-            if ($features) {
-                # Keep it light: store names; callers can expand if needed
-                $roles = $features | Select-Object -ExpandProperty Name
-                $rolesCount = $roles.Count
-            }
+    function Get-DomainRoleName {
+        param([int]$Role)
+        switch ($Role) {
+            0 { 'StandaloneWorkstation' }
+            1 { 'MemberWorkstation' }
+            2 { 'StandaloneServer' }
+            3 { 'MemberServer' }
+            4 { 'BackupDomainController' }
+            5 { 'PrimaryDomainController' }
+            default { [string]$Role }
         }
     }
-    catch {
-        Write-Verbose ("Get-SnapshotOS(roles): {0}" -f $_.Exception.Message)
+
+    # --- Core OS + ComputerSystem ---
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
     }
+    catch {
+        Write-Verbose ("Get-SnapshotOS: failed WMI OS query: {0}" -f $_.Exception.Message)
+        $os = $null
+    }
+
+    try {
+        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
+    }
+    catch {
+        $cs = $null
+    }
+
+    # --- Registry: CurrentVersion branch (extra build/version fields) ---
+    $cvPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    $productNameReg = Get-RegistryValue -Path $cvPath -Name 'ProductName'
+    $editionId = Get-RegistryValue -Path $cvPath -Name 'EditionID'
+    $displayVersion = Get-RegistryValue -Path $cvPath -Name 'DisplayVersion'   # Win10/11 modern
+    $releaseId = Get-RegistryValue -Path $cvPath -Name 'ReleaseId'        # older Win10
+    $currentBuild = Get-RegistryValue -Path $cvPath -Name 'CurrentBuild'
+    $currentBuildNum = Get-RegistryValue -Path $cvPath -Name 'CurrentBuildNumber'
+    $ubr = Get-RegistryValue -Path $cvPath -Name 'UBR'              # Update Build Revision
+    $currentVersion = Get-RegistryValue -Path $cvPath -Name 'CurrentVersion'
+    $buildLabEx = Get-RegistryValue -Path $cvPath -Name 'BuildLabEx'
+    $installType = Get-RegistryValue -Path $cvPath -Name 'InstallationType' # e.g., Client, Server, Server Core
+
+    # --- Install / Boot / Uptime ---
+    $installDate = if ($os -and $os.InstallDate) { Convert-CimDate $os.InstallDate } else { $null }
+    $lastBoot = if ($os -and $os.LastBootUpTime) { Convert-CimDate $os.LastBootUpTime } else { $null }
+    $uptimeSeconds = $null
+    $uptime = $null
+    if ($lastBoot) {
+        $uptimeSpan = (Get-Date) - $lastBoot
+        $uptimeSeconds = [int][math]::Round($uptimeSpan.TotalSeconds, 0)
+        $uptime = $uptimeSpan.ToString()
+    }
+
+    # --- Domain role (friendly) ---
+    $domainRoleName = if ($cs -and $null -ne $cs.DomainRole) { Get-DomainRoleName -Role $cs.DomainRole } else { $null }
+
+    # --- Activation (best-effort) ---
+    $activation = $null
+    try {
+        # SoftwareLicensingProduct can be noisy; filter to items with a product key and check LicenseStatus=1 (Licensed)
+        $slp = Get-CimInstance -ClassName SoftwareLicensingProduct -ErrorAction SilentlyContinue |
+        Where-Object { $_.PartialProductKey -and $_.LicenseStatus -ne $null } |
+        Select-Object -First 1
+        if ($slp) {
+            $activation = if ($slp.LicenseStatus -eq 1) { 'Licensed' } else { 'Unlicensed' }
+        }
+    }
+    catch { }
+
+    # --- Optional: roles/features on Server OS ---
+    $roles = $null
+    $rolesCount = $null
+    if ($IncludeRoles) {
+        try {
+            if (Get-Module -ListAvailable -Name ServerManager) {
+                Import-Module ServerManager -ErrorAction SilentlyContinue | Out-Null
+                $features = Get-WindowsFeature | Where-Object { $_.Installed }
+                if ($features) {
+                    # Keep it light: store names; callers can expand if needed
+                    $roles = $features | Select-Object -ExpandProperty Name
+                    $rolesCount = $roles.Count
+                }
+            }
+        }
+        catch {
+            Write-Verbose ("Get-SnapshotOS(roles): {0}" -f $_.Exception.Message)
+        }
+    }
+
+    # --- Compose result object (simple, flatten-friendly) ---
+    $result = [pscustomobject]@{
+        ComputerName     = if ($cs) { $cs.Name } else { $env:COMPUTERNAME }
+        Caption          = if ($os) { $os.Caption } else { $productNameReg }
+        ProductName      = $productNameReg
+        EditionID        = $editionId
+        InstallationType = $installType
+        Version          = $currentVersion
+        DisplayVersion   = $displayVersion
+        ReleaseId        = $releaseId
+        Build            = if ($currentBuild) { $currentBuild } else { if ($os) { $os.BuildNumber } else { $currentBuildNum } }
+        UBR              = $ubr
+        BuildLabEx       = $buildLabEx
+        OSArchitecture   = if ($os) { $os.OSArchitecture } else { $null }
+        InstallDate      = $installDate
+        LastBootUpTime   = $lastBoot
+        UptimeSeconds    = $uptimeSeconds
+        Uptime           = $uptime
+        DomainRole       = $domainRoleName
+        Activation       = $activation
+        Roles            = $roles       # array of role/feature names (Server OS only when IncludeRoles)
+        RolesCount       = $rolesCount
+    }
+
+    Write-Verbose "OS information collected."
+    return $result
 }
-
-# --- Compose result object (simple, flatten-friendly) ---
-$result = [pscustomobject]@{
-    ComputerName     = if ($cs) { $cs.Name } else { $env:COMPUTERNAME }
-    Caption          = if ($os) { $os.Caption } else { $productNameReg }
-    ProductName      = $productNameReg
-    EditionID        = $editionId
-    InstallationType = $installType
-    Version          = $currentVersion
-    DisplayVersion   = $displayVersion
-    ReleaseId        = $releaseId
-    Build            = if ($currentBuild) { $currentBuild } else { if ($os) { $os.BuildNumber } else { $currentBuildNum } }
-    UBR              = $ubr
-    BuildLabEx       = $buildLabEx
-    OSArchitecture   = if ($os) { $os.OSArchitecture } else { $null }
-    InstallDate      = $installDate
-    LastBootUpTime   = $lastBoot
-    UptimeSeconds    = $uptimeSeconds
-    Uptime           = $uptime
-    DomainRole       = $domainRoleName
-    Activation       = $activation
-    Roles            = $roles       # array of role/feature names (Server OS only when IncludeRoles)
-    RolesCount       = $rolesCount
-}
-
-Write-Verbose "OS information collected."
-return $result
-
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQWBDpBCGTwu5G
-# FrV7p6ziCw+ocpWh8vAzx0fO9CSoWKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAmDUc/ROSCXUUT
+# r4KEs3BnSoZjWkoz1rEB8AwQAZpmmqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -283,34 +284,34 @@ return $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAddAvCgN2h
-# E3jKavO9oOTruj/uEoj8WeUHIWaCFWouGjANBgkqhkiG9w0BAQEFAASCAgDQG1AV
-# CUHXdC3fyfaj9zmcVuVv5lZVYwYm7WQvas5fAI5d0DkoIa8LZxMR5t+WYB6Y2VRq
-# zjae/evDMlUT441TVUDsdrDF9OTM6J5haiyfDeo5N6D9rHlq9Hn93u96jNxCRZZB
-# iPfHVb9zyXL3Qc09ncDnIb0m1RLRTeHkZqaW2Xa24CPDVQqtio0J3xvJMFQa+Dfh
-# nC6djCRxXgDaDqhdts+EXwo+Cn6hS8W9Xg/ztgTcYpA11cSQL7EZa89AMQPLRlf3
-# 5t56Qi5tWMVX+fpnyeN2her0cztIORwVjOrSaOE/0raxPFnUbz+tvs2THLA52qjQ
-# bnxiEy3dFBnlR7RrlQO/+iCaD4vab10jSOZz50iTMLPzp5WkjyjN9Vv5N5UNraKw
-# Ft0ML/bg7l5GLB6XTJJ3Y34vXQ6bYf+JF+2lgCbDKKwQWwqcE5cLH7G9DkdN3XIP
-# Q41IqlDYEpkvrcj0gxhh0brq2wWReXGhqjCFchSflvpSoU3BTr4BjooqNINtsyoH
-# J3pb2NYWMuOemYwjvj8MU2gqCEttovPsyoUAkqPcpJPtRLf/GSgSkj5lvklMAyXz
-# lPXVymA8MmOJw9VA8qsEZ+tykZebs0pH3Jwe+gYlVaoo4D4DbSFRA9JjmVAvPc02
-# xSlv+fKUuWWD2RSTPZwPs3UmE1/Dpr9Evs0NT6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD9y4A0Xj5F
+# Ms2DkCOu9JirJfTkTSn5Qj1prnBSmw/33TANBgkqhkiG9w0BAQEFAASCAgBFKhYc
+# vduglkuRj7zC3yncL2Gq4jtwRbYRxHHpyK0gpKw8cmNgaWCKt0p857Cj+rA/NeEy
+# pODLeiEJD8UqbLuqb6mdv03QYrqKyDdt8vZ5SIEtCVgZkV5zoQnC16iWt5YgMtJe
+# qzGZ4XHXcur8s5CQY/ed0F2ncrhiYl8MrHd3cU+8ku/B2qCkWor7cVxc/kJ9Szoz
+# CQ6/fVA9zYrGnJU+6NEw2pgFl+H7tw0fIOTBhATfr2GtRkZ8akFEigo+fs4OGjBd
+# T66DhjFJCEfbCHyNhfhfDAZvPRnbL0yjNNtZ6Hh04Ag3DCGMM/h1yqaTq0p33JAS
+# gEigriZTiwY5wAAeD8D85gxl8hCgCeZl5H2WV03qbFMRqUS6ro65dbl7D5Qe02WE
+# VOufT8MhtK5m2QGL+lBsTRnca2Izy8v4n64gvVuy3uaA4HIY8FXJYfx/tJwnCxHi
+# EKxXddDwspPAZnegdXLfKMY1dVZoqMH1GxAoiPlvPXk2uqU4xnE63Goo2scJiQGW
+# eh3feOZAEV+LgHzBFuhBzPTa/ele6jpbypcfJOnaX4TjHbulfvCKfU8sxyZ8yh4v
+# Flw0rw6K669dBRfQ3mlEedESSDKXfT8yEnu5J/9qZXfAKBgprhu6NdkJ8qC4MoyU
+# GmtAcVk8BRTNl+kFCBS5NhwQQVbPa4W2IZojsKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ2MjhaMC8GCSqGSIb3DQEJBDEiBCAPVDgj0fnjCAmMx1FX
-# aZ+cQ1LWSRuCooUBWY64c9JNojANBgkqhkiG9w0BAQEFAASCAgAdBmQn2OgxF0UH
-# g6sVNAyGPbs7kjmsjJD4Rs8CrEL/z2rrX2h186/bjxD56oG3rJqiA11mRO9v3q54
-# uSGZ5+rhnlIogAb+ImUwn8egHwP5J+5MKriyBhtY6vQwWE+riebGOzDSE2zXNzJq
-# mZSMI3/jHo0DVnNs9cD1oAB473T93M7670ZCxVAqUi4cPVPfrufW8lC4XFNdnoxI
-# F2kpd2FkpGEdyR498wtROI1PtcG2qX7pI/bF0qfdy53aIaYAqQukplC+SvgpVPRY
-# een4Hi9fZ94tsmRzp1sf4pXvfvtvTdZSCkqpqXXqOTYebAwEQhYwreix9nvE/Kg4
-# O/tuc5pv120z08zQI3/8Qd5oq0CKhZKlUYWkJaU7yncK4NOmNxdEK3H3d1khYbBh
-# MXCKSnUAk2FTZdcmNzZH9M9/o32OfUkzn9T4eVLFsKiQb3Xcn1+97R0W1IRc+r8a
-# Y/kIW5cMbiI2K/uqf0wOv/rs54fnaUoRxgpFuD3IaDGg5hwR1UHbfXzwY5TrD0uN
-# Djy5mo5dFuLeXvFYRuaug/N0vIYx5vBGN9JvoL+ClajYc/2D/0L20tNvJ5hGTaQ0
-# GJdE0B/l0C+lrbefXrklIxMFtEtAmRa0HdGCa04hNl29+K5oZApuWwUAhkikHOxd
-# 4W8hu16eKQ6KgUveKS6hzzo3YDu9mg==
+# BTEPFw0yNjAyMTEwMjMzNDhaMC8GCSqGSIb3DQEJBDEiBCApZAg2B/bIBRNEtwPV
+# Wn0+eFaTmpdNqUuzXjDcFqCTkzANBgkqhkiG9w0BAQEFAASCAgDPdOlIFhfp67uH
+# qp1TNFojUUbouGUU5tH7gfQdDahn/dG9bdI/+2K3bqJ/lFKpVqNZPLZUgCg+5tIH
+# 4AI2RhQPfPmyuzHkAIU7VcqdwHH4JINn93ge2XN/Hp7Hhk9BQpYhMGZAon5mSiL6
+# 1Nh4m9vLwRgy15Gn8xBRl8SwCNpr/xFCeASu+lBY+ZWqEuaEZMIL+V8ZwfJTNwrr
+# 5vDzhmiQm4Kq47Vc0O1yUmHpkklOPNqvAXDqxJKP3jNPci7qLj+ZAqK1YI/Vaoob
+# kokuCzpMXALBRmwAF2im5powH0WyfchHSfYtuAuad16lmppLJkKm+Lfy66lVig7U
+# a02SxdZf6nZ5nYZg6MVXdHdvHD1aR0ZlV7Ya09gzSqGYo9ZhASkuvxmGeVXaU3XF
+# SPNUw+OcMTW29kFAQRzSyhEvTbAfQXoibh75qDfpxxhF4JOBmz6K9AcNy07epM80
+# sGYVgz7z2tk24Yglju8C74ArbuAPUqo3ou0DGuzN15XHzSFBYJWmrme+n6Plfsp8
+# nXYN384yUSXHTccC4TpvO9PK4TITB8aj1i60Xk/9cw+6U72e6aW1sNjoD/FmeDP3
+# prqlhCb7TC3elHSSYWxNS+l1Y146u8DPp7TBP58MZyZpl2AAOqa5dYxlsNJUdq/f
+# 1X2gEuzodUHjbnBO1GM6t1XsR2Zhnw==
 # SIG # End signature block

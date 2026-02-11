@@ -146,7 +146,9 @@
       "enableFileLogging": true,
       "logFile": "TechToolbox.log",
       "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
-      "minimumLevel": "Info"
+      "minimumLevel": "Info",
+      "minimumLevelInt": 2,
+      "useAnsi": true
     },
     "defaults": {
       "promptForCaseName": true,
@@ -184,7 +186,7 @@
       "includeServices": true,
       "helperFiles": [
         "Get-SnapshotCPU.ps1",
-        "Get-SnapshotDisks.ps1",
+        "Get-SnapshotDisk.ps1",
         "Get-SnapshotIdentity.ps1",
         "Get-SnapshotMemory.ps1",
         "Get-SnapshotNetwork.ps1",

@@ -42,7 +42,7 @@ function Get-SystemSnapshot {
     begin {
         # --- Load config defaults ---
         Initialize-TechToolboxRuntime
-        Initialize-PrivateFunctions
+
         $ss = $script:cfg.settings.systemSnapshot
         if (-not $PSBoundParameters.ContainsKey('IncludeServices')) { $IncludeServices = [bool]$ss.includeServices }
         if (-not $PSBoundParameters.ContainsKey('IncludeRoles')) { $IncludeRoles = [bool]$ss.includeRoles }
@@ -51,12 +51,12 @@ function Get-SystemSnapshot {
         if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
 
         # Controller-side helper source and list (to zip)
-        $helperSourceDir = if ($ss.helperPath) { [string]$ss.helperPath } else { Join-Path $PSScriptRoot "..\\Private\\System\\Snapshot" }
-        $helperFilesFromCfg = ""
+        $helperSourceDir = if ($ss.helperPath) { [string]$ss.helperPath } else { Join-Path $script:ModuleRoot "Private\\System\\Snapshot" }
+        $helperFilesFromCfg = @()
         if ($ss.helperFiles) { $helperFilesFromCfg = [string[]]$ss.helperFiles }
 
         # Resolve helper file full paths from the configured list
-        $helperFiles = ""
+        $helperFiles = @()
         foreach ($name in $helperFilesFromCfg) {
             $p = Join-Path $helperSourceDir $name
             if (-not (Test-Path -LiteralPath $p)) {
@@ -83,8 +83,8 @@ function Get-SystemSnapshot {
         $workerRemotePath = if ($ss.workerPath) { [string]$ss.workerPath } else { "C:\\TechToolbox\\Workers\\Get-SystemSnapshot.Worker.ps1" }
 
         # Local flatteners (not shipped; used after results return)
-        $convert1 = Join-Path $PSScriptRoot "..\\Private\\Convert-SnapshotToFlatObject.ps1"
-        $convert2 = Join-Path $PSScriptRoot "..\\Private\\Convert-FlatSnapshotToRows.ps1"
+        $convert1 = Join-Path $script:ModuleRoot "Private\\System\\Snapshot\\Convert-SnapshotToFlatObject.ps1"
+        $convert2 = Join-Path $script:ModuleRoot "Private\\System\\Snapshot\\Convert-FlatSnapshotToRows.ps1"
         if ((-not (Test-Path $convert1)) -or (-not (Test-Path $convert2))) {
             Write-Verbose "Snapshot flatteners not found; NoExport will be forced."
             $NoExport = $true
@@ -95,72 +95,96 @@ function Get-SystemSnapshot {
 
     process {
         foreach ($cn in $ComputerName) {
+            $IsLocal = $cn -eq $env:COMPUTERNAME -or $cn -eq 'localhost' -or $cn -eq '127.0.0.1'
             $session = $null
             $remoteTmp = $null
             try {
-                # Your existing session helper (assumed working)
-                $session = Start-NewRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
-
-                # Remote temp and helper target path
-                $remoteTmp = Invoke-Command -Session $session -ScriptBlock {
-                    $base = Join-Path $env:TEMP ("TT_Snapshot_{0}" -f ([guid]::NewGuid()))
-                    New-Item -ItemType Directory -Path $base -Force | Out-Null
-                    $base
+                if ($IsLocal) {
+                    Write-Log -Level Info -Message "Running snapshot in local mode for $cn"
+                    $session = $null
+                }
+                else {
+                    $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential
                 }
 
-                $remoteZip = Join-Path $remoteTmp "helpers.zip"
-                $remoteHelpersPath = Join-Path $remoteTmp "helpers"
-
-                # Push the zip
-                Copy-Item -ToSession $session -Path $zipPath -Destination $remoteZip -Force
-
-                # Verify hash and expand
-                $expandedOk = Invoke-Command -Session $session -ScriptBlock {
-                    param($remoteZipParam, $expectedHash, $remoteHelpersParam)
-                    if (-not (Test-Path -LiteralPath $remoteZipParam)) { throw "Remote zip not found: $remoteZipParam" }
-                    $actual = (Get-FileHash -LiteralPath $remoteZipParam -Algorithm SHA256).Hash
-                    if ($actual -ne $expectedHash) {
-                        throw "Hash mismatch for transferred helpers.zip. Expected $expectedHash, got $actual."
+                if (-not $IsLocal) {
+                    Write-Log -Level Info -Message "Connected to $cn, preparing helpers"
+                
+                    # Remote temp and helper target path
+                    $remoteTmp = Invoke-Command -Session $session -ScriptBlock {
+                        $base = Join-Path $env:TEMP ("TT_Snapshot_{0}" -f ([guid]::NewGuid()))
+                        New-Item -ItemType Directory -Path $base -Force | Out-Null
+                        $base
                     }
-                    New-Item -ItemType Directory -Path $remoteHelpersParam -Force | Out-Null
-                    try {
-                        Expand-Archive -Path $remoteZipParam -DestinationPath $remoteHelpersParam -Force
-                    }
-                    catch {
-                        # Fallback for older PS without Expand-Archive
-                        Add-Type -AssemblyName System.IO.Compression.FileSystem
-                        [System.IO.Compression.ZipFile]::ExtractToDirectory($remoteZipParam, $remoteHelpersParam, $true)
-                    }
-                    Test-Path -LiteralPath $remoteHelpersParam
-                } -ArgumentList $remoteZip, $zipHash, $remoteHelpersPath
 
-                if (-not $expandedOk) { throw "Failed to expand helpers on $cn" }
+                    $remoteZip = Join-Path $remoteTmp "helpers.zip"
+                    $remoteHelpersPath = Join-Path $remoteTmp "helpers"
 
-                # Ensure worker exists at configured path on the remote.
-                # If your deployment copies workers to C:\TechToolbox\Workers during install, this will exist.
-                # Otherwise, we can copy it alongside the helpers; here's an optional fallback:
-                $workerExists = Invoke-Command -Session $session -ScriptBlock {
-                    param($p) [bool](Test-Path -LiteralPath $p)
-                } -ArgumentList $workerRemotePath
+                    # Push the zip
+                    Copy-Item -ToSession $session -Path $zipPath -Destination $remoteZip -Force
 
-                if (-not $workerExists) {
-                    # Optional: push the worker from our module to the configured path
-                    $localWorker = Join-Path $PSScriptRoot "..\\Workers\\Get-SystemSnapshot.worker.ps1"
-                    if (Test-Path -LiteralPath $localWorker) {
-                        $remoteDir = Split-Path -Path $workerRemotePath -Parent
-                        Invoke-Command -Session $session -ScriptBlock { param($d) if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null } } -ArgumentList $remoteDir
-                        Copy-Item -ToSession $session -Path $localWorker -Destination $workerRemotePath -Force
+                    # Verify hash and expand
+                    $expandedOk = Invoke-Command -Session $session -ScriptBlock {
+                        param($remoteZipParam, $expectedHash, $remoteHelpersParam)
+                        if (-not (Test-Path -LiteralPath $remoteZipParam)) { throw "Remote zip not found: $remoteZipParam" }
+                        $actual = (Get-FileHash -LiteralPath $remoteZipParam -Algorithm SHA256).Hash
+                        if ($actual -ne $expectedHash) {
+                            throw "Hash mismatch for transferred helpers.zip. Expected $expectedHash, got $actual."
+                        }
+                        New-Item -ItemType Directory -Path $remoteHelpersParam -Force | Out-Null
+                        try {
+                            Expand-Archive -Path $remoteZipParam -DestinationPath $remoteHelpersParam -Force
+                        }
+                        catch {
+                            # Fallback for older PS without Expand-Archive
+                            Add-Type -AssemblyName System.IO.Compression.FileSystem
+                            [System.IO.Compression.ZipFile]::ExtractToDirectory($remoteZipParam, $remoteHelpersParam, $true)
+                        }
+                        Test-Path -LiteralPath $remoteHelpersParam
+                    } -ArgumentList $remoteZip, $zipHash, $remoteHelpersPath
+
+                    if (-not $expandedOk) { throw "Failed to expand helpers on $cn" }
+
+                    # Ensure worker exists at configured path on the remote.
+                    # If your deployment copies workers to C:\TechToolbox\Workers during install, this will exist.
+                    # Otherwise, we can copy it alongside the helpers; here's an optional fallback:
+                    $workerExists = Invoke-Command -Session $session -ScriptBlock {
+                        param($p) [bool](Test-Path -LiteralPath $p)
+                    } -ArgumentList $workerRemotePath
+
+                    if (-not $workerExists) {
+                        # Optional: push the worker from our module to the configured path
+                        $localWorker = Join-Path $script:ModuleRoot "Workers\\Get-SystemSnapshot.worker.ps1"
+                        if (Test-Path -LiteralPath $localWorker) {
+                            $remoteDir = Split-Path -Path $workerRemotePath -Parent
+                            Invoke-Command -Session $session -ScriptBlock { param($d) if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null } } -ArgumentList $remoteDir
+                            Copy-Item -ToSession $session -Path $localWorker -Destination $workerRemotePath -Force
+                        }
                     }
                 }
-
                 # Invoke the worker (from configured path) with helper folder
-                $args = @(
-                    '-HelpersPath', $remoteHelpersPath
-                )
+                if ($IsLocal) {
+                    $localHelpersPath = $helperSourceDir
+                    $args = @('-HelpersPath', $localHelpersPath)
+                }
+                else {
+                    $args = @('-HelpersPath', $remoteHelpersPath)
+                }
                 if ($IncludeServices) { $args += '-IncludeServices' }
                 if ($IncludeRoles) { $args += '-IncludeRoles' }
 
-                $snapshot = Invoke-Command -Session $session -FilePath $workerRemotePath -ArgumentList $args
+                if ($IsLocal) {
+                    $localWorker = Join-Path $script:ModuleRoot "Workers\\Get-SystemSnapshot.worker.ps1"
+                    if (-not (Test-Path -LiteralPath $localWorker)) {
+                        throw "Local worker not found: $localWorker"
+                    }
+
+                    Write-Log -Level Info -Message "Invoking snapshot worker..."
+                    $snapshot = & $localWorker @args
+                }
+                else {
+                    $snapshot = Invoke-Command -Session $session -FilePath $workerRemotePath -ArgumentList $args
+                }
 
                 if ($snapshot) {
                     if (-not $NoExport) {
@@ -207,8 +231,8 @@ function Get-SystemSnapshot {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDddIGxS8GaGmPp
-# HkR72jgSGc8Ze7lpPDzEv2FwOH+32qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAin3l3YrkPGRTx
+# UdLxq3oV6DtYLTv+qMfDvTdVF2d4MKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -341,34 +365,34 @@ function Get-SystemSnapshot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDipW/frCxQ
-# HMkC++xeKO2fgVgdHNS3YpkwCmo2JVsASDANBgkqhkiG9w0BAQEFAASCAgBdRFvH
-# BeuNFfhS1rp2v6nk8KAjoMRg5HCF8WQn8NI4wHgVJ/IYrHc+EEcC0l5SvvQ3daVB
-# nJz8Is7xsuNzxVdYmrr8RQspPj9Vd5PwsSZAMvbSJOv4oGq26Repd6lInaS3zEon
-# 9qcCqK58lBSDyOSAj79DcvUnvRafXgwwoetYLRJl9bM9gDDfPJt7fZn/b7g0JvwG
-# ZObYcdSkYDZxUSDavrzV5W6A5bTYXogY7iIkuqSaIoJniCtBaNNKsQUDwSd5Zxe/
-# CZvdW1prDrZfED8V2x3yhyifWJpIrjCwOD3jLwhMx6aBSiFg2K++M16a0sxKVQTB
-# DosZ1XGcmrm/F0kRNoE7HsYTzC9M8POFPsmIPkFsbai81a2mfHRdeDDNqPhdsjLu
-# 1HhzFANR1imgMFk3OMBFEEFa1rizMqlD85XwRwPmfF5AAhvEhFzdPoGbFKehFqWf
-# DGSMIrfQq0ymHEB4ipQ/xIP4jUwbaewmUdeOc44xViw+2E/7vWshmNb31vDVObYp
-# FJZwHDTEQpZMYyiimxd1o7BvnSpBi1qg3sliTNQ6qyGk/AIXJCTtUt82vbfyJ8Ty
-# Om87kYHzDO4PLVIjJ0A/9Ag1Jn9soPNIbXfU6uKGmmZ5v8qdov054g+MrNQhuSr7
-# n2UvFOJFt+0hyFfzJIaXDDknxGBf3eHJnLVwnKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCHpv57fDLH
+# 096rRdUlPiwgyTR9LbsTyjzjlO2GrXW3ljANBgkqhkiG9w0BAQEFAASCAgAB3XH8
+# rOS2s4QagWFPAEMQ5uKeMa7dQ8kJ8GsHKQs+1uO3HrosLTYcmIaEDMszE8v08PpX
+# SFqp4SvUuL14mLOUgyeyp77RxPOXAjHtyOkhMwF4hB/5/m8tbPDXMP8fwxyfdSO/
+# e+uOyNurXm82k1HkUWJ0oxVUZhNX7ni21hTb6llXH3LqpgDZ/3ogQm4Fv6t1tGEi
+# MvUZPxOLyNwBzTW4rjTuh6VFEcHyYyFlMSMdQJf2M5qTpJf+pJltlF2ZLblhEYN1
+# 0aMmxAZ1ksV1p0NttTkHkZrxVcbN9VYnLSlVAGdR8ElDESoNQq/+60hJ45Ertoin
+# mAaMJn/TGj0yfsrRXOiwuwtB2YNyw5vVO33oisErSWrjVaoOL0QJq4x/NTvD7LfI
+# M5b8uqMLTb6YQqejGtU4snIrrLXY3U9fs0p93p+7M5CMhU+28q239evaER1bAhem
+# DISt7MHdCxlwCuiSRpu1gk2Zpc4SPT16OFgj5eBvtPGEgwKul1RIP6l3Ma3PYvRy
+# Y/tSfHsF4ecTUd8AHPmv/4xWyAe0nLh2ylGc74K6pN4CwOdkr1qdLlXOBYgq+mvM
+# 0PZoNRgUGWV7lSgdReCPM5OEfENSn1EODBWQyGeQfLCMJcF2YDOsrbL1hyupOHfe
+# FsrYgKedq/+kT0vQvbvh02XA7JX7Kpbu1qJREqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ3MDBaMC8GCSqGSIb3DQEJBDEiBCDaJJ1U8uuUfm9eASVh
-# PrDYOoeq+dWf+q4pb91k8cNFGzANBgkqhkiG9w0BAQEFAASCAgAZGTZ1VdErnRxN
-# k0vqf7wuzoIkba2KPWg7dleZswp+uRzRsF2SseUkuevh3IcfETNpG9YArpxITrkh
-# 9uRcZ/EeU4j2UsIzWharAF5vNxAC+6Omz2SZaKuC1Bf7nIO0s9t8QbRHEINpR688
-# Mn4Cy7dpTBP7il3Gs0/tCMbg/SIotwyE/2YG0HfwwTkWlkohlL1ancP5fUwi+sO6
-# LPlj/g6rYXMM9qfJi1Ze/o6tAvNZsubE61YOwmW1luCTKuWPfPNgP76TIynKQaoa
-# yHbs87uStGBdCPPIjqvxUVnyqoK6ATnc8Y2vjgiE3Oub8u2+10Z99EMm4By4seYi
-# tGghvKKgNYOz3nMahz57Ztd+SOfra3bUGecdF07h1zM0/KgeXgegiQnoBWXJ+Y+0
-# n7fFVgGXqn8Wf1wyJ2dEqhLSR2IRAKnKCUtMd1pBqOAKnAuiZR4LQsCwlbMchmF3
-# gn8INq7/DlIRZ0PxqxiTEeJjY1Pgnc3dH0TzrwA43OzxPutTW+oneSZ32WjmXb1e
-# c7Ey90HMyzZWuJYGEpAtzGGwUaJRtKLqPD67NAN/zd9HejtCz3uOX3hZGZYu5Ook
-# ybrt7McT4wkmrye83BSlD9LTlIeHGVDVy4EzjqhJwo5exa4y+mfeot59KD5mt1HH
-# cEQ+lTJ9/eJrQDMyxhtdyT7I6sF8ZA==
+# BTEPFw0yNjAyMTEwMzUxMTlaMC8GCSqGSIb3DQEJBDEiBCDU4VzJS4PTkhQtN94h
+# rh2FKKogE3zpVX0nGJ3bpu2h4TANBgkqhkiG9w0BAQEFAASCAgBDABvNlMeLheup
+# 7dHAV/kkycYY+Uhx6dmPZ0QKBjawlMYlsVzjjTlSmRFTeQqHasA1bTB6hKDZRnXh
+# /eqnNxKccJ9Mjvtp+lZk/5blToxTPTX49WB6wyOXhfoE+Miimcm2eDBVK1EjTshH
+# WzEWWKqE186ba63oeQT8z15D8fJAxEMciRPYMfn7+GfnKn4tkReCQE7cLSxWJNgU
+# bhdH+QRdmyfOffdcAHcHfyUG5kGyAA8pmNaTFEtP1QVKiuxqLzjrP8jMR4LBW5WY
+# W4Cunmt6xeuDARD2Relbuc2xb7tz+vsRCdki+TyctrcSnD1Le7k2O/gVHkh5CvGv
+# 4zJ76XaLQWBCi4IGuVu2zuZHyb2Bw8xgulevVc1Oc8rg2qCAKOlzwyZ0L3naa0Fy
+# 2JxVn+wUmq32r26vjYutCxdS1zGR13qch9nrPM1Q4jTwVe7uA7Pi3eXvCaKWpCj1
+# Enr2uPs/I8Hf25dH+CBF87ml5TgxELrbQLDkFqAhx5oiqUK3cIy1fpczTyxpqWEO
+# 6tvwqiKio34+fZpD6K/pE9RsvtbEoe+EySU9fYLBaH9wCX/hkE4458S42l9w6DzK
+# fehHzT1hiAshhMx1I2w0OCyMXUoKnZy9R3FjJclp7Xx9tU5oMskKDoXAeXAUfTrI
+# XLygNvC80A1PCmEXAraBvwDgiIzrwg==
 # SIG # End signature block

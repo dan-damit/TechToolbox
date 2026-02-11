@@ -1,18 +1,19 @@
-[CmdletBinding()]
-param(
-    [ValidateSet('Running', 'Stopped', 'All')]
-    [string]$State = 'Running',
+function Get-SnapshotServices {
+    [CmdletBinding()]
+    param(
+        [ValidateSet('Running', 'Stopped', 'All')]
+        [string]$State = 'Running',
 
-    [string[]]$NameLike,
+        [string[]]$NameLike,
 
-    # Include only services whose StartMode is Automatic (includes Delayed start)
-    [switch]$OnlyAuto,
+        # Include only services whose StartMode is Automatic (includes Delayed start)
+        [switch]$OnlyAuto,
 
-    # Convenience filter: Automatic (incl. Delayed) but NOT currently Running
-    [switch]$OnlyAutoStopped
-)
+        # Convenience filter: Automatic (incl. Delayed) but NOT currently Running
+        [switch]$OnlyAutoStopped
+    )
 
-<#
+    <#
 .SYNOPSIS
     Collect Windows services with optional filters; worker-friendly.
 .DESCRIPTION
@@ -22,88 +23,89 @@ param(
     HKLM:\SYSTEM\CurrentControlSet\Services.
 #>
 
-Write-Verbose "Collecting services..."
+    Write-Verbose "Collecting services..."
 
-# Preload DelayedAutoStart values once (faster than per-service lookups)
-$delayedMap = @{}
-try {
-    $svcRoot = 'HKLM:\SYSTEM\CurrentControlSet\Services'
-    if (Test-Path -LiteralPath $svcRoot) {
-        Get-ChildItem -LiteralPath $svcRoot -ErrorAction SilentlyContinue | ForEach-Object {
-            $n = $_.PSChildName
-            try {
-                $v = (Get-ItemProperty -LiteralPath $_.PSPath -Name DelayedAutoStart -ErrorAction SilentlyContinue).DelayedAutoStart
-                if ($null -ne $v) {
-                    # 1 = delayed auto start
-                    $delayedMap[$n] = ([int]$v -eq 1)
+    # Preload DelayedAutoStart values once (faster than per-service lookups)
+    $delayedMap = @{}
+    try {
+        $svcRoot = 'HKLM:\SYSTEM\CurrentControlSet\Services'
+        if (Test-Path -LiteralPath $svcRoot) {
+            Get-ChildItem -LiteralPath $svcRoot -ErrorAction SilentlyContinue | ForEach-Object {
+                $n = $_.PSChildName
+                try {
+                    $v = (Get-ItemProperty -LiteralPath $_.PSPath -Name DelayedAutoStart -ErrorAction SilentlyContinue).DelayedAutoStart
+                    if ($null -ne $v) {
+                        # 1 = delayed auto start
+                        $delayedMap[$n] = ([int]$v -eq 1)
+                    }
                 }
+                catch { }
             }
-            catch { }
         }
     }
-}
-catch {
-    Write-Verbose ("Failed to enumerate DelayedAutoStart values: {0}" -f $_.Exception.Message)
-}
-
-# Gather services
-$services = @()
-try {
-    $services = Get-CimInstance -ClassName Win32_Service -ErrorAction Stop
-}
-catch {
-    Write-Verbose ("Get-SnapshotServices: {0}" -f $_.Exception.Message)
-    return @()
-}
-
-# Project to simple objects
-$items = foreach ($s in $services) {
-    [pscustomobject]@{
-        Name             = $s.Name
-        DisplayName      = $s.DisplayName
-        State            = $s.State                 # Running | Stopped | Paused | ...
-        Status           = $s.Status                # OK | Error | ...
-        StartMode        = $s.StartMode             # Auto | Manual | Disabled
-        DelayedAutoStart = $( if ($delayedMap.ContainsKey($s.Name)) { $delayedMap[$s.Name] } else { $null } )
-        StartName        = $s.StartName             # Log On As
-        ProcessId        = $s.ProcessId
-        PathName         = $s.PathName
-        Description      = $s.Description
-        ServiceType      = $s.ServiceType
+    catch {
+        Write-Verbose ("Failed to enumerate DelayedAutoStart values: {0}" -f $_.Exception.Message)
     }
-}
 
-# Apply filters
-if ($State -ne 'All') {
-    $items = $items | Where-Object { $_.State -eq $State }
-}
-
-if ($OnlyAuto) {
-    $items = $items | Where-Object {
-        $_.StartMode -eq 'Auto'  # includes Automatic (Delayed) which still reports StartMode='Auto'
+    # Gather services
+    $services = @()
+    try {
+        $services = Get-CimInstance -ClassName Win32_Service -ErrorAction Stop
     }
-}
-
-if ($OnlyAutoStopped) {
-    $items = $items | Where-Object {
-        $_.StartMode -eq 'Auto' -and $_.State -ne 'Running'
+    catch {
+        Write-Verbose ("Get-SnapshotServices: {0}" -f $_.Exception.Message)
+        return @()
     }
-}
 
-if ($NameLike) {
-    # Accept plain strings or regex fragments; OR them together
-    $pattern = ($NameLike | ForEach-Object { [regex]::Escape($_) }) -join '|'
-    $items = $items | Where-Object { $_.Name -match $pattern -or $_.DisplayName -match $pattern }
-}
+    # Project to simple objects
+    $items = foreach ($s in $services) {
+        [pscustomobject]@{
+            Name             = $s.Name
+            DisplayName      = $s.DisplayName
+            State            = $s.State                 # Running | Stopped | Paused | ...
+            Status           = $s.Status                # OK | Error | ...
+            StartMode        = $s.StartMode             # Auto | Manual | Disabled
+            DelayedAutoStart = $( if ($delayedMap.ContainsKey($s.Name)) { $delayedMap[$s.Name] } else { $null } )
+            StartName        = $s.StartName             # Log On As
+            ProcessId        = $s.ProcessId
+            PathName         = $s.PathName
+            Description      = $s.Description
+            ServiceType      = $s.ServiceType
+        }
+    }
 
-Write-Verbose ("Services collected: {0}" -f ($items | Measure-Object).Count)
-return $items
+    # Apply filters
+    if ($State -ne 'All') {
+        $items = $items | Where-Object { $_.State -eq $State }
+    }
+
+    if ($OnlyAuto) {
+        $items = $items | Where-Object {
+            $_.StartMode -eq 'Auto'  # includes Automatic (Delayed) which still reports StartMode='Auto'
+        }
+    }
+
+    if ($OnlyAutoStopped) {
+        $items = $items | Where-Object {
+            $_.StartMode -eq 'Auto' -and $_.State -ne 'Running'
+        }
+    }
+
+    if ($NameLike) {
+        # Accept plain strings or regex fragments; OR them together
+        $pattern = ($NameLike | ForEach-Object { [regex]::Escape($_) }) -join '|'
+        $items = $items | Where-Object { $_.Name -match $pattern -or $_.DisplayName -match $pattern }
+    }
+
+    Write-Verbose ("Services collected: {0}" -f ($items | Measure-Object).Count)
+    return $items
+}
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBAggAiZq3qfofu
-# p89Gp3/SRkHQ36pEG3M7ecSzh1YxZKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAKjZ6TDcy6++9p
+# i4QFPuD4z9qyj4qa/PbUzEaIgaSGmKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -236,34 +238,34 @@ return $items
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDWiKJsuOuJ
-# X0aqOxJPRsBYcc3I3evtggBNKaza4BIM1TANBgkqhkiG9w0BAQEFAASCAgDFCNjV
-# q8k9/7xaO0ohsa6sp5UT1l5O9jiJNTrClOfCBwRPIhW0qja5Wcp19b9crBKZQoO7
-# iWhxA+MR94YNTmLcfT79Wo0U7nLvKyyaTYpXY+8iLU4zP46F8egt7OC7aCseSl5w
-# iS6ut/Da4Aj0Ie8gVuUHVsYQHlGexpm7BxRx3f5skFF2NKRWhBQVc4rWlTUndaMz
-# 5QSYl/4/JH2gAfJMMi/KlM17pHLT7xsqkE9r0zuBuKbjHYr8C4Ivgr2M4pu2LCrN
-# qKMm1RryX15NpRKS0NPG2UIbo+5oetuhGoRZExtOqFnHYihDEQQM/Daz6C/fDlcJ
-# V7s65+aDGf129w/TlRexAftPN0njyw59k35Pumm0OzpvvlwUMiFl9AihH0Dyr5qh
-# E/PCMTfTGVwuXiM4EytXUF7PlqJeioHcEGyWuOj82hECxN3BgEpVDx3L9XrfYkFL
-# n9xtxlwvyw8BedDmrcLlmgBxkVQ9FEUATtTRICwrlwnDvQlkK3MbaPHSDrAl3G4A
-# /DaZ0biMbEicv3U+05kp8lOfkOyVmDEAGD9gSkCfo6Jr4/OUvp4VruVDaXNCWAnX
-# CTm+XegMpkkaNX+VKUtXLHFO7KVb/JO/bERKPiTMBv49sKiriTPh1rrC3IwWT58/
-# eRrw0OY3rzBA+HGkQV2Rrm6l7ctltMlA8Aa1c6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC5x4DWcH4S
+# uFHQxdXPLXqcdbi1YPDqMyr4/f1Do3mGHzANBgkqhkiG9w0BAQEFAASCAgAgiHKN
+# vMI8YSSOTv03X54zD4SUo/ce+TG2YaxtUyDQNr0XfmzJneIjddtimnVkKAk/muKM
+# I9wK+6TDDSpd5LK+G07TYP5xV98mWsS3Py7aeH4CMmSZaJCl70B0Sh9z2pSY2/up
+# zkv84KkQ21uNO5+2GRn6VRAhDjoQKqQOCcriYvl86AcR6DMvnZDBoaob8+aPzJ8S
+# 5F0X2KyokzGu4r23cbp0X9J3oeuZHfmTy/xhK9pDgXInMjrsRosgzCHVeOjvQ0UM
+# wWQwfSQaIgMG3O1MIl3ZiIPbAXcRWtJ452HfE+3Qanx0BL9f0ksD9lcKxeKIC2ND
+# LOyb8fdA26hON00iw+6o4KM2Qs45y6OwaP22RD3WDCNLziHUnVUhFgRg+43/u19Z
+# VfgNnJFYiOVTns0mUPX0s8ZRHvP/7H0pojjSa/7Ir3Kdm1ZOx0pmI3z+rEZoXph/
+# s60Z3nvysQ3i7pm0uGsS82ZAxYhMGxWTk1bT+vNMnsuvnVxVX8KAYvalJQRrIy1i
+# jvCCC/SiiNAylq8Yk3HiCBpQi5L15shtIW7snwsD224uOM4i5hyVdowqUT0M7D9o
+# SrkAU1aUI/1gp8JyFHsQD7U+EPU1HmNCSgF+LuY/xZDdPt1esK00rNNygTFyaQR5
+# /LcTkZvyRc+v/OYluT6YfMuBXU1mpLRjwDHbXKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ2MzBaMC8GCSqGSIb3DQEJBDEiBCDINmod9M0foXrsRC7w
-# cXrrQfdYAYijOZ0RUS7TiWHLTzANBgkqhkiG9w0BAQEFAASCAgCEiWTzYPXuIRms
-# uCMZ3VlMipOIWPPOUBFtpThNjy6ZpkFvPbwv5w8+jWRXAxFRWNKJ5OoaqctzT3J8
-# DOi9BvDLP9hDUEvXzCUq9z75oGFUEvCH+WW/6iWwAhoJn/qgqJr5nPlxtJTNysFc
-# Id9xLQZi7G/Nptbg6fZgrGmVdguolGGROs2W3RTuoXV49l4s1UbBEgzWXX3TiGrE
-# hMKwaD8RmUFHmKoErz6GfD/pYkQOB6vMBEyF4c4XY2V28MSJIm50sY9jO3JhN5Wc
-# 6EERZUtXglV7nvU+hPfIeC8tIPaZZPLmBUp0qsp+WWTZ/kqPTm+acpblU6/bkRt9
-# u0Eh5vej+QGrEWhyqQCAzzV53Gz3vqlimWpvuIqafn9Zqvkkz+QY25kYXsTceWvH
-# buxDgylkRs8STF48haashEPuBTNOnKcx2+8XrD9XBzJ4hKQRqfMKMIJhOFBaC5kg
-# uJJYABdLw7LbXZFj39nq3Sy4Tl9prgeav6ajGZp1aMz88CczMMBnPP8RNuM8hDAf
-# JOHADv17dP9bt8l/EVfig4UItPWhbdYYJ0rc5mACTqU+CvMfu/TZt+RdzoQ3TVRg
-# Kq15z77bbD0RpTGe1KFLGwmmyHVHM3B4eCWmztslJqjDShlPCqAHgVaubt6VK+bG
-# sZT3xP8ZYjboGdTwFZ89D5qYBoqwrg==
+# BTEPFw0yNjAyMTEwMjMzNDhaMC8GCSqGSIb3DQEJBDEiBCCEoxffO/8R4zKp5hXY
+# dp96jHOYzdKNu+VIsUqNX1+YlDANBgkqhkiG9w0BAQEFAASCAgB2rVftRETTgwfJ
+# V11xx0QI34DrwdYN/ut/1vEVwElBCw0KxTcOuMnYIKOTPjq0pOgXL/a/UM+k6KMK
+# 11F4FMH0cQB16r0bK5na8tPCVzrCAJqhijubcAeMSQmxArvbKYxHDbRLJ4nfB959
+# YUQkcxdTe/Dd929wOtiXbTv9WoWqIMeIMdzYrUO6MLEb5PfJKnNnzRLz6G0+rvid
+# 89LiCsQn5e24w4eY+vnONyZW0wrCsXVIkJDFMg8HIwuGa/E72YKqs4WtNeBJMIt7
+# G2H/E7HGCOA9Ex2jCXG2EZgU7jLA2uFtN2qQf0uS0fSUGabwDQe5U569B+oSU+g6
+# JMhtptAbsOUutwPf0J3PJ827ieAgiPi5qlKkluI/ckE7EfuE9sv6ikRPoCr9oGoU
+# UBmP2JwfYwP9kMTXpbhOIAoJDfvIwMDG9k0qk8KUbGaXapzaG4MIkoi1DVvuRaXK
+# laJzAmEPquGI+KLzDhMwKJcuZifFrslmUIHJONWuLPTncNdcYxC2uq3P9qP83LSf
+# A0M4FDcwMMl1KBFEKqNeM+EFi5Ek8zLkkAggMqZJ3QZtK8luqgXqHsX9cv0Dno1W
+# 59q9DfJhjHTbfQsdEo7iO9x4uThYrrQRS1lbULz+ZBVwViknjT5wwe66DUMzGNgc
+# Uc9ZwkSjpH72dD51xlI4YxP7y3ehmw==
 # SIG # End signature block
