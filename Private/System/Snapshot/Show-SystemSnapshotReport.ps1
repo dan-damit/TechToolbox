@@ -1,87 +1,80 @@
-<#
-.SYNOPSIS
-    Worker: Build a system snapshot on the remote host by dot-sourcing shipped
-    helpers.
+function Show-SystemSnapshotReport {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Snapshot
+    )
 
-.DESCRIPTION
-    Runs ON the remote computer. Dot-sources the snapshot helper scripts that
-    were copied and expanded to -HelpersPath, invokes them, and emits one
-    PSCustomObject representing the system snapshot. No CSV writing or table
-    formatting here.
-#>
+    Write-Host ""
+    Write-Host "=== SYSTEM SNAPSHOT: $($Snapshot.ComputerName) ===" -ForegroundColor Cyan
+    Write-Host "Timestamp: $($Snapshot.Timestamp)"
+    Write-Host ""
 
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory)]
-    [string]$HelpersPath,
+    # --- OS ---
+    $os = $Snapshot.OS
+    Write-Host "OS" -ForegroundColor Yellow
+    Write-Host "  $($os.Caption) ($($os.Build))"
+    Write-Host "  Edition: $($os.EditionID)"
+    Write-Host "  Architecture: $($os.OSArchitecture)"
+    if ($os.Uptime) { Write-Host "  Uptime: $($os.Uptime)" }
+    Write-Host ""
 
-    [switch]$IncludeServices = $true,
-    [switch]$IncludeRoles = $true
-)
+    # --- CPU ---
+    $cpu = $Snapshot.CPU
+    Write-Host "CPU" -ForegroundColor Yellow
+    Write-Host "  $($cpu.Name)"
+    Write-Host "  Cores: $($cpu.NumberOfCores)   Logical: $($cpu.LogicalProcessors)"
+    Write-Host "  Load: $($cpu.LoadPercentage)%"
+    Write-Host ""
 
-# Guard
-if (-not (Test-Path -LiteralPath $HelpersPath)) {
-    throw "HelpersPath '$HelpersPath' not found on remote host."
-}
+    # --- Memory ---
+    $mem = $Snapshot.Memory
+    Write-Host "Memory" -ForegroundColor Yellow
+    Write-Host "  Total: $([math]::Round($mem.TotalMemoryGB,2)) GB"
+    Write-Host "  Used : $([math]::Round($mem.UsedMemoryGB,2)) GB ($([math]::Round($mem.PercentUsed,1))%)"
+    Write-Host "  Free : $([math]::Round($mem.FreeMemoryGB,2)) GB ($([math]::Round($mem.PercentFree,1))%)"
+    Write-Host ""
 
-# Required helpers (only those you ship)
-$required = @(
-    'Get-SnapshotOS.ps1',
-    'Get-SnapshotCPU.ps1',
-    'Get-SnapshotMemory.ps1',
-    'Get-SnapshotDisk.ps1',
-    'Get-SnapshotNetwork.ps1',
-    'Get-SnapshotIdentity.ps1'
-)
-
-# Optional helpers by feature switches
-if ($IncludeServices) { $required += 'Get-SnapshotServices.ps1' }
-
-foreach ($file in $required) {
-    $full = Join-Path $HelpersPath $file
-    if (-not (Test-Path -LiteralPath $full)) {
-        throw "Required helper missing: $full"
+    # --- Disks ---
+    Write-Host "Disks" -ForegroundColor Yellow
+    foreach ($disk in $Snapshot.Disks) {
+        Write-Host "  $($disk.DriveLetter)  $($disk.VolumeLabel)"
+        Write-Host "    Size: $($disk.SizeGB) GB   Free: $($disk.FreeGB) GB ($($disk.PercentFree)% free)"
     }
-    . $full
-}
+    Write-Host ""
 
-try {
-    $osInfo = Get-SnapshotOS -IncludeRoles:$IncludeRoles  # if your OS helper supports it
-    $cpuInfo = Get-SnapshotCPU
-    $memoryInfo = Get-SnapshotMemory
-    $diskInfo = Get-SnapshotDisks
-    $netInfo = Get-SnapshotNetwork
-    $identity = Get-SnapshotIdentity
-    $services = $null
-    if ($IncludeServices) {
-        $services = Get-SnapshotServices
-    }
+    # --- Network ---
+    $net = $Snapshot.Network
+    Write-Host "Network" -ForegroundColor Yellow
+    Write-Host "  Logged-on user: $($net.LoggedOnUser)"
+    Write-Host "  Workgroup     : $($net.Workgroup)"
+    Write-Host "  Domain joined : $($net.DomainJoined)"
+    Write-Host ""
 
-    $snapshot = [pscustomobject]@{
-        ComputerName = $env:COMPUTERNAME
-        Timestamp    = Get-Date
-        OS           = $osInfo
-        CPU          = $cpuInfo
-        Memory       = $memoryInfo
-        Disks        = $diskInfo
-        Network      = $netInfo
-        Identity     = $identity
-        Services     = $services
+    # --- Identity ---
+    $id = $Snapshot.Identity
+    Write-Host "Identity" -ForegroundColor Yellow
+    Write-Host "  SID: $($id.ComputerSID)"
+    Write-Host ""
+
+    # --- Services (optional) ---
+    if ($Snapshot.Services) {
+        Write-Host "Services (Running)" -ForegroundColor Yellow
+        foreach ($svc in $Snapshot.Services) {
+            Write-Host "  $($svc.Name) — $($svc.DisplayName)"
+        }
+        Write-Host ""
     }
 
-    $snapshot
-    exit 0
-}
-catch {
-    Write-Error ("Snapshot worker failed: {0}" -f $_.Exception.Message)
-    exit 1
+    Write-Host "=== END OF REPORT ===" -ForegroundColor Cyan
+    Write-Host ""
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAzlZVwSIX37n+A
-# h07oEecK4PAblhdQ0VAhcU8uw36gd6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDdktsoYy5lY4SS
+# FAQAUZEuR1Ik+P9oFFWmwOqQZ5f/B6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -214,34 +207,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC4q/gYDQWJ
-# 0IpryP1Z2AqvNmgFlOqdYSYGAe9IlfM0wTANBgkqhkiG9w0BAQEFAASCAgCDlT6G
-# mu63Mj9OBtLMaqXen+JMqElTuxUqoa4CkhEq0di81l0x0YwSew8as0+V/q+Ry+q6
-# yh6PU/oUdomdjWst/dLb0AotoRPHEYKB2WQRIYofF9rTNfw5f2eY8/qZyrpEWW5T
-# HzA+jJofo5PKnDy4Sx4uv8udKWHYtpFxTDi2QIG+E0tXizfP+7AGfclT9vXkJdGK
-# 2dPttq45J4NL/JlLxbvCzEt7lIfcZV5dRbAYnU0fSHeGWtf67EtiSFUGrkQM3YNh
-# y3wU4TZNTATC/wnzmDOa/9OuOew3+T8PSqhGobU2aJSAcPcN9omBoB9BB7QM8TJA
-# Jlpkh0OBMtYONgpBAr+ddFRVoiIAujr/AlWz0FOEJD44VxpDjw6tEWYOqHpEPy8N
-# aJ8HG85NgzP7REN3xkX78MnFOw3kdSSFS0zU8lxR0RWvjbQZxCsFYytnj70zmoL/
-# hOj9jQX/DGVdFpDXCB/4x132d9+XgCEkwe/CsqZteT7or9vkSMY/qPuu9mc1ixNp
-# iYo/opE9uUuh/tGuBQ2aHrqW13UFP2VbA+xRRB02qo+5vu9HiHJyBVSwVPdZyUWe
-# 7dogPpR5N/wy//B6R4lvDpmnQO6/+QY43ALlIQmAI7fLJJYuS81SMO46q/ICyNPW
-# eIROPFWBoXKHkXdAmoMgtdQpMNvlcSN7Sd2k9aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB7g7es/uf9
+# 0pOFuAWv3n8FDNw05Ymd55DTFizoRNzkzjANBgkqhkiG9w0BAQEFAASCAgDEtUbe
+# lMu5t8fhp3qN/tnLS9NgtlaDOR9GitH3x/a186elQW7U5DvMpUUDdBjlva9JyqhY
+# 2oTi47LG6DKjqunndCKGb8axyM++bTl8O4kbA5K0EO9Kmg9EBwL8XXc2XyNf2oaM
+# 3IZDntvZkZFsyTeCa8V8p1orcjLugtPnFPqxVg1zbhGKBC3ho1xiTDPLJR+y/3Kv
+# tXKlq95zf9FUcegbjXxAjUbsU5htgjVcAf9R592WrGfGvFQf+ih9tbd2q/9SZxGV
+# Xcl8oS6Q1jCbshOCxnX1UwRFRKlo3WrcEAVZHOGcdE36PH4t6vSGQjuQVjacFBRW
+# uubNclxvoxJSJoMqzw52nDEFjHa+9MVX6SqcofFsXdrom+CQyl+mTHgddJXRUsQ5
+# yu8L1mEaEVGzC0D3Nx2GiMzQv0ptwoYIrlgLRPTt4Ok9xs6AkRKskoa2ZjkdAGEx
+# NIuut6xRzwbTnRI5fgARPPt7xbYaag87IV1wx2u7jJEASec1sILMHwO0Fn/QeGQr
+# a73gL2aqghb/rMfMDf4HNyIG1YtsSlTFYpsVmQYOJN5IBhqMMNyLxjn0bysCW4xR
+# D4cM4jGDM0K0ESOiqefVNqRm9FSqebcooix+NChjb9c1uCc6AyWSIl9r5bHAIMam
+# SmBQzojuc3li4zI4cld93Kef3GxeeJCEXWVxfaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwNDE5NDZaMC8GCSqGSIb3DQEJBDEiBCDfg79SmqZwm485VNo2
-# GnKMeYQ9W/gvzx/74/TfrUElVjANBgkqhkiG9w0BAQEFAASCAgDKZS3eR/hIb8H8
-# GHk4/kDrHyVTpPrXVIkGa2yE5sQzN4afYmlyiUDlkL2bn0ciaAr275ae8+Lh/8y9
-# 4WeAgPcW/u5mt9TwMSBeW96oJSteU07dl+bgsGHz9iwLld5MKDhWkmtWnth1aiEK
-# drUbQ6HcHBuJrKXMMoGkOBWH/iNMBTag4mYw7H4BrxzOYK48lFsRY0jwarrcY10V
-# zKiMj1f3AzbKN4ORx8604KW8qr9tGp/90rLWsTKEk5jOouX3vI7zOXGeba9Z6Ta0
-# DnuLggDJFXmz9JPWpexduD8YwSiUl22WwRSidemy+/l9XOUdmlFnzLwwiV2JAQgg
-# 3y+pGfHJoDkWHiMZeltfibXbX49RHVa+FI4b5FoxLYH75PN1GuwFjs4eVSUwxZiH
-# ps+piusRvdmN+BG0nx/NdujFonj300ubk2/8+/2ZSlJyh8RLWsgMRUA0EqXS70m6
-# blmeXbmabhk72pD+skJ8NpbN6iO0fEek6O/JlODHqXhttx2X7OtABnXSxrCwjOWH
-# XJK+562HXRsSVEakxNVsksD8V9f4ZJKcSSvprBYhh2h4Y0hlnrS7y/3HlY4na+3N
-# T+uHYsOQoUVut34uL+hLlLSwyc1GbvBGw2aN5VXh20IE1GG/MNas/KVi+6VFWEvu
-# wuCnyQEVOajPGHG0fTGNeG1kL2uwjQ==
+# BTEPFw0yNjAyMTEwNDE5NDZaMC8GCSqGSIb3DQEJBDEiBCAMCvmMg/Ef4FoNyyfA
+# knJH1TlVocmBsMPO/fHOkdOf9jANBgkqhkiG9w0BAQEFAASCAgDO2Oe8ZFBIsNkf
+# QS4JTrmvpJtR3OnkYB4KPgToBNKYh+2Mi/LgRyshKFsaV/k54PM6JBvtl4eJCZb4
+# UypFrJIktF4ckLlfeVwBa3oL8ysJakcZwgghHEkTCuV/lAbpvfO2PoGAI58BzUx0
+# jgJF0TOs0pPetllkLQSo05COdxjw4qG13Osk02T+Xttv1P4zdlkKhNxGnsDUQDmK
+# iKmwiNAp4h5n1YiXWNTesYf7Xe4WgFQUehVfXasMQ9L8NujQOIrG7C88L9uNpwr6
+# DALvB7q0NWMtOBVfZKYYV9SxACacWdoqsKi8mFUSm1nbwYryCppnY++Q6sXSXPzf
+# dYHvmyqt2OH6g24JXOtVEYdMVGthBvqLgui9K5mY6jhZQsBiMhwxE2+sofhgHB/x
+# OLaRQMITYypNTVlByQg0eys+Si11i9nOoj85Lij04//TGKSMdFsCagrPrpO6DX1i
+# MawZWBi151j9pLGcj+1b0nGlWN7V10g+48OwskSnl+uQWON3tiZ7p/Q34d+C2U6g
+# YlhIgkdV1MD+1AiooxjL0P+kfMOVdoQbvxqZeGzqv+WJsC9GxC1UVecaYSZS1tA+
+# r8sN4bYJzK3hxYcwnDhFzIFcamaS4lT5UN2DRYzgneXK6Gc5JB6KYAmnwGZU1kLK
+# rw6NQquynKpVGJ0GYYCFbxPwafBUAA==
 # SIG # End signature block

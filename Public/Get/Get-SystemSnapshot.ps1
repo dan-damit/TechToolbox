@@ -27,6 +27,8 @@ function Get-SystemSnapshot {
         [Parameter(Mandatory)]
         [string[]]$ComputerName,
 
+        [Parameter()][switch]$Report,
+
         [pscredential]$Credential,
 
         [switch]$IncludeServices,
@@ -146,8 +148,6 @@ function Get-SystemSnapshot {
                     if (-not $expandedOk) { throw "Failed to expand helpers on $cn" }
 
                     # Ensure worker exists at configured path on the remote.
-                    # If your deployment copies workers to C:\TechToolbox\Workers during install, this will exist.
-                    # Otherwise, we can copy it alongside the helpers; here's an optional fallback:
                     $workerExists = Invoke-Command -Session $session -ScriptBlock {
                         param($p) [bool](Test-Path -LiteralPath $p)
                     } -ArgumentList $workerRemotePath
@@ -162,27 +162,41 @@ function Get-SystemSnapshot {
                         }
                     }
                 }
-                # Invoke the worker (from configured path) with helper folder
-                if ($IsLocal) {
-                    $localHelpersPath = $helperSourceDir
-                    $args = @('-HelpersPath', $localHelpersPath)
-                }
-                else {
-                    $args = @('-HelpersPath', $remoteHelpersPath)
-                }
-                if ($IncludeServices) { $args += '-IncludeServices' }
-                if ($IncludeRoles) { $args += '-IncludeRoles' }
-
+                # If local, run helpers directly. If remote, invoke the worker which will use the helpers on the remote side.
                 if ($IsLocal) {
                     $localWorker = Join-Path $script:ModuleRoot "Workers\\Get-SystemSnapshot.worker.ps1"
                     if (-not (Test-Path -LiteralPath $localWorker)) {
                         throw "Local worker not found: $localWorker"
                     }
 
-                    Write-Log -Level Info -Message "Invoking snapshot worker..."
-                    $snapshot = & $localWorker @args
+                    Write-Log -Level Info -Message "Running snapshot helpers locally..."
+
+                    $osInfo = Get-SnapshotOS -IncludeRoles:$IncludeRoles
+                    $cpuInfo = Get-SnapshotCPU
+                    $memoryInfo = Get-SnapshotMemory
+                    $diskInfo = Get-SnapshotDisk
+                    $netInfo = Get-SnapshotNetwork
+                    $identity = Get-SnapshotIdentity
+                    $services = if ($IncludeServices) { Get-SnapshotServices } else { $null }
+
+                    $snapshot = [pscustomobject]@{
+                        ComputerName = $env:COMPUTERNAME
+                        Timestamp    = Get-Date
+                        OS           = $osInfo
+                        CPU          = $cpuInfo
+                        Memory       = $memoryInfo
+                        Disks        = $diskInfo
+                        Network      = $netInfo
+                        Identity     = $identity
+                        Services     = $services
+                    }
                 }
                 else {
+                    # Remote mode
+                    $args = @('-HelpersPath', $remoteHelpersPath)
+                    if ($IncludeServices) { $args += '-IncludeServices' }
+                    if ($IncludeRoles) { $args += '-IncludeRoles' }
+
                     $snapshot = Invoke-Command -Session $session -FilePath $workerRemotePath -ArgumentList $args
                 }
 
@@ -199,6 +213,9 @@ function Get-SystemSnapshot {
                         }
                     }
                     $all.Add($snapshot)
+                }
+                if ($Report) {
+                    Show-SystemSnapshotReport -Snapshot $snapshot
                 }
             }
             catch {
@@ -224,15 +241,15 @@ function Get-SystemSnapshot {
     }
 
     end {
-        $all.ToArray()
+        $all.ToArray() | Out-Null
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAin3l3YrkPGRTx
-# UdLxq3oV6DtYLTv+qMfDvTdVF2d4MKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC2qSyuvvoLaK0G
+# goFotIMdQ6HQUEU10XaDa8y7n3jtfaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -365,34 +382,34 @@ function Get-SystemSnapshot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCHpv57fDLH
-# 096rRdUlPiwgyTR9LbsTyjzjlO2GrXW3ljANBgkqhkiG9w0BAQEFAASCAgAB3XH8
-# rOS2s4QagWFPAEMQ5uKeMa7dQ8kJ8GsHKQs+1uO3HrosLTYcmIaEDMszE8v08PpX
-# SFqp4SvUuL14mLOUgyeyp77RxPOXAjHtyOkhMwF4hB/5/m8tbPDXMP8fwxyfdSO/
-# e+uOyNurXm82k1HkUWJ0oxVUZhNX7ni21hTb6llXH3LqpgDZ/3ogQm4Fv6t1tGEi
-# MvUZPxOLyNwBzTW4rjTuh6VFEcHyYyFlMSMdQJf2M5qTpJf+pJltlF2ZLblhEYN1
-# 0aMmxAZ1ksV1p0NttTkHkZrxVcbN9VYnLSlVAGdR8ElDESoNQq/+60hJ45Ertoin
-# mAaMJn/TGj0yfsrRXOiwuwtB2YNyw5vVO33oisErSWrjVaoOL0QJq4x/NTvD7LfI
-# M5b8uqMLTb6YQqejGtU4snIrrLXY3U9fs0p93p+7M5CMhU+28q239evaER1bAhem
-# DISt7MHdCxlwCuiSRpu1gk2Zpc4SPT16OFgj5eBvtPGEgwKul1RIP6l3Ma3PYvRy
-# Y/tSfHsF4ecTUd8AHPmv/4xWyAe0nLh2ylGc74K6pN4CwOdkr1qdLlXOBYgq+mvM
-# 0PZoNRgUGWV7lSgdReCPM5OEfENSn1EODBWQyGeQfLCMJcF2YDOsrbL1hyupOHfe
-# FsrYgKedq/+kT0vQvbvh02XA7JX7Kpbu1qJREqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBBU4j/D7Dl
+# Xe91sUU8CUi6utWjcKDuilm7u/PqEdjptzANBgkqhkiG9w0BAQEFAASCAgBLMhcQ
+# +N7yYK3vt+jzORWif+EY50ugeTuBg9SxF9y2FRC4Yl8QKTqwT9Nnjy4OKaym/eY2
+# tvQp6WLDaKt9YdW0iE/Jk6Aym3BXLH4A9+PttNBq2jz3DMQmtJCOgkTBzIDLauw3
+# r4wZJssTtgq2FX9x+RPCYoQLjla7aU0IzZl9J1OzQ7aok9SY0LM62vyRwAFz3loR
+# c3ckuqtwqTNnkEaLriqLHupHZIaKQMlJeP5V2kIpmyvJMwYw+yCrw7PWklBnIvcn
+# qf5saRn+5oEbcAhIHSpUNR/k2OEFeZUVKNxpZ7aQ9IcJDimsn6yKJM65FzQCTNne
+# 7Xta+f2LOb8oeKyZMs9mPAQhYpF2wEgRd6urqMpYqaeVOSoe4s3TDLuqQQqYD0Ea
+# l9lp0XK4gAcdwk8Ox/TeLLlUG/b8YRF8U7RishDGsOarebLGgzZGLPiTwBEXSvk9
+# qyTEWvulHCz130vUfLO//JcoroOUBGQ0Y59sez9BFGlzrebr//Uhpq2gAlPvNkI1
+# D7yTHIbfuRWgHRbZSz6SjMTapPUtCu9rWLOJJKGLCYHq+LxuGetWJZhVk9R7wYHS
+# Lo7gk/c4o9JzQgRcePcckovNTzeDhq5cPWBkXjsSPpNW05ImZ67058wARjiiJIqQ
+# Wmk56dVisaIkMr4XaKGRXhDmCp2/qxNp3T5nlqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMTlaMC8GCSqGSIb3DQEJBDEiBCDU4VzJS4PTkhQtN94h
-# rh2FKKogE3zpVX0nGJ3bpu2h4TANBgkqhkiG9w0BAQEFAASCAgBDABvNlMeLheup
-# 7dHAV/kkycYY+Uhx6dmPZ0QKBjawlMYlsVzjjTlSmRFTeQqHasA1bTB6hKDZRnXh
-# /eqnNxKccJ9Mjvtp+lZk/5blToxTPTX49WB6wyOXhfoE+Miimcm2eDBVK1EjTshH
-# WzEWWKqE186ba63oeQT8z15D8fJAxEMciRPYMfn7+GfnKn4tkReCQE7cLSxWJNgU
-# bhdH+QRdmyfOffdcAHcHfyUG5kGyAA8pmNaTFEtP1QVKiuxqLzjrP8jMR4LBW5WY
-# W4Cunmt6xeuDARD2Relbuc2xb7tz+vsRCdki+TyctrcSnD1Le7k2O/gVHkh5CvGv
-# 4zJ76XaLQWBCi4IGuVu2zuZHyb2Bw8xgulevVc1Oc8rg2qCAKOlzwyZ0L3naa0Fy
-# 2JxVn+wUmq32r26vjYutCxdS1zGR13qch9nrPM1Q4jTwVe7uA7Pi3eXvCaKWpCj1
-# Enr2uPs/I8Hf25dH+CBF87ml5TgxELrbQLDkFqAhx5oiqUK3cIy1fpczTyxpqWEO
-# 6tvwqiKio34+fZpD6K/pE9RsvtbEoe+EySU9fYLBaH9wCX/hkE4458S42l9w6DzK
-# fehHzT1hiAshhMx1I2w0OCyMXUoKnZy9R3FjJclp7Xx9tU5oMskKDoXAeXAUfTrI
-# XLygNvC80A1PCmEXAraBvwDgiIzrwg==
+# BTEPFw0yNjAyMTEwNDE5NDZaMC8GCSqGSIb3DQEJBDEiBCBrxU7CEbBnRjnhTtC/
+# gjFdT/7lyXMbultLc0CaL1b8HDANBgkqhkiG9w0BAQEFAASCAgAruALJzrpj62OB
+# uVXwEsO+tSCaMQDoar/t7euF9DgoH9dvMwqD4hCihR1XSaLlKocJa2M9BkgylMSN
+# rykqrxpZESRtIectcJQm205r0QGEWROrxVF1fDxLJT3M/QHX4DCWIVV0oTMshAyF
+# LfBaIKeDiPIWjjInayN0r/Fu30gpj0InF56hdMtUgtsFYDvPdiy/WCvmmkAf6477
+# oNyroG5cw2+t3RJhlm+Wy3td1xhfHe4vakX+tjRDgJp11vpeqOTR1Jc/audPTrq9
+# Wq+Gxy9RoF2imYS2mD+nsmIQ8tab65veC5PQNtrYfaFdYP3rBTIWgIXqD50XBeHi
+# 5RrfsbLUQZTIJLeFt/x/3Rj6D8LD+2IFPM7BXd9GtEr5YYM9xrL/n36t87z5lPHX
+# eoqYZ77cP70NhTYbtzUXwcCX3GO2T9Xqmv3ItQp8xbV/K9CoEXv9Wu9k/zEr4FwA
+# /5+c6UIL7awI93zvrylYWYBf6nyelMNFKxvix+pqQYiN/7yZaA76l2WJi4eK3tK3
+# Ywm+fbxsKNcG/JQ05vchoEKvN6S3DHkc2oBqr8r9OBOqHyLcXn1CU2w/oAp499Xy
+# lgWfOKbiM07nyjLsNIClwspFkk7FNi7+DIsK69Okx8xRaUJOgvDhWHjtSTqJWMyp
+# qakN1epQKhca7GtR/QID95w86jII0Q==
 # SIG # End signature block
