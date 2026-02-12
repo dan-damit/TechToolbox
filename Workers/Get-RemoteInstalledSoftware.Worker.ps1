@@ -1,17 +1,5 @@
-<#
-.SYNOPSIS
-    Worker: Collect installed software from the local computer (remote target).
-
-.DESCRIPTION
-    This script runs *on the remote computer* under PSRemoting. It enumerates
-    uninstall registry keys in HKLM, HKCU, HKU, and optionally AppX/MSIX
-    packages. Output is a flat list of simple PSCustomObjects.
-#>
-
 [CmdletBinding()]
-param(
-    [switch]$IncludeAppx
-)
+param()
 
 function Convert-InstallDate {
     [CmdletBinding()]
@@ -64,65 +52,67 @@ function Get-UninstallFromPath {
     return $results
 }
 
-# --------------------
-# Begin worker logic
-# --------------------
-$items = @()
+function Get-RemoteInstalledSoftwareCore {
+    [CmdletBinding()]
+    param(
+        [switch]$IncludeAppx
+    )
 
-# --- Machine HKLM ---
-$items += Get-UninstallFromPath -RegPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x64'
-$items += Get-UninstallFromPath -RegPath "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x86'
+    $items = @()
 
-# --- Current HKCU ---
-$items += Get-UninstallFromPath -RegPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User(Current)' -Arch 'x64'
-$items += Get-UninstallFromPath -RegPath "HKCU:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User(Current)' -Arch 'x86'
+    # HKLM
+    $items += Get-UninstallFromPath -RegPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x64'
+    $items += Get-UninstallFromPath -RegPath "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x86'
 
-# --- Other HKU hives (logged-on users) ---
-try {
-    $userHives = Get-ChildItem HKU:\ -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -match '^HKEY_USERS\\S-1-5-21-' }
+    # HKCU
+    $items += Get-UninstallFromPath -RegPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User(Current)' -Arch 'x64'
+    $items += Get-UninstallFromPath -RegPath "HKCU:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User(Current)' -Arch 'x86'
 
-    foreach ($hive in $userHives) {
-        $sid = $hive.PSChildName
-        $items += Get-UninstallFromPath -RegPath "HKU:\$sid\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope "User($sid)" -Arch 'x64'
-        $items += Get-UninstallFromPath -RegPath "HKU:\$sid\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope "User($sid)" -Arch 'x86'
-    }
-}
-catch {}
-
-# --- AppX/MSIX ---
-if ($IncludeAppx) {
+    # HKU (other logged-in users)
     try {
-        $items += Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            [PSCustomObject]@{
-                ComputerName    = $env:COMPUTERNAME
-                DisplayName     = $_.Name
-                DisplayVersion  = $_.Version.ToString()
-                Publisher       = $_.Publisher
-                InstallDate     = $null
-                UninstallString = $null
-                InstallLocation = $_.InstallLocation
-                EstimatedSizeKB = $null
-                Scope           = 'Appx(AllUsers)'
-                Architecture    = 'Appx/MSIX'
-                Source          = 'Appx'
-                RegistryPath    = $_.PackageFullName
-            }
+        $userHives = Get-ChildItem HKU:\ -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^HKEY_USERS\\S-1-5-21-' }
+
+        foreach ($hive in $userHives) {
+            $sid = $hive.PSChildName
+            $items += Get-UninstallFromPath -RegPath "HKU:\$sid\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope "User($sid)" -Arch 'x64'
+            $items += Get-UninstallFromPath -RegPath "HKU:\$sid\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope "User($sid)" -Arch 'x86'
         }
     }
     catch {}
-}
 
-# Emit final list
-$items
-exit 0
+    # AppX/MSIX
+    if ($IncludeAppx) {
+        try {
+            $items += Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                [PSCustomObject]@{
+                    ComputerName    = $env:COMPUTERNAME
+                    DisplayName     = $_.Name
+                    DisplayVersion  = $_.Version.ToString()
+                    Publisher       = $_.Publisher
+                    InstallDate     = $null
+                    UninstallString = $null
+                    InstallLocation = $_.InstallLocation
+                    EstimatedSizeKB = $null
+                    Scope           = 'Appx(AllUsers)'
+                    Architecture    = 'Appx/MSIX'
+                    Source          = 'Appx'
+                    RegistryPath    = $_.PackageFullName
+                }
+            }
+        }
+        catch {}
+    }
+
+    return $items
+}
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCfSTDTPtjRIhrl
-# v/HNucAyAEjN7K2A1fTYzPDh9BwTOaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAEKIaH1PY864XB
+# BNzkjFW5Aq9k0Hknjisn9CIttbne0aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -255,34 +245,34 @@ exit 0
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCNY5WDzxCT
-# p+BNHPYsguISB48gHJl8fK624oXOwNzihDANBgkqhkiG9w0BAQEFAASCAgA/iOW7
-# Nq3FCAteVQOA9gL++VbltJ/LwVpR/VWdI/LfFZ2QV+C+C5HMqUTHHTlqymGjuMhC
-# cPgGUN45ptyBxnJVHiLer8CtkewGG4dbvhTPhKfiHRl9jhqjgpe/Rdd/VGttm9gZ
-# APiZLz47Cybnrwcfb+IB1+2fe6pZw8plCvqKemEmtadkimazHQwdKXwp/w19L76d
-# 1q9Do/uVVLfVFnFWVx5+6HitiWo/Cu/68L2UaT7dTCdnDwpfrZ0UzSlTbjShg5OU
-# XoJohg9DCXNo15inFQ9D/PKX+sVoZ7JlSFQmM13gVTUyApC6/pKZhXwpo1yhPgfW
-# 9L3++fPYBaQaFfosiBQ3Hy7oen/N4WMvRJB1Psy8OwUoTEnpQpp59NoNuJCWX/iE
-# jI5A1BIXCOIyuZLY1UMEH8pzlfiDsjhBaFvVl4qfOj7ByfGNgg/VEdDmJe2NzIIu
-# 3+lCta1Io3A370+1h578hECf5LmYtzSqK0qCsyWXiyBsvIjXKUtyRp+GMFRrV3sH
-# s1xgcL6yfk6+J9XuVBWoHQdlO3VyFiQS9ueMFSAIKQSYpQcYIDY+6ifcWEOxQ/5L
-# wRJDiOxqx609EDJ0j/T5F4Sl6kfWtQfRC5YSP1H321Dei9e7BgClBSkqC+e0zZ8S
-# AAVl1TX5Dgmxl928oL9zO0FDA5jE4ytySK/4hqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCOi2Zw1ujn
+# JvvSLepkEf/yPdA2df1lwF8CWti7znnK5TANBgkqhkiG9w0BAQEFAASCAgDEsAuj
+# eO5Nkb94gDbZ/xIOM7NgGlshYASMsvkjl10ReKJORZMYR3ay4cupeIovqoAMDm5G
+# CszOzlMxYR+LEIeHiSsaFsXeLN4FjzTyex7ntJdyJTsnUnPbT1sTBlP0x3euCZxx
+# qzMz978qCF8lH56L3+puigc0UZSMvyUZodTi8ubsSsdYja/xsv/PjaNkzRkjisbI
+# CS5YmuhPDK4JQ5bGP2q4N6yo1rXyQpW4SVAlnUH9mqGa/f+RWMiV3xQbtuiFXNA2
+# BaE3+nT5C8/KeKzX/GTdsw/ssgX86FTwVIHI9xr5za/D/tbCbKhfDSP3JEMXvh4q
+# sS6UoTXq70JyxGyronT4ZHskTnZilKiVFiTHaNZCG1ai6fbAwl6Z7PGnyhibZct4
+# RCl30+A9r3yocgV6jsk04jlbJRwThKmpyPklU9ZChzdIKpKKb7yc9h8wmrq0Cpm7
+# hMH8IM2Eaq8kLMlFHaiGCXm3C4PK2UbMt+BB4YPu79TZr/ABFAwLPzS9QwyNg5FR
+# Sh2lf4HU3TCnNyhp2NZV5kW0mSOt1E87dYj4z94ASK7mEe2Uz9636/Ahh0pzAXkc
+# Fvsj98P43MFJ+BKesNmz21xs3NDCmTZ9XEh05rPkRXuIo9CTI8LMNv1Ck2/NElDG
+# 9RYI5rprx7n76NNNpngJ7YIip9owGFPMBI2T7qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ3MTZaMC8GCSqGSIb3DQEJBDEiBCA996wMh121IsP47HPI
-# 7daCdAN9B3GMRbtBpnS0ohVKGTANBgkqhkiG9w0BAQEFAASCAgBZWaR5nB1SRuwI
-# zSSanpggsYYZ7Dczy6BsZhARwIaxNIy/nfRyyKt6LUGoVGmjtXGliYKfRbb561xC
-# Cq5/X0NuyTPrao3Qe2gdOyOCH04VWLew1HMSu4fCsZknmux+5Vs9oNLELSRJ9EJh
-# /uSrovGrqMeZgVn6DGWZlaNi1pZ93bNauNOck/SJpvHlbmH2n3xCvWMlUKbsv4vS
-# zcBRiLBpU6W7Blg1oclGACgt1wDnLrM8lLpuS4lYVnhsA6k5bs2LQup04yihV5dw
-# q3BVF+71u/lJgA+TfrYqfqCr46X+fA9MlNV1tphglMYXeSEPonjH2h1wLpv7rbwc
-# ug1pGRLoziDtQ3p0KcBXnUawQ4BCY2K9rJ2kKqhBhFQez/jSRdKIXhVJBI3OChJ7
-# ohe7G26mzItiaWXclOptfApD47LDCaLCxWuiC8LdXRAaKAb9DZOpHLvxdd+p68u7
-# 7WYB6iPujIWilGv+AXL21atPD44zX6wxwLovs2yk1R6iDuq/V4VdlslLR+9iX8rR
-# yn1R9cYrvAaOdmWV6KF1YdGAjPdpGXUljCqY3YwxeUGrfr1huLixsHHQolyHBbr7
-# pBIzMW0kbJ3qwRJmJaR2X7uwdV4RNUuBwCCEGwzZiW3UJYlqVQ+oaq4fJYHv3/ei
-# Bl0PoZx4gVFDZo/RBzQcSuIjhYdVDA==
+# BTEPFw0yNjAyMTIwMzA4MDRaMC8GCSqGSIb3DQEJBDEiBCCGO8Sjo1gWu5zUYZft
+# Gj8g6OEXWTRzPEUPNy2fRtFGSjANBgkqhkiG9w0BAQEFAASCAgBxGD1aacpFN0hI
+# vwju6qD8FXg7rJeX87v4I2lzYqi7SZgFmlLo83lxdmRil7QeaRW/JiowsK4ffi+Y
+# mhvEw8fYNTG1g0zvqJTuW7RBr2zqd+hbVjgUAhnKZxJKI3bPN4ahMJJzZJytdzb5
+# aY8Gf2mzgkm80VMjpPd92oLPUDHFgwuzbCfLWbPPBhEavnOfgkGLBbIIJpJwOV8s
+# XNYyRzkUC3zeEHmncnm7FVfiM7+w1GDMXdaHXdNK3yGF/9CyXucFlEIvB2eJpgXh
+# 9bIDxXFe5sT0e4dHD2enznJzKU5+wdqzfF5S7eRDxEObk/VQysI3x65ZK+gia60V
+# WJv9dPhQD0LF3yar2dEAYM2TrxhSQBOf0IY3nPAlmxNA5v4M7C7dKnBDWgD4rLMe
+# YlNGvoXf/WeoOR6wi4aHp4Sf6Zjt6uUfE2OZdZicL4/n30YXj3zQB9RGUeEjsBN7
+# c3X9Yv2FqevCqKOJq9vCheFCU3cHXZVXNYpbug69pJJ3vxrgjMBS2Ew1CuWzfBpq
+# K32OALRG35VgVtb9eW8TTNl6VcC2oxhxwxaOUZkkwE533k9NAGDOpxWzMc0mXFJU
+# Fa1PWjRahYp/wTBW4GNK0UA5ucoZW4pwcAJSxA734NWf6QDVmDC5BJKHX/lAHIvA
+# /SlCSRSYVyx4wrqgxMydGKYMLyTeTQ==
 # SIG # End signature block

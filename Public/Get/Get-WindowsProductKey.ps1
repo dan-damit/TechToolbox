@@ -1,137 +1,97 @@
 function Get-WindowsProductKey {
-    <#
-    .SYNOPSIS
-    Retrieves Windows activation information, including OEM product key, partial
-    product keys, and activation report.
-    .DESCRIPTION
-    This function gathers Windows activation details from the local or a remote
-    computer using CIM and WMI. It retrieves the OEM product key, partial product
-    keys, and the output of the SLMGR /DLV command. The results are exported to a
-    timestamped log file in a configured directory.
-    .PARAMETER ComputerName
-    The name of the computer to query. Defaults to the local computer.
-    .PARAMETER Credential
-    Optional PSCredential for remote connections.
-    .INPUTS
-        None. You cannot pipe objects to Get-WindowsActivationInfo.
-    .OUTPUTS
-        [pscustomobject] with properties:
-        - ComputerName
-        - OemProductKey
-        - PartialKeys
-        - ActivationReport
-    .EXAMPLE
-    Get-WindowsActivationInfo -ComputerName "RemotePC" -Credential (Get-Credential)
-    .EXAMPLE
-    Get-WindowsActivationInfo
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-    #>
     [CmdletBinding()]
     param(
         [string]$ComputerName = $env:COMPUTERNAME,
         [System.Management.Automation.PSCredential]$Credential
     )
 
-    # Determine export root from config
     Initialize-TechToolboxRuntime
+
     $exportRoot = $script:cfg.settings.windowsActivation.logDir
     if (-not (Test-Path -LiteralPath $exportRoot)) {
         New-Item -Path $exportRoot -ItemType Directory -Force | Out-Null
     }
 
-    # Helper for remote execution
-    function Invoke-Remote {
-        param(
-            [string]$ComputerName,
-            [string]$Command,
-            [System.Management.Automation.PSCredential]$Credential
-        )
+    $isLocal = ($ComputerName -eq $env:COMPUTERNAME -and -not $Credential)
 
-        if ($ComputerName -eq $env:COMPUTERNAME) {
-            return Invoke-Expression $Command
+    if ($isLocal) {
+        # --- LOCAL PATH (no remoting) ---
+        try {
+            $oemKey = (Get-CimInstance -ClassName 'SoftwareLicensingService' -ErrorAction Stop).OA3xOriginalProductKey
+        }
+        catch {
+            $oemKey = $null
         }
 
-        $params = @{
-            ComputerName = $ComputerName
-            ScriptBlock  = { param($cmd) Invoke-Expression $cmd }
-            ArgumentList = $Command
-            ErrorAction  = 'Stop'
+        try {
+            $partialKeys = Get-CimInstance -ClassName 'SoftwareLicensingProduct' -ErrorAction Stop |
+            Where-Object { $_.PartialProductKey } |
+            Select-Object Name, Description, LicenseStatus, PartialProductKey
+        }
+        catch {
+            $partialKeys = $null
         }
 
-        if ($Credential) { $params.Credential = $Credential }
-
-        return Invoke-Command @params
-    }
-
-    # OEM Product Key
-    try {
-        $oemParams = @{
-            ClassName    = 'SoftwareLicensingService'
-            ComputerName = $ComputerName
-            ErrorAction  = 'Stop'
+        try {
+            $slmgrOutput = cscript.exe //Nologo C:\Windows\System32\slmgr.vbs /dlv 2>&1
+            $slmgrOutput = $slmgrOutput -join "`n"
         }
-        if ($Credential) { $oemParams.Credential = $Credential }
-
-        $oemKey = (Get-CimInstance @oemParams).OA3xOriginalProductKey
-    }
-    catch {
-        $oemKey = $null
-    }
-
-    # Partial Keys
-    try {
-        $prodParams = @{
-            ClassName    = 'SoftwareLicensingProduct'
-            ComputerName = $ComputerName
-            ErrorAction  = 'Stop'
+        catch {
+            $slmgrOutput = "Failed to retrieve slmgr report: $($_.Exception.Message)"
         }
-        if ($Credential) { $prodParams.Credential = $Credential }
 
-        $partialKeys = Get-CimInstance @prodParams |
-        Where-Object { $_.PartialProductKey } |
-        Select-Object Name, Description, LicenseStatus, PartialProductKey
+        $result = [pscustomobject]@{
+            ComputerName     = $ComputerName
+            OemProductKey    = $oemKey
+            PartialKeys      = $partialKeys
+            ActivationReport = $slmgrOutput
+        }
     }
-    catch {
-        $partialKeys = $null
+    else {
+        # --- REMOTE PATH (new engine) ---
+        $moduleRoot = Get-ModuleRoot
+        $workerLocal = Join-Path $moduleRoot 'Workers\Get-WindowsProductKey.worker.ps1'
+        $workerRemote = 'C:\TechToolbox\Workers\Get-WindowsProductKey.worker.ps1'
+
+        # No helpers needed right now
+        $pkg = New-HelpersPackage -HelperFiles @()
+
+        $session = $null
+        try {
+            $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $Credential
+
+            $result = Invoke-RemoteWorker `
+                -Session $session `
+                -HelpersZip $pkg.ZipPath `
+                -HelpersZipHash $pkg.ZipHash `
+                -WorkerRemotePath $workerRemote `
+                -WorkerLocalPath $workerLocal `
+                -EntryPoint 'Get-WindowsProductKeyCore'
+        }
+        catch {
+            Write-Error ("Get-WindowsProductKey: remote execution failed on {0}: {1}" -f $ComputerName, $_.Exception.Message)
+            return
+        }
+        finally {
+            if ($session) { Remove-PSSession -Session $session -ErrorAction SilentlyContinue }
+        }
     }
 
-    # Activation Report
-    try {
-        $slmgrOutput = Invoke-Remote -ComputerName $ComputerName `
-            -Command 'cscript.exe //Nologo C:\Windows\System32\slmgr.vbs /dlv' `
-            -Credential $Credential
-
-        $slmgrOutput = $slmgrOutput -join "`n"
-    }
-    catch {
-        $slmgrOutput = "Failed to retrieve slmgr report: $_"
-    }
-
-    # Build final object
-    $result = [pscustomobject]@{
-        ComputerName     = $ComputerName
-        OemProductKey    = $oemKey
-        PartialKeys      = $partialKeys
-        ActivationReport = $slmgrOutput
-    }
-
-    # Build timestamped filename
+    # --- Export log (same for local/remote) ---
     $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
     $fileName = $script:cfg.settings.windowsActivation.fileNameFormat
-    $fileName = $fileName -replace '{computer}', $ComputerName
+    $fileName = $fileName -replace '{computer}', $result.ComputerName
     $fileName = $fileName -replace '{yyyyMMdd-HHmmss}', $timestamp
     $exportPath = Join-Path $exportRoot $fileName
 
-    # Build export content
     $logContent = @()
-    $logContent += "Computer Name: $ComputerName"
-    $logContent += "OEM Product Key: $oemKey"
+    $logContent += "Computer Name: $($result.ComputerName)"
+    $logContent += "OEM Product Key: $($result.OemProductKey)"
     $logContent += ""
     $logContent += "=== Partial Keys ==="
 
-    if ($partialKeys) {
-        foreach ($item in $partialKeys) {
+    if ($result.PartialKeys) {
+        foreach ($item in $result.PartialKeys) {
             $logContent += "Name: $($item.Name)"
             $logContent += "Description: $($item.Description)"
             $logContent += "LicenseStatus: $($item.LicenseStatus)"
@@ -145,20 +105,19 @@ function Get-WindowsProductKey {
 
     $logContent += ""
     $logContent += "=== SLMGR /DLV Output ==="
-    $logContent += $slmgrOutput
+    $logContent += $result.ActivationReport
 
-    # Write to disk
     $logContent | Out-File -FilePath $exportPath -Encoding UTF8
     Write-Host "Windows activation info exported to: $exportPath"
 
-    # Return object last for pipeline safety
-    return $result
+    $result
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCwrb3GKxRueHet
-# HmTWU6I6xok0vcB9WkN1SOlABdDJYKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA0Ou0yv447eYnC
+# x+J/NkeMUyUxXohyhhnn6fas4R3LuaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -291,34 +250,34 @@ function Get-WindowsProductKey {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAQPdDOJj3v
-# iUIK+cGej3ib6sXAFpBYNM8hDMXvEbP7KjANBgkqhkiG9w0BAQEFAASCAgC8/rdc
-# o0o2I6Xf8gBWP+bo21D9PFYynA77vUKxqwTklq7YW1unG9pJJdDl+eGLSbM16pJh
-# 9SjG7RvML90A7eT6usk6Sb5zRmZ9iu5Okzt3AThftRocXm9wjR2/UZAaMzJo9t/z
-# Wb2gCbUYyOI/9FKojIKf6qxvbmgGAtCuH++iSO7apNopaYQd3sEHKrnBC1mf53eD
-# 4mtG78wE5IHKw/H+3S3YrtNuiLkO9PfKLAvKK69XjNe+9/qLCUl111vlbS42Ys6U
-# 8JxgIeJi7b604NeM7eP0uiYeXHQp9gD9tgaHy/4D2uZQZX+15RtMcIxNulqa1mTW
-# 5mZE8IrCz1YtXe5/KnycXJWtE2OKFRiEGdUvkxZwFmjiTNbq4sdRyge6z7eJV117
-# ISmD27sMj64U1d6uCkjtjvhwIO/E5dETbA+4QHO27AlkC2403cp+jM+NdT4hjgyy
-# PUFYas2eh4riF5N70TNLYcYtLH+HksL1jyvl22Dnf/pdrQ3Uz8nPrf+M3V+/fqBb
-# A7TLwmXUhTIqcq+9A3XGbXHf6gOqxzMg5JEdag7dYEfkkabh8CMhWoUPAEbj72UC
-# 5cB45+yS21MEbO9HL0sG4e1qj3HYoJUtJsp0kEVW/B/IWOExaCo8JM54HGK0eKJt
-# H4rXKL7V3TbAoJ3YY4W6xYfDeuxs3a9j8qucL6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB9reQ7WeSW
+# iYDWyhtob0f7iKpuMWydHIh3qMp94JePIDANBgkqhkiG9w0BAQEFAASCAgAmBZGX
+# Z0Z/81ZTtcPFw+n2HOvuREihj9YoHDrPuAHV1rks3CflAGbUnlriJR+OYkvwPUiU
+# pCHzmsCSc/7FoenpaJdtKj5eoefkrtwMAvefSROPEP58OAN0O92gPgAgyurIVYpC
+# He6nDXCT3D3DXgona6QS+4fsh0AV/NS7EzN4hBlc5F0vB8MVaZjCMVyvL06j4wm9
+# 9XORIJRJVMM9ccbmg7B62z/fqYuFWJ2CWtLE9dO2wcCtKEM+ptsPwqedEb2EroYR
+# Dx/AJDprlXdxuGv8sAh9oQGOTp3SafEwzdpnrqhUlZAQOy6MI/iynM/hkdOYyGyz
+# nlrKsavxybo/3T7og4epK+9sZBU1p4NHyAe5aTd68fc/nvlVOqgB88epxP5v9j2D
+# C28SQoGhvqzGkPXTegMD06ZGZN1PNlqHXcrgxtVMWq3Xa7jVfGefAbjpB4iR0waE
+# YxCpNon3BpdPVcfVpoe3Xq0+hDEEGxmndXLyhntRNxE5J1mUThPSz1TxMqdw6xzV
+# 6V1lPO8ulilnHLiMhQpNAtjqQVLokPxmQHtH6maurOlGmrmp67zis7x+NIKCNt/V
+# /TUMVGGzvJT1qWH4PuMHPiPucbLltwaMkXVNcR1uTEXNqNwHKy+0fEbGEghueuZG
+# nMU8IP/Jgu4PmA6L91vm1OLIXk7XSwVNvi68caGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMTlaMC8GCSqGSIb3DQEJBDEiBCC3hnZPHz1s/abkMVM6
-# zwJtS1IzJcAHhXfo/fIIv3fyvzANBgkqhkiG9w0BAQEFAASCAgCqzIHQsjJ1M2P2
-# tbloZidMs6xz05FrL7KX4a1gm6af510GGPtnfFASwdTP0aGPsjNAmE7fbXr7/1od
-# EvpcDZD9tI2WkGhkjIwoIplGauIDawA+XoXRMSaWtld7x8QJ9xpL3W5hQ1svNajx
-# csQ+1jFMthLOEfjKXvK9OhlvUMUJyDTxpu/BkG7oQid5A3wSP0EppgKkDvCsZkbt
-# ZQjP9g04bCjHf0SqxWOZYZE6fc/askenjlBHuP4G+TnnSMrltPkuXaMbfe2KFZwT
-# HWCKzgYcvpk+I1rb8cIp2iLotaDA1lWkI65jBjkAFsVZTlTXYL9+cBHi1WttdjwR
-# +MLjFC6qdN7ttjA0JxGomkmGIzRuqhYIikWEkJ2cWhURFiqYEPGanr2UIZlDqUWM
-# XGexb12R8Hw9BeopAgepf22QlJ0vEAg1sTZss8fP2vT/oPXWvZRJ4GFmAuCaYW2m
-# 7ODdKVSxEl+5SjfgZQZ/XU2KROUb92yR1oOjYJddQ9KuNGDbWEuERfQjzQZElITi
-# tI/MDIXbUdbit350xzpfV3j5Ymxq1bYlLxznfMF+4IRaBtuS0pDnQLoHkqbXnMMF
-# tG8iXOtBPOlqdjefCbJ2UtZVn1K+ekoH0v11rpjHOC4IT5Hz2XXthy/EOXW8tn8m
-# Mn+7Qe0KS+5TK5Jn2TqZL+4lG7cYgw==
+# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCBVHolK9KgYALljMmYw
+# PV3N7KaTB3faNjsgtEyzRBHpfTANBgkqhkiG9w0BAQEFAASCAgCMec9ne8MXJH6I
+# NuUzmplfKt7c9F0/RNjR06CgrMi7qxt7e9qgihHXNRJU8Ov50CP0vVEk9SepD561
+# cxPSK/XMHVAFIxVP327ZoYtxyLD+CI1Vw7Td9EyQxKk+YqCJuwwicSosjmzL7ldy
+# FPIjNrsHFSnWye3KD+UGdD5sl2sn+vxhYuCZLtAhX86hpV3/KoC5DNebsBsuksQU
+# eXaCUikQJyZ0RZxA1Ds9Jl/9SYfo/HTw/U9AARNapBlfQLQAJDoYc/NaZO6o7DJn
+# IAbWYy8oE3BzVm2SupYF+lGRj+72EfMGdEAEBeoB1lD+R0OpKdHsu0m7zogJ1Gaw
+# kN6ULglx8Rk9ngkSmlhW5Ly30JmdZbvvA6/O9nSJRVTiOaUYzKmN1bTbns2g2D7C
+# lhbZjQo7Q2AepmpFVsPVW5KfSXMp0cgHmwfwqFldgRu0HuVJCkiNOtlewGZmbUPI
+# 3Mrn4ZBTyOToLFq6UGpmyPayEhCwlE5H5ufp4quNLwfGmV4+X2stKbUbLa7ipp+2
+# 8glaP/+X1gzP3tXerYFpoRkdQJwQCAU/vN5bn/wMblkv0TCvwh0Yc4+6Qg6yi7E9
+# uIkACiRcBXtzWU5wm7A519rdUBV7FQbq6A5ni7D90HRl/g4EmuNapwoOuUIY86St
+# RAXW1nJkp4QkzRhDxpfYj2D4lVb9Rw==
 # SIG # End signature block

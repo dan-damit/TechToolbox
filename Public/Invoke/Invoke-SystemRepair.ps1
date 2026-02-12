@@ -1,86 +1,26 @@
 function Invoke-SystemRepair {
-    <#
-    .SYNOPSIS
-        Runs DISM/SFC/system repair operations locally or via PSRemoting.
-    .DESCRIPTION
-        Wraps common repair operations (DISM RestoreHealth,
-        StartComponentCleanup, ResetBase, SFC, and Windows Update component
-        reset) in a TechToolbox-style function with optional remote execution
-        and credential support.
-    .PARAMETER RestoreHealth
-        Runs DISM /RestoreHealth.
-    .PARAMETER StartComponentCleanup
-        Runs DISM /StartComponentCleanup.
-    .PARAMETER ResetBase
-        Runs DISM /StartComponentCleanup /ResetBase.
-    .PARAMETER SfcScannow
-        Runs SFC /scannow.
-    .PARAMETER ResetUpdateComponents
-        Resets Windows Update components.
-    .PARAMETER ComputerName
-        Specifies the remote computer name to run the operations on. If not
-        specified, and -Local is not set, the function will check the config for
-        a default computer name.
-    .PARAMETER Local
-        If set, forces local execution regardless of ComputerName or config
-        settings.
-    .PARAMETER Credential
-        Specifies the credentials to use for remote execution. Ignored if -Local
-        is set.
-    .INPUTS
-        None. You cannot pipe objects to Invoke-SystemRepair.
-    .OUTPUTS
-        None. Output is written to the Information stream.
-    .EXAMPLE
-        Invoke-SystemRepair -RestoreHealth -SfcScannow
-        Runs DISM RestoreHealth and SFC /scannow locally.
-    .EXAMPLE
-        Invoke-SystemRepair -RestoreHealth -ComputerName "Client01" -Credential (Get-Credential)
-        Runs DISM RestoreHealth on the remote computer "Client01" using the
-        specified credentials.
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-    #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
-        [Parameter()]
         [switch]$RestoreHealth,
-
-        [Parameter()]
         [switch]$StartComponentCleanup,
-
-        [Parameter()]
         [switch]$ResetBase,
-
-        [Parameter()]
         [switch]$SfcScannow,
-
-        [Parameter()]
         [switch]$ResetUpdateComponents,
-
-        [Parameter()]
         [string]$ComputerName,
-
-        [Parameter()]
         [switch]$Local,
-
-        [Parameter()]
         [pscredential]$Credential
     )
 
-    # Short-circuit: nothing selected
     if (-not ($RestoreHealth -or $StartComponentCleanup -or $ResetBase -or $SfcScannow -or $ResetUpdateComponents)) {
         Write-Log -Level Warn -Message "No operations specified. Choose at least one operation to run."
         return
     }
 
-    # --- Config hook (future-friendly) ---
     Initialize-TechToolboxRuntime
 
-    $repair = $script:cfg.settings.systemRepair 
+    $repair = $script:cfg.settings.systemRepair
     $runRemoteDefault = $repair.runRemote ?? $true
 
-    # Decide local vs remote
     $targetComputer = $ComputerName
     if (-not $Local) {
         if (-not $targetComputer -and $repair.ContainsKey("defaultComputerName")) {
@@ -93,16 +33,10 @@ function Invoke-SystemRepair {
     -not [string]::IsNullOrWhiteSpace($targetComputer) -and
     $runRemoteDefault
 
-    $targetLabel = if ($runRemoteEffective) {
-        "remote host $targetComputer"
-    }
-    else {
-        "local machine"
-    }
+    $targetLabel = if ($runRemoteEffective) { "remote host $targetComputer" } else { "local machine" }
 
     Write-Log -Level Info -Message ("Preparing system repair operations on {0}." -f $targetLabel)
 
-    # Build a friendly description for ShouldProcess
     $ops = @()
     if ($RestoreHealth) { $ops += "DISM RestoreHealth" }
     if ($StartComponentCleanup) { $ops += "DISM StartComponentCleanup" }
@@ -112,39 +46,71 @@ function Invoke-SystemRepair {
 
     $operationDesc = $ops -join ", "
 
-    if ($PSCmdlet.ShouldProcess($targetLabel, "Run: $operationDesc")) {
+    if (-not $PSCmdlet.ShouldProcess($targetLabel, "Run: $operationDesc")) { return }
 
-        if ($runRemoteEffective) {
-            Write-Log -Level Info -Message ("Executing repair operations remotely on [{0}]." -f $targetComputer)
+    if ($runRemoteEffective) {
+        Write-Log -Level Info -Message ("Executing repair operations remotely on [{0}]." -f $targetComputer)
 
-            Invoke-SystemRepairRemote `
-                -RestoreHealth:$RestoreHealth `
-                -StartComponentCleanup:$StartComponentCleanup `
-                -ResetBase:$ResetBase `
-                -SfcScannow:$SfcScannow `
-                -ResetUpdateComponents:$ResetUpdateComponents `
-                -ComputerName $targetComputer `
-                -Credential $Credential
+        $moduleRoot = Get-ModuleRoot
+        $workerLocal = Join-Path $moduleRoot 'Workers\Invoke-SystemRepair.worker.ps1'
+        $workerRemote = 'C:\TechToolbox\Workers\Invoke-SystemRepair.worker.ps1'
+
+        $helperFiles = @()
+        if ($ResetUpdateComponents) {
+            $helperFiles += (Join-Path $moduleRoot 'Private\WindowsUpdate\Reset-WindowsUpdateComponents.ps1')
         }
-        else {
-            Write-Log -Level Info -Message "Executing repair operations locally."
 
-            Invoke-SystemRepairLocal `
-                -RestoreHealth:$RestoreHealth `
-                -StartComponentCleanup:$StartComponentCleanup `
-                -ResetBase:$ResetBase `
-                -SfcScannow:$SfcScannow `
-                -ResetUpdateComponents:$ResetUpdateComponents
+        $pkg = New-HelpersPackage -HelperFiles $helperFiles
+
+        $session = $null
+        try {
+            $session = Start-NewPSRemoteSession -ComputerName $targetComputer -Credential $Credential
+
+            $result = Invoke-RemoteWorker `
+                -Session $session `
+                -HelpersZip $pkg.ZipPath `
+                -HelpersZipHash $pkg.ZipHash `
+                -WorkerRemotePath $workerRemote `
+                -WorkerLocalPath $workerLocal `
+                -EntryPoint 'Invoke-SystemRepairCore' `
+                -EntryParameters @{
+                RestoreHealth         = $RestoreHealth
+                StartComponentCleanup = $StartComponentCleanup
+                ResetBase             = $ResetBase
+                SfcScannow            = $SfcScannow
+                ResetUpdateComponents = $ResetUpdateComponents
+            }
         }
+        catch {
+            Write-Log -Level Error -Message ("Invoke-SystemRepair remote failed on {0}: {1}" -f $targetComputer, $_.Exception.Message)
+            return
+        }
+        finally {
+            if ($session) { Remove-PSSession -Session $session -ErrorAction SilentlyContinue }
+        }
+
+        Write-Log -Level Ok -Message ("System repair operations completed on {0}." -f $targetLabel)
+        return $result
+    }
+    else {
+        Write-Log -Level Info -Message "Executing repair operations locally."
+
+        Invoke-SystemRepairLocal `
+            -RestoreHealth:$RestoreHealth `
+            -StartComponentCleanup:$StartComponentCleanup `
+            -ResetBase:$ResetBase `
+            -SfcScannow:$SfcScannow `
+            -ResetUpdateComponents:$ResetUpdateComponents
 
         Write-Log -Level Ok -Message ("System repair operations completed on {0}." -f $targetLabel)
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCyfOpI7ivUe95c
-# aVGTP7E1RxJ/3j3DPbCZhF+FCE77nKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCF7sUWjQcB/xg2
+# 88RlUuVk3ZLLN7hrDC4GY4YDll9BJaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -277,34 +243,34 @@ function Invoke-SystemRepair {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAor7AefrOJ
-# O/M9DsUu6ftxejabYxRCjz3gHR/lunVs0jANBgkqhkiG9w0BAQEFAASCAgAApspv
-# nUPpDrrNwMMJxINW949MaYglJQZKRzRbkoxUiCEi25oPfxniqJjf2mycYg/wASmD
-# qZbLaDatphPTaFuZs+WwUh+wNpwVIaeYmL0NzilER7j9eLqRl/9KX0PnpwRW9Oc+
-# KWl8UiG8Erw659s5eCkdwx4Q3UHSa3S02qmKlJ7OtbhSJgpHoras6ImC9UDPR/7t
-# MH2pZpTi+4K9WcCHbWYEc4AWCGCNcTASft/57jqMsnK6wmP2g0+GHDuQpEwbQCbE
-# AM1zzQPMB3eQeQIdgq1EhCqTmcugD2MSwEKJ3P/RbIl/bLVemU1IY8Cyk45LTzt7
-# A3ZCiSaha+NuB5eQVI8ruxgfhBnygY276+Bc+NQWXJqbouZUXd+RX7P76WC44Pui
-# oesIokW9yRTuizOs21n74tQpMjN3kFHBC0SB5zVrXICkSyYeCuZ6u9q44AeO/EQf
-# QclTHgr5vh65rN/kwo64MfjSMcvH/5oN1CKDPvvvIIDBY9xyOhKT57QMNwLZ2u8d
-# cZ161/QkYmtaMJ2WNPTfEgbdVm2nxIIfkaBBuei3y+465IFYQWE5ZRIIfSGBqPlj
-# EJrm1DFaWTlAIFEjFn3DqnYsYkmFmIglGWyqhLS0fdE5WeaHwd75MbAoSnDcJgdO
-# wZOzLnQzrEwkxMDbVzKg6HtWXXbCafpyyv0NcqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBcSBEsMCCM
+# iz4o1Qk4s8JbsArDtcz2UJsAFQo6DTDyUjANBgkqhkiG9w0BAQEFAASCAgDS9kRY
+# ULStysySq7Ksh6YsNvdoyOf4Vy10qNQPf3KZkhpLAhJIiB2gC19ANhld12DBiC6L
+# Z7Zs7CFaArF8JZrmBVQXhtaxTY6BZix5kOAjnFyF5QyXmWB6yjxpDW/WrBg0F7mS
+# nHSuUzFK0BhKfGNT8Rq94MGzYKUKO6rb20RaWdypdRUF6pQFMMnNwuonqUGYG8k0
+# zvd7c2YU9AIgFp86sl6u/neHkhRAk5No88TE/3wnL6SaGchvEsHkavnX+nLmPmIA
+# jUkbmdGjF8UNEl1j3goQwL/CgR8ij4mJln30/XJblFFoRZG96qcLVJxQcWo1gHai
+# NJIKQoH/oZo41O5Vua3zfv/yR3djhk0QzwQX1DBBguj4/g/8zyqP48XQxr7kCpR7
+# PUsQ7Gry68XLMP5oDEAr0kdrhzFkp1T1YFke1PtD7bMRLbcHczSvbX+3jH++uj5i
+# 3MhYwg9LtAmlDLTc15WbZif8ULv+T/yJp02hyzPtNqYXtWzYduTChiiCK25tpOg3
+# zBSUjnyMeAqdVETzPZvlF4WVXuc9Rxmi6nb4yJXe7qLmRC6/QuIwdWDjCqCZiHp1
+# DWNoax2nBC0gy0MduQTrf40FtcNv9kxBvW/3JmjEno2GKtGZHoHcULNrowUoYD9Z
+# O6x/WRJc0Dto1zMLMrbhByND+ZMQilk/SgTkQKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMjBaMC8GCSqGSIb3DQEJBDEiBCDP/lcUANjFadAzt8BT
-# aOzapDUJViduL7mkBH6ZyqQSvzANBgkqhkiG9w0BAQEFAASCAgBpF7Ye/zz1BUbB
-# WzrrrUMby4UORuoKbelh6hpWVL785PBJX2rSBTV1NvhXF23VRGOP+rC0aqOVfS6f
-# ihfiOU5pGKRwlni2+23D71StnRoj7NhcaKUgVl0A6JAWtNGzZ9aM8einE3oiO9+g
-# YZ7z0oDYeM4VJ/DkJ1Xqtq3YnDncOS1SxpMS4WWa5nug4AaoIfV6rm+6Ah5lXEG3
-# hU0lSR1CBQkT/adDFsiCaFVvMYfBoOPji/jd85AeKpzuAmaRJH6JyBT0mFw7wDCm
-# v03kyOmpXtznA6Rk7n29j3HrTi5nqivwKMf/wxLIzWZiLba+ZnsMPfLIU06jabHG
-# /LLowuXeTOhSwtw6ZoR52sFnUZn6kAg5NDD6NSqGd6IFLCRJmVcHUsAFOoHhY3Hu
-# QL5w5lzOE67y1/YUoWDn3TNq0p2VMz2FxED3f1k90hoXj2ob0adWP+PzzO64Zc85
-# KHiIHCHWJTBw464JkTAAEXsU1gm9Xhil+sBVjc1weshTQXsnZy++kqh17npaQTJs
-# 2PhHTdNf93oX+YVNgPa3P7Fo+B7K9ZO6hKS9u+RUCFO/+jqMGXEtnH0lRLwrp1Cp
-# bSphBOoZuD2dwHFasNAiMX9BNRP1Px4j69uryiacvHINE/McJI3dNHR08jaV/KBt
-# 6Eeyh9W0A2PS/8yWgw6HqQuVcSeMgA==
+# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCC39/lfDVEzo6gvWwSw
+# YKKPglPNpa/oms2rjGr8AvMU3TANBgkqhkiG9w0BAQEFAASCAgBFiTFS0qAfeHd3
+# 5da7ADXWtxoaQshKdtMQINIJVxjsgF3LWfH6fu2NoAaDLsDl9UJnUEQUW8oc/JcU
+# CL12LcQXvtQPTzp1wtDt+N6I4apOhea6eZBbHDrp8rdTTpVZZgZ8+Ov1fbxTBGFy
+# JOs/7BHztkDh7yqaYpxgSe2MBRjlTjccvmzZs7cDiAaaYWDsqserKyqaJv9FJy26
+# Ryg2qvTdvTIS2NQhH4gyeWZa77C4fJ2dcIIpBqujUR0cS4d2HAtN9UTPm5VkaCEe
+# OgzUubl87mxU5+6F8hpg2f1EJNardTprcO7bHlb+6yBbzzUY5rBM2Y6SQ3ufqFXn
+# nsjQjJjwppG8fMIvSNvz9SQdEMgHrqUvM2yVdCwygsJh6vpUzInxFJPsfidPv9LA
+# aPAX8up1YxefQZgg2jOFfHVCFsPvxo+w88IYtDZQmWu+juUqidwS318OwxleQ0FQ
+# B74dMTpv4hQ1zjpagYtARgQ7Dqz2QV/rfW94kY37LorHaERtsuB3dOsJaS4M/jA1
+# P+QU6ZnXM2xcHYeeG6BxKhvklEqzWnIouT2/QsGrUgvI1wjZ0V0By3Aa6TLCmj8S
+# eAI+s2jf5b0CoIGH3g00GaP7VALKOwgOe3MWoef8KWpV1D0StS/qaWOqZEZTVM0B
+# aOTP3jAf5bNAch6pQy0ICYz9aIfWcw==
 # SIG # End signature block

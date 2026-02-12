@@ -1,140 +1,50 @@
 function Reset-WindowsUpdateComponents {
-    <#
-    .SYNOPSIS
-    Resets Windows Update components locally or on a remote machine.
-    .DESCRIPTION
-    This function stops Windows Update-related services, renames key folders,
-    and restarts the services to reset Windows Update components. It can operate
-    on the local or a remote computer using PowerShell remoting. A log file is
-    generated summarizing the actions taken.
-    .PARAMETER ComputerName
-    The name of the computer to reset Windows Update components on. Defaults to
-    the local computer.
-    .PARAMETER Credential
-    Optional PSCredential for remote connections.
-    .INPUTS
-        None. You cannot pipe objects to Reset-WindowsUpdateComponents.
-    .OUTPUTS
-        [PSCustomObject] with properties:
-            StoppedServices - Array of services that were stopped
-            RenamedFolders  - Array of folders that were renamed
-            Errors          - Array of error messages encountered
-    .EXAMPLE
-    Reset-WindowsUpdateComponents -ComputerName "RemotePC" -Credential (Get-Credential)
-    .EXAMPLE
-    Reset-WindowsUpdateComponents
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-    #>
     [CmdletBinding()]
     param(
         [string]$ComputerName = $env:COMPUTERNAME,
-        [System.Management.Automation.PSCredential]$Credential
+        [pscredential]$Credential
     )
 
-    # Load config
-    Initialize-PrivateFunctions
     Initialize-TechToolboxRuntime
-    
+
     $logDir = $script:cfg.settings.windowsUpdate.logDir
-    if (-not (Test-Path -LiteralPath $logDir)) {
+    if (-not (Test-Path $logDir)) {
         New-Item -Path $logDir -ItemType Directory -Force | Out-Null
     }
 
-    # Helper for remote execution
-    function Invoke-Remote {
-        param(
-            [string]$ComputerName,
-            [scriptblock]$ScriptBlock,
-            [System.Management.Automation.PSCredential]$Credential
-        )
+    $isLocal = ($ComputerName -eq $env:COMPUTERNAME -and -not $Credential)
 
-        if ($ComputerName -eq $env:COMPUTERNAME) {
-            return & $ScriptBlock
-        }
-
-        $params = @{
-            ComputerName = $ComputerName
-            ScriptBlock  = $ScriptBlock
-            ErrorAction  = 'Stop'
-        }
-
-        if ($Credential) { $params.Credential = $Credential }
-
-        return Invoke-Command @params
+    if ($isLocal) {
+        Write-Log -Level Info -Message "Resetting Windows Update components locally..."
+        $result = Invoke-WUResetLocal
     }
+    else {
+        Write-Log -Level Info -Message "Resetting Windows Update components on $ComputerName..."
 
-    # Scriptblock that runs on local or remote machine
-    $resetScript = {
-        $result = [ordered]@{
-            StoppedServices = @()
-            RenamedFolders  = @()
-            Errors          = @()
-        }
-
-        $services = 'wuauserv', 'cryptsvc', 'bits', 'msiserver'
-
-        foreach ($svc in $services) {
-            try {
-                Stop-Service -Name $svc -Force -ErrorAction Stop
-                $result.StoppedServices += $svc
-            }
-            catch {
-                $result.Errors += "Failed to stop $svc $($_.Exception.Message)"
-            }
+        $creds = $Credential
+        if ($script:cfg.settings.defaults.promptForCredentials -and -not $creds) {
+            $creds = Get-Credential -Message "Enter credentials for $ComputerName"
         }
 
-        # Delete qmgr files
-        try {
-            Remove-Item -Path "$env:ALLUSERSPROFILE\Application Data\Microsoft\Network\Downloader\qmgr*.dat" -Force -ErrorAction Stop
-        }
-        catch {
-            $result.Errors += "Failed to delete qmgr files: $($_.Exception.Message)"
-        }
+        $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $creds
 
-        # Rename SoftwareDistribution
-        try {
-            $sd = Join-Path $env:SystemRoot "SoftwareDistribution"
-            $sd2 = Join-Path $env:SystemRoot "SoftwareDistribution.old"
-            if (Test-Path $sd2) { Remove-Item -Path $sd2 -Recurse -Force }
-            if (Test-Path $sd) {
-                Rename-Item -Path $sd -NewName "SoftwareDistribution.old" -Force
-                $result.RenamedFolders += "SoftwareDistribution → SoftwareDistribution.old"
-            }
-        }
-        catch {
-            $result.Errors += "Failed to rename SoftwareDistribution: $($_.Exception.Message)"
-        }
+        $moduleRoot = Get-ModuleRoot
+        $workerLocal = Join-Path $moduleRoot 'Workers\Reset-WindowsUpdateComponents.worker.ps1'
+        $workerRemote = 'C:\TechToolbox\Workers\Reset-WindowsUpdateComponents.worker.ps1'
 
-        # Rename catroot2
-        try {
-            $cr = Join-Path $env:SystemRoot "System32\catroot2"
-            $cr2 = Join-Path $env:SystemRoot "System32\catroot2.old"
-            if (Test-Path $cr2) { Remove-Item -Path $cr2 -Recurse -Force }
-            if (Test-Path $cr) {
-                Rename-Item -Path $cr -NewName "catroot2.old" -Force
-                $result.RenamedFolders += "catroot2 → catroot2.old"
-            }
-        }
-        catch {
-            $result.Errors += "Failed to rename catroot2: $($_.Exception.Message)"
-        }
+        $helperPath = Join-Path $moduleRoot 'Private\WindowsUpdate\Invoke-WUResetLocal.ps1'
+        $pkg = New-HelpersPackage -HelperFiles @($helperPath)
 
-        # Restart services
-        foreach ($svc in $services) {
-            try {
-                Start-Service -Name $svc -ErrorAction Stop
-            }
-            catch {
-                $result.Errors += "Failed to start $svc $($_.Exception.Message)"
-            }
-        }
+        $result = Invoke-RemoteWorker `
+            -Session $session `
+            -HelpersZip $pkg.ZipPath `
+            -HelpersZipHash $pkg.ZipHash `
+            -WorkerRemotePath $workerRemote `
+            -WorkerLocalPath $workerLocal `
+            -EntryPoint 'Reset-WindowsUpdateComponentsCore'
 
-        return [pscustomobject]$result
+        Remove-PSSession $session
     }
-
-    # Execute
-    $resetResult = Invoke-Remote -ComputerName $ComputerName -ScriptBlock $resetScript -Credential $Credential
 
     # Export log
     $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
@@ -146,25 +56,26 @@ function Reset-WindowsUpdateComponents {
     $log += "Timestamp: $timestamp"
     $log += ""
     $log += "Stopped Services:"
-    $log += $resetResult.StoppedServices
+    $log += $result.StoppedServices
     $log += ""
     $log += "Renamed Folders:"
-    $log += $resetResult.RenamedFolders
+    $log += $result.RenamedFolders
     $log += ""
     $log += "Errors:"
-    $log += $resetResult.Errors
+    $log += $result.Errors
 
     $log | Out-File -FilePath $exportPath -Encoding UTF8
 
-    Write-Host "Windows Update components reset. Log saved to: $exportPath" -ForegroundColor Green
+    Write-Log -Level Ok -Message "Windows Update components reset. Log saved to: $exportPath"
 
-    return $resetResult
+    return $result
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCGUqPvEkmdS2l7
-# y+jnJ7rLrQjEB2PqRGaXcoZ/IsLC2aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC5HEOh1B2Lq9W3
+# G38SngrpcQDAnc2myap2PzAYgf7UH6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -297,34 +208,34 @@ function Reset-WindowsUpdateComponents {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBhT+B63WFi
-# C5I4jXjcQ1NvdNA0st5GIKqvDGxDwu92uTANBgkqhkiG9w0BAQEFAASCAgBZawCC
-# eMz/QHgtVxh9kggul1xB1rPG729Cgga1r+rQBTGLf9irJhEoqoIKTOF+YeHeDOB7
-# EAwGIplVpTbPM9KDRM/pBf/ewhNV15Dh+1yWFWxeUkNbnqmqzbcTbr+6dxGJwXgE
-# GCX/EuDmdz9m4Use0YS55YSkkr6c6Qts2wgjVO8PDeCRJpnmC/YHqcIP6jxYU2iY
-# XQF/BjBj64znmEcC5Dx33w95qalDiYAWIvm6lIIpf8a+JvkT9wlggsaxF5zCcLRH
-# S2U2H+GzFPYXWGqf5tsf68NpTHBxVUFowSz4oQz9FqqCSc4ZBEOeHYBXJiEEXiFp
-# gCqQNwdo5pTw+gTv28X1r/BOQMUvmaeeMJ+ddK6B0ldNbwL6yFw/A6o0goBMfRuC
-# hEuwQnOOU1hCP8RJtznP7iOh7HuTFIW98euFc+nt0LmlUC/cxJKSBhG9uVf17Lvi
-# fjy99Rp+fvxLoyNhc0PFsbAysxj2Ph/QRKK1l38CLWhO/ajmn6Xgwq8scC0XGgWX
-# R5j4JB5R9Vn69aR3bfQ8ylJFknAr0rvxbVl6bH7WZ3v1cs3viXuy03B0FCMp/Tbv
-# sDpyeWDzdfB+CX+lKtVmU1l9U+G0TcYnLxC/CsHUdWZXKBXOsbE/0GNuDRIvNZtM
-# d/gjhQ/Zog2n5Ojs6QbTc1VuG51Leu7Mh2QNB6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCANCHS4fwVd
+# WPWMnW4YtGmipwB7cjZOc/DGlLoMci7mTzANBgkqhkiG9w0BAQEFAASCAgAytWAZ
+# bnepi+jgSI+90pryizv9bKK8x0l6Hz+VzBuG7+M6gLCElhb/iJ9wsqnxrEjzjs6d
+# on7li5ZFFRDV+uk3SJqYIM2lnCXQcsBYnUdSqJ2TigBg5XXC3ScCel/7S/t+4iCs
+# QvSap5nIC5MtyXsj4l9Kw6jeXaYfn/0zZE9VgHXoeYTSTf5sJ/XWYmaO2S5W/shH
+# vwXY4rRsCH8ScWseKAziHxL6z5z6NQk9XU8p9y90U8H4AMsnTtgc6GX+49yXO5kJ
+# SPHE5Y7sHczK4LKFQ5CT5cnY3nJ7Zk0JEcCAlRjZcK0SXqr0V1bMKA8J3Tq6NXdO
+# WdM7d4Mo07XgIpSvNEqzAd23SuaRS/rvcPO/+i2sFvwUVl7cwotHdNTtikc6iati
+# 8NHorQ7hOKmw73ZdoVYVypOGslUXnxSEcUXyhRcgpAoG2EyV5/0RTL5voHK7ptht
+# rkOqGZKty9fx3WtL8JYoTIAdjb4w6TfaETFEu7TLLxlnmkDaVPZw0/HQUVwvbDVW
+# 2oJEkWi1emDFI7maGcisTjz6LEJfEXB/Yy2/+bq1v353/F5OWE7fdeVDa/kk7vx9
+# NObSym3ezu7M98AdZIn96dbItu1SBKezQTVT2Wb06q7evFTvPl8HNJW+m3tcOz6n
+# pDhccAIRqXRTjjbjYpwrbDSBmg18CUaZA46JPaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMDExMDFaMC8GCSqGSIb3DQEJBDEiBCA4rMaVxSjyQZ1vJ53l
-# E9Rhg3zxAYMu3QMi3jmMZAqsPDANBgkqhkiG9w0BAQEFAASCAgDCm522exZ0jFn7
-# xWRSjCUtoTqsEwpn/IVu+suhDyuC7FbJzZXnGwAcy70u9KcrDRlT8Cshf5U7CQeW
-# vMEKWIfRLJDyXnJluuupIuYfVTU2X+xq9f9l458Je1c+70ari+Ruz00LGT+Kpcum
-# smU1FhVsnqK+sk13uoR4NOmYYm0UhdQY04yTBck3rVqHCMCrpSzPgO/xi5wwDho4
-# vPlCV7XQjQ8OYqKNxVLotqsZ6KGUaBbMv/2oEbfrUhw15Z05I90pLAnmwN0/KyRT
-# WYuVqL1GXzSJHJ9eClBpj5LxhwdvKCmP9A1EBoQ2ttLDe4twlhukspl+zi61ZmJh
-# FHGwSCWVXoQ1/4mehLqGtZyodU2vvM3aN6hS6jYSJ0XvCmCROGfIO3bOrwldnp3j
-# uUhDR9LHvjgizVgYjsLd+6ya/uEBnSnss+BOFohNL64Yv2XVioRgHGijCSvNWVdI
-# sKfUVCCeCdKo1yHK0ZwPyzQK5lieSO/ZYzhwqRKUjNCsI0mOfBiA8WlmV1woXGNz
-# ble+oopOpZoGALWgh2qjxsHk/xDvhfS0Y02Jz2yBqI6KpRIEEONNH6pJ7useT1/d
-# fAefE0mkzz3lZTltPMsM2FK0BWZoJx2n36UpqX+z3qXmBFRVTZHOCmwdOB/0lEaS
-# R+SBbeywPx9ZyTqHSALrCIN6fDyxng==
+# BTEPFw0yNjAyMTIwMzA4MDRaMC8GCSqGSIb3DQEJBDEiBCB/fFMSuMudkBc41IBE
+# HpS7s7nCB8r8viJ31Qnr4jc3xTANBgkqhkiG9w0BAQEFAASCAgCzREKDJ6R9ooY+
+# mUe6YAIRAW+iG4QxcU64ulDPwfJlEJ0fbJbe5jOdStI0dlFO6FF+qURkuRrghkdj
+# 2ad5BgcDJjYBezqlNSUrGvg8jqA4XlhJBK0nxQVEoUS0egO95S6+h1kPJxlW7iii
+# 08Y4kZSEb9IZk7wb6pFCzwG/6FLvAibEgorfJ6mtArFs0aubzy0BKnGIK+dk4+xY
+# 1I9udSK+97AZoZYrnbWKUxybGRdl/ODGP7xERP9yAJ/dqOpOSTm8Qthrt5efL3NK
+# 0CUV0FNbqE1w7zLZJOw8dkfj18GMbwQgvU2B1AhcY8qp8XaIMIt0wocjflXRE3lD
+# 27A8/P1xcRTTbJNRa/uzq/qvyfnUoKHt7hDc1XcVrC8synEOEUK0pDp72cStWhkh
+# OEvKW7wVd55yo4q4zBAprO9xcHLRTli8rQaUrsSHZokfbza6Gb3nCv0p1fqO7FF5
+# ns4Wgb0eDQqgvRPNisCqUZuzqdZRniIrFSMYgj2b8712F1e0sRxnYZmsBlpf1uuz
+# gW/ZsNuy7wLkwBHTS+dhphgly3miIHNB/Fu3AZx1F4w2wu1cBTbpCAHN9CRUeMhD
+# Y5e4m1uiPtCE2VQyvzbDdRyWQmeURtujf04Veq5r5Yi36DzK66p2VYD8ziDtc70/
+# XWnucIuVnUm/ZMepTixSvAwyqnxGbA==
 # SIG # End signature block

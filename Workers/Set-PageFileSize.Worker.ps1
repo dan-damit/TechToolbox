@@ -1,112 +1,46 @@
-function Get-RemoteInstalledSoftware {
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
-    [OutputType([pscustomobject])]
+[CmdletBinding()]
+param()
+
+function Set-PageFileSizeCore {
+    [CmdletBinding()]
     param(
-        [Parameter(Mandatory, Position = 0)]
-        [string[]]$ComputerName,
-
-        [pscredential]$Credential,
-
-        [switch]$IncludeAppx,
-
-        [string]$OutDir,
-
-        [switch]$Consolidated,
-
-        [ValidateRange(1, 128)]
-        [int]$ThrottleLimit = 32,
-
-        [switch]$PreferPS7
+        [string]$Path,
+        [int]$InitialSize,
+        [int]$MaximumSize
     )
 
-    begin {
-        Initialize-TechToolboxRuntime
+    try {
+        $ok = Invoke-PageFileConfig `
+            -Path $Path `
+            -InitialSize $InitialSize `
+            -MaximumSize $MaximumSize
 
-        # Config defaults
-        $defaults = $script:cfg.settings.remoteSoftwareInventory
-        if ($defaults) {
-            if (-not $PSBoundParameters.ContainsKey('IncludeAppx') -and $defaults.IncludeAppx) { $IncludeAppx = $true }
-            if (-not $PSBoundParameters.ContainsKey('Consolidated') -and $defaults.Consolidated) { $Consolidated = $true }
-            if (-not $PSBoundParameters.ContainsKey('ThrottleLimit') -and $defaults.ThrottleLimit) { $ThrottleLimit = [int]$defaults.ThrottleLimit }
-            if (-not $PSBoundParameters.ContainsKey('OutDir') -and $defaults.OutDir) { $OutDir = [string]$defaults.OutDir }
-        }
-
-        if (-not $OutDir) { $OutDir = (Get-Location).Path }
-
-        # Worker paths
-        $moduleRoot = Get-ModuleRoot
-        $workerLocal = Join-Path $moduleRoot 'Workers\Get-RemoteInstalledSoftware.worker.ps1'
-        $workerRemote = 'C:\TechToolbox\Workers\Get-RemoteInstalledSoftware.worker.ps1'
-
-        # No helpers needed
-        $pkg = New-HelpersPackage -HelperFiles @()
-
-        $all = New-Object System.Collections.Generic.List[object]
-        $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-    }
-
-    process {
-        foreach ($cn in $ComputerName) {
-            $session = $null
-            try {
-                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
-
-                $result = Invoke-RemoteWorker `
-                    -Session $session `
-                    -HelpersZip $pkg.ZipPath `
-                    -HelpersZipHash $pkg.ZipHash `
-                    -WorkerRemotePath $workerRemote `
-                    -WorkerLocalPath $workerLocal `
-                    -EntryPoint 'Get-RemoteInstalledSoftwareCore' `
-                    -EntryParameters @{ IncludeAppx = $IncludeAppx }
-
-                if ($result) {
-                    $all.AddRange($result)
-                }
-            }
-            catch {
-                Write-Log -Level Warn -Message ("{0}: {1}" -f $cn, $_.Exception.Message)
-            }
-            finally {
-                if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
-            }
-        }
-    }
-
-    end {
-        $results = $all.ToArray()
-        if (-not $results) { return }
-
-        # CSV Export
-        if ($Consolidated) {
-            $csv = Join-Path $OutDir "InstalledSoftware_AllHosts_$timestamp.csv"
-            if ($PSCmdlet.ShouldProcess($csv, 'Export consolidated CSV')) {
-                $results |
-                Sort-Object ComputerName, DisplayName, DisplayVersion |
-                Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
+        if ($ok) {
+            return [pscustomobject]@{
+                Success = $true
+                Message = "Pagefile updated: $Path (Initial=$InitialSize MB, Max=$MaximumSize MB)"
             }
         }
         else {
-            $grouped = $results | Group-Object ComputerName
-            foreach ($g in $grouped) {
-                $csv = Join-Path $OutDir ("{0}_InstalledSoftware_{1}.csv" -f $g.Name, $timestamp)
-                if ($PSCmdlet.ShouldProcess($csv, "Export CSV for $($g.Name)")) {
-                    $g.Group |
-                    Sort-Object DisplayName, DisplayVersion |
-                    Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
-                }
+            return [pscustomobject]@{
+                Success = $false
+                Message = "Invoke-PageFileConfig returned failure."
             }
         }
-
-        return $results
+    }
+    catch {
+        return [pscustomobject]@{
+            Success = $false
+            Message = $_.Exception.Message
+        }
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBPwvPErFIAHT+O
-# nC8DyxWueGLI6GWWVXQ87YgoPe6V7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCIyPckgvr84vST
+# 4TRgmnsHZDMxqo6J8EcbSC+PdWjPaKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -239,34 +173,34 @@ function Get-RemoteInstalledSoftware {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAkj5qa8iGz
-# 133GmudgoWeb5Mq/9cFMXwu02S0ylW8klTANBgkqhkiG9w0BAQEFAASCAgCWY8aH
-# 7Mv6+e/YrQSZH8W/7bB9zciQYajvjegyQzHtywTVqon+SSQ9f3kCFzM9GL2iDTY6
-# nVUJnOmrNVB1zeKFkph5h9QJoFkllSkJoqgzH1E8cTlRCwmZMb1eOYayud29jmyI
-# LSd4Kfpx34JYFKSXlbOOlTo0RyQF8K2LcJUKkY86hpK2eNyjVADdo4/mytpcFql/
-# wj6ZlIlyFwQmJ/KmCeWcNKNIi5QmeIszcNm3MwmzQ2D8GY9VyAqgX3O5BrclHW5D
-# i+pdXCjWJAf8PUj1gv+Jc2ycQ8M9mXkBXgXifTOzti9eyVvoMp7WOZR20Ih/3Fe7
-# xVrPXquYY/NsSpxoP3wHORWpVmfJWGD01VxYjltgOmkXiG0vujuCSfZFCQ2K+hDL
-# G+HYBCLTyC5cRqPK0D7L83b1YCixvGJCNnqGYJi4bIw5aBEoqygW5bnjAZ2fEfcg
-# Edo/r+EBH+Fir16ITySoyybIm0kaW5dxfFDjor6CW6WIDAoNlNcCotDqm2mMBjlW
-# W17ywoiQFm23umwvZCAo2pD1MYSRluTgFXXE6C8C6YZzyFhwN8begihXDAYq01FV
-# qrqJLCOIcE9oq6VRqQNgmHAFCNWwqFUE9dm9MouzRbXll7t607ReWNjz+Z2zyNjK
-# zJusnPt/Wm4jcm1eW24cDQHK9XTaop1BHOzSXaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDYmrpqr+Nl
+# jtNji0w6lFKx7u9YRI+IwQ29xyv49+CJojANBgkqhkiG9w0BAQEFAASCAgBm6x+C
+# mhYEDcVZF3rNvHZwpK4jXII04JIoKx7rYqNZ2ZuczeOHut27N1+a8yjEbhER89o0
+# QrD0y1aH51bYkOfUX2Z3GY0pcgSVhtdApYDDRLznf9ztL4Rg22wYVXeurXFGtk30
+# Tt3v3dBaYzVfv3S0T0L1Qht9CCqGx+ALgDnf8G/YcUxCIEw4MTsn62Ymkw4IGA8/
+# KnXcuq7NjqxjrYgMcwg9nkho/wAGw4eIR83vUSs8EvhmRdMqryWWII7ddEZsDU8h
+# K+vXoTk1yfpgQtmaRqDb6jhSR4bEfKjtxN4Rpzm7zx8QG4o3c4vmmh/U3UiiyKbG
+# hP0iR9VJibnH8L/7JvVAApjUiovyt+IMM3DCSP8C6yiFQtCYALtACoBDP/ewPYkt
+# 2oagzYr3pIN0b/ODlIAcLY6kjzwigOxtQWZ6vnjC3uB8M58AD7CY6Kh7fdhCM542
+# ubp5CgYhzOHPSBJPWdo2ji/BIKn9Ers3Kl9soVjNFgifMwBSDHdoyB0XhyviM+48
+# npla6hoyMiyrXpWpbHJ8/iNMeUgpRKrvbNfHNaB+41rVoO9YxLYXseuHbqTfjuN1
+# GIRj/oR1CyRoau1ePW7dk5jnAlCzIv4zYTxMMgBtdraDAJG+N/FQpIyZF0qPdIKM
+# c2aIouUg+nFM3qie/5lU+JjvlUJFT/+s+pMn66GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDJaMC8GCSqGSIb3DQEJBDEiBCCaKxNgQiGu3v5zwXQ7
-# Npw03ILCWoEFE9Pkh8oRAmLygTANBgkqhkiG9w0BAQEFAASCAgA9SCTKspWsaEMU
-# NQJNtCUXFiwYL0BhZsgG2SvWGqXSn4EpRDKlLY3cVUt0Pvsa1NxfamQcSUXmbh0A
-# BXFM0NBkWL0nC4m0AmE02bdGxPJ+GsjGhrRw4PCQnzKQLADh/08ew4z6vI4Kltr7
-# vEhDzejOHLMdRtSFOyRDtkfZAZ7ipjQLHMW0+ltQzeQCdmFrqgMUDCPEgx+Ckpla
-# gbCVQ7g2UHK2Tul/Lc3fcMRqaSe/OTjCgwNjBgUIUFboEi4RlVeUPPlrp8M39Fbr
-# h4zgKffy3ZAqk/AtraD/cM6tsOdZAIAywTlqN/xdKIBVJgxOK9QZ0NZvXzk2d4A7
-# hS2IEfNpGzKk5UsAZank68FAmPsaCwlBVmyvIF8Bjn96ehTAYIpXzakUrX2cpGgT
-# W52yOxBpt5CeMkC0qJ5964jIGP1Ved7e8xzzVVziSHR+a7AaebmHfyms83c84+Yb
-# y0Oh2kT0iWfH4aWEuylLBsFAWVYZqCkzHHmSwISoJ+CDRFe2Lprr1nmY33r1eMoY
-# O1g3e+tpFDNqus1jP9QEOcm3SKAQmhGT4R0aPCV/emCdvynNtuX16v8a9dgDZLfU
-# u3aD/tMs58wt3vgjHK8NDCYCJ0VJnzv1bGcSzrEuoinjCsAqLuCwCsYq4dnDr9SP
-# K+eLbH8auoS3qdTltDkj+NbnLMrosA==
+# BTEPFw0yNjAyMTIwMzA4MDVaMC8GCSqGSIb3DQEJBDEiBCBeYuLNKzOv5LGC1L0c
+# ZlSMTjvecJp8EonA13UGt/kz2jANBgkqhkiG9w0BAQEFAASCAgCPAZ6i+O9jPulC
+# i7S402R4h0BSZZSZM0EKJ9VvXjkT3nRWLHR6vWh9xdaTj9sQJFes4XphunfwRwAy
+# 0pWGMe2pB5Kuwxg+rLKLViqe5ruuXbaVtMUwunybGd9FyDSoZsbH2xFrBY8zI5b4
+# CXJAZVcRc91iiK20jli3+fYZqivnFB77FNtc40/0BYW/yY9bkQ9iRhESfI0W0DpU
+# lD429O3YWUEIc1P7oJSgqbIFnI/YWoacMk6hP7L26/wFODjDRKgSLERbLdE5Ul63
+# goAegtBd5ZpT42Epd7p/VJlxTRPwLBg13lUPoRmqPT+WbSSiJnNLVE/YdZ3/VBtg
+# DwIlEr/HJTRS/9Pm4XjTcZ+cpjIclCTKSlxwOEO0n/oAQFtqOp/CrqQgITWu+WbP
+# FJWl9f2KiMbrC/+JHfKi3aMsK719NYQVKI2pm5ZbHaB0O5Y0Es6BMUAe0jPn9U9A
+# FYqp98AD6o0WO0WVGoiVr2QNckUKEqRbKZWMaQFHho+cfyRL9iuAyPknTZWhlDaH
+# ppq/X4OTCUM5HY+8DCNLdn6rOznWfM2sUFcpILX1vtthbNxedNIUcI0uZ/CqRgEY
+# g+ktkVjoz1MECtv5FnRHUG3CnHIKXeErau0ZZCYVNtd46Xk61OuqctvNcRoFembX
+# PlrFK8+4O6kyZeVKERettWFw5UuFZA==
 # SIG # End signature block

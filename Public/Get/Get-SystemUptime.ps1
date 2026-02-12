@@ -3,19 +3,8 @@ function Get-SystemUptime {
     .SYNOPSIS
     Retrieves the system uptime information from one or more remote computers.
     .DESCRIPTION
-    This cmdlet connects to remote computers and retrieves their system uptime
-    information.
-    .PARAMETER ComputerName
-    Specifies the names of the computers from which to retrieve system uptime
-    information.
-    .PARAMETER Credential
-    Specifies the credentials to use for connecting to the remote computers.
-    .PARAMETER OutDir
-    Specifies the directory where the output files will be saved.
-    .PARAMETER NoExport
-    If specified, the cmdlet will not export the results to CSV files.
-    .PARAMETER PreferPS7
-    If specified, the cmdlet will prefer PowerShell 7 for remote sessions.
+    Uses the TechToolbox remote worker engine to run a small uptime worker
+    script on each remote host and optionally exports results to CSV.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([pscustomobject])]
@@ -33,81 +22,49 @@ function Get-SystemUptime {
     )
 
     begin {
-        # Lazy-load runtime (config/logging/env/interop)
         Initialize-TechToolboxRuntime
 
-        # Resolve export directory (config → explicit → default)
-        $outCfg = $null
-        if ($script:cfg -and $script:cfg.settings -and $script:cfg.settings.systemUptime) {
-            $outCfg = $script:cfg.settings.systemUptime.exportPath
-        }
+        $OutDir = Resolve-UptimeExportPath -OutDir $OutDir
 
-        if (-not $PSBoundParameters.ContainsKey('OutDir')) {
-            if ($outCfg) { 
-                $OutDir = [string]$outCfg 
-            }
-            else { 
-                $OutDir = Join-Path $script:ModuleRoot 'Exports\SystemUptime' 
-            }
-        }
+        $moduleRoot = Get-ModuleRoot
+        $workerLocal = Join-Path $moduleRoot 'Workers\Get-SystemUptime.worker.ps1'
+        $workerRemote = 'C:\TechToolbox\Workers\Get-SystemUptime.worker.ps1'
 
-        if (-not (Test-Path -LiteralPath $OutDir)) {
-            New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
-        }
-
-        # Resolve worker paths
-        $workerRemote = Join-Path (Get-WorkerBasePath) 'Get-SystemUptime.worker.ps1'
+        # No helpers needed for uptime, but engine expects a package object
+        $pkg = New-HelpersPackage -HelperFiles @()
 
         $all = New-Object System.Collections.Generic.List[object]
-        $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
     }
 
     process {
         foreach ($cn in $ComputerName) {
             $session = $null
             try {
-                # Start remote session (private function already loaded)
-                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential
+                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
 
-                # Ensure worker exists on remote
-                $exists = Invoke-Command -Session $session -ScriptBlock {
-                    param($p) Test-Path -LiteralPath $p
-                } -ArgumentList $workerRemote
+                $result = Invoke-RemoteWorker `
+                    -Session $session `
+                    -HelpersZip $pkg.ZipPath `
+                    -HelpersZipHash $pkg.ZipHash `
+                    -WorkerRemotePath $workerRemote `
+                    -WorkerLocalPath $workerLocal `
+                    -EntryPoint 'Get-SystemUptimeCore'
 
-                if (-not $exists) {
-                    $remoteDir = Split-Path -Path $workerRemote -Parent
-
-                    Invoke-Command -Session $session -ScriptBlock {
-                        param($d)
-                        if (-not (Test-Path -LiteralPath $d)) {
-                            New-Item -ItemType Directory -Path $d -Force | Out-Null
-                        }
-                    } -ArgumentList $remoteDir
-
-                    if ($PSCmdlet.ShouldProcess($workerRemote, "Copy worker to $cn")) {
-                        Copy-Item -ToSession $session -Path $workerLocal -Destination $workerRemote -Force
-                    }
-                }
-
-                # Invoke worker
-                $uptime = Invoke-Command -Session $session -FilePath $workerRemote
-
-                if ($uptime) {
+                if ($result) {
                     if (-not $NoExport) {
-                        $csv = Join-Path $OutDir ("SystemUptime_{0}_{1}.csv" -f $cn, $stamp)
-                        if ($PSCmdlet.ShouldProcess($csv, "Export uptime CSV")) {
-                            $uptime | Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
+                        if ($PSCmdlet.ShouldProcess($cn, "Export uptime CSV")) {
+                            Export-UptimeCsv -OutDir $OutDir -ComputerName $cn -Data $result
                         }
                     }
-                    $all.Add($uptime)
+                    $all.Add($result)
                 }
             }
             catch {
                 Write-Log -Level Warn -Message ("{0}: {1}" -f $cn, $_.Exception.Message)
             }
             finally {
-                if ($session) { 
-                    Remove-PSSession -Session $session -ErrorAction SilentlyContinue 
+                if ($session) {
+                    Remove-PSSession -Session $session -ErrorAction SilentlyContinue
                 }
             }
         }
@@ -121,8 +78,8 @@ function Get-SystemUptime {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB5MNLBmsny/9kA
-# 2aa17sewsNAeRXAJnI/T7eEgmcCD7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBvIgaM6+oXefz9
+# 0lazq6ZNZD045gBjGTb4ftRsOWx94KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -255,34 +212,34 @@ function Get-SystemUptime {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvueqNwT7d
-# aEhs6HlNuEj4PJy/rNOINOROdSy6bMa4NTANBgkqhkiG9w0BAQEFAASCAgChNZ2Z
-# Q7nJUnCBnz9ivhDDJsY9RObZ0Frq1ei/eqcXu3LaTV1wQjaR/jJ42TKyZg6oLEQp
-# HmWmHSLUJqsVnGQef1O2tTkL50eoaInBJs+qbnWFzAF+QwEr97GoiQXc7RT4CT0w
-# Hxw5N2Bed9ucOh4/5cQr+dEytE9xa97MOHFzSk+HLp2TNG1OiFNKIStkYF8R8Mrg
-# niGsJ0CqiW2O0Sxz6I0Uf1MnEXkaK+ZJU4jb2DqF0CU24FMx2GwLrhM/hd87ie/6
-# kHJcIWq5Kmla5uWQLi1sCDoT8GDo/39EVenMIWoK5V84k5wc1+V2xyhjdga4l9BS
-# 0HnUCbjr1bMZlMAUtOBWWKolQVRmLXb4nCO0Wt7wLvuJzCwEnXoRoMUa8W/lY9je
-# DZ0ytADtmmRcm0khR0J6GRwbaXWoF91C8R82omZoE6LWteBP2Xx3Wcl8VrkJwyft
-# 7lhYNl1EHJFrxuOnGNUmTcHB1mTUh11bgiMzpLMMreXJEZzQ234nQ/UZDe94u5Dt
-# +cV6gZtVwhoSCGIEc20IJee86W/+toow0afL9GEUlkabbYm/w12k8R52iO+UILG3
-# eSiloY0hFi1U9hIJYmHce5BUOaju5fAe5qg7AGr9SOL6Axrx7BfYkYFo5K4rryxq
-# LfUtHCAI+9alYXN+AZJ7mHoesuvShik9cUneeqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAZRIl5jw9E
+# AW5gWfRywVvG25DqbGxk/dPFwbpYGgZe1zANBgkqhkiG9w0BAQEFAASCAgBp2Hv7
+# JzBi0iRRZvtNxinL7hjZO4jwUYvn7/9fXg9Q2y1tnh8qwEFrSTpYg+LVEGJVXkqZ
+# PGPOh7q0jRs/LY8zCQ+xWXQPgXWxcQdshHT/XODdrC5ihGqou2N4M+gmTB6kBzut
+# uTNq9pEp4vXp9otYd3sHRKumERNFWbxPTL9Crd+Rze6lBxw4R27iCGwWm6ImgrWw
+# 4QUkPoAecYOTcMQySa3ck42Sk63EXa3/aO6o4YxSpzx1Pon1DssIChNdFde0agLr
+# xwAYQQ2lN9+gZF5D/uOZrqWCGO86u89j5Uf8rnCc4uJkAPxsilIZ+AEZ/sIxG87Y
+# pumm1XQio+Qt6j5tca1K1wYOrIBpqRMtcnWyOS7pK5tsVzygwB3TQppRs1sexEWQ
+# BAcVflrwjDah7SattAzpfWf8+NzGgUuxuVgfZJT5lgTLuyi8kyD5ojpI8Vi8dwMz
+# TVLqQ7L00+fbUK3dxoSKI/gyBX3fVFRTfEFZX5hLpvCCiQEUB4t4BGMD9S8uxP3x
+# rPTcj9bf+RXaTGj+2JqCbcIf3pP8ZMvHTATJRnEwtCSgFRJR7drkMLkV9I3EOlmx
+# yYedjxx+ZOwO8jpmFV1rmj1NZCJIwP3Y4lKLirTzgkC5S+ZJww1EYaqsOiw5hVuf
+# 7In+yBmeHrWyKGxDM6zRoBNf14DT/ig1aeyIOKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTExNDM3MDNaMC8GCSqGSIb3DQEJBDEiBCB20WyiLqhKFAQwWD7L
-# BStMBy0aHPcwDhkcja0gGekKHzANBgkqhkiG9w0BAQEFAASCAgC+OnyE029RcOju
-# ldb/lzRMAfwcz5tZYfDcgCKHnPrqPaJJdDZ1uY9s2N/cGgAvkFkYrj+i5zb0B42z
-# APwMPV168hQTNx4ohFN4IJH8q9REUUfyKIi8G2YhEdZyqx2gPDcJxd8ivbtMKttd
-# rUbMKNZIm15VmPPvD/FLoQqCIeq7VkCAWY2OKbhGisDRAHDSAG8J/4rvh5/fwAEc
-# JKv24XQMA2yuLlQek8kYO0rlePzvmLK6qNQzAavl9uXuI21VCx8P03wHJvik3srO
-# XDkBSP4y/YNlwld2mzEmiLFItV/Vtsd2lEeC3OF7tSB/Xzdgqq6y1g9jt8YqgZg5
-# YJ0FKLUOU246tZJQwjIwhD++zAks/JDgX7obAYEtB9rzulnxmesUeE4T0e5/OFOC
-# gTcroe6rtimgaeFAGadfPKbWCWr/v0JtcIRL/si4hXNgwfJsoCyFVNzdUzw433bl
-# f0maB+lXciXUvuiD0coB5xs0chV69aD2CqLQHeEM0Bb1MK9eRSmKiweKvyNRryBs
-# MpbnzrGfeIMtHh41J4rcUZ+6fLoBt9VL+GA+cNEgnrfhqlI4nECFNi4qrNVUGfi/
-# Z7odayK2+aHf72YfIisPtt06xs+QGuNq5zyeBZcz39Q4lDG/y90WSqX2s64S07Kj
-# YGDwU1t1GZN4DzoNPBxJqxTVKCogvw==
+# BTEPFw0yNjAyMTIwMzA4MDJaMC8GCSqGSIb3DQEJBDEiBCAqb7MbMJL4/ZhaCjdk
+# Kkl0dEKuW1X2Qbkcl2ofJw48aDANBgkqhkiG9w0BAQEFAASCAgBSSJoKnOx3jci4
+# uQKuojVujiPy/44dyS6DLVsFIpp2/G84SoMIPvTibe0X9k0fPwKcrUpG+juNOYvw
+# tFDni6NV0WOc/zcsGX6QCUmXHcr1xK+upokaK2KWs5anKQFAI8Kz5w8Mr5J4JFPM
+# J7HqAVCvSnG3Sxg9Mgbb8J7dYIGtQECaPhMUgVMoqbLpdYLbH9hWN3kn4650WWSi
+# 6xaOL2sxDKptvNzcKc9flbY4+YOViBQrN+JKozayWUuk6xx8OnyjuZu+kV7Nwhn1
+# OAe+hkraHYm3RcPOmoLLjcaK0rdxE+JGQTeceYBNe5/F9zXUBweSLsx99aBLvF7T
+# 0mTgxWwhryN+PyIVl3g9GHF7gEj1S3Er3b0L8Oc169b57ry0qaPK7WSTT1ffHxmY
+# HDKFcufNhZf3AOSQ6dZsBeu28XBJOdYWLXjTyK6OyHHnGBwNSo+T/lduoVYLzl+O
+# 166+cnB9h5SqlozEc79RJpX1r85PrbTOCOWYieH6Ca6DLLEubTY6JZb0wZvV2Yvz
+# oecohlQdXkMjOvcsA8BOWycDltfzqVrSDk/KeHgmThOaRMyxnOsf0IBMpcPabtwS
+# X6KKPH0Gb6Q+bla155DaAPFdCq/JN6iBJStgeSS6+ntaXjb9YwdzKz30B97+57xD
+# ewd+H+Hz8JztkjliPMmZoceiaZTvjQ==
 # SIG # End signature block
