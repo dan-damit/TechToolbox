@@ -35,8 +35,8 @@
     },
     "systemUptime": {
       "logFileNameFormat": "SystemUptime_{yyyyMMdd}.log",
-      "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemUptime",
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemUptime"
+      "exportPath": "C:\\TechToolbox_LogsAndExports\\Exports\\SystemUptime",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\SystemUptime"
     },
     "workerPath": {
       "default": "C:\\TechToolbox\\Workers"
@@ -45,13 +45,13 @@
       "defaultSearchDirectory": ["C:\\", "D:\\"],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
-      "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\LargeFileSearch"
+      "exportDirectory": "C:\\TechToolbox_LogsAndExports\\Exports\\LargeFileSearch"
     },
     "systemRepair": {
       "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\SystemRepair",
       "defaultComputerName": null,
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\SystemRepair",
+      "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\SystemRepair",
       "runRemote": true
     },
     "passwords": {
@@ -69,9 +69,12 @@
     },
     "batteryReport": {
       "waitTimeoutSeconds": 10,
-      "debugInfo": "C:\\Temp\\installed-batteries_debug.txt",
-      "reportPath": "C:\\Temp\\battery-report.html",
-      "outputJson": "C:\\Temp\\installed-batteries.json"
+      "debugInfo": "C:\\TechToolbox_LogsAndExports\\Exports\\BatteryReports\\",
+      "reportPath": "C:\\TechToolbox_LogsAndExports\\Exports\\BatteryReports\\",
+      "outputJson": "C:\\TechToolbox_LogsAndExports\\Exports\\BatteryReports\\",
+      "reportFileNamePattern": "BatteryReport.html",
+      "jsonFileNamePattern": "InstalledBatteries.json",
+      "debugFileNamePattern": "BatteryReportDebug.log"
     },
     "exchangeOnline": {
       "autoDisconnectPrompt": true,
@@ -80,8 +83,8 @@
       "autoConnect": true
     },
     "remoteSoftwareInventory": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\RemoteSoftwareInventory",
-      "outDir": "C:\\LogsAndExports\\TechToolbox\\Exports\\RemoteSoftwareInventory",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\RemoteSoftwareInventory",
+      "outDir": "C:\\TechToolbox_LogsAndExports\\Exports\\RemoteSoftwareInventory",
       "throttleLimit": 32,
       "includeAppx": false,
       "logFile": "RemoteSoftwareInventory.log",
@@ -94,7 +97,7 @@
       "promptForMissingInputs": true,
       "defaultLookbackHours": 48,
       "timestampFormat": "yyyyMMdd-HHmmss",
-      "defaultExportFolder": "C:\\LogsAndExports\\TechToolbox\\Exports\\MessageTraces",
+      "defaultExportFolder": "C:\\TechToolbox_LogsAndExports\\Exports\\MessageTraces",
       "summaryFileNamePattern": "MessageTraceSummary_{0}.csv",
       "detailsFileNamePattern": "MessageTraceDetails_{0}.csv"
     },
@@ -134,7 +137,7 @@
       "promptForContentMatchQuery": true
     },
     "browserCleanup": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\BrowserCleanup",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\BrowserCleanup",
       "killProcesses": true,
       "includeCookies": true,
       "includeCache": true,
@@ -146,7 +149,7 @@
     },
     "logging": {
       "includeTimestamps": true,
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs",
       "enableConsole": true,
       "enableFileLogging": true,
       "logFile": "TechToolbox.log",
@@ -171,17 +174,17 @@
     },
     "dnsLogging": {
       "autoEnableDiagnostics": true,
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\DNS",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\DNS",
       "enabled": true,
       "parseMode": "simple",
       "maxLogSizeMB": 50
     },
     "aadSync": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\AADSync",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\AADSync",
       "defaultPolicyType": "Delta",
       "defaultPort": 5985,
       "logFile": "AADSync.log",
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\AADSync",
+      "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\AADSync",
       "allowKerberos": true
     },
     "systemSnapshot": {
@@ -199,23 +202,23 @@
         "Get-SnapshotOS.ps1",
         "Get-SnapshotServices.ps1"
       ],
-      "exportPath": "C:\\LogsAndExports\\TechToolbox\\Exports\\SystemSnapshot"
+      "exportPath": "C:\\TechToolbox_LogsAndExports\\Exports\\SystemSnapshot"
     },
     "offboarding": {
       "logFileNameFormat": "Offboarding_{yyyyMMdd}.log",
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\Offboarding",
       "includeEXO": true,
       "useHybridAutoDisable": true,
       "disabledOU": "",
       "logFile": "Offboarding.log",
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Offboarding",
+      "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\Offboarding",
       "cleanupADGroups": false
     },
     "subnetScan": {
       "resolveNames": true,
       "pingTimeoutMs": 250,
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\SubnetScan",
-      "exportDir": "C:\\LogsAndExports\\TechToolbox\\Exports\\SubnetScan",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\SubnetScan",
+      "exportDir": "C:\\TechToolbox_LogsAndExports\\Exports\\SubnetScan",
       "httpTimeoutMs": 1000,
       "defaultPort": 80,
       "httpBanner": true,
@@ -245,12 +248,18 @@
         "c42b9cae-ea4f-4ab7-9717-81576235ccac": "Exchange Online Plan 2"
       },
       "includeEXO": true,
-      "includeTeams": true
+      "includeTeams": true,
+      "props": [
+        "displayName", "userPrincipalName", "samAccountName", "mail",
+            "proxyAddresses", "enabled", "whenCreated", "lastLogonTimestamp",
+            "department", "title", "manager", "memberOf", "distinguishedName", 
+            "objectSid", "msDS-UserPasswordExpiryTimeComputed", "pwdLastSet"
+      ]
     },
     "windowsUpdate": {
       "logFileNameFormat": "WindowsUpdate_{yyyyMMdd}.log",
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate",
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsUpdate"
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\WindowsUpdate",
+      "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\WindowsUpdate"
     },
     "naming": {
       "copyAttributes": [
@@ -285,12 +294,12 @@
       }
     },
     "copyDirectory": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\Robocopy",
       "waitSeconds": 5,
       "retryCount": 2,
       "mirror": false,
       "runRemote": true,
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
+      "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
       "copyFlags": ["/E", "/COPYALL"]
@@ -305,16 +314,16 @@
       "includeInOffboarding": true
     },
     "ispConnection": {
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\ISPConnection"
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\ISPConnection"
     },
     "windowsActivation": {
       "logFileNameFormat": "ActivationInfo_{computer}_{yyyyMMdd-HHmmss}.txt",
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsActivation",
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\WindowsActivation"
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\WindowsActivation",
+      "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\WindowsActivation"
     }
   },
   "paths": {
-    "logs": "C:\\LogsAndExports\\TechToolbox\\Logs"
+    "logs": "C:\\TechToolbox_LogsAndExports\\Logs"
   },
   "Dependencies": {
     "Required": true,
