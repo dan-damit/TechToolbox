@@ -73,6 +73,7 @@ function Search-User {
         $cfg = $script:cfg
         $adCfg = $cfg.settings.ad
         $searchCfg = $cfg.settings.userSearch
+        $ADprops = $searchCfg.props
 
         if (-not $adCfg) { throw "Config missing settings.ad node." }
         if (-not $searchCfg) { Write-Log -Level Warn -Message "Config missing settings.userSearch node (using defaults)." }
@@ -116,12 +117,7 @@ function Search-User {
         }
 
         # AD property set needed by Format-UserRecord
-        $props = @(
-            'displayName', 'userPrincipalName', 'samAccountName', 'mail',
-            'proxyAddresses', 'enabled', 'whenCreated', 'lastLogonTimestamp',
-            'department', 'title', 'manager', 'memberOf', 'distinguishedName', 
-            'objectGuid', 'msDS-UserPasswordExpiryTimeComputed'
-        )
+        $props = $ADprops
 
         $common = @{
             Properties  = $props
@@ -220,8 +216,8 @@ function Search-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCQqXR8ZMFYtQFo
-# mK7iGra9tQ/gcGL4AZS2JIW+U7gm8qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCjcPY3l+esRDFY
+# TpPHybNQPEC8PHr4SySpjJCAwH8fd6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -354,34 +350,34 @@ function Search-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAH+cWzNzzx
-# zOdF2BxlnMEqIEN3CZfCWVAqNendZTWE2zANBgkqhkiG9w0BAQEFAASCAgB8q8ZV
-# gx1l4nr3nCCLSU3U0QdM8izWafANfOTSWWXVie4O25q3FfNDZW4oorxVeD/vvvm4
-# BhI7E4tCIj2SsbrE877MLIWct4QvJik2MBv6qKzPvmiTNDlsTBFasYrz/Q4zBMcF
-# 0LrrSdzww9+SyF8zo4lMMjMc7LxeyROYLBqPSs/kmcRxfQifHI8yni1inUmlQOT1
-# Jc9PGvKOTTfuYHIE7eu/cQUx4T3SMtQ1ZjQj0rT7Dx4mCkL1Pxxl+H6DJjjrqAVo
-# SLIUuh1gyAGomFkd8mAkkM8n/Ak60bB0xbV8QquWjGk+t3NwIgkxHuk7tDOPNG6R
-# ZziZ1G5WT2UoIsbya/mRPBDwN8t3RjL6UykNoj7682N7gWchrUTQXekINwGzOX4A
-# C5wyIy6eNDJs1e5udXNh65C1ASR5BeqvC+6QX7YuIE2rBytDXwbIWvmorp9gda1P
-# VehjhysBjlaAt2cjRpw+ojpq4MAKxXPJO7/gNUwYu6XccRQPTvoJfnm6ku+0YCko
-# nkIOCHAEHEFthdcy8CDT8Ox5NyarBC10mEn44iTVVSOSfhlZH4ib0C9LoTvgstA1
-# shkpdIO7zXBIv1DS0BNtQWFWBfd6b9tVXLGoc0haFiZ4REFai6jUOhe/WyqNcfcY
-# VEfXz7+vXYo5/6Rnxg4hkmzHlgjGLQGBsD6wHKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAW5QQT89fd
+# AyT/3MQ/DCSp8JcJaeJvZTGoTI1c9pygrzANBgkqhkiG9w0BAQEFAASCAgBR5r3x
+# MMAZWgX6Z0iysisBVHwSLFkhEmwgVZ7RTAFCbw6wA1NpXCHiIRh7rBIP0bQLyOEl
+# AT855MKTRrmcy1WwmVTvZ9jYrnVwdRnROkVLdMA4NSGj0ppnG56+KdHKBToVdL6k
+# QMa7kCeIU17Fvkcg5Agd2ZmxWynTyTrvkBk+zpKrfCYnK6FAlPS2ZgdPtGUFJABz
+# mubu0SkWc65xxJykWhGh6ToHWGSc2iakCoNOJdXr5rejzqqCVeurYSLrfN8p17/P
+# vJOWHwPXq71x6K6sTgb5s4lYPohkKrWkVtPMONnXnEV2OOW0whwFNmEjh3TZoVfq
+# p2jV7sQQAhSAOsLCiGA9S/Q+aUAbnqY+By1kdRrMhMHOHj3MhWcJZuljIE8UQ7k4
+# mr0swfMD5V/XfCbR/I4BGy4dWE3QeMjl694pQnRsOamahgiZdUPJb0NsMannjJIS
+# TRrb6kLHQs16qU+4nOE8J7XOVw30gu//BmKqJ7T5fo4eTnvt/ZMYPtk9WbB5d52A
+# jqPOuAS4APU7YBEkJ0Kg1yz5o878jYDs6RBrfCiVQ6L8PDnBQ9ZMNw6hKRd/JzXj
+# dvry0hySndCCXcCNOZT56Vb7SziX9QvJilWq52AU93Ii1HEhtlDWHU/AfJtJqIyw
+# 9XO9+01zvgV+VjOFmIY1528ZkLX7q9Fmd8dxWaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMThaMC8GCSqGSIb3DQEJBDEiBCAtGtuheHY/dGAmLA9F
-# 9OQNU8sTeJ9eOKaptEsL/SjMojANBgkqhkiG9w0BAQEFAASCAgBk+yY8fcBx9RRY
-# 5rmNGBwRiULY0K9wp9IcT4acFlpcc+AYHI7VkM+2mO7+nikJ76rk09pBeIxrZpy8
-# G7DFK0DkYzTb1FwtA3Yg6HOtgB1Z9E5pGXkpNAb1qjSriMoBSE0GUI3YMHldHxmn
-# EfX5Ovn+NEbS4o2AeaqBjzO4Hty3y73WoDoJP5m5wWlTSjALGenCititqTWfiGnM
-# jf9PC2DxnkUwKIvScS9YOiU30hmjts5LwlUyA/udElUntAbKj3buKhBxRDJmsSED
-# 8ZfTDYcWzcRpSeLjOvZGJKdbNi4NEXBZKrRl+DclK8okvO9UQR0S+yVHqqaNZsNn
-# z62Kf6khpS/yvPC9s3h+5gvMn7p0p0YlmavWItQZUlA5i9x7OLoIqtFdEweCMF7H
-# cJGvXuHFcQg0Ogax17WuM50ceWtzWRRzUgdcVVPGt3cVLPcK83bjuuykjF11q33f
-# f3ypI/p2HVkRHALSV5G9sXMtFq2Gv6i/3cZqpv0WHU9pi1+mJK9AUuR2KQEd40m9
-# OdNJKIa2ugUfCSYHkrTTCmDDuHuZsmOd5h+mOLxHqcsf0bvq5Jd8F3H4ZV8S/t2l
-# Ec8mAfuEV4ejHFtkUTh+M1+a7Mn2nF6FG3eajWez7nmnhSKag1Jo9SxccmGctR5E
-# VwPjgUtjDRoBwAzvlOqGtyBKPbpJIw==
+# BTEPFw0yNjAyMTIxODExNDdaMC8GCSqGSIb3DQEJBDEiBCCZdXKxfyQyy51VSv3q
+# soC4mitPDonhD/Kq3cUHOHoh7jANBgkqhkiG9w0BAQEFAASCAgBpJveDD3C31t3w
+# Yr+4v/xoUGoAd1/MnwVyVQnJi03+at2QOzUTSZbeKn0c5kDgEFc/mTRWw+qAHwCk
+# 9ghUs6lUfU6L8qysD0RFj+do0+BX/tn7/GqM4t/Kdkr77TYlnHX+SEFod1iyQzNA
+# NUszUuv5iTNzg5KXvPCWj5NHcdjghf0Doe2/+HP2QPdaSjgqbwFsBwUBSWIure4p
+# JaQXiM58KTpBAVOdxhpe58f6iau7jeuu2SY5oUbMe9e440HXg82a/zAPSz1WYIaz
+# QZxfvNJjwNAb5bdOUlyJeOShilAr/5LTmZub7aOvOu8qtXgjY4sWT3YgquJY+X77
+# FTpajK4LuSkXFxJ14caI2lgmMcNgoTlge+JU4Lc8M4YZKPRV4tx411ZSqb1Tprup
+# yOnUy+Z7cJLNsYgssq/OfGMEs+esiOJFJfKraekMa9NLwrs1xVW+ur1xERAyVPMN
+# QdsBSuMuBa+J6WQb6tcPscH8q1+mhw5kUyHSQTQUkiygWcIxhvh92PO3umXetkA4
+# JxgopdQXEY1RBl7+qkySTxMzJ1mKNgBA1DSVUGlSW1WTLNUn567V9VnsdBzsFpxu
+# piGNFv6X6yo6x3b18rkzaKVh/sIf1GswXDSa3rptF4pcT28kqN9NUYXBaUbSeRYx
+# CCsmCdXEarWnbhnYEDHI5mRRafWcSQ==
 # SIG # End signature block

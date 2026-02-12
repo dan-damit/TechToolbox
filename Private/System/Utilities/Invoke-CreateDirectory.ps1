@@ -1,143 +1,100 @@
-
-function Get-BatteryHealth {
-    <#
-    .SYNOPSIS
-        Generates a Windows battery report and parses its HTML into structured
-        JSON with health metrics.
-    .DESCRIPTION
-        Runs 'powercfg /batteryreport' to produce the HTML report, parses the
-        "Installed batteries" table, computes health (FullCharge/Design ratios),
-        logs progress, and exports a JSON file. Paths can be provided by
-        parameters or taken from TechToolbox config (BatteryReport section).
-    .PARAMETER ReportPath
-        Output path for the HTML report (e.g., C:\Temp\battery-report.html). If
-        omitted, uses config.
-    .PARAMETER OutputJson
-        Path to write parsed JSON (e.g., C:\Temp\installed-batteries.json). If
-        omitted, uses config.
-    .PARAMETER DebugInfo
-        Optional path to write parser debug info (e.g., detected headings) when
-        table detection fails. If omitted, uses config.
-    .INPUTS
-        None. You cannot pipe objects to Get-BatteryHealth.
-    .OUTPUTS
-        [pscustomobject[]] Battery objects with capacity and health metrics.
-    .EXAMPLE
-        Get-BatteryHealth
-    .EXAMPLE
-        Get-BatteryHealth -ReportPath 'C:\Temp\battery-report.html' -OutputJson 'C:\Temp\batteries.json' -WhatIf
-        # Preview file creation/JSON export without writing.
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-    #>
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
-    [OutputType([object[]])]
+function Invoke-CreateDirectory {
+    [CmdletBinding()]
     param(
-        [Parameter()][string]$ReportPath,
-        [Parameter()][string]$OutputJson,
-        [Parameter()][string]$DebugInfo
+        # Accept array & pipeline input
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromRemainingArguments)]
+        [string[]]$Path,
+
+        # If set, treat every input as a directory (skip file-parent logic)
+        [switch]$AsDirectoryOnly
     )
 
-    # --- Resolve defaults from normalized config when parameters not supplied
-    Initialize-TechToolboxRuntime
-    $br = $script:cfg.settings.batteryReport
-
-    # Generate timestamped paths for report and JSON output
-    $initReportPath = Join-Path -Path $br.reportPath -ChildPath $br.reportFileNamePattern
-    $outJSON = Join-Path -Path $br.outputJson -ChildPath $br.jsonFileNamePattern
-    $timestampedPath = Add-TimestampToFilePath -Path $initReportPath
-    $timestampedJson = Add-TimestampToFilePath -Path $outJSON
-
-    # ReportPath
-    if (-not $PSBoundParameters.ContainsKey('ReportPath') -or 
-        [string]::IsNullOrWhiteSpace($ReportPath)) {
-        if ($null -ne $br.reportPath -and 
-            -not [string]::IsNullOrWhiteSpace($br.reportPath)) {
-
-            $ReportPath = [string]$br.reportPath
-        }
+    begin {
+        $results = New-Object System.Collections.Generic.List[object]
     }
-    Invoke-CreateDirectory "$ReportPath"
 
-    # OutputJson
-    if (-not $PSBoundParameters.ContainsKey('OutputJson') -or 
-        [string]::IsNullOrWhiteSpace($OutputJson)) {
-        if ($null -ne $br.outputJson -and 
-            -not [string]::IsNullOrWhiteSpace($br.outputJson)) {
+    process {
+        foreach ($p in $Path) {
+            if ([string]::IsNullOrWhiteSpace($p)) { continue }
 
-            $OutputJson = [string]$br.outputJson
-        }
-    }
-    Invoke-CreateDirectory "$OutputJson"
+            # Decide directory target
+            $targetDir = $null
 
-    # DebugInfo
-    if (-not $PSBoundParameters.ContainsKey('DebugInfo') -or 
-        [string]::IsNullOrWhiteSpace($DebugInfo)) {
-        if ($null -ne $br.debugInfo -and 
-            -not [string]::IsNullOrWhiteSpace($br.debugInfo)) {
-
-            $DebugInfo = [string]$br.debugInfo
-        }
-    }
-    Invoke-CreateDirectory "$DebugInfo"
-
-    Write-Log -Level Info -Message "Generating battery report..."
-    $reportReady = Invoke-BatteryReport -ReportPath "$timestampedPath" -WhatIf:$WhatIfPreference -Confirm:$false
-    if (-not $reportReady) {
-        Write-Log -Level Error -Message ("Battery report was not generated or is empty at: {0}" -f $timestampedPath)
-        return
-    }
-    Write-Log -Level Ok -Message "Battery report generated."
-
-    # Read and parse HTML with check for no batteries
-    $html = Get-Content -LiteralPath $timestampedPath -Raw
-    if ($html -notmatch 'Installed batteries') {
-        Write-Log -Level Warning -Message "No battery detected on this system."
-        return [pscustomobject]@{
-            hasBattery = $false
-            reason     = "System does not contain a battery subsystem."
-            timestamp  = (Get-Date)
-        }
-    }
-    $batteries, $debug = Get-BatteryReportHtml -Html $html
-
-    if (-not $batteries -or $batteries.Count -eq 0) {
-        Write-Log -Level Error -Message "No battery data parsed."
-        if ($DebugInfo -and $debug) {
-            Write-Log -Level Warn -Message ("Writing parser debug info to: {0}" -f $DebugInfo)
-            if ($PSCmdlet.ShouldProcess($DebugInfo, 'Write debug info')) {
-                Set-Content -LiteralPath $DebugInfo -Value $debug -Encoding UTF8
+            if ($AsDirectoryOnly) {
+                $targetDir = $p
             }
-        }
-        return
-    }
-
-    Write-Log -Level Ok -Message ("Parsed {0} battery object(s)." -f $batteries.Count)
-
-    # Export JSON
-    if ($OutputJson) {
-        $dir = Split-Path -Parent $OutputJson
-        if ($dir -and $PSCmdlet.ShouldProcess($dir, 'Ensure output directory')) {
-            if (-not (Test-Path -LiteralPath $dir)) {
-                New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            elseif (Test-Path -LiteralPath $p -PathType Container) {
+                # Existing directory
+                $targetDir = $p
             }
-        }
+            elseif ($p -match '[\\\/]$') {
+                # Trailing slash implies directory intent
+                $targetDir = $p
+            }
+            else {
+                # Treat as file path → get parent directory (robustly)
+                $parent = $null
 
-        $json = $batteries | ConvertTo-Json -Depth 6
-        if ($PSCmdlet.ShouldProcess($timestampedJson, 'Write JSON')) {
-            Set-Content -LiteralPath $timestampedJson -Value $json -Encoding UTF8
+                # Use Split-Path default behavior (parent) with -LiteralPath, no -Parent
+                try {
+                    $parent = Split-Path -LiteralPath $p -ErrorAction Stop
+                }
+                catch {
+                    # Fallback to .NET if Split-Path fails
+                    try { $parent = [System.IO.Path]::GetDirectoryName($p) } catch { $parent = $null }
+                }
+
+                # If no parent resolved (rare), fall back to the original path
+                $targetDir = if ([string]::IsNullOrWhiteSpace($parent)) { $p } else { $parent }
+            }
+
+            if ([string]::IsNullOrWhiteSpace($targetDir)) {
+                Write-Verbose "Skipped empty/undeterminable target for input path: '$p'"
+                continue
+            }
+
+            $created = $false
+            $errorMsg = $null
+
+            try {
+                if (-not (Test-Path -LiteralPath $targetDir -PathType Container)) {
+                    Write-Verbose "Creating directory: $targetDir"
+                    New-Item -Path $targetDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
+                    $created = $true
+                }
+                else {
+                    Write-Verbose "Directory already exists: $targetDir"
+                }
+            }
+            catch {
+                $errorMsg = $_.Exception.Message
+                Write-Error "Failed to create directory '$targetDir' (from '$p'): $errorMsg"
+            }
+
+            # Exists should reflect the ensured directory as a Container
+            $existsNow = $false
+            try { $existsNow = Test-Path -LiteralPath $targetDir -PathType Container } catch { }
+
+            $results.Add([pscustomobject]@{
+                    InputPath  = $p
+                    EnsuredDir = $targetDir
+                    Created    = $created
+                    Exists     = $existsNow
+                    Error      = $errorMsg
+                })
         }
-        Write-Log -Level Ok -Message ("Exported JSON with health metrics to {0}" -f $timestampedJson)
     }
 
-    return $batteries
+    end {
+        $results | Out-Null
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCARhggpkcvZLwzE
-# w7iWaQDIqoBdjabA6LZIn/o2YkaQR6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD3OltFKPIjBBOf
+# a6Y7voGDQGj1uc5mJucCeq/ei1wttqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -270,34 +227,34 @@ function Get-BatteryHealth {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0VSUbiJUn
-# yofUwou01GmWV+uLGsV4rv3eFaZfObYIwDANBgkqhkiG9w0BAQEFAASCAgBFmzLi
-# IDeptImNLSrApn1m3wRH9tEVPRyoWFa5Fh3mU3av2HuGmBJrx6/ezQYRUSLkofbP
-# yW4RkMrPRQDPoYmCQBPq14y6hNgxuaUr5ahdYZIdob+MdGUtlhW60jrWy+6mXc89
-# dBnhgTKpKFt0q+dFJS/glYEucFR2TFc+8xrpAz2mUSGfcuSL1vwiFUT+yVg3oavj
-# 4NyzxxeEP1b7mgRG2HUZEGujAUuj3umz6AuJh85uA0hvvqO5mKsatrL+cc/xO85U
-# 7497IAfB36V+ODJSK9O47vFPufZi3o6O4E3jqXdY69UxDtLhhJhgQLOqA5+Wi1Nq
-# 6/R5O1VclIqh++JmsQ5OVjzKGQ+mgBOB4L52XtyFREt0d7mDYJSu5cxb096QtYcA
-# BT6DL52aCeCed9iEumAFy0/HuJIs0PSastAlWICepJ7xRd9peatGpCW3JrbxDMZn
-# T1r6BuW8BlCPwPXQFe0V4XwElIq1EsgNqlZK5r02dAqdJGNqZGejF+fN32vaDkyA
-# KUh7RBizF8Dt/Y3SZ6ZkP7YsKn2ypYXpMBrTLx0XpJ2lPVBZ8wBOSqjpcjTbqRpo
-# TmNtSeX32imJkMZr0gRNfwAgNdO8pe0VKS/i0+WovJy/le+LJnQuncvBmv4WvwnH
-# defS70eIQR1j8X1/RxbcBXz1vXPW24Q93uVS+qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBiDjNsnCDW
+# UVYIQK1vdUTX6vmmZh6ab8adgTOF7f0l+zANBgkqhkiG9w0BAQEFAASCAgBTGVMV
+# 3d/3CbVuxOui7CkPqCClumNZIx+IMgrjNXfrlsNJ2EO3IUGmTdgfwGoCgxeC3nBv
+# wcn0UrXpdK0qMMEZDIxFM/5w5XWRAguS0yOVTCxxBnkJXfqsRfrMgrZfNAhaDhNw
+# PRyQKmicDoAbojG0zKeABf72cGxtnohrH3hvcpyyFQGgjDZmAaBRCxaByUcwFm7d
+# l93urIpEM8orSacPtTPXJxN+1LDeSXo35MYZK8bYmPIw9FoMcHP4Rvgp/jD5JlTS
+# Ez/qwDtK0Fq6ei5W9DZCwFrDRzmdiBCKsU3xlgD8PG/nxlkMKmU+OKfZ3givkfya
+# HcfqTHwAjdGGhau7F/TPsp5Z+b6lxrSP4uR4tmbLJaIU0VTcMCEESkKss8z9wH7m
+# lk+J865XSl7otoctSd24qe4STzNrXsiBqM6GIiTFq43w9fIsY1f5C72bKhT/zYbF
+# RUg3vj2mLExtOfeS7A7aTE2ZvmsqCK8zPEu+kpafT87QygxvkGgrynqGtVapcyl2
+# ZNCqeFxD6/4DEoIrUIqrvE/SCHLtl3DIyTQtx/5YwzkY5MqVzTxsJPXdAPLkbO0u
+# iPBZqENs+0dKxDsgw5BalBl+JKKAyAS5vXX/P7TC8E815W240Dc/JUmL0WU20lIg
+# 1VH3NL+kCRqAy3ZxTVLFoDkRugJdEZz04vcpQaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIxODExNDdaMC8GCSqGSIb3DQEJBDEiBCB/XpYrWUALd5SGQShQ
-# VmTQbV7yf3P0vueVKWNgE6w8PDANBgkqhkiG9w0BAQEFAASCAgDP7Da7Z27covox
-# Xpbnz7BTef8POiKEKBTt28yNOeucM9yxpB97LlULDy3NjIEtivvthoEn05Uue0NI
-# vH8l5Xk3H2RHw4MGAGJWc6DY6CcpHOKyyLuQtD6oox8L0N9XwOeKHgEzQVBKe2yI
-# JU61XeF7Z+QverJsJzJ6FBMdetlyrpu3dCXoARB2LuPorrAfNHgLfheA+FD5gymN
-# h4p9LzbtV5L2vpp+MBWkTfVWXxFzYpaSSFipBdTD9F6VYswscZSTtnqFsclmN6XH
-# z7lIcEvzt440ofJ/MQv/y2pgROYK3YMN7KQsPEtIVDkh/tW0t3hBV3zX+rxQejSi
-# 3EGhj5u+lb+U83RSF9pHBIDCxrvvuf8A5/951W8z9dYjXnKR1bctWVuxLODBjtrC
-# iEFtGz/NMSUe+ZlV8HntyHRsWZzLE7o01xALfU6PwUJIqJGn/UlPyBANSe6GdRTV
-# g2wWaH2qO5R4/jySQ4vfVFeoDDw87tAYj2ZRrHT+nYk7+dRzafleszqC8cfe+HaQ
-# m936+g8RU0rTx7rpjV8FZpvSwbBf6W6fayY2E0vWi1SVpgICWbdo43yp+NPR4Lf9
-# 5ofKMvZy3aGDV5q0B7qqU+63k0stwrr1SJrdtthOAxArzxu3NbBozPVQyvF2/iqq
-# rCCScwQ4nOl7/atMJgh3uQ8jIVs11g==
+# BTEPFw0yNjAyMTIxODExNDdaMC8GCSqGSIb3DQEJBDEiBCAFp2QIxPR3DILPXhdu
+# KAmNqp8UilOO2OekKj3k9bl2/jANBgkqhkiG9w0BAQEFAASCAgDAXQ2L+LOA6Dek
+# InmRfYbLCRK1kNyq61wsBM+cMovRQPMkasWag8sfwUxG4yFGcTDvBVgsQPmNYalT
+# +aFATj6448R6mriN91eyN8ftrWDO1vRnSKPV36wMhXHLtvheTx5NA2BXqkIUEQg1
+# ahxWaKrOUWbzyqLA6LxMczCfh0o3DH7I1wb1kbNG+KgAta0elsf5zfjMHRC8V16z
+# KPiFLJW8wfNnOPFODnBhNsakfUWxolBPLWK55tthzt3eaiL61BI4TSqENhjazBqO
+# bQ9PAb0zGDRh7iaKBmcEuUTyVpMWLCu88SWnhTwymHQVB+xzoiE7y02VuzasGKYL
+# 2G7qVk/IWWOh4YMqXj94ymcb2PDDYe1JwLATftbyURlHbZW1eFcOFzvCfj2g/DBc
+# PiUh6JbkAJGWygxvlvZYOcXNq31bz6U7H4gyJhnx+klCoCpupIs+X59//Gw/vkOu
+# 5HhPrpoFA4aHHAnq8eVc/B1ekbLVlE7Z3/g1XI2bCywQh46Vr4I8DcRrmYoHh59Z
+# h9zGbWbQgUmHSBDdOVI7xBajtSK4hYHub+vKFq1y9eUDQPP9914IcSspH/gE1rrp
+# 9japwM0YvxmuGl63zGk0ZvrMnAEXKZPwqPowaeLR+aH7WK1OcdvGOjFErBbGPDtU
+# 5uFGCuje6k9QCljQKV5UbD7BghKiAA==
 # SIG # End signature block

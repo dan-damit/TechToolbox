@@ -1,143 +1,27 @@
-
-function Get-BatteryHealth {
-    <#
-    .SYNOPSIS
-        Generates a Windows battery report and parses its HTML into structured
-        JSON with health metrics.
-    .DESCRIPTION
-        Runs 'powercfg /batteryreport' to produce the HTML report, parses the
-        "Installed batteries" table, computes health (FullCharge/Design ratios),
-        logs progress, and exports a JSON file. Paths can be provided by
-        parameters or taken from TechToolbox config (BatteryReport section).
-    .PARAMETER ReportPath
-        Output path for the HTML report (e.g., C:\Temp\battery-report.html). If
-        omitted, uses config.
-    .PARAMETER OutputJson
-        Path to write parsed JSON (e.g., C:\Temp\installed-batteries.json). If
-        omitted, uses config.
-    .PARAMETER DebugInfo
-        Optional path to write parser debug info (e.g., detected headings) when
-        table detection fails. If omitted, uses config.
-    .INPUTS
-        None. You cannot pipe objects to Get-BatteryHealth.
-    .OUTPUTS
-        [pscustomobject[]] Battery objects with capacity and health metrics.
-    .EXAMPLE
-        Get-BatteryHealth
-    .EXAMPLE
-        Get-BatteryHealth -ReportPath 'C:\Temp\battery-report.html' -OutputJson 'C:\Temp\batteries.json' -WhatIf
-        # Preview file creation/JSON export without writing.
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-    #>
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
-    [OutputType([object[]])]
+function Add-TimestampToFilePath {
     param(
-        [Parameter()][string]$ReportPath,
-        [Parameter()][string]$OutputJson,
-        [Parameter()][string]$DebugInfo
+        [Parameter(Mandatory)]
+        [string]$Path,
+
+        [string]$Format = "yyyy-MM-dd_HH-mm-ss"
     )
 
-    # --- Resolve defaults from normalized config when parameters not supplied
-    Initialize-TechToolboxRuntime
-    $br = $script:cfg.settings.batteryReport
+    $timestamp = Get-Date -Format $Format
 
-    # Generate timestamped paths for report and JSON output
-    $initReportPath = Join-Path -Path $br.reportPath -ChildPath $br.reportFileNamePattern
-    $outJSON = Join-Path -Path $br.outputJson -ChildPath $br.jsonFileNamePattern
-    $timestampedPath = Add-TimestampToFilePath -Path $initReportPath
-    $timestampedJson = Add-TimestampToFilePath -Path $outJSON
+    $dir = Split-Path $Path -Parent
+    $file = Split-Path $Path -Leaf
 
-    # ReportPath
-    if (-not $PSBoundParameters.ContainsKey('ReportPath') -or 
-        [string]::IsNullOrWhiteSpace($ReportPath)) {
-        if ($null -ne $br.reportPath -and 
-            -not [string]::IsNullOrWhiteSpace($br.reportPath)) {
+    $name = [System.IO.Path]::GetFileNameWithoutExtension($file)
+    $ext = [System.IO.Path]::GetExtension($file)
 
-            $ReportPath = [string]$br.reportPath
-        }
-    }
-    Invoke-CreateDirectory "$ReportPath"
-
-    # OutputJson
-    if (-not $PSBoundParameters.ContainsKey('OutputJson') -or 
-        [string]::IsNullOrWhiteSpace($OutputJson)) {
-        if ($null -ne $br.outputJson -and 
-            -not [string]::IsNullOrWhiteSpace($br.outputJson)) {
-
-            $OutputJson = [string]$br.outputJson
-        }
-    }
-    Invoke-CreateDirectory "$OutputJson"
-
-    # DebugInfo
-    if (-not $PSBoundParameters.ContainsKey('DebugInfo') -or 
-        [string]::IsNullOrWhiteSpace($DebugInfo)) {
-        if ($null -ne $br.debugInfo -and 
-            -not [string]::IsNullOrWhiteSpace($br.debugInfo)) {
-
-            $DebugInfo = [string]$br.debugInfo
-        }
-    }
-    Invoke-CreateDirectory "$DebugInfo"
-
-    Write-Log -Level Info -Message "Generating battery report..."
-    $reportReady = Invoke-BatteryReport -ReportPath "$timestampedPath" -WhatIf:$WhatIfPreference -Confirm:$false
-    if (-not $reportReady) {
-        Write-Log -Level Error -Message ("Battery report was not generated or is empty at: {0}" -f $timestampedPath)
-        return
-    }
-    Write-Log -Level Ok -Message "Battery report generated."
-
-    # Read and parse HTML with check for no batteries
-    $html = Get-Content -LiteralPath $timestampedPath -Raw
-    if ($html -notmatch 'Installed batteries') {
-        Write-Log -Level Warning -Message "No battery detected on this system."
-        return [pscustomobject]@{
-            hasBattery = $false
-            reason     = "System does not contain a battery subsystem."
-            timestamp  = (Get-Date)
-        }
-    }
-    $batteries, $debug = Get-BatteryReportHtml -Html $html
-
-    if (-not $batteries -or $batteries.Count -eq 0) {
-        Write-Log -Level Error -Message "No battery data parsed."
-        if ($DebugInfo -and $debug) {
-            Write-Log -Level Warn -Message ("Writing parser debug info to: {0}" -f $DebugInfo)
-            if ($PSCmdlet.ShouldProcess($DebugInfo, 'Write debug info')) {
-                Set-Content -LiteralPath $DebugInfo -Value $debug -Encoding UTF8
-            }
-        }
-        return
-    }
-
-    Write-Log -Level Ok -Message ("Parsed {0} battery object(s)." -f $batteries.Count)
-
-    # Export JSON
-    if ($OutputJson) {
-        $dir = Split-Path -Parent $OutputJson
-        if ($dir -and $PSCmdlet.ShouldProcess($dir, 'Ensure output directory')) {
-            if (-not (Test-Path -LiteralPath $dir)) {
-                New-Item -ItemType Directory -Path $dir -Force | Out-Null
-            }
-        }
-
-        $json = $batteries | ConvertTo-Json -Depth 6
-        if ($PSCmdlet.ShouldProcess($timestampedJson, 'Write JSON')) {
-            Set-Content -LiteralPath $timestampedJson -Value $json -Encoding UTF8
-        }
-        Write-Log -Level Ok -Message ("Exported JSON with health metrics to {0}" -f $timestampedJson)
-    }
-
-    return $batteries
+    return (Join-Path $dir "$name`_$timestamp$ext")
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCARhggpkcvZLwzE
-# w7iWaQDIqoBdjabA6LZIn/o2YkaQR6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAPmLxYtKWZydbu
+# UuBHMIeqvlqz41U3+sZdObblAMsgQ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -270,34 +154,34 @@ function Get-BatteryHealth {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0VSUbiJUn
-# yofUwou01GmWV+uLGsV4rv3eFaZfObYIwDANBgkqhkiG9w0BAQEFAASCAgBFmzLi
-# IDeptImNLSrApn1m3wRH9tEVPRyoWFa5Fh3mU3av2HuGmBJrx6/ezQYRUSLkofbP
-# yW4RkMrPRQDPoYmCQBPq14y6hNgxuaUr5ahdYZIdob+MdGUtlhW60jrWy+6mXc89
-# dBnhgTKpKFt0q+dFJS/glYEucFR2TFc+8xrpAz2mUSGfcuSL1vwiFUT+yVg3oavj
-# 4NyzxxeEP1b7mgRG2HUZEGujAUuj3umz6AuJh85uA0hvvqO5mKsatrL+cc/xO85U
-# 7497IAfB36V+ODJSK9O47vFPufZi3o6O4E3jqXdY69UxDtLhhJhgQLOqA5+Wi1Nq
-# 6/R5O1VclIqh++JmsQ5OVjzKGQ+mgBOB4L52XtyFREt0d7mDYJSu5cxb096QtYcA
-# BT6DL52aCeCed9iEumAFy0/HuJIs0PSastAlWICepJ7xRd9peatGpCW3JrbxDMZn
-# T1r6BuW8BlCPwPXQFe0V4XwElIq1EsgNqlZK5r02dAqdJGNqZGejF+fN32vaDkyA
-# KUh7RBizF8Dt/Y3SZ6ZkP7YsKn2ypYXpMBrTLx0XpJ2lPVBZ8wBOSqjpcjTbqRpo
-# TmNtSeX32imJkMZr0gRNfwAgNdO8pe0VKS/i0+WovJy/le+LJnQuncvBmv4WvwnH
-# defS70eIQR1j8X1/RxbcBXz1vXPW24Q93uVS+qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCArlyIa2Aub
+# itAQkJNH5sjz/ROIXKBMXQbBI6Hr03jgIzANBgkqhkiG9w0BAQEFAASCAgAy+yo+
+# zwBClQJ7fYJvvkLIV1NfPr5gTGMTQ669vsoEZQZfTX9vRQ4ipS6m0ZBiepYJqE+c
+# Npkj0KDxBpzKed/dl8YGiVK2bBpEJnxpywjFXQyZvnKQm1+FqGvbksI3SLHbP9dh
+# /za3G1Vdd4PU1EEy3janD8RGYxX/hKL62nL3sQTNSzb3n+oxbJW2t/Yu2WyFpjDl
+# ZqJ9C1X6pqBJ569bWWZHJYT9QONLZa1nYa+uPPCVweyprKB5nao2/KswPanfNG8h
+# 3Ji7lg81HikuHPQyR+pzD+M7GCYR7MYMJv/8i4xmxi4igml7UiUo0sTBpcAEny76
+# cBFDftlgSEniAcPL5oe58zlJ88NUToUY+L12jBulOjLf4QE1u+TtUwPE7E2OjE1c
+# vZLA5dnqvHjQKz0B+W4dw8N4E4c+wV4PLRWa++Fgy6TA5tk4pThcCsRcaxbQ4m8i
+# ZxdJKArspQCIeBRJg2r7RYQUuFrRUEP9Fk9TKg5pk1sKvL4E5gGqwNymMqyakvZI
+# NRiIqoqaqUmL1D24zkk5rQf9uUKZI3z+/5pEAfODXHd7FVuCHFRGhZdPB3ie3+mn
+# yBCnHbWpIeFz70Z3l3gojoNuS2nTJNJGecYttpISPlYnsKGMDaBr0FMSYS8YsM/v
+# 0uAgxNQvFWTPuQjlzTbprrUonyzw3SqE7f5DXaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIxODExNDdaMC8GCSqGSIb3DQEJBDEiBCB/XpYrWUALd5SGQShQ
-# VmTQbV7yf3P0vueVKWNgE6w8PDANBgkqhkiG9w0BAQEFAASCAgDP7Da7Z27covox
-# Xpbnz7BTef8POiKEKBTt28yNOeucM9yxpB97LlULDy3NjIEtivvthoEn05Uue0NI
-# vH8l5Xk3H2RHw4MGAGJWc6DY6CcpHOKyyLuQtD6oox8L0N9XwOeKHgEzQVBKe2yI
-# JU61XeF7Z+QverJsJzJ6FBMdetlyrpu3dCXoARB2LuPorrAfNHgLfheA+FD5gymN
-# h4p9LzbtV5L2vpp+MBWkTfVWXxFzYpaSSFipBdTD9F6VYswscZSTtnqFsclmN6XH
-# z7lIcEvzt440ofJ/MQv/y2pgROYK3YMN7KQsPEtIVDkh/tW0t3hBV3zX+rxQejSi
-# 3EGhj5u+lb+U83RSF9pHBIDCxrvvuf8A5/951W8z9dYjXnKR1bctWVuxLODBjtrC
-# iEFtGz/NMSUe+ZlV8HntyHRsWZzLE7o01xALfU6PwUJIqJGn/UlPyBANSe6GdRTV
-# g2wWaH2qO5R4/jySQ4vfVFeoDDw87tAYj2ZRrHT+nYk7+dRzafleszqC8cfe+HaQ
-# m936+g8RU0rTx7rpjV8FZpvSwbBf6W6fayY2E0vWi1SVpgICWbdo43yp+NPR4Lf9
-# 5ofKMvZy3aGDV5q0B7qqU+63k0stwrr1SJrdtthOAxArzxu3NbBozPVQyvF2/iqq
-# rCCScwQ4nOl7/atMJgh3uQ8jIVs11g==
+# BTEPFw0yNjAyMTIxODExNDZaMC8GCSqGSIb3DQEJBDEiBCDJ2GQuMTy1RVrTEr7i
+# pPofqpj5YrSpzVrRli9RgXHFrDANBgkqhkiG9w0BAQEFAASCAgA5OmF6+csgdh2i
+# dJraj9a7Pwq8vmAnr2ivWxGIIUu/oDRHWgDookSBkQaSJVWNkvnv0IKInZrmxS1L
+# YByq7WBrDFu5wzL16iZKSCligzPXlMUP0Fvk/x6umIklbrSwRUV4IEgdH3qB7ym7
+# 9VRcPmQtVLsNazS/ndxg792b7mV0lTxMn90rDrj9LDbRUwGNxfM0sDP6GuYhW9gm
+# pYmubChOsP1WY/ypuvyYUl74wSRXZMzTbzjfcnkbQR0MJn+FnGEZAY7c2Q724Mkj
+# IXqmBUHgnRNcFCbBTZY/VkWoENfoCRhRAHME7dUVBUF3MQZS4NZKKG+HBpBRjY0I
+# kb4SmO1KK3WaKz70j4WclvPVkEA7VFMsQW0iv6DDKdXAumvcWGXXz79XlijbRYCE
+# B3FBuwSHQ8T2UDVH7llkrOSR9dA/xoDBH4/6t4u7nobMwDBARzvaa3nPLhUYX8p+
+# kNYvH1uYTXDCaqHCApDMgyQ6hqwCTPv9y4LslY2dUoFOgi5cyFeCPa8u1RQLU7kP
+# Z8vuTfjzL7XIbrltX/0jU2QcOakzmc78bdnGqZ/bifUiQT/TXj9yCQsCBJZfK/u3
+# ZWuxeo2F80NbE+yDwerq106LLgvBa2jgLz0TMbADVuzH4b9c+e3Z4CPEXnQSTiNO
+# IoySmCg0c4yC1P9QQvg8tPFeL77Apw==
 # SIG # End signature block
