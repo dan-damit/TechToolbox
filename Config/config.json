@@ -205,13 +205,15 @@
       "exportPath": "C:\\TechToolbox_LogsAndExports\\Exports\\SystemSnapshot"
     },
     "offboarding": {
-      "logFileNameFormat": "Offboarding_{yyyyMMdd}.log",
-      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\Offboarding",
-      "includeEXO": true,
+      "log": {
+        "dir": "C:\\TechToolbox_LogsAndExports\\Logs\\Offboarding",
+        "fileNameFormat": "Offboarding_{yyyyMMdd}.log",
+        "retentionDays": 90
+      },
+      "includeEXO": false,
+      "includeTeams": false,
       "useHybridAutoDisable": true,
       "disabledOU": "",
-      "logFile": "Offboarding.log",
-      "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\Offboarding",
       "cleanupADGroups": false
     },
     "subnetScan": {
@@ -250,10 +252,22 @@
       "includeEXO": true,
       "includeTeams": true,
       "props": [
-        "displayName", "userPrincipalName", "samAccountName", "mail",
-            "proxyAddresses", "enabled", "whenCreated", "lastLogonTimestamp",
-            "department", "title", "manager", "memberOf", "distinguishedName", 
-            "objectSid", "msDS-UserPasswordExpiryTimeComputed", "pwdLastSet"
+        "displayName",
+        "userPrincipalName",
+        "samAccountName",
+        "mail",
+        "proxyAddresses",
+        "enabled",
+        "whenCreated",
+        "lastLogonTimestamp",
+        "department",
+        "title",
+        "manager",
+        "memberOf",
+        "distinguishedName",
+        "objectSid",
+        "msDS-UserPasswordExpiryTimeComputed",
+        "pwdLastSet"
       ]
     },
     "windowsUpdate": {

@@ -1,4 +1,57 @@
 function Invoke-SubnetScan {
+    <#
+    .SYNOPSIS
+    Performs a subnet scan to discover hosts and gather network information.
+
+    .DESCRIPTION
+    Scans a subnet (specified in CIDR notation) to identify active hosts,
+    retrieve MAC addresses, resolve DNS names, check TCP ports, and optionally
+    fetch HTTP banner information. Can execute locally or on a remote computer
+    via WSMan or SSH.
+
+    .PARAMETER CIDR
+    The subnet to scan in CIDR notation (e.g., '192.168.1.0/24').
+
+    .PARAMETER ComputerName
+    Remote computer on which to execute the scan. If not specified, the scan
+    runs locally.
+
+    .PARAMETER Transport
+    Protocol for remote execution: 'WSMan' or 'SSH'. Default is 'WSMan'.
+
+    .PARAMETER Credential
+    PSCredential for remote authentication.
+
+    .PARAMETER UserName
+    Username for SSH authentication.
+
+    .PARAMETER KeyFilePath
+    Path to SSH private key file.
+
+    .PARAMETER LocalOnly
+    Forces local execution even if ComputerName is specified.
+
+    .PARAMETER Port
+    TCP port to check for availability. Default is read from config.
+
+    .PARAMETER ResolveNames
+    Attempts to resolve hostnames via DNS, NetBIOS, and mDNS.
+
+    .PARAMETER HttpBanner
+    Retrieves HTTP Server headers from discovered hosts.
+
+    .PARAMETER ExportCsv
+    Exports results to a CSV file.
+
+    .PARAMETER ExportTarget
+    Location to export results: 'Local' or 'Remote'. Default is 'Local'.
+
+    .EXAMPLE
+    Invoke-SubnetScan -CIDR "192.168.1.0/24" -Port 80 -ResolveNames -ExportCsv
+
+    .EXAMPLE
+    Invoke-SubnetScan -CIDR "10.0.0.0/25" -ComputerName "RemoteHost" -Transport WSMan -Credential $cred
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -175,8 +228,8 @@ function Invoke-SubnetScan {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBHeet/yEsclef5
-# Kr+nPHNVxtEyx3jQvTS+3Hz6t5OLMaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBFI0Gm8z/3/3of
+# Y9VHgRTQ/bkWtTimwMZZNlSfVp2zp6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -309,34 +362,34 @@ function Invoke-SubnetScan {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqahYG12BE
-# 59KWdWIyVG+IsGELSFwEVv2pUDoiDVP6RjANBgkqhkiG9w0BAQEFAASCAgAazByQ
-# M8jvSzCaEkhK0LnSki4m8vUh21bHmr8A6+hzivBo79OgUSdU4rwQnPJ0Zt5EsqZk
-# wVy9uh/16cGGPcJZOCUq9KBVDILvrojKOY/ZVS9a2CEdpSgSFDgwCffRPieaQ34V
-# fnOs+cTRWd9ADIl3q6tnX7BY8E5uhKCnNDcjRqdm6KX7g8SZkdyyvx/xGDmAalK7
-# 9BnZBAGg04LnuzBf/7gHB19LsJITmV5XfxvX2k7H+yAPpZDQ5PtJ+KktlaqgVkXT
-# BpNLHrbKSNwGZ29mrG6v6ZLXYp3DuFuQQHpGH68PHwRHObOv19JT8B4mvot9sXGV
-# 1IcLHe/2Gd+SCpoQcX1CLv6aQyAfsbsI0eJ94ZJceb/v/2mryknmjdwhZhkIa/sC
-# 5DyJJe2qpJ3ZHNd9S7sgJW/WdEHPq9ekxyu5h/2u7JAdPGn/evvXMoW1679igw6o
-# 3UYNt3P6yr3b5yEcfp96k6gHFSU1ahJBSkioFq336Cw1L4AD4tZl3tB45AiS73bv
-# X3MgCJlpjDaveUdPN7C3VSiqzfeV6MDO+o+ZKDaw4KQc9iBfNeW6uraK3L0+4ZPM
-# /LrjcECACgqIUb0YIIiYatJ88GGw2cXcOpgJFD6gQsinpUkYweyozLQxy6dCewP9
-# Jjri1iq13vqjgpXv9qJ3nk6d7wgTWBFbi44sX6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC9p0fT2p/5
+# lKpFqzWvmNUaG+avaYmGu9u62q37yGH2kTANBgkqhkiG9w0BAQEFAASCAgCnYMCc
+# 0AsDgNN8HOxqeCivG2vS1oBGiE3cU/pfgsR9TrdL2dMA4axQCyy1T/mOR1dhvCgE
+# 3fgMtqA0HBib4+f/4p1RdEcrpVdjpOcAqOI/zlfoxLXLthJnYV6W8Tb+R44HLT9I
+# Y1VWhM5uapiu3rihn53zhoto/EuAk3asFQ93qLPbw2Dyx1B2hXzT+yd7t83+savU
+# 3E7p3R7G2z4WPiTHWfvVOBbFlOpvcPi5Mwh45+8JUQJGs1LLjoCDKnQwiLwXJwal
+# oyUmODRGxbE384dCFv2AgVCyvEcUKGcGVFldRdOMKzpgD/bqHiFFp98xq7o3NpTd
+# N7X7iLL8hOlx+AS/9b4hDl7mo2VnbIIi4G/3ua8ODWWibvcM9iH0TyEDXx3k3yFr
+# /2/JDlHBJbFAzZ28gHuKeZez5GqLV8nFZhcBvRzu3keueH+0AkRAIx2MUzNh1U2m
+# zHLTG18vRgQnLiHajCRtQQHag6wAu4FQBxR9v3DYIUs3DkAhehKDrENrLEpqMJu9
+# u9YrKITUkfbPDKBFUtAZ86I/M3QmCq7+0RyYyndh5u2aAqJG1WkMfrYu/xHF37u/
+# kumEVx5SjiFeddS2RjnTNATnhN7kaf/MMYEYDw1B+fPDewroo7gZPO7jP7PqHPE4
+# tsqAgowcaL16fCUwUGyJnMif0RPkPEVZmjx4MKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCBlyYxISOAiH8gnjuVt
-# Th/q/Lz+xYR8GI1qvYpwJW38zjANBgkqhkiG9w0BAQEFAASCAgASIzveKER5Fy8g
-# 71foP+bnMO8+0+2tdu+qlEi0iV09e4SfCRA2763dlLZc75BjtemIdyh7S5E6FlFD
-# m1H2dEkI/y+rgUVLrQEog2O1NTYmHxHk8+hRf0+FTZ2rQN/uzlHKE6irDi9kVexu
-# D4U0Iywj4ox7DZW7dkNwwl02yOiB45v/J6O0nJJ+IkOMy3v1JTLCZJ1Vf+WZvDA5
-# n96EuI/IJQ5AyPBmvhp9bNTEABmOTYMesmWpeiWS4FTDlvtk+LhKrHreyT+YYGIe
-# lS23NM6fsL8w3X5Dx/qtqQL454nzQdULD6UfCXFP4UuvlWk7ROHW2dVwVgcPbrCh
-# gA7MJja9dDl/QkcgNfdi1x4o9ULsRypiUmKOb8wGwKX+Q1nhq4/dSe1IAcy8+Eyj
-# 6YYMakOVK7mgQDeQUWGcO4D5mySycWzt8ctP9sIls3KMI6JN5XAdI1wN5X0F8t8f
-# UTMSweye0MlynNe+k6mIrbXDuHJ2Ji+sSFU1ayTeQJL+Ce8Qs44pfMv0HUOAuafJ
-# 9hGElGEtqtVQRkikAH+3h4SEGpt3mYIae9FsHL3aYUc6TPILsnTP2bnapiagtk1G
-# 5OxUP7R/andwyIoAynbsD+BA8lFhe2zhGEhJY1KzttkcgnEn3+ejFmKwamAVoYHl
-# bmlA/psV6DQKqUJdfXeQnBo9zlZwJw==
+# BTEPFw0yNjAyMTIyMjAxMzBaMC8GCSqGSIb3DQEJBDEiBCA9mC3y+gUzuPCGGs3S
+# 3EMIbmYAEZWVFbdeyFQwFrI7KzANBgkqhkiG9w0BAQEFAASCAgBORR5JchPia4yZ
+# HMJ9zCD17tQUMim2WeGMI+UvIUhcBHFWDLrvmRpJ/scBg5oWINXA4uNGUJfPCDsO
+# Iafx5iypx1LXnKoNBgfPpFzSpPC4mTkC8SIuDii2JwwrIgrqGwHwpSZTZVuTvFrO
+# oM2c/LCigldgseE6HCLkmedhX3AdhLb/InklxO8Ly6TTAL17w0nLkI95m5gCmSfq
+# jOv0GEOODgw8UHa3yffLPcluEkFyev3oTVgrpXxvghw/wiDZHvCj0E+tAAsy2pmP
+# 5ofEome1cn02LDhbsrXXAHo1U0lKsugkn2UbgEN5/liCSGX9UqAMpT8t95OUXeFm
+# T/WA0xaMhYUdWWmWGJAcea0oP1ssOGU5vyR/j+rvYW5o1AqX4LEXB2y20Pr9ytXw
+# 8BaksebZWSNaqNGLpcRSVRHL4ueuGWlI/GpUZnpXIw1tqqmCv1Jn+cB79oO2bKKB
+# +Yk8HHdysS6S0GUYyEFmsfqvYrHPamRQzaTNqausfT9kMM+yq8s33eHoOG/NvAiP
+# u2+8Pe27+D2dYvrhTm+hyhTIGTykaESOV7OGrt1g5oLiPydZQqWozqQgOCAGTwly
+# BYcysdv5G5XfjZUGksB+wzQA0MYWKWtW3hy0gX2ciANjCM+gcsYrGAgWoS9KGjIO
+# lwpWQzw0A7hn68Sn7EzL/Ln5+G6CUw==
 # SIG # End signature block

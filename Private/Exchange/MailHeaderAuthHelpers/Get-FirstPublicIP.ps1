@@ -1,125 +1,42 @@
-function Find-LargeFiles {
-    <#
-    .SYNOPSIS
-    Finds large files in specified directories.
-
-    .DESCRIPTION
-    Searches for files exceeding a specified size threshold in local or remote
-    locations.
-    #>
-    [CmdletBinding()]
-    param(
-        [string[]]$SearchDirectory,
-        [int]$MinSizeMB,
-        [int]$Depth,
-        [switch]$Export,
-        [string]$ExportDirectory,
-        [string]$CsvDelimiter = ',',
-        [string]$ComputerName,
-        [switch]$Local,
-        [pscredential]$Credential
+function Get-FirstPublicIP {
+    param([Parameter(Mandatory)][string[]]$ReceivedLines)
+    # Scan Received lines from bottom (earliest) to top to find first public IP.
+    # Ignore RFC1918, CGNAT, loopback, link-local.
+    $privateRanges = @(
+        '^10\.', '^127\.', '^169\.254\.', '^172\.(1[6-9]|2[0-9]|3[0-1])\.', '^192\.168\.',
+        '^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.' # 100.64.0.0/10 - CGNAT
     )
-
-    Initialize-TechToolboxRuntime
-    $cfg = $script:cfg.settings.largeFileSearch
-
-    # Resolve MinSizeMB
-    if (-not $MinSizeMB) {
-        $MinSizeMB = $cfg.defaultMinSizeMB ?? 256
+    $isPrivate = {
+        param($ip)
+        foreach ($pat in $privateRanges) { if ($ip -match $pat) { return $true } }
+        return $false
     }
 
-    # Resolve SearchDirectory
-    if (-not $SearchDirectory) {
-        $SearchDirectory = $cfg.defaultSearchDirectory
-        if (-not $SearchDirectory) {
-            $inputPath = Read-Host "Enter directories to search (use ';' to separate multiple)"
-            $SearchDirectory = $inputPath -split ';' | ForEach-Object { $_.Trim() }
+    # Extract IPv4s; you can extend to IPv6 if needed.
+    $ipv4Regex = [regex]'(?<!\d)(?:\d{1,3}\.){3}\d{1,3}(?!\d)'
+    # Manual reverse for compatibility
+    for ($i = $ReceivedLines.Count - 1; $i -ge 0; $i--) {
+        $line = $ReceivedLines[$i]
+        $matches = $ipv4Regex.Matches($line)
+        foreach ($m in $matches) {
+            $ip = $m.Value
+            # crude sanity: each octet <= 255
+            if ($ip -split '\.' | ForEach-Object { [int]$_ } | Where-Object { $_ -gt 255 } | Measure-Object | Select-Object -ExpandProperty Count) {
+                continue
+            }
+            if (-not (& $isPrivate $ip)) {
+                return $ip
+            }
         }
     }
-
-    # Normalize and validate
-    $SearchDirectory = $SearchDirectory |
-    ForEach-Object { [Environment]::ExpandEnvironmentVariables($_) } |
-    Where-Object { Test-Path $_ }
-
-    if (-not $SearchDirectory) {
-        Write-Log -Level Error -Message "No valid search directories."
-        return
-    }
-
-    # Determine local vs remote
-    $runRemote = (-not $Local -and $ComputerName)
-
-    if ($runRemote) {
-        # --- Remote Mode ---
-        Write-Log -Level Info -Message "Scanning large files on $ComputerName..."
-
-        $creds = $Credential
-        if ($script:cfg.settings.defaults.promptForCredentials -and -not $creds) {
-            $creds = Get-Credential -Message "Enter credentials for $ComputerName"
-        }
-
-        $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $creds
-
-        $moduleRoot = Get-ModuleRoot
-        $workerLocal = Join-Path $moduleRoot 'Workers\Find-LargeFiles.worker.ps1'
-        $workerRemote = 'C:\TechToolbox\Workers\Find-LargeFiles.worker.ps1'
-
-        $helperPath = Join-Path $moduleRoot 'Private\LargeFiles\Invoke-LargeFileSearch.ps1'
-        $pkg = New-HelpersPackage -HelperFiles @($helperPath)
-
-        $result = Invoke-RemoteWorker `
-            -Session $session `
-            -HelpersZip $pkg.ZipPath `
-            -HelpersZipHash $pkg.ZipHash `
-            -WorkerRemotePath $workerRemote `
-            -WorkerLocalPath $workerLocal `
-            -EntryPoint 'Find-LargeFilesCore' `
-            -EntryParameters @{
-            SearchDirectory = $SearchDirectory
-            MinSizeMB       = $MinSizeMB
-            Depth           = $Depth
-            UseDepth        = $PSBoundParameters.ContainsKey('Depth')
-        }
-
-        Remove-PSSession $session
-    }
-    else {
-        # --- Local Mode ---
-        Write-Log -Level Info -Message "Scanning large files locally..."
-        $result = Invoke-LargeFileSearch `
-            -SearchDirectory $SearchDirectory `
-            -MinSizeMB $MinSizeMB `
-            -Depth $Depth `
-            -UseDepth:($PSBoundParameters.ContainsKey('Depth'))
-    }
-
-    # Sort and output
-    $sorted = $result | Sort-Object SizeMB -Descending
-    $sorted
-
-    # Export if requested
-    if ($Export) {
-        if (-not $ExportDirectory) {
-            $ExportDirectory = $cfg.exportDirectory
-        }
-
-        New-Item -ItemType Directory -Path $ExportDirectory -Force | Out-Null
-
-        $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-        $fileName = "LargeFiles_${timestamp}.csv"
-        $exportPath = Join-Path $ExportDirectory $fileName
-
-        $sorted | Export-Csv -Path $exportPath -NoTypeInformation -Encoding UTF8 -Delimiter $CsvDelimiter
-        Write-Log -Level Ok -Message "Exported $($sorted.Count) items to $exportPath"
-    }
+    return $null
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCiq1TikwlTY4F0
-# zh8yaITIsWyEBSWIZQd1mgFmwavh0KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAKy9Z56/7O6TSl
+# HOQMnTXxCdWINyjsviiXrZDkdnMXZqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -252,34 +169,34 @@ function Find-LargeFiles {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDBCLkg+p7p
-# 4qVR/avBYICrTx8PQUJazMnWfI4AwSBIdjANBgkqhkiG9w0BAQEFAASCAgBWC/Vf
-# etuAwr5EF+GrgA+a9VeBq+dkKgPByLBMmQmkndM2YXagSfdhTX1s3bIfnKLXigX1
-# jNPJCVnVz3hGtKeCEl9HZJLBCoOFIrCL5DitVTx+6jmaqbSor3KE5QYAdrc/+C9l
-# 570/G1URb255LYvwTZ3/38T7ZG0dPT0wq6U2R78sElvJ+VfIdVCzyWY+802yt+AN
-# 5f4ikQ1s4nTIh7IlmTGMDVKMJN1z5VbuxROC3P/rKPOOkml65dyIYDsPf/qadAXp
-# trN0rT7G1s+jPWRYc2rOnLMP4eTbs/fZYKygeMMeOCa5lE9z1PypgbhRfnl5skdI
-# B/UUoLPuQvrImydaue8hvsEt48Qar3yNm3oQ3LkJwAEiZx5fr6mJHMnR7MTS/9lp
-# VYXIpSTg2jNEdpxp4w249tDQ1xYVRLgh4bGWdj4aARqGiVrx173bdLxF0toZOV/E
-# sH898HSNanyZmfLrfWoLzHQ9fxEzujOvqoujXJab4IZX8fa4NVC6Y6RQ8KSbfB3M
-# tjgREwTKuHbEfXvJazrSwl7/BZ6hyA3rv3NuFs1d5+/Gi6WnjTq9pcGNC2JWMjz8
-# atsv6bpyKL0AfCGTzSuZEr1qqXCb7ZgeOym97QxKWE9fddlJFYEMiK7L0CQNbjdN
-# V1Gny/+3Sbt/xNkVk6fEh0qEvmxXs1o5R3wCGaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDb7MvffwUK
+# QzqwMIQm8zQcFhRE6a/JM8ngmxQHdSt2XzANBgkqhkiG9w0BAQEFAASCAgBluvi7
+# WfFRUA6FvvrGrYd2ifzwmeAbrvTXBFfhk7/ysFL64UW3Bd0YKJtradt8t3kd3zP0
+# ILipcXAmmlhSlOZC6uON0RBVh893n/Q6G9qmhEn5A6us0nnyXeDyi90XYF16V0v+
+# LgKbP9CZzzk17Bt52HSIBvS7B4ijYtIVtBD/jSmE0mqJGAe/Hiej3Px/++4lmz4B
+# 51Quq8uHd1pQTrgfITzTInY1S6mtKqpM7jlm+naTvMqnBEA0TEIfcHaiggf2yBa3
+# GeSyBNzeWZpeF+NAPLo/MWGPdbXAjHA79PcoOikeSTpA4AaF5S9XpoZWAFUNbTZw
+# s0lzcLu3sz3RXrNcVadUXt+HlA1Wz9CzBTD9Trgomw6l3kFUx4qWmA5ucR8rZKpE
+# pq2ivgFmtfVTo0/eKDzUCgwE8CYXDeqElaNeeoUmPgrQpEMTrPaBhqZMUJ48kAn7
+# bmP5Cwm8SjstGwe9aagFtL+j1dRwncmuHu/G2EBtIvR5shxs+a28lQP/WCMb6B7b
+# cv0Q464c3fmds5LxxkCF6xoSsW9MTQz/v/t1behXUtLpfZrQOfo42va+NQ0CRe8+
+# pYSWIYjN21aShNjAnaEunsuLuEnkanGakXVxXI09x3UM3jYnBRPIQ8tVw0G27jCI
+# Sbru5v4iXPBba6NDViPCMG263Yga5Vth1haKh6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjAxMzFaMC8GCSqGSIb3DQEJBDEiBCAiQ3s7lP3AnBrS+W2C
-# j1vCjc0HrFacAsIIkEcvD9zCHDANBgkqhkiG9w0BAQEFAASCAgCDrSJPSDew68tm
-# vkhBtvBKI0q7OuPiQHGZ0RchJ5IlADvdd8qdCgQGpSlODxOK856jq17Quvi0QLkZ
-# EPspa2ko8dCi2bCe6DiW7fHFa3AjNwyp/tbS8H1gnlCemhW1eRPoTtMkUd5OIoXW
-# +IdfBcLcuLS3pT4cDE3J2+8ldZGQAtH/vt2X5/nop+GCmZ2g1eWFiAjGHdsE6zcX
-# FX3RnBVoEq0atN0BG9vtjOQpYz0zrsFDbPqGH5hReI0ZnzdYtziBKN5c4cgPjiN9
-# LlZzT6r1oUA8hwTyEJBtRxWLFW/F4G+/G9+Nn3rVw3q2dfuxEb9Q3Zu4EvARziEx
-# CVUT5XGmUD9ZQWHfWMjfbCodmPloWqLTrJQtTOsAuAN6o3marKPrTEvvLrssPmE8
-# acfMWQRI3SylJMw2G9f5fwikKKwBhWv0m0BRJNOMkRTEWxHPdIx6l3Mn/PAjGE5u
-# apoiTI4YirFjm/o1t+NowWq/HqFC449ypvQiv/L+klKnouDRlLIdtm1noENGT4gi
-# bM7HPVW+oxNCgc6UmO3fLhfVIw72qyIDncQrRHZYEyLN86ITvQTmy0a/bHYXdwsZ
-# spPgJrkuOob+23UbCjCm0JOwGgkWRi8srJaM4yi7F4DRN5fBPBAzSLRoIsCWRR6n
-# 1IiFHGwVMRyQtuMlqiWnA+odDIhsgQ==
+# BTEPFw0yNjAyMTIyMDUxMzBaMC8GCSqGSIb3DQEJBDEiBCAx5ttSmQjrVR0TDVgo
+# xeFQ4DCdMMejkiUBDHjkwwIpSzANBgkqhkiG9w0BAQEFAASCAgCFBT4/A02HaAFL
+# jjpRI/NSSJd6tqr1fHcohDdsJt2jHIYwjpwr5mF9LV12bGoJUkZldM2zdZsKXC/P
+# EHPmh9B63CblMGqRBmFCAjmKyKZMDUl/XmESU9bFStJqz2DU+VOMSV+hlFc6HgPg
+# uRodpRhgNCLlBledeX2UUzljzxTEL1IpUD49AfbcDAog9wLa8Y9topO1//QQUB2F
+# lL3NBm3FbRwF0I3oJKxfs79V+ZGuzIGlZzfOB2PVvuaJa9zKpxRnCEq80MLHHlc/
+# ubrHKneEV+fJNvIBKxA8+kWueLgXFQ3neRn2OCFqNkWpJvJ6WTqKJ2rxv7+Idg5Y
+# K0CxrZMhFUE6SckRwlW1eHCOmokYngXZk8WqhMoBn1rsEEAQLG62idxQwvKRIPxG
+# rOPtR3SlY/BHO/kC6s/0ySNCg8Z8fyQlEIANA/FSt9pJZGWIzxYZJUCTi8ALNMEz
+# oPKB+CIQE+8gE0iRA3W1rDW8jV86LodO971COX/L+UGn85/hT5dLdXdekNsZ6yfC
+# oJOj3Cn5b4uqO3TYoMdA9Nw5pML/RClZ0BK58a3h3mPZczPgaNxKotcGd1kRNNL8
+# fMNMaOp8MNtrr1JkPJ876DVZ0aDnKqrOK+RS0RNv8MGdJl0INFMd4tiQrWxC5VZ+
+# M5pEPNJKKlzRgZfwA+D8MPfpXpbk8w==
 # SIG # End signature block

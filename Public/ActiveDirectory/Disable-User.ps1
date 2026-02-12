@@ -1,20 +1,28 @@
 function Disable-User {
     <#
     .SYNOPSIS
-    Disables a user account in Active Directory and optionally in Exchange
-    Online and Teams.
+    Disables an Active Directory user account and optionally performs cloud
+    offboarding actions.
+
     .DESCRIPTION
-    This function disables a user account in Active Directory. It can also
-    disable the user in Exchange Online and Teams if specified.
+    Disables an AD user account, moves them to a disabled OU, removes group
+    memberships, and optionally disables Exchange Online and Teams access.
+
     .PARAMETER Identity
-    The identity of the user to disable. This can be a username, email address,
-    or other identifier.
+    The identity of the user to disable (e.g. sAMAccountName, UPN, or display
+    name).
+
     .PARAMETER IncludeEXO
-    Switch to include disabling the user in Exchange Online.
+    Switch to include Exchange Online offboarding actions.
+
     .PARAMETER IncludeTeams
-    Switch to include disabling the user in Teams.
+    Switch to include Microsoft Teams offboarding actions.
+
     .PARAMETER Credential
-    Optional credentials to use for the operation.
+    Optional PSCredential for authentication to AD and cloud services.
+    
+    .EXAMPLE
+    Disable-User -Identity "jdoe" -IncludeEXO -IncludeTeams
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     param(
@@ -27,20 +35,6 @@ function Disable-User {
     # --- Runtime init (config/logging/env) ---
     Initialize-TechToolboxRuntime
 
-    # StrictMode-friendly nested lookups
-    function Get-Cfg {
-        param(
-            [Parameter(Mandatory)][hashtable]$Root,
-            [Parameter(Mandatory)][string[]]$Path
-        )
-        $node = $Root
-        foreach ($k in $Path) {
-            if ($node -is [hashtable] -and $node.ContainsKey($k)) { $node = $node[$k] }
-            else { return $null }
-        }
-        return $node
-    }
-
     $user = $null
     $exoConnected = $false
     $results = [ordered]@{}
@@ -52,57 +46,63 @@ function Disable-User {
         $cfg = $script:cfg
         if (-not $cfg) { throw "Effective config is null. Check config.json path and schema." }
 
-        $settings = Get-Cfg -Root $cfg -Path @('settings')
+        $settings = $cfg.settings
         if (-not $settings) { throw "Config missing 'settings' node." }
 
-        $off = Get-Cfg -Root $settings -Path @('offboarding')
+        $off = $settings.offboarding
         if (-not $off) { throw "Config missing 'settings.offboarding' node." }
 
-        $exo = Get-Cfg -Root $settings -Path @('exchangeOnline')
-        $teamsCfg = Get-Cfg -Root $settings -Path @('teams')
+        # --- Compute effective options (switches override config) ---
+        $effective = [ordered]@{
+            IncludeEXO           = $(if ($PSBoundParameters.ContainsKey('includeEXO')) { [bool]$IncludeEXO.IsPresent } else { [bool]$off.includeEXO })
+            IncludeTeams         = $(if ($PSBoundParameters.ContainsKey('includeTeams')) { [bool]$IncludeTeams.IsPresent } else { [bool]$off.includeTeams })
+            UseHybridAutoDisable = [bool]$off.useHybridAutoDisable
+            DisabledOU           = [string]$off.disabledOU
+            CleanupADGroups      = [bool]$off.cleanupADGroups
+        }
 
-        # Respect config defaults only when caller did not specify switches
-        if (-not $PSBoundParameters.ContainsKey('IncludeEXO') -and $exo -and $exo.includeInOffboarding) { $IncludeEXO = $true }
-        if (-not $PSBoundParameters.ContainsKey('IncludeTeams') -and $teamsCfg -and $teamsCfg.includeInOffboarding) { $IncludeTeams = $true }
-
-        if ($off.PSObject.Properties.Name -contains 'disabledOU' -and [string]::IsNullOrWhiteSpace($off.disabledOU)) {
+        if ($effective.DisabledOU -is [string] -and [string]::IsNullOrWhiteSpace($effective.DisabledOU)) {
             Write-Log -Level Warn -Message "settings.offboarding.disabledOU is empty; OU move will be skipped."
         }
 
-        # --- Resolve user (Graph-free Search-User) ---
+        # --- Resolve user (AD-only Search-User) ---
         Write-Log -Level Info -Message ("Offboarding: Resolving user '{0}'..." -f $Identity)
-        $suParams = @{ Identity = $Identity; IncludeEXO = $IncludeEXO; IncludeTeams = $IncludeTeams }
+        $suParams = @{ Identity = $Identity }
         if ($Credential) { $suParams.Credential = $Credential }
-        try { $user = Search-User @suParams } catch { throw "Search-User error for '$Identity': $($_.Exception.Message)" }
+
+        try {
+            $user = Search-User @suParams
+        }
+        catch {
+            throw "Search-User error for '$Identity': $($_.Exception.Message)"
+        }
         if (-not $user) { throw "User '$Identity' not found." }
 
         # --- Disable AD user ---
         Write-Log -Level Info -Message ("Offboarding: Disabling AD account for '{0}'..." -f $user.SamAccountName)
         if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Disable AD account")) {
-            $disableParams = @{ SamAccountName = $user.SamAccountName; DisabledOU = $off.disabledOU }
-            if ($Credential) { $disableParams.Credential = $Credential }
+            $disableParams = @{ SamAccountName = $user.SamAccountName; DisabledOU = $effective.DisabledOU }
             $results.ADDisable = Disable-ADUserAccount @disableParams
         }
 
-        # Determine if OU move already happened in Disable-ADUserAccount
+        # --- Move to Disabled OU (if not already handled in Disable-ADUserAccount) ---
         $movedHandled = $false
         if ($results.ADDisable) {
             if ($results.ADDisable -is [hashtable]) { $movedHandled = [bool]$results.ADDisable['MovedToOU'] }
-            else { $movedHandled = [bool]$results.ADDisable.MovedToOU }
+            elseif ($results.ADDisable.PSObject.Properties.Name -contains 'MovedToOU') { $movedHandled = [bool]$results.ADDisable.MovedToOU }
         }
 
-        # --- Move to Disabled OU if still needed ---
-        if ($off.disabledOU -and -not $movedHandled) {
+        if ($effective.DisabledOU -and -not $movedHandled) {
             Write-Log -Level Info -Message ("Offboarding: Moving '{0}' to Disabled OU..." -f $user.SamAccountName)
             if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Move AD user to Disabled OU")) {
-                $moveParams = @{ SamAccountName = $user.SamAccountName; TargetOU = $off.disabledOU }
+                $moveParams = @{ SamAccountName = $user.SamAccountName; TargetOU = $effective.DisabledOU }
                 if ($Credential) { $moveParams.Credential = $Credential }
                 $results.MoveOU = Move-UserToDisabledOU @moveParams
             }
         }
 
         # --- Optional: cleanup AD groups ---
-        if ($off.cleanupADGroups) {
+        if ($effective.CleanupADGroups) {
             Write-Log -Level Info -Message ("Offboarding: Cleaning AD group memberships for '{0}'..." -f $user.SamAccountName)
             if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Cleanup AD group memberships")) {
                 $grpParams = @{ SamAccountName = $user.SamAccountName }
@@ -112,10 +112,12 @@ function Disable-User {
         }
 
         # --- Hybrid auto-disable short-circuit ---
-        if ($off.useHybridAutoDisable) {
-            Write-Log -Level Info -Message "Hybrid auto-disable enabled; cloud actions deferred to AAD Connect."
-            Write-OffboardingSummary -User $user -Results $results
-            Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}'." -f ($user.UserPrincipalName ? $user.UserPrincipalName : $Identity))
+        if ($effective.UseHybridAutoDisable) {
+            Write-Log -Level Info -Message "Hybrid auto-disable enabled; cloud actions deferred to AAD Connect or downstream automation."
+            if (Get-Command -Name Write-OffboardingSummary -ErrorAction SilentlyContinue) {
+                Write-OffboardingSummary -User $user -Results $results
+            }
+            Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}' (hybrid short-circuit)." -f ($user.UserPrincipalName ? $user.UserPrincipalName : $Identity))
             return [pscustomobject]$results
         }
 
@@ -123,12 +125,10 @@ function Disable-User {
         Write-Log -Level Info -Message "Proceeding with cloud offboarding actions (Graph-free)..."
 
         # Exchange Online
-        if ($IncludeEXO) {
-            $showProgress = $false
-            if ($exo -and ($exo.PSObject.Properties.Name -contains 'showProgress')) { $showProgress = [bool]$exo.showProgress }
-
+        if ($effective.IncludeEXO) {
             try {
-                $null = Connect-ExchangeOnlineIfNeeded -ShowProgress:$showProgress
+                # Your helper should no-op if already connected.
+                $null = Connect-ExchangeOnlineIfNeeded -ShowProgress:$false
                 $exoConnected = $true
             }
             catch {
@@ -136,6 +136,7 @@ function Disable-User {
             }
 
             if ($user.UserPrincipalName) {
+                # Custom helpers if they exist; safely gated.
                 if (Get-Command -Name Convert-MailboxToShared -ErrorAction SilentlyContinue) {
                     if ($PSCmdlet.ShouldProcess($user.UserPrincipalName, "Convert mailbox to shared")) {
                         Write-Log -Level Info -Message ("Converting mailbox to shared for '{0}'..." -f $user.UserPrincipalName)
@@ -152,8 +153,11 @@ function Disable-User {
         }
 
         # Teams
-        if ($IncludeTeams) {
-            try { $null = Connect-MicrosoftTeamsIfNeeded } catch {
+        if ($effective.IncludeTeams) {
+            try {
+                $null = Connect-MicrosoftTeamsIfNeeded
+            }
+            catch {
                 Write-Log -Level Warn -Message ("Teams connect failed: {0}" -f $_.Exception.Message)
             }
 
@@ -167,7 +171,9 @@ function Disable-User {
 
         # --- Summary & return ---
         Write-Log -Level Info -Message ("Offboarding: Generating summary for '{0}'..." -f ($user.UserPrincipalName ? $user.UserPrincipalName : $Identity))
-        Write-OffboardingSummary -User $user -Results $results
+        if (Get-Command -Name Write-OffboardingSummary -ErrorAction SilentlyContinue) {
+            Write-OffboardingSummary -User $user -Results $results
+        }
         Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}'." -f ($user.UserPrincipalName ? $user.UserPrincipalName : $Identity))
         return [pscustomobject]$results
     }
@@ -177,8 +183,13 @@ function Disable-User {
         throw
     }
     finally {
-        if ($IncludeEXO -and $exoConnected) {
-            try { Invoke-DisconnectExchangeOnline -ExchangeOnline $exo } catch {}
+        if ($exoConnected) {
+            try {
+                if (Get-Command -Name Disconnect-ExchangeOnline -ErrorAction SilentlyContinue) {
+                    Disconnect-ExchangeOnline -Confirm:$false | Out-Null
+                }
+            }
+            catch { }
         }
     }
 }
@@ -186,8 +197,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD3ftHxS6PbXxlV
-# YrAbGpprLnJxocsJ4HbHzlaOU/kJYaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCKqMiRSkR4gALA
+# gmCFlmvEMaXxRr5d4iz8bQBGx/6RW6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -320,34 +331,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBR7qsj7PoA
-# +mibNxmJWu7MqCaHoeATiRfR36nU5UikzTANBgkqhkiG9w0BAQEFAASCAgArZtkz
-# 7mWNzImkQ0n61Zb/ZgBU5OlGj7POAGukoAMDWst0cTF69LOTI1TlxEWeyy8Nx0ti
-# P5Oy3Ip0oTDlwz1geRoYroriH21bREWwfjbb91f86Eg60DGVEmLRE1CuxxE8Blqg
-# esgDk0RViO0yEh+/r8ZLBNTBD5dGD9M6eI5mFRcZNWv1WZ5Y0UgqlmkOORRV2n2v
-# OoQJlQza7vwlni2kvYHVVhMmMNbP1BpE1PR1OchFhShkHWx9VnOscvwo3/XkPVXv
-# sBEWJL6nOGfBOTrj80tx4EgTvvijTFdy2QcNmR0gXfY/hHRmR8j2k13mkV7xUsNk
-# Cy/TqWmbpzyszmLC7fmdMFRe8vKzHilpZoweelHy45RRBpYFGhVG6ZMr6tgTdwsh
-# Dipz6DTSr4R3fXsF+tdKsvkItkOZVixb9gFmVJwYzJVNE2/yXGA9jGWGsLQ1FDtv
-# jlpFY0Otef0AG1QTxP09yMHAkewJ7111HMC2uCrhDT+NDwadFmwKiH8FBcdEN6LI
-# nSDzTFp/YjzV4IXZhRsYMm6h21mkGs3e/625rqSvWsQZGJmZcJB+hmb59edkctP8
-# xWC/xLiRRF/DuUD019QwyxBV7hT2qy8q5poAeOCehhSzibRi+ZTw6SpawbOiKD04
-# wNSKu72KX8KmG7Q5/YoV1FhOeboLdCUOGQp4uaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAX8s5s+HQw
+# hX3YOAgu11c1JEXGtkPFkUPjALY3V+R4yDANBgkqhkiG9w0BAQEFAASCAgCWm334
+# Xr+TlXsAAuVgNbHomHEK9PYQ4/KpFps7JK1gfN4A5S+Tl71Ws7aMM3HuaOrBiuv/
+# HF0sSomuUiTjO5iZnVQAmAihA8cwsPi5tyayyJdTZ2fzTOcgVxroToENK9KaoNOg
+# lwZVbRcSQp9bjH6zcTbOSD8Ff55mpnfstJljLBgsnPGcS+1HVJ3qmmVui7TB+cr7
+# myDK4PgXFZRf7S0/N5XAYxSMH2Xg8ZYI3LY46J48bY0wAUz/Hprw8Hfd4d6Byq+n
+# DnYkZsncOo4NhnYhvBl06L+/vwEgAoQ6sp1m6sSMt17nUPEOmBw9ZpyOLBQs58CC
+# Qt5YaOliSk2RXN0wb8OgFL7auHtDUNx8U5wOHK+9+iw/MPw0BR6P2lem03uETKmZ
+# y0ks1+olSSCrXIqBFR89kGCB6TvpOWFE9oG01FJnZKqnZYHVZ/ZbXJX858Aa3RXz
+# 7fikGEBSkU0/YsngtpPuLmENm1uHQpSf/ytfoJF86SwOwHA9ewj6Tfk9OobdgVWb
+# wyNde5hM3GFFO9juqs6p9wva+noOgFXIgYN9v/iZG1FHHKlIHhM4qsUPr6JjnLoA
+# 71ogSMaPyM4YiXVxoS/HfgP0FKKtZ03oau+DwwNdStFmaZBhoHJUyQtKGpaFN2Hg
+# ybmjiar8UUp7NYORfLRI5RKU6zRU4sW2S1ytw6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMTdaMC8GCSqGSIb3DQEJBDEiBCD+JXb4n+IDmLjOpCa/
-# bz3iWH7geOWQJOTuqpoCEPLNrjANBgkqhkiG9w0BAQEFAASCAgBJWJRYSZ0ElNvW
-# cZQHDPaalVPzN301/PiiT2U9XMpWkcsoFTiUOj4cM8nSYMsWfoWacV5c27iJzEX/
-# V2qcjuYj0YXZ5dvJXkLE8weMAXoARmX2tYVqA+iZQd6t5T1EyKhQqePG5uZ1TgVR
-# NGkSf4L18A11jDySLK4Jgp8uARscnOc83fk9J90ethKsvgh3LGhYFsDsuYKpqc5d
-# BXl6LfZAiTf3F/r0U2N2PwPKx7/pSm7FdhVOyMvHPbR3NP+nn104Ce0dTfpILWaS
-# 2W+mxKJ2lkyU68ZilMVXs8ZEguD1Y4CjxkV+GXFa+13luDVWaSdf4OnXjVlyU30A
-# sczdDL+yAMlDzfbghKhbUpzF//cE1+lizz4Lp8aNAya1RQmpbOQ8jxOURTwRAgik
-# fRESDcWIOVaeamHcRuYQW7c3nPbSQrK25tZltkqJ1CktTTUNChUwtj2CCnIY/tTX
-# VBQv0TnRjutJajz4iqGtBLd5GKsyI8MKy8P2sZiIRbC3ZBnNhwtm8BCJAEqu9q5g
-# 1UERdYMuicaWuxtcXlam4FoKbFYlTKhOOXiZuqZ3izPc2GuDosgPNxZHmLouigVb
-# Z7nWAcgjdv7BTxc1Fk9Nrb8zNN2Pc4linre47FPzT48cdv/sdfhwWQWXLI2+E6ky
-# 9tbClfMCv8n0HS0uhEEn6/jF+zuDYw==
+# BTEPFw0yNjAyMTIyMjIyMjFaMC8GCSqGSIb3DQEJBDEiBCABoPQGH62X9MtxGXtR
+# wdA3GrVdbGavO8MOhu4sfEWHMzANBgkqhkiG9w0BAQEFAASCAgBD/xjphdW9vtz3
+# T9MAfh5NhdmC/4dKArfkE+aFos1YqjIuAbARuP20NnSAEbDNvFKXTJkWK6vLZpqi
+# WpZ74KptCzWeJW7AXw1yxuD7ixi8Esq5O0uKk8S0v0RtLfvzV+v8KPasRkiYErHp
+# P6TJrgoQoeBko9SKV9l3ADC5zXZpKV0RSdT/b1+LH7LGTznatV0yB3UQoqCfxgUt
+# 2/p+6tdBSiaIJluIEaOUQGPSFFsjnLchalZC8FX5j2yXYhV0jf77HvJTPzeSL/M6
+# KlIMwqGHm0PtL36lP+tCIqJs3z9IsKxzlBhgSuMOjfbN2R8k7j6nnB2NBFRxFTbK
+# D7nmrpPZcYdqG1iwAN0G5RHcCguITSE5sKB7ty0zoVnnI4eW9/yDhB7jJxNFCLOO
+# bhyvMDf2gQ8kwQDoSah68VDa29i05G/ghjHAct0B+zwGi4NRWfC8zA6NHTvp3xN/
+# KO6EgFnF3mLRfHR6t/DW5azmPvwK6CWEINTyoxE5Y2h/SdkjS9JFs7DegRQHTXhM
+# gl7QxUiTnO/swY/HWz580G0+2kjaoYt4yItCbKk9MlmjdtszSdOieU9OpWBQAIZv
+# JfUUMrQEAFl9AaU9fxi3+cSfrdlqXngkCDAZfSONWxSrOwz+9tovKY4cm0Th02Si
+# R8LiaytUEZhhYcpoUAU3NQWKhk8ovw==
 # SIG # End signature block

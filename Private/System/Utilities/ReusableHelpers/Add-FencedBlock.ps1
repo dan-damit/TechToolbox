@@ -1,125 +1,17 @@
-function Find-LargeFiles {
-    <#
-    .SYNOPSIS
-    Finds large files in specified directories.
-
-    .DESCRIPTION
-    Searches for files exceeding a specified size threshold in local or remote
-    locations.
-    #>
-    [CmdletBinding()]
+function Add-FencedBlock {
     param(
-        [string[]]$SearchDirectory,
-        [int]$MinSizeMB,
-        [int]$Depth,
-        [switch]$Export,
-        [string]$ExportDirectory,
-        [string]$CsvDelimiter = ',',
-        [string]$ComputerName,
-        [switch]$Local,
-        [pscredential]$Credential
+        [string[]]$Lines,
+        [string]$Language = ''  # e.g., 'txt'
     )
-
-    Initialize-TechToolboxRuntime
-    $cfg = $script:cfg.settings.largeFileSearch
-
-    # Resolve MinSizeMB
-    if (-not $MinSizeMB) {
-        $MinSizeMB = $cfg.defaultMinSizeMB ?? 256
-    }
-
-    # Resolve SearchDirectory
-    if (-not $SearchDirectory) {
-        $SearchDirectory = $cfg.defaultSearchDirectory
-        if (-not $SearchDirectory) {
-            $inputPath = Read-Host "Enter directories to search (use ';' to separate multiple)"
-            $SearchDirectory = $inputPath -split ';' | ForEach-Object { $_.Trim() }
-        }
-    }
-
-    # Normalize and validate
-    $SearchDirectory = $SearchDirectory |
-    ForEach-Object { [Environment]::ExpandEnvironmentVariables($_) } |
-    Where-Object { Test-Path $_ }
-
-    if (-not $SearchDirectory) {
-        Write-Log -Level Error -Message "No valid search directories."
-        return
-    }
-
-    # Determine local vs remote
-    $runRemote = (-not $Local -and $ComputerName)
-
-    if ($runRemote) {
-        # --- Remote Mode ---
-        Write-Log -Level Info -Message "Scanning large files on $ComputerName..."
-
-        $creds = $Credential
-        if ($script:cfg.settings.defaults.promptForCredentials -and -not $creds) {
-            $creds = Get-Credential -Message "Enter credentials for $ComputerName"
-        }
-
-        $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $creds
-
-        $moduleRoot = Get-ModuleRoot
-        $workerLocal = Join-Path $moduleRoot 'Workers\Find-LargeFiles.worker.ps1'
-        $workerRemote = 'C:\TechToolbox\Workers\Find-LargeFiles.worker.ps1'
-
-        $helperPath = Join-Path $moduleRoot 'Private\LargeFiles\Invoke-LargeFileSearch.ps1'
-        $pkg = New-HelpersPackage -HelperFiles @($helperPath)
-
-        $result = Invoke-RemoteWorker `
-            -Session $session `
-            -HelpersZip $pkg.ZipPath `
-            -HelpersZipHash $pkg.ZipHash `
-            -WorkerRemotePath $workerRemote `
-            -WorkerLocalPath $workerLocal `
-            -EntryPoint 'Find-LargeFilesCore' `
-            -EntryParameters @{
-            SearchDirectory = $SearchDirectory
-            MinSizeMB       = $MinSizeMB
-            Depth           = $Depth
-            UseDepth        = $PSBoundParameters.ContainsKey('Depth')
-        }
-
-        Remove-PSSession $session
-    }
-    else {
-        # --- Local Mode ---
-        Write-Log -Level Info -Message "Scanning large files locally..."
-        $result = Invoke-LargeFileSearch `
-            -SearchDirectory $SearchDirectory `
-            -MinSizeMB $MinSizeMB `
-            -Depth $Depth `
-            -UseDepth:($PSBoundParameters.ContainsKey('Depth'))
-    }
-
-    # Sort and output
-    $sorted = $result | Sort-Object SizeMB -Descending
-    $sorted
-
-    # Export if requested
-    if ($Export) {
-        if (-not $ExportDirectory) {
-            $ExportDirectory = $cfg.exportDirectory
-        }
-
-        New-Item -ItemType Directory -Path $ExportDirectory -Force | Out-Null
-
-        $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-        $fileName = "LargeFiles_${timestamp}.csv"
-        $exportPath = Join-Path $ExportDirectory $fileName
-
-        $sorted | Export-Csv -Path $exportPath -NoTypeInformation -Encoding UTF8 -Delimiter $CsvDelimiter
-        Write-Log -Level Ok -Message "Exported $($sorted.Count) items to $exportPath"
-    }
+    $fence = '```' + $Language
+    return @($fence) + $Lines + '```'
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCiq1TikwlTY4F0
-# zh8yaITIsWyEBSWIZQd1mgFmwavh0KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCfLk0+3qK7S3BD
+# zBhAlb21I89TFmK1m6GIvJR2fIYHx6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -252,34 +144,34 @@ function Find-LargeFiles {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDBCLkg+p7p
-# 4qVR/avBYICrTx8PQUJazMnWfI4AwSBIdjANBgkqhkiG9w0BAQEFAASCAgBWC/Vf
-# etuAwr5EF+GrgA+a9VeBq+dkKgPByLBMmQmkndM2YXagSfdhTX1s3bIfnKLXigX1
-# jNPJCVnVz3hGtKeCEl9HZJLBCoOFIrCL5DitVTx+6jmaqbSor3KE5QYAdrc/+C9l
-# 570/G1URb255LYvwTZ3/38T7ZG0dPT0wq6U2R78sElvJ+VfIdVCzyWY+802yt+AN
-# 5f4ikQ1s4nTIh7IlmTGMDVKMJN1z5VbuxROC3P/rKPOOkml65dyIYDsPf/qadAXp
-# trN0rT7G1s+jPWRYc2rOnLMP4eTbs/fZYKygeMMeOCa5lE9z1PypgbhRfnl5skdI
-# B/UUoLPuQvrImydaue8hvsEt48Qar3yNm3oQ3LkJwAEiZx5fr6mJHMnR7MTS/9lp
-# VYXIpSTg2jNEdpxp4w249tDQ1xYVRLgh4bGWdj4aARqGiVrx173bdLxF0toZOV/E
-# sH898HSNanyZmfLrfWoLzHQ9fxEzujOvqoujXJab4IZX8fa4NVC6Y6RQ8KSbfB3M
-# tjgREwTKuHbEfXvJazrSwl7/BZ6hyA3rv3NuFs1d5+/Gi6WnjTq9pcGNC2JWMjz8
-# atsv6bpyKL0AfCGTzSuZEr1qqXCb7ZgeOym97QxKWE9fddlJFYEMiK7L0CQNbjdN
-# V1Gny/+3Sbt/xNkVk6fEh0qEvmxXs1o5R3wCGaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBmttXo/Anp
+# h0fkcbFD7Ak633GOCWhmPLEPuD93k/Tv4DANBgkqhkiG9w0BAQEFAASCAgCEaj6O
+# sT+t2T/n1SYhJjJPX5K0pDTNHtGsN8zGlvyuATxhpYMr55giTrfo5LPsVFSF5/o5
+# 8EpLuvuO8C90E/9oahym7qlu0VDTX1A9lkC9tZJYARHRO939knZ+6bHYyWDAhgmt
+# yhLN+cGMs794SFBWyJIgpOetn3czSVDN+epSFDrsv0b1+fiKC7IDJiIgrVA5UFRj
+# INUzn+4CVRr0ccb0WJjuw+vjitwuue7F/NC1Mtq2rgQzebeHoxutYzvd8tnrYt6N
+# BhWePK+bjPhrWXrNKXXmtVPspu3gBW/8m5UXMta4G8J7dYPQO0E25eg6bkvno9/2
+# 7Fscl/ABYAwUirR6kcslCLY6dkZdCV7E1FzBHeHirtutOj/KuaV6wkljf4icUXqS
+# knGcoUJWFFI2olYi7OsJ2RAVNSDUMgm/nLjtJkGQg8GrosElHscFQteDZ0R5XcqZ
+# 0dxJ+rNjsJMWN+8r3qZW7utDxAqs+dXQ1iKB61oL6IPv1KUESHyTfCc0jEKQ1BUP
+# ztj9ZyLewJb+91KNxSFlI9+E1wcsg+HzCqToMJ329KEJjR64XyZAwW1F1m4EzGLL
+# qDO1O5wIje3ROhXqWJs/w5YtOrwzZkiplDZGT3Ug3H2pSgjryJt53Pv/OwnmRVsF
+# Ibx/W6endSTs969m5PXf48/usQ6R/HLZYstC4qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjAxMzFaMC8GCSqGSIb3DQEJBDEiBCAiQ3s7lP3AnBrS+W2C
-# j1vCjc0HrFacAsIIkEcvD9zCHDANBgkqhkiG9w0BAQEFAASCAgCDrSJPSDew68tm
-# vkhBtvBKI0q7OuPiQHGZ0RchJ5IlADvdd8qdCgQGpSlODxOK856jq17Quvi0QLkZ
-# EPspa2ko8dCi2bCe6DiW7fHFa3AjNwyp/tbS8H1gnlCemhW1eRPoTtMkUd5OIoXW
-# +IdfBcLcuLS3pT4cDE3J2+8ldZGQAtH/vt2X5/nop+GCmZ2g1eWFiAjGHdsE6zcX
-# FX3RnBVoEq0atN0BG9vtjOQpYz0zrsFDbPqGH5hReI0ZnzdYtziBKN5c4cgPjiN9
-# LlZzT6r1oUA8hwTyEJBtRxWLFW/F4G+/G9+Nn3rVw3q2dfuxEb9Q3Zu4EvARziEx
-# CVUT5XGmUD9ZQWHfWMjfbCodmPloWqLTrJQtTOsAuAN6o3marKPrTEvvLrssPmE8
-# acfMWQRI3SylJMw2G9f5fwikKKwBhWv0m0BRJNOMkRTEWxHPdIx6l3Mn/PAjGE5u
-# apoiTI4YirFjm/o1t+NowWq/HqFC449ypvQiv/L+klKnouDRlLIdtm1noENGT4gi
-# bM7HPVW+oxNCgc6UmO3fLhfVIw72qyIDncQrRHZYEyLN86ITvQTmy0a/bHYXdwsZ
-# spPgJrkuOob+23UbCjCm0JOwGgkWRi8srJaM4yi7F4DRN5fBPBAzSLRoIsCWRR6n
-# 1IiFHGwVMRyQtuMlqiWnA+odDIhsgQ==
+# BTEPFw0yNjAyMTIyMDUxMzFaMC8GCSqGSIb3DQEJBDEiBCBOlxsuYLQGPSFJs6C2
+# TQEj5GnUTYZzdqVUCQWMdCQ7CjANBgkqhkiG9w0BAQEFAASCAgCJ5Lo5/Q3zUEpf
+# S4Bj+Bo5ty1ZFBqUBB+5wDDol8eY01JZaVwc10K5OMJ2rn4kGrH0LChgb2gSUOnU
+# uLi86chN8U6zU1IoT83oGOq6RaCdjaeZwh+aQiOTMv1Fot6Z+W5+T9tY6mk7sq11
+# VU3IGgEvE4Lpt5m0caI4cyPkOxrTGaowU8jf95d2bOf8lvkKEI8hBQQjCT7/3LNz
+# GcwNWp8bv5uSQJBG195L8lBZbs6y3/GE3GHx5H6U+2XDNszBuAqWMyTPJZFlWHrz
+# iHZ7KTmbE4pQoROCAAtcMAr/pIS9t/BTXYQkXO27QK4cKNIq5LvWhnCRd7nEBwMX
+# Wgjl9NKaG8wQbhPUb8E4PyrnD9wfAFtcK66f5/lwCK1lo0hP15JLtZ/Z2wO/BKWi
+# jwROESkqtmLVgSh1v584XKJuXGm4YzrA7PBYucDtn5w1QZqlO0u6t+oWs2+oCLhQ
+# XyhERFRzt6cMTYfTFyA5gyMQazHMwHeUbk+a/PIbE0bemDLcm4EQqEuXh3miQK/q
+# bHbeyltReqerQQkWC04PJ8/dtmP+1MxtHVLZrmpIrxTy5mwnfWqOd5OhP3jgZyCn
+# zeUbd84To01h42uaiukK2PG9xDsT8AEs/r/EGHA1rRihxDQtDAf4hAn2oVKAMX2o
+# VlwlQsvAhn5nUiN/hbE19ar5iWg38w==
 # SIG # End signature block

@@ -1,4 +1,37 @@
 function Invoke-SystemRepair {
+    <#
+    .SYNOPSIS
+    Invokes system repair operations on a local or remote computer.
+
+    .DESCRIPTION
+    Performs various system repair operations including DISM RestoreHealth,
+    StartComponentCleanup, ResetBase, SFC /scannow, and Windows Update component
+    reset.
+
+    .PARAMETER RestoreHealth
+    Run DISM RestoreHealth operation.
+
+    .PARAMETER StartComponentCleanup
+    Run DISM StartComponentCleanup operation.
+
+    .PARAMETER ResetBase
+    Run DISM ResetBase operation.
+
+    .PARAMETER SfcScannow
+    Run SFC /scannow operation.
+
+    .PARAMETER ResetUpdateComponents
+    Reset Windows Update components.
+
+    .PARAMETER ComputerName
+    Target computer name for remote execution.
+
+    .PARAMETER Local
+    Run operations locally instead of remotely.
+
+    .PARAMETER Credential
+    Credentials for remote session.
+    #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
         [switch]$RestoreHealth,
@@ -109,8 +142,8 @@ function Invoke-SystemRepair {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCF7sUWjQcB/xg2
-# 88RlUuVk3ZLLN7hrDC4GY4YDll9BJaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAIctt+vDXKv+R7
+# PiCgvOn7uerlafsq4Lc4SZGDlX1U2qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -243,34 +276,34 @@ function Invoke-SystemRepair {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBcSBEsMCCM
-# iz4o1Qk4s8JbsArDtcz2UJsAFQo6DTDyUjANBgkqhkiG9w0BAQEFAASCAgDS9kRY
-# ULStysySq7Ksh6YsNvdoyOf4Vy10qNQPf3KZkhpLAhJIiB2gC19ANhld12DBiC6L
-# Z7Zs7CFaArF8JZrmBVQXhtaxTY6BZix5kOAjnFyF5QyXmWB6yjxpDW/WrBg0F7mS
-# nHSuUzFK0BhKfGNT8Rq94MGzYKUKO6rb20RaWdypdRUF6pQFMMnNwuonqUGYG8k0
-# zvd7c2YU9AIgFp86sl6u/neHkhRAk5No88TE/3wnL6SaGchvEsHkavnX+nLmPmIA
-# jUkbmdGjF8UNEl1j3goQwL/CgR8ij4mJln30/XJblFFoRZG96qcLVJxQcWo1gHai
-# NJIKQoH/oZo41O5Vua3zfv/yR3djhk0QzwQX1DBBguj4/g/8zyqP48XQxr7kCpR7
-# PUsQ7Gry68XLMP5oDEAr0kdrhzFkp1T1YFke1PtD7bMRLbcHczSvbX+3jH++uj5i
-# 3MhYwg9LtAmlDLTc15WbZif8ULv+T/yJp02hyzPtNqYXtWzYduTChiiCK25tpOg3
-# zBSUjnyMeAqdVETzPZvlF4WVXuc9Rxmi6nb4yJXe7qLmRC6/QuIwdWDjCqCZiHp1
-# DWNoax2nBC0gy0MduQTrf40FtcNv9kxBvW/3JmjEno2GKtGZHoHcULNrowUoYD9Z
-# O6x/WRJc0Dto1zMLMrbhByND+ZMQilk/SgTkQKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCABP0SBUW75
+# jiWDrHnwQMx+Wph6AsiFFFzLcRYaL7VfdTANBgkqhkiG9w0BAQEFAASCAgCEux9d
+# KxMpIRarbjGsOmmu7teilHY5RrAyu/4efRWUNNIJds7bfuSP2rS/cdtaVWPM07kX
+# 27wwXhRdT/Gt/wvTJ0ubhB9Sc+MZuWIrv7XB1B8BqlcTP21IKo4wDpi3k+UtWZqy
+# MG+OCNAshLclFrQrOiFyYTSz59HJ+8Jezy0t9VDMUdbTMqzWFY5oP75wUthEDfL3
+# 7nWehiYLeAcCb9GL15iKnH53vgZQpfMYfgBLe1C484Xb0INRIFoyQomC5t1sAh1d
+# XRuXk8bEsuaHyl89Xmg9XfWzPz4Az38zbqy+/CsjdjZip/W67XTM6qap6zbZ93u1
+# HnKOplDsSYcKrhvTNmiyG4je+VuP1O3Br4fXHT6GJsILYmftDoIv18RmNsBzZx07
+# 6CFHgR4zHmHFJFSz3P16eiXXzuDgKGWnQITatKSE5c+EM8LOqQnT8724lJIoFA+m
+# 8VXXAIJMbuGavicf81h6l+Uvuv6aBXbfmcPsslcaIon5xrwMpbxvrDDNKnxnuYul
+# xGO7IJ2YJ/C4yteupOhZ1bJOWZNOmdUUdSn1KUKC8+9+2WYdqTm6AuH3NNsQXxvj
+# 81I6AMPycEJNyi6189XlWh+KceDcFFQTZpiyFCo8p99fa1GMuo3Fd47V44qfV8K8
+# lduc1PmKeeYxi4F/gWrw7YU1TvKW64PDKh3ND6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCC39/lfDVEzo6gvWwSw
-# YKKPglPNpa/oms2rjGr8AvMU3TANBgkqhkiG9w0BAQEFAASCAgBFiTFS0qAfeHd3
-# 5da7ADXWtxoaQshKdtMQINIJVxjsgF3LWfH6fu2NoAaDLsDl9UJnUEQUW8oc/JcU
-# CL12LcQXvtQPTzp1wtDt+N6I4apOhea6eZBbHDrp8rdTTpVZZgZ8+Ov1fbxTBGFy
-# JOs/7BHztkDh7yqaYpxgSe2MBRjlTjccvmzZs7cDiAaaYWDsqserKyqaJv9FJy26
-# Ryg2qvTdvTIS2NQhH4gyeWZa77C4fJ2dcIIpBqujUR0cS4d2HAtN9UTPm5VkaCEe
-# OgzUubl87mxU5+6F8hpg2f1EJNardTprcO7bHlb+6yBbzzUY5rBM2Y6SQ3ufqFXn
-# nsjQjJjwppG8fMIvSNvz9SQdEMgHrqUvM2yVdCwygsJh6vpUzInxFJPsfidPv9LA
-# aPAX8up1YxefQZgg2jOFfHVCFsPvxo+w88IYtDZQmWu+juUqidwS318OwxleQ0FQ
-# B74dMTpv4hQ1zjpagYtARgQ7Dqz2QV/rfW94kY37LorHaERtsuB3dOsJaS4M/jA1
-# P+QU6ZnXM2xcHYeeG6BxKhvklEqzWnIouT2/QsGrUgvI1wjZ0V0By3Aa6TLCmj8S
-# eAI+s2jf5b0CoIGH3g00GaP7VALKOwgOe3MWoef8KWpV1D0StS/qaWOqZEZTVM0B
-# aOTP3jAf5bNAch6pQy0ICYz9aIfWcw==
+# BTEPFw0yNjAyMTIyMjAxMzBaMC8GCSqGSIb3DQEJBDEiBCBeUoZjK2lu9/b/ZjRo
+# WiHYTxhnPZaD90erADYm6mupLzANBgkqhkiG9w0BAQEFAASCAgDDFuNmPhHmyJsQ
+# LmL5LIta5zDVjj0yTNzQvl6vLyS+m1q6YzQPBbrz66e5zakaQ9Fk3J7kscsFUcYL
+# r7RQdO3Obhu59ScROFlarzS+seVnHBt++vTK0vxC/x1HR7rkwEPTz7A01Nu0mu91
+# gHXFbDVTj55/7LyBdp2fL/sifPuGsDbYMdJN3vYd0JShpyRFbzC/avhVxweyxli0
+# GWyb+FJzNoUWXuHK+XuiHa298reddI10Y2W64kbYzOUIM+kw71bjXbuXikO4WjDr
+# xBafJE8C5DVM2WypFf+PE1k7Twgzp/JlKdQoXA9KlCqiQM5u5UKffdaGuwwWpXdA
+# fW/0gsTZRYPoNrE6tg6rVPnSGsFtftS2g5YjQTd/MN8FJtyKc7YmWioDf7TJOFRY
+# RFGgqoFR1kmjcfoRds6uZIITGLZonmB0QHIEynXvH2yD0ivTG2LgtYhhcqzJ3hC0
+# 2yU4uY7n/sJaVn/eWdLmAmPrbpQyL/llsYmr3wt1zi5VI0cK8a7uR0Rmjvw/RSra
+# iXOkWa1w8pLDB3NyaCQ8YxFL0tCaul3tkaIPSQOB6sfIBEmIYntgzBDaW53UpA8m
+# aQxXSNiih0HxxTa3ln8qboKIseZcjkew0lra1pU7v8l35HZaYoLb5CTtxUxpGEPF
+# /K5P0lprG08PLhjtb9OD5xIfIxCz0A==
 # SIG # End signature block

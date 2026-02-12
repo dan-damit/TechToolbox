@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.4.5'
+ModuleVersion = '0.4.9'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -83,7 +83,8 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User'
                'New-OnPremUserFromTemplate', 'Remove-Printers', 'Reset-ADPassword', 
                'Reset-WindowsUpdateComponents', 'Search-User', 'Set-PageFileSize', 
                'Set-ProxyAddress', 'Start-DnsQueryLogger', 
-               'Start-PDQDiagLocalElevated', 'Test-PathAs', 'Watch-ISPConnection'
+               'Start-PDQDiagLocalElevated', 'Test-MailHeaderAuth', 'Test-PathAs', 
+               'Watch-ISPConnection'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
@@ -106,11 +107,11 @@ AliasesToExport = @()
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
 
-    #TechToolboxDependencies of this module
-    TechToolboxDependencies =  @('System.Collections.Hashtable')
-
     #TechToolbox of this module
     TechToolbox = 'System.Collections.Hashtable'
+
+    #TechToolboxDependencies of this module
+    TechToolboxDependencies =  @('System.Collections.Hashtable')
 
     PSData = @{
 
@@ -154,8 +155,8 @@ PrivateData = @{
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB3qWnrZJvIn9DV
-# RyKlHHilfC7PJXqcOgXQ5OdsGWVbUKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAO0ukRjB6mdkGL
+# NvM07SF+JvwWY313/f6LhaVffpw4LqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -288,34 +289,34 @@ PrivateData = @{
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDwv/cEJYrm
-# KMhq8QmHwec82yeayzEkf92JgPhw2UKeTTANBgkqhkiG9w0BAQEFAASCAgAbTFc9
-# 9gd1TXbgn0jaZpaoD0oNIENSdocyMHLbxMr5k/EPQh3WKAOb9w250/Kum6FcwE01
-# A3r+KF4ChEYs83s82OASR9Wnzj3SSX2uMRri32JsBAi2IbeQBbpO1ai6TtBqc0h2
-# rpuIVec9IeyH6puRq2Xc3d/JDcth6Rl+4IHcBhZ9fME+PBSibLHPUiI4cF9Orlie
-# g01LBZZfB1KV1D7cOZVbdzbP/KLwX6ScGHfHpesW7eFk8yR9bYkFynYozUQkb/4t
-# cXxhCnL46k8btI5TyWkHv2/dwIbeU94QnKmm3Mq47p4sVWtoyeNMK8ZqYt8KD55T
-# yEsAtPg/PLTvkSmJq6c0XDBJwDJieuzuIvTZTP9PlAn2wTkKuEpPdXDQPlHOfv+X
-# YsdsXMCu4XRaHkJeNtpbRsipJzjP7eTjW1P2tw0pVYWzxqtpUC5NG8bZ6j8L0xuz
-# 0+GvE1OEN5YoZcZC2d3vk3NZBbnjMsMEaQxRWWhe3HAaqS97LRRiC/bB7DCQ+TWp
-# 6NRFswkvvqvwod7c52A85xQBoM/jBTSTFuRKb8G0rWNoD+dcQksZsoRjHFAqKw0J
-# 1QAs7YchahmjmCcpnghS+OecqtDPoHE/Kct8yFzuv94kq/tgLjMg4RMMJQbhmd+4
-# 2L2pIQybQZbv7vbjceLNjnTg4ou2xbju4p/SOqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCoMqSP7WZ1
+# qY+2G1xxEnXlyMt94l8hu03RBtAj241yijANBgkqhkiG9w0BAQEFAASCAgAzux1j
+# SHKAkTxtvjBTcP8DnfHxsPD5++3fSWnxfnVaPzcHbwtEi3tqEFFqCI/Du9lNoqR+
+# L03sfYEsXRXS3rpq93G8jZl/lvtjVGCidu+LBhO+xRyoaEcwnWiSVtorIUGjx83J
+# Jj8i8ZWJ4ohjMvthW6KgGdqAQpklL9wHRtjC3Fo63Nje0xTwfuTfZGcr6cQO/zn0
+# BrG9k8tQZBLatADhXjH3LaGhvOkPcby6vMOi2CQCtSzSCXlkHTYqXFTzZCA5Cdce
+# PJzv9S7bRTC10nPcJbgodgpyY+dHnl10DC4DkurMygbpBBDLjqifTSoHTXJC0nfi
+# dmu1MJuOM07B+AFqzPvZExiMhcM02XXZcY5W2ZsSiH4u3yjVxtcQn81L02kWvjYS
+# 5cGKMQ/eif0H8Z32ygHemFlpy0vOxrSm6Bl/F1VE2ZiMbHHuKT5X+S+EsMll9wEI
+# yFZDphdDrW30Vc/RA8juKLhoG4RqCHreHuGAEBfkKHthcWBCtz5HTfI3RB5LEQlL
+# mBeWQgCm9StAvojsOj3o+5JuDCjYPDl9JP11He82dw9qtDJ+2lIL3mmg2MoIfRZ0
+# yukOckYdeoZSP2uUlxCp8qcdYheboridUiFZ62c5A1ymeBJa9hJgMY+jyrYpU+6N
+# GO3g0eHpSQPBpvCHuXZ3FUZETTkAPPETShDyLKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMDIxMjlaMC8GCSqGSIb3DQEJBDEiBCBntcIvOl5FF4bTLcun
-# TPW8gMtn2fDnFd4MmgdWJBp8sTANBgkqhkiG9w0BAQEFAASCAgBH5mFWqbJZEBNK
-# e1+x7t3BT8n8055tsZWG/IJNDxjG7faVn1nIxKk+9+hyY3GLk2QCwEfbUxLZD0Op
-# a51QP+EOvVIpLiNG77KWS55E2O9WiSrM21s9V6wFTrqSdeu7zUiyVMuTWMnP8EPl
-# uU5xiJjW6Oz80qzm2r7K5AuOBxPCKXtEVPbtrAy1BH5KtAA7WEPcv27jOd8qDU/p
-# fPfalSqpQZNnqgfBE8AtQNGcelWnkk0V1OtrFiPxcGIfHk+zSwn91Tk7ToYotp+N
-# 3j2GcVx/XMwPurOLde5zIqufPPKPQeEW6iZEmsKK/DzidEzXJhx45KoRQ33bDdmm
-# bc1X8MZs9rtEvTGu4k/friNtevVm7S1kYfoaL1EULmDMZ1tfSEEmrRjPBm3Ruc9V
-# 7/UP9cux7saEZjzLxHLfTA/sPh1xYFsmCWfPokrtnqbeSDKAcjKVqNLkZRGDndHI
-# /maCrOEPTbXoYKGxa6AhaGONUfzHl5cgerfsBjiSl+5P9yKfriuiM1i7yIQSnIb9
-# jqyrElT65Bca8toKgI7n5dDsKmvQESzy/LAsxcTHGmHpFBa7jYbsB/J75n/uT8Fw
-# fQKxnuw/dL98Dl2XS8lpsl6lttJsGodMepAsQlc94B0X4g5HReP0L1esfcB+T4bE
-# rczXbH0pzR8ySAG6A9f15xx1kGyHxw==
+# BTEPFw0yNjAyMTIyMjIyMjJaMC8GCSqGSIb3DQEJBDEiBCDbie4zZlZ5tLRns918
+# K6NUXJ9fSnR/l6WXudqI68oRDjANBgkqhkiG9w0BAQEFAASCAgDP1MFWTOCA/8Wg
+# kz/LVQqhJs5f700/Qav3YuGqll+sjaWMW8Byp3hYFlhBBm+h1Nsj1IspWZEoQafz
+# D3Kj4cNF7CEnH60dgavuJfBiTmeZ2TKq4XDQvhWxDbCHinlstqPq6Gq4sbxhE7ZR
+# diYM4/ScvGfyWUXDJb3RGz7C1vjkJDSMGERNa9lEruYxcfBP4TdOmf9E46H4tY7y
+# 5KzWOKs+GevmKT359wew+5yEpxEvEe1CwFyNYOn9QORMehP4y37assTQCYNfHX8s
+# oj2sj2vOJ0LNUEx+Hk3R8gFMLpInPWoaLEP4hit07jy7pms8gt5AgGcL8/5qHxZs
+# pKT6Nm7/D9Ye6Im6dpcC3Vlmw/ZOXlDa2P1uLD5GZimGxhVYWIBEsiDhpof+YOAQ
+# 28v/eBFEFLZJxwvNYSWJeM3mX4c2HypuZja0avClxxnh3X67rIJdYXwOzz5Rbj4H
+# sn316Ez9nZnUa2aNodzuSE3n0YCUmmvfaVkSrJ/1r6kPSMEuY9Wn/H4dZ3oGqY/i
+# anEq0jFt3Ku1ULLxhU74Zett+yHi89vZ8jQtYEpwOf8AK1g6RKsxPlc8Zdauq4Fx
+# kCQioMDQpLmEVMNZBOcVQzMpgqGkOycVyuPFaPmncn1DuScgHflKwO1/uRJghLTT
+# SPfns78e9hM50krGk0HfNblS9Pmfow==
 # SIG # End signature block
