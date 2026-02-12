@@ -123,7 +123,7 @@
     "purview": {
       "purge": {
         "pollSeconds": 5,
-        "requireConfirmation": true,
+        "requireConfirmation": false,
         "timeoutSeconds": 1200
       },
       "defaultAllMailboxes": true,
