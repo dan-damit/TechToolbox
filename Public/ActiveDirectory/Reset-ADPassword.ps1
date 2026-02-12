@@ -44,6 +44,8 @@ function Reset-ADPassword {
         [string]$Identity,
 
         [string]$PasswordFunctionPath,
+        [string]$InitialPassword,
+        [string]$SecurePass,
 
         [switch]$ChangePasswordAtLogon = $true,
         [switch]$Unlock,
@@ -56,8 +58,6 @@ function Reset-ADPassword {
     Initialize-TechToolboxRuntime
     $PasswordFunctionPath = $script:cfg.settings.resetPassword.passwordFunctionPath
     $InitialPasswordLength = $script:cfg.settings.resetPassword.initialPasswordLength
-    $initialPassword = $null
-    $securePass = $null
     Write-Log -Level Info -Message "Starting Reset-ADPassword for '$Identity'"
 
     if (-not (Get-Module ActiveDirectory) -and -not (Get-Module ActiveDirectory -ListAvailable)) {
@@ -67,8 +67,8 @@ function Reset-ADPassword {
     Import-Module ActiveDirectory -ErrorAction Stop
 
     # --- Generate the password (prefer return value; fallback to $candidate)
-    $initialPassword = Get-NewPassword -length $InitialPasswordLength -nonAlpha 3
-    $securePass = ConvertTo-SecureString $initialPassword -AsPlainText -Force
+    $InitialPassword = Get-NewPassword -length $InitialPasswordLength -nonAlpha 3
+    $SecurePass = ConvertTo-SecureString $initialPassword -AsPlainText -Force
 
     # --- Resolve AD user ---
     try {
@@ -166,8 +166,8 @@ function Reset-ADPassword {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCiPpenLJDPsBTc
-# 6Aak4yQfKDytED4WmPDPazxzMxoKL6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAqx1trFdqKPK/1
+# v5TdzciFz/wfNkN9g3+MQ9TpiGdiu6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -300,34 +300,34 @@ function Reset-ADPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAXRAUlSbHH
-# POdkxV2ikvLMo/1GirZr8sWCi8pxcqYo7jANBgkqhkiG9w0BAQEFAASCAgDB+rzt
-# i4Xw2AQIhjK76FUVeG7/VGCwpYguJqCCV755iRsQ8jhRtdpuhuHsQtGZE3NavqXO
-# HO7o4JaI2ea8ZKqx5AvuiK9saSJ/iFeUngSnYMlebQMav4TXuD+LTIDKPZWJOi4P
-# NO57hX3kjQa/GgVbK69Gjy3077eok4ZPQWLgMczdzg5wMopC0sUmp9cBgYccuMcV
-# IVUFb2Czz9eCXdknn6TGi95QvvoQ5j+w0dj3ky87JDIAGQ+9xKRr/CNjtqajsX78
-# 50pWkdKtIbWSbyl4lJ73bkmctHM9OwD54XRC7iGA7qQz6usS7gjhEa8Y1dIhj8Pz
-# PTJ7TBdPMd5X7b7EuxLO3fn8E18QYC08AlDjZmiq6g4r8FGseZawSuruuKiABhUz
-# anfdy+4NjM4sazaRTJfit7PyvodyyUTW8ZzQlNMC+165SQ7JZJmshxQhdIfGAzBu
-# LTb6HDt9IGH8w1xYR+yXFHB6QAhNTX2qZ9gEHIQLWBpWrnpEHPnkiwO7brFNbu7s
-# 0K6jyvQvDG/DTucjGW0aNp90aCatRYkZKoTf+q4pYTSk3LHaHt5LZJMAA3oJ4qVD
-# h8S6s0GtAGF1IG8l4mdTVEzqAUtJ8WDMuQPanUePuoTqlTlnSs9TCUQyQeGD7WGA
-# Xwy8WKAuJLE6Pbazybw0M5kQEKX/CjMfaCN/ZKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB1mk/w21bh
+# hBU4ELYVw434U4NE27HHiasIJA4lbS/i/jANBgkqhkiG9w0BAQEFAASCAgAOhXGC
+# eQk1z9GRwTSCVTPmBmcYIDA1+SPE4ZiptUQ0u8DiGGaDetsvdqh1K/35cS3WympK
+# jbZyOpRluYGJGuY9uuv/hDNTtreucfQT6OKhfGNK9vDP2LYAS9E6SAJ6rMDIb60A
+# 8Axttd+UHWSZKdoIfOfdKQjDkzjiCc16yj8p8D/QZqjj5OsQfNctEWmkhs1g8nVq
+# 74QG5liUfOV+W+ksf8HznPg7eJ3dp7bdBXnFLxA1GYrPPC6XyPIJ9FmfLsxTxm3A
+# hmq2Qsi35FsBNd8NDnXJBGGt5748JGQvoRTXOZc7eaICjV31Hko0rSW720A58CPL
+# z5kQjPTbkh7Z7KYsMBCH0O9skG920D+pFJ62iOv9rho9/1B7TkdeV/ZEl9cD4k4r
+# lnhyvCexft6lgA1c1Q+mqk2M6pddYd6huLuf4kCvwuoLSSSxhdtb9hJ3eX+zlUQA
+# Zkqi1idwaY5Mk+SqCXau8n+69iw9i5QEyYHBwUFjaUPzeIo4p6MYEDMWcBnI3XlT
+# h83YXPLLQ0rvlsV0ZvY+hWGcWoeqKbMKzVPzsEci0jny/5bxpmrbB7B6BUjCVutB
+# CVmw6xl0dH3bgXSuS1naY4HC3E2sSJ6AK+kQpKCzpIBqe1fqTLXOuRq7qgt4V6n4
+# jTGuYCaWQ9xjVIpTqFR1LHI0IsgjUsfH8H+V+qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEyMjU0MTRaMC8GCSqGSIb3DQEJBDEiBCBeODwMYQjuU1Z+V6hs
-# RAkuJjksM8CCYDglM8Jx0WCJfjANBgkqhkiG9w0BAQEFAASCAgAY/wV5YvWWy+xH
-# ZZj6W+vRSEd8QBU0irh14GNkMxN4JupQ6XY/JXDb3KEzWSauRhdlnbobkNAQc1jW
-# GMcdyjPRtH1R4L0rjfre1ZWEGBjJTyem1OupCgwTTZvbgmRS+KYVOiajXvcYIzK5
-# 0laxJ4cdtUrQ0LNxMMlnc1cnle7QMOIO7ljEkButipOWw/vWmrNfEwSAgxFgicr+
-# n1BGcsgCn3xo1YmNpqEXdViGLs2v6gjFAPsQOFmWSXENnDRtQKL01BeH65fyVtSC
-# hqyUcrlMTC4qCN1hcZVCq+c/zsJatFYrG31Sv8If3SppI2g9cvuMJvfIQ4oQiqA/
-# XITO0bw7qCzIRABFnKzcLtt76mtAj/ew8MTnurr9iCWvVdNSM0TkjiJ5hdDzBiMn
-# DeGu2Y44i+DtnMEyTICvy6Dhm3QnsZpE9CoCLp9Kvuh0ey+ETbUgty5X7yCq3yYQ
-# uJd0/oH3OjUKAqUHIMVJo/sLl+lo10EbNfrLv2GFXi7za49BnjQaECmjBmJ8Sx/l
-# P+tDF1YSU6+eFewdpEfGciQHCH2f4f/w2ugls98NcOY/qisN76moU3cg0QhrJ6WT
-# NuyhNdHZsxygkSoBD2vI39y7wCz5qwzOOThpv0u6hX7X6uDm+3iA5sLYJPAf4cg9
-# lQtVe2urlYzwvMm21klkS915VBPhmA==
+# BTEPFw0yNjAyMTIwMTIyMDJaMC8GCSqGSIb3DQEJBDEiBCBGgZRC00H542KfVrE6
+# dKXHtzEqhCohzfmceqT0PUZRwjANBgkqhkiG9w0BAQEFAASCAgBJ0bPYyX3JuklV
+# UV8U+D9PfSKMsD3LPTGeXm0+5fs2vA/qaSHltHnNi9ZWGtLMYaGhyV5VhrSc1edQ
+# VO74u8As0J/BZotTR+YzRum7uDQr0IMQsIYFDryLYnrM9V9bRkvBqKrT/tJwyfBY
+# z5W8tffRaeRXMHOXJBJiXNy7ynQgLoUOZW/nEsnSEumZEus+mUuULYLMtKRmn2Ar
+# uxkyAPUyEzCqspGmsrdKdf8oH1DwSolpWYiwSODjxExFN0bnl1vdqU9MV1VY7QNc
+# kW/JhUlDWMsMv+MstHkZcvtsHgDkDR5sGHFAZaeJTjXsoBHcEqUBUm3P7bSedl1j
+# VbEKXWBDNMphHe6RsvYO1GiSWepEHZDdxvwXcM0BtR/PQDd8/qgI/PSfOuAtdspK
+# JTaGsFM1h7dCuRupDrZtzGKSW9sQQ/3B57a3l/AFtPOn7o98+4NdUfhBvqJYEkeb
+# 7MWO0etPO6MNcyJUFrRp1oexV+JgXOMcM9ZkEMaiSPiw+iOwUt4DLbEAOZH6IKby
+# 0DTw4jAnnGoMI+Hx2gNxSO4qfny4aYAZtdRDWylsj2ToI9IwymiUar5dFhRvn8uL
+# gnkicKZTsAcM/VgRX6mWRw6GjQRI2/W9weMTvxilZUhQdlQGnGLv8hhqqs2HhQjk
+# FgNetl/Op23biXPfje7MkkJQQXhKcA==
 # SIG # End signature block
