@@ -1,93 +1,52 @@
+[CmdletBinding()]
+param()
 
-function Invoke-SystemRepairRemote {
-    <#
-    .SYNOPSIS
-        Runs DISM/SFC/system repair operations on a remote computer via
-        PSRemoting.
-    .DESCRIPTION
-        Wraps common repair operations (DISM RestoreHealth,
-        StartComponentCleanup, ResetBase, SFC, and Windows Update component
-        reset) in a TechToolbox-style function with remote execution
-        and credential support.
-    #>
+function Get-WindowsProductKeyCore {
     [CmdletBinding()]
-    param(
-        [Parameter()][switch]$RestoreHealth,
-        [Parameter()][switch]$StartComponentCleanup,
-        [Parameter()][switch]$ResetBase,
-        [Parameter()][switch]$SfcScannow,
-        [Parameter()][switch]$ResetUpdateComponents,
-        [Parameter(Mandatory)][string]$ComputerName,
-        [Parameter()][pscredential]$Credential
-    )
+    param()
 
-    Write-Log -Level Info -Message (" Opening remote session to {0}..." -f $ComputerName)
+    $computerName = $env:COMPUTERNAME
 
-    if ($Credential) {
-        $session = New-PSSession -ComputerName $ComputerName -Credential $Credential
-    }
-    else {
-        $session = New-PSSession -ComputerName $ComputerName
-    }
-
+    # OEM Product Key
     try {
-        Invoke-Command -Session $session -ScriptBlock {
-            param(
-                $RestoreHealth,
-                $StartComponentCleanup,
-                $ResetBase,
-                $SfcScannow,
-                $ResetUpdateComponents
-            )
-
-            if ($RestoreHealth) {
-                Write-Host "Running DISM /RestoreHealth remotely..."
-                Start-Process dism.exe -ArgumentList "/Online", "/Cleanup-Image", "/RestoreHealth" -NoNewWindow -Wait
-            }
-
-            if ($StartComponentCleanup) {
-                Write-Host "Running DISM /StartComponentCleanup remotely..."
-                Start-Process dism.exe -ArgumentList "/Online", "/Cleanup-Image", "/StartComponentCleanup" -NoNewWindow -Wait
-            }
-
-            if ($ResetBase) {
-                Write-Host "Running DISM /StartComponentCleanup /ResetBase remotely..."
-                Start-Process dism.exe -ArgumentList "/Online", "/Cleanup-Image", "/StartComponentCleanup", "/ResetBase" -NoNewWindow -Wait
-            }
-
-            if ($SfcScannow) {
-                Write-Host "Running SFC /scannow remotely..."
-                Start-Process sfc.exe -ArgumentList "/scannow" -NoNewWindow -Wait
-            }
-
-            if ($ResetUpdateComponents) {
-                Write-Host "Resetting Windows Update components remotely..."
-
-                Stop-Service -Name wuauserv, cryptsvc, bits, msiserver -Force
-
-                Remove-Item -Path "$env:ALLUSERSPROFILE\Application Data\Microsoft\Network\Downloader\qmgr*.dat" -Force -ErrorAction SilentlyContinue
-
-                Rename-Item -Path "$env:SystemRoot\SoftwareDistribution" -NewName "SoftwareDistribution.old" -Force
-                Rename-Item -Path "$env:SystemRoot\System32\catroot2" -NewName "catroot2.old" -Force
-
-                Start-Service -Name wuauserv, cryptsvc, bits, msiserver
-
-                Write-Host "Windows Update components reset remotely."
-            }
-        } -ArgumentList $RestoreHealth, $StartComponentCleanup, $ResetBase, $SfcScannow, $ResetUpdateComponents
+        $oemKey = (Get-CimInstance -ClassName 'SoftwareLicensingService' -ErrorAction Stop).OA3xOriginalProductKey
     }
-    finally {
-        if ($session) {
-            Write-Log -Level Info -Message (" Closing remote session to {0}." -f $ComputerName)
-            Remove-PSSession -Session $session
-        }
+    catch {
+        $oemKey = $null
+    }
+
+    # Partial Keys
+    try {
+        $partialKeys = Get-CimInstance -ClassName 'SoftwareLicensingProduct' -ErrorAction Stop |
+        Where-Object { $_.PartialProductKey } |
+        Select-Object Name, Description, LicenseStatus, PartialProductKey
+    }
+    catch {
+        $partialKeys = $null
+    }
+
+    # Activation Report
+    try {
+        $slmgrOutput = cscript.exe //Nologo C:\Windows\System32\slmgr.vbs /dlv 2>&1
+        $slmgrOutput = $slmgrOutput -join "`n"
+    }
+    catch {
+        $slmgrOutput = "Failed to retrieve slmgr report: $($_.Exception.Message)"
+    }
+
+    [pscustomobject]@{
+        ComputerName     = $computerName
+        OemProductKey    = $oemKey
+        PartialKeys      = $partialKeys
+        ActivationReport = $slmgrOutput
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB1fWzvkEiYaxlV
-# npxWaAnf3tSr7RgCB3j83ewYr4RjFqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAFzE+54kYJkiex
+# vsvAA7EF/poDt+kRP9kk+m1iJHEtLaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -220,34 +179,34 @@ function Invoke-SystemRepairRemote {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAI+R70BQRw
-# vwf5UcnMk7I4at2DZpC46iQrVNq5sysR6DANBgkqhkiG9w0BAQEFAASCAgCIuui+
-# Q/8IkxZeIvcQhLvEF9NuQjQ6XfOOuRP69LAWAsza1ViHkulS6UeRVZ807G4jq7Ix
-# sp7UyNWENuG7BK6S0/cg/1E8/g/bR+xjMMb6isNjMkM9HTahyFj8FRIyHqDSO1rE
-# qwONgOTJHQ7EfgmvheGkUR8MUx3eQ2kuWttfrUtVTpgd/XeLOVrPFJMFA5k5TwAP
-# w25auQQ8qRknE4mgWAys3eNAgQ0tXl1wE+x7UAuGX3dJRkXRS3XYgSkpH1mzyaTV
-# CywkZKZSygBSQYRKJi5E3MuAhTNzriM/BE4ybnbM8WsziF+9tBzHkZnDkn7gzndT
-# H3P2jLgzmFqhRCU6MP4GQDKO4y8+CErZ9luaf/NEOvbsNNbyImm/aVX51KuAAkKt
-# INjYbw7Bvzr7xn6Q32rRvXLlBZtEUuQv9O9xTIpeMVgb4M1aT6PYmYTJj5o+RiH2
-# ZeHdEb1ueNM2Xau/lR30NzqI6DVgWpawzxCrjvk6sCbddaQ5rO3qmcYbDi6zdmyo
-# 26l2P5nV02KxuKg0zQo1tee9zNJnlgWaSQx8gFYDs3q7ASB6eCjZVq6t3GDccHk9
-# tdTGFGrbc37NPoYNn1Ip1PAmnkTbKcJ4hLdtwy49he4Ah3i+iMDD990udirbajeS
-# cSOAMHgR/S69u3ZPWnsY52O3pzlCN/692UqMlaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDwsDtnr9jZ
+# 0enCubSJp3lujH40ueD1H9ur+sNUmQxCJDANBgkqhkiG9w0BAQEFAASCAgDLwjky
+# sB534mpENB38URm1XnhnHp26N3jn+mCo5FKKQl8rwxndhUFM901eNL5/OSMevYGw
+# CGQRpCD1eXj6yolxt85aUUVVsgXVxmDXGrL4W5Ev6aJEwdDeqCE1+SyUbZl+1ved
+# lQsyUiOeWRmJNFLb99O5GP4jAGhSFA6GfRT1dsxjMYm/tuSZ35A7qoyjslVQgfTe
+# OEiUhdhJzik5QpyGI7g5U1iQNSinTq2xdiwHL78smPqXgEb1UwotGyLpsNVXC4rG
+# FGtaRezdK/W1jxL2t3Nq82aX4slh1VXwbvP7v55YYOr9NY7BTrh8Cb7MGZJLjYfq
+# Vz64LDNANoP+1xRvN6WMfsa9QLcRazHyTE73lRGQwmr/oXySTwnzL/UVWbfDtSD9
+# RohY9qzO+oNLl6dqEEuMVwICLYtMaM164KUkm+cNyl8GnRZI3M7AqJnaOiV28auD
+# 6Y4uuxWeHhuNrETzXNNgU8DAcnYqfE8yTKcyHKPLTVGdSMfQQLkDvN7KrrI1vzZd
+# DfCsAh90CBBOPepnXFReJ+lZGNxHotNWRL6/p3C4AnwOap0IiCVPlC26Bs37ALNC
+# xBuJCm00f3bZzAzu2r6PumW11/ppmQRmbviKnAs+HeBk4r+c0tQ4Lnig4new6kSu
+# iHHHAEmBnyQHFF7+nRuMyUVwplF2z3S2V/GkDqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ2MTJaMC8GCSqGSIb3DQEJBDEiBCBzjzZttAVPA5ht+8y5
-# IJ5if3l76ZVklwpuI8mVl1Og9jANBgkqhkiG9w0BAQEFAASCAgDKPX4RW9aJ2UFc
-# MZI3MTiNbOvMmlHRa4cCFBahhE+ETBGQrlCKqjxXmkxeDtv7PeubamhovRRVzCul
-# vcKmHsWmRuVKxRYmjZQ1fnlJyUvdAPcQjd5LSaXsBJGAIjuM7pM8Xvl1ROaUVyjI
-# 9m+iNWSbs9mnT0nUKBxq+HiMJAQtYTivVCVqIFERvLEzOJ9s3MHoiZgPQCvgqvvj
-# XppFCyziYc0hxf9450Dx4FNmxe5aQoyKok2ojl9kfVjFeNx8hLzdtwVbiyf0xB0k
-# 1cxEZ5J3nbUsDyLbIq8w6yHMqK0Kw9s9HQ4DGWqrW80k2ibAt3GwpKtspb16+0y6
-# +/sGCRrLrWUkIGmD5GAllzMG2GRkRgQEAlZ2A9yfpFIT2M4VW05UT2cbhHxV/tMJ
-# pmU9lcVcRkzqMPGdYArqyFvod9xDOOWRCN4Rk+5tLresopL++WmcREQTAESjCvsN
-# GeKVYj+awr71H7lBBGpdAdfWBMBKjGYLrT6JwvTLz71x82HWTsj8hCmzKBMQVkQK
-# 8ZZTdX569MVoVg3AsvyqiUoklQpdh40epg624weXXU38u+JlkCaJF+/fOrZQ1FFq
-# wqnWvg522hmxctY0Pk88Hxavf/6F5wdm9usyjPxgwtHov8DC35LAuQdq46IPfS9D
-# lWsQLLGfJF+LM+vpj0MdM56yjCBVhw==
+# BTEPFw0yNjAyMTIwMzA4MDRaMC8GCSqGSIb3DQEJBDEiBCBtC5ovrqqm6kvnx+xz
+# oH/6cLDyeHKvmYVZy2+zhVow+DANBgkqhkiG9w0BAQEFAASCAgDQPY+z/yxw/Omj
+# z3waz1Wpudgep7UO61IYq72XHdL/KT4qFFbYvuOIuxFrYZXMRDMw20q/kRdOYai+
+# I2AvH3fbV0uDjzgCd6c+rSbMWQVfiDeoE31LRzU9qKUzt+Q07D6U0pTHpNQebK1A
+# XdWPHo0bpPPswq+72O/Q30k+fB2dh5AYmE32IETmjF7JpIYR/q3sbm0yFlU7tMH2
+# XPRt/C94Nt6WTHD26agniLa9q+2rzlV+ftk2HvmipKvAOti13wrGSDmBqeYpcLxJ
+# SkS3gVUQPqqEhWXbZl5sBBQdk30DP0tZRBJynlZllT8KSYXN6b69yKUgeidXC9FN
+# v/0E5x/l9Hl19vJApVsiQU7PYSBjP9LEoffiGYjBFc/pqloM9VULSb0oyLfFVMvw
+# ijMivYhlN8PVQVDYstUgudl8Hx5ajh+u3r4uKbtnBxuauPiGPneMfH7aqSWt3DrY
+# 3Oop2uZEAC1aIwMngBTszNse54wXASOQN0nYFBekjZHEjaH2OEIrJhphuTM+N5qe
+# MbqyYKV/mK8+ea+5pPqsDJiEyDuvkTRLynqFFbkwbejCKIqPSWcPgnCNZuYDKbEn
+# Z7pEyIiV990tkrdElBIjO2xjgCyDIYSWm9C++i5Toy5OprEJBD67lxkvbSj6Khyn
+# UELbh1/L/8JAScK0Z8X/gYdQQ+2+yg==
 # SIG # End signature block

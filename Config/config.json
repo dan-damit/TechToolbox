@@ -30,7 +30,8 @@
     },
     "resetPassword": {
       "passwordFunctionPath": "C:\\TechToolbox\\Private\\System\\Utilities\\PasswordRelated",
-      "initialPasswordLength": 12
+      "initialPasswordLength": 12,
+      "showPassword": true
     },
     "systemUptime": {
       "logFileNameFormat": "SystemUptime_{yyyyMMdd}.log",

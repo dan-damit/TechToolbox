@@ -1,236 +1,117 @@
-
 function Find-LargeFiles {
-    <#
-    .SYNOPSIS
-    Finds large files recursively and (optionally) exports results to CSV.
-
-    .DESCRIPTION
-    Searches under one or more directories for files larger than a minimum size.
-    Paths can be provided by parameter, config
-    (settings.largeFileSearch.defaultSearchDirectory), or prompt. If -Export is
-    specified, results are saved to CSV in the configured export directory
-    (settings.largeFileSearch.exportDirectory) or a path you provide.
-
-    .PARAMETER SearchDirectory
-    One or more root directories to search. If omitted, will use config or
-    prompt.
-
-    .PARAMETER MinSizeMB
-    Minimum size threshold in MB. If omitted, will use config
-    (settings.largeFileSearch.defaultMinSizeMB) or default of 256.
-
-    .PARAMETER Depth
-    Optional maximum recursion depth (PowerShell 7+ only).
-
-    .PARAMETER Export
-    When present, exports results to CSV.
-
-    .PARAMETER ExportDirectory
-    Override the export directory (otherwise uses
-    settings.largeFileSearch.exportDirectory).
-
-    .PARAMETER CsvDelimiter
-    Optional CSV delimiter (default ',').
-
-    .EXAMPLE
-    Find-LargeFiles -SearchDirectory 'C:\','D:\Shares' -MinSizeMB 512 -Export -Verbose
-
-    .EXAMPLE
-    Find-LargeFiles -Export  # uses config search dirs (or prompts) and exports to config exportDirectory
-
-    .NOTES
-    Outputs PSCustomObject with FullName and SizeMB. Also writes CSV when
-    -Export is used.
-    #>
-
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $false)]
-        [ValidateNotNullOrEmpty()]
-        [string[]] $SearchDirectory,
-
-        [Parameter(Mandatory = $false)]
-        [ValidateRange(1, [int]::MaxValue)]
-        [int] $MinSizeMB,
-
-        [Parameter(Mandatory = $false)]
-        [ValidateRange(1, [int]::MaxValue)]
-        [int] $Depth,
-
-        [Parameter(Mandatory = $false)]
-        [switch] $Export,
-
-        [Parameter(Mandatory = $false)]
-        [ValidateNotNullOrEmpty()]
-        [string] $ExportDirectory,
-
-        [Parameter(Mandatory = $false)]
-        [ValidateNotNullOrEmpty()]
-        [string] $CsvDelimiter = ','
+        [string[]]$SearchDirectory,
+        [int]$MinSizeMB,
+        [int]$Depth,
+        [switch]$Export,
+        [string]$ExportDirectory,
+        [string]$CsvDelimiter = ',',
+        [string]$ComputerName,
+        [switch]$Local,
+        [pscredential]$Credential
     )
 
-    begin {
-        # Helper: Try to use module's Get-TechToolboxConfig; if not found, fallback to local file.
-        Initialize-TechToolboxRuntime
-        $cfg = $script:cfg
+    Initialize-TechToolboxRuntime
+    $cfg = $script:cfg.settings.largeFileSearch
 
-        # Resolve MinSizeMB: param > config > default (256)
-        if (-not $PSBoundParameters.ContainsKey('MinSizeMB')) {
-            $MinSizeMB = if ($cfg -and $cfg['settings'] -and $cfg['settings']['largeFileSearch'] -and $cfg['settings']['largeFileSearch']['defaultMinSizeMB']) {
-                [int]$cfg['settings']['largeFileSearch']['defaultMinSizeMB']
-            }
-            else {
-                256
-            }
-        }
-
-        # Resolve SearchDirectory: param > config > prompt
-        if (-not $SearchDirectory -or $SearchDirectory.Count -eq 0) {
-            $fromCfg = @()
-            if ($cfg -and $cfg['settings'] -and $cfg['settings']['largeFileSearch'] -and $cfg['settings']['largeFileSearch']['defaultSearchDirectory']) {
-                if ($cfg['settings']['largeFileSearch']['defaultSearchDirectory'] -is [string]) {
-                    $fromCfg = @($cfg['settings']['largeFileSearch']['defaultSearchDirectory'])
-                }
-                elseif ($cfg['settings']['largeFileSearch']['defaultSearchDirectory'] -is [System.Collections.IEnumerable]) {
-                    $fromCfg = @($cfg['settings']['largeFileSearch']['defaultSearchDirectory'] | ForEach-Object { $_ })
-                }
-            }
-            if ($fromCfg.Count -gt 0) {
-                $SearchDirectory = $fromCfg
-                Write-Verbose "Using search directories from config: $($SearchDirectory -join '; ')"
-            }
-            else {
-                $inputPath = Read-Host "Enter directories to search (use ';' to separate multiple)"
-                $SearchDirectory = $inputPath -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
-            }
-        }
-
-        # Normalize and validate directories
-        $SearchDirectory = $SearchDirectory |
-        ForEach-Object { [Environment]::ExpandEnvironmentVariables($_) } |
-        ForEach-Object {
-            if (-not (Test-Path -LiteralPath $_)) {
-                Write-Warning "Path not found: $_ (skipping)"
-                $null
-            }
-            else { $_ }
-        } | Where-Object { $_ }
-
-        if (-not $SearchDirectory -or $SearchDirectory.Count -eq 0) {
-            throw "No valid search directories were provided."
-        }
-
-        $minBytes = [int64]$MinSizeMB * 1MB
-
-        # Resolve ExportDirectory if -Export is used and no override is provided.
-        if ($Export -and -not $PSBoundParameters.ContainsKey('ExportDirectory')) {
-            if ($cfg -and $cfg['settings'] -and $cfg['settings']['largeFileSearch'] -and $cfg['settings']['largeFileSearch']['exportDirectory']) {
-                $ExportDirectory = [string]$cfg['settings']['largeFileSearch']['exportDirectory']
-                Write-Verbose "Using export directory from config: $ExportDirectory"
-            }
-            else {
-                throw "Export requested, but 'settings.largeFileSearch.exportDirectory' was not found in config and no -ExportDirectory was provided."
-            }
-        }
-
-        # Ensure export directory exists if we will export
-        if ($Export) {
-            try {
-                $null = New-Item -ItemType Directory -Path $ExportDirectory -Force -ErrorAction Stop
-            }
-            catch {
-                throw "Failed to ensure export directory '$ExportDirectory': $($_.Exception.Message)"
-            }
-        }
-
-        # Build output list
-        $results = New-Object System.Collections.Generic.List[object]
+    # Resolve MinSizeMB
+    if (-not $MinSizeMB) {
+        $MinSizeMB = $cfg.defaultMinSizeMB ?? 256
     }
 
-    process {
-        $totalRoots = $SearchDirectory.Count
-        $rootIndex = 0
-
-        foreach ($root in $SearchDirectory) {
-            $rootIndex++
-            Write-Verbose "Scanning $root ($rootIndex of $totalRoots) …"
-
-            try {
-                $gciParams = @{
-                    Path        = $root
-                    File        = $true
-                    Recurse     = $true
-                    ErrorAction = 'SilentlyContinue'
-                    Force       = $true
-                }
-                if ($PSBoundParameters.ContainsKey('Depth')) {
-                    # PowerShell 7+ supports -Depth on Get-ChildItem
-                    $gciParams['Depth'] = $Depth
-                }
-
-                $count = 0
-                Get-ChildItem @gciParams |
-                Where-Object { $_.Length -ge $minBytes } |
-                Sort-Object Length -Descending |
-                ForEach-Object {
-                    $count++
-                    if ($PSBoundParameters.Verbose) {
-                        # Lightweight progress when -Verbose is on
-                        Write-Progress -Activity "Scanning $root" -Status "Found $count large files…" -PercentComplete -1
-                    }
-
-                    [PSCustomObject]@{
-                        FullName = $_.FullName
-                        SizeMB   = [math]::Round(($_.Length / 1MB), 2)
-                    }
-                } | ForEach-Object { [void]$results.Add($_) }
-
-                if ($PSBoundParameters.Verbose) {
-                    Write-Progress -Activity "Scanning $root" -Completed
-                }
-            }
-            catch {
-                Write-Warning "Error scanning '$root': $($_.Exception.Message)"
-            }
+    # Resolve SearchDirectory
+    if (-not $SearchDirectory) {
+        $SearchDirectory = $cfg.defaultSearchDirectory
+        if (-not $SearchDirectory) {
+            $inputPath = Read-Host "Enter directories to search (use ';' to separate multiple)"
+            $SearchDirectory = $inputPath -split ';' | ForEach-Object { $_.Trim() }
         }
     }
 
-    end {
-        # Emit combined, globally sorted output to pipeline
-        $sorted = $results | Sort-Object SizeMB -Descending
-        $sorted
+    # Normalize and validate
+    $SearchDirectory = $SearchDirectory |
+    ForEach-Object { [Environment]::ExpandEnvironmentVariables($_) } |
+    Where-Object { Test-Path $_ }
 
-        if ($Export) {
-            # Determine filename
-            $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-            $defaultName = "LargeFiles_${timestamp}.csv"
+    if (-not $SearchDirectory) {
+        Write-Log -Level Error -Message "No valid search directories."
+        return
+    }
 
-            $fileName = $defaultName
-            if ($cfg -and $cfg.settings -and $cfg.settings.largeFileSearch -and $cfg.settings.largeFileSearch.exportFileNamePattern) {
-                $pattern = [string]$cfg.settings.largeFileSearch.exportFileNamePattern
-                # Simple token replacement for {yyyyMMdd_HHmmss}
-                $fileName = $pattern -replace '\{yyyyMMdd_HHmmss\}', $timestamp
-                if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = $defaultName }
-            }
+    # Determine local vs remote
+    $runRemote = (-not $Local -and $ComputerName)
 
-            $exportPath = Join-Path -Path $ExportDirectory -ChildPath $fileName
+    if ($runRemote) {
+        # --- Remote Mode ---
+        Write-Log -Level Info -Message "Scanning large files on $ComputerName..."
 
-            try {
-                $sorted | Export-Csv -Path $exportPath -NoTypeInformation -Encoding UTF8 -Delimiter $CsvDelimiter -Force
-                Write-Host "Exported $($sorted.Count) items to: $exportPath" -ForegroundColor Green
-            }
-            catch {
-                Write-Warning "Failed to export CSV to '$exportPath': $($_.Exception.Message)"
-            }
+        $creds = $Credential
+        if ($script:cfg.settings.defaults.promptForCredentials -and -not $creds) {
+            $creds = Get-Credential -Message "Enter credentials for $ComputerName"
         }
+
+        $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $creds
+
+        $moduleRoot = Get-ModuleRoot
+        $workerLocal = Join-Path $moduleRoot 'Workers\Find-LargeFiles.worker.ps1'
+        $workerRemote = 'C:\TechToolbox\Workers\Find-LargeFiles.worker.ps1'
+
+        $helperPath = Join-Path $moduleRoot 'Private\LargeFiles\Invoke-LargeFileSearch.ps1'
+        $pkg = New-HelpersPackage -HelperFiles @($helperPath)
+
+        $result = Invoke-RemoteWorker `
+            -Session $session `
+            -HelpersZip $pkg.ZipPath `
+            -HelpersZipHash $pkg.ZipHash `
+            -WorkerRemotePath $workerRemote `
+            -WorkerLocalPath $workerLocal `
+            -EntryPoint 'Find-LargeFilesCore' `
+            -EntryParameters @{
+            SearchDirectory = $SearchDirectory
+            MinSizeMB       = $MinSizeMB
+            Depth           = $Depth
+            UseDepth        = $PSBoundParameters.ContainsKey('Depth')
+        }
+
+        Remove-PSSession $session
+    }
+    else {
+        # --- Local Mode ---
+        Write-Log -Level Info -Message "Scanning large files locally..."
+        $result = Invoke-LargeFileSearch `
+            -SearchDirectory $SearchDirectory `
+            -MinSizeMB $MinSizeMB `
+            -Depth $Depth `
+            -UseDepth:($PSBoundParameters.ContainsKey('Depth'))
+    }
+
+    # Sort and output
+    $sorted = $result | Sort-Object SizeMB -Descending
+    $sorted
+
+    # Export if requested
+    if ($Export) {
+        if (-not $ExportDirectory) {
+            $ExportDirectory = $cfg.exportDirectory
+        }
+
+        New-Item -ItemType Directory -Path $ExportDirectory -Force | Out-Null
+
+        $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+        $fileName = "LargeFiles_${timestamp}.csv"
+        $exportPath = Join-Path $ExportDirectory $fileName
+
+        $sorted | Export-Csv -Path $exportPath -NoTypeInformation -Encoding UTF8 -Delimiter $CsvDelimiter
+        Write-Log -Level Ok -Message "Exported $($sorted.Count) items to $exportPath"
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCJcJbmNakAsxhF
-# Q6+1CdbdSSBNmfavEf8gB+CQwu7a3KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBhfIMz4dpoX+15
+# gNV5j/OYoGxXvdz7X8tHZm3k/MRLHaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -363,34 +244,34 @@ function Find-LargeFiles {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAuWjflLtAw
-# 67arYuKFWtSmZ7axgMSwCQYCAUt7f2/kcDANBgkqhkiG9w0BAQEFAASCAgB8UbPN
-# /BZWRB/LfT6quVvIRoPau4HXuW6JmU/LJnxiF5ohUl8JWlgjqNhIFSRCQOfgFRMr
-# 5V4DjS7texpSXghtPUbkAlZvwMYimZOTu2TU5KT1/ovD12cFgi7kJRxUlL4vF+Gu
-# r0CTgKDPQZ1iv4myI1Vuxd+s2xdEBasgx4WOHWcMNnlaWIuKRQARk93V4+gJ40/u
-# hW3brL8syQKsHNFZZ0t65+/NQkXgJw6Ukg/HEDwID1GAqT5FKCT8KwwuJHF26/1c
-# m7YqqkDhbCbO8OzvoXZv1NdzL4AeOW8gnCSVpSPqOwT+C3lNfSKgNH/lqzu16fP+
-# W/ZHTzNPN8gGnQ3YZSewGcEGKPdB2UI/lqtsFXWw4fV9wMRq5BWy332UnlxEanlV
-# xrsev/Y3fP2rgI+mRFCflsL3IQ/ia29qxD+a4XeJfxCwu5sNBm5IpXaEIL5W8aRm
-# +BWLJqiN68WuHmGYjcDqYACoC+1xlWyVqYYXTNEkcR4G1k8Xjaerzfsv/j6kTBfd
-# p8o6xoJvVAU4E/BVYmRBrDdiM65uLSHPOuqst3V0B0KVnhOz0jyWTHV7FX7USzfp
-# co2NNZtcLOnLaLpBc5tSw5lgn9Whf7vWDAJllldHqbF0+a2YqYEIXYrMhe469mHx
-# pQyoOmFtGTlPMwrkeQR08D5wOv2a5Z9iIJ4rhKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA7t7ZCF8ji
+# 2HuSU8piJtgLT9S5v2f08sgsE2+jLrwZUTANBgkqhkiG9w0BAQEFAASCAgC3gpTc
+# 7i2mW+CgdWVMAobFjk18gVAsRgiiGJtS25t4lK9COmBM0HK3pa6Q9zA/XX/SsA/a
+# X6UeIs/QP2snyDSPH1DqUlDqEFDKO2XqmxNDOa71BuhBNe6HGTLwePOQhWRhuqSp
+# ufgK+O8+nJ1czttBhUtn/R3riKJDnutmsJzHi1a8Iotf1kGrVx627uZ24yaYb0yP
+# /JsARBZdYiagd5rbht1I7P9uP3m1bqMdFfgLqD0uv29c0PDmPs2VeqssXV3aZBD5
+# 42dzi6kYJ+B1Gu0bht3ZyIf6uBg2cXWprxSwzGP4BEt5WMRvn9TR/P5JLhdIZ+wo
+# kXPJopGnxPCGyGDEpc14U35IvMxpSmDnu/QFcyzIHPpz25RCx++k1AkQ8NEwgTCB
+# lfaxrCqCp//dGYFi9WqbHP2NIMfMax8gXxRy+aLAEiRE4uGNylEwM4CawyfVCtdi
+# RNTNTlISNi+mW4vi6R+inuqLOAFlSvdRT8vU8hufC29eInGWoPFbT3wCS7kiJCJ1
+# 6KU1/5dXDR1wBZzT4NtwbqcsHsWD4tyUt+8XFB4xYK9D1xD5BXhHQ2vTXVLqP+N3
+# iVqdNLM5LYYpw3HjTlQkzqBi5gJsbZiSoFK20f7L8XD6N6MupTFlJGRBJSQPHhmR
+# mcunFX1PTh6zFAUCKrnDKzQ/PbTHx9X01ksY26GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMjFaMC8GCSqGSIb3DQEJBDEiBCDVL1vFULDxJX8KCi9w
-# DjyHgKysMrzGdBRIvazcYDr42jANBgkqhkiG9w0BAQEFAASCAgAUk2PwliJSiQ6i
-# HUj9Yi5Q9uXfxFLHF7Mw47EFJBT9x4SrUK4LEIjutMU/P5qoKUqQS3TzkzOvizhM
-# XvG76Dhf4MPNzWVs5Q68APDZ0mXAjjkWjDUbxXKu/OPnZELDcVRRjzB/4BryfT0F
-# Qll7+pqekysYtpC7OdWRAXOJ/WIOOWXLmBfhvTwlYZQ3Onz+Mf4psmCH8XBTuscV
-# rjLhHrID3ZNkzqJ7UcdX6TH6Kn7WByUowtILcOWXCkaZD+EqFvF7kuYrWAS/fQw+
-# Kf1Zx00wtItAh3Cz3wzBvw2drH088nliDn8ZhQpGEjajJ0Tn6xcowKXja6uc+j59
-# DKywzrFB23lQr+jZQo8J9GWZy/Qr18IM+Vs1wqv0scrVKWZkKTihLzMLcmm7l86R
-# 0lQ72O3YfGzBEPC8XoT93YJGc41dMZrGKaU9PG2/XSvUd50ItUj85r1RJ3RvgaBe
-# gQBryXr6mNQEL85t2EsbTWt66OacHrwITzGVQc3pQJ8DvKLrQigLTAyswn3ekuED
-# DWXkLL4o5CzfZ0Q5YjnB/W75kVho+3NIGJwpOIzD8x7cpyU69OexHMVvo5lJR5IC
-# AZyZ5RN+ASdz6tOBtfaqRpgT0UG1okG3/aQ2cbgDW280LFzsCLnOFH2nr4rm+bQ5
-# gPCOOEQu4OGMpGl2SXKpPgx/01LmVw==
+# BTEPFw0yNjAyMTIwMzA4MDRaMC8GCSqGSIb3DQEJBDEiBCBlpEi+gm9wO9kVgNe3
+# ykOafc0g1g3WCX9rpIpSgqSNlzANBgkqhkiG9w0BAQEFAASCAgCRbjDyRkSlyFn7
+# 1q5lio9nNOle1T63k9/b36lPutPEfCjbnSqyQ+htZoGmLwj6kkrbvix0f2Cp12Tm
+# Pwi94G/MXT3ZfzbHcsBPs+UKHVlFBud09MaeeAmIEek2tN8FmnzcOIVNV5Io2rLW
+# Huiees3iWR6xzWT/nhBG4wsbcGp4ewr/cSg8czjAfhhU64API0jZVUYBWRJMb5ND
+# PoLNoiheLn/3SrI/ui0EoEWU9DDcphlHsEKdz7c6KcUrmasb++DMTgr/K12Y6O6n
+# V7leoBkXRIPW2C0GMP+59vDPlzZvF0uadL9cVWCrq0Z+WPrcggmE75awjj9ETA0M
+# z7R5MWqeZ30J6hHUdEwP7USQecm8MOO9WKiDlgVOPU1MHvxNBSEFkuNZ/LGbnvgs
+# 4nEWc/Hom/IovCJMaC0Hxr0/RVF43jyYRBbpnY2cYUdMITWRN1WKj7mZBYLhwgX7
+# J+4TxrhjIQ1PrEwMUqJQcQ0+8I/5SiggCk+FcUUn+90ETD9jHG8snIY1PlobEclt
+# vv7vPCdApsswqQxnIPu7cVPhgv/7f0o3e2QBPTE7D8KBGK+FTPERMBSQf67v+cZv
+# HDYPDUip5y9Kyz+2X8MQJy1O+mUn89x4yT5syXdnrvS0SI5ZTRH/xHKoZnmUAz2/
+# 10tYDuP81OnO081E/jd8XNoL7KnKsw==
 # SIG # End signature block

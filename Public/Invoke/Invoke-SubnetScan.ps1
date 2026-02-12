@@ -1,37 +1,4 @@
-
 function Invoke-SubnetScan {
-    <#
-.SYNOPSIS
-    Scans a subnet (locally or remotely) and can export results to CSV.
-.DESCRIPTION
-    Orchestrates a subnet scan by calling Invoke-SubnetScanLocal. Applies
-    defaults from config.settings.subnetScan and exports locally to
-    config.settings.subnetScan.exportDir when -ExportCsv is requested. Can also
-    execute the scan on a remote host if -ComputerName is specified.
-.PARAMETER ComputerName
-    Specifies the remote computer on which to execute the subnet scan. If
-    not specified, the scan will be executed locally.
-.PARAMETER Port
-    Specifies the TCP port to test on each host. Defaults to the value in
-    config.settings.subnetScan.defaultPort or 80 if not specified.
-.PARAMETER ResolveNames
-    Switch to enable name resolution (PTR → NetBIOS → mDNS) for each host.
-    Defaults to the value in config.settings.subnetScan.resolveNames or
-    $false if not specified.
-.PARAMETER HttpBanner
-    Switch to enable HTTP banner retrieval for each host. Defaults to the
-    value in config.settings.subnetScan.httpBanner or $false if not specified.
-.PARAMETER ExportCsv
-    Switch to enable exporting scan results to CSV. Defaults to the value in
-    config.settings.subnetScan.exportCsv or $false if not specified.
-.PARAMETER LocalOnly
-    Switch to force the scan to execute locally, even if -ComputerName is
-    specified.
-.INPUTS
-    None
-.OUTPUTS
-    System.Collections.Generic.List[PSCustomObject]
-#>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -41,12 +8,12 @@ function Invoke-SubnetScan {
         [string]$ComputerName,
         [ValidateSet('WSMan', 'SSH')]
         [string]$Transport = 'WSMan',
-        [pscredential]$Credential,       # WSMan (domain/local); SSH (username only if not using key)
-        [string]$UserName,               # SSH user if not using -Credential
-        [string]$KeyFilePath,            # SSH key (optional)
+        [pscredential]$Credential,
+        [string]$UserName,
+        [string]$KeyFilePath,
         [switch]$LocalOnly,
 
-        # Scan behavior (nullable by omission; we default from config)
+        # Scan behavior
         [int]$Port,
         [switch]$ResolveNames,
         [switch]$HttpBanner,
@@ -57,7 +24,6 @@ function Invoke-SubnetScan {
         [string]$ExportTarget = 'Local'
     )
 
-    # Load dependencies
     Initialize-TechToolboxRuntime
     $oldEAP = $ErrorActionPreference
 
@@ -69,13 +35,11 @@ function Invoke-SubnetScan {
         $scanCfg = $cfg.settings.subnetScan
         if (-not $scanCfg) { throw "Config missing 'settings.subnetScan'." }
 
-        # Defaults only if user didn’t supply
         if (-not $PSBoundParameters.ContainsKey('Port')) { $Port = $scanCfg.defaultPort ?? 80 }
         if (-not $PSBoundParameters.ContainsKey('ResolveNames')) { $ResolveNames = [bool]($scanCfg.resolveNames ?? $false) }
         if (-not $PSBoundParameters.ContainsKey('HttpBanner')) { $HttpBanner = [bool]($scanCfg.httpBanner ?? $false) }
         if (-not $PSBoundParameters.ContainsKey('ExportCsv')) { $ExportCsv = [bool]($scanCfg.exportCsv ?? $false) }
 
-        # Local export dir resolved now (used when ExportTarget=Local)
         $localExportDir = $scanCfg.exportDir
         if ($ExportCsv -and $ExportTarget -eq 'Local') {
             if (-not $localExportDir) { throw "Config 'settings.subnetScan.exportDir' is missing." }
@@ -87,42 +51,38 @@ function Invoke-SubnetScan {
         Write-Log -Level Info -Message ("SubnetScan: CIDR={0} Port={1} ResolveNames={2} HttpBanner={3} ExportCsv={4} Target={5}" -f `
                 $CIDR, $Port, $ResolveNames, $HttpBanner, $ExportCsv, $ExportTarget)
 
-        # --- EXECUTION LOCATION ---
         $runLocal = $LocalOnly -or (-not $ComputerName)
         $results = $null
 
+        # --- LOCAL MODE ---
         if ($runLocal) {
             Write-Log -Level Info -Message "Executing subnet scan locally."
-            # Worker should not export in local mode if ExportTarget=Local (we export here)
+
             $doRemoteExport = $false
-            $results = Invoke-SubnetScanLocal -CIDR $CIDR -Port $Port -ResolveNames:$ResolveNames -HttpBanner:$HttpBanner -ExportCsv:$doRemoteExport
+            $results = Invoke-SubnetScanLocal `
+                -CIDR $CIDR `
+                -Port $Port `
+                -ResolveNames:$ResolveNames `
+                -HttpBanner:$HttpBanner `
+                -ExportCsv:$doRemoteExport
         }
         else {
             Write-Log -Level Info -Message "Executing subnet scan on remote host: $ComputerName via $Transport"
 
-            # --- Build session (WSMan / SSH, keep your existing transport switch) ---
+            # --- Build session (reuse your existing transport logic) ---
             $session = $null
             try {
                 if ($Transport -eq 'WSMan') {
-                    # Try PS7 endpoint first, then fall back to the default (WinPS 5.1)
-                    try {
-                        $session = New-PSSession -ComputerName $ComputerName -Credential $Credential `
-                            -ConfigurationName 'PowerShell.7' -ErrorAction Stop
-                        Write-Log -Level Ok -Message "Connected to $ComputerName (PowerShell 7 endpoint)."
-                    }
-                    catch {
-                        # Fallback to classic endpoint
-                        $session = New-PSSession -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop
-                        Write-Log -Level Ok -Message "Connected to $ComputerName (Windows PowerShell endpoint)."
-                    }
+                    $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $Credential
                 }
                 else {
-                    # SSH remoting (unchanged from your code)
                     if (-not $UserName -and $Credential) { $UserName = $Credential.UserName }
                     if (-not $UserName) { throw "For SSH transport, specify -UserName or -Credential." }
+
                     $sshParams = @{ HostName = $ComputerName; UserName = $UserName; ErrorAction = 'Stop' }
                     if ($KeyFilePath) { $sshParams['KeyFilePath'] = $KeyFilePath }
                     elseif ($Credential) { $sshParams['Password'] = $Credential.GetNetworkCredential().Password }
+
                     $session = New-PSSession @sshParams
                     Write-Log -Level Ok -Message "Connected to $ComputerName (SSH)."
                 }
@@ -133,37 +93,59 @@ function Invoke-SubnetScan {
             }
 
             try {
-                # --- No module copy. No import. Just run the worker script remotely. ---
-                $workerPath = 'C:\TechToolbox\Workers\SubnetScan.Worker.ps1'   # local path on YOUR box
-                if (-not (Test-Path -LiteralPath $workerPath)) {
-                    throw "Worker script not found: $workerPath"
-                }
+                $moduleRoot = Get-ModuleRoot
+                $workerLocal = Join-Path $moduleRoot 'Workers\SubnetScan.worker.ps1'
+                $workerRemote = 'C:\TechToolbox\Workers\SubnetScan.worker.ps1'
 
-                # If the user asked for remote export, pass an explicit dir (keep your config intent)
+                # Helpers required by Invoke-SubnetScanLocal + its dependencies
+                $helperFiles = @(
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Invoke-SubnetScanLocal.ps1')
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Get-IPsFromCIDR.ps1')
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Get-MacAddress.ps1')
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Get-ReverseDns.ps1')
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Get-NetbiosName.ps1')
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Get-MdnsName.ps1')
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Test-TcpPort.ps1')
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Get-HttpInfo.ps1')
+                    (Join-Path $moduleRoot 'Private\Network\SubnetScan\Show-ProgressBanner.ps1')
+                )
+
+                $pkg = New-HelpersPackage -HelperFiles $helperFiles
+
                 $remoteExportDir = $null
-                if ($ExportCsv -and $ExportTarget -eq 'Remote') {
-                    # Reuse your existing config's exportDir value resolved earlier
+                $doRemoteExport = $ExportCsv -and ($ExportTarget -eq 'Remote')
+                if ($doRemoteExport) {
                     $remoteExportDir = $scanCfg.exportDir
                     if (-not $remoteExportDir) {
                         throw "Config 'settings.subnetScan.exportDir' is missing; required for remote export."
                     }
                 }
 
-                $doRemoteExport = $ExportCsv -and ($ExportTarget -eq 'Remote')
-
-                $results = Invoke-Command -Session $session -FilePath $workerPath `
-                    -ArgumentList $CIDR, $Port, $ResolveNames, $HttpBanner, $doRemoteExport, $remoteExportDir
+                $results = Invoke-RemoteWorker `
+                    -Session $session `
+                    -HelpersZip $pkg.ZipPath `
+                    -HelpersZipHash $pkg.ZipHash `
+                    -WorkerRemotePath $workerRemote `
+                    -WorkerLocalPath $workerLocal `
+                    -EntryPoint 'Invoke-SubnetScanCore' `
+                    -EntryParameters @{
+                    CIDR         = $CIDR
+                    Port         = $Port
+                    ResolveNames = $ResolveNames
+                    HttpBanner   = $HttpBanner
+                    ExportCsv    = ($ExportCsv -and $ExportTarget -eq 'Remote')
+                }
             }
             catch {
                 Write-Log -Level Error -Message "Remote scan failed: $($_.Exception.Message)"
                 return
             }
             finally {
-                if ($session) { Remove-PSSession $session }
+                if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
             }
         }
 
-        # Export locally (only if requested & results present)
+        # --- Local export (if requested) ---
         if ($ExportCsv -and $ExportTarget -eq 'Local' -and $results) {
             try {
                 $cidrSafe = $CIDR -replace '[^\w\-\.]', '_'
@@ -176,7 +158,6 @@ function Invoke-SubnetScan {
             }
         }
 
-        # Console summary (responders only)
         if ($results) {
             Write-Host "Discovered hosts:" -ForegroundColor DarkYellow
             $results |
@@ -190,11 +171,12 @@ function Invoke-SubnetScan {
         $ErrorActionPreference = $oldEAP
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAwW96Cfc3R5Jnh
-# HtxEuPrBxsOLTSbZxu9SCNUvyzhReqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBHeet/yEsclef5
+# Kr+nPHNVxtEyx3jQvTS+3Hz6t5OLMaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -327,34 +309,34 @@ function Invoke-SubnetScan {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDK+KzCojZY
-# NmFvsC90ccc1wjPptlAual3J/0hhZmGegTANBgkqhkiG9w0BAQEFAASCAgB7lFev
-# rOlmgOphmIw1lljJPicwjpxxC5zpEZ/W3hVQfGggFTD3MECiyGY1YZbPDYs2bgpD
-# 40hT9d8qfb58ReYPXZxrxu/J45R07IFaY/487/7G003kEkDQwYLGaVDBQ87M4kx4
-# zIwyMjKUiyzl4+G6LAlq8I0CLFdn2TEstf78cQ1hE/HlUrV5M1vNEha6V7yLgFMm
-# WThGFwzYppJsACBumuDyZ34ek8W84F9gKERemT7WwpadGdfYI7gzDscNS9ldhW4S
-# 26zUxzVHoe9+51dmXT7217hpPaxZ5NqK2ZVDieu6eAM7Ztz0hwPLX3Zmxb14wIdX
-# USXZn12G/NLyc1RvjfbNUP/UPgaweHAAGCtoaBf5uOf4NS+a/43Y7CDkHi9SNtBJ
-# CAW2Ot1YE38TTR0XiCa/Renv0YmYjR4FdkhRCZ+RE7aDFY+29JoCRqX6nliKOoXS
-# bRRW0BJz/RCn953OHHY5XKNcvIA2FyXYCPcWulFytAbPg9aRObGaqlCStaFko5g5
-# sgQ+lZcDLTkMPJ8VgE35jwjKGaqhoqYMYt82edqwwtgCLEigsiLejFjpIU7HdzS/
-# UPzczvRGh5uIgWLp7TteSJDYVqKFghT+nrYUokVsCkWNdPil60/mywyDMtzknSTc
-# AXUN/HBnnGmYHhdhdqjsnnkMps0712aldobfFqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqahYG12BE
+# 59KWdWIyVG+IsGELSFwEVv2pUDoiDVP6RjANBgkqhkiG9w0BAQEFAASCAgAazByQ
+# M8jvSzCaEkhK0LnSki4m8vUh21bHmr8A6+hzivBo79OgUSdU4rwQnPJ0Zt5EsqZk
+# wVy9uh/16cGGPcJZOCUq9KBVDILvrojKOY/ZVS9a2CEdpSgSFDgwCffRPieaQ34V
+# fnOs+cTRWd9ADIl3q6tnX7BY8E5uhKCnNDcjRqdm6KX7g8SZkdyyvx/xGDmAalK7
+# 9BnZBAGg04LnuzBf/7gHB19LsJITmV5XfxvX2k7H+yAPpZDQ5PtJ+KktlaqgVkXT
+# BpNLHrbKSNwGZ29mrG6v6ZLXYp3DuFuQQHpGH68PHwRHObOv19JT8B4mvot9sXGV
+# 1IcLHe/2Gd+SCpoQcX1CLv6aQyAfsbsI0eJ94ZJceb/v/2mryknmjdwhZhkIa/sC
+# 5DyJJe2qpJ3ZHNd9S7sgJW/WdEHPq9ekxyu5h/2u7JAdPGn/evvXMoW1679igw6o
+# 3UYNt3P6yr3b5yEcfp96k6gHFSU1ahJBSkioFq336Cw1L4AD4tZl3tB45AiS73bv
+# X3MgCJlpjDaveUdPN7C3VSiqzfeV6MDO+o+ZKDaw4KQc9iBfNeW6uraK3L0+4ZPM
+# /LrjcECACgqIUb0YIIiYatJ88GGw2cXcOpgJFD6gQsinpUkYweyozLQxy6dCewP9
+# Jjri1iq13vqjgpXv9qJ3nk6d7wgTWBFbi44sX6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMjBaMC8GCSqGSIb3DQEJBDEiBCBRIOeuu8FMm+58AV20
-# qgD0Fezu7mYyYj2mxKJot6DcHTANBgkqhkiG9w0BAQEFAASCAgCWWW/y/0S7zr2j
-# sTTtm/tid3gtEWAeNMudArq4MQMqifNsSd7qPE4L5pw4OL9Twz7XYk/eL0ajWKv0
-# 8ESdvTZABuEAyhFtLVzuzlU02NhlD/yPwir9exFs2zL24bWpHSlAVypWUAXzhGkl
-# 8HLqdyrqQ/dkcMp1+fCscI3w50lA7ondMfPci+jId5qkEmvlRxXK7s0WTACYqz9/
-# 4Z6NoWucMHv5TC1a8MsShRDB43rJMFOS25QW02HIbNMT59VVay2COtpxONOBQtY9
-# HDNsD6vDdqzccChK2VZwUFSBZYLsZxuhhfLrugkHPxq5YUYUhulWOqnG4swJajaf
-# V7oYnOIaie27b350LdBF8WmDxLt0ohHBNeRxD6qS1mAvWEqwSXy+90absDkoQ7sv
-# jyL737IKz5x4eQ7Mz5BYeSdX8nzq/VupaD2jR1QFUiPu7P2xZjxqLVFDtFU0QkSh
-# zTRmwVczjNXATrFRUh5UYn8FjwlgzsnOk8Gt6rb3UPGVOjAiMBNS8RtYDAhVoTlu
-# 82pMpjL7gloGwx3rvxTxp+BUge/2NHMs05rO/gZ1lCng4YskXsHS4gYhAMut+elQ
-# m4akuq3bAVX0lHb5VDEbztBODWoGtD1LNL7cpxhV6kTxuyAKnecrY5WhYCNow6Bw
-# uSymA/8e8THq8yVBQG7vPNI9bIlgUg==
+# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCBlyYxISOAiH8gnjuVt
+# Th/q/Lz+xYR8GI1qvYpwJW38zjANBgkqhkiG9w0BAQEFAASCAgASIzveKER5Fy8g
+# 71foP+bnMO8+0+2tdu+qlEi0iV09e4SfCRA2763dlLZc75BjtemIdyh7S5E6FlFD
+# m1H2dEkI/y+rgUVLrQEog2O1NTYmHxHk8+hRf0+FTZ2rQN/uzlHKE6irDi9kVexu
+# D4U0Iywj4ox7DZW7dkNwwl02yOiB45v/J6O0nJJ+IkOMy3v1JTLCZJ1Vf+WZvDA5
+# n96EuI/IJQ5AyPBmvhp9bNTEABmOTYMesmWpeiWS4FTDlvtk+LhKrHreyT+YYGIe
+# lS23NM6fsL8w3X5Dx/qtqQL454nzQdULD6UfCXFP4UuvlWk7ROHW2dVwVgcPbrCh
+# gA7MJja9dDl/QkcgNfdi1x4o9ULsRypiUmKOb8wGwKX+Q1nhq4/dSe1IAcy8+Eyj
+# 6YYMakOVK7mgQDeQUWGcO4D5mySycWzt8ctP9sIls3KMI6JN5XAdI1wN5X0F8t8f
+# UTMSweye0MlynNe+k6mIrbXDuHJ2Ji+sSFU1ayTeQJL+Ce8Qs44pfMv0HUOAuafJ
+# 9hGElGEtqtVQRkikAH+3h4SEGpt3mYIae9FsHL3aYUc6TPILsnTP2bnapiagtk1G
+# 5OxUP7R/andwyIoAynbsD+BA8lFhe2zhGEhJY1KzttkcgnEn3+ejFmKwamAVoYHl
+# bmlA/psV6DQKqUJdfXeQnBo9zlZwJw==
 # SIG # End signature block

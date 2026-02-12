@@ -1,33 +1,4 @@
-
 function Invoke-DownloadsCleanup {
-    <#
-    .SYNOPSIS
-        Cleans up old files from Downloads folders on local or remote machines.
-    .DESCRIPTION
-        This cmdlet connects to a specified remote computer (or the local machine
-        if -Local is used) and scans all user Downloads folders for files last
-        modified on or before a specified cutoff year. Those files are deleted to
-        help free up disk space and reduce clutter.
-    .PARAMETER ComputerName
-        The name of the remote computer to clean up. If omitted, -Local must be
-        used.
-    .PARAMETER CutoffYear
-        The year threshold; files last modified on or before this year will be
-        deleted. Defaults to config value.
-    .PARAMETER Local
-        If specified, runs the cleanup on the local machine instead of a remote
-        computer.
-    .INPUTS
-        None. You cannot pipe objects to Invoke-DownloadsCleanup.
-    .OUTPUTS
-        [pscustomobject] entries summarizing cleanup results per user.
-    .EXAMPLE
-        Invoke-DownloadsCleanup -ComputerName "Workstation01"
-    .EXAMPLE
-        Invoke-DownloadsCleanup -Local -CutoffYear 2020
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-    #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter()][string]$ComputerName,
@@ -35,76 +6,21 @@ function Invoke-DownloadsCleanup {
         [switch]$Local
     )
 
-    # Load config
     Initialize-TechToolboxRuntime
 
     $dlCfg = $script:cfg.settings.downloadsCleanup
-
-    # Defaults
     if (-not $CutoffYear) { $CutoffYear = $dlCfg.cutoffYear }
     $dryRun = $dlCfg.dryRun
 
-    # If -Local is used, ignore ComputerName entirely
-    if ($Local) {
+    # ─────────────────────────────────────────────
+    # LOCAL MODE
+    # ─────────────────────────────────────────────
+    if ($Local -or (-not $ComputerName)) {
         Write-Log -Level Info -Message "Running Downloads cleanup locally."
 
-        $result = & {
-            param($CutoffYear, $DryRun)
-
-            $basePath = "C:\Users"
-            $users = Get-ChildItem -Path $basePath -Directory -ErrorAction SilentlyContinue
-
-            $report = @()
-
-            foreach ($user in $users) {
-                $downloadsPath = Join-Path $user.FullName "Downloads"
-
-                if (-not (Test-Path $downloadsPath)) {
-                    $report += [pscustomobject]@{
-                        User    = $user.Name
-                        Path    = $downloadsPath
-                        Status  = "No Downloads folder"
-                        Deleted = 0
-                    }
-                    continue
-                }
-
-                $oldFiles = Get-ChildItem -Path $downloadsPath -Recurse -File -ErrorAction SilentlyContinue |
-                Where-Object { $_.LastWriteTime.Year -le $CutoffYear }
-
-                $deletedCount = 0
-
-                foreach ($file in $oldFiles) {
-                    if ($DryRun) {
-                        $deletedCount++
-                        continue
-                    }
-
-                    try {
-                        Remove-Item -Path $file.FullName -Force -ErrorAction Stop
-                        $deletedCount++
-                    }
-                    catch {
-                        $report += [pscustomobject]@{
-                            User    = $user.Name
-                            Path    = $file.FullName
-                            Status  = "Failed: $($_.Exception.Message)"
-                            Deleted = 0
-                        }
-                    }
-                }
-
-                $report += [pscustomobject]@{
-                    User    = $user.Name
-                    Path    = $downloadsPath
-                    Status  = "OK"
-                    Deleted = $deletedCount
-                }
-            }
-
-            return $report
-
-        } -ArgumentList $CutoffYear, $dryRun
+        $result = Invoke-DownloadsCleanupCore `
+            -CutoffYear $CutoffYear `
+            -DryRun:$dryRun
 
         foreach ($entry in $result) {
             if ($entry.Status -eq "OK") {
@@ -119,28 +35,23 @@ function Invoke-DownloadsCleanup {
         }
 
         Write-Log -Level Ok -Message "Local Downloads cleanup completed."
-        return
+        return $result
     }
 
-    # ────────────────────────────────────────────────────────────────
-    # REMOTE EXECUTION (default)
-    # ────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # REMOTE MODE (new engine)
+    # ─────────────────────────────────────────────
 
-    if (-not $ComputerName) {
-        Write-Log -Level Error -Message "You must specify -ComputerName or use -Local."
-        return
-    }
+    Write-Log -Level Info -Message "Connecting to $ComputerName..."
 
-    # Prompt for credentials if config says so
     $creds = $null
     if ($script:cfg.settings.defaults.promptForCredentials) {
         $creds = Get-Credential -Message "Enter credentials for $ComputerName"
     }
 
-    Write-Log -Level Info -Message "Connecting to $ComputerName..."
-
+    $session = $null
     try {
-        $session = New-PSSession -ComputerName $ComputerName -Credential $creds
+        $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $creds
         Write-Log -Level Ok -Message "Connected to $ComputerName."
     }
     catch {
@@ -148,67 +59,35 @@ function Invoke-DownloadsCleanup {
         return
     }
 
-    Write-Log -Level Info -Message "Scanning Downloads folders on $ComputerName..."
+    $moduleRoot = Get-ModuleRoot
+    $workerLocal = Join-Path $moduleRoot 'Workers\Invoke-DownloadsCleanup.worker.ps1'
+    $workerRemote = 'C:\TechToolbox\Workers\Invoke-DownloadsCleanup.worker.ps1'
 
-    $result = Invoke-Command -Session $session -ScriptBlock {
-        param($CutoffYear, $DryRun)
+    # No helpers needed
+    $pkg = New-HelpersPackage -HelperFiles @()
 
-        $basePath = "C:\Users"
-        $users = Get-ChildItem -Path $basePath -Directory -ErrorAction SilentlyContinue
+    Write-Log -Level Info -Message "Running Downloads cleanup on $ComputerName..."
 
-        $report = @()
-
-        foreach ($user in $users) {
-            $downloadsPath = Join-Path $user.FullName "Downloads"
-
-            if (-not (Test-Path $downloadsPath)) {
-                $report += [pscustomobject]@{
-                    User    = $user.Name
-                    Path    = $downloadsPath
-                    Status  = "No Downloads folder"
-                    Deleted = 0
-                }
-                continue
-            }
-
-            $oldFiles = Get-ChildItem -Path $downloadsPath -Recurse -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.LastWriteTime.Year -le $CutoffYear }
-
-            $deletedCount = 0
-
-            foreach ($file in $oldFiles) {
-                if ($DryRun) {
-                    $deletedCount++
-                    continue
-                }
-
-                try {
-                    Remove-Item -Path $file.FullName -Force -ErrorAction Stop
-                    $deletedCount++
-                }
-                catch {
-                    $report += [pscustomobject]@{
-                        User    = $user.Name
-                        Path    = $file.FullName
-                        Status  = "Failed: $($_.Exception.Message)"
-                        Deleted = 0
-                    }
-                }
-            }
-
-            $report += [pscustomobject]@{
-                User    = $user.Name
-                Path    = $downloadsPath
-                Status  = "OK"
-                Deleted = $deletedCount
-            }
+    try {
+        $result = Invoke-RemoteWorker `
+            -Session $session `
+            -HelpersZip $pkg.ZipPath `
+            -HelpersZipHash $pkg.ZipHash `
+            -WorkerRemotePath $workerRemote `
+            -WorkerLocalPath $workerLocal `
+            -EntryPoint 'Invoke-DownloadsCleanupCore' `
+            -EntryParameters @{
+            CutoffYear = $CutoffYear
+            DryRun     = $dryRun
         }
-
-        return $report
-
-    } -ArgumentList $CutoffYear, $dryRun
-
-    Remove-PSSession $session
+    }
+    catch {
+        Write-Log -Level Error -Message "Remote cleanup failed: $($_.Exception.Message)"
+        return
+    }
+    finally {
+        if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+    }
 
     foreach ($entry in $result) {
         if ($entry.Status -eq "OK") {
@@ -223,12 +102,14 @@ function Invoke-DownloadsCleanup {
     }
 
     Write-Log -Level Ok -Message "Downloads cleanup completed on $ComputerName."
+    return $result
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBvKsqbYSDE6L9Y
-# c/Rp8VX1yw3zyfisLfPUsmVQNd/i2qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCl+2EkbLQ1UJPY
+# BtzAN/912150bCi8pc8JVFrxmthmkKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -361,34 +242,34 @@ function Invoke-DownloadsCleanup {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCcG6F3mh5c
-# 4QSCpMVuaaGdVlm9fjX+peCso7maTfpX6zANBgkqhkiG9w0BAQEFAASCAgAZ8uo/
-# wQESjB87FP4cnvrxHHA0/1NMVoW53YMH23LTrH4nv7uCCGXjRXtLfrCscbnLAYUS
-# p8sYusnSzE/nVLc90As8XB8UNDrjSy+hvNOYewB/0fVH7AQ6mM4zponkgLwROxXd
-# AOtf47KOSzH2rnGw4Zu9rYFUuJDJnWgcES6h+3WzQ5Z/NZPldL2ErGPD02ctkN7U
-# 20fEpR/Db8ofrFB3kiP6JrrRn5dpiK/oerf8Z4O50ckWJ/PYunVB3Q7CFkfSrld3
-# Tit9joxTawvQZYxIum8BJpPYt17RbphRE10IeuM48wvmSAeiye9wM+txDu63IRer
-# dOWoCkppRtmPXjSAAY47nHAp+GdcQVo3vAd8aM3n5xHynDrcKt3qff9vf9s3tZ1+
-# 7OmWMQ9cYMBBLtQvbfkn6zTpktPWY6DmvySSvsJDBT38xAEmfL4yqiHXnB5CxSDS
-# GSTtQI9RNalFXvbO5tpdnUay0/SwDX2ocu1F/tAhAh4KJKRTTVk1j7nM1ipxR87I
-# gZU9fwthXU+lb2MXIECUCXxRc4tDl4j7zpa+BxGR5vzSroC54o18BgDYbNb2jYox
-# LorokNspnpYZ8x+NYkOd/9UE5Yz+UyfAzlTCnG4MAmpTf7G3ujpy03W6FNbg49G2
-# m0YECSRO+z4mI9NBpaEbiR0cPhWGZNY2qkoiPaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD6SSHLKL82
+# eCD25Az3XlaA4c3wB2Ae+naqkWAMgvZQTzANBgkqhkiG9w0BAQEFAASCAgCxmL+d
+# +xLabh27i+r8azkYqvwkwOeInzTYeesYqguZKF/Du0RtoIoylv9ylxSw74uX0G2X
+# AWcaeOIz7wUUSGjomHl5+xsasgA1KpirIo81RJnSVnFwmCJEixtYEQ3wT3AcDdfT
+# VZQkdM4C2JdUxX+hWziu719Ba1H4tMnRW7Jd+aOwBTqRiZJHZgiIHU+OKe5soWl+
+# Bpy2atPXa31vbqBa+0O0HV1XNXksroJL7Ksd/56IC+/pBGxmHZ/K6Za6iquNFvGj
+# Z6ejCR7dUjBV7ELEa5+oKFNrXRLXKSYuq5Fa8RfGutFV7N9ZQSVRHgK+DPjuMmVM
+# sffz32ZnGW9rA4PpLi9ID7LPhW+P2+Vt43bUv09Gi7uvVNkNTkl7O/i3rJzXpDXT
+# hD05KpFXZ5E0XmOQCKS+ndTEaEZF4qvahIQE7ncO45RELLcy366QY6pAEm+UgwLw
+# QPb34PWrDCFEIBAaQtuTfRSfPqogN9Du4E68X54yGY0IuLotKV47+pmuOv0+BDwM
+# dGP8b5vKYkC2K15n3WS/40ON4SztFc8Hqd+5DxC/oHD7gt0DBtHzTahDBMAwYT/w
+# PpTcVa8NtZuRP3Z5iH/+JmThxu7xeCZH3sGZGh53ma+ljiC14Hd0zrHn3I3kaR+w
+# 8/S5OtRWfsWbANDBcF8SE/eI/9VZ4bZXsr3z0qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMjBaMC8GCSqGSIb3DQEJBDEiBCCIRNX1+qb6NYg1xb7B
-# ENOGYnl7Z8tVgA7LAiZL/dm9QzANBgkqhkiG9w0BAQEFAASCAgC8Nkfg5q+WE1n5
-# 5mi7iere6ZiGnuYMz0Qin3UsvToZNKiQMtoPv5GpDc9W72j+DHbDLn0yMtoEzZ5a
-# TL3ulma1D0gmPQVgZILhASV0DdU2Yqb0/q+vbJDtcuAOs1lWU8B0sLtMXpVkTvwL
-# tPK5oWoWiRu0SkPae7CNH72LI8h+8cdaAo12ENPjk9mQmFtEWQbYTqMN9K00zmwl
-# LSAwt0v5E3mhfeT3bTLIAzz0ubn/7wg64n9OyrsTAdA0RklcxO1Rj+D9Eu4C5GQz
-# Dp61s38g7PzJSirRYelUMYDFfvUJTQghcd76wMwP1T95sUX5FKG+tgDSziS9VvLM
-# aD+5sbjQ4sUskgM1UKaw+bxVwvS88g3SCAumGi1gek0A1bT4oX8nYkTKKf4dn0my
-# V7FkMb74NnR3zIgeoRwr/bzjpmS2I2zYlpDZtG+cZ9gNJZ9aAirch9GpirPwY5pM
-# uDPbz5RPKjI2u96l85dmU4gArz9O2mhBZVbjjfaWtTHvHVSiFR7a+6x66Fj7GL8k
-# KFP/8DlJEKLRa5epa+Tcf9eG8FAuS6RQaT1cqSdtwqiT3aFxVp24Z0OUHYVz2+G4
-# rB0kzKQvSR4MzCsu/JzD+PJVXA4+9Y8YpHnwrTs8huBG8S5sgf8UuKG8rMyHR11X
-# Ro6zdpcXh++t7x9UslFZ8DXMyM3ySQ==
+# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCCbJ9UptJnfRpU1msoF
+# U4M/4sR5NgR2a+giXIQtNUoZAjANBgkqhkiG9w0BAQEFAASCAgAdZ+u6tho7Snzh
+# M5nHRJadl463m5SGuTafENpHzjMONNyKyxs3DsFWZtVg+5CJP9CKUkzIIsc1eKU9
+# 3COnohd8SfzXwxCvwAV2knGQOLDaJoigw2cghORAWPfrOAXcHoDb94c0wyY2QW+7
+# ww8aUsxo7oMGfjL4otfDspN9MeocG99uSngk8OFXBOX4pO6aOfumWNIc8Koo0MrU
+# B6tXOl4VN/Eu2thnpHj7754e4xdiy8FDNlinVkQ8NEfRoTO1YxUSUm79kxij0HdL
+# 7+szIaj1F5BR4mKJx+UBF4n1LLiTJmnM6O/psogNnb102pYwQVLVZN8DdCCbEpsE
+# 57Ua6Hywdh2QGPX7JGKBDzPRGlrPgii1FlPsFVIl9IOvseE1MEztO90RXqKlpNkc
+# WE3yqim8TcRyLITvUy4wRa37ykuDhYrphOg+kQAOfh1foKIFrNpJSE4hv7gJyp7s
+# lmcvoOap48KOgeYe5tRI+gT9ZBfa1+cxKVpLkN1YPZq8XmGA1nknvrxmj4ckejc0
+# DHReQA2HvIVMVOTQKYl+mzAqT/dSdi2hPChXd9ihSB76tvpu6KPQ62AQoXxThEgX
+# hG0Khg5ujNZ59d4NnheIjfiNXnQpo9SZaIA65Vi3VBZu/6EKUEPE0FZ337aK2g0B
+# R+SfIT8D+Uvbg1/bfS2KDyOcId/uIQ==
 # SIG # End signature block

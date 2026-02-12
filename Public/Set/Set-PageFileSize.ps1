@@ -1,52 +1,20 @@
-
 function Set-PageFileSize {
-    <#
-    .SYNOPSIS
-        Sets the pagefile size on a remote computer via CIM/WMI.
-    .DESCRIPTION
-        This cmdlet connects to a remote computer using PowerShell remoting and
-        configures the pagefile size according to user input or specified parameters.
-        It can also prompt for a reboot to apply the changes.
-    .PARAMETER ComputerName
-        The name of the remote computer to configure the pagefile on.
-    .PARAMETER InitialSize
-        The initial size of the pagefile in MB. If not provided, the user will be
-        prompted to enter a value within configured limits.
-    .PARAMETER MaximumSize
-        The maximum size of the pagefile in MB. If not provided, the user will be
-        prompted to enter a value within configured limits.
-    .PARAMETER Path
-        The path to the pagefile. If not provided, the default path from the config
-        will be used.
-    .INPUTS
-        None. You cannot pipe objects to Set-PageFileSize.
-    .OUTPUTS
-        None. Output is written to the Information stream.
-    .EXAMPLE
-        Set-PageFileSize -ComputerName "Server01.domain.local"
-    .EXAMPLE
-        Set-PageFileSize -ComputerName "Server01.domain.local" -InitialSize 4096 -MaximumSize 8192 -Path "C:\pagefile.sys"
-    .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
-    #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)][string]$ComputerName,
-        [Parameter()][int]$InitialSize,
-        [Parameter()][int]$MaximumSize,
-        [Parameter()][string]$Path
+        [int]$InitialSize,
+        [int]$MaximumSize,
+        [string]$Path
     )
 
-    # Load config
     Initialize-TechToolboxRuntime
+
     $pfCfg = $script:cfg.settings.pagefile
 
-    # Defaults from config
     if (-not $Path) { $Path = $pfCfg.defaultPath }
     $minSize = $pfCfg.minSizeMB
     $maxSize = $pfCfg.maxSizeMB
 
-    # Prompt for sizes locally before remoting
     if (-not $InitialSize) {
         $InitialSize = Read-Int -Prompt "Enter initial pagefile size (MB)" -Min $minSize -Max $maxSize
     }
@@ -55,7 +23,6 @@ function Set-PageFileSize {
         $MaximumSize = Read-Int -Prompt "Enter maximum pagefile size (MB)" -Min $InitialSize -Max $maxSize
     }
 
-    # Credential prompting based on config
     $creds = $null
     if ($script:cfg.settings.defaults.promptForCredentials) {
         $creds = Get-Credential -Message "Enter credentials for $ComputerName"
@@ -63,9 +30,9 @@ function Set-PageFileSize {
 
     Write-Log -Level Info -Message "Connecting to $ComputerName..."
 
-    # Kerberos/Negotiate only
+    $session = $null
     try {
-        $session = New-PSSession -ComputerName $ComputerName -Credential $creds
+        $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $creds
         Write-Log -Level Ok -Message "Connected to $ComputerName."
     }
     catch {
@@ -75,49 +42,35 @@ function Set-PageFileSize {
 
     Write-Log -Level Info -Message "Applying pagefile settings on $ComputerName..."
 
-    # Remote scriptblock — runs entirely on the target machine
-    $result = Invoke-Command -Session $session -ScriptBlock {
-        param($Path, $InitialSize, $MaximumSize)
+    $moduleRoot = Get-ModuleRoot
+    $workerLocal = Join-Path $moduleRoot 'Workers\Set-PageFileSize.worker.ps1'
+    $workerRemote = 'C:\TechToolbox\Workers\Set-PageFileSize.worker.ps1'
 
-        try {
-            $computersys = Get-CimInstance Win32_ComputerSystem
-            if ($computersys.AutomaticManagedPagefile) {
-                $computersys | Set-CimInstance -Property @{ AutomaticManagedPagefile = $false } | Out-Null
-            }
+    $helperPath = Join-Path $moduleRoot 'Private\PageFile\Invoke-PageFileConfig.ps1'
+    $pkg = New-HelpersPackage -HelperFiles @($helperPath)
 
-            $pagefile = Get-CimInstance Win32_PageFileSetting -Filter "Name='$Path'"
-
-            if (-not $pagefile) {
-                New-CimInstance Win32_PageFileSetting -Property @{
-                    Name        = $Path
-                    InitialSize = $InitialSize
-                    MaximumSize = $MaximumSize
-                } | Out-Null
-            }
-            else {
-                $pagefile | Set-CimInstance -Property @{
-                    InitialSize = $InitialSize
-                    MaximumSize = $MaximumSize
-                } | Out-Null
-            }
-
-            return @{
-                Success = $true
-                Message = "Pagefile updated: $Path (Initial=$InitialSize MB, Max=$MaximumSize MB)"
-            }
+    try {
+        $result = Invoke-RemoteWorker `
+            -Session $session `
+            -HelpersZip $pkg.ZipPath `
+            -HelpersZipHash $pkg.ZipHash `
+            -WorkerRemotePath $workerRemote `
+            -WorkerLocalPath $workerLocal `
+            -EntryPoint 'Set-PageFileSizeCore' `
+            -EntryParameters @{
+            Path        = $Path
+            InitialSize = $InitialSize
+            MaximumSize = $MaximumSize
         }
-        catch {
-            return @{
-                Success = $false
-                Message = $_.Exception.Message
-            }
-        }
+    }
+    catch {
+        Write-Log -Level Error -Message "Remote failure: $($_.Exception.Message)"
+        return
+    }
+    finally {
+        if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+    }
 
-    } -ArgumentList $Path, $InitialSize, $MaximumSize
-
-    Remove-PSSession $session
-
-    # Handle result
     if ($result.Success) {
         Write-Log -Level Ok -Message $result.Message
     }
@@ -126,7 +79,6 @@ function Set-PageFileSize {
         return
     }
 
-    # Reboot prompt
     $resp = Read-Host "Reboot $ComputerName now? (y/n)"
     if ($resp -match '^(y|yes)$') {
         Write-Log -Level Info -Message "Rebooting $ComputerName..."
@@ -136,11 +88,12 @@ function Set-PageFileSize {
         Write-Log -Level Warn -Message "Reboot later to apply changes."
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB8+QCz8K53MWOU
-# jIgnCowlH4Q86W11ExT5edSZclK4qKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC8ltQ3B9QWFmII
+# yaeMIbCrGfoRvZ5sb/MxxkO5yp27G6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -273,34 +226,34 @@ function Set-PageFileSize {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBOFKQTzpZp
-# to/DTym5hlPNkKVXeciGQnXZ9fIE7ZORnTANBgkqhkiG9w0BAQEFAASCAgBCDkPu
-# K6/MPSXErtvZDh+3Gc2k4+r/qVrRN19FNuMb7DEr2mzlk7OxNW/+H1q1DN+P5E0q
-# 3lQLs6+4uk3xyXSlqzihXYjHrpXqG7WPG7oDNNzKdu/O7EmmhIqBGXID/EUfaVwo
-# 7xC2vBEVQB3dPkgtEKrzeclOkQ7xjES15hzMTVzbxoNLN4KGowZllMLeP+gH3SEc
-# D0LmTJXqD9JVQUFMJXLiFIkJlRp561sO1jFMh8hS0UsN9nBXm1zCkItZrM6iglYT
-# y5LGSPbEXNUHz1R1YyhyRMb1XAzUb/KFC/NTuaBoqLqTbo9lacNLj2/mdQIS8hvr
-# AnYY6P5TxsKFzYM9Qk7dnzvvF4N9gjCX5fvPgDWoWrgl3vxQViFIspJLoMLfjwpy
-# p7cYkkeSwU97sUpNw9iiUSiRR8VMvkGzrTOSJ7ynkz9F5oU+9COtbK+kA7X8J4Y6
-# DL9/T/f3Ali8b+4I/VS7CkerKbHrf9hx/tP23LN+u+uZvR5KYioFScl7dv344cSm
-# nPjW23H9IBjTwoTTaLsz1bUBegASrCOjetOI8W4fClF1ttrZLG7JOPMkfx6wleb0
-# nRfkb3aeIOEihWIV7g2RYv7418ApP0sJsr8N3y2ZEG3k2ugCeNw82A3vPMwbG2Lu
-# aVd0KmBsnujlS6yEV/k8btjAMrpPvkFMFYikTKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDig/aZni01
+# vW5//ZEecD6VKyk8tH4tbjkBPXJm55rMNDANBgkqhkiG9w0BAQEFAASCAgCwxyU/
+# 1P2isIF6YFNvi8GtUd/NkVTO5/igGoElQs/uunV1ayijFrn9cmvWGMn/V5uUxgZm
+# eLlYknEcoGEEKKIQHutHPY1useOVPfdUheYja6tTTawvZ49m0klP69H/Gvh07t7B
+# co1xAWKqKAVGKLc8YfURxm+GgV2bhl4jdsOePFM1FZa5Tota0sliHwb+GQ45upyt
+# ZI9qOy1ccwxQOJQaJCYEbATnKBhB7ScrqB8WKSM9meJQAnbmboVLxsrjJMnXVr85
+# zKXhAAAXVg6EGWe5l4r+iS2TiDjHhfCOoBgCZUhpbQRd5YBIoePSjG1ceZSpSDEg
+# 4yX8k1l03590MYCLl6bmVcXCz3Q0Kc/MIE+yE1MgbzAJ2C5Y3/uUzOoao1NotgOm
+# Lu2M8N3UxcTfXTLN3B4kJizQo9hM8bOb9F9XDU8H7UslfZ+y2d7zZ2h1BslRayMb
+# kD9czlcGkvVbdZ6ZdICLIoaKzhIQk4j95gumtKxvYPNP++hCx3tCNYb0emGCPFwb
+# Y/8yPYqb2ssekQUs7OJPoqWRZ+w95TEoLfPkzQx7y2LsZaqQt1UHTNmIzyWWQ5tj
+# XO3otViD3+pnvXOqHCag4KxXdAbTIhscZHHgll1lnHfczabghIE5V85Hwv9chi7F
+# F5Gq+CSjXMkdwej7vhAzH+dNpj4s9U7zoq2UhqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMjBaMC8GCSqGSIb3DQEJBDEiBCDhj0/jqMkL6eUSieOH
-# 58EHhSRq8S8V6ca5Q/E9LwiAVDANBgkqhkiG9w0BAQEFAASCAgCpj7lPSQfY4n5P
-# 3zMzKY5NCrgZ0m4z2PXKm8DndJTOiKEQOXOjAE4oIHXWWQrIrPChQ1mDMJ0gLBiq
-# CjQoHH+UW0V/suqI4oNyqdF5GbGvvPg8PlRIpMYylhMRORHTkL827PZRa7FEDpWS
-# qzo+TiHSZV/Avf++daq2knt+S4dKNQya4HvXasx6tk1BEyvTeCi0eGSLMcs02r8s
-# nh/8et/cz/49PqCQ4MKwdl6hPZXzmtTwxWNOSm23ABJdf7Klj9068la9OlxhCncr
-# SqpjcR8OjK7l9hy5953NJT9a5rYqKfXiF+3hqdeOpZd+eM0gl+ExcZhpAJ494sC4
-# qXqY7/2mwmRApZ2ZDeTa1RT5wQd3wUSpaWwqBmmVVPk67FhkXJPuUtEofNDTpUti
-# AFAGNNFQthr9WN3PFvECFB7FXI1wA5lWAbxxxAuF8i2ZwzmeOVlVwDIuL53zgiYT
-# m5icKG9PuPXzvaFKN+URyALx49+9pQSLlENB0C8hRo2d0MMShc+Sw5mzxNWKe6zk
-# x2FIp2iXPfi/Yw3dSuDF3xZHeuUEFQ2u6MB3CAMUadxbSudpkcPj6r/fInDadF4A
-# cqxoEyuMnvm174bw4jJsruWfD1qnxwzkmqXLc5du/CBTlzUEP32Xr0m7NbAb2cuB
-# m2bd77YisupGtlx8/vZxkAikxpngfw==
+# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCAdzENpiONa+hmmp+0M
+# +m8Ak1pwqEH5pDlpP56q562FkjANBgkqhkiG9w0BAQEFAASCAgBEtXa/dil/eYmH
+# flKDNleNJaPcLXuOIdfaPhT+ivUqNTGXU1VRoRS66tpFaUHCIssE35bOuoBKiTGL
+# +fKGSFfYD6ybG/Kp9Y2evK1CMkQNslP9+ZklV7v4GrCV1BBMg6R1MiA4eCLTd8+S
+# q8cJ5LnkUXIwATay0u15JFb6fU6FyoA0a259noYS3wjcTrsF50aXppFTV81kdb83
+# UwNblbXyHD/h2GrQVFeOkJ8H8q6Kq6k8C43WHvW6YAqdESHQc4ATjsA3r1NVral4
+# Lx6mIkD3zZiVppisDKS1xY1v/58Nh2lyydy7lN3xV7t/nR5RtUR01DzzNQekwBQz
+# eUszULtaZpOswvLTJn+QHwD+wWPyLC5UNk+fAs1Lz/DXXqrkJBgNBEKs+0Dx78pZ
+# GMBCE5L646wGBa4QND9CbkJrFU/m4uWBZ8AXucRwvN9Z5kLw4/ZuB2uLsv7l6qB+
+# SR4q3lFHcvaf6yN7BHsSCAyB0Br+5hFTNFbQf8kpwNkSQ+C9LWmvjFQb7MMCw7yr
+# cf+8/LsmlPiJ0Xe/7qVi9/l2hGRzZyLEO/dJ0JPxmQKSYXxsausEdgoiRGalqBLN
+# QNSFtonCVvbPJV4GDTmFpRwh4V+rYOe7HysARjwC5mYnQnLTIXpL5m23JogPnVEh
+# pZs8RjVrsMmLLi1E4bK2da0a60OFqA==
 # SIG # End signature block

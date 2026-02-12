@@ -1,15 +1,3 @@
-<#
-.SYNOPSIS
-    Worker: returns system uptime info on the remote host.
-
-.DESCRIPTION
-    Runs ON the remote computer. Uses Win32_OperatingSystem to get the
-    LastBootUpTime, then computes uptime. Emits a small PSCustomObject.
-
-.OUTPUTS
-    PSCustomObject: { PSComputerName, LastBootUpTime, UptimeSeconds, Uptime }
-#>
-
 [CmdletBinding()]
 param()
 
@@ -17,17 +5,13 @@ function Convert-CimDate {
     param([Parameter(ValueFromPipeline)][object]$CimDate)
     if ($null -eq $CimDate) { return $null }
 
-    # If it's already a DateTime (CIM), just return it
     if ($CimDate -is [datetime]) { return [datetime]$CimDate }
 
-    # If it's a non-empty string, try DMTF -> DateTime
     if ($CimDate -is [string] -and -not [string]::IsNullOrWhiteSpace($CimDate)) {
         try {
             return [Management.ManagementDateTimeConverter]::ToDateTime($CimDate)
         }
-        catch {
-            return $null
-        }
+        catch { return $null }
     }
 
     return $null
@@ -35,7 +19,6 @@ function Convert-CimDate {
 
 function Format-TimeSpanCompact {
     param([timespan]$Span)
-    # e.g., "3d 12h 05m 33s" (days omitted if 0)
     $parts = @()
     if ($Span.Days -gt 0) { $parts += ("{0}d" -f $Span.Days) }
     $parts += ("{0:hh}h" -f $Span)
@@ -44,40 +27,40 @@ function Format-TimeSpanCompact {
     $parts -join ' '
 }
 
-try {
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+function Get-SystemUptimeCore {
+    [CmdletBinding()]
+    param()
 
-    # Robust conversion — works for CIM datetime or DMTF string
-    $lastBoot = Convert-CimDate $os.LastBootUpTime
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+        $lastBoot = Convert-CimDate $os.LastBootUpTime
 
-    $uptimeSeconds = $null
-    $uptime = $null
+        $uptimeSeconds = $null
+        $uptime = $null
 
-    if ($lastBoot) {
-        $span = (Get-Date) - $lastBoot
-        $uptimeSeconds = [int][math]::Round($span.TotalSeconds, 0)
-        $uptime = Format-TimeSpanCompact -Span $span
+        if ($lastBoot) {
+            $span = (Get-Date) - $lastBoot
+            $uptimeSeconds = [int][math]::Round($span.TotalSeconds, 0)
+            $uptime = Format-TimeSpanCompact -Span $span
+        }
+
+        [pscustomobject]@{
+            PSComputerName = $env:COMPUTERNAME
+            LastBootUpTime = $lastBoot
+            UptimeSeconds  = $uptimeSeconds
+            Uptime         = $uptime
+        }
     }
-
-    [pscustomobject]@{
-        PSComputerName = $env:COMPUTERNAME
-        LastBootUpTime = $lastBoot
-        UptimeSeconds  = $uptimeSeconds
-        Uptime         = $uptime
+    catch {
+        Write-Error ("Get-SystemUptimeCore failed: {0}" -f $_.Exception.Message)
     }
-
-    exit 0
-}
-catch {
-    Write-Error ("Get-SystemUptime.worker failed: {0}" -f $_.Exception.Message)
-    exit 1
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC+3/avvCQdr720
-# 5bMJz+tYZ1zHW5sitUD6Y3LCEdWWxKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWde1Eh0d5Xl6q
+# jdH35fhy1YR/EVffQluT7NJPQrPoJaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -210,34 +193,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCthjo5tSMv
-# 5KSzuT5MJqOOUw7OabqtKYSFfLnww19uZzANBgkqhkiG9w0BAQEFAASCAgBNYM+4
-# imjsBi7zSLH7r3bwl1BuEJp0DSheMXmvAa9SvxaJYEZah06sAxsNPbZcN6ccfk6u
-# 9hnhN5FnuAtNBkuOrNd++Vt2bwmgnGcHyIfBKJYsbzdAxPGTUQ5xw+oHXfEMa7tV
-# G7to/q6lNSiXZBuAf+LJ41jTFGUYxI+VWlMj401et7t00xtxz+kmXAuMFqZ0zAlp
-# XEw1kB7sFv/wHGt+ztOusVglbmEngQ5Xwp7lG+kqJ43tXw8xiGUDdnp/FhXYmE8J
-# KQp4jUDzas92TGhhYF3tra44Mz8LTvKkDFUkzMQbA2cv2IbztjtZoiE9JIn7BbwX
-# FF116un6TndrJLSDP8OIkz75FG5yxA0KDUN4a2b+5wUzlqxqtA1NtFNsmQZ8CFkR
-# 9puZXnynxc48qAx9rZSF08Dsrtx8AB9Sj7abuqjbxa+w8KuK28b1qenT4mnNskOe
-# 0HvU32G+agar8EB1KfzLarheZ4BuG78mFPndRE2GhxBJUISW+Mfpy81SqHsZb3G/
-# 7UMLJpuEDElHMi/nbFva0TgM81m46nPdH8evbUm6Sj+qQgw6eEvcBrokaVyUEdLU
-# O53Gf2YeVZt+xxRFkzwlSc41WMRBAHS/G3+lN2GXjKGr+Tcezf5Y/K/IiprfsJhO
-# UAeIfe/I/r72Mx88FrOuEIMIWcMUK5d7rEY546GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD+sDn9/dAr
+# erDlo2DN95pWthD7cDpbQ+ldfVWkoBWm3jANBgkqhkiG9w0BAQEFAASCAgCj8pSX
+# RZqDqUfHyDS0TjcYWutmbOPS3TRaPOzxnOzBBajaP2Zfcu3WKIjZ0vcS2/JSt9V6
+# bEkj/4uvzn1DB4eQVcg0RPK42OBkXzKcOATaQDZXn70cwqbJJB/R7fYSfA6qYcsp
+# KbiOlrHxIHxWV9csCAM3qOtNYSXDKlmgotjpLkvAZneoizASXAoTsH81Mh19xI87
+# GeoyILUOKA4edoQGFE1/zov8cgR0zgC42rTPr9lHz1y+jxkwrRzE35SnSJhb2yYL
+# hCwasJRTGXGV5DmognWgW+/A2IjAygC2FZr4TLz+kZjq4auEyCvz3l59euChT2TY
+# 0k7riq8uEjHYEl5KndN3uZCFil7w5+Q++ZmwQiRXRFdGVhPm5ltDCT/z8QOR5VZQ
+# tfoXL5Xlwr0CxnJmYpefZua3P70dh3LRtcl+c1xa9mnY+Ho6L5gb7bsiCnO78eA6
+# 80dx6HOJWeZqAYZAieTbRFmTc2aTDjWRIbKv1p/MwYEHykcaPwy6WfXtpIw5HePa
+# fTMu/0tAYCa6R2LaQtr5aVhmYn/vP8RulC3ZfbTuvYQCkmBqAxlGrUQzexWWseV4
+# jVLs4ZSicmGAUzTSNdDO8fHaGImHx6mrfrXZELmRrj4352S/+U8miRt5Hx6dmGGB
+# KnNHiA834eyThEmdX44keu4EJWGTuZ4/IOY3fqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTExNDM3MDRaMC8GCSqGSIb3DQEJBDEiBCCITGQyXzGSuHMlzxVD
-# f36QiJnoWVLuQZ5VuTxGfxbIgDANBgkqhkiG9w0BAQEFAASCAgCGG2zUTeicSIJv
-# w6bmlU2HuKl6BJ8mOHRUyYzvT9xeUP9rcQne+vSGf1sM7bsDtv8+rjp3p6EfgdVP
-# 0HfjNg95jhXbdelbWGdq7ZMXkSIi+xaLQXo8W/+GAR1VaNXrY9S1SP3V/yn9zVKr
-# m8wmFV9pdTetuQD/IxWf7u31lJHeJNCOtGQlHMSWDyr1C4XFDGrEQg9oaClHY4Br
-# cNlVvMNdbGw8NjOzQWauegXxS+mXuP/y12Lzv0oUJCSJ3F7SmVgDeVzEhwEWmGi5
-# IOWqfdE72xkIl1xMxFDOAnC/2khOD5fmQj/X5n7hyjQ4KjoUvf1swnE1hd4p2AQz
-# uKuOcG+edOPPnkkRq5RffigDT5wMSZ6k8WVYpS6D4va+p5tBT2doWcGzgEm6YZWc
-# kK5gi0gKqarwufE9pE4i/d2lVddnhoLMF2RTiYFmC1HJj9fhCtr9HyANUiZRBOIv
-# oOWs/GdN9A9v9jIQYfcadtITbUIChEqJkwlT1jhC35CavUkME5/rUProfMcG5XIT
-# P0d+kqIwIVtkFeaczDJ54f9riL825TGoxFzw0zNbceaVCWSlkJXG7/vaJhEmiFT6
-# JiBmhtnA+sOsiJt9o3XURbalk5OAiVTp1l7i/8yZKmQnXp3mkLGNPSORDciD05JT
-# zvUoC4qx4EgUS0RDpA4x9LlVyK6kRg==
+# BTEPFw0yNjAyMTIwMzA4MDRaMC8GCSqGSIb3DQEJBDEiBCDbxXlLacKXWmjyTmrz
+# DgXwPl0pCJzk0NXYwsuP/sH6PzANBgkqhkiG9w0BAQEFAASCAgC8E7x7LuD0cAiu
+# +E+BClRyv28EkbsgV7hEDCGO84TKFu2LhByRwAQ0hCVqWaoJzHFNsSTgtxM+UBLG
+# vWAzRtkdqOXcwQxyj5KET1HEiKq1yiG51+vMScgInu7MHP8l3yzArdMJpoqrRKMX
+# uPFI3RstSSdaAaOzLojsEgICkXNBYp0R+TIv5haUxZDStParSu5GKdoYHphmFBeA
+# +t5xnW4fR5IF0NM0+zEWrS9DL58OMCIpKZQmaOLjupGsUYmHy4UXje7mosDbZQrr
+# b6m5MRhHrT7ooXG8c2dNDVCfZmmKstdOm8iJTMfJyrHNrLzY5das38AaNIBjEb5T
+# vyDQ1DBCo0lWB3faDJBSYcT0K7ijDXugJ2Ghxt9ejI+w/l3D3dB6w+mOkjg01k3u
+# WPm55+KyCa8J3qwZMfPmgFNB7gNaptlXY5XQiZGXTzYbPVRgS7sWTydmm6cEV6TU
+# 4aqWJqjxMqSq38d/ufaQfQdFSM05UkfDHNjW5w0/0is/tl6DOnhm1WoJU2A883Z8
+# +ZQo3gkjvplrU6HqpN0ryCuUk+gSlqVFtAvxTAbfhP04orERbr2nhcHNku78p1PI
+# +BDzzKUUUsxJ2mLTAwvH3G8nRaNeC8nzEQ7l2OmINYGlEkuErfMDh6lsYmiB7Njk
+# lG6hUALm1KQWOfnHKudNXpD02mPU9w==
 # SIG # End signature block

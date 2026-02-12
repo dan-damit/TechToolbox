@@ -1,112 +1,75 @@
-function Get-RemoteInstalledSoftware {
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
-    [OutputType([pscustomobject])]
-    param(
-        [Parameter(Mandatory, Position = 0)]
-        [string[]]$ComputerName,
+function Invoke-WUResetLocal {
+    [CmdletBinding()]
+    param()
 
-        [pscredential]$Credential,
-
-        [switch]$IncludeAppx,
-
-        [string]$OutDir,
-
-        [switch]$Consolidated,
-
-        [ValidateRange(1, 128)]
-        [int]$ThrottleLimit = 32,
-
-        [switch]$PreferPS7
-    )
-
-    begin {
-        Initialize-TechToolboxRuntime
-
-        # Config defaults
-        $defaults = $script:cfg.settings.remoteSoftwareInventory
-        if ($defaults) {
-            if (-not $PSBoundParameters.ContainsKey('IncludeAppx') -and $defaults.IncludeAppx) { $IncludeAppx = $true }
-            if (-not $PSBoundParameters.ContainsKey('Consolidated') -and $defaults.Consolidated) { $Consolidated = $true }
-            if (-not $PSBoundParameters.ContainsKey('ThrottleLimit') -and $defaults.ThrottleLimit) { $ThrottleLimit = [int]$defaults.ThrottleLimit }
-            if (-not $PSBoundParameters.ContainsKey('OutDir') -and $defaults.OutDir) { $OutDir = [string]$defaults.OutDir }
-        }
-
-        if (-not $OutDir) { $OutDir = (Get-Location).Path }
-
-        # Worker paths
-        $moduleRoot = Get-ModuleRoot
-        $workerLocal = Join-Path $moduleRoot 'Workers\Get-RemoteInstalledSoftware.worker.ps1'
-        $workerRemote = 'C:\TechToolbox\Workers\Get-RemoteInstalledSoftware.worker.ps1'
-
-        # No helpers needed
-        $pkg = New-HelpersPackage -HelperFiles @()
-
-        $all = New-Object System.Collections.Generic.List[object]
-        $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+    $result = [ordered]@{
+        StoppedServices = @()
+        RenamedFolders  = @()
+        Errors          = @()
     }
 
-    process {
-        foreach ($cn in $ComputerName) {
-            $session = $null
-            try {
-                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
+    $services = 'wuauserv', 'cryptsvc', 'bits', 'msiserver'
 
-                $result = Invoke-RemoteWorker `
-                    -Session $session `
-                    -HelpersZip $pkg.ZipPath `
-                    -HelpersZipHash $pkg.ZipHash `
-                    -WorkerRemotePath $workerRemote `
-                    -WorkerLocalPath $workerLocal `
-                    -EntryPoint 'Get-RemoteInstalledSoftwareCore' `
-                    -EntryParameters @{ IncludeAppx = $IncludeAppx }
-
-                if ($result) {
-                    $all.AddRange($result)
-                }
-            }
-            catch {
-                Write-Log -Level Warn -Message ("{0}: {1}" -f $cn, $_.Exception.Message)
-            }
-            finally {
-                if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
-            }
+    foreach ($svc in $services) {
+        try {
+            Stop-Service -Name $svc -Force -ErrorAction Stop
+            $result.StoppedServices += $svc
+        }
+        catch {
+            $result.Errors += "Failed to stop ${svc}: $($_.Exception.Message)"
         }
     }
 
-    end {
-        $results = $all.ToArray()
-        if (-not $results) { return }
-
-        # CSV Export
-        if ($Consolidated) {
-            $csv = Join-Path $OutDir "InstalledSoftware_AllHosts_$timestamp.csv"
-            if ($PSCmdlet.ShouldProcess($csv, 'Export consolidated CSV')) {
-                $results |
-                Sort-Object ComputerName, DisplayName, DisplayVersion |
-                Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
-            }
-        }
-        else {
-            $grouped = $results | Group-Object ComputerName
-            foreach ($g in $grouped) {
-                $csv = Join-Path $OutDir ("{0}_InstalledSoftware_{1}.csv" -f $g.Name, $timestamp)
-                if ($PSCmdlet.ShouldProcess($csv, "Export CSV for $($g.Name)")) {
-                    $g.Group |
-                    Sort-Object DisplayName, DisplayVersion |
-                    Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
-                }
-            }
-        }
-
-        return $results
+    try {
+        Remove-Item -Path "$env:ALLUSERSPROFILE\Application Data\Microsoft\Network\Downloader\qmgr*.dat" -Force -ErrorAction Stop
     }
+    catch {
+        $result.Errors += "Failed to delete qmgr files: $($_.Exception.Message)"
+    }
+
+    try {
+        $sd = Join-Path $env:SystemRoot "SoftwareDistribution"
+        $sd2 = Join-Path $env:SystemRoot "SoftwareDistribution.old"
+        if (Test-Path $sd2) { Remove-Item -Path $sd2 -Recurse -Force }
+        if (Test-Path $sd) {
+            Rename-Item -Path $sd -NewName "SoftwareDistribution.old" -Force
+            $result.RenamedFolders += "SoftwareDistribution → SoftwareDistribution.old"
+        }
+    }
+    catch {
+        $result.Errors += "Failed to rename SoftwareDistribution: $($_.Exception.Message)"
+    }
+
+    try {
+        $cr = Join-Path $env:SystemRoot "System32\catroot2"
+        $cr2 = Join-Path $env:SystemRoot "System32\catroot2.old"
+        if (Test-Path $cr2) { Remove-Item -Path $cr2 -Recurse -Force }
+        if (Test-Path $cr) {
+            Rename-Item -Path $cr -NewName "catroot2.old" -Force
+            $result.RenamedFolders += "catroot2 → catroot2.old"
+        }
+    }
+    catch {
+        $result.Errors += "Failed to rename catroot2: $($_.Exception.Message)"
+    }
+
+    foreach ($svc in $services) {
+        try {
+            Start-Service -Name $svc -ErrorAction Stop
+        }
+        catch {
+            $result.Errors += "Failed to start ${svc}: $($_.Exception.Message)"
+        }
+    }
+
+    return [pscustomobject]$result
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBPwvPErFIAHT+O
-# nC8DyxWueGLI6GWWVXQ87YgoPe6V7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBD3Dne0VqiN/JB
+# +4jTSHIwwjKagsBK7s6iEd6RvaIrJ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -239,34 +202,34 @@ function Get-RemoteInstalledSoftware {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAkj5qa8iGz
-# 133GmudgoWeb5Mq/9cFMXwu02S0ylW8klTANBgkqhkiG9w0BAQEFAASCAgCWY8aH
-# 7Mv6+e/YrQSZH8W/7bB9zciQYajvjegyQzHtywTVqon+SSQ9f3kCFzM9GL2iDTY6
-# nVUJnOmrNVB1zeKFkph5h9QJoFkllSkJoqgzH1E8cTlRCwmZMb1eOYayud29jmyI
-# LSd4Kfpx34JYFKSXlbOOlTo0RyQF8K2LcJUKkY86hpK2eNyjVADdo4/mytpcFql/
-# wj6ZlIlyFwQmJ/KmCeWcNKNIi5QmeIszcNm3MwmzQ2D8GY9VyAqgX3O5BrclHW5D
-# i+pdXCjWJAf8PUj1gv+Jc2ycQ8M9mXkBXgXifTOzti9eyVvoMp7WOZR20Ih/3Fe7
-# xVrPXquYY/NsSpxoP3wHORWpVmfJWGD01VxYjltgOmkXiG0vujuCSfZFCQ2K+hDL
-# G+HYBCLTyC5cRqPK0D7L83b1YCixvGJCNnqGYJi4bIw5aBEoqygW5bnjAZ2fEfcg
-# Edo/r+EBH+Fir16ITySoyybIm0kaW5dxfFDjor6CW6WIDAoNlNcCotDqm2mMBjlW
-# W17ywoiQFm23umwvZCAo2pD1MYSRluTgFXXE6C8C6YZzyFhwN8begihXDAYq01FV
-# qrqJLCOIcE9oq6VRqQNgmHAFCNWwqFUE9dm9MouzRbXll7t607ReWNjz+Z2zyNjK
-# zJusnPt/Wm4jcm1eW24cDQHK9XTaop1BHOzSXaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC1hIy+GyXE
+# oCxR7STzW4BlRSxsCuAQySsLbqlQYLNJfDANBgkqhkiG9w0BAQEFAASCAgA3FFkp
+# JonV31hw+ka+XBzK3Q9/j0hfWYNzhAv+bDbvCzwljqw4I8DAZMeBjqEzLMd1U3Nl
+# 9LHEpVc0WmhkZ3AvLI74aL+FCxqSd3pRkjmnoozcjng9gycuRPkkmfvswSd3ykMH
+# Zo2lQekbHIemQGuncPIy7ec0k6XEaw/ugu4zWKFLuKvlRRSP3GHvLoNkC01+qjIK
+# H4N8//nCNYxgcs8Gsdx1o/cv4fl69v99lSS+oYVcKTlGqqyS/oAVBdEY3ZyAq/lp
+# cVW0rbHUS03PkdlvD+S/YeQTdu9SpXU26S+fJOnFm08lwQQLG+2daJVK0THi8HaH
+# 0NusX1+v7Oo0Mn2qsuL2XPMQBHHjxTrmybDq2n/UH4jewRk2nPVM73A67tGex5Zr
+# nhxxb6mz3tliNbQHD1oQ/Thy13uds49X83xBHEB9qxQGSx5xx3lQ+tUC96k0CUqL
+# kigcVN/YzpaCOmxyMpiq+M5sHL5hKlN1Br8k5eHv5K5cnZA3lhV6LOWQQXIABYvE
+# 1b0OgNzOPddXOh7ADoEHAXzE377tUnSVvEJtkLVjQIXaqivCD7kgeSFSZA3pseCh
+# 6gI72TSin6BTzQIKhzYN1wf/OLfqk0qftKnQ+wuVQZr/Za0xPK30xFcfSs1muwnK
+# t/iJxd7pp83oAAJ+11rO+9FBFq33Z3NySgwQzaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDJaMC8GCSqGSIb3DQEJBDEiBCCaKxNgQiGu3v5zwXQ7
-# Npw03ILCWoEFE9Pkh8oRAmLygTANBgkqhkiG9w0BAQEFAASCAgA9SCTKspWsaEMU
-# NQJNtCUXFiwYL0BhZsgG2SvWGqXSn4EpRDKlLY3cVUt0Pvsa1NxfamQcSUXmbh0A
-# BXFM0NBkWL0nC4m0AmE02bdGxPJ+GsjGhrRw4PCQnzKQLADh/08ew4z6vI4Kltr7
-# vEhDzejOHLMdRtSFOyRDtkfZAZ7ipjQLHMW0+ltQzeQCdmFrqgMUDCPEgx+Ckpla
-# gbCVQ7g2UHK2Tul/Lc3fcMRqaSe/OTjCgwNjBgUIUFboEi4RlVeUPPlrp8M39Fbr
-# h4zgKffy3ZAqk/AtraD/cM6tsOdZAIAywTlqN/xdKIBVJgxOK9QZ0NZvXzk2d4A7
-# hS2IEfNpGzKk5UsAZank68FAmPsaCwlBVmyvIF8Bjn96ehTAYIpXzakUrX2cpGgT
-# W52yOxBpt5CeMkC0qJ5964jIGP1Ved7e8xzzVVziSHR+a7AaebmHfyms83c84+Yb
-# y0Oh2kT0iWfH4aWEuylLBsFAWVYZqCkzHHmSwISoJ+CDRFe2Lprr1nmY33r1eMoY
-# O1g3e+tpFDNqus1jP9QEOcm3SKAQmhGT4R0aPCV/emCdvynNtuX16v8a9dgDZLfU
-# u3aD/tMs58wt3vgjHK8NDCYCJ0VJnzv1bGcSzrEuoinjCsAqLuCwCsYq4dnDr9SP
-# K+eLbH8auoS3qdTltDkj+NbnLMrosA==
+# BTEPFw0yNjAyMTIwMzA4MDJaMC8GCSqGSIb3DQEJBDEiBCA8ucIbw1yUu1zdrsXW
+# oQ0sYwlJDEiYPF1qw0NPI7cc6DANBgkqhkiG9w0BAQEFAASCAgCYYjBSLtagBsuw
+# ELBLFpOn6y4IE+1NlbSVBLDgXtWkag9uWs0BZ9MRy8I2otEtfP3gyGGaPNen3fi/
+# S5Dt4aNxm4uKztg0lB+RPqBKR5vGOBSLdZeYh0ZcoXyIWSfe1cbIB99Fw2FfZu9X
+# K/C1WHa0F8fdD1uA3tPBHkKMep/XGwMkeGD3nbU8wmuWGHDroolRJ9VBRpbThh+s
+# N7maLbRazKHESZlMRFPk5rdtE1EVxdRP7sSxE5EaV97AKJAO+z2fd8gYmJZVLtV8
+# OAoozJH1fenAUP3RIJ8VsbfW38SC8Nk5KsvKMRZgr1hvYHkYly3c43gP4l/hpInG
+# HGlUuNCJdY9eJxXu/QIiBd6LAynLioz334IHAbGpGFaK5Ryisj40bwkvqQ5b0tpM
+# 7rk0agOgabZh8JAWXjF54ebGCgHRPurXcKoUw3AVuUR09yHWMiIqTH61yqyOPvRD
+# WFULuiSDnIKFAF9oz9xZcCFTCEeVlAZExuBXjuj6MiQ5n2LeZqzWaba07rqPUv9l
+# 6k4PQg3emKf3zAkUyaYgNsBKrep/ycokNhcyQH3nakTuEjXI7o5BUgX3aLG6E2fp
+# PJmMwL9RM8GQuWZ/diIGPIKfKa9PdrNH4OZa1cvlksp0dvPRsLfzjfvltnHUC3h9
+# Jc6nz1p+mMKHvgEhDgNTaf/dsYDCXw==
 # SIG # End signature block

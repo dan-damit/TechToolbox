@@ -1,112 +1,152 @@
-function Get-RemoteInstalledSoftware {
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
-    [OutputType([pscustomobject])]
+[CmdletBinding()]
+param()
+
+function Invoke-SystemRepairCore {
+    [CmdletBinding()]
     param(
-        [Parameter(Mandatory, Position = 0)]
-        [string[]]$ComputerName,
-
-        [pscredential]$Credential,
-
-        [switch]$IncludeAppx,
-
-        [string]$OutDir,
-
-        [switch]$Consolidated,
-
-        [ValidateRange(1, 128)]
-        [int]$ThrottleLimit = 32,
-
-        [switch]$PreferPS7
+        [switch]$RestoreHealth,
+        [switch]$StartComponentCleanup,
+        [switch]$ResetBase,
+        [switch]$SfcScannow,
+        [switch]$ResetUpdateComponents
     )
 
-    begin {
-        Initialize-TechToolboxRuntime
-
-        # Config defaults
-        $defaults = $script:cfg.settings.remoteSoftwareInventory
-        if ($defaults) {
-            if (-not $PSBoundParameters.ContainsKey('IncludeAppx') -and $defaults.IncludeAppx) { $IncludeAppx = $true }
-            if (-not $PSBoundParameters.ContainsKey('Consolidated') -and $defaults.Consolidated) { $Consolidated = $true }
-            if (-not $PSBoundParameters.ContainsKey('ThrottleLimit') -and $defaults.ThrottleLimit) { $ThrottleLimit = [int]$defaults.ThrottleLimit }
-            if (-not $PSBoundParameters.ContainsKey('OutDir') -and $defaults.OutDir) { $OutDir = [string]$defaults.OutDir }
-        }
-
-        if (-not $OutDir) { $OutDir = (Get-Location).Path }
-
-        # Worker paths
-        $moduleRoot = Get-ModuleRoot
-        $workerLocal = Join-Path $moduleRoot 'Workers\Get-RemoteInstalledSoftware.worker.ps1'
-        $workerRemote = 'C:\TechToolbox\Workers\Get-RemoteInstalledSoftware.worker.ps1'
-
-        # No helpers needed
-        $pkg = New-HelpersPackage -HelperFiles @()
-
-        $all = New-Object System.Collections.Generic.List[object]
-        $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+    $results = [ordered]@{
+        ComputerName          = $env:COMPUTERNAME
+        RestoreHealthResult   = $null
+        StartComponentCleanup = $null
+        ResetBaseResult       = $null
+        SfcResult             = $null
+        ResetWUResult         = $null
     }
 
-    process {
-        foreach ($cn in $ComputerName) {
-            $session = $null
-            try {
-                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
+    function Invoke-DismCommand {
+        param([string[]]$Args)
 
-                $result = Invoke-RemoteWorker `
-                    -Session $session `
-                    -HelpersZip $pkg.ZipPath `
-                    -HelpersZipHash $pkg.ZipHash `
-                    -WorkerRemotePath $workerRemote `
-                    -WorkerLocalPath $workerLocal `
-                    -EntryPoint 'Get-RemoteInstalledSoftwareCore' `
-                    -EntryParameters @{ IncludeAppx = $IncludeAppx }
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = 'dism.exe'
+        $psi.Arguments = ($Args -join ' ')
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
 
-                if ($result) {
-                    $all.AddRange($result)
+        $proc = New-Object System.Diagnostics.Process
+        $proc.StartInfo = $psi
+
+        if (-not $proc.Start()) {
+            return [pscustomobject]@{
+                Success  = $false
+                ExitCode = 1
+                Message  = 'Failed to start DISM.'
+            }
+        }
+
+        $out = New-Object System.Collections.Generic.List[string]
+        $err = New-Object System.Collections.Generic.List[string]
+
+        $proc.add_OutputDataReceived({ param($s, $e) if ($e.Data) { [void]$out.Add($e.Data) } })
+        $proc.add_ErrorDataReceived( { param($s, $e) if ($e.Data) { [void]$err.Add($e.Data) } })
+        $proc.BeginOutputReadLine()
+        $proc.BeginErrorReadLine()
+
+        $proc.WaitForExit()
+        $exit = $proc.ExitCode
+
+        [pscustomobject]@{
+            Success  = ($exit -eq 0)
+            ExitCode = $exit
+            Message  = ($err -join "`n")
+            Output   = ($out -join "`n")
+        }
+    }
+
+    if ($RestoreHealth) {
+        try {
+            $r = Invoke-DismCommand -Args @('/online', '/cleanup-image', '/restorehealth')
+            $results.RestoreHealthResult = $r
+        }
+        catch {
+            $results.RestoreHealthResult = [pscustomobject]@{
+                Success  = $false
+                ExitCode = 1
+                Message  = $_.Exception.Message
+            }
+        }
+    }
+
+    if ($StartComponentCleanup) {
+        try {
+            $r = Invoke-DismCommand -Args @('/online', '/cleanup-image', '/startcomponentcleanup')
+            $results.StartComponentCleanup = $r
+        }
+        catch {
+            $results.StartComponentCleanup = [pscustomobject]@{
+                Success  = $false
+                ExitCode = 1
+                Message  = $_.Exception.Message
+            }
+        }
+    }
+
+    if ($ResetBase) {
+        try {
+            $r = Invoke-DismCommand -Args @('/online', '/cleanup-image', '/startcomponentcleanup', '/resetbase')
+            $results.ResetBaseResult = $r
+        }
+        catch {
+            $results.ResetBaseResult = [pscustomobject]@{
+                Success  = $false
+                ExitCode = 1
+                Message  = $_.Exception.Message
+            }
+        }
+    }
+
+    if ($SfcScannow) {
+        try {
+            $sfc = & sfc.exe /scannow 2>&1
+            $results.SfcResult = [pscustomobject]@{
+                Success = $true
+                Output  = ($sfc -join "`n")
+            }
+        }
+        catch {
+            $results.SfcResult = [pscustomobject]@{
+                Success = $false
+                Output  = "SFC failed: $($_.Exception.Message)"
+            }
+        }
+    }
+
+    if ($ResetUpdateComponents) {
+        try {
+            if (Get-Command -Name Reset-WindowsUpdateComponents -ErrorAction SilentlyContinue) {
+                $wu = Reset-WindowsUpdateComponents
+                $results.ResetWUResult = $wu
+            }
+            else {
+                $results.ResetWUResult = [pscustomobject]@{
+                    Success = $false
+                    Message = 'Reset-WindowsUpdateComponents not available on remote host.'
                 }
             }
-            catch {
-                Write-Log -Level Warn -Message ("{0}: {1}" -f $cn, $_.Exception.Message)
-            }
-            finally {
-                if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+        }
+        catch {
+            $results.ResetWUResult = [pscustomobject]@{
+                Success = $false
+                Message = "WU reset failed: $($_.Exception.Message)"
             }
         }
     }
 
-    end {
-        $results = $all.ToArray()
-        if (-not $results) { return }
-
-        # CSV Export
-        if ($Consolidated) {
-            $csv = Join-Path $OutDir "InstalledSoftware_AllHosts_$timestamp.csv"
-            if ($PSCmdlet.ShouldProcess($csv, 'Export consolidated CSV')) {
-                $results |
-                Sort-Object ComputerName, DisplayName, DisplayVersion |
-                Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
-            }
-        }
-        else {
-            $grouped = $results | Group-Object ComputerName
-            foreach ($g in $grouped) {
-                $csv = Join-Path $OutDir ("{0}_InstalledSoftware_{1}.csv" -f $g.Name, $timestamp)
-                if ($PSCmdlet.ShouldProcess($csv, "Export CSV for $($g.Name)")) {
-                    $g.Group |
-                    Sort-Object DisplayName, DisplayVersion |
-                    Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
-                }
-            }
-        }
-
-        return $results
-    }
+    [pscustomobject]$results
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBPwvPErFIAHT+O
-# nC8DyxWueGLI6GWWVXQ87YgoPe6V7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBD67I2DdVQTbTJ
+# zkUMVs5xeY8mM3kvP3Ra4svnrzL1T6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -239,34 +279,34 @@ function Get-RemoteInstalledSoftware {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAkj5qa8iGz
-# 133GmudgoWeb5Mq/9cFMXwu02S0ylW8klTANBgkqhkiG9w0BAQEFAASCAgCWY8aH
-# 7Mv6+e/YrQSZH8W/7bB9zciQYajvjegyQzHtywTVqon+SSQ9f3kCFzM9GL2iDTY6
-# nVUJnOmrNVB1zeKFkph5h9QJoFkllSkJoqgzH1E8cTlRCwmZMb1eOYayud29jmyI
-# LSd4Kfpx34JYFKSXlbOOlTo0RyQF8K2LcJUKkY86hpK2eNyjVADdo4/mytpcFql/
-# wj6ZlIlyFwQmJ/KmCeWcNKNIi5QmeIszcNm3MwmzQ2D8GY9VyAqgX3O5BrclHW5D
-# i+pdXCjWJAf8PUj1gv+Jc2ycQ8M9mXkBXgXifTOzti9eyVvoMp7WOZR20Ih/3Fe7
-# xVrPXquYY/NsSpxoP3wHORWpVmfJWGD01VxYjltgOmkXiG0vujuCSfZFCQ2K+hDL
-# G+HYBCLTyC5cRqPK0D7L83b1YCixvGJCNnqGYJi4bIw5aBEoqygW5bnjAZ2fEfcg
-# Edo/r+EBH+Fir16ITySoyybIm0kaW5dxfFDjor6CW6WIDAoNlNcCotDqm2mMBjlW
-# W17ywoiQFm23umwvZCAo2pD1MYSRluTgFXXE6C8C6YZzyFhwN8begihXDAYq01FV
-# qrqJLCOIcE9oq6VRqQNgmHAFCNWwqFUE9dm9MouzRbXll7t607ReWNjz+Z2zyNjK
-# zJusnPt/Wm4jcm1eW24cDQHK9XTaop1BHOzSXaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBBLG+SQXdT
+# n0H0bDpnUSuEeXacURp/6XeOlGgpRB9GUjANBgkqhkiG9w0BAQEFAASCAgCIcGyl
+# CcoNrr1Ly2ka3x7XLY1G1OuYSQEb3dKAmoE2jcCXQTCOgIDuCdAW5UkVP9HQGRxH
+# 7UVL7QLNzJqeElGK4bnS36QINhRcHzc8xrnr0k8NhjL5f7SZj34PjIsUxSaQcASz
+# Armc1CMN6MaxU9tdnYOUli8RyUkzs8BLnvR26620vb4K+TZs+ppb/PHSIW0T05If
+# 0V1zMgA7bKjZxKyk129XfCu5krQhrcgNRqwVJ1baDz+T41y3ZKpLyPR6SHX1xFAt
+# EuZapbC3YNFXIsdeV4QsRXlW4nE0UOQQvmrKoTDBFitE8JcWBXZxtCBEIrjTvfv6
+# S+ezSIPyIfWiQkjbKc2b3Uy4qQUmRYPUeZ2mMO7TVxxNGRuI6p/1Nd2w3j4auKnJ
+# 4Akg5uCyXR7e5s3KsVm2ZnOFo1h1XYF2au73hg92c3DohvVNroLX7VfRiT/lx7pH
+# 9KMz0Ub7Jn58OHLzfqvfbZjmDr3lKusJqd3uUXzTeJECA+lxtfHPnp3BtdvE0VbY
+# sIXcke32yIBS/FDRhLH2ZyG6Jp9nnoYzy0IJQls223cbdVux8y3J2+LM9nV9SkEl
+# SHOB1G5p+8dp4FFaAICWjHyDwZbFA0+aja99WVobuKccdhZt3k5JfhBGX7f3q945
+# /0dBeAwzgoDNQjeW+SU/35vs+mpjoFaVRdNAmKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDJaMC8GCSqGSIb3DQEJBDEiBCCaKxNgQiGu3v5zwXQ7
-# Npw03ILCWoEFE9Pkh8oRAmLygTANBgkqhkiG9w0BAQEFAASCAgA9SCTKspWsaEMU
-# NQJNtCUXFiwYL0BhZsgG2SvWGqXSn4EpRDKlLY3cVUt0Pvsa1NxfamQcSUXmbh0A
-# BXFM0NBkWL0nC4m0AmE02bdGxPJ+GsjGhrRw4PCQnzKQLADh/08ew4z6vI4Kltr7
-# vEhDzejOHLMdRtSFOyRDtkfZAZ7ipjQLHMW0+ltQzeQCdmFrqgMUDCPEgx+Ckpla
-# gbCVQ7g2UHK2Tul/Lc3fcMRqaSe/OTjCgwNjBgUIUFboEi4RlVeUPPlrp8M39Fbr
-# h4zgKffy3ZAqk/AtraD/cM6tsOdZAIAywTlqN/xdKIBVJgxOK9QZ0NZvXzk2d4A7
-# hS2IEfNpGzKk5UsAZank68FAmPsaCwlBVmyvIF8Bjn96ehTAYIpXzakUrX2cpGgT
-# W52yOxBpt5CeMkC0qJ5964jIGP1Ved7e8xzzVVziSHR+a7AaebmHfyms83c84+Yb
-# y0Oh2kT0iWfH4aWEuylLBsFAWVYZqCkzHHmSwISoJ+CDRFe2Lprr1nmY33r1eMoY
-# O1g3e+tpFDNqus1jP9QEOcm3SKAQmhGT4R0aPCV/emCdvynNtuX16v8a9dgDZLfU
-# u3aD/tMs58wt3vgjHK8NDCYCJ0VJnzv1bGcSzrEuoinjCsAqLuCwCsYq4dnDr9SP
-# K+eLbH8auoS3qdTltDkj+NbnLMrosA==
+# BTEPFw0yNjAyMTIwMzA4MDVaMC8GCSqGSIb3DQEJBDEiBCB+Zb3g36xZ41Bh1y2h
+# ljsXEOibBYbWlBhHC+t3z6OuLDANBgkqhkiG9w0BAQEFAASCAgDABMcgIMbrG28f
+# JiKWF+zrYT9r94t8TSapty6fBWvJRJ9J1T9XWLRrRu74CPIgmRUlzhBSgLjuf0Z7
+# KUMjRvDMMIcssgH1w+bepKO84RTsJfjJ/xuEEKoo673dd08+KJSNRhG4Or2NQGu3
+# LoFUu/AzrT9jlMHCZnfA/mUPqUFNm2ObUMwglmgUS9NSVZiqroUp+bT3dSFOtiuK
+# UwCGpjUqE8XsFGsQE/Wc8s7uDWBXHfhfbnbEhhyLRyVHRPyNBkW+2EtLl9tijeTT
+# Soq7DgGnw+nMDtfI8Qv7axn7D+HgvBQ5dU6FA4uZEORCy6epMwXlBb0dCm5zOdid
+# IxZfa0xJLxHsGhNg0IgU26/lUbwu5WRQdllMw40hRrU42fZfKl/vGGQBupkLy4lc
+# CFJHiAXq8stfpfnO4WvM9QNjIZHgc+eWH8d2lc/51rot871hnW6n40v8mJ6fmxdW
+# rBUkDwsTCmsL47qLATJs8v+nMeJFJGrLLnAtatNHH7r7vpTu/1cNHWZMuUysbTde
+# A6snWHtcJhoajJrwJ3l8kjq2CkKK/hj0iIHxNPioeSLxs5RH9Brj/YIWz1HmwXr7
+# iccSUyKwO9EonYkidbMVC/TAG8D2yBuXqIVoOY6pZaNWtpgRjExRPo3FayXbExZu
+# m+JvG06QSQ701DR2HCD80Su2Je3tbA==
 # SIG # End signature block
