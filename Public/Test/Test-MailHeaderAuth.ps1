@@ -304,18 +304,18 @@ function Test-MailHeaderAuth {
             Write-Log -Level OK -Message "Mail Header Authentication Analysis"
             Write-Log -Level OK -Message "-----------------------------------"
             Write-Log -level Info -Message ""
-            Write-Log -Level Info -Message ("Verdict: {0}" -f $obj.Verdict)
+            Write-Log -Level Warn -Message ("Verdict: {0}" -f $obj.Verdict)
             Write-Log -Level Info -Message ("Confidence: {0}" -f $obj.Confidence)
 
             if ($obj.Reasons.Count) {
-                Write-Log -Level Info -Message "Reasons:"
+                Write-Log -Level OK -Message "Reasons:"
                 $obj.Reasons | ForEach-Object {
                     Write-Log -Level Info -Message (" - {0}" -f $_)
                 }
             }
 
             Write-Log -Level Info -Message ""
-            Write-Log -Level Info -Message "Sender"
+            Write-Log -Level OK -Message "Sender"
 
             Write-Log -Level Info -Message (" From: {0}" -f $obj.VisibleFrom)
 
@@ -327,7 +327,7 @@ function Test-MailHeaderAuth {
             }
 
             Write-Log -Level Info -Message ""
-            Write-Log -Level Info -Message "Domains"
+            Write-Log -Level OK -Message "Domains"
             Write-Log -Level Info -Message (" header.from: {0}" -f $obj.Domains.From)
             Write-Log -Level Info -Message (" smtp.mailfrom: {0}" -f $obj.Domains.MailFrom)
         
@@ -338,7 +338,7 @@ function Test-MailHeaderAuth {
             }
 
             Write-Log -Level Info -Message ""
-            Write-Log -Level Info -Message "Authentication"
+            Write-Log -Level OK -Message "Authentication"
             Write-Log -Level Info -Message (" SPF: {0} (aligned: {1})" -f $obj.AuthSummary.Best.SPF, $obj.AuthSummary.Alignment.SPF_Aligned)
             Write-Log -Level Info -Message (" DKIM: {0} (aligned: {1})" -f $obj.AuthSummary.Best.DKIM, $obj.AuthSummary.Alignment.DKIM_Aligned)
             Write-Log -Level Info -Message (" DMARC: {0}" -f $obj.AuthSummary.Best.DMARC)
@@ -351,7 +351,7 @@ function Test-MailHeaderAuth {
             }
 
             Write-Log -Level Info -Message ""
-            Write-Log -Level Info -Message "Path"
+            Write-Log -Level OK -Message "Path"
 
             if ($obj.Path.FirstPublicIP) {
                 Write-Log -Level Info -Message (" First public IP: {0}" -f $obj.Path.FirstPublicIP)
@@ -359,7 +359,7 @@ function Test-MailHeaderAuth {
 
             Write-Log -Level Info -Message (" Received hops: {0}" -f $obj.Path.ReceivedHops.Count)
 
-            return $obj
+            return $obj | Out-Null
         }
     }
     catch {
@@ -371,8 +371,8 @@ function Test-MailHeaderAuth {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAhwrlyHnl+RgPc
-# G56ITRhoFresb7o2VIj0tLvYKgWzoqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAP26rKobTg7rBz
+# UKOrlEXXBTP6seigo4IFanSrL/IeAqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -505,34 +505,34 @@ function Test-MailHeaderAuth {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCxfaDS48aP
-# 80cFfXd/PNMzz5TBxEizfD3lFkRTI5mZAzANBgkqhkiG9w0BAQEFAASCAgAyfsfp
-# ABW8s8UsGzVt7yICrcmeUi/u1RrPsjgZEq04TWo67WS0vI/8lgF+E5fAUgZrPe6A
-# Y65+xKJSoiKmG5Dr69T7t4zuHGcmAlX3yIHUrUEHLlUFZbs51sIkMttepQg2HRZH
-# 7RN9C6b1PByBv8NIPkxyY9KlOHWzkB712Bq0ZsJimtB0UzLkz5k6fjaElczGemQL
-# XsPL6lhsnPrFmRZaxlC0i9r63aTmZWI76d4Ra5PK+gGzl7QkKT9n0n6z+dCl1i5c
-# FlMeoW160+CQ9yjc3smRk7lNWSJYnrt8ZgMxvEkR4m8zI7aiWMHpIGqQUFPx9Gfk
-# DlQo4a9+0N3VDuh5uAjhkD2oSyJxFfY/HApiOxTalG1CPVO3TyqSsQ51g8l2NtWw
-# FS/s1XDCiLiBmoRUgxMBx828BAy0l07A1ltj2AF7NUcl9wfiF6/1IpmNwv7ONZTV
-# YiGOGqJ+db361rRlDdnn3udS6xwrMwJuyw1F7jhQ38nkPLcbsf6aBbDlaqRDb6l4
-# LGldUih/W0axmC/6+PKSLtCwb4knmIWHADFj0YA8OgDCPu9Q+VFuH3SsLazOdzS8
-# FeBhzB6QS8F6yltshunDttWfTGDRIB4DC8YtWNBTewebflKqUzlco5yir+/yTnMQ
-# fkD7n5TLV/57BN1akHGzKYpvD0dQOCh5f8TbTqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCskJHs1zdx
+# RMcjCjFr+yThSu1t89hg8c1cudDPoWMk8DANBgkqhkiG9w0BAQEFAASCAgCK/qfa
+# sncxannbLXeF8e3CsYllOxfN2Uhea71euwKmJGnLkldnNh8FSyP7a7Ogm7V8gsky
+# HzOSytL1S80pd3GnRb11Av7YhRCG3xAuPFdAyqwJ1W+QGoxCNMJsB/KFiKpw8qCE
+# /Hv3cGe+tc9UDMZaIcWsYppzO282ZsXaLnd+/zj3CjIwTWPsLteYaTViLTkkMaok
+# r6an7GJ43f9H3q36bi4um1ymRRMsxT7eyFrKBo7P2qZFNS4mWGkA20oFa6HF8tSc
+# 4DBu0/B3PyIk+VBbChl0F38xEvCTYIPAraqE5+Y9TikYQVDhoK5LeblMdGIqlohH
+# ELOMoIVLxLp6qKRnpWPaEsNByO71hSDY4871r+r5X0G/egTJBoQjN7sRUjrf8M14
+# 0G1cm5ra0nBUuPs1IkqjRLKp83PolPvDWjzmZWTHesIcOEHIL7ABtIpkt/dbAYdz
+# 03Qh9MiC5/34AITfqT7U/JPZ1qMyqoSOzAReDw23MgX6niLvLCXSkChrdejt3rpz
+# x5li68lsQ1eSuVQ+LSVpfdkG7rSdDiXo8manSAUTXiPcjJAEKhwOxRzUbcB/SwII
+# NkHa2oEi7P/G+JzplE+ydA+p2OUUXMoNUPCEbo/vYzaLWmNJY07D7D4BA3ce5F3U
+# u7KR5PjI3q3hcoLWPirOeVxs50hPXziMbjV+76GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjAxMzFaMC8GCSqGSIb3DQEJBDEiBCC0B+rTf78r5xNwVerm
-# VEtDsG2EKxOjvxBqlBingVFB4jANBgkqhkiG9w0BAQEFAASCAgA4Sj6R48XCVSav
-# TY8HoNWhjqckouuhsgGmbCNkO0yLQve7u1Lz0GMjK1/0d/CA/b65rTQSLd/v8waN
-# cqcVLAJ7zPxfT1M89McSpJXwSqzhjvr/QytrOZdRjoRPRqp/1yVrpZOno+HgyQps
-# HPdngingXWDTyIZEOL0cTv0pKeEMNd/UO4F4GIAKRP1c1Z8kzZmmEtmtxLe8slwC
-# aqkJ2aPH4sHS5lNXvXPI5FC71nue32YuIdJfKw/OJ7DH2N7MU0XAsVbw3++/csDm
-# d7m4KqlxzqUXSw+wSLDim2b8Fwqom3VHHr1XON3xI0puv5C0wUQ3L/pGeOnYLU2s
-# N1IqJF/E3unNQqu4hdxgLH0RHvSjHGrru5STrsXw9BplMO6R6VhB1+vQq/icyPxO
-# EexInr2nodVuV2WQ9xEhTlUKuwcjN5JnbZER+Dx7dGHMo4KVoMj71hXElp61GRJl
-# 5F9l/oYMqvaQYqsw+A/C1R44eupf+eywZ4OvVPA5rlt6lpl+3uWht8XFDjgq04LO
-# +EwY94Q1eekiEhulk4ppwOBn+liuTG323gLViHt01QVC2iF4DYj7kc9+84pY1HRl
-# Ja2nnelvpGSdb1vDd2ec9YVEEmq5f2WeaHKnizkU5oVzZYVjyXOwzDk/ZEzsXxZs
-# +V6pPdZemnbBBlt03/7wZhIyL0KfzA==
+# BTEPFw0yNjAyMTIyMjQyNDRaMC8GCSqGSIb3DQEJBDEiBCAObI6sPsMh0tbLDcs4
+# GCOJJW3qCH+InUe9BjfhQ0nA5DANBgkqhkiG9w0BAQEFAASCAgCJceeIPMReCcHO
+# 1nrr+lB7auWzfZj5RKGOpDFOZdqQa54jedmddkYblxWd1d7KueTQJNEdGeHr38uq
+# yytoUBVsMZuOB9yH5Ks8DciijWFuGXKIjsT3HD4VznoHVCTPqAWCE2hPS/kXUhyL
+# W9J5n//a8zINrfv4XlYJlQY9UBlNNGwmIb1i5yXDjgQL2WjR7InmSisiivFNyEub
+# UZzShu7j7qWE/FqanmncufqLTx1gKLxTZtSup3ERXTnZh4m/cYaVr5CBZb9Rptgk
+# 5bVsPv9H9JCYRfhrkB9spfcb5qEf+JNiyRInZ6ULHtlVkNwsO/pZsA0qDouI+Oae
+# ooOd/dM29Y78rRzPE2cIqyc9VPLVffWGzNKJRSxs6xKLdELIBc3hShIO5svcckUW
+# 8aClGX8fvmveiwmWTzun/0lsuOgVW3fDtKO6ImohOOf/EnnB5gtGkKqfyEqjG0Bk
+# PgE9cJziSfoUEZH4bnPg6/UVDNYVAZXamMru/aPZ5RKm0kXrgOTR+zgDKvx/yM6+
+# 9IJwDaJ0DsYCA36Q7jkRb+XdzaCrov40zxp6nqJlvz3/ZvylVSLJGHJaiuTc5GYQ
+# 6HNtaRx7xvYoHHaPvabfsipSkIl3HttJtAWRLyJaPG+TbTDXtB5z1p42l0kjqET3
+# EPUP21v8DUlGfqDMnfusWF6tm9nTIQ==
 # SIG # End signature block
