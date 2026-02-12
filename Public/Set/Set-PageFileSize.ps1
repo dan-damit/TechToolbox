@@ -1,4 +1,25 @@
 function Set-PageFileSize {
+    <#
+    .SYNOPSIS
+    Sets the page file size on a remote computer.
+
+    .DESCRIPTION
+    Configures the initial and maximum page file size on a remote computer via
+    PSRemoting.
+
+    .PARAMETER ComputerName
+    The name of the remote computer to configure.
+
+    .PARAMETER InitialSize
+    The initial page file size in MB. If not provided, user will be prompted.
+
+    .PARAMETER MaximumSize
+    The maximum page file size in MB. If not provided, user will be prompted.
+
+    .PARAMETER Path
+    The path where the page file will be created. Defaults to configured default
+    path.
+    #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)][string]$ComputerName,
@@ -92,8 +113,8 @@ function Set-PageFileSize {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC8ltQ3B9QWFmII
-# yaeMIbCrGfoRvZ5sb/MxxkO5yp27G6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC5peLlqMKnPdnG
+# UyCBsIhrcYJgPMk4XWVAxKGUa2UatKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -226,34 +247,34 @@ function Set-PageFileSize {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDig/aZni01
-# vW5//ZEecD6VKyk8tH4tbjkBPXJm55rMNDANBgkqhkiG9w0BAQEFAASCAgCwxyU/
-# 1P2isIF6YFNvi8GtUd/NkVTO5/igGoElQs/uunV1ayijFrn9cmvWGMn/V5uUxgZm
-# eLlYknEcoGEEKKIQHutHPY1useOVPfdUheYja6tTTawvZ49m0klP69H/Gvh07t7B
-# co1xAWKqKAVGKLc8YfURxm+GgV2bhl4jdsOePFM1FZa5Tota0sliHwb+GQ45upyt
-# ZI9qOy1ccwxQOJQaJCYEbATnKBhB7ScrqB8WKSM9meJQAnbmboVLxsrjJMnXVr85
-# zKXhAAAXVg6EGWe5l4r+iS2TiDjHhfCOoBgCZUhpbQRd5YBIoePSjG1ceZSpSDEg
-# 4yX8k1l03590MYCLl6bmVcXCz3Q0Kc/MIE+yE1MgbzAJ2C5Y3/uUzOoao1NotgOm
-# Lu2M8N3UxcTfXTLN3B4kJizQo9hM8bOb9F9XDU8H7UslfZ+y2d7zZ2h1BslRayMb
-# kD9czlcGkvVbdZ6ZdICLIoaKzhIQk4j95gumtKxvYPNP++hCx3tCNYb0emGCPFwb
-# Y/8yPYqb2ssekQUs7OJPoqWRZ+w95TEoLfPkzQx7y2LsZaqQt1UHTNmIzyWWQ5tj
-# XO3otViD3+pnvXOqHCag4KxXdAbTIhscZHHgll1lnHfczabghIE5V85Hwv9chi7F
-# F5Gq+CSjXMkdwej7vhAzH+dNpj4s9U7zoq2UhqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBjLBF71W4C
+# reaaJkSsRRBDgBH3mSFzg6Pkm1vdfKGwujANBgkqhkiG9w0BAQEFAASCAgDOssxG
+# Aafwe4rZ+FmVlEikgoZq6GboEE7h1vddCljm8MJcEn7ZdZl13HiAClloKCpzgVIN
+# uZM0ulNU8JO9dIVP3hvu3u2gMY36bwuWIs1LsnBhT83QhDNhlQNVjZJysT9CbZJF
+# Nve45RWoEEpHy9on8tBsBWVBXKYRpy2uubUvPZkqzX1N8BM7EfqbuZVSmaXiZy62
+# pz9VkUeyPbqAsQr+FXKUTzzeq3rfb2i7p/aAJdeZ3gRVBAtq1WD00LONy4cdBdlg
+# Dk/Z2x2PPnR+D9HLxlDvth15JMqesubK0F99YjBKbZIndnt0r7q1yMQ9a3rVKpbW
+# vRTbH+EPfU+V6tUTwbhijQChDdv8FPRde7ZTGF+u/dYcznLBQ9Y+r0X0nVQF0tMv
+# rA2jSAMwSAS8II+ZzewfsnF4yuSpVpIuTMPh3sgq/YAe7NusMJQKM1FzmpUvmm/F
+# 3jIBb/vwnGNkINIcNdsFc3Q4J3aOTuIPwvIdIccd1jKH8LQV7/toFd4Z9d642Kk6
+# /DLlYOY8QfQGtIHK5h5Jj9nxpbK7uQrVdDf75Ep7f7o69CMfG263EThekoBhXbxe
+# V/m3onDSeppD6xooKaOcYaQH1AFKlDP5gW8TD1wDWfyGiujQggpxo1HkBCC2+N3D
+# 8J2kKP2CbAWj7BL3UWBIzB1XeGF/knBfxdtKAqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCAdzENpiONa+hmmp+0M
-# +m8Ak1pwqEH5pDlpP56q562FkjANBgkqhkiG9w0BAQEFAASCAgBEtXa/dil/eYmH
-# flKDNleNJaPcLXuOIdfaPhT+ivUqNTGXU1VRoRS66tpFaUHCIssE35bOuoBKiTGL
-# +fKGSFfYD6ybG/Kp9Y2evK1CMkQNslP9+ZklV7v4GrCV1BBMg6R1MiA4eCLTd8+S
-# q8cJ5LnkUXIwATay0u15JFb6fU6FyoA0a259noYS3wjcTrsF50aXppFTV81kdb83
-# UwNblbXyHD/h2GrQVFeOkJ8H8q6Kq6k8C43WHvW6YAqdESHQc4ATjsA3r1NVral4
-# Lx6mIkD3zZiVppisDKS1xY1v/58Nh2lyydy7lN3xV7t/nR5RtUR01DzzNQekwBQz
-# eUszULtaZpOswvLTJn+QHwD+wWPyLC5UNk+fAs1Lz/DXXqrkJBgNBEKs+0Dx78pZ
-# GMBCE5L646wGBa4QND9CbkJrFU/m4uWBZ8AXucRwvN9Z5kLw4/ZuB2uLsv7l6qB+
-# SR4q3lFHcvaf6yN7BHsSCAyB0Br+5hFTNFbQf8kpwNkSQ+C9LWmvjFQb7MMCw7yr
-# cf+8/LsmlPiJ0Xe/7qVi9/l2hGRzZyLEO/dJ0JPxmQKSYXxsausEdgoiRGalqBLN
-# QNSFtonCVvbPJV4GDTmFpRwh4V+rYOe7HysARjwC5mYnQnLTIXpL5m23JogPnVEh
-# pZs8RjVrsMmLLi1E4bK2da0a60OFqA==
+# BTEPFw0yNjAyMTIyMjAxMzBaMC8GCSqGSIb3DQEJBDEiBCD6xrCrv0EALZ4lt/kI
+# 1WzOkmdotuxmJlpIZX7VP52V/jANBgkqhkiG9w0BAQEFAASCAgBMu3LWrJQFQpg/
+# 0RKNiPmJIOJ8mbLZN+mkz895Uaxy1rd5FDTomFDB4PmneGGDpsZhMT/mXo1ffAbp
+# arZ6xZhbgftA3RsU1w5oAp/bboDJWv8mNDgtPe34hViO3ZCJaue3vjOHZGgM4brI
+# NVXlUgVdKyFYTfCDza+DRpkPi7aCrTfsCtPTUG5GSGNYwQ89aHo7iAIiBWxvEdDf
+# PHNRUQvPg708f/0kaMXFUQTGA1FncGGWLhq5iMHtzwFc3IN/Iv4YpObJc2cS1HpX
+# FT8b1WlbWnGeDRKtJVfd2GU8+DUCGfYd9PAFDf2c9vEnFUhvIUkv1JxXJRx84ZFs
+# XXlwpjo+ogPXIGFvl0BuFIuwhZF85haCddv59mgz8aptFDPGhD0x/MSVCElPWCnI
+# tFJ3H12ZSHlaOKm7GtAPFFNta7jCOUjxKWKNqrCvUDkHRWcRsIWn4Z6zMN5ppjuJ
+# 1tlM2x/2jaP7ftmS6m66i9aw4qxgQuwwxZOQQXBE9vQAuH2Uuz0+nRB1uqbOnr/m
+# BUn0zK5U2im/xZKAf3v9zioay8yxrp7VI9fZhN3gAWQKJasnW5iQ8lH1Klcs0txY
+# a2AlbGMNUWTHKiiDlWmXi+fHaE/bBZ27DXh/8NycfbwF+dsngwucqWlq64ZJwWvy
+# nquN4O6+hZ4eiIzKqmY0Kb8uivd+fA==
 # SIG # End signature block

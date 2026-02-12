@@ -1,4 +1,27 @@
 function Invoke-DownloadsCleanup {
+    <#
+    .SYNOPSIS
+    Cleans up old files from the Downloads folder.
+
+    .DESCRIPTION
+    Removes files older than the specified cutoff year from user Downloads
+    directories, either locally or on a remote computer.
+
+    .PARAMETER ComputerName
+    The name of the remote computer to clean up. If not specified, cleanup runs
+    locally.
+
+    .PARAMETER CutoffYear
+    The year threshold for file deletion. Files older than this year will be
+    removed.
+
+    .PARAMETER Local
+    Switch to force local cleanup even if ComputerName is specified.
+
+    .EXAMPLE
+    Invoke-DownloadsCleanup -Local
+    Invoke-DownloadsCleanup -ComputerName "SERVER01" -CutoffYear 2020
+    #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter()][string]$ComputerName,
@@ -108,8 +131,8 @@ function Invoke-DownloadsCleanup {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCl+2EkbLQ1UJPY
-# BtzAN/912150bCi8pc8JVFrxmthmkKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA30r7pu/huZs8d
+# 11yd8Wc0c3/f2hNXlgg0r9OPjRXrg6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -242,34 +265,34 @@ function Invoke-DownloadsCleanup {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD6SSHLKL82
-# eCD25Az3XlaA4c3wB2Ae+naqkWAMgvZQTzANBgkqhkiG9w0BAQEFAASCAgCxmL+d
-# +xLabh27i+r8azkYqvwkwOeInzTYeesYqguZKF/Du0RtoIoylv9ylxSw74uX0G2X
-# AWcaeOIz7wUUSGjomHl5+xsasgA1KpirIo81RJnSVnFwmCJEixtYEQ3wT3AcDdfT
-# VZQkdM4C2JdUxX+hWziu719Ba1H4tMnRW7Jd+aOwBTqRiZJHZgiIHU+OKe5soWl+
-# Bpy2atPXa31vbqBa+0O0HV1XNXksroJL7Ksd/56IC+/pBGxmHZ/K6Za6iquNFvGj
-# Z6ejCR7dUjBV7ELEa5+oKFNrXRLXKSYuq5Fa8RfGutFV7N9ZQSVRHgK+DPjuMmVM
-# sffz32ZnGW9rA4PpLi9ID7LPhW+P2+Vt43bUv09Gi7uvVNkNTkl7O/i3rJzXpDXT
-# hD05KpFXZ5E0XmOQCKS+ndTEaEZF4qvahIQE7ncO45RELLcy366QY6pAEm+UgwLw
-# QPb34PWrDCFEIBAaQtuTfRSfPqogN9Du4E68X54yGY0IuLotKV47+pmuOv0+BDwM
-# dGP8b5vKYkC2K15n3WS/40ON4SztFc8Hqd+5DxC/oHD7gt0DBtHzTahDBMAwYT/w
-# PpTcVa8NtZuRP3Z5iH/+JmThxu7xeCZH3sGZGh53ma+ljiC14Hd0zrHn3I3kaR+w
-# 8/S5OtRWfsWbANDBcF8SE/eI/9VZ4bZXsr3z0qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2HyU+wIpq
+# Ou47SwZdcicm75d+QPxok4COYELq/+pSQjANBgkqhkiG9w0BAQEFAASCAgAdjMme
+# LwP64Mi9/Mv139Hv4PFQLpI+d2Lo3NdHL4hLNMY+RuPW7B0t1VgfDozJCAjqrunc
+# Y+gWxHhrJoqyvtXMXGLE6CH5pw4+tZuGCoeC1LabTAKvLyb625FncledMCoZVgQc
+# MCLJ1NatvLnos+JRq5S2D8RdHRF/JrQWIjRa4WU7A8Hu329F2c7PSrJRSSGRpvYc
+# U/lnC6GPQsorXhPLK0hgxMoIb1C9oXe64smrbkEO/lFJybBnyr7lo0NGPkfe8mN4
+# 2aL5Vm+sZ5RSuoU6lT731DUgXcub4+WqnD8dpogPP4vU2CJDzWq01/BGaYgUdfDU
+# GwFxGVLLOJgkDEktmEl0kCeJoB1JHmsBlxiKtUI3s5GCwB/j1ZK86xnl0mxuF2A4
+# tRbswJDJO6zXCnAvHL7d04egQeM3XKOzGjE1OzoQ+xAGDpybFMtuc/GyxCXoVj4f
+# ruODjYC2tzY9ItGBJ74awLo8XxIEs9knjE8MRgf8hmazWpbweM92TKBqOfyOZBmT
+# q46p+DZJERAuiL+nbu81FInTFyJGyqetTmkeR/3mjSYiorMmTXnzPwYYOebXRkp9
+# KyNJNCbOKg59O5zLL++KYur4f65iYp9WQsHlKnmN2gvD4GrsIOgK8o4iZkjblt/K
+# qu4NrpVJjlI0kKpN8xkvPZ0Lwiyb3zb1wApbtaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDNaMC8GCSqGSIb3DQEJBDEiBCCbJ9UptJnfRpU1msoF
-# U4M/4sR5NgR2a+giXIQtNUoZAjANBgkqhkiG9w0BAQEFAASCAgAdZ+u6tho7Snzh
-# M5nHRJadl463m5SGuTafENpHzjMONNyKyxs3DsFWZtVg+5CJP9CKUkzIIsc1eKU9
-# 3COnohd8SfzXwxCvwAV2knGQOLDaJoigw2cghORAWPfrOAXcHoDb94c0wyY2QW+7
-# ww8aUsxo7oMGfjL4otfDspN9MeocG99uSngk8OFXBOX4pO6aOfumWNIc8Koo0MrU
-# B6tXOl4VN/Eu2thnpHj7754e4xdiy8FDNlinVkQ8NEfRoTO1YxUSUm79kxij0HdL
-# 7+szIaj1F5BR4mKJx+UBF4n1LLiTJmnM6O/psogNnb102pYwQVLVZN8DdCCbEpsE
-# 57Ua6Hywdh2QGPX7JGKBDzPRGlrPgii1FlPsFVIl9IOvseE1MEztO90RXqKlpNkc
-# WE3yqim8TcRyLITvUy4wRa37ykuDhYrphOg+kQAOfh1foKIFrNpJSE4hv7gJyp7s
-# lmcvoOap48KOgeYe5tRI+gT9ZBfa1+cxKVpLkN1YPZq8XmGA1nknvrxmj4ckejc0
-# DHReQA2HvIVMVOTQKYl+mzAqT/dSdi2hPChXd9ihSB76tvpu6KPQ62AQoXxThEgX
-# hG0Khg5ujNZ59d4NnheIjfiNXnQpo9SZaIA65Vi3VBZu/6EKUEPE0FZ337aK2g0B
-# R+SfIT8D+Uvbg1/bfS2KDyOcId/uIQ==
+# BTEPFw0yNjAyMTIyMjAxMzBaMC8GCSqGSIb3DQEJBDEiBCDLkD3VDkYAGV1CKNmW
+# TkVlIo1/Ai/oVNT1ljDnLWTFSzANBgkqhkiG9w0BAQEFAASCAgCUrbaiUUwfrfmQ
+# /q6PmQPKH52fYghw8H3UvtunhSSUSrUTobXBh0P37R6J2gbMP7bnHqx8r0a9vt5x
+# TBf6f+W4FzErfpgdIpIc5esda07wQtFooEAwzBgxDkNLV9NVbY7WTF8y4pjfHIc2
+# 0AjBmsCYw8xM1RTZ21uNRCdMnQqBUCzbcMQz16OLTabOTiTfR+aQQ9orZRI3SFbS
+# mbG6XufizbkTmLh7QR9iqsyRQCVJ1NvGFDEkbnUPVa8DS3LklSP5IMejEIhRCgew
+# Psd+NahK5DrrYPKA5lyJutZil2HoghMrxHMVCliCdgbM0nZSwypLyOKxc0Wc5ybo
+# 1FL2gjwONqan5fggmBrnjus2f69bcWie4rVnzONLuwV0mBZs59aNkhz4ufpf22pk
+# NUfbzom+odHkQF17z4hSPqa/WFc5F41LMcQ962jaw1b8vr8B1MdFfbCZjEN8NHeR
+# S9M/C9pnyO6dr/Yr0bZaeaTti1IK3cS5cV4W5/z+qUyFDHM1TzNh0ML7Nxjtbp81
+# ZV3GpylM5ABOZWgmACot/jT3UsPNWy9rRfLktYEE9md2rbxEN6Y1ZXYwHBEKZFXj
+# CRa5k/3t9xp7geYRz/5C2ZPeupUXUhl/v24ADaUZKwEi1UbexPGQkLb59mXgTtAU
+# C7+Mmo92FIof6VEddD6WPSW3AO/49A==
 # SIG # End signature block

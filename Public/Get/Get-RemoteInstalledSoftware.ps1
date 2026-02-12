@@ -1,4 +1,39 @@
 function Get-RemoteInstalledSoftware {
+    <#
+    .SYNOPSIS
+    Retrieves installed software from one or more remote computers.
+
+    .DESCRIPTION
+    This function uses PowerShell Remoting to gather a list of installed
+    software from remote computers. It can optionally include AppX packages and
+    export results to CSV files.
+
+    .PARAMETER ComputerName
+    The name(s) of the computer(s) to query.
+
+    .PARAMETER Credential
+    Optional credentials to use for the remote connection.
+
+    .PARAMETER IncludeAppx
+    If specified, includes AppX packages in the results.
+
+    .PARAMETER OutDir
+    The output directory for CSV exports. Defaults to the current location.
+
+    .PARAMETER Consolidated
+    If specified, exports all results to a single CSV file instead of
+    per-computer files.
+
+    .PARAMETER ThrottleLimit
+    The maximum number of concurrent remote sessions. Range: 1-128. Default: 32.
+
+    .PARAMETER PreferPS7
+    If specified, prefers PowerShell 7+ for remote connections if available.
+
+    .OUTPUTS
+    System.Management.Automation.PSCustomObject Returns custom objects
+    containing software inventory data.
+    #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
     [OutputType([pscustomobject])]
     param(
@@ -105,8 +140,8 @@ function Get-RemoteInstalledSoftware {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBPwvPErFIAHT+O
-# nC8DyxWueGLI6GWWVXQ87YgoPe6V7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDBBJ22CHFAhXta
+# 2BEwawLEevtoOpC3EVPEaBHgavMoyqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -239,34 +274,34 @@ function Get-RemoteInstalledSoftware {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAkj5qa8iGz
-# 133GmudgoWeb5Mq/9cFMXwu02S0ylW8klTANBgkqhkiG9w0BAQEFAASCAgCWY8aH
-# 7Mv6+e/YrQSZH8W/7bB9zciQYajvjegyQzHtywTVqon+SSQ9f3kCFzM9GL2iDTY6
-# nVUJnOmrNVB1zeKFkph5h9QJoFkllSkJoqgzH1E8cTlRCwmZMb1eOYayud29jmyI
-# LSd4Kfpx34JYFKSXlbOOlTo0RyQF8K2LcJUKkY86hpK2eNyjVADdo4/mytpcFql/
-# wj6ZlIlyFwQmJ/KmCeWcNKNIi5QmeIszcNm3MwmzQ2D8GY9VyAqgX3O5BrclHW5D
-# i+pdXCjWJAf8PUj1gv+Jc2ycQ8M9mXkBXgXifTOzti9eyVvoMp7WOZR20Ih/3Fe7
-# xVrPXquYY/NsSpxoP3wHORWpVmfJWGD01VxYjltgOmkXiG0vujuCSfZFCQ2K+hDL
-# G+HYBCLTyC5cRqPK0D7L83b1YCixvGJCNnqGYJi4bIw5aBEoqygW5bnjAZ2fEfcg
-# Edo/r+EBH+Fir16ITySoyybIm0kaW5dxfFDjor6CW6WIDAoNlNcCotDqm2mMBjlW
-# W17ywoiQFm23umwvZCAo2pD1MYSRluTgFXXE6C8C6YZzyFhwN8begihXDAYq01FV
-# qrqJLCOIcE9oq6VRqQNgmHAFCNWwqFUE9dm9MouzRbXll7t607ReWNjz+Z2zyNjK
-# zJusnPt/Wm4jcm1eW24cDQHK9XTaop1BHOzSXaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAEPTCX/mW6
+# +fo4/GqxWL/sM8GMfMqnI55xCL0OBwlxVTANBgkqhkiG9w0BAQEFAASCAgCyXuEE
+# EJFCEVjC+Dzl2978VmRCMuAqbjJVDjgmcCQlTOIPS1dwY6crFrExeZMSKgsdXeIg
+# CphR9+bvsoSnkk/A83x7uOefW3vzjBkuaI/0AZLk4ZmS7rsGLl2PRf7HjP8g0XeA
+# 3wLjEwLMxbobm5jYTMu0TIpLCcQioBfqSfA114hZey+gmYQkfhCedEamM2kdS34J
+# HMbXpMOTZhIF6tCMSi4ifoduJc8szrWweHwuC6D878Czvg5pLntcqZYUMUhMiZ1m
+# qezZuhp3uyAJ3XLhzNcb1llH8iZlzc+Pq2eWNHBmCfqw0xJD1Kf/+rCS/z7Q2rA/
+# 9OUzTcj6XUXALaHKZ3WanXXmGGy8dauGaY81GbaZEOiXrOCs1DobNPhlYODh7G+8
+# 4rBVPOd2jpDIwnmzctdH2Uh5QJTef6hk8MWBx623Jf3fE/lN1bhrYvjpJYX6X1Ju
+# YX6bL9x7nDdo20GqX5LKt/WaCpMeN5NX8SpQGV+bQyV9k55lueE8F7UeQkupME6a
+# BHyf+MFQWRjLhX8kTUXOZGilI9pcUFBa61va2aag1rBMdzOc9cXDWfQ0Ttoxtp1h
+# YTqzW4Ljtg8MhX0sTxmu3Hl+1n4QBSnfowr7mBEzkFH8Q5Rw8ujqPwentj7bKc6x
+# TjGKqCsLyFEImGq9CQNhRwk5ngkc4w9XpxgpdqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDJaMC8GCSqGSIb3DQEJBDEiBCCaKxNgQiGu3v5zwXQ7
-# Npw03ILCWoEFE9Pkh8oRAmLygTANBgkqhkiG9w0BAQEFAASCAgA9SCTKspWsaEMU
-# NQJNtCUXFiwYL0BhZsgG2SvWGqXSn4EpRDKlLY3cVUt0Pvsa1NxfamQcSUXmbh0A
-# BXFM0NBkWL0nC4m0AmE02bdGxPJ+GsjGhrRw4PCQnzKQLADh/08ew4z6vI4Kltr7
-# vEhDzejOHLMdRtSFOyRDtkfZAZ7ipjQLHMW0+ltQzeQCdmFrqgMUDCPEgx+Ckpla
-# gbCVQ7g2UHK2Tul/Lc3fcMRqaSe/OTjCgwNjBgUIUFboEi4RlVeUPPlrp8M39Fbr
-# h4zgKffy3ZAqk/AtraD/cM6tsOdZAIAywTlqN/xdKIBVJgxOK9QZ0NZvXzk2d4A7
-# hS2IEfNpGzKk5UsAZank68FAmPsaCwlBVmyvIF8Bjn96ehTAYIpXzakUrX2cpGgT
-# W52yOxBpt5CeMkC0qJ5964jIGP1Ved7e8xzzVVziSHR+a7AaebmHfyms83c84+Yb
-# y0Oh2kT0iWfH4aWEuylLBsFAWVYZqCkzHHmSwISoJ+CDRFe2Lprr1nmY33r1eMoY
-# O1g3e+tpFDNqus1jP9QEOcm3SKAQmhGT4R0aPCV/emCdvynNtuX16v8a9dgDZLfU
-# u3aD/tMs58wt3vgjHK8NDCYCJ0VJnzv1bGcSzrEuoinjCsAqLuCwCsYq4dnDr9SP
-# K+eLbH8auoS3qdTltDkj+NbnLMrosA==
+# BTEPFw0yNjAyMTIyMjAxMjlaMC8GCSqGSIb3DQEJBDEiBCAMkbhGj14u6TfiUYUH
+# Fgtn7W2RjiO5r291WVGeFD1UpDANBgkqhkiG9w0BAQEFAASCAgABwLGTeMngUqC7
+# ewGhv3UbOdqZUkRtxyUtTZFE2OI/0VdI7Hj/yxW0d/dXFHbpoagffWJIhBFpMS6i
+# B4z8Id3yos7hMdVgBU1/jyz1d00GpQqW/4pVN7sgVPegXIXSIMvFHqkLXLznU711
+# a0B0o4O0WD+dbn4ysgooEl01BvjM8uyBgDTvGPfZMK8pvQRaZxv/Z8PW3TsBm29L
+# ntCUkh4qULHSGqpAOBtTP9UDv5Q0U8k5h6b8l0rPFP+38IGsv3/cCvue6wgVl80V
+# jkKR0cD4Zl7Yuh92UP0i6ts0nyuyb5dF0lVpMK5q2ajtesp0vsLDw9k8bA3AYUdi
+# sK6Rg50CtGJspwniytzLV2UwmyCaQRUgxqjqw7kiG65yxF/Ad9e6jBwkvU9Ps3sT
+# 0uDSV3/ZUm9w0wXTsOow8D+X2pA2eTQXiucYx6R+ti+koHPU5MkqYQsDPboajB+F
+# lj/pc03PgLhpCQ7/ukCUta7NVMsA69MZO/4G7qU1HrhPZH1NDN80rKco6hRQTUz+
+# UmBWdxxij+E94vwPQjysY26Vpr4HEDzU0DJk315Dtg8F6SKGDl3AqSN5yqqwCUOg
+# sa3F8rssggdY0wPHEFl5Oq2SDXQPOA4GkjDiEfcjRI2t5MQZuC7QdV8aZCrCCoP5
+# tWLGF6hl+z3hJSK0bsVKmBy48/neGA==
 # SIG # End signature block
