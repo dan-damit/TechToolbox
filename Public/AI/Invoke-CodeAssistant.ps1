@@ -32,6 +32,9 @@ function Invoke-CodeAssistant {
         - Tests    : Generates Pester test ideas or scaffolding.
         - Combined : Performs all of the above in a structured, multi-section
           response.
+        - ModuleReview : Reviews an entire PowerShell module, including all
+          functions and scripts, for best practices, structure, and potential
+          improvements.
 
     .PARAMETER Encoding
         Optional output encoding for the Markdown file. Defaults to UTF8.
@@ -53,7 +56,7 @@ function Invoke-CodeAssistant {
         [ValidateNotNullOrEmpty()]
         [string]$FileName,
 
-        [ValidateSet('General', 'Static', 'Security', 'Refactor', 'Tests', 'Combined')]
+        [ValidateSet('General', 'Static', 'Security', 'Refactor', 'Tests', 'Combined', 'ModuleReview')]
         [string]$Mode = 'General',
 
         [ValidateSet('UTF8', 'ASCII', 'Unicode', 'UTF7', 'UTF32', 'Default', 'OEM')]
@@ -100,11 +103,13 @@ function Invoke-CodeAssistant {
         # Clean the code
         $cleanCode = Remove-SignatureBlocks -InputCode $Code
 
-        # Build prompt from JSON template
-        $prompt = $PromptConfig.user_template.Replace("{{code}}", $cleanCode)
+        # Normalize user_template (supports string OR array)
+        $template = $PromptConfig.user_template
+        if ($template -is [System.Collections.IEnumerable] -and $template -notlike '*string*') {
+            $template = $template -join "`n"
+        }
 
-        # Optional: prepend system message if your LLM wrapper supports it
-        # $systemMessage = $PromptConfig.system
+        $prompt = $template.Replace("{{code}}", $cleanCode)
 
         # Call local LLM
         $result = Invoke-LocalLLM -Prompt $prompt
@@ -148,8 +153,8 @@ Generated: {0}
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBeM21EDihecQXU
-# Sr4sg4ReLE+e8IgZ3LhrJg50zig7K6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCCiYumTU+Psbqj
+# yEPr7f9ZW42WYmBWphTyEGz/FsGS7aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -282,34 +287,34 @@ Generated: {0}
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB05kNZpUDT
-# 7ZwxsGg5uaiOZ4CmnuSVYS+z+h0q6zQ3ZDANBgkqhkiG9w0BAQEFAASCAgA5JHpG
-# 2LhyAPM34WRMKRR+CYUuDmdgH/1eypGM+6qD/+6X/chccDd3V1yrjPJB/7MJSHbe
-# 6xELEnbcjcX9FCGzx7epCk5IrlhKrKxw//eecZjfkzNJfHtR+yGlYfFtFQPgKFDP
-# FIdhnVpgY++5l25MS0yDuNB2e2hlFF7uBb6/MUFNIzFimm6i2lsqiEX5oBu1hoMh
-# LPVTLXMv34eqSTQbEI2zaq8SR5R0+pUaRoGMNA90WSG9qN2GQzAhoQtb5D2pyrxC
-# Vx6T2MeDPnO1jbP/bSFjFWCX4nTt1AQmb2iSUGo/o9OVRt19NzVlkCt+oYeK37fA
-# cHKZiqVXmjqef9Ua6rNoVnzvvs30TOjXuVcdH/bFDZnQ8T/5Xd/BAi7HcOQaT3Xc
-# ShSBPLg0DJEHxMikWwqpgm8b9XzUwPMj7R94qVLeIDnPU+zfm491I7rwACOX8zyn
-# 19PnHx3CjxdLG3LhMxW5IeoZ/2c9I47YKh42BiE6KjarRZZJCXk5Kjx14eYAxSB8
-# LspbMlgLteI9YF1WqHIBhH+qTupRfEvo+9UO/cmM25aCmdblQBm34Yp7pVYYIw4a
-# xIo+gFl90EJa7E8r5BQuS98Hw+5BekYSKlESCvHRB91SP9xm/fLSeUAUfvqQdZmb
-# ciUskAqyBIeajj3RH4luls/+EmFSkXZ65wp7aKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDFxDP2IpE+
+# bbP3tfZFIrZ6tQ/gSNkpXCJEuQM3HMSJrTANBgkqhkiG9w0BAQEFAASCAgBcIcD0
+# rGQ6H2uUtBUnP4T8uEGeTmNSIC0nQHzBVMujhITROwyU0plnRAJLC6PGrcaBEz1t
+# A3S/U6r3qeqe97wb0uBtWg+f2khvgSov5gMycZdIO9Ao/j8alALJErC1DdgwlE24
+# EvzmgYmFlHxLPZuUP+CVMW7iCNbcL/QgVMSJCh+MPA/5DNCxQ4oRWBBGZ5uzNepR
+# 8MZ4uy3+8UsKqy4BF2Oej2+jFh8brFuQBmh9KClefBFhl6u0uhsr8JnyitarXPdD
+# GZo+Z4jLEOBsd9tfX1zVLfvvMWnOJXD8ZH2vCttczjW1MKpa+2o4jJpqxQAgkUYb
+# J0/R9JAILb9z/Keho02NlEcaheh5127Xbiu7qDnXSobkLzqXJ+l0GejFEuKrqfNg
+# b+4dtUqzj6Q4Zg/SXUIPub6YcKZUbplPqv0FKB3emX7QmSr81hp/BbvmUqjl6xO6
+# qH+TEivrlrmqK9ZgOF3ep8neE9vpvORUTEzMXAifbGplWcWZWxIPN9V5IItcA1PV
+# 3r1VisBpUIiCaI4jZArfC+EEBr4GMUwdfKOOlTdhQVA8kCaz0YzO/Ujm0xfjf9Sk
+# 1gvv201u7YtOfsd1HVe3yYLHOLQsU3lwVGOnuuDq2tVcCl1eOFFl0yeJ/0d6F+aj
+# mG+cNnilqmQYsnfPfpAHrj82fIBoTlZg6OB2waGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMThaMC8GCSqGSIb3DQEJBDEiBCBbMic/mmzxUFxKpTo3
-# kddhaaaf1EFgbp4zh84MihOfeTANBgkqhkiG9w0BAQEFAASCAgAWN12mGc4U4/FD
-# BjeT+/CjAECvmuwUNNX8X8t4DpVfSwf5jQBQ0vMqkDnzOZWYYVU2unFjpMQ1/7ew
-# 3+6S8sZcv9tshWXkNgSZ457f69HLI3aQvBU4G7lxF5bTY4Dkg/BmNRUtmmPSIufF
-# mr5/J3WDdTaBg/2vYsh820xH4cyHnkITkMT3Gg1r8fvuz4iWKFada5ZiKP2g8csA
-# YM7SOxMvF+OIFRACsDtDn+ZAnMC6tA+HfgbthP6ZRmKqe4UkdMZulRMVedKaz8Tj
-# ppr47PO7l5Whn/Kq9g95sXHOOxAxitC0lhQIecpUwfr91qXsUwmMZk0BmHwJz7+K
-# lEj2YVRIPuUxFz4ADf+/D0+1j706YVMF6al7U9z5eUQxu/Zw8VMdn79d4GQHLi06
-# C9WHkKvu3sGX3Kx001OUHQvFh3Ma1CZLQErTM7Co8+gWnbWkgfjj3xE5vXbLjx+E
-# HBgUwI9/M7yF7i4BpUBYkydBQaviDTrGBpfvc2jsqLxn40dVCYeUjiZgyjIw7FUt
-# HGpce21KZ/8R5bAGJgPLO6pF56dn+WEYf39HrndV3rl19VfHB9yeCv3BsZMdzI6Q
-# iyDvNY8PjAJzbL/N69C9Du0XS4ixuCG6fpWcTg8hwX8AdtxcfrygCI02SAgVAY+M
-# 5kNZxr+BQ1Q9jxP8ndVBjhrZrT6Y1g==
+# BTEPFw0yNjAyMTQwMDM4NDVaMC8GCSqGSIb3DQEJBDEiBCA2O1WoLI4AwgRl/T+t
+# GnAHHcwFxzg24AShRdSQy9jHVzANBgkqhkiG9w0BAQEFAASCAgC9CXpu9axwCCb6
+# eAo9fPsx7mSD9v3SruIDNf+9kX/hd2wiPERdtzDybAv+jI87Blg2vKULqngixg8c
+# nASU8uTGym1+wI8iw6KF9oDHvhcJLh6vEWkgD8fiw3tImqGl22EZjNl7ZeXjI7mP
+# spheWwpZouM62We7mg/Wo9A394w+XhJ5RqmDsBo3YpvXlOVDcb/WXj8rj9Rl+mFZ
+# X86i3voj+b7iruA11SZpw+5rGkoJy3FrUu2o+TW7kXdFfU1CESNE86eOG64g7Czk
+# WhsKTxhp0Df6SgmED4eWwr2dEqniNDGvGSJldGuTGnfBtkwsh0sM5mu19o1mQYjo
+# xW/5N1WaGK7xVl5Rkpana24X8GncpgJPmrY48ZfCcYrnZGewivCVcdrQ7Q0bhMN7
+# tnWR3VUHM+lgzFMTVLzbXL+o4WDOvZ9Bxu0O9bPTRVyaxkdoXa/k7NnIRa8r2/T+
+# iEFassBOITOhVz8h/+X4hOSFwifvwCO5gBkPdat/IoqCohE2LnwuEq8az3knY2tg
+# TpkB87/RmJ12naHKJgP07SfAt9NJ1lseELyq61rwAhf/L/jm7GtaAxAjbx9rAvB0
+# nJ3j1MdkT63B+RweHRf4fmpDU7Fim8KAZSKE+XxBZJprV8ur6xKoTtI6CvRtTk54
+# MJFIL/h367BP+xYGsElIo42ELTSLwg==
 # SIG # End signature block

@@ -172,5 +172,41 @@
       "{{code}}",
       "<<<ENDCODE>>>"
     ]
+  },
+  "ModuleReview": {
+    "description": "Analyze the entire PowerShell module as a unified codebase.",
+    "system": "You are a senior PowerShell architect and code reviewer.",
+    "user_template": [
+      "You will be given the *entire* PowerShell module as a single combined input.",
+      "",
+      "Perform a holistic, architecture-level review that covers:",
+      "- module structure and organization",
+      "- naming consistency",
+      "- cohesion and separation of concerns",
+      "- error handling patterns",
+      "- logging patterns",
+      "- config loading and usage",
+      "- opportunities for refactoring or consolidation",
+      "- duplicated logic",
+      "- missing abstractions",
+      "- future-proofing and maintainability",
+      "",
+      "Return your findings in these sections:",
+      "",
+      "## Architecture Review",
+      "## Code Quality Review",
+      "## Consistency Review",
+      "## Refactoring Opportunities",
+      "## Risks and Weak Points",
+      "## Recommended Improvements",
+      "",
+      "Do NOT expand or reconstruct cryptographic signatures or PEM blocks.",
+      "",
+      "Here is the full module:",
+      "",
+      "<<<MODULE>>>",
+      "{{code}}",
+      "<<<ENDMODULE>>>"
+    ]
   }
 }
