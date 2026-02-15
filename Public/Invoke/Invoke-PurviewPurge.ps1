@@ -122,7 +122,7 @@ function Invoke-PurviewPurge {
             Case              = $CaseName
             ExchangeLocation  = 'All'
             ContentMatchQuery = $ContentMatchQuery
-            Confirm           = $false
+            Confirm           = $true
             # Add other parameters as needed, e.g., Description, etc.
         }
 
@@ -166,7 +166,7 @@ function Invoke-PurviewPurge {
 
         # ---- Purge (HardDelete) via your existing helper ----
         if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $searchName), 'Submit Purview HardDelete purge')) {
-            $null = Invoke-HardDelete -SearchName $searchName -CaseName $CaseName -Confirm:$false -ErrorAction Stop
+            $null = Invoke-HardDelete -SearchName $searchName -CaseName $CaseName -Confirm:$true -ErrorAction Stop
             Write-Log -Level Ok -Message ("[Done] Purview HardDelete purge submitted for '{0}' in case '{1}'." -f $searchName, $CaseName)
         }
         else {
@@ -190,8 +190,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDCFIe1kQ/lyyu3
-# arcXJIPaVpYUgOKcAs6NjpxgOdolA6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBD/gBQOiIL7r1W
+# Y+X3Zb7mdp5b7r+TcDM4g6XypO2WJ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -324,34 +324,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDVasdVDsNJ
-# ifMX9AKazTXHkceOOaCxQu33tcjTHoUHQDANBgkqhkiG9w0BAQEFAASCAgCxM6iO
-# 1FZwNVAb5Pax7UdHPwumApshNMox8y8cjrySFtGRqVMNseS0CAOHWXeGAa52Uyvu
-# KEFTozGE0/WrvZXtTMA1m2UM01tglivA/UAeI3NnDAY5ewPboLCayyjLLFzBIpSX
-# MRFVpESYj1mOB+WhpHmN25uKGl18T23azLUQlkyNkkUlrNHhi4OFFejAjt9JNpwk
-# agT62ap73bZBEJHczHiN7jbkCG3ctKkTgPwQ8BIiCUoKsGV4Tun9fEpUxKh/5frN
-# 1yD3EkyfXchTa4CCVbAKjYd4aRMr6oN2SXkd3wkLT99oMiJZFYg/kLpRug/jU/AW
-# HdeDxOfIwRSF5obUgik43mwE/A4Gh3gxwTaV6cCKD5EgI93raKn2qAJ3ojir1YZg
-# 9F3Nux2P9xwYScMgeE7QGVi+TWTEIoGPT4T77GWdsMx3ayv3EH//FT7Qrdrtmz+y
-# /naa5zulTcmtMV85r76+73qrTClEoyZ28GScmrvXoQ1VQb7wwm9v4Az7KX+JAyOc
-# aDaq5wapua9QFe5STL0M410cANHLa0t+31IlbrosZ9Qj5WRfweS+VV9b7IqW56Nk
-# mT1Ktgtu7JZEuLVCafhBdnH5pt89S0l+yuXT0VyKQIZmrlCgfKKS8BNkWGoiA2qR
-# VFLccBRs5IK9xabeARl1frSo4Gna/EYQTQB/e6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBYOS8Btyx8
+# ReqTfKFw4Y8GivY/CQrpwYE/Sl1zB31D3zANBgkqhkiG9w0BAQEFAASCAgAFnsOa
+# bSb9p5GSPJangG6KNi2bJ/4r6l5ednU722NloirEp4roXllEYubXvOD1IC5cUQEx
+# xmCUlEdq/B+yjG3hGRklWDJEWLFTXXNXwSP2+fRGAdZp/tf6zmhXJDiUCjtsQXI8
+# 0plkE3gcAmYnkuxF43xwYtxwTRqoh3Z7ynaOYkbsoa/eOtaQzVsroM7t9b59eMvP
+# 7cB0nUzT0u+uSYHMJAxQ726X+Pssm7hmk6glm4VaCgfjT6au88YpC8IGiZIFdEdX
+# aQkdEmAJS2Ngo9Qa2t6OM/i2+FY0ogsbY2N48dQpUp0LUuy5nl9Xknh20/vW9zbX
+# qz/Cxs44+o1QArkMyJ9P6QMBRRhTD3rrArfmupB2RaxkCMOcooY9KHCDIi2RbRlB
+# 5S5vTSuyIKM4aJtxNVzxinoOKItgkW6eUiY69jLNiuEsna1Qpd9AV9MnUaipakE9
+# CpHXyowbVX5KJPVlxn5P5wYNsL1dzB2GaNbs+ShLpdu8WcLD3ZyBz0KZPtv7kMIk
+# KftUU5t+CxzgnsLRCUpi+FCuiPfU3oTMfq2aRZqvwU+BucZQKPi2xKmbfbIsuJXY
+# q8z2sGLFGLz+FkyBQNce2aLrIOhoJRuoHf14WiY62wTprXAgqysHcTdDc0jxr04I
+# HmJwB4IrxP11+l1/sAYdBLBAPjX+hiORdaM3R6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMDIxMjhaMC8GCSqGSIb3DQEJBDEiBCADnx0JGgCFgz/GL8MB
-# 1KFPT47W5IgnVKnQ/Hck0uZr8DANBgkqhkiG9w0BAQEFAASCAgC6y485YRej11oQ
-# 5tZako2seJdxF+OXS+YHQ3cVDbIcmz+7vuYRalnxZNlQ9gWc0A0diicLNzhU217N
-# 6QxiFR+Ihvq9j9xQJ67tVA5Jh+xgyU+xl0RltrkbYoEma9URUbvq2+uHUIYic0uM
-# EyMbIMPft0GUfY3BNkYS/CkcDbqA+arfA/Qfh2KabUMRsi5B9TtQ/Jwd2zejKBP2
-# TSMWJvwokUSN2kshD8PYkbnJhm5KEWAtkbUYrHFlrs/QYdSAJuSaoTEgVXBf7rrH
-# EmuBZ53H6++oyzXze5huh+50P+K4BoNZ9c73Fyww0vrQEYFM5kzn68TtbGVCQk6/
-# Tobh5ALHu6PhEwAIOU93/CFUOu7eUJcEQc7hqcX5/P/Cg+FMawqZQP0KksbJb4Rh
-# V3A6GGIwJHHc/ZoJsGh1cNmeu9xVz900Z12wExk1JrWs3U7Wv7uH0/wyXBBHVNiy
-# /BIerSPwTOxHESxlKt2qHD+rLA116b8iYwYP9NMeNLNqx7MvC8AFOySp+by5Fq8M
-# gYUTLRTiJciKx/fr3YV5aVN+mbXWqr80lEgDb9JWFxoctOb+sHYADPUadj6dLg3b
-# Xyoy0p0dGe2b0VnB6LboIF11GsjjseDQjRm5CrnO+pqsaxfzyeSzUX+Fbne+oc4s
-# 16kww0OVh0X8U1n0emG3b3dwWhF+8Q==
+# BTEPFw0yNjAyMTUwMDA0MjdaMC8GCSqGSIb3DQEJBDEiBCDe9/3nqhdRQIjdOOcK
+# VGRKT3vHbFHopHKIn+Vv3biVfzANBgkqhkiG9w0BAQEFAASCAgCJJ1H6i96Ljso6
+# GMFggi6PU3ZP0/3YDkdalHB8QMVFHUP4G+JKWlPvA+4WY5Sp8BrVbRjmPxx94FMu
+# x9d4rRv9NGNOknEv8mCUTXCSsM5BkFbeDbx/FUCukhbZXt0Eu+gtlGnexwdrNb3T
+# Bf5N2WBBGMf2V8PwaTXVgGwHgUVQtKu1ZoOMgSkJLlzzXhufY/gbXbMSXIk4bMfs
+# aH0UvDnSVhqoWvjK1GFnBEpIm48Ji7iWwYxbvNCYlxzdIO83YI34VNhIB7kSEfJ6
+# UoTg4TDLxUgZFRSeFk8Lzyywf5Ef/b5OMET1mwOw3AXZXLU7xgtOdCw4+/pozWao
+# T/1T0BL8KE+j/wna92hoa5BG3G9GoXlH0j7GvMRfUi0cTuWjmTVlNinKApiaBF1D
+# 0K41wVKcUzvsxfSXAGBBoAGvJJf8VYyVKJc51a1FxV0iLNr0kJsbMLTX8tU3nFeB
+# 3inri2CyLky1rntbVrN+vulwReoMTfVbrjS0DgdpnXu00sWhgHvNx9NQV/6LSpib
+# T+cfnpXIzU63bQsG0pnSBpVC6iY+WJGAKYjvoW+8KOuxaEsvO3hSCV1RxHETsOQ/
+# lkSE58c6BBCxQWW6g3tj9l/eMqN7M591e7r3ROxDAq/TPgFDKBWE2FiDKUTzvFgB
+# m0Pg4B5YAU7KzMbugA0Mr+wRK14W3w==
 # SIG # End signature block
