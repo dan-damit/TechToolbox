@@ -102,52 +102,23 @@ function Invoke-RemoteWorker {
             $true
         } -ArgumentList $remoteHelpers -ErrorAction Stop | Out-Null
 
-        # 5) Ensure worker exists at remote path; copy if missing and local provided
-        $shouldCopy = $ForceUpdate.IsPresent
-        $localWorkerHash = $null
-        if ($WorkerLocalPath -and (Test-Path -LiteralPath $WorkerLocalPath)) {
-            $localWorkerHash = (Get-FileHash -LiteralPath $WorkerLocalPath -Algorithm SHA256).Hash
+        # 5) Always copy worker script to remote host
+        if (-not $WorkerLocalPath) {
+            throw "WorkerLocalPath must be provided when always-copy mode is enabled."
         }
 
-        $exists = Invoke-Command -Session $Session -ScriptBlock {
-            param($path) Test-Path -LiteralPath $path
-        } -ArgumentList $WorkerRemotePath -ErrorAction Stop
+        $remoteDir = Split-Path -Path $WorkerRemotePath -Parent
 
-        if ($exists -and -not $shouldCopy -and $localWorkerHash) {
-            $remoteWorkerHash = Invoke-Command -Session $Session -ScriptBlock {
-                param($path) (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
-            } -ArgumentList $WorkerRemotePath -ErrorAction Stop
-            if ($remoteWorkerHash -ne $localWorkerHash) { $shouldCopy = $true }
-        }
-
-        if (-not $exists -or $shouldCopy) {
-            if (-not $WorkerLocalPath) {
-                throw "Worker script missing/out-of-date on remote and WorkerLocalPath not provided: $WorkerRemotePath"
+        # Ensure remote directory exists
+        Invoke-Command -Session $Session -ScriptBlock {
+            param($dir)
+            if (-not (Test-Path -LiteralPath $dir)) {
+                New-Item -ItemType Directory -Path $dir -Force | Out-Null
             }
-            $remoteDir = Split-Path -Path $WorkerRemotePath -Parent
-            Invoke-Command -Session $Session -ScriptBlock {
-                param($dir)
-                if (-not (Test-Path -LiteralPath $dir)) {
-                    New-Item -ItemType Directory -Path $dir -Force | Out-Null
-                }
-            } -ArgumentList $remoteDir -ErrorAction Stop
+        } -ArgumentList $remoteDir -ErrorAction Stop
 
-            Copy-Item -ToSession $Session -Path $WorkerLocalPath -Destination $WorkerRemotePath -Force -ErrorAction Stop
-        }
-
-        if (-not $exists) {
-            if (-not $WorkerLocalPath) {
-                throw "Worker script does not exist on remote and WorkerLocalPath not provided: $WorkerRemotePath"
-            }
-            $remoteDir = Split-Path -Path $WorkerRemotePath -Parent
-            Invoke-Command -Session $Session -ScriptBlock {
-                param($dir) if (-not (Test-Path -LiteralPath $dir)) {
-                    New-Item -ItemType Directory -Path $dir -Force | Out-Null
-                }
-            } -ArgumentList $remoteDir -ErrorAction Stop
-
-            Copy-Item -ToSession $Session -Path $WorkerLocalPath -Destination $WorkerRemotePath -Force -ErrorAction Stop
-        }
+        # Always overwrite worker script
+        Copy-Item -ToSession $Session -Path $WorkerLocalPath -Destination $WorkerRemotePath -Force -ErrorAction Stop
         
         # 6) Dot-source worker & call entry function
         $result = Invoke-Command -Session $Session -ScriptBlock {
@@ -181,8 +152,8 @@ function Invoke-RemoteWorker {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDKLvKR0DJ5BpUX
-# SYOMSGa+2HvCNiuvH02pg4H5EGUmsaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC0lHIwKCTprQXA
+# wOy0OjmL89VN53vcU1S1IZLz9LcC6KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -315,34 +286,34 @@ function Invoke-RemoteWorker {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBn43JE8EBZ
-# XazuAjQAh7ZZR3PUbMad5IWBvfv3H70mqzANBgkqhkiG9w0BAQEFAASCAgDaZFtF
-# W4uefoCH1cfHqSvQWmAgkVFrnk/npKdsF45R30cMkAIg6H6kztBUlyKr19dXkJId
-# /E9hKBROivBo5Q+X8xQM05niIa3dZK0LlZcRgWau2EnJI06lvKTHi4tGe79qtkfv
-# 8HVLXmPW19Ct9FHtuo+XqxW1QxDsmlV35pgRFT/nkP1xwd0FGnSOk59x5D5FGNcF
-# y000aCRiBB88luECV7DsLuIhBiwRcSFF4v5LhetJLZFbvC2cIZM/tlf0h6Gabvwh
-# 29BvIGNUgJdihXabppK64cva0yTqzrRkoT3tQ82+UmkhzGUHslFrE2u1JoGAfDYi
-# eGNlhJS9R0xJeZaZiR1wjwuK95Id+rgZsGgpsvlqaDp/6p2GH98vXeDtb9/pDgRT
-# Nd/dyqFPm+Sa3wAnb65sWaK5YssdwhblouyJxrF//jr+1qA1hkce1/3aqqdwlXaM
-# STEwNukP+l4ub1gEH20L3N2+hagEUel4KxmxM4Q5GbAbpRbHvl5QQvx8F7UjaNBO
-# Zp3t+7oY69iL6rBQF0vRuxpCYcu/WkZZG0ch5uf95Os6ZyqTYZ6KU4V1b+4rjJ/o
-# /Pv1EoqVae4ckeNcIPk7J/NXzJs9HFBj7t2D5ZTMbB0LJZDbFb0qw7/qdQ0yM3ar
-# erbhHcKiM0a7U8VIU1ikPT1Q9X0K5xF3arOSeKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDn7tyGyYSI
+# ufizon71arVQaCj3ALM0uMaLCw1Aj9O/OTANBgkqhkiG9w0BAQEFAASCAgCiNwr8
+# hbZVOPZZIKVlATm8MBxSXn5yXSGTJvOCQpDbQmBmkPYGnKfYvoM5KsBHQGE4nlGS
+# 9zy63DmZTXz4DDIC/3vlVW8dIubYSRXVYWViIf+qu4/+EtyBq4gWBNLqpmi64rgj
+# ncY3jSPyi+4klXN80kvwr27JTgOuPqPaaTJRYkxKsihLYKajUfB4JiWOiFGUa+EZ
+# 89cF2ay4F2CpwbG9moFERorIMR0boRx+6LIWOgormSqHaZ5/TJ1ef7nqAgb7OFUv
+# vFi6nva2XPJNHJMRWHjeKbfzXHR1zrVZ0l6mY0jhdrXIWgwRrj98YHNqu/9avCoP
+# 7b4hVmCZD1Ikm3CiC9F5aQyznz2wXPbbIcEfpHqwd5IldnOAqLi0wE80diHx4edB
+# rGfpZJ7AatOXmD50KeNn9Qlfo7vkS4dBtRLlboiB9r8d04s/xr02w6qsLGpftRap
+# OawFCM7u9TR1lVhbKO4if0xp90DVG0n/7CBNNY6eZSDDZHPFsJUIN6fjx2UolrJC
+# icCYSWc2r5fBpA4Xpcrll+N+kGxC2OTFwgrg9j2/imTRk4gQN+F41JptjxgEEZsl
+# O72PCodxZ1strHfETeW+djGEKEirZrmu9aBw6oCd7l9+saIqFyFcqYZK5nhcMVwA
+# hN400nou4+84RnXfoGcinxkRnSlz6IoZ05DGF6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEyMTI1MTJaMC8GCSqGSIb3DQEJBDEiBCAdHzKIgxfmXt9UXrCW
-# NJ5RMkSi74ygW16lToo78ItEUTANBgkqhkiG9w0BAQEFAASCAgCZH8HJQbcSM9gU
-# 59Uz5Ma+qQ8ui4sYLpT9XmVPPV39/I/Pq6lT8Seyxl8i+VZ3Z8vm4VQGuNcAeRyK
-# oQlz0bB4TdZlwZGfPXC4oLQoO5XfMb51M28vX5i1yiSy9iM15tWsqnS3oUBsl+qP
-# s2nhCsf/QAQZxCYwu9jsfUxWqjdsFkDnSQQ+GtWj3m8ZOtEW79AbKujcj2IaNPBN
-# CucsVpXLEByE9lHT8mnbJEgBtVIReoAmJhQrSltBpi/8I5gUylW9RaYgM99q9hk7
-# lPolqTgrjxWJG672GTiQATQ1w7bAEOITk1Y00f7pk4bjCmZw7X0oltBMfC67k/JD
-# ZYlJNC8vG95ibqx07hCt6tw5e3nT1+x6Ww884mUJhFsrfBQDTin8OVTEl1gmMW8+
-# qGD/ARPqaCvIz3Q0TZtQ0jLhW/Rfw9kimrXWBcVOR1c5zqhT6tepHXH7YjTaNJ3v
-# EW0jQsdU+q0g0MlddqBoWUPXCB2DQAaktrKHzAcpXjUvrIMfT6huCu/fy46JV30w
-# Whgvu9rMERxoVwkFltAN/KgnwavXMV9XvJFVEk4haG2IiKEvOGtXeCzuTiw4Igt7
-# Y5Jztbj63mHPXBhz4gqnxmE7q7gw/HjqVCtq7DR+VE+ussavQdhaA5rjl4UhZbC5
-# FzHZEzPBZ2g7qjaCRnrAdXuFTzaLDQ==
+# BTEPFw0yNjAyMTUwMTI0NThaMC8GCSqGSIb3DQEJBDEiBCDO7iBJUjZ467yp0/Q7
+# brHArHwAc71zTlAW0LcvbF6i7TANBgkqhkiG9w0BAQEFAASCAgAu3S9SeWt/etbj
+# J/WzmFcG8hFg/CT6L6/pnTpIl7mw/mDwXsnykSp492orE0gl9aiFjJnbSS4R77eb
+# YPYhBd3zjNDviAMdPPLBWfVKFsMPK7a7HcSluDI+Naa2ujf+Uq9E9bvGYHwz/zGH
+# VMkaINjFjCMTk50wAUIZV12u2KM7YJbJLak0UO4c0NY+QTt2gp7oRbPptBYrivdl
+# Flnx2Iv4qNO0Mom9fFGeRET0ssI4l4123FidB+nlBvZpJ6rMhbD9vXxG8Pt4kNJy
+# PkT7BlONTSyaEZTl+oYPtgr3UA/NKGYX2pdYrC+nceZOJnxsDThWei6ZNQnURSLa
+# tm3hdk+VfRx9lqG/eb0bDgCP4hzc6kdi2FmEWSRCT9rkfyWO5BR08Xoq2682VGh/
+# bZtDqb2MC5hn5ZG3Ox52idIiHT3JHvlSZaGN1XvXt77nqzGyHNmPlnyo6/ttKZqn
+# zGbB7IS6/wM7V/lQullx8o5lqr0lVOu34HK/A47KzgdK1hOlaqu5HuQKi/mm0Xd4
+# ioBN+f7SHYJlvshcEP07yvMme2sWgg171jdKOdTy1zOVMjXNsb1Xbq286h0LE1Ln
+# cQq6jBsj3If3rzhJ/sP9XVecnwGu1HblhV0qwn572bEAigKa3C1CBDKjHwgjLWXt
+# YXlPB25bc6LRVyvd44n88xflS65GMQ==
 # SIG # End signature block
