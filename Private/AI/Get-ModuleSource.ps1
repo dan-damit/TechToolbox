@@ -1,77 +1,21 @@
-function Invoke-CodeAssistantWrapper {
-    <#
-    .SYNOPSIS
-    Wrapper for Invoke-CodeAssistant that supports file-level and module-level analysis.
+function Get-ModuleSource {
+    param([string]$ModuleRoot)
 
-    .PARAMETER Path
-    Path to a file OR a folder (for ModuleReview mode).
-
-    .PARAMETER Mode
-    Analysis mode: General, Static, Security, Refactor, Tests, Combined, ModuleReview.
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$Path,
-
-        [ValidateSet('General', 'Static', 'Security', 'Refactor', 'Tests', 'Combined', 'ModuleReview')]
-        [string]$Mode = 'General'
-    )
-
-    Initialize-TechToolboxRuntime
-
-    # ---------------------------------------------------------------------
-    # MODULE REVIEW MODE
-    # ---------------------------------------------------------------------
-    if ($Mode -eq 'ModuleReview') {
-
-        if (-not (Test-Path -LiteralPath $Path)) {
-            throw "Path not found: $Path"
-        }
-
-        # If it's a directory, gather all module files
-        if (Test-Path -LiteralPath $Path -PathType Container) {
-
-            $files = Get-ChildItem -Path $Path -Recurse -Include *.ps1, *.psm1
-
-            if (-not $files) {
-                throw "No PowerShell source files found in module path: $Path"
-            }
-
-            $combined = foreach ($file in $files) {
-                "### FILE: $($file.FullName)`n" +
-                (Get-Content -LiteralPath $file.FullName -Raw) +
-                "`n`n"
-            }
-
-            $moduleSource = $combined -join "`n"
-
-            Invoke-CodeAssistant -Code $moduleSource -FileName "ModuleReview" -Mode $Mode
-            return
-        }
-
-        # If it's a file, fallback to normal behavior
-        # (Allows reviewing a single script with ModuleReview if desired)
-    }
-
-    # ---------------------------------------------------------------------
-    # NORMAL FILE MODE
-    # ---------------------------------------------------------------------
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        throw "File not found: $Path"
-    }
-
-    $code = Get-Content -LiteralPath $Path -Raw
-    $fileName = [System.IO.Path]::GetFileName($Path)
-
-    Invoke-CodeAssistant -Code $code -FileName $fileName -Mode $Mode
+    Get-ChildItem -Path $ModuleRoot -Recurse -Include *.ps1, *.psm1 |
+    Sort-Object FullName |
+    ForEach-Object {
+        "### FILE: $($_.FullName)`n" +
+        (Get-Content $_.FullName -Raw) +
+        "`n`n"
+    } |
+    Out-String
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+C3A33KqoOH1W
-# SrYP/nS11WYE3uJwqAPv0lp/xHQHFqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC0sNVZHXE7rgJQ
+# sHN1ZGWAQjUto9ryA+tpvJlrWcvzMKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -204,34 +148,34 @@ function Invoke-CodeAssistantWrapper {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAj7fI5bMdk
-# frgZjiCeteoeRsmVS/tBkGSPBFnVXT6aNjANBgkqhkiG9w0BAQEFAASCAgAYvBT8
-# FD9FBN9J4/wuSn6x0hPfKWMlkEOqbXjnmhD8+MssaqjsTwguYlLCAN14A37aVQvX
-# OWWg36Bv0afr4j/WLd7K7mP7vmm5Q+9QMBfnLcgyUhaA4GsPGB83j41u12yjiREM
-# OXDyPE8dgMTiiAJ+mdG791T1BZhUuzl4uKoOkwjAVRymX6/TZvxYHU9Hv7ly/Erf
-# pTrTqSQsKsSKpBKprm91zoX/Tqcia+NgJAOFjVokjep4PTYmDKR96BxpugayBVam
-# 0K1hCxhWpMqwnDIAm4+oQwgQI7lG0FHDxMbBtF3qvnOxRN04WMfJ/hqdTor5Sm7+
-# xrS0m9Uk6tv1AfgdYhyH+xYowdWSByQ/TOzqHtCHn5A/Yz3fkaqcBJIugybUnVKM
-# 9vMYZFFf2SgBSTAPSa8BPYAIyKyVue6HkK1pDgwVKAqHjeRcmlkUkWzvVIbeF5rI
-# YKDzUjtIV0Qm+MgBnVVBkFRKIzpOqzqkvCFdQlCNHrrNRfspb2ppR+QW9W6EXFNd
-# BadyKfb9nFwWAOddsjTG3Q/LezLCatV/GS/bjq6fyozVyti/gCDoPhuiupiq512g
-# z0pT8rk8brFejxRxwzEuLUoVQRKfkRXxS4t2jIFJCIsOlZvx/bQ9txBGGaeS8hMI
-# su86TGrSZUV0141F8C0uPvwXTIdPKXJ25nk+tKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAIsrefI1+k
+# U9bJKG60Yy/7sX24SUQTE6M/djUf0q8lzjANBgkqhkiG9w0BAQEFAASCAgBtRSdb
+# suRswnHroezJreQlAxoJ6jRXdfz6HW0aVynKdLuvCQpkyJEZPs8M7uOI6VpHI6fD
+# U94pzNlqseXgOnzJ5Aitjiv+01UWTf7m3LkWTr+cHHR6GvXtZW4oObMpawRmama7
+# o0w5HJrHTKrCw3V63xHaf1oQtnS1H77Lsomlxeu0oSH1ZsvI6CQ2zQfPLUf/4B7e
+# Z/gnhdGc7fl/cGC7MdgGO+RnHbx/NFka+Ilv6MWbet4FQnrb5sHuEgTxHBcOMefn
+# q9UnUDrR37zHayzPWMUD5yCgpurbVrg7sXX0zNRjcdg9gMmHfscvk0Mc8HlJ+Yez
+# WlKaizQlj1cJq7XjEAimByUi0d0GukW/FivmtBGnc1/AU1EJFJ5WH2GCH12tUYMC
+# tnRqrIXa6qakYsUldlSu2FJ5ftfGcRzcfB/YXuLQ0vLB1nT2SFZiPoJghpSqIguo
+# t4IhR64y/DAvpf9ZYn6uvP63nGkJgD3GVw53jHab5zAoIIr6WDpFQQ4T7rkMMKv9
+# Bi6BZA0O4b4v/5tpGyGDtJ8PWjdTPIE+AVliyGEWkYgc8c70LHdfpKlK3F2q5rWV
+# SRidVz938geg6Q+Pv+bQsXqi4Gc4YZPSVzDr8aNF+UjTau2TeiUC4Q+DJGswnC8t
+# n+p72Ut6sYo/FqTZ1MEDjr/luwx3BJxh/fSNYaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTQwMDM4NDVaMC8GCSqGSIb3DQEJBDEiBCBSZUC6Nwineo36hnRl
-# Y1GKuJ43hYJrHs0Wwt/bucEvPDANBgkqhkiG9w0BAQEFAASCAgAMNz+HiNp2El6d
-# ohHpwfBgf3/bWHcgCUNYukj8ia6tqhNZYNKZjpv9uBGKrqB5NnWWjgCl0crVZ8AB
-# mCowvYGI65YWL2hLDZL+CLns3m49rmNdEMgpAw0bJGFBEsxNzLPcxwiCUznhldoT
-# iQdDUk8/SC5ZMoL7N0HR5BUfcAEFiw8k6PDakaMihyMfqv6unQRcdv9bK8PqEFxN
-# ac64RMHyktcfG3pvGoqNRezTGZ/MG0FwRxNiDZRaxq4hdilDUe0ONvVY5+FfFkUC
-# kzhdwRhYQoxZYuXjcdJIBG8hmPdq6qJiiLfedfS8w6GiLNRYsQnAhZ8+h9Ire1Uy
-# jz6f8+KWJzTi8IE4kRlp8PdjDL945fKbdjR3j0K8xpb0dERCOuN7cWk/D4Smxp3J
-# fiznwKaX5/fAkMtJ/USgg1zBxFcaX8gdDZnQEWnJ/9wQ3MGdlXuf1xlpJjRn6cP2
-# 2TiLfGN6IzjArkU6j6+3oyf2hAlKeby1mC3gp8ap+SZafFraerWB/b3GAekuTZUB
-# yvAvX2FPCnwQnyhpmvEH4KWgfwTCyvK9KOjCP1uZvDraI0yNVF4c+A177OjhSEd7
-# Yl6//PlU5bLJISN9+GtxlXa9KKjqnNF9pS4zWZq1UXClPzF35ImPQuCY7q2wJUKp
-# 0Y0v4qUQSsiDWELPp7yZitfoGaPrEQ==
+# BTEPFw0yNjAyMTQwMDM4NDNaMC8GCSqGSIb3DQEJBDEiBCDtK98g9dOf2j9Dp8SC
+# bkkGORIPZbrzuWoRSB8fQj4sxTANBgkqhkiG9w0BAQEFAASCAgARXflGs7c7P8ud
+# DMuRB4VPKnAMxjDnggs5CACZn+CbPzdZO2bTv/DXJgtWCy7U7s5ch0EmOvA3Msw1
+# /2Frz8GljYvp8ytwJnLbk+WLeEoy/8cY0Vy+AfshulTAtrVM949By7H1ZBB3n53Y
+# AFFnMpY7Kbrh5EKIfLQb1PkQD9HTUoFYD51U8cZM51hqaNsJbPWb8TRJCLS3Mp2l
+# UQTzOkD76Jox8wbpiRJhqvzkNn1V7qvOvUp0YzBriYNJ91omxcNOeGqytkB9mSD4
+# IU8/moPn83eVHI0qZvv2lZql8+DrsTBOkVcnUyRtQP1x+r84pafrctnm06FIFGhi
+# Els4ucKxtNu9EltRM2W+rtoWiMNEA9bllAeNKGlHcFQEMyO0EbZbX9qFol6rKdHA
+# 1eNrV47UebrTZag46rp3BgfVza4sQjepZcLFRvkeVvNV4kMeVZbipATMe5ZdvXcX
+# Xztl2EX/9k0U1kvtx+HhT2c1vrgCO3shA9jQjd2shjmVv2bm6hA6rMXcyY6LA4WY
+# 71wISoOQwGDYJCVypfKSvr1/wRrQ2VEPpRNN1iGjvqnsrmAnSGK0oXlwnFsV+bZz
+# FLwS/u5cLDuVOTzr6rGZTmXmnnYlVGfEYGbo/Zl0KsTzI0IOZOOMvFrA+D+j51+1
+# vfLvwq2zmwOaXWD8bVgJWmxQ2K+wcg==
 # SIG # End signature block
