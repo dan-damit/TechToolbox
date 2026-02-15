@@ -107,11 +107,11 @@ AliasesToExport = @()
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
 
-    #TechToolbox of this module
-    TechToolbox = 'System.Collections.Hashtable'
-
     #TechToolboxDependencies of this module
     TechToolboxDependencies =  @('System.Collections.Hashtable')
+
+    #TechToolbox of this module
+    TechToolbox = 'System.Collections.Hashtable'
 
     PSData = @{
 
@@ -155,8 +155,13 @@ PrivateData = @{
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
+<<<<<<< HEAD
 # KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDkVxTIy/Zq9SgE
 # MO4ZIXdNXBn7QYiSpFkqfaR/jKkF4aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+=======
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBb/tBQAYiHgTT7
+# 65gtBbf9fXOsqbijmwY5EKW7OtHKA6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+>>>>>>> 356963ea0609065a408153b0e7eaa0b9c4ba3c4f
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -289,6 +294,7 @@ PrivateData = @{
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
+<<<<<<< HEAD
 # AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD+/K45lM1B
 # CnGyCJDiQHwMHYg6tBusiuK0Ni7gHE4QRjANBgkqhkiG9w0BAQEFAASCAgCkHwqi
 # AbqnokHoydgBXVm6p+whTsx2+UJFhVrfp/OFwZAEK7KA03N7NcocB5MwcX/OVi29
@@ -302,10 +308,26 @@ PrivateData = @{
 # jyaI5x9hVYM051fg0apigzuVq5sVNOaaOkgyCQ+ryJzB88ZhCkq0szrhh28TmH5b
 # Yg/tn6L0Jljz2QsBR7NpeA7/SGv6vgrHTBVTnW2ZlrTqErISX/v58GZhqTy+cp18
 # RQVX4poRIWwWa20v7Izv/6G5hNGTvcrT1zvqxaGCAyYwggMiBgkqhkiG9w0BCQYx
+=======
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDT04/8tPg2
+# 8zjCY7lw/o2fNFEX/lpjEYdn/65HGLeeUzANBgkqhkiG9w0BAQEFAASCAgBDGyXS
+# lhm7rgY+pZMHzQUWrxCRP+CDiQnUb72yDYXjY26dAf/sOn5nmeGaMyYCPHfD7IEL
+# 1N00AUPuXJpIy+UCxuoCIhm65a68Vy4qp3YEh85bne2Du4wRdN7rE5S+lavSgPap
+# NYMa+UXoXquGp97cPaEMjgIP/h4lmGlhCfePcoWBecjvOkUE6DaQh2io3fsFEAqc
+# b9cD/3ik93DeGuv2+ziOVEvOt7zeyk0dt++yn5DIJnuqBeVtzYrJPT7h6HX02hFc
+# 0X5/gX2/J/iqnFV9URMZX6A2nyQS7OE1SIk3HbKfMhV3ww1eG5UIucP6T8Y7ni4v
+# +G+8iYxJl88S9NixMEGy2903/b4o7uOoFG9kjpZ07NBmp8/E1yMbZO75VbwxDaRX
+# CjvKlJ9W/VGA4deu9oN5fivSKZe1PCzIKe94JqZhxBufcequGEYeP0j4kN4Hal3e
+# 658/Zr3Bj0hhKw7t4A1Yx9nxWEJbdUArMMoWAaC5iLknHqSrc1cqwQSLPUb7IKdb
+# 1ijNc7euv4tmGdWUNiy8CtcyK8f54B0blkjv4u7CTk3UILoZvYUhB+jDv44KXcGK
+# jfzRSiiQxsKJPTF8ZfFLE2bKVgP60niFV1wIYlo38srvi9YL0nUnCxi0VUp+yJdr
+# Cn43GQJHkouyoFcj/cvcxf4wEAW41Lk3J8KKiaGCAyYwggMiBgkqhkiG9w0BCQYx
+>>>>>>> 356963ea0609065a408153b0e7eaa0b9c4ba3c4f
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
+<<<<<<< HEAD
 # BTEPFw0yNjAyMTUwMDA0MjhaMC8GCSqGSIb3DQEJBDEiBCDVQ5/BmuAK8cjXS4wt
 # thRSkchcMwviG1OYqmnzDHhKEjANBgkqhkiG9w0BAQEFAASCAgB6olAGidhfxZTX
 # XvpfNLznHklJuIWoigJrkZw53WXiMQ+566hBmTlH65UzwOHZIJqd73Z7boeGTI30
@@ -319,4 +341,19 @@ PrivateData = @{
 # WkZd90OqLtv7TBDTPEaM6ds6rMD4CdH+6izZ4QUE4AH4f/VnhXiYi70VpcFjE2Yl
 # s72yawMiMtdcs6nOJBC6NdXtGkvKEtLSu5ng7VKcandFk8QtGHo8ABZNkHN6F5Pg
 # pFEuJKwUgw5EppotaHRsCSH9oDua2g==
+=======
+# BTEPFw0yNjAyMTQwMDM4NDdaMC8GCSqGSIb3DQEJBDEiBCBIsn/uph6aXnYv5tD3
+# H1tFTZK3QnQA7GWFJhpIEbETCzANBgkqhkiG9w0BAQEFAASCAgAyOA4OOw8sM6Ad
+# ViYl6SEOYD15Y09nxNlPd5Ks+W+x5IKxOGPrnv7xhWiVRDq1GkROdyOpMpt6M64W
+# 1gzr+veP/m4JJq6MR8lnzD8Fis7CdH6ZPGTn/FewTq3sYNKRIyQ7toFuuAJO4pdc
+# 5kaZ9ELBz2+jkGmDVrjgqOib370rtvkIx8FkOmmVE/rTk4iIYJ3mGvan1IxNdGXG
+# V6UVjHcRWzm0TRODp/151rBbs2zxKkZ5v3YuoIJaeb1Q2ROyNLzXh/DbAkmq2U2e
+# BF0aFizi0lwcvBectaSBxvI47dG089Rzw/zdb4yL2bsrlezQ+fyvaqXLfZNW4i44
+# Avdp3Z4UL4r9pe8FM6KZm4BuqK5/JzKIiwNV8ew4W0qDunbgQWkKYD7ZpIiYou1X
+# JMTljw9nk9LiHPOzOZWwMS7J3CSvzb6S9n7O1y1RRF0uDq3rD+FNUkVpAhvokjmm
+# cOdP6ITszyetkEPWt04Ycmh256+Qz8fXQ1OwROp8maZlGmdJWqZNHCVrLjlLeuGH
+# tJWbYqmfIQVnsh+cS/Q1/dVyn/LRupXXhaWyvLen8G5PUsx/5qI9gnb/rpqfdOb1
+# 3dJZ3HrxdQIOkvOZN3s1jgor8Gi+BMRtg/RYWb//hDN9Jl0cMrm+ali314SQqWIO
+# maEg4jtYxIjRSXCybmvqwPxV9mbsnA==
+>>>>>>> 356963ea0609065a408153b0e7eaa0b9c4ba3c4f
 # SIG # End signature block
