@@ -19,13 +19,16 @@ function Invoke-HardDelete {
     $purv = $script:cfg.settings.purview
 
     # Confirmation gate (default to true for safety)
-    $requireConfirm = $purv.purge.requireConfirmation
-    if ($null -eq $requireConfirm) { $requireConfirm = $true }
+    $requireTextConfirm = $purv.purge.requireTextConfirmation
+    if ($null -eq $requireTextConfirm) { $requireTextConfirm = $true }
+
+    $requireConfirmation = $purv.purge.requireConfirmation
+    if ($null -eq $requireConfirmation) { $requireConfirmation = $true }
 
     Write-Log -Level Info -Message ("Preparing HardDelete purge for '{0}' in case '{1}'." -f $SearchName, $CaseName)
     Write-Log -Level Warn -Message "This will permanently delete all items found by the search."
 
-    if ($requireConfirm) {
+    if ($requireTextConfirm) {
         $confirm = Read-Host "Type 'YES' to confirm HardDelete purge"
         if ($confirm -notmatch '^(?i)(YES|Y)$') { throw "HardDelete purge cancelled by user." }
     }
@@ -33,7 +36,7 @@ function Invoke-HardDelete {
     if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $SearchName), 'Submit HardDelete purge')) {
         $action = $null
         try {
-            $action = New-ComplianceSearchAction -SearchName $SearchName -Purge -PurgeType HardDelete -ErrorAction Stop
+            $action = New-ComplianceSearchAction -SearchName $SearchName -Purge -PurgeType HardDelete -Confirm:$requireConfirmation -ErrorAction Stop
             if ($action.Identity) {
                 Write-Log -Level Ok -Message ("Purge submitted: {0}" -f $action.Identity)
 
@@ -64,8 +67,8 @@ function Invoke-HardDelete {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWFSQNkGz9MKjM
-# NOuxWqYfY1CKONFjdSg4K+AL+o9YiKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB5Q1W59gVbEdN1
+# IMf/FqH9XmGJBM0KXmGNZEp5YHBL76CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -198,34 +201,34 @@ function Invoke-HardDelete {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCgrq+1EJ1h
-# y3xeCFRH16z28GNJCL8kQ19v7NbadM9TojANBgkqhkiG9w0BAQEFAASCAgAXdDSa
-# PCEz/DK9+x+yJmrNgvgl+hu6+foEGC/Vsc22oEhZmQjSAn1WV9c5by7Dtg73q2tg
-# LFCbCXkkmDbLoAJ3S1nFD96sva9u16+azK+DVKgfhWX1DMsd+Lf/npmwKLyV/PJ2
-# s6vc54UoLBhZOqmmxt3KcU83DRurAdRovnzfNU3XkLoamAcOfLdWOVJFsnhWAGh9
-# NaS8aKa3sCDxrxlPf1Fm8Oam8zqqCUA6iG+iZUxIw2kRAqsp/0Miy1LpDAgKRDEr
-# 3iz6ak8ri1hzT6ZCadvxP6ZMvC8pERi7v5yAEIJu+Kz79K1vNjm95h4/uxG6uO4k
-# ABZ4iGfID/ZJug5Id1GU5E/hLSyxu7eoXLnO2xx/C7Ss7BPqAcSQ4XA+gqJSYDdC
-# oidg+hHCCFYt/do3jwq0RxtWnb3Br5Q2bfBRmFt36VWwC1b/gCN5ClSNBSJEHhJV
-# JfdNHH+QzDil251DBdfIEq3tNu7AvWYtxvpE0s0cJ9ioFZff+5eSLK/PQxWNYssw
-# KoRE2xGdGHzlx4ekpbPeJvNMuJZl1mPy5r97b4IsZvpJLzLRtpn2TMR1EO+nPXhj
-# aiBt/bcG3QnQh50RBMnIPe5YmzSSbuNPIWv7/ytrqoOTZFOB7bp5lgr66GYpATJH
-# rDmv6BveSMwfJoLUv+DuBcPa7l1jHA5+cWbXwKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCClpTRJRfo3
+# kF5dJ5o9s95Vf0Ubwk1ydxhvJlsWwgNsnjANBgkqhkiG9w0BAQEFAASCAgDOPCbB
+# UiWoy61vmB2WPAqe9oeIiSce8F2SicgzzYOuuV6Hzj10hV4ZTdOPZVuNi7h3KnbX
+# szuBgt823mFELGEUEVc2khfSgHgBXJwcxxQyS7kFgqK6uxeY0tsllRvQlDGP8Q9i
+# TyE2f6dYsQ1TGuoa0GpE2VW1DmXbO3ShzTwCr2Ik7RqjR0kVhJTG9El/2tcrNzgV
+# NWsJyrJ5TY6F0JlF/vTXuM/2ojl1FL5eT2ndKiUIaeaqUchraoN4ndFKjdlYN8NL
+# O7cah3LXGC8E+NoI3dqoYa7rw+wdcv/WaRLHElSAvUGijUXCt5WnappKUWYAPVdg
+# OK0AFlZ/NdlZ1sMssKIYVeIb1rgPuc4nMYnLWLVEpIZyBgtB0aLMlH6DkLCKs2XP
+# JOcjNYqJ9O2oentqnQcA8tssLlDq8qOVlD1GtaCxX/MdZGpbFsn+iNwYnzhc8hRN
+# xc0qeZcUus+x/ubLPfeR2l7KxrG7Z+M2S6VUCAodQNRzMZcPKhBhZk6UzIjUlY+t
+# llXs61fqOOnvaEeiSkHwbLJgpCSKkGEOq7q1qyCG1adyPUPT/4xJBmex9P4sFAyX
+# +InaX8gieyfAfG2ht3W7O3pXxRs4ap6YKOm6SZamLnJo83fEkDbXPFFtSnUw9q9s
+# ZnQDIzNJFL3DrhFbXM+jM0ULXDksaLiTjb3juaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ1NDVaMC8GCSqGSIb3DQEJBDEiBCCvkdy49xO1DI8VvcWG
-# ST15m1e1PTpjXKKyVkIqK6FKITANBgkqhkiG9w0BAQEFAASCAgARXZ3D0lAHy91L
-# fON8acxDy8WYtBPWC3TNDZhZ0COV1uu/+CRQ9kvNIeYKE4Thy7pl4b+22GseOUHF
-# JYLILLSfgERl7Io+9y60fCkkkrTMMwvHI3eVXInUa6vpdz9wuwuta1DQXDpkx1ft
-# 1Px/yRBOatZIgC9ZrEYdo7/Oh/4LM4y2s27ddqaAy+YqJmC4yp67uvl1hR5L0DFy
-# ZoabuRuwF3Or1vsmNj9IvwIwyHCnSDarJtiFDR5b5y7V+/F8tC+R21oJxOJTgsYE
-# jQuENx55dovt/Bx4npBr416wf5OHs/+SOtjZGzvSk6gxqKI8BClgaa8DU3DqKUiq
-# OI42psx7PpS/y+vETGwaJmMRdZXjAq+sW36m9gg3czRo4xLZSsWB5Yv41TIdCFy1
-# coci/2+/O2u9dzYT4AFM/K+K66TVsvBf+U12DRXe2VxeYSeqFg5r0MAm2kmm1N/5
-# RNeloxZ4SnKqltdbEx98x03MVEEruUOOFopw/rATfCwcmVm9DAwObBMJJOU0Z841
-# KRpEfXgebW6klSCXh8EhJHLfduN7T6KMSPk8MCoiauXpEscJpUcSlncuXcOnpdKg
-# zuSN6zYk5FP3IOq33BZeQCfZaNYQewkimbuOh0rFG2YcnwDgtYqlPpKwz9/F1zNH
-# ReqPswA6XiIWWKfomq9WxFShWvFd8w==
+# BTEPFw0yNjAyMTUwMTExNDFaMC8GCSqGSIb3DQEJBDEiBCD1UjWvPgW12qtMbu1D
+# JQV5gSIFDCOyGEY6Zyhh5zePgzANBgkqhkiG9w0BAQEFAASCAgCz4SDD4uEUJ+61
+# mQiFMLz/CAGNOY6PFwZc2gPkNp37A+aqS/14e0BM4wqmMFWT74sg4ft2nPiDVdFO
+# YyATnIsHG8l2H+2Q7XtO8tTry16zGoDU5c0Grn67VUmVUrhtezlPjbJ5hk5z7key
+# 0gmN44JS1VEtYqkXPb0ck2VKKOMSWAqJqr3DC6vGLrlQ4rSgQ71jNxASi4K8YiU/
+# gVduIgdwpNPwdngTmrDLhXdG9K0jtZJzGsqic1yzXav0YhAe7tZVref9AzWl1kVj
+# cWgGz/uB+ZpATrJpXCcefX0ONm9eWj3HqKxhn60z57laxZOKV8bByIpE38XN0VoJ
+# Hmo4N6mT3zFDjuj/YiE1LbfiSNY1alUE15Xb/gxARN7YGgSQJysx7h1uv5aG2j2Z
+# eUk9dQTRcRdzi+BFKmg00HmR5LUDy47LYsvPuTrFLRO2XsPVgY5PPe7gVKX91V6O
+# 6Z1CHvPBjm7Cu9Y4jKjFXk1XyftLNPZiAKCV+D9nJZy871wTvJxHyO02jD2hr/c9
+# mUCkrBq2vc+HmqptxwsUO5DXme37eBCs55/F0plbo33yMhA7UbgolrHYs5arsE3r
+# fCMXdIYfB5yCMEUWKd/2E/KcrcyKMnb18HK6OVbNuRukBYbTtMQjn6fNZgZwcRvy
+# bfxxBQTbrjvUca11h54lqWF87j8XqA==
 # SIG # End signature block
