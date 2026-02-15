@@ -124,6 +124,7 @@
       "purge": {
         "pollSeconds": 5,
         "requireConfirmation": false,
+        "requireTextConfirmation": true,
         "timeoutSeconds": 1200
       },
       "defaultAllMailboxes": true,
