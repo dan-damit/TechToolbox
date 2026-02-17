@@ -67,7 +67,10 @@
             "editor.defaultFormatter": "ShinyaSuzuki.rest-formatter"
         },
         "cSpell.words": [
-        ]
+        ],
+        "[csharp]": {
+            "editor.defaultFormatter": "ms-dotnettools.csharp"
+        }
     },
     // ------------------------------
     // Recommended Extensions
