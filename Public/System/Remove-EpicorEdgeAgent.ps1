@@ -29,7 +29,7 @@ function Remove-EpicorEdgeAgent {
 
     .PARAMETER WorkerPath
         Path to the worker script. Defaults to
-        ..\Workers\Remove-EpicorEdgeAgent\Remove-EpicorEdgeAgent.Worker.ps1
+        ..\Workers\Remove-EpicorEdgeAgent.Worker.ps1
 
     .PARAMETER AnalyzeOnly
         Sends -AnalyzeOnly to the worker (dry-run; no system changes).
@@ -49,16 +49,30 @@ function Remove-EpicorEdgeAgent {
 
         [switch]$PassThru,
 
-        [string]$WorkerPath,
+        [string]$WorkerDir,
 
         [switch]$AnalyzeOnly
     )
 
     begin {
         Initialize-TechToolboxRuntime
-        $WorkerPath = $script:cfg.workerPath.default
+        $WorkerDir = $script:cfg.settings.workerPath.default
 
-        $resolvedWorkerPath = (Resolve-Path -LiteralPath $WorkerPath -ErrorAction Stop).Path
+        $resolvedWorkerDir = (Resolve-Path -LiteralPath $WorkerDir -ErrorAction Stop).Path
+        $expectedPrefix = 'Remove-EpicorEdgeAgent'   # base name before .Worker.ps1
+        $targetName = "$expectedPrefix.Worker.ps1"
+
+        $worker = Get-ChildItem -LiteralPath $resolvedWorkerDir -Filter $targetName -File |
+        Select-Object -First 1
+
+        if (-not $worker) {
+            $candidates = Get-ChildItem -LiteralPath $resolvedWorkerDir -Filter '*.Worker.ps1' -File
+            throw "No worker matching '$targetName' found in $resolvedWorkerDir. Candidates: $($candidates.Name -join ', ')"
+        }
+
+        $resolvedWorkerPath = $worker.FullName
+
+        $resolvedWorkerPath = $worker.FullName
         $workerContent = Get-Content -LiteralPath $resolvedWorkerPath -Raw
         $scriptBlock = [ScriptBlock]::Create($workerContent)
 
@@ -135,8 +149,8 @@ function Remove-EpicorEdgeAgent {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD26eRavjwWmhzH
-# Utetz3M6L9ospwzzDhXFSfwg8vXjE6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAg0xEFkdPQgndT
+# q6Y0j/VCKc4YvCFbBUmVlEar9M00O6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -269,34 +283,34 @@ function Remove-EpicorEdgeAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAzTHUCwjIK
-# uKXNsWv5nRGE6QQYzXcZjEbnkFt0KjBXFDANBgkqhkiG9w0BAQEFAASCAgB/d+68
-# j8BAFXn6ZJ1njz70rwNcHQa/qtxIgbGblJTpbhRJFbpvHpRqF1VHC4Lal6zc+75Z
-# FCziygLDIhsK+h8OuuEuex7kxbbx0YjEiSEjy3/iQKL9TOAWPaYm6DZkF8YQGShQ
-# yFhl8t3illnXWTc7D9pma/WQWCXUeyWLkH+8ClgO3QlDGmdwMXAoFYZ0lwdIUtRN
-# x/gEEPEtT7LtEfoUoX0Ych4rnu1BSVCgkTQB4ClH4BVBAV06Fswn1FNW8m8tzhmi
-# CfxzxQStgzY7hk4xzZtOPz/7/ClHkiv29vyL+cb4ux1O7BE6H90V7fnjsEQF7EvL
-# uxkia07udKPODEsIkakWG9yTB5Uw6n7zBztf14LD74acQbgNmnzD9OgxXXL2Vhlw
-# AxvgPsWfUdFsGcV3c17f/CpxTmYQCNc67I++8fSwrfkVuaurwdSt5Rf76LFDnBz8
-# JIz8hTHRccKex6C8kmiy47+mcQiYOrTWqfzE4fVZp+0cO16BbdkiM/syFsb8yPMK
-# /oMEdrsvZcM5yKb6NH+AvwUov6l4VPpu0zSeinuKFyNP+A0d5z+egwKJVrbq1tk5
-# giJZaGd+MeAUjIgs0XYa0sRWVMk0ODGF/743Nrd66z8s16uaWefvBEyIZXvRkvVe
-# +UsAKDx396UBUc3+1EHiiR4ej/dAHeX5F+D3DqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDre/h+hkUX
+# siSuAYWNHggtKD7SNIT34v/hS6f63NehFTANBgkqhkiG9w0BAQEFAASCAgBYkKBC
+# xSQFcyB8SZUVCHkqDeEDA7QsBLWIG8VKSNPH155/WzSW2zgM0UcOcFzmKw++1Wdm
+# LyLn3B4FcSKmPxfOg8flXleqrZCqqk17lUJV97EF7QPomcmy3VMGEMSehSIvE5Ry
+# 9W5lD43IGeP5KB0SHu7RXyur0YAMdHHd8H2CfCXJOT+aWphQd9QP+ZJImGH2/Qul
+# aPCW0n2utYMeEtBH7WuCnbRLBH9fPu4fjcwt9heJrLAKFrvC4tC3mRwzIB8EBeLl
+# CdmId8kwiZZVAcmrSJv9a0C34KS06OD14B0zp5GiCGjpy3xTatfpX7jHtuvkqvWf
+# /0dlWaG3OhHTVxgMDylEua2/trzlbfejVqhA6Zy95GH9xEX9IQPgaZKKrgfmykEN
+# +2dFX5Ry3EqUkvz/qflJq7lpz+2jZTy0Ma9oLp+veQqxTzIqd0XIs0fCojTrjPrC
+# JEfve7unaudw3CPVypnkdFpOYnC2v6Nz3q3PCEe2Ey+dVwg/9GAf7Kn5tzOTkss0
+# MlaiLmlQcfCfSG359wnk/WRfsoy4yrrxWR0nE6irU//FXVMOKMCcEcRxlJfZwsx+
+# WKP/uz3g4os+h8F2B9BfLTtyiSgIdRm1/EN+L1fQagK+EiJKMnPrMnKMHKJ8VJIc
+# hI0NweVrqkjaYDfI7wHAHIuOPAWb+MXEK0ilNaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTcxNTQzNTlaMC8GCSqGSIb3DQEJBDEiBCDfr61UqWZkYcFXAzrX
-# 64d5W/tM96MtYRo7frhvO2AqRTANBgkqhkiG9w0BAQEFAASCAgDLTVHIsVA7pGaC
-# nypin1HfgXG1kIEzfErhl2G4UlASUd0LXZrJjxxR0OD1KgAH36QiJNblkEzkhe6s
-# fuf3+SnkNL2UAZbHoMWonGWMl6d6/kf0+Xp5u89Vml0tyRDV3Le9F0WRr/fMSw9/
-# sHI95sub2jpUUnx9OshkF2WDzJ2gzcObkR5KnBXfAWUw33ucVAo/fMzZ9OwnTuFL
-# uVkUK9ePR7twdDQ6b5ZmGsggGYVSR4jIr45RjPa/qs/sXeKkfUpzg0h6PyJAQAzU
-# U6oj1LK99T67seVIbb4hxZi1vsbAmp6RfnsKBqDJ0LxPEORWmlCQT/7P248HxGkT
-# OccdMc+mstZtbCp1Ml5J3+S3QZy9dmBt5LWGpH48dikUg3Bgn/z8qaeoHzdCf/1o
-# 3yGlQphqItOwO7Sg5m+y3Anjfzg1yWAFAytL2txdoF0At3499tYPUqHpxBgNr9e0
-# P3ASWyqmT83a0InMzcZRxTOYjXFMArSEzyY7fg6Y69L5b0nOITYf5cgL49hd1it3
-# WJh0vHYBuiTXEAzST1dUWoPWyGJhqh5Y94zv4X0zuUXsSICkMX94wIARhqgY/TGB
-# DbkWNAOMGzGMT33qQJzyyfjMg3xsMu/k+l65LjBGYHn1sNdWx6wzgaoS52C25xS0
-# u4rRUVI9t3qe9LKGUcKew+Gv8SEqxg==
+# BTEPFw0yNjAyMTgxNzMxMjdaMC8GCSqGSIb3DQEJBDEiBCCLDfKmpEN0V8w4Kmqs
+# 9leBFx2wVTX1epqYIk85s8Ji0zANBgkqhkiG9w0BAQEFAASCAgCvgMbIl2QIakH3
+# 2hlT4IzOakIwpekNQMlT1jIvkqlxj0IiTAZuY46eUqQDRICif86u/GN4G+B98GeE
+# rZVNSoxG4x+FbApd0MSmHsZyFhCCL0DC3fvmZ+21Y2FsYSwo6ntRM0PHpVrxtwgB
+# J23wnevRgR/FSypvR3ioaPmHeSgB3AT36M3Dxk2cVD2lYGh0R10MNoV+afbGWwRQ
+# O4m7Eu92vF9YjadKztd+KE7pTv3tzqAZyX431BKafbQ9yMw+Kq5mHezJXacSIXC6
+# aLPu2DerhfzVMBzRXYneQpYvDHT61FY+13F8wkE0wXyBsVr3e9X3GvK5m9FA3zXk
+# d71pR8ViqULeScVZuM5S4aavLvWJnMsrXGdJrGo4kdhswV+Zq87cMyQwhWbfRDVe
+# TcYU1IDKPMFY7bwy+N88l57UMp4sxYjSeoSPL1I6IDIT4CPxX/cjvZMFi8kGjY2c
+# iPlp6qBQxEjJqttBpXcnI3kutduwmAtEQ6UoLWYpbc7b5PVd15E6/DmwmhXxj07h
+# pVUwgVuTYsagu/bK1VkhS0Uuyu6c+gMugbbDgaAtFq+7eRsKXmoj2YBIKSBbfOao
+# tkON91IyP+Kuw2QQCiaCMXKVtL8HOQErGOwEU9VFUg4+ZEz0RbGWw23s/tXseFbl
+# BuGPvnx3VJEQkZD5lq0hPhk9XvaElA==
 # SIG # End signature block
