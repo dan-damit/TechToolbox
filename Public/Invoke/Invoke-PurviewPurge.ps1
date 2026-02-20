@@ -29,7 +29,7 @@ function Invoke-PurviewPurge {
         PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" `
             -CaseName "Legal Case 123" -ContentMatchQuery 'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"'
     #>
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
         [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$UserPrincipalName,
         [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$CaseName,
@@ -123,13 +123,12 @@ function Invoke-PurviewPurge {
             Case              = $CaseName
             ExchangeLocation  = 'All'
             ContentMatchQuery = $ContentMatchQuery
-            Confirm           = $confirm
             # Add other parameters as needed, e.g., Description, etc.
         }
 
         # Create (respects WhatIf)
         if ($PSCmdlet.ShouldProcess(("Case '{0}'" -f $CaseName), ("Create compliance search '{0}' (mailbox-only / All mailboxes)" -f $searchName))) {
-            $null = New-ComplianceSearch @newParams
+            $null = New-ComplianceSearch @newParams -Confirm:$confirm
             Write-Log -Level Ok -Message ("Search created: {0}" -f $searchName)
         }
         else {
@@ -191,8 +190,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA7Uyklah6jlFMi
-# r+LteNewItd2zXIPD2Fgi4BZcygYc6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBEmS41024jH/iE
+# RV4nBBNBU04rbRe1XeZws+kC07dIBaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -325,34 +324,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCp8O8l0a+7
-# imBR8urMXaCtBbKRjeDx1j7sXOq/9rABbzANBgkqhkiG9w0BAQEFAASCAgClZNEC
-# /6MQi42MhVsWqF5YwR0NMrBBbESycXsaQokRAFSl4gbcO899HonzBbN1ShcMhDdj
-# kHUWxgNdERqPYD7Jwtcn4Op0T+vGL/87hk85GHZOW4qPjWTzOybx5e0twC9thT/C
-# +157GRcYcerlneL6NpbL1rtAO3culC2n1RVkBn1pG0cvS3VGo8Kuh64cl7cqXSeU
-# wXELzlqWksgSWXfMmD4ACBFtg7iLcHelx7vfYaN45HKIHc6omUsgYivhe6X00r3U
-# B0iAu8LBaYPh3XxD4CNBtqrh7QVMz2H+i6Fuepu67qCtqOSpjtgiI680QqxtNLi+
-# g9L1xf4vw3z4gFTtNHwmrqqgLEIclmSaLjhQj9Z6anmh/oXD2FAgtMttQlCBobJV
-# q5CH8HrUF2bwUlAmFmo8MRH+du8wvOQWAcACHAZLVxZ+8yDt38UmSP14hSsS4zU6
-# GNH+YGWgtKHkl35QQRZJLHWlcKBV0yXjTQZhT3sbd6DAhsGFEYocHOVc8mzZKPjQ
-# ZQ7DENkjkaF4QMQC95dS+MfP7i3IIiGPDoGRX4koQ2zUWLvvBK2OZL3T0RXncYkV
-# /SwLFdoDYnzP1fHKbdVUT2rtRtik48aYUijRno1L6xl0g/5IIpr0c+LSh3/XgKc5
-# s9yyfvgF3Vn/e0eYDhc2KDdAu3OzDWhK4TJ0MaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBO1Vzq9ejg
+# Sjt28NeOO2BeMhc2BdIHtVTRarXMaIdHxjANBgkqhkiG9w0BAQEFAASCAgB9IBD6
+# YL4VuODXUcORO2JGGN1MK31+3vfz9pLgPNGgDFP6F6q/HL6HJmArX3f0T16AfYbU
+# xLvS2wO3f6mIIu9RieBuM2kjAKHMaSqIUirOhLmLAU4F2X4hlmULbmmISTnpOwAl
+# ZM6QNZAcj5so5QrxxFXkh8qC0onbZXMkXVCFKrY8mOl/NAYmazhwzYKJV+f0/xSt
+# QyvLNSygR/aSHOBI0RYkrex1WNckR24gvoBMxLuha/xUpyq6BC8EJ2+DJz2Cxu4Z
+# YMGgC9RSO5NXvcMlgVM3FuJBovhXfl7R88sxcEmcL8VLte6sdZVYG+FPdeFosscM
+# l3/QnpdeKTDlmW6uwfzc0lKLWdUwuZc36dxHoL3UbFkl4JDhAkNWloP/JHWMveUR
+# /+2vIlDIBw/GBesoq5e+6HqhOQhPlGwtORmuLpLtt0qOKa2HS6yFtGKkCrEwBAXd
+# Dj+BhoApEHglwIOMEvCUTMxa6yfCRgpECjKPHeR6G9RuKJLGL77THZ7C3SjoEE2A
+# zC9Tua4191eNTMOUFQloJHAkRT8psgCiJBORTRTEwyfvnippxrBCq6pFYTtxugpE
+# 4H63KSFJA/YS2fK4Zgn1+ppH7Kf3ZI8T6qPC7zWqXb37f1uhjAzndpMulp1y99MI
+# J+V+QuarVheIWR8nATtjJ43q7h6t+pHsnP1bvqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTUwMTE1NDVaMC8GCSqGSIb3DQEJBDEiBCBxMCbzR6LBY2UbYqrf
-# ai7iDRDgyDivqN1+h7fIaXvuJDANBgkqhkiG9w0BAQEFAASCAgACW6DIxbFewXWx
-# 7/yTfgjiMn+HwYryOh+ccfR2wYt8bFpYvUkZzZgZDkJNCE0mLNs0Wtk+GKy/MWNX
-# k4DfmK0Ogpd5kSJfIXDUf3GE6upDEB1kd5Wk2+OZZ8Z+5wePbrmpZgQK84/tn480
-# AwNxuwEMcA5SvXXyeNN5cVG9w6aa9bCx3lPa07o4TSEsfYS3FCjWjcALmhowOfo6
-# Cv/54uE/S7hmmn4Zf64EXNhYUEHBsGWucNjtrGEDScItTZ6i5HOfpfXTgicNEI46
-# NPr4gEHYJ4OavpCA2H0yUt4i+NMa1G8v2vuX4Y5sbABZVHCWOmX65Ta0J6QFqnpj
-# KNfLTnoBmh3oTmecTzA7x24hSM2ZjwPpvws2/2Q3rYt0o6HhONC+0Uv6FJxyV5nd
-# SsMjuxm6E3XLhJCt7vWZ3eb3Qosy2DCnJs0GXMg/pf8ADeE4Cvz1bX6hqI155Ga9
-# v8lIhf0tGnk+KAl1P/ZqdOhOEynDYiwKrogmkxVKK8lWZiLboYPg0rf61XxB0bcp
-# 7rsh8PTQ5s5FI8NmV7PYJuFR37Grer4RN4qbDE4kZ/0mkC9n+DCEcBMOV3VTLrkg
-# BBLhYCXdNqlfgUnp3dcrewf0x9nbYaAIj01mQxf7s+t0mXqwoEV7pjAsiG1/FVNA
-# Y9QupJozcuf40BxIJraBmg8CIvSoBw==
+# BTEPFw0yNjAyMjAyMDQzMjNaMC8GCSqGSIb3DQEJBDEiBCAxM7R5cGHE9Io8Q16s
+# 2LSKs7dkzKOMry10DrlSXxErujANBgkqhkiG9w0BAQEFAASCAgAnuZ0bLuxm9wId
+# EhlI0meSs+XX3wiWEWyAureYoJWcC9vF3MI/U94r/69Nwb6r2ftZVrzcv7vz4CJU
+# PpB508PTib3T0Ce/ANDulSl/KK46FhUcGAX/cAmRYnJFtmrvQA11J5QPNZV2TkMX
+# PnUEGSr5TmJVJBlS8WTBH67Oroy+YpesYrz3oqXdSweom+ei0VdzE/1PbN9PFf1M
+# Bno6sBXro4XpVUF5KfMhAd9Bebot1DCdVD6GQroL6PJUzCdkWlUXxrMZ9Q0jHEHY
+# l2uiGNdAWm5hqSnq+h3NgTR42VGS3eK2IVWJ+GkYEQvi3qyb6gKG2HN2+KBNl3GH
+# LFicjDOirLb/YP1nolACuHxxBjgvZS6L1ko8KkV1lho8EKy4FafAgyjEN15XYXwj
+# hO0B9P+kUOBqjJBUWdkDdgA8Qvp3yKakwek7aVr4hTiW3dJxeSapwkmWw010zvqu
+# PbFwKpWs4kPqhJOS6RJ26kjTfX1n94nDA3n1CDl5nwcNAxQxnZpt/6hoCy55isyy
+# 3ng1RSf3iYyP2luQVnzrA0dO6NlyuQbq6UIVaSsBfME4Kk3GXER/Qye363lNAi5N
+# gBJUxczH8O3KcJLj4MdY07vB/nX7Jf5U+gHB2ym1zw3HBwrJTsXKPbSFuqJpaN1K
+# gxZxFOD4IjsqCZUNjauudtGEigwPAA==
 # SIG # End signature block
