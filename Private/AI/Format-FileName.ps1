@@ -1,156 +1,13 @@
-function Remove-EpicorEdgeAgent {
-    <#
-    .SYNOPSIS
-        Public wrapper that runs the Remove-EpicorEdgeAgent worker on one or
-        more computers.
-
-    .DESCRIPTION
-        Windows PowerShell 5.1-compatible remote runner. Uses Start-NewPSSession
-        if available; otherwise falls back to New-PSSession
-        (Microsoft.PowerShell endpoint). Streams progress and returns worker
-        results with -PassThru.
-
-    .PARAMETER ComputerName
-        One or more target computers. Defaults to local computer.
-
-    .PARAMETER Credential
-        PSCredential used for creating the PSSession (fallback path and
-        Start-NewPSSession when supported).
-
-    .PARAMETER ThrottleLimit
-        Reserved for future use; simple foreach currently.
-
-    .PARAMETER AsJob
-        Invoke the worker as a background job on each remote computer and return
-        Job objects.
-
-    .PARAMETER PassThru
-        Emit the worker's result object(s) to the pipeline.
-
-    .PARAMETER WorkerPath
-        Path to the worker script. Defaults to
-        ..\Workers\Remove-EpicorEdgeAgent.Worker.ps1
-
-    .PARAMETER AnalyzeOnly
-        Sends -AnalyzeOnly to the worker (dry-run; no system changes).
-    #>
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
-    param(
-        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
-        [Alias('CN', 'Server', 'Computer')]
-        [string[]]$ComputerName = $env:COMPUTERNAME,
-
-        [Parameter()]
-        [System.Management.Automation.PSCredential]$Credential,
-
-        [int]$ThrottleLimit = 8,
-
-        [switch]$AsJob,
-
-        [switch]$PassThru,
-
-        [string]$WorkerDir,
-
-        [switch]$AnalyzeOnly
-    )
-
-    begin {
-        Initialize-TechToolboxRuntime
-        $WorkerDir = $script:cfg.settings.workerPath.default
-
-        $resolvedWorkerDir = (Resolve-Path -LiteralPath $WorkerDir -ErrorAction Stop).Path
-        $expectedPrefix = 'Remove-EpicorEdgeAgent'   # base name before .Worker.ps1
-        $targetName = "$expectedPrefix.Worker.ps1"
-
-        $worker = Get-ChildItem -LiteralPath $resolvedWorkerDir -Filter $targetName -File |
-        Select-Object -First 1
-
-        if (-not $worker) {
-            $candidates = Get-ChildItem -LiteralPath $resolvedWorkerDir -Filter '*.Worker.ps1' -File
-            throw "No worker matching '$targetName' found in $resolvedWorkerDir. Candidates: $($candidates.Name -join ', ')"
-        }
-
-        $resolvedWorkerPath = $worker.FullName
-
-        $resolvedWorkerPath = $worker.FullName
-        $workerContent = Get-Content -LiteralPath $resolvedWorkerPath -Raw
-        $scriptBlock = [ScriptBlock]::Create($workerContent)
-
-        $StartNewPSRemoteSession = Get-Command -Name Start-NewPSRemoteSession -ErrorAction SilentlyContinue
-
-        $results = New-Object System.Collections.Generic.List[object]
-        $jobs = @()
-        $targets = @()
-    }
-
-    process {
-        $targets += ($ComputerName | Where-Object { $_ -and $_.Trim() } | Select-Object -Unique)
-    }
-
-    end {
-        if (-not $targets -or $targets.Count -eq 0) {
-            Write-Log -Level Warn "No target computers were specified."
-            return
-        }
-
-        $i = 0; $total = $targets.Count
-        foreach ($cn in $targets) {
-            $i++
-            $action = "Remove Epicor Edge Agent via worker"
-            if (-not $PSCmdlet.ShouldProcess($cn, $action)) { continue }
-
-            # Build a session using Start-NewPSSession if available, else New-PSSession
-            $session = $null
-            try {
-                if ($StartNewPSRemoteSession) {
-                    $sParams = @{ ComputerName = $cn }
-                    if ($Credential) { $sParams.Credential = $Credential }
-                    $session = Start-NewPSRemoteSession @sParams
-                }
-                else {
-                    $nParams = @{ ComputerName = $cn }
-                    if ($Credential) { $nParams.Credential = $Credential }
-                    $session = New-PSSession @nParams
-                }
-            }
-            catch {
-                Write-Log -Level Error "[$cn] Failed to create PSSession. $_"
-                continue
-            }
-
-            try {
-                # Pass a single positional boolean to bind worker's [switch]$AnalyzeOnly
-                $arg = $AnalyzeOnly.IsPresent
-                if ($AsJob) {
-                    $job = Invoke-Command -Session $session -ScriptBlock $scriptBlock -ArgumentList $arg -AsJob
-                    $jobs += $job
-                    continue
-                }
-                else {
-                    $res = Invoke-Command -Session $session -ScriptBlock $scriptBlock -ArgumentList $arg -ErrorAction Stop
-                    if ($PassThru) { $results.Add($res) | Out-Null }
-                }
-            }
-            catch {
-                Write-Log -Level Error "[$cn] Worker execution failed. $_"
-            }
-            finally {
-                if ($session) {
-                    try { Remove-PSSession -Session $session -ErrorAction SilentlyContinue } catch {}
-                }
-            }
-        }
-
-        if ($AsJob) { return $jobs }
-        if ($PassThru) { return $results }
-    }
+function Format-FileName {
+    param([string]$Name)
+    return ($Name -replace '[\\/:*?"<>|]', '-')
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDX6LtSMQ+8wEpH
-# XZrwOwJ6frACZao9mu4SG7t4NkdE76CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAbZ/YVgurAV85s
+# /T4d+Y3QvPkaXtHtoknGJ/KlvMoZoaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -283,34 +140,34 @@ function Remove-EpicorEdgeAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDvrEECpMx6
-# ewx3DaZgOn5JKfiiGiF1s+IDxQHbZQMiCjANBgkqhkiG9w0BAQEFAASCAgBEm5tp
-# wwk3leUT4i7cOYEcvy4Vr8zJhUdLr0cnI3Ir6jRXm65479fqwggBN2YIQ9Y3Fa4L
-# qzBettjnjKyTof08bkaZtETNA41X9T7L9gIdkvWe9WGifFL5gGKIdpwo5zxX4sdU
-# mEQRDwliRllWEZbtorz0de1qzlx7jW7/sQYrvl8YCetL3+9lpl9StsvsFxfrTHL1
-# LExDRwQvCeIR5GEjjJs+wRETdx8uuon8Lh/Ycfl7YxaPKjEVvkoWj/MNw+jIOSUL
-# puv5ZYuHBpu9rlJLZ+9Ai1veF5ItlrfN301iRuh0+bItQAMg8W7GUUOp32swhyEh
-# AP4t8OL2i9GuuhuNQ2250lML3gjjaC/HdjzySbXJDYx+wptDjEf70vV2J4h+qPWD
-# iaJx9FJXzivLpFu+hBA16/Q1mjGG+tEEWS/yGwdYCDUiWMq7pTu7jpTt2HcRqhnH
-# Cf5gb9NIHHuTe85sxQFjRdkNgPgNalN5a+IjwCzruz+Li6XUsmg6OYnKiNKnCo5L
-# NIhlWLI/5EqMFj49tifAVOR35RrqFARTth00Q8A7/EyGtCcpYviML4o/3oAR2Ije
-# HSkOCjVAcXMN3z6S6od1Ar6KTElcsdYYrMYVofsPQApzGQtG8iyyPOhA0EllChA/
-# b4LqDP6yBr3hrbxVceyeBaerjUEAwK7spqjuFKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBpa2Ij+uvH
+# NgAbTNMrmx833yLo8SnPpwWcHkYzZvznDTANBgkqhkiG9w0BAQEFAASCAgCdyvXi
+# JwKeox0R08Btp8M2UhMMTeNSnJUJ8oAZhz+ZaKcIw91lR7p7ouFVNCfzvTc8jwje
+# wibi+oELf1Xc4chHTo4sDJlQi/lNa02G76z4U4QR4xRRAwdRQIUCO7mGElpfaln4
+# A6qBryMwtISPf2Te9JuSV9SyohmPcw8bWaz8hb4Om/l2DDzc0HhwPMsKW5OmpSf2
+# qZDD6g1zI3+rI6ZbAy6DKhppG7huwhbpo98CLwJB5hD9VsMaDjfBUH439FQiUEN+
+# RN7oh9pjS6k2Bbm/g8rIKPPc1FJ3SdNCoTam/jqvOZUrrSsObRY64e7Fu3tvcdLT
+# tZhzgLpBRiS+fC2k8wgeBdeS/XlcFZyP3NMDqfla4bQaPFv5Ub5UbDlQ4cq4gv0Y
+# bty5IJgRoHOqZQBIcXw6K1sVOkqKjBEVLjskagzTJbQZP1DUjDjAmyiA7/NkbdYp
+# Tpvs9s9vbUZCT7+zdHea8Na7+LHF6xml9i8UDGCyIxVMtawhow/ifnq0QpwkPN1B
+# XJlBOfTRFLH7vXdbuNqp89j7Db4u2y0e+mtFZxoYE8sOuYhIebZrGPlMyidJVqp7
+# Grm7XImGq/nhbcxODw504wzk7QkuDc7OWsE6WA+ZPQ093JZqpF1FjioFUTG/NXW4
+# SltVKl9zas2tYT3qpAL/lwchStpS26hDIHN7PqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjAwMTEzMzNaMC8GCSqGSIb3DQEJBDEiBCBxaFbdDDz7NNOcmOw/
-# kikT/M5jbaY3W2PH2YRzZguy2TANBgkqhkiG9w0BAQEFAASCAgCKTu2z2d9E3uXY
-# ZXPRiAXIoh9NtJdTpWoqrLvUf88n4/pejqzDFtHga3wj6Ux4eT+AboBcpWoQeuF3
-# koWHxxwxHVw1DhTU9R5XhEbUH2feVyVj43zLc1x8IRPCi5oWiuE27Hyk/GnAuGZQ
-# svme9Eq53sEyWLu+m3nA7nSTHRujqkXuvgoOqycS9ez0K0D7gKwEk5DgJVZqbCQN
-# VHRevclKd+86KQ61PVDmSjkwancyb6UYEtd3YWsRJWsXBk/pq8TmLtvnIFNhyqXq
-# Qbm4sXbOFTZGpDkZxyvkcgu0fRs2xGB9qwWkkjteKt0nRycW64urnORc4xFIJ3dK
-# VB8TwIwL0vgDouIaG/6IOOI9O/wIphJ0N2cCI6ldCcxbAtPzt6BHBggHBM3Smbq3
-# qsCohAXERyIKBDWWeQG+uXoZDKVRPZ/J3PTvkp8kukLT0Ok382syD4LBTvKL3n4b
-# 1GXhagO8OA2H5LswZSy3NSIMtJYmocnkSjIu/Ix8cbzuzoHkL1D1iYjJ1g5aV1mb
-# SdfBJBogpa6KWC75NS3ZY3c4owN9fvWUfaqMX9EGyEGxaitZwGiCDWaPGEDc29mk
-# +bP3Q5UvHDwcrGGhK1vVSOw0LNZ/AY4VGde6N8KobHeX5RbldTOmb5UPDhSV/gel
-# KY+EZ82GJUZa34cjjPjCRxPDXj/2QA==
+# BTEPFw0yNjAyMjAwMTMyMjdaMC8GCSqGSIb3DQEJBDEiBCC1Y5QoQqxHEGQIFnMP
+# BgvQ3QMiB3ovyyFaQPm5rVE7OzANBgkqhkiG9w0BAQEFAASCAgARk0InbZCFHXny
+# TQD1k2+3F38pcCnsP8xKJxg6ya4J/ZhdNt71nv+VJ6QT/wL1ZQTd1CZpN382vOY7
+# 1PBs5q6FgbZNVqE8PVU80S5dP0ElyVe53jJURiPSug3nsDMNDLS4AzhT67DmWa7N
+# 97tFeZmnfAM97htcmxHDB+BDGZ57nArj0NqICX5NsiahkapYc1PFt62Wo8+8qeed
+# 98uvPEu9AC/LNA36uQv0da4Ah28yy01LmxyQhE5PKUqV+5oBKJ5DGCJN3+tLxMhv
+# 6MnyeepW4BBni6sZfTLzDr0qWH03n2IruHJIc9DxiFiFjWS2S7mVIayVhzkQkAyC
+# Ie+C/1ceGVIQCF0OIE8oxf+llzqNbA7khQfDSkxqzqVLHR4UAOfKm/+zbTliDSE2
+# Vgn/OlG4THrV8bJQFg7+5qXHFjTD1O3IQKPWqgwJSz24zzVdd7ftoZeLKu6rFQ9e
+# +rYGHDMJS3tTvIHFJBW/OUZizHOHEsT0+ZLN/AouvissEUqpMXmuOAfOsBjsfngy
+# pF1P5ZiPH9NiYfG4sQE6wyqeW4cLqeansFXcyBw3s2Y5M4KuNov+VHTT28Tptu/A
+# eSe21TlvnbjHAk9Yk0KFahgisg+jN+l7hsxoPmrdE6Zs+ZUnazd/laQjDMS9rDbK
+# P8YWv8BrZHAMQgdcd472hIkXmiuywg==
 # SIG # End signature block
