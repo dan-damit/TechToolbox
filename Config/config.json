@@ -212,7 +212,6 @@
         "retentionDays": 90
       },
       "includeEXO": false,
-      "includeTeams": false,
       "useHybridAutoDisable": true,
       "disabledOU": "",
       "cleanupADGroups": false

@@ -15,20 +15,20 @@ function Disable-User {
     .PARAMETER IncludeEXO
     Switch to include Exchange Online offboarding actions.
 
-    .PARAMETER IncludeTeams
-    Switch to include Microsoft Teams offboarding actions.
+    .PARAMETER ForceCloud
+    Switch to force cloud offboarding actions even if IncludeEXO is not specified.
 
     .PARAMETER Credential
     Optional PSCredential for authentication to AD and cloud services.
     
     .EXAMPLE
-    Disable-User -Identity "jdoe" -IncludeEXO -IncludeTeams
+    Disable-User -Identity "jdoe" -IncludeEXO
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     param(
         [Parameter(Mandatory)][string]$Identity,
         [switch]$IncludeEXO,
-        [switch]$IncludeTeams,
+        [switch]$ForceCloud,
         [pscredential]$Credential
     )
 
@@ -54,9 +54,8 @@ function Disable-User {
 
         # --- Compute effective options (switches override config) ---
         $effective = [ordered]@{
-            IncludeEXO           = $(if ($PSBoundParameters.ContainsKey('includeEXO')) { [bool]$IncludeEXO.IsPresent } else { [bool]$off.includeEXO })
-            IncludeTeams         = $(if ($PSBoundParameters.ContainsKey('includeTeams')) { [bool]$IncludeTeams.IsPresent } else { [bool]$off.includeTeams })
-            UseHybridAutoDisable = [bool]$off.useHybridAutoDisable
+            IncludeEXO           = if ($PSBoundParameters.ContainsKey('IncludeEXO')) { [bool]$IncludeEXO } else { [bool]$off.includeEXO }
+            UseHybridAutoDisable = if ($PSBoundParameters.ContainsKey('ForceCloud')) { -not [bool]$ForceCloud } else { [bool]$off.useHybridAutoDisable }
             DisabledOU           = [string]$off.disabledOU
             CleanupADGroups      = [bool]$off.cleanupADGroups
         }
@@ -121,52 +120,70 @@ function Disable-User {
             return [pscustomobject]$results
         }
 
-        # --- Cloud actions (Graph-free) ---
-        Write-Log -Level Info -Message "Proceeding with cloud offboarding actions (Graph-free)..."
-
-        # Exchange Online
+        # --- Exchange Online (EXO) actions ---
         if ($effective.IncludeEXO) {
+            Write-Log -Level Info -Message "EXO: starting Exchange Online actions."
+            $exoConnected = $false
+
             try {
-                # Your helper should no-op if already connected.
-                $null = Connect-ExchangeOnlineIfNeeded -ShowProgress:$false
-                $exoConnected = $true
+                # Prefer your helper; fallback to native connect
+                $helperCmd = Get-Command -Name Connect-ExchangeOnlineIfNeeded -ErrorAction SilentlyContinue
+                if ($helperCmd) {
+                    $null = Connect-ExchangeOnlineIfNeeded -ShowProgress:$false -ErrorAction Stop
+                    $exoConnected = $true
+                }
+                else {
+                    $nativeConnect = Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue
+                    if (-not $nativeConnect) {
+                        throw "ExchangeOnlineManagement cmdlets not available in this session."
+                    }
+                    Connect-ExchangeOnline -ShowBanner:$false -UseRPSSession:$false -ErrorAction Stop | Out-Null
+                    $exoConnected = $true
+                }
             }
             catch {
-                Write-Log -Level Warn -Message ("EXO connect failed: {0}" -f $_.Exception.Message)
+                Write-Log -Level Warn -Message ("EXO: connect failed; skipping EXO actions. Reason: {0}" -f $_.Exception.Message)
             }
 
-            if ($user.UserPrincipalName) {
-                # Custom helpers if they exist; safely gated.
-                if (Get-Command -Name Convert-MailboxToShared -ErrorAction SilentlyContinue) {
-                    if ($PSCmdlet.ShouldProcess($user.UserPrincipalName, "Convert mailbox to shared")) {
-                        Write-Log -Level Info -Message ("Converting mailbox to shared for '{0}'..." -f $user.UserPrincipalName)
-                        $results.Mailbox = Convert-MailboxToShared -Identity $user.UserPrincipalName
+            if ($exoConnected -and $user.UserPrincipalName) {
+                # Cache command lookups once
+                $convertCmd = Get-Command -Name Convert-MailboxToShared -ErrorAction SilentlyContinue
+                $grantCmd = Get-Command -Name Grant-ManagerMailboxAccess -ErrorAction SilentlyContinue
+
+                if (-not $convertCmd -and -not $grantCmd) {
+                    Write-Log -Level Warn -Message "EXO: required cmdlets not found (Convert-MailboxToShared / Grant-ManagerMailboxAccess)."
+                }
+
+                if ($convertCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Convert mailbox to shared")) {
+                    try {
+                        Write-Log -Level Info -Message ("EXO: converting mailbox to shared for '{0}'..." -f $user.UserPrincipalName)
+                        $results.Mailbox = Convert-MailboxToShared -Identity $user.UserPrincipalName -ErrorAction Stop
+                    }
+                    catch {
+                        Write-Log -Level Warn -Message ("EXO: mailbox conversion failed for '{0}': {1}" -f $user.UserPrincipalName, $_.Exception.Message)
                     }
                 }
-                if (Get-Command -Name Grant-ManagerMailboxAccess -ErrorAction SilentlyContinue) {
-                    if ($PSCmdlet.ShouldProcess($user.UserPrincipalName, "Grant manager mailbox access")) {
-                        Write-Log -Level Info -Message ("Granting manager access for '{0}'..." -f $user.UserPrincipalName)
-                        $results.ManagerAccess = Grant-ManagerMailboxAccess -Identity $user.UserPrincipalName
+
+                if ($grantCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Grant manager mailbox access")) {
+                    try {
+                        Write-Log -Level Info -Message ("EXO: granting manager mailbox access for '{0}'..." -f $user.UserPrincipalName)
+                        $results.ManagerAccess = Grant-ManagerMailboxAccess -Identity $user.UserPrincipalName -ErrorAction Stop
+                    }
+                    catch {
+                        Write-Log -Level Warn -Message ("EXO: grant manager access failed for '{0}': {1}" -f $user.UserPrincipalName, $_.Exception.Message)
                     }
                 }
+            }
+            elseif (-not $exoConnected) {
+                # Already logged the connect failure above
+                Write-Log -Level Info -Message "EXO: actions skipped (not connected)."
+            }
+            elseif (-not $user.UserPrincipalName) {
+                Write-Log -Level Warn -Message "EXO: actions skipped (UserPrincipalName is empty)."
             }
         }
-
-        # Teams
-        if ($effective.IncludeTeams) {
-            try {
-                $null = Connect-MicrosoftTeamsIfNeeded
-            }
-            catch {
-                Write-Log -Level Warn -Message ("Teams connect failed: {0}" -f $_.Exception.Message)
-            }
-
-            if ($user.UserPrincipalName -and (Get-Command -Name Remove-TeamsUser -ErrorAction SilentlyContinue)) {
-                if ($PSCmdlet.ShouldProcess($user.UserPrincipalName, "Teams sign-out / cleanup")) {
-                    Write-Log -Level Info -Message ("Signing out of Teams / cleanup for '{0}'..." -f $user.UserPrincipalName)
-                    $results.Teams = Remove-TeamsUser -Identity $user.UserPrincipalName
-                }
-            }
+        else {
+            Write-Log -Level Info -Message "EXO: IncludeEXO is false; skipping EXO actions."
         }
 
         # --- Summary & return ---
@@ -197,8 +214,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCKqMiRSkR4gALA
-# gmCFlmvEMaXxRr5d4iz8bQBGx/6RW6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA0GQNglvHtyRkI
+# 5vXG6I7AbT0vAgDjqYTF80IuBKrhOaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -331,34 +348,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAX8s5s+HQw
-# hX3YOAgu11c1JEXGtkPFkUPjALY3V+R4yDANBgkqhkiG9w0BAQEFAASCAgCWm334
-# Xr+TlXsAAuVgNbHomHEK9PYQ4/KpFps7JK1gfN4A5S+Tl71Ws7aMM3HuaOrBiuv/
-# HF0sSomuUiTjO5iZnVQAmAihA8cwsPi5tyayyJdTZ2fzTOcgVxroToENK9KaoNOg
-# lwZVbRcSQp9bjH6zcTbOSD8Ff55mpnfstJljLBgsnPGcS+1HVJ3qmmVui7TB+cr7
-# myDK4PgXFZRf7S0/N5XAYxSMH2Xg8ZYI3LY46J48bY0wAUz/Hprw8Hfd4d6Byq+n
-# DnYkZsncOo4NhnYhvBl06L+/vwEgAoQ6sp1m6sSMt17nUPEOmBw9ZpyOLBQs58CC
-# Qt5YaOliSk2RXN0wb8OgFL7auHtDUNx8U5wOHK+9+iw/MPw0BR6P2lem03uETKmZ
-# y0ks1+olSSCrXIqBFR89kGCB6TvpOWFE9oG01FJnZKqnZYHVZ/ZbXJX858Aa3RXz
-# 7fikGEBSkU0/YsngtpPuLmENm1uHQpSf/ytfoJF86SwOwHA9ewj6Tfk9OobdgVWb
-# wyNde5hM3GFFO9juqs6p9wva+noOgFXIgYN9v/iZG1FHHKlIHhM4qsUPr6JjnLoA
-# 71ogSMaPyM4YiXVxoS/HfgP0FKKtZ03oau+DwwNdStFmaZBhoHJUyQtKGpaFN2Hg
-# ybmjiar8UUp7NYORfLRI5RKU6zRU4sW2S1ytw6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCVARhHtC3D
+# Ignowcy+L+HQcPXclQuxu1YxAQlYWFe0HjANBgkqhkiG9w0BAQEFAASCAgAW7qXk
+# kRHDSzwEIxNNAfvWw/VnFYBaBkE5Xaf2qoYzG+2gfaa5vAmDVzbS8ypbWYByYZZ3
+# kj7IozJycUh8ma11+mCHitLy65rzo9yxtymctnODP6iVI4OZKEpo8uDVMvSjFN6I
+# llqnmbcMaZlJvG2l4hJo8eySwpYKOUIcBJfkuvYvIyq+ZQC4pt2Dis2T8pTmnZng
+# 8Xag3wYRhai+LcZCq2Vfwg7xuzRxsmwCD/Zk5ejYWxszjG4B9rViXFJRAlTrfYaT
+# kObnPTNNQm4hjRWcK87lbuw7g7AmnUXtFRAfpthxyID03sfnLft5FkMgYWSYmF7R
+# Fh1xgpotn9tCXapsU8VOT72mdceXln5qYzjm1DP59YC4TZZPtMlmEARXh81DmQpq
+# utKeFEfJomr/K1LM/Sbm9fpI1q+jo2YjhkxWJ9IsrRflt/CN1Xraksd6jHkSnLb+
+# wOTL8OICSl6lHdWIKi+5ErBGW8Axc0WhbIK1CA4C0n1q2jKT/DZl79DoHG5Fry0S
+# 2CanL7JWv0zPpy/h5AcCwrtcu009RISdwLYgLuX5XdHWb6/xvzmTfMKpTDQqp5zE
+# 9NIJyEOVJPua37qPd0E8fs5hnDxUBXpP/s6Yq++stRguO8GKYS7OOzjIjaX2Sc0f
+# UlJFszUZsuDeB+4JlyLCyMNGhvVDY0dyiw3ewqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjIyMjFaMC8GCSqGSIb3DQEJBDEiBCABoPQGH62X9MtxGXtR
-# wdA3GrVdbGavO8MOhu4sfEWHMzANBgkqhkiG9w0BAQEFAASCAgBD/xjphdW9vtz3
-# T9MAfh5NhdmC/4dKArfkE+aFos1YqjIuAbARuP20NnSAEbDNvFKXTJkWK6vLZpqi
-# WpZ74KptCzWeJW7AXw1yxuD7ixi8Esq5O0uKk8S0v0RtLfvzV+v8KPasRkiYErHp
-# P6TJrgoQoeBko9SKV9l3ADC5zXZpKV0RSdT/b1+LH7LGTznatV0yB3UQoqCfxgUt
-# 2/p+6tdBSiaIJluIEaOUQGPSFFsjnLchalZC8FX5j2yXYhV0jf77HvJTPzeSL/M6
-# KlIMwqGHm0PtL36lP+tCIqJs3z9IsKxzlBhgSuMOjfbN2R8k7j6nnB2NBFRxFTbK
-# D7nmrpPZcYdqG1iwAN0G5RHcCguITSE5sKB7ty0zoVnnI4eW9/yDhB7jJxNFCLOO
-# bhyvMDf2gQ8kwQDoSah68VDa29i05G/ghjHAct0B+zwGi4NRWfC8zA6NHTvp3xN/
-# KO6EgFnF3mLRfHR6t/DW5azmPvwK6CWEINTyoxE5Y2h/SdkjS9JFs7DegRQHTXhM
-# gl7QxUiTnO/swY/HWz580G0+2kjaoYt4yItCbKk9MlmjdtszSdOieU9OpWBQAIZv
-# JfUUMrQEAFl9AaU9fxi3+cSfrdlqXngkCDAZfSONWxSrOwz+9tovKY4cm0Th02Si
-# R8LiaytUEZhhYcpoUAU3NQWKhk8ovw==
+# BTEPFw0yNjAyMjAyMjUxNDZaMC8GCSqGSIb3DQEJBDEiBCB7iryW0i3X3dWi72FD
+# HAa5g7YZXrm/2XJIdBVo5VFLujANBgkqhkiG9w0BAQEFAASCAgBNs+KmFeDXfJQJ
+# MhmOEtsS3y1PUXmSRvxjIeC5lGWMuyMaegtSDDHuen9DwezyEI5GsY2dpJSc0pdW
+# +b318ePw7I6hfDxO3187/zOa78Ry1d0G8T3PuYd7ts3rSmMRQ570TctfXdrYDaNt
+# lJVvwJBc2IPmAY+s0nOu9zFDNQ+19JpOlsjAfqNYLyj972SGKFsgIwd3Vhp4KlgG
+# pXn9ULjjDLEpd3H9OMQdeV6MW0wpqUZQRYd9Caf92E8xbrTY1w+EJODAIJK4ivPt
+# 5I9smg3wOtm9NXOFL5LuTXJLGh/2EKJJeN7GrYUza1PvuAvVe6UAhF43Hp1EghJd
+# d1cnGBBHMAweJR//2GHvMvpEZ4zjtiLVG+T3+2D4ceIongfopmQ6ciuPVgoIhYpE
+# CMBQTK4AamJpFXhDCGYpmQRenf1LVwv0j6yFn0BGLqQiItZQ+Gd7osuLT2M03g1r
+# SRrv/28PDG6yCQYOsrKYvbIOYatUsQTX0lB5+YCP52QTMo12X8tDA4yQszoSnqk5
+# QAIiKhxLDbMuLIYM/r6QWgCxlNwNfJxE+uqD6sKOhPpqoyw22y5jYSxb93KmQVuw
+# Ur2v3T9judnBdevebz1B5c560yOEAOv/PenVShduHrdYfLlAEgiZDICE39V9tueH
+# 2faHKurdUWODwRmMxBSVEeHPc9Mv5A==
 # SIG # End signature block
