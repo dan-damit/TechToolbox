@@ -50,14 +50,40 @@ function Write-OffboardingSummary {
             $step = $Results[$key]
 
             $lines += ""
-            $lines += "[{0}]" -f $step.Action
-            $lines += "  Success: {0}" -f $step.Success
+            $lines += "[$key]"
 
-            foreach ($p in $step.PSObject.Properties.Name) {
-                if ($p -in @("Action", "Success")) { continue }
-                $value = $step.$p
-                if ($null -eq $value) { $value = "" }
-                $lines += "  {0}: {1}" -f $p, $value
+            # Normalize Action
+            $action = $null
+            if ($step -and $step.PSObject.Properties['Action']) {
+                $action = $step.Action
+            }
+            else {
+                $action = $key
+            }
+            $lines += "  Action: $action"
+
+            # Normalize Success
+            $success = $null
+            if ($step -and $step.PSObject.Properties['Success']) {
+                $success = $step.Success
+            }
+            else {
+                # If no Success property, assume unknown
+                $success = "Unknown"
+            }
+            $lines += "  Success: $success"
+
+            # Dump all other properties
+            if ($step) {
+                foreach ($p in $step.PSObject.Properties.Name) {
+                    if ($p -in @("Action", "Success")) { continue }
+                    $value = $step.$p
+                    if ($null -eq $value) { $value = "" }
+                    $lines += "  ${p}: $value"
+                }
+            }
+            else {
+                $lines += "  (no data)"
             }
         }
 
@@ -90,8 +116,8 @@ function Write-OffboardingSummary {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAua3PkSc0iWjF1
-# oDOHnRCBvJaA6SJ4Qqvso1bhALNofaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDEaWqpB65/8JnZ
+# +LE73SiuZ4vrbBu2mLsYi7q507a6jaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -224,34 +250,34 @@ function Write-OffboardingSummary {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDJPtERkHI9
-# QhJtl3QvRP/626wUXXSSe5pv1vCLT9vdUTANBgkqhkiG9w0BAQEFAASCAgAIwZu3
-# LgVewKqrs5muRU6GixwdEaL8ya3wczYVGdytkpiv797nnYL15crv5yyb709kpClV
-# GhjEPfRhKYSpO06W48uc+BIWC9xkcuyL+xYD03XoLtPtNr18TNA2zTM7KWa2YeB8
-# wlDq67M/cc5SgX5IKy2fgpypVC162vhdaD587L4f0Ojb2HQpe1UQDvPBEj82HT3U
-# osD0c/bey23vt6WDmGWIfi8SplGfGH/zVKGTmBjc4yjnKnRmM2zak2nMJ2tKjTwN
-# wDZBZFyQgwbhUNoOrdDjpMB0LvaIgJftm2Xi6ZptVzYLukVIaqsPiFjoZbNJwZ77
-# HlW4qHpYQItSCWMAV7fc66FYzvDVVY4EhE1qF8IB+uMjQ4HhY5mtm9C3E9txkjav
-# sjUD8CPXirtfrwK8mAkQidBO52FAhE8AVFssb8sx8kHYRsabdfKLb24MOw2daz0x
-# iOgfzc0SY0KlL4lUSxWEyzbgGC8eQ8XlVcoMaYaHp/UjvQAEncpB5zQSpMmz0Ibb
-# qEAjp1hY15RtpHmDY8JAgn9EopnNXDqUD+Kq7qFbNpE0YoNfOOiMA0DYVevRrGli
-# gscuv8o3muiCyLCJPeoTBy1eJ4x+5vV61jNL7GDJzRDhURGI2fUvsGnh5/WXZKBx
-# ZSmhFmXD94A4hsK8lXwcA/jocl+VW1113wHXhaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCgcEWYuaL2
+# K+BRWpLMXHxu7LsaLt7lviWgtraPJMWhizANBgkqhkiG9w0BAQEFAASCAgBQaolR
+# OvnzzuHWxe+ESsIIJKcVa2GHTsKBAqb7qg3zhr+vm7gNH3BH/FsEBqY0Ca9gAkd+
+# SlELCIdGZrGMjnKT3vUcda0YH+Ii/VctbyNq9Wc287uRUnRHdfNDrN1SsdwQUJRF
+# 9qs4pvmSIQfWa8QiElDdEq9SCsw102HI6r4s8nMZXmqx/OhlqryNQCo5+tf/srVR
+# S+DZmi3SWDIMdTVf9F+1WELqe8PZTrG1X7Swuy23d26NySGyiSTLk8XEwJvi+lfj
+# UeYzmKAnd0/5kKdXK1j7X8lIpRGcSeRKB07Vzhx7PFTTG20RJOxjf+QfPGYk5nTt
+# C0Z1l4yhp+X/DFcxC4Lzsxm0eQz9xCJtmRN3UyCPRiTjWnN2P69b27VPZqmCdwgI
+# 6FKZhr8j96ujPfwyNaipqbJW8LZoUbG8lMorQ/1TIFHB8XZqZXitAQIWa6yFBLGJ
+# EG4OXdcTyXKC2us59YV4VmK9fnTtSSggSg/8/5E6pOiQEDHapjCFmotS+Vuqr9gf
+# frUz/cBgWY9oloaPwDxGZ3zTp8D5XijuGMZAVrGXlw5Gn3QTJix4cVrXC1aCOqv1
+# clQHmO9S294OnlBgV5arKm+isc2RhUsx+6Mtj50RqT2yTuvZPGcYcS+R2P74gL73
+# 0IGj9dT/wteAQSmTXLCMjoIBjmND6wwmH/cwEaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjIyMTlaMC8GCSqGSIb3DQEJBDEiBCC5RugYTqBno0X0mDgj
-# 2hkZz8QVPPLco5Oz70uNMFCjHjANBgkqhkiG9w0BAQEFAASCAgBCUn1wLGD0Cx0e
-# 291swweiK+lCAOs53xLmZJq8wUV460oytSyaGc4J4lVdBAz/qnoGyityQQg4NjWE
-# 2n8dUTornHGMCxHuxqQOtyWP0bv1cfTkTidPlGZ74L0ue/VvTkTq1ZcUUYsZe31L
-# I70fPNgj443RxV8ifUAH4J9YwN7vmpPdCm4+cSEgLfSMT5M7OvBrXMq1axwO5RZ/
-# puQ3IrmkOfS17i+9P2rDk14LhLmcLpVNBmGVEawjj2T1to0iF86RbWF+vlJcn8VG
-# AybGgzUTxpUmURwL8un93I6yYcWzlE0cZzYji/ZU1SmxvNbzDP5UcvlRhG7s/OcF
-# y7euxeXOeyoBUwydouaC9GnMykkJJt4+g3Z6v5S3P/i2nDYFr7eZ8qFNvdaziuQd
-# B+AraVfnTxc7cPWgffbJ24Iy7C93JYHl4m8c9d7ORQL8QFEXNJZKMckKKMG+2b1J
-# Ven6b56EVNzeHT2mHfvbHnVFNEGx9/pKT0bmUU1PT59KHC91ri96OY9iOtUjq/iW
-# YKXfQNemShhErZotDFH36ehTsf1QRC52t6lNarjK2Aq422TuVpRXySX0jsjwkNwM
-# Dtft07IT+MDD88I+qIXW56AuY7VxBtC4LQNIdJ/1bQRd8f8J0Swt30ArnYi5b6GO
-# UkMYTgi34Uja2DZZfyF+uDn0+ZY+Ww==
+# BTEPFw0yNjAyMjEwMDA2MDNaMC8GCSqGSIb3DQEJBDEiBCCqbgGvLvx250Ea3w4X
+# i/DOm8uhHec53Gm0/Ef5oegjDzANBgkqhkiG9w0BAQEFAASCAgB1QGu523ZxY/jw
+# B5ll54vfP5KSUYd7LpaocUGmnBOAlbkD6IShuJYXZ2CfzlL8Tzq/CCnZCCq7DpTE
+# d22zFwteaiviQLQ3pNNsw7+NTMyC9GAzHWckR6FmVHc2rDmOI73t9ONh1YKrrfCv
+# dI68g4+zTrBwD2loQI9Q/zP+/+jOPllO4bPLLfcfNcAEsY6FsoSvB3J5gnMecMc5
+# OsLY56Xg4jOGh+gXrM+Rq5mvF9dHxLDVTkMnQ2ceTtAvHhP0T7663Acqb8bRAil5
+# RLsfE8PA7qvoZs5K/GEtPKJgHmT1ucdd3cq4b4bDL6c4RMR86ACDSryeawRkpo4n
+# DKYKhE1IFp4+nLGioCqjfgPpr9/CANq/tccIC6VqLq4cu6mSVNUIhFBlG6lU1IxL
+# 0mwzZzcr4kXTZEZVkScWACSQPvppch3H0PKE/Sc/5xImYA+XLVtkZzYY0yUpzqPz
+# RSV21ToolhydmhFH2vnfzwXkCUqEd1Dn6ufIAmReR7ak6WrNMUB9lepCUJFAXH8X
+# /sJKteGlbInUig8XKao1a1U1xn+v2GQvVqE3/BtM5iisy619xuisbCrTXg7TuClY
+# VzvTQ2zK7QSkrMtEtGzsw3MqKQbuhMT4tz/9nBzDlz80aIaNBAHZ+nmjvqin14dl
+# dNPIp8pvhq0w5cXxGL7nLd59ADay3A==
 # SIG # End signature block
