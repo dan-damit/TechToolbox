@@ -166,8 +166,16 @@ function Disable-User {
 
                 if ($grantCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Grant manager mailbox access")) {
                     try {
-                        Write-Log -Level Info -Message ("EXO: granting manager mailbox access for '{0}'..." -f $user.UserPrincipalName)
-                        $results.ManagerAccess = Grant-ManagerMailboxAccess -Identity $user.UserPrincipalName -ErrorAction Stop
+                        if ($user.ManagerUpn) {
+                            Write-Log -Level Info -Message ("EXO: granting manager mailbox access for '{0}' to '{1}'..." -f $user.UserPrincipalName, $user.ManagerUpn)
+                            $results.ManagerAccess = Grant-ManagerMailboxAccess `
+                                -Identity $user.UserPrincipalName `
+                                -ManagerUPN $user.ManagerUpn `
+                                -ErrorAction Stop
+                        }
+                        else {
+                            Write-Log -Level Warn -Message ("EXO: skipping manager mailbox access — no manager assigned for '{0}'." -f $user.UserPrincipalName)
+                        }
                     }
                     catch {
                         Write-Log -Level Warn -Message ("EXO: grant manager access failed for '{0}': {1}" -f $user.UserPrincipalName, $_.Exception.Message)
@@ -214,8 +222,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA0GQNglvHtyRkI
-# 5vXG6I7AbT0vAgDjqYTF80IuBKrhOaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBLBxBQDtDHL3C2
+# Lbp/8FHm6lUqcrYfRLcrdcIbMKj0fqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -348,34 +356,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCVARhHtC3D
-# Ignowcy+L+HQcPXclQuxu1YxAQlYWFe0HjANBgkqhkiG9w0BAQEFAASCAgAW7qXk
-# kRHDSzwEIxNNAfvWw/VnFYBaBkE5Xaf2qoYzG+2gfaa5vAmDVzbS8ypbWYByYZZ3
-# kj7IozJycUh8ma11+mCHitLy65rzo9yxtymctnODP6iVI4OZKEpo8uDVMvSjFN6I
-# llqnmbcMaZlJvG2l4hJo8eySwpYKOUIcBJfkuvYvIyq+ZQC4pt2Dis2T8pTmnZng
-# 8Xag3wYRhai+LcZCq2Vfwg7xuzRxsmwCD/Zk5ejYWxszjG4B9rViXFJRAlTrfYaT
-# kObnPTNNQm4hjRWcK87lbuw7g7AmnUXtFRAfpthxyID03sfnLft5FkMgYWSYmF7R
-# Fh1xgpotn9tCXapsU8VOT72mdceXln5qYzjm1DP59YC4TZZPtMlmEARXh81DmQpq
-# utKeFEfJomr/K1LM/Sbm9fpI1q+jo2YjhkxWJ9IsrRflt/CN1Xraksd6jHkSnLb+
-# wOTL8OICSl6lHdWIKi+5ErBGW8Axc0WhbIK1CA4C0n1q2jKT/DZl79DoHG5Fry0S
-# 2CanL7JWv0zPpy/h5AcCwrtcu009RISdwLYgLuX5XdHWb6/xvzmTfMKpTDQqp5zE
-# 9NIJyEOVJPua37qPd0E8fs5hnDxUBXpP/s6Yq++stRguO8GKYS7OOzjIjaX2Sc0f
-# UlJFszUZsuDeB+4JlyLCyMNGhvVDY0dyiw3ewqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAKLIiOyUUn
+# 4Lmp6aDFrHMLjUUZJCgj4sCI4EPONZMMhzANBgkqhkiG9w0BAQEFAASCAgA726Fs
+# 8JHPxlRqfUstkjVb9xFe97V6BWysZ82UTAD16L9Ph3tpVYc4asI34651xfe0lCZg
+# 5UMOzHzFj90mWlE3REve6M/3mx5zPTcUgt4ga4fdoFdgMgao4FKwZPMe9gff4YBY
+# /cyLSe2auX7zi/YZBlQZ+ztpWzyiqB9OwCcpwLEbcjlhNsurYyDRF16qsDCCfPUV
+# 2wyh6cXzQ4+e0FWSfzRQsFPydFNNVdw9NfuH/K3WeU9/lZrf1g3R6osrM3aGU7lM
+# upIRm0BrPm5ydrP2aX4LuFrl6ZGcgK7gEdWWy1JCz9LAA0NXcSJoJHliEytZFNo9
+# X0DoDiGbQTQBWGNAuC0Qv9X8b61srA+va68c4Vd6pkOTbO9VBr7bRvulAH7l73K5
+# L7GF9iRjISvgRSaiNkWUkNgl52klhI/ALdmZtjHe4zbsWDMslw+ndcpMF8MtwUPI
+# v4cw+uLMtVqmdSwZd0SuOAhhFlvc9YDziGSaUX5QCrJl3PNTesJ4bQibnVZr2y0P
+# n/ivrU3ka0HEk8EvgWoiOSxY8tGqy9vt/uGPMLIwRQ12YGCDJbi+m41iYOp+CcCr
+# uLPOgqVoKwCkhTp1LnptInVxWfx7oPWyJrwFc4rQz6EY+GPIuneYrnJbez7Td2xi
+# f3VioZP/T+y49K2g2ic27Ae0Zjgmd1PZJ6txhKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjAyMjUxNDZaMC8GCSqGSIb3DQEJBDEiBCB7iryW0i3X3dWi72FD
-# HAa5g7YZXrm/2XJIdBVo5VFLujANBgkqhkiG9w0BAQEFAASCAgBNs+KmFeDXfJQJ
-# MhmOEtsS3y1PUXmSRvxjIeC5lGWMuyMaegtSDDHuen9DwezyEI5GsY2dpJSc0pdW
-# +b318ePw7I6hfDxO3187/zOa78Ry1d0G8T3PuYd7ts3rSmMRQ570TctfXdrYDaNt
-# lJVvwJBc2IPmAY+s0nOu9zFDNQ+19JpOlsjAfqNYLyj972SGKFsgIwd3Vhp4KlgG
-# pXn9ULjjDLEpd3H9OMQdeV6MW0wpqUZQRYd9Caf92E8xbrTY1w+EJODAIJK4ivPt
-# 5I9smg3wOtm9NXOFL5LuTXJLGh/2EKJJeN7GrYUza1PvuAvVe6UAhF43Hp1EghJd
-# d1cnGBBHMAweJR//2GHvMvpEZ4zjtiLVG+T3+2D4ceIongfopmQ6ciuPVgoIhYpE
-# CMBQTK4AamJpFXhDCGYpmQRenf1LVwv0j6yFn0BGLqQiItZQ+Gd7osuLT2M03g1r
-# SRrv/28PDG6yCQYOsrKYvbIOYatUsQTX0lB5+YCP52QTMo12X8tDA4yQszoSnqk5
-# QAIiKhxLDbMuLIYM/r6QWgCxlNwNfJxE+uqD6sKOhPpqoyw22y5jYSxb93KmQVuw
-# Ur2v3T9judnBdevebz1B5c560yOEAOv/PenVShduHrdYfLlAEgiZDICE39V9tueH
-# 2faHKurdUWODwRmMxBSVEeHPc9Mv5A==
+# BTEPFw0yNjAyMjEwMDAyMzJaMC8GCSqGSIb3DQEJBDEiBCCW4nShB7psO75N0hIa
+# QpqEfLRhXO4FIU7w5+A9SsxOpzANBgkqhkiG9w0BAQEFAASCAgBdSQKg4Raetaxa
+# aez+IbYW4uFO4NnfJWY3lRo0b2AXiDEtIqwuRI5WkKJz2Vr2BsP2U0CHkWKgcYkI
+# zxSbTuzB/KEHiAUo8n4ZbropI9rir7OyR362ZhT/zRfcgTtthFv9B5qpbXt19Rxu
+# Q87MArTjETjDiXBzYaEQ0w2AEccal5GW7VEzCVdwnCHPZ3NwqHkLovSnbSVkV6Iy
+# 6Z1mzRbB0uG8y90xzuZvgrFTG+HTGsZ7qN08VCClpAYmde9RmGUjSI4H74K7nZG8
+# Jm/esqRVNol926hzXsEHec4+XsM5CovLBHRgB/RQedxQ8jroEDZYji0hMJ7mQKLN
+# MBCZkW1W4eLfyjwQ1jViWcxRtC06WxVzBhGVWPrpUu7gj5y8nblPUiNPVwxmIRUZ
+# unoH7ZwISYL2VIMXjyNrivMeW2EilWOZTKFjUYfroLQJihhxPxrxWqqHx3quk5ob
+# af0eUhSBEFmDBnwSd4tVJvJkS5maw8GKUZCjc3oy3flh9lNeneDDZ4lw0QvCccOK
+# jpouxN6H7hWQd1Jq1eLw8NWwg5Cw9GyX10KoUaTajwO5K27Gunh/MZ74rxcLZMeF
+# 68AzdIlsdsvSUDM4FPqNxLWGAFPsiobhwIlgc3HjJjMAam11dfC+24fPvBy92/OT
+# jSDTGPsKXFi3WE80Ra7nX86oEn46ZA==
 # SIG # End signature block
