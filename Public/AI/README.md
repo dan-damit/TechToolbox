@@ -15,7 +15,7 @@ All analysis is performed **entirely on the local machine**.
 
 ## **Available Commands**
 
-### ### `Invoke-CodeAssistant`
+### `Invoke-CodeAssistant`
 Core analysis engine.  
 Takes raw code text and a filename, streams analysis to the console, and generates a Markdown report in:
 
@@ -27,7 +27,7 @@ Used internally by all other AI commands.
 
 ---
 
-### ### `Invoke-CodeAssistantFolder`
+### `Invoke-CodeAssistantFolder`
 Analyzes **every `.ps1` file** in a folder (recursively).
 
 **Usage:**
