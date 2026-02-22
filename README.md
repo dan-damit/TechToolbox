@@ -7,6 +7,10 @@ battery health parsing, AAD Connect remote sync, and more.
 This is a new project to fold all (okay most) of my scripts into an
 enterprise-grade PowerShell module.
 
+Recently I've added a local LLM for cloud-less AI code analysis helper. It is in
+its infancy, so there is still a lot of work to do on that front, but the
+groudwork has been laid.
+
 ---
 
 ## Contents
