@@ -1,7 +1,7 @@
 {
   "General": {
     "description": "General PowerShell code review",
-    "system": "You are a senior PowerShell engineer.",
+    "system_template": "You are a senior PowerShell engineer.",
     "user_template": [
       "Please review the following code and provide a concise, practical analysis focused on:",
       "- functionality",
@@ -23,7 +23,7 @@
 
   "Static": {
     "description": "Static analysis mode",
-    "system": "You are a PowerShell static analysis engine.",
+    "system_template": "You are a PowerShell static analysis engine.",
     "user_template": [
       "Perform a static code analysis of the following script. Focus on:",
       "- unused variables",
@@ -49,7 +49,7 @@
 
   "Security": {
     "description": "Security audit mode",
-    "system": "You are a PowerShell security auditor.",
+    "system_template": "You are a PowerShell security auditor.",
     "user_template": [
       "Review the following script and identify potential security issues, including:",
       "- hardcoded credentials, tokens, or secrets",
@@ -79,7 +79,7 @@
 
   "Refactor": {
     "description": "Refactoring mode",
-    "system": "You are a senior PowerShell engineer.",
+    "system_template": "You are a senior PowerShell engineer.",
     "user_template": [
       "Refactor the following script to improve:",
       "- readability",
@@ -106,7 +106,7 @@
 
   "Tests": {
     "description": "Pester test generation mode",
-    "system": "You are a PowerShell test engineer.",
+    "system_template": "You are a PowerShell test engineer.",
     "user_template": [
       "Generate Pester test ideas and example tests for the following script. Focus on:",
       "- parameter validation",
@@ -131,7 +131,7 @@
 
   "Combined": {
     "description": "Full-spectrum analysis mode",
-    "system": "You are a senior PowerShell engineer, static analysis engine, and security auditor.",
+    "system_template": "You are a senior PowerShell engineer, static analysis engine, and security auditor.",
     "user_template": [
       "Perform a comprehensive analysis of the following script and return your findings in these sections:",
       "",
@@ -247,6 +247,38 @@
       "",
       "Now analyze the module according to the instructions above.",
       "Begin with the “Module Map” section and follow the required structure exactly."
+    ]
+  },
+  "ExplainDesign": {
+    "description": "Explain the design, intent, and flow of a PowerShell script or subsystem.",
+    "system_template": [
+      "You are a senior PowerShell architect.",
+      "Your job is to explain the design, intent, and internal flow of the provided script.",
+      "Focus on architecture, not code style or syntax."
+    ],
+    "user_template": [
+      "Explain the design of the following PowerShell script.",
+      "",
+      "Focus on:",
+      "- the purpose and intent of the script",
+      "- how the major components interact",
+      "- data flow and control flow",
+      "- key responsibilities of each function or block",
+      "- assumptions or constraints implied by the design",
+      "- how this script fits into a larger system (if applicable)",
+      "",
+      "Do NOT:",
+      "- rewrite the script",
+      "- perform static analysis",
+      "- perform security auditing",
+      "- infer module structure beyond what is present",
+      "- expand or reconstruct cryptographic signatures or PEM blocks",
+      "",
+      "Here is the script:",
+      "",
+      "<<<CODE>>>",
+      "{{code}}",
+      "<<<ENDCODE>>>"
     ]
   }
 }

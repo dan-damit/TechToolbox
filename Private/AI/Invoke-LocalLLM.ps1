@@ -1,51 +1,32 @@
 function Invoke-LocalLLM {
-    <#
-    .SYNOPSIS
-        Sends a prompt to a local LLM HTTP API and returns the full text
-        response.
-
-    .DESCRIPTION
-        This function posts a JSON payload containing a model name and prompt to
-        a local HTTP endpoint (Ollama-style /api/generate), reads the streaming
-        JSONL response, and concatenates the `response` tokens into a single
-        string.
-
-        It uses HttpClient with ResponseHeadersRead to support streaming, parses
-        each non-empty line as JSON, and safely skips malformed lines.
-
-    .PARAMETER Prompt
-        The text prompt to send to the local LLM.
-
-    .PARAMETER Model
-        The model name to use on the local LLM endpoint. Defaults to
-        'qwen2.5-coder:14b'.
-
-    .OUTPUTS
-        System.String The concatenated response text from the local LLM.
-
-    .NOTES
-        Requires a local HTTP endpoint compatible with: POST /api/generate {
-        "model": "<model>", "prompt": "<prompt>" }
-    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$Prompt,
 
-        [string]$Model = 'qwen2.5-coder:14b'
+        [string]$Model = 'qwen2.5-coder:32b'
     )
 
-    # Base URL and request URI kept in variables for reuse and clarity
+    # ---------------------------------------------------------------------
+    # MODEL-BASED STREAMING RULES
+    # ---------------------------------------------------------------------
+    # Coder models stream well; Qwen3 models do not.
+    $Stream =
+    if ($Model -match 'coder') { $true }
+    else { $false }
+
+    # ---------------------------------------------------------------------
+    # Build request
+    # ---------------------------------------------------------------------
     $baseUrl = 'http://localhost:11434/api'
-    $requestUri = "$baseUrl/generate"
+    $requestUri = [System.Uri]"$baseUrl/generate"
 
-    # Build JSON body
     $body = @{
-        model = $Model
+        model  = $Model
         prompt = $Prompt
-    } | ConvertTo-Json
+        stream = $Stream
+    } | ConvertTo-Json -Depth 5
 
-    # Prepare HTTP objects
     $handler = $null
     $client = $null
     $request = $null
@@ -53,88 +34,117 @@ function Invoke-LocalLLM {
     $stream = $null
     $reader = $null
 
-    # Accumulate full text from streaming tokens
     $fullText = ''
 
     try {
-        Write-Log -Level Warn -Message ("`nInvoking local LLM at '{0}' with model '{1}'..." -f $requestUri, $Model)
-        # HttpClient handler and client
+        Write-Log -Level Warn -Message ("Invoking local LLM at '{0}' with model '{1}' (stream={2})..." -f $requestUri, $Model, $Stream)
+
         $handler = [System.Net.Http.HttpClientHandler]::new()
         $client = [System.Net.Http.HttpClient]::new($handler)
 
-        # Request message
         $request = [System.Net.Http.HttpRequestMessage]::new()
         $request.Method = [System.Net.Http.HttpMethod]::Post
-        $request.RequestUri = $requestUri
+        $request.RequestUri = [System.Uri]$requestUri
         $request.Content = [System.Net.Http.StringContent]::new(
             $body,
             [System.Text.Encoding]::UTF8,
             'application/json'
         )
 
-        # Send request with streaming semantics
-        $response = $client.SendAsync(
-            $request,
-            [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead
-        ).Result
-
-        if (-not $response.IsSuccessStatusCode) {
-            throw "Local LLM endpoint returned HTTP $($response.StatusCode) ($($response.ReasonPhrase))."
+        # -----------------------------------------------------------------
+        # Send request
+        # -----------------------------------------------------------------
+        if ($Stream) {
+            $response = $client.SendAsync(
+                $request,
+                [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead
+            ).Result
+        }
+        else {
+            $response = $client.SendAsync($request).Result
         }
 
-        # Get response stream and reader
+        # -----------------------------------------------------------------
+        # Validate response object
+        # -----------------------------------------------------------------
+        if ($null -eq $response -or $response.GetType().FullName -ne 'System.Net.Http.HttpResponseMessage') {
+            throw "Local LLM returned an unexpected response type: $($response.GetType().FullName)"
+        }
+
+        if (-not $response.IsSuccessStatusCode) {
+            $bodyText = $response.Content.ReadAsStringAsync().Result
+            throw "HTTP $($response.StatusCode) ($($response.ReasonPhrase)): $bodyText"
+        }
+
+        # -----------------------------------------------------------------
+        # NON-STREAMING MODE
+        # -----------------------------------------------------------------
+        if (-not $Stream) {
+            $json = $response.Content.ReadAsStringAsync().Result
+
+            try {
+                $obj = $json | ConvertFrom-Json
+                if ($obj.response) {
+                    return $obj.response
+                }
+                elseif ($obj.message) {
+                    return $obj.message
+                }
+                else {
+                    return $json
+                }
+            }
+            catch {
+                return $json
+            }
+        }
+
+        # -----------------------------------------------------------------
+        # STREAMING MODE (JSONL)
+        # -----------------------------------------------------------------
         $stream = $response.Content.ReadAsStreamAsync().Result
         $reader = [System.IO.StreamReader]::new($stream)
 
-        # Read line-by-line (JSONL)
         while (-not $reader.EndOfStream) {
             $line = $reader.ReadLine()
 
-            if ([string]::IsNullOrWhiteSpace($line)) {
-                continue
-            }
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
             try {
                 $obj = $line | ConvertFrom-Json
             }
             catch {
-                # Malformed JSON line; log and continue
                 Write-Log -Level Warn -Message ("Malformed JSON from LLM stream: {0}" -f $line)
                 continue
             }
 
-            if ($null -ne $obj -and $obj.PSObject.Properties.Name -contains 'response' -and $obj.response) {
-                # Append token to full text
+            if ($obj.response) {
                 $fullText += $obj.response
             }
         }
     }
     catch {
-        # Surface a clear error and rethrow for callers if needed
         Write-Log -Level Error -Message ("Error invoking local LLM: {0}" -f $_.Exception.Message)
         throw
     }
     finally {
-        # Dispose IDisposable resources safely
-        if ($null -ne $reader) { $reader.Dispose() }
-        if ($null -ne $stream) { $stream.Dispose() }
-        if ($null -ne $response) { $response.Dispose() }
-        if ($null -ne $request) { $request.Dispose() }
-        if ($null -ne $client) { $client.Dispose() }
-        if ($null -ne $handler) { $handler.Dispose() }
+        if ($reader) { $reader.Dispose() }
+        if ($stream) { $stream.Dispose() }
+        if ($response) { $response.Dispose() }
+        if ($request) { $request.Dispose() }
+        if ($client) { $client.Dispose() }
+        if ($handler) { $handler.Dispose() }
     }
 
-    # Optional: log a blank line or summary if you like
     Write-Log -Level OK -Message ("Local LLM call completed for model '{0}'." -f $Model)
-
     return $fullText
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBLLe8zaBVAjTNS
-# OOui7Ll3ScLNhElAWUMscZEIK3LVmaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAEmi0+C5j8FxPu
+# iJT9eoLhTHA0XJGxBLGL6xcGERsAS6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -267,34 +277,34 @@ function Invoke-LocalLLM {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCASNpFuik85
-# 6l+IPQwxTFeQ4YvJ375ARtGInzOiyRWxIzANBgkqhkiG9w0BAQEFAASCAgBQZTVb
-# RsZrrPYtZv2Gvbst4LJm2UekqqBcFOm3VZR0qd36gdtBTc0dTGSVtyr6tQx5HV0z
-# Eli05+GVRu2cb/0xFx0hFJ7httpuPzaW3gHnyFLaVgNiytn7e/0zC42lX5lqfwAd
-# Y+wi9ijREm1vre1v5oTtUG+kEAU/EkCddoSs8ZCYvskNdmJEDARvtF0qNs/EuqnA
-# 2gOEk41BYf5xBBIs9oPimmLP04W5Ov79VonfmbxI3d1bKrfN9sd15FzMZ27IMMxI
-# fAhyJcDT3iGgRsle7JB/ziMZR0VosTYaSp3n+D0ls+nb83/gUQx8cyGLDTopKlNZ
-# 1JcFQzDHzYRk2NNNh9sIDkjcoK6YWx3glkwKnsEpX9pzEqfz1tryRNmkePEvsFUE
-# pKdlQvcO03VR1vzxytWmQmMS94lz+2Eoecikqrw58FSXmlbrJhQDywV/RFbMzqoQ
-# 5i2g/6cWIB9apFh/DjhzXRzUE0l3Tw23JV1+ZRLTkJGqiWYbh6olBzRRVSdB5/OT
-# v/UvVfi5ToC8qvsUju0A9FXvCmZYejvUER4ppC9h+FSHdct3XSQbnkA7eY7DJ+kc
-# BsPsnUpmijPoGOOcyrAry7jiq1UR/Haaen1qtGgIUfbsI1W0OCZS1j9Q5/vz2SaI
-# nSp4FKi3Tt9RgcVoweMKHZt2/ufDHqk4mUHcFqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBMl6f4roZ5
+# GYuDN7y3QUk2UBAAesESJysK0pfGDCLZHDANBgkqhkiG9w0BAQEFAASCAgAgUxf3
+# WyS9cWt9fqexT7xIX/FdPC9ml+sQU/rvKb5j2DcnWeX8j5/N4dO//TlXEnJ0Qpju
+# G/Hh5SO96tOsw38kNiPHi2zyPEAJ5Btb3/p15dkehoCXOVZ1tYF8YIucMy3QBeT4
+# yS+EgJ250M+cK1UW9O5Hz0fAQGtkKH3A6mNsU/pIcwxQ27aANcn9bznTclHCIHI0
+# Qb5evuCjGFA80cSiaEnOX0c/4UWu80BkyWoFG1YfARulop4i8JvJmLAC3CZ6q1Kk
+# 4HLWoEQgu77coLkwGqtxH5L72nR4Vu18X8eTRs4RzY31R82m+vCDdnpq4cM+JZog
+# jZI1rBbTbMjPExRKJ4CIXTWmmJcXODE4H6sJ7WAUoqVPSMf75LMCY02mjWsRB/nb
+# qIOkFoqu+2HgQhk904hqvTaTh99cnEgYScqre21A2hXOY3DMUDbCOV51+NqUfGA9
+# o+LP6GXGABkhkv+mIyacYbsR3k5ApiWLQejPe+PO5sSbxEQaab/JAXAJYbaWxkgY
+# K3uH2XtaB9U8Oc7vel7HhLeoY5xK4aRz/p8Aq/vdxEqskVWYU+3o630S7CVSwPbb
+# jf0yHlQdgJZtpsFdLESWcTNVMV0oLpo4OhiughAIYbkNvXqb3OLOHBRWYQzDUCG8
+# U75wAK/RxDyKvAJvTf0mFqwI5a2c34hp41vRzKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjAwMTE3MThaMC8GCSqGSIb3DQEJBDEiBCBDrRtwrr0jqhu5mWaN
-# sgm52GjL+G8Z3QsHYQkj0qVEsTANBgkqhkiG9w0BAQEFAASCAgB5TUPPaMlG2Kps
-# 6730s5S+LfgsmiGStDGoXee+On8X+uvJ9fInJmZMO1qROX4I1bv6AwMObt6VlDFa
-# sIp4dn8vub+sJXQSmWSLeSh/6Fta3Y6VuK5QDIhByA6yPlNU8ZWhL9GKl2zT9D1s
-# xZJZNYNYNI0rNxXHFrzS8W3Hlv3Gx1pWjbMKbL6VAS+Ahvn2Nj3GWqW/XM/AuWWa
-# nwDYDeXzjPPr84HiB9lV806JiNrhb/yuqn4dN2wKd7vkX7qG4Ot7WN3NdC9fI2Qw
-# Xnh8MNjOBQJYXyYL63lc70Jcs1KnvjsXL0APXIgz6NZJZSn9P5Lcwygru2JhTwCk
-# zgQajsTTDWvNuadMtT71fxsxF1GMkbByrB4rO1pAINT6RQkq2zpt+duMbml7l7A4
-# TSb72RfXI9Vevmljh5wdkQZqAPSg9KrTML47/j0huSAKYT0kg7WO9lI9P8ZNtFhx
-# xYm7FNfIicDSc9XUshWLubJMMbGRY7vhMdI/pdPaNTio0nOa2S02MazEfwxXI0lH
-# Jao28p1iR5UpvW7cEGi8aeQ5bgNZPutSjRd1bzAamQ5GCutrNBtIqFXaE0TdvYY7
-# PZGyIVjCSXhNfr4h/zlULW9Unl5banV2WvLfvkCYNvtmWJ2GYT3KYnk1fjiOP0oJ
-# ObZHqgvxRnjGpplwXliE6SEHrc5iiA==
+# BTEPFw0yNjAyMjMwNDMzMDlaMC8GCSqGSIb3DQEJBDEiBCCCT9u+NHWoeE6DeIMi
+# Tk55nOkospyD8y9Acfq/eB7GwTANBgkqhkiG9w0BAQEFAASCAgCmTJNNy1H2zJpo
+# 8HYg9IY5ufAtfFgp5wPXS4PEOMlwxzvSUBiyedp+cdnG8ml+PuZyFLc8dqLY/liO
+# VIubcCer27XspoWeKo1m5DNUZdWbc32yrsOajyNvtOZiPfItL0hbtss4YTuUe5BH
+# m6rbZCmKTA6o/SOAWhPgCdE/yzGbrt/p9b4Sfy1Y86b/f19E4dTsWt8ZODgSjWRL
+# HE4VxFRWqod/wCsOb8OQj+9JfuQOnYR5LUJHlPMjyJkaePHXRBowV1tuJbGFXXoi
+# iCuCoSWsHpVlugxJN+cVGzYgVBrG9gXXuD96NoFO+ZQhQblPzLNGitn260XhTha1
+# j+7wkjIttkVV1X2tIGIaSJL3Wn0C8czhCZLnMmMrcSiCBibq168rBgxVxMWM94U8
+# cYY1zw3ufKy3nxCA3zmbEN3uzzUTgYcsoqm6aboizTjXlQxTtvoCARdM0qEnneqE
+# 3SMzjD5//gMuJzeb54oMUNFjaW+oI4ljf0Yf1h0oq8hMtjuVnh1HBb6GI0RSbGqK
+# jwDJHEmRQRdBIHLqJ9JRuWNDIadN2ufizSe572iGREz+a+wxrMBjqt2+D/+zaLuH
+# FSxXUBDEIA06ZkAlWc6Q2V2iY8jUnShGIQ1NLl00ssq9h6/1Dtd3rDQXrEyXzmJq
+# s7iYkuuxjHplEAR7XQI0XZ2DDrLyOw==
 # SIG # End signature block
