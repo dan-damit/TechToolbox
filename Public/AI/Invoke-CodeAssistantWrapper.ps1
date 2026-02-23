@@ -1,10 +1,27 @@
 function Invoke-CodeAssistantWrapper {
+    <#
+    .SYNOPSIS
+        Wrapper for Invoke-CodeAssistant that handles file input and module review mode.
+    .PARAMETER Path
+        The path to the file or module to analyze.
+    .PARAMETER Mode
+        The analysis mode. Valid options: General, Static, Security, Refactor,
+        Tests, Combined, ModuleReview, ExplainDesign.
+    .OUTPUTS
+        A markdown file containing the analysis report, saved to
+        C:\TechToolbox\CodeAnalysis.
+    .NOTES
+        - For 'ModuleReview' mode, provide the path to the module directory.
+          The wrapper will read and concatenate all .ps1 files in the module
+          before passing to Invoke-CodeAssistant.
+        - For other modes, provide the path to a single .ps1 file.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$Path,
 
-        [ValidateSet('General', 'Static', 'Security', 'Refactor', 'Tests', 'Combined', 'ModuleReview')]
+        [ValidateSet('General', 'Static', 'Security', 'Refactor', 'Tests', 'Combined', 'ModuleReview', 'ExplainDesign')]
         [string]$Mode = 'General'
     )
 
@@ -16,7 +33,6 @@ function Invoke-CodeAssistantWrapper {
 
     # MODULE REVIEW MODE: wrapper stays dumb
     if ($Mode -eq 'ModuleReview') {
-        # Pass ANY content; Invoke-CodeAssistant will rebuild the module from disk.
         Invoke-CodeAssistant -Code "<MODULE REVIEW PLACEHOLDER>" -FileName "ModuleReview" -Mode $Mode
         return
     }
@@ -35,8 +51,8 @@ function Invoke-CodeAssistantWrapper {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAX0I27G90fwRo3
-# bJbxXp45RnUU5iYsNX3NsNRFqweN3qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAoKvkFS2qZXCzF
+# LZklckLzPJ9ZoAZzCxe8taDXQjkk2KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -169,34 +185,34 @@ function Invoke-CodeAssistantWrapper {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCpo04DFCh/
-# CLeHOxOTe0109loH1Wrw7mr7L34Bm7CqYDANBgkqhkiG9w0BAQEFAASCAgBRdy9v
-# nkQGpn5DUNo2rtr9LoJDW1fG7MYeIZ5u1EK/tDzaA/tsSrNk5Gz7Hj1UJkLurnvi
-# qtPxs76tv8PupU7eKoc3pcTzkw88D7L4nJDLKkn00emlIqIEcs31cH9f7lHFpX6o
-# C4ax3yM85yLOh0UaXtpWtjq2ehIC45MUQAjl40LKgwG9dcIvR7fq56tQb+csw6Bh
-# r2UpFQkRTEmtUsptPcZ+Tea++fOcb+BijPxY6zshCXk946ia1hCjBKhZlOQo+GQt
-# Y/LCkZHQ4OT/6RQCU91fmYojxeRrX6KAFfzdfJf95uD1rbZtwa82/4lpfKBAf9R9
-# akHhKoJO5p7Dz7RpSsWj9ombOOGsLk2TTM+/iXy8SOlS+zBqft0xb9Y9RE5PqiF9
-# XP8jpUIfhF/15J4Bc47yVVsf0kn80q+hX6U2Sbs/ySBg+ZF5SgWCoZI92lFlhdFd
-# j9ZEU2rJ89roqsfMdiuELihxngUWKNOYB2WsyaxyfdER9UoNrhf/UMKKx6Dz4SOC
-# ljXdE+wFIeiKFeUOkUyrfgCbcb0qYxVDKV0y3jK/kE0smc3+rZy2/+H7GrYLC8YH
-# roq4EaJX5qF/klqNeF3rL/ncUWanMb1CEra1To+xvDQsiGsqB2rnORqNeR5fk/fZ
-# dtR9WuTl+8NJCCLiEGEoAUDcO6gLW095ANzBIaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAtSQPZ8C63
+# ToISrYv1SVgIpNAaws+h1FWZcs22Gpd/ADANBgkqhkiG9w0BAQEFAASCAgBgd/hm
+# qbHAVWHMyMvlrrPryhDhonngvU8yneCAtHOn9FpVXXgYa90yewOGPAp+F8f14Gtk
+# 4wpFei+MkiGM2gpxW6Ee9oHaEvSg256d4vS9NA8oE1Gj3WZo0zHG+uiibyUmObsj
+# 6aY7T+eefPIhd6ou/SuoIoX+PaDxsdxCpm/qzj/Pgq1asfig7tondvs5CUqxZhQf
+# 7HS1/fpRL2OthlM57Ch7ig/WRhEfPNEJMzdiAgLa06M9wGmu542MacN0Bz1DicIl
+# FS20abrjyjCl4otGTRhmbC8ZEPVVpG+BJd+cRYQQDc8PwFNiThOdYHyovz6v9ClQ
+# r34Ju9e4FMhcnwollmV0ZMYJ17NF4ujpGphF0g3D4Nl5YOcDOU2ihvdRfV1NXPTX
+# qL1cS7O1ktkg2HFEstjySjE36BJh7fHQRjVyRFUURuLCoGyPPhSGZnyioL9G4+qw
+# FBqn+FrfEqoYL6W0hnyx3qPt+60B6JNUBbEow+aHSiFtiZa6dMWvFYv98vA7Otyr
+# zbzEiHVhZnuoEeCBTH0IG8aFZS0L41P2dX0DkRYt0FaU7d3AmkTjyfQ3IdhGiLm8
+# BadUgzAtjjK7ZRxgZSRfVYB2754nb+SN3yWSqIbDBbp+3d5DkrTep687nzC+Omv7
+# Bbhzod8z37XIN1LNqq+bH51uKbKEQQfAbRSpbqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjIwMTEzMDRaMC8GCSqGSIb3DQEJBDEiBCATZMtukhn412VgHYkp
-# GXEO1dEPIz9rcGUW4TF00Y3wPTANBgkqhkiG9w0BAQEFAASCAgB3nwL6OlaXYUSu
-# wBGhuiOPevQbKwRfU9x0D5wrv6D3h3ZBX2I2fzRKc2vLbxtkubfC75aueW2RaEso
-# 2BX4b2B8tA7W/pcDxHsxbaE1Mq8vA088b2KztzhsyWedzKa68pZ/hDpD+O7KEoom
-# UdVXuGrp9ersKjKRcrMQSvmeRGTD+bvi1oemEAU6sOHPr4mJTOpJXopffwqcgep8
-# vJgBwW9gwV5eVb4zwSZ04tkc9nXgncboNCEzj2gxT1uCqkwySUyODy9Y5n3mmmyx
-# KIbevq96nhpkYKboX4wSFRSVHj6mrS5p3l3gco1BP3othl5gBGvqxioD7yGKBElQ
-# 4E7VxN+jxFZ/TJo2uIAmknuM91kapFe9F4Tw+DRZVZd1IufBG/Lwj8vaM1zFFH9a
-# dgFdjpPsAVdWdbRz4KKv7TsHTUdC8WmP7ViUY06r/9gpMrzwdD7Oe70CBAwi6V64
-# MboRoj305ivS1G6IkeFNFJ1YwdJxPgH9RpMP82inO4+1/Y8CznYQvf7N9vGr/q1I
-# BgC8ZpYAQorteDEQwFDjQN/X1M7Kge7+Tv16NOiZjqsZMiOXt6x4HNlNPJTlXQkt
-# 8Cb8wSf2sCKTrLJeUKPp1BhljxF5S9/IgvLZedxB4p/uR+OUWkfRcLf3Dn1LnnZh
-# Sy+PTyWjf7a+zihYkcE5bM3D+HOIIA==
+# BTEPFw0yNjAyMjMwNDAwMDJaMC8GCSqGSIb3DQEJBDEiBCD0LU2+c7aHDHodEqme
+# sgge4AJruUSn7aSJUpK/97Br6jANBgkqhkiG9w0BAQEFAASCAgAVXL9T0Y6Phw75
+# lm/T+jCOwtgS9Jlv9ePdoIyHDsSzwduAelJLtbuKRqgPu+2eRMCcuhIBGjffEnrc
+# 2Nkx1RTxRJU99VSHsBFaFTxw7Wtsjq4kORDZG1wmVNrqhNxvh7alNxOgND/5q1YW
+# MMvu9Ap5XsHYm5Maq9h910K4mlNWHwXiaj2EHzLy8jjckIWO5pFbRDeeotgCdYXJ
+# XP+UaqimVKj51oC97GGQ7OR3mktcKKJ/9CY/Hwkq78j2/P97H5QsrYqWPNpg3332
+# +sKkfso/fPYu0pWAllmfbOTDDV9+uJtP2qkD3ZuCN3tqobYXrXBIA27uknSDDuBJ
+# ish9CtIx2ld2k+LL1XVZD0WrNK9k+ZGVeW8MylUIEw6HCgAFlWZt+ydtDsFOsEVO
+# UnTwMswFDZ/mdehy8CgLNElTJ98LFAasHL9P2RIz6RB6XTfwLBjk1MKP9O+2dEYS
+# S4Ie0dbXv84b+Jvi13X5ajahSQ8FRu7bwdKiOVde+Wd74CkWttqch6fnrVqyoovu
+# 5DciHtwM1Rtq8UAZiVJTpnZ8gNyfvZB6mCIXFAk07ELkzR2Z/IcGZo9n7sqFMUvF
+# +i31MeCusSmGQxLv2zfd+gfSH0xJsKV1Cr6QARFEbgxoiokDtMY8WFEGtiLwHPRk
+# K1Oj6FgUlw2c8ZOSDdLvm/NaE99EPg==
 # SIG # End signature block

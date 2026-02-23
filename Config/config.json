@@ -287,7 +287,16 @@
       "upnPattern": "flast"
     },
     "ai": {
-      "model": "qwen2.5-coder:14b",
+      "models": {
+        "code": "qwen2.5-coder:32b",
+        "review": "qwen3:30b-instruct"
+      },
+      "routing": {
+        "ModuleReview": "review",
+        "StaticAnalysis": "code",
+        "Refactor": "code",
+        "ExplainDesign": "review"
+      },
       "promptPackPath": "C:\\TechToolbox\\AI\\prompts.json"
     },
     "graph": {

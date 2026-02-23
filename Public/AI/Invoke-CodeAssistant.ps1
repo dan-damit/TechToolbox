@@ -1,32 +1,25 @@
 function Invoke-CodeAssistant {
     <#
     .SYNOPSIS
-        Analyzes PowerShell code using a local LLM and generates a Markdown
-        report.
-
-    .DESCRIPTION
-        This function:
-        - Accepts raw PowerShell code OR structured module input (ModuleReview
-          mode).
-        - Removes signature blocks and PEM blocks.
-        - Builds a mode-specific analysis prompt (General, Static, Security,
-          Refactor, Tests, Combined, ModuleReview).
-        - Sends the prompt to a local LLM via Invoke-LocalLLM.
-        - Saves a timestamped Markdown report to C:\TechToolbox\CodeAnalysis.
-
+        Analyzes PowerShell code using a local LLM, with support for different
+        analysis modes and automatic model routing.
     .PARAMETER Code
-        Raw code OR structured module text (ModuleReview mode).
-
+        The PowerShell code to analyze. For 'ModuleReview' mode, provide the
+        full text of all module files concatenated together.
     .PARAMETER FileName
-        Logical name for the analysis output.
-
+        The name of the file being analyzed (used for report naming).
     .PARAMETER Mode
-        Analysis mode.
-
+        The analysis mode, which determines the prompt and model used. Valid
+        options: General, Static, Security, Refactor, Tests, Combined,
+        ModuleReview.
     .PARAMETER Encoding
-        Output encoding for the Markdown file.
+        The encoding for the output report file. Default is UTF8.
+    .OUTPUTS
+        A markdown file containing the analysis report, saved to
+        C:\TechToolbox\CodeAnalysis.
+    .NOTES
+        - Requires TechToolboxRuntime to be initialized.
     #>
-
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -45,9 +38,27 @@ function Invoke-CodeAssistant {
     )
 
     Initialize-TechToolboxRuntime
-    $model = $script:cfg.settings.ai.model
-    $promptPackPath = $script:cfg.settings.ai.promptPackPath
 
+    # ---------------------------------------------------------------------
+    # MODEL ROUTING (NEW)
+    # ---------------------------------------------------------------------
+    $routingTable = $script:cfg.settings.ai.routing
+    $modelMap = $script:cfg.settings.ai.models
+
+    # Determine model role from routing table (fallback = code)
+    $modelRole = $routingTable.$Mode
+    if (-not $modelRole) { $modelRole = 'code' }
+
+    # Resolve actual model name
+    $model = $modelMap.$modelRole
+    if (-not $model) {
+        throw "AI routing error: Model role '$modelRole' not found in config.json"
+    }
+
+    Write-Log -Level Info -Message "`nAI Routing: Mode '$Mode' → Role '$modelRole' → Model '$model'"
+
+    # Prompt pack path
+    $promptPackPath = $script:cfg.settings.ai.promptPackPath
     if (-not (Test-Path $promptPackPath)) {
         throw "Prompt pack not found at $promptPackPath"
     }
@@ -71,12 +82,7 @@ function Invoke-CodeAssistant {
         # ---------------------------------------------------------------------
         if ($Mode -eq 'ModuleReview') {
 
-            # The wrapper passes raw concatenated code, but we ignore it.
-            # Instead, we reconstruct the module from disk using the module root.
             $moduleRoot = (Get-Module TechToolbox -ListAvailable).ModuleBase
-            # We read all .ps1 and .psm1 files under that root, excluding
-            # Dependencies and CodeAnalysis folders, and concatenate them with
-            # markers.
 
             $allModuleFiles = Get-ChildItem -Path $moduleRoot -Recurse -File |
             Where-Object {
@@ -106,7 +112,6 @@ $content
             $cleanCode = $moduleText -join "`n"
         }
         else {
-            # Normal single-file mode
             $cleanCode = Remove-SignatureBlocks -InputCode $Code
         }
 
@@ -121,9 +126,9 @@ $content
         $prompt = $template.Replace("{{code}}", $cleanCode)
 
         # ---------------------------------------------------------------------
-        # Call local LLM
+        # Call local LLM (NOW USING ROUTED MODEL)
         # ---------------------------------------------------------------------
-        $result = Invoke-LocalLLM -Prompt $prompt
+        $result = Invoke-LocalLLM -Model $model -Prompt $prompt
 
         # ---------------------------------------------------------------------
         # Output file
@@ -136,7 +141,6 @@ $content
         $sanitizedModel = Format-FileName -Name $model
         $path = Join-Path $folder "Analysis-$sanitizedModel-$baseName-$Mode-$timestamp.md"
 
-        # Markdown output (no source code dump)
         $md = @"
 # Code Analysis Report
 Generated: $(Get-Date)
@@ -163,8 +167,8 @@ This report summarizes analysis of the provided script or module. The full sourc
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDUnejemML46LRO
-# Hgcwte5UyaqIy/zaDLux2R/hoJNhY6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAWpqfIQnU8IT8d
+# Wq793Fqur2VVSJQs4ZAKbiQQXOAI36CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -297,34 +301,34 @@ This report summarizes analysis of the provided script or module. The full sourc
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCamyUF8kGI
-# bSyQcc7X4qyQUSxDuKryPeshgKj2mj8tIjANBgkqhkiG9w0BAQEFAASCAgAt/bZQ
-# mXEJG6Rmy93Ocey4x5CH/Tjt+4+Ho4YF6vFj6uyH2qjQ4Yyx7k2wsKOGlkpyS2+T
-# Pk9NXfihw0d8s5S8/FLWMvqMYo+Bfhc0IZ34vihuAM2Y7Ayj2E8zFlYPxajdpFU+
-# WFOo9gg6Y8D0xPuVukKGw83mSY8ZgvlR0x/apRGXJnm+HPbGvRbU2IkzEnPMS9fU
-# ddPuegrI2X2T9CEITiPgR5LFoifI8n9gzNWmk/BOiMxiVUzwp6Y1F1j08ffSrzAX
-# DUUSj2mB+Lua/A9roIQ2yta7TIF+GE2Sna754SuwYNU7z/mLGtjHX59cJPwyzaJX
-# mwfxTpC3TWW3D2jC1cJ7bl6g/x1zeYs0K6gEhFvRz+4sTDax1EDVy2yhYg+5w6S9
-# 5bUaeXAIDD1e3b6S+bNBXPzqutJqDMQfK9dh4HT4JHyxn1Sw3imDiWHvLhxfrGHa
-# ze8nL3ytuhw5YkHf3Eegq57xalADLRPKzqhETNelkuC69rurdXEInsLSEd27Zu9W
-# R7ibv9PNbzMGNzHwt2VvqdkAnSgFJSVJKwoxJAynbqP1f8pMcPE6ln8Vh9IZWEqJ
-# B+QFZ7TQ2oO8V+vZkjfkoyVUi2an8EHfZWeppWYkT9+7wfSsh/W6uMsmjKGJkIeI
-# ZOp+CXCdR5F/irMUaZ6oCsVC56BDHeYnM6/LD6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAI83UR/5EQ
+# E02UPaDzFXX2LXNB9xR7WzTiguEmyjUDDTANBgkqhkiG9w0BAQEFAASCAgAZgEvl
+# piC1tXP+bgxlbL9hNAv4ACCKgJQgAT9pJO8FYCA+RP1PfNnDMEvp0YgPSyzY7lJV
+# jv1aD476lK1s9fwmLoI/tckJ52EdvvN+6qVd4V+cME41yuQTGDY15cmwb1OwmlZD
+# QufqhqBG0FlOKWPV+yL7Gz0fOhi6zB+jBY+wzLUwMkKcnOD+uN3xeX+v+6iTt25v
+# QZSSjA96uIrh8ux42vl8R4aLGfoXECYzO6Mt10wZ/qQQDIeDtaimkQqIACXeK33w
+# weaV5CjSSJSp1k2AYs/s+/Nzpzles7r3l4uNH4leCXpaEhBY62F/tCVCB51SFiEB
+# Rq9BPlXQBUIib9MGQylxyjqKdIhZlhq9Nv+B4ncPmYVAwtW+CVDWO7XuFH+HnW/U
+# ZmTiaA7TcYBZ55/E7dIcg8xq6fKKaCOYe2ru9fjtKcFwnhUKgfrNB3Mvw/8TmDii
+# oD0VkeSxarsZaeQR9WvcEfBzyeDCzCnp2OPkZ7rTXktg/XEzoi2RUfzOioWJvw4w
+# 5PFMGjB7qCp54/un24nZ2irA3pSwraF8VXm7cbltkPUhtzpNHRkpvyWQKEsP0Bx6
+# remuAMD2IfxixHfMAGPssNW2NfrvRWtyw2DMx3v5uQLCR/Sz1R7uuMDp6XvAao0b
+# 3yzi5XieCOS2juzHcWtqujYJIvOMyh3oQD6aE6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjIwMTIyNThaMC8GCSqGSIb3DQEJBDEiBCB7xUqY9WWzXY3ZRQ5K
-# 1DJFv4xDDAG6UbfaUe/+mkwaUzANBgkqhkiG9w0BAQEFAASCAgAqxznA7M5ANh2h
-# q/gT9I58N2xF+AbrMCbk7oJhkBY7p7SS1iu8U3wsLOqonsLnrtFFlJXfeE6vXFXS
-# pKIjwwUtTttNDYOQB3BocMZY76G0GAnvCuc7yeYERGYW09/IrZgPp0Pr/rT9hCVm
-# GryqaZWSrGihPJBQWZugGtQ7/zP1HlyPmpPSsiljMyYNFMhVLeqfA2zXI7rv/HEw
-# gvHG78sDdbyVU/9EcT6C7rSscLI04ljTtK7HZy3s7c/1D8VfWfuxKHdmjYRBewvB
-# 8ilFwo9JzqUCusjxGjSne2vMC/eI1mE0cXmmouUhCQeP8HsIp0fxt3yewf+zDn7U
-# jc+v+dyRL2+rpb7yHa1qE2t0thW3QbfOdLdSgiuYnsTV0M/9ot/JvmupzLzIqHy7
-# FrSdJjbYR/6pjRa7sY+UkaF2FcaF0cPfvIMSp+cCCiSMKEtmq4dcQyi/y71sbqoB
-# tHFdoGMYODL4iAFyk16HkZZlDTin9tCFih3Vyx52ZLWCIIZvCjjiLwZfQ28+xeC2
-# AjCbpaZr/O6Qrs2aihObQcZxFabPP0TSynmd3uilmQ3ZybFlYtM1mockprtagYeE
-# /m/G9JmfOnMWNyG2ZsOE8L2hJgbCuw7ARoK3voy4vzZbBOdTQvcZz+Zl1CLPMoOx
-# RZ0ZIlMUN1P46tO11w4VcLboVrKm1A==
+# BTEPFw0yNjAyMjMwNDA4MDRaMC8GCSqGSIb3DQEJBDEiBCA52BK1XdJphrcm2sQd
+# EkCF761agIuu3YmXvv0Z8njcMTANBgkqhkiG9w0BAQEFAASCAgBP8Lb3XsBxSO2f
+# vmY6M72AnPioRB37ThkXtOzHy0H4f4smJ0GC6EO9m+bNPPcQsRbHzzSsKUJcptKR
+# wXDUsotfrIiZRyaXGi91Up86fssYEeXbURxV9Xq+9IAcVhfQuezdash6fE/pmPsL
+# Pa/x9i/mATLgxpLk8tsELqBHeV6RtQ9CmrQX3xJkR370cQu7u90JWqHDSDNe6mzz
+# 9D4z6kFCorh+c8QLbZhr6/KeIYnqAZhYIOYOrU0YOc6AG082ZMtMDL/zxMrV6EOW
+# Jm04gul6YGvEg1koBwgdBA1Jx81B/xuphA1N9noZuR+uZe203v7Z+JKW1wbOK6rE
+# voJPiNlV4oKtTo6Tk7/G1zHHPlFc0MwCK78KUVFHTiG4uYZHYn+h3kmhloygay+r
+# /DHv8HVP2m25CMOzdqRIV4UWvQX9fNUHDo2mV5blNR1eWnlYpTsDXZQ/MPXFUVFC
+# AD5uzaCW5TTGGFRRT4yGYLarW5i4TgZBjazM4fbCP0LZpjJ9qLog79R5MAdKcNO8
+# KiGSw1CcZTHpOzpgI0RQgtqaId2ZxtDbUmrjW//xoUsFRxUZVZCjr3ez+CiYQ7uC
+# sfUbObQcTS0c1pJku6g8ZIY9ln7tdNmah5z8riwpbMLktW41aYILnK3IduHecZXa
+# TzE20zvfSAnwj3lePnZI474yayROjg==
 # SIG # End signature block
