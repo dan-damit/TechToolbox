@@ -1,0 +1,6 @@
+{
+  "StatusMessageTemplate_Healthy": "{Condition}. {Context}.",
+  "StatusMessageTemplate_Warning": "{Condition}. {Context}.",
+  "StatusMessageTemplate_Critical": "{Condition}. {Context}.",
+  "StatusMessageTemplate_Unsupported": "{Condition}. {Context}."
+}
