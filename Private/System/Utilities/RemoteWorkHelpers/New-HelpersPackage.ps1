@@ -1,9 +1,21 @@
 function New-HelpersPackage {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [string[]]$HelperFiles
+        [Parameter()]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [string[]] $HelperFiles = @()
     )
+
+    # If no helpers, return a "no package" object consistently
+    if (-not $HelperFiles -or $HelperFiles.Count -eq 0) {
+        return [pscustomobject]@{
+            ZipPath     = $null
+            ZipHash     = $null
+            HelperCount = 0
+        }
+    }
+
     # Make a temp staging folder and zip path
     $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_Helpers_{0}" -f ([guid]::NewGuid()))
     New-Item -ItemType Directory -Path $tmpRoot -Force | Out-Null
@@ -17,12 +29,14 @@ function New-HelpersPackage {
 
         $zipPath = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_Helpers_{0}.zip" -f ([guid]::NewGuid()))
         if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
+
         Compress-Archive -Path (Join-Path $tmpRoot '*') -DestinationPath $zipPath -Force
         $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
 
         [pscustomobject]@{
-            ZipPath = $zipPath
-            ZipHash = $zipHash
+            ZipPath     = $zipPath
+            ZipHash     = $zipHash
+            HelperCount = $HelperFiles.Count
         }
     }
     finally {
@@ -35,8 +49,8 @@ function New-HelpersPackage {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB4rhdFH2naExj9
-# 2xt5uOHIDx9VewUTrFkLM4WJNv2A6aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCtakEUbIoVcrVD
+# Uv9mGk2OxGBPi6X3uGzgF/MOj/PDAaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -169,34 +183,34 @@ function New-HelpersPackage {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDkspCW4LKr
-# VaSK05yMZCf/H7iC/Z0djOZItAfTufeywDANBgkqhkiG9w0BAQEFAASCAgAD6BNV
-# J6XNkgxcMbuPs0qB5Y6u9DzxEdNHsjkse0kI6vnn6WbWR2LwYh2ZRM5LuO6fdTUs
-# h5GSuoamDz861hTX47Z6LwrVAcFbbbCj+rqAQ2O568SypYpTQy+vr64SI2gYAEUt
-# Jothq09rEoSoXi5FXPDHQSltwXyl4+TewPAC3TT7tj5tgxCGG7/TCMgnaxfXl5/8
-# ioLg1mHRSeFNetNp4izyhW/TogQmRAyjqdGyYdJVydojXW0hKOnhwIwNijFvUOok
-# f9/ylvjbSO6/YESNARFL0f0Ba29AxbxKAyZ4SqiR5b2eARqfgKCXpCJF64tlPQ6h
-# C2DQ+IBUAla6V2tfWSmWR+1/PiKLIFsKv//lJQ6i5N/rHpYg2/Yx4eD6GCDyYFrG
-# lcWmj1NsVj7hvkVhtAznjMFjMIfJ/eVJ6qbh5BcWNO7SFldJyDk+zFb2j4pj6zhs
-# O6gF5ITjEffbQh8qXtyMRMv5QLwJMAAeL//e6uvI6D8BIF1SSA3rmQnmopCOaTjb
-# eMmuqNsSEWZBqMEcmPNugnm8OAkvisLTr/5zchek9lBY9SCzRM3wuu0n385HgXo4
-# QpJiELhMOy2MQ7wdA/h5co1/45o+RKCADDBcAW0h8VtAewGwO+xMcQt7FuBjpuc+
-# 6uztuRIftjdrlTF1+pVg85Pr2ie59xj/z7sifqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBuEizVTBQc
+# U0n8ScxfGsjGwL3eF60tZ/Jr4xy3R4KXFjANBgkqhkiG9w0BAQEFAASCAgDRglo6
+# dChIULaSCKWN2K4ILvD4wf+pjh3sGYd5ntxW1G2MY9HorSw3leNAMqSdiqvGc6Sf
+# v0X4jsS+6NNiqS8abtQvIhN9rS0MnB2BZqglyGGsD4Gzc8W+mcMyJ/Xb1ioOrbfh
+# roPiyIChYou8i8OXMf7dna0sF5wAH4B7Uw7IXtHEKvZDsMWnhOQBUfd/teCZka/N
+# B1zYQZw4xVh6+CP9zMufEjmzKPCWpyjEr1kycx0DFtlLYoHr7D5LOsid1IB4cjQD
+# J5aiUGa9+xW1t2qpe8r3JAisM3HU8VoaN+REjdqOnahHtJBV9t/ettE5VpgsHbX1
+# IOPwssCQGw5SXPIHGGNZxyVHU13L7BYcHPddrlhTPKf2cWdUqFjPgmqgoihHvPPQ
+# oA2tl3jFZaWenxJOadk1PgLud+uM8UwX8JqlLAi4LsT5xWKVTpQMvIyNF2xxuAG9
+# 1jG1r/+NlvlJzUJryelSw/MbdPc6Ik24zh+nbV0ZT+FvryoYvNGugfMR4V/Bl4WM
+# zQfMFoD2/XHtzjeIqtsR90dQaWJuoNNvrfrmevwSgPKWLCRJKUNSfP5/J5cw0wL4
+# BWqvrDIS10cZXQ/SpQmQPJ8hEKLyVdbD1eAz7kstBnzY46MFQ87ut5u8qXaf+iX2
+# +uuj7lPBR77X3JJq/vUKuMvfKsWZpjqF5uje5KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTExNTExMDRaMC8GCSqGSIb3DQEJBDEiBCA1TpKUgkM4sSxPwifu
-# cKXrieOLn0T+dxcyfR7N8XMVoDANBgkqhkiG9w0BAQEFAASCAgAarj5WX4MxKizs
-# wf0Zyoy8aR6SfosZHj1F10iVaAGaHHzmiNtyhM6qCY0Pwq2RuSOqpHpC9+ju6fFJ
-# iuawp8o+vPvlnWqI3rx34vMDVx3+T2BVz8YP5mOtWF6C7rL/YS+CafemFVefTbPM
-# 6eMXm5ve2QEnEs5hCvKioyoOyfmJ/M4X8Lmh/ylWilJYmBi16yVEWdym9XSFcNHs
-# U7IdeVfivjk1yW0HHbHLL4VsyImYYlMblKHS2Tg4JASgIJxMyZp9OJPKyv77E9t0
-# XOK+Xyhnh+bBI+N++X2N6QYHmikGd3cQ0XLny8brCqoo/tixwdhPosy+RM7q9gyg
-# N8ZAmEcOiOQwPbCl1o/5COs2fotILRfo5Ao5ljQCbb8n4ft1W48ceKuyAqvu+ANV
-# 6R6scX6jKi7rFJP96w/ax0Tudud4auA5RxEMNcUDyEXyA5mLr5kvZliMVgs4WoUl
-# Ai8DcDv3r36TkEnDUWV8uSaeKHgSKqb7SXtowXJGgWdcFsrSXaC2dP/Z8u0Tg7zR
-# XsXyE+XaXfLsQOIoNhId5G1xJFO8TxsogmXLTSEliwkaF0mKBRC+uY3iS7KHkovu
-# iizTqHWyOdIz+njtTciiAu2wH5Ppw31a/k7/FNu2I+3a0UD3/Bf2etfz0ph5bx08
-# z2yCJI6tp7hmA2f32t4oRe/a3H3boA==
+# BTEPFw0yNjAzMDIxNjU1MDRaMC8GCSqGSIb3DQEJBDEiBCBn2U+YT4WxSwBynNnn
+# 35llorg0WgAJltM1Z6myh0D1DDANBgkqhkiG9w0BAQEFAASCAgCTG+Iw0/Xy4b+x
+# Ft8K1Q0Xq81+pzGgcFulVNxGtOEEBauGdGMgwBbuz2Kf/7V2Q1veeGzZBDnEF9vZ
+# HWBkxA/g7eNrYCoLm5+qRPP294agvuSdSgaybRDs3LKw5mLwwSDp+p8OnngZ19Ke
+# YCAPp5+eZaM2D6/TjWsn5rW5bIiRnBoa8SPrxaQga7h+IvQPcugC5iBryjjf8mq/
+# 1iUTo4fodAUrZZXhAEbxELPO5SD5BZA51UNVogofBR9nas4JxBDRXgkA3jzdPxzh
+# 2Z/nCM0Sd5I2hcO57Y7Ew3rU1izyhVKCkNcyOvf8OxCTV96Mzc6KiifETQJj5gXQ
+# kb1zEwa1HjaFnqSj3o3ehPv6tRUizd7BNORRCt+CSlZ+0Q1jRGEzCiGbKifqs+Wu
+# 2Q9V+/fF2xMNOVggrXz49Qnim5YsK6kWtrp9zeQS6SjsvS5FNPwx/+Gg6B6t2+H0
+# 65tbKDrtFuBPpoE8ydfPwtdmMeDyZpU8Jrs9uP+68jGUmLslXOIdaZkqpS0LoH2c
+# rSnXMytaAxUrGBsJPbS2WVuRxa6C6n9/FDhb6ttIiBoITcT+qj7PjFTG2UJIY0Nv
+# 1Z0NitopuMh6jiOnsCGABfeIvX0s/fOpWbGjS61Ig+8wVzU1aO3zIYYoQMQN8zJN
+# UGB6emUYORgCpGzkLyAyUqXYjH1BtA==
 # SIG # End signature block

@@ -27,9 +27,6 @@ function Get-RemoteInstalledSoftware {
     .PARAMETER ThrottleLimit
     The maximum number of concurrent remote sessions. Range: 1-128. Default: 32.
 
-    .PARAMETER PreferPS7
-    If specified, prefers PowerShell 7+ for remote connections if available.
-
     .OUTPUTS
     System.Management.Automation.PSCustomObject Returns custom objects
     containing software inventory data.
@@ -49,9 +46,7 @@ function Get-RemoteInstalledSoftware {
         [switch]$Consolidated,
 
         [ValidateRange(1, 128)]
-        [int]$ThrottleLimit = 32,
-
-        [switch]$PreferPS7
+        [int]$ThrottleLimit = 32
     )
 
     begin {
@@ -60,10 +55,10 @@ function Get-RemoteInstalledSoftware {
         # Config defaults
         $defaults = $script:cfg.settings.remoteSoftwareInventory
         if ($defaults) {
-            if (-not $PSBoundParameters.ContainsKey('IncludeAppx') -and $defaults.IncludeAppx) { $IncludeAppx = $true }
-            if (-not $PSBoundParameters.ContainsKey('Consolidated') -and $defaults.Consolidated) { $Consolidated = $true }
-            if (-not $PSBoundParameters.ContainsKey('ThrottleLimit') -and $defaults.ThrottleLimit) { $ThrottleLimit = [int]$defaults.ThrottleLimit }
-            if (-not $PSBoundParameters.ContainsKey('OutDir') -and $defaults.OutDir) { $OutDir = [string]$defaults.OutDir }
+            if (-not $PSBoundParameters.ContainsKey('includeAppx') -and $defaults.includeAppx) { $IncludeAppx = $true }
+            if (-not $PSBoundParameters.ContainsKey('consolidated') -and $defaults.consolidated) { $Consolidated = $true }
+            if (-not $PSBoundParameters.ContainsKey('throttleLimit') -and $defaults.throttleLimit) { $ThrottleLimit = [int]$defaults.throttleLimit }
+            if (-not $PSBoundParameters.ContainsKey('outDir') -and $defaults.outDir) { $OutDir = [string]$defaults.outDir }
         }
 
         if (-not $OutDir) { $OutDir = (Get-Location).Path }
@@ -84,7 +79,7 @@ function Get-RemoteInstalledSoftware {
         foreach ($cn in $ComputerName) {
             $session = $null
             try {
-                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -PreferPS7:$PreferPS7
+                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential
 
                 $result = Invoke-RemoteWorker `
                     -Session $session `
@@ -140,8 +135,8 @@ function Get-RemoteInstalledSoftware {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDBBJ22CHFAhXta
-# 2BEwawLEevtoOpC3EVPEaBHgavMoyqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCHc/YyH40VDsng
+# 0KGYOnott4NcUf/uJPILLy7Qhys05aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -274,34 +269,34 @@ function Get-RemoteInstalledSoftware {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAEPTCX/mW6
-# +fo4/GqxWL/sM8GMfMqnI55xCL0OBwlxVTANBgkqhkiG9w0BAQEFAASCAgCyXuEE
-# EJFCEVjC+Dzl2978VmRCMuAqbjJVDjgmcCQlTOIPS1dwY6crFrExeZMSKgsdXeIg
-# CphR9+bvsoSnkk/A83x7uOefW3vzjBkuaI/0AZLk4ZmS7rsGLl2PRf7HjP8g0XeA
-# 3wLjEwLMxbobm5jYTMu0TIpLCcQioBfqSfA114hZey+gmYQkfhCedEamM2kdS34J
-# HMbXpMOTZhIF6tCMSi4ifoduJc8szrWweHwuC6D878Czvg5pLntcqZYUMUhMiZ1m
-# qezZuhp3uyAJ3XLhzNcb1llH8iZlzc+Pq2eWNHBmCfqw0xJD1Kf/+rCS/z7Q2rA/
-# 9OUzTcj6XUXALaHKZ3WanXXmGGy8dauGaY81GbaZEOiXrOCs1DobNPhlYODh7G+8
-# 4rBVPOd2jpDIwnmzctdH2Uh5QJTef6hk8MWBx623Jf3fE/lN1bhrYvjpJYX6X1Ju
-# YX6bL9x7nDdo20GqX5LKt/WaCpMeN5NX8SpQGV+bQyV9k55lueE8F7UeQkupME6a
-# BHyf+MFQWRjLhX8kTUXOZGilI9pcUFBa61va2aag1rBMdzOc9cXDWfQ0Ttoxtp1h
-# YTqzW4Ljtg8MhX0sTxmu3Hl+1n4QBSnfowr7mBEzkFH8Q5Rw8ujqPwentj7bKc6x
-# TjGKqCsLyFEImGq9CQNhRwk5ngkc4w9XpxgpdqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBLN1SvGVQM
+# KAge2PZiHEcl1YYGQ7KnZ/icjjRb5Xs5jzANBgkqhkiG9w0BAQEFAASCAgCJXEUn
+# YoAMVPljx7SdsjXfJ+scb+4eKfjhy5mQaBlzL2AqJ+T6NaxorYUPnCSlFU4wLN6t
+# 7gvGiY77AZGP8ZW61/zB/fWHZEmH8fezPw/rRbbvgurD2jKDHL1hVDDZ80mEij6d
+# ROjLhquBbYi9tW55P10yVlkpAMm9qGG/YXXs4EHh4GEWaN8bUr6Ed5SGbeawNHSj
+# zgH/8VCS65vC8W5A/+h88inO1hFYo5Rb/npJcoAXsSm23BcoVpAaJm2PSwdi+WcA
+# 4jNd1p77Pu0VF4IlErgyp8U3Lb7cgLqriw3zcAw2hsyFtTtWcVyqjxtvclP5+Yq1
+# noCz6C0ypSGEv+saVDBSaQcFZ2bG8x//fFMMMEI7lrmuvBfiCz20KyeqduzBDxOB
+# 6/S+U8/XFMGE2FiIKybcwPRC+Ps+jWPi0vJRj9NqWSxWTovRRxCOvfK4u1UwP919
+# ROUzCMs8jWsDzEMuLpD2A0FBlNZZutOvfhQCfh48xKz6vsfVjOz3ZykIHpgZ9Bse
+# DFFGhwQD5+wbX5jkZU6XmL6O++R7beMmh36acYET+uBjE5451MdX47DCARY1dvHX
+# bwg3Fz1xf7vNh6+9OhCMiyLoCOQApdnJGZUpz4K1Pq1Qqdk6SULsZsjsDOf0ddEO
+# Q+pGysKclb+5bYwXnogul/WdhySmp2H6r8Qo8KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjAxMjlaMC8GCSqGSIb3DQEJBDEiBCAMkbhGj14u6TfiUYUH
-# Fgtn7W2RjiO5r291WVGeFD1UpDANBgkqhkiG9w0BAQEFAASCAgABwLGTeMngUqC7
-# ewGhv3UbOdqZUkRtxyUtTZFE2OI/0VdI7Hj/yxW0d/dXFHbpoagffWJIhBFpMS6i
-# B4z8Id3yos7hMdVgBU1/jyz1d00GpQqW/4pVN7sgVPegXIXSIMvFHqkLXLznU711
-# a0B0o4O0WD+dbn4ysgooEl01BvjM8uyBgDTvGPfZMK8pvQRaZxv/Z8PW3TsBm29L
-# ntCUkh4qULHSGqpAOBtTP9UDv5Q0U8k5h6b8l0rPFP+38IGsv3/cCvue6wgVl80V
-# jkKR0cD4Zl7Yuh92UP0i6ts0nyuyb5dF0lVpMK5q2ajtesp0vsLDw9k8bA3AYUdi
-# sK6Rg50CtGJspwniytzLV2UwmyCaQRUgxqjqw7kiG65yxF/Ad9e6jBwkvU9Ps3sT
-# 0uDSV3/ZUm9w0wXTsOow8D+X2pA2eTQXiucYx6R+ti+koHPU5MkqYQsDPboajB+F
-# lj/pc03PgLhpCQ7/ukCUta7NVMsA69MZO/4G7qU1HrhPZH1NDN80rKco6hRQTUz+
-# UmBWdxxij+E94vwPQjysY26Vpr4HEDzU0DJk315Dtg8F6SKGDl3AqSN5yqqwCUOg
-# sa3F8rssggdY0wPHEFl5Oq2SDXQPOA4GkjDiEfcjRI2t5MQZuC7QdV8aZCrCCoP5
-# tWLGF6hl+z3hJSK0bsVKmBy48/neGA==
+# BTEPFw0yNjAzMDIxNjU2NTBaMC8GCSqGSIb3DQEJBDEiBCBzTdzbUshNOcgs2nGJ
+# FsDuTyOwLxZZThXJ51QdrdjU6jANBgkqhkiG9w0BAQEFAASCAgAmmZO/IKuGuBaM
+# PvaGbJuLforp2arr+f2SmX9HVU1eTp9EB0y1gb+UkhUD3ddF8pIDv9HtrOJjwauJ
+# eJWptpO8U7mCkL0y8KOVMR3GLVuzjR+7LHTKp97ZSzmhnPLblFEeNHx3cbpkoeiA
+# XWe47qolcKPuys/TwEDtF+5DR1IdGQ2VhPzSS/0YZNR5Kdo43Pq+1BaaiSrYZ3hC
+# XXpBAbL72zt4xlGzGWdIIv+cq5uDl2Nwv7tcvPs2eprgyEm1n2rh1/NbswN7f1m5
+# pykwjENdODLoKObJQDDM5OljjIA0VZ4XjHYw7nJ+94OGDtHIqrlzcZ9mcaJECBv3
+# mr7Kk8Mit6KfpwP4EUUFAdXtbaqXTlcGSTHWH1rCuXpUfqKKG2n19yXhXjYyPkDf
+# 4hrs7MGrb9tGI78IjxRdxFENpFI+0W3L8kNb9+rsj56DjEmofcZ9JMDQgkL4VNK3
+# V5cYSYJ1IUmyS5XTKTrCioPIXLrZQFXThZoUp+KjtSLpYMJaEvVVoQjRMa/aOxVe
+# 9AvpxFRNt6wkrfInki+xO8VU8AOBjVyBHTpBG/BIcrVe0jhb7Pfnc779QhTbC9a+
+# w72PHGlEHq8cTh7GA13gsvXFvWLLkDMlCi5QCD3JHQ63MYMlRz5bxElGrw1xs4WQ
+# dN3AlAJyrXLg2PEyhyEp6ak77qh5hQ==
 # SIG # End signature block
