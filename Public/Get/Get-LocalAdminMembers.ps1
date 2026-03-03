@@ -40,8 +40,8 @@ function Get-LocalAdminMembers {
     )
 
     begin {
-        $workerPath = Join-Path $PSScriptRoot '..\Workers\Get-LocalGroupMembers.ps1'
-        $workerPath = (Resolve-Path $workerPath).Path
+        Initialize-TechToolboxRuntime
+        $workerPath = $script:cfg.settings.workerPath
     }
 
     process {
@@ -50,12 +50,12 @@ function Get-LocalAdminMembers {
             $isLocal = $cn -in @($env:COMPUTERNAME, 'localhost', '.')
 
             if ($isLocal) {
-                Write-Verbose "Running worker locally (PS7 host calling WinPS-compatible worker): $cn"
+                Write-Log -Level Info -Message "Running worker locally (PS7 host calling WinPS-compatible worker): $cn"
                 & $workerPath -Group $Group -Recurse:$Recurse -MaxDepth $MaxDepth -IncludeGroups:$IncludeGroups
                 continue
             }
 
-            Write-Verbose "Remoting to $cn using Windows PowerShell 5.1 endpoint (Microsoft.PowerShell)"
+            Write-Log -Level Info -Message "Remoting to $cn using Windows PowerShell 5.1 endpoint (Microsoft.PowerShell)"
 
             $icmParams = @{
                 ComputerName      = $cn
@@ -77,8 +77,8 @@ function Get-LocalAdminMembers {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCueNVR8ngY289q
-# FtwAtqIWQorx7cF/Ux9LArgwIfNXTKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC0GWvIheOCoot7
+# 6hwfJHdsyeMOtbkxhlXQ1wAmmjePFKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -211,34 +211,34 @@ function Get-LocalAdminMembers {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBjVbwe3HQu
-# cgz19bt71n6f+f+zO5qKtWoHB02X/L0QFDANBgkqhkiG9w0BAQEFAASCAgAdsAam
-# DV5y4FsBESDik4jd1Osv4zhQU0uFkGN+1tY5C+vWPibAhUFutEcQn4/3Z8inU8Mg
-# L/i5YIPa76CT1NyC+GHrhd9kG38LxGxN1ynNJwE2vb7sXB7GUwZEF9FdABPUDq39
-# 0jq9vWfP/ki54Fx5Kh4zqu7XfkJbdht7i6pMMj8rDOuYc9Lq8Huicszkb6553j1Z
-# lt3HDnqzHMMPqSf4rp3NobGBHp+ApWJyoKwwT84wTuhkTp9LmJZJjnVEg4RbqEhU
-# kOIsOn+qrcm2Nzs1q8l6UKd1lGjHY883SV4eIacFSnn2vtqjPawGVZRwE/YsSr6I
-# W39IB6vUKh3//h00JVezFWr/yh+oXVIBX3n/h77WGLKHlQIcaYDxLjyiVvKLAWtW
-# 9AO5e9y4qrIadRZ3LuD+w0URWerOUPM5WeDrVTzDBMOp0FivoQQnWS6rEI62YHfW
-# DoXxppt+3mq7zD4xcaRJFiv40ZyIgHbNTsNssUATZUG5GSx5oXFGmy5EnsqIvUap
-# ZDv1bjeGi2UTPtfBztmRmwz/7KNgduP4AzLT3dJFBwa+6NTWSuKUJ0JF6q9KOFn3
-# ycekNuu+mEYi+ZYAp0Qj9chv4K2u3nKNYbgMbfJDi1E1iGT+GQ/1zBXGua9eJrKH
-# 45KAge9JjoO3dmPrvuXoVeJycutFYYN79PTEJaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCtJeq0FNhw
+# /k2pFEpn0WU8GfkYNQa4tqqYm0CCIolLvjANBgkqhkiG9w0BAQEFAASCAgBfjlM6
+# EoH+Nj3byv0pJ5JhJ4/iQj5Sg2mNKMIyD6FT8CVYPs081QQ/oAOKEx5VCexDAtJE
+# Pl1nDySERG+EtQ3yUzU+n9+v+gYEEsaRbyadYm6An0iSSL5WIbk/q6VhnqdV4W28
+# grsQU5FaBA6H2/PxY48EcbzySBQIJHzsFTxuO72VWgymiHMnFIYo70piqENfpC4R
+# rPK95JGlj7yJf6QtCddAUObcWK3CxHtcT4SIbZCF7dDYLd4BQpB35gqYU5iYBqvW
+# rZTrLvfIU2VoW6HECwBhpBFqRFThT5zocQuqy8xuwmMsxFb7jUl4p8Vxj9lI0+39
+# pC3WIz0fTlFn+/gn6KnyhrArkT+IZcRfC0/6cWRe7jsbEyxoNOlTJs6s9hm5nWrn
+# kL7YQKpOSZv9Acp/i9sYOfdSOYF07fQQ7GGKUHlYLdbRimzrOdrmlERY+msHM4F5
+# 1H2Vs0euxT6oUPt5CtsJFBljQCeabjYdBqYRjNxT5F1vni/LnlYOkYJFpi6XMF3g
+# k+6wJiaWS/LK6NI7Ga3uovRygqdM7Ie2MRDSVbPBXNacjuZ4G+qdzLCtAVASTKqA
+# tL69a81bvJpv/WJMBMdXT1Ex95C4hoQPxljOL5jo3z0eCw8Y1Dk9xOicArYbKmSi
+# WwebkwGCy+dgzaYV+TgsxtwK3bmw/HGrAVHu6aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDMxNjUwMDBaMC8GCSqGSIb3DQEJBDEiBCDdB5xwjkEk53hZ30cl
-# xSdAqvw8mCzUpG55ys0qMJ6LiTANBgkqhkiG9w0BAQEFAASCAgDBzP2M3fSWOCV6
-# 2CjaX1PJK0pNJWQOuXurQal6PXpeDRtsw2OuYClxpmeF+GwAHy848q6pkya5UOY4
-# +nJdGhp68N/yjVYOsPlddwG86ufaRfOpmyEGQUYw11KbJY8SLq2BYBTrty5JO1vf
-# AL6aswuT1FRG+nhYrx8yS7zHu+ZZ15ljNRfzh3ccnhxxIAO+jxTS2wIaF5vgrJ58
-# xzenjbuqXkDw4t9TCgWCuVjmi+YPSvBNgGhW5eyrBrlSuN57PQefJNybBh2/4Glj
-# 4fSemSC2TkTNRBCXxAB7TmiVnCwOIczM8WGknl/Pyx5d4dgmCrsqKxRWqDjlXD9k
-# 0bWeClb86CapbolKweywnZ7aQHg51zksmoEg7YEAYzO2ZPRw08wTS50ytwUSCiWY
-# Y6z0bcHl7j8cEjobE91tu1UU0abt3BXTu0TCqYM2eeXaAZw3sKSrcVJPY0Sz7836
-# j+W8dTrL7M05JItsvouTpzVRyphIyoLVlyDwOTMIS/GBBoF7K8hoD02S1VqGsQLD
-# 0Ccjz1sJtvkp460Uzya56oKb611HP4PeDtUNUQTK7UQgdPsuZjN2tfd3p+W4AdcV
-# KSNmJUHywxkmw6Eu7daG5RD88gZGHSo0n2tdBtPgITjA6Nya2yvgyyS8pKoBVEyH
-# caKjD25siBSwz90jY3X9q0Uj18rI9A==
+# BTEPFw0yNjAzMDMxNzA2MTZaMC8GCSqGSIb3DQEJBDEiBCD7tVX4YJg61ykSEC+j
+# GLCvh8WdOo3t2ovoB5iTuBXdOTANBgkqhkiG9w0BAQEFAASCAgATcRFQqK79Rvgu
+# T3PHYLyZ5kDk/ORyfjwJiGxSqLsbT4y0cHRpocF6V2XN7/cqVKjiHft2EbAYYy+p
+# wVmZ03EnKOra7rTEIBqOmZV96TQjUBzApd+6YzRn43srhq6tB8UwXzo5LhK1IVnU
+# I+BD5A5xX1SM7e9/efkeZ9qcIPEWgONnXUBgc+xypi4EJMzRqNzPrIsCgh+Fd6tJ
+# rxSFEhwRSCMx34ZbQdMX2utXUu0K/wDqdvpvYKyRe2D+PLvoYRSZlPAgsf/rD0lT
+# viHHJVLSnA5DKvhKcJdKBxfREhvy+zPDeflJj3i/w3C3EvuwR1Qca8TNezjNVJSs
+# dYVxaXF0rkbII+oyaKVQdrtaIn3CAxNs1Vp09WaNZ/V+7bPHVQ+dFMQv95aO0zQu
+# 0z0owQLFTKCjTI6WqRd2Xy2fHfnnqvpObH+vg+DxYnoSXj9ShuL1MJsT8vaxiW7T
+# WQt4KrJPvtyC+lUHOKrvoaaZNXsUfWEx2KWji8Q9Ix7hhHAzoPHqx4w49K8Tt1L5
+# N5T6NZNRrEKMkkoVgZKFFe5R31XcxVQy1Gsv4zrjTCn1N7v4e5TFS8sqzjZVj7oH
+# MrQXki/lMXAGyzXVvcqPXKYde51Z7iJke1EmtAYBO1MlnEvUyDB/5qnfhC0AlVdT
+# hljmsn7zCGI0QFISC+LZF72e3J4RLQ==
 # SIG # End signature block

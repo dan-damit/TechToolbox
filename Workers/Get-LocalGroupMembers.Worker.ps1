@@ -241,7 +241,7 @@ $enrichBySid = Test-GetLocalAccountsEnrichment -GroupName $Group
 
 # Direct members from local group (authoritative)
 $groupAdsPath = "WinNT://./$Group,group"
-Write-Verbose "Enumerating direct members via ADSI: $groupAdsPath"
+Write-Log -Level Info -Message "Enumerating direct members via ADSI: $groupAdsPath"
 
 $directMemberPaths = Get-AdsiMembersOfWinNTGroup -WinntGroupAdsPath $groupAdsPath
 
@@ -309,7 +309,7 @@ foreach ($path in $directMemberPaths) {
         if ($isLocalGroupPath) {
             if (-not $seenGroupSids.ContainsKey($p.SID)) {
                 $seenGroupSids[$p.SID] = $true
-                Write-Verbose "Expanding local nested group: $($p.Name) [$($p.SID)]"
+                Write-Log -Level Info -Message "Expanding local nested group: $($p.Name) [$($p.SID)]"
 
                 $nestedGroupPath = $p.AdsPath
                 if (-not $nestedGroupPath) { continue }
@@ -330,7 +330,7 @@ foreach ($path in $directMemberPaths) {
         }
         else {
             # Domain group expansion using AccountManagement (recursive)
-            Write-Verbose "Expanding domain nested group via AccountManagement: $($p.Name) [$($p.SID)]"
+            Write-Log -Level Info -Message "Expanding domain nested group via AccountManagement: $($p.Name) [$($p.SID)]"
             foreach ($child in (Test-ExpandDomainGroupMembers -GroupSid $p.SID -Depth 0 -MaxDepth $MaxDepth -SeenGroupSids $seenGroupSids)) {
                 if ($IncludeGroups -or (-not $child.IsGroup)) {
                     Add-Row -Principal $child -IsDirect $false -ParentGroup $p.Name -Depth 1
@@ -347,8 +347,8 @@ Sort-Object @{Expression = 'IsDirect'; Descending = $true }, @{Expression = 'Dep
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBAswgr2fML0Qe5
-# qz1wV0VPqRG6oKaE6o9yGwrOFye5DKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDc9YUT+qFJ3JeO
+# CvVT4MPjBu8DSYwq0blKdMvg3goIjaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -481,34 +481,34 @@ Sort-Object @{Expression = 'IsDirect'; Descending = $true }, @{Expression = 'Dep
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC7RyLtKnJ7
-# uC+J0IMgSCWP/xMRi/ov5eUuqyf6ttphZDANBgkqhkiG9w0BAQEFAASCAgCftH3A
-# WAEFQyvoH3RUjC6xX+hpHMWk8TjH1dyxbvKmuIDoKPs1Zl8SeHR2aBxe/1m7J2af
-# NBHyveTW/lWbdNfryGb/mTGq6cZBX6v2ckp5svGhSZBxg7HANwMQe8n9WKGRtU05
-# djSh64U13zRqEVX/xbA2H4FPS0MDZnuVXgCctBovgnrTbf480HLtb4/GCfmlYaHS
-# V6cBLCs/yReyLtTf4lx5I3R4jblYchIf3oud1hocKaMDP69KEAUxlUiW07gH+a7N
-# jeZzayNayKRMaz1b0PSCnmIpXkOtwmx1i3s/e+qXjkEQDw/N0DLpodiqXHTu/1Fz
-# y+rgn4OiHQUxr4JadeoTQCrAabSQcQBSL8j1aHz3twneT2vr9yxPNvY7/jCo4F24
-# ZWUKV3ezcwqb4ouF5H6vV2k3/c9Sgc2S7pJAxr2+j8LSW/KOZ74ZJVEUk3IHmuad
-# P6b4ZPmTwJ+hrdM8Ov/n55dKMl8Xghgy8MvPaVlqxKd1tpd6Qn5BHPfsmnXWvWMA
-# AjIycQZuebllOGFDnNNXAwzIED3/uCICVbwkQYTwd2YQDxPXdXFBJq1vzlJbjocF
-# HaWrqxBSZzi5Bn5b0KUJs2PUDQA6HWNANzoyRi72PTZgTeuV5t5j2pC6XyT4fRoL
-# USEcrWWO1p0mxKQfzWd+lgbDnPjn5N4CUQ32MaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCr0nxFavbR
+# YdrJmeM27L/GAh9+EYaMhb/T9YvAB4N7ITANBgkqhkiG9w0BAQEFAASCAgA468MS
+# aI/3X2/yGR1sndnjTzHkyxCsSwb0jy5ogQZQyi8CwjTe3CbisWnecks0WFRAdne0
+# IYFuLwPK5ZVXAdPD4vcowa+546BOpPg9mb7oSycRiZA7jVKGblJrztN0akOQlPpu
+# 7C7qPkLlDw3D2gPymqNq3DF106/tsa8spcNRDz6v4o690NJri7TU/n867jW5VN7S
+# fSdGP51PYoZ0seLh6Sr+54LdcvggNnEyDAUqCiWJ1zjY7v72ri9lec3PsF2q4GbF
+# SOtCNfM8aFEOHe0qXIgulljcXdVJOJPBs4/UTxw99MKesCY71y23oNa4ia7wq4pc
+# B6sqmTZgybb0Io8PSegBWfMduidAWCaorLU9qhNuPDXaPaOr2UbTd1rSCNPPATxU
+# swcO8uKTlHg8tFMGPzGugSN2FgTa1Kki6tqpEC99AGQltcfRR+YohRm04mPG+UgZ
+# WTQe23JLlo7QYkGfOZD7peNKtOt4bJAfLUJW1ISOFEMyxinSIFUplz8ziuks0fIN
+# jwY+qNFi2Nd8dHYaI40nIxUTXPWDmj83QHwZcM1VxCmprlGKiN6XN1IYMvOHGI+Q
+# LizPgZNAPcIqHoLpM0/pozyF1x7ICj3cQwLGsdhtwLBz1iSoMVplC2TTjZYV+XfE
+# U4eSg2IIA7BYP2evORxxuLl0Q91Lp1YH0+mNNqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDMxNjUwMDFaMC8GCSqGSIb3DQEJBDEiBCC85THi5wZTZankEK+U
-# 5liZsECz+qEl7CfcewP4Bp7+KDANBgkqhkiG9w0BAQEFAASCAgCjGPWl8kpkE9W7
-# 0YwMu+CvdfykakPyCy5jVGjGm+A6ff04a73HxF84VczR0XQvNpE3L2+uNH6bk+cw
-# BaYHXZwn4LAf4O4dngH5YpfMYIFe/w482fEsUFo1Xbxtg+QQJZvdg0/IvU6DjjcW
-# eb9MH5Nh4ZYf4S9TRArnTXi1PStDtMPsc1PUwQDqy46/zIXsKjjvg6trOGtJD0sd
-# uBxXEELHIeeGyxSEND6483k67LS8kw1z5ANnISkXYvMisfTjEIiqR8NOyNf8Hs0z
-# Dlh6XMU52klu2JifWva4EUBLxfvml4BvZXl/56RfZ4u5Qy6CHNTKE1n3rEXB0NSl
-# ESh7tQNpr1GTXUOh8ux86iTCcj1ZU4PkSgzWtnjDZ/sKM5vr6oTGMrlLURL2mmPe
-# EbrY6vwG/kThcPTOS+Q2LbgpkcynfI5NHILzm1bkQNW3s9lHVFHT5f2QejV5XNnb
-# +xI/haHyYkqYsYs5IPpDewXkMKO4UaFld0D3QAi6FJsRKhDnQqOxPK2J0yGp3VGK
-# asxpCbsqrQHySSDcLBH8B3as3U9T0K05o1xS1KHmAVFSn+N3r1iWXiXa8yULebt5
-# efrPbwoAboRLTI4TOr+UigjzclUDwNeICnveNKoz1MDC84DUzcx5t5nqAxghj2fY
-# LEmHeP7X/r7RSOgMGBfBBEug9zl08w==
+# BTEPFw0yNjAzMDMxNzAxMzBaMC8GCSqGSIb3DQEJBDEiBCBBH7NlUfCnGnov3ePY
+# IXfdKUxMlWZgURJkbM8sMdMmbzANBgkqhkiG9w0BAQEFAASCAgCR8T9Kk2J+79ND
+# fYFWpLkRsC+A2Tjyj2EKSdK8TXyGgow2r/vPfFTLjP2TlCK4ygvaHSknnCnBSUn3
+# C5eRfE48m7ybWbV/xr4gUEp9WTAQEqwkckXMpBU7N8B3aBIMEXMiTBhyjvppB3q0
+# WUKnNVbbh1JyAJVgUc8mPm1kG0V5qBT43iras1fMZgOIPdpPYvjIPp5Aid3Bc/j5
+# B4nu++npL6BM8GN1yZAepw788GcoGN3Xglufn1u/J0wj3UbXSd2JnY2klm2TS+7W
+# oOfvxFhsYZRHJcijqj0MZws6fcEuAQD/fJHoYPp0K6Ql33iOTvjH4wqxtLml5ocU
+# i+WN8OLS6kVc2NMgnry5UEvqaHCYJyiYou2A3BgRx3Nn8G3NYNRtVbva7lSCNM1Y
+# JR/8y8HDbNlhyEtCJvsfAk+qP0nXuPCDdY/jpiXBOzNEZSx18ovyuHfCT5SKLawh
+# jYly6UXD/6eUp0+O9gQ/ik2tcfJRtd7BDdCo25yWhhuidLQ4dDAylnyDNRGNrhng
+# 4zvu/ZptoedEUaDglEpaPA4ghyX/scLaHEuaFyf4JHHxrzVWGjJMw0NoHpDLW6G0
+# HoROweC6cWONoRfDncZQXMZS7jWUG63Bh7hqO7Vno25TAeBIaH8rjrR2U3PAE3eX
+# Gq917r8Ps50ynechm6WH2pQjl4HyPg==
 # SIG # End signature block
