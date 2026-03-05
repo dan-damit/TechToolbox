@@ -15,25 +15,21 @@ function Reset-ADPassword {
     .PARAMETER Identity
     The AD user identity (sAMAccountName, UPN, or DN).
 
-    .PARAMETER PasswordFunctionPath
-    Optional full/relative path to Get-NewPassword.ps1. If not provided, common
-    Private paths are probed.
-
     .PARAMETER ChangePasswordAtLogon
     Set "User must change password at next logon".
 
     .PARAMETER Unlock
     Unlock the account after resetting the password.
 
-    .PARAMETER ShowPassword
-    Echo the plaintext password via Write-Log (use with care; may log to file
-    depending on your config).
-
     .PARAMETER OutFile
     Write the plaintext password to a file (plaintext).
 
     .PARAMETER Clipboard
     Copy plaintext password to clipboard (Windows only).
+
+    .PARAMETER Credential
+    (Reserved) Credential parameter to satisfy TechToolbox module interface.
+    Currently not used inside this function.
 
     .EXAMPLE
     Reset-ADPassword -Identity jdoe -ChangePasswordAtLogon -Clipboard
@@ -42,7 +38,7 @@ function Reset-ADPassword {
     Reset-ADPassword -Identity jdoe -Unlock -OutFile C:\temp\jdoe_password.txt
 
     .EXAMPLE
-    Reset-ADPassword -Identity jdoe -ChangePasswordAtLogon:$false -ShowPassword
+    Reset-ADPassword -Identity jdoe -ChangePasswordAtLogon:$false
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
@@ -53,7 +49,9 @@ function Reset-ADPassword {
         [switch]$Unlock,
 
         [string]$OutFile,
-        [switch]$Clipboard
+        [switch]$Clipboard,
+
+        [System.Management.Automation.PSCredential]$Credential
     )
 
     Initialize-TechToolboxRuntime
@@ -94,7 +92,7 @@ function Reset-ADPassword {
         }
     }
 
-    # --- Optional unlock & change-at-logon ---
+    # --- Optional unlock ---
     if ($Unlock) {
         try {
             Unlock-ADAccount -Identity $user.DistinguishedName -ErrorAction Stop
@@ -105,6 +103,7 @@ function Reset-ADPassword {
         }
     }
 
+    # --- Optional change-at-logon ---
     if ($ChangePasswordAtLogon) {
         try {
             Set-ADUser -Identity $user.DistinguishedName -ChangePasswordAtLogon $true -ErrorAction Stop
@@ -168,8 +167,8 @@ function Reset-ADPassword {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAKSpt6eMgKyfMz
-# 68CvsqZv+Y0QIs3NMV1M84kuuYF5XqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBf0THscqHMtHNr
+# Rah22CP5MmZlPNYqnSNhQfIpQRNKVaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -302,34 +301,34 @@ function Reset-ADPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDMBW75KHRq
-# ZekpBIut5jKiyjNlMETBaOOWfxa+j1X8LjANBgkqhkiG9w0BAQEFAASCAgAOJI+p
-# tJE1ijBVlcyL0peGj/81SskZuCS3rDjHhRvkR3ZknlPgrYs5HpycgC1tvQQDs43b
-# WS7w1oR6zlQeMZ9P+8s5OPnS2F5c1EYzRwvqjWvEL3G9PYIXRr0T9wYuTYC+xr9N
-# Swfpp7A6owBxVK+2FSy9W8NI+c6nSnQTOd+EJB0+hYURjmy2X5qkOp7CsjP0IcUO
-# ZEmCtvgNhkWbu4RHesjhqpM79oR90PDecUo2nJOliFDxNQRZUAfnm+KGwwwDashi
-# ucPTsQpbiHuwIPNFF5qcIAFbMz2C/TsuQfr6QC6M9tQccTLYSf2BUIbNGYgrcY2a
-# 3FQqBa0H1kVuyV7Yb1W+NBWcJ9R7UkhAqdFFkeLWAdjyFCrpQdBEyY7Kz4llMrQX
-# V97fny1PD/vDg70pC5Ll9l9qIWuH8HZcvHAPh0z1qgdPDOPtneKCL0J7WngyU6Ge
-# 5+F9OVOBjT1g3jtORLGWn0f2TYiW9vUcRdOWDjjqcaDSANdlcgL0BbazxfjI2Vjd
-# zrzV/NXgtNrMegqKSQdypPvJre+rcPMzlu6iADpk2CKTfwCuTm2SGNlrTj1s7wb6
-# jJ8KSGs3E7i1YyU4YRKpvq58WI+Pzh05/SjcatrvbqM7wXSeqjrmEvgPSTb0gHWu
-# va1nK1CidvsbsGNopZfT5MIa04o7bgaXISpeIqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCTJs/KcTcl
+# eAknh1+1bgaoTDQY2lfpqrr7vhAKbFpckDANBgkqhkiG9w0BAQEFAASCAgBOX0ok
+# CyQ1eSXqWU3/BFrdwohQ5YwBDfcX/iVYJ2Zf0siZL8vHVWKZwqUpuEV1byRvqAvZ
+# zTa2CwZ5TO+A/M1sNpyTUv2NKQOOnkedx79Roghgu+PDRGa8vcm08t+cpMHi/YNz
+# n4rFD9IHihm6H3Rl9Jr08bfyE/FGQISW0MxOuhqbfJBaOf/Zdermx3qdZG5e9bLX
+# yQAKdxbyqnJ+nlpzR5unMStHixqHkch0ivIWp1QK/KcpRbjPHnyyWyzllVhdbmVk
+# atcmewQrYoJ6rGqrvfCb4BJflm+MjP15lwyQD/kxV2qcnGdI0NBruK4gQld5rZWf
+# 5Z/HiH+eelq77502rK3VXaW3B+S4Tgc2L3GDNX3rVyrg0oMnRsrgBy94vUWsCyV2
+# 1impENUPaUVUeSZhzdhJyog2P9T2p3C5ReNBkButM1kLda+h7kTMVzEhu+N8y8x+
+# 1Ernmb2isukIS+kzGQqglYYQbSjLxuPGs7FGfg2DA0kaCvYPmBO6Ek0rTfMWFHtk
+# k/wYIkWJ9Lesq++V7qh2tTugu9LOHb9UXWcdyyIIjdT9V01HQljMVyIZiej5WyPY
+# 3djM+4lM/b1UBHtfVQ5zO1ERusKY2Itd5Bw0t9IvrvE4JmFfbIFzCj9j98dwCSG6
+# 87qVD6FdOJgamqEUt4nXHJ23hPEeSDPb7sqnHKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDMxNDExMzJaMC8GCSqGSIb3DQEJBDEiBCBWyCxyd6vFG58B96hM
-# TYkkk9p8fOGec/vPe4aH18oT5DANBgkqhkiG9w0BAQEFAASCAgCFijb26CIruXUg
-# U1MttTlm8JVHLF5l3NP7u4qfaA+Mqt4nEeGfeVNw1m2JXLV7kqax3qUHJaHgD0eJ
-# 24wqprL6HGTYTKn2iaM88bntduGSR9oW/emGC02LKbjYJ8TsNrBeFiUr6CIqpsDZ
-# gyowSEY6RpvSpv6BjjVow8hsf7pTPLVyDahRUaPUrimqr216qnFLfgEYiOGx4DUZ
-# C3opKQdVJps0R+TGU4P4woz50849kYZUlZQQvWSOAIZZ2ocKO3Beb9IjmMnhV1o0
-# YKNhx7yJvso9akFkww454cGo5pAlCF1npuAPvsy5NGL8irvtX3PfydUJ0fEDWBVT
-# HaLlSXqjo4uv6w6lZfslamPlcJUuAy8Z/cQUBFfFNPAZemk2kUptsHooLLbjp0uS
-# muHV7bYzof8S34xDym5w7bsERRI0I8NFH3ycc5nONmmBZPFD6W27Y4tE31WfB0FG
-# 36noxTBLkAFEqi1ZxLXI/toUMi6lbhYJOtpEsaU/6M/wUrZ4GuI04B+ccivjqyRO
-# No09vcARsStbAJRNwoxlJJh2hoezjgt11hbWXF7lH2ZKbguJnX4sC2WtlbgL4dhn
-# Bi716vhbq6XASTmTr6J7yLgx+07t3hipO9600mpdEMriPybRzUMkrv5j0JCG3Gmx
-# QIgEWlmz8gc9gdsIry2qEgWbHcY+WA==
+# BTEPFw0yNjAzMDUyMTM5NTZaMC8GCSqGSIb3DQEJBDEiBCBTsQxwqZUrmariCCjL
+# KPaYEGegBGu1wU5moY2ieTz2GzANBgkqhkiG9w0BAQEFAASCAgBGIMgB3mA5x5uk
+# OetVEInhfhgKvpcnC4fuhi8W4UxTfBtm1wYT1xzVatmMw4neeSBaeP/tA8GcIvmS
+# mlCcTCEt3rTJ+qi2F3Wp3fNwkZgYK9MVb1LbC/oQZ5Pn1ZBjK4wPm1hQrtZDTrHO
+# QTtmL/kBGX/uM/pNriEbHRFAlNbsIt7yGCUX7w4lsDL1o6jq8+eq3uNGSwIA3Bmy
+# 2dnmZ/3pdUf9Mlpg+lVdSCUZJPt93G/AupQADXvP1264TCYu8iF+LsM+CoXXG1DY
+# 49sdXZ7IPNLgnu0eQ8dEysmkTigV/cl01trPM6NLtGplheRhMUTdQB0tPajDeL7j
+# WpglqCc6wuSzeNno+zwb+VMNemsB7QStpAGSF3Te5rn57kv4ieZf61aMuTYE78b4
+# dLv/SpC6AM8q0QAhtcXqsCy0HcTgV3U5Q5ZyEMDOT1Ypks/q1edXMhsz1xWgPkrf
+# VaIqtZoib2PpkQAuut+u5LUDyCB4PMiT/i6d3QvwnIy32+yj97sEicKJrjnbily6
+# oE9KASj1b1z4fTXVBSgEoQ+JpDpjYTbYvJ8orQiioRZcmXGWtu0f+kPN3z1KV3WE
+# nJf8GVk6rDm9FkIW5zlQf5Cx88N91fmA2i4ZJ/jOygrEf22Siv3sV03Ty00McBp3
+# VFLFeWUOoqsEmaj4lbKa2bh9Vi7EOg==
 # SIG # End signature block

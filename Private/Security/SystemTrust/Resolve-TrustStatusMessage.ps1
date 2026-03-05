@@ -1,41 +1,40 @@
-function Get-SystemTrustDiagnosticCore {
+function Resolve-TrustStatusMessage {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$HelpersPath
+        [ValidateSet('Healthy', 'Warning', 'Critical', 'Unsupported')]
+        [string]$State,
+
+        [Parameter(Mandatory)]
+        [string]$Condition,
+
+        [Parameter()]
+        [string]$Context = '',
+
+        [Parameter(Mandatory)]
+        [pscustomobject]$Templates
     )
 
-    Set-StrictMode -Version Latest
-    $ErrorActionPreference = 'Stop'
+    $key = "StatusMessageTemplate_$State"
+    $template = $Templates.$key
 
-    # Helpers are assumed to already be dot-sourced by Invoke-RemoteWorker.
-    # We only use HelpersPath to locate non-ps1 assets (templates, data files, etc.)
-    $templatesPath = Join-Path $HelpersPath 'StatusTemplates.Trust.json'
-    if (-not (Test-Path -LiteralPath $templatesPath)) {
-        throw "Trust status templates not found: $templatesPath"
+    if ([string]::IsNullOrWhiteSpace($template)) {
+        # Safe fallback if template missing
+        $template = '{Condition}. {Context}.'
     }
-    $templates = Get-Content -Raw -LiteralPath $templatesPath | ConvertFrom-Json
 
-    $secureBoot = Get-SecureBootSection   -Templates $templates
-    $tpm = Get-TPMSection          -Templates $templates
-    $windowsTrust = Get-WindowsTrustSection -Templates $templates
-    $system = Get-SystemSection       -Templates $templates
+    $msg = $template.Replace('{Condition}', $Condition).Replace('{Context}', $Context)
 
-    [PSCustomObject]@{
-        ComputerName = $env:COMPUTERNAME
-        Timestamp    = (Get-Date).ToString('o')
-        SecureBoot   = $secureBoot
-        TPM          = $tpm
-        WindowsTrust = $windowsTrust
-        System       = $system
-    }
+    # Clean up double spaces / dangling punctuation for empty context
+    $msg = ($msg -replace '\s+\.', '.' -replace '\.\s*\.', '.').Trim()
+    return $msg
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBasv4n5vhoc1EA
-# mn9TR5bps52sEHf8V533aOTrxE7/pqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBhTQx5pR1gOxW2
+# QtZ/xF9uT/Q7NKaw2nwvb43OsYuIPKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -168,34 +167,34 @@ function Get-SystemTrustDiagnosticCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDa3bHr4sBE
-# 1DGYYzbhg2gRuTChBLqwxQ0dcgVWh1/6PzANBgkqhkiG9w0BAQEFAASCAgDZp+Bl
-# JWm9P5l3sJw1m69JJLYAvZDpv6hor7koj3dnA9jJpoiW5n+bi8F2+6KcHIeTDitX
-# MPzcDMxNJRUO6z4LFJVIZHn6qu/jnZh0uzXrGP76LHkdRzDeG7IVp2rYYvi1wH56
-# QwK4ovlmfacqKW8Nrt3qp1sOeBjqGspSclxgxV8hCi1pkBCIak2G7GDTk1dJ/TzN
-# /3IVe7DE6VwlXkHd+mMpiHh8hY6wHDFWh5AEKR/jS97o6yTUiqttDntS1atHHcPj
-# xmkYAPeAYobt0xiNsGia8ilxZmIrBy8CmzyqyuHgppQlDD+VjgRtkQ3Ob18nt0vz
-# BVHd4yNCZQxCvOXpnC66FSF+uW45iDpiO+IJqq+hNokyAapcKXTyX45eom1IBDt8
-# BGeokil+hd8LYDjjJBSf9x6eY9lu0STnSo+L6IF/V1Tw1EEEnKn2rxYydQs496qu
-# jSX/XDS4VigZmIgwcZSOAJVh9l9pQD9eOxV+h+HZOocAlS87TRLpP6U40H/Hhcvm
-# ntwyb60F+3AGovNWmGZwtA9/t3lgmx2RjW6LTu+Su1gcQ/bcU6G5I782BeZ9Q5NX
-# d0ceuasOrOS34MdvbW/vYDqlkRL++BHKzz3yVGmJk7Q0GQ4BR/OIvAACruWiB3KO
-# GvdAeJlni2Oi8Xs/HhtJTIT9B3ZCTcJOK3lXkaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8bxDp6xZt
+# ShvnaI5rX88i4Ju2Uwm7HtzoI1QK6o2tAjANBgkqhkiG9w0BAQEFAASCAgBBUh5d
+# jRRN4RzFzvznIY1LZechQnEkGELXAseIUswTEoxWSDmufP/eoBXQcTK5uqFtUqE6
+# Z41Vev+GmC3shPLbErfQhf4Z1gaQRzlpho2Kf7GFl10GEreOHkmODyzvQSqQlhIN
+# ywaCOabnrswqglwNbdE4ZItMlbJBebBa50v33aLvcxls4r+SDisMCzC6dDpE3So7
+# 3bOaklHj/qPzbU8OM/5IlxWNweykW2qk105oNfUiFdiRcxPP+nl1DP4Bl6QzmZyp
+# Gz1+bqMZeapB7tqwFXu3+xxGTmejTpwMIULbcsFIHtuflfsGRX9EuKIHoC1DaQT5
+# OP1AW/wEaVD1wgtahd/8vKxod1nxbWOrkV9vMebzRmlNhNPyNGvx9P8uE42KRtrh
+# 6crY3hdwRb9vbtmRLvMixK56nf8m5x1r/KgYWNZpYfe++L0/6AUXHO3WZo745SKz
+# jLWa63COwBpJjYUiFekvRgzoUlhXuIfNvAYDgdWemqehibtwBlo63aqsqsXySO8T
+# /yW/axQgj+O/pbVhoND4TaKA1dttXkPDE96c+ZkAcgdHguHT67lYYdsHzlcUwEXH
+# +gH/Sj/IQ5cLf+0A3a9AmgVVHVZpWRcbTZzX9G6lW0s5ttEotD426MBhfGFPDVSt
+# LxHi/SwwRucEZoewP33P5+kMq5hrjZ9L12pnoqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDUyMTM5NThaMC8GCSqGSIb3DQEJBDEiBCAQnQpiUCTHHn0ytp9z
-# iA/l09wQXJqa8gK60nSqyz3mQDANBgkqhkiG9w0BAQEFAASCAgArfIta/3QWQqnV
-# ma1PGNSReb7vBCeH01fLuypZ93OpbOwiTOBFxqteSXmYq8eLfjhUwaPCOzFyr6no
-# HlY3OT5xoc45uOFMNlNyX7pQ5QrNegQFi5YHgu4nD4e+rSmfddb6iFpgeDh/hUmj
-# cu5jdPxDrIvXmP4swkWxhMVrXX2fC2/b25ert9N8vY1X67l1x7eX1WhifENEvW/c
-# K95R31FWmzT94+nAsNFzHbcY79F/8vGeMHfshrjnyktKQmqDuLM3pvZobDm9cgpi
-# moGKTctEoAkPskcv+FOskvqce9Ia5MWXnjJhBV/JMwCsALzji6gfANTEurOsAGt0
-# pS0SkWkTOA60fx4IQ0p3kzFJOBzbf3nLcdUzZKOKPBrln0RtAgUVROcbRL9O4j1K
-# IE2iGKgWLAsfmprEUBvQYd3KZnyDMvpslzaWG7hrEG08iDVCBlRNHUCQXPVKMRs4
-# qo6t0MIjqMSfgbaBsubBpyyGjaFwiehA6Wxokkg1FdrPofeEuljlB6KUo0ELaR1e
-# QeymzFUkVxDAUAhX0pnKCBPyblcj984/JOhTwLNJhqnXcSw7c+nRa7wjgLWKxKi9
-# OLzk7Gjs0VFLS0QBqTypDK3i/VVtCjbPM2NT4hTIy1yknHXPskqNdXpSnwJttOKS
-# 639zHOobRAoYPKcaiV7XMJVcP9XNPQ==
+# BTEPFw0yNjAzMDUyMTM5NTRaMC8GCSqGSIb3DQEJBDEiBCAqWyfpnp1VmzhjZNfs
+# SUXVreZisECm4diRyzXGssponDANBgkqhkiG9w0BAQEFAASCAgAwku33w5v3Bc4z
+# K6z8s9yjiJ+cf72vlYNr4/P3pSg1Hjf2ebTo52BCtnYOZrdCym6WdKXMNX5O28cK
+# JeQRfmm3YEZSI6+IPNLosMUFspqMaWT1CtC1Cnc1ZeJNz9L4MmY6KbU7L2smaczk
+# B7SHz3OX7ypcKyH6B82th2Q+arXSwm8BTDfUKdOGNI0igjX+tewtQLtlyJEBJAt8
+# UMaQxnCl+N+z5vdaqIY9r34dkWex2cI77roAZ7tLcdb7n2HELXTseU9gTs8wwcPZ
+# G9IgsDerXPdbauO4h4VdmCTOECVBZWKkCJ2Ibn3ZIlORHGKBwMI9ykcA5mo9OFsd
+# kZsze6wGrv5GOisrUN1cI3quE4sHgh42FGxWwYbmTtjSixU22X3PDWo8Y78ZXZ23
+# LhTxlTs1BLHBlcPrUHuKexbHi6XtlRpUXmLq4XbG4rPeQKTCowb6jR8yl2zVnP22
+# g7PxZQzx/4MkcFxkAd1Zv49/AJkzK4yeFjf8xBT0gL59D8Vdu3C7/owG3kAACpbB
+# NyjqPIzm3oo3R2hLQvFOhqKi0O9FDvayRA5U5oOolJ4u34YGpWnwo2s2yGvpobv0
+# Yf6w0srhW6XumwJ7GnDNNvtCveVjdFo5/uIrSfERoH3MdjOWelOxZqGYyfO/6Zby
+# SFJ7+s72wLWK3JEKLLV8VwwSf8ob4Q==
 # SIG # End signature block
