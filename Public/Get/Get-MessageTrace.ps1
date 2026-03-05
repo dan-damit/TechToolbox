@@ -42,6 +42,7 @@ function Get-MessageTrace {
         [Parameter()][string]  $Sender,
         [Parameter()][string]  $Recipient,
         [Parameter()][string]  $Subject,
+        [Parameter()][string]  $SubjectFilterType,
         [Parameter()][datetime]$StartDate,
         [Parameter()][datetime]$EndDate,
         [Parameter()][string]  $ExportFolder
@@ -118,6 +119,50 @@ function Get-MessageTrace {
         throw
     }
 
+    # --- Resolve SubjectFilterType with preference for user request, then
+    # config default, then sensible fallback ---
+    function Resolve-SubjectFilterType {
+        param(
+            [Parameter()][string]$Requested,
+            [Parameter(Mandatory)][object]$TraceCommand,
+            [Parameter()][string]$Default = 'Contains'
+        )
+
+        # If cmdlet doesn't expose SubjectFilterType, return $null (older module behavior)
+        if (-not $TraceCommand.Parameters.ContainsKey('SubjectFilterType')) { return $null }
+
+        $p = $TraceCommand.Parameters['SubjectFilterType']
+        $allowed = @()
+
+        # If it's an enum, capture allowed values
+        try {
+            if ($p.ParameterType -and $p.ParameterType.IsEnum) {
+                $allowed = $p.ParameterType::GetEnumNames()
+            }
+        }
+        catch { }
+
+        # If user requested one, accept it if valid (case-insensitive)
+        if ($Requested) {
+            if (-not $allowed -or ($allowed -contains $Requested)) { return $Requested }
+
+            $match = $allowed | Where-Object { $_.ToLower() -eq $Requested.ToLower() } | Select-Object -First 1
+            if ($match) { return $match }
+
+            Write-Log -Level Warn -Message ("Requested SubjectFilterType '{0}' not valid. Allowed: {1}. Falling back to '{2}'." -f $Requested, ($allowed -join ', '), $Default)
+        }
+
+        # Default preference (you said Contains is best)
+        foreach ($candidate in @($Default, 'StartsWith', 'Equals', 'Exact')) {
+            if (-not $allowed -or ($allowed -contains $candidate)) { return $candidate }
+        }
+
+        # If enum exists but none matched, pick first as last resort
+        if ($allowed.Count -gt 0) { return $allowed[0] }
+
+        return $null
+    }
+
     # --- Helper: throttle-aware invoker with retries for transient 429/5xx ---
     function Invoke-WithBackoff {
         param([scriptblock]$Block)
@@ -148,6 +193,7 @@ function Get-MessageTrace {
             [Parameter()][string] $SenderAddress,
             [Parameter()][string] $RecipientAddress,
             [Parameter()][string] $Subject,
+            [Parameter()][string] $SubjectFilterType,
             [Parameter()][int]    $ResultSize = 5000
         )
         # Docs: V2 supports 90 days history but only 10 days per request; up to 5000 rows; times are returned as UTC.  [Learn]
@@ -177,7 +223,15 @@ function Get-MessageTrace {
                 if ($MessageId) { $params.MessageId = $MessageId }
                 if ($SenderAddress) { $params.SenderAddress = $SenderAddress }
                 if ($RecipientAddress) { $params.RecipientAddress = $RecipientAddress }
-                if ($Subject) { $params.Subject = $Subject }
+                if ($Subject) {
+                    $params.Subject = $Subject
+
+                    # Newer EXO requires SubjectFilterType whenever Subject is specified
+                    $resolvedSft = Resolve-SubjectFilterType -Requested $SubjectFilterType -TraceCommand $getTraceCmd -Default 'Contains'
+                    if ($resolvedSft) {
+                        $params.SubjectFilterType = $resolvedSft
+                    }
+                }
 
                 if ($continuationRecipient) {
                     $params.StartingRecipientAddress = $continuationRecipient
@@ -218,13 +272,14 @@ function Get-MessageTrace {
 
     # --- Execute (chunked) ---
     $summary = Invoke-MessageTraceV2Chunked `
-        -StartDate        $StartDate `
-        -EndDate          $EndDate `
-        -MessageId        $MessageId `
-        -SenderAddress    $Sender `
-        -RecipientAddress $Recipient `
-        -Subject          $Subject `
-        -ResultSize       5000
+        -StartDate         $StartDate `
+        -EndDate           $EndDate `
+        -MessageId         $MessageId `
+        -SenderAddress     $Sender `
+        -RecipientAddress  $Recipient `
+        -Subject           $Subject `
+        -SubjectFilterType $SubjectFilterType `
+        -ResultSize        5000
 
     if (-not $summary -or $summary.Count -eq 0) {
         Write-Log -Level Warn -Message "No results found. Check filters, UTC vs. local time, and the 10-day-per-call limit."
@@ -291,8 +346,8 @@ function Get-MessageTrace {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDSKQODZ1mkr10o
-# cvS6gp/W265Kpeywn71dvmSmYz3Tn6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCAe6+/Ad34h6Cl
+# VjJKkYMfpPM1QkRyX4xihfm1b2IsoaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -425,34 +480,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDqYWLSf0/m
-# po/8b6sSuhV0IWamysjn52IA17vHxumAtDANBgkqhkiG9w0BAQEFAASCAgDCO46m
-# Yv97vPB4pFvkolJaQ9Whvvoexr5kuRV2a8Rktm/j26/gAh6uwfyv5D8BbVxVT2ac
-# RPCXu1qLCfUVgXcLBhrBx/pKObhUJmS6RYYl5rTFDKkAe16Qd84k73AQV2n6by7t
-# 17ifWCWWjnMWIiECFp0pCSLk+kh3+PgSEodzBGdwUCrprKoevIeCEdHf76hVybC+
-# JWT6QFwxXLRpv3nwyjfBxQRNsVUn6NFHYHOwFtzJKJIH1ybIM29JaO6Msa65mIjT
-# ldh6v5cGS+efK5jEcdE4eOnUDp3NvXJt/UkotdDnyR4QmZ+yL61vMvJdCEo5Rfo9
-# y3HyeBafsvKEaTtNigmB/CBRUvfJWOL71MtRXKD3iOBxjXV+NmPG6OFOykIYHVvM
-# JHJJUW1qsjvBtOsMxG4OMFgJt4IgnadPcHKwlk09WZops6QBtXjCKroKpM6NB2br
-# +/A6aR5lhzsulgxQRwBtVs7FL/1J+S96YawzCFCCRuVLtfAV/YENiu9+HBjRU3AO
-# neFxPDfJaB9mnbAtknnyn0rbkBpWDm7dnzMiX/7vJ0RgmYG4hvWNQL+Zxd5RC0PJ
-# nIzUEvjNcy6DGsFt/7+Dc2e+aSNkgUTPpvHCmDisB2geGmY/eIA9uTSDeB2Jydzr
-# qiIcYP5uWhhpXN5rJGk8R7OlVT36cT6f0YASSKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCASvo62bWvm
+# 8YJ2Mf09Tseh2lxDAqyp6EXL5UnINvOthDANBgkqhkiG9w0BAQEFAASCAgB2gJGC
+# PkocwN1VdbLTsb9YzQex3V+LkRRq0RmVDpMKvRp2IahvyW+/buwcECSdD3VjSy/0
+# jYk7jJoYuP55e4NMmsnwl2njDxH4oszO2y/CyVpZoGA8VrtiEcQG85M07ZZ4C1ma
+# sFByJ81UjCxpIsbQ/ILnWSg+CZ856i+jPSMPhJ9T3mbnsCts6yyIGpakw0B+xzFy
+# 0CVB2lpw5slK8/ifywDi0hhlHUz+j3VD8NbvgIIq58voxaUbg2H3kXrUX6qTPOzt
+# E+s7B2WKLf2sX2mhkGmn07ef9BjKzQF7GGop0y09L8DRxzsvjXnsaWZaKFmbNPoM
+# 62G+MeaAVPoR2fpkGASuBJiZHVys/3rY5aMQWMq22HGDhoQKsgETIqTHe3vfIASa
+# 7V+AD+ipkkylHxUCzrqLBK6i393Vq6rjdL1Ij7uXk560oolSzyO+301Yg574HN0U
+# F83ddhgigN0gi1fF6DYHcYQceZEY5cww4Gsu99pDmuCUhkNM9pdAEEzozv0TInjB
+# cF7RRXSndK4sYamQORt2eT7BXoPeiXFIj1dkrveh+8v8au/m7AjTSluhe5Ph8cAA
+# JRXgMCR13dM775ewYaxVH3wqoIPFLh+4fnPX+XCwCnR0VQ4KbWFcMOY/e5xTnBzN
+# Nia+OxUsmAHXjWsuZmdV21nUkwk1em73QdlTVaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMTlaMC8GCSqGSIb3DQEJBDEiBCDdfDR/dzw1vKtdpkmG
-# 4nVdbGKHvrqhKq6YBimWCCKmUjANBgkqhkiG9w0BAQEFAASCAgBWn6IrIfUbvSDr
-# OakHEbGah6iSG5URkAuAEXwkNXXcVgC6G9j1v86CeMmv8oIOIfKAlHLsS1BZSSq1
-# b9Fpke4VuYsKOkD8F3pqVVzLf1NtbXUQAFHCbrfnNu5gp6dESoBvdvcstivaelrR
-# kPUGPkMDN28nBlOJDWqz08ewEJSO7siE8f6+Kk3j1cnKmEneuGTEcW9OZ14oL9fz
-# 7Vn4RxOTZd8NwdzA0pUGpKHFwC37VIBYnkQYFR9P6duaFeQ3kno5dR/OtHKseW3d
-# Vu2qt5wG7jQdvKN0sQi+soRsnJA9Hee8nB3G42YhRJuW36W8bi7oDPCi/2UtrRHa
-# 16qsebJrQKyXs0yaip6vXvFTEI8m/Rr63epR3YGGI9lFmzqzyOT2RbwCFur7wxL4
-# Ni9Gh20j4gmp9/mlW6L6dE4l5Ss1loydHbB2a36lvOcPMpkOSpAuuvp5lzwrcaYm
-# xw06eel/NxSiC/xqb0TGyQ95eHDDZoRlbaSwxZ8TO7jyezz3e0ACC0KiD7JeJl10
-# uCPOKdVy3N3qTjReoPRuyT45EwdE6a/bNgae7yRZC+LgBQ4l9TgN7dm8uVZxj0zR
-# 3hRH48lmbrlonIFLwkNRRcqonHmSqiPyf1DiXjY5Mz/aFDmqDDFeQz4Qtf/tk3kS
-# 8IGOe1WnN801YSnPDLr/93BvZrza/g==
+# BTEPFw0yNjAzMDMxNzM1MDFaMC8GCSqGSIb3DQEJBDEiBCCVpxzNTi6fpwdfJ1gd
+# nTdqHxl65tSlZdDQkfuRLlrPjzANBgkqhkiG9w0BAQEFAASCAgCA3GVbszabGnaJ
+# bmX6RQeHsjQ9KmjthT2Rg75PWWSJzf0lJ+ogOlEqsi2XA0t/6FZAtb28SnVcC3+W
+# eZWXFgNFvA1I+uo5MheLyfb4x3BhPFYZXDX1xpWY5SvJvgeAG54d183rBXXoMI+u
+# mDMCwDEZLd8evuH3eY55zndnwdt2UDpYhQ3UpqGGGghE/7V+cC5iANTJm0VpZLdK
+# Csfe6jXYO4xU4HI0qbajf9+m/2RaTo86HjBInqc3sc/Y1Yr94dexNczW80HJq4s6
+# G+Jg3ROMyDbsc1Yv9krKkPgPa7+pyxDRDNylT6ltEuRmrd470R3QvIqAqdhjCzaJ
+# 7JYpqy6vApUFRczDzJwXEQcBbCi6QWNmptHFmrcaTOKK/VW9Xg2p9b1jwHL0DJKe
+# AHaVe5/AjVg98UlHF0hN0lu++693iEZGb32LbAZSpwD0fpMkazHwx8fki9MChpFn
+# kJbQ6GPlVbEBfdNqYwQWEubIp5y4JPALD04Ijj5iPML1UliZRMS4YOH2Bi3x3PFT
+# m/4WrWovqreHGtAaUG3w8UpLlpHWgHMMzC0N+BRabuNfLcoiK11HvrNOVgMAb7sY
+# 0jWiIJMx1CDfijgKBDLN4b6+BWefW2Ynf/MTuN/Rpoo2DAqDAbw0Jv5WK0ydTiYs
+# zoHelbJioUCRmcAH0Ukca8NbiEfblg==
 # SIG # End signature block
