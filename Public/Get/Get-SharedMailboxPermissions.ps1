@@ -1,27 +1,27 @@
 function Get-SharedMailboxPermissions {
     <#
-.SYNOPSIS
-    Reports allowed permissions on a shared mailbox:
-    - Full Access
-    - Send As
-    - Send on Behalf
-    - (Optional) Folder permissions (Calendar by default)
-
-.PARAMETER Identity
-    Shared mailbox identity (UPN, alias, or email).
-
-.PARAMETER IncludeFolderPermissions
-    Include folder permissions (Calendar by default).
-
-.PARAMETER Folder
-    Folder name to query (default: "Calendar").
-
-.PARAMETER ExportCsv
-    Optional path to export report to CSV.
-
-.EXAMPLE
-    .\Get-SharedMailboxPermissions.ps1 -Identity "ap@contoso.com" -IncludeFolderPermissions -ExportCsv C:\Temp\ap-perms.csv
-#>
+    .SYNOPSIS
+        Reports allowed permissions on a shared mailbox:
+        - Full Access
+        - Send As
+        - Send on Behalf
+        - (Optional) Folder permissions (Calendar by default)
+    
+    .PARAMETER Identity
+        Shared mailbox identity (UPN, alias, or email).
+    
+    .PARAMETER IncludeFolderPermissions
+        Include folder permissions (Calendar by default).
+    
+    .PARAMETER Folder
+        Folder name to query (default: "Calendar").
+    
+    .PARAMETER ExportCsv
+        Optional path to export report to CSV.
+    
+    .EXAMPLE
+        Get-SharedMailboxPermissions -Identity "ap@contoso.com" -IncludeFolderPermissions -ExportCsv C:\Temp\ap-perms.csv
+    #>
 
     param(
         [Parameter(Mandatory)]
@@ -137,8 +137,8 @@ function Get-SharedMailboxPermissions {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB56tqoRXU2T54z
-# 9FiJo66sOhK2KLdEdYqxEzl4rYyOjKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBZGy7JEiNOv7vp
+# za1tC8B4+5b5fEJBmVOM5zNbZUy8wKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -271,34 +271,34 @@ function Get-SharedMailboxPermissions {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDiSyGhLrRM
-# g3D3MogVBM3XZnbxOY5RHVhzRai6gHc4JzANBgkqhkiG9w0BAQEFAASCAgAV59rv
-# Byk+aF8+zqKKCzsj0vog4z5LHDVRwzPQOg5h2y2AEk+gXzIxG/9T0cWfo8uUXN5r
-# gOPmwKXf+cULD3vvmGp2MsMikKtVC5ku3Mh0yV4JAePjJYmZg5i6auHy16jhQQrN
-# XHV69jrABeftAtVx2Aed1hsRQaeT8g8iRKLcO4/mWZXJ/25bs07ooBSNcQJB7AED
-# kRkpAIUu9KwwJ0Bx70x8OYl3tHUaU1n3CwmwKOa0Wga1jWFYp9f3zWMm30xqpotg
-# FhqAk7JA5O2bVPkplUsuDXM+c6F2MTNSVq0sPlxVTCRN3DcwFS2DRvyRVJfOHks1
-# SrbY7/gUzvspaze6XJjBItDSmS/b88pLdb6ssVp4huwFVdymLmKuEJooCofqGLw/
-# 2n/ZAoMhH9z4eK5SzDkwVhqy97rnXp7eczYQT+9vbMV7369ukYisOpDNJbqIYQoo
-# 40EIZ+cRG937AtHrX3OqUgcGKLLbMSnW8nu+XvLvCq+dN5LXfzW9qEDqOztKM/2T
-# s4B5yIHaDEeAQwaZO0ecUuL7gfXQX0zfMuGVI66SmDo6yTgwUDzKm786rkfoEK0m
-# ThZljqrgwsS7vxAsQbR502A4Ulpx2+HrzDmdsHlHJfKyrFAw4lJrglRpvL3p4xEu
-# FHn4e2cn8z9VvMmwjexHZo0mjQUtMRk5q28oCKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA4ljT59aah
+# KNYiksL8kuk5JCHcEVHkoQwt7DFoewpMwjANBgkqhkiG9w0BAQEFAASCAgC8Cl0y
+# 4Jry2Y8RPJUxvR3Kmw2WV+hNpHvRbOe8wxGkNkxu6D+JlatAi0G9YG1EpEG0otKa
+# f6jq5Khj9C6dhEFSiTpJ3ViqbJEeHi22cy6XHQ8LwAbg8p8CxIo22/QWIGVQRRJ6
+# yFGMh3XmMXetYAv8+rWBhQTTGygBhMImJ2fl+1TcVWM6fEFnR6aMMUCYTCnr8sQT
+# YlhJatQc69NCebKk/iI4a8kysyqOqoMlwxbfpZmoJhE9+JSKy18oPgtgO+Q944jm
+# LMWwl6igiS5h2kXl00YYsswR7P2m8ln4ruDOHOyKjP3FyD2qD4bYPGCBlkyLkKOQ
+# IaMdPKXmqeMKiEbYoCZkMP+coenIAYb9gkvJsKCrCSM28+r732CeXw35vXa3/5Ra
+# F6qxvqOY3Sv8hAMpeG4XxrOJ2lAXXi4Zb86VUtfr8t/w0qzbm8PnqK9mRwHycUAO
+# kkuYD/CrV3ffVJd2za7MK/UV2y79Ikh/IheV4aY+MA98lV6BlPhmHGE40B38wtZe
+# TXkYLdDK2cXtHxOHwkGGUagSnl8f4OS7Vk7uXjHccBrDBMAtEr4hE4l5ZanUj9vI
+# sUsLah+a3KcmZOowMmM+RFWV+hbw7qj0VoZka86fL2pHJYOz1HmToFvDIqwRwA6B
+# v7Ctw7bfOpBjqizknagrxasPP6NkH8pN6HijpaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDUxOTU2MDVaMC8GCSqGSIb3DQEJBDEiBCA/hOj9i+asMiJtFh45
-# QwXhfjc0i7j+MxSt3IgvHEszkzANBgkqhkiG9w0BAQEFAASCAgAlqpCB8pxpiiE8
-# IAaS4Bx/3ql2mTf9/urRDbxc/CXC57oFDaUkSJwT4RugzDPvvVumx4f04NwI4C6z
-# VEYjBJuwgFGl3qskP9HndUHuKadvxTeRUEmhZbtmef+nOd5A7FCgPxJWMVAC2WLi
-# 8Uo1uEp8OSuoTeg14OtNJKW1jxlA7QZz8G6q+TH3JT/HVrm97uPknbUnJ5JAf2Vo
-# GvZNThZPlTmF/QfILn3dFQaoXWpB0WRbNAVr7bzsnpOFqU46w/tGp4fAg29/VaZR
-# 3YfbMBH4f/2+nmjdwyCASCq5DCkmqid6CRh5k5EPrMqd7XJFH+Us6DPBWNQkzcOt
-# zezvF/D0BPSqI8FGmjpteEABl89mh458utYjEtWO7/d0aR7G3jNVlnCPMTqXfYyt
-# d5MHUYnRiLPltlQAVQEhk0Ia8t3hLYlE0VBu/t/zt+61HJIOSzydkQiNTnqRwhV9
-# Wg96hX4UkV9WytZsWXegUjJyo+/J772rQ2cB5lDsqU60te/pzeBeJAnHog1nZGS5
-# K7+02IK3cEsc+dQni8YR03rUKK/ABkbEGHWgZGI4PCxJO19WtCFnJrZNWknmyey/
-# yoe4DT0mo7Boz7Hfu1JK8lk/mCpgpj+PKpeO2Ka4hPRpIG0LMrh/y5DZRiXYH5hg
-# ZkZfOIT0x2Cij6QwgLQQkRtNf/mbkw==
+# BTEPFw0yNjAzMDUxOTU3MjlaMC8GCSqGSIb3DQEJBDEiBCAriU/UsWKQehwpilGO
+# NyTlF32lib8iMRT+0P4NTg0PWTANBgkqhkiG9w0BAQEFAASCAgAz5dWtypxLeYWs
+# Y+tJIOJIhPeL2WbWD2G/TGO5ucGdV7kYdsG0C0QvsFiRgtVvsnpgSqjk74PchcqZ
+# xgxZxhilhLYzgXtOhj3xlZ3v7b1ZJMpH+FqMwP9Ggi5xr/czxwHNBQ2rPxp9qzb5
+# o4oyx22sYNYEec96TioBFsIc27UTYbX4C4dRH0FUp+y2/26r1AtIGJSguVxrLcGm
+# /laswBvERXsyzaH6LOkBgHa1GmqhZS68Y5WRIzAYvHwZMlFBKE/b08eLuWQBXRwG
+# /OP22QdFDSSiu+rkGWdCUJpi2DqDfHKo84JNeeouOAGJtrJZhPOXYYQQsXQIvZDI
+# i/qWBwjjTop4aXMj6Ztj1W7qh2TATkBpIBPQNcyrxJrofhkJecKStLjr/acm1bkJ
+# wqr8E+rY8v0nltAjfOgkGWQG0ZzwztmzwhC7kNOA+8GQKJF5oDAHRlAeFSy8QsVF
+# TZODvzkLo8CqxD+ZaZgdQsIxq9ofqem9klLYUbq/oaPA7QMjEVtTCOnrg3KfKVRK
+# d0xklD0ysskYyLaymQ2vezKnx+Cj7rX+8K/AoOEEaseubKFUVjErzi1ujMKMBCeb
+# BPfGGJrCcTa7lbomtfdHlR+pjzECI5WzkWu8STbPJZNiHtpdJqxojo61qwiWVwA4
+# va6qdzHptaO0iSOFHAdMoU81zUEtkA==
 # SIG # End signature block
