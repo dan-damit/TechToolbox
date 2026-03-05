@@ -42,7 +42,10 @@
       "default": "C:\\TechToolbox\\Workers"
     },
     "largeFileSearch": {
-      "defaultSearchDirectory": ["C:\\", "D:\\"],
+      "defaultSearchDirectory": [
+        "C:\\",
+        "D:\\"
+      ],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\TechToolbox_LogsAndExports\\Exports\\LargeFileSearch"
@@ -56,8 +59,8 @@
     },
     "passwords": {
       "domainAdminCred": {
-        "username": "ddadmin",
-        "password": "01000000d08c9ddf0115d1118c7a00c04fc297eb01000000eaf88a8247d1554d9cce8ee006be0562000000000200000000001066000000010000200000003406fac6b25a6acad56201bbc36e6a4e399e88bb0c93f5ea96c1204542b8c005000000000e80000000020000200000005551659b2e91b83c71f9af0cd74e90bb7daaba22625a1cf9c291c7e96af1909930000000744ebf3263bb4063b3a4b7c3b72c052308af65e5eab779284becccdf7ffe9b33003b41dd9c5e01cca5c43fad9d888abf40000000cf80b5ab93620a202e55ce7cbad9c94817b88089cf3bbec03b01b492f2be917c86872a69e6c2daa49bc2a01e818439ef89043bd33a61c0e8f6faf5d186aadbbd"
+        "username": "vadtek.com\\ddadmin",
+        "password": "01000000d08c9ddf0115d1118c7a00c04fc297eb01000000eaf88a8247d1554d9cce8ee006be05620000000002000000000010660000000100002000000037fb0379d1a4ef06e964e8693574f42f60dc14f4b53d8faed19606641b533bc7000000000e80000000020000200000007d866569cce3e81387a474978bf7f4d5b9f87be9a3f552020660672254c3567f300000001cf1bf3c189bd85600d801bb3154b43b24b22fee813351944379dc0c58c54509b4ec6dfa60c0ab6419141a6b3f075e8e40000000bf2839330c8dbb9891efd58a25f1ec6ac5a33c2c936c7fde6fc92c9ffa2778e129035820c021d72370f5437e007b7699b769993ef746bfdc7e612067eba5b0b8"
       },
       "wordListPath": "C:\\TechToolbox\\Config\\wordlist.txt",
       "default": {
@@ -325,12 +328,18 @@
       "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": ["/E", "/COPYALL"]
+      "copyFlags": [
+        "/E",
+        "/COPYALL"
+      ]
     },
     "downloadsCleanup": {
       "dryRun": false,
       "cutoffYear": 2024,
-      "excludeExtensions": [".pst", ".ost"],
+      "excludeExtensions": [
+        ".pst",
+        ".ost"
+      ],
       "includeExtensions": null
     },
     "teams": {
