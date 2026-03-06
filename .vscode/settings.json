@@ -158,5 +158,8 @@
         "writability",
         "wuauserv",
         "yzhang"
-    ]
+    ],
+    "problems.exclude": {
+        "**/TechToolbox.psd1": true
+    },
 }
