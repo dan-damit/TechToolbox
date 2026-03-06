@@ -28,6 +28,16 @@ function Invoke-HardDelete {
     Write-Log -Level Info -Message ("Preparing HardDelete purge for '{0}' in case '{1}'." -f $SearchName, $CaseName)
     Write-Log -Level Warn -Message "This will permanently delete all items found by the search."
 
+    # Always enforce safety limits (never tie this to requireTextConfirm)
+    if ($items -gt 100) {
+        throw "Safety stop: Search returned $items items. Refine scope or KQL before purge."
+    }
+
+    # Optionally warn at a lower threshold
+    if ($items -gt 10) {
+        Write-Log -Level Warn -Message "Search returned $items items. Verify this is expected before purging."
+    }
+
     if ($requireTextConfirm) {
         $confirm = Read-Host "Type 'YES' to confirm HardDelete purge"
         if ($confirm -notmatch '^(?i)(YES|Y)$') { throw "HardDelete purge cancelled by user." }
@@ -67,8 +77,8 @@ function Invoke-HardDelete {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAkwV40H2ccaX80
-# 9S354rSraFfCWBhPIBAjC4eNJh1KX6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBqsUyHOLYOodJd
+# zQWmPASIZsdpR4h+XdxQ9S4+6UMzQqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -201,34 +211,34 @@ function Invoke-HardDelete {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBM7v5NBqTZ
-# KvUQLVnYILpBapIPDFQUcEqnZ7o15w9buzANBgkqhkiG9w0BAQEFAASCAgAtnAjE
-# qdnZUXBXLyTXIutF+iEI4ah1/J1U5/gE8Kn1mvwWgFRslxBLaKgMoPsRda9TJGvl
-# LqGj3/XzBItrfsM7vbL5mPsk04XN8ZucERYvmnCSnnb1H0qU8FzdUkHkRo8+LjoI
-# bED0iie1RlZV/o7a0t+VNTRTwuFBTz/LZrFmPoqeUioQLLVJh59zyN+0Q2i5Tb84
-# cNO8xOjGymf/3+geAQSLSAln1RluzF+EI30m1fCRSr5Xm1gH99WsTBVaaDMf3nsy
-# qEsDEs9A+nTLzTcqIhWc0u5eZFjV4MBfaECPkifiwwpadW0e6o7cZpFKXZcDDNMZ
-# 0rxNrRiRGi3mEdAPlHftwfzUP+nT4YVExcSJmjmssW0rczNk+vgm+WTwqT2fKtWy
-# kUSyRFYayJGQZKw/47JMu1qL3XKBtFLXnrXxXiCi3r47dHokgm8BNVVoqJVG8OpE
-# lcjNaj6c3dFkrEsiVXu26dDn+C1yOCuhUXf09j1bHDotdNgO8Xa0QnyUkS8RJT6d
-# EkjazDEMgBkU501XHb8um1sU005K1prvInl78+01nKz+VmvM1vInv7y99X8jBADL
-# 7gP8ZNUq9/iXNNnW6gkaTtZXUtibEl4mBO5RNGh43vEeh960L6hhJHCDsXKFf65A
-# WMjLYteaRtCElb3q9xrsFmdIQifY/wCln1T2xaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCa3ws7uJIK
+# sm3qG5Gm3FUaM/QZ6Wg6p9l8hU5DUL76MjANBgkqhkiG9w0BAQEFAASCAgAQ1gAv
+# CYVyIzJTkwumw+EBjykACwnRKplcNNHYzQ2TxHBHUY8iisrRbw08om2PXUkQm2Cj
+# K7BktyNLXJoad5FvqeUUpF4NKQ0xHNBCSGdB8hR5q1S86ViW5Vq5Ni4NDvPLlDCY
+# EkjRc8sIujZcc17XqmypfqqU4EebdfOS1Uc8YG/5gX/m5HH0nR2kFJayMi6w4hS7
+# DQOuL6dDtvpg44fs6klnNZ4gLJu6ZgBwWP9jP79fHQ8gSUjH5OIAEMSQ4TS1FY4S
+# ymuM5qmH6QfDpAsgp2Awx8hrMONJWsg4YxVLKeyF3YvaHLDuwpB9hIWCWUAVYI7N
+# uiCZE9dRu6I82akXOcGymIntLgYAYhwrnAWozEIPkgQaMDIP/U+IlMzv7LOSsqbH
+# 8xXqX+JMrGwTPGp7+vk/F8oGFkZbuT2XvAQunMovF28XoSAOAwyvVqGnsWz6Wo7a
+# ru19H7UL31n4RUQvbM1pZjFZtbwQB9O+DHZYHVme5xsSEQ7I+2p6bFO5hFq/GUd0
+# g1W/azwBed7FowSc5XHgbZkbyyWSo+PCJ6ilnygir6lV/fQysbEIFZa9EG37DTpy
+# IU9XIl2CPdQgbgyCay/axQfcNr9kqGVISkkY7BST02WYaRJB8SVQ/CfR8ImXdk0M
+# ASBS25S7/P67kHyBNB7Ruw5GS3drsTPdmefBG6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDYyMjI5NDhaMC8GCSqGSIb3DQEJBDEiBCCxI2oQwpDauwkGoVez
-# Pg3ezzFd6ApvHhTX5DFsMxSzDDANBgkqhkiG9w0BAQEFAASCAgCQMs11+0ojmK0r
-# ko21fyfh1nGXAJ4QbeuOhK8qiOx9PzVRFjmx+tdenAz3bUK92qF42ajs7vTHGXCN
-# 19Ctfmn6Fn4BLtRZNtPkkCXqkihTFIGEgOp8t8+npDvb1BrxRuR95WrYWof41NCk
-# Ul9vwySDiP0oTLIpH334YUmz3xymXPCwfyo/eajrLTFzvwzH/vmFUMdiPbJp4Pke
-# XEpZIroGdLndidl8g8WpddOaHLGtp5HT4MuItJ0I2V7pAaa+vDkouqQplZoDBeaO
-# 5Azpb0uIam3BHQc96w4uhzWgmBl1jYjgBNQqrptd3O5RzE5UKTGhRqZ3Tjyd7DqM
-# Ki8+7xRFOWKSnmTturd1hSobbnRBFRuRTOVDNgopAMdfnJb0Wsrl8Kl/i+sDqGnZ
-# LO0APwJ4A9eFcD3uOSKpAHBvID3l+q4AQ2/XXpBSlzSMH3FX6ySPmH1ic81Ch7rd
-# EK6NnQNMtu2C+YAp6jycwSKqdBqg9/Y/4qy7GT44Clpp4Q9a+doaXC/hn+oLN/8J
-# MiFssihUdgv8G9B+clUBA7zUtQaxE5sMBUwvuQpcRYmRgF/EzUapWudPrbrREBQL
-# 24fsb/r9w60HebRv1Jui5EeRdJGwlJP5XUJ6IwWP/QV0iuLlJFDuGfsukLKu11Kv
-# cE1lCPAlg71SKCFQbVmOz5rSxKJ4ew==
+# BTEPFw0yNjAzMDYyMjU4MTRaMC8GCSqGSIb3DQEJBDEiBCAB6yJJPe1aDebSe/Yc
+# vgndzWXvcy7x5SNL3R3TmLPR3DANBgkqhkiG9w0BAQEFAASCAgCLKgZiusHcCnpw
+# GnVLNGzh2z2G/qN4472UK2+nVQjPGOJFFpEFjiMAitLWZEcs0H6nWkpqTnLyWSFq
+# 6Q33dN5Eqcd2pkxNgeDrx7HhUAH95oDVJq+cu/+ugodsHZhCYjTotmfTsBmgLIsF
+# 77yZrif0vYm0Lx2cKAtZil6ouRrCPdzLw0r0R5CxM4tM7qS2kOpKPWs1C6CYaLE4
+# BlQuWX412wcDwx9qnPtumu39eoARcHILRUMFEUfAPwLhVxhOEBBX8D2bLRPjiuZ4
+# JBNi96q2YnN2EwWnPRw8noKi7sBZVNr7vS+NPkaGXQuzUndwF8/t7+VzngH4M0yo
+# FF7dII6MRQkWWYbwqt8tCHl2iZWxwIQBI+vapzkRpWtpMYr9exKuyYTiEPC0gphd
+# X5Z0oVUTaeBIqIpXwA7cnsNoqAQbkp6W7hwiOgGCEerOm0ttnwRpvi8ORCFdoa2z
+# HWVXdGcyDSUsIpze/Km5VMl5uggyPJU40XtInvLaE/FtG2h4PEr2M4w6Qyh7kV1D
+# uhIHsUfMwrkea9RkNqT2tJs0cjZj6A56i1ieepcPwc43ezl4rMwsE9+KvsSmJ4YS
+# DrvQjCwBTyxejppFKDLC8UN/P/HZiws5dF3IihcrXUqoNwUkkzrKOP/Nnr2gYwP8
+# y4wcYr+HtU3Or2ZiKv3TtluerFJU0g==
 # SIG # End signature block
