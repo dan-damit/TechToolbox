@@ -1,25 +1,4 @@
 function Invoke-CodeAssistant {
-    <#
-    .SYNOPSIS
-        Analyzes PowerShell code using a local LLM, with support for different
-        analysis modes and automatic model routing.
-    .PARAMETER Code
-        The PowerShell code to analyze. For 'ModuleReview' mode, provide the
-        full text of all module files concatenated together.
-    .PARAMETER FileName
-        The name of the file being analyzed (used for report naming).
-    .PARAMETER Mode
-        The analysis mode, which determines the prompt and model used. Valid
-        options: General, Static, Security, Refactor, Tests, Combined,
-        ModuleReview.
-    .PARAMETER Encoding
-        The encoding for the output report file. Default is UTF8.
-    .OUTPUTS
-        A markdown file containing the analysis report, saved to
-        C:\TechToolbox\CodeAnalysis.
-    .NOTES
-        - Requires TechToolboxRuntime to be initialized.
-    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -40,35 +19,54 @@ function Invoke-CodeAssistant {
     Initialize-TechToolboxRuntime
 
     # ---------------------------------------------------------------------
-    # MODEL ROUTING (NEW)
+    # MODEL ROUTING (STRICT)
     # ---------------------------------------------------------------------
     $routingTable = $script:cfg.settings.ai.routing
     $modelMap = $script:cfg.settings.ai.models
 
-    # Determine model role from routing table (fallback = code)
-    $modelRole = $routingTable.$Mode
-    if (-not $modelRole) { $modelRole = 'code' }
-
-    # Resolve actual model name
-    $model = $modelMap.$modelRole
-    if (-not $model) {
-        throw "AI routing error: Model role '$modelRole' not found in config.json"
+    if (-not $routingTable.ContainsKey($Mode)) {
+        throw "AI routing error: Mode '$Mode' missing from config.json (ai.routing)."
     }
+
+    $modelRole = $routingTable.$Mode
+
+    if (-not $modelMap.ContainsKey($modelRole)) {
+        throw "AI routing error: Model role '$modelRole' missing from config.json (ai.models)."
+    }
+
+    $model = $modelMap.$modelRole
 
     Write-Log -Level Info -Message "`nAI Routing: Mode '$Mode' → Role '$modelRole' → Model '$model'"
 
-    # Prompt pack path
+    # ---------------------------------------------------------------------
+    # PROMPT PACK
+    # ---------------------------------------------------------------------
     $promptPackPath = $script:cfg.settings.ai.promptPackPath
     if (-not (Test-Path $promptPackPath)) {
         throw "Prompt pack not found at $promptPackPath"
     }
 
     $PromptPack = Get-Content $promptPackPath -Raw | ConvertFrom-Json
-    $PromptConfig = $PromptPack.$Mode
-    if (-not $PromptConfig) {
-        throw "Prompt mode '$Mode' not found in prompts.json"
+
+    if (-not ($PromptPack.PSObject.Properties.Name -contains $Mode)) {
+        throw "Prompt pack error: Mode '$Mode' missing from prompts.json."
     }
 
+    $PromptConfig = $PromptPack.$Mode
+
+    if (-not $PromptConfig.user_template) {
+        throw "Prompt pack error: Mode '$Mode' has no user_template defined."
+    }
+
+    # Normalize template
+    $template = $PromptConfig.user_template
+    if ($template -isnot [string]) {
+        $template = ($template | ForEach-Object { $_.ToString() }) -join "`n"
+    }
+
+    # ---------------------------------------------------------------------
+    # SIGNATURE BLOCK REMOVAL
+    # ---------------------------------------------------------------------
     function Remove-SignatureBlocks {
         param([string]$InputCode)
         $clean = $InputCode -replace '(?is)# SIG # Begin signature block(.+?)# SIG # End signature block', '[SIGNATURE BLOCK REMOVED]'
@@ -77,9 +75,9 @@ function Invoke-CodeAssistant {
     }
 
     try {
-        # ---------------------------------------------------------------------
-        # MODULE REVIEW MODE: Build structured module input
-        # ---------------------------------------------------------------------
+        # -----------------------------------------------------------------
+        # MODULE REVIEW MODE
+        # -----------------------------------------------------------------
         if ($Mode -eq 'ModuleReview') {
 
             $moduleRoot = (Get-Module TechToolbox -ListAvailable).ModuleBase
@@ -98,7 +96,6 @@ function Invoke-CodeAssistant {
             $moduleText = foreach ($file in $allModuleFiles) {
                 $content = Get-Content $file.FullName -Raw
                 $content = Remove-SignatureBlocks $content
-
                 $relative = $file.FullName.Replace($moduleRoot, '').TrimStart('\')
 
                 @"
@@ -112,33 +109,33 @@ $content
             $cleanCode = $moduleText -join "`n"
         }
         else {
-            $cleanCode = Remove-SignatureBlocks -InputCode $Code
+            $cleanCode = Remove-SignatureBlocks $Code
         }
 
-        # ---------------------------------------------------------------------
-        # Build prompt
-        # ---------------------------------------------------------------------
-        $template = $PromptConfig.user_template
-        if ($template -is [System.Collections.IEnumerable] -and $template -notlike '*string*') {
-            $template = $template -join "`n"
-        }
+        # -----------------------------------------------------------------
+        # BUILD PROMPT
+        # -----------------------------------------------------------------
+        $prompt = $template.Replace('{{code}}', $cleanCode)
 
-        $prompt = $template.Replace("{{code}}", $cleanCode)
-
-        # ---------------------------------------------------------------------
-        # Call local LLM (NOW USING ROUTED MODEL)
-        # ---------------------------------------------------------------------
+        # -----------------------------------------------------------------
+        # CALL LOCAL LLM
+        # -----------------------------------------------------------------
         $result = Invoke-LocalLLM -Model $model -Prompt $prompt
 
-        # ---------------------------------------------------------------------
-        # Output file
-        # ---------------------------------------------------------------------
+        if ([string]::IsNullOrWhiteSpace($result)) {
+            throw "LLM returned an empty response for mode '$Mode'."
+        }
+
+        # -----------------------------------------------------------------
+        # OUTPUT FILE
+        # -----------------------------------------------------------------
         $folder = "C:\TechToolbox\CodeAnalysis"
         if (-not (Test-Path $folder)) { New-Item -ItemType Directory -Path $folder | Out-Null }
 
         $timestamp = (Get-Date).ToString("yyyy-MM-dd_HHmmss")
         $baseName = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
         $sanitizedModel = Format-FileName -Name $model
+
         $path = Join-Path $folder "Analysis-$sanitizedModel-$baseName-$Mode-$timestamp.md"
 
         $md = @"
@@ -148,15 +145,28 @@ Generated: $(Get-Date)
 ## Mode
 $Mode
 
+## Model
+$model
+
 ## Summary
 $result
 
-## Files Included in Analysis
-This report summarizes analysis of the provided script or module. The full source code is intentionally omitted for clarity and to reduce report size.
+## Notes
+This report summarizes analysis of the provided script or module.  
+Source code is intentionally omitted for clarity.
 "@
 
         $md | Out-File -FilePath $path -Encoding $Encoding
         Write-Log -Level OK -Message ("`nSaved analysis ($Mode) to: {0}" -f $path)
+
+        # Optional structured return
+        return [PSCustomObject]@{
+            Mode      = $Mode
+            File      = $path
+            Model     = $model
+            Timestamp = (Get-Date)
+            Success   = $true
+        }
     }
     catch {
         Write-Log -Level Error -Message ("Invoke-CodeAssistant ($Mode) failed: {0}" -f $_.Exception.Message)
@@ -167,8 +177,8 @@ This report summarizes analysis of the provided script or module. The full sourc
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAWpqfIQnU8IT8d
-# Wq793Fqur2VVSJQs4ZAKbiQQXOAI36CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCVeLxrhD5yoWdY
+# sx5C0hhhQbWLV85tK5rMMkqNuzCgcKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -301,34 +311,34 @@ This report summarizes analysis of the provided script or module. The full sourc
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAI83UR/5EQ
-# E02UPaDzFXX2LXNB9xR7WzTiguEmyjUDDTANBgkqhkiG9w0BAQEFAASCAgAZgEvl
-# piC1tXP+bgxlbL9hNAv4ACCKgJQgAT9pJO8FYCA+RP1PfNnDMEvp0YgPSyzY7lJV
-# jv1aD476lK1s9fwmLoI/tckJ52EdvvN+6qVd4V+cME41yuQTGDY15cmwb1OwmlZD
-# QufqhqBG0FlOKWPV+yL7Gz0fOhi6zB+jBY+wzLUwMkKcnOD+uN3xeX+v+6iTt25v
-# QZSSjA96uIrh8ux42vl8R4aLGfoXECYzO6Mt10wZ/qQQDIeDtaimkQqIACXeK33w
-# weaV5CjSSJSp1k2AYs/s+/Nzpzles7r3l4uNH4leCXpaEhBY62F/tCVCB51SFiEB
-# Rq9BPlXQBUIib9MGQylxyjqKdIhZlhq9Nv+B4ncPmYVAwtW+CVDWO7XuFH+HnW/U
-# ZmTiaA7TcYBZ55/E7dIcg8xq6fKKaCOYe2ru9fjtKcFwnhUKgfrNB3Mvw/8TmDii
-# oD0VkeSxarsZaeQR9WvcEfBzyeDCzCnp2OPkZ7rTXktg/XEzoi2RUfzOioWJvw4w
-# 5PFMGjB7qCp54/un24nZ2irA3pSwraF8VXm7cbltkPUhtzpNHRkpvyWQKEsP0Bx6
-# remuAMD2IfxixHfMAGPssNW2NfrvRWtyw2DMx3v5uQLCR/Sz1R7uuMDp6XvAao0b
-# 3yzi5XieCOS2juzHcWtqujYJIvOMyh3oQD6aE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBvtGN4x72w
+# RVL90nFF2E+oqDS6NPNme+JpbTtwrf+GOjANBgkqhkiG9w0BAQEFAASCAgBJ82Cu
+# yMXwwshOl0DaxSQdswiwIGjSTDqLgEkDmr1HfLSayivliWFtqxjqKPgrjw301LhV
+# sKmuA+LT3SOMKygve8u8KnX+CWste0YKvQSUAMN/sbywg3KAhVbtEdbaxGH1clAA
+# NffiX5fqcVxpFZiUCzsOqGzPMRxfHkeOFe8+jpKAzwBMZ+TSJo7xVWjP7g1exQwt
+# 5CLO7tsxQ4Rlrc9Rj9qwhw1f1QN9yZpwFCAhxxP75KEMS42NvOItgsvRgRJ9vr5h
+# KTuCWGezkiWpdYYT3ImctXJzT/gyoFqvC2DyduBYPr/R0L/5/QmVENbpdjVXRDmW
+# G9yOtpgKls9iH3XNPPmMHRF+PfpaihmjsZpCwITjvzwMe9iILd2L3ugmy8Gl9k5a
+# MmeEBwt4fZli0AY6uBYTLjJXOA5Z+TcnpkejwkOUn3wGs5mM5rD6tdWtP926uyM7
+# EL0GCg249Q9rA7UppaQiZs1HCQzJsIrh/YQ4Pi0ZQolWTqIIVQvnEmkddIzxsJBE
+# +rH8lymsSSra9gFOjZDwGC7psz7X3Ao/i2eC8h4B23HDhy7ihNruemPKvZevQnzO
+# sF7fpeIl1iPmKxHeIUwJQQ/19v09BSFHLRbaTVFXPAsuXvM6D28ryo/+XFCOGq2W
+# lX9tiJJtB6umVAclzGhHkmVGQIpoqtNUepHGpaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjMwNDA4MDRaMC8GCSqGSIb3DQEJBDEiBCA52BK1XdJphrcm2sQd
-# EkCF761agIuu3YmXvv0Z8njcMTANBgkqhkiG9w0BAQEFAASCAgBP8Lb3XsBxSO2f
-# vmY6M72AnPioRB37ThkXtOzHy0H4f4smJ0GC6EO9m+bNPPcQsRbHzzSsKUJcptKR
-# wXDUsotfrIiZRyaXGi91Up86fssYEeXbURxV9Xq+9IAcVhfQuezdash6fE/pmPsL
-# Pa/x9i/mATLgxpLk8tsELqBHeV6RtQ9CmrQX3xJkR370cQu7u90JWqHDSDNe6mzz
-# 9D4z6kFCorh+c8QLbZhr6/KeIYnqAZhYIOYOrU0YOc6AG082ZMtMDL/zxMrV6EOW
-# Jm04gul6YGvEg1koBwgdBA1Jx81B/xuphA1N9noZuR+uZe203v7Z+JKW1wbOK6rE
-# voJPiNlV4oKtTo6Tk7/G1zHHPlFc0MwCK78KUVFHTiG4uYZHYn+h3kmhloygay+r
-# /DHv8HVP2m25CMOzdqRIV4UWvQX9fNUHDo2mV5blNR1eWnlYpTsDXZQ/MPXFUVFC
-# AD5uzaCW5TTGGFRRT4yGYLarW5i4TgZBjazM4fbCP0LZpjJ9qLog79R5MAdKcNO8
-# KiGSw1CcZTHpOzpgI0RQgtqaId2ZxtDbUmrjW//xoUsFRxUZVZCjr3ez+CiYQ7uC
-# sfUbObQcTS0c1pJku6g8ZIY9ln7tdNmah5z8riwpbMLktW41aYILnK3IduHecZXa
-# TzE20zvfSAnwj3lePnZI474yayROjg==
+# BTEPFw0yNjAzMDYwNDEyMzhaMC8GCSqGSIb3DQEJBDEiBCAN3yoKIVCooRBtNOsv
+# l5XDgkXan9mCKHcoY9Mb5Z8WOjANBgkqhkiG9w0BAQEFAASCAgB9Pf+QIkG/O6Se
+# JCzl4q7vYo7lBRU5l429eByvlu/cYa4qGexXgqBWEgmf0TamhkiHx+BlyJybca4Q
+# W4xU7zfeoL+h7dP7M1iDDDqLduGc+DAZltLnoU2Cptwd/9n4jqhTWsFPA3iVB2Tp
+# ANIK1icQqf+2P+rFUNFYw7R7hV7N3Tc4+bY6/ZTFktBAgQOnDnarRTkFXyVonl92
+# JynhDWuJrI18wvRmfmvanvB+goDkzNFzPbrbH/gEnujzVxLZw563ekMyxxdnnuSr
+# 8A9lmEYGnyyfA7MNIxzENkvJxtLXc8KlZwzhrvlw7Pv8q/tZQ5M3vo7879Yu+8+7
+# qPMHokhdRKc7v9vWrpb57TtAfQ7SbMuPwBQ/F3hYJEgFNrmFVZsBjTuboe+HFE87
+# KJq4g93jUYy3UxtwWHH7Wak2y/Q9iK+s8ARKNEFqVmaE8bs9SczKFtia/Sc/wNbG
+# 58USGevWzGU16+hV4G1i3CeCVXAUt6JVpPkqXSCZZORPt7K0/dc0EtRIoRh+nqXY
+# NnIeKZBtRYdw2tgd9y7IrlexTvHQWA9ynAZ9EqPKyGrqFEpQMS15GPECQ4hXQtu0
+# JivNVCSbIkQ+CpW4++sRK5FouwSnG5evm0TaELuBcTwfIEkSkDf16kTk3uUd7g/M
+# qtfvzhWrnLhPqmMjyJpG8IqRCCAZUA==
 # SIG # End signature block
