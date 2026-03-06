@@ -63,15 +63,17 @@ function Get-SystemTrustDiagnostic {
         if (-not [System.IO.Path]::IsPathRooted($workerDir)) {
             $workerDir = Join-Path $moduleRoot $workerDir
         }
-
-        $workerLocal = Join-Path $workerDir 'Get-SystemTrustDiagnostic.Worker.ps1'
-
         # Worker payload source (ps1 + json) - these files must be "worker-safe"
         # (no reliance on module auto-loading; remote will dot-source these directly)
-        $workerHelpersRoot = Join-Path $moduleRoot 'Private\Security\SystemTrust'
+        $workerHelpersRoot = $script:cfg.trustWorkerHelpersRoot.default
+        if (-not [System.IO.Path]::IsPathRooted($workerHelpersRoot)) {
+            $workerHelpersRoot = Join-Path $moduleRoot $workerHelpersRoot
+        }
 
         # Remote placement for worker script (you always copy it, so it can be stable)
         $workerRemote = 'C:\ProgramData\TechToolbox\Workers\Get-SystemTrustDiagnostic.Worker.ps1'
+        # Local path to worker script (dot-sourced for local execution)
+        $workerLocal = Join-Path $workerDir 'Get-SystemTrustDiagnostic.Worker.ps1'
 
         # Helper payload to zip for remote. Include JSON templates.
         $helperFiles = @(
