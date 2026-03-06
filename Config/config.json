@@ -41,6 +41,9 @@
     "workerPath": {
       "default": "C:\\TechToolbox\\Workers"
     },
+    "trustWorkerHelpersRoot": {
+      "default": "C:\\TechToolbox\\Private\\System"
+    },
     "largeFileSearch": {
       "defaultSearchDirectory": [
         "C:\\",
