@@ -45,10 +45,7 @@
       "default": "C:\\TechToolbox\\Private\\System"
     },
     "largeFileSearch": {
-      "defaultSearchDirectory": [
-        "C:\\",
-        "D:\\"
-      ],
+      "defaultSearchDirectory": ["C:\\", "D:\\"],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\TechToolbox_LogsAndExports\\Exports\\LargeFileSearch"
@@ -298,9 +295,14 @@
         "review": "qwen3:30b-instruct"
       },
       "routing": {
-        "ModuleReview": "review",
-        "StaticAnalysis": "code",
+        "General": "code",
+        "Static": "code",
+        "Security": "code",
         "Refactor": "code",
+        "Tests": "code",
+        "Combined": "code",
+
+        "ModuleReview": "review",
         "ExplainDesign": "review"
       },
       "promptPackPath": "C:\\TechToolbox\\AI\\prompts.json"
@@ -331,18 +333,12 @@
       "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": [
-        "/E",
-        "/COPYALL"
-      ]
+      "copyFlags": ["/E", "/COPYALL"]
     },
     "downloadsCleanup": {
       "dryRun": false,
       "cutoffYear": 2024,
-      "excludeExtensions": [
-        ".pst",
-        ".ost"
-      ],
+      "excludeExtensions": [".pst", ".ost"],
       "includeExtensions": null
     },
     "teams": {

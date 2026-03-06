@@ -5,39 +5,54 @@ function Invoke-CodeAssistantFolder {
 
     .DESCRIPTION
     Analyzes all .ps1 files in the specified path and its subdirectories using
-    the Invoke-CodeAssistant function.
+    the Invoke-CodeAssistant function, passing through the selected analysis
+    mode.
 
     .PARAMETER Path
     The root folder path to search for PowerShell files.
 
+    .PARAMETER Mode
+    The analysis mode to use for each file.
+
     .EXAMPLE
-    Invoke-CodeAssistantFolder -Path "C:\Scripts"
+    Invoke-CodeAssistantFolder -Path "C:\Scripts" -Mode Combined
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Path
+        [string]$Path,
+
+        [ValidateSet('General', 'Static', 'Security', 'Refactor', 'Tests', 'Combined', 'ModuleReview', 'ExplainDesign')]
+        [string]$Mode = 'General'
     )
 
     Initialize-TechToolboxRuntime
 
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+        throw "Folder not found: $Path"
+    }
+
     # Get all .ps1 files recursively
     $files = Get-ChildItem -Path $Path -Filter *.ps1 -File -Recurse
 
+    if (-not $files) {
+        throw "No PowerShell files found under: $Path"
+    }
+
     foreach ($file in $files) {
-        Write-Host "`n=== Analyzing: $($file.FullName) ===`n" -ForegroundColor Cyan
+        Write-Log -Level OK -Message "`n=== Analyzing: $($file.FullName) ==="
 
-        $code = Get-Content $file.FullName -Raw
+        $code = Get-Content -LiteralPath $file.FullName -Raw
 
-        Invoke-CodeAssistant -Code $code -FileName $file.Name
+        Invoke-CodeAssistant -Code $code -FileName $file.Name -Mode $Mode
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAIRSUBuQm+TaO4
-# zriFWk61PZOEhuH+CrG/nGclUJ5ZxqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBN2sg2okl9JoFO
+# dt5i7jaZZA4w2gLphbQaJbAsfRISpqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -170,34 +185,34 @@ function Invoke-CodeAssistantFolder {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC8oJQ6su06
-# 3lFH8/PJPkx1Yu+8nEyj8toJ6+DnVqNKZDANBgkqhkiG9w0BAQEFAASCAgBS59bQ
-# ct80UXDC83uFoAH4IZQRGm2Y0e6Q4aNrbGUmMXrHQ6/8clIcPMgZbyW3rQ0UU6qT
-# vKEw7HpH2G6qwUAISU7Mtq253nGlc3kDo26YB2VZjycIxgR3yzMOfU+l4snTZBaC
-# jWCklwQe1AOW02E7eh6FdlAyaoA9IXU8Udes6MDB+PBBmOCKzpNA39Sv21KwEvo9
-# b8AT8xVfhL1I5rSGxKZyKgbX5yLhAYnqTKY/PLncxXEL6JSdT3Tf2LX8VXyRZClw
-# ihYWpe5I0sNtH8gLEW1/s4ZpPtXej9wo8QZnJx8aBn2pCabPNh7WkW7Q8VllT1c8
-# O4/Ri3T0taRIh/Ks6JKP8O0fP4PBNdOXV5R4zHzoOLjhRNPTRtNgWwd6yXAr4aO2
-# 5nFjqbAlOYPjjA3/lxiEgGhIk298borbuSiGnqdx6ZjBtobdVsJntkSLMTgpGDa/
-# xgNRroprT6+VvPDzPSAPriRi0kda5byJ43Z/u5H88QrdA3UDivcE2kDuBzVArXZN
-# FSfofTbyU+QY67vhEbRGPqivnHfyIDUJTZc0cOWg1qxG7qQTP0cV8rm39x8E4U5C
-# W03FT3+BLIIlDoTugB0AS8mLltp2+YYlqnUia5dQEDRyzXnX+J3F4rnYLICAIREl
-# hFXJjIMpbiMf9PZMRvJ2urDuLZSxTmeb/p3haKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAXdK9vg/lT
+# /xbcCwPkJaRtLlmzvJbBdzhDhw1B7JaQSjANBgkqhkiG9w0BAQEFAASCAgDAYrEH
+# UOMNqqyDm/u3fhjDuyirsRiz7WFu9Gwa1EFKBqS76NHHECT6JTNEgPkd6ntFQ3D0
+# BG/BZmigMn4aIGw2Sehly+xkb2O0Py/pedfYzKT2eY9mixYWvUWZwVr365mNcDen
+# EuYLw7dMMgn0HAz43qcQN1gmLP3iuUbVKdih0qUsRuHCsgiinNF4LX0CWQVDFbWz
+# krWt4znxwrXIvO+FuUt3uwe1a9PaFNlIGPwO21mti7oKrPteE6vrPlcVwtT1ZOxl
+# pv0L+VBR66KkN/3846xiuvQ22/A+eB7nne3h3SCLk1nuCGxdsMW0zohxnBmsIdbZ
+# T/tV4oYteUeXwkm3OdAbww5pWofRXvKq+gZKg7gI7i0YrGOa7P6wVKDYTQIJlwoB
+# 9Ko4qhYQ7FWEI5nfp60Afk2EERNLk8psCpD3zVITj5eC8oMAA7hvLDWZGx18B9uq
+# D546qYJVBOISqIBpsVZdQedfOJXAlkD0uqVA909i85hFCRZ0E6x2LIVtEM5XqHkb
+# X9Ib+x1atHsj2C84+SyeXNrW9wl+sS7ncLkJLptN8rq9mfzaNA4CWphdDY25CJ+a
+# ckwVLWjwAuhKwqYNiGrnTbRH8m15V/y2Bo7C+DqzqQj3i0qAhByWY4tjQ2/Yqv4I
+# l08OWxOrkurzR5JAFnRgwaqLN3wyxRy7mXCwDaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjAxMjhaMC8GCSqGSIb3DQEJBDEiBCDkwJVaX9ulgokvv+i5
-# fNfRjI4YvsdPXnqrgKxPBWqejDANBgkqhkiG9w0BAQEFAASCAgCBRniTOG4+kYrP
-# zxT47U7kkqd/8n6AIeJA0RlTsbwWL6dv+rYqQ4ybXuDfPxAogVOCErssD+GuBJLH
-# az94kKlVfgP7RqxZa894al1ic6oGQ63243A20uzSMQ6+R++4WTfiPfbZi+YtOiYw
-# VJQpTYJLbUfC+PAbtu1ZlGhR7bOrLtDsRmVEpcKZrN9aQLXsVxCwOnVkK6jsgUpE
-# G+rCejitJ1j19rTD2bKX1TKk64zc0BjeD1X3Y1D8DgTiUnIUwevOvGHjRXcguvPm
-# fm/8tz+WsHFd5vb0pRL9D03boH+7vISwaiCpuzEfPT0GtnJZzoL1G1xWiO6xBdhh
-# 8mQVLmsI8pHsA+cYiJIfWkI5HAZwNg2su880URzQyMdCstNInDjvWvFVQqi25M8T
-# 34iB3A5b4T/DNHXAYkNk2oMmRJJvBTQuSmg1A1oxdHQNHWo4W85E5PCGh2KEP5Cm
-# Jr7raDrSLJCvxWZfY76KB/NcWnXFIZiGZMH4MZ53rnVFk5G29HaKxRzXovvZKDh8
-# zoiN584botzxtZwUXsZfh7ZAyKLkFhuYHX+IfKZxGbebphDSroe5ieJEWvBXEZQ7
-# mYAyHdG4o2Z20znry89uQXtZvr5Oezt4acVv2srXAoD4kAK1wYUJGf4dkNt3BHTm
-# U6kW8CFrOtegM47zaBW6C5wI0JWNDg==
+# BTEPFw0yNjAzMDYwNDA2NTVaMC8GCSqGSIb3DQEJBDEiBCCq/kRgXXF+PhpsVIM7
+# OGRi31QbAKhNx8IFxzdhJ27cFjANBgkqhkiG9w0BAQEFAASCAgBRd0tXLXD+ZxDM
+# afBfArG5KBAbh1frTqMcQoZSJr1j0fRA1hW0xnsBDnpBGoWc9k5pmitC/X1HpvUR
+# GbsXsRA91ydFEEpTyBPFSDjZE0mOsE8Z3i7o8B7mQmqrk/d6mkkZDMcyYlgJ3nRJ
+# LJ9s0b0iSpOhmK0js+csSIpbhdhQXUTDWZR4kteHZZ9LMcu0MNZ8eaAD+Mg53LVc
+# h5aPWxeKu9GeCEfBWjQClmI9HOEw1Drqm1TOJfV0jo1cdl2AIRcsoJQu/OzZQsu3
+# YYHxEickIRGq4cKMBN6lEqrmoLW8+K7E3iRBXpiKjvM246sPixLC0RI44K82L+hc
+# GQ7TSh9EXuGT+iCU8ayLMPeW5YVsVRkuD0w7EkFbmowXuLLhzj+SWs/CjwKrQI7y
+# KdnPJ3cZWBxbIAK0MFOQY6bDVODFAEg939d9iA8YKvlV1V924vU3yyVuMvSyQq3o
+# 4/Hz0B5icy+62F9/y/uFfsN7MiR/yoGayg+Dh6aqRij4rP8KfY3qNA9C5/zGzK7/
+# Wu7pAU4qtNKXa/r/LfPHFDNFBqrvG3vBrFM1anNA616CEyOrj4yIBG+8EyNm54As
+# atN0JXgy+oi+AKeOP0vcKScE0BFFBETU0qR8qkhfogbzGqh4G/hHyv6szGui3LiR
+# aMksjAspdTmcrAg+gqVsHmDXRbD4pw==
 # SIG # End signature block

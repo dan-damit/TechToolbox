@@ -4,15 +4,24 @@ function Invoke-LocalLLM {
         [Parameter(Mandatory)]
         [string]$Prompt,
 
-        [string]$Model = 'qwen2.5-coder:32b'
+        [string]$Model = 'qwen2.5-coder:32b',
+
+        # Optional override for streaming
+        [switch]$ForceStream
     )
 
     # ---------------------------------------------------------------------
-    # MODEL-BASED STREAMING RULES
+    # STREAMING RULES (deterministic)
     # ---------------------------------------------------------------------
-    # Coder models stream well; Qwen3 models do not.
+    # Only models explicitly listed here will stream by default.
+    # Everything else uses non-streaming mode unless -ForceStream is used.
+    $streamingModels = @(
+        'qwen2.5-coder:14b'   # Known stable streaming model
+    )
+
     $Stream =
-    if ($Model -match 'coder') { $true }
+    if ($ForceStream) { $true }
+    elseif ($streamingModels -contains $Model) { $true }
     else { $false }
 
     # ---------------------------------------------------------------------
@@ -31,7 +40,7 @@ function Invoke-LocalLLM {
     $client = $null
     $request = $null
     $response = $null
-    $stream = $null
+    $streamObj = $null
     $reader = $null
 
     $fullText = ''
@@ -44,7 +53,7 @@ function Invoke-LocalLLM {
 
         $request = [System.Net.Http.HttpRequestMessage]::new()
         $request.Method = [System.Net.Http.HttpMethod]::Post
-        $request.RequestUri = [System.Uri]$requestUri
+        $request.RequestUri = $requestUri
         $request.Content = [System.Net.Http.StringContent]::new(
             $body,
             [System.Text.Encoding]::UTF8,
@@ -67,8 +76,12 @@ function Invoke-LocalLLM {
         # -----------------------------------------------------------------
         # Validate response object
         # -----------------------------------------------------------------
-        if ($null -eq $response -or $response.GetType().FullName -ne 'System.Net.Http.HttpResponseMessage') {
-            throw "Local LLM returned an unexpected response type: $($response.GetType().FullName)"
+        if ($null -eq $response) {
+            throw "Local LLM returned null response. Model may have crashed or failed to load."
+        }
+
+        if ($response.GetType().FullName -ne 'System.Net.Http.HttpResponseMessage') {
+            throw "Unexpected response type: $($response.GetType().FullName)"
         }
 
         if (-not $response.IsSuccessStatusCode) {
@@ -82,19 +95,18 @@ function Invoke-LocalLLM {
         if (-not $Stream) {
             $json = $response.Content.ReadAsStringAsync().Result
 
+            if ([string]::IsNullOrWhiteSpace($json)) {
+                throw "Local LLM returned an empty response body."
+            }
+
             try {
                 $obj = $json | ConvertFrom-Json
-                if ($obj.response) {
-                    return $obj.response
-                }
-                elseif ($obj.message) {
-                    return $obj.message
-                }
-                else {
-                    return $json
-                }
+                if ($obj.response) { return $obj.response }
+                if ($obj.message) { return $obj.message }
+                return $json
             }
             catch {
+                # Return raw JSON if parsing fails
                 return $json
             }
         }
@@ -102,8 +114,8 @@ function Invoke-LocalLLM {
         # -----------------------------------------------------------------
         # STREAMING MODE (JSONL)
         # -----------------------------------------------------------------
-        $stream = $response.Content.ReadAsStreamAsync().Result
-        $reader = [System.IO.StreamReader]::new($stream)
+        $streamObj = $response.Content.ReadAsStreamAsync().Result
+        $reader = [System.IO.StreamReader]::new($streamObj)
 
         while (-not $reader.EndOfStream) {
             $line = $reader.ReadLine()
@@ -122,6 +134,10 @@ function Invoke-LocalLLM {
                 $fullText += $obj.response
             }
         }
+
+        if ([string]::IsNullOrWhiteSpace($fullText)) {
+            throw "Streaming mode completed but produced no text."
+        }
     }
     catch {
         Write-Log -Level Error -Message ("Error invoking local LLM: {0}" -f $_.Exception.Message)
@@ -129,7 +145,7 @@ function Invoke-LocalLLM {
     }
     finally {
         if ($reader) { $reader.Dispose() }
-        if ($stream) { $stream.Dispose() }
+        if ($streamObj) { $streamObj.Dispose() }
         if ($response) { $response.Dispose() }
         if ($request) { $request.Dispose() }
         if ($client) { $client.Dispose() }
@@ -143,8 +159,8 @@ function Invoke-LocalLLM {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAEmi0+C5j8FxPu
-# iJT9eoLhTHA0XJGxBLGL6xcGERsAS6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA549V6+VI8N23r
+# lsfTcmlJ/Q0JPrHT0DJMjcLF6vA6R6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -277,34 +293,34 @@ function Invoke-LocalLLM {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBMl6f4roZ5
-# GYuDN7y3QUk2UBAAesESJysK0pfGDCLZHDANBgkqhkiG9w0BAQEFAASCAgAgUxf3
-# WyS9cWt9fqexT7xIX/FdPC9ml+sQU/rvKb5j2DcnWeX8j5/N4dO//TlXEnJ0Qpju
-# G/Hh5SO96tOsw38kNiPHi2zyPEAJ5Btb3/p15dkehoCXOVZ1tYF8YIucMy3QBeT4
-# yS+EgJ250M+cK1UW9O5Hz0fAQGtkKH3A6mNsU/pIcwxQ27aANcn9bznTclHCIHI0
-# Qb5evuCjGFA80cSiaEnOX0c/4UWu80BkyWoFG1YfARulop4i8JvJmLAC3CZ6q1Kk
-# 4HLWoEQgu77coLkwGqtxH5L72nR4Vu18X8eTRs4RzY31R82m+vCDdnpq4cM+JZog
-# jZI1rBbTbMjPExRKJ4CIXTWmmJcXODE4H6sJ7WAUoqVPSMf75LMCY02mjWsRB/nb
-# qIOkFoqu+2HgQhk904hqvTaTh99cnEgYScqre21A2hXOY3DMUDbCOV51+NqUfGA9
-# o+LP6GXGABkhkv+mIyacYbsR3k5ApiWLQejPe+PO5sSbxEQaab/JAXAJYbaWxkgY
-# K3uH2XtaB9U8Oc7vel7HhLeoY5xK4aRz/p8Aq/vdxEqskVWYU+3o630S7CVSwPbb
-# jf0yHlQdgJZtpsFdLESWcTNVMV0oLpo4OhiughAIYbkNvXqb3OLOHBRWYQzDUCG8
-# U75wAK/RxDyKvAJvTf0mFqwI5a2c34hp41vRzKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCgolfqQksk
+# 2p4hSGZ4sMWtz+tOQIe6+nHoLPrCIil5XDANBgkqhkiG9w0BAQEFAASCAgDIErBm
+# zwNhDYewyj/sgU1/3o05CI5XAfzFRDGJmYEWzgXnXkKJGlFvoUMI+ls10XWqO7yq
+# D4sqxBjrauH3JHgAD/BvNXwpSwzfkRYJs1g4bWxnVgRP0Xk8kFwbqfQAViivi6a0
+# qSbrhpwQ0DMVsjMCJl6v8J7jOkW3BfmQWYx4izysN63IqBzQ1Lb5ZvHUhk+ksHR/
+# kC2+KDwvToQO5swAVQG1GhxtMYZpMkknqKXECbddwFw5PMgjnlI8JdIMyNAwNgNi
+# XhNX2QggARkh5eT1RErrkmL9tQ51YIWVMbhXzEbCsDiYghnpH6xzNGBPDW3BAU0m
+# ilQCfg+c/K8KRs2tIOvEcJYnRvDTdh5YvFCZmSfAzda9fBWvKB/piv12GuWczTE1
+# iW5bLaLfuPfOQ2+OyFk2fuxx6DiG0NEUt3jspaTFFB5TFxE1cj5QstHCbum91y0f
+# 63mHkbgYSDxZFueSsrkNmXwYNB4W1suPIAF0SxGKzAqva5r3KCz5xWnkITnUale5
+# 7EREjvHimq/VBC8iCEOU1vpAWzvniT7NRhOLKCCzcCXYlid3Eu7ftvibti6u2bCo
+# Rm9RcAZO4Ny8CIPrY9ZKaTMM1dJ8C6+nwTvjvu9OtEIz/Bu23tf1X/1THdlxCx03
+# XghCA2XNTUIK+nQB8LcNUlZStUYvrZa/RLhoaqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjMwNDMzMDlaMC8GCSqGSIb3DQEJBDEiBCCCT9u+NHWoeE6DeIMi
-# Tk55nOkospyD8y9Acfq/eB7GwTANBgkqhkiG9w0BAQEFAASCAgCmTJNNy1H2zJpo
-# 8HYg9IY5ufAtfFgp5wPXS4PEOMlwxzvSUBiyedp+cdnG8ml+PuZyFLc8dqLY/liO
-# VIubcCer27XspoWeKo1m5DNUZdWbc32yrsOajyNvtOZiPfItL0hbtss4YTuUe5BH
-# m6rbZCmKTA6o/SOAWhPgCdE/yzGbrt/p9b4Sfy1Y86b/f19E4dTsWt8ZODgSjWRL
-# HE4VxFRWqod/wCsOb8OQj+9JfuQOnYR5LUJHlPMjyJkaePHXRBowV1tuJbGFXXoi
-# iCuCoSWsHpVlugxJN+cVGzYgVBrG9gXXuD96NoFO+ZQhQblPzLNGitn260XhTha1
-# j+7wkjIttkVV1X2tIGIaSJL3Wn0C8czhCZLnMmMrcSiCBibq168rBgxVxMWM94U8
-# cYY1zw3ufKy3nxCA3zmbEN3uzzUTgYcsoqm6aboizTjXlQxTtvoCARdM0qEnneqE
-# 3SMzjD5//gMuJzeb54oMUNFjaW+oI4ljf0Yf1h0oq8hMtjuVnh1HBb6GI0RSbGqK
-# jwDJHEmRQRdBIHLqJ9JRuWNDIadN2ufizSe572iGREz+a+wxrMBjqt2+D/+zaLuH
-# FSxXUBDEIA06ZkAlWc6Q2V2iY8jUnShGIQ1NLl00ssq9h6/1Dtd3rDQXrEyXzmJq
-# s7iYkuuxjHplEAR7XQI0XZ2DDrLyOw==
+# BTEPFw0yNjAzMDYwNDU2MzdaMC8GCSqGSIb3DQEJBDEiBCCt344jFRjuuyMy/URi
+# ygFeOn9U8n1y45FFB8aDY2MshDANBgkqhkiG9w0BAQEFAASCAgCOl9lGLyEBuVRB
+# 1JvgsW6TYW++SSMYJAGH6Fp0EZr8xC2e84e2K9DvOJzjGI8aw5Co0AJJQdUJJKND
+# KWkB+vWEz6MzlwacVZGSylMbrgj0MU1HKowOz4gN+ikkaYBCjxKOhVifBK1vtFU2
+# E/ip9BZG5fOTWKJzU/GHtdq3MPYwcO1TZQcyU4PRqo+EFXTpKg8pOZfPzCvdTgK7
+# rYjC81oaow3yiTIFs8a1j9tAehKnj5oiOoghVzSTVqT4b9z+q9JnVk094JgvSzcS
+# 7fDlLYdxHxk7LTm2SkZwMuNFsSj08ov246MEkw1UsAgh/nfzKf/+uXtSyx8jF0Xw
+# TQUW3XUaYcGpU2gtxrp1P1m0V3O4gHdpkPb+LHubUgg30U0ZToYf9ZHcI+kXkwY/
+# 6t49rvk+vGFL1I5Yn0LnndibrNYV3HGggVqVQENse9NEdNj/o8cYRNJqDPpVNqLv
+# A2NpqIkIU3LF2Xer5LLNhyTbaKil9gTt1w2JMiIi4X+T0EZ1Fo0pA+R4O6NKv8ow
+# w+9rggx62lfMi7wLBDBG2qfL910eCKTf10zqsiC4iVAnCbOqCXVa8YXorit/8rhp
+# wkBfrApjIYUuGdWW6XExZ2q33Ertu+C4RhpJYUz18CB1sSmeQnCtxooRb5VeXWdD
+# WvcnAauEpMejKLh3D71H7sDsMkx8Hw==
 # SIG # End signature block
