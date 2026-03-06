@@ -7,14 +7,20 @@ function Invoke-LocalLLM {
         [string]$Model = 'qwen2.5-coder:32b',
 
         # Optional override for streaming
-        [switch]$ForceStream
+        [switch]$ForceStream,
+
+        # Robustness knobs
+        [int]$TimeoutMinutes = 15,
+        [int]$RetryCount = 1,
+        [int]$RetryDelaySeconds = 2,
+
+        # Prefer returning an object (TechToolbox-friendly)
+        [switch]$ThrowOnError
     )
 
-    # ---------------------------------------------------------------------
+    # -----------------------------
     # STREAMING RULES (deterministic)
-    # ---------------------------------------------------------------------
-    # Only models explicitly listed here will stream by default.
-    # Everything else uses non-streaming mode unless -ForceStream is used.
+    # -----------------------------
     $streamingModels = @(
         'qwen2.5-coder:14b'   # Known stable streaming model
     )
@@ -24,11 +30,52 @@ function Invoke-LocalLLM {
     elseif ($streamingModels -contains $Model) { $true }
     else { $false }
 
-    # ---------------------------------------------------------------------
-    # Build request
-    # ---------------------------------------------------------------------
+    # -----------------------------
+    # Helpers
+    # -----------------------------
+    function New-LLMResult {
+        param(
+            [bool]$Success,
+            [string]$Text,
+            [string]$Model,
+            [bool]$Stream,
+            [TimeSpan]$Duration,
+            [Nullable[int]]$StatusCode,
+            [string]$ReasonPhrase,
+            [System.Exception]$Exception,
+            [System.Management.Automation.ErrorRecord]$ErrorRecord
+        )
+
+        [pscustomobject]@{
+            PSTypeName   = 'TechToolbox.LocalLLM.Result'
+            Success      = $Success
+            Text         = $Text
+            Model        = $Model
+            Stream       = $Stream
+            DurationMs   = [int]$Duration.TotalMilliseconds
+            StatusCode   = $StatusCode
+            ReasonPhrase = $ReasonPhrase
+            Exception    = $Exception
+            ErrorRecord  = $ErrorRecord
+        }
+    }
+
+    function Format-ExceptionChain([Exception]$ex) {
+        $parts = New-Object System.Collections.Generic.List[string]
+        $i = 0
+        while ($ex) {
+            $parts.Add(("[$i] {0}: {1}" -f $ex.GetType().FullName, $ex.Message))
+            $ex = $ex.InnerException
+            $i++
+        }
+        $parts -join " | "
+    }
+
+    # -----------------------------
+    # Build request bits
+    # -----------------------------
     $baseUrl = 'http://localhost:11434/api'
-    $requestUri = [System.Uri]"$baseUrl/generate"
+    $requestUri = [Uri]"$baseUrl/generate"
 
     $body = @{
         model  = $Model
@@ -38,88 +85,184 @@ function Invoke-LocalLLM {
 
     $handler = $null
     $client = $null
-    $request = $null
     $response = $null
     $streamObj = $null
     $reader = $null
 
-    $fullText = ''
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
     try {
         Write-Log -Level Warn -Message ("Invoking local LLM at '{0}' with model '{1}' (stream={2})..." -f $requestUri, $Model, $Stream)
 
+        # Optional preflight: fail fast if Ollama isn't listening.
+        # (Fast & clean when service is down; doesn't help with GPU driver crash, but avoids confusion.)
+        try {
+            $tnc = Test-NetConnection -ComputerName 'localhost' -Port 11434 -WarningAction SilentlyContinue
+            if (-not $tnc.TcpTestSucceeded) {
+                $msg = "Ollama is not listening on localhost:11434. Start Ollama and try again."
+                $err = [System.Management.Automation.ErrorRecord]::new(
+                    [System.Exception]::new($msg),
+                    'OllamaNotListening',
+                    [System.Management.Automation.ErrorCategory]::ConnectionError,
+                    $requestUri
+                )
+                $result = New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                    -StatusCode $null -ReasonPhrase $null -Exception $err.Exception -ErrorRecord $err
+                if ($ThrowOnError) { throw $err.Exception }
+                return $result
+            }
+        }
+        catch {
+            # If preflight itself fails, ignore and proceed to the real call.
+        }
+
         $handler = [System.Net.Http.HttpClientHandler]::new()
         $client = [System.Net.Http.HttpClient]::new($handler)
+        $client.Timeout = [TimeSpan]::FromMinutes($TimeoutMinutes)
 
-        $request = [System.Net.Http.HttpRequestMessage]::new()
-        $request.Method = [System.Net.Http.HttpMethod]::Post
-        $request.RequestUri = $requestUri
-        $request.Content = [System.Net.Http.StringContent]::new(
-            $body,
-            [System.Text.Encoding]::UTF8,
-            'application/json'
-        )
+        $attempt = 0
+        $lastException = $null
 
-        # -----------------------------------------------------------------
-        # Send request
-        # -----------------------------------------------------------------
-        if ($Stream) {
-            $response = $client.SendAsync(
-                $request,
-                [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead
-            ).Result
+        while ($attempt -le $RetryCount) {
+            $attempt++
+
+            # IMPORTANT: build a fresh request each attempt (don’t reuse HttpRequestMessage/StringContent).
+            $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Post, $requestUri)
+            $request.Content = [System.Net.Http.StringContent]::new($body, [System.Text.Encoding]::UTF8, 'application/json')
+
+            try {
+                if ($Stream) {
+                    $response = $client.SendAsync(
+                        $request,
+                        [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead
+                    ).GetAwaiter().GetResult()
+                }
+                else {
+                    $response = $client.SendAsync($request).GetAwaiter().GetResult()
+                }
+
+                # request is safe to dispose after send
+                $request.Dispose()
+                $request = $null
+
+                break
+            }
+            catch {
+                $lastException = $_.Exception
+                $msg = "Send attempt $attempt/$($RetryCount+1) failed: $(Format-ExceptionChain $lastException)"
+                Write-Log -Level Warn -Message $msg
+
+                if ($request) { $request.Dispose(); $request = $null }
+
+                if ($attempt -le $RetryCount) {
+                    Start-Sleep -Seconds $RetryDelaySeconds
+                    continue
+                }
+
+                # Return structured failure (or throw, if requested)
+                $err = [System.Management.Automation.ErrorRecord]::new(
+                    $lastException,
+                    'LocalLLMSendFailed',
+                    [System.Management.Automation.ErrorCategory]::ConnectionError,
+                    $requestUri
+                )
+
+                $result = New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                    -StatusCode $null -ReasonPhrase $null -Exception $lastException -ErrorRecord $err
+
+                if ($ThrowOnError) { throw $lastException }
+                return $result
+            }
         }
-        else {
-            $response = $client.SendAsync($request).Result
-        }
 
-        # -----------------------------------------------------------------
-        # Validate response object
-        # -----------------------------------------------------------------
+        # Response sanity
         if ($null -eq $response) {
-            throw "Local LLM returned null response. Model may have crashed or failed to load."
+            $msg = "SendAsync returned null response (unexpected). If your GPU driver reset, Ollama may have crashed mid-request."
+            $ex = [System.Exception]::new($msg)
+            $err = [System.Management.Automation.ErrorRecord]::new(
+                $ex,
+                'NullHttpResponse',
+                [System.Management.Automation.ErrorCategory]::InvalidResult,
+                $requestUri
+            )
+
+            $result = New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                -StatusCode $null -ReasonPhrase $null -Exception $ex -ErrorRecord $err
+
+            if ($ThrowOnError) { throw $ex }
+            return $result
         }
 
-        if ($response.GetType().FullName -ne 'System.Net.Http.HttpResponseMessage') {
-            throw "Unexpected response type: $($response.GetType().FullName)"
-        }
-
+        # Non-success HTTP -> return error object with body
         if (-not $response.IsSuccessStatusCode) {
-            $bodyText = $response.Content.ReadAsStringAsync().Result
-            throw "HTTP $($response.StatusCode) ($($response.ReasonPhrase)): $bodyText"
+            $bodyText = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+            $msg = "HTTP $([int]$response.StatusCode) ($($response.ReasonPhrase)): $bodyText"
+            $ex = [System.Exception]::new($msg)
+            $err = [System.Management.Automation.ErrorRecord]::new(
+                $ex,
+                'OllamaHttpError',
+                [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                $requestUri
+            )
+
+            $result = New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                -StatusCode ([int]$response.StatusCode) -ReasonPhrase $response.ReasonPhrase -Exception $ex -ErrorRecord $err
+
+            if ($ThrowOnError) { throw $ex }
+            return $result
         }
 
-        # -----------------------------------------------------------------
-        # NON-STREAMING MODE
-        # -----------------------------------------------------------------
+        # -----------------------------
+        # NON-STREAMING
+        # -----------------------------
         if (-not $Stream) {
-            $json = $response.Content.ReadAsStringAsync().Result
-
+            $json = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
             if ([string]::IsNullOrWhiteSpace($json)) {
-                throw "Local LLM returned an empty response body."
+                $msg = "Local LLM returned an empty response body."
+                $ex = [System.Exception]::new($msg)
+                $err = [System.Management.Automation.ErrorRecord]::new(
+                    $ex,
+                    'EmptyBody',
+                    [System.Management.Automation.ErrorCategory]::InvalidResult,
+                    $requestUri
+                )
+
+                $result = New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                    -StatusCode ([int]$response.StatusCode) -ReasonPhrase $response.ReasonPhrase -Exception $ex -ErrorRecord $err
+
+                if ($ThrowOnError) { throw $ex }
+                return $result
             }
 
             try {
                 $obj = $json | ConvertFrom-Json
-                if ($obj.response) { return $obj.response }
-                if ($obj.message) { return $obj.message }
-                return $json
+                $text =
+                if ($obj.response) { $obj.response }
+                elseif ($obj.message) { $obj.message }
+                else { $json }
+
+                Write-Log -Level OK -Message ("Local LLM call completed for model '{0}'." -f $Model)
+                return (New-LLMResult -Success:$true -Text $text -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                        -StatusCode ([int]$response.StatusCode) -ReasonPhrase $response.ReasonPhrase -Exception $null -ErrorRecord $null)
             }
             catch {
-                # Return raw JSON if parsing fails
-                return $json
+                # Return raw JSON if parsing fails, but still count as success
+                Write-Log -Level OK -Message ("Local LLM call completed for model '{0}' (unparsed JSON)." -f $Model)
+                return (New-LLMResult -Success:$true -Text $json -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                        -StatusCode ([int]$response.StatusCode) -ReasonPhrase $response.ReasonPhrase -Exception $null -ErrorRecord $null)
             }
         }
 
-        # -----------------------------------------------------------------
-        # STREAMING MODE (JSONL)
-        # -----------------------------------------------------------------
-        $streamObj = $response.Content.ReadAsStreamAsync().Result
+        # -----------------------------
+        # STREAMING (JSONL)
+        # -----------------------------
+        $sb = [System.Text.StringBuilder]::new()
+
+        $streamObj = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
         $reader = [System.IO.StreamReader]::new($streamObj)
 
         while (-not $reader.EndOfStream) {
             $line = $reader.ReadLine()
-
             if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
             try {
@@ -130,37 +273,80 @@ function Invoke-LocalLLM {
                 continue
             }
 
-            if ($obj.response) {
-                $fullText += $obj.response
+            if ($obj.error) {
+                $ex = [System.Exception]::new("Ollama stream error: $($obj.error)")
+                $err = [System.Management.Automation.ErrorRecord]::new(
+                    $ex,
+                    'OllamaStreamError',
+                    [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                    $requestUri
+                )
+
+                $result = New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                    -StatusCode ([int]$response.StatusCode) -ReasonPhrase $response.ReasonPhrase -Exception $ex -ErrorRecord $err
+
+                if ($ThrowOnError) { throw $ex }
+                return $result
             }
+
+            if ($obj.response) { [void]$sb.Append($obj.response) }
+            if ($obj.done -eq $true) { break }
         }
 
-        if ([string]::IsNullOrWhiteSpace($fullText)) {
-            throw "Streaming mode completed but produced no text."
+        $text = $sb.ToString()
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            $msg = "Streaming mode completed but produced no text."
+            $ex = [System.Exception]::new($msg)
+            $err = [System.Management.Automation.ErrorRecord]::new(
+                $ex,
+                'EmptyStream',
+                [System.Management.Automation.ErrorCategory]::InvalidResult,
+                $requestUri
+            )
+
+            $result = New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                -StatusCode ([int]$response.StatusCode) -ReasonPhrase $response.ReasonPhrase -Exception $ex -ErrorRecord $err
+
+            if ($ThrowOnError) { throw $ex }
+            return $result
         }
+
+        Write-Log -Level OK -Message ("Local LLM call completed for model '{0}'." -f $Model)
+        return (New-LLMResult -Success:$true -Text $text -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                -StatusCode ([int]$response.StatusCode) -ReasonPhrase $response.ReasonPhrase -Exception $null -ErrorRecord $null)
     }
     catch {
-        Write-Log -Level Error -Message ("Error invoking local LLM: {0}" -f $_.Exception.Message)
-        throw
+        # Last-chance catch: return structured result (unless ThrowOnError)
+        $ex = $_.Exception
+        Write-Log -Level Error -Message ("Error invoking local LLM: {0}" -f $ex.ToString())
+
+        if ($ThrowOnError) { throw }
+
+        $err = [System.Management.Automation.ErrorRecord]::new(
+            $ex,
+            'InvokeLocalLLMFailed',
+            [System.Management.Automation.ErrorCategory]::NotSpecified,
+            $requestUri
+        )
+
+        return (New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
+                -StatusCode $null -ReasonPhrase $null -Exception $ex -ErrorRecord $err)
     }
     finally {
+        $sw.Stop()
         if ($reader) { $reader.Dispose() }
         if ($streamObj) { $streamObj.Dispose() }
         if ($response) { $response.Dispose() }
-        if ($request) { $request.Dispose() }
         if ($client) { $client.Dispose() }
         if ($handler) { $handler.Dispose() }
     }
-
-    Write-Log -Level OK -Message ("Local LLM call completed for model '{0}'." -f $Model)
-    return $fullText
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA549V6+VI8N23r
-# lsfTcmlJ/Q0JPrHT0DJMjcLF6vA6R6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA7XmqNmqQS1rPT
+# Ti/e9v8a3qVycuK3oQH3sLjhsE2sUqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -293,34 +479,34 @@ function Invoke-LocalLLM {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCgolfqQksk
-# 2p4hSGZ4sMWtz+tOQIe6+nHoLPrCIil5XDANBgkqhkiG9w0BAQEFAASCAgDIErBm
-# zwNhDYewyj/sgU1/3o05CI5XAfzFRDGJmYEWzgXnXkKJGlFvoUMI+ls10XWqO7yq
-# D4sqxBjrauH3JHgAD/BvNXwpSwzfkRYJs1g4bWxnVgRP0Xk8kFwbqfQAViivi6a0
-# qSbrhpwQ0DMVsjMCJl6v8J7jOkW3BfmQWYx4izysN63IqBzQ1Lb5ZvHUhk+ksHR/
-# kC2+KDwvToQO5swAVQG1GhxtMYZpMkknqKXECbddwFw5PMgjnlI8JdIMyNAwNgNi
-# XhNX2QggARkh5eT1RErrkmL9tQ51YIWVMbhXzEbCsDiYghnpH6xzNGBPDW3BAU0m
-# ilQCfg+c/K8KRs2tIOvEcJYnRvDTdh5YvFCZmSfAzda9fBWvKB/piv12GuWczTE1
-# iW5bLaLfuPfOQ2+OyFk2fuxx6DiG0NEUt3jspaTFFB5TFxE1cj5QstHCbum91y0f
-# 63mHkbgYSDxZFueSsrkNmXwYNB4W1suPIAF0SxGKzAqva5r3KCz5xWnkITnUale5
-# 7EREjvHimq/VBC8iCEOU1vpAWzvniT7NRhOLKCCzcCXYlid3Eu7ftvibti6u2bCo
-# Rm9RcAZO4Ny8CIPrY9ZKaTMM1dJ8C6+nwTvjvu9OtEIz/Bu23tf1X/1THdlxCx03
-# XghCA2XNTUIK+nQB8LcNUlZStUYvrZa/RLhoaqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDPpoKepSl5
+# RSEtUyly3kJrwJQikxN+5XMl3Et4tcuJbzANBgkqhkiG9w0BAQEFAASCAgCokYmn
+# iuBx0yyFcgDxAcmsVji8ydnz8sUpNU0AyOhP8+6JOgNgg2Yu3taGc6r71v9Cd96F
+# juEIxrhH5DuNRskp2f2QGXwwR7Y4kf1xkfYRIFuRDvHJoB/m6XKofRxNPWl0wJ55
+# kZ0CQNhA8IDxGd8fFrWj0D5Jb08Sq1+zkhwJ8tcdAvTCzysn74heAkdF8F0eQTnB
+# Hv63SNLNyJaHydZsUYR7/hUsLlwwTpXf7U1mP8DOyOCVzcm/QWUmj+SheYNJ7/cs
+# rIaFDxy5dI9AjXKoLfx4ShtN0GnbH96Xg2lj0FPJYkDaJ0gNH6GUEACPxzIgiXNX
+# WNOyxbhCBlZfKpJfvtcnVapYAtYSg0L7SYPj+uNp2ECyJlufHXtoE78A9rCEAqEx
+# A5UC7aIJul1x9ymsWU2V7nobPjTQ9awCOcgPu1APxs+apFHEPiOXVrWAl73IrJHa
+# AphJSu0AAAHtqKltLEPJ48kXTaSALprlT1an+9uD/glW9EtxKvEL4SWJeDHH7OD+
+# LsqldgP97ZhAjmUp5XxAmdpcoFyVtstlRfBfHgmazjGVHSPjVNwj3omjJ07CsQpp
+# m9+8nek4T7DVw8Ytd/Ma/2GR6JKSLPgna8D7/pA7OKfscLBhHUSlWJD49MwiVx5q
+# ktxwyx19GouQAE4umC1qrucRObiqFOe8sS0puaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDYwNDU2MzdaMC8GCSqGSIb3DQEJBDEiBCCt344jFRjuuyMy/URi
-# ygFeOn9U8n1y45FFB8aDY2MshDANBgkqhkiG9w0BAQEFAASCAgCOl9lGLyEBuVRB
-# 1JvgsW6TYW++SSMYJAGH6Fp0EZr8xC2e84e2K9DvOJzjGI8aw5Co0AJJQdUJJKND
-# KWkB+vWEz6MzlwacVZGSylMbrgj0MU1HKowOz4gN+ikkaYBCjxKOhVifBK1vtFU2
-# E/ip9BZG5fOTWKJzU/GHtdq3MPYwcO1TZQcyU4PRqo+EFXTpKg8pOZfPzCvdTgK7
-# rYjC81oaow3yiTIFs8a1j9tAehKnj5oiOoghVzSTVqT4b9z+q9JnVk094JgvSzcS
-# 7fDlLYdxHxk7LTm2SkZwMuNFsSj08ov246MEkw1UsAgh/nfzKf/+uXtSyx8jF0Xw
-# TQUW3XUaYcGpU2gtxrp1P1m0V3O4gHdpkPb+LHubUgg30U0ZToYf9ZHcI+kXkwY/
-# 6t49rvk+vGFL1I5Yn0LnndibrNYV3HGggVqVQENse9NEdNj/o8cYRNJqDPpVNqLv
-# A2NpqIkIU3LF2Xer5LLNhyTbaKil9gTt1w2JMiIi4X+T0EZ1Fo0pA+R4O6NKv8ow
-# w+9rggx62lfMi7wLBDBG2qfL910eCKTf10zqsiC4iVAnCbOqCXVa8YXorit/8rhp
-# wkBfrApjIYUuGdWW6XExZ2q33Ertu+C4RhpJYUz18CB1sSmeQnCtxooRb5VeXWdD
-# WvcnAauEpMejKLh3D71H7sDsMkx8Hw==
+# BTEPFw0yNjAzMDYxNzU1MzlaMC8GCSqGSIb3DQEJBDEiBCB4sL88i3gga22R2KoO
+# VMFyfWj6vTw6DCoO5BOWv/dUnDANBgkqhkiG9w0BAQEFAASCAgBDwbiWI24L50di
+# Jsw0bEtlnl9CZG04Z7tVg+4whCtHAAq6H5e9DJgUyEt4HNlO0cgN9ACi8AfNEZi2
+# eCKmWuAUI24wQN8NVFvYGuNoo2Zt0oFYKy/sWNht0ANxk9aRfm54NQ4+Rb3AZEY9
+# joUSPEiJX2CK625IwL+meS306Yf4PC4d/L0OQbZwA7S6IqeyuDNWB5Qf7xoWiZgT
+# DlVhq6uLXnetzhjmlNGGPcOFIj/i6wYZe3qNUreERyTeq98YW9cb+ZOJBbENUZdq
+# aSUcLhycnd4+Urd8PdYunh6YHQx5YOyFDK2LxjW2+PIxmAQFCXdWA5LGvBvOSZWl
+# FDP75h45CUT28Iikvfp3cvKqr2wLAIrotN+dVxS5JmjliQGFUja64gTe5t+A/c04
+# 0xnX+rJXFNoeoDlPVzeosmoFUYMi0o+c1GEDItU168Xqm9OL4wjLAMjqvmfMxU/T
+# xTOaWjhA8CFmFGB6Ba69B5MnqTf7fttyiWuUzv+/1U0MPiApsmFRDy+tt2ROFXRl
+# JEqRGpc0cccFVgMtV0e3o7Mt6gUz7oDwjU5Ie1PJ1UDqaxeSSwPxV9B5Ft6uxsuq
+# oQWHPSq5g2/m2hko4ya9y1B4xQ+wJL7BXbdKTd92krANZrBerjTlonRQL6gpoydz
+# +XZHALxaQ6PwpY7cGN2DO0asbti5Rg==
 # SIG # End signature block
