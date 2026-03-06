@@ -65,42 +65,42 @@ function Invoke-PurviewPurge {
         if ($regTimeout -le 0) { $regTimeout = 90 }
         $regPoll = [int]$purv.registrationPollSeconds
         if ($regPoll -le 0) { $regPoll = 3 }
-        
+
         # ----- Query prompt + validation/normalization -----
         $promptQuery = $defaults.promptForContentMatchQuery ?? $true
 
         while ($true) {
+
             if ([string]::IsNullOrWhiteSpace($ContentMatchQuery)) {
                 if ($promptQuery) {
-                    $ContentMatchQuery = Read-Host 'Enter ContentMatchQuery (e.g., from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets")'
+                    $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (or type 'q' to cancel) (e.g., fromdomain:bad-domain.net)"
                 }
                 else {
                     throw "ContentMatchQuery is required but prompting is disabled by config."
                 }
             }
 
-            $normRef = [ref] $null
-            $isValid = $false
-            try {
-                $isValid = Test-ContentMatchQuery -Query $ContentMatchQuery -Normalize -NormalizedQuery $normRef
+            $ContentMatchQuery = $ContentMatchQuery.Trim()
+
+            if ($ContentMatchQuery -match '^(?i)(q|quit|exit)$') {
+                throw "User cancelled: ContentMatchQuery entry aborted."
             }
-            catch {
-                # If the validator ever throws, treat as invalid and re-prompt
-                Write-Warning ("Validator error: {0}" -f $_.Exception.Message)
-                $ContentMatchQuery = $null
-                continue
-            }
+
+            $warningsRef = [ref] $null
+            $isValid = Test-ContentMatchQueryLint -Query $ContentMatchQuery -Warnings $warningsRef
 
             if (-not $isValid) {
-                Write-Warning "KQL appears invalid (unbalanced quotes/parentheses or unsupported property). Please re-enter."
+                $warnings = $warningsRef.Value
+                if ($warnings) {
+                    foreach ($w in $warnings) {
+                        Write-Log -Level Warn -Message $w
+                    }
+                }
+                Write-Log -Level Warn -Message "KQL must be corrected before continuing."
                 $ContentMatchQuery = $null
                 continue
             }
 
-            # Valid: commit normalized value (if provided) and break
-            if ($normRef.Value) {
-                $ContentMatchQuery = $normRef.Value
-            }
             Write-Log -Level Info -Message ("Final ContentMatchQuery: {0}" -f $ContentMatchQuery)
             break
         }
@@ -108,7 +108,7 @@ function Invoke-PurviewPurge {
         # ---- Module & session ----
         Import-ExchangeOnlineModule -ErrorAction Stop
         Connect-PurviewSearchOnly -UserPrincipalName $UserPrincipalName -ErrorAction Stop
-        
+
         # ---- Build a unique search name ----
         $ts = (Get-Date).ToString("yyyyMMdd-HHmmss")
         $baseName = "{0}-{1}" -f $SearchNamePrefix, $CaseName
@@ -190,8 +190,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBEmS41024jH/iE
-# RV4nBBNBU04rbRe1XeZws+kC07dIBaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC/teBIOCt+MPQG
+# ef70q6ua+1hIPy2HDEl8XsNNXrCm/aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -324,34 +324,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBO1Vzq9ejg
-# Sjt28NeOO2BeMhc2BdIHtVTRarXMaIdHxjANBgkqhkiG9w0BAQEFAASCAgB9IBD6
-# YL4VuODXUcORO2JGGN1MK31+3vfz9pLgPNGgDFP6F6q/HL6HJmArX3f0T16AfYbU
-# xLvS2wO3f6mIIu9RieBuM2kjAKHMaSqIUirOhLmLAU4F2X4hlmULbmmISTnpOwAl
-# ZM6QNZAcj5so5QrxxFXkh8qC0onbZXMkXVCFKrY8mOl/NAYmazhwzYKJV+f0/xSt
-# QyvLNSygR/aSHOBI0RYkrex1WNckR24gvoBMxLuha/xUpyq6BC8EJ2+DJz2Cxu4Z
-# YMGgC9RSO5NXvcMlgVM3FuJBovhXfl7R88sxcEmcL8VLte6sdZVYG+FPdeFosscM
-# l3/QnpdeKTDlmW6uwfzc0lKLWdUwuZc36dxHoL3UbFkl4JDhAkNWloP/JHWMveUR
-# /+2vIlDIBw/GBesoq5e+6HqhOQhPlGwtORmuLpLtt0qOKa2HS6yFtGKkCrEwBAXd
-# Dj+BhoApEHglwIOMEvCUTMxa6yfCRgpECjKPHeR6G9RuKJLGL77THZ7C3SjoEE2A
-# zC9Tua4191eNTMOUFQloJHAkRT8psgCiJBORTRTEwyfvnippxrBCq6pFYTtxugpE
-# 4H63KSFJA/YS2fK4Zgn1+ppH7Kf3ZI8T6qPC7zWqXb37f1uhjAzndpMulp1y99MI
-# J+V+QuarVheIWR8nATtjJ43q7h6t+pHsnP1bvqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDwm+XLHEZT
+# 4RoEQGoz77xOlQcEQaUArcrK6ozCGvUPuTANBgkqhkiG9w0BAQEFAASCAgC588wD
+# 8az1mIebdK8ztHnrcbJFBKkjh5MzhHZb1KWqnhOi19xZgpH1qCnBR4EZrMHX36IA
+# BUEsDmLonvcmy9dxfacvtW8jbwLBPAOyTMFMAAN0P94wMKXJE+HnXEdXxkMC6+qb
+# ycn9f005T1/bnT8jXy0GwkRrUfPsLGmWemLK7K7khHhCCn9xPf/sjI2VPt8ORCJ+
+# jGhNanHApbKzi5JQyYxcYiWqUT1OOr7uxzGS+wRgdVMUgHspQeDF8DHbhgWJWDx5
+# Hb2XFT3ZydQual6rmxTrvJlxnslkuaGdM657/2UN+tJavdWrTnm+pn/Q4y6MXGOE
+# HhSqns/fi6OqpcoSqt5LbTMZS7EOtwYITsOUPVIerMUWS1fjnzVU7DDmUeqTPaom
+# isTKgFFj3sGcO5mTfAFOWyF0SjdPco3XobhvMhCdnWHWXusjFdl1/XP0uevSvWn8
+# fq2lds0Fb1Iz2V+leLoCluyINVXyd/GiYFymVQ4kvKfUYYouk+KBZ/h5xDWmSG4P
+# QRusdwVmtevDqtnViAk6SfeaXQJKwITOQXq4JHMk18Rem/cFBJQIT7VubVVi/528
+# 6bD3QKvvIT58/BqrktGVoKP0X1JUh4yj/om8x4BgLF430jq5SmTYf1qLO4erYmUv
+# sbmYYbtYEzvCtNfVRyAHetr/gNMeRXxyluj40qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjAyMDQzMjNaMC8GCSqGSIb3DQEJBDEiBCAxM7R5cGHE9Io8Q16s
-# 2LSKs7dkzKOMry10DrlSXxErujANBgkqhkiG9w0BAQEFAASCAgAnuZ0bLuxm9wId
-# EhlI0meSs+XX3wiWEWyAureYoJWcC9vF3MI/U94r/69Nwb6r2ftZVrzcv7vz4CJU
-# PpB508PTib3T0Ce/ANDulSl/KK46FhUcGAX/cAmRYnJFtmrvQA11J5QPNZV2TkMX
-# PnUEGSr5TmJVJBlS8WTBH67Oroy+YpesYrz3oqXdSweom+ei0VdzE/1PbN9PFf1M
-# Bno6sBXro4XpVUF5KfMhAd9Bebot1DCdVD6GQroL6PJUzCdkWlUXxrMZ9Q0jHEHY
-# l2uiGNdAWm5hqSnq+h3NgTR42VGS3eK2IVWJ+GkYEQvi3qyb6gKG2HN2+KBNl3GH
-# LFicjDOirLb/YP1nolACuHxxBjgvZS6L1ko8KkV1lho8EKy4FafAgyjEN15XYXwj
-# hO0B9P+kUOBqjJBUWdkDdgA8Qvp3yKakwek7aVr4hTiW3dJxeSapwkmWw010zvqu
-# PbFwKpWs4kPqhJOS6RJ26kjTfX1n94nDA3n1CDl5nwcNAxQxnZpt/6hoCy55isyy
-# 3ng1RSf3iYyP2luQVnzrA0dO6NlyuQbq6UIVaSsBfME4Kk3GXER/Qye363lNAi5N
-# gBJUxczH8O3KcJLj4MdY07vB/nX7Jf5U+gHB2ym1zw3HBwrJTsXKPbSFuqJpaN1K
-# gxZxFOD4IjsqCZUNjauudtGEigwPAA==
+# BTEPFw0yNjAzMDYyMjM2NDFaMC8GCSqGSIb3DQEJBDEiBCCs0HEcdKN8QGH/hPIr
+# MLYACJD86Y+MfrR3arfIBB0fyjANBgkqhkiG9w0BAQEFAASCAgApH7nw0We48duy
+# 7wz3UwvMEOHdKc+FmZdHsfWUB09z3I/U+PqfzmMEykbvCWkQLJIpo+G0KbKxs/gR
+# cVVVw5irrOx9mV9EnP76uWRjBQbwNObxD8rkzCx4g5QXzfTvu+47CSbBaBO2+XCc
+# 8id5Cl5o75GhPxoGvJho9uRs2DF4bGzJsiOXTN/wjNhMjSwpzGVYUsmvx8anu7It
+# pU6NmWm1JNzyJZBMQ8keJtKCftJbuOeuT9AQyfiCCBQGA3dt7M7b4wXfTMinSYj+
+# AVbxvorN7kKwS43aubtU+M0k2BdDNlFm9T0joT/ILzfkg1xyMTrSiJGSM3pAHfIV
+# ffNU9oLlkXCRO92nGYLbyZn15jAbCoGfKIOhwpwlOU6n0JAiI3oIeEHe9PVWb5lI
+# AdCGZ2S2U4X2sAfi0ujPx5b9gZBk1bqGWss57iZ4kEhuf8L1hR42dBI/hEdluQ55
+# TztXtQaaK+cZDFrdIB3Fw5xeIrV92d1ryeTffrvkJPHnTSR7RZtx+QILL7UunSE4
+# 793Sqo65ZKGIgKkXVqDs3Ebvngksm/tBZnEDUIFT1cj0abh6dITk2lv2w17ldZzo
+# dSNsc2xYr18yjuH1qUPeWFuFSakhqLcjCUaXrnTjAJ+srWxfAllAIxDM2daa5pHo
+# S20xnLXrTe7mmMaH3Wntkzx+ibHgfg==
 # SIG # End signature block
