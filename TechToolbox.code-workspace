@@ -15,7 +15,8 @@
             "Exports": true,
             "Tests/Output": true,
             "Dependencies/EXO/obj": true,
-            "Dependencies/EXO/bin": true
+            "Dependencies/EXO/bin": true,
+            "**/TechToolbox.psd1": true
         },
         "search.exclude": {
             "Logs": true,
@@ -66,11 +67,10 @@
         "[http]": {
             "editor.defaultFormatter": "ShinyaSuzuki.rest-formatter"
         },
-        "cSpell.words": [
-        ],
+        "cSpell.words": [],
         "[csharp]": {
             "editor.defaultFormatter": "ms-dotnettools.csharp"
-        }
+        },
     },
     // ------------------------------
     // Recommended Extensions

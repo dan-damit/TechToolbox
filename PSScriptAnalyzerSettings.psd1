@@ -3,26 +3,39 @@
         'PSUseApprovedVerbs'
         'PSAvoidGlobalVars'
         'PSAvoidUsingCmdletAliases'
-        'PSUseConsistentWhitespace'
         'PSProvideCommentHelp'
-    )
 
-    ExcludeRules = @(
-        # add exclusions if needed
+        'PSUseConsistentIndentation'
+        'PSUseConsistentWhitespace'
+        'PSAvoidTrailingWhitespace'
+        'PSAlignAssignmentStatement'
+        'PSUseCorrectCasing'
     )
 
     Rules        = @{
-        PSUseConsistentWhitespace = @{
+        PSUseConsistentIndentation = @{
+            Enable              = $true
+            Kind                = 'space'
+            IndentationSize     = 4
+            PipelineIndentation = 'IncreaseIndentationForFirstPipeline'
+        }
+
+        PSUseConsistentWhitespace  = @{
             Enable                                  = $true
             CheckInnerBrace                         = $true
             CheckOpenBrace                          = $true
             CheckOpenParen                          = $true
-            CheckOperator                           = $false
+            CheckOperator                           = $true
             CheckPipe                               = $true
             CheckPipeForRedundantWhitespace         = $false
-            CheckSeparator                          = $true
+            CheckSeparator                          = $false
             CheckParameter                          = $false
-            IgnoreAssignmentOperatorInsideHashTable = $false
+            IgnoreAssignmentOperatorInsideHashTable = $true
+        }
+
+        PSAlignAssignmentStatement = @{
+            Enable         = $true
+            CheckHashtable = $true
         }
     }
 }
@@ -30,8 +43,8 @@
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAHGf7rlFB/e1TF
-# nAl0ctuoXgoHurjGfcTjcsDKy6ZXHqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA8TnIQKqkX2AVk
+# pMM3XDvciysOCkvTQXuPuFr5HGWS76CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -164,34 +177,34 @@
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCslCZ8NQAz
-# JPFJHIRVtDRkCzL3gziaQBPInG3aau3OATANBgkqhkiG9w0BAQEFAASCAgC9EoL+
-# 83VLunZveB0BV8fJxRchcgj53JAJ+yIPXKKNbrnleFUby++yQdFBTYxnV7uc/wSN
-# iZT2r1oaoiBt1yizUnbMUn9HTS8qzK2f0ODEtaBnHbu01mWGTIfNglvG3Xr48T1j
-# WkLflayOdNceGkuRnz+cNawXXVPetQ/6GmAr+QNRjCsKHkGwkKUi8fwVZglcRGxf
-# Nv+i3q8xYAiCuMJmmf/IIkyis61MrnDwqUkAySsFZdwOyEo/6xFlR7QctbpY78JY
-# 9it73B7BFJ1cy209qyNyYax24WguggYHIwebbLuM/V77UWzYA51+DAuGrvDzFjv1
-# 6x5XWgOh9I+y8HfHTnh5Utxz5DtvC13g++EgCcvSp7QOJ65r0BCMhZHQVHVMpr0D
-# 0offIZ0Ii6b9ez/uYraP0jCjfWpqyD1bdhIiBJibCA89/GERF4q3qPcdNzvS/ku2
-# ZkdbxLdq4TD3hSRe/WDl1+56hFUnpRSyHByQ3r1V78vSuegLFDjvmfcKRxU4vZfu
-# FoLe5tk5ZvHGaSsvJvMwRtarIuQch07e+jhJhHMVh1dfn/hJmoUzvOgA0QqQCszh
-# tv8Lem4NVV4Z16yG/YU/AWPTBO4sgpj8Avqi2WSinJeOBBc1XsQ4pFXMH3+mv9Xo
-# BbpAUcW8AQpGgcO/KAWC1YEt1j5N9xWzHPG0y6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC/2yVVtn03
+# H90Hf/uZvaGezzk+9eYBB+qrc+Cnp86SjTANBgkqhkiG9w0BAQEFAASCAgB2+yNz
+# 2CTfvtJU8tmzwYRVHJzTKyu6HZrK+twyqjk7QIiUwhc/R8B4+N8KiBcb1ouAtqSr
+# bpM9vIHAcZIOH/TenZbH7mGZtvzuOkbNjGaPMDwlQ4lxcmwHrKxKIiHJaCnjoEei
+# BcoeKCDcyta5Vc0Aytj/EE6JrwNDrZG+AMRXtI5hc50veLkR3Y4Gnm9SB3J5Mcbz
+# gdDs1E6nAa+L5JfEIA1M3B3PUwme8CeIc2g+AIR+qjEUYP2fC0AUgiUs48JqEBn6
+# QpYfBz/TLrWxutitxeC8K2hzSVoUspMGx3gUPAOqoEXpdYXPi/ENVK9XATx8D01R
+# mm+gRZ+Hd0bQmo3KnX83Ewaiv10aDeTE6SP7xwUZImWZSHW2ZDiBPYdwnRs1M8+G
+# UJdooM5Z5P5ikP9txVfOy3dzdHAKUBbh+L3AYwylv1zvvRq/OcvtVLz3J+5mCZSt
+# qxm2s7yFDBkcDBoIHKHNUVnqIGh9VGc+uzDAwWpzGusK8jvJyZ0tx2FJm2xdJqMs
+# vJXokPAX8tTMZZjL/XpEL5kE7Nk/Kd5yVDsFo3UcbF5O1CnRdHMdBoDKw6v0BIfB
+# 12JwtJhGSMaFeaNCx09LgsjcIxhSmYLgpyJ+dJsaGzaSovjIv/jJAZme7mFoK5Xi
+# Xl9AybKuT6OTFKPOvk4ebjcF7awd4SZiG+1GU6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ3MjBaMC8GCSqGSIb3DQEJBDEiBCBIM4shMQ0wH+zRd5OL
-# yrULKQXWoS0xBTMgTVdFU8VkbjANBgkqhkiG9w0BAQEFAASCAgBX0p90VUghaPuL
-# P/zFstuobHCcJsr04bj0dn7NDK2/VI1hAH56ryjsrZS+81BSb9Dc9cZZ0eP8+hdh
-# 0D2b5hzb79xhsvjJpa6oK6wowXdXZb2vSbDC5RIOdM6xAGcoxXP8E7xG3rFRLgh1
-# 6lhkA/vMEdUqxpCRUqM5PEMYKEsn7aLsXPFMO14t7bh6fsPZz/8DYba5LVyYjAdt
-# pf5S/lpZsiZR7Rw4Wp/VMCodmAs1tkKeBd1oL9+fG+FXCM25nLoDs/lFdEvkj1T4
-# RyhLDpZnwcb4Wd02WEVTRY0mAtlzpmKb2MPTpi56bLz/+/LtXg3TOSKZ76kjU4x6
-# ARPpMZDBSRJISJW5scrO0b6ZqU7oG3VOosyV7NNfSGb0+GKsj7hS2eAXvz0MEsdk
-# nCIZaaMbRV9C5zt92mbaLTb9hNp2vj9JQIsX9ZVyHHPYJR4FimqTJuDIkNJqR0Ey
-# XX32WtgA+CXAPh48Y06C+J9cZKvmBtxdcRA2Z8ASPxbKiDAYbCwmqrxlxo0Lz4sL
-# s7EFtz7texV0fKj3bpWWNeua5Gbz4DBNRo+JM+aUndGhFNp6zd9PSr1ov8gPX+AN
-# 0sKTspIj/HvDKz3q907OcA6JxGf5b9GE6bF9b56/nwuuAUsgRTlOBTI3udGNh4qs
-# YVmJ+foxFcuTr3iMXCOL27Oa8Kd1jA==
+# BTEPFw0yNjAzMDYxODM4NDFaMC8GCSqGSIb3DQEJBDEiBCCJJOQ3iZwAe3s99zRc
+# gje536fsoEhu7xtwPLZPSzdh8zANBgkqhkiG9w0BAQEFAASCAgDO0iZ+FUA5p4lX
+# 9mha8YaztyJ6tfF+isKoiqMFIEBTWE7g4xQe2CiW9zhccdK3+cer+L18oRgpy4tl
+# aMJmJKXZ3+KxuBKU+QfNCBJMyQdAKLhpIHnX1LfXe/YJVf6DBe6H+iXhomC9hXHH
+# EFAxdeLMJgEfCmHoU2q7Pcv8mTSAVofaNJzMhl18U9Z+DjlFiSAl74jzPvwPz20k
+# 8XRYpt/F56xVSVXlnKvZzazEspD1bs9Kv3MS57iHyiFxN4YU0hcEyl1lhdxDfq7M
+# Chd5NDKlsm3SECoXix8oO1wc9mCh2S9Va66BClGGly2FF6pxRM7QYbA0RqNXXLw7
+# My08KwRPcVZGTH8BvgFtnzV+qMdOKZTBa0W4IgQyAIdls3j06rFqLE+EMKUOKsLR
+# mNI44ghxZepoaO6+JHJyc4g1Q62b3eh7yW+8xd9lxPlhCEMRKS0QAx+oiC9V8gJE
+# bAtldVwS+gbEHaZ+69aJYopYuF9bZBAJj8uLV8WDPaCAa23UxvklDa6y+qUUllus
+# s/6Xx6VkRYKPH35OW4ZftElDwvTT782LjJh6NDtznPZvKCK2HPNE+E8Z6gS+LZQ9
+# z+cVCPvHHs3oRRF/cf0C+98BgeS49sS486TYIx4jDusUaKyxyIlKd4FlhzJfYlJ6
+# DUUJEeJ7l+5mk5g/NuZFnXgClEx5Zg==
 # SIG # End signature block
