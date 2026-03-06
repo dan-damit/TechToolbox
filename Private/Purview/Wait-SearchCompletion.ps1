@@ -26,6 +26,10 @@ function Wait-SearchCompletion {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $lastStatus = $null
     $lastSearch = $null
+    $spin = 0
+    $lastStatus = $null
+    $lastPhase = $null   # optional: for "not found" vs "found"
+    $interactive = $Host.UI -and $Host.UI.RawUI -and -not [Console]::IsOutputRedirected
 
     while ((Get-Date) -lt $deadline) {
         $search = $null
@@ -41,33 +45,53 @@ function Wait-SearchCompletion {
             $search = $null
         }
 
-        if ($search) {
-            $lastSearch = $search
+        if ($null -ne $search) {
             $status = [string]$search.Status
 
             if ($status -ne $lastStatus) {
+                # Clear the pulse line before emitting a normal log line
+                if ($interactive) { Write-Host "`r" -NoNewline }
+
                 Write-Log -Level Info -Message ("Search status: {0}" -f $status)
                 $lastStatus = $status
+                $spin = 0
+            }
+            else {
+                # Animate only when status is unchanged
+                if ($interactive) {
+                    $pulse = Get-DotPulse -Index $spin
+                    Write-Host ("`rWaiting{0} Search='{1}' Status={2}     " -f $pulse, $SearchName, $status) -NoNewline
+                    $spin++
+                }
             }
 
             switch ($status) {
                 'Completed' {
+                    if ($interactive) { Write-Host "" }  # finish the line with a newline
                     Write-Log -Level Ok -Message "Search completed."
                     return $search
                 }
                 'Failed' {
+                    if ($interactive) { Write-Host "" }
                     Write-Log -Level Error -Message ("Search failed: {0}" -f $search.Errors)
                     return $search
-                }
-                default {
-                    # Starting / InProgress / etc.
                 }
             }
         }
         else {
+            # Not found: optionally pulse here too (same idea)
             if ($lastStatus -ne '<notfound>') {
+                if ($interactive) { Write-Host "`r" -NoNewline }
                 Write-Log -Level Info -Message "Search not found yet..."
                 $lastStatus = '<notfound>'
+                $spin = 0
+            }
+            else {
+                if ($interactive) {
+                    $pulse = Get-DotPulse -Index $spin
+                    Write-Host ("`rWaiting{0} Search='{1}' (not found)     " -f $pulse, $SearchName) -NoNewline
+                    $spin++
+                }
             }
         }
 
@@ -87,8 +111,8 @@ function Wait-SearchCompletion {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBK3+mny7dy5z1Y
-# kRwynBPGLPf8TD6exLgMQl20KjfUJqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB6ALE6dfbwrsun
+# JZk4ai6AKTAy7EwFD9kWEbU/MKiUw6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -221,34 +245,34 @@ function Wait-SearchCompletion {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAaKi3/XSnr
-# XPQn7hBhh6U++bjG/lwWwvseEaOSRVSCXTANBgkqhkiG9w0BAQEFAASCAgCta4yV
-# Y4AsrwZFKGJbTg8LkGfoeYbET+1aCwronrX243uRBLV7vS5NuMyNf/Tfvsu6r9jk
-# 5Ag8u2m3RLqeg+xDd2KzqL7/TkTqXrCCkHt9I3BjD6AvqxJ9My/4w52x0hbGiKdh
-# flRMhXob0c6KtrWACxzO/2vDrhM/z/VRRKYfdlS+aqe2p9B2qqroifee4ZWS33lh
-# wq+IDsrnp3uA5ZwIr44Ed/NvxKSf8Lu64W+PQBFl+Rrb3RVyJVnl3v24PJfn0Ser
-# Yt0UwtqPift5QBvk7OXcXZylgHKXfGX5KWBsbpEI6N0ZjNjAQ7dGVx5Y19C1aeHo
-# Qddj51hCh0x/WGzfnBpYTGC6P8284KPwLManTxgvFcjKNNBXBHc8wO36Kixv9jkr
-# MbIoqVLRnHThe/gk/eBNp9yANQytmVj7+p/BlLmoZ472P9eL0jmPqd3ivuCBW/jJ
-# +Tq+feXEbnB/HmWAMfv/HfxEs7kEZfawoWJ3H/Eb34bzivZBtAu3SDyRe5kebqR3
-# aHIl0EfvOPd2LAOleeOtnU3js4Y9TEsLSG4HD1vFVGWE3pHZ7R6QEpfUtXcw7LBt
-# 0lujCea+ofbZyVfuaZHX4q3BamiL2Xy0NGcRbqdBBNCKFchHoqzGNOf915vVtDUQ
-# YZECkIBn6wtnEwNTZkyqlCLCUHTkv4HXIdIVzqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBZ03YOVyMI
+# eTo6cr8JlgsN4J6lD9gpSSOAWMLA89SE0DANBgkqhkiG9w0BAQEFAASCAgBSSkFk
+# 14xSkcqeNHpFExd+AoxybRk7p9aujNqLloyJZMjQsydSl52gHhoUD5PwGFCi4MUK
+# cRSOjncMvyh2KSHiti5Sg1MmciFO3A2SegRfesOAO/ELrAsQtHrzV0staiCx+fnT
+# /s624iM4qlERNxZYDb1a7NeF6LATfXt91lbJR4vtooj0omg9L/9rasRE6dN68jq2
+# cySQEXZTilaG5skCbvVIJocbxaoyxroC2cAJd58EqoDRA/gi3n1pGs45tO3BFF5I
+# CKlnpVajUPIbTr2FUItriKhjGTF7XIp6njiSg1VE9CmvFcKK2ZvwE1z4BljvuNz5
+# s9Ui6LsAYwjIwsocsjji7Y8FjhYMstapLN12qnYHIVuv1OCV7diNDfMW9j/DPkNA
+# FbYQFjQIb1XfzZEV9cWi3jNdOuG7colv9DbE4IE+gQeEF9jAMmNAunt29uYpx4I0
+# Co5sg88b9FMyvwNS+15VQhIf79O/f3AC7c5mKmmUogWRVx4wjeYxWYq8QVCXQj62
+# gFPWwIuLhrTw/snMoA2hcVjtsJzse34eiN/QlGtTa7bEvx2h7yL99Xv51w02sagA
+# u5ur29+Mjyh3c5MZQ5EP/qqdNV6206NqydDxTROoW/5784ddu4mElAHG2Chn31iI
+# zE7Quk7mTGYX66YiPHkLEcLicSjuiKRgTY7WxqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDYyMjI5NDlaMC8GCSqGSIb3DQEJBDEiBCDblbkMRRU2FWDKtDOc
-# u5aJQuSP+H5mIrmdPx9AJ75uazANBgkqhkiG9w0BAQEFAASCAgBHuwfaaQFkaThb
-# vJCLaOPQyXgsxRgHFxFLAIJfo6pExGsjgKJfc2eaJXXmuO+uRxNX4XHfKnDNZ1g7
-# b7jLvPBRouCUzC800zVDfV5vI7LWdfBHFCoM2yxJXIQdO5vQJgysgxHov7JJQ03J
-# 0E/rbmMp03RbN+CeAbFNP7RvBH2tUqBasrSNrUcW0M8/KsfVTyjJuZOinUSn2aAq
-# tcvLEzMK8rfGbUak2ziBWTQyx3qSzh99t2s66+KXW5KFVj6eMcsuTHxfXRK+/ccs
-# CITZSXwE0mx2x5snSiew3z7bOYzWppJTmT7MPQNyN1v+QcL0YftYUisk/8aLa+XU
-# 7pDlilmYJlfvnKVleTyewgpGkdMoQRKumW7qI7b99gUbBgw+p6+PJkga2qAcSrS7
-# DFwVXJTRaO6tI8Anua6f4dRJt46QV4ApuJ2Wf+SS+fDvkm8lqpJCXjCsz9DaH2tQ
-# o0TXR5ekuiJ8dHDc2rMwrwbhGIUPkSk9MdnHYK7GPoDW1skg6pCbUQeUkW+FBtO+
-# 1/2r7vq+vJxodEDGtuooQ/dTNeln2WoTJ2QMnVw1vzgv8GoJXM0EC4CdoQmImp6V
-# zo2dHDmC5djx3TQPLHXkzO9HouiGWmKjeS0/YyLciPSSCxSnCIYTUDI4d4lZ7xRA
-# 9KwIk7oRS1fVUyeMTEzZLcXVJ2dqow==
+# BTEPFw0yNjAzMDYyMjU4MTRaMC8GCSqGSIb3DQEJBDEiBCC2xB3l4pwpeqvPeKAM
+# FqC9USM8c8l0vARVAir6j0xabjANBgkqhkiG9w0BAQEFAASCAgBL9BnfWUNsRf3s
+# zUlSZHgUK5gf/nf5tJKiS1eHbc6g9mfG5tiXVFh5tQCS+5K98MNjQarnq7Zelo1h
+# 6OlJdDzdpxYMDzq/Q75Jwv8cQQTJ9fJswgHHqgxEip+g44QLlCxd37sCBaWV982z
+# RMGbQXPlX7l3g/fwFqljZOtAo5aF/CaQw1KUVrBl+IahWx0ncQIcHN7qC93197AE
+# uNZHtsOSGNnqX3/hc6nPWCvuWF3DdpgHtZd17D0mpXxpmZevaU7WMEuxvZJnS/gv
+# Q1nxQGE6SM478D/psZ6MGWI7b7WlXUYgQPy8FcD6waQN2h1/9z8t42D6CKfpPvy8
+# ThyQKO9iA0vTDZYY6bxnRpv+0YXD73N0TZkVXlHm48quGxrXVxz209b4+5Ze0GvT
+# E5el7aPH3u+7sgzSdIu8EA4tSISzKrsatqvKg+BUyoPN+2RHrScp0iAvF+rKdtSD
+# IxNH4BB9rVe0VBBrQvIM1U4vy5KuBfhKwosRftuI+Zw8eLKBEx2gwXvQDcZz975G
+# SJP+BQB21a6QPZ+32bAR/ua20chFTcRQYD2DVhL1/m8Tc4nWzQYBhoYwMiJNJ9ux
+# IPuLsxEgCYqiblwYmn8SY7eX4uU6b01w5ayniIKELPeKuExfQjxqBD7/hOcmWcm1
+# WVNW+jS6SEoU/Egoe69TwdZe1DGFQw==
 # SIG # End signature block

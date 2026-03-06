@@ -1,145 +1,14 @@
-function Wait-PurgeCompletion {
-    <#
-    .SYNOPSIS
-        Monitors a Purge ComplianceSearchAction until completion or timeout.
-    .DESCRIPTION
-        Supports two parameter sets: by action identity or by search name.
-        Caller provides TimeoutSeconds and PollSeconds (no direct config reads).
-    #>
-    [CmdletBinding(DefaultParameterSetName = 'BySearch')]
-    param(
-        [Parameter(ParameterSetName = 'BySearch', Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$SearchName,
-
-        [Parameter(ParameterSetName = 'ByAction', Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$ActionIdentity,
-
-        [Parameter()]
-        [string]$CaseName,
-
-        [Parameter()]
-        [ValidateRange(1, 86400)]
-        [int]$TimeoutSeconds = 1200,
-
-        [Parameter()]
-        [ValidateRange(1, 3600)]
-        [int]$PollSeconds = 5
-    )
-
-    $target = if ($PSCmdlet.ParameterSetName -eq 'ByAction') { $ActionIdentity } else { $SearchName }
-    Write-Log -Level Info -Message ("Monitoring purge for '{0}' (Timeout={1}s, Poll={2}s)..." -f $target, $TimeoutSeconds, $PollSeconds)
-
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $lastStatus = $null
-    $lastAction = $null
-    $spin = 0
-    $lastStatus = $null
-    $lastPhase = $null   # optional: for "not found" vs "found"
-    $interactive = $Host.UI -and $Host.UI.RawUI -and -not [Console]::IsOutputRedirected
-
-    while ((Get-Date) -lt $deadline) {
-
-        $action = $null
-        try {
-            if ($PSCmdlet.ParameterSetName -eq 'ByAction') {
-                $action = Get-ComplianceSearchAction -Identity $ActionIdentity -Details -ErrorAction SilentlyContinue
-            }
-            else {
-                # Pull purge actions, optionally scoped to case, then pick newest for this search
-                $scope = if ([string]::IsNullOrWhiteSpace($CaseName)) {
-                    Get-ComplianceSearchAction -Purge -Details -ErrorAction SilentlyContinue
-                }
-                else {
-                    Get-ComplianceSearchAction -Purge -Case $CaseName -Details -ErrorAction SilentlyContinue
-                }
-
-                $action = $scope |
-                    Where-Object { $_.SearchName -eq $SearchName } |
-                    Sort-Object CreatedTime -Descending |
-                    Select-Object -First 1
-            }
-        }
-        catch {
-            $action = $null
-        }
-
-        if ($action) {
-            $status = [string]$action.Status
-
-            if ($status -ne $lastStatus) {
-                if ($interactive) { Write-Host "`r" -NoNewline }
-                Write-Log -Level Info -Message ("Purge status: {0}" -f $status)
-                $lastStatus = $status
-                $spin = 0
-            }
-            else {
-                if ($interactive) {
-                    $pulse = Get-DotPulse -Index $spin
-                    Write-Host ("`rWaiting{0} Purge Search='{1}' Status={2}     " -f $pulse, $SearchName, $status) -NoNewline
-                    $spin++
-                }
-            }
-
-            switch ($status) {
-                'Completed' {
-                    if ($interactive) { Write-Host "" }
-                    Write-Log -Level Ok -Message "Purge completed."
-                    return $action
-                }
-                'CompletedWithErrors' {
-                    if ($interactive) { Write-Host "" }
-                    Write-Log -Level Warn -Message ("Purge completed with errors: {0}" -f $action.Errors)
-                    return $action
-                }
-                'PartiallySucceeded' {
-                    if ($interactive) { Write-Host "" }
-                    Write-Log -Level Warn -Message ("Purge partially succeeded: {0}" -f $action.Errors)
-                    return $action
-                }
-                'Failed' {
-                    if ($interactive) { Write-Host "" }
-                    Write-Log -Level Error -Message ("Purge failed: {0}" -f $action.Errors)
-                    return $action
-                }
-            }
-        }
-        else {
-            # action not found yet
-            if ($lastStatus -ne '<notfound>') {
-                if ($interactive) { Write-Host "`r" -NoNewline }
-                Write-Log -Level Info -Message "No purge action found yet..."
-                $lastStatus = '<notfound>'
-                $spin = 0
-            }
-            else {
-                if ($interactive) {
-                    $pulse = Get-DotPulse -Index $spin
-                    Write-Host ("`rWaiting{0} Purge action not found yet     " -f $pulse) -NoNewline
-                    $spin++
-                }
-            }
-        }
-
-        Start-Sleep -Seconds $PollSeconds
-    }
-
-    $ctx = if ($lastAction) {
-        "LastSeen: Identity=$($lastAction.Identity) Status=$($lastAction.Status) Errors=$($lastAction.Errors)"
-    }
-    else {
-        "No purge action was ever discovered for target '$target'."
-    }
-
-    throw "Timed out waiting for purge completion. $ctx"
+function Get-DotPulse {
+    param([int]$Index)
+    $dots = @('.', '..', '...')
+    return $dots[$Index % $dots.Count]
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBJ5ajs3IINVBeQ
-# cAURkDBWDTRPeMJ8DswmVe6R8xPSwqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAedNaHx+UeAwh3
+# SFOiOvlg7aMEfgAzDs3iZH0B4rd0GKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -272,34 +141,34 @@ function Wait-PurgeCompletion {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCoBUnOWq7h
-# sQEUJFBMpNjKNMKUKAdQLndtksVGF0QCXDANBgkqhkiG9w0BAQEFAASCAgBcDlyF
-# 8HqyKE64x9eQjbUz4NLzN4I8lquoREFoHtPSCB89Ea9ok1ZUCGLe4wKXaX04eZ1E
-# LuLc/w+zz2m4LXo53n1rG6/bBSwzIlPz8Soud0nDu67q4yF6EprqJmBHjVq4NMyC
-# Q6Fu9WZ0ZLIxTc7aPsk3mgmsVU8DPC96Nf+MAcw4vFzYQP9W7iUGfgPX4ATfTEJ1
-# ZWX5ac3IZ9csZebja7HbaELtwhLapued/1XiV9KWMiSg+l7Yfqtz8DGkSEOsD6w9
-# kLh9vX5gq1+zqga7MokI17jKxGJv038aRKbsViTErUZpBByj9SkOLigNmLoqcEGG
-# 7mVS63EdAwGdXidikM80fJOJ4QBsxGZideWohRWWaBhNTAxOqoEiJY5fiOCk7cOs
-# Ulnxrr2VuhoeQ/boW3TIu56L+M8hNYxIECddRwWQ27zmQPqCaEAQaZqlvRXbDxpZ
-# +f+Dwn2TG9C8k2wQh2XDFR0Qp4nBjF7i55NWipxXDOAqx+awVVqaJ3Nekj+n138p
-# Ko/Hu6fomvke/PBnHnxD6fRA1AF4ufFDM3oCqDmDultz6F4UkOBqmEJsdKeJvVn2
-# M5PbD23QUuUEVtg8Biyu2tD5a8KNhLbF4z2HuCC5CFSybQv837pweoWhz322ruBT
-# ogQSp8kbLIB7hHEC/FR1W2EaEkALHbIZIm5P+6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC9ys3Wx3qh
+# gqcAlESRl+HFdKvfccARtcgaUuP1bqVvkDANBgkqhkiG9w0BAQEFAASCAgB/2Ezm
+# D7Nl/373yFS8K8ZUB+TlrYYfKJxe6Uk73KX72kTSziq86z1hBL0IWReiwCF+1v9M
+# 6ESbsGktdmk0n87Ph50I9ClhffxRoDV0qefzq67pNyXsBZTt6PtvrNXCJ9ITcC3P
+# BGxQrBdjhCSmqm3ocQauqyKoD8KrZCujRFoc796h3iLLgjTAB0ImmKSegwfbr6Dq
+# ghkgASfq33u/jbQmTgGVAyw1yPlphj8GzhyYPCX9Q5KLSYdmMkeHgBbrV8/F8uJR
+# WD7kaUAjA29BO/bN+LICnIrgnJfiuWvsmqapmhaoi16ha1XtiaBNyEigOKWusOnv
+# zAzIFrrv8T1neuvGgNPK70UcGQTh3zsHdhBq0WGdA2tKwlC63C60CiX2BPvNHxjf
+# AeH8NxpwsyMmEu66puQC5EAWYfTvkdBzUEzkoPwx8E15Nx6rnUJ/yS7eO+ScM7Mu
+# UIItlUof/3DYL31sdGUYt31elRdH8in2tqi+l5camzLeWeBLIB75lwNoETbCjWYp
+# NCntg0qdzRpnScQV6LYE+MzOhWRmKGIlJVInMZ+5wJlZYrf1cPL37PkE139umjCX
+# 17aubCxh3pTJRTkkDhgAHyyG4g6DFu4KClvsUxbB+2e69pUN4oYTYTUiaNuTyfAN
+# W4qd4vnnTWbFovFshD7JIw/c7kHeKTQgogG9CqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDYyMjU4MTRaMC8GCSqGSIb3DQEJBDEiBCDr32sIUGIHXtC5GinY
-# kKo07uv9RwuWuMCegrhlzX/TdzANBgkqhkiG9w0BAQEFAASCAgByHJPi1YW8IIDZ
-# doTHj3smwVaTbiRYCG8+3KYjefKFPXMT5c8EWV+3MwUP0OOgiOxZNOwQusyVlysv
-# BA4Cl5ODMXqx1ChkI5JNnSwN0sZSAkszliR7mFCHTckeJlnt3wejD4FVWLa/jkdK
-# OWzGHkh5oyUIMBqr25x287jaKc2CfSJPotCPqN/sFpvTUF5GnA+8/nrWpWAgoAY3
-# 6WGcLkbwCp6nrVD5c2dgdQrlRih/HI1/v54aMTfGj3+xh04BZzdKMkquhJ4PCcPu
-# qv47TfSaj8UPyQraLrpj8sCXeVfexJwbKc3XRBLm6G3KjJsTbFSJc4sdK8LaFB6y
-# gCgutswM2RSKARmBW0OmTowfn2OlJwqzrR+Qwz4B/9Cv+zcOjH0O2MdWLKrMYc9I
-# txt82nut32WwABYlbMGY4ne7urXePMUkqpOGBjJFs14CyK6xE98jC9vURkAqJIHH
-# J2XfovP44Nw8iF6tr7SKNSE7yYyw2wtFV5BdONXOYGWYjSaaeN41p0r2OBVw0pFW
-# p0PBzMXNhxP6WnIstFDMz2bGdMybOLTxSOFYTvro+Wf2U1fC1XGRBgIvrNSTZc7x
-# ba6ZJBJKgHHeysgCqCBF4Y0jZLS8KHCq95BT/tpESErK7QtmG2m5U2BmdqtrRjYs
-# QmKN4X9lyUaC3RV9FhOvbW8mNJ9Lbg==
+# BTEPFw0yNjAzMDYyMjU4MTVaMC8GCSqGSIb3DQEJBDEiBCCgkuuJLPGjGHWDwJK1
+# vlOa/Ds5A3Bja+lVK4m7NAeIOjANBgkqhkiG9w0BAQEFAASCAgAuUbRr4zSrkhPz
+# t5IVRUn4j4JnrflbyA84dpAH0q+67JOteCMxZ7E6EIZBQBZJIUbhZP3QoQzU+F51
+# Cs8KlDokfIqxUBrl8vVCrxOo1PVL2I0YGB02ocWU9i3sbEUqpMc3izhjFPSlkIOC
+# 3btPb3ME/WAv+yNV9bcZEW5qDjE9nlccSWZxQwcy6GAdLK+tVrAynwhWJ/5/iKqm
+# 8P/c965LcpXp4vS+J7De9ghr1dgOTssOREpRc4OBaukipBmc9TYywMJ13uygjSJv
+# 4OA2iCzKjTXhqaYhBc9MgivSgllQ7Ta4CO5LYksVyW5CHpaKpYs4JNpRd9dCLd4s
+# DMrXt7PqsK9uWIKNCDM46W37UMwUBRZ1oHcyuh+fEvt5x97n/M+xyvp+w2IchQ9z
+# 3BCSv+hI5XSjATTo0yFm8jTtoe6KDYon4Af6djNcsMsgcZhZ2Ng9Fb9x5blkxCUY
+# FFAwXPV5z7TY2YLNvCjrf5MphCnOdVVGCQ7XleaAYO37bCuOiZme8lmsQtQLwIgH
+# 79TgVwqRk/ob4lue/zGWxf70v7lo5bCpKSJzrhgoEQvMsctQ6oZv/7QxPTNrxcvQ
+# nVo8acAIzD36sMdRqsWTiPzj2GD+bpA1NmEHCBqWkGFnyrW5b4HYogbfLLaj9dVE
+# dTiLV6rI6p1MYI27Mh14/3fGVjQu+A==
 # SIG # End signature block
