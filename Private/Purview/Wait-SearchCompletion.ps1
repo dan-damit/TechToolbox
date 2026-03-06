@@ -1,12 +1,7 @@
-
 function Wait-SearchCompletion {
     <#
     .SYNOPSIS
-        Waits for a Compliance Search to reach a terminal state
-        (Completed/Failed) or timeout.
-    .DESCRIPTION
-        Polls the search status by name (and optional case scope) until timeout.
-        Caller supplies TimeoutSeconds/PollSeconds; no config access here.
+        Waits for a Compliance Search to reach a terminal state (Completed/Failed) or timeout.
     #>
     [CmdletBinding()]
     param(
@@ -29,7 +24,11 @@ function Wait-SearchCompletion {
     Write-Log -Level Info -Message ("Monitoring search '{0}' (Timeout={1}s, Poll={2}s)..." -f $SearchName, $TimeoutSeconds, $PollSeconds)
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastStatus = $null
+    $lastSearch = $null
+
     while ((Get-Date) -lt $deadline) {
+        $search = $null
         try {
             $search = if ([string]::IsNullOrWhiteSpace($CaseName)) {
                 Get-ComplianceSearch -Identity $SearchName -ErrorAction SilentlyContinue
@@ -42,9 +41,14 @@ function Wait-SearchCompletion {
             $search = $null
         }
 
-        if ($null -ne $search) {
-            $status = $search.Status
-            Write-Log -Level Info -Message ("Search status: {0}" -f $status)
+        if ($search) {
+            $lastSearch = $search
+            $status = [string]$search.Status
+
+            if ($status -ne $lastStatus) {
+                Write-Log -Level Info -Message ("Search status: {0}" -f $status)
+                $lastStatus = $status
+            }
 
             switch ($status) {
                 'Completed' {
@@ -56,25 +60,35 @@ function Wait-SearchCompletion {
                     return $search
                 }
                 default {
-                    # In-progress statuses often include 'Starting', 'InProgress', etc.
+                    # Starting / InProgress / etc.
                 }
             }
         }
         else {
-            Write-Log -Level Info -Message "Search not found yet..."
+            if ($lastStatus -ne '<notfound>') {
+                Write-Log -Level Info -Message "Search not found yet..."
+                $lastStatus = '<notfound>'
+            }
         }
 
         Start-Sleep -Seconds $PollSeconds
     }
 
-    throw "Timed out waiting for search completion."
+    $ctx = if ($lastSearch) {
+        "LastSeen: Status=$($lastSearch.Status) Errors=$($lastSearch.Errors)"
+    }
+    else {
+        "Search object was never discovered."
+    }
+
+    throw "Timed out waiting for search completion. $ctx"
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDLCLrX9E5Ko3Eo
-# 7XSroQwTEgAFcETqIzTZT5AbCdxj3qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBK3+mny7dy5z1Y
+# kRwynBPGLPf8TD6exLgMQl20KjfUJqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -207,34 +221,34 @@ function Wait-SearchCompletion {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCUYg8DWkez
-# OYFsrdC1P8dvIXVE3167OISxpiq0hPYYKTANBgkqhkiG9w0BAQEFAASCAgCXbILE
-# kc5puqgCzkIAVocRjRQJFHtNT31PJBhFSA8EZBwq8oYgjZyblbLTxSshyo8j/B3R
-# NqsBgz33CxHUPV4N1WPqMegNWozOCsrxUv9LmXT7h9BssDeOjTN7m3ZTVxu5oEkg
-# VaqxubqJVXEU9F3w04etCBkSTl2j6FTx31EouWe5QXjjlxTCW6EDr+HgOLoGszZ9
-# omQ4eOJ6FXIWhbJBNaa+GLlxt81ITMB66LGLtQbP3mYWjTgKbhkp7b6DjL3/qg6h
-# ptR77S7ldKihqXv7MfP2q3/cI3chKoqa2hVJgXEUTN0JQBNi6qPQlvFNcHLcl88e
-# iDVMvSijvSt25R2/5rtjYPHDr+Cba+qWvHAq92mCNvzzhRAGkWbtCRuzqugwxEMV
-# N2rXfBQhFNJKeXNpkybbg9JvYx6jLSan/+nYYB4zN+xQW2+Ga2ioXAYCDeZFYBU9
-# N7LDDFzvumYXNrTgBUGKYJbnywI8a5dGk1jMPlIgw9JIXBZc2gWdPtikd40qUbql
-# ZbQx68QPU6CfCNBaiXQHV8cGCD6fISojTq9fEKXmmJdVNa/X30QptElybNTvKuZY
-# RkC8GRyzFNTs5qtcGy4JBRwlD77ba7X66YwvOE9rRadWZhUrgqzp8PuidmJKacP0
-# mr+mie/Fs+82y+wxCZFoJLJpCOAwJVemdj8hKKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAaKi3/XSnr
+# XPQn7hBhh6U++bjG/lwWwvseEaOSRVSCXTANBgkqhkiG9w0BAQEFAASCAgCta4yV
+# Y4AsrwZFKGJbTg8LkGfoeYbET+1aCwronrX243uRBLV7vS5NuMyNf/Tfvsu6r9jk
+# 5Ag8u2m3RLqeg+xDd2KzqL7/TkTqXrCCkHt9I3BjD6AvqxJ9My/4w52x0hbGiKdh
+# flRMhXob0c6KtrWACxzO/2vDrhM/z/VRRKYfdlS+aqe2p9B2qqroifee4ZWS33lh
+# wq+IDsrnp3uA5ZwIr44Ed/NvxKSf8Lu64W+PQBFl+Rrb3RVyJVnl3v24PJfn0Ser
+# Yt0UwtqPift5QBvk7OXcXZylgHKXfGX5KWBsbpEI6N0ZjNjAQ7dGVx5Y19C1aeHo
+# Qddj51hCh0x/WGzfnBpYTGC6P8284KPwLManTxgvFcjKNNBXBHc8wO36Kixv9jkr
+# MbIoqVLRnHThe/gk/eBNp9yANQytmVj7+p/BlLmoZ472P9eL0jmPqd3ivuCBW/jJ
+# +Tq+feXEbnB/HmWAMfv/HfxEs7kEZfawoWJ3H/Eb34bzivZBtAu3SDyRe5kebqR3
+# aHIl0EfvOPd2LAOleeOtnU3js4Y9TEsLSG4HD1vFVGWE3pHZ7R6QEpfUtXcw7LBt
+# 0lujCea+ofbZyVfuaZHX4q3BamiL2Xy0NGcRbqdBBNCKFchHoqzGNOf915vVtDUQ
+# YZECkIBn6wtnEwNTZkyqlCLCUHTkv4HXIdIVzqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ1NTNaMC8GCSqGSIb3DQEJBDEiBCBbdwaC2ozWCaYjoH96
-# 4TCQe6ydCITdsEVACgUb7eo5VTANBgkqhkiG9w0BAQEFAASCAgB77Fvym/QRwtP0
-# KbyBtTOhnbg1CWtdzjrViJgOTr49GpOhYbC7L34xf3dwx8hYZIJhl7jHg0ZdeIxz
-# XQ6QMioNIqSH5fQilVp0diqigK9GMmFKIRbwSndAFKTzSVeyt0pMzeDTLDoITXDs
-# ycNFcI4zPzzVblZrrq35FLtb1FsedGOZCs0FJlK+JbWFtBxnBGA6vk8p1usvsRxV
-# e1I6cKTCv1BEZDpSYgDw8eLiUS3GHLW1cVgwkhrEY3aS0GMp21KdrCC2uGAAAXNu
-# fuKwHXMXOS+jKDfQqMCjO/ZKRdZrWov8ZmSfcjmgMIJo3Pl3vQtxFEJRgN9OOw5p
-# w+jg7+YcVI0NzNudDsPhgl/Mvsp3Yg2Q6xKW1KfB3X2p8ewWem4PhXNrqoxx+glX
-# 3iP9Ergt81HKI44XlmA7JzM9GOsxT3vdBOIIK0KkI2jXcKPf2CNwfaGogQen9KSh
-# 1DdAimmmbwaSjbBwWs+ekPNAA4SxBfppv+gp6Sxc3p2uIUy+PwsyuK93Ekmg5NRt
-# 9frmneYTuqB1N/n7ko2p53yx9GMl2Ex3YTW5UPMnFQplg/xOiTjY2C+8D/a5Pa/a
-# xUWSMstRSfm6R2uakp0HWJYNiigVgyWzqMGgt8+uUcGNz6m1i2FGPByXMsiz5pzl
-# 7HLWvXwUR3zwyCr1xGkBBMbT3lc2rg==
+# BTEPFw0yNjAzMDYyMjI5NDlaMC8GCSqGSIb3DQEJBDEiBCDblbkMRRU2FWDKtDOc
+# u5aJQuSP+H5mIrmdPx9AJ75uazANBgkqhkiG9w0BAQEFAASCAgBHuwfaaQFkaThb
+# vJCLaOPQyXgsxRgHFxFLAIJfo6pExGsjgKJfc2eaJXXmuO+uRxNX4XHfKnDNZ1g7
+# b7jLvPBRouCUzC800zVDfV5vI7LWdfBHFCoM2yxJXIQdO5vQJgysgxHov7JJQ03J
+# 0E/rbmMp03RbN+CeAbFNP7RvBH2tUqBasrSNrUcW0M8/KsfVTyjJuZOinUSn2aAq
+# tcvLEzMK8rfGbUak2ziBWTQyx3qSzh99t2s66+KXW5KFVj6eMcsuTHxfXRK+/ccs
+# CITZSXwE0mx2x5snSiew3z7bOYzWppJTmT7MPQNyN1v+QcL0YftYUisk/8aLa+XU
+# 7pDlilmYJlfvnKVleTyewgpGkdMoQRKumW7qI7b99gUbBgw+p6+PJkga2qAcSrS7
+# DFwVXJTRaO6tI8Anua6f4dRJt46QV4ApuJ2Wf+SS+fDvkm8lqpJCXjCsz9DaH2tQ
+# o0TXR5ekuiJ8dHDc2rMwrwbhGIUPkSk9MdnHYK7GPoDW1skg6pCbUQeUkW+FBtO+
+# 1/2r7vq+vJxodEDGtuooQ/dTNeln2WoTJ2QMnVw1vzgv8GoJXM0EC4CdoQmImp6V
+# zo2dHDmC5djx3TQPLHXkzO9HouiGWmKjeS0/YyLciPSSCxSnCIYTUDI4d4lZ7xRA
+# 9KwIk7oRS1fVUyeMTEzZLcXVJ2dqow==
 # SIG # End signature block

@@ -1,78 +1,37 @@
-
-function Test-ContentMatchQuery {
+function Test-ContentMatchQueryLint {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Query,
-        [switch]$Normalize,
-        [ref]$NormalizedQuery
+        [ref]$Warnings
     )
-
-    # Trim and basic checks
-    if ([string]::IsNullOrWhiteSpace($Query)) {
-        if ($NormalizedQuery) { $NormalizedQuery.Value = $null }
-        return $false
-    }
 
     $q = $Query.Trim()
+    $warn = New-Object System.Collections.Generic.List[string]
 
-    # 1) Balanced parentheses
-    $stack = 0
-    foreach ($ch in $q.ToCharArray()) {
-        if ($ch -eq '(') { $stack++ }
-        elseif ($ch -eq ')') { $stack-- }
-        if ($stack -lt 0) { return $false } # early close
-    }
-    if ($stack -ne 0) { return $false }     # unbalanced overall
+    # Balance checks
+    $dq = ([regex]::Matches($q, '"')).Count
+    if ($dq % 2 -ne 0) { $warn.Add("Unbalanced double quotes.") }
 
-    # 2) Balanced quotes (simple even-count check; covers most cases)
-    $quoteArray = $q.ToCharArray() | Where-Object { $_ -eq '"' }
-    $quoteCount = @($quoteArray).Count       # ensure array semantics
-    if (($quoteCount % 2) -ne 0) { return $false }
+    $op = ([regex]::Matches($q, '\(')).Count
+    $cp = ([regex]::Matches($q, '\)')).Count
+    if ($op -ne $cp) { $warn.Add("Unbalanced parentheses.") }
 
-    # 3) Allowed property names (adjust as you need)
-    $allowed = @(
-        'from', 'to', 'cc', 'bcc', 'participants',
-        'subject', 'body', 'sent', 'received', 'attachment', 'attachments',
-        'kind', 'size', 'importance'
-    )
-
-    $propMatches = [regex]::Matches($q, '(?i)\b([a-z]+)\s*:')
-    # MatchCollection.Count is safe, but we don't need it—just iterate
-    foreach ($m in $propMatches) {
-        $prop = $m.Groups[1].Value.ToLowerInvariant()
-        if ($allowed -notcontains $prop) { return $false }
+    # Known-bad patterns (Purview KQL commonly rejects these)
+    if ($q -match '(?i)\b(from|sender|to|cc|bcc|participants)\s*:\s*"\s*\*') {
+        $warn.Add('Wildcard inside a quoted value for an address field (e.g. from:"*@domain.tld") will error in Purview KQL. Use domain-scoped fields (e.g., fromdomain:domain.tld) or remove the wildcard/quotes.')
     }
 
-    # 4) Optional normalization for common wildcard mistakes
-    $norm = $q
-    if ($Normalize) {
-        $norm = [regex]::Replace(
-            $norm,
-            '(?i)(from|to|cc|bcc)\s*:\s*\(\s*([^)]*)\s*\)',
-            {
-                param($m)
-                $prop = $m.Groups[1].Value
-                $inner = $m.Groups[2].Value
-                # Split OR terms and quote them if they contain @ or * and aren't already quoted
-                $parts = $inner -split '(?i)\s+OR\s+'
-                $parts = $parts | ForEach-Object {
-                    $p = $_.Trim()
-                    if ($p -notmatch '^".*"$' -and ($p -match '[@\*]')) { '"' + $p + '"' } else { $p }
-                }
-                "${prop}:(" + ($parts -join ' OR ') + ")"
-            }
-        )
-    }
+    if ($Warnings) { $Warnings.Value = $warn.ToArray() }
 
-    if ($NormalizedQuery) { $NormalizedQuery.Value = $norm }
-    return $true
+    # Treat warnings as invalid for purge workflows (force user to fix)
+    return ($warn.Count -eq 0)
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCDRm1oPOHrxUjA
-# XA+tV/cxn9CG75sWZPV1zZdkC3xQgKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCgd6OrSZHA/zma
+# lqejIPXAYv95WNXQ91D1g71P0uNYVqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -205,34 +164,34 @@ function Test-ContentMatchQuery {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBGEOjTfext
-# Y3ZENgQZdYV1tqYFdtIY17Ze873vbEQc0zANBgkqhkiG9w0BAQEFAASCAgBIZCXy
-# 1E2M+jKVrMJ5FU0Kf1ehpOJtkrdgPycgBpwJ1VKvbTNW4+TUjKMYBB5OvwX+oJEG
-# 3rEFXGNUs8uYXePz/l4cEC6iT4Qcx04Gd+D+9jSJDMNzM9XhqVxDIt96knPcnw3w
-# JLhGKly70Uzj/H5dBXAypzxXof9jQ6VWlwALtI0ZsNs2rP7+C1MlkV7GFOuURpeq
-# 5P3qw7PH4nHw5BfQMJsGnVGekDJ/qkRHEzPlT/ECnrWrVJkGSJmKhvzKvaiPHU7o
-# vunhkzDc2vE2acs+0F0QU3FgVIMIOna5qgG7BrzkMwCS17Xkn1G72nufS/snJYqH
-# Ix7bHWCC4Nkp+WEKGYjdBg8uEyBkSgSGct41AeV7mfKIx7wluPwh6SQyESB2LUfl
-# 4Gs6v65zm1lo9atQQah9O6lfQx9ehXhoHsroyx35DM5uPnT4UJN8QAUkOzEoRDe5
-# yflU2FxKoGtXjMJooFvwzvzBiG1CQDJ05H+N2sOB/Je2i2DqjxbUQFDh+jHBvitu
-# 5IS4379rvBOnDn5g6UCq1o1Oj50XPO5NKvt1yDse0v7nDtes7Oh9f6ox+HOxxshL
-# 0IWUHMuMjTxRLzyyF/1VNHQy5oRekpyaJBuHVMB7mwraQBcjeIIRnh/BA7sin5Jk
-# 3ICg7xr9liMSrZw1yEbg8U7jtwRBpkXZ2F4x0aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDYGqxW3xCj
+# AEjTqliwAleUrU4DPPqNeWgibuuzNDtV1TANBgkqhkiG9w0BAQEFAASCAgAYT8n0
+# FO2f1GNxQYGuIMoO7VqlUW3lKnZcJEpc4XU3sHKI/+nvj6GQJE/yxGFt7klCENJf
+# Vg+TflV1EcuCliNJLqQAbeWHJBPFYUkWhtXMrRjE9cjXb0uMD9f8rdkxRINqNC5G
+# g85gtU3t/F1Cls0nL88u61pLKz+/A1i3NA6xRPx99kyyt+OYvNTujs5lL710mdfr
+# 6rg1d9PshIQTBMdaAckiXX5qg+8etxZ8imrfKge61RPPDLhTCdSHDrYAwC57MOTj
+# xVqJsHOHqCRAy/I2OVgwYJTIEtY2CfD2hPfCoN2Mq9EzolcRLaXle+lViWpRQUbz
+# 1azPftvuexoppe3YI3vgd+Nk8eCENpUnufqoqGy35uKMybpWmmzPKoNVFtW0XrAV
+# oOiGUdNtFZkRwKYvXQ2Yem/QqIk6IHXOw0hydbM3vuwqS21tVYocfQ+FLduZiDhY
+# HMRF8Mh8Si/IAsE5pI4ThsI1qhXzt5AakE8GtGKJkZtmifbIyT3zZbwH6sup3sU/
+# zX1jQG82XlGz8umwB156KJj9BvkJ9LhWy50jqsOD1Sn9lip4HTWQxmuUNGSuwZ9w
+# YJ/MHQnYQsGAGXgEC03aGMKfXLMXrGQT7dOn7fXjifk6Upg7U9sqbeDeNheewPVL
+# oQfe/Ll9lzuJ7w373jxNoruTAfsIxj6j4ExeOqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ1NDdaMC8GCSqGSIb3DQEJBDEiBCDDy7YugfrMhoLg4Nh1
-# htyN8qfWRKqCay/cg4yCVWN7nzANBgkqhkiG9w0BAQEFAASCAgBoMLtKQj5EKy2u
-# UFecYCFU/HctrRUYwrTN91j+wfMtrg3I16IVRt7DJu+GrIGmsJVUVJayiRgrjOho
-# SZgOGX5CZPhVze5gsFIAlZc80ZRYZC99KbtXKhxRiZShARScLW+5C19QCiSL8PYk
-# Hyb0jYADj82FolEiXafjGUOJjhOoPfUodoB9B6V3qSYAs4MPw2fHY57tk7PlXchB
-# VX/a1E2SCQ2FPBDM2HRazc2pDRsiYnG+mIo4pqSa2pma0cgvdSBKl2Fk33rU9XvP
-# bnwrm4g/SDiID/RlS/RnnB76LCNmRBcBU+5jec3har9lVPf7lMxMXbrgTkListVB
-# oWvn4P8SYMJBN/06qc8s1sKI/fiIqg+0mSTTu7qv2uCgIwRJTdCKyVpcC+4j/Nrn
-# Tb629UTVQsn6BU7H915yLZ/+fzMCHLV51lFO/34TpsjCCKrHggoPEwyEKwhtHFLV
-# 8oed8uj/EMox6n3K9XCnFwa7uR8fplnX6NAdQW8vUGgqUGtcUaXrCXbasKj9IRos
-# jcUusEnPui3LfC/y3GpEOf5hYT06j/Z5AZYfb98FnG/BLeLNHq0wR539Awgx2bP2
-# oYOzsZOM5k97a3hiQEC67SS0FAZNW25pBWVgyTWqKNRaVQWzvNDfQ2+dFuNrDKlc
-# TpdYF7ONuIxjKYpQ9latZi6qLm7qCA==
+# BTEPFw0yNjAzMDYyMjI5NDhaMC8GCSqGSIb3DQEJBDEiBCCO7Bfn3zj/1rR4Vb43
+# /2Zkf2yxccFLHnZ8BiS8RSeo9TANBgkqhkiG9w0BAQEFAASCAgA/4IEOjLrAtPmU
+# Qac5tLvk8FFBjXZBJpi9diEu0CK+yN6lsoMeLgh8JalgRpf/GcEAKnrX5FKmBm4u
+# fHyXIr1ndKYCGFRpybHqnViKdckmlgBmA1Y7X8EwLmO83VKT/e3gKEXaISLTrAS9
+# NL77WonH7eilXM7gE4bX+Hk77DjRXNPtDpwPEn0xbDgl7NO3kBIUDvZXdO54ySGq
+# WZHydorMMYZZeOpFUyK9qOItocEj4GTrm6ZpoXEFUAsQYaVZdI2JZSXgxCM5G4hY
+# ufOnzFY72BvjN3qSRmWm2WzcbCwmlj1SMCHnksrGjdmFKwVy8Rde8GoGBMC5Dslh
+# RR/vrwY6rV7TR98jjMFRMxJ1ipmceYqG3bmVe0zf2nn45LNWhaE3fvQJzaefs5X/
+# EaYy9fNVih8YT6iu5Hi1aM3haukEq8wbLQeE/tt4LCqAaOW3SwPNykHDdKI9H0wP
+# 3MhEDVAMBw8XxyXXGfOX3+MR1nJvmToI6BVu0YJeZmQaGOvLJ/M4zsiFXf6gCjLK
+# 1u8kR/nSNHTQSPFCFDXhW3BohhjM576blZ84ehUV48defsv1LYTuKI72Dsf3Swmg
+# T5DfY22+btxl93ucAVauj3mkn/wM67Qkquy3np6xTJ/Mqsahv++VlmebkfnIhYfG
+# huQY4mmHbHOmVNxl95vCDSTXptOXpw==
 # SIG # End signature block
