@@ -45,7 +45,7 @@ Ideal for reviewing entire modules.
 
 ---
 
-### ### `Invoke-CodeAssistantWrapper`
+### `Invoke-CodeAssistantWrapper`
 Simple wrapper script to simplify the CLI inputs for the user
 
 **Usage:**
