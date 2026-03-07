@@ -71,6 +71,32 @@ function Invoke-LocalLLM {
         $parts -join " | "
     }
 
+    function Test-PortSilent {
+        param(
+            [string]$Host,
+            [int]$Port,
+            [int]$TimeoutMs = 500
+        )
+
+        try {
+            $client = New-Object System.Net.Sockets.TcpClient
+            $async = $client.BeginConnect($Host, $Port, $null, $null)
+            $wait = $async.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
+
+            if (-not $wait) {
+                $client.Close()
+                return $false
+            }
+
+            $client.EndConnect($async)
+            $client.Close()
+            return $true
+        }
+        catch {
+            return $false
+        }
+    }
+
     # -----------------------------
     # Build request bits
     # -----------------------------
@@ -91,20 +117,15 @@ function Invoke-LocalLLM {
 
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
-    # Tiny helper to check if port is open, without the noise of Test-NetConnection output.
-    function Test-PortQuiet {
-        param([string]$Host, [int]$Port)
-        Test-NetConnection -ComputerName $Host -Port $Port -WarningAction SilentlyContinue -InformationAction SilentlyContinue *>$null
-    }
-
     try {
         Write-Log -Level Warn -Message ("Invoking local LLM at '{0}' with model '{1}' (stream={2})..." -f $requestUri, $Model, $Stream)
 
         # Optional preflight: fail fast if Ollama isn't listening.
         # (Fast & clean when service is down; doesn't help with GPU driver crash, but avoids confusion.)
         try {
-            $tnc = Test-PortQuiet -Host 'localhost' -Port 11434
-            if (-not $tnc.TcpTestSucceeded) {
+            $isUp = Test-PortSilent -Host 'localhost' -Port 11434
+
+            if (-not $isUp) {
                 $msg = "Ollama is not listening on localhost:11434. Start Ollama and try again."
                 $err = [System.Management.Automation.ErrorRecord]::new(
                     [System.Exception]::new($msg),
@@ -112,8 +133,10 @@ function Invoke-LocalLLM {
                     [System.Management.Automation.ErrorCategory]::ConnectionError,
                     $requestUri
                 )
+
                 $result = New-LLMResult -Success:$false -Text $null -Model $Model -Stream:$Stream -Duration $sw.Elapsed `
                     -StatusCode $null -ReasonPhrase $null -Exception $err.Exception -ErrorRecord $err
+
                 if ($ThrowOnError) { throw $err.Exception }
                 return $result
             }
@@ -351,8 +374,8 @@ function Invoke-LocalLLM {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA7XmqNmqQS1rPT
-# Ti/e9v8a3qVycuK3oQH3sLjhsE2sUqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQ0d1qXeYaCDeZ
+# hgK2U0AYhRWUkrIkINVXSvKRnIlEqaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -485,34 +508,34 @@ function Invoke-LocalLLM {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDPpoKepSl5
-# RSEtUyly3kJrwJQikxN+5XMl3Et4tcuJbzANBgkqhkiG9w0BAQEFAASCAgCokYmn
-# iuBx0yyFcgDxAcmsVji8ydnz8sUpNU0AyOhP8+6JOgNgg2Yu3taGc6r71v9Cd96F
-# juEIxrhH5DuNRskp2f2QGXwwR7Y4kf1xkfYRIFuRDvHJoB/m6XKofRxNPWl0wJ55
-# kZ0CQNhA8IDxGd8fFrWj0D5Jb08Sq1+zkhwJ8tcdAvTCzysn74heAkdF8F0eQTnB
-# Hv63SNLNyJaHydZsUYR7/hUsLlwwTpXf7U1mP8DOyOCVzcm/QWUmj+SheYNJ7/cs
-# rIaFDxy5dI9AjXKoLfx4ShtN0GnbH96Xg2lj0FPJYkDaJ0gNH6GUEACPxzIgiXNX
-# WNOyxbhCBlZfKpJfvtcnVapYAtYSg0L7SYPj+uNp2ECyJlufHXtoE78A9rCEAqEx
-# A5UC7aIJul1x9ymsWU2V7nobPjTQ9awCOcgPu1APxs+apFHEPiOXVrWAl73IrJHa
-# AphJSu0AAAHtqKltLEPJ48kXTaSALprlT1an+9uD/glW9EtxKvEL4SWJeDHH7OD+
-# LsqldgP97ZhAjmUp5XxAmdpcoFyVtstlRfBfHgmazjGVHSPjVNwj3omjJ07CsQpp
-# m9+8nek4T7DVw8Ytd/Ma/2GR6JKSLPgna8D7/pA7OKfscLBhHUSlWJD49MwiVx5q
-# ktxwyx19GouQAE4umC1qrucRObiqFOe8sS0puaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA1goQrNwCj
+# /g0038kVBcdAzcu+e29OwT6SHHndVDIWajANBgkqhkiG9w0BAQEFAASCAgDBKKlW
+# f/w1vyR01f3MjTs8NSWg9w8ee96TQn+oSPrPOcakIB1pdKJEOqxcVce2GaFHij12
+# uh7abU6WvaAav45AEIR91SlFHOZgpNkh06qW5cq3yvm8xXDHTrfX5HQ8YqwxygLJ
+# XEYTc6kSIoKyM8eO3aLm/F8aU30WygsR/opAFjasCzE8JSD9h+PM/od4sMyK64C2
+# aOSJSOCF7zTMU7+AdZ8an/avMq0+J9FQ1EmwCB65jJFgFSQuTX9X9/6GFfbmJKY4
+# FyJIh5zhEG5NIvyiGACNJzxymhAPbXQGxF0Rf9IYaMRsjNuBWY9Et6yfogk0BCY2
+# 7EHNf5ndkSZfRvRhVlKalOErmnourR1iCKi7gBfxRyDQDzOjYu2s4eYKYu/0jwMT
+# 225euqGtmJJsmfj14CmjsSRxXfUDKe0gEaCQhN0Z0/g4d/Y9jXdbuPnAJA7rG2CB
+# O8r7a+B7cfQjnAYjGri417ioBSlRszpyEPc6N7zd3O1scpRwsKVqVu1mWymqGz7B
+# jdKe+GpdODom9zPEgBj7A/ff+8By8JhIHOCJi3pN9CQwcXcHoRBUF3vP+96sLHik
+# OACBtrqYwlnKO40eWWKszKdp+Ccx1mxCTOtriv4bwOWiO4NiKeKirog6Z1kwxQcw
+# jpl2feUc+KUIEapbOgtrsAnx4gqQFwJOd82Cx6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDYxNzU1MzlaMC8GCSqGSIb3DQEJBDEiBCB4sL88i3gga22R2KoO
-# VMFyfWj6vTw6DCoO5BOWv/dUnDANBgkqhkiG9w0BAQEFAASCAgBDwbiWI24L50di
-# Jsw0bEtlnl9CZG04Z7tVg+4whCtHAAq6H5e9DJgUyEt4HNlO0cgN9ACi8AfNEZi2
-# eCKmWuAUI24wQN8NVFvYGuNoo2Zt0oFYKy/sWNht0ANxk9aRfm54NQ4+Rb3AZEY9
-# joUSPEiJX2CK625IwL+meS306Yf4PC4d/L0OQbZwA7S6IqeyuDNWB5Qf7xoWiZgT
-# DlVhq6uLXnetzhjmlNGGPcOFIj/i6wYZe3qNUreERyTeq98YW9cb+ZOJBbENUZdq
-# aSUcLhycnd4+Urd8PdYunh6YHQx5YOyFDK2LxjW2+PIxmAQFCXdWA5LGvBvOSZWl
-# FDP75h45CUT28Iikvfp3cvKqr2wLAIrotN+dVxS5JmjliQGFUja64gTe5t+A/c04
-# 0xnX+rJXFNoeoDlPVzeosmoFUYMi0o+c1GEDItU168Xqm9OL4wjLAMjqvmfMxU/T
-# xTOaWjhA8CFmFGB6Ba69B5MnqTf7fttyiWuUzv+/1U0MPiApsmFRDy+tt2ROFXRl
-# JEqRGpc0cccFVgMtV0e3o7Mt6gUz7oDwjU5Ie1PJ1UDqaxeSSwPxV9B5Ft6uxsuq
-# oQWHPSq5g2/m2hko4ya9y1B4xQ+wJL7BXbdKTd92krANZrBerjTlonRQL6gpoydz
-# +XZHALxaQ6PwpY7cGN2DO0asbti5Rg==
+# BTEPFw0yNjAzMDcwMjA4NDJaMC8GCSqGSIb3DQEJBDEiBCAjjsmHxO9U15eI9iu1
+# iqAX6I6SC4OunE6gOXjfCjD/WDANBgkqhkiG9w0BAQEFAASCAgA7JFp/4nelhif5
+# diMk5IGwAsw7BKVJwM9Pm3BT2XQRlm4cpXzj3q+Y7+6757MkHpNUzHKbhnfQ7PJY
+# z86nG5XlWeM4IkVHTO+7RZbK5hifMh7gv6jVHTgxfyVvsj/3BizbCDeKFJSCpBMa
+# 3cnCSNtn145mlpbDEgY2/D1uXiiThBRPT6eRyuoxtUZLK3cWqtVtQJ1ttuBLeZZQ
+# GddGDTqVtm1nHq1mKvipYjJEM/u4w0PcszCHgIN6bR0jofkH04KXkR9STVaKhMea
+# Vo11UStKnX3StqwYnpzxX+v+FVMmfIKlTbB5qo17wYmZY4HoI8GpbFKPH+A1tD3w
+# u1N4s5zY4Z+3Wns8cxpi62lzuOs8AqxcyVJspAmAQf6ikVdibooAA4bhkFtieUxk
+# jQS3MBN9/0Hdb2/wNEYPC78D1riFNwN/3s6TA94jBeoursNfkKYLMu7joJbhISZ9
+# jOtAveglKLsZHygursGqtC7Ht0FTVZa5AVtyo+i1KcHh5v5zb514F5RFZpEk1JN6
+# KZxJD0kweRaYRfl4fORwWNODykNbkqImW2q2PhvDytTIqxbluO0/CjnLHQkIwxr2
+# VbZE3wfl1XdrqsN3qqVDNRvCQm62agqwkkQY2sXUSUj7gQCOE/fIbm+VXpkM+s39
+# apE3QuJJ0FW52ZVCK940LVw5d2s7HA==
 # SIG # End signature block
