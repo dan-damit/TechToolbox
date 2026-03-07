@@ -13,7 +13,6 @@ function Invoke-ExternalCommand {
         [switch]$Quiet,
         [string]$Tag,
 
-        # New: show a progress bar
         [switch]$ShowProgress
     )
 
