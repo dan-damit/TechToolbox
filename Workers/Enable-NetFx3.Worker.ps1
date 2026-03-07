@@ -16,6 +16,8 @@ function Enable-NetFx3Core {
     $exit = 1
     $state = $null
     $msg = $null
+    $stdOutArray = @()
+    $stdErrArray = @()
 
     try {
         $argsList = @(
@@ -33,32 +35,17 @@ function Enable-NetFx3Core {
             $argsList += '/LimitAccess'
         }
 
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = 'dism.exe'
-        $psi.Arguments = ($argsList -join ' ')
-        $psi.UseShellExecute = $false
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
+        # Use Invoke-ExternalCommand helper (packaged as a helper on remote)
+        $result = Invoke-ExternalCommand -FilePath 'dism.exe' -Arguments $argsList -TimeoutMinutes $TimeoutMinutes -Tag 'NetFx3'
+        $exit = $result.ExitCode
+        $stdOutArray = $result.StdOut
+        $stdErrArray = $result.StdErr
 
-        $proc = New-Object System.Diagnostics.Process
-        $proc.StartInfo = $psi
-
-        if (-not $proc.Start()) {
-            $msg = "Failed to start DISM."
-            throw $msg
-        }
-
-        $proc.BeginOutputReadLine()
-        $proc.BeginErrorReadLine()
-
-        $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
-        if (-not $proc.WaitForExit($timeoutMs)) {
-            try { $proc.Kill() } catch {}
+        if ($result.TimedOut) {
             $msg = "Timeout after $TimeoutMinutes minutes."
             $exit = 1
         }
         else {
-            $exit = $proc.ExitCode
             if ($exit -in 0, 3010) {
                 $overallSuccess = $true
             }
@@ -92,14 +79,16 @@ function Enable-NetFx3Core {
         RebootRequired = ($exit -eq 3010)
         State          = $state
         Message        = $msg
+        StdOut         = $stdOutArray
+        StdErr         = $stdErrArray
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC307hBFe96oHh4
-# eNpgPv7LfqoCEryel/+fV1MiKJGTBKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBoP/OAVra3I1VX
+# GgLUxgJdMpP1Zpmr0vgrA1lbiBR+n6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -232,34 +221,34 @@ function Enable-NetFx3Core {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAcQIb/LBpz
-# YddBfQ3eK9Z7WnEHzO8mIFQ4tm0PmI6V2TANBgkqhkiG9w0BAQEFAASCAgBaPJoH
-# jQ++IsSn8E55bYosuRvDJBnIfNkPLGC4dj4eSdifeAjRVR5EQRkl4tcJHX7CULhz
-# cP5jyy4ZE6B8q6HOoQfZ7oHBEaQ3yK6yqXdCDnzqTnRUXBqcWThxKpkXAThJYt3E
-# J35r1nuSIsi4HGAAkGm1SLdSxG3k4VUfM8mURpkTE+qvDX4gpESCQ9wh5nvXSzTS
-# 4FSrOnVtl1zo1EXf3Rznvb05qJIYEOOCO+A/4dcFIKoYW9ChBUHjB8xtvuf1ZTub
-# dHLCAiLEs14qv+sxfRvBZdX0KSe5a9DfjF5d8UUqSgNDdeW+yQo5r2URqI0hSerF
-# pcokpHP3b72U9Prnzb15OMm2Lxaog6GIvhERMs8lYv+W0u+V+WVpq6QdTiKoSoOx
-# Tlq0RkpzvzzSi8zsyLD6ZDqTlOyPMGwUVXhzXT4ZMsChZ1MfClLU3dUfhZsgo4Mo
-# F6PuA+GJFrTCBmnmEo6gq5RfbxzKSSXKCYVvokSfGotRnDpPwDCjzEsncicy3XQS
-# rHrrwCjIW0trHotwASl6lljxoIRgyopQRKNJqMwclF5Q4D8lL37Cm2aYmcT9XLX5
-# xnJoStzfnn901qauGQ+x87JRlZZYsEn8POYH882e5XyrxcxMp0Xt45tmaw715D8k
-# wpXPq3L9t729xRjihGFBpWUGI3LGobD+IqaUMqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC0N8HmjFz0
+# 9t2ZeXlIddr5GQdem6H7wvxgIi31SysxxTANBgkqhkiG9w0BAQEFAASCAgDF4WD6
+# OQj+IgTKLn+xfnwBjTdP3D+bYNREB5rDLDq96SAaHyfocy8AAP3VAEUUkpmMScVS
+# JI7iRfjTGg/ic3p+Idu+YoGcjbnIrFzNkxF07v9Az22TZqHqJxajGyeWkw5yXD3p
+# oM9Nh+eDNBfPdo03Vi/j6SA/Lgi4rOA6pj4ejl7EBOREpU9EMzLPGALQHzCm9U7o
+# 5xwLuz9BzG88C/QcgRcrV49ec/WmokF8D0hzMCF4dcMg0e/pEj51BsxJitzhD1NH
+# x0cqNj1rXek3GbWxzTgRRP8UaLqJgeWo7ToHwybYy57XL7Fj3zapcDdBM8IGvYxd
+# K9LWFN9mF/JSs9fsSz4PW6DEn/il9lX3398Ad302e2WOscGoj1x0n0HyJAiozZbi
+# N73dPQ9W4AQcoW3uGgUJ6z3uMMDuvpN4ogKfkdcHgeePtOM5VWb8eeKtH8V4rbCG
+# 5jWnBT7pWO7lgOEHcyx5IpXhAZai9BxD4R+obgKp8i7+slkQ03uFgTqcjtx0ixeA
+# 5auHgQ3fYXPJwI3VmheYpRRk3z/9WYZlYhj2KyS9HKYRhqd2luitm1O9ABE3hBqC
+# u+kRImva7liMZLRVfxxbob260pxiT7BKmpMM9Kpi740Hpvlm14tRCpzmB9Ddwwlx
+# 2berEwriQOwVt1RoN6ufP2576TVdOS/58kCXXaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIwMzA4MDRaMC8GCSqGSIb3DQEJBDEiBCCmvhFDzEPXiF4ApiQw
-# RXe+k8tPqcb3rm6+qqM0h+8FCjANBgkqhkiG9w0BAQEFAASCAgBYoRmxK5gCxKLO
-# n9i9LF+OkuZA64m9GZQm61tRpDy2jXY0cZLBpHMnHTqXR1IEdTt+eybcky251gqQ
-# B/zHEAYyzrl0o74zoH/VBtwA6WuSH62ue90sV6J1bDgR+FFh0OvucZTLFXsFNCa2
-# x2smW2VMKyBPPnz6hScB+Ka+iTy6pFDY4cZKPNnwO6xy0hmEZSKAJtZi3xOzwY8j
-# zmQv0KVONQuXdwUFfiG85qqZx5xI/ltN3JlCHYJgwNhcOskKvA6QbvIY0TD3XaRJ
-# 3h0yx2aMQ5wsNMJAA8AdcfgtRT0yzs1NYApXEBb1lRaUb0iH+rC+ctbxpMMrMuAv
-# W5diE5N0JtXeoTzlK4W8bxCB+LiekhLMYgM/q+J4J5Oi1ABgcPActKpsj/GoMPm+
-# 8JHeCG9SFjq4ws1oWOih8xlgbWm2Qb4xORjRzvAwgQ43Lz2WGPx34LMtCSh1ulP3
-# DJLmPUGrWqt29Ou2D7jLqhdKiiPKOOpTKZsqIJBKkslBCXu0DpopzlvDMt/fDCn+
-# wMpdc1dPTEF7YLfJ80YJMCrb2OjRuiOuOnvE/Hrj5CptO96V9a1DpuNT2p7Lm9Cr
-# bqsAw7xA4y7p/+5S53vAd9jL+TQFW9kzzQOOIJ1x7f7gWcYNityQTVaOwb3qy78u
-# prDsllUtIT9/LyRXoQrfRgIZ8BwaQw==
+# BTEPFw0yNjAzMDcxNzQ1NDNaMC8GCSqGSIb3DQEJBDEiBCAdoclJ5YjxExBk1Mut
+# KhqdVlRkq+wkH25zp1428cOFVTANBgkqhkiG9w0BAQEFAASCAgBc7A750fAS7qaG
+# WT52VEQPj7omGVx6nLbtqEiqLViKpsOLPr3Z8Ac8pGoD8Rq6+1mVxlxx39T2HsMc
+# FMdBdgdY+hA9PUKHbs0IQXEwkwphKK5uUQ3fcuaFSoHvl8fFE0+6NDApKjkDyzub
+# 2BkuLnbsn3q0DWwsmVl1mUTYjCHiwXiLex7plhtOnyeplGxpm8dHX0FB2Ikh7irl
+# zLjO7wyrDC5kH9q4B4x1FOeOrRNI90ayYFUiRR3MZGongY8XGZowLR7vGzMHOU44
+# SXJLmQWFun3D2NkL3JX4vdtcMXkzZEj6LHyzwmBEZH1JWpI6e2++u406nTifgggZ
+# Sd8HUMcCcJ4RoUME0pSZR36yvFx8Oo+RhgebELCSYWtcpibBiZuJg6skfZguBqr+
+# zcYh0IkFvA/mpQB4tpUMHx3ykSolEg6e0nore6bdTKgLV2eLkyEDfABjL+xen0+c
+# 640OuoYNqGQ7DqR6mDG6Wx3JGUFwUybEVwnRpDsMY/UNZ6ZaPDY5PvUfEbPj1yPa
+# m0WPR3UrVgRKwfdonyX+zia9BEX9dl5MgFSZqGcnxLYRFkx5ddbKm2O4ZMB3p1Uv
+# MS1t0E8OrKlMmovdx1kIzP2X27UVyhqRtUHVSWu91d6D5a/sKyxaYiixnvZkllIf
+# 6gNnTKzIXi3JZ30bWYGjPeqXg620tA==
 # SIG # End signature block
