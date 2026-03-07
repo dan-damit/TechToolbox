@@ -83,11 +83,11 @@ function Invoke-CodeAssistant {
             $moduleRoot = (Get-Module TechToolbox -ListAvailable).ModuleBase
 
             $allModuleFiles = Get-ChildItem -Path $moduleRoot -Recurse -File |
-            Where-Object {
-                $_.FullName -notmatch '\\Dependencies\\' -and
-                $_.FullName -notmatch '\\CodeAnalysis\\' -and
-                ($_.Extension -in '.ps1', '.psm1')
-            }
+                Where-Object {
+                    $_.FullName -notmatch '\\Dependencies\\' -and
+                    $_.FullName -notmatch '\\CodeAnalysis\\' -and
+                    ($_.Extension -in '.ps1', '.psm1')
+                }
 
             if (-not $allModuleFiles) {
                 throw "ModuleReview: No module files found under $moduleRoot"
@@ -157,7 +157,6 @@ Source code is intentionally omitted for clarity.
 "@
 
         $md | Out-File -FilePath $path -Encoding $Encoding
-        Write-Log -Level OK -Message ("`nSaved analysis ($Mode) to: {0}" -f $path)
 
         # Optional structured return
         return [PSCustomObject]@{

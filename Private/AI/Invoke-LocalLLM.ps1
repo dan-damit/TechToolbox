@@ -91,13 +91,19 @@ function Invoke-LocalLLM {
 
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
+    # Tiny helper to check if port is open, without the noise of Test-NetConnection output.
+    function Test-PortQuiet {
+        param([string]$Host, [int]$Port)
+        Test-NetConnection -ComputerName $Host -Port $Port -WarningAction SilentlyContinue -InformationAction SilentlyContinue *>$null
+    }
+
     try {
         Write-Log -Level Warn -Message ("Invoking local LLM at '{0}' with model '{1}' (stream={2})..." -f $requestUri, $Model, $Stream)
 
         # Optional preflight: fail fast if Ollama isn't listening.
         # (Fast & clean when service is down; doesn't help with GPU driver crash, but avoids confusion.)
         try {
-            $tnc = Test-NetConnection -ComputerName 'localhost' -Port 11434 -WarningAction SilentlyContinue
+            $tnc = Test-PortQuiet -Host 'localhost' -Port 11434
             if (-not $tnc.TcpTestSucceeded) {
                 $msg = "Ollama is not listening on localhost:11434. Start Ollama and try again."
                 $err = [System.Management.Automation.ErrorRecord]::new(
