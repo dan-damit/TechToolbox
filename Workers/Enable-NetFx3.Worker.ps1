@@ -5,7 +5,7 @@ function Enable-NetFx3Core {
     [CmdletBinding()]
     param(
         [string]$Source,
-        [int]$TimeoutMinutes = 45,
+        [int]$TimeoutMinutes = 120,
         [switch]$Validate,
         [switch]$NoRestart,
         [switch]$Quiet
@@ -36,7 +36,7 @@ function Enable-NetFx3Core {
         }
 
         # Use Invoke-ExternalCommand helper (packaged as a helper on remote)
-        $result = Invoke-ExternalCommand -FilePath 'dism.exe' -Arguments $argsList -TimeoutMinutes $TimeoutMinutes -Tag 'NetFx3'
+        $result = Invoke-ExternalCommand -FilePath 'dism.exe' -Arguments $argsList -TimeoutMinutes $TimeoutMinutes -Tag 'NetFx3' -ShowProgress
         $exit = $result.ExitCode
         $stdOutArray = $result.StdOut
         $stdErrArray = $result.StdErr
@@ -87,8 +87,8 @@ function Enable-NetFx3Core {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBoP/OAVra3I1VX
-# GgLUxgJdMpP1Zpmr0vgrA1lbiBR+n6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCABquZEBAMXudiE
+# FtinYVD4HpNKSBsyV2fQ2C+I0HpLMKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -221,34 +221,34 @@ function Enable-NetFx3Core {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC0N8HmjFz0
-# 9t2ZeXlIddr5GQdem6H7wvxgIi31SysxxTANBgkqhkiG9w0BAQEFAASCAgDF4WD6
-# OQj+IgTKLn+xfnwBjTdP3D+bYNREB5rDLDq96SAaHyfocy8AAP3VAEUUkpmMScVS
-# JI7iRfjTGg/ic3p+Idu+YoGcjbnIrFzNkxF07v9Az22TZqHqJxajGyeWkw5yXD3p
-# oM9Nh+eDNBfPdo03Vi/j6SA/Lgi4rOA6pj4ejl7EBOREpU9EMzLPGALQHzCm9U7o
-# 5xwLuz9BzG88C/QcgRcrV49ec/WmokF8D0hzMCF4dcMg0e/pEj51BsxJitzhD1NH
-# x0cqNj1rXek3GbWxzTgRRP8UaLqJgeWo7ToHwybYy57XL7Fj3zapcDdBM8IGvYxd
-# K9LWFN9mF/JSs9fsSz4PW6DEn/il9lX3398Ad302e2WOscGoj1x0n0HyJAiozZbi
-# N73dPQ9W4AQcoW3uGgUJ6z3uMMDuvpN4ogKfkdcHgeePtOM5VWb8eeKtH8V4rbCG
-# 5jWnBT7pWO7lgOEHcyx5IpXhAZai9BxD4R+obgKp8i7+slkQ03uFgTqcjtx0ixeA
-# 5auHgQ3fYXPJwI3VmheYpRRk3z/9WYZlYhj2KyS9HKYRhqd2luitm1O9ABE3hBqC
-# u+kRImva7liMZLRVfxxbob260pxiT7BKmpMM9Kpi740Hpvlm14tRCpzmB9Ddwwlx
-# 2berEwriQOwVt1RoN6ufP2576TVdOS/58kCXXaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD2iuRI+4k4
+# DE3vHbrh6uK9Y53c2Owq0Q9snUPbK7xDfjANBgkqhkiG9w0BAQEFAASCAgAsfwPp
+# k35CoW2ckDCQRNZ5yjq58+ol4c+PRxjq7W86UKogt1vUFMy/0r9avH9S0Uq0ILRm
+# R/5cGASTP3nhxz0zDV/Ew+DB1t9HuilDVErISt23D2yxRvzJdUuRVjwyDFomRm//
+# rnCL6B/RwkqsdaHnCfpMKIlFtFLACsvBz2DsZ72Vyai4EzMnE96W4JCEzkLGsMYc
+# YNSbEpRF/PvpiVyQZKivTSbnc/BBOKbx/REvPb7yhruCIZbwj6FcBts6Qzyp5Q9I
+# 6GG+tBBKkGsh8cL0JdA998olb8A8UEMxn3vXEM0uHYU2rhFTPXdBbYaahnT8KpND
+# 571P/NPt1kz/V4CsKx8u0WWoCzKRh4Kzg3z1jEYKkUEUvyMqHCGpqbrp/eGOkwQD
+# ZHg58+zJ31zi6AyajdiD02yqkGUDFLqPkqT6jKg6rG20whMQjKlYthygEakSpoRZ
+# yTskS0Qs45ND9z+23NE+cxbz/iFF4hVK+d56FXuLIw/HiZh6YO1e9bleRCSTFx+q
+# GLAG3JEACWL08xr9uqB4e62A8uVgt9Wz695qvEXJKvmlf6DZsf6AgfPoVJzQtFRe
+# khlJ4VSPvJdK2LSgUo3aPXmBmlzGHSfeyWOfEAv5xVqJNYv7Mzj0MWi15mVtXpGP
+# n21exbTnjs3vBLsK3Wh09MhG3ILNDTC4QGROWqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDcxNzQ1NDNaMC8GCSqGSIb3DQEJBDEiBCAdoclJ5YjxExBk1Mut
-# KhqdVlRkq+wkH25zp1428cOFVTANBgkqhkiG9w0BAQEFAASCAgBc7A750fAS7qaG
-# WT52VEQPj7omGVx6nLbtqEiqLViKpsOLPr3Z8Ac8pGoD8Rq6+1mVxlxx39T2HsMc
-# FMdBdgdY+hA9PUKHbs0IQXEwkwphKK5uUQ3fcuaFSoHvl8fFE0+6NDApKjkDyzub
-# 2BkuLnbsn3q0DWwsmVl1mUTYjCHiwXiLex7plhtOnyeplGxpm8dHX0FB2Ikh7irl
-# zLjO7wyrDC5kH9q4B4x1FOeOrRNI90ayYFUiRR3MZGongY8XGZowLR7vGzMHOU44
-# SXJLmQWFun3D2NkL3JX4vdtcMXkzZEj6LHyzwmBEZH1JWpI6e2++u406nTifgggZ
-# Sd8HUMcCcJ4RoUME0pSZR36yvFx8Oo+RhgebELCSYWtcpibBiZuJg6skfZguBqr+
-# zcYh0IkFvA/mpQB4tpUMHx3ykSolEg6e0nore6bdTKgLV2eLkyEDfABjL+xen0+c
-# 640OuoYNqGQ7DqR6mDG6Wx3JGUFwUybEVwnRpDsMY/UNZ6ZaPDY5PvUfEbPj1yPa
-# m0WPR3UrVgRKwfdonyX+zia9BEX9dl5MgFSZqGcnxLYRFkx5ddbKm2O4ZMB3p1Uv
-# MS1t0E8OrKlMmovdx1kIzP2X27UVyhqRtUHVSWu91d6D5a/sKyxaYiixnvZkllIf
-# 6gNnTKzIXi3JZ30bWYGjPeqXg620tA==
+# BTEPFw0yNjAzMDcyMDAzNTZaMC8GCSqGSIb3DQEJBDEiBCADQRjdTsFAVvJnJYqu
+# V48JAHlFMflcUthJcblRpO6PGzANBgkqhkiG9w0BAQEFAASCAgCP5Vs1FHoCA6hs
+# 9ETP1icjj2o4447PqOTFvtTUjfhScrlJergX3WE+/JVr/8KN/2g/zkK0ux0e2ppc
+# nKAI2Wd5NA/lFue5cmcaJJA5eAzlAou5uQFI7B+WnS8qgGQvauM55sm0VMxe2crF
+# 4KmdlkwrvIOPwYkr1Mzui05BYeidcBwL2SvX7hQxkL55M7rYMf3yHmayrKZ8s9ia
+# pmFffRAiY0EO0F7Z/s0rbvbjedjC2HjjaCnxiPh4dUiII0Uac/j8513uUetBD9ut
+# WP//JoK+DVRmo7tQ3VJC/bO7eXyFyc8u9karNgy5RF0AtPctVqi+vL38uorYg4qB
+# yviA3xHJoA/TOLqiEhYoeN7xbf8dzRHR6fff0uaBCtkoIx0PWTTYn83B21svPrGc
+# 3LnjrwiypSTJ9eFVuOBtu6db/InE34LWC+Q/fQGZqEUfjiW+blmOEZYFEgzVgy1i
+# gstINwHUFm234oCBGxMR64NPJ47heySEQQ8vvCllZcOJstp6mq2wYew3ZKUmNTSc
+# Q+JS5QqUbn2vANuhpRuB+7Pl0OdlB5+tPx/a4DxqHb0hnQLJ81oimB5WUg3hpom9
+# GTYFh/bQMF9F3p/QnzUsdGrlhAKIc/Y3JUfTZFN3ojKrjyNvsg0soLurgNscmynU
+# yuccn0m7hri4rC8LZBS1eoSPH4WeYw==
 # SIG # End signature block

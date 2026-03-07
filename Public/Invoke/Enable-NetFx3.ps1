@@ -6,7 +6,7 @@ function Enable-NetFx3 {
         [string]$Source,
         [switch]$Quiet,
         [switch]$NoRestart,
-        [int]$TimeoutMinutes = 45,
+        [int]$TimeoutMinutes = 120,
         [switch]$Validate
     )
 
@@ -18,7 +18,6 @@ function Enable-NetFx3 {
     if ($ComputerName -and $ComputerName.Count -gt 0) {
         if (-not $Credential -and $script:domainAdminCred) {
             $Credential = $script:domainAdminCred
-            Write-Log -Level 'Debug' -Message "[Enable-NetFx3] Using module domainAdminCred for remoting."
         }
 
         if ($Source -and -not ($Source.StartsWith('\\'))) {
@@ -34,7 +33,8 @@ function Enable-NetFx3 {
         # Ensure Start-AsyncProcess is included in helpers package
         $pkg = New-HelpersPackage -HelperFiles @(
             'Start-AsyncProcess.ps1',
-            'Invoke-ExternalCommand.ps1'
+            'Invoke-ExternalCommand.ps1',
+            'Get-DotPulse.ps1'
         )
 
         $results = @()
@@ -112,9 +112,6 @@ function Enable-NetFx3 {
     if ($NoRestart) { $params.NoRestart = $true }
 
     $useDirectDism = ($TimeoutMinutes -gt 0)
-    Write-Log -Level 'Info'  -Message "[Enable-NetFx3] Enabling .NET Framework 3.5 (NetFx3)..."
-    Write-Log -Level 'Debug' -Message ("[Enable-NetFx3] Using {0} path." -f ($(if ($useDirectDism) { 'DISM (timeout)' } else { 'Enable-WindowsOptionalFeature' })))
-
     $overallSuccess = $false
     $dismExit = $null
     $state = $null
@@ -140,15 +137,7 @@ function Enable-NetFx3 {
             }
 
             # Use External-Command helper
-            $result = Invoke-ExternalCommand -FilePath 'dism.exe' -Arguments $argsList -TimeoutMinutes $TimeoutMinutes -Tag 'NetFx3'
-
-            foreach ($line in $result.StdOut) {
-                Write-Log -Level 'Info' -Message "[DISM] $line"
-            }
-
-            foreach ($line in $result.StdErr) {
-                Write-Log -Level 'Warn' -Message "[DISM] $line"
-            }
+            $result = Invoke-ExternalCommand -FilePath 'dism.exe' -Arguments $argsList -TimeoutMinutes $TimeoutMinutes -Tag 'NetFx3' -ShowProgress
 
             $dismExit = $result.ExitCode
             Write-Log -Level 'Debug' -Message "[Enable-NetFx3] DISM exit code: $dismExit"
@@ -210,8 +199,8 @@ function Enable-NetFx3 {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCOpUf2PhIDhOPi
-# ytyHXwGoGMSUP9Xr9+WZXMiFgtdAuaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDJCn7QBWPb1yib
+# iO4fRGKHjt07dh5LgBC4k58nQrjxj6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -344,34 +333,34 @@ function Enable-NetFx3 {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAueaerDxaI
-# Kf0LUeBYLRzLCXNB3zzJLZom+D9li/+PRTANBgkqhkiG9w0BAQEFAASCAgCKBs6h
-# r667CksRQwrxcaTy+Eoe3HlIfS7hJX8SmwFrE95/8hQScR4Ry1tG88Ivm4ukrbzN
-# 6X84lyDfuhYQnDbTh3lhw0jxFdxSZEqPJXQM1rU1gNlX3DJqUhPFKHmcLA2KM6B8
-# YAzzeovW74f0A55moMUfaCD6Gek2Ub4xDdJrvV9ViX+0/SA367vib1Fm70srz7V1
-# q5kCeRMj13jAVeDw8mkYBI68hQCBkte9LbDiiwKqyRBRW259fjep1GoMD50SFgOP
-# SfBQcF3xN/rqw0Ibn4OKeMwapgK1RK5jbWhkQZL3QrMGZNMC/4FmEI9d5YxUCrg+
-# /73ibw9Gmsy/tuFQoMx/HZZVFcQtN2zIBMQC4G74AzoenC2WD+/K+I+G0OUVUsZs
-# 5bwLffcZ+Gj0jFJ8MGmZvHFnC7kPN+kz0//VnD+CNM2hDEzkvRkBo7bIkD6hWJL5
-# lFaI6KQpC6z0ZT4bh+2Gduko4pCHBQuknX688VX5GVzVDU6w/szGJ2u7pv+2xpcB
-# yB5tSzGhBdJsRX83RG5YiN06G1iEjxtyn+07xBP44HdCyGs/v9mAACDOROv4K0r3
-# W1vkcf1ZdbrBdLetz5WIKl6nUawlx8F6Uq8QHfIWd51NXAMR8k/xozrBzpwtbuct
-# tsWAamSPgPOlDZOo5qC7JLIF9T9bE5s0K6P8CqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDEJEXrkE4Y
+# kQnIz7/8/K62AQaRNyhyQNQ4OT7nSn0mezANBgkqhkiG9w0BAQEFAASCAgAj7TyS
+# fwk0EEpTgtM4+QHpJECh6fYb9SDwfj1/jjwhUADh4kdaPgrhJYv8+nFnmxYPWaSJ
+# 73v2CYC99HwEN4gKx7vmr1zIcIYiDzSyyYf0QlMwKHyMFW17K202cNF0ehvR8HO6
+# 5WwAz8TxCTfUDR1OU/BpXJcwXRnoC66OHhhCrMsJQFz0ohXtwdNb/ZCFVE7+DEUw
+# 1qvaXpb6dYcSKM3PDzsyBHt58ru7IBJ2GgaXomSB4rJkZtBJn8XR1mQB/GP6EmCg
+# ou8QcgZos97DakxF9TeUa20J+uqZKLEijVnHYa6QKN9DW8eb6AYFYQDlAfWaeaYn
+# vjNaftHrgHtx35JPOpOC7QJ5ViQkINQTnpaNUhIKlvMZpehytf4+Xo7W445cq514
+# B2FBm509ZJGO1Iyyp8YDo8HcGGa1fpCzHFYCFykfeuTNRqNrq8N3+xLve+a/JyRM
+# ksBvk5GplfPU6Tu/3SA+JywenJ6h5etV8lzqwMCJwDyEw/jjOTIpJbZqGCKYK+W5
+# jDf7wRex54GIAMf/m1IjHDmZpEfjPVXEcpp0zcmU/f7tQz3c9lXBEpOIukNmfaW7
+# iCGGvNLkf//hthqCmRokfq+p1+WK7M68bkuGZ7crBMgFWv5Hxxc/8EkhDYMWD1ho
+# lHBLn40m9eQIHtf8zNrnNtvdzGGwF5x2exvo86GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDcxNzQ1MzlaMC8GCSqGSIb3DQEJBDEiBCCrL0Pyxt0Q12K6MmOJ
-# ePGA7Z3RBzuMD5sf8h1rMsLNhjANBgkqhkiG9w0BAQEFAASCAgCZYgswrkgqf04q
-# CaxGalHjO5NlzDJ0JVnk8j6CN3t06NfBO41lf89/3wTd5Ho6IE2S1nao9hqXhMp2
-# rxnNr+rayv4TIJ8VMJLXF/9H9yfi0ad36bbe4FW7t6lNTKOGXxxqjWDOYQ/o8bbu
-# VOqOsoF2A7CFtpO40aT2OWgKFlNGzp2gQT5aIAslybsiyv7x/piooovSYkEDpk9a
-# alGYW+C5uuVmjNagCBo+j+TyLL894Ay5ZIQWN5wo3nrPNR5EY2BJcvBWBkjN9XEp
-# 3K0LtOau/YZf/aEBci69TPFNu34vxa5ryBCwogA4flRv2siMth9Oz5H2kJkVhkvE
-# JzAg7HdaLxExery00DaAjvhPDipzYC4j6YJOOjJfPvsb2dWfgZFNpqeovTTRr2NL
-# AF6zeDHV6T0E9xJptchIajrdphca7b+WpO2ENZ5HDjMSIlRLALwc3fmCtIiZXkzJ
-# 6fVnBFJgRk3iPzFCyLleXkSpXbKIWCzkKOYpJhMTGn0zkT/jIsiJLyJC3QXyS4cW
-# JRtfhHX45rFAR8C86iQSfL7e2+k/fNo5EZ1E6iJaF3YLUYN7OdRCybcC8oBN0Aqs
-# oxFrnTdSOOc9YVYNGAuUPmwEPs1taZYylkKgpsxsGxgt/wKhlObKmKf7vPLHJprF
-# HoInWGwGVddXikawehhm1PB9FXC0jg==
+# BTEPFw0yNjAzMDcyMTA0MTdaMC8GCSqGSIb3DQEJBDEiBCABJhjKLld+dLOrjtWV
+# ruxnQ4QP3Mzj+oNQ03Xu9D+4fTANBgkqhkiG9w0BAQEFAASCAgBJRiOCb11ifPG6
+# m5cYb1aWTbNroqfm85wbFDG7mMZFIzc5sggKvY6uEVMid98+CXoaHaEIn2amBvaS
+# THSyAkrfZ970AGPNuNmIcG9Keu5szKESeRrol4ZngCj6fQcZAniwY4al8pMRJJgL
+# gXRNSbpUJkG0vsWAIrmm4Uapzmbf9Zj8zEd7ONVtBG9QKj3PAIUYKOJvDyrZvkJT
+# eqePizWhlRA+mtC23DyXK2vACzTEZDlMZX52ms6kOa0JoncpVBhnMgMOD4YR3Pya
+# T099DNMxojuFYY3pv+ywe9Eth9dwkM/yJWj9CRkO+jOdDHlKyD5qlp1OReSiX9pm
+# 4ZRCiGkO5i0xzA7lMUuOMGRxOdtmW0hMivcE810VxQ5D5mG7iA1lv941ZqFfkI6l
+# LHZxARmyNMvWzAcFJ1ctPkh5pu8pJRnfX2q/YiZZ1E10JI01xjoqNYjt39rn9Vy8
+# niHfbPUDnMbbsgsOMKDj7+yZdw3t2GxW4TKHXH7Y78cTP90ws2HzgTDdKox/iOML
+# KV5xHIAIEdp5DJqdmEQnHokWxoRoC5wWaqU6up4Uqna7Lx3IxTcJaOVlubn1Plag
+# aAqibg67xKk94K8s4xJGjSrEWFhOdz+8lSwPpPOrJozy2VpOYrLj9COG1TXs24FY
+# hHOOMqjG7uUECNLS7UutbafYDkvoLw==
 # SIG # End signature block

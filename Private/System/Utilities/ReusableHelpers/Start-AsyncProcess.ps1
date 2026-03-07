@@ -10,11 +10,6 @@ function Start-AsyncProcess {
         [int]$TimeoutMinutes = 30
     )
 
-    # Thread-safe queues for async output
-    $stdout = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
-    $stderr = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
-
-    # Build process start info
     $psi = [System.Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = $FilePath
     $psi.Arguments = ($Arguments -join ' ')
@@ -23,22 +18,9 @@ function Start-AsyncProcess {
     $psi.RedirectStandardError = $true
     $psi.CreateNoWindow = $true
 
-    # Create process
     $proc = [System.Diagnostics.Process]::new()
     $proc.StartInfo = $psi
 
-    # Safe async handlers (no PowerShell calls)
-    $proc.add_OutputDataReceived({
-            param($s, $e)
-            if ($e.Data) { $stdout.Enqueue($e.Data) }
-        })
-
-    $proc.add_ErrorDataReceived({
-            param($s, $e)
-            if ($e.Data) { $stderr.Enqueue($e.Data) }
-        })
-
-    # Start process
     if (-not $proc.Start()) {
         return [pscustomobject]@{
             ExitCode = -1
@@ -48,38 +30,38 @@ function Start-AsyncProcess {
         }
     }
 
-    # Begin async reads
-    $proc.BeginOutputReadLine()
-    $proc.BeginErrorReadLine()
-
-    # Wait with timeout
     $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
     $exited = $proc.WaitForExit($timeoutMs)
 
     if (-not $exited) {
         try { $proc.Kill() } catch {}
+        $stdOut = $proc.StandardOutput.ReadToEnd()
+        $stdErr = $proc.StandardError.ReadToEnd()
+
         return [pscustomobject]@{
             ExitCode = -1
             TimedOut = $true
-            StdOut   = $stdout.ToArray()
-            StdErr   = $stderr.ToArray()
+            StdOut   = if ($stdOut) { $stdOut -split "`r?`n" } else { @() }
+            StdErr   = if ($stdErr) { $stdErr -split "`r?`n" } else { @() }
         }
     }
 
-    # Return structured result
+    $outText = $proc.StandardOutput.ReadToEnd()
+    $errText = $proc.StandardError.ReadToEnd()
+
     return [pscustomobject]@{
         ExitCode = $proc.ExitCode
         TimedOut = $false
-        StdOut   = $stdout.ToArray()
-        StdErr   = $stderr.ToArray()
+        StdOut   = if ($outText) { $outText -split "`r?`n" } else { @() }
+        StdErr   = if ($errText) { $errText -split "`r?`n" } else { @() }
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBPnWxLf9KC7SIA
-# vVOcMA4cRVIdLay+O+O6PhVBdUnIJaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC6s09Uzm4xQJN5
+# 7AZQcOefKcDR+FkNeeFlB8c5OYKvPqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -212,34 +194,34 @@ function Start-AsyncProcess {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0m6PTX5uA
-# SqGupkLGkColEm7sDLPtqgex10syEpQpgDANBgkqhkiG9w0BAQEFAASCAgCs775f
-# aSOLQD4cs8dcdYNuLrXhPG4hvg6Apf3Vpcpq0SiIVY34uZUpewzm7X/DIiVwsrZz
-# Asx3zp18AI7YnR64E3CCre2lmoVQk7ipPK36GHe6Rrgkgek04RWf9d7ySGP7Le3i
-# 5iPURJdURmu43wtPUkYH1jI0ghsuD15M/JkzLcFQ3dSxsxTr9/WSOXfKMxS1ZcV7
-# edaM+gLYndCPcScyKLwbf+UIZKxHtgs+F+GTGUXhCWABnYw6arSAweiRhnK4Q2D2
-# 1lqcpzTHZyZ+TGc4/dgT3YYhOygXYDMQEr98QXXksEe54KFccyHP5uqK6C2iqLop
-# 7cRY39TFuA3H0vJCsVUu4a6v3O5ZbMZD9r2X+aFnwKa71gI9cVn3FtbbPnwDXWES
-# DTMWzkFTjUPUZw7aXp8YVvE2dK4VnZLTWPMWlSE/c/nvAjfisq5caBTQv7uTQi2C
-# 0ChwK1OyYPla93TDb+MrzqGCfUSIEyl3BYu5yH/GfvZfWhGZsU1WopdklLC3MsJB
-# Ke4qa7nw5Gqf+mvl6XvrvLcHNVFqFHtfYFc6aBYo6J0aXZlkoUCAfeM8ZE165Ejm
-# 4XQp1aMb6W6U4RGkb8YD1jjoa8wRuAaBJL1KHHKQ8EF/SZlqD2JXjdknDgl05f+a
-# uuwTZegUH09WYBm1/Ocx+aBbEXOOKpswqoMlTaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAVfm3aXqOk
+# 2tcEVL2nRoUSoFFpNUljF/sxPe+eEHhWoTANBgkqhkiG9w0BAQEFAASCAgCkO8BO
+# 9MgfbWGouRjsHzPQt1xQYOxy4g/P8jdZX5UJ+kLxGGuj4U/uGbFgpDckZ2gfGMOd
+# ohrXW8FGiiANgMGzdFHN7qvw7Oz7QRW7VsWqaExnBxAC510nV9IUNtpolOP6SSns
+# GWKImN28VTNoxspEA52NZA3t9un4NQ+NfkWIiqNPGJocBbCeGsdHt1GgXLs3P5Ik
+# jwVHz+ctOdn6QKl/x7U1EzzsnWAyp7M5tR/ei5tot4uEsDRNKEmM9muA9iZzDnhs
+# RVvTljlDL8D1G/x5Iadg/t/NFaw3/IJOOhPbNVIl4DJqutMNhQMPR1fjp/MWGzq5
+# hZVRGkDDKOVG37MOfhDOWl8lLkrTVRA5kzMRN57vJSdali9fqVRfzvNIFLk/w4EM
+# ATWrn/pd8zFtAu8eiBdjLblKJTZDOYCHCjom48+5tkC/ToyzCshZVCpP2ZTOWVuI
+# KPu46qEZc5ey3+z8NWejJ0S8rNo6J6hBdx9Uy9THLPUgXW5FYjnPXUcUglsJd1yB
+# MlQtSF5qf+/5HPJagUQFgpVsYlD28OdK8L9tcUZ3XBc6rPFN0PwEa4P/45msSgD9
+# WrcbnVHMGYHN5wImkqwR+UMQEMjW7GfKNMn+yaLPkJOm8QFiReZ9qbHIaykPGdlG
+# B/RfyYUbfP7EOHzFhz9pEwrefsmFc1IkXUNLxqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDcxNzQ1MzFaMC8GCSqGSIb3DQEJBDEiBCA9Os4PmgnsogBek/R1
-# vygYjei9/0bQKEzTnI97KmXNETANBgkqhkiG9w0BAQEFAASCAgBo7uaf4uNlqKbA
-# JbucX37St+HVY9ax6ynoneqMhCgxGIUKJtIjuqtQyOO2pJtgfeJxxox5JOiw6XTL
-# vRZtrdHVYKTOw8iS6pmx8K7vF9GgNsMtgrDDqA6pBtCqyJSQv6Do2CzQ1gUOA8Zw
-# qwtG4+clRzpQ8nsTeJBFppqSi2r/8gWX34vOtWAfaLVaiDZo4AK/78A2II4dc2Pv
-# yw1xxS1cz6vZKcwbEoF+a5DnsIjZuce42AVqQrD9JGtFkJyIi/9yOyIPgei1Jfpw
-# /UD6ch3XI3FgEBg5Dfj4wCQS/cMxGOMZYBv6sECq0kqRFdGcOLrfHbpthv5I1kXZ
-# WEo5FTkHXHM0zWh1I2kPXvMzFU7J2NXFuwWk1ut1nwFcllFSSCkX+/PtgzfM1O0B
-# ZPLegmDRSmpgmwK2aTDmoNSgs0JuqmhYmBuyhlgD7ijplwVP83mOqlA2efCsw4Nf
-# uioNQQF6g73B6Ms6OcH+Z4NjYnQrO07/oU18dzeUjzXeRm6vBOu3ASe7lhG1DSw8
-# jrDv8A8ksmMVxhVpLmDzVoLfJJPaLazl9l+CdOOnYY2aNlKYCltb1w4623PLNVIF
-# X8PIDcg/kpi+0b48X5IWOH236iNIvUqfRZONoYJvN3T6YnF34yZsh6AOySp4VqCG
-# dWKTlGye7iCWIv45PZGjksKOFqe09w==
+# BTEPFw0yNjAzMDcxOTAwNTlaMC8GCSqGSIb3DQEJBDEiBCCoFMKp8Zj4lCho2dd/
+# KVvqacnyV5BqOxI6GG5Hi7QPPzANBgkqhkiG9w0BAQEFAASCAgBmdlQVQWN5jgqL
+# t08JtMJJ9WU4S7E7fBk2S3DBoVvZAm6XRj6BBZBeatZ5ndBzYgKvOaycaeeSLp0q
+# oduYu6qU1ThgnMzTghtmIE0SJRy2GzqkzoPWinG6u+22KWr1+gKsSfgx12V3+GB3
+# IgJ9BXQITpMWaJm6xgF3BiHCpS7chZ4/vcJ1PU/pa2EVnrlqVxYPrcVzwvMEWzg0
+# XEUDf3aifcdayGdh5nhXEaKlfhwAXi9A5AOOFLZYu8RC/DQqHgYK3DoP1CAIHi5i
+# j4ygL7XHCeMZACAwHlrbVpYGdQkpunT5etSfeasKiFaAtGSoMRUX5hWpJVrsbKJM
+# X5m3+6T2KfdnGsMAYnq8hdaBZaiHPOX+veBFHQc9NzzelMDvMaPjx+AaS17HN8fT
+# 7fDQHc0/rCkKdOntkw8QcNst1PeaUgXTq6YvLLrAJ2K4LEFswrO5lrME5Co9eQB6
+# EiZvf77bUjdxpZBwa0kajBSjtOsyWeJyGS9UqymM6wHX1cJWM4PPWDAyFE6uw9Oh
+# BEKu27CphVdMUa6wrTy1UTgtpm3hKyOuEHU8jQXXH4ik2uPOX7rFC27WEpxH7wvS
+# wWDrtmhVSoOSS8t+R0PFNmnjqtqf7YqHNO2mffCP3vBNkW2bU5U7NLaTEBrZInPp
+# NgBU5twE/FYlmsJ+FrAzXVtSMXfQAA==
 # SIG # End signature block

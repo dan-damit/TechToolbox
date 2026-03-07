@@ -9,55 +9,117 @@ function Invoke-ExternalCommand {
 
         [int]$TimeoutMinutes = 30,
 
-        # Emit output to console in real time
         [switch]$MirrorOutput,
-
-        # Suppress Write-Log output
         [switch]$Quiet,
+        [string]$Tag,
 
-        # Optional tag for log messages
-        [string]$Tag
+        # New: show a progress bar
+        [switch]$ShowProgress
     )
 
-    # Build tag prefix for logs
+    Initialize-TechToolboxRuntime
+
     $tagPrefix = if ($Tag) { "[$Tag] " } else { "" }
 
-    # Execute using the async engine
-    $result = Start-AsyncProcess `
-        -FilePath $FilePath `
-        -Arguments $Arguments `
-        -TimeoutMinutes $TimeoutMinutes
+    # Build process
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = $FilePath
+    $psi.Arguments = ($Arguments -join ' ')
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
 
-    # Logging (unless Quiet)
+    $proc = [System.Diagnostics.Process]::new()
+    $proc.StartInfo = $psi
+
+    if (-not $proc.Start()) {
+        return [pscustomobject]@{
+            FilePath  = $FilePath
+            Arguments = $Arguments
+            ExitCode  = -1
+            TimedOut  = $false
+            StdOut    = @()
+            StdErr    = @("Failed to start process: $FilePath")
+            Success   = $false
+            Tag       = $Tag
+        }
+    }
+
+    # Progress bar loop
+    $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+    while (-not $proc.HasExited) {
+
+        if ($sw.ElapsedMilliseconds -ge $timeoutMs) {
+            try { $proc.Kill() } catch {}
+            break
+        }
+
+        if ($ShowProgress) {
+            Write-Host ""
+            $pct = [math]::Min(100, [math]::Floor(($sw.ElapsedMilliseconds / $timeoutMs) * 100))
+            $barWidth = 30
+            $filled = [math]::Floor($pct * $barWidth / 100)
+            $empty = $barWidth - $filled
+
+            $bar = ('=' * $filled) + (' ' * $empty)
+
+            # Dot pulse
+            $pulse = Get-DotPulse -Index $pulseIndex
+            $pulseIndex++
+
+            Write-Host -NoNewline "`r[$bar] $pct% $pulse"
+        }
+
+        Start-Sleep -Milliseconds 250
+    }
+
+    if ($ShowProgress) {
+        Write-Host "`r`n"  # clean break
+    }
+
+    # Capture output
+    $outText = $proc.StandardOutput.ReadToEnd()
+    $errText = $proc.StandardError.ReadToEnd()
+
+    $stdOut = if ($outText) { $outText -split "`r?`n" } else { @() }
+    $stdErr = if ($errText) { $errText -split "`r?`n" } else { @() }
+
+    $timedOut = (-not $proc.HasExited)
+    $exitCode = if ($proc.HasExited) { $proc.ExitCode } else { -1 }
+
+    # Logging
     if (-not $Quiet) {
 
-        foreach ($line in $result.StdOut) {
+        foreach ($line in $stdOut) {
             Write-Log -Level 'Info' -Message ("{0}{1}" -f $tagPrefix, $line)
             if ($MirrorOutput) { Write-Host $line }
         }
 
-        foreach ($line in $result.StdErr) {
+        foreach ($line in $stdErr) {
             Write-Log -Level 'Warn' -Message ("{0}{1}" -f $tagPrefix, $line)
             if ($MirrorOutput) { Write-Warning $line }
         }
 
-        if ($result.TimedOut) {
+        if ($timedOut) {
             Write-Log -Level 'Error' -Message ("{0}Timeout after {1} minutes." -f $tagPrefix, $TimeoutMinutes)
         }
         else {
-            Write-Log -Level 'Debug' -Message ("{0}Exit code: {1}" -f $tagPrefix, $result.ExitCode)
+            Write-Log -Level 'Debug' -Message ("{0}Exit code: {1}" -f $tagPrefix, $exitCode)
         }
     }
 
-    # Structured return object
+    # Structured return
     return [pscustomobject]@{
         FilePath  = $FilePath
         Arguments = $Arguments
-        ExitCode  = $result.ExitCode
-        TimedOut  = $result.TimedOut
-        StdOut    = $result.StdOut
-        StdErr    = $result.StdErr
-        Success   = (-not $result.TimedOut -and $result.ExitCode -eq 0)
+        ExitCode  = $exitCode
+        TimedOut  = $timedOut
+        StdOut    = $stdOut
+        StdErr    = $stdErr
+        Success   = (-not $timedOut -and $exitCode -eq 0)
         Tag       = $Tag
     }
 }
@@ -65,8 +127,8 @@ function Invoke-ExternalCommand {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBtTs6uBCcrCa7I
-# Oz77vsf4sMyFQNhNJS3z5/YeOGg5k6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDYfQ266Us2vwst
+# yRuZyQ8lQc8ysfCy43p7tbpvkOUo8KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -199,34 +261,34 @@ function Invoke-ExternalCommand {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCTIQxKqpkH
-# K7KjG9j/XHZi/Bw4MdI/6XB8kerz8PRUPTANBgkqhkiG9w0BAQEFAASCAgBrOWRl
-# BOPRarwDZfY1/Er+aV3AIRZ7K+1QPXa5xc+VqKuojYYg4jdI+jSRmJipkWyRKEBJ
-# ngLHKVOc3DflIXSYFAN6KL4mxQXJ/flvCQFB5ONuSC+hL87zqnBVadStBjiNOgiC
-# jUqNdMmPULSajgwO1osWRVYmiCAf71aQ6kLzeHaJt6vOgjxcTkS3bSeEOBtmeqgA
-# lIlDygk9qbskBhZs5Klc0VjwGsC564lCeyk7FlFOgcEQln0bkxt+ApiCQamXEwXT
-# 1xfFMOaRJfczH4A+/JmRfCOH1yNsHhOppky2fLbDERclq7C8no6npXjg+Ah4v8UQ
-# +1K6lg7VCp/iqhalznhInBcjvbKfYIY0Wh4AWZ3xExoYn6Sjec06K8FMTGl+ApDx
-# uO51DIv+ZhZHZ7RWARx/F4tA1uFpp56VFF0eiEWwNvh/5IABYsOlKWqV3Wyuacl0
-# lOBR9aKVozp3Xv0Tzd5coxdptGqJ1jMsr8RNzR+oewGA+axPJ8F5tqDEPdchrud4
-# ZbGdHDpZQX5sMLPb0vs378Pi7D1UoQAeqPi0voK4ICIflBmioj87m7+DkCHYXgXN
-# Guh+3VUjJNqGAx3ytM8LN35t6znsTAZVE0T7FDiexhponIOlEheQZc/5fzCroKCa
-# xQE5AR+VNhZpunr83TRGRhzM/ghahd69TdMkhKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCACPHT4U9gQ
+# Txtd0bY624GPYs5xGRUjtiBnxkYhgr9EujANBgkqhkiG9w0BAQEFAASCAgDOZ3yb
+# +AXvNgSyc4HI4xDgD7Qxu3LHZt4zw4Udlw/7Oqx+3IBlNG5ZVqlyYvWeq+5uhKBr
+# afwm73Yi30Zv5IjjTNOH13bIiwt/L7MybYrj8wF52XLU7gUsZEGJeVf+nrvZYvAi
+# XxpFrOZ8HDTzAqYWJiJORdEj8CclksfSh0UkJD3wUSFyzkNIwucwrQaIBjQn2Pi2
+# 1tMzlXTfwGxQ1B0qmVpFhtlMmiC14iadpkscngHHjidGQjQRkrbIY7phhnQzjk0a
+# GwGOOCbNfTG05xn0ByKIhIxqZ2xMsFXAp4ifS0TrlhOtwXV5lmaLq3HEH+2wA2+H
+# ztOu1hKUJXRkNRTmGFE67l3LvThL/IUQ1SaNuiZUu/asGNvV2gEf9nNGn51DFEWN
+# G0GtDjN4PXLmpZUc+VQ6qJ0O6FtJezN7U7SrGz4FDLmGZ7eAyxUAeSWRlWTaQrGI
+# 2N9X2hIg06sZQ9eBXezsVwo3+hs+TkL/JDJQjAGV3X+x4eHBCj/smmJUoAacMyAr
+# 3qDy+ykgg98GC7rJ0/85EiReuPMt+QZCJf5ph10W/yry9qMVFwj8bk8Qn/NMk5PU
+# QxWCbTes5ocbhlRv57vF9C8aAJeDq25FZ0gx16DcQZ3I6Gcp8t8lLzW9mayHri6U
+# wnKUMjs3qQlc52H5Vz3iAZPnlHEoyTLq6hC4JaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDcxNzQ1MjlaMC8GCSqGSIb3DQEJBDEiBCDccCVOMIIr8CvWba4s
-# m8tYxWEQcIJQ7D3egWFpDbOBOTANBgkqhkiG9w0BAQEFAASCAgBxVSjFxiahLLKR
-# xtRa74ieEWtGS2JGd8dHsOBsZscpLQL26AkG1IQq8aCyeT0AICZbjYa75DQAYNPx
-# zh0dNu1b3awTmzOo4Odx4pjJPjvssa5mQrBooih2Xx4z9T7zvIIkSX4IAh9CGr0v
-# HYwx4XyOIk4+zp0ZERn/8I+u/MUMKJit4uVC8tJXTNG3eN5Hyn3JIBVdEkK1WjUw
-# NjuN4Y7uUCb6AhUARvMfhPWEirhviKYQQPSc0mxVc3Mj8W8AX+cKBMBBiAnBGa2i
-# BBJisFyQqFPCGlV8WoIbwU2s95X5ig7my3ejThP66um4grybiH5Nfr80pZe8A+Ra
-# dVxPjjsx1bZccRSnZAcZuni2cMibc6SeY+hKXUbSW11JXZAFa031vZ6LW7dCJbM1
-# Kzre5NFFOAwua53wNqr49sXH4CAA+gRQp+VgXRNvAj3EF6XaDThQptkAhuslADlO
-# zF1GzyzKQvjdPgPDG2wZLBlk+fHwpnN6dAhJttR/RmLfhl7rKN7YrBocNYLnH9+O
-# KaytYGaDvsV+usBBxYNt1xPt9I4FtRyYngQ8LbFejoG6HamjR5qln/H5csksxdwm
-# 5kskXC6yVRROqQm+pilE/qB6QzBKzUMnQuc1yxL4fhcvApcZBZGII29Qn1Uox/Mj
-# zQPgdSvizCvFOONG1MkXrP4FX4BX1Q==
+# BTEPFw0yNjAzMDcyMTA0MTVaMC8GCSqGSIb3DQEJBDEiBCBusaBaOrEkwmlGWXDR
+# zF4oqa2Abnh2EV9hMZx++RSOfjANBgkqhkiG9w0BAQEFAASCAgAe/rVdoswabpXF
+# FBr3JRwQH6XFLeTQ/jY2OPVu8ml7jcnsugi0xwhjQRsQWAKF5xa/qf26LDNpUmUa
+# OwPRIfnr6GhNFd/UydD57KfhclNQF4tvS8Ty/b+YwncxIOHJYHlG91Y9L25lItg5
+# RsBKk3xcKM4bj9LH6LP4t96RIpH5A4ci9JqMC5PRmMuTDiekSDqU3MPgat9soI1K
+# mN8fJ+S2QOBnoEIyU6BbEtZ3ykJCKtSca37vcYNx2m8Z+hvEhkHjQMLvzLQeB4ak
+# K3kh3/38VHLNSc0GLT2/vvrHKtkE79f6zELSJkE/k5200rtEC9vFVySm9L8KOqN6
+# /gVlXKfyOPnHe8H0SwjIyQ+2FjV+26a8RRdkuiEB3meIW8vxV8CaZS1+UTbnduT+
+# K4utGm1lr4mLw1KGRQ8pWfu8Xi6Q4/oWFnftRNbcVXJd2unS4nBeDgwRTW+FaFUU
+# aSm+K5HBXDhwtUVtxxyocH3+gxS+ZzcbpnKOU1tePj+31ri3f0KmpiFUzzhGKuki
+# xOeWYjQUz3Th+r+i7lu7xYZbU1evDOBUFIpNJoPcMXp1cplL5uYA0+tNHCv9RMAF
+# QI3FIh+gncMs1qzrdnx6Gz//hfExU9Ejogrg/VwY1/AlepIwFBEwO7AGYke19D0h
+# 3qplglh0TYU3PQybMU3rPAQN5Y6QRw==
 # SIG # End signature block
