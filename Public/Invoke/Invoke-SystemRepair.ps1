@@ -138,7 +138,6 @@ function Invoke-SystemRepair {
         return $result
     }
     else {
-        Write-Log -Level Info -Message "Executing repair operations locally."
 
         Invoke-SystemRepairLocal `
             -RestoreHealth:$RestoreHealth `
