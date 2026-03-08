@@ -1,140 +1,69 @@
-function Invoke-SystemRepairCore {
-    [CmdletBinding()]
-    param(
-        [switch]$RestoreHealth,
-        [switch]$StartComponentCleanup,
-        [switch]$ResetBase,
-        [switch]$SfcScannow,
-        [switch]$ResetUpdateComponents
-    )
+param(
+    [string]$Payload
+)
 
-    Initialize-TechToolboxRuntime
+# Decode JSON
+$json = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload))
+$data = $json | ConvertFrom-Json
 
-    $results = [ordered]@{
-        ComputerName          = $env:COMPUTERNAME
-        RestoreHealthResult   = $null
-        StartComponentCleanup = $null
-        ResetBaseResult       = $null
-        SfcResult             = $null
-        ResetWUResult         = $null
-    }
+$FilePath = $data.FilePath
+$Arguments = $data.Arguments
+$OutputPath = $data.OutputPath
 
-    # --- DISM helper using Invoke-ExternalCommand ---
-    function Invoke-Dism {
-        param([string[]]$DismArgs, [string]$Tag)
+"[META] WorkerStarted=$(Get-Date)" | Out-File -FilePath $OutputPath -Encoding UTF8
 
-        if (-not $DismArgs -or $DismArgs.Count -eq 0) {
-            throw "Invoke-Dism called with no arguments."
-        }
+# Build process
+$psi = [System.Diagnostics.ProcessStartInfo]::new()
+$psi.FileName = $FilePath
+$psi.Arguments = ($Arguments -join ' ')
+$psi.UseShellExecute = $false
+$psi.RedirectStandardOutput = $true
+$psi.RedirectStandardError = $true
+$psi.CreateNoWindow = $false
 
-        Invoke-ExternalCommand `
-            -FilePath "dism.exe" `
-            -Arguments $DismArgs `
-            -TimeoutMinutes 60 `
-            -Tag $Tag `
-            -ShowProgress
-    }
+$proc = [System.Diagnostics.Process]::new()
+$proc.StartInfo = $psi
 
-    # --- SFC helper ---
-    function Invoke-Sfc {
-        Invoke-ExternalCommand `
-            -FilePath "sfc.exe" `
-            -Arguments @("/scannow") `
-            -TimeoutMinutes 60 `
-            -Tag "SFC" `
-            -ShowProgress
-    }
-
-    # --- RestoreHealth ---
-    if ($RestoreHealth) {
-        try {
-            $results.RestoreHealthResult = Invoke-Dism -DismArgs @(
-                "/online", "/cleanup-image", "/restorehealth"
-            ) -Tag "RestoreHealth"
-        }
-        catch {
-            $results.RestoreHealthResult = [pscustomobject]@{
-                Success  = $false
-                ExitCode = 1
-                Message  = $_.Exception.Message
-            }
-        }
-    }
-
-    # --- StartComponentCleanup ---
-    if ($StartComponentCleanup) {
-        try {
-            $results.StartComponentCleanup = Invoke-Dism -DismArgs @(
-                "/online", "/cleanup-image", "/startcomponentcleanup"
-            ) -Tag "StartComponentCleanup"
-        }
-        catch {
-            $results.StartComponentCleanup = [pscustomobject]@{
-                Success  = $false
-                ExitCode = 1
-                Message  = $_.Exception.Message
-            }
-        }
-    }
-
-    # --- ResetBase ---
-    if ($ResetBase) {
-        try {
-            $results.ResetBaseResult = Invoke-Dism -DismArgs @(
-                "/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase"
-            ) -Tag "ResetBase"
-        }
-        catch {
-            $results.ResetBaseResult = [pscustomobject]@{
-                Success  = $false
-                ExitCode = 1
-                Message  = $_.Exception.Message
-            }
-        }
-    }
-
-    # --- SFC /scannow ---
-    if ($SfcScannow) {
-        try {
-            $results.SfcResult = Invoke-Sfc
-        }
-        catch {
-            $results.SfcResult = [pscustomobject]@{
-                Success = $false
-                Message = $_.Exception.Message
-            }
-        }
-    }
-
-    # --- Reset Windows Update Components ---
-    if ($ResetUpdateComponents) {
-        try {
-            if (Get-Command -Name Reset-WindowsUpdateComponents -ErrorAction SilentlyContinue) {
-                $results.ResetWUResult = Reset-WindowsUpdateComponents -ShowProgress
-            }
-            else {
-                $results.ResetWUResult = [pscustomobject]@{
-                    Success = $false
-                    Message = "Reset-WindowsUpdateComponents not available on remote host."
-                }
-            }
-        }
-        catch {
-            $results.ResetWUResult = [pscustomobject]@{
-                Success = $false
-                Message = $_.Exception.Message
-            }
-        }
-    }
-
-    [pscustomobject]$results
+if (-not $proc.Start()) {
+    "[ERR] Failed to start process: $FilePath" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
+    exit 1
 }
+
+# Stream output...
+$stdOut = $proc.StandardOutput
+$stdErr = $proc.StandardError
+
+while (-not $proc.HasExited) {
+    if (-not $stdOut.EndOfStream) {
+        $line = $stdOut.ReadLine()
+        "[OUT] $line" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
+    }
+    if (-not $stdErr.EndOfStream) {
+        $line = $stdErr.ReadLine()
+        "[ERR] $line" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
+    }
+    Start-Sleep -Milliseconds 100
+}
+
+# Capture any remaining output
+while (-not $stdOut.EndOfStream) {
+    $line = $stdOut.ReadLine()
+    "[OUT] $line" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
+}
+while (-not $stdErr.EndOfStream) {
+    $line = $stdErr.ReadLine()
+    "[ERR] $line" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
+}
+
+"[META] WorkerFinished=$(Get-Date)" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
+exit $proc.ExitCode
+
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBqCud63qsKoBeO
-# o3zVqYckE7UpBmb4XgdPOM6mUMEwrKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC03OjZtiOkZG6r
+# gdiLEetrTUMyv9xzIjJYppA4yn/yaqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -267,34 +196,34 @@ function Invoke-SystemRepairCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBIKBO5wPQ/
-# itpEPTM+EQ8+22bC6hi1oCV0T4z/5LbNBTANBgkqhkiG9w0BAQEFAASCAgDUymfC
-# pB5wTHBnh7rAJvEzoIwZb+zT5Ve3ZsIvu+EJ8UXAJBxmhNpJshoDq04u87ZZ39jX
-# IiLQhF2S4awMu9t8GccQEk+4FnhYD1ULuJfmIYthSFs5raQbgF8T2ow1tdDFIQiU
-# LZPCOk4nKYRJr3/KvnxlketxMv0k1V/ZVpwNHHWrSUuodMd3abDb15jvXj9t/xW5
-# 0sd8cGnol1ucbCGDKi8Ii8H9X2IaP7i+FkTfReZ6XRizQcmihdOCP54HUVDP9xoY
-# 53oSUnj+6rI4GNd5nA5cFxYGxoZnXEldRhghgnkDgFh0UsAkjGQvIRqjgKWmlLil
-# hOE2Jh7MUpSzV2KPZBD6sk3EKmfJ/EPGECvv6lLnaZkFi2hSuWzHhQca1ZwewIfE
-# v+Eyo/dcW+IKsmgM7U9Z5nkwAYruiBsfuHIXLiOiNBc0MtFm5ro83OOF8e/fdEVS
-# vm++OOOVOdQHHRvBykoQ2Hts/ISzee9+4F8+7M8GymJxynGzveP6m48Y3CB6nktz
-# EmY9xpjTVGSAxREjFlk+9up5l6v4xKpq6GM2dOC10nG0/F0Z+mVf7tZUQxLvdv1t
-# vWrjAhhUxupTlWg51CNzjmOfeyEnzD1ViBYQ2Z9kuhMb6F6yinLupICl5GtnWiyP
-# qQ+M5C14f62Gh3jIaWHduutTXjauTx80IPYCvKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC6nDWV2YBv
+# PfdjIlERSWaLqt4FBvqtqDJyBL41ytqADzANBgkqhkiG9w0BAQEFAASCAgCuNhD2
+# C+TiJp1scKbWBId72Chh0ZTVM8NvdyTdOQfkk982pV/2MF5bH1n5ZArp48uq6KU4
+# BBN46fxKqC66+ATL/WECTEw8ZNf1AUjfopC7nC3sxdK5tNAiKJ0W1LmxJ9FpwaS5
+# vFkhPf7BtyVXzwNjmAQy9hQiAuJbdCBmbXjBKaBwghXz5o3EMWs3c6Lkd1hxUBoG
+# 9a0cr+kjY9Axl7J/D14SLrnNosHbRNcz5Fp9DIVcS+1TxB6OoKR7nLehtDctzNFo
+# B1WEQmJrulelBK12Jvu/k50O72aA80sCfF7zZzYvu90EohVUM3cClfaHE43/vDkN
+# Y8TuVP23wbguJ1s+nydnBmGzR9MXuqCMODxjfLzfnPlvEozoq9kxplbGBEgz1hZw
+# GlYYrZJ0bfadr80tNYgwOkXWYpdyDKGK6JmPsPgsLoBhoqVPX5eRRLXh8Rw+6D8m
+# p8PuIEFXQBRMyM5Q49cRW0g+WZE2t4Hm74YFURMJaFAKpTPZ0HwoA56qvcmU2iz/
+# c3rtlKhtaCr9Fpkqanmy6kuP00LR0lZKRTvCWb9FBiVPpNZuQW9cH0XpUu5vyLRF
+# 9gq2E2E42X1vORhmAvHGn88Q6jcYEAv7pInh0cYmNTq1ljSUPbapdTM+hRlHkvh6
+# e9EVTiC/q2TG1Ie8GPxCafJl+zrZEK9tOk5FzqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDgxNjI1MzhaMC8GCSqGSIb3DQEJBDEiBCAywwOSIucoY6Fif0Nt
-# S6Ub2xH3rZpoZllH7/IFn1RvGzANBgkqhkiG9w0BAQEFAASCAgACuW1u+ZbN20E6
-# NMhMNLOkNHEmh4oVHag5ZflIM8oJ2Y4Ys0pfTOFFiHa8TVqJma8L5KjILluelk9N
-# VXTTe9dVQFbWEW9yd8krob9GkWQzbHY7LFs9cWJeekXQEmvz8ovRrJEeNoDWGcVo
-# 7JokkNQrCCFqn1SoQlM8TwaJaFPFv+U0nTFnoD6iqof30suWu+krlMMcCjTWeokJ
-# VUQEdn2Q7VY5YGMlP1YZpUqQiaviFqLsXRge9npXyBIYZL+OrEOtCx7OS7x9PhQs
-# r+DmWx7DW+Nt+UbR2Qe5572y5zq7dVqEkdejFB6AiCpyczNhlJsvLhoNLRCclVM/
-# 8bfZimXGAb/hQlCFFICghMLp3xaQf8tU1lhPGe0jHEXOCGIvvf/qtePvj8tufeyj
-# UnSE+8JgCjOx2ODjIPJhqNEUoqLUJevu8+nmbDz9FPqeiAo68CR7Bhps2Ro/odEU
-# 7hDWxPXpN1vVC+ZXUDJecxmbxTbYygoG/qRwo62IKLgCJ8famhpzEdd3gC6+3X7o
-# W+Cd2Uc9SW/vjVamD6TMqc71Je97Ye3UBJ9wDWMV8FnySYacjIuRMB+j/+vAd8Sf
-# sXIayFHENZ3Z6b2bQtWSBapZDMMIXLoESWGpGu//y9YvOIQt5el8kioJLt0/rmwF
-# wv0zeuQPAzH082KvthpRQryt8ACswg==
+# BTEPFw0yNjAzMDgxOTU0MTdaMC8GCSqGSIb3DQEJBDEiBCC8LXarW36X+5KuCMoG
+# mMZirvPpobaXykBckwjZDsFeWTANBgkqhkiG9w0BAQEFAASCAgDAm96dMEOrZk6p
+# OfLUw68sAmH5GUkuyypjOvxdXJmCspBzH/24sWrd4Kw61bvag+M8O+NLXv1r2G7M
+# V0cM8aQAFJtn5oyekkOrmM6RzfUwqEIvCifK/IWx38yA3W9VcKIwyPAtZEADEahj
+# ZIMVzrDuHhCbqW3E61xgDB5I9xtA9s3D+n07RvBp0l70VDAcOLGV+fRmkl7dmJME
+# Dc4WcAUOX1KjY+5M00XtgbPjZwTVTnVUloK7qMBjUgQpZ++lz1gUYgq7KNBU3NBp
+# YqYgkRyYtp10xAWxSIAMFjYk6RjfNAZMVsl44dGZToqf1uHq4KeunGqA4mCT7MfW
+# 3TBZwjeiZMG07R66/fnsYqTylfjECwI+XCV94lCApGpo6NUIvyuRS+nJ7sPr04aU
+# mfv1P88s9wn5BStkgWZqxs4wJIzCikFpaaUxWcWT4aobcbNgJMs/ppyZYN+7myCO
+# GMm08G4UdnJjU+2RMmOHuDpMP85NU0yzsJXWX4PK8Fg8qiQxsyAXBjdSGmIhWg1P
+# VbY2q1FxCH9zBs263bx5Y+swaF3U5HQZtlg54SczygN1lReiEDTlV3/zVMA+5fQi
+# 89qH99RdX0h+S9kXYvHLEMsT1Bztpi1drUkdmzvFZCboIy/ZK6dfTlwTfWKQnnLK
+# v9vH1GR+vFjURUL5htmsYsLmkG+qNw==
 # SIG # End signature block
