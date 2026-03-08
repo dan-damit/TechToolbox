@@ -20,97 +20,59 @@ function Invoke-ExternalCommand {
 
     $tagPrefix = if ($Tag) { "[$Tag] " } else { "" }
 
-    # Build process
-    $psi = [System.Diagnostics.ProcessStartInfo]::new()
-    $psi.FileName = $FilePath
-    $psi.Arguments = ($Arguments -join ' ')
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.CreateNoWindow = $true
+    $moduleRoot = Get-ModuleRoot
+    $workerScript = Join-Path $moduleRoot 'Workers\Invoke-ExternalCommand.Worker.ps1'
 
-    $proc = [System.Diagnostics.Process]::new()
-    $proc.StartInfo = $psi
+    # Temp output file
+    $tempOut = Join-Path $env:TEMP ("TechToolbox_InvokeExternal_" + [guid]::NewGuid() + ".log")
 
-    if (-not $proc.Start()) {
-        return [pscustomobject]@{
-            FilePath  = $FilePath
-            Arguments = $Arguments
-            ExitCode  = -1
-            TimedOut  = $false
-            StdOut    = @()
-            StdErr    = @("Failed to start process: $FilePath")
-            Success   = $false
-            Tag       = $Tag
-        }
+    # Validate FilePath
+    if (-not $FilePath -or $FilePath.Trim() -eq "") {
+        throw "Invoke-ExternalCommand: FilePath cannot be null or empty."
     }
 
-    #
-    # --- Runspace-based drainers ---
-    #
-    $stdoutQueue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
-    $stderrQueue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
-
-    function New-DrainRunspace {
-        param(
-            [ScriptBlock]$ScriptBlock
-        )
-
-        $rs = [runspacefactory]::CreateRunspace()
-        $rs.ApartmentState = "MTA"
-        $rs.ThreadOptions = "ReuseThread"
-        $rs.Open()
-
-        $ps = [powershell]::Create()
-        $ps.Runspace = $rs
-        $ps.AddScript($ScriptBlock)
-
-        return [pscustomobject]@{
-            Runspace   = $rs
-            PowerShell = $ps
-        }
+    # Normalize FilePath (resolve relative executables like 'sfc.exe')
+    try {
+        $resolvedFilePath = (Get-Command $FilePath -ErrorAction Stop).Source
+    }
+    catch {
+        throw "Invoke-ExternalCommand: FilePath '$FilePath' could not be resolved to an executable."
     }
 
-    # stdout drainer
-    $stdoutDrainer = New-DrainRunspace -ScriptBlock {
-        param($proc, $queue)
-        while (-not $proc.HasExited -or $proc.StandardOutput.Peek() -ne -1) {
-            if ($proc.StandardOutput.Peek() -ne -1) {
-                $line = $proc.StandardOutput.ReadLine()
-                if ($null -ne $line) { $queue.Enqueue($line) }
-            }
-            else {
-                Start-Sleep -Milliseconds 50
-            }
-        }
+    # Force Arguments to be a REAL string array
+    [string[]]$normalizedArgs = @($Arguments)
+
+    # Build JSON payload (correctly typed)
+    $payloadObject = @{
+        FilePath   = $resolvedFilePath
+        Arguments  = $normalizedArgs
+        OutputPath = $tempOut
     }
 
-    # stderr drainer
-    $stderrDrainer = New-DrainRunspace -ScriptBlock {
-        param($proc, $queue)
-        while (-not $proc.HasExited -or $proc.StandardError.Peek() -ne -1) {
-            if ($proc.StandardError.Peek() -ne -1) {
-                $line = $proc.StandardError.ReadLine()
-                if ($null -ne $line) { $queue.Enqueue($line) }
-            }
-            else {
-                Start-Sleep -Milliseconds 50
-            }
-        }
-    }
+    # Convert to JSON
+    $json = $payloadObject | ConvertTo-Json -Depth 5
 
-    # Kick off drainers
-    $stdoutAsync = $stdoutDrainer.PowerShell.AddArgument($proc).AddArgument($stdoutQueue).BeginInvoke()
-    $stderrAsync = $stderrDrainer.PowerShell.AddArgument($proc).AddArgument($stderrQueue).BeginInvoke()
+    # Base64 encode for safe transport
+    $payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
 
-    #
-    # --- Spinner + Timeout ---
-    #
+    # Launch worker console
+    $proc = Start-Process powershell.exe `
+        -WindowStyle Hidden `
+        -ArgumentList @(
+        "-NoLogo",
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", "`"$workerScript`"",
+        "-Payload", "`"$payload`""
+    ) `
+        -PassThru
+
+    # Progress / timeout
     $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
     if ($ShowProgress) {
-        Write-Host "`e[?25l" -NoNewline  # hide cursor
+        Write-Host "`e[?25l" -NoNewline
         Write-Host ""
     }
 
@@ -134,11 +96,7 @@ function Invoke-ExternalCommand {
             $spinner = $spinnerFrames[$pulseIndex % $spinnerFrames.Count]
             $pulseIndex++
 
-            $spinnerColored = "`e[33m$spinner`e[0m"
-            $pctColored = "`e[97m$pct%`e[0m"
-            $remainColored = "`e[37m(Timeout: $remainingStr)`e[0m"
-
-            Write-Host -NoNewline "`r$spinnerColored  $pctColored  $remainColored"
+            Write-Host -NoNewline "`r`e[33m$spinner`e[0m  `e[97m$pct%`e[0m  `e[37m(Timeout: $remainingStr)`e[0m   "
         }
 
         Start-Sleep -Milliseconds 250
@@ -148,53 +106,39 @@ function Invoke-ExternalCommand {
         Write-Host "`r`n`e[?25h"
     }
 
-    #
-    # --- Wait for drainers to finish ---
-    #
-    $stdoutDrainer.PowerShell.EndInvoke($stdoutAsync)
-    $stderrDrainer.PowerShell.EndInvoke($stderrAsync)
-
-    $stdoutDrainer.PowerShell.Dispose()
-    $stderrDrainer.PowerShell.Dispose()
-    $stdoutDrainer.Runspace.Close()
-    $stderrDrainer.Runspace.Close()
-
-    #
-    # --- Collect output ---
-    #
-    $stdOut = @()
-    $tmp = $null
-    while ($stdoutQueue.TryDequeue([ref]$tmp)) { $stdOut += $tmp }
-
-    $stdErr = @()
-    $tmp = $null
-    while ($stderrQueue.TryDequeue([ref]$tmp)) { $stdErr += $tmp }
-
     $timedOut = (-not $proc.HasExited)
+    if (-not $timedOut) { $proc.WaitForExit() }
+
     $exitCode = if ($proc.HasExited) { $proc.ExitCode } else { -1 }
 
-    #
-    # --- Logging ---
-    #
-    if (-not $Quiet) {
-        foreach ($line in $stdOut) {
-            Write-Log -Level 'Info' -Message ("{0}{1}" -f $tagPrefix, $line)
-            if ($MirrorOutput) { Write-Host $line }
+    # Parse worker output
+    $stdOut = @()
+    $stdErr = @()
+
+    if (Test-Path $tempOut) {
+        $lines = Get-Content $tempOut -Encoding UTF8
+
+        foreach ($line in $lines) {
+            if ($line -like '[OUT]*') {
+                $stdOut += $line.Substring(6)
+            }
+            elseif ($line -like '[ERR]*') {
+                $stdErr += $line.Substring(6)
+            }
         }
 
-        foreach ($line in $stdErr) {
-            Write-Log -Level 'Warn' -Message ("{0}{1}" -f $tagPrefix, $line)
-            if ($MirrorOutput) { Write-Warning $line }
-        }
+        Remove-Item $tempOut -Force
+    }
+
+    if (-not $Quiet) {
+        foreach ($line in $stdOut) { Write-Log -Level 'Info' -Message ("{0}{1}" -f $tagPrefix, $line) }
+        foreach ($line in $stdErr) { Write-Log -Level 'Warn' -Message ("{0}{1}" -f $tagPrefix, $line) }
 
         if ($timedOut) {
             Write-Log -Level 'Error' -Message ("{0}Timeout after {1} minutes." -f $tagPrefix, $TimeoutMinutes)
         }
     }
 
-    #
-    # --- Structured return ---
-    #
     [pscustomobject]@{
         FilePath  = $FilePath
         Arguments = $Arguments
@@ -210,8 +154,8 @@ function Invoke-ExternalCommand {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCH0gsHP6LpO49M
-# /fFXs0MS4A8oiWQruc7QjhWZ6l4fB6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCWX6734xo8OcMJ
+# oM6P3sueXCLuSUapqu6xjLry22qxQaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -344,34 +288,34 @@ function Invoke-ExternalCommand {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDcMjaSRUQ2
-# I0ytQytpHRUq9DJXTqPUyVCK/g4PYgQ/dTANBgkqhkiG9w0BAQEFAASCAgBNUPn6
-# T7GMQjudwYOfQN2+0zdZdtj1EQ2/Uz2aQ45MrRRXi4Gu/TFPvF8vTQHKGC0jUHaE
-# P3/Ab7Lr6f3QZd+VAlrb9Icqtj34FPjnfHkRL0KV88upjAXkqQKRmoGHjzfscDIf
-# 1DLv9H86orDGdeEX3PIy5GIGPaXbnrqzMDfFDlWXKfYsG4QqjalkWkfYdfyIvkdl
-# Dt0RB31HYB16gEolkrcfNqq0wTjCxogMwc0/IGQ0mlHZg0AxjR9bcxsq4BI/hKDQ
-# N/Yk/Nh19E3EP67YJsMMg5TCna9IMNXP3bZIj4CIfmRFQeKRdiN38fcv7pCyuoyx
-# 0J/dmYMsHvKi8PwOGXSD6TVXXgobebZN7KeHNTr+kwxVd98VZTgqKHlUkGAk3MBe
-# q9d9O0igshMVQqh2sTqNzhVXwxpKTjuslnup8iZlkPLFyXDtnYhfW1u2svFLTe4M
-# 5pBe8LGqxKd76aDHp3HVLqXxpUocIz0a7P+teH4in8eaWlmGNxSwM1sJwwIc657D
-# xOUov+FZOkmTcILOTMXkIw2YkN+fSzei27p7l76QPXrm2XhRbHGFW3OMRfgoq1/s
-# oRH/zKe0j17h796LOLWf7SKSPG3C1+f2M8w35vwqj8UQ8IH4YS9ISnOP8sJdAuq/
-# CpuZAex/q7zrp7z2NtkLYF8vF9wV7smvBt0JW6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB2/ccBuHGU
+# WUD+96zNY26pXv8TzaGKbcxLVJSqSKkrTzANBgkqhkiG9w0BAQEFAASCAgA6MD8A
+# A4R/xPT3FK2Gh+rmJmAxn4hx//LE72pCrSxkcBMVkP+2nPije4GHoqqA+P+b5piX
+# hK9pDhSFJ2RwYD02IdYQApZZAinQnWAaAvFoovwafRYwislBEanmkF/TQwLrnIVB
+# r/9u/YNOH+IaM8ctTmlOEnPzVVcdu2oBqCtKKfzKJ4WjfMsXCYXJ6TRkhlYdvhxM
+# dBYF8j7xyow3Yxj2HfCKxCjeETx38ltN7FWDb4OOon43JNRUrxW/rHW0UyeVH7ab
+# +jbYMQj8AAf3ozbvwIW7h0IB5PhHF2NqymhZGJ6rwsDaENWB0YnEQlV76YSxbhYm
+# qweGnDUeSreX9Z3AZ4vF1G3iltd7Oa+/NGcVazI2zuT8KfnrFhQg5s/fEBkHz2tI
+# DKZHfn0CoZ7d4j5Vcc6cV1QvF0as49cx3eem9FBpMssq219b3rj8uLVCwPUPVRg+
+# yJKlhE2gfYTjwEoJqpqwDCnpPWvn8SgolZuxFLwTh5FAEI9sPDxo4wbqB9wrJ21V
+# bXyYGH6c3xCI9FQXE5Ti5a1fMLaNZF79EaoxSrICUbHxFn2zDs/PG5IjYvLaXASr
+# GvoU5cyopbDBDjW+CAwbx+FiRAUegNzAscDr9Htk6THF2/TXRN1Q9obEsodfkxbT
+# /s3frQjvDkEWwTP/dUjpzZyyOVEihIhvLHXSE6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDgwNjUxNDVaMC8GCSqGSIb3DQEJBDEiBCAOMRWBR7nqhFKxTsBx
-# ODCSNty1TKi0oBvicXM5uFrSxDANBgkqhkiG9w0BAQEFAASCAgAbEaNK4E89lKCV
-# vPr6D4vCbwwwqR/FbTzsmmDU6t/kWeG/SqUMcLLL5V1D2m/GQKOnp7l/38HsgGsL
-# uzhQPfVyK5EOUftYWyzoyDm2uDNqBYhkaq7/zKfrvGKHbtF/IglCCTfsHb4DMHFp
-# vxElNY5ddRnQ4MmqRxL3RSwI4DEjPVLW3vOPy92jgnlt8nPC+muD2+2KEHG+2pAU
-# 90iCRA5NhsbEesTa4Q/xHEAkjmaZT98UzqjgtVorMuKojwZ1a4QKu5l1fp4zmQR9
-# ZN9XtoG4kBRtMLzPOBQC6MXToO7rymSyqclNL2fNseYKcygC4oNmdAJHUseM1JVo
-# Jfp8smN24sEiDhV5qKIU6WbOI2lAWE8UKpAf6/MbIOB5L633MJoWXuUxslyEDQ03
-# i1Uo4QkiOm/1C8+x0cPFmjcHwF+pqAVkkpvrZzBaL2ImZ78UIzMoum/IXAX9UCoC
-# ex04a8HwneUrEoPyThh7vEndwbl7YwrLHGCBRCINqKXOLtqBM0ZZeuWNtbLFuOBy
-# rs8wlkKtDIUoFy4CX2Frv50/KFaknBS3I8YG0ZjR5tAjSj3ElAyWKZdQ1zq06Vvd
-# NzAA0FTDy3mlM+3AHmmCdLAhR1QNuI9HNV0e/5vhkmUdCRc++0K8LGIQvlZv2N4o
-# 7NfOjoVTJL3+Mjxpu7+XWpbNuIS+NQ==
+# BTEPFw0yNjAzMDgxOTU0MTRaMC8GCSqGSIb3DQEJBDEiBCAiuWbeUKT4izlsb1bX
+# 9TsxQF7ILezvtYE/gLRhbnlwHjANBgkqhkiG9w0BAQEFAASCAgDIhL/RyM0CUGeK
+# quMdo8lOm2F4qJl2wCSdM2EhvNrTwIuCQ1Unb0kKl0OEPHpBf6xZmOfEPSpAuLf9
+# ljteQPqJDKqKhk3tOKZgvBdjAec7SwuzDpBX0s6RJ5Adlz8mL6I32WeJ4G0mJ82R
+# mn5Zq7bAT4vPf7cp8MmeMvQkojKoIAcSnufL65hU3c6EllUOkg6kI6biyUR/U3TM
+# gaaIlpopR4YtyhR6renqXLDBFkedDgQXklI4vwQSuuC3hJmcYhmKBliJ+ED4ogZg
+# 9f5o2GXBjIqF5mBO2UBUZdyy6n8u80zrFUzAN+kzPosJeWW01PyUlyRZVYOFLhSx
+# pkYLw0WxdAbR+m1cXGfqgiGgIyV3UvlaZkUOdGnINLYwUoG/1hxy6MDcpHZDCWXM
+# P0ZI0cQo6MgbtagMBtGKFRATKLplCG/QCVhxi2WMx31XEWBTR/lQqI8qNRGIFnza
+# 3LOdCfq0Y3NaJK5NZcfZ2VICACYRS2WEkTvyC4i52sYFEox58T7pc+4Q5Vw3SMng
+# 2CDenHhiMpzJLV7Z43cBAHzh18yjVKktZaLVbZp+d/CyQUECvaMO/gMmRuzjnI5e
+# 5m/3Z3P74G0FRYL94Q4evEgQM4xBMDGrgcISoCWiXTzdI5e4GSQW+MONLNHsFMAk
+# YpT5XqhyGOyAkonwnvVBEf9II7hdow==
 # SIG # End signature block
