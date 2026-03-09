@@ -34,6 +34,26 @@ if (-not (Get-Variable -Name ModuleDependencies -Scope Script -ErrorAction Silen
 if (-not (Get-Variable -Name PrivateLoaded -Scope Script -ErrorAction SilentlyContinue)) { $script:PrivateLoaded = $false }
 if (-not (Get-Variable -Name cfg -Scope Script -ErrorAction SilentlyContinue)) { $script:cfg = $null }
 
+# --- Standard runtime container (used by workers/helpers locally + remotely) ---
+if (-not (Get-Variable -Name TT -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:TT = [ordered]@{
+        RuntimeId   = [guid]::NewGuid().ToString()
+        IsRemote    = $false
+        SessionType = $null        # 'WSMan' / 'SSH' / 'PS7' etc (optional)
+
+        ModuleRoot  = $script:ModuleRoot
+
+        # Option B (ephemeral) staging roots:
+        WorkRoot    = $null        # e.g. $env:TEMP\TT_Worker_{guid}
+        WorkersRoot = $null        # e.g. $env:TEMP\TT_Worker_{guid}\workers
+        HelpersRoot = $null        # e.g. $env:TEMP\TT_Worker_{guid}\helpers
+
+        WorkerPath  = $null        # main worker .ps1 path staged on remote (or local if used)
+
+        LogRoot     = (Join-Path $env:TEMP 'TechToolbox')
+    }
+}
+
 # Guard re-import
 if ($script:TT_Initialized) { return }
 
@@ -73,7 +93,7 @@ catch {
 # --- Load Private functions ---
 $privateRoot = Join-Path $script:ModuleRoot 'Private'
 Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 |
-    ForEach-Object { . $_.FullName }
+ForEach-Object { . $_.FullName }
 
 # --- Lazy runtime initialization (config/logging/etc.) ---
 function Initialize-TechToolboxRuntime {
@@ -116,8 +136,8 @@ __tt_trace "Import complete"
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA0jtMCpeqZmaXL
-# 3WZblFA1xr4YnEQ6Z8h+wjyW5695KKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA6WbcDcoANpZr5
+# YIgtzCivU+bpx+ljLTuI4tpmLw/CZqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -250,34 +270,34 @@ __tt_trace "Import complete"
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCruylNZ9Fc
-# CNAZxj+FGKFs1J9CDDyWjmT6oZ05wZtvXjANBgkqhkiG9w0BAQEFAASCAgAd4ui7
-# MhtyllxOrHgRmEtsVHRZnBzlgtnH0Tmc2j3hN93gIDXCaKpGMa0VvZVGBJg3uMgx
-# p2cQOHYUKglLGw/XEwkCu4hPBHKSkh+XxK2I7a/hw3gIrTCWZG3ArPBKYWObn/Fu
-# Jj74AC5cN/G08gCQBvmItGz0KulClTrUD+KDGMTE/Q4XIJnAAHG8/z5F0qGMOS4e
-# rdvhQndUfwpEjG5jrnnkRebh8LYB95ofp0/k8oOXjN9BoeRA50PrEYmJm3pUDedP
-# Ka1no0QXRJU6yWbXkyTtybtK684pTPM/1qbDOCKE81/dgl7uuGZdyiTQ/f4bWl8S
-# inNcJqevUpy1sgEX3JsVaP2nppW21J0TpMZuB3oaq2rPgywKs4m2QsiRMXZslEaz
-# oBZhizYCWFeVE/RRyDIA84Eq11zDmMEsDViL+Yq0UhXJFt8jKzmNRifok+p45Dzo
-# d1Q/1IUBdr4hCpFX4BFsqrBn5Vb0mMfkd5SPgY1lpP2GVo55F9S7MIG8bEIn6oXU
-# OFsBkwWkweA8n55NdsgzgAdO4jDehSvMaMPknUMpQlfmS4N0PqQ1MQ2hu7uJAG6p
-# PnBJjeX3patu5ti8QY7+30RMaFJVwklKSmv7Rk2k5dV+ibLjlV1a2mAwQsaX1amv
-# FC35icwIp+F00yuqsuroW1TWuQYDao9mawyXuKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCPVPzdauJY
+# UfDKjxEPfnYtq4enZ27iE73AC8Ato8oiEzANBgkqhkiG9w0BAQEFAASCAgASiMt5
+# 64ZRaE1jhQL4BQ1dC6skaQR3TASvPxfia2wFN9FEgEfvM+oz+Uv4oxy4kikS5K+L
+# Npknzlz9WsLbv1jBOGRIb0+87eQUcgVIdiQTDs3/bGtySkzhQio4qRgYAVddenAp
+# vzM4fFktiD80XH3R+6aeGZUHyaRj6IRkhm+pz18efF4yM8BU+e7l87MFVoRb680C
+# eSl4uDVxhUDlwrmpN1kN4RaLe9GyWSO+0d0yKUkRWacfNoVXhfeezq2KRkQXgpGC
+# bmVqtGsgZDjRw+6NwU89R5NzkHwKtFbT5YhChmrkXY4/dWb8eG6MwwR8G7VUGTmz
+# iE6DsksKJkpgKAh5Hoff1dKnCTR2tyHnoKJzR+n0YBYdegpXDqUdk8thmj0QOG+J
+# lwqkJvW7xzo4/hJogWI2fGI9wuVJXzbMolqfpro0rj/3sR8nMCi5w5znRhoggEsf
+# kZ4q2kZQAar0bZvy185qBlVB8Hr02jX0CO7oOC8aFrVeb03QHj5P8fAHkJAefJ87
+# coidOFAOBr+1QinPi+BDas34LKgkv0SbF5P3s4hWTvD/MUZfMdIrg5Fj6HV+4cAT
+# sb5p1/s3hzO9F/rMTO4y/1hBsgoSF2X2LkIGRmPlC7bqlAzyjDH2C7nxbTvCNbeQ
+# KJu7Y43ZsdCH5hjafT/LL/CXdNYj2NBdB+sJYqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDcyMTQxMzdaMC8GCSqGSIb3DQEJBDEiBCAn4Cm5BmBXxfN1BL82
-# sk/7NLDyDEvh3H6K89CFxsxvijANBgkqhkiG9w0BAQEFAASCAgArA6Lt3gd7jS4Y
-# vf5sgH3dOhbYA1YPisfNmVl6Yabswbn28DLuNsjM2vqVkztQenzZoNGznQU9m7h7
-# yfhMtPuFe9L71pR/KTyBDDWBH5IzBiSZ9WReEaUysjX4/J8mlHXdjl/udj8gsk21
-# rMIj0rAZBSdxVlGPn/QH0ZgcMDfuNM9j7mVxWVb9ROfMyyTXyQ47HWP//o6TX4I8
-# RoPw24kyaHoAirTRj3WfFE6OvbmZdLgko1a1kNBi6eKHE+vfmclLAw8+VxsEBupB
-# a4b+TaHERRxT023aVuvqnnc+JGl10RN+WxLYoa35g25q5xOK9FbOFSGytqdIIbCB
-# 5/UVamwgSppv3k5Icid7OWG5Np/EhI4QfsL4QegZrQN0OQ2x3I0GhsiTVkntr/Ns
-# xyDZti1gSArvYoB80qLeg8wVQQqRKSwLurtZi62sA6Ppic9kHAEzCuWDDEvWRt1h
-# NYFXf3E9acFLYJvv6Gq+kq7/8PMTIZxZeM9ksKPtaXLCPzXPEd/lelYIHfyEtdAx
-# fVQzjBNDwLGg5EPKGmfqNh5gCc6fH10hRwJh0xctyvr8tqzHScntA/GjA9EOniEm
-# BO+b0XdZglYZymutZE8vss1wVEDuqPNKdEz29zw4Au5e9aLyqkplu0VlLIaGKWXk
-# 11HzHOyHUyG0CpS+4WG3WJZeFsGhng==
+# BTEPFw0yNjAzMDkyMDIzNTJaMC8GCSqGSIb3DQEJBDEiBCAhW+K4j0LKvBj4dwvA
+# lbwF5e5+iAxADaX2yfCwKznHUDANBgkqhkiG9w0BAQEFAASCAgDHrP9BMWU5kGxI
+# eqS+WeqImNYhYaEQErBXv0tUOhUGYtxhs2deRXWpnWkrzIC42KfqWoCu+u8hGu52
+# zb2h1jyETvG8IVGF4VgEjGT6B1yYwc06z4Ksphkp5QTGAq1A2NPHRvyJVhsKTS92
+# E6HSkpgFYsrGBAFq5M4z/F6qPpnRQz6wFrweQ7SjTgDvYjnonezpoRtmQfXam04R
+# xth6rA9NEbZ7u5SkUSTwOKvizwsjPbaIBjllLMuJAuBb2PCqqZR13pv6zpT72DNo
+# npL9XX0NpTBtlnWgOq4/J4tDJCBNA8GtqCUyxxBVUljZOOQooV2ZEfB5JCW8hqNE
+# 9DgPU2O46eJo67Y4D55cPgbqdIGRv0yk3VMZjo8hFaPgNw9t0/QFmLhobTwJJJ8b
+# lnJcNTmx5Qiw8RrhjSn0Gk+hqO8rEuPIhqzmW5bxrDeDyjtSiHDG8OOnTYN0YyQM
+# S5oTJZoNBdLw8cIiAwole16vgAEhngYJ77ZCtz5ZqCL2vHKdhEwB/UC6ay+ffRno
+# 6hLNQTpWI2V9uHMgrKEOz+hnFLn/yFTTIU+4i+KqnzAc0D0Z7kgRE/CZWi7/plJB
+# ZhYn8Gv5C96rpMj6yCp7BPHjzYnOgUM8U7hgWC1D2SvujPaJYcBBYk2Is8VwVgYy
+# BzuVLjqdzggu0tZ4zE07Ln+z6QYoyQ==
 # SIG # End signature block

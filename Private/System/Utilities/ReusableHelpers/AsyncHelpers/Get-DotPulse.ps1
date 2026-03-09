@@ -1,14 +1,31 @@
 function Get-DotPulse {
-    param([int]$Index)
-    $dots = @('.', '..', '...')
-    return $dots[$Index % $dots.Count]
+    <#
+    .SYNOPSIS
+        Returns a looping pulse indicator for console status updates.
+    .DESCRIPTION
+        Designed for wait loops and long-running operations. Deterministic,
+        low-noise, and safe for repeated single-line updates.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [int]$Index,
+
+        [string[]]$Frames = @('.', '..', '...')
+    )
+
+    if (-not $Frames -or $Frames.Count -eq 0) {
+        return ''
+    }
+
+    return $Frames[[Math]::Abs($Index) % $Frames.Count]
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAedNaHx+UeAwh3
-# SFOiOvlg7aMEfgAzDs3iZH0B4rd0GKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCYV696TJWxUHyy
+# rtpxQ1NOobtbOXf00g/kvRW94Nqt0KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -141,34 +158,34 @@ function Get-DotPulse {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC9ys3Wx3qh
-# gqcAlESRl+HFdKvfccARtcgaUuP1bqVvkDANBgkqhkiG9w0BAQEFAASCAgB/2Ezm
-# D7Nl/373yFS8K8ZUB+TlrYYfKJxe6Uk73KX72kTSziq86z1hBL0IWReiwCF+1v9M
-# 6ESbsGktdmk0n87Ph50I9ClhffxRoDV0qefzq67pNyXsBZTt6PtvrNXCJ9ITcC3P
-# BGxQrBdjhCSmqm3ocQauqyKoD8KrZCujRFoc796h3iLLgjTAB0ImmKSegwfbr6Dq
-# ghkgASfq33u/jbQmTgGVAyw1yPlphj8GzhyYPCX9Q5KLSYdmMkeHgBbrV8/F8uJR
-# WD7kaUAjA29BO/bN+LICnIrgnJfiuWvsmqapmhaoi16ha1XtiaBNyEigOKWusOnv
-# zAzIFrrv8T1neuvGgNPK70UcGQTh3zsHdhBq0WGdA2tKwlC63C60CiX2BPvNHxjf
-# AeH8NxpwsyMmEu66puQC5EAWYfTvkdBzUEzkoPwx8E15Nx6rnUJ/yS7eO+ScM7Mu
-# UIItlUof/3DYL31sdGUYt31elRdH8in2tqi+l5camzLeWeBLIB75lwNoETbCjWYp
-# NCntg0qdzRpnScQV6LYE+MzOhWRmKGIlJVInMZ+5wJlZYrf1cPL37PkE139umjCX
-# 17aubCxh3pTJRTkkDhgAHyyG4g6DFu4KClvsUxbB+2e69pUN4oYTYTUiaNuTyfAN
-# W4qd4vnnTWbFovFshD7JIw/c7kHeKTQgogG9CqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8sBYyt56/
+# FdcdsvMj8MhrdHJEbh/0pUs4Bh7ocdhuLzANBgkqhkiG9w0BAQEFAASCAgBdird8
+# hYeofCsl1s+A7Inr1Ofoy//h3MYzo6XbhZEpJi7FJ3ajPNJ7F2tojyPvGfXquEea
+# p/zYONTkjeedhidjinkQZunpjLLp9EwfZoxR1XOGu+MleasC+cBiCfXcebo7BLCR
+# aENYRfJkleNTmJpFWToey1KIT/yjt6chNCCmu7w79fn7ElW6MF+x0lAu2YgR+TyP
+# vgGC4IikZ7w0q2CTnExrGkT7PnOCdZlJiYP/vcr0qttCu0Z+T7qVMCRQCHeF8BsD
+# 2pClANdlPWwPW6ASi5uDOrzfyT0qeCZ+eNvagAWb8YQehisYAy7amFgRf+7YQA8Z
+# jSUddv6rwhJwNJCOVB7hm9y0Z+d05fzfX+3W8pXkRIJgStWwUH4MjZ69s0h33E+A
+# xwyiVvhIQHlFRKe+yZWLXFC6tPTmLpWWZKFjDSITfmZxy1vsBALD0vMrwXwAJx98
+# 4cMXPvOFsgW0sd9ZPNilhgOV5tl0G5v0TI+S2M1ON9rz1GZqIZObe1AZcLVWhH8I
+# lzNH1p52gxOa07EsropUqpL6e1T7f/xUbG6LSAGxHvj7O9l44ViovmUe1V3naNsK
+# 0W0JLIwxAjZwqoFLNLiRO5bTM7SJJMugmzfwXEBS8w9EWL2BM4q/kXV0fhDTuo80
+# H9p05hvOpZdm3vLIMEnu579oT7zXmYaYXjJFnaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDYyMjU4MTVaMC8GCSqGSIb3DQEJBDEiBCCgkuuJLPGjGHWDwJK1
-# vlOa/Ds5A3Bja+lVK4m7NAeIOjANBgkqhkiG9w0BAQEFAASCAgAuUbRr4zSrkhPz
-# t5IVRUn4j4JnrflbyA84dpAH0q+67JOteCMxZ7E6EIZBQBZJIUbhZP3QoQzU+F51
-# Cs8KlDokfIqxUBrl8vVCrxOo1PVL2I0YGB02ocWU9i3sbEUqpMc3izhjFPSlkIOC
-# 3btPb3ME/WAv+yNV9bcZEW5qDjE9nlccSWZxQwcy6GAdLK+tVrAynwhWJ/5/iKqm
-# 8P/c965LcpXp4vS+J7De9ghr1dgOTssOREpRc4OBaukipBmc9TYywMJ13uygjSJv
-# 4OA2iCzKjTXhqaYhBc9MgivSgllQ7Ta4CO5LYksVyW5CHpaKpYs4JNpRd9dCLd4s
-# DMrXt7PqsK9uWIKNCDM46W37UMwUBRZ1oHcyuh+fEvt5x97n/M+xyvp+w2IchQ9z
-# 3BCSv+hI5XSjATTo0yFm8jTtoe6KDYon4Af6djNcsMsgcZhZ2Ng9Fb9x5blkxCUY
-# FFAwXPV5z7TY2YLNvCjrf5MphCnOdVVGCQ7XleaAYO37bCuOiZme8lmsQtQLwIgH
-# 79TgVwqRk/ob4lue/zGWxf70v7lo5bCpKSJzrhgoEQvMsctQ6oZv/7QxPTNrxcvQ
-# nVo8acAIzD36sMdRqsWTiPzj2GD+bpA1NmEHCBqWkGFnyrW5b4HYogbfLLaj9dVE
-# dTiLV6rI6p1MYI27Mh14/3fGVjQu+A==
+# BTEPFw0yNjAzMDkyMTUzMDFaMC8GCSqGSIb3DQEJBDEiBCDIbPlHDJGp56knEZBL
+# tqdbZMGepKd9vq76sChKmLZeFDANBgkqhkiG9w0BAQEFAASCAgCqzvpjqEUPCXbV
+# x40V+iaZxD2AbNi3bo7aq5ObtHYBkI2OLk5hsKYRrRDMehsdQrjnqQaV0mc9R1wW
+# /Hnncnvd9ddW7evW3cIt9s3WByEkgWQ2ROhHFujXGKJ2f8HKrNCE3OZ5HvkPq87K
+# N49S87IGZ9iTT8Iz5mFMKG5wVRSHh6FmXlTHR5CbZ9/zyVJbuOtPlZ5jxyA+QNtC
+# brQSwcTpyGK28d+XNoeyMBoGwA+RnYd5SjLJgir5b8P+pXzZun8dG1qOh76IHamJ
+# BqL1sc0k0HUn540kFVZ5wHXd7t4P3D3JLjJKTtXYov9iph5dzMuz+Ulk6NqtU/a8
+# brhtOIYSp7JCRamTCaqyT7NhBZYVPjhv71uzLAhSjAbdj1iQRw9Zo8S5K+zfJ9G8
+# 24659wP1RxEuEW+L4CnRABsWeD6eXS++J4Om313UOdGCiW+U8lmmUhr69LTWchyZ
+# 0nEetSxhVO/8FJdL51MeAmyvqU3sUmmIzdp4j3Oz3zBeTSqax8CiIoyUwn/6Lrsv
+# TVUJzCOIRSuO3CXhK8RTb4iqLLyfYhEy801exU1X80QXZs3QU6koUbjbglGHLJJd
+# EVGxJeR8PIVYk8fdje961ICNDMI9jaP0bEpiJzz1y+56K4dZnOzUh/9ZoE/uGUn1
+# i/UpNYakzL5z2raGqh8YlC7GEtbCMg==
 # SIG # End signature block

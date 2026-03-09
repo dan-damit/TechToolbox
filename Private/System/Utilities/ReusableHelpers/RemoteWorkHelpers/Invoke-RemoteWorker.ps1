@@ -1,50 +1,40 @@
 function Invoke-RemoteWorker {
-    <#
-    .SYNOPSIS
-        Transfers helpers, loads them remotely, dot-sources a worker, calls its
-        entry function, returns output.
-    .DESCRIPTION
-        Runspace/WSMan-safe engine:
-          - Creates a remote TEMP workspace
-          - Copies helpers ZIP; verifies SHA256; expands to "helpers" folder
-          - Dot-sources all helper .ps1 files
-          - Ensures worker exists at remote path; if missing and WorkerLocalPath
-            is provided, it is copied
-          - Dot-sources the worker script
-          - Calls the specified entry function with optional arguments
-            (hashtable)
-          - Cleans up remote TEMP
-    .PARAMETER Session
-        Existing PSSession (WSMan / PS7 remoting endpoint).
-    .PARAMETER HelpersZip
-        Local path to the packaged helpers zip (from New-TTHelpersPackage).
-    .PARAMETER HelpersZipHash
-        SHA256 hash of the HelpersZip.
-    .PARAMETER WorkerRemotePath
-        Expected worker script path on the remote host (e.g.,
-        C:\TechToolbox\Workers\Get-SystemSnapshot.worker.ps1).
-    .PARAMETER WorkerLocalPath
-        Optional local file path to copy up if WorkerRemotePath does not exist
-        on remote.
-    .PARAMETER EntryPoint
-        The worker function name to invoke after dot-sourcing the worker script
-        (e.g., 'Get-SystemSnapshotCore').
-    .PARAMETER EntryParameters
-        Hashtable of parameters to pass to the entry function.
-    .OUTPUTS
-        Whatever the entry function outputs (typically PSCustomObject).
-    #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)] [System.Management.Automation.Runspaces.PSSession]$Session,
-        [Parameter(Mandatory)] [string]$HelpersZip,
-        [Parameter(Mandatory)] [string]$HelpersZipHash,
-        [Parameter(Mandatory)] [string]$WorkerRemotePath,
-        [Parameter()] [string]$WorkerLocalPath,
-        [Parameter(Mandatory)] [string]$EntryPoint,
-        [Parameter()] [hashtable]$EntryParameters,
-        [Parameter()] [switch]$ForceUpdate = $true
+        [Parameter(Mandatory)]
+        [System.Management.Automation.Runspaces.PSSession]$Session,
+
+        [Parameter(Mandatory)]
+        [string]$HelpersZip,
+
+        [Parameter(Mandatory)]
+        [string]$HelpersZipHash,
+
+        # NOTE: In Option B, WorkerRemotePath is effectively ignored (kept for signature compatibility)
+        [Parameter(Mandatory)]
+        [string]$WorkerRemotePath,
+
+        [Parameter(Mandatory)]
+        [string]$WorkerLocalPath,
+
+        [Parameter(Mandatory)]
+        [string]$EntryPoint,
+
+        [Parameter()]
+        [hashtable]$EntryParameters,
+
+        [Parameter()]
+        [switch]$ForceUpdate = $true
     )
+
+    # StrictMode-friendly predefs (prevents "not set" reads during refactors)
+    $remoteTmp = $null
+    $remoteZip = $null
+    $remoteHelpers = $null
+    $remoteWorkers = $null
+    $remoteWorkerPath = $null
+    $expandedOk = $null
+    $result = $null
 
     # 1) Create remote temp root
     $remoteTmp = Invoke-Command -Session $Session -ScriptBlock {
@@ -54,85 +44,139 @@ function Invoke-RemoteWorker {
     } -ErrorAction Stop
 
     try {
+        # Define Option B canonical paths EARLY (local variables)
         $remoteZip = Join-Path $remoteTmp 'helpers.zip'
         $remoteHelpers = Join-Path $remoteTmp 'helpers'
-        
-        # Ensure EntryParameters exists, and inject HelpersPath if not present
-        if (-not $EntryParameters) { $EntryParameters = @{} }
-        if (-not $EntryParameters.ContainsKey('HelpersPath')) {
-            $EntryParameters['HelpersPath'] = $remoteHelpers
-        }
+        $remoteWorkers = Join-Path $remoteTmp 'workers'
 
-        # 2) Push helpers.zip
+        if (-not $EntryParameters) { $EntryParameters = @{} }
+
+        # 2) Push package zip
         Copy-Item -ToSession $Session -Path $HelpersZip -Destination $remoteZip -Force -ErrorAction Stop
 
-        # 3) Verify + expand on remote
+        # 3) Verify + expand on remote into WORK ROOT
         $expandedOk = Invoke-Command -Session $Session -ScriptBlock {
-            param($zipPath, $expectedHash, $helpersDir)
-            if (-not (Test-Path -LiteralPath $zipPath)) { throw "Remote zip not found: $zipPath" }
-            $actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
-            if ($actual -ne $expectedHash) {
-                throw "Hash mismatch for helpers.zip. Expected $expectedHash, got $actual."
+            param($zipPath, $expectedHash, $workRoot)
+
+            if (-not (Test-Path -LiteralPath $zipPath)) {
+                throw "Remote zip not found: $zipPath"
             }
 
-            New-Item -ItemType Directory -Path $helpersDir -Force | Out-Null
+            $actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+            if ($actual -ne $expectedHash) {
+                throw "Hash mismatch for package. Expected $expectedHash, got $actual."
+            }
+
+            New-Item -ItemType Directory -Path $workRoot -Force | Out-Null
+
             try {
                 if (Get-Command Expand-Archive -ErrorAction Ignore) {
-                    Expand-Archive -Path $zipPath -DestinationPath $helpersDir -Force
+                    Expand-Archive -Path $zipPath -DestinationPath $workRoot -Force
                 }
                 else {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem
-                    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $helpersDir, $true)
+                    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $workRoot, $true)
                 }
             }
             catch {
-                throw "Expand helpers failed: $($_.Exception.Message)"
+                throw "Expand package failed: $($_.Exception.Message)"
             }
 
-            Test-Path -LiteralPath $helpersDir
-        } -ArgumentList $remoteZip, $HelpersZipHash, $remoteHelpers -ErrorAction Stop
-        if (-not $expandedOk) { throw "Failed to expand helpers on remote." }
+            $helpersDir = Join-Path $workRoot 'helpers'
+            $workersDir = Join-Path $workRoot 'workers'
 
-        # 4) Dot-source helpers
+            if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Package missing helpers folder: $helpersDir" }
+            if (-not (Test-Path -LiteralPath $workersDir)) { throw "Package missing workers folder: $workersDir" }
+
+            $true
+        } -ArgumentList $remoteZip, $HelpersZipHash, $remoteTmp -ErrorAction Stop
+
+        if (-not $expandedOk) { throw "Failed to expand package on remote." }
+
+        # NOW inject standardized paths (safe because variables exist)
+        $EntryParameters['HelpersPath'] ??= $remoteHelpers
+        $EntryParameters['WorkersPath'] ??= $remoteWorkers
+
+        # 4) Import helper libraries only (in-memory) + inject TT runtime vars
         Invoke-Command -Session $Session -ScriptBlock {
-            param($helpersDir)
+            param($helpersDir, $workersDir, $workRoot)
+
             if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Helpers path not found: $helpersDir" }
+            if (-not (Test-Path -LiteralPath $workersDir)) { throw "Workers path not found: $workersDir" }
+
+            if (-not $script:TT) { $script:TT = [ordered]@{} }
+            $script:TT.IsRemote = $true
+            $script:TT.WorkRoot = $workRoot
+            $script:TT.HelpersRoot = $helpersDir
+            $script:TT.WorkersRoot = $workersDir
+
+            # Import ONLY from helpers\ INTO THIS SCOPE (important)
             Get-ChildItem -LiteralPath $helpersDir -Filter '*.ps1' -File -ErrorAction Stop |
             Sort-Object FullName |
-            ForEach-Object { . $_.FullName }
-            $true
-        } -ArgumentList $remoteHelpers -ErrorAction Stop | Out-Null
+            ForEach-Object {
+                $text = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
+                . ([ScriptBlock]::Create($text))
+            }
 
-        # 5) Always copy worker script to remote host
+            $true
+        } -ArgumentList $remoteHelpers, $remoteWorkers, $remoteTmp -ErrorAction Stop | Out-Null
+
+        # 5) Stage main worker into workroot\workers (Option B)
         if (-not $WorkerLocalPath) {
             throw "WorkerLocalPath must be provided when always-copy mode is enabled."
         }
 
-        $remoteDir = Split-Path -Path $WorkerRemotePath -Parent
+        $remoteWorkerPath = Join-Path $remoteWorkers (Split-Path $WorkerLocalPath -Leaf)
 
-        # Ensure remote directory exists
         Invoke-Command -Session $Session -ScriptBlock {
             param($dir)
             if (-not (Test-Path -LiteralPath $dir)) {
                 New-Item -ItemType Directory -Path $dir -Force | Out-Null
             }
-        } -ArgumentList $remoteDir -ErrorAction Stop
+        } -ArgumentList $remoteWorkers -ErrorAction Stop
 
-        # Always overwrite worker script
-        Copy-Item -ToSession $Session -Path $WorkerLocalPath -Destination $WorkerRemotePath -Force -ErrorAction Stop
-        
-        # 6) Dot-source worker & call entry function
+        Copy-Item -ToSession $Session -Path $WorkerLocalPath -Destination $remoteWorkerPath -Force -ErrorAction Stop
+
+        # 6) Import worker (in-memory) & call entry function (Option B)
         $result = Invoke-Command -Session $Session -ScriptBlock {
-            param($workerPath, $entry, $entryParams)
+            param($workerPath, $entry, $entryParams, $helpersDir, $workersDir, $workRoot)
+
             if (-not (Test-Path -LiteralPath $workerPath)) { throw "Worker not found: $workerPath" }
 
-            . $workerPath
+            if (-not $script:TT) { $script:TT = [ordered]@{} }
+            $script:TT.IsRemote = $true
+            $script:TT.WorkRoot = $workRoot
+            $script:TT.HelpersRoot = $helpersDir
+            $script:TT.WorkersRoot = $workersDir
+            $script:TT.WorkerPath = $workerPath
+
+            # Import worker INTO THIS SCOPE (important)
+            $workerText = Get-Content -LiteralPath $workerPath -Raw -Encoding UTF8
+            . ([ScriptBlock]::Create($workerText))
 
             $fn = Get-Command -Name $entry -ErrorAction SilentlyContinue
             if (-not $fn) { throw "Entry function not found in worker: $entry" }
 
-            & $entry @entryParams
-        } -ArgumentList $WorkerRemotePath, $EntryPoint, $EntryParameters -ErrorAction Stop
+            # Filter entryParams to only what the entry function actually supports
+            $filtered = @{}
+            if ($entryParams) {
+                foreach ($k in $entryParams.Keys) {
+                    if ($fn.Parameters.ContainsKey($k)) {
+                        $filtered[$k] = $entryParams[$k]
+                    }
+                }
+
+                # Optional: helpful debug breadcrumb
+                $ignored = @($entryParams.Keys | Where-Object { -not $fn.Parameters.ContainsKey($_) })
+                if ($ignored.Count -gt 0) {
+                    "[META] IgnoredEntryParams=$($ignored -join ',')" | Out-Host
+                    # or Write-Verbose / Write-Log if you have it available remotely
+                }
+            }
+
+            & $entry @filtered
+
+        } -ArgumentList $remoteWorkerPath, $EntryPoint, $EntryParameters, $remoteHelpers, $remoteWorkers, $remoteTmp -ErrorAction Stop
 
         return $result
     }
@@ -146,15 +190,15 @@ function Invoke-RemoteWorker {
                 }
             } -ArgumentList $remoteTmp -ErrorAction SilentlyContinue | Out-Null
         }
-        catch {}
+        catch { }
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBTg7L6CEbNO5Su
-# GDoQ/2363LF9JD+ncr96P9xqnURLK6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB0m7WTRXkhJX4+
+# SF2HgNJJ2M6xCKRi4yu546z29hHaKqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -287,34 +331,34 @@ function Invoke-RemoteWorker {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAO7VD8fpHm
-# MZMhdU86n6RD5i4fbYbDLpmLTBAqyMImUjANBgkqhkiG9w0BAQEFAASCAgAHtP0i
-# KNRDIMEMSmHbP8jcId0t19WWrCCz53pNXxs+Sr69OZgJpL5e8TuaOTVgriMOo3fm
-# YNBxJIf+lYFwb+WvE/9LSEVEgaiXuKk30GUjf+CeWp8br8gzwqLehUTpt4mWgAPu
-# MNNmXWOUXloFQlygWR5d0mUf4uqTh8kKCJ9yY4RvT0V1NPkoNE0nzBIS5dGaKL/T
-# XbXsYLhtrymrx4gJnJfgS9TYRSTLA4jbVOnbMoLXM8u815yIM1oJtyz5jDPJ8Kxr
-# FjsVUmmgEktJ8tmeLvsOZxzy0Yf5X6eS7NuSq8m9mx0a7kuD9jOS8bxMUwmA3Nuh
-# hqfCLRHhs2dvdtZS8wU9SARRhK2Pwz5z4AfeUGZBNHzarjVnILJ+mmQRKFB5eLHc
-# uXOtUPnIotUqGSmifa2abFp/IXkPqwEFV5F3+DnLyseANCZSE5yRVvhWu9SxST0k
-# Ut8BY495WkCQgiYyGl7zQkfr07fopw7C1N1xLuZ2rDKEGsCbc9qZxr589Gh6PKNf
-# yw7jkfMk1OxAmueIf4nNqVzJu6QYlQcYBDeLXDDdQinNQZNcbxi7Nkz4jrDC+2ur
-# flvu5Y+5IQ+N1KDSoH/DXp7wVY9cLceVd9ihJCVwxAgdoubppCpDZs0EqKoBODdd
-# NpdOXPIxBcqLTJ107OqStTJSbqQ5PaK1/R3fTaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDQ2bV499V5
+# f0nMWCBafmY/lI2aQOPqLixjfJ+LLW4i2jANBgkqhkiG9w0BAQEFAASCAgDOh89x
+# O3lAwarTo26zS/LB+nQOWByKfeWoA+GB9dC82KGbWyyofkxk6PQSJpYSmgDz6THV
+# 9FDrGK5BLRLerUaWLELkhMP2xTT/umoDYgXa7A8T4uSriGnhqbakPVFUjih0tGBW
+# pLs56cCf5Mt5vO/dQ27Nyf4vIgP360QALeeocahDojFd+1otJFg48IqvcN1ejd+F
+# HXcSwCEP92v8Uk+lEH6cCm8G/SlBYNyGmeSolrPH8wfPEl5YWGgq4OFdm9lnBXJF
+# G0tBbKgFZWvSojoWJ32TUjWdxHHsny7wos3clHIFWnyTflqFs/C/IFI5IgbDxoYu
+# YaylMT/cYle8iQZgaHVktKsL6yonmSwbQKYE6yoXByBd4xIvWZ9C+r1dT5+aeZwG
+# 3ZOplgOqcQxvaqFe6UGtJ65m6LTU+t2suTh9g+61LDXXlxRXNHLrGPzPLDEbebA9
+# JDGd2MqhY68C8CGgHoh2XudUbU8cc0IFlcbB3KTsQN59+rbKYelookkgYcEnSdXr
+# wDMDoFk4fEgRVMAgqVQ4yYyTzcAkBY0OEWe7bzPH/RY3gVM/02ATgC3MaBMhLo34
+# 4ZJA0TyKZB+mSrjVau7mUUfuU9QubdqC/rAkPFcqDdR0GXHyjIwGQqIqxkJ/hWTG
+# zRnoXP/aYm3KkxP/pzZ6HGF8BWi7MTEQJsySkKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDUyMTM5NTVaMC8GCSqGSIb3DQEJBDEiBCA+Hjs3OLB2QScR9i/w
-# 0wa3wUKhwrGXTdxO9FMk0VuYKDANBgkqhkiG9w0BAQEFAASCAgCnhrWeuopHyRC2
-# VDl0xX+ubgS9eRRz0X9N8gTdJgzTzsOXrcy1kvkdtKcPpRpSqdpCSQWeQnAK/kcM
-# L2lxB9Utwxx39/SebH9aZn2TtURfvdPS4nIoyhVkswEOHusw6fipDjU5Jx8AEF2t
-# MnwwrJ8buqcuFfuKGLtfQawJRfSWbAweMnWvCxxlppb0KMfx/DRqaKSimK7/7vJV
-# bHbuCC4NGRAKXWh5MgNrjQ5jMU6ZtM7SlKHvBi1D4oDaa/9rXznvpMYPk1j6Iy/E
-# RI9ILENXMfBqyg/c8kAjhR9lmqaP41E4bNtLXIlgmtKrqH9wUXmsNkHDmlkNLlqS
-# vWm3IwaAfPyFN3nuu9smsc7Zbresi/DmkEoWrlq4oFpklR0OkTku7fHfTatznjow
-# 9iHLZJ3ApKlIZTrB/pE3RqP/YJW5G5JaBDZi+pmhFes4ReOSHgAfuIOtjGnpjaPF
-# /iwcD5yf1a61C+l5I8joyG/ylVojnzgohP14DxqCMceYXRwyTrD9hJVlL1KGUpc8
-# pH22Sc7mIt/upxnmltkJVyqI80xf+roNTpYQaw8b7k9qHFTpvidjdChym8c7EFNS
-# PQy0PpavmuLSFi1Yt5MliSq3bkLme8KWhadyvX4LdEeXDVyBcEP3PUwzPf2Yo3EK
-# 4PLNzoc6cb+ukjuOq+voBFQnt6NqlQ==
+# BTEPFw0yNjAzMDkyMDI4MDZaMC8GCSqGSIb3DQEJBDEiBCAEBc7DqgH0EPLjaVNm
+# Ik9H0rg8XEvu6SmIBlQsb3YWGTANBgkqhkiG9w0BAQEFAASCAgA2HRskPWe8enCy
+# 6IZiYQS5bAUuICXY9D0K4ooWhbt7efefuSOguOrYwO8fs8VKUKZOogcgJCe4U2mT
+# 53DuXUMi5Tzah8z7Woc/ewMxueyVdC+1DknDarBVH1aERVvhk1TcUHTE2DzwhuQ4
+# n4U865xTRx8zb7TP6D6Xsb+ng2txzdycF3BQfHg7P8/zZDPLkJNXEJD9gGrEMxaB
+# 5j0YjE3EDGU6fsSdw4Fd/eh+Sk1b3q0kPkSWZO5bXZxzzwlxB5WJZFi4FXMddUMI
+# XGHhjtWttok34ZacHGgKseJYHuBEY0vV501wpn3ggxE5gTYKgEqckZvP7paSvcCd
+# +sxIpO0hHy5R5c4AafnOjgy3OoX+EtVUXMECAsOvn0gR+pswKKPkNRqhpY/cMGRC
+# 5l+AIvqdIsskkAw4y7d361SVHq8/5d4Y2NHKwrK6A5s+iQGGbg5ZxeqYiazs+c9H
+# TCidYGgd5JxOu+AsUxts5BJhFyUmsod5snBrHmGqBHrCCH0V5QTL3p6eQ6IZqc8m
+# jzNbiyjq/YobqwG1HJxeezB/Om+JhKuG+cFLK0/7z1mQXf/8UGUgiKyz1eVpf2e9
+# cSgZo2SV1votErcl1mMskqk9hpKJUug1RRalB0899tuAkg1t0WM2Ds4lJ9Drpstu
+# TotUYeqTPQVk+KgtLzS8JJoj07XjVQ==
 # SIG # End signature block

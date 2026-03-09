@@ -1,29 +1,23 @@
-function Test-Administrator {
-    <#
-    .SYNOPSIS
-        Tests if the current PowerShell session is running with Administrator
-        privileges.
-    .NOTES
-        Reusable function for TechToolbox.
-    #>
+function Get-TTRoot {
     [CmdletBinding()]
-    param()
+    param(
+        [ValidateSet('Module', 'Helpers', 'Work', 'Worker')]
+        [string]$Kind = 'Helpers'
+    )
 
-    try {
-        $principal = New-Object Security.Principal.WindowsPrincipal(
-            [Security.Principal.WindowsIdentity]::GetCurrent()
-        )
-        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
-    catch {
-        return $false
+    switch ($Kind) {
+        'Module' { return $script:TT.ModuleRoot ?? $script:ModuleRoot ?? $null }
+        'Helpers' { return $script:TT.HelpersRoot ?? $PSScriptRoot ?? $null }
+        'Work' { return $script:TT.WorkRoot ?? $env:TEMP ?? $null }
+        'Worker' { return $script:TT.WorkerPath ?? $null }
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCABAnQTtKDowJNc
-# yzgJBqpt6v5YFB+mpmw1l5Dnpcv+4KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCABJC5nBUh6GqJJ
+# vsmzLhDb3CzXVKY2vBu2Hbg9xQdGL6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -156,34 +150,34 @@ function Test-Administrator {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBJ0yKEAIXw
-# 7fb5YpGtHIMsfAO8bBAd3H2t6jCLFYUIxTANBgkqhkiG9w0BAQEFAASCAgBAR3Uk
-# gLK6EobSrrcVqmFbG6G3lt+vZXBbH04BWVkA4BWLttFtZFI6Y5eSod2QGEFk5bcy
-# 3WkadNj+fAfz8XllaplSVHWEFSh3JcXY+tEb4MIv5dG55IB7wqILJ9zxdNUdA4HH
-# zLArV5hu6ZGgdBWKBNwe41wxu+3SQchgFKVshcdel5AZ33EGHzJ3e11gHJoQc+3c
-# +sYSNBh5JjUyAnEut3848rLVsni16zakEr52CSqnT4q/iKuuTXHCSXDXnshoDNgm
-# QeXBXupVjJj5JQf4VA7ft4xm7TZRK2C6MUpmv8WkZpWWEzw03YKuZnnZSRGQMNQN
-# 4qq3usSH+jYXn32xSGO0dBVqC4bUjtS8R2PVk7gedSva5lC4eb+BxE2OYoOGHMhv
-# ICdGFEy5YdO7WQR+4KV4Ncd56/QcAWm2SkI+VdpWfOcbyf4nJuOCH5+BPYnKfdj4
-# dbZJQM/5/e5bejtIL4+mmkIdscJeHYHk/A6AzaJhx+brBK8dp7uMtytRRI6sktlm
-# 3NBidRiSkNerWjlfxECtWhZneg/bBg77/niFrw4x1ciR/2Vj07FIhnTJwOhBX+vV
-# 8IhfKUPAsXhGzm3XFG7jN83WOK4ToBFiwFycXU6Pb/kP/0c7rGtNiLch5/DMbM8z
-# GJ9Swe9iK/x7zim1DfdyW6Pj861ga8mSer2djqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC9uei63vxc
+# kmX9K9cHCo/G1VRYMqQJvC5UHt9sDvptATANBgkqhkiG9w0BAQEFAASCAgBb8nOe
+# ROXjo3FUl6RZo1Ku6Q5t65zp9v1GsQ41NdoPICeKceOiTYH6th/gDbvoOiNiRF64
+# 6Rsq3e4XRwCkhv097B7kzZpZsyUQGr8XaavQnsIoXXu5Tq2+exsROHaKs+Fax8YM
+# +5pYix96jQ95lbOaA/umiybLNGk7asYpaWWXRNOd390rTmihBRV9TKgnjFnhfSuA
+# H7FDx7CRWv+eTDVCroG0QZjp6WZSd/XE1UZxpemYgZ2I8egQo9cAfFFkbR7avsSd
+# Phtmvzx0qSaRYzskFLZ2P0vna3mMQs6+DN+QlVPE5Sw35kzMGPkjvLsHlZorFCZF
+# Tenzl/gp3l9ys+BTNad4iUI03rYnyTu4cWalfN1zumTIzQExl1gMNhDhJcmIXJ3l
+# A56r/TeTjxJ6x6Yjpwqd5itcfR2AWM851LgKRmQgO/C8NtyGuCezETJ3leqvBVQu
+# zVp8MROl2M01jwplmsUi/RaK6O9KZex4vCUDiCdpimicjeQq/Ps3UIIvUdcXdRtN
+# BVLSAwH2SVqUenV68BL4WPeA7BINFIwxYda20D6uN/NLX1bwO7jgeBXRL9DzY/Kj
+# OtzwFob1w78ZxdQZCPmOeRyxfaYxhAj7XOsHBiR+uFYJb3WYBQPi/FekR/vnLkM/
+# CBPWAFV6MjDYbJykK2Rob0wh07f48J4HgM1ZvKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ2NTBaMC8GCSqGSIb3DQEJBDEiBCDIhRSfWA92urD3u59C
-# CXL0Fk89F/J7TEd+AFW3GSX62zANBgkqhkiG9w0BAQEFAASCAgBpafuN5cCI7k3r
-# jSRY8Zoc7wgkyjrskjWkvahmcYRIt2XVX91RBNG6iOBWIyhjNfNTpaxC3u4DaGBA
-# wdBIbHYeu7UXHBCosw+4GytlPEDJbh0jZh/cEAi675tgUFVPKxlpDPoTDA2JWJro
-# sXPTwl9gO30Kar2+J/vOOtCbDUEyNGue9KuxG4bFljieQ648KrQKn9ynHIVNyOiD
-# 2cLFYXvVTn7/+yvLCMakN6oSxVU+YM5Q8c2X5AzaHyaEckNvWWpLx7e7cqviy0LB
-# H674gPZJjaZ/dCmdYmOkHdKz3zxuYs9LuHq8+I3wTmaz+0RZr/TXcn8JNyo1rf1t
-# JPVX1QuPu7xAJ24PlZ9/cRPQf4GVTg5XGrLWPiGgJcGQdadEIsUfBNvJR2qyTsnK
-# Q7xP8p6l11gpAGv/A1MMbLGMrSwl4YGVEkZ/6Yc3z7omycnO6cTouT/bPzyk/qRz
-# ZwWrlaQUz4xsdsX3tlHzNDsmRdEgnlHFCTm8seheYt3eFInx5cTCmeBv6IdndOSJ
-# 0lfeqK3ce5k3gnMm+2bVrKfNdahmnr7yuCJG0TbgCVmtmFQ/G6U1IonVKKH6Ks+R
-# xZv2zYxZGpU1OdZnS8Rc8zPB0VZeumoeiZShdJgTta/W+EURrhEce7e/QKmkKr/L
-# Oui653BR8W+AxYlz6DhvtYO7YqYb7w==
+# BTEPFw0yNjAzMDkxNTU1MjBaMC8GCSqGSIb3DQEJBDEiBCBySBx/w+Sew//Ep6wC
+# mISh7luHVl4AAta9zeYvxj7cDDANBgkqhkiG9w0BAQEFAASCAgA/1EWCki0k5L+N
+# AnVHhH7GoObM+lSJFFzXlWS9uI3+Kmdct91o1VRLjYWQExvPEgg0tFeYeHomBwNp
+# VZ1oJjPOyr8qbF8PuMrIeIu46MFUTbGEWyiSrFrCu9ni5GOqyYyL4x9maWPoqFSc
+# QAzHK4g5o+3UeseQOsvUEC27wtf2MnV+9mUlQjZpjyRhF+Qk6yPLsMcjrGUPjv7o
+# Y6cn0SWYRhpznWoOo6ZA97BYXhS/T2/t225Q/jnDsAM4tP8uJvDeyBe4CmOEToCR
+# 5e/iGMG4/6WMHeqTWrJ4xnElPBUZ5VG5XDCa/ckuvmObVqnXT83V6LmAFafalqyX
+# O4JcJ7BT5eW8fhpnL4khENv62bIr+7ndvGNfkTBHW8Woap3Tlo2j9VrTYpoYYHFX
+# alm6IhisV0zFJYowSNTnJbYEGfTIsujr34aeL/T5lUB83LO+aZ271K1kQBBTkaXL
+# PlfBz2rOdx+gI44irOpwLZZ641EfaIueCl99LMKMHM+OrgO6JGHMdsmU9sfjdntr
+# Vrrd6CnvGe48rdrsuD4ndtn5+DALWkzrIT7hL+HtYINfDzhKjtIHuk7FznNDq55X
+# 4n8FT+W9psQ/yfED1PkbbeKl+18JjAxklwn9tQUA7bn9K58emr0OA15rrHfC+hpZ
+# b4qZ83PS24cOu3ePCZGGcp4FkDPSAw==
 # SIG # End signature block

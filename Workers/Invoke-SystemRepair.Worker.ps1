@@ -8,8 +8,7 @@ function Invoke-SystemRepairCore {
         [switch]$ResetUpdateComponents
     )
 
-    Initialize-TechToolboxRuntime
-
+    $system32 = "$env:SystemRoot\System32"
     $results = [ordered]@{
         ComputerName          = $env:COMPUTERNAME
         RestoreHealthResult   = $null
@@ -18,8 +17,6 @@ function Invoke-SystemRepairCore {
         SfcResult             = $null
         ResetWUResult         = $null
     }
-
-    $system32 = "$env:SystemRoot\System32"
 
     # --- DISM helper using Invoke-ExternalCommand ---
     function Invoke-Dism {
@@ -34,6 +31,7 @@ function Invoke-SystemRepairCore {
             -Arguments $DismArgs `
             -TimeoutMinutes 60 `
             -Tag $Tag `
+            -RequiresElevation `
             -ShowProgress
     }
 
@@ -44,6 +42,7 @@ function Invoke-SystemRepairCore {
             -Arguments @("/scannow") `
             -TimeoutMinutes 60 `
             -Tag "SFC" `
+            -RequiresElevation `
             -ShowProgress
     }
 
@@ -135,8 +134,8 @@ function Invoke-SystemRepairCore {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBVoLSZqm4VpUZk
-# XVJMDy91GXLgtGcOudI8Ymrhov5QtKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBCPYDJL4gTnaus
+# RMaPl2UIUkFKb8VAMMZtITVfZhoTHKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -269,34 +268,34 @@ function Invoke-SystemRepairCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCRiQjA6Q5S
-# y9YqIaLULMcRHOaLUMw+XujJQAeWUTNZDjANBgkqhkiG9w0BAQEFAASCAgAAId5v
-# CQVR88kzsDtdEgbMbr0xjawu1EmH+dhLhIHq8pt6E4ShIh1JuwlXeFA3YLWD4hOV
-# CQeGmIGIYZJRwfYJ9HIi/TsroXxrOM9CsQAvGM66FxuCiawcARaAdG0eTKTMvWbV
-# D9UFRduvswfCQmTA/aXqxf7N3M2KdTYARHgGtG1/LC84xbyMIBMqm54mKyZaFAlW
-# 1L9O9WRhrSfwjthArIJy+REkFJ48uPHoBhmNgYVdLIgd7knt/3TtxrSKRApK8M2Q
-# 53f0Ds4WEY33UNOdtBGThO/huQuYM0SfKSAWpM6nFD6igJ+znvNwgH9QHYYWiE9o
-# /iSQ89wPlm+tC4grwjDLylvShl289i8n9AfijrKsRrozUQp/fg6FeEdZrHguKnUt
-# pYMXNsks9+3+FjqDxg0DRUJh5s6l+VdXSiPe37Ke68q6SH7oG6RFiDOJXdDzUf8Q
-# r5uq90gIPjbc2ybtHXthCHJagqdGW+0PQbyKaahX3XN04sduoP/qaaG4eaOxkNTp
-# az8lRhyI2B5UFJq9kDkPuNhRU6T59QtiG+0J9VaECSYNM7xcNJWqmAfXW/FebqQz
-# RMdvlczc4T+FRaue+xdhPCwws5/U/ZwPjJW3OZQpWQwH5bkGytu4w7LswW7g+VHy
-# uzbeex+2Xo46MAEhY3e7DeGFHnA3kCaOSsyHF6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCjzM2t9JMg
+# affgQHw2RXOq5p0VLlZ7d4rjZoUnvEmePTANBgkqhkiG9w0BAQEFAASCAgAEWQ4N
+# qKkjIEI6idpV9ibAag5Np/U24nw8yeaxLeIuHb7BnaPEJslPIBVQEpZvFkTJamJF
+# 5RSDB+JvHkVDz0LkWTifEBYfRU6JBNNScrV2c3Xmn0uy/A2SYMSIBzxblVKT6i16
+# h9x1fcA5Jwv+sQOqIpwWFvNfVbnfM20fiLJVgprBCDZ3zuynHthNt4BS3SQ9y2ql
+# DD9KXK8QzQzrQ9t3/OXkqrrScxQZ4OaWh9hCd/d0g9XN37KMdhNUsuGAaRqTxZYZ
+# Crm71wbSsyMYdpPwOj3RL/2kRA9CDh/bMLjGx7iUfHwUYIUxDUcFIdKh8vywwAsC
+# 2AJLWL2+blD3MNAq9RSzCQ1wbRcXl/uOZMuZkR8cJXInoAs1TKGk7XQSjuE6qO74
+# oNfkaoQwEu38fTGoiYnQoLPhfRHD2y7Hjx8b/Bm/v2DVuRNgkBb7+LpA9JwfaZZS
+# Fcp3XYccXEpobRH6LBPqlAt1esk8umWfGJaAYOzpO8xBIgBv0JofCPuXiNZecPmh
+# ypaFXzfyX1WQl5uKfhs1Jezs8lk36dM+mlgPkL9nuZz4/y298ZyHCxfOQBb4e/2J
+# zeXC9qWGccv8kmy/KYMo1WdEhCZumJQgTknRpry9wqlwYGNpyRHLxkI5xeVq+IV+
+# Ac3ZZvN63feOIG5qNBlUYU6gF6j2qKaBX5FuKKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkwNDA5MjdaMC8GCSqGSIb3DQEJBDEiBCBpQg2Xft7/dKk3bWja
-# Y1rN/VnQZLOZ4UKQCcizlj6I+DANBgkqhkiG9w0BAQEFAASCAgDBgjjsQY/pkQEK
-# 281xS/bmzlE8DoCKuD+bkqRz/cILIEZLhypyW4/jde54ZuSC3bFVkRvqm+J/sx7m
-# lRg9cc9YY/9KmgSAp3+u+ClsXwgtWifNNhWXZvYZQVkaipCBnufN2bEpQwL7sPa0
-# Uvg/UZlgy9GRCmk8/5t3JqzpsfsOAr7tXSvyJ5lvncWvDH7ultBaPcQwC2L/5fNL
-# kjrfzesgtoAx5Pckt8zEOkGCsj5AHxnH+gQM3X5hQWU0ujk+zdeRhKUEbfdOryJU
-# OCf/dRa+aiWVdfC3rh2t87rLaOv+F50SXJenNAnSLlvUJuV/u+ynkGzE9rRGH2Jj
-# GIGZiABuVRWZan3R7lpcoDKMyvEzNQ9nrcC+wpgCgC+d1sv6pWUJhx9nTnSXrgSt
-# 9Rs7XJMhiGJRYD4NJt1XCSJNZ3Hadx3r2IN65WdqotmJVdtC31YSZvVdCRgtiyP4
-# K9A8eJkXBZr1uh9gePGhGwuJqPzjDjaTHopuVMvMqXcUH6QEhUIagh7BiPDLK33O
-# MDzDBNCrwlxdoDSYy42BySI9w/y+1NmK5f7ul7QcIVHR6VSkinoO4iDPDcXUn8iY
-# 2C6TaB5b/1EzFR1Tmm7rlOtFwJgDA+OfSB8r+zys4VrzhW9Rv9Ty6r6ky0QtrnfP
-# BRDTZOv8ATSwwk6vf6O3uZCMbw4Sbw==
+# BTEPFw0yNjAzMDkyMDM2NTZaMC8GCSqGSIb3DQEJBDEiBCD8h5l6mPsqId11Hl4S
+# sb/WmNneEHNQiRgoB5KSNwsfsTANBgkqhkiG9w0BAQEFAASCAgBMFW+PL0tuivXP
+# xyywUbPaSnicsgnSYDcsHM28wYD9yI12iWVL4Gv6wXo7SpbqD0pAPkGRuZX+PckO
+# LoyesByOOUX6YZm6GAgHg9AQyzyFh8r1PGcc1tC2heN3PJHuROQnE8Sjvfu4vqHG
+# j+G5izm35joitbgnVHUAy1OrLhq1rcFqufCI3nq9k+nfXRlYChaCdwe/vJwD5jdI
+# JEtmRjb8NArKGW7mW1Aa6Ir1ayke6ywJm0n+no+Z+Cjh7X3sQTL5LcqbNEDmrQKD
+# 9O3eJ1HZJbvI/MGhRWcvcBjjHPbOxHug7C7h7s0VbSdDWMifm9dIzkD9Q1RWr24l
+# MLjTPx3bxUqZ3zhlHhfc2Us0BQ78RLpOXkW9ZjO1qo1cficB/0R+yUUqPIYiiwlX
+# MuwKPPOmmRuU6ncErq2GileBHVJxJbCoBSEMQs2C7urom0EXAtdX4+5GvuVl40WA
+# 5rJA02p4LdKuXAm6EjhvgGgjQQpc9uztQ19fJZz3eLERkq5r7EmMxj/7s02mP2Uh
+# KDpwpEKfnTrOB5AlTfjrWGpIG+D4r4IGRZFs5SoQ9n4j29RVfD1Mf2AM9Jwz6C+8
+# tC9YA7HDFnKk6ypa6m92XQgYPU5Jmmll7NPVM5NRo+DV5qRx3SqAKeUxv850QC1U
+# t5bOtPKH42lw4FdmeQ1b2x+kNqPR3A==
 # SIG # End signature block
