@@ -2,72 +2,43 @@ param(
     [string]$Payload
 )
 
-"[DEBUG] PayloadRaw=$Payload" | Out-File -FilePath $OutputPath -Append
-"[DEBUG] DecodedJson=$json" | Out-File -FilePath $OutputPath -Append
-"[DEBUG] FilePath=$($data.FilePath)" | Out-File -FilePath $OutputPath -Append
-
-# Decode JSON
+# Decode payload
 $json = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload))
 $data = $json | ConvertFrom-Json
 
 $FilePath = $data.FilePath
-$Arguments = $data.Arguments
+$Arguments = $data.Arguments -join ' '
 $OutputPath = $data.OutputPath
 
-"[META] WorkerStarted=$(Get-Date)" | Out-File -FilePath $OutputPath -Encoding UTF8
+"[META] WorkerStarted=$(Get-Date)" | Out-File $OutputPath -Append
 
 # Build process
-$psi = [System.Diagnostics.ProcessStartInfo]::new()
+$psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = $FilePath
-$psi.Arguments = ($Arguments -join ' ')
+$psi.Arguments = $Arguments
 $psi.UseShellExecute = $false
-$psi.RedirectStandardOutput = $true
-$psi.RedirectStandardError = $true
-$psi.CreateNoWindow = $false
+$psi.CreateNoWindow = $true
 
-$proc = [System.Diagnostics.Process]::new()
+# ✨ No stdout/stderr redirection
+$psi.RedirectStandardOutput = $false
+$psi.RedirectStandardError = $false
+
+$proc = New-Object System.Diagnostics.Process
 $proc.StartInfo = $psi
 
-if (-not $proc.Start()) {
-    "[ERR] Failed to start process: $FilePath" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
-    exit 1
-}
+$proc.Start() | Out-Null
+$proc.WaitForExit()
 
-# Stream output...
-$stdOut = $proc.StandardOutput
-$stdErr = $proc.StandardError
+"[META] WorkerFinished=$(Get-Date)" | Out-File $OutputPath -Append
+"[META] ExitCode=$($proc.ExitCode)" | Out-File $OutputPath -Append
 
-while (-not $proc.HasExited) {
-    if (-not $stdOut.EndOfStream) {
-        $line = $stdOut.ReadLine()
-        "[OUT] $line" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
-    }
-    if (-not $stdErr.EndOfStream) {
-        $line = $stdErr.ReadLine()
-        "[ERR] $line" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
-    }
-    Start-Sleep -Milliseconds 100
-}
-
-# Capture any remaining output
-while (-not $stdOut.EndOfStream) {
-    $line = $stdOut.ReadLine()
-    "[OUT] $line" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
-}
-while (-not $stdErr.EndOfStream) {
-    $line = $stdErr.ReadLine()
-    "[ERR] $line" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
-}
-
-"[META] WorkerFinished=$(Get-Date)" | Out-File -FilePath $OutputPath -Append -Encoding UTF8
 exit $proc.ExitCode
-
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCmpumInzwF8KRV
-# +DB4pydNs5wBzmu3Kg615IeiUQ9kFKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD9k3ukw4FAYU15
+# tapcxrm2iiXyEBVKURN1iwe3wP1XbKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -200,34 +171,34 @@ exit $proc.ExitCode
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBxi8qoN/av
-# M+f+QaXc6lgaun/hSe+3yGO4qgU9BIbuajANBgkqhkiG9w0BAQEFAASCAgBwjRtA
-# C0PRTu+1p2Nmi5lUJNrdZbhHcOvNd9eZ1jQrul0jXEi/XDPA8QsPtN8phqudDSmu
-# SsuGWKeT8kxaufBHIhNGDYLRZm8qlM/lCKI+gmmSsPXH6rQLQ/s7gVHuDeRfGdvu
-# jOqlXqnniUk9Jpj/rMqA9uD3e3klBDna/F0cchYD590bS5fQz71OYwHuaYAH0398
-# m6F4X0JYcYOCt0uk9vvSAdCUDuavXnDTFV9V9FlqD5USqJND0+fHWA1GSGQ63OiL
-# u0BwmoLg81OpiW5UkUwwzn0cjz8bSH63GzhqAvzm4cQ/fltFmr1EUy+6I6EMU+kQ
-# 1hSGbOSPTHn6S9qmwu64Qjve30BGM66aiz34/VqvYGmx5Y+ZceMM2yvWhd+cuHCC
-# sCMcSL4EJ7G7xNWmFomD3wQ5pLfz0JGqtjc+mqfVP27murG7BL9RwoigaPOOZB0f
-# V4Xou+OSdO4IZngXBQu3OqVtpKK8Leg47mX4bnHbmvWn5A2d3HMXSEHRvSK65zqI
-# yvuHj2Q5rK7zMfVj8mIHmoLNeSp2sY0W9X1FGc7D+5A4TUCcbg6eMeQ+8mBMl6sP
-# ZXOy3MZo/i4PH00JEZUqixORGxUG4spSxxi+mzXZ59WyWM7KBEdKm0W8S4/Gc1Be
-# 0D7v8GYGbsyC6qyaQjCuEXqtoCQfOp6w3Fy+gaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBf/1EvJTyD
+# js91315pFcVQ8qdmQHaGcMYH7YQvsjZ7pzANBgkqhkiG9w0BAQEFAASCAgBudkiy
+# fsvq5M+A950PJ2W7d8AihN/yTPe75zukSbaDZ/eLCXNElWlT5v71lA5JB1uNMVvc
+# xJr5jVybwPHeXfY9yxbAqv/opZ2D3I+GiFCvw54TbIUFEjGCLNBZ3hCImq9kBYPh
+# QMTON1DOHRLY73Ca8QIg5tbVTE10vEwhVLEAmKQtHIwlzf8w6HuTjVR0GLvv3ad+
+# g7nMtCiusmIKxTcB+BtbHVhL++tlUtK+I1mNWezSlavrEkWYWsxqWg7UkpT6lUa9
+# 992rJKbywxeS6OkHWD870K9NPUPd2romI9OgaPSCg12+BrZbYGmzJpvRmjUUSQtL
+# 5BSHzxQJrIw2M8nKsKyaZU1ZC9MKDz/jXCeHEIr7PLfE23ZomEj617AQP5H1MAaO
+# Yzh39UvgIGS2tx7+NWyZkGf42/adff3jOz3TOrYBSuHi/oC2h0hNmNEkJfzP5ahB
+# Fu1p5zLvY0pVvoMNytv8a2vxuiS6qWGlID3bgiy2OttmEGv2ebhg7DWbLgfHZGVy
+# DakLw7MO+r98Kf1hXMxP7dmC4mIdw0HLRAhzQWxjTla4rDNwn8QoL2+Z7QrgEOIH
+# 0v/3vs00Phlqc6jJkuHMc9qxcw4SuKvWpEpN+FpH6O/Go5MmDFVPVeX+xAPJLb7i
+# omwbJ4OKhmbiwUUyO08HyGBeSZNxd8nlM8AG9aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDgyMDM3MjBaMC8GCSqGSIb3DQEJBDEiBCBMNg78jmN9QL0y87aJ
-# WhRjhzkjAu4ZbcKDO6LDn+ZE4jANBgkqhkiG9w0BAQEFAASCAgCWyjeVq0cU6MGi
-# CCRkKRKDb/4NLy44TejBVZFG17vWppXzT/Y2+4+NPl8CsEog3YDqPdEG5dc98ZSL
-# QLfLtajBeW+hGSHL65DeJD4/hqsBcpKjJElIsi5K9Ok85u7BBxqjExuvcOKc8Pnc
-# 5sE2Eokhh0DLZX0w/f6o277ZIbJbPw9QYT/dVPAqnQrgvVFODeuEDMuTJXNYDgn6
-# wDKvq10L7XbohLlhUyTnDic3eNH8bhkAgyY88nJS4uHm/JQJxKn7wMJy/SLhj5cV
-# dLBE3y9dA+XhV73A4fjF7yIuNzRXSgtSBSMCeYMJlmW+/TnBJ+JKBfTFwqh100lx
-# T3lmXcCAPS7FVU18/so23cXnNh1YcMWWXcfNikIVOxs7Ma6pOxa7NP1vHRxTklax
-# Ds8jRk+H8X+GwTFmsvvotJ7sjw6iolBFePqwB4Dn14I6tpcB09d/cjTRO6uP+/mB
-# lSTDBQwJASH+1s9xqw+F4OjNvj9KPrzEq5aS3MCGsi0WEinjX2d6RtjQp8ukA2ch
-# //PFQiPV3B9ahbDTbg+btygZanvHwRuZPb2bhbLlPitNDveC8p+GYGS9kbvxExQv
-# hAweOc0KmvcDIeXl/bcaZwnr7TozXPfEqCEZSY4hZa6pQMxuzscZQIC2ADiCe1ee
-# lPoZYJJS5fu4fGOWUSyFPahabqeTcA==
+# BTEPFw0yNjAzMDkwNDA5MjdaMC8GCSqGSIb3DQEJBDEiBCDJ0pYxmiQDVJstEQ25
+# XDlmVmmH+JOilUKY8hDK3w/75jANBgkqhkiG9w0BAQEFAASCAgAmVgqJffoJLrvO
+# wi11GiteOPdd61qHUfvIOZGIYtlOZh2mHW9h4rScu3TKzdqcXmiOMWOCtcirezQP
+# a/pC1fB7dQCVwjxU3sMPnJwwzJGIxa01snogmMuwDNZ83ZuMeSQreLO7lE1e2oTu
+# IAfxUx886Ff6Vx0kqj1QAMfqU6zI6zjUhdLHS/oCesFkJdqKB7t5pibstfAuofeh
+# zBg80tZOA9Yth+TLPX46CpHAS9suN1KJ93F2j7xgDCcL03bK8NjZ1ZIzf4c3VD0o
+# AZkUQT/RCSg18gVeT5Z1aCY7pljS4ufSnMNUPwRfBFpujABf149HkoBvlYcommhx
+# /lRyfETt7gLHi97iEVH+LCfoXKLSBxIaEPDyY4oYMcgnV/uqTA+908Zk4+8mNIm1
+# RYXO0G/ya0WNLRC+GKT/xsoW+i/H05auRBMvpMWMSE5dGfLRumosDEp9nFQ/4J+q
+# B4+PExsOYSy1xNG9r4/VapNkwZbwVI+oxf+3m2U/0DmERr5CoxRVUKhXfnGxi8FD
+# fwUEdbR08okBxd3qLz9tmt0t4BMuiey92TGGTFLhE9Z4DHHoSC1c5q7EfnJhCcc9
+# XFmK3BGH6wMbnAiu4GF0TBgFBZZQTRWFYth8hQCOUHxKJHBsONIAJjGM9KOJCF2Y
+# YCzJA8X9Gcz5sRr+Hywkx01VP4qRdQ==
 # SIG # End signature block
