@@ -1,44 +1,226 @@
 param(
+    [Parameter(Mandatory)]
     [string]$Payload
 )
 
+# ----------------------------
 # Decode payload
+# ----------------------------
 $json = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload))
 $data = $json | ConvertFrom-Json
 
-$FilePath = $data.FilePath
-$Arguments = $data.Arguments -join ' '
-$OutputPath = $data.OutputPath
+$FilePath = [string]$data.FilePath
+$ArgumentsArray = @($data.Arguments)              # should be string[]
+$OutputPath = [string]$data.OutputPath
+$RequiresElevation = [bool]($data.RequiresElevation)
+$TimeoutMinutes = if ($data.TimeoutMinutes) { [int]$data.TimeoutMinutes } else { 30 }
 
-"[META] WorkerStarted=$(Get-Date)" | Out-File $OutputPath -Append
+# normalize args into a single string (preserve your existing worker behavior)
+$Arguments = ($ArgumentsArray -join ' ')
 
-# Build process
-$psi = New-Object System.Diagnostics.ProcessStartInfo
-$psi.FileName = $FilePath
-$psi.Arguments = $Arguments
-$psi.UseShellExecute = $false
-$psi.CreateNoWindow = $true
+# ----------------------------
+# META logging helper
+# ----------------------------
+function Write-Meta {
+    param([string]$Line)
+    try { $Line | Out-File -LiteralPath $OutputPath -Append -Encoding UTF8 } catch {}
+}
 
-# ✨ No stdout/stderr redirection
-$psi.RedirectStandardOutput = $false
-$psi.RedirectStandardError = $false
+Write-Meta "[META] WorkerStarted=$(Get-Date -Format o)"
+Write-Meta "[META] RequiresElevation=$RequiresElevation"
+Write-Meta "[META] FilePath=$FilePath"
 
-$proc = New-Object System.Diagnostics.Process
-$proc.StartInfo = $psi
+# ----------------------------
+# Safety checks
+# ----------------------------
+if ([string]::IsNullOrWhiteSpace($FilePath)) {
+    Write-Meta "[META] ExitCode=1"
+    Write-Meta "[META] Error=FilePath was null/empty in payload"
+    Write-Meta "[META] WorkerFinished=$(Get-Date -Format o)"
+    exit 1
+}
+if ([string]::IsNullOrWhiteSpace($Payload)) {
+    Write-Meta "[META] ExitCode=1"
+    Write-Meta "[META] Error=Payload was empty."
+    Write-Meta "[META] WorkerFinished=$(Get-Date -Format o)"
+    exit 1
+}
 
-$proc.Start() | Out-Null
-$proc.WaitForExit()
+# ----------------------------
+# Admin test
+# ----------------------------
+function Test-IsAdmin {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $p = [Security.Principal.WindowsPrincipal]$id
+    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
 
-"[META] WorkerFinished=$(Get-Date)" | Out-File $OutputPath -Append
-"[META] ExitCode=$($proc.ExitCode)" | Out-File $OutputPath -Append
+# ----------------------------
+# Normal lane: run process directly (inherits token)
+# ----------------------------
+function Invoke-NormalProcess {
+    param(
+        [Parameter(Mandatory)][string]$Exe,
+        [Parameter(Mandatory)][string]$Args,
+        [int]$TimeoutMinutes = 30
+    )
 
-exit $proc.ExitCode
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $Exe
+    $psi.Arguments = $Args
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $false
+    $psi.RedirectStandardError = $false
+
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo = $psi
+
+    $null = $proc.Start()
+
+    if ($TimeoutMinutes -gt 0) {
+        $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
+        if (-not $proc.WaitForExit($timeoutMs)) {
+            try { $proc.Kill() } catch {}
+            return @{ ExitCode = -1; TimedOut = $true }
+        }
+    }
+    else {
+        $proc.WaitForExit()
+    }
+
+    return @{ ExitCode = $proc.ExitCode; TimedOut = $false }
+}
+
+# ----------------------------
+# Elevated lane: Scheduled Task as SYSTEM (Highest)
+# Works remotely over WSMan without UAC prompts.
+# ----------------------------
+function Invoke-ElevatedScheduledTask {
+    param(
+        [Parameter(Mandatory)][string]$Exe,
+        [Parameter(Mandatory)][string]$Args,
+        [int]$TimeoutMinutes = 30
+    )
+
+    $taskName = "TT_External_{0}" -f ([guid]::NewGuid().ToString("N"))
+
+    # Use the built-in ScheduledTasks module when available (Win 8+/Server 2012+)
+    # Fallback to schtasks.exe otherwise.
+    $useCmdlets = [bool](Get-Command -Name Register-ScheduledTask -ErrorAction SilentlyContinue)
+
+    $started = Get-Date
+    $deadline = $started.AddMinutes([Math]::Max(1, $TimeoutMinutes))
+
+    # We record exit code by writing it to a small file the worker can read.
+    $exitFile = Join-Path $env:TEMP ("{0}.exitcode" -f $taskName)
+
+    # Build a command that runs the exe, captures $LASTEXITCODE, writes it to exitFile.
+    # Use cmd.exe to avoid quoting edge cases between PowerShell/ScheduledTask.
+    $cmd = @"
+"$Exe" $Args
+set ec=%errorlevel%
+echo %ec%>"$exitFile"
+exit /b %ec%
+"@
+
+    $cmdFile = Join-Path $env:TEMP ("{0}.cmd" -f $taskName)
+    $cmd | Out-File -LiteralPath $cmdFile -Encoding ASCII -Force
+
+    try {
+        if ($useCmdlets) {
+            $action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$cmdFile`""
+            $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+            $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+
+            Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
+            Start-ScheduledTask -TaskName $taskName
+        }
+        else {
+            # schtasks fallback
+            # /RU SYSTEM + /RL HIGHEST, run once "now", then start it.
+            $time = (Get-Date).AddMinutes(1).ToString("HH:mm")
+            schtasks.exe /Create /TN $taskName /SC ONCE /ST $time /RU "SYSTEM" /RL HIGHEST /TR "cmd.exe /c `"$cmdFile`"" /F | Out-Null
+            schtasks.exe /Run /TN $taskName | Out-Null
+        }
+
+        # Poll for exitFile (task completion signal)
+        while ((Get-Date) -lt $deadline) {
+            if (Test-Path -LiteralPath $exitFile) { break }
+            Start-Sleep -Seconds 1
+        }
+
+        if (-not (Test-Path -LiteralPath $exitFile)) {
+            # timeout; try to stop task
+            try {
+                if ($useCmdlets) { Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null }
+                else { schtasks.exe /End /TN $taskName | Out-Null }
+            }
+            catch {}
+
+            return @{ ExitCode = -1; TimedOut = $true }
+        }
+
+        $exitCodeText = Get-Content -LiteralPath $exitFile -ErrorAction SilentlyContinue | Select-Object -First 1
+        $exitCode = 0
+        if (-not [int]::TryParse($exitCodeText, [ref]$exitCode)) { $exitCode = 1 }
+
+        return @{ ExitCode = $exitCode; TimedOut = $false }
+    }
+    finally {
+        # Cleanup task + temp files
+        try {
+            if ($useCmdlets) { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null }
+            else { schtasks.exe /Delete /TN $taskName /F | Out-Null }
+        }
+        catch {}
+
+        try { Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue } catch {}
+        try { Remove-Item -LiteralPath $exitFile -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
+
+# ----------------------------
+# Execute
+# ----------------------------
+$timedOut = $false
+$exitCode = 1
+
+try {
+    if ($RequiresElevation) {
+        # Local rule: if not admin, fail fast with a clear message.
+        if (-not (Test-IsAdmin)) {
+            $exitCode = 740  # common "requires elevation" style code (informational)
+            Write-Meta "[META] Error=Requires elevation. Run PowerShell as Administrator."
+        }
+        else {
+            $r = Invoke-ElevatedScheduledTask -Exe $FilePath -Args $Arguments -TimeoutMinutes $TimeoutMinutes
+            $exitCode = $r.ExitCode
+            $timedOut = $r.TimedOut
+        }
+    }
+    else {
+        $r = Invoke-NormalProcess -Exe $FilePath -Args $Arguments -TimeoutMinutes $TimeoutMinutes
+        $exitCode = $r.ExitCode
+        $timedOut = $r.TimedOut
+    }
+}
+catch {
+    $exitCode = 1
+    Write-Meta "[META] Error=$($_.Exception.Message)"
+}
+
+Write-Meta "[META] TimedOut=$timedOut"
+Write-Meta "[META] WorkerFinished=$(Get-Date -Format o)"
+Write-Meta "[META] ExitCode=$exitCode"
+
+exit $exitCode
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD9k3ukw4FAYU15
-# tapcxrm2iiXyEBVKURN1iwe3wP1XbKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBfF/2+P3neOpnt
+# Vtan2D/k4PPRx6AlpWKWzEK7FOhZMqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -171,34 +353,34 @@ exit $proc.ExitCode
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBf/1EvJTyD
-# js91315pFcVQ8qdmQHaGcMYH7YQvsjZ7pzANBgkqhkiG9w0BAQEFAASCAgBudkiy
-# fsvq5M+A950PJ2W7d8AihN/yTPe75zukSbaDZ/eLCXNElWlT5v71lA5JB1uNMVvc
-# xJr5jVybwPHeXfY9yxbAqv/opZ2D3I+GiFCvw54TbIUFEjGCLNBZ3hCImq9kBYPh
-# QMTON1DOHRLY73Ca8QIg5tbVTE10vEwhVLEAmKQtHIwlzf8w6HuTjVR0GLvv3ad+
-# g7nMtCiusmIKxTcB+BtbHVhL++tlUtK+I1mNWezSlavrEkWYWsxqWg7UkpT6lUa9
-# 992rJKbywxeS6OkHWD870K9NPUPd2romI9OgaPSCg12+BrZbYGmzJpvRmjUUSQtL
-# 5BSHzxQJrIw2M8nKsKyaZU1ZC9MKDz/jXCeHEIr7PLfE23ZomEj617AQP5H1MAaO
-# Yzh39UvgIGS2tx7+NWyZkGf42/adff3jOz3TOrYBSuHi/oC2h0hNmNEkJfzP5ahB
-# Fu1p5zLvY0pVvoMNytv8a2vxuiS6qWGlID3bgiy2OttmEGv2ebhg7DWbLgfHZGVy
-# DakLw7MO+r98Kf1hXMxP7dmC4mIdw0HLRAhzQWxjTla4rDNwn8QoL2+Z7QrgEOIH
-# 0v/3vs00Phlqc6jJkuHMc9qxcw4SuKvWpEpN+FpH6O/Go5MmDFVPVeX+xAPJLb7i
-# omwbJ4OKhmbiwUUyO08HyGBeSZNxd8nlM8AG9aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCVYwDDhthe
+# v9axzMYXx92/F7/Y+7jUhZaUeOIIdVJCUDANBgkqhkiG9w0BAQEFAASCAgBLYaps
+# T9GhvaujCJqbiR5BepSefirU2rQqlepPpnEwmKgKUC9un4nV9Dr1tYOE6F9PlhOf
+# pVTkkjkGTdWtKHrwqGtyMU8kumsVHe4BIDuLW+wTFW52UuZ03LLxGNC8Y8py7aCG
+# m+wm3CG6WEa48GBS+YZWPR1WUin9xUF0RAu6oLLW0kIOAXEvSYVoHiyslOmTFYOy
+# W7ZqBIJ20EkFtGfwalFq3e8N0kwly2q1zH2FFM09Ya+MQJoMkxXCxkAXIk7vhD3K
+# JVg47wqnUQ4hXQQawg2wMms8Rxas1rINy8Pnn41HBiUXVpq1vCU4AuKjwiImLGNR
+# q19/uvmLSHLT6XkxLfOHZdFTbe3GR5+a6HsPhjebIQgZYHBJ12XMycKBl1gJe9AD
+# WHJQA6SDkI5vEXuGgdOQi/jrcXJH+XguJQ7oa74gMvZOMYdLG9aD3X6Ft3g7m1ob
+# v750/ZgbErFcfAwVYaXn3HKVAbwzGuqdOorjntoj/RemLZWaQS5OpBhhnW+4qtPg
+# 37m3T/F0E9IIVfJcyoh+KgbhbvEkIHofNXAC84faB6NhHXXkH+AZjD4YFQYugILq
+# mi82A7mWp9465Vw5Njnqae3aNpDmLVfSGohrvHH4V1ChM1KSnvB3Y3DRVaUZMofS
+# jNx0F7+AIuXb/2QIhRyoG3mflciLXVrHZfjIv6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkwNDA5MjdaMC8GCSqGSIb3DQEJBDEiBCDJ0pYxmiQDVJstEQ25
-# XDlmVmmH+JOilUKY8hDK3w/75jANBgkqhkiG9w0BAQEFAASCAgAmVgqJffoJLrvO
-# wi11GiteOPdd61qHUfvIOZGIYtlOZh2mHW9h4rScu3TKzdqcXmiOMWOCtcirezQP
-# a/pC1fB7dQCVwjxU3sMPnJwwzJGIxa01snogmMuwDNZ83ZuMeSQreLO7lE1e2oTu
-# IAfxUx886Ff6Vx0kqj1QAMfqU6zI6zjUhdLHS/oCesFkJdqKB7t5pibstfAuofeh
-# zBg80tZOA9Yth+TLPX46CpHAS9suN1KJ93F2j7xgDCcL03bK8NjZ1ZIzf4c3VD0o
-# AZkUQT/RCSg18gVeT5Z1aCY7pljS4ufSnMNUPwRfBFpujABf149HkoBvlYcommhx
-# /lRyfETt7gLHi97iEVH+LCfoXKLSBxIaEPDyY4oYMcgnV/uqTA+908Zk4+8mNIm1
-# RYXO0G/ya0WNLRC+GKT/xsoW+i/H05auRBMvpMWMSE5dGfLRumosDEp9nFQ/4J+q
-# B4+PExsOYSy1xNG9r4/VapNkwZbwVI+oxf+3m2U/0DmERr5CoxRVUKhXfnGxi8FD
-# fwUEdbR08okBxd3qLz9tmt0t4BMuiey92TGGTFLhE9Z4DHHoSC1c5q7EfnJhCcc9
-# XFmK3BGH6wMbnAiu4GF0TBgFBZZQTRWFYth8hQCOUHxKJHBsONIAJjGM9KOJCF2Y
-# YCzJA8X9Gcz5sRr+Hywkx01VP4qRdQ==
+# BTEPFw0yNjAzMDkxNzI3MzdaMC8GCSqGSIb3DQEJBDEiBCAIM4BtSqrVQC3vlo5B
+# C0peFXDRR0JiL9wXsxt1v1TFUzANBgkqhkiG9w0BAQEFAASCAgB94cXwzZb0Virc
+# W3M1RE4NsOSOYB9YzIRQYh5q/cygjmsMXEKEChrb4YdBmQ1vunLrgSYI9tJU/pl4
+# SUQ42RBsdIHBNNR+m7R4WInyOuSXZClyZsPcMNWyhmzk7hIguzG/uRbyRy1J80SA
+# l7tAR9NBA0EDlYVjHK71S+MWbp7kPmCrNLmmUSj+RNRmDwgondsrnMsM79poUA6F
+# L0W9RPCsdmQOvky1J7ip4G/+wU/Tfhh2dR7cr1SFSJi0nH5dWtnW2R7Wcd2hHhH6
+# HWzkhxtOBL3DpcdfsnIA/SiIm6ivG8yC0K3F0dKgAoRq39wDEjFx4WB9jes6VzDv
+# 34C9vr60bf8DNmncTAgAFHAQVmBlg1R1OvyIEM6WR63fmcfuNI51856n2YVYLm/z
+# Vr13/8oCuWMeZNeJA9K1ro/okX6Pffo4wlxquua05tdwC/6vTGGcImgPkj4eInUr
+# gjUAEGC0gf2PYmHXJnV9VHyq6GrjjcXK3MB14PD/YD/zg/n1yzKi60JD3fkxVGum
+# o2db3byZMoPq731a/e6GxFaVmhl4GR2VYGrORJt53I0G4wruxE56Wp21B9E23EPE
+# 0ik1tmoOnuxb6xwiliomghIIFMtQNHX3b82wTnS6PDzAYhIJy07x9CgSFyq1zdwb
+# 1EjKTjUy3kr00h72bJvjAKKkMDb39A==
 # SIG # End signature block

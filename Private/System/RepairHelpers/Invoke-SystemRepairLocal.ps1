@@ -8,8 +8,7 @@ function Invoke-SystemRepairLocal {
         [switch]$ResetUpdateComponents
     )
 
-    Initialize-TechToolboxRuntime
-
+    $system32 = "$env:SystemRoot\System32"
     $results = [ordered]@{
         ComputerName          = $env:COMPUTERNAME
         StartedAt             = Get-Date
@@ -22,6 +21,11 @@ function Invoke-SystemRepairLocal {
         DurationSeconds       = $null
     }
 
+    # If any privileged operations were requested, require elevation once (local mode)
+    if (($RestoreHealth -or $StartComponentCleanup -or $ResetBase -or $SfcScannow -or $ResetUpdateComponents) -and -not (Test-TTIsAdmin)) {
+        throw "Invoke-SystemRepairLocal: This operation requires an elevated PowerShell session. Run PowerShell as Administrator."
+    }
+
     # --- DISM helper ---
     function Invoke-Dism {
         param([string[]]$DismArgs, [string]$Tag)
@@ -31,20 +35,22 @@ function Invoke-SystemRepairLocal {
         }
 
         Invoke-ExternalCommand `
-            -FilePath "dism.exe" `
+            -FilePath "$system32\dism.exe" `
             -Arguments $DismArgs `
             -TimeoutMinutes 60 `
             -Tag $Tag `
+            -RequiresElevation `
             -ShowProgress
     }
 
     # --- SFC helper ---
     function Invoke-Sfc {
         Invoke-ExternalCommand `
-            -FilePath "sfc.exe" `
+            -FilePath "$system32\sfc.exe" `
             -Arguments @("/scannow") `
             -TimeoutMinutes 60 `
             -Tag "SFC" `
+            -RequiresElevation `
             -ShowProgress
     }
 
@@ -105,8 +111,8 @@ function Invoke-SystemRepairLocal {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAjvjoY0Y7FxE7w
-# vO56jCGOTKF2QWrFZtawbdAxj+UlhKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAoUU5ViqFKeOsn
+# vi7QDK82MTxKW1O05pshC7NcdPCrhaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -239,34 +245,34 @@ function Invoke-SystemRepairLocal {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCxqSD9Ulc9
-# a5zQSd7G83qhHJqMp5B7bb0nKLeZ+ZpSlzANBgkqhkiG9w0BAQEFAASCAgB2iCw/
-# HPyoMijAbHRVK9eomD/Wfi1qD+E7k4raKBFRiWAqlO7V87ktUU36UJhUM1cKNfqw
-# B/olpOmm5j5OZmIqTH32R5lEB/YCvyXsKOI83gwac/PwYYbwQjqOtI+xel11NHw7
-# +mfbAAHAXWZq5cxO6R5w6EmkMV/cgVisymv5FMO1M17e5N+5Wk74f14hkhAYGSwx
-# Vk/WBT0WReV+48BPA0ACerBcE9sU3z+q+XiqnS7d0cpUxwXitiwDkFcTmb21pyWD
-# DaE8wOy0DRWKnBF5KFgn8IG9+YNtq91hN2+uFZBYDHV4JCMgEM4LiDWZl1bE8+WB
-# 5bLpDc7PepcZ3tCbKCjDCuocZ6gPbmGH8vTMrxMGYc1Ie7ziPF+KzTfKN6ngGQ9c
-# 3eBApHnFI6USL6/6PLJ1AEe/F/nGlS+aMUe8NyYsTaeu3kmlVNwZ6JB43hlEKrh6
-# 2NVYq28F/D3lW3Ul3MihfKOCy8AF0rmBn7de42E8BY8+Wulm2aDYctaMJmSgMYqx
-# pmI2MPC/RAbigpdke8c4SX5dpZRGHyOeCX6YvcPpQregs2XxTv5maB2Rp6npQ+xG
-# j/WucnHtEg2DjDtKRQtpR9eUJ8OSSxnRFJID3oE3dBblQ5Q/MP7WJzPHDBUvEXAp
-# RGNAPZb9cGUF+AimL3i8AMDV9fetxCbVeXxy56GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBvqZ8ks290
+# 1qtvH4eF13LQqfA61k5ezKUKIrE5d5Wo3TANBgkqhkiG9w0BAQEFAASCAgBYLBds
+# LMPeImFYe6jmaYGAMh6b+QMmMHkx8g6La4IJ6JeZYj0d7AuPjl4LDLVN0NiUVKEh
+# mtDtIAiWaQrxZ9pCoZAvUVvVH6kZmf5l+LEKpwnMx53dULKcerDztO9mFnnAYQmy
+# TmCj/ZnCxldBf5xMvpz32fAC5OWIkX+YFG3CRdMo8Sya8nRKaLpkh0wcc8jEp/dY
+# cJlAmzD3L8io1daCinTHdJgWXdKxLd26q1PsiAUoL7lvUP+oC8h9NY1BR3Lz4rgY
+# vJzxqCpDBY4qY4+0Z5plwwm5VudH3TqStmmjt51mgSKTvTSnE48tzRRD1OgOM1jG
+# cTZWF8fmSj3hYE3EY7FUH4zNfJfLKmO13phdOIbUCeLT889cvHwgbvOHUvaXpOcl
+# uPNgsaVKiN/ASNb7LpkYvw4CVn/lGZe5jvFwMk5Ey8ZTFnIkfFtSHteUHMaAsTen
+# d/Hmz3F4g+GHOwEXTBc3GkZSmwy34jv1R4gXqGM+4HDVNAX+rYpHynzhDP9VOXGN
+# 2CzhR2qO3lLob5hnWVQ+DiBAFuHUeJJ2Q/RzWVAmoXB4KNMXXAs1M41NE9cH3BHM
+# 3EDdgMdMeZPeWsp+BJW0XJEzHxBHGmW23KA27Z240PPEKJok+cLrKAjxiKYUvJ7L
+# gV6KiLiJ0s5zKTxtdEu+GaFkjXhfb8f5RvYOyqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDgxNjI1MzVaMC8GCSqGSIb3DQEJBDEiBCCOXYDAh2U9Y4cVxPQX
-# 1EE+Zs/KU8Oa5P9M42x2BhT8NTANBgkqhkiG9w0BAQEFAASCAgBTyfTEer9NrIgJ
-# 7lKtiQ/h+lMy98CjpxLtbHR8uuvNURqMEt/LjCq7Bmwob/5ihQsAm9GlI/qUBTlM
-# eiNxEOlfFm+WJ7p7SnQgS8qfLxHsF1mf19aPsDcib72eXEVg7sAe0TZKgrxBJPxS
-# RihxzAZNnQ2t34EAbV7XHC8oYxpmCyqiPJAmv7rAJuotybHZExhw7uFUPLLWZeQX
-# NDweKWQh8pUsyvazeTRzVUsDpJ7O0u6dc5Q/MOJunnLP/HzlBhwf18QBG4ctsIkE
-# rHtv58LJs2/UfP75p3Rlccp7to4yhQk+V6sRYHfrouq6F6V2eJUmoPC9Wr3F6+rG
-# R6GECHGUjXHNOjXIWJLRfsfAvZwjZGlp2tsK7oMQS8mItzpG8+9ygRzMLFb7TPMD
-# N4F9m711LfGNbHaQXqSlDqbSEAO1sX4pOYD1YjbaTF/HN9p6jbqrCQsc3mMAYzeg
-# +uPebowjWynruLcIqW1je0WrNKLhE4YEx7zUTyKzeF+GAMWX59qA0BOvTNPgEBtO
-# mQP0+mkOj6LkC4z1Xt0/eRs8+sulbHA3MZZdtnxFhlz+uLfNbqkoqTw9FkYk5sJE
-# s6zrL9qGsB6vkEKd4HMh7GkBXv5wCU+oiS3mM5k8n6GPW9WIQWl+yOp5Qqx0gsSf
-# usYBrIMXPlgTLW69j4+tPYs5nECMGg==
+# BTEPFw0yNjAzMDkyMTA0MzVaMC8GCSqGSIb3DQEJBDEiBCC0r1WGQT0F8PgdZgJN
+# tjPNAvU4BB6RC7H/MkPL3Be/VDANBgkqhkiG9w0BAQEFAASCAgAzn1VCIcQ2XjOG
+# dQAZHboKmc+E44IenmTGR8IjPqOnJoaY9Eek3pO6mz3zY9ucr1lhMWGC9XRzHyeT
+# oO7XJ1yl1heZ3urGIOP5nkw5E6hBZEkdu8H8S3o6U8kzG5/iPfiueJqNljCesq7T
+# Cd1aqDp5EcnSn49eg3IZhvSkOh0ot+oIFT/auJlyF548NUnAMQBil65MFdE2j1Iw
+# c70FRbJkWrP+Ry3HOFP7zPW9aDec1RkKl/LvDbUbieuD1N3I7HVqyj06GimVhc+F
+# sg5KCH5UCHRvSGYBdbZy2APen6BcgeW0VN6KytHkHdiBu3YoheBHAwT71A6b2xW5
+# JqXyymrXdfn2qO/Pe/mZuCMyMra1iY7NJ7ELIPA4gYl5Mo864SsE1qEpkWsfGbPd
+# XdkToY/ETw8Kx4ldEbq/Dq1E+9RMNlev76yv9vm4/k2RLs3U9mPdrjIVUT8+iYoW
+# HJznW7XlM2YAXk9Hq39sa5OrgAZ6QQ+C55OMq2EIQaRIXXovw/KbHuZyZ45wlI1k
+# sy6wUYrH2N8OeO7xg1Mn0QoQNgfyy/pPaUzSTe2Rh3Tg3KZ75yxaWGmKuW9E1KXa
+# njx09h7tzXCNY3wDYVVKAB6o7Z5InxQaLIL241vMTltQSycVZTrzjF97XH3w0Abg
+# sSJG9n5FMfcP9bIIBDYfZ5eIe4IVKA==
 # SIG # End signature block

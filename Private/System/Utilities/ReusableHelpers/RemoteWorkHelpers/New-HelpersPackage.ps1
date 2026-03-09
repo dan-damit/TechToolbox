@@ -1,33 +1,113 @@
 function New-HelpersPackage {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Legacy')]
     param(
-        [Parameter()]
+        # Legacy mode: one list; we auto-split by *.Worker.ps1
+        [Parameter(ParameterSetName = 'Legacy')]
         [AllowNull()]
         [AllowEmptyCollection()]
-        [string[]] $HelperFiles = @()
+        [string[]] $HelperFiles = @(),
+
+        # Preferred mode: explicit split
+        [Parameter(ParameterSetName = 'Split', Mandatory)]
+        [AllowEmptyCollection()]
+        [string[]] $HelperLibs = @(),
+
+        [Parameter(ParameterSetName = 'Split')]
+        [AllowEmptyCollection()]
+        [string[]] $WorkerFiles = @()
     )
 
-    # If no helpers, return a "no package" object consistently
-    if (-not $HelperFiles -or $HelperFiles.Count -eq 0) {
-        return [pscustomobject]@{
-            ZipPath     = $null
-            ZipHash     = $null
-            HelperCount = 0
+    # Normalize input lists
+    if ($PSCmdlet.ParameterSetName -eq 'Legacy') {
+        $all = @($HelperFiles)
+
+        # If no helpers, return a "no package" object consistently
+        if (-not $all -or $all.Count -eq 0) {
+            return [pscustomobject]@{
+                ZipPath     = $null
+                ZipHash     = $null
+                HelperCount = 0
+                WorkerCount = 0
+            }
+        }
+
+        $HelperLibs = @()
+        $WorkerFiles = @()
+
+        foreach ($f in $all) {
+            if ([string]::IsNullOrWhiteSpace($f)) { continue }
+            if ($f -match '\.Worker\.ps1$') { $WorkerFiles += $f }
+            else { $HelperLibs += $f }
+        }
+    }
+    else {
+        # Split mode: use explicit lists
+        $HelperLibs = @($HelperLibs)
+        $WorkerFiles = @($WorkerFiles)
+
+        if (($HelperLibs.Count + $WorkerFiles.Count) -eq 0) {
+            return [pscustomobject]@{
+                ZipPath     = $null
+                ZipHash     = $null
+                HelperCount = 0
+                WorkerCount = 0
+            }
+        }
+    }
+
+    # Validate paths
+    foreach ($f in @($HelperLibs + $WorkerFiles)) {
+        if (-not (Test-Path -LiteralPath $f)) {
+            throw "Package file not found: $f"
         }
     }
 
     # Make a temp staging folder and zip path
-    $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_Helpers_{0}" -f ([guid]::NewGuid()))
-    New-Item -ItemType Directory -Path $tmpRoot -Force | Out-Null
-    try {
-        foreach ($f in $HelperFiles) {
-            if (-not (Test-Path -LiteralPath $f)) {
-                throw "Helper file not found: $f"
+    $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_Package_{0}" -f ([guid]::NewGuid()))
+    $helpersDir = Join-Path $tmpRoot 'helpers'
+    $workersDir = Join-Path $tmpRoot 'workers'
+
+    New-Item -ItemType Directory -Path $helpersDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $workersDir -Force | Out-Null
+
+    # Prevent collisions (two files with same leaf name in same bucket)
+    function Assert-NoLeafCollisions {
+        param(
+            [Parameter(Mandatory)][string[]]$Files,
+            [Parameter(Mandatory)][string]$BucketName
+        )
+
+        $dupes =
+        $Files |
+        Group-Object { [System.IO.Path]::GetFileName($_) } |
+        Where-Object Count -GT 1
+
+        if ($dupes) {
+            $msg = $dupes | ForEach-Object {
+                "Duplicate leaf name in $BucketName bucket: '$($_.Name)' from:`n - " + ($_.Group -join "`n - ")
             }
-            Copy-Item -LiteralPath $f -Destination $tmpRoot -Force
+            throw ($msg -join "`n`n")
+        }
+    }
+
+    Assert-NoLeafCollisions -Files $HelperLibs -BucketName 'helpers'
+    Assert-NoLeafCollisions -Files $WorkerFiles -BucketName 'workers'
+
+    try {
+        # Copy helpers (libraries)
+        foreach ($f in $HelperLibs) {
+            $dest = Join-Path $helpersDir ([System.IO.Path]::GetFileName($f))
+            Copy-Item -LiteralPath $f -Destination $dest -Force
         }
 
-        $zipPath = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_Helpers_{0}.zip" -f ([guid]::NewGuid()))
+        # Copy workers (entry scripts)
+        foreach ($f in $WorkerFiles) {
+            $dest = Join-Path $workersDir ([System.IO.Path]::GetFileName($f))
+            Copy-Item -LiteralPath $f -Destination $dest -Force
+        }
+
+        # Zip it
+        $zipPath = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_Package_{0}.zip" -f ([guid]::NewGuid()))
         if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
 
         Compress-Archive -Path (Join-Path $tmpRoot '*') -DestinationPath $zipPath -Force
@@ -36,7 +116,8 @@ function New-HelpersPackage {
         [pscustomobject]@{
             ZipPath     = $zipPath
             ZipHash     = $zipHash
-            HelperCount = $HelperFiles.Count
+            HelperCount = $HelperLibs.Count
+            WorkerCount = $WorkerFiles.Count
         }
     }
     finally {
@@ -49,8 +130,8 @@ function New-HelpersPackage {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCtakEUbIoVcrVD
-# Uv9mGk2OxGBPi6X3uGzgF/MOj/PDAaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBocQg/bdOvwnmI
+# KjPAqNs0DUzJxei9sXxEh7jF8Q+8tqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -183,34 +264,34 @@ function New-HelpersPackage {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBuEizVTBQc
-# U0n8ScxfGsjGwL3eF60tZ/Jr4xy3R4KXFjANBgkqhkiG9w0BAQEFAASCAgDRglo6
-# dChIULaSCKWN2K4ILvD4wf+pjh3sGYd5ntxW1G2MY9HorSw3leNAMqSdiqvGc6Sf
-# v0X4jsS+6NNiqS8abtQvIhN9rS0MnB2BZqglyGGsD4Gzc8W+mcMyJ/Xb1ioOrbfh
-# roPiyIChYou8i8OXMf7dna0sF5wAH4B7Uw7IXtHEKvZDsMWnhOQBUfd/teCZka/N
-# B1zYQZw4xVh6+CP9zMufEjmzKPCWpyjEr1kycx0DFtlLYoHr7D5LOsid1IB4cjQD
-# J5aiUGa9+xW1t2qpe8r3JAisM3HU8VoaN+REjdqOnahHtJBV9t/ettE5VpgsHbX1
-# IOPwssCQGw5SXPIHGGNZxyVHU13L7BYcHPddrlhTPKf2cWdUqFjPgmqgoihHvPPQ
-# oA2tl3jFZaWenxJOadk1PgLud+uM8UwX8JqlLAi4LsT5xWKVTpQMvIyNF2xxuAG9
-# 1jG1r/+NlvlJzUJryelSw/MbdPc6Ik24zh+nbV0ZT+FvryoYvNGugfMR4V/Bl4WM
-# zQfMFoD2/XHtzjeIqtsR90dQaWJuoNNvrfrmevwSgPKWLCRJKUNSfP5/J5cw0wL4
-# BWqvrDIS10cZXQ/SpQmQPJ8hEKLyVdbD1eAz7kstBnzY46MFQ87ut5u8qXaf+iX2
-# +uuj7lPBR77X3JJq/vUKuMvfKsWZpjqF5uje5KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDVKE896J8E
+# 0mgr3qUZg2pDQ4Hysazuia/KAqnucqrZfDANBgkqhkiG9w0BAQEFAASCAgBABwJG
+# xpeolxbFtEvMn8sFhJI3Aa2esA9MPz4xwbGKYHsraRUkMzRFNsYXy95cT8/bDPxN
+# 6XeVPJHr/T15ap/93XX3YgjQDGgdMorcpXfZL++3uVsV/rFiRv8mswZDFNUopglA
+# BV7Wbu5bLyFJiVXZIZaHHm9shpirp5XXQcC8VmsoRMi8jSGsT9BsT+T84do8+gbI
+# oAxnl7T9n0/80swPQo3/DpC0u/4hf24SpvEcTN+qoM/nKhTSZZaPlKcr7V/dXU94
+# 94ikOTrq8vRPLsA2k6507y9783yLK2uECZRy1zaD4UJT8oDKmutk2a7waxW0b4cK
+# r/4458OU6pswmhGzmU/zS2WVY23c6iyOo/TRte8LvrwSdnKC6OXOd2C1yBlsMj+C
+# yZ0DYYOfd6HS/rGmlBtXNF/DfIPujdIcnGRQMnhIiLU4jhB25u9hGp7T5zqDEfRf
+# DomkoIuPtKnerCV05lQYfrdVbx5gUdrxfM3OiMwmto6pAGLcAEssQxpdjW7eXI8w
+# 0ZqTiggdYlnnAs4MvuNCefBY3thAyMvJ/Aa+1JHqwNyhhBU7z6KI2oIZkF5isaJ+
+# Ho+VQRgYnh0ztJ/jRXcPF+Vfqe1MeID418kD3vmVNOHbiDCBEZg39M8NsnZ/hNWz
+# CCOv4e6XnRkyhKoq1mzwq4cG51R8JNYRh799hqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDIxNjU1MDRaMC8GCSqGSIb3DQEJBDEiBCBn2U+YT4WxSwBynNnn
-# 35llorg0WgAJltM1Z6myh0D1DDANBgkqhkiG9w0BAQEFAASCAgCTG+Iw0/Xy4b+x
-# Ft8K1Q0Xq81+pzGgcFulVNxGtOEEBauGdGMgwBbuz2Kf/7V2Q1veeGzZBDnEF9vZ
-# HWBkxA/g7eNrYCoLm5+qRPP294agvuSdSgaybRDs3LKw5mLwwSDp+p8OnngZ19Ke
-# YCAPp5+eZaM2D6/TjWsn5rW5bIiRnBoa8SPrxaQga7h+IvQPcugC5iBryjjf8mq/
-# 1iUTo4fodAUrZZXhAEbxELPO5SD5BZA51UNVogofBR9nas4JxBDRXgkA3jzdPxzh
-# 2Z/nCM0Sd5I2hcO57Y7Ew3rU1izyhVKCkNcyOvf8OxCTV96Mzc6KiifETQJj5gXQ
-# kb1zEwa1HjaFnqSj3o3ehPv6tRUizd7BNORRCt+CSlZ+0Q1jRGEzCiGbKifqs+Wu
-# 2Q9V+/fF2xMNOVggrXz49Qnim5YsK6kWtrp9zeQS6SjsvS5FNPwx/+Gg6B6t2+H0
-# 65tbKDrtFuBPpoE8ydfPwtdmMeDyZpU8Jrs9uP+68jGUmLslXOIdaZkqpS0LoH2c
-# rSnXMytaAxUrGBsJPbS2WVuRxa6C6n9/FDhb6ttIiBoITcT+qj7PjFTG2UJIY0Nv
-# 1Z0NitopuMh6jiOnsCGABfeIvX0s/fOpWbGjS61Ig+8wVzU1aO3zIYYoQMQN8zJN
-# UGB6emUYORgCpGzkLyAyUqXYjH1BtA==
+# BTEPFw0yNjAzMDkxOTM3MDlaMC8GCSqGSIb3DQEJBDEiBCAA00UA+QBk5Urb24g/
+# vHr2PF4/LIGMXE5V9ERSftaAHDANBgkqhkiG9w0BAQEFAASCAgAgNxH9bECfqa+/
+# eXKT7WeeaaOcmL4bm9blvzqNp+9+gteER1oifXd0u0xWbTXX94D7r3dKI8rjlLzF
+# awDyojtZZI/lU274wLfU3SednuIz9stPfAa/K6YNh5uY+LFgxiuJNOEGqpO4Y2ny
+# 2NlvOLkuuYJ7Xa0q8bVAPniYqhU0WKioAWsekv4bPBnTuvRO2hngcD90rkFDtEMO
+# XNxLHEqRZ0B9RZPkWyn1MLhZycoriGBRAoNjBUxPM5YzZ7PYDq9MnMJMNPMBt0bK
+# nUO/fvgoWu7vRwmhz9zrr5A8fLE8dRO12fOJC1NfswQxMzuNNMv0NyZZ4k+jwKwH
+# F4TFMaqPAZSFaChmZ9zjYSx56UiYQou0JqWcr8a8pnHJQMt+Tkz0w2Y9+HhkHjyG
+# DiM3m9zxlH3KfKv5zPfDWTnxbVO2s80pwAoTq/H8Su13LupuC6RhfeDmkXO4qhep
+# kY65fd1mJ96DeBVGKX31y+xf93EzdfzzbVEW/qOwpp0jrMDEXFDL9klrqwNpUq5P
+# Nu8r29s3GumyJdbEMzgZkFTdeq5f8ndNP8o410KavpYsiW87C5+ce09QDNa9SKdF
+# 7zKs07IosSurHkAHkdFuYbMO/Ini9CU5nAKFxflVQD8XEvjoqNxIAxZGdg+Qo1F/
+# 1QPkumZDovg8DmH0WwM+fQNCBjJ82A==
 # SIG # End signature block

@@ -1,18 +1,72 @@
 function Assert-Elevated {
-    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
+    [CmdletBinding()]
+    param(
+        # Optional: pass the script path explicitly (defaults to $PSCommandPath)
+        [string]$ScriptPath = $PSCommandPath,
+
+        # Optional: pass original args if you're calling from a script entry point
+        [string[]]$ScriptArgs = $args,
+
+        # Prevent relaunch loops
+        [switch]$NoRelaunch
+    )
+
+    $isAdmin = ([Security.Principal.WindowsPrincipal] `
+            [Security.Principal.WindowsIdentity]::GetCurrent()
     ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-not $isAdmin) {
-        Write-Host "Re-launching elevated..."
-        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-        exit
+
+    if ($isAdmin) { return }
+
+    if ($NoRelaunch) {
+        throw "This command requires elevation. Re-run in an elevated PowerShell session."
     }
+
+    # If we don’t know the script path, we can’t reliably relaunch
+    if ([string]::IsNullOrWhiteSpace($ScriptPath) -or -not (Test-Path -LiteralPath $ScriptPath)) {
+        throw "Elevation required, but script path could not be determined for relaunch."
+    }
+
+    # Loop guard: if we already attempted relaunch once, bail out
+    if ($env:TTX_ELEVATE_ONCE -eq '1') {
+        throw "Elevation required, but relaunch did not result in an elevated session."
+    }
+
+    $env:TTX_ELEVATE_ONCE = '1'
+
+    # Choose current engine (pwsh if running PS7+, otherwise powershell.exe)
+    $exe =
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        Join-Path $PSHOME 'pwsh.exe'
+    }
+    else {
+        Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    }
+
+    # Rebuild argument list (preserve script args)
+    # Note: use -File for scripts; add -ExecutionPolicy Bypass for WinPS if you want
+    $argList = @('-NoProfile')
+
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
+        $argList += @('-ExecutionPolicy', 'Bypass')
+    }
+
+    $argList += @('-File', "`"$ScriptPath`"")
+
+    if ($ScriptArgs) {
+        # Preserve original arguments
+        $argList += $ScriptArgs
+    }
+
+    Write-Host "Re-launching elevated..." -ForegroundColor Yellow
+    Start-Process -FilePath $exe -ArgumentList $argList -Verb RunAs | Out-Null
+    exit
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD7H/XLlT2ajOW9
-# XEcc81iEcASJTxGt38xwW3TRo1BOjKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDcvbMWAwM6XWuA
+# Gw041WxCC2hBy5N4tucLZ0wNtqnGCKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -145,34 +199,34 @@ function Assert-Elevated {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCypRgEccLS
-# RQS7pNlw/D6Mpl2bf/GN7+hHHRNlqFGi0jANBgkqhkiG9w0BAQEFAASCAgAcrCir
-# tWiglJMs7p7HTJhe8PnIveZlJMfVZBnE+Jc9pMRECoNo/iDUvCL2fhaeQpSoRB3M
-# eqWeA6PIg6BRn2offN+ETkdTWt/brocZq9/HR5To6ySWww4ER2vcdXFHkUFFmU3j
-# uJq8Bd9M6lyUD0OXIDij1wN6jYhCgzabkUTk95bbD5N8QKGF+vbvwU7SC8BfTDVc
-# szkR6CKMSaOq0SMjpyXmZx7sUcpbzqZPnKjHZb5pbPp7i1Cm9YNjraR7UBflBze2
-# 4jmDgR3ncQhf/j6qFIX1t7dOGGMXPC6GiQ0fTggU9OAFVeCMqHLJIvdm+Qm1KRZi
-# 4TWo5FrWscjpsS/3VFaf+dKy53oZqvl8WRhBBeNCDGkats4aTLjJ/W7cqxlhOzsN
-# t2bTzDBFdIf8vUnznUYbJ8Kqo6Rp76Muagcw78SnicFdgoALc0lpiwfEEIq09okE
-# O7JzuZHKH3S6BqaiJQVCAjyDxMZHS5h5Arym99P+E61kCdwW4tiiYLIvVTtEG34H
-# rS30zWs/1wzJUud2Op63OcNVyUY7AWtLaKXSqApnPJYoNBl6W+LfOIm6Kw64Rwax
-# So9ALHDr/VmZxKp1AFzQDHutDV3ovvRuTo3V3q2ijDxwshoFIEzt/wxTkY57Gk9d
-# ZtKLaucoz4RTUfbVZzqcvIxiUZ7TZ3SM5RCygqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDJQOnzJ5+h
+# pe26kc8tZcKjuohZwPhUK6R8Jzqw6MzbODANBgkqhkiG9w0BAQEFAASCAgA0D/t+
+# 7lTjjYgNKCWoKcMxE3PDbttpJZy9j484+ufvLA9x2/yyWbuub3LPRc1r08D70yyT
+# sN4tWpG1RvtIfr1JavvB7p23DPVBLGvbwizimuD+haCrSXtJtpQHNUuHDkp29x7d
+# EOdYv71JVBwfEqB0gmBu0ElpHOfzQ78SK1UgFu8IWfTz99jE3fNuka7NgbkocFFz
+# w1zqJd4bL2/KSDrjT8+EgYROFP0VdBZ7EItXKGwBZYDb6+h/6wNrBW2c0NONS9/U
+# I9HZP4/SVrkKZYZgsEsRq+IQTJnJB3a5KNH5TaE/8gkICrzSzocAf8oIxRlMHFO9
+# eSRvpxGDyE1f20Coj20lR4B7UJGV/qTmUAO0i92mgiH/nwxWDsMVLDfnZq7NsuSK
+# hDGSNDYtAYmgmJgV9zqcIhIe3KX42DxTni6myBz8EdRQ29xiGwoNA/qgxBT+6Ujz
+# 2tqjJ8JJNqB9X6u1kHjJpOvuSbJiEEgOV/mXGKl/TvynpXsVJYm1+Rwgz/wHdpio
+# Sz4whzK7pFGiAUOngn4kkBTZlDvA2nfVX+34aMn2Z/ryFJybeoJRCbpNDd2IUT6r
+# A+3K5c/Iz9rszXBMOjR0D/tcXxvqo/V5LwPhOwjkUj3/Tgc1cuoX36Sujj5dpkhf
+# Bu8BxaZwIptKfFPUuXDd/Ihap6LCWpR561bto6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTMxNjIwNTJaMC8GCSqGSIb3DQEJBDEiBCBvYI2Lb9M673V1D/F3
-# hIkB89jl4U53QJoAieU4IWN0fDANBgkqhkiG9w0BAQEFAASCAgBh+RPYdcBkFgnb
-# u/Auaue+EmLA6rFDaCRlv7KW21TyTWHY5TiM91FWvcsZkJihJGGm13lSTbHarz2I
-# +EIUd69SG3J5TQN0wJexiJqcoM72Kbmn6N4Sdk9bErZRSLJyfFuRNKOdEgbcb90k
-# R83W/GwK1+ycrcTtShbkB6HUpCOGfbXfI9jI+VgJ+Vq2U8AkAa7RMhX1YfGpiqVs
-# y32irYeu6/x6WL5OOBcA665zb5EPgoQL+iuSnUEwuTMYBKFpk4GF72QlMybHxIrW
-# HZjPCHomRwpApZcd0vvCI2MojFNmiONUmi4uElP48LAaC3ukfdj7bakfvWgSQ0lE
-# gy3dnfcHwGmTVgfSJwHEnHwMI3YZlG4MDd1sJIn7Vpw3I/B0v8ojZO4p523O4Gkf
-# dRzs//h6DOicjPnth62WfXiodMiPxMxL8gE6/tGuD8VqHrvXSFumNlvQYYV9LWlZ
-# d1syG5+ptAz3RzU1T1J6aVjC+9glJmEnTevcD8g6XnxFh5fLh7A+vjEc1VWSGd0o
-# tPybNNld+eaKMFBXF9QjGpoXiEZHc1X1czsDkxLzk0c9fNPcgoii3H84y7uPCOvR
-# 84VerEVoNurVVt+VuIVihxJaJunX4E7/35RRSZvnwFIqo9k8Y4JZzkcz5gS/PSaN
-# cDQjpThY+Jbnaa3S6TSSgpvPChXcow==
+# BTEPFw0yNjAzMDkyMTA0MzZaMC8GCSqGSIb3DQEJBDEiBCBBcQhp/bTzfHfyV6R+
+# jIR2cEQFZKVgsW8gOZJVCFrIqzANBgkqhkiG9w0BAQEFAASCAgC15nRrnCrgrj0z
+# Yk9MtEy5hWtjMn4IL7dyuixyxCOx+KPvniHnZUo0HtD3hzBXgv6w14qzya7JOaTs
+# Q9erLfsPfeRMVnlz3gtgojmSjt2oT8hvx8mb+fT+VN75oCvLJ1hDvfov/Bww/tA7
+# fyV3SG5uOwWpXgK2XX6GhEAXvSn3eiEydLJq1y6HR5DcRlajZjBm7QcaUNvit39J
+# Tlp/2k1sRJ1rnQEiZ6h6K3TsYWAjsR8+FG0Yuf4wF7VuyzL4co6QT6Jv3K5KjqXl
+# Vi00zRVnAbZjm9RVrTAV/mFxzycT69sSIyrRwKahOcGcJxxeVxexoRNtpieF5fks
+# 207Gx0nCYSPnD1K2mqbWYRh4Be6YO6s5elLgNmk1iewjWv81r4p04+GeOgzxmyym
+# T11uRJ0HnYAzCQdGoB8bTN1HkWnqz6QAY/ER90B5mlVrvpsVDmMZg5+uWS5FUXcY
+# 5PLS6+btPYJYDHhuG0Nn4P1ieAKX+Gj9TcLQskWp1MxYyicZhsXdBrT4+u7O6xcq
+# BAhdiGpa6wZpmuaUY+gshivWRimzpcDjvnCvnSR//Jv/E41+gn5+z1REgXjTaxxC
+# yytUM4TMEaGBfwvtDow6r1ADYdtTHyrK/uM7gc+YJs/xql9ZUidBwM8QesH22bnz
+# CNNZt6Atsp+gEOYtdcKyrdndnTtXFQ==
 # SIG # End signature block

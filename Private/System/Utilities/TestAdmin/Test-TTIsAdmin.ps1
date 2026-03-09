@@ -1,106 +1,14 @@
-function Invoke-HardDelete {
-    <#
-    .SYNOPSIS
-        Submits a Purview HardDelete purge for a Compliance Search and waits for
-        completion.
-    .DESCRIPTION
-        Optionally requires typed confirmation per config; honors
-        -WhatIf/-Confirm for the submission step. Uses the Compliance Search
-        statistics to enforce safety thresholds.
-    #>
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
-    param(
-        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$SearchName,
-        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$CaseName,
-
-        # Safety controls (overrideable)
-        [int]$SafetyStopThreshold = 100,
-        [int]$WarnThreshold = 10,
-
-        # Allows automation runs to skip typed confirmation even if config requires it
-        [switch]$SkipTextConfirmation
-    )
-
-    # --- Config (normalized camelCase) ---
-    $purv = $script:cfg.settings.purview
-
-    # Confirmation gate defaults (safe)
-    $requireTextConfirm = $purv.purge.requireTextConfirmation
-    if ($null -eq $requireTextConfirm) { $requireTextConfirm = $true }
-
-    # Allow explicit opt-out for automation
-    if ($SkipTextConfirmation) { $requireTextConfirm = $false }
-
-    Write-Log -Level Info -Message ("Preparing HardDelete purge for '{0}' in case '{1}'." -f $SearchName, $CaseName)
-    Write-Log -Level Warn -Message "This will permanently delete all items found by the search."
-
-    # --- Get item count from the Compliance Search ---
-    $search = Get-ComplianceSearch -Identity $SearchName -ErrorAction Stop
-
-    if ($search.Status -ne 'Completed') {
-        throw "Search '$SearchName' is not Completed (Status=$($search.Status)). Complete the search before purging."
-    }
-
-    # Items is typically a numeric/string numeric field on the search object
-    $itemCount = 0
-    if ($null -ne $search.Items -and $search.Items.ToString() -match '^\d+$') {
-        $itemCount = [int]$search.Items
-    }
-
-    Write-Log -Level Info -Message ("Search '{0}' reports {1} items." -f $SearchName, $itemCount)
-
-    # Always enforce safety limits
-    if ($itemCount -gt $SafetyStopThreshold) {
-        throw "Safety stop: Search returned $itemCount items (threshold=$SafetyStopThreshold). Refine scope or KQL before purge."
-    }
-
-    if ($itemCount -gt $WarnThreshold) {
-        Write-Log -Level Warn -Message "Search returned $itemCount items. Verify this is expected before purging."
-    }
-
-    if ($requireTextConfirm) {
-        $typed = Read-Host "Type 'YES' to confirm HardDelete purge"
-        if ($typed -notmatch '^(?i)(YES|Y)$') { throw "HardDelete purge cancelled by user." }
-    }
-
-    if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $SearchName), 'Submit HardDelete purge')) {
-        try {
-            $action = New-ComplianceSearchAction -SearchName $SearchName -Purge -PurgeType HardDelete -Confirm:$false -ErrorAction Stop
-
-            if ($action.Identity) {
-                Write-Log -Level Ok -Message ("Purge submitted: {0}" -f $action.Identity)
-
-                $timeout = $purv.purge.timeoutSeconds
-                $poll = $purv.purge.pollSeconds
-
-                Wait-PurgeCompletion -ActionIdentity $action.Identity -CaseName $CaseName `
-                    -TimeoutSeconds $timeout -PollSeconds $poll
-            }
-            else {
-                Write-Log -Level Ok -Message "Purge submitted (no Identity returned). Monitoring by search name..."
-
-                $timeout = $purv.purge.timeoutSeconds
-                $poll = $purv.purge.pollSeconds
-
-                Wait-PurgeCompletion -SearchName $SearchName -CaseName $CaseName `
-                    -TimeoutSeconds $timeout -PollSeconds $poll
-            }
-        }
-        catch {
-            Write-Log -Level Error -Message ("Failed to submit purge: {0}" -f $_.Exception.Message)
-            throw
-        }
-    }
-    else {
-        Write-Log -Level Info -Message "Purge submission skipped due to -WhatIf/-Confirm."
-    }
+function Test-TTIsAdmin {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $p = [Security.Principal.WindowsPrincipal]$id
+    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBmgK7yyk4HXA0K
-# 9YIPBzROC2N7o8UpWG3d8aaGg3N9YKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAcoqxZfMcwUNQQ
+# nQB9iOEdLL1D1Ckdx9V9m9naYPmwu6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -233,34 +141,34 @@ function Invoke-HardDelete {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBUeGiL3LkR
-# 333i1Ur8QZQtCA4UZayWnrI2LVFiJMFr+TANBgkqhkiG9w0BAQEFAASCAgCT5Oqi
-# Li+emLKlnmekPyvZvnwXIwE27tBMhXBp0OIggdzlFlC392t55h/w0vZ52bXJ7zvF
-# J42DzDqe0wxhkeeIstHgFQY4wz8Q9jDgRoXJ2bDaUXeui8DrA8cVyVupyMK33RlX
-# Lb2jT5aWwKKQLeUxYdGjlKN64V07ycrF5UuhUqdtrj/fEIC/kPs2SbYc7phIQsq3
-# GW5l2KPHgSHiM7JIOIPy+/1mm4NofWt9e1fJLLRSNCFyOEoeloxWysCgPoaKwRH0
-# h6TRuQSYjxyI7T4sxaxF3eqNc25pvf9Ri0xDx67ZKnlMJxbUuf/uzJ+c1vc7P0Mw
-# lajgCJPRDGnGGMLKlu2ipMk0Uhl3EFo1RHioHIAPQ/lhlKo42nr7uaiL+GKCyj8H
-# OaihoN2hNUpWTlobX7bU6DqMbYQsN6zQ0LpxPxXrzVpo7KLJjVys5hmk5SJLEYHh
-# PCjF/x5wbnb25Lqu/49ePUiLXcXpfkJGB96O4tnjk9qAdhe4yloaeEp+NRpAh912
-# O5dXUwxnI6OTcJL5StKjpo1mFDPLejleCSh3hvwhU0kBTmAg2lBx4Bj302XhDgqZ
-# WUfa5xQLeW+CUt7WBP6qhlWiMf+rysIy/hRbIhGPYt8xSUawh/+/WrAgH9NRThcG
-# RCWJ5avrM0fiUMjRyVk+oJatoui9wZ9197bVi6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD72ih1pa1s
+# DRqmgKZumiiOJOyaXH9aiHBS9GBL4Q/KjDANBgkqhkiG9w0BAQEFAASCAgCx6cPK
+# GFzCSGHtZZi6R0hnifaeY43U7uBihwT7oDIlBHs+qxcR/FUHahdhNlLNk+V86g7D
+# 5iz4e6ZBtEPpDfhrbKhsE/Q17BTBBuGhD7vMqtd142aZ4JTLzg7V9F+X2wHewT4W
+# yYtG4FeXjbalf1dfh8szJ56fC3eP00pgIDtlzLHA23arTx8GtPWMfwqAHb6ysxZe
+# w1bAqsiY1xhmh3qpwwdU2OXsnzwlCeD4K+68HXvjKSR6yGHl3QGyOwmwxfEK4KJd
+# vq2ISbgWpUwoEQcFBHkun/6mU9AsWy0vEYL+ynI0f/U9yBhFTN4eQZt9HI768Fdm
+# pRA5KidQ5YPHXKrKUh/r13JdlIuvRmg0VnmfwYsWSbCuWVZmGf4pqhq+Ig6bfYQL
+# y2KVnUb/MaEANMG9jY7SKfzSzE+P6wvFmHjSuy2pZPFYRVxGOoIz9dJfxFYWwvhc
+# Qu9hEj/Rx0ANxdu3ys2VF+1QUgVGiE58R5fsje6KeVr3EhI5w6UipqwA061y5iXJ
+# Kwl4RcrJRpU6Wrz7NYk6QG69jUkKwVKAmVDIktyI3r7Wi8Te38U7kTSF/G34mIk5
+# h1/xjy9AlySyPs3k2xdZ142FxHaYAUK0MT4pjc0MYYdlANClnPDIu3CqBYxNaho9
+# 2u5mIosdrYINYqnmWn2bpK1X/IYaa8b7a0hF16GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkyMTE3MzFaMC8GCSqGSIb3DQEJBDEiBCAy+urjbxctS4x3xOgq
-# 7jSg8+Fk7QJ335cnwEIVbjN9nDANBgkqhkiG9w0BAQEFAASCAgBTmJ2gDdRnqVfG
-# oc6cMGx0Sq8hhUfQ7gRKzJg7otIKIoN1Mqg9/nNbzZFiR5TGzQIOHNRVlGYS1FzU
-# Wz0TBoXggt5a910HsDNxoHOjkK0Y5UrvRgOjUOL+wSg6gXm4VHUksVVy2/IBbe1o
-# D7zvSCVotWNRG/guxNUspwg9MqYyPzmST8F4b1L7KoiobtvDK4ZQ58pK1jhhUbmL
-# T3Ksh0GJDmh9un2/jw2D9ge55JpMAIlWoGlSpU4oVwyi+DkF30mkI97VVS6x+82+
-# CNZfw6bmABWv3eOefVec+x/W+q2tpqpzA6nzSOg1c1xMxD/ea+7M2aK4Z6CBEiF8
-# /RdtQnGgscPXl+InAFbqL3HQ3hntdjDeVrl4ZO0X4wpJC3q20zNHaz/smeNVytjS
-# B+z0vrTikEbpWffF0D8QBMstPklYf14OYiXGvC68CXDv3jq0jMaFk/BP1hwGyEJx
-# tXcQuIyILfOQ6VnK9pmFyFjvKo5KUYoSD/RpAdp4/vPma2x+/TT0iOsZNW1Uk29w
-# 5TxhKQWEENjekCXyOuc6xwEpamQ6SlD8LrZw6riwI+9O3lTBgkDf0RChLQotfMN1
-# UGTjkLIQ3TSmaekOvjUB1BRU+oc5oySClzI5Xte1kygP+mXqx4oSAmql4ihR+hqg
-# ifgTKuLXW+8KHQm1LCQlRh24uSjiMw==
+# BTEPFw0yNjAzMDkxNjUxMjVaMC8GCSqGSIb3DQEJBDEiBCBPpkUChoondxGd/Ui6
+# RlFjQEN/IZiS5eE91fNtHN94rjANBgkqhkiG9w0BAQEFAASCAgC7FYmjvBRKcI94
+# rY+Y5gkl+gu20OoPmN6gE3hiPFjcts+7fMmp6fznO9BE/nUES9GEYtm9Reo4PTaX
+# MzMSmSZVvxa3y0tRfUGfARl3eU1KaadUWFkbWQJeTFsAUZzbzryrZ6Cg7N5Q7Jva
+# AWUzPTOu/95iXsiKc5VzKDVeDzfuMAZQeiks7hUEO3zvZOfkz0aYsAICYMfG3wYi
+# zKUJKAkLaH5UpoO7jdM82Y/MpcghQumzeCEt0UjRA6mPs1W/Bpr2Xt2SOTH6GRR3
+# I2QIKyzXkf9sWeLXVv5EU6PqVbrzVU95sMtq7KjRSDvqF62oZxhu19mkLrxgpD6Q
+# J/1pRu72rnTqe2qHDuCZfoOXD0Nc0P6i8vhBRacQB7MZtyBZQnnD9h1nDavwY08D
+# 44D8v6kbBD5t+tsJSiYw8idcRgymJ3Q67Icb8N21jGa7BeSiSUNPpTtI1yl2EV3F
+# Pzqk/8xUAnS8aGMZwgj9ZwvLQQKqti05sek9tLOdNo1yJcuoQT9k00Pr1CGzqWAl
+# wlz8CfcNgWcKXOjxrpovyN94wVvStnjyvyKDejun+E/PtlrobGtC+Fp5mOUdZ05d
+# QGzQMIu7GNayd5aRs7bbPVHFX4bETFCZodysTrjFVoPEdeoEyfSKux4yfTn7la7p
+# XEVGWkpN3e+QadcY1aE1elj61zRBUQ==
 # SIG # End signature block

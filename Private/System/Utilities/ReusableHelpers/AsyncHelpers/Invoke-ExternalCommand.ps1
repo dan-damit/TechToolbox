@@ -1,10 +1,63 @@
 function Invoke-ExternalCommand {
+    <#
+    .SYNOPSIS
+        Invokes an external command with arguments, with optional elevation and
+        timeout.
+    .DESCRIPTION
+        This function is designed to safely invoke external commands (e.g.,
+        .exe, .ms i, .cmd, .bat) with arguments, while providing features like:
+        - Automatic resolution of command names to full paths
+        - Optional timeout with automatic termination
+        - Optional elevation (UAC prompt)
+        - Progress display with spinner and timeout countdown
+        - Structured result object with metadata
+    .PARAMETER FilePath
+        The path to the executable or command name to invoke. Command names will
+        be resolved using Get-Command.
+    .PARAMETER Arguments
+        An array of arguments to pass to the command.
+    .PARAMETER TimeoutMinutes
+        Maximum time to allow the command to run before forcefully terminating
+        it.
+    .PARAMETER Quiet
+        If set, suppresses logging output about the command's success or
+        failure.
+    .PARAMETER Tag
+        An optional string tag to include in log messages for easier
+        correlation.
+    .PARAMETER RequiresElevation
+        If set, the command will be invoked with elevation, prompting the user
+        with a UAC dialog if necessary.
+    .PARAMETER ShowProgress
+        If set, displays a spinner and timeout countdown in the console while
+        the command is running.
+    .OUTPUTS
+        A custom object with the following properties:
+        - FilePath: The resolved file path of the command that was invoked.
+        - Arguments: The arguments that were passed to the command.
+        - ExitCode: The exit code returned by the command (or -1 if timed out).
+        - TimedOut: A boolean indicating whether the command was terminated due
+          to timeout.
+        - WorkerStarted: Timestamp when the worker process started executing the
+          command.
+        - WorkerFinished: Timestamp when the worker process finished executing
+          the command.
+        - Success: A boolean indicating whether the command completed
+          successfully (not timed out and exit code 0).
+        - Tag: The tag string provided in the input parameters.
+        - RequiresElevation: Indicates whether elevation was requested for this
+          command.
+        - WorkerScript: The path to the worker script that was used to execute
+          this command.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [string]$FilePath,
 
         [Parameter(Mandatory)]
+        [ValidateNotNull()]
         [string[]]$Arguments,
 
         [int]$TimeoutMinutes = 30,
@@ -12,25 +65,51 @@ function Invoke-ExternalCommand {
         [switch]$Quiet,
         [string]$Tag,
 
+        [switch]$RequiresElevation,
         [switch]$ShowProgress
     )
 
-    Initialize-TechToolboxRuntime
-
     $ps64 = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
     $tagPrefix = if ($Tag) { "[$Tag] " } else { "" }
-    $moduleRoot = Get-ModuleRoot
-    $workerScript = Join-Path $moduleRoot 'Workers\Invoke-ExternalCommand.Worker.ps1'
 
-    # Worker log file
+    # --- Worker script location ---
+    # Remote (ephemeral): $script:TT.WorkersRoot\Invoke-ExternalCommand.Worker.ps1
+    # Local fallback:     <ModuleRoot>\Workers\Invoke-ExternalCommand.Worker.ps1
+    $workerScript =
+    if ($script:TT -and $script:TT.WorkersRoot) {
+        Join-Path $script:TT.WorkersRoot 'Invoke-ExternalCommand.Worker.ps1'
+    }
+    else {
+        $moduleRoot = Get-ModuleRoot
+        Join-Path $moduleRoot 'Workers\Invoke-ExternalCommand.Worker.ps1'
+    }
+
+    if (-not (Test-Path -LiteralPath $workerScript)) {
+        throw "Invoke-ExternalCommand: Worker script not found: $workerScript"
+    }
+
+    # Worker meta log file
     $tempOut = Join-Path $env:TEMP ("TechToolbox_InvokeExternal_" + [guid]::NewGuid() + ".log")
 
-    # Resolve FilePath
+    # --- Resolve FilePath ---
     try {
-        $resolvedFilePath = (Get-Command $FilePath -ErrorAction Stop).Source
+        if (Test-Path -LiteralPath $FilePath) {
+            $resolvedFilePath = (Resolve-Path -LiteralPath $FilePath -ErrorAction Stop).Path
+        }
+        else {
+            $cmdInfo = Get-Command -Name $FilePath -ErrorAction Stop
+            $resolvedFilePath = $cmdInfo.Path
+            if ([string]::IsNullOrWhiteSpace($resolvedFilePath)) {
+                $resolvedFilePath = $cmdInfo.Source
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($resolvedFilePath)) {
+            throw "Resolved path was empty."
+        }
     }
     catch {
-        throw "Invoke-ExternalCommand: FilePath '$FilePath' could not be resolved to an executable."
+        throw "Invoke-ExternalCommand: FilePath '$FilePath' could not be resolved to an executable. $($_.Exception.Message)"
     }
 
     # Normalize arguments
@@ -38,13 +117,26 @@ function Invoke-ExternalCommand {
 
     # Build payload
     $payloadObject = @{
-        FilePath   = $resolvedFilePath
-        Arguments  = $normalizedArgs
-        OutputPath = $tempOut
+        FilePath          = $resolvedFilePath
+        Arguments         = $normalizedArgs
+        OutputPath        = $tempOut
+        RequiresElevation = [bool]$RequiresElevation
+        TimeoutMinutes    = $TimeoutMinutes
+        Tag               = $Tag
     }
 
-    $json = $payloadObject | ConvertTo-Json -Depth 5
-    $payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+    $json = $payloadObject | ConvertTo-Json -Depth 6 -Compress
+    $payload = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($json))
+
+    if ([string]::IsNullOrWhiteSpace($payload)) {
+        throw "Invoke-ExternalCommand: Payload unexpectedly empty (json length = $($json.Length))."
+    }
+
+    # Build encoded command to invoke the worker safely.
+    # Use single quotes to avoid escaping; Base64 will not contain single quotes.
+    $ws = $workerScript.Replace("'", "''")
+    $cmd = "& '$ws' -Payload '$payload'"
+    $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($cmd))
 
     # Launch worker
     $proc = Start-Process $ps64 `
@@ -52,49 +144,126 @@ function Invoke-ExternalCommand {
         -ArgumentList @(
         "-NoLogo",
         "-NoProfile",
+        "-NonInteractive",
         "-ExecutionPolicy", "Bypass",
-        "-File", "`"$workerScript`"",
-        "-Payload", "`"$payload`""
+        "-EncodedCommand", $encoded
     ) `
         -PassThru
 
-    # Spinner + timeout
+    function Test-TTVirtualTerminal {
+        try {
+            if ($Host.UI -and $Host.UI.PSObject.Properties.Name -contains 'SupportsVirtualTerminal') {
+                return [bool]$Host.UI.SupportsVirtualTerminal
+            }
+            if ($env:WT_SESSION) { return $true }
+            if ($env:TERM_PROGRAM -eq 'vscode') { return $true }
+            return $false
+        }
+        catch { return $false }
+    }
+
+    function Write-TTStatusLine {
+        param(
+            [Parameter(Mandatory)][string]$Text,
+            [int]$MinWidth = 80
+        )
+        $width = $MinWidth
+        try { $width = [Math]::Max($MinWidth, $Host.UI.RawUI.BufferSize.Width - 1) } catch { }
+        if ($Text.Length -ge $width) { $Text = $Text.Substring(0, $width - 1) }
+        else { $Text = $Text.PadRight($width - 1) }
+
+        [Console]::Write("`r$Text")
+    }
+
     $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
-    if ($ShowProgress) {
-        Write-Host "`e[?25l" -NoNewline
-        Write-Host ""
-    }
+    $vtOk = $ShowProgress -and (Test-TTVirtualTerminal)
 
+    $spinnerFramesFancy = @('⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏')
+    $spinnerFramesAscii = @('|', '/', '-', '\')
     $pulseIndex = 0
+    $heartbeatEveryMs = 60000  # 60 seconds
+    $lastHeartbeatMs = [Environment]::TickCount64
+    $cursorHidden = $false
 
-    while (-not $proc.HasExited) {
-
-        if ($sw.ElapsedMilliseconds -ge $timeoutMs) {
-            try { $proc.Kill() } catch {}
-            break
-        }
-
+    try {
         if ($ShowProgress) {
-            $pct = [math]::Min(100, [math]::Floor(($sw.ElapsedMilliseconds / $timeoutMs) * 100))
-
-            $remainingMs = [math]::Max(0, $timeoutMs - $sw.ElapsedMilliseconds)
-            $remaining = [TimeSpan]::FromMilliseconds($remainingMs)
-            $remainingStr = "{0:D2}m {1:D2}s" -f $remaining.Minutes, $remaining.Seconds
-
-            $spinnerFrames = @('⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏')
-            $spinner = $spinnerFrames[$pulseIndex % $spinnerFrames.Count]
-            $pulseIndex++
-
-            Write-Host -NoNewline "`r`e[33m$spinner`e[0m  `e[97m$pct%`e[0m  `e[37m(Timeout: $remainingStr)`e[0m   "
+            if ($vtOk) {
+                Write-Host "`e[?25l" -NoNewline
+                $cursorHidden = $true
+                Write-Host ""  # start spinner on its own line
+            }
+            else {
+                [Console]::WriteLine()  # start spinner on its own line
+            }
         }
 
-        Start-Sleep -Milliseconds 250
-    }
+        while (-not $proc.HasExited) {
 
-    if ($ShowProgress) {
-        Write-Host "`r`n`e[?25h"
+            if ($sw.ElapsedMilliseconds -ge $timeoutMs) {
+                try { $proc.Kill() } catch {}
+                break
+            }
+
+            if ($ShowProgress) {
+                $pct = [math]::Min(100, [math]::Floor(($sw.ElapsedMilliseconds / $timeoutMs) * 100))
+
+                $remainingMs = [math]::Max(0, $timeoutMs - $sw.ElapsedMilliseconds)
+                $remaining = [TimeSpan]::FromMilliseconds($remainingMs)
+                $remainingStr = "{0:D2}m {1:D2}s" -f $remaining.Minutes, $remaining.Seconds
+
+                if ($vtOk) {
+                    $spinner = $spinnerFramesFancy[$pulseIndex % $spinnerFramesFancy.Count]
+                    $pulseIndex++
+
+                    # Clear line + redraw (ANSI)
+                    $line = "`e[2K`r`e[33m$spinner`e[0m  `e[97m$pct%`e[0m  `e[37m(Timeout: $remainingStr)`e[0m"
+                    Write-Host -NoNewline $line
+                }
+                else {
+                    $spinner = $spinnerFramesAscii[$pulseIndex % $spinnerFramesAscii.Count]
+                    $pulseIndex++
+
+                    # No ANSI: always single-line via Console.Write + padding
+                    Write-TTStatusLine -Text ("{0}  {1}%  (Timeout: {2})" -f $spinner, $pct, $remainingStr)
+
+                    # Heartbeat: if we're on a long-running command, we want to
+                    # periodically print a clean status line with timestamp to
+                    # reassure the user that things are still running and
+                    # haven't frozen. We also want to do this in VT mode, but
+                    # it's especially important in non-VT mode where the spinner
+                    # is more primitive and doesn't redraw in-place.
+                    if ($ShowProgress) {
+                        $nowMs = [Environment]::TickCount64
+                        if (($nowMs - $lastHeartbeatMs) -ge $heartbeatEveryMs) {
+                            $lastHeartbeatMs = $nowMs
+
+                            # Finish the current in-place line cleanly
+                            [Console]::WriteLine()
+
+                            # Print a single heartbeat line (no ANSI needed)
+                            Write-Host ("[{0}] Still running... {1}% (Timeout: {2})" -f (Get-Date -Format 'HH:mm:ss'), $pct, $remainingStr)
+                        }
+                    }
+                }
+            }
+
+            Start-Sleep -Milliseconds 250
+        }
+    }
+    finally {
+        if ($ShowProgress) {
+            if ($vtOk) {
+                Write-Host "`e[2K`r" -NoNewline
+                if ($cursorHidden) { Write-Host "`e[?25h" -NoNewline }
+                Write-Host ""
+            }
+            else {
+                # finish spinner line
+                [Console]::WriteLine()
+            }
+        }
     }
 
     $timedOut = (-not $proc.HasExited)
@@ -102,15 +271,16 @@ function Invoke-ExternalCommand {
 
     $exitCode = if ($proc.HasExited) { $proc.ExitCode } else { -1 }
 
-    # --- NEW: META-only worker log parsing ---
+    # --- META-only worker log parsing ---
     $workerMeta = @{
         WorkerStarted  = $null
         WorkerFinished = $null
         ExitCode       = $exitCode
+        TimedOut       = $timedOut
     }
 
-    if (Test-Path $tempOut) {
-        $lines = Get-Content $tempOut -Encoding UTF8
+    if (Test-Path -LiteralPath $tempOut) {
+        $lines = Get-Content -LiteralPath $tempOut -Encoding UTF8
 
         foreach ($line in $lines) {
             if ($line -like '[META] WorkerStarted=*') {
@@ -122,42 +292,47 @@ function Invoke-ExternalCommand {
             elseif ($line -like '[META] ExitCode=*') {
                 $workerMeta.ExitCode = [int]$line.Substring(17)
             }
+            elseif ($line -like '[META] TimedOut=*') {
+                $workerMeta.TimedOut = [bool]::Parse($line.Substring(16))
+            }
         }
 
-        Remove-Item $tempOut -Force
+        Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
     }
 
-    # --- NEW: Clean success/failure branching ---
+    # --- Clean success/failure branching ---
     if (-not $Quiet) {
-        if ($timedOut) {
-            Write-Log -Level 'Error' -Message ("{0}Timeout after {1} minutes." -f $tagPrefix, $TimeoutMinutes)
+        if ($workerMeta.TimedOut) {
+            Write-Host ("{0}Timeout after {1} minutes." -f $tagPrefix, $TimeoutMinutes)
         }
         elseif ($workerMeta.ExitCode -eq 0) {
-            Write-Log -Level 'Info' -Message ("{0}Command completed successfully." -f $tagPrefix)
+            Write-Host ("{0}Command completed successfully." -f $tagPrefix)
         }
         else {
-            Write-Log -Level 'Warn' -Message ("{0}Command failed with exit code {1}." -f $tagPrefix, $workerMeta.ExitCode)
+            Write-Host ("{0}Command failed with exit code {1}." -f $tagPrefix, $workerMeta.ExitCode)
         }
     }
 
     # Return result object
     [pscustomobject]@{
-        FilePath       = $FilePath
-        Arguments      = $Arguments
-        ExitCode       = $workerMeta.ExitCode
-        TimedOut       = $timedOut
-        WorkerStarted  = $workerMeta.WorkerStarted
-        WorkerFinished = $workerMeta.WorkerFinished
-        Success        = (-not $timedOut -and $workerMeta.ExitCode -eq 0)
-        Tag            = $Tag
+        FilePath          = $FilePath
+        Arguments         = $Arguments
+        ExitCode          = $workerMeta.ExitCode
+        TimedOut          = $workerMeta.TimedOut
+        WorkerStarted     = $workerMeta.WorkerStarted
+        WorkerFinished    = $workerMeta.WorkerFinished
+        Success           = (-not $workerMeta.TimedOut -and $workerMeta.ExitCode -eq 0)
+        Tag               = $Tag
+        RequiresElevation = [bool]$RequiresElevation
+        WorkerScript      = $workerScript
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAcplqtZCOEbwwG
-# i3xay6QFsuM4gINFYbrgzMw3g0Q2eaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDUQ2VG9P+4SmxC
+# qXv3IdEzYIEfVqFHNpaVqtW3YxRqXKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -290,34 +465,34 @@ function Invoke-ExternalCommand {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDEx9TN86Kl
-# Rfrzpk5EN3tgNkGXSLocBxy2aox8WOpTNDANBgkqhkiG9w0BAQEFAASCAgAoa5EM
-# F61zilnXA5/8dF6iqaXiDTAVxkq6UD9lNNaheAIsa8Cm/RjINT3BgVA0h5fOn3qX
-# fW3NCuhHm3wyGrbzUU51BdL8dRrGT4wdma2R/USg3g6nZHySJZE7pMzwy9CC7uQh
-# 5bklDHmLAG5iFoL0G4PBjF1xkz4o1evfDuaPUa9CjAIe+jcd8TzAs/8Xx/vNC3gt
-# 19lMFb7Zcdk5ShWNLccah6jV/iJPr1T8DaMoDo+h//vOQv5wd27Mr/DeZbS9l6H/
-# 0YL+WAG+lMbYooVSh6G9SXk2kqDS+EBn6lCKJmWRrK1UqSxkhGJwrP0RqHZFM2dD
-# Rm1TPB/4j0TYA5/EKxnP783bvpjjqIJo0RPfKCuNzzhHEgu5J31k/lDjq9GXHjlK
-# Ttw7cH2Tofh32Z5XGkVmZdfktIB5xYmoTxTuZaWqQi6QoBadGSaNaBYIk1OAl41Z
-# HLg223yAPJn5FGygwD6OfYt+fdsOHIV3P0HUmhiJg0E0U67Hdrk4mOr0x1a1zdNK
-# 83pOtT9dhfjYIes7MUdV7T3+syP/yzwOjJ4Arl8x52HNifmcucvFSOLEOb3URMd0
-# v5FU/Dg4Qv01DbD4gD9WygWAAkfZQPeGQ2Qf3wmmvbXgvTNS9VOzLfH34C16eRQV
-# 2FsIm73h5vtZccsA13jcE5QrHabsZYUkRj2W46GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAVFyO0S+0N
+# GWnqsEM6h975FVuMUBERj5mY40GI+4z3RzANBgkqhkiG9w0BAQEFAASCAgDAKOXK
+# cjaH+KBK3aWnhdkd09UtSpgisPuQ7sCWcMU64Kqe58z2LT80HbGfJj9Owb6R8ocg
+# SJQhjPUyj+vvYW2SMpsDUFp3Fl2vuIj1ROZDbEu0fe28P0iFX2C+7lM94s1XVOJn
+# bu1EzU7jAsb2+TieNY2Nmb1gMut5n8xTdtQevxpU+03tuIGAjP/0Z0mLx37PAfiD
+# yHrDRXAlRAcqoOlg60BDHqwxDOMoZP455oapKbcOZHIF7bjRZa/HfHScA1g7XhRZ
+# 52XLLFL28+ldc4/1Cqt3kQ+lg4R1iDrq2ZfGQmvnq41GuMMbxOc86vUPXzvxBGtS
+# 0IQ4jnF7/p8v5zcRzQ6K8AbjqDYSw3ksPu291d7gi31az2tSXSYuRRTO9rv/lFnM
+# NrXL6bxbwUJulCwIw1F0hbVe9geRRbAVaaWmHIOhwnDgvYcYy/Wt/QCxVgWfF6No
+# mXDmitMd/GtVSM3WWeaAiCymC0gI9arSNTi4yUonLJHibqt17fytzW1bNZ6I08j8
+# jYu228bnGdWXLeYKWC1EBy+tme8S1HsKb8goTTTMbQQ8dOP5R7erSWqQ0Fdwhe2t
+# 1XBTZdxnEKpzqGplVb9v/WfejhkRMMpeovHl8hnVVa0Jy4c3bnm043ySHCqBdT8o
+# /isznYO4CJasT/ggRe4QQW+MZ2mDJSqAqAy/a6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkwNDA5MjZaMC8GCSqGSIb3DQEJBDEiBCB624uClK9h9bPX+bct
-# hu5zB/ie+rSAQQCl1J5zB44SmDANBgkqhkiG9w0BAQEFAASCAgCrRwMIXMk4JWTg
-# mWgkJ+qQ53zmORkrn5i2SI9goH+afn8s0OijN55lC6dnqQ/uDhIz6offdtW1xM4h
-# Eml1//70Cg7VUDIQPyGqIXw9cJ2LSL/G7i5CHssJFttg6WDiFl2gYR04vstJAxtB
-# MftQ51K5VWfttVuxR3IaX4Rd5vV5mpkt+qd8tV5S6NbkqqeGGftsQKUM/i33i6H0
-# EzPMrVD+gDmt+6zKZtYE/KiDam0tsIxcPTIy+L6C2cVBgfskzQwAmM3dsKXd6P2u
-# 3KdX0wgt2Yo07ROFd87jMT9ROucLvP80VpEUVJnMWFkdrKf7Nvll+EV3cmJ4TXKQ
-# 2npXi524A6G5hvKTiMhiP+ZB0V7B+stWpXclsSHMM6vS3CQMlQ1r1uXVEB7mBtYe
-# FnZtxUUlj2SFKik3U5MjQ9XYkjXtMmU/XnBbpwBt56P+ZHpugwcLtePwrrhJktCh
-# 7+GCWOiJeAcnl00GvSb8r9n4d1nembb8jXm2Hd8fawVRbG8OZuTUalkRhc0oakdR
-# EKvobp6aSLOfgwvTRkYI+qggFNKuZf8fOUKAKecJdTh7H7+J24cZRw+7wmDCpkHA
-# PYO92KHX6zGYSsA2KatQ48GdL9AvuIMLXDT+ZU9rCRJs+EUOtS+ySWKHDMk8WWds
-# Ezo4Da8BySasQGv8oK1MO5bd9mO7MQ==
+# BTEPFw0yNjAzMDkyMTA0MzVaMC8GCSqGSIb3DQEJBDEiBCADg3V9T+CIis+Asy0e
+# 0nDa1dIMnsGJopj0Z1thamKv+TANBgkqhkiG9w0BAQEFAASCAgDISpnwYSUeH+aw
+# ltjZIgVHVZTywMUjNsDTgWwITHuYT7iHtwH4HaGAyXR37yuAe9YrflAaC8CFh2bv
+# e1ALZ8MhSzW28m59/KBRGrG5QdaU6x/wlsz+tEsxB5+RBEObRvYIBpwIYZsBq5Nm
+# gOPLVhh05Ck6sjTybvakSHsMo340KxjXUTaMGyEXEr7sr3DHTFfhqJnMUIYqppC7
+# 5mDaJFbmCX146m6NryqM2JZf+m7DdJun1vLIv5DY5AEHDUnThIDlkAw3t0adwsNw
+# zbyagt7pbCaI1BPqGd3p9Zgfm9g7ouE5pRUzgSp5em9V6yL7o7m8+/RzYsEtZacA
+# 45vtofo345EXdFvlkUIejDGPRUAaSwU3B/yKF4piNUX1Xr6IztUaCz8t4IY5mu+I
+# gXH2eW/H/l5rj8X7FbsbOYvhFn3r3arf76CK5mHeGn/hBXbltXbbk1G0PxuvOSOY
+# Vv5H2XsNjylVyOJmLwl2yepjsyAfu6xiSXzmg7btDRW0AublNNzCsCGiGPZuUI0l
+# t+SX0Ps1BUoh51v1MAbx37aoTfd7OxdLW2NVdjnGOiCYGtZuudTKK/LIcy4B8zRs
+# Wb5H51LTA8WYAL0kozl4aSXT9uY2Rm+BjSbRLh1T5jgilVgCAz1+ebEQ3gKzGhG5
+# IMoCDx6jAPLLpnYKgXkmDgIYK+Rv2A==
 # SIG # End signature block
