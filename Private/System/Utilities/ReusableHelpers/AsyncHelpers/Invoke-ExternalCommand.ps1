@@ -9,7 +9,6 @@ function Invoke-ExternalCommand {
 
         [int]$TimeoutMinutes = 30,
 
-        [switch]$MirrorOutput,
         [switch]$Quiet,
         [string]$Tag,
 
@@ -18,20 +17,15 @@ function Invoke-ExternalCommand {
 
     Initialize-TechToolboxRuntime
 
+    $ps64 = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
     $tagPrefix = if ($Tag) { "[$Tag] " } else { "" }
-
     $moduleRoot = Get-ModuleRoot
     $workerScript = Join-Path $moduleRoot 'Workers\Invoke-ExternalCommand.Worker.ps1'
 
-    # Temp output file
+    # Worker log file
     $tempOut = Join-Path $env:TEMP ("TechToolbox_InvokeExternal_" + [guid]::NewGuid() + ".log")
 
-    # Validate FilePath
-    if (-not $FilePath -or $FilePath.Trim() -eq "") {
-        throw "Invoke-ExternalCommand: FilePath cannot be null or empty."
-    }
-
-    # Normalize FilePath (resolve relative executables like 'sfc.exe')
+    # Resolve FilePath
     try {
         $resolvedFilePath = (Get-Command $FilePath -ErrorAction Stop).Source
     }
@@ -39,24 +33,21 @@ function Invoke-ExternalCommand {
         throw "Invoke-ExternalCommand: FilePath '$FilePath' could not be resolved to an executable."
     }
 
-    # Force Arguments to be a REAL string array
+    # Normalize arguments
     [string[]]$normalizedArgs = @($Arguments)
 
-    # Build JSON payload (correctly typed)
+    # Build payload
     $payloadObject = @{
         FilePath   = $resolvedFilePath
         Arguments  = $normalizedArgs
         OutputPath = $tempOut
     }
 
-    # Convert to JSON
     $json = $payloadObject | ConvertTo-Json -Depth 5
-
-    # Base64 encode for safe transport
     $payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
 
-    # Launch worker console
-    $proc = Start-Process powershell.exe `
+    # Launch worker
+    $proc = Start-Process $ps64 `
         -WindowStyle Hidden `
         -ArgumentList @(
         "-NoLogo",
@@ -67,7 +58,7 @@ function Invoke-ExternalCommand {
     ) `
         -PassThru
 
-    # Progress / timeout
+    # Spinner + timeout
     $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
@@ -111,51 +102,62 @@ function Invoke-ExternalCommand {
 
     $exitCode = if ($proc.HasExited) { $proc.ExitCode } else { -1 }
 
-    # Parse worker output
-    $stdOut = @()
-    $stdErr = @()
+    # --- NEW: META-only worker log parsing ---
+    $workerMeta = @{
+        WorkerStarted  = $null
+        WorkerFinished = $null
+        ExitCode       = $exitCode
+    }
 
     if (Test-Path $tempOut) {
         $lines = Get-Content $tempOut -Encoding UTF8
 
         foreach ($line in $lines) {
-            if ($line -like '[OUT]*') {
-                $stdOut += $line.Substring(6)
+            if ($line -like '[META] WorkerStarted=*') {
+                $workerMeta.WorkerStarted = $line.Substring(22)
             }
-            elseif ($line -like '[ERR]*') {
-                $stdErr += $line.Substring(6)
+            elseif ($line -like '[META] WorkerFinished=*') {
+                $workerMeta.WorkerFinished = $line.Substring(23)
+            }
+            elseif ($line -like '[META] ExitCode=*') {
+                $workerMeta.ExitCode = [int]$line.Substring(17)
             }
         }
 
         Remove-Item $tempOut -Force
     }
 
+    # --- NEW: Clean success/failure branching ---
     if (-not $Quiet) {
-        foreach ($line in $stdOut) { Write-Log -Level 'Info' -Message ("{0}{1}" -f $tagPrefix, $line) }
-        foreach ($line in $stdErr) { Write-Log -Level 'Warn' -Message ("{0}{1}" -f $tagPrefix, $line) }
-
         if ($timedOut) {
             Write-Log -Level 'Error' -Message ("{0}Timeout after {1} minutes." -f $tagPrefix, $TimeoutMinutes)
         }
+        elseif ($workerMeta.ExitCode -eq 0) {
+            Write-Log -Level 'Info' -Message ("{0}Command completed successfully." -f $tagPrefix)
+        }
+        else {
+            Write-Log -Level 'Warn' -Message ("{0}Command failed with exit code {1}." -f $tagPrefix, $workerMeta.ExitCode)
+        }
     }
 
+    # Return result object
     [pscustomobject]@{
-        FilePath  = $FilePath
-        Arguments = $Arguments
-        ExitCode  = $exitCode
-        TimedOut  = $timedOut
-        StdOut    = $stdOut
-        StdErr    = $stdErr
-        Success   = (-not $timedOut -and $exitCode -eq 0)
-        Tag       = $Tag
+        FilePath       = $FilePath
+        Arguments      = $Arguments
+        ExitCode       = $workerMeta.ExitCode
+        TimedOut       = $timedOut
+        WorkerStarted  = $workerMeta.WorkerStarted
+        WorkerFinished = $workerMeta.WorkerFinished
+        Success        = (-not $timedOut -and $workerMeta.ExitCode -eq 0)
+        Tag            = $Tag
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCWX6734xo8OcMJ
-# oM6P3sueXCLuSUapqu6xjLry22qxQaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAcplqtZCOEbwwG
+# i3xay6QFsuM4gINFYbrgzMw3g0Q2eaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -288,34 +290,34 @@ function Invoke-ExternalCommand {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB2/ccBuHGU
-# WUD+96zNY26pXv8TzaGKbcxLVJSqSKkrTzANBgkqhkiG9w0BAQEFAASCAgA6MD8A
-# A4R/xPT3FK2Gh+rmJmAxn4hx//LE72pCrSxkcBMVkP+2nPije4GHoqqA+P+b5piX
-# hK9pDhSFJ2RwYD02IdYQApZZAinQnWAaAvFoovwafRYwislBEanmkF/TQwLrnIVB
-# r/9u/YNOH+IaM8ctTmlOEnPzVVcdu2oBqCtKKfzKJ4WjfMsXCYXJ6TRkhlYdvhxM
-# dBYF8j7xyow3Yxj2HfCKxCjeETx38ltN7FWDb4OOon43JNRUrxW/rHW0UyeVH7ab
-# +jbYMQj8AAf3ozbvwIW7h0IB5PhHF2NqymhZGJ6rwsDaENWB0YnEQlV76YSxbhYm
-# qweGnDUeSreX9Z3AZ4vF1G3iltd7Oa+/NGcVazI2zuT8KfnrFhQg5s/fEBkHz2tI
-# DKZHfn0CoZ7d4j5Vcc6cV1QvF0as49cx3eem9FBpMssq219b3rj8uLVCwPUPVRg+
-# yJKlhE2gfYTjwEoJqpqwDCnpPWvn8SgolZuxFLwTh5FAEI9sPDxo4wbqB9wrJ21V
-# bXyYGH6c3xCI9FQXE5Ti5a1fMLaNZF79EaoxSrICUbHxFn2zDs/PG5IjYvLaXASr
-# GvoU5cyopbDBDjW+CAwbx+FiRAUegNzAscDr9Htk6THF2/TXRN1Q9obEsodfkxbT
-# /s3frQjvDkEWwTP/dUjpzZyyOVEihIhvLHXSE6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDEx9TN86Kl
+# Rfrzpk5EN3tgNkGXSLocBxy2aox8WOpTNDANBgkqhkiG9w0BAQEFAASCAgAoa5EM
+# F61zilnXA5/8dF6iqaXiDTAVxkq6UD9lNNaheAIsa8Cm/RjINT3BgVA0h5fOn3qX
+# fW3NCuhHm3wyGrbzUU51BdL8dRrGT4wdma2R/USg3g6nZHySJZE7pMzwy9CC7uQh
+# 5bklDHmLAG5iFoL0G4PBjF1xkz4o1evfDuaPUa9CjAIe+jcd8TzAs/8Xx/vNC3gt
+# 19lMFb7Zcdk5ShWNLccah6jV/iJPr1T8DaMoDo+h//vOQv5wd27Mr/DeZbS9l6H/
+# 0YL+WAG+lMbYooVSh6G9SXk2kqDS+EBn6lCKJmWRrK1UqSxkhGJwrP0RqHZFM2dD
+# Rm1TPB/4j0TYA5/EKxnP783bvpjjqIJo0RPfKCuNzzhHEgu5J31k/lDjq9GXHjlK
+# Ttw7cH2Tofh32Z5XGkVmZdfktIB5xYmoTxTuZaWqQi6QoBadGSaNaBYIk1OAl41Z
+# HLg223yAPJn5FGygwD6OfYt+fdsOHIV3P0HUmhiJg0E0U67Hdrk4mOr0x1a1zdNK
+# 83pOtT9dhfjYIes7MUdV7T3+syP/yzwOjJ4Arl8x52HNifmcucvFSOLEOb3URMd0
+# v5FU/Dg4Qv01DbD4gD9WygWAAkfZQPeGQ2Qf3wmmvbXgvTNS9VOzLfH34C16eRQV
+# 2FsIm73h5vtZccsA13jcE5QrHabsZYUkRj2W46GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDgxOTU0MTRaMC8GCSqGSIb3DQEJBDEiBCAiuWbeUKT4izlsb1bX
-# 9TsxQF7ILezvtYE/gLRhbnlwHjANBgkqhkiG9w0BAQEFAASCAgDIhL/RyM0CUGeK
-# quMdo8lOm2F4qJl2wCSdM2EhvNrTwIuCQ1Unb0kKl0OEPHpBf6xZmOfEPSpAuLf9
-# ljteQPqJDKqKhk3tOKZgvBdjAec7SwuzDpBX0s6RJ5Adlz8mL6I32WeJ4G0mJ82R
-# mn5Zq7bAT4vPf7cp8MmeMvQkojKoIAcSnufL65hU3c6EllUOkg6kI6biyUR/U3TM
-# gaaIlpopR4YtyhR6renqXLDBFkedDgQXklI4vwQSuuC3hJmcYhmKBliJ+ED4ogZg
-# 9f5o2GXBjIqF5mBO2UBUZdyy6n8u80zrFUzAN+kzPosJeWW01PyUlyRZVYOFLhSx
-# pkYLw0WxdAbR+m1cXGfqgiGgIyV3UvlaZkUOdGnINLYwUoG/1hxy6MDcpHZDCWXM
-# P0ZI0cQo6MgbtagMBtGKFRATKLplCG/QCVhxi2WMx31XEWBTR/lQqI8qNRGIFnza
-# 3LOdCfq0Y3NaJK5NZcfZ2VICACYRS2WEkTvyC4i52sYFEox58T7pc+4Q5Vw3SMng
-# 2CDenHhiMpzJLV7Z43cBAHzh18yjVKktZaLVbZp+d/CyQUECvaMO/gMmRuzjnI5e
-# 5m/3Z3P74G0FRYL94Q4evEgQM4xBMDGrgcISoCWiXTzdI5e4GSQW+MONLNHsFMAk
-# YpT5XqhyGOyAkonwnvVBEf9II7hdow==
+# BTEPFw0yNjAzMDkwNDA5MjZaMC8GCSqGSIb3DQEJBDEiBCB624uClK9h9bPX+bct
+# hu5zB/ie+rSAQQCl1J5zB44SmDANBgkqhkiG9w0BAQEFAASCAgCrRwMIXMk4JWTg
+# mWgkJ+qQ53zmORkrn5i2SI9goH+afn8s0OijN55lC6dnqQ/uDhIz6offdtW1xM4h
+# Eml1//70Cg7VUDIQPyGqIXw9cJ2LSL/G7i5CHssJFttg6WDiFl2gYR04vstJAxtB
+# MftQ51K5VWfttVuxR3IaX4Rd5vV5mpkt+qd8tV5S6NbkqqeGGftsQKUM/i33i6H0
+# EzPMrVD+gDmt+6zKZtYE/KiDam0tsIxcPTIy+L6C2cVBgfskzQwAmM3dsKXd6P2u
+# 3KdX0wgt2Yo07ROFd87jMT9ROucLvP80VpEUVJnMWFkdrKf7Nvll+EV3cmJ4TXKQ
+# 2npXi524A6G5hvKTiMhiP+ZB0V7B+stWpXclsSHMM6vS3CQMlQ1r1uXVEB7mBtYe
+# FnZtxUUlj2SFKik3U5MjQ9XYkjXtMmU/XnBbpwBt56P+ZHpugwcLtePwrrhJktCh
+# 7+GCWOiJeAcnl00GvSb8r9n4d1nembb8jXm2Hd8fawVRbG8OZuTUalkRhc0oakdR
+# EKvobp6aSLOfgwvTRkYI+qggFNKuZf8fOUKAKecJdTh7H7+J24cZRw+7wmDCpkHA
+# PYO92KHX6zGYSsA2KatQ48GdL9AvuIMLXDT+ZU9rCRJs+EUOtS+ySWKHDMk8WWds
+# Ezo4Da8BySasQGv8oK1MO5bd9mO7MQ==
 # SIG # End signature block
