@@ -2,17 +2,81 @@
 Set-StrictMode -Version Latest
 $InformationPreference = 'Continue'
 
-# Show logo
-Write-Host @"
+function Test-TTInteractive {
+    try {
+        return (
+            $Host -and $Host.UI -and $Host.UI.RawUI -and
+            -not [Console]::IsOutputRedirected
+        )
+    }
+    catch { return $false }
+}
 
-  ______          __  ______            ____              
- /_  __/__  _____/ /_/_  __/___  ____  / / /_  ____  _  __
-  / / / _ \/ ___/ __ \/ / / __ \/ __ \/ / __ \/ __ \| |/_/
- / / /  __/ /__/ / / / / / /_/ / /_/ / / /_/ / /_/ />  <  
-/_/  \___/\___/_/ /_/_/  \____/\____/_/_.___/\____/_/|_|  
-                                                          
+function Show-TTBannerOncePerSession {
+    [CmdletBinding()]
+    param([switch]$Force)
+
+    if (-not $Force -and -not (Test-TTInteractive)) { return }
+    if (-not $Force -and $env:TT_BANNER_SHOWN -eq '1') { return }
+
+    Write-Host @"
+
+---------------------------------
+╺┳╸┏━╸┏━╸╻ ╻╺┳╸┏━┓┏━┓╻  ┏┓ ┏━┓╻ ╻
+ ┃ ┣╸ ┃  ┣━┫ ┃ ┃ ┃┃ ┃┃  ┣┻┓┃ ┃┏╋┛
+ ╹ ┗━╸┗━╸╹ ╹ ╹ ┗━┛┗━┛┗━╸┗━┛┗━┛╹ ╹
+---------------------------------
+A PowerShell Module for daily ops
+---------------------------------
 "@ -ForegroundColor Green
-Write-Host ""
+
+    $env:TT_BANNER_SHOWN = '1'
+}
+
+function Write-TTLoadedLine {
+    [CmdletBinding()]
+    param(
+        [ValidateSet('Loaded', 'AlreadyLoaded', 'Reloaded')]
+        [string]$Status = 'Loaded',
+        [switch]$Quiet,
+        [switch]$Force
+    )
+
+    if (-not $Force -and -not (Test-TTInteractive)) { return }
+    if ($Quiet) { return }
+
+    # IMPORTANT: during import, Get-Module may or may not resolve yet depending on timing.
+    # So we fall back to module context if needed.
+    $m = Get-Module -Name TechToolbox -ErrorAction SilentlyContinue
+    $name = if ($m) { $m.Name } else { 'TechToolbox' }
+    $version = if ($m -and $m.Version) { $m.Version.ToString() } else {
+        # Try manifest as fallback
+        try {
+            $psd1 = Join-Path $ExecutionContext.SessionState.Module.ModuleBase 'TechToolbox.psd1'
+            if (Test-Path $psd1) { (Import-PowerShellDataFile $psd1).ModuleVersion.ToString() } else { '?' }
+        }
+        catch { '?' }
+    }
+
+    # Author from manifest (best effort)
+    $author = $null
+    try {
+        $psd1 = Join-Path $ExecutionContext.SessionState.Module.ModuleBase 'TechToolbox.psd1'
+        if (Test-Path $psd1) {
+            $manifest = Import-PowerShellDataFile -Path $psd1
+            $author = $manifest.Author
+        }
+    }
+    catch {}
+
+    $ts = (Get-Date).ToString('HH:mm:ss')
+    $psv = $PSVersionTable.PSVersion.ToString()
+    $ed = $PSVersionTable.PSEdition
+    $who = if ($author) { "by $author" } else { "" }
+
+    Write-Host ("`n[{0}] {1} v{2} {3} ({4})  PS {5} {6}" -f $ts, $name, $version, $who, $Status, $psv, $ed) `
+        -ForegroundColor DarkGray
+}
 
 # --------------------------------------------
 # TechToolbox Loader v2 (fast import)
@@ -48,8 +112,12 @@ if (-not (Get-Variable -Name TT -Scope Script -ErrorAction SilentlyContinue)) {
     }
 }
 
-# Guard re-import
-if ($script:TT_Initialized) { return }
+# Guard re-import (but still print status line)
+if ($script:TT_Initialized) {
+    # Don’t show banner again; just show status
+    Write-TTLoadedLine -Status AlreadyLoaded
+    return
+}
 
 # Optional timing (enable with $env:TT_TraceImport=1)
 $__trace = [bool]($env:TT_TraceImport -eq '1')
@@ -127,11 +195,15 @@ Export-ModuleMember -Function $publicFunctionNames
 $script:TT_Initialized = $true
 __tt_trace "Import complete"
 
+# --- Call on import ---
+Show-TTBannerOncePerSession
+Write-TTLoadedLine -Status Loaded
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+UTJL3avWHjp0
-# 2sFgztef6IijlJGnUdMw+eUf9Ce60aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCYhWtX+HLREba1
+# Cl3uwRDM30ptTLUvDjh4w9vRpBSPyKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -264,34 +336,34 @@ __tt_trace "Import complete"
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDtn5MP5Xxn
-# Hi4Ld3R5aB+avyOR0P88r8CEgAuW93rCcDANBgkqhkiG9w0BAQEFAASCAgDEHziP
-# r+RhrlikyH38yFYm8yBLHSDv/Mee6obUMYU/CNbjfFoNF4rxb1gKunAUDHlompwl
-# QJ4VI11Vz0BXc3dYowiDhHi7uPt6uAVvCYNYE/Xpyexj70ii0hh8kE6c8XDfS7BZ
-# vAE4m0mg44EzbFYGff8z5FqCXXJ3wVhulalN6bEpyUJCngsmCBAhR2JTofYKP7r1
-# 2ZZk0JdpW50sv1rgt98mGzK/ylJIImpT9To5bzXtNH9bfHUKDef55cMLJkpuUQcC
-# Pdz8JG1P56NMM9rE64FvTOlbrTNgYi2bjz+DA2miPXp43DuRmraJbMV3wbO8V+hq
-# EDN/QeW5lBRbiDbbe/Amr60OOS1caEJA+/aUq0IpN/DzmCb+c6jYM0bUTCpnLuk3
-# J23R1mHGybSGJ+gj1aQfGQ6RdSoOx6ff4+0bzic1l/rvDaZSE0k6VNHJR3HCZIHN
-# NLF/RXwRFsbZSouCVM6hd/yoUnH+YjQKgJ2jmSk/+i6DKasCsIuoBApY7uAt9ASo
-# F/R1lDuVY2IsvDW7DzUkwRZPB7m1xEq14cYQZ2tNjmgRUjkUrBFuNYerkAuVN8lL
-# THxcH8/ISQ37Mgu0mOqwewrwFa+NeIlHV6LwDg4XEirwQDtLaPZFLO7XZRc9D0Yl
-# 2nynMxnix81v2VorzHzy++9KTZ1L7tt+iu+i+qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC4m6Vwdoz5
+# ydXMiqyoxPibXmb4jM9yQPWbOzh9gqq78DANBgkqhkiG9w0BAQEFAASCAgA8brTY
+# AcV//4uB387ZCzr/dXlQkrWFpvQt9Q2ux5kZPl3lzHJfZmPKYmLlRcBJZQGNpvXm
+# UwWuBQ508PJfQryzZuNptQ3tLAe2MnK9QVYlXB6MB9LHNteVVUu4Fw5B+eVQihC0
+# rtnZJobCAgL5WTlR0cQ7duCZ2uwHnrovMzZI++1FvY9eZLuyUEnb2yhkWBRygIBx
+# OJDdgBNBGlwdWGFc+VsiAY0uUHtp+wMnaeHgTv0VKLJktiUvINMukacevde0OP8X
+# 31t4l1mM3DZEBJxJmjAOu22DGqz7x24suLQ0z9s+9lTfMOfdahxzUC9F3WeHj9Zu
+# BnsHaPGkA1EGbPqSZKqV0fdww5xuCHIc8hoG7A7XZq1gwcQ+uQz6GLK6IuNPAqt2
+# z5P+F4fYxMUPbqr1WvtmBb1KC2b31TdIF4w9OIOajpw+flKGcBSlR1nQGGmo9Lzk
+# lKOoZzoTpwgw6SBhkir5fQvMPKH+dHMZXYLyVRwP7dvZUFdVKB8jX+izsvmQo/aI
+# SDX4yc1emli2oxKu01VLsucxjdaxqn1/lP2jh+mpF0N0l3RaKU+Dmzw87+IgptSo
+# CU5Yvw9wHGAqMwg77uZr3rVaMWSnJbc1iA/BX3haDd8g+frU87BQSrOMG15UPdxS
+# gZAn9r+hffDyL3KbvosiEeHp3CDiskEXn3hUTaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAyMDUyMzBaMC8GCSqGSIb3DQEJBDEiBCB5XSk57RDzcuMeUEQ8
-# NTvvSuCDT2jEhnsnuMEm4s5WvzANBgkqhkiG9w0BAQEFAASCAgC8R9mdmnNZ0oMj
-# vPLXnh0qVA6nkl8BIKa/z7/1BUtCnbDG0d/TQMxjKmeTjTBoha+XutyU+lJ28Cu7
-# xe3LArz1iXMv2y2GeFCdLp8eM8mtHyxWkU9lhJ/eKYre+kVboJxur1H/lQxhhlzb
-# SyCK2Lt255Z79BBGsNa89rmR00eIKgNMwC0esN2SQ3q5gjlVgNJ0vLLCG+eC73VH
-# STGt7f7aN2KjtfC/3eddT/423hrv6S+oMK63gh6Z+32AClCyGN9UA6vxriRT+loi
-# WpI59ADdu2noYVjstOBmfZVntKhYRZ68YaJ8SrofFyb/WOv6Eh2X/CXHHn7cR3BI
-# 6sWLQ+f1imnR+ebD7tZfqh5JPWp9hvd+I1zLGeuyHeZPfEVTLH6Cw1wzEoIpftAO
-# Rrfp3eVBn1OLC+GRYVcTUKhkU9MQmLgvgIlneErQvvSceWldaXKpyx5VS/NrJVvq
-# 4pkLEGCrzInMnULtwLfN5EKmgMds63/OxqubONO75VysY8ZvRh9ArcP5yQYAROL/
-# ozhxJ77d9nDDd1mfaCEP9A9u05GFRUNxy7YOlQn7Bg8p5EUf3g/QwOhCyTp3F8Bc
-# dHLPCYuslOlYRsdajncyeCCPo2e1SCTiQfIoOuq3Nm/uuI8Lk+D0k+geJxFviduw
-# TYdXUmrWlWh0UgqTMbE3tErBfUQx0w==
+# BTEPFw0yNjAzMTAyMTM1MjdaMC8GCSqGSIb3DQEJBDEiBCDi6Ci2CoA4e1dgyQ2P
+# M5Qw96PKk/vtHCC5XXN0GoNXnDANBgkqhkiG9w0BAQEFAASCAgBEgcl/hBeIKilw
+# qBYXkV80+PiEvQsk2gCyy/wHpWaJvhBec30sPUi7+iuuS04Jjxotky4DtCgJzdsW
+# Uz7IS1wFkDfg+8+7J2i+fc7b3O9hWnZlMxs79tc3XO+M1l+2ITHli2OrgUPp1FGy
+# ptxoSPN8Muk+DYaAJfyA186R8XDOAdYPz662AG11KCfZjgBm/GF4xI2LIBTPmRz+
+# vTn6vGDmH17FOFfCN6D2ORhDPeC3f+dDM771BdN9KHlumzJk9iaXbL17yG8bdFxx
+# XFaX/nQKnwCofiXyK5VUNpZLeSpt7kH+J537FlmChSWQ6eflrAiViZOLhZmYX1kE
+# oai5SyT7crL103RBAf35l/pQQKgfRSohWQmLn0vyBx9No7oWllAc+TEdp+HyIRl0
+# AcaMcolU6OQfKs5R1ocN+Da4+Mo5BYOKaL1UG/RNcLqHiU2LesR9f/mLy1Z7Ubgx
+# wZkicN2fU9Evj8fOzRjNWJG2R2pYujbz/IQw1zW9CtknaXmTHxXzIxxPW7XBgx3J
+# /+r4g3NzlknH3/3Z3/ObKwvalaIDNe2FckGzZVT1wfxV3NwAbAakwmhN7z51hyzZ
+# raXHw6p1jv2NPAU2yfzBGYaXb/NJrKOlZ8bDRWfpcWp7uFWBhcwCYcJ1YR9EuRTV
+# oaIv7Lt/+XSEkWUWiKIyYb9mPv3LMw==
 # SIG # End signature block
