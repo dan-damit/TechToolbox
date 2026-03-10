@@ -87,26 +87,16 @@ function Invoke-SystemRepair {
         $moduleRoot = Get-ModuleRoot
         $workerLocal = Join-Path $moduleRoot 'Workers\Invoke-SystemRepair.Worker.ps1'
         $workerRemote = 'C:\TechToolbox\Workers\Invoke-SystemRepair.Worker.ps1'
-        $externalCommandWorkerScript =
-        if ($script:TT -and $script:TT.WorkersRoot) {
-            Join-Path $script:TT.WorkersRoot 'workers\Invoke-ExternalCommand.Worker.ps1'
-        }
-        else {
-            Join-Path (Get-ModuleRoot) 'Workers\Invoke-ExternalCommand.Worker.ps1'
-        }
 
         # build helper list
-        $helperLibs = @(
-            Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\AsyncHelpers\Invoke-ExternalCommand.ps1'
-            # other importable helpers...
-        )
+        $helperLibs = @()
 
-        $workerDeps = @(
-            Join-Path $moduleRoot 'Workers\Invoke-ExternalCommand.Worker.ps1'
+        $workerFiles = @(
+            Join-Path $moduleRoot 'Workers\Invoke-SystemRepair.Worker.ps1'
             Join-Path $moduleRoot 'Workers\Reset-WindowsUpdateComponents.Worker.ps1'
         )
 
-        $pkg = New-HelpersPackage -HelperLibs $helperLibs -WorkerFiles $workerDeps
+        $pkg = New-HelpersPackage -HelperLibs $helperLibs -WorkerFiles $workerFiles
 
         $session = $null
         try {
@@ -154,8 +144,8 @@ function Invoke-SystemRepair {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDJ+JSEB6bSk+iA
-# 7GSMVOfDPS51/uBBzdvO542mgDcQ1aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDALvBUMGK4W/SU
+# q1187aqvshm6vNsc9TB04EqJK77VsKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -288,34 +278,34 @@ function Invoke-SystemRepair {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBy3JZ/MI3O
-# RTYPFTRq1DhdiBauV7t8JTEn6IidOQK0rTANBgkqhkiG9w0BAQEFAASCAgDd4GzS
-# 0coqTCFo49tQWAXSxxs5SAx3QNTw7lo379WvFwtd8tjYoFG8Ic2l0NyTSr9ROX9s
-# PqORB5O5YBjeR9UHkwfq2ciP0DW5hE8PSdrFahXvualPQdGrjWRHGiOWYyf+6Fjb
-# ezVnJxrAWG6PvRufxSYtr3vqRFqLqYVaXzbLV7+7hFrDnMSt9DaPwTHtYTlQM81r
-# 0ET7neoHVH0+0SuZkfWpSDzv90nigzIfG+LUVJTETQqfsRr5pzbbMgGFZfboH/6l
-# FNklcrxu3Vf+XgyRVhbQBhkTZzEtwSejHxnKFvpAeVrjUGtkc9d6/T6BfzMiNKRE
-# LD6F28ibs2OepuCnS2wYv5c2E/E+BewCkGMv8XvJsdLjzD4mdS1QGVawqLgxrleU
-# oQ/TPHVIN6TvayOu1lwyQ/od23tfgsDRrQ+tbZCBmF1wA5swmKVSxZCo+Ji6pgBl
-# jsPvYQ9QhDwPAaIqInLsIBcLR5amd6eG4c3VPNeEsOH5zZzCoamlaTxgD2MUm/lT
-# SKNFDeplja1O0xRvnO5wAcJz8DDH+VmzXPjCL2ob21YPWfRoc0Ge32Yczby+vP+F
-# dCJet5cza+zKmbTAkYt7mkUna2dTk5fvLO+L3MvpiGIdbjlJOZPkQDhoNEP/rXVA
-# gA5oiHclrTLUokF+eBKuG1HhwHaYIvKfOuqvGKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD3Go8fi6GF
+# Yx/R5GygegoOhIWOLDDmNIS0B6KWhYSHATANBgkqhkiG9w0BAQEFAASCAgCo712A
+# tyITq074sx+jzFYZBxhOz9LzPCyUL6UcuKzdUolPG1aJC9KW+iV3dGmOm8sp2TmK
+# KBmsiRtDx/2dABd24XzefjVJPPc7GY3XPAdZxZol72pLxx79kGOeZy870TcBs2Eq
+# YET4HJcH3rCjwBm674LsGV7Kb54MUDQfpDocxih/tsgzwKD7xDATHfti9q3Ntg/m
+# MuVL7HMeiM0vr0pCAW1T8SXzlkMocYGIQPp+Uc/pT+p0RvvN3wndJiU5FZw5OL7S
+# 5ITp+MDf25nBwu4jTUsqVoMypnaKsRFfn3yoZ5B0Cj7xMetY4F+kw0Ou0J14cymk
+# +7yQPYfkxzMimZT5M8dXZPU66Va4tOX4vFN8vj8La2xbAEg0t/Stxa76sJOPlg8M
+# yQ0DMBWS4e6FClJdecLIemh4L87dXhj0dCAF9F80ETyt8C3DxMH1VffBFiXamUGU
+# XAVQuVFEu6CCrpBmTZjPG0s274F+vCYOPj7BroUWc4BVSINB1UBkPGQXV1WQU1Fd
+# udbmCpd1Se4BdKWz/EJE4Yr5uJn+gYYYrGW1x9pWM62Pweg14BTr1q1VmRrWFXRW
+# GDqI8mCcty/nyl3AynImABmEzMKFaWE7P4wh3d4ClFb8BFt3snPp4vzGBYNrDmNu
+# ud7OXpN/WnjKgBS8oL3Gb6zxVbXS4PHbQr9AvaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkyMDE1MDZaMC8GCSqGSIb3DQEJBDEiBCCcNjmFWtDHLzOcHKBG
-# 3DHP+LsPGiJ1/pjJJqxRrYy53zANBgkqhkiG9w0BAQEFAASCAgBhuHeKgHhpUrze
-# 9J5gDWX2du7P4iZJhEZmg5qJp6Yl6rZcjz8NoaaVJjVjxorf4lWNuXlxbWIzhfdL
-# dWRy93k5YPL2Qd6a0DkxITwCAKxkzHbTEMK5740YKkN/R0Y+P5FKR7jWPZaxzItK
-# kH2kU8KsM9ueTLn89oaMCMhDp7I7TOihY/wKeo6/yv8hK+pAat6nJDaB8hfwOGt/
-# QJvX/ah45EBpoimUotbJ11UDmKy76c6mBqtaGgPu4ti9zzXx4J5CA+R1WfHStWiq
-# nZs2nld3PVIOXyPTggVSrL11XMBfzlrGaUT53Fme7NG13tSn3DRZc0LfBRNasNdj
-# S7JX+q9b8uti/lUSzeYvdAZRaW3jTyoCpYnFyC2/eVV72V5WUmDI4ia/XULybOAX
-# x1QquR/MikTVjCq60GIZaxOGjjR+Nfa8nQgHCRxhgfC6fvbq/XPmOJAeguJ737q6
-# bvS0IFbFahFyuzjI1VEakKhk5WF9tO0LWWqhM3knWZUqTqnt53AYLiCAeIMSHQ4x
-# 4gQ2QEOG/7nn5mvEkqs3kb9gzpikYn5KPlQvFSgTcG4xQLGYId3SLNmZIYbV+2gT
-# f3ccHRE0niroqDabCoAmLRLHrywaODyeKys/vLY5Xm1/bt9OdKfjnib9rWF+6zqk
-# sdx8b8WUULT4dbMi6bvLtD4q2b+e+w==
+# BTEPFw0yNjAzMTAxNzAwMTlaMC8GCSqGSIb3DQEJBDEiBCABUzTyvLg4fBrlwjVc
+# SL6ABb6xrRAUzKMx9UCjwiXDAjANBgkqhkiG9w0BAQEFAASCAgAICqx4heFnnHmW
+# uZtozdWdJjlMCPhVsp8k4R0lPl+KVp+LTtZsrIsUIoy6CVGqYnwRyrHahoBSiZY7
+# sRjmg2gtvTpEnxHJ7h5wGvbhgZzgl5H6WuSYdXAN3Mkp+c/PVOGNAP0T0gPvL/TU
+# fqhDUz92t8cTMnHbtx/meYPQrD6anVh03+zV7dQlTi84ostWMACHJk4NOCr6XYuP
+# PN/pOqOARTa1Es742bMU9K8Xuz8SPwWZmewCDm9Or8SCJ72Ow31yob6hb2Zt3J6k
+# 1BtYmC48K/+3y0I7Z4zZhWJJ0WGJ4spqNjkeMzmcHEzVuln/UGCHUCmj0IqMS10R
+# hAub546m9X3KygqnFFLFe4gy7HJefzbIF+GLypmx8OOkfZDbgtUicQh3W2Lf2qCi
+# 1d0wUtGF2ZtoEXbljvgAaB73S+Wx3TZFaXJC6r/dyU6xyoc3KwE5bGCRD+52bxye
+# 6VXIAZCyEvWOzOYWkhbVR+w/3ksQvYcLfdZ05MWcwu/k/7bSyTiztxWVk4Lt+iac
+# MLJ0Qwii/+3CWlsfFZ+UOGp+ympuDGdlx7a8BkAQexiKTzdX7ssKNg++SA7w97V3
+# o+WL4EToRr4UdjL+aks1OFqaly0QHNNkwtjFQeRL9sN2/GzOA8uknp/+D0FXjH7p
+# zRDBhbFTaAa1TldbNCPSEZ0MJAtrrw==
 # SIG # End signature block

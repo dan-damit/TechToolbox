@@ -70,8 +70,7 @@ PowerShellVersion = '7.5.3'
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User', 
-               'Enable-CredSSPClient', 'Enable-CredSSPServer', 'Enable-NetFx3', 
-               'Find-LargeFiles', 'Get-AutodiscoverXmlInteractive', 
+               'Enable-NetFx3', 'Find-LargeFiles', 'Get-AutodiscoverXmlInteractive', 
                'Get-BatteryHealth', 'Get-DomainAdminCredential', 
                'Get-LocalAdminMembers', 'Get-MessageTrace', 'Get-PDQDiagLogs', 
                'Get-RemoteInstalledSoftware', 'Get-SharedMailboxPermissions', 
@@ -86,8 +85,8 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User'
                'Remove-Printers', 'Reset-ADPassword', 
                'Reset-WindowsUpdateComponents', 'Search-User', 'Set-EmailAlias', 
                'Set-PageFileSize', 'Set-ProxyAddress', 'Start-DnsQueryLogger', 
-               'Start-PDQDiagLocalElevated', 'Test-CredSSPStatus', 
-               'Test-MailHeaderAuth', 'Test-PathAs', 'Watch-ISPConnection'
+               'Start-PDQDiagLocalElevated', 'Test-MailHeaderAuth', 'Test-PathAs', 
+               'Watch-ISPConnection'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
@@ -110,11 +109,11 @@ AliasesToExport = @()
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
 
-    #TechToolboxDependencies of this module
-    TechToolboxDependencies =  @('System.Collections.Hashtable')
-
     #TechToolbox of this module
     TechToolbox = 'System.Collections.Hashtable'
+
+    #TechToolboxDependencies of this module
+    TechToolboxDependencies =  @('System.Collections.Hashtable')
 
     PSData = @{
 
@@ -158,8 +157,8 @@ PrivateData = @{
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB8jA8zX0Ucmdyd
-# KSAAE/eZ6kOGdNUzhZ4xdR48VYQSmaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDzlmB+zQqZAqP1
+# xxxS9qTLz4dKYyZeJHNH0MOWBD91EKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -292,34 +291,34 @@ PrivateData = @{
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCD9UqiHCQF
-# 0NYYcr+XN/5ib/A3haWR8SPhwo5y1aXe+zANBgkqhkiG9w0BAQEFAASCAgBOzkEP
-# EU6jBQ/M5hu6jigbdMSExixDwydzDPvgeLax5S9xyyt/pPcyy3PhoggRvoAhHR6E
-# WypIfO8cYXS2mOL2X+vc1seakyd94250BZXp/Pj/WPdfzP98G27FsZohOUsIaj4r
-# npp9gLJnJPFgh08eaMmC1Bkcqzj82amJrb4QWrIs5gBTxro5206y1eeBqljU5xmF
-# FBBm4k3+TwMq2Xz/nqXfPymTFaZERzYdug+zNPopIDh4jDlgt+QyIRQgsyRnRTCw
-# yMivGcbGH5fOnM3ukqCjvTU5udfVRRj/DoASVWoDXLrUPbK2xBeSDcMWgMSQZGT4
-# HCgK24axv34JfQKHG0QyD0vJ+9OElNOnp9ihoWoAohgBZLZlL8O7fwFwbUGMORRn
-# mztS6atHcADLMAxrMDtAo3F9HHzH9m/1blNF466Bqfr40BsfahBaET8iTpetqPnk
-# ZzHi5nx2YR/xzOJBr2w1IYL1Z0I//qtSc6D/qc7JWgM5ZT2DMAAIYgfs9wwRIbH4
-# XgGFBgFmYCJoG9ylW3AH/fW6YNq9K3a7KISW74pRWcDaxIVNI1jpwvZylLYK16I3
-# 0NEALYoI/G6a6SXeWeXMDdCtGdxSGpxyFErZgVMSQ7HGxRUkMjmvhBNIzav8zu4o
-# tRXdmU5SlVaT5ZfYv+019uYQUJFapxZ/dqrAxaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB2w8VUwZyw
+# 1NibI4VjrsqxvBPk/Hm5Znvzf7ucuScSvjANBgkqhkiG9w0BAQEFAASCAgCl1YJY
+# 2ewMbAjlPC0BPPXv4xxfUlRcR/lrTNXwos0xLRfQhqTJ86hLDefHy2IkwujH5P3z
+# tNdHziZn4Ay1wMTDlQJM9YsEp3XCApfo4BfOKBVBqaZcC9GOYzQYlrgRrrMPBrL+
+# 7/gKNalsLp0cgYaaSyUmd6iV9LeeRgNJPXRSUWEgVoDztXXXFCv63NSP8Z40G8LB
+# izw0t6T9Ew8xeRhoN2e5y8/oEuMT9+xEruEkPbAL91tdW7TdnSPs1c59Ojxn8Sly
+# rDA3oqvov0Ne7N2qmRC+i7a+Grb2a031oEuAQieVIR78kWUBlh3PIWRSRNCyktyC
+# cBMjp/OxsCbn95DbV1Ujr27evaC1cK2pcpzPZBA4uYLa0wzLkU5QNFuEpNQmJaf0
+# 7YUnRS/nWscKYFjIJ6yoFtY6QV3CsAw4eHmSZdjLTtea8CGorfemGUwhI0Zw6utD
+# kgf7mJsdrY7u+C9/CVj7xEghtnLVwqSSz2kn0AJa77iBU1g4a/EdOaTRMPacQ2MH
+# iElkA3VxYpNizDj74t1RmUbeSO6CPkb+QJY0BlIQlofOUZQ2ivU8tODPmJfzCYf1
+# UTyps7tRkxIL0oBAEb3td9Gpcx3hzmhEggzzkOmQfVAzvkSOrGEsb56dJ1Y3z47a
+# XhdB/MNnqHOJuWcXOGBVUeEqDidLfN/t/MulXKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAwNjMyMzVaMC8GCSqGSIb3DQEJBDEiBCAlqkvJEjMAR1u7eua3
-# wc/E2g0stZWgA2oVVp9Iu2RfTjANBgkqhkiG9w0BAQEFAASCAgCTboHXZa1CTfLk
-# yeCExPag7MR+T54QI7DzRwv9sR7eZltvKLgsAYV8fROcDqzlxG6gee+dgQcM9B3A
-# BN4CvsdnTdETn+NqbraxuNTboWIWWeluX1R4zeJCM7dFAdu9TJBNl9im1pI1o6Fu
-# 16PB4zl79+peRyMMj1CD9zuu1rPuell6a3UehIw3XW1efqoHHdpJeb2iLIx6xVws
-# 4VSUhjaTjbN2JG7/BqrTgFa02T1961y+G7DogGvxRu+qmE4HimOcXF4mIZlDT5iH
-# hjicUJqvj2T55GEPDC7vHDMqvk6Ha7v46MARa2nnh/NuzNKIvnAQHWeJDDwjfrh+
-# XIpLgjO9fxINah01JlO8JacXKR8OKN2V1m8eByZDDQYSLLn0Pu0FRz7a25Pj/ckX
-# mXC0Z5u7IHP53gbpNynFjt55DF6DKUVdAFCZaFNM4K9Q7c8pV3GXZ61rJLNVaUR4
-# O+4fEsam1Y1aBp2C0TjBwjMGHheIsflJt7//oZRc4YWOdIVtZQ7z1UNh27g2t7fN
-# vs5vD0/qc4WLc3BoaYiN4XXhlOC/t/I77Dejlz9zwP1j4WiFH/qkwWNnuMBlVKFZ
-# QbrMvtzQH+YPyIZeov0feNKwg5p6rsveMnCSEnLFUbQUnN+p+xe1ombXq+ulxGPr
-# nBArjUeQdZ4uLvc+2qnwTpwv9SpROg==
+# BTEPFw0yNjAzMTAxNzE2MjZaMC8GCSqGSIb3DQEJBDEiBCDCGN1akLzahIPraJw0
+# o5VFr5D8HXRzmZmZ3bnaiXuMNTANBgkqhkiG9w0BAQEFAASCAgCJnmswJCwp3Sz3
+# j/QsZ7sCgy99pxhvi7TZuXJNi/dU/h283m5aC3nmy5QKv0b6pVZN5iMjTc+qmqAH
+# ArPFBej2s55XeLrarEhkFh2oufkLN87F7UdXKpOVbr4ZJ2lugKPn2nC8yzsL2R4E
+# nzNmgtOmyWepoB9jrL2Eq8Bzmh1Gx57HsyNzDveFv4xJx1RU5OCybpyN/gLT6jkj
+# I63Ifr9OlSvipRxNlnFLClnexqJRMecUWMCW0W6fPIcfh2LQ5rbDj6Ei+oDai7hn
+# X00HGaSHOYkLtWDafFp4at6jGJkog8cavHnJGxxfJlBsLWrOwQMDnnJhimwpFqQN
+# JXVc1SiOlH7MKxSxaEGg8Y0UYbxtFjoUWFMXx2VAzVAJVvEr1+Vt5uaDBUeGAUAx
+# hAx+z0YSC5j2tuvYPz9BDGvV5E2YLhunXb12BpDYZDi+TFxpKmb770+eiRlMArD4
+# c8sjdnnfome9G858NQ60VXujRaUKsGorSSlqpB03htx/We/KCWwKG6iBpG0rv/Vh
+# 5Re777h9fcZj0pDP78EpP/EtG8JsC4lfOEokomu7tH1Pis4WSMx5nYOYTOeGGF4y
+# kYQTfHTrqX3LvdAqoxATxbl7h3JWCLPG/Qq8ZoHKluwiJXju0n1z2nynY1emv1Kk
+# nNwkn6PAmiXJzIpuWO4W1E7xmf2DDw==
 # SIG # End signature block
