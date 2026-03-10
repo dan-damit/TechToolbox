@@ -5,19 +5,13 @@ $InformationPreference = 'Continue'
 # Show logo
 Write-Host @"
 
- #######                      #######                                           
-    #    ######  ####  #    #    #     ####   ####  #      #####   ####  #    # 
-    #    #      #    # #    #    #    #    # #    # #      #    # #    #  #  #  
-    #    #####  #      ######    #    #    # #    # #      #####  #    #   ##   
-    #    #      #      #    #    #    #    # #    # #      #    # #    #   ##   
-    #    #      #    # #    #    #    #    # #    # #      #    # #    #  #  #  
-    #    ######  ####  #    #    #     ####   ####  ###### #####   ####  #    # 
-                                                                                
-
- -------------------------------------------------------------------------------
-        TechToolbox PowerShell Module - A Collection of Sysadmin Tools
-
-"@ -ForegroundColor Yellow
+  ______          __  ______            ____              
+ /_  __/__  _____/ /_/_  __/___  ____  / / /_  ____  _  __
+  / / / _ \/ ___/ __ \/ / / __ \/ __ \/ / __ \/ __ \| |/_/
+ / / /  __/ /__/ / / / / / /_/ / /_/ / / /_/ / /_/ />  <  
+/_/  \___/\___/_/ /_/_/  \____/\____/_/_.___/\____/_/|_|  
+                                                          
+"@ -ForegroundColor Green
 Write-Host ""
 
 # --------------------------------------------
@@ -136,8 +130,8 @@ __tt_trace "Import complete"
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA6WbcDcoANpZr5
-# YIgtzCivU+bpx+ljLTuI4tpmLw/CZqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+UTJL3avWHjp0
+# 2sFgztef6IijlJGnUdMw+eUf9Ce60aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -270,34 +264,34 @@ __tt_trace "Import complete"
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCPVPzdauJY
-# UfDKjxEPfnYtq4enZ27iE73AC8Ato8oiEzANBgkqhkiG9w0BAQEFAASCAgASiMt5
-# 64ZRaE1jhQL4BQ1dC6skaQR3TASvPxfia2wFN9FEgEfvM+oz+Uv4oxy4kikS5K+L
-# Npknzlz9WsLbv1jBOGRIb0+87eQUcgVIdiQTDs3/bGtySkzhQio4qRgYAVddenAp
-# vzM4fFktiD80XH3R+6aeGZUHyaRj6IRkhm+pz18efF4yM8BU+e7l87MFVoRb680C
-# eSl4uDVxhUDlwrmpN1kN4RaLe9GyWSO+0d0yKUkRWacfNoVXhfeezq2KRkQXgpGC
-# bmVqtGsgZDjRw+6NwU89R5NzkHwKtFbT5YhChmrkXY4/dWb8eG6MwwR8G7VUGTmz
-# iE6DsksKJkpgKAh5Hoff1dKnCTR2tyHnoKJzR+n0YBYdegpXDqUdk8thmj0QOG+J
-# lwqkJvW7xzo4/hJogWI2fGI9wuVJXzbMolqfpro0rj/3sR8nMCi5w5znRhoggEsf
-# kZ4q2kZQAar0bZvy185qBlVB8Hr02jX0CO7oOC8aFrVeb03QHj5P8fAHkJAefJ87
-# coidOFAOBr+1QinPi+BDas34LKgkv0SbF5P3s4hWTvD/MUZfMdIrg5Fj6HV+4cAT
-# sb5p1/s3hzO9F/rMTO4y/1hBsgoSF2X2LkIGRmPlC7bqlAzyjDH2C7nxbTvCNbeQ
-# KJu7Y43ZsdCH5hjafT/LL/CXdNYj2NBdB+sJYqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDtn5MP5Xxn
+# Hi4Ld3R5aB+avyOR0P88r8CEgAuW93rCcDANBgkqhkiG9w0BAQEFAASCAgDEHziP
+# r+RhrlikyH38yFYm8yBLHSDv/Mee6obUMYU/CNbjfFoNF4rxb1gKunAUDHlompwl
+# QJ4VI11Vz0BXc3dYowiDhHi7uPt6uAVvCYNYE/Xpyexj70ii0hh8kE6c8XDfS7BZ
+# vAE4m0mg44EzbFYGff8z5FqCXXJ3wVhulalN6bEpyUJCngsmCBAhR2JTofYKP7r1
+# 2ZZk0JdpW50sv1rgt98mGzK/ylJIImpT9To5bzXtNH9bfHUKDef55cMLJkpuUQcC
+# Pdz8JG1P56NMM9rE64FvTOlbrTNgYi2bjz+DA2miPXp43DuRmraJbMV3wbO8V+hq
+# EDN/QeW5lBRbiDbbe/Amr60OOS1caEJA+/aUq0IpN/DzmCb+c6jYM0bUTCpnLuk3
+# J23R1mHGybSGJ+gj1aQfGQ6RdSoOx6ff4+0bzic1l/rvDaZSE0k6VNHJR3HCZIHN
+# NLF/RXwRFsbZSouCVM6hd/yoUnH+YjQKgJ2jmSk/+i6DKasCsIuoBApY7uAt9ASo
+# F/R1lDuVY2IsvDW7DzUkwRZPB7m1xEq14cYQZ2tNjmgRUjkUrBFuNYerkAuVN8lL
+# THxcH8/ISQ37Mgu0mOqwewrwFa+NeIlHV6LwDg4XEirwQDtLaPZFLO7XZRc9D0Yl
+# 2nynMxnix81v2VorzHzy++9KTZ1L7tt+iu+i+qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkyMDIzNTJaMC8GCSqGSIb3DQEJBDEiBCAhW+K4j0LKvBj4dwvA
-# lbwF5e5+iAxADaX2yfCwKznHUDANBgkqhkiG9w0BAQEFAASCAgDHrP9BMWU5kGxI
-# eqS+WeqImNYhYaEQErBXv0tUOhUGYtxhs2deRXWpnWkrzIC42KfqWoCu+u8hGu52
-# zb2h1jyETvG8IVGF4VgEjGT6B1yYwc06z4Ksphkp5QTGAq1A2NPHRvyJVhsKTS92
-# E6HSkpgFYsrGBAFq5M4z/F6qPpnRQz6wFrweQ7SjTgDvYjnonezpoRtmQfXam04R
-# xth6rA9NEbZ7u5SkUSTwOKvizwsjPbaIBjllLMuJAuBb2PCqqZR13pv6zpT72DNo
-# npL9XX0NpTBtlnWgOq4/J4tDJCBNA8GtqCUyxxBVUljZOOQooV2ZEfB5JCW8hqNE
-# 9DgPU2O46eJo67Y4D55cPgbqdIGRv0yk3VMZjo8hFaPgNw9t0/QFmLhobTwJJJ8b
-# lnJcNTmx5Qiw8RrhjSn0Gk+hqO8rEuPIhqzmW5bxrDeDyjtSiHDG8OOnTYN0YyQM
-# S5oTJZoNBdLw8cIiAwole16vgAEhngYJ77ZCtz5ZqCL2vHKdhEwB/UC6ay+ffRno
-# 6hLNQTpWI2V9uHMgrKEOz+hnFLn/yFTTIU+4i+KqnzAc0D0Z7kgRE/CZWi7/plJB
-# ZhYn8Gv5C96rpMj6yCp7BPHjzYnOgUM8U7hgWC1D2SvujPaJYcBBYk2Is8VwVgYy
-# BzuVLjqdzggu0tZ4zE07Ln+z6QYoyQ==
+# BTEPFw0yNjAzMTAyMDUyMzBaMC8GCSqGSIb3DQEJBDEiBCB5XSk57RDzcuMeUEQ8
+# NTvvSuCDT2jEhnsnuMEm4s5WvzANBgkqhkiG9w0BAQEFAASCAgC8R9mdmnNZ0oMj
+# vPLXnh0qVA6nkl8BIKa/z7/1BUtCnbDG0d/TQMxjKmeTjTBoha+XutyU+lJ28Cu7
+# xe3LArz1iXMv2y2GeFCdLp8eM8mtHyxWkU9lhJ/eKYre+kVboJxur1H/lQxhhlzb
+# SyCK2Lt255Z79BBGsNa89rmR00eIKgNMwC0esN2SQ3q5gjlVgNJ0vLLCG+eC73VH
+# STGt7f7aN2KjtfC/3eddT/423hrv6S+oMK63gh6Z+32AClCyGN9UA6vxriRT+loi
+# WpI59ADdu2noYVjstOBmfZVntKhYRZ68YaJ8SrofFyb/WOv6Eh2X/CXHHn7cR3BI
+# 6sWLQ+f1imnR+ebD7tZfqh5JPWp9hvd+I1zLGeuyHeZPfEVTLH6Cw1wzEoIpftAO
+# Rrfp3eVBn1OLC+GRYVcTUKhkU9MQmLgvgIlneErQvvSceWldaXKpyx5VS/NrJVvq
+# 4pkLEGCrzInMnULtwLfN5EKmgMds63/OxqubONO75VysY8ZvRh9ArcP5yQYAROL/
+# ozhxJ77d9nDDd1mfaCEP9A9u05GFRUNxy7YOlQn7Bg8p5EUf3g/QwOhCyTp3F8Bc
+# dHLPCYuslOlYRsdajncyeCCPo2e1SCTiQfIoOuq3Nm/uuI8Lk+D0k+geJxFviduw
+# TYdXUmrWlWh0UgqTMbE3tErBfUQx0w==
 # SIG # End signature block
