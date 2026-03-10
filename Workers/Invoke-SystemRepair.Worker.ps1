@@ -8,7 +8,18 @@ function Invoke-SystemRepairCore {
         [switch]$ResetUpdateComponents
     )
 
-    $system32 = "$env:SystemRoot\System32"
+    function Test-IsAdmin {
+        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $p = [Security.Principal.WindowsPrincipal]$id
+        $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+
+    if (-not (Test-IsAdmin)) {
+        throw "Invoke-SystemRepairCore requires an elevated session."
+    }
+
+    $system32 = Join-Path $env:SystemRoot 'System32'
+
     $results = [ordered]@{
         ComputerName          = $env:COMPUTERNAME
         RestoreHealthResult   = $null
@@ -18,99 +29,99 @@ function Invoke-SystemRepairCore {
         ResetWUResult         = $null
     }
 
-    # --- DISM helper using Invoke-ExternalCommand ---
-    function Invoke-Dism {
-        param([string[]]$DismArgs, [string]$Tag)
+    function Invoke-TTExe {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][string]$FilePath,
+            [string[]]$Arguments = @(),
+            [int]$TimeoutMinutes = 60
+        )
 
-        if (-not $DismArgs -or $DismArgs.Count -eq 0) {
-            throw "Invoke-Dism called with no arguments."
+        if (-not (Test-Path -LiteralPath $FilePath)) {
+            throw "Invoke-TTExe: File not found: $FilePath"
         }
 
-        Invoke-ExternalCommand `
-            -FilePath "$system32\dism.exe" `
-            -Arguments $DismArgs `
-            -TimeoutMinutes 60 `
-            -Tag $Tag `
-            -RequiresElevation `
-            -ShowProgress
+        $argLine = ($Arguments -join ' ')
+
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $FilePath
+        $psi.Arguments = $argLine
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+
+        $proc = [System.Diagnostics.Process]::Start($psi)
+
+        $timedOut = $false
+        if ($TimeoutMinutes -gt 0) {
+            $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
+            if (-not $proc.WaitForExit($timeoutMs)) {
+                $timedOut = $true
+                try { $proc.Kill() } catch {}
+            }
+        }
+        else {
+            $proc.WaitForExit()
+        }
+
+        $exitCode = if ($timedOut) { -1 } else { $proc.ExitCode }
+
+        [pscustomobject]@{
+            FilePath  = $FilePath
+            Arguments = $Arguments
+            ExitCode  = $exitCode
+            TimedOut  = $timedOut
+            Success   = (-not $timedOut -and $exitCode -eq 0)
+        }
     }
 
-    # --- SFC helper ---
+    function Invoke-Dism {
+        param([string[]]$DismArgs)
+        Invoke-TTExe -FilePath (Join-Path $system32 'dism.exe') -Arguments $DismArgs
+    }
+
     function Invoke-Sfc {
-        Invoke-ExternalCommand `
-            -FilePath "$system32\sfc.exe" `
-            -Arguments @("/scannow") `
-            -TimeoutMinutes 60 `
-            -Tag "SFC" `
-            -RequiresElevation `
-            -ShowProgress
+        Invoke-TTExe -FilePath (Join-Path $system32 'sfc.exe') -Arguments @('/scannow')
     }
 
-    # --- RestoreHealth ---
     if ($RestoreHealth) {
         try {
-            $results.RestoreHealthResult = Invoke-Dism -DismArgs @(
-                "/online", "/cleanup-image", "/restorehealth"
-            ) -Tag "RestoreHealth"
+            $results.RestoreHealthResult = Invoke-Dism @("/online", "/cleanup-image", "/restorehealth")
         }
         catch {
-            $results.RestoreHealthResult = [pscustomobject]@{
-                Success  = $false
-                ExitCode = 1
-                Message  = $_.Exception.Message
-            }
+            $results.RestoreHealthResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
         }
     }
 
-    # --- StartComponentCleanup ---
     if ($StartComponentCleanup) {
         try {
-            $results.StartComponentCleanup = Invoke-Dism -DismArgs @(
-                "/online", "/cleanup-image", "/startcomponentcleanup"
-            ) -Tag "StartComponentCleanup"
+            $results.StartComponentCleanup = Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup")
         }
         catch {
-            $results.StartComponentCleanup = [pscustomobject]@{
-                Success  = $false
-                ExitCode = 1
-                Message  = $_.Exception.Message
-            }
+            $results.StartComponentCleanup = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
         }
     }
 
-    # --- ResetBase ---
     if ($ResetBase) {
         try {
-            $results.ResetBaseResult = Invoke-Dism -DismArgs @(
-                "/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase"
-            ) -Tag "ResetBase"
+            $results.ResetBaseResult = Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase")
         }
         catch {
-            $results.ResetBaseResult = [pscustomobject]@{
-                Success  = $false
-                ExitCode = 1
-                Message  = $_.Exception.Message
-            }
+            $results.ResetBaseResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
         }
     }
 
-    # --- SFC /scannow ---
     if ($SfcScannow) {
         try {
             $results.SfcResult = Invoke-Sfc
         }
         catch {
-            $results.SfcResult = [pscustomobject]@{
-                Success = $false
-                Message = $_.Exception.Message
-            }
+            $results.SfcResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
         }
     }
 
-    # --- Reset Windows Update Components ---
     if ($ResetUpdateComponents) {
         try {
-            if (Get-Command -Name Reset-WindowsUpdateComponents -ErrorAction SilentlyContinue) {
+            if (Get-Command Reset-WindowsUpdateComponents -ErrorAction SilentlyContinue) {
                 $results.ResetWUResult = Reset-WindowsUpdateComponents -ShowProgress
             }
             else {
@@ -134,8 +145,8 @@ function Invoke-SystemRepairCore {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBCPYDJL4gTnaus
-# RMaPl2UIUkFKb8VAMMZtITVfZhoTHKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDhE+bY3yjHEP5g
+# /ljy0FnBcWT60HSZ0Vny69qdcKxlf6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -268,34 +279,34 @@ function Invoke-SystemRepairCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCjzM2t9JMg
-# affgQHw2RXOq5p0VLlZ7d4rjZoUnvEmePTANBgkqhkiG9w0BAQEFAASCAgAEWQ4N
-# qKkjIEI6idpV9ibAag5Np/U24nw8yeaxLeIuHb7BnaPEJslPIBVQEpZvFkTJamJF
-# 5RSDB+JvHkVDz0LkWTifEBYfRU6JBNNScrV2c3Xmn0uy/A2SYMSIBzxblVKT6i16
-# h9x1fcA5Jwv+sQOqIpwWFvNfVbnfM20fiLJVgprBCDZ3zuynHthNt4BS3SQ9y2ql
-# DD9KXK8QzQzrQ9t3/OXkqrrScxQZ4OaWh9hCd/d0g9XN37KMdhNUsuGAaRqTxZYZ
-# Crm71wbSsyMYdpPwOj3RL/2kRA9CDh/bMLjGx7iUfHwUYIUxDUcFIdKh8vywwAsC
-# 2AJLWL2+blD3MNAq9RSzCQ1wbRcXl/uOZMuZkR8cJXInoAs1TKGk7XQSjuE6qO74
-# oNfkaoQwEu38fTGoiYnQoLPhfRHD2y7Hjx8b/Bm/v2DVuRNgkBb7+LpA9JwfaZZS
-# Fcp3XYccXEpobRH6LBPqlAt1esk8umWfGJaAYOzpO8xBIgBv0JofCPuXiNZecPmh
-# ypaFXzfyX1WQl5uKfhs1Jezs8lk36dM+mlgPkL9nuZz4/y298ZyHCxfOQBb4e/2J
-# zeXC9qWGccv8kmy/KYMo1WdEhCZumJQgTknRpry9wqlwYGNpyRHLxkI5xeVq+IV+
-# Ac3ZZvN63feOIG5qNBlUYU6gF6j2qKaBX5FuKKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAtargEVEbc
+# zDUhZLqt3EocE3w9TFjrr2EtjbmLOU3UkjANBgkqhkiG9w0BAQEFAASCAgABT8JE
+# kCOZ2AOarGQE4c5z6VVPz6UqyYuGl3bUBqeVRabPVS/AiPIQ3qFZ6TnRHR9h9aln
+# H9UpoVWxfge2pWsuKQlYdaRCuD6yCRAqC4X6YaYoh5rir6zG1g8oCCG5BZpHh9Pm
+# UYxCeWNaieyLzS1Y2Wez1SZRuaDcopH94AceRDynABD74Jc+ixcMntpfG+Wj4/s/
+# lkDvTJXu6Bp0dFaXh+A7LJupNDgmToloBJGKKC3X4uncr73/mcdi/u5xawFRCUwQ
+# A/VlcNxsc/2ZQvixHQwYfyHXGIV7Od+UP4ZAMy2NB5NNQADnty+9o30B+t96kZeG
+# J6nMiH6QFP7Hkdy1JfOm6tOKCSRlLCkUMCpMF+oCyFknsSLtYC39d5w09KCkNzgp
+# zT6ObLGYz1zKOoCkJerUJEvTLpxUE7Uu7YeY62A8s0QddOpzubBNLXLUINpowBim
+# AWXn6ZIXT2eCyBkDpWxBsXHF7oeOc7vwfNcj+tuYUnfB5f32FgV+hI/13pRBSmQv
+# bDAX0azKEW625gov2ETQu85+RuNcFoEYe0MqO1UvgLOvYJxASsZIIXAYCIzRfOhH
+# vaKs4uGx9nSycFY1oU986wtt1kRqNlY/P+uri1tFvN1iDUw2SGU06K6WnXRdOqSJ
+# IPYmG78UbmLjpLNSiGYva0ftkn3hdpk64UCoGqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkyMDM2NTZaMC8GCSqGSIb3DQEJBDEiBCD8h5l6mPsqId11Hl4S
-# sb/WmNneEHNQiRgoB5KSNwsfsTANBgkqhkiG9w0BAQEFAASCAgBMFW+PL0tuivXP
-# xyywUbPaSnicsgnSYDcsHM28wYD9yI12iWVL4Gv6wXo7SpbqD0pAPkGRuZX+PckO
-# LoyesByOOUX6YZm6GAgHg9AQyzyFh8r1PGcc1tC2heN3PJHuROQnE8Sjvfu4vqHG
-# j+G5izm35joitbgnVHUAy1OrLhq1rcFqufCI3nq9k+nfXRlYChaCdwe/vJwD5jdI
-# JEtmRjb8NArKGW7mW1Aa6Ir1ayke6ywJm0n+no+Z+Cjh7X3sQTL5LcqbNEDmrQKD
-# 9O3eJ1HZJbvI/MGhRWcvcBjjHPbOxHug7C7h7s0VbSdDWMifm9dIzkD9Q1RWr24l
-# MLjTPx3bxUqZ3zhlHhfc2Us0BQ78RLpOXkW9ZjO1qo1cficB/0R+yUUqPIYiiwlX
-# MuwKPPOmmRuU6ncErq2GileBHVJxJbCoBSEMQs2C7urom0EXAtdX4+5GvuVl40WA
-# 5rJA02p4LdKuXAm6EjhvgGgjQQpc9uztQ19fJZz3eLERkq5r7EmMxj/7s02mP2Uh
-# KDpwpEKfnTrOB5AlTfjrWGpIG+D4r4IGRZFs5SoQ9n4j29RVfD1Mf2AM9Jwz6C+8
-# tC9YA7HDFnKk6ypa6m92XQgYPU5Jmmll7NPVM5NRo+DV5qRx3SqAKeUxv850QC1U
-# t5bOtPKH42lw4FdmeQ1b2x+kNqPR3A==
+# BTEPFw0yNjAzMTAxNzAxNDZaMC8GCSqGSIb3DQEJBDEiBCBS0eFIM3j+Ld9HZr1u
+# z5rGHobjyIqgUN6R7+AG8BwvsDANBgkqhkiG9w0BAQEFAASCAgC7vUlsGceLuMTH
+# DT+jqLe8in0WO4+vz0ys3O7egnHuHNUFoJNhPIx51NUWFiRrhF7tlvTE63mjeL9L
+# lEJdfwIdk2Ys15ipLSH9o0QINYA0SqRX3dOgBL1ETc+0w6Bq5XD+7kBxjrulz70Q
+# Av8wvAYiKWaXUVmVLzDMhZTTswQ3ST6nbUBGep8OaWJpbwfC5l0Fsh/FiofgJElr
+# WSDWzeBzMn50V2etFQ2mqXDypoHIbw7a960iKJmBFggrdWRBd+xsmictOmoAGKvi
+# hK/criXUdNF5UacJ4Co0ukalhMKcBRuwtoGlOhiLbKntNchJ0c03HOKThynLFsmc
+# eig9F6hbswBUu9MmXELlEvZlgR6qBkmpHCcTMPNnHZvlwOTM2ar+V5TjMAJ++tnS
+# GC5xYGXDt5y0mnb8eaiJxPtHw7mYAqGNMIbjL5TnLmEf/eUg5QqSdo8RaG3GxGgp
+# cs5bK755rGIeW2jsxTXgNmkSWrnmRUMNE+bt42ZmIbgxAUWyMv7b7SciSVIXKPqc
+# 1141lzoBRSQ7yAxvjWHYch9X7saFNHzDlCP1v44RCF4QQ4PEyLWozLPrn8vrFTWt
+# 1hmzxPzrU6QdzEHQzgZV6ssVqRlO6AyEfdUecl1LNOHYuhamCdJls9pbFymd2By2
+# x5c+mLMovJxTwxMHKx4Ox+xQ0W7siw==
 # SIG # End signature block

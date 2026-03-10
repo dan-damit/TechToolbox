@@ -45,7 +45,10 @@
       "default": "C:\\TechToolbox\\Private\\System"
     },
     "largeFileSearch": {
-      "defaultSearchDirectory": ["C:\\", "D:\\"],
+      "defaultSearchDirectory": [
+        "C:\\",
+        "D:\\"
+      ],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\TechToolbox_LogsAndExports\\Exports\\LargeFileSearch"
@@ -59,8 +62,8 @@
     },
     "passwords": {
       "domainAdminCred": {
-        "username": "vadtek.com\\ddadmin",
-        "password": "01000000d08c9ddf0115d1118c7a00c04fc297eb01000000eaf88a8247d1554d9cce8ee006be05620000000002000000000010660000000100002000000037fb0379d1a4ef06e964e8693574f42f60dc14f4b53d8faed19606641b533bc7000000000e80000000020000200000007d866569cce3e81387a474978bf7f4d5b9f87be9a3f552020660672254c3567f300000001cf1bf3c189bd85600d801bb3154b43b24b22fee813351944379dc0c58c54509b4ec6dfa60c0ab6419141a6b3f075e8e40000000bf2839330c8dbb9891efd58a25f1ec6ac5a33c2c936c7fde6fc92c9ffa2778e129035820c021d72370f5437e007b7699b769993ef746bfdc7e612067eba5b0b8"
+        "password": "01000000d08c9ddf0115d1118c7a00c04fc297eb01000000eaf88a8247d1554d9cce8ee006be056200000000020000000000106600000001000020000000e54231b034b45fb733c1efe3aa44e5a9158b67eb8c720393c4447d6b9b8081dc000000000e80000000020000200000006d652f785fbfd1e08fdfd7c6923f07df35efbaa200e78bc5b0181c2674a0e2aa30000000c99d686f1d42a9965f0171131959b924367772826516ffd7e039cf016909c5ed416561813f3b91c0fe32aacd0babf7bc400000008b392c44d5b108b670b3d28bbeabb979e20fd320baeee5494f96d34515a933c615514797aa8213b3cc88f9b601eee46cf3f1b79155f33dfb4d2f7162a9b33734",
+        "username": "ddadmin"
       },
       "wordListPath": "C:\\TechToolbox\\Config\\wordlist.txt",
       "default": {
@@ -301,7 +304,6 @@
         "Refactor": "code",
         "Tests": "code",
         "Combined": "code",
-
         "ModuleReview": "review",
         "ExplainDesign": "review"
       },
@@ -333,12 +335,18 @@
       "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": ["/E", "/COPYALL"]
+      "copyFlags": [
+        "/E",
+        "/COPYALL"
+      ]
     },
     "downloadsCleanup": {
       "dryRun": false,
       "cutoffYear": 2024,
-      "excludeExtensions": [".pst", ".ost"],
+      "excludeExtensions": [
+        ".pst",
+        ".ost"
+      ],
       "includeExtensions": null
     },
     "teams": {

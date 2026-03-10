@@ -26,32 +26,67 @@ function Invoke-SystemRepairLocal {
         throw "Invoke-SystemRepairLocal: This operation requires an elevated PowerShell session. Run PowerShell as Administrator."
     }
 
-    # --- DISM helper ---
+    function Invoke-TTExe {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][string]$FilePath,
+            [Parameter()][string[]]$Arguments = @(),
+            [int]$TimeoutMinutes = 60
+        )
+
+        if (-not (Test-Path -LiteralPath $FilePath)) {
+            throw "Invoke-TTExe: File not found: $FilePath"
+        }
+
+        # Build arg line (simple join; OK for DISM/SFC typical args)
+        $argLine = ($Arguments -join ' ')
+
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $FilePath
+        $psi.Arguments = $argLine
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        $psi.RedirectStandardOutput = $false
+        $psi.RedirectStandardError = $false
+
+        $proc = New-Object System.Diagnostics.Process
+        $proc.StartInfo = $psi
+
+        $null = $proc.Start()
+
+        $timedOut = $false
+        if ($TimeoutMinutes -gt 0) {
+            $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
+            if (-not $proc.WaitForExit($timeoutMs)) {
+                $timedOut = $true
+                try { $proc.Kill() } catch {}
+            }
+        }
+        else {
+            $proc.WaitForExit()
+        }
+
+        $exitCode = if ($timedOut) { -1 } else { $proc.ExitCode }
+
+        [pscustomobject]@{
+            FilePath  = $FilePath
+            Arguments = $Arguments
+            ExitCode  = $exitCode
+            TimedOut  = $timedOut
+            Success   = (-not $timedOut -and $exitCode -eq 0)
+        }
+    }
+
+    $system32 = Join-Path $env:SystemRoot 'System32'
+
     function Invoke-Dism {
         param([string[]]$DismArgs, [string]$Tag)
 
-        if (-not $DismArgs -or $DismArgs.Count -eq 0) {
-            throw "Invoke-Dism called with no arguments."
-        }
-
-        Invoke-ExternalCommand `
-            -FilePath "$system32\dism.exe" `
-            -Arguments $DismArgs `
-            -TimeoutMinutes 60 `
-            -Tag $Tag `
-            -RequiresElevation `
-            -ShowProgress
+        Invoke-TTExe -FilePath (Join-Path $system32 'dism.exe') -Arguments $DismArgs -TimeoutMinutes 60
     }
 
-    # --- SFC helper ---
     function Invoke-Sfc {
-        Invoke-ExternalCommand `
-            -FilePath "$system32\sfc.exe" `
-            -Arguments @("/scannow") `
-            -TimeoutMinutes 60 `
-            -Tag "SFC" `
-            -RequiresElevation `
-            -ShowProgress
+        Invoke-TTExe -FilePath (Join-Path $system32 'sfc.exe') -Arguments @('/scannow') -TimeoutMinutes 60
     }
 
     # --- DISM: RestoreHealth ---
@@ -111,8 +146,8 @@ function Invoke-SystemRepairLocal {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAoUU5ViqFKeOsn
-# vi7QDK82MTxKW1O05pshC7NcdPCrhaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBllehUgB7GvhdT
+# x/GjWEMGjSJetBdxOZPapZG/rYjTzKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -245,34 +280,34 @@ function Invoke-SystemRepairLocal {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBvqZ8ks290
-# 1qtvH4eF13LQqfA61k5ezKUKIrE5d5Wo3TANBgkqhkiG9w0BAQEFAASCAgBYLBds
-# LMPeImFYe6jmaYGAMh6b+QMmMHkx8g6La4IJ6JeZYj0d7AuPjl4LDLVN0NiUVKEh
-# mtDtIAiWaQrxZ9pCoZAvUVvVH6kZmf5l+LEKpwnMx53dULKcerDztO9mFnnAYQmy
-# TmCj/ZnCxldBf5xMvpz32fAC5OWIkX+YFG3CRdMo8Sya8nRKaLpkh0wcc8jEp/dY
-# cJlAmzD3L8io1daCinTHdJgWXdKxLd26q1PsiAUoL7lvUP+oC8h9NY1BR3Lz4rgY
-# vJzxqCpDBY4qY4+0Z5plwwm5VudH3TqStmmjt51mgSKTvTSnE48tzRRD1OgOM1jG
-# cTZWF8fmSj3hYE3EY7FUH4zNfJfLKmO13phdOIbUCeLT889cvHwgbvOHUvaXpOcl
-# uPNgsaVKiN/ASNb7LpkYvw4CVn/lGZe5jvFwMk5Ey8ZTFnIkfFtSHteUHMaAsTen
-# d/Hmz3F4g+GHOwEXTBc3GkZSmwy34jv1R4gXqGM+4HDVNAX+rYpHynzhDP9VOXGN
-# 2CzhR2qO3lLob5hnWVQ+DiBAFuHUeJJ2Q/RzWVAmoXB4KNMXXAs1M41NE9cH3BHM
-# 3EDdgMdMeZPeWsp+BJW0XJEzHxBHGmW23KA27Z240PPEKJok+cLrKAjxiKYUvJ7L
-# gV6KiLiJ0s5zKTxtdEu+GaFkjXhfb8f5RvYOyqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBInXWfeK4N
+# DoAtYBiHvVK6sdRd9mowujRaxIn+UYJo4jANBgkqhkiG9w0BAQEFAASCAgBRPC4i
+# ujCobeXOJEj5DQ9cZ5Lgn5k+mqgyHqAbId3uGYjEfEhGzu6osoodv+ZLg8SVyD/S
+# sl4+j0O9Rz5NgYm4TU1qveGk0vwXADAVQt1TnPry53zRKN+AfBY4RUe1LUG7pKgU
+# nfz9mHhUZlxzTscqBWBo/qcQ+1T8paGMZfCtz+yO/RhIxCQSSSQkKzjNtqQ2Kd9R
+# liMTXy/0f0OsOFxuUOfphGg9X1iVZQ2f0D9wJ8WM3AdAhaj4jiNf6ECHjrOCPv2I
+# qlDXCQguy7PtIGhQLiopYRvGtYTOoxJyFA+KGRWp4xZxglqg5beIs4lLHCYW7d9U
+# DGcmTnJJF9ZDLQd5h234EiItkZ9mQZz2OokC4SjCME+3mGBtKHGq2ZDXg642d9Oa
+# tRvQ3nFWQlkyE7AgfqRcQ0ZRm/Kwu8dGsXGJolji3bzKoB2pJeKgDNA6MCEkwsFt
+# qnywbuYnnaUM/V7mKhX+kSN8oPnF6O5vLucEp/lQmg4OYpx4iNDN5J9YiMOHPAK+
+# 1NjKDHjNCLUPntVxGuVScLUdy7Z2rkT/rcDrKuloO7sdfoxG17SUGBkF6z15HcY2
+# TMb+pYXMJU5AEMwPHMk9HKUu9Mb1rfMI05+rPo79Su32WBRPcgEiXmjHGaCZB0OB
+# ODovOAV31/CD+vl7O/Le+dfCMoPyit/LPjlIU6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkyMTA0MzVaMC8GCSqGSIb3DQEJBDEiBCC0r1WGQT0F8PgdZgJN
-# tjPNAvU4BB6RC7H/MkPL3Be/VDANBgkqhkiG9w0BAQEFAASCAgAzn1VCIcQ2XjOG
-# dQAZHboKmc+E44IenmTGR8IjPqOnJoaY9Eek3pO6mz3zY9ucr1lhMWGC9XRzHyeT
-# oO7XJ1yl1heZ3urGIOP5nkw5E6hBZEkdu8H8S3o6U8kzG5/iPfiueJqNljCesq7T
-# Cd1aqDp5EcnSn49eg3IZhvSkOh0ot+oIFT/auJlyF548NUnAMQBil65MFdE2j1Iw
-# c70FRbJkWrP+Ry3HOFP7zPW9aDec1RkKl/LvDbUbieuD1N3I7HVqyj06GimVhc+F
-# sg5KCH5UCHRvSGYBdbZy2APen6BcgeW0VN6KytHkHdiBu3YoheBHAwT71A6b2xW5
-# JqXyymrXdfn2qO/Pe/mZuCMyMra1iY7NJ7ELIPA4gYl5Mo864SsE1qEpkWsfGbPd
-# XdkToY/ETw8Kx4ldEbq/Dq1E+9RMNlev76yv9vm4/k2RLs3U9mPdrjIVUT8+iYoW
-# HJznW7XlM2YAXk9Hq39sa5OrgAZ6QQ+C55OMq2EIQaRIXXovw/KbHuZyZ45wlI1k
-# sy6wUYrH2N8OeO7xg1Mn0QoQNgfyy/pPaUzSTe2Rh3Tg3KZ75yxaWGmKuW9E1KXa
-# njx09h7tzXCNY3wDYVVKAB6o7Z5InxQaLIL241vMTltQSycVZTrzjF97XH3w0Abg
-# sSJG9n5FMfcP9bIIBDYfZ5eIe4IVKA==
+# BTEPFw0yNjAzMTAxNzAwMTZaMC8GCSqGSIb3DQEJBDEiBCBC4YKPJzUZDZolKprt
+# z8MobrZwoRssCXLi4uDB1BlxaTANBgkqhkiG9w0BAQEFAASCAgCerciGqOF1v00a
+# UsdqJEPVzom1zv88nVneOWB9nuIX5zXIFEpPtU5LnxeQlWSNPiDnahokceCfJK1m
+# NhUhd8rVpkJ+zsrJn8cGtGaLB7yY1K5NWMZKpO6RSsbBQBiAdhg/Env+TySSY7GK
+# 9/Xlr/RYoEp2ww+kGwwovElamaw6ek3cJPfJE08UIjpVL6jKfxwxKFWu9HNNSWfF
+# Lh1byl99fxte85kIRsB3w54trRWOnuBeQYLhMHL2mF48aq3hMYHj8j8h+c2tP5Iy
+# rrrTa2bJ4G13QJTXKnfGSJKDJUypieRqIa+Ii/CD1OnV8jPc5i7VCoKasEucVLzi
+# sJOoWxCzcdbHE0e0G+7finTXnvTb9HS4L/W4Vn/THazuW1hlPB33EX295V9nt9A4
+# bFLBQAfL99uq700Td/qAMVVP0p+JrstqDzCGBairr8isotjRI/DJe+R1ZQ5MAkot
+# dLUs0BJrsnkhWBHbeXi6zcTFcIy39FKGji/FbMR0+46krQ3C4F+OPbxbdG/XC6d0
+# Mjgm6XZGxarmldUF+smRpnM8lg5vmZaRcRgAKt39neDP2nQ3qtOqTS2c5WES0srE
+# TYkVB/sWcgspbr+e+HxrY36nPLPBtknoF8hEbRngOLLDACdl7l1K0Hg76okTlrqL
+# pJ0VQKgFxcEgHshfX+z3HDb++89P2g==
 # SIG # End signature block

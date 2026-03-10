@@ -1,15 +1,55 @@
-function Join-Args {
-    param([string[]]$Args)
-    ($Args | ForEach-Object {
-        if ($_ -match '\s|["]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
-    }) -join ' '
+function Invoke-TTExe {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$FilePath,
+        [string[]]$Arguments = @(),
+        [int]$TimeoutMinutes = 60
+    )
+
+    if (-not (Test-Path -LiteralPath $FilePath)) {
+        throw "Invoke-TTExe: File not found: $FilePath"
+    }
+
+    $argLine = Join-TTArgs $Arguments
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $FilePath
+    $psi.Arguments = $argLine
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $false
+    $psi.RedirectStandardError = $false
+
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo = $psi
+    $null = $proc.Start()
+
+    $timedOut = $false
+    if ($TimeoutMinutes -gt 0) {
+        $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
+        if (-not $proc.WaitForExit($timeoutMs)) {
+            $timedOut = $true
+            try { $proc.Kill() } catch {}
+        }
+    }
+    else {
+        $proc.WaitForExit()
+    }
+
+    $exitCode = if ($timedOut) { -1 } else { $proc.ExitCode }
+
+    [pscustomobject]@{
+        ExitCode = $exitCode
+        TimedOut = $timedOut
+        Success  = (-not $timedOut -and $exitCode -in 0, 3010)
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDMj6IujyZ87ULn
-# aorcvjdlYPPZkhBq0wuQ+KTDT+05jqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCCarISMjZIWJlE
+# B7WWfWVVftIPqLegA0wE1XGJPXnMNaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -142,34 +182,34 @@ function Join-Args {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBlWCNGt7mD
-# Kv2H1Hv0mf+OBgZqT5DUoGb3/5iBnOYXazANBgkqhkiG9w0BAQEFAASCAgBm0VN2
-# DB3TwOf51l0dVSuxYcNGbgRTTRxk+mIZQAiMpCqovUl8xy2Q6mA27Bv1EMrAMG/+
-# ZhAnSyX4s/hvOm6UewP+eFIC4sHXkozkXpzDPQMfmTWhvd5fh4sZj2ZiQvh69635
-# dbDKU1Ue3Md7QPJALQdL0fjacfp0+e8iPN8i3wxD04Gcz2R0QDXcILbEIuEAcmrM
-# 5rlE3oATY10Jc85l5j9EV7zJ+j/SA4e8C680/r86A+veaivmNqkW9t0v+bQ67g75
-# /QnZz3Mnw7E+r/hTO9cqCBRpu0uT4f4oqiCjvQnNI+WYeSQjs6stApCFYDssNYA2
-# T7cjICVHZ2sVOrPhCEp//Tmh+e1GdqSVefasPgOxseyPbTBOdDZqBwRPsHB5ljf6
-# 82vcHip2U8N3mdAfhq5E9nZULfu9rRSxoftTamRvjBj7NqIyBeot+Z9/G50hTLoc
-# DMT8eQvoTqjafcsYqe5C+cQG7XhzA78M1i/MbHscd/aK6vXZGRyaA5gDg3hUNdWt
-# kgCRMzSvmdqgJFgosacBCXS0BAXrVjdxJzdNkcQ6I5JfkKYL1JFvaMtAaJPNd7Qz
-# MOZvPSK4GhpWZBN8dZS3FoeWzj86pfRfCWKfltNKZWFl4kfiamicIjuMjLnEJdwe
-# fR5rh9/TCqmLemd1oAVKaIXb3Zv7VdsS4xzS3aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBNjwQAuM7C
+# Yx9YoZ/GDs4u2n6+VnKm/rUohUi1sEB7TTANBgkqhkiG9w0BAQEFAASCAgDK14u5
+# ZB8tE4R35PBNYkLnYFSqBXB/o+8B7LmSQEEFnpsHorQG1L/Od/cCgjjmjmgQBScl
+# mwfIyTOTADj5HBkwWem1+norQwanNBPa2o28pwOZ94YPuxS/dbC3wMYsD6SesbZe
+# LizXLy6ehXuFeJ7YrDBIVprFDTN9SKX75IqPIvCGCO05/qfnYTEBqUQVz1P1OZQd
+# vNdZMEHmE215mqBjU/YiR5dSMj2xMumZ4v29Xoh+GbaIVsLFjmJZsngeNjASpPRr
+# omn8PcntsCALpmLXo6Iw4ClNrMl5HKVeD3qBS/bt5vzqHWWmyhYB/oYFKadbSn56
+# /QOvh/BVD3Nrwgwm2RkNRoThIa9++zK0KhlVPshzaN4JxF/8lH5r+F1g27WAeOQ3
+# eaSxNyY/aBTXZS/XMrydygxkDRbXyxwLiQo35VSYxp5D0/n+ZrsVG1AuQPQ7dw6A
+# VfEyvJ9rlHWK1enSNpyW1k2TlCbkJo2Fxpa5A0GryaGBWG2wpN/759wHgJ4s+rPR
+# lAWxXuTzmBYD4h7RCYm7LUZbTi4JfHQLc7XZyVE7zS51lHV/AgthKOaofdEuFLkM
+# LMSg7Tp/gCppmQJE0vWft7SGYtmEgsR4Gd4NyfsEjigH5esY9uojA3moLP2NNTGu
+# eZ8jXIO39/W419Mdmy1W53amHLuahjLxC3oZp6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkxNjUxMjVaMC8GCSqGSIb3DQEJBDEiBCCxi17CoXsp+p85Ix88
-# rFuPu7Bz4qrzZ1ewQpxzPSehuzANBgkqhkiG9w0BAQEFAASCAgB6EHCAPfK1ai51
-# qgi2OCM2DneVq6Rh79cIcv+l6JBK+BPl+5mlJ+2gucKyO+OPIIYPlQB60cxxsguh
-# 0nrAW7AAH8Fam5PjpLZB65HlxVc1ISb9L1cMJUqJhnuh5ir5u5q3kOw5UPKG51Yl
-# 9LzEM++9AfyhBuPrpQrF21u8s43o8KWlO+8zVQVgP1MD6bWvDJoVcCNQPXjwaUv9
-# 71DO8B3XAx6ghTgwrBmJTURi2GVID7fyqvQdgm+11JduOBNTO240pMggb2PoEcWQ
-# CkoGtPffq7Cz+snzzruwFlUBHLtJpksyP1kbHke0EUpu3Ohj5b+UUQre2FGxowyo
-# 6498NFEYIdO4CRsPAvI8ub3jpCiDrBH6/n/Fz6tdZuSda6eSpGPa1NoNx9y9O/hA
-# DwagQxUge0sCCtMpI0CDHV3tZJ1ImH/WHukAJo5CPKo4TeTx7PQI0v5wrgwWqtMZ
-# 8R4Ufz387qbThWN3VKNvn73u6InyJYyurjnuo2XvzdrVQqQxv9jg5wkh70xlo14Q
-# xrEckCwOoTlmOIU3SZkGRth+Wu0Ppauf6ZeHdv4pO7aX92Am8URnJQ3TIs50eYtN
-# +3L89kYUXk4VKmDm54Og5l2e2uW1sbjZ8OVGP1pLN8aWVH8WvN/NsjG8IRtZ5ekI
-# GVcHui1uumoy8UaFg/k3ncpHAOUoXw==
+# BTEPFw0yNjAzMTAxNzE2MjRaMC8GCSqGSIb3DQEJBDEiBCDbZSPVYgRdu4mULQjz
+# yxHcUcdj9YQICukSCeUc9V8uejANBgkqhkiG9w0BAQEFAASCAgDCpLhz1YCxjf+T
+# GOpcNgYwzEn6+zu0mnqqtJmML8udsWzp2pz2BGIQJInZ0mjao5U0pwxni4S6Bu0a
+# vWAnB7sCTtXGiPKocg/rwWtbsuYiuvBjj2TqvEAC1B+kiuvazhmi2xIxRFsGAGyd
+# Rpc1LgMj/ut2iAHCCSOi2wukXBVCEbvB150Oa9fVsmp1SzVWfD+2mY085nTxoTJK
+# +PFpbZk1iaoCvxyqelkv3CeVvnkNHKLzQt6gyGiKjIFw2YIbR95JgKGfbyzgHfhA
+# OOzuxS8daodNWGQphLPisSexRB3L/5oVCGxv1muU/6R80TbbYgmUnlvydfoGhqu7
+# FHL/ORpTMEAAjc2GUf9gNsJnP61QPEmJkIcjla7FDfOCn6MAECqrDBCBuLQ2Hcvw
+# fFcljRBWSQ30fE2dTAOENaS3jisgKIfZBZ+MPal2oXQDKWryCDlPpcQaLxGURTVi
+# FA7hQbf72xkcIwfGM02+hMsAD9SXWe5CxkVr3m54Hmr/MTxbN7d1fbV3/ctvjreL
+# l9eOEZsAdDtbtkhl0ZoUvyMMo5q53qxss/X1ay0zLv/Wbtq+cB7+Pqgyeo0HswvC
+# d03LOAyUA0CT+qJgkzd4AVgZFbpu1+ck5laS2+s3jlrGn8ADHoHcjS9LidtmGpPr
+# 47NLVALC/5sgRr5JOOoLAOnpta1d+g==
 # SIG # End signature block
