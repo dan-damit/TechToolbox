@@ -10,6 +10,8 @@ function Invoke-RemoteWorker {
         [Parameter(Mandatory)]
         [string]$HelpersZipHash,
 
+        # NOTE: Option B stages into $env:TEMP\TT_Worker_{guid}\workers.
+        # WorkerRemotePath is kept for signature compatibility but isn't used.
         [Parameter(Mandatory)]
         [string]$WorkerRemotePath,
 
@@ -22,6 +24,7 @@ function Invoke-RemoteWorker {
         [Parameter()]
         [hashtable]$EntryParameters,
 
+        # NOTE: currently unused (kept for compatibility)
         [Parameter()]
         [switch]$ForceUpdate = $true
     )
@@ -43,7 +46,7 @@ function Invoke-RemoteWorker {
     } -ErrorAction Stop
 
     try {
-        # Define Option B canonical paths EARLY (local variables)
+        # Option B canonical paths
         $remoteZip = Join-Path $remoteTmp 'helpers.zip'
         $remoteHelpers = Join-Path $remoteTmp 'helpers'
         $remoteWorkers = Join-Path $remoteTmp 'workers'
@@ -84,6 +87,7 @@ function Invoke-RemoteWorker {
             $helpersDir = Join-Path $workRoot 'helpers'
             $workersDir = Join-Path $workRoot 'workers'
 
+            # These folders are always created by New-HelpersPackage (even if empty)
             if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Package missing helpers folder: $helpersDir" }
             if (-not (Test-Path -LiteralPath $workersDir)) { throw "Package missing workers folder: $workersDir" }
 
@@ -92,7 +96,7 @@ function Invoke-RemoteWorker {
 
         if (-not $expandedOk) { throw "Failed to expand package on remote." }
 
-        # NOW inject standardized paths (safe because variables exist)
+        # Inject standardized paths (safe because variables exist)
         $EntryParameters['HelpersPath'] ??= $remoteHelpers
         $EntryParameters['WorkersPath'] ??= $remoteWorkers
 
@@ -109,11 +113,12 @@ function Invoke-RemoteWorker {
             $script:TT.HelpersRoot = $helpersDir
             $script:TT.WorkersRoot = $workersDir
 
-            # Import ONLY from helpers\ INTO THIS SCOPE (important)
-            Get-ChildItem -LiteralPath $helpersDir -Filter '*.ps1' -File -ErrorAction Stop |
-            Sort-Object FullName |
-            ForEach-Object {
-                $text = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
+            # Import helpers only if any exist (supports worker-only packages)
+            $helperFiles = Get-ChildItem -LiteralPath $helpersDir -Filter '*.ps1' -File -ErrorAction SilentlyContinue |
+            Sort-Object FullName
+
+            foreach ($hf in $helperFiles) {
+                $text = Get-Content -LiteralPath $hf.FullName -Raw -Encoding UTF8
                 . ([ScriptBlock]::Create($text))
             }
 
@@ -127,6 +132,7 @@ function Invoke-RemoteWorker {
 
         $remoteWorkerPath = Join-Path $remoteWorkers (Split-Path $WorkerLocalPath -Leaf)
 
+        # Ensure workers dir exists (should, but be defensive)
         Invoke-Command -Session $Session -ScriptBlock {
             param($dir)
             if (-not (Test-Path -LiteralPath $dir)) {
@@ -149,7 +155,7 @@ function Invoke-RemoteWorker {
             $script:TT.WorkersRoot = $workersDir
             $script:TT.WorkerPath = $workerPath
 
-            # Import worker INTO THIS SCOPE (important)
+            # Import worker INTO THIS SCOPE
             $workerText = Get-Content -LiteralPath $workerPath -Raw -Encoding UTF8
             . ([ScriptBlock]::Create($workerText))
 
@@ -165,14 +171,13 @@ function Invoke-RemoteWorker {
                     }
                 }
 
-                # Optional: helpful debug breadcrumb
                 $ignored = @($entryParams.Keys | Where-Object { -not $fn.Parameters.ContainsKey($_) })
                 if ($ignored.Count -gt 0) {
-                    "[META] IgnoredEntryParams=$($ignored -join ',')" | Out-Host
-                    # or Write-Verbose / Write-Log if you have it available remotely
+                    Write-Verbose ("IgnoredEntryParams: {0}" -f ($ignored -join ', '))
                 }
             }
 
+            # IMPORTANT: literal '&'
             & $entry @filtered
 
         } -ArgumentList $remoteWorkerPath, $EntryPoint, $EntryParameters, $remoteHelpers, $remoteWorkers, $remoteTmp -ErrorAction Stop
@@ -196,8 +201,8 @@ function Invoke-RemoteWorker {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA4DadH6+yvHtWk
-# YnuNzSqiOnzlnBwxXlY2TRlN0hSWpKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlMLU4JSjUJmyS
+# uiGMC7cLDgrH0PaBKO44PaIjjZYtCKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -330,34 +335,34 @@ function Invoke-RemoteWorker {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCABddvSBjmH
-# lZgSiyNcE93KoBsYvI8GFubCtXA4cHZ++zANBgkqhkiG9w0BAQEFAASCAgBoWSPv
-# moa9IvYOar61g7trW9c6NPlG2g+eJNpZtPh4sHfQYnGG+xMh8IR/ywTL/yoVl/+I
-# u8gX6iiwg2cb+H7GTZd1oYuNyVQldIE5WrVVNHJsZ9JwFZDL7uOrHUCAmmvzD4+t
-# bcctyGKJjCgxMORLWU2kNzHZrsS6hkeDnKRcdWaUHL0HnUKLJmmb5jlUcT2z6uZE
-# koS+jfD04KV0EENPIHgGKNn1UyPm0FJuQdGifaSwQaBPNIkrJ+HVTkO7n5Hv5Fz/
-# NmTWcfGJUpZlUxHnKxUGaxsStzvJIv+NI3YvhuAGqPTenSPLEiUHFZfRE7C8qqVp
-# 0CKpw5D+BhlOTLdqsdfEpyjjBtS47ydWmZsobX1ogHO+lfhOl0Zu+tiZBg2lDSru
-# W+IHhcZfaUi2XRi2CmldCkzFU2cYe0+0cXz30Km055KMjb6CggSq2dfJ4bhDSGGs
-# VMkhOQn2xVx+nIYct7odNvo9wwGtnC8rmdqFKmP2eb9SkPBHgZoEnSBgy6rg03Sr
-# DbpwmSX0vcPQf+/WRRpqsJV0bsIawaTvhXxYUarwPzPARNrA/L9pojuW5QEETRkq
-# QtEYvrbLutAQ89VY/WKku6nmwaFpd/PWFNHpfpqhq+hGAxR+9LmI4V+dwTzD87O8
-# LPAgB1iPaWDy/6sb5fwotS+WeWXnjgP1cfv+mqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA091KzteMX
+# 1xMTKQn6VEJE1cS8bytQa9tyVWsW63iu9jANBgkqhkiG9w0BAQEFAASCAgC9gR+R
+# tn5jdprojhnHssh1z2H0RSB40YXjeaOUjx1cMr4FSlb7lTWfNc4DEV/HMM76WTew
+# tu64DvQzNOgeVSxI8RtADFspowzbsX1FAhiu3bXq+LJ8X8BmRzAJen5U4zeLZHzo
+# Z/LOo+oF5ssDfMjWrdMH3VvUTEQDSipk9wgiqFy+wVOSOIZndcqv+6UsNCS1CXEm
+# pAm7ZPEN8t69MiZ4SH+EpnW3yQg1AD/JjT6SsHqq7d9fElDMCMrS4JoyYs3mZ4aF
+# ggQltiDlahTmMdoqekPr2pWgyXecUd7JhUUqhqaVJZrq/SPC/ZOAvzWzIMsFDeGq
+# +aBg5PsbJ+iQOsyhX0sAxu8upXeAaxevO7EvH+MA83HP3eYX24xC4jn6kTFmtWI3
+# mMZvv7YpaRNHaljuFOE1RBW9OxaWTRo58icZfs42o1ug0K5c+ot6vMbbBSv0NB/H
+# w0Lp2oRkD/mzv4hZB8dy712mXccBO2vE4WRQMSC+/Hs3jOoSKw47wnNfH3K/AVes
+# Rl+Kc8iD5lJu8BjAlXBKxQvf/nbzlsrneI679/WFOlHfBHn8i7mMKQoVlkYj+x18
+# E/1uaGtwxXIS2JLQFjRdzp4p96OfHBqF7fbuyur3JTgyyqZBLgY6il2z8cxuEpzi
+# c7+avbvCVGkcV4z5vAbNQeDt4hyvs9glYfIBOaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAxNzIyMTJaMC8GCSqGSIb3DQEJBDEiBCCyfU5RHI4q68V/gMq+
-# 48Cx/4BZ/8LtbA8UYlSlp3pKsDANBgkqhkiG9w0BAQEFAASCAgAXE1LgCBB/3M9F
-# xfMXNiGQL5eXotFewLNWPT6JLZss/+PX6Czu7dmh59sJhe5FMfkY+rQvP0a29BSL
-# 2dGAWpgvsFmJ4HFcyizabL0Dg1FVQcFarsWBtvK7t41zHlGYYmqOXOgQ4d9kXS1C
-# L0H+PhxLhDQDTUhfEPKFFGchd5qEuYNgzt5zyK4snb/cgBY6QmbfLl+4Y1BFB3u+
-# pOhIwwc/SV1VOZJABC9UV9H/NQcp4fhk9REkG/O2iajoqcJII1W3D0oDSCVRI54R
-# LzKHia+oTXUbVYo+/mXtc23mzXxqZd1ATs7lqA+VNPiivEgK2+5wbcEXhxlczuQW
-# IowkmLnBFrTSZIh2ZaXw4VeZ5fohjCwkQC3qgXayyAs+wXyZQ7dfbbpReYAmG1ni
-# tiUi/3w/OZgAIi9H/Bj2nJ+PAsjtJ4uY3ADsq/z1eaZo3ZicnQJOa0qxoBMVDPv6
-# y8Zg4+ZXPOZ8U15xAT3u4wrfX9tIYt67PcaknH+UvKRCpScp3Qm/mWDbhujVukaP
-# JRk186cyciEuYCT6ekps5LH2H6mWLv4cQ6e5rwf0fqM2xpluPH8VX5OZoLBfY2Nd
-# Z21LhIea4S5jTpO8zba5SFumktL0IdecaW9X23h4FRJUyAYBG6EhmCjS7rag1ggJ
-# gNFu/4TV8arCmI/sO4IweX9FgXQqaA==
+# BTEPFw0yNjAzMTAxOTI3MzZaMC8GCSqGSIb3DQEJBDEiBCDL1ZtMuVNmo+xYmWSy
+# TGKj+79GIU+5EcFfCu29pF7HJDANBgkqhkiG9w0BAQEFAASCAgBwIhLDvohNr9wS
+# CdOnbiOO3LgYQUewXyX44lU6FJ12WiL3UEGQ0ip3WSmtn9sbkNuBFSp5XPybW8QN
+# qzrvh501PtoFSIb7l0zMPxLe5YPJUbuUjeMoH3kPaWInMP32NmcAdBhtLlA1Xdju
+# kdOSS75meJjP8GqVvLDughN0hlBIWf+XSyZnrfaaQhy4RrbYaPxpQn3DGPI77nN1
+# lHm1dIGwUSooxSc1jgxsbasku7c3m4vGMhM7xLIG7YCKZL1JwDHVOb6PpPve2N50
+# PrqC+2AKQN454bAP9r7qMJVtuKuXpUwD9/IQO+64uuhfadl5rKvr3clr/HjWBUWn
+# 66hNYxwp2uZlTctX7/qmp5YvqoR5ZwWmn6TldXyvR2c4ZbtQsI/6/+aFl7Il8dME
+# IPLwLNSaNK9WwWVkX3gvXRCY8KkdJDaR9Uc524DfqiTgvpxJEaA1dHr3awrGI7A2
+# ydoBop9/Af0jbTkBJ5oHPQrutZElMZaMo+/Qv8NjE6uOJKaOGdqCt50/dgb3asXB
+# Jww5evtl0/VbsuzWLFQU66oj8uNNVdWpIH8eEXJQo80+OEcRcQLqVIkiRTOPyC92
+# Fom/oSqNKuoLuBJoUYZp2a8ffLlMJTZmrHPYXBU0CsYN5M4GHxKfhQL9mzqriC/j
+# nMTncBsLQWMJqOaq2nkKobVps/diug==
 # SIG # End signature block

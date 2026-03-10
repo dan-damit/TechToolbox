@@ -1,118 +1,53 @@
 function Wait-SearchCompletion {
-    <#
-    .SYNOPSIS
-        Waits for a Compliance Search to reach a terminal state (Completed/Failed) or timeout.
-    #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$SearchName,
-
-        [Parameter()]
+        [Parameter(Mandatory)][string]$SearchName,
         [string]$CaseName,
-
-        [Parameter()]
-        [ValidateRange(1, 86400)]
-        [int]$TimeoutSeconds = 1200,
-
-        [Parameter()]
-        [ValidateRange(1, 3600)]
-        [int]$PollSeconds = 5
+        [ValidateRange(1, 86400)][int]$TimeoutSeconds = 1200,
+        [ValidateRange(1, 3600)][int]$PollSeconds = 5
     )
 
-    Write-Log -Level Info -Message ("Monitoring search '{0}' (Timeout={1}s, Poll={2}s)..." -f $SearchName, $TimeoutSeconds, $PollSeconds)
-
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $lastStatus = $null
-    $lastSearch = $null
-    $spin = 0
-    $lastStatus = $null
-    $lastPhase = $null   # optional: for "not found" vs "found"
-    $interactive = $Host.UI -and $Host.UI.RawUI -and -not [Console]::IsOutputRedirected
-
-    while ((Get-Date) -lt $deadline) {
-        $search = $null
-        try {
-            $search = if ([string]::IsNullOrWhiteSpace($CaseName)) {
-                Get-ComplianceSearch -Identity $SearchName -ErrorAction SilentlyContinue
-            }
-            else {
-                Get-ComplianceSearch -Identity $SearchName -Case $CaseName -ErrorAction SilentlyContinue
-            }
-        }
-        catch {
-            $search = $null
-        }
-
-        if ($null -ne $search) {
-            $status = [string]$search.Status
-
-            if ($status -ne $lastStatus) {
-                # Clear the pulse line before emitting a normal log line
-                if ($interactive) { Write-Host "`r" -NoNewline }
-
-                Write-Log -Level Info -Message ("Search status: {0}" -f $status)
-                $lastStatus = $status
-                $spin = 0
-            }
-            else {
-                # Animate only when status is unchanged
-                if ($interactive) {
-                    $pulse = Get-DotPulse -Index $spin -Frames @('⠦','⠧','⠇','⠏')
-                    Write-Host ("`rWaiting{0}" -f $pulse) -NoNewline
-                    $spin++
-                }
-            }
-
-            switch ($status) {
-                'Completed' {
-                    if ($interactive) { Write-Host "" }  # finish the line with a newline
-                    Write-Log -Level Ok -Message "Search completed."
-                    return $search
-                }
-                'Failed' {
-                    if ($interactive) { Write-Host "" }
-                    Write-Log -Level Error -Message ("Search failed: {0}" -f $search.Errors)
-                    return $search
-                }
-            }
+    $poll = {
+        if ([string]::IsNullOrWhiteSpace($CaseName)) {
+            Get-ComplianceSearch -Identity $SearchName -ErrorAction SilentlyContinue
         }
         else {
-            # Not found: optionally pulse here too (same idea)
-            if ($lastStatus -ne '<notfound>') {
-                if ($interactive) { Write-Host "`r" -NoNewline }
-                Write-Log -Level Info -Message "Search not found yet..."
-                $lastStatus = '<notfound>'
-                $spin = 0
-            }
-            else {
-                if ($interactive) {
-                    $pulse = Get-DotPulse -Index $spin
-                    Write-Host ("`rWaiting{0}" -f $pulse, $SearchName) -NoNewline
-                    $spin++
-                }
-            }
+            Get-ComplianceSearch -Identity $SearchName -Case $CaseName -ErrorAction SilentlyContinue
         }
-
-        Start-Sleep -Seconds $PollSeconds
     }
 
-    $ctx = if ($lastSearch) {
-        "LastSeen: Status=$($lastSearch.Status) Errors=$($lastSearch.Errors)"
-    }
-    else {
-        "Search object was never discovered."
+    $getStatus = { param($obj) [string]$obj.Status }
+
+    $terminal = @{
+        'Completed' = @{
+            Level   = 'Ok'
+            Message = "Search '$SearchName' completed."
+        }
+        'Failed'    = @{
+            Level   = 'Error'
+            Message = { param($obj, $status) "Search '$SearchName' failed: $($obj.Errors)" }
+        }
     }
 
-    throw "Timed out waiting for search completion. $ctx"
+    Wait-TerminalState `
+        -Target $SearchName `
+        -PollScript $poll `
+        -GetStatus $getStatus `
+        -TerminalStates $terminal `
+        -TimeoutSeconds $TimeoutSeconds `
+        -PollSeconds $PollSeconds `
+        -NotFoundMessage "Search not found yet..."
+    -ContextFormatter { param($lastObj, $lastStatus)
+        if ($lastObj) { "LastSeen: Status=$($lastObj.Status) Errors=$($lastObj.Errors)" }
+        else { "Search object was never discovered." }
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCTRMipd84+qBya
-# 8Ck0+etLw9No/7EtVuadeZxQYXOpUKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDDOxEqCk1tNboE
+# po9H8YuImlaFUOKJuH/jZ3vXNE59MKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -245,34 +180,34 @@ function Wait-SearchCompletion {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA++VyFQMmI
-# lm6VysQETuopX+MPJjER+0A9LnaNAuBRqDANBgkqhkiG9w0BAQEFAASCAgAItxiE
-# XQYEzQ7klPcNishXPQsLBWOmboSsyp9Wz+9C0yqxbnkJ3G5luEFLXTlCu0N1Wq1/
-# HmwJaHKCz2PCrUqHmDLHy7KPSbtAXf7hDT2dqdHJmU3yrVtNY7PpZsznZazuGHfe
-# xnGUyPKpD0cpKsoNkMMrj/5telnR5UDcnCtQwpRDg7Eti+b2ky/f19S7C6FM4BT4
-# bQb7anZy0w4+yMuVePu/cfV/JfKcmPZXFRWZWPUCH6lFgwRf3mzfixbcUs2RVc1F
-# YWjDxAH7TtNpBlSxL4yATW24g3a5Y4W/ZrDEfA3CD2maSLITnYe4JTREoJTPnz0a
-# KKvP+eddjSSpsl/DqhU22Uf+LoBt98yHRLE3dQ0eC5Av91ZZjYTrajE/F2ID/aWP
-# hQ6yqtXutluj4n2T/GhSslpaOkJ/xGAT8scGXnFOffLF6ZjlRswEGBPS620JCgpi
-# cD3j265rHTF+u4uyUoL4aUDgqt1A4gtPm5pwoFtfxiTrCLG5k3vAgoLDzEb1sLRr
-# k1iHc2sp7FjcIPpTWksoi2a0DwfTd1djpGtP52FAFSeebMaoC0voPQniH6ybtbab
-# 9JOU0uNTHCOBVAHhD4ap+iOYqe+FDqth8j8XlGWH/k/ubR4cs45T9Si+A/BM+/M5
-# /gyicNQGGSrc1DLVv3t2dUUrKX4+vgGda8fAXaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8TLwdoQAx
+# UPdeNcOcv/4bcUFxr3A+E8+VgpyMFLBzITANBgkqhkiG9w0BAQEFAASCAgBPIAV/
+# O1Q9M1z4ZL8HynWXvVZMv4xK3c8N50oqYgypdPgj/Bi4dEH5OnBt0Lxw9SuIlV0k
+# WyXFb2DbSihsfqC2bDWIOIqTiXWfalgdadoC5QHJPq9kDwB/AmJkQCw2Ty3vhTrA
+# vzIjORfJY7xxMCkxVYbQJGUBQAHUhIKk+8fVEeNUbud9NfrED3MXRPzSzbwPa0JB
+# pzbRup6Pdp4H9t1Fw13cV455f3GqC6MRzTcb9kmnWBk4MyBiqO2lX18O5dfKzcTe
+# Z9aWIzwiEvo4VpV1pvxHHRROR7YPHpmWLDCMKOvix/uPvvTc3JxJiFFizWkrVcAM
+# IZ6UhZUOON11ac0PeJTO+1QoKqb/+G6p2X3DOJLtD5vV0vzaogvZVo76IB/0wG31
+# ACLsmqT6UupR+mT6Qypd1NFbOEtiXZ9nESrPkcA7oTDpk/HzxoqHDy8n4SWXzuMa
+# miZ3hHK9whvecDqSbsfOCVivoEFRiQAm2UUWrdW4Yh2eryseBm9IljjGGztgsM+Z
+# 0biNZ5v/9gp+O38OF0yW2a2BtiEkfLePoewV9E4QeHqSh1YNHEC4JCrH8dQw/bfo
+# Wo/SoVhDE4UUGoxWe0MJ/0Dbix4XitPIhVVMp/p0qa7BolyaIbh48LHTOIUQ+WDk
+# /fpbaGbglj42YxB16YjmLn1tgTJAa1OKgD/ydaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkyMTUzMDBaMC8GCSqGSIb3DQEJBDEiBCBocsvmmbeQN8cjIe60
-# XmT4rQa0wdfIHvrzztl12v3RmjANBgkqhkiG9w0BAQEFAASCAgDAG31Sxl8v0FUQ
-# uiJfKyuZIhSxY/RWPFw8lKEl+gDhSk6D2q6Y+lT1/OkDKO9zzoimRqXe6kkzzbqR
-# SgyukqBJqVtuoSGeB+ZhDufsPfCBSQnhWcLtZTJBDgFoBO4yEWyJrww8UeB9feCv
-# UimhaJyV54C11bNdu6sfpEB5C8HGSJSRAXWUK9D8LCd3u8U3AaL/4XiogVaPgWe6
-# 3IxpKz7n+a3e1n0F6Xwns/WeChjmpLRc0LB3JMq5r3x3BL/M+R6cNoXT8yt7iUpq
-# sXrwYRWAeH2eU7mT+iuvAgHCFPNA6McAarJQJEeH2s44XwqsPf0qps6UYTZ23h6O
-# d4KS6WB0O9fJ8LaBdNNmKDOkdE4hH9Bv+QgU9P3yRFsxZvnAVUXakL77ICER/wCb
-# wY82Gnhy0FjLLMkuIYE2kjqvS+bxkHlHKCUTMnMWA7lpmGlUgWJjv8QeMWGPN/hT
-# jzbh7A/EVtSEz33fq1kRuuIJXsTQ89w0rOIZ2s9wXfXbPGqFg1sGfFycSU8vEp6O
-# etU13nM+F9wVss+ktW5pydbGwHzQKgzg82DB5EZR6pgpsWRPPzk4Lk/9PHECg+9U
-# 6QnmcCDJOWFJoVGNvHXV9Yw1eesGF8i+IRnqlKEQdcOIxzR5wxETcQyZzMnVFcgo
-# vCgO1sOIpyDUqP6XQ5y7du2UKkEIQA==
+# BTEPFw0yNjAzMTAxOTI3MzVaMC8GCSqGSIb3DQEJBDEiBCAbhA6EUsVl4T/zTYyq
+# clAHKw7bLnI3mmnht+kRrbVNJDANBgkqhkiG9w0BAQEFAASCAgCQtN5RscTNFzLY
+# kntOOIbX+unCryhANS9jBOwi+HevcP4MEv0fsSiq9gOpgb638hViolhic6JDCHs7
+# 832LAUEnYW/DMjVFg+d5bbFnw2MABro1zllEiUK/0zEzpOvyatxo1pAEHIcs8uLA
+# gjFULRAq9qFb9HITex+TF0+kJA2ExTmJuO/GuABgfDGFp0jhJwyfMlC13Tyiot5c
+# iryfpxiFzUoLTh8scjp5wjhQQAjLCMpAzJG7nqrwD1lD1yiLzkC+Ct1ZAKUlgRZE
+# PIxXZ2XS7eqiwJkxfffjQoqd089iANmS03LGxkn7/S5hIHs3LLNCmQ7kVUbunINW
+# jp6vS6NZ4sPo4tvq73eZp/5rZ3Rdjb38JnAlkAz5wk5kzuj6qFIaW61CqwADUUqA
+# YC0OMElrwQSj+XO/Qt1T7kaMlHK67WIzlUaoNx7NCTpajo0HIU6GP7Ecki2NOAOm
+# d2+R0JG70oP6txbDBcUWPqzbLxdxZ6s0AnPv2h78qJdL4O/HP2pPhKcR3W4Q9GjM
+# mJZGzVjhGrX0d7ecfLms2PhTpc14TjkExYyQKvi1BQ3bzuAmk1CgbaJRCcROQp0g
+# kj/1V5ecWMn3bIIfwGpscVN0WnEHO3ICB+G7rJwZlLb++WRAxV8tDUN9JBEpObvd
+# EcqiFKMV07hiq2RRsoiJCT+LhgCEWg==
 # SIG # End signature block
