@@ -83,14 +83,17 @@ function Write-TTLoadedLine {
 # --------------------------------------------
 
 # Predefine script-scoped vars before any reads
-if (-not (Get-Variable -Name ModuleRoot        -Scope Script -ErrorAction SilentlyContinue)) { $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase }
-if (-not (Get-Variable -Name TT_Initialized    -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_Initialized = $false }
-if (-not (Get-Variable -Name TT_RuntimeReady   -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_RuntimeReady = $false }
-if (-not (Get-Variable -Name ConfigPath        -Scope Script -ErrorAction SilentlyContinue)) { $script:ConfigPath = $null }
-if (-not (Get-Variable -Name log               -Scope Script -ErrorAction SilentlyContinue)) { $script:log = $null }
+if (-not (Get-Variable -Name ModuleRoot         -Scope Script -ErrorAction SilentlyContinue)) { $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase }
+if (-not (Get-Variable -Name TT_Initialized     -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_Initialized = $false }
+if (-not (Get-Variable -Name TT_RuntimeReady    -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_RuntimeReady = $false }
+if (-not (Get-Variable -Name ConfigPath         -Scope Script -ErrorAction SilentlyContinue)) { $script:ConfigPath = $null }
+if (-not (Get-Variable -Name SecretsPath        -Scope Script -ErrorAction SilentlyContinue)) { $script:SecretsPath = $null }
+if (-not (Get-Variable -Name domainAdminCred    -Scope Script -ErrorAction SilentlyContinue)) { $script:domainAdminCred = $null }
+if (-not (Get-Variable -Name TT_Secrets         -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_Secrets = $null }
+if (-not (Get-Variable -Name log                -Scope Script -ErrorAction SilentlyContinue)) { $script:log = $null }
 if (-not (Get-Variable -Name ModuleDependencies -Scope Script -ErrorAction SilentlyContinue)) { $script:ModuleDependencies = $null }
-if (-not (Get-Variable -Name PrivateLoaded -Scope Script -ErrorAction SilentlyContinue)) { $script:PrivateLoaded = $false }
-if (-not (Get-Variable -Name cfg -Scope Script -ErrorAction SilentlyContinue)) { $script:cfg = $null }
+if (-not (Get-Variable -Name PrivateLoaded      -Scope Script -ErrorAction SilentlyContinue)) { $script:PrivateLoaded = $false }
+if (-not (Get-Variable -Name cfg                -Scope Script -ErrorAction SilentlyContinue)) { $script:cfg = $null }
 
 # --- Standard runtime container (used by workers/helpers locally + remotely) ---
 if (-not (Get-Variable -Name TT -Scope Script -ErrorAction SilentlyContinue)) {
@@ -202,8 +205,8 @@ Write-TTLoadedLine -Status Loaded
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCYhWtX+HLREba1
-# Cl3uwRDM30ptTLUvDjh4w9vRpBSPyKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCnm2Wbf+fySSX7
+# xg702ctYOADb7AnE37Tbd1VNOfVhH6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -336,34 +339,34 @@ Write-TTLoadedLine -Status Loaded
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC4m6Vwdoz5
-# ydXMiqyoxPibXmb4jM9yQPWbOzh9gqq78DANBgkqhkiG9w0BAQEFAASCAgA8brTY
-# AcV//4uB387ZCzr/dXlQkrWFpvQt9Q2ux5kZPl3lzHJfZmPKYmLlRcBJZQGNpvXm
-# UwWuBQ508PJfQryzZuNptQ3tLAe2MnK9QVYlXB6MB9LHNteVVUu4Fw5B+eVQihC0
-# rtnZJobCAgL5WTlR0cQ7duCZ2uwHnrovMzZI++1FvY9eZLuyUEnb2yhkWBRygIBx
-# OJDdgBNBGlwdWGFc+VsiAY0uUHtp+wMnaeHgTv0VKLJktiUvINMukacevde0OP8X
-# 31t4l1mM3DZEBJxJmjAOu22DGqz7x24suLQ0z9s+9lTfMOfdahxzUC9F3WeHj9Zu
-# BnsHaPGkA1EGbPqSZKqV0fdww5xuCHIc8hoG7A7XZq1gwcQ+uQz6GLK6IuNPAqt2
-# z5P+F4fYxMUPbqr1WvtmBb1KC2b31TdIF4w9OIOajpw+flKGcBSlR1nQGGmo9Lzk
-# lKOoZzoTpwgw6SBhkir5fQvMPKH+dHMZXYLyVRwP7dvZUFdVKB8jX+izsvmQo/aI
-# SDX4yc1emli2oxKu01VLsucxjdaxqn1/lP2jh+mpF0N0l3RaKU+Dmzw87+IgptSo
-# CU5Yvw9wHGAqMwg77uZr3rVaMWSnJbc1iA/BX3haDd8g+frU87BQSrOMG15UPdxS
-# gZAn9r+hffDyL3KbvosiEeHp3CDiskEXn3hUTaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCpE3Fr0kXp
+# Adfmey0ZYiN22+edHbZKqoMs7Suf+yJwtDANBgkqhkiG9w0BAQEFAASCAgAWE9XB
+# /dcIV240285Kj0VKFR2phlZ7EWvHZRiWUFZ0mTCBXXNDrslqFl3luF16x26+M9bA
+# 4UTyp/vSXeXE4uAaN7Agq0DMt3MhpeVsTle3ZaaYHZbCaGHbVq/EE83k77sDtECZ
+# eKsCTkfOxiUiwZEvVmSxB9OMMuN8ZzeEbVcAJCydadZu1zt257+gG5ngWKU5nf9v
+# EIZa9ivh1aZvKhDoiR7OKfX4/tb1Y94smvnIbnyku3uP95Yyp9ewr6MReFlCxR9B
+# FAxdx+dWprz5KQwb7NKo4HdyoToTI/cLXcLkPwnOPSP3PrJUNR8wlhJjB6IdFXIT
+# gkhRLYSM1a2yq+n0ubVP8YYiHl9eOxe6krfZFuNLzCEcG4Q/H5si57AV8MR98ljZ
+# +CVpgIgzG17GEtxrocAR1jbwNjRwuXL2I4vW0EbLWlUrYGn9xgphHVfGVyhHFNPw
+# hrVr0UcS5I7x19HlveSM54izRtxv8Qzci3QoQI5VimYdMGmJ0znX9XSB0fnsueSt
+# uMy6a0AJqXO44Par1TquLscbwtn38cqCnBHisX1EXdqkdHbe/D9LXc+ZUZnbT/I2
+# O35BQy5zTpgeKV/tFXjaORTbzdouplDoBpdVZjo2XUB8d1Ur1A5NUpyoTmR2yxuk
+# uFtjE/0ceTEhfj19/51oEFxf1VAbFjXxo+aq+6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAyMTM1MjdaMC8GCSqGSIb3DQEJBDEiBCDi6Ci2CoA4e1dgyQ2P
-# M5Qw96PKk/vtHCC5XXN0GoNXnDANBgkqhkiG9w0BAQEFAASCAgBEgcl/hBeIKilw
-# qBYXkV80+PiEvQsk2gCyy/wHpWaJvhBec30sPUi7+iuuS04Jjxotky4DtCgJzdsW
-# Uz7IS1wFkDfg+8+7J2i+fc7b3O9hWnZlMxs79tc3XO+M1l+2ITHli2OrgUPp1FGy
-# ptxoSPN8Muk+DYaAJfyA186R8XDOAdYPz662AG11KCfZjgBm/GF4xI2LIBTPmRz+
-# vTn6vGDmH17FOFfCN6D2ORhDPeC3f+dDM771BdN9KHlumzJk9iaXbL17yG8bdFxx
-# XFaX/nQKnwCofiXyK5VUNpZLeSpt7kH+J537FlmChSWQ6eflrAiViZOLhZmYX1kE
-# oai5SyT7crL103RBAf35l/pQQKgfRSohWQmLn0vyBx9No7oWllAc+TEdp+HyIRl0
-# AcaMcolU6OQfKs5R1ocN+Da4+Mo5BYOKaL1UG/RNcLqHiU2LesR9f/mLy1Z7Ubgx
-# wZkicN2fU9Evj8fOzRjNWJG2R2pYujbz/IQw1zW9CtknaXmTHxXzIxxPW7XBgx3J
-# /+r4g3NzlknH3/3Z3/ObKwvalaIDNe2FckGzZVT1wfxV3NwAbAakwmhN7z51hyzZ
-# raXHw6p1jv2NPAU2yfzBGYaXb/NJrKOlZ8bDRWfpcWp7uFWBhcwCYcJ1YR9EuRTV
-# oaIv7Lt/+XSEkWUWiKIyYb9mPv3LMw==
+# BTEPFw0yNjAzMTEyMTMwMzNaMC8GCSqGSIb3DQEJBDEiBCAsqs+t6SjO1XNHUtGj
+# vbvuYViHo2XiO6sWSxBdTaQFrjANBgkqhkiG9w0BAQEFAASCAgA2/nFfnsRdoHdY
+# 8jMZjwmxxpiNThqxldhig6c6d/BWxxnnKPpfPi5sLxm6Sauf9OmunnpoACG/xtNf
+# ldljPQstltDf6xy/c64t3VKtyesGmWza4jddfp0V4UORF8ufzFRmQdkV0jx2Lrr6
+# 8mQ4J/f/zHbVAMHom1Eb9N/Hr5i8yCrw3Zss0k9ZbBhytmVfwf9cN6vn/fML86H3
+# 4OHIg+2dneJ2OBh76rWaJpVO28p5aP+GAh4yaW2YCFsUjDeMpKH1xYpNF9sTvrQy
+# KbTMHpZAcwEjQ9eA9ovZoDdcFJlmn+ff5DoBmKGk+GmbKDXcdw4urgFAer0hE8wE
+# kEmTx8GXFL+K8Qc2U42yTQWikdIrN1+NggK3rSWxnxHPWiQrhtLUv2UQTmNjBv//
+# ltbsH9trqjuZTI6kJGPLGFuyvSjk8kmofg2WxXjCWvi2yYPqXWlhB7ev77e4blq1
+# Z2ujXlo0E28HSL4FGtQN7j1eGzQHi36BHJgY5ocvePHDXbaB2XCjl49yMZ6/ztAO
+# Sy8YmGgDL6MsNgS1a/MSvqTUHWGWl91wBlFl+DA8GE7TkXgO8n/t1IlbFyI9M2M6
+# Ncb0vfBDZvvBWMrQJjequEMHaNSpnxEOJZXJz5C0ux7qeya+kEEPoZ0CPS5bIFui
+# kSflktO2tTA5KOoleVSwnLATnkeUEg==
 # SIG # End signature block
