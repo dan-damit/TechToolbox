@@ -1,0 +1,40 @@
+[09:18:45] C:\TechToolbox
+λ invoke-purviewPurge
+
+cmdlet Invoke-PurviewPurge at command pipeline position 1
+Supply values for the following parameters:
+UserPrincipalName: ddcloudadmin@vadtek.com
+CaseName: #INC-149448
+Enter ContentMatchQuery (or type 'q' to cancel) (e.g., fromdomain:bad-domain.net): from:idealtridon.com
+Final ContentMatchQuery: from:idealtridon.com
+Imported ExchangeOnlineManagement v3.9.2 from: C:\TechToolbox\Dependencies\ExchangeOnlineManagement\3.9.2\ExchangeOnlineManagement.psd1
+Connecting to Purview (SearchOnly) as ddcloudadmin@vadtek.com...
+
+----------------------------------------------------------------------------------------
+We have made updates to move the SCC admin experience to REST-based APIs. In doing so, we will be deprecating the legacy Remote PowerShell (RPS) protocol starting July 15, 2023.
+
+Benefits of REST-based cmdlets: improved security, WinRM no longer required for client-server communication, improved error handling.
+
+The REST API has the same cmdlets available and feature parity with RPS(V1) cmdlets, so existing scripts and processes don't need to be updated. Simply using the new module will ensure REST is used rather than RPS.
+
+For more information, go to https://aka.ms/exov3-module
+----------------------------------------------------------------------------------------
+
+Connected to Purview (SearchOnly).
+Creating mailbox-only Compliance Search 'TTX-Purge-#INC-149448-20260311-091857' in case '#INC-149448'...
+Scope: ExchangeLocation=All
+Search created: TTX-Purge-#INC-149448-20260311-091857
+Waiting for search 'TTX-Purge-#INC-149448-20260311-091857' to register (timeout=90s, poll=3s)...
+Search started: TTX-Purge-#INC-149448-20260311-091857
+Waiting for search 'TTX-Purge-#INC-149448-20260311-091857' to complete (timeout=1200s, poll=5s)...
+TTX-Purge-#INC-149448-20260311-091857: Status=Starting
+TTX-Purge-#INC-149448-20260311-091857: Still waiting (Status=Starting)...
+TTX-Purge-#INC-149448-20260311-091857: Status=Completed
+
+Search 'TTX-Purge-#INC-149448-20260311-091857' completed.
+Search status: Completed; Items: 3541
+Preparing HardDelete purge for 'TTX-Purge-#INC-149448-20260311-091857' in case '#INC-149448'.
+This will permanently delete all items found by the search.
+Search 'TTX-Purge-#INC-149448-20260311-091857' reports 3541 items.
+[ERROR] Safety stop: Search returned 3541 items (threshold=100). Refine scope or KQL before purge.
+Disconnect from Exchange Online? (y/N):
