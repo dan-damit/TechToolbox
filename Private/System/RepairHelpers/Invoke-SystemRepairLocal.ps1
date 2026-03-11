@@ -7,38 +7,37 @@ function Invoke-SystemRepairLocal {
         [switch]$SfcScannow,
         [switch]$ResetUpdateComponents,
 
-        # --- Internal: prevents infinite RunAs recursion ---
+        # --- Internal/sentinel: prevents infinite RunAs recursion ---
         [switch]$NoSelfElevate,
 
-        # --- Internal: IPC paths for elevation round-trip ---
+        # --- Internal: used only during self-elevation round-trip ---
         [string]$ElevatedResultPath,
         [string]$ElevatedErrorPath,
 
-        # Optional: keep temp artifacts for debugging
+        # Optional: keep temp artifacts for debugging (result.json/error.txt)
         [switch]$KeepElevatedArtifacts
     )
 
-    # Always initialize runtime/config for BOTH normal + elevated runs.
-    # Must be idempotent in your module.
+    # Ensure runtime/config exists even in elevated re-launches
     Initialize-TechToolboxRuntime
 
     $needsAdmin = ($RestoreHealth -or $StartComponentCleanup -or $ResetBase -or $SfcScannow -or $ResetUpdateComponents)
 
     # ----------------------------
-    # Self-elevate + WAIT + return results
+    # Self-elevate (local only) + WAIT + return results
     # ----------------------------
-    # --- Self-elevate + WAIT + return results ---
     if ($needsAdmin -and -not $NoSelfElevate -and -not (Test-TTIsAdmin)) {
 
         Write-Log -Level Info -Message "Invoke-SystemRepairLocal: Elevation required. Relaunching as Administrator and waiting for completion..."
 
+        # IPC folder (result + error)
         $tmpRoot = Join-Path $env:TEMP ("TT_SystemRepair_{0}" -f ([guid]::NewGuid().ToString('N')))
         $null = New-Item -Path $tmpRoot -ItemType Directory -Force
 
         $resultPath = Join-Path $tmpRoot 'result.json'
         $errorPath = Join-Path $tmpRoot 'error.txt'
 
-        # Build param tokens from explicitly bound params (only true switches)
+        # Build param tokens from explicitly bound params (only emit true switches)
         $paramTokens = foreach ($kv in $PSBoundParameters.GetEnumerator()) {
             if ($kv.Key -in @('NoSelfElevate', 'ElevatedResultPath', 'ElevatedErrorPath', 'KeepElevatedArtifacts')) { continue }
 
@@ -55,6 +54,7 @@ function Invoke-SystemRepairLocal {
             }
         }
 
+        # Prevent recursion + pass IPC paths
         $paramTokens += '-NoSelfElevate'
         $paramTokens += "-ElevatedResultPath `"$resultPath`""
         $paramTokens += "-ElevatedErrorPath `"$errorPath`""
@@ -64,40 +64,44 @@ function Invoke-SystemRepairLocal {
         $psExe = (Get-Command pwsh -ErrorAction SilentlyContinue)?.Source
         if (-not $psExe) { $psExe = (Get-Command powershell -ErrorAction Stop).Source }
 
-        # ✅ Resolve module root in the *current* session (module is loaded here)
+        # ✅ Use your helper to locate the manifest
         $moduleRoot = Get-ModuleRoot
+        $manifest = Join-Path $moduleRoot 'TechToolbox.psd1'
 
-        # ✅ Build robust import targets (manifest first, then psm1)
-        $psd1 = Join-Path $moduleRoot 'TechToolbox.psd1'
-        $psm1 = Join-Path $moduleRoot 'TechToolbox.psm1'
-
-        # Escape paths for embedding in a -Command string
-        $psd1Esc = $psd1.Replace('"', '`"')
-        $psm1Esc = $psm1.Replace('"', '`"')
+        # Escape strings embedded into -Command
+        $manifestEsc = $manifest.Replace('"', '`"')
         $resultEsc = $resultPath.Replace('"', '`"')
         $errorEsc = $errorPath.Replace('"', '`"')
 
-        # In elevated process:
-        # - import module from resolved root
-        # - init runtime
-        # - invoke local helper with NoSelfElevate
-        # - write JSON result
+        # Tokens passed to the PUBLIC wrapper in the elevated process
+        $elevatedTokens = @('-Local')
+
+        if ($RestoreHealth) { $elevatedTokens += '-RestoreHealth' }
+        if ($StartComponentCleanup) { $elevatedTokens += '-StartComponentCleanup' }
+        if ($ResetBase) { $elevatedTokens += '-ResetBase' }
+        if ($SfcScannow) { $elevatedTokens += '-SfcScannow' }
+        if ($ResetUpdateComponents) { $elevatedTokens += '-ResetUpdateComponents' }
+
+        # Avoid any ShouldProcess prompts in the elevated process
+        $elevatedTokens += '-Confirm:$false'
+
+        # Elevated session script:
+        # - Import module from manifest
+        # - Init runtime
+        # - Invoke this function with -NoSelfElevate
+        # - Write JSON result (or error)
         $cmd = @"
 & {
   try {
-    if (Test-Path -LiteralPath "$psd1Esc") {
-      Import-Module "$psd1Esc" -Force
-    }
-    elseif (Test-Path -LiteralPath "$psm1Esc") {
-      Import-Module "$psm1Esc" -Force
-    }
-    else {
-      throw "Could not find TechToolbox.psd1 or TechToolbox.psm1 under: $moduleRoot"
+    if (-not (Test-Path -LiteralPath "$manifestEsc")) {
+      throw "TechToolbox manifest not found: $manifestEsc"
     }
 
-    Initialize-TechToolboxRuntime
+    Import-Module "$manifestEsc" -Force
 
-    `$r = Invoke-SystemRepairLocal $($paramTokens -join ' ')
+    # Call the EXPORTED wrapper so module-internal init works
+    `$r = Invoke-SystemRepair $($elevatedTokens -join ' ')
+
     (`$r | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath "$resultEsc" -Encoding UTF8 -Force
     exit 0
   }
@@ -116,47 +120,47 @@ function Invoke-SystemRepairLocal {
         ) -PassThru
 
         if (-not $p) { throw "Invoke-SystemRepairLocal: Failed to start elevated process." }
+
+        # WAIT for completion
         $p.WaitForExit()
 
-        # Rehydrate results / surface error (same as before)...
-        # (keep your existing result.json/error.txt readback + cleanup here)
-    }
-    try {
-        if (Test-Path -LiteralPath $resultPath) {
-            $raw = Get-Content -LiteralPath $resultPath -Raw -ErrorAction Stop
-            if ([string]::IsNullOrWhiteSpace($raw)) {
-                throw "Elevated process completed but result file was empty: $resultPath"
+        # Rehydrate / throw
+        try {
+            if (Test-Path -LiteralPath $resultPath) {
+                $raw = Get-Content -LiteralPath $resultPath -Raw -ErrorAction Stop
+                if ([string]::IsNullOrWhiteSpace($raw)) {
+                    throw "Elevated process completed but result file was empty: $resultPath"
+                }
+
+                $obj = $raw | ConvertFrom-Json
+
+                if (-not $KeepElevatedArtifacts) {
+                    Remove-Item -LiteralPath $tmpRoot -Recurse -Force -ErrorAction SilentlyContinue
+                }
+                else {
+                    Write-Log -Level Info -Message "Keeping elevation artifacts for debugging: $tmpRoot"
+                }
+
+                return $obj
             }
 
-            $obj = $raw | ConvertFrom-Json
+            $detail = $null
+            if (Test-Path -LiteralPath $errorPath) {
+                $detail = Get-Content -LiteralPath $errorPath -Raw -ErrorAction SilentlyContinue
+            }
 
+            if (-not $detail) {
+                $detail = "Elevated process exited with code $($p.ExitCode), but no result/error file was produced. Temp: $tmpRoot"
+            }
+
+            throw $detail
+        }
+        finally {
             if (-not $KeepElevatedArtifacts) {
                 Remove-Item -LiteralPath $tmpRoot -Recurse -Force -ErrorAction SilentlyContinue
             }
-            else {
-                Write-Log -Level Info -Message "Keeping elevation artifacts for debugging: $tmpRoot"
-            }
-
-            return $obj
-        }
-
-        $detail = $null
-        if (Test-Path -LiteralPath $errorPath) {
-            $detail = Get-Content -LiteralPath $errorPath -Raw -ErrorAction SilentlyContinue
-        }
-
-        if (-not $detail) {
-            $detail = "Elevated process exited with code $($p.ExitCode), but no result/error file was produced. Temp: $tmpRoot"
-        }
-
-        throw $detail
-    }
-    finally {
-        if (-not $KeepElevatedArtifacts) {
-            Remove-Item -LiteralPath $tmpRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
-
 
     # ----------------------------
     # If already elevated (or self-elevate disabled), enforce admin
@@ -207,21 +211,9 @@ function Invoke-SystemRepairLocal {
         }
 
         $terminal = @{
-            'Success' = @{
-                Level   = 'Ok'
-                Message = "$Label completed successfully."
-                Return  = $true
-            }
-            'Error'   = @{
-                Level   = 'Error'
-                Message = "$Label failed."
-                Return  = $true
-            }
-            'Timeout' = @{
-                Level   = 'Error'
-                Message = "$Label timed out."
-                Return  = $true
-            }
+            'Success' = @{ Level = 'Ok'; Message = "$Label completed successfully."; Return = $true }
+            'Error'   = @{ Level = 'Error'; Message = "$Label failed."; Return = $true }
+            'Timeout' = @{ Level = 'Error'; Message = "$Label timed out."; Return = $true }
         }
 
         $null = Wait-TerminalState `
@@ -245,7 +237,7 @@ function Invoke-SystemRepairLocal {
         }
     }
 
-    # Overall timing should be wall clock accurate
+    # --- Overall timing ---
     $overallStartedAt = Get-Date
     $overallSw = [System.Diagnostics.Stopwatch]::StartNew()
 
@@ -324,7 +316,7 @@ function Invoke-SystemRepairLocal {
     $results.CompletedAt = Get-Date
     $results.DurationSeconds = [math]::Round($overallSw.Elapsed.TotalSeconds, 2)
 
-    # If invoked via elevation round-trip, optionally write result file here too (extra safety)
+    # Extra safety for elevation round-trip (not required, but harmless)
     if ($ElevatedResultPath) {
         try { ($results | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $ElevatedResultPath -Encoding UTF8 -Force } catch {}
     }
@@ -338,8 +330,8 @@ function Invoke-SystemRepairLocal {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAgznCkwIhpwerD
-# RCjFbHnlkVHdFQzIHWNYHLXB5Wq286CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAMLqeF7cg54/Sy
+# Ji/lyaQOhssM6ycxWcxHLKQfNChGmKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -472,34 +464,34 @@ function Invoke-SystemRepairLocal {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB/XIsh7R7N
-# izn/WBsk7dZYH+icP9duzggTVtZNK+X+yzANBgkqhkiG9w0BAQEFAASCAgAIA/Il
-# f0aX0mqevVNWD9wR6lRGVmAkrEkU4bVrxs51ZM8tc2PpLAw9ydVqUgM5okwJh5bt
-# 3qhOcysNbbDkW1vjgOrBH5RHfBMuTpKw6djvbVoHM82HeB6f3yGtSu0BJgjWexqY
-# 2WdZaoi3G0W35YSGOcxQdH+EZJLgI9thGai5Ef7mtqZmJIrL3kurHA1VmtprRZ4H
-# 2XqWGOB2u6saNFMytZbeLLJ+Gw5vKXN3++H50/wiPRf6BEA4qP13oLzwE/zQNRL+
-# zvj8ER5cPt0v2EPUTbGC6mvlf1GzLAO/ZDCSkH3lAYsb7+W2iLC1XbLBqifpFBtR
-# kcahH3yTrGPD7FQv68BGsFhzoBH2QBDDv5FhWlFl8+NNWVU48he4sSL5RKY2ZaK1
-# 9OJrlOM27T9PAVpRQq7Z7YdJU+9MQNX7fpODQw5Gu7gAkBdR2tNZtOGRpDdSjIZ2
-# oupe+7Tip54mBhW5hnIQ4isa9+2lC2J7EnuYaAiPsNxd9OyJRnu4qku78QLtk5oO
-# zPrlWJwZKAHFTCPfQO8YW5h91uAiGBLOL29btQFxRRstc+wIbS+S1ovdZL+q51FW
-# 5u7ArmlQft/3l5kgApLKPfDx/Ny+LC2QNGo8RnogtMWEXH4Xf/kev6kiBFB2ToFV
-# KBLPsWReVLFZK5oY4QiqkyGbNAF9n14JRdSckaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCANMt8kGMpP
+# fJS5qs2Idoh1fUQdqeprsY10tQba6MjXITANBgkqhkiG9w0BAQEFAASCAgAzz/6+
+# 3XQePie9NCuiXZMHAV26ziAHR6L0Mg7tHRPbtlFL+wpSK7wSQVuooA1Z5lJJTf1L
+# yiepRvVNGG2R5HS9vFXktoJUx2ggPrUagFOIYzbYOW42HG2JXtquEMjIT2W4Puvx
+# DUoTigZZzAEMjW15XNm5eZBEJ/+7/T58RtDF7SqwrTdkeNXl4elw+2XbfHyemR4Y
+# fOcL9XfEHrbVANUlGsDhrLTXG+0DjILIfxAQaTl+JbCqOm4LYORWW2TJXs84Dr1n
+# fHlYdxYEW4aBaTl1ZkGS2GpZGjt4kDg0dYAHchfnxYL63Agf6gwr1R/DD8D+1P7Q
+# FIzu+FJKDoKssvQY0x5+85S5mWQwz7M6Ek1LnBaz7Plqme3dENjmsZxjFC3GoKuh
+# Z/iXxBAQDgy0ZiW7Ejc5jV+vxBcgvV/wjkHdtKkzFEjT2ZieztPVo9PUrA17kto8
+# JUHWfzd5Q2xkIcutBhnzKCjG/GF4RY7ZMt+wPlIGFjOfgADpvpJ3+cbvqYs55C+h
+# QunmfCbPa6EbB0hcKa28fG4gCai9MD5HcDnlDg3ixbVJIrn8e3VNtCSG2cCtN9u9
+# ghEFwcuklKCvHbBl3M0jEMbTaEfNmXoNjf+shDwCDmiQTN4AWoecP/7q50ua45mm
+# 8PZE8BOXss53p1Dj3NR/FTJsZ/7hML0fHx4XdaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTExMzQzMjhaMC8GCSqGSIb3DQEJBDEiBCBKBO2a8lJuO0VlorlN
-# qrs/NjT1zQfJHWOsLMap8L/3TzANBgkqhkiG9w0BAQEFAASCAgBnaBzjvfcnOwag
-# rTzl4BLyfGZW/4P+RerMh6WH8B6kHjXnt2JWZebUtLKPc+xS/JUhIvSW13irhrnD
-# YKGhEISZTG0l2EejmzzlZ/Dwbeve73qJdYwl2DTiEfgwvgc1Z1vCc0Is5o+EqHqo
-# CdGZKUbAhSWNy24+rq3FVoe3Q7UiDw4hh18QlS04paa5XibTXCya2NUbkMdb0e1S
-# AW2hxm/EAwr3wagSiAPD96y183G2rpVLT2ESB7ae/IEdix2tXQvbhTGl8GzOMsZX
-# L9XtSR7tmVx+HshXPgyrx/7pXczBsMpU+31q6XMhLSeK31g2+Tn6fqRDQd3uKhYf
-# cq5DZv+5suyvDw86OobycHcSkbN3E7vLj8pjw1wF76NPb82sHqGquh0mRkEipxid
-# O1gpr28lkZ+4s+QLN5+uevHYoQb7NX+YIwSXRiC5LmGgnxlZUP0nqXE+xzTBT771
-# g096ADo+mYF/Tm6GmmgR5WsLbYZZhvLqngCABkXfA58j7oKaX+h4wyYuZrsoIrwt
-# GEVyD5Y7MU7QBn2uTLdqmQeiYrXARS28MpV/L2PXJAfIU4fmxIvrt0Iilqp6HDOC
-# SIcKBc5vlzZ+6arZ6rDqIo5LKYcaoegxteJlqTyekDJQJvkYYZdKuHkUwlHx7rtO
-# 1NQ5yYFRDMw9/VVZ+ipvG4zOnL6aXw==
+# BTEPFw0yNjAzMTExNjMxMTNaMC8GCSqGSIb3DQEJBDEiBCDeWUPwVKl/zt38GSn7
+# ZHvC66cLYBZh5JymZzpiuACJezANBgkqhkiG9w0BAQEFAASCAgCmfO/rQCU4dcOc
+# g/tPbKHdRXOqA+voVV1TSQvJppPJfr92vUr90UFcJFK2JtgQxnRvy37rUy1N5Gl8
+# LViV2t4bHYb3MknlEowe3VKvQB3ECPR9LlwVTSdeWmMgSWA7rpdBa0rZXJ9ABvzw
+# ZjUhU78gGjSsE+f8UQaf4oCMN5gGcw3bxB9dczFwXbGTKxcZSg5+5gJye9Z2PlQN
+# M6TpCXSndnXjnPXb+Dst+LF6ESlGixVwMFRdXH8WxrKZh0pOLkd992lTmjOmalSo
+# ONyWEfYKYgNThXpYds6u8C8Y/XM9y4+LMiSkJaOUNLFMa+TPQqlA7XSPkNaD/1Tu
+# m1aLwFlTmEEZ8S77ZPlDMjO78O+ajmiRgp8cbV8oP7VxdQk+n0MOziq6rUzhc8tu
+# FXfrPfO/qDvHTDGugvzw+BSQVyiAF/GNAc9YOiVpx+qIVoNLPnU4/RZX4Yz1CK+m
+# MkmcUK+qg2N20dXZYvEZcbEHuyQGdzFZNFDXw5S3edLOrvvRFQg4EyqXu0tyoqwX
+# BH/mQRVC86KORWk7dtj2Q5kQQxymX5fq2QBNQax+UKdLQWHy4nBM1kDCqretFhhc
+# 2mwp83XUJhrY4KJD+RN3FgNW48C78opNsEvGwuKRIGhK85Pib6Am2CzCfudjiRiK
+# tjgTaXTETZPYjtZW4u7rzGkRY3uS4w==
 # SIG # End signature block
