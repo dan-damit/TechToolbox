@@ -6,7 +6,6 @@ Out/
 Autodiscover*
 vcenter*
 .ready
-config.json
 config.local.json
 *.secrets.json
 wordlist.txt
