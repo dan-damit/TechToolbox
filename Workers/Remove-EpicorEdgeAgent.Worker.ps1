@@ -148,12 +148,12 @@ function Invoke-SilentUninstall {
 
     if ($isMsiexec -and $msiGuid) {
         $cmd = "msiexec.exe"
-        $args = "/x $msiGuid /qn /norestart"
+        $MSIExec_Args = "/x $msiGuid /qn /norestart"
         if ($AnalyzeOnly) {
-            Write-Action "[ANALYZE] Would uninstall MSI: $DisplayName -> $cmd $args"
+            Write-Action "[ANALYZE] Would uninstall MSI: $DisplayName -> $cmd $MSIExec_Args"
             return $true
         }
-        $p = Start-Process -FilePath $cmd -ArgumentList $args -Wait -PassThru -WindowStyle Hidden
+        $p = Start-Process -FilePath $cmd -ArgumentList $MSIExec_Args -Wait -PassThru -WindowStyle Hidden
         if ($p.ExitCode -eq 0) { return $true } else {
             Write-Err "MSI uninstall failed ($DisplayName). ExitCode=$($p.ExitCode)"
             return $false
@@ -172,12 +172,12 @@ function Invoke-SilentUninstall {
         }
         if ($msiPath) {
             $cmd = "msiexec.exe"
-            $args = "/x `"$msiPath`" /qn /norestart"
+            $MSIExec_Args = "/x `"$msiPath`" /qn /norestart"
             if ($AnalyzeOnly) {
-                Write-Action "[ANALYZE] Would uninstall MSI path: $DisplayName -> $cmd $args"
+                Write-Action "[ANALYZE] Would uninstall MSI path: $DisplayName -> $cmd $MSIExec_Args"
                 return $true
             }
-            $p = Start-Process -FilePath $cmd -ArgumentList $args -Wait -PassThru -WindowStyle Hidden
+            $p = Start-Process -FilePath $cmd -ArgumentList $MSIExec_Args -Wait -PassThru -WindowStyle Hidden
             if ($p.ExitCode -eq 0) { return $true } else {
                 Write-Err "MSI path uninstall failed ($DisplayName). ExitCode=$($p.ExitCode)"
                 return $false
@@ -337,8 +337,8 @@ Write-Action ("Epicor Edge Agent Removal {0}" -f ($(if ($AnalyzeOnly) { 'ANALYZE
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA1MhX77xg8+Z/J
-# iWDsKwroIOmX8Uzd9GRB/QQwY0z2ZKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCPJcztaoJfyJxh
+# 4QoYNlPVUGbEt0u22Eul+8XtsOi+4aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -471,34 +471,34 @@ Write-Action ("Epicor Edge Agent Removal {0}" -f ($(if ($AnalyzeOnly) { 'ANALYZE
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBUXXgUlCYv
-# /d0qREZlg+aB3zQzGsC9YOZ4DxkaCm7lSjANBgkqhkiG9w0BAQEFAASCAgAiKQLr
-# e9OHZ1za5mjuOhMyYtgbLT2NA7dVrDdjeqrJ/KE/Dsg7Yvnj2Fo1qHO4GYemmR9K
-# IPhjSo2dti2tLoLw1++mZUVQEr6lukXmsyi/sa38RcBvcFvBT10skXkQhwD1RDkD
-# 7NOZ8Y+rr69JQzlxm0ja5DP5wFR3gS3n0VXeCClgUtl5lXjkUGZ3uUZ5X/sPoftQ
-# ZNmx8Q194x0X+Ma+zdc4ReiI89HPEnBCZbxyzJ4S63yS/BSOl9ROOekZ/pEVe5fH
-# kQWkd78vfLavGNgKZsGBptqsjWB9GacW2m9B9uDjzNymwM3jAeW6JtuSO2vQI1aa
-# TSs+iB+lrh6EnkRY4HVC7cafexLfpt76cBPgZe/Btx7w+vSpoSQsxzlrV3YR3trl
-# SmZ1hBYqRUImaJjbGBBa80v1ETl6xgs6I45Njl4vgFL/USalCOONgfLB0YhlAyI/
-# hPtGEtnHPiX/QJsiIv/UgVnZcQ+GHfQG8B1jmmYQ1Z0uPpFGzs0q99SVdAE/Dqwt
-# UXjKSsoNSpUfOothftJNCBSldyWukznZTAHdpxWrYOUGPE3qkonkXOkIrhWEx/KF
-# ON+3wa9vf7vdAWJgFIfFqeq9wHNfT0nY8FNhd2aXyxTu/8UqqrqANTVsEXf/bOR2
-# UGWxcAG8NYDY1RVF1kxPMSC+SbLXgOV5EJOln6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC0A9YA+djv
+# dPGmuZjwXM3C8oJvtXX+EdGuDUx22FBbdzANBgkqhkiG9w0BAQEFAASCAgBUwSPL
+# 9iRwF7oP8/vc+f0i1WurfaW4LXGKWSKF7eaeyP+eTg/Npe1NlrXIjZFgyUd2HQOX
+# Or1/WMleSszRnxqgpd6NB8zLCnxjm9cCS9Te39/9LuwqLufQ16FIzX1QZTUAml65
+# OHanHBqw26t5tUeqnzlakPQuKYAjBVIIC3LJKkEmHOhWEXyds4qH8atVphn7Z7q+
+# GxkPz4uEoUVw2CxMoyRZSlstLiIe2/GnUa/8puvxJWs1uebEyKbOWhyy+qN4clXo
+# jffsTLcOHJHUrw96160JkapWo1voJ64EBcetXFUVIw0v/O3sg4UstjfmlFXfJMN/
+# J7vhvym0kgKNc4012o8OSAp8Rb9NEsCsnGyfy5bfhstf3XiFFlNl0hnjtWThuAJe
+# +Ln8xa48U3i5KpL5OqDsx1rtAJhJn6ZmUzwqpRo4XDPLATmERoIxTHyzqlYe7DbQ
+# Pbw3kM/FXECsdTPFKU8elnOqHAKuB+hoBcjhu07K1lKcZm1wCpoTfXncWJxvVUnm
+# h5AlXzzP+pP6qTXHAocV9t9cGUZPvL4VSSyQoCXdfHLMtrZNnvK6FZzyeLn/PxM7
+# WbLa29W6v7t92+PLmjvk3IXJkEFCi5lIszcwv96y3PPeQwYjkm9KaSiGWzYqEU+U
+# guVa4ouVhdGXQtCmLaQHjxYGVOYYnFMgqOUSC6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTcxNTM4MzhaMC8GCSqGSIb3DQEJBDEiBCD4qr05j05ULnRkX/k0
-# eCsH5smBpOaY23ixKOpLRMPXuzANBgkqhkiG9w0BAQEFAASCAgDLQrylURPfHxtq
-# EGCpVC9cabfrsA6GqrHKtBoO4jpug2c+eTvtnWaDc24LiqAo/0fMhFChYndauBQU
-# RO0FTBcmLlVrXJfkSNlDfqzaeABIVf/EpOF1EuS2V5aJabLeypM2y9sSb/vZJ+2B
-# HKeKal0u4qZmgN3n5+7fP3BGagCSpKLKkBelhrR7RCNkwcXVp717o1dDg4Vkch2R
-# GveEjVXpEsJ+I4UXXRr37dk1E16WmsWufEUAKlLCAT93Yf1MNvICAhnA+Bi1lMCp
-# X1sokJYlaBqO2fFQxxZRSX882Qo2PGIWc/3IEeZ6SNTWpeCxG1Tghs6ct535JOCP
-# Y6sT9mSQCoM8T6QL5boBNKcNpyj29rGyz6cI/8DuO4bA5iwMUcM8rBr8rEL4vlD9
-# rvIFd6cqTex7xhEYxVe9alDjkWNUnxv+0oPI5lXZdYi2WV00lfLckQXqp/wujkaW
-# SwWZBgdDjquqTqVxzPzDIuPTLYWxnRRJ7i78yV2y0DQkd9eh7OAmrDKqUc+Z1VEq
-# dd0jwjUGOJ1t+HnZ+1jT4JkTP05quTNsYZcL98kmifdypJPUlMVIGDk1L7HfCtsG
-# SyOtaexrDprR4SqeeOyF8qznIa6Y6pz9SgDXcqWuWxwV2kGLomWVfueaWrGkWm6D
-# 687IIliJn9JnfW/+aoSYpY2EoqRuDA==
+# BTEPFw0yNjAzMTExOTQwMTNaMC8GCSqGSIb3DQEJBDEiBCCnsNIM51GU8YMEFUma
+# JPmeun0QAk8PjVao0D0vxezUQTANBgkqhkiG9w0BAQEFAASCAgBbl+B46zYwfy0u
+# JRIioji0TttZXAXePq0Tfdd6xIcQr5FNl8LCDezFsquNp9MeKAXoCaarCqaL7pXY
+# pFKo0h+VdK7L4g50tqlncp8k1g3YIUjaxlA9547NOI9azUp8lZoASPMgQb+e55sP
+# uhLOYW2mr4zBSDuLp9YCZF40/G2+K4NRY8Zv4iVB1tmduWG56+IsxFRCl+rArUMM
+# 0w8rFbhE17pYOXIAM4zyOY2TcT1GniaW1wBGNKeX7rnvEFk0d587+tYXeiB59LlQ
+# nNnUbXN5EKw8ve7KK9DebX7odiCubDGzb+GgEjaWP/X9VoPrX/nziSBKntPUraXt
+# fE3agPyCNdq4p4TmoEFYLaUSmGRXhKSigdonkdZ8/lc085v2Hk621Mr+GyFC5qU6
+# RaqMtTTjdvrcPkoj9KDGQhPmvcbqFKoPz2MxHiQh62BQQFf31RdhIiXU0rQeXPMa
+# dBYe4wdQXJsbFsVU9DMnoIOohOg68HJcNwDguKZDc323pcvWLQTTzkAxdm95RdFR
+# gKD/SzxmW2cmuqYLX9dC10t37WO1/h3atHIbl+cWSijU4pgYYYIzuV7TpWyqhsC+
+# 2wcgt0bM+3TWGs3yYGlTUDQvWsAFEdnZ1U/JMGp5K4g7OChgzpqwruWKuTVvzddZ
+# teRXSrw989EapCMaANkNF100kXwdPQ==
 # SIG # End signature block
