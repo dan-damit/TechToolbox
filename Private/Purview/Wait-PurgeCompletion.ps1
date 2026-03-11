@@ -5,7 +5,7 @@ function Wait-PurgeCompletion {
         [Parameter(ParameterSetName = 'ByAction', Mandatory)][string]$ActionIdentity,
         [string]$CaseName,
         [ValidateRange(1, 86400)][int]$TimeoutSeconds = 1200,
-        [ValidateRange(1, 3600)][int]$PollSeconds = 5
+        [ValidateRange(1, 3600)][int]$PollSeconds = 15
     )
 
     $target = if ($PSCmdlet.ParameterSetName -eq 'ByAction') { $ActionIdentity } else { $SearchName }
@@ -50,25 +50,31 @@ function Wait-PurgeCompletion {
         }
     }
 
-    Wait-TerminalState `
-        -Target $target `
-        -PollScript $poll `
-        -GetStatus $getStatus `
-        -TerminalStates $terminal `
-        -TimeoutSeconds $TimeoutSeconds `
-        -PollSeconds $PollSeconds `
-        -NotFoundMessage "No purge action found yet..." `
-        -ContextFormatter { param($lastObj, $lastStatus)
-        if ($lastObj) { "LastSeen: Identity=$($lastObj.Identity) Status=$($lastObj.Status) Errors=$($lastObj.Errors)" }
-        else { "No purge action was ever discovered for target '$target'." }
+    $ctxFmt = {
+        param($lastObj, $lastStatus)
+        if ($lastObj) { "LastSeen: Status=$($lastObj.Status) Errors=$($lastObj.Errors)" }
+        else { "Purge object was never discovered." }
     }
+
+    $waitParams = @{
+        Target           = $target
+        PollScript       = $poll
+        GetStatus        = $getStatus
+        TerminalStates   = $terminal
+        TimeoutSeconds   = $TimeoutSeconds
+        PollSeconds      = $PollSeconds
+        NotFoundMessage  = "Purge not found yet..."
+        ContextFormatter = $ctxFmt
+    }
+
+    Wait-TerminalState @waitParams
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCtAD51Ugmhqg0w
-# OtwU+jkT+kYIRZX7S+Tr4FXfiWp3GKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDM+ZlRc2+prfSR
+# QyTIKbJOP2xsgQL6Mm5CSDPpIyrBB6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -201,34 +207,34 @@ function Wait-PurgeCompletion {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCHN6uI3tgD
-# Op+7DRX4PoSBexQLGmJh6+YZOAxiZFP10zANBgkqhkiG9w0BAQEFAASCAgBIq/N4
-# ILJ5h34tDtLz5fz8Dx9OA4IMb5eTD6yTiru7dWxtfzCW77gNdViWWD000rzfnJ0n
-# OvXkL1msTLBADvlb9dL2qoBPmXGx8IQlaHv15crESzHggn36aX/QRQUTPYiIXAvD
-# wlljsAAjq4DoEache9KKjM1e/XmDrl0kPMMWzP2f4u3M929Qoc5kCPKA8wTnTDPN
-# OgUFxtP1M2rfSrDLmxdysy2G9MzMvERmya2M91Qs89Rx1ehRj8PwZTDVc/3lstmo
-# bkwbZ83dL7iYJU2xU7CPk5mYcFs31i43Qtwr+6ocrBDfWaooQ+oVjNz0k6ZdF2Q7
-# qnazpkntl8fhLc0NG4N1n5U+jL0vHNXtPQ0ylT53ZShdV6KMcX58Q8qp9WY6Hme0
-# bguupqbHuRMR/psifjWzapKKpRDgWCS08g/S6KdGgIdJTsDTuEIwIevhs7ZIZq91
-# r22gUWp43YCBdNWm+X5wk1adPHMX3qNK5/SEqeMDzJy4iP8F4dQ7ZMC8ukvI8FaF
-# j3qyYHFjYkd12iCNZwsHiVgJK26u89lMFntAoQgqxlJwBQmuvaLbyW67i84G9cVa
-# BlMiSqxKZCwi6m8cVd8RK+PUrzYo3FFmPJO0KAm54jdVbMGdm1gfvTlNNXz2P2iL
-# HbhJIcoy0c3VCQzkr2LPOGp188SJ2JKJh7CRCaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCgsmrHPsOs
+# DRihLmop07nxNnrREBXuNdO7biHK6dg/szANBgkqhkiG9w0BAQEFAASCAgBsWKSw
+# Yr79OsH/wb8NJtGMbzbMsTjFVwRedTsixcL0VXE84r7/+3YqcLSWdMZkQmbJNZCt
+# S8bz//iyHPF1ENcnSmJEeR//P2Ux6vNooy5pL/vF5KKCOWN6Ykv82AjhXscDxar1
+# AVf7QA28U63pJT8OQY5GTp1YhPUJw0s9M60/ft3pvuXCWvFQdV023rX1WJEYe9qo
+# INCDKcZ/KxbIN0y9XssiUYXTk38TGePWLG2FKUKJztC0Gb7V0HfNwB6U23qRQ8R9
+# dGG9rx0LpJXvxvvoTUutr6bwrax0f3ASlUI0pFlwL2diz4OTYlZMppWAiuVHlTBG
+# 34Fm3drKVCvtOXGDVBT++nL6+doWJPUF8iC6m6WxVrGzzNq+n079l8qArKEAH/S9
+# dnIP0IYfw/FwMVFmRZ3hGfGIC0fJ+uvM6GuD2tfkdXe9b0xJsMBju+3aozmrgVr8
+# T/18M4wMB8SqZYr3oxm5zpXYUh9LR14lSyhE5xbKaVzUMW/WEHMAUvK6STyG9OUE
+# h4Wy1eAAwnAHIU6gKLNRLTSDjhFSdhuyexYiQjwafSZbeHI0cZ5Lcm5HOx+Oraaq
+# 1q6eTiNabJlTqsovKOIL5xTdxTk/W842GdeY53yiNmiXMMEC+DSiZzNCnspCvfOT
+# 5nLMWuiR1AY6m3veGnRqPxLoXrUQuw3GhhX1LaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAxOTI3MzRaMC8GCSqGSIb3DQEJBDEiBCAQgi90e+sYkURd7buf
-# vHI49FrFKYr2uT1yIdMsfljBfjANBgkqhkiG9w0BAQEFAASCAgBXkGeC6TDaegua
-# EpXzohIFjqx/Qr2m01r6fAd9ZBMxXHijWIzTNWkJTfrk5J9vsIuYjtPNu5Z11bFa
-# rF1c2HmgG/cRwTljhMX6hXvMYvSXn3X05zTmcHySR4ltjao5XR4szNbD5iLPjJmv
-# Y+7zPEOpiKfVcHKUnT0P7lxhl1CPzVrZlcB8o7BJk3yF8XIKftDDl19vVmpnvFb4
-# Q7qqLb9Bnsuv47OybQdsn4fEwEvlIeTGU3vqh7LaZImXszRE93VPq1Y1fpj7QMq3
-# n5PAKwFSfdst249nhC8qkWCmJ/X9WWL+d6jpbyXqcNXA6mRIB3V3W1Vv1mAL+381
-# J9aAoKwBjYJP7+ExV3h8Cyl69Q8J+AN+1uvGBs0gWJNuk+Nm0mvEo0awa6hMIMhs
-# TMgrtOMTBw3V0uLI2vGyB19W9a8QO4or/1jkHd8E7E0rpeldR0XgGjlhgdgLc+Ct
-# YITizzeNvuqjnmpaAGQHv9/hIeD3gWcIpvYjA69zrloFVz3xIS0+2jzkuNlCNtuC
-# Q0Wf/7GTouZcKwpFdjRTcXBPHyE6HmFypfOhatFr/odTdBZPovIaAQJ6pPtLVVhO
-# +l4+utWZNu4qgJhidMlSZOBScUemCwucabl7O4FfqhpPkkq9gAkmYIe+PcfzWEh1
-# SwD2bkMkqo8hlOY5u+8fw+FgVMgXdA==
+# BTEPFw0yNjAzMTExNDM2MjhaMC8GCSqGSIb3DQEJBDEiBCApuZK1hicmWT85vBli
+# IoeHR2NHEzP9VNDjzdxx0OjcFTANBgkqhkiG9w0BAQEFAASCAgAPcEPAasNszsFj
+# GD2WZTDvh2QC5JNt8vlFyoNG0GIyCRLxIFVI0Mt9cKZHXLJXpo5H8nRynU9dl8b9
+# fZCCBI8NWfjsw362A9hTwlWLbGyUHtd9AeCldHFqWX2H/x22oL3aY8IK/g7DkcJB
+# qkZaf+2qvvkx+SVUgaTWxuk+b+LbDqisB4Rqs+qsxvUxOqsg+cuvJzmsCoDUTRuG
+# PMiNaF6ddCwPRGKSDio4N1i9BbJKV8aFu2qh853qgTAf06rQ1D8Qby/olz+DQVGt
+# dJHSY6SHBQx66ZsT4kF7fY16/VKuMSptc4DgHpv4lBpddM2BR3OoFcRxRdxzT1t9
+# bQTlYRrypNnM+87rwL3MbR/lxq8QYavX0qRxr8NGRDhflRNLlr2Z2yWEnb+Robiv
+# rOJGNGYUAnfJF2qErRESzLNz1PfXXF4nvJdfqiSnKrHu9XREMXm0BzUn24z4OUfG
+# +tn8bgpqsSGpMCddNq1R5xhqjHfTiTN+ZL/m+n+RLSwPYn2sRRrm5ra+2Z2N3m3t
+# DuIgZkaFDxPNs2mNqjXq+Cbyxh29BrqaKHAOlMT6+jK6PSko77PTcJzErr4uv1wJ
+# 7N0Lc2a7tXj91wolGvyFDQkBCHC/olsSTAG4tJo39lYbCiZyr8GIR0S8MQkeyHb1
+# hQonO+8IiiPn0m82ZBVhchC6k/UfFg==
 # SIG # End signature block
