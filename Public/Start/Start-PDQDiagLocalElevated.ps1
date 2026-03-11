@@ -3,33 +3,33 @@ function Start-PDQDiagLocalElevated {
     .SYNOPSIS
       Open a new elevated PowerShell console (UAC), then run the local PDQ diag
       under SYSTEM.
-    
+
     .DESCRIPTION
       - Spawns a new console with RunAs (UAC prompt).
       - In that console: Import-Module TechToolbox, call private
         Start-PDQDiagLocalSystem.
       - Captures full transcript to C:\PDQDiagLogs\LocalRun_<timestamp>.log.
       - On error, writes detailed info and optionally pauses so you can read it.
-    
+
     .PARAMETER LocalDropPath
       Destination folder for the final ZIP. Default: C:\PDQDiagLogs
-    
+
     .PARAMETER ExtraPaths
       Additional files/folders to include.
-    
+
     .PARAMETER ConnectDataPath
       Root for PDQ Connect agent data. Default:
       "$env:ProgramData\PDQ\PDQConnectAgent"
-    
+
     .PARAMETER StayOpen
       Keep the elevated console open after it finishes (adds -NoExit and a prompt).
-    
+
     .PARAMETER ForcePwsh
       Prefer pwsh.exe explicitly; otherwise auto-detect pwsh then powershell.
-    
+
     .EXAMPLE
       Start-PDQDiagLocalElevated -StayOpen
-    
+
     .EXAMPLE
       Start-PDQDiagLocalElevated -ExtraPaths 'C:\Temp\PDQ','D:\Logs\PDQ'
     #>
@@ -112,12 +112,12 @@ function Start-PDQDiagLocalElevated {
     if (-not $hostExe) { throw "Neither pwsh.exe nor powershell.exe found on PATH." }
 
     $prelude = '$env:TT_ExportLocalHelper="1";'
-    $args = @()
-    if ($StayOpen) { $args += '-NoExit' }
-    $args = @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $prelude + " & `"$runnerScript`"")
+    $PDQ_DiagArgs = @()
+    if ($StayOpen) { $PDQ_DiagArgs += '-NoExit' }
+    $PDQ_DiagArgs = @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $prelude + " & `"$runnerScript`"")
 
     # Launch elevated; parent console stays open
-    Start-Process -FilePath $hostExe -Verb RunAs -ArgumentList $args -WindowStyle Normal | Out-Null
+    Start-Process -FilePath $hostExe -Verb RunAs -ArgumentList $PDQ_DiagArgs -WindowStyle Normal | Out-Null
 
     # Emit a quick hint in the parent console
     [pscustomobject]@{
@@ -132,8 +132,8 @@ function Start-PDQDiagLocalElevated {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBrhwcWOgn1xPul
-# jphnfGRFYiC0kBVLC4TRs/zhLlaT/aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB7hGLGQlAHkdNC
+# V/sIlnszVaoLD9YAG4VzZDLV4CqdZ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -266,34 +266,34 @@ function Start-PDQDiagLocalElevated {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDKGA96ZQk1
-# eISy9OrqzSZ8mVZM/z76ngwNu5dkDYUSPjANBgkqhkiG9w0BAQEFAASCAgBQUxt+
-# pvolL0S6LM9Myis4L/KOAMiPUMgD6a16nWqFFYsAnoBPrjYVYk8375VKOkLtFXdz
-# VccGl2+JO3dbQYqbVyOnJc6fwsgU4sIUOitKvuRpNSbD50Nl/QHzHlKjyQAsDy0O
-# wWz1Ag04h1hK8ugL9LO9NJMG3jAaTCAlmpQmr4n+arr7Ss6wNUnxz0XO0e+FPyzO
-# yDFEFSD2vYiq7mmR0ybg7JunaSj+y2SLzKAqXSmwpO/wQ5/lPkdINyOA9yQ2X7o3
-# 8UK4/hjhibYKMEiuRcXSYbtTUt3GitRezzO84gzSWfEAHJPomnViwdI41zCSHqWL
-# rSPtkY5/FLP5BozaHaBC32BtMDBFPpYbi02UjBYTqplal/YK8Y+q2o3d+kWJ2WIe
-# 4sDGbXXbU9wXXdx5HxqqCs+cjOewmoFArvOfh8AJbJGTDHidtxBBbw84AjrccUP2
-# Ay/gzjCe69stF/Bn147UCV26IiJY8FNr6cm52IksvmHTrVwa/QcsXbUE+zwT0fir
-# lwbFqYpZG62GyYmwikbv1BUUG0JheMksGDcRSzCo0iEa3u8/iQvfMCEjO+diGlJu
-# WIJkaARVoZLAU14kRjdPnMRHt2FFexOy96jPCdkhdqDgoW8SKGOruwyXUlKgxo45
-# e62AtTRnENfedhdSFsJ0hrwTycWE/yF2o9Zv+qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBhl+V9seA6
+# wMY7fk5RPwdsToth9IQsd7UsxDNqqYH36zANBgkqhkiG9w0BAQEFAASCAgDaXNDN
+# Dhw9JtI1VPP5EegQRxSKYl2I1BKGHJJwY/u0zGd6s+Avl+VS/1YooYzZTMd1odYT
+# 46DCh906w1w7HhdB0KyOxZ9xEdM0Lce5ya/VnfPnkgqzFdFJQuYvTwzO5yvDhSub
+# 5oHNh+ba41mCEW5JnIIMiyECA3mKF3vubmduVXNs4y1LAcyJjQv76rf7UFm1TFRH
+# lVRKEM1KeK97ybuPUMH4dB8mG+RfdQMMclOhESUzEEKceE4ft6QiMGEdfr/9DU9q
+# 5YA8ttc4nvfNMlNq5cHeDHJRodMJgy/Ffi8Dvx5DLm9XrDp3fkPgRxpWd+TYMNZ8
+# FcMddZHT1KsP3xuj9cuTGQvZQncj+RNJELlJDzh5FARVmAhuDaBw3+x+kEeJw2/6
+# IOs5xsFofs/XIzMUZmG6WowmskTZqh+MrP2LyVJbfK1tT236wKnTUhSRDEG5x36d
+# yOshnm7fL+mchyeGgIDe/i43OXhniYZ9ZECWd/5PjYoERlvil7glQPvF+iQ+3PHj
+# cXqmAsCBw19hWC96oEWBsCky+NHTEyIAg/0a+wr1grnByspcvWi+iH+YJUaWGa7q
+# Q5z57BGTeDCVOsdk+mxUs3oSASCiKBfQebT7Ua9kkzePa2ueDhjgg0FDp/rAXBi+
+# KVbERT2v1vUVIhRFgT1O3D6LjGYfRokwgkmVNKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMjFaMC8GCSqGSIb3DQEJBDEiBCC2+BssJS4RfopLa91r
-# qFIDLi1owb6+dq+GoXA3zbOO4DANBgkqhkiG9w0BAQEFAASCAgCiiMH9t63LAoFW
-# NQwrYEmdu9YLkP+jfa2hvTUYP1mrYfqOthhIGDPVPiB0upkjll/7buZ5B8z3HVqi
-# /YJ2HUOy0bO88a3pVdPBV25+PISVW5h/Dl+ZZ5cBuvsZN3GQmgoTap2rDCUzhT9z
-# tu6KR6XzYF7uN45uSkeTLq0pXKZTbxQZLzCJcG/s4zcmK/mvXziKZCr6RgGeAUS3
-# tru6r1UFLMpMenJNg14Z41K1U6Y0iQKJQgBh7oyuCQR8FpHy0S94icNp/Y6OKylQ
-# AD9XIJV+HOumG7Uy2YEfbc+m7Kg848STpVf0zNyESdQsspxFzsYBJysBpwGdaUmg
-# qSAfO3XYSJpwDY47ZCz1Sl30i0CLwL8LN/Wfqd7mdg2wE+r9COGLTSg2X4FZsHG4
-# Ba03bA7ANdNWIGNf0b/3c135FT3hE0zMaUaJKfqLnXs5fku2fYICAvefts29yjWN
-# JCzQSFJLwpyA+7PBZW7IcC9zV/UaxeRBl5xktz/fSCWcRch6Lczjy2kmzwZnII1t
-# m44HYv276PfqMKhwztmedhwVaLhacC4yknard9SkCs6w8UFr7akJiSRCxUzcctCR
-# jr1BY+vnyHPsoocJx1u0w98hz0BKr30ivS7p9eJlwN4YTimCfeTea2r9wwL+Ew8u
-# YsI1CI9jMTSdK2Q9h+suv2BDyhPJJg==
+# BTEPFw0yNjAzMTExOTQwMTJaMC8GCSqGSIb3DQEJBDEiBCCRmkLHBUjujUQKKMlC
+# 22fesCgLIVyx0sy7ByJMHPNJHjANBgkqhkiG9w0BAQEFAASCAgBF5/9rIp3oFDZw
+# YtvVI72BDfHXzkbk6haqb/llMnQMsO9S16242wxFtv/oGuSWq4yfU/P38C/Fa6LR
+# WSDIgMVVUOdmRT7EeFgagFI4X/KteirCufXcEewZ8jfEvjm4FY7usbVLBgsTRfin
+# q6ufevGcRgEniS5hQxD/YdAiB9BHWHb75gVmWXBHFUNDC+ISA3MZ45nJDuEI9+NI
+# mIijFv0A5WbnFWdxlNwOpg601YbNk7HyvXT9xeSg2XmaWX1Le8aM7Tcib9kPMtlq
+# Od1aIO2UyGl+e1ckec7E4eY/jzuZZL3x58B+9z2qW5+DbJofVqMuqTIlQiHFe391
+# y+9Tp9CwbzBd61wmVieD3zw1eJabimTkXkXQVLl+qre3BtxqSTc497D9toOsFLn/
+# XFbz6fCQz+bKr7goMVN7k3veCmch/j4fHya9WnMPNYER5y02nr8vLAA4MM1wOEMe
+# WvtpsAcLiQFwpB1GSWmUAKUG9oMGfTY8SX9kGk/XC0eK4hibGxVWDmogNR77nSOu
+# DJaXLR1S1Oyk7uFi/UZz93g6xNzaOpJfNrWd8U0O/R0bT9cViTAAMOPoCDdDkSFg
+# 6PPsG2wrENmsJZXS7USct1y8iNrjxksAKdp4lY0LFMHLv4aVRFxpgmQR0Utg5syI
+# QQeIjXobZ4IgEUeRzdypDqJ9+IGo1w==
 # SIG # End signature block
