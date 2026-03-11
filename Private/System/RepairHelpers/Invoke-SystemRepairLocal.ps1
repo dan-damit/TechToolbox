@@ -5,17 +5,168 @@ function Invoke-SystemRepairLocal {
         [switch]$StartComponentCleanup,
         [switch]$ResetBase,
         [switch]$SfcScannow,
-        [switch]$ResetUpdateComponents
+        [switch]$ResetUpdateComponents,
+
+        # --- Internal: prevents infinite RunAs recursion ---
+        [switch]$NoSelfElevate,
+
+        # --- Internal: IPC paths for elevation round-trip ---
+        [string]$ElevatedResultPath,
+        [string]$ElevatedErrorPath,
+
+        # Optional: keep temp artifacts for debugging
+        [switch]$KeepElevatedArtifacts
     )
 
-    # --- Elevation check (local only) ---
-    if (($RestoreHealth -or $StartComponentCleanup -or $ResetBase -or $SfcScannow -or $ResetUpdateComponents) -and -not (Test-TTIsAdmin)) {
+    # Always initialize runtime/config for BOTH normal + elevated runs.
+    # Must be idempotent in your module.
+    Initialize-TechToolboxRuntime
+
+    $needsAdmin = ($RestoreHealth -or $StartComponentCleanup -or $ResetBase -or $SfcScannow -or $ResetUpdateComponents)
+
+    # ----------------------------
+    # Self-elevate + WAIT + return results
+    # ----------------------------
+    # --- Self-elevate + WAIT + return results ---
+    if ($needsAdmin -and -not $NoSelfElevate -and -not (Test-TTIsAdmin)) {
+
+        Write-Log -Level Info -Message "Invoke-SystemRepairLocal: Elevation required. Relaunching as Administrator and waiting for completion..."
+
+        $tmpRoot = Join-Path $env:TEMP ("TT_SystemRepair_{0}" -f ([guid]::NewGuid().ToString('N')))
+        $null = New-Item -Path $tmpRoot -ItemType Directory -Force
+
+        $resultPath = Join-Path $tmpRoot 'result.json'
+        $errorPath = Join-Path $tmpRoot 'error.txt'
+
+        # Build param tokens from explicitly bound params (only true switches)
+        $paramTokens = foreach ($kv in $PSBoundParameters.GetEnumerator()) {
+            if ($kv.Key -in @('NoSelfElevate', 'ElevatedResultPath', 'ElevatedErrorPath', 'KeepElevatedArtifacts')) { continue }
+
+            if ($kv.Value -is [switch] -or $kv.Value -is [bool]) {
+                if ([bool]$kv.Value) { "-$($kv.Key)" }
+                continue
+            }
+
+            if ($kv.Value -is [string]) {
+                "-$($kv.Key) `"$($kv.Value)`""
+            }
+            else {
+                "-$($kv.Key) $($kv.Value)"
+            }
+        }
+
+        $paramTokens += '-NoSelfElevate'
+        $paramTokens += "-ElevatedResultPath `"$resultPath`""
+        $paramTokens += "-ElevatedErrorPath `"$errorPath`""
+        if ($KeepElevatedArtifacts) { $paramTokens += '-KeepElevatedArtifacts' }
+
+        # Prefer pwsh, fallback to Windows PowerShell
+        $psExe = (Get-Command pwsh -ErrorAction SilentlyContinue)?.Source
+        if (-not $psExe) { $psExe = (Get-Command powershell -ErrorAction Stop).Source }
+
+        # ✅ Resolve module root in the *current* session (module is loaded here)
+        $moduleRoot = Get-ModuleRoot
+
+        # ✅ Build robust import targets (manifest first, then psm1)
+        $psd1 = Join-Path $moduleRoot 'TechToolbox.psd1'
+        $psm1 = Join-Path $moduleRoot 'TechToolbox.psm1'
+
+        # Escape paths for embedding in a -Command string
+        $psd1Esc = $psd1.Replace('"', '`"')
+        $psm1Esc = $psm1.Replace('"', '`"')
+        $resultEsc = $resultPath.Replace('"', '`"')
+        $errorEsc = $errorPath.Replace('"', '`"')
+
+        # In elevated process:
+        # - import module from resolved root
+        # - init runtime
+        # - invoke local helper with NoSelfElevate
+        # - write JSON result
+        $cmd = @"
+& {
+  try {
+    if (Test-Path -LiteralPath "$psd1Esc") {
+      Import-Module "$psd1Esc" -Force
+    }
+    elseif (Test-Path -LiteralPath "$psm1Esc") {
+      Import-Module "$psm1Esc" -Force
+    }
+    else {
+      throw "Could not find TechToolbox.psd1 or TechToolbox.psm1 under: $moduleRoot"
+    }
+
+    Initialize-TechToolboxRuntime
+
+    `$r = Invoke-SystemRepairLocal $($paramTokens -join ' ')
+    (`$r | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath "$resultEsc" -Encoding UTF8 -Force
+    exit 0
+  }
+  catch {
+    (`$_.Exception.Message + [Environment]::NewLine + `$_.ScriptStackTrace) |
+      Set-Content -LiteralPath "$errorEsc" -Encoding UTF8 -Force
+    exit 1
+  }
+}
+"@
+
+        $p = Start-Process -FilePath $psExe -Verb RunAs -ArgumentList @(
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-Command', $cmd
+        ) -PassThru
+
+        if (-not $p) { throw "Invoke-SystemRepairLocal: Failed to start elevated process." }
+        $p.WaitForExit()
+
+        # Rehydrate results / surface error (same as before)...
+        # (keep your existing result.json/error.txt readback + cleanup here)
+    }
+    try {
+        if (Test-Path -LiteralPath $resultPath) {
+            $raw = Get-Content -LiteralPath $resultPath -Raw -ErrorAction Stop
+            if ([string]::IsNullOrWhiteSpace($raw)) {
+                throw "Elevated process completed but result file was empty: $resultPath"
+            }
+
+            $obj = $raw | ConvertFrom-Json
+
+            if (-not $KeepElevatedArtifacts) {
+                Remove-Item -LiteralPath $tmpRoot -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            else {
+                Write-Log -Level Info -Message "Keeping elevation artifacts for debugging: $tmpRoot"
+            }
+
+            return $obj
+        }
+
+        $detail = $null
+        if (Test-Path -LiteralPath $errorPath) {
+            $detail = Get-Content -LiteralPath $errorPath -Raw -ErrorAction SilentlyContinue
+        }
+
+        if (-not $detail) {
+            $detail = "Elevated process exited with code $($p.ExitCode), but no result/error file was produced. Temp: $tmpRoot"
+        }
+
+        throw $detail
+    }
+    finally {
+        if (-not $KeepElevatedArtifacts) {
+            Remove-Item -LiteralPath $tmpRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+
+    # ----------------------------
+    # If already elevated (or self-elevate disabled), enforce admin
+    # ----------------------------
+    if ($needsAdmin -and -not (Test-TTIsAdmin)) {
         throw "Invoke-SystemRepairLocal: This operation requires an elevated PowerShell session. Run PowerShell as Administrator."
     }
 
     $system32 = Join-Path $env:SystemRoot 'System32'
 
-    # --- DISM + SFC wrappers ---
     function Invoke-Dism {
         param([string[]]$Args)
         Invoke-TTExe -FilePath (Join-Path $system32 'dism.exe') -Arguments $Args -TimeoutMinutes 60
@@ -25,7 +176,6 @@ function Invoke-SystemRepairLocal {
         Invoke-TTExe -FilePath (Join-Path $system32 'sfc.exe') -Arguments @('/scannow') -TimeoutMinutes 60
     }
 
-    # --- Unified Wait wrapper ---
     function Invoke-RepairWithWait {
         param(
             [Parameter(Mandatory)][string]$Label,
@@ -33,19 +183,19 @@ function Invoke-SystemRepairLocal {
             [int]$TimeoutMinutes = 60
         )
 
+        $opStartedAt = Get-Date
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
         Write-Log -Level Info -Message "$Label started..."
 
-        # Kick off the process
         $procResult = & $StartScript
 
-        # Poller
         $poll = {
             if ($procResult.TimedOut) { return @{ Status = 'Timeout' } }
             if ($procResult.ExitCode -ne $null) { return @{ Status = 'Done'; Code = $procResult.ExitCode } }
             return $null
         }
 
-        # Status extractor
         $getStatus = {
             param($obj)
             if ($obj.Status -eq 'Timeout') { return 'Timeout' }
@@ -56,7 +206,6 @@ function Invoke-SystemRepairLocal {
             return '<notfound>'
         }
 
-        # Terminal states
         $terminal = @{
             'Success' = @{
                 Level   = 'Ok'
@@ -75,7 +224,6 @@ function Invoke-SystemRepairLocal {
             }
         }
 
-        # Wait
         $null = Wait-TerminalState `
             -Target $Label `
             -PollScript $poll `
@@ -83,19 +231,27 @@ function Invoke-SystemRepairLocal {
             -TerminalStates $terminal `
             -TimeoutSeconds ($TimeoutMinutes * 60)
 
-        # Final structured result
-        return [pscustomobject]@{
-            Label    = $Label
-            ExitCode = $procResult.ExitCode
-            TimedOut = $procResult.TimedOut
-            Success  = ($procResult.ExitCode -eq 0 -and -not $procResult.TimedOut)
+        $sw.Stop()
+        $opCompletedAt = Get-Date
+
+        [pscustomobject]@{
+            Label           = $Label
+            StartedAt       = $opStartedAt
+            CompletedAt     = $opCompletedAt
+            DurationSeconds = [math]::Round($sw.Elapsed.TotalSeconds, 2)
+            ExitCode        = $procResult.ExitCode
+            TimedOut        = $procResult.TimedOut
+            Success         = ($procResult.ExitCode -eq 0 -and -not $procResult.TimedOut)
         }
     }
 
-    # --- Results object ---
+    # Overall timing should be wall clock accurate
+    $overallStartedAt = Get-Date
+    $overallSw = [System.Diagnostics.Stopwatch]::StartNew()
+
     $results = [ordered]@{
         ComputerName          = $env:COMPUTERNAME
-        StartedAt             = Get-Date
+        StartedAt             = $overallStartedAt
         RestoreHealthResult   = $null
         StartComponentCleanup = $null
         ResetBaseResult       = $null
@@ -105,7 +261,6 @@ function Invoke-SystemRepairLocal {
         DurationSeconds       = $null
     }
 
-    # --- Operations ---
     if ($RestoreHealth) {
         $results.RestoreHealthResult = Invoke-RepairWithWait `
             -Label "DISM /RestoreHealth" `
@@ -132,23 +287,50 @@ function Invoke-SystemRepairLocal {
 
     if ($ResetUpdateComponents) {
         Write-Log -Level Info -Message "Resetting Windows Update components locally..."
+
+        $wuStartedAt = Get-Date
+        $wuSw = [System.Diagnostics.Stopwatch]::StartNew()
+
         try {
-            $results.ResetWUResult = Reset-WindowsUpdateComponents -ShowProgress
+            $wu = Reset-WindowsUpdateComponents -ShowProgress
+            $wuSw.Stop()
+            $wuCompletedAt = Get-Date
+
+            if ($wu -isnot [psobject]) { $wu = [pscustomobject]@{ Result = $wu } }
+
+            $wu | Add-Member -Force NoteProperty Label           'Reset Windows Update Components'
+            $wu | Add-Member -Force NoteProperty StartedAt       $wuStartedAt
+            $wu | Add-Member -Force NoteProperty CompletedAt     $wuCompletedAt
+            $wu | Add-Member -Force NoteProperty DurationSeconds ([math]::Round($wuSw.Elapsed.TotalSeconds, 2))
+
+            $results.ResetWUResult = $wu
         }
         catch {
+            $wuSw.Stop()
+            $wuCompletedAt = Get-Date
+
             $results.ResetWUResult = [pscustomobject]@{
-                Success = $false
-                Message = "WU reset failed: $($_.Exception.Message)"
+                Label           = 'Reset Windows Update Components'
+                StartedAt       = $wuStartedAt
+                CompletedAt     = $wuCompletedAt
+                DurationSeconds = [math]::Round($wuSw.Elapsed.TotalSeconds, 2)
+                Success         = $false
+                Message         = "WU reset failed: $($_.Exception.Message)"
             }
         }
     }
 
-    # --- Finalize ---
+    $overallSw.Stop()
     $results.CompletedAt = Get-Date
-    $results.DurationSeconds = [math]::Round(
-        (New-TimeSpan -Start $results.StartedAt -End $results.CompletedAt).TotalSeconds,
-        2
-    )
+    $results.DurationSeconds = [math]::Round($overallSw.Elapsed.TotalSeconds, 2)
+
+    # If invoked via elevation round-trip, optionally write result file here too (extra safety)
+    if ($ElevatedResultPath) {
+        try { ($results | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $ElevatedResultPath -Encoding UTF8 -Force } catch {}
+    }
+    if ($ElevatedErrorPath) {
+        try { if (Test-Path $ElevatedErrorPath) { Remove-Item -LiteralPath $ElevatedErrorPath -Force -ErrorAction SilentlyContinue } } catch {}
+    }
 
     return [pscustomobject]$results
 }
@@ -156,8 +338,8 @@ function Invoke-SystemRepairLocal {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCi6QA35BGWvTHn
-# Nqb+Z/fuLbygxyq56n6fgb4KnTGDE6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAgznCkwIhpwerD
+# RCjFbHnlkVHdFQzIHWNYHLXB5Wq286CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -290,34 +472,34 @@ function Invoke-SystemRepairLocal {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCDauQgRwjM
-# f/HmQqwQhCDCNRgkWOEPVQoFi14XG9IAMzANBgkqhkiG9w0BAQEFAASCAgA9w/X7
-# k1a5tyJf2Irh31kfaCuoOBK4dIbPCAAgwhp720hYsWRpqA9OwYLiapOGO6cFPPmj
-# bdPLemjByMccTNLDf5UUBCMSStAhu5n6VSC4zjzfo2bwenyjzD8OD2M3zxUw9Aab
-# 1OHH0g31rEiizY3+hlwo+BQtWhfqIuOwNFSGG7Z27RJ1vx6MWYDF4Lbti93SO/2G
-# 8NNZmOclFoPDF4RchCZ15v7xTsqfkbDQs+P8IM2sYWgc3uN0sA37sW/BzJeFKTcL
-# NiHCoqYpYxrXZlo7jy4RxowdFrjXkO1AYyLDAT9cpCXKV4hxtcoYwjHDk/0Z+kKJ
-# 4++dx+9Mecftu8Iuw+elJTwA3OqmaK99FoWk9LYGhO5wbDzBhYEhJkdwACJv09vQ
-# nqgIv3BqdeF1tAPACUiMwBaM+nf+iEO9vWYI6gDHZDKZHPPMkq5J6LVUPGHBqoBc
-# ftbyw1mm32BDGCHimywPkHU0xr8m3HSXz0Zw7mIrLcAAMlFV4xrFTQcJOtmNBpol
-# jr3XSZUodj9zToWH1kMxxqgu+jJNt+qJc9SCpAJAU5vZA8UWQXKYgQjapPIKr/F+
-# p64KxIO4xMcYwXeElgZu4AmYyG8M48C+TZS7T7huPK22z8WzSQTvKJlbyXWe/vmt
-# t4zedKptJW4RIs7bRMZO6y+S4Nk9L933V31TB6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB/XIsh7R7N
+# izn/WBsk7dZYH+icP9duzggTVtZNK+X+yzANBgkqhkiG9w0BAQEFAASCAgAIA/Il
+# f0aX0mqevVNWD9wR6lRGVmAkrEkU4bVrxs51ZM8tc2PpLAw9ydVqUgM5okwJh5bt
+# 3qhOcysNbbDkW1vjgOrBH5RHfBMuTpKw6djvbVoHM82HeB6f3yGtSu0BJgjWexqY
+# 2WdZaoi3G0W35YSGOcxQdH+EZJLgI9thGai5Ef7mtqZmJIrL3kurHA1VmtprRZ4H
+# 2XqWGOB2u6saNFMytZbeLLJ+Gw5vKXN3++H50/wiPRf6BEA4qP13oLzwE/zQNRL+
+# zvj8ER5cPt0v2EPUTbGC6mvlf1GzLAO/ZDCSkH3lAYsb7+W2iLC1XbLBqifpFBtR
+# kcahH3yTrGPD7FQv68BGsFhzoBH2QBDDv5FhWlFl8+NNWVU48he4sSL5RKY2ZaK1
+# 9OJrlOM27T9PAVpRQq7Z7YdJU+9MQNX7fpODQw5Gu7gAkBdR2tNZtOGRpDdSjIZ2
+# oupe+7Tip54mBhW5hnIQ4isa9+2lC2J7EnuYaAiPsNxd9OyJRnu4qku78QLtk5oO
+# zPrlWJwZKAHFTCPfQO8YW5h91uAiGBLOL29btQFxRRstc+wIbS+S1ovdZL+q51FW
+# 5u7ArmlQft/3l5kgApLKPfDx/Ny+LC2QNGo8RnogtMWEXH4Xf/kev6kiBFB2ToFV
+# KBLPsWReVLFZK5oY4QiqkyGbNAF9n14JRdSckaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTEwMjUwMDJaMC8GCSqGSIb3DQEJBDEiBCDAFZwVYWob3/a+mMVD
-# vIa+rOJWyZKEZIqsyxicJjnwVDANBgkqhkiG9w0BAQEFAASCAgBv6mj0Ir3/wpAg
-# nKW7Kgfq981V69iLXkcuhBJH/A/OL0ntXDlltSC9St6qbRPnUSTfDnXQAMUSIlnc
-# kLL1bGjoqBNcXJSV/vCFgDNC/hli43kUH6HFp7JXreteSFsET6AJmZ8MuttQFXCd
-# kSxw2xupox31jIXmXC2S+Vq//AH/lmWX/1i+thWGGmKanM8OSutDjPe0G76MtFAQ
-# Z3uKt94idfHRxn+gO2TQ/V7+dGAN5HMwD1b4MZ7II0gyfS00z0qwxBRflikIGcUu
-# wj0I3nZDc/If6sY1adBM8MDCpghLCDqokm9AbLCcFJIKSZcoRF4QzHhgsKB1ZBFV
-# suSosXH93zLINEflphMp0+QI9wznmXI538hCPDqpVsSBjYnayg4wmGjGjbq1D/q3
-# SU/cPgNvcpMDmghND758CnYVX8o7jvxAmh2H1w0PX5FKJsNW21lz64y3IgwwXkpx
-# zXrW9zj3NNfPv5IlabLb8cf+OVdnxm3n4qKdgJzssRxG2dBKEMBzz2/ZIUfZyJu6
-# AiA4hV5rp+vewadYZ5ZncxeHP4EkMXx0gpEME2HsgFNDboFhWqq33lBizEV2qF4F
-# rwVv5iXcvmhxBueGW8rXBkd+h3DVj4rCMF2SoOaMl/MRi17N2Nd098s0Zjo4jhyG
-# zYh7AlM92yP5QREu6evXDSThld/ndg==
+# BTEPFw0yNjAzMTExMzQzMjhaMC8GCSqGSIb3DQEJBDEiBCBKBO2a8lJuO0VlorlN
+# qrs/NjT1zQfJHWOsLMap8L/3TzANBgkqhkiG9w0BAQEFAASCAgBnaBzjvfcnOwag
+# rTzl4BLyfGZW/4P+RerMh6WH8B6kHjXnt2JWZebUtLKPc+xS/JUhIvSW13irhrnD
+# YKGhEISZTG0l2EejmzzlZ/Dwbeve73qJdYwl2DTiEfgwvgc1Z1vCc0Is5o+EqHqo
+# CdGZKUbAhSWNy24+rq3FVoe3Q7UiDw4hh18QlS04paa5XibTXCya2NUbkMdb0e1S
+# AW2hxm/EAwr3wagSiAPD96y183G2rpVLT2ESB7ae/IEdix2tXQvbhTGl8GzOMsZX
+# L9XtSR7tmVx+HshXPgyrx/7pXczBsMpU+31q6XMhLSeK31g2+Tn6fqRDQd3uKhYf
+# cq5DZv+5suyvDw86OobycHcSkbN3E7vLj8pjw1wF76NPb82sHqGquh0mRkEipxid
+# O1gpr28lkZ+4s+QLN5+uevHYoQb7NX+YIwSXRiC5LmGgnxlZUP0nqXE+xzTBT771
+# g096ADo+mYF/Tm6GmmgR5WsLbYZZhvLqngCABkXfA58j7oKaX+h4wyYuZrsoIrwt
+# GEVyD5Y7MU7QBn2uTLdqmQeiYrXARS28MpV/L2PXJAfIU4fmxIvrt0Iilqp6HDOC
+# SIcKBc5vlzZ+6arZ6rDqIo5LKYcaoegxteJlqTyekDJQJvkYYZdKuHkUwlHx7rtO
+# 1NQ5yYFRDMw9/VVZ+ipvG4zOnL6aXw==
 # SIG # End signature block
