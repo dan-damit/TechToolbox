@@ -5,3 +5,6 @@ Derivatives_and_Stand_Alone_Scripts/
 Autodiscover*
 vcenter*
 .ready
+config.json
+config.local.json
+*.secrets.json
