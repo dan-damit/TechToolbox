@@ -1,34 +1,18 @@
-function Initialize-DomainAdminCred {
-    <#
-    .SYNOPSIS
-    Initializes the Domain Admin Credential in the session by loading from
-    config/secrets or prompting the user.
-    .DESCRIPTION
-    Backward-compatible initializer. Loads username from config.json and password
-    from config.secrets.json (DPAPI). Prompts if missing. Does NOT write passwords
-    to config.json.
-    #>
+function Save-Config {
     [CmdletBinding()]
     param()
 
-    Write-Log -Level 'Debug' -Message "[Initialize-DomainAdminCred] Starting credential initialization."
+    if (-not $script:cfg) { throw "[Save-Config] Config not loaded." }
+    if (-not $script:ConfigPath) { throw "[Save-Config] ConfigPath not set." }
 
-    # Prefer the newer, fully-featured function; persist by default to keep old behavior
-    try {
-        Get-DomainAdminCredential -Persist -PassThru | Out-Null
-        Write-Log -Level 'Debug' -Message "[Initialize-DomainAdminCred] Domain admin credential loaded into session."
-    }
-    catch {
-        Write-Log -Level 'Error' -Message "[Initialize-DomainAdminCred] Failed: $($_.Exception.Message)"
-        throw
-    }
+    $script:cfg | ConvertTo-Json -Depth 50 | Set-Content -LiteralPath $script:ConfigPath -Encoding UTF8
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBt+yi0PyVXcAyk
-# AboTxTfrJMbP7CsLhlCAfasz7fbjbqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDIcftTu9xT93tb
+# H5180rFNuv4G33RGcx3U0MkxOPGFjKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -161,34 +145,34 @@ function Initialize-DomainAdminCred {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBDQ1VQ+bkr
-# 879rGBHEk8qo1BdLtUDJjdTFsxG3TDud+jANBgkqhkiG9w0BAQEFAASCAgC8kXVq
-# mXIHYP8zJTrZT97KOLRLAL9oUR9OHXktIPJTJM1N0TrMuORCo7KnRWmXMw54I7x2
-# Ezpii7LRLuZPGV9MDLmNvde3q9gWxqw8uSR3M47x0w4Ess+yegKlb6QeG6a48Wgx
-# lOZIpBRd7V6iH0HHJ7/wCCET0cqH2GL5xfyyiLTLIuNzoj7OVTp/TyktjH++P5bb
-# VkQ7EArvT9ng0X6EIBcxN/2+8za22c8780HUL2Y5El2j5YLHBeh/aSS/ICjghY5Y
-# qk/eg7z1Q6n5fHLeM+SGw54hJkyhD1bYjJnRbOTNGb+MPcHMIGVwI9L/uH0I+lDJ
-# sexLNXycGTx0uUm3TOqJMI1aHzwkmWEC11+rUJykQDiZbYNv+D0hiFa7j+yXvLiG
-# dyFl8h85mnTfanROkyEgMY/9uh1ZHYM3h0IO3TOtLNPtqsOO6v+/TWSXJJP7/DuS
-# qg0XFeCy1ZznsUpcBjG/iHAw/bNHbb6PMShnQYqy30RTRwS9S9qJF/nAcUhOyJi/
-# okHLtpPNjEtmtfwGro+EP8w7RNmNYiU0SDlvSW4UO5i/Koo50ALSvYX9fC/vqxI4
-# Nzz+jrlzJzw8RF/mKgcJ6nCtLUwIsc3ygaXlYN9qRGS6UX2GOou/xKwzlCyljmzK
-# w4zjJqpl9K6LJpTJpK0NisICWGqiCkyQUYUpcaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAn1LFY04ky
+# mX2GVmJWVBLYmyNbWJnaKqe0F0EBgXyh4DANBgkqhkiG9w0BAQEFAASCAgA79hg0
+# 0MCzzdsDgJyWsHA+3I9AKWbdG4bXIxAWo/2iVbH1JXap7rcPXMzsmOg0UbbZvF8O
+# tURpS/2rpPonAhZh/EG1hHyDbHJIWt8+1U/qMl8TJMiyHopZBDVdf3W6F+7UYaOO
+# DPG9RknTSGGhcRZ91OGQdc5HxAK0tWoUJ0WkNdI51g5upEsnbzPJ5iTaL6W9Bmje
+# ad+KdDwnzjn0khSc4ERSZcWEgkHuPKw7aWU8gdBifjqov488aM8AAKRVAbfY5dNC
+# 6quDMiXRslMe9Oj5Yr9dqjWpbYJHktp+4FoHble2wFrsDutgewHFH+0K5tGPiOms
+# p1ChBMpm+INiMmMD2Gv4VEh884uQ0BV+lpU12TT/MmAwVNkej+8w2Z+jqBWkIwS1
+# 6Jo+r5rgo1HTLrGlSMdGqZamjhr9soBSN+UCE3x34CqM3tOtS3xiWbFhDLMFovzN
+# xFIynM+q9t1Bs78Jx8TO4t6yfpB9Ui9B8sstBVIfgcvZhOWxeONPjJs7lEtuOw5i
+# gnWXpD008h+KhL/SdW1Y1KOl9BuZzQe7yBOkmdq6blU/SnRB44A7qPJ9Cij4QEiS
+# Dvh3LeQRPJ5kLZvWOtSKwDorh+FaGBfufy/aThEFr3R4Vv1CDzmpYnGMi82x8ziR
+# zSx2orLgCwRFqvPmFiKyCIg1T4YjWatbOZSvkqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTEyMTE3MTRaMC8GCSqGSIb3DQEJBDEiBCDb90vBwfNg/xnL95Ar
-# RillFJ1OPWJQyA/Pf9RVnwyFgjANBgkqhkiG9w0BAQEFAASCAgAugq5orNL2IphR
-# 0ubZQ2jZd/drZiS8PWzS7qlDjuChW+BoRzGEkIs5p4wPVwS11PeSANceLvxbUHlm
-# 94QX+eFeba+3xzXjJFTUPtZ/XzjuEWAgfa8KZT56WFLcRxOZNSQ0JBW6k+0TSMqw
-# QpdNBF5nZvdVA012Y79jpxi52PQb4UCYdCz/r8A5m91z33QgBRXUYnu33JXBy6ho
-# 1MpJKSCxWyX0gGOzFhxCy2yZdm30uDlU2mpyQKm5TkiUy0YwBB+R1R/ecKrGwgDc
-# vf6WqdEP7Iu6kIu4K98t3oSqhYAvVQhETjZX8u/HjJvhrDizmucbz3cSuZtq7rHP
-# fkl5vRZtuP/1DSewJLVX0ZSgj0H0+eKXg19orBlYddyFCBmju3eE9+oFv9FblBLp
-# fKudnyAIAmezig9tJvLKjcEgsnnbBWGfGnvTf8BTGGba3mtl5zn7CBr6IwdO7ShC
-# sMdzQ9WvadBwNCX79TALFOYBvnVM4GW7y1M6u3485v4JDxpCD1yhhJSL+nj4TXwI
-# rnOjXxmGbSnqGpqevJAeBDFD6FzE2xXBotF4pkw3DbRUpTCIsRwQp43a2bXF55a0
-# j/JAh2ZzGB+aNHjxM9PhT9O6NlG8xHnqOKwNtfgl+s1hVItDuTUCvFnooNThXwzt
-# CF/WBAqvICYKuVzr2ncJatJsDopkVA==
+# BTEPFw0yNjAzMTEyMTE3MTJaMC8GCSqGSIb3DQEJBDEiBCD24b92vRx1qN45vUmD
+# p6oqXObFtQIFXndueSILS1GHqTANBgkqhkiG9w0BAQEFAASCAgBzw24sdplIYKFe
+# KwodyEBeXxUO7nUfdQOGr+uQbNjjJk/JsRFM3HAc6eMaOD/M/52u/fHoI6RVevh6
+# 2Ryx7Q6UZ5uyMG4IrD2AIq3hCJ4v7Jjn7vPbhOo9e3xBjt5kr8FqAPPDumYT8Al4
+# f5quesXeD1hB5RMk5AceakKW7kyCZKZ3d83QZKjP21j/TCfwQGjBjqeK9jOO6i/n
+# 5+FZDVa4qic38By3iYlxEWvoRSyX31F0HEx7+/7PiiCcOxP0SZx5MH3mNwRm3URn
+# IzVQJhJpZI3MbuZk15n+JZOqYQJF0di7FNvAr09sDJ39/difY7GgU+DZqGfwWAvi
+# AfeYTFMhZYO6GXf1gIvg4kgGGn9SY5o7d0gYEI3ZptUth7naY2meKyxw+gDYrAnc
+# KgSHW2oqmfK4dADxWjz0jM2irvPmkvTern+hsqroU0xiDG+t8W3f1XwQJJ7OUF4O
+# 6FRc0qMOIxdgXxXPFEKLBYMLBZeig0QJXVzu6ecDKWnSNBcrpFtZRz8W3y2nPogQ
+# PzIUV+UjRQULPXNzmd9oxYQRkSz4TJsOkcmP1wNA+mYoOSl/ojwWyMhpfDqobp+0
+# EGJnuVNE22uA36Rk2AYNeB9xLKWQV5yCOIVWdUlkwXqbJTHWFQ7FUn43OGuzMf/N
+# SI0ru2pqU04WpIioHFaVzipPOY5QAg==
 # SIG # End signature block

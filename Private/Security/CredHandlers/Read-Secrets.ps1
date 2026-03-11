@@ -1,34 +1,51 @@
-function Initialize-DomainAdminCred {
-    <#
-    .SYNOPSIS
-    Initializes the Domain Admin Credential in the session by loading from
-    config/secrets or prompting the user.
-    .DESCRIPTION
-    Backward-compatible initializer. Loads username from config.json and password
-    from config.secrets.json (DPAPI). Prompts if missing. Does NOT write passwords
-    to config.json.
-    #>
+function Read-Secrets {
     [CmdletBinding()]
     param()
 
-    Write-Log -Level 'Debug' -Message "[Initialize-DomainAdminCred] Starting credential initialization."
+    $path = Get-TTSecretsPath
 
-    # Prefer the newer, fully-featured function; persist by default to keep old behavior
+    if (-not (Test-Path -LiteralPath $path)) {
+        # Return a writable hashtable shape
+        return @{
+            passwords = @{
+                domainAdminCred = @{
+                    password = ''
+                }
+            }
+        }
+    }
+
     try {
-        Get-DomainAdminCredential -Persist -PassThru | Out-Null
-        Write-Log -Level 'Debug' -Message "[Initialize-DomainAdminCred] Domain admin credential loaded into session."
+        $raw = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+        if ([string]::IsNullOrWhiteSpace($raw)) { throw "Empty secrets file." }
+
+        $obj = $raw | ConvertFrom-Json -Depth 50
+
+        # Convert to hashtable-ish structure we can reliably write back
+        $secrets = @{
+            passwords = @{
+                domainAdminCred = @{
+                    password = ''
+                }
+            }
+        }
+
+        if ($obj.passwords -and $obj.passwords.domainAdminCred -and $obj.passwords.domainAdminCred.password) {
+            $secrets.passwords.domainAdminCred.password = [string]$obj.passwords.domainAdminCred.password
+        }
+
+        return $secrets
     }
     catch {
-        Write-Log -Level 'Error' -Message "[Initialize-DomainAdminCred] Failed: $($_.Exception.Message)"
-        throw
+        throw "[Read-Secrets] Failed to read/parse secrets file at '$path': $($_.Exception.Message)"
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBt+yi0PyVXcAyk
-# AboTxTfrJMbP7CsLhlCAfasz7fbjbqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlnhVjDPM2R+Fk
+# 8PxwdruB0a4mPnO8CQA5R7gjfXJ2QqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -161,34 +178,34 @@ function Initialize-DomainAdminCred {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBDQ1VQ+bkr
-# 879rGBHEk8qo1BdLtUDJjdTFsxG3TDud+jANBgkqhkiG9w0BAQEFAASCAgC8kXVq
-# mXIHYP8zJTrZT97KOLRLAL9oUR9OHXktIPJTJM1N0TrMuORCo7KnRWmXMw54I7x2
-# Ezpii7LRLuZPGV9MDLmNvde3q9gWxqw8uSR3M47x0w4Ess+yegKlb6QeG6a48Wgx
-# lOZIpBRd7V6iH0HHJ7/wCCET0cqH2GL5xfyyiLTLIuNzoj7OVTp/TyktjH++P5bb
-# VkQ7EArvT9ng0X6EIBcxN/2+8za22c8780HUL2Y5El2j5YLHBeh/aSS/ICjghY5Y
-# qk/eg7z1Q6n5fHLeM+SGw54hJkyhD1bYjJnRbOTNGb+MPcHMIGVwI9L/uH0I+lDJ
-# sexLNXycGTx0uUm3TOqJMI1aHzwkmWEC11+rUJykQDiZbYNv+D0hiFa7j+yXvLiG
-# dyFl8h85mnTfanROkyEgMY/9uh1ZHYM3h0IO3TOtLNPtqsOO6v+/TWSXJJP7/DuS
-# qg0XFeCy1ZznsUpcBjG/iHAw/bNHbb6PMShnQYqy30RTRwS9S9qJF/nAcUhOyJi/
-# okHLtpPNjEtmtfwGro+EP8w7RNmNYiU0SDlvSW4UO5i/Koo50ALSvYX9fC/vqxI4
-# Nzz+jrlzJzw8RF/mKgcJ6nCtLUwIsc3ygaXlYN9qRGS6UX2GOou/xKwzlCyljmzK
-# w4zjJqpl9K6LJpTJpK0NisICWGqiCkyQUYUpcaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD/JQqzyziV
+# LlAANSf1p7zn5I704okxvSxqSuDweos/xzANBgkqhkiG9w0BAQEFAASCAgBwrymW
+# u/EKetvZQzDqSwVGi4LmnyI9jTl80oPgZ/9gR15r53PyGdh2FUbRIEyYIWwwBOCD
+# 01axm/iB1eSpCeXFz2nmXSdq/NCZzH6E0hG+VTgACzRslJ54f9VsWiJaMmkHx59b
+# 2Fu0332QR+JQtyJr8F1MkDiLV/vrXRFK/D5VNp2jxqGz6x0wuQ1RXkoN4SJuuQz1
+# xwOr2TPCsU+thVkm4FFxgacwDx19+/UgrzCKsatqOYaQBs+VHdtHlI3sVz9uT2JN
+# 7ACx0y4LbQFnK7Q+bFf2BF3Fg2A8lqfMWQadipcM4gA5uvmAZ2uLGhnxmDSP6/bA
+# 0UdbHykWEjS38gfzfxL8xpPmbf3CuU2Ki7jZ41IswsO0FH3leddhQwWEWqTO3wU7
+# 7++QaTMricat6HmoRS01GbqAUAF4KY9vIVZ1TOJF+o4bCvhm9MiHfI8harGy6I4q
+# 1wrG9Phgf8CcyS4wpquHUcW1VVR64YqWVDU4D/ckSeVZm6k7RGFLGnJLRnyJId8G
+# KxptylS+N9KQtnXPTqZuwMZbfP8oaDBr6iwGFJveHpH63vdGxdB6Qe1upO1+5nN7
+# zgGwRi7odrAj07SP8WBny5s6nKPgDsHyNG7doUqGWLDtwHqdxDfWFus/xBVUj2MP
+# kBS80iTLFpXSDOv0kInhadmRIgOqizrE7yNmzKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTEyMTE3MTRaMC8GCSqGSIb3DQEJBDEiBCDb90vBwfNg/xnL95Ar
-# RillFJ1OPWJQyA/Pf9RVnwyFgjANBgkqhkiG9w0BAQEFAASCAgAugq5orNL2IphR
-# 0ubZQ2jZd/drZiS8PWzS7qlDjuChW+BoRzGEkIs5p4wPVwS11PeSANceLvxbUHlm
-# 94QX+eFeba+3xzXjJFTUPtZ/XzjuEWAgfa8KZT56WFLcRxOZNSQ0JBW6k+0TSMqw
-# QpdNBF5nZvdVA012Y79jpxi52PQb4UCYdCz/r8A5m91z33QgBRXUYnu33JXBy6ho
-# 1MpJKSCxWyX0gGOzFhxCy2yZdm30uDlU2mpyQKm5TkiUy0YwBB+R1R/ecKrGwgDc
-# vf6WqdEP7Iu6kIu4K98t3oSqhYAvVQhETjZX8u/HjJvhrDizmucbz3cSuZtq7rHP
-# fkl5vRZtuP/1DSewJLVX0ZSgj0H0+eKXg19orBlYddyFCBmju3eE9+oFv9FblBLp
-# fKudnyAIAmezig9tJvLKjcEgsnnbBWGfGnvTf8BTGGba3mtl5zn7CBr6IwdO7ShC
-# sMdzQ9WvadBwNCX79TALFOYBvnVM4GW7y1M6u3485v4JDxpCD1yhhJSL+nj4TXwI
-# rnOjXxmGbSnqGpqevJAeBDFD6FzE2xXBotF4pkw3DbRUpTCIsRwQp43a2bXF55a0
-# j/JAh2ZzGB+aNHjxM9PhT9O6NlG8xHnqOKwNtfgl+s1hVItDuTUCvFnooNThXwzt
-# CF/WBAqvICYKuVzr2ncJatJsDopkVA==
+# BTEPFw0yNjAzMTEyMTE3MTJaMC8GCSqGSIb3DQEJBDEiBCAC8e3iOsNcxKIFX+sd
+# pEkcH2b4v65ADNe382daYT5bHzANBgkqhkiG9w0BAQEFAASCAgBNQ7kspzLlc3oA
+# rXdT7YfauqqlKX0G0tTgIngfLfiewWiDSzzbLEA51BSIPCHa1rAnHb7wxBoHMeAT
+# QL/yqKofGd10rZm2JawHQBsDdgtA4Z1m9cCbHR68RXYqKtux0TrixAv11SzoUDjx
+# Qh7UWZpulNHkF2DHnVPI8v+8fk4qizW/zV7eZa83cf5h5tLRaVoTQfmYUS0vcOk9
+# rzSCKMMo9BCPiNJKKbeuH9ksi2x71DRM3msO90tmB7uVnENzJ6dYghYEZhIbzc/H
+# IRLw8oYY9z504npUwwCCCApxDpUfr9EIyQ4Dmik9xHih9BQu497A9ROzNJDdTr9x
+# 42DJw7+Yaqxpfugn4cYyhjTsqgiHXY8EebmqNkp4TKlTNu7VGdFjeVK4xrib5Tve
+# sKeEk4xfp/XbHmtM53SI6w7z/xvORUBphL+Sq98PyRvo1phUFn6LieEE4ijXMMnc
+# e5SOadkcGl0UDQCl/ApmPcF0/PT1cG43DJ1CnSd3eQmWIaHVZnYg+uThUYEhrMYj
+# c9F3R71oue1hGDl5tyUiA+qFThInylEToccqTsnPMpY+k6fScnvBLTsAeRDMCRmM
+# 3TMfAg9+J2HR2kp44B1gB0+YBxtrqIxw5+AXGv2Nua1wWSV23B2MAZBuz8WBdMl8
+# KYCh9Uk06NLGc1x94ss3+IBwbArCRw==
 # SIG # End signature block
