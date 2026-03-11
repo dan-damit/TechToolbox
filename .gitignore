@@ -1,5 +1,6 @@
 # Ignore derivative files and stand-alone scripts
 Derivatives_and_Stand_Alone_Scripts/
+Out/
 
 # Files to ignore:
 Autodiscover*
