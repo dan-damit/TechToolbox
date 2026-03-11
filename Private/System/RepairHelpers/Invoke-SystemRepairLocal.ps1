@@ -8,7 +8,91 @@ function Invoke-SystemRepairLocal {
         [switch]$ResetUpdateComponents
     )
 
-    $system32 = "$env:SystemRoot\System32"
+    # --- Elevation check (local only) ---
+    if (($RestoreHealth -or $StartComponentCleanup -or $ResetBase -or $SfcScannow -or $ResetUpdateComponents) -and -not (Test-TTIsAdmin)) {
+        throw "Invoke-SystemRepairLocal: This operation requires an elevated PowerShell session. Run PowerShell as Administrator."
+    }
+
+    $system32 = Join-Path $env:SystemRoot 'System32'
+
+    # --- DISM + SFC wrappers ---
+    function Invoke-Dism {
+        param([string[]]$Args)
+        Invoke-TTExe -FilePath (Join-Path $system32 'dism.exe') -Arguments $Args -TimeoutMinutes 60
+    }
+
+    function Invoke-Sfc {
+        Invoke-TTExe -FilePath (Join-Path $system32 'sfc.exe') -Arguments @('/scannow') -TimeoutMinutes 60
+    }
+
+    # --- Unified Wait wrapper ---
+    function Invoke-RepairWithWait {
+        param(
+            [Parameter(Mandatory)][string]$Label,
+            [Parameter(Mandatory)][scriptblock]$StartScript,
+            [int]$TimeoutMinutes = 60
+        )
+
+        Write-Log -Level Info -Message "$Label started..."
+
+        # Kick off the process
+        $procResult = & $StartScript
+
+        # Poller
+        $poll = {
+            if ($procResult.TimedOut) { return @{ Status = 'Timeout' } }
+            if ($procResult.ExitCode -ne $null) { return @{ Status = 'Done'; Code = $procResult.ExitCode } }
+            return $null
+        }
+
+        # Status extractor
+        $getStatus = {
+            param($obj)
+            if ($obj.Status -eq 'Timeout') { return 'Timeout' }
+            if ($obj.Status -eq 'Done') {
+                if ($obj.Code -eq 0) { return 'Success' }
+                return 'Error'
+            }
+            return '<notfound>'
+        }
+
+        # Terminal states
+        $terminal = @{
+            'Success' = @{
+                Level   = 'Ok'
+                Message = "$Label completed successfully."
+                Return  = $true
+            }
+            'Error'   = @{
+                Level   = 'Error'
+                Message = "$Label failed."
+                Return  = $true
+            }
+            'Timeout' = @{
+                Level   = 'Error'
+                Message = "$Label timed out."
+                Return  = $true
+            }
+        }
+
+        # Wait
+        $null = Wait-TerminalState `
+            -Target $Label `
+            -PollScript $poll `
+            -GetStatus $getStatus `
+            -TerminalStates $terminal `
+            -TimeoutSeconds ($TimeoutMinutes * 60)
+
+        # Final structured result
+        return [pscustomobject]@{
+            Label    = $Label
+            ExitCode = $procResult.ExitCode
+            TimedOut = $procResult.TimedOut
+            Success  = ($procResult.ExitCode -eq 0 -and -not $procResult.TimedOut)
+        }
+    }
+
+    # --- Results object ---
     $results = [ordered]@{
         ComputerName          = $env:COMPUTERNAME
         StartedAt             = Get-Date
@@ -21,105 +105,31 @@ function Invoke-SystemRepairLocal {
         DurationSeconds       = $null
     }
 
-    # If any privileged operations were requested, require elevation once (local mode)
-    if (($RestoreHealth -or $StartComponentCleanup -or $ResetBase -or $SfcScannow -or $ResetUpdateComponents) -and -not (Test-TTIsAdmin)) {
-        throw "Invoke-SystemRepairLocal: This operation requires an elevated PowerShell session. Run PowerShell as Administrator."
-    }
-
-    function Invoke-TTExe {
-        [CmdletBinding()]
-        param(
-            [Parameter(Mandatory)][string]$FilePath,
-            [Parameter()][string[]]$Arguments = @(),
-            [int]$TimeoutMinutes = 60
-        )
-
-        if (-not (Test-Path -LiteralPath $FilePath)) {
-            throw "Invoke-TTExe: File not found: $FilePath"
-        }
-
-        # Build arg line (simple join; OK for DISM/SFC typical args)
-        $argLine = ($Arguments -join ' ')
-
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = $FilePath
-        $psi.Arguments = $argLine
-        $psi.UseShellExecute = $false
-        $psi.CreateNoWindow = $true
-        $psi.RedirectStandardOutput = $false
-        $psi.RedirectStandardError = $false
-
-        $proc = New-Object System.Diagnostics.Process
-        $proc.StartInfo = $psi
-
-        $null = $proc.Start()
-
-        $timedOut = $false
-        if ($TimeoutMinutes -gt 0) {
-            $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
-            if (-not $proc.WaitForExit($timeoutMs)) {
-                $timedOut = $true
-                try { $proc.Kill() } catch {}
-            }
-        }
-        else {
-            $proc.WaitForExit()
-        }
-
-        $exitCode = if ($timedOut) { -1 } else { $proc.ExitCode }
-
-        [pscustomobject]@{
-            FilePath  = $FilePath
-            Arguments = $Arguments
-            ExitCode  = $exitCode
-            TimedOut  = $timedOut
-            Success   = (-not $timedOut -and $exitCode -eq 0)
-        }
-    }
-
-    $system32 = Join-Path $env:SystemRoot 'System32'
-
-    function Invoke-Dism {
-        param([string[]]$DismArgs, [string]$Tag)
-
-        Invoke-TTExe -FilePath (Join-Path $system32 'dism.exe') -Arguments $DismArgs -TimeoutMinutes 60
-    }
-
-    function Invoke-Sfc {
-        Invoke-TTExe -FilePath (Join-Path $system32 'sfc.exe') -Arguments @('/scannow') -TimeoutMinutes 60
-    }
-
-    # --- DISM: RestoreHealth ---
+    # --- Operations ---
     if ($RestoreHealth) {
-        Write-Log -Level Info -Message "Running DISM /RestoreHealth locally..."
-        $results.RestoreHealthResult = Invoke-Dism -DismArgs @(
-            "/online", "/cleanup-image", "/restorehealth"
-        ) -Tag "RestoreHealth"
+        $results.RestoreHealthResult = Invoke-RepairWithWait `
+            -Label "DISM /RestoreHealth" `
+            -StartScript { Invoke-Dism -Args @("/online", "/cleanup-image", "/restorehealth") }
     }
 
-    # --- DISM: StartComponentCleanup ---
     if ($StartComponentCleanup) {
-        Write-Log -Level Info -Message "Running DISM /StartComponentCleanup locally..."
-        $results.StartComponentCleanup = Invoke-Dism -DismArgs @(
-            "/online", "/cleanup-image", "/startcomponentcleanup"
-        ) -Tag "StartComponentCleanup"
+        $results.StartComponentCleanup = Invoke-RepairWithWait `
+            -Label "DISM /StartComponentCleanup" `
+            -StartScript { Invoke-Dism -Args @("/online", "/cleanup-image", "/startcomponentcleanup") }
     }
 
-    # --- DISM: ResetBase ---
     if ($ResetBase) {
-        Write-Log -Level Info -Message "Running DISM /ResetBase locally..."
-        $results.ResetBaseResult = Invoke-Dism -DismArgs @(
-            "/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase"
-        ) -Tag "ResetBase"
+        $results.ResetBaseResult = Invoke-RepairWithWait `
+            -Label "DISM /ResetBase" `
+            -StartScript { Invoke-Dism -Args @("/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase") }
     }
 
-    # --- SFC ---
     if ($SfcScannow) {
-        Write-Log -Level Info -Message "Running SFC /scannow locally..."
-        $results.SfcResult = Invoke-Sfc
+        $results.SfcResult = Invoke-RepairWithWait `
+            -Label "SFC /scannow" `
+            -StartScript { Invoke-Sfc }
     }
 
-    # --- Windows Update Reset ---
     if ($ResetUpdateComponents) {
         Write-Log -Level Info -Message "Resetting Windows Update components locally..."
         try {
@@ -140,14 +150,14 @@ function Invoke-SystemRepairLocal {
         2
     )
 
-    [pscustomobject]$results
+    return [pscustomobject]$results
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBllehUgB7GvhdT
-# x/GjWEMGjSJetBdxOZPapZG/rYjTzKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCi6QA35BGWvTHn
+# Nqb+Z/fuLbygxyq56n6fgb4KnTGDE6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -280,34 +290,34 @@ function Invoke-SystemRepairLocal {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBInXWfeK4N
-# DoAtYBiHvVK6sdRd9mowujRaxIn+UYJo4jANBgkqhkiG9w0BAQEFAASCAgBRPC4i
-# ujCobeXOJEj5DQ9cZ5Lgn5k+mqgyHqAbId3uGYjEfEhGzu6osoodv+ZLg8SVyD/S
-# sl4+j0O9Rz5NgYm4TU1qveGk0vwXADAVQt1TnPry53zRKN+AfBY4RUe1LUG7pKgU
-# nfz9mHhUZlxzTscqBWBo/qcQ+1T8paGMZfCtz+yO/RhIxCQSSSQkKzjNtqQ2Kd9R
-# liMTXy/0f0OsOFxuUOfphGg9X1iVZQ2f0D9wJ8WM3AdAhaj4jiNf6ECHjrOCPv2I
-# qlDXCQguy7PtIGhQLiopYRvGtYTOoxJyFA+KGRWp4xZxglqg5beIs4lLHCYW7d9U
-# DGcmTnJJF9ZDLQd5h234EiItkZ9mQZz2OokC4SjCME+3mGBtKHGq2ZDXg642d9Oa
-# tRvQ3nFWQlkyE7AgfqRcQ0ZRm/Kwu8dGsXGJolji3bzKoB2pJeKgDNA6MCEkwsFt
-# qnywbuYnnaUM/V7mKhX+kSN8oPnF6O5vLucEp/lQmg4OYpx4iNDN5J9YiMOHPAK+
-# 1NjKDHjNCLUPntVxGuVScLUdy7Z2rkT/rcDrKuloO7sdfoxG17SUGBkF6z15HcY2
-# TMb+pYXMJU5AEMwPHMk9HKUu9Mb1rfMI05+rPo79Su32WBRPcgEiXmjHGaCZB0OB
-# ODovOAV31/CD+vl7O/Le+dfCMoPyit/LPjlIU6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCDauQgRwjM
+# f/HmQqwQhCDCNRgkWOEPVQoFi14XG9IAMzANBgkqhkiG9w0BAQEFAASCAgA9w/X7
+# k1a5tyJf2Irh31kfaCuoOBK4dIbPCAAgwhp720hYsWRpqA9OwYLiapOGO6cFPPmj
+# bdPLemjByMccTNLDf5UUBCMSStAhu5n6VSC4zjzfo2bwenyjzD8OD2M3zxUw9Aab
+# 1OHH0g31rEiizY3+hlwo+BQtWhfqIuOwNFSGG7Z27RJ1vx6MWYDF4Lbti93SO/2G
+# 8NNZmOclFoPDF4RchCZ15v7xTsqfkbDQs+P8IM2sYWgc3uN0sA37sW/BzJeFKTcL
+# NiHCoqYpYxrXZlo7jy4RxowdFrjXkO1AYyLDAT9cpCXKV4hxtcoYwjHDk/0Z+kKJ
+# 4++dx+9Mecftu8Iuw+elJTwA3OqmaK99FoWk9LYGhO5wbDzBhYEhJkdwACJv09vQ
+# nqgIv3BqdeF1tAPACUiMwBaM+nf+iEO9vWYI6gDHZDKZHPPMkq5J6LVUPGHBqoBc
+# ftbyw1mm32BDGCHimywPkHU0xr8m3HSXz0Zw7mIrLcAAMlFV4xrFTQcJOtmNBpol
+# jr3XSZUodj9zToWH1kMxxqgu+jJNt+qJc9SCpAJAU5vZA8UWQXKYgQjapPIKr/F+
+# p64KxIO4xMcYwXeElgZu4AmYyG8M48C+TZS7T7huPK22z8WzSQTvKJlbyXWe/vmt
+# t4zedKptJW4RIs7bRMZO6y+S4Nk9L933V31TB6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAxNzAwMTZaMC8GCSqGSIb3DQEJBDEiBCBC4YKPJzUZDZolKprt
-# z8MobrZwoRssCXLi4uDB1BlxaTANBgkqhkiG9w0BAQEFAASCAgCerciGqOF1v00a
-# UsdqJEPVzom1zv88nVneOWB9nuIX5zXIFEpPtU5LnxeQlWSNPiDnahokceCfJK1m
-# NhUhd8rVpkJ+zsrJn8cGtGaLB7yY1K5NWMZKpO6RSsbBQBiAdhg/Env+TySSY7GK
-# 9/Xlr/RYoEp2ww+kGwwovElamaw6ek3cJPfJE08UIjpVL6jKfxwxKFWu9HNNSWfF
-# Lh1byl99fxte85kIRsB3w54trRWOnuBeQYLhMHL2mF48aq3hMYHj8j8h+c2tP5Iy
-# rrrTa2bJ4G13QJTXKnfGSJKDJUypieRqIa+Ii/CD1OnV8jPc5i7VCoKasEucVLzi
-# sJOoWxCzcdbHE0e0G+7finTXnvTb9HS4L/W4Vn/THazuW1hlPB33EX295V9nt9A4
-# bFLBQAfL99uq700Td/qAMVVP0p+JrstqDzCGBairr8isotjRI/DJe+R1ZQ5MAkot
-# dLUs0BJrsnkhWBHbeXi6zcTFcIy39FKGji/FbMR0+46krQ3C4F+OPbxbdG/XC6d0
-# Mjgm6XZGxarmldUF+smRpnM8lg5vmZaRcRgAKt39neDP2nQ3qtOqTS2c5WES0srE
-# TYkVB/sWcgspbr+e+HxrY36nPLPBtknoF8hEbRngOLLDACdl7l1K0Hg76okTlrqL
-# pJ0VQKgFxcEgHshfX+z3HDb++89P2g==
+# BTEPFw0yNjAzMTEwMjUwMDJaMC8GCSqGSIb3DQEJBDEiBCDAFZwVYWob3/a+mMVD
+# vIa+rOJWyZKEZIqsyxicJjnwVDANBgkqhkiG9w0BAQEFAASCAgBv6mj0Ir3/wpAg
+# nKW7Kgfq981V69iLXkcuhBJH/A/OL0ntXDlltSC9St6qbRPnUSTfDnXQAMUSIlnc
+# kLL1bGjoqBNcXJSV/vCFgDNC/hli43kUH6HFp7JXreteSFsET6AJmZ8MuttQFXCd
+# kSxw2xupox31jIXmXC2S+Vq//AH/lmWX/1i+thWGGmKanM8OSutDjPe0G76MtFAQ
+# Z3uKt94idfHRxn+gO2TQ/V7+dGAN5HMwD1b4MZ7II0gyfS00z0qwxBRflikIGcUu
+# wj0I3nZDc/If6sY1adBM8MDCpghLCDqokm9AbLCcFJIKSZcoRF4QzHhgsKB1ZBFV
+# suSosXH93zLINEflphMp0+QI9wznmXI538hCPDqpVsSBjYnayg4wmGjGjbq1D/q3
+# SU/cPgNvcpMDmghND758CnYVX8o7jvxAmh2H1w0PX5FKJsNW21lz64y3IgwwXkpx
+# zXrW9zj3NNfPv5IlabLb8cf+OVdnxm3n4qKdgJzssRxG2dBKEMBzz2/ZIUfZyJu6
+# AiA4hV5rp+vewadYZ5ZncxeHP4EkMXx0gpEME2HsgFNDboFhWqq33lBizEV2qF4F
+# rwVv5iXcvmhxBueGW8rXBkd+h3DVj4rCMF2SoOaMl/MRi17N2Nd098s0Zjo4jhyG
+# zYh7AlM92yP5QREu6evXDSThld/ndg==
 # SIG # End signature block
