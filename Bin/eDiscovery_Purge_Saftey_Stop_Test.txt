@@ -1,24 +1,7 @@
 [09:18:45] C:\TechToolbox
 λ invoke-purviewPurge
 
-cmdlet Invoke-PurviewPurge at command pipeline position 1
-Supply values for the following parameters:
-UserPrincipalName: ddcloudadmin@vadtek.com
-CaseName: #INC-149448
-Enter ContentMatchQuery (or type 'q' to cancel) (e.g., fromdomain:bad-domain.net): from:idealtridon.com
-Final ContentMatchQuery: from:idealtridon.com
-Imported ExchangeOnlineManagement v3.9.2 from: C:\TechToolbox\Dependencies\ExchangeOnlineManagement\3.9.2\ExchangeOnlineManagement.psd1
-Connecting to Purview (SearchOnly) as ddcloudadmin@vadtek.com...
-
-----------------------------------------------------------------------------------------
-We have made updates to move the SCC admin experience to REST-based APIs. In doing so, we will be deprecating the legacy Remote PowerShell (RPS) protocol starting July 15, 2023.
-
-Benefits of REST-based cmdlets: improved security, WinRM no longer required for client-server communication, improved error handling.
-
-The REST API has the same cmdlets available and feature parity with RPS(V1) cmdlets, so existing scripts and processes don't need to be updated. Simply using the new module will ensure REST is used rather than RPS.
-
-For more information, go to https://aka.ms/exov3-module
-----------------------------------------------------------------------------------------
+{ ... Omitted for safety ... }
 
 Connected to Purview (SearchOnly).
 Creating mailbox-only Compliance Search 'TTX-Purge-#INC-149448-20260311-091857' in case '#INC-149448'...
