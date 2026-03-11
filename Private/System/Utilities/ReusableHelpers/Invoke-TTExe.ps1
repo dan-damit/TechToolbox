@@ -10,15 +10,26 @@ function Invoke-TTExe {
         throw "Invoke-TTExe: File not found: $FilePath"
     }
 
-    $argLine = Join-TTArgs $Arguments
+    # Resolve 64-bit System32 when running from a 32-bit process
+    if ($env:PROCESSOR_ARCHITECTURE -eq 'x86' -and $FilePath -match '\\System32\\') {
+        $file64 = $FilePath -replace '\\System32\\', '\\Sysnative\\'
+        if (Test-Path $file64) { $FilePath = $file64 }
+    }
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $FilePath
-    $psi.Arguments = $argLine
+
+    # Use ArgumentList to avoid manual quoting/escaping
+    $psi.ArgumentList.Clear()
+    foreach ($a in $Arguments) { $psi.ArgumentList.Add([string]$a) }
+
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
     $psi.RedirectStandardOutput = $false
     $psi.RedirectStandardError = $false
+
+    # Set a sensible working directory (helps some native tools)
+    $psi.WorkingDirectory = $env:windir
 
     $proc = New-Object System.Diagnostics.Process
     $proc.StartInfo = $psi
@@ -48,8 +59,8 @@ function Invoke-TTExe {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCCarISMjZIWJlE
-# B7WWfWVVftIPqLegA0wE1XGJPXnMNaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDIMW9NGdZi6aWq
+# ItvrbBZg2yk+Gy19Ezpy7m6a6vI/u6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -182,34 +193,34 @@ function Invoke-TTExe {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBNjwQAuM7C
-# Yx9YoZ/GDs4u2n6+VnKm/rUohUi1sEB7TTANBgkqhkiG9w0BAQEFAASCAgDK14u5
-# ZB8tE4R35PBNYkLnYFSqBXB/o+8B7LmSQEEFnpsHorQG1L/Od/cCgjjmjmgQBScl
-# mwfIyTOTADj5HBkwWem1+norQwanNBPa2o28pwOZ94YPuxS/dbC3wMYsD6SesbZe
-# LizXLy6ehXuFeJ7YrDBIVprFDTN9SKX75IqPIvCGCO05/qfnYTEBqUQVz1P1OZQd
-# vNdZMEHmE215mqBjU/YiR5dSMj2xMumZ4v29Xoh+GbaIVsLFjmJZsngeNjASpPRr
-# omn8PcntsCALpmLXo6Iw4ClNrMl5HKVeD3qBS/bt5vzqHWWmyhYB/oYFKadbSn56
-# /QOvh/BVD3Nrwgwm2RkNRoThIa9++zK0KhlVPshzaN4JxF/8lH5r+F1g27WAeOQ3
-# eaSxNyY/aBTXZS/XMrydygxkDRbXyxwLiQo35VSYxp5D0/n+ZrsVG1AuQPQ7dw6A
-# VfEyvJ9rlHWK1enSNpyW1k2TlCbkJo2Fxpa5A0GryaGBWG2wpN/759wHgJ4s+rPR
-# lAWxXuTzmBYD4h7RCYm7LUZbTi4JfHQLc7XZyVE7zS51lHV/AgthKOaofdEuFLkM
-# LMSg7Tp/gCppmQJE0vWft7SGYtmEgsR4Gd4NyfsEjigH5esY9uojA3moLP2NNTGu
-# eZ8jXIO39/W419Mdmy1W53amHLuahjLxC3oZp6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDtc7AWp6yx
+# hwQlNk/9T3SikGuE2fiEHvUHEMQNvlgLVDANBgkqhkiG9w0BAQEFAASCAgB1qKW8
+# Ss4Y8Pe/9Jjjf8aGH2bSOWRUcjQJYb44Sh7fVCoj5aO8lGpbhS+Hzv1wM7mhpVKe
+# 87kJAJITgcAt7yWuzrUgCWjrVBOkjo2+z30MbvSm5rsNCo5ZU+KFVpjxkh6KQVGd
+# 8KT5DJE4cZ6CSehrPlbREAk3HLV3Bfki0Ikv68FMS0L8yYdz4SPBLQgy+j6A+ulx
+# RSn6uz6MQk+gTuAM0XuclS79Cxh+GbNd/AER2Zk7S0DkuKk4/ZwIIHpdXQ/QGHfR
+# 5hw/FEiPGsQxfHYg3iUfKf+NONVBjVKzFy/L4B6XqSw8WAcD0u9FBPCJASiTHH7u
+# 9d3bsJde0sGMMFAnpzk4KGzyKN0aqpQFH/d6lrmuUxIwnx2JjV2t9KpZltOYONKh
+# NpkBgjNNwSXoYR3+/ZuQ23U+E8gV+f6xPl7+9I5kOqlnBa95UHEXnp38CDYhGM/I
+# GBB6pHefAOf9qmJpNH3HwNfSm5wGzNc+N7oaF6ZjtQa2couux6MYOe5oz4jlZF2L
+# HGmsmF4ls98EgpFXOsU5pTZ5yMTMyMzjif3bHy8K7xmAvL2FUJapzCUELQtrG3z/
+# mgYlkK2cukrh8Wizn2kx/Zi8dZ7Fep+FZ++oQ3LiKGOHZFJp6bFvSrwOk5t+eD5g
+# 0X2jbUJAyqvzlxCHFpUI5rhfnTPpUKDDsrH7O6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAxNzE2MjRaMC8GCSqGSIb3DQEJBDEiBCDbZSPVYgRdu4mULQjz
-# yxHcUcdj9YQICukSCeUc9V8uejANBgkqhkiG9w0BAQEFAASCAgDCpLhz1YCxjf+T
-# GOpcNgYwzEn6+zu0mnqqtJmML8udsWzp2pz2BGIQJInZ0mjao5U0pwxni4S6Bu0a
-# vWAnB7sCTtXGiPKocg/rwWtbsuYiuvBjj2TqvEAC1B+kiuvazhmi2xIxRFsGAGyd
-# Rpc1LgMj/ut2iAHCCSOi2wukXBVCEbvB150Oa9fVsmp1SzVWfD+2mY085nTxoTJK
-# +PFpbZk1iaoCvxyqelkv3CeVvnkNHKLzQt6gyGiKjIFw2YIbR95JgKGfbyzgHfhA
-# OOzuxS8daodNWGQphLPisSexRB3L/5oVCGxv1muU/6R80TbbYgmUnlvydfoGhqu7
-# FHL/ORpTMEAAjc2GUf9gNsJnP61QPEmJkIcjla7FDfOCn6MAECqrDBCBuLQ2Hcvw
-# fFcljRBWSQ30fE2dTAOENaS3jisgKIfZBZ+MPal2oXQDKWryCDlPpcQaLxGURTVi
-# FA7hQbf72xkcIwfGM02+hMsAD9SXWe5CxkVr3m54Hmr/MTxbN7d1fbV3/ctvjreL
-# l9eOEZsAdDtbtkhl0ZoUvyMMo5q53qxss/X1ay0zLv/Wbtq+cB7+Pqgyeo0HswvC
-# d03LOAyUA0CT+qJgkzd4AVgZFbpu1+ck5laS2+s3jlrGn8ADHoHcjS9LidtmGpPr
-# 47NLVALC/5sgRr5JOOoLAOnpta1d+g==
+# BTEPFw0yNjAzMTEwMzMwMjFaMC8GCSqGSIb3DQEJBDEiBCBYLk2btckHysb0hxcF
+# 4S7R3II7ey8EMQwCo9rT5i6q2DANBgkqhkiG9w0BAQEFAASCAgBD3Tio5HtCBHG7
+# 6VyaD+LFodkyCzUOuJxJn+/r8bNO7ucba5JprcoVGInSYR853D7x4yC7aMvi7Tkp
+# qTlC+uWI66b1xVWRK0OHybWSkPl8ys3Xmzu4i3fPuOwGwbxjYGXltftGzJfpsoqU
+# bXupFzDLI2hKryc+WEePLlLNFUjGoohoXc68Hdkd/p/03n5XMdiIx8vz5k2hk143
+# YW72lbPmXwKpW1+dggAoP+JKtsxQiXBct3tV9GJxZQF/FKbE3xYxZf4TAL/0LMFT
+# U+/6HznHr4UX3wUlcbi988YucdnWCXWrcDWVyBhCPgjCAxAoM1dHhR+3eK41HIAu
+# HhTXytnB+j/oxI8g71Q4o5EgnRJPl7netL6geCykQDbHDk6j+92hNWG3sKyF9nZx
+# XRNZpP+n3iql97tDoiFTTwqFCaeb/wGZpsUEjVQ+GCO08c1tUq/CAXVP4BMpxqTI
+# vXZk/NjLvwCAlYyLiokPs9r23XrJn+eFGJbvgfZ+KftyJPQnw0JCbRrRkai2wkS8
+# y993fFxRlhVJRGbA9KUVW7MU3k7ocuSnpGwouF+lRBzdDKgUY7P7dpkOTi5yAb+E
+# 7XFieqMbHQ3ioYBtBPfPS0qle4SBf9biPWwZxT2iwcbn/eYEeTIRHRPgHmecMawz
+# N83/s1hVjmjPkGhP3RVAOOULdRL49Q==
 # SIG # End signature block
