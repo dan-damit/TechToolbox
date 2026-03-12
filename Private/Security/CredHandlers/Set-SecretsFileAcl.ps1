@@ -1,7 +1,8 @@
 function Set-SecretsFileAcl {
     <#
     .SYNOPSIS
-    Ensures the ACL on config.secrets.json is locked down to the intended identity.
+    Ensures the ACL on config.secrets.json is locked down to the intended
+    identity.
 
     .DESCRIPTION
     Removes inheritance, removes all ACEs, and applies a minimal ACL granting
@@ -9,18 +10,14 @@ function Set-SecretsFileAcl {
     Idempotent and safe to run repeatedly.
 
     .PARAMETER Identity
-    The user or account that should own the secrets file.
-    Defaults to the current user (DOMAIN\User or local user).
+    The user or account that should own the secrets file. Defaults to the
+    current user (DOMAIN\User or local user).
 
     .PARAMETER Path
     Optional override for the secrets file path. Defaults to Get-SecretsPath.
 
     .OUTPUTS
-    PSCustomObject with:
-        - Path
-        - Identity
-        - Success
-        - Message
+    PSCustomObject with: - Path - Identity - Success - Message
     #>
 
     [CmdletBinding()]
@@ -102,8 +99,8 @@ function Set-SecretsFileAcl {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB3wbY5OUwiC2Rp
-# yurzloMfeBpEfVP7UnAHyv57CJRGH6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAM6JCTpNDs46w1
+# qt2U5zHR/WFHiL/P7h0PeaOS5tcE1aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -236,34 +233,34 @@ function Set-SecretsFileAcl {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCm5f9zFW1G
-# GMc6+nQD5nr66ydz3Kb/zWdsgq8d5EFQOzANBgkqhkiG9w0BAQEFAASCAgAsX1Q7
-# TGker85rZKwg4o6oRTVm9+dT8bzXzY16EWGuObztIFGRTDaCtytfEryfF+YWbLSL
-# xT7SdqICD85sjUJz49nlGsGSGbC56mSzo6e9zo5pcSYrbtmmQpuWkl2Ash5LaIIy
-# K5xhnF1fE0UvmNiXRdu60jLKCmQhwa8UtLG0IVLQobGUZhSho3rNJ+GAsPS2FQHU
-# iynmFv9idNLE4A1EVo5yS4hZjZbOD1yeauc5nYf0dHSfQco51auCWn1+4p0sDIzb
-# 958C3veDaoW3Y9lEI1h4/uO69V4Da2DskQsNQikJyQTuE7jVx/49s8G8jLk+XhK9
-# EfYGVYXyLW4pg3KOl5Hqm7cPbhc+UOgf7+OxSTZProRlaRKNNAmuhWu7YBWYTcf2
-# VHh8Iy3Y70X4tyGfyOuXZiCPIgFk2c5fcPMy1RJeer4ZrNmzd8VFoKmouXTkGF2s
-# iluiCNk3P+GvZE+bK96cyKbJ2Z3E5QKTJAI+pWGUywNyetv5t0QI0IBytQfc8VE3
-# Wyt8xqKaDvJ6zMoE1buUCqB6ihB6KhX49mpGdOd6wyv4pvhEwjtnovqzsbZQHHe9
-# wexaIbJMC8W3XhyCn6MUQR25mWRfLURBH6sC/zREOpWNXa4/6MsMcjRaA1HbuCRh
-# pJcxMWSHtehT5g2SWzIKKC4bDtdHqnDV2R9sTaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAZLIt3zWPm
+# OO4427RPinZ3F/GcDVaGc5NkN6XHNQyQDDANBgkqhkiG9w0BAQEFAASCAgB4y+Rk
+# ThVw2qViN1IwAgYtGIKKPJ0HrDNXq0Ok3MFBQsN9pWyKjqeUsz6NKrFPwiXynawn
+# jI3Y4v3ONrZDtBPFAxnxgbymxHXNl0uMr0YvuIj+uL9yRhb6Br8CIHS4OQ25D4X6
+# nFofqtYYstIsYNge7amz3VMqc0V3ZsGhw2165PbvVSnjgImlZs0Ti5xlfTFnmACB
+# Ery9Zq9zqU0u7MYQdVil9VshbuSoHqf/T21C1kKUvpi7No6q9cJ08yIAVVw+olST
+# S5A+zOnY0nLWnWJbFZfGSY5Pf267sxwMRib+Pfvwr/MH8ybRHtWdQi7qwNAn7dEb
+# WGxb4gUtBGTKGGtKwqLKYh8Tod2LfT+N4RmivYGweWn2Wd4m0GSIchqW01zTzm9Y
+# WwgpHgFcDw9gQ3k5hxX3v4optWszywq/ZZp/CGXWAYnF3T3WiDAl5R1qvPhB+0dJ
+# IFlDXO0wyTFqE43OqPWe5qtnSKIsfN4mYC19+5zLgbfzdauQlyndI8xGU1MXFWXo
+# UlHLCgWqhWcItJgHVMT9s/45Fm4u1ydNJYWQR4EcZhmYRD81YlIzoqK+QUtDtH0t
+# ZpAecOmOZ954vVZanOjqleZgiNAXTBen/dx6rQXHTvUN14bXHhx5pp13Jvz/wKiU
+# mmbGz3OznYZqFhHhejkHJc7tM3ZTYO/f8hKII6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTIwMzM5MDdaMC8GCSqGSIb3DQEJBDEiBCB6pVZeo6eXf3RwPm4+
-# h/VdLCpzx1BnoLbyczztpGqkCjANBgkqhkiG9w0BAQEFAASCAgCnD6J9srPWak7f
-# V3+X+vmM9jK2da1Voefoo9cUh1N9IqC6v6CNq5dimBKB2uzf2UmdZFi8Dzbl26ba
-# HXK1MwZjAL7pkjjBSHOhbjWOnKnhnAcq9gXyyGEX13Mr8d7qosqZeQh3CEI6OzRb
-# jpTijHsoTJjswxKgR3rF9UliIRR3cf/5beSvWMMUrbu2ZtqNu4A0yHq/M/pzcRlW
-# M8ejVdXyWL4JTotyiLCgfcgoeO3Yh/NX59cDelDLgblntXIW0Dkf+ylIGKnvzwNB
-# MhBnRg4XESgzv2s4iCN+BmAW2Bd458ZXSw4OfqXznZEKJrZi+Xn390fzYRvuXGeJ
-# ALrQTPVKi8Zt41R+/OXZOsD0zI3Qa/d8+iOZjYdWNzEbBqeHuChyhhtfsAo/ps5g
-# bl8jbldpa7cSKkjTKaxk3lNZnWMj0VNN4G54RhPvqAex9t7RDLSrqDMj9zNLPnb1
-# VtizVn5UkeKegHRRJdnU3o+YVa8+qhZNMHSCS8ftjVpzgtPG3ig8BZXCfmHr9/Ti
-# CMgjJm3ycYYEPunvj4Fc/ZCwAQzhyRX/DvmD0U5aKH4qYMaRSx2xVGUpXkcwbPAn
-# 8r6Gc/jyo/sxNHaPFNXi8wy2e5VfsY/tma6eAFDzzK+4KW7ueCgyTgsGNQ9he6KK
-# HROjofLZEJTNUajNcVY1Sw9nzbp+0w==
+# BTEPFw0yNjAzMTIwMzQwMTVaMC8GCSqGSIb3DQEJBDEiBCA94WDuFYxENCWtQS+i
+# G6NyACsMfvrg0NGvxJmrW6+09TANBgkqhkiG9w0BAQEFAASCAgAWbthYFP3ogGaJ
+# KsV5KBGvnVsRQqoGM2LfpkqbHgxxNQfqaLTTk1mpacrZsRMqL4gIGjYqE6pCGhrn
+# E72EltL2krD6l0+K+DQcK8y47U0haYgPqZGNFkQpXWtA+AuHVN7r/hic1uMGDlOU
+# rXLGS0BiyptWv0Y1pMIGpYf4MVmngN6ZV0fSACbqYt8iBUwMTwZV9/vltFuycCdu
+# 7tw9XytRJ7MSqGQoYpI1/Zggo5mqjtI3X83tSRsfidwpmdMi0E44Kt9Y6f4JpxeX
+# Bcr1FojaoFZI4uab9Y69nCfNtCMvo6DgGP5+0wN676l+qoqVbNJ483QJ6YoKaQwr
+# Yf4WnJNvw/dbkOLJIkpxyRI4DxN3SF1HbKqwGdV2X+T5fTYD0ylsypFL13RUrPDm
+# B5IRx+Ttyq5q3AF3+favQRXuj7je9x0vws/fd/nmPZw01vTZxuo8CNrL6BFprADP
+# 4tdXAOheaIACvyLEujIb7qieXunBR9veTxxfKgMFXuyaGufzH50e2pDDAChDFW2v
+# sCCPgIRLw9DteCRAw5KhcWFm6r/DyhfsszIYWu13IJ8xtKtmZEksiw4kM3HZLWNV
+# +3VpYjMl/VyrsNeugIjLJH9mhisA0dCy0/JACIco+AuientlzZdf+en435/hBpxW
+# SNjS8mqIbRYZs6k5sBxgbWBAWxugyA==
 # SIG # End signature block
