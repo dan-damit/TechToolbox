@@ -9,7 +9,8 @@ enterprise-grade PowerShell module.
 
 Recently I've added a local LLM for cloud-less AI code analysis helper. It is in
 its infancy, so there is still a lot of work to do on that front, but the
-groud work has been laid. The AI branch is [here.](https://github.com/dan-damit/TechToolbox/tree/main/Public/AI)
+ground work has been laid. The AI branch is [here.](https://github.com/dan-damit/TechToolbox/tree/main/Public/AI)
+ground work has been laid. The AI branch is [here.](https://github.com/dan-damit/TechToolbox/tree/main/Public/AI)
 
 ---
 
