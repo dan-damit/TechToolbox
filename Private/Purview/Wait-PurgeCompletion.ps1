@@ -8,20 +8,53 @@ function Wait-PurgeCompletion {
         [ValidateRange(1, 3600)][int]$PollSeconds = 15
     )
 
-    $target = if ($PSCmdlet.ParameterSetName -eq 'ByAction') { $ActionIdentity } else { $SearchName }
+    # Capture param-set decision ONCE (do not rely on $PSCmdlet inside a later scriptblock)
+    $byAction = $PSCmdlet.ParameterSetName -eq 'ByAction'
 
-    $poll = {
-        if ($PSCmdlet.ParameterSetName -eq 'ByAction') {
-            Get-ComplianceSearchAction -Identity $ActionIdentity -Details -ErrorAction SilentlyContinue
+    $target = if ($byAction) { $ActionIdentity } else { $SearchName }
+
+    function Get-PurgeScope {
+        if ([string]::IsNullOrWhiteSpace($CaseName)) {
+            Get-ComplianceSearchAction -Purge -Details -ErrorAction SilentlyContinue
         }
         else {
-            $scope = if ([string]::IsNullOrWhiteSpace($CaseName)) {
-                Get-ComplianceSearchAction -Purge -Details -ErrorAction SilentlyContinue
-            }
-            else {
-                Get-ComplianceSearchAction -Purge -Case $CaseName -Details -ErrorAction SilentlyContinue
-            }
+            Get-ComplianceSearchAction -Purge -Case $CaseName -Details -ErrorAction SilentlyContinue
+        }
+    }
 
+    # Helper: try to find an action by GUID/name/id from the purge scope
+    function Resolve-PurgeAction {
+        param(
+            [Parameter(Mandatory)][string]$IdOrName
+        )
+
+        # First try direct lookup (works if caller passed an actual action identity/name)
+        $direct = Get-ComplianceSearchAction -Identity $IdOrName -Details -ErrorAction SilentlyContinue
+        if ($direct) { return $direct }
+
+        # If it's a GUID or unknown token, scan the purge scope and match common fields
+        $scope = Get-PurgeScope
+        if (-not $scope) { return $null }
+
+        $scope |
+        Where-Object {
+            ($_.Identity -eq $IdOrName) -or
+            ($_.Name -eq $IdOrName) -or
+            ($_.JobId -eq $IdOrName) -or
+            ($_.RunId -eq $IdOrName) -or
+            # last-resort: sometimes the GUID appears inside Identity
+            ($_.Identity -like "*$IdOrName*")
+        } |
+        Sort-Object CreatedTime -Descending |
+        Select-Object -First 1
+    }
+
+    $poll = {
+        if ($byAction) {
+            Resolve-PurgeAction -IdOrName $ActionIdentity
+        }
+        else {
+            $scope = Get-PurgeScope
             $scope |
             Where-Object { $_.SearchName -eq $SearchName } |
             Sort-Object CreatedTime -Descending |
@@ -52,8 +85,12 @@ function Wait-PurgeCompletion {
 
     $ctxFmt = {
         param($lastObj, $lastStatus)
-        if ($lastObj) { "LastSeen: Status=$($lastObj.Status) Errors=$($lastObj.Errors)" }
-        else { "Purge object was never discovered." }
+        if ($lastObj) {
+            "LastSeen: Name=$($lastObj.Name) Identity=$($lastObj.Identity) Status=$($lastObj.Status) Errors=$($lastObj.Errors)"
+        }
+        else {
+            "Purge object was never discovered."
+        }
     }
 
     $waitParams = @{
@@ -73,8 +110,8 @@ function Wait-PurgeCompletion {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDM+ZlRc2+prfSR
-# QyTIKbJOP2xsgQL6Mm5CSDPpIyrBB6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDvetfAfF2/4dtL
+# Kcec1l8DKSEjfIOnzX54po3P+tElqqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -207,34 +244,34 @@ function Wait-PurgeCompletion {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCgsmrHPsOs
-# DRihLmop07nxNnrREBXuNdO7biHK6dg/szANBgkqhkiG9w0BAQEFAASCAgBsWKSw
-# Yr79OsH/wb8NJtGMbzbMsTjFVwRedTsixcL0VXE84r7/+3YqcLSWdMZkQmbJNZCt
-# S8bz//iyHPF1ENcnSmJEeR//P2Ux6vNooy5pL/vF5KKCOWN6Ykv82AjhXscDxar1
-# AVf7QA28U63pJT8OQY5GTp1YhPUJw0s9M60/ft3pvuXCWvFQdV023rX1WJEYe9qo
-# INCDKcZ/KxbIN0y9XssiUYXTk38TGePWLG2FKUKJztC0Gb7V0HfNwB6U23qRQ8R9
-# dGG9rx0LpJXvxvvoTUutr6bwrax0f3ASlUI0pFlwL2diz4OTYlZMppWAiuVHlTBG
-# 34Fm3drKVCvtOXGDVBT++nL6+doWJPUF8iC6m6WxVrGzzNq+n079l8qArKEAH/S9
-# dnIP0IYfw/FwMVFmRZ3hGfGIC0fJ+uvM6GuD2tfkdXe9b0xJsMBju+3aozmrgVr8
-# T/18M4wMB8SqZYr3oxm5zpXYUh9LR14lSyhE5xbKaVzUMW/WEHMAUvK6STyG9OUE
-# h4Wy1eAAwnAHIU6gKLNRLTSDjhFSdhuyexYiQjwafSZbeHI0cZ5Lcm5HOx+Oraaq
-# 1q6eTiNabJlTqsovKOIL5xTdxTk/W842GdeY53yiNmiXMMEC+DSiZzNCnspCvfOT
-# 5nLMWuiR1AY6m3veGnRqPxLoXrUQuw3GhhX1LaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBP7xKU4im7
+# MUAV0BC25iPrbnr1VpI+Px+dPaEPDMjO8DANBgkqhkiG9w0BAQEFAASCAgA2v3NV
+# i3AWp8HTos/FiE5Y7aSJ9nry2Ma54IfyUX+N80VXoV7/NlwIRCDeqa42oONtd4KT
+# hvAEPfV9S1Uk9EUY1EuK3f8itOepHfjOIGBkRMiLGet2H1+1TrSma52UL1xwWC7b
+# OPfcu7bXwB/+57q1v/89sYTHB0nseZ2xqxrBnO7taUR6MS3dxj/PLP2hlOtT3Xwr
+# QaNy1xDhw42befmK8YIMCUXR/BjDOGpXwJODiNWe8dQji6S+GHQc0RcGIoauIXkI
+# ew9Qsu29cRyiidOY3smSt9NFUSIZHxFg7oDoCZmk//e4GCD4g7poo7qXoLskeM1X
+# KzD0MUWO7Qe1tdHTNAVyvVDfTFSMHWxzaZMHkIxdeLqUBf1XN819F3oO8bUyu5Aa
+# ZBG5xLb4BCY5RidQhXBCMX7aJtaNhBXk4vKXKz4bkcQWAyCxKWXmqxlMS8APYgON
+# E0eHMpVW+jwxEqlcYpJ87Gt5ZryRNsCjy9ujdyWovoOrDFnltbM41I/+yHRtO+Ig
+# U7olI5vCWaUhznn/mBU+qoflk2EqhG+23RhtXYLkJ5vWidTqpvgXj9Egw2xttVEM
+# Y24LodZD0HppSYazSMBIV2UBlKcxoQnnOjOP4tcEogd4upbTFS3XXllp0VUNkxrm
+# uUIfkJkCYOEmlUvabSBJs+2CRGQw4DobD2QjNqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTExNDM2MjhaMC8GCSqGSIb3DQEJBDEiBCApuZK1hicmWT85vBli
-# IoeHR2NHEzP9VNDjzdxx0OjcFTANBgkqhkiG9w0BAQEFAASCAgAPcEPAasNszsFj
-# GD2WZTDvh2QC5JNt8vlFyoNG0GIyCRLxIFVI0Mt9cKZHXLJXpo5H8nRynU9dl8b9
-# fZCCBI8NWfjsw362A9hTwlWLbGyUHtd9AeCldHFqWX2H/x22oL3aY8IK/g7DkcJB
-# qkZaf+2qvvkx+SVUgaTWxuk+b+LbDqisB4Rqs+qsxvUxOqsg+cuvJzmsCoDUTRuG
-# PMiNaF6ddCwPRGKSDio4N1i9BbJKV8aFu2qh853qgTAf06rQ1D8Qby/olz+DQVGt
-# dJHSY6SHBQx66ZsT4kF7fY16/VKuMSptc4DgHpv4lBpddM2BR3OoFcRxRdxzT1t9
-# bQTlYRrypNnM+87rwL3MbR/lxq8QYavX0qRxr8NGRDhflRNLlr2Z2yWEnb+Robiv
-# rOJGNGYUAnfJF2qErRESzLNz1PfXXF4nvJdfqiSnKrHu9XREMXm0BzUn24z4OUfG
-# +tn8bgpqsSGpMCddNq1R5xhqjHfTiTN+ZL/m+n+RLSwPYn2sRRrm5ra+2Z2N3m3t
-# DuIgZkaFDxPNs2mNqjXq+Cbyxh29BrqaKHAOlMT6+jK6PSko77PTcJzErr4uv1wJ
-# 7N0Lc2a7tXj91wolGvyFDQkBCHC/olsSTAG4tJo39lYbCiZyr8GIR0S8MQkeyHb1
-# hQonO+8IiiPn0m82ZBVhchC6k/UfFg==
+# BTEPFw0yNjAzMTIxNzM2MDVaMC8GCSqGSIb3DQEJBDEiBCDzSvLDEaMLGu95Yzpn
+# gdTmiKQNocwHIfFMzwoTprvtgzANBgkqhkiG9w0BAQEFAASCAgB5YxON96IC4b7I
+# kHtTxyQ4zfcDp7Hy1YPRg5HgzXT6uW95ElVDfBRXDUnfwKxOdeclMsZYqHNb0Kyo
+# MTm6znC1LOd84cxQqUmFPPjthO6Y6bqCVs0jhLG1fNxNkfk9iDTQ9cwteiGR9pY3
+# QvFoe/QUk2QcqB7yi22DRPIGfdek0bPC8/FBMX71bRKBsAzy8++ljoAGyW0wyXcU
+# 5jsknPiE73mPyWptKLeEwgs/3h4wt7wIXA+Fp0oa6HFlOiIPbFls7K80UEU9mzAd
+# q1y6bAoBrehqWU0UfvW0VsHO160IHzIFFQ8S0F4lhoMsi7oyqHMvjBfjkjI0AiCM
+# v0bvFbsUW5moOd8dB8KKduFhP21Wad5yIlYDg9ymPDquHd0seHdZ3sJ/xpt0aHUw
+# 0g+9NWf+dHH3ZKk7jygLuxUHo0cByNL9mfByVsIpg4AAIJQhPCBLgNpxkE7Sx7jz
+# AtWVkT2wTB+p1u+btTzSultyl+opCzX0CUPa5xcCeEsLe7BP6MuSLnnvXWj+3yy/
+# IR69kLAe1jMcCPY+rJ9SVtdVjrWuepmen/4ofqgIOUI/hcmWoqO7xUr+vdOPHkfc
+# CmXvay3MzrkDJp9SUD8949fibDrZPuE+GlN5yuGsatd9uGH4jlUsy+sCwMaD6ZS+
+# SczBZZuSVooN+mCduw854bULHhHIFQ==
 # SIG # End signature block

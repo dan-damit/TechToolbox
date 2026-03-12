@@ -62,7 +62,7 @@
     },
     "passwords": {
       "domainAdminCred": {
-        "username": ""
+        "username": "ddadmin"
       },
       "wordListPath": "C:\\TechToolbox\\Config\\wordlist.txt",
       "default": {
@@ -127,13 +127,13 @@
     },
     "purview": {
       "purge": {
-        "pollSeconds": 5,
+        "pollSeconds": 15,
         "requireConfirmation": false,
         "requireTextConfirmation": true,
         "timeoutSeconds": 1200
       },
       "defaultAllMailboxes": true,
-      "registrationPollSeconds": 3,
+      "registrationPollSeconds": 5,
       "registrationWaitSeconds": 90,
       "search": {
         "maxAttempts": 40,

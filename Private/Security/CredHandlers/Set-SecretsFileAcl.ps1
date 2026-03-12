@@ -6,24 +6,34 @@ function Set-SecretsFileAcl {
 
     .DESCRIPTION
     Removes inheritance, removes all ACEs, and applies a minimal ACL granting
-    read/write access to exactly one identity (default: current user).
-    Idempotent and safe to run repeatedly.
+    access to exactly one identity (default: current user). Idempotent and safe
+    to run repeatedly.
 
     .PARAMETER Identity
-    The user or account that should own the secrets file. Defaults to the
-    current user (DOMAIN\User or local user).
+    The user or account that should have access to the secrets file. Defaults to
+    the current user (DOMAIN\User or local user).
 
     .PARAMETER Path
     Optional override for the secrets file path. Defaults to Get-SecretsPath.
 
+    .PARAMETER FullControl
+    If set, grants FullControl instead of Modify. FullControl is fine when
+    locked to a single user and prevents weird write/replace failures.
+
+    .PARAMETER SetOwner
+    If set, attempts to set file owner to Identity (best effort; may require
+    rights).
+
     .OUTPUTS
-    PSCustomObject with: - Path - Identity - Success - Message
+    PSCustomObject with: Path, Identity, Success, Message
     #>
 
     [CmdletBinding()]
     param(
         [string]$Identity = $null,
-        [string]$Path = $null
+        [string]$Path = $null,
+        [switch]$FullControl,
+        [switch]$SetOwner
     )
 
     try {
@@ -42,38 +52,52 @@ function Set-SecretsFileAcl {
         Write-Log -Level Info -Message "Locking down ACL on secrets file: $Path (Identity=$Identity)"
 
         # Load existing ACL
-        $acl = Get-Acl -LiteralPath $Path
+        $acl = Get-Acl -LiteralPath $Path -ErrorAction Stop
 
         # Disable inheritance and remove inherited ACEs
         $acl.SetAccessRuleProtection($true, $false)
 
-        # Remove all existing ACEs
-        foreach ($rule in $acl.Access) {
-            $acl.RemoveAccessRule($rule) | Out-Null
+        # Remove all existing ACEs (snapshot the list first)
+        foreach ($rule in @($acl.Access)) {
+            [void]$acl.RemoveAccessRule($rule)
         }
 
-        # Build new ACE
-        $fileRights = [System.Security.AccessControl.FileSystemRights]::Read, `
-            [System.Security.AccessControl.FileSystemRights]::Write, `
-            [System.Security.AccessControl.FileSystemRights]::ReadAttributes, `
-            [System.Security.AccessControl.FileSystemRights]::ReadExtendedAttributes
+        # Rights: prefer Modify (or FullControl if requested)
+        $rights = if ($FullControl) {
+            [System.Security.AccessControl.FileSystemRights]::FullControl
+        }
+        else {
+            [System.Security.AccessControl.FileSystemRights]::Modify
+        }
 
         $inheritFlags = [System.Security.AccessControl.InheritanceFlags]::None
         $propFlags = [System.Security.AccessControl.PropagationFlags]::None
         $accessType = [System.Security.AccessControl.AccessControlType]::Allow
 
-        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        $newRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
             $Identity,
-            $fileRights,
+            $rights,
             $inheritFlags,
             $propFlags,
             $accessType
         )
 
-        $acl.AddAccessRule($rule)
+        # Replace semantics (clean)
+        $acl.SetAccessRule($newRule)
+
+        # Optional: set owner (best effort)
+        if ($SetOwner) {
+            try {
+                $nt = New-Object System.Security.Principal.NTAccount($Identity)
+                $acl.SetOwner($nt)
+            }
+            catch {
+                Write-Log -Level Warn -Message "Could not set owner on secrets file (non-fatal): $($_.Exception.Message)"
+            }
+        }
 
         # Apply ACL
-        Set-Acl -LiteralPath $Path -AclObject $acl
+        Set-Acl -LiteralPath $Path -AclObject $acl -ErrorAction Stop
 
         Write-Log -Level Ok -Message "Secrets file ACL successfully applied."
 
@@ -99,8 +123,8 @@ function Set-SecretsFileAcl {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAM6JCTpNDs46w1
-# qt2U5zHR/WFHiL/P7h0PeaOS5tcE1aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAeffRcJXGk7ral
+# P7+8DWMad1NWQJFGYgFiuFQ2RxEZc6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -233,34 +257,34 @@ function Set-SecretsFileAcl {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAZLIt3zWPm
-# OO4427RPinZ3F/GcDVaGc5NkN6XHNQyQDDANBgkqhkiG9w0BAQEFAASCAgB4y+Rk
-# ThVw2qViN1IwAgYtGIKKPJ0HrDNXq0Ok3MFBQsN9pWyKjqeUsz6NKrFPwiXynawn
-# jI3Y4v3ONrZDtBPFAxnxgbymxHXNl0uMr0YvuIj+uL9yRhb6Br8CIHS4OQ25D4X6
-# nFofqtYYstIsYNge7amz3VMqc0V3ZsGhw2165PbvVSnjgImlZs0Ti5xlfTFnmACB
-# Ery9Zq9zqU0u7MYQdVil9VshbuSoHqf/T21C1kKUvpi7No6q9cJ08yIAVVw+olST
-# S5A+zOnY0nLWnWJbFZfGSY5Pf267sxwMRib+Pfvwr/MH8ybRHtWdQi7qwNAn7dEb
-# WGxb4gUtBGTKGGtKwqLKYh8Tod2LfT+N4RmivYGweWn2Wd4m0GSIchqW01zTzm9Y
-# WwgpHgFcDw9gQ3k5hxX3v4optWszywq/ZZp/CGXWAYnF3T3WiDAl5R1qvPhB+0dJ
-# IFlDXO0wyTFqE43OqPWe5qtnSKIsfN4mYC19+5zLgbfzdauQlyndI8xGU1MXFWXo
-# UlHLCgWqhWcItJgHVMT9s/45Fm4u1ydNJYWQR4EcZhmYRD81YlIzoqK+QUtDtH0t
-# ZpAecOmOZ954vVZanOjqleZgiNAXTBen/dx6rQXHTvUN14bXHhx5pp13Jvz/wKiU
-# mmbGz3OznYZqFhHhejkHJc7tM3ZTYO/f8hKII6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAgka6f2uEL
+# fATBBxP4OPHLS4Rtyg88pejuqJIT+vUPgDANBgkqhkiG9w0BAQEFAASCAgBTe02m
+# cPpnnFqsj7KvD+WgjqzdklrMXHFhySHM7w8bfVAGw1obbJ6cQ3HlKhY0qH7YIFGj
+# hmRS1CCi02pO5rgcpsX+oiavJbET+JsrvJTBm++IOCPNeL77w2YfWFo80Q7U9LEG
+# CCi8XGjbZbobCMnUA10Z6ZadN0Sn6vjx/CpktlE0k2UEXr1wWn6lCfVlZ6RLpAQR
+# zz7irbzFm4GEvSYgNnTj6gasmSDJZhCquZ1FaDerVAJozI36OnywzNdhFvPX/7Gr
+# qSkj9IKetITJZ9vZjpXwDncqUNTLXPiu/hSoPemS5mBrySBDQ7Fu1T2eb7KgAr2y
+# c7abezjrynNAgz3p0nfHTtZswp3PPX4fh94SZYPYpeCRHsJV5u0zrxXdU9LMKa+Q
+# oCKS+Xq+YqYx5+JuZ6hE+siSaE1lUmBJ0RNysocLIqqLqbVtuX6O9aQkEM5r7wSc
+# ZlLJmWmtEHRUx6Zccqav3RN8998LRzL8kEwtli2OODui0ZMdPeJ5036y5ErxvrWZ
+# S+wsss6Cax9iCARIguHUvo75ZElwVnQ810trQoa4IxKaIWpEke2D0QDMn7rrnsCt
+# l5gG1bbCw56Os442dHHVpSsiFJ5hpCD7gLguO+uk8Rmv8DGXPjzP0adfcwsFJiuB
+# 0tgZWMggEFOKwBEloIUIE4LROQ3m5XuwkS4O36GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTIwMzQwMTVaMC8GCSqGSIb3DQEJBDEiBCA94WDuFYxENCWtQS+i
-# G6NyACsMfvrg0NGvxJmrW6+09TANBgkqhkiG9w0BAQEFAASCAgAWbthYFP3ogGaJ
-# KsV5KBGvnVsRQqoGM2LfpkqbHgxxNQfqaLTTk1mpacrZsRMqL4gIGjYqE6pCGhrn
-# E72EltL2krD6l0+K+DQcK8y47U0haYgPqZGNFkQpXWtA+AuHVN7r/hic1uMGDlOU
-# rXLGS0BiyptWv0Y1pMIGpYf4MVmngN6ZV0fSACbqYt8iBUwMTwZV9/vltFuycCdu
-# 7tw9XytRJ7MSqGQoYpI1/Zggo5mqjtI3X83tSRsfidwpmdMi0E44Kt9Y6f4JpxeX
-# Bcr1FojaoFZI4uab9Y69nCfNtCMvo6DgGP5+0wN676l+qoqVbNJ483QJ6YoKaQwr
-# Yf4WnJNvw/dbkOLJIkpxyRI4DxN3SF1HbKqwGdV2X+T5fTYD0ylsypFL13RUrPDm
-# B5IRx+Ttyq5q3AF3+favQRXuj7je9x0vws/fd/nmPZw01vTZxuo8CNrL6BFprADP
-# 4tdXAOheaIACvyLEujIb7qieXunBR9veTxxfKgMFXuyaGufzH50e2pDDAChDFW2v
-# sCCPgIRLw9DteCRAw5KhcWFm6r/DyhfsszIYWu13IJ8xtKtmZEksiw4kM3HZLWNV
-# +3VpYjMl/VyrsNeugIjLJH9mhisA0dCy0/JACIco+AuientlzZdf+en435/hBpxW
-# SNjS8mqIbRYZs6k5sBxgbWBAWxugyA==
+# BTEPFw0yNjAzMTIxNjU3NDVaMC8GCSqGSIb3DQEJBDEiBCCxqEnnMcde5NRnUdK2
+# zGdobKK3UZfmit2dx1j3VB1UazANBgkqhkiG9w0BAQEFAASCAgBbrpxLA94RMY9h
+# ABtITOsHAPRN2be2YnNEr7k5wr7KBERl7QMY/SjY/ZJRz6YX3tDed251HUeZuCfE
+# cl4YftKQ7Wi6/CbkI0xc5JsJ9hakvwr8wqhChXTF0HoxqJ45skeBVT40gVEVcMEr
+# LliTcYoLsMgE5mzfb7DLw1kSe6p1dH8vY3T0f1WwvN90bpG8YRaxYfrQEmf38Svz
+# 9sZLqBioEOjkfJQ6SbKPxqgMjcVQArSpN8zF0ZbluuxcPC2iS0WY6tmkZm4GQy5c
+# 1sJtUh0HV+vSl2MDBYcRA1tzMFILeOIBeMswGVaHCTGIPxnjc/LKWZ/C6MIt1Bvg
+# 863Vnlfi3ps6myAykYGpgKSXYjnPUq1GJ9+7mzT9ddmN5+Fks8KgOsw//vJzbEcw
+# hDC5nkD82k9esTlEpWtTwN50fMtoI0Oikerx+Chg08hLmABmAVxc7j9yNBZxZ23/
+# 8THPLsGNFvZLemHw0bxUHDD+muuR0JB6mfRui47QQuWRlQis7Ioq+QCPPdLHq8Fi
+# GquXMKzJI3ubKXE6LQxmle67jpqqXqI6N2b3ejNFNZWb85PwWWW6wtvZXFigTi8W
+# npDSt30a8clfOFPY/BM2q08BZE55SmfYW4p42b7nUFaaSdDmmNYp5/Vk+4ZUMXxx
+# kx5aicgngwQsQJFYe4HQAYT59tUCZQ==
 # SIG # End signature block
