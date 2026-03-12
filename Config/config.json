@@ -62,7 +62,7 @@
     },
     "passwords": {
       "domainAdminCred": {
-        "username": "ddadmin"
+        "username": ""
       },
       "wordListPath": "C:\\TechToolbox\\Config\\wordlist.txt",
       "default": {
