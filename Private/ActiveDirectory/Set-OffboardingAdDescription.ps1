@@ -1,80 +1,59 @@
-function Disable-ADUserAccount {
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+function Set-OffboardingAdDescription {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$SamAccountName,
 
+        [Parameter(Mandatory)]
+        [string]$Note,
+
+        # Defaults that work well in AD environments
         [Parameter()]
-        [string]$DisabledOU,
+        [string]$Delimiter = ' | ',
 
         [Parameter()]
-        [pscredential]$Credential
+        [int]$MaxLength = 1024,
+
+        # Optional: prevent re-adding the exact same note
+        [Parameter()]
+        [switch]$SkipIfAlreadyPresent
     )
 
-    Write-Log -Level Info -Message ("Disabling AD account: {0}" -f $SamAccountName)
-
-    $moved = $false
-    $dn = $null
-
     try {
-        if ($PSCmdlet.ShouldProcess($SamAccountName, "Disable AD account")) {
-            $disableParams = @{ Identity = $SamAccountName; ErrorAction = 'Stop' }
-            if ($Credential) { $disableParams.Credential = $Credential }
+        $u = Get-ADUser -Identity $SamAccountName -Properties Description -ErrorAction Stop
+        $existing = [string]$u.Description
 
-            Disable-ADAccount @disableParams
-            Write-Log -Level Ok -Message ("AD account disabled: {0}" -f $SamAccountName)
-        }
-
-        if ($DisabledOU) {
-            try {
-                $getParams = @{ Identity = $SamAccountName; ErrorAction = 'Stop' }
-                if ($Credential) { $getParams.Credential = $Credential }
-
-                $dn = (Get-ADUser @getParams).DistinguishedName
-
-                if ($PSCmdlet.ShouldProcess($SamAccountName, "Move to Disabled OU: $DisabledOU")) {
-                    $moveParams = @{ Identity = $dn; TargetPath = $DisabledOU; ErrorAction = 'Stop' }
-                    if ($Credential) { $moveParams.Credential = $Credential }
-
-                    Move-ADObject @moveParams
-                    Write-Log -Level Ok -Message ("Moved to Disabled OU: {0}" -f $DisabledOU)
-                    $moved = $true
-                }
-            }
-            catch {
-                Write-Log -Level Warn -Message ("Failed to move user to Disabled OU: {0}" -f $_.Exception.Message)
-                $moved = $false
+        if ($SkipIfAlreadyPresent -and -not [string]::IsNullOrWhiteSpace($existing)) {
+            if ($existing -like "*$Note*") {
+                Write-Log -Level Info -Message ("AD description already contains note; skipping append for '{0}'." -f $SamAccountName)
+                return $existing
             }
         }
 
-        return [pscustomobject]@{
-            Action         = "Disable-ADUserAccount"
-            SamAccountName = $SamAccountName
-            Disabled       = $true
-            MovedToOU      = $moved
-            OU             = $DisabledOU
-            Success        = $true
+        $new = if ([string]::IsNullOrWhiteSpace($existing)) { $Note } else { "$existing$Delimiter$Note" }
+
+        # Trim from the LEFT if too long (preserve most recent info)
+        if ($MaxLength -gt 0 -and $new.Length -gt $MaxLength) {
+            $new = $new.Substring($new.Length - $MaxLength, $MaxLength)
+            $new = $new.TrimStart()
         }
+
+        Set-ADUser -Identity $SamAccountName -Description $new -ErrorAction Stop
+        Write-Log -Level Info -Message ("Appended AD description note for '{0}': {1}" -f $SamAccountName, $Note)
+
+        return $new
     }
     catch {
-        Write-Log -Level Error -Message ("Failed to disable AD account {0}: {1}" -f $SamAccountName, $_.Exception.Message)
-        return [pscustomobject]@{
-            Action         = "Disable-ADUserAccount"
-            SamAccountName = $SamAccountName
-            Disabled       = $false
-            MovedToOU      = $false
-            OU             = $DisabledOU
-            Success        = $false
-            Error          = $_.Exception.Message
-        }
+        Write-Log -Level Warn -Message ("Failed to append AD description for '{0}': {1}" -f $SamAccountName, $_.Exception.Message)
+        return $null
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCFn3i3/cUUcc3H
-# K+t3o/ImUX0qdOCuITcYHy8sauMybKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCamrlRcLU/F3bw
+# J2YoMTisvL9RexGRqGcCX3C9br/4qqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -207,34 +186,34 @@ function Disable-ADUserAccount {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA4HRANwyKZ
-# qsU7aCxDPwoc+nib3qG23Y+zI3T1kfyI2TANBgkqhkiG9w0BAQEFAASCAgAqKsfA
-# 8Vx9Uhb+l7uzCdRMMdC1IM8WyFgFHrp6nUe/9Wy5dfr3ap2hWdauVQwRv/Fbk4TZ
-# gNFO2d4ldT3eEod1i/7A1FzgO7mQv6nOe5E9sLrdAcfRfhYiJF1w3OeG6VvmX8wS
-# Gc4F3DI/+6XiUjvYU7ji7fwIgdy+5MyQqaB/yYSubEXyV/BVipw4ziUwZQCdBVIL
-# 3uKr+QqzAvK9igwfDFyfhCHXbkjl4MlhBdK3AbBA9NmM9pWzh0qGx1JhgwFdkzjw
-# bdajrK17cjXXUav2rb009tAWA3j+MB5F4Fzpd/uZr4QqOIGXSTS3IGVtRTO/2Wra
-# sA+Jlqijesuf9M8ughBsDm719uBA+mYpQl1s1D81pT5AJZrQbh7s5AtQMzqAzY97
-# YGAd70syFKnnc5iCKBCxAk+JqQTfw27DM2E/WKfa2ybYcSwMr8jbEVNkGhn487/2
-# izd6+d6yz2PwxwcDrxilhlLCNlfBkujcppAQRwg38z01//Oo4Ov0XEelhl+vpKVF
-# NbEBwAnY2MCtfuaYGmBIb+X57lniPqKOQF+2Bd49iElPiiWlNIqdG35208Xu9xGN
-# ZIVMam0iTj7J6h0CMpm3EEMaieYewzfY2W9EgD4esnO35FRGpqlUIJb50IVeM9hD
-# O1bTJQiU5r4pXYLVFJV3o624QDdYVxBfMlMkKaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDTN80gCz1r
+# dF6bPKJzHA/GHY93juH+AmM/H6r/RhYjJTANBgkqhkiG9w0BAQEFAASCAgB1oc/Q
+# EG2Pzls+cy5LhYeIH5KhTpN+bfQrRA7OMWmShGBF5Xnx9uHsSZ5vb73EHw5O/Pcf
+# J+MFnnyLUHyxJIK7SoZhScA1yfBWc7fY67NamkuuMHV7+s7UqgPbrwCf1oRxxLjY
+# DDntpzpyVHmg2eqckctGQO5brHMMa8CZadbgnkU1ONGL/IKD3ikN8hwaKZpNolpC
+# Adsf8vYKqAy85pWUZkC+j1V8bD0fv37i0j5B5BQCyd2bd4TLr2bUXlW8pgPhwbiU
+# nS8Id+0IENZCgOMlQVjoRtggeOtVdz5jyytGNaBlwdZGlcMD8lJA+cRfa87m1HY/
+# qaYXhPv6DaTwhO8xNMITO/pW77lG+sV9cUAeywYNCkBExTJ05AJW+vwTRhNnDipz
+# Zz4eHtm/Ms6iaw1MUdYKwpU2MSe/VgClExQG7eXBNOo93Ny+ZIEYeAZ2wt0QidyF
+# qYPJUPJyx2FYi1TjoIByDHMELzA8nsSG3nqN+N+qWJ4a5oPrbifAAVxzgBIghxvB
+# ypSQUIsBicSLqf1WLsIbRmqivhfSfv0hXocWHPHjhW1Dgp8xsPnJr+oY9uNflrsB
+# 2eC9zJuwhpH+mgSUOmrDxhrV8r5mJr/NjRKydoa6WMqDEOuP8bkopEotTB/uymnU
+# MtSd6QfISZAFDLd9yW1DxMZ1/PUW3sI+FK9Kv6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTMxNzM2MTdaMC8GCSqGSIb3DQEJBDEiBCACxbuVUR7PUiElY7xE
-# HxayjHGpM0nZ53HkRc9hYbGVzzANBgkqhkiG9w0BAQEFAASCAgAgfvdW/TNR72gT
-# C2oCg+MOm6ontYbKk3bJMtfGSh5JcN+rMofcy/6cuyBSj4u8yHgadSa0eczRLv0R
-# oMnc2LTqsrFrm7T7anPmBZyqJC+tuFzC54XakpPlNy9YKpVOIMPIQtWksbx4tn9l
-# JpfISGreZpjf4FvhqVuBKw6jdtU/Xa8kKslw2fftjb61K6TyWx4NzolhOl1L2JSu
-# M3vv93c42SiH8PqJK4upAppRCOIN46osXrKwxozeFRumpsp/9fxFAh2ArWxBgBLu
-# 4XC7n3zThNjoRtfVSPr2BIzV9nY9X8CUZ5G289kTHw8nNAJg0xB/K8yGfyls2RZ1
-# Eiu2kuTr3pJsgGHpWzxXGaxbNjTPjNYeT3PmZrZujxyIcFOrU2m/6bF0v1Xf39Z+
-# kcXBteecGzKxKCCgcRHQz2Br45++L1Hq09yq0Q1eDvyeUu2HcQmjnjwL3SV9TdDr
-# f0UXf9cQkfm7LJ9YfGYFAVKxJFkx0ybMiqmZ9ANoQh2FdUxdcHvIwbncyZt2B8JK
-# vA48DnemLQWV1NMcgBiiRYVSSRX/pbUjAkHxeAinxBYs2ODVPHGuvlAIHgZfjrgW
-# E4MGWSunNrUGj58oCOikaGRP5xI0hZL2VnpoMmxFCVUBWzeBSxd7d8MGUZqdseZF
-# ZiGFQ5r3ET6F6/rARVsyo/9cHcUfHA==
+# BTEPFw0yNjAzMTMxNzM2MTdaMC8GCSqGSIb3DQEJBDEiBCBt0cJUaVn8UNcfTP96
+# r41QJTbeae0aTxDqllvUIUjh+DANBgkqhkiG9w0BAQEFAASCAgA1vh1hjXa/uZHQ
+# 08LSMunDhrBznhelVWxseQY1GA4FFAJ7VOikGo3ZHMP8ligj9HV9e+sZWwiJknrf
+# dKwLNbMv9+XIQnMi86nvXViYeGJ1N0VxBTr+z95TCEGOM6fROnp+jTDpbgxNtqRT
+# urjIGG2JDPzRr9wzOL9MsIrXywxLM0dYp7QgmJG7Reeu2AIESPrCUBw6vaaJO2kU
+# /Uw/aHTvaNkcwM0SC/G46ZmuS83AP0utzLTlqycolP/iBDd6K1zJF+cps5VGQhfF
+# IRrz6ef1APx3DmSxVKQGXWkd8E6nn5Ui1c7XyvU2I3KgKiQ3eGlB+PCHr7O7BunV
+# 7/uNV0Xf74xNrRnQo6j4e7fBtO/O1YjJ9KM1NA2GW/+Qb0fDZlFWEUWK4j7FOyoQ
+# mzf3DyrDKd898X/+AIlC1I5OVu2uOXCP7+rRoTfkLETMqkgdo4hRX4aT0KyyzwSL
+# 5XBoXDiraP20SwXAnKKzW7IvUOCKXwin/7KEwldb3MkHHDTRXS406DJPV4uB5fop
+# XJ0nl1RNa2HRHJ103klkgWI2KhZ4TfPwcW2H9JUj22UnRQkFI3hM8vaCGhV2blfo
+# aFXUmARh1t9IQWbGdSoEmsFaAd1o7IXkjH38Lu8gLFU49MPpMEV7qXHrbFA0oSXm
+# oCuv6JU+smqXX6ibwL3d2IJrv21V1w==
 # SIG # End signature block
