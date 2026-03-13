@@ -7,20 +7,44 @@ function Set-OffboardingAdDescription {
         [Parameter(Mandatory)]
         [string]$Note,
 
-        # Defaults that work well in AD environments
         [Parameter()]
         [string]$Delimiter = ' | ',
 
         [Parameter()]
         [int]$MaxLength = 1024,
 
-        # Optional: prevent re-adding the exact same note
         [Parameter()]
-        [switch]$SkipIfAlreadyPresent
+        [switch]$SkipIfAlreadyPresent,
+
+        [Parameter()]
+        [pscredential]$Credential,
+
+        # Optional: force a specific DC (helps when creds are domain-scoped or you want consistency)
+        [Parameter()]
+        [string]$Server
     )
 
     try {
-        $u = Get-ADUser -Identity $SamAccountName -Properties Description -ErrorAction Stop
+        $getParams = @{
+            Identity    = $SamAccountName
+            Properties  = 'Description'
+            ErrorAction = 'Stop'
+        }
+        $setParams = @{
+            Identity    = $SamAccountName
+            ErrorAction = 'Stop'
+        }
+
+        if ($Credential) {
+            $getParams.Credential = $Credential
+            $setParams.Credential = $Credential
+        }
+        if ($Server) {
+            $getParams.Server = $Server
+            $setParams.Server = $Server
+        }
+
+        $u = Get-ADUser @getParams
         $existing = [string]$u.Description
 
         if ($SkipIfAlreadyPresent -and -not [string]::IsNullOrWhiteSpace($existing)) {
@@ -30,17 +54,22 @@ function Set-OffboardingAdDescription {
             }
         }
 
-        $new = if ([string]::IsNullOrWhiteSpace($existing)) { $Note } else { "$existing$Delimiter$Note" }
+        $new = if ([string]::IsNullOrWhiteSpace($existing)) {
+            $Note
+        }
+        else {
+            "$existing$Delimiter$Note"
+        }
 
         # Trim from the LEFT if too long (preserve most recent info)
         if ($MaxLength -gt 0 -and $new.Length -gt $MaxLength) {
-            $new = $new.Substring($new.Length - $MaxLength, $MaxLength)
-            $new = $new.TrimStart()
+            $new = $new.Substring($new.Length - $MaxLength, $MaxLength).TrimStart()
         }
 
-        Set-ADUser -Identity $SamAccountName -Description $new -ErrorAction Stop
-        Write-Log -Level Info -Message ("Appended AD description note for '{0}': {1}" -f $SamAccountName, $Note)
+        $setParams.Description = $new
+        Set-ADUser @setParams
 
+        Write-Log -Level Info -Message ("Appended AD description note for '{0}': {1}" -f $SamAccountName, $Note)
         return $new
     }
     catch {
@@ -52,8 +81,8 @@ function Set-OffboardingAdDescription {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCamrlRcLU/F3bw
-# J2YoMTisvL9RexGRqGcCX3C9br/4qqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAqQgpTdIA81kU9
+# 2sQU/X0yuNWmBuT9fUZ0dHmRvlC7UqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -186,34 +215,34 @@ function Set-OffboardingAdDescription {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDTN80gCz1r
-# dF6bPKJzHA/GHY93juH+AmM/H6r/RhYjJTANBgkqhkiG9w0BAQEFAASCAgB1oc/Q
-# EG2Pzls+cy5LhYeIH5KhTpN+bfQrRA7OMWmShGBF5Xnx9uHsSZ5vb73EHw5O/Pcf
-# J+MFnnyLUHyxJIK7SoZhScA1yfBWc7fY67NamkuuMHV7+s7UqgPbrwCf1oRxxLjY
-# DDntpzpyVHmg2eqckctGQO5brHMMa8CZadbgnkU1ONGL/IKD3ikN8hwaKZpNolpC
-# Adsf8vYKqAy85pWUZkC+j1V8bD0fv37i0j5B5BQCyd2bd4TLr2bUXlW8pgPhwbiU
-# nS8Id+0IENZCgOMlQVjoRtggeOtVdz5jyytGNaBlwdZGlcMD8lJA+cRfa87m1HY/
-# qaYXhPv6DaTwhO8xNMITO/pW77lG+sV9cUAeywYNCkBExTJ05AJW+vwTRhNnDipz
-# Zz4eHtm/Ms6iaw1MUdYKwpU2MSe/VgClExQG7eXBNOo93Ny+ZIEYeAZ2wt0QidyF
-# qYPJUPJyx2FYi1TjoIByDHMELzA8nsSG3nqN+N+qWJ4a5oPrbifAAVxzgBIghxvB
-# ypSQUIsBicSLqf1WLsIbRmqivhfSfv0hXocWHPHjhW1Dgp8xsPnJr+oY9uNflrsB
-# 2eC9zJuwhpH+mgSUOmrDxhrV8r5mJr/NjRKydoa6WMqDEOuP8bkopEotTB/uymnU
-# MtSd6QfISZAFDLd9yW1DxMZ1/PUW3sI+FK9Kv6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0yPJ5cWik
+# d2Vj55JK92zJv06MPh90Oh9lMI58Wz1F6zANBgkqhkiG9w0BAQEFAASCAgDYeU1K
+# MPK8FV2G2PQxTH9NX38ToFRJjWH3JdncgLZ4VY+RpH6k5/QUSKgs7IqGWqrv/TCq
+# FqIVZe78iG8J6yMUpUr5JuCqLaAz7t1ziAeqd6ukAMT4Y6yvoVZRtqbVv+eMHes7
+# 43uLD9xOb52PYX+4wL8Myho5ZySsAx3VxociQXqr1Zn3xDMueH4VWXUVwjrSnmUZ
+# 7QzmUY74h5Thls/8CndWLGjSLdb1GWrsMaODWjh7iN/kNUdeOgpUvn2LCfM05rNm
+# jLU+yIshQ1H9oj8MX5jOdTzGbUscN5VIyTNgyVDQ1/AQVHT1rFNKFGnocbdT2zua
+# M5Cb2q7PRu4Rrh9YFCiFDtO5GwP6I6pasTUdeB6vXni99Y+an14V6zJUr4VgrLZH
+# gvc4mXxB+Ii+eZ951ubWkxV/EmxALgpv4sXOPFbiSloat6XDo53W5BSiVA9PTm8V
+# OoYdCVxeLfFsQNKN37t/mi1epGco0NlwzyDJSlUvPzrzkpI3js+shnaUCctztgha
+# O8kaW+tffNPm2iPho2WwzBove1xZHBm8SU/WRA3yUWy0xsW4j12hj9sfx7pwRsx2
+# nvfEWeOFpDeTg1WVeenPWvk7zDCpq47DUcdYFcckLLVy+SzuqfTuzEzh3m9La0P2
+# FkRbY4ZseoDNcVJ/LbRfh2rcFw4Cr3A0nFRC7KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTMxNzM2MTdaMC8GCSqGSIb3DQEJBDEiBCBt0cJUaVn8UNcfTP96
-# r41QJTbeae0aTxDqllvUIUjh+DANBgkqhkiG9w0BAQEFAASCAgA1vh1hjXa/uZHQ
-# 08LSMunDhrBznhelVWxseQY1GA4FFAJ7VOikGo3ZHMP8ligj9HV9e+sZWwiJknrf
-# dKwLNbMv9+XIQnMi86nvXViYeGJ1N0VxBTr+z95TCEGOM6fROnp+jTDpbgxNtqRT
-# urjIGG2JDPzRr9wzOL9MsIrXywxLM0dYp7QgmJG7Reeu2AIESPrCUBw6vaaJO2kU
-# /Uw/aHTvaNkcwM0SC/G46ZmuS83AP0utzLTlqycolP/iBDd6K1zJF+cps5VGQhfF
-# IRrz6ef1APx3DmSxVKQGXWkd8E6nn5Ui1c7XyvU2I3KgKiQ3eGlB+PCHr7O7BunV
-# 7/uNV0Xf74xNrRnQo6j4e7fBtO/O1YjJ9KM1NA2GW/+Qb0fDZlFWEUWK4j7FOyoQ
-# mzf3DyrDKd898X/+AIlC1I5OVu2uOXCP7+rRoTfkLETMqkgdo4hRX4aT0KyyzwSL
-# 5XBoXDiraP20SwXAnKKzW7IvUOCKXwin/7KEwldb3MkHHDTRXS406DJPV4uB5fop
-# XJ0nl1RNa2HRHJ103klkgWI2KhZ4TfPwcW2H9JUj22UnRQkFI3hM8vaCGhV2blfo
-# aFXUmARh1t9IQWbGdSoEmsFaAd1o7IXkjH38Lu8gLFU49MPpMEV7qXHrbFA0oSXm
-# oCuv6JU+smqXX6ibwL3d2IJrv21V1w==
+# BTEPFw0yNjAzMTMyMjAxMTZaMC8GCSqGSIb3DQEJBDEiBCB22rS1cRmAHTvdmojT
+# oW+Kli4SJZRdupsPwMnDDlD18TANBgkqhkiG9w0BAQEFAASCAgC6EnwvN2SlCd9n
+# sIqzsgNpYYJKO4CSwIHpq0Sgk3qvp4xEX0jPFC1EuAeowkohKKLwmuoDkHLuFrKS
+# FMIiYbsLw0d/VyHmhb1GgA5MDn4mocXplS/JoolUx3r6VsOQZlQ9avPdZA4RMda6
+# Ir3bAb3X4JBtF4qhFSVylxyjV+HSpbY4qlQkpLnsHOf4pc993E+7mlG4Z5QLZJz5
+# FfGR+wKDBjsoDSRlwcAZ6jFCi3nmaXE5o2+pfEy7/BYa5cYF2sOcG/++KlvaChEH
+# d4JGdtW7jKT+QYCRH4sgCoMPYKBYuUew1MVmLztZcrp+a69YmHv3HWv10NCulSC5
+# GobeHWhYwKmY2HZVvcqeXwqFsf1rNPr37Sf1QJTvfUBDRxNiMcMjjzk73Tg43t6I
+# mpqeGSQIzHcibXlelJ7dO0ZTIEIjaKZ5d0ur/gwecZVoTzfcsyM6/O3jo5QhRoNn
+# ozPeEPwOuw9c5iy4V7GpUoGTSzki/m2sd9Ixs3KJZtiH8zGblW/BMpZGVQY4M8tG
+# plhOt8vCl2WrdRVyLG3NKYhLZ/u+cWgWB0KwiYhQR/+FtlvzucIQ+pyFXyA0gZ9Z
+# FgeCvMFrJTMVCdnZ8ua4UucN/UQL0gO2+24zhR2p5Z8OYTjcXiKj4vvif9KE8UXO
+# UImZYnyVvTdIN3Q6uHCZdnrgT146lg==
 # SIG # End signature block
