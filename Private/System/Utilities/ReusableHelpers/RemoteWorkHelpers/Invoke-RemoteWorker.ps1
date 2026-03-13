@@ -4,13 +4,10 @@ function Invoke-RemoteWorker {
         [Parameter(Mandatory)]
         [System.Management.Automation.Runspaces.PSSession]$Session,
 
-        [Parameter(Mandatory)]
         [string]$HelpersZip,
-
-        [Parameter(Mandatory)]
         [string]$HelpersZipHash,
 
-        # NOTE: Option B stages into $env:TEMP\TT_Worker_{guid}\workers.
+        # NOTE: Stages into $env:TEMP\TT_Worker_{guid}\workers.
         # WorkerRemotePath is kept for signature compatibility but isn't used.
         [Parameter(Mandatory)]
         [string]$WorkerRemotePath,
@@ -46,84 +43,111 @@ function Invoke-RemoteWorker {
     } -ErrorAction Stop
 
     try {
-        # Option B canonical paths
+        # Canonical paths
         $remoteZip = Join-Path $remoteTmp 'helpers.zip'
         $remoteHelpers = Join-Path $remoteTmp 'helpers'
         $remoteWorkers = Join-Path $remoteTmp 'workers'
 
         if (-not $EntryParameters) { $EntryParameters = @{} }
 
-        # 2) Push package zip
-        Copy-Item -ToSession $Session -Path $HelpersZip -Destination $remoteZip -Force -ErrorAction Stop
+        # Decide if helpers zip should be staged/expanded (worker-only packages supported)
+        $stageHelpersZip = $false
+        if (-not [string]::IsNullOrWhiteSpace($HelpersZip) -and (Test-Path -LiteralPath $HelpersZip)) {
+            $zipInfo = Get-Item -LiteralPath $HelpersZip -ErrorAction Stop
+            if ($zipInfo.Length -gt 0) { $stageHelpersZip = $true }
+        }
 
-        # 3) Verify + expand on remote into WORK ROOT
-        $expandedOk = Invoke-Command -Session $Session -ScriptBlock {
-            param($zipPath, $expectedHash, $workRoot)
-
-            if (-not (Test-Path -LiteralPath $zipPath)) {
-                throw "Remote zip not found: $zipPath"
+        # 2–4) Helpers package stage (optional)
+        if ($stageHelpersZip) {
+            if ([string]::IsNullOrWhiteSpace($HelpersZipHash)) {
+                throw "HelpersZipHash is required when HelpersZip is provided."
             }
 
-            $actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
-            if ($actual -ne $expectedHash) {
-                throw "Hash mismatch for package. Expected $expectedHash, got $actual."
-            }
+            # 2) Push package zip
+            Copy-Item -ToSession $Session -Path $HelpersZip -Destination $remoteZip -Force -ErrorAction Stop
 
-            New-Item -ItemType Directory -Path $workRoot -Force | Out-Null
+            # 3) Verify + expand on remote into WORK ROOT
+            $expandedOk = Invoke-Command -Session $Session -ScriptBlock {
+                param($zipPath, $expectedHash, $workRoot)
 
-            try {
-                if (Get-Command Expand-Archive -ErrorAction Ignore) {
-                    Expand-Archive -Path $zipPath -DestinationPath $workRoot -Force
+                if (-not (Test-Path -LiteralPath $zipPath)) {
+                    throw "Remote zip not found: $zipPath"
                 }
-                else {
-                    Add-Type -AssemblyName System.IO.Compression.FileSystem
-                    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $workRoot, $true)
+
+                $actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+                if ($actual -ne $expectedHash) {
+                    throw "Hash mismatch for package. Expected $expectedHash, got $actual."
                 }
-            }
-            catch {
-                throw "Expand package failed: $($_.Exception.Message)"
-            }
 
-            $helpersDir = Join-Path $workRoot 'helpers'
-            $workersDir = Join-Path $workRoot 'workers'
+                New-Item -ItemType Directory -Path $workRoot -Force | Out-Null
 
-            # These folders are always created by New-HelpersPackage (even if empty)
-            if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Package missing helpers folder: $helpersDir" }
-            if (-not (Test-Path -LiteralPath $workersDir)) { throw "Package missing workers folder: $workersDir" }
+                try {
+                    if (Get-Command Expand-Archive -ErrorAction Ignore) {
+                        Expand-Archive -Path $zipPath -DestinationPath $workRoot -Force
+                    }
+                    else {
+                        Add-Type -AssemblyName System.IO.Compression.FileSystem
+                        [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $workRoot, $true)
+                    }
+                }
+                catch {
+                    throw "Expand package failed: $($_.Exception.Message)"
+                }
 
-            $true
-        } -ArgumentList $remoteZip, $HelpersZipHash, $remoteTmp -ErrorAction Stop
+                $helpersDir = Join-Path $workRoot 'helpers'
+                $workersDir = Join-Path $workRoot 'workers'
 
-        if (-not $expandedOk) { throw "Failed to expand package on remote." }
+                if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Package missing helpers folder: $helpersDir" }
+                if (-not (Test-Path -LiteralPath $workersDir)) { throw "Package missing workers folder: $workersDir" }
 
-        # Inject standardized paths (safe because variables exist)
-        $EntryParameters['HelpersPath'] ??= $remoteHelpers
-        $EntryParameters['WorkersPath'] ??= $remoteWorkers
+                $true
+            } -ArgumentList $remoteZip, $HelpersZipHash, $remoteTmp -ErrorAction Stop
 
-        # 4) Import helper libraries only (in-memory) + inject TT runtime vars
-        Invoke-Command -Session $Session -ScriptBlock {
-            param($helpersDir, $workersDir, $workRoot)
+            if (-not $expandedOk) { throw "Failed to expand package on remote." }
 
-            if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Helpers path not found: $helpersDir" }
-            if (-not (Test-Path -LiteralPath $workersDir)) { throw "Workers path not found: $workersDir" }
+            # 4) Import helper libraries only (in-memory) + inject TT runtime vars
+            Invoke-Command -Session $Session -ScriptBlock {
+                param($helpersDir, $workersDir, $workRoot)
 
-            if (-not $script:TT) { $script:TT = [ordered]@{} }
-            $script:TT.IsRemote = $true
-            $script:TT.WorkRoot = $workRoot
-            $script:TT.HelpersRoot = $helpersDir
-            $script:TT.WorkersRoot = $workersDir
+                if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Helpers path not found: $helpersDir" }
+                if (-not (Test-Path -LiteralPath $workersDir)) { throw "Workers path not found: $workersDir" }
 
-            # Import helpers only if any exist (supports worker-only packages)
-            $helperFiles = Get-ChildItem -LiteralPath $helpersDir -Filter '*.ps1' -File -ErrorAction SilentlyContinue |
-            Sort-Object FullName
+                if (-not $script:TT) { $script:TT = [ordered]@{} }
+                $script:TT.IsRemote = $true
+                $script:TT.WorkRoot = $workRoot
+                $script:TT.HelpersRoot = $helpersDir
+                $script:TT.WorkersRoot = $workersDir
 
-            foreach ($hf in $helperFiles) {
-                $text = Get-Content -LiteralPath $hf.FullName -Raw -Encoding UTF8
-                . ([ScriptBlock]::Create($text))
-            }
+                $helperFiles = Get-ChildItem -LiteralPath $helpersDir -Filter '*.ps1' -File -ErrorAction SilentlyContinue |
+                Sort-Object FullName
 
-            $true
-        } -ArgumentList $remoteHelpers, $remoteWorkers, $remoteTmp -ErrorAction Stop | Out-Null
+                foreach ($hf in $helperFiles) {
+                    $text = Get-Content -LiteralPath $hf.FullName -Raw -Encoding UTF8
+                    . ([ScriptBlock]::Create($text))
+                }
+
+                $true
+            } -ArgumentList $remoteHelpers, $remoteWorkers, $remoteTmp -ErrorAction Stop | Out-Null
+
+        }
+        else {
+            # Worker-only mode: create structure + set TT runtime vars, skip helpers zip entirely
+            Invoke-Command -Session $Session -ScriptBlock {
+                param($helpersDir, $workersDir, $workRoot)
+
+                New-Item -ItemType Directory -Path $workRoot   -Force | Out-Null
+                New-Item -ItemType Directory -Path $helpersDir -Force | Out-Null
+                New-Item -ItemType Directory -Path $workersDir -Force | Out-Null
+
+                if (-not $script:TT) { $script:TT = [ordered]@{} }
+                $script:TT.IsRemote = $true
+                $script:TT.WorkRoot = $workRoot
+                $script:TT.HelpersRoot = $helpersDir
+                $script:TT.WorkersRoot = $workersDir
+
+                $true
+            } -ArgumentList $remoteHelpers, $remoteWorkers, $remoteTmp -ErrorAction Stop | Out-Null
+        }
 
         # 5) Stage main worker into workroot\workers (Option B)
         if (-not $WorkerLocalPath) {
@@ -201,8 +225,8 @@ function Invoke-RemoteWorker {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlMLU4JSjUJmyS
-# uiGMC7cLDgrH0PaBKO44PaIjjZYtCKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQ84rnlzstI9vx
+# jTD3yJWiF43TaMOTUiQ0BcTfPCb2zaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -335,34 +359,34 @@ function Invoke-RemoteWorker {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA091KzteMX
-# 1xMTKQn6VEJE1cS8bytQa9tyVWsW63iu9jANBgkqhkiG9w0BAQEFAASCAgC9gR+R
-# tn5jdprojhnHssh1z2H0RSB40YXjeaOUjx1cMr4FSlb7lTWfNc4DEV/HMM76WTew
-# tu64DvQzNOgeVSxI8RtADFspowzbsX1FAhiu3bXq+LJ8X8BmRzAJen5U4zeLZHzo
-# Z/LOo+oF5ssDfMjWrdMH3VvUTEQDSipk9wgiqFy+wVOSOIZndcqv+6UsNCS1CXEm
-# pAm7ZPEN8t69MiZ4SH+EpnW3yQg1AD/JjT6SsHqq7d9fElDMCMrS4JoyYs3mZ4aF
-# ggQltiDlahTmMdoqekPr2pWgyXecUd7JhUUqhqaVJZrq/SPC/ZOAvzWzIMsFDeGq
-# +aBg5PsbJ+iQOsyhX0sAxu8upXeAaxevO7EvH+MA83HP3eYX24xC4jn6kTFmtWI3
-# mMZvv7YpaRNHaljuFOE1RBW9OxaWTRo58icZfs42o1ug0K5c+ot6vMbbBSv0NB/H
-# w0Lp2oRkD/mzv4hZB8dy712mXccBO2vE4WRQMSC+/Hs3jOoSKw47wnNfH3K/AVes
-# Rl+Kc8iD5lJu8BjAlXBKxQvf/nbzlsrneI679/WFOlHfBHn8i7mMKQoVlkYj+x18
-# E/1uaGtwxXIS2JLQFjRdzp4p96OfHBqF7fbuyur3JTgyyqZBLgY6il2z8cxuEpzi
-# c7+avbvCVGkcV4z5vAbNQeDt4hyvs9glYfIBOaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDWcD6c/Uc9
+# DlNHxi5qAmGFRXX82A7WPrs0vo1DMq1zxzANBgkqhkiG9w0BAQEFAASCAgCc+z83
+# KihOdnq3puIANzjIc8d0S1jLFxs4v0mm3kUdqkvEvY2ZixvJXSClTL0re5ImkhR+
+# CxpFQqH4NHlBtXFCu05gPUWw1qkiR/+7sMm0qDBzwdgCG7YVUqQxClIVCMwOWLFg
+# CxUy5ybzg111kHdZzbCyZAbBmo6CHhT6KoIwHhdTlHOnEZwwyyFN3dNL3Kytwqzu
+# wpOD2WmwrXzJKz6Go0UIjwylZXrMBMti/5NUntq1R51mbHWxVM0qsHUBIE1A9K30
+# B9z+niKMhf7DsCG/XOkt7dNyBn8wOrygjO+BM0l5v62V3tfWMpoqPV6Bi1dz1l2y
+# LjBQjQb1OuEuZZYJPYas6aXC85/Gyu/uPZ6JZZ/muakIW0UZfyWvn2/Rw/ebnR02
+# Cv7Z0ZNLKpGLTTEsk8VbSYyqUWGfEqK3M9rN2399fm3SCTrPWqFXyNkxqRVI91z1
+# BjpQgIBhbh5h2I1w43hY0CG70ilAiBilsxq9wU+CzUX1ft50mejKCaOkTvPFt970
+# 3kNmvALG/u2e+Bk7HqWuzIDJtrucf1sHod68Cei2j3ATWFN04wzuuG+2IJj9VTE1
+# 64shjtmJ3QdYoeJZJYNubOaPSAV7ioz6I2Gen+e5dbs0bt3y2S2OzaLxzQoFqfee
+# 19UVZWe6ytvOcJI5cGa+sOr7jCOXBZJCIUy/laGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAxOTI3MzZaMC8GCSqGSIb3DQEJBDEiBCDL1ZtMuVNmo+xYmWSy
-# TGKj+79GIU+5EcFfCu29pF7HJDANBgkqhkiG9w0BAQEFAASCAgBwIhLDvohNr9wS
-# CdOnbiOO3LgYQUewXyX44lU6FJ12WiL3UEGQ0ip3WSmtn9sbkNuBFSp5XPybW8QN
-# qzrvh501PtoFSIb7l0zMPxLe5YPJUbuUjeMoH3kPaWInMP32NmcAdBhtLlA1Xdju
-# kdOSS75meJjP8GqVvLDughN0hlBIWf+XSyZnrfaaQhy4RrbYaPxpQn3DGPI77nN1
-# lHm1dIGwUSooxSc1jgxsbasku7c3m4vGMhM7xLIG7YCKZL1JwDHVOb6PpPve2N50
-# PrqC+2AKQN454bAP9r7qMJVtuKuXpUwD9/IQO+64uuhfadl5rKvr3clr/HjWBUWn
-# 66hNYxwp2uZlTctX7/qmp5YvqoR5ZwWmn6TldXyvR2c4ZbtQsI/6/+aFl7Il8dME
-# IPLwLNSaNK9WwWVkX3gvXRCY8KkdJDaR9Uc524DfqiTgvpxJEaA1dHr3awrGI7A2
-# ydoBop9/Af0jbTkBJ5oHPQrutZElMZaMo+/Qv8NjE6uOJKaOGdqCt50/dgb3asXB
-# Jww5evtl0/VbsuzWLFQU66oj8uNNVdWpIH8eEXJQo80+OEcRcQLqVIkiRTOPyC92
-# Fom/oSqNKuoLuBJoUYZp2a8ffLlMJTZmrHPYXBU0CsYN5M4GHxKfhQL9mzqriC/j
-# nMTncBsLQWMJqOaq2nkKobVps/diug==
+# BTEPFw0yNjAzMTMxNTQ3MTBaMC8GCSqGSIb3DQEJBDEiBCD2Qlnn29LZCtAizCZG
+# YM9JUltAci0dadWVq1SNN9Rs9DANBgkqhkiG9w0BAQEFAASCAgCf86F/GoeIh6CP
+# RETcTYmerCk8NjAQJO3F45KMApqhUa82uC2WuNa+smgMDKf/Y0wgurlQARjoA3DR
+# OzPP54dcK5DES7eMJgVN09Ju1X6gtilpM/9OG3wgGLHEOrzlSOhgE0QjuLrx1ubc
+# KTe9NPn0ymC2/HEidhtC5S/zkRTflcN/wqEsa/55TgXvFap3ioSksrUVUO7VIDxs
+# O5LEs3dnMYEdtCZq0VSOvRDWJm8L3B88fDdm20dpawvQ8ALL1V64fB8q2kpBR1zP
+# Nw9FUH3VOthmibcqZDtjObyNGu2e9K7J/l3ErkxJ4n9nuUxwypZ60uRMdcq+GUIi
+# sVPmwhKyNj+RHUqIem1R4DjqXqvr0Qz1lEYzG/diTBhUq4jml+j0w4yihVtbcsg5
+# rQrn1QR4/h0lMOeSblLGyyyQlOdgiDN0hp45GDRt/F0belyec6heyio7oaS5uXK0
+# a+cZZW99FT+98r15hoCjfvrodaHOcY+NbRj/o1KHyoAJ7tV/j7+CRgfH0FMmGOEg
+# cZuCcGnHDFDWnElYOC0grEn1yu8yWPKfLaO3VXg0d2lr75dYfY/LjZ8IYtLaZBlo
+# j3i1JcVPCorInvfs0tbfdN02ZeppUJujkZAUYAulQa+4+vxtP+jGO9vGlDpgZikt
+# 4YAW4FSs77HrgB3nblXIw2Rcliqnhw==
 # SIG # End signature block

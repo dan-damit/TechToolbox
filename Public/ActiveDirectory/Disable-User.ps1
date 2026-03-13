@@ -15,12 +15,19 @@ function Disable-User {
     .PARAMETER IncludeEXO
     Switch to include Exchange Online offboarding actions.
 
+    .PARAMETER ForwardToSmtpAddress
+    Optional SMTP address to forward the user's email to (overrides manager
+    forwarding).
+
+    .PARAMETER DeliverToMailboxAndForward
+    Switch to keep a copy of emails in the user's mailbox while forwarding.
+
     .PARAMETER ForceCloud
     Switch to force cloud offboarding actions even if IncludeEXO is not specified.
 
     .PARAMETER Credential
     Optional PSCredential for authentication to AD and cloud services.
-    
+
     .EXAMPLE
     Disable-User -Identity "jdoe" -IncludeEXO
     #>
@@ -28,6 +35,13 @@ function Disable-User {
     param(
         [Parameter(Mandatory)][string]$Identity,
         [switch]$IncludeEXO,
+
+        # Optional override: where to forward mail instead of manager
+        [string]$ForwardToSmtpAddress,
+
+        # Keep a copy in the mailbox while forwarding (recommended default)
+        [switch]$DeliverToMailboxAndForward,
+
         [switch]$ForceCloud,
         [pscredential]$Credential
     )
@@ -121,75 +135,106 @@ function Disable-User {
         }
 
         # --- Exchange Online (EXO) actions ---
-        if ($effective.IncludeEXO) {
-            Write-Log -Level Info -Message "EXO: starting Exchange Online actions."
-            $exoConnected = $false
+        if ($exoConnected -and $user.UserPrincipalName) {
 
-            try {
-                # Prefer your helper; fallback to native connect
-                $helperCmd = Get-Command -Name Connect-ExchangeOnlineIfNeeded -ErrorAction SilentlyContinue
-                if ($helperCmd) {
-                    $null = Connect-ExchangeOnlineIfNeeded -ShowProgress:$false -ErrorAction Stop
-                    $exoConnected = $true
-                }
-                else {
-                    $nativeConnect = Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue
-                    if (-not $nativeConnect) {
-                        throw "ExchangeOnlineManagement cmdlets not available in this session."
-                    }
-                    Connect-ExchangeOnline -ShowBanner:$false -UseRPSSession:$false -ErrorAction Stop | Out-Null
-                    $exoConnected = $true
-                }
-            }
-            catch {
-                Write-Log -Level Warn -Message ("EXO: connect failed; skipping EXO actions. Reason: {0}" -f $_.Exception.Message)
+            # Cache command lookups once
+            $setMailboxCmd = Get-Command -Name Set-Mailbox -ErrorAction SilentlyContinue
+            $grantCmd = Get-Command -Name Grant-ManagerMailboxAccess -ErrorAction SilentlyContinue
+
+            if (-not $setMailboxCmd -and -not $grantCmd) {
+                Write-Log -Level Warn -Message "EXO: required cmdlets not found (Set-Mailbox / Grant-ManagerMailboxAccess)."
             }
 
-            if ($exoConnected -and $user.UserPrincipalName) {
-                # Cache command lookups once
-                $convertCmd = Get-Command -Name Convert-MailboxToShared -ErrorAction SilentlyContinue
-                $grantCmd = Get-Command -Name Grant-ManagerMailboxAccess -ErrorAction SilentlyContinue
+            # Determine forwarding target (override > manager)
+            $forwardTarget = if ($ForwardToSmtpAddress) {
+                $ForwardToSmtpAddress.Trim()
+            }
+            elseif ($user.ManagerUpn) {
+                $user.ManagerUpn.Trim()
+            }
+            else {
+                $null
+            }
 
-                if (-not $convertCmd -and -not $grantCmd) {
-                    Write-Log -Level Warn -Message "EXO: required cmdlets not found (Convert-MailboxToShared / Grant-ManagerMailboxAccess)."
+            if ($forwardTarget -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
+                Write-Log -Level Warn -Message "EXO: forwarding target doesn't look like an SMTP address: '$forwardTarget'. Skipping."
+                $forwardTarget = $null
+            }
+
+            # Default keep-copy to true unless explicitly passed
+            $keepCopy = $true
+            if ($PSBoundParameters.ContainsKey('DeliverToMailboxAndForward')) {
+                $keepCopy = [bool]$DeliverToMailboxAndForward
+            }
+
+            # --- Forwarding action (replaces Convert-MailboxToShared) ---
+            if ($setMailboxCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Set mailbox forwarding")) {
+                try {
+                    if ($forwardTarget) {
+                        $source = if ($ForwardToSmtpAddress) { "manual override" } else { "manager" }
+
+                        Write-Log -Level Info -Message (
+                            "EXO: setting forwarding for '{0}' to '{1}' ({2}; keep copy: {3})..." -f
+                            $user.UserPrincipalName, $forwardTarget, $source, $keepCopy
+                        )
+
+                        $results.Forwarding = Set-Mailbox `
+                            -Identity $user.UserPrincipalName `
+                            -ForwardingSmtpAddress $forwardTarget `
+                            -DeliverToMailboxAndForward:$keepCopy `
+                            -ErrorAction Stop
+                    }
+                    else {
+                        Write-Log -Level Warn -Message (
+                            "EXO: skipping forwarding — no forwarding target provided and no manager assigned for '{0}'." -f
+                            $user.UserPrincipalName
+                        )
+                    }
                 }
-
-                if ($convertCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Convert mailbox to shared")) {
-                    try {
-                        Write-Log -Level Info -Message ("EXO: converting mailbox to shared for '{0}'..." -f $user.UserPrincipalName)
-                        $results.Mailbox = Convert-MailboxToShared -Identity $user.UserPrincipalName -ErrorAction Stop
-                    }
-                    catch {
-                        Write-Log -Level Warn -Message ("EXO: mailbox conversion failed for '{0}': {1}" -f $user.UserPrincipalName, $_.Exception.Message)
-                    }
-                }
-
-                if ($grantCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Grant manager mailbox access")) {
-                    try {
-                        if ($user.ManagerUpn) {
-                            Write-Log -Level Info -Message ("EXO: granting manager mailbox access for '{0}' to '{1}'..." -f $user.UserPrincipalName, $user.ManagerUpn)
-                            $results.ManagerAccess = Grant-ManagerMailboxAccess `
-                                -Identity $user.UserPrincipalName `
-                                -ManagerUPN $user.ManagerUpn `
-                                -ErrorAction Stop
-                        }
-                        else {
-                            Write-Log -Level Warn -Message ("EXO: skipping manager mailbox access — no manager assigned for '{0}'." -f $user.UserPrincipalName)
-                        }
-                    }
-                    catch {
-                        Write-Log -Level Warn -Message ("EXO: grant manager access failed for '{0}': {1}" -f $user.UserPrincipalName, $_.Exception.Message)
-                    }
+                catch {
+                    Write-Log -Level Warn -Message (
+                        "EXO: set forwarding failed for '{0}': {1}" -f
+                        $user.UserPrincipalName, $_.Exception.Message
+                    )
                 }
             }
-            elseif (-not $exoConnected) {
-                # Already logged the connect failure above
-                Write-Log -Level Info -Message "EXO: actions skipped (not connected)."
-            }
-            elseif (-not $user.UserPrincipalName) {
-                Write-Log -Level Warn -Message "EXO: actions skipped (UserPrincipalName is empty)."
+
+            # --- Manager access stays (optional) ---
+            if ($grantCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Grant manager mailbox access")) {
+                try {
+                    if ($user.ManagerUpn) {
+                        Write-Log -Level Info -Message (
+                            "EXO: granting manager mailbox access for '{0}' to '{1}'..." -f
+                            $user.UserPrincipalName, $user.ManagerUpn
+                        )
+
+                        $results.ManagerAccess = Grant-ManagerMailboxAccess `
+                            -Identity $user.UserPrincipalName `
+                            -ManagerUPN $user.ManagerUpn `
+                            -ErrorAction Stop
+                    }
+                    else {
+                        Write-Log -Level Warn -Message (
+                            "EXO: skipping manager mailbox access — no manager assigned for '{0}'." -f
+                            $user.UserPrincipalName
+                        )
+                    }
+                }
+                catch {
+                    Write-Log -Level Warn -Message (
+                        "EXO: grant manager access failed for '{0}': {1}" -f
+                        $user.UserPrincipalName, $_.Exception.Message
+                    )
+                }
             }
         }
+        elseif (-not $exoConnected) {
+            Write-Log -Level Info -Message "EXO: actions skipped (not connected)."
+        }
+        elseif (-not $user.UserPrincipalName) {
+            Write-Log -Level Warn -Message "EXO: actions skipped (UserPrincipalName is empty)."
+        }
+
         else {
             Write-Log -Level Info -Message "EXO: IncludeEXO is false; skipping EXO actions."
         }
@@ -222,8 +267,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBLBxBQDtDHL3C2
-# Lbp/8FHm6lUqcrYfRLcrdcIbMKj0fqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA01XMY0aBw9X8y
+# RR7lFaU9D0bRTXvwOgvYgglCzQWVf6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -356,34 +401,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAKLIiOyUUn
-# 4Lmp6aDFrHMLjUUZJCgj4sCI4EPONZMMhzANBgkqhkiG9w0BAQEFAASCAgA726Fs
-# 8JHPxlRqfUstkjVb9xFe97V6BWysZ82UTAD16L9Ph3tpVYc4asI34651xfe0lCZg
-# 5UMOzHzFj90mWlE3REve6M/3mx5zPTcUgt4ga4fdoFdgMgao4FKwZPMe9gff4YBY
-# /cyLSe2auX7zi/YZBlQZ+ztpWzyiqB9OwCcpwLEbcjlhNsurYyDRF16qsDCCfPUV
-# 2wyh6cXzQ4+e0FWSfzRQsFPydFNNVdw9NfuH/K3WeU9/lZrf1g3R6osrM3aGU7lM
-# upIRm0BrPm5ydrP2aX4LuFrl6ZGcgK7gEdWWy1JCz9LAA0NXcSJoJHliEytZFNo9
-# X0DoDiGbQTQBWGNAuC0Qv9X8b61srA+va68c4Vd6pkOTbO9VBr7bRvulAH7l73K5
-# L7GF9iRjISvgRSaiNkWUkNgl52klhI/ALdmZtjHe4zbsWDMslw+ndcpMF8MtwUPI
-# v4cw+uLMtVqmdSwZd0SuOAhhFlvc9YDziGSaUX5QCrJl3PNTesJ4bQibnVZr2y0P
-# n/ivrU3ka0HEk8EvgWoiOSxY8tGqy9vt/uGPMLIwRQ12YGCDJbi+m41iYOp+CcCr
-# uLPOgqVoKwCkhTp1LnptInVxWfx7oPWyJrwFc4rQz6EY+GPIuneYrnJbez7Td2xi
-# f3VioZP/T+y49K2g2ic27Ae0Zjgmd1PZJ6txhKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCADYw8poksd
+# yWg0zLbghPdUZK8N3ZzFir/f9TFfO93JYDANBgkqhkiG9w0BAQEFAASCAgB3FwsN
+# qxHre8RpYtHzuYZn90ADE3THy8KiysaiFNTJFuE7RIodiffS+qk3H0uP8kBDt8tn
+# /wGvT+AjhmWll8GaWJX21c8+xOxg5xseuNL7rpBN57OuywhsLZr9NK072l+dBeEf
+# GUvFcm2pcx0uLhhFgfIKZIQOxrriz0BXQBAYoPGj9q6u4+GyXACAr4TLmi8rbGvv
+# SFDOEjuAlvDqZc8fqYH9KHPM5PCZW8ycd7ZmqdXjOylkgoCFCEbrj0TR7E4h1jIJ
+# P41wqM/oouuM7xk9s73Td0BcX+ok7fAGi/Fk4hOxBjoebT9JYDIisZUQIE8Tnxa0
+# 3/XBSjrLtckshpatnKhQmTY4Vjin5s8nU6c5qpf+z8bAylG9JnDKJlMjhPxnPFo2
+# pOHjfXtPb1Z4wiPWwZbvyJno2Cgf7s+bR6efslCZ5wRIJ5CRgtwil0TIdYnvWoaA
+# JCmz/cU+BXLZJN3jM4quuR18VSF3WoFuc1S+MDtcpH+mkXCJFwEQql08ZMk/GP80
+# ZX2j9zkkFh5tABOSFXO987wR/Yhv/SViBCRzSNfmZ8Dv+T6s4omQMKR9Mtx1jwLV
+# Sx3BPPUBqV98zSF8Edpc8CiQoHSUfiS91Atrn0wyUpVQgrR0hxtflZRbghDtvSmZ
+# bnEfPGgmoRopTE8sKkMMMQQdvffUBJK17wTNJ6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMjEwMDAyMzJaMC8GCSqGSIb3DQEJBDEiBCCW4nShB7psO75N0hIa
-# QpqEfLRhXO4FIU7w5+A9SsxOpzANBgkqhkiG9w0BAQEFAASCAgBdSQKg4Raetaxa
-# aez+IbYW4uFO4NnfJWY3lRo0b2AXiDEtIqwuRI5WkKJz2Vr2BsP2U0CHkWKgcYkI
-# zxSbTuzB/KEHiAUo8n4ZbropI9rir7OyR362ZhT/zRfcgTtthFv9B5qpbXt19Rxu
-# Q87MArTjETjDiXBzYaEQ0w2AEccal5GW7VEzCVdwnCHPZ3NwqHkLovSnbSVkV6Iy
-# 6Z1mzRbB0uG8y90xzuZvgrFTG+HTGsZ7qN08VCClpAYmde9RmGUjSI4H74K7nZG8
-# Jm/esqRVNol926hzXsEHec4+XsM5CovLBHRgB/RQedxQ8jroEDZYji0hMJ7mQKLN
-# MBCZkW1W4eLfyjwQ1jViWcxRtC06WxVzBhGVWPrpUu7gj5y8nblPUiNPVwxmIRUZ
-# unoH7ZwISYL2VIMXjyNrivMeW2EilWOZTKFjUYfroLQJihhxPxrxWqqHx3quk5ob
-# af0eUhSBEFmDBnwSd4tVJvJkS5maw8GKUZCjc3oy3flh9lNeneDDZ4lw0QvCccOK
-# jpouxN6H7hWQd1Jq1eLw8NWwg5Cw9GyX10KoUaTajwO5K27Gunh/MZ74rxcLZMeF
-# 68AzdIlsdsvSUDM4FPqNxLWGAFPsiobhwIlgc3HjJjMAam11dfC+24fPvBy92/OT
-# jSDTGPsKXFi3WE80Ra7nX86oEn46ZA==
+# BTEPFw0yNjAzMTMxNjU3MjlaMC8GCSqGSIb3DQEJBDEiBCAfQs51YEB0TmGTFNE9
+# mXoU2oC+qm62xD9VseiEMuelGTANBgkqhkiG9w0BAQEFAASCAgC/W8g/lascNwff
+# pnjPuJYu9gSS521qaP/PH4X4UOq3pxL1E1JchqSKM12R+eiZsQb10i1lVSL2wXul
+# 85oZ+W48P9HJ5moAGye3AUAZhYaaJYvVou3sqEE6eciboFLJ7uvRwFOMUQxK19oo
+# cDCYXqiIT4jWDk6DJD8JMdWa23HsZTMPJazO6PM87YbE4y3upfIoFsAvJp1k47Gl
+# 51J5apoCI704UkCCDZnhKjQjYh3ZBBILxRXOIKDQT4tF4YInAKNhQ1bULaz3eRtQ
+# ajSha3H01WXk8RQHg3S0mb/C6e+cgtCnhbIrQuU7tHjoEZC3UyqEhDFUjR3mh9Xf
+# ci3JE55ANWqYjbhBOokoRETBW0Kl0/YO045AdlVqL/JWfQtQfv2UzNv8Vr1VE6I4
+# cWtIGpeHtOUJucMPKc0eQq1Yt4V08ChAMe7PBsl/Gr+CjfO6N1JEkkOPBjY7yd0s
+# 3gI2yWVCxnzt5ZKQ50ISW3ruX99/k6RgUQpCEAevMcyOM+7v4vwbIM6BCfOGOddX
+# PuZ7Ck+1Z2CnreD5Fh25RISikQ4QmtlO+8QspYzw+wAfKfhNbUo9M1SXDl9ppumI
+# TZEixeiuBfq7O49gsDD0v6ZL7X7RhLY4hP/yKK+l90cSosfv2mRZyFY7X6yLV1aH
+# FaBNPqeyoGkH9LDE4lN/8Ju8HzjLfQ==
 # SIG # End signature block
