@@ -48,8 +48,15 @@ function Set-OffboardingAdDescription {
         $existing = [string]$u.Description
 
         if ($SkipIfAlreadyPresent -and -not [string]::IsNullOrWhiteSpace($existing)) {
-            if ($existing -like "*$Note*") {
-                Write-Log -Level Info -Message ("AD description already contains note; skipping append for '{0}'." -f $SamAccountName)
+
+            # Remove digits from the note (timestamps, IDs, etc.)
+            $semantic = ($Note -replace '\d', '').Trim()
+
+            # Escape for safe regex matching
+            $escaped = [regex]::Escape($semantic)
+
+            if ($existing -match $escaped) {
+                Write-Log -Level Info -Message ("AD description already contains a similar note; skipping append for '{0}'." -f $SamAccountName)
                 return $existing
             }
         }
@@ -81,8 +88,8 @@ function Set-OffboardingAdDescription {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAqQgpTdIA81kU9
-# 2sQU/X0yuNWmBuT9fUZ0dHmRvlC7UqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC+4GW3kjIeYgAT
+# VU8/vyG5aTetFUip7N8ZX9Iqvk4vuaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -215,34 +222,34 @@ function Set-OffboardingAdDescription {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0yPJ5cWik
-# d2Vj55JK92zJv06MPh90Oh9lMI58Wz1F6zANBgkqhkiG9w0BAQEFAASCAgDYeU1K
-# MPK8FV2G2PQxTH9NX38ToFRJjWH3JdncgLZ4VY+RpH6k5/QUSKgs7IqGWqrv/TCq
-# FqIVZe78iG8J6yMUpUr5JuCqLaAz7t1ziAeqd6ukAMT4Y6yvoVZRtqbVv+eMHes7
-# 43uLD9xOb52PYX+4wL8Myho5ZySsAx3VxociQXqr1Zn3xDMueH4VWXUVwjrSnmUZ
-# 7QzmUY74h5Thls/8CndWLGjSLdb1GWrsMaODWjh7iN/kNUdeOgpUvn2LCfM05rNm
-# jLU+yIshQ1H9oj8MX5jOdTzGbUscN5VIyTNgyVDQ1/AQVHT1rFNKFGnocbdT2zua
-# M5Cb2q7PRu4Rrh9YFCiFDtO5GwP6I6pasTUdeB6vXni99Y+an14V6zJUr4VgrLZH
-# gvc4mXxB+Ii+eZ951ubWkxV/EmxALgpv4sXOPFbiSloat6XDo53W5BSiVA9PTm8V
-# OoYdCVxeLfFsQNKN37t/mi1epGco0NlwzyDJSlUvPzrzkpI3js+shnaUCctztgha
-# O8kaW+tffNPm2iPho2WwzBove1xZHBm8SU/WRA3yUWy0xsW4j12hj9sfx7pwRsx2
-# nvfEWeOFpDeTg1WVeenPWvk7zDCpq47DUcdYFcckLLVy+SzuqfTuzEzh3m9La0P2
-# FkRbY4ZseoDNcVJ/LbRfh2rcFw4Cr3A0nFRC7KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCSztsVvtej
+# bXqza9XGhyotzg4QVzxP4ldbohdi3Xz5KTANBgkqhkiG9w0BAQEFAASCAgCkqfrP
+# cq279Yz/izyzO2Vuu+2imw87655yy2RccHHgvSGnhTr5qYc1//3cb5RtDJvkErva
+# oWvzCfq5x77IgB19GrAQRcvRoz8l6O9j3hqk4ejwgtit32ghVY60fjrgwenB7gGm
+# 7s+al+r0WCZt6192ZhP/EN5bDMgPtHXu/7b4YXgcVcMM1Hy5xCcWLFshrC1lh0hS
+# Y3TGMLutBuDpZOHIrCBbP6AX/yraM8llghx2Ia9vZY25XzAFZq/JzUGP2wTSqPU3
+# kSMQSVtHCHFJut455+iS0rq3ujaoXQV+qttpB4jGLpo2b8bJZTHGFDihQDw/zqOI
+# YHgVGi4g0iB1JTiH47ynaTOF0XuxcF5i0CwsGYfSUO/bmJ312Wm0W1K8XShxd6Am
+# rROcYVdmQUAr2j3Ex7jKL7cPK447E3MExhOkDF3uOlWxZ+bQ0xctQ1I3LDZ0V3v5
+# Hn71AUNxMfLJcYBaaIIuRJiANQjIOLYbwCmDqtIC5/lDYDUf/2b0JbJ9+lCF4rk/
+# 3u6XcT5LlXS9VBsE+2/D6//dHZDhU0CwfcJCFI9IF15QfledN8VDuPz1bjOIQi83
+# 5qHVAqSKQ36mFKmYGhu2hd/eMyXSOFESk2GEIoFk53LAEH6FmweaHJuuj33fby+H
+# bnYAW5GmMcy2fXNC9FJ+KrXe7ZHcvlsqnSfta6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTMyMjAxMTZaMC8GCSqGSIb3DQEJBDEiBCB22rS1cRmAHTvdmojT
-# oW+Kli4SJZRdupsPwMnDDlD18TANBgkqhkiG9w0BAQEFAASCAgC6EnwvN2SlCd9n
-# sIqzsgNpYYJKO4CSwIHpq0Sgk3qvp4xEX0jPFC1EuAeowkohKKLwmuoDkHLuFrKS
-# FMIiYbsLw0d/VyHmhb1GgA5MDn4mocXplS/JoolUx3r6VsOQZlQ9avPdZA4RMda6
-# Ir3bAb3X4JBtF4qhFSVylxyjV+HSpbY4qlQkpLnsHOf4pc993E+7mlG4Z5QLZJz5
-# FfGR+wKDBjsoDSRlwcAZ6jFCi3nmaXE5o2+pfEy7/BYa5cYF2sOcG/++KlvaChEH
-# d4JGdtW7jKT+QYCRH4sgCoMPYKBYuUew1MVmLztZcrp+a69YmHv3HWv10NCulSC5
-# GobeHWhYwKmY2HZVvcqeXwqFsf1rNPr37Sf1QJTvfUBDRxNiMcMjjzk73Tg43t6I
-# mpqeGSQIzHcibXlelJ7dO0ZTIEIjaKZ5d0ur/gwecZVoTzfcsyM6/O3jo5QhRoNn
-# ozPeEPwOuw9c5iy4V7GpUoGTSzki/m2sd9Ixs3KJZtiH8zGblW/BMpZGVQY4M8tG
-# plhOt8vCl2WrdRVyLG3NKYhLZ/u+cWgWB0KwiYhQR/+FtlvzucIQ+pyFXyA0gZ9Z
-# FgeCvMFrJTMVCdnZ8ua4UucN/UQL0gO2+24zhR2p5Z8OYTjcXiKj4vvif9KE8UXO
-# UImZYnyVvTdIN3Q6uHCZdnrgT146lg==
+# BTEPFw0yNjAzMTMyMjQ0MTJaMC8GCSqGSIb3DQEJBDEiBCDHhTDtvMFPaPifYoMx
+# oOKhNre0vstDQwebjYBmZxThHjANBgkqhkiG9w0BAQEFAASCAgALYLhG3HqRbV3s
+# hrqeDP0FYu1tRufXHCUMt3e09mCNAVnssv3LeW7yE8Xua1+wuJxQd0kYiVfLfGQX
+# HnQJcfj40Cmn9f6GuqwoeeVYkAdF0QUTwpFdSzzrgL2fuf0S4IOAwzLB6f3VvGud
+# IQoSLq+wFunBVZp8FNMMd7INntKiQmbKz51u49YZARwV8COrlAlae9gj9vtH7Oe8
+# /rxVyQETjBiCkQD2VVJGyvoKMFw4fpyBHZCE1L5xd8VJdViRhvbTML2byWx/uAcn
+# YnNmSYW5kJ1LudtbtwHRdfiqdnhSAtQhXV4DgUAvXTGyclJTB5crOm+OcpppjO/h
+# /0tTLG61kcuEGfwZfeOrqMz/IhvZrZ9uXfRa7us6e3WbwTvn6muuv4GTGoUHsKof
+# LIi1ggms7AGr0dxvHclIzxta+91pBSNp1QPlZ+BT38TtzHUPGflRwfFqgrM8+glh
+# gHQX550McaLgXrIKNi4Zqc0mwvZaYbfLTOdwbAas3BBA//Uf9btsPSwIFYup9USf
+# 0pg6QZzvqAPVwXm8L/iU5cjs83Nag2WAUz7ZSRZ1KT0mTfWgW3nXAK76lPTXSqTq
+# CI3falMI23TY3Y2v363WIWF+TeDrtTE39uXaAdV7j7/QlqaAiRZBAe9LLFeUe50J
+# YshxG2F17iAtQlYPac3EMVEX9Ky+8w==
 # SIG # End signature block
