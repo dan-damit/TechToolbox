@@ -6,24 +6,28 @@ function Disable-User {
 
     .DESCRIPTION
     Disables an AD user account, moves them to a disabled OU, removes group
-    memberships, and optionally disables Exchange Online and Teams access.
+    memberships, and optionally performs Exchange Online offboarding actions
+    (forwarding + manager access).
 
     .PARAMETER Identity
     The identity of the user to disable (e.g. sAMAccountName, UPN, or display
     name).
 
     .PARAMETER IncludeEXO
-    Switch to include Exchange Online offboarding actions.
+    Switch to include Exchange Online offboarding actions (office users).
 
     .PARAMETER ForwardToSmtpAddress
     Optional SMTP address to forward the user's email to (overrides manager
-    forwarding).
+    forwarding). Use plain email address, e.g. jdoe@company.com (no smtp:
+    prefix).
 
     .PARAMETER DeliverToMailboxAndForward
-    Switch to keep a copy of emails in the user's mailbox while forwarding.
+    When specified, controls whether a copy is kept in the mailbox while
+    forwarding. Default behavior is TRUE (keep copy) unless explicitly provided.
 
     .PARAMETER ForceCloud
-    Switch to force cloud offboarding actions even if IncludeEXO is not specified.
+    Switch to force cloud offboarding actions even if IncludeEXO is not
+    specified.
 
     .PARAMETER Credential
     Optional PSCredential for authentication to AD and cloud services.
@@ -33,20 +37,20 @@ function Disable-User {
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     param(
-        [Parameter(Mandatory)][string]$Identity,
+        [Parameter(Mandatory)]
+        [string]$Identity,
+
         [switch]$IncludeEXO,
 
-        # Optional override: where to forward mail instead of manager
         [string]$ForwardToSmtpAddress,
 
-        # Keep a copy in the mailbox while forwarding (recommended default)
         [switch]$DeliverToMailboxAndForward,
 
         [switch]$ForceCloud,
+
         [pscredential]$Credential
     )
 
-    # --- Runtime init (config/logging/env) ---
     Initialize-TechToolboxRuntime
 
     $user = $null
@@ -83,36 +87,64 @@ function Disable-User {
         $suParams = @{ Identity = $Identity }
         if ($Credential) { $suParams.Credential = $Credential }
 
-        try {
-            $user = Search-User @suParams
-        }
-        catch {
-            throw "Search-User error for '$Identity': $($_.Exception.Message)"
-        }
+        $user = Search-User @suParams
         if (-not $user) { throw "User '$Identity' not found." }
 
-        # --- Disable AD user ---
+        # --- Compute forwarding target/stamp once (override > manager) ---
+        $forwardTarget = $null
+        $forwardSource = $null
+
+        if ($effective.IncludeEXO) {
+            if ($ForwardToSmtpAddress) {
+                $forwardTarget = $ForwardToSmtpAddress.Trim()
+                $forwardSource = 'override'
+            }
+            elseif ($user.ManagerUpn) {
+                $forwardTarget = $user.ManagerUpn.Trim()
+                $forwardSource = 'manager'
+            }
+
+            # Strip accidental smtp: prefix (common copy/paste mistake)
+            if ($forwardTarget -match '^(?i)smtp:') {
+                $forwardTarget = ($forwardTarget -replace '^(?i)smtp:', '').Trim()
+            }
+
+            # Validate only if set
+            if ($forwardTarget -and ($forwardTarget -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$')) {
+                Write-Log -Level Warn -Message "EXO: forwarding target doesn't look like an SMTP address: '$forwardTarget'. Forwarding will be skipped."
+                $forwardTarget = $null
+                $forwardSource = $null
+            }
+        }
+
+        $forwardStamp = if ($effective.IncludeEXO) {
+            if ($forwardTarget) { "Mail forwarding to $forwardTarget ($forwardSource)" }
+            else { "EXO requested; forwarding not set" }
+        }
+        else {
+            $null
+        }
+
+        # --- Disable AD user (and move OU handled inside Disable-ADUserAccount) ---
         Write-Log -Level Info -Message ("Offboarding: Disabling AD account for '{0}'..." -f $user.SamAccountName)
-        if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Disable AD account")) {
-            $disableParams = @{ SamAccountName = $user.SamAccountName; DisabledOU = $effective.DisabledOU }
+
+        if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Disable AD account (and move to Disabled OU if configured)")) {
+            $disableParams = @{
+                SamAccountName = $user.SamAccountName
+                DisabledOU     = $effective.DisabledOU
+            }
+            if ($Credential) { $disableParams.Credential = $Credential }
+
             $results.ADDisable = Disable-ADUserAccount @disableParams
         }
 
-        # --- Move to Disabled OU (if not already handled in Disable-ADUserAccount) ---
-        $movedHandled = $false
-        if ($results.ADDisable) {
-            if ($results.ADDisable -is [hashtable]) { $movedHandled = [bool]$results.ADDisable['MovedToOU'] }
-            elseif ($results.ADDisable.PSObject.Properties.Name -contains 'MovedToOU') { $movedHandled = [bool]$results.ADDisable.MovedToOU }
-        }
-
-        if ($effective.DisabledOU -and -not $movedHandled) {
-            Write-Log -Level Info -Message ("Offboarding: Moving '{0}' to Disabled OU..." -f $user.SamAccountName)
-            if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Move AD user to Disabled OU")) {
-                $moveParams = @{ SamAccountName = $user.SamAccountName; TargetOU = $effective.DisabledOU }
-                if ($Credential) { $moveParams.Credential = $Credential }
-                $results.MoveOU = Move-UserToDisabledOU @moveParams
-            }
-        }
+        # --- Always append "Disabled on <date>" to AD Description ---
+        $dateStamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
+        Set-OffboardingAdDescription `
+            -SamAccountName $user.SamAccountName `
+            -Note ("Disabled on $dateStamp") `
+            -SkipIfAlreadyPresent `
+            -Credential $Credential | Out-Null
 
         # --- Optional: cleanup AD groups ---
         if ($effective.CleanupADGroups) {
@@ -127,114 +159,140 @@ function Disable-User {
         # --- Hybrid auto-disable short-circuit ---
         if ($effective.UseHybridAutoDisable) {
             Write-Log -Level Info -Message "Hybrid auto-disable enabled; cloud actions deferred to AAD Connect or downstream automation."
+
             if (Get-Command -Name Write-OffboardingSummary -ErrorAction SilentlyContinue) {
                 Write-OffboardingSummary -User $user -Results $results
             }
+
             Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}' (hybrid short-circuit)." -f ($user.UserPrincipalName ? $user.UserPrincipalName : $Identity))
             return [pscustomobject]$results
         }
 
         # --- Exchange Online (EXO) actions ---
-        if ($exoConnected -and $user.UserPrincipalName) {
+        if ($effective.IncludeEXO) {
+            Write-Log -Level Info -Message "EXO: starting Exchange Online actions."
+            $exoConnected = $false
 
-            # Cache command lookups once
-            $setMailboxCmd = Get-Command -Name Set-Mailbox -ErrorAction SilentlyContinue
-            $grantCmd = Get-Command -Name Grant-ManagerMailboxAccess -ErrorAction SilentlyContinue
-
-            if (-not $setMailboxCmd -and -not $grantCmd) {
-                Write-Log -Level Warn -Message "EXO: required cmdlets not found (Set-Mailbox / Grant-ManagerMailboxAccess)."
+            try {
+                # Prefer your helper; fallback to native connect
+                $helperCmd = Get-Command -Name Connect-ExchangeOnlineIfNeeded -ErrorAction SilentlyContinue
+                if ($helperCmd) {
+                    $null = Connect-ExchangeOnlineIfNeeded -ShowProgress:$false -ErrorAction Stop
+                    $exoConnected = $true
+                }
+                else {
+                    $nativeConnect = Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue
+                    if (-not $nativeConnect) {
+                        throw "ExchangeOnlineManagement cmdlets not available in this session."
+                    }
+                    Connect-ExchangeOnline -ShowBanner:$false -UseRPSSession:$false -ErrorAction Stop | Out-Null
+                    $exoConnected = $true
+                }
+            }
+            catch {
+                Write-Log -Level Warn -Message ("EXO: connect failed; skipping EXO actions. Reason: {0}" -f $_.Exception.Message)
             }
 
-            # Determine forwarding target (override > manager)
-            $forwardTarget = if ($ForwardToSmtpAddress) {
-                $ForwardToSmtpAddress.Trim()
-            }
-            elseif ($user.ManagerUpn) {
-                $user.ManagerUpn.Trim()
-            }
-            else {
-                $null
-            }
+            if ($exoConnected -and $user.UserPrincipalName) {
+                $setMailboxCmd = Get-Command -Name Set-Mailbox -ErrorAction SilentlyContinue
+                $grantCmd = Get-Command -Name Grant-ManagerMailboxAccess -ErrorAction SilentlyContinue
 
-            if ($forwardTarget -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
-                Write-Log -Level Warn -Message "EXO: forwarding target doesn't look like an SMTP address: '$forwardTarget'. Skipping."
-                $forwardTarget = $null
-            }
+                if (-not $setMailboxCmd -and -not $grantCmd) {
+                    Write-Log -Level Warn -Message "EXO: required cmdlets not found (Set-Mailbox / Grant-ManagerMailboxAccess)."
+                }
 
-            # Default keep-copy to true unless explicitly passed
-            $keepCopy = $true
-            if ($PSBoundParameters.ContainsKey('DeliverToMailboxAndForward')) {
-                $keepCopy = [bool]$DeliverToMailboxAndForward
-            }
+                # Default keep-copy to true unless explicitly passed
+                $keepCopy = $true
+                if ($PSBoundParameters.ContainsKey('DeliverToMailboxAndForward')) {
+                    $keepCopy = [bool]$DeliverToMailboxAndForward
+                }
 
-            # --- Forwarding action (replaces Convert-MailboxToShared) ---
-            if ($setMailboxCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Set mailbox forwarding")) {
-                try {
-                    if ($forwardTarget) {
-                        $source = if ($ForwardToSmtpAddress) { "manual override" } else { "manager" }
+                # Forwarding
+                if ($setMailboxCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Set mailbox forwarding")) {
+                    try {
+                        if ($forwardTarget) {
+                            Write-Log -Level Info -Message (
+                                "EXO: setting forwarding for '{0}' to '{1}' ({2}; keep copy: {3})..." -f
+                                $user.UserPrincipalName, $forwardTarget, $forwardSource, $keepCopy
+                            )
 
-                        Write-Log -Level Info -Message (
-                            "EXO: setting forwarding for '{0}' to '{1}' ({2}; keep copy: {3})..." -f
-                            $user.UserPrincipalName, $forwardTarget, $source, $keepCopy
+                            $results.Forwarding = Set-Mailbox `
+                                -Identity $user.UserPrincipalName `
+                                -ForwardingSmtpAddress $forwardTarget `
+                                -DeliverToMailboxAndForward:$keepCopy `
+                                -ErrorAction Stop
+                        }
+                        else {
+                            Write-Log -Level Warn -Message (
+                                "EXO: skipping forwarding — no forwarding target provided and no manager assigned for '{0}'." -f
+                                $user.UserPrincipalName
+                            )
+                        }
+                    }
+                    catch {
+                        $results.ForwardingError = $_.Exception.Message
+                        Write-Log -Level Warn -Message (
+                            "EXO: set forwarding failed for '{0}': {1}" -f
+                            $user.UserPrincipalName, $_.Exception.Message
                         )
+                    }
+                }
 
-                        $results.Forwarding = Set-Mailbox `
-                            -Identity $user.UserPrincipalName `
-                            -ForwardingSmtpAddress $forwardTarget `
-                            -DeliverToMailboxAndForward:$keepCopy `
-                            -ErrorAction Stop
+                # Manager access (optional)
+                if ($grantCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Grant manager mailbox access")) {
+                    try {
+                        if ($user.ManagerUpn) {
+                            Write-Log -Level Info -Message (
+                                "EXO: granting manager mailbox access for '{0}' to '{1}'..." -f
+                                $user.UserPrincipalName, $user.ManagerUpn
+                            )
+
+                            $results.ManagerAccess = Grant-ManagerMailboxAccess `
+                                -Identity $user.UserPrincipalName `
+                                -ManagerUPN $user.ManagerUpn `
+                                -ErrorAction Stop
+                        }
+                        else {
+                            Write-Log -Level Warn -Message (
+                                "EXO: skipping manager mailbox access — no manager assigned for '{0}'." -f
+                                $user.UserPrincipalName
+                            )
+                        }
+                    }
+                    catch {
+                        $results.ManagerAccessError = $_.Exception.Message
+                        Write-Log -Level Warn -Message (
+                            "EXO: grant manager access failed for '{0}': {1}" -f
+                            $user.UserPrincipalName, $_.Exception.Message
+                        )
+                    }
+                }
+
+                # --- Append forwarding note to AD description (only when IncludeEXO) ---
+                # This meets your manager's request: disabled stamp always + forwarding stamp when EXO is involved.
+                $note = if ($forwardTarget) {
+                    # Optional: reflect failure in the note if you want
+                    if ($results.ForwardingError) {
+                        "Mail forwarding FAILED to $forwardTarget ($forwardSource)"
                     }
                     else {
-                        Write-Log -Level Warn -Message (
-                            "EXO: skipping forwarding — no forwarding target provided and no manager assigned for '{0}'." -f
-                            $user.UserPrincipalName
-                        )
+                        "Mail forwarding to $forwardTarget ($forwardSource)"
                     }
                 }
-                catch {
-                    Write-Log -Level Warn -Message (
-                        "EXO: set forwarding failed for '{0}': {1}" -f
-                        $user.UserPrincipalName, $_.Exception.Message
-                    )
+                else {
+                    "EXO requested; forwarding not set"
                 }
-            }
 
-            # --- Manager access stays (optional) ---
-            if ($grantCmd -and $PSCmdlet.ShouldProcess($user.UserPrincipalName, "Grant manager mailbox access")) {
-                try {
-                    if ($user.ManagerUpn) {
-                        Write-Log -Level Info -Message (
-                            "EXO: granting manager mailbox access for '{0}' to '{1}'..." -f
-                            $user.UserPrincipalName, $user.ManagerUpn
-                        )
-
-                        $results.ManagerAccess = Grant-ManagerMailboxAccess `
-                            -Identity $user.UserPrincipalName `
-                            -ManagerUPN $user.ManagerUpn `
-                            -ErrorAction Stop
-                    }
-                    else {
-                        Write-Log -Level Warn -Message (
-                            "EXO: skipping manager mailbox access — no manager assigned for '{0}'." -f
-                            $user.UserPrincipalName
-                        )
-                    }
-                }
-                catch {
-                    Write-Log -Level Warn -Message (
-                        "EXO: grant manager access failed for '{0}': {1}" -f
-                        $user.UserPrincipalName, $_.Exception.Message
-                    )
-                }
+                Set-OffboardingAdDescription `
+                    -SamAccountName $user.SamAccountName `
+                    -Note $note `
+                    -SkipIfAlreadyPresent `
+                    -Credential $Credential | Out-Null
             }
-        }
-        elseif (-not $exoConnected) {
-            Write-Log -Level Info -Message "EXO: actions skipped (not connected)."
         }
         elseif (-not $user.UserPrincipalName) {
             Write-Log -Level Warn -Message "EXO: actions skipped (UserPrincipalName is empty)."
         }
-
         else {
             Write-Log -Level Info -Message "EXO: IncludeEXO is false; skipping EXO actions."
         }
@@ -244,6 +302,7 @@ function Disable-User {
         if (Get-Command -Name Write-OffboardingSummary -ErrorAction SilentlyContinue) {
             Write-OffboardingSummary -User $user -Results $results
         }
+
         Write-Log -Level Ok -Message ("Disable-User workflow completed for '{0}'." -f ($user.UserPrincipalName ? $user.UserPrincipalName : $Identity))
         return [pscustomobject]$results
     }
@@ -267,8 +326,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA01XMY0aBw9X8y
-# RR7lFaU9D0bRTXvwOgvYgglCzQWVf6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCU8hQb0ono/NJ/
+# oaE7jlWEqB+0wXUq7WdTzaUgDOOxPqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -401,34 +460,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCADYw8poksd
-# yWg0zLbghPdUZK8N3ZzFir/f9TFfO93JYDANBgkqhkiG9w0BAQEFAASCAgB3FwsN
-# qxHre8RpYtHzuYZn90ADE3THy8KiysaiFNTJFuE7RIodiffS+qk3H0uP8kBDt8tn
-# /wGvT+AjhmWll8GaWJX21c8+xOxg5xseuNL7rpBN57OuywhsLZr9NK072l+dBeEf
-# GUvFcm2pcx0uLhhFgfIKZIQOxrriz0BXQBAYoPGj9q6u4+GyXACAr4TLmi8rbGvv
-# SFDOEjuAlvDqZc8fqYH9KHPM5PCZW8ycd7ZmqdXjOylkgoCFCEbrj0TR7E4h1jIJ
-# P41wqM/oouuM7xk9s73Td0BcX+ok7fAGi/Fk4hOxBjoebT9JYDIisZUQIE8Tnxa0
-# 3/XBSjrLtckshpatnKhQmTY4Vjin5s8nU6c5qpf+z8bAylG9JnDKJlMjhPxnPFo2
-# pOHjfXtPb1Z4wiPWwZbvyJno2Cgf7s+bR6efslCZ5wRIJ5CRgtwil0TIdYnvWoaA
-# JCmz/cU+BXLZJN3jM4quuR18VSF3WoFuc1S+MDtcpH+mkXCJFwEQql08ZMk/GP80
-# ZX2j9zkkFh5tABOSFXO987wR/Yhv/SViBCRzSNfmZ8Dv+T6s4omQMKR9Mtx1jwLV
-# Sx3BPPUBqV98zSF8Edpc8CiQoHSUfiS91Atrn0wyUpVQgrR0hxtflZRbghDtvSmZ
-# bnEfPGgmoRopTE8sKkMMMQQdvffUBJK17wTNJ6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDMJOkcXxMu
+# owNFInp5Cpbu/M0joTnLQVwCLWLqFcr7UzANBgkqhkiG9w0BAQEFAASCAgA/nKfW
+# VhTGKWBnXq9UM825uAxVtzWH0Ha42cVNi/oJS4bgP6C4CaAVezyv2FB1WzB87BMj
+# wvGoreGb4xHrOaTqmPbDEy7pitMnTHF3pO0ACK6CUWfahEOYlZncusu9cDvfGgYY
+# U5csdUKbwz2mil7efI7850utd9OeziZzDzExUWqLDdjf0WECyUHX2Cvk7effoXxe
+# mPO2fq+Yplexj/hgq5ey9WcJCukkrR+pXPpjaDskg8+nqWILi0Iwrw1OVcC41vzY
+# n4jUfBBIrZLfRBTxpq7bGM6Bihj7CYF/yoDAFoV16bshOr5pxyGj5YUCBXOAqQNd
+# 40FCRbq9WNY3c53uqLsly3R8mkmp2vX9n7a0phboGPJUph4hAgyXyddEeqVrXaiO
+# xqyrOzmuljDU9WpoeUkzImwBYx56aw8wHt5JO32m3ieTY+AF8wmkWzbLffAtYqZp
+# FXwojIoxAd7DrMrJiVDnfleuNo4edAEsVsKmp+zYilCaxaHXFQPXubVp/WyeKiCr
+# pozHgtqD3qX9BBBQwbtjMs7XvapLX8uSEMQzaJsAp4SgU59uLLb45nkly7U7m+tk
+# fMmcis1a24D+97s+p3iGlZ+J9Bu7dlWB+O72WH9LhriiagEveKPk9mPFER35w6km
+# sN0uw6Y7kTdJb/MkWCc28xYit1q7vK9wLoUz46GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTMxNjU3MjlaMC8GCSqGSIb3DQEJBDEiBCAfQs51YEB0TmGTFNE9
-# mXoU2oC+qm62xD9VseiEMuelGTANBgkqhkiG9w0BAQEFAASCAgC/W8g/lascNwff
-# pnjPuJYu9gSS521qaP/PH4X4UOq3pxL1E1JchqSKM12R+eiZsQb10i1lVSL2wXul
-# 85oZ+W48P9HJ5moAGye3AUAZhYaaJYvVou3sqEE6eciboFLJ7uvRwFOMUQxK19oo
-# cDCYXqiIT4jWDk6DJD8JMdWa23HsZTMPJazO6PM87YbE4y3upfIoFsAvJp1k47Gl
-# 51J5apoCI704UkCCDZnhKjQjYh3ZBBILxRXOIKDQT4tF4YInAKNhQ1bULaz3eRtQ
-# ajSha3H01WXk8RQHg3S0mb/C6e+cgtCnhbIrQuU7tHjoEZC3UyqEhDFUjR3mh9Xf
-# ci3JE55ANWqYjbhBOokoRETBW0Kl0/YO045AdlVqL/JWfQtQfv2UzNv8Vr1VE6I4
-# cWtIGpeHtOUJucMPKc0eQq1Yt4V08ChAMe7PBsl/Gr+CjfO6N1JEkkOPBjY7yd0s
-# 3gI2yWVCxnzt5ZKQ50ISW3ruX99/k6RgUQpCEAevMcyOM+7v4vwbIM6BCfOGOddX
-# PuZ7Ck+1Z2CnreD5Fh25RISikQ4QmtlO+8QspYzw+wAfKfhNbUo9M1SXDl9ppumI
-# TZEixeiuBfq7O49gsDD0v6ZL7X7RhLY4hP/yKK+l90cSosfv2mRZyFY7X6yLV1aH
-# FaBNPqeyoGkH9LDE4lN/8Ju8HzjLfQ==
+# BTEPFw0yNjAzMTMxNzU1MDVaMC8GCSqGSIb3DQEJBDEiBCB6kckr1S6c5WIkH0M7
+# vY1jgOWgspYOC/FBT4svx1RETzANBgkqhkiG9w0BAQEFAASCAgCZ0e3x92B36Tuz
+# UCuTmnodH+HrJHmYg26J6uLAAGc/XBP1F1wn5w77aStBZE5Feyevjjl1J6L3089C
+# ypkBU1qSIv3zAmpoCBT0x38cyTvsTURnWhr9PIIt1T2AxZwgUN3vNhVyKJp8/gZo
+# 8hC0MFG9+Hh81mtVPuHrLC5TsgpB2T5pXV/jHD+twdx/8yYLqjwwcPmH9MJTDTQJ
+# 0yr2Pl1lMiMqm23ug3F/5r1yKtsGRf2zDw+0RUEKpS1GLRBEGUx8S+TFL/B6ZaUu
+# 4Xj22NmpUaNwDaUi4zm2Dc/+rdcovN5HnD6/iEufInYP9hhKhvcY/4aFBmNbDuPr
+# 7kRm+2dI0+bXjXUCVZCidmonxoPPld3mcv+nup5k9RrOZ3PMceJx4/N8RyOp6Tzj
+# cM5zEpWRb27QLTcW+Wxr64X9zEXQ2PIK93jEPCLykDb93G9AtxZxvrx96+BNY/FD
+# Qnu8cvRGT6NQ0aJztDPW//CrD3BwGNRHZ2h9gEC1vh2sz5w/p+96jLQvpgaRbNBA
+# yJs8KBYnoOiY6jL3rCEdYHqVBCr3OKMWHyA2yN2DKVbe47IhGNTmPhQ3dwGYmkGH
+# IAr7Wuo0u15DdEtUcoc6C6qe8Fg7wLX0TvFwUZ9o1j5DQAvu16wqpK/xiDEeKRJJ
+# 0434X8M/ycpbcL/M/0uNH2EQ+PBMLw==
 # SIG # End signature block
