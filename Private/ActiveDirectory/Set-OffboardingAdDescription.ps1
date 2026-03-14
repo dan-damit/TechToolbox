@@ -14,7 +14,7 @@ function Set-OffboardingAdDescription {
         [int]$MaxLength = 1024,
 
         [Parameter()]
-        [switch]$SkipIfAlreadyPresent,
+        [switch]$SkipIfAlreadyPresent = $true,
 
         [Parameter()]
         [pscredential]$Credential,
@@ -49,13 +49,15 @@ function Set-OffboardingAdDescription {
 
         if ($SkipIfAlreadyPresent -and -not [string]::IsNullOrWhiteSpace($existing)) {
 
-            # Remove digits from the note (timestamps, IDs, etc.)
-            $semantic = ($Note -replace '\d', '').Trim()
+            # Normalize timestamps in BOTH strings so reruns don't append duplicates.
+            # Only targets: "Disabled on YYYY-MM-DD HH:MM" (keeps email digits intact)
+            $tsPattern = 'Disabled on\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}'
 
-            # Escape for safe regex matching
-            $escaped = [regex]::Escape($semantic)
+            $noteNorm = ($Note -replace $tsPattern, 'Disabled on <time>').Trim()
+            $existNorm = ($existing -replace $tsPattern, 'Disabled on <time>').Trim()
 
-            if ($existing -match $escaped) {
+            # Compare using a simple contains check (case-insensitive)
+            if ($existNorm -like "*$noteNorm*") {
                 Write-Log -Level Info -Message ("AD description already contains a similar note; skipping append for '{0}'." -f $SamAccountName)
                 return $existing
             }
@@ -88,8 +90,8 @@ function Set-OffboardingAdDescription {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC+4GW3kjIeYgAT
-# VU8/vyG5aTetFUip7N8ZX9Iqvk4vuaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAFY9EmAHan91Hf
+# 0Bu2+LgJb242Lz3QER2wRLcZHHv8b6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -222,34 +224,34 @@ function Set-OffboardingAdDescription {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCSztsVvtej
-# bXqza9XGhyotzg4QVzxP4ldbohdi3Xz5KTANBgkqhkiG9w0BAQEFAASCAgCkqfrP
-# cq279Yz/izyzO2Vuu+2imw87655yy2RccHHgvSGnhTr5qYc1//3cb5RtDJvkErva
-# oWvzCfq5x77IgB19GrAQRcvRoz8l6O9j3hqk4ejwgtit32ghVY60fjrgwenB7gGm
-# 7s+al+r0WCZt6192ZhP/EN5bDMgPtHXu/7b4YXgcVcMM1Hy5xCcWLFshrC1lh0hS
-# Y3TGMLutBuDpZOHIrCBbP6AX/yraM8llghx2Ia9vZY25XzAFZq/JzUGP2wTSqPU3
-# kSMQSVtHCHFJut455+iS0rq3ujaoXQV+qttpB4jGLpo2b8bJZTHGFDihQDw/zqOI
-# YHgVGi4g0iB1JTiH47ynaTOF0XuxcF5i0CwsGYfSUO/bmJ312Wm0W1K8XShxd6Am
-# rROcYVdmQUAr2j3Ex7jKL7cPK447E3MExhOkDF3uOlWxZ+bQ0xctQ1I3LDZ0V3v5
-# Hn71AUNxMfLJcYBaaIIuRJiANQjIOLYbwCmDqtIC5/lDYDUf/2b0JbJ9+lCF4rk/
-# 3u6XcT5LlXS9VBsE+2/D6//dHZDhU0CwfcJCFI9IF15QfledN8VDuPz1bjOIQi83
-# 5qHVAqSKQ36mFKmYGhu2hd/eMyXSOFESk2GEIoFk53LAEH6FmweaHJuuj33fby+H
-# bnYAW5GmMcy2fXNC9FJ+KrXe7ZHcvlsqnSfta6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBsB/3LR+we
+# puWrtG0uQ6yYYvdfVATd0XhhMZXnLs+gsjANBgkqhkiG9w0BAQEFAASCAgCHAHQe
+# +edPQftYias70uln+HR8/WPsDbVmWcFic6G12QYp7F9HDmH3cfDz/O8AUkG8oYlJ
+# PNIPV7E56/LLck713tmvaWLPRe/LVcBQ2FdeEhqIWmKgtyM8CNfpGr8BWp7T6TK3
+# +1XXE6xgjpxSjhaOsdDl1w8Pq4Zlfc3S1eVLW8yNBUfd2hJKyedl+i0cpKGwHL8f
+# Pwb+zsItmhJPfuiagsY9P+tbqqc5uNk+Uy8YY/YF+6NoJOrsGaZrejUprLKCCsG+
+# z7iqJkLqnVfF1FnlIu1t8kQ4i1SD9PGVyTmRhL/jhV6u+bRFf7eQnrMHm7Gaw2t8
+# 09gE/7ws+aApQ3RJqHWEgw8xPENHz434OZIEM3OdxSOx9UzCsxzQ30WpDu0+pAIu
+# AjRS1BYo4YCygSI+p2mnjYBr8bKzQ8fbwj9DItDCfQALW4/8s4xvDuJKhoqPQjqT
+# Xyhv+VNRSBFuTAbOJ4nkibIdfFFxYajUMO348kvWd+VOw2EjlGjFUwalXEB6a6st
+# HAhpHH18Ns/pAZPBwNwlRD15lCKRDbIBb0d7YTUohT/nNYDvntmOQ2aiMEXQ1Bxl
+# wpsidgZK/VIp5lMzVC3l4qYeT+/0HZ4x0SBBgUVFBmODBjEcnDk0LC/ahDm1DE/a
+# E+4kk+TRulU7ykUkZCfHHeJbqy9tQDir5UrEp6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTMyMjQ0MTJaMC8GCSqGSIb3DQEJBDEiBCDHhTDtvMFPaPifYoMx
-# oOKhNre0vstDQwebjYBmZxThHjANBgkqhkiG9w0BAQEFAASCAgALYLhG3HqRbV3s
-# hrqeDP0FYu1tRufXHCUMt3e09mCNAVnssv3LeW7yE8Xua1+wuJxQd0kYiVfLfGQX
-# HnQJcfj40Cmn9f6GuqwoeeVYkAdF0QUTwpFdSzzrgL2fuf0S4IOAwzLB6f3VvGud
-# IQoSLq+wFunBVZp8FNMMd7INntKiQmbKz51u49YZARwV8COrlAlae9gj9vtH7Oe8
-# /rxVyQETjBiCkQD2VVJGyvoKMFw4fpyBHZCE1L5xd8VJdViRhvbTML2byWx/uAcn
-# YnNmSYW5kJ1LudtbtwHRdfiqdnhSAtQhXV4DgUAvXTGyclJTB5crOm+OcpppjO/h
-# /0tTLG61kcuEGfwZfeOrqMz/IhvZrZ9uXfRa7us6e3WbwTvn6muuv4GTGoUHsKof
-# LIi1ggms7AGr0dxvHclIzxta+91pBSNp1QPlZ+BT38TtzHUPGflRwfFqgrM8+glh
-# gHQX550McaLgXrIKNi4Zqc0mwvZaYbfLTOdwbAas3BBA//Uf9btsPSwIFYup9USf
-# 0pg6QZzvqAPVwXm8L/iU5cjs83Nag2WAUz7ZSRZ1KT0mTfWgW3nXAK76lPTXSqTq
-# CI3falMI23TY3Y2v363WIWF+TeDrtTE39uXaAdV7j7/QlqaAiRZBAe9LLFeUe50J
-# YshxG2F17iAtQlYPac3EMVEX9Ky+8w==
+# BTEPFw0yNjAzMTQwMTM4MDNaMC8GCSqGSIb3DQEJBDEiBCDU1Y/IZO4Ckc7j09r6
+# WU968kUVOux2QzOU0VPb9Wsf/zANBgkqhkiG9w0BAQEFAASCAgBP87LnZoP183Uz
+# STJjBWxtds3fCJV3z+Kb5ZlON8Qct54nvy8RNlqGz7MHMBwqC6IMN4paYyewGmNM
+# xACdiMXkpLIEAONO0ZmLCQfUKp8MlqH7vc/eTyqCNKuOo5bQdfeiY3arAWixUFiD
+# w6cqd02KpHSguuTrvlcLVQSu9RxGA/CPLB5rxqKbOwmeqB2uEX017/z910WSP3+4
+# cQJapIxQ1zPv/07sqJH5Qg4txIKG/nUTGNStFSgpM5Lk5PHIO97h/I3STq0FYpkI
+# Yl7r0b4FskGhp8PJsQMpH4731TXZeJkwh6wcH5HG/Cf4MkKzqc4Gi4qkcr27Uaqi
+# vnqNZuIw8UBeijQOkMbRXFwNRdCP6eStWA1ZQX3f00P9S1iFucuxp0yJjtT6KmzU
+# zJ/WpPzFUKgNTRs9lWrrP8WoTGillTUl4eUEWTP7rbYmfj1bZdjVyNsDIhz/3LwV
+# UB2f6CxldZ8ExrqY233RYAYHELiRpZehYMpZqg7ggGrjYzGO7Aj2U+gWLaIsqwA9
+# huST6T0OumIzA/6YjDjdu7VLd+op56I03No8GnPGl6gcBjMsLe7a0X+filY1v6lP
+# tQVI5+tdHuSdzaee++IblRRRAZNZcRO1GUftVmLmxEl3jz7CT426xv54CxGyUbGv
+# CXJbyF63W9JrSdOs4LUTVpQePQsBKQ==
 # SIG # End signature block

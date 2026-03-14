@@ -95,6 +95,7 @@ function Disable-User {
         $forwardSource = $null
 
         if ($effective.IncludeEXO) {
+
             if ($ForwardToSmtpAddress) {
                 $forwardTarget = $ForwardToSmtpAddress.Trim()
                 $forwardSource = 'override'
@@ -104,12 +105,12 @@ function Disable-User {
                 $forwardSource = 'manager'
             }
 
-            # Strip accidental smtp: prefix (common copy/paste mistake)
+            # Strip accidental smtp: prefix if someone pastes it
             if ($forwardTarget -match '^(?i)smtp:') {
                 $forwardTarget = ($forwardTarget -replace '^(?i)smtp:', '').Trim()
             }
 
-            # Validate only if set
+            # Validate only when we actually have a value
             if ($forwardTarget -and ($forwardTarget -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$')) {
                 Write-Log -Level Warn -Message "EXO: forwarding target doesn't look like an SMTP address: '$forwardTarget'. Forwarding will be skipped."
                 $forwardTarget = $null
@@ -140,9 +141,22 @@ function Disable-User {
 
         # --- Always append "Disabled on <date>" to AD Description ---
         $dateStamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
+
+        $note = if ($effective.IncludeEXO) {
+            if ($forwardTarget) {
+                "Disabled on $dateStamp > Mail forwarding to $forwardTarget ($forwardSource)"
+            }
+            else {
+                "Disabled on $dateStamp > EXO requested; forwarding not set"
+            }
+        }
+        else {
+            "Disabled on $dateStamp"
+        }
+
         Set-OffboardingAdDescription `
             -SamAccountName $user.SamAccountName `
-            -Note ("Disabled on $dateStamp") `
+            -Note $note `
             -SkipIfAlreadyPresent `
             -Credential $Credential | Out-Null
 
@@ -268,19 +282,24 @@ function Disable-User {
                     }
                 }
 
-                # --- Append forwarding note to AD description (only when IncludeEXO) ---
-                # This meets your manager's request: disabled stamp always + forwarding stamp when EXO is involved.
-                $note = if ($forwardTarget) {
-                    # Optional: reflect failure in the note if you want
-                    if ($results.ForwardingError) {
-                        "Mail forwarding FAILED to $forwardTarget ($forwardSource)"
+                # Append EXO results to AD Description note
+                $forwardFailed = -not [string]::IsNullOrWhiteSpace($results['ForwardingError'])
+
+                $note = if ($effective.IncludeEXO) {
+                    if ($forwardTarget) {
+                        if ($forwardFailed) {
+                            "Disabled on $dateStamp > Mail forwarding FAILED to $forwardTarget ($forwardSource)"
+                        }
+                        else {
+                            "Disabled on $dateStamp > Mail forwarding to $forwardTarget ($forwardSource)"
+                        }
                     }
                     else {
-                        "Mail forwarding to $forwardTarget ($forwardSource)"
+                        "Disabled on $dateStamp > EXO requested; forwarding not set"
                     }
                 }
                 else {
-                    "EXO requested; forwarding not set"
+                    "Disabled on $dateStamp"
                 }
 
                 Set-OffboardingAdDescription `
@@ -326,8 +345,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCU8hQb0ono/NJ/
-# oaE7jlWEqB+0wXUq7WdTzaUgDOOxPqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDvN6ZpoZtDFp0u
+# 8d7nzZ2ocPhOujIEdJ3qiubw3JMsMKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -460,34 +479,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDMJOkcXxMu
-# owNFInp5Cpbu/M0joTnLQVwCLWLqFcr7UzANBgkqhkiG9w0BAQEFAASCAgA/nKfW
-# VhTGKWBnXq9UM825uAxVtzWH0Ha42cVNi/oJS4bgP6C4CaAVezyv2FB1WzB87BMj
-# wvGoreGb4xHrOaTqmPbDEy7pitMnTHF3pO0ACK6CUWfahEOYlZncusu9cDvfGgYY
-# U5csdUKbwz2mil7efI7850utd9OeziZzDzExUWqLDdjf0WECyUHX2Cvk7effoXxe
-# mPO2fq+Yplexj/hgq5ey9WcJCukkrR+pXPpjaDskg8+nqWILi0Iwrw1OVcC41vzY
-# n4jUfBBIrZLfRBTxpq7bGM6Bihj7CYF/yoDAFoV16bshOr5pxyGj5YUCBXOAqQNd
-# 40FCRbq9WNY3c53uqLsly3R8mkmp2vX9n7a0phboGPJUph4hAgyXyddEeqVrXaiO
-# xqyrOzmuljDU9WpoeUkzImwBYx56aw8wHt5JO32m3ieTY+AF8wmkWzbLffAtYqZp
-# FXwojIoxAd7DrMrJiVDnfleuNo4edAEsVsKmp+zYilCaxaHXFQPXubVp/WyeKiCr
-# pozHgtqD3qX9BBBQwbtjMs7XvapLX8uSEMQzaJsAp4SgU59uLLb45nkly7U7m+tk
-# fMmcis1a24D+97s+p3iGlZ+J9Bu7dlWB+O72WH9LhriiagEveKPk9mPFER35w6km
-# sN0uw6Y7kTdJb/MkWCc28xYit1q7vK9wLoUz46GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAEfpgxprsV
+# cII+uBy1lH0Qi7j5wvZVcKuKhemV7MxcCDANBgkqhkiG9w0BAQEFAASCAgB3a9M4
+# 8R1bKF3a8u0gcuxSb7XEBtHzJWdI89bnCp5rdrPF5HbMsqShLk9R1TJd9FaFNd0l
+# FcNJvT6C8i8SJKFaUhq/fUKysyDAcnXmFSMFhRcQ8TC8djk4I/9Ur+dLbDbf9/HM
+# CHycvPadDD7yaOH9GSrENIh4LKGjM8zfVLjv1tWcPCOOp7Vn6V7djA8Wvz2sbous
+# kfW5vMwbSphAB/2TC1oPrsE0ZhXFwVmQFdfs1pZesyWC4PDZ4ZqNiKzvgvA9tUH/
+# dB2CybDS7UjbIyYjduqDHSwKnulNOxmGLq5bJBtD9RRKnsTK8HJr3wrQYffHBkiB
+# vLxLdpeGJh8Lfr7r/Bwq9Wge6YlP6VkEWLHPzfwwzIjrdm5t5pXYekR6YAI007sX
+# W46ghnOWXdqibDx3+ktpfnE+qYsu1jVFfoxJvI8hfO1m5KagONMB+ZDovHsoeQ82
+# 3oMzYm0NGylk6WM737G33QsQRAAWwzBduDUohCFmRitbaKQj93bnZ/zHsDJjE2F2
+# FGOGtAHNNKzNh1HUbVaXJPGW3X6tEyrDUdAYk522VJOY7WhIU3wWY4Rx5dU6GmQN
+# nvNS9VcqRiEOFCALMwkScN5ltakH62uGIOMY/9WvOvzF55re2tlZfple2+kia/Sf
+# lJyAmqCJXGopQpnOIXuCbcZieuSUKeh3xXzKzKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTMxNzU1MDVaMC8GCSqGSIb3DQEJBDEiBCB6kckr1S6c5WIkH0M7
-# vY1jgOWgspYOC/FBT4svx1RETzANBgkqhkiG9w0BAQEFAASCAgCZ0e3x92B36Tuz
-# UCuTmnodH+HrJHmYg26J6uLAAGc/XBP1F1wn5w77aStBZE5Feyevjjl1J6L3089C
-# ypkBU1qSIv3zAmpoCBT0x38cyTvsTURnWhr9PIIt1T2AxZwgUN3vNhVyKJp8/gZo
-# 8hC0MFG9+Hh81mtVPuHrLC5TsgpB2T5pXV/jHD+twdx/8yYLqjwwcPmH9MJTDTQJ
-# 0yr2Pl1lMiMqm23ug3F/5r1yKtsGRf2zDw+0RUEKpS1GLRBEGUx8S+TFL/B6ZaUu
-# 4Xj22NmpUaNwDaUi4zm2Dc/+rdcovN5HnD6/iEufInYP9hhKhvcY/4aFBmNbDuPr
-# 7kRm+2dI0+bXjXUCVZCidmonxoPPld3mcv+nup5k9RrOZ3PMceJx4/N8RyOp6Tzj
-# cM5zEpWRb27QLTcW+Wxr64X9zEXQ2PIK93jEPCLykDb93G9AtxZxvrx96+BNY/FD
-# Qnu8cvRGT6NQ0aJztDPW//CrD3BwGNRHZ2h9gEC1vh2sz5w/p+96jLQvpgaRbNBA
-# yJs8KBYnoOiY6jL3rCEdYHqVBCr3OKMWHyA2yN2DKVbe47IhGNTmPhQ3dwGYmkGH
-# IAr7Wuo0u15DdEtUcoc6C6qe8Fg7wLX0TvFwUZ9o1j5DQAvu16wqpK/xiDEeKRJJ
-# 0434X8M/ycpbcL/M/0uNH2EQ+PBMLw==
+# BTEPFw0yNjAzMTQwMTMwMDFaMC8GCSqGSIb3DQEJBDEiBCCFSFwJWF3ibYl+yo3m
+# zJe4BuGuLtyXcf8KJ4ruaUl5QTANBgkqhkiG9w0BAQEFAASCAgA8nJfKxs6Bn6Lg
+# XKVpMf/qxmpO5fqEXGH6dL2jhyCxd994ZE5PBh1moNxsaGPKtR8/cZLSwDlw6JRO
+# WuamZZylWtD3ixQSNaaaYRlR2OUoV6Rod86KGQ/+PDJgMmPyI/DdEnRv4HBEkLBo
+# pGuJb1x01JANkKOkm3s/O2E46PoEIk0+te5TL+NAh05X8ataPz2fIn4BQ/ndqX3h
+# KLuY5as8uIXaREYugMjDU8HYf0B4hvYFmMSdKXC4Q36bXh/44P2hBqFL3IaTS66D
+# 9BunAZxR+DJDUETYDCGrBYh7/ZYBi6YuOwie0MCIo1j2hV+Lrqq8Befy6khyCpYN
+# sBuGWZtAzlWEBboKm9Gh/r8/tLmbZagCApydhd88fYx9av9ohLSap3tT9x2V4E7G
+# j+VbY6B8ET2iy0+b5wYunkX9AKu+H2gjRPFtG9ms2HJajCEnQka+yj3OCve9mra7
+# GBHhe1tpZjn9kO4FsaIqVex2lECJPrTO+c1Bpr3g3H/wApyEidWObDQkNiyq91P5
+# yUiazDObIDxPhsnZXm3Lym1Kaln/eVM0Ashszi3BIJn0nzm/e3qjLSMrMPfwL5k5
+# Rba/E9lj8GaW+n7CYdRrtZQ60KCx3xI/UkiLOLiMZE/LFwWhIp8L8S2Rrhljtux7
+# /A4TXQQOdMYKKbTH4blc/g+2b6iNFg==
 # SIG # End signature block
