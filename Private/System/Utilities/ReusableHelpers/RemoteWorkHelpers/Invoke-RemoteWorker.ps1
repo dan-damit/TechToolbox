@@ -97,8 +97,13 @@ function Invoke-RemoteWorker {
                 $helpersDir = Join-Path $workRoot 'helpers'
                 $workersDir = Join-Path $workRoot 'workers'
 
-                if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Package missing helpers folder: $helpersDir" }
+                # workers is required; helpers is optional
                 if (-not (Test-Path -LiteralPath $workersDir)) { throw "Package missing workers folder: $workersDir" }
+
+                if (-not (Test-Path -LiteralPath $helpersDir)) {
+                    # Create it so downstream logic can assume it exists
+                    New-Item -ItemType Directory -Path $helpersDir -Force | Out-Null
+                }
 
                 $true
             } -ArgumentList $remoteZip, $HelpersZipHash, $remoteTmp -ErrorAction Stop
@@ -109,8 +114,13 @@ function Invoke-RemoteWorker {
             Invoke-Command -Session $Session -ScriptBlock {
                 param($helpersDir, $workersDir, $workRoot)
 
-                if (-not (Test-Path -LiteralPath $helpersDir)) { throw "Helpers path not found: $helpersDir" }
+                # workers must exist
                 if (-not (Test-Path -LiteralPath $workersDir)) { throw "Workers path not found: $workersDir" }
+
+                # helpers optional: create if missing
+                if (-not (Test-Path -LiteralPath $helpersDir)) {
+                    New-Item -ItemType Directory -Path $helpersDir -Force | Out-Null
+                }
 
                 if (-not $script:TT) { $script:TT = [ordered]@{} }
                 $script:TT.IsRemote = $true
@@ -225,8 +235,8 @@ function Invoke-RemoteWorker {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQ84rnlzstI9vx
-# jTD3yJWiF43TaMOTUiQ0BcTfPCb2zaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCMYwRcpevf47VW
+# V/K1AOUpdfk1jKlTGtJZAEsipe5YWaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -359,34 +369,34 @@ function Invoke-RemoteWorker {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDWcD6c/Uc9
-# DlNHxi5qAmGFRXX82A7WPrs0vo1DMq1zxzANBgkqhkiG9w0BAQEFAASCAgCc+z83
-# KihOdnq3puIANzjIc8d0S1jLFxs4v0mm3kUdqkvEvY2ZixvJXSClTL0re5ImkhR+
-# CxpFQqH4NHlBtXFCu05gPUWw1qkiR/+7sMm0qDBzwdgCG7YVUqQxClIVCMwOWLFg
-# CxUy5ybzg111kHdZzbCyZAbBmo6CHhT6KoIwHhdTlHOnEZwwyyFN3dNL3Kytwqzu
-# wpOD2WmwrXzJKz6Go0UIjwylZXrMBMti/5NUntq1R51mbHWxVM0qsHUBIE1A9K30
-# B9z+niKMhf7DsCG/XOkt7dNyBn8wOrygjO+BM0l5v62V3tfWMpoqPV6Bi1dz1l2y
-# LjBQjQb1OuEuZZYJPYas6aXC85/Gyu/uPZ6JZZ/muakIW0UZfyWvn2/Rw/ebnR02
-# Cv7Z0ZNLKpGLTTEsk8VbSYyqUWGfEqK3M9rN2399fm3SCTrPWqFXyNkxqRVI91z1
-# BjpQgIBhbh5h2I1w43hY0CG70ilAiBilsxq9wU+CzUX1ft50mejKCaOkTvPFt970
-# 3kNmvALG/u2e+Bk7HqWuzIDJtrucf1sHod68Cei2j3ATWFN04wzuuG+2IJj9VTE1
-# 64shjtmJ3QdYoeJZJYNubOaPSAV7ioz6I2Gen+e5dbs0bt3y2S2OzaLxzQoFqfee
-# 19UVZWe6ytvOcJI5cGa+sOr7jCOXBZJCIUy/laGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDp4S3k7eRp
+# RyaMQaaQi0U2ZH4YjRIFDS46lelf3Q5r2zANBgkqhkiG9w0BAQEFAASCAgA3eJxO
+# K3ZYLWX0DYEwJLOFm7+/6s8FdjG7NZzW8MU08SMr3V1QsqKmY/p80ddZFa3FgOo2
+# 27ip3KPR4lNakDAKVz/8NhUDf3b+fdCuy88HesT+o0oFbyv/ddmfS1TchM7PGmJy
+# e2MKmvfDuVp4dd6bZISZVWSSKCvLabBFdgJ5CpdfDbu+gSiOs0q7QOcfzvHlbUCc
+# snDIZViXSmc89LIBFLnAhP0jXVHU/R1fX1ffpsi4E6WwXBD2yvl0mRKbKX3/bCmd
+# /IPsDdnx9LKz+FqIKyNs3MQyVGQN3Pan7b1w2A0kVNJohlApQTg0q9Qawi9hRgkX
+# MKX8iNaYf1XbP5zb1y/mVMIYsWihVjIupwFpR534ZRRmlHtN/CoOqApp256jZPV0
+# H8tkSSrF2wGoNAJ3Ge10ygpMoM4ye7SQByMiChPzVC6Z/aYvlF1/VzWWFZq/5Afb
+# Ajc9Nf72n/kr/gcWtXScQDZDNls57X47LUMx74tMO8WG/o94Rf2KpCQHfNCEqqtz
+# pbg3L1fTbR33PHEHMlCO10ySX1acYUkAIHUJK1i2+GEIpTmBvoTZYY314kOuIFLq
+# iVDf+xOcvRqckWGzR3f/1tQBcIwD6bN3MonB1J0aPi/wZDrcSHLYP0OYmRimesla
+# MEB7Br9F34kknkqvj48qW80VyzaS4UzXLygvhqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTMxNTQ3MTBaMC8GCSqGSIb3DQEJBDEiBCD2Qlnn29LZCtAizCZG
-# YM9JUltAci0dadWVq1SNN9Rs9DANBgkqhkiG9w0BAQEFAASCAgCf86F/GoeIh6CP
-# RETcTYmerCk8NjAQJO3F45KMApqhUa82uC2WuNa+smgMDKf/Y0wgurlQARjoA3DR
-# OzPP54dcK5DES7eMJgVN09Ju1X6gtilpM/9OG3wgGLHEOrzlSOhgE0QjuLrx1ubc
-# KTe9NPn0ymC2/HEidhtC5S/zkRTflcN/wqEsa/55TgXvFap3ioSksrUVUO7VIDxs
-# O5LEs3dnMYEdtCZq0VSOvRDWJm8L3B88fDdm20dpawvQ8ALL1V64fB8q2kpBR1zP
-# Nw9FUH3VOthmibcqZDtjObyNGu2e9K7J/l3ErkxJ4n9nuUxwypZ60uRMdcq+GUIi
-# sVPmwhKyNj+RHUqIem1R4DjqXqvr0Qz1lEYzG/diTBhUq4jml+j0w4yihVtbcsg5
-# rQrn1QR4/h0lMOeSblLGyyyQlOdgiDN0hp45GDRt/F0belyec6heyio7oaS5uXK0
-# a+cZZW99FT+98r15hoCjfvrodaHOcY+NbRj/o1KHyoAJ7tV/j7+CRgfH0FMmGOEg
-# cZuCcGnHDFDWnElYOC0grEn1yu8yWPKfLaO3VXg0d2lr75dYfY/LjZ8IYtLaZBlo
-# j3i1JcVPCorInvfs0tbfdN02ZeppUJujkZAUYAulQa+4+vxtP+jGO9vGlDpgZikt
-# 4YAW4FSs77HrgB3nblXIw2Rcliqnhw==
+# BTEPFw0yNjAzMTkxODExMzFaMC8GCSqGSIb3DQEJBDEiBCAr6M2mjiImX/eHFULD
+# BLAmuZNOb4oywSF+LbMiRB0GpDANBgkqhkiG9w0BAQEFAASCAgAa0GqR0u+W4LS5
+# YMhCFJ5Guq0Gs+r01amd21ZsszEkfvqAKi21U9V0y85KtT2dPMcpK+htRndTuYEg
+# AqdqHbuqYm2NVpWlD04zrZ/BWjlHypgjNMnMMa/RYARZHWKauFmXlPzuuqoq/pO8
+# pU85dK/HMTV3jQVjyGjbXMreBqfylMrKtM7cBoQbXR8EYhN0zJYnfz1J3A6hYUoj
+# g2njxGNRRw8MjVsDRBQkXn3WXBTr4y38ZQp3ifsDPB0NeXews0fS1wB7seFYC4wF
+# S1txJSnDX1ukt9RdiO6RXVKknRldaQBe0zUZHxnSBbZtf2PX611FYaO6aHxToUDR
+# fZS++a8J02YBdC1AwhxVWZHTcz/eSD7sqTCPVBB+8rxoXdS/9vBneB1JVeMEAwB6
+# LPonE5Rf+NGodm+syTUneymuHHwQ3luDXwBDAQnWwyTzLnv9yBdNNM5v3Ld+IM9H
+# 7Xjjg3dFbhOvLCHPRml8z3Of+GFuixn/qtYaUR+GDgSLis4TZCMWEariJ3vTFcfU
+# qP3t7Lt/AQ3dU8+HxsJtw57XSPg1U2rCFFBuELuVwXo4+3pQj0/v/4WCPzt77aLG
+# lyJZnE72/dPfXjwO8npSUn20Tz1EpYZcwAKhRZ51hyEpK/VAl6Sn2yJz1gUMgS3F
+# i0YDFKnJynFIcqUhk9bh+M7VBIVVgA==
 # SIG # End signature block

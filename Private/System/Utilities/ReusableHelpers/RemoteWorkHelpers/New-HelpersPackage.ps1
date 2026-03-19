@@ -90,8 +90,13 @@ function New-HelpersPackage {
         }
     }
 
-    Assert-NoLeafCollisions -Files $HelperLibs -BucketName 'helpers'
-    Assert-NoLeafCollisions -Files $WorkerFiles -BucketName 'workers'
+    if ($HelperLibs.Count -gt 0) {
+        Assert-NoLeafCollisions -Files $HelperLibs -BucketName 'helpers'
+    }
+
+    if ($WorkerFiles.Count -gt 0) {
+        Assert-NoLeafCollisions -Files $WorkerFiles -BucketName 'workers'
+    }
 
     try {
         # Copy helpers (libraries)
@@ -110,7 +115,8 @@ function New-HelpersPackage {
         $zipPath = Join-Path ([System.IO.Path]::GetTempPath()) ("TT_Package_{0}.zip" -f ([guid]::NewGuid()))
         if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
 
-        Compress-Archive -Path (Join-Path $tmpRoot '*') -DestinationPath $zipPath -Force
+        # Zip both buckets explicitly so empty helpers/ survives
+        Compress-Archive -Path $helpersDir, $workersDir -DestinationPath $zipPath -Force
         $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
 
         [pscustomobject]@{
@@ -130,8 +136,8 @@ function New-HelpersPackage {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB00NK+XwlGnu4A
-# xr0xRTtlGsK3MHlm37xULzRI3ujZYaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBzphYjxDLSY/F7
+# 0IY89sAE2C9A5XaNMiVLt3+dlxf/Y6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -264,34 +270,34 @@ function New-HelpersPackage {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDFF2fNKxlY
-# Ed2NOl1JnOKrZlwmkXpzmj9fqHvtRMC6eDANBgkqhkiG9w0BAQEFAASCAgBzSF05
-# rc6PKPtEeEm+BvkQ0ec7TRlZvqOCBeYUf5377agfeY4We9xjPuc4+5L37br33On+
-# 2jBT8Xr4NldTx4Fp4aDVYlTr6rtjmtQ3XlfJ99yTqaYaFoUoVhNxNRD0m42/Nv8D
-# P1fvFXXqCsc8n5MoN/1DxQjs831Edqe4Qfa6J2CxyH3zPhG9nIEBAp7Q8GMwYWRi
-# gsaGNaENd5V9+IMVFtr1o836oR9Qi1Holj7OXsA+PD/B5LnjFD1qJ/SED1vbOQWR
-# N0PCTJPb732z8fRUr5LZZYPRCGxGRUybHfwxyaueDkCQcIAIQKO8reIhfGSviTi+
-# p/hG4SxZLnxLi5prpK80u+xiYzn5XHS0bplwdnUJSltcgWDWg2iDl4S0dIFEcVp9
-# 8NwTEttJmYwvVpx3s72JieSC9OdNimVvLEcLYl3zlxQ2iF3360EAmVuJD0Zj4tXs
-# DXu9n9V2hy0KOPuoavtoy2CBn/FnU+S6OON0IxBfHWUvSqr+7EdOGZa7EuFtLs9h
-# Z1xGwIl1u5EVt87xNznam/ahrtJ9nZmDA1PYXfO/ZpuUagRf2xwJLfHlOKpOfi2i
-# rQXku4Eg/qdY/dR0sIeXwoY88wtiwnQgvevp/HD+FtREz45M3zRaZBJ5L59SXLM7
-# vdlTGqVOwLU3Wh0aEMNemOizUBWQ190ld3M8XaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAw6ab2ITtt
+# VqCq/9IS0E7tRwVv+egvoJqmiB939Ah13zANBgkqhkiG9w0BAQEFAASCAgDIsjhe
+# qE2zXOo/h7TPiyF2bbiv74IQrje5BfftUKc4u+nackOQwII9GB03wL27XQeYDVov
+# E81LBf6E5KT/8YkUe74Zr9ReaRJkPNmF5cC1YIh5U+a8YVG8lPj3TaHwJ4z3Lnjc
+# BGjFidfBDqpacQD9roqzGc71hBqhQEExeXFceN0wq09HZOS6oevQlAZFcIye1qnC
+# ypmyRhzBAVQmRx8cYpRt5qJNe8dgnNuHY2avN0hhx4+f6vXUIt/A5AJS4PBfTJO6
+# us5/rjFkM4zORbQEFSr1183fBTR9r5sVFQFPl2GGR6VXY4wiDebgbPC8PPB/GOFC
+# CFXsWgFfTM+YxhUBK0JCzSopAmD9gDd5w0S/njMknjitfMAgLN1D37Y8Wbf6nZnn
+# GE9uxlJ5Bx3wr/5dPB0GnTXRs0/nnVqPTOXA22lshGgfl9kMKd8BXrNcTQ4q/NFb
+# 1v9rLBaxUmzp9H+Y57K/VVkjiowSITq26F/acfsdrAGE6G4DunDwFNJ4H/VpB+DC
+# S7Or9r8SPvtOX3ebh9+c7dXqGTjXf1MPqlAHtQWM+dfdkVUy5q9w+67NKdk8s7rw
+# CMZNAGUEeJJXylyYJZPtbBx3aDuNgKpqo5uUX5pF7BsWVjb9KZxtQU50GfbkiPQX
+# lUYaML9eA1iFIyKbltn18pRiUkXb7+Vwx8PJ4qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAxNzE2MjRaMC8GCSqGSIb3DQEJBDEiBCCiwISMbWwl/RiQ+z6W
-# n9IEF1JiuKbx8thDncIrEoo2RTANBgkqhkiG9w0BAQEFAASCAgCg0zmwX+uY0K1y
-# hvsW69bYpQ/eqCPtHE7laf9wJzKI2YGSxc3kvN94aoz2u+ohbpPeUygsjWfa/fz/
-# GJP+v/udc1vSVte8lm+a/+3oWS7yNhndXWQkX1iWbCJoXwzW2Gy5XG60w0sK+Y9i
-# mXv7cWavS7uIMhTKNZDXWKlBZ1cbnronJtBYracglfYwJZbbmJrjIui3/6F0ldD6
-# TFQej2urNZ8ml73BeWzlMFL73IEj9ggZK2BJ4AgrzaY7ehBLjw4L/GHp6x/P76RK
-# F0WLiCl9z2I0hU2S4iBQFjNcm0crIG2SXBQWJxVsark0sxkcl+2ysmScQGfIsJFh
-# 1CDYmlBoGuUyHYr+sqLsadk1/h7jHEz/brVXj9qIP5x11cHYdstsOFX93ManX/Te
-# qzEX2i79yKFpjrfFQKeW6DMyzAa6Vv1VuyzkJO4n+vBM/oDBRPhpk46MzfDgNl4i
-# IwSmd4/aDaH6S1OIpc9GZ8CfrdfnrCWYasKPaj44EinliCvms5CA+vuUwCPBaCLJ
-# +mT0KpDVoAmgtQ5XW0myri4GkDe/f2E05+g10knCZ3+yuzBjMcdt80EFoupxWYha
-# 31BkC2/Hd8UbZpl7qWqD9myM+7hXwgHbefRbj8zvbyE855LtBxIB+XhpvGAELsV1
-# E6qwvKticbWA6YE40b8RPdO8kRLkYw==
+# BTEPFw0yNjAzMTkxODExMzFaMC8GCSqGSIb3DQEJBDEiBCA/LAFCxudZedY7jFWa
+# ovrLp7Ni/GUQELMlZptRK9miTTANBgkqhkiG9w0BAQEFAASCAgBda1eQOrgGDOKy
+# bLpWEGLaahoHegihjRQ2Q0En0+OXhzP5essBaQ4jIsqoFOcuSZ+G11swPJBIKo1O
+# I1vEqpf8eQHljsaXtC3whNNl8oY9WBSL/7WT9HFziQj3i4FltiFo90/2WqmUQcTo
+# PmgikvlSFiEunhfpMKJwpTM8wEuCl6Q/lnkX7w8rv0qp+0k53LWyPdHXwCVMND9q
+# 86bobnwbDVdaQsfxUux+aVHpQPUmxs5g3gfn36vM4xjbv5c1Yh2K/YoJVSM5YIit
+# 3K69VSq/e50uzjwzQO71CwN+Qp6BPUWJQMHWafo6AoOnAa6EQiIGug6U9wU692tW
+# XEPgC5mlRcGLvaVCnYcF5G8OOfzrcsj5B4bF1v3vhNICsLqY5RGxBkYUFppunSET
+# UCFqBqshCZx7VtNlNrc3xPMjaWJpwtRs1JMGJdM3nuEci/zhnhCij1vauoJxO9Wd
+# vBhyecqbapaAv66kPNT20+YzNToUZ7Lx477Ok8MgXbli5Zk29LeVCt3OlkzOwVTl
+# ITTNf9gBztDWCsRt/ATQZLqs2q3Veq9CVyrUlFapqELcH7ToQSCKRtQJFTVMzocv
+# tO9hE4xUuwx0xWDmJY/+S4TOzEMN5mEWYeaq25Xn2OeFjJxRowFNpz4l0iwEvtdI
+# zj3BMTr5buk/eeD8obqqbesej3P+sg==
 # SIG # End signature block
