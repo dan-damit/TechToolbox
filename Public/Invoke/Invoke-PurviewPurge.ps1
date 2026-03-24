@@ -7,26 +7,27 @@ function Invoke-PurviewPurge {
     .DESCRIPTION
         Imports ExchangeOnlineManagement (if needed), connects to Purview with a
         SearchOnly session, prompts for missing inputs (interactive), creates a
-        mailbox-only Compliance Search in the fixed case "Content Search",
-        waits for completion, and submits a HardDelete purge.
-        Uses Write-Log and supports -WhatIf/-Confirm.
+        mailbox-only Compliance Search in the fixed case "Content Search", waits
+        for completion, and submits a HardDelete purge. Uses Write-Log and
+        supports -WhatIf/-Confirm.
 
     .PARAMETER UserPrincipalName
         The UPN to use for connecting to Purview (Exchange Online).
 
     .PARAMETER Ticket
-        Internal ticket reference in the form "#INC-<integer>".
-        This value is used in the created Compliance Search name and Description.
-        The function will prompt to confirm the entered ticket and allows correction.
+        Internal ticket reference in the form "#INC-<integer>". This value is
+        used in the created Compliance Search name and Description. The function
+        will prompt to confirm the entered ticket and allows correction.
 
     .PARAMETER ContentMatchQuery
         The KQL/keyword query to match items to purge (e.g.,
-        'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"').
-        If omitted, prompts for the query.
+        'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned
+        Assets"'). If omitted, prompts for the query.
 
     .PARAMETER Log
-        A hashtable of logging configuration options to merge into the module-scope
-        logging bag. See Get-TechToolboxConfig "settings.logging" for available keys.
+        A hashtable of logging configuration options to merge into the
+        module-scope logging bag. See Get-TechToolboxConfig "settings.logging"
+        for available keys.
 
     .PARAMETER ShowProgress
         Switch to enable console logging/progress output for this invocation.
@@ -36,8 +37,6 @@ function Invoke-PurviewPurge {
             -Ticket "#INC-151695" `
             -ContentMatchQuery 'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"'
     #>
-
-    # NOTE: Consider ConfirmImpact='High' for HardDelete workflows if you want more guardrails.
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
         [Parameter(Mandatory = $true)]
@@ -252,8 +251,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBsSte43sax3RAF
-# 0JxTHTPToEUeytHaB2J/OC9yVSpAUqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWWWBMmpcRU53b
+# Zgg0FfglNryU4PUQMXZsb4AeKt7ReqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -386,34 +385,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCQPGQeD9M0
-# LFBPDlVykB0kD+4e1mfwag+OJW06yRcOljANBgkqhkiG9w0BAQEFAASCAgDH7euW
-# UNo8b509D4xaY6RKCVezPOJzuIcj1F1z+iCj7BexauTDSRo3ZfvV3sCJU7dcOm0k
-# zcqe1k4bf9u6e0/7YBII57f0TxlkLEfshT89GWWuLA1YY2nCjGJ6XMHg61IsBXeE
-# evZkJJr9pnrACFkZCC5LTLQXz8WBIh8D8HSxDiHJmWZ8WFQ1zEjUXJtf24Tuvv0O
-# BvoAGSCF8+4KFROLMekZLLN2583WO20qGtExSq1wGdC4mc+B4ykLwXnQpBR3jK5F
-# Yja/M8OYIQPHv+VJLzpZf5gwzxWxB7axVIDfGZB2+cMQK2q0FCLyDwVu/9vd804n
-# XjJwIZ5YuIFgAM7yNNrFRr+oPmuH8c1kYiw2RMXeYILsNDoBaUrgKOrFf6w8lHJu
-# daboh68YUgqCIhuTlKzCf4tM42AxhsXjLe+UeXh8xaPEaO6/4CDataUtyDNT8zOf
-# 9XheTQ7WW3WVzZ1yIibIH3TfT84aDmSwjuEWUs/EGxOuSX/UIhI8eGd22mikqaGH
-# AQwydOL0rXgP4I2WYaCuFzCkFOHZAwpFciuhy+RMSz+Sjbg2UoeiTqw5VH9qRUeI
-# ROTaNsGk7MSJAG3Tfp8jGBTwuxxqw+LokYWE24vBKeKWwKx+3jKkmllx642Zq+4r
-# b9KTQq9RC61uQ0Kj/5FTs37yMgN7PRI2gw14Z6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDq8mBV/b2P
+# gQEPfNz2yMchC1m75J3Pu0Ze8787SfEVvzANBgkqhkiG9w0BAQEFAASCAgBHosWd
+# EgRKtlG52VsPJdYt746DwQ9tzLaKR42se7eWmF3X99Xl1gYpi5WXGjgOaizRIx/r
+# IXT40zAds7PL5rzjI9zrpUAF4MpUWKqwjDyKGaaHKBBaHuvzX0PlGi6vjy/u24XO
+# M2PD27w24l94yGfONGyrZCzf8hCErtoJR/vxbnIdOVgZ349JtkTP1XdmIj3F7aTM
+# 1UPS/BQkFAuTEDm0qctaW53h7wtzkHGgfKwNEYBYhBpHMmHdYmXpsVw4zqBtIUR6
+# WVKEyEbqdZT7D7NGw92Flh/b+KB6hGTmExodNs+A592BfU/rVX9w9G306C1WCk6v
+# mSAbgcgYGYzFnGCYIeZGY1Q5/IK/MCcn/ukCXVPtYtKRTlZsl9gultMdY2mJgE0K
+# +JEWIXuYcdRYzFh0BCRu9l2hhI2hCbajbjs7z9NxTroCXKenHWZxlbEHltAcRyGY
+# AmKlmaPf8/J39Mbh7SOpH+lQzsy2mHTObMOejDrjuToQ8OxvUvH0LejecXMPnyFU
+# gjLKoVn1DtVo1XvwyGDPstOZJAoKqKbJ1tVINv9bFtpnCFGBqphsa6ivZPmUutr8
+# o0AYijdDtVt1EwEeOGVkZpmks/tdG86nUwFvOvzZ4hHdh3Fmi1jxiX8OsWn9rOpa
+# gZ3YsE7I039VFaTtgE8xC+bhGzIOR+xZjRvM5qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjQyMDEzMTZaMC8GCSqGSIb3DQEJBDEiBCBiFuaV5hGDVR8ezb1f
-# Wjm0MvNaMp8UvYNEmqfopWczSDANBgkqhkiG9w0BAQEFAASCAgBDv8Qf6yebxWv8
-# 4wDgEtfdKG+bahWbNNwYw1NkbjvI15UcvDDbEAFVVdrNiheu9rNbXvD8Ww5XeBK5
-# MgRHxBXPq3IdjxT0wDjEmK/BbpVnkiulE8D1xWIQPCoh6G96uqiXeE0gtKUpb2EW
-# ILjC1FpWNbaq3aK54YUJC40TV/B+cYC3F+4XOFkTGDpBzQ1FU+tyaAPsJgYj0FiW
-# PVP7o2t+R+AL6hUGsbF+WytQb0e17w6iY/MO8uwWikybY7pRL38slxRza2HnnUpp
-# mwO2F/FsgfLu8hmps2qRIH3QJ/wlKJrR5PKTez6/0/kyPYmY1mMEGr2XCyIxg/VZ
-# 91LY+4nWc36MwF17/FsfjF89cfeQu34uaGI6kqkVKpdEOfidXB5CKze6WE4x+E+P
-# bAC4kRBdnylTczLTA0GMjnYRCH8tPWdlTs4o6vC6aUr1pr12H/IvJI9apaUdUh/p
-# 98gh7ouW6DQ8FE0e1CttG5dJKd1xpX411InFhrHzzG18GpXW62jZr9fBbT05/VKy
-# jPxQylY2ohm31jijvW0N+zj+ekJ0cROGgvQ64LqUwnInq8J+1udiBCjhxjnWWcNl
-# dYtVkcbXZe5cI3XQX/8q46ZzE1rltsZ8oD55ajQOS2xeWLhgcY0n8M3wh6kwKcI6
-# rr3UH4X5X9GCwRlwYcmJk9BFzuavwg==
+# BTEPFw0yNjAzMjQyMDE5MjhaMC8GCSqGSIb3DQEJBDEiBCD98IDH5BkpzaOVA14T
+# bVwHC+hXqvHrZmOuAv3HZuNAvjANBgkqhkiG9w0BAQEFAASCAgAguVoeENO2eq4H
+# KpUqDRGqduJ4IB8uO8B8po44dIfAKoUPTX5FJLZQDDk21tKEc6MuRTyyxnBT4PNp
+# sAZ9QwR3yVufcGTLcM2oy4Kf5Wq3z0gXOvRRAy1g66zCljYajTsaCPobXVE4rRAb
+# CIbA22xQDk2vL5iJ91V0f7M1KpuKo6iAoY02opg5fLm8EmOlmlkg0v/1x+OCZKke
+# tOXXDky+zd2Nm0EZeNsYStsLsMKWRbWxq93+rDDa4TSwZMLEkUWJyGtzmAW9KePM
+# kmcH9qzsxTrzzXsju/3vU7wWAvZQ8h8WLcNBDEmkp926yBOY5M0YsfrZWXD12lSr
+# GE6MrJ1pLGmkOUIROcWd85Ayir7iz76/Fahpm9UnRCJa7m1MueHBv5xJCaA5TR6k
+# TxTaKZfRxhR89BxstpUKQt2fQWVKmD583/93BStbT6hV7Hyg5wnfKx2265mn09eU
+# qkMj2utg6wcWRrMWOgTosppXzY/FBgL7OcvJR+rnstK4eSNPkdfmqENkdebkmMUq
+# cfeUXGxIYXdrHAarE3VGr6Ip311pvtizArd3YEf3fAPkDoeP1Uu4heKsHy542YoT
+# 9G1nPcJACK//leevFCLo2HvSiYj1u6dHlUDKulfGwwsevuaM+TBGOpkDeDDD1G8v
+# S0Y49sBzqMosC+4Eg6sIH3q53pO3uA==
 # SIG # End signature block
