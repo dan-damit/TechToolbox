@@ -1,51 +1,71 @@
-
 function Invoke-PurviewPurge {
     <#
     .SYNOPSIS
-        End-to-end Purview HardDelete purge workflow: connect, clone search,
-        wait, purge, optionally disconnect.
+        End-to-end Purview HardDelete purge workflow: connect, create search,
+        wait, purge, then disconnect.
+
     .DESCRIPTION
-        Imports ExchangeOnlineManagement (if needed), connects to Purview with
-        SearchOnly session, prompts for any missing inputs (config-driven),
-        clones an existing search (mailbox-only), waits for completion, and
-        submits a HardDelete purge. Uses Write-Log and supports
-        -WhatIf/-Confirm.
+        Imports ExchangeOnlineManagement (if needed), connects to Purview with a
+        SearchOnly session, prompts for missing inputs (interactive), creates a
+        mailbox-only Compliance Search in the fixed case "Content Search",
+        waits for completion, and submits a HardDelete purge.
+        Uses Write-Log and supports -WhatIf/-Confirm.
+
     .PARAMETER UserPrincipalName
         The UPN to use for connecting to Purview (Exchange Online).
-    .PARAMETER CaseName
-        The eDiscovery Case Name/ID containing the Compliance Search to clone.
+
+    .PARAMETER Ticket
+        Internal ticket reference in the form "#INC-<integer>".
+        This value is used in the created Compliance Search name and Description.
+        The function will prompt to confirm the entered ticket and allows correction.
+
     .PARAMETER ContentMatchQuery
         The KQL/keyword query to match items to purge (e.g.,
-        'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned
-        Assets"'). If omitted, a new mailbox-only search will be created via
-        prompted KQL query.
+        'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"').
+        If omitted, prompts for the query.
+
     .PARAMETER Log
-        A hashtable of logging configuration options to merge into the module-
-        scope logging bag. See Get-TechToolboxConfig "settings.logging" for
-        available keys.
+        A hashtable of logging configuration options to merge into the module-scope
+        logging bag. See Get-TechToolboxConfig "settings.logging" for available keys.
+
     .PARAMETER ShowProgress
         Switch to enable console logging/progress output for this invocation.
+
     .EXAMPLE
         PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" `
-            -CaseName "Legal Case 123" -ContentMatchQuery 'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"'
+            -Ticket "#INC-151695" `
+            -ContentMatchQuery 'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"'
     #>
+
+    # NOTE: Consider ConfirmImpact='High' for HardDelete workflows if you want more guardrails.
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
-        [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$UserPrincipalName,
-        [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$CaseName,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$UserPrincipalName,
 
-        # The KQL/keyword query to match items to purge (e.g., 'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"')
-        [Parameter()][ValidateNotNullOrEmpty()][string]$ContentMatchQuery,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Ticket,
 
-        # Optional naming override/prefix; the function will add a timestamp suffix to ensure uniqueness
-        [Parameter()][ValidateNotNullOrEmpty()][string]$SearchNamePrefix = "TTX-Purge",
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$ContentMatchQuery,
 
-        [Parameter()][hashtable]$Log,
+        [Parameter()]
+        [hashtable]$Log,
+
         [switch]$ShowProgress
     )
 
-    # Load dependencies
+    # Load dependencies + fixed case
     Initialize-TechToolboxRuntime
+    $CaseName = 'Content Search'
+
+    # Ensure these exist for finally/catch paths
+    $exo = $null
+    $ticketNorm = $null
+    $purgeSubmitted = $false
 
     try {
         # ---- Config & defaults ----
@@ -57,20 +77,58 @@ function Invoke-PurviewPurge {
         # Support both legacy and purge.* keys in config
         $timeoutSeconds = [int]$purv.purge.timeoutSeconds
         if ($timeoutSeconds -le 0) { $timeoutSeconds = 1200 }
+
         $pollSeconds = [int]$purv.purge.pollSeconds
         if ($pollSeconds -le 0) { $pollSeconds = 15 }
 
         # Registration wait (configurable)
         $regTimeout = [int]$purv.registrationWaitSeconds
         if ($regTimeout -le 0) { $regTimeout = 90 }
+
         $regPoll = [int]$purv.registrationPollSeconds
         if ($regPoll -le 0) { $regPoll = 3 }
+
+        # ----- Ticket normalize + confirmation/fix loop (interactive) -----
+        while ($true) {
+            $raw = ($Ticket ?? '').Trim()
+
+            if ([string]::IsNullOrWhiteSpace($raw)) {
+                $Ticket = Read-Host "Enter ticket in format #INC-<integer> (or 'q' to cancel)"
+                if ($Ticket -match '^(?i)(q|quit|exit)$') { throw "User cancelled: ticket entry aborted." }
+                continue
+            }
+
+            # Normalize: uppercase, ensure leading '#'
+            $ticketNorm = $raw.ToUpper()
+            if ($ticketNorm -notmatch '^#') { $ticketNorm = "#$ticketNorm" }
+
+            # Validate after normalization
+            if ($ticketNorm -notmatch '^#INC-\d+$') {
+                Write-Log -Level Warn -Message "Ticket must be '#INC-<integer>' (example: #INC-151695)."
+                $Ticket = Read-Host "Re-enter ticket (or 'q' to cancel)"
+                if ($Ticket -match '^(?i)(q|quit|exit)$') { throw "User cancelled: ticket entry aborted." }
+                continue
+            }
+
+            # Confirm
+            $resp = Read-Host "Ticket is '$ticketNorm'. Is this correct? (Y/n/q)"
+            if ($resp -match '^(?i)(q|quit|exit)$') { throw "User cancelled: ticket confirmation aborted." }
+
+            if ($resp -match '^(?i)n(o)?$') {
+                $Ticket = Read-Host "Enter the correct ticket (or 'q' to cancel)"
+                if ($Ticket -match '^(?i)(q|quit|exit)$') { throw "User cancelled: ticket entry aborted." }
+                continue
+            }
+
+            # Default accept on Enter or 'y'
+            Write-Log -Level Info -Message ("Using ticket: {0}" -f $ticketNorm)
+            break
+        }
 
         # ----- Query prompt + validation/normalization -----
         $promptQuery = $defaults.promptForContentMatchQuery ?? $true
 
         while ($true) {
-
             if ([string]::IsNullOrWhiteSpace($ContentMatchQuery)) {
                 if ($promptQuery) {
                     $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (or type 'q' to cancel) (e.g., fromdomain:bad-domain.net)"
@@ -109,10 +167,10 @@ function Invoke-PurviewPurge {
         Import-ExchangeOnlineModule -ErrorAction Stop
         Connect-PurviewSearchOnly -UserPrincipalName $UserPrincipalName -ErrorAction Stop
 
-        # ---- Build a unique search name ----
-        $ts = (Get-Date).ToString("yyyyMMdd-HHmmss")
-        $baseName = "{0}-{1}" -f $SearchNamePrefix, $CaseName
-        $searchName = "{0}-{1}" -f $baseName, $ts
+        # ---- Build a unique search name (ticket-first) ----
+        $ts = (Get-Date).ToString('yyyyMMdd-HHmmss')
+        # Example: "#INC-151695 - Purge - 20260324-154233"
+        $searchName = "{0} - Purge - {1}" -f $ticketNorm, $ts
 
         Write-Log -Level Info -Message ("Creating mailbox-only Compliance Search '{0}' in case '{1}'..." -f $searchName, $CaseName)
         Write-Log -Level Info -Message "Scope: ExchangeLocation=All"
@@ -123,10 +181,9 @@ function Invoke-PurviewPurge {
             Case              = $CaseName
             ExchangeLocation  = 'All'
             ContentMatchQuery = $ContentMatchQuery
-            # Add other parameters as needed, e.g., Description, etc.
+            Description       = "HardDelete purge workflow for $ticketNorm"
         }
 
-        # Create (respects WhatIf)
         if ($PSCmdlet.ShouldProcess(("Case '{0}'" -f $CaseName), ("Create compliance search '{0}' (mailbox-only / All mailboxes)" -f $searchName))) {
             $null = New-ComplianceSearch @newParams -Confirm:$confirm
             Write-Log -Level Ok -Message ("Search created: {0}" -f $searchName)
@@ -167,6 +224,7 @@ function Invoke-PurviewPurge {
         # ---- Purge (HardDelete) ----
         if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $searchName), 'Submit Purview HardDelete purge')) {
             $null = Invoke-HardDelete -SearchName $searchName -CaseName $CaseName -Confirm:$confirm -ErrorAction Stop
+            $purgeSubmitted = $true
             Write-Log -Level Ok -Message ("[Done] Purview HardDelete purge submitted for '{0}' in case '{1}'." -f $searchName, $CaseName)
         }
         else {
@@ -174,20 +232,28 @@ function Invoke-PurviewPurge {
         }
 
         # ---- Summary ----
-        Write-Log -Level Ok -Message ("Summary: search='{0}' status='{1}' items={2} purgeSubmitted={3}" -f $searchName, $searchObj.Status, $searchObj.Items, $true)
+        Write-Log -Level Ok -Message ("Summary: ticket='{0}' search='{1}' status='{2}' items={3} purgeSubmitted={4}" -f $ticketNorm, $searchName, $searchObj.Status, $searchObj.Items, $purgeSubmitted)
     }
     catch {
-            Write-Log -Level Error -Message ("[ERROR] {0}" -f $_.Exception.Message)
+        Write-Log -Level Error -Message ("[ERROR] {0}" -f $_.Exception.Message)
     }
     finally {
-        [void](Invoke-DisconnectExchangeOnline -ExchangeOnline $exo)
+        # Safe disconnect even if something failed early
+        if ($null -ne $exo) {
+            [void](Invoke-DisconnectExchangeOnline -ExchangeOnline $exo)
+        }
+        else {
+            # If your helper tolerates $null, you can remove this guard.
+            [void](Invoke-DisconnectExchangeOnline -ExchangeOnline $null)
+        }
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBzQpm9hhr2M+UB
-# rBVttovzY/ybEnFUs8uJGvDn0fOy76CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBsSte43sax3RAF
+# 0JxTHTPToEUeytHaB2J/OC9yVSpAUqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -320,34 +386,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCkYzAzWYFl
-# 6ordAsyG81mfuQP2LjHaiCr7+5YxXto8LDANBgkqhkiG9w0BAQEFAASCAgB+XLmd
-# bULXzPuvR0+w4kJ+PKVI8qg7W3FGxCD81gqDUt7sTNkFOoX7tkrDgRLw+6PXuGPj
-# 4mbYpVuk+t5H6i4dCr20/ZgWxlZUDQbQYM6wV/Qh0xec1PEexVtV9QQw/0ofn2EW
-# K5ZgQoZgMblWN8bc3ncJdg3pXCiAxagAB6+Kf+OgCDoK97pudPMa0b9D47lxY3Wp
-# cIwOVIaQTXLI5NGTf1q4fhCbZhBEsC/khwAhbmnI7BzKnl/hzKb6171U9zHgkKV2
-# kuJsfuJvGtwlUmgdjjVzcGWoe2kpwGYrwKqtn0UD+NpdKiEbP1uIF8i6KfXXOoYC
-# yNAabezJJeySfsUNcDmlidyRcmqgadkeUu39p6b4JxC++Ztd8K8KC2VFQP3wYd2p
-# o8CKJWbynguvuOz+qTU1vcNEZMRqPt2gvKFD/A6B2YRZBTOa26Cbzc995HN5VaHZ
-# 0F7mcjBABM7N9cxHcRN3JrSxlKkyi18kMaJ0Lr+XABI6tD7odC9jKdXBko4DeECi
-# htFlHWIMDVQfM4pfDiRd+x5oUf1aedY+0qKQGp/BheslNgIwgfQzHErmuBu9MmeV
-# fzNI2qYg4VtUhL8rHR21XqlOWNBYdJ9vynqPtAZMq8RRLTWeTP1ZXTIi8AMvwj1q
-# 23T92TOmQnpL1CCWt/caE/crLZX+/U5L+/3QAqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCQPGQeD9M0
+# LFBPDlVykB0kD+4e1mfwag+OJW06yRcOljANBgkqhkiG9w0BAQEFAASCAgDH7euW
+# UNo8b509D4xaY6RKCVezPOJzuIcj1F1z+iCj7BexauTDSRo3ZfvV3sCJU7dcOm0k
+# zcqe1k4bf9u6e0/7YBII57f0TxlkLEfshT89GWWuLA1YY2nCjGJ6XMHg61IsBXeE
+# evZkJJr9pnrACFkZCC5LTLQXz8WBIh8D8HSxDiHJmWZ8WFQ1zEjUXJtf24Tuvv0O
+# BvoAGSCF8+4KFROLMekZLLN2583WO20qGtExSq1wGdC4mc+B4ykLwXnQpBR3jK5F
+# Yja/M8OYIQPHv+VJLzpZf5gwzxWxB7axVIDfGZB2+cMQK2q0FCLyDwVu/9vd804n
+# XjJwIZ5YuIFgAM7yNNrFRr+oPmuH8c1kYiw2RMXeYILsNDoBaUrgKOrFf6w8lHJu
+# daboh68YUgqCIhuTlKzCf4tM42AxhsXjLe+UeXh8xaPEaO6/4CDataUtyDNT8zOf
+# 9XheTQ7WW3WVzZ1yIibIH3TfT84aDmSwjuEWUs/EGxOuSX/UIhI8eGd22mikqaGH
+# AQwydOL0rXgP4I2WYaCuFzCkFOHZAwpFciuhy+RMSz+Sjbg2UoeiTqw5VH9qRUeI
+# ROTaNsGk7MSJAG3Tfp8jGBTwuxxqw+LokYWE24vBKeKWwKx+3jKkmllx642Zq+4r
+# b9KTQq9RC61uQ0Kj/5FTs37yMgN7PRI2gw14Z6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTExNDM2MzFaMC8GCSqGSIb3DQEJBDEiBCDq/Vjwpnlwqz8dVdy8
-# hHiVYo48oj0DGXiDCcBWTJx+0TANBgkqhkiG9w0BAQEFAASCAgC3usSl47siYvDx
-# bRnWqIekkxj+WzDhNJTSJCe/SXy+58C6kSx90ZNQD+dvOsPBZ5MdxYqROVrD/bJW
-# Bd2rMH6OK1CkJgSD0TLR08zQkie58UMA3aTgWwfBiLvFv49KgTxiDHsYGFVE3g7X
-# Szqz2oXfuKoeTEFNt83WmUu6/uPfnizMIxUqKQzcrxkzOemlzOeL6ic/Zw/QN+X1
-# 0aIYd4TI+LNOiRrG9vITgRr0+V6dn6zuPlXAbCy0sCQDh31CBYOra9D4dO+Icg8p
-# agW5pgcjrXedXoosyh8FZ9lLNiQt6E1lHeCm6uBlLZUY4AkIZHXfed/s9InBJlZ/
-# 3RuQHoytqMOoNNqrzk5cUHzqxaAbUEpRPhWcUMDw3uY9s3dnPjeeFI40+6TCVqIm
-# FeCS7n8H1tztVRNp8XpH92cCk92qM7GffJCrUvTmVvvujmdg0JBNDDv9k1qKRwIY
-# Vf7RREW5xKAHM9su7VxoEXElShKCX9jA707pLeDOUF+V5Zulinp0qlkyKNFafj1n
-# jxSiWnGevDzB46/SUtd/A1XFmZjhLz8bGj2zmDDuhjkMr+NEQKIG/vonZNvSWD50
-# BjkKqxvxEgm67PA6M01CLuAb0yjSDD4R4L98UyM2KxRYpJ3zaDK0KRjrpUtQIe6/
-# xk+0heDfhRaXJ2Axn9iMhAd0SBhroA==
+# BTEPFw0yNjAzMjQyMDEzMTZaMC8GCSqGSIb3DQEJBDEiBCBiFuaV5hGDVR8ezb1f
+# Wjm0MvNaMp8UvYNEmqfopWczSDANBgkqhkiG9w0BAQEFAASCAgBDv8Qf6yebxWv8
+# 4wDgEtfdKG+bahWbNNwYw1NkbjvI15UcvDDbEAFVVdrNiheu9rNbXvD8Ww5XeBK5
+# MgRHxBXPq3IdjxT0wDjEmK/BbpVnkiulE8D1xWIQPCoh6G96uqiXeE0gtKUpb2EW
+# ILjC1FpWNbaq3aK54YUJC40TV/B+cYC3F+4XOFkTGDpBzQ1FU+tyaAPsJgYj0FiW
+# PVP7o2t+R+AL6hUGsbF+WytQb0e17w6iY/MO8uwWikybY7pRL38slxRza2HnnUpp
+# mwO2F/FsgfLu8hmps2qRIH3QJ/wlKJrR5PKTez6/0/kyPYmY1mMEGr2XCyIxg/VZ
+# 91LY+4nWc36MwF17/FsfjF89cfeQu34uaGI6kqkVKpdEOfidXB5CKze6WE4x+E+P
+# bAC4kRBdnylTczLTA0GMjnYRCH8tPWdlTs4o6vC6aUr1pr12H/IvJI9apaUdUh/p
+# 98gh7ouW6DQ8FE0e1CttG5dJKd1xpX411InFhrHzzG18GpXW62jZr9fBbT05/VKy
+# jPxQylY2ohm31jijvW0N+zj+ekJ0cROGgvQ64LqUwnInq8J+1udiBCjhxjnWWcNl
+# dYtVkcbXZe5cI3XQX/8q46ZzE1rltsZ8oD55ajQOS2xeWLhgcY0n8M3wh6kwKcI6
+# rr3UH4X5X9GCwRlwYcmJk9BFzuavwg==
 # SIG # End signature block
