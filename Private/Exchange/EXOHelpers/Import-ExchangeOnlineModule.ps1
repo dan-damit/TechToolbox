@@ -2,94 +2,41 @@ function Import-ExchangeOnlineModule {
     [CmdletBinding()]
     param()
 
-    # Ensure runtime/config is initialized before accessing $script:cfg, but do NOT assume it will succeed.
-    if (-not $script:cfg) {
-        try {
-            Initialize-TechToolboxRuntime -ErrorAction Stop
-        }
-        catch {
-            # Don't fail hard here—still allow fallbacks to work
-            Write-Verbose "Initialize-TechToolboxRuntime failed or not available; proceeding with defaults. Error: $($_.Exception.Message)"
-        }
-    }
+    $moduleName = 'ExchangeOnlineManagement'
 
-    # ---- Resolve dependency root & version safely from $script:cfg ----
-    # Note: Use null-safe access and fallbacks; DO NOT dereference in param defaults.
-    $DependencyRoot = $null
-    $RequiredVersion = $null
-
-    # Prefer existing schema: cfg.dependencies + cfg.dependencies.requiredVersion
-    if ($script:cfg) {
-        if ($script:cfg.PSObject.Properties.Match('dependencies').Count) {
-            $DependencyRoot = $script:cfg.dependencies
-            if ($script:cfg.dependencies -is [hashtable] -or $script:cfg.dependencies -is [pscustomobject]) {
-                if ($script:cfg.dependencies.PSObject.Properties.Match('requiredVersion').Count) {
-                    $RequiredVersion = $script:cfg.dependencies.requiredVersion
-                }
-            }
-        }
-    }
-
-    # Fallbacks if config didn’t provide values
-    if (-not $DependencyRoot -or [string]::IsNullOrWhiteSpace([string]$DependencyRoot)) {
-        $DependencyRoot = 'C:\TechToolbox\Dependencies'
-    }
-    if (-not $RequiredVersion -or [string]::IsNullOrWhiteSpace([string]$RequiredVersion)) {
-        $RequiredVersion = '3.9.2'
-    }
-
-    $exoRoot = Join-Path $DependencyRoot 'ExchangeOnlineManagement'
-    $manifest = Join-Path (Join-Path $exoRoot $RequiredVersion) 'ExchangeOnlineManagement.psd1'
-
-    # 1) Prefer the in-house exact version
-    if (Test-Path -LiteralPath $manifest) {
-        Import-Module $manifest -Force -ErrorAction Stop
-        $mod = Get-Module ExchangeOnlineManagement -ListAvailable |
-        Where-Object { $_.Version -eq [version]$RequiredVersion } |
-        Select-Object -First 1
-        if ($mod) {
-            Write-Information "Imported ExchangeOnlineManagement v$RequiredVersion from: $($mod.Path)" -InformationAction Continue
-            return
-        }
-        else {
-            throw "Unexpected: Could not verify ExchangeOnlineManagement v$RequiredVersion after import. Manifest used: $manifest"
-        }
-    }
-
-    # 2) If the in-house exact version is missing, try discovering the exact version via PSModulePath
-    $available = Get-Module ExchangeOnlineManagement -ListAvailable | Sort-Object Version -Descending
-    $exact = $available | Where-Object { $_.Version -eq [version]$RequiredVersion } | Select-Object -First 1
-    if ($exact) {
-        Import-Module $exact.Path -Force -ErrorAction Stop
-        Write-Information "Imported ExchangeOnlineManagement v$RequiredVersion from PSModulePath: $($exact.Path)" -InformationAction Continue
+    # Already loaded? We're done.
+    if (Get-Module $moduleName) {
         return
     }
 
-    # 3) Fail with actionable guidance
-    $paths = ($env:PSModulePath -split ';') -join [Environment]::NewLine
-    $msg = @"
-TechToolbox: ExchangeOnlineManagement v$RequiredVersion not found.
-Searched:
-  - In-house path: $manifest
-  - PSModulePath:
-$paths
+    # Not installed yet?
+    if (-not (Get-Module $moduleName -ListAvailable)) {
+        Write-Log -Level Info -Message "Installing $moduleName from PSGallery..."
 
-Fix options:
-  - Place the module here: $exoRoot\$RequiredVersion\ExchangeOnlineManagement.psd1
-  - Or add the dependencies root to PSModulePath (User scope):
-      [Environment]::SetEnvironmentVariable(
-        'PSModulePath',
-        [Environment]::GetEnvironmentVariable('PSModulePath','User') + ';$DependencyRoot', 'User')
-  - Or adjust config: `dependencies.requiredVersion` or `settings.exchange.online.requiredVersion`
-"@
-    throw $msg
+        try {
+            Install-Module $moduleName `
+                -Scope CurrentUser `
+                -Repository PSGallery `
+                -Force `
+                -AllowClobber `
+                -ErrorAction Stop
+        }
+        catch {
+            throw "Failed to install $moduleName. Ensure internet/PSGallery access. Error: $($_.Exception.Message)"
+        }
+    }
+
+    Import-Module $moduleName -ErrorAction Stop
+
+    $mod = Get-Module $moduleName
+    Write-Log -Level Info -Message "Imported $($mod.Name) v$($mod.Version) from $($mod.Path)"
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBG10tVGOGuetEg
-# QIQ3zXIo6vzY0d722ehTcNyS4JG0Y6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDXGyUPM3tXzkgO
+# haklK8B+m2OPGQAnagqx/puDCF2FA6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -222,34 +169,34 @@ Fix options:
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAz9F0rIk8V
-# e7EeFbujp6L6kkM9ebi5e+BqKQRFSj7RIjANBgkqhkiG9w0BAQEFAASCAgA73se6
-# 7PvNC3qYSKBqJQBfBtHO0SDDQBzvLKRyOnquZY9b7eAQQLVVhrVclTJx3RFFjL63
-# cUJ8qj2tqjijaphgSkFrtk2BB+PXvbB0IHNufSZDLzGmD3LaOwdeQDFrRu8zI2yr
-# yr2IOc/meJHPxcdRUD8Zy+hDkeix4+47fhDEdYuijShqDo+EzBiQYlK1NjbU/zaH
-# 7wi5XZ4Y1jPVYrgHv498FulQ2ReQGWoz58AJxK/lR5W1iDkCAF9p9JjcrAFAdwAd
-# 2l9zFsiZIX1j3e6ZTmNGpFLq+VUVJIy49utpC+FANASNim/Cts9iv5NNQFaBipUN
-# fARnzUtVZng4CLlFvvnaSd3WGrer3Ehk22ik/58w1r5XfNkSR0oDwELhA3xEcUZJ
-# r6G1u+cGtn6MF2uXMgKD0q8kcnmCjrOERiLV6SfJy2E8iGVDgodSuz3iYxj2vGyU
-# KsuE6/AE8M48k2qMYw0yu5T3uqMO7myzEqG/L2aaVvXyOux5wCVgL5bmdmIaz32i
-# s9dBGbpEpaFpT3dOJzQ0Ok1RyfdPMyNweKX/1Pt3J3pS5/XqOpaPmzzRdNsubQ3+
-# ZTx7kV05cOtyKgoBNS6aU/nKPcKWyC5KlJzu7dj4bqlLPs8v0RVKtaop7y66M6DH
-# c7OnHUKslTkgk6XQ1Vo+Bw9G2s0EwRaEv/iH4qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC2/dWicvsj
+# wLrleKMo077+dMUz1AJr8fwnyH+O6A27bzANBgkqhkiG9w0BAQEFAASCAgAD4GE3
+# KTePCt9SyjJgm/BDT15p0y+i7MWivb75m3yG13d3zjk8DIpQmBOgGb/dzWRWGiq8
+# +94XJXC7/FkVtoKbrsayf/wHsge+VjUaky9nHX+CdEBOOD1O8XTnJKJttPLOHrx9
+# KTF8ebmqBkhYmFFKOQ8HOVQddjYo+G8lYfI/FUyaoQek1ckr9VB39M3Q7cvdGunz
+# IS+7Bj1+7AC52131oB6xnbzilH6HE/9d2hvHDSVy9nq9Pg04Y5KV0h7OuQRw/V6a
+# u0zPl2kGrwiLtS3LrTeKAiwpN4H4qlGSGPJH/Agmu9WRWzCRFlamdGYVrIraYTxQ
+# ge5YNxRhs0JHMBGnfFp4+ZWy+rk8+GBR3GG4ymO099vNlJKzljqf6ucU10AQzsCa
+# oeQ9MRFNFgdI0Akc0ZVyOiaBTlcyExF2eA/TMI3DxAM4so9v/P/yjNIcJ7reQenZ
+# aafj9D7iO+0G0OGtwKHfqv8LvBnIf4xoaKbp/oBT+ip0BYPVPSGspMg2trExS6cq
+# pZPcGsDGyjKnIqkLbEvT88UWllrFmhLUixzn3cf5JiLgx/9mHs8TqPbQoTt5Z1XV
+# uirMItFSyPS0KLhIHc/7B0qh9Opl1ZpoU2wb5Z5sYOdYxPncPj8eP7ofw9MMdeWF
+# cwDZeljIU/CtLz9KdijQQIfxHOIxJm3gLRM7vaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTExNDIzMTNaMC8GCSqGSIb3DQEJBDEiBCApu0Syn44eER1lFdcJ
-# DBEzMV5m2e6vhk/RfQnO+KsNnzANBgkqhkiG9w0BAQEFAASCAgAqzc1xyHlOVrqf
-# ZDtq+qQEfMtqV+aGYG2t9zSi3/yKDcqjGE/2sL8WoWylfvDdNv+dR5urYwpoGace
-# vosaBLvYujqI0K30EPAY1QkbS8sL5xdDcpBC/rT57c+o8mo7S3FSHfxCLsSjq2NU
-# fKDXXtK14X19+KkZVoddNZmkRnljU4iF8lbmx/7ylhOjL8UhkuGBMLdBE0Piht6W
-# 8h4T9bdB9EbNcivfzNO2Ifap+xg/9G4izfuO/k8+bFXQbPHCHN41z1Vpyz8cUrPU
-# 9eI3pba+c44ob0uzR3cX+5LiItfMFa3U8UWbqCKQhs/dcLjBvQuLxketpNQAZ5Dm
-# oCDk8RlsPQwb1xM1zmMgCZqlWTlSLnctNfiSvenM6zxho292iKnc+MufvKrIg69C
-# daLSnk6W/pX6ckj5CPGhzUfoKeieENHTt2UMLVG5VkdNBnCj/FV/6AM3jFawsBMg
-# mZO70SrUwrRj0mIHRpj+DNxyWI74Ck+zN7t3AN5opPB06BTC+jTT9VolLtoGsij4
-# 2AwdIKwdWsFrnspQXs2yALsAmQMp3usgrPSsDJfB/uXDgV78Libmes+xovUpbc0v
-# Cjyu+P783Xoi4Lbz0+xdY6TOMy0v0O7dUSFdRswJniKg8dsoA8Wot0YMsQJ/Za6/
-# oMDqTicCIjYpsN1ODQgn7/qk/mHwew==
+# BTEPFw0yNjAzMjYxOTIzNDJaMC8GCSqGSIb3DQEJBDEiBCA2RBI0iEypNbPDjtxK
+# 8+2GgS+/4U8LinBv6hnJaq/7/TANBgkqhkiG9w0BAQEFAASCAgATthjO2FvYhT/4
+# 9/IPyPdij1TjVIuRox9tnHVauz3OorwjSmlOS8bU7lWzUlXClSdyxXr9mzY0IevZ
+# fqPauyWM0yJFuMYTXBJfGNdJfclxuVWIfMaDwhipz00RR73hVZka4m83jVAXfDsF
+# 4clk8eXts+FDOqzSAPe4TTZs8npXIisaOkIjoyTkYuSgIrB3+TEWj8d4JqYjXopH
+# EGxmTnwhpSND4uADwe4HVEyToObVivPBWbu1l1Y1uvaaIZamCcb2n5QibEh5NBx6
+# IWtbF/tu4ijk4xb671kSEIKi/yRzMnYeSGr5Hvdky4rJ9louFzPDt1MMW9B3rxqW
+# 90Ov69147zHdrohG37WQ3VNfBbHaSFaUA/ZSv9oMxAxcQikgn++uGSnyZNA75/8L
+# lTt5fg/hgY6Tryz7UBL0XERoT1jQioHX3XdPEJcz0ImeduyPPPbRf2KC19a2rLK0
+# BAeDUz1g4GclePl7wtVygpZ81VPV5/kub6wKCUjJnG6M+bsMA82RO58ZqOeVke5w
+# 5DaPeQke2ykVnLEq03Sy21IRw1+plDErbP0xBkNXlBCvcqvLBLNwcsb9uYYVbY1n
+# 6Gy7Do1YBbWT/Zbc24zkOOWeCi4zeV7i8Vz9KKyhFhao6M0bfzuYONiwaymxj5w+
+# CzVmw7Rz45lqq8tJOVsGhjHNQ7xbBw==
 # SIG # End signature block

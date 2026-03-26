@@ -62,12 +62,46 @@ function Wait-PurgeCompletion {
         }
     }
 
-    $getStatus = { param($obj) [string]$obj.Status }
+    $getStatus = {
+        param($obj)
+
+        if (-not $obj) { return $null }
+
+        # If JobEndTime is set, the purge execution has finished, regardless of .Status
+        if ($obj.JobEndTime) {
+            if (-not [string]::IsNullOrWhiteSpace($obj.Errors)) {
+                # Execution finished but with errors
+                return 'CompletedWithErrors'
+            }
+
+            # No errors – treat as Completed even if .Status still says InProgress
+            return 'Completed'
+        }
+
+        # Otherwise, fall back to the current Status field
+        return [string]$obj.Status
+    }
 
     $terminal = @{
         'Completed'           = @{
             Level   = 'Ok'
-            Message = "Purge '$target' completed."
+            Message = {
+                param($obj, $status)
+
+                $results = $obj.Results
+                $itemCount = $null
+
+                if ($results -match 'Item count:\s*(\d+)') {
+                    $itemCount = [int]$matches[1]
+                }
+
+                if ($itemCount -ne $null) {
+                    "Purge '$target' completed. Items processed: $itemCount. Results: $results"
+                }
+                else {
+                    "Purge '$target' completed. Results: $results"
+                }
+            }
         }
         'CompletedWithErrors' = @{
             Level   = 'Warn'
@@ -110,8 +144,8 @@ function Wait-PurgeCompletion {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDvetfAfF2/4dtL
-# Kcec1l8DKSEjfIOnzX54po3P+tElqqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDrxj6USVx8Slrn
+# m+vhGtUZNUtYvSg0aTLHflJQ/6uRaKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -244,34 +278,34 @@ function Wait-PurgeCompletion {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBP7xKU4im7
-# MUAV0BC25iPrbnr1VpI+Px+dPaEPDMjO8DANBgkqhkiG9w0BAQEFAASCAgA2v3NV
-# i3AWp8HTos/FiE5Y7aSJ9nry2Ma54IfyUX+N80VXoV7/NlwIRCDeqa42oONtd4KT
-# hvAEPfV9S1Uk9EUY1EuK3f8itOepHfjOIGBkRMiLGet2H1+1TrSma52UL1xwWC7b
-# OPfcu7bXwB/+57q1v/89sYTHB0nseZ2xqxrBnO7taUR6MS3dxj/PLP2hlOtT3Xwr
-# QaNy1xDhw42befmK8YIMCUXR/BjDOGpXwJODiNWe8dQji6S+GHQc0RcGIoauIXkI
-# ew9Qsu29cRyiidOY3smSt9NFUSIZHxFg7oDoCZmk//e4GCD4g7poo7qXoLskeM1X
-# KzD0MUWO7Qe1tdHTNAVyvVDfTFSMHWxzaZMHkIxdeLqUBf1XN819F3oO8bUyu5Aa
-# ZBG5xLb4BCY5RidQhXBCMX7aJtaNhBXk4vKXKz4bkcQWAyCxKWXmqxlMS8APYgON
-# E0eHMpVW+jwxEqlcYpJ87Gt5ZryRNsCjy9ujdyWovoOrDFnltbM41I/+yHRtO+Ig
-# U7olI5vCWaUhznn/mBU+qoflk2EqhG+23RhtXYLkJ5vWidTqpvgXj9Egw2xttVEM
-# Y24LodZD0HppSYazSMBIV2UBlKcxoQnnOjOP4tcEogd4upbTFS3XXllp0VUNkxrm
-# uUIfkJkCYOEmlUvabSBJs+2CRGQw4DobD2QjNqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDnKtXmJiBO
+# AD5k2n8cTkVZP86d+Yij3C4rkHipTTedejANBgkqhkiG9w0BAQEFAASCAgBBggVm
+# RDSPgb3Vt/lOUo9E+IrpXpPkLrzRYvthY5lszhtvhVWi9M/nQHqKsob0wSqp//w5
+# cACkksgaeO2elS4RRGkhsgnJOXMpc2nLiUecSavYIfAJkSWLXPAh+4PEynsJjbuZ
+# wBupKHP9hnEPJmgIbY+pU/v7s4nPyqcfYTmSARRAanmHD3Ow5DHF094X0jIQA9s8
+# YnV2YIc+JHScIeF3ErIs7r4Z/QkNbg8i0tMqVLDtBSkQKlpoBiw5uvzeaHUQ5gWY
+# 7UVrfSogap4LCHXxbFob/PDBiKdGAQZKp4izWyS4xHEj+pAfjH4E7R2pbnlqPEJ8
+# ZAsAynuborMeAho2RpiQW4uTBMVK1DLbICuG5R2ucbH5l5FJFVASolDmUOkfPgo8
+# 89PKURgyY+XE5862ZE4Jpf3Fn8ijxUkb7pVo4uh6dfKSnv/RAIZZJCaP/FY1b44a
+# HWYGivtUwXJa5DaHDR3lQhMNCPzjLu9sYT9duW9O4xaxLw8+g1OCcK11yn5os3xW
+# 5F1W0b8cfHzZ9MTlJ7i8NKLzBOks5UU3lCr0tvTIgii/CL52Tqn9JzL9SfhNhFIG
+# vuh1gmLFKEPFo2l079BLC1w0CVHRIlxa2ZSsvjd6gsKpb7fHqfrq3PItOo8YcpPQ
+# ZDDwKMjF1IGxhDLM8e8urDCD8zVbTIBF2fLQM6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTIxNzM2MDVaMC8GCSqGSIb3DQEJBDEiBCDzSvLDEaMLGu95Yzpn
-# gdTmiKQNocwHIfFMzwoTprvtgzANBgkqhkiG9w0BAQEFAASCAgB5YxON96IC4b7I
-# kHtTxyQ4zfcDp7Hy1YPRg5HgzXT6uW95ElVDfBRXDUnfwKxOdeclMsZYqHNb0Kyo
-# MTm6znC1LOd84cxQqUmFPPjthO6Y6bqCVs0jhLG1fNxNkfk9iDTQ9cwteiGR9pY3
-# QvFoe/QUk2QcqB7yi22DRPIGfdek0bPC8/FBMX71bRKBsAzy8++ljoAGyW0wyXcU
-# 5jsknPiE73mPyWptKLeEwgs/3h4wt7wIXA+Fp0oa6HFlOiIPbFls7K80UEU9mzAd
-# q1y6bAoBrehqWU0UfvW0VsHO160IHzIFFQ8S0F4lhoMsi7oyqHMvjBfjkjI0AiCM
-# v0bvFbsUW5moOd8dB8KKduFhP21Wad5yIlYDg9ymPDquHd0seHdZ3sJ/xpt0aHUw
-# 0g+9NWf+dHH3ZKk7jygLuxUHo0cByNL9mfByVsIpg4AAIJQhPCBLgNpxkE7Sx7jz
-# AtWVkT2wTB+p1u+btTzSultyl+opCzX0CUPa5xcCeEsLe7BP6MuSLnnvXWj+3yy/
-# IR69kLAe1jMcCPY+rJ9SVtdVjrWuepmen/4ofqgIOUI/hcmWoqO7xUr+vdOPHkfc
-# CmXvay3MzrkDJp9SUD8949fibDrZPuE+GlN5yuGsatd9uGH4jlUsy+sCwMaD6ZS+
-# SczBZZuSVooN+mCduw854bULHhHIFQ==
+# BTEPFw0yNjAzMjYxODAyNTJaMC8GCSqGSIb3DQEJBDEiBCAEJVtDVL40aqm2VGpD
+# 4xo3c6NFqME7SOkq1QHKsNjxdDANBgkqhkiG9w0BAQEFAASCAgAWXQxSn31soH+g
+# 3yeWwxp3fabgPAVVEKkY4ZwK0dvEXlI5lBwKe3yrATb+t3MR07JjYQAcA9/OqD3a
+# 9rrgrMQIIC40C6H/r8pTzsBrDI4pQzKmDvDl3poUfUtIqrJABSYhVW2NE3uNt34T
+# zTxhbfvUMLMq7eo9PiIfW+EW+yOxUMBKcAatuIXO1LQtYONfwaqrtGOtc5pUSJCe
+# 7w7e31jPXiJXy80piOhM9xs0trAraW7FylgpXnbwZfuP8kZzCpmSLB2JbAg/bLgq
+# ifR8BGqLCdLaPzZQOnRTAHSWRQMFR6oKpUGlJKhOFIwWTZg7r7YiXds9lsJJtWy2
+# FAHU3eWcuTXiNuYkYM1ERIXx2YUDqZnNpm0YK+HKVMspV6BsbRLR3mgwABRjV5Eg
+# uXVdJRNwB9wRst8Ct+fQ3GgtGWUGiySSQ+hgzJ0GETBo0TNh2N5cCT2udLuJegZV
+# /DKouCP3fS0zMm5//YvLLqq2qsNnsv28YSgvupO19M4zn2i5o3fYLPialNKKKIus
+# RA8p+XjL3gV/dKCM0tlLLieW3aGCv6vZk9SQRp4RxyYHeVwyrk7CAgaFYm3YYhBg
+# wQ4GaYlJ20xTZvklgCfi5EZKzPFdg0OG+jhtn296mgLQpO6KGRbmAlQDskJJU+7y
+# vAEKz2Uluz0aVPO51134SqFO/amdTQ==
 # SIG # End signature block

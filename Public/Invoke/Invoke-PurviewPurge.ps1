@@ -130,7 +130,7 @@ function Invoke-PurviewPurge {
         while ($true) {
             if ([string]::IsNullOrWhiteSpace($ContentMatchQuery)) {
                 if ($promptQuery) {
-                    $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (or type 'q' to cancel) (e.g., fromdomain:bad-domain.net)"
+                    $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (or type 'q' to cancel) (e.g., from:(""pm-bounces.broobe.*"" OR ""broobe.*"") AND subject:""Aligned Assets"")"
                 }
                 else {
                     throw "ContentMatchQuery is required but prompting is disabled by config."
@@ -169,7 +169,7 @@ function Invoke-PurviewPurge {
         # ---- Build a unique search name (ticket-first) ----
         $ts = (Get-Date).ToString('yyyyMMdd-HHmmss')
         # Example: "#INC-151695 - Purge - 20260324-154233"
-        $searchName = "{0} - Purge - {1}" -f $ticketNorm, $ts
+        $searchName = "{0}" -f $ticketNorm
 
         Write-Log -Level Info -Message ("Creating mailbox-only Compliance Search '{0}' in case '{1}'..." -f $searchName, $CaseName)
         Write-Log -Level Info -Message "Scope: ExchangeLocation=All"
@@ -180,7 +180,7 @@ function Invoke-PurviewPurge {
             Case              = $CaseName
             ExchangeLocation  = 'All'
             ContentMatchQuery = $ContentMatchQuery
-            Description       = "HardDelete purge workflow for $ticketNorm"
+            Description       = "Possible Phishing/Spam/Marketing - $ticketNorm - $ts"
         }
 
         if ($PSCmdlet.ShouldProcess(("Case '{0}'" -f $CaseName), ("Create compliance search '{0}' (mailbox-only / All mailboxes)" -f $searchName))) {
@@ -251,8 +251,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWWWBMmpcRU53b
-# Zgg0FfglNryU4PUQMXZsb4AeKt7ReqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCJVYN4cAkSN098
+# YMGM1q5bXVS+HZYNrJxmHpJLvZi16qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -385,34 +385,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDq8mBV/b2P
-# gQEPfNz2yMchC1m75J3Pu0Ze8787SfEVvzANBgkqhkiG9w0BAQEFAASCAgBHosWd
-# EgRKtlG52VsPJdYt746DwQ9tzLaKR42se7eWmF3X99Xl1gYpi5WXGjgOaizRIx/r
-# IXT40zAds7PL5rzjI9zrpUAF4MpUWKqwjDyKGaaHKBBaHuvzX0PlGi6vjy/u24XO
-# M2PD27w24l94yGfONGyrZCzf8hCErtoJR/vxbnIdOVgZ349JtkTP1XdmIj3F7aTM
-# 1UPS/BQkFAuTEDm0qctaW53h7wtzkHGgfKwNEYBYhBpHMmHdYmXpsVw4zqBtIUR6
-# WVKEyEbqdZT7D7NGw92Flh/b+KB6hGTmExodNs+A592BfU/rVX9w9G306C1WCk6v
-# mSAbgcgYGYzFnGCYIeZGY1Q5/IK/MCcn/ukCXVPtYtKRTlZsl9gultMdY2mJgE0K
-# +JEWIXuYcdRYzFh0BCRu9l2hhI2hCbajbjs7z9NxTroCXKenHWZxlbEHltAcRyGY
-# AmKlmaPf8/J39Mbh7SOpH+lQzsy2mHTObMOejDrjuToQ8OxvUvH0LejecXMPnyFU
-# gjLKoVn1DtVo1XvwyGDPstOZJAoKqKbJ1tVINv9bFtpnCFGBqphsa6ivZPmUutr8
-# o0AYijdDtVt1EwEeOGVkZpmks/tdG86nUwFvOvzZ4hHdh3Fmi1jxiX8OsWn9rOpa
-# gZ3YsE7I039VFaTtgE8xC+bhGzIOR+xZjRvM5qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCf4ZMPCCFA
+# m/0tqigUaThH5UgoOOXovdoEB/r7jXRiUDANBgkqhkiG9w0BAQEFAASCAgAIwn+Z
+# EOzctE9i1VRONL2RnwRHNcGRvP927P5xdSn7HMJMQOuhu29Ysu41R3OxFkHRBb0x
+# GEurtKVy/8BwUM5HFzIbDqUzdT7aNgZvrCSpzLexdezf3nlzAmAjkel7zf/GgpN6
+# RnFbt/IX7yjC/g+Rmc7GovRRcQ7Zm1ly6nKTZzaO7J1/87pvOLEBbHeCaKZrDMvf
+# h14QWDjmSG2liSmPzpdyrrUMalaiotIrrdLlLmgtagWAVyKWmbYHtEQRhKYC9xGF
+# v6TiT4N/g2RLuy8PFMd+NMTFXMflh/vU0emRra2zSJdUGVsIfAwZ6FRDfL3XHvg7
+# RTmUue3cxtrDg0T9JdhYBc0cDxMuO+yd1xL1Vp6xyOLdLRNKV/BsCnUXYz6LLb8y
+# VIKiIYCo9FYsqGRSa/9tsV/T/F9FEb1ZTbF3bxrurBiAbioau5ctzeQiR6QmtqX2
+# zuSi8PLFXOqc3wIeUzZbRV55IUzoHlOOPrILI9W63V4di3Lslgu/BgeiIwEzGAxO
+# XKwBh+COrgWAJ5XrJ+JBJmhWoKr29lNQyiWpCuiTHL+lnrsW5I50wNYkjY8H0Q7R
+# 2tUCIP3SklN0w9KogtZC4JzrSxaPcHq3fA877SkqdZrMoc+aWlG8i0SX0Ju397vD
+# z0MdV2gVhkvlUxERBHBIWc/lQTqqvs66StRxvaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjQyMDE5MjhaMC8GCSqGSIb3DQEJBDEiBCD98IDH5BkpzaOVA14T
-# bVwHC+hXqvHrZmOuAv3HZuNAvjANBgkqhkiG9w0BAQEFAASCAgAguVoeENO2eq4H
-# KpUqDRGqduJ4IB8uO8B8po44dIfAKoUPTX5FJLZQDDk21tKEc6MuRTyyxnBT4PNp
-# sAZ9QwR3yVufcGTLcM2oy4Kf5Wq3z0gXOvRRAy1g66zCljYajTsaCPobXVE4rRAb
-# CIbA22xQDk2vL5iJ91V0f7M1KpuKo6iAoY02opg5fLm8EmOlmlkg0v/1x+OCZKke
-# tOXXDky+zd2Nm0EZeNsYStsLsMKWRbWxq93+rDDa4TSwZMLEkUWJyGtzmAW9KePM
-# kmcH9qzsxTrzzXsju/3vU7wWAvZQ8h8WLcNBDEmkp926yBOY5M0YsfrZWXD12lSr
-# GE6MrJ1pLGmkOUIROcWd85Ayir7iz76/Fahpm9UnRCJa7m1MueHBv5xJCaA5TR6k
-# TxTaKZfRxhR89BxstpUKQt2fQWVKmD583/93BStbT6hV7Hyg5wnfKx2265mn09eU
-# qkMj2utg6wcWRrMWOgTosppXzY/FBgL7OcvJR+rnstK4eSNPkdfmqENkdebkmMUq
-# cfeUXGxIYXdrHAarE3VGr6Ip311pvtizArd3YEf3fAPkDoeP1Uu4heKsHy542YoT
-# 9G1nPcJACK//leevFCLo2HvSiYj1u6dHlUDKulfGwwsevuaM+TBGOpkDeDDD1G8v
-# S0Y49sBzqMosC+4Eg6sIH3q53pO3uA==
+# BTEPFw0yNjAzMjYxODAyNTRaMC8GCSqGSIb3DQEJBDEiBCBdOen5Sv2fM8j4cIf2
+# qpBisM8OuNE2fW8+64DLsAtHGjANBgkqhkiG9w0BAQEFAASCAgAcKaZxsZjAZ33B
+# vSSst64s7tmSs7ROPp//C3i8ROafW7g2bvnVumRM2A3WZd6zNxTaC50js6TnxqIl
+# Cz/p9L0ilH05pV+m7fO785HvZUnnYIhq++5ai8ufBQpdWMflHTh88OvlCHLnTuiU
+# 5Ww8bvKeIIHNRA07ihpkxw1tPOdW4ge0TtRsYBWT4HeAuo3mLX2+6xnVVM33Ujdc
+# fPAaw5RNarcW0ywzaKBeoR79yKrLu566cwm2SiahVvIn8/du1dhsrtIb84qBxTkR
+# Z6HSHqTLr4LX5dLy1NHJ6tHyl0UEpq9Hs+Dq8bYTjpi5T9D/a1WI0yJBMgS5jv0I
+# t7+7hymapyH3cQ0kh3NJa6AUYiPw6oyuXhhN5AG6MqsFnWeX8hqJvu71QcH1+RP+
+# qhOPLyUK5iBM0903y5RRPCsGgr4Qs8HO2Tp28LgLd2MFgLPEvpQ6rExYWd4oiFzI
+# 5G12kYpunBTi9syJBvjZi8xn53ACCakWC7FhVj9Z6/l25UjGk7FOGIaMbTo/RkSd
+# /hRejKsXT1Bt+t1hd/e90fKol3w5h7TkHaevj2aLlDiJttgIlDmeP6tizb72tFBd
+# ZdTAdWKROLmvU4JcCP5k1VTMeD7eZOdAn7hknziWV1ZD6yXiJJYLxtOZTMpe6fET
+# ONm+029Y4qqY1AmNiflIIIlTzP06IA==
 # SIG # End signature block
