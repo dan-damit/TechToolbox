@@ -1,137 +1,62 @@
 function Initialize-Environment {
     [CmdletBinding(SupportsShouldProcess)]
-    param(
-        # Where to persist the PATH change. 'Machine' requires elevation.
-        [ValidateSet('User', 'Machine')]
-        [string]$Scope = 'User',
+    param()
 
-        # The dependency path you want to ensure on PATH.
-        [Parameter()]
-        [string]$DependencyPath = 'C:\TechToolbox\Dependencies',
-
-        # Create the dependency directory if it doesn't exist.
-        [switch]$CreateIfMissing
-    )
-
-    $infoAction = if ($PSBoundParameters.ContainsKey('InformationAction')) { $InformationPreference } else { 'Continue' }
-
-    # 1) Normalize target path early
-    try {
-        $normalizedPath = [System.IO.Path]::GetFullPath($DependencyPath)
-    }
-    catch {
-        Write-Warning "Initialize-Environment: Invalid path: [$DependencyPath]. $_"
-        return
-    }
-
-    # 2) Ensure directory exists (optional)
-    if (-not (Test-Path -LiteralPath $normalizedPath)) {
-        if ($CreateIfMissing) {
-            try {
-                $null = New-Item -ItemType Directory -Path $normalizedPath -Force
-                Write-Information "Created directory: [$normalizedPath]" -InformationAction $infoAction
-            }
-            catch {
-                Write-Warning "Failed to create directory [$normalizedPath]: $($_.Exception.Message)"
-                return
-            }
-        }
-        else {
-            Write-Information "Dependency path does not exist: [$normalizedPath]. Skipping PATH update." -InformationAction $infoAction
-            return
-        }
-    }
-
-    # 3) Read current PATH for chosen scope
-    $currentPathRaw = [Environment]::GetEnvironmentVariable('Path', $Scope)
-
-    # 4) Normalize & de-duplicate PATH parts (case-insensitive comparison)
-    $sep = ';'
-    $parts =
-    ($currentPathRaw -split $sep) |
-        Where-Object { $_ -and $_.Trim() } |
-        ForEach-Object { $_.Trim() } |
-        Select-Object -Unique
-
-    # Use case-insensitive membership check
-    $contains = $false
-    foreach ($p in $parts) {
-        if ($p.TrimEnd('\') -ieq $normalizedPath.TrimEnd('\')) {
-            $contains = $true
-            break
-        }
-    }
-
-    if (-not $contains) {
-        $newPath = @($parts + $normalizedPath) -join $sep
-
-        if ($PSCmdlet.ShouldProcess("$Scope PATH", "Add [$normalizedPath]")) {
-            try {
-                [Environment]::SetEnvironmentVariable('Path', $newPath, $Scope)
-                Write-Information "Added [$normalizedPath] to $Scope PATH." -InformationAction $infoAction
-            }
-            catch {
-                Write-Warning "Failed to update $Scope PATH: $($_.Exception.Message)"
-                return
-            }
-
-            # 5) Ensure current session has it immediately
-            $sessionHas = $false
-            foreach ($p in ($env:Path -split $sep)) {
-                if ($p.Trim() -and ($p.TrimEnd('\') -ieq $normalizedPath.TrimEnd('\'))) {
-                    $sessionHas = $true
-                    break
-                }
-            }
-            if (-not $sessionHas) {
-                $env:Path = ($env:Path.TrimEnd($sep) + $sep + $normalizedPath).Trim($sep)
-            }
-
-            # 6) Broadcast WM_SETTINGCHANGE so new processes pick up changes
-            try {
-                $signature = @'
-using System;
-using System.Runtime.InteropServices;
-public static class NativeMethods {
-  [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)]
-  public static extern IntPtr SendMessageTimeout(
-    IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags,
-    uint uTimeout, out UIntPtr lpdwResult);
-}
-'@
-                Add-Type -TypeDefinition $signature -ErrorAction SilentlyContinue | Out-Null
-                $HWND_BROADCAST = [IntPtr]0xffff
-                $WM_SETTINGCHANGE = 0x1A
-                $SMTO_ABORTIFHUNG = 0x0002
-                $result = [UIntPtr]::Zero
-                [void][NativeMethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', $SMTO_ABORTIFHUNG, 5000, [ref]$result)
-                Write-Verbose "Broadcasted WM_SETTINGCHANGE (Environment)."
-            }
-            catch {
-                Write-Verbose "Failed to broadcast WM_SETTINGCHANGE: $($_.Exception.Message)"
-            }
-        }
+    $infoAction = if ($PSBoundParameters.ContainsKey('InformationAction')) {
+        $InformationPreference
     }
     else {
-        # Ensure current session also has the normalized casing/version
-        $needsSessionAppend = $true
-        foreach ($p in ($env:Path -split ';')) {
-            if ($p.Trim() -and ($p.TrimEnd('\') -ieq $normalizedPath.TrimEnd('\'))) {
-                $needsSessionAppend = $false
-                break
+        'Continue'
+    }
+
+    # --- Ensure NuGet provider ---
+    try {
+        $nuget = Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue
+        if (-not $nuget) {
+            if ($PSCmdlet.ShouldProcess('NuGet PackageProvider', 'Install')) {
+                Write-Information "Installing NuGet package provider..." -InformationAction $infoAction
+                Install-PackageProvider -Name NuGet -Force -Scope CurrentUser -ErrorAction Stop
             }
         }
-        if ($needsSessionAppend) {
-            $env:Path = ($env:Path.TrimEnd(';') + ';' + $normalizedPath).Trim(';')
+    }
+    catch {
+        Write-Warning "Failed to install NuGet provider: $($_.Exception.Message)"
+    }
+
+    # --- Ensure PSGallery repository exists ---
+    try {
+        $psGallery = Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
+        if (-not $psGallery) {
+            if ($PSCmdlet.ShouldProcess('PSGallery repository', 'Register')) {
+                Write-Information "Registering PSGallery repository..." -InformationAction $infoAction
+                Register-PSRepository -Default -ErrorAction Stop
+            }
         }
+    }
+    catch {
+        Write-Warning "Failed to register PSGallery repository: $($_.Exception.Message)"
+    }
+
+    # --- Ensure PSGallery is Trusted ---
+    try {
+        $psGallery = Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
+        if ($psGallery -and $psGallery.InstallationPolicy -ne 'Trusted') {
+            if ($PSCmdlet.ShouldProcess('PSGallery repository', 'Set InstallationPolicy=Trusted')) {
+                Write-Information "Setting PSGallery installation policy to Trusted..." -InformationAction $infoAction
+                Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction Stop
+            }
+        }
+    }
+    catch {
+        Write-Warning "Failed to set PSGallery trust policy: $($_.Exception.Message)"
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBF1amSHj8HQodT
-# iWQ946awARth5/OjdYpA79yJnFAmW6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDg7OzAtcauF+u1
+# 9HgsSzRZmvIaFjsQ/+WxhtNzBm/FPqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -264,34 +189,34 @@ public static class NativeMethods {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA3UWAEVsnn
-# 0LporfH7yIP+Ruij/Y2tuX2nv3lzLaklajANBgkqhkiG9w0BAQEFAASCAgAHRKSr
-# i/jlzYi9PuAQ8vAYpWnLXPT8KGvz9cBd7/mNBH2CDTLyowSh6PMtcak8INpLrMnA
-# gtdPLqIAicHD0xURNrHFIm3pICcIOcTwgw3xcJuWADeVFVD3UZHu3KTScNqPfGwF
-# /4fbDp/oxVix8dZIXw8fvk/tNabTz2drpqfoOPEALabjMpi31ktjHZCeV5O+d3cK
-# 3460f1nYFPGBpseTpuvoV/0SsH1oJ06g1oWIfj3ENbMYKSe7dKcDgz0uHx7eP5ea
-# p5tHTakZknQEsaXLUeejCpbsKaTR6fn9ohJUFhXC1KFn+ljbu3lbRpsoVnNgGElG
-# HJ1In/dG8WDJueJenwUWEO7rHN/2f3SDrmzK/PoAcOeWumg/LWtg/5pRfUMhzTV3
-# Pk0oVkebFAGuTZw3aFBJW3nyiLF8zgpysfYEni3crmRda2mTOfXTxLKrg6xg2GHx
-# uKFSAHx6gl3FOqF2OLJXt6xgMUjtYe0kTQce6IPz3tJbzzJ3dKLJasRBYUvn0adS
-# Fb9vYV4S4pyog/QNIZjJUBGkFdIcjnzsNuIQxq7mP4ELFGWZ0RhMGhg5NNGsU0DY
-# cewj3jbUsm8WCMq+MEagVYIHTZdKSMHZg4Q5Z/tzDkuO+nc1nZNRfcvezp/5WlLy
-# rbSe0Otz1UsNe+Kp2E3NIU7VLE79qGLE/clrZqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD8U+lGDBGB
+# Eu7RBCb9aLyZ7Z95f1ZZXI6Aajzqk0GIJTANBgkqhkiG9w0BAQEFAASCAgAAIcHC
+# minxWJTNARt+8wMWL3B2PssXcyTHjfVPRYrQVRhaNNMF0lzUQqpONkWykhyjhzgi
+# YJNXeA6EkKEb04SArzuGbw7t64qyrpJDToPoDNjRZUsYYdcDRd0pkT5IhTfO3CDq
+# cgZ4RFIOWm8sWQjq1KQBlBlXrrrUpTqR5/7rsAyKJFpm1Joe80gWeToJHxxGnPWf
+# 9VnpLeLpTTF/+OwoDzdCF8/N47dtAkhFqOwL/fob1mGfw+alh1vuNruTADqUJK/0
+# mGjSWxg57RBAm6H+iAbqQ9xOUsLvM3cEh54b4VwBBa9YDLwWORtyXjzLMd+kkrpH
+# S9Ql9CbGDijU56CSr9rlgtoY9HBAQYKhiadkcHfbTQz3Jio8Ae0ily/dbqKxbBu2
+# SyZKkJj7anQR4sUWTZe1hDXBXCK50m1p+kHtMelu04od0dgr6bcomIpXs06D/Uxe
+# +d0TMi8n7R85bX0xsvnk8pFfvKDXaRRsZA3UaVKDyUT6zTTDQAWVT2GsLnI447Bc
+# fHwqisOdEPMWHgQn2K4FFcttWiygmQ+QTkMmAVACM1sNfMQCy8OIGy42h2eoxWp8
+# pBdp9bHu27BaCugxEj5CbHYcdyv7zt+L95opYSoqz8uAZQhr7Na2sQeU9e9Y9vZ3
+# 8w05phcHmsoIkYahORhqrIAX4Zlc/RX9ckLssqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDcyMTQxMjNaMC8GCSqGSIb3DQEJBDEiBCCXmSA0Ki2CR7pbwkyC
-# ISoJQ4VUdUYm341l24Vx9s5FsTANBgkqhkiG9w0BAQEFAASCAgA3ts1zleSW301D
-# s1rAnvFvMr1wQqmMGED18yS4RwQ3boC75OmNfexIWPxc8o5FquzhYO9xjC4oyMai
-# G/wjKwRebKLyfuXQdo2wSD0pREerlf6QbNApe64+9jQdcWkGDXSPHZduwnutynY3
-# VmSWxi7HV+0Q1Kgqx7uzelUkcn5arMM+mMc9HkFiKsKUgtLJfr7rgiz4H/5Qfo4f
-# L6w9M9dOu5w/CvTdh/92H28cMNrF0A6jECfZw+qZpy92KVZSuzygwWfZpZc7yhUi
-# n6jXhiBAfH5BUWuiCM94lKwqPMDbZDt/I/nOQCWER/F+bc1M+Mb7CelA5U4XIWid
-# z3yZYfs7ehfCWOXnDW75p9DjqqhpG50Vudg9l7zbYSm+9pdk1bd/BtQ+8SyFCAXj
-# J22KRO3AZh46qyaFPc6m8EEoS9VuDTCQSDOa81vmiM5yTroootMD/XUmTm61m51Q
-# Zeq2JmfhJVL6tQnAQWgGh73bo8Z02xZjy1zAOQUxHNBiZISoi0Su1tW86B+O7PUd
-# zD5lazSgOLZTV8iWtphR96hFiFsZ7HNwPelVr1o2ztOfEFW3aNmYqxApdny5VPP6
-# sIbVrZOw+HyfP2OwHgIhq5PwqAQc4rDv67UHMVYNXT4RYC3GZV//Euf1tiw2dclb
-# /EaH+YLLBTNjwJs704APsUuB7L0Qaw==
+# BTEPFw0yNjAzMjYxOTM0NTNaMC8GCSqGSIb3DQEJBDEiBCA/msBynnFX30i8PUlT
+# kRXTW2tueZyLyae93nUEkS0t9jANBgkqhkiG9w0BAQEFAASCAgAzUyHD54G2pEna
+# GjeYpT7s2xH8HzGc93BZhgO4MR8zgso8yu9ZKr22Z8ZuA175Un6Kg2R9cczxexaw
+# DlnU7/Cl3YcZnm3B4KwTSl531P8CdUvTbjirLhpZtHjcM9G6bxmk5DDqGntJl7vl
+# aZvHAR4nd/zeR/9eqoK667yhO3GhiKs9j4UQ4atf6+j+KYQYUHiG9yxvyJ0on9SL
+# XoBjXq5BPZ8pJoIayz4DkHSHnxk1FPZbWRLbFFc+93V5B6t0p/fqEfYe32nAmt7G
+# +E6BGu3SCdSMlK1I/ht85xnQq6ZhSTAXFdqr4I+39spA5IC+i3HtPhUEKNSBy1TM
+# TeJ/e6NLpXGf73WhCi4AExacrDYXlYRdMVV+WL0NZNDK+8fRY5lSclKmAeROfXw7
+# Uw5XFp7EnDqDiRS7O9QKg3+Nn8zgtAMSCsfcWWMnIE250YSAzbeAflC6amNkDNXK
+# VyUCa0ThJN5ze3LQphRtFc46Jo3mN/zfpWOOtqJB3qIKYMlwzHt+dTIlRwR+YLnx
+# T9givjdIAEJkHRxO1Pmf0xn3dxkxxMcljANQzajdsZhUk+YXji6FM6SQJDyG8stL
+# iKlb5uPpc4jlT2i0cub6vV/m9VZVYP4GzjbIWcw/rSxwejELRL+cMWUeqe7zbZOC
+# 3unGEA5to4HPjE4eIwJmpJzx2an94A==
 # SIG # End signature block
