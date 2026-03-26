@@ -2,68 +2,84 @@ function Get-AuditSharedMailboxDeletions {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Mailbox,
-
         [Parameter()][datetime]$StartDate = (Get-Date).AddDays(-14),
         [Parameter()][datetime]$EndDate = (Get-Date),
-
-        [Parameter()][string[]]$SubjectContains,
-        [Parameter()][string[]]$SubjectRegex,
-
-        [Parameter()][ValidateSet('SoftDelete', 'HardDelete', 'MoveToDeletedItems')]
+        [string[]]$SubjectContains,
+        [string[]]$SubjectRegex,
+        [ValidateSet('SoftDelete', 'HardDelete', 'MoveToDeletedItems')]
         [string[]]$Operation = @('SoftDelete', 'HardDelete', 'MoveToDeletedItems'),
-
-        [Parameter()][switch]$ExportCsv,
-        [Parameter()][string]$ExportPath,
-        [Parameter()][switch]$PassThru,
-
-        [Parameter()][switch]$UseSmtpFreeText
+        [switch]$ExportCsv,
+        [string]$ExportPath,
+        [switch]$PassThru,
+        [switch]$UseSmtpFreeText
     )
 
-    # Init pipeline, connect to EXO, etc.
     Initialize-TechToolboxRuntime
     Import-ExchangeOnlineModule
     Connect-ExchangeOnlineIfNeeded
+
     $cfg = $script:cfg
 
-    # ExportPath precedence: param > config > temp
+    # export path precedence
     if (-not $PSBoundParameters.ContainsKey('ExportPath') -or [string]::IsNullOrWhiteSpace($ExportPath)) {
         $ExportPath = $cfg.settings.sharedMailboxAudit.exportPath
     }
-    if ([string]::IsNullOrWhiteSpace($ExportPath)) {
-        $ExportPath = $env:TEMP
-    }
-    # Worker path + existence check
+    if ([string]::IsNullOrWhiteSpace($ExportPath)) { $ExportPath = $env:TEMP }
+
+    # worker path
     $workersPath = $cfg.settings.sharedMailboxAudit.workerPath
     if (-not (Test-Path $workersPath)) {
         throw "Shared mailbox audit worker not found at '$workersPath'"
     }
 
-    $results = & "$workersPath" `
-        -Mailbox $Mailbox `
-        -StartDate $StartDate `
-        -EndDate $EndDate `
-        -SubjectContains $SubjectContains `
-        -SubjectRegex $SubjectRegex `
-        -Operations $Operation `
-        -UseSmtpFreeText:$UseSmtpFreeText `
-        -Verbose:$VerbosePreference
+    Write-Log -Level Info -Message "Running shared mailbox audit worker for $Mailbox"
 
+    $params = @{
+        Mailbox         = $Mailbox
+        StartDate       = $StartDate
+        EndDate         = $EndDate
+        SubjectContains = $SubjectContains
+        SubjectRegex    = $SubjectRegex
+        Operations      = $Operation
+        UseSmtpFreeText = $UseSmtpFreeText
+        Verbose         = $VerbosePreference
+    }
+
+    Write-Host -NoNewline "Searching audit logs "
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    $i = 0
+
+    # Run worker synchronously while displaying a pulse indicator
+    $results = $null
+    $task = [PowerShell]::Create()
+    $task.AddScript({
+            param($path, $params)
+            & $path @params     # <-- synchronous execution inside worker thread
+        }).AddArgument($workersPath).AddArgument($params) | Out-Null
+
+    $handle = $task.BeginInvoke()
+
+    while (-not $handle.IsCompleted) {
+        $pulse = Get-DotPulse -Index $i
+        Write-Host -NoNewline "`rSearching audit logs $pulse"
+        Start-Sleep -Milliseconds 200
+        $i++
+    }
+
+    $results = $task.EndInvoke($handle)
+    $sw.Stop()
+
+    Write-Host "`rSearching audit logs done ($($sw.Elapsed.ToString()))   "
+    Write-Log -Level OK -Message ("Matched {0} record(s) for [{1}]." -f @($results).Count, $Mailbox)
+
+    # --- Optional export ---
     if ($ExportCsv) {
-
         $cfgAudit = $cfg.settings.sharedMailboxAudit
 
-        # Ensure export path exists
         if (-not (Test-Path $ExportPath)) {
             New-Item -Path $ExportPath -ItemType Directory -Force | Out-Null
         }
 
-        # Ensure log path exists (for logging the export action)
-        $logPath = $cfgAudit.logPath
-        if (-not (Test-Path $logPath)) {
-            New-Item -Path $logPath -ItemType Directory -Force | Out-Null
-        }
-
-        # Build export filename from config
         $ts = Get-Date
         $exportFileName = $cfgAudit.exportPathFileNameFormat `
             -replace '\{yyyyMMdd\}', $ts.ToString('yyyyMMdd') `
@@ -71,27 +87,21 @@ function Get-AuditSharedMailboxDeletions {
 
         $file = Join-Path $ExportPath $exportFileName
 
-        # Export
         $results | Export-Csv -Path $file -NoTypeInformation -Encoding UTF8
-
-        # Log the export (logging already initialized)
         Write-Log -Level OK -Message "Exported shared mailbox deletions to $file"
 
-        if ($PassThru) {
-            return $results
-        }
-
+        if ($PassThru) { return $results }
         return $file
     }
 
-    $results
+    return $results
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBbXOowB8wQTcfS
-# CjGhum+JKLsTPi0iSmshareft8mVyaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBmWHQuKEyB7ceW
+# P5viCJCWH1gTthc8L3ealJN3VoWODaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -224,34 +234,34 @@ function Get-AuditSharedMailboxDeletions {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC8a1r3Gopa
-# zJYlJBVh7zzv0eO3tJy2F/qbIX4vx5PExjANBgkqhkiG9w0BAQEFAASCAgADoQI2
-# 59ymarK8lMAOLmtSunOxNDrVdY6+/cduqFBmSeldmgLWy9ZgQDNS5LeJoIo0M7BE
-# OZ/MGLgRyfrcfCUMed07aSZXxU1U8VE+FLUauTvXvYDRp/MXiz0sJ46e1STva0gE
-# klAheG+XXJIQIorfZxdu6BZz6lgTOzXaKRHVT1nCtYAfJAJvU1jIOWzsxVZXoZLd
-# q8coOXbYuwQ0puYZIm4qIIJq7jSd37wx/tPNQc/pSjfug1FFDgNWOtXhwW7qANWl
-# r6SmPe65erNBWy5tC3frmF5rSRifX/psiKMfpul5t4Gy5XA6k8WCCxrGYUvmVQmP
-# RNXYQ/G1TeWtfP8n+6YUOwCkDzUJjWxyRq88HxjyK6+ygxnmpGHPNKx5/unLdG7g
-# TReROgEh4gA0Mt6QPEUMEbkNhvsUUxISo9Sk2aWI3iBXVJgEePNIb/Ua36fB2yVU
-# cyaTH32sDkhyG5G7VilVgZzEEGD9yaWlunvLatEtOg3j8YzLqM9X0wEl0qFJ74Cn
-# WGcIv4TNqsyHF9LVxgj7zVYH44eeGkxLUG12vszZAIc70gs/tIg+f7+cvNv0K+cQ
-# 0wrzHGICp+v2blBF202dPpwTJOJrFrt9x+7KlTTqnqzXoQ8XwDhodoCN4PHu4koq
-# PwiZlCKAc/UEpmTR13eZC6U+Po/r91x5H3Hw/6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC56PkpHR+W
+# Mj6QkD/NMFLCwvbtgHOyLhpHMg82NLHgLDANBgkqhkiG9w0BAQEFAASCAgDPxtoq
+# tGQR2t3ldU9vo0PiQ+rQ7p2X/4eqDH6E4VqyjX6ndFfQ8U77LQ5QuxFURGac0c7h
+# obHaTGwDQXWbYNMvRZ8G1hJd5NAywaWiU5m65hDgodz2hO4zNvyxqdZH1vdUtVB2
+# Uuk42t3CO4p0YhDdbpNTiAmgWuW2ixhSq++GkViLR6ckSiY7DQ/1zPxDpLEQ+OCV
+# XGWCC9iWBiJ7cK8BbaLOWx+bmd8DbtHCpYwdHFgk1tOwSz+DrExI5t5gf/RW9lra
+# ygUc4Rx2tncer85J2jScRMTzJ19wm67lgmDdAx5yrO4Z6jq3pgxwCGglkxOc3M7C
+# kg7isJWO66Of0EAsMi6vD/arAaXKejyt3f621YLA//IZ1JUqS73iOp9mHb04trvl
+# 6LyKptQVIcyQ+l+YvMNAG0Z+UekjtUnNE/VJBqgL2iPdMnkMSFiIEfNEBxdhgjk+
+# QUqy+cFaU+T8bTHw9/vXcoa0bqYppk7fnkm6/7u2KOqSKvIdhNgKY3fHaYG/473j
+# xamjOBpB0TIDaPUJUjcZL7LswqvRPlk6M3AHoXHnB2ZSVxjZ8L8xl9FjQkyAcxoN
+# 6rcqED96i+p7s3MFX5BKq263uqLxz5PiBugMXjzGVUkcnLyHkdRAyoK/iRm8LH96
+# 6jsjDml6WrCb++eAsOrK7vZoHVXGk0dL4zwp5qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjYxODEwMjlaMC8GCSqGSIb3DQEJBDEiBCCXOQAs/OuI4axreyfe
-# FicYfwnkJRvAksncQ+NRjTwSMjANBgkqhkiG9w0BAQEFAASCAgAkVpoAwiOEqnO0
-# XIgaZAn5cp5ktq6QuMvfPinuQ8TjI7tSVYpJliqrPx8g8Y6yA7PKM9N+Z9vo8piG
-# NLR7FH+hS8u62LikaW0H4y62hMimvu+pzTJ1bXv+Oe4MbzAqxGB/HdJ8lAKfZJzT
-# uCQICGgmQYEl8dH+wAlpp0qjuaYtdUZM/NOYrdRXdZ7eDk6vMjOwONuD0UHoy4pw
-# oOiZIHc/f59KzgbVFQ961vfQQNTAc0U8f4H7PaaTsH1CkC7/c7hiA5YVtoZ26Y1P
-# jLEC+C1cBlO0elR50hmy1DkkvUG1m+SA/0iQhREbsaD2+qgJaz5VQsyRO6UcpxJQ
-# WrwcAy3aLQUPTAsgJiwo8LLUkTpTZdkwar4x9YllzrmvFcnJQF9LChqKj238UNOj
-# Vy4RHB/PqkfEroj96qYjnqyAsFhbOrH37WchySm8uFdBgAwfwqBDboKp17PIJjPM
-# sFogzBRODOTOU64E3RvxzTMS+eX6XvFzQmRfsINzk6a42COB+NgmVszyi4dRHChf
-# Oun+Yj4+ppR2kwQxFPWLfTmKYBBhMqhYestKO6xV7n73OnQcuL/KdJNN0oadRao5
-# bSwe5uzylLJEwknq+KtbAz6Qnc2cjzjA2mkHEMV4FSrORanbiswkWYtB1xa3NB/Z
-# lGxw31PVuxQrNek2B5M8ZMuUiM8ydA==
+# BTEPFw0yNjAzMjYyMTUyMTRaMC8GCSqGSIb3DQEJBDEiBCD+68QikYja2jzax/WU
+# 5SQy+9+6E9KUC14UuvRxsSaWLTANBgkqhkiG9w0BAQEFAASCAgAjTWG7EXkT5nzc
+# UzGqew9myi45x/Tus5IwAyrwsqsB4nzN2Xf9x+mcTc3X6Tx8uB8WnR/RXIFOLe+g
+# rVvo/8EX89beY4SWFaKTK1pPd5CHQSwBVxAwvHHHoREqHqqxakBQKqgs/T2j7c95
+# zdWcPX8J6cbsWYEkVO13wg3CxOpWbKhSBPib4VGZyX7ekTj4ngkK79728CcCcFbh
+# hsa8dTDWvpaNUZUdqGXSVWOzZzynV+XdoTRCAg7oi9HbDNOAP57QEFJlSJVRoygE
+# JmBj20C7u5Hx+XYfYie3l821WWO09GE+Q5BG3voR+08uWkXI/Gw4b0ble3xHkAx5
+# ot2oOpFi8vElQz23xBEnfno+FKcAdEMrjCzexuGk4CWWYJ6jrvgfHvZQ5spqPjqr
+# Cahl97lNtbfZCkw+vXzX74o4C7rTjM+/omNN1NBTIdcsWXkEXPE4/68mbsBPUYkZ
+# t17/XfgZo+WQPMn2mS667y3G81QMIV64SZeJGnbhIw3KGJSN25MUmdCiq3oPFw99
+# cb8OuLwmauxDXDBRz1O0S3xPELY+QGfShTnEK9Utniii9OofMkFztRehxhSobWje
+# O0CvFndnp0mg9NL0SoiVj23dJ1+cyhvu+qQgFb1mCiCdwy7PcvUws7X02Y9JHBPb
+# pg2H7/5N0FgYO586NvR7kSqG7IDEzg==
 # SIG # End signature block
