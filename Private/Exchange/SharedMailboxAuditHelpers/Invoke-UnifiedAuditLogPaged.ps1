@@ -10,9 +10,19 @@ function Invoke-UnifiedAuditLogPaged {
     )
 
     $all = New-Object System.Collections.Generic.List[object]
-    $cmd = 'Initialize'
 
-    do {
+    # Initialize audit session
+    $null = Search-UnifiedAuditLog `
+        -StartDate $StartDate `
+        -EndDate $EndDate `
+        -FreeText $FreeText `
+        -Operations $Operations `
+        -ResultSize $PageSize `
+        -SessionId $SessionId `
+        -SessionCommand Initialize
+
+    # Page through results
+    while ($true) {
         $page = Search-UnifiedAuditLog `
             -StartDate $StartDate `
             -EndDate $EndDate `
@@ -20,18 +30,16 @@ function Invoke-UnifiedAuditLogPaged {
             -Operations $Operations `
             -ResultSize $PageSize `
             -SessionId $SessionId `
-            -SessionCommand $cmd
+            -SessionCommand ReturnLargeSet
 
-        if ($page) {
-            foreach ($r in $page) {
-                [void]$all.Add($r)
-            }
+        if (-not $page -or @($page).Count -eq 0) { break }
+
+        foreach ($r in $page) {
+            [void]$all.Add($r)
         }
 
-        # After the first call, switch to paging mode
-        $cmd = 'ReturnLargeSet'
+        if (@($page).Count -lt $PageSize) { break }
     }
-    while ($page -and $page.Count -eq $PageSize)
 
     return $all
 }
@@ -39,8 +47,8 @@ function Invoke-UnifiedAuditLogPaged {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBkpXajWAA5zpFK
-# GuufGPyRqzyR3vGp0cfYJhB1C6dFvaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDUtHOr8/0z/jL8
+# j5djG4dna9kCQO9JvW9zHc8dSZT0YKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -173,34 +181,34 @@ function Invoke-UnifiedAuditLogPaged {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBZ4tOMjHm1
-# b2v0sJtqku566SmNivNpHRFInuWima2MczANBgkqhkiG9w0BAQEFAASCAgARSoFq
-# kiAYzfuv3J0MpzKB2uh4JPr8gEkkdaHi00FK9E/4OzXUaM4XxwhE8DywIkfOqzwa
-# 2MpwCiWXjOEEQsCRCrnkGke5J8SluTX8OEhBfCfURpL1jRRJSY3k6Ta/qinTx+a9
-# coCPfZVIf18aIq4S67L+eXXmsS+1gRsxHY6nqHYYf6pxMHVKX//+ScUFXP4FRIsm
-# qRD9Yh6chXxSA9ohSbMRVuvh57iXXfVD/EAXxiZQUrD9VapmuK9guxhKvDR83xo6
-# ZiS2k+BkOWIF5W2QIACHRUfv11VcdMfeKh3jX4witVWSSIsVdmsJCupJYd86Lyyo
-# hOOdpoHreqzt0Y+J/vXYji3N0gHGzpZGgZL+gapkakt3iyL4R6a9S1+q2TKUJdXw
-# fS4fLnbQTHGjdzVN6izFlYUMwYBiUhiqmuR5g8fXLWCt0uriV0avFi1IPYodY1wH
-# j1CW4T4MFjeBlFxdchGOWa7vU8WHBufDfvMHbgA/F/XjynnaON14geJwupqHCGJb
-# vSphI9wDJSayDjjsxM6PQjsLnaP3LtfiYDo9O90kcADBneIQVTvzjK4QbHpNFqcW
-# 7J178gPXnUJhQUwhOecBANshw7sXsF6Gu/6zKeyWDBjVNYmAsgwOPaPCyuH7rZzQ
-# 0E1KPhz5cjgQLTO+QbRGYI9cyvzJcP5TssLXd6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDSVBQXNnxe
+# TAreWGiFkta6EHj/0gQotKbn7NYJ9PK6mjANBgkqhkiG9w0BAQEFAASCAgBUDL6R
+# hraC0CnAfq78y8WDY2ERrE6a5sZgw+o8DwZjQHNRyMY4HDipq58ShBwzyW1pKAAm
+# 1Cmvi7BmwRdfGZ7OtDKcybqHO7fpLLYFVvOSF1SytLc+8+Q5JWJkJRrNbkFqVbSb
+# 7cgRWsWGpEJC3Eqr40CpBN1ElIPc2OBC0fJUEFrYOtcj5GgLcz8CUuTl9zEeWh4c
+# H0X22ove5Jt0nIC0mkbV8WBElgTCDOhk3WW4mJW/x7rdOaQuBirepULeZVNokbRG
+# y38WO2mn7/ad9vCYFt1bRjGUGt9i0tS0iZWMzV1oqRppx2MNdrLWRfF5gKq55dRC
+# H1swkmeo7LcyT8bqj1Y8AKHvYCZbpE4tHdCfdyA+5VplucdM2lZexrTLcJm71Syv
+# jD2rdAv1oFpVOwK7uYeRewmtgowH5SejSkIaAYOt07/crHbvLLxgXrS7zBnu5ec1
+# mAtxTDPepsbNiJ7DxcchDq/k+ODacZ6EFY2l2Uv1F9Az1Gs1NARVd21GKakMtKAm
+# m3VYgzSEMyE6VkRWTMHesKiIrYmgsuaZqMFxhL89UgMUkRQyFXaVr29e/8nX+CLD
+# AZ76PH7mQ1vvyJtvt6LBImo8GkZuKLaFFZADpiT6EMmd6PTSJV3Ls6+Iwnkg8EVm
+# oMoj4/l2RLQ2bkrqq3csv4vJrrRo6pn4tDRvC6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjYxOTAzNTlaMC8GCSqGSIb3DQEJBDEiBCA8wL5QFmVuPU+fMOwN
-# Ssdsq3mdhVnOFo/kuYqx+1SpmDANBgkqhkiG9w0BAQEFAASCAgAfXimrAtTqMB8l
-# bGnYy8vo/A4CejLglChjIrcQyj6Wk/HiW5fDP8APGD/qnjLOAaZgJ1RcKeu5em8W
-# AOadkf5q41Ibvp5i5JbV+HdGXYJneHk7rn2G52GWTaSdymalhfD25wS1XZ8rcH/B
-# tx8x6MqHOqGeFCDyu3lXfCMJfvPQacOVz35rc8wfO81g5bPP3M6w35eAKEpw1aQq
-# UAZwJeVQG2FTjNMqoHkUqfz9KgNbOkkWqsWQeUQmR6vP+5Vm1u9E0LRfZPih1t5w
-# gSmabNuzZBXBpBv1urvZpwgaLjJETDCr6UhUnuYT5bIF/DbVw1U0i5AHeLJLplDJ
-# 7453epioBv6UqfDe58P2PT/dGPgvT+GsWIutPbLd7ELmRzR6Hqsn6molkWs3ccJ4
-# 0eMBlsdOvZLROHKaMKVItbaImKYjH9a8Tppyo2HC6Pt2mfpJ58Pj1a/54FeznKrY
-# 53NScYuvQYI6c7h1TBx/OfAtuyW2HbMMQMZurny3rHK6lTgr1px/W0FrrnqORDtR
-# Cw/l86WM7lvG0+zCwvyRQfjepbwBKTzZB7ihGQsGw1rka4OglN+xR02jJF5ZxRnl
-# f5a9bU067Y32kAjmMzQ7VHXGYwzd3k+5LrQckuIgDuk0spw87qErkv8sAAEad9h5
-# 60tpcaThWBN0v4ifhbuEPaWdNmFzyw==
+# BTEPFw0yNjAzMjcxNjIzMzVaMC8GCSqGSIb3DQEJBDEiBCAIQoaDPq+ERojnT3BK
+# /iW66CDkjKaW1zJ96/2iO0H6JTANBgkqhkiG9w0BAQEFAASCAgB1hh1T83wxW04x
+# mohszEu52Z0+koQJjnxnxnRqXISuJ7YsKUB+OP81mG1nIuCDhJ/3eyks+aW/ODQA
+# X++X5C5y6wUfmIPE6Yn3todDsMUJfWIlJXaLIcqfL4F3KbY2fCg8zLqqtwxM8mQj
+# fMMh+Jrih+umtsalrr3MDa6lKeLUNRN3/hbfJP0Q9zTn6+xRSrdxtIV7nCTXlE7/
+# npZpO/0BoES4Og4sHjd5cMHQMpQPm5rCfaGaq28XLZHUO/IdDHpcy95GDf2jyPF1
+# 3xl9avuVndAa/sh+06IwuexKqSUNZdTcuu5oZ7cecV6kjqyddelbWIJy0VMCfBlq
+# AA6qW8FGEyL+pwaQ/KxbJlnaLqgTgoi7ZFxeYDteIpyQHVDcywBiFj/jWsbmw0xR
+# UejTnJprbzf1tHQ6PdByw/u7y/GixaVdredlsNq2hW0yhPSp8U0yphyc8CCq0Jej
+# Tiqv61kl75UxRouVa/VSLMy5BsT7FRvbOQ8lsuN/6DIhznGyeZg3cEs89pruyW4O
+# f0PTE/hlGT0GkFwUAx1iR0hjlKHN8y3UiNRhrozMlzPUCDZoJT8j8Gq34gJsVYkN
+# SU85cX6ynbqYXQlc/cHcN28abUWlBJ+7c50LW6GbEHAsU0yIxJ7VUn8Uxhs4qCCT
+# PA3khOJU+3vrNcMNpAZnRlI+jJqDSw==
 # SIG # End signature block
