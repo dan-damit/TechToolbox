@@ -134,340 +134,12 @@ function Get-ToolboxHelp {
         }
         return
     }
-
-    # Clear-BrowserProfileData
-    if ($Name -eq 'Clear-BrowserProfileData') {
-        Write-Host ""
-        Write-Host "Clear-BrowserProfileData" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Invoke-SubnetScan
-    if ($Name -eq 'Invoke-SubnetScan') {
-        Write-Host ""
-        Write-Host "Invoke-SubnetScan" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-RemoteInstalledSoftware
-    if ($Name -eq 'Get-RemoteInstalledSoftware') {
-        Write-Host ""
-        Write-Host "Get-RemoteInstalledSoftware" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # New-OnPremUserFromTemplate
-    if ($Name -eq 'New-OnPremUserFromTemplate') {
-        Write-Host ""
-        Write-Host "New-OnPremUserFromTemplate" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-BatteryHealth
-    if ($Name -eq 'Get-BatteryHealth') {
-        Write-Host ""
-        Write-Host "Get-BatteryHealth" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-MessageTrace
-    if ($Name -eq 'Get-MessageTrace') {
-        Write-Host ""
-        Write-Host "Get-MessageTrace" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-TechToolboxConfig
-    if ($Name -eq 'Get-TechToolboxConfig') {
-        Write-Host ""
-        Write-Host "Get-TechToolboxConfig" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-ToolboxHelp
-    if ($Name -eq 'Get-ToolboxHelp') {
-        Write-Host ""
-        Write-Host "Get-ToolboxHelp" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-WindowsProductKey
-    if ($Name -eq 'Get-WindowsProductKey') {
-        Write-Host ""
-        Write-Host "Get-WindowsProductKey" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Invoke-AADSyncRemote
-    if ($Name -eq 'Invoke-AADSyncRemote') {
-        Write-Host ""
-        Write-Host "Invoke-AADSyncRemote" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Invoke-DownloadsCleanup
-    if ($Name -eq 'Invoke-DownloadsCleanup') {
-        Write-Host ""
-        Write-Host "Invoke-DownloadsCleanup" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Invoke-PurviewPurge
-    if ($Name -eq 'Invoke-PurviewPurge') {
-        Write-Host ""
-        Write-Host "Invoke-PurviewPurge" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Invoke-SystemRepair
-    if ($Name -eq 'Invoke-SystemRepair') {
-        Write-Host ""
-        Write-Host "Invoke-SystemRepair" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Set-PageFileSize
-    if ($Name -eq 'Set-PageFileSize') {
-        Write-Host ""
-        Write-Host "Set-PageFileSize" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Set-ProxyAddress
-    if ($Name -eq 'Set-ProxyAddress') {
-        Write-Host ""
-        Write-Host "Set-ProxyAddress" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Start-DnsQueryLogger
-    if ($Name -eq 'Start-DnsQueryLogger') {
-        Write-Host ""
-        Write-Host "Start-DnsQueryLogger" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Copy-Directory
-    if ($Name -eq 'Copy-Directory') {
-        Write-Host ""
-        Write-Host "Copy-Directory" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Reset-WindowsUpdateComponents
-    if ($Name -eq 'Reset-WindowsUpdateComponents') {
-        Write-Host ""
-        Write-Host "Reset-WindowsUpdateComponents" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Test-PathAs
-    if ($Name -eq 'Test-PathAs') {
-        Write-Host ""
-        Write-Host "Test-PathAs" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # New-OnPremUserFromTemplate
-    if ($Name -eq 'New-OnPremUserFromTemplate') {
-        Write-Host ""
-        Write-Host "New-OnPremUserFromTemplate" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-SystemSnapshot
-    if ($Name -eq 'Get-SystemSnapshot') {
-        Write-Host ""
-        Write-Host "Get-SystemSnapshot" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Search-User
-    if ($Name -eq 'Search-User') {
-        Write-Host ""
-        Write-Host "Search-User" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Disable-User
-    if ($Name -eq 'Disable-User') {
-        Write-Host ""
-        Write-Host "Disable-User" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    #Remove-Printers
-    if ($Name -eq 'Remove-Printers') {
-        Write-Host ""
-        Write-Host "Remove-Printers" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Initialize-DomainAdminCred
-    if ($Name -eq 'Initialize-DomainAdminCred') {
-        Write-Host ""
-        Write-Host "Initialize-DomainAdminCred" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-DomainAdminCredential
-    if ($Name -eq 'Get-DomainAdminCredential') {
-        Write-Host ""
-        Write-Host "Get-DomainAdminCredential" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Enable-NetFx3
-    if ($Name -eq 'Enable-NetFx3') {
-        Write-Host ""
-        Write-Host "Enable-NetFx3" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Initialize-TTWordList
-    if ($Name -eq 'Initialize-TTWordList') {
-        Write-Host ""
-        Write-Host "Initialize-TTWordList" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-SystemUptime
-    if ($Name -eq 'Get-SystemUptime') {
-        Write-Host ""
-        Write-Host "Get-SystemUptime" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-AutodiscoverXmlInteractive
-    if ($Name -eq 'Get-AutodiscoverXmlInteractive') {
-        Write-Host ""
-        Write-Host "Get-AutodiscoverXmlInteractive" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Start-PDQDiagLocalElevated
-    if ($Name -eq 'Start-PDQDiagLocalElevated') {
-        Write-Host ""
-        Write-Host "Start-PDQDiagLocalElevated" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-PDQDiagLogs
-    if ($Name -eq 'Get-PDQDiagLogs') {
-        Write-Host ""
-        Write-Host "Get-PDQDiagLogs" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Invoke-LocalLLM
-    if ($Name -eq 'Invoke-LocalLLM') {
-        Write-Host ""
-        Write-Host "Invoke-LocalLLM" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-    
-    # Invoke-CodeAssistant
-    if ($Name -eq 'Invoke-CodeAssistant') {
-        Write-Host ""
-        Write-Host "Invoke-CodeAssistant" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Invoke-CodeAssistantWrapper
-    if ($Name -eq 'Invoke-CodeAssistantWrapper') {
-        Write-Host ""
-        Write-Host "Invoke-CodeAssistantWrapper" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Invoke-CodeAssistantFolder
-    if ($Name -eq 'Invoke-CodeAssistantFolder') {
-        Write-Host ""
-        Write-Host "Invoke-CodeAssistantFolder" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Watch-ISPConnection
-    if ($Name -eq 'Watch-ISPConnection') {
-        Write-Host ""
-        Write-Host "Watch-ISPConnection" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Test-MailHeaderAuth
-    if ($Name -eq 'Test-MailHeaderAuth') {
-        Write-Host ""
-        Write-Host "Test-MailHeaderAuth" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-AutoDiscoverXmlInteractive
-    if ($Name -eq 'Get-AutoDiscoverXmlInteractive') {
-        Write-Host ""
-        Write-Host "Get-AutoDiscoverXmlInteractive" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Set-EmailAlias
-    if ($Name -eq 'Set-EmailAlias') {
-        Write-Host ""
-        Write-Host "Set-EmailAlias" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
-
-    # Get-AuditSharedMailboxDeletions
-    if ($Name -eq 'Get-AuditSharedMailboxDeletions') {
-        Write-Host ""
-        Write-Host "Get-AuditSharedMailboxDeletions" -ForegroundColor Cyan
-        Write-Host "----------------------------------------"
-        return
-    }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAFslKk/0Ba7GRL
-# J1zn2Bai1zs3bAl9uKgvHK+2BA00aKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDPv1kQcHIYH3Qy
+# MCpE5gMrJzRM7rwSk8c/aK8DV80FRqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -600,34 +272,34 @@ function Get-ToolboxHelp {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBN+kOPbZCg
-# O/xph3/MyaCxFV376aX55yhRX2ynNj91nDANBgkqhkiG9w0BAQEFAASCAgBY3IrP
-# F/qH904irXD70oVUwLIa2WIRObRieXLm1QzKreFiDqBFHQ2wZ06JUQvxTS1o8/2G
-# dVTTWkGSYdLJh7407ml5EMUNJ1PlrR3of+0DgFTzdNOgM55PZbFM8S1zomQ6NWJn
-# qSFVg8qAM+zruBqyyrv8h6MKlcWLq9c1Kvu6Z17bHjNbRGZ6K8ktuALPx4cfepi5
-# vx9gDyYNFbnC0sOJXLZ0n7Eb0jeyRC0ucF8HhIwqUtR3dgiLBITtcpC2POVByf9I
-# JYuzlmkyX1WknHPT2xOcmIoVveo+265grYmvGAy7B0uOvdnquCCOMvAhHA9wrH6O
-# F0kjUdHgOQMyv5WRDT2lQ1vKz/l+oktRnrEWDqznmx8hrCG385fB6usUhhRy9j52
-# HOgdL7der7ZDU85PHw1q0AcBW2Ayf/1cWrsg2Jl3i0I05Q02HS2jp3Rf1RoVWXJ8
-# /19qiJV2FZDCt4Ep9B7l4GUhFuLaOdom77c4AIViErhkm3wkq1Rg78zn7+Veed/3
-# 59zVq3u2j1UKCfc6ml1tV+O/H+nqOyx16O5KVAo5fBzZWzDMJ81tKXnLWE9pwBxU
-# n009nH10Jm4EDZnl2eGNcaKT17AC6W/lT1e9A/+MRCR1Z7vJbRnOe7SCUcwcC4PL
-# OicZwp8RN/Cdv7UZAZGm9BLXSAFygDuq2r4g+6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBVgrzAxT7i
+# 6TBw0ydFCbpwT1uxEC0gdimJgcTybw+hDTANBgkqhkiG9w0BAQEFAASCAgBnnt0F
+# QPd20fmkHzQsw8G40+0/PxnV4ss69nNlzO1D7zLK6Yyf6bD/05l0Fw6Zfm8fRuS1
+# A/nj4Z4xV0Gl+ujAcgBGCqYsLSNM1QKR+8V66Jono1o9YKgztnX/F4/wyqi7E2Ch
+# kIwCmXWcFeY6c9QXglK/NLC6MkbUGOKyWdfSC7Y69hfHqawLgGFsrNCrarvUdRIt
+# zwsLP/xxoxj24FUU1Y+GZRjtbW3M97Ct7p1Fo+IwQ55161YBD/pGTIGzbzFXGtxv
+# nfvZEvpAdjMQ0jSiEwQ/yy/VQRTX6N1El8de4PvD3/mSGoYlCGCrhyO/u/4vkxO1
+# T63JiagZuJeaG2VkuGH6AFwzI902Er2ulNApMoYFLu8EhJlHII2CVwxvRg+ghjGk
+# QS7BaWbSRQLihXyf6tdWTzCounEaU3HYCDI4bSwFFa3we1xJy4x+sJq5GF/4Ldm0
+# 5hbnjw5r3ca/XIF1s1+7w2L4xs6SLMlElKcQI3H1mBHxQDo23RKtvaAAvJmL5RPU
+# u1JxyAvWNKOvzm9GO38GfjK+gjw/GwdCoSF9tcbAL6NgKFMINsB+UiX7plg3cMjI
+# CXTqi4+7Dqj8vfiFjUtrYqIrojw9feN0wlNjxuH1bzDWZxNq6D0oyMbMC+JMP3qB
+# lIQYoIMOrOeU0Wxbk14jJrmKlV8zOOph0WJ2RKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjcxNzUxMThaMC8GCSqGSIb3DQEJBDEiBCA0TnE7xBbWD9wCHIHF
-# 3FZGVamwjyw+Pazi6xnU6AOquDANBgkqhkiG9w0BAQEFAASCAgC/34b05WKZd+28
-# GylIMGpJhsyi7tzrmgfSIIaMffRDXrheMaM6D5rVdLRvvCPzMU+ivjbGjUXDzazX
-# WSqqLMXSgUO9gvCvfcF1bGG5Bx79LHjde8qvSmkH2HHcEwAEH/fDXY+JIRdTvROr
-# xm0f6ibynltYgQv5y8BxBpK4LemwJm5RBg8IsxCqEE6PoM3Lm0qsO0JyR5rFMBDn
-# 3Y1f4p+FsEpWtAId1wvbNfTuJqkSAAFyALYB+EdzSz33ajBCSiXj/9a5eUF7rpCd
-# uKBsnno6MKpEDNzb3gcB6lMtQLd/oUezbqByjl8kWuoEvz1tWq8iE4uU+txoxIht
-# oVBNb91W2ITzrpUddUYJYOUEERQXvA8/nFQbRn20O17vOMTNZSIq5Os2OSXbkXCm
-# X3ID3BhW/nQj/05ai262JoL4JF+17r4Rn7fqGF8a+NHiNR5baVaXbbSGy17+zSTh
-# sBZOwiFe6M4jx8h63RHC9HHphFvxeA3PCw9vSjIEfISG6b4fi5Z2Md5d1uEj7L/I
-# Y25WBAvMDU1Bsu5ndt7kbisd7AjS64kXbENO56tNHFR+G8lZcCucOOeddHoZ+WT4
-# RK/RrdwPx9n5Z2hKMOD0JYfcRJiuvMNSaoN0Bgr71RdN0hxW+IYnkwRuIsz5VrYa
-# 7Hj9r5MRUVUb3WPMHLpZ5LWN76FYSw==
+# BTEPFw0yNjAzMjcxNzUyMjZaMC8GCSqGSIb3DQEJBDEiBCARchDxZ6wY6VC6S+R2
+# 5o/L+JaDLfR6U14zEK0NclpgzzANBgkqhkiG9w0BAQEFAASCAgAt7IIMdEEOzuKP
+# NXQ9rHnSTsTNv7Pl/l6zIMzB/yywVClcawH2pTxrPjCsR69dAaINcbmwFvD25lsK
+# eepKGdwCZCjG4CGAcrt+vBciZtDWY4uO2aU0oluH7/Q46h8D6AoVjMcRiMQ15Wgv
+# 8//wRni1um/U29igGs+lnSvDxL5LdhKK26YXqTxZBYsJOv2SCQHgrU13GHLtCL5x
+# vk5l6O7DSgqXWSYLiKUYF8zv2312cOW+0SxA/nL+Kf37uG39Ixd0kArBQ97SGJcC
+# yL15inGccKyhup7WKUp/PSTuNjm4PPM7se1A1j72J6VKhJ1k0c31Tr366N4FcLva
+# pehy0aa3KiLHgc/BsG2UrlMRcsyDpOgn4wMGQNwzJEfDnM5wanPiw7SAUTZcLqCO
+# oPFZrCFw6QfcoQ0LFTv3dgy49JFHvTPablixMRApkFTEGjewT/npH1AQPb13Yxtf
+# kTxY6FXujNd9oJdXZEqdCdA0SSqsE8Ra+AmEE1Yt2PPQ7chrXlKOsmEnTBurHbIC
+# P2cJICS+5vjzynwjECWujx6Jx5re+rm4SEtL5Yqvt7AecLn3kyyhfOIdrOnNM1XK
+# Q8j6XSxhArHjjdfZ05nJyl1pa8CF/wUyhxF94+v0MDD3BX8NV2kvGsKUFy+1pvHv
+# Nheu179g3JjqKPsQxylwx3/uJQ/uHw==
 # SIG # End signature block
