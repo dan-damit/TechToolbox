@@ -6,64 +6,51 @@ param(
     [string[]]$SubjectContains,
     [string[]]$SubjectRegex,
 
-    # Expecting values like SoftDelete/HardDelete/MoveToDeletedItems/Move
+    # Expected: SoftDelete / HardDelete / MoveToDeletedItems / Move
     [string[]]$Operations,
 
     [switch]$UseSmtpFreeText
 )
 
-# --- Helpers: StrictMode-safe property access ---
-function Get-PropValue {
-    param(
-        [Parameter(Mandatory)][object]$Object,
-        [Parameter(Mandatory)][string]$Name
-    )
-    $p = $Object.PSObject.Properties[$Name]
-    if ($p) { return $p.Value }
-    return $null
-}
+# --- Normalize dates to UTC ---------------------------------------------
 
-function Get-NestedPropValue {
-    param(
-        [Parameter(Mandatory)][object]$Object,
-        [Parameter(Mandatory)][string[]]$Path
-    )
-    $current = $Object
-    foreach ($name in $Path) {
-        if (-not $current) { return $null }
-        $current = Get-PropValue -Object $current -Name $name
-    }
-    return $current
-}
-
-# --- Normalize dates to UTC ---
 $startUtc = $StartDate.ToUniversalTime()
 $endUtc = $EndDate.ToUniversalTime()
 
-# --- Operations defaults (defensive) ---
+# --- Default operations defensively -------------------------------------
+
 if (-not $Operations -or $Operations.Count -eq 0) {
     $Operations = @('MoveToDeletedItems', 'SoftDelete', 'HardDelete')
 }
 
-# --- Build Search-UnifiedAuditLog parameters cleanly (avoid passing -FreeText $null) ---
+# --- Build Search-UnifiedAuditLog parameters -----------------------------
+
 $searchParams = @{
     StartDate   = $startUtc
     EndDate     = $endUtc
-    Operations  = $Operations
     ResultSize  = 5000
     ErrorAction = 'Stop'
 }
+
 if ($UseSmtpFreeText) {
     $searchParams.FreeText = $Mailbox
 }
 
-# --- Query audit log ---
+# --- Query audit logs ----------------------------------------------------
+
 $raw = Search-UnifiedAuditLog @searchParams
+Write-Verbose ("Fetched {0} raw audit records" -f $raw.Count)
 
-Write-Verbose ("Fetched {0} audit records for ops: {1}" -f ($raw.Count), ($Operations -join ','))
+# --- Transform + Filter --------------------------------------------------
 
-# --- Transform once (parse JSON once per record), then filter ---
 $records = foreach ($r in $raw) {
+
+    # Filter by operation early
+    if ($Operations -and ($r.Operation -notin $Operations)) {
+        continue
+    }
+
+    # Parse JSON safely
     $auditJson = Get-PropValue -Object $r -Name 'AuditData'
     if (-not $auditJson) { continue }
 
@@ -71,21 +58,23 @@ $records = foreach ($r in $raw) {
         $data = $auditJson | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
-        # Bad JSON shouldn't kill the worker; skip the record
-        Write-Verbose "Skipping record with invalid AuditData JSON."
+        Write-Verbose "Skipping record with invalid AuditData JSON"
         continue
     }
 
-    # Mailbox owner UPN is the key field for "which mailbox"
+    # MailboxOwnerUPN is the canonical field for mailbox identity
     $mailboxOwner = Get-PropValue -Object $data -Name 'MailboxOwnerUPN'
     if (-not $mailboxOwner) { continue }
-    if ($mailboxOwner -ine $Mailbox) { continue }
 
-    # Item is NOT guaranteed. Guard everything under it.
+    # Shared mailbox logs can vary in casing or alias form
+    if ($mailboxOwner -notlike $Mailbox) { continue }
+
+    # Extract fields safely
     $subject = Get-NestedPropValue -Object $data -Path @('Item', 'Subject')
     $folder = Get-NestedPropValue -Object $data -Path @('Item', 'ParentFolder', 'Path')
+    $clientIp = Get-PropValue -Object $data -Name 'ClientIP'
 
-    # Actor field differs sometimes; cover common shapes
+    # Actor can be UserIds[] or UserId
     $actor = $null
     if ($r.PSObject.Properties['UserIds']) {
         $actor = ($r.UserIds -join ',')
@@ -94,8 +83,7 @@ $records = foreach ($r in $raw) {
         $actor = [string]$r.UserId
     }
 
-    $clientIp = Get-PropValue -Object $data -Name 'ClientIP'
-
+    # Output object
     [pscustomobject]@{
         TimeUTC   = $r.CreationDate
         Operation = $r.Operation
@@ -104,17 +92,17 @@ $records = foreach ($r in $raw) {
         Subject   = $subject
         Folder    = $folder
         ClientIP  = $clientIp
-        # Keep raw if you want debugging; comment out once stable:
-        # Raw      = $r
     }
 }
 
-# --- Subject filtering (optional, safe when Subject is $null) ---
+# --- SubjectContains filtering -------------------------------------------
+
 $results = $records
 
 if ($SubjectContains -and $SubjectContains.Count -gt 0) {
-    # "Contains" means: match ANY of the provided strings (case-insensitive)
-    $needles = $SubjectContains | Where-Object { $_ -and $_.Trim() } | ForEach-Object { $_.Trim() }
+    $needles = $SubjectContains |
+    Where-Object { $_ -and $_.Trim() } |
+    ForEach-Object { $_.Trim() }
 
     if ($needles.Count -gt 0) {
         $results = $results | Where-Object {
@@ -127,8 +115,12 @@ if ($SubjectContains -and $SubjectContains.Count -gt 0) {
     }
 }
 
+# --- SubjectRegex filtering ----------------------------------------------
+
 if ($SubjectRegex -and $SubjectRegex.Count -gt 0) {
-    $regexes = $SubjectRegex | Where-Object { $_ -and $_.Trim() } | ForEach-Object { $_.Trim() }
+    $regexes = $SubjectRegex |
+    Where-Object { $_ -and $_.Trim() } |
+    ForEach-Object { $_.Trim() }
 
     if ($regexes.Count -gt 0) {
         $results = $results | Where-Object {
@@ -141,16 +133,17 @@ if ($SubjectRegex -and $SubjectRegex.Count -gt 0) {
     }
 }
 
-Write-Verbose ("Matched {0} records for mailbox {1}" -f ($results.Count), $Mailbox)
+Write-Verbose ("Matched {0} records for mailbox {1}" -f $results.Count, $Mailbox)
 
-# --- Output ---
+# --- Output --------------------------------------------------------------
+
 $results
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAObo8LAEJacoHV
-# VojaEy79KUdk7AHA2QBbSr5mXAIo0aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAibtzHdvTf1Atn
+# dQYPS6BlmGZALRnERpdn3mw9cN/h3qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -283,34 +276,34 @@ $results
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAysFS1MW+Z
-# XRawXQGLKrO7ZMMME3FKPpge5SjdQVWlpDANBgkqhkiG9w0BAQEFAASCAgClZiE8
-# /VY8DuUe2Cc1cUIq2Q2WEJ5ocA5MKcN1KdFA06O4W1SVnY6BtJ8sAf4YEPVdej2D
-# +stGmnP4xntVzC7QwisP/YOVx2EmQoSxrfesx+L1TQbO+tcQUg42IzERkTwQ10zU
-# F4mwsgRGdzVGQPwO08xAUTuunytPqnOGxzj7osv3DBEGUI9ysafNSTFVS55ZNTX6
-# /sSjGW1K+jUHiwSWGZaSfgnaUY4qWqSrMTHHVh9uOozi+7IJNAXd6hjjW+7JPtUw
-# q+l7N7VI2Qre1WrbaomL7f/8f6gdMfsydxU7vaO2OL/ACcDb+hnFMkU5Z3mXZzzz
-# hoaS4DRXIC0rKeCtQkUsFeXh3wnRJh0aVVKrbV/4y8uPsxh/ulUWcplmYftv2XES
-# IjjjOkSn5UjkhEtC8ZjFmDk7X7zK/l9l5FhUS378+QDhG3v75Raxd2Fbebk1qVr7
-# NUDrE0rA7FXernji75MZPBoyn9lTLnkOmA519e4N9zx+XdVxYMYU9jRjWAWM9/63
-# kosBHFG4T3RfLM7GqM+VS9QmZuTwdFKoOhXlqkArWGFF3jaZpyyXZMl2BjpVxyMD
-# 3n2MPNFPsyRIhaqieXPbo3TB1IIZco6cIeE9vYDkvwqdUnDuw65F00gd0IHTQO9i
-# L0WMp5LzDyxhgH+9dyfOex3eYaZSvi0JxdJ666GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAJyALkTK4U
+# J8/WFhy3PQpBkQYN35UjLy5VMiRmhA2EnzANBgkqhkiG9w0BAQEFAASCAgBVZGXy
+# KaPaiBlVNMAao/QYjdt3nvtBgjI/2eah6uV1/6SpbhkD3CHeTBHTXrX+99ph2Vmn
+# bKX14eU3lnPPYnpbSF4hkgdAoE05a6PD3a9LQ7oyY5TipOzd9xMBYE+zKDAVdfLD
+# Lg6LbWfWY+C9efgB9K3awSlmWoIo1pNw7Nn/JHVYjz60P0EfTbCyjwX+up2rMy8k
+# 6mlqbsOq91vD+Y7gVgZn5KuIvkNQ5r7qr59VejFuY2jM0Jyg2nBePTqA/31EDrwN
+# yXUE54M4FlEQfhIdmC8s6S0feP9R7lT9ZUo4tMQOC3KFNJQ4O757u+o3RVWp4hX+
+# 4SJ2rC4SndQ7Q4o/TjjsSylTQB0CIIvZERHeeU8wKnbDHX22vKR8OhLa+Nj8IFBT
+# hpgjQyFGVNpCf2gkdAWZ0/cih7iLT/gR5/ipehM+zmPXFT1Hs+NMsmLxgnd0CfUs
+# 2Ykc1hr7R57ANlBgr4HAzSObU9eSsVV0OOOLSRh8rnFkPciqVHZ3SyfBzEcqM3kh
+# rF2LXiOqpd+2GiMpii7lpnfxMcpRs2FeLQ/sxxra3Z14VMLGHpRag1yn9rQ9cMrq
+# ClblddpAjfL63NgHPR8NIRTe80uWIL8+4LsYZXFzG+7tl8z9JZp9F+ECbJLR1Sl4
+# 4gF8iYzs7FslMQXivE8++GloeSnVwZGoXyribKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjYyMDQ0MTBaMC8GCSqGSIb3DQEJBDEiBCDRsvUkaIjlUSpH+/lA
-# Bi1RfgWkSC3+y/K13Kpmy35ybDANBgkqhkiG9w0BAQEFAASCAgAj5rMPE7d1Aw3r
-# KoY8I5+XNQFpJGsrjw18t28wuMihhyJuKHjk4G+Mp9UdAkTpiiC3fQ8Dwx3YTgX1
-# HiExWmUo1Mw5ocSBcvILUS7bd5EzMufEuY2cX1QTPmvC1KI5zPyf94v86Fx+gN+b
-# zj+JR7a1fAwm9u6f9/cPCeZ8lGB5JboKtjmOjhO1uGgZTTxtSu5drnpf/pj541Qj
-# OmVVG5ZpXLRpMnTtugvb6iMXExHeB8OKmsWHaztDHJSKc3CjgxYloUSJMu5LXoFS
-# WOPwjz8fMp0ASlOXqjpl7foL5YeE6IPK6DIXkiZdoHzaX6Uri5AIBVb4OgCem2GS
-# ChSCC/F6CgJAFl0aVlHBWWWmfDpPuxWt/7bPE41CzzZBgRfi3EpPUa3a8h9zxcYL
-# 1cEdzdyM1IHvYI9pDvjsD5+i+5+5tI3NFa/OWnxeIXPzwQh8nQ7mGyv56IRhZ96g
-# tnS099EUaWYWhV2owWbYVsdZW08jO9wJMqaTWVpl4JhzQkqy7adW+Ug1ydCe9lIb
-# jN5/NdirEgfNsTRCVrvz3EkLm0PfoF5sPgk2U8oB+RfiSHeTSAQXanPitqEMpJun
-# 2+zMwzH08YRiyu1OZGOxTM68Oes5QyDA4FHtquCwzp/sNnAjkriJFx6bJXqjy+H6
-# QSnek1Dj1e3MU7bPlqo+XqBudI1LkA==
+# BTEPFw0yNjAzMjcwNDEwMDhaMC8GCSqGSIb3DQEJBDEiBCALBVmlfHFn7MDoLqtd
+# Nztqti21+HRt7V/r3eKhvsexxzANBgkqhkiG9w0BAQEFAASCAgAk0BCBAGXiN2gA
+# o/tx2gu/88hxn7YCLOjjBoQOGSjhZDxiiaJLPk51Fmk7jCbfpN5UsIwYMvJwLuUP
+# 8j7gQTym5ImXXe5FuMb2pRzj+4SZWkcMa7/ofHxbxfEwr7bIAtaA1yohczqjcaUX
+# 79tG/W3wAkGurFsY6ENw4GkR/Vi1EMZARMQixBHHQesWn+KDjPcCTjaz5Ri8yO2N
+# O+SoXODEM+QG46mbH/HtTzMqlfCs4AhJ+iXfIeLq6Cs1A6Ei0+fDSCWAt6N14ybb
+# ccQnPZm3l+vbu1hsNqp8ZNtjqP42Vbyl94287ClJOTzQ4e+RGbmDYZiW6qGqpovy
+# r/uldqfSWJzx6bFulOwc5S0ECcjL35TkL7oZjX0r8GWBO309zhtHjTCSd2MQKK6Y
+# JdzM/3RYBesfvB9MdR52CkFDNoL6ndnTOB4wkoGXF4JzXeVc7VkmjZSTUxVFfRkh
+# 1bXfsB8weM3bMsZ/nhc+Ej9elICowpvlnlai5f9CGsrjrOKOZkLi4XarKihEXz7P
+# UiI39z7N8eZeqjwkNkSyJDijP9s96LOvd0QdimbJSpPOU1qvWAAgsCswc9ei9NDh
+# zw6WGkpIg/a8XAQHnr6/0v4xrp0N4/rPMzNd1RrEXCyHNC8iGaoUM8WmD8nu7mgn
+# Fdo7arFHFo9VbN8++ENpGolmf/ZC8g==
 # SIG # End signature block
