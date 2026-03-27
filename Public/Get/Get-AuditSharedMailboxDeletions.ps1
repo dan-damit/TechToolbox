@@ -9,13 +9,11 @@ function Get-AuditSharedMailboxDeletions {
         [string[]]$SubjectContains,
         [string[]]$SubjectRegex,
 
-        [ValidateSet('SoftDelete', 'HardDelete', 'MoveToDeletedItems')]
         [string[]]$Operations = @('SoftDelete', 'HardDelete', 'MoveToDeletedItems'),
 
         [switch]$ExportCsv,
         [string]$ExportPath,
-        [switch]$PassThru,
-        [switch]$UseSmtpFreeText
+        [switch]$PassThru
     )
 
     Initialize-TechToolboxRuntime
@@ -41,7 +39,7 @@ function Get-AuditSharedMailboxDeletions {
         throw "Shared mailbox audit worker not found at '$workerPath'"
     }
 
-    Write-Log -Level Info -Message "Running shared mailbox audit worker for $Mailbox"
+    Write-Log -Level Info -Message "`nRunning shared mailbox audit worker for $Mailbox"
 
     # --- Worker parameters ------------------------------------------------
     $params = @{
@@ -51,35 +49,21 @@ function Get-AuditSharedMailboxDeletions {
         SubjectContains = $SubjectContains
         SubjectRegex    = $SubjectRegex
         Operations      = $Operations
-        UseSmtpFreeText = $UseSmtpFreeText
         Verbose         = $VerbosePreference
     }
 
     # --- Pulse indicator + async worker ----------------------------------
-    Write-Host -NoNewline "Searching audit logs "
+    Write-Log -Level Warn -Message "Searching audit logs "
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $i = 0
 
-    $task = [PowerShell]::Create()
-    $task.AddScript({
-            param($path, $params)
-            & $path @params
-        }).AddArgument($workerPath).AddArgument($params) | Out-Null
+    $results = & $workerPath @params   # ← THIS is the correct call
 
-    $handle = $task.BeginInvoke()
-
-    while (-not $handle.IsCompleted) {
-        $pulse = Get-DotPulse -Index $i
-        Write-Host -NoNewline "`rSearching audit logs $pulse"
-        Start-Sleep -Milliseconds 200
-        $i++
-    }
-
-    $results = $task.EndInvoke($handle)
     $sw.Stop()
+    Write-Log -Level Info -Message "done ($($sw.Elapsed))"
 
-    Write-Host "`rSearching audit logs done ($($sw.Elapsed.ToString()))   "
-    Write-Log -Level OK -Message ("Matched {0} record(s) for [{1}]." -f @($results).Count, $Mailbox)
+    Write-Log -Level OK -Message (
+        "Matched {0} record(s) for [{1}]." -f @($results).Count, $Mailbox
+    )
 
     # --- Optional CSV export ---------------------------------------------
     if ($ExportCsv) {
@@ -109,8 +93,8 @@ function Get-AuditSharedMailboxDeletions {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCdfc40cDr1iMSv
-# jGJ0ZvxymscVqEuiIMltakFzCIWgr6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCWH90b9JTNFYmd
+# 88gQHGXvQ0K3FeBQTJ5H5wlbdtGzJqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -243,34 +227,34 @@ function Get-AuditSharedMailboxDeletions {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAn8bJvfu3S
-# +GUf7Jf9ixNryr9qoFeS2ENpLTDnjnWoVTANBgkqhkiG9w0BAQEFAASCAgAcYRZx
-# eXdh8iK37zW9B20Xv8h47Yhrm7Z5kFflXtNs3z4Ed5LQ/fO8iFRr/FNXDKMRFMUz
-# YkmQ13apXow18uRJD8395KKCdH/eny1+4eOIMgIf6NZxsyCgtP1dA3IkwBFCI5bd
-# Gf5eSc6pY1/cq3d+VdSgL1eIXSHYf/xFWaqUytKL1ZHbKsq0K8N75dm7nj420XQ3
-# hQOZsVNPT/OjaiBupCeDP+L9kZctd5CTlluu+rvQpFARf+IDlOwrPzk6f53DCWf3
-# k9F/dzHyhw8gttrAOpLU9WcOplVMG5GVsv8YQYosSFqW16aPwKvKNzb4h2AjYOyh
-# b9O65SGvb5kHwFMMSozgoXTlmcAZG4s/Oqjw2bSzE45Kn3gpQ3tJGkaT3+5bF/P5
-# irEdsfKAnOK5PrnX+a9MU8Z5lPRnwRs3G0g9FvY4O5dAqS9nAPMT9GV5MczlXKxG
-# NPxL6CrMYQBZ4mcgx9/ZqlJh3oUE0n4Dw0jCkm8BPRFr5sI8ZPjLMaaa+x/datp0
-# VUKmNtSXmgWR7AsmNWh7VG6PMqNWPmXraKg8y/ip9fQXWZfp49d6kW4XYAhafMRd
-# UH78zPtHfWqlNLbeNgpAuP1V5ZAOlsPiDw2zieVB37xCMJzwP+zcw0zNtB9aO/7x
-# 15G84PFvVLb68+opnRZSUQg/FrPPvbFrFXclpqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAPwnJMrErC
+# D/wlzDW325uvN/YHsHxHiwz3sYDf8GRn7zANBgkqhkiG9w0BAQEFAASCAgCkDA0R
+# sw/aCSIf2BBpCFgkVqtq0epWpTRnwunIjsZQKkiAW5Vc/taD0xWqUH2aLo6EoXAF
+# OU2EB+JTuJN567IkesKzHZkrmZrFi59MGrdRuSBX2MwsxEBECdpIb6UwF1Cqs6Fj
+# lnYJRzG30CwZntB02azJj5za779f5sEww/u9vdw9SyAls4CslRyg6oSevDh98tMj
+# kvuF1kWb7mPVB0Bs/iByA8n2JNiAzT9mL5rNK0O8c46A7aT1+w6OEuCuR9tV1iHQ
+# L2DA1piL2EVQD6QrKF9fCQknD0tyzARzKfRjN62Pm0o16xKyNnV88QWHQrqhTGND
+# GpNdXN5dGFRSbY6hrCIWX8ZuIMMhq96RjeICaulwiblifG1TTS06z5Eq75Gqj5Bc
+# PlSQ84C5kSEqqgZwmSuN2EDhXNM3McQqh+YRN+ryyDmWnnW3ba+KT/FCQ08EpOIV
+# 49ukFWd7qu9lPLy+F8yXdMjq7pBObPM9X9x60sSW6DXGl96Ygzf0tCvfhBrBbXDc
+# LKUsXuX4uiAbSbEBOaTVzXF3tCwMz/d3KU3ubcniJAk0cdRKmr3wLLJdNe3Tx4gK
+# lm5opOfGoW0RtvHZVwF2dC844FV0DhOPuAAS5vcKiyg5QaslNva+cWwIZbMzKIOO
+# ruaE2qjEFgqyoDmyXen5cteOv5afmof7zBSoG6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjcwNDEwMDdaMC8GCSqGSIb3DQEJBDEiBCDT5M/y4//DvPQMRmx1
-# KE1uKgW2IcyV1nOuTtnZrXQgPjANBgkqhkiG9w0BAQEFAASCAgAXGK9vTDBe7MN+
-# UhUrmnCBV0U6IQemFCwkFqr3tS99yQISMX/lWGcoTWGt5S1x/neYcupnJMru1iGw
-# +dVD6iM7dfYk6OAKXGGz6aTraZZ7781jl8IFX+UU7Ln6wdiPzXg90pCsLa26Hhtx
-# 1AstLYC9odgnC/opxn99aWvWSgZbu0JiB59cXWZNMfb519m+jBTnXykbAcWz268S
-# pvqBioU5w7nCkbUE1FBHgC9BSJ60rqNIC1nXiorTnrioD/nfB/iU7n2C1QGMiDnX
-# cIuFqqbiU4Af0Hl98jX1GJhkgWZ1boCq2MPXdbggI1Hex0+F7oj1+QmTZ6S1JwkD
-# 6VyYhujhcInHkw4EmC+RNUDO+tCfmTiEsD74O36SCLXraTnJvcz3hl5efoPTsxnd
-# E6gpRJvttp4tjcB6TTPL555GixXduPIpVMHSgoV3/sBmPq2OEXecZuyPP5gzPfcb
-# bWAPdlDXFOPRsXt264PRpzGh5R98rj9GRwuHVfm2NhtmWu57+6au7Gxivyi08ZIV
-# GsNIiw2uMY/h0CGa7mfPtQZeQMSdKoKRWBMVWKQWblCmhfOZTMp6cM0FZIzPMjGW
-# DJKhhuMQgmB+b3B0qWjYNZbg/grAx80lAWu9e6KokWlGVOesC3o8ivknNYayBi8/
-# 2pOpq5igauS8zVfzh9SZG93XC8i5GQ==
+# BTEPFw0yNjAzMjcxNjI3NTJaMC8GCSqGSIb3DQEJBDEiBCDfj1UIsNhi5prCC7r7
+# YDLvQD8K3Rdf2nXDZl8b81iXRjANBgkqhkiG9w0BAQEFAASCAgCJADjS9RClDqAv
+# 8yPay1JMXIOEFIIjbsd8/qw/nYrTEPkncTI60G0GF8vwsc4ic7g40KVfHfREb0Mx
+# SZZWFQefTDCGMgRzDN4iXbWan857BY8gHLls3BSK54JhnK3Qt7ltfVI1apps4b4y
+# 91+7ES1h0yh0QdtjhEcszSsZQnPLmBWjKPoCALgX3Ndh2P+323hKBrlfTC9/swg+
+# aJa+ZtHZTJTgPey/WuW3RxEYPALdBzNNH5Qrojt6EjyXt4vz58mMyehdtwbgVDjx
+# s/jd3GFEGvZXqnC6vY3pGIxab/EDCgCOJREd8hU7YgX4n7y14soWnuiEQE73Kn+e
+# ntc8tNT+KvaJNte7wpSYy5irg6I8UsgS5g40FAiDY2vfTa22XLGxHVZ2A4TJlRwh
+# a7op5Qsa3b213JbHS39m86JLfX87ZDwmAvymkalswVM4VMEA4Xi3YSSIf7DBXvQ9
+# wV4HLqJPULu7UaPc+Lakxn2S4kidfuLHF5YI/Tz/qsDJsGxC2phJFbhIKkMl/BR7
+# KZYI/GnAdiBKGIZ+VYebjmuS0e/bO5HZ17cbaCOyiBp9ZGMeTmIpQW/pPLaD7L79
+# bm+9dBs9TRMwsn5j1r9/hZ3dGPVLBhusJOwDOkvBM3oBesJIo8hJAXExeg/Qbcno
+# 7RBw2r57GaAToVDvJrfWdg1e/BqfyQ==
 # SIG # End signature block
