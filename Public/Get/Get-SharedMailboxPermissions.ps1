@@ -6,19 +6,19 @@ function Get-SharedMailboxPermissions {
         - Send As
         - Send on Behalf
         - (Optional) Folder permissions (Calendar by default)
-    
+
     .PARAMETER Identity
         Shared mailbox identity (UPN, alias, or email).
-    
+
     .PARAMETER IncludeFolderPermissions
         Include folder permissions (Calendar by default).
-    
+
     .PARAMETER Folder
         Folder name to query (default: "Calendar").
-    
+
     .PARAMETER ExportCsv
         Optional path to export report to CSV.
-    
+
     .EXAMPLE
         Get-SharedMailboxPermissions -Identity "ap@contoso.com" -IncludeFolderPermissions -ExportCsv C:\Temp\ap-perms.csv
     #>
@@ -137,8 +137,8 @@ function Get-SharedMailboxPermissions {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBZGy7JEiNOv7vp
-# za1tC8B4+5b5fEJBmVOM5zNbZUy8wKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD0D/0qKZcYnALC
+# LuQ6CD7BfgfTM2PSWNU/mUlVk3qyhqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -271,34 +271,34 @@ function Get-SharedMailboxPermissions {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA4ljT59aah
-# KNYiksL8kuk5JCHcEVHkoQwt7DFoewpMwjANBgkqhkiG9w0BAQEFAASCAgC8Cl0y
-# 4Jry2Y8RPJUxvR3Kmw2WV+hNpHvRbOe8wxGkNkxu6D+JlatAi0G9YG1EpEG0otKa
-# f6jq5Khj9C6dhEFSiTpJ3ViqbJEeHi22cy6XHQ8LwAbg8p8CxIo22/QWIGVQRRJ6
-# yFGMh3XmMXetYAv8+rWBhQTTGygBhMImJ2fl+1TcVWM6fEFnR6aMMUCYTCnr8sQT
-# YlhJatQc69NCebKk/iI4a8kysyqOqoMlwxbfpZmoJhE9+JSKy18oPgtgO+Q944jm
-# LMWwl6igiS5h2kXl00YYsswR7P2m8ln4ruDOHOyKjP3FyD2qD4bYPGCBlkyLkKOQ
-# IaMdPKXmqeMKiEbYoCZkMP+coenIAYb9gkvJsKCrCSM28+r732CeXw35vXa3/5Ra
-# F6qxvqOY3Sv8hAMpeG4XxrOJ2lAXXi4Zb86VUtfr8t/w0qzbm8PnqK9mRwHycUAO
-# kkuYD/CrV3ffVJd2za7MK/UV2y79Ikh/IheV4aY+MA98lV6BlPhmHGE40B38wtZe
-# TXkYLdDK2cXtHxOHwkGGUagSnl8f4OS7Vk7uXjHccBrDBMAtEr4hE4l5ZanUj9vI
-# sUsLah+a3KcmZOowMmM+RFWV+hbw7qj0VoZka86fL2pHJYOz1HmToFvDIqwRwA6B
-# v7Ctw7bfOpBjqizknagrxasPP6NkH8pN6HijpaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAQqmVyhb/p
+# VhJTt6CgWPdABCtU7NDKK4zLeyVPGu+OTDANBgkqhkiG9w0BAQEFAASCAgBkMEcG
+# InpVIVzPSjRjeYhpYvYLwMzuGUZO1yjHog/QZR/gYR158xz6Aj/D2Fo2W3pFo2Pu
+# nwIpzVE9Or3qwFR2ochfMLkSdODqvR+W8j0Z19qGpKr+zCnKIkgX2YyCpTiuTRtD
+# IUBtaJkBXyS55FiI4uJhxXff52QV1V7STJeOTV2My7do2wNUCrY6Zqh88YQ/8JPx
+# xn3AkduYTp0DGMjhy5ikDJT/ydHQfg1zO8OJzlwo7PBZM0hlYvy/X5x/+/FHKoA6
+# cTJZWWOiMkBhNmdeeoCPrk6XL/hK1Ufbgd6HNw4CHjaKLmWZzwzMiliMK5h7/uWj
+# BrJD9M4YGu/reYaE+Sod09PuiFzmrGLGNME4ne+Jbgj1difVq+LonKrQBSp3GHiz
+# TvFbwGHK8oVEJK1igXfEnB8ev1g0Nl83MlKet0zuX0fiv9wHQd4I8Wluwqe2uQf6
+# hx9dJ+Rv8M4VB0QQxnxRp70z8+jETryZOB4a6nOAeGXuI6s0X7eehtiXpjQcl2A4
+# GzindR0VdIjDBZVksAmsO9+IxxPG1BUpRwv6DDDPInvIXzmVgkmyI9YqT9FMJMdD
+# Iam/0HIclqWg9pTO/s8K2rmSl9GjoUYAk7rp1Ke8LldmQOG4f3SHZ+uszknDOcnI
+# qIaTYh3Vxw4KtlL0XDuRqT2e9Ovy5KkEfkDrm6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDUxOTU3MjlaMC8GCSqGSIb3DQEJBDEiBCAriU/UsWKQehwpilGO
-# NyTlF32lib8iMRT+0P4NTg0PWTANBgkqhkiG9w0BAQEFAASCAgAz5dWtypxLeYWs
-# Y+tJIOJIhPeL2WbWD2G/TGO5ucGdV7kYdsG0C0QvsFiRgtVvsnpgSqjk74PchcqZ
-# xgxZxhilhLYzgXtOhj3xlZ3v7b1ZJMpH+FqMwP9Ggi5xr/czxwHNBQ2rPxp9qzb5
-# o4oyx22sYNYEec96TioBFsIc27UTYbX4C4dRH0FUp+y2/26r1AtIGJSguVxrLcGm
-# /laswBvERXsyzaH6LOkBgHa1GmqhZS68Y5WRIzAYvHwZMlFBKE/b08eLuWQBXRwG
-# /OP22QdFDSSiu+rkGWdCUJpi2DqDfHKo84JNeeouOAGJtrJZhPOXYYQQsXQIvZDI
-# i/qWBwjjTop4aXMj6Ztj1W7qh2TATkBpIBPQNcyrxJrofhkJecKStLjr/acm1bkJ
-# wqr8E+rY8v0nltAjfOgkGWQG0ZzwztmzwhC7kNOA+8GQKJF5oDAHRlAeFSy8QsVF
-# TZODvzkLo8CqxD+ZaZgdQsIxq9ofqem9klLYUbq/oaPA7QMjEVtTCOnrg3KfKVRK
-# d0xklD0ysskYyLaymQ2vezKnx+Cj7rX+8K/AoOEEaseubKFUVjErzi1ujMKMBCeb
-# BPfGGJrCcTa7lbomtfdHlR+pjzECI5WzkWu8STbPJZNiHtpdJqxojo61qwiWVwA4
-# va6qdzHptaO0iSOFHAdMoU81zUEtkA==
+# BTEPFw0yNjAzMjcwNDEwMDdaMC8GCSqGSIb3DQEJBDEiBCC7HDnxRhUJM3QyLXnO
+# dc3MUEMlISiIn1OUzOXVhIkRwDANBgkqhkiG9w0BAQEFAASCAgCRjz9RM+p0c4zU
+# Pero4260Uke+Ki76BFBHRv6koaRhpVhQPEyGnfOyfeUFG3lD/DldO6NMsK7b6QHn
+# si6PV/J/z1RQ1sUmbTkcLVAsoHYitDPefaFIcfBb+XiQdl8eWjjA19plkTUGzPIu
+# UGaOxJFqkaZJhFswutCPWFalt+t5K9qdgrofUHjgQvjsj8AIWaT3b/IXrKrKWZdw
+# lCEBFhORoI2DHVmU9cWa4XyukkhIxZFDEcUK4ytHd+i+axCdC9g+xuKbAy5xFMDE
+# FxAX2vGXwc4l5xU9CEbooSGIpKANwLT/7dJHnMqK4y4WFA48nADf2v96mqdIpN94
+# OuZYUKZ/XqIsNLCF7H7PYXCL2+c4HdgUGzEXdkwukoAcaHuYt/6om7YAxX0xJgB2
+# 82ujzfShSZQP2C6stw+vR6zFN8SLSW3rJJtO2TCsheIgcBCh65cT3zEmYsID/Obo
+# +2lKnLhpWIMUSXvqtUYQUJklnyKOJ7CF4tELPGx094SCPovJJQR/k+084kdHLF7t
+# jDxCTdBGnfUniSLh1N5QeSkrTFhKgEaadzMuME4SNG+00MNqeyjUnxiiF8XWBs+s
+# gVQnB15RGUK7G1kIL++qxalR8fMEJ+jJchCXPnu0vS2zApxyhcSvCi+3CA1dbkx9
+# lmado4Q+aaNAuWZbcSnCZCdAJny3kA==
 # SIG # End signature block
