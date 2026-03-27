@@ -70,6 +70,7 @@ function Get-ToolboxHelp {
     function Write-TTText {
         param(
             [Parameter(Mandatory)]
+            [AllowEmptyString()]
             [string]$Text,
 
             [ConsoleColor]$Color = [ConsoleColor]::Gray,
@@ -88,6 +89,57 @@ function Get-ToolboxHelp {
         else {
             Write-Information $Text
         }
+    }
+
+    function Format-TTColumnText {
+        param(
+            [Parameter(Mandatory)]
+            [AllowEmptyString()]
+            [string]$Text,
+
+            [Parameter(Mandatory)]
+            [int]$RightWidth,
+
+            [Parameter(Mandatory)]
+            [string]$RightIndent
+        )
+
+        # Normalize: turn any embedded newlines/tabs/multi-space into single spaces
+        $clean = ($Text -replace '\s+', ' ').Trim()
+
+        if ([string]::IsNullOrWhiteSpace($clean)) {
+            return @('')
+        }
+
+        # Word-wrap to RightWidth
+        $lines = New-Object System.Collections.Generic.List[string]
+        $current = ''
+
+        foreach ($word in $clean -split ' ') {
+            if ($current.Length -eq 0) {
+                $current = $word
+                continue
+            }
+
+            if (($current.Length + 1 + $word.Length) -le $RightWidth) {
+                $current += " $word"
+            }
+            else {
+                $lines.Add($current)
+                $current = $word
+            }
+        }
+
+        if ($current) { $lines.Add($current) }
+
+        # Apply hanging indent to all continuation lines
+        $out = New-Object System.Collections.Generic.List[string]
+        $out.Add($lines[0])
+        for ($i = 1; $i -lt $lines.Count; $i++) {
+            $out.Add($RightIndent + $lines[$i])
+        }
+
+        return $out.ToArray()
     }
 
     # ---------------------------
@@ -258,8 +310,30 @@ function Get-ToolboxHelp {
                     Write-TTText ("  {0}" -f $cmdName) Yellow
                 }
                 else {
-                    $left = ("  {0,-34}" -f $cmdName)
-                    Write-TTText ($left + $syn) Gray
+                    $leftColWidth = 34
+                    $leftPrefix = "  {0,-$leftColWidth}" -f $cmdName
+
+                    # How wide is the right column? Use console width when possible
+                    $consoleWidth = 120
+                    if ($IsInteractive -and $Host.UI -and $Host.UI.RawUI) {
+                        $consoleWidth = $Host.UI.RawUI.BufferSize.Width
+                    }
+
+                    # Keep a sane minimum width so it doesn't get stupid on small buffers
+                    $rightWidth = [Math]::Max(40, $consoleWidth - ($leftColWidth + 2))
+
+                    # Continuation indent = spaces equal to left column + 2 leading spaces
+                    $rightIndent = ' ' * ($leftColWidth + 2)
+
+                    $formatted = @(Format-TTColumnText -Text $syn -RightWidth $rightWidth -RightIndent $rightIndent)
+
+                    # First line includes command name in left column
+                    Write-TTText ($leftPrefix + $formatted[0]) Gray
+
+                    # Remaining lines are already indented under the synopsis column
+                    for ($i = 1; $i -lt $formatted.Count; $i++) {
+                        Write-TTText $formatted[$i] Gray
+                    }
                 }
             }
 
@@ -339,8 +413,8 @@ function Get-ToolboxHelp {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD9rcIf95ry39NT
-# ejg42jCo/BYG3A/cBa1mw6PCTyOFBqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA8jPZoalD+/vl1
+# Akv7X2T+eOOs4dIX3F0/3Kh8D+ihdKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -473,34 +547,34 @@ function Get-ToolboxHelp {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA1uYj7+Zc4
-# LsdhbtrJSuF+qOaK2VoHAjIk4IgtNjycHzANBgkqhkiG9w0BAQEFAASCAgCJ8hHh
-# 3jhuPPaOOLO8dREkRsszR5fDBdsTfeBFIMlyPAwxn8qzkabPxJQaxlwLnKUqnKWv
-# LrXfMKXldGLEq/oc9xq8Be9jldkF3/T0eEfXDXHVt8eBYjgDUnI71wCF+yaxu7e9
-# VJv+BOPuTAq7O5p9LMFvoJYAIn2sDSoFIDdOtjEiPMlyAlhgBCHwPhYd4154bMYX
-# gwtID2ebK4vuGobHrlnlbsP2aNw0zsvIuc48dBYRUPOypvs3XMypwBC1sqCUyys7
-# GwmqSL1QjNWnuAjJqBQwOY9br4lAGWcx0qaHsZ1EdYoQfd+kGcppRjows7prQaNN
-# jXv03ObSPr9J/CaQBCy/TR09ZEKehWxISg4hh9wLfTAPwuA630ia13VzCFI8hEq1
-# LOUxPPidkl+g+dtAZSa0GUa60i/SWWXerT2IB+QMFYHebTdtKrdyJshhYoqPRSNH
-# ri0HRz9GFdv3zY7o9EKBTfaVD/HDR9QgbSnE2kr/PVLg1OveTtQjANLfbUo3V+Zq
-# wgy5B/tmJgkcvdCHN6yHZ1e3gOEkgBTtM2f/XYGxVda+wAB1I3IAB7/y09pO0ouY
-# d/JCnJIdDjSu4LYtmWriSG1G9krgAjKjygKw5xVGTaaWPVQnoO05a1B90lnaKTh2
-# 0nkvpXFmPNxtg7iy6Jkzt/q9MsEq8/MNkVx4Z6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC/getNSXD9
+# R+c99+fOPyn977Pfrpxyojf2AhTPjzWsUTANBgkqhkiG9w0BAQEFAASCAgArmyAy
+# XFdo0NsDtbfIxJAnfzu4dO9OoyT+5qPzt4wAGMIYil+N1xumT0Q6k6JLaLXysJRU
+# EkR6BqVMyhf4A+slOGvlC48MDbrQvZSPRp+gSGcMxdlqva4mnb5WHj7M+f0PHzAD
+# VTWk7YWyjeMmpfxZhh/EqhYaSbqkdnh3yEvyMfYw3ORpwSAJuLlAB8iCjtqevu1o
+# CqgS7Yri/a/svGHXyC5/7hJE+5EIusCYE+RUugG8d2MojaXPhQx8EIUsMLS10wTl
+# LOP0xjRCuV+F3W0yr9RyeYA68gQCZAoTIQgF3rfRX5frKZfAsohLFyV6WZ/dXxer
+# Blyqfo8Z+lWE5vvkHOcM8P1XgoEIEme4KyN7j8jYLHdIwnZDFfwjwLaWE1d1riVf
+# BY9/gELi/2fA1fax6RQdRGmYdNmeZJvFcZtbfHuLGugSRcf1Din6FFGkEGQfwkTt
+# bfAweVuDgHE+pb5qFg/fDBUoYzCVjzVcGkbK9KQwkZcWoccqQFrU21HVf6Xqt+5X
+# Z4kvdOj8hMmPZw5ulO3shbtc782jHar/8JwxheyJVGMDzv9VfmNyqKt63FGMwy8V
+# qTbOZE47tKREjfoq3RtnSPwDA1ao7PHiFQI0KRGlIcaBUdcCEwbQ763AI9Rv1ErS
+# 4zRpvrWc7TbJeSrSzdxSDJ9BlqJq8OB01QHN+KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjcxODAwNDFaMC8GCSqGSIb3DQEJBDEiBCAy8hccQqdhscfS3cDd
-# tWmsuEGL4P/oSZDGz4lNFo/fjzANBgkqhkiG9w0BAQEFAASCAgA8IeBANhoWD0U5
-# RC7PSLjaTS7TuvMyRSSRmGqqSsmJayZoVlLnXZBe7JjIUvVACDBGerB18OmD4Bzk
-# jdZ42pygqlgwcxpeqVrL6plV136b793rrIDxR1ygT+KT5rUq+2w+Iw2QdyDdH5lZ
-# ynr432anxJv6YrrvQgWJkHqi4DEBcsZ8zEMnAYikaqta3Zdh5rCWo2rQtiBgVQE7
-# SXuwPpUM63I1A7Vzklv53tl210SPlPtn5IQRXueiHCBLbOIXbfL36PB3LktzyVlz
-# kvmX9KdZ/a9CnsDLHT111sZmjl+4VrztjHFPCK+W+lZdrDbYZWR588Wrd370VkZP
-# zpHv525FzRL8xkOb4H08ON6+50iKeY3o8fi/0SjX8+u6c2BfFZJ1XKSfezQ1k5bY
-# 2swVDNT47MVpYBzvXtYDChd8v7nugIhoSt2Yc9Yl7jXcH79LxRM8+hyjhqI7Kuq5
-# vKz19lJ6FP1PpzhHp/RzicOkCdk2HJy5xvGvISQ9UqfrbOQQnC+sfgYosXXWyX2Z
-# eeoaUfCuN29975sY8n8jpKouMFoDTVSzVfIEcxVYYu9KVa8SkKQixQqB9cv6ewRE
-# xy+BK72ru/Szgwua69v0or9kV14542vNrwTRCLNMexBxwpHnU6oOXE3S7ib3JIjm
-# Si4wGjPQrG2bVJqPBvnv8jW87JCBag==
+# BTEPFw0yNjAzMjcxODE5MTJaMC8GCSqGSIb3DQEJBDEiBCAPtPrqQs0Pbb63VnuD
+# U1hnsqqqbcCs6KoehbWprlVyMDANBgkqhkiG9w0BAQEFAASCAgCc2AKztRh/Pz9N
+# 9XApycenaCeSv9VSzjo6y65oNdPXavzhIGw86uBb3z71xRwKBokCV20UTSVlsVXm
+# E7ynBGYvClb8RC6Kav9yNY7cuRcrSqkFu9n3DGPT3MOOXSo5fBKQbd0A1XF0I3id
+# yGIqjwMOfFCbqCENuV6cDWY1N2qW36tq2+j1nOFmz3Mai18WoRVjZO2bd/BDBQka
+# BvPXc/5S4mFMpuap+ZERXUF6+b8toXdOUX6rcEF6gFPDFaj24rp0BNi8gBmjDbIa
+# kuNwebaN5EfD5oGWVQJLCdQlz6zDNMVSqafWNm2MfeCwMBsvkPKGc2g9F6DX3Jrj
+# TweDqaQJJk5wFOkwiysAuWQeQK03q/M2mp3VbOV9ePbeV/UTu6sA+chfSO3qR7oq
+# GrCQr/iJb4uqVkQw9gkU9Q1SOewCSF63Qj/y2OUxI1bcLOa503etgyUda9aMkmB2
+# 40I6F18CZjdX7to9ZSz+trDy00dMflzIalBtx/ZVWFid1AwhVDDgsjOm/m8lr0ne
+# NjZz3txMpIeegjbnCcvQ+NrtSGnXvHPTBkfOFxl6lNUE15jH/85pvCh8GPaLU/qp
+# qMg91/21+gorXOUt6ynxDs/QEBPmdfmDDSzxKZ4AgbW3w3FejNa7C2dQc9KQ9+GO
+# SlL+rwU++TGtVxbBMiFpm/oC1s5Xfw==
 # SIG # End signature block
