@@ -16,6 +16,9 @@ ground work has been laid. The AI branch is [here.](https://github.com/dan-damit
 
 ## Contents
 
+There are many more Public Commands available than listed here. Please use
+_Get-ToolboxHelp_ for details on those listed here, as well as those not listed.
+
 - [TechToolbox](#techtoolbox)
   - [Contents](#contents)
   - [Getting Started](#getting-started)
@@ -34,14 +37,10 @@ ground work has been laid. The AI branch is [here.](https://github.com/dan-damit
   - [Troubleshooting](#troubleshooting)
   - [Development \& QA](#development--qa)
 
-There are many more Public Commands available than listed here. Please use
-_Get-ToolboxHelp_ for details on those listed here, as well as those not listed.
-
-**Also,** 
 ```Powershell
 Get-Command -Module TechToolbox | Sort-Object Name 
 ```
-**_after_ import will give you a high level list available public commands.**
+**Run this _after_ import to display a high level list available public commands.**
 
 ---
 
@@ -302,4 +301,4 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
 
 **Author:** Dan Damit  
 **License:** Internal use  
-**Version:** 0.7.1
+**Version:** 0.7.2
