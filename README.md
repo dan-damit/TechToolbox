@@ -37,6 +37,12 @@ ground work has been laid. The AI branch is [here.](https://github.com/dan-damit
 **There are many more Public Commands available than listed here. Please use
 Get-ToolboxHelp for details on those listed here, as well as those not listed.**
 
+**Also, 
+```Powershell
+Get-Command -Module TechToolbox | Sort-Object Name 
+```
+after import will give you a high level list available public commands.**
+
 ---
 
 ## Getting Started
@@ -50,7 +56,7 @@ Import-Module .\TechToolbox -Force
 Get-Command -Module TechToolbox | Sort-Object Name
 
 # View help for any command
-Get-ToolboxHelp Clear-BrowserProfileData -Detailed
+Get-ToolboxHelp Clear-BrowserProfileData
 ```
 
 > The module auto-loads functions from `Private/` (helpers) and `Public/` (exported), and caches configuration via `Get-TechToolboxConfig`.
@@ -296,4 +302,4 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
 
 **Author:** Dan Damit  
 **License:** Internal use  
-**Version:** 0.7.0
+**Version:** 0.7.1
