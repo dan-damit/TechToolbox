@@ -18,6 +18,7 @@ ground work has been laid. The AI branch is [here.](https://github.com/dan-damit
 
 - [TechToolbox](#techtoolbox)
   - [Contents](#contents)
+  - [Get-ToolboxHelp for details on those listed here, as well as those not listed.](#get-toolboxhelp-for-details-on-those-listed-here-as-well-as-those-not-listed)
   - [Getting Started](#getting-started)
   - [Configuration](#configuration)
   - [Public Commands](#public-commands)
@@ -34,8 +35,10 @@ ground work has been laid. The AI branch is [here.](https://github.com/dan-damit
   - [Troubleshooting](#troubleshooting)
   - [Development \& QA](#development--qa)
 
+------------------------------------------------------------------------------
 There are many more Public Commands available than listed here. Please use
 Get-ToolboxHelp for details on those listed here, as well as those not listed.
+------------------------------------------------------------------------------
 
 **Also,** 
 ```Powershell
