@@ -1,24 +1,16 @@
-
-function Connect-ExchangeOnlineIfNeeded {
-    <#
-    .SYNOPSIS
-        Connects to Exchange Online only if no active connection exists.
-    .PARAMETER ShowProgress
-        Whether to show progress per config (ExchangeOnline.ShowProgress).
-    #>
+function Connect-ExchangeOnlineAlways {
     [CmdletBinding()]
-    param([Parameter()][bool]$ShowProgress = $false)
+    param(
+        [bool]$ShowProgress = $false
+    )
 
     try {
-        $active = $null
-        try { $active = Get-ConnectionInformation } catch { }
-        if (-not $active) {
-            Write-Log -Level Info -Message "Connecting to Exchange Online..."
-            Connect-ExchangeOnline -ShowProgress:$ShowProgress
-        }
+        Write-Log -Level Info -Message "Connecting to Exchange Online..."
+        Connect-ExchangeOnline -ShowProgress:$ShowProgress -ShowBanner:$false
+        return $true
     }
     catch {
-        Write-Log -Level Error -Message ("Failed to connect to Exchange Online: {0}" -f $_.Exception.Message)
+        Write-Log -Level Error -Message ("Connect-ExchangeOnline failed: {0}" -f $_.Exception.Message)
         throw
     }
 }
@@ -26,8 +18,8 @@ function Connect-ExchangeOnlineIfNeeded {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAN51UUpUhYylCe
-# wlPqutoE817NFFMAF0y7NX2fx8ND+KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCE+5Aj9bPGftJA
+# mopEfbuVfUVI8I6IXAFqx61FjNKJBKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -160,34 +152,34 @@ function Connect-ExchangeOnlineIfNeeded {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCdQ9/A4stj
-# 8Xu8/PSRawH6kdOC0VsnfIkKhZ3DhUBSbDANBgkqhkiG9w0BAQEFAASCAgC6vsig
-# 4hwMv62UV4hcBUXsPKc+yNN1qrQBltDEoH6AtwwjTolntFLurWwvsyfXR2Pi7Gdb
-# WAJRyoZQQ1he6gsQpS7fkQIDYAAq00DcL3E0d59/YxrUKeyXsXUMYWUUIl9TsM8M
-# kQFsAZDPDR+U+NcS/j7/XElPYwo7oyqFkIyfGhigHsx4ahzI06al1PyLqwvZALKD
-# 6fWKd3aqdWv8d61IbWadSINhuNVimTBF6qoUrsjvCtHwCt2kvh9lkdV9SrUoCYjH
-# eYlkR5vEvx2qbbOUAU0UyBbKfwVBzWVdq8bdJxs0KF5x1VS5Y6/A+iuuSlcTjG0Z
-# ZK2scITBQzZMrIXwKMV4KkjCpfF7CWkomv7IfugQtu+jfML/sQZ6D2qNKnYpbZaw
-# Fg6Z2aHY81d8HL762EXgBMu+wcZq2we9O/xsBQxWeEAXcUgsqBV7K+w9CW7msQc7
-# rQmB0ABQspcfxTz8BauveKCaypmmmsuzydujXdmjwWuCGCmL2bmLskTDK6gjXYXu
-# l/FRKIjYrtyUiM9JzAOfK+5DC/6+tdno28ebWsldwBq5tuZgsYewvK6REFPWebiB
-# pMbQ83+yQxVhdGlifBm/lgOQnqtfucAf4KcE8BBFdOmx0q7tzWxbNmQXk0MWJyK6
-# RbtUbgHN6hHbCUJgI4O0UJxaG7PtXfZEBQMXoKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2KAra8ZYU
+# xqQdp5yGNC8m/W1+avSj14nXik/N9mT/jzANBgkqhkiG9w0BAQEFAASCAgAUu9HN
+# zsDFXmgMCzep9WLluz1xt+yXQiWncjyKLV4I7kwm8ZpZG7LVBdSUTkhGakrjVsst
+# NqPCpkr2mYDO5vNddX1W0MBYrWEtlqw5Z5dgdt7KhwZCcatW6hFQaxU4dp7VuInN
+# 04Uvy6akTB2liK2MQxe5y5ghdGcYv21rgLlNmAH24QnkdB64l2AqzR9e05xDsQdY
+# 9B/VHfpl8aRx0QCNmD7x0r5Dtfs0GbWPvmB9xvLDhhV6rADxUaF4qmIxvZQlaR79
+# t12cpJpGIGKPVdiXyKYYk7xNrrGffJYwV/4Flw36gEZlJMo1Kyf6jvmGeQlKDxfU
+# FuozrIq0EqfTmn4JHXjwijhGCiNi09sTbCPe40stp0DDnvwTSeVotEstb4JA5hdJ
+# ltApJloGob1YpEN/uPuGmYgEq3cQoyq5foktOpvxJW/Gw+a0DLQBywMrt5CdnETg
+# pTt7+v+wPrcwIl1P0SB7GuOJz3BjJMH0XFWV7u0j8yqinl3ADNFtTn1oeWyx3aH0
+# tgnd1MpjIQ2Yd8uKXH7q1/iG5iDbJoKZpNLMURvOPTf+knEmO11zrNZFKTXJPAHN
+# X6OPHXMlj5d0vA4JYLNPrxgRx40h9HJLsu/nNdAFVjTgXQkvByi0+D34D3iIhVOq
+# /27QZ/wzRJcKWcdeZORvpwuyEiVtqiPOcd++T6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ1MTlaMC8GCSqGSIb3DQEJBDEiBCAfVs04NfqDD2NEYk85
-# tEmu+068BYp1d+OVirCV/L9RHDANBgkqhkiG9w0BAQEFAASCAgAjDdiMC6g1xy3E
-# C+V0ImmoIoBpDbsVM+yjTdNLYfcodp8OuAQVIRVM0LqTkyHTv6C6eUMKvQ1untQv
-# NPvFyRW6V0HZ1ExILjg3ifcQigzz9McHJSGUvVybv4rivrwJDiebzukizSISUWgx
-# iJ2MPYWz3QHcQG6Q5msj+t+SBEbRXuIE6lrTjszi++x+IL47F+RXQ07Mu/WIMREh
-# i6zkaiIZPWrHUQgUES/e5gS0Yw6XHDUwqqLqMzF97jwo/mhaiFVh0YuADf8OGNuu
-# z/Krz3ZPOgLTygHRx9wks/uoQTp7D4m38gOVjG4Q+1F7914TylrUKGUhHg0jmOaX
-# UYjiwLUyXTst/Hgg54vyMgqJOqXB/NKVZhluX8yrNeZ5wo9Ffqj9GZrzV1z4YI6z
-# KdRxMz9grjSi193UqMjk+233hoD8tm8DdD1ll/Q/LHa+77JGgfMg0S8xoNJ8uczG
-# c+1xs4ddHoZ8JjRJUyO5v6PqEKx9CCHeLMpXkjazqUSzDv4JkYVIGpsBCQIVRrkW
-# bm2lryvc/kKn9fjDiDGnJZUmJ0ysHEdPBobYf1pJBp3pb/lQ6fnFEKO+YIz4eKtU
-# 5daEgFeiMJX5i4E5l7x5Agb4jjh39ZlOBMr20rEb6TI3flBoPvq0aX3wYKGfN5y1
-# wDCGRlof1sxEr5rhutOIJvl76Qp3KQ==
+# BTEPFw0yNjAzMzAyMDU4MjlaMC8GCSqGSIb3DQEJBDEiBCBt3q7u0zC8b5pW4J/a
+# XZ/K9xBBbkGHFRsXQm/SWuMR6TANBgkqhkiG9w0BAQEFAASCAgCFcpPLgf87VwpW
+# Dh5SkwkuZYwzIKCAyoKm9mQbxfoUT9WGgoaXKKB9bD0Nmj3Zral8owKcqXZJpTd3
+# 7A/xRlHEdoiNuZVYd+JbGGQaQ9U/6+PI6JsUltF7F5WHKqnYAYoF/gIZlAM08fIZ
+# Gy2zkhWe5WEV3KcvY6xnOkVY2MoZJUsjE9OtgmKzRluo+PSo/gPoqjscZ+49/iP7
+# DPC2E7v3p2Kbn5vwtMyJortXC4JXjF4f9nvclOJap/zENUdujLH62BEHbajIF7bm
+# W+1pICWZAuQO/TirR92aGXXFQXqIAAzohHrZSXeONBTEvUYnIOzLJIYTpcqxxU3Z
+# uPElIcFdGInAzbCbluix4qN4jYx6VeKPvFXDzMLqXPuMr/WsOPssp9ZY/VvMa1hA
+# n3c0Bmo7Hi44Ea8rXk9NTNtT59XaM3VnPQddFQcHakqh0NEoJSxkbE25x/6+TW4f
+# bF5NEZlWy0QxTiYucL+AZuhd6LH/eq7te9qpLqtGJllXxjZAJncLMxjBiTwt7AV0
+# r8NzLS3IMiANASS1Gopcll48Vc+g/vMFF+9QDL2zqUAztl5pz8KQD6WOEqixY9A0
+# 5FE59WZnx0ltoDDVPd1rpxmMW7sA9LEz5Zhb61Leios/5dINsi5pPG0IlHudvBbN
+# nCchQ04geX2W1hWEFpth1r8HlrjYAw==
 # SIG # End signature block
