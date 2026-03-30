@@ -37,11 +37,11 @@ ground work has been laid. The AI branch is [here.](https://github.com/dan-damit
 **There are many more Public Commands available than listed here. Please use
 Get-ToolboxHelp for details on those listed here, as well as those not listed.**
 
-**Also, 
+**Also,** 
 ```Powershell
 Get-Command -Module TechToolbox | Sort-Object Name 
 ```
-after import will give you a high level list available public commands.**
+**after import will give you a high level list available public commands.**
 
 ---
 
