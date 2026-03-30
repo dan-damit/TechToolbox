@@ -1,47 +1,27 @@
 function Invoke-DisconnectIPPSSession {
     [CmdletBinding()]
-    param(
-        [switch]$Force,
-        [switch]$Quiet,
-        [switch]$Silent,
-        [switch]$ThrowOnError
-    )
+    param()
 
     try {
-        # If the cmdlet isn't available, there's nothing to do.
-        $disconnectCmd = Get-Command -Name Disconnect-IPPSSession -ErrorAction SilentlyContinue
-        if (-not $disconnectCmd) {
-            Write-Log -Level Info -Message "Disconnect-IPPSSession cmdlet not found. Skipping IPPS disconnect."
-            exit 0
+        if (-not (Get-Command Disconnect-IPPSSession -ErrorAction SilentlyContinue)) {
+            Write-Log -Level Debug -Message "Disconnect-IPPSSession cmdlet not available. Nothing to disconnect."
+            return
         }
 
-        # Attempt disconnect. This is safe even if no session exists; module may throw or no-op.
-        try {
-            Disconnect-IPPSSession
-            Write-Log -Level Info -Message "Disconnected IPPSSession."
-            exit 0
-        }
-        catch {
-            $msg = $_.Exception.Message
-            Write-Log -Level Warn -Message "Failed to disconnect IPPSSession cleanly: $msg"
-
-            if ($ThrowOnError) { throw }
-            # Non-fatal by default
-            exit 0
-        }
+        Disconnect-IPPSSession
+        Write-Log -Level Info -Message "Disconnected IPPSSession."
     }
     catch {
-        if ($ThrowOnError) { throw }
-        # Swallow anything unexpected in best-effort cleanup
-        exit 0
+        # Best-effort cleanup: never fail the caller
+        Write-Log -Level Warn -Message ("IPPSSession disconnect failed or was already disconnected: {0}" -f $_.Exception.Message)
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCwudg5991OjBMt
-# R5dffaX/y44Gv4IbkXkmx6LrSv3rsKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAACdQQdj+YUh5k
+# GxM3bBrHFwrsqocKRFEJ6swo6NzBHKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -174,34 +154,34 @@ function Invoke-DisconnectIPPSSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXKkABnYX8
-# We+c5oYWm3XXLnf9WTk5rX5MrcyGjZDp1DANBgkqhkiG9w0BAQEFAASCAgBe1CeL
-# 5zrH3L2LdvjVaL5AQSn45qW8ibmYSfxRv4C0sZDIwDKy70v2QyEKNgcknyUKwSJn
-# AyI/HHqE8N7OhvlBaJEV+d2vTNn1rmOACgVN87mmaCnqfX6vcEBr6P0nmn3+U25K
-# plTL7w6zg0LeIuP5xgeW03Xxm/eyVxeP7BaqM4cQ9EtE6wOtwalotr8WHOkWwWbC
-# RI2cYXjAu3A38D4tvY5xdsisX6yL6gqWTWd3+UU50sxjLl9YNAJ2QBoPYusl1uFO
-# XpOxl8E/X7YL4dNX/dXiPrrKGLf931B0eZ2E+2qlooNatjqscCwgDFR7WMxCkSXd
-# 6Ngy/oMSQ2Kw0ccdQqn9slyy5IHj6asVs8CRf2Q/pvShlULwmiEhXfue3eWPRMtE
-# CsMh/tqOqY4ZKgWaryf+FEn/7r76aYdBLyszIHxT5XZBf4OE6hMGjdHy60DDzzhb
-# lNKb42Hpb5w/OoybFz2koeQy9CkzVPZ5PiRhCG+JrewJhqvbIMCKLUiPJ2fZwFMc
-# LRqs2bl+cWl6jBP29bN06BoAele77zBLXUDd1Kd1InnoJsRse/pga0/EWiu2QAjH
-# dziYD4IU/Z3GnALoj42Sb3xGFOIyJp/D6fAcJxfTEX9llAAUjmpAjFOTmrr2eUdP
-# Bh3UkspyiHZUGDUYqWe6LJXSVdRaBqaZlZOz1KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvFXj+IWyF
+# jRrEhUy1TKahwExOfAKq6sqxR76vDxzKDjANBgkqhkiG9w0BAQEFAASCAgCNuege
+# fkUaz1jolJBmq1KTEjgieK6letFbkassh6+rkVcZZcWPzn4X32lIpx/kMfsf3YTr
+# sDBPOoXNimEWMHo2EnFlgX4C8Bn19OH+DEjz33lCUMC+uDtM9aKBTIHjFDnSI6t5
+# jgFH9E0cqFympW3d4kNTBHv/e5M7v3wPnqiqfQcXq2pK2rtOmm7QhV2/Ji9IKsmD
+# vwexTjGKrYPxILh7T6koiIzDBFy94V+u9VRyRqt724/8+kD0UKuFc/qIOP+8QMDl
+# QAf2IRGrsWKVGqKZDx66Myy8QSCxUsi0ptnROLPYGF9ST3buklz9vxLMNCend2r9
+# uxVaiO+A2dVKKMMTOdtATCM+m04Vx/Q+hQcoVfmmlFfBU8l1O5J63ch3m8QmC1EX
+# TG3zvO8N7oSct2X+B5i3W7Ge6sqjeKcSSp+VEmwalSdtPEfAsVtKmbGxgWhfE8pS
+# GeU2X9vtu16mr7YuDRtYq9fJxd+hVEIfbc9s9emF5UfKcrhnO+fJaSEqMLZbrqw+
+# FUj+dEQDmeNV0TuhvbUIqSbjCVLMNOXs3+D3BX1Yi9gmjSPWR9aj8+D3UkXMka5G
+# 0OmRvaNnbYLRccH1C6TMBL1lYMRBOKsWWKlPAU+dl+8YdnXl0wNANBxyDuTqPMk6
+# QW21gegyYxOAMvBEjuXtwJU8/mDi6NqkGh1EPqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMzAyMTM3MzdaMC8GCSqGSIb3DQEJBDEiBCAAL+qVznhToTHRvPTI
-# HOia7RpHjdBscmBlJ6h62L8ekzANBgkqhkiG9w0BAQEFAASCAgAiYQR02QCDIO5T
-# T2cCQNiKFojBadMou0m7/MDivRjyU5T1olLf3oLB8BBsk1Io7H71L7qMq0OLeQFk
-# +MEM8TEmNng0hTTmQYwQGlINvCAwPU5rSYCUPhJiTYhhAKT2Wi8OjJGz/rniMo+X
-# Zxa4UvQhfHc3a4SvpQAuRFuWd+F70n9uyEHm4k52iAIMr0zigHEKDrFyOOJ2Ke4J
-# fe/DsHAefhSl/7zc/WYZTuw4dHsyUFzBMOcHdOVW5GcF1xHV5gRLouhimoKbrrpV
-# lpuEhubwQjIKy2u0eUSwa352xpDt8gm0iDldWmapbB1WBumoXwZqm+o8NZB6ToH6
-# h14mw5BO6qdcM3/DMICZWhDGs9LgEoNqkimPi/gdEcPpTdZRXp9leydjINJHxPVV
-# ov+G2d7GEqqQSVEKCKThl9Jsr13z1uGr7C9lKohH0j2THDRx45ZtIv9MmrmxgLL5
-# 3B2Pii69WVYnIRLsAqBIkRA6uafB1Uc8xxOPM1ihqVUuyWDwsZEURWwO6ZAixTQD
-# IJLPyFRaZIY/dsO5Ew6ml8uYa5UcjVZXMXFMm5LVs+9zA/a0MwptuJ6r7+nvzR4+
-# yZz/rEd48BJPsF6fHpdijmKR7Qi1BHyASjotiIJ+zNVjkwp1MnArFHUx64KsTa9j
-# YUkp71c/hfrDpes7UMuv++gWc9eM4A==
+# BTEPFw0yNjAzMzAyMTM5NDVaMC8GCSqGSIb3DQEJBDEiBCCXaYeosKSG8qdyOmp5
+# INk3OcQBJBp7WiiNje3iVXZzrjANBgkqhkiG9w0BAQEFAASCAgAHQ1/eHvC2HpUQ
+# KJAwp16a7aUjGnbg2K0SoGkiYcAW/cNBKvRsENFquZD7gJXq/pMDUcmfC+kpkvab
+# nymvFh7iAn3GIDnpiwJcwQC5NWZl0hHsgXsL8bhT8piXIqKV5CPn8iH9BIDF4tW6
+# 5qUr0EBBcsaecyhbJiolRoXCzFHfpQNuo6UomyIno2uBUoCFOtEAsJRDEeT3KeME
+# gb8XW3yr7WWMPwu32hJEDM3tlnqJSl0nbKNaGL/effr74JgzhQCSmOeO7mHXEt4I
+# pDlZlfJF+wE7Px17VB4LW2HQC5BPH22DCGKVFYHXaoxnQZA4w8LggfXEQmSAu9BV
+# fJJygi05bFUYiJgomfLSYjbOitkaHsLwLeImsLOeHaj9VJd1S3zOqlO9NeHxXmYt
+# cMMycGR/VFJwaH1/tA5fmMfeIYinzpgrrFeMg4DoQRLoJ2jk6SvVUtF1po/HA5Wr
+# IdkmQ4FzjhCinm8I1nbihJW3YxiGjQC94Obb27L6asCiIatP3sl/uSfNxQPzZdqF
+# ZNgdkJqTzkXpsM4d+PCMNynnbduAnXGmFn9MXvBPHDaXMw4pLJKrH3QER7RcOgG9
+# hTV0btA+Tho2wud6cShWAw5oocw2H1tDAWgGQ9TorvhXgvkL7fUcQDAqYowIJ6EE
+# 62Tfb316H8NUH8JrGUZNQ2mhCN3Q9A==
 # SIG # End signature block
