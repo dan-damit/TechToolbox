@@ -1,25 +1,27 @@
-function Connect-ExchangeOnlineAlways {
+function Invoke-DisconnectIPPSSession {
     [CmdletBinding()]
-    param(
-        [bool]$ShowProgress = $false
-    )
+    param()
 
     try {
-        Write-Log -Level Info -Message "Connecting to Exchange Online..."
-        Connect-ExchangeOnline -ShowProgress:$ShowProgress -ShowBanner:$false
-        return $true
+        if (-not (Get-Command Disconnect-IPPSSession -ErrorAction SilentlyContinue)) {
+            Write-Log -Level Debug -Message "Disconnect-IPPSSession cmdlet not available. Nothing to disconnect."
+            return
+        }
+
+        Disconnect-IPPSSession
+        Write-Log -Level Info -Message "Disconnected IPPSSession."
     }
     catch {
-        Write-Log -Level Error -Message ("Connect-ExchangeOnline failed: {0}" -f $_.Exception.Message)
-        throw
+        # Best-effort cleanup: never fail the caller
+        Write-Log -Level Warn -Message ("IPPSSession disconnect failed or was already disconnected: {0}" -f $_.Exception.Message)
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCE+5Aj9bPGftJA
-# mopEfbuVfUVI8I6IXAFqx61FjNKJBKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAACdQQdj+YUh5k
+# GxM3bBrHFwrsqocKRFEJ6swo6NzBHKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -152,34 +154,34 @@ function Connect-ExchangeOnlineAlways {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2KAra8ZYU
-# xqQdp5yGNC8m/W1+avSj14nXik/N9mT/jzANBgkqhkiG9w0BAQEFAASCAgAUu9HN
-# zsDFXmgMCzep9WLluz1xt+yXQiWncjyKLV4I7kwm8ZpZG7LVBdSUTkhGakrjVsst
-# NqPCpkr2mYDO5vNddX1W0MBYrWEtlqw5Z5dgdt7KhwZCcatW6hFQaxU4dp7VuInN
-# 04Uvy6akTB2liK2MQxe5y5ghdGcYv21rgLlNmAH24QnkdB64l2AqzR9e05xDsQdY
-# 9B/VHfpl8aRx0QCNmD7x0r5Dtfs0GbWPvmB9xvLDhhV6rADxUaF4qmIxvZQlaR79
-# t12cpJpGIGKPVdiXyKYYk7xNrrGffJYwV/4Flw36gEZlJMo1Kyf6jvmGeQlKDxfU
-# FuozrIq0EqfTmn4JHXjwijhGCiNi09sTbCPe40stp0DDnvwTSeVotEstb4JA5hdJ
-# ltApJloGob1YpEN/uPuGmYgEq3cQoyq5foktOpvxJW/Gw+a0DLQBywMrt5CdnETg
-# pTt7+v+wPrcwIl1P0SB7GuOJz3BjJMH0XFWV7u0j8yqinl3ADNFtTn1oeWyx3aH0
-# tgnd1MpjIQ2Yd8uKXH7q1/iG5iDbJoKZpNLMURvOPTf+knEmO11zrNZFKTXJPAHN
-# X6OPHXMlj5d0vA4JYLNPrxgRx40h9HJLsu/nNdAFVjTgXQkvByi0+D34D3iIhVOq
-# /27QZ/wzRJcKWcdeZORvpwuyEiVtqiPOcd++T6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvFXj+IWyF
+# jRrEhUy1TKahwExOfAKq6sqxR76vDxzKDjANBgkqhkiG9w0BAQEFAASCAgCNuege
+# fkUaz1jolJBmq1KTEjgieK6letFbkassh6+rkVcZZcWPzn4X32lIpx/kMfsf3YTr
+# sDBPOoXNimEWMHo2EnFlgX4C8Bn19OH+DEjz33lCUMC+uDtM9aKBTIHjFDnSI6t5
+# jgFH9E0cqFympW3d4kNTBHv/e5M7v3wPnqiqfQcXq2pK2rtOmm7QhV2/Ji9IKsmD
+# vwexTjGKrYPxILh7T6koiIzDBFy94V+u9VRyRqt724/8+kD0UKuFc/qIOP+8QMDl
+# QAf2IRGrsWKVGqKZDx66Myy8QSCxUsi0ptnROLPYGF9ST3buklz9vxLMNCend2r9
+# uxVaiO+A2dVKKMMTOdtATCM+m04Vx/Q+hQcoVfmmlFfBU8l1O5J63ch3m8QmC1EX
+# TG3zvO8N7oSct2X+B5i3W7Ge6sqjeKcSSp+VEmwalSdtPEfAsVtKmbGxgWhfE8pS
+# GeU2X9vtu16mr7YuDRtYq9fJxd+hVEIfbc9s9emF5UfKcrhnO+fJaSEqMLZbrqw+
+# FUj+dEQDmeNV0TuhvbUIqSbjCVLMNOXs3+D3BX1Yi9gmjSPWR9aj8+D3UkXMka5G
+# 0OmRvaNnbYLRccH1C6TMBL1lYMRBOKsWWKlPAU+dl+8YdnXl0wNANBxyDuTqPMk6
+# QW21gegyYxOAMvBEjuXtwJU8/mDi6NqkGh1EPqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMzAyMDU4MjlaMC8GCSqGSIb3DQEJBDEiBCBt3q7u0zC8b5pW4J/a
-# XZ/K9xBBbkGHFRsXQm/SWuMR6TANBgkqhkiG9w0BAQEFAASCAgCFcpPLgf87VwpW
-# Dh5SkwkuZYwzIKCAyoKm9mQbxfoUT9WGgoaXKKB9bD0Nmj3Zral8owKcqXZJpTd3
-# 7A/xRlHEdoiNuZVYd+JbGGQaQ9U/6+PI6JsUltF7F5WHKqnYAYoF/gIZlAM08fIZ
-# Gy2zkhWe5WEV3KcvY6xnOkVY2MoZJUsjE9OtgmKzRluo+PSo/gPoqjscZ+49/iP7
-# DPC2E7v3p2Kbn5vwtMyJortXC4JXjF4f9nvclOJap/zENUdujLH62BEHbajIF7bm
-# W+1pICWZAuQO/TirR92aGXXFQXqIAAzohHrZSXeONBTEvUYnIOzLJIYTpcqxxU3Z
-# uPElIcFdGInAzbCbluix4qN4jYx6VeKPvFXDzMLqXPuMr/WsOPssp9ZY/VvMa1hA
-# n3c0Bmo7Hi44Ea8rXk9NTNtT59XaM3VnPQddFQcHakqh0NEoJSxkbE25x/6+TW4f
-# bF5NEZlWy0QxTiYucL+AZuhd6LH/eq7te9qpLqtGJllXxjZAJncLMxjBiTwt7AV0
-# r8NzLS3IMiANASS1Gopcll48Vc+g/vMFF+9QDL2zqUAztl5pz8KQD6WOEqixY9A0
-# 5FE59WZnx0ltoDDVPd1rpxmMW7sA9LEz5Zhb61Leios/5dINsi5pPG0IlHudvBbN
-# nCchQ04geX2W1hWEFpth1r8HlrjYAw==
+# BTEPFw0yNjAzMzAyMTM5NDVaMC8GCSqGSIb3DQEJBDEiBCCXaYeosKSG8qdyOmp5
+# INk3OcQBJBp7WiiNje3iVXZzrjANBgkqhkiG9w0BAQEFAASCAgAHQ1/eHvC2HpUQ
+# KJAwp16a7aUjGnbg2K0SoGkiYcAW/cNBKvRsENFquZD7gJXq/pMDUcmfC+kpkvab
+# nymvFh7iAn3GIDnpiwJcwQC5NWZl0hHsgXsL8bhT8piXIqKV5CPn8iH9BIDF4tW6
+# 5qUr0EBBcsaecyhbJiolRoXCzFHfpQNuo6UomyIno2uBUoCFOtEAsJRDEeT3KeME
+# gb8XW3yr7WWMPwu32hJEDM3tlnqJSl0nbKNaGL/effr74JgzhQCSmOeO7mHXEt4I
+# pDlZlfJF+wE7Px17VB4LW2HQC5BPH22DCGKVFYHXaoxnQZA4w8LggfXEQmSAu9BV
+# fJJygi05bFUYiJgomfLSYjbOitkaHsLwLeImsLOeHaj9VJd1S3zOqlO9NeHxXmYt
+# cMMycGR/VFJwaH1/tA5fmMfeIYinzpgrrFeMg4DoQRLoJ2jk6SvVUtF1po/HA5Wr
+# IdkmQ4FzjhCinm8I1nbihJW3YxiGjQC94Obb27L6asCiIatP3sl/uSfNxQPzZdqF
+# ZNgdkJqTzkXpsM4d+PCMNynnbduAnXGmFn9MXvBPHDaXMw4pLJKrH3QER7RcOgG9
+# hTV0btA+Tho2wud6cShWAw5oocw2H1tDAWgGQ9TorvhXgvkL7fUcQDAqYowIJ6EE
+# 62Tfb316H8NUH8JrGUZNQ2mhCN3Q9A==
 # SIG # End signature block
