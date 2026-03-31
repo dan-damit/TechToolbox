@@ -1,20 +1,50 @@
 <#
 .SYNOPSIS
-  Worker: Query Unified Audit Log for shared mailbox deletion activity and
-  return normalized records.
+    Query shared mailbox deletion activity from the Unified Audit Log.
 
 .DESCRIPTION
-  - Uses SMTP (PrimarySmtpAddress) as the FreeText token (tenant-proven to
-    work).
-  - Normalizes dates to UTC before querying.
-  - Uses Invoke-UnifiedAuditLogPaged for paging.
-  - Extracts Subject and Actor robustly from varying AuditData shapes.
-  - Optional filtering by SubjectContains (literal contains) and SubjectRegex
-    (regex).
+    Resolves the target mailbox, searches UAL using the mailbox SMTP address as
+    FreeText, and returns normalized deletion records.
 
-  DEPENDENCIES (expected in TT runtime)
-  - Resolve-Mailbox
-  - Invoke-UnifiedAuditLogPaged
+    Behavior:
+    - Converts StartDate/EndDate to UTC before querying.
+    - Paginates through UAL via Invoke-UnifiedAuditLogPaged.
+    - Handles multiple AuditData shapes for Operation, Subject, Actor, and Time.
+    - Supports optional SubjectContains (literal) and SubjectRegex filtering.
+
+.PARAMETER Mailbox
+    Mailbox identity to resolve (alias, UPN, SMTP, etc.).
+
+.PARAMETER StartDate
+    Query window start (local or UTC). Converted to UTC before search.
+
+.PARAMETER EndDate
+    Query window end (local or UTC). Converted to UTC before search.
+
+.PARAMETER SubjectContains
+    Optional case-insensitive literal subject fragments. Any match is included.
+
+.PARAMETER SubjectRegex
+    Optional regex patterns matched against Subject. Any match is included.
+
+.PARAMETER Operations
+    UAL operations to include. Defaults to MoveToDeletedItems, SoftDelete, and
+    HardDelete.
+
+.OUTPUTS
+    PSCustomObject with:
+    - TimeUtc
+    - Operation
+    - Actor
+    - Mailbox
+    - Subject
+    - ClientIP
+    - RecordId
+
+.NOTES
+    Expected runtime dependencies:
+    - Resolve-Mailbox
+    - Invoke-UnifiedAuditLogPaged
 #>
 
 [CmdletBinding()]
@@ -233,8 +263,8 @@ $results | Sort-Object TimeUtc -Descending
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCdMYfpTuitnpMk
-# +biLpt6hEIIaQEd7mXnDm2+7K+k+wKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD8u992fy8QvIX7
+# Ao40EWHwPl5Yv3z0R/lIgyRV4aXEfKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -367,34 +397,34 @@ $results | Sort-Object TimeUtc -Descending
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBst9684ohl
-# Y7xoxfzw9xLjcyEo5kbzSBV2UtZCNL8T2DANBgkqhkiG9w0BAQEFAASCAgA6L744
-# /PcjA4zXgyy2xl49wiMSVBROLymHCmF1oJh1lqbBwxeUSp7zAQxDQFCrXOFZIgXR
-# 4BYqlPOsdO0KTYFd5WXEItsGgX0i3RZcGpNF1OM9ATJS+IMK6V0q4c6A9RHQLcTJ
-# nYoklcYUsAn6x9Qw7wU5KyNVx0y8fZmyzdK6oP+Z/G/jShjI+xlzk9VEY4LoRojO
-# aZ9pCkSzx6bgkXYIsRqt/mXxgkFNk5gdEo/1JnprVdBTsrfuX600MXVUH8PGOAyY
-# UhdYtaoylWmIsozIhBJGRUUV5mNr+gIRZZujlmlzT+IlvQqok6YlAOEiZUMgkOKd
-# Qyux38G+WoMQwnUBGOhMqEB/YpSihP34xR+GXrTwO5pOqkW5ksFJrT3nGP4ErNdC
-# Q5TlXrzsFXUxPCRsZaYcUV0KMqqyaTwJZ6AhRMltKIYTiwUYSKeUAPJIdYRZ976P
-# idj+5ewzYZsdho8LW82LoPAbmKHnV1Mjza1PvNpMddrQqcttli3ZwZw2Ha4gF1dg
-# SEKmj3daSkpEvcJGGlTWfKQvIq4NUNJUGXcVXQQW23ukNjJ1wEYlgqewW28ca4mG
-# fzb2Jliycfr9aRRwLXv8YTh1E0rex5JZAzC/LgyooWu1Q8eswX2keCWri/LbxUiO
-# LsGvvDidxi9jYXxfrSc3DKHhLPlmGAXwDZoM0KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDl+9lB6yww
+# vba54QacGHBHw5P0V7mpfuuZ5Ve8Duj+djANBgkqhkiG9w0BAQEFAASCAgDL/NuB
+# g0mhdfnBFuBUQILtc+drCQ1MY+ww/S2WnmD6EUxg4mPMTGFCDiKDM5/cLvvOzHkZ
+# KT9dGuJlZ0gG1XpMwxhP+eEgG29FjaYQ3Y9wNI5/GV3DOi77psOeQjES6gMogyUE
+# luDTJ4JksPiklkiw4I5NNYZd5HXysaVW+vWR1YU3Xj+jNGl/mYRtfigYhWuNw9cN
+# nEiRU8s0pmJ9oZjiVl67l/tbi2PZKlpe9hi5B9EyWlNHQ8wG/G5/0GIQ6JjlGvms
+# OGiYvN4ihGz7KvCEQCKRBGhFFI4Engaxeb+nO//IDM88pp50BdfOeUj2yfhzir/R
+# rxDIQYAHiMcGvcVQdlfI59Btus/InTQFVij56EQNM2EaWe50xSuxFzc5APYjoitd
+# 0e7KKRd4ARc+msuryhaBaqy3pciVxT0gQDaX/wcNPbmPzxB7rcXxDHNWSwkQv2yh
+# XV3BuFg4DDUFqR0R7vzVnPpEp+0uUN5eLlgP1uuWxxMIk4J5fBpa8+eU26RXXL7K
+# PvsRCWKDw0ovCde4mbDrqs3PyBG0+VP9Js4+oyyXxBWkoTpKhIm+9mxJ+KcWjJZk
+# nZEyKUwkE/S6pJXxsANddwZXFhKKxCfl+zmAtbgpaTA3Tp2H7E2kWrxnIzOocdMU
+# FDsrNK16AD1kcyUqlXzmGvABiBu2PTuNmMLrUqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMzAwMDU2NTZaMC8GCSqGSIb3DQEJBDEiBCDx+mRHQPKrWHqx6Dnn
-# WsOf7VixKS9l3eIX6c0ObMq02jANBgkqhkiG9w0BAQEFAASCAgALD0Cu4P1IBpfD
-# arWLO1w1IbHHd6GtS8onXHq5PiRHaBD2efT9ZThGzMa5qAA1C5OH5NS8fs7yMsIo
-# QEPKNA69Z8Oe6PjXOdtitsMYH4QXT9eOhARdqqT0/9X4UP4nqOsRTijPBwkChMty
-# s9GhgGGAgXO8hKlbicZtHOAoYM/Vd8nVqgHfg1a5DcN2X2WSQbBcTKIY8JDNhCbv
-# 4nYUsPN9OIe1j6yDOmVv1wodjyuyh8EETencTR2QgLWL5a3/zJz+QpnLVNzTImBP
-# G9PYHz5izSyyjscjcuECCNb2bsrf49/ZXJeGH4gKjwpp83IkVzzzHXwCgnSj5Jny
-# q861DjOGQzMUyUV7VSIBY6bKyN9Uoqn0EB68PvPKQ9LBJvvRhAbRmUs/qgoYGQeO
-# Om7+3qxBC9x/w2+dlryGIZjgjXpF5GBPFolEt6GiFig0OTXeTx1QD7Sv/PFZJXSD
-# Da/XZZewRIduN0LSXAHVkAKl1OmY/sNXUMSiBth/k+S5+ShB5IjS80N7tYAXCToR
-# tTZW35Qduwc7aR3QY6GSx2lAaEwnajv5O6sRl9UFajgg/juxAUoTm7h/CWAD0quB
-# An6OMHt4sVeYZow0bha4xby9tHeeprYhZ0zUdCcTPNlws7SDuq3oX7kdLJmZfoXN
-# ssGPQksMnw8pdngb6Z9p/BGhyfGkyw==
+# BTEPFw0yNjAzMzEyMzMyMjJaMC8GCSqGSIb3DQEJBDEiBCA/sFSkaYUWCdufswin
+# 3RVdeL+WJfXrcdS/88973rQGzTANBgkqhkiG9w0BAQEFAASCAgA/8ja6wyv1A4Pm
+# TnTh9s0BSsc/Moyec7U1juuDxa5sqVs8azwUKZ4ZqdEL2oQ2G/EupRP0pfdKGoE6
+# 9vlZ/DGL63A+jKgc2mg3b3VXh2OtvGMHcQdympmL91Bcos7HAL1zepGEVtOEkuMq
+# tZa6gPzYOODSPUn66oCdauVEZiJvfDKCaLRqcImrfeBRr0peP9r5ivV1QqaJvecL
+# eJrEXJ3kSWyupdnXhufOLvZra5GAWS4ZF/rz+03oO+8hr7ZnQD18GGfVmhOIVA1h
+# dPojCZunbzYa1rEvhos8CEO/RolkgSxPEOSIMSa2n8tL8AVd8LhfjkcOsr22X4O1
+# Ok8k3Xxp6eR0sE7jo6bKsFVWKMNbNvlLVQXnEzvcpVkMpCu+e+wtLBTEDQ9dEIRk
+# bPp3p5werqvQnW5Im5zDg6ifNVMgGRguzV+hxQoagqJ9o5rlTWPN0R1TgSzqeSRl
+# MzfHzOtAm0ND6a3i1x0emE06eH1nbj6UaJg19vgYOUzYk0XubwOVSI3t1XlmT2VZ
+# aVFbZ7Yu9QAv69zin5ir2TB1N65VLWfyR5Ko0lZWTvlFX/YeXYAHmtHcZj3cLPwu
+# eiiPiFgoi+isfhN0ffBCCmHxXIPXVq4MtCyq+tzNz08UqtKB+TDrlwLNdiwu4tEJ
+# sR41Y1AJz5feEUFnz+oUEqzKSukKdw==
 # SIG # End signature block

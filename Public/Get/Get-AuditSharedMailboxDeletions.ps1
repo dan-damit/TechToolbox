@@ -1,4 +1,55 @@
 function Get-AuditSharedMailboxDeletions {
+    <#
+    .SYNOPSIS
+        Find shared mailbox deletion activity and optionally export results
+        to CSV.
+    .DESCRIPTION
+        Initializes TechToolbox runtime, ensures Exchange Online
+        connectivity, and runs the shared mailbox audit worker for the
+        specified mailbox and time window.
+        Behavior:
+        - Defaults StartDate to 14 days ago and EndDate to now.
+        - Supports optional subject filters (literal and regex).
+        - Supports operation filtering (SoftDelete, HardDelete,
+            MoveToDeletedItems).
+        - Can export matched records to CSV and optionally return the
+          objects.
+    .PARAMETER Mailbox
+        Mailbox identity to audit (alias, UPN, SMTP, etc.).
+    .PARAMETER StartDate
+        Query start date. Defaults to 14 days before execution time.
+    .PARAMETER EndDate
+        Query end date. Defaults to execution time.
+    .PARAMETER SubjectContains
+        Optional case-insensitive literal subject fragments. Any match is
+        included.
+    .PARAMETER SubjectRegex
+        Optional regex patterns tested against message subject. Any match is
+        included.
+    .PARAMETER Operations
+        UAL operations to include. Defaults to SoftDelete, HardDelete, and
+        MoveToDeletedItems.
+    .PARAMETER ExportCsv
+        If set, exports results to CSV and returns the file path unless
+        PassThru is also set.
+    .PARAMETER ExportPath
+        Destination folder for CSV export. Defaults to configured shared
+        mailbox audit export path, then $env:TEMP.
+    .PARAMETER PassThru
+        When used with ExportCsv, returns records instead of only the
+        exported file path.
+    .OUTPUTS
+        Without ExportCsv: normalized worker records (PSCustomObject). With
+        ExportCsv: String file path, unless PassThru is set.
+    .EXAMPLE
+        Get-AuditSharedMailboxDeletions -Mailbox 'shared@contoso.com'
+    .EXAMPLE
+        Get-AuditSharedMailboxDeletions -Mailbox 'shared@contoso.com' -StartDate
+        (Get-Date).AddDays(-7) -SubjectContains 'invoice','wire'
+    .EXAMPLE
+        Get-AuditSharedMailboxDeletions -Mailbox 'shared@contoso.com' -ExportCsv
+        -ExportPath 'C:\Temp\Audit' -PassThru
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Mailbox,
@@ -93,8 +144,8 @@ function Get-AuditSharedMailboxDeletions {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDswMSWE6CS6N6r
-# X+c8Iikhe8UH4wcR6ZEXiPkFcgfoLKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC8/6/fjzaS73LW
+# F6vA8PjeRz00VZXoTbYVD+B9NXkpuaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -227,34 +278,34 @@ function Get-AuditSharedMailboxDeletions {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBIelS8eiSr
-# WpmRnltdfB3W4UfIPawrZhpBzp3Y1xDOPzANBgkqhkiG9w0BAQEFAASCAgBza68X
-# dVIKvUFJH2Ecy5pnDNcZAGZqgILeHmqWCKl5bRA65zvJ7gYaz5P2Pc11D9s/SBNj
-# 6k7UKf2NGJeWzw6H8F2CVN6yrQf/KnS2zsg0rX4L9+EHbXrf3R/1uDSToL1Ec4fL
-# pZzGWZynFR9YSDj5vRhnlNRrBWKWjAIHKUwnj8FunKP+xw8YCEGRny3kZXPkE2M8
-# 8hO8WoUjHHiOA6ICvLe5YDMyPPErllO52sIFJZA+F1rDUcto94acCNgjQ6O5gd9j
-# m3BT65kZFPfMKwJulH4krBhKrID+zO1SI5bBDDyb3CxjNIDJj7CTHzA8LzYdAM6+
-# QYy2b7+1OXijtOYmi2aj/VDZdwg1pl5Az2iewiuSkon3j93vQJXmiLDyCnLRNEQa
-# g0rqJp/Br2bJqcEk8hpUe1a8zPGoxTO8iTXGf0mD+LhZz3G4VrmjVzP0JX8Z0ocQ
-# p2xHK7AkmOHvTokZyXTOzHu9FgQs7sG7fMIlNFTPgKmKCsXPjE8EeHswfWqrTwUr
-# yhL91hP2l+IDPJmMlXAGHn7FNfFu20cWFl4vBWy4TG2wbkG3RWzBhMwIynjPLKoX
-# Mj+ia8Za8NCUgdD1Ezuscyij4BUXmsU3q3ggHLgiMbbVOynW9gb5nVievFqp1Ap8
-# MoA/P6vcql7OPXnH3vZIHmE58aCR23EOTg5v0KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAF4EKYBo6o
+# aOlbBQA+Sw+NLNZhQa9Dqy9jFnweGF7TITANBgkqhkiG9w0BAQEFAASCAgA+3vip
+# XA3tewhkP/zKRwnWFGBpNu9/glZsTgADtsiiws6E4tIhkam5y6unhhdWMwxm3Ay7
+# WGWNBL4TN0kjvR65QYnOHw5G8v5gEcsq+t+q7l9/PavMgl2U3drTGOWyNsFXl1yk
+# jYROGns/NMLBxeWZE1oZf24i8J/zC+21TuGzxXrpALtJwvwqp47gCKiaKHXJ+kAx
+# D7Pgrbtosz/BaKY+B/ojbtxhdhJPuHCb5xFyfM1XG9+HxLYVDSnspsgWT4BDGLqK
+# GaQKVaCdbsW8lkIiYLL/pyYrMrsepn0LWO0ciQ8+rMbwoJc0O7upS4+56s74R6ta
+# OzScd2723SlOp1uBMrUMEshDs9wZpEs1h3KBoGILrs+paQ90/Ca+oI3oaAbMexLM
+# v1Wu87fy51zJEuNe19j1q3RSOAne0r+rnUvbYTCr4SunP/zOcFz78ljkdFZRa42C
+# C0I5NxL9oxnMTbYN5UL2m8nIpH8D/NGGQiYSWz3ux+DuaqitNCybvcG2pqOWWM7N
+# l+3quULBooIbwblSN8bdu7D4mW76lLTJVnB8bca8SiVUGPpGY93FEIWa+DYndXK0
+# mRBrkeTpYwFqoZWi6guUioNsOGn/vShSmN+jeoZwfGdx0OSwbGJvHY8NenM1p5DA
+# 5Da9GaLNSsRS4UrKrM7KS496rcyHCrVAYywly6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMzAyMDU4MzJaMC8GCSqGSIb3DQEJBDEiBCBjTxfd2g2l2If5dRdW
-# UoV0Pu7kwbwZaUozk8qPHLm+7zANBgkqhkiG9w0BAQEFAASCAgAsmQLIJ4HSsaG9
-# PMNen7kQw5Csn/Q0ZOhVh+UNNH6Srn2yoQma/7XLm468XUBYnvLnStG5iO5APzZG
-# syihyGTiSoD/mVjnX8N2kLgRfFbG7+IGXtqJlt/ylxkyZJCAR/EFHu4YYxE6gog5
-# qk6xq7ZvqgbWOr5Rhtfv0Q3zS6Bwlu40SlbmOgp/Dl0gSW6pnCGPG0vN0Bv4r+Zq
-# 5EPIGrdVYHHhyOFGvNGD2PVAZgExxffe1x92tdHFD1GtG420Z7xHOYLFQf9grRWG
-# OgRDYvTtp24eqaXe6+Bd6umIZnSWk+KIs66mKSPfRGSKQiJXSQmR2/6ZV/xQOav4
-# KJyBEePojD0rUG7QbgkN+2+BairIGmOElGCcGkPtSkarlEBAcndXXppw/V7X76g4
-# x7GpiHVUI0cZXRCxGu4jnEZHCKn73vrsZFahYwFzD1wAc4b4VWMWFF4JKwIPB0Ps
-# 2JZMN7Tveq0AmdkVTShP+2p3M169ujkpoy5t2j4BlBj2Pvw84agkxYSRtYRZlpqL
-# jUiwsOiEdD1egUzCkaaimcAcFP57eebsI97m5Wn7HTsFuYfAJc27YuxpfIklHdMi
-# P36J+lFRZQlL2RQlhvKup2sqThOQmYGtCdIc/IC6tX1jZDxuJogxfXbvxbtP3Lka
-# mGgAUudVtukZmjW/sMzSTJzZC3KkHw==
+# BTEPFw0yNjAzMzEyMzMyMjFaMC8GCSqGSIb3DQEJBDEiBCAC0v/1v4BBqiUuu4xH
+# H4IG5/nWkISmNFJmWo5FtKLmfTANBgkqhkiG9w0BAQEFAASCAgAq86Qom0O/ATsE
+# 5zzAZGkqLf+iAc3yUhsknFiSqYTgc2pMw0Hieepr6ezN7VYaNfkgjPvOWT5FeIlL
+# FfSd+YnU6wR4qnuyNPG+CLjvrh1BJhgd2tsDt5cKyBJI00B7saFcrNfM/t4nXWlk
+# VE3bkfpMkmgOh/PrWXggjQrdRfHTG8qlIuvuljTlP68myenhhUZOel2fVu23vdPL
+# A7eAd6gizlKQqlkII4knry7CuEFjN0G/vx0q0iyBm0lsON5IHDlsIjxJi/ZjZcw3
+# 0mOy+SmhxgIN1/dbZdfCc6Qg/aOvnpA0fJogAqP5p543ZLy9fiHBFK6JqAr7qUba
+# POgx/7PAP8hgMdVCN0nfBPRlZ7sLfBaBdwVw1VuCc54VWiOTKF4Z9syvVcsHFptE
+# 2D1muCt4YnU8T9tazd6K7AZxZt6AA8oDWbLetxuPVgY/cGcDmO9MGLenmzKqMzQ2
+# TGnfB1LbdYq2KKVmAHvhHq+EL6w9XGfO74K58+pmc2c0UUivOD/ovi/VVpctiLuR
+# T/mfArclgPsa7KMi1lG/UaMpR2zbAKqjE59GxEZabsW+0sVZlTjK56XbDN+95mrW
+# oH99oUIUXbKMGG16DaDUpu1WYm8tgFX0CLatSZBTuDNlZdqaWsvbcv/2k52vzIq2
+# aoPty1pWVNSDssrJ4lytsLBKDeepGw==
 # SIG # End signature block
