@@ -1,27 +1,79 @@
-function Invoke-DisconnectIPPSSession {
-    [CmdletBinding()]
-    param()
+function Get-ComplianceSearchOrCreate {
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name,
 
-    try {
-        if (-not (Get-Command Disconnect-IPPSSession -ErrorAction SilentlyContinue)) {
-            Write-Log -Level Debug -Message "Disconnect-IPPSSession cmdlet not available. Nothing to disconnect."
-            return
+        [Parameter(Mandatory)]
+        [string]$CaseName,
+
+        [Parameter(Mandatory)]
+        [string]$ContentMatchQuery,
+
+        [Parameter(Mandatory)]
+        $ExchangeLocation,  # 'All' or array of mailboxes
+
+        [string]$Description,
+
+        # Your orchestrator already has $confirm from config; pass it through.
+        [bool]$ConfirmPreference = $false
+    )
+
+    $existing = Get-ComplianceSearch -Identity $Name -ErrorAction SilentlyContinue
+
+    if ($existing) {
+        Write-Log -Level Info -Message ("Compliance Search already exists: {0}. Updating query/scope for this run..." -f $Name)
+
+        if ($PSCmdlet.ShouldProcess(("Search '{0}'" -f $Name), "Update compliance search (ContentMatchQuery/ExchangeLocation/Description)")) {
+            $setParams = @{
+                Identity           = $Name
+                ContentMatchQuery  = $ContentMatchQuery
+                SharePointLocation = $null
+                ExchangeLocation   = $ExchangeLocation
+                Description        = $Description
+            }
+            if ($Description) { $setParams.Description = $Description }
+
+            Set-ComplianceSearch @setParams -Confirm:$ConfirmPreference | Out-Null
+            Write-Log -Level Ok -Message ("Search updated: {0}" -f $Name)
         }
 
-        Disconnect-IPPSSession
-        Write-Log -Level Info -Message "Disconnected IPPSSession."
+        return [pscustomobject]@{
+            Search  = (Get-ComplianceSearch -Identity $Name)
+            Created = $false
+            Updated = $true
+            Reused  = $true
+        }
     }
-    catch {
-        # Best-effort cleanup: never fail the caller
-        Write-Log -Level Warn -Message ("IPPSSession disconnect failed or was already disconnected: {0}" -f $_.Exception.Message)
+
+    # Not found → create it
+    $newParams = @{
+        Name               = $Name
+        Case               = $CaseName
+        SharePointLocation = $null
+        ExchangeLocation   = $ExchangeLocation
+        ContentMatchQuery  = $ContentMatchQuery
+    }
+    if ($Description) { $newParams.Description = $Description }
+
+    if ($PSCmdlet.ShouldProcess(("Case '{0}'" -f $CaseName), ("Create compliance search '{0}' (ExchangeLocation={1})" -f $Name, ($ExchangeLocation -join ',')))) {
+        New-ComplianceSearch @newParams -Confirm:$ConfirmPreference | Out-Null
+        Write-Log -Level Ok -Message ("Search created: {0}" -f $Name)
+    }
+
+    return [pscustomobject]@{
+        Search  = (Get-ComplianceSearch -Identity $Name)
+        Created = $true
+        Updated = $false
+        Reused  = $false
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAACdQQdj+YUh5k
-# GxM3bBrHFwrsqocKRFEJ6swo6NzBHKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBLEBvDI5yef30F
+# sRMAqnKh4t0K5uHo0DTdI7gCTMWIY6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -154,34 +206,34 @@ function Invoke-DisconnectIPPSSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvFXj+IWyF
-# jRrEhUy1TKahwExOfAKq6sqxR76vDxzKDjANBgkqhkiG9w0BAQEFAASCAgCNuege
-# fkUaz1jolJBmq1KTEjgieK6letFbkassh6+rkVcZZcWPzn4X32lIpx/kMfsf3YTr
-# sDBPOoXNimEWMHo2EnFlgX4C8Bn19OH+DEjz33lCUMC+uDtM9aKBTIHjFDnSI6t5
-# jgFH9E0cqFympW3d4kNTBHv/e5M7v3wPnqiqfQcXq2pK2rtOmm7QhV2/Ji9IKsmD
-# vwexTjGKrYPxILh7T6koiIzDBFy94V+u9VRyRqt724/8+kD0UKuFc/qIOP+8QMDl
-# QAf2IRGrsWKVGqKZDx66Myy8QSCxUsi0ptnROLPYGF9ST3buklz9vxLMNCend2r9
-# uxVaiO+A2dVKKMMTOdtATCM+m04Vx/Q+hQcoVfmmlFfBU8l1O5J63ch3m8QmC1EX
-# TG3zvO8N7oSct2X+B5i3W7Ge6sqjeKcSSp+VEmwalSdtPEfAsVtKmbGxgWhfE8pS
-# GeU2X9vtu16mr7YuDRtYq9fJxd+hVEIfbc9s9emF5UfKcrhnO+fJaSEqMLZbrqw+
-# FUj+dEQDmeNV0TuhvbUIqSbjCVLMNOXs3+D3BX1Yi9gmjSPWR9aj8+D3UkXMka5G
-# 0OmRvaNnbYLRccH1C6TMBL1lYMRBOKsWWKlPAU+dl+8YdnXl0wNANBxyDuTqPMk6
-# QW21gegyYxOAMvBEjuXtwJU8/mDi6NqkGh1EPqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCADA+mc2Che
+# NvuOTNRWHq7ivCiZ3kbwLVaTNf4WCjRPhDANBgkqhkiG9w0BAQEFAASCAgAaTLCU
+# HYh1KWWHWCVz27RZv2E6u2Ypua6G8QC7NNmqAspRSPEzie42Enz6YGah++W2XE94
+# 4k18RC3tsk3a5XPNbABhpDH08FPCPKcayYgqXsFTfrzppYllR6AZLjbcwTi29JgS
+# +46P1EERpVsKIHnydpYDUq1VkNzZZ0+MelZHGrx+WffWMazcxKv8S7KOa2foQ/Ka
+# Y8rS9w2egvZNj1ZeTxW/yI4XeIAc3eGLlo4N5Mlok1C1AI4vrvIa0voDsQRIg2i7
+# FsST6S4Gyo1JIBXYr+qrTsD+t+u6wFjYwUVi7eQ6HkjEQ2HNPhDlnSuSkrGyM0GP
+# HpxnB292dlkCC5fZ3rlLrcFBUc8SmOYbCVU/DRLZAOGusYIva7BIdhPzry/nBc8x
+# Jn6C8VeP3ACQBPwXovGo60ryyM/xkI6OUEf2efc3KbR3taDtur0V/PgDBnL2CHsu
+# DEPjvNemV5v3y807ZM//pk6HnCnP1nnYMipmpT5/WWYb1u1L+ci49RKOLuD9b5aO
+# kiPSkZ9t9SOxxZhczSVAFNhr5lQPvbeopWW+ID1/p0Pvz3yI+nWFailrea7PNIQm
+# tvjLuDgZTLbyHjMD+JqR9jNTOn++/Ocz1KSnWPlC2bYJgKXV5oUBPlEQPQxiF5Ix
+# 2gfFhJTaNPZC6f6JbR3dJMIPFgvHBsWg/qXT8aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMzAyMTM5NDVaMC8GCSqGSIb3DQEJBDEiBCCXaYeosKSG8qdyOmp5
-# INk3OcQBJBp7WiiNje3iVXZzrjANBgkqhkiG9w0BAQEFAASCAgAHQ1/eHvC2HpUQ
-# KJAwp16a7aUjGnbg2K0SoGkiYcAW/cNBKvRsENFquZD7gJXq/pMDUcmfC+kpkvab
-# nymvFh7iAn3GIDnpiwJcwQC5NWZl0hHsgXsL8bhT8piXIqKV5CPn8iH9BIDF4tW6
-# 5qUr0EBBcsaecyhbJiolRoXCzFHfpQNuo6UomyIno2uBUoCFOtEAsJRDEeT3KeME
-# gb8XW3yr7WWMPwu32hJEDM3tlnqJSl0nbKNaGL/effr74JgzhQCSmOeO7mHXEt4I
-# pDlZlfJF+wE7Px17VB4LW2HQC5BPH22DCGKVFYHXaoxnQZA4w8LggfXEQmSAu9BV
-# fJJygi05bFUYiJgomfLSYjbOitkaHsLwLeImsLOeHaj9VJd1S3zOqlO9NeHxXmYt
-# cMMycGR/VFJwaH1/tA5fmMfeIYinzpgrrFeMg4DoQRLoJ2jk6SvVUtF1po/HA5Wr
-# IdkmQ4FzjhCinm8I1nbihJW3YxiGjQC94Obb27L6asCiIatP3sl/uSfNxQPzZdqF
-# ZNgdkJqTzkXpsM4d+PCMNynnbduAnXGmFn9MXvBPHDaXMw4pLJKrH3QER7RcOgG9
-# hTV0btA+Tho2wud6cShWAw5oocw2H1tDAWgGQ9TorvhXgvkL7fUcQDAqYowIJ6EE
-# 62Tfb316H8NUH8JrGUZNQ2mhCN3Q9A==
+# BTEPFw0yNjA0MDExNTA4MjBaMC8GCSqGSIb3DQEJBDEiBCDSl4bZTcxeeuLEkBde
+# 6gqRr0QgP7SYRuTi0xTuLX5X2jANBgkqhkiG9w0BAQEFAASCAgAMU4/Cbe9gv/6E
+# 3tzTQ0GlPs5m5awAWZKp7nEuTpb1OtULMM/OBbsGDFQMWQ95kNP/Zx1QM0mUfrfd
+# MoNxx0CwFKscm5gjsEHJT+dwiyoF7/OS82ZMKA1Zv1eGbmO5cycR3QN+a2UC6V5e
+# A8DvP41PUnXGx69IrIhq1j6qIvfEc9SR+YwiilLwcAwfBalue4vSB+sXj6wHnHU/
+# Z52S/8FRqNim/VS0eD7qMTH+Z/tldOiy2KsxERCTX5Um8jKoLN2TpFBQp1uXaTrk
+# gAcHyvHj4akCSvzxTau0Kx1WhJl/jHoGNaO29erxoHjY3QL5sMVbWEJECeCSL24f
+# tU8Tj5aZYV0ebJR7aTkgmLh6QHrX3K9tkUpIO34CsyW9rSup3z5l2g7uy0sH/4Aw
+# GUvKeMoj8tQL4d4/Y8W5q+F7MQ7VYheaPZI0W3vjtJjH80MLH4IoD5rJdfkcKiPR
+# OT8ieaH74jvhV2CRUCMxI3gK7HkeZplYY4B9pBwoGaVYx0JJic0XciVs0nV0ySN5
+# axxAoYhD6niz1X3kBbL51lirGnh2UiH6IGsBgpbRf9eHJWp+uAoVQc7iZBW/y6yT
+# wdQ++fj3vXjrHgrWp0a+JUfdHK14wCWyJp6xcLq61fqnk0v0LwC+PY+bM1SP6ep1
+# 73JO9gWKfeWHU5BzueTl4tNF1dQjcg==
 # SIG # End signature block

@@ -166,47 +166,59 @@ function Invoke-PurviewPurge {
         Import-ExchangeOnlineModule -ErrorAction Stop
         Connect-PurviewSearchOnly -UserPrincipalName $UserPrincipalName -ErrorAction Stop
 
-        # ---- Build a unique search name (ticket-first) ----
+        # ---- Build search name ----
         $ts = (Get-Date).ToString('yyyyMMdd-HHmmss')
-        # Example: "#INC-151695 - Purge - 20260324-154233"
         $searchName = "{0}" -f $ticketNorm
+        $desc = "Possible Phishing/Spam/Marketing - $ticketNorm - $ts"
 
-        Write-Log -Level Info -Message ("Creating mailbox-only Compliance Search '{0}' in case '{1}'..." -f $searchName, $CaseName)
+        Write-Log -Level Info -Message ("Ensuring mailbox-only Compliance Search '{0}' exists in case '{1}'..." -f $searchName, $CaseName)
         Write-Log -Level Info -Message "Scope: ExchangeLocation=All"
 
-        # ---- Create the mailbox-only search (ALL mailboxes) ----
-        $newParams = @{
-            Name              = $searchName
-            Case              = $CaseName
-            ExchangeLocation  = 'All'
-            ContentMatchQuery = $ContentMatchQuery
-            Description       = "Possible Phishing/Spam/Marketing - $ticketNorm - $ts"
-        }
+        $ensure = Get-ComplianceSearchOrCreate `
+            -Name $searchName `
+            -CaseName $CaseName `
+            -ExchangeLocation 'All' `
+            -ContentMatchQuery $ContentMatchQuery `
+            -Description $desc `
+            -ConfirmPreference:$confirm
 
-        if ($PSCmdlet.ShouldProcess(("Case '{0}'" -f $CaseName), ("Create compliance search '{0}' (mailbox-only / All mailboxes)" -f $searchName))) {
-            $null = New-ComplianceSearch @newParams -Confirm:$confirm
-            Write-Log -Level Ok -Message ("Search created: {0}" -f $searchName)
-        }
-        else {
-            Write-Log -Level Info -Message "Creation skipped due to -WhatIf/-Confirm."
+        # If -WhatIf/-Confirm prevented creation/update, $ensure.Search may be $null
+        if ($null -eq $ensure.Search) {
+            Write-Log -Level Info -Message "Search ensure step skipped due to -WhatIf/-Confirm."
             return
         }
 
-        # ---- Wait until the search object is registered/visible ----
-        Write-Log -Level Info -Message ("Waiting for search '{0}' to register (timeout={1}s, poll={2}s)..." -f $searchName, $regTimeout, $regPoll)
-        $registered = Wait-ComplianceSearchRegistration -SearchName $searchName -TimeoutSeconds $regTimeout -PollSeconds $regPoll
-        if (-not $registered) {
-            throw "Search object '$searchName' was not visible after creation (waited ${regTimeout}s). Aborting."
-        }
+        $searchObj = $ensure.Search
 
-        # ---- Start the search after registration ----
-        if ($PSCmdlet.ShouldProcess(("Search '{0}'" -f $searchName), 'Start compliance search')) {
-            Start-ComplianceSearch -Identity $searchName
-            Write-Log -Level Info -Message ("Search started: {0}" -f $searchName)
+        ## ---- Wait until the search object is registered/visible (only if created) ----
+        if ($ensure.Created) {
+            Write-Log -Level Info -Message ("Waiting for search '{0}' to register (timeout={1}s, poll={2}s)..." -f $searchName, $regTimeout, $regPoll)
+            $registered = Wait-ComplianceSearchRegistration -SearchName $searchName -TimeoutSeconds $regTimeout -PollSeconds $regPoll
+            if (-not $registered) {
+                throw "Search object '$searchName' was not visible after creation (waited ${regTimeout}s). Aborting."
+            }
         }
         else {
-            Write-Log -Level Info -Message "Start skipped due to -WhatIf/-Confirm."
-            return
+            Write-Log -Level Info -Message ("Search '{0}' existed; update applied. Registration wait skipped." -f $searchName)
+        }
+
+        # ---- Ensure the search is started ----
+        $pre = Get-ComplianceSearch -Identity $searchName -ErrorAction Stop
+
+        Write-Log -Level Info -Message ("Pre-start status: {0}" -f $pre.Status)
+
+        if ($pre.Status -eq 'NotStarted') {
+            if ($PSCmdlet.ShouldProcess(("Search '{0}'" -f $searchName), 'Start compliance search')) {
+                Start-ComplianceSearch -Identity $searchName | Out-Null
+                Write-Log -Level Info -Message ("Search started: {0}" -f $searchName)
+            }
+            else {
+                Write-Log -Level Info -Message "Start skipped due to -WhatIf/-Confirm."
+                return
+            }
+        }
+        else {
+            Write-Log -Level Info -Message ("Search '{0}' already started (Status={1}); skipping Start." -f $searchName, $pre.Status)
         }
 
         # ---- Wait until completion ----
@@ -237,15 +249,15 @@ function Invoke-PurviewPurge {
         Write-Log -Level Error -Message ("[ERROR] {0}" -f $_.Exception.Message)
     }
     finally {
-        Invoke-DisconnectIPPSSession -ErrorAction SilentlyContinue
+        Invoke-DisconnectExchangeOnline -ErrorAction SilentlyContinue
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC4Cp6sJgWJlC21
-# XztccG5/5ImCsxiQOse6/c8/SbpKLKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCPrFG93tWkDnFc
+# XDzSUvbGKRjq8cLN69YXOWtEjGopKKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -378,34 +390,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCMuzF4WqEk
-# AYKcQxqWtRbYbm/0H04WCONlXH6iq582vDANBgkqhkiG9w0BAQEFAASCAgAkVIJm
-# LRlQXT78iXIhxefl9NO1prZtckMAqkuFfrr6vr3pZwes7Sj+lGoOZTnI7Wh1R1iv
-# vv3jrNzhlTFA2lH+6qn7aLifEkRtz6kQmFN5YyEkPaNii+QsRdaOHF7RgM6F6ICf
-# 5HKJ0F1W48Z+OQGeRLrPpWrn5wjyeB/KYt4CEEt55zGdMy7qAbdkyLJK67SeajiQ
-# kMLSE0TenC355dHqvAAcMrlb0GyL3a0npOmj0OxiVUgyInZwHUMFmSkQDsHXo28N
-# pkRZdCwFP1GJYAJzQCIBF1A6VlV9S7Tp/cR2aKwlIIkIvO7nYFzx1bfFH3h/+Vnw
-# 9c9VxBrkQJDLjMD968rnRl+TpDeggwd3pQrLi/SKNgvAZXo5kF8oycPvr3/yVym8
-# 90yWKPMP4OWmrf9hF/zc6JUsahjumZ9COcWRIfs3K5EKQObXU351m4OrXnRnC1nx
-# 22w/3pEGdazf5CSNiv2zHZAyrkh83IvXeW99L0icu1w6RTJoDX6IdKFKwM/Nos2Q
-# iANp2L0gYVzxIb6rmP5OCgTvdI+lnv2a7gfqTz1VmtAo5/yoVqYmFEyYri7aQGCL
-# tF+1w0/LYyWI5c+Qas7rARijcRvDDaVf5CMVKSSgojAnx2jq6ig1c2SkO+pk5FQ5
-# FhTC0aK4vQMQhDLslUC7Nep/yzXL735uWV5G+KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDEGke6Iv2K
+# nFvDewzmOfhEuvOCnYbYzidUd/76ya7TeDANBgkqhkiG9w0BAQEFAASCAgBBoadh
+# OLYyQoU7hrQw+Pf2vlA3qjBY2YWKaslIYr4J+R7Rb0iZ/o8dwJrzCcdz0LS4GP2X
+# Jti0JDCMlLxXx3c0HzwWrMLoEIQ6TVrT2Td1PnsW6m9HODpDwcCttOFNcZ+tMz9/
+# ojVtI0tM3UKYHmxcZ+b5zmxswZ9jxE3jiq6AOq5MwZkiS/dxAY1jnOpWE+hEPHDi
+# 8cv+Hiq4eAgdBdoZaOxWZBkDII4Dz0k+XSrWhmFvWDlWvxyEhNHOdiAe22k6wx6w
+# ujEeepe7uFvFCcWiQ6qsxf+2+px58A5hITWRtAKMtkmjRia0Aw9L/0Dgt9DW7dyo
+# VIslVQuLLhxD3H1PRUTWaQTSEi/rFq0RtXyDmsoNZjLoDZSQak2VDY84PlablaND
+# RMiIfPt2bzPFikjZNxUT99SpLFS0yU+H31pASk8wWqUMVCbZW8LdLreqO/t1noYZ
+# zbFQHxXEnvANlzAPGK6SmudqQ+S4IYd8yCoBG0Skbe1tIAuPD7SBNdFhtmO0TWK1
+# 4OAH312EN+hFPRbUMouOTFK8nEFsvIx48KFF89jTcKuP7+fg9YdmXVKFM4JZdjr8
+# MdU6gdIyTqELKzIAk6fQuBwr2XiBjdhmI/AaEY9NIJmOSqe/Jnwf/gJsdGJ66H/B
+# OQXq2nqkBh20vBwkpC40vAyh+J7+C7V23+uwjqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMzAyMTM3NDFaMC8GCSqGSIb3DQEJBDEiBCDVpr7R+4whZQqBU9Pe
-# xHNCQyiWh6ZgPUZNJZJVb0J9gjANBgkqhkiG9w0BAQEFAASCAgB6KofHLZ1suHwa
-# awzrH3ycEVU9+D6hPDJ9ybpvoUmZ005KqDccfI94cgxOMtBeJXf9ujh/DjfPumos
-# rkruXArikdWcuo+bh1moEUhgiC0UzLBMIs9pwc2L+PGZJZd0yXEmb1cDJULpCffJ
-# BJ0UaO45nvXp5Su6wgzBaAeX39y43CuA+2R0T6pNyS65HxwoIcNDsYOFk+7QuLdB
-# Ro4qX/KXp6Irm3Zbpq3w+1nPKOs1IT2N4nvfBYbawdcQLzTgRB/nkEyqKfzQJnJ5
-# hUlA5djhyOW6El6MHgjDgYpcSTNZ8lFR8/R/0AXtAkLV1oEmF0A6Evdfs6RKGgHH
-# ZAjFmaUnwcgWj2oMXKemVTBCC5yatAbhgtEcPwU1zaOFK5XnurzTYgL7KSvMgAXz
-# iL80+tvQT80XhInzYnag5aczaps76a40Cr4M/B3PWwqMWtFegxio+M8NhNHEyomL
-# e52vlZCZEnZDNho4Amc71YBFQ3T/r9rnWlF3VQAeH9zHnalL4z1pcpO5ldjAqlQM
-# km4L3nEr34jBLKMlSsHNEbmJ6BB2XsZZR7Qcu3koy7DvtK6mpH3UH1Eiv6Tqi1U4
-# 06jCanOREYTll6ndT7CRnr03krCURu2VyfOe1WCKECvTnEj8dZ2bLtTyEjJvS75J
-# a00aQhos+id3htSG4EtDTawORI+yJg==
+# BTEPFw0yNjA0MDExNTExMTlaMC8GCSqGSIb3DQEJBDEiBCAGFFEhbWbrWKjRSmI7
+# VoCoHMuj8dHhzRX0UxI9AxOgGTANBgkqhkiG9w0BAQEFAASCAgCdCaBCsEXudWaX
+# YoiaE5wbuXh81V1YBCXobdPcgJGQSl/NJZ2DIQR2qkuI8gob2GPvcMs0dxtaDiz4
+# BJ5AdOgiV2roeu7YAWCqMehyCkNwVVckZrZyZD6AGb9JJx+FUD3qBNRu7OsyaEGc
+# x+6oX9f+IhgW2dsSNUbjRR42k1jQQPi4e1NeI73PYcYHLgJIfR4X6XJEc7leAEfP
+# ykPIHpcqT2shymzNQ6ZbuS/v5I3HVsBRCmNpB9MdreyJEAzGKVRIzsfcWklA5FHd
+# LbTqtG2mpVKOHy9S+YCOP0DTh4X3UrxxdX3T5W6wFsE413jYwSaQYQKEt48d76/2
+# Sk1s1NC5EWj9byK5mE+rXN7cT8cnHPa9ywbNUFrzzTfNGk7gflse8wXKb8xMZulj
+# 5inAlUvPaywu5IzbGOEaFR4X4l3MBU2kZiIJwG1h7iDrsWRjEPcuysWvqnGU+rqd
+# UT/h5YbJeiLrRXP1ETXUwqolNNFuA98Z5ZWJabYCsVuryvldpe1dvafLIRFK5JdZ
+# vpx40qlLw1WvfzyMb9Xv0oFsifGtmL2QmAh8B6Hcao7QnrUiTBlctIuvlz9Q+7gd
+# BRZXbWEoryEPCNolAZCF/i/XKB+DgnaFNwMUp6avQ+WquyD7mpbksw6oYt7mrfYw
+# LjCvwPBf9kWuPmRKz/4jD2hxvdAsFA==
 # SIG # End signature block
