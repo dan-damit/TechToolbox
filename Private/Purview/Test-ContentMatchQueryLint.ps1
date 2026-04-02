@@ -8,30 +8,105 @@ function Test-ContentMatchQueryLint {
     $q = $Query.Trim()
     $warn = New-Object System.Collections.Generic.List[string]
 
-    # Balance checks
+    # -----------------------------
+    # Tier 1 — Structural validation
+    # -----------------------------
+
+    # Unbalanced quotes
     $dq = ([regex]::Matches($q, '"')).Count
-    if ($dq % 2 -ne 0) { $warn.Add("Unbalanced double quotes.") }
-
-    $op = ([regex]::Matches($q, '\(')).Count
-    $cp = ([regex]::Matches($q, '\)')).Count
-    if ($op -ne $cp) { $warn.Add("Unbalanced parentheses.") }
-
-    # Known-bad patterns (Purview KQL commonly rejects these)
-    if ($q -match '(?i)\b(from|sender|to|cc|bcc|participants)\s*:\s*"\s*\*') {
-        $warn.Add('Wildcard inside a quoted value for an address field (e.g. from:"*@domain.tld") will error in Purview KQL. Use domain-scoped fields (e.g., fromdomain:domain.tld) or remove the wildcard/quotes.')
+    if ($dq % 2 -ne 0) {
+        $warn.Add("Unbalanced double quotes detected.")
     }
 
-    if ($Warnings) { $Warnings.Value = $warn.ToArray() }
+    # Unbalanced parentheses
+    $op = ([regex]::Matches($q, '\(')).Count
+    $cp = ([regex]::Matches($q, '\)')).Count
+    if ($op -ne $cp) {
+        $warn.Add("Unbalanced parentheses detected.")
+    }
 
-    # Treat warnings as invalid for purge workflows (force user to fix)
+    # Wildcard inside quoted address fields
+    if ($q -match '(?i)\b(from|sender|to|cc|bcc|participants)\s*:\s*"\s*\*') {
+        $warn.Add('Wildcard inside quoted address field (e.g. from:"*@domain") is invalid in Purview KQL.')
+    }
+
+    # -----------------------------
+    # Tier 2 — Semantic validation
+    # Purview-specific behavior
+    # -----------------------------
+
+    # Wildcards in address fields (unquoted)
+    if ($q -match '(?i)\b(from|sender|to|cc|bcc|participants)\s*:\s*\S*\*') {
+        $warn.Add("Wildcard matching is not supported for address fields. Use fromdomain:/recipientdomain: instead.")
+    }
+
+    # AND/OR precedence without parentheses
+    if ($q -match '(?i)\bor\b.*\band\b' -and $q -notmatch '\(') {
+        $warn.Add("Query mixes AND/OR without parentheses. Purview KQL will not evaluate this as expected.")
+    }
+
+    # NOT without parentheses
+    if ($q -match '(?i)\bnot\b' -and $q -notmatch '\(') {
+        $warn.Add("NOT operator used without parentheses. Purview may invert the wrong clause.")
+    }
+
+    # Unsupported fields in Purview Content Search
+    $unsupported = @('body', 'attachment', 'importance', 'sensitivity')
+    foreach ($field in $unsupported) {
+        if ($q -match "(?i)\b$field\s*:") {
+            $warn.Add("Field '{$field}:' is not supported in Purview Content Search KQL.")
+        }
+    }
+
+    # Naked free-text terms (unquoted)
+    if ($q -match '(?<!:)\b[a-zA-Z0-9]{4,}\b' -and $q -notmatch '"') {
+        $warn.Add("Unquoted free-text terms detected. Purview will search all fields. Wrap in quotes or scope to a field.")
+    }
+
+    # -----------------------------
+    # Tier 3 — Logical sanity checks
+    # -----------------------------
+
+    # fromdomain:com matches nearly everything external
+    if ($q -match '(?i)fromdomain:\s*com\b') {
+        $warn.Add("fromdomain:com will match nearly all external mail. Verify this is intended.")
+    }
+
+    # Empty quoted strings
+    if ($q -match '""') {
+        $warn.Add("Empty quoted string detected. This matches everything and is rarely intentional.")
+    }
+
+    # -----------------------------
+    # Tier 4 — Purge safety guardrails
+    # -----------------------------
+
+    # Require at least one field-scoped clause
+    if ($q -notmatch ':') {
+        $warn.Add("Query contains no field-scoped terms. Purging based on global text search is unsafe.")
+    }
+
+    # OR without parentheses is dangerous in purge workflows
+    if ($q -match '(?i)\bor\b' -and $q -notmatch '\(') {
+        $warn.Add("OR used without parentheses. This is unsafe for purge operations.")
+    }
+
+    # -----------------------------
+    # Output
+    # -----------------------------
+    if ($Warnings) {
+        $Warnings.Value = $warn.ToArray()
+    }
+
+    # Treat warnings as invalid for purge workflows
     return ($warn.Count -eq 0)
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCgd6OrSZHA/zma
-# lqejIPXAYv95WNXQ91D1g71P0uNYVqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBIa62jlrDAqSe5
+# IuEdUd/lZynF3z9ws+xwBIMEoPmaQ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -164,34 +239,34 @@ function Test-ContentMatchQueryLint {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDYGqxW3xCj
-# AEjTqliwAleUrU4DPPqNeWgibuuzNDtV1TANBgkqhkiG9w0BAQEFAASCAgAYT8n0
-# FO2f1GNxQYGuIMoO7VqlUW3lKnZcJEpc4XU3sHKI/+nvj6GQJE/yxGFt7klCENJf
-# Vg+TflV1EcuCliNJLqQAbeWHJBPFYUkWhtXMrRjE9cjXb0uMD9f8rdkxRINqNC5G
-# g85gtU3t/F1Cls0nL88u61pLKz+/A1i3NA6xRPx99kyyt+OYvNTujs5lL710mdfr
-# 6rg1d9PshIQTBMdaAckiXX5qg+8etxZ8imrfKge61RPPDLhTCdSHDrYAwC57MOTj
-# xVqJsHOHqCRAy/I2OVgwYJTIEtY2CfD2hPfCoN2Mq9EzolcRLaXle+lViWpRQUbz
-# 1azPftvuexoppe3YI3vgd+Nk8eCENpUnufqoqGy35uKMybpWmmzPKoNVFtW0XrAV
-# oOiGUdNtFZkRwKYvXQ2Yem/QqIk6IHXOw0hydbM3vuwqS21tVYocfQ+FLduZiDhY
-# HMRF8Mh8Si/IAsE5pI4ThsI1qhXzt5AakE8GtGKJkZtmifbIyT3zZbwH6sup3sU/
-# zX1jQG82XlGz8umwB156KJj9BvkJ9LhWy50jqsOD1Sn9lip4HTWQxmuUNGSuwZ9w
-# YJ/MHQnYQsGAGXgEC03aGMKfXLMXrGQT7dOn7fXjifk6Upg7U9sqbeDeNheewPVL
-# oQfe/Ll9lzuJ7w373jxNoruTAfsIxj6j4ExeOqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBYYyciaFPh
+# XALPfttCOVv2idPhggfolk4Dhq20gSIxZzANBgkqhkiG9w0BAQEFAASCAgDZJfzP
+# eLhLa2PEB/x+2+GwL4aduomDKs4ndUjN5b/17hrT9vnaw41LMHEQxJ2mP3xShHPB
+# GDN09wXXyJkPFk6MAZfT0YHNqJgZw0bDpSlyAqr2XvkWjyz2LT6fPBYtEzcWa7qx
+# aetJU+zAmXZNeInNXJluirJc6lwb8o+NIYN0OT8OX8JPyjOqs/HMwiQCrIFMjNMq
+# V2QQ7hCg9L0t13/pBgu5NtNamgI2JyDLuSdUR5ZtxI15LVStWREJcvoXTLNj5ayO
+# 45f0UUaiIWS1nYFLXNxuV6F0FbR3fABG+TK0zeI9SdounARgPoVuF+p4LgBMejxr
+# 8cnez3chuC5arVn14TLa9w3ja/ypkhBrQIQUXnRFZWYQ3nDquz9vY7U+GMoosv0V
+# WND+OcwVg4CzPQsnqyomIChRKFz8NiPLE0J8bOANZ3IDdTGXsVpIxxa0Xub5kxWO
+# MZLYm3VC60pIzo13Li0qraySBbLob5OsytbYnkylD6EDW4uuuT7sddey76GthSTA
+# u5/Z288aiEJfOJP8LmDUFo4riDWGgjpYnnnHCLAF5Cx8lgfLwQUF6ZNjUBsBYjzF
+# TG3kE+r3kx9lH2PXOnHRCrPog1M/ghrnwPhkS80ERRvJbspxIUBAW/fO+aWYtKcl
+# Mfh176Jb/Gou8jIdKxsKU9u8k7U7BTg60JmNSaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDYyMjI5NDhaMC8GCSqGSIb3DQEJBDEiBCCO7Bfn3zj/1rR4Vb43
-# /2Zkf2yxccFLHnZ8BiS8RSeo9TANBgkqhkiG9w0BAQEFAASCAgA/4IEOjLrAtPmU
-# Qac5tLvk8FFBjXZBJpi9diEu0CK+yN6lsoMeLgh8JalgRpf/GcEAKnrX5FKmBm4u
-# fHyXIr1ndKYCGFRpybHqnViKdckmlgBmA1Y7X8EwLmO83VKT/e3gKEXaISLTrAS9
-# NL77WonH7eilXM7gE4bX+Hk77DjRXNPtDpwPEn0xbDgl7NO3kBIUDvZXdO54ySGq
-# WZHydorMMYZZeOpFUyK9qOItocEj4GTrm6ZpoXEFUAsQYaVZdI2JZSXgxCM5G4hY
-# ufOnzFY72BvjN3qSRmWm2WzcbCwmlj1SMCHnksrGjdmFKwVy8Rde8GoGBMC5Dslh
-# RR/vrwY6rV7TR98jjMFRMxJ1ipmceYqG3bmVe0zf2nn45LNWhaE3fvQJzaefs5X/
-# EaYy9fNVih8YT6iu5Hi1aM3haukEq8wbLQeE/tt4LCqAaOW3SwPNykHDdKI9H0wP
-# 3MhEDVAMBw8XxyXXGfOX3+MR1nJvmToI6BVu0YJeZmQaGOvLJ/M4zsiFXf6gCjLK
-# 1u8kR/nSNHTQSPFCFDXhW3BohhjM576blZ84ehUV48defsv1LYTuKI72Dsf3Swmg
-# T5DfY22+btxl93ucAVauj3mkn/wM67Qkquy3np6xTJ/Mqsahv++VlmebkfnIhYfG
-# huQY4mmHbHOmVNxl95vCDSTXptOXpw==
+# BTEPFw0yNjA0MDIwMTI5MTBaMC8GCSqGSIb3DQEJBDEiBCCWAoW/3FiItTIt4FTz
+# k8EQ5mTpRHkSIuUuBPJgqAwT1jANBgkqhkiG9w0BAQEFAASCAgBlSSPSse1UJ7Pw
+# 8j/pEnTo5Rq143SMbKIZQ3tdYrZ61CCYSsucUIFAkaeP+XdwmwMK773BmMdeXOss
+# eiatRcalzjZAwk43Ph8ZIzKjaMIdr/tjnJtKF7zulmfF+h1ohokTAg3+3vw+hYV+
+# LIsOBOH4RLxB02X8lOZwtilwm20FQM16eP+V9wCnq85pEe/i0jjeLV95YFNsg/ZO
+# sSa5vvw1KBPLqkYCkVGwN6gWgS8xII03hAchXGcywfH4CMtHL036Oode2yJAGxHh
+# x+PQhjtyFdzdIG3Lc5/WKIXVsVBywMSwh7Chhj2C+zwyJZcDL+etSp56nq3Vm24T
+# 2N47FUwIlc1JQVxfAfq/B2EFHjDwJH80Tg+Y4gCLo4n9DQbFTqGOMiG2dN629sOB
+# NCz7nERlt9PuQ0mAHdGfpmUJIfUM48FGL8P8nEoIVJjm4Iw8C56OlbSg/D9f8Al8
+# 8GqHgJANDWocnsEpUNEyLiKZRS2CotkcYc1rLFG7/zm3wOK3EAdoHdwuMP0L8GsJ
+# ypunTf4lV1hpdxoihhfMk7zoPSLNu6z4jqipP+rIpafYftvxD4bSD0Ed35ccDLKU
+# gojcZTD5b4iKmFB7/gEIlEB7/RVwbyTXR7c3t8ZQlot1MR2FmsBsQvl9ndxhJxSX
+# HYRMQDDrjryzTjU4A3yPHzg4u90/6Q==
 # SIG # End signature block
