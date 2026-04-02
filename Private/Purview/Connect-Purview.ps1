@@ -1,13 +1,13 @@
 
-function Connect-PurviewSearchOnly {
+function Connect-Purview {
     <#
     .SYNOPSIS
         Connects to Microsoft Purview with a SearchOnly IPPS session.
     .DESCRIPTION
-        Uses Connect-IPPSSession -EnableSearchOnlySession with the provided UPN.
+        Uses Connect-IPPSSession with the provided UPN.
         Logs connection status via Write-Log.
     .PARAMETER UserPrincipalName
-        UPN used to establish the Purview SearchOnly session (e.g., user@domain.com).
+        UPN used to establish the Purview session (e.g., user@domain.com).
     #>
     [CmdletBinding()]
     param(
@@ -18,7 +18,7 @@ function Connect-PurviewSearchOnly {
 
     try {
         Write-Log -Level Info -Message ("Connecting to Purview (SearchOnly) as {0}..." -f $UserPrincipalName)
-        Connect-IPPSSession -UserPrincipalName $UserPrincipalName -EnableSearchOnlySession -ErrorAction Stop
+        Connect-IPPSSession -UserPrincipalName $UserPrincipalName -ErrorAction Stop
         Write-Log -Level Ok -Message "Connected to Purview (SearchOnly)."
     }
     catch {
@@ -30,8 +30,8 @@ function Connect-PurviewSearchOnly {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAD9YANIl5X99VA
-# cJaYvYpi40gWq0WqcA/59obLaMQey6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAF2hQe5GIg01qa
+# 2z22SPXCbDhva/Wq82mkedhr8PfVyKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -164,34 +164,34 @@ function Connect-PurviewSearchOnly {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDiKkHJQybs
-# e13e59zJPBb9jlg3WuUslEen38puMX5aFTANBgkqhkiG9w0BAQEFAASCAgCCB9wP
-# eIx2s1cdvU3awOs032CwC58J7J+WIxgArKosYRBmSTkuh8S/t8YWpOx1QFSBSbu9
-# bCTupe+MeF487deoSzOeCJKmE9u12+dNaaLS6/JWd6YMDfit+eXGT690bmh4xWTL
-# yYGyOEwxtPnDFQ1NI3+Kc6aN2lG4tNSMrOhdpprPjK8sXJJlmzraE/GVc+ctfwvp
-# 4ZoycbHPHQT2z+AQJIDJKbBpEpmZ3zLu2VDaMZFdRr0pS0qnFqCE2nA7RHAoUoHo
-# ogMnsefs564vpOeEWnh7xwjoQXEHxJF9vqp02T17Wnjrhwz7aWVdwwp5h96acUZR
-# WyxohIyGtLlW+iyCgdDALVQhuIVWPh3sEDGiE+tTXlgEHfzS/EynxqB6w4l9bhlC
-# Pf47xYsLgFOyuvTfKfK9xgDhggQm660j3Vz6tbH6FLUxRLxSf6VnvbNjxnU6Y0h4
-# Ks6XY8NvGLdyiwaDCeFGvaHCnMe/Elgm01BiB1DFx4LxIrNqAFNPzheoSTkDRFjc
-# 57G1EkFV6+vNI+BqHQNQPOfVJq6eJbt1ApjNKmlKKM9BbKsHuXBQ3hMrQlZfxU0Z
-# H3uMQI3/FxJ01reuJNeM517gZOldrEICOGZQVHzoOaUpWkHJoGNbp5BFXjJJhWm0
-# yJ1oc7JMaqmOX28ibqf+rlvLLVJx8qq2R+zUyKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0u4ejPyNT
+# UmO91yZEglWzVXTBdK/IIZfMknWlZJaCUjANBgkqhkiG9w0BAQEFAASCAgAAyur0
+# FjQ8rgucp2w4/uRDHBf7bTBXNL4igsQ73dbKjPKTlw9K8tIrdWvfle6W1Nw+jXT/
+# vAaNNHRt3sAboHwQ/TtZoJyNPDaiG6MdPfi+zJjDGZXNA3Gap/3qn1lj2I6W5d6u
+# 81Ph4lSW6GURfzzA22waSDdS41KP0Dm2i4RKSVemr/3mqikUH03KiOS1uwVKDYoC
+# 5oFvJaXmpqrS4w+eo8tld+sG7WTqXrFqH5qd43Kf4X+GoRQN18G3B9rOQfN0GQor
+# Kku2/u1ogkCLIu7wrNc/T0thg7SzGnMbahkc+yMmR0tu5Hatx8WO7OTVPlgQTLMj
+# w1qBjePIHIJPw3ItwdJJVhWka5U3vl2t2xSVXPqmzgDr+rE3C1ZmPWVbm7DTVTuD
+# mM85TZ82iMLP+xDB7IuOvZ3SAuh6aprjxhb16gCGYA7UgpQOorEvbS82c3qt9rYO
+# 1jLgFJFJT/7jJP3uaXYq/9+fZ+zF5p2sbph1PnM0EfzHX59vI6pfLAEkfj5s2r9d
+# 0FMh5YEz7D7RQTzMrKJaiGu7k8tTKgX7SKkT0qxjgw4PihQ7c1S5NqBUWK0DkOxM
+# pUF/vpX8cLDwA8+mVu4WCFINipkZrV8rMjQyAGojwoXVuf47zQW1+/RtQzAIrHjA
+# GjiVwxKrrF4vobIKAM7u3JZn2AGv41mLVcSGZ6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ1NDNaMC8GCSqGSIb3DQEJBDEiBCDlcv5BaVsscDrcl0P1
-# yw7VCJH82vPAp9FiGxgbO66d3DANBgkqhkiG9w0BAQEFAASCAgCXNigEWvXfR/v6
-# 9B9dIHX88VIbx7CiXTmOsA4scyUIbGgKrFeeRbKGjwifOYd74cYvoWaBN4/23lAK
-# TLxJWJFYuXPUXyuCaX73g0zZlhSxB/RiJVEDDw8CkodGQCfrarnQnhkXE/i/+rU4
-# lZj5zxeQY2I5MbqZrHtko5R1Kp641hUFyvmksAat5NXmBaPuwf14EFvaN6SxjJRX
-# aIb34EC86pcSnhdIa7S34YHFcP9wULahCzSC5pDZsOQPfbPTbd6XapR251La+qIV
-# vX3AjeN/PrKxIcl1F+ZDloJXe3UuWSpXyx4rrwoXkVNodWAouojLdQHUqMV5gjBA
-# hbqZTaaFOxPucw6nrNAXO9eVORCoJVGp3Xx/SwBxz9uVVV5oQz9zFyUdBhp7sF+Y
-# TCa59B47d727Bs9zCJ1ZXEq6Gts8UiSUorEHr6wwjaCEz65cbKjol6T477sqOX4D
-# bnxIQwGUStZGNtCYeHdPMYgqIhOgsWFgQACTDHCaUY6B+F8G9PDlle2gH0rHxKax
-# lRZlF1Ed0eFMcEHf8pAiDuIo5bCDONhBlowGE6KK7Q8PYJsRxC5bka7IPbQbvP2d
-# vNaCHRdKMAF2RcmkEncxEH2fw9cxwpvACuBOnwVE6AXihmobPoVr677G2OxhL/Zm
-# BhvfrIItCLNRj9ZS3UsGz6cMayEvbw==
+# BTEPFw0yNjA0MDIwMTExMTJaMC8GCSqGSIb3DQEJBDEiBCAWsyWfR3qLwB8zFkoK
+# 98AeAFqP07jHtr8tSjQ1wtLJuDANBgkqhkiG9w0BAQEFAASCAgBy7J1G+jzH0vox
+# tFPvfa6bX12yjklIvHBlqF6XXM3oXNXtsA7oJyuqE52cG1C/SAWHGNQQZ/OyTR65
+# VDfPFZqYyRlr7LBsndV3j4fSAsHty5On0YPZbZ6jCz7oPJdgR4t+C5o0qrIBuhEQ
+# 4t9fMLhW/0nHU6L9083BgRfM5zbGDBLoQu/hXCtzrNQi22Jds2ZUkE7pJRL23bUK
+# lO0tp9biNDjQ+j/pEdOjFslhVTnmEdBIQ10JlaFdY0MOHl+Epx4/cJaSOAMAPy6c
+# vC210oIOue0mPDl6JhXEmw//k/KSqgE86WNLPh9yFoWUdrP5z9N4WwMEZvGR8aVF
+# ADHY+39kFOaeCzwBPudagx9kv/8NZyGTsN7xZfZLYZehVjy+mJA5QJvueRD3l1eD
+# TtSEoq3UanHffiOWitnVX0vHeYUeo59jB3+U4XD6cGt/wBFsr9Kz5UN9R0TN8X0q
+# MLfHFigosx34dG0ov0OanwB1XWCaxz0y6ROXQRFHCQ89x8BDk5CBU4m4Dsg+KjhB
+# Lnkg85jvwCXcCkzT2X8iELmHn34TrIv1tyUOvxeqkiVvsiDMUY0C0NlwEz0EAJdM
+# 7Vwhb/vwj4PPQoFB+NuPQTgxCrinLCjrwn3YiezNqvGOTefHRwGnf5U2OFZrmMqZ
+# gG/xf+db8aZ50Dd07lKS4hLnUdEEiQ==
 # SIG # End signature block
