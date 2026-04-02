@@ -1,40 +1,78 @@
 function Get-ComplianceSearchOrCreate {
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
-        [Parameter(Mandatory)]
-        [string]$Name,
-
-        [Parameter(Mandatory)]
-        [string]$CaseName,
-
-        [Parameter(Mandatory)]
-        [string]$ContentMatchQuery,
-
-        [Parameter(Mandatory)]
-        $ExchangeLocation,  # 'All' or array of mailboxes
-
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$CaseName,
+        [Parameter(Mandatory)][string]$ContentMatchQuery,
+        [Parameter(Mandatory)]$ExchangeLocation,  # 'All' or array
+        [Parameter(Mandatory)][bool]$UseExistingQuery,
         [string]$Description,
-
-        # Your orchestrator already has $confirm from config; pass it through.
+        [switch]$UpdateScope,
+        [switch]$AllowQueryWeaken,
         [bool]$ConfirmPreference = $false
     )
 
     $existing = Get-ComplianceSearch -Identity $Name -ErrorAction SilentlyContinue
 
     if ($existing) {
-        Write-Log -Level Info -Message ("Compliance Search already exists: {0}. Updating query/scope for this run..." -f $Name)
+        Write-Log -Level Info -Message (
+            "Compliance Search already exists: {0}. Updating for this run..." -f $Name
+        )
 
-        if ($PSCmdlet.ShouldProcess(("Search '{0}'" -f $Name), "Update compliance search (ContentMatchQuery/ExchangeLocation/Description)")) {
-            $setParams = @{
-                Identity           = $Name
-                ContentMatchQuery  = $ContentMatchQuery
-                SharePointLocation = $null
-                ExchangeLocation   = $ExchangeLocation
-                Description        = $Description
+        # Determine effective query
+        $effectiveQuery = $ContentMatchQuery
+
+        if ($UseExistingQuery -and $existing.ContentMatchQuery) {
+            $effectiveQuery = $existing.ContentMatchQuery
+            Write-Log -Level Info -Message (
+                "Using existing ContentMatchQuery for '{0}': {1}" -f
+                $Name, $effectiveQuery
+            )
+        }
+        else {
+            # Guardrail: don’t accidentally weaken an existing query (e.g. dropping from:)
+            if (-not $AllowQueryWeaken -and $existing.ContentMatchQuery) {
+                $old = [string]$existing.ContentMatchQuery
+                $new = [string]$ContentMatchQuery
+
+                if ($old -match '\bfrom:' -and $new -notmatch '\bfrom:') {
+                    Write-Log -Level Warn -Message (
+                        "New query omits from: constraint present in existing search. " +
+                        "Keeping existing query unless -AllowQueryWeaken is set."
+                    )
+                    $effectiveQuery = $existing.ContentMatchQuery
+                }
             }
-            if ($Description) { $setParams.Description = $Description }
+
+            Write-Log -Level Info -Message (
+                "Using new ContentMatchQuery for '{0}': {1}" -f
+                $Name, $effectiveQuery
+            )
+        }
+
+        if ($PSCmdlet.ShouldProcess(
+                ("Search '{0}'" -f $Name),
+                "Update compliance search"
+            )) {
+
+            $setParams = @{
+                Identity          = $Name
+                ContentMatchQuery = $effectiveQuery
+            }
+
+            # Only touch scope when explicitly requested
+            if ($UpdateScope) {
+                $setParams.ExchangeLocation = $ExchangeLocation
+                $setParams.SharePointLocation = $null
+            }
+
+            # Only update Description when supplied
+            if ($Description) {
+                $setParams.Description = $Description
+            }
 
             Set-ComplianceSearch @setParams -Confirm:$ConfirmPreference | Out-Null
+
             Write-Log -Level Ok -Message ("Search updated: {0}" -f $Name)
         }
 
@@ -50,9 +88,9 @@ function Get-ComplianceSearchOrCreate {
     $newParams = @{
         Name               = $Name
         Case               = $CaseName
-        SharePointLocation = $null
         ExchangeLocation   = $ExchangeLocation
         ContentMatchQuery  = $ContentMatchQuery
+        SharePointLocation = $null
     }
     if ($Description) { $newParams.Description = $Description }
 
@@ -72,8 +110,8 @@ function Get-ComplianceSearchOrCreate {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBLEBvDI5yef30F
-# sRMAqnKh4t0K5uHo0DTdI7gCTMWIY6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDDRRrbfdeu1uXb
+# Jb+fgIxhQBkMvA52FHrB37r5o2ETOKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -206,34 +244,34 @@ function Get-ComplianceSearchOrCreate {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCADA+mc2Che
-# NvuOTNRWHq7ivCiZ3kbwLVaTNf4WCjRPhDANBgkqhkiG9w0BAQEFAASCAgAaTLCU
-# HYh1KWWHWCVz27RZv2E6u2Ypua6G8QC7NNmqAspRSPEzie42Enz6YGah++W2XE94
-# 4k18RC3tsk3a5XPNbABhpDH08FPCPKcayYgqXsFTfrzppYllR6AZLjbcwTi29JgS
-# +46P1EERpVsKIHnydpYDUq1VkNzZZ0+MelZHGrx+WffWMazcxKv8S7KOa2foQ/Ka
-# Y8rS9w2egvZNj1ZeTxW/yI4XeIAc3eGLlo4N5Mlok1C1AI4vrvIa0voDsQRIg2i7
-# FsST6S4Gyo1JIBXYr+qrTsD+t+u6wFjYwUVi7eQ6HkjEQ2HNPhDlnSuSkrGyM0GP
-# HpxnB292dlkCC5fZ3rlLrcFBUc8SmOYbCVU/DRLZAOGusYIva7BIdhPzry/nBc8x
-# Jn6C8VeP3ACQBPwXovGo60ryyM/xkI6OUEf2efc3KbR3taDtur0V/PgDBnL2CHsu
-# DEPjvNemV5v3y807ZM//pk6HnCnP1nnYMipmpT5/WWYb1u1L+ci49RKOLuD9b5aO
-# kiPSkZ9t9SOxxZhczSVAFNhr5lQPvbeopWW+ID1/p0Pvz3yI+nWFailrea7PNIQm
-# tvjLuDgZTLbyHjMD+JqR9jNTOn++/Ocz1KSnWPlC2bYJgKXV5oUBPlEQPQxiF5Ix
-# 2gfFhJTaNPZC6f6JbR3dJMIPFgvHBsWg/qXT8aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBCf0DQdv6z
+# 3wIv24skxICzWB/DrFRNFXFRn8jj0hL/4zANBgkqhkiG9w0BAQEFAASCAgCy6Ago
+# muNGO35gR+qY2TDQv8zAj5nUHiSJrnZTZ3ATooQESITvF9kr1r92jrG82vzIXbvK
+# vCKpyefaB3atUPUBEwSx5q7MNn696ftQAPwXw3kkWOVKscXdPxxzUr9j3e5I1ALo
+# M0DesPRXmvZYd0Z6WVCtc4STIQcNZDWxWdl6tlRBK43e4RnivHNlWPmsFQFYlnLg
+# HFwuk9Zg3K2B0BVUGpviufAzyZcYMRYAyASFjyUfIsfk5X2e/1GVp6H2F/0FOWj8
+# PYzBRDn4MCgShCRhua1xxzID8Z56IFD3RNCiu7Iis7aJ1BU9fPdMmpuLu5b4agyQ
+# 4yvRyLoxgyJyGJWIYQe+8Lboxt/DZaYVXkEHYlH+2fU5mBayEmXpopvs6UYFSM+P
+# QmpWeiYS6yugfh3uJcy4sSxGxObMHkbdVycRMuB4za/2UTSvuPp2vLrnRzXPijhi
+# mfEy88WBWp7ZRWA+zgnOHHrtUxo/mgLKPwAJXF1pNxwZ/ceSUkbgO7gw/qdXOwEh
+# 7mpNansTmAd1qLI8RBCJNSrmX3ijomTYFBQK1GvOCZ8vRJJEJOU+WN6RvtDfJ0Qf
+# O1uweG5VfynB75s2vNp7m9jB9ksa7EDGbla4DHZqLTXjtcIMvzP5XfezqVlU44uO
+# w953voY7mJaSzJ3VfHMPeP3Qzbc4obE8P5tXyqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDExNTA4MjBaMC8GCSqGSIb3DQEJBDEiBCDSl4bZTcxeeuLEkBde
-# 6gqRr0QgP7SYRuTi0xTuLX5X2jANBgkqhkiG9w0BAQEFAASCAgAMU4/Cbe9gv/6E
-# 3tzTQ0GlPs5m5awAWZKp7nEuTpb1OtULMM/OBbsGDFQMWQ95kNP/Zx1QM0mUfrfd
-# MoNxx0CwFKscm5gjsEHJT+dwiyoF7/OS82ZMKA1Zv1eGbmO5cycR3QN+a2UC6V5e
-# A8DvP41PUnXGx69IrIhq1j6qIvfEc9SR+YwiilLwcAwfBalue4vSB+sXj6wHnHU/
-# Z52S/8FRqNim/VS0eD7qMTH+Z/tldOiy2KsxERCTX5Um8jKoLN2TpFBQp1uXaTrk
-# gAcHyvHj4akCSvzxTau0Kx1WhJl/jHoGNaO29erxoHjY3QL5sMVbWEJECeCSL24f
-# tU8Tj5aZYV0ebJR7aTkgmLh6QHrX3K9tkUpIO34CsyW9rSup3z5l2g7uy0sH/4Aw
-# GUvKeMoj8tQL4d4/Y8W5q+F7MQ7VYheaPZI0W3vjtJjH80MLH4IoD5rJdfkcKiPR
-# OT8ieaH74jvhV2CRUCMxI3gK7HkeZplYY4B9pBwoGaVYx0JJic0XciVs0nV0ySN5
-# axxAoYhD6niz1X3kBbL51lirGnh2UiH6IGsBgpbRf9eHJWp+uAoVQc7iZBW/y6yT
-# wdQ++fj3vXjrHgrWp0a+JUfdHK14wCWyJp6xcLq61fqnk0v0LwC+PY+bM1SP6ep1
-# 73JO9gWKfeWHU5BzueTl4tNF1dQjcg==
+# BTEPFw0yNjA0MDIxNDQ5MDlaMC8GCSqGSIb3DQEJBDEiBCChhmYnRn0LgGTwrFrl
+# 90T5Ctbv4HoV8XjyJ+zDhIC16zANBgkqhkiG9w0BAQEFAASCAgBCMY1QVgDEdKBG
+# wi7sQPHDbE5/8oXi34uDSitXSIqAZOOk3ziJ5gC1k8jnQtUCwxegrvSXcpwIoSta
+# S8FuTAIV//9I8vEb4cvCtYxYJ/Xx+IC01I6qAr0aEOdjX7ayCnOlTQrbZDINNtBc
+# RRADcFsi4mOZb7/Nv5fSYrxHgBrJv8K+a9n5CeYzH+ClMVFCwOVGTbWDb67oICsr
+# HlUoCknRa5jDp6NqBgM18C5nsvi8rfHBQoFlcbK6PqCj4tzsVsmnhoCJERfgBJSk
+# xSvPQ7/OkaHLMKPYTaIPJA/GU4bftNHmy3gSy9iw3GMXCX0sqVsIVmpCgetFaoVu
+# 3/WXEihp9xuSNdHPCB9K/XK8+X/F0y+XD96OS5DowyZBbVfEY3v/EMaWI7hokVmm
+# cxiV6+TgfFxihW1frRpIkMY8PHbcICOd82WkZKbCra7Jqe5yQPpHDUlUtrmw10iN
+# WghTBI97rkFJWQlhGGXf+fl3Ts5Yy0PjTbQnK6DHscLrJeizrzefAGxZz5ru5+ll
+# nqk8ohlLoOSERTGPq/KwmjYHPTyZFml3K+dPeqMX8swSNlemQcgJaef3aqE8z+9r
+# cSNE6l9hnZB5ayIyPM0ThHiEwjNAHoBp9FANsss1/LAiG23hE4Ton8s5Qyak89Fw
+# aCh3/YPmH8Baz8mHcg2H0/3BZnZK/A==
 # SIG # End signature block

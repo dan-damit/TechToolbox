@@ -124,47 +124,82 @@ function Invoke-PurviewPurge {
             break
         }
 
-        # ----- Query prompt + validation/normalization -----
-        $promptQuery = $defaults.promptForContentMatchQuery ?? $true
-
-        while ($true) {
-            if ([string]::IsNullOrWhiteSpace($ContentMatchQuery)) {
-                if ($promptQuery) {
-                    $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (or type 'q' to cancel) (e.g., from:(""pm-bounces.broobe.*"" OR ""broobe.*"") AND subject:""Aligned Assets"")"
-                }
-                else {
-                    throw "ContentMatchQuery is required but prompting is disabled by config."
-                }
-            }
-
-            $ContentMatchQuery = $ContentMatchQuery.Trim()
-
-            if ($ContentMatchQuery -match '^(?i)(q|quit|exit)$') {
-                throw "User cancelled: ContentMatchQuery entry aborted."
-            }
-
-            $warningsRef = [ref] $null
-            $isValid = Test-ContentMatchQueryLint -Query $ContentMatchQuery -Warnings $warningsRef
-
-            if (-not $isValid) {
-                $warnings = $warningsRef.Value
-                if ($warnings) {
-                    foreach ($w in $warnings) {
-                        Write-Log -Level Warn -Message $w
-                    }
-                }
-                Write-Log -Level Warn -Message "KQL must be corrected before continuing."
-                $ContentMatchQuery = $null
-                continue
-            }
-
-            Write-Log -Level Info -Message ("Final ContentMatchQuery: {0}" -f $ContentMatchQuery)
-            break
-        }
-
         # ---- Module & session ----
         Import-ExchangeOnlineModule -ErrorAction Stop
         Connect-Purview -UserPrincipalName $UserPrincipalName -ErrorAction Stop
+
+        # ----- Query prompt + validation/normalization -----
+        $promptQuery = $defaults.promptForContentMatchQuery ?? $true
+        $UseExistingQuery = $null
+
+        # If the search already exists, offer to reuse its query
+        $existing = Get-ComplianceSearch -Identity $ticketNorm -ErrorAction SilentlyContinue
+        if ($existing -and -not [string]::IsNullOrWhiteSpace($existing.ContentMatchQuery)) {
+
+            Write-Log -Level Info -Message ""
+            Write-Log -Level Info -Message "Existing Compliance Search found: $ticketNorm"
+            Write-Log -Level Info -Message "Existing ContentMatchQuery:"
+            Write-Log -Level Info -Message ("  {0}" -f $existing.ContentMatchQuery)
+            Write-Log -Level Info -Message ""
+
+            # Only prompt if interactive prompting is enabled; otherwise default to reuse for safety
+            if ($promptQuery) {
+                $resp = Read-Host "Reuse the existing query instead of entering a new one? (Y/N)"
+                if ($resp -match '^(?i)y(?:es)?$') {
+                    $UseExistingQuery = $true
+                }
+            }
+            else {
+                # In non-interactive mode, safest default is to reuse existing query
+                $UseExistingQuery = $true
+                Write-Log -Level Info -Message "Prompting disabled by config; defaulting to reuse existing ContentMatchQuery."
+            }
+
+            if ($UseExistingQuery) {
+                $ContentMatchQuery = $existing.ContentMatchQuery.Trim()
+                Write-Log -Level Info -Message ("Using existing ContentMatchQuery: {0}" -f $ContentMatchQuery)
+            }
+        }
+
+        # If we didn’t reuse an existing query, run the normal prompt + lint loop
+        if (-not $UseExistingQuery) {
+
+            while ($true) {
+
+                if ([string]::IsNullOrWhiteSpace($ContentMatchQuery)) {
+                    if ($promptQuery) {
+                        $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (or type 'q' to cancel) (e.g., from:(""pm-bounces.broobe.*"" OR ""broobe.*"") AND subject:""Aligned Assets"")"
+                    }
+                    else {
+                        throw "ContentMatchQuery is required but prompting is disabled by config."
+                    }
+                }
+
+                $ContentMatchQuery = $ContentMatchQuery.Trim()
+
+                if ($ContentMatchQuery -match '^(?i)(q|quit|exit)$') {
+                    throw "User cancelled: ContentMatchQuery entry aborted."
+                }
+
+                $warningsRef = [ref] $null
+                $isValid = Test-ContentMatchQueryLint -Query $ContentMatchQuery -Warnings $warningsRef
+
+                if (-not $isValid) {
+                    $warnings = $warningsRef.Value
+                    if ($warnings) {
+                        foreach ($w in $warnings) {
+                            Write-Log -Level Warn -Message $w
+                        }
+                    }
+                    Write-Log -Level Warn -Message "KQL must be corrected before continuing."
+                    $ContentMatchQuery = $null
+                    continue
+                }
+
+                Write-Log -Level Info -Message ("Final ContentMatchQuery: {0}" -f $ContentMatchQuery)
+                break
+            }
+        }
 
         # ---- Build search name ----
         $ts = (Get-Date).ToString('yyyyMMdd-HHmmss')
@@ -178,6 +213,7 @@ function Invoke-PurviewPurge {
             -Name $searchName `
             -CaseName $CaseName `
             -ExchangeLocation 'All' `
+            -UseExistingQuery $UseExistingQuery `
             -ContentMatchQuery $ContentMatchQuery `
             -Description $desc `
             -ConfirmPreference:$confirm
@@ -249,15 +285,15 @@ function Invoke-PurviewPurge {
         Write-Log -Level Error -Message ("[ERROR] {0}" -f $_.Exception.Message)
     }
     finally {
-        Invoke-DisconnectExchangeOnline -ErrorAction SilentlyContinue
+        Write-Log -Level Warn -Message "Remember to disconnect from Purview when finished using Disconnect-ExchangeOnline command..."
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCByevRzYMA+J7RF
-# wJhG/v4z2eSQz/oyl1Q1NoEmrVjrFaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDCqP1QNHw2sLU1
+# edvj4NfBSgWzu7Pu2U1oFZVfmLvcf6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -390,34 +426,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAM4IwSzSdw
-# OxNyboX1AA0Kks3V2BRW+w/K7IsMPkT0NTANBgkqhkiG9w0BAQEFAASCAgC+Y/z/
-# SPEVwoA+/+iWAfQzA3ZNRqV91zUM8uvkizwFxuqZupirdlJ0N5P40nrssISBIz/C
-# H7pHK3DGddYwlf3O3uURA9qY1Vh27JfYAb7EKEAbdubXx3bqWcW3pQjm0O8W/FsQ
-# JRgx5YbElwylxZsPOqR9+ak5U3AycWvr5mmQeaki1dUFAYR0KVdNqXFBey7Nqauh
-# Uf/l+CeSLilDF/k0smvu8tMMeAITbqf9oiCkuwQkIk6JiyVTGP6sZM6LveGYDyHp
-# GEeef7v3Dcg0Whm/XIGozaYXJoVETvmrQHP71qWu9WaI2Uh/DwSkJe3NmJzmR4H7
-# Nl3TiOsR0xkPEahQxufZLjVNd1nFB3fl7poEp3uPZ5OKp4XwV9BkpiKD5mplJqZm
-# 85gQ/+mjE4VtZKf/rt06RgHOHwT4W9FsZXz/ErBcR65MVZ7J0aKL3iKekkVPtb2Z
-# xgF1m+QwZs09mFpYa26vUFPI/VBd5De869YeKbLbd6hsLZfULpTE7dxmwwKBF1D+
-# XtC8PFq64UT125AyeQ9hr3a8FlJudFi0Zr4A0OJCbF1aHyvKZ33zzRw3AIrCrr7X
-# 2ZXIEjd3Dcc4tVqAGwXMGOU9LJYAr3/iL0PPR3Ti6hM8MEzFk5ve/qx0ThaolsFx
-# ij0t1ZF8hjPvhfgPyH3yuujSpMqNyYqiVp4qSaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDxolkJtsgL
+# coDuuxzK8ie8BN+6M7GvQclBoFXCYdFRMTANBgkqhkiG9w0BAQEFAASCAgBun4WM
+# MH8fDnO9K6XhJsAKoISJZzoDebgjIPi9krj0Bn+NdKLEMw5R4k959UYN9Xe8Q8zU
+# osTIasSC+JR6QYZDdMVnprTKI4dIMjzK4ROImS1vQqAgeCMlUGAnvnzmluGd/XMQ
+# K+GJsxR1co7ZDMWTN7l9J3orm82rdS83WEMaoyI+9z10X4DBNOI9oYoy1EbAVTRo
+# x7jePY+XtJQcYyfkZ0TcTfOeI7+M7eae+s2lDyuUdImgxhSgTMjazgw/tDNpg+Hs
+# EwoL1hvgBX00s/NoWqFX9rSvJmfFAPSN/zHiYjf2Odg6E8C6HRo3+99xbaPtVM0a
+# mC4G7mqq4CdOzFt8YaoMyt6+6aeuh8CAMUK4Iq642W+jJcVp/eCj8xNfe+jPwJ6X
+# T7c+RwV/D7nvF6LEIYOoX4CahhuizgSt1JdZu5PYN/w9DrPMWHlav5+9g2UvAGBE
+# v/G2gsUVroghXQMxGzCGCJBcLIsLPwGQYUtbZvy2uOJfXCKTlxb/dzmjsk9DuQLM
+# JztyGZahr/39A2v/xW02h0vynph1yjMgD3t23N9chqcBXC+W0nlFaIVdYQKzgD/x
+# vuRpBbEU/wzHq2x6uaCnHgTk4zI+jgPLEoICDJlBCDr5YluoukqcUTZmNnWy/LQ/
+# UXaJBNXghI2zJkYzC6xXIR75ugOZVd6AyYRG5KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDIwMTExMTNaMC8GCSqGSIb3DQEJBDEiBCBrCMWW1SpC9Eke9PnX
-# r1sMjYUFX4jF4s/a9HVxB+D+pjANBgkqhkiG9w0BAQEFAASCAgAMXHORtk4v8Fe6
-# NubcDuJ67zZFz3U+SLMs5Q8BRfeIHnCn3wdgHOMUpFTPBpEtw1MJ+ItpM1X2XoUS
-# CprY9NB2jtpDDQ5o14ly1nhsCNEacQvG5uYas2BAAl5tbdse3J+iR0NcZgpnLedI
-# 60XDKanlJa3Av0nMI7G3NY0ddvKGlBIYYyqtTSqy9r+sFS+Ifza9iDUV+pgCCeOl
-# QB0hebO/3cw1KG1njcylA1l1DfUNToKj9UA0hdQQHlSMdg3WX7SWibIiY7RoubUW
-# BTXCMeHjzCYdkC7VU8wvaN/qRejPThvVIyjBLeypCVXBOJe2qM6/6Bnxf/B4kF3V
-# Zk8BOve84q9B8eQfe8nsQYgRqgNoDMebt/tAr1/nDQsBMPSHeknQ6jtLR3apdMUD
-# gpOLdSgDSl8lSzZy5I/zUDOcjzerv0T4hJA0xAZ1hbfEJNCkk8PD3U80e/OlwlyH
-# U876Ec8qzyMzwOn9fnzhDH7Tkr2aV1/tgJjDYhhtjy5r2q5iX+qI7o83hhOcHg8f
-# xG+ayAlhnCaIF7OGpztJUPR4VsGDRqIxx0HMQZ48BYwMt2xxfBZ37H97PLaXBTfc
-# ZaMHpb8oAmHzgpaseL63+uL2Rhz27lJ1NSSGBw3YozEtgSdAL1YOK5QYhc2biIbt
-# nEftQpAoi/TOrratjYx3PMvy3pOneg==
+# BTEPFw0yNjA0MDIxNjU0NDdaMC8GCSqGSIb3DQEJBDEiBCCxXu2Sko44fBbLXUmJ
+# 94pWOPrJhJEVet4sZhuaWuQVNzANBgkqhkiG9w0BAQEFAASCAgADxNYucCM1CCDL
+# 2/VmIXH0utn8pykjsM28nplzvqVoCD95s00A92mDcKQti9cQZ26dtFx0o9XI9Nn1
+# LjVmRUYACLu6kCBKEKHMBa3bi/p+8sOIT7S7nnhzT1+I1htKRgbNRqxw8ggCyU8S
+# F4Q289kMqgw4tSwqve2Y3sbVFQiKlKTFb5itbupRPFlwFbM+JCwuYMLRCKs6cj9L
+# SwD8Zc9w6SzcRDpTou8RQeDIQzYlWlOFNM32OJ5ccXmXASjcHBk+hr6/XMLS4n3N
+# dPzLGkaN/hTT/FhDMSsvb6VOYWfA2oek+3DIYMB9yHW9kJexMJo7NHqopcvP7VQt
+# 2hC1ttrEwONSV76qg1nmQjnvHDOFOPIbz6hj6WQV6ZuMxkGIdc0uWXzW9camyZdz
+# 5zSNYOsq/e60rldS+Mhr63HIwOdlImjWEah8XMoUm10EJWmYUrC9ytfc8yIYpX8o
+# 2CD+xOvyfC2aqDZ9Bp9fHgsmobFHy6kDM8TaxFiwRHv+OngmN16pTNJjLfOdg/DP
+# 1rvp5g5GR42UoIzvvHGn5DBfS26zJdYHOiD70P54Fy31MOaaw88JZpl3DuHqGQza
+# j1iEVvI8cL1PF3CGMPfjLmk4vyes28H3+GPIhbCIEIoLxFbMhGj7WEVatw1fSUWj
+# ATACXEGqbc2pW4SmANCnKo14Vao5MA==
 # SIG # End signature block
