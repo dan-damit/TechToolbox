@@ -75,10 +75,10 @@ function Invoke-PurviewPurge {
 
         # Support both legacy and purge.* keys in config
         $timeoutSeconds = [int]$purv.purge.timeoutSeconds
-        if ($timeoutSeconds -le 0) { $timeoutSeconds = 1200 }
+        if ($timeoutSeconds -le 0) { $timeoutSeconds = 2400 }
 
         $pollSeconds = [int]$purv.purge.pollSeconds
-        if ($pollSeconds -le 0) { $pollSeconds = 15 }
+        if ($pollSeconds -le 0) { $pollSeconds = 20 }
 
         # Registration wait (configurable)
         $regTimeout = [int]$purv.registrationWaitSeconds
@@ -130,7 +130,9 @@ function Invoke-PurviewPurge {
 
         # ----- Query prompt + validation/normalization -----
         $promptQuery = $defaults.promptForContentMatchQuery ?? $true
-        $UseExistingQuery = $null
+        $UseExistingQuery = $false
+        $UpdateScope = $false
+        $AllowQueryWeaken = $false
 
         # If the search already exists, offer to reuse its query
         $existing = Get-ComplianceSearch -Identity $ticketNorm -ErrorAction SilentlyContinue
@@ -209,14 +211,21 @@ function Invoke-PurviewPurge {
         Write-Log -Level Info -Message ("Ensuring mailbox-only Compliance Search '{0}' exists in case '{1}'..." -f $searchName, $CaseName)
         Write-Log -Level Info -Message "Scope: ExchangeLocation=All"
 
-        $ensure = Get-ComplianceSearchOrCreate `
-            -Name $searchName `
-            -CaseName $CaseName `
-            -ExchangeLocation 'All' `
-            -UseExistingQuery $UseExistingQuery `
-            -ContentMatchQuery $ContentMatchQuery `
-            -Description $desc `
-            -ConfirmPreference:$confirm
+        $ensureParams = @{
+            Name              = $searchName
+            CaseName          = $CaseName
+            ExchangeLocation  = 'All'
+            ContentMatchQuery = $ContentMatchQuery
+            Description       = $desc
+            ConfirmPreference = $confirm
+            UpdateScope       = $true # Always update scope to ensure mailbox-only, even if reusing existing search
+        }
+
+        if ($UseExistingQuery) { $ensureParams.UseExistingQuery = $true }
+        if ($AllowQueryWeaken) { $ensureParams.AllowQueryWeaken = $true }
+        # if ($UpdateScope) { $ensureParams.UpdateScope = $true }
+
+        $ensure = Get-ComplianceSearchOrCreate @ensureParams
 
         # If -WhatIf/-Confirm prevented creation/update, $ensure.Search may be $null
         if ($null -eq $ensure.Search) {
@@ -240,10 +249,16 @@ function Invoke-PurviewPurge {
 
         # ---- Ensure the search is started ----
         $pre = Get-ComplianceSearch -Identity $searchName -ErrorAction Stop
-
         Write-Log -Level Info -Message ("Pre-start status: {0}" -f $pre.Status)
 
-        if ($pre.Status -eq 'NotStarted') {
+        # If we created or updated the search definition this run, always start a fresh job
+        $mustStart = $ensure.Created -or $ensure.Updated
+
+        if ($mustStart) {
+            Write-Log -Level Info -Message "Search was created/updated; forcing Start to run the latest query."
+        }
+
+        if ($mustStart -or $pre.Status -eq 'NotStarted') {
             if ($PSCmdlet.ShouldProcess(("Search '{0}'" -f $searchName), 'Start compliance search')) {
                 Start-ComplianceSearch -Identity $searchName | Out-Null
                 Write-Log -Level Info -Message ("Search started: {0}" -f $searchName)
@@ -292,8 +307,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDCqP1QNHw2sLU1
-# edvj4NfBSgWzu7Pu2U1oFZVfmLvcf6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBeGxTuxrxmpuhZ
+# vNTxP/0ucrCJm5m/m1kNwevQNVhBKqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -426,34 +441,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDxolkJtsgL
-# coDuuxzK8ie8BN+6M7GvQclBoFXCYdFRMTANBgkqhkiG9w0BAQEFAASCAgBun4WM
-# MH8fDnO9K6XhJsAKoISJZzoDebgjIPi9krj0Bn+NdKLEMw5R4k959UYN9Xe8Q8zU
-# osTIasSC+JR6QYZDdMVnprTKI4dIMjzK4ROImS1vQqAgeCMlUGAnvnzmluGd/XMQ
-# K+GJsxR1co7ZDMWTN7l9J3orm82rdS83WEMaoyI+9z10X4DBNOI9oYoy1EbAVTRo
-# x7jePY+XtJQcYyfkZ0TcTfOeI7+M7eae+s2lDyuUdImgxhSgTMjazgw/tDNpg+Hs
-# EwoL1hvgBX00s/NoWqFX9rSvJmfFAPSN/zHiYjf2Odg6E8C6HRo3+99xbaPtVM0a
-# mC4G7mqq4CdOzFt8YaoMyt6+6aeuh8CAMUK4Iq642W+jJcVp/eCj8xNfe+jPwJ6X
-# T7c+RwV/D7nvF6LEIYOoX4CahhuizgSt1JdZu5PYN/w9DrPMWHlav5+9g2UvAGBE
-# v/G2gsUVroghXQMxGzCGCJBcLIsLPwGQYUtbZvy2uOJfXCKTlxb/dzmjsk9DuQLM
-# JztyGZahr/39A2v/xW02h0vynph1yjMgD3t23N9chqcBXC+W0nlFaIVdYQKzgD/x
-# vuRpBbEU/wzHq2x6uaCnHgTk4zI+jgPLEoICDJlBCDr5YluoukqcUTZmNnWy/LQ/
-# UXaJBNXghI2zJkYzC6xXIR75ugOZVd6AyYRG5KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDmlJWKwBti
+# WUjV7cCGATD0YOVWxY4LZW+hNni4Oc3S0TANBgkqhkiG9w0BAQEFAASCAgCvHNtu
+# 8SNW8mUCBwM5EQJ90dCZ4nwbplN0Qmizj+1SuQPNRjZrVagwvpd6cihWwH9gLDtl
+# yqHMrN9T9VagndYglYidQmOv3cRjiiDomTuuixOFxQT2NLL9fIVM0DQDhGZiK5TH
+# Fm+HWUMvz0al125he6oHOhEyitqrS8OTnsWj1FUu7IbmXEfBKhlIkdb0wC+kVRIp
+# iVQqbwm1si1wC7zjhxVvI2oIChVkO67SxoHz8Mnqsuy6SFPOF8qnhSZflBp0EGrD
+# sSJIG0QROx047X3qz0ESGEJ6AK+aHZuqapjPnsxFPO6iBDchmI5Aw789XcThYVkM
+# n/StjZ0vq77QnWkPxv8PBAZUDE1h/oNBSrq8J3PYUUXYKglkxwZU2kyZP4IWHJOA
+# D1NlH+XW5GQAktVN5paj4WGzYYKk5WAGYKgA3uUX9PWev98P00NZWgPyNUp4s+Uh
+# UulqBiiBQa4qe3TzLCzuZOhX7rmHmE/wkQH+hUtYgCRaL8mR1miXQP1Burvjz6e4
+# M69denoQhgT6jFic8u24HAUlF+F7jiSoT8qddaS1KM0fPphjoQ+9jkLn+xpghOvA
+# Ufvw9P0G1c+FDoQ8JxfDoOqIuqax5ASZNKQuICwqg85vKgRVJsFMgBAoJV3pshJ+
+# byXTRIs7pbhihkGwHZI2VwO/ZmZpx4iu9qwvJ6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDIxNjU0NDdaMC8GCSqGSIb3DQEJBDEiBCCxXu2Sko44fBbLXUmJ
-# 94pWOPrJhJEVet4sZhuaWuQVNzANBgkqhkiG9w0BAQEFAASCAgADxNYucCM1CCDL
-# 2/VmIXH0utn8pykjsM28nplzvqVoCD95s00A92mDcKQti9cQZ26dtFx0o9XI9Nn1
-# LjVmRUYACLu6kCBKEKHMBa3bi/p+8sOIT7S7nnhzT1+I1htKRgbNRqxw8ggCyU8S
-# F4Q289kMqgw4tSwqve2Y3sbVFQiKlKTFb5itbupRPFlwFbM+JCwuYMLRCKs6cj9L
-# SwD8Zc9w6SzcRDpTou8RQeDIQzYlWlOFNM32OJ5ccXmXASjcHBk+hr6/XMLS4n3N
-# dPzLGkaN/hTT/FhDMSsvb6VOYWfA2oek+3DIYMB9yHW9kJexMJo7NHqopcvP7VQt
-# 2hC1ttrEwONSV76qg1nmQjnvHDOFOPIbz6hj6WQV6ZuMxkGIdc0uWXzW9camyZdz
-# 5zSNYOsq/e60rldS+Mhr63HIwOdlImjWEah8XMoUm10EJWmYUrC9ytfc8yIYpX8o
-# 2CD+xOvyfC2aqDZ9Bp9fHgsmobFHy6kDM8TaxFiwRHv+OngmN16pTNJjLfOdg/DP
-# 1rvp5g5GR42UoIzvvHGn5DBfS26zJdYHOiD70P54Fy31MOaaw88JZpl3DuHqGQza
-# j1iEVvI8cL1PF3CGMPfjLmk4vyes28H3+GPIhbCIEIoLxFbMhGj7WEVatw1fSUWj
-# ATACXEGqbc2pW4SmANCnKo14Vao5MA==
+# BTEPFw0yNjA0MDMxNTI0MzlaMC8GCSqGSIb3DQEJBDEiBCAJ0rBkzfyCOYzurZsG
+# +aInk9CboAobJ10dwOcM2cc8GTANBgkqhkiG9w0BAQEFAASCAgBukKtfZKVOg1KF
+# 3IPYfCbYzZDSCXwgiZrYbc6lhRUUjStal4xw1+ywA6V/WyFHOHUTIXJKjIk87e88
+# glsNz8rRVuMfWtuagjnkh5FjaL1G5TkhDwVd+jC8dpTh32KKavvfnh4I2n1xgzQK
+# b9egAsROKLqWKllQm1bY6gWlio+IihHfBVV+wNODOZqHzLON+xOJdIPyan9tTsq5
+# PZXDpbU7kewGuUeELd75yjWDZo+vIWkCivww74+ati708u3oJyOTi6BvG9xEyg+z
+# f3kyDrFi1LtGBunlOpDPuPDVS55NlhOOGng72F3lIzIT1zbDF7xHdhovjR61pgY7
+# kFafcb8L9aIa2jmobhuT2W2khhuDCkDE0UH8hy8SCqlwi9SvLtmnb4etw2MWqvQj
+# LZT8U3kfHaWmJFs4x1BF53XA5F3eEl5LhJ1hD9WzrhcLS9GErOz1PtfjFzUsr1F1
+# wc2bW8TrIyT1HdmpAS6Qs+xVgA4TjagPoofrFscYfqTafKIVn+TGWTuxUqdAoP5I
+# b0rM203ODRDAk6UPf+WQB4eNY9fl17w0f6Wr/WznWtqfyYH/wJA/XjPH4KzdVVPZ
+# LgM54WIMRpV0vnRK35vbtYQqlCqK+oVdUNLmo7RQGTp6ywkBdBBon8AJ7Rz5tLMD
+# GeeW+6eObQah/teBU6ictU7cRUK4jg==
 # SIG # End signature block
