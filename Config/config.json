@@ -63,7 +63,7 @@
       },
       "wordListPath": "C:\\TechToolbox\\Config\\wordlist.txt",
       "default": {
-        "separator": "",
+        "separator": "-",
         "style": "Readable",
         "length": 12,
         "digits": 2
