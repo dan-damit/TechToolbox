@@ -176,7 +176,8 @@
       "promptForCredentials": true,
       "showProgress": true,
       "promptForDateRanges": true,
-      "promptForContentMatchQuery": true
+      "promptForContentMatchQuery": true,
+      "configPath": "C:\\TechToolbox\\Config\\config.json"
     },
     "output": {
       "encoding": "UTF8",

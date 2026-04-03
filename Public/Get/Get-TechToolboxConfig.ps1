@@ -55,82 +55,64 @@ function Get-TechToolboxConfig {
         [string]$Path
     )
 
-    # --- Validate file exists ---
+    # --- PS5-compatible deep converter (only used on PS5) ---
+    function ConvertTo-Hashtable {
+        param([Parameter(Mandatory)]$InputObject)
+
+        if ($InputObject -is [hashtable]) { return $InputObject }
+
+        if ($InputObject -is [System.Collections.IDictionary]) {
+            $ht = @{}
+            foreach ($k in $InputObject.Keys) {
+                $ht[$k] = ConvertTo-Hashtable $InputObject[$k]
+            }
+            return $ht
+        }
+
+        if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
+            return @(
+                $InputObject | ForEach-Object { ConvertTo-Hashtable $_ }
+            )
+        }
+
+        if ($InputObject -is [pscustomobject]) {
+            $ht = @{}
+            foreach ($p in $InputObject.PSObject.Properties) {
+                $ht[$p.Name] = ConvertTo-Hashtable $p.Value
+            }
+            return $ht
+        }
+
+        return $InputObject
+    }
+
     if (-not (Test-Path -LiteralPath $Path)) {
         throw "Get-TechToolboxConfig: config file not found at '$Path'."
     }
 
     $fi = Get-Item -LiteralPath $Path
 
-    # --- Safe cache: only use if file unchanged AND cache is valid ---
-    if ($script:__cfgCache -and
-        $script:__cfgCache.Path -eq $fi.FullName -and
-        $script:__cfgCache.LastWriteTimeUtc -eq $fi.LastWriteTimeUtc -and
-        $script:__cfgCache.Data) {
-
-        return $script:__cfgCache.Data
+    # --- Simple session cache (StrictMode-safe) ---
+    if (-not (Get-Variable -Name __cfgCache -Scope Script -ErrorAction SilentlyContinue)) {
+        $script:__cfgCache = $null
     }
 
-    # --- Load raw JSON (preserve BOM, whitespace, everything) ---
+    $cache = $script:__cfgCache
+    if ($cache -and
+        $cache.Path -eq $fi.FullName -and
+        $cache.LastWriteTimeUtc -eq $fi.LastWriteTimeUtc) {
+        return $cache.Data
+    }
+
+    # --- Load & parse (use -Raw; DO NOT use $raw variable) ---
     $jsonRaw = Get-Content -LiteralPath $fi.FullName -Raw -ErrorAction Stop
 
-    if ([string]::IsNullOrWhiteSpace($jsonRaw)) {
-        throw "Get-TechToolboxConfig: config file is empty or unreadable."
+    if ($PSVersionTable.PSVersion.Major -ge 7) {
+        $data = ConvertFrom-Json -InputObject $jsonRaw -AsHashtable
     }
-
-    # --- Parse JSON safely ---
-    try {
-        if ($PSVersionTable.PSVersion.Major -ge 7) {
-            $data = ConvertFrom-Json -InputObject $jsonRaw -AsHashtable
-        }
-        else {
-            # PS5 fallback
-            function ConvertTo-Hashtable {
-                param([Parameter(Mandatory)]$InputObject)
-                if ($InputObject -is [hashtable]) { return $InputObject }
-                if ($InputObject -is [System.Collections.IDictionary]) {
-                    $ht = @{}
-                    foreach ($k in $InputObject.Keys) { $ht[$k] = ConvertTo-Hashtable $InputObject[$k] }
-                    return $ht
-                }
-                if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
-                    return @($InputObject | ForEach-Object { ConvertTo-Hashtable $_ })
-                }
-                if ($InputObject -is [pscustomobject]) {
-                    $ht = @{}
-                    foreach ($p in $InputObject.PSObject.Properties) { $ht[$p.Name] = ConvertTo-Hashtable $p.Value }
-                    return $ht
-                }
-                return $InputObject
-            }
-
-            $data = ConvertTo-Hashtable (ConvertFrom-Json -InputObject $jsonRaw)
-        }
+    else {
+        $data = ConvertTo-Hashtable (ConvertFrom-Json -InputObject $jsonRaw)
     }
-    catch {
-        throw "Get-TechToolboxConfig: JSON parsing failed — $($_.Exception.Message)"
-    }
-
-    # --- Validate required structure ---
-    $requiredTop = @('schemaVersion', 'settings')
-    foreach ($key in $requiredTop) {
-        if (-not $data.ContainsKey($key)) {
-            throw "Get-TechToolboxConfig: Missing required top-level key '$key'."
-        }
-    }
-
-    # --- Validate password defaults exist ---
-    $pwdDefaults = $data.settings.passwords.default
-    $requiredPwdKeys = @('separator', 'style', 'length', 'digits')
-
-    foreach ($key in $requiredPwdKeys) {
-        if (-not $pwdDefaults.ContainsKey($key)) {
-            throw "Get-TechToolboxConfig: Missing required password default key '$key'."
-        }
-    }
-
-    # --- DO NOT trim or mutate values ---
-    # (This is where your hyphen was being lost in the old system.)
 
     # --- Update cache ---
     $script:__cfgCache = @{
@@ -139,7 +121,7 @@ function Get-TechToolboxConfig {
         Data             = $data
     }
 
-    # Legacy global
+    # Optional: maintain the legacy global if other code expects it
     $script:TechToolboxConfig = $data
 
     return $data
@@ -148,8 +130,8 @@ function Get-TechToolboxConfig {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCp55iiifYKGJhg
-# zqygoD3oI4CsdoOQ0o694ITPCRRlh6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBZ2c+f+jBOff5v
+# zsctQdWtQwafMfXur/HX2xzZBuWmUqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -282,34 +264,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAk/fX8ERHy
-# DifKTZD2uIGpXBlLZp9bzU5a/Vw2JJ0pNjANBgkqhkiG9w0BAQEFAASCAgA58Aj6
-# xeHhOMOBU3CIdnGyaV1cbM8sg7/28JCMEFNLCj7i7uUNpiVqDmwOdvat4Y0DPUEQ
-# X7Y7/xfRNb2h2VRBZY5u0kJQhs7y4qtVG7yRxgj3wIqUWft/n4cefAj1G+YEoT0E
-# U0ePmesE0aRJrIVZxElvjaWtMhM9Lc7cDmOo94JjWdx2ZGJNqfh8r7NWBJndev4K
-# 31D0i4k+DdgIjoQRW6PotCTW6Yags6y0fXBWQP1yDjU4BGAyJHV/Uz8sLWj7zUfd
-# eS8AqmNSmGTpzrgQ5to84znOLWmCtsYEnoTWXjNEweDtLg6Ymv1nyA1GZUlhTMyl
-# +f41v22ft0hf2AgS3qCpYZBNxxHsV8xpLIhHLf0pvBaKEwIXp03Ygi1vSKNQ9ria
-# fMaPFQezwrPTLHMEuQgUrB66d1YawfXb+gTz6dD1iEO3XUhJs+c8hIY9yeCWs5Yq
-# sj/QiANYfSSNzDUF9qsNTOmjIrQ1yD4/maMu7pAF0mKBCkmPiM8TKYpGykRLfO6y
-# pf0TOJ0G0Jyo9H99xWY3aurxzF3yBfyb4fLySEe98Hx8fmn7ZM+qx9yPCq42GrG3
-# EwUAnTSgqqCjLtrPg0ayz4sjCsY1ZSVifcWig/iNYXHMKOby6Gj9kbWab9bSHkO1
-# ilpFzvw/4ENDbhbr+Nq1ePuIqAXFADSMj6Eo+qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBZl1w5yv2K
+# xBEWYLlNm4pWvVX2AVPUoWOcYGD4tWtSnTANBgkqhkiG9w0BAQEFAASCAgAf5m58
+# D00Qw+OQLcN8Zg9oo7MbH1j5Nm8YzKfnD4SL53xnZc5lDWUDkC97LNbBq0s3+ds8
+# TWmv1C+QtVFMOIMUWnh1c5r/FtizS7k8nK9i7dmuky/Oey7jZFwQSZ09wCAulZs4
+# XNhayOzEF5o0jiEr/U7OtJ5MbrsBJ+scAZs/CeTa4yMCRPVm3PN4Wrd70saiwSNp
+# 34qONJ8ej/cwDDqnQnt418NgD3Z2w1C5QJJuKJ83g5FMMTKVVBXprb8C8TiOr+YC
+# IvFtr9NnVlrY+Xbszwcr09q1CrYPSko44A38ZGutKUu6SqGh/uYnR2y7EXSfeas2
+# LLrlAA9br5kWFux1jFshdCSM3axH7S1MDgqRDHN6THP+ciLq+XHEDnnvEOoqiRKV
+# iPn/uvZ5pujFuxuHrLDD3rgwIdE9tvPnLcutSQSfLsdgBRuzNOHo8nSzOEDtjAkK
+# 9JsiNfGZhpTAJpTYKt0X3V3nA00Hv/gRbRVtE9d5WEzEOASMGNY9SRJOEZvFCy8B
+# MDVKZgxc8AhExewS3uoO8Uv7Di84XCbPLNRCWs8MfJuSzdehThdPpI6WQdZ2Rkwp
+# 68dqwbHz8XysF+q/gl0VIQFfbsFNkQMhsRYi8KboN+E1YqPrm6roNsSncnxbSi00
+# BsscuxuovA3HrdVPdFEmRX6F6w2z1KaFIunAN6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDMxNzQ1MjZaMC8GCSqGSIb3DQEJBDEiBCAZWWVpbPeWuMvAzV7R
-# G8F6s4MetkWtD+VvYMcOij8HmzANBgkqhkiG9w0BAQEFAASCAgBzJL6GyoLmj7o6
-# bGxfJdGtHHxGMsSX/lygIfM74mV/44R+zYdVD37BdV95DWBLu/tfSP0XHj/P8mvD
-# trzQS30t+HsqdIJv5rRW1nuiQsBrr/SwKbpFfuZUtIMAhCBwIfLpJBpm931PbZ8j
-# iDPMwwP4o4rn/R2VAoENynf7vZMp4azvh3Eha/KqIAXxCMPflu3oWsedKqt/jkbW
-# Cowk4YSZh1TWlI1/s6sSeTLSLDUuxrccSQol53Zh0Mr9cQBmyasjivASUttR/0f4
-# gy+0ITccKqoWCsRhSpM+da/qZjSjJ9ZIz106BcIKFZtCUbaYPziTlp4eep8uHIUt
-# NlTrggHaSyiFUiy0jd1bDQ78V7WS3sZLwDQ10pagNSgMj91ET1lJZ3oh93SAt9T0
-# iOp1tfxJRb99ckqZxD1vtxzob5+UCEK1ttoND7uu65jT8S8Ycf227iv2/cJwMUuS
-# ZfEFVvjBG1UQGQ8R0fW2wrRgNLOzwU4kS5dxWzvBiiAYapTJDOIewgOvQ+d/+fbF
-# 8TW62VLHX9Zawijpmcn8zIFvDKIn2QR9qu4fEe0ev1oaSOBCRwl9AgSbCHrVluyQ
-# y/5okvB+7gTChN2GJzKRonDzYibuul+mPVO91osyevUl4GQCuBv94cdWHu+PsNbe
-# hXfQatplyxpegHPpkj/Yn80QY3OTkg==
+# BTEPFw0yNjA0MDMxNzU4MjhaMC8GCSqGSIb3DQEJBDEiBCAWfRRLJLsNCHUkcCTt
+# qU9V7MC9qKgBXNCUk2BwrYYRdjANBgkqhkiG9w0BAQEFAASCAgB3d9m+OyDBJTPN
+# iTnLIjmmhfY5uB3v939CDuHqkhDSKg3+BXieRTSPaZJ1wAwnMPcbxqz+32R/zD2o
+# dhH4D9jXCFiLtxVjmHC615QSn39tScJVG92Tlp4b+qYCLiyzMXDYn45R05twTI26
+# oNLEYvx54kT3tTP6yRNZ+wEJdNdgR8IQAS4KYrUuKcHWDqUX5Iig6mWFP7KqMS+l
+# Ep4INujMuum94cLskzC5yNM83OOJfQneRht3aNXiJajJCiak6nFooCKAGIvHxAe6
+# aonc2z0I/FjqT4FClR70cFUxqdoRTb9/xUP/qIRDzm1SXOOxbGLnXxg+Ef+d0qKh
+# oNgdxBjWCIV7Vx+ztvD9/YsZZomVcBamcxejA+KqWkH2HNCB+IKC/ESqfWm845yP
+# qxf+IeosyOESTVhRzIzi3oOQ4pfW8ONN2a47czAfR3rrP2XIQDfY0TZK4epoSvWi
+# Rax2MVQG32aN35tIcQxBE3YH7ooqVMeTgEGvjhHCyRDNiIYl6YdKGwiEwbjek5Bj
+# lGkCgW34mVNBRSsIGGoaJ+KR5oaBehVW+HieDvxUUlDKdOQTn8pfx26QqFFZSPTv
+# 26WlP2KIU1HGO8+DElyVfA1xSSKnfSQ0h/vv2slNBJecFu5pbZ4txn+mi1qqBB84
+# F6PTZmlVkt5ltbppWaEeMQUBX+AmkQ==
 # SIG # End signature block
