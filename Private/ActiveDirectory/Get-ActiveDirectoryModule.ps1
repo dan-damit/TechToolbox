@@ -1,176 +1,48 @@
-function Reset-ADPassword {
-    <#
-    .SYNOPSIS
-    Resets an AD user's password using TechToolbox's private password generator.
+function Get-ActiveDirectoryModule {
+    [CmdletBinding()]
+    param()
 
-    .DESCRIPTION
-    - Attempts to dot-source Private\Passwords\Get-NewPassword.ps1 (or a path
-      you specify)
-    - Calls Get-NewPassword with optional parameters; defaults are read from
-      $script:cfg by your function
-    - Falls back to $candidate if generator sets it instead of returning a value
-    - Resets AD password; optional Unlock and ChangePasswordAtLogon
-    - Logging via Write-Log; no progress UI
-
-    .PARAMETER Identity
-    The AD user identity (sAMAccountName, UPN, or DN).
-
-    .PARAMETER ChangePasswordAtLogon
-    Set "User must change password at next logon".
-
-    .PARAMETER Unlock
-    Unlock the account after resetting the password.
-
-    .PARAMETER OutFile
-    Write the plaintext password to a file (plaintext).
-
-    .PARAMETER Clipboard
-    Copy plaintext password to clipboard (Windows only).
-
-    .PARAMETER Credential
-    (Reserved) Credential parameter to satisfy TechToolbox module interface.
-    Currently not used inside this function.
-
-    .EXAMPLE
-    Reset-ADPassword -Identity jdoe -ChangePasswordAtLogon -Clipboard
-
-    .EXAMPLE
-    Reset-ADPassword -Identity jdoe -Unlock -OutFile C:\temp\jdoe_password.txt
-
-    .EXAMPLE
-    Reset-ADPassword -Identity jdoe -ChangePasswordAtLogon:$false
-    #>
-    [CmdletBinding(SupportsShouldProcess = $true)]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Identity,
-
-        [switch]$ChangePasswordAtLogon = $true,
-        [switch]$Unlock,
-
-        [string]$OutFile,
-        [switch]$Clipboard,
-
-        [System.Management.Automation.PSCredential]$Credential
-    )
-
-    Initialize-TechToolboxRuntime
-    $PasswordFunctionPath = $script:cfg.settings.resetPassword.passwordFunctionPath
-    $InitialPasswordLength = $script:cfg.settings.resetPassword.initialPasswordLength
-    $ShowPassword = $script:cfg.settings.resetPassword.showPassword
-    $Separator = $script:cfg.settings.passwords.default.separator
-    Write-Log -Level Info -Message "Starting Reset-ADPassword for '$Identity'"
-
-    Get-ActiveDirectoryModule
-
-    if (-not (Get-Module ActiveDirectory) -and -not (Get-Module ActiveDirectory -ListAvailable)) {
-        Write-Log -Level Error -Message "ActiveDirectory module unavailable. Install RSAT or ensure AD tools are accessible."
-        throw "Missing ActiveDirectory module."
+    # Already loaded?
+    if (Get-Module -Name ActiveDirectory -ErrorAction SilentlyContinue) {
+        return
     }
 
-    # --- Generate the password (prefer return value; fallback to $candidate)
-    $InitialPassword = Get-NewPassword -length $InitialPasswordLength -nonAlpha 3 -separator $Separator
-    $SecurePass = ConvertTo-SecureString $initialPassword -AsPlainText -Force
+    # Installed but not loaded?
+    $installed = Get-Module -Name ActiveDirectory -ListAvailable -ErrorAction SilentlyContinue
+    if ($installed) {
+        try {
+            Import-Module ActiveDirectory -ErrorAction Stop
+            return
+        }
+        catch {
+            throw "ActiveDirectory module is installed but failed to import: $($_.Exception.Message)"
+        }
+    }
 
-    # --- Resolve AD user ---
+    # Not installed — attempt installation
+    Write-Log -Level Info -Message "ActiveDirectory module not found. Attempting installation..."
+
     try {
-        $user = Get-ADUser -Identity $Identity -Properties LockedOut, PasswordExpired -Credential $Credential -ErrorAction Stop
-        Write-Log -Level Info -Message "Resolved AD user '$($user.SamAccountName)'"
+        Install-Module ActiveDirectory -ErrorAction Stop -Force
     }
     catch {
-        Write-Log -Level Error -Message "Failed to resolve user '$Identity': $($_.Exception.Message)"
-        throw
+        throw "Failed to install ActiveDirectory module. Ensure RSAT is enabled or install RSAT-AD-PowerShell."
     }
 
-    # --- Reset password ---
-    if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Reset AD password")) {
-        try {
-            Set-ADAccountPassword -Identity $user.DistinguishedName -NewPassword $securePass -Reset -Credential $Credential -ErrorAction Stop
-            Write-Log -Level Ok -Message "Password reset successful for '$($user.SamAccountName)'"
-        }
-        catch {
-            Write-Log -Level Error -Message "Password reset failed for '$($user.SamAccountName)': $($_.Exception.Message)"
-            throw
-        }
+    # Try import again after install
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop
     }
-
-    # --- Optional unlock ---
-    if ($Unlock) {
-        try {
-            Unlock-ADAccount -Identity $user.DistinguishedName -Credential $Credential -ErrorAction Stop
-            Write-Log -Level Ok -Message "Account unlocked: $($user.SamAccountName)"
-        }
-        catch {
-            Write-Log -Level Warn -Message "Failed to unlock account: $($_.Exception.Message)"
-        }
-    }
-
-    # --- Optional change-at-logon ---
-    if ($ChangePasswordAtLogon) {
-        try {
-            Set-ADUser -Identity $user.DistinguishedName -ChangePasswordAtLogon $true -Credential $Credential -ErrorAction Stop
-            Write-Log -Level Ok -Message "ChangePasswordAtLogon set for: $($user.SamAccountName)"
-        }
-        catch {
-            Write-Log -Level Warn -Message "Failed to set ChangePasswordAtLogon: $($_.Exception.Message)"
-        }
-    }
-
-    # --- Delivery controls (opt-in only) ---
-    if ($ShowPassword) {
-        Write-Log -Level Warn -Message "Displaying password as requested:"
-        Write-Log -Level Warn -Message "$initialPassword"
-    }
-
-    if ($OutFile) {
-        try {
-            $parent = Split-Path $OutFile -Parent
-            if ($parent -and -not (Test-Path $parent)) {
-                New-Item -Path $parent -ItemType Directory -Force | Out-Null
-            }
-            Set-Content -Path $OutFile -Value $initialPassword -NoNewline -Force
-            Write-Log -Level Info -Message "Password written to file: $OutFile (plaintext)"
-        }
-        catch {
-            Write-Log -Level Warn -Message "Failed to write password to '$OutFile': $($_.Exception.Message)"
-        }
-    }
-
-    if ($Clipboard) {
-        if ($IsWindows) {
-            try {
-                $null = $initialPassword | clip.exe
-                Write-Log -Level Info -Message "Password copied to clipboard."
-            }
-            catch {
-                Write-Log -Level Warn -Message "Failed to copy to clipboard: $($_.Exception.Message)"
-            }
-        }
-        else {
-            Write-Log -Level Warn -Message "Clipboard copy is only supported on Windows."
-        }
-    }
-
-    Write-Log -Level Ok -Message "Completed Reset-ADPassword for '$($user.SamAccountName)'"
-    [pscustomobject]@{
-        SamAccountName        = $user.SamAccountName
-        DistinguishedName     = $user.DistinguishedName
-        ChangePasswordAtLogon = [bool]$ChangePasswordAtLogon
-        Unlocked              = [bool]$Unlock
-        PasswordDelivery      = @(
-            $(if ($ShowPassword) { 'Console' })
-            $(if ($OutFile) { 'File' })
-            $(if ($Clipboard) { 'Clipboard' })
-        ) -join ', '
-        Timestamp             = (Get-Date)
+    catch {
+        throw "ActiveDirectory module installed but could not be imported. Check RSAT installation."
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCYSjuG5ERnoRQF
-# bGbxKoPvHbYTC1R0kLNt2iGSG8/ZT6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC1WRQQ4uvm6gat
+# LwVgjW17Yvabc/Z2xvYfRHOkRihCO6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -303,34 +175,34 @@ function Reset-ADPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDwe5KD5htM
-# Wvdt56ChPI3UMXL+SqCz+DZSHB2/WRgyKDANBgkqhkiG9w0BAQEFAASCAgCGTxRQ
-# HJNr047ywRYSAY0orQO1APNvhGNqW86nDntVGIpjliqNU+7NZZxQuTNItUbAGJX5
-# SYYfJhc90hAfEAlUGMijRHGeyVrHLIxow4K9lTImrkvcHkBXfqmnIfkbPxrha6Zg
-# LKfy9LtGo362BaYD1z+ks3ZztTe5m7txG67Atd08bqksGoZVP3ypdPJs/FreaY/v
-# NmTYcRNaEc1Zub08OqhwPfQDDlPf0sIYbmdchkPmkQOJkaWHF4SjavuLMtA4gae+
-# 5OKQyqC0jzMH2fq2jGxVySsnGG2UefPmizZqWsKGErkFhCiQS6e+QV4MCWA5mB56
-# TU3ZWTtaUIvjFZHBRIdS075jnNRSshStCgrmNNCGhHvI1vLySX8taOw6O7QNvDXH
-# Hgp58tjU2j5Vvc38KX3BlfqWCIs+VrDVC0QpDnK7AJCSoozDpYK0KSXCY3DAhXQv
-# UosNYzKJIv/5quoQHuOWeGrSIeagLerLny3aCCZc5hTZJYfbodZU9xkLWRYqRaqr
-# NEPG87LfsoCQYUEJyHxUk8zTCJTh7Qds7R2F1IXVo8FyOtDJ/nItngoEANetUQRJ
-# kZvCEYkCd2VOB7w+lhuyvvCSI0S+R9pshdYL/jSE/znZIyiWiEzBhL0flpBSLlmz
-# j8dIgA0fMJgz1W6kUC5iZNdP1mEJiz2ut831uaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAkLfiIrai8
+# 0VvR9YgOTV827dPWwRTXUecE/UWKECAv8DANBgkqhkiG9w0BAQEFAASCAgCqeS5U
+# Ge+r342vFWncczd7SWUKJ5yjxsJf+sJI0R4Zgp9kUJXTUCFqKnFNwWeqhws4zBLY
+# rw5w3wE7V2REEfuZAlIhuMFeV9YzPpmDgg6Rg4kYH88HXIaieYV7Mug0uKCyHl0u
+# RwcEU9VDZEvLNsShfTqvGYJMjWcagVMQsTDm3jobevFR026Jky2fABP+m+0U0Dli
+# cymmpw+F1VK2uN3i6qPKymqVnCiCwgXe9xXREIBPZEM3PD7CqAL9U9UGsYKmFzT6
+# 4VUCsl3wUQ4M85KKNE2U4LTgJqd67fhSVTfUBS70HsO/p9UunYvMGBh2sA4vWTaV
+# EYSnDJXN+1w7zQrcz+ceC4jDpifEjOa/x+9QXe0kot9UPvDWn9jKYkECJNdXsYC4
+# 0gK46borQ0jfnjRfclQmvs2l2LoVdWm0DcYoXAsh2gaS05Wu0fQUgJSekt2f1xDN
+# ibyZq+/LR46/z9IictIAs7Lc47J4vfa3mBuoC0Q6/KlSf+dNoCuVZXfCzbtGdQXI
+# t/GaIJly+uzNNWyDu0wJCDFjO3PLLPuF1BUgofl+nxtPzfI9fanaG7gdY6R7PQo1
+# gWrxptbz9xN9ek4pNarpLxwVo7bSkBllo/r1Aq43p2UOTvYp2fGhhnHeXzU2+wJR
+# HrjTls4SQAoMFQPGnZ/f925oJWe/TCgAu3zqFKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDMxODAxNDZaMC8GCSqGSIb3DQEJBDEiBCDBpMoj4up1s78Zmbd/
-# ULmLfptJ6BeWM+TrO769mR2BfjANBgkqhkiG9w0BAQEFAASCAgBuAJdvclJJgWow
-# RlaoFKCE0DABdOSvp6uPU/K69QTgxfENOkfVnFIkuZi6nQoBVoc9L3TsVwsxCpBm
-# zT+M3vvj+Smi/zHt8StQryK6wD1oGujocQVGIvuSzdqFxU3xyNkIC3fF4q26mspM
-# SX9mrbQhbIMSkD02BvSp7LD+f23E4drVXs/ut6Inm9nw4iHkmLKGEjuF/5YyGuSR
-# 2pzgzqve0hVgepKm2TKrc14LI18S8jW/MGK8fusY84Q2ysvP0fs5ovYwOq1jfnTk
-# 62SScMYGvT1tGDMWlSC/pq65Jyz+WAkTW8YQ80emhxwMKk+n+xN7rAJhSzgdPOHS
-# l5GJN1B1F2ZQFUJgHWJh8R+DDzR58bq+pY8jhoxG1ICtFlL78AGzyBbeRpAvtYFo
-# OGLqoV97LGFmvMdqtCkMJqXIHl7wRGaBpjQ+afoXspmV/X7Lkagh02eMaBjb+ld0
-# TWHBDF0IDorQV4bcXmiJE++jxh3CvGh+sQJMo1jQt4pc7rJ1PiBB8LclvppkMVe1
-# cmKZ5WDxuuTUYl1Qle9Kn1H+8mrYxErnhaxrhysZBpfYVIbl+3LYlsnB8uHPtNsM
-# KKZWkxtD5fZShbSQwzKCvzr1ZggwtG1upnc2LUnDnmx/AZQdC8xvtdI7P7otQogQ
-# Kto4nFBXdNN0RvhA/adyKgZCJJ4B9A==
+# BTEPFw0yNjA0MDMxODAzMTdaMC8GCSqGSIb3DQEJBDEiBCAfWhs+KewSlh+Sk2LY
+# RMbCIKYP8uOkZQJbpKx1od6qYDANBgkqhkiG9w0BAQEFAASCAgDNm6uemD2LfqzF
+# NmokDwOnimExIriXxQpxkJ2Z0od3YxVVrdO6X1/nzGcZRH3LNzO99xCWCPo3ZalZ
+# O0RHfAkKsnVc3gGAUA56s9J0xjRPhkxqELKIb0HDKsc7plk7zD4zU9UH/EKbhhDk
+# y13LcZ52bPMXZmdxTj4gqML7SEXORxhO2cHJ7CTwYbzVTIedD3+GpoLY9XVBEKOr
+# DW6z+UC5SW1u/b7VxgL4KZ5ABmPwAruvFH0iGF8ITYblUdufu6GQXWhO1s32OG63
+# JsRLLirq5DLwBaNgkCyv0Ez3PC2WvZb+vh8rScHHV8XJ6uDIgKG6WEi0EdmcZevm
+# a7dmAuBKLozpLx6y84se6VTPxXso98jOzNI9XqhTiZNlQzFy7vxwcQqDK25XuUIz
+# EO/PdFXISHZXw+lGfIjyMBNFsnkabWoGHjX1uUG7M7cLNhNin6fg4LyYi/kg9hN3
+# WyfAXWHVG/vir/rTbei8CtloI/Y4Li/cbqWB4T6S/BjR0Kx6HdEhpD3JSYl1oTmi
+# XXA/MRx5obcrVKFRfKXMYRZdwpWRWJ8dfBhZFKqpFKgivh88ppsNkusDlvP+QfnO
+# +aHgJLDvjsh+3kPzT21gMJDDeBXAf2rGiYUWCPxHncjbnVEQkvqv6TwnSRPAmgpo
+# UyEDWCuIqkr6XDTB8BYfsJRqhEjbKg==
 # SIG # End signature block

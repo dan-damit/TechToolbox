@@ -2,35 +2,40 @@ function Initialize-Config {
     [CmdletBinding()]
     param()
 
-    # Always reload config unless explicitly told not to.
-    # Stale config is more dangerous than reloading.
+    # Already initialized in this session
+    if ($script:cfg -and $script:TechToolboxConfig) { return }
+
+    # Ensure ModuleRoot is set
     if (-not $script:ModuleRoot) {
         $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
     }
 
-    $configDir = Join-Path $script:ModuleRoot 'Config'
-    $script:ConfigPath = Join-Path $configDir 'config.json'
+    # Ensure ConfigPath is set
+    if (-not $script:ConfigPath) {
+        $configDir = Join-Path $script:ModuleRoot 'Config'
+        $script:ConfigPath = Join-Path $configDir 'config.json'
 
-    if (-not (Test-Path -LiteralPath $configDir)) {
-        New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+        if (-not (Test-Path -LiteralPath $configDir)) {
+            New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+        }
     }
 
     try {
-        # Always reload — no short-circuiting
         $script:cfg = Get-TechToolboxConfig -Path $script:ConfigPath
-        $script:TechToolboxConfig = $script:cfg
-        $script:TT_RuntimeReady = $true
     }
     catch {
         throw "[Initialize-Config] Failed to load config.json from '$script:ConfigPath': $($_.Exception.Message)"
     }
+
+    # Maintain legacy/global handle
+    $script:TechToolboxConfig = $script:cfg
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAtAUeAE2KcbA4B
-# 4brqm0ta9ehLkV2ing+uptDoy8Qh2aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA2fmP4/HOwQTC/
+# 2up9AcFmzLK6/Yvt7GEZ+GIcRI+ftqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -163,34 +168,34 @@ function Initialize-Config {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCALhdttDPv2
-# RDlB1K0xwPSyXfFwnKpVMg6WM3jUwKvysjANBgkqhkiG9w0BAQEFAASCAgBpktmh
-# vfnf/PVPnNh2uDtNBncD5f9OomzGscdrKW+qpIEEpRT8t3O/2sTStR+U3KCe/7eJ
-# Bv5LwcG63/Av1jl/IdGG8KPgmtzsAcm3hJFGXBP+nFwoLZRvorn7LRNcElfI6hwW
-# px/gkChGgyzAS+/OGmgtesqhlMvj6zDqiJtQ8RrqJW+s8T+KMZEuKkqQfecOH2M3
-# 6fw2caTcn48MEA7g7pxaBn8Xs8SmXYv0CEVSYqZlBtNadjL4V+70Fqh5Jm0l4p8b
-# 6leVOpFSaBTZVb1WOI7IF8GuTEMlbB4yO0FFXBbKmuSWeDGffUrHIH+JSnW2cEYI
-# AnRGQgc3pI9olFaLD5OmNaZkZ06r/ScrltW1BX4Rmq+WbTSKe7sXARUqnxKprq2M
-# OmDKqMkgPFSECt6NS04oF56qsRJ1/fzTdrsej5zyWwhOI1X/MWBx4Wmjcsf/VBvc
-# 1sH4EF4Egn7FEDuqghEuNz1GdLkDvsd42W15pGSDhFHyNILDpNX30Ysj/dTdil6C
-# QupzeihpcOOV+Y6JYIvSLgevtu9SrTLBvw1H9HIzePq8p6el+Ooiq5eraB5oRqsX
-# m5s9GcDAQ3Ub8QqkMbp+j7jrU4803IhWNUbhMy0kEQA39Ds10SDkcTgqBXNNkJxB
-# uZ+usbSPynvQKfVB5180ePn5GuaKpstBgj8o0qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBy462V5Mi8
+# 3G7AIGFxkAjofe9BVwEHLkuTC2HoESUxZDANBgkqhkiG9w0BAQEFAASCAgBgN92c
+# 4j1kL/4O6JbXak1+gNIdVg0C51LT955GDvdjrnYNp6lVAiyFGUAGF1rI0gmCa6oN
+# coseMApaKnP2qjRMwWbo6tfYZKEWA3I7PuDca2sXdJgYy4rwFKyXljmymYXE9yWX
+# utFvJKInnDSFbXpqIqIAcTTJz26te9Mq/nBGHVTgtpCt4WgZSS3Z/p+Mq+Kutq5I
+# 3nDoFH/bmqPwFoDFLMuMjMwyrJaSNYgL5Fv6tX72nYRfY7VhqXFYeXKrO8HzpRgG
+# Jv5KEo5mgop9zhIt6kNUg8VFuPfhGaVVO0/NYTmLf1+mQ8Yrmkc0viQB0aSUMied
+# 6K1nqe3Znq8/YWFT9T2JgW5+g34XmwgcClz65rQiQEbsotrg0l0QSZCRMM7xS6R5
+# npuhtMtb5FufPAZOFQuNGw0FlPOTrtBCJuXcO9+jCL+4hxaMMsGCbz1WS0l1eK7g
+# T5DBpsdAhlZ8cggYxTcVj6x+eCgmAaT/5QIGv/4vI5Suzzaffkx1eE7gOjLZVZUI
+# pLvU077hwKECQ1hc3qucDWLut82sJZDwn6nnnwPLtl3S/72/pK7wI3N1YpsJBVAw
+# EVvz0VSkfFhc6P+/OPvwHuMx1APzP7qqlEzrjcyOkR6WRx3CPWCKWu4Rib3E+9g/
+# WnAJqjPOI357A79dPhYWwUPH2LZo8RnJO8FCYKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDMxNzQ1MjRaMC8GCSqGSIb3DQEJBDEiBCBuzTbQTaxnkvd/fJGv
-# ViiASKlMK76Iq4Xnuzy/HdcSBTANBgkqhkiG9w0BAQEFAASCAgC1W0pFq1WvxNWs
-# OwG0CJwJEu50Ux+PNgeFbZX/ABDs/friiuMuN+dxPJ/u2o8vsSVd8NCkF2ATvCe1
-# C/S3rnuBk7ohY9oNPieL89LStKkeRKa8JAowksoHH5NP25dSLnuYZWXtJSdpKBAk
-# LvKR6xgs1YspZpmrBZtzO1WMnijdOAgoBGopOUDBVGlt1eeOGRjFYfOCZRR+Gh3o
-# 290wVl9Lqbvo7eX2UjdQkQYk1uSujX1gxU05FcDY9cRrhT1P2yCxvIWCl1fAk8j4
-# hz2QVSgLa5ou89Z3oCwsMeSAoFnLOJ+YHmQ0mPQvAOPlgwjEE8qEKsQLezZr48C3
-# buLbC7oN8iJFAVOvZio3Ic51MTVarN2R5Y3nHyQ4KHwYt/rte/GsmiozqLgZ9Exf
-# vp7kRCkm0YQZRBSJjbPlygQ9F1bTXGX8XFGufz2AiMOSF5sly3XQGLK/UNWv09Qt
-# tPjUdOlSL+RpZlFMEeAslLX7lPRCRaA/3yNaqoqkfrZTRWOdyjB0IVo5g0CMiK2N
-# nBo9/lWnJgD0z6buyW7I/KAC5XeixxrSm0k1gjY7csyxoDBR4c7FyY8oosvLWgqU
-# CIl52vldKmgSa8jwg0JNzrhsJZxfx2zXa3/30g4dGWa/3z/JB5SWiFnejvD7pq5k
-# 0EYJsmzkEHzOjIBVfoXrYawB69XJ5g==
+# BTEPFw0yNjA0MDMxNzUzNTNaMC8GCSqGSIb3DQEJBDEiBCD4WmopTYM5P7kb+kJm
+# ZF7xaGMr5F8IcQlRmRZA+bqVfDANBgkqhkiG9w0BAQEFAASCAgCq7ZTO6t3yK6kf
+# +J3FY9BQmHWCyCxcRTw9GPajZwKV+odS0RlIE1MHOyQAiIQVmL7OpQV8ye/1IM6y
+# HCVvdbpOVjoDOGonAjWBlvUQh0FnD3y1GqpA0WtDmakf3GdLxgMJvloJ/4E2eAc1
+# FSd3WkII6cYMYdWFajnoiATO5KZ8zcGgd0/beALOl2MmQ3K4IqNydCrHI6frds+2
+# ThQ5fZLk0Mk/HFJNsw7NBtP+8RjON1fl8KG5ru6okS7TRODh4hU85Vvkw6iNbTU6
+# NXRPnjhyV9z3MYieF04/PdbTnL7UBwusQkhkAUEKOQI2FVp9XLKLDSfRTYkB71s7
+# JbMC/ey6E5fQduzedWwHD0mARsOzlXctX8sFq1N+Ta1f3u8LNenq+0q9ZYLBCUl+
+# U1z3Is6u7vRLazlmkjIf/QurqK7IRGrwLibmuPH0z1H8wkjLz4DtxrZ4/+MuXqh2
+# 74ir3Ws18EOJ8IgofpkY34wppeCidM3xO2/FP2P2Fyyn0l80bLyj/cnshkaZopdN
+# WgEftphy+0azpNY4prBe6mtzztGJ+mASytkx+d7+BGWgYNrSY7XWiSy5zu0+iCYq
+# J3Atv6NQaaS2Gb4vbTuRSau3nn9LoUtQ5ycOuf70+DiQ1LIJYM55tm1S9TzrteDR
+# 5uQxfOhekLA2WTyVE5LM6zj1iG3cHA==
 # SIG # End signature block
