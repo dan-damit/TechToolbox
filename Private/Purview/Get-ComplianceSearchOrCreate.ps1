@@ -5,7 +5,7 @@ function Get-ComplianceSearchOrCreate {
         [Parameter(Mandatory)][string]$CaseName,
         [Parameter(Mandatory)][string]$ContentMatchQuery,
         [Parameter(Mandatory)]$ExchangeLocation,  # 'All' or array
-        [Parameter(Mandatory)][bool]$UseExistingQuery,
+        [switch]$UseExistingQuery,
         [string]$Description,
         [switch]$UpdateScope,
         [switch]$AllowQueryWeaken,
@@ -50,18 +50,23 @@ function Get-ComplianceSearchOrCreate {
             )
         }
 
-        if ($PSCmdlet.ShouldProcess(
-                ("Search '{0}'" -f $Name),
-                "Update compliance search"
-            )) {
+        $existingHasNoLocations =
+        (-not $existing.ExchangeLocation) -or
+        ($existing.ExchangeLocation -is [string] -and [string]::IsNullOrWhiteSpace($existing.ExchangeLocation)) -or
+        ($existing.ExchangeLocation -is [System.Array] -and $existing.ExchangeLocation.Count -eq 0)
+
+        $applyScope = $UpdateScope -or $existingHasNoLocations
+
+        $didUpdate = $false
+        if ($PSCmdlet.ShouldProcess(("Search '{0}'" -f $Name), "Update compliance search")) {
 
             $setParams = @{
                 Identity          = $Name
                 ContentMatchQuery = $effectiveQuery
             }
 
-            # Only touch scope when explicitly requested
-            if ($UpdateScope) {
+            # Apply scope if explicitly requested OR auto-heal missing bindings
+            if ($applyScope) {
                 $setParams.ExchangeLocation = $ExchangeLocation
                 $setParams.SharePointLocation = $null
             }
@@ -71,9 +76,18 @@ function Get-ComplianceSearchOrCreate {
                 $setParams.Description = $Description
             }
 
-            Set-ComplianceSearch @setParams -Confirm:$ConfirmPreference | Out-Null
-
-            Write-Log -Level Ok -Message ("Search updated: {0}" -f $Name)
+            try {
+                Set-ComplianceSearch @setParams -Confirm:$ConfirmPreference | Out-Null
+                $didUpdate = $true
+                Write-Log -Level Ok -Message ("Search updated: {0}" -f $Name)
+            }
+            catch {
+                Write-Log -Level Error -Message ("Set-ComplianceSearch failed for '{0}': {1}" -f $Name, $_.Exception.Message)
+                throw
+            }
+        }
+        else {
+            Write-Log -Level Info -Message ("Update skipped by ShouldProcess for '{0}'." -f $Name)
         }
 
         return [pscustomobject]@{
@@ -110,8 +124,8 @@ function Get-ComplianceSearchOrCreate {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDDRRrbfdeu1uXb
-# Jb+fgIxhQBkMvA52FHrB37r5o2ETOKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCthBQ2ugvIWFhM
+# wWvQCC2nudqJ/JSbbEiaP7xfRVKsd6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -244,34 +258,34 @@ function Get-ComplianceSearchOrCreate {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBCf0DQdv6z
-# 3wIv24skxICzWB/DrFRNFXFRn8jj0hL/4zANBgkqhkiG9w0BAQEFAASCAgCy6Ago
-# muNGO35gR+qY2TDQv8zAj5nUHiSJrnZTZ3ATooQESITvF9kr1r92jrG82vzIXbvK
-# vCKpyefaB3atUPUBEwSx5q7MNn696ftQAPwXw3kkWOVKscXdPxxzUr9j3e5I1ALo
-# M0DesPRXmvZYd0Z6WVCtc4STIQcNZDWxWdl6tlRBK43e4RnivHNlWPmsFQFYlnLg
-# HFwuk9Zg3K2B0BVUGpviufAzyZcYMRYAyASFjyUfIsfk5X2e/1GVp6H2F/0FOWj8
-# PYzBRDn4MCgShCRhua1xxzID8Z56IFD3RNCiu7Iis7aJ1BU9fPdMmpuLu5b4agyQ
-# 4yvRyLoxgyJyGJWIYQe+8Lboxt/DZaYVXkEHYlH+2fU5mBayEmXpopvs6UYFSM+P
-# QmpWeiYS6yugfh3uJcy4sSxGxObMHkbdVycRMuB4za/2UTSvuPp2vLrnRzXPijhi
-# mfEy88WBWp7ZRWA+zgnOHHrtUxo/mgLKPwAJXF1pNxwZ/ceSUkbgO7gw/qdXOwEh
-# 7mpNansTmAd1qLI8RBCJNSrmX3ijomTYFBQK1GvOCZ8vRJJEJOU+WN6RvtDfJ0Qf
-# O1uweG5VfynB75s2vNp7m9jB9ksa7EDGbla4DHZqLTXjtcIMvzP5XfezqVlU44uO
-# w953voY7mJaSzJ3VfHMPeP3Qzbc4obE8P5tXyqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8ujPHfySz
+# pt5cZSZhHuQzGqeqfGxyN2qpRUuU6MPROTANBgkqhkiG9w0BAQEFAASCAgCaoKnQ
+# VgOvRu/JQClzLLVUuQTUzFiAeXIJkYdu4uT4fIVPgqJdJRyLXnZl/2O03X9L8eqX
+# eBveXskCVQ6fWJebElQA0FRACSnCOoe6mAcsXdKCxTfVtjh/Wkz86Jvufc4Cmvfh
+# 4jlOeP12Fu4jpF6re3MBc0iQGGCHH5MSO93ivzPLf7i8Zig4U90pRqSMjHtae4vp
+# LC3CpshaiqwByE3x68Upqp/Zfe+3VotVm/JonPnteDe49YAZ9CbD4UxVFfzXdgC+
+# oqkHGNCUOfaA0752sT5B92/vKnYh5ftqIR3NnpENKODxtCfJITo4o3Kz+uDHu6Yg
+# qjIXNaKYi4XCx9oAQkwg/hB5qSUKlGTHgXRgM01M87gGF3iDR8FACdgjq1fIktFc
+# 5vmF7Qy4UfwrzGItOkcYAifj+isDeZq0K+PS4OsT5iLzTFig0KPJbNcO0nQWWKoA
+# LcysQp7qDeFJiCCqM5l/NLaEPtr81fUTLd7ENwgAvFu1u52zBapC8B1mAn0nAjX6
+# SgC64WILWDGSELoGYR68kBcuTOzr+21h4inGYp8AoNZr8d/BOOftKqqnUG9dehfs
+# 3YGdCpGHeFYCuYzzIB67/ccTWDBYg/c+q0N4TANEARdTuNXJveb4G6+7KvAHPgM8
+# 9ClR/vqZivvHMHyGF09OnZ8gr2dlBUJuYtuOX6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDIxNDQ5MDlaMC8GCSqGSIb3DQEJBDEiBCChhmYnRn0LgGTwrFrl
-# 90T5Ctbv4HoV8XjyJ+zDhIC16zANBgkqhkiG9w0BAQEFAASCAgBCMY1QVgDEdKBG
-# wi7sQPHDbE5/8oXi34uDSitXSIqAZOOk3ziJ5gC1k8jnQtUCwxegrvSXcpwIoSta
-# S8FuTAIV//9I8vEb4cvCtYxYJ/Xx+IC01I6qAr0aEOdjX7ayCnOlTQrbZDINNtBc
-# RRADcFsi4mOZb7/Nv5fSYrxHgBrJv8K+a9n5CeYzH+ClMVFCwOVGTbWDb67oICsr
-# HlUoCknRa5jDp6NqBgM18C5nsvi8rfHBQoFlcbK6PqCj4tzsVsmnhoCJERfgBJSk
-# xSvPQ7/OkaHLMKPYTaIPJA/GU4bftNHmy3gSy9iw3GMXCX0sqVsIVmpCgetFaoVu
-# 3/WXEihp9xuSNdHPCB9K/XK8+X/F0y+XD96OS5DowyZBbVfEY3v/EMaWI7hokVmm
-# cxiV6+TgfFxihW1frRpIkMY8PHbcICOd82WkZKbCra7Jqe5yQPpHDUlUtrmw10iN
-# WghTBI97rkFJWQlhGGXf+fl3Ts5Yy0PjTbQnK6DHscLrJeizrzefAGxZz5ru5+ll
-# nqk8ohlLoOSERTGPq/KwmjYHPTyZFml3K+dPeqMX8swSNlemQcgJaef3aqE8z+9r
-# cSNE6l9hnZB5ayIyPM0ThHiEwjNAHoBp9FANsss1/LAiG23hE4Ton8s5Qyak89Fw
-# aCh3/YPmH8Baz8mHcg2H0/3BZnZK/A==
+# BTEPFw0yNjA0MDMxNTA4NDlaMC8GCSqGSIb3DQEJBDEiBCAorn49mwSSiFbmQJ2j
+# Oi7riKWeKfNHqX+uBiijrhHOSjANBgkqhkiG9w0BAQEFAASCAgAGIeuLVaVmqdtD
+# aBeXRuNLPQnuKq0Jswk9QQ+4mDPdio06o3WEhLb2tzuK91Y77aO7cUDzKcShfVkM
+# +mJlfrF5t1nDESM7m+VohDHv+tgY3km2ns9eI7vgflHLcVSGydvSLoHOq3HIeSGP
+# 1zDmbncrBrBWHV2zoKgD6eboSU7x+CNmxC+4r8PBUFGi6WX4EAf65ejXLb6eF9wk
+# 6h49n8Z4LbEip+EF8eheXDio2YUOWmZDisQcTNOoDgp3sGPG90AEgRk7XNcnYqv7
+# wEZXopa/+y/g3TEAFgdKsmfg9FjzgFhLDo0tA7eLkuKLPl/svKESp97bSOtZE4cp
+# SfOTwuh8AKCjhnvPL0lGjKqWaNqWX7KV3UqviQknYotF0ZQAb4/Aty4O7PJwChOP
+# TLZ0ziavo02zhYGnRMIEk5gXQoBS7ltrvf11TZcMfIc6t++DJaZ2pQBF4STOhy5e
+# x+h0gQko1ahNKOQGw63uxZTAFafJfNlXwb69tD+Kxlk/nQ6PoDcVjafH676u8h4X
+# vwNsmt1MLe1xCZsaIIhQFbaFe8AU1fkyJBAtMqjmgkI2AQZbqEE6/ywtIjxKM9rU
+# 7KG1qnBAB0WBOu1JXTOKEzXNIevd9aZKlgfoJIVxOYbOCasS1j4sbzWpq4IhXyH0
+# ljbW+2enxUbTd5hwtx1kAM2TS4EMQA==
 # SIG # End signature block

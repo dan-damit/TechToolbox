@@ -131,10 +131,10 @@
     },
     "purview": {
       "purge": {
-        "pollSeconds": 15,
+        "pollSeconds": 20,
         "requireConfirmation": false,
         "requireTextConfirmation": true,
-        "timeoutSeconds": 1200
+        "timeoutSeconds": 2400
       },
       "defaultAllMailboxes": true,
       "registrationPollSeconds": 5,
