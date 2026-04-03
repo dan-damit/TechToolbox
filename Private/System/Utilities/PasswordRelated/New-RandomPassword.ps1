@@ -38,7 +38,7 @@ function New-RandomPassword {
 
     .PARAMETER Separator
         Character(s) used between words for Readable/Passphrase (e.g., '-', '.',
-        '').
+        ''). Defaults to '-'.
 
     .PARAMETER IncludeSymbol
         Adds exactly one symbol in Readable/Passphrase styles (not required for
@@ -89,7 +89,7 @@ function New-RandomPassword {
         [ValidateRange(1, 6)]
         [int]$Digits = 2,
 
-        [string]$Separator = '',
+        [string]$Separator = '-',
 
         [switch]$IncludeSymbol,
 
@@ -287,7 +287,7 @@ function New-RandomPassword {
                     }
 
                     $core = ($picked -join $Separator)
-                    $digitsStr = -join (1..$Digits | ForEach-Object { Get-RandomChar $DigitsSet })
+                    $digitsStr = -join (1..$Digits | ForEach-Object { Get-RandomChar $DigitSet })
                     $candidate = $core + $digitsStr
 
                     if ($IncludeSymbol) {
@@ -321,8 +321,8 @@ function New-RandomPassword {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCDB05O3NbOGphd
-# DlpsufnCcAx0Th2UdBgNG3IUqdkzxqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA/92pO63Jj3J7Z
+# g4u52VIn5nHydKaMdmipvjSjQ6qr1KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -455,34 +455,34 @@ function New-RandomPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBzoJv6XE/M
-# QUMRILgIjeHyx8ZPuvDgBy9hdjZH+xRodzANBgkqhkiG9w0BAQEFAASCAgDGsN37
-# Tn2Iw/QB2+/2hx8hEXBwltYGcoqPVbudR+AHFaqSFKshhaWwvv8/9ChgulHofHr/
-# rcphoh9MQ+ANx/tta5pA7CtXjk8HiIfzI3kbipu8BY1zAkNU23SntrClUvHOKWgp
-# qoRG5CodTcoT6ayWpbo3SHSlW2tZydHuQkKK57tm3ICZ7GLzJY8Ax18sRx81EkA/
-# 7OPdSYHPYnKqTlIedzEBRzfDw8zw6TELq3YjXj+FqMRRx593J79aM1LGASpwv9bt
-# zQOVVy+OaAkNd1LChZtUO3AY4O7ZvVhiCi6qSMqVgGCTia+B8WXJACVIpnbbqgQT
-# ruWrclRlnn5HiZEKFzrGvUCD9puW1hb2ye7A5dE3ffkvyfIo438RfAQI8V+Q9ehs
-# S7NUx6HvLiYPI0abyDj5ylMnUU8Y89GcUxr2Nt484HeUIyg2TP1+sByoMBqm5aZ3
-# puVt7iC5DahUDj4DrUDqEyuf9m40BXPtqf4UMscrI47IMfaL2MF3wtekJMiqdlzA
-# ueP2Djw48F5KgKAVH5wn/77jf45BQ4KULCDSCi78zhxmUcA2wPwrEDhIUPkD2KVG
-# AzisOSIwCp7yKjnF09Dcz01WkK07amls0JtmYjOueK/EptpU3mNXjELSdTSf6pui
-# v7LIfns8i3v32g+zgXXCnQOSRbo6Ww9kx8GCi6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCldm5E0GBS
+# sbIb9iAlfu2cgqMXQV5uq2/gD2i5SnS1EjANBgkqhkiG9w0BAQEFAASCAgBVpZJF
+# DESl/ifxoRBddY0nyb1nFBg9Vp8qem5Zv5GhnbPlk7SVgUhfyld83xfGLfim8dnA
+# XPhycMoXnVjQCDscfwqokvTNYqIyQEFugXEbvkwqyQ1grIpMw83CUPIQvlz24QFm
+# NXeekJD31EZi4l6NSE1d2kzwd7FZV+kMevmt7GQrEQ0iphxBRCpi5IsIZXT8Zkf+
+# iYVDrJ/hesZunZ2Zf6/+tl03WqWGjzYc96aGshBcXgpEVQpoH8M9uOFa48n6TY4Z
+# QFfCJlVGl1+Bx0yfZNkdMJyCoFRTydZR7IiC5WVETNgnE6iMG1SO831/teBkPvn/
+# dBwPzbxbEzsNz8WEIyOLHi3Pn0QW12nUWpIympX+xKbm5BbnTRu09aVjlI2w+LxZ
+# 1bbpQiKkgDFpjhxlwu74KslUEFWJMIe1PaQKoioU3btQE2z6548lIHW+l2hMIAbo
+# 4oq7xkw3I44yBAmnSBTDP8Ssrw6k5OK7IxC/CKlcD5v2OHonXO70zK0xxZ+GSAYq
+# kiWW+QzTtEUFzICL67Nml8bF6+WHw3JR+yBCDiisYT9FSoZ5BRxL5/F97kUPvbCj
+# c08pHLvVon7gIP9F0/tWv+1xuoRigdH3rDLEiZH//jLR4kXkv7uiy9pdwKHjQeIJ
+# 43vpG7U8YveFKa5RZoeIcL+/LMa8JXAqPi6CyKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEyMjA2NTNaMC8GCSqGSIb3DQEJBDEiBCC40EJJWsyf6eIJhp3H
-# 2gwSVZtRp5YnL1T02WAvv1ZHezANBgkqhkiG9w0BAQEFAASCAgCApEOTP3aOreDi
-# hXO4Za6u7j4IU+f25OC+9oXoHlRqakVlc1OV7RRLzy09hHOEAktjwSfF1mrHVJMS
-# LGjwq9gtEmpwNPaavU7OEc5tDMVS8v9FvbjIJf9MWvQwz54c9mlDilFrOyR/X6yk
-# N4+LZPgXcoCvm7FtVPAqYT4gyA064+fyojEykj2dYYMhW3irg5paUqUV4Sfau9R9
-# nXHeSKg8msehQIA/aSTv0wcmK6Bhu/E306SGbxqxyjvOfJnE/haRQ5Oo5NoUNtUl
-# CgCEwD8YcMyclXAgMhVT9fKDtjtibYNE/7T1bBNmraaQ0n2oUFnWK16ZmgmmMg5s
-# jLYqgTB5cB12bqRLCmWL+MhMmy6yhVJ3oVtMBl/PCybvuMdzzM9hX2fsf/Mw9eXH
-# C5fyW7gbSVKOzDItbfGDNQNeZCW4UtUZinzu0Dzs0cbS2R3Yd7sL9OmXgB5QWY/f
-# 9vjvabur0rPZo6jlxF5T/fdaY3cezEVksB+1Z/ETiwiYpwQtogSILhbFu2xoXSZB
-# PaElUA30U2eR5uwDzwNbqHO9l2u3jZ+FcE0JbNcfx5rwFcOQhNX3iqmDRAw0GcpE
-# WBQfcOJkSN0Xi97+QvswhMMcnuVPhlNReKv2YK50l+yBMrm/iHNbQeZHtcTJryTg
-# HWkmZIn6ScYIh6InwUvKOR+2UE4+6g==
+# BTEPFw0yNjA0MDMxNjQyMDFaMC8GCSqGSIb3DQEJBDEiBCCkiA5nOOPzz/E9DWK1
+# pRkcgqVqJaAIx7EaDktn8M1ifTANBgkqhkiG9w0BAQEFAASCAgCQ/a96As/4xsaU
+# gII4zhZZAJdGtzOC/hh2potDiXodS7LJKkuaChvkqWOaZeNzG6lUWJeWY1MYpd47
+# MAcI0104zyJoTsc9ZNOY+ZINO2RX9DzljwqgVuCf+h11RGeK9Lx0mnBQOx3P/j1q
+# YTF9CY/5AaQMKYsY+a9UraQwLBQSoT1iU6m+7Gtri0o6t25//WD9kPsomp/Iakgp
+# gYRRtzpPAcUcUpeAMRAuz8nG2BGmfXZ0PKUnA1dNO8g/VVPhYlTkrMNh9y5S+det
+# TTjdhDQsTfW/SSf71lXGLm1lM9+nolyMaOOJ5prOdDafpTpx10hm+nqsP3BXffrQ
+# Kdak6uvz0ABamjBMi5BzZGsx20XPo4xJ2OuiginmDADg/ZUu1fmXospEEnMMrFQD
+# Z6Qxr+7xn6mOOh0/TfGUK2guKwO5r/RETImdurVFleI38N90rfza5gszeQkwKYif
+# 1PgDshyQNaXYx9vJj8pTelZ0sQeRi7u9C7JNN6Lt4HoiJ/7yeLgqtEJh7IzXW8Bn
+# pU/stvdjPZJ/Ya1H23KG5ZPTzMAfL1RPLArU0Mvaa48Rb9eLO3fsyxenRYoSVkZm
+# 9wFnlGoSvjm7f5z+pxDUOofj8VynWkRWuqSXDfeYaeOszH7aUzNIPOY+xnPSFvnq
+# onx9hKJLDQ5cGExtvOgs9xHs5TVfCA==
 # SIG # End signature block
