@@ -1,33 +1,36 @@
-
 function Initialize-Config {
-    [CmdletBinding()] param()
+    [CmdletBinding()]
+    param()
 
-    if ($script:cfg -and $script:TechToolboxConfig) { return }  # already initialized
-
+    # Always reload config unless explicitly told not to.
+    # Stale config is more dangerous than reloading.
     if (-not $script:ModuleRoot) {
         $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
     }
+
     $configDir = Join-Path $script:ModuleRoot 'Config'
     $script:ConfigPath = Join-Path $configDir 'config.json'
+
     if (-not (Test-Path -LiteralPath $configDir)) {
         New-Item -Path $configDir -ItemType Directory -Force | Out-Null
     }
 
     try {
+        # Always reload — no short-circuiting
         $script:cfg = Get-TechToolboxConfig -Path $script:ConfigPath
+        $script:TechToolboxConfig = $script:cfg
+        $script:TT_RuntimeReady = $true
     }
     catch {
         throw "[Initialize-Config] Failed to load config.json from '$script:ConfigPath': $($_.Exception.Message)"
     }
-
-    $script:TechToolboxConfig = $script:cfg
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWnibszu6B75fR
-# 5efwC2qDk8dTZnUbpGrDKtxiYSvxq6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAtAUeAE2KcbA4B
+# 4brqm0ta9ehLkV2ing+uptDoy8Qh2aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -160,34 +163,34 @@ function Initialize-Config {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDt3uz2LQYP
-# y7RIRf/hlXzo3XhU1Ftzr3WRGkzlRzOCPDANBgkqhkiG9w0BAQEFAASCAgA9ZrIS
-# rjJUzFINtJvO2pVneFIAQw3ecD4pNMyRKd2DnFUUDDNWgHNnCJIyzf9ZSnoE+DAK
-# V/cRvIwhUZ0a/++/88ozlwBIhN7AM8xREDRS7+wLNCYYjrU2Hss8bRILSRQzzsXt
-# dyP0RjVwTZForyXo6oJ8Fl+dO7Wa+QCqR5lt7IrxY8KCoKC6C9pzJRdcB3dsXVuV
-# JUgSJv8AolnkaB/MV6xoMLqlc9vnSYgkgdGQMCC6oMps+mrR+cyUPDMydIFIcv5D
-# wmGzdx+71W7VnTrvNmPl8RzxTWaqEJIp773LV+K/V9D1dZXXSygRYPcsGyxNG4l9
-# i9JWK3quelHW2XkSiXXhtySPQo2JBVj/arRNfSFEcB1jtnurSJJYcBccq0120bA3
-# ue2+8otvkubFpFr3qRSpb946JlxAV+LRzFz6q7Si1MjtWl4Od6oLd9p8EXA+rl9b
-# h4mD0pyTp36JsDR0EedNvxiXskLMsu1ZZZeRmyd8wqspeInO/EgCAjdFJSQ+P8NK
-# RDQ3Msch/4O88FYGHpXqPDXvgJlSS3usY2Xcr+cEEPYree5Lhjg1qhvwGa3dumiN
-# u/oLPRjGdyxuqTqh8xqk4iQVX//uaX8B1SPFO+zaNYWOQHqRWYRCUMQhE/j8GFgc
-# lmxqFI3aHFviH6xjmhD+lxKTFryF4jfoNs8u/KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCALhdttDPv2
+# RDlB1K0xwPSyXfFwnKpVMg6WM3jUwKvysjANBgkqhkiG9w0BAQEFAASCAgBpktmh
+# vfnf/PVPnNh2uDtNBncD5f9OomzGscdrKW+qpIEEpRT8t3O/2sTStR+U3KCe/7eJ
+# Bv5LwcG63/Av1jl/IdGG8KPgmtzsAcm3hJFGXBP+nFwoLZRvorn7LRNcElfI6hwW
+# px/gkChGgyzAS+/OGmgtesqhlMvj6zDqiJtQ8RrqJW+s8T+KMZEuKkqQfecOH2M3
+# 6fw2caTcn48MEA7g7pxaBn8Xs8SmXYv0CEVSYqZlBtNadjL4V+70Fqh5Jm0l4p8b
+# 6leVOpFSaBTZVb1WOI7IF8GuTEMlbB4yO0FFXBbKmuSWeDGffUrHIH+JSnW2cEYI
+# AnRGQgc3pI9olFaLD5OmNaZkZ06r/ScrltW1BX4Rmq+WbTSKe7sXARUqnxKprq2M
+# OmDKqMkgPFSECt6NS04oF56qsRJ1/fzTdrsej5zyWwhOI1X/MWBx4Wmjcsf/VBvc
+# 1sH4EF4Egn7FEDuqghEuNz1GdLkDvsd42W15pGSDhFHyNILDpNX30Ysj/dTdil6C
+# QupzeihpcOOV+Y6JYIvSLgevtu9SrTLBvw1H9HIzePq8p6el+Ooiq5eraB5oRqsX
+# m5s9GcDAQ3Ub8QqkMbp+j7jrU4803IhWNUbhMy0kEQA39Ds10SDkcTgqBXNNkJxB
+# uZ+usbSPynvQKfVB5180ePn5GuaKpstBgj8o0qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ1MjNaMC8GCSqGSIb3DQEJBDEiBCD7cCOgajx9JNR/Y0E9
-# +8kwNV6tOzZytxwxZ8RXjfKsYDANBgkqhkiG9w0BAQEFAASCAgAvhX8YHmSAooAE
-# Btz1RVwPwKOvToNPAfzgFRdN23V5fIaHFJela1V2MWjsC/ZmCjkSYUSkMSaDD4WA
-# 4OG2tZ1dijwaPXaAUQ3s9EGQVMYnLRFHt8lvcKNtA3m9Np4Mb66srrTF63DzXNsH
-# m9pF2WeTo0ZL0qE2ot8RLLmb89bMo8WCw7OYuG46iVnY10H56G7n7FV16eBIrS14
-# IBDs9kU8JrWQOQ07Fujd0vkOvvsblUBj04vPT6lzgHPa6dDpKGPIaDXys3MQvjTZ
-# hcU2RpPCgvNWTSTnd0aXus5GvkXKBAZGm3/Q/7Y1pboqpk1E4rGqKV+uwEZGUZRu
-# IF94J9pFH0WmaXAQa1YEoT/gFIg5SUhLHMFAQ+qw6h4Lc4LjhA9nngRFf1VTr/sc
-# tS81ucBkjEpPQdXlGn24MNiV2G0g708W/bseUFQLoXyebJuJZmr20ZBHb/QSEEEk
-# wPgEg5FfbjhjUSpCkVqeseFKKxm4KH0+LB314rcAq51ojjsaOopHDKWKoUKuvB+n
-# AKX8R7XRWT9CtKyqb9QAiMgdnz+K6xknRDje/MsQM/e6hZtW13/GCz46B/j9zAVK
-# zfcKc0vEHsQ5O8eXLXID8+ZK/b9xmrtSGvPfkXYBMeQBN8ZwxldIJn5BVrGa8BCd
-# XIMi2g1R3MqgmajpdZEOppSGzVHh8A==
+# BTEPFw0yNjA0MDMxNzQ1MjRaMC8GCSqGSIb3DQEJBDEiBCBuzTbQTaxnkvd/fJGv
+# ViiASKlMK76Iq4Xnuzy/HdcSBTANBgkqhkiG9w0BAQEFAASCAgC1W0pFq1WvxNWs
+# OwG0CJwJEu50Ux+PNgeFbZX/ABDs/friiuMuN+dxPJ/u2o8vsSVd8NCkF2ATvCe1
+# C/S3rnuBk7ohY9oNPieL89LStKkeRKa8JAowksoHH5NP25dSLnuYZWXtJSdpKBAk
+# LvKR6xgs1YspZpmrBZtzO1WMnijdOAgoBGopOUDBVGlt1eeOGRjFYfOCZRR+Gh3o
+# 290wVl9Lqbvo7eX2UjdQkQYk1uSujX1gxU05FcDY9cRrhT1P2yCxvIWCl1fAk8j4
+# hz2QVSgLa5ou89Z3oCwsMeSAoFnLOJ+YHmQ0mPQvAOPlgwjEE8qEKsQLezZr48C3
+# buLbC7oN8iJFAVOvZio3Ic51MTVarN2R5Y3nHyQ4KHwYt/rte/GsmiozqLgZ9Exf
+# vp7kRCkm0YQZRBSJjbPlygQ9F1bTXGX8XFGufz2AiMOSF5sly3XQGLK/UNWv09Qt
+# tPjUdOlSL+RpZlFMEeAslLX7lPRCRaA/3yNaqoqkfrZTRWOdyjB0IVo5g0CMiK2N
+# nBo9/lWnJgD0z6buyW7I/KAC5XeixxrSm0k1gjY7csyxoDBR4c7FyY8oosvLWgqU
+# CIl52vldKmgSa8jwg0JNzrhsJZxfx2zXa3/30g4dGWa/3z/JB5SWiFnejvD7pq5k
+# 0EYJsmzkEHzOjIBVfoXrYawB69XJ5g==
 # SIG # End signature block

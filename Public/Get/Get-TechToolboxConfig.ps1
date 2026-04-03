@@ -1,21 +1,53 @@
 function Get-TechToolboxConfig {
     <#
     .SYNOPSIS
-    Retrieves and caches the TechToolbox configuration from a JSON file.
-
+        Loads and validates a TechToolbox JSON configuration file.
     .DESCRIPTION
-    Loads a JSON configuration file and converts it to a hashtable. Results are
-    cached in the session to improve performance on subsequent calls.
-
+        Reads a JSON configuration file from disk, converts it into a hashtable-based
+        object graph, validates the required top-level and password-default settings,
+        and returns the parsed configuration data.
+        The function maintains an in-memory script-scoped cache keyed by the
+        resolved file path and the file's LastWriteTimeUtc value. If the same file is
+        requested again and has not changed, the cached configuration is returned
+        instead of re-reading and re-parsing the JSON.
+        Behavior details:
+        - Throws if the target file does not exist.
+        - Throws if the file is empty or contains invalid JSON.
+        - Uses ConvertFrom-Json -AsHashtable on PowerShell 7+.
+        - Uses a recursive PSCustomObject-to-hashtable fallback on Windows
+            PowerShell 5.1.
+        - Validates that schemaVersion and settings exist at the top level.
+        - Validates that settings.passwords.default contains separator, style,
+            length, and digits.
+        - Preserves raw values exactly as stored in the JSON and does not trim or
+            mutate configuration values.
     .PARAMETER Path
-    The literal file path to the JSON configuration file.
-
+        The path to the TechToolbox JSON configuration file to load. The file must
+        exist and contain valid JSON with the required TechToolbox configuration
+        structure.
+    .INPUTS
+        None. You cannot pipe objects to Get-TechToolboxConfig.
     .OUTPUTS
-    [hashtable] The configuration data as a hashtable.
-
+        System.Collections.Hashtable. Returns the parsed configuration as a nested
+        hashtable/array structure.
     .EXAMPLE
-    $config = Get-TechToolboxConfig -Path "C:\config.json"
-    #>
+        Get-TechToolboxConfig -Path '.\Config\config.json'
+        Loads the main TechToolbox configuration file and returns the parsed
+        settings.
+    .EXAMPLE
+        $config = Get-TechToolboxConfig -Path 'C:\TechToolbox\Config\config.json'
+        $config.settings.passwords.default
+        Loads the configuration and inspects the default password settings.
+    .EXAMPLE
+        Get-TechToolboxConfig -Path '.\Config\config.json'
+        Get-TechToolboxConfig -Path '.\Config\config.json'
+        Demonstrates repeated calls for the same unchanged file. The second call can
+        return the cached configuration data.
+    .NOTES
+        Updates both the private script-scoped cache variable and the legacy
+        $script:TechToolboxConfig variable for compatibility with existing module
+        code.
+#>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -23,52 +55,82 @@ function Get-TechToolboxConfig {
         [string]$Path
     )
 
-    # --- PS5-compatible deep converter (only used on PS5) ---
-    function ConvertTo-Hashtable {
-        param([Parameter(Mandatory)]$InputObject)
-        if ($InputObject -is [hashtable]) { return $InputObject }
-        if ($InputObject -is [System.Collections.IDictionary]) {
-            $ht = @{}
-            foreach ($k in $InputObject.Keys) { $ht[$k] = ConvertTo-Hashtable $InputObject[$k] }
-            return $ht
-        }
-        if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
-            return @($InputObject | ForEach-Object { ConvertTo-Hashtable $_ })
-        }
-        if ($InputObject -is [pscustomobject]) {
-            $ht = @{}
-            foreach ($p in $InputObject.PSObject.Properties) { $ht[$p.Name] = ConvertTo-Hashtable $p.Value }
-            return $ht
-        }
-        return $InputObject
-    }
-
+    # --- Validate file exists ---
     if (-not (Test-Path -LiteralPath $Path)) {
         throw "Get-TechToolboxConfig: config file not found at '$Path'."
     }
 
     $fi = Get-Item -LiteralPath $Path
 
-    # --- Simple session cache ---
-    if (-not (Get-Variable -Name __cfgCache -Scope Script -ErrorAction SilentlyContinue)) {
-        $script:__cfgCache = $null
-    }
-
+    # --- Safe cache: only use if file unchanged AND cache is valid ---
     if ($script:__cfgCache -and
         $script:__cfgCache.Path -eq $fi.FullName -and
-        $script:__cfgCache.LastWriteTimeUtc -eq $fi.LastWriteTimeUtc) {
+        $script:__cfgCache.LastWriteTimeUtc -eq $fi.LastWriteTimeUtc -and
+        $script:__cfgCache.Data) {
+
         return $script:__cfgCache.Data
     }
 
-    # --- Load & parse (use -Raw; DO NOT use $raw variable) ---
+    # --- Load raw JSON (preserve BOM, whitespace, everything) ---
     $jsonRaw = Get-Content -LiteralPath $fi.FullName -Raw -ErrorAction Stop
 
-    if ($PSVersionTable.PSVersion.Major -ge 7) {
-        $data = ConvertFrom-Json -InputObject $jsonRaw -AsHashtable
+    if ([string]::IsNullOrWhiteSpace($jsonRaw)) {
+        throw "Get-TechToolboxConfig: config file is empty or unreadable."
     }
-    else {
-        $data = ConvertTo-Hashtable (ConvertFrom-Json -InputObject $jsonRaw)
+
+    # --- Parse JSON safely ---
+    try {
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            $data = ConvertFrom-Json -InputObject $jsonRaw -AsHashtable
+        }
+        else {
+            # PS5 fallback
+            function ConvertTo-Hashtable {
+                param([Parameter(Mandatory)]$InputObject)
+                if ($InputObject -is [hashtable]) { return $InputObject }
+                if ($InputObject -is [System.Collections.IDictionary]) {
+                    $ht = @{}
+                    foreach ($k in $InputObject.Keys) { $ht[$k] = ConvertTo-Hashtable $InputObject[$k] }
+                    return $ht
+                }
+                if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
+                    return @($InputObject | ForEach-Object { ConvertTo-Hashtable $_ })
+                }
+                if ($InputObject -is [pscustomobject]) {
+                    $ht = @{}
+                    foreach ($p in $InputObject.PSObject.Properties) { $ht[$p.Name] = ConvertTo-Hashtable $p.Value }
+                    return $ht
+                }
+                return $InputObject
+            }
+
+            $data = ConvertTo-Hashtable (ConvertFrom-Json -InputObject $jsonRaw)
+        }
     }
+    catch {
+        throw "Get-TechToolboxConfig: JSON parsing failed — $($_.Exception.Message)"
+    }
+
+    # --- Validate required structure ---
+    $requiredTop = @('schemaVersion', 'settings')
+    foreach ($key in $requiredTop) {
+        if (-not $data.ContainsKey($key)) {
+            throw "Get-TechToolboxConfig: Missing required top-level key '$key'."
+        }
+    }
+
+    # --- Validate password defaults exist ---
+    $pwdDefaults = $data.settings.passwords.default
+    $requiredPwdKeys = @('separator', 'style', 'length', 'digits')
+
+    foreach ($key in $requiredPwdKeys) {
+        if (-not $pwdDefaults.ContainsKey($key)) {
+            throw "Get-TechToolboxConfig: Missing required password default key '$key'."
+        }
+    }
+
+    # --- DO NOT trim or mutate values ---
+    # (This is where your hyphen was being lost in the old system.)
 
     # --- Update cache ---
     $script:__cfgCache = @{
@@ -77,7 +139,7 @@ function Get-TechToolboxConfig {
         Data             = $data
     }
 
-    # Optional: maintain the legacy global if other code expects it
+    # Legacy global
     $script:TechToolboxConfig = $data
 
     return $data
@@ -86,8 +148,8 @@ function Get-TechToolboxConfig {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCqPzdFtzujMvTz
-# CNqFUksJDqtS92IwNswer1ukD9VNrqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCp55iiifYKGJhg
+# zqygoD3oI4CsdoOQ0o694ITPCRRlh6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -220,34 +282,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDVVn9meTW2
-# AAzG6CwkhAv7e/Q+SyH4VTAa/U5yJ9gICDANBgkqhkiG9w0BAQEFAASCAgAAIDZD
-# EbmC5eAAMFfXGQIxpCyMJGj94PjUZYR6YgfP7lj6C0AE+Lim1qeUlh2Xo8t+soBG
-# TelM2lBDlDz0MEvc5FPnoVZRfNay/9XxE8reO3Ba3eG25R9wr2dKblPnbd5AMhGC
-# gH+QDoR68Z1AStUaBF3hUlrJFitGPxWWV7jUydytzUVSBq7aFB1B7RHwddGPEHq6
-# Z0u8lNXscmHENYVwcaUH5WXyUMmfpYQ78fJgd34gERvOuY2IZ32M5f/xF0WAJ+ri
-# zZGkQoXUQPoEOJg08jtq4hamXwDTwZNXeUybWWbcxVqrbY2c1QzZTCKF9Cg08mcd
-# d11X+SbykW7GUvDs6y6FVIwUWqV7pABpVgRLGy1UaQ4de5rg6zdXTBoclI4cry4h
-# SaG+VEEAswtgow8VZl+oZtAjA8iFi3iv9PQSzxRjB5aODs1P7JiBmrLqUTvCgqPm
-# Ck0fII6BkMpg+EaeRKBMECF9L86cy3Kpu5VKZK0LoCEq+E5lQYf5bO4aQnDoiNct
-# o1b+ydZyR4JBfLVxMRPNtrrL5AD26Vfw2YYNDotLcQuPjAtXDTbVdbivLf2g8sjq
-# /TJoKWOfwPRQzLU/UP7Epjz2lXMyud+0X3cFx34NZt/BJ9N9mGwu2v+JogcCxEee
-# lWe7QMiiQ35x3TSsH5Gqh+cBZUgkhfLezYuqVqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAk/fX8ERHy
+# DifKTZD2uIGpXBlLZp9bzU5a/Vw2JJ0pNjANBgkqhkiG9w0BAQEFAASCAgA58Aj6
+# xeHhOMOBU3CIdnGyaV1cbM8sg7/28JCMEFNLCj7i7uUNpiVqDmwOdvat4Y0DPUEQ
+# X7Y7/xfRNb2h2VRBZY5u0kJQhs7y4qtVG7yRxgj3wIqUWft/n4cefAj1G+YEoT0E
+# U0ePmesE0aRJrIVZxElvjaWtMhM9Lc7cDmOo94JjWdx2ZGJNqfh8r7NWBJndev4K
+# 31D0i4k+DdgIjoQRW6PotCTW6Yags6y0fXBWQP1yDjU4BGAyJHV/Uz8sLWj7zUfd
+# eS8AqmNSmGTpzrgQ5to84znOLWmCtsYEnoTWXjNEweDtLg6Ymv1nyA1GZUlhTMyl
+# +f41v22ft0hf2AgS3qCpYZBNxxHsV8xpLIhHLf0pvBaKEwIXp03Ygi1vSKNQ9ria
+# fMaPFQezwrPTLHMEuQgUrB66d1YawfXb+gTz6dD1iEO3XUhJs+c8hIY9yeCWs5Yq
+# sj/QiANYfSSNzDUF9qsNTOmjIrQ1yD4/maMu7pAF0mKBCkmPiM8TKYpGykRLfO6y
+# pf0TOJ0G0Jyo9H99xWY3aurxzF3yBfyb4fLySEe98Hx8fmn7ZM+qx9yPCq42GrG3
+# EwUAnTSgqqCjLtrPg0ayz4sjCsY1ZSVifcWig/iNYXHMKOby6Gj9kbWab9bSHkO1
+# ilpFzvw/4ENDbhbr+Nq1ePuIqAXFADSMj6Eo+qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjAxMjlaMC8GCSqGSIb3DQEJBDEiBCDiB6NUpASg9aH7BeJR
-# ZLXEyVZIRSeuHkkKkP2Oe+wbwTANBgkqhkiG9w0BAQEFAASCAgA3uc5zRN4Ll6I5
-# 8xKGSm27Tc5QI2RO9eMqtt/FkNwVRQez+OeDmBN+C6yMfGVVfhXwQqP239rkjyUM
-# WmprydbKwk9fd84qRCwuyAPxBWA8ioLYvXQoV47ls5f8iJ0XbslA+XDKVBQIxi5F
-# 3x+4dCtXTrIj0QCVOajDdzPfxOMYvW8MoT+PuBGyWR6K1YJ0CH7+AxS/pleYg5wT
-# mxIGzTwCmQ8YNfUnmEyoWJ/OQaMp9lc/z0gV3c+eghrUz6WIQphgOFF8bEVVOlq7
-# pAobat6GDQihl8k/KndqP6R1ZWWltM3nh3yZwVko53qhBm3ckJGbOYfNZzM3okFs
-# j27A0Bak6O954zDZ62caN6+0EgGBuu5E0s4WRunoypJdfnekYFRDEM+cZDfHfdk2
-# oULYFTbx/xvUUWspEDoiDA/3JosIMPaJZ21cFB/4D82zkqLF/4PFcfYJqz51ayFY
-# whKy0mniHz0vPYRmxqipInwPzhG02EW7An3GZjIsyU0KEEE30nL9EwmE+69EX616
-# 36IFSBdx5a28ZPpEzFBBHiBtsHjsAg0+Hea2ipt9fnp4h3YJTqEjsZ1xjvoX5+0e
-# 1NvalYq3eHcGiJaNB46Y5NmMy0rcyW7l2hefLuHAuRmL3esXQ593ecUkejm1Dcu4
-# BLIPl0nmm+dzrPQ+ZeSjrelmqlGAAQ==
+# BTEPFw0yNjA0MDMxNzQ1MjZaMC8GCSqGSIb3DQEJBDEiBCAZWWVpbPeWuMvAzV7R
+# G8F6s4MetkWtD+VvYMcOij8HmzANBgkqhkiG9w0BAQEFAASCAgBzJL6GyoLmj7o6
+# bGxfJdGtHHxGMsSX/lygIfM74mV/44R+zYdVD37BdV95DWBLu/tfSP0XHj/P8mvD
+# trzQS30t+HsqdIJv5rRW1nuiQsBrr/SwKbpFfuZUtIMAhCBwIfLpJBpm931PbZ8j
+# iDPMwwP4o4rn/R2VAoENynf7vZMp4azvh3Eha/KqIAXxCMPflu3oWsedKqt/jkbW
+# Cowk4YSZh1TWlI1/s6sSeTLSLDUuxrccSQol53Zh0Mr9cQBmyasjivASUttR/0f4
+# gy+0ITccKqoWCsRhSpM+da/qZjSjJ9ZIz106BcIKFZtCUbaYPziTlp4eep8uHIUt
+# NlTrggHaSyiFUiy0jd1bDQ78V7WS3sZLwDQ10pagNSgMj91ET1lJZ3oh93SAt9T0
+# iOp1tfxJRb99ckqZxD1vtxzob5+UCEK1ttoND7uu65jT8S8Ycf227iv2/cJwMUuS
+# ZfEFVvjBG1UQGQ8R0fW2wrRgNLOzwU4kS5dxWzvBiiAYapTJDOIewgOvQ+d/+fbF
+# 8TW62VLHX9Zawijpmcn8zIFvDKIn2QR9qu4fEe0ev1oaSOBCRwl9AgSbCHrVluyQ
+# y/5okvB+7gTChN2GJzKRonDzYibuul+mPVO91osyevUl4GQCuBv94cdWHu+PsNbe
+# hXfQatplyxpegHPpkj/Yn80QY3OTkg==
 # SIG # End signature block
