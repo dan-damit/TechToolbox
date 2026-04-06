@@ -1,76 +1,9 @@
 
 function New-RandomPassword {
-    <#
-    .SYNOPSIS
-        Generates passwords that meet AD "complexity" (3/4 categories) using
-        Random, Readable, or Passphrase styles.
-
-    .DESCRIPTION
-        - Random: cryptographically-random with optional symbols; exact length.
-        - Readable: Two (or more) capitalized words + digits (+ optional
-          symbol); length is a minimum.
-        - Passphrase: 3–4 lower/Title words with separators + digits; length is
-          a minimum. All styles avoid ambiguous characters when -NoAmbiguous is
-          set. You can provide -DisallowTokens to prevent generating passwords
-          that include user-related tokens (e.g., given/surname fragments).
-
-    .PARAMETER Length
-        For Random: exact length. For Readable/Passphrase: *minimum* length;
-        will be padded if shorter.
-
-    .PARAMETER NonAlpha
-        Number of required symbols (Random style only). Set to 0 to omit symbols
-        entirely.
-
-    .PARAMETER NoAmbiguous
-        Excludes look-alike chars and, for Readable/Passphrase, filters out
-        words containing ambiguous letters.
-
-    .PARAMETER Style
-        Random | Readable | Passphrase
-
-    .PARAMETER Words
-        Number of words for Readable/Passphrase (Readable defaults 2; Passphrase
-        defaults 3).
-
-    .PARAMETER Digits
-        Number of digits to include (ensures numeric category).
-
-    .PARAMETER Separator
-        Character(s) used between words for Readable/Passphrase (e.g., '-', '.',
-        ''). Defaults to '-'.
-
-    .PARAMETER IncludeSymbol
-        Adds exactly one symbol in Readable/Passphrase styles (not required for
-        AD).
-
-    .PARAMETER WordListPath
-        Optional path to a newline-delimited word list. If not supplied or not
-        found, a built-in list is used.
-
-    .PARAMETER DisallowTokens
-        Array of strings to avoid (case-insensitive). If any token of length >=
-        3 appears, regenerates.
-
-    .EXAMPLE
-        New-RandomPassword -Style Readable -Length 12 -Digits 2
-        # Example: RiverStone88
-
-    .EXAMPLE
-        New-RandomPassword -Style Passphrase -Length 16 -Separator '-' -Digits 3
-        # Example: tiger-forest-echo721
-
-    .EXAMPLE
-        New-RandomPassword -Style Random -Length 16 -NonAlpha 0 -NoAmbiguous
-        # Example: Hw7t9GZxFv3K2QmN
-
-    .OUTPUTS
-        System.String - The generated password.
-    #>
     [CmdletBinding(DefaultParameterSetName = 'Random')]
     param(
         [ValidateRange(8, 256)]
-        [int]$Length = 16,
+        [int]$Length = 12,
 
         # Random style only: number of required non-alphanumeric (symbols)
         [Parameter(ParameterSetName = 'Random')]
@@ -80,7 +13,7 @@ function New-RandomPassword {
         [switch]$NoAmbiguous,
 
         [ValidateSet('Random', 'Readable', 'Passphrase')]
-        [string]$Style = 'Random',
+        [string]$Style = 'Readable',
 
         # Word-based styles
         [ValidateRange(2, 6)]
@@ -95,7 +28,7 @@ function New-RandomPassword {
 
         [string]$WordListPath,
 
-        [string[]]$DisallowTokens = @(),
+        [string[]]$DisallowTokens = @(' ', '$', 'admin', 'password', 'letmein', 'qwerty', '1234', 'abcd'), # common weak substrings to avoid
 
         [ValidateRange(1, 200)]
         [int]$MaxRegenerate = 50
@@ -105,7 +38,7 @@ function New-RandomPassword {
     $UpperSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     $LowerSet = 'abcdefghijklmnopqrstuvwxyz'
     $DigitSet = '0123456789'
-    $SymbolSet = '!@#$%^&*_-+=?'
+    $SymbolSet = '!@#$%^&*-+=?'
 
     if ($NoAmbiguous) {
         $UpperSet = 'ABCDEFGHJKLMNPQRSTUVWXYZ'      # no I, O
@@ -118,6 +51,7 @@ function New-RandomPassword {
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
     $hasGetInt32 = ([System.Security.Cryptography.RandomNumberGenerator].GetMethod('GetInt32', [type[]]@([int], [int])) -ne $null)
 
+    # Helpers
     function Get-RandomIndex {
         param([int]$MaxExclusive)
         if ($MaxExclusive -le 0) { return 0 }
@@ -189,6 +123,7 @@ function New-RandomPassword {
         return $false
     }
 
+    # Main logic
     try {
         switch ($Style) {
             'Random' {
@@ -218,38 +153,30 @@ function New-RandomPassword {
 
             'Readable' {
                 # Make at least 2 words capitalized to ensure Upper+Lower, plus digits -> meets 3/4
+                if ($Words -lt 2) { $Words = 2 }
                 $wl = Import-WordList -Path $WordListPath -NoAmbiguous:$NoAmbiguous
-                if ($Words -lt 2) { $Words = 2 } # enforce sane min for readability
 
                 for ($attempt = 0; $attempt -lt $MaxRegenerate; $attempt++) {
                     $picked = for ($i = 1; $i -le $Words; $i++) { Get-RandomFromList $wl }
+                    # Capitalize one random word to ensure uppercase category
                     $capIdx = Get-RandomIndex $picked.Count
-                    $wordsOut = for ($i = 0; $i -lt $picked.Count; $i++) {
+                    for ($i = 0; $i -lt $picked.Count; $i++) {
                         if ($i -eq $capIdx) {
-                            # TitleCase one word for uppercase category
-                            ($picked[$i].Substring(0, 1).ToUpperInvariant() + $picked[$i].Substring(1).ToLowerInvariant())
+                            $picked[$i] = $picked[$i].Substring(0, 1).ToUpperInvariant() + $picked[$i].Substring(1).ToLowerInvariant()
                         }
                         else {
-                            $picked[$i].ToLowerInvariant()
+                            $picked[$i] = $picked[$i].ToLowerInvariant()
                         }
                     }
 
+                    $core = ($picked -join $Separator)
                     $digitsStr = -join (1..$Digits | ForEach-Object { Get-RandomChar $DigitSet })
-                    $parts = @($wordsOut -join $Separator, $digitsStr)
+                    $candidate = $core + $digitsStr
 
                     if ($IncludeSymbol) {
-                        # Insert symbol at a random position among parts
-                        $sym = Get-RandomChar $SymbolSet
-                        $insertPos = Get-RandomIndex ($parts.Count + 1)
-                        $parts = ($parts[0..($insertPos - 1)] + $sym + $parts[$insertPos..($parts.Count - 1)]) -join ''
-                    }
-                    else {
-                        $parts = -join $parts
+                        $candidate += (Get-RandomChar $SymbolSet)
                     }
 
-                    $candidate = $parts
-
-                    # Ensure minimum length (pad with lowercase if short)
                     if ($candidate.Length -lt $Length) {
                         $padCount = $Length - $candidate.Length
                         $pad = -join (1..$padCount | ForEach-Object { Get-RandomChar $LowerSet })
@@ -260,7 +187,7 @@ function New-RandomPassword {
                         continue
                     }
 
-                    # Sanity: ensure categories: upper, lower, digit
+                    # Ensure categories: upper, lower, digit
                     if (($candidate -cmatch '[A-Z]') -and ($candidate -cmatch '[a-z]') -and ($candidate -match '\d')) {
                         return $candidate
                     }
@@ -321,8 +248,8 @@ function New-RandomPassword {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA/92pO63Jj3J7Z
-# g4u52VIn5nHydKaMdmipvjSjQ6qr1KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCrj0Be+e6fGkew
+# EqIwSYIS1em8HYyejbQQq6C1MbUC6qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -455,34 +382,34 @@ function New-RandomPassword {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCldm5E0GBS
-# sbIb9iAlfu2cgqMXQV5uq2/gD2i5SnS1EjANBgkqhkiG9w0BAQEFAASCAgBVpZJF
-# DESl/ifxoRBddY0nyb1nFBg9Vp8qem5Zv5GhnbPlk7SVgUhfyld83xfGLfim8dnA
-# XPhycMoXnVjQCDscfwqokvTNYqIyQEFugXEbvkwqyQ1grIpMw83CUPIQvlz24QFm
-# NXeekJD31EZi4l6NSE1d2kzwd7FZV+kMevmt7GQrEQ0iphxBRCpi5IsIZXT8Zkf+
-# iYVDrJ/hesZunZ2Zf6/+tl03WqWGjzYc96aGshBcXgpEVQpoH8M9uOFa48n6TY4Z
-# QFfCJlVGl1+Bx0yfZNkdMJyCoFRTydZR7IiC5WVETNgnE6iMG1SO831/teBkPvn/
-# dBwPzbxbEzsNz8WEIyOLHi3Pn0QW12nUWpIympX+xKbm5BbnTRu09aVjlI2w+LxZ
-# 1bbpQiKkgDFpjhxlwu74KslUEFWJMIe1PaQKoioU3btQE2z6548lIHW+l2hMIAbo
-# 4oq7xkw3I44yBAmnSBTDP8Ssrw6k5OK7IxC/CKlcD5v2OHonXO70zK0xxZ+GSAYq
-# kiWW+QzTtEUFzICL67Nml8bF6+WHw3JR+yBCDiisYT9FSoZ5BRxL5/F97kUPvbCj
-# c08pHLvVon7gIP9F0/tWv+1xuoRigdH3rDLEiZH//jLR4kXkv7uiy9pdwKHjQeIJ
-# 43vpG7U8YveFKa5RZoeIcL+/LMa8JXAqPi6CyKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDrj9z9G7Lt
+# B8jiPKSBkSKrqu/FuezDoXUXSeS45uvL0zANBgkqhkiG9w0BAQEFAASCAgCfrTHz
+# z3hUNaErE6KXBLNCCs2S56/r+JBX3WJrmfxvkahqTxE+HdOkP8oKTp9lotvuuF7q
+# k6pB1evta0h1nNZ9h9Daal3LJ8z/VXNZMyXFEb1PBKhGEyxUGsobRQqpnuNFF8W4
+# nCONfXGaphsM3iMBnZjEzP/vgu49db/KAAMWKy14rdM4oHwHW+7HKXJqNdEW+S2c
+# mGcpT1XMtFCprL9hBgWqpsy8TSx3BI/b1MPFOrRS8kufsOlCeWcLiBc+1H8+QXS+
+# AiUnRNA+DMqmUQ8nwfH2PCsqTAeQa2jOGo30sGQSuUCnlhsOVLBeDLKj0ml9trd1
+# 1OGlHIR7G80qRIcrTErhjUy0Cr/Vr5BVQ9hcP47GllRdARizyQBLP7U3x0xpNagy
+# KH+DoYe5Klkhc7yPBFylf6rc/d35T1YpsIh+gfDWt7t9Dj5kX8s/TSKpYg1TvVRp
+# x1m8ZYdJpTNUhDHwy8jviydHY+2iTZ76Xm9GkFztR5icdVC+ayovHFkKfO7Wg2Ji
+# Vfw1GkV3aSyyNBN9Nust7m+e6HN/Sazgkd8DpK7NChEvzLjJwRuP9EAh2NBfy6My
+# LsKSZa56Ta52Qa+oc0DuPqjpnK5zuChOj9Hb6CZQjaFG5BG/dzgsCVX66MYyMHAY
+# /melhg/p1FmATfgyu0jew3tuBSi51haBreN+LqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDMxNjQyMDFaMC8GCSqGSIb3DQEJBDEiBCCkiA5nOOPzz/E9DWK1
-# pRkcgqVqJaAIx7EaDktn8M1ifTANBgkqhkiG9w0BAQEFAASCAgCQ/a96As/4xsaU
-# gII4zhZZAJdGtzOC/hh2potDiXodS7LJKkuaChvkqWOaZeNzG6lUWJeWY1MYpd47
-# MAcI0104zyJoTsc9ZNOY+ZINO2RX9DzljwqgVuCf+h11RGeK9Lx0mnBQOx3P/j1q
-# YTF9CY/5AaQMKYsY+a9UraQwLBQSoT1iU6m+7Gtri0o6t25//WD9kPsomp/Iakgp
-# gYRRtzpPAcUcUpeAMRAuz8nG2BGmfXZ0PKUnA1dNO8g/VVPhYlTkrMNh9y5S+det
-# TTjdhDQsTfW/SSf71lXGLm1lM9+nolyMaOOJ5prOdDafpTpx10hm+nqsP3BXffrQ
-# Kdak6uvz0ABamjBMi5BzZGsx20XPo4xJ2OuiginmDADg/ZUu1fmXospEEnMMrFQD
-# Z6Qxr+7xn6mOOh0/TfGUK2guKwO5r/RETImdurVFleI38N90rfza5gszeQkwKYif
-# 1PgDshyQNaXYx9vJj8pTelZ0sQeRi7u9C7JNN6Lt4HoiJ/7yeLgqtEJh7IzXW8Bn
-# pU/stvdjPZJ/Ya1H23KG5ZPTzMAfL1RPLArU0Mvaa48Rb9eLO3fsyxenRYoSVkZm
-# 9wFnlGoSvjm7f5z+pxDUOofj8VynWkRWuqSXDfeYaeOszH7aUzNIPOY+xnPSFvnq
-# onx9hKJLDQ5cGExtvOgs9xHs5TVfCA==
+# BTEPFw0yNjA0MDYxNTA3MDZaMC8GCSqGSIb3DQEJBDEiBCBLnkVuWl6H4sNn8r7G
+# D18VAF2NIChdPc/psZ8XuP/pMDANBgkqhkiG9w0BAQEFAASCAgBrTzTZIeCy9tD+
+# 9yLeU6YfI1SSR0qC7cO3ftzMcdhN51y5zr/bwu25NWWCnCMDhuc/hLIiqCSLakae
+# yiqnbtiFw5Ydl/yStyt92Wef+JaZUjmJ8cqjVJzZuMa559RLAH1mGA3dFd0rNzQy
+# ne2nJecsPEd7R3r33IaCd+sl8mG7JPpdiYJwu6HpAdJQNrxPuXzAntIdjXU6WWiS
+# c20kFBNkvCGB+qeIFYoSqQf8adbn4fbU42OZL/YixeIQymsjWdZLzQJqJUvXOuRI
+# dkq3SISdRrPscNfZPqYDekbLcQCCe7UhTXujyHZHabBh/5oANbN32StQQgb2O5lJ
+# /fqxnffXD1SVTnogLsClUamEz6k2bBXgPmvz8s029sGcnERhFNa5fsmZ+sO8UoYO
+# oJ73dX3giIdgqXltN7AQNiON5CXp31TzI3VPpSTwtgB683jhLKxNEmvVxMmuR2YW
+# 4rGEO9ieqaim5rvTZVv+dTtSUMNGrsnzIAoDywzOQ0BcCp8tmXIj0HGGh0e6B2rC
+# mh2QRN4T84fZ5Vh7ttPem6y8NbO8GPZC6Zj2FK2wHimZCC9YsCsXc8ZZi4JEMXGg
+# rtVHbGKz9zpIuseksnYuNxkgxdTqYy9xYNsR7BQb+vUYvYNqIJcsa4S7OXgTZ+Hk
+# Ii7TbLvjz8Z1+LeN3gOT6B/FRKhqHg==
 # SIG # End signature block
