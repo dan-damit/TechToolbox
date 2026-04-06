@@ -67,7 +67,7 @@ function Format-UserRecord {
             if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
                 throw "ActiveDirectory module is not available. Install RSAT or run on a domain-joined admin workstation."
             }
-            Import-Module ActiveDirectory -ErrorAction Stop
+            Get-ActiveDirectoryModule
 
             try {
                 $p = @{
@@ -96,7 +96,7 @@ function Format-UserRecord {
             if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
                 throw "ActiveDirectory module is not available. Install RSAT or run on a domain-joined admin workstation."
             }
-            Import-Module ActiveDirectory -ErrorAction Stop
+            Get-ActiveDirectoryModule
 
             try {
                 $p = @{
@@ -335,8 +335,8 @@ function Format-UserRecord {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAP3u3ffqouLAR7
-# Ak8LVqUkL+g3LwmGtk3DxLBvo5gSoqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCByu1Ed0ScAubl6
+# iR0feNF8jN8hyL07m40wxyaBoaMW6aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -469,34 +469,34 @@ function Format-UserRecord {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDloALOdLK0
-# 2WAfzl6YxBJJZyCPc/TQAXdCfRkRLnKd/jANBgkqhkiG9w0BAQEFAASCAgCh5IpF
-# 2OdfWRmORnoUkUzB8NRr4P7NmzBGperARaLxHw1HKc3xh5i/FHPuU8v4w2sdH+M8
-# 6sbMacu/YXpFxM4NcCe1baJ2TYO870RfzuQDdcopg51hdjEtZip0eNFi3YoQnnL9
-# Xua8ZFYILRVEgC+YTeGLN5cMybUEP0fIFfU4v/688G3JvseLvV8/Ul4C9wa36UXM
-# RsFQjubTviZ9A5xodRoaOGwNqWkH7QpfPspJxTCW1eI8kC3VioieSBAj7tYARWyz
-# v6Hjx5ZUkpIB5Zj4qEpm8KB1gVTScKXMLUA5gCoBckoRMO7dsDq0ojXH5USvd8eo
-# H3wE4v3tnMEBKyrHRDCfwpEDVc3jlWYcaRWuAz6q1CJErjTDGupMgzHNQHljnLdB
-# Xl1QcO+G219UrTAC0k7QE1PgdSBWLzWdiU3GA20Ff1svs1GVmBOJ6G5uKn4OXNIT
-# wUBrWjdki2XfhlGLoUVUHujgYuEU3FxFSvt4oJug5k/ABZpUeJQB2sm/x1Ht4BrM
-# yo3/dpWxwC/aHvTpbzUUnOfaHRI5QevA5y8QjAyqWF/OQHOnQau/W4ul4BuMRY0r
-# aEcYuDnzzUD+azUtWaWmG122lud+eswPM6D8Bz20mt7/g/qnfVrQgi04UIP0OHeD
-# l/szS5zqbRPe4XRCMtbBYk0OXhyH4vV2JauMMKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDXt1fxFVep
+# u0mWYXk7iQYd3LtG0/y/gg3lyhdLsdVdPjANBgkqhkiG9w0BAQEFAASCAgCgfH91
+# 5vdOLY2MCvF2KhG6f0cz1tEHbMkjjj37VIFUyeW0cNqopAgQPabuXKGwtDwNo81e
+# /xIr0fnj4uuOqc/hwZ1ej+JaUnv9+lGJ7+OAPNc5OQGLx1aleLuL9r4fSnen+Wj6
+# fa9hA9T1iX9X2xlUVSZdMLR0/r0SkNGh6nqaLZD2uEhOej5ys+awqwEaE9X1DA1b
+# EXRDf8Vhyeoj4Nn+p3/l0RhzOpVDQMlTGgkNbYU/hx7Vur/B5zsBE1Gip/uyRVJb
+# V9oF7ev84Qa+xhtPEIi0/EkrvjY+9BjMQ0OtVoRhd9GtQjSK8M0peUEqKhaSOR0O
+# TN9jz05OWjhqvR1spw9OA3OjJ3oPZNFc4aq1IST0yMAgcnAWvAGAWQ1sGkzmNCZ9
+# Jn3zIhtdZ6aFvd6rCqoe15znAQ28tTuWEzZQ+/83bCsekys1GLHCF+/0xFGRBTzI
+# nBWzy7cPzQvB3E3LQa7r71K4EfEIHWZKt9fUj3+p6RWMNQSHFKQO0XlGYv8n29y1
+# m4DSkJVQd1dC+x4mHEfMlMM/0xhZpel25tm2pV3WEwsxGFhxYfKg8Xb8Q7Hqk9mC
+# ZoKkNyVjYevyu2D6SOW7vZ7Mhmpl4T/qxL7ApCFCuJwC80EUDTrxdE9Bu8FDWrKS
+# bi8ASUK6CO/7gWPBG0mahUEYbZkeqglcQA7CJqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIxODExNDVaMC8GCSqGSIb3DQEJBDEiBCCh0CwxsGca7BOc/sgE
-# 70Hne30CpdqA046XranCZ8GnoDANBgkqhkiG9w0BAQEFAASCAgC2OZoxrE1IMnUS
-# nqcsbVDltkBRgpZCqWgjolCJoaAZEkHeNtyGuqFc7iNxjCRtOTffcSOAlrzwPeUp
-# luqeIin8pNIfsGaepuKYzRVEr6YWn6/jH2oFN734UgYVZiJH2J/8nh2mBa2tHM9H
-# BCmiluw0adK4gzpcsYqDSTnwalwLNwbMcXMtMKVXGJ5fVh/UEC5LVnXsQjhOOORO
-# k5pbYJZBUAzTTJVXddzoIR0ApsHEz+T9sYgeC2VPGCxxAbdIy7OQl3zm9AfFc2Ft
-# lGZmKEeuL8m0SlwnWmucr1t/APxogkYg/Hj5RXW+LiiGHxo/fquczIAmRC0A3n3m
-# cxO7m6X5ULFLQTZv0N0YdHjIg1O+rTtIykFLQPOYBaDmVZGicZ6J8hWFSkZNmz1u
-# 7GPMPprZrttKsLRAcXbaXV69oDhNvXWWTXtCAey/XEKUyI4XfdXwgtybAxAKJbUr
-# QbLXkFtqVd4JdXMz6oFtoSQ+Rl5C3IABvkkQKxsqS2KtuI23G7DaQZx8QUYrHcaa
-# hg43zNnAiRid/e07BzbJoXZ+M9H84x3bfWIUTqXKtcAOuWmVMwPjSuh1ri+gB+NR
-# PODoT8j5uNIrkHTCtJvx69fn32Kgcmq1TAlRenKTcMkuigORleROzUh0CeD593K2
-# FvcLT+TrZ8d50qWJAZ4I7GjYPEu61Q==
+# BTEPFw0yNjA0MDYxODE3MTlaMC8GCSqGSIb3DQEJBDEiBCC5GoJGd/GH834J7fOR
+# psLazGbQg8iIcha1hdjYsXUX6jANBgkqhkiG9w0BAQEFAASCAgBwoOWUvvfyFTVl
+# lL2pMleoq9Pch8kW8/vxGvYo2sajvKTlnUHP78mp8iidtnJ59qhG+lfXqXMmf+mK
+# dKgLKfj0o9b/2cv9XNgfZt01GdJrXdB0kLNWI4bnC14m4OD6JKgzMa0Inr6xLGYu
+# 6y8/SmtwLDHlBprTv41dr/Fr+RS20T135kKWccAFB7BhVPx5WWw7lV5LDHpVw5z5
+# yzzhhzFlMAaLB5YqShh3fFx7PC+P3cefYqLA38rpjU4h/rRIkungM0EIGdRxx8iv
+# T5YbvB5QsABAC2wxnIfushSu31oAWnHkzlSRX8n2Dftnt4C8sZlm1azFPl40lqfA
+# Qcy1wHefOMMjETd1QKN5lKJ8rkvEsg1KWycWx+988MxMto5TmpRqRJl/kg2R1eJd
+# zlaqLfgV2VtpkPWdwOuktD6u7IYHphzqUcj8MhuouHqlOS7DJ9ep3U9sUiyE+6t2
+# +BVHt0g004k8d6waYc/HGNXjqbNnEkSYX6Rj+fqHLl6z8hZOgG6FqWTdPQtLq1pG
+# nTzUInKCMjQkIn7bjExvcebhAqKM0QbHkvU2mxLcO6DVHNvedQTxcS/XBv3/ftkx
+# 9o56BfOCFEJGMbYg8IvIfkmy7jHOI2NbyVUx87bjs6Twb+P6bGdkO7JdvA7DQb78
+# fxx5oTUbMuehykEaffVUFJgsKXm36g==
 # SIG # End signature block
