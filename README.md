@@ -71,8 +71,8 @@ be applied where sensible.
 {
   "paths": {
     "temp": "C:\\Temp\\TechToolbox",
-    "logs": "C:\\LogsAndExports\\Logs\\TechToolbox",
-    "exportDirectory": "C:\\LogsAndExports\\Exports\\TechToolbox"
+    "logs": "C:\\LogsAndExports\\TechToolbox\\Logs\\TechToolbox",
+    "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\TechToolbox"
   },
   "settings": {
     "defaults": {
@@ -300,4 +300,4 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
 
 **Author:** Dan Damit  
 **License:** Internal use  
-**Version:** 0.7.2
+**Version:** 0.7.3
