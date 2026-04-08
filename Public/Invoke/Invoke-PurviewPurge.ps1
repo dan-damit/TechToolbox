@@ -139,9 +139,9 @@ function Invoke-PurviewPurge {
         if ($existing -and -not [string]::IsNullOrWhiteSpace($existing.ContentMatchQuery)) {
 
             Write-Log -Level Info -Message ""
-            Write-Log -Level Info -Message "Existing Compliance Search found: $ticketNorm"
+            Write-Log -Level Warn -Message "Existing Compliance Search found: $ticketNorm"
             Write-Log -Level Info -Message "Existing ContentMatchQuery:"
-            Write-Log -Level Info -Message ("  {0}" -f $existing.ContentMatchQuery)
+            Write-Log -Level Warn -Message ("  {0}" -f $existing.ContentMatchQuery)
             Write-Log -Level Info -Message ""
 
             # Only prompt if interactive prompting is enabled; otherwise default to reuse for safety
@@ -307,8 +307,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBeGxTuxrxmpuhZ
-# vNTxP/0ucrCJm5m/m1kNwevQNVhBKqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA2lO3ME6DBP4Bk
+# PYaNt+cD8Eh5W42BhtLbFXkpxPb5IqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -441,34 +441,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDmlJWKwBti
-# WUjV7cCGATD0YOVWxY4LZW+hNni4Oc3S0TANBgkqhkiG9w0BAQEFAASCAgCvHNtu
-# 8SNW8mUCBwM5EQJ90dCZ4nwbplN0Qmizj+1SuQPNRjZrVagwvpd6cihWwH9gLDtl
-# yqHMrN9T9VagndYglYidQmOv3cRjiiDomTuuixOFxQT2NLL9fIVM0DQDhGZiK5TH
-# Fm+HWUMvz0al125he6oHOhEyitqrS8OTnsWj1FUu7IbmXEfBKhlIkdb0wC+kVRIp
-# iVQqbwm1si1wC7zjhxVvI2oIChVkO67SxoHz8Mnqsuy6SFPOF8qnhSZflBp0EGrD
-# sSJIG0QROx047X3qz0ESGEJ6AK+aHZuqapjPnsxFPO6iBDchmI5Aw789XcThYVkM
-# n/StjZ0vq77QnWkPxv8PBAZUDE1h/oNBSrq8J3PYUUXYKglkxwZU2kyZP4IWHJOA
-# D1NlH+XW5GQAktVN5paj4WGzYYKk5WAGYKgA3uUX9PWev98P00NZWgPyNUp4s+Uh
-# UulqBiiBQa4qe3TzLCzuZOhX7rmHmE/wkQH+hUtYgCRaL8mR1miXQP1Burvjz6e4
-# M69denoQhgT6jFic8u24HAUlF+F7jiSoT8qddaS1KM0fPphjoQ+9jkLn+xpghOvA
-# Ufvw9P0G1c+FDoQ8JxfDoOqIuqax5ASZNKQuICwqg85vKgRVJsFMgBAoJV3pshJ+
-# byXTRIs7pbhihkGwHZI2VwO/ZmZpx4iu9qwvJ6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8EWvV67rE
+# 5rkrWBJF3gWY8OiPcolKJvzsmcS7ohB5nTANBgkqhkiG9w0BAQEFAASCAgAGKXYe
+# 2xmJTxUPaqddIrQBrR/wpFYt+Hsrd2dwOL4TYiQrM2ZUfC/S+UhtFWBKpfgkaTKU
+# xEGHsYi5CmZayhF4lUbkYVwEb4+wslxKsy5l+nShhNbwqWlL4fquPNvtFXjmtIjQ
+# pA9imOV217yAP2ugpn426w28KzB4sXdxxxceQBo1U2kfdbnnn5HY678X1jVlHPB1
+# JKNlZen/bj16VAVVGMH+nxEvJjOgxEbs3zI/GfrBk9mv7GUo1lW+LqOqnvuosEyW
+# b35EM7IMAiOmd3IuEZxVkRYQbhq7k3tHazviGzhjhQIlBipF4zaNKZ3yTK+VMtEO
+# eafEd9hA9TMo8C2lBXwRBqbxR2IyHK7w84bv3dMmPL906sp29UDxNf1AUerrSHeU
+# grrOQ6B1ETilxVe3xnE8z9QrSR+gPFfk5HSzpZA6VdrP34ez4ByHte+NkxjJgsp9
+# j6kGDue3mKO5VzB3+zYz5r7mSdWiXLjnW8p5JkjHVdk/Bb7CuTD5PdlmA78vNpqr
+# ORFBRIsK5BXSkHKM64G5Mgvu8h+tBB8IUBF06lAWNbJkTqePhDyFVS8smemUQ5D7
+# 0imYNlrNMcwYHbBs6GYM8nhGYNuFqitzDRUjcErPOFereG66DNEVB+w8WauK47YI
+# TB8XREtZ70g88tdJhu+ONBBG1pgRVwaHqMZNnKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDMxNTI0MzlaMC8GCSqGSIb3DQEJBDEiBCAJ0rBkzfyCOYzurZsG
-# +aInk9CboAobJ10dwOcM2cc8GTANBgkqhkiG9w0BAQEFAASCAgBukKtfZKVOg1KF
-# 3IPYfCbYzZDSCXwgiZrYbc6lhRUUjStal4xw1+ywA6V/WyFHOHUTIXJKjIk87e88
-# glsNz8rRVuMfWtuagjnkh5FjaL1G5TkhDwVd+jC8dpTh32KKavvfnh4I2n1xgzQK
-# b9egAsROKLqWKllQm1bY6gWlio+IihHfBVV+wNODOZqHzLON+xOJdIPyan9tTsq5
-# PZXDpbU7kewGuUeELd75yjWDZo+vIWkCivww74+ati708u3oJyOTi6BvG9xEyg+z
-# f3kyDrFi1LtGBunlOpDPuPDVS55NlhOOGng72F3lIzIT1zbDF7xHdhovjR61pgY7
-# kFafcb8L9aIa2jmobhuT2W2khhuDCkDE0UH8hy8SCqlwi9SvLtmnb4etw2MWqvQj
-# LZT8U3kfHaWmJFs4x1BF53XA5F3eEl5LhJ1hD9WzrhcLS9GErOz1PtfjFzUsr1F1
-# wc2bW8TrIyT1HdmpAS6Qs+xVgA4TjagPoofrFscYfqTafKIVn+TGWTuxUqdAoP5I
-# b0rM203ODRDAk6UPf+WQB4eNY9fl17w0f6Wr/WznWtqfyYH/wJA/XjPH4KzdVVPZ
-# LgM54WIMRpV0vnRK35vbtYQqlCqK+oVdUNLmo7RQGTp6ywkBdBBon8AJ7Rz5tLMD
-# GeeW+6eObQah/teBU6ictU7cRUK4jg==
+# BTEPFw0yNjA0MDgxODUzMzBaMC8GCSqGSIb3DQEJBDEiBCDaecDwetuIxNraY1oD
+# Eb+xZSRDxQpM/oOvVofVw5TxyzANBgkqhkiG9w0BAQEFAASCAgCnbqgGkI7v/8lT
+# fngPr+ariMJz2+KAyv/MUiHZTFvn6WLS+sVkUvCQ06yByJNcDF8k4A4/I4Bbmkii
+# K1x9WCOED1KnbbrGNQj3nd6TDS0z1Ni1bXHNB8aGYFQpY3/flGJRlToPp3x6uFJi
+# r0HpCMoa4eqhEcWNBYnJMJaRSHwXhJKQIFiMzDWqd785/Cpow65DbZmewm8juhkd
+# kVoKfr12KA09iBr422eTpckuIqkjiTdLMbkp4REx9BpY5cusLIda5Vp48BcHQO4P
+# IUm9r6kqTMdW45VP6pfOL0rgGZ8ZSqCdHi4gA7aD4vv77mUvG2Bg6gvs69YiCXDF
+# feQ5pgZ5N9TTyPMSvSk/H6OhlD5AfOSUezQvKctZQoqn3UgyF/TdQGicFRHWqsyc
+# 0/VbEEQhAlG8OZUOpuQ/bEimIAbbuG4T0DiW72Of/QxiON9FSQH9b561rLF6k/CB
+# wUNpuyhJWT2SeiV7wQprb2anioMTB9aaQTIPR6R19Ad2bDPyjnJsYRC8xKGvCHah
+# OVZQ8BlJryDI7r/tQ4BLchtMC9MtHf4OZppcqqIq8cNfe/2SAyvEF/TSo5dd5Hrw
+# 0tIBmsteXEkjUhs9cVejLM+yjoEXVOSLt6+b0DgztIg1ndSTu6YQWDQa46mHdyCG
+# X0WyahZjqMRtGDzza4K3VvIXOOGAiA==
 # SIG # End signature block
