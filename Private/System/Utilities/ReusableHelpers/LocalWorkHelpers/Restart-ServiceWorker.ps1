@@ -6,8 +6,14 @@ function Restart-ServiceWorker {
 
         [int]$TimeoutSeconds = 30,
 
-        [bool]$Force = $false
+        [bool]$Force = $false,
+
+        [bool]$VerboseMode
     )
+
+    if ($VerboseMode) {
+        $VerbosePreference = 'Continue'
+    }
 
     $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 
@@ -15,13 +21,9 @@ function Restart-ServiceWorker {
         throw "Service '$ServiceName' not found"
     }
 
-    Write-Host "[$env:COMPUTERNAME] Service state: $($svc.Status)" -ForegroundColor DarkGray
-
     if ($svc.Status -eq 'Stopped') {
         throw "Service '$ServiceName' is stopped; restart aborted"
     }
-
-    Write-Host "[$env:COMPUTERNAME] Restarting service '$ServiceName'..." -ForegroundColor Yellow
 
     Restart-Service `
         -Name $ServiceName `
@@ -34,22 +36,20 @@ function Restart-ServiceWorker {
     do {
         Start-Sleep -Seconds 1
         $svc.Refresh()
-        Write-Host "$($svc.Status)" -ForegroundColor Gray
     }
     until ($svc.Status -eq 'Running' -or $sw.Elapsed.TotalSeconds -ge $TimeoutSeconds)
+    Write-Verbose "Waited $($sw.Elapsed.TotalSeconds) seconds for service to restart"
 
     if ($svc.Status -ne 'Running') {
         throw "Service did not return to Running state in $TimeoutSeconds seconds"
     }
-
-    Write-Host "[$env:COMPUTERNAME] Service '$ServiceName' restarted successfully ✅" -ForegroundColor Green
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBBYjsHQKW1VaWC
-# 6EuimalLcBBa3cHQA+SrX4uX1qxBhKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBILrtAchn+RLZG
+# rE/n0IXX0gs28A+KTMor/mc9sKWQCKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -182,34 +182,34 @@ function Restart-ServiceWorker {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDK1CFu1svN
-# s/aOtR6Yg+ebe9Zu5+86Qz0/GWHGGfopNDANBgkqhkiG9w0BAQEFAASCAgCjvmG6
-# HZKhviRXEMsQbRvNSd3V1A0mjwnmCIGJbokl4f1CaAd2u32NKLQPDBsRLkUSgzU0
-# y6D4Q+bGdOWfdwzmVgX9HgulL0DFIsYhwTOK3lJcEg+w5Uzs+mw+7iZxBukh5NfC
-# yr++pkIs5xa+3rWKYLFJr9KwdQObKPPm6Z057Bbpo1yafdBlpcfTCTgwuQpiVm5s
-# SPKC1JNtD/Pp56L4T07WH1tVJVYbecDm3RRLrCUca3WhsNMVbBJ1F9VyWgeXKaoQ
-# nqf7dS+Koke/d46AEbt8jC+l6L/WwQ+bzeDUFRzob+fV2SRc9gDwniO2Cy/2zeYZ
-# x8/1IW7m4QJPrdG4bdz1Ue2mM9FuQRpqqNtREJ7Q/gWQ/0jM36gQ3qhyjTJV4tTi
-# cvGfY7lrF5qkFvk2m+pB59f4ZUgb9PfjCnNWQRLMuAv9PiOAByL34zCyGk+nKkCt
-# Bg/cHtIgDo9TCW6Arvs7yXaqiDT7IxNVvEZPv1IflLlTB9UumjOnCvtQ0CcpIYFS
-# eNQcJ5oFqza6Il0Kx64K04nKeOrZR6QJj9fsHNhT2hyJRTwUHWF2C0ZCQua5mlZP
-# rARZesfCEk4+xN6F3Y11ra7IHD8BdkcWtkWi9atWOgVc7ekZzhZKWhS5PXriN0fS
-# bndOTvU0dHh/NlX6kVHczZqStIK4N885fKQMoqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCJmsVA50Pz
+# N8cml4TrvFFhjTAr/S/rdB63+hpXQ6XlZDANBgkqhkiG9w0BAQEFAASCAgBz8vSv
+# 9P+Ok0SLKBSF7vS0df8XbgOmk8kDnAmWbsowFaRJ7xSsj+0vTvz8vanQrQitDMeZ
+# 0V5O8osFjPGqpWn8OHQLAoIYuI1aqsX/D7hXSfgziErPhgMLmjtwwo7GtRJ1QpDv
+# bNQombGRrsdINfX1gm3O/IwDfefV86cCT9rVLC3ZPRPwCfJE7uWBcNzuv/NgMUQF
+# 3y4hudwo7Rhu+/VgRCUaolPxeitLb2li+4blMYZer7JT7dvLsDuaCsOAwwe33uyd
+# xUUffrXybEmMVVXRBmKwTQcF4+6ZUozHEbR6v+aMUzGbl0BuRu2L91RDGmMuCwdO
+# 6HlRxUDK6+pmQHCM1E3d7R+VK21tJ46blFlKIXTlfJUZr+cs36Hf0bTQeyTmngyt
+# VpqLsFSyEFf1Zln1sbWW7ziiBSb5XrRLhVXULeMpd5THQ24RbWZwBw2kNGknFt3E
+# kjy+eqt5xy5/fS/aYP4Qbjd0YYPnCGNBvmqBhhlndP+Zp6l20Ng/pwZCvmFpJMpB
+# UCoyIr2BXjLlsqDk/AAobi9MrhIQOm/84S1Mr7Si/MRXXhm58NUufrLeCfWHrkQn
+# WgNvJHyf2/lVTa7cjZ/gdRX0hdizF/cfSFR9pMoYinv/tOwug/kIZhIhL2N5WVBa
+# 6hG8Aaxr8mtKAup9MeW3M/1qvw9+KfpkbIk38KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTAxNzQyNDhaMC8GCSqGSIb3DQEJBDEiBCBUCx0bSU/6lEVnIRMv
-# R9wYNoRnj1Nf2+7iHVBKCtqkozANBgkqhkiG9w0BAQEFAASCAgAvoT/CxVdNUE3f
-# vTDb/P5kyaf9RobDGz22D033cgLriYi/q/TeEG06tIwjIjwgT6+a0nQ8fYDHDDgV
-# JvWXshhFmfe3xdUgFqcWNzi/ABOS+nCIwcRdWenNmg0uZICRhzlQWXKYrxXfWasR
-# DFnOxF11BFWavMOwpb52UyV8xIjbQYyKBhn4BLeBGNlmk0MtpAIRXMfr1YQeobNE
-# l6sC72kyXWu5zJhN0dkVje1YwmVoyTIcUNYp7BIwcqu3PB7KWHiJK/rMKQ11xOed
-# WGHUqnpu7DZBDGVGpMhv7D42Hwrmay6dG+di8nU0RaxYGp6iDOmepnJBEc3E2F7k
-# b6JBuAux2BqdH2cvE6bsQxvJLlSE6TooeUVIbnEM/Dgz9NSCrZemThP42+RRaJMe
-# /YKM2bfBWPrRHPg3xwda81uJUsIrPr/Q0jdNQkrZ9C1vhhJc6IS5ZSVau2O96phV
-# p43ZweK8k3FfyDUlTB9sFsJZ7oD4dNNdcJ+Y0MxIP8Sx/dhYTK6c3ajWvyQqQe6Z
-# wT1SoI2x8a3Nqc7RR4ZaVNruRqkmLuMIWul0r/lblyok6L5jKm7TbmITv6ZFn95/
-# fvsnFZqGtKZuQucc4Qu0OnLseW9BiYz0WeeoGFjh/3+P0imWjy2tMGuQNYjY6jIl
-# kN0Ym/DBLp+w1psJOJbv2AraUezkLQ==
+# BTEPFw0yNjA0MTAxODE4MjBaMC8GCSqGSIb3DQEJBDEiBCDSfs4jWEReYNdRLUOv
+# VX/sLDXNVcU2q5+WsybNXjmJIzANBgkqhkiG9w0BAQEFAASCAgBsyv+PI5BvzHfD
+# SkQYOy8G1/Qxnc/LB7ecLkmngO/oGiPV/UccRX8LcCaQBU6JqlSzzAaIF7KHKW3l
+# /8uJSlD/gtrjxQfr1jzevjVPJixnJkHYrGbOweaoAkvNvmu/vhaww2QoBtM6SaVN
+# 51tQTKB5vLaw0xpts9W26yZZgr66uNS7eNmdO5n8gGKUvBmB3N5T2dau9Fw71xuV
+# Dr0X6iMNbigTnbMsc0UnzPoKvTHOeQM8bPC+rYTa/kAjGTJ36ePVyKaJ6bLncB8P
+# BZKr9T7Peyiy2adm7lrmZRlec8+IBZKCdStwcOn1STabM2DROvSKeqx7cuWwUk9z
+# jx4vtZXnF2vYQTZnElvIeTPOG1yZemMg4f92Zl0mmJ3giVGROJRgzaoYmUoV8Dry
+# bBqF/iTh/AJvXkqUzISd+bhVKxVd3GJjLfVJXdaqUBgnvquZCwUHUBjJ2cgrqhFh
+# XetHiXS9Q2MGUrn8+mYqEMuy3xm1SHdsj3VOp+lBK1vs1x1dUI0MslQQsLJmyzDU
+# LNFnmGtn3+n/foG9qeB7UNo2f/S13mlnXe81WpG2zCABVo5+ueE757lplgZGOF0e
+# YbEnzL6jlyY+ENFN+r7PhMWCXLIFOV/Gsje6KYZXnYzpHHMcUJFQ2xXsuJZOyEf8
+# l9kQa0jxC9HYf30LQFOGsFPVsmsZyw==
 # SIG # End signature block
