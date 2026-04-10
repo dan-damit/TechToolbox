@@ -84,17 +84,23 @@ function Invoke-RestartService {
 
         [int]$TimeoutSeconds = 30,
 
-        [switch]$Force
-    )
+        [switch]$Force,
 
-    Initialize-TechToolboxRuntime
+        [pscredential]$Credential
+    )
 
     foreach ($computer in $ComputerName) {
 
-        Write-Log -Level Info -Message "[$computer] Processing service '$ServiceName'..."
+        Write-Host "[$computer] Processing service '$ServiceName'..." -ForegroundColor Cyan
 
-        # Local execution path
+        # -------------------------
+        # Local execution
+        # -------------------------
         if ($computer -eq $env:COMPUTERNAME -or $computer -eq 'localhost') {
+
+            if ($Credential) {
+                Write-Warning "Credential ignored for local execution on '$computer'"
+            }
 
             if ($PSCmdlet.ShouldProcess("$computer : $ServiceName", "Restart service")) {
                 Restart-ServiceWorker `
@@ -106,19 +112,33 @@ function Invoke-RestartService {
             continue
         }
 
-        # Remote execution path
+        # -------------------------
+        # Remote execution
+        # -------------------------
         try {
-            $session = Start-NewPSRemoteSession -ComputerName $computer
+            $sessionParams = @{
+                ComputerName = $computer
+            }
+
+            if ($Credential) {
+                $sessionParams.Credential = $Credential
+            }
+
+            $session = Start-NewPSRemoteSession @sessionParams
 
             if ($PSCmdlet.ShouldProcess("$computer : $ServiceName", "Restart service")) {
                 Invoke-Command `
                     -Session $session `
                     -ScriptBlock ${function:Restart-ServiceWorker} `
-                    -ArgumentList $ServiceName, $TimeoutSeconds, $Force
+                    -ArgumentList @(
+                    $ServiceName,
+                    $TimeoutSeconds,
+                    $Force
+                )
             }
         }
         catch {
-            Write-Log -Level Error -Message "[$computer] Failed: $($_.Exception.Message)"
+            Write-Error "[$computer] Failed: $($_.Exception.Message)"
         }
         finally {
             if ($session) {
@@ -131,8 +151,8 @@ function Invoke-RestartService {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDrInV36/+1NdwJ
-# r4nNPvPiHZWzWHICzjzW3HwIXzvkSqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC0hrmboGeNjOB0
+# iSqqLNDTv2HCq6jjuRkYSi41bo5bsqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -265,34 +285,34 @@ function Invoke-RestartService {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDdygAYD7Ss
-# zR692HzK4mBzZR3SmPkqPPIDx6xSppWNjTANBgkqhkiG9w0BAQEFAASCAgCsWEvo
-# bVRx0ezA2r+SmcZizV/25kQgR9y2Tca/oHaiivdWhdFGB5koFKv1MPBIyzCQ4Pu7
-# vRYyk6tptIjRgqGGCaqQmAQzXpB0Pnlz5JlE/+d4Lq5ieqSXa5lJsD/JhNulneat
-# E8j0jTZVlfQt47UoQIJU1WtEh9HaaYAqIuBan1br0dovf5vQyBsr6PqjJWlMSKAN
-# +B6qYcSyjTmFKSUb7RtYmRwVTjhjBKMoSUYy+RS9Cgub7ZFsinYYeiyS5dM3jqbP
-# 6niEaItiboqsJHcoiu32Scrw1iDSDr1Q5JokkPqvBIXzQzKUiWBxxfxB3GbDVrg8
-# irnfrzpYWSFYbfYOl7UbKWmsp7d7qER6WdW3JCxPQqHymFMnaNFpaOp88wO40KGr
-# jrCH9iyKnmc9lPUgScrfHNjTIMm8AFRM8dA0EkCKBps1vAAtiK1eTjJs7WurRJRX
-# Vqm8U6mbHEXISGgrEMzU5erYNpy+pbkkxtohI459eZBlB/8uH7xoCSAqIdzczqTC
-# 7qYkdold6MqMn79D9hm5rbCRGXTtePFWDunKe4bUWJHi8rdLbPX1qTVVNqcHrnVR
-# r8SGprF/a2KWonFVcojaMsVfbR7Hx95kWTEqE0ugfg7kVpL6N4cG00rRxaiCInCF
-# MAvrLecg7r/cZPuKx07+fnmOysPTfKcUeMHjIaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBkdiE9CmAG
+# HX1mnYbkOmgSTe1S5GRWzZKZZdQaDvccGDANBgkqhkiG9w0BAQEFAASCAgDA17lG
+# 1abvfd76Jkp3qklFGm7vQJjatYYV7EdRqjZxvbntzVNZ/0bcXg5TEh/TjVt+fink
+# 7Hq4Hc1nEqASbchDlA5q6QxG5slVkyXkWdd+AF3v97Q4fN5e6SWDXask7XuQihL3
+# CP824J0qgwoZRhIhltoxsZSmpud+0QA43giY6bPpyTzK1aDXA0CexK5hEYqHvi1o
+# +89s190qMhXH7vuMu0tnqh5VqjADlymRUysFqHtrxW5DlK5ZLsAqQJOZu8Z8Ixil
+# AjLxhjm9O91kYFkdM81Ji0fnhePvf6mq6/PbUlM2Dv7FHrNY8dz9ckE4qihaWmwD
+# OFjynVd8QTU/ouz8ObMfS0tjNMjjaqz3Ux6ZdzgFTLuKs9+kI9/NaYxn5PGPdlTu
+# Hqt/e/5kB9pZdJp9xRuS1rN/Onq7W+Q20yYkrGPYWkNnQByiuaVFCZybG6Me3QO4
+# QjDgyhqoeqVlxe8zWrateF8DuCWPSrMBk3lBwyD1mtZ3ESO19u7OZ9e9fBCl9kxi
+# pUzEDMT+sD1y+GxFd44DqHYZReC0OdWdg1kVkfitx4tDYUCoBr5IWZ5AT5fIR7fi
+# /4UjIB9Ysml9izo+yKjMS7yALVrD982IKxjgD/VXGeXVagHsx/UQfHRydEoBkGz5
+# zoMNe3lQ5lhTSc/sRSAbt1wL2Q4cfFD7nhE3DKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTAxNzQ0NDlaMC8GCSqGSIb3DQEJBDEiBCCAw66t14+FJgUQcQz3
-# zq3ZBoAVxDlmc5oCuDMR6nVb3zANBgkqhkiG9w0BAQEFAASCAgA6VEBDuwZ1Wm6j
-# RKnx0GcCsIUeG7ndlwHPyC2dd4cohUB0kUEJqUDeXtUenmsx5Yl8+GFyn7ZeS1fH
-# T/WqJETqctoeYlfKhF4JuvxtHL3p0wfOO6QseTQC/WQrlaYqDSkHe5IG7OqBlNlN
-# BqYImuYDD9yT2uJdZhpkr4Up6f2F2571UQNHzSQ5HM5K/8VFQw+COyQw1FB2OIr8
-# BKrVOK3OLpuC61RQJhUuT+A6ZJfWUjfJaXwynIZ9TfXsplUQ+BM2F+i22jpESuhC
-# 66iGcSx+bXemFBIHIGoteAWnZzJShgqbxtYvIy84Bf1NRYk9MF8hRq96rhr1T3EG
-# Z38VZTpxLH2WextZg6WIGsZaP0okjjfZ32uf0X3wleHGMURxS0tGTdwxD+YoeehK
-# W0hjbJMLPdpYoaKaHQoJY9UjUhWfmwP2RukZa7j+lMieEx3lguh8RQvOJ/6dPVJL
-# 5hah8KPclMBoe9DYs09keEEtrOGQupor+N8L8A1Nr0o8/enseCVjxQthWpz8JjAp
-# 2mJTSf4laQo1XdpeXTi3o1jPvY9rOfdUcW+KmjdmYVJk7HE3Bhk3KGrvQlVeOQIv
-# W7yRK3XqTVGZQKOY7zuySGRdIzsPBqEeLXsoQQ22HN9WkrZcSOnh+r7k/0Nvs7X6
-# AsmFqdQtcKzgE2u1ByzehcKKV0CTWQ==
+# BTEPFw0yNjA0MTAxNzUwMDRaMC8GCSqGSIb3DQEJBDEiBCDhmp6piFvEGVWUYDUk
+# Nh1HNdJ/STaw8g1RpqxVoZd9kjANBgkqhkiG9w0BAQEFAASCAgCRQnPrsjuhQwmS
+# f2BlaX1CIhXTN8cqB4BnqX4O0S3NIWQ7k0/2Fuo+qNEmCAn4ENhf5SQ0pMA9vXUz
+# gMBNXZEOwWcqMIxmKsxnw1HyYNoeVwpaqfC92ZkKihVOw2ADAc6EOmrDLBAs7I7g
+# ihLEuoDuDw4I2avtzq+7y1VKEmQ7SCmONRTySXc34lEUv+YZY/MMfWqA+HAJEw1n
+# Gl7FK1/R7rTKyqjx7ZMxH3boqK80vGFSB2o95e0gXBFQ4/kJ/NJcABP5wJkz36dV
+# xfwTDpJspykqinOKY4mB3C+5WbtqUcJpwCTy+UYYH5wXSXqsXv0QaZnT1xC5v9Cq
+# 5NL8J6g35cCgV6lTIjMKRTqEjRk0SRrTt2Er9S3fhQWsBlcqQ4qWlsVwenfFEXP4
+# qVqxgZgRh3viIDg5QNpSxNL/E732T3b8jiyPF4bv47M9fMHpDMH6qWQ0ywFPTrEx
+# J1fOnkuanFXiw8Kdpw+tCoTDH0zhVRfp9BkPvTbyHpy4NeUKxbWFPvbALJb3iOPB
+# ou6iiTiZUyq/UF8/84zjTYbIhzhvAYPNrOSX12oV5tr5fOxHnhTdZf8h9U1LYJu3
+# ocK2MovifwUqN8Nor1E6AMOJX4XZ0IrKDhW5Gy8WiQd3bJj3RwJG595u3kkkHSfo
+# CINVUzmLtOZcgTE7ozo7jcqDuNzUag==
 # SIG # End signature block
