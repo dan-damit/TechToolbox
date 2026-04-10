@@ -1,41 +1,94 @@
 function Invoke-PurviewPurge {
     <#
     .SYNOPSIS
-        End-to-end Purview HardDelete purge workflow: connect, create search,
-        wait, purge, then disconnect.
+        Executes an end-to-end Purview mailbox HardDelete purge workflow.
 
     .DESCRIPTION
-        Imports ExchangeOnlineManagement (if needed), connects to Purview with a
-        SearchOnly session, prompts for missing inputs (interactive), creates a
-        mailbox-only Compliance Search in the fixed case "Content Search", waits
-        for completion, and submits a HardDelete purge. Uses Write-Log and
-        supports -WhatIf/-Confirm.
+        Invoke-PurviewPurge orchestrates a full content purge workflow against
+        Microsoft Purview Compliance Search using the fixed case name "Content
+        Search".
+
+        Workflow summary:
+        - Initializes TechToolbox runtime/config and logging.
+        - Normalizes and validates the ticket as "#INC-<integer>".
+        - Optionally prompts to confirm/correct ticket input.
+        - Connects to Purview (SearchOnly session via Exchange Online module).
+        - Reuses an existing search query when safe, or prompts for a new query.
+        - Lints ContentMatchQuery and blocks continuation until valid.
+        - Ensures mailbox-only Compliance Search exists/updates by ticket name.
+        - Waits for search object registration (when newly created).
+        - Starts the search when required and waits for completion.
+        - Submits a HardDelete purge when matching mailbox items are found.
+
+        The function supports ShouldProcess (-WhatIf/-Confirm) for start and
+        purge actions. If WhatIf/Confirm prevents actionable steps, execution
+        exits safely with logs.
+
+        Interactive behavior:
+        - When prompting is enabled by config, missing/invalid ticket and query
+          values are requested interactively.
+        - Enter q, quit, or exit at prompts to cancel.
+
+        Default timeout/poll values are sourced from config and fall back to:
+        - Search completion timeout: 2400 seconds
+        - Search completion poll: 20 seconds
+        - Registration timeout: 90 seconds
+        - Registration poll: 3 seconds
 
     .PARAMETER UserPrincipalName
-        The UPN to use for connecting to Purview (Exchange Online).
+        UPN used to connect to Purview/Exchange Online (for example,
+        analyst@contoso.com).
 
     .PARAMETER Ticket
-        Internal ticket reference in the form "#INC-<integer>". This value is
-        used in the created Compliance Search name and Description. The function
-        will prompt to confirm the entered ticket and allows correction.
+        Internal ticket identifier. Expected format is "#INC-<integer>". The
+        value is normalized to uppercase, prefixed with # if omitted, validated,
+        and used as the Compliance Search name.
 
     .PARAMETER ContentMatchQuery
-        The KQL/keyword query to match items to purge (e.g.,
-        'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned
-        Assets"'). If omitted, prompts for the query.
+        KQL/keyword query used by Compliance Search to select mailbox items for
+        purge.
+
+        If omitted and prompting is enabled, the function prompts for input. If
+        a search with the same ticket already exists and has a query, the
+        function can reuse that query. Query text is linted before continuing.
 
     .PARAMETER Log
-        A hashtable of logging configuration options to merge into the
-        module-scope logging bag. See Get-TechToolboxConfig "settings.logging"
-        for available keys.
+        Optional hashtable of per-invocation logging overrides. Values are
+        merged into module logging behavior.
 
     .PARAMETER ShowProgress
-        Switch to enable console logging/progress output for this invocation.
+        Enables console progress/log output for this invocation.
+
+    .INPUTS
+        None. This function does not accept pipeline input.
+
+    .OUTPUTS
+        None. Operational status is emitted through logging.
+
+    .NOTES
+        - Requires permissions to create/start Compliance Searches and submit
+          purge actions in Purview.
+        - Uses fixed case name: "Content Search".
+        - Search name is the normalized ticket (for example, #INC-151695).
+        - Purge is submitted only when completed search item count is greater
+          than zero.
+        - Function logs reminder to disconnect Exchange Online at end.
 
     .EXAMPLE
         PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" `
             -Ticket "#INC-151695" `
-            -ContentMatchQuery 'from:("*@pm-bounces.broobe.*" OR "*@broobe.*") AND subject:"Aligned Assets"'
+            -ContentMatchQuery 'from:("pm-bounces.broobe.*" OR "broobe.*") AND subject:"Aligned Assets"'
+        Runs a full purge with explicit ticket and query values.
+
+    .EXAMPLE
+        PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" -Ticket "inc-151695"
+        Prompts for query (when enabled), normalizes ticket to #INC-151695, then
+        runs the workflow.
+
+    .EXAMPLE
+        PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" -Ticket "#INC-151695" -WhatIf
+        Simulates start/purge actions and logs intended operations without
+        submitting a purge.
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
@@ -208,7 +261,6 @@ function Invoke-PurviewPurge {
         $desc = "Possible Phishing/Spam/Marketing - $ticketNorm - $ts"
 
         Write-Log -Level Info -Message ("Ensuring mailbox-only Compliance Search '{0}' exists in case '{1}'..." -f $searchName, $CaseName)
-        Write-Log -Level Info -Message "Scope: ExchangeLocation=All"
 
         $ensureParams = @{
             Name              = $searchName
@@ -306,8 +358,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDdgCvyjdBB14pl
-# rc5MAwoBqMBDS6akyC6EkC/EPEfT56CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCe+2DrpbchUQLq
+# siPz6GaZTAHnH3Hd1aTlnI39YxqW8KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -440,34 +492,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCEUSW6o3tP
-# Js46XBxI8LRTTyza/6vk2qEYG3SsHszZ+jANBgkqhkiG9w0BAQEFAASCAgAYeISd
-# FgM1E4g1GelCN8f0dlqxJSIQTXGddNWLU+MWtYH+UBlj0HsJagtvBGwFJ77Ik5nw
-# 9JQ1LwDZlXxVZWb4Ud0LxCLq96Sqgp+D24iWU9MAbDfyGNcSmCz0R34ia7q15OH4
-# hNaU9sgfTw+kq9TiZTV7UO8sOJRe7jiFHVnuzJQ0awoNzo1oEjo2R0sdlAc0LY5s
-# o+dezjNoj2vEur1dRU3m1cmvINf7h1hYumNhgWzJPTmPNtcD4dvsS3seig4jV6LK
-# 8ma1eG475Peob/zyFj+i9lx798208phiyO6LG/+PkdcbAmS1vD1m6w2Zot7ZxcXN
-# uM+g/HWRu7CScSG6cvGa3USHidnaGyROJQRzNa5yKZXMPlsP+77Q7AXcTaTgVlwn
-# XbYxvA4VfuCB+KuEW3xjQI6FK1JX61HXp/XZKR2zFjTe8Lhj9HMhKZJkH+wvspZZ
-# Q8cJrm6MCoTIsYdWHzF1lKMqbb21QA6Dqv5U4tPz6e8KYs8g6vj4UiHl64ZYx7ar
-# FXWV1Toy23xVrIXWljer6HL2FAQPCcUzq3BpaSjiHFCRH54vcQ60HY7hLJSz9SzX
-# PNRI7lp9XPgcvZ8M0or4UDhAuXC6oarWX2sVwOD273pVJD5CUd9sFuofNKXGjPYG
-# TD7bovDodOQFQQLydgoX6OUh9d4Gi10SH6C2IKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC/pjxW2lhk
+# DI2b6O+7CecNngvQG4CQ3VdunC7GP3GpmjANBgkqhkiG9w0BAQEFAASCAgB0/v15
+# zVDvjOt0Vkt/KIk9dYH1qDszqHC40nX94dN0Ic3E8HEFgDX68de5xVbiqdo1hbgC
+# YYhC5/Pq20zu84PdiRrenYHzIh9SXGWHcp+3RsKqBhr3N2TV0Gzg2BBFdbG8H0SW
+# n5K2T/iuAMXkmV9Scoa1iw38J+pWiOu2CXOWVBdgV+6y/irgMe+hxO5c71IkiiZE
+# w8Y5/ERjwxEqqCYYK/cZl0SZoSsn4WT2d/3IgnJyjWc40PaAQZONq3koMB8KhTAl
+# Tuxzb28eASHg4n50xXN0eGX3u4mH25hgwObLCwLt56O/0raeSMsCSeNDDL49JshZ
+# QZTXFzOH+B/CRhriuVX/JX5Rjs0yFKowHNkUK4uen9IG4tA6J7dRAvru6qWMr7nR
+# oeYa2DH93BmzBe6p0mqfRIfhfEo6cmijGdkRIpcbK3WEi+Ar6HYPCfR51sznFtOT
+# FIWBX2uvNuTDfVO2KdzHBGz0v+rl0p1als1uDHEYXAdb8eFcWCqrOVE0HegmDqQX
+# d7VDCyeHV6H2q4QzyFtDwY9v25hxyzUbtw9oJOBT+9cdqtA7bRff5GZg/7C32JvE
+# kNJv73esbB0mEU8+TpHu9wpKHP9aQw88kqMKLwmPVgP/mrHUsb0KevTfgLxgqAv8
+# ugRc/t33SW6AzT3Kv88TYQ6TTQBKXo4SBMJarKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDgxODU1MDlaMC8GCSqGSIb3DQEJBDEiBCCo2fi5gnhvDx2CHbFJ
-# QNY9OT8xP+RXua5dyMVRVZBu9zANBgkqhkiG9w0BAQEFAASCAgBTveWuWp20cknV
-# f0MaPyynN39UWeK9Yygs+dD8gcSY2ZnMAC4EsJJkJxT1vYVfiWsnNFkWsBS0KasM
-# 6lpDMK9yGfRJDMlp81mpJuv2LzjpxPavU7kAuTfS+Him4+qvtB5u+JzXDh93atYl
-# 5mybcp9mRoPN23yGmQ6933dAn+nMtlFOYqs4N28UC0LNSICNVXKY6ClKu10wFwT1
-# xFVZhwNsdcw7EEkmuMCkE91wjqKFOxN+3mlDAAgSyEfYH6zelVu/hWO7N92l6qmX
-# cNJdTBZ5/lxOEwtPB6Lkws8AiShfdBVDPlIuLQSloRe209eYh3B4qMiM6UC2savr
-# fsyo9vgK0ZNvWEo+dyWGaoILsDmD7KUnHEbLNzC4oS+83D8S2GRkkZ0T8/KSf/cx
-# cDVQ25iGq6Aml5n/lCIrpHcLgMoTkmaPGD1SrAKGHlFyVYCEtypw4Ay/FHczvgHd
-# Fkmm6ho2oi9xTb0AxMLrh+kr7/wzvTd30pnPHfxuEoUlyIk/EVq6VWPtcS/ofFXo
-# hz5GeDLKxQlAmDDvhZ9Rp8VpX0TsZyuO//3nvkRJR2qHo06cVdY69VpHEho6tJSR
-# DFtc/7ilxy1b9clgVH12qZTTDgiVqS3/X6jWXsx3P9aaRf5uW3AsldfCKmXiH8Ca
-# l5bGFlvdo/hrnhTfzezS6s1y+ySgnQ==
+# BTEPFw0yNjA0MTAxNTE2MzNaMC8GCSqGSIb3DQEJBDEiBCCSgFPzRkLl0zkBp1rw
+# UjInFMEwf1fPvlDk/a8mCrj1/TANBgkqhkiG9w0BAQEFAASCAgAHiOLN3urGX9HH
+# DlkRRh1oNCo+kXwGmNviKITIOIx/iSXQAa3sW5rmp9Zf9P0JQgDw8uyLe9g/6zfZ
+# E7pBOP2J9Ow5uFXQcLs4c+ripjWPprQ7RrNR96Ru8BifDzk+e8a0DjBB2mEy/fjJ
+# BgsDvhAPtzU7VIBW83+LS6sATxG8Tct3DtEfWdvQ4QMvrz/ffLCe+RkTGnh58/ON
+# BpH17y30iye4vW04Z8U6gb6vkZDGSo1uzNRKXqvVEQUACf53L/iEQE9eTUfXYZrG
+# Tf6Hk8hxTTnpewrg8jhfhDsXnTSTpH7fOcB8cvxzQrto3vMLWPzTAoodIWh7NLIM
+# yQdaGAuzGNuYdg5pxwCC+pkJCGt6IzE6CyQb6wtJVeWLTnmcH4cvVqzLZoaiJy2W
+# sDdp98is7dEkYrAOG7hLH0uHvkBZEvjLVGXAikHqTZneV2s6OctrFIKJmeF/D7Rl
+# es9JEurUe6XQmdNJ6oHsZ0boKZ0fVr1ERZKKUwJsFsnqdFav2nYpRmeCj/lay/Fy
+# eKY9Y8fBLFUu2r0AqRsb82evliCTs1BFfEaWf/e8C1+k0JBBlujUrnXWUr1AV3O4
+# g+vipqX8D2yEynN889dOP1DCLswowl6YqZMgcWKdFZkk/RmUwjREhXl3F1FoFiL0
+# dXJ/KCkr10pj2EWwuB7d0Ppz7qEYZg==
 # SIG # End signature block
