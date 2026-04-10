@@ -4,7 +4,7 @@ function Get-PDQDiagLogs {
     .SYNOPSIS
       Collect PDQ diagnostics under SYSTEM context (local and remote), zip on
       target, and copy back to C:\PDQDiagLogs on the machine running this script.
-    
+
     .DESCRIPTION
       - Local & remote: run a one-time Scheduled Task as SYSTEM that performs
         collection.
@@ -14,29 +14,29 @@ function Get-PDQDiagLogs {
         wevtutil.
       - ZIP pulled back to the collector and named
         PDQDiag_<Computer>_<timestamp>.zip.
-    
+
     .PARAMETER ComputerName
       Target computer(s). Defaults to local machine.
-    
+
     .PARAMETER Credential
       Optional credential for remote connections. If omitted and
       $Global:TTDomainCred exists, New-PSRemoteSession helper may use it.
-    
+
     .PARAMETER LocalDropPath
       Path on the collector to store retrieved ZIP(s). Default: C:\PDQDiagLogs.
-    
+
     .PARAMETER TransferMode
       Retrieval method for remote ZIPs: FromSession (default), Bytes, or SMB.
-    
+
     .PARAMETER ExtraPaths
       Extra file/folder paths on the target(s) to include.
-    
+
     .PARAMETER ConnectDataPath
       PDQ Connect data root. Default: "$env:ProgramData\PDQ\PDQConnectAgent"
-    
+
     .PARAMETER UseSsh, SshPort, Ps7ConfigName, WinPsConfigName
       Passed through to session creation if helper supports them.
-    
+
     .EXAMPLE
       Get-PDQDiagLogs
     .EXAMPLE
@@ -73,8 +73,8 @@ function Get-PDQDiagLogs {
   )
 
   begin {
-    $useUserHelper = [bool](Get-Command -Name Start-NewPSRemoteSession -ErrorAction SilentlyContinue)
     Initialize-TechToolboxRuntime
+    $useUserHelper = [bool](Get-Command -Name Start-NewPSRemoteSession -ErrorAction SilentlyContinue)
 
     # Local session fallback if helper isn't present
     function New-ToolboxSession {
@@ -228,8 +228,8 @@ function Get-PDQDiagLogs {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAwwlR0UT1XjrUR
-# rja7IK/XMg0eqq/nTNC+BndPWNeWwqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAVCTNy+kFOg19T
+# TD9/MGYm4L89McwxxozbiESblO6ypqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -362,34 +362,34 @@ function Get-PDQDiagLogs {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAZuJE+9aUr
-# /OOUcAF94L0tACxOU93xiDLG99QuBcYeDDANBgkqhkiG9w0BAQEFAASCAgB3Vp64
-# 31xB61QopeIDb5jUhKi2VV/uGVNTMv4rLSJW+LdIedw8eSKQzWBIPh+lM6BULCAD
-# FUst7KmSNN3M9z++y5qgHyxNJrAnkqrVA/Ms9JrJrF+ioL2kAbc/T/PjN3jCpGT2
-# gi8QiMesK8dzIhKBIyBNn6Q6b3gtdrIE/4EG9YNleFE4oO4GtT3X5+owO0U0i/7T
-# fzNEGz09mK0Li9y7dnmFztTRIoReQ8X5i5xmhjLOtg4XeYA9bosPUWMUXGmcec7f
-# Rn+n7RNbq1kSZm+I1JBj4BSsMgmRjUy4R4ef8plVkFWAHVy1Irg9OFZvRxZdtcFm
-# fbxcz7Q5cBwDWnRehsVzs3nzQKaViScJ+7FUCHHv8UWq85IXLwEUjQdLIm8kuGhm
-# tj31yDWtLHttfnVLIRV1IOlHJUHFoVSXr5mewp/cyIAsfwfb2DNQnb6rDU1bxRZn
-# JCwECAmwa9lyQwYGTQieXENmfYeZVezN8+no4GhrktX/3o1pjNreoBKxdoVBYvJl
-# m3DyEqSNbkmsNSTgyQGVTI+lEXMFmurJh0PHiwykeIQ2NgLbzKvOr41ZN0vPXlUZ
-# QHCTRBP10WjDljYl31mplA0/s+3a4qaPQRqAcDfqTrAuM5hUV4f+578z+b+dtfkY
-# NpYqVFeTGDMAswgrl49H/YMzfUQR+Ub/8VdxmKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA+OTW3wfgP
+# qqgKs2KwOL2JvGHYRPKWgG+nGLtGYSKZWzANBgkqhkiG9w0BAQEFAASCAgCM0rEi
+# YWkPouXpxXcI6jg/bA1pxReHyshEeUZxN2QzuJMQM6TgS2Q4j9llyR3O0SIYTN5i
+# atRs+LXTensS484oRhdhXZgekJelwvHzy8EnWWnsOADKafDSeEEhQmS33rM5cOFJ
+# kBiIgs30b7OiqSVi8KUIOkNrJLWiTl4cfegOeCgI3i1DZVLrl5QqjQaRJwBHzA3Q
+# +/fROqSbcqU3hqeJCToLIUiWFdW/ifGXJDbNXDQ7hTSR1FiZ/y++zJB9pPFnpGE1
+# b5oGCTCHwyAet20ypuYD5M4zp2+jZpAoEyuV3Qyn/ijDnq4R2wUfYjPcZ+LZB5Ui
+# 3WjHRLwc6iIcqyW9rMLGUPQM0oDGa7uLTPeAsmHKVPRaEasqx3icq28iTDpOsQIj
+# xxhSI1laF3AEpoHrvkltySE0HDONleX0RsUrohPHnE9wuMU6byLpIgvFh/zhvhrz
+# 1Z4gnJ2Nds0ZjichHmDd3sZWopEUqNkGdXJSfuPOunAr7ee6wyGIi6PCcPzfJlQm
+# GXB25QiPu4KWJWJpld2HPVhIIu7dhvuXajXkMZTcp5F+SaATwVxIzVBBv/J4TpOr
+# ULHvPf+2PDfs6EC2oqwXyOMufXNhvEyCMLm1h++R3FkvKv2WFo0MQDiq508rP64t
+# m/GeWdxMDedCtSbq7Cks4GaW5XDj5ik+CVNnrqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMTlaMC8GCSqGSIb3DQEJBDEiBCCYG3OURjAOUjLJ4fW/
-# NhE6sXUPmGEgjzIHl/qaHjHXIzANBgkqhkiG9w0BAQEFAASCAgC/WcU1/pOcTt7E
-# 9vtD1zb7Lz+YVXO2ge2q8juu7hM5g/guxwGaW0sbjr8zX9BERWEvT5t+FEPIA3tR
-# DhT0iq8Tf7u5ympCwKyjvT3Q7nQ1nmOupuyBe0oH6uRGOYoDcNuUwo80U/DFNhZS
-# R5nIXenh342H68OAbSTLMHPBNilnT2MwMeEO6e3NE5GZCUchdh6loHxAKKN6Tbqa
-# 6Q3CpPlGQSsMRqP1aHhkmfbDUonPuqSwSHXlwYdIwWrfWio+ro/y8PXs+oJ2r6Zw
-# /ETk04xf4ldOd6nOrExMh80I7XTvEQhJ5M9WiBbWuQvrTvN1FH7z3ZKtRXFfjLS5
-# VVV5rpXSl8hU5FEcxtCQ/MGP+ciCdGG2SDG16ZMlT6vwbfSdIku6mmNGCNbOPUrs
-# FFZ9Q2GFo81/G76OjgmxYALlOrhmMTOUZeVBl6Kmm3QqJqhLaDBtxoMebvpuyZ1a
-# Jhb0iPfV64Fz0AEuadcsURRgx9OLRT43RNzldU+VY3liRkn1LrWl9M+6a5ELT4Q1
-# Si0kyp7x/OpMEYt3uoWV+VYvln5AQCe3Jz/gqGO8dixFERPClgSmb0JGbfHzfF9m
-# kx3DqtYZ+hr3NP5K2DscbYzRSCB8GBNBJ2qJX7Mvr184+rfBD2lYOpW5NPO/zg5x
-# LQdjN4QsckJ/Tb5KhVMHjU7OPUmq4g==
+# BTEPFw0yNjA0MTAyMTEyNDNaMC8GCSqGSIb3DQEJBDEiBCBmfjQpuSnfxjIZX+GW
+# xxLsYBeqGY1QDeadMlA95ZhjYDANBgkqhkiG9w0BAQEFAASCAgCHH4C+iKOObNnj
+# SUIlyjLU4qua2ed59nni7Hzmq8RvHEQvIeRyJDNpfspfB9wlO2LRm1hhU/goB5xV
+# ewt9XXGnpa3mRHGPdUo1iy+pY8o1BezH/nDlfPOtECrLFXRuF+NKcdZ77G1OuoBJ
+# hSt0ubKwbINitYTFhip/9oGg7CMRjOl6Hn5u1Oj5z+Gz6kHyBXuoNhYLclScHNo8
+# /ZkMuYquRe+1jjNuFrMiYrf66nhrfLpbvrDmt68E7a2x43EM2NhN6YzXFHywDSZR
+# 9Ermptb+thcewjlOclHHHXGOYK48KvSMSve+rWdZSdfg7drajt00AMciWhF3LibZ
+# pvwsk70vt7YR05/BTTZ7/9ooYFfBirgeq5z95GW/3dKFJvm4UaFVJ4C8R9N+j5GX
+# iGEXpPYjGkrA6mdVymxoABmVdJwqig5r1JcI1L/OkC1Vw0dE2NND03BXBr3EoihW
+# UPj79xEhwc2ffaMDFcSjzOrkINCIPJhCV9GL5mlS6qq1zUqRK8lshXJoIYgO+UIZ
+# oDet9VuByvrO9ROE48rRDkSyv3+opc7bQLtiEtjlAqLv+dSJvXffVbyuiuL/B4Q2
+# wG425GCrHbOtJ7+iA0pTBFMmRnkOT3HvqUGMFV2pUFYxxvPxtrrJWVbF44d9tj2E
+# l8oySwTLXKL3JStB8ycAKlh9rRL6fw==
 # SIG # End signature block
