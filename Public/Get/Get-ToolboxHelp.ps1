@@ -2,419 +2,631 @@ function Get-ToolboxHelp {
     <#
     .SYNOPSIS
         Provides help information for TechToolbox public commands.
+
     .DESCRIPTION
-        Displays overview, lists commands (grouped by verb + synopsis), shows
-        full help (or examples) for a given command, or prints the effective
-        configuration (optionally as JSON).
+        Get-ToolboxHelp displays help information for TechToolbox commands and
+        configuration in an interactive, formatted manner. The function supports
+        multiple display modes:
+
+        - Overview: Displays general information and usage suggestions
+        - List: Displays all public exported commands grouped by verb
+        - Command Help: Shows detailed help for a specific command with fuzzy
+          matching
+        - Configuration: Displays the effective configuration currently loaded
+
+        When running in an interactive console, output is formatted with colors
+        and tables. In non-interactive environments, output is redirected to the
+        Information stream for better logging compatibility.
 
     .PARAMETER Name
-        A specific command name (or partial name) to show help for. Supports
-        fuzzy matching and suggestions if not found.
+        The name or partial name of a command to display help for. Supports
+        fuzzy pattern matching using wildcards. If multiple matches are found,
+        suggestions are displayed.
 
     .PARAMETER List
-        Lists available TechToolbox commands (PUBLIC/EXPORTED ONLY). By default
-        groups by verb and shows synopsis when available.
+        Switch to list all public exported TechToolbox commands. Commands are
+        grouped by verb and sorted alphabetically. Each command displays its
+        associated synopsis when available.
+
+        Can be combined with -AsJson for structured output.
 
     .PARAMETER ShowEffectiveConfig
-        Prints the effective configuration currently loaded (or attempts to load
-        config.json directly if runtime init didn’t load it).
+        Switch to display the effective configuration currently loaded in the
+        TechToolbox runtime. If no configuration is loaded, attempts to load
+        config.json directly from the module Config directory.
+
+        Can be combined with -AsJson for structured output.
 
     .PARAMETER AsJson
-        Outputs list/config as JSON.
+        When used with -List or -ShowEffectiveConfig, outputs the result as JSON
+        instead of human-readable format. Useful for scripting and pipeline
+        integration.
 
     .PARAMETER Examples
-        When used with -Name, displays Examples-only help for that command.
+        When used with -Name, displays only the Examples section of the help
+        instead of the full help content. Ignored when -Name is not specified.
+
+    .INPUTS
+        None. Get-ToolboxHelp does not accept pipeline input.
+
+    .OUTPUTS
+        System.String Formatted help text (interactive mode) or error messages
+
+        System.Object When -AsJson is specified, outputs a JSON-serialized
+        object
+
+    .EXAMPLE
+        PS> Get-ToolboxHelp
+
+        Displays the main help overview with common usage commands and links.
+
+    .EXAMPLE
+        PS> Get-ToolboxHelp -List
+
+        Lists all public TechToolbox commands grouped by verb with synopses.
+
+    .EXAMPLE
+        PS> Get-ToolboxHelp -List -AsJson | ConvertFrom-Json
+
+        Lists all public commands in JSON format for structured processing.
+
+    .EXAMPLE
+        PS> Get-ToolboxHelp Invoke-Subnet
+
+        Shows detailed help for the first command matching "Invoke-Subnet".
+        If exact match not found, displays suggestions.
+
+    .EXAMPLE
+        PS> Get-ToolboxHelp Get-SystemSnapshot -Examples
+
+        Displays only the Examples section for Get-SystemSnapshot.
+
+    .EXAMPLE
+        PS> Get-ToolboxHelp -ShowEffectiveConfig
+
+        Displays the current effective configuration loaded by TechToolbox.
+
+    .EXAMPLE
+        PS> Get-ToolboxHelp -ShowEffectiveConfig -AsJson | Out-File config-export.json
+
+        Exports the effective configuration as JSON to a file.
+
+    .NOTES
+        Author: TechToolbox Team Version: 1.0.0
+
+        ENVIRONMENT COMPATIBILITY: The function automatically adapts output
+        format based on the host environment. In interactive console hosts,
+        colored text and formatted tables are used. In non-interactive hosts
+        (like ISE ServerHost or scheduled tasks), output is sent to the
+        Information stream.
+
+        COMMAND DISCOVERY: Only PUBLIC/EXPORTED functions are searched. Private
+        functions are not included in the catalog.
+
+        CONFIGURATION LOADING: Uses a two-stage approach:
+        1. First checks if configuration is already loaded in script scope
+        2. Attempts to load config.json from module Config directory if needed
+
+        This ensures compatibility with both module-initialized and standalone
+        script execution contexts.
+
+    .RELATED LINKS
+        Get-Help Get-Command Get-Module
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Overview')]
     param(
-        [Parameter(Position = 0)]
+        [Parameter(Position = 0, ParameterSetName = 'Command', ValueFromPipelineByPropertyName = $false)]
+        [Alias('CommandName')]
+        [AllowEmptyString()]
+        [ValidateNotNull()]
         [string]$Name,
 
+        [Parameter(ParameterSetName = 'List')]
         [switch]$List,
+
+        [Parameter(ParameterSetName = 'Config')]
         [switch]$ShowEffectiveConfig,
+
         [switch]$AsJson,
+
+        [Parameter(ParameterSetName = 'Command')]
         [switch]$Examples
     )
 
-    # ---------------------------
-    # Runtime initialization (best effort)
-    # ---------------------------
-    try {
-        Initialize-TechToolboxRuntime
-    }
-    catch {
-        Write-Verbose ("Get-ToolboxHelp: runtime init failed: {0}" -f $_.Exception.Message)
+    begin {
+        Set-StrictMode -Version 2.0
+        $ErrorActionPreference = 'Stop'
+
+        # Detect interactive mode
+        $hostEnvironment = Get-HostEnvironmentInfo
+        
+        # Initialize configuration state
+        $configState = @{
+            Loaded     = $false
+            Data       = $null
+            ModuleRoot = $script:ModuleRoot
+        }
     }
 
-    # ---------------------------
-    # Determine module name (resilient)
-    # ---------------------------
+    process {
+        try {
+            # Attempt runtime initialization
+            Initialize-RuntimeEnvironment
+
+            # Determine display mode and execute
+            switch ($PSCmdlet.ParameterSetName) {
+                'List' {
+                    Show-CommandList -AsJson $AsJson -HostEnv $hostEnvironment
+                }
+                'Config' {
+                    Show-Configuration -AsJson $AsJson -ConfigState $configState -HostEnv $hostEnvironment
+                }
+                'Command' {
+                    Show-CommandHelp -Name $Name -Examples $Examples -HostEnv $hostEnvironment
+                }
+                'Overview' {
+                    Show-HelpOverview -HostEnv $hostEnvironment
+                }
+                default {
+                    Show-HelpOverview -HostEnv $hostEnvironment
+                }
+            }
+        }
+        catch {
+            $ErrorMessage = "Get-ToolboxHelp: $_"
+            if ($hostEnvironment.IsInteractive) {
+                Write-Host $ErrorMessage -ForegroundColor Red
+            }
+            else {
+                Write-Information $ErrorMessage
+            }
+            throw
+        }
+    }
+
+    end {
+        # Cleanup if needed
+        $null = Remove-Variable -Name 'hostEnvironment', 'configState' -ErrorAction SilentlyContinue
+    }
+}
+
+#region Helper Functions
+
+function Get-HostEnvironmentInfo {
+    <#
+    .SYNOPSIS
+        Determines the current host environment capabilities.
+    #>
+    param()
+
+    $isServerHost = $Host.Name -like '*ServerHost*'
+    $supportsUI = $null -ne $Host.UI -and $null -ne $Host.UI.RawUI
+
+    return @{
+        Name          = $Host.Name
+        IsInteractive = -not $isServerHost -and $supportsUI
+        SupportsUI    = $supportsUI
+        IsServerHost  = $isServerHost
+        BufferWidth   = if ($supportsUI) { $Host.UI.RawUI.BufferSize.Width } else { 120 }
+    }
+}
+
+function Initialize-RuntimeEnvironment {
+    <#
+    .SYNOPSIS
+        Initializes the TechToolbox runtime (best effort).
+    #>
+    param()
+
+    if (Get-Command -Name 'Initialize-TechToolboxRuntime' -ErrorAction SilentlyContinue) {
+        try {
+            Initialize-TechToolboxRuntime -ErrorAction SilentlyContinue | Out-Null
+        }
+        catch {
+            Write-Verbose ("Get-ToolboxHelp: Runtime initialization failed: {0}" -f $_.Exception.Message)
+        }
+    }
+}
+
+function Get-ModuleInfo {
+    <#
+    .SYNOPSIS
+        Retrieves the current module reference.
+    #>
+    param()
+
     $modName = $PSCmdlet.MyInvocation.MyCommand.ModuleName
-    if (-not $modName) { $modName = $ExecutionContext.SessionState.Module.Name }
-    if (-not $modName) { $modName = 'TechToolbox' }
+    if (-not $modName) {
+        $modName = $ExecutionContext.SessionState.Module.Name
+    }
+    if (-not $modName) {
+        $modName = 'TechToolbox'
+    }
 
-    # Grab module object (for ExportedFunctions)
     $mod = Get-Module -Name $modName -ErrorAction SilentlyContinue
     if (-not $mod) {
-        # In-module execution fallback
         $mod = $ExecutionContext.SessionState.Module
     }
 
-    # ---------------------------
-    # Interactive / non-interactive output behavior
-    # ---------------------------
-    $IsServerHost = $Host.Name -like '*ServerHost*'
-    $SupportsHostUI = $null -ne $Host.UI -and $null -ne $Host.UI.RawUI
-    $IsInteractive = (-not $IsServerHost) -and $SupportsHostUI
-
-    function Write-TTText {
-        param(
-            [Parameter(Mandatory)]
-            [AllowEmptyString()]
-            [string]$Text,
-
-            [ConsoleColor]$Color = [ConsoleColor]::Gray,
-
-            [switch]$NoNewLine
-        )
-
-        if ($IsInteractive) {
-            if ($NoNewLine) {
-                Write-Host $Text -ForegroundColor $Color -NoNewline
-            }
-            else {
-                Write-Host $Text -ForegroundColor $Color
-            }
-        }
-        else {
-            Write-Information $Text
-        }
-    }
-
-    function Format-TTColumnText {
-        param(
-            [Parameter(Mandatory)]
-            [AllowEmptyString()]
-            [string]$Text,
-
-            [Parameter(Mandatory)]
-            [int]$RightWidth,
-
-            [Parameter(Mandatory)]
-            [string]$RightIndent
-        )
-
-        # Normalize: turn any embedded newlines/tabs/multi-space into single spaces
-        $clean = ($Text -replace '\s+', ' ').Trim()
-
-        if ([string]::IsNullOrWhiteSpace($clean)) {
-            return @('')
-        }
-
-        # Word-wrap to RightWidth
-        $lines = New-Object System.Collections.Generic.List[string]
-        $current = ''
-
-        foreach ($word in $clean -split ' ') {
-            if ($current.Length -eq 0) {
-                $current = $word
-                continue
-            }
-
-            if (($current.Length + 1 + $word.Length) -le $RightWidth) {
-                $current += " $word"
-            }
-            else {
-                $lines.Add($current)
-                $current = $word
-            }
-        }
-
-        if ($current) { $lines.Add($current) }
-
-        # Apply hanging indent to all continuation lines
-        $out = New-Object System.Collections.Generic.List[string]
-        $out.Add($lines[0])
-        for ($i = 1; $i -lt $lines.Count; $i++) {
-            $out.Add($RightIndent + $lines[$i])
-        }
-
-        return $out.ToArray()
-    }
-
-    # ---------------------------
-    # Resolve effective config safely
-    # ---------------------------
-    $configLoaded = $false
-    $Config = $null
-
-    if (Get-Variable -Name cfg -Scope Script -ErrorAction SilentlyContinue) {
-        $Config = $script:cfg
-        $configLoaded = [bool]$Config
-    }
-
-    if ($ShowEffectiveConfig -and -not $configLoaded) {
-        try {
-            if (-not $script:ModuleRoot) { $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase }
-            $configDir = Join-Path $script:ModuleRoot 'Config'
-            $cfgPath = Join-Path $configDir 'config.json'
-            if (Test-Path -LiteralPath $cfgPath) {
-                $Config = Get-TechToolboxConfig -Path $cfgPath
-                $configLoaded = [bool]$Config
-            }
-        }
-        catch {
-            Write-Verbose ("Get-ToolboxHelp: direct config load failed: {0}" -f $_.Exception.Message)
-        }
-    }
-
-    # ---------------------------
-    # Title varies by mode
-    # ---------------------------
-    $title =
-    if ($ShowEffectiveConfig) { 'TechToolbox Configuration' }
-    elseif ($List) { 'TechToolbox Command Catalog' }
-    elseif ($Name) { "TechToolbox Help: $Name" }
-    else { 'TechToolbox Help Center' }
-
-    # ---------------------------
-    # Header / Overview (shown only when interactive)
-    # ---------------------------
-    if ($IsInteractive) {
-        Write-Host ""
-        Write-Host "========================================" -ForegroundColor DarkCyan
-        Write-Host ("{0,-28}" -f $title) -ForegroundColor Cyan
-        Write-Host "========================================" -ForegroundColor DarkCyan
-        Write-Host ""
-    }
-
-    if (-not $ShowEffectiveConfig -and -not $List -and -not $Name) {
-        Write-TTText "A technician-grade PowerShell toolkit for:" Gray
-        Write-TTText "  • Diagnostics" Gray
-        Write-TTText "  • Automation" Gray
-        Write-TTText "  • Environment-agnostic workflows" Gray
-        Write-TTText "" Gray
-
-        Write-TTText "----------------------------------------" DarkGray
-        Write-TTText " Common Commands:" White
-        Write-TTText "----------------------------------------" DarkGray
-        Write-TTText "" Gray
-
-        Write-TTText "  Get-ToolboxHelp -List" Yellow
-        Write-TTText "    Displays available PUBLIC commands (grouped + synopsis)." Gray
-        Write-TTText "" Gray
-
-        Write-TTText "  Get-ToolboxHelp Invoke-SubnetScan" Yellow
-        Write-TTText "    Shows detailed help for Invoke-SubnetScan." Gray
-        Write-TTText "" Gray
-
-        Write-TTText "  Get-ToolboxHelp subnet" Yellow
-        Write-TTText "    Suggests matching PUBLIC commands if exact name isn't found." Gray
-        Write-TTText "" Gray
-
-        Write-TTText "  Invoke-PurviewPurge -CaseName 'XYZ123'" Yellow
-        Write-TTText "    Creates a Case search and purges the search results." Gray
-        Write-TTText "" Gray
-
-        Write-TTText "----------------------------------------" DarkGray
-        Write-TTText " For full help on any command:" White
-        Write-TTText "----------------------------------------" DarkGray
-        Write-TTText "" Gray
-        Write-TTText "  Get-ToolboxHelp <CommandName>" Yellow
-        Write-TTText "" Gray
-        Write-TTText "========================================" DarkCyan
-        return
-    }
-
-    # ---------------------------
-    # Effective configuration mode
-    # ---------------------------
-    if ($ShowEffectiveConfig) {
-        Write-TTText "" Gray
-        Write-TTText "Effective Configuration" Cyan
-        Write-TTText "----------------------------------------" DarkGray
-
-        if (-not $configLoaded) {
-            Write-TTText "(configuration not loaded)" Yellow
-            return
-        }
-
-        if ($AsJson) {
-            $Config | ConvertTo-Json -Depth 10
-        }
-        else {
-            $Config | Format-List
-        }
-
-        Write-TTText "" Gray
-        return
-    }
-
-    # ---------------------------
-    # List commands mode (PUBLIC ONLY)
-    # ---------------------------
-    if ($List) {
-        # Public commands only = exported functions
-        $cmds = @()
-        if ($mod -and $mod.ExportedFunctions.Count -gt 0) {
-            $cmds = $mod.ExportedFunctions.Values | Sort-Object Name
-        }
-        else {
-            # Safety fallback (rare)
-            $cmds = Get-Command -Module $modName -CommandType Function -ErrorAction SilentlyContinue |
-            Sort-Object Name
-        }
-
-        if ($AsJson) {
-            $out = foreach ($c in $cmds) {
-                $h = $null
-                try { $h = Get-Help $c.Name -ErrorAction SilentlyContinue } catch {}
-                [pscustomobject]@{
-                    Name     = $c.Name
-                    Verb     = $c.Verb
-                    Noun     = $c.Noun
-                    Synopsis = if ($h) { $h.Synopsis } else { $null }
-                }
-            }
-            $out | ConvertTo-Json -Depth 4
-            return
-        }
-
-        Write-TTText "" Gray
-        Write-TTText "Commands (PUBLIC / Exported) — grouped by verb" Cyan
-        Write-TTText "----------------------------------------" DarkGray
-        Write-TTText "" Gray
-
-        $helpCache = @{}
-
-        $cmds |
-        Group-Object Verb |
-        Sort-Object Name |
-        ForEach-Object {
-            $verb = $_.Name
-            Write-TTText "[$verb]" Cyan
-
-            $_.Group |
-            Sort-Object Name |
-            ForEach-Object {
-                $cmdName = $_.Name
-                if (-not $helpCache.ContainsKey($cmdName)) {
-                    try { $helpCache[$cmdName] = Get-Help $cmdName -ErrorAction SilentlyContinue }
-                    catch { $helpCache[$cmdName] = $null }
-                }
-
-                $syn = $null
-                if ($helpCache[$cmdName]) { $syn = $helpCache[$cmdName].Synopsis }
-
-                if ([string]::IsNullOrWhiteSpace($syn)) {
-                    Write-TTText ("  {0}" -f $cmdName) Yellow
-                }
-                else {
-                    $leftColWidth = 34
-                    $leftPrefix = "  {0,-$leftColWidth}" -f $cmdName
-
-                    # How wide is the right column? Use console width when possible
-                    $consoleWidth = 120
-                    if ($IsInteractive -and $Host.UI -and $Host.UI.RawUI) {
-                        $consoleWidth = $Host.UI.RawUI.BufferSize.Width
-                    }
-
-                    # Keep a sane minimum width so it doesn't get stupid on small buffers
-                    $rightWidth = [Math]::Max(40, $consoleWidth - ($leftColWidth + 2))
-
-                    # Continuation indent = spaces equal to left column + 2 leading spaces
-                    $rightIndent = ' ' * ($leftColWidth + 2)
-
-                    $formatted = @(Format-TTColumnText -Text $syn -RightWidth $rightWidth -RightIndent $rightIndent)
-
-                    # First line includes command name in left column
-                    Write-TTText ($leftPrefix + $formatted[0]) Gray
-
-                    # Remaining lines are already indented under the synopsis column
-                    for ($i = 1; $i -lt $formatted.Count; $i++) {
-                        Write-TTText $formatted[$i] Gray
-                    }
-                }
-            }
-
-            Write-TTText "" Gray
-        }
-
-        return
-    }
-
-    # ---------------------------
-    # Specific command help mode (PUBLIC fuzzy matching)
-    # ---------------------------
-    if ($Name) {
-        # Exact resolution first
-        $exact = Get-Command -Name $Name -ErrorAction SilentlyContinue
-
-        if (-not $exact) {
-            # Only suggest exported/public functions
-            $candidates = @()
-            if ($mod -and $mod.ExportedFunctions.Count -gt 0) {
-                $candidates = $mod.ExportedFunctions.Values
-            }
-            else {
-                $candidates = Get-Command -Module $modName -CommandType Function -ErrorAction SilentlyContinue
-            }
-
-            $matches = $candidates |
-            Where-Object { $_.Name -like "*$Name*" } |
-            Select-Object -ExpandProperty Name -Unique |
-            Sort-Object
-
-            if ($matches.Count -eq 1) {
-                $resolved = $matches[0]
-                Write-TTText "" Gray
-                Write-TTText ("Resolved '{0}' → '{1}'" -f $Name, $resolved) Yellow
-                $Name = $resolved
-            }
-            elseif ($matches.Count -gt 1) {
-                Write-TTText "" Gray
-                Write-TTText ("No exact command found for '{0}'." -f $Name) Yellow
-                Write-TTText "Did you mean:" Yellow
-                $matches | ForEach-Object { Write-TTText ("  {0}" -f $_) Gray }
-                Write-TTText "" Gray
-                return
-            }
-            else {
-                Write-TTText "" Gray
-                Write-TTText ("No command found matching '{0}'." -f $Name) Yellow
-                Write-TTText "Tip: try Get-ToolboxHelp -List" Gray
-                Write-TTText "" Gray
-                return
-            }
-        }
-
-        try {
-            Write-TTText "" Gray
-            Write-TTText ("Help for: {0}" -f $Name) Cyan
-            Write-TTText "----------------------------------------" DarkGray
-
-            if ($Examples) {
-                Get-Help -Name $Name -Examples
-            }
-            else {
-                Get-Help -Name $Name -Full
-            }
-
-            Write-TTText "" Gray
-        }
-        catch {
-            Write-TTText ("No help found for '{0}'." -f $Name) Yellow
-        }
-
-        return
+    return @{
+        Name   = $modName
+        Module = $mod
     }
 }
+
+function Write-FormattedText {
+    <#
+    .SYNOPSIS
+        Writes formatted text with appropriate output method.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Text,
+
+        [ConsoleColor]$ForegroundColor = [ConsoleColor]::Gray,
+
+        [switch]$NoNewline,
+
+        [bool]$IsInteractive = $true
+    )
+
+    if ($IsInteractive) {
+        $writeHostParams = @{
+            ForegroundColor = $ForegroundColor
+            NoNewline       = $NoNewline
+        }
+        Write-Host $Text @writeHostParams
+    }
+    else {
+        Write-Information $Text
+    }
+}
+
+function Split-TextToColumns {
+    <#
+    .SYNOPSIS
+        Wraps text to fit within specified column width with hanging indent.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(20, 200)]
+        [int]$MaxWidth,
+
+        [Parameter(Mandatory)]
+        [string]$HangingIndent
+    )
+
+    # Normalize whitespace
+    $normalized = ($Text -replace '\s+', ' ').Trim()
+
+    if ([string]::IsNullOrWhiteSpace($normalized)) {
+        return @('')
+    }
+
+    # Split into lines based on width
+    [System.Collections.Generic.List[string]]$lines = @()
+    [string]$currentLine = ''
+
+    foreach ($word in $normalized -split ' ') {
+        if ($currentLine.Length -eq 0) {
+            $currentLine = $word
+        }
+        elseif (($currentLine.Length + 1 + $word.Length) -le $MaxWidth) {
+            $currentLine += " $word"
+        }
+        else {
+            [void]$lines.Add($currentLine)
+            $currentLine = $word
+        }
+    }
+
+    if ($currentLine) {
+        [void]$lines.Add($currentLine)
+    }
+
+    # Apply hanging indent
+    [System.Collections.Generic.List[string]]$output = @()
+    [void]$output.Add($lines[0])
+
+    for ($i = 1; $i -lt $lines.Count; $i++) {
+        [void]$output.Add($HangingIndent + $lines[$i])
+    }
+
+    return $output.ToArray()
+}
+
+function Show-HelpOverview {
+    <#
+    .SYNOPSIS
+        Displays the help overview screen.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$HostEnv
+    )
+
+    if ($HostEnv.IsInteractive) {
+        Write-Host ''
+        Write-Host '========================================' -ForegroundColor DarkCyan
+        Write-Host 'TechToolbox Help Center' -ForegroundColor Cyan
+        Write-Host '========================================' -ForegroundColor DarkCyan
+        Write-Host ''
+    }
+
+    Write-FormattedText -Text 'A technician-grade PowerShell toolkit for:' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '  • Diagnostics' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '  • Automation' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '  • Environment-agnostic workflows' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+
+    Write-FormattedText -Text '----------------------------------------' -ForegroundColor DarkGray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text ' Common Commands:' -ForegroundColor White -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '----------------------------------------' -ForegroundColor DarkGray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+
+    Write-FormattedText -Text '  Get-ToolboxHelp -List' -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '    Lists all available PUBLIC commands (grouped by verb).' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+
+    Write-FormattedText -Text '  Get-ToolboxHelp Invoke-SubnetScan' -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '    Shows detailed help for a specific command.' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+
+    Write-FormattedText -Text '  Get-ToolboxHelp -ShowEffectiveConfig' -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '    Displays the current configuration.' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+
+    Write-FormattedText -Text '========================================' -ForegroundColor DarkCyan -IsInteractive $HostEnv.IsInteractive
+}
+
+function Show-CommandList {
+    <#
+    .SYNOPSIS
+        Displays all available commands grouped by verb.
+    #>
+    param(
+        [bool]$AsJson = $false,
+        [Parameter(Mandatory)]
+        [hashtable]$HostEnv
+    )
+
+    $modInfo = Get-ModuleInfo
+
+    # Retrieve exported functions
+    [System.Collections.Generic.List[System.Management.Automation.FunctionInfo]]$commands = @()
+    if ($modInfo.Module -and $modInfo.Module.ExportedFunctions.Count -gt 0) {
+        $commands = $modInfo.Module.ExportedFunctions.Values | Sort-Object Name
+    }
+    else {
+        $commands = Get-Command -Module $modInfo.Name -CommandType Function -ErrorAction SilentlyContinue | Sort-Object Name
+    }
+
+    if ($AsJson) {
+        $commandList = @()
+        foreach ($cmd in $commands) {
+            $help = $null
+            try {
+                $help = Get-Help -Name $cmd.Name -ErrorAction SilentlyContinue
+            }
+            catch {
+                # Suppress errors silently
+            }
+
+            $commandList += [PSCustomObject]@{
+                Name     = $cmd.Name
+                Verb     = $cmd.Verb
+                Noun     = $cmd.Noun
+                Synopsis = if ($help) { $help.Synopsis } else { '' }
+            }
+        }
+
+        $commandList | ConvertTo-Json -Depth 4
+        return
+    }
+
+    if ($HostEnv.IsInteractive) {
+        Write-Host ''
+        Write-Host 'Commands (PUBLIC / Exported) — grouped by verb' -ForegroundColor Cyan
+        Write-Host '----------------------------------------' -ForegroundColor DarkGray
+        Write-Host ''
+    }
+
+    [hashtable]$helpCache = @{}
+    $columnWidth = $HostEnv.BufferWidth - 36
+    $columnWidth = [Math]::Max(40, $columnWidth)
+
+    $commands | Group-Object -Property Verb | Sort-Object Name | ForEach-Object {
+        Write-FormattedText -Text "[$($_.Name)]" -ForegroundColor Cyan -IsInteractive $HostEnv.IsInteractive
+
+        $_.Group | Sort-Object Name | ForEach-Object {
+            $cmdName = $_.Name
+
+            # Lazy-load help
+            if (-not $helpCache.ContainsKey($cmdName)) {
+                try {
+                    $helpCache[$cmdName] = Get-Help -Name $cmdName -ErrorAction SilentlyContinue
+                }
+                catch {
+                    $helpCache[$cmdName] = $null
+                }
+            }
+
+            $synopsis = $null
+            if ($helpCache[$cmdName]) {
+                $synopsis = $helpCache[$cmdName].Synopsis
+            }
+
+            if ([string]::IsNullOrWhiteSpace($synopsis)) {
+                Write-FormattedText -Text ("  {0}" -f $cmdName) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+            }
+            else {
+                $leftColWidth = 34
+                $leftPrefix = "  {0,-$leftColWidth}" -f $cmdName
+                $hangingIndent = ' ' * ($leftColWidth + 2)
+
+                $wrappedLines = Split-TextToColumns -Text $synopsis -MaxWidth $columnWidth -HangingIndent $hangingIndent
+
+                Write-FormattedText -Text ($leftPrefix + $wrappedLines[0]) -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+
+                for ($i = 1; $i -lt $wrappedLines.Count; $i++) {
+                    Write-FormattedText -Text $wrappedLines[$i] -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+                }
+            }
+        }
+
+        Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    }
+}
+
+function Show-Configuration {
+    <#
+    .SYNOPSIS
+        Displays the effective configuration.
+    #>
+    param(
+        [bool]$AsJson = $false,
+        [Parameter(Mandatory)]
+        [hashtable]$ConfigState,
+        [Parameter(Mandatory)]
+        [hashtable]$HostEnv
+    )
+
+    $config = $null
+    $loaded = $false
+
+    # Stage 1: Check script scope
+    if (Get-Variable -Name 'cfg' -Scope Script -ErrorAction SilentlyContinue) {
+        $config = $script:cfg
+        $loaded = [bool]$config
+    }
+
+    # Stage 2: Attempt direct load
+    if (-not $loaded) {
+        try {
+            if (-not $ConfigState.ModuleRoot) {
+                $ConfigState.ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
+            }
+
+            $configPath = Join-Path $ConfigState.ModuleRoot 'Config' 'config.json'
+
+            if (Test-Path -LiteralPath $configPath) {
+                if (Get-Command -Name 'Get-TechToolboxConfig' -ErrorAction SilentlyContinue) {
+                    $config = Get-TechToolboxConfig -Path $configPath
+                }
+                else {
+                    $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+                }
+                $loaded = [bool]$config
+            }
+        }
+        catch {
+            Write-Verbose ("Get-ToolboxHelp: Configuration load failed: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text 'Effective Configuration' -ForegroundColor Cyan -IsInteractive $HostEnv.IsInteractive
+    Write-FormattedText -Text '----------------------------------------' -ForegroundColor DarkGray -IsInteractive $HostEnv.IsInteractive
+
+    if (-not $loaded) {
+        Write-FormattedText -Text '(no configuration loaded)' -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+        return
+    }
+
+    if ($AsJson) {
+        $config | ConvertTo-Json -Depth 10
+    }
+    else {
+        $config | Format-List
+    }
+
+    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+}
+
+function Show-CommandHelp {
+    <#
+    .SYNOPSIS
+        Displays help for a specific command with fuzzy matching.
+    #>
+    param(
+        [string]$Name,
+        [bool]$Examples = $false,
+        [Parameter(Mandatory)]
+        [hashtable]$HostEnv
+    )
+
+    $modInfo = Get-ModuleInfo
+
+    # Attempt exact match first
+    $command = Get-Command -Name $Name -ErrorAction SilentlyContinue
+
+    if (-not $command) {
+        # Fuzzy matching for exported functions only
+        [System.Collections.Generic.List[System.Management.Automation.FunctionInfo]]$candidates = @()
+
+        if ($modInfo.Module -and $modInfo.Module.ExportedFunctions.Count -gt 0) {
+            $candidates = $modInfo.Module.ExportedFunctions.Values
+        }
+        else {
+            $candidates = Get-Command -Module $modInfo.Name -CommandType Function -ErrorAction SilentlyContinue
+        }
+
+        $matches = $candidates |
+        Where-Object { $_.Name -like "*$Name*" } |
+        Select-Object -ExpandProperty Name -Unique |
+        Sort-Object
+
+        if ($matches.Count -eq 1) {
+            Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+            Write-FormattedText -Text ("Resolved '{0}' → '{1}'" -f $Name, $matches[0]) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+            $Name = $matches[0]
+        }
+        elseif ($matches.Count -gt 1) {
+            Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+            Write-FormattedText -Text ("Multiple commands found for '{0}':" -f $Name) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+            $matches | ForEach-Object { Write-FormattedText -Text ("  {0}" -f $_) -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive }
+            Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+            return
+        }
+        else {
+            Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+            Write-FormattedText -Text ("No command found matching '{0}'" -f $Name) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+            Write-FormattedText -Text 'Try: Get-ToolboxHelp -List' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+            Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+            return
+        }
+    }
+
+    try {
+        Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+        Write-FormattedText -Text ("Help for: {0}" -f $Name) -ForegroundColor Cyan -IsInteractive $HostEnv.IsInteractive
+        Write-FormattedText -Text '----------------------------------------' -ForegroundColor DarkGray -IsInteractive $HostEnv.IsInteractive
+
+        if ($Examples) {
+            Get-Help -Name $Name -Examples
+        }
+        else {
+            Get-Help -Name $Name -Full
+        }
+
+        Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+    }
+    catch {
+        Write-FormattedText -Text ("Error retrieving help for '{0}': {1}" -f $Name, $_.Exception.Message) -ForegroundColor Red -IsInteractive $HostEnv.IsInteractive
+    }
+}
+
+#endregion Helper Functions
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCDMeQDZ9z1jqed
-# Fw6fS3bPa3VJS6NMa+y9RDHcAUbmXqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBZbgxxFxrngrKz
+# H0iiYjLG8t4HzgsV7f4s1Xvh5dcIsqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -547,34 +759,34 @@ function Get-ToolboxHelp {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCumWwtu+Qw
-# qxVKVU9icm6n5t3UlugMT0SBksDiBN4rKjANBgkqhkiG9w0BAQEFAASCAgDHqRui
-# QksoJBNNL+6QO1XoEOd+KuglHqJGQEDH6xkwS3XpDCjeRjKyRV6o3nGvTeoxfzfT
-# Dg1of76hl6Ajk0WyLcktASF2cGX70WOcY+Mymml6ubQsCLdbC8DAu1T8mJuiZDXR
-# ecsSzpZbU7ZE9py7mIxANO1PusUPcPvEOzunouvqHcQVO6cxqwiqA1HBRW43Idb4
-# JyRAC3a7X69vY/vtJgGricFWAtDp42xuqrCgT0Q5pdwmz92RbEi83G8b/CMT4ljx
-# ctJgAzzFYq5zy5tTBe/f3yrguW0fyh8oDp6ZssLoEv3+Wek1aVNRVJucnQ/Z2Hyj
-# cSZSgUzPPzF9kfHEf4vTVvHdsBne4VNyZm1O1ltC/LxnbavavwfyzLwjEJtufRa+
-# 2yyrb3Qgwm40cFX4oj/mS+iBHuF/XQeMzZo/ei+V4J3pzLz23olnTXDSW14sp/VP
-# XkuKWL6Oa/1DifLiYnr1Dy+q6asSmvJxLajEBcrLeOBatNHzzJGnZ/H6Jg+3UBtr
-# 7yE6G9GijzqHAN8JxHV6wGush5NvciU+diwHs8o2gtvKylOoXtUPB+9I48+heikU
-# ChvOEl+VujL5INK9c6bA389Hn3VH1eNNc51NnprUEqL4O1W0a9W8AQHbRrrRrmko
-# 97Fphfl0zu24jWHbAgvmG1oYOISSziX+BD/c6KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCZt4v+DgbR
+# ZMEHf565tIzYpDPBQv7IdsNAU/iYOVCN1DANBgkqhkiG9w0BAQEFAASCAgAyvcBF
+# ttFb6+yDnu1yFKz+EtJYy5gKnoWw/F6MGQMTukBc6Np3ssh69pxTCURCcSFC56Vp
+# GD7+orF5wexCWapF13g3EqtFqTqzr3xOtmqyYSZQ2qUL9c6mq7kSQOoy2stNxFPb
+# NyN7NR52n+U15dmnGXujc5ahftTveMmSP9yAPYCngaqiFX9qij+ELPuKEBdjutqh
+# BPE9RQfjR1ZsgQ//mhh00uNFwdGKEUB7uSeyUAIV5sXhKQIQxu+ad20u7WLwb6Qp
+# AzGr46JLh52SXqSY3Oe1CTzinV69/Ld1cHQPAl2D1p1JVI8bI4LZdGO1NJe6Pj0v
+# ufQ6Ailgr8nV8nGFPd01iF8RUjbWm6f+iRHEI+NR8/ugCgDqLOgUE7e06momqmPB
+# U1zoaHkc0Mf8WdGbKJKS3tQOxWgTJ76WK5yqUaJAKUGRgih3hEjwyBNxJaN5UPsH
+# Eu4B160puQsIM0wEdSSGtfQGgJ5kVVM4C8iXgzVcujLgtfWMTDrf8q2Ne15Tqj0b
+# x3etlgp7Eb+IiiRU7ulkmcc+ZGNY5oI4JR+OHgz4CIpFgI7wSX1y/HTIrLEMEcn5
+# +rzBfNosDf7FsEeqSRtZzmjvrSdtMYxP+xQFXtMd7vobw7CiPavInHP8E4qPEo2A
+# MtN9xUjY9yuEvFvKZfD+ZkYTFG80w0CYZ8bgEaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMjcxODI1MzRaMC8GCSqGSIb3DQEJBDEiBCDosxcRMxDk+RisD29n
-# CShYbsdsrdGmkQaV1NRdIKncXjANBgkqhkiG9w0BAQEFAASCAgCk4JTvODQtRrNf
-# vIAAFiagZ1/aXwS6LfsnrrewwqXBZsDOI5+QBjdT/a9mN6jtvaUS/v8HsMZo6U6j
-# UPe/oseUK0crUTYnkRZYqsxBbKydnsrNbFeCjeGmlNDz2HTHCNi6W5qLton8DT9n
-# 2EbKJqeTrQr8WeYTaIhpjnCB9xvchEFjnyGCt6hm3/OUUqOpQ3wYiER49ENz/8Zl
-# ImgNclakEyOtM8/3YL8A/YUdw1EcJmK3/q8yiNG5WMvYVdymXi62hmhr/cRl6OTs
-# 5y88YVB4Wpkj2/hV/4VHw9rJrpQdJKKoL0DuSxZ2gsMhoxB6yddLyh3Fi4FxfePp
-# 4yhxN27FOehZZHP1Q3Z0Xi+Th1+cMo24ehapw0EB8qIZ/TriDX55gLPOjoNLbR2i
-# hqUDD0v1yCeOmVAYQ2fH5Rt7tTA8MtLpS4rYMzP/0wbjPvtgmjSGNNdNQvfcsg7c
-# KeYzsrCkfbI1bjT9wWBcy2N5EBp2aV64RvSw6m7VmFvmNNYjMQt9TmjXwBqbB+9e
-# MLk/ZZzjHgfOXhKVF0APLgE8Va/ibhm3WobyRQ5Lh+RhSQVxjog77Q0qNDE0thTi
-# WhQIFUd8EdFVu3zFKm2vQeLR/oHevJ2I52GaLqGXjs8REM3l5YiQnYeRqsF7+NFI
-# 3q+NstTH12i+8AYhEUVCT4mRaZEmSA==
+# BTEPFw0yNjA0MTAyMTQ2MjlaMC8GCSqGSIb3DQEJBDEiBCABmr+yooYnCdSqm3RX
+# B7p/LsM6dovWzFbsHRrmEwK1wDANBgkqhkiG9w0BAQEFAASCAgBHfvYfbardakH2
+# B8SYAY37uoOleDzVUiob87kSykV72FopZr5wOZWmYFCpsUTUR6VRDNys9Ztnkq0W
+# l5S4uKjm0Xb8ESKAwukGmOnn8XDYSWWJf4jI9vDs0kELpfUI3nrBbHik6e2cP+qD
+# 0jb58sub3CRrURZsrwXT+qAa0S75CJy1afnGY3vnZmdjpnrBJy5ZHXJDDY1MrnCr
+# HEPXwTaV0CvIFc8nz9AdlSO+ZxXM//DNQyZ1Wyts2DtMvWlQvxPyoDIj7EnDI3RZ
+# TP9K0lBSVVG88yAZhSJd7nvECuW2PhVWjzvx5ZJaaMSx7MdpQKy6bgDCAHtHKHz8
+# +4STFs7NjaTn7EMVv+QzoRh/ltPzGV4BBnpq0mpdz1Lp0trTb/Mk2OskqIgPlJxx
+# 7Hcs+PVu7rLV+kv58CpZZPa2z1xNsM1zaZ5UZQR2utjfgWgxFh+O+9VxZyJs3HE7
+# AxAnAhfx9Vs54Ti5t65QEDDiPjPEPEwoq1pCtYa2nDG6PuLLW0d0Cv/TOmEvDNim
+# SdKUuIwNHhQOigDV9dluOVUPSGg52xnuTkiPC5n/JiqKefkQ5D4jS8bl8AODFS07
+# aiWLhGxG7ts/vhHu3fxylDVVczEkhwQtwHYaN5RcL/TF6QI/rycG4GQcDqDB253M
+# KoGe/rif5hL+AxXrCLx525HXoKi4qg==
 # SIG # End signature block
