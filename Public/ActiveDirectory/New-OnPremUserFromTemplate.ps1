@@ -1,55 +1,296 @@
-
-function New-OnPremUserFromTemplate {
+﻿function New-OnPremUserFromTemplate {
     <#
     .SYNOPSIS
-    Create a new on-premises AD user based on a template user.
+    Provisions a new on-premises Active Directory user account by copying
+    attributes and group memberships from a template user.
 
     .DESCRIPTION
-    Creates a new Active Directory user by copying attributes and group
-    memberships from a specified template user. Naming (UPN, SAM, alias) derives
-    from config unless overridden.
+    Creates a new Active Directory user account with characteristics derived
+    from a template user. This function automates the repetitive task of user
+    provisioning by duplicating standard configurations, organizational
+    assignments, and group memberships.
+
+    The function operates in the following sequence:
+    1. Locates and validates the template user (by identity or search criteria)
+    2. Derives the new user's naming convention (UPN, SAM account name) from
+       config or explicit parameters
+    3. Verifies idempotency (ensures user doesn't already exist)
+    4. Creates the new AD user with enabled status and forced password change
+    5. Copies specified attributes from the template (description, department,
+       company, office, manager, or custom attributes)
+    6. Configures proxy addresses with the primary SMTP address
+    7. Adds the new user to all non-excluded groups from the template
+
+    Naming derivation uses the TechToolbox configuration framework. If
+    -SamAccountName or -UpnPrefix are not explicitly provided, the function
+    calls Resolve-Naming to generate these values based on GivenName and
+    Surname.
+
+    Template location supports two parameter sets:
+    - ByIdentity: Directly specify the template user (faster)
+    - BySearch: Find template via attribute filters (flexible for complex
+      scenarios)
+
+    The function supports -WhatIf and -Confirm through ShouldProcess, allowing
+    dry-run validation before actual modifications.
 
     .PARAMETER TemplateIdentity
-    Identity (sAMAccountName, DN, SID, GUID) of the template user to copy.
+    Specifies the identity of the template user to copy from. Accepts any valid
+    Active Directory identity format: sAMAccountName, DistinguishedName (DN),
+    ObjectSID (SID), or ObjectGUID (GUID).
+
+    Used only with the ByIdentity parameter set. Mutually exclusive with
+    -TemplateSearch.
 
     .PARAMETER TemplateSearch
-    Hashtable of attribute=value pairs to locate the template (first match
-    wins).
+    Specifies a hashtable of LDAP attribute=value pairs to locate the template
+    user. All criteria are combined with AND logic; the first matching user is
+    used.
+
+    Example: @{ title='Software Engineer'; company='Acme Corp' }
+
+    Used only with the BySearch parameter set. Mutually exclusive with
+    -TemplateIdentity. Useful when template identity is unknown but
+    characteristic attributes are available.
 
     .PARAMETER GivenName
-    First name of the new user.
+    Specifies the first name (givenName attribute) of the new user.
+
+    Mandatory parameter. Used in the naming derivation (Resolve-Naming) if
+    -SamAccountName or -UpnPrefix are not provided.
 
     .PARAMETER Surname
-    Last name of the new user.
+    Specifies the last name (sn/surname attribute) of the new user.
+
+    Mandatory parameter. Used in the naming derivation (Resolve-Naming) if
+    -SamAccountName or -UpnPrefix are not provided.
 
     .PARAMETER DisplayName
-    Display name of the new user.
+    Specifies the display name (displayName attribute) of the new user.
+
+    Mandatory parameter. This is the user-friendly name visible in address books
+    and global distribution lists. Typically formatted as "FirstName LastName"
+    or "LastName, FirstName" depending on organizational standards.
 
     .PARAMETER TargetOU
-    DistinguishedName of the OU to create the user in. Defaults to template’s
-    OU.
+    Specifies the DistinguishedName (DN) of the organizational unit where the
+    new user will be created.
+
+    Optional. If omitted, defaults to the same OU as the template user. This
+    allows consistent placement without explicit specification. Use this
+    parameter to override and place the user in a different OU than the
+    template.
+
+    Example: "OU=Engineering,OU=Users,DC=company,DC=com"
 
     .PARAMETER SamAccountName
-    sAMAccountName for the new user. Derived if omitted.
+    Specifies the sAMAccountName (pre-Windows 2000 logon name) for the new user.
+
+    Optional. If omitted, the value is derived by calling Resolve-Naming with
+    the GivenName and Surname. The sAMAccountName must be unique within the
+    domain and typically follows organizational naming conventions (e.g.,
+    FirstinitialsLastname or FirstnameLastname, limited to 20 characters).
 
     .PARAMETER UpnPrefix
-    UPN prefix for the new user. Derived if omitted.
+    Specifies the UPN prefix (left side of @) for the new user's
+    UserPrincipalName.
+
+    Optional. If omitted, the value is derived by calling Resolve-Naming with
+    the GivenName and Surname. The full UPN is constructed as
+    UpnPrefix@{Tenant.upnSuffix} where the UPN suffix is read from config. The
+    UPN must be unique across all forests.
+
+    Example: "john.smith" (results in "john.smith@company.com" if upnSuffix is
+    "company.com")
 
     .PARAMETER CopyAttributes
-    Attributes to copy from template to the new user.
+    Specifies which attributes to copy from the template user to the new user.
+
+    Optional. Accepts an array of attribute names. Default includes:
+    - 'description'
+    - 'department'
+    - 'company'
+    - 'office'
+    - 'manager'
+
+    Attribute names are case-insensitive and mapped to LDAP names internally
+    (e.g., 'office' → 'physicalDeliveryOfficeName'). Unknown attributes are
+    treated as raw LDAP names and applied via the -Replace parameter.
+
+    If the user provides explicit -CopyAttributes, that list is used. Otherwise,
+    the function checks config (settings.naming.copyAttributes) for a configured
+    list, then falls back to the hardcoded defaults above.
+
+    Special handling: The 'manager' attribute is only copied if the template's
+    manager value is a valid DN (matching ^CN=.+,DC=.+).
 
     .PARAMETER ExcludedGroups
-    Group names to exclude when copying memberships.
+    Specifies group names to exclude when copying group memberships from the
+    template.
+
+    Optional. Default list includes all well-known privileged groups:
+    - 'Domain Admins'
+    - 'Enterprise Admins'
+    - 'Schema Admins'
+    - 'Administrators'
+    - 'Protected Users'
+    - 'Server Operators'
+    - 'Account Operators'
+    - 'Backup Operators'
+    - 'Print Operators'
+    - 'Read-only Domain Controllers'
+    - 'Enterprise Read-only Domain Controllers'
+
+    Prevents accidental assignment of administrative or sensitive group
+    memberships. The function retrieves all groups the template belongs to and
+    adds the new user to all groups except those in this exclusion list.
 
     .PARAMETER InitialPasswordLength
-    Length of the generated initial password.
+    Specifies the length of the auto-generated initial password.
+
+    Optional. Default is 16 characters. The password is generated with mixed
+    case, numbers, and symbols (specifically 3 non-alphanumeric characters) to
+    meet complexity requirements.
+
+    The initial password is displayed in the function output and is subject to
+    ChangePasswordAtLogon, forcing the user to choose a new password at first
+    logon.
 
     .PARAMETER Credential
-    Directory credential to run AD operations as.
+    Specifies the Active Directory credential under which all AD operations
+    execute.
+
+    Mandatory parameter. Typically a service account with appropriate AD
+    permissions:
+    - Create User objects (User-Force-Change-Password)
+    - Modify user attributes
+    - Add members to groups
+    - Read template user and group properties
 
     .PARAMETER Server
-    Optional DC to target (avoid replication latency during create+modify).
+    Specifies a specific domain controller to target for AD operations.
+
+    Optional. Useful when:
+    - Avoiding replication latency (create + immediate modifications on same DC)
+    - Targeting specific datacenters or regions
+    - Working around temporary replication issues
+    - Consolidating operations during change windows
+
+    If omitted, AD operations use the default domain controller selection logic
+    (which typically targets the closest available DC).
+
+    .INPUTS
+    None. This function does not accept pipeline input.
+
+    Callers must supply all parameters explicitly.
+
+    .OUTPUTS
+    System.Management.Automation.PSCustomObject
+
+    Returns a custom object with the following properties:
+    - UserPrincipalName (string): Full UPN of the created user
+    - SamAccountName (string): sAMAccountName of the created user
+    - DisplayName (string): displayName of the created user
+    - TargetOU (string): DistinguishedName of the OU where user was created
+    - CopiedAttributes (string[]): List of attributes copied from template
+    - GroupsAdded (string[]): List of group names the user was added to
+    - InitialPassword (string): Auto-generated temporary password
+
+    The output object is forced to display via Format-List and Out-Host to
+    ensure visibility even if the caller pipes to Out-Null.
+
+    .EXAMPLE
+    $cred = Get-Credential
+    $result = New-OnPremUserFromTemplate ` -TemplateIdentity 'john.smith' `
+        -GivenName 'Jane' ` -Surname 'Doe' ` -DisplayName 'Jane Doe' `
+        -Credential $cred
+
+    Creates a new user "Jane Doe" based on the template user "john.smith", using
+    AD credential from Get-Credential. All other parameters (naming, target OU,
+    attributes, groups) are derived from the template or config defaults.
+
+    .EXAMPLE
+    $cred = Get-Credential
+    $result = New-OnPremUserFromTemplate ` -TemplateSearch @{
+        department='Engineering'; company='Acme' } ` -GivenName 'Bob' ` -Surname
+        'Johnson' ` -DisplayName 'Bob Johnson' ` -SamAccountName 'bobj' `
+        -UpnPrefix 'bob.johnson' ` -TargetOU
+        'OU=Engineering,OU=Users,DC=company,DC=com' ` -CopyAttributes
+        @('description', 'department', 'company') ` -Credential $cred ` -Server
+        'DC01.company.com'
+
+    Creates a new user using template search (flexible lookup), overrides naming
+    and OU placement, specifies exact attributes to copy, and targets a specific
+    DC.
+
+    .EXAMPLE
+    $cred = Get-Credential
+    $result = New-OnPremUserFromTemplate ` -TemplateIdentity 'template.user' `
+        -GivenName 'Alice' ` -Surname 'Williams' ` -DisplayName 'Alice Williams'
+        ` -ExcludedGroups @('Domain Admins', 'Sensitive Group') `
+        -InitialPasswordLength 24 ` -Credential $cred ` -WhatIf
+
+    Performs a dry-run (-WhatIf) to preview user creation and group assignments
+    without making actual changes. Excludes two specific groups and uses a
+    24-character password. Useful for validation before production execution.
+
+    .NOTES
+    CONFIGURATION DEPENDENCY: This function requires TechToolbox configuration
+    to be loaded via Initialize-TechToolboxRuntime. The following config
+    sections must be present:
+    - settings.tenant.upnSuffix: The primary UPN domain suffix (e.g.,
+      "company.com")
+    - settings.naming.copyAttributes (optional): Custom list of attributes to
+      copy
+    - settings.naming resolution functions for deriving SamAccountName and
+      UpnPrefix
+
+    IDEMPOTENCY: Before creation, the function checks if a user with the target
+    UPN already exists. If found, the function logs a warning and returns
+    without creating a duplicate. Plan accordingly when retrying failed
+    provisioning operations.
+
+    PERMISSIONS: The Credential account must have:
+    - Create User Objects on the target OU
+    - Reset Password permission (for setting initial password)
+    - Write access to user attributes being modified
+    - Read access to template user and all groups
+    - Add Members permission on target groups
+
+    NAMING DERIVATION: If -SamAccountName or -UpnPrefix are omitted,
+    Resolve-Naming is called to derive these values. This function must exist
+    and return an object with properties .Sam and .UpnPrefix. Consult your
+    Resolve-Naming documentation for conformance to organizational naming
+    standards.
+
+    GROUP COPY BEHAVIOR: The function retrieves all groups from the template's
+    memberOf property and adds the new user to each group (except excluded
+    groups). If a group add fails, it is logged as a warning but does not stop
+    the provisioning. Check logs for partial group assignments.
+
+    MANAGER ATTRIBUTE: The manager attribute is only copied if the template's
+    manager value is a distinguished name (DN). If the template's manager is
+    stored in a different format or is empty, it is skipped.
+
+    PROXY ADDRESSES: A single primary proxyAddress is configured at creation
+    time in the format "SMTP:UpnPrefix@UPN_SUFFIX". Additional proxy addresses
+    or secondary SMTP addresses must be added separately or via directory
+    synchronization.
+
+    INITIAL PASSWORD: The auto-generated password is returned unencrypted in the
+    output object. The caller is responsible for secure delivery (e.g.,
+    encrypted email, secure portal). The password forces a reset on first logon
+    via ChangePasswordAtLogon.
+
+    PERFORMANCE: When targeting a specific domain controller via -Server,
+    replication latency between create and modify operations is eliminated,
+    improving reliability with rapid provisioning scripts.
+
+    .RELATED LINKS
+    Get-ADUser New-ADUser Set-ADUser Add-ADGroupMember Resolve-Naming
+    Initialize-TechToolboxRuntime
     #>
+
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(ParameterSetName = 'ByIdentity')]
@@ -352,8 +593,8 @@ function New-OnPremUserFromTemplate {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBH8jSLSQVPJi1b
-# 7Z7uDE4fffcHV9GTXFGK+hsxf7DaC6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD3DsU8f/rfftV1
+# g/gm+n298i0JSrOH69PQjqBEd/1kA6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -486,34 +727,34 @@ function New-OnPremUserFromTemplate {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCOxFOerK7B
-# CB3jzGh2sveCQ59HNeHszJwKHTi9BobAbjANBgkqhkiG9w0BAQEFAASCAgDWboYS
-# potwUY373Xzrw6ydQetaBPecdpBq5gcOA7HvRnctpxoCMzVNLCoWyQ6nLU7UjMup
-# mB+Pn3tYxkYbD/7+M7lprU6sCX4gA6RueNOAcVawzndNUQkYGDpoMapnCz5MO7ei
-# 2mTYWL6px5sSk/mGJn3kXVuAdZi6yNl5aH7ojdVL/OjvXX2riZl1l9prWoErEkM0
-# vCv46RpD3+apG5W2VocIyEsspW1GhUDZMSGXguJVT1LIv3gU7N71KNjwbIo4kBwA
-# e7o8dnDbjDXEQmQdEeG0NIQDftL57D8rdpyXQPAAXSDHvyMmDvu/fxbZeGQvyP1r
-# 9/kr6SabfBdZkmebBPzXMEs/SHPn8w+Z4pbYGxKJFUwE6zoXNToh/6kf0tX66dhF
-# izrlT2ncy5jJylIkFSsjgzqlSuYjPJG1EzU9/0F1cZXy1HcwGcl9sMv/oaoEtag/
-# +3BOGJki/ujixrhWDUgu1Oo21ipnLQaZka2NL3H/nQtdDMbewVEIOdFAZNsx0h8Q
-# X8jcW8WPWGqbaK9PRyFX7VFY/okDTIRGcs1WmpNsqbZPVr7I8oUTLhbuWVSpUleT
-# wFET68TAzU2Gd9f95TA9+jjzXXQGVHz3eM6T1YIychntXjKVvUS8HmO7jUM/WPts
-# 7sBu1p9vt50jVqvwAB0flKue06qIOHm49FKkdqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCp2fviRtRH
+# dRWWHycWJ3MZ+x+tTAbA0Y95QrAoMw7vjDANBgkqhkiG9w0BAQEFAASCAgCR1LsL
+# gqoUmoQxnzcG1a9KJWwmVM60+HRdhpaSFJgtCB5NRNNxa9ZRjFVCEW3Av+fcHhMW
+# xzPJ3rYnc+rC1A4DvvuqgzTTOfiUjQCHRlVqrb/QsfT0nT87F0JPFZUilGdqQDaR
+# CzyQ6yyymSPKV3UkOyw1CjucFtbhcGL8SRnidQml6Y5Hub73lQ2SxrzVMb6/e3a1
+# oCR6dUuDhhOXy2ve803BMoHKE+LR/oRA7Pn0NnWNIAY+tx5syGIxOTsxATr/h/sL
+# THuM52Mz22hSFrBFKW+nQ+F4cmpO2ncs3VBfsgni3fbVEXPBNHFgLjwUoMOR9or8
+# qLTCgyo67ChjkodbdhpZurzEl9K7O9PeZkQFQHouToqJXUqTUz9cFQ7E0QJJkTOs
+# 97dOjnIdsMUHmltGdSPoz3NGFWT8iMs0bouNCZAWQ83Va4ruftLa3CDIrTsJb9H0
+# PH9LDkroPE83uSzpK6evqBBARA6I3DlMeKn6Fk+lqvmeAEwLxKpGy0tNLhC2PK25
+# Y9x0lIzOGTTHYesxrt/c1VcUxz2xMrwDQ0pzvCZh5ucDqc/kAn+Q9pGnn1lMzEcA
+# w5P065BUUm2kHCRm782WvOe2qIV1eZVfVTCwtuWHP8uABYi7aV+5Kpbyw3qkil+b
+# f1dYolifMnI/yqfU6FWsoxTJxaLywPVEN77bsaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDYxODE3MjFaMC8GCSqGSIb3DQEJBDEiBCA8QdxoPNPrcllS7h6p
-# VUMDm2DBwg52SJR6Qxx+wczSkDANBgkqhkiG9w0BAQEFAASCAgCki7KGtTeZRdm4
-# moxIi0PTOQ2pandh1QiOzUTFS6V4Ne4/3+nQNEgusmxeuAeAmqDa3WVq7UI0NfVp
-# PK1LQyw3kPHLfJR73EsD7SVPUoczRowlek0meVl/3aIXtCnbmwdqnq6M7Di8owSn
-# cnlGOqvgtBDAbY+GXCX5imIw3xmteSqgeyxUZBDOnKwW9sQum5hOVo7yxsbEfAgZ
-# cwKRSZjnkQTQcWq7/QTrd4rS6lveMokuACnBKkVV54PSHUesr/3y0dly8jtFnhgm
-# MEnQClzSp6G8T8Tp61rtYStRRAzftyFlUeevlRGnDBiZouA/vz8c+U7I6H0xlZMd
-# O7L7p+CgepV89CnPK/iRdclNxcABVS3r+2pFSlMwtjlx9oEf6cdBC6czpg12S5WU
-# JRzi5cWtSOx/Y3BBHxJhguzea6uidBA0t9pPtDh8rp3QKPT8whsmjUKP9CfvV3Sy
-# +qmrzxvfUQjfmT30tCPIJZkaX95dwLZfiy9l+Kq4u/HFEhY1vq+mtHZ8EGtDyk+Y
-# KmLDc13aQDBl+5JsqI63PAea5oLkodesfktwX02fJxqGZNXNbljCS/RtjA4vCENj
-# CFCnOgSWNUlT3YrnpHWni+uZ/GrvesucQvau1vs0XosmE3C67dkhqOZWRbuc5l7H
-# iYDNpRjGCz8t3lpz+lWzwK0eUmkF7g==
+# BTEPFw0yNjA0MTAyMTMzMjdaMC8GCSqGSIb3DQEJBDEiBCCvjDAPZeOy6baqqRq1
+# pQtY6GryANG3+PmN4v0PRho0LTANBgkqhkiG9w0BAQEFAASCAgCRlclz+7ZDLr4B
+# bvaZbD55Lsd7AJKm+tHS6lEy7SJZpgPMOrUzKUApCoDUU866EsrszzHfTWWxWoky
+# bnAD1eJ/Mo2i37Tbm4biElB14/Uh5dk30VL9GDtxacdWHt40zhHtySI9VvEFQGbO
+# nOCkV1+25/QSVbyI/oN0O8tu+cGIaXW+08OW0cngXLUK6q/jrpHouxxWi0diw6BD
+# RX34isaeTGE0fV5c1Pkr49XU3T3Vgs4vO0VEGLIsM2NEgxeaKwjuHwTsUXxwf0rk
+# 1URTMfC6ZrpmyU1Yn3t+TEmf2ve+iRlmJD25Qxo/FmS/9Xjma9ndZHZOi2RAtyAb
+# qA9v0FGX/5yw2x6ST0tSQ1+yvnC2WQFNXUBDYEFnyWKMQDx/L66b6RGD90Hz29gS
+# Fjc2x3bDwOjwY/NVavnwMha9ZwaTa3nEtMpvT8OPfNiOvRLbG8LGY+9v4EGSZ99/
+# 1Uf4kwesUEg9VfH/PD+NM2cd27iVx2CRmtahRH/T9C8fc1cgVSiRMpuLHEHQNI1J
+# t29B3Bq1WYLB+j8o+DRxAycM0gznuH/mT1jE21n/AvYJGDvlaN7BN6tVCHLbQa/1
+# 0JBwb4Rac6/6nioosFHI03Hf18MplECzVqnfxf1Fw3m0UOmE4Ac5Oqiav1PXLXLh
+# lGvHQ2Wpsv3C5EOF0+nevKYAr29/vg==
 # SIG # End signature block
