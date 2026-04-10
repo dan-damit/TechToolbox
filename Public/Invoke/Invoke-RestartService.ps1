@@ -129,6 +129,7 @@ function Invoke-RestartService {
             $session = Start-NewPSRemoteSession @sessionParams
 
             if ($PSCmdlet.ShouldProcess("$computer : $ServiceName", "Restart service")) {
+                Write-Log -Level Info -Message "[$computer] Restarting service {$ServiceName} with timeout $TimeoutSeconds seconds."
                 Invoke-Command `
                     -Session $session `
                     -ScriptBlock ${function:Restart-ServiceWorker} `
@@ -146,6 +147,7 @@ function Invoke-RestartService {
         finally {
             if ($session) {
                 Remove-PSSession -Session $session
+                Write-Log -Level Info -Message "[$computer] Remote session closed. Use -Verbose for details."
             }
         }
     }
@@ -154,8 +156,8 @@ function Invoke-RestartService {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDdOk4E9LfR3uv6
-# F4d2/BEJaQk+5Yz0KFkrhBGTkiOJrKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCyqM0oXevYKlTQ
+# wxOOQ+kzhO1fFJrL1OZd3ixaXLHnpqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -288,34 +290,34 @@ function Invoke-RestartService {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCEN9zW74XS
-# 0nkwBmpn/hxdMIx/WDaK/kIxfMJGUlU2ATANBgkqhkiG9w0BAQEFAASCAgAP5qmX
-# cjqyJ1VVRM7mTLeDQkQnZ536yCC+5LSRmjY1mMOmvz9Z3OYjSz2y6s3cnxprXF6D
-# QJqoLZgLwDH6mKHu1f/V6q3Y1vFjNMNOyOLsQ7IbIHwJdB/XKn+qZ7iHAHumXrq2
-# UrQPlTA/ztwnHf8ItIfPKCMi5hMFOzlPoueERC/2pipdyFW2+LXYoXsjd8cxNd+L
-# JRSNqEv20rGsBwEUJPfcQbz8/jP8Iz5nJTxfCOteaGHu9CRYrQZnkj3MT0Jzlblf
-# kbAuhEW78nyOIeXcOmvhqWhflba3bd7NpWWawntBJUsOc/TtMo9Z5QKTUuEy0vID
-# QHLQKPCl73TJpt1/+LPmi4dEfDEHqWP04lujAtsg+DlE1lRLiqxlmXT4yOylibny
-# Tn3sOSBqsnF0VSHhqZt11nzryyITwLFPuJfw6RuodV5/qYu0Y5bSJpoHx0Tffjbk
-# kbJHx0BTlLAsi6YIMgJSDe0x+9gxsXnOwIcQfNFUl50SSiKGCOF3Icy0liITJKOZ
-# S+nYjpST4pt+lhB9KAbQLHLJzYxv6u36rk2TAOMVm92fFcMJukzxOPhX/3Lninhp
-# KaJIvzmwC8eCtahLTT2kH1t9z63WBRpHbxwc7iBCGcLjTCXZLEjD4oJYc+V1pqkl
-# YXXheQ8NhBlJ9phRmiALow89ygKaZJnlizu9UKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBS89HJyyur
+# aqY0SvZNgQxbQ0mqwbWHKb+NKDAAnf1NHzANBgkqhkiG9w0BAQEFAASCAgB1bXPv
+# OBoqVFtd75Ml9Dn0hqKCpn1/PPeWpA2IJ+DbeLRL0cGoM9nxfha43Q71OI+ZTPOF
+# PJZaF6d+xDlHwwFePnN9S/DXsaa8oUoZrea43jONI9aNclPHlP6DykXxcwT0RXY8
+# AVjVMJS9fNY6MYJn4gkDZuAlm5UWG+wYPUVD44lVtAraH6dEZaQkEcOPo263bNrf
+# XfgujPoSIuYqUdd+Zemu1YQf1PHsUlVEvaq37lygccGNFSze/BJccthmJ+sMH56D
+# 4UKPxc9t03TV8FxObOH4/oalBgTTqVuz22tB5GLQscuB5Je8duPaursNU3l1iFVN
+# gGMfpLLXN4y0vGs/ms8u3uWTB47oCzYBFgNwCEcNqAG/Em++yCyE7l5Guw9Slbmt
+# FP7aw0XTcpLseTbf5qU8OpACG2NBh1DVvJ1G4J/VNepn6V8aptc6oE6rom06lFEq
+# Ca7KzK4ySdYbffx/TzFja5LzDIrJlpklkOrvTqaGvuS6TQDOLH5GBfNuhpYYN9nZ
+# tVPu2XStlDFLDatH6s8a5Rn56VXvdR1Qp4nIob5ZWese4DQXEv4OoDV3sCJnMB+j
+# DLjQwXuBdRmWI0A6h+4Kk6Pe0WI75FNfpLu3fmxc36NjzhbHS4jbdAZPVf4zkgcA
+# 6KqVuVLeua+IsKNrYWjY8eK2xPG9sOOOmzmFY6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTAxODIzNDJaMC8GCSqGSIb3DQEJBDEiBCAWfxthUntCeas6ReME
-# u+yxa30xvILZJrUIccdAJjCvGzANBgkqhkiG9w0BAQEFAASCAgCYoH1ZaiwkMrKZ
-# gaYIdUpYAZCqrgWCXoaMFbymYSdwUWzdTz/aUsjP3+4fih5kKFYHVggWVyD0NT2D
-# QkbcPKl40WQluOP8POetvgHTxUTW8wD/fugGofAfeF3EDz8TFQH28dKC3M0M5t08
-# Y03t+Ddt1VLi8lQRKW4nkJLMtBn39nmUXHIASvj4T90+HFCamdeqOEPKf0cDPYEH
-# fALd+myUzRdXg7bagMf5rx3+G7TcQQUFKRPAdFt2ITEB128+bS7Pot+dCSSHgs3u
-# pxft/bK/k2RYmYR1ZMkigo/AV4CRW4kwGe3jlRxHnwRScZP6RHRzRUiRILwOgxV1
-# TM6NxaeXYFDdXHwddTRsqgarJvEbuKS1XDpa0nzYqDqZfT6FYxbCG2E+desquKar
-# xAaa6d8S6ooa3/z68ZpMyAb36xmKwiiRkY+ybfc4kHyhN480mdY9YcLwQt75L7/S
-# Pdq0+SUeJ/yYx7A2rx3S95oJNHjfZezFfBXZKntarAfCS7BVrjRpqpifDMs6be9q
-# BgwyumchyjpT/PtQVOlTskGanP8HnlXvqxjePwT/kVK/dt1zlNe1ADQn4FPMbmfb
-# gYGYHjMCt/13YW+2qlKD8TGexix7JAgJXlLin1/zgZ3powl1eJ7GVEsJkrpEbxPW
-# LREVc0RRuPCcleuoY4TmoqYgvhey2A==
+# BTEPFw0yNjA0MTAxODQ5MTZaMC8GCSqGSIb3DQEJBDEiBCB8fR3u4DgVg/sihcFK
+# yuL/g8IYfslGovUSgtJTocNHhTANBgkqhkiG9w0BAQEFAASCAgApteZXub9aIZYC
+# MKid2x444gBwY32sdrmEgGJXzxZiMxwU8S5twQn4+78CExLL0PpSFeXwjzVu/qck
+# P3veVFHQkyR0860torRyJB41sq3gKpWHUcgy4TQ38xnUjUKBCiNyok//APZY47lN
+# 6lwZ437176A4fVh+nzdxbEk4FfDBUH/eqPE9U5rO7Ab0aU5+Hd3eHZ4ejSTyRoSW
+# hldkPT4D2SZzJ0tzjS/iQQoghwaR1ShxyzGqi3OFd/h7RGXF4PVZgQ5GhRuV+ujS
+# hl0ubwkAE3fO3LXHV65sspTcEkedWAMAZiEhePdG1aBzVBCQK8bjJB81WWFSO6ob
+# +gHH2CoN7PWqAKtW8XLkQBQEqlnqraUy5SCYvBeU4KUl0vK916xr8B2CLl/z3m0u
+# 0gSrohbNn8LOBh+MLWf8IYgLpt8K1yQVKTUn66tuiVuRh0WW7tquSu9zYfrhdnTa
+# YloTNxVQScVgEWjbfXdHoJVFzl75ZJl4Aa+rOAW8x45BJ85PGRpx0Wjunn80In2q
+# /s0HDpTqf/FUhOAh5lhhvc0mkghR5KPiOLwg4s15R9Uf2lzi6pXQevq4Lqfz2Om1
+# DhQ5M4+HS+Arv9nFJGfYMXvRLPTaevz6GnROX/dTVEEW0zeGTfVBaUjblNcuv9dY
+# E7nzTUD/8haUBlQszAsHGqRYe5LsEw==
 # SIG # End signature block
