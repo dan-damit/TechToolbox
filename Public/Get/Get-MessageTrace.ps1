@@ -1,39 +1,166 @@
 function Get-MessageTrace { 
     <#
     .SYNOPSIS
-    Retrieve Exchange Online message trace summary and details using V2 cmdlets
-    with chunking and throttling handling.
+    Retrieves Exchange Online message trace summaries and per-recipient details
+    using the V2 cmdlets, with automatic date-range chunking and throttle-aware
+    retries.
+
     .DESCRIPTION
-    This cmdlet retrieves message trace summary and details from Exchange Online
-    using the V2 cmdlets (Get-MessageTraceV2 and Get-MessageTraceDetailV2). It
-    handles chunking for date ranges over 10 days and manages throttling with
-    exponential backoff retries. The cmdlet supports filtering by MessageId,
-    Sender, Recipient, and Subject, and can automatically export results to CSV.
+    Executes a full message trace workflow against Exchange Online:
+
+      1. VALIDATION Confirms that at least one filter (MessageId, Sender,
+           Recipient, or Subject) is supplied and that StartDate < EndDate.
+
+      2. CONNECTION Auto-connects to Exchange Online if the V2 cmdlets are not
+           already visible in the session. Uses Connect-ExchangeOnlineAlways
+           (internal wrapper) when available, otherwise falls back to the native
+           Connect-ExchangeOnline.
+
+      3. CHUNKED SUMMARY QUERY (Get-MessageTraceV2) EXO limits each
+           Get-MessageTraceV2 request to a 10-day window and returns at most
+           5,000 rows per call. This function automatically splits the requested
+           date range into ≤10-day slices and uses the continuation-token
+           pattern (StartingRecipientAddress + adjusted EndDate) to page through
+           result sets larger than 5,000 rows.
+
+      4. THROTTLE HANDLING All EXO calls are wrapped in an exponential-backoff
+           retry loop (up to 5 attempts, doubling from 1 s to a 30 s cap) that
+           retries on HTTP 429 / 503 / "Too many requests" / "temporarily
+           unavailable" errors. A 200 ms inter-request pause is applied between
+           continuation pages to stay within the tenant rate limit (~100
+           requests / 5 min).
+
+      5. DETAIL QUERY (Get-MessageTraceDetailV2) For every row in the summary,
+           individual delivery-event details are fetched by MessageTraceId +
+           RecipientAddress. Non-fatal per-recipient failures are logged as
+           warnings and do not abort the run.
+
+      6. EXPORT (optional) When settings.messageTrace.autoExport is true, or
+           when -ExportFolder is supplied, both the summary view and the detail
+           rows are passed to Export-MessageTraceResults. The -WhatIf flag is
+           honoured; no files are written during a preview run.
+
+      7. DISCONNECT Calls Invoke-DisconnectExchangeOnline at the end of every
+           run.
+
+    DATE HANDLING All timestamps returned by EXO are UTC. The local datetime
+    values you pass to -StartDate / -EndDate are forwarded as-is; be mindful of
+    timezone offset when specifying narrow windows.
+
+    SUBJECT FILTER TYPE The SubjectFilterType parameter is auto-resolved at
+    runtime against the actual enum exposed by the installed EXO module version.
+    The resolution order is: caller-supplied value → config default → "Contains"
+    → first available enum value. An invalid caller-supplied value falls back
+    with a warning rather than a hard error.
+
     .PARAMETER MessageId
-    Filter by specific Message ID.
+    Internet Message-ID of the email to trace (e.g.
+    "<abc123@mail.contoso.com>"). Passed directly to Get-MessageTraceV2 as the
+    MessageId filter. Can be combined with Sender/Recipient.
+
     .PARAMETER Sender
-    Filter by sender email address.
+    SMTP address of the sending mailbox to filter on (e.g. "alice@contoso.com").
+    Passed to Get-MessageTraceV2 as SenderAddress. Supports partial values only
+    insofar as EXO's own filter supports them.
+
     .PARAMETER Recipient
-    Filter by recipient email address.
+    SMTP address of the recipient to filter on (e.g. "bob@contoso.com"). Passed
+    to Get-MessageTraceV2 as RecipientAddress.
+
     .PARAMETER Subject
-    Filter by email subject.
+    Subject text to filter on. The matching mode is controlled by
+    -SubjectFilterType (default: Contains). Wildcards are not supported; the
+    value is passed verbatim to the EXO cmdlet.
+
+    .PARAMETER SubjectFilterType
+    Controls how the -Subject value is matched. Accepted values depend on the
+    installed EXO module version (typically: Contains, StartsWith, Equals /
+    Exact). When omitted, "Contains" is used if supported by the module,
+    otherwise the first available enum value is selected automatically. Ignored
+    when -Subject is not specified.
+
     .PARAMETER StartDate
-    Start of the date range for the message trace (default: now - configured
-    lookback).
+    The inclusive start of the trace window. Accepts any [datetime] value.
+    Defaults to now minus settings.messageTrace.defaultLookbackHours (config),
+    falling back to 48 hours when the config value is absent or zero. EXO
+    supports a maximum history of 90 days from today.
+
     .PARAMETER EndDate
-    End of the date range for the message trace (default: now).
+    The inclusive end of the trace window. Defaults to the current date/time
+    when omitted. Must be later than -StartDate.
+
     .PARAMETER ExportFolder
-    Folder path to export results. If not specified, uses default from config.
-    .EXAMPLE
-    Get-MessageTrace -Sender "user@example.com" -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date)
-    Retrieves message traces for the specified sender over the last 7 days.
-    .NOTES
-    Requires Exchange Online V2 cmdlets (3.7.0+). Ensure you are connected to
-    Exchange Online before running this cmdlet.
+    Filesystem path to write CSV export files into. Overrides
+    settings.messageTrace.defaultExportFolder (and the global
+    paths.exportDirectory fallback) for this invocation. When omitted and
+    settings.messageTrace.autoExport is false, no files are written.
+
     .INPUTS
-    None.
+    None. This function does not accept pipeline input.
+
     .OUTPUTS
-    None. Outputs are logged to the console and optionally exported to CSV.
+    None. Results are written to the console via Write-Log, and optionally
+    exported to CSV by Export-MessageTraceResults. No objects are returned to
+    the pipeline.
+
+    .EXAMPLE
+    Get-MessageTrace -Sender "alice@contoso.com"
+
+    Traces all mail from alice@contoso.com over the configured default lookback
+    window (e.g. last 48 hours). Results are displayed in the console.
+
+    .EXAMPLE
+    Get-MessageTrace -Sender "alice@contoso.com" -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date)
+
+    Traces mail from alice over the last 7 days. The date range is automatically
+    split into ≤10-day chunks (only one chunk needed here).
+
+    .EXAMPLE
+    Get-MessageTrace -Recipient "bob@contoso.com" -StartDate (Get-Date).AddDays(-30) -EndDate (Get-Date)
+
+    30-day recipient trace. Three ≤10-day slices are issued automatically.
+
+    .EXAMPLE
+    Get-MessageTrace -Subject "Invoice" -SubjectFilterType StartsWith -StartDate (Get-Date).AddDays(-3)
+
+    Traces messages whose subject starts with "Invoice" over the last 3 days.
+
+    .EXAMPLE
+    Get-MessageTrace -MessageId "<abc123@mail.contoso.com>" -Sender "alice@contoso.com"
+
+    Combines MessageId and Sender filters to narrow results to a specific
+    message from a known sender.
+
+    .EXAMPLE
+    Get-MessageTrace -Sender "alice@contoso.com" -ExportFolder "C:\Exports\Traces"
+
+    Runs the trace and writes summary + detail CSV files to the specified
+    folder, overriding the default export path from config.
+
+    .EXAMPLE
+    Get-MessageTrace -Sender "alice@contoso.com" -WhatIf
+
+    Previews the trace run — EXO queries are still executed, but no CSV files
+    are written and no disconnect is performed.
+
+    .NOTES
+    - Requires ExchangeOnlineManagement module v3.7.0 or later, which exposes
+      Get-MessageTraceV2 and Get-MessageTraceDetailV2 after connecting.
+    - EXO message trace history is limited to 90 days from today.
+    - Each Get-MessageTraceV2 call covers at most 10 days and returns up to
+      5,000 rows; both limits are handled automatically by this function.
+    - All EXO timestamps are returned in UTC regardless of local timezone.
+    - The 200 ms inter-page sleep and 5-attempt backoff are tuned for the
+      default tenant throttle limit (~100 EXO requests per 5 minutes).
+
+    .LINK
+    Export-MessageTraceResults
+
+    .LINK
+    Connect-ExchangeOnlineAlways
+
+    .LINK
+    Invoke-DisconnectExchangeOnline
     #>
 
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
@@ -346,8 +473,8 @@ function Get-MessageTrace {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB9HL7I43t1HjLg
-# lULEgeRevYaZvVZpsZ4FimqUkaLpGqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCJ5zDN88bKQcWC
+# XxMJLDB6v2xN4mg8nvwMSRkCzcfqx6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -480,34 +607,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAYKavOL/9G
-# 6R7A03CV4RfkzpXq/TDkS6xXLzT1Z60lAzANBgkqhkiG9w0BAQEFAASCAgBbL0qW
-# k7oGV/ZJ97ry7eqIMUG49Z4mHuOmFEMlzgvTePzFlhdD+B6S2CjD/+TM9wjV9bNv
-# kMAar2sFJVoiJz6IBTun7l6NGWGIx9b88J9ICxE9w0mVTUwnrYvy2HFmEkMQz248
-# a3xH5POuYYl5KYql1eZIUmU2pn+gFRMd+vOKkXass4ezKKEO0U86uMN1BUMv46jA
-# 5tqUH6kLkL1zfXBhyy8owQhCAc4bTKI/aYWoL+2qwrcf5f6C3s3bnIvAYhHvPAtr
-# 1RGC+MCBhnU/GRS25ispa5dS9GHMiFO5fdS0jcKV06zZfZy3w7ZyX8ePwgQWpynr
-# wwrwvDNHGI4dhiMRNe7CsZEH2DvSbSuzUMXIM0zB86vHvt0tCs5Sjl9owKkPkktS
-# TqDwKUvXqv/H2Ksqm/wJofPnnV6suuVnqrHOPxdQac7o4mymkbgNKQ1B9jXV1bX0
-# cfdrAVdyNsASZeN1m6QCyNVIboin2cYy3rUeyN9LX0w56cpyGSGSSYuHab6wRnhO
-# iphBNJb00dMZAgXMURurFwnbOyi97oiGdThZauNrkbRDX8UYCGdUV+Lif/MuU2Cs
-# eleqgzkcKdNnHHo4tkbEAQ9swbVzbjEBQayQp9nrLPFXo5gL+uoaXUVLrwIYZtNV
-# Egi11j8g3YGF8b8HrJYXuB53OMUnmWPtP2iCVqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAkHLjwZrR7
+# m2ff+H7pCrz5L8inzxKLO7L/NgPJaJv2FzANBgkqhkiG9w0BAQEFAASCAgDJXrXu
+# S/+eghLhcUSMjSIJXVXe8WsS3drBAorpHb+OUI3+/VB1ZlD/CM4J2mqPR058/tEk
+# iu0JDFIjlbrSZu5Umw1+iceEdw/TB8/PpbP6oJ8FRuyXMQ+d7LV9nbPQyUAT5jiU
+# OzVTlzxghcfrkxZoE7YjbvL3ZwHFv62J5nHQZbaS1oZ1T5ThBKIRK/nWwzcGaMkN
+# 5JSb1PeFxNPFB5kGglFfF0Nn5SbsvvSIpKqj6wC+9p7IXHcP+AMLkVKH4ByxoYzj
+# M0hZNI9Jwd8cskm7Zzft3DtujlKOCpCse7fFSGtIVwxQAObD5D3bW1pdh2hRuM99
+# ZWNHAB29D5gJUG7gmqWFxSRaPq2Psbn87ZETP/YFmwQUKJiMEFKyE3SpcY+lrmKy
+# /H/pqRSBCyYXhb2UKdYynVtBtUb9bAGy06pei8+BgJ/m71q4rubzwURSz6aQy5F3
+# 6dS/KcVAD2oefEacNmlcm5PLdoI9LdiunkTQgYyuoxPU29ssd+ADMzCI/5uyxwZr
+# TDgXVzyyI2AR0F9oXH1i5aprxwQiykoT85/dj0pJA5yIF6K61fSkSalPo0W2K1v2
+# xOJzIUjxAjffOSPaDuk2TJS+lWGRYcbhhMcGkBlKb0HFDj9bxKJgjYvum8OW+Jaq
+# xF/Kdk7zoFqqrz9zhnAvIWpB6WjbFYCGKGpCrqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMzAyMDU4MzNaMC8GCSqGSIb3DQEJBDEiBCBiglsFydTxnF7YhHIv
-# QoEjl+3tVewMXgdDNjPtOaJeHzANBgkqhkiG9w0BAQEFAASCAgA1pkLh3TmPlegA
-# qMP/KEHrq1ys2aN/ojED70wOOrV0RRkxbh5KyXSvVi6+emyNn/kZn9jqexvk1vy8
-# fqIqjlMCw41+h+K5SpiTrjMsCYGe3V1dz/r/HuK5rUc0B+jh4NPv8FVJKzmlnDU6
-# kZPj0DJePj3UM7TH22TK/l0dhGwMSsARQdrZ4VRa+bNvFHDMdrQMr1h1hbF0WPOf
-# WlNE5jjVOmYMODaO3+MrA0GsQEwAkscPNJm54smWM7LTi5I3ygXE5Ect+p9v8DvC
-# 61cw+koRE/obfGNsfgCtjcG5JxwYXNd+ku5IzAxw9Wcl7CHgbw7zIvyk3zkduOu7
-# u169+sqzplmETkDdqleoJ52a2+GAcXxNitBNZmTUmqY01IEMTtoGyDF2jBKEh8Xp
-# iZKcBRE+V4F3AgU9Ho9Pqn6RDHHs47YMzRVIBOHt+bhU+lOvb8XRRtnTQ0cLxWBB
-# r39xL9ep2EoWIy9bopdx7EWwpzxC7egjjMPsYEbXbL77szCz2zzy9Usbd/w/P0Te
-# GSjTujgLngtjlvsa6e2IdEuLzz2jysb7YYXfNlrMnXCOlwdvW9N4Ek7PpDXH7YA2
-# CyfNvaualiudN/a/MPu/iV2/sFQgvv+5pLrfyTlQBqeS0/fKAz5dj5hLOrJ3jC2M
-# S4UW59S7+gmMgdXG8lN9ntgmOkvExQ==
+# BTEPFw0yNjA0MTQxMzAyNDhaMC8GCSqGSIb3DQEJBDEiBCAuVks10QL6sfD+lLRu
+# mFkha54uOSXq93FdeJRZiJRM2zANBgkqhkiG9w0BAQEFAASCAgAShMNgK0e/PPdn
+# 5GRv2be2duD10yBp7XMjESPfuwymEaZIHJqe430L+Kck+wufiM6ugk/rpBlVAKxL
+# LPDVwiOad8znI4QGtRYrNoi/aMhcuKJFXerWSxlm2tTgmmIunsCTFOdt6gAacviK
+# PCCqZ4UELpjJ258jfbJOMa+4YDcxuWxq7pdxWXpEMlmBDAn0HRz9fI5umtaArCEW
+# ZwNf/YOuYkQ2ZNaSSszwqC6jlJtCCEwOBK+rpQrYu3zaz63S3JR52Hgkc3j+51Lj
+# HQbt0Q6kSvJ+I3QxsTzMn5BEV1Z3VT/A408ejcfFj6e2ue3oahUos/NgAp99Elr3
+# YusnXhdE3pojI43t9nW5DKlZGhVuNSjRzzwmvzfsbKse+/++k2kus5BQsYCBnqMG
+# bLe8TJp2qgFplbH82Grs9WEt5PdD+1q/GiNKd/swTyjUL0YPkRfHpZTkrB6ctssr
+# tssMH5GCV7R3E/WyJdcX2rcqq5X9z4L+sv71LQ9V3Wd5BbmPK+uLeq8kKSu2G1WB
+# e/pgPusVFjuD2D3gNLlVnLKw6oXQT13hhNy1SLFuEhpfoS4Qt/ZPdqWJ9XxAYDjC
+# pVnp16wqIQWM0Wts2B6e8/W0fYNn5QI5yikn/HA43IcCSVHowpW3WprTkdcC5nZj
+# jn1sZYEQ4iD6uvObBimw2vExGn3jTg==
 # SIG # End signature block

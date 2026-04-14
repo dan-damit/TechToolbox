@@ -5,35 +5,130 @@ function Disable-User {
     offboarding actions.
 
     .DESCRIPTION
-    Disables an AD user account, moves them to a disabled OU, removes group
-    memberships, and optionally performs Exchange Online offboarding actions
-    (forwarding + manager access).
+    Executes the full user offboarding workflow for a given identity:
+
+      1. Resolves the user via Search-User (AD lookup).
+      2. Disables the AD account and moves it to the configured Disabled OU (see
+         settings.offboarding.disabledOU in config.json).
+      3. Stamps the AD Description field with a dated offboarding note,
+         including forwarding outcome when EXO actions are requested.
+      4. Optionally removes all AD group memberships (see
+         settings.offboarding.cleanupADGroups in config.json).
+      5. Optionally connects to Exchange Online and:
+           - Sets mailbox forwarding to the user's manager (or a supplied
+             override address).
+           - Grants the manager full access to the disabled mailbox.
+      6. Writes a structured offboarding summary via Write-OffboardingSummary.
+
+    HYBRID ENVIRONMENTS When settings.offboarding.useHybridAutoDisable is true
+    (or -ForceCloud is NOT specified), EXO and downstream cloud steps are
+    skipped on the assumption that AAD Connect or another sync mechanism will
+    propagate the disable automatically. Pass -ForceCloud to override this
+    behaviour and always run cloud steps.
+
+    SUPPORTS -WhatIf / -Confirm All destructive operations (AD disable, group
+    removal, mailbox changes) honour ShouldProcess so you can preview with
+    -WhatIf before committing.
 
     .PARAMETER Identity
-    The identity of the user to disable (e.g. sAMAccountName, UPN, or display
-    name).
+    The identity of the user to disable. Accepts sAMAccountName, UPN, display
+    name, or any value supported by Search-User.
 
     .PARAMETER IncludeEXO
-    Switch to include Exchange Online offboarding actions (office users).
+    When specified, Exchange Online offboarding actions are performed: mailbox
+    forwarding is configured and the user's manager is granted full mailbox
+    access. Overrides the settings.offboarding.includeEXO config value for this
+    invocation.
 
     .PARAMETER ForwardToSmtpAddress
-    Optional SMTP address to forward the user's email to (overrides manager
-    forwarding). Use plain email address, e.g. jdoe@company.com (no smtp:
-    prefix).
+    SMTP address to forward the disabled user's mailbox to. Overrides automatic
+    manager-based forwarding. Provide a plain address (e.g. jdoe@company.com)
+    without an smtp: prefix — any accidental prefix is stripped automatically.
+    Requires -IncludeEXO (or settings.offboarding.includeEXO = true).
 
     .PARAMETER DeliverToMailboxAndForward
-    When specified, controls whether a copy is kept in the mailbox while
-    forwarding. Default behavior is TRUE (keep copy) unless explicitly provided.
+    Controls whether a copy of each message is retained in the mailbox while
+    forwarding is active. Defaults to $true (keep a copy) when not supplied.
+    Pass -DeliverToMailboxAndForward:$false to forward-only with no local copy.
 
     .PARAMETER ForceCloud
-    Switch to force cloud offboarding actions even if IncludeEXO is not
-    specified.
+    Forces cloud (EXO) offboarding steps to run regardless of the
+    useHybridAutoDisable setting in config.json. Use this in fully cloud-only or
+    manual-sync environments where AAD Connect is not handling propagation.
 
     .PARAMETER Credential
-    Optional PSCredential for authentication to AD and cloud services.
+    A PSCredential used for Active Directory operations and, where applicable,
+    cloud service authentication. When omitted, the current session identity is
+    used.
+
+    .INPUTS
+    None. This function does not accept pipeline input.
+
+    .OUTPUTS
+    System.Management.Automation.PSCustomObject Returns an ordered hashtable
+    (cast to PSCustomObject) with keys for each completed step, e.g. ADDisable,
+    ADGroups, Forwarding, ManagerAccess, and any corresponding *Error keys if a
+    non-fatal step failed.
+
+    .EXAMPLE
+    Disable-User -Identity "jdoe"
+
+    Disables jdoe's AD account and moves it to the Disabled OU. No EXO actions
+    are performed. Behaviour for group cleanup and hybrid sync is determined by
+    config.json.
 
     .EXAMPLE
     Disable-User -Identity "jdoe" -IncludeEXO
+
+    Disables the AD account and performs Exchange Online offboarding: forwards
+    mail to jdoe's manager and grants the manager full mailbox access.
+
+    .EXAMPLE
+    Disable-User -Identity "jdoe@company.com" -IncludeEXO -ForwardToSmtpAddress "helpdesk@company.com"
+
+    Disables the account and forwards mail to helpdesk@company.com instead of
+    the user's manager.
+
+    .EXAMPLE
+    Disable-User -Identity "jdoe" -IncludeEXO -DeliverToMailboxAndForward:$false
+
+    Disables the account, sets forwarding to the manager, and does NOT keep a
+    local copy in the mailbox (forward-only mode).
+
+    .EXAMPLE
+    Disable-User -Identity "jdoe" -IncludeEXO -WhatIf
+
+    Previews all actions without making any changes to AD or Exchange Online.
+
+    .EXAMPLE
+    Disable-User -Identity "jdoe" -ForceCloud -IncludeEXO
+
+    Forces cloud offboarding steps even when useHybridAutoDisable is enabled in
+    config.json.
+
+    .NOTES
+    - Requires the ActiveDirectory module and appropriate AD permissions.
+    - EXO actions require ExchangeOnlineManagement (Connect-ExchangeOnline) or
+      the internal Connect-ExchangeOnlineAlways helper.
+    - The Disabled OU, group-cleanup toggle, EXO default, and hybrid-sync flag
+      are all configurable via settings.offboarding in config.json.
+    - A dated note is always written to the user's AD Description field,
+      regardless of whether EXO actions are included.
+    - Non-fatal EXO failures (forwarding, manager access) are captured in the
+      returned object (*Error keys) and logged as warnings rather than
+      terminating the workflow.
+
+    .LINK
+    Search-User
+
+    .LINK
+    Disable-ADUserAccount
+
+    .LINK
+    Remove-ADUserGroups
+
+    .LINK
+    Write-OffboardingSummary
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     param(
@@ -345,8 +440,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC/Dj327hekBuKC
-# 2yMbq9IgFgXGNnnU9Fd15c5bf/v9yKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDVWgA3lkHWS8SF
+# KA9/MJ40iKlB0sZ71qq79oS6iqibTaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -479,34 +574,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCrVgQ8R1BX
-# nc8eTdXyO1aAnqc9DTIbfYiEX0O8RYZrIjANBgkqhkiG9w0BAQEFAASCAgDGunPG
-# wpCci4BUV5ycQcdKX5lOyNobigKWtTvPJVV7LZ87XXdRaiwK7SRknb7JhH8b22oK
-# cGFTQp69/Wot5ozKBFSOdH7S2q5RwbCNZ48PB4qRn923kwv0IvppUYaGQEdLgHfZ
-# 36YZTPycqE+tPJSCIgGbkSgncMPNbbbv2JAj8euyfnYcpIbR89EuMipbB8LJTmHo
-# zLg+6gWLgTE7eQwTMinUfvNCdPa+raxSSLTb6KPRYI1gO+G/GfG0gEmuS1U2xmTa
-# UrMKOQR9aOCem4rA0lcr+KJwlo1RxbtJlEtceahgzxURGHozInm6CiuRR7xlhRON
-# BiWSR8/QC/4iwkuGNafAx/YKXX3Y3rgokvly4+T7ynM+9Z0OKq9xUEMo60jaC54Q
-# Bf4dG4RKvLSGGoLmmh+FiXYcgmU0ewMOqOcRfTZ44tpwjfYUCqq/QL2cM011tx8B
-# 0HWcGqfAcbflT8j9tVtC79pgAUwCPwaR9OMlTDHP8YLsjUruU4scFfy8BF9FVskg
-# E4f5p0Th1C3zkoTNxMtWXpfg6moufZfMG4C+b5CdLBKeJ2Fls9Yn3+bxDI+KuDvQ
-# MlcXOBm0f6XyQMp/bhd61UtnVtJOrEGcRgfhy3ffOmgK8XobXXUjxV3vhiFid7NT
-# amHjMQH+c5fOJ5s6Q0mmyBiW+NupKBYniXI2kKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXOwv+dHME
+# QKVVpH1IAV+vyNCH16uI5DGx0z9tZdfm8zANBgkqhkiG9w0BAQEFAASCAgAcpsk3
+# 8HBj+0/r+ShOC+D8jGhkM/Ud6zbRGsFRz0F4vEFyCden6j5GuSxJZ6AOGfGj0lAr
+# 2/zqi/lm8P0o6caZmHNRw4WxU7e6EZmBg/Ts2IeIUZdQWLYTUtk34hqCZll+kCQL
+# wUWYuVQB4VcPDy9aVHAiUp8FKmh7TtmjqU6ZVyaMRp7O6Zl/Kdp8LU2pvYlC2cPy
+# hbxWpNr/MVAO++cAoa/LHZMMd8Bs1wCZqa1uDdMhtTHjqPhYlGIHd47PblTEXRTz
+# PS7QJYAayi3jQFm9XTpZ0I24QbGk4NLyvuZgtco3h1Q/sohgnArBoOdzKX5Dy6L1
+# SZldatMSCPXA2OcNKsquZnBO5n1Zc9+gfmdZcM1HTcE4MNP+Uztt/1Q0GTUIt0Rm
+# fYqiclqq0nio69QkFSRACluG+kVgcu3dRg8rXG73WJsVvFORT+7hAtIz/Ldhwp24
+# hv8C4443sPaD0REDMQAhQDKyW7OVAE3zowcdbWcb4aKJhTH4f6PqRyu3kA69zfkT
+# zWAYJMDUGqJGAm69YD6CgWAws5QjGBvP3l2Bsp6rlxeSUmt5l7tIy0JgqNm3yfPP
+# JsJc/8y9DSZYJ6Wdw8lRO8cskhqaPkMRlKawS3M59XIugDgFKHzKs+Nfg/spw202
+# q3wjNMcTVGrghxcNfkNxLRfS8UmWTxpuoFk3SqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDYxODE3MjFaMC8GCSqGSIb3DQEJBDEiBCD9xGJSjMyFpxWBi4vG
-# pAjlulmkfsPccsaWzfuNX2XMxTANBgkqhkiG9w0BAQEFAASCAgBHKgCwTgH6qjjS
-# 6RzujHv9Wo6xjSD9QihKylcL9SflSWHSwuzlET13eOym5KY2LWVZyUlqNz+PFVX/
-# TpC0EqHPkmx94MQDfoC2qgyR3Fl06rTZ4uFoXI1GrBJgYorqK1aGGeWGkjv/9SbX
-# RKx0CuKuXzxTIyYIhwFl1BhWi1TxC1ix0I8ALvErlK9i8bhUEJD2JrB4ewRCOIaj
-# Jp8arQVhi9r4bQqy1vcxdGmiETcNGrFeCsJSGKer0l5cv3PqgsccHaS4LByD9Qc9
-# Vtmv/9MZKGcGXZayztQY0Gz/ETEsiCO9KoQRjk1yIQOM+707qPEfBFFTXDvbkJoG
-# pzeHdzU1V0dnbu7uaaD8DyMCcyEaqhm3s5Kk9eGFhGnawDOBvVELc/iY4hGYZ2yY
-# JjG/Rb/Jx4lkxXrkajhqkDhLkaD1GNuqxdt4Mp0EHJahfHY6g1q1zkNkrllBNpRc
-# AUT97nb6kw8s4e6R5aHfYpUn85RP7MPO8O5BuBTHljE83hCW/JB32lntmtIwapEX
-# AnLtR2mDLk5gt0Gk7ruqfb0U5rANOwNxp4t7N9KOdTbm0ScnmNCNdEOG+fN0NJaP
-# fJdKBGTOni9ZTMMDghOMEcdbtlueGIqMGNWW3p8/3zjo00UBMbRr2QHQIPkpNSDa
-# q4F5LwB+DjxVmVhvOehW2yyRf+Dauw==
+# BTEPFw0yNjA0MTMyMDI0MTVaMC8GCSqGSIb3DQEJBDEiBCAymfl5OGNHTDuVQmPX
+# 1im9yH7m0vO3Nw5/ym+wnfgNkzANBgkqhkiG9w0BAQEFAASCAgChqBsVhxqu70G2
+# 2ksQL+QRpg8nhg6a4heUZy96wV25d9lj6qx3PV+CWOQdAmfSkdTQT7yPfZ9TvMt5
+# y6bXtmbWj0NAk9GTLD7yRHndzXADeDu3fgN63UTdkob5eMSPSRHXc9WpjLtWwqUt
+# hkHwTnEh54laYvbENu0NKV1QJn0n7HB5VCiXoiZ7JyZSkzUSBXdN0Y2bPbeoNYri
+# yDg9omtC+L42OyBDeqLsxeCyhklsX3vvRNzBIOeln0aEzosNCLcEW+OSSGxM/i7E
+# K3GDNz2/oDfckx+oG0bs59XK5mrgfRbuvpaLA27bmnfWeIwsxFUdL9ey0E6UqpA3
+# WAkeZkisGFzAwhV/3jJwr61dDkIJ0S/JB87wyYli4pY2xDqxa7jBb0s7MBpeQuEj
+# M5/ktSr7o/PhoGQE5oUEHo7rIAZuq6h5T3mPtSPLC5PAKK4GpL0YGjMdpZsJgmCa
+# 0hCUyjDtigrUNlt0guRppgVMOwSXIWN96NcGDIQz6jl5apy/wMCovasWkKFg7Mdq
+# GDwT1QyTaVHNZr16x7B6N0fJ5eyXbw4JpfsqH/HDzPHasxXopxPlDO2vGIfYPqEZ
+# VWGZCzIA4AxwJw0Nx0bC4++CNEpJL8Zop325EDASD+mSZ/ZCadDu2TsfSj9Rkip0
+# QzHUumGuJPOGjMF6GhuUWH/FC3OwFw==
 # SIG # End signature block
