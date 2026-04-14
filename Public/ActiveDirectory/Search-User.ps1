@@ -1,48 +1,167 @@
 function Search-User {
     <#
     .SYNOPSIS
-        Searches for a user in AD (primary) and optionally EXO/Teams, returns a
-        unified record.
+        Searches Active Directory for a user and returns a normalized unified
+        record.
+
     .DESCRIPTION
-        Graph/Entra lookups are excluded. This function resolves the user from:
-          - Active Directory (primary, with optional proxyAddresses/mail search)
-          - Exchange Online (optional, if wrappers exist and
-            requested/available)
-          - Microsoft Teams (optional, if wrappers exist and
-            requested/available) Normalizes via Format-UserRecord. Returns $null
-            if no match unless -AllowMultiple.
+        Resolves a user identity against Active Directory using a two-phase
+        lookup strategy:
+
+          Phase 1 — Exact match
+            Queries AD by sAMAccountName (if no @ present) or userPrincipalName
+            (if input looks like a UPN). Uses an RFC 4515-escaped LDAP filter to
+            prevent injection.
+
+          Phase 2 — Broad fallback (if Phase 1 returns no results)
+            Constructs an OR filter across sAMAccountName, userPrincipalName,
+            displayName (wildcard), and optionally mail and proxyAddresses.
+            Fallback attributes can be disabled individually via
+            -EnableMailSearch:$false / -EnableProxyAddressSearch:$false.
+
+        The matched AD object is passed through Format-UserRecord, which
+        normalises fields and optionally resolves the manager's UPN/name/SAM
+        and expands group memberships into structured objects.
+
+        SCOPE
+          - Active Directory is always queried (requires ActiveDirectory module).
+          - Graph / Entra ID lookups are explicitly excluded.
+          - The -IncludeEXO and -IncludeTeams switches are reserved for future
+            integration hooks; the underlying wrappers (Get-ExchangeUser,
+            Get-TeamsUser) are not yet implemented and those parameters are
+            currently no-ops declared in the param block.
+
+        MULTIPLICITY
+          By default a single PSCustomObject is returned. If more than one AD
+          object matches, a terminating error is thrown with a sample of the
+          matching sAMAccountNames. Pass -AllowMultiple to suppress the error
+          and receive all matches as an array.
+
+        AD CONFIGURATION
+          Server, SearchBase, and SearchScope default to values from
+          settings.ad in config.json and can be overridden per-call.
+
     .PARAMETER Identity
-        UPN or SamAccountName. If not found exactly, falls back to broader LDAP
-        (displayName/mail/proxyAddresses).
-    .PARAMETER IncludeEXO
-        When present, attempts to query Exchange Online (Get-ExchangeUser
-        wrapper).
-    .PARAMETER IncludeTeams
-        When present, attempts to query Teams (Get-TeamsUser wrapper).
+        The user to look up. Accepts:
+          - sAMAccountName  (e.g. "jdoe")
+          - User Principal Name  (e.g. "jdoe@company.com")
+          - Display name (partial match supported in fallback phase)
+          - Primary SMTP or proxy address (when -EnableMailSearch /
+            -EnableProxyAddressSearch are active)
+
+        The value is RFC 4515-escaped before use in any LDAP filter.
+
     .PARAMETER Server
-        Optional domain controller to target (overrides config).
+        Fully-qualified hostname or IP of the domain controller to target.
+        Overrides settings.ad.domainController in config.json. When omitted,
+        the AD cmdlets use their default DC selection logic.
+
     .PARAMETER SearchBase
-        Optional SearchBase (overrides config).
+        Distinguished name of the OU or container to scope the search to.
+        Overrides settings.ad.searchBase in config.json.
+
     .PARAMETER SearchScope
-        LDAP search scope (Base|OneLevel|Subtree). Default from config or
-        Subtree.
+        LDAP search scope. Valid values: Base, OneLevel, Subtree (default).
+        Overrides settings.ad.searchScope in config.json.
+
     .PARAMETER Credential
-        PSCredential used for AD queries (and for manager/group resolution).
+        PSCredential used for all AD operations including manager and group
+        resolution. When omitted, the current session identity is used.
+
     .PARAMETER EnableProxyAddressSearch
-        Include proxyAddresses in fallback LDAP search. Default: On.
+        Includes proxyAddresses (both SMTP: and smtp: prefixes) in the Phase 2
+        fallback filter. Enabled by default; pass -EnableProxyAddressSearch:$false
+        to restrict the fallback to name/UPN/SAM attributes only.
+
     .PARAMETER EnableMailSearch
-        Include mail attribute in fallback LDAP search. Default: On.
+        Includes the mail attribute in the Phase 2 fallback filter. Enabled by
+        default; pass -EnableMailSearch:$false to restrict the fallback to
+        name/UPN/SAM/proxyAddresses attributes only.
+
     .PARAMETER ResolveManager
-        Resolve Manager to UPN/Name/SAM/Mail. Default: On.
+        When enabled (default), the user's manager DN is resolved to a
+        structured object containing UPN, Name, sAMAccountName, and mail.
+        Pass -ResolveManager:$false to skip this lookup and return the raw
+        manager DN instead (faster in environments with many lookups).
+
     .PARAMETER ResolveGroups
-        Resolve MemberOf to Name/SAM/Scope/Category. Default: On.
+        When enabled (default), the user's MemberOf attribute is expanded into
+        structured objects containing Name, sAMAccountName, GroupScope, and
+        GroupCategory. Pass -ResolveGroups:$false to skip group expansion and
+        return the raw DN list instead.
+
     .PARAMETER AllowMultiple
-        Return all matches when more than one user is found. Default: Off
-        (throws).
+        By default, if more than one AD object matches the identity, a
+        terminating error is thrown to prevent ambiguous operations downstream.
+        Specify -AllowMultiple to suppress that error and return all matches as
+        an array of normalized PSCustomObjects. Useful for audit/reporting
+        scenarios.
+
+    .INPUTS
+        None. This function does not accept pipeline input.
+
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+        A single normalized user record produced by Format-UserRecord, or $null
+        if no match is found. When -AllowMultiple is specified and multiple
+        matches exist, returns an array of PSCustomObjects.
+
     .EXAMPLE
         Search-User -Identity "jdoe"
+
+        Looks up jdoe by sAMAccountName. Returns a normalized user record, or
+        $null if not found.
+
     .EXAMPLE
-        Search-User -Identity "jdoe@contoso.com" -IncludeEXO
+        Search-User -Identity "jdoe@company.com"
+
+        Exact UPN lookup. Falls back to broad search across display name, mail,
+        and proxyAddresses attributes if not found in Phase 1.
+
+    .EXAMPLE
+        Search-User -Identity "John Doe"
+
+        No exact match possible; falls directly to Phase 2 and searches
+        displayName with a wildcard filter (*John Doe*).
+
+    .EXAMPLE
+        Search-User -Identity "jdoe" -ResolveManager:$false -ResolveGroups:$false
+
+        Fastest lookup — skips manager and group resolution. Useful when only
+        basic identity fields (UPN, SamAccountName, mail, etc.) are needed.
+
+    .EXAMPLE
+        Search-User -Identity "jdoe" -Server "dc01.company.com" -SearchBase "OU=Users,DC=company,DC=com"
+
+        Targets a specific domain controller and limits the search to a
+        single OU.
+
+    .EXAMPLE
+        Search-User -Identity "jdoe" -AllowMultiple
+
+        Returns all AD users matching "jdoe" instead of throwing on ambiguity.
+
+    .EXAMPLE
+        Search-User -Identity "jdoe" -EnableProxyAddressSearch:$false -EnableMailSearch:$false
+
+        Restricts the Phase 2 fallback to sAMAccountName, userPrincipalName,
+        and displayName only — no mail or proxy address matching.
+
+    .NOTES
+        - Requires the ActiveDirectory module (RSAT or AD DS role).
+        - The AD: PSDrive is intentionally removed after import to suppress
+          re-initialization noise on subsequent calls.
+        - LDAP filter values are RFC 4515-escaped to prevent filter injection.
+        - The -IncludeEXO and -IncludeTeams parameters are declared but not yet
+          implemented; they are reserved for future EXO/Teams integration.
+        - $ErrorActionPreference is temporarily set to 'Stop' internally and
+          restored in a finally block, so callers' preference is preserved.
+
+    .LINK
+        Format-UserRecord
+
+    .LINK
+        Disable-User
     #>
     [CmdletBinding()]
     param(
@@ -216,8 +335,8 @@ function Search-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAMKoqHvd9WOVas
-# DM6KKRJf2Z6MqfQmO6INDTkDK1v13aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDqjYEXFkTzCBtH
+# WrDHkyhT1+yAxGPW+r9Mo0wV5lkEnaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -350,34 +469,34 @@ function Search-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBG0Lpc4EVN
-# C4f5Mm+BD2qpOVkElVaoeVIEDboSbbQC5TANBgkqhkiG9w0BAQEFAASCAgCjHFB3
-# rR+ljMFgg/EN+DTK6kNME+OyJSAEXWOVfSNAfQUNgn6gF2fuh+WzTRxZJluvXS2y
-# eanxEeSEEmAuu98D6GkJGZ3gR1Liw7NuJfu9+ySWNkcRzPgzJ7JzF2brpaBxVqk2
-# QAskHGmkUjcTpikc3i8mTBLXOi/fkNHzwsonKASM5fIxg1jJLpVBIMFw7Kep0WHS
-# zYWXXSPZKuxAkTOYwOMEhy8F8nPyaCeUNLso098cr/jgdbiYOL5wFRiFJ1e6HDRr
-# evV1XjCEmXruQqYVyhgFGPH0qNAmzK9EyKSe7PXjyaVrPEogs/trrfhiwa6LSyDp
-# UbaQ9h0JzmLCC/zT3i642BtscywpyEI4MNHQpMid3Z9pU83OwO7s0DzeVG2C82Ch
-# wHQ4gORr6QBVDQ2l6iIuiFya3nmaF54aUhF0s2oHvtomVwv8f0sxl38cTRphSqZd
-# L1U0C+rnHGr1LyXCAJ4GSpr2vYljtnePt7OKy/aR5FM78fw58f9nby4097zkdBAi
-# DvZP6zgEyLsHSThVj3msV6FOHyGIgkPqueDR/iEJg1xNdqaVrQgm5nauCUXp7a+T
-# DzvrVm7kgL6oj1xAAcTYdU5THTXvBdcefgKAsHDVRH0PJYy64LBC4mNO+0t26dkS
-# siuTLUdYkOnQ1FBtHq8FD32WXZyqxOJVtO4VOKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAkZZwaFJS2
+# gNHGxzgD2hUYIvrku6CvN2gP9xjyqX0O5DANBgkqhkiG9w0BAQEFAASCAgAEzZnR
+# fmR+/UxtHvNUY27t9g/ASeuTUDedM6uuggFD1E0mrwWwHvGpqQAOdsML7BOc7MeW
+# Erj1iQcoV1/TxYWqs0KiB0bJ0tr0+j/DvJYSQeKVLYO0bqm2Syg/PZYj/MrTYwmR
+# +gE6P4VjLIvJj+ywAJ2a+HJIbiT3HiYJi69jCXsy2ikqbxiQt83dESa/H6EqU3a8
+# G8YhijaYp2ZarlW9qwsrM59YEh9SW6kYIlxsGZOGFNsOZ0I8FzZMKzEctz6r1STt
+# NBfvlccOGz0tCu8Nnic+FIGUdqstMeYbNR1qBOSSmhrbJg3mlO/uJ/yKZj9CVObc
+# 8xhriAL3t+aE1b4Lv0nhxN1bTrV+zkF+zHQVLm+sIDTMVNmpX3JEb7ZJWJbCDlVK
+# ECTo3OMZ0AOPVzwRHgFZ1wTfLyUJsRo3YqmB8idXvJZcVW96hAJEg3hmHPx0SypY
+# 3ANxpuIuSoGAcRVC6jgihgM6F+1e4dKWznO/tIlykCEjEhLFTPiGgKQAA2VJ4nvA
+# Hd8P6s/EIBD399CiOwmIxoHk9BkK60rFx/Ep8lxGngXJXngIG6WOIebFUJ1a281m
+# DsigRq3QtZhUCS7MSvXvr1q3zGx8Jrd51jxEQs8GJtmWDZUEpdmrGqXqFcDIuMUo
+# MZSZdN6IQlSanOlC+01jy2WzYp2LIHAzZifVg6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDYxODE3MjJaMC8GCSqGSIb3DQEJBDEiBCAN2YlcrPkTrHHH8ugq
-# A2WFDRkPX7qUVEzcaUCFUkKBgDANBgkqhkiG9w0BAQEFAASCAgBObLczOe4cjoPW
-# E1lzRZtvvXgBrSRAO+n9e2U053wpqKUmANz/dnMxJpszhsaa2tm1Ly0H5VBIp+6K
-# lJVy+beBRrtJNWJnCvZ6/C+SOweL1gzOK0Z2KprGr+ukCwg7UR0cLXGwlhFn4Rok
-# f9gQWnBIrWamkIkYSmpLigKmS1o63llyXBTtwB/3w0TWN6F/z3zIw+a6+5VIUbdk
-# Hs1vDNvbgxNQ3zlcaDaLwMf22xrLM5/jzA1jh7LLOp8K+1XdpDX8q/SBItWZJOWI
-# 7qCMpuZ3MY1BzF1Pug0KFuWmSuicsKUnhJ32ilHDEuaechOLhxx8tjAm8HlmAf71
-# lWZno5xZIceaLx+E7HRP2nLgx1NSWgRWcAcXZJimaPGYWt1JmVxl5tH8771s8u0a
-# d6G4PUFPnkJOpMb58sWYMuNMrgBgfg6I75HmjPpivbmWLrLSGJCMxnt0vJ6TqMB2
-# xIvW17ExHUemuKep+6YCRIz10WuNCspVjM8wYQPo9t3G0MN2haEPH8p0oIQYzB5o
-# YgjPuP/0JGc4ZYJEWaHonlppVEMGJcnAeQKgsdN5o5vwUE58+/6tka5M6aImSH+Y
-# vQwWfECVp9gbcS3MTLa37rYmQuNMovJ6xLJ1WDvtLfk3Z3tHnG+VYv6Sv80gp0ER
-# i4DjfeaFszcqTlibvVbq3gI27cHR+A==
+# BTEPFw0yNjA0MTMyMDI0MTZaMC8GCSqGSIb3DQEJBDEiBCBRUxkLaS5uqpIKXcNY
+# 1fIjRaaPuhKQanKZtKLHeaXDRDANBgkqhkiG9w0BAQEFAASCAgALt+mHzmm5TNpW
+# aqFfvao9Yi1vCQxMAIa6Ca8hp+BmMRJfgiIJDavzjpOVa5nDZeyjkRCdmJU0ZpHP
+# jHW4Fo7InYuu8Ei6vmY6JVzR9Z9GVC4woE1B1ULazscjCEuYKQ8rJv/lCTOxDQY4
+# UVNawIr0CaoVnjOk96tpNmjWWcoxLvhcXNl17TaxB7FBvFOjdeGsD5/GEw7YXP6G
+# gLT/18jr/r7BPCo2M7b/b/lqww0UlngpqCqstRrw6Scaox8g0iclW+IOxoVD4ofn
+# 8D2Ivu+2j5Wfcwp5o0+3GYSAs+bGph9O0KnjNTQAoCA/IeeBi8XxuBa2apcDKhy+
+# TvVKfNq5sc56dHlL0HR+lRtYiabaDOu0X4IwNjgmIBfOfmTDSdv8ct4bDQZ/XRbz
+# ZLpXeTorksC0ZnsTPirtrwE85GTRLiPvfdQaVmG8fQhJ1d5jvjWC9AaiE5Sit2CJ
+# Wxfu0MLqPu1RMukjyaq75wWEYwcEfh4TqTFVjAUBItkk3AwwHmtsELielrWc3AsE
+# QPABhnGb88e9KVzjdBjEsjoZpmRmKy71Vm7hYKinTdBM3zFDC9F8juK2EY/5iaEP
+# cUWy+WOa82kf2fHm2cnTrVv6Lw/pv0Todov8u2TV8GTKWYTbpM8niB1v5q2L1Iz0
+# 0/NAS+vQPR1gkfChKHq767vk8pNXUQ==
 # SIG # End signature block
