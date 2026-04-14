@@ -1,43 +1,161 @@
 function Clear-BrowserProfileData {
     <#
     .SYNOPSIS
-        Clears cache, cookies, and optional local storage for Chrome/Edge
-        profiles.
+        Clears Chromium browser profile data for Chrome and/or Edge.
+
     .DESCRIPTION
-        Stops browser processes (optional), discovers Chromium profile folders,
-        and clears cache/cookies/local storage per switches. Logging is
-        centralized via Write-Log.
+        Performs a browser profile cleanup workflow for Google Chrome, Microsoft
+        Edge, or both:
+
+          1. Loads runtime configuration from settings.browserCleanup.
+          2. Applies config-driven defaults only for parameters not explicitly
+             supplied by the caller.
+          3. Resolves one or both target browsers (Chrome, Edge, or All).
+          4. Optionally stops browser processes before deletion to avoid file
+             locks on cache and cookie databases.
+          5. Discovers Chromium profile folders beneath each browser's User Data
+             path.
+          6. Optionally filters the discovered set to named profiles such as
+             Default or Profile 1.
+          7. Clears cookies, cache, and optionally local storage by delegating
+             to the internal profile-cleanup helpers.
+          8. Logs each stage of the run via Write-Log.
+
+        CONFIG-DRIVEN DEFAULTS When a parameter is omitted, the function
+        attempts to read its default value from settings.browserCleanup in
+        config.json. This includes:
+
+          - includeCache
+          - includeCookies
+          - skipLocalStorage
+          - killProcesses
+          - sleepAfterKillMs
+          - defaultBrowser
+          - defaultProfiles
+
+        Caller-supplied parameter values always take precedence over config.
+
+        SHOULDPROCESS / SAFETY This function supports -WhatIf and -Confirm.
+        Process termination and any downstream deletion work are guarded by
+        ShouldProcess-aware flow so you can preview the intended browser/profile
+        targets before making changes.
+
+        SCOPE This workflow is designed for Chromium-based profile layouts used
+        by Chrome and Edge. It does not target Firefox, Internet Explorer, or
+        non-Chromium storage paths.
+
     .PARAMETER Browser
-        Chrome, Edge, or All. Default: All.
+        Specifies which browser to process. Valid values are:
+
+          - Chrome
+          - Edge
+          - All
+
+        Defaults to All unless overridden by
+        settings.browserCleanup.defaultBrowser.
+
     .PARAMETER Profiles
-        One or more profile names to target (e.g., 'Default','Profile 1'). If
-        omitted, all known profiles.
+        One or more Chromium profile folder names to target, for example:
+
+          - Default
+          - Profile 1
+          - Profile 2
+
+        When omitted, all discovered profiles for the selected browser(s) are
+        processed unless settings.browserCleanup.defaultProfiles defines a
+        default filter.
+
     .PARAMETER IncludeCookies
-        Clears cookie databases. Default: $true
+        When $true, clears cookie databases for each targeted profile by calling
+        Clear-CookiesForProfile. Defaults to $true, unless overridden by
+        settings.browserCleanup.includeCookies.
+
     .PARAMETER IncludeCache
-        Clears browser cache folders. Default: $true
+        When $true, clears browser cache folders for each targeted profile by
+        calling Clear-CacheForProfile. Defaults to $true, unless overridden by
+        settings.browserCleanup.includeCache.
+
     .PARAMETER SkipLocalStorage
-        Skips clearing 'Local Storage' content when $true. Default: $false
+        When $true, local storage content is preserved even when cookies are
+        being cleared. When $false, local storage cleanup is delegated to
+        Clear-CookiesForProfile as part of that workflow. Defaults to $false,
+        unless overridden by settings.browserCleanup.skipLocalStorage.
+
     .PARAMETER KillProcesses
-        Attempts to stop browser processes before deletion. Default: $true
+        When $true, attempts to stop the relevant browser processes before any
+        cleanup begins. This helps prevent file locks on cookies and cache
+        files. Defaults to $true, unless overridden by
+        settings.browserCleanup.killProcesses.
+
     .PARAMETER SleepAfterKillMs
-        Milliseconds to wait after killing processes. Default: 1500
+        Number of milliseconds to wait after stopping browser processes before
+        profile cleanup continues. This delay gives the browser time to fully
+        release locks on profile files. Defaults to 1500, unless overridden by
+        settings.browserCleanup.sleepAfterKillMs.
+
     .INPUTS
-        None. You cannot pipe objects to Clear-BrowserProfileData.
+        None. This function does not accept pipeline input.
+
     .OUTPUTS
-        [PSCustomObject] with properties:
-            Browser             - The browser processed (Chrome/Edge)
-            Profile             - The profile name processed
-            CacheCleared        - $true if cache was cleared
-            CookiesCleared      - $true if cookies were cleared
-            LocalStorageCleared - $true if local storage was cleared
-            Timestamp           - DateTime of operation
+        None.
+
+        This function does not emit structured result objects to the pipeline.
+        Progress and outcomes are written through Write-Log and, during -WhatIf
+        runs, additional dry-run detail is written via Write-Information.
+
     .EXAMPLE
         Clear-BrowserProfileData -Browser Chrome -Profiles 'Default','Profile 2' -WhatIf
+
+        Previews cleanup of the Default and Profile 2 Chrome profiles without
+        stopping processes or deleting any browser data.
+
     .EXAMPLE
         Clear-BrowserProfileData -Browser All -IncludeCache:$true -IncludeCookies:$false -Confirm
+
+        Processes both Chrome and Edge, clearing cache only, and prompts before
+        destructive actions are taken.
+
+    .EXAMPLE
+        Clear-BrowserProfileData -Browser Edge -Profiles 'Default' -KillProcesses:$false
+
+        Clears the Edge Default profile without attempting to stop Edge first.
+        Useful when process management is handled externally.
+
+    .EXAMPLE
+        Clear-BrowserProfileData -Browser Chrome -SkipLocalStorage:$true
+
+        Clears Chrome cookies and cache while preserving local storage.
+
+    .EXAMPLE
+        Clear-BrowserProfileData -Browser All -IncludeCache:$false -IncludeCookies:$true
+
+        Clears cookies for all discovered Chrome and Edge profiles, and skips
+        cache deletion.
+
+    .NOTES
+        - Requires the internal helper functions Get-BrowserUserDataPath,
+          Get-BrowserProfileFolders, Clear-CookiesForProfile, and
+          Clear-CacheForProfile.
+        - This function assumes Chromium-style profile folders such as Default
+          and Profile 1.
+        - If no profiles are discovered for a browser, that browser is skipped
+          and a warning is logged.
+        - If profile filtering removes all discovered profiles, that browser is
+          skipped and a warning is logged.
+        - The function currently returns no PSCustomObject results despite older
+          help text implying otherwise.
+
     .LINK
-        [TechToolbox](https://github.com/dan-damit/TechToolbox)
+        Get-BrowserUserDataPath
+
+    .LINK
+        Get-BrowserProfileFolders
+
+    .LINK
+        Clear-CookiesForProfile
+
+    .LINK
+        Clear-CacheForProfile
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
@@ -196,8 +314,8 @@ function Clear-BrowserProfileData {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD1g0nGFhtu4Iqn
-# AMPSYOW6Ux87O/aSCsYbmbt7N7DSaKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCF2YosZUll40k7
+# JSGJ15LrVxNfUFZUs/k9avq9nEo+1aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -330,34 +448,34 @@ function Clear-BrowserProfileData {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAlwhxd7TXZ
-# dXLz0FCjeQYde8DpGCUNCPv0gXbdS6W03zANBgkqhkiG9w0BAQEFAASCAgBFL1cG
-# 3QVw1qPphq4yOq96trUqgi4iu8v9o/8V/n+zRSG/fXFIzpaCyvnWlZ5J6XktVbEo
-# 4TVf86IlqUYK2G5+JMGEp2nDfIIJlywurMrDYj9g/jFLcB1s/NWhTrYGbFEscoXT
-# qALdnUMGVtxa3N4Ug6tmQJrC2nO1hpbCjHUMAbNNGOVQ2Qe9NKMY2tfgdbacUhXy
-# nnPP8Aipg7xrVP++WZEmegPoKSAdL9+4rEsVjGRNjT6zJ4lQPnMpfyNpApAiIB7E
-# OC0nRGCNeOnYjACt1LObJ6e/ArRRNLo7cYzAuEFn0C8D1wRjlmmhv9sN6ab4mxOR
-# rwD1QgSOkaZrAe/yIrILx+lD1SDdYPtPfhAfOCPkywFISnKNDgUE+PdlMCfuNcbE
-# qzKfPwqv8VplAFfc45NmnDI87gRbg9wjhtAr7t151qgyVkPgqgk0GWqz7AyF9okn
-# 8ocHJr9/lWXl/Feqm6P16cZiPjSYMA43zIxD6IvZ9vPVScE7+YklodSDLRxDac2p
-# yOb6COtmk/rKt5ZltVtwMcGUqyfNEaKtg9G3ZoeRKNZ5Wy01tW3pRiXBjy/NR7gf
-# kepqocka7t5hAL1zLJmpXt/k1av0ZEB7OVPDGavHPd6JgJaUYiCrwmkh+c9nMuiy
-# pvhEFMYlaGPOJFLEMTfh/1nbXfdimZaG6hT3naGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDG/tyQSXwO
+# 24ZaBSsyIhjzfpIOL6CXojlsH9k6OQjuazANBgkqhkiG9w0BAQEFAASCAgBF8jaW
+# OV4lpEUjZj+Vtoi2HWjqtP54b9AlYpqRjzy+P+SDQ2ASxsi+wcdoJOsiZ98bp3xD
+# mjUn4DtBlOZue+yyL3NZW7pT3SGjBhoELjRW5Ah74u1KjC2za/VUELLpvX+vOdi7
+# L1WuaekLsm9ZcWu/4SRhArnYwpHLtilthVUUb4XoqIyZ8jAdnjcHkaQunbeOgTpg
+# UDcj12SeWMu/lNos6JVsbpVOW9wiwpeEcDm5mjwh18Lskm7tH36yVJTdxe0nrQXi
+# OUUnkijwXOoICreUjrZ6KWnE/K4jipMPZI8YcGh0nXix+zNOIdgSittEQVwP4/bu
+# cz32fyjCWf+Kenu5KTwZWihvCpqPmLAIzJzvIfhsiKfSDNYcBVAq7wR/rlmCoalg
+# 943GrLw7+d39aeGnmIXJJfH4mOXASwDBjYsDCyUOdzzh9ub5N6HWkXqcpxn7ZByP
+# asO6f3q/IUY3VwF6xOlfPmnV714vy4RkFveE/hCFATQORpBB8jzjn20dYB/38RYc
+# H/76c7cDy12Hib9f0vK4XXsNynSlsguJgFs39nfrfEXJJodCfHjRLoVkK0YGmZpx
+# 4Uotl+nxQSHHGFBYymVEK9TNJdBv//oXpjhs+elb8fGYswa4kmsM3bnKtMhSVKSN
+# kSjtS2zdaHgtxnsb6RajcDrrbUYtHrr8sj7F5qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMjFaMC8GCSqGSIb3DQEJBDEiBCAYP5oOdnSuBum9+Dhq
-# Xcju5PjpcXuU6k8qD/9cqn18TjANBgkqhkiG9w0BAQEFAASCAgBsKva4dJrqk2vW
-# zQ+bpdHq+PDi4Hs0ZkX91rl3Lybj9o7vWASMWK91HDCxmMBMx5eihKQtFZV3LndE
-# nxmHcgpWRf5TReF/Ti9jIhbtbWTqmmfv92erCY1O1E02Ypc1ObQeXzj9A7UT6KhG
-# 5qLyYAB66PAYwIx9frQFfQx+Jk1QB4H6h0+GRyWedVDae+QrRfWh1dmLojk5R3Jt
-# A/KWHRPy6Onul2JlcgQCzd2jXa5oJwTD8WiditCeyNsWFp/KDR58YyVbkYle869g
-# JnRIdrRrMszIBy/SFVe6iZVbEJYeOEOD9Is74xYaRS1C5fnP1EWgZywGXoO4ExkY
-# gL+h7YEtR61GjmPzSGpN4ErxLzC882OXPwyyNzPAZzwYGVXYLRDIThctndzlopWj
-# +Hdfmg5/Gd83YUmnmVPB4SflTHQ9U88ufDEdi+Dji92rC2KnlWAxIexXj9hw1MdU
-# WTfQE34+JddEvDFzEtRdXMKXl+ZHCv5LdxYpMnULVvxa+dYPuzNr6QcTDNtupELP
-# dDXgUpv5RXcxxc4OIco8HA0Fc6bsrtkCUrNyy9OiPV+scw51CNnPe9CiEs8JoMMA
-# +2MNpd2pzMFh7wRFpZhk0dGQizL6NbzWggZxthXsMNZt+Quh76gyG82Oy62jtmXm
-# 61m7uWFyyHjG9BhWvuzeObpvzYH88w==
+# BTEPFw0yNjA0MTQxNDQwMzlaMC8GCSqGSIb3DQEJBDEiBCAbzImeMzRRd+fISDA+
+# JaxTueu9wsOgWebZwwGCJXYjkzANBgkqhkiG9w0BAQEFAASCAgB6WHSRap9tQ4Qr
+# PZkvLciXUJwg97kurx5R7P+CIHrGVsJCANnTSvodYC4Uwn3d7sSDbtdbY+EREqFv
+# 6sssR5mrdsGrouPNR6hyUp+lTIJSj2DePai2V9rIV/MLKxJQK8YHVCJWl7d1MvZ4
+# KOkj+iFg8wtiUq1mSD/o88fKvmP7MvP8tUw+/sYd/yDemWEVkxEezngCPfVeljS6
+# 40el+DEaXLNNKguIRHqy9NMeZqaDans13YpjyRI/S1OcFSmj/KxDoZeZDCBtwWSJ
+# w/L0t1frTp9NoYtBSbScY+T3AflZpUte0QFz1ktd5z6mDJMwmtBqtBu6xXruZMQC
+# 98xm+vVD+0Fkuj1h4hQqfe5vCOOOCJXbUpn1Qtt9tk/ZzqMqhM512y+R0FoVf4xm
+# cjBDPBUkaHfcuoh3wtecxkS9sDh3OHGXiv4PqbBOc5MSBDrbM7ksRLKDDErkAspq
+# qwIQM2S/VWaIAmWjScRm1dEw1kPcb0HNUndH2MvIsPVowvsl8rIvJlfbhMsZg3R6
+# fYuc9vfGVXDmlFHouvUjQImHXnAgTqzY8adwWsMgSWX1V6GWGhAAQAZfYuz0YT9P
+# zk0mQYUbuLL9/sRfKn30LAEucfdyevVYdejuX++g6xIBmfI/7JMEuyfZ34xNfajm
+# j0fDL90EXjh1vZ1muur/iJaxZriKUA==
 # SIG # End signature block

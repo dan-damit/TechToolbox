@@ -1,18 +1,156 @@
 function Get-DomainAdminCredential {
     <#
-    .SYNOPSIS
-    Returns the module’s domain admin credential; optionally clears or
-    re-prompts & persists.
-    .DESCRIPTION
-    - Username is stored in config.json (non-secret).
-    - Password is stored only in config.secrets.json as DPAPI-protected
-      SecureString text.
-    - In-memory cache ($script:domainAdminCred) is preferred unless
-      -ForcePrompt.
-    - -Persist writes username to config.json and password to
-      config.secrets.json.
-    - -Clear wipes username in config.json and password in config.secrets.json,
-      and clears in-memory cache.
+        .SYNOPSIS
+        Retrieves, prompts for, persists, or clears the module's domain admin
+        credential.
+
+        .DESCRIPTION
+        Provides a centralized credential workflow for the module's domain admin
+        account. The function supports four primary behaviors:
+
+            1. RETURN CACHED CREDENTIAL
+                     If an in-memory PSCredential already exists in
+                     $script:domainAdminCred, it is reused by default to avoid repeated
+                     prompts during the same session.
+
+            2. REBUILD FROM STORED SETTINGS
+                     If no in-memory credential is available, the function attempts to
+                     reconstruct one from:
+                         - settings.passwords.domainAdminCred.username in config.json
+                         - passwords.domainAdminCred.password in config.secrets.json
+
+                     The password is stored only as DPAPI-protected SecureString text and
+                     can only be decrypted under the same Windows user / machine /
+                     security context that created it.
+
+            3. PROMPT FOR NEW CREDENTIAL
+                     If no usable cached/stored credential exists, or if -ForcePrompt is
+                     supplied, the function prompts interactively via Get-Credential and
+                     stores the result in memory for the current session.
+
+            4. PERSIST OR CLEAR STORED VALUES
+                     -Persist writes the username to config.json and the DPAPI-protected
+                     password blob to config.secrets.json.
+                     -Clear removes both stored values and clears the in-memory cache.
+
+        STORAGE MODEL The username is treated as non-secret configuration and
+        stored in config.json. The password is never written to config.json; it
+        is stored only in config.secrets.json using ConvertFrom-SecureString,
+        which relies on Windows DPAPI by default.
+
+        SHOULDPROCESS / SAFETY This function supports -WhatIf and -Confirm for
+        operations that modify stored credential state, specifically:
+
+            - clearing persisted values
+            - persisting a newly entered credential
+
+        Read-only retrieval and in-memory cache reuse do not require
+        confirmation.
+
+        RETURN BEHAVIOR By default, this function is side-effect oriented and
+        returns nothing. Specify -PassThru when you want the resulting
+        PSCredential object returned to the pipeline.
+
+        .PARAMETER Clear
+        Clears the stored domain admin credential from both config.json and
+        config.secrets.json, and removes the in-memory cached credential from
+        $script:domainAdminCred.
+
+        When specified, the function performs only the clear operation and then
+        returns without prompting.
+
+        .PARAMETER ForcePrompt
+        Forces an interactive Get-Credential prompt even when a cached in-memory
+        credential or decryptable stored credential already exists.
+
+        Use this when the stored credential is stale, incorrect, or needs to be
+        replaced for the current session.
+
+        .PARAMETER Persist
+        Persists a prompted credential to disk after successful entry.
+
+        The username is written to config.json and the password is written to
+        config.secrets.json as DPAPI-protected SecureString text. This parameter
+        has effect only when the function enters the prompt path.
+
+        .PARAMETER PassThru
+        Returns the resolved PSCredential object to the pipeline.
+
+        Without -PassThru, the function performs retrieval, prompting,
+        persistence, or clearing as requested but emits no output object.
+
+        .INPUTS
+        None. This function does not accept pipeline input.
+
+        .OUTPUTS
+        System.Management.Automation.PSCredential Returned only when -PassThru
+        is specified.
+
+        None Returned when -PassThru is not specified, or when -Clear is used
+        without requesting output.
+
+        .EXAMPLE
+        Get-DomainAdminCredential
+
+        Resolves the domain admin credential using the default precedence order:
+        in-memory cache first, then stored config/secrets, then an interactive
+        prompt if needed. No object is returned unless -PassThru is also
+        supplied.
+
+        .EXAMPLE
+        Get-DomainAdminCredential -PassThru
+
+        Retrieves the domain admin credential and returns it as a PSCredential
+        object for immediate use by the caller.
+
+        .EXAMPLE
+        Get-DomainAdminCredential -ForcePrompt -PassThru
+
+        Forces a fresh credential prompt, updates the in-memory cache for the
+        current session, and returns the PSCredential object.
+
+        .EXAMPLE
+        Get-DomainAdminCredential -ForcePrompt -Persist
+
+        Prompts for a fresh credential and persists it: username to config.json,
+        password to config.secrets.json as DPAPI-protected text.
+
+        .EXAMPLE
+        Get-DomainAdminCredential -Clear -Confirm
+
+        Prompts for confirmation, then removes the stored username and password
+        and clears the in-memory credential cache.
+
+        .EXAMPLE
+        $cred = Get-DomainAdminCredential -ForcePrompt -Persist -PassThru
+
+        Prompts for a credential, persists it for future runs, and stores the
+        resulting PSCredential in $cred for immediate downstream use.
+
+        .NOTES
+        - Requires Initialize-TechToolboxRuntime, Checkpoint-ConfigBranch,
+            Get-SecretsPath, Read-Secrets, Save-Config, and Write-Secrets.
+        - Stored passwords are protected with DPAPI and are generally usable
+            only by the same Windows user on the same machine and under the same
+            security context that created them.
+        - If DPAPI decryption fails, the function logs a warning and falls back
+            to prompting instead of terminating immediately.
+        - -Persist affects only newly prompted credentials; it does not re-save
+            an already cached or reconstructed credential unless prompting
+            occurs.
+        - -Clear returns immediately after clearing state and does not prompt.
+
+        .LINK
+        Get-SecretsPath
+
+        .LINK
+        Read-Secrets
+
+        .LINK
+        Write-Secrets
+
+        .LINK
+        Save-Config
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(
@@ -118,8 +256,8 @@ function Get-DomainAdminCredential {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDwLFDwKgM8Rye6
-# W2NZbgcQkdds0L6+NtxFO6X3RvzkrqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD5aNkbgZCRF0wg
+# cHIWvPM+9UwLjtqhUMp3oeKk3q3qwaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -252,34 +390,34 @@ function Get-DomainAdminCredential {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBBVjLagTUf
-# njHyML/IRH9Uy9il7PfaKiwifF6dPNVPVDANBgkqhkiG9w0BAQEFAASCAgCRYn7+
-# KivvaEtUG7b7Rmu0fJLpF+3tXoBBkBNdowaVoqrQkV/eteNUYVx/zuUStyq1O43o
-# VwwXGHMuvvl5kqBAcnpkc+vVWwF7nipyBpTq5eoGCivR2CoOWtBlkrEoxz6IaONC
-# QPI6EX37UOw9bNJPpAb6liLmkMFuvx+TDw0bIHbadFsHaCVUTA/opkySPPBqAbgt
-# OyUUVbDS3KrFEVrWI7ttLE9mQjQcHTZU/LRP+2DeiWjaWaIbqnKK2lKKhf5Hp4gy
-# JXYxPvw4HDVHd0teC+PrNF29ptJvDWIYMr4RI5Q0ztaHwms7hMz9vFTWci47bZql
-# 8StqZxn0y5M32Q8ZXfvW/b/30PeRHLGs/NEQnp1FZkMxYLEJnCD7fqi3LRa2yuqx
-# zgL6K/OsTkybhe2U7lKHMrgnd7hlrbwoJ8oKJxSpz/7yTYUPHNU2y88OviYMP0oo
-# 3EPEOfcGpnwmgTclws+LCL+pcLjxYYNbffqfyNsmJBaYwJP3qZTx4ig7bjcLd+av
-# iFa70CxEpLOYl9UzuoVWkkdwuKwKkb71LqFAY8tcEtE7GpM6dXmhQ7JugoTENtbv
-# SqF/h7Z8p4ey7h/qgAtCZ0PmM9ZHulAm/8hQicnqBuse6AqKIC4hm0Qa1quWBiXY
-# mwNJlwWoE3u5tykjFtJHMMh68LoCeBjoqpOKM6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDnSDO+JAJ4
+# fQ6Fa2LrpMudsHmgnehPGLQb25OEwUKR9zANBgkqhkiG9w0BAQEFAASCAgA6FcQu
+# FAlUbdAYuAqZ9I0e6jU5NIVKIGZscJpSl0RwpIUm2KhpQqXWwzY1EcOqdWGyw6us
+# ZZXK8U9YqMwL6qmHOILMGreK3xHZXmDf5rn6vggRDAOC5d/Ue6tcVyy4ljzoJm7O
+# 93EapET3S6sMUGmzwZTFNtqJ7samowY3jSfGQ0GhO3xsv7UpeC9whwOyQxZVz/me
+# VwJo5NJg4zUdT/VRNQIIPH0TqWuWMNcihwIUBo+0jxSJNgRcS/NxrwwZMIapfpT8
+# GaZIE/1P3pD8V96+4K6nZubAoB6DA/kNewqWD77R8X9PI5KIpp48eTD3W1JJMIzF
+# 5LkSPIQFb4TFOE7y/4DESKKY/9Az+21g0a70RnfMq6tdfYp1O3XH8WY5XfFTvtg3
+# J0f1U1mSmZfT4yUtMVmxQpWNI54ixrJX5d9muS+2FcaR6uCfO3h4Tt7sA7geyxhE
+# 2LkIPc3FPkSqn1WLEwfmo2VRmqco4NnmzaCnsQcxXqAgSAR1mnlW5TaLHV+vbLi6
+# 3QEN3/qGYieStkBFd4RHVj0DCgSC0Tb+J5hz2Ml0C48nFVOMCZR69c5k2LPD7FZb
+# 0DiOjJajjIVohBCtUUpGBazaDw+VZZfur3Yl6EuraFfiaSHfoQVfG1McOfmkmEDu
+# dzPAa2soMXNwP2vpNA/byWnd3PkXYI4lpz+ooKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTEyMTE3MTRaMC8GCSqGSIb3DQEJBDEiBCAVBrMqoUmNz0h3NRqt
-# KFgWF4shqFl11/Myo4dPoEC9YjANBgkqhkiG9w0BAQEFAASCAgCMgRzqCeU++vZ8
-# SxZH+f+8VXbnJV+xE+ktIe2QokoUcWnuyR1g3RtgmwJJOGGmYbyrv6G6RBzoLVyN
-# CeLAzi5/D61VTBRVSaREmn8TJ7R3vlwwsZoagYKD5AEpitU5hp1jw2XgSbutMJ/f
-# XlT22y1uiI2EGJsaYL29qx216uPwGDOSwW1rdIqgAaXd5rILyjpXLirdOAI1xfC9
-# 4/5N/qwet2zd5OWoP/1Rz7rWYsTki7ykLhZ9SXsLMrbulP7gWK4ay3/NLMt0Bl4D
-# Z9cClyWzHLVQySutIQ+Zrh4Wc14GnOzVaj9cYFZaBurUTcEbHNajUSZOsT7kaqKG
-# wlCD1fcYB06oGCU3Vtv7CuVbOLtgUpMOdOlk9YGFi7a0QOAEx+X+QChwuxwV9RPZ
-# 6RaRWlHOvnlcHivp1M0hJqTw7Jz8+c6UUeyh6YvJQK2JbV23L670DFnsQ4jZ0VEh
-# dh7R4dTPCEe+gOCgKdy4f+biPHd41Ame9w/Uyf6tjPCGcId6CcNke9t7nuGXta4x
-# ByVjbRPCdj3pocd2d7A28c3gGWulYeacW7pHUCy2DXRi4fF1rrrz5ZWM0ZKCEMwc
-# gF+AAfpNNdEovShl7DudwepFOflIR9zwoEnQ9csI0JdpozA854LQGWRXQPOgIslP
-# ldkvwfFKlsyqFy/T3wbvJZx42KwIkw==
+# BTEPFw0yNjA0MTQxNDQwMzhaMC8GCSqGSIb3DQEJBDEiBCB2Pr4jrBQf3JrD19kD
+# bTug9uewVKixph4m2RwdIxKbXTANBgkqhkiG9w0BAQEFAASCAgCTujbMkJ+3dsFq
+# +6COlpD1uT0Po2H+pbFZ14gZf59NwG0uDgkgk3KdinhmA3pHOZLfnlWgvqErBchA
+# LrveaMNV6INky5akShOJBE1cjazRhQFCsLj32Y+qpTqf6rILFb4oKVxtsG/YE7Zz
+# QgYEWp7ZGmlgm9lRaZ7kTu1WvCVcA4mrQm/Se8Qrk340tlffFGwXSVpvtDid00ib
+# C/3BgRvWjQ96V8U0euSCNR5qewyEVgc9gt53SnJRXBe2ue9SPQGnYBIgCtM8O3ng
+# CDvwfBpAyt4ngB/eAC8GITUxs4M8fymPskJVCg44LwY5crl3h/0D8HubNXqlq/PY
+# NfJm0JSYfSU7wg82g5q/2M9AcGqeGemiMjXD5fhtJ4CyUkmsWcRiFqbYlvlsVFol
+# 5TNzRLAb0O6ZBgKboyh4vQWeMxAe3fSH1ciDX7pnPGRVlqmu5oeHy1phQ0IfgZvB
+# 2z86LNFrrRf9BssQ52zRPn9xYfGzLkU7q1BlPyAyUGA6M+AbAzxbVXt5Q0XYXtKk
+# 86bPmLC0QMlC/slyLyVzGD1YhUkKwmHadNZhs4WADCFfL87J8DfW00v2Ph0/U7Ko
+# mcitx2VDJzDgGlMrydFBSBPKqwP729vwZTngH68i/FAGbmIr/JocIkZMv1L6nECS
+# sid7PfVBM8BPw1KLa4NcoN+PmryE3g==
 # SIG # End signature block
