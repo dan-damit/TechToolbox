@@ -5,6 +5,7 @@
       "at": "01:00",
       "selfDelete": true,
       "taskNamePrefix": "TT_OneTimeReboot",
+      "defaultDescription": "Scheduled one-time reboot created by TechToolbox",
       "deleteExpiredTaskAfterMinutes": 10
     },
     "ad": {

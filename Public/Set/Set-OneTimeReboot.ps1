@@ -147,6 +147,7 @@ function Set-OneTimeReboot {
         [Nullable[datetime]]$DateTime,
 
         [string]$TaskName,
+        [string]$Description,
 
         [Nullable[bool]]$SelfDelete,
         [Nullable[bool]]$Force,
@@ -199,6 +200,9 @@ function Set-OneTimeReboot {
             # Default to prefix if no explicit TaskName
             $TaskName = $cfg.taskNamePrefix
         }
+        if (-not $PSBoundParameters.ContainsKey('Description')) {
+            $Description = $cfg.defaultDescription
+        }
 
         $deleteAfterMin = 10
         if ($cfg.deleteExpiredTaskAfterMinutes -as [int]) {
@@ -220,6 +224,7 @@ function Set-OneTimeReboot {
             param(
                 [datetime]$Target,
                 [string]$TaskName,
+                [string]$Description,
                 [bool]$Remove,
                 [bool]$Force,
                 [bool]$Wake,
@@ -312,6 +317,7 @@ function Set-OneTimeReboot {
                 $r = _SetOneTimeRebootLocal `
                     -Target $targetDT `
                     -TaskName $TaskName `
+                    -Description $Description `
                     -Remove:$Remove `
                     -Force:$Force `
                     -Wake:$Wake `
@@ -321,6 +327,7 @@ function Set-OneTimeReboot {
                     ComputerName = $env:COMPUTERNAME
                     Transport    = 'Local'
                     TaskName     = $r.TaskName
+                    Description  = $Description
                     ScheduledFor = $r.ScheduledFor
                     Status       = $r.Status
                     Detail       = $r.Fallback
@@ -343,6 +350,7 @@ function Set-OneTimeReboot {
                     $remoteResult = Invoke-Command -Session $sess -ScriptBlock ${function:_SetOneTimeRebootLocal} -ArgumentList @(
                         $targetDT,
                         $TaskName,
+                        $Description,
                         [bool]$Remove,
                         [bool]$Force,
                         [bool]$Wake,
@@ -353,6 +361,7 @@ function Set-OneTimeReboot {
                         ComputerName = $cn
                         Transport    = ($UseSsh ? "SSH:$Port" : "WSMan")
                         TaskName     = $remoteResult.TaskName
+                        Description  = $Description
                         ScheduledFor = $remoteResult.ScheduledFor
                         Status       = $remoteResult.Status
                         Detail       = $remoteResult.Fallback
@@ -368,6 +377,7 @@ function Set-OneTimeReboot {
                     ComputerName = $cn
                     Transport    = ($UseSsh ? "SSH:$Port" : "WSMan")
                     TaskName     = $TaskName
+                    Description  = $Description
                     ScheduledFor = $targetDT
                     Status       = 'Error'
                     Detail       = $_.Exception.Message
@@ -380,8 +390,8 @@ function Set-OneTimeReboot {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDNAOjVU4MeQQcW
-# nnwW+SLBcHRPGoo0+Zbt8Qot1vUtYKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDljkMDSmiETHqF
+# VMsrIRQqbHwiSg/XmLGKPq6wsVDWcKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -514,34 +524,34 @@ function Set-OneTimeReboot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDcPfagEnY6
-# hR+RtgLQ1ocQbZxN0PmUsf5vl7p64No+UTANBgkqhkiG9w0BAQEFAASCAgDGnYKS
-# +EM5taDPHYoJzBeNcBuA4ft1mm77kDJr54RP16tMGOVmEFLGax737ptoPpyULipO
-# aQJUq83ESUZ5Z0njr2KALS0YZi/LXeaFdxps7SEhqIuhOGslh4w746i7/ce1MEUP
-# g+nUp9ehWeVd9ecZiUoebFD8iJAJmyf3PqzyXyC0EEbv9AgfvW1mNhOShQwU33lz
-# lEdPb+JRSXRsGu9AMSm+m/zQeBS0R26OIt0l6nwIzXqau79XxGATMAfK2P0G8frp
-# AN5KpJEUNjmbQ0TCiGfJf977Hcs0eMNYV8B6WeKhXlWL6Q4fmz1PYDX3rSzIm4Fa
-# QOFfIRRxgk/FRt+VLiJI/EY8m0OM1rlHDYubiyLYnxUw0Q+sYjDuaSN/zSF6KrbH
-# NYkf+71RU3BpOU8cmSqzPwJLMBXVHfYMHd23FILYWsuwgebFVi0vDFfNyKdd4xy8
-# 3aLlmUKGEJG0zCwfh5TQhcTZc3J2hesE0lbV+NONbpP2Q46t3LieQgVFR+Yp1sfv
-# diB/KInN8Um+imsT/7SIiLMc0mfVWqYkaJuQXvyqTqAMWiGN846vczvZ26jqs1Tn
-# 2PmvJVLLwRNlGc+xUbgNNPRkZff2zDTYKMNSHw3BWLAnZzhbTLSfEErujqfOAscf
-# fLmIo8eteRxKsWdIV3R0zzgUf7nNR+MWPhmudKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB7kccgSTIR
+# /HsIiODqhGZ9aRjgHvIzHXNZ7gcf85tlEzANBgkqhkiG9w0BAQEFAASCAgByyM1Y
+# 0VB7i3vDasBnX4A7hrmgMt7HfPI38XZoTC3znNQW4ivIAnOAuaCQBCVazUpE4bCR
+# CcZ3X6Tt0JxIXC10ioMgLVrbYcp4E8+mD+8jj5Cpg/xGSiWxXBpD3V61ihuwCD1U
+# rWTN+VWs1EY6T8K71CRi2fOtQ2t54AWfeYuT0ne9IOpcpG2Kcd5sOmfTFUGm/mW2
+# 88XYAKdxuELoyna9PZ7vyoIRjmrIxOKjnnuMZqnGdLmsY3CbJEYpp42dyGumeoFX
+# aBwq578FQvZBBeumMmZcg66wpbUnLFTlbnCDbdnUo2A9tfSA8Yw0EbOH/afWSJvl
+# kLTz9/oMHzRbOxXEg8xygks5ANZnkCxevH7mw1CzXzNLHJFwC9rZ8B0Hsboyc4n7
+# YZdIsr7v6HcnsLlW7VH4H7hVLErc8oMkR5UylxMZIygpAgiPV/Hn/EPkoxnj5I6z
+# ZA0gJNmSWVmtYYCfcMbLHp4hyGypHmB7sEvnbFv9jCHv4tAgWpwpw/Vre+osElD5
+# 8j0rlPf8WruM/KGxIw/eAy+s5umoAzuOb+VVHriDEO6xF6JejyqeDNM8tKIGlpbq
+# xHpS2V5szZn2HyRr/73wDOSwesc9scVCti5imbEe6W0ORCcCJVeWVAmh2CB3s68e
+# 6tDcR44pSdZJeGLk3PO9LaLxPyHHOPhl29x0CaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTYxODQ0MzNaMC8GCSqGSIb3DQEJBDEiBCBzM3tzF6dEiYz0mr2S
-# cmtDYw026jxM7GAbjzDCibDmwzANBgkqhkiG9w0BAQEFAASCAgAi6utHlndbQhzh
-# f5Bzk0sb+j3ZuMMotWB0yis/2Y/Oka57WPDVak+teSQ5REL1bSGc+qaRpgmTljCl
-# Gl9EHwxvP2wm8vj4bxOEpjq49R04Y4413Hde1gqpRiOslwQIR/amWHoVj7SiDC1O
-# sZ0Z6dALsVxdqQE+D8AfcxiJehpdKnv7bOtMQ2KQVu1g7QIGe1TUnp8BpNZFcxsx
-# VNjo271ffp/hYExuYQ/hjlDZKVgiqbVBFzRYT4v+E0q0KUfkxlfZJQ2zQjIW2LI5
-# 4QgjIcDCqW1xgzKg1Wybh421q8Ff6pL0uEQlCw4A6gRcET6S1ed0DZUqIiPDFLes
-# BaUKlgGW5iGRNcJxc+PJCf+Mi1HfhTRPPw2Lp4llMfcRDFnVwJucKxI0VTbfaVM0
-# gN6RqQ/gLyGXJZiwGgBg0tP44h6jtxTYyDoJgassKCMwHreSMFGWEg+8ZMFvnfh3
-# h0sh1hzhwDJf7m7cdX1yqpO4AWX0NYIEjZgCvPN0lQjFwfIlnswy6yu1904VdOjI
-# 0ph8sj3KXHxbk706fxwHSeyX4tAxQgzvcT0abSt79oJAg27qlsHgqBbWMDhzUHJL
-# zGTHUkzajJDlNEQ9nDF+VfMjMd1eMxSZh8xt7P4UuhwnmCRdrMAIF/nLF80RVtSA
-# UwkepWrGVdW+40qO+INEW6Gwnh1N7g==
+# BTEPFw0yNjA0MTYxOTE3MzFaMC8GCSqGSIb3DQEJBDEiBCCnMVQhM0J+ubDv4VpW
+# ed10F8hme4ZWQhuKOmAI5A/uzTANBgkqhkiG9w0BAQEFAASCAgBXu3u3ZyUODP+x
+# SFpMXvNPYPWeD1cp8rwHRPDXsB9xc9O9yxElwyz8IBtpIHm/HPQUOA4Dela6q7mZ
+# 6tmY6bQg6WjYn8PUAt5hU8g0A2dSKDucU+zbe79lLj9vPguUHHLepmxSEJpLtRln
+# 2XhVe/4E0mm3ohhqJlxexixv3x2Zs9ENwXkHqda4pidTBc7ck/mpZgpDbRPqUoBg
+# IsXCZngZMejeqxJi20RnA0wGl8HlxBtP8vkotDmQTAxoyHfGgpKu7D6ffe4ecgv2
+# hDRHUVVCRXPB2i1g644kUyVHO1u5xRNZT9/l0YIOGBu9Qzka2Iy8wmGQ2Vkdy2BX
+# mMSkxriPLR6fGOrtDzUC2z3mAFz7LIlJyaAj/svbohNzk2T3WoHso7TSxYZQTD9j
+# m9FlGsXGfDP3el89WXq6tl/sOzMgbZvmyX9cW7y75hmE4R9HRYyXYpM28o+AnpJI
+# 1lG+8GIQDzvxbhjaXD+2WOP+pfT3DqSDOS7iOOwKOKYi5ZMOMnQoBslKc2pjdhu+
+# bZjz+iJps+s1O1pV2XHoaZxqYI/4wPhp8f1K1ZMZCqD0KZ4TvtEU2N1e1Aw5nGBh
+# UNhIs/sG/K/ICoajWHOUI91Euu8r5wbGC/gz7onmT9lx1YHhRiCg27YYBeSsd6um
+# feendmZOPcJ2kH2ZnZxDXZTGeukaHQ==
 # SIG # End signature block
