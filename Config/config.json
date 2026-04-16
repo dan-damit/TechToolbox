@@ -1,6 +1,12 @@
 {
   "schemaVersion": 1,
   "settings": {
+    "oneTimeReboot": {
+      "at": "01:00",
+      "selfDelete": true,
+      "taskNamePrefix": "TT_OneTimeReboot",
+      "deleteExpiredTaskAfterMinutes": 10
+    },
     "ad": {
       "allowMultipleMatches": false,
       "defaultAttributes": [
