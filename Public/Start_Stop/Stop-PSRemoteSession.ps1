@@ -77,29 +77,42 @@ function Stop-PSRemoteSession {
         Set-StrictMode -Version Latest
         $oldEAP = $ErrorActionPreference
         $ErrorActionPreference = 'Stop'
+        Initialize-TechToolboxRuntime
+
         $toRemove = New-Object System.Collections.Generic.List[System.Management.Automation.Runspaces.PSSession]
+
+        function Add-SessionsToList {
+            param([object]$Items)
+
+            foreach ($item in @($Items)) {
+                if ($item -is [System.Management.Automation.Runspaces.PSSession]) {
+                    [void]$toRemove.Add($item)
+                }
+            }
+        }
     }
 
     process {
         try {
             switch ($PSCmdlet.ParameterSetName) {
                 'BySession' {
-                    if ($Session) { $toRemove.AddRange($Session) }
+                    if ($Session) { Add-SessionsToList $Session }
                 }
                 'ById' {
-                    $toRemove.AddRange((Get-PSSession | Where-Object Id -In $Id))
+                    Add-SessionsToList @(Get-PSSession | Where-Object Id -In $Id)
                 }
                 'ByInstanceId' {
-                    $toRemove.AddRange((Get-PSSession | Where-Object InstanceId -In $InstanceId))
+                    Add-SessionsToList @(Get-PSSession | Where-Object InstanceId -In $InstanceId)
                 }
                 'ByName' {
-                    $toRemove.AddRange((Get-PSSession | Where-Object Name -In $Name))
+                    Add-SessionsToList @(Get-PSSession | Where-Object Name -In $Name)
                 }
                 default {
                     $sessions = Get-PSSession
 
                     if ($ComputerName) {
-                        $sessions = $sessions | Where-Object { $_.ComputerName -in $ComputerName }
+                        $cn = @($ComputerName)
+                        $sessions = $sessions | Where-Object { $cn -contains $_.ComputerName }
                     }
                     if ($NamePrefix) {
                         $sessions = $sessions | Where-Object { $_.Name -like "$NamePrefix*" }
@@ -107,18 +120,12 @@ function Stop-PSRemoteSession {
                     if ($OnlyDisconnected) {
                         $sessions = $sessions | Where-Object State -In @('Disconnected', 'Broken', 'Closed')
                     }
-                    if ($OlderThanMinutes) {
-                        $cutoff = (Get-Date).AddMinutes(-1 * [math]::Abs($OlderThanMinutes))
-                        # Not all session types reliably report these, but when they do:
-                        $sessions = $sessions | Where-Object {
-                            ($_.Runspace -and $_.Runspace.CreationTime -and $_.Runspace.CreationTime -lt $cutoff) -or
-                            ($_.Availability -eq 'None' -and $_.State -in @('Closed', 'Broken', 'Disconnected'))
-                        }
-                    }
 
-                    $toRemove.AddRange($sessions)
+                    Add-SessionsToList $sessions
                 }
             }
+            Write-Verbose ("Stop-PSRemoteSession: matched {0} session(s)." -f @($sessions).Count)
+            Write-Verbose (($sessions | Select-Object Id, Name, ComputerName, State | Out-String).Trim())
         }
         catch {
             Write-Log -Level Error -Message "Stop-PSRemoteSession: failed during selection: $($_.Exception.Message)"
@@ -163,8 +170,8 @@ function Stop-PSRemoteSession {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDxdzngz1cbRhGn
-# DZ5TwdOnsKuD/0Pctei4Tg6nH1seoqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBwKsg9/gqsNmdH
+# 3pMIM7JbcEIKfPwFSxYTfpMvKoK0K6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -297,34 +304,34 @@ function Stop-PSRemoteSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAMDjZEiS7V
-# nCUoiysOiZWPG3FAB+oIf5+q8zFHElzwHDANBgkqhkiG9w0BAQEFAASCAgDYqvuu
-# 0hpjpScmFlAWk3bwAdW9OeZoa83XWT8hL/pyrtHk8jPxEtAvcNPVy+/aCZTUIM98
-# eTO3DgzMHsHjULC+0g/dExoAExlD2FFhHFgZrP8ff3CeW6xS28RMYWqeO2KcZzhq
-# gmYGdn5zAy5YKODJzVJAKq12AemohVuWggip/b9ueywuXOsOF0btJKfKVIzN1N8M
-# J+ygNg6+XSL4nTBdCyPzM/q6OvS2fjwWagCB6tfqMwkurQGP2pPBcvyIB7FIxNGM
-# fzFWU+dsN2E79EANBn3qnSb1mhP3gsIsJgp5St1Auh7Xmsg/iGSsGW6npLsmxBn1
-# 5fLTn69PrHUY8GuREVz4aASl1bTSiQW2z7NmhCTlgX49uZSTt2YZ3CSavL7G8wXn
-# sMN2jI+NkPC2Vvb8+VPSNyh4jjJkrsUzZ9/RIx0kbwGgQKB2sfDtf6KXmhcSpZE9
-# FfDzd0rAaSkJCO5WkiM2BezUEFXcgbDsbt8zV41Sb3cPs0kzJqa60yr6Zr8WAyPY
-# 1EyXu9AYoVsR5upuBLglcDr+aqzZ3pJvJWK9B8ChQeBXbIAoS/Fon8mARXLeWcDA
-# VlDTrJDXNe3n4sWrYQ6HHat7eqyFz/2SEHTBAZQ4QD/ZOng2hetI+Zbz9D8P8BRd
-# Gk483cZJzDAe5tIlvaEt6UD11UZiZihBTEsBGaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBSaegsR4Jv
+# dYzalUu4I0EfAugUPTcHqWk/YDksaueTqjANBgkqhkiG9w0BAQEFAASCAgBxIZox
+# QHeMr/8IgaZacS7gOsG8cwSwqXeUR25F0WXx3rYLZZxTrfSbvxiRVmBh1ryTl1+5
+# BUjjp0yn8NZ3NbeHl/nLpAR/dZ1gu3n0PJMMYK039bZyAM+eCHvSyzNIqmsDh7SS
+# HgwrSKbYVFzhgqEY8b0Ircf3j59Dg6mIITFC+DuGxcNd0hdr0nlCRRwP6gbdbFdq
+# wyBuFRmrsjBYG5DOqT19vtll1pmoYfB5PKjCdMq5aYP6B5d0o8L3wtCfqXcHWU9V
+# uqObbvVMLxWWCzVnfQa9wmkKprQYgHz2zNYo6nuManWdaWkJI6tTiJxpQwJm60xe
+# eMd4Amd/m3i923SfYqDzH0HqdenqRBwH2dIe3Z3u0ahA6FcDEVWukJeQF4WXPeL2
+# T0os/zmEr4rEaoQmX2T28diKW09eWBuF5j36SAc+0yK3LRX2gVvSny204nWOiXEH
+# skld7IHPByKywz9fXfQrogGcdhjNE9vD/9cNk9KHYTOabzwag642S0Z0RHDbWzxF
+# 8Q4YIk6YwkMqZmz9gtG/yB5g2a6vaAwYVmXAFV1fvIwrUnPJWMnbFEeycXHIUyRH
+# FdlNC5NPgVyYd/kxP/WNMZBTjTKGXGVOm5sUf+S16reAlM7xgbcqefM9wh53CxVi
+# wnXYUoNcEhvhlePmL1c+tjFVyDjIofSHq+lTcaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTcxNTAxMzVaMC8GCSqGSIb3DQEJBDEiBCD9od+OWkK5lFLkSASK
-# TF//1ut1UyY/ntPuPkIRlrByeDANBgkqhkiG9w0BAQEFAASCAgCmKznK+pd/1p6Z
-# ewNTh3Uj2wVTUfuDlCKqglCjPVMcLZWcoX3NG0YPLh7udql5ZXM2M7rGoa6Omkkl
-# CgapoEi/V8CzONrmhYPDEkTa665K2PUUcrdtb3RDM1/5J5JvqTr89EEQcNmDCqiU
-# jFeo5GCwFNXh1viAA8uxBC1Gj5jLVWYqpbhdbZZZOuSIJNismDc9QHq2BPRESEty
-# eb559XifxMZYZgVl67iaacYN5W66duG5q5B6habLIylovAqGyzeCIjM45jbxBT0s
-# hsc1cJBLyAxDpSeNBpiCNHWMxw5r3oIq9esZtKssIo1ty301M7THJ+2Q5oZIs+hE
-# zf8y3WaNziQ2obTDA7cL9+QVHWYTD/lbTmvZotPgh58Jwx1Xm6C0dN34NJ4KbW5N
-# Hd14jhHWrYa8nNTQBtGtcMQVq8BrRmsbc2/O1SbH6gsk9ZlvhnnpoFNbBPbmNgp0
-# T32F4++e9aROj9Kfq7o73wGkG3LoEDoC9aZCeXIblk67MIwq7s5sbVL9pF5BzZVC
-# PeON8iQARHbxjCUYmCjyztKyF4z89kHMIJPk6s/f7i5QwN1PheHwZnlE44S2dUeC
-# M7A/4jvUwCmTR82iJFPBl5PXLx4gyREcMf8M90Fd4UuFnZ++7+qjlJkzbUyGyp1S
-# sU7yMr5mOAhOgc+04uCX2AycDPEdFA==
+# BTEPFw0yNjA0MTcxNTMwMzBaMC8GCSqGSIb3DQEJBDEiBCAV+gW/sXcFrMK5PuOP
+# uwuEdy4zlcSPNippAn0XBXoxODANBgkqhkiG9w0BAQEFAASCAgCytUQbyWaFfBAE
+# Er+ELl1ne1B9QvSQ53ZUUDWBAJ3xcN6+ZHoh3R1M1bPLH2dJn8hhgzZBRItR/Ej5
+# WZrf/zxHaX9+9mOKOICS9g6Ne9+tCNX5Zoi+PXHy0axv9ToOawUtLAZniJu9Cjb1
+# tGw8BRtLNqHmpbvqBphgAvhcsIRd+Ws5dXB+nApmsiDGm6Nk2gDz5hMqDGqICMmE
+# V8NpoQ0+OnyRIFM1oJj+oqsyEMbWTq5yU5oME6csFZBjY/qBEfFxD0Hz72dZkc4V
+# xjUIYrUaylS7JeYRzxwnlgQAdlVJofvZISZZitGb55i0XoD4pU+yvnjqC51317XO
+# 7r75ddmshxvoZFJSKFvK6p9o0bLKf+TsLrm8vrYPxi+R9mViMx38M8AlQNYA0v7o
+# u74HNmY+/E/K9dmay3EaErjzzwiE7djr6mQDRnh1RupmyTAu1UL+BdvyC+Vzymbs
+# Z8lM6+5sSPv1ja42m6sSCnAyDnh+PhWaxLvNI6FXTuoBQS6BRn18fpnRVH4ZsPNb
+# pF3BP0unNHjQqTWMrnka5IJsA/9Xs0GRPk1/58UKxr/D02uBTjrbzGY43KoHdx5g
+# BGpUiloUnzuET3jqBaYkllgV2kzAL8LfohM0CxEnCdA50HcPto5WuFF7Oe2ET7ZB
+# glTgzBiyVSk3OwRlIwAnrnBj/Krcsg==
 # SIG # End signature block
