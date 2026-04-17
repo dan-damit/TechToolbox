@@ -50,6 +50,7 @@ function Start-NewPSRemoteSession {
     param(
         [Parameter(Mandatory)][string]$ComputerName,
         [pscredential]$Credential,
+        [string]$SessionName,
 
         [switch]$UseSsh,
         [switch]$UseCredSSP,
@@ -74,6 +75,10 @@ function Start-NewPSRemoteSession {
             -OperationTimeout ($ConnectTimeoutSec * 1000) `
             -IdleTimeout $IdleTimeoutSec
 
+        if (-not $SessionName) {
+            $SessionName = "TT:Remote:{0}:{1:yyyyMMdd-HHmmss}" -f $ComputerName, (Get-Date)
+        }
+
         if ($UseSsh) {
             # Requires PowerShell 7+ locally for -HostName transport
             if (-not (Get-Command New-PSSession -ParameterName HostName -ErrorAction SilentlyContinue)) {
@@ -87,6 +92,7 @@ function Start-NewPSRemoteSession {
                 ErrorAction       = 'Stop'
                 ConfigurationName = 'PowerShell'  # PS7 remote default; adjust if you expose custom configs over SSH
                 SessionOption     = $sessOpts
+                Name              = $SessionName
             }
 
             if ($KeyFilePath) {
@@ -122,6 +128,7 @@ function Start-NewPSRemoteSession {
                     ConfigurationName = $Ps7ConfigName
                     ErrorAction       = 'Stop'
                     SessionOption     = $sessOpts
+                    Name              = $SessionName
                 }
                 $s = New-PSSession @wsmanParams
                 Write-Log -Level Ok -Message "Connected to $ComputerName via WSMan ($Ps7ConfigName)."
@@ -136,6 +143,7 @@ function Start-NewPSRemoteSession {
                     ConfigurationName = $WinPsConfigName
                     ErrorAction       = 'Stop'
                     SessionOption     = $sessOpts
+                    Name              = $SessionName
                 }
                 $s = New-PSSession @wsmanParams
                 Write-Log -Level Ok -Message "Connected to $ComputerName via WSMan ($WinPsConfigName)."
@@ -156,8 +164,8 @@ function Start-NewPSRemoteSession {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCQmObTcNkJV2VI
-# dr3VN2bTCT0axONYZ+J9Hvz+agEDnaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBDU2WswisnyY8/
+# JmmBLR8u06vSprRZCvFtA246BhwztqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -290,34 +298,34 @@ function Start-NewPSRemoteSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCLrHDn71ow
-# a8laqSY2ze8s0EC2YdDZVcGW09WGss8+NDANBgkqhkiG9w0BAQEFAASCAgDFeG+h
-# uMszUmS9vv6/gG4Myu7FA1duhYy3f659XhpDX5GBt2W41vBLhgRWih2LL2qLzufb
-# n6lYm2ItTvGSnH1G7/xW/nptdq2YYJ8lsbHz8CR+/o4nT7zqwkIh3GREsBS118wd
-# Xsl8vaZlnVR+2YRoNm7mz2NcRC1ZG51qw/yFheJ3Au8+N8PpHl40VGLBBDIovtPk
-# kxWNX2knnlaagVUTPaxZ79bFRYtZaOMCEkcU4KqggFx1ZNJgYtHVyhlHSN99cBZh
-# WA3lycSB4414OdQrCmGW+pEaBWglP6NftJxtQbfv+E1C1cgEU7g7U4dWEJ0nggkP
-# 9EYGDYtS18+2UCbNFCoCVlKJUJ9slEH7Z/rJMxXXCvebg+6+dYVm4pns72mg7dAQ
-# Klo808OZvDxjwbv1ixh+pTE7Hvf3BPXMFrmn2kp7dgggFYgEN1KqYkrAFR8I0O3L
-# tGezQ0l3P0TGCJTVJ9LafuTV3BX6FSHzhuN5CzrzplfnNl+cnnU1xAkQkSItcPWl
-# 4Muk1jzycgt6hO+bAWL8F7JhujZyaE+94sqD1dN+HFB82bo4aKunzvJNvbde7AyN
-# Q9dxb/boRpDVGib24QCY9sqOIGb0s3grufYgx/YyJOKTr8p695j8Qrcb1YqqYv6R
-# 2HxdyJr7zSQZCJVwLyIlYPRtnf4Atfo2Lp2thKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2bYntrO+C
+# 4NWA6OJNZ56EKuHZIiovu5/MWt6Zzryy1DANBgkqhkiG9w0BAQEFAASCAgBb/GiZ
+# e4sJRDGUkvUfJbjNveqiTdRCfAHonbIxY3punxJqZaxogVXRIXzRi5MRpEAccOuk
+# TXQmnFHHeaf/mt+xosvAo21MddXlGc3/NGgk4/4vuXqSzH8D7BoRaKkrsNuRj55s
+# SlMItbGu8034QbnDAKGQf2Takh2yHYB30dDYaYgCw+lsk3JsZXLvsM7aIoTJiDJA
+# /6FGcFRUs2TSk8KUeZ0BQhiA+UoP6laR5r/vpkYSm3AQXNXoAS5LZvfJwOEYvJZi
+# XdwwoE2YiAiPWSTA0iwNR0Y9i9jV+gzzWtLkpQKf3dSTzkictAmXhirLsFzby/U4
+# Colcxk3nLXwz5JtBcXv74KDOaATKTIt9rtfWcLpQl7Rn4xqufpJiY1YOzcUpS7zo
+# uo9oUs2+rB4SWfdsssWWx+md7+L8qV6E738M1c7pciE/Ep+nwTqc5Bk/4V69GHfH
+# 8fytOHRR5MjhRob32ScWee0g2SmE2yGLH8tMJWlDOojxpiL0L+euHtUVYi+5xsVt
+# BOesUowykjMn1+reCD2SvcVH0c5u7gvnOha14MIJANPRnbPAIxiAbkR2W+i41of+
+# ruZCMOssjJ92UbDmCgHQcFysY3TdAovBM0R5viMWQCl9WgfO3pqyrR1ZWSai5ji3
+# 0J+60HPbXielgjPF1whZdLlqYTkQuHSB0Rcln6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAwNjMyMzJaMC8GCSqGSIb3DQEJBDEiBCDPlGeWNNNeW5rkac4F
-# gdcMs+h7PBhQYpqiWfBQxbiHsDANBgkqhkiG9w0BAQEFAASCAgBqXYr7DxYaTikc
-# NkvyPOIvesoRVf3S0qd4nXAHXaLqS/eyQtoYLRnEVyf4Z2kLO23MfDGnBke9Ewh5
-# sGYIvTbo5q3KSgdjqNmMFKU2Q5PE+ktZ5DJgcTLPxsZl8Z0hBcy+jPzchCEHuC+W
-# /JdmcpfHwIOKZt1G2hpkkBKTSRhAE9o1h9R/eTuSXfeQMMLIOkmY6PIs6nbx9Jvt
-# Gv9YieTcuRNipYD5N9nKQ5xb05QnDAPrA6u/xvKdHduTuQylyep9RtANdZtFX4Dd
-# MAuDcEuxaQ8EBju2UEM/mNaEspqBmkusUi40W/SBCARPMnmn60gLNcmdQpVe0+ox
-# Yd5G7TnFHiA8YiMn3dYAggQMU0yOCG26XvLCYzPR8+BwcuxcA5JWRZu/DmfwyLoe
-# zqG6uiFgu7PM/gWhfmcibjXLobC1M+cGQ1cbXsryoFxANDbra94n1x8OPrejSH5I
-# pGMU0UcMcQXvAr2FpvJBd4xvqyG9nKUyIIpAkBPAVJh+z+7dt/rLKrxL/tSnrJqn
-# YXGsFCSMRdMoEz6FSM9Q0aJzHNZ1ZhtIBvLBpY7yZ6nHaG2KRYJ14TblQ5nLgvvC
-# ya88bFtfvZAUWbuoi2e1ZhOUKRgdFRuUhrX4ylHFOrxEDAQygfTL0V1zZg9wVbe6
-# 2hwFxdDy1qvWwyLam8lwKhZC/AjJeg==
+# BTEPFw0yNjA0MTcxNTAxMzVaMC8GCSqGSIb3DQEJBDEiBCDTndUscW7MMh63K3G8
+# D/Bi3Q24zKsEWyoBT+pnobAm+jANBgkqhkiG9w0BAQEFAASCAgCIzGd9G3MmWnjA
+# EGne9yV5drlbJ2i4u5hgKVZLSe6EWiWXvR0JvYuJt0eb6Y/3Ti0YXxUMlvEt/kmT
+# ERoh4edLuJ8/GCl8hYoPqnf023G55g1H4NjGVmZ+tKF7eUkrJuES2pqzhLcIJgN4
+# SquxKrkxN358PPIKSJuVFKSNZ0C25ln9bBsZcb2VXtyM00PnVX3/GdELpH55jY6a
+# kTTPSkkD0GRw+RXsNtlIPupg+y3hyIMMpgQgvJtHQDjBKvImwjFaqEvfgQ/2FV4i
+# L+oxhnzR1VrQplQ1LoGiFSvAe+0aDYGFfJhGuubK/3IVyjBKljWU1+6eDZ/D9eAO
+# davU+mjHAmvDAb13hErSzR13ud30htpay/6fbto3KgYzTySbcNYgvnUQPYuzHLkS
+# m022GrRSzUMIicYb23LnPIBPuVXZ3cs1NQyV8U4QwQEunzXquAxAfOAO+yF1jFt+
+# d13e5BGmHv13FdHI/PxtQBCSilGikiFQOui5PUo+c92aL33d08QooB3K33Arm5Mv
+# SSANjnhZ2a8hQVn4ihlw49ire8Aovd9eRSoOmB6kL4QngH7QodVt2x0lsDAgkl5H
+# hJFOnfX/fAeOAqb6ho4C+bFu3hvu+vT49z+YKo5QjAfxvgw9WuTU7RA2d+7xuR8U
+# z6D7oC7HAm+psUT0hVWd0u4gVCpkcA==
 # SIG # End signature block
