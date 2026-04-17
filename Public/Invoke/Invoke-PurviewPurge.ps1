@@ -338,7 +338,7 @@ function Invoke-PurviewPurge {
         if ($PSCmdlet.ShouldProcess(("Case '{0}' Search '{1}'" -f $CaseName, $searchName), 'Submit Purview HardDelete purge')) {
             $null = Invoke-HardDelete -SearchName $searchName -CaseName $CaseName -Confirm:$confirm -ErrorAction Stop
             $purgeSubmitted = $true
-            Write-Log -Level Ok -Message ("[Done] Purview HardDelete purge submitted for '{0}' in case '{1}'." -f $searchName, $CaseName)
+            Write-Log -Level Info -Message ""
         }
         else {
             Write-Log -Level Info -Message "Purge submission skipped due to -WhatIf/-Confirm."
@@ -351,15 +351,15 @@ function Invoke-PurviewPurge {
         Write-Log -Level Error -Message ("[ERROR] {0}" -f $_.Exception.Message)
     }
     finally {
-        Write-Log -Level Warn -Message "Remember to disconnect from Purview when finished using Disconnect-ExchangeOnline command..."
+        Write-Log -Level E-Info -Message "`nRemember to disconnect from Purview when finished using Disconnect-ExchangeOnline command..."
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpT3T9QadGyNen
-# qKSXlo5ZdZBVMWqypdAiCgwUzJn1VaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBDiHNQ6ox/w5sK
+# ovqH0H6oPd2x8amzoikfbemEwXAtd6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -492,34 +492,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB2dRGBg/jo
-# 00y4Nb7qP+QuS2kKjcePtzdK4PzCf+CTrjANBgkqhkiG9w0BAQEFAASCAgAIGapT
-# PMxsS25doGsi05sriF/xk/+Fgjmqc6GBLD1FKUNzoR0XflwsujeMGLoOpjnxP5+c
-# CBI3eoqwajX/0JWZAKZPJ6kodOsd1ieUslMrPHVbPTJ6xhR477vE9GKwU8leXy9s
-# Qk593mtnrWZv6z3DqlWn6BXyI4SlDjlywRC0xEAKXc2tIe09BK4Npz3yBsk16UMo
-# jBY30NL9j5oAOCcSdl+Gsr4TgNqKCKJKviCLBKN62i/IcwQdfhqLD89H5FOoli77
-# +uPj8YPpndCqZUJ0UsyJteveA/9IBPai+jxY+dFdMstuEfoPdExWgal2skNP5zZN
-# DI7Yd0D68OPYskrMBPkc/aX/nS73HW2+M6g61fNWfTiEeObO4Sd0i8T3A80LoESX
-# rk9qh6HSiAiuEM72oKhm6vlXBsqVYlSjzKsHuwtFQBN7xxcdzwShhSRbqD+jitmW
-# gm4jnFUVdWen0UdKKst6xCFDoWuN+7K1wyVJvAUpjhDO+pr1uV6VbcJExAmZ3bPy
-# XkL2n6jO1QXSUr/44z0uXXiWiSPnNS0IXViNljsX3PKQTs/6b6Ms6vEkj7UNVU48
-# U3H/GZoW6NpqqKKjyrVhTjkx9ASzgMxM1CRSbRix4yWMltWEDOVmaJbqmOiPoafZ
-# mPQ57vscgPsLH0jy8q1xHwu0vDdTStFhmdy+G6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBDzCextLpC
+# ZViTgH+xaIj4P0hXsA+fkA3f6KavTSg78jANBgkqhkiG9w0BAQEFAASCAgC3DDGX
+# 0eZpn1XSd/BSd3jcRSxnekI3AOTSyIOCUWfhMxX1CQZkKKbRqt9Fw6FDzfBB0aBI
+# j1HPeB9WVpdneo6aWCaxO6/UFPdsgYKF9n9UTtNIqYq7FYerPebEOUl5/WQA92og
+# XRfQIqX74pDsc/yNwikHj70Mut8yBiZaf0lmafS8tdRs+yWLXqLodUD+MMrSSTj4
+# CfGcRjPdG+KRT3EeFRh8E6Y3lST/ITvRhf7ok0zOdDc5Y7GegcZ0TKCU8HGcTHzv
+# ZBqbrfGyoCfYAOQNZTjO4O24dHG35Qn2orcD7hKUSVZjRiAsvzN0oOpNPZxBfUOs
+# jR29rlWkOolQknzicGIibED7ORmAjKLE6wUNH1GqkutA7nPr0J/hhlauKoLAoGGN
+# SwTBy0JGs7YcVUjgis1jt9MG0zrwyfQCLAlGXuIFprRQsTXbcz4tQNREkiJFcG/U
+# 3P6H0AOrkudGCgCgGVP10LVt5dEwM8m2P0MXzhSetPfGDu54n1x5cIL389f6eUpY
+# Lj6nWmClQICMKyZwo2bht118LqtDgaiBcPEH43ugjdXH8WJGrjdap6LwkeGYhpgv
+# NctvcpBiO++l01zjp8G60Y+6uG44zDHHtAR09ttEiYoAD3t6h08cYRuUy9YhVHHm
+# icFxanm0wlIuqnXxg6GYzUoCKlcqx+3Tnx9MbqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTAxODQ1NTdaMC8GCSqGSIb3DQEJBDEiBCDlBmc/oI2cv8PFQaIz
-# gsV6jr18J0/gb5IBdtqzrZw5xjANBgkqhkiG9w0BAQEFAASCAgAwnk1kmCx8zpqs
-# wwfWa3LG3cit4nnsEKLaVbStJ9aLniaKoGBdb0RDtQccgeexj9KwxU6UHlMMaUOZ
-# 5rITHDByhtV8iHspCP+WzhvtJtMsZLPyriQykXCLegLYeqGxbkM/gRY5WXDczXDi
-# L2pUPPcIAnjPkjDgIyPpOl4FfWLEuoCE4zKEhlsrsEwtXTnsnIDt8AbuinfXqoym
-# J9dZANwlqBrby4Vbn/Gn9XoWSG/r0bGOS1CXxDV+26BJ6b7CgXsroOVYhfKFjczg
-# 4ENcvBpV63ZA+La96s1YlzmFwy7ie9qhAfgMvrJ+xevMntNL44OIsn7vVRzoMUrQ
-# ERVfYTiKTPI09o0rr6IpOc3pC8tyUyIgtap5xBIeeWMxmKrhiNrRaj5Z5HpHr6WW
-# 158W69Y4EMUijJhfcvkQZi1JX8toKjcMnwKNoN6EQrYz+2+h/xldkk8uPTqncz2e
-# k8s4Il2K+0zxxz6MlLtfBDtdu+yLIR3UwEnHouZjr3+yBZJ+vWSaxMVNDZbuowM/
-# d3qKvgX2z59q81TiMrQeC7QePi4oGhBJNTkKsOHcVkKrp7daMs9URZFT4lS0zbbP
-# H1ERZztFfVNJgRU/2vGaW/xcN9iRVBL2QaQXfoKvxSJn7vwn7HnI233G0Ra4FVqh
-# b/Wl4fIb/gvBnoiuLHjTOljN4sovUQ==
+# BTEPFw0yNjA0MTcxODU0MTJaMC8GCSqGSIb3DQEJBDEiBCCeOr6MuoQudFQZ8FnQ
+# fun6wGde6+I3IVSvlL7fS3DHWzANBgkqhkiG9w0BAQEFAASCAgB89MM8S5eay8xc
+# WynQLu/1Qsj4hQ1D27pBeyRq5td0qyTvlp6yNrQtcwwIPJdDR88I6Da/NRFzYN17
+# GrBGByXlWgn0pjHkww3HyT88QxdsXeKUX6IVkWrEy3j0wRHJq7Rc8eY6e6sueFlK
+# dEpikNy6m4/R9kpOHfHFwXYA4qBgocgOG5TQGOt+inh0HQbUKP6hP1QTXPLmGeCW
+# 4Ck8FzD9K3jjA4Qp9Bfb6adrA8yyU9Y5ZawLoCWPtL4OLSR2F6/GmDnt4IkOsvtA
+# aE1DwOEx2WUV0J2ku7rNvKS+5mdZTV4KwnAVdUZQJKONvv3cX/clFxMB/lRY2Zxt
+# Lvn481f+tqKf8dIg7c3Vd8YkVcuySnADwcgQHCkNKHDhrcFeEtRtcPdARGHC2uQW
+# vpgyIMTLs521/PDazlLK0FmpOxy2ATMkB9/dh7IxJdUCu2NRi5mrJmRiYuLkcM1D
+# cGTSPiSt6VjEVue3MkLhWGoaONEgiCs313ixcYaPFdTE3tag4UB+y3eIC9unGxI2
+# xWIIKc0rH7GESk1nHUlS/9cmG/oSL+zsdgJm3SOKugSpO6Z0Ulq0AT4BkERq0BPj
+# DEyR1PtiWKZ7XkdwkZm1fyXXHQeMgKRyAzbodM8mvqqdRB77nCixSlP50Yy1/B7t
+# VXTkC/a3areMrPk7C5778F952o9QcA==
 # SIG # End signature block
