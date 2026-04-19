@@ -221,85 +221,99 @@ function Set-OneTimeReboot {
         }
 
         function _SetOneTimeRebootLocal {
+            [CmdletBinding(DefaultParameterSetName = 'Schedule')]
             param(
+                [Parameter(ParameterSetName = 'Schedule', Mandatory = $true)]
                 [datetime]$Target,
+
+                [Parameter(ParameterSetName = 'Schedule', Mandatory = $true)]
                 [string]$TaskName,
+
+                [Parameter(ParameterSetName = 'Remove', Mandatory = $true)]
+                [switch]$Remove,
+
                 [string]$Description,
-                [bool]$Remove,
-                [bool]$Force,
-                [bool]$Wake,
-                [bool]$SelfDelete
+                [switch]$Force,
+                [switch]$Wake,
+                [switch]$SelfDelete
             )
 
+            # --- Removal mode ---
             if ($Remove) {
-                # Remove using ScheduledTasks if available; fallback to schtasks
                 if (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue) {
-                    if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
-                        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-                        return @{ Status = 'Removed'; ScheduledFor = $null; TaskName = $TaskName }
+                    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
+                    return [pscustomobject]@{
+                        Status       = 'Removed'
+                        ScheduledFor = $null
+                        TaskName     = $TaskName
+                        Engine       = 'ScheduledTasks'
                     }
-                    return @{ Status = 'NotFound'; ScheduledFor = $null; TaskName = $TaskName }
                 }
-                else {
-                    & schtasks.exe /Delete /TN $TaskName /F 2>$null | Out-Null
-                    return @{ Status = 'Removed'; ScheduledFor = $null; TaskName = $TaskName; Fallback = 'schtasks.exe' }
+
+                & schtasks.exe /Delete /TN $TaskName /F 2>$null | Out-Null
+                return [pscustomobject]@{
+                    Status       = 'Removed'
+                    ScheduledFor = $null
+                    TaskName     = $TaskName
+                    Engine       = 'schtasks.exe'
                 }
             }
 
-            # Prefer ScheduledTasks module if available; BUT if SelfDelete is requested, use schtasks /Z for reliability
+            # --- Scheduling mode ---
             $hasST = [bool](Get-Command New-ScheduledTaskAction -ErrorAction SilentlyContinue)
             $useSchTasks = (-not $hasST) -or $SelfDelete
 
             if (-not $useSchTasks) {
-                $args = @('/r', '/t', '0')
+                # ScheduledTasks module path
+                $args = '/r', '/t', '0'
                 if ($Force) { $args += '/f' }
 
                 $action = New-ScheduledTaskAction -Execute 'shutdown.exe' -Argument ($args -join ' ')
                 $trigger = New-ScheduledTaskTrigger -Once -At $Target
-
                 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable
+
                 if ($Wake) { $settings.WakeToRun = $true }
 
-                # NOTE: intentionally NOT using DeleteExpiredTaskAfter here to avoid XML formatting/EndBoundary issues
-                # Task Scheduler expects ISO-8601 durations like PT10M, and the task must "expire" (EndBoundary) first. [1](https://learn.microsoft.com/en-us/windows/win32/taskschd/tasksettings-deleteexpiredtaskafter)[2](https://iamsupergeek.com/self-deleting-scheduled-task-via-powershell/)[3](https://www.reddit.com/r/PowerShell/comments/izb792/deleting_a_scheduled_task_after_it_runs/)
-
-                if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
-                    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-                }
+                Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
 
                 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -User 'SYSTEM' -Force | Out-Null
-                return @{ Status = 'Scheduled'; ScheduledFor = $Target; TaskName = $TaskName }
+
+                return [pscustomobject]@{
+                    Status       = 'Scheduled'
+                    ScheduledFor = $Target
+                    TaskName     = $TaskName
+                    Engine       = 'ScheduledTasks'
+                }
             }
-            else {
-                # schtasks.exe path (most compatible; and supports /Z for one-time self-delete)
-                $trArgs = 'shutdown.exe /r /t 0'
-                if ($Force) { $trArgs += ' /f' }
 
-                $st = $Target.ToString('HH:mm')
-                $sd = $Target.ToString('MM/dd/yyyy')
+            # --- schtasks.exe path ---
+            $trArgs = 'shutdown.exe /r /t 0'
+            if ($Force) { $trArgs += ' /f' }
 
-                & schtasks.exe /Delete /TN $TaskName /F 2>$null | Out-Null
+            $st = $Target.ToString('HH:mm')
+            $sd = $Target.ToString('MM/dd/yyyy', [cultureinfo]::InvariantCulture)
 
-                $createArgs = @(
-                    '/Create',
-                    '/SC', 'ONCE',
-                    '/TN', $TaskName,
-                    '/TR', $trArgs,
-                    '/ST', $st,
-                    '/SD', $sd,
-                    '/RU', 'SYSTEM',
-                    '/F'
-                )
+            & schtasks.exe /Delete /TN $TaskName /F 2>$null | Out-Null
 
-                if ($SelfDelete) {
-                    # schtasks /Z + /SC ONCE is unreliable on some OS builds (EndBoundary/XML issues)
-                    # best effort: ignore self-delete in schtasks mode
-                    # optionally: Write-Verbose or _Log Warn here
-                }  # Delete task after it runs once
+            $createArgs = @(
+                '/Create',
+                '/SC', 'ONCE',
+                '/TN', $TaskName,
+                '/TR', $trArgs,
+                '/ST', $st,
+                '/SD', $sd,
+                '/RU', 'SYSTEM',
+                '/F'
+            )
 
-                & schtasks.exe @createArgs | Out-Null
+            & schtasks.exe @createArgs | Out-Null
 
-                return @{ Status = 'Scheduled'; ScheduledFor = $Target; TaskName = $TaskName; Fallback = 'schtasks.exe' }
+            return [pscustomobject]@{
+                Status       = 'Scheduled'
+                ScheduledFor = $Target
+                TaskName     = $TaskName
+                Engine       = 'schtasks.exe'
+                Note         = $SelfDelete ? 'SelfDelete ignored due to schtasks.exe ONCE limitations' : $null
             }
         }
 
@@ -390,8 +404,8 @@ function Set-OneTimeReboot {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDljkMDSmiETHqF
-# VMsrIRQqbHwiSg/XmLGKPq6wsVDWcKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAML6TGMYSWfc5v
+# mRvNlsxPKhvnoHzQBqY+vdtiHSgUl6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -524,34 +538,34 @@ function Set-OneTimeReboot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB7kccgSTIR
-# /HsIiODqhGZ9aRjgHvIzHXNZ7gcf85tlEzANBgkqhkiG9w0BAQEFAASCAgByyM1Y
-# 0VB7i3vDasBnX4A7hrmgMt7HfPI38XZoTC3znNQW4ivIAnOAuaCQBCVazUpE4bCR
-# CcZ3X6Tt0JxIXC10ioMgLVrbYcp4E8+mD+8jj5Cpg/xGSiWxXBpD3V61ihuwCD1U
-# rWTN+VWs1EY6T8K71CRi2fOtQ2t54AWfeYuT0ne9IOpcpG2Kcd5sOmfTFUGm/mW2
-# 88XYAKdxuELoyna9PZ7vyoIRjmrIxOKjnnuMZqnGdLmsY3CbJEYpp42dyGumeoFX
-# aBwq578FQvZBBeumMmZcg66wpbUnLFTlbnCDbdnUo2A9tfSA8Yw0EbOH/afWSJvl
-# kLTz9/oMHzRbOxXEg8xygks5ANZnkCxevH7mw1CzXzNLHJFwC9rZ8B0Hsboyc4n7
-# YZdIsr7v6HcnsLlW7VH4H7hVLErc8oMkR5UylxMZIygpAgiPV/Hn/EPkoxnj5I6z
-# ZA0gJNmSWVmtYYCfcMbLHp4hyGypHmB7sEvnbFv9jCHv4tAgWpwpw/Vre+osElD5
-# 8j0rlPf8WruM/KGxIw/eAy+s5umoAzuOb+VVHriDEO6xF6JejyqeDNM8tKIGlpbq
-# xHpS2V5szZn2HyRr/73wDOSwesc9scVCti5imbEe6W0ORCcCJVeWVAmh2CB3s68e
-# 6tDcR44pSdZJeGLk3PO9LaLxPyHHOPhl29x0CaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBmdexmIGSm
+# 7hwqCaHROBkS6PeUSSD++hX4Zb2wTGBj0zANBgkqhkiG9w0BAQEFAASCAgAbG4I8
+# w/LaGlrA0tTfjzzW4bl2h+jkzPBONQEJoNq6D38juwSibqgij85lqIHNLP+dxh1I
+# 3wHe8Y/e/1xNMNqiomEfJvtvAKJXfh5NPOjjUjWkD7bxFfLe9E0NmmNSMBsZJ7ZP
+# HxWswmMviY6oH0H7BDaVxJMdsUFPg90IO/boEP3KYXbBzq+tA+KnIyeJq5NHSEw1
+# U7rjixVzGpPowKFUOA9wUpA3Dq+UrXlodb+Cryv048Ts+DJL7QY2msku3Toku6xA
+# yaDSM+o3hQgYBH39PNXvr2pcmABmx1HSyC7gyyGg0g6SuW8XskMC8E5KhplkWLO3
+# 0YSi1WvFcJsiLqm2mfWjXL/h/DX+G2UWezeoUOhvfUs8LE5IssgZMVsXeouWVSfx
+# /7Z+CFyQGUOglhOrbCDqpNI6cXIlirUFAFKY0EiPvwxDh+Y/Rs/AN0S+rESxUNWD
+# CNOP33jqPn+/OlGLHEB7ZYXwjAHqIsKUIUVqs62LRJKR3sSkIPuQrrFxf8W4VTld
+# gmjljnQ6yTTTlBd1zi+e1rUMhNMWt709L1Vrw+pN9hllcKv68Ot6LlFaHnUowc30
+# oWYD0sOcQj/busdMLL/5LUnmHjdjP1omk70wJNOyWl2XnBQIm8aI1RLV7WdrW9I5
+# ZLeS5GqblkYgozih75WxniTt7omcpt9AHlcKhKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTYxOTE3MzFaMC8GCSqGSIb3DQEJBDEiBCCnMVQhM0J+ubDv4VpW
-# ed10F8hme4ZWQhuKOmAI5A/uzTANBgkqhkiG9w0BAQEFAASCAgBXu3u3ZyUODP+x
-# SFpMXvNPYPWeD1cp8rwHRPDXsB9xc9O9yxElwyz8IBtpIHm/HPQUOA4Dela6q7mZ
-# 6tmY6bQg6WjYn8PUAt5hU8g0A2dSKDucU+zbe79lLj9vPguUHHLepmxSEJpLtRln
-# 2XhVe/4E0mm3ohhqJlxexixv3x2Zs9ENwXkHqda4pidTBc7ck/mpZgpDbRPqUoBg
-# IsXCZngZMejeqxJi20RnA0wGl8HlxBtP8vkotDmQTAxoyHfGgpKu7D6ffe4ecgv2
-# hDRHUVVCRXPB2i1g644kUyVHO1u5xRNZT9/l0YIOGBu9Qzka2Iy8wmGQ2Vkdy2BX
-# mMSkxriPLR6fGOrtDzUC2z3mAFz7LIlJyaAj/svbohNzk2T3WoHso7TSxYZQTD9j
-# m9FlGsXGfDP3el89WXq6tl/sOzMgbZvmyX9cW7y75hmE4R9HRYyXYpM28o+AnpJI
-# 1lG+8GIQDzvxbhjaXD+2WOP+pfT3DqSDOS7iOOwKOKYi5ZMOMnQoBslKc2pjdhu+
-# bZjz+iJps+s1O1pV2XHoaZxqYI/4wPhp8f1K1ZMZCqD0KZ4TvtEU2N1e1Aw5nGBh
-# UNhIs/sG/K/ICoajWHOUI91Euu8r5wbGC/gz7onmT9lx1YHhRiCg27YYBeSsd6um
-# feendmZOPcJ2kH2ZnZxDXZTGeukaHQ==
+# BTEPFw0yNjA0MTkwMDUyMDBaMC8GCSqGSIb3DQEJBDEiBCDY6tUn0g5Wvt5zSf/3
+# F08/eyJGLflXRX0EXmouHtQhpzANBgkqhkiG9w0BAQEFAASCAgCOImmhhrmL6oSy
+# yWmqIv7WMZS+6TlKFbNHOH97uIZAijl0Vte8Ll1YiqdepD9Yky0vb+0JbhEuRyCq
+# 7gucuPS91L3zIUbjV4yrplWXIuZxiKH5sj/bmSo099dE+O8XLF99LOj1+Ng2e3Du
+# gdVa7bJ6UlapngKT7wdorXYIjxkuv+q9GGO3ONo4lTOIB1miCor+Nj6vitSx6G9R
+# deVJioycJYr3JgLTryWBH066RLIXiwjGdQJj804kf0+O9Y+aCSKLeMQsZfPEMF/q
+# QucaxjFkchUKxmJDGMU55u/DT5C/vyGAKyxZybM6D7B+gtpMB5++1TI1R1L4WV2u
+# x7q2856Q1OPYVjQqTDwB2RB+/5ZsMa9Mimfb3pUq1Xh1LPAT96mmr5z9wVbbWPoE
+# HU5IyvqOvDQW7VsVYN4V6Ee2CiQsH6fwkLmOZzdGhK8X0iv3NiUKBwYqKsIYjx8B
+# y3xzyf2zNVmdwF7tTe6QauZTvE6v13Ey98r9zV7H35nVbjz3EAlZLDoCMRK1v/Ir
+# Lmbniy7ukQF/iqTUOYTYDZn3UDNmkBHUrQtYy+tMTBSE9XPq513/OMBekDSVZ90U
+# PK+7EH9bSRRit8A3r4FcnitadecOxso5SpfwbrTGk43OJ5T+S5/qK1+huT7lXbzb
+# gD/sOXqdITHyuQ+wHU4YBgha/Y9nqQ==
 # SIG # End signature block
