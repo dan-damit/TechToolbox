@@ -264,8 +264,11 @@ function Set-OneTimeReboot {
             $hasST = [bool](Get-Command New-ScheduledTaskAction -ErrorAction SilentlyContinue)
             $useSchTasks = (-not $hasST) -or $SelfDelete
 
+            # schtasks.exe does not support automatic task deletion, so we use a
+            # short-term trigger as a workaround when SelfDelete is enabled.
+            # Otherwise, we prefer ScheduledTasks cmdlets for better settings
+            # control and reliability.
             if (-not $useSchTasks) {
-                # ScheduledTasks module path
                 $args = '/r', '/t', '0'
                 if ($Force) { $args += '/f' }
 
@@ -277,9 +280,15 @@ function Set-OneTimeReboot {
 
                 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
 
-                Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -User 'SYSTEM' -Force | Out-Null
+                Register-ScheduledTask -TaskName $TaskName `
+                    -Action $action `
+                    -Trigger $trigger `
+                    -Settings $settings `
+                    -User 'SYSTEM' `
+                    -Description $Description `
+                    -Force | Out-Null
 
-                return [pscustomobject]@{
+                return @{
                     Status       = 'Scheduled'
                     ScheduledFor = $Target
                     TaskName     = $TaskName
@@ -407,8 +416,8 @@ function Set-OneTimeReboot {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAm367gQw00SQ12
-# q8p438PGykEtfXmia7G+V5IKpJ73FqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDLpWTPOKhFoEp1
+# yCvxrHUjgvU+NG9HCkn1Jycga7qcTaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -541,34 +550,34 @@ function Set-OneTimeReboot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBKpH5b/Su6
-# 6ePt3b5tl47Mwfz1Xwpi0h2vb+Xp0KDnmTANBgkqhkiG9w0BAQEFAASCAgACVflr
-# Pqc51LPnLbImmL3epYdVJpKHVxX8TxnqzqzwWieH4xrr1umuQupks1WGGIrOv9ko
-# Ns4YmU9edOmSOj6p35LaaMeSeu49kjW80sts6m2RzY0a4Vgz/FZFuhPg3flXib57
-# goHxcAGBhMWo7FuEcYte4rMFZ3k0LhN4lHfO0hMIbs6Qb5LzCp1AXrQTanaqtuWZ
-# GrMKAcGOYNcQ6+diubVmHfjG4n64NMygV/NYZlvmSqQDBXZKqN++WsSiDjQT+f/P
-# PFj8VKQo8ctC7RE1OiscxQBkBHMgf/uYKjvmz6JcaCQwnZavsBVAIwRsAt1h4+TA
-# wbDJ7YCOV1ydWs9T+6LSMlhfEfNY68rXPEH6GS594uh0Ou4k/DkETBQt6KGvabWN
-# xf8Jrn3g+IlCMf77cV+RwiTnVVEPTkv8E4somq4nJoLaMIXZhkYyuaR52NVFyIYN
-# 39qO+ttKzCvVwO7BAlCMoy+bGF9DUSL1D/4GEUuRB/EN5nsKwa9ofgKHTSBaF+2J
-# Wib2elMhR2LQxPm/v9G7S0PKogjOB9akvQ2mWdIzySxpBsuhJI32OITBI8rA+iME
-# eFZk6lUWBxwaloz1WzKdQYALABgAl5YicrAJSzQzIhaviqvkdgPvgBaFeY1LdCiD
-# 8mXLMJ4dzpYbPglWvnUfIuQk7O6h31zqJ3Kh46GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBKgjF9e69L
+# tsVzouZmRY3drqvHEfRnCHd04j+sF0/zBTANBgkqhkiG9w0BAQEFAASCAgAOIFnw
+# QxlyoZ1NywXuX56yfIJx04g1Ga+w16FyqJt1OJZFm4I232mjCTMWgHKcVKPMxCo5
+# 34PwTRMZQb2WQ4ZuUr/Cw6oUttIPmInVfBWX7EqpMVEd0Aqshhvw6Ol4oU4MNspx
+# DU16zLjnZTnvP09hnOl7aEIpkTv63PJ8ZfMxQBA4P0o5pe0gk05IST09BFXt4D7C
+# 3YNTeO3gc9hz0lJj/O6Whon2Nh/pDm7EVEt64QrK0GnJSNItsEPLEEWIqLTXBIoU
+# 0sUIpIWUvAVmhV98KiDmODr5uHSjROU1YtADqCj/eEVttvYOPLh93b3sJ1edeuGh
+# HM8x+en1u+YTEQelvn0edV7uCVuGnVjxjh49jbXhFCCGpoxl0h4+pvt5Lc8QHtcm
+# BvDLvKrNXBqesDs/pbLVfM+CjemRG7ba5I8/O764y5DZaCUqKbbUSRW9xn9k99yv
+# akfgmU+1Q4YB+XyjhQtWkyV1AawJfp6eJNvLRe+l9o6gRdf8wFvmLb+r4YOyUpHB
+# RtOCx8w/j61TO2S0DQawZdyxEsSJ1HnA2Cw5Q6igM21etAnDsReNgAdoJ7E4FbUG
+# ti0Ym1jG2KpI4mDRUXcZYU83heYIUweLeExLzHxL1pUqu5lz+KQpwLITAan5Hdm9
+# jmpqutVmyoZKBqUABA52QfOfYcPoNfJsKrA8baGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTkwMDU1NDZaMC8GCSqGSIb3DQEJBDEiBCAcxBSbnezyPSY9icW+
-# z5yjSnWhXBk3h0TY6kyyStxyPjANBgkqhkiG9w0BAQEFAASCAgCoHAgYQGyT4fRi
-# hg60+JUUZGssUZthK87G+OQPYKMUe76fBs4d0VYgM2nnBwEWtyXzgzhY+b0Pga2C
-# 58Uifh/SbHabj9BgRA+WRAqDV3vUQk4/PX8jZM9PMuC0ZT0Ub7jQXEfgsDKgvLuH
-# W2/wZ6vIc12bsiqg+6xTRWzq4NyLmd5U5lxHAm0qzEwBnyWo/R3FXsIzheuSApkw
-# sivMvbff7Ar/Ggn5ybczCYNCzacpsllp9HCr8GQbVINlfIIXcGIWrePKQJm1TdXn
-# 8EgCM3NOOWKE06YGrBP2M1cFD9Xx0JCsYRLJ2j6nVxqGLuuIqWHT35tpIvuvT3It
-# jaHRCey+y8T9asx8yybdjFzql3aNmvnJat2DNNCxxtk7fPAZpZqQTWREA/Xchvo2
-# STZ72hg0vq0pH7YhHuQ1ZKsK2GTZ1KPiI86IIdZWo8dZGetoRuQV49QeG+ELdzXo
-# tnYsOBgYeWa2fCCjyzmysz02OEAdlQNoj15Y0LuUmDjh5lzegp7GEbKsf1niiMUY
-# R95N+yu11VCeU6+CfhiO4W/RyxpeCQH1FO7sqd82bU3iVRR72u8cJop9vlwK/cvw
-# LjVp1GO2YNWVn/RmDdqjFubJC7czT+eLslBalQKUiN+l0HnyuqWD3v4ozN+YMlh5
-# E03RR8j24MO2t+KA5p/quWuM0S02DA==
+# BTEPFw0yNjA0MTkwMTA4MjlaMC8GCSqGSIb3DQEJBDEiBCCWe4zujmeNvKpTA5aF
+# cnz6/fLyidwmE9k6zLOoqz9BFDANBgkqhkiG9w0BAQEFAASCAgBCrdJPeSj2/mJS
+# dHxYHkIhrndi1x1Y7DrXPqIXArD3S3pOL/NhU4yYlYe4PlmUXKl0IHukoLjqnFFj
+# uJ9Id2d0bp829LEe4TBbmhbN+zOFbjlDOe/dx9BfObCzyHrMZYaSB+PRkXN7rvme
+# kR0qzn9lMFzMwaZr561tBgs0Os2Cb9bEYiQCsfh6W8s1GZer+9N4UNLj2uXAnbwZ
+# KSUhCcsGnpCq83OBejMYzbEeo/2O0B/zUZfZtK3wAfuPe3qnEe5PZvXV+1NYMpsr
+# mBu6P5nxGyNtMs1SoA4TQhPE1IcKQtXFT7Bd74f/OTkocDpbYpYesA0NlCXe3Eeh
+# y4X0Fda+Wtmkk+Me1tTN3n/x7Xw9PfYXXgrvIIFG8WqZKlJBYkEZBU0FPtt3ANat
+# TlsWxG+34+w4BgMZSuLpdSish9oXBi4OzgKchesfspD7g7qgoc/E41qxqEpTazlY
+# rbSyZwY0mOtP09eIynYVlZsLrT0XQmUMhv2uLfP+VzN4YjQXbuRHFmcmsCQTNi4B
+# L1sln0kiWdb3gfn3jTtim2ngF7P7h0wsClB5qSXfYAWBCw7KYf/MAZjS6wNwMFJk
+# IdcLFgI9vNfi4d8KynprfT+s7ovkg6qW4KSdA7tzup6RNOanfEjV4Fd/tV0alMab
+# hC7Wx6oVxv/s8/YsAhHk/JxRMyJjpg==
 # SIG # End signature block
