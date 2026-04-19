@@ -137,7 +137,8 @@ function Set-OneTimeReboot {
         [Alias('CN', 'Host', 'Name')]
         [string[]]$ComputerName,
 
-        # Credential for remote session creation (WSMan/SSH). Also supports username-only for SSH key auth via PSRemoting helper.
+        # Credential for remote session creation (WSMan/SSH).
+        # Also supports username-only for SSH key auth via PSRemoting helper.
         [pscredential]$Credential,
 
         # --- scheduling params ---
@@ -360,7 +361,9 @@ function Set-OneTimeReboot {
                 $sess = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -UseSsh:$UseSsh -UseCredSSP:$UseCredSSP -Port $Port
 
                 try {
-                    # ArgumentList order MUST match the helper param order. [1](https://stackoverflow.com/questions/13092352/how-important-is-parameter-order-when-calling-powershell-cmdlets)[2](https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/09-functions?view=powershell-7.6)
+                    # ArgumentList order MUST match the helper param order.
+                    # [1](https://stackoverflow.com/questions/13092352/how-important-is-parameter-order-when-calling-powershell-cmdlets)
+                    # [2](https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/09-functions?view=powershell-7.6)
                     $remoteResult = Invoke-Command -Session $sess -ScriptBlock ${function:_SetOneTimeRebootLocal} -ArgumentList @(
                         $targetDT,
                         $TaskName,
@@ -404,8 +407,8 @@ function Set-OneTimeReboot {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAML6TGMYSWfc5v
-# mRvNlsxPKhvnoHzQBqY+vdtiHSgUl6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAm367gQw00SQ12
+# q8p438PGykEtfXmia7G+V5IKpJ73FqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -538,34 +541,34 @@ function Set-OneTimeReboot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBmdexmIGSm
-# 7hwqCaHROBkS6PeUSSD++hX4Zb2wTGBj0zANBgkqhkiG9w0BAQEFAASCAgAbG4I8
-# w/LaGlrA0tTfjzzW4bl2h+jkzPBONQEJoNq6D38juwSibqgij85lqIHNLP+dxh1I
-# 3wHe8Y/e/1xNMNqiomEfJvtvAKJXfh5NPOjjUjWkD7bxFfLe9E0NmmNSMBsZJ7ZP
-# HxWswmMviY6oH0H7BDaVxJMdsUFPg90IO/boEP3KYXbBzq+tA+KnIyeJq5NHSEw1
-# U7rjixVzGpPowKFUOA9wUpA3Dq+UrXlodb+Cryv048Ts+DJL7QY2msku3Toku6xA
-# yaDSM+o3hQgYBH39PNXvr2pcmABmx1HSyC7gyyGg0g6SuW8XskMC8E5KhplkWLO3
-# 0YSi1WvFcJsiLqm2mfWjXL/h/DX+G2UWezeoUOhvfUs8LE5IssgZMVsXeouWVSfx
-# /7Z+CFyQGUOglhOrbCDqpNI6cXIlirUFAFKY0EiPvwxDh+Y/Rs/AN0S+rESxUNWD
-# CNOP33jqPn+/OlGLHEB7ZYXwjAHqIsKUIUVqs62LRJKR3sSkIPuQrrFxf8W4VTld
-# gmjljnQ6yTTTlBd1zi+e1rUMhNMWt709L1Vrw+pN9hllcKv68Ot6LlFaHnUowc30
-# oWYD0sOcQj/busdMLL/5LUnmHjdjP1omk70wJNOyWl2XnBQIm8aI1RLV7WdrW9I5
-# ZLeS5GqblkYgozih75WxniTt7omcpt9AHlcKhKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBKpH5b/Su6
+# 6ePt3b5tl47Mwfz1Xwpi0h2vb+Xp0KDnmTANBgkqhkiG9w0BAQEFAASCAgACVflr
+# Pqc51LPnLbImmL3epYdVJpKHVxX8TxnqzqzwWieH4xrr1umuQupks1WGGIrOv9ko
+# Ns4YmU9edOmSOj6p35LaaMeSeu49kjW80sts6m2RzY0a4Vgz/FZFuhPg3flXib57
+# goHxcAGBhMWo7FuEcYte4rMFZ3k0LhN4lHfO0hMIbs6Qb5LzCp1AXrQTanaqtuWZ
+# GrMKAcGOYNcQ6+diubVmHfjG4n64NMygV/NYZlvmSqQDBXZKqN++WsSiDjQT+f/P
+# PFj8VKQo8ctC7RE1OiscxQBkBHMgf/uYKjvmz6JcaCQwnZavsBVAIwRsAt1h4+TA
+# wbDJ7YCOV1ydWs9T+6LSMlhfEfNY68rXPEH6GS594uh0Ou4k/DkETBQt6KGvabWN
+# xf8Jrn3g+IlCMf77cV+RwiTnVVEPTkv8E4somq4nJoLaMIXZhkYyuaR52NVFyIYN
+# 39qO+ttKzCvVwO7BAlCMoy+bGF9DUSL1D/4GEUuRB/EN5nsKwa9ofgKHTSBaF+2J
+# Wib2elMhR2LQxPm/v9G7S0PKogjOB9akvQ2mWdIzySxpBsuhJI32OITBI8rA+iME
+# eFZk6lUWBxwaloz1WzKdQYALABgAl5YicrAJSzQzIhaviqvkdgPvgBaFeY1LdCiD
+# 8mXLMJ4dzpYbPglWvnUfIuQk7O6h31zqJ3Kh46GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTkwMDUyMDBaMC8GCSqGSIb3DQEJBDEiBCDY6tUn0g5Wvt5zSf/3
-# F08/eyJGLflXRX0EXmouHtQhpzANBgkqhkiG9w0BAQEFAASCAgCOImmhhrmL6oSy
-# yWmqIv7WMZS+6TlKFbNHOH97uIZAijl0Vte8Ll1YiqdepD9Yky0vb+0JbhEuRyCq
-# 7gucuPS91L3zIUbjV4yrplWXIuZxiKH5sj/bmSo099dE+O8XLF99LOj1+Ng2e3Du
-# gdVa7bJ6UlapngKT7wdorXYIjxkuv+q9GGO3ONo4lTOIB1miCor+Nj6vitSx6G9R
-# deVJioycJYr3JgLTryWBH066RLIXiwjGdQJj804kf0+O9Y+aCSKLeMQsZfPEMF/q
-# QucaxjFkchUKxmJDGMU55u/DT5C/vyGAKyxZybM6D7B+gtpMB5++1TI1R1L4WV2u
-# x7q2856Q1OPYVjQqTDwB2RB+/5ZsMa9Mimfb3pUq1Xh1LPAT96mmr5z9wVbbWPoE
-# HU5IyvqOvDQW7VsVYN4V6Ee2CiQsH6fwkLmOZzdGhK8X0iv3NiUKBwYqKsIYjx8B
-# y3xzyf2zNVmdwF7tTe6QauZTvE6v13Ey98r9zV7H35nVbjz3EAlZLDoCMRK1v/Ir
-# Lmbniy7ukQF/iqTUOYTYDZn3UDNmkBHUrQtYy+tMTBSE9XPq513/OMBekDSVZ90U
-# PK+7EH9bSRRit8A3r4FcnitadecOxso5SpfwbrTGk43OJ5T+S5/qK1+huT7lXbzb
-# gD/sOXqdITHyuQ+wHU4YBgha/Y9nqQ==
+# BTEPFw0yNjA0MTkwMDU1NDZaMC8GCSqGSIb3DQEJBDEiBCAcxBSbnezyPSY9icW+
+# z5yjSnWhXBk3h0TY6kyyStxyPjANBgkqhkiG9w0BAQEFAASCAgCoHAgYQGyT4fRi
+# hg60+JUUZGssUZthK87G+OQPYKMUe76fBs4d0VYgM2nnBwEWtyXzgzhY+b0Pga2C
+# 58Uifh/SbHabj9BgRA+WRAqDV3vUQk4/PX8jZM9PMuC0ZT0Ub7jQXEfgsDKgvLuH
+# W2/wZ6vIc12bsiqg+6xTRWzq4NyLmd5U5lxHAm0qzEwBnyWo/R3FXsIzheuSApkw
+# sivMvbff7Ar/Ggn5ybczCYNCzacpsllp9HCr8GQbVINlfIIXcGIWrePKQJm1TdXn
+# 8EgCM3NOOWKE06YGrBP2M1cFD9Xx0JCsYRLJ2j6nVxqGLuuIqWHT35tpIvuvT3It
+# jaHRCey+y8T9asx8yybdjFzql3aNmvnJat2DNNCxxtk7fPAZpZqQTWREA/Xchvo2
+# STZ72hg0vq0pH7YhHuQ1ZKsK2GTZ1KPiI86IIdZWo8dZGetoRuQV49QeG+ELdzXo
+# tnYsOBgYeWa2fCCjyzmysz02OEAdlQNoj15Y0LuUmDjh5lzegp7GEbKsf1niiMUY
+# R95N+yu11VCeU6+CfhiO4W/RyxpeCQH1FO7sqd82bU3iVRR72u8cJop9vlwK/cvw
+# LjVp1GO2YNWVn/RmDdqjFubJC7czT+eLslBalQKUiN+l0HnyuqWD3v4ozN+YMlh5
+# E03RR8j24MO2t+KA5p/quWuM0S02DA==
 # SIG # End signature block
