@@ -178,16 +178,18 @@ function Set-OneTimeReboot {
 
         # Logging shim (uses Write-Log if available, else Write-Host)
         function _Log {
-            param([ValidateSet('Ok', 'Info', 'Warn', 'Error')][string]$Level, [string]$Message)
+            param([ValidateSet('Ok', 'E-Info', 'Info', 'Warn', 'Error')][string]$Level, [string]$Message)
             if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
                 Write-Log -Level $Level -Message $Message
             }
             else {
                 $color = switch ($Level) {
                     'Ok' { 'Green' }
+                    'E-Info' { 'Cyan' }
+                    'Info' { 'Gray' }
                     'Warn' { 'Yellow' }
                     'Error' { 'Red' }
-                    default { 'Cyan' }
+                    default { 'Gray' }
                 }
                 Write-Host "[Set-OneTimeReboot][$Level] $Message" -ForegroundColor $color
             }
@@ -297,6 +299,7 @@ function Set-OneTimeReboot {
                     ScheduledFor = $Target
                     TaskName     = $TaskName
                     Engine       = 'ScheduledTasks'
+                    Fallback     = $null
                 }
             }
 
@@ -327,12 +330,13 @@ function Set-OneTimeReboot {
                 ScheduledFor = $Target
                 TaskName     = $TaskName
                 Engine       = 'schtasks.exe'
+                Fallback     = 'Used schtasks.exe (ScheduledTasks cmdlets unavailable or SelfDelete enabled)'
             }
         }
 
         $targetDT = _ComputeTargetDateTime -At $At -DateTime $DateTime
         $targetText = $targetDT.ToString('yyyy-MM-dd HH:mm:ss')
-        _Log Info "`nEffective: At=$At | DateTime=$targetText | TaskName=$TaskName | SelfDelete=$SelfDelete | Force=$Force | Wake=$Wake | Remove=$Remove"
+        _Log E-Info "`nEffective: At=$At | DateTime=$targetText | TaskName=$TaskName | SelfDelete=$SelfDelete | Force=$Force | Wake=$Wake | Remove=$Remove"
     }
 
     process {
@@ -376,11 +380,49 @@ function Set-OneTimeReboot {
                     # ArgumentList order MUST match the helper param order.
                     # [1](https://stackoverflow.com/questions/13092352/how-important-is-parameter-order-when-calling-powershell-cmdlets)
                     # [2](https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/09-functions?view=powershell-7.6)
-                    $remoteResult = Invoke-Command -Session $sess -ScriptBlock ${function:_SetOneTimeRebootLocal} -ArgumentList @(
+                    # Capture the local helper scriptblock once (outside Invoke-Command)
+                    $helperText = ${function:_SetOneTimeRebootLocal}.ToString()
+
+                    $remoteResult = Invoke-Command -Session $sess -ScriptBlock {
+                        param(
+                            [string]$HelperText,
+                            [datetime]$Target,
+                            [string]$TaskName,
+                            [string]$Description,
+                            [bool]$Remove,
+                            [bool]$Force,
+                            [bool]$Wake,
+                            [bool]$SelfDelete
+                        )
+
+                        # Rehydrate the scriptblock on the remote side
+                        $Helper = [scriptblock]::Create($HelperText)
+
+                        if ($Remove) {
+                            & $Helper `
+                                -TaskName     $TaskName `
+                                -Description  $Description `
+                                -Remove `
+                                -Force:       $Force `
+                                -Wake:        $Wake `
+                                -SelfDelete:  $SelfDelete
+                        }
+                        else {
+                            & $Helper `
+                                -Target       $Target `
+                                -TaskName     $TaskName `
+                                -Description  $Description `
+                                -Force:       $Force `
+                                -Wake:        $Wake `
+                                -SelfDelete:  $SelfDelete
+                        }
+
+                    } -ArgumentList @(
+                        $helperText,
                         $targetDT,
                         $TaskName,
-                        [bool]$Remove,
                         $Description,
+                        [bool]$Remove,
                         [bool]$Force,
                         [bool]$Wake,
                         [bool]$SelfDelete
@@ -419,8 +461,8 @@ function Set-OneTimeReboot {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBbH0/I9B3u2Zhp
-# LmGe78MZkAyC+N9lPl/5sjGOvgC/cqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAkCkFTkZ9JcbvV
+# 7SAuKiMegSS6bZrwQ4Gsw4aSXD5msKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -553,34 +595,34 @@ function Set-OneTimeReboot {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCByfZmxWkFb
-# JBBnJ/AiEEqk05PYi+uRvgfdJxiJ2HJtADANBgkqhkiG9w0BAQEFAASCAgBoo63W
-# gQnuk+WYKBdHvyqFwO/YW1xDFCpNL93mHkOX9OE8Xk8JUYfqmUuHjTcZwSTuZNtK
-# 4BlAx05Of/hs7V82vH53dxkgKoP1F13KwoNa9arvT6+tYpgBOrGsjOhqd+2dY0hA
-# qYSY44XIFuoTFOri9ckfLogRZfdazAxY4sYS6NfrkeP9RzN4ZmDiS4N2Yzf5bTg0
-# ZE6y3w335nLfAflULg9a3GdxMmSqonxrOaUNw51ra48YNopDTU0T0jloDEC3E34T
-# Xdss0fvwo6ZI2ZRi5+5TRu9VfA02vE1gbCksxTxMHCid2SY97g4Rwf+QTW6ohYth
-# 7MEndq+YdPPdQQ/7uNedbq0GCn9NMNFiZN5ZkgMHQQRVoQfDzwffuVk1lc+6QsBc
-# uGCX5BAN6g5/RLtsOrZB2AwfGTvXJojFei8bH+viYriy+C9Ndbyol/+8gGOzS4sE
-# LzWXrunvbxmXkyrTowTFtT/N/7RqyggkYgF6E75FK4eVtUtkNHlReh7MZuIBVLDI
-# 69RS47Qtpbm6Gjl8Od7XZPm1k5tKvdJq9ySK1mr2ermO1D6o6kWsSmNAhvWnpNP2
-# POX4LVMRQiLly9L7V0jTxuO2Ry7quh7jThDIomNI/gqkNfH20qk5H1DTaJO3kI+2
-# PZNYrj/CJjyqx7TCuf5k3EANaEjKWpHZcfqJkqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBEDQ0KFCEw
+# 4rXWWa5scWA7gExRc7WMQszLjY4gopSZWDANBgkqhkiG9w0BAQEFAASCAgAmeSN9
+# SzNhQh2yRrz+nr6SmvTJiMd6uHiHBHKITspAXvmdPXQZTiD44WV0x6kiOVxggvBI
+# 2GLhUQe23gB6aZtsP+P65x0ABMXCjghVmjCDT7kzOE76VYmmxhCklKJa5Acm93BQ
+# SguPWsI7QHd/Mdmr2xpbKazGtG0iiJgL5OnNW40HddAUF7eFYYKahxCZW3tTuBDu
+# RSOuRc9Rr9ASQzPa3Qm1POBIaB5HfAjoCHwnqXeDpx0g6CKcuGqL7if5z1HYFtx3
+# i/65O/fDFepcsw7LhuFCTy2dYCikB/peBzgEL2o0hKBWLPIj3YCY8rSfTlxAYW9K
+# QHjtkRTOT/KOXAQdFJS1cHOa2kW9S/AiHNf49KZ31/lVg+hAYsqvcCdnSuc7TQCS
+# 0YOYUXnBN3AvS2Qhz/XdI3XEuGZhIrOqcU9kh3HiqJjn4XELem9SN4v/rF76LLC+
+# UgQ/J5idJWhBoEB7HTPSCWy0mhCTbGk2O87PFgi43DxP6XWBr5IERDOBTi5FNic4
+# ZitYqbMS5GbO1Qxde+vGyIk7mLwQdc1AXfw51JhfJNWmMyvZDuUxVDljgAITFPjG
+# B9FTtWyt6fv83UZfuOINc8MIqPWQ3XeaHDxPA2ab9y5jYLw/ZOgNFidhRDYxk1j1
+# f8mueA0qlaZ8UDYeb6CcZCp29OnMhR+6sPf1iqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjAyMTA1NTJaMC8GCSqGSIb3DQEJBDEiBCC3mVXFu4LBz6H9YNJm
-# KAVsDrucFPuStB2+QNJSd/LumjANBgkqhkiG9w0BAQEFAASCAgCUWxxyHHlUKzY0
-# 164STdSGCaYaUFKa65tx4ueMMOo4+DGku2MMwwzBDK4QQ2YC7XMHjNqr6Vlgn/yV
-# 9gc96cxCClzilJSjeuEXicKs9ort9nbb6e+mkd2mxMwjrufkHa8lxu6w5VWuHZlG
-# otjy9Q6+9yxqI66YU7SAqbUFs9UbYjheH6NrM6d1QOOIx1WGmlQy2v1aE2uemgt0
-# SvrJRFOZhEFVp48gRGo5nflnbVoFV1Tmdlvj7AaUMdnn81WS+zaVOXY25xABJp3w
-# tE4nWZi7LCA6tWoL1BMoE8Z/3kSxocQJRG1gOjts8XFsNlQyYWQgT56S3ke4ctG4
-# 9D7Kh3OYeYwG1mqrT4K4sn7AvR6/OFiYRFLSvkSuJKxeua+nEBAdvEPTowArq6Ki
-# LNl5hArDaphLhdEd+85IewqCtuIlFvVnFFIMjsM3ypbJUDUOG8+D999n63OJ82+w
-# eEhNtNahHDBB2EzhhiPfCZw6GL/9+4hyw/7nlONBjBU7Lqf3W/4+WyPHXsbY77OS
-# 7s5vtbJmETRkxopgTTSo7X+dIMUGmMr4YBwqbZY154sBkt27R0Nux4mQ7VpShH7M
-# Z+j/07PVkct1TJZrIdQw5r+dvRqkvyaM6V7kR6Ss0rnmhyZYKjqMs5cUDxDhbcAf
-# 0Nt1XqBfBzcaQM3/h9vbSFx3+/WiHw==
+# BTEPFw0yNjA0MjAyMTI3MTdaMC8GCSqGSIb3DQEJBDEiBCDR7Iy1euj/J74wGOs8
+# 1IqHAIjN0t9LuGvk739zSXxN6zANBgkqhkiG9w0BAQEFAASCAgC5YuKV7hcNV0fT
+# vmWeyU1qrY7rTii1IluJc7tAgxMZf20uSxKHQSe2gMiSq+ZdPRBDpNmSPpzvPKjn
+# 9FkKfc+B/fV5aGiQQFEVLzgHtiibuXB1Cv3NfsyC/7s9PJaQ3zNw97dsfY13GewK
+# rmpx+JEgkxukCuGVgfN7Y7k72SWNqDMvHSluNEIpft50lglOuIzQPnNgAqv6AXm/
+# nWa3RkTuDFjENMEoBwUSoYQH0Zj19IU0YDU1wRKumTTYyHt5O0MHi4Q7pQit2sSk
+# NK/cofUPpURlDf5n30Z5wmGVehTiIy7DkwMXdvgCnKbvRKbtfx5Y7PV07+60znBk
+# 5pimeEz9ysIditDZyI0iNknQquyeISkWpFZltUc75iIuxTnz8CvnHBlFf+6UOrJu
+# DNAEUsu1n5RIpXJJR7HZapV+tkaTToyTiHK3ejlku6IH6jcq8nulTh6XOP0aPwed
+# czizQamTPDpZ+e2fN2cL++thXbqYrLzXerSEKmdeK7/i3G5pmEgCvU3n1wBrvpfU
+# zySBLPQZnrvsejVHltwg4VKh9PHafSewE6k8WZYq+FMcOs29qRM/pPqXvhQJM+D6
+# I9rWGRSZ+pPIhC0JL4ULjWgSJK+YPbuZq7ISkHT5n8XIbpz7GM/4mUDDW9z+Ry88
+# IhkMZKGISjKu87ILRDZzpwZB/L6DiA==
 # SIG # End signature block
