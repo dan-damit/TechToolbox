@@ -80,40 +80,83 @@ function Start-NewPSRemoteSession {
         }
 
         if ($UseSsh) {
-            # Requires PowerShell 7+ locally for -HostName transport
-            if (-not (Get-Command New-PSSession -ParameterName HostName -ErrorAction SilentlyContinue)) {
-                throw "SSH transport requires PowerShell 7+ locally (New-PSSession -HostName)."
+
+            # --- Preflight: must be PowerShell 7+ (or 6+) locally for SSH remoting parameter set ---
+            if ($PSVersionTable.PSVersion.Major -lt 7) {
+                throw "SSH transport requires PowerShell 7+ locally."
+            } # PowerShell remoting over SSH is supported in PowerShell 6+ / 7+. [1](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/ssh-remoting-in-powershell?view=powershell-7.6)[3](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_remote_requirements?view=powershell-7.5)
+
+            # --- Preflight: ensure OpenSSH client is present (ssh.exe) ---
+            if (-not (Get-Command ssh -ErrorAction SilentlyContinue)) {
+                throw "SSH transport requires OpenSSH client (ssh.exe) available on PATH."
+            } # SSH transport depends on SSH being installed. [1](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/ssh-remoting-in-powershell?view=powershell-7.6)
+
+            # --- Resolve username ---
+            $resolvedUser = $null
+            if ($UserName) {
+                $resolvedUser = $UserName
+            }
+            elseif ($Credential) {
+                $resolvedUser = $Credential.UserName
             }
 
-            # Prefer credential if provided; else require -UserName (and either key or will prompt if using -Credential)
+            # --- Guardrail: by default, require KeyFilePath to avoid interactive prompts (worker-safe) ---
+            # If you *want* to allow prompting, do it only when truly interactive.
+            $isInteractive = $Host.Name -match 'ConsoleHost|Visual Studio Code Host' -and
+            [Environment]::UserInteractive -and
+            -not [Console]::IsInputRedirected
+
+            if (-not $KeyFilePath) {
+                if (-not $isInteractive) {
+                    throw "SSH requires -KeyFilePath in non-interactive contexts to prevent password prompts/hangs."
+                }
+
+                # Interactive session without key: require username so prompt can occur
+                if (-not $resolvedUser) {
+                    throw "For interactive SSH without -KeyFilePath, specify -UserName or -Credential (username only)."
+                }
+            }
+            else {
+                # Key auth requires username (PowerShell uses -UserName + -KeyFilePath). [1](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/ssh-remoting-in-powershell?view=powershell-7.6)[2](https://bing.com/search?q=PowerShell+remoting+over+SSH+New-PSSession+-HostName+-UserName+-SSHTransport+key+authentication+requirements)
+                if (-not $resolvedUser) {
+                    throw "For SSH key auth, specify -UserName or -Credential (username only)."
+                }
+
+                if (-not (Test-Path -LiteralPath $KeyFilePath)) {
+                    throw "SSH key file not found: $KeyFilePath"
+                }
+            }
+
+            # --- Build SSH session params (only params valid/meaningful for SSH parameter set) ---
             $sshParams = @{
-                HostName          = $ComputerName
-                Port              = $Port
-                ErrorAction       = 'Stop'
-                ConfigurationName = 'PowerShell'  # PS7 remote default; adjust if you expose custom configs over SSH
-                SessionOption     = $sessOpts
-                Name              = $SessionName
+                HostName    = $ComputerName
+                ErrorAction = 'Stop'
+                Name        = $SessionName
+            }
+
+            # Only add Port if user supplied it (avoid passing null/0)
+            if ($PSBoundParameters.ContainsKey('Port') -and $Port) {
+                $sshParams.Port = $Port
+            }
+
+            if ($resolvedUser) {
+                $sshParams.UserName = $resolvedUser
             }
 
             if ($KeyFilePath) {
-                $sshParams['KeyFilePath'] = $KeyFilePath
-                if (-not $UserName -and $Credential) { $UserName = $Credential.UserName }
-                if (-not $UserName) { throw "For SSH key auth, specify -UserName or provide PSCredential (for username only)." }
-                $sshParams['UserName'] = $UserName
-            }
-            elseif ($Credential) {
-                $sshParams['UserName'] = $Credential.UserName
-                $sshParams['Password'] = $Credential.GetNetworkCredential().Password
-            }
-            elseif ($UserName) {
-                $sshParams['UserName'] = $UserName
-            }
-            else {
-                throw "For SSH, specify -Credential or -UserName (and optionally -KeyFilePath)."
+                $sshParams.KeyFilePath = $KeyFilePath
             }
 
+            # Optional: session options are fine to pass
+            if ($sessOpts) {
+                $sshParams.SessionOption = $sessOpts
+            }
+
+            # NOTE: No ConfigurationName here — SSH remoting doesn't use WinRM-style endpoint configuration/JEA. [1](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/ssh-remoting-in-powershell?view=powershell-7.6)
             $s = New-PSSession @sshParams
-            Write-Log -Level Ok -Message "Connected to $ComputerName via SSH (port $Port)."
+
+            $portInfo = if ($sshParams.Port) { " (port $($sshParams.Port))" } else { "" }
+            Write-Log -Level Ok -Message "Connected to $ComputerName via SSH$portInfo."
             return $s
         }
         else {
@@ -164,8 +207,8 @@ function Start-NewPSRemoteSession {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBDU2WswisnyY8/
-# JmmBLR8u06vSprRZCvFtA246BhwztqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCwbqMW+XUJxodQ
+# DFAQJ/mncDYCCxEPxhj6wpVrqZ1eB6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -298,34 +341,34 @@ function Start-NewPSRemoteSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2bYntrO+C
-# 4NWA6OJNZ56EKuHZIiovu5/MWt6Zzryy1DANBgkqhkiG9w0BAQEFAASCAgBb/GiZ
-# e4sJRDGUkvUfJbjNveqiTdRCfAHonbIxY3punxJqZaxogVXRIXzRi5MRpEAccOuk
-# TXQmnFHHeaf/mt+xosvAo21MddXlGc3/NGgk4/4vuXqSzH8D7BoRaKkrsNuRj55s
-# SlMItbGu8034QbnDAKGQf2Takh2yHYB30dDYaYgCw+lsk3JsZXLvsM7aIoTJiDJA
-# /6FGcFRUs2TSk8KUeZ0BQhiA+UoP6laR5r/vpkYSm3AQXNXoAS5LZvfJwOEYvJZi
-# XdwwoE2YiAiPWSTA0iwNR0Y9i9jV+gzzWtLkpQKf3dSTzkictAmXhirLsFzby/U4
-# Colcxk3nLXwz5JtBcXv74KDOaATKTIt9rtfWcLpQl7Rn4xqufpJiY1YOzcUpS7zo
-# uo9oUs2+rB4SWfdsssWWx+md7+L8qV6E738M1c7pciE/Ep+nwTqc5Bk/4V69GHfH
-# 8fytOHRR5MjhRob32ScWee0g2SmE2yGLH8tMJWlDOojxpiL0L+euHtUVYi+5xsVt
-# BOesUowykjMn1+reCD2SvcVH0c5u7gvnOha14MIJANPRnbPAIxiAbkR2W+i41of+
-# ruZCMOssjJ92UbDmCgHQcFysY3TdAovBM0R5viMWQCl9WgfO3pqyrR1ZWSai5ji3
-# 0J+60HPbXielgjPF1whZdLlqYTkQuHSB0Rcln6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDxfnMEI+xq
+# 9zbNJde1cxP/sPfF9wwVQawOSwjU7FwHezANBgkqhkiG9w0BAQEFAASCAgDQ2S9V
+# lQ5tRe2SZHKYBWWAqvMJnTIlnPrRny22pWlNPv5Pgk6ixkngLJvL9HwX9rMP1xi1
+# 5QpATsrzwF4OnPEhhhMc8qmlR1iEDSAgm7zxL1AxRPCid5sQIfkXGHSJV5Fo3i2M
+# U4/YCrwFAYmqGhN2o7HqRIsQJoAdwDmxCw/ByG/wf3nqta88p+AW8afSUo3YdGEc
+# 6i/ZdA7ePL5dSEWhv49+1cMKJFtvmoH32/7S5HLWNg+lyB7kJRyoCgL8+ZQZe2dQ
+# XP0PSENi4ru3CYI51Mc57kpqDfXYa4g6Y5T+RekEtrvG6vGtQgEI6umNZfvgnFMc
+# 9872+fz4xDeiBlhR1tf3zMlMGLYWAX/Hrmkq8u+AvwioCRmI9n7sgfuzuRP2Uaxn
+# xA7ZcCJVy7jcvwYKxbxgV1EwI6fqomLTQkKKhOPzzGhZBzn9gyM8wr/0HJr7zkHF
+# b1CyIhDwTcSBMDcphhLDs08XlkBOrGS5c8hy5jsIJfWx6WFGRcqfmYy8rHmCHaBH
+# Iu/ZFC5yXaGuhrKT1CkMGPJd4MBn++4JaFtRYlallDgocuRSnXEOFJG4rnMhAPO3
+# QSzJZzuP3a0HWlWn/eO3Z5BKqi41MQSzPhBlBbwQuq5N9qq19hOrBFK3Iy2JdnMJ
+# Un57tPkmn/YOYQE4DDTOuWet/zageYdDlKzpnaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTcxNTAxMzVaMC8GCSqGSIb3DQEJBDEiBCDTndUscW7MMh63K3G8
-# D/Bi3Q24zKsEWyoBT+pnobAm+jANBgkqhkiG9w0BAQEFAASCAgCIzGd9G3MmWnjA
-# EGne9yV5drlbJ2i4u5hgKVZLSe6EWiWXvR0JvYuJt0eb6Y/3Ti0YXxUMlvEt/kmT
-# ERoh4edLuJ8/GCl8hYoPqnf023G55g1H4NjGVmZ+tKF7eUkrJuES2pqzhLcIJgN4
-# SquxKrkxN358PPIKSJuVFKSNZ0C25ln9bBsZcb2VXtyM00PnVX3/GdELpH55jY6a
-# kTTPSkkD0GRw+RXsNtlIPupg+y3hyIMMpgQgvJtHQDjBKvImwjFaqEvfgQ/2FV4i
-# L+oxhnzR1VrQplQ1LoGiFSvAe+0aDYGFfJhGuubK/3IVyjBKljWU1+6eDZ/D9eAO
-# davU+mjHAmvDAb13hErSzR13ud30htpay/6fbto3KgYzTySbcNYgvnUQPYuzHLkS
-# m022GrRSzUMIicYb23LnPIBPuVXZ3cs1NQyV8U4QwQEunzXquAxAfOAO+yF1jFt+
-# d13e5BGmHv13FdHI/PxtQBCSilGikiFQOui5PUo+c92aL33d08QooB3K33Arm5Mv
-# SSANjnhZ2a8hQVn4ihlw49ire8Aovd9eRSoOmB6kL4QngH7QodVt2x0lsDAgkl5H
-# hJFOnfX/fAeOAqb6ho4C+bFu3hvu+vT49z+YKo5QjAfxvgw9WuTU7RA2d+7xuR8U
-# z6D7oC7HAm+psUT0hVWd0u4gVCpkcA==
+# BTEPFw0yNjA0MjExMzU4MDJaMC8GCSqGSIb3DQEJBDEiBCBUgT0jbHHwf9hexkDM
+# IOf/w+w+cF14HJsn6wORzl1x2zANBgkqhkiG9w0BAQEFAASCAgCdF2UvqZlTmtZv
+# Rm+Gb24D9Ajnd09xgzFhB8l0E8McC4gwLyfw5PJSbd71FwGbk4/Sm7tI/l1UZej2
+# Bp1DBXQ+hfBxEkBtbvzKQJV0uYq+kkvYSz7q/FM02mpgNCQd49ifyQnusjIAIa85
+# 6UF2mMdeUIVBTa83jAaok5/OsNWpQg264UZZlL6wnBuctjGai/90dVMdV/sqmFKC
+# rVMVNFlR8oViQNsCy9HDeCWDwRtpT36/K9G/FYgcXI/0qDEJ4pA4xwBwKtq+izZ0
+# 202l+JY4xTt6LLb8Er8UqFAoxXT1feWv8EpJa5pTwRXZ063rpEiMxntfljBGiyYn
+# /1VOZ+C2cjWgXJ2X++nREwzJyAQORc4M0PCKRC+ezvRfJSrg08W61sIfDsaBs5fY
+# 9qG/bK+RnLK2+ibg1EsAqnfVJjpR4Ac2T8aiFLckpc+NWOblCvOu2tf68183Nzc4
+# jfy7BnS/+W4j2ybszLyAb+gLz6Z/ExtlA0D5SuzE/el9AeMctZ5DhFBfj406Ws0D
+# AX42HEe/OgK/Bq9RNFH/9mXU3yoPr8YdhGPYFV/lemaNbJ/e7PufhBVFN4clTBF3
+# BHa4JvNUICrVNWXrWy28kXl42KygszzwfielaoFZTKma1oatQZ7XfkWDSmauqWXg
+# HhQ1qBYvd0BhLzVHvMAKsTu+FmjBEw==
 # SIG # End signature block
