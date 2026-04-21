@@ -88,7 +88,12 @@ function Invoke-SystemRepairCore {
 
         $proc = $job.Process
         $deadline = $opStartedAt.AddMinutes($TimeoutMinutes)
-        $state = [pscustomobject]@{ TimedOut = $false }
+        $state = [pscustomobject]@{
+            TimedOut       = $false
+            LastHeartbeatAt = $opStartedAt
+        }
+
+        Write-Information ("[{0}] started..." -f $Label) -InformationAction Continue
 
         $poll = {
             if (-not $proc.HasExited) {
@@ -96,6 +101,12 @@ function Invoke-SystemRepairCore {
                     $state.TimedOut = $true
                     try { $proc.Kill() } catch {}
                     return @{ Status = 'Timeout' }
+                }
+
+                $now = Get-Date
+                if ($WaitHeartbeatSeconds -gt 0 -and $now -ge $state.LastHeartbeatAt.AddSeconds($WaitHeartbeatSeconds)) {
+                    Write-Information ("[{0}] still running..." -f $Label) -InformationAction Continue
+                    $state.LastHeartbeatAt = $now
                 }
 
                 return @{ Status = 'Running' }
@@ -129,7 +140,14 @@ function Invoke-SystemRepairCore {
             -TerminalStates $terminal `
             -TimeoutSeconds ($TimeoutMinutes * 60) `
             -PollSeconds $WaitPollSeconds `
-            -HeartbeatSeconds $WaitHeartbeatSeconds
+            -HeartbeatSeconds $WaitHeartbeatSeconds `
+            -OnStatusChange {
+                param($obj, $status, $lastStatus)
+
+                if ($status -ne $lastStatus) {
+                    Write-Information ("[{0}] status: {1}" -f $Label, $status) -InformationAction Continue
+                }
+            }
 
         $sw.Stop()
         $opCompletedAt = Get-Date
@@ -230,8 +248,8 @@ function Invoke-SystemRepairCore {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAxF8lbN76MJSUr
-# mClHjUllKC480MqID3aR6eYFGvHyFKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCbhiA9lcD6Hyz1
+# TZY5OgfOcPCDEzt4TlHlHXvZPeH79KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -364,34 +382,34 @@ function Invoke-SystemRepairCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD2yDiz/kFs
-# NgDpLUDx3sI4+QZd535bLCV0pHp6RWw//DANBgkqhkiG9w0BAQEFAASCAgAJiZbt
-# 1LQ3fB9z8b64qm9bIUz18eBuHsGlW/sQq7Z73GeqjaHp1kZRSk6k5wq0H/dl3xkC
-# xNKl98/HdVi4Ai58YzlQPqK4tdfCbXFjR1OMVayH7FcfJMvDpOBzSfsfehol7/4M
-# NrPedi/RGRDk3NZBurXt8rESCqWtpEEM6x9ry+dloPP8QpvpYTkp/KdstMLAF+Os
-# 96MvdKpVFAbvV9f9RrxuJHaa2ZrZffQT3jKo+gqIVAK7fVQsPg6gc6Vm7ohWtiik
-# DpOq2XXwegWfFhAOz32pfFdd8VgitxFBM3wp5supxgOtw6Prvc7yMVkSMWRMrUCp
-# GviLnkMRAlD0GnxRI9nSkpzfw4qmF9DCbZYg6R+2ynJxRl5ygRq/dYAmQhuUjs7P
-# YNaqjsyGp00/MwQQ4lUj5aVz84MexN2zHWKZetX4sFy65jCwGqS/dEHJJaaROuHp
-# 7T6sP4UMC8zj1KAsfOdGrnO+bE61dgCPVAgbgChAC9RTaPrUlyZ2Xq2GpnIxcdBA
-# MhhtvfinRiETNwLyCuPML8tp4hp8LzWaPnOFdNBNQEnYG+QfeDkzQoP1AaTnlWFN
-# hSdN+4vLNiWRALBngWxUpDFAXDD8CFZenu/LBZDI22Y0MUqbq/XsoLKdnuvNcMqY
-# w5vBehHHSso4m1pM9g23W99rngCIbnmjBJ6dIKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBu4I5pLXEt
+# wdjY2vwIzO85Z5/kMjlmVmGsWiYfrbloYTANBgkqhkiG9w0BAQEFAASCAgA8Km7c
+# riqFTj45j7GU1G+pPdYp9TEIz5K7kryT9OONlLqDBS17BZAnbwYzH6n3y6w7RMX/
+# Y7qTGbAqRC2ueLTD15bEh1b43OxE7Sg8ocNRw3Zux57bfsidvnsAucO1r+N6HOgE
+# Kx1UwcV2aQtEqUWbnFF5eaNHEOxBBpIwA+P+sr/xrch6FE6zdP6qM4F1lb6XyfL2
+# BZCsDINqGdg5px++rkQzVJI5aIj/4dPYSvJ8UzvYonK52YmEqx+kKQrH5HVPIKyv
+# LpVaWwzxznb9soE7ypbm1OuGX258l6a3dCKpKskwKMuIsiPLoXLotfcYebuS4ABY
+# 9NmXQ4MaTdXR8ThAEkVamgsoCylCYsFAPLzX5uBY0rm7m7LzVhXrDyZmc4mUSogM
+# MwYpz/d/7Ghci7Y1Gyl99Y1e39mfrR/SGcYm3t3VBGAFlrTMdiwYRcHc/T64wUAM
+# dPa+F+bTZdQ2+0XVEg8vHz+FLwmlKT2pRO6/85iKm0pMQy4inuOGCDwNIb0bE55Z
+# 8eYpUrOQ5gXqq/MWXH5ISWzAdnjGC6IXv6+JBGAdPIcA/H0farXck+M/TuYCJs5H
+# V8/t52S7AR7320zMmNujteD2EKq1r4VZjm61ZxIoNFXLK5G914gjp34VaTCeOGLT
+# zTGs1Uke2+OmxXAlg4WDy5/t+Ne2PPHS6diuWKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjEyMDIxMjRaMC8GCSqGSIb3DQEJBDEiBCC97azwrPNBIw04j/4U
-# S+v/sr0NaISzn+7EZiEONmk7RTANBgkqhkiG9w0BAQEFAASCAgCJQ75VIUwD/QGM
-# FhZxSFrxsU4Nph94hCPhj7YHun9EPM4kJTwU+mDAU57VhPebFItFPBd6fU4Jxykr
-# 8gXuGI2snU6elSStQnBaPcIK/uCT5RSmzZQqn+yFpR25pKY4L7SPS1eGngoHfkEj
-# zT0YbZl7TMCKpa/QSS+xfaQXCIIOjujKVFG3iGUHpKUy9XfddFR3/WVUS/JZkC7h
-# mXWAjZ5eW8TV2XvTQ6RQeEz+T+/FOCYZQJQ1PB6tm8SYUjhs+vQ/JBJxLO30Rjmw
-# mPr2Ebe5rF8vXaemM6nromtZ+W1dg1bLy9vDw21gkreor2HmbF0PYgryVFf2ZcZC
-# x85J/zGVAKwzluZNWujo+vtLMol3s3R7XZ1cV23RJAQDh7USt1pEHI1Jd4+JbKX5
-# QB7LiwRmPSldII9BUN708bkVAkoNoFDUqLczEsheXfQZg27y4AXISalEseY3JsRl
-# Dxkpd+m5Gnobf24DY/YiVyPGXgJPh0rZTWNpOAp41hDF2JSgafpXgaw/Eub2mpRs
-# VqxG0APqnEBde2pD/Ox46kSnEdXEUzqZV/AqKohG+oHrcuIvV7ZsWGrClquWEVpF
-# SvHkX93anksHUaWu3k3/Ym46SG6GjIlaKL5xitYd5sp7KuO1Md7B1VeDNcFVHaN0
-# OXahPnPBY/1sso8b61XE87ckoON32w==
+# BTEPFw0yNjA0MjEyMDU0MTNaMC8GCSqGSIb3DQEJBDEiBCBuSQzWDJTLPNPmWcXJ
+# W9TRYMN0TqcLl5Geh0n4KML9HzANBgkqhkiG9w0BAQEFAASCAgBXujqo5CYuOdSo
+# KsTYZSdcldEwoZjHR1qlQUU4Ceryi7GSPh0x49fWaX4sM17aem4aR9ezsA3Rl/Qt
+# mTCrF4lKhY959hUSfeinaYvce3Br6/onEeyS5AfLvUGeNaiOQ6IEKZbphqr3812P
+# ecMo5EJwtyjLNrwyl2EKWPGHnCMgxU57A9e28AU1scNbZ9sFY91wkDkkMNNJXO10
+# jz3T7vVZCJwd+2PFmsafGTjkdqLa0+zJEZj96BKZJJndVZWkMIDvBWOoBl3nv42k
+# ZrbuCNX08zgNuDTWpPGJKfSTRMIvTNAlszA1FDt4kAQb4IuHiTGnIP9E1WkdE3fP
+# b0p7/9CPf1dsBgMqk/u2ubVU7ioMSuhPyOei3iT37NWQw3DCVIhU5PgL40N5X37D
+# huW4IIP6o0s/1Zyfsv36XbNqx9wG4SwqJ4HjyofihhTRJ/XpYFkX/ThCnqBfOOEL
+# nvVEgAjz4RyBFVVP2twahdoBQLFCRRrmLureOwNF5zD5vJgCQPO4fHofuLuTqtGG
+# YHTqD7bSrU+ElmQWCZwJWhdiQHmBR81DjknS6e7TyfWynmlZzSScwEepGyuYeJJs
+# yHRfNS+lD9AkQMtHiae8aZoKMFotiwpXWhtstsFPcXRCDLQ8vyO/vdxGzI/w5yyz
+# JF+XZ+sVmTtp2Ks82CwLensxZuizaA==
 # SIG # End signature block
