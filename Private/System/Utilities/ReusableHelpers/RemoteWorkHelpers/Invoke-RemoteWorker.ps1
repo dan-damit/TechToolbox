@@ -1,4 +1,37 @@
 function Invoke-RemoteWorker {
+    <#
+    .SYNOPSIS
+    Invokes a remote worker script on a specified PSSession.
+
+    .DESCRIPTION
+    This function stages helper scripts and worker scripts to a remote session,
+    verifies their integrity, and executes the specified entry point with
+    provided parameters.
+
+    .PARAMETER Session
+    The PSSession to use for remote execution.
+
+    .PARAMETER HelpersZip
+    Path to the helpers zip file to stage on the remote session.
+
+    .PARAMETER HelpersZipHash
+    SHA256 hash of the helpers zip file for integrity verification.
+
+    .PARAMETER WorkerRemotePath
+    Remote path for the worker scripts (currently unused).
+
+    .PARAMETER WorkerLocalPath
+    Local path to the worker scripts.
+
+    .PARAMETER EntryPoint
+    The entry point script to execute on the remote session.
+
+    .PARAMETER EntryParameters
+    Hashtable of parameters to pass to the entry point script.
+
+    .PARAMETER ForceUpdate
+    Switch to force update of the staged scripts (currently unused).
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -224,7 +257,7 @@ function Invoke-RemoteWorker {
 
             & $entry @filtered
 
-        } -ArgumentList $remoteWorkerPath, $EntryPoint, $EntryParameters, $remoteHelpers, $remoteWorkers, $remoteTmp -ErrorAction Stop
+    } -ArgumentList $remoteWorkerPath, $EntryPoint, $EntryParameters, $remoteHelpers, $remoteWorkers, $remoteTmp -ErrorAction Stop -InformationAction Continue
 
         return $result
     }
@@ -245,8 +278,8 @@ function Invoke-RemoteWorker {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC7qGAmbGVRKJA2
-# 36H+ashsecehQipP6tazBixDdX1ywaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBRUnV5LnP/IA4S
+# wv91JRR0zuPZmH7hO+Oz+rWH+b4zUqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -379,34 +412,34 @@ function Invoke-RemoteWorker {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAVkmJUk2dx
-# 501GqHVSLnfIVV7XmG5zIvTB9rOhhiZ/iDANBgkqhkiG9w0BAQEFAASCAgAnQon9
-# nyUJSnpZk9ovw8z2X1LCYu/ehv+NrbCXiHVDTuNpU7CikFQGsPIyFZK5jSzIQ21O
-# MHPRCwrcKGfcF03VZ8bp1XsBkAqJDxxwcIJX/4fode6cb8gvzJLmqdfXFrgj/Ams
-# u1jkv2Ty6rWEapO6VRErjlrT5YKkIkJoyCYYLj/RKoFVJ9Ot+hQu8vBp0Ffd1qeO
-# NvpztEzTwu8nfOuITiTXLCzx4K5HFus5+rAMD+40RitO/SllFJsw/QoNGFHp9jpd
-# LdgairfaT0P968NhYO9N9odJEfoYbybb5W6VDVT2ANpXFol+f1JB/8CrItSZ2A5I
-# kz+TWsAnPIT8+v/bocYpvA1joh320bpS3O39p5pcGtqdVLdOoRPb9Sb5aqHbiSxI
-# BBcletU6/L657lbJ30VtsIf5hvOxqpy80vF4n0pJe8AFEsFsTgW9KXi8lGOYYy7A
-# eZdrwPRqMN0eBFuo9i7Y/jF9VAw2CtYBvcdTyxTr1geZEZNQ05insb9u0VHBYpjU
-# gk3RRdsCtZhBkK5Zt0g3wpyfNrN14rkNF1DMHvMSPfjbN/eQdPpjh3ydMcTrvV09
-# gNBS2GcH5YWi8YOaqGyPWc1+2hKOAFQm/Zxlu2qExbRws15f4Oe03fPQbHPyUVJp
-# cFKeip6xtd0uYRnzv8lAfxiiZOE/MvaoEkAYxKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA95XN8IcI/
+# 7oJ8FB5V04Su3Uu5F2sDMoEHmr646AZWkjANBgkqhkiG9w0BAQEFAASCAgBeub6a
+# YAc79oh1/19vpUgu4ePr8ABUS705TPx7MnLVCh1KUdV+4e3JdY6gycr9zPTJQs/n
+# FNoyTAlt0vkN3cLYxdpt9nglKwkT0sZfcyDPPDKKy7eRoleAlfEGzNm38NKnBCZc
+# o7KZwTcNd/7gAYULbPozj4tfkuFmGHC44crvxEaUYTNJ5K74b5LEaHZYgFp74gIq
+# TdlCcnWibiF0spF5rlPwPwxdfrV3bboq7KFp5AyzhrnmUwHF3XtVcMtrDPhXQM10
+# KaSlOgg35nyujCtDGNPX70Ag9SYPUmraWy1wQqM7n95VoQG/2D4rjhzZ+dOEx8Qf
+# e6HaUpzfwy7cq11dODmYYuLnl9gDsH/3LCnzfkkNd1Vt3jGJVH3HMprhRQkPG5/V
+# tax1R/FeKi04GpRWo08GHB3WzEmP8EoFKrDVvj09YJzapYJ7JlVE8vsvAeZe6J5U
+# j8Uc0OB/WhDDfE4TKvyCvtRpNGHgTaQhO/a65NaD3YgPyS/fqACbbxw2wTc3RE9Q
+# 8GfFJS1DKzC2SYvRSC99S8XJeP3i5yzaounXYEVoancES56ioN7T468wnvOYou+L
+# MMIT4wU89CaJLN2w/2LdepynHwlteNrklo+WOlnrBojHX8aZAmyXkl26Lg895x9S
+# Vra9hovAtODuuW4zzznldN8IhhKKsfhwmlvbXaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjExNTM2MjZaMC8GCSqGSIb3DQEJBDEiBCDPWu7s70g/WaWWVsdT
-# HIDIBp1jM8X03V7QwJ0IO9Aa3TANBgkqhkiG9w0BAQEFAASCAgBS5SWLLW8t6ip3
-# Rq5+rF6RELiuXOD1ynVd6NWw4iO4kw12Q+KKmWAgafHJwl5wxewq3hfh2Cgzy5qF
-# 4O3M+F+xlIpf2uNWaldPVVP9EIE2/9zQp5Lt0pzryrqIzg+3o/JH2qk8fCTw5h1B
-# OsZSoccEz5VIX55WdI+3d/s9OoxdrC2glULSOKXlBIeBilsMKnLvh597ernA6vAi
-# xqjFh1VUjzN7WKwQEdoWlGadAx52HB9yg17CGExna/kKIW01YXdIvpiQmYtvZBDd
-# kpAkjI1u8j7l/p3B5redv6HCbDq5i8/IQ3y5m8Pu4RAFyPjb7DW1nUHF4O2UP6CU
-# h9+bJCAoXBhC0/Evru0JBpGAvas/BqrHYhUVyta8Z3aFHNQjV1kBOmRCcU3trQ/1
-# m9+GkyC/sOCd1hfMC3Fzou43zp3nr8X1MQg66AQaA4upJ6ykrIL/O8FNxrYV45XG
-# uf6gzFagHofYYMEHnAO8A9b9Fon9PabIh4N7ptXcpvRUYi3KxrvjsLWdlyq47YjG
-# XteQj8nxGoQKyr7fLY0UGyzHM6oBHHTPBkpgpOa64rVDnq5DxYVLwdSNgV+n90GG
-# 5MTCsutqwtjc2bPNwKduuHcWwfqyRLWpcjrfpcA+Kn98yelfzC/rRYHdwt8Dp6Dt
-# i7RWw7MXSh1l7bY/LHMZJKhC5oGb9Q==
+# BTEPFw0yNjA0MjEyMDU0MTFaMC8GCSqGSIb3DQEJBDEiBCDr5asU+wDs+SpKL2Gw
+# o4wSfAd64aafcJgAE+83/nwB5TANBgkqhkiG9w0BAQEFAASCAgDEhERQu6LZAu4b
+# Od21fk4s1qa1hB6XClglyfCDkMRY9bsrtcnPtjKDff1sy8hhsGHUiprC3jVtSQfd
+# br8Xk4+j4RvvoHOlDkrzMV08G3rCBx2Cf29P73L6WwSwGvAE5Dxuw6PoLTlGNlm0
+# 1I8OGSAB6FleaosE2M3NAVUc7ki14lwizglq6KBsb/wtGLQBEoGl7G6GGgZ+0DFo
+# 9OJ2yzIRROHuoKudxbh7ewQFbE2DWWlfaf5YKZtgtR1jcozsj8ctYULE2E+AAX/2
+# Al211QY5bCcPjFckl144Y1QCnxkJBTDGzcrFo+A+6DJzrEnYR/PO0rl+9SNXSULo
+# gd6ex6GhjH1lwplfEsy9jE9UZb4s5eemzf/2EYvhC0UPTE429zmGULP3hoElPBAc
+# EIvYwSgbD+tb6hjRsywSmVwAz1LOEVemr1lm2xEAyb9BIUr8wg1AKsS8IAvC9whZ
+# MB5j/vDPplochbFz+815VJG+NYyW8MN7eDvURhI6H/BLGBB8YoptUJrzYmTXeB9i
+# NnX9EVnxCik7Gv7Ru8vMgPTR/9CELfZYab+mLoEvp2VGGPUG1LdmH4DY8W4pGP2O
+# d/9X/uwpP+5Z1XNIMql39X9u5BqEpl6wnayKNX9HISmmelx1NTUZtfvxPJKiEWxB
+# hgPX8m/1XT4kSxz2h/Wcxm7gfMEUMA==
 # SIG # End signature block
