@@ -5,12 +5,12 @@ function Invoke-DisconnectExchangeOnline {
     if ($PSCmdlet.ShouldProcess('Exchange Online session', 'Disconnect')) {
         try {
             Disconnect-ExchangeOnline -Confirm:$false
-            Write-Log -Level Info -Message "Disconnected from Exchange Online."
+            Write-Log -Level E-Info -Message "`nDisconnected from Exchange Online."
             return $true
         }
         catch {
             # Treat as non-fatal: we attempted cleanup
-            Write-Log -Level Warn -Message ("Disconnect-ExchangeOnline had an issue: {0}" -f $_.Exception.Message)
+            Write-Log -Level Warn -Message ("`nDisconnect-ExchangeOnline had an issue: {0}" -f $_.Exception.Message)
             return $false
         }
     }
@@ -19,8 +19,8 @@ function Invoke-DisconnectExchangeOnline {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+Ns+8mDmnxt8f
-# sZHAbj2aXP+fFXtO2QY1nrpeSp5JT6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBLTMIh8Rzl5tK4
+# U25OWKnouZW9pVklWMr0uUHAeOi4I6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -153,34 +153,34 @@ function Invoke-DisconnectExchangeOnline {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB9JM74JLBh
-# C9jzj+cMXzbVa2MadDy/QDB181urdvUFbTANBgkqhkiG9w0BAQEFAASCAgBZINdF
-# aHbodn4nzDpEjnXJVle7Hsd+ZDfe+c3kGpIWExz2CtvRJXpn4nQEiX8TPHzn74aU
-# zEWGtR8QE6+JX3Qh7rfEbEvE15vwoKMZ6zQ9wly2XbSvI99H/I+lXOPDJkPMMd5w
-# 2VFCs5nqhWRjwsSA+OTO3GtcW/+WfoDKdN4rvPCHC9vQPhfGOAPl+nzHswI9d3H/
-# v9RRDIrM/cbuD66MxcQxu803Mqrq/1kdy9lFtaLvcJv3p4UTe61Y/tiLLd0VOc4o
-# Rxmf+8h0X+Vs+1QU0dHblcDUXdyErsx5I/2K92jeVo84Ef/gXwchA8jyZGSi+yK7
-# g9q++UnDnzbLgMsMIQWnYKEoKWjoCEe4gNAus6x+SYgLBQzgtGznHBwwy+jPLOI4
-# zWLN98BSg1W3PLt2Gk9bF8DJZTlBryqijk9obELXDTzzp19Zqi5DoAnFJA8Y5d6A
-# v+nVFiUQKGck14BeeMbvIEdwspQyTEIG3PvxlaCuicjMDogdpJko+HN3Ebjk0sOZ
-# Oz/yk7CWJYnSVtsXeD5NEHLFCu/JBVxIpn5Ze2clTyJT7fJYFZQaGlTniihC0ce7
-# 6sRsAuR5jUoGPZ3e6JreEvnRKieL5WUFPArUS+Enl2ZJadE5yV+J1DtXUvF839PW
-# 1fT1ooRe5Db0QoqA8sACnztIdzqTQDZwId0rEKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAui/jxG+vl
+# o9RyDqmumqj2JNuhptFZnkB5YtogKuztQTANBgkqhkiG9w0BAQEFAASCAgAUHTK2
+# 3DKFI5Jew3dy/pJKpA90ywXi+W3OCgvfw+01XSa+XtkNntF7FlQzDI8gswDyMPFL
+# beebG5q9NXPU1e1Ryc9WR+rUC7x4dLmfDk/NTiOK9xdrByjoFyNo8MUAi0fZvuYy
+# EGfdDDK2JtRty0cOUyZqfhcIUcPC3i0kTYjcodyuuHfDZblDqQiajcv7mXY7t6tr
+# v+oa6hgA2C4jq/ruNO1GhZE/y3zjf2E5F1lohbwjH+lR+lDSwj2uUrqpFkoQzKVP
+# 17x1zODevlsJCa661GF4YDPEuY5nv9TtrvBPHUWvkzYHYnjNsEu/Or1rUBNYS0oN
+# s5c8kWIn9mTUa2Qv+aaHwJCz22x8zCcWpQZ0cF1cJ39c0HcYeNHFsD4vZUXn4IWD
+# zPkDXwI1UxEetWo3gKhKM8otGPYwM6AJM4gMUWL3paUeExZd3ClOU8wQA8EBtMGc
+# Uequ4XBkv7uXcEC9fWl61IMlBIblpUeLVklWAJ5LhZa2VR6zNn+NnzlKIrUAkPL7
+# JURcQQW8Co/dqST/M5JvwJXCivbNpzBVoQoj9kfKS8HDr39Vkk4Ts+Ijvlxd4VNe
+# I/p5Cd5CwLQi0c7SXhmqkJ/ixvKBFxAo6MurBsyGxpIiQUXzdW9Z1ciYFo1LOmyp
+# FxfmJwK04s82PlE0LcI6fd2nAlOanuQt3XEDT6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMzAyMDU4MjlaMC8GCSqGSIb3DQEJBDEiBCBsvkjR5lODt1NlUjTv
-# RRSZYSaqnSuCeUv3HxpQp8xfiDANBgkqhkiG9w0BAQEFAASCAgCtEXO4H+g0AkcS
-# FUazp3iuuoxWQAqU7VIA8e/WkZabKTXDwQ9OLYWPivmTcXfP3R25HvK+Eu0CsyzM
-# g5Dq3ER2GR47sBTpekt644t5g/JJKgeAHAuonySOhrlWKjGvpYLo6A+tF6d6Z+4b
-# my4g/Ga+SazwYFgsvk5bqVPSgOYgfrEywPSL7ANP3LrTpfPnLJc0DQL1VVXHV7J7
-# i0klEjG/PwfeG19RAV79v9SdYPh+gk9mb2EKbZGVadV0Y5KDbQ0ubGyc/397EKOh
-# 30ogld1npHmUtD2jmMhxqlzW67uSTv/PkLapnadr7GAU1fjZwES4Vfolhma1cLwA
-# je7izcBDOOEur6+va52LIZ2DyUROSHtij8cPXE4sIvqb3/ZOI5+AY6Houzn/BAbs
-# d9obGSZnbj3q7IlZFvCPs1gqEupooK+cb3sQkoLdwOIzoweQ8IlZ5YPIBiMS3cgW
-# NRFBXqkaJxiqQIW7myub6GiixgoLCUDZMEZSRZ84SkGoasOkxbtJoiljoNEw5DWf
-# oq/3SXywISmIr1w1DwXbR7xO/UkdwEb0eoRQFH0SiX5FB/RHHtvDGWyG0C+sX/9/
-# Of/6PykGy6vQqD8fWUr0/4v+uCfAskj/dbfwS+ZAKuKtZkEFpMEDkZf0CN3MoRTI
-# YcaBRyidUSngajWQqV9nXLzJ8fS2fg==
+# BTEPFw0yNjA0MjExNzM4NTNaMC8GCSqGSIb3DQEJBDEiBCAmb7LFETv0D0yYhPFs
+# k633BiTNT5HobUEqO/HqtmZ/hTANBgkqhkiG9w0BAQEFAASCAgCuETkdpe+nsRiL
+# HL8/6q0uC7XP8rWnFLNGZ0LTH1Mlp4U7g/z9r/lxGQDHH1vGIDGKQvcjz/0R82Z/
+# tL2AK9dsaLBEOQ2EXcUws0o/l5RTppqj0QgCzqSbrcTlladMUB/UQgXDSenWu905
+# /W3H1ga2zi063uORlw+GYG+uLnJ8zF7AG8g8ozTDbFonsJ2rhL5wH9pVaCkMGh1G
+# 1KXeX3is9c0ZHJNum2b6B4GzGlGYjbDc9dtKwPVykCd7MbgmJ8aY6tKXCXzTnG8i
+# f8Uy3PQ61rGpBKwGC7IsN+WTBztgyW9D56sQ7a71ewm88zuKRnAqGYDEVVZpORXs
+# QNu889evCvvi+pGA1Kmnh40MiMSNiNOvMl8nk+GG5Xalo7P8dcfIrlhisWINK4BX
+# ecIfLEiAiYV0JBlhCUy1g9Yjv6d9mIzGaPqcYgqI7skH8gnA675Rygtp41EeIDmr
+# g5OJqYPkmwBW3mkHsnFw6j4Fr3TNSuIeLQL2wX5s0eVieJOpjwyXu6FSZL6vZKfY
+# tRXq9/2bXKl9lBql81tFUAxuNLz+AS/5SSKZgkuy0PFscrJaBmlDE4c1HLFuq3As
+# 2i2s3egZwpbO4jcRQhROoFVbM22A/t9UxmwSj/c3PUB7scklpI+APXItmgQT1mYB
+# NVJjDdHSNVP9J23XnaNt7AzSQsqxlg==
 # SIG # End signature block

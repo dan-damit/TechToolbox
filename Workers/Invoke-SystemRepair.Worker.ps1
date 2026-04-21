@@ -5,7 +5,13 @@ function Invoke-SystemRepairCore {
         [switch]$StartComponentCleanup,
         [switch]$ResetBase,
         [switch]$SfcScannow,
-        [switch]$ResetUpdateComponents
+        [switch]$ResetUpdateComponents,
+        [ValidateRange(1, 480)]
+        [int]$OperationTimeoutMinutes = 60,
+        [ValidateRange(1, 300)]
+        [int]$WaitPollSeconds = 5,
+        [ValidateRange(0, 3600)]
+        [int]$WaitHeartbeatSeconds = 300
     )
 
     function Test-IsAdmin {
@@ -29,16 +35,15 @@ function Invoke-SystemRepairCore {
         ResetWUResult         = $null
     }
 
-    function Invoke-TTExe {
+    function Start-TTExe {
         [CmdletBinding()]
         param(
             [Parameter(Mandatory)][string]$FilePath,
-            [string[]]$Arguments = @(),
-            [int]$TimeoutMinutes = 60
+            [string[]]$Arguments = @()
         )
 
         if (-not (Test-Path -LiteralPath $FilePath)) {
-            throw "Invoke-TTExe: File not found: $FilePath"
+            throw "Start-TTExe: File not found: $FilePath"
         }
 
         $argLine = ($Arguments -join ' ')
@@ -48,44 +53,115 @@ function Invoke-SystemRepairCore {
         $psi.Arguments = $argLine
         $psi.UseShellExecute = $false
         $psi.CreateNoWindow = $true
+        $psi.RedirectStandardOutput = $false
+        $psi.RedirectStandardError = $false
 
-        $proc = [System.Diagnostics.Process]::Start($psi)
-
-        $timedOut = $false
-        if ($TimeoutMinutes -gt 0) {
-            $timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalMilliseconds
-            if (-not $proc.WaitForExit($timeoutMs)) {
-                $timedOut = $true
-                try { $proc.Kill() } catch {}
-            }
-        }
-        else {
-            $proc.WaitForExit()
-        }
-
-        $exitCode = if ($timedOut) { -1 } else { $proc.ExitCode }
+        $proc = New-Object System.Diagnostics.Process
+        $proc.StartInfo = $psi
+        $null = $proc.Start()
 
         [pscustomobject]@{
+            Process   = $proc
             FilePath  = $FilePath
             Arguments = $Arguments
-            ExitCode  = $exitCode
-            TimedOut  = $timedOut
-            Success   = (-not $timedOut -and $exitCode -eq 0)
+            StartedAt = Get-Date
+        }
+    }
+
+    function Invoke-RepairWithWait {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][string]$Label,
+            [Parameter(Mandatory)][scriptblock]$StartScript,
+            [int]$TimeoutMinutes = 60
+        )
+
+        $opStartedAt = Get-Date
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+        Write-Log -Level Info -Message "$Label started..."
+
+        $job = & $StartScript
+        if (-not $job -or -not $job.Process) {
+            throw "$Label failed to start process."
+        }
+
+        $proc = $job.Process
+        $deadline = $opStartedAt.AddMinutes($TimeoutMinutes)
+        $state = [pscustomobject]@{ TimedOut = $false }
+
+        $poll = {
+            if (-not $proc.HasExited) {
+                if ((Get-Date) -ge $deadline) {
+                    $state.TimedOut = $true
+                    try { $proc.Kill() } catch {}
+                    return @{ Status = 'Timeout' }
+                }
+
+                return @{ Status = 'Running' }
+            }
+
+            return @{ Status = 'Done'; Code = $proc.ExitCode }
+        }
+
+        $getStatus = {
+            param($obj)
+            switch ($obj.Status) {
+                'Timeout' { return 'Timeout' }
+                'Done' {
+                    if ($obj.Code -eq 0) { return 'Success' }
+                    return 'Error'
+                }
+                default { return 'Running' }
+            }
+        }
+
+        $terminal = @{
+            'Success' = @{ Level = 'Ok'; Message = "$Label completed successfully."; Return = $true }
+            'Error'   = @{ Level = 'Error'; Message = "$Label failed."; Return = $true }
+            'Timeout' = @{ Level = 'Error'; Message = "$Label timed out."; Return = $true }
+        }
+
+        $final = Wait-TerminalState `
+            -Target $Label `
+            -PollScript $poll `
+            -GetStatus $getStatus `
+            -TerminalStates $terminal `
+            -TimeoutSeconds ($TimeoutMinutes * 60) `
+            -PollSeconds $WaitPollSeconds `
+            -HeartbeatSeconds $WaitHeartbeatSeconds
+
+        $sw.Stop()
+        $opCompletedAt = Get-Date
+
+        $exitCode = if ($state.TimedOut) { -1 } else { [int]$final.Code }
+
+        [pscustomobject]@{
+            Label           = $Label
+            StartedAt       = $opStartedAt
+            CompletedAt     = $opCompletedAt
+            DurationSeconds = [math]::Round($sw.Elapsed.TotalSeconds, 2)
+            ExitCode        = $exitCode
+            TimedOut        = $state.TimedOut
+            Success         = (-not $state.TimedOut -and $exitCode -eq 0)
         }
     }
 
     function Invoke-Dism {
         param([string[]]$DismArgs)
-        Invoke-TTExe -FilePath (Join-Path $system32 'dism.exe') -Arguments $DismArgs
+        Start-TTExe -FilePath (Join-Path $system32 'dism.exe') -Arguments $DismArgs
     }
 
     function Invoke-Sfc {
-        Invoke-TTExe -FilePath (Join-Path $system32 'sfc.exe') -Arguments @('/scannow')
+        Start-TTExe -FilePath (Join-Path $system32 'sfc.exe') -Arguments @('/scannow')
     }
 
     if ($RestoreHealth) {
         try {
-            $results.RestoreHealthResult = Invoke-Dism @("/online", "/cleanup-image", "/restorehealth")
+            $results.RestoreHealthResult = Invoke-RepairWithWait `
+                -Label "DISM /RestoreHealth" `
+                -StartScript { Invoke-Dism @("/online", "/cleanup-image", "/restorehealth") } `
+                -TimeoutMinutes $OperationTimeoutMinutes
         }
         catch {
             $results.RestoreHealthResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
@@ -94,7 +170,10 @@ function Invoke-SystemRepairCore {
 
     if ($StartComponentCleanup) {
         try {
-            $results.StartComponentCleanup = Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup")
+            $results.StartComponentCleanup = Invoke-RepairWithWait `
+                -Label "DISM /StartComponentCleanup" `
+                -StartScript { Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup") } `
+                -TimeoutMinutes $OperationTimeoutMinutes
         }
         catch {
             $results.StartComponentCleanup = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
@@ -103,7 +182,10 @@ function Invoke-SystemRepairCore {
 
     if ($ResetBase) {
         try {
-            $results.ResetBaseResult = Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase")
+            $results.ResetBaseResult = Invoke-RepairWithWait `
+                -Label "DISM /ResetBase" `
+                -StartScript { Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase") } `
+                -TimeoutMinutes $OperationTimeoutMinutes
         }
         catch {
             $results.ResetBaseResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
@@ -112,7 +194,10 @@ function Invoke-SystemRepairCore {
 
     if ($SfcScannow) {
         try {
-            $results.SfcResult = Invoke-Sfc
+            $results.SfcResult = Invoke-RepairWithWait `
+                -Label "SFC /scannow" `
+                -StartScript { Invoke-Sfc } `
+                -TimeoutMinutes $OperationTimeoutMinutes
         }
         catch {
             $results.SfcResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
@@ -145,8 +230,8 @@ function Invoke-SystemRepairCore {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDhE+bY3yjHEP5g
-# /ljy0FnBcWT60HSZ0Vny69qdcKxlf6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAxF8lbN76MJSUr
+# mClHjUllKC480MqID3aR6eYFGvHyFKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -279,34 +364,34 @@ function Invoke-SystemRepairCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAtargEVEbc
-# zDUhZLqt3EocE3w9TFjrr2EtjbmLOU3UkjANBgkqhkiG9w0BAQEFAASCAgABT8JE
-# kCOZ2AOarGQE4c5z6VVPz6UqyYuGl3bUBqeVRabPVS/AiPIQ3qFZ6TnRHR9h9aln
-# H9UpoVWxfge2pWsuKQlYdaRCuD6yCRAqC4X6YaYoh5rir6zG1g8oCCG5BZpHh9Pm
-# UYxCeWNaieyLzS1Y2Wez1SZRuaDcopH94AceRDynABD74Jc+ixcMntpfG+Wj4/s/
-# lkDvTJXu6Bp0dFaXh+A7LJupNDgmToloBJGKKC3X4uncr73/mcdi/u5xawFRCUwQ
-# A/VlcNxsc/2ZQvixHQwYfyHXGIV7Od+UP4ZAMy2NB5NNQADnty+9o30B+t96kZeG
-# J6nMiH6QFP7Hkdy1JfOm6tOKCSRlLCkUMCpMF+oCyFknsSLtYC39d5w09KCkNzgp
-# zT6ObLGYz1zKOoCkJerUJEvTLpxUE7Uu7YeY62A8s0QddOpzubBNLXLUINpowBim
-# AWXn6ZIXT2eCyBkDpWxBsXHF7oeOc7vwfNcj+tuYUnfB5f32FgV+hI/13pRBSmQv
-# bDAX0azKEW625gov2ETQu85+RuNcFoEYe0MqO1UvgLOvYJxASsZIIXAYCIzRfOhH
-# vaKs4uGx9nSycFY1oU986wtt1kRqNlY/P+uri1tFvN1iDUw2SGU06K6WnXRdOqSJ
-# IPYmG78UbmLjpLNSiGYva0ftkn3hdpk64UCoGqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD2yDiz/kFs
+# NgDpLUDx3sI4+QZd535bLCV0pHp6RWw//DANBgkqhkiG9w0BAQEFAASCAgAJiZbt
+# 1LQ3fB9z8b64qm9bIUz18eBuHsGlW/sQq7Z73GeqjaHp1kZRSk6k5wq0H/dl3xkC
+# xNKl98/HdVi4Ai58YzlQPqK4tdfCbXFjR1OMVayH7FcfJMvDpOBzSfsfehol7/4M
+# NrPedi/RGRDk3NZBurXt8rESCqWtpEEM6x9ry+dloPP8QpvpYTkp/KdstMLAF+Os
+# 96MvdKpVFAbvV9f9RrxuJHaa2ZrZffQT3jKo+gqIVAK7fVQsPg6gc6Vm7ohWtiik
+# DpOq2XXwegWfFhAOz32pfFdd8VgitxFBM3wp5supxgOtw6Prvc7yMVkSMWRMrUCp
+# GviLnkMRAlD0GnxRI9nSkpzfw4qmF9DCbZYg6R+2ynJxRl5ygRq/dYAmQhuUjs7P
+# YNaqjsyGp00/MwQQ4lUj5aVz84MexN2zHWKZetX4sFy65jCwGqS/dEHJJaaROuHp
+# 7T6sP4UMC8zj1KAsfOdGrnO+bE61dgCPVAgbgChAC9RTaPrUlyZ2Xq2GpnIxcdBA
+# MhhtvfinRiETNwLyCuPML8tp4hp8LzWaPnOFdNBNQEnYG+QfeDkzQoP1AaTnlWFN
+# hSdN+4vLNiWRALBngWxUpDFAXDD8CFZenu/LBZDI22Y0MUqbq/XsoLKdnuvNcMqY
+# w5vBehHHSso4m1pM9g23W99rngCIbnmjBJ6dIKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTAxNzAxNDZaMC8GCSqGSIb3DQEJBDEiBCBS0eFIM3j+Ld9HZr1u
-# z5rGHobjyIqgUN6R7+AG8BwvsDANBgkqhkiG9w0BAQEFAASCAgC7vUlsGceLuMTH
-# DT+jqLe8in0WO4+vz0ys3O7egnHuHNUFoJNhPIx51NUWFiRrhF7tlvTE63mjeL9L
-# lEJdfwIdk2Ys15ipLSH9o0QINYA0SqRX3dOgBL1ETc+0w6Bq5XD+7kBxjrulz70Q
-# Av8wvAYiKWaXUVmVLzDMhZTTswQ3ST6nbUBGep8OaWJpbwfC5l0Fsh/FiofgJElr
-# WSDWzeBzMn50V2etFQ2mqXDypoHIbw7a960iKJmBFggrdWRBd+xsmictOmoAGKvi
-# hK/criXUdNF5UacJ4Co0ukalhMKcBRuwtoGlOhiLbKntNchJ0c03HOKThynLFsmc
-# eig9F6hbswBUu9MmXELlEvZlgR6qBkmpHCcTMPNnHZvlwOTM2ar+V5TjMAJ++tnS
-# GC5xYGXDt5y0mnb8eaiJxPtHw7mYAqGNMIbjL5TnLmEf/eUg5QqSdo8RaG3GxGgp
-# cs5bK755rGIeW2jsxTXgNmkSWrnmRUMNE+bt42ZmIbgxAUWyMv7b7SciSVIXKPqc
-# 1141lzoBRSQ7yAxvjWHYch9X7saFNHzDlCP1v44RCF4QQ4PEyLWozLPrn8vrFTWt
-# 1hmzxPzrU6QdzEHQzgZV6ssVqRlO6AyEfdUecl1LNOHYuhamCdJls9pbFymd2By2
-# x5c+mLMovJxTwxMHKx4Ox+xQ0W7siw==
+# BTEPFw0yNjA0MjEyMDIxMjRaMC8GCSqGSIb3DQEJBDEiBCC97azwrPNBIw04j/4U
+# S+v/sr0NaISzn+7EZiEONmk7RTANBgkqhkiG9w0BAQEFAASCAgCJQ75VIUwD/QGM
+# FhZxSFrxsU4Nph94hCPhj7YHun9EPM4kJTwU+mDAU57VhPebFItFPBd6fU4Jxykr
+# 8gXuGI2snU6elSStQnBaPcIK/uCT5RSmzZQqn+yFpR25pKY4L7SPS1eGngoHfkEj
+# zT0YbZl7TMCKpa/QSS+xfaQXCIIOjujKVFG3iGUHpKUy9XfddFR3/WVUS/JZkC7h
+# mXWAjZ5eW8TV2XvTQ6RQeEz+T+/FOCYZQJQ1PB6tm8SYUjhs+vQ/JBJxLO30Rjmw
+# mPr2Ebe5rF8vXaemM6nromtZ+W1dg1bLy9vDw21gkreor2HmbF0PYgryVFf2ZcZC
+# x85J/zGVAKwzluZNWujo+vtLMol3s3R7XZ1cV23RJAQDh7USt1pEHI1Jd4+JbKX5
+# QB7LiwRmPSldII9BUN708bkVAkoNoFDUqLczEsheXfQZg27y4AXISalEseY3JsRl
+# Dxkpd+m5Gnobf24DY/YiVyPGXgJPh0rZTWNpOAp41hDF2JSgafpXgaw/Eub2mpRs
+# VqxG0APqnEBde2pD/Ox46kSnEdXEUzqZV/AqKohG+oHrcuIvV7ZsWGrClquWEVpF
+# SvHkX93anksHUaWu3k3/Ym46SG6GjIlaKL5xitYd5sp7KuO1Md7B1VeDNcFVHaN0
+# OXahPnPBY/1sso8b61XE87ckoON32w==
 # SIG # End signature block
