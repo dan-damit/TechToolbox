@@ -82,9 +82,26 @@ function Wait-PurgeCompletion {
         return [string]$obj.Status
     }
 
+    function Format-PurgeResultsText {
+        param(
+            [AllowNull()][string]$Results
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Results)) {
+            return $Results
+        }
+
+        $formatted = $Results.Trim()
+        $formatted = $formatted -replace ',\s*', ",`n"
+        $formatted = $formatted -replace '\{\s*', "{`n"
+        $formatted = $formatted -replace '\s*\}', "`n}"
+
+        return $formatted.Trim()
+    }
+
     $terminal = @{
         'Completed'           = @{
-            Level   = 'E-Info'
+            Level   = 'Warn'
             Message = {
                 param($obj, $status)
 
@@ -95,25 +112,63 @@ function Wait-PurgeCompletion {
                     $itemCount = [int]$matches[1]
                 }
 
+                $formattedResults = Format-PurgeResultsText -Results $results
+
                 if ($itemCount -ne $null) {
-                    "Purge '$target' completed. Items processed: $itemCount. `nResults: $results"
+                    "Purge '$target' completed. Items processed: $itemCount.`nResults:`n$formattedResults"
                 }
                 else {
-                    "Purge '$target' completed. `nResults: $results"
+                    "Purge '$target' completed.`nResults:`n$formattedResults"
                 }
             }
         }
         'CompletedWithErrors' = @{
             Level   = 'Warn'
-            Message = { param($obj, $status) "Purge '$target' completed with errors: $($obj.Errors)" }
+            Message = {
+                param($obj, $status)
+
+                $formattedErrors = Format-PurgeResultsText -Results $obj.Errors
+                $formattedResults = Format-PurgeResultsText -Results $obj.Results
+
+                if ([string]::IsNullOrWhiteSpace($formattedResults)) {
+                    "Purge '$target' completed with errors.`nErrors:`n$formattedErrors"
+                }
+                else {
+                    "Purge '$target' completed with errors.`nErrors:`n$formattedErrors`nResults:`n$formattedResults"
+                }
+            }
         }
         'PartiallySucceeded'  = @{
             Level   = 'Warn'
-            Message = { param($obj, $status) "Purge '$target' partially succeeded: $($obj.Errors)" }
+            Message = {
+                param($obj, $status)
+
+                $formattedErrors = Format-PurgeResultsText -Results $obj.Errors
+                $formattedResults = Format-PurgeResultsText -Results $obj.Results
+
+                if ([string]::IsNullOrWhiteSpace($formattedResults)) {
+                    "Purge '$target' partially succeeded.`nErrors:`n$formattedErrors"
+                }
+                else {
+                    "Purge '$target' partially succeeded.`nErrors:`n$formattedErrors`nResults:`n$formattedResults"
+                }
+            }
         }
         'Failed'              = @{
             Level   = 'Error'
-            Message = { param($obj, $status) "Purge '$target' failed: $($obj.Errors)" }
+            Message = {
+                param($obj, $status)
+
+                $formattedErrors = Format-PurgeResultsText -Results $obj.Errors
+                $formattedResults = Format-PurgeResultsText -Results $obj.Results
+
+                if ([string]::IsNullOrWhiteSpace($formattedResults)) {
+                    "Purge '$target' failed.`nErrors:`n$formattedErrors"
+                }
+                else {
+                    "Purge '$target' failed.`nErrors:`n$formattedErrors`nResults:`n$formattedResults"
+                }
+            }
         }
     }
 
@@ -144,8 +199,8 @@ function Wait-PurgeCompletion {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAJmUawVn1m8lgD
-# UPrZ1DIDW6Eg/z6kZublnszJgvWSbqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCQgw1I2WCROqyD
+# 5g69vVKNHgOnjxS6zVSPULnWJYmCzKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -278,34 +333,34 @@ function Wait-PurgeCompletion {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBYCr1xU/I8
-# ds5A1d2nJzO85/1Ld5CPE6zErexI2nkJnDANBgkqhkiG9w0BAQEFAASCAgBs7FvF
-# 3LC21r2/x3ncANSLMuWFnFjXZXuN1uVRxfZ9X4zcNnb1rSCw0p+n99fv4AJB0gCi
-# Wbn+NTV8HuTxXjpxURPoKpSDcBJwUxeqM46qIyz4Q/S4BM1OozQ6LuVQne9iiSjB
-# JIbMVIunBR/xZFkexVVLedZeXXoosHH6Q+YrmGD78kCKpMOa7cALbmeL88svuyYx
-# CBmFhd3ubNddZBYT4y5IZBUiSfmbkeyBHJTB3Dr4pKJ3UEGHy/s8kpKCb+3KEKKt
-# LA8ikHDAH5thxEs8Ym2SVqJpPLZKLxF2UyucY7NuL2UjybOkVDx3JnApLNNxUe/E
-# gww0x5P3kd12lmpmUE9JwNmXEOfXGApl/wZnZW/E/U8lS7rxPlgom4RElzFEtKxY
-# c/WhwYrRvFEdWWp0VHDK3lWeOnPzr3O/kMjXnqS8wJGEA5vboYQl8p19qAGCgLCh
-# E3wgYv3Mjs4As4zoncigRhObdQ4n247KhUWbxHFBANAlxT+HHtALDdRhMTrwYmwY
-# GWenKLMcHiAV6wZw7CnR8bZqhviz2q6oiYhj83mLwyLBFYMWcC3UyTKxejFAsrOO
-# 9TDg8Y+GGrUpaW1dhDiz6CGfUm2v3JaoJAbarVQw1EH26ybM6wR+Pb3aavsx88f6
-# FAAfX+oEiRvX8jMFkLDdanGlY7duWOfTPzUqgaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDcxKjnxZ0l
+# 1QY9gKbHmVhlaUGxvcvTL5sleEhfOE0+MTANBgkqhkiG9w0BAQEFAASCAgC1PjGI
+# /r7g7K9vFdjSs3IPhj9hnIA2VimPlPuMKOrK5PciSeMXYQmWW1LXkC+SOAJbE0T/
+# E2PQ2hT0patCa5gAjVxOzWl11Xmy0eNj0ZBnorJP+c712Pm+zNbnFDS+AwXjb2AK
+# pP8jRKMsEuKSIdi2Oz/9bT/lLMCbodyyUEUTC2Nvjnxbl+DRpuJ1hT3UnNhLzWjk
+# 3OIRZbY15BKS+68fvoI1QWHAXsoR+ybOOasI3jmPXr5uy5HWiIbZhYWhq4X77kHY
+# P5TYl3/dlWx7CHjjAOt30JaFkxsRO0GWf5IZecrDTkBR6iHOEcddaT8PIcLoeD9a
+# 9AUqWi2tmJDIllCxj+PU9epZLiwlJrUw/vYTaopLBbl1EpaBw3qD8CMnMfu6AZ0i
+# wE7/m9fM69ZgnnvfPKZ4ubRfkrYS8ehCQdY4VwLkX5cCatPRpWUl0Wkc86iIo9xz
+# GQyU6gO4xmf7Uumf6dQTrF7siKtQ2gFrQUDuZhGm0m/60NzZXNYyeRY+Vbp4/ytr
+# 3WauWitaSo4FXfaDeKENX9rgqK+LpKYCKZitq60eghLElKpwu9iAH7KltH/1Es4X
+# F+2Lu4ixnp1/dbWGRVqiNMVLxlkz54Jrax07ITNUPvR6wXozGROoogB/796/gaNw
+# rGV9JSjl6KY7hBZ8kO7NdK52wuQL9HoM7CtCrKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTcxODU0MTBaMC8GCSqGSIb3DQEJBDEiBCBJ29/73Y6pU/jrkT1J
-# DAFhlH4dMyY+LPR5qSa+OFq45zANBgkqhkiG9w0BAQEFAASCAgCv4zU0MqYQhoGl
-# CA4PM4kG4t2kN0WRUB7oOwfQFOAZhX1/PDENCn71+lzmsixFmlK//i25j+Lx3YAs
-# gWCK6BrrtwQWYYH1P9ubbmQktt6elp1PTYO9BeI2eO+fOpx3TUl5qZMfRW0xN1Du
-# XMbWL/YSa1x2iR1ureegH97RL7cAe3oI3UnJuB3X81aJmdGdN5SKWr1U9oAKnK/K
-# BDqG0bmSWsDPEsNhTTTvZk3Ky7rhLlYT9aS97a8sgegjkWQGb/30b+6CzThgshX8
-# i+sa0piCuEzsJmGx0V0icQsRdj7qrb9Rs/TT40iyPfEKpUUi2BdpgvK4MLXzM2Zm
-# UQwB6FLIgcyTw9Kmhp5YovYKB2VpycBXnffAIyjvOgn2yUDTmdQ4LquSu8o+ors2
-# XI6nrnldSV3UuITrg9YYUYQ6SZfdJvvzhZDb7rjWv/wzoSukionYGnGO2R4KalKs
-# +cZzz3NdZ4W8vFFwN5GC15sC5TqO/PT+zIqBO27lgSzra4WcwMG2ACpBeYmDRbLC
-# 8LyyU+V5ijj6drdiTecbL5RvQ0JXbkD016R+Eurj+bhAYWNj2I/cNvisX8k/WcV0
-# kmVBUtRFaZd6Xneo1ku3l/rmwJFk4k8aeGxgduGimjGT6PmfUZBp6TtgX9MN4HKq
-# SBJVkb95LLLsnIu7gksPVMMs9wQKWA==
+# BTEPFw0yNjA0MjExODM0NThaMC8GCSqGSIb3DQEJBDEiBCCfzTOJ1fa4PAm850Fd
+# ixN2eU2M0zrUGNkpoZy2WLyR3jANBgkqhkiG9w0BAQEFAASCAgAcyzoqM9Apk12J
+# NxdRZuDD9zhO110u2WHa1A+HbicgZ14s4W8jydC+9EeBbu+zemHI5GTnvCpjZmu3
+# jFry3JyEYFPCTJPeUPLhIaxBf9N1XaqVD8TQ/2SXpW2s6CbjzwhrNkholN/3hJ6M
+# ku/FYLSYqKKTrykiAeMCMO+4ghE6WZBfOzdFyaZG165YdfZM/M2QNq4u27pbVGf5
+# 4p8XtKSCiovgVQ1Om79LvTeoKVdwS59SapTohuywvY/oCThh9AkltlNPOMOf/cJh
+# rJ6WQTUf+B7HNCJyc1a3vvOF54DW/if2jhkkOW10wK3cifwq9TpWb8HCvdyN+m4J
+# PC02eI6Z6qjbTaNVMKYLjLPFTwkrlhaluAcsoNxbF0MipG3FMdIa8hZNxZePsK3y
+# vZtSizt6hUsQWRKV2VP7qg/3Yjvtuenfcz0VUzPE0Joy9ppw/BpyxWQ/0Y/wOdkE
+# qE4kPMUeFMaS9iTMh5oolm3rCiZ3/A1VKDnpxlztB1rM3H2D8C/mp5ZH7spH8Ct5
+# Q5zzuiTQbC1VXBDMOsbsA9EEQgt2xSFvp0vZsGHmTllmf9dkta+o7WbbHYWfz8ed
+# j2LCbUE055HNZCaFkVYhCycoZ8iTT0m/4ajFx85Mp2gIA6pbONi81f2QkknBM70c
+# rOgbloGf2b4FxS6VrW67WIWZiCjcJg==
 # SIG # End signature block

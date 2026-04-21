@@ -31,6 +31,15 @@ function Invoke-SystemRepair {
 
     .PARAMETER Credential
     Credentials for remote session.
+
+    .PARAMETER OperationTimeoutMinutes
+    Maximum minutes to wait for each DISM/SFC operation.
+
+    .PARAMETER WaitPollSeconds
+    Poll interval used by Wait-TerminalState during local execution.
+
+    .PARAMETER WaitHeartbeatSeconds
+    Heartbeat interval used by Wait-TerminalState during local execution.
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
@@ -41,7 +50,13 @@ function Invoke-SystemRepair {
         [switch]$ResetUpdateComponents,
         [string]$ComputerName,
         [switch]$Local,
-        [pscredential]$Credential
+        [pscredential]$Credential,
+        [ValidateRange(1, 480)]
+        [int]$OperationTimeoutMinutes = 60,
+        [ValidateRange(1, 300)]
+        [int]$WaitPollSeconds = 5,
+        [ValidateRange(0, 3600)]
+        [int]$WaitHeartbeatSeconds = 300
     )
 
     if (-not ($RestoreHealth -or $StartComponentCleanup -or $ResetBase -or $SfcScannow -or $ResetUpdateComponents)) {
@@ -89,7 +104,11 @@ function Invoke-SystemRepair {
         $workerRemote = 'C:\TechToolbox\Workers\Invoke-SystemRepair.Worker.ps1'
 
         # build helper list
-        $helperLibs = @()
+        $helperLibs = @(
+            Join-Path $moduleRoot 'Private\Logging\Write-Log.ps1'
+            Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Wait-TerminalState.ps1'
+            Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Get-DotPulse.ps1'
+        )
 
         $workerFiles = @(
             Join-Path $moduleRoot 'Workers\Invoke-SystemRepair.Worker.ps1'
@@ -109,12 +128,16 @@ function Invoke-SystemRepair {
                 -WorkerRemotePath $workerRemote `
                 -WorkerLocalPath $workerLocal `
                 -EntryPoint 'Invoke-SystemRepairCore' `
+                -InformationAction Continue `
                 -EntryParameters @{
                 RestoreHealth         = $RestoreHealth
                 StartComponentCleanup = $StartComponentCleanup
                 ResetBase             = $ResetBase
                 SfcScannow            = $SfcScannow
                 ResetUpdateComponents = $ResetUpdateComponents
+                OperationTimeoutMinutes = $OperationTimeoutMinutes
+                WaitPollSeconds         = $WaitPollSeconds
+                WaitHeartbeatSeconds    = $WaitHeartbeatSeconds
             }
         }
         catch {
@@ -135,6 +158,9 @@ function Invoke-SystemRepair {
         if ($ResetBase) { $localParams.ResetBase = $true }
         if ($SfcScannow) { $localParams.SfcScannow = $true }
         if ($ResetUpdateComponents) { $localParams.ResetUpdateComponents = $true }
+        $localParams.OperationTimeoutMinutes = $OperationTimeoutMinutes
+        $localParams.WaitPollSeconds = $WaitPollSeconds
+        $localParams.WaitHeartbeatSeconds = $WaitHeartbeatSeconds
 
         $result = Invoke-SystemRepairLocal @localParams
 
@@ -146,8 +172,8 @@ function Invoke-SystemRepair {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDdwooiddN5wKVo
-# +x3I4zKfAfry0qgOvTJRVSWXAchbn6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAqAyuhRvuViTWR
+# VTau5ILRhIcmZDRmooeiNC60+ObSFKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -280,34 +306,34 @@ function Invoke-SystemRepair {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBrZUCmEHyq
-# c2s5NUO81fIYjcHpugxfxSBVqI1yh0rH+jANBgkqhkiG9w0BAQEFAASCAgBliYFG
-# aRRCU/aQz3e/6rwVbMCGcUFtt3JQa2kmLu/SXJPhC3ZoNpNPSRj6jXndTpNfkMeZ
-# X99W2x6d3VFkILZid9G2tkmx31LfMmS7KpA5QRTBAztv9oamRbE0OzkQiEAfmwya
-# 2hDWnpqeX7eqDE+obbDfVadY/u9bz/5bGI5BYP6TLevQlzcFEbmjEazQDiESwjcZ
-# pcqrrxc1yKcd+NC8YFjoyePvDx0QOhidoKFY9CE1ArbIHT9qfBAfVje9DATyLt6v
-# /l7ff0xhWSaGh02Esw/E3at/qFb0q/k53Ia0VvMCJ7XRm0C30V3MUjXNqOvJW8Bm
-# i0/FLXivmF81+6fI8Kt9ZQHFnjn1sZO+jFdPvBf/tjx7g+7sLZRv/gryZ1lhpao7
-# rkUnOgjaxv6ApcNgnHb47lHPZbWhufYaGZvhgkMfDAVhvBWnZZPyfzfaTHLwQkKI
-# ZKJp0/Mr0F7nek+g0d96Al4AoQnAuDuvq9bymvLrH5pM5RjPZ/4A1j8m3pXJFENh
-# Fu+2SA5sIpALys560Msf0djV6Jaz+rv4qEO3u8M2w0b6bvPo38lQt9IXE7tiAaCV
-# PzrDWkj8ii/OAtl2G7kq5ESNCptpxY0nnrCkREPpCcOsEYFjB79FHV2VMYqJgDvP
-# R845ilZxM9pV7ew2edvIp/sJvhDel7c2NVOWEaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBM0Lcv8YCf
+# ATG5LwFQKwL43Dvwq448ZygCzWCjF3S0+DANBgkqhkiG9w0BAQEFAASCAgAAzK10
+# hzCzmL+cUCYBLe/7BvWRIvmePTe6XD92MTH+KOZBzwJxRMvzsakIG21tnM5Gpd+5
+# GTeOgUbpMAxuKAmJR/DFucwT+Vmiiq9xP81t28ENYg03xc0QRNwMUVtndTDXu9Cn
+# lRG/1uVCmEWLu7c0Cr9YLJ6ZXBgoU43OgxKoNxb5yzHps6pQOEL2lduCUeLJDRx2
+# Oes+MCgleqI2mle8Ak1Z7nQlkBmWgSsQh+2Jkc79FF9dlUop7j5V+HK8SHhHxICG
+# 53zmmZXmxJR4HlFHnqG0HG6wm7Ja7wD+Bwn9s3ifUAsYd3mp188kjaEXG8OOlWq4
+# C5/DVN7gSzFGYRSZrrVIkUVYQYSvgSS2EKYlA6Qd4hZ7oGvRBivCNvhr1D5aS2q1
+# 3Zl5Rh8OcwAIwd8qarpiNNewdkCiwiaUQ/mR3ei/TzxfNtlYGmu1IbZNOgm6erxk
+# k3Jwjp375bt7QNp/46PKuCfZTfXfbjOLAX3+b8AWRIBijTEgrhVA3fyVwBWr1d8t
+# 7+KQwxypqqCphyMgfF/Mn3/yjy+8GOojg7Gs6IisIekAVcsVafBRVhvCjmI1uJx9
+# pQcknjQh476pCzhlCl71ZQzCaa/5X/bLizrerGimFKUBuPpYiKN6kd5dxefK4Ij5
+# jRi1MQFvHXowSapThRKjnejCrE1RM5sE1L38iqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTExMzM1NTVaMC8GCSqGSIb3DQEJBDEiBCC/RNvhzI84fNmVMgKm
-# /yClkz83VMariOIa8d5i2X2SRTANBgkqhkiG9w0BAQEFAASCAgC+69Rhck16EpXU
-# hkJLXWdCBPNYwQ5+VXlCrUiavnAwrK/HpMfxL02sFjKgWR0A6qp/pYnolvmBjSOQ
-# su1cL+stpJKGTIHwQIoFXdIC6jEUlcKmShuNkQJeeXzRedZICxUBj6SeSpPmM6p6
-# 6csXMYA4lBAW+EH3yHibNWH680M9ScRIvcTFKJTzFlmcU5ShI5jb6Mfx8YZOXFlx
-# g0X4ePxoeLhbIxXXCfUgvS+jXu+56u1i6zC4ZNB2L2a680K0ig30fDTVb6+s18Jl
-# sbm/Mg8CsIEpPKqzfbvtrAvk2moetn0tlpoCmcKZSSi0iJYBcRtdnmNv5HpTAWIh
-# hT3XxZHtM4ud11HWj0QJ4ukCKdT4se0gT2Xf+q0e1IJUFFQs9gXg7WBJ9FA6JFcQ
-# 2gdUdMRThsW6PdNwc712mdbf2i9HHEVGjz2mphtQNe8PX7gXDi6pCAjghlJB0J1Z
-# Mm7rAdOqPrM4GAzCI9ZqyFEvd46ycExmkMfQtj+fYENzfAvYP7z1v1WUbxttIA5t
-# HzMn/Z8Q9i0UWbkYQFz2nl9reJ35hcA/VChZdneR6SPqH1lGs2rMecV8WdASOO6+
-# ChAeQ26q0gRkLaCAulLZ1pi92kdNiQIEtn2Wb2BdYy+LiVYeLzf3fUbF3XsdLBBe
-# CC5OS59gBiAL79/n0JkZlivWGUDN5A==
+# BTEPFw0yNjA0MjEyMDIxMjNaMC8GCSqGSIb3DQEJBDEiBCABReDXtC25Nu80iK2q
+# ySlXtpavmInQ5kOW0C8f4IKwQTANBgkqhkiG9w0BAQEFAASCAgBdu2KevA2Ui6N0
+# Khqxl76y/WDYlkECuTUQ4DG3+RQUWOTZdSa56stubssBxKOrmk0YpWmRzUY0it60
+# AOhO5YthJZl9fuQmyVy5xqs5OZpVjqk4E0hjARawtA5G08Sp9QFLkJs0XzquUx6j
+# 9x94D2KLTMwb1ZDRNRMd+RUyf/vNH2a3nF3eQzP/Xr3XlBWKpUXG8AotyG8DTI20
+# wkVHbJSmZVL86wzt8KPI06cej8yNTmFbCrzdEfZrndUABhbTa1AjoujDufV1Enk+
+# xtmB6BaY27CmMqOxUji7Mp93BSsPIK12Flr53WMVUPakLM4s5pX7C0dkif08RDAJ
+# R5VZajAzgn29Y3plnm72DpH15JnRhQGhw9fQp3X6Je3Tq+4FvKhb4w9weWuaJZvX
+# P2UrIWajzh8Gh8a3c4vqdAZJUuKKCtxGPg6RibarD9+6YLO/MFe0XrHJvu+dRSpm
+# rW54JncYySmu+OvPCcyoVGI5vxlcAjZMS84qlhVUG1Hf/3DJZ3OtHIFW8Rydl5g1
+# 8rtR7k3ZwiEp2nCGpFLKZBI0zbqv4OoH4MpltdZ26VWRQarUKdL9FBkzFQ/JcFK7
+# tOk6k5VWm5RrShQU/Xpo4JE+QTup/+ek7xdCT3qR+0ktzZT+9/QYFhh0IY0j/6sB
+# tP0jiKGhoCVfNqTv8+KuKgVbDCDZ4A==
 # SIG # End signature block

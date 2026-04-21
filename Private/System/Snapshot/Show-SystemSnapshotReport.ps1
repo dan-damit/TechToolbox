@@ -46,14 +46,51 @@ function Show-SystemSnapshotReport {
     # --- Network ---
     $net = $Snapshot.Network
     Write-Host "Network" -ForegroundColor Yellow
-    Write-Host "  Logged-on user: $($net.LoggedOnUser)"
-    Write-Host "  Workgroup     : $($net.Workgroup)"
-    Write-Host "  Domain joined : $($net.DomainJoined)"
+    if ($net) {
+        $netItems = @($net)
+        foreach ($n in $netItems) {
+            $name = if ($n.PSObject.Properties['Name']) {
+                $n.Name
+            } elseif ($n.PSObject.Properties['InterfaceAlias']) {
+                $n.InterfaceAlias
+            } elseif ($n.PSObject.Properties['InterfaceDescription']) {
+                $n.InterfaceDescription
+            } elseif ($n.PSObject.Properties['Description']) {
+                $n.Description
+            } else {
+                $null
+            }
+
+            $ip = if ($n.PSObject.Properties['IPAddress']) {
+                $n.IPAddress
+            } elseif ($n.PSObject.Properties['IPv4']) {
+                $n.IPv4
+            } elseif ($n.PSObject.Properties['IPv4Addresses'] -and $n.IPv4Addresses) {
+                @($n.IPv4Addresses | ForEach-Object { $_.Address })
+            } else {
+                $null
+            }
+
+            if ($name) { Write-Host "  Adapter: $name" }
+            if ($ip) {
+                if ($ip -is [System.Array]) { $ip = ($ip -join ', ') }
+                Write-Host "    IP: $ip"
+            }
+        }
+    }
+    else {
+        Write-Host "  (no network data)"
+    }
     Write-Host ""
 
     # --- Identity ---
     $id = $Snapshot.Identity
     Write-Host "Identity" -ForegroundColor Yellow
+    if ($id) {
+        Write-Host "  Logged-on user: $($id.LoggedOnUser)"
+        Write-Host "  Workgroup     : $($id.Workgroup)"
+        Write-Host "  Domain joined : $($id.DomainJoined)"
+    }
     Write-Host "  SID: $($id.ComputerSID)"
     Write-Host ""
 
@@ -73,8 +110,8 @@ function Show-SystemSnapshotReport {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDdktsoYy5lY4SS
-# FAQAUZEuR1Ik+P9oFFWmwOqQZ5f/B6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA1J56T9YhHEekZ
+# Wyh00BaZti9UWuErwiqkTHAiwJXqQ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -207,34 +244,34 @@ function Show-SystemSnapshotReport {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB7g7es/uf9
-# 0pOFuAWv3n8FDNw05Ymd55DTFizoRNzkzjANBgkqhkiG9w0BAQEFAASCAgDEtUbe
-# lMu5t8fhp3qN/tnLS9NgtlaDOR9GitH3x/a186elQW7U5DvMpUUDdBjlva9JyqhY
-# 2oTi47LG6DKjqunndCKGb8axyM++bTl8O4kbA5K0EO9Kmg9EBwL8XXc2XyNf2oaM
-# 3IZDntvZkZFsyTeCa8V8p1orcjLugtPnFPqxVg1zbhGKBC3ho1xiTDPLJR+y/3Kv
-# tXKlq95zf9FUcegbjXxAjUbsU5htgjVcAf9R592WrGfGvFQf+ih9tbd2q/9SZxGV
-# Xcl8oS6Q1jCbshOCxnX1UwRFRKlo3WrcEAVZHOGcdE36PH4t6vSGQjuQVjacFBRW
-# uubNclxvoxJSJoMqzw52nDEFjHa+9MVX6SqcofFsXdrom+CQyl+mTHgddJXRUsQ5
-# yu8L1mEaEVGzC0D3Nx2GiMzQv0ptwoYIrlgLRPTt4Ok9xs6AkRKskoa2ZjkdAGEx
-# NIuut6xRzwbTnRI5fgARPPt7xbYaag87IV1wx2u7jJEASec1sILMHwO0Fn/QeGQr
-# a73gL2aqghb/rMfMDf4HNyIG1YtsSlTFYpsVmQYOJN5IBhqMMNyLxjn0bysCW4xR
-# D4cM4jGDM0K0ESOiqefVNqRm9FSqebcooix+NChjb9c1uCc6AyWSIl9r5bHAIMam
-# SmBQzojuc3li4zI4cld93Kef3GxeeJCEXWVxfaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAXC5HX+cD5
+# 1rCL2Ac46dIU+uIeZ4xLNMO2Q64y5nCOjjANBgkqhkiG9w0BAQEFAASCAgC4gvSd
+# dDA6l7wfLILHN+Nta/34DcbaSaF4gibxf/hOTVCN7xrhD++vEyp5ZwhxVlEhnOBh
+# qJJ47ri8v8i82toz7xLwWMFJtcTpsVPJWtR2b3WTuLMsmvProRldruRGpFd4wM/J
+# GEvS+gzxuD5gbOvXs/zelUtBs5GXwUhCd4dnhRmeYoOS1962IV2fViBT0lPGu8DU
+# 9GvNv6DohuPt+Z6ujOjlkXEqiSrS3euuLT2crOj+BOec01otbmZHLRf/DAUHH9Pp
+# ZCnQ4HFusA3NwSud74IJuKP58er4wCG/n+oTvCMVxGXiVahxAsrmupQBOZxTwG5K
+# clhWgt+Z04q9uy08M1EZHepJ5L1iCkgTzOybIgB4rHxqGeoNDOFtQFOk6bg6oBlH
+# pgL7UCI4Q+i+KxUrcYLhHuUgayctsTly+fa/kXzcDinF3hhEalYB2pvgTclgdOB7
+# qAnuBqKQnhtXj/lV/2ZjeuSaVXwybso/KAxk48wx1yaUesqWSoQvlu6HTvkkVMn9
+# y5DyDjRPBLP83cGzerFGp+H8Fq8DHdiux7M1NYD5skLwUUc3kSOd5rnfMFepR6U4
+# 8R6Imv2FIIZ6RF2Q8dlf3wCBgMNfcu4lVng3Sa+OeWCCCVxaZiJ/GWlk4NCes1jI
+# PP5DctKukmKbUVYkW1n4In362aQMpByPVLgkJqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwNDE5NDZaMC8GCSqGSIb3DQEJBDEiBCAMCvmMg/Ef4FoNyyfA
-# knJH1TlVocmBsMPO/fHOkdOf9jANBgkqhkiG9w0BAQEFAASCAgDO2Oe8ZFBIsNkf
-# QS4JTrmvpJtR3OnkYB4KPgToBNKYh+2Mi/LgRyshKFsaV/k54PM6JBvtl4eJCZb4
-# UypFrJIktF4ckLlfeVwBa3oL8ysJakcZwgghHEkTCuV/lAbpvfO2PoGAI58BzUx0
-# jgJF0TOs0pPetllkLQSo05COdxjw4qG13Osk02T+Xttv1P4zdlkKhNxGnsDUQDmK
-# iKmwiNAp4h5n1YiXWNTesYf7Xe4WgFQUehVfXasMQ9L8NujQOIrG7C88L9uNpwr6
-# DALvB7q0NWMtOBVfZKYYV9SxACacWdoqsKi8mFUSm1nbwYryCppnY++Q6sXSXPzf
-# dYHvmyqt2OH6g24JXOtVEYdMVGthBvqLgui9K5mY6jhZQsBiMhwxE2+sofhgHB/x
-# OLaRQMITYypNTVlByQg0eys+Si11i9nOoj85Lij04//TGKSMdFsCagrPrpO6DX1i
-# MawZWBi151j9pLGcj+1b0nGlWN7V10g+48OwskSnl+uQWON3tiZ7p/Q34d+C2U6g
-# YlhIgkdV1MD+1AiooxjL0P+kfMOVdoQbvxqZeGzqv+WJsC9GxC1UVecaYSZS1tA+
-# r8sN4bYJzK3hxYcwnDhFzIFcamaS4lT5UN2DRYzgneXK6Gc5JB6KYAmnwGZU1kLK
-# rw6NQquynKpVGJ0GYYCFbxPwafBUAA==
+# BTEPFw0yNjA0MjExNjEzNTZaMC8GCSqGSIb3DQEJBDEiBCAwdPvDlDl5nDZ1S38r
+# cRv5wi/dBFHT9MmsztMpnU6YQTANBgkqhkiG9w0BAQEFAASCAgCfPmKg+JMS5Inl
+# ORAscy4tOVDjBX7/LeCBnf/muibjtEiL6Hr0Do2AuO7lIqVhdbdCJJh2/A8cKRqB
+# FQ1nzAtlj3E6ObTXJQvzRrroB/dgoZeLwOaK8Ru5r60zPODjfE7aayQ3JF+fdDtj
+# jq4eKx2HkDt8KpVWU7EHEJdgKPX0GFLMyG9iBfnkQLDvtzMaZrFSHaU1HQdnUQBB
+# 9Us+wG51Uu8FQXXIOdKfleNielgYoonilzByhKQC2iZBJbAlYMMQoc/xbiwX7MCK
+# fInbbzblM+XR0zw2SqbwE6nKfBuKvAktOd/3UILNwPDzgQ8lWxx7GrAYgio+hYDB
+# KKCtiY/k6riAtY4/xbzUSpLSz2L8L2e8WunhqvY8uNTnOrL3RUo46qbe3Qu0CyhG
+# V0/PezxIys4Vtd3o6odClO1znUbEtfdHh5dNL+LtExlZeGwtrk9qEvlbraBjKyjX
+# IesDsJ+8ua0DHJf4By8pXVnAgZKFZ2dYqf/ph1gSDFPO1fhbXRmiU9dhn1oJyayd
+# wgawzykyFtAgyIGmRIpWVvODWo1x7X0Wr01qc/82gJEviG21MiZoOLc5ymD9GlZb
+# Yts/U2rFT5m4kXIMEK14a3d1S9tGp417KooEa47dGkLp6J7SE2zcVlAlBdEZpSs1
+# sgIm/nemG+BqXYdxFH6Vqh0tjP64lw==
 # SIG # End signature block

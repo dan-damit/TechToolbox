@@ -152,7 +152,7 @@ function Start-NewPSRemoteSession {
                 $sshParams.SessionOption = $sessOpts
             }
 
-            # NOTE: No ConfigurationName here — SSH remoting doesn't use WinRM-style endpoint configuration/JEA. [1](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/ssh-remoting-in-powershell?view=powershell-7.6)
+            # NOTE: No ConfigurationName here - SSH remoting doesn't use WinRM-style endpoint configuration/JEA. [1](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/ssh-remoting-in-powershell?view=powershell-7.6)
             $s = New-PSSession @sshParams
 
             $portInfo = if ($sshParams.Port) { " (port $($sshParams.Port))" } else { "" }
@@ -207,8 +207,8 @@ function Start-NewPSRemoteSession {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCwbqMW+XUJxodQ
-# DFAQJ/mncDYCCxEPxhj6wpVrqZ1eB6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDhGOKCHmuqWJUb
+# Y4ys55+SUaJqyGjyR0QCemd3GbVTNqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -341,34 +341,34 @@ function Start-NewPSRemoteSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDxfnMEI+xq
-# 9zbNJde1cxP/sPfF9wwVQawOSwjU7FwHezANBgkqhkiG9w0BAQEFAASCAgDQ2S9V
-# lQ5tRe2SZHKYBWWAqvMJnTIlnPrRny22pWlNPv5Pgk6ixkngLJvL9HwX9rMP1xi1
-# 5QpATsrzwF4OnPEhhhMc8qmlR1iEDSAgm7zxL1AxRPCid5sQIfkXGHSJV5Fo3i2M
-# U4/YCrwFAYmqGhN2o7HqRIsQJoAdwDmxCw/ByG/wf3nqta88p+AW8afSUo3YdGEc
-# 6i/ZdA7ePL5dSEWhv49+1cMKJFtvmoH32/7S5HLWNg+lyB7kJRyoCgL8+ZQZe2dQ
-# XP0PSENi4ru3CYI51Mc57kpqDfXYa4g6Y5T+RekEtrvG6vGtQgEI6umNZfvgnFMc
-# 9872+fz4xDeiBlhR1tf3zMlMGLYWAX/Hrmkq8u+AvwioCRmI9n7sgfuzuRP2Uaxn
-# xA7ZcCJVy7jcvwYKxbxgV1EwI6fqomLTQkKKhOPzzGhZBzn9gyM8wr/0HJr7zkHF
-# b1CyIhDwTcSBMDcphhLDs08XlkBOrGS5c8hy5jsIJfWx6WFGRcqfmYy8rHmCHaBH
-# Iu/ZFC5yXaGuhrKT1CkMGPJd4MBn++4JaFtRYlallDgocuRSnXEOFJG4rnMhAPO3
-# QSzJZzuP3a0HWlWn/eO3Z5BKqi41MQSzPhBlBbwQuq5N9qq19hOrBFK3Iy2JdnMJ
-# Un57tPkmn/YOYQE4DDTOuWet/zageYdDlKzpnaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCb1QjzhSIM
+# NBQS95LoF/JyQY/2IOuVrrR765+abGes1jANBgkqhkiG9w0BAQEFAASCAgC5hfRc
+# nDpBa0KdGMXrh/jLDmLPL/JwYIha80nmmYT6DN1k/Mcc8Nygn4Fp/Pfs9EZalGJ1
+# CN6HI23T3ZVc7U16Z341PCX6buzBI8NteKrRLjbRL0x2yekLKGzxsbpaeZ2z1Fqz
+# hLAgt5eRN6MffpabhrO6BCNteCaw4Ak2MUXL0nb5eA05nRSEsw0O0Fb1IpTDMDPD
+# 8r72CQ2T3gqWXhLrr80jrZImZ9vZSUDzXlsJtzWdubFSTpAoHCWnSomaNDXQ8sO/
+# XJnd6wVMRgW0ti1wq6D2vysvF9riHbTIaVfRMoyStRl0klNAzg2P1JrVSKFtA0Kw
+# duZ5IOwCm5m5pknZrwOliprc3siG23dK3ZjDoCNa9B1mEFiPm4vFIH4/m47IR93l
+# QZEE8EZzYz7iamIfGtk5Y254D2cvy3znKDyg7hMoSEvxfIk2UCq8AepqZYcYZffv
+# kYTJcyaEjAkh5SCvRTVh9XzH39tlNCZI+sSxnv7glth/ktOrG99WoChsKVzwRTOk
+# 82RtK5Bss8GdHyxEuyvom0PZnJND8eAMz8tFSuXhLRmCu4y9igsvj3fCPGRS1mlt
+# 0xkYihKefjsuImkyNiwxTuSyxq5y3PDcFNii7PkvJqN8e0nk6+43Zws0PSfIuqA5
+# aGf/GRijtVcbXCoIvDzuX8nsaY5tfxBb2ZOSLqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjExMzU4MDJaMC8GCSqGSIb3DQEJBDEiBCBUgT0jbHHwf9hexkDM
-# IOf/w+w+cF14HJsn6wORzl1x2zANBgkqhkiG9w0BAQEFAASCAgCdF2UvqZlTmtZv
-# Rm+Gb24D9Ajnd09xgzFhB8l0E8McC4gwLyfw5PJSbd71FwGbk4/Sm7tI/l1UZej2
-# Bp1DBXQ+hfBxEkBtbvzKQJV0uYq+kkvYSz7q/FM02mpgNCQd49ifyQnusjIAIa85
-# 6UF2mMdeUIVBTa83jAaok5/OsNWpQg264UZZlL6wnBuctjGai/90dVMdV/sqmFKC
-# rVMVNFlR8oViQNsCy9HDeCWDwRtpT36/K9G/FYgcXI/0qDEJ4pA4xwBwKtq+izZ0
-# 202l+JY4xTt6LLb8Er8UqFAoxXT1feWv8EpJa5pTwRXZ063rpEiMxntfljBGiyYn
-# /1VOZ+C2cjWgXJ2X++nREwzJyAQORc4M0PCKRC+ezvRfJSrg08W61sIfDsaBs5fY
-# 9qG/bK+RnLK2+ibg1EsAqnfVJjpR4Ac2T8aiFLckpc+NWOblCvOu2tf68183Nzc4
-# jfy7BnS/+W4j2ybszLyAb+gLz6Z/ExtlA0D5SuzE/el9AeMctZ5DhFBfj406Ws0D
-# AX42HEe/OgK/Bq9RNFH/9mXU3yoPr8YdhGPYFV/lemaNbJ/e7PufhBVFN4clTBF3
-# BHa4JvNUICrVNWXrWy28kXl42KygszzwfielaoFZTKma1oatQZ7XfkWDSmauqWXg
-# HhQ1qBYvd0BhLzVHvMAKsTu+FmjBEw==
+# BTEPFw0yNjA0MjExNDIxMTlaMC8GCSqGSIb3DQEJBDEiBCASSWaUcU8XXxLxd8lW
+# 8cRtV5msM5LMA/fk5fAUr4ASkTANBgkqhkiG9w0BAQEFAASCAgBwcLpQdVbpaAmH
+# ZECH0bWyhy3hLOk/C5Hb8FtxfObFhNrJYG/25o4VelmhyawNJSZuThxmKahEA7t0
+# hHPoiSFgVLc/KrP+GPRr48MPoqTj8Q1/VzhIllOQkBjIJnPQTRlYESCyQraVVuw9
+# v/EKM5BnB9BUUScKhicQ2X19xggD2pnio6FEl/eohSN7POhSTF2wj0MT7t6aRYwD
+# w+WdcPWgfXjwSHY6a5Vfu78qiZ1czsOcqYs3FzTLO1KQrwSsPQNL6meLeQOocAvW
+# SJxIoENfRO8m+Gk6iiqTBL/VP0UFPziICvkYEBZK/oxKjs2/bppJtrPN+DY4hfz0
+# I7y28CH7jhZ5PbY2kXaoudF+gwX719hp8yg2tP2ThyvX/xTbbF9fZ3lATUD+deTi
+# imvKgEyVAvUClnifeSh93VkTKD7mXFFVuRfbGoNBH1KMzwtMoFJzFwvfTg5jTB6v
+# qKECVMP5/SFPCGQf+vOjFx8suHd5sQS5RaK7tBgBb+gB+4c49CMtbWa7FCyMMXif
+# 2c+In4M/Zn665H5k1kwbv6P9Ypdk+NgxkP2WorCyZWQCEFTWJTMWNRJIMtuiswRl
+# dreOd+XtCthkYoBg3hokn3qRWeRo0WAerAum8jl21Obrr0pqHXitDDbjvZYEUBX4
+# uJRwIHlUgypNYkoNBJZziqT7ZveX7A==
 # SIG # End signature block

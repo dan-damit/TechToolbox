@@ -17,10 +17,44 @@ function Get-SnapshotNetwork {
     Write-Verbose "Collecting network information..."
 
     function Get-LinkSpeedMbps {
-        param([nullable[UInt64]]$BitsPerSecond)
-        if ($BitsPerSecond -eq $null) { return $null }
-        # Convert bps to Mbps and round
-        [math]::Round(($BitsPerSecond / 1mb), 0)
+        param($BitsPerSecond)
+
+        if ($null -eq $BitsPerSecond) { return $null }
+
+        if ($BitsPerSecond -is [ValueType]) {
+            # Numeric link speeds are typically reported in bits per second.
+            return [math]::Round(([double]$BitsPerSecond / 1mb), 0)
+        }
+
+        $text = [string]$BitsPerSecond
+        if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+
+        $m = [regex]::Match($text.Trim(), '^(?<value>[0-9]+(?:\.[0-9]+)?)\s*(?<unit>[KMGTP]?)(?:bps)?$', 'IgnoreCase')
+        if (-not $m.Success) { return $null }
+
+        $value = [double]$m.Groups['value'].Value
+        $scale = switch ($m.Groups['unit'].Value.ToUpperInvariant()) {
+            'K' { 1kb }
+            'M' { 1mb }
+            'G' { 1gb }
+            'T' { 1tb }
+            'P' { 1pb }
+            default { 1 }
+        }
+
+        return [math]::Round((($value * $scale) / 1mb), 0)
+    }
+
+    function Get-OptionalPropertyValue {
+        param(
+            [Parameter(Mandatory)]$InputObject,
+            [Parameter(Mandatory)][string]$PropertyName
+        )
+
+        if ($null -eq $InputObject) { return $null }
+        $prop = $InputObject.PSObject.Properties[$PropertyName]
+        if ($prop) { return $prop.Value }
+        return $null
     }
 
     try {
@@ -45,24 +79,61 @@ function Get-SnapshotNetwork {
         # Gather richer IP config objects in one shot
         $ipConfigs = Get-NetIPConfiguration -All -ErrorAction SilentlyContinue
 
+        # If filtering removed everything, relax constraints so we still emit usable data.
+        if (-not $adapters -or @($adapters).Count -eq 0) {
+            Write-Verbose "No adapters left after filters; retrying with less restrictive selection."
+
+            if ($ipConfigs) {
+                $ifIndexes = @(
+                    $ipConfigs |
+                    Where-Object { $_.InterfaceIndex -ne $null } |
+                    Select-Object -ExpandProperty InterfaceIndex -Unique
+                )
+
+                if ($ifIndexes.Count -gt 0) {
+                    $adapters = Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue |
+                    Where-Object { $ifIndexes -contains $_.ifIndex }
+                }
+            }
+
+            if (-not $adapters -or @($adapters).Count -eq 0) {
+                $adapters = Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue
+            }
+        }
+
         $results = New-Object System.Collections.Generic.List[psobject]
 
         foreach ($nic in $adapters) {
             $cfg = $ipConfigs | Where-Object { $_.InterfaceIndex -eq $nic.ifIndex } | Select-Object -First 1
+            $nicName = Get-OptionalPropertyValue -InputObject $nic -PropertyName 'Name'
+            $nicDescription = Get-OptionalPropertyValue -InputObject $nic -PropertyName 'InterfaceDescription'
+            $nicIfIndex = Get-OptionalPropertyValue -InputObject $nic -PropertyName 'ifIndex'
+            $nicMacAddress = Get-OptionalPropertyValue -InputObject $nic -PropertyName 'MacAddress'
+            $nicStatus = Get-OptionalPropertyValue -InputObject $nic -PropertyName 'Status'
+            $nicLinkSpeed = Get-OptionalPropertyValue -InputObject $nic -PropertyName 'LinkSpeed'
+            $nicMtu = Get-OptionalPropertyValue -InputObject $nic -PropertyName 'Mtu'
+            $nicVlanId = Get-OptionalPropertyValue -InputObject $nic -PropertyName 'VlanID'
+            $cfgIPv4Address = Get-OptionalPropertyValue -InputObject $cfg -PropertyName 'IPv4Address'
+            $cfgIPv6Address = Get-OptionalPropertyValue -InputObject $cfg -PropertyName 'IPv6Address'
+            $cfgIPv4Gateway = Get-OptionalPropertyValue -InputObject $cfg -PropertyName 'IPv4DefaultGateway'
+            $cfgIPv6Gateway = Get-OptionalPropertyValue -InputObject $cfg -PropertyName 'IPv6DefaultGateway'
+            $cfgDnsServer = Get-OptionalPropertyValue -InputObject $cfg -PropertyName 'DnsServer'
+            $cfgDnsSuffix = Get-OptionalPropertyValue -InputObject $cfg -PropertyName 'DnsSuffix'
+            $cfgDhcpEnabled = Get-OptionalPropertyValue -InputObject $cfg -PropertyName 'DhcpEnabled'
 
             # IPv4 / IPv6 addresses with prefix lengths
             $ipv4 = @()
             $ipv6 = @()
-            if ($cfg -and $cfg.IPv4Address) {
-                $ipv4 = $cfg.IPv4Address | ForEach-Object {
+            if ($cfgIPv4Address) {
+                $ipv4 = $cfgIPv4Address | ForEach-Object {
                     [pscustomobject]@{
                         Address      = $_.IPAddress
                         PrefixLength = $_.PrefixLength
                     }
                 }
             }
-            if ($cfg -and $cfg.IPv6Address) {
-                $ipv6 = $cfg.IPv6Address | ForEach-Object {
+            if ($cfgIPv6Address) {
+                $ipv6 = $cfgIPv6Address | ForEach-Object {
                     [pscustomobject]@{
                         Address      = $_.IPAddress
                         PrefixLength = $_.PrefixLength
@@ -72,39 +143,39 @@ function Get-SnapshotNetwork {
 
             # Gateways (IPv4/IPv6)
             $gateways = @()
-            if ($cfg -and $cfg.IPv4DefaultGateway) {
-                $gateways += [pscustomobject]@{ Address = $cfg.IPv4DefaultGateway.NextHop; AddressFamily = 'IPv4' }
+            if ($cfgIPv4Gateway) {
+                $gateways += [pscustomobject]@{ Address = $cfgIPv4Gateway.NextHop; AddressFamily = 'IPv4' }
             }
-            if ($cfg -and $cfg.IPv6DefaultGateway) {
-                $gateways += [pscustomobject]@{ Address = $cfg.IPv6DefaultGateway.NextHop; AddressFamily = 'IPv6' }
+            if ($cfgIPv6Gateway) {
+                $gateways += [pscustomobject]@{ Address = $cfgIPv6Gateway.NextHop; AddressFamily = 'IPv6' }
             }
 
             # DNS servers and suffix
             $dnsServers = @()
-            if ($cfg -and $cfg.DnsServer) {
-                $dnsServers = $cfg.DnsServer.ServerAddresses
+            if ($cfgDnsServer) {
+                $dnsServers = $cfgDnsServer.ServerAddresses
             }
-            $dnsSuffix = if ($cfg) { $cfg.DnsSuffix } else { $null }
+            $dnsSuffix = $cfgDnsSuffix
 
             # Profile (Domain/Private/Public) if available
             $netProfile = $null
             try {
-                $profile = Get-NetConnectionProfile -InterfaceIndex $nic.ifIndex -ErrorAction SilentlyContinue | Select-Object -First 1
+                $profile = Get-NetConnectionProfile -InterfaceIndex $nicIfIndex -ErrorAction SilentlyContinue | Select-Object -First 1
                 if ($profile) { $netProfile = $profile.NetworkCategory }
             }
             catch { }
 
             # Compose object
             $results.Add([pscustomobject]@{
-                    InterfaceAlias       = $nic.Name
-                    InterfaceDescription = $nic.InterfaceDescription
-                    InterfaceIndex       = $nic.ifIndex
-                    MACAddress           = $nic.MacAddress
-                    Status               = $nic.Status                 # Up/Down/Disabled
-                    LinkSpeedMbps        = Get-LinkSpeedMbps $nic.LinkSpeed
-                    MTU                  = $nic.Mtu
-                    VlanID               = $nic.VlanID
-                    DHCPEnabled          = if ($cfg) { [bool]$cfg.DhcpEnabled } else { $null }
+                    InterfaceAlias       = $nicName
+                    InterfaceDescription = $nicDescription
+                    InterfaceIndex       = $nicIfIndex
+                    MACAddress           = $nicMacAddress
+                    Status               = $nicStatus                 # Up/Down/Disabled
+                    LinkSpeedMbps        = Get-LinkSpeedMbps $nicLinkSpeed
+                    MTU                  = $nicMtu
+                    VlanID               = $nicVlanId
+                    DHCPEnabled          = if ($null -ne $cfgDhcpEnabled) { [bool]$cfgDhcpEnabled } else { $null }
                     DNSSuffix            = $dnsSuffix
                     DNSServers           = $dnsServers                 # array
                     IPv4Addresses        = $ipv4                       # array of {Address, PrefixLength}
@@ -112,6 +183,53 @@ function Get-SnapshotNetwork {
                     Gateways             = $gateways                   # array of {Address, AddressFamily}
                     NetworkProfile       = $netProfile                 # Domain/Private/Public
                 })
+        }
+
+        # Fallback for hosts where NetAdapter/NetTCPIP data is unavailable or filtered out.
+        if ($results.Count -eq 0) {
+            Write-Verbose "NetAdapter pipeline returned no network rows; falling back to CIM IPEnabled adapters."
+            $cimNics = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPEnabled -and $_.IPAddress }
+
+            foreach ($c in $cimNics) {
+                $ipv4 = @()
+                $ipv6 = @()
+                foreach ($ip in @($c.IPAddress)) {
+                    if ($ip -match ':') {
+                        $ipv6 += [pscustomobject]@{ Address = $ip; PrefixLength = $null }
+                    }
+                    else {
+                        $ipv4 += [pscustomobject]@{ Address = $ip; PrefixLength = $null }
+                    }
+                }
+
+                $gateways = @()
+                foreach ($gw in @($c.DefaultIPGateway)) {
+                    if ([string]::IsNullOrWhiteSpace([string]$gw)) { continue }
+                    $gateways += [pscustomobject]@{
+                        Address = $gw
+                        AddressFamily = if ($gw -match ':') { 'IPv6' } else { 'IPv4' }
+                    }
+                }
+
+                $results.Add([pscustomobject]@{
+                        InterfaceAlias       = $c.Description
+                        InterfaceDescription = $c.Description
+                        InterfaceIndex       = $c.InterfaceIndex
+                        MACAddress           = $c.MACAddress
+                        Status               = $null
+                        LinkSpeedMbps        = $null
+                        MTU                  = $null
+                        VlanID               = $null
+                        DHCPEnabled          = $c.DHCPEnabled
+                        DNSSuffix            = $c.DNSDomain
+                        DNSServers           = @($c.DNSServerSearchOrder)
+                        IPv4Addresses        = $ipv4
+                        IPv6Addresses        = $ipv6
+                        Gateways             = $gateways
+                        NetworkProfile       = $null
+                    })
+            }
         }
 
         Write-Verbose ("Network information collected for {0} adapter(s)." -f $results.Count)
@@ -125,8 +243,8 @@ function Get-SnapshotNetwork {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD8Fa6pZTRoKyL3
-# 7D1IXzrqSVcN5Qd7Zb1JOZZux/iVMKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBlB18DYMnwX6LO
+# 32rhwvUQtmEZSk918lz9s3c9+fKLEKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -259,34 +377,34 @@ function Get-SnapshotNetwork {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAmAlJ0wE7h
-# 2SS4cLQsYT8momxlesi3IaJL6Yr6YyV3MDANBgkqhkiG9w0BAQEFAASCAgDK2PCy
-# CoEmynSHqnALzRVKAZI3tOPV+k8G08o2Qd3H6FoFQu8TV4lKxVCtBcwdvs5eg9eh
-# 8/2q2mSCKgk7Qx8XiovH6FVaR4hKAbkjjFNKB8xlHtT8LxqEfTjjCGu9hT3hfxc7
-# MV/UV4Qk5KvNmyMDvExWU8Mt/ebM4hpqtcDroaa6n+WcuonEwZJg/p8GynsRnnAq
-# 1ZxuqE8Olqyn8fXl6GzAnbzoW0kRsep0SPlHqdZuPi1RZ2SJjpTmDDdexnQnsxXC
-# HWi26+XsLlyzLwczpTOhtL22+euKRJZQrBPQBTzQKnxgReb80FCEFDF8Iw/wUshb
-# 3AzuNTBs8jkHt1H23DpYgIh6pJET6X0KgLVL0qgLL9UNSfFUL52Cb8MC6ozxOa04
-# ZK0b6s/7kRJB4qM8PREBch6s8iJ0RWOFxmnyESuO590gCituydY/vJQvpmIrcb0P
-# 08+7Z72OztwtywTrsvdShHLt1bDLq4KvjpYJAm9P1o8ZtFyQ0uGsfquJvsiFo0V1
-# gUZODicWdqG/UMGYORFSHynXYXyCmzk919AO+wM01nPHYkqw5XZVIyErqCzhwAwt
-# xo1HNG/deA4Tc1eLDeD/WRPhdQ9HGGl6whuXLaGyDZzlnyEzcIABoh4OxOHYChOO
-# eqDcJDxoonVcmQ/gtU2ax+mzXUoILZ1TVsR8m6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDBnp71Loo8
+# JqyA3W4qslmw0yA0wCFUzA/gJ523Sj970TANBgkqhkiG9w0BAQEFAASCAgDLNEJy
+# Tj4QbevkphsPWpOveEaprCIodGotckcuLwXxKYXSkXkUWqMN1/+5qv/nSDUF0vMm
+# 8srL3zmQ74RZ5uvB5hCQWp9Ftqe5VCfR43KkiRl6KjFOSHyaiKqsNKEzUmSCISbK
+# 6/JvzIYEiwv311CDUYLoiEfi4EJX4Ps7+riq7ksG4aADukdWJZxsTZGqCRlVXPKu
+# sZwe49JauRlZO9y2c1+MBnuse6YmCbt7nspY3HgCEq3O6dvbwK/ZbRFSM6DSlKrB
+# rsC2cG2f3eiFQLy3/fBM7Z2KcdohctH4rkdL4qeCI3WX9lPW5l8JheEm3Tt3pfqP
+# 0axsSBPO6EbyDnfdZgCXnjw3JFXjL4WhllvZZWdiiVSuUdh4tSPPc5kvsgBT/Poy
+# MIQQCIedQEZ8rfKs6e06RCQ5TO+NxOX560Msfkw574G5h7N+WSTinHdrmzoP4e4W
+# g7/GJm1m1zh3PV+0uD50fVxYxt8vQzhup2md75M1sUGK/zeb2PBKJ9u3gllFLtgm
+# SSv0vV/euqQLMJl48SdQvKb17VEd++a8B+IPg3ePmUddo+efrvzD2xax5/FLApO3
+# p4WcaedM9X5fywyiS1FugmKec5N34gVIa7Gij19M5VJ+JcCv4EPFz3KmKWhz1ADG
+# 44aXEtpShYs2uHRNmf5WteoydjZei2L0TKeNjaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMjMzNDhaMC8GCSqGSIb3DQEJBDEiBCCGiv9lATZZ9zdgnqYX
-# CYkndqnGKExTE+2bdo6x/jwVaTANBgkqhkiG9w0BAQEFAASCAgC0rlxeJ7qRrNbO
-# C4KnZooUnoc5z3TPMSBg10h2cDRrVmms3ZgjWkZF1fmGMYsGSXJDZVRUJrKzKmom
-# xoxxIggGOjZFk1IiWji9gCw3Fnktw2RykD/aQy+xD9TgPI8pIQzbQRfcW3DfhHqO
-# YZDwIhfLsQhCBB9OR0ldKJ+frw3KfspB2dka+XqbHySEtjf5s6sCgCIx1mwAjooU
-# zEiZX+YrUFFp9hG8427urHATKxiEPjH413heVGUMQm01wd8CslbYRzZxezGmQNL6
-# sHhkyY3tcczT2tYaKREhCkOhAZDUKPkdIJwIpRU/NBwIfGRzGHhX8kHP3nEe/818
-# STlzdM232SQDuxpl7cS8oW6mABrv1xyLL/3zgmUj2ECil2CI3EpN1BO+Ly91zSYd
-# SxcIm+F/+YuKETkKSJLtBPfNPOTBh6EmcsUHO7tVIh5syRkkt9cqezVMMj5Eb/Z+
-# cCVi7JHCgfYRJaQjUmG8iUVlIC/3Wg+wGYI/YG0WPmXVdRzhH4VlSHSOdqGy4GdR
-# gmc8cAhSSkNRpFZvtChOEYGa4Vff2d7xeRPgyJ/BewvbIsfWErFLeEbyty8yDMBq
-# iwQY7TEwscVf5r/r+//WDGfN9txvuUiLprCC584KNGW9XqbSpnWBsl8Rp/ZJNBDF
-# 5/O9hvohkJb1TaC5GVq/yru4Uc0oxA==
+# BTEPFw0yNjA0MjExNjIzNDVaMC8GCSqGSIb3DQEJBDEiBCCMkkqP5idNtTGW/nK8
+# j1kF1mSLebL0TTyr0vi0A8v8OzANBgkqhkiG9w0BAQEFAASCAgA1C1ht4mEIT58H
+# FEmhhLrI6UFSnUaZBmEEFHOVhtqS3YQt6O4VaEsH8kwJokw8M9S8Q5RZqEvXST66
+# HevPMHh6RpmoC6bkYPZoovlq5S5n6jKoXmK+c5W+oztCG/MrR+RpUPCIeP3mY4Pz
+# +nvcwCPhZV8FUcBJcYaDV4avbYtL/DXUrkw64sYsvq9fDYWaTNJUPyKlUBJl7Y1b
+# psu6FzTy4SeXiSb+4j1ZVxpIojrEbIkppHhIqgPOtp3IGLcJZHZ3tWeSpFqVjIP+
+# BfoVxCo9WP69n26j9Pij0isPqxV8tGntMaYpJgnxIRF2SmxEK21+A8UFE0YaOO6Z
+# lPHY9CaVVCCgDQi5sIUaSHBaPO0U4wn2eP69mLnh5gfX+xzB4TQ/KUT8pXWLSSvI
+# 793UljoTA8cT/BlWJ8R/LoBu4717YpYIkpL8zre3DiV2HhEiM+ak1bDZ4kTOe7vS
+# Z6TWBdYWsqUyhWIgU0UsYKKHZ621tW4gvv/a0B5e5yoqHcm6exxy+DTO8IciQVEN
+# i/BavbOmYShdfgalNKWnx07A84MBRfGI6EDgP3k56jNsN4wvFcy7p+t4i0IZyWWK
+# 3NSi6HfOYFkwDeuaDbTeFZS0re6zXLeDV7Sx+bCvI4qkl1RgLDDNPc2fHYgkOouK
+# G+V87j0qrBEk5CAIPUpNaCge3Zz5Iw==
 # SIG # End signature block
