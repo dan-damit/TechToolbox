@@ -7,7 +7,8 @@ function Get-SnapshotMemory {
     Collect memory and (optionally) page file information, worker-friendly.
 .DESCRIPTION
     Runs locally on the target host (no remoting, no external logging). Returns
-    simple PSCustomObject values that serialize cleanly.
+    simple PSCustomObject values that serialize cleanly. Includes fallback methods
+    for remote CIM issues.
 #>
 
     Write-Verbose "Collecting memory information..."
@@ -15,16 +16,79 @@ function Get-SnapshotMemory {
     function Convert-KBToGB {
         param([Nullable[ulong]]$KB)
         if ($KB -eq $null) { return $null }
+        if ($KB -eq 0) { return $null }  # Guard against 0 values from CIM failures
         # KB -> bytes -> GB
         [math]::Round(( [double]($KB * 1KB) / 1GB ), 2)
     }
 
-    try {
-        # Win32_OperatingSystem: TotalVisibleMemorySize/FreePhysicalMemory are in KB
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+    function Get-MemoryInfoViaCIM {
+        try {
+            # Win32_OperatingSystem: TotalVisibleMemorySize/FreePhysicalMemory are in KB
+            $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
 
-        $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
-        $freeGB = Convert-KBToGB $os.FreePhysicalMemory
+            # Validate we actually got meaningful data (not 0 or null from failed CIM)
+            if ($os.TotalVisibleMemorySize -eq 0 -or $os.TotalVisibleMemorySize -eq $null) {
+                Write-Verbose "Get-SnapshotMemory(CIM): TotalVisibleMemorySize is 0 or null, may indicate CIM context issue"
+                return $null
+            }
+
+            $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
+            $freeGB = Convert-KBToGB $os.FreePhysicalMemory
+
+            return @{
+                TotalGB = $totalGB
+                FreeGB  = $freeGB
+            }
+        }
+        catch {
+            Write-Verbose ("Get-SnapshotMemory(CIM): {0}" -f $_.Exception.Message)
+            return $null
+        }
+    }
+
+    function Get-MemoryInfoViaWMI {
+        try {
+            # Fallback: Use Get-WmiObject (may work better in some remote contexts)
+            $os = Get-WmiObject -Class Win32_OperatingSystem -ErrorAction Stop
+
+            if ($os.TotalVisibleMemorySize -eq 0 -or $os.TotalVisibleMemorySize -eq $null) {
+                Write-Verbose "Get-SnapshotMemory(WMI): TotalVisibleMemorySize is 0 or null"
+                return $null
+            }
+
+            $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
+            $freeGB = Convert-KBToGB $os.FreePhysicalMemory
+
+            return @{
+                TotalGB = $totalGB
+                FreeGB  = $freeGB
+            }
+        }
+        catch {
+            Write-Verbose ("Get-SnapshotMemory(WMI): {0}" -f $_.Exception.Message)
+            return $null
+        }
+    }
+
+    try {
+        # Try CIM first
+        $memInfo = Get-MemoryInfoViaCIM
+        
+        # Fallback to WMI if CIM failed
+        if ($null -eq $memInfo) {
+            Write-Verbose "Get-SnapshotMemory: CIM failed, attempting WMI fallback..."
+            $memInfo = Get-MemoryInfoViaWMI
+        }
+
+        $totalGB = $null
+        $freeGB = $null
+        $cimMethod = "Failed"
+        
+        if ($memInfo) {
+            $totalGB = $memInfo.TotalGB
+            $freeGB = $memInfo.FreeGB
+            $cimMethod = if ($memInfo.Source) { $memInfo.Source } else { "CIM/WMI" }
+        }
 
         $usedGB = $null
         if ($totalGB -ne $null -and $freeGB -ne $null) {
@@ -63,6 +127,7 @@ function Get-SnapshotMemory {
             PercentUsed   = $pctUsed
             PercentFree   = $pctFree
             PageFile      = $page   # optional nested object; safe for serialization
+            CIMMethod     = $cimMethod  # Track which method succeeded (for diagnostics)
         }
 
         Write-Verbose "Memory information collected."
@@ -77,6 +142,7 @@ function Get-SnapshotMemory {
             PercentUsed   = $null
             PercentFree   = $null
             PageFile      = $null
+            CIMMethod     = "Failed"
             Error         = $_.Exception.Message
         }
     }
@@ -84,8 +150,8 @@ function Get-SnapshotMemory {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAqwhzO0WryoO3M
-# VlK1Ztn5eoaSoqcwuz4aRBqF9uvJjaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDI5KKawIGp4fsy
+# ZzYGDueAZY+2rqoaPfMwE20FZsRa7KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -218,34 +284,34 @@ function Get-SnapshotMemory {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC8xLfF4jRC
-# GE8Nmu7lvGmtJ5Pe330z51f7GnskHNs9hzANBgkqhkiG9w0BAQEFAASCAgB7Ojj9
-# 8dz2gOkB76QAeC2v94IfIyAvloseJ+6wKjWKdYA0X4D8cBdw3Xz/gJUAiaoAscJO
-# xSP1oGT6JWR7c0uXY3ejaHQuAF7A0KmvrSSn6M9kWMYBUCM9KjtSH0y+oX4f8kSS
-# pi3OdMjQFBoKb4FNorgHNJQFDKqrRwHnMwPOngCqXZGNUVM1Xe5jQuUp0XlnvRoE
-# 84/mDwRickQl0NanzZ0NsFunUzt4Xhxoy3qPsjMa8KSmg/dodaO6iss1E5qG+JUz
-# CZomXUmXm+K1TFiKMBO6g4vxRg6bicSKLLrknUTETI7iPmKu7k0pl6r6/FeiPLWv
-# QgQfTLyRgINuTIZWbW9SE8lH0dP7LyXobxAk55ezU/9JGan/vyvWTh+7teotkBuH
-# +vRZB/SsjcPbVdDFawHl4nQnJ21cB8HvZGEvejba4Jwp7NwctVCvtMaIMj05Bens
-# 3NfjXCSNZe5fscmlym8MA9UW/cL7hxLYupvV4wSzXTiuVbyxWInMzt0WtzjSC2uc
-# MaETT8s2QxWHlQUvX0vtO4Ho0F3pk3w55pb6edBWZN6GDL5fJL62NTd88lgfWClN
-# 3A7UxQR39O9JvH4HqqjcFXLNdaxK6vXiIFcLBvcymYR7JOWJ4eNa6pD07eD5VQYv
-# sOAoMUNiGF5RQLZfs6yH00Wtz0lZ3vNJVimH3KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCCDFpfGJfA
+# iGmliNjkVkl7ZEpQKZaUI1Wlxq9T2iDv4zANBgkqhkiG9w0BAQEFAASCAgDILCYO
+# ImChOugbm6xOXAc18aM5mzRsz9nVLuP1mvi/3g2/qAXSPesD9GZVfzeNMLEcdgWd
+# ncXYAToBJFZiaV8yGC5KciTTCrVAUlGUkf42dNYVb7R5fokQ6I9L5g/LmPcpEZ/W
+# v4q4OuUUKHuC0tiN/FEsoGzaSB4pSksgBeOGu5Yq3xPX2VkdukvGL+mh9d8FkN7I
+# /A/Khhg14Y/mgvZr/PwfKh7Bh45EKUQXKCh2fhcg2wwUO7AlURDE7XnB9UC0KQRy
+# zuTPkZrdQHiKHxrKVCq+cQXpTtc6Y9ipz9pW/HJ+n68X06hSyvisJx8PvjcSrVw3
+# Cuy7r+fS/etjl+h4y3K2z2YWQ7ZGDk+ar24xfhaq7FOqnHPG5EF0oOlgmq93bjJB
+# A7SrOpwx2Aq6yEov4FlC30PSzGDR77YNXgv4h+gkwAC7+w1NKWp0zTMS/blpyMX+
+# gD/NhIL4S9GAiLYJgLb3EG9/UBujK7UIFIbrTNxb7jyaztfwgNOdjvpb7GKD21FN
+# AnAIhGmwIHTQPi0VujPJ9i12A6uKzYCazw52cca5K42cKdN/30SMqBCmp2trlcKL
+# qnPONns6sTFiNcXwmi/K0pWCc1xXQ4V6SY8UTeyzki+PN+LJ8fCRbeJDfvGyDcLX
+# iPB6IeS2Ief4J/F7IwHAoDdq7YmTBy+IskY9+qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMjMzNDhaMC8GCSqGSIb3DQEJBDEiBCB8nukFIfqoegue6Ks+
-# wekfNohyf1NQoBw6JQQPCrLqyTANBgkqhkiG9w0BAQEFAASCAgCpSyC0XTMICooU
-# 0g3GDpkkXunO6qbDJ10fSSdTdy0sFzcEgDgJhUaKCRVCH0HOOOKGpKdyDzgP6cqM
-# 8eibK1Ge1uo4eywTs44+kwO/4RKEl71KeSKEekC5jdOyKbb+I+D+wdPy/uQ+KeDH
-# mSiqHcbW+yBjafAOqgRK06qeX1WHZIhEYuA3fcMdinqLDNLTbgVkGogtRAxzGHDL
-# 9vW+pbgZ0UdY+UY4fXQ0PAxNG+6p/vtAIuul3bt4avciq0NVfTs6Nrar5lxyR8mA
-# DMJTW0olEtkEh2VKurhMBjD+hcl2+WVEOxdBmhfXKLkNhQNj/i7VS7xX7FZwUPn0
-# MbYvX3yUN5azoX8LYLi6FPe7esE+EsnuIhpFzeltdgSk7TqTKDyHf3WZ3DcgjRmh
-# qqRcrSODPvNmeFNQNfJUVt9jSs+WWkzBedtEW6vUcBzKBiF4yTgooddeAVs42bgt
-# jJOaAQF+Yr65xByZNIR0k8e4sdLNqiGSePAkLvyvRyPeTCv6KOnrfxF1ZEnF04G4
-# Y1T6/bWMLy46rrCWYCLyqc8MnsFQ8+irMpcUZx5YH1occSiZTIS4t1OM3Jl89WVv
-# lByC1FCpTWrQ8gHItTf5R5tUoXbI/HKpNkW9V8L+mFHUHojxqA1yQFWcSx7r620j
-# /JZjBwXZ4rzdzFUuQAQbgIsXDYMqdA==
+# BTEPFw0yNjA0MjIyMTM2MjNaMC8GCSqGSIb3DQEJBDEiBCCQlca9uC1LlXK5IWM7
+# j86nEqc+JFZzwo/UEY2SpjuKGTANBgkqhkiG9w0BAQEFAASCAgCDFN59S08yhgGJ
+# tfasrXVwoybfHboWkt/3lNk0I07VPM+IY07K8BjRkMHUcJldJ2EZaDytZB+JWGMi
+# qrQ2Tw1dvhhwihtSf/gppOZEnx2stcEqrdZx23NZtomG2hiuoJaJDMpkziHAY2/L
+# gmcmiGNBLrAjSwj9fUuWfL9ey9EYCWHBenkii640gDoO7cWdlVsnvLw4Xmw95pC2
+# cBRqhWsGAOiRxDZu0xNRxqyIgs+HHrzP470UeglbaBe0kn8z2bZdNRZqA+xxrBzk
+# KUU5O/c98V+K/3LcxwmW1V6TAUBBGXQjWlCHCbsao3wdWNLG9SQzdiK2V5ioDpIg
+# VNPBZ8/dMni5DRZ2X0yhtliIimuI7I6lUsQl1AMM31C7HJXVr9EGyfBrt5nCJvXY
+# nBcSjqtWnWSkLUNY/0MedjwDJPkXf6mQrnjwFZHZEVy5x0pVueG8xehAE4OHkpvs
+# 4HIVXAJ8iw0cg5dzw/o1fLXGzi2ysFEPWuscd95SnZlzJLq9p0HGsbFdDPWTe5pV
+# I1r+5a7y7M2SPcbqAeqAZCkUhHvtT+nJcF/LpqCY7tYuyrxl+UCagR2TrQbfLy4q
+# dEHCkHiwnfo+V5kPk0ZzPJI4DOgwcAuDF/Qnq2rvbTsMoLVgDOfd6ASju04VzcVK
+# HVW+o7ZMPPmKdYd+wapYsQmHnBCNmw==
 # SIG # End signature block
