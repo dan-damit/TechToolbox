@@ -6,6 +6,11 @@ function Invoke-SystemRepairCore {
         [switch]$ResetBase,
         [switch]$SfcScannow,
         [switch]$ResetUpdateComponents,
+        [string]$RepairSource,
+        [ValidateRange(1, 999)]
+        [int]$RepairSourceIndex = 1,
+        [bool]$RetryWithoutSourceOnNotFound = $false,
+        [switch]$LimitAccess,
         [ValidateRange(1, 480)]
         [int]$OperationTimeoutMinutes = 60,
         [ValidateRange(1, 300)]
@@ -20,19 +25,42 @@ function Invoke-SystemRepairCore {
         $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     }
 
-    if (-not (Test-IsAdmin)) {
-        throw "Invoke-SystemRepairCore requires an elevated session."
-    }
+    $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $isAdmin = Test-IsAdmin
+    $isSystem = $currentIdentity.Name -eq 'NT AUTHORITY\SYSTEM'
+    $effectiveRepairSource = $null
 
     $system32 = Join-Path $env:SystemRoot 'System32'
 
     $results = [ordered]@{
         ComputerName          = $env:COMPUTERNAME
+        RunContext            = [pscustomobject]@{
+            UserName = $currentIdentity.Name
+            IsAdmin  = $isAdmin
+            IsSystem = $isSystem
+        }
+        RepairSource          = $RepairSource
+        RepairSourceIndex     = $RepairSourceIndex
+        EffectiveRepairSource = $null
+        RestoreHealthSourceResult = $null
+        RestoreHealthFallbackResult = $null
+        RestoreHealthFallbackUsed = $false
+        LimitAccess           = [bool]$LimitAccess
         RestoreHealthResult   = $null
         StartComponentCleanup = $null
         ResetBaseResult       = $null
         SfcResult             = $null
         ResetWUResult         = $null
+    }
+
+    function New-AdminRequiredResult {
+        param([Parameter(Mandatory)][string]$Operation)
+
+        [pscustomobject]@{
+            Success  = $false
+            ExitCode = 740
+            Message  = "{0} requires an elevated token on the remote host. Current identity: {1} (IsAdmin={2}, IsSystem={3})." -f $Operation, $currentIdentity.Name, $isAdmin, $isSystem
+        }
     }
 
     function Start-TTExe {
@@ -127,10 +155,26 @@ function Invoke-SystemRepairCore {
             }
         }
 
+        function Get-DismLogTail {
+            param([int]$Lines = 60)
+
+            $dismLog = Join-Path $env:WINDIR 'Logs\DISM\dism.log'
+            if (-not (Test-Path -LiteralPath $dismLog)) {
+                return $null
+            }
+
+            try {
+                return (Get-Content -LiteralPath $dismLog -Tail $Lines -ErrorAction Stop) -join [Environment]::NewLine
+            }
+            catch {
+                return "Failed to read DISM log tail from ${dismLog}: $($_.Exception.Message)"
+            }
+        }
+
         $terminal = @{
             'Success' = @{ Level = 'Ok'; Message = "$Label completed successfully."; Return = $true }
-            'Error'   = @{ Level = 'Error'; Message = "$Label failed."; Return = $true }
-            'Timeout' = @{ Level = 'Error'; Message = "$Label timed out."; Return = $true }
+            'Error'   = @{ Level = 'Warn'; Message = { param($obj, $status) "{0} failed (exit code {1})." -f $Label, $obj.Code }; Return = $true }
+            'Timeout' = @{ Level = 'Warn'; Message = "$Label timed out."; Return = $true }
         }
 
         $final = Wait-TerminalState `
@@ -153,15 +197,30 @@ function Invoke-SystemRepairCore {
         $opCompletedAt = Get-Date
 
         $exitCode = if ($state.TimedOut) { -1 } else { [int]$final.Code }
+        $status = if ($state.TimedOut) { 'Timeout' } elseif ($exitCode -eq 0) { 'Success' } else { 'Error' }
+
+        $message = switch ($status) {
+            'Success' { "$Label completed successfully." }
+            'Timeout' { "$Label timed out after $TimeoutMinutes minutes." }
+            default { "$Label failed with exit code $exitCode." }
+        }
+
+        $diagnosticTail = $null
+        if ($status -eq 'Error' -and $Label -like 'DISM*') {
+            $diagnosticTail = Get-DismLogTail
+        }
 
         [pscustomobject]@{
             Label           = $Label
             StartedAt       = $opStartedAt
             CompletedAt     = $opCompletedAt
             DurationSeconds = [math]::Round($sw.Elapsed.TotalSeconds, 2)
+            Status          = $status
             ExitCode        = $exitCode
             TimedOut        = $state.TimedOut
             Success         = (-not $state.TimedOut -and $exitCode -eq 0)
+            Message         = $message
+            DiagnosticTail  = $diagnosticTail
         }
     }
 
@@ -170,76 +229,346 @@ function Invoke-SystemRepairCore {
         Start-TTExe -FilePath (Join-Path $system32 'dism.exe') -Arguments $DismArgs
     }
 
+    function Get-DismRestoreHealthArgs {
+        $args = @('/online', '/cleanup-image', '/restorehealth')
+
+        function Get-EditionHintTokens {
+            $tokens = New-Object System.Collections.Generic.List[string]
+
+            try {
+                $cv = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction Stop
+            }
+            catch {
+                return @()
+            }
+
+            $editionId = [string]$cv.EditionID
+            $productName = [string]$cv.ProductName
+
+            if (-not [string]::IsNullOrWhiteSpace($editionId)) {
+                $editionLower = $editionId.ToLowerInvariant()
+                $tokens.Add($editionLower) | Out-Null
+
+                switch ($editionLower) {
+                    'professional' {
+                        $tokens.Add('pro') | Out-Null
+                        $tokens.Add('professional') | Out-Null
+                    }
+                    'core' {
+                        $tokens.Add('core') | Out-Null
+                        $tokens.Add('home') | Out-Null
+                    }
+                    'coresinglelanguage' {
+                        $tokens.Add('single language') | Out-Null
+                        $tokens.Add('core single language') | Out-Null
+                    }
+                    'enterprise' { $tokens.Add('enterprise') | Out-Null }
+                    'education' { $tokens.Add('education') | Out-Null }
+                    'serverstandard' { $tokens.Add('standard') | Out-Null }
+                    'serverdatacenter' { $tokens.Add('datacenter') | Out-Null }
+                }
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($productName)) {
+                $ignore = @('microsoft', 'windows', 'server', 'home', 'edition', 'operating', 'system', '11', '10')
+                foreach ($word in ($productName.ToLowerInvariant() -split '[^a-z0-9]+')) {
+                    if ([string]::IsNullOrWhiteSpace($word)) { continue }
+                    if ($ignore -contains $word) { continue }
+                    if ($word.Length -lt 3) { continue }
+                    $tokens.Add($word) | Out-Null
+                }
+            }
+
+            return @($tokens | Select-Object -Unique)
+        }
+
+        function Get-BestImageIndexForCurrentOS {
+            param([Parameter(Mandatory)][string]$ImagePath)
+
+            $dismExe = Join-Path $system32 'dism.exe'
+            if (-not (Test-Path -LiteralPath $dismExe)) {
+                return $null
+            }
+
+            $output = & $dismExe '/English' '/Get-WimInfo' "/WimFile:$ImagePath" 2>&1 | Out-String
+            if ($LASTEXITCODE -ne 0) {
+                return $null
+            }
+
+            $images = @()
+            $current = $null
+
+            foreach ($line in @($output -split "`r?`n")) {
+                if ($line -match '^\s*Index\s*:\s*(\d+)\s*$') {
+                    if ($current) {
+                        $images += [pscustomobject]$current
+                    }
+
+                    $current = [ordered]@{
+                        Index       = [int]$Matches[1]
+                        Name        = ''
+                        Description = ''
+                    }
+                    continue
+                }
+
+                if (-not $current) { continue }
+
+                if ($line -match '^\s*Name\s*:\s*(.+?)\s*$') {
+                    $current.Name = $Matches[1]
+                    continue
+                }
+
+                if ($line -match '^\s*Description\s*:\s*(.+?)\s*$') {
+                    $current.Description = $Matches[1]
+                    continue
+                }
+            }
+
+            if ($current) {
+                $images += [pscustomobject]$current
+            }
+
+            if (-not $images -or $images.Count -eq 0) {
+                return $null
+            }
+
+            $tokens = Get-EditionHintTokens
+            if (-not $tokens -or $tokens.Count -eq 0) {
+                return $null
+            }
+
+            $ranked = foreach ($img in $images) {
+                $text = ("{0} {1}" -f $img.Name, $img.Description).ToLowerInvariant()
+                $score = 0
+
+                foreach ($token in $tokens) {
+                    $escaped = [regex]::Escape($token)
+                    if ($text -match "(^|[^a-z0-9])${escaped}([^a-z0-9]|$)") {
+                        $score += 2
+                    }
+                    elseif ($text.Contains($token)) {
+                        $score += 1
+                    }
+                }
+
+                [pscustomobject]@{
+                    Index = [int]$img.Index
+                    Score = [int]$score
+                }
+            }
+
+            $best = $ranked | Sort-Object -Property @{ Expression = 'Score'; Descending = $true }, @{ Expression = 'Index'; Descending = $false } | Select-Object -First 1
+            if (-not $best -or $best.Score -le 0) {
+                return $null
+            }
+
+            return [int]$best.Index
+        }
+
+        function Resolve-DismSourceValue {
+            param(
+                [Parameter(Mandatory)][string]$Source,
+                [int]$DefaultIndex = 1
+            )
+
+            $trimmed = $Source.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed)) { return $trimmed }
+
+            if ($trimmed -match '^(?i)(wim|esd):') {
+                return $trimmed
+            }
+
+            if ($trimmed -match '(?i)\.(wim|esd)(:\d+)?$') {
+                $kind = $Matches[1].ToLowerInvariant()
+
+                if ($trimmed -match '(?i):\d+$') {
+                    return "${kind}:$trimmed"
+                }
+
+                $detectedIndex = Get-BestImageIndexForCurrentOS -ImagePath $trimmed
+                if ($detectedIndex) {
+                    return "${kind}:${trimmed}:$detectedIndex"
+                }
+
+                return "${kind}:${trimmed}:$DefaultIndex"
+            }
+
+            return $trimmed
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($RepairSource)) {
+            $sourceValue = Resolve-DismSourceValue -Source $RepairSource -DefaultIndex $RepairSourceIndex
+            $effectiveRepairSource = $sourceValue
+            $args += "/Source:$sourceValue"
+            if ($LimitAccess) {
+                $args += '/LimitAccess'
+            }
+        }
+        elseif ($LimitAccess) {
+            Write-Log -Level Warn -Message 'LimitAccess was requested without RepairSource. DISM may fail if local payload is unavailable.'
+            $args += '/LimitAccess'
+        }
+
+        return $args
+    }
+
+    function Test-ShouldRetryRestoreHealthWithoutSource {
+        param([Parameter(Mandatory)][object]$Result)
+
+        if (-not $RetryWithoutSourceOnNotFound) {
+            return $false
+        }
+
+        if ([string]::IsNullOrWhiteSpace($RepairSource)) {
+            return $false
+        }
+
+        if ($LimitAccess) {
+            return $false
+        }
+
+        if ($null -eq $Result) {
+            return $false
+        }
+
+        return ((-not [bool]$Result.Success) -and ([int]$Result.ExitCode -eq -2146498283))
+    }
+
     function Invoke-Sfc {
         Start-TTExe -FilePath (Join-Path $system32 'sfc.exe') -Arguments @('/scannow')
     }
 
     if ($RestoreHealth) {
-        try {
-            $results.RestoreHealthResult = Invoke-RepairWithWait `
-                -Label "DISM /RestoreHealth" `
-                -StartScript { Invoke-Dism @("/online", "/cleanup-image", "/restorehealth") } `
-                -TimeoutMinutes $OperationTimeoutMinutes
+        if (-not $isAdmin) {
+            $results.RestoreHealthResult = New-AdminRequiredResult -Operation 'DISM /RestoreHealth'
         }
-        catch {
-            $results.RestoreHealthResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
+        else {
+            try {
+                $dismArgs = Get-DismRestoreHealthArgs
+                $sourceAttempt = Invoke-RepairWithWait `
+                    -Label "DISM /RestoreHealth" `
+                    -StartScript { Invoke-Dism $dismArgs } `
+                    -TimeoutMinutes $OperationTimeoutMinutes
+
+                $results.RestoreHealthResult = $sourceAttempt
+                if (-not [string]::IsNullOrWhiteSpace($RepairSource)) {
+                    $results.RestoreHealthSourceResult = $sourceAttempt
+                }
+
+                if (Test-ShouldRetryRestoreHealthWithoutSource -Result $sourceAttempt) {
+                    Write-Log -Level Warn -Message ("DISM /RestoreHealth source attempt failed with exit code {0}; retrying without /Source so CBS can use default repair sources." -f $sourceAttempt.ExitCode)
+
+                    $fallbackAttempt = Invoke-RepairWithWait `
+                        -Label "DISM /RestoreHealth (fallback without source)" `
+                        -StartScript { Invoke-Dism @('/online', '/cleanup-image', '/restorehealth') } `
+                        -TimeoutMinutes $OperationTimeoutMinutes
+
+                    $results.RestoreHealthFallbackUsed = $true
+                    $results.RestoreHealthFallbackResult = $fallbackAttempt
+                    $results.RestoreHealthResult = $fallbackAttempt
+                    $initialEffectiveRepairSource = if (-not [string]::IsNullOrWhiteSpace($effectiveRepairSource)) { $effectiveRepairSource } else { $RepairSource }
+                    $effectiveRepairSource = $null
+
+                    $results.RestoreHealthResult | Add-Member -Force NoteProperty FallbackAttempted $true
+                    $results.RestoreHealthResult | Add-Member -Force NoteProperty InitialSourceExitCode $sourceAttempt.ExitCode
+                    $results.RestoreHealthResult | Add-Member -Force NoteProperty InitialEffectiveRepairSource $initialEffectiveRepairSource
+
+                    if ($fallbackAttempt.Success) {
+                        $results.RestoreHealthResult.Message = "DISM /RestoreHealth succeeded on retry without /Source after source-based attempt failed."
+                    }
+                    else {
+                        $results.RestoreHealthResult.Message = "DISM /RestoreHealth retry without /Source also failed after source-based attempt failed."
+                    }
+                }
+            }
+            catch {
+                $results.RestoreHealthResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
+            }
         }
     }
 
     if ($StartComponentCleanup) {
-        try {
-            $results.StartComponentCleanup = Invoke-RepairWithWait `
-                -Label "DISM /StartComponentCleanup" `
-                -StartScript { Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup") } `
-                -TimeoutMinutes $OperationTimeoutMinutes
+        if (-not $isAdmin) {
+            $results.StartComponentCleanup = New-AdminRequiredResult -Operation 'DISM /StartComponentCleanup'
         }
-        catch {
-            $results.StartComponentCleanup = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
+        else {
+            try {
+                $results.StartComponentCleanup = Invoke-RepairWithWait `
+                    -Label "DISM /StartComponentCleanup" `
+                    -StartScript { Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup") } `
+                    -TimeoutMinutes $OperationTimeoutMinutes
+            }
+            catch {
+                $results.StartComponentCleanup = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
+            }
         }
     }
 
     if ($ResetBase) {
-        try {
-            $results.ResetBaseResult = Invoke-RepairWithWait `
-                -Label "DISM /ResetBase" `
-                -StartScript { Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase") } `
-                -TimeoutMinutes $OperationTimeoutMinutes
+        if (-not $isAdmin) {
+            $results.ResetBaseResult = New-AdminRequiredResult -Operation 'DISM /ResetBase'
         }
-        catch {
-            $results.ResetBaseResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
+        else {
+            try {
+                $results.ResetBaseResult = Invoke-RepairWithWait `
+                    -Label "DISM /ResetBase" `
+                    -StartScript { Invoke-Dism @("/online", "/cleanup-image", "/startcomponentcleanup", "/resetbase") } `
+                    -TimeoutMinutes $OperationTimeoutMinutes
+            }
+            catch {
+                $results.ResetBaseResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
+            }
         }
     }
 
     if ($SfcScannow) {
-        try {
-            $results.SfcResult = Invoke-RepairWithWait `
-                -Label "SFC /scannow" `
-                -StartScript { Invoke-Sfc } `
-                -TimeoutMinutes $OperationTimeoutMinutes
+        if (-not $isAdmin) {
+            $results.SfcResult = New-AdminRequiredResult -Operation 'SFC /scannow'
         }
-        catch {
-            $results.SfcResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
+        else {
+            try {
+                $results.SfcResult = Invoke-RepairWithWait `
+                    -Label "SFC /scannow" `
+                    -StartScript { Invoke-Sfc } `
+                    -TimeoutMinutes $OperationTimeoutMinutes
+            }
+            catch {
+                $results.SfcResult = [pscustomobject]@{ Success = $false; ExitCode = 1; Message = $_.Exception.Message }
+            }
         }
     }
 
     if ($ResetUpdateComponents) {
-        try {
-            if (Get-Command Reset-WindowsUpdateComponents -ErrorAction SilentlyContinue) {
-                $results.ResetWUResult = Reset-WindowsUpdateComponents -ShowProgress
+        if (-not $isAdmin) {
+            $results.ResetWUResult = New-AdminRequiredResult -Operation 'Reset Windows Update Components'
+        }
+        else {
+            try {
+                if (Get-Command Reset-WindowsUpdateComponents -ErrorAction SilentlyContinue) {
+                    $results.ResetWUResult = Reset-WindowsUpdateComponents -ShowProgress
+                }
+                else {
+                    $results.ResetWUResult = [pscustomobject]@{
+                        Success = $false
+                        Message = "Reset-WindowsUpdateComponents not available on remote host."
+                    }
+                }
             }
-            else {
+            catch {
                 $results.ResetWUResult = [pscustomobject]@{
                     Success = $false
-                    Message = "Reset-WindowsUpdateComponents not available on remote host."
+                    Message = $_.Exception.Message
                 }
             }
         }
-        catch {
-            $results.ResetWUResult = [pscustomobject]@{
-                Success = $false
-                Message = $_.Exception.Message
-            }
-        }
+    }
+
+    if ($results.RestoreHealthFallbackUsed) {
+        $results.EffectiveRepairSource = '[default online repair sources]'
+    }
+    else {
+        $results.EffectiveRepairSource = if (-not [string]::IsNullOrWhiteSpace($effectiveRepairSource)) { $effectiveRepairSource } else { $RepairSource }
     }
 
     [pscustomobject]$results
@@ -248,8 +577,8 @@ function Invoke-SystemRepairCore {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCbhiA9lcD6Hyz1
-# TZY5OgfOcPCDEzt4TlHlHXvZPeH79KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCALLIUw4s+maUK5
+# ENQIrgJwt+TwconZ/vQmADMZhhFiWKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -382,34 +711,34 @@ function Invoke-SystemRepairCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBu4I5pLXEt
-# wdjY2vwIzO85Z5/kMjlmVmGsWiYfrbloYTANBgkqhkiG9w0BAQEFAASCAgA8Km7c
-# riqFTj45j7GU1G+pPdYp9TEIz5K7kryT9OONlLqDBS17BZAnbwYzH6n3y6w7RMX/
-# Y7qTGbAqRC2ueLTD15bEh1b43OxE7Sg8ocNRw3Zux57bfsidvnsAucO1r+N6HOgE
-# Kx1UwcV2aQtEqUWbnFF5eaNHEOxBBpIwA+P+sr/xrch6FE6zdP6qM4F1lb6XyfL2
-# BZCsDINqGdg5px++rkQzVJI5aIj/4dPYSvJ8UzvYonK52YmEqx+kKQrH5HVPIKyv
-# LpVaWwzxznb9soE7ypbm1OuGX258l6a3dCKpKskwKMuIsiPLoXLotfcYebuS4ABY
-# 9NmXQ4MaTdXR8ThAEkVamgsoCylCYsFAPLzX5uBY0rm7m7LzVhXrDyZmc4mUSogM
-# MwYpz/d/7Ghci7Y1Gyl99Y1e39mfrR/SGcYm3t3VBGAFlrTMdiwYRcHc/T64wUAM
-# dPa+F+bTZdQ2+0XVEg8vHz+FLwmlKT2pRO6/85iKm0pMQy4inuOGCDwNIb0bE55Z
-# 8eYpUrOQ5gXqq/MWXH5ISWzAdnjGC6IXv6+JBGAdPIcA/H0farXck+M/TuYCJs5H
-# V8/t52S7AR7320zMmNujteD2EKq1r4VZjm61ZxIoNFXLK5G914gjp34VaTCeOGLT
-# zTGs1Uke2+OmxXAlg4WDy5/t+Ne2PPHS6diuWKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDzNF/JqneG
+# OQxXksIT4uO01k9CcnKrXCLsQE21pq2xZTANBgkqhkiG9w0BAQEFAASCAgAcTvQ6
+# 3hXeCTQLvByebrt6ngNxtenCOPIall24wI+o9bhfP1nd61IV1z3pZccbQQw5MNli
+# yg9XV9RJHeyfnKtIdvjkkGX1F2FxQaLxp8Xun0SejO7tZND/IoQjD6xjGXiqOZzf
+# gNi+TwU3APUkPo9CLTuvXZaBVv6A800yOX127Q1p7+GJzpAx/vDF9nr5mFfpmm9m
+# CWnfiG8t6nztfxcQbw9eWluPQU0+zqD4WaX7a+Jd2kJ8VZqv64y64MT4RnvkZMmE
+# SSx+8OX2iY9cqdtugOVWBs/7vpXhhTtvjHlniT501Cmo2fCQlPUUYfbtdvPmapzD
+# kM2QS0aPnvR+w9XPqLQeoysHFBBUmgjVrgGLyKe8ZTr+nfu+vu21QYbZJURy8EJA
+# h0CeYqtUEOQOgVLNDc2K1aeFsiVHZKMZPX1rWCr3U7sdr0EMfhaCl7D8+CbDjOD5
+# h2guV2e2Xv3mSqSt0ZZBoa6qsMtBlXjb4aeE8vrCZWVluQODpp7JodA/jgl6vFa+
+# atJF2OfQMBWlA0g9zaj5n/qsZELEHoRKEf9K2jEA/Ls2PV/XC4xEx+uazpnFXQ7v
+# OcfXkXo8EMyw+pvm8P45Z6Pykcsqhr9yzi9Xg9FArDEg6E0UUINbt1K959d2k3Mk
+# Xe8I9a1egAE0KInXZQnzFQoEOvHXp/GI65Yc1qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjEyMDU0MTNaMC8GCSqGSIb3DQEJBDEiBCBuSQzWDJTLPNPmWcXJ
-# W9TRYMN0TqcLl5Geh0n4KML9HzANBgkqhkiG9w0BAQEFAASCAgBXujqo5CYuOdSo
-# KsTYZSdcldEwoZjHR1qlQUU4Ceryi7GSPh0x49fWaX4sM17aem4aR9ezsA3Rl/Qt
-# mTCrF4lKhY959hUSfeinaYvce3Br6/onEeyS5AfLvUGeNaiOQ6IEKZbphqr3812P
-# ecMo5EJwtyjLNrwyl2EKWPGHnCMgxU57A9e28AU1scNbZ9sFY91wkDkkMNNJXO10
-# jz3T7vVZCJwd+2PFmsafGTjkdqLa0+zJEZj96BKZJJndVZWkMIDvBWOoBl3nv42k
-# ZrbuCNX08zgNuDTWpPGJKfSTRMIvTNAlszA1FDt4kAQb4IuHiTGnIP9E1WkdE3fP
-# b0p7/9CPf1dsBgMqk/u2ubVU7ioMSuhPyOei3iT37NWQw3DCVIhU5PgL40N5X37D
-# huW4IIP6o0s/1Zyfsv36XbNqx9wG4SwqJ4HjyofihhTRJ/XpYFkX/ThCnqBfOOEL
-# nvVEgAjz4RyBFVVP2twahdoBQLFCRRrmLureOwNF5zD5vJgCQPO4fHofuLuTqtGG
-# YHTqD7bSrU+ElmQWCZwJWhdiQHmBR81DjknS6e7TyfWynmlZzSScwEepGyuYeJJs
-# yHRfNS+lD9AkQMtHiae8aZoKMFotiwpXWhtstsFPcXRCDLQ8vyO/vdxGzI/w5yyz
-# JF+XZ+sVmTtp2Ks82CwLensxZuizaA==
+# BTEPFw0yNjA0MjIxOTQ3MTBaMC8GCSqGSIb3DQEJBDEiBCADvnta7DC1Bl7LLBHl
+# jJLIZVGQZR0BbLlDMzY5SKq+fTANBgkqhkiG9w0BAQEFAASCAgCRAVjmyzfDTe+F
+# AzfjyxvelWO4RGdnMGtLdKc5Mbdmt4bp9ufN9shoz7fY7ZyPT5/dBjTZMEo8+nxI
+# 99VgXfijn9ltHjL7Ebp8/e/kcdu4YPuy6C3xmkd+IbAUSj7Fx/Z2ma/FaNgwqOzB
+# 132rePAj+TltiEx36wb8qvT0aKQ1N2RWBNSUybRqRV2uxE6NuswDXUCdoxKkSUPm
+# Q1TNJyd1YSqoPZu0afSN63HAPrPMCAXXRTQldlXSOhqc7VkaLP1vx+Aiv81GAzVb
+# yT7L03swKjx66Gg+puaVqyNFr6BkVnwI41HPqWunmdP4QxpIR2f68S96dK+8Pgfv
+# TZSGeT6t4AXtunLXQyiijhFUIv9UruN/hdwQnbgs79PriWtzMGgkgHB77AQAT7Br
+# U31hieVxozoqM9fm7gRYtRMcYogpSrqUJbtNl0arRQmNOBW/7rsgCHP3aQ/A/IOS
+# 7DOMmYfZ8N3kq3FUKtiMPdGNQFdcmimAdjythjTkM8FqH3vyDsSpnXflh3kr/lTv
+# ZgOdoZHvsvSvMhP9k5sGj60mK7ymBOI0M4M95MKAuoDKzLVWWQsyIBMp8+dIfgM+
+# W4pLgy29qcZLj00JZPLflu+bOZkRKMrE2DDgKx4N5FdaHfZY6yIiPxrEp5154vnc
+# LEeqvbHI7BD/gyhTeTS8laJlCATZ9A==
 # SIG # End signature block

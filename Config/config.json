@@ -60,9 +60,18 @@
     "systemRepair": {
       "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
       "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\SystemRepair",
+      "defaultRepairSource": "\\\\utility-1\\OS-Files\\25H2\\sources\\sxs",
+      "defaultRepairSourceIndex": 6,
+      "retryWithoutSourceOnNotFound": true,
+      "useCredSSPByDefault": true,
       "defaultComputerName": null,
       "logDir": "C:\\TechToolbox_LogsAndExports\\Logs\\SystemRepair",
       "runRemote": true
+    },
+    "remoting": {
+      "credSSPDelegateComputers": [
+        "*.vadtek.com"
+      ]
     },
     "passwords": {
       "domainAdminCred": {

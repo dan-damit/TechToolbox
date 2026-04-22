@@ -32,6 +32,10 @@ function Invoke-SystemRepair {
     .PARAMETER Credential
     Credentials for remote session.
 
+    .PARAMETER UseCredSSP
+    Uses CredSSP authentication for WSMan remoting so remote DISM can access
+    delegated network resources such as UNC repair sources.
+
     .PARAMETER OperationTimeoutMinutes
     Maximum minutes to wait for each DISM/SFC operation.
 
@@ -40,6 +44,16 @@ function Invoke-SystemRepair {
 
     .PARAMETER WaitHeartbeatSeconds
     Heartbeat interval used by Wait-TerminalState during local execution.
+
+    .PARAMETER RepairSource
+    Optional DISM repair source path (for example, WIM/ESD or SxS folder).
+
+    .PARAMETER RepairSourceIndex
+    Optional image index used when RepairSource points to a WIM/ESD file and an
+    explicit index is not already provided in the source string.
+
+    .PARAMETER LimitAccess
+    When set, DISM does not contact Windows Update and uses only local source content.
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
@@ -51,6 +65,11 @@ function Invoke-SystemRepair {
         [string]$ComputerName,
         [switch]$Local,
         [pscredential]$Credential,
+        [switch]$UseCredSSP,
+        [string]$RepairSource,
+        [ValidateRange(1, 999)]
+        [int]$RepairSourceIndex = 1,
+        [switch]$LimitAccess,
         [ValidateRange(1, 480)]
         [int]$OperationTimeoutMinutes = 60,
         [ValidateRange(1, 300)]
@@ -66,8 +85,60 @@ function Invoke-SystemRepair {
 
     Initialize-TechToolboxRuntime
 
+    function Get-VersionTokenFromText {
+        param([string]$Text)
+
+        if ([string]::IsNullOrWhiteSpace($Text)) {
+            return $null
+        }
+
+        $m = [regex]::Match($Text, '(?i)\b(1\d|2\d)H[12]\b')
+        if (-not $m.Success) {
+            return $null
+        }
+
+        return $m.Value.ToUpperInvariant()
+    }
+
+    function Get-RemoteWindowsVersionInfo {
+        [CmdletBinding()]
+        param([Parameter(Mandatory)][System.Management.Automation.Runspaces.PSSession]$Session)
+
+        Invoke-Command -Session $Session -ScriptBlock {
+            $cv = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction Stop
+
+            $displayVersion = [string]$cv.DisplayVersion
+            $releaseId = [string]$cv.ReleaseId
+            $productName = [string]$cv.ProductName
+
+            $text = @($displayVersion, $releaseId, $productName) -join ' '
+            $tokenMatch = [regex]::Match($text, '(?i)\b(1\d|2\d)H[12]\b')
+
+            [pscustomobject]@{
+                DisplayVersion = $displayVersion
+                ReleaseId = $releaseId
+                ProductName = $productName
+                VersionToken = if ($tokenMatch.Success) { $tokenMatch.Value.ToUpperInvariant() } else { $null }
+            }
+        }
+    }
+
     $repair = $script:cfg.settings.systemRepair
     $runRemoteDefault = $repair.runRemote ?? $true
+    $retryRestoreHealthWithoutSource = $false
+    $usingDefaultRepairSource = $false
+
+    if (-not $PSBoundParameters.ContainsKey('UseCredSSP') -and $repair.ContainsKey('useCredSSPByDefault')) {
+        $UseCredSSP = [bool]$repair['useCredSSPByDefault']
+    }
+
+    if (-not $PSBoundParameters.ContainsKey('LimitAccess') -and $repair.ContainsKey('limitAccessByDefault')) {
+        $LimitAccess = [bool]$repair['limitAccessByDefault']
+    }
+
+    if ($repair.ContainsKey('retryWithoutSourceOnNotFound')) {
+        $retryRestoreHealthWithoutSource = [bool]$repair['retryWithoutSourceOnNotFound']
+    }
 
     $targetComputer = $ComputerName
     if (-not $Local) {
@@ -80,6 +151,15 @@ function Invoke-SystemRepair {
     -not $Local -and
     -not [string]::IsNullOrWhiteSpace($targetComputer) -and
     $runRemoteDefault
+
+    if ($runRemoteEffective -and -not $PSBoundParameters.ContainsKey('RepairSource') -and $repair.ContainsKey('defaultRepairSource')) {
+        $RepairSource = [string]$repair['defaultRepairSource']
+        $usingDefaultRepairSource = -not [string]::IsNullOrWhiteSpace($RepairSource)
+    }
+
+    if (-not $PSBoundParameters.ContainsKey('RepairSourceIndex') -and $repair.ContainsKey('defaultRepairSourceIndex')) {
+        $RepairSourceIndex = [int]$repair['defaultRepairSourceIndex']
+    }
 
     $targetLabel = if ($runRemoteEffective) { "remote host $targetComputer" } else { "local machine" }
 
@@ -119,7 +199,34 @@ function Invoke-SystemRepair {
 
         $session = $null
         try {
-            $session = Start-NewPSRemoteSession -ComputerName $targetComputer -Credential $Credential
+            $session = Start-NewPSRemoteSession -ComputerName $targetComputer -Credential $Credential -UseCredSSP:$UseCredSSP
+
+            if ($usingDefaultRepairSource -and -not [string]::IsNullOrWhiteSpace($RepairSource)) {
+                $sourceVersionToken = Get-VersionTokenFromText -Text $RepairSource
+
+                if (-not [string]::IsNullOrWhiteSpace($sourceVersionToken)) {
+                    $remoteVersionInfo = Get-RemoteWindowsVersionInfo -Session $session
+                    $remoteVersionToken = [string]$remoteVersionInfo.VersionToken
+
+                    if (-not [string]::IsNullOrWhiteSpace($remoteVersionToken) -and $sourceVersionToken -ne $remoteVersionToken) {
+                        Write-Log -Level Warn -Message (
+                            "Skipping defaultRepairSource because source version [{0}] does not match remote host version [{1}] on [{2}]." -f
+                            $sourceVersionToken,
+                            $remoteVersionToken,
+                            $targetComputer
+                        )
+                        $RepairSource = $null
+                    }
+                    else {
+                        Write-Log -Level Info -Message (
+                            "defaultRepairSource version check passed on [{0}] (source={1}, host={2})." -f
+                            $targetComputer,
+                            $sourceVersionToken,
+                            ($(if ([string]::IsNullOrWhiteSpace($remoteVersionToken)) { 'unknown' } else { $remoteVersionToken }))
+                        )
+                    }
+                }
+            }
 
             $result = Invoke-RemoteWorker `
                 -Session $session `
@@ -135,20 +242,45 @@ function Invoke-SystemRepair {
                 ResetBase               = $ResetBase
                 SfcScannow              = $SfcScannow
                 ResetUpdateComponents   = $ResetUpdateComponents
+                RepairSource            = $RepairSource
+                RepairSourceIndex       = $RepairSourceIndex
+                RetryWithoutSourceOnNotFound = $retryRestoreHealthWithoutSource
+                LimitAccess             = $LimitAccess
                 OperationTimeoutMinutes = $OperationTimeoutMinutes
                 WaitPollSeconds         = $WaitPollSeconds
                 WaitHeartbeatSeconds    = $WaitHeartbeatSeconds
             }
         }
         catch {
-            Write-Log -Level Error -Message ("Invoke-SystemRepair remote failed on {0}: {1}" -f $targetComputer, $_.Exception.Message)
+            $err = $_
+            $msg = $err.Exception.Message
+            $details = $err.ScriptStackTrace
+            if ($details) {
+                Write-Log -Level Error -Message ("Invoke-SystemRepair remote failed on {0}: {1}`n{2}" -f $targetComputer, $msg, $details)
+            }
+            else {
+                Write-Log -Level Error -Message ("Invoke-SystemRepair remote failed on {0}: {1}" -f $targetComputer, $msg)
+            }
             return
         }
         finally {
             if ($session) { Remove-PSSession -Session $session -ErrorAction SilentlyContinue }
         }
 
-        Write-Log -Level Ok -Message ("System repair operations completed on {0}." -f $targetLabel)
+        $failedOps = @()
+        foreach ($name in @('RestoreHealthResult', 'StartComponentCleanup', 'ResetBaseResult', 'SfcResult', 'ResetWUResult')) {
+            $op = $result.$name
+            if ($null -ne $op -and ($op.PSObject.Properties.Name -contains 'Success') -and -not [bool]$op.Success) {
+                $failedOps += $name
+            }
+        }
+
+        if ($failedOps.Count -gt 0) {
+            Write-Log -Level Warn -Message ("System repair finished on {0} with failures: {1}." -f $targetLabel, ($failedOps -join ', '))
+        }
+        else {
+            Write-Log -Level Ok -Message ("System repair operations completed on {0}." -f $targetLabel)
+        }
         return $result
     }
     else {
@@ -158,13 +290,30 @@ function Invoke-SystemRepair {
         if ($ResetBase) { $localParams.ResetBase = $true }
         if ($SfcScannow) { $localParams.SfcScannow = $true }
         if ($ResetUpdateComponents) { $localParams.ResetUpdateComponents = $true }
+        if (-not [string]::IsNullOrWhiteSpace($RepairSource)) { $localParams.RepairSource = $RepairSource }
+        $localParams.RepairSourceIndex = $RepairSourceIndex
+        $localParams.RetryWithoutSourceOnNotFound = $retryRestoreHealthWithoutSource
+        if ($LimitAccess) { $localParams.LimitAccess = $true }
         $localParams.OperationTimeoutMinutes = $OperationTimeoutMinutes
         $localParams.WaitPollSeconds = $WaitPollSeconds
         $localParams.WaitHeartbeatSeconds = $WaitHeartbeatSeconds
 
         $result = Invoke-SystemRepairLocal @localParams
 
-        Write-Log -Level Ok -Message ("System repair operations completed on {0}." -f $targetLabel)
+        $failedOps = @()
+        foreach ($name in @('RestoreHealthResult', 'StartComponentCleanup', 'ResetBaseResult', 'SfcResult', 'ResetWUResult')) {
+            $op = $result.$name
+            if ($null -ne $op -and ($op.PSObject.Properties.Name -contains 'Success') -and -not [bool]$op.Success) {
+                $failedOps += $name
+            }
+        }
+
+        if ($failedOps.Count -gt 0) {
+            Write-Log -Level Warn -Message ("System repair finished on {0} with failures: {1}." -f $targetLabel, ($failedOps -join ', '))
+        }
+        else {
+            Write-Log -Level Ok -Message ("System repair operations completed on {0}." -f $targetLabel)
+        }
         return $result
     }
 }
@@ -172,8 +321,8 @@ function Invoke-SystemRepair {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBxjPh/Br7d+L5U
-# qDT9Q/tEQu6Z3uIKEx6XydVAwFrngKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCHd1uF72pXrgTS
+# K2YVvFZ4lXPPMmEbM7urzd8XR2/Ea6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -306,34 +455,34 @@ function Invoke-SystemRepair {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC5QWvGGD3/
-# 9zPaFEGhlPDim3Ii1AAnnOnUjlS7+yOsBzANBgkqhkiG9w0BAQEFAASCAgBBy3ur
-# Gi/0JaySSl3wkFLzG4tajW5Y6onJmZLZhCf48sfqAbwK44483OUqfll9W4K2ft96
-# H2PXLje1OKcZNlO61/zCMLctAAiuov/hy9DcJesXzifWi9MpbIM9x5B+4ovZ+jkj
-# rPH7UPvN9VbfxdfvJ4rXjVQFtc3w4BUZAh/JUhDEUTsH/Vm3GpBarcFa1dstGc1F
-# A8l5Tf3j9fiJchVZBbosHK61SeOEFlGX9kaB2sNRBuj/dgIkqJc0A+Ncju9DsOxg
-# pzNs2olbpeb+upZllItqO3mtU1+v+v3D21lpbxaGcWsL6wt/fInuRDL9WCqBfY7a
-# AIMep2VugCJIs09Lju4rxQs5WrsLsBhrydxkbsdL7qh/wg+Xb+BKgh9jUj+Y+wBC
-# Gmt/SZl/p1LlWNKK7ZtKh4hkhK8aFhpPxy4GJqEkSDrUnXctJiD/a2l7SBRcHv0M
-# KY4A/VjnVM6xb1Xb1EIh5T/wCVtT1krCUBKM+T7cOC1uLqe55FODyrVIgdEA9Lqm
-# hwTt6SDsYshfooDcmx4ugMIl/z7emxGoh8XaA6Xt3wSI9d/JnyOsGsCy/rVsKWzV
-# OP5MMeAsNx02iK3sEzbKhxBaDwqaiMXIVgH8V9OGfd/IEjXxGkSCjqh4m7OZtIKW
-# 68wxjlSECt4eHufkjfxmxWcDmDu+G+JaX6hqrqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDxsg4whSej
+# Yj8+6y/5KzqbbArPKz2dV9sHBDsOJiDv4DANBgkqhkiG9w0BAQEFAASCAgClhYFz
+# qigsnobqtBLtnbxSAiKw7Sza1udd9HHcAm0X0JHamaLG4x5mVSGEKFCt4hR1LBtx
+# Kb7gi9/ChWRlXa8VPqzMpICHWd1yvTnWiggMaZKdyIjsPS+1NrkCpgT9cCuJegjs
+# KmwvVwfja8uWvS5sP8a086O7YxLkD6vy8Jjr4x2owRlebi9n+sGOgz6AIDqyI0cv
+# zZg6ZE5qn7SdHAIe+cui+6xcGvn2Pf4C2t/0Mxu1xMrC9+EHFtlZ7ay8TIGlGnb8
+# yCv/QmbieWXmP14bvhzPFSDzFMZ922G+g6TlOIR/aBiQvnqE8sa8H98Ek+n5SDt5
+# kYSvuCxbv+veK535+sUKPEDy184FuCCpEc8fYh+4mMA9eA4FHgflHYaWleeDGnlr
+# uCji55TL/Wu2TPLeUNBCGakY+5JBn0EoTrmcxNQE+z0tEHztE1VJouSWU6jc/X9n
+# Zz+nn0Q64pT32nQsWunRSetHhszZ37i0OtHqv0ELjwkIu8z3wqTm6ZAcYw1HC8YV
+# GCa7+Z8GkWJJ5M+egPSu+oxiVA3N6jtQCp+t0Poc+rwOSknhyX3SPXXhK2f9Zlsb
+# UNQax2+k/WpyHZ6kOI/DPUUUo0VLZPr0t//sqm2/2BP36kZGxv7gdLGkGsGGHs9K
+# hWFkC5Su+XBvy6QghGdbFlPeAypJ0PiOPgN7/KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjEyMDU4MTBaMC8GCSqGSIb3DQEJBDEiBCDhPjyR3n3BFQ3VLMtn
-# yMx2dywtQmynytJxbNsyEc8tcTANBgkqhkiG9w0BAQEFAASCAgCWNe48B+hHytwi
-# tvnyOyOf4LY+bLOQ87Z0G7f/EuVmDCvWJTZBUWSnPSvumlO/iy+BYrhAgEwXwFu8
-# McV/26AJbL4tza50RDFk+bxLEARqVqRvQwA3YZNVA5ZhLkivGGMuk0wkYISr+Z+W
-# u4wuXgsCnvVPk5OG0ZOt2wS+I82G515CAlawpDxZnAwzs5JrOqTjT4JeYvWmOTiv
-# C8DloCFUaaXItrFH78CqXlkLwee6zUdUXcqCZmnKdD7u1AWict475nIJPkhtln99
-# Jn1L9gJwnty83YQ3/4+nlLeC5R8FZ5QWYBKjcs3Vpn83p4QuFQxVN25KiQvXxriw
-# 107IEaF4zvlf4W1h76XUh8zYo1vjsb11jdXwOxNd2Vzsh8BXYSdPhXHZ+z1uRnUd
-# jMl31GJxsaZBv/AiKO4sp9HCBuk+f7GjJ/vOgVERIqH+xL9rGeqQ6p8dgZi5j9oH
-# S3WEN1pf+gEX9e8BrPJiwU6zxC1UHZJAOcicZzlEfPtAwASzxExw1R5SqbrdIb1X
-# B/3mrNzOFf0AbR97JWp06IH38E4h8BAUvkV4IqV5rtUYHUtZZrCGgaReIAniTDBn
-# 2fmBCImkebLyd8+yhgk9V9JC53As47IRsZh0blVU73TqfBaqwMmo90ZEfLwiQVAj
-# csTUejJ/bBbbiF+bm5fPBgFp9FKG1A==
+# BTEPFw0yNjA0MjIyMDI0MDRaMC8GCSqGSIb3DQEJBDEiBCDqVKzEmIiC1v//rVaf
+# Qqh34cw9ID1Edoqn1cdlor/MQjANBgkqhkiG9w0BAQEFAASCAgArPfkD6htRF0mC
+# BToMxnI0Hz1NhtSzxn/u4chxGYz4eQWPMBKcBOCBZxrMbpKizyeI1/GornIN+mB5
+# o/9XA2fT6H8rn031Pfsipc3lUuiUntROnmZmejkHLg6BYigekesy2rS34NCRZVgD
+# HQVgst6LRW7r4KQdzzXFUq1tr3LZcB/3SH/3HOEz4GCBh2jYVZqMyWmr6wb1eH2z
+# eDgtaWdp2iP9+zr/to1iHa3oP8mBfUx2xIAa7NYwtxoYV4BMRP6/8eMC2OdiiaWJ
+# afs4Uuv946LDx7zJApTLrjTxk+Kw0YGsjO4edVs0UYsAXCYjAJLk+uJXy1oeUlzh
+# JiHfw0g3r/Nt8tsp6z1yt/fG7ybboXu6S1JQBWIDfTrf2Bo+rfVfkgRaL1jzM5vK
+# 78aP1obDQDujHHXmHCECRqsO2f9JYzxOkS6Zi0nYnKKP6arY6PdLYHR7CFhooBRZ
+# o7L9AM4CjuLVuwilJDVd4IrWkkkqBERgQUnPFwzRhlAs1yCHa6o4zymv5d2YTQs1
+# D2dElvh/FsGYc/vRPfQ5YW0MzTNOrhPRXgHvjUHeWEU5Aia20YB6NoXJgwhHCUNc
+# yyDkJhzI6cXZMtywp+3TNGzjkJDuJRvBk9iXdQ4bBDpVHIN2X6YVkNrFAGsZ+FmS
+# jp19q9KGm+nOadnj398gg865A9A52g==
 # SIG # End signature block

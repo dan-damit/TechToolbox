@@ -21,6 +21,10 @@ function Start-NewPSRemoteSession {
     .PARAMETER UseSsh
         Use SSH transport instead of WSMan.
 
+    .PARAMETER UseCredSSP
+        Enables CredSSP for WSMan remoting and bootstraps the remote host's
+        WSMan CredSSP server setting before opening the delegated session.
+
     .PARAMETER Port
         SSH port (default 22).
 
@@ -74,6 +78,184 @@ function Start-NewPSRemoteSession {
         $sessOpts = New-PSSessionOption -OpenTimeout ($ConnectTimeoutSec * 1000) `
             -OperationTimeout ($ConnectTimeoutSec * 1000) `
             -IdleTimeout $IdleTimeoutSec
+
+        function Test-LocalAdministrator {
+            $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+            $principal = [Security.Principal.WindowsPrincipal]$id
+            return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        }
+
+        function Test-CredSSPClientDelegationConfigured {
+            param([Parameter(Mandatory)][string]$TargetComputer)
+
+            # First check the local WSMan CredSSP client auth toggle. This read is
+            # available in normal sessions and avoids false negatives when
+            # Get-WSManCredSSP itself requires elevation.
+            try {
+                $authEnabled = (Get-Item -Path WSMan:\localhost\Client\Auth\CredSSP -ErrorAction Stop).Value
+            }
+            catch {
+                return $false
+            }
+
+            if ([string]$authEnabled -ne 'true') {
+                return $false
+            }
+
+            try {
+                $status = Get-WSManCredSSP
+            }
+            catch {
+                # In non-elevated sessions this cmdlet can throw AccessDenied.
+                # If CredSSP client auth is on, treat configuration as present.
+                return $true
+            }
+
+            if (-not $status) {
+                return $true
+            }
+
+            $patterns = @()
+            foreach ($line in @($status -split "`r?`n")) {
+                $trimmed = $line.Trim()
+                if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+
+                $matches = [regex]::Matches($trimmed, '(?i)wsman/[^\s,;]+')
+                foreach ($match in $matches) {
+                    if ($match.Success) {
+                        $patterns += $match.Value.ToLowerInvariant()
+                    }
+                }
+            }
+
+            $patterns = @($patterns | Select-Object -Unique)
+
+            if ($patterns.Count -eq 0) {
+                return $false
+            }
+
+            $shortComputer = ($TargetComputer -split '\.')[0]
+            $targetsToMatch = @(
+                ("wsman/{0}" -f $TargetComputer),
+                ("wsman/{0}" -f $shortComputer),
+                $TargetComputer,
+                $shortComputer
+            )
+
+            foreach ($pattern in $patterns) {
+                foreach ($candidate in $targetsToMatch) {
+                    if ($candidate -like $pattern) {
+                        return $true
+                    }
+                }
+            }
+
+            return $false
+        }
+
+        function Get-CredSSPDelegateTargets {
+            param([Parameter(Mandatory)][string]$TargetComputer)
+
+            $configuredTargets = @()
+            $remoting = $null
+
+            if ($script:cfg -and $script:cfg.settings) {
+                $remoting = $script:cfg.settings.remoting
+            }
+
+            if ($remoting -and $remoting.ContainsKey('credSSPDelegateComputers')) {
+                $rawTargets = $remoting['credSSPDelegateComputers']
+
+                if ($rawTargets -is [string]) {
+                    $configuredTargets = @($rawTargets)
+                }
+                elseif ($rawTargets -is [System.Collections.IEnumerable]) {
+                    $configuredTargets = @($rawTargets)
+                }
+            }
+
+            $normalizedTargets = @(
+                $configuredTargets |
+                Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+                ForEach-Object {
+                    $value = [string]$_
+                    if ($value -like 'wsman/*') {
+                        $value.Substring(6)
+                    }
+                    else {
+                        $value
+                    }
+                } |
+                Select-Object -Unique
+            )
+
+            if ($normalizedTargets.Count -gt 0) {
+                return $normalizedTargets
+            }
+
+            return @($TargetComputer)
+        }
+
+        function Enable-RemoteCredSSPServer {
+            param(
+                [Parameter(Mandatory)][string]$TargetComputer,
+                [pscredential]$TargetCredential,
+                [Parameter(Mandatory)][System.Management.Automation.Remoting.PSSessionOption]$SessionOptions,
+                [Parameter(Mandatory)][string]$PrimaryConfig,
+                [Parameter(Mandatory)][string]$FallbackConfig,
+                [Parameter(Mandatory)][string]$TargetSessionName
+            )
+
+            Write-Log -Level Info -Message "Ensuring CredSSP is enabled on $TargetComputer for WSMan remoting."
+
+            $delegateTargets = Get-CredSSPDelegateTargets -TargetComputer $TargetComputer
+            $clientConfigured = Test-CredSSPClientDelegationConfigured -TargetComputer $TargetComputer
+            if (-not $clientConfigured) {
+                if (-not (Test-LocalAdministrator)) {
+                    $delegateArg = ($delegateTargets | ForEach-Object { "'{0}'" -f $_ }) -join ', '
+                    throw "CredSSP client delegation is not configured locally for $TargetComputer and enabling it requires an elevated PowerShell session. Run once as administrator: Enable-WSManCredSSP -Role Client -DelegateComputer $delegateArg -Force"
+                }
+
+                Enable-WSManCredSSP -Role Client -DelegateComputer $delegateTargets -Force | Out-Null
+            }
+
+            $bootstrap = $null
+            try {
+                $bootstrapParams = @{
+                    ComputerName      = $TargetComputer
+                    Credential        = $TargetCredential
+                    Authentication    = 'Default'
+                    ConfigurationName = $PrimaryConfig
+                    ErrorAction       = 'Stop'
+                    SessionOption     = $SessionOptions
+                    Name              = "$TargetSessionName:bootstrap"
+                }
+
+                try {
+                    $bootstrap = New-PSSession @bootstrapParams
+                }
+                catch {
+                    $bootstrapParams.ConfigurationName = $FallbackConfig
+                    $bootstrap = New-PSSession @bootstrapParams
+                }
+
+                $serverEnabled = Invoke-Command -Session $bootstrap -ScriptBlock {
+                    $value = (Get-Item -Path WSMan:\localhost\Service\Auth\CredSSP -ErrorAction Stop).Value
+                    return [string]$value -eq 'true'
+                } -ErrorAction Stop
+
+                if (-not $serverEnabled) {
+                    Invoke-Command -Session $bootstrap -ScriptBlock {
+                        Enable-WSManCredSSP -Role Server -Force | Out-Null
+                    } -ErrorAction Stop | Out-Null
+                }
+            }
+            finally {
+                if ($bootstrap) {
+                    Remove-PSSession -Session $bootstrap -ErrorAction SilentlyContinue
+                }
+            }
+        }
 
         if (-not $SessionName) {
             $SessionName = "TT:Remote:{0}:{1:yyyyMMdd-HHmmss}" -f $ComputerName, (Get-Date)
@@ -160,6 +342,16 @@ function Start-NewPSRemoteSession {
             return $s
         }
         else {
+            if ($UseCredSSP) {
+                Enable-RemoteCredSSPServer `
+                    -TargetComputer $ComputerName `
+                    -TargetCredential $Credential `
+                    -SessionOptions $sessOpts `
+                    -PrimaryConfig $Ps7ConfigName `
+                    -FallbackConfig $WinPsConfigName `
+                    -TargetSessionName $SessionName
+            }
+
             $auth = if ($UseCredSSP) { 'CredSSP' } else { 'Default' }
 
             # WSMan: PS7 endpoint first
@@ -207,8 +399,8 @@ function Start-NewPSRemoteSession {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDhGOKCHmuqWJUb
-# Y4ys55+SUaJqyGjyR0QCemd3GbVTNqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBkgcyRls5HMdfl
+# dEJQL9galQrWogncZBb/+r/i3DV5JqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -341,34 +533,34 @@ function Start-NewPSRemoteSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCb1QjzhSIM
-# NBQS95LoF/JyQY/2IOuVrrR765+abGes1jANBgkqhkiG9w0BAQEFAASCAgC5hfRc
-# nDpBa0KdGMXrh/jLDmLPL/JwYIha80nmmYT6DN1k/Mcc8Nygn4Fp/Pfs9EZalGJ1
-# CN6HI23T3ZVc7U16Z341PCX6buzBI8NteKrRLjbRL0x2yekLKGzxsbpaeZ2z1Fqz
-# hLAgt5eRN6MffpabhrO6BCNteCaw4Ak2MUXL0nb5eA05nRSEsw0O0Fb1IpTDMDPD
-# 8r72CQ2T3gqWXhLrr80jrZImZ9vZSUDzXlsJtzWdubFSTpAoHCWnSomaNDXQ8sO/
-# XJnd6wVMRgW0ti1wq6D2vysvF9riHbTIaVfRMoyStRl0klNAzg2P1JrVSKFtA0Kw
-# duZ5IOwCm5m5pknZrwOliprc3siG23dK3ZjDoCNa9B1mEFiPm4vFIH4/m47IR93l
-# QZEE8EZzYz7iamIfGtk5Y254D2cvy3znKDyg7hMoSEvxfIk2UCq8AepqZYcYZffv
-# kYTJcyaEjAkh5SCvRTVh9XzH39tlNCZI+sSxnv7glth/ktOrG99WoChsKVzwRTOk
-# 82RtK5Bss8GdHyxEuyvom0PZnJND8eAMz8tFSuXhLRmCu4y9igsvj3fCPGRS1mlt
-# 0xkYihKefjsuImkyNiwxTuSyxq5y3PDcFNii7PkvJqN8e0nk6+43Zws0PSfIuqA5
-# aGf/GRijtVcbXCoIvDzuX8nsaY5tfxBb2ZOSLqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA6KOiZsmyU
+# Rio2y9WUycNHvB0M7EDDLfJpdh4QAq8q6DANBgkqhkiG9w0BAQEFAASCAgAbLGaA
+# 4YPlhcipK9lENjmU09j/4By8faoxFOuMIyoblCJusX9AezH45qTcRQh5ebGjrVdV
+# 7tA+bvfFzeDEm+VUPAWfZBaxYXNdNmlV2SU1GuSMykfysoeznD8LS6+n+GNzp+q8
+# 55L+XaR1lz0IihNdEi3AEMfyixNSJu3lbPWnZQ7INWnpLpcFfNSj3f6hL3URkvb+
+# z5Shrcv1AbvV698WXbFR3Yqp/EKTtRk7Te64zA+X6dEEFvNpzNZaMc3pJHoxcQO0
+# giwzcKI2mbCI7q95IFQ4WrnubC9XG+NZ9wqR3W/Tf0gbYF8Jscg+dKUOkiRxIitf
+# j8PJJP02qvAt2bT9co9TuM9Xwheo/Cx9QZbaFxkLFNtYCSFpfx9FHYjX1q246tlZ
+# HNFK5QAAXxMnWVGMDNlJYBzsd6BrZe9pobgBbGz0C2nmjAEaGf11yk6B7Qr/NRQs
+# 0p+m4QnAguBePoyRxL9i29TbVITMIsBAXsUbyYdiKJYLDFRDzT9ZrjwiI7byWvOE
+# TuuyI4FZa4Op885iQkP197I/OWIg4ixZlOz5v7W6HEqYF+lDcC7zrgQKc0dPV+AY
+# 1vDbZQEdGPz+eC4orEBTKRabq2UFDXNavQaNE9FlsSRnKyPLgPIKH9J9jIWLIub3
+# 6SawGItV65EtYsLabN9JLT5VgTo0ujTN17Zz56GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjExNDIxMTlaMC8GCSqGSIb3DQEJBDEiBCASSWaUcU8XXxLxd8lW
-# 8cRtV5msM5LMA/fk5fAUr4ASkTANBgkqhkiG9w0BAQEFAASCAgBwcLpQdVbpaAmH
-# ZECH0bWyhy3hLOk/C5Hb8FtxfObFhNrJYG/25o4VelmhyawNJSZuThxmKahEA7t0
-# hHPoiSFgVLc/KrP+GPRr48MPoqTj8Q1/VzhIllOQkBjIJnPQTRlYESCyQraVVuw9
-# v/EKM5BnB9BUUScKhicQ2X19xggD2pnio6FEl/eohSN7POhSTF2wj0MT7t6aRYwD
-# w+WdcPWgfXjwSHY6a5Vfu78qiZ1czsOcqYs3FzTLO1KQrwSsPQNL6meLeQOocAvW
-# SJxIoENfRO8m+Gk6iiqTBL/VP0UFPziICvkYEBZK/oxKjs2/bppJtrPN+DY4hfz0
-# I7y28CH7jhZ5PbY2kXaoudF+gwX719hp8yg2tP2ThyvX/xTbbF9fZ3lATUD+deTi
-# imvKgEyVAvUClnifeSh93VkTKD7mXFFVuRfbGoNBH1KMzwtMoFJzFwvfTg5jTB6v
-# qKECVMP5/SFPCGQf+vOjFx8suHd5sQS5RaK7tBgBb+gB+4c49CMtbWa7FCyMMXif
-# 2c+In4M/Zn665H5k1kwbv6P9Ypdk+NgxkP2WorCyZWQCEFTWJTMWNRJIMtuiswRl
-# dreOd+XtCthkYoBg3hokn3qRWeRo0WAerAum8jl21Obrr0pqHXitDDbjvZYEUBX4
-# uJRwIHlUgypNYkoNBJZziqT7ZveX7A==
+# BTEPFw0yNjA0MjIxOTIyNDlaMC8GCSqGSIb3DQEJBDEiBCAUOyLuLNZ3le4hallb
+# ZHv7aeGPpLqIvsAhhYuCSXR6EDANBgkqhkiG9w0BAQEFAASCAgAZQmk71gaXItZc
+# g3eRv1aU9Uv6LvGvlR40zrMEO9NXx3uYX7s1oM1mfZ8+IrvaaT5MWyZu/tNP8Bnv
+# H9CsYgPxOftCct48v6fk535+HV5U5Y/YTpOeQ/1hlzYyMMnugspDufd+Ole7Oubv
+# ChoJ1fcDB3g9lrRlKFx33Ow6gjsPXXbduvlSsfk+yhWYLly17AF9NsBFkw9RHpcM
+# FfMMjbyxnbW3sA9pxugPbev3DbW79m84rIdkObykhUbNjS8xGvnqkmdnVEiJUKQW
+# +y5VE5mO9sk+mz+bJ5Qyj053C2INLhdY8rSXrAwa/JqjW69sgrfFuXv41RQATm6s
+# QQG6geIZCSPZH9oR1gVswtlCCwjotA/vBxqPhLdZqarmrJnjCtf6NzlVNbzDb6DX
+# /kuNS3W21yZJgdpFoshzBSttTKg+aLBY0FmxZYeuVvt3ngBeYsqK/b2tRciZgquJ
+# tOPkmDT1rN6E4nqtDMviMTMGtOuIIJio6533gewemLT6EF2XV8heEjfun1PI38XZ
+# 9WfZLqZzG9xaS1iTVXsfe2IppKEGqrQQMg2dhR4yHg5ivN2vkppTvf+YiTdvTKM+
+# yRDwslyitQ2MIYqGawUhjZqKw+F9CCutL065i6cOGMOL2togejv2tVhtT0aBtBdr
+# /TceEdTqurYjAlJXCJv5h+citZsbYA==
 # SIG # End signature block
