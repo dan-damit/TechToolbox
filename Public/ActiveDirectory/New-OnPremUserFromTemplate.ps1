@@ -125,25 +125,22 @@
     manager value is a valid DN (matching ^CN=.+,DC=.+).
 
     .PARAMETER ExcludedGroups
-    Specifies group names to exclude when copying group memberships from the
+    Specifies group names to explicitly exclude when copying group memberships.
+
+    Optional. Default is empty.
+
+    Group copy behavior first allows all Distribution groups and only selected
+    Security groups (controlled by -AllowedSecurityGroups). This parameter is an
+    explicit deny-list applied after that selection.
+
+    .PARAMETER AllowedSecurityGroups
+    Specifies Security group names that are allowed to be copied from the
     template.
 
-    Optional. Default list includes all well-known privileged groups:
-    - 'Domain Admins'
-    - 'Enterprise Admins'
-    - 'Schema Admins'
-    - 'Administrators'
-    - 'Protected Users'
-    - 'Server Operators'
-    - 'Account Operators'
-    - 'Backup Operators'
-    - 'Print Operators'
-    - 'Read-only Domain Controllers'
-    - 'Enterprise Read-only Domain Controllers'
+    Optional. Default is 'Domain Users'.
 
-    Prevents accidental assignment of administrative or sensitive group
-    memberships. The function retrieves all groups the template belongs to and
-    adds the new user to all groups except those in this exclusion list.
+    By default, all Security groups are excluded from copy unless their name is
+    present in this allow-list. Distribution groups are still copied.
 
     .PARAMETER InitialPasswordLength
     Specifies the length of the auto-generated initial password.
@@ -227,7 +224,7 @@
     $cred = Get-Credential
     $result = New-OnPremUserFromTemplate ` -TemplateIdentity 'template.user' `
         -GivenName 'Alice' ` -Surname 'Williams' ` -DisplayName 'Alice Williams'
-        ` -ExcludedGroups @('Domain Admins', 'Sensitive Group') `
+        ` -ExcludedGroups @('Domain Users', 'Sensitive Group') `
         -InitialPasswordLength 24 ` -Credential $cred ` -WhatIf
 
     Performs a dry-run (-WhatIf) to preview user creation and group assignments
@@ -264,9 +261,11 @@
     standards.
 
     GROUP COPY BEHAVIOR: The function retrieves all groups from the template's
-    memberOf property and adds the new user to each group (except excluded
-    groups). If a group add fails, it is logged as a warning but does not stop
-    the provisioning. Check logs for partial group assignments.
+    memberOf property and evaluates each group category. Distribution groups are
+    copied by default. Security groups are excluded by default unless the group
+    name appears in -AllowedSecurityGroups. Any names in -ExcludedGroups are
+    always skipped. If a group add fails, it is logged as a warning but does
+    not stop provisioning. Check logs for partial group assignments.
 
     MANAGER ATTRIBUTE: The manager attribute is only copied if the template's
     manager value is a distinguished name (DN). If the template's manager is
@@ -317,24 +316,10 @@
             'description', 'department', 'company', 'office', 'manager'
         ),
 
-        [string[]]$ExcludedGroups = @(
-            'Domain Admins', 'Enterprise Admins', 'Schema Admins', 'Administrators',
-            'Protected Users',
-            'Server Operators', 'Account Operators', 'Backup Operators', 'Print Operators',
-            'Read-only Domain Controllers', 'Enterprise Read-only Domain Controllers',
+        [string[]]$ExcludedGroups = @(),
 
-            # Additional high-impact built-ins
-            'Group Policy Creator Owners',
-            'Key Admins', 'Enterprise Key Admins',
-            'DnsAdmins', 'DnsUpdateProxy',
-            'Cert Publishers',
-
-            # DC / replication / RODC-related (situational but safe)
-            'Denied RODC Password Replication Group', 'Allowed RODC Password Replication Group',
-            'Cloneable Domain Controllers', 'Replicator',
-
-            # Delegated access (include only if your process shouldn’t touch these)
-            'Remote Desktop Users', 'Remote Management Users'
+        [string[]]$AllowedSecurityGroups = @(
+            'Domain Users'
         ),
 
         [int]$InitialPasswordLength = 16,
@@ -561,26 +546,40 @@
             Write-Log -Level Ok -Message "Primary proxyAddress applied."
         }
 
-        # 8) Copy group memberships (exclude known admin/builtin)
+        # 8) Copy group memberships (Distribution by default; Security via allow-list)
         $tmplGroupDNs = (Get-ADUser @adBase -Identity $templateUser.DistinguishedName -Property memberOf).memberOf
         if (-not $tmplGroupDNs) { $tmplGroupDNs = @() }
 
-        $tmplGroupNames = foreach ($dn in $tmplGroupDNs) {
-            (Get-ADGroup @adBase -Identity $dn -ErrorAction SilentlyContinue).Name
+        $tmplGroups = foreach ($dn in $tmplGroupDNs) {
+            Get-ADGroup @adBase -Identity $dn -Properties GroupCategory -ErrorAction SilentlyContinue
         }
 
-        $toAdd = $tmplGroupNames | Where-Object { $_ -and ($ExcludedGroups -notcontains $_) }
+        $toAddGroups = $tmplGroups | Where-Object {
+            $_ -and (
+                $_.GroupCategory -eq 'Distribution' -or
+                ($_.GroupCategory -eq 'Security' -and ($AllowedSecurityGroups -contains $_.Name))
+            ) -and ($ExcludedGroups -notcontains $_.Name)
+        }
+
+        $toAdd = $toAddGroups.Name | Select-Object -Unique
+        $skippedSecurity = $tmplGroups | Where-Object {
+            $_ -and $_.GroupCategory -eq 'Security' -and ($AllowedSecurityGroups -notcontains $_.Name)
+        }
+
+        if ($skippedSecurity) {
+            Write-Log -Level Info -Message ("Skipped security groups (not allow-listed): {0}" -f (($skippedSecurity.Name | Select-Object -Unique) -join ', '))
+        }
 
         if ($PSCmdlet.ShouldProcess($newUpn, "Add group memberships")) {
             $added = 0
-            foreach ($gName in $toAdd) {
+            foreach ($grp in $toAddGroups) {
                 try {
-                    Add-ADGroupMember @adBase -Identity $gName -Members $SamAccountName -ErrorAction Stop
+                    Add-ADGroupMember @adBase -Identity $grp.DistinguishedName -Members $SamAccountName -ErrorAction Stop
                     $added++
-                    Write-Log -Level Info -Message ("Added to: {0}" -f $gName)
+                    Write-Log -Level Info -Message ("Added to: {0}" -f $grp.Name)
                 }
                 catch {
-                    Write-Log -Level Warn -Message ("Group add failed '{0}': {1}" -f $gName, $_.Exception.Message)
+                    Write-Log -Level Warn -Message ("Group add failed '{0}': {1}" -f $grp.Name, $_.Exception.Message)
                 }
             }
             Write-Log -Level Ok -Message ("Group additions complete: {0} added" -f $added)
@@ -607,8 +606,8 @@
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBV/wyOkL2aEy2P
-# BSG3tKtzNx3YiXudnwaghHWhBke2u6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCE4mzTCQ+f/RUV
+# QrTunFbH5Sw1pohQLrM0BcGc0m82u6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -741,34 +740,34 @@
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvtD+b3Uv4
-# w/gTivPM8TyDZoN9m2nqGa2sE+72jrg/KTANBgkqhkiG9w0BAQEFAASCAgCkujSy
-# +CXYp1fwORj3UrGJapumghX0SX5K36T2KMVI62/IQo96Gf+Caw74L/KWNj8khTUU
-# nvedlI8owRgpGzfWcqIpok40jGkO/7zhDzL+/ZhzVAa1N2C5cWtAXcUHGPxFxATf
-# 00ti9rps6jIey7YBsajwMjxn2AiFDBTGkAQpRb7nTBiQQbR7rlNt+x5xXjpmRtyx
-# HoyljCuvLwrkO5Yn1ysZKL94XOAO/6ub7nnaHUYrieGayVqsmV6wD8JTDbPZbRB1
-# 3CgPJWGLQGoOAEHRCiKuWs2WPS8YHwyvYQ98fo4sAymhfGvCbRXGzDwtmxut6Rio
-# Z2re2ACGnW/YXVt6teYYy/SgVRfB+Cp1rXY/ZHisjr9a+7MjqBhXxtwGh7E31ixl
-# Ir/KEwK8ckr4vedDvV0I0Wwy3SRXjK7gSn4mkByktPb6En3VU903COTmj10i8ZtS
-# AC9Y0OnE1pVQ3QJ6KT73bbEAQOxj/1mkHHukFI5t/9jVxmCZJOsR8OX0nsgJems1
-# z1HAJTi5soP2rPTpyewby5Yt9T7UeS7oXm0Evmg4ERSDTYPYO/pX7JlAlevZgd31
-# 4eO/MHQbEMYieYGxcCl6XkL5tlcXq96Hs83kJV+mk0fAD+yqVczRs/6Y6rRHJUoK
-# y6Qeh4pMzo3pj8v9x43cY6ILoGvBkIdyPMwA0KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAXZADmuziN
+# 5rVxxCzhePyNK/lzGmyMOdcxlIQOt5qpyDANBgkqhkiG9w0BAQEFAASCAgA9oIGr
+# HKrTXjhiYebeuIewwx8X6RsAOgm2h3+7jV33WyvZO2sYXOtrOtdIdl6IvxDwPOBu
+# aromQ5o8bzCgohDsfEYu/YjkCXDFnBX98m3PGlWl+Q6o/wxBuFRrmnP8ojzOB0p4
+# BhRH10qgiP7f7b+r0Ytw1B5TWHdOlsmWuT16kY6lTI9HLSEtqQhZQoxMxtYEoCtR
+# kaU46su0fEomxPx8/CsqHi7roeYi4npNePXaea/V0wafp+/DTTSsCZ6g8x2wdUpQ
+# ZG1X18W8LZzW4GRMYzeMxDNwT/Sqd0fPPb/U/SXyhLBJtY+J/Zc86o9aerBBCxHc
+# Yy4U00Epp4lsVqWHEdH14bjfkKoU1IQ06C95JMueZuA8718VM3XEFkG3jsZpu6nQ
+# kvFu1zUOKuPNcoszgI7KcisUi1v43+TyjhIxWK4KH24EVFsn7wvNAZPyAzN672Jr
+# uddfKkLwxfKFWJwlG+BOs82g6u73FHr6FkJ0QPs3uTOKV5C4Bjia+9PXgvKud39u
+# B//d1zfnsuqZIOFMx+rJh5Kv5k9Yymx6KTtD0ETKHpUyQOajuL3ZFvbz+fNGTT37
+# ww+SNqz/RNB3yKXYa/dl29oeBLl+84hnUOFFa0S+rEVOIUJEydBwQyUgVfsM61zB
+# 0l7+qan1tHqnln/XpnMEPq8PwGV3pQHUOwLY2qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjQyMTE0MTlaMC8GCSqGSIb3DQEJBDEiBCDZbz0Sc9HPY1K9ufZF
-# MAjVcoMva4Xw6K3OR0hGKybnsTANBgkqhkiG9w0BAQEFAASCAgAqopYP7GPedXWV
-# mJUbawERpFd7pAZbk7MJ2ItbGYJnlvteaop3zroQ0pSL4iiuzr09clyEB3f0mXeC
-# 07s9bYnyGMGvgeCCGcBTZEWy8K/6+dyeJcPw3zMXb8sRWnVSPW2XZJz4Uem+xnOu
-# aPYMo5AvjWbRGT8FXD6aNG5CVS6qXUA9HoyZqZbG3PdVfXJ3Lg7m4a0KGc/Upb5R
-# /rOrqMbjTKjt5IoF0wHT+b+M32caAmQUiWispCOJEGSaSe/Uyv0YWpMC1XMxVAWz
-# NlJJL8pZN2Pq1jWYH+K1O/qMvLPhIEcYyzw1vJHXIWlFvfw3xAkd9eY4+kiWF4GO
-# oEaS2DzCUNWIJq4fytYZvCPJEvfAeqJ9n/AuiStuVZvFCWymKUdEWHG/nYSKPC6h
-# v1yd5HxBWSCUaAXtFsux/8FtOdgLTI1niyKwhN4tMiLl+2vrzAkjTzMlprqKL6Ox
-# FcEqWZSI2toEtI61HuQwlFmyyViUYqBsLogdFxTwLkn0ssX7LO/yyDZpI+x1c/ql
-# igC8E1mNheqyVQW5DzhaBw274ebNx8bScpwUl2MtJ6WUaGQKZ14CLBRIdb5F1fNa
-# BF8OC0yO1+QBaVwX8NpBP3ytmF4I97u9jUbD7oUD/hfHI0gMtI8vC4X5MSzhhus5
-# sGbO2RyHV3+4n0ZQOk1KnyY9/OgmMQ==
+# BTEPFw0yNjA0MjQyMTMwMTJaMC8GCSqGSIb3DQEJBDEiBCBegGrgzDkTxFaDKvSH
+# k1fu684FLuoXjbUoToYJQsQskzANBgkqhkiG9w0BAQEFAASCAgAbyjinKylF4fEj
+# 2tnKw/OPGwRQULjEoaTcezP23del78zWUAD7iyNUdYsfDP/s7qMP2Xrn9zkB1l9W
+# NI68AQuQB84GjP8VXy2S4Q1JsxSqzEgQWoZYERbpYVC+tU/+t0IXLtxCudKQt0b/
+# ueOOkoyxU3uVGB5Ua6cv84jx8I+k6iLxaubM41OkiHax4S67OGsH8ESeQ1KACw4m
+# v+Agosq91+XKCtsKFMmihFCxy7ifLZt6sdOpccLPbhbcSz21jzSVsw82jqUpCQ+i
+# P2ZoIrW2nTAWs5CmC5dRWdbrQa3sem0CXy48J3+cKeiMJdkR12iT9oEQF4IXw8Ew
+# AdN3yVHAWo0bl7VfDjWikZ+L3j9hwEmYmcXZjfpNfLnhctEZXORsGmAHeU88CUhV
+# RwDnuQNccXmLxAMwx07jdGnd5Wypplt52826LekjiCU/WkDbWXgb05Cvmpb8JBHy
+# R9SO2mdn7keMh2NvzZTeN7VdKQlHqsBBowCfmgAs7PdspV+Byn31F5qZN4wIYbti
+# paHizUINP7iUjzQN9lADKwt/9/yEj0NYBlUibPRxa1LlqI1eJgjcFIjIyiP1P4nq
+# UbTzKZhy3ihJuDfrlz1YG9UleMQTjghBEdrZ9mC6lXEe1c6TbUC5jjNfNkDCEEuV
+# GlJgdpGxReU7J89yKiH8LHwP2SWdtQ==
 # SIG # End signature block
