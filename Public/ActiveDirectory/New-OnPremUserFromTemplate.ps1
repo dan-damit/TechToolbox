@@ -290,12 +290,12 @@
     Initialize-TechToolboxRuntime
     #>
 
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'ByIdentity')]
     param(
-        [Parameter(ParameterSetName = 'ByIdentity')]
+        [Parameter(Mandatory, ParameterSetName = 'ByIdentity')]
         [string]$TemplateIdentity,
 
-        [Parameter(ParameterSetName = 'BySearch')]
+        [Parameter(Mandatory, ParameterSetName = 'BySearch')]
         [hashtable]$TemplateSearch,
 
         [Parameter(Mandatory)]
@@ -316,11 +316,21 @@
             'description', 'department', 'company', 'office', 'manager'
         ),
 
-        [string[]]$ExcludedGroups = @(),
-
-        [string[]]$AllowedSecurityGroups = @(
-            'Domain Users'
+        [string[]]$ExcludedGroups = @(
+            'Domain Admins', 'Enterprise Admins', 'Schema Admins', 'Administrators',
+            'Protected Users',
+            'Server Operators', 'Account Operators', 'Backup Operators', 'Print Operators',
+            'Group Policy Creator Owners',
+            'Key Admins', 'Enterprise Key Admins',
+            'DnsAdmins', 'DnsUpdateProxy',
+            'Cert Publishers',
+            'Read-only Domain Controllers', 'Enterprise Read-only Domain Controllers',
+            'Allowed RODC Password Replication Group', 'Denied RODC Password Replication Group',
+            'Cloneable Domain Controllers', 'Replicator'
         ),
+
+        # Explicit per-run allow list (default = copy NO security groups)
+        [string[]]$AllowedSecurityGroups = @(),
 
         [int]$InitialPasswordLength = 16,
 
@@ -335,116 +345,69 @@
         Initialize-TechToolboxRuntime
         Get-ActiveDirectoryModule
 
-        # Load config (throws if missing essentials)
         $cfg = $script:cfg
         $Tenant = $cfg.settings.tenant
         $Naming = $cfg.settings.naming
-        # If caller did NOT pass -CopyAttributes, take it from config
-        $callerSpecifiedCopyAttrs = $PSBoundParameters.ContainsKey('CopyAttributes')
-        if (-not $callerSpecifiedCopyAttrs) {
-            if ($Naming -and $Naming['copyAttributes']) {
-                $CopyAttributes = @($Naming['copyAttributes'])
-            }
-            else {
-                $CopyAttributes = @()
-            }
-        }
-        # Ensure it's an array of strings
-        $CopyAttributes = @($CopyAttributes | ForEach-Object { $_.ToString() }) | Where-Object { $_ -and $_.Trim() -ne '' }
 
-        # Map config-friendly names -> LDAP names (keyed lowercase for case-insensitive lookup)
-        $configToLdap = @{
-            'description' = 'description'
-            'department'  = 'department'
-            'company'     = 'company'
-            'office'      = 'physicalDeliveryOfficeName'
-            'manager'     = 'manager'
-        }
+        # (CopyAttributes/configToLdap/LdapToParam setup...)
 
-        # Compute the LDAP attributes to request for the template user
-        $CopyLdapAttrs = foreach ($name in $CopyAttributes) {
-            $key = $name.ToLowerInvariant()
-            if ($configToLdap.ContainsKey($key)) { $configToLdap[$key] } else { $name }
-        }
-        $CopyLdapAttrs = $CopyLdapAttrs | Select-Object -Unique
-
-        # Map LDAP -> friendly AD parameter where one exists (used later when applying)
-        $LdapToParam = @{
-            department                 = 'Department'
-            physicalDeliveryOfficeName = 'Office'
-            company                    = 'Company'
-            description                = 'Description'
-            # manager is special (DN) → friendly param 'Manager' but value must be DN
-        }
-
-        # --- Resolve template user (according to parameter set) ---
+        # Build AD splat EARLY
         $adBase = @{ Credential = $Credential }
         if ($Server) { $adBase['Server'] = $Server }
 
+        if (-not $AllowedSecurityGroups -or $AllowedSecurityGroups.Count -eq 0) {
+            Write-Log -Level Info -Message "No AllowedSecurityGroups provided; security group memberships will NOT be copied (distribution groups will still copy)."
+        }
+
+        $allowedSecDns = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+        $excludedDns = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+
+        foreach ($n in ($AllowedSecurityGroups | Where-Object { $_ -and $_.Trim() })) {
+            $g = Get-ADGroup @adBase -Identity $n.Trim() -ErrorAction SilentlyContinue
+            if ($g) { [void]$allowedSecDns.Add($g.DistinguishedName) }
+            else { Write-Log -Level Warn -Message "AllowedSecurityGroup not found: $n" }
+        }
+
+        foreach ($n in ($ExcludedGroups | Where-Object { $_ -and $_.Trim() })) {
+            $g = Get-ADGroup @adBase -Identity $n.Trim() -ErrorAction SilentlyContinue
+            if ($g) { [void]$excludedDns.Add($g.DistinguishedName) }
+            else { Write-Log -Level Warn -Message "ExcludedGroup not found: $n" }
+        }
+
+        # Always include these for later logic
+        $templateProps = @($CopyLdapAttrs + 'memberOf' + 'adminCount') | Select-Object -Unique
+
         switch ($PSCmdlet.ParameterSetName) {
-            'ByIdentity' {
-                if ([string]::IsNullOrWhiteSpace($TemplateIdentity)) {
-                    throw "Parameter set 'ByIdentity' requires -TemplateIdentity."
-                }
-                $templateUser = Get-ADUser @adBase -Identity $TemplateIdentity -Properties $CopyLdapAttrs
-            }
+            'ByIdentity' { $templateUser = Get-ADUser @adBase -Identity $TemplateIdentity -Properties $templateProps }
             'BySearch' {
-                if (-not $TemplateSearch -or $TemplateSearch.Count -eq 0) {
-                    throw "Parameter set 'BySearch' requires -TemplateSearch (hashtable filter)."
-                }
-                # Build a -Filter from the hashtable (simple AND of equality clauses)
                 $clauses = foreach ($k in $TemplateSearch.Keys) {
                     $v = $TemplateSearch[$k]
-                    # Escape quotes in value
-                    $v = ($v -replace "'", "''")
+                    if ($null -eq $v) { continue }
+                    $v = ($v.ToString() -replace "'", "''")
                     "($k -eq '$v')"
                 }
+                if (-not $clauses) { throw "TemplateSearch is empty or contains only null values; provide at least one key/value." }
                 $filter = ($clauses -join ' -and ')
-                $templateUser = Get-ADUser @adBase -Filter $filter -Properties $CopyLdapAttrs |
-                Select-Object -First 1
-                if (-not $templateUser) {
-                    throw "Template user not found using search filter: $filter"
-                }
-            }
-            default {
-                throw "Unknown parameter set: $($PSCmdlet.ParameterSetName)"
+                $templateUser = Get-ADUser @adBase -Filter $filter -Properties $templateProps | Select-Object -First 1
+                if (-not $templateUser) { throw "Template user not found using exact-match filter: $filter" }
             }
         }
 
-        # Expose a couple of helper items for the process/end blocks
-        Set-Variable -Name LdapToParam     -Value $LdapToParam     -Scope 1
-        Set-Variable -Name CopyLdapAttrs   -Value $CopyLdapAttrs   -Scope 1
-        Set-Variable -Name templateUser    -Value $templateUser    -Scope 1
-        Set-Variable -Name adBase          -Value $adBase          -Scope 1
+        if ($templateUser.adminCount -eq 1) {
+            throw "Template user '$($templateUser.SamAccountName)' has adminCount=1 (protected/admin). Choose a non-privileged template."
+        }
+
+        Set-Variable -Name templateUser  -Value $templateUser  -Scope 1
+        Set-Variable -Name adBase        -Value $adBase        -Scope 1
+        Set-Variable -Name allowedSecDns -Value $allowedSecDns -Scope 1
+        Set-Variable -Name excludedDns   -Value $excludedDns   -Scope 1
     }
 
     process {
         # Breadcrumb #1: entering function
         Write-Log -Level Info -Message ("Entering New-OnPremUserFromTemplate (ParamSet={0})" -f $PSCmdlet.ParameterSetName)
 
-        # 1) Resolve template user
-        $templateUser = $null
-        switch ($PSCmdlet.ParameterSetName) {
-            'ByIdentity' {
-                $templateUser = Get-ADUser @adBase -Identity $TemplateIdentity -Properties $CopyLdapAttrs
-            }
-            'BySearch' {
-                if (-not $TemplateSearch) { throw "Provide -TemplateSearch (e.g., @{ title='Engineer'; company='Company' })." }
-                $ldapFilterParts = foreach ($k in $TemplateSearch.Keys) {
-                    $val = [System.Text.RegularExpressions.Regex]::Escape($TemplateSearch[$k])
-                    "($k=$val)"
-                }
-                $ldapFilter = "(&" + ($ldapFilterParts -join '') + ")"
-                $templateUser = Get-ADUser @adBase -LDAPFilter $ldapFilter -Properties * -ErrorAction Stop |
-                Select-Object -First 1
-                if (-not $templateUser) { throw "No template user matched filter $ldapFilter." }
-            }
-            default { throw "Unexpected parameter set." }
-        }
-
-        Write-Log -Level Info -Message ("Template resolved: {0} ({1})" -f $templateUser.SamAccountName, $templateUser.UserPrincipalName)
-
-        # 2) Derive naming via config (unless caller overrides)
+        # 1) Derive naming via config (unless caller overrides)
         if (-not $UpnPrefix -or -not $SamAccountName) {
             $nm = Resolve-Naming -Naming $Naming -GivenName $GivenName -Surname $Surname
             if (-not $UpnPrefix) { $UpnPrefix = $nm.UpnPrefix }
@@ -453,21 +416,21 @@
 
         $newUpn = "$UpnPrefix@$($Tenant.upnSuffix)"
 
-        # 3) Resolve target OU (default to template's OU)
+        # 2) Resolve target OU (default to template's OU)
         if (-not $TargetOU) {
             $TargetOU = ($templateUser.DistinguishedName -replace '^CN=.*?,')
         }
 
         Write-Log -Level Info -Message ("Provisioning: DisplayName='{0}', Sam='{1}', UPN='{2}', OU='{3}'" -f $DisplayName, $SamAccountName, $newUpn, $TargetOU)
 
-        # 4) Idempotency check
+        # 3) Idempotency check
         $exists = Get-ADUser @adBase -LDAPFilter "(userPrincipalName=$newUpn)" -ErrorAction SilentlyContinue
         if ($exists) {
             Write-Log -Level Warn -Message "User UPN '$newUpn' already exists. Aborting."
             return
         }
 
-        # 5) Create new user
+        # 4) Create new user
         $initialPassword = Get-NewPassword -length $InitialPasswordLength -nonAlpha 3
         $securePass = ConvertTo-SecureString $initialPassword -AsPlainText -Force
 
@@ -489,7 +452,7 @@
             Write-Log -Level Ok -Message ("Created AD user: {0}" -f $newUpn)
         }
 
-        # 6) Copy selected attributes from template (uses mappings from begin{})
+        # 5) Copy selected attributes from template (uses mappings from begin{})
         $friendlyProps = @{}
         $otherAttrs = @{}
 
@@ -537,7 +500,7 @@
             Write-Log -Level Ok -Message "Copied attributes applied from template."
         }
 
-        # 7) proxyAddresses — single primary at creation (idempotent)
+        # 6) proxyAddresses — single primary at creation (idempotent)
         $primaryProxy = "SMTP:$UpnPrefix@$($Tenant.upnSuffix)"
         $proxiesToSet = @($primaryProxy)
 
@@ -546,8 +509,8 @@
             Write-Log -Level Ok -Message "Primary proxyAddress applied."
         }
 
-        # 8) Copy group memberships (Distribution by default; Security via allow-list)
-        $tmplGroupDNs = (Get-ADUser @adBase -Identity $templateUser.DistinguishedName -Property memberOf).memberOf
+        # 7) Copy group memberships (Distribution by default; Security via allow-list)
+        $tmplGroupDNs = @($templateUser.memberOf)
         if (-not $tmplGroupDNs) { $tmplGroupDNs = @() }
 
         $tmplGroups = foreach ($dn in $tmplGroupDNs) {
@@ -557,18 +520,11 @@
         $toAddGroups = $tmplGroups | Where-Object {
             $_ -and (
                 $_.GroupCategory -eq 'Distribution' -or
-                ($_.GroupCategory -eq 'Security' -and ($AllowedSecurityGroups -contains $_.Name))
-            ) -and ($ExcludedGroups -notcontains $_.Name)
+                ($_.GroupCategory -eq 'Security' -and $allowedSecDns.Contains($_.DistinguishedName))
+            ) -and (-not $excludedDns.Contains($_.DistinguishedName))
         }
 
         $toAdd = $toAddGroups.Name | Select-Object -Unique
-        $skippedSecurity = $tmplGroups | Where-Object {
-            $_ -and $_.GroupCategory -eq 'Security' -and ($AllowedSecurityGroups -notcontains $_.Name)
-        }
-
-        if ($skippedSecurity) {
-            Write-Log -Level Info -Message ("Skipped security groups (not allow-listed): {0}" -f (($skippedSecurity.Name | Select-Object -Unique) -join ', '))
-        }
 
         if ($PSCmdlet.ShouldProcess($newUpn, "Add group memberships")) {
             $added = 0
@@ -585,7 +541,15 @@
             Write-Log -Level Ok -Message ("Group additions complete: {0} added" -f $added)
         }
 
-        # 9) Output summary (force visible + return)
+        $skippedSecurity = $tmplGroups | Where-Object {
+            $_ -and $_.GroupCategory -eq 'Security' -and (-not $allowedSecDns.Contains($_.DistinguishedName))
+        }
+
+        if ($skippedSecurity) {
+            Write-Log -Level Info -Message ("Skipped security groups (not allow-listed): {0}" -f (($skippedSecurity.Name | Select-Object -Unique) -join ', '))
+        }
+
+        # 8) Output summary (force visible + return)
         $result = [pscustomobject]@{
             UserPrincipalName = $newUpn
             SamAccountName    = $SamAccountName
@@ -598,16 +562,16 @@
 
         # Force a visible summary even if caller pipes to Out-Null
         $result | Format-List | Out-Host
+        Write-Output $result
     }
-
     end { }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCE4mzTCQ+f/RUV
-# QrTunFbH5Sw1pohQLrM0BcGc0m82u6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDn0+aCoP1XCNy2
+# Y9/8B/n/UtThRzSmnpyj4M74LRssp6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -740,34 +704,34 @@
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAXZADmuziN
-# 5rVxxCzhePyNK/lzGmyMOdcxlIQOt5qpyDANBgkqhkiG9w0BAQEFAASCAgA9oIGr
-# HKrTXjhiYebeuIewwx8X6RsAOgm2h3+7jV33WyvZO2sYXOtrOtdIdl6IvxDwPOBu
-# aromQ5o8bzCgohDsfEYu/YjkCXDFnBX98m3PGlWl+Q6o/wxBuFRrmnP8ojzOB0p4
-# BhRH10qgiP7f7b+r0Ytw1B5TWHdOlsmWuT16kY6lTI9HLSEtqQhZQoxMxtYEoCtR
-# kaU46su0fEomxPx8/CsqHi7roeYi4npNePXaea/V0wafp+/DTTSsCZ6g8x2wdUpQ
-# ZG1X18W8LZzW4GRMYzeMxDNwT/Sqd0fPPb/U/SXyhLBJtY+J/Zc86o9aerBBCxHc
-# Yy4U00Epp4lsVqWHEdH14bjfkKoU1IQ06C95JMueZuA8718VM3XEFkG3jsZpu6nQ
-# kvFu1zUOKuPNcoszgI7KcisUi1v43+TyjhIxWK4KH24EVFsn7wvNAZPyAzN672Jr
-# uddfKkLwxfKFWJwlG+BOs82g6u73FHr6FkJ0QPs3uTOKV5C4Bjia+9PXgvKud39u
-# B//d1zfnsuqZIOFMx+rJh5Kv5k9Yymx6KTtD0ETKHpUyQOajuL3ZFvbz+fNGTT37
-# ww+SNqz/RNB3yKXYa/dl29oeBLl+84hnUOFFa0S+rEVOIUJEydBwQyUgVfsM61zB
-# 0l7+qan1tHqnln/XpnMEPq8PwGV3pQHUOwLY2qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCZf/hDBrb5
+# yH9xbpYMScyPXyEwGTlJZ5W3GlCXxNuBiDANBgkqhkiG9w0BAQEFAASCAgCrFoxy
+# jRCqmsDuHqC8SD0ttdOjcOZSMeAZkhIV2OiI4+vNFxhngIG7ENSyumfAKMv+9tI5
+# DDlrhaCfFOGpI3ZbvTEpo+AYXKtNWGt0YzwjW4Y5RmsC7bib/4n6JcDz9RiMzWzy
+# +HF6wk+PJIa1GuZFEVAFw0PDInxEKp5L342GugOtjsIyaPueCvZvMu07K9dmc/TP
+# jUgAM5HBLWbqJ8kRSYkchWA/v26rcj8viQcJmUe9vzFHzlTFlLXSdF3U6S6ansxs
+# 9smKSKpYA/43AYBcznbuM59G7zZ47pbYzG6JamqhfJ7gR5O1tfVohLVMZVWJiezp
+# XfxehSZoR7Yh/z8Iagw9IKwhjpVuxjUmIQ05tahToeyzTSouo2UfuX2uTn5jNEHa
+# FRQwpXG31uhvuCcFH8ul5sfFS5EZWJtoxXs2bNwvn0+HoxKKulHbHwLAPhrf8y3n
+# y3MydOPN5hkzJ7kaXTHulX2hZGls+ef0tjNh/SGS3Dk+hu5+vs+neuB7JQ5sM3eT
+# n/gtWmjHc921C1VdQfUQSMtcKvufqXQRZHoM5n9KBJdLllDI8JNGLmTsLVD4tITP
+# +Jxg/S3HrRc2C+higr83gMmm5MBwHZIAZDyStmVAVioyM7NI6eK8W0Ie7p3sJL+g
+# b2Or/y8VHoUFsOdt/omWDA3d1WZ2QBMPX8IdYKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjQyMTMwMTJaMC8GCSqGSIb3DQEJBDEiBCBegGrgzDkTxFaDKvSH
-# k1fu684FLuoXjbUoToYJQsQskzANBgkqhkiG9w0BAQEFAASCAgAbyjinKylF4fEj
-# 2tnKw/OPGwRQULjEoaTcezP23del78zWUAD7iyNUdYsfDP/s7qMP2Xrn9zkB1l9W
-# NI68AQuQB84GjP8VXy2S4Q1JsxSqzEgQWoZYERbpYVC+tU/+t0IXLtxCudKQt0b/
-# ueOOkoyxU3uVGB5Ua6cv84jx8I+k6iLxaubM41OkiHax4S67OGsH8ESeQ1KACw4m
-# v+Agosq91+XKCtsKFMmihFCxy7ifLZt6sdOpccLPbhbcSz21jzSVsw82jqUpCQ+i
-# P2ZoIrW2nTAWs5CmC5dRWdbrQa3sem0CXy48J3+cKeiMJdkR12iT9oEQF4IXw8Ew
-# AdN3yVHAWo0bl7VfDjWikZ+L3j9hwEmYmcXZjfpNfLnhctEZXORsGmAHeU88CUhV
-# RwDnuQNccXmLxAMwx07jdGnd5Wypplt52826LekjiCU/WkDbWXgb05Cvmpb8JBHy
-# R9SO2mdn7keMh2NvzZTeN7VdKQlHqsBBowCfmgAs7PdspV+Byn31F5qZN4wIYbti
-# paHizUINP7iUjzQN9lADKwt/9/yEj0NYBlUibPRxa1LlqI1eJgjcFIjIyiP1P4nq
-# UbTzKZhy3ihJuDfrlz1YG9UleMQTjghBEdrZ9mC6lXEe1c6TbUC5jjNfNkDCEEuV
-# GlJgdpGxReU7J89yKiH8LHwP2SWdtQ==
+# BTEPFw0yNjA0MjQyMTU2MDBaMC8GCSqGSIb3DQEJBDEiBCAjf622Bz+x+on4s9rH
+# s8bjmswppZsbhA1h0yv8rycRAjANBgkqhkiG9w0BAQEFAASCAgCEdgOlfOvpxmac
+# 9IjbdN8ZenvPO+3K3kCIXgrtyk8pyRmY4alCXLj5ZTjKMJ+iCnSp3QBo0UvYdoeu
+# Cu6APBeJVnI2K6l82vIigOm+EBxHt5ol7+mwP5pgFS5H9Q3wf1mQbJ6qs7a+FbIp
+# qt5C/CNoanZDQMlxNwmkcf6SwkMLWcISVx/0Q7ZsO/mpvMLWz16/gh6ZzO1Dv0w+
+# E8ELCp9Jp5XjGE52kP6TZrYeizgYmxDD++fofeYnA/wPvdVSoGh5/iD/d4xGW0UX
+# nRuanlPXA/9A3SRHd946rbsgHjUBwrNf7CI8Vmn7nm9sW1mC32JnDMtex68FLp1N
+# N15M11L82/UYOY5q7AgWZiyrrWL7H2rf3RFqg3bp0COYmuktYTAB8oZok7FHhF4v
+# UtBvyM4VE28umifWwnbhjvjcFQWwW6TDRBvqd0SIo7k1neVfo9QDtC662Ubj60m2
+# sx3s28lVrbhAZNdfwy2pbXkfGYWdswhUIVxzcry4+wgqHaGCd+7PWrYeTtpGwdIH
+# THw1FoANPlSQSQgBJaJpqvPdydkTxamWCdxMNITw7jjElEbUp3ZyEBig2HaW11Fq
+# r8CZSAwq02hKEykozIYz9OMU5E7z43LV3NseHUlQRdLRvhoRZVDJbWvKakxC0RMZ
+# n9wCvT3eA3jR8S/pW/5PC5WtErYI3w==
 # SIG # End signature block
