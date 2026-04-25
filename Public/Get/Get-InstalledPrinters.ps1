@@ -149,20 +149,20 @@ function Get-InstalledPrinters {
 						$isUserConnection = ($printer.Name -like '\\*\*') -or ($userConnections -contains $printer.Name)
 
 						[void]$output.Add([pscustomobject]@{
-								ComputerName              = $env:COMPUTERNAME
-								LoggedOnUser              = $loggedOnUser
-								UserSid                   = $userSid
-								PrinterName               = $printer.Name
-								ShareName                 = $printer.ShareName
-								DriverName                = $printer.DriverName
-								PortName                  = $printer.PortName
-								ServerName                = $printer.ServerName
-								SystemName                = $printer.SystemName
-								Network                   = [bool]$printer.Network
-								Default                   = [bool]$printer.Default
-								PrinterStatus             = $printer.PrinterStatus
-								UserConnection            = [bool]$isUserConnection
-								InstalledForLoggedOnUser  = [bool]((-not $printer.Network) -or $isUserConnection)
+								ComputerName             = $env:COMPUTERNAME
+								LoggedOnUser             = $loggedOnUser
+								UserSid                  = $userSid
+								PrinterName              = $printer.Name
+								ShareName                = $printer.ShareName
+								DriverName               = $printer.DriverName
+								PortName                 = $printer.PortName
+								ServerName               = $printer.ServerName
+								SystemName               = $printer.SystemName
+								Network                  = [bool]$printer.Network
+								Default                  = [bool]$printer.Default
+								PrinterStatus            = $printer.PrinterStatus
+								UserConnection           = [bool]$isUserConnection
+								InstalledForLoggedOnUser = [bool]((-not $printer.Network) -or $isUserConnection)
 							})
 					}
 
@@ -172,20 +172,20 @@ function Get-InstalledPrinters {
 						}
 
 						[void]$output.Add([pscustomobject]@{
-								ComputerName              = $env:COMPUTERNAME
-								LoggedOnUser              = $loggedOnUser
-								UserSid                   = $userSid
-								PrinterName               = $connectionName
-								ShareName                 = $null
-								DriverName                = $null
-								PortName                  = $null
-								ServerName                = $null
-								SystemName                = $null
-								Network                   = $true
-								Default                   = $false
-								PrinterStatus             = $null
-								UserConnection            = $true
-								InstalledForLoggedOnUser  = $true
+								ComputerName             = $env:COMPUTERNAME
+								LoggedOnUser             = $loggedOnUser
+								UserSid                  = $userSid
+								PrinterName              = $connectionName
+								ShareName                = $null
+								DriverName               = $null
+								PortName                 = $null
+								ServerName               = $null
+								SystemName               = $null
+								Network                  = $true
+								Default                  = $false
+								PrinterStatus            = $null
+								UserConnection           = $true
+								InstalledForLoggedOnUser = $true
 							})
 					}
 
@@ -212,8 +212,8 @@ function Get-InstalledPrinters {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBgdJB6erbz9hEj
-# keaIlZCVfnoo4wWcak/auLdmIqjINqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlDdxiTIwu7TjY
+# mwbFu8rSOjrzmCtx/5sWNLV2ntC9VqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -346,34 +346,34 @@ function Get-InstalledPrinters {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA5rIPStmiI
-# AfDz1wMyLkeKcn/2dSudwdrcF5x12lEzqjANBgkqhkiG9w0BAQEFAASCAgDNABmq
-# 4lUYL/m5UCFhHm8W6+tUzM1tNdogOqzNbkfJoOJCECR1cZ3X78TzjOUU1Ds/jmDY
-# OAY+gCTrvsir2p1YP9Gwu3uCumnKi77T46cHEKgfIddBvtX1Mpt7szkTMsJLfike
-# 1rJHVtDIVPsn+bCITEMY6Ozh3QqsZatr0jzzyd+nAePy8LQ+hduprtrKXJGP0MFx
-# JBbGriPlEZCi39qkvyHwbQPp8W8474KDKbJ6Cbarh5UXF+QQ6HrwCmCiFqCKfhqh
-# Lt0bbzotUWLxTp/DRakfeNwtlhe+d5TC1f/N6YEDLgFE06rehUoUemPhpzBr5IUd
-# biIVlTpZZAnS30o+nSYu6kkIOMcROHR3Vi0aUPuB1lG/BgOUK/+bE5h3MfnP7qIL
-# loWmmbgVdKH5PQac9pvrpF6c/9D0Y2xCwYdGyvsZdv/tMJw1NG23vv2tgu9dIKdR
-# P7ABZqUTbTAQQldtelYsRqzMvs+fuYZiBintPvHIL0NzNzdQwr90HtvryA/7QsrR
-# Ty3yCTozdVru0TJ0ejZTpjbIVOMGgywxet+v9tAztQP0VTJ5WAKbT4myxdd/cFjH
-# QZpMpqGwUEB2rcujHqiIJQrjIQVyq7ctU96VI77J2LueP5lT+vgIqeiklVzYUkEp
-# ilT0zhu2if0XtmwSY0imi+oU5E+ihsEB3KGqzaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBecLb46qJb
+# 8UWPg4ADgEm7Z0bFIymhyy5YLz0cwNnUvzANBgkqhkiG9w0BAQEFAASCAgAIMaGq
+# 370KELWW82WjyqK+bKiGbdqsjUeQdUsnb+6VI34Hg/cI0nWMImMWiU8GOpiplSzh
+# xxpNoIEKAUnnNzFU0QWxPDHQvRtS8TUScSzXlcj/sjVU8FcBy54Epf7EfJ7EenyH
+# iSU0FFc+JDxX/Ulqo3nnSvdXIKm9MV+ssnYWB1ssO0WBJfnKoGNI73jlXqBqCnNq
+# q1Wjk5L+3kLwvnhRcMBZRLy2vbhLDZXLlzNeFcXFS1AiB+hCnWJyCMpGrMDx16DP
+# v3KXC849k9COdMmo7dYWthNJIne76o+Sxa7qDySFt/SVOP790mStUOuoo0QsB5rL
+# v+s1W1/pIZlMV3QPiQQ9/HLIgtiqJ6uxXghQSBcBPbTTxNw/F7W5C8aN79JGnHSa
+# Dfetob1Pn6aQW9H/ds3rAHMzxWmMr6yB6NQ10BocsBTn/cLvGPmFD8Lpzm5otfWd
+# yc+z7UjdNF9Ru6tl5nAsvFQjjQ34XIaqE7BuW8P2gYMzdTCXB1KmK8Ces7ibkpnV
+# jpRtOYnGPisqWFT/g/MIHCphpY16325tC5gcCjVQbhu43biJC5onfKVrSTNtQS/G
+# PJB0xX5U0MXTERDvZhtQzTEN7dVKg7X7MX0e9MaYFAR1zF5/PuT44XW/bqMdTRMx
+# G5upRM0+izom5FPey85GPLkytrfQyhyLyRTFn6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjQxNzU1MjBaMC8GCSqGSIb3DQEJBDEiBCAZc/S9I/TrspjFaldx
-# cJkxZ6Q3EvFvkuduBw1MHcjWAjANBgkqhkiG9w0BAQEFAASCAgBmVYV4hDieZI5b
-# 3LR4iWDc2QOyxvZHrklsMrjJ5JBUI9e+kKr/hPMS/rUS9Zk7I73umkptI2mlQxt8
-# D+bvmg6AXAB1HFuqJv3p5qNPRdGu7fVxL8sikg2rurpAX+G4BnuAfPNtY5ca/siy
-# 64fo+twTeZoFfo01rnf6Xq8tdya21gL32mMWEem7HYuPcBtrVObX+A9f77FliOyY
-# u2CV+MwJhXPPhiLda2qi4SNXBdxFiJkgEQbrh/Fp8ryWmU2GCBYDSNx3Up65Z/t2
-# L23ikOeFh5gh1rUm+Ydf2THRl52kMplb0Y4fgjXibkiIthtliTh07BQ5rHSkceuC
-# TLkRp0X2AuL1zEQTAs1nDT4UuZdh6a3wanFvU+HvXthzywpN5/LXNHT+FhKuPYcv
-# LZhmDr3XWgUbuVWjojodL5Qx8lfE5WkWI+tCan22gfRhnUSbQ4ZKC/mznijC4wjA
-# unsm4vPTMrwcbltvky2JwKbLZDquwGPAt6+GDkW8o5DhUFo2tbIco6Zb093bvK/N
-# yRjB+j5Fyx0uKOdGVSkh7UWOYEspyzo3yG8M8IKLlWoOudQ7Vfd6+3Xsp+Ws0o8o
-# UqNYRE0BcakMO9fgyyIBW1aCfrNjTKsx6IpBb0w8NrXS8PWdFKUcJbl2ATWVvdeU
-# SlnFcKwwzWpWsU61GE+Q8JOLFubEMg==
+# BTEPFw0yNjA0MjUwMzM2MzVaMC8GCSqGSIb3DQEJBDEiBCDUhiwQQ4pWYevjDgjE
+# yhB8nUjn4amd9qtOzXnPeEG4qjANBgkqhkiG9w0BAQEFAASCAgAwgckE5gQ57yBH
+# GI9iO9SqzZJEWiRL5JgDONlYS9bA/WO9NmFMENdGqBePtmohNpp+lW6f4eDbYONz
+# UKJp4HVuttc91/vOIIhE3b55WDof4h1Aala3n10bkNcNlwwzG6Pspb9FbIiNJPrg
+# jnBJiH2wpz7va+j3KmPeb5HJl1UE+o8RaFmDvywis6e7kQ4QacXRV9teXmcnqUfV
+# lsxWpz4xdUi79GVYYJ7dcnZf+x1dlc3eS+cdjnq8zQicxlW1pmCMuv8PesA7F3dT
+# olbmGNgmamjHcbJIQQDcRcDmVelN/7lskIKrRR34jnU2kpfMTYmEHLdaHIe5QAVB
+# vOaG3kJ7PtgtR6GlakLH8f8NHNXFkAwA3gbLBHswTdhFPP1NEhaZNK5XCL5fUgWN
+# n5nhL1r1o3uBYuGAceiRUJo+FkIr/2DKqadPR9yIKss7z+GtWOdzZL+Oqx5up3si
+# 8XMFFvGy+MhqrQVDLpEEwHnAfQkgd5FS4BYlGRV1HztC/ps6GPSalNMPQCqxtyMh
+# HjjfXfjfN0A2So3fyglQC3C6cD3eDbcuETtb85xO0bOysUB3qFEavLW32DGNjZPF
+# 1Fz29cRyAhhZTPPepZbj3NE6EKMWA0m1UAIfiGbBAvumMMJQujN8k2hPSY44OBHr
+# NZ/FWDtYPnWp8OmVPHafl24F9A2CMw==
 # SIG # End signature block
