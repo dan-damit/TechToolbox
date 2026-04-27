@@ -176,6 +176,13 @@
     If omitted, AD operations use the default domain controller selection logic
     (which typically targets the closest available DC).
 
+    .PARAMETER ShowSummary
+    Displays a formatted summary of the result object to the host.
+
+    Optional switch. When provided, the function writes a human-readable
+    Format-List summary to the console. The function still returns the result
+    object to the pipeline for capture and further automation.
+
     .INPUTS
     None. This function does not accept pipeline input.
 
@@ -193,8 +200,8 @@
     - GroupsAdded (string[]): List of group names the user was added to
     - InitialPassword (string): Auto-generated temporary password
 
-    The output object is forced to display via Format-List and Out-Host to
-    ensure visibility even if the caller pipes to Out-Null.
+    The output object is returned to the pipeline. Use -ShowSummary to display
+    an additional formatted host summary during interactive use.
 
     .EXAMPLE
     $cred = Get-Credential
@@ -230,6 +237,15 @@
     Performs a dry-run (-WhatIf) to preview user creation and group assignments
     without making actual changes. Excludes two specific groups and uses a
     24-character password. Useful for validation before production execution.
+
+    .EXAMPLE
+    $cred = Get-Credential
+    $result = New-OnPremUserFromTemplate ` -TemplateIdentity 'template.user' `
+        -GivenName 'Jamie' ` -Surname 'Miller' ` -DisplayName 'Jamie Miller' `
+        -Credential $cred ` -ShowSummary
+
+    Creates the user and returns a PSCustomObject to the pipeline while also
+    writing a formatted summary to the host for interactive visibility.
 
     .NOTES
     CONFIGURATION DEPENDENCY: This function requires TechToolbox configuration
@@ -337,7 +353,9 @@
         [Parameter(Mandatory)]
         [pscredential]$Credential,
 
-        [string]$Server
+        [string]$Server,
+
+        [switch]$ShowSummary
     )
 
     begin {
@@ -349,7 +367,36 @@
         $Tenant = $cfg.settings.tenant
         $Naming = $cfg.settings.naming
 
-        # (CopyAttributes/configToLdap/LdapToParam setup...)
+        # Apply config-driven copy list when caller does not explicitly pass -CopyAttributes.
+        if (-not $PSBoundParameters.ContainsKey('CopyAttributes') -and $Naming.copyAttributes) {
+            $CopyAttributes = @($Naming.copyAttributes | Where-Object { $_ -and $_.ToString().Trim() })
+        }
+
+        # Friendly attribute aliases -> LDAP names.
+        $configToLdap = @{
+            'description' = 'description'
+            'department'  = 'department'
+            'company'     = 'company'
+            'office'      = 'physicalDeliveryOfficeName'
+            'manager'     = 'manager'
+        }
+
+        # LDAP names -> Set-ADUser friendly parameter names.
+        $LdapToParam = @{
+            'description'                = 'Description'
+            'department'                 = 'Department'
+            'company'                    = 'Company'
+            'physicalDeliveryOfficeName' = 'Office'
+            'manager'                    = 'Manager'
+        }
+
+        # Properties to request from template during lookup.
+        $CopyLdapAttrs = foreach ($attr in $CopyAttributes) {
+            if (-not $attr) { continue }
+            $key = $attr.ToString().ToLowerInvariant()
+            if ($configToLdap.ContainsKey($key)) { $configToLdap[$key] }
+            else { $attr.ToString() }
+        }
 
         # Build AD splat EARLY
         $adBase = @{ Credential = $Credential }
@@ -560,8 +607,10 @@
             InitialPassword   = $initialPassword  # caller is responsible for secure handling
         }
 
-        # Force a visible summary even if caller pipes to Out-Null
-        $result | Format-List | Out-Host
+        if ($ShowSummary) {
+            $result | Format-List | Out-Host
+        }
+
         Write-Output $result
     }
     end { }
@@ -570,8 +619,8 @@
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDn0+aCoP1XCNy2
-# Y9/8B/n/UtThRzSmnpyj4M74LRssp6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCyuc9v3JeAmwTT
+# +/N/TvTgW//7ZfGqGuH6noeyai9VM6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -704,34 +753,34 @@
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCZf/hDBrb5
-# yH9xbpYMScyPXyEwGTlJZ5W3GlCXxNuBiDANBgkqhkiG9w0BAQEFAASCAgCrFoxy
-# jRCqmsDuHqC8SD0ttdOjcOZSMeAZkhIV2OiI4+vNFxhngIG7ENSyumfAKMv+9tI5
-# DDlrhaCfFOGpI3ZbvTEpo+AYXKtNWGt0YzwjW4Y5RmsC7bib/4n6JcDz9RiMzWzy
-# +HF6wk+PJIa1GuZFEVAFw0PDInxEKp5L342GugOtjsIyaPueCvZvMu07K9dmc/TP
-# jUgAM5HBLWbqJ8kRSYkchWA/v26rcj8viQcJmUe9vzFHzlTFlLXSdF3U6S6ansxs
-# 9smKSKpYA/43AYBcznbuM59G7zZ47pbYzG6JamqhfJ7gR5O1tfVohLVMZVWJiezp
-# XfxehSZoR7Yh/z8Iagw9IKwhjpVuxjUmIQ05tahToeyzTSouo2UfuX2uTn5jNEHa
-# FRQwpXG31uhvuCcFH8ul5sfFS5EZWJtoxXs2bNwvn0+HoxKKulHbHwLAPhrf8y3n
-# y3MydOPN5hkzJ7kaXTHulX2hZGls+ef0tjNh/SGS3Dk+hu5+vs+neuB7JQ5sM3eT
-# n/gtWmjHc921C1VdQfUQSMtcKvufqXQRZHoM5n9KBJdLllDI8JNGLmTsLVD4tITP
-# +Jxg/S3HrRc2C+higr83gMmm5MBwHZIAZDyStmVAVioyM7NI6eK8W0Ie7p3sJL+g
-# b2Or/y8VHoUFsOdt/omWDA3d1WZ2QBMPX8IdYKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC6RUKQfndS
+# BUVL1QpswUtn0BufWQD1uhUoutFV/BWVgzANBgkqhkiG9w0BAQEFAASCAgBQLfeA
+# x8ZUs+7pfIQgyho+WPhQXU6lh1UELtTXqYgx/cfNGzLw0QtP5u8O8tAd+WQEmmgb
+# WNVqFrPx/L3QHnjjbl9IHKHaCrZ1Pio9itKxGyExNJxNFHxj27QCrYd+47zL4mep
+# HK92H6uo3CpuV84tH5Tx/0l8SEdB8ew3IJg3Dv+QEPf/6wurHSrkUX3+GTumYL99
+# ajOB5AcKXdoOdpCQbHBPRGXBnoitBzsMiZLbmnqd06Iq5+1wy96R/l6VypocPHMx
+# kNsTVugYTSczhXWR6zdDCg5Vz5g5XUUEVvYz/Za3tWXWzI+q28tulEI1n95Hgq4t
+# aco1gyPCAQ6wmlgEdq4wG9QJMlmlBeqMFwXVZ2bwKNfZ74kdqPl0Y0Y1DP+GmloO
+# FAyBgH3OkUpJtENDrW7gl1y4GsASu9acJ/7oowSysaRjZ4wfsB9gGqgsg6PsQkS7
+# A7LeWSbWme36hDemHSLJCdK7RS8VSNHlfyCJ2s+Xfvn+n8BG1CM5Zn/HvPzyZADw
+# MeTQP1NI0Yic68EAy5s3yKoNyAbq5T3AMRcNcTOpAsAsBfA4E+RKZlWAttTnMgyT
+# 0tjG+DBkTjrblJmhE9kbplGmUFCipXrkPwrORNMKhrgGXpRX3745Xm90H9PxPKTp
+# j0aJkCH1RZWeCKGyWp6fx2wbZ/TrVIBC3Yda4KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjQyMTU2MDBaMC8GCSqGSIb3DQEJBDEiBCAjf622Bz+x+on4s9rH
-# s8bjmswppZsbhA1h0yv8rycRAjANBgkqhkiG9w0BAQEFAASCAgCEdgOlfOvpxmac
-# 9IjbdN8ZenvPO+3K3kCIXgrtyk8pyRmY4alCXLj5ZTjKMJ+iCnSp3QBo0UvYdoeu
-# Cu6APBeJVnI2K6l82vIigOm+EBxHt5ol7+mwP5pgFS5H9Q3wf1mQbJ6qs7a+FbIp
-# qt5C/CNoanZDQMlxNwmkcf6SwkMLWcISVx/0Q7ZsO/mpvMLWz16/gh6ZzO1Dv0w+
-# E8ELCp9Jp5XjGE52kP6TZrYeizgYmxDD++fofeYnA/wPvdVSoGh5/iD/d4xGW0UX
-# nRuanlPXA/9A3SRHd946rbsgHjUBwrNf7CI8Vmn7nm9sW1mC32JnDMtex68FLp1N
-# N15M11L82/UYOY5q7AgWZiyrrWL7H2rf3RFqg3bp0COYmuktYTAB8oZok7FHhF4v
-# UtBvyM4VE28umifWwnbhjvjcFQWwW6TDRBvqd0SIo7k1neVfo9QDtC662Ubj60m2
-# sx3s28lVrbhAZNdfwy2pbXkfGYWdswhUIVxzcry4+wgqHaGCd+7PWrYeTtpGwdIH
-# THw1FoANPlSQSQgBJaJpqvPdydkTxamWCdxMNITw7jjElEbUp3ZyEBig2HaW11Fq
-# r8CZSAwq02hKEykozIYz9OMU5E7z43LV3NseHUlQRdLRvhoRZVDJbWvKakxC0RMZ
-# n9wCvT3eA3jR8S/pW/5PC5WtErYI3w==
+# BTEPFw0yNjA0MjcyMDA0NDZaMC8GCSqGSIb3DQEJBDEiBCA/rvvHCQm2zwcl+Z/V
+# R5mchu1OrRBIOtq3IvIip262YDANBgkqhkiG9w0BAQEFAASCAgAOIbAU7eMjXF/m
+# Xz+bKfiTmrP6lsOF4l//hiksMhSGrdNtrWrtGG/nADxSmlOg+fZ7SVRuEsusElz1
+# Z8/B1wEp7dtslcuD3KRCqeAzPFqNLOBR+mMGjy3l2cQeW97KLeusz8EKH3p0FfD9
+# VV4KqXGrVJiBvGA23dyQwjBpMdB5vWugwiBb2JAw5ozLFMOFRX3X8u2cHBJwEMaz
+# Ry/6hvikn3Xm7rdSGzULSOm8w8mXm0n13f/lJqFMVdHGw0GAL3AITizY5TryMI4M
+# ttsFb8t5NLmutKp+b6FaG99rSf0L4gjaNZim73YvgT8SHw6/spaGO3sSkOTGITuO
+# M9XiM7uQApR5lNEcCRT8wBzzNnzl3cn0W4V0VBN6WHGntLjelUNXXXC6/7tADupD
+# f+ySKY/6JqQs1aOO3BfF4O/msFeKDQ0ijfsUTbE2BPl3SIti6/TWRik1TRjL3UnN
+# +Wzew1e8UoQxQJkH5MLRDyAN1lbY8fzkAITg49GuBB19aStuc2KeRGWzfQSeNCo2
+# ebueUMGq8cIJWZ+JgIiyxAVDhTlNYN+NotGs3nSenWXwcyPBCZH10hqeGnQ2jgAp
+# s73Nl9Ruh5wO5fwkInUGz4EvcZEt5d3lEzInR/M50Lm1ohk+5AH49vCWj8irYnVP
+# opUyRs39eetNiVW0/U+EZi1a6Wvm0A==
 # SIG # End signature block
