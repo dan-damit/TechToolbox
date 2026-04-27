@@ -257,23 +257,17 @@ function Add-Row {
     }
 
     $rows.Add([pscustomobject]@{
-            ComputerName      = $computer
-            Group             = $Group
-            ParentGroup       = $ParentGroup
-            Depth             = $Depth
-            IsDirect          = $IsDirect
-            Name              = $Principal.Name
-            LocalAccountsName = $localName
-            SID               = $Principal.SID
-            ResolvedNTAccount = $Principal.ResolvedNTAccount
-            ADSIClass         = $Principal.ADSIClass
-            ObjectClass       = $objClass
-            PrincipalSource   = $src
-            AdsPath           = $Principal.AdsPath
-            IsGroup           = $Principal.IsGroup
-            IsLocal           = $Principal.IsLocal
-            IsAzureAD         = $Principal.IsAzureAD
-            WhenQueried       = $when
+            Name         = $Principal.Name
+            ComputerName = $computer
+            Group        = $Group
+            ParentGroup  = $ParentGroup
+            IsDirect     = $IsDirect
+            ADSIClass    = $Principal.ADSIClass
+            AdsPath      = $Principal.AdsPath
+            IsGroup      = $Principal.IsGroup
+            IsLocal      = $Principal.IsLocal
+            IsAzureAD    = $Principal.IsAzureAD
+            WhenQueried  = $when
         }) | Out-Null
 }
 
@@ -366,8 +360,8 @@ Get-LocalGroupMembers -Group $Group -Recurse:$Recurse -MaxDepth $MaxDepth -Inclu
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDBSaqJtqWvt4xo
-# eKkzIlzl7/u7XncM7ULWJiQ+o+ZUXaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAYmPklwP6tIaJW
+# 0lVMw1ZBzpaXUQfzUXSe7KmR2aP9TKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -500,34 +494,34 @@ Get-LocalGroupMembers -Group $Group -Recurse:$Recurse -MaxDepth $MaxDepth -Inclu
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAnsVOaY92o
-# GSb++5eG9cOJJqZhW7sGMpj5PDPpvXFzhzANBgkqhkiG9w0BAQEFAASCAgCvspS8
-# EP3jaoQrZddUvgvcdEqPWv/ySiKuBjrwocIJd93T3my68zSJ1Xm7XRBraFMxjPBQ
-# 3ZaiE0pXCKjJdbjsfA9wHviMd7aecTsjgoytqd9ygjOvLQp4kF6LsWPNgXfIoqL+
-# 1VXkNX6VVW30p5yeGNqi+yi34QpSD84IX41hjsdxkdmrmgHfwIo/H0W4s3tnjCF+
-# oNROBsYTHg7kyi7msb+RpWXjC1/1QUjyAunbrtgCpGOGFEpqYBjh2v+40f8toCS4
-# ulx4VnSU2+CUxp/3qaR1ap0F88WNEmAU/+DnJgwu6zkyefMfX/bW28HWjSDJOlYs
-# A/O/vUjTWe6bhbtsV7xflP/RxxjGsig6+9aBLO/1KneWIoYMM+ullqhqOzQ9WQey
-# weMY14STJJq8lATuL7DElzqnWEAY9N9FY5fSDeYhaa6fqE078krB6ovxPdPqp5GN
-# ko7Tn5Q/VtqX0SdVknRHxBSErbdZ64NdrtsVOFhXlI+749GQ8UjSZFbDyYNUxkM+
-# Rt8e2AO5bwMCR9NpycDUBxsWHR/yq0ObAa8+FAt4XxETylVKXgA75Mhq9swtclrO
-# lTlTV3Z+nJXdtDreo4OCym0zW0Oi2luT+gKxNAzR+kGJ6GAfjR4iBheNw03Z2YeU
-# U2SjGV0bIs0lD0GW47ktEwTuFEzFXee/rd88IqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDhTAnfIeRM
+# dZ1ZTRVTPErIzaszOML1Dgml2tQ4Wo5IhzANBgkqhkiG9w0BAQEFAASCAgC5xugr
+# FK4GNRJ+GXnPXvdrKGwQjdLd30tuf6YEup9iLLzH46qrT9z985eoSKZbsVd/04w+
+# e8KSLpw/6Kf1/F7JHYG0ZqZhB6YVEIbjDBFXgIVO8uEOUzHH16kmwQ8yzkcekFRh
+# +hBBHFECjZbMfQnHixm8Gvp33GpqqHTheHOgr/UR/PfOj59aWfatAGTEaJ+7VlLc
+# x6ufabFs5uj9gE2UwbvBVqUnMxIaV0dtP9S4Ol7261tyD1WbNMhbT12C/xwCcDoE
+# GtwD6SQprR/n4Z7Z/NvS2pdkLYgxaGVIE+OALUbJFCNedxF7WJs7uSI0IXmG2oyr
+# R5kqyPrXGE3lusNn66Aff98lo5He+IFxxZVg/kokuWt5otYUulFWaWXXuY1NTrf4
+# fB30C/+Flf5b4sYlTGX3HHubcGAkXTlYQJSslLC1+coeHsI7dWDoJ2BMY6ofZnoY
+# 1+cyheHgmliCpBBiHyfMeEotb7QkBKLhwTiAssR9ikYqLMP8eK+n6fM3FwO8K3L5
+# hltlMFz1R+J4+5oSpgBRH3oD9reHWyEwJxz5ot2KBIsDERvCUkJsOBjgnwokMuXa
+# In/3zr5pGyeKrQzkcxYYPF9Ngyy65tulP68quOqIjnTNFREEY7SHKNYaBrX+aitm
+# LMMp4dd9u0iMqs9R42xgA82f3JDWnGWvvuC4yqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjcxNTE5NTlaMC8GCSqGSIb3DQEJBDEiBCBxPnAkSWGJR0U7PjQi
-# rgaenvLO7wA7vtrPi9uXsoDP2zANBgkqhkiG9w0BAQEFAASCAgA0D/VpwVk8yoe2
-# 5DyE7Th4HQIN8hR5Ek/gKNURsBnq5BhbNoN3N4XW6Xnqsky0kRjkB58KWrDj3PIp
-# gFHAmPDFGQ2unlq2GIr+RwLxcVmJj5wj3jqvqaDLkGvV2i0oYXZtmH3Wg15CZ7O+
-# h1qm8aKdpPnGNOT/T1cF0IOZjLiwyCHnewEkMz/FWz94qhTDPBTCogapG8pH53Dv
-# dxFLhucNhSj0Bsyf4IRjc74tBoYyqBJv6uk/Cvg+k4AGW7g8uuIAfZfxFWBH2RPN
-# ueTyP4OvBPJGn8wNt7e2A/p+KxIcUnpbgMIUk4OY94NvxXh4Nqm1a6wLCt93u4mp
-# jnIA0y2RuTHkv1dSwgkNzEtrf1Nl8wE7L5kD9Xohw0dFY5Yn6Z7kLHvnWN7Fm7Rj
-# xiHxfrMMsJxAHk6e2cD6tKLXcXSYnqhDt57g90Jhi9jbhwJNxyosFlzO6hw6hwsP
-# Mkw6d4ORob5DmkWxhVLGigWhlmOXpqyDTNCfyJhDBBZgRcbHghX/EYvfS8Nhadjw
-# ZzeMRkPhdf5whtaagzeBshljQ0FN14fNnJQw92HqR4EERwJhP8OlVhspcNdnFpny
-# BoWBR/8tTMk7mw7rSOeTMBHr653Cnf7gQaLdsqvnCD6AgfOXVj+WLJbSjlqDayiz
-# lUVJ16PotlJ4da2vG0cTL4QzC98Naw==
+# BTEPFw0yNjA0MjcxNTMyMzRaMC8GCSqGSIb3DQEJBDEiBCA8C5mxgf6RLMsVTb0P
+# BA8baFU+1xTVsoYX/iwX9rn3hDANBgkqhkiG9w0BAQEFAASCAgArErW6RP/uiPl9
+# T3Hbsm+SZ7wylCkXkxGwR15dDE6kKqd7Aw5dA8GcF38CZS8VO0gpDolONZ793okG
+# nqwCbzLzLN9CPMuht4MAzmKC4jKFV2fzKrxvAFOyAIB3xEUekBcefkwiq5R/5xW9
+# FpPaYLqGFZSxrhCXc3Vfj/PkZfNZblZkto8EDT0K6KiKBjDq7xNunNW+YwbtNydy
+# q9QY+r80HXp5kOrKGnnuO9Zbr0qHHVBiv9khLyAjxON89Cd9EqeegGj0C55eXTmv
+# YB5IjETXJafcRWYagXLR8PiaIRE6Y5hpNRTAB2XV8TxgDCOXm3PULLnR2yO4BF6K
+# JclEKw01PB9Lt6wCQAgOrx06zykzV1+1frN4ptJZBEVUzW1uPtvKvQp92dnyyT+m
+# cLT5lrJm7mwjJNsGkWO5GHn1SyL5rkUVtjaTXsoGvZdYg/1Rw50xtDphuYmfz8oL
+# xG3QoU3Detia1IZ18rpC3J1HXhK9wpBx3e5I9pWKDo/XZfSCfKlWnDDC53ALkuYo
+# Ils0jQ2qD0QK8UfbTIk2dJMLQ1wWkz43It0QPbwZMtr9/wZiV2C7vjLaUqxNvuIs
+# 5w6GX5kmlDhTaeEkpwVgxwsTVeLTNf9zJXagN3sBXz71/Nd+VzzZHh8RcnCvewvp
+# LVjOogqO7kTK6xdXlVHfWi52NiCoDA==
 # SIG # End signature block
