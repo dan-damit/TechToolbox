@@ -1,5 +1,5 @@
 function Get-LocalAdminMembers {
-    <#
+  <#
       .SYNOPSIS
         Gets local Administrators members with SID + metadata, optionally
         expanding nested groups.
@@ -15,70 +15,92 @@ function Get-LocalAdminMembers {
         Include group objects in output (default true).
       .PARAMETER Credential
         Optional credential for remoting.
-      #>
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
+    [string[]] $ComputerName = $env:COMPUTERNAME,
 
-    [CmdletBinding()]
-    param(
-        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
-        [string[]] $ComputerName = $env:COMPUTERNAME,
+    [Parameter()]
+    [string] $Group = 'Administrators',
 
-        [Parameter()]
-        [string] $Group = 'Administrators',
+    [Parameter()]
+    [switch] $Recurse,
 
-        [Parameter()]
-        [switch] $Recurse,
+    [Parameter()]
+    [ValidateRange(0, 50)]
+    [int] $MaxDepth = 5,
 
-        [Parameter()]
-        [ValidateRange(0, 50)]
-        [int] $MaxDepth = 5,
+    [Parameter()]
+    [bool] $IncludeGroups = $true,
 
-        [Parameter()]
-        [bool] $IncludeGroups = $true,
+    [Parameter()]
+    [System.Management.Automation.PSCredential] $Credential
+  )
 
-        [Parameter()]
-        [System.Management.Automation.PSCredential] $Credential
+  begin {
+    Initialize-TechToolboxRuntime
+    $moduleRoot = Get-ModuleRoot
+    $workerPath = Join-Path $moduleRoot 'Workers\Get-LocalGroupMembers.Worker.ps1'
+    $helperLibs = @(
+      (Join-Path $moduleRoot 'Private\Logging\Write-Log.ps1')
     )
+    $workerPackage = New-HelpersPackage -HelperLibs $helperLibs -WorkerFiles @($workerPath)
+  }
 
-    begin {
-        Initialize-TechToolboxRuntime
-        $workerPath = $script:cfg.settings.workerPath
-    }
+  process {
+    foreach ($cn in $ComputerName) {
 
-    process {
-        foreach ($cn in $ComputerName) {
+      $isLocal = $cn -in @($env:COMPUTERNAME, 'localhost', '.')
 
-            $isLocal = $cn -in @($env:COMPUTERNAME, 'localhost', '.')
+      if ($isLocal) {
+        Write-Log -Level Info -Message "Running worker locally (PS7 host calling WinPS-compatible worker): $cn"
+        & $workerPath -Group $Group -Recurse:$Recurse -MaxDepth $MaxDepth -IncludeGroups:$IncludeGroups
+        continue
+      }
 
-            if ($isLocal) {
-                Write-Log -Level Info -Message "Running worker locally (PS7 host calling WinPS-compatible worker): $cn"
-                & $workerPath -Group $Group -Recurse:$Recurse -MaxDepth $MaxDepth -IncludeGroups:$IncludeGroups
-                continue
-            }
+      Write-Log -Level Info -Message "Remoting to $cn using the TechToolbox remoting engine"
 
-            Write-Log -Level Info -Message "Remoting to $cn using Windows PowerShell 5.1 endpoint (Microsoft.PowerShell)"
-
-            $icmParams = @{
-                ComputerName      = $cn
-                ConfigurationName = 'Microsoft.PowerShell'  # forces WinPS 5.1 on remote
-                FilePath          = $workerPath
-                ArgumentList      = @($Group, [bool]$Recurse, $MaxDepth, $IncludeGroups)
-                ErrorAction       = 'Stop'
-            }
-
-            if ($PSBoundParameters.ContainsKey('Credential')) {
-                $icmParams.Credential = $Credential
-            }
-
-            Invoke-Command @icmParams
+      $session = $null
+      try {
+        $sessionParams = @{
+          ComputerName = $cn
         }
+
+        if ($PSBoundParameters.ContainsKey('Credential')) {
+          $sessionParams.Credential = $Credential
+        }
+
+        $session = Start-NewPSRemoteSession @sessionParams
+
+        Invoke-RemoteWorker `
+          -Session $session `
+          -HelpersZip $workerPackage.ZipPath `
+          -HelpersZipHash $workerPackage.ZipHash `
+          -WorkerRemotePath 'IGNORED' `
+          -WorkerLocalPath $workerPath `
+          -EntryPoint 'Get-LocalGroupMembers' `
+          -EntryParameters @{
+          Group         = $Group
+          Recurse       = [bool]$Recurse
+          MaxDepth      = $MaxDepth
+          IncludeGroups = $IncludeGroups
+        }
+      }
+      finally {
+        if ($session) {
+          Remove-PSSession -Session $session -ErrorAction SilentlyContinue
+        }
+      }
     }
+  }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC0GWvIheOCoot7
-# 6hwfJHdsyeMOtbkxhlXQ1wAmmjePFKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCJtwSamoMfq7eE
+# uIa+O+S/7g3JXMurECQBxt3lMvUQlaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -211,34 +233,34 @@ function Get-LocalAdminMembers {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCtJeq0FNhw
-# /k2pFEpn0WU8GfkYNQa4tqqYm0CCIolLvjANBgkqhkiG9w0BAQEFAASCAgBfjlM6
-# EoH+Nj3byv0pJ5JhJ4/iQj5Sg2mNKMIyD6FT8CVYPs081QQ/oAOKEx5VCexDAtJE
-# Pl1nDySERG+EtQ3yUzU+n9+v+gYEEsaRbyadYm6An0iSSL5WIbk/q6VhnqdV4W28
-# grsQU5FaBA6H2/PxY48EcbzySBQIJHzsFTxuO72VWgymiHMnFIYo70piqENfpC4R
-# rPK95JGlj7yJf6QtCddAUObcWK3CxHtcT4SIbZCF7dDYLd4BQpB35gqYU5iYBqvW
-# rZTrLvfIU2VoW6HECwBhpBFqRFThT5zocQuqy8xuwmMsxFb7jUl4p8Vxj9lI0+39
-# pC3WIz0fTlFn+/gn6KnyhrArkT+IZcRfC0/6cWRe7jsbEyxoNOlTJs6s9hm5nWrn
-# kL7YQKpOSZv9Acp/i9sYOfdSOYF07fQQ7GGKUHlYLdbRimzrOdrmlERY+msHM4F5
-# 1H2Vs0euxT6oUPt5CtsJFBljQCeabjYdBqYRjNxT5F1vni/LnlYOkYJFpi6XMF3g
-# k+6wJiaWS/LK6NI7Ga3uovRygqdM7Ie2MRDSVbPBXNacjuZ4G+qdzLCtAVASTKqA
-# tL69a81bvJpv/WJMBMdXT1Ex95C4hoQPxljOL5jo3z0eCw8Y1Dk9xOicArYbKmSi
-# WwebkwGCy+dgzaYV+TgsxtwK3bmw/HGrAVHu6aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCept3choro
+# b7scXDYQ+f+PIhty0TUTjFNi3K9Ze4RDbzANBgkqhkiG9w0BAQEFAASCAgB/U5XN
+# iSPhjhF1v6ijD1I8kzSg+jdiAwV0w539ig3I6KFlnvrbiJVWiGtfQFmwMcq0nD3w
+# qhHCr/XT9wE4XyP/1sh8lEtaC6zR4DYd0Zv4I+XP1iOkMrpOukNdM4ucR/fkRdVk
+# WAyKJE6vYebNsmBqYDUK6qfmum1PP8UEhRD8fofKUNc3kA9Rq0QEGVBlXaPpQ0DM
+# QvdmPMwPEcTb3f+hBE11U+GWl+jLJ4/FSdRWFRmBrr4IeIcrI2GElw/+oYccGPHv
+# jNtEzgu7qb8fRcId0uLIbxunpP5c93B1LApASevZRy5xmywEhtRdyy9+c6oMv3pL
+# 4CdUWdOCYOt10hQvR9we2NJ/Byv0NdkxyFGX/YhnIBcw/CntW0fUlgpW8366l8Ru
+# m6xjpMRN4Ctyn/YZ2Pv+1rH1XHWWuQVj3aDzFXuVnoYRqCnSgECNLuipCuv4G0Yq
+# Wbk0L00rXb46z5+mw0ZBMMjKk4uPltR/Ym3FvNeRYc8e9l8iiHwnU9jLrEVC2htx
+# 7CtmdQxRfVzYCFddMbQTjww+LBAXyWHvN9UMPtICHmJSvx/puJPpyfYcadQXHmKV
+# km/U/YVQigqw0mIQKCiXVO6cG1x44Eq1vYkFbM4n9ZziYy+aU/QtT/Qc1AXo/iMo
+# IqquFZ5qNZzVIoE//3tDbS2BWvdy8CgiZ3P2Z6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDMxNzA2MTZaMC8GCSqGSIb3DQEJBDEiBCD7tVX4YJg61ykSEC+j
-# GLCvh8WdOo3t2ovoB5iTuBXdOTANBgkqhkiG9w0BAQEFAASCAgATcRFQqK79Rvgu
-# T3PHYLyZ5kDk/ORyfjwJiGxSqLsbT4y0cHRpocF6V2XN7/cqVKjiHft2EbAYYy+p
-# wVmZ03EnKOra7rTEIBqOmZV96TQjUBzApd+6YzRn43srhq6tB8UwXzo5LhK1IVnU
-# I+BD5A5xX1SM7e9/efkeZ9qcIPEWgONnXUBgc+xypi4EJMzRqNzPrIsCgh+Fd6tJ
-# rxSFEhwRSCMx34ZbQdMX2utXUu0K/wDqdvpvYKyRe2D+PLvoYRSZlPAgsf/rD0lT
-# viHHJVLSnA5DKvhKcJdKBxfREhvy+zPDeflJj3i/w3C3EvuwR1Qca8TNezjNVJSs
-# dYVxaXF0rkbII+oyaKVQdrtaIn3CAxNs1Vp09WaNZ/V+7bPHVQ+dFMQv95aO0zQu
-# 0z0owQLFTKCjTI6WqRd2Xy2fHfnnqvpObH+vg+DxYnoSXj9ShuL1MJsT8vaxiW7T
-# WQt4KrJPvtyC+lUHOKrvoaaZNXsUfWEx2KWji8Q9Ix7hhHAzoPHqx4w49K8Tt1L5
-# N5T6NZNRrEKMkkoVgZKFFe5R31XcxVQy1Gsv4zrjTCn1N7v4e5TFS8sqzjZVj7oH
-# MrQXki/lMXAGyzXVvcqPXKYde51Z7iJke1EmtAYBO1MlnEvUyDB/5qnfhC0AlVdT
-# hljmsn7zCGI0QFISC+LZF72e3J4RLQ==
+# BTEPFw0yNjA0MjcxNTE2NTBaMC8GCSqGSIb3DQEJBDEiBCDYLdb8SyYWlNarStej
+# yIGbuS4MuNPlmUwRynRmVfSFpzANBgkqhkiG9w0BAQEFAASCAgBilYoda0stidIK
+# HlLCoC7WyTEHeRTSg8B7SJfDXwWzqemrf4Rw3veg/nN9/euRv4E5YrEd9hWhYjtE
+# xtzXhP8RgBrCDA3HB7iDTbxb4j84AZw8TKay+aWk13rM3uUYum1KOj5fQpK3VRNx
+# LASJJ/Z+UrO+L6EpuZ13314rz8PJRIEkjIdJCbI+TsKsbUaAPsrt4W9zMEvrLmvQ
+# uBmEb1Px18XqH3i4e2hnSdUpy30duRIi0lK4vmh9EljC4OD1J5ZgHjrC0YtTw5p2
+# bEiHtiWZZEqPdQxiMiS3bSBa1aK/7SMA0a7nts9dhTyFbgsfIA/hCOWljzYa1arF
+# e5YRbg/pwPcf8uH5y42uMvnig7n3BEMAdN8Hic+4WkKZRphZdvzIlpOEkzaOJv65
+# 3eYRN3C2U/nXlSFJrGOuQ0zpDB3WWif+Px3VhGIK9ljwlOQqtU6rgrLg2FDFExPv
+# GpBqm4jBdEmHRvRTrBGaOm4EJjpU/Zctj9btx4XAZlcLKemrm4eDw5FmXgQ3trla
+# qqBVbYkSKVIUagXgzEMaKRUaaB5dSuoaIWUEHA5YC/CMyWf5J8SMKrWbbKKuceyf
+# Q9Kj7HLhybSyLFrNzcB2In2ONuyhnzNcWHldVuVKdSM/6k9z994PIU/hbNkWvd9X
+# OPiV+OsIqlHu/Y0gTDa0hdQcfl8X7g==
 # SIG # End signature block
