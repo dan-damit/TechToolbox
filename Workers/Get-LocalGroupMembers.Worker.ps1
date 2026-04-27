@@ -1,21 +1,21 @@
 <#
 .SYNOPSIS
-  Enumerate local group members with rich identity data (SID, ADSI path, etc.)
-  and optional recursive expansion.
+    Worker script for Get-LocalGroupMembers.ps1
 .DESCRIPTION
-  Uses ADSI WinNT provider for authoritative local group membership enumeration.
-  Optionally expands nested groups (local groups and domain groups) with cycle
-  protection and depth limit.
+    This script is intended to be dot-sourced by Get-LocalGroupMembers.ps1 and
+    should not be invoked directly. It contains the main implementation logic
+    for enumerating local group members with optional recursion into nested
+    groups, and enrichment of account details using Get-LocalGroupMember where
+    possible.
 .PARAMETER Group
-  Local group name/alias (default: Administrators).
+    The local group to enumerate members of. Default is 'Administrators'.
 .PARAMETER Recurse
-  Expand nested group membership.
-.PARAMETER MaxDepth
-  Maximum recursion depth (default: 5).
+    If specified, recursively expand nested groups. Default is $false.
+.PARAMETER MaxDepth 
+    Maximum recursion depth for nested groups. Default is 5.
 .PARAMETER IncludeGroups
-  Include group objects in the output (default: $true). If $false, returns only
-  non-group principals for recursive expansion (direct group members still
-  appear as direct members).
+    If specified, include groups in the output. Default is $true.
+.NOTES
 #>
 
 [CmdletBinding()]
@@ -234,24 +234,6 @@ function Test-ExpandDomainGroupMembers {
     return $out
 }
 
-# --- Main ---
-$computer = $env:COMPUTERNAME
-$when = Get-Date
-$enrichBySid = Test-GetLocalAccountsEnrichment -GroupName $Group
-
-# Direct members from local group (authoritative)
-$groupAdsPath = "WinNT://./$Group,group"
-Write-Log -Level Info -Message "Enumerating direct members via ADSI: $groupAdsPath"
-
-$directMemberPaths = Get-AdsiMembersOfWinNTGroup -WinntGroupAdsPath $groupAdsPath
-
-# Output rows list
-$rows = New-Object System.Collections.Generic.List[object]
-
-# For recursion
-$seenGroupSids = @{}   # group-sid cycle protection
-$seenMemberKeys = @{}  # de-dupe (SID preferred, else AdsPath)
-
 function Add-Row {
     param(
         [Parameter(Mandatory)] [pscustomobject] $Principal,
@@ -295,60 +277,97 @@ function Add-Row {
         }) | Out-Null
 }
 
-foreach ($path in $directMemberPaths) {
-    $p = Get-PrincipalFromAdsiPath -AdsPath $path
+function Get-LocalGroupMembers {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string] $Group = 'Administrators',
 
-    # Always include direct members (including groups)
-    Add-Row -Principal $p -IsDirect $true -ParentGroup $Group -Depth 0
+        [Parameter()]
+        [switch] $Recurse,
 
-    if ($Recurse -and $p.IsGroup -and $p.SID) {
+        [Parameter()]
+        [ValidateRange(0, 50)]
+        [int] $MaxDepth = 5,
 
-        # If it's a local group (WinNT://COMPUTER/Group), expand via WinNT
-        $isLocalGroupPath = ($p.AdsPath -match '^WinNT://\./') -or ($p.Name -like "$computer\*")
+        [Parameter()]
+        [bool] $IncludeGroups = $true
+    )
 
-        if ($isLocalGroupPath) {
-            if (-not $seenGroupSids.ContainsKey($p.SID)) {
-                $seenGroupSids[$p.SID] = $true
-                Write-Log -Level Info -Message "Expanding local nested group: $($p.Name) [$($p.SID)]"
+    $computer = $env:COMPUTERNAME
+    $when = Get-Date
+    $enrichBySid = Test-GetLocalAccountsEnrichment -GroupName $Group
 
-                $nestedGroupPath = $p.AdsPath
-                if (-not $nestedGroupPath) { continue }
+    # Direct members from local group (authoritative)
+    $groupAdsPath = "WinNT://./$Group,group"
+    Write-Log -Level Info -Message "Enumerating direct members via ADSI: $groupAdsPath"
 
-                # Enumerate local group members
-                try {
-                    foreach ($childPath in (Get-AdsiMembersOfWinNTGroup -WinntGroupAdsPath $nestedGroupPath)) {
-                        $cp = Get-PrincipalFromAdsiPath -AdsPath $childPath
-                        if ($IncludeGroups -or (-not $cp.IsGroup)) {
-                            Add-Row -Principal $cp -IsDirect $false -ParentGroup $p.Name -Depth 1
+    $directMemberPaths = Get-AdsiMembersOfWinNTGroup -WinntGroupAdsPath $groupAdsPath
+
+    # Output rows list
+    $rows = New-Object System.Collections.Generic.List[object]
+
+    # For recursion
+    $seenGroupSids = @{}   # group-sid cycle protection
+    $seenMemberKeys = @{}  # de-dupe (SID preferred, else AdsPath)
+
+    foreach ($path in $directMemberPaths) {
+        $p = Get-PrincipalFromAdsiPath -AdsPath $path
+
+        # Always include direct members (including groups)
+        Add-Row -Principal $p -IsDirect $true -ParentGroup $Group -Depth 0
+
+        if ($Recurse -and $p.IsGroup -and $p.SID) {
+
+            # If it's a local group (WinNT://COMPUTER/Group), expand via WinNT
+            $isLocalGroupPath = ($p.AdsPath -match '^WinNT://\./') -or ($p.Name -like "$computer\*")
+
+            if ($isLocalGroupPath) {
+                if (-not $seenGroupSids.ContainsKey($p.SID)) {
+                    $seenGroupSids[$p.SID] = $true
+                    Write-Log -Level Info -Message "Expanding local nested group: $($p.Name) [$($p.SID)]"
+
+                    $nestedGroupPath = $p.AdsPath
+                    if (-not $nestedGroupPath) { continue }
+
+                    # Enumerate local group members
+                    try {
+                        foreach ($childPath in (Get-AdsiMembersOfWinNTGroup -WinntGroupAdsPath $nestedGroupPath)) {
+                            $cp = Get-PrincipalFromAdsiPath -AdsPath $childPath
+                            if ($IncludeGroups -or (-not $cp.IsGroup)) {
+                                Add-Row -Principal $cp -IsDirect $false -ParentGroup $p.Name -Depth 1
+                            }
                         }
                     }
-                }
-                catch {
-                    # ignore
+                    catch {
+                        # ignore
+                    }
                 }
             }
-        }
-        else {
-            # Domain group expansion using AccountManagement (recursive)
-            Write-Log -Level Info -Message "Expanding domain nested group via AccountManagement: $($p.Name) [$($p.SID)]"
-            foreach ($child in (Test-ExpandDomainGroupMembers -GroupSid $p.SID -Depth 0 -MaxDepth $MaxDepth -SeenGroupSids $seenGroupSids)) {
-                if ($IncludeGroups -or (-not $child.IsGroup)) {
-                    Add-Row -Principal $child -IsDirect $false -ParentGroup $p.Name -Depth 1
+            else {
+                # Domain group expansion using AccountManagement (recursive)
+                Write-Log -Level Info -Message "Expanding domain nested group via AccountManagement: $($p.Name) [$($p.SID)]"
+                foreach ($child in (Test-ExpandDomainGroupMembers -GroupSid $p.SID -Depth 0 -MaxDepth $MaxDepth -SeenGroupSids $seenGroupSids)) {
+                    if ($IncludeGroups -or (-not $child.IsGroup)) {
+                        Add-Row -Principal $child -IsDirect $false -ParentGroup $p.Name -Depth 1
+                    }
                 }
             }
         }
     }
+
+    # Sort stable & return
+    $rows |
+    Sort-Object @{Expression = 'IsDirect'; Descending = $true }, @{Expression = 'Depth'; Ascending = $true }, @{Expression = 'Name'; Ascending = $true }
 }
 
-# Sort stable & return
-$rows |
-Sort-Object @{Expression = 'IsDirect'; Descending = $true }, @{Expression = 'Depth'; Ascending = $true }, @{Expression = 'Name'; Ascending = $true }
+Get-LocalGroupMembers -Group $Group -Recurse:$Recurse -MaxDepth $MaxDepth -IncludeGroups:$IncludeGroups
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDc9YUT+qFJ3JeO
-# CvVT4MPjBu8DSYwq0blKdMvg3goIjaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDBSaqJtqWvt4xo
+# eKkzIlzl7/u7XncM7ULWJiQ+o+ZUXaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -481,34 +500,34 @@ Sort-Object @{Expression = 'IsDirect'; Descending = $true }, @{Expression = 'Dep
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCr0nxFavbR
-# YdrJmeM27L/GAh9+EYaMhb/T9YvAB4N7ITANBgkqhkiG9w0BAQEFAASCAgA468MS
-# aI/3X2/yGR1sndnjTzHkyxCsSwb0jy5ogQZQyi8CwjTe3CbisWnecks0WFRAdne0
-# IYFuLwPK5ZVXAdPD4vcowa+546BOpPg9mb7oSycRiZA7jVKGblJrztN0akOQlPpu
-# 7C7qPkLlDw3D2gPymqNq3DF106/tsa8spcNRDz6v4o690NJri7TU/n867jW5VN7S
-# fSdGP51PYoZ0seLh6Sr+54LdcvggNnEyDAUqCiWJ1zjY7v72ri9lec3PsF2q4GbF
-# SOtCNfM8aFEOHe0qXIgulljcXdVJOJPBs4/UTxw99MKesCY71y23oNa4ia7wq4pc
-# B6sqmTZgybb0Io8PSegBWfMduidAWCaorLU9qhNuPDXaPaOr2UbTd1rSCNPPATxU
-# swcO8uKTlHg8tFMGPzGugSN2FgTa1Kki6tqpEC99AGQltcfRR+YohRm04mPG+UgZ
-# WTQe23JLlo7QYkGfOZD7peNKtOt4bJAfLUJW1ISOFEMyxinSIFUplz8ziuks0fIN
-# jwY+qNFi2Nd8dHYaI40nIxUTXPWDmj83QHwZcM1VxCmprlGKiN6XN1IYMvOHGI+Q
-# LizPgZNAPcIqHoLpM0/pozyF1x7ICj3cQwLGsdhtwLBz1iSoMVplC2TTjZYV+XfE
-# U4eSg2IIA7BYP2evORxxuLl0Q91Lp1YH0+mNNqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAnsVOaY92o
+# GSb++5eG9cOJJqZhW7sGMpj5PDPpvXFzhzANBgkqhkiG9w0BAQEFAASCAgCvspS8
+# EP3jaoQrZddUvgvcdEqPWv/ySiKuBjrwocIJd93T3my68zSJ1Xm7XRBraFMxjPBQ
+# 3ZaiE0pXCKjJdbjsfA9wHviMd7aecTsjgoytqd9ygjOvLQp4kF6LsWPNgXfIoqL+
+# 1VXkNX6VVW30p5yeGNqi+yi34QpSD84IX41hjsdxkdmrmgHfwIo/H0W4s3tnjCF+
+# oNROBsYTHg7kyi7msb+RpWXjC1/1QUjyAunbrtgCpGOGFEpqYBjh2v+40f8toCS4
+# ulx4VnSU2+CUxp/3qaR1ap0F88WNEmAU/+DnJgwu6zkyefMfX/bW28HWjSDJOlYs
+# A/O/vUjTWe6bhbtsV7xflP/RxxjGsig6+9aBLO/1KneWIoYMM+ullqhqOzQ9WQey
+# weMY14STJJq8lATuL7DElzqnWEAY9N9FY5fSDeYhaa6fqE078krB6ovxPdPqp5GN
+# ko7Tn5Q/VtqX0SdVknRHxBSErbdZ64NdrtsVOFhXlI+749GQ8UjSZFbDyYNUxkM+
+# Rt8e2AO5bwMCR9NpycDUBxsWHR/yq0ObAa8+FAt4XxETylVKXgA75Mhq9swtclrO
+# lTlTV3Z+nJXdtDreo4OCym0zW0Oi2luT+gKxNAzR+kGJ6GAfjR4iBheNw03Z2YeU
+# U2SjGV0bIs0lD0GW47ktEwTuFEzFXee/rd88IqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDMxNzAxMzBaMC8GCSqGSIb3DQEJBDEiBCBBH7NlUfCnGnov3ePY
-# IXfdKUxMlWZgURJkbM8sMdMmbzANBgkqhkiG9w0BAQEFAASCAgCR8T9Kk2J+79ND
-# fYFWpLkRsC+A2Tjyj2EKSdK8TXyGgow2r/vPfFTLjP2TlCK4ygvaHSknnCnBSUn3
-# C5eRfE48m7ybWbV/xr4gUEp9WTAQEqwkckXMpBU7N8B3aBIMEXMiTBhyjvppB3q0
-# WUKnNVbbh1JyAJVgUc8mPm1kG0V5qBT43iras1fMZgOIPdpPYvjIPp5Aid3Bc/j5
-# B4nu++npL6BM8GN1yZAepw788GcoGN3Xglufn1u/J0wj3UbXSd2JnY2klm2TS+7W
-# oOfvxFhsYZRHJcijqj0MZws6fcEuAQD/fJHoYPp0K6Ql33iOTvjH4wqxtLml5ocU
-# i+WN8OLS6kVc2NMgnry5UEvqaHCYJyiYou2A3BgRx3Nn8G3NYNRtVbva7lSCNM1Y
-# JR/8y8HDbNlhyEtCJvsfAk+qP0nXuPCDdY/jpiXBOzNEZSx18ovyuHfCT5SKLawh
-# jYly6UXD/6eUp0+O9gQ/ik2tcfJRtd7BDdCo25yWhhuidLQ4dDAylnyDNRGNrhng
-# 4zvu/ZptoedEUaDglEpaPA4ghyX/scLaHEuaFyf4JHHxrzVWGjJMw0NoHpDLW6G0
-# HoROweC6cWONoRfDncZQXMZS7jWUG63Bh7hqO7Vno25TAeBIaH8rjrR2U3PAE3eX
-# Gq917r8Ps50ynechm6WH2pQjl4HyPg==
+# BTEPFw0yNjA0MjcxNTE5NTlaMC8GCSqGSIb3DQEJBDEiBCBxPnAkSWGJR0U7PjQi
+# rgaenvLO7wA7vtrPi9uXsoDP2zANBgkqhkiG9w0BAQEFAASCAgA0D/VpwVk8yoe2
+# 5DyE7Th4HQIN8hR5Ek/gKNURsBnq5BhbNoN3N4XW6Xnqsky0kRjkB58KWrDj3PIp
+# gFHAmPDFGQ2unlq2GIr+RwLxcVmJj5wj3jqvqaDLkGvV2i0oYXZtmH3Wg15CZ7O+
+# h1qm8aKdpPnGNOT/T1cF0IOZjLiwyCHnewEkMz/FWz94qhTDPBTCogapG8pH53Dv
+# dxFLhucNhSj0Bsyf4IRjc74tBoYyqBJv6uk/Cvg+k4AGW7g8uuIAfZfxFWBH2RPN
+# ueTyP4OvBPJGn8wNt7e2A/p+KxIcUnpbgMIUk4OY94NvxXh4Nqm1a6wLCt93u4mp
+# jnIA0y2RuTHkv1dSwgkNzEtrf1Nl8wE7L5kD9Xohw0dFY5Yn6Z7kLHvnWN7Fm7Rj
+# xiHxfrMMsJxAHk6e2cD6tKLXcXSYnqhDt57g90Jhi9jbhwJNxyosFlzO6hw6hwsP
+# Mkw6d4ORob5DmkWxhVLGigWhlmOXpqyDTNCfyJhDBBZgRcbHghX/EYvfS8Nhadjw
+# ZzeMRkPhdf5whtaagzeBshljQ0FN14fNnJQw92HqR4EERwJhP8OlVhspcNdnFpny
+# BoWBR/8tTMk7mw7rSOeTMBHr653Cnf7gQaLdsqvnCD6AgfOXVj+WLJbSjlqDayiz
+# lUVJ16PotlJ4da2vG0cTL4QzC98Naw==
 # SIG # End signature block
