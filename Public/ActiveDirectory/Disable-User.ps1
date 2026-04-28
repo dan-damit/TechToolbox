@@ -255,6 +255,8 @@ function Disable-User {
             -SkipIfAlreadyPresent `
             -Credential $Credential | Out-Null
 
+        $descriptionNote = $note
+
         # --- Optional: cleanup AD groups ---
         if ($effective.CleanupADGroups) {
             Write-Log -Level Info -Message ("Offboarding: Cleaning AD group memberships for '{0}'..." -f $user.SamAccountName)
@@ -380,7 +382,7 @@ function Disable-User {
                 # Append EXO results to AD Description note
                 $forwardFailed = -not [string]::IsNullOrWhiteSpace($results['ForwardingError'])
 
-                $note = if ($effective.IncludeEXO) {
+                $finalNote = if ($effective.IncludeEXO) {
                     if ($forwardTarget) {
                         if ($forwardFailed) {
                             "Disabled on $dateStamp > Mail forwarding FAILED to $forwardTarget ($forwardSource)"
@@ -397,11 +399,13 @@ function Disable-User {
                     "Disabled on $dateStamp"
                 }
 
-                Set-OffboardingAdDescription `
-                    -SamAccountName $user.SamAccountName `
-                    -Note $note `
-                    -SkipIfAlreadyPresent `
-                    -Credential $Credential | Out-Null
+                if ($finalNote -ne $descriptionNote) {
+                    Set-OffboardingAdDescription `
+                        -SamAccountName $user.SamAccountName `
+                        -Note $finalNote `
+                        -SkipIfAlreadyPresent `
+                        -Credential $Credential | Out-Null
+                }
             }
         }
         elseif (-not $user.UserPrincipalName) {
@@ -440,8 +444,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA6u2lC5aXHQRfx
-# g/JA41jxafzUx4RToPYS1wQfP89qJKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCuHe9jI1LOazCY
+# PiSo8yfXSQjLCDy5qvw0eB3JbtcG7qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -574,34 +578,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA5oi8Ccifb
-# 78I0dQhtpG5cDEAHgn5n7zavj2mr3qBMkDANBgkqhkiG9w0BAQEFAASCAgCg7gXv
-# Mnozgvb4sz1PkVeXEN1tq1Od3jisq8neGfxsuLkhXVaQbyJNoMfGZMZld0va/7Y+
-# GwNx1wjWhVF0G/zWHcHjExIlkp+SXB+7ykU/jNlJlCElF56lC+Ubyn6g/AnN/Zwy
-# Or9y/taXiM1k0qpQaqKhiTCTFqjzZaq9cuKR8kiaz6cMnGGCFBzvtR9k0+QaKsvI
-# N99fU2ap7TtNSOSsCSxNoVwdUeQyAWAXEj3/QkKsPHS1GYTArluEjzWkORlB1Lj6
-# fDD3uYXShK+QWR/KfGE6TskDb12SEXQ/k9a4711EqTM0Eb+6v3OJoN92wPPtKga4
-# TvUXWg6Ot3ECGziA0+dv9xPaU3cnP0x6wq2gqs9rU7EsKALQ+gzlTmsl6JnsdESd
-# xy/ue3Atm+dNoqSWe/T5rwaEbbu2l0+Tl2InUFGbwFKWNcm9zYeOOtGlnsuamJVd
-# iak8/5EVbxCsoBbHwfSpQ1UWnems/M/a5tyNoAc+UEGmuwdhrx1NosUZj4G6Xod+
-# JaTjlla7zwXMqQ99hHGERB+RDaU2vZ10ZRi9jn+RQsX1YQK0xInnC+D4IjVpi21S
-# 9qJndyNNb37AeibHEz0e9x9UORJAoYOiI6p9eEHsVif1MRM1Ork0eC1duTaZkTiw
-# pMbEgwWDkTX1gTW5jMlK6HfoY/mrXEMnyhX2qaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB2RVtrLSkc
+# lIxX6BNs8a39SMQBK9vfK6CdzubtkCQTxDANBgkqhkiG9w0BAQEFAASCAgCFa622
+# XgAYuIxNdk9nXG8eOvlV4DKD/uIThuI7QQAGHJuv78Pia2sYfx2FxwkZpvzDjuUJ
+# A2EreDVzLE/uOc680yqvOqmOD8p/OYL6NI6r8Lh5aH56dwktFAryhjzG8c35C43f
+# WQBxUyoebwRQagTRRBGbLLevlVvRDqIKOzcfFuW26jKzMzXyWLv6C9S2Ckw2WR8d
+# 2OjQGRvmSB7YIzZwVYQ4WMg1psNenKZ8pLb/x1VmBDp4aKGjy2idNy+MtI/ni9Or
+# lUoyU7QuhQslPlThdP9KWMWDyYOvi+e/IlYzelyMdWlcmeO66CEq6oyQCHJgmplv
+# LKDeOKlRAjJYlyJnuP4vgl+1kCrLoPAgdLwwmYvzksDBCw6rh19ds5jg1GCiRmq9
+# iNRzLNJSm5xdPkU+qVDVAuyOaTVSHhoiX6+apdz/LKcTaDPoufHN6aGkTaDvLJcc
+# 9E3jDC0dmRygB2PWbHuOl8M1CP25VHsH6Ai/vypFOvei3k5eKDFN9enBtvLi5JRy
+# PVO8RlG+62PvxMPdJ4ctBtPJckUljCHVzOITfcn/TcKXzlH8dO+WxNe1/ANifEto
+# uXxyzQ0q4A9tFIRau6SUu04zP4d0dGg4qaO4T56ujJPTNxXAmUEmTYEAU0CWOgtr
+# iUgKdAR4+f8yFmTgFoeSb9RjFH03PPO5JjnV5KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTcxNTUzNTBaMC8GCSqGSIb3DQEJBDEiBCBHOQtB6B3HfMG+hnTS
-# /eHUX4jcmutRITfj09GoSaN09TANBgkqhkiG9w0BAQEFAASCAgA5tU3slgPWPsky
-# 4O9B3Lnl31WwfLyksWjPX3Kohdop1g5je1vPjsY8HCDrd2kMg7l3Qml5BXXP9C9k
-# qrFzpurEylyN5+Ac15yj7ZIqHUrr1QanmMqE0qTh3Su1sNlCaHlEqy8F4doJeafl
-# oIi0PuMW+pSiYaBZZhhob8gY1zZcR1ZiX1Zq4FvKzc9+GvKTUE9S/IHStn2miAcJ
-# ofqxY9jjVt9pmBduqKkSLwq97TP6Ki1msMkQ/oMgxb+ukd9lPsEAQWVr0gHRM1uu
-# ZZXh6OcbxHMLU8zRWQODoOyetWkxQ1uoe4pSQ9Dc1Gvw5EyjZksaf7p+TN5a6H2S
-# frfkN1UxJriKngTmaN+7Ll4x+uqxViUA2UAVf79zbTCoJ2/lzohRjDgb6z3CcpVE
-# hb/QNe9KmFTaz3tb1TMcjd590S8TlEPh9fhlW0bh9YwheYrp13xlY1nIJYcm1vNv
-# FB548NIcOqkTrNge7HtsKeSNgITXJjvl50ODMEwbaVmI/vTxLBCUg+BFl4bCrmqe
-# t2KSPXmxIYbPrlHv13lwt7k1SM2qVrvt6XMXOK9LuwKcteAHWGuYf6Y0JD4SOjyG
-# M1BvrCUD4YqfYd5iVCEPWV0YsoXeJ2j2pyPZ88GUvP87qKjLYbYAg6GAn7ICGXbl
-# BFTz5J6Kczn41pIocIWe+oPF4YzDzg==
+# BTEPFw0yNjA0MjgxMzI3MzFaMC8GCSqGSIb3DQEJBDEiBCCaFZNUfXZAGp1PNmOu
+# KBUoSKfjz4JdTXRKdxhPxheEKDANBgkqhkiG9w0BAQEFAASCAgALtuyVg48NHmMF
+# Pryrlq0Nat0USUjJkghrSNGMGT087oE/R0GjN13Upvqm82FOWv+zjzADxwR8jdbK
+# +DHNInDvt5gJqL6xYGUMKmdGrM1yl1SnZXX3XBzSMzHq7MUGhLMtXkae0kwyqxKF
+# FFsdL9rD2QSTXvZDerSWUl//KxUCVRng3WgUcg2WO1ySj/jrlvZ8tn8TLPnId0Ig
+# /SCSuFncLTpvfWO3FdiUstLYpFWuY0/ntyG4WteF+hMsohdT7s9j0mg5epn6tjCj
+# LLBcg0rOzxlATRU1X3R8LUFKaCgAoWAPxgTTTuK0NxBVu0hlYpQ1qHBcm6VXqkXF
+# keQPvEq316OSowzWeE2ix1qFMAdWP2bameyGKqk1NwaSBnMH1TFC7d+Dxag6BWFP
+# X3DwWf1UO/GXDUbeEoU25Ughe8pzcMQpX3PIjdZ4DGAsDmch48Cu1IFg+XMZ8hLu
+# 77JHJfV9Vxzsl2eLBEZAh42+RyUZ8DqlVljQKGgSVpV+G6fIjj3OQqpAOejHt/rR
+# TSMHP1grzQtVgbzAhPNv3zLe5zzkbtdN+YEVlspEal6177vVduKU8Uu/k17zQ3JO
+# LkBUI3Ph3Q7L8eV1qi7HXGrtKGa6tdPAc5NGokWTwCRRv2CkKGyiTN3f4qFjHP0V
+# 5Z7+mFx/wAC5Z7pcASYDYE11bG3/BQ==
 # SIG # End signature block
