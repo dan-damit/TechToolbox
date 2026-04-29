@@ -8,6 +8,8 @@ The goal is to provide fast, private, technician‑grade code review with:
 - Markdown report generation  
 - folder‑level automation  
 - zero cloud dependency  
+- added an AI Agent functionality for assistance with building and integrating
+  new toolkits
 
 All analysis is performed **entirely on the local machine**.
 
@@ -51,6 +53,15 @@ Simple wrapper script to simplify the CLI inputs for the user
 **Usage:**
 ```powershell
 Invoke-CodeAssistantWrapper .\Path\to\your\script
+```
+
+---
+
+### 'Invoke-TechAgent'
+
+**Usage:**
+```powershell
+Invoke-TechAgent -Prompt "Cleanup the harddrive on localhost"
 ```
 
 ---
