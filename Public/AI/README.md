@@ -85,7 +85,7 @@ These commands are intentionally built for **local analysis only**:
 - No code is sent to cloud services.  
 - No external API calls are made.  
 - All artifacts are stored locally.  
-- All processing happens on Dan’s personal rig.
+- All processing happens on your hardware.
 
 This ensures:
 
