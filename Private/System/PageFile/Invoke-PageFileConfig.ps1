@@ -1,35 +1,56 @@
-
-function Read-Int {
+function Invoke-PageFileConfig {
     <#
     .SYNOPSIS
-        Prompts the user to enter an integer within specified bounds.
+        Configures the Windows page file at a given path with the specified sizes.
+
+    .DESCRIPTION
+        Disables automatic page file management, then creates or updates a manual
+        page file entry via WMI. Returns $true on success, $false on failure.
+
+    .PARAMETER Path
+        The full path for the page file (e.g. C:\pagefile.sys).
+
+    .PARAMETER InitialSize
+        The initial (minimum) page file size in MB.
+
+    .PARAMETER MaximumSize
+        The maximum page file size in MB.
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)][string]$Prompt,
-        [Parameter()][int]$Min = 16,
-        [Parameter()][int]$Max = 2097152
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][int]$InitialSize,
+        [Parameter(Mandatory)][int]$MaximumSize
     )
 
-    while ($true) {
-        $value = Read-Host $Prompt
-        $parsed = 0
-        if ([int]::TryParse($value, [ref]$parsed)) {
-            if ($parsed -ge $Min -and $parsed -le $Max) {
-                return $parsed
-            }
-            Write-Log -Level Warning -Message "Enter a value between $Min and $Max."
-        }
-        else {
-            Write-Log -Level Warning -Message "Enter a whole number (MB)."
+    # Disable automatic page file management
+    $cs = Get-CimInstance -ClassName Win32_ComputerSystem
+    Set-CimInstance -InputObject $cs -Property @{ AutomaticManagedPagefile = $false }
+
+    $existing = Get-CimInstance -ClassName Win32_PageFileSetting -Filter "Name='$($Path -replace '\\', '\\')'"
+
+    if ($existing) {
+        Set-CimInstance -InputObject $existing -Property @{
+            InitialSize = $InitialSize
+            MaximumSize = $MaximumSize
         }
     }
+    else {
+        New-CimInstance -ClassName Win32_PageFileSetting -Property @{
+            Name        = $Path
+            InitialSize = $InitialSize
+            MaximumSize = $MaximumSize
+        } | Out-Null
+    }
+
+    return $true
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCTs2dV+nqrxVkS
-# LjxGbtN/fiNIoN4GDtxkozn6t9NXGaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB9ztqzz/9NoFV0
+# oTboibVaylOX79xYOs6Prig2iEVoGaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -162,34 +183,34 @@ function Read-Int {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBB2ahY29dR
-# nlECkEWQNbLZokfGaHVPLZiVXdoOLpH4zzANBgkqhkiG9w0BAQEFAASCAgBtDVfK
-# tWFQmZKVFaKMpPiOvETgzTiwzD7rIP7rUpdvQ2AYvduuasf0PzpX0ZH7ATDUw0BN
-# RChTi/+Gds4t0oOkEfnW9XRvftUDgEG9jfKEQUJ8edOSKolnuSlntJdT8oSSR11c
-# 6VsZ60QU1tci4rY1IdlQGHi6vvex8iJaUwUMvD6hZh2rRO1cwnsNPfKOWksy0X8f
-# ubxCHA+LeUgtjR+8h+ZDxR/FdQ7W++j8TxGFRQ/nlWqYpD+mrFcXTR8Iq7YxdyMP
-# xt0IjBj65IesVJ6rAzQbFb3pwvU7sjgz5fHin+tTq90K95tjJCFji2Gf3N7hwbjc
-# L/TE17RU/+MJ5bcljTjCDdTek31wSG3pV2M97bebo7BvhvZ52y5jgRWH88SaZ58C
-# PFDoJn0itvi0wYWEELCZl91MlxmIQF5pIJHSMkWZ1yaDACa36iPenAEKbRC1bl8D
-# Hh7vpG4ce5YdJuF6PWf3nzOK00bjj/VF3c+TWAetqi81o6GQaDu9z1KdcMzNCLzU
-# ODELzASANDLkm6SbBFj3z8WsEO27N/GCy7GkV/VxtqINx3xTY1hL/2AQ2pKOax8q
-# oUo3YcvJiT647/Z2oiQgmoVQ4vj9+tR0SrD+V3r4+J99VScibTPInKMPEnz/6Ff+
-# QmjmpbXuCFYSjhAsLJE21a567YK9O+gYK9gBU6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBLXrzmqiCg
+# HOegCPS4MS5/QbVBaFEwLxpsGQXyusPGnjANBgkqhkiG9w0BAQEFAASCAgAWMS3r
+# HHDRKBwpfDkcG4jS7GkXDKEGgxIXLMYaP24rPDKseICTlDCS0gEgdnMFK4gpOV92
+# C2gME8wHlBPRAKjMF5sqPGh5g93w5XygS4/aQ/gq8sUm6/fXtqV+zzBdP/g2G9xK
+# sLXyj62Ic6xkwfWN+K340GB0++E7LLPbyz/6rwowfnIC/sEt1b3u43FUo9IeD04+
+# wkfnxsXhDWSZFDNU0FqO6twPQoOW+ge6QGumRqAztFgA4GQ7+xpsKlZiTOiaADIa
+# K13yu4ozvgLDN2W3kvJT7T5pGzYaR/SCfJxsikoFPe95RSMcuoR1kyXhFxXd+kVl
+# upNYPQaPOnooy7rPW/FM2jcto25uvixjhouaoyqvKt3NWc5fBfLIMs9Oeq1tdPug
+# podJMUu6TMmjpBk0a3zVBluj0SGrU40hc05XRlS4H8MIiEpTWdC6rZ6kRliPWOVe
+# NYOMwbejrGFDnEVnx7wv69bmoBumYoqtq9tPofRowwx5Id11PisyGdFs+o0q2trv
+# pquw46O30XBr+OhOUMegAS36ySp357zW1Lvko18FfQTYRgNLdzzqqAxtdbqBcdEL
+# qGIJIHcst9Zophl5/NWOB+zKRyYRmLvqZm4eMKbvfWHfAXjbWWaJHWiTj1a3pRjE
+# gexwyCzmz7eWpvPceFQxPUDkGhUdHwAPPY6mY6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjgxNTIwMDNaMC8GCSqGSIb3DQEJBDEiBCCqpTZly809lMWk61/w
-# j2xACWfQZhKKOu4CtgRPu1uOSjANBgkqhkiG9w0BAQEFAASCAgDJihBodGjbCAVe
-# eagSMcQmZYvGvOQDI8y4zOUROjSlUInrLriVjsXeF+ScGhnJ7KWJsoz9Biy4BrJw
-# /mWh1XATwomXs6htNZFGSjXq+W4LFX5111B+lJZyeqF8ZiFdgjCIQkO8Y905yN0u
-# xXrY1qHL37afPKt3+Y7xDM3nK5bufQ4twwzBHU/EKBDzncju7kAWs5T6VtF9fkEW
-# dAxfPjbJnG2Y35Ba3vqqWex2GhrDAmXFsmS5XkFp5bsI3KasXJ1+Sl9tNrObtleZ
-# OXHoMRoaaeylbJRB6RpQe886pbbsLvjGWGlCXKAKB5EVqlVN4sUC4RJZlIV159/5
-# 0r8NwJorkAtZ5NsLE67Ycm+Xk/zLxM9c7FMjkAJnhBTDR0MxeTiBniW2rhOj/Khp
-# F0eZAYRqJrHe2d64duzSaueLy+NG0XwlX8RMp9CaKyjDtmqRD2qZDKg2bqhz948X
-# TZH5/0Sr25ep9wqNik5GVy6RqnexIfAfouGgE16Dt+v0wEKvDJOJn6IRg6AEHH5p
-# o/YSJTzBvy8NFvhgNcu0qFTbkwxHBrL+ItsDXJx/nbBzNPEZ8TZBdBkMtRUCKtT2
-# NRQ5ZgYTy7G9PcVjzyIfyTvXieAQX9tTONBH2Kd+iQtU9FFeAkOa6EinpSIV7uWt
-# wdTpYrCgjeU/upng9ro9jvFBbwqtMA==
+# BTEPFw0yNjA0MjgxNTIxMjlaMC8GCSqGSIb3DQEJBDEiBCBULZO9pdfhZbUpuPiM
+# a9scSJ2Ap2C9uTNmdcNKfHJtIDANBgkqhkiG9w0BAQEFAASCAgBbKIQLifgG/oLE
+# 1rvDj99woW07M2whnvYI6R/wOUn8LOeTLYaEv3aNI2PpnLddvZo5zqN/AXx3hRca
+# TMVsWkgzpt/L4LD6hrdm5y8mwjH0SroEw0H0ijVxKGG2uSN2F9um0noxeKznvhBC
+# DYjkUY/Wy84z91qVQUqQPuK5kQvP4yBbdMYELM+BRC3C8rJIrrf/RKivgu2dP5rM
+# St3EGj86z3OjHwyLmSxThJ293Q73gB6ohD5vODiM4arVxghKOjYMpY/kpUvUtI6n
+# 2Q+AoGlDiaRFwt3N7lFe0dxTKDCY4ierB6aGNS+NlHDnEYr7KO0A8lY3UIfPDbS1
+# ZZR74HyLc4TipBxom6CLZGOwiuWiFkpPqZQJRqqM5VmsrEKWtaKHxNXNnsiLUDPa
+# x+LvlAb6016iNLTN/6WsD0/GvaJhZNPYKPc8CYhxjw7P+j91JuuKp9cb9aaWbdy/
+# ePuFJUbc2MGSjEvY42pb4I2ITKu2a/tc6+yaS5mvZHH4MZxLQTKUz1zzKab6ymtm
+# 1Qcw4bIkBk+0DSoNXv02c00nArP/f/5BYWUjZirCtSTFC8s9pLhxROgCRUCAkt3h
+# Bdpg7RtjpGPgaNIxe+joUAowbld2Vu0UOGq06ve5ZrmiyIZmof5BlkPnPuNEHAIe
+# 7J78oSN1L9hHWdo+9wy2a/kxiehPcQ==
 # SIG # End signature block

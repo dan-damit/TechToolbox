@@ -19,13 +19,18 @@ function Set-PageFileSize {
     .PARAMETER Path
     The path where the page file will be created. Defaults to configured default
     path.
+
+    .PARAMETER Credential
+    Credentials to use when connecting to the remote computer. If not provided,
+    falls back to the promptForCredentials setting in config.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)][string]$ComputerName,
         [int]$InitialSize,
         [int]$MaximumSize,
-        [string]$Path
+        [string]$Path,
+        [PSCredential]$Credential
     )
 
     Initialize-TechToolboxRuntime
@@ -44,16 +49,15 @@ function Set-PageFileSize {
         $MaximumSize = Read-Int -Prompt "Enter maximum pagefile size (MB)" -Min $InitialSize -Max $maxSize
     }
 
-    $creds = $null
-    if ($script:cfg.settings.defaults.promptForCredentials) {
-        $creds = Get-Credential -Message "Enter credentials for $ComputerName"
+    if (-not $Credential -and $script:cfg.settings.defaults.promptForCredentials) {
+        $Credential = Get-Credential -Message "Enter credentials for $ComputerName"
     }
 
     Write-Log -Level Info -Message "Connecting to $ComputerName..."
 
     $session = $null
     try {
-        $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $creds
+        $session = Start-NewPSRemoteSession -ComputerName $ComputerName -Credential $Credential
         Write-Log -Level Ok -Message "Connected to $ComputerName."
     }
     catch {
@@ -103,7 +107,7 @@ function Set-PageFileSize {
     $resp = Read-Host "Reboot $ComputerName now? (y/n)"
     if ($resp -match '^(y|yes)$') {
         Write-Log -Level Info -Message "Rebooting $ComputerName..."
-        Restart-Computer -ComputerName $ComputerName -Force -Credential $creds
+        Restart-Computer -ComputerName $ComputerName -Force -Credential $Credential
     }
     else {
         Write-Log -Level Warn -Message "Reboot later to apply changes."
@@ -113,8 +117,8 @@ function Set-PageFileSize {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC5peLlqMKnPdnG
-# UyCBsIhrcYJgPMk4XWVAxKGUa2UatKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBLcTzd02ccAgSa
+# 3Y3RrVQAyqvHBVVIOSpw6UBQLKeMKaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -247,34 +251,34 @@ function Set-PageFileSize {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBjLBF71W4C
-# reaaJkSsRRBDgBH3mSFzg6Pkm1vdfKGwujANBgkqhkiG9w0BAQEFAASCAgDOssxG
-# Aafwe4rZ+FmVlEikgoZq6GboEE7h1vddCljm8MJcEn7ZdZl13HiAClloKCpzgVIN
-# uZM0ulNU8JO9dIVP3hvu3u2gMY36bwuWIs1LsnBhT83QhDNhlQNVjZJysT9CbZJF
-# Nve45RWoEEpHy9on8tBsBWVBXKYRpy2uubUvPZkqzX1N8BM7EfqbuZVSmaXiZy62
-# pz9VkUeyPbqAsQr+FXKUTzzeq3rfb2i7p/aAJdeZ3gRVBAtq1WD00LONy4cdBdlg
-# Dk/Z2x2PPnR+D9HLxlDvth15JMqesubK0F99YjBKbZIndnt0r7q1yMQ9a3rVKpbW
-# vRTbH+EPfU+V6tUTwbhijQChDdv8FPRde7ZTGF+u/dYcznLBQ9Y+r0X0nVQF0tMv
-# rA2jSAMwSAS8II+ZzewfsnF4yuSpVpIuTMPh3sgq/YAe7NusMJQKM1FzmpUvmm/F
-# 3jIBb/vwnGNkINIcNdsFc3Q4J3aOTuIPwvIdIccd1jKH8LQV7/toFd4Z9d642Kk6
-# /DLlYOY8QfQGtIHK5h5Jj9nxpbK7uQrVdDf75Ep7f7o69CMfG263EThekoBhXbxe
-# V/m3onDSeppD6xooKaOcYaQH1AFKlDP5gW8TD1wDWfyGiujQggpxo1HkBCC2+N3D
-# 8J2kKP2CbAWj7BL3UWBIzB1XeGF/knBfxdtKAqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBmlEGtOi6a
+# yuK2GRQn1CT6rJ/PckDCayY1vQ/2rO9E2zANBgkqhkiG9w0BAQEFAASCAgCh/phu
+# q4K3r6OZiQQpPLCsYn2VauNxHF5PVuRtcL8sXial8ytl9hh/fAyV3DJLhnLZ7IIs
+# dSdgjKb9WWrsyuAAJ7KXU2RXTB5/c8eIzE+vdXANhwmHaDWziShQ5QmY43fKwXLs
+# db++BtvHhGCt4Sv0LNuexpasBuhiToNS0n4CL7Xj9YUDGeMPR7FDq9HiRau1g6mN
+# daUz17hQxnPdqtG08eXYNGnWirkAgKHy+2o4QI13a6bcdczAWDDkyTDEVTV8KPEo
+# CgbxgaExGlr8AKfQf6WTOVSa0fIVNUfYsookouGW1Rf+YLQkrZfsUozHjWwii/6k
+# Yk2+ObpvIVqt66iPJdzw2QuWbFUDkbQMOhOmZInaSfs1hrBMZBtuZLDDufMt1FHo
+# WS6Q2p7CDEPVEdpO6M6kKwIt8PtYGIhJ+Sbj67hDjhS7gnCkLhjtIX3zFngULEFK
+# 3yJDBlLwL8CZvBFwI+zTS6U1NFcmPBhaOM6Nue6ZB9Eig8xIe+xZsu0K3VipKBBo
+# yupqrNL0n29DvF0U8vB1v0UCOwRW4WJF/JlaRxbhq3OMHRG6iiZYUGL4C8x0cdC4
+# YHC7j1CXoKo/z7KyoBxlT22ePSW7NaFZIG1r7qUl+gu0DoFxrmwFtfLSsLqTyxlc
+# N9QEI4qTpHlCJEpNnkAVI7KR4xDLBeK2Z19/W6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTIyMjAxMzBaMC8GCSqGSIb3DQEJBDEiBCD6xrCrv0EALZ4lt/kI
-# 1WzOkmdotuxmJlpIZX7VP52V/jANBgkqhkiG9w0BAQEFAASCAgBMu3LWrJQFQpg/
-# 0RKNiPmJIOJ8mbLZN+mkz895Uaxy1rd5FDTomFDB4PmneGGDpsZhMT/mXo1ffAbp
-# arZ6xZhbgftA3RsU1w5oAp/bboDJWv8mNDgtPe34hViO3ZCJaue3vjOHZGgM4brI
-# NVXlUgVdKyFYTfCDza+DRpkPi7aCrTfsCtPTUG5GSGNYwQ89aHo7iAIiBWxvEdDf
-# PHNRUQvPg708f/0kaMXFUQTGA1FncGGWLhq5iMHtzwFc3IN/Iv4YpObJc2cS1HpX
-# FT8b1WlbWnGeDRKtJVfd2GU8+DUCGfYd9PAFDf2c9vEnFUhvIUkv1JxXJRx84ZFs
-# XXlwpjo+ogPXIGFvl0BuFIuwhZF85haCddv59mgz8aptFDPGhD0x/MSVCElPWCnI
-# tFJ3H12ZSHlaOKm7GtAPFFNta7jCOUjxKWKNqrCvUDkHRWcRsIWn4Z6zMN5ppjuJ
-# 1tlM2x/2jaP7ftmS6m66i9aw4qxgQuwwxZOQQXBE9vQAuH2Uuz0+nRB1uqbOnr/m
-# BUn0zK5U2im/xZKAf3v9zioay8yxrp7VI9fZhN3gAWQKJasnW5iQ8lH1Klcs0txY
-# a2AlbGMNUWTHKiiDlWmXi+fHaE/bBZ27DXh/8NycfbwF+dsngwucqWlq64ZJwWvy
-# nquN4O6+hZ4eiIzKqmY0Kb8uivd+fA==
+# BTEPFw0yNjA0MjgxNTE4MTJaMC8GCSqGSIb3DQEJBDEiBCAcxRrbAbQ5RuDZQfRg
+# p3FnmZE+reFpg5uf6yXNVWNlYjANBgkqhkiG9w0BAQEFAASCAgAHj5rw46Ob7k3a
+# dItcor3lkmHuDL6xjuKnDL1yXF4JmCRdw3jdESnE0CJKiOhv5IELcGSl2WLlpEkH
+# sKz70IIKlS/ciCN5EclwOrPC9JLKuwTCbNHAVIx+Vuo44+Vm5qnVQQWfGz8Lg10a
+# pgfLoCcZJ0NQJj3gawA1gGZmz/wNlogKOfvA5poBF7ZzHh9UzqDXnFVxLCWwkH9i
+# uaFDhejMQu5GfrFAf/phkfTMWHh09gYjNa+PEuVAXEbjFgCoM97SJ2dre9UeThJP
+# k4cIkOYbDYkvpcXao9xLb3Qfs3npWCrIK/Xt0GT/zFDEx5EOcOs+AWsAqxwht7Qg
+# vu1CPvbL/ZwulSl9cZWFsj8ENdAEEJ0MhLTrYOwDRoagtIqOrQYbB+gQC7wYy1ls
+# 79cOwQrmAuawUkyXUlHWu6wU8myYLh8jwAa5Qpqi9dgGjXQC33BGSHt97bEC0cUm
+# VHdPxO15mTvZhFbEtOmloSjlzLc2umGFChDTPNoQXCkTr3Cz1oyVj230PH3iKsAq
+# DJCy3G/kR1cugSgkkXGoWU5ZnuxDoQvhJLKnfXuLtLj7PLDDi8jpunNcRKCfoOgQ
+# vWkQvN7PlLydJfNOAI/SWHAYO9q9k8IN9sCPZWxNKMzAO7T1AAyMMJP0FZo+kKG5
+# CL5ahgoH44nTseXQkC8DzwkHb0Qqkw==
 # SIG # End signature block
