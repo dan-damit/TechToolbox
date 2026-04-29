@@ -9,14 +9,54 @@ import subprocess
 from pathlib import Path
 
 
+def _module_manifest_path() -> Path:
+    """Resolve the module manifest path from the repository layout."""
+    return Path(__file__).resolve().parents[2] / "TechToolbox.psd1"
+
+
+def _parse_json_payload(payload: str):
+    """Parse JSON payload while tolerating leading/trailing noise."""
+    text = (payload or "").strip()
+    if not text:
+        return []
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start_candidates = [i for i in (text.find("["), text.find("{")) if i != -1]
+        if not start_candidates:
+            raise
+        start = min(start_candidates)
+
+        end_list = text.rfind("]")
+        end_obj = text.rfind("}")
+        end = max(end_list, end_obj)
+        if end == -1 or end <= start:
+            raise
+
+        return json.loads(text[start : end + 1])
+
+
 def discover_tools():
     """
     Calls PowerShell to enumerate functions in the TechToolbox module.
     """
     script_path = Path(__file__).parent / "Export-ToolboxFunctions.ps1"
+    module_manifest = _module_manifest_path()
+
+    if not module_manifest.exists():
+        raise RuntimeError(f"Module manifest not found: {module_manifest}")
 
     result = subprocess.run(
-        ["pwsh", "-File", str(script_path)],
+        [
+            "pwsh",
+            "-NoLogo",
+            "-NonInteractive",
+            "-File",
+            str(script_path),
+            "-ModuleName",
+            str(module_manifest),
+        ],
         capture_output=True,
         text=True
     )
@@ -24,7 +64,10 @@ def discover_tools():
     if result.returncode != 0:
         raise RuntimeError(f"Tool discovery failed: {result.stderr}")
 
-    return json.loads(result.stdout)
+    discovered = _parse_json_payload(result.stdout)
+    if isinstance(discovered, dict):
+        return [discovered]
+    return discovered
 
 
 def load_manifest():

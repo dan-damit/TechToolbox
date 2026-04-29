@@ -10,6 +10,18 @@ function Invoke-TechAgent {
     .PARAMETER Prompt
         The natural-language instruction for the agent.
 
+    .PARAMETER Model
+        Optional Ollama model name (for example: llama3, mistral, qwen2.5-coder).
+
+    .PARAMETER MaxIterations
+        Maximum number of tool/reasoning iterations before the agent concludes.
+
+    .PARAMETER Quiet
+        Suppresses verbose Python-side agent traces.
+
+    .PARAMETER ConfirmDestructive
+        Explicitly authorizes destructive operations for this run.
+
     .EXAMPLE
         Invoke-TechAgent "Run system diagnostics and summarize findings."
     #>
@@ -17,27 +29,94 @@ function Invoke-TechAgent {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Prompt
+        [ValidateNotNullOrEmpty()]
+        [string]$Prompt,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$Model,
+
+        [Parameter()]
+        [ValidateRange(1, 500)]
+        [int]$MaxIterations = 15,
+
+        [Parameter()]
+        [switch]$Quiet,
+
+        [Parameter()]
+        [switch]$ConfirmDestructive
     )
 
     Initialize-TechToolboxRuntime
 
-    # Resolve agent path relative to module root
-    $agentPath = Join-Path $PSScriptRoot "..\AI\Agent\tech_agent.py"
-    $agentPath = (Resolve-Path $agentPath).Path
+    try {
+        # Resolve agent path from module root (Public/AI is not the module root).
+        $moduleRoot = Get-ModuleRoot
+        $agentPath = Join-Path $moduleRoot 'AI\Agent\tech_agent.py'
 
-    # Execute the agent
-    $result = python $agentPath --prompt $Prompt
+        if (-not (Test-Path -LiteralPath $agentPath -PathType Leaf)) {
+            throw "Tech agent entry script not found: $agentPath"
+        }
 
-    # Output result
-    Write-Log -Level Info -Message $result
+        $pythonCommand = Get-Command -Name python -ErrorAction SilentlyContinue
+        $pythonArgsPrefix = @()
+
+        if (-not $pythonCommand) {
+            $pythonCommand = Get-Command -Name py -ErrorAction SilentlyContinue
+            if ($pythonCommand) {
+                $pythonArgsPrefix = @('-3')
+            }
+        }
+
+        if (-not $pythonCommand) {
+            throw "Python executable not found. Install Python or add it to PATH (python/py)."
+        }
+
+        Write-Log -Level Info -Message ("Invoking local tech agent: {0}" -f $agentPath)
+
+        $pythonArgs = @()
+        $pythonArgs += $pythonArgsPrefix
+        $pythonArgs += @($agentPath, '--prompt', $Prompt, '--max-iterations', $MaxIterations)
+
+        if (-not [string]::IsNullOrWhiteSpace($Model)) {
+            $pythonArgs += @('--model', $Model)
+        }
+
+        if ($Quiet.IsPresent) {
+            $pythonArgs += '--quiet'
+        }
+
+        if ($ConfirmDestructive.IsPresent) {
+            Write-Log -Level Warn -Message 'Destructive operations explicitly authorized for this run.'
+            $pythonArgs += '--destructive-confirmed'
+        }
+
+        $result = & $pythonCommand.Source @pythonArgs 2>&1
+
+        if ($LASTEXITCODE -ne 0) {
+            $errorText = ($result | Out-String).Trim()
+            throw ("Tech agent exited with code {0}: {1}" -f $LASTEXITCODE, $errorText)
+        }
+
+        $message = ($result | Out-String).Trim()
+        if ([string]::IsNullOrWhiteSpace($message)) {
+            $message = 'Tech agent completed successfully with no output.'
+        }
+
+        Write-Log -Level Info -Message $message
+        return $message
+    }
+    catch {
+        Write-Log -Level Error -Message ("Invoke-TechAgent failed: {0}" -f $_.Exception.Message)
+        throw
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCfDIyXhMB3cvLf
-# rW0EEm0+yvMUOyuwXrbLadnEMRNDc6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAkgtCIj461ptcp
+# 9NrwYeZ/jKO5tRrEt8eVIJD7QZM3MKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -170,34 +249,34 @@ function Invoke-TechAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBT+1G/5Ea1
-# dSEYxeFfSQ0cjlYWsCe/QQaPNnIUc5J/9DANBgkqhkiG9w0BAQEFAASCAgCL+66V
-# mYqSJ/YVQbGyUr+8cw3vCDJGMQrro8I1Q3sG11vXr38/q+r3+6nKpzCVIE/m+y6O
-# L6R8o+5a1DbMRByp/iLHMOKHojfvJK47wINoLVz0F5xFfcSKJQTS2Lh+u7eipbpq
-# Ys/YiD9Xjw0xv3nozx6oUQIMWqgckEx4qY5zav/1vR2JxwYk8Vfrg9UMEb4ciKl6
-# DUJHR5h8bLjk3E4WGZm7qxyjS9yXlZoJwOoJkqLhuj+f87iqT5c5Oe04LsrGrDcK
-# 8d0Z+wfmvmF2gW3uhz+sl0s0/KX3YyoBF9za5sfIFpND1YJoLidoWSbINyrmi/3o
-# 8uSAJJD8bnWT5GT+mw6ihhijseylC0gkJCSIWUw/ZCHx7HUnGJ+xZnYfvitKlSw2
-# A0lhG5yrAlvGzARZn6x/Vb7U44dc3lbgFsDgj7zy/j+qaXkGRehIvaCwukHQv7he
-# 5ESnsE5Wr7VwALf/O21pnnxui2l6jH+caYlJ4pim9BS6D21QjYmPf+lsRim146je
-# t9w21AdBk7w9hyfOqiWSYS9gPqgww+GgbjibB6DYmhh7XFVuX6V9AdIMG6zkaMTT
-# gtIJMTTzQM0/nh/LgjikgI4s6TVu4hGEwBI6cgxsFMuJNmz1I7vkTD2mGxgKyKUV
-# w9OghipxAzX0oHRsmVK7i8Ph8n0TqIQ9jdfGF6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBqnr7VcKiE
+# r471vC+m+1TqiTewyEk2CPvNR4JQBHzzKTANBgkqhkiG9w0BAQEFAASCAgDSc3gZ
+# K/S5NQCUyWtOYvNyDpJeWKGo89hNJCtCaC8b3muh9Q07zVUNsnVmgyp9I+YT5X7f
+# XJvfRJpjVzr0EwI0T8UFy9/PpYqC1d9LFTqbBdVVAzaaefmLOxtRkvUvdQk0Rgg9
+# qnlf7b7O108JX7yAATYU+heDqr06SWM5+OXDkRv8d3wjprkaHybwP76GCJbKUgkL
+# 9gEtvSg0vFQBmvla3RdfnUDmCZFg6Iqn/nmP0z59r6wXlmKCOiP9KBvkYphXbg8Y
+# CfSWffCTpE4ZyQlgrNPSAugjCPMLYBzxRVYqc/pNy8qLwZg7+hYW+F/m5FX1ydan
+# pRWG8eKfVmTNt15EQW+275vANXBQZcn7ygB91oQA7j3CUrBPG89Kt8aoz1JM2TGm
+# HTGlkWfGNrmHi06jg1r32MBLuuDtKi08wv5bouD2HGKKENSs6kTSPcEm+z0hcSqz
+# ICKZ7sSxrutX5qhkOQA61P/0A7vUNsS+WqzTz2y045K1RL+UCWLzLncElUN8FiOX
+# lsTr1vMsdWI4XPbWFE9r1WVxGHBBKhPeVm3yyvZ5aZ6TQFOajyfgQGj0Xky3O5rV
+# By2cVCMC2RbKNGL0DgNMuuWDaBMV4zB/N+NgYzWaqgfdRXIsxnm76iK62nlPfUix
+# MlCF0j01Ic+oUEVY11z8SSpHxZxeohFzrHq5QqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjcwMjExMTlaMC8GCSqGSIb3DQEJBDEiBCAYr5M7p7ZSJVmJ3r+9
-# jvwsjMbS9VVEEnmgtw7iowg89TANBgkqhkiG9w0BAQEFAASCAgAENjsI2H+jSU3X
-# vFFVHoNgblPlla8Ldgz5gUVWdpfZPVnHtvaAMM3EOPQ0O48BbNQOb1hPys9Cv/8U
-# S7ALBYY5tdDhAMpE/4kWddeqsf5UJ8uoJQasLqFgYufwX0zCePBjCM13XgG2AKB4
-# 6D115y4uYqS198AtDhZ91gHSdhLl4qMCGFLWOnB8WlP6129CIftb9JEJbjMnSg5e
-# TjjOYoWHhQk7bQEMtq0Y0kKlA/O+sNpnRvErK6G82v45v/gESaSH62HPLYxx4mWV
-# xx3Wz4i8CCGL+a2eX5CU1I0rqqZ3hd7F0FR6f9oPSgVSxx85uoyRO/IssCYRqCVw
-# ADjqhPVjr94a3ZSzOGSYQejX3Q7AtMkf7JV88iMi7cMLAVHthylyjBYJM4LxYmJQ
-# pK027GgMHmAkRNDYXRK3rV4GJzgetFJ6xK+JPs9zm4L5YotqKnc3H7YPn6lJ4pye
-# JLUP3cuZ0mq2WbAq9AxarPzbtMsfVajOpMA2XaGvVNfL1Jvs86ag8I+WON4oCwxX
-# Whkli+UEx2HZG39TIGYg4eWqtHN1wdyZeFJC+4egttzH7AblCtRAKaasmt9NvAIW
-# peCByT2B/2RJfuAMGSp7VELqDdgZf1tMPYH1mp7IU++OQUaEU81rRV6w4BH4ckSY
-# hx0NRVXnx1WDxjfzRwH12wp8RRtmfg==
+# BTEPFw0yNjA0MjkxNTM5MDdaMC8GCSqGSIb3DQEJBDEiBCD22xrUSc0U0yhKZngZ
+# N2/7pIKp/O5zkVWxbhlT3uW31DANBgkqhkiG9w0BAQEFAASCAgChAewnClcIbBdg
+# ONiYHZK+NMw0d/VvmK4wMfrVQxao+TQ3ie4UI2oeMC8PDK8eMmVdYpFKOO/e2oXR
+# 1NUvMBgi0igAred33CJH/zIm2uANOjysUH/3S/kBYdtGULPE8xl/XfaEBTEE6Yp5
+# xmpiMnBi9cjtF33XabSEfRwqPxKpWloUK6TbEaYwPTMwS8CS8mTEeD10VI+vEYX9
+# Y2flVNjKTuV2xoOTZpVQhI9l7coqE9CLJt+PSACbllZ365se+GEgyWeCEo3igQ43
+# huYFi/KNkbwDrIj5Ad7Y5kruezA2xnUIWlv8uPktDJOMryT8JRxws4co/gcLlyjr
+# wZESFEK/+6lR+mpdtprby2r9jXb6pRwPOeVJmaPGHtxaTP2oAZDfpg94JzHE1ft3
+# VeNk0D5maD/HPtAD4yL8WuCTAmaTQ51ofcs7tuSihtkiVfuKOY8pISs4ZqkU1Zd1
+# 0J3WE9hiXeX2nYb+gw0kiWEXkP9c6+sf/mwAOUPVReA99LZkoyvn43p1ksycBVtV
+# /rHoKyVSv0YtWPMlne7Sp+ckmDG0fvQnszv8L/FZ1IJIcD6WGRtRvXg7h3TVWnA5
+# CgeEXphHMAw40xQcZ/SBMbTX5AceMR7mTZvWanV/ZLZ/WGv5Wq++a4xv5f0pDqn3
+# yX4sGeWNqRK5BC+e59oqhvC6JVyT8Q==
 # SIG # End signature block
