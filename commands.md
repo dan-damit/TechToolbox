@@ -15,6 +15,7 @@ After module load:
 ```powershell
 Get-ToolboxHelp
 Get-ToolboxHelp -list
+Get-ToolboxHelp <Command-Name>
 ```
 
 For a live command list from your current module build:
