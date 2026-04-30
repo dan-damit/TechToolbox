@@ -11,6 +11,12 @@ Get-Help <Command-Name> -Detailed
 Get-Help <Command-Name> -Examples
 ```
 
+After module load:
+```powershell
+Get-ToolboxHelp
+Get-ToolboxHelp -list
+```
+
 For a live command list from your current module build:
 
 ```powershell
