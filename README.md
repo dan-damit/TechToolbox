@@ -1,293 +1,201 @@
 # TechToolbox
 
-A PowerShell 7+ module for day-to-day IT automation: browser profile cleanup,
-remote software inventory, Purview eDiscovery workflows, EXO message trace,
-battery health parsing, AAD Connect remote sync, and more.
+TechToolbox is a PowerShell 7 module for day-to-day enterprise IT work:
+Active Directory operations, remote inventory and repair, Exchange Online and
+Purview workflows, system diagnostics, browser cleanup, and subnet tooling.
 
-This is a new project to fold all (okay most) of my scripts into an
-enterprise-grade PowerShell module.
+This project consolidates practical admin scripts into a single, structured,
+maintainable module with shared configuration, logging, and helper utilities.
 
-Recently I've added a local LLM for cloud-less AI code analysis helper. It is in
-its infancy, so there is still a lot of work to do on that front, but the
-ground work has been laid. The AI branch is [here.](https://github.com/dan-damit/TechToolbox/tree/main/Public/AI)
+The local AI assistant work is actively evolving under [Public/AI](https://github.com/dan-damit/TechToolbox/tree/main/Public/AI) and [AI/Agent](https://github.com/dan-damit/TechToolbox/tree/main/AI/Agent).
 
----
-
-## Contents
-
-There are many more Public Commands available than listed here. Please use
-_Get-ToolboxHelp_ for details on those listed here, as well as those not listed.
+## Table Of Contents
 
 - [TechToolbox](#techtoolbox)
-  - [Contents](#contents)
-  - [Getting Started](#getting-started)
+  - [Table Of Contents](#table-of-contents)
+  - [What You Get](#what-you-get)
+  - [Quick Start](#quick-start)
   - [Configuration](#configuration)
-  - [Public Commands](#public-commands)
-    - [Get-ToolboxHelp](#get-toolboxhelp)
-    - [Clear-BrowserProfileData](#clear-browserprofiledata)
-    - [Get-RemoteInstalledSoftware](#get-remoteinstalledsoftware)
-    - [Invoke-PurviewPurge](#invoke-purviewpurge)
-    - [Get-MessageTrace](#get-messagetrace)
-    - [Get-BatteryHealth](#get-batteryhealth)
-    - [Invoke-AADSyncRemote](#invoke-aadsyncremote)
-    - [Get-TechToolboxConfig](#get-techtoolboxconfig)
-    - [Set-PageFileSize](#set-pagefilesize)
-  - [Design \& Conventions](#design--conventions)
+  - [Command Reference](#command-reference)
+  - [Command Discovery](#command-discovery)
+  - [Common Workflows](#common-workflows)
+    - [Browser profile cleanup](#browser-profile-cleanup)
+    - [Remote software inventory](#remote-software-inventory)
+    - [Purview purge flow](#purview-purge-flow)
+    - [Exchange Online message trace](#exchange-online-message-trace)
+    - [AAD Connect remote sync](#aad-connect-remote-sync)
+    - [Pagefile tuning](#pagefile-tuning)
+  - [Project Layout](#project-layout)
+  - [Development And QA](#development-and-qa)
   - [Troubleshooting](#troubleshooting)
-  - [Development \& QA](#development--qa)
+  - [Metadata](#metadata)
 
-```Powershell
-Get-Command -Module TechToolbox | Sort-Object Name 
-```
-**Run this _after_ import to display a high level list available public commands.**
+## What You Get
 
----
+- Consistent advanced functions with `CmdletBinding`, validation, and `WhatIf` support where appropriate.
+- Centralized configuration via `Config/config.json`.
+- Centralized logging with console and optional file output.
+- A loader-driven module model (`TechToolbox.psm1`) that auto-imports private and public functions.
+- Worker-based patterns for heavier remote tasks.
 
-## Getting Started
+## Quick Start
 
 ```powershell
-# This module is designed for PowerShell 7
-# Import module from a local path
-Import-Module .\TechToolbox -Force
+# PowerShell 7+ recommended
+Import-Module .\TechToolbox.psd1 -Force
 
-# See exported commands
+# List exported commands
 Get-Command -Module TechToolbox | Sort-Object Name
 
-# View help for any command
-Get-ToolboxHelp Clear-BrowserProfileData
+# Built-in toolbox help
+Get-ToolboxHelp
+Get-ToolboxHelp -ShowEffectiveConfig
 ```
-
-> The module auto-loads functions from `Private/` (helpers) and `Public/` (exported), and caches configuration via `Get-TechToolboxConfig`.
-
----
 
 ## Configuration
 
-Create `Config\config.json` and tailor to your environment. Below is a **minimal
-example** with commonly used sections. Omit any you do not need; defaults will
-be applied where sensible.
+Primary configuration lives at `Config/config.json`.
+
+Start with a small baseline and expand only the sections you use:
 
 ```json
 {
-  "paths": {
-    "temp": "C:\\Temp\\TechToolbox",
-    "logs": "C:\\LogsAndExports\\TechToolbox\\Logs\\TechToolbox",
-    "exportDirectory": "C:\\LogsAndExports\\TechToolbox\\Exports\\TechToolbox"
-  },
+  "schemaVersion": 1,
   "settings": {
     "defaults": {
       "promptForHostname": true,
       "promptForCredentials": true,
       "promptForDateRanges": true,
-      "promptForCaseName": true,
-      "promptForSearchName": true,
-      "promptForKqlQuery": true
+      "showProgress": true,
+      "configPath": "C:\\TechToolbox\\Config\\config.json"
     },
     "logging": {
       "enableConsole": true,
-      "enableFileLogging": false,
-      "includeTimestamps": true,
-      "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log",
-      "minimumLevel": "Info"
+      "enableFileLogging": true,
+      "minimumLevel": "Info",
+      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs",
+      "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log"
     },
-    "dnsLogging": {
-      "enabled": true,
-      "autoEnableDiagnostics": true,
-      "parseMode": "simple",
-      "maxLogSizeMB": 50,
-      "logPath": "C:\\LogsAndExports\\TechToolbox\\Logs\\DNS"
+    "browserCleanup": {
+      "defaultBrowser": "All",
+      "includeCache": true,
+      "includeCookies": true,
+      "skipLocalStorage": false
     },
-    "copyDirectory": {
-      "runRemote": true,
-      "defaultComputerName": null,
-      "logDir": "C:\\LogsAndExports\\TechToolbox\\Logs\\Robocopy",
-      "retryCount": 2,
-      "waitSeconds": 5,
-      "copyFlags": ["/E", "/COPYALL"],
-      "mirror": false
+    "remoteSoftwareInventory": {
+      "throttleLimit": 32,
+      "includeAppx": false,
+      "consolidated": false
     },
-    "subnetScan": {
-      "pingTimeoutMs": 250,
-      "tcpTimeoutMs": 500,
-      "httpTimeoutMs": 1000,
-      "ewmaAlpha": 0.15,
-      "displayAlpha": 0.1,
-      "defaultPort": 80,
-      "exportCsv": true,
-      "resolveNames": true,
-      "httpBanner": true
+    "aadSync": {
+      "defaultPolicyType": "Delta",
+      "defaultPort": 5985,
+      "allowKerberos": true
     }
   }
 }
 ```
 
----
+Use `Get-TechToolboxConfig` to inspect the effective loaded settings.
 
-## Public Commands
+## Command Reference
 
-### Get-ToolboxHelp
+For a categorized command catalog with quick examples, see [commands.md](commands.md).
 
-A standard help function.
+## Command Discovery
+
+There are many public commands; this is the fastest way to browse them:
 
 ```powershell
-Get-ToolboxHelp
-
-# Show Effective Config switch
-Get-ToolboxHelp -ShowEffectiveConfig
+Get-Command -Module TechToolbox | Sort-Object Name
 ```
 
----
+Current exported command set includes tooling in these areas:
 
-### Clear-BrowserProfileData
+- Active Directory user lifecycle and search (`Search-User`, `Disable-User`, `Reset-ADPassword`, `Set-EmailAlias`, `Set-ProxyAddress`, `New-OnPremUserFromTemplate`)
+- Messaging and compliance (`Get-MessageTrace`, `Invoke-PurviewPurge`, `Get-AuditSharedMailboxDeletions`, `Get-SharedMailboxPermissions`, `Test-MailHeaderAuth`)
+- Endpoint and system operations (`Get-SystemSnapshot`, `Get-SystemUptime`, `Invoke-SystemRepair`, `Set-PageFileSize`, `Enable-NetFx3`, `Reset-WindowsUpdateComponents`, `Set-OneTimeReboot`)
+- Network and browser tasks (`Invoke-SubnetScan`, `Start-DnsQueryLogger`, `Clear-BrowserProfileData`, `Watch-ISPConnection`)
+- Remote worker utilities and helpers (`Invoke-SCW`, `Start-NewPSRemoteSession`, `Stop-PSRemoteSession`, `Test-PathAs`)
+- AI-assisted workflows (`Invoke-CodeAssistant`, `Invoke-CodeAssistantFolder`, `Invoke-CodeAssistantWrapper`, `Invoke-TechAgent`)
 
-Deletes cache, cookies, and (optionally) local storage for **Chrome/Edge** profiles. Supports `-WhatIf/-Confirm`.
+## Common Workflows
+
+### Browser profile cleanup
 
 ```powershell
-# Preview cleanup for both browsers
+# Preview cleanup for all supported browsers
 Clear-BrowserProfileData -WhatIf
 
-# Target Chrome only and just cache
+# Chrome cache only
 Clear-BrowserProfileData -Browser Chrome -IncludeCache:$true -IncludeCookies:$false
-
-# Target specific profiles, skip local storage
-Clear-BrowserProfileData -Browser Edge -Profiles 'Default','Profile 2' -SkipLocalStorage
 ```
 
----
-
-### Get-RemoteInstalledSoftware
-
-Collects installed software from remote Windows hosts via **PSRemoting** (registry uninstall keys; optional Appx/MSIX). Exports per-host or consolidated CSV.
+### Remote software inventory
 
 ```powershell
-# Query two servers, consolidated CSV
+# Two hosts, one consolidated export
 Get-RemoteInstalledSoftware -ComputerName srv01,srv02 -Consolidated
 
-# Include Appx packages, prompt for credentials
+# Include Appx packages
 Get-RemoteInstalledSoftware -ComputerName laptop01 -IncludeAppx -Credential (Get-Credential)
-
-# Preview without writing any files
-Get-RemoteInstalledSoftware -ComputerName srv01,srv02 -WhatIf
 ```
 
----
-
-### Invoke-PurviewPurge
-
-End-to-end **Purview HardDelete** workflow: connect, clone/create mailbox-only search, wait for completion, submit purge, optional disconnect.
+### Purview purge flow
 
 ```powershell
-# Normal run
 Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName "Case-001" -SearchName "CustodianSearch-01"
 
-# Preview purge submission
+# Dry run
 Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName "Case-001" -SearchName "CustodianSearch-01" -WhatIf
 ```
 
----
-
-### Get-MessageTrace
-
-Runs **EXO V2** message trace by RFC822 Message-ID, shows summary and per-recipient details, and optionally exports CSVs.
+### Exchange Online message trace
 
 ```powershell
-# 24-hour lookback window (defaults from config)
 Get-MessageTrace -MessageId '<abc123@company.com>'
 
-# Custom date window
 Get-MessageTrace -MessageId '<abc123@company.com>' -StartDate (Get-Date).AddHours(-12) -EndDate (Get-Date)
-
-# Auto-export to default folder
-Get-MessageTrace -MessageId '<abc123@company.com>' -WhatIf
 ```
 
----
+### AAD Connect remote sync
 
-### Get-BatteryHealth
+```powershell
+Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Delta
 
-Generates `powercfg /batteryreport`, parses the **Installed batteries** table from HTML, computes health metrics, and writes JSON.
+Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Initial -UseKerberos -WhatIf
+```
+
+### Pagefile tuning
 
 ```powershell
 # Use config defaults
-Get-BatteryHealth
+Set-PageFileSize -ComputerName 'Server01.domain.local'
 
-# Custom paths, preview only
-Get-BatteryHealth -ReportPath 'C:\Temp\battery-report.html' -OutputJson 'C:\Temp\batteries.json' -WhatIf
+# Explicit values
+Set-PageFileSize -ComputerName 'Server01.domain.local' -InitialSize 4096 -MaximumSize 8192 -Path 'C:\pagefile.sys'
 ```
 
----
+## Project Layout
 
-### Invoke-AADSyncRemote
+- `Private/`: internal helper functions and subsystem implementations.
+- `Public/`: exported commands (one function per file by convention).
+- `Workers/`: task workers used by remote and background workflows.
+- `Config/`: runtime and build configuration files.
+- `AI/Agent/`: Python bridge and agent tooling for local AI-assisted operations.
+- `TechToolbox.psm1`: module loader/bootstrap.
+- `TechToolbox.psd1`: module manifest and export definition.
 
-Remotely triggers **Azure AD Connect** (`Start-ADSyncSyncCycle`) using PSRemoting. Kerberos or credential-based.
-
-```powershell
-# Delta sync using defaults
-Invoke-AADSyncRemote -ComputerName 'aadconnect01'
-
-# Initial sync via Kerberos, preview only
-Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Initial -UseKerberos -WhatIf
-
-# HTTPS WinRM (5986) with transcript in Logs
-Invoke-AADSyncRemote -ComputerName 'aadconnect01.company.com' -Port 5986 -EnableTranscript
-```
-
----
-
-### Get-TechToolboxConfig
-
-Loads the configs from config.json manually if needed
+## Development And QA
 
 ```powershell
-Get-TechToolboxConfig
-```
-
----
-
-### Set-PageFileSize
-
-Remotely set initial and maximum sizes of the pagefile in MB.
-
-```powershell
-# Usage of defaults (grabbed from config.json)
-Set-PageFileSize -ComputerName "Server01.domain.local"
-
-# Set via parameters during script call
-Set-PageFileSize -ComputerName "Server01.domain.local" -InitialSize 4096 -MaximumSize 8192 -Path "C:\pagefile.sys"
-```
-
----
-
-## Design & Conventions
-
-- **Structure**: `Private/` (helpers), `Public/` (exported), `Config/` (json), `TechToolbox.psm1` (loader), `TechToolbox.psd1` (manifest).
-- **One function per file** with matching names for clean auto-export.
-- **Advanced Functions**: `[CmdletBinding()]`, validated parameters, `ShouldProcess` for state changes.
-- **Logging**: centralized `Write-Log` using streams (`Write-Information`, `Write-Warning`, `Write-Error`) and optional file logging via config.
-- **Config cache**: `Get-TechToolboxConfig` returns a cached object; add `Reset-TechToolboxConfig` if you need runtime reloads.
-- **Cross-platform**: Target is Windows; Chromium paths, EXO/Purview cmdlets assume Windows/EXO contexts.
-
----
-
-## Troubleshooting
-
-- **Module import**: Ensure `TechToolbox.psd1` points to `TechToolbox.psm1` and PowerShell 7+.
-- **Permissions**:
-  - **Remote inventory** / **AADSync** require WinRM and appropriate rights on target hosts.
-  - **Purview** workflows require eDiscovery roles and ExchangeOnlineManagement module.
-- **Message trace**: V2 retention limits apply; widen the window or verify Message-ID.
-- **Battery report**: `powercfg` must be present; run PowerShell as admin if report generation fails.
-- **Logging to file**: Confirm `Paths.LogDirectory` exists or `EnableFileLogging` is false.
-
----
-
-## Development & QA
-
-```powershell
-# Analyzer (configurable rules)
+# ScriptAnalyzer
 Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
-# Smoke tests (dry runs)
+# Build/sign/package pipeline options
+.\Build.ps1 -Analyze -AutoVersionPatch -ExportPublic
+
+# Basic dry-run sanity checks
 Clear-BrowserProfileData -WhatIf
 Get-RemoteInstalledSoftware -ComputerName srv01 -WhatIf
 Invoke-PurviewPurge -UserPrincipalName you@company.com -CaseName Case-001 -SearchName Search-001 -WhatIf
@@ -296,8 +204,17 @@ Get-BatteryHealth -WhatIf
 Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
 ```
 
----
+## Troubleshooting
 
-**Author:** Dan Damit  
-**License:** Internal use  
-**Version:** 0.7.3
+- Import issues: ensure PowerShell 7+ and import using `Import-Module .\TechToolbox.psd1 -Force`.
+- Missing command: verify the function is listed in `FunctionsToExport` in `TechToolbox.psd1`.
+- Remoting failures: confirm WinRM availability, auth method, and privileges on target hosts.
+- Purview/EXO issues: confirm required roles/modules and account permissions.
+- Battery report issues: run elevated if `powercfg` report generation is blocked.
+- Logging issues: ensure configured log directories exist and file logging is enabled.
+
+## Metadata
+
+- Author: Dan Damit
+- License: Internal use
+- Module version: 0.4.54
