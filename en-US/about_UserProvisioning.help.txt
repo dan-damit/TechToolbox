@@ -1,0 +1,73 @@
+TOPIC
+    about_UserProvisioning
+
+SHORT DESCRIPTION
+    Detailed design and behavior of New-OnPremUserFromTemplate provisioning workflow.
+
+LONG DESCRIPTION
+    This document describes the full provisioning model used by VadTekToolbox
+    for creating on-prem Active Directory users based on template users.
+
+PROVISIONING WORKFLOW
+
+    1. Template resolution
+       - ByIdentity
+       - BySearch
+       - Matching behavior
+
+    2. Naming derivation
+       - Resolve-Naming contract
+       - SamAccountName rules
+       - UPN construction
+
+    3. Idempotency
+       - UPN existence checks
+       - Retry considerations
+
+    4. User creation
+       - Enabled state
+       - Password behavior
+
+ATTRIBUTE COPYING
+
+    Default attributes:
+        description
+        department
+        company
+        office
+        manager
+
+    Mapping rules:
+        office → physicalDeliveryOfficeName
+        manager must be a DN
+
+GROUP COPYING
+    Distribution groups:
+        Always included
+
+    Security groups:
+        Controlled via AllowedSecurityGroups
+
+    Exclusions:
+        ExcludedGroups always override
+
+PROXY ADDRESSES
+
+    SMTP:<UpnPrefix>@<upnSuffix>
+
+SECURITY CONSIDERATIONS
+
+    - Password handling
+    - Required permissions
+
+CONFIGURATION
+
+    Required config keys:
+        settings.tenant.upnSuffix
+        settings.naming.copyAttributes
+
+SEE ALSO
+
+    New-OnPremUserFromTemplate
+    Resolve-Naming
+    Initialize-TechToolboxRuntime
