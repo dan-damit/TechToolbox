@@ -1,6 +1,9 @@
 # Directories to ignore:
 Out/
+# Python virtual environments
 .venv/
+venv/
+env/
 
 # Files to ignore:
 Autodiscover*
