@@ -1,10 +1,13 @@
 TOPIC
+
     about_UserProvisioning
 
 SHORT DESCRIPTION
+
     Detailed design and behavior of New-OnPremUserFromTemplate provisioning workflow.
 
 LONG DESCRIPTION
+
     This document describes the full provisioning model used by VadTekToolbox
     for creating on-prem Active Directory users based on template users.
 
