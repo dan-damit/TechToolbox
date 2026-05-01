@@ -9,6 +9,7 @@ For full syntax, parameters, and examples:
 ```powershell
 Get-Help <Command-Name> -Detailed
 Get-Help <Command-Name> -Examples
+Get-Help <Command-Name> -Online
 ```
 
 After module load:
