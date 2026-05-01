@@ -96,6 +96,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 - Invoke-CodeAssistant
 - Invoke-CodeAssistantFolder
 - Invoke-CodeAssistantWrapper
+- Install-TechAgentRuntime
 - Invoke-TechAgent
 
 ## Fast Start Examples
@@ -118,6 +119,15 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta
 
 # Pagefile tuning
 Set-PageFileSize -ComputerName Server01.domain.local -InitialSize 4096 -MaximumSize 8192
+
+# TechAgent first-time setup (create/repair .venv and install Python deps)
+Install-TechAgentRuntime
+
+# Optional full refresh and model pull
+Install-TechAgentRuntime -UpgradePip -UpgradePackages -PullModel -Model "qwen3.6:35b"
+
+# Run the local tool-using agent
+Invoke-TechAgent -Prompt "Run a quick system health summary." -Model "qwen3.6:35b"
 ```
 
 ## Maintainer Note

@@ -1,3 +1,4 @@
-langchain
-langchain-community
-ollama
+langchain>=1.2,<2.0
+langchain-community>=0.4,<0.5
+langchain-ollama>=1.1,<2.0
+ollama>=0.6,<1.0
