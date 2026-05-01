@@ -117,6 +117,10 @@
       "promptForCredentials": true,
       "consolidated": false
     },
+    "agent": {
+      "model": "qwen3.6:35b",
+      "promptPackPath": "C:\\TechToolbox\\AI\\prompts.json"
+    },
     "messageTrace": {
       "autoExport": true,
       "promptForMissingInputs": true,

@@ -4,6 +4,7 @@ Executes PowerShell functions from the TechToolbox module and returns JSON.
 """
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any, Dict
@@ -93,11 +94,9 @@ def run_tool(tool_name: str, args: Dict[str, Any]):
     args_json = json.dumps(invoke_args)
 
     script = r"""
-    param(
-        [string]$ToolName,
-        [string]$ArgsJson,
-        [string]$ModuleManifestPath
-    )
+    $ToolName = $env:TT_TOOL_NAME
+    $ArgsJson = $env:TT_ARGS_JSON
+    $ModuleManifestPath = $env:TT_MODULE_MANIFEST_PATH
 
     Set-StrictMode -Version Latest
 
@@ -122,6 +121,11 @@ def run_tool(tool_name: str, args: Dict[str, Any]):
     }
     """
 
+    env = dict(os.environ)
+    env["TT_TOOL_NAME"] = tool_name
+    env["TT_ARGS_JSON"] = args_json
+    env["TT_MODULE_MANIFEST_PATH"] = str(module_manifest)
+
     completed = subprocess.run(
         [
             "pwsh",
@@ -129,15 +133,10 @@ def run_tool(tool_name: str, args: Dict[str, Any]):
             "-NonInteractive",
             "-Command",
             script,
-            "-ToolName",
-            tool_name,
-            "-ArgsJson",
-            args_json,
-            "-ModuleManifestPath",
-            str(module_manifest),
         ],
         capture_output=True,
-        text=True
+        text=True,
+        env=env,
     )
 
     if completed.returncode != 0:

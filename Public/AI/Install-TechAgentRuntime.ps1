@@ -1,80 +1,87 @@
-function Invoke-TechAgent {
+function Install-TechAgentRuntime {
     <#
     .SYNOPSIS
-        Sends a prompt to the TechToolbox local agent.
+        Bootstraps the local Python runtime for Invoke-TechAgent.
 
     .DESCRIPTION
-        This function calls the Python-based agent located in AI/Agent/.
-        It passes the user prompt and prints the agent's response.
+        Creates (or repairs) the repository virtual environment and installs
+        AI/Agent/requirements.txt into .venv.
 
-    .PARAMETER Prompt
-        The natural-language instruction for the agent.
+    .PARAMETER PythonPath
+        Optional explicit Python executable path to build the virtual environment.
+
+    .PARAMETER ForceRecreateVenv
+        Deletes and recreates .venv before installation.
+
+    .PARAMETER UpgradePip
+        Upgrades pip/setuptools/wheel inside .venv.
+
+    .PARAMETER UpgradePackages
+        Uses pip --upgrade when installing requirements.
+
+    .PARAMETER PullModel
+        Pulls the selected Ollama model after runtime installation.
 
     .PARAMETER Model
-        Optional Ollama model name (for example: llama3, mistral, qwen2.5-coder).
-
-    .PARAMETER MaxIterations
-        Maximum number of tool/reasoning iterations before the agent concludes.
-
-    .PARAMETER Quiet
-        Suppresses verbose Python-side agent traces.
-
-    .PARAMETER ConfirmDestructive
-        Explicitly authorizes destructive operations for this run.
+        Ollama model to pull when -PullModel is used. Defaults to settings.agent.model.
 
     .EXAMPLE
-        Invoke-TechAgent "Run system diagnostics and summarize findings."
+        Install-TechAgentRuntime
+
+    .EXAMPLE
+        Install-TechAgentRuntime -UpgradePip -UpgradePackages -PullModel -Model "qwen3.6:35b"
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$Prompt,
-
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [string]$Model,
+        [string]$PythonPath,
 
         [Parameter()]
-        [ValidateRange(1, 500)]
-        [int]$MaxIterations = 15,
+        [switch]$ForceRecreateVenv,
 
         [Parameter()]
-        [switch]$Quiet,
+        [switch]$UpgradePip,
 
         [Parameter()]
-        [switch]$ConfirmDestructive
+        [switch]$UpgradePackages,
+
+        [Parameter()]
+        [switch]$PullModel,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$Model
     )
 
-    # Initialize the TechToolbox runtime and load agent configuration
     Initialize-TechToolboxRuntime
-    $cfg = $script:cfg.settings.agent
-    if ([string]::IsNullOrWhiteSpace($Model) -and $cfg -and -not [string]::IsNullOrWhiteSpace($cfg.model)) {
-        $Model = $cfg.model
+
+    $moduleRoot = Get-ModuleRoot
+    $agentRoot = Join-Path $moduleRoot 'AI\Agent'
+    $requirementsPath = Join-Path $agentRoot 'requirements.txt'
+    $venvPath = Join-Path $moduleRoot '.venv'
+    $venvPython = Join-Path $venvPath 'Scripts\python.exe'
+
+    if (-not (Test-Path -LiteralPath $requirementsPath -PathType Leaf)) {
+        throw "Agent requirements file not found: $requirementsPath"
     }
 
-    try {
-        # Resolve agent path from module root (Public/AI is not the module root).
-        $moduleRoot = Get-ModuleRoot
-        $agentPath = Join-Path $moduleRoot 'AI\Agent\tech_agent.py'
+    if ([string]::IsNullOrWhiteSpace($Model) -and $script:cfg -and $script:cfg.settings -and $script:cfg.settings.agent) {
+        $Model = $script:cfg.settings.agent.model
+    }
 
-        if (-not (Test-Path -LiteralPath $agentPath -PathType Leaf)) {
-            throw "Tech agent entry script not found: $agentPath"
+    $pythonCommand = $null
+    $pythonArgsPrefix = @()
+
+    if (-not [string]::IsNullOrWhiteSpace($PythonPath)) {
+        if (-not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
+            throw "PythonPath does not exist: $PythonPath"
         }
-
-        $pythonCommand = $null
-        $pythonArgsPrefix = @()
-
-        # Prefer repo-local virtual environment for deterministic dependencies.
-        $venvPython = Join-Path $moduleRoot '.venv\Scripts\python.exe'
-        if (Test-Path -LiteralPath $venvPython -PathType Leaf) {
-            $pythonCommand = @{ Source = $venvPython }
-        }
-
-        if (-not $pythonCommand) {
-            $pythonCommand = Get-Command -Name python -ErrorAction SilentlyContinue
-        }
+        $pythonCommand = @{ Source = $PythonPath }
+    }
+    else {
+        $pythonCommand = Get-Command -Name python -ErrorAction SilentlyContinue
 
         if (-not $pythonCommand) {
             $pythonCommand = Get-Command -Name py -ErrorAction SilentlyContinue
@@ -82,99 +89,101 @@ function Invoke-TechAgent {
                 $pythonArgsPrefix = @('-3')
             }
         }
+    }
 
-        if (-not $pythonCommand) {
-            throw "Python executable not found. Install Python or add it to PATH (python/py)."
+    if (-not $pythonCommand) {
+        throw "Python executable not found. Install Python or pass -PythonPath."
+    }
+
+    if ($ForceRecreateVenv.IsPresent -and (Test-Path -LiteralPath $venvPath -PathType Container)) {
+        if ($PSCmdlet.ShouldProcess($venvPath, 'Remove existing virtual environment')) {
+            Remove-Item -LiteralPath $venvPath -Recurse -Force
         }
+    }
 
-        if (-not [string]::IsNullOrWhiteSpace($Model)) {
-            $ollamaCommand = Get-Command -Name ollama -ErrorAction SilentlyContinue
-            if (-not $ollamaCommand) {
-                throw "Ollama executable not found. Install Ollama or add it to PATH."
-            }
-
-            $ollamaListOutput = & $ollamaCommand.Source list 2>&1
+    if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
+        if ($PSCmdlet.ShouldProcess($venvPath, 'Create Python virtual environment')) {
+            Write-Log -Level Info -Message ("Creating virtual environment: {0}" -f $venvPath)
+            & $pythonCommand.Source @pythonArgsPrefix -m venv $venvPath
             if ($LASTEXITCODE -ne 0) {
-                $ollamaError = ($ollamaListOutput | Out-String).Trim()
-                throw ("Unable to query local Ollama models: {0}" -f $ollamaError)
-            }
-
-            $availableModels = @()
-            foreach ($line in $ollamaListOutput) {
-                $trimmed = "$line".Trim()
-                if ([string]::IsNullOrWhiteSpace($trimmed)) {
-                    continue
-                }
-
-                if ($trimmed -match '^NAME\s+') {
-                    continue
-                }
-
-                $parts = $trimmed -split '\s+'
-                if ($parts.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($parts[0])) {
-                    $availableModels += $parts[0]
-                }
-            }
-
-            if (-not $availableModels) {
-                throw ("No local Ollama models were found. Pull the requested model first: ollama pull {0}" -f $Model)
-            }
-
-            if ($availableModels -notcontains $Model) {
-                $knownModels = ($availableModels | Sort-Object -Unique) -join ', '
-                throw (
-                    "Ollama model '{0}' is not available locally. Run: ollama pull {0}. Available models: {1}" -f $Model, $knownModels
-                )
+                throw "Failed to create Python virtual environment."
             }
         }
+    }
 
-        Write-Log -Level Info -Message ("Invoking local tech agent: {0}" -f $agentPath)
+    if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
+        throw "Virtual environment Python not found after setup: $venvPython"
+    }
 
-        $pythonArgs = @()
-        $pythonArgs += $pythonArgsPrefix
-        $pythonArgs += @($agentPath, '--prompt', $Prompt, '--max-iterations', $MaxIterations)
-
-        if (-not [string]::IsNullOrWhiteSpace($Model)) {
-            $pythonArgs += @('--model', $Model)
+    if ($UpgradePip.IsPresent) {
+        if ($PSCmdlet.ShouldProcess($venvPython, 'Upgrade pip tooling')) {
+            Write-Log -Level Info -Message 'Upgrading pip tooling in virtual environment.'
+            & $venvPython -m pip install --upgrade pip setuptools wheel
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to upgrade pip tooling in virtual environment."
+            }
         }
+    }
 
-        if ($Quiet.IsPresent) {
-            $pythonArgs += '--quiet'
-        }
+    $pipInstallArgs = @('-m', 'pip', 'install')
+    if ($UpgradePackages.IsPresent) {
+        $pipInstallArgs += '--upgrade'
+    }
+    $pipInstallArgs += @('-r', $requirementsPath)
 
-        if ($ConfirmDestructive.IsPresent) {
-            Write-Log -Level Warn -Message 'Destructive operations explicitly authorized for this run.'
-            $pythonArgs += '--destructive-confirmed'
-        }
-
-        $env:PYTHONIOENCODING = 'utf-8'
-        $result = & $pythonCommand.Source @pythonArgs 2>&1
-        $env:PYTHONIOENCODING = $null
-
+    if ($PSCmdlet.ShouldProcess($requirementsPath, 'Install Tech agent Python requirements')) {
+        Write-Log -Level Info -Message ("Installing agent dependencies from: {0}" -f $requirementsPath)
+        & $venvPython @pipInstallArgs
         if ($LASTEXITCODE -ne 0) {
-            $errorText = ($result | Out-String).Trim()
-            throw ("Tech agent exited with code {0}: {1}" -f $LASTEXITCODE, $errorText)
+            throw "Failed to install agent dependencies."
+        }
+    }
+
+    if ($PullModel.IsPresent) {
+        if ([string]::IsNullOrWhiteSpace($Model)) {
+            throw 'PullModel requested, but no model was specified and no default model is configured.'
         }
 
-        $message = ($result | Out-String).Trim()
-        if ([string]::IsNullOrWhiteSpace($message)) {
-            $message = 'Tech agent completed successfully with no output.'
+        $ollamaCommand = Get-Command -Name ollama -ErrorAction SilentlyContinue
+        if (-not $ollamaCommand) {
+            throw "Ollama executable not found. Install Ollama or add it to PATH."
         }
 
-        Write-Log -Level Info -Message $message
-        return $message
+        if ($PSCmdlet.ShouldProcess($Model, 'Pull Ollama model')) {
+            Write-Log -Level Info -Message ("Pulling Ollama model: {0}" -f $Model)
+            & $ollamaCommand.Source pull $Model
+            if ($LASTEXITCODE -ne 0) {
+                throw ("Failed to pull Ollama model: {0}" -f $Model)
+            }
+        }
     }
-    catch {
-        Write-Log -Level Error -Message ("Invoke-TechAgent failed: {0}" -f $_.Exception.Message)
-        throw
+
+    $runtimeDetails = & $venvPython -c "import platform, sys; print(platform.python_version()); print(sys.executable)"
+    $langchainVersion = & $venvPython -c "import langchain; print(langchain.__version__)"
+
+    $pythonVersion = if ($runtimeDetails -and $runtimeDetails.Count -ge 1) { $runtimeDetails[0] } else { $null }
+    $pythonExe = if ($runtimeDetails -and $runtimeDetails.Count -ge 2) { $runtimeDetails[1] } else { $venvPython }
+
+    $result = [PSCustomObject]@{
+        VenvPath          = $venvPath
+        PythonExecutable  = $pythonExe
+        PythonVersion     = $pythonVersion
+        LangChainVersion  = ($langchainVersion | Out-String).Trim()
+        RequirementsPath  = $requirementsPath
+        ModelPulled       = [bool]$PullModel.IsPresent
+        Model             = $Model
+        Success           = $true
     }
+
+    Write-Log -Level Info -Message ("Tech agent runtime is ready. Python={0}, LangChain={1}" -f $result.PythonVersion, $result.LangChainVersion)
+    return $result
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCLIhdSpsFQF+5w
-# 3QvC0cj+DAipKyEmCNtzmzJvRY42PKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDVO7w7gKbBqnqt
+# MNCFR9QwmvAPMg3t+MyBpkokJweaDaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -307,34 +316,34 @@ function Invoke-TechAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC6W8V7jEQ0
-# rW0vzwsZ//kgcVUcBFfyyhPUXcDaUlFYRTANBgkqhkiG9w0BAQEFAASCAgANe/Qu
-# 2/Kt2gzOf7wlM26QlnKDkmjTBr+fY5miq2hV0T8QonXt/3SRVf51gV6DUiWL8gpy
-# X0rUMIm3QTL2/o9FuqDmSfXrX8oHptyQDr6lJHTxS3Ap4xDOtpH0O+NiY3qmNu/n
-# j3WBiucleqSot4WuhuYjqQ03vXasGOOcQNh/ae6uvi4dM66DzZDvXWR5SGmRo2Gb
-# kwQaw5EjEePt/lk6gMgcByfNpZlCvPa7PfgiL7BBX/Z9JMAAeAk1lnTPOy4FZfrW
-# fwgCGRit3QDrMt8vs1e63v16XlauvBOUHtkeh6W8VsM0NTjdzYWBmy0zAR+AGVL5
-# w26xXnJeohcu+FOHP3TbAc2S4VttfGbGFa4ResuaHOJLEDb5039pbw/bLP499mEC
-# 9W7uIjzoHr530+xnLi6q9gCpwFlz4O630GLjQ0obbuAq4zFQY8cmsWoMvwveEYgh
-# Drfj6C69Crq6jiC6vToFuzvkAeX62CKUW9XzNyryWzVj0h/++qk8kXVk3GkB3AM3
-# cUu4+vlPojRy/2RG/0cze0aXDp8wB0WWVtw1nqHLqe9pYbdE/IP2b7qplxWpetrA
-# DL7e7Sx298bmgjvqvfDmIyistJtRMq6W3/dJUKEXMriUc2db6OC2V7uH+BxLfI/a
-# rz6N30Dnb7+1Ir+klMV4kubgwgyb7CJkBeOSraGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCNF3hPVA3M
+# ZPDZ+7HgFVGCq+wBPaD1UEXPgpie0A2hFDANBgkqhkiG9w0BAQEFAASCAgCLOG/g
+# 1NM3inoLPfbzk1H88puvr8v0a8/qLB9KV10AInsBq/3eGoLJFiPQVMOfpNqUqtgF
+# xRkdekBynx+JAO3/2hdT6sELEwWM7USKxqm1J4MUxhtVICmPKKfT1DzUqChCkjdE
+# +9EKvydm0QJOzy4BoHOiRB0ZtrMjESmRZHlCPD7KSJPyyqSsskqOro7UwTg8s/Fj
+# ZN+TPpHrN7CIYVJJJSz2eJHr0TpJr1cw2wSv5xU+qgwt5aYrPQ2zx7UdfB3BMZ34
+# Ia8lkRDwaQRN+U1Uhda94GiH8WL88iQ1pCF8We0eiTDrl4wWWMrvwrVBp4qZhyYL
+# tw5bJtql80kx7zFDm/1uOnzC2/OxTmDlxVn6y5NIxRUK3KMFn+8v/kkA2hx5Y7u1
+# BR5A4qLU8LWGVTfxqKbstTGOoNJ3OJRiMjNXRNEKy9zqJOJ2LX2BIwZ8hByziCyd
+# oWKBPFQYrSwkM5BlDKWotKBp6uSl0MMFf34K32mLD3nkAyNGWrsBRFdSTYZAWzY7
+# W27wTexa7JVwpybdhV4Ec5elz9z4+fJbbjDItF8HOiaykExV/rMIzyybW6ghZTc4
+# YoZ4/6+TNg/s1z7jSG37smuEv/H7Cav4ZAib6isaknCj3WFqE5+szzZGGsq36aF6
+# TPxiexnku0yj9VvD2gf52pskzFs6+BQajQ/JFKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDEwMzIyNDZaMC8GCSqGSIb3DQEJBDEiBCAwFxINvRo49awzEjE1
-# dPyKn2KaqWCTYZ3Lws3OONWYgzANBgkqhkiG9w0BAQEFAASCAgBA2JNMVUPWpUuE
-# XzriToP8cjIY/iyV0CKYqjfDjBI9FHlgHHo+cZi9FR6WOo3wn1qlze0GfU4SzOuQ
-# WsyECu2fYYQ5fyPtMKRBj9RZXuF59lKMCB83EuujXZiPlZl+6q/GisWu5XS0D6RN
-# jl1cvzLSidDaJ4bOZKfLGX7BVFkgX2a+oTSNFFsQ+iR31uaecPxDyxRc/F1DPMyE
-# RuyZ2Hs2zo2CjfReFRPz3qkVUuD2KRtZ5HyLfYy9jsh79SbDsp5W0RvQGdvmy541
-# XVyVIE0zIkcI1rCAkVVi6lkV9te17yt8z0rbYD1bUqeHzxAt6uY2nFgg2nGQ489j
-# Uz8qUXhOW77jx0Fm4wdliVQIhqZTOTp7YcGF++emIS1Ieat5eRifXL3NCNy+Xxnt
-# 9raKjHbb9fa2LBh82Bc24wsg3LcvoWaiLjVwnkYsiqeKWWAHcgA5d6LMFgrGbLUK
-# DNQPGBnZ11WUnrLxP/gfzy/n/g8vH3DzAMIencsYam32tHYGvVVPkX7RyepHwo5P
-# Q9KG88scj1tPh7JsAW8XFVkqqVHAfMlhwrkfmP3+uVX9JDD8WEmAzYssgWAm1s/s
-# PeLwWFj2KdRYF2G5SkgQ/O/AN5yuIljAwejgsSLMDvd5FS+/8lBwCZqiRFm7pNs9
-# wtqDKI9Wgsht49LMU6K5IL/BKZVg/A==
+# BTEPFw0yNjA1MDEwMjU1MzBaMC8GCSqGSIb3DQEJBDEiBCBQAdJWYTuLEq7G1kja
+# opxjZzkpvwBbg+ZLay0aUyFteDANBgkqhkiG9w0BAQEFAASCAgBbSoK/bmXJf/OJ
+# bEU9hoQR+4wZN0FwLAPULF6PUjwsPdo5Bzz+4s/71ATe+VaMKWoCq5FkI6ZpHWq0
+# MWbv6gqL+TwGh8T4HZsdWSUbbmxRcJNcojVm6D/Ss3Xie+b/mIJTchFObLZLwR2a
+# Q5CYwVhfQdWySvZvp9PSYyivmWReJPtUlMIEGetNv8l2JQCjPtxIZe06bJnQVFRC
+# 3IsbxXbEJqzz+9zK+Tsrb0DM9nSzUaiT+yhtjprdF596IN3/QyaMeUYXNfEUpsGj
+# k2M24zdO5Mnbtn4vWzxrZKvM9B2WZ8Ffo4Zrx2xajRRYgTaz5z4zaZEbBYUbE5g6
+# ZQcaZ6v8jDn+4qxLUzy6mUL7sXYH2ikGSePMC5T/cO/2vSvvCbW0K4oiWDiJj2Rq
+# VkNeMka8E5DSQnQ+kKxUDdl0FtfO7LXaQbRsrxMb2mJ1hiAOT4fEqVEhiOj76GlX
+# w6VFTFrYlEc0uw/imKgxS69h07prBrAzPAzBb0O6EDvuilRq6KeFws3pSKoHVw34
+# Y5XPAtwWYMJ70kvBmcSVYX/JhCOIYzOVrMuvIpK0CB2Y61hMq6Xb3QyeGVHFPLAC
+# Jy5zftluVLjTlUrhaI/NFIryfQuQgH8lUTY9weXYByU0TWCXjwoilZ/AdHJhvmT1
+# FiqWNQM6jGKIRoUw19NyTYwh3TMGBw==
 # SIG # End signature block
