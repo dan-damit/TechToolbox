@@ -17,7 +17,7 @@ function Invoke-TechAgent {
         Maximum number of tool/reasoning iterations before the agent concludes.
 
     .PARAMETER Quiet
-        Suppresses verbose Python-side agent traces.
+        Legacy compatibility switch. Agent traces are now suppressed by default.
 
     .PARAMETER ConfirmDestructive
         Explicitly authorizes destructive operations for this run.
@@ -138,9 +138,9 @@ function Invoke-TechAgent {
             $pythonArgs += @('--model', $Model)
         }
 
-        if ($Quiet.IsPresent) {
-            $pythonArgs += '--quiet'
-        }
+        # Suppress LangChain/LangGraph debug traces by default so the console only shows
+        # the agent's final response instead of raw model metadata.
+        $pythonArgs += '--quiet'
 
         if ($ConfirmDestructive.IsPresent) {
             Write-Log -Level Warn -Message 'Destructive operations explicitly authorized for this run.'
@@ -161,7 +161,6 @@ function Invoke-TechAgent {
             $message = 'Tech agent completed successfully with no output.'
         }
 
-        Write-Log -Level Info -Message $message
         return $message
     }
     catch {
@@ -173,8 +172,8 @@ function Invoke-TechAgent {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCLIhdSpsFQF+5w
-# 3QvC0cj+DAipKyEmCNtzmzJvRY42PKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCIVSg4CZsqmWqG
+# X/ok1YwXyRllOFOKgh+381BLMXz7K6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -307,34 +306,34 @@ function Invoke-TechAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC6W8V7jEQ0
-# rW0vzwsZ//kgcVUcBFfyyhPUXcDaUlFYRTANBgkqhkiG9w0BAQEFAASCAgANe/Qu
-# 2/Kt2gzOf7wlM26QlnKDkmjTBr+fY5miq2hV0T8QonXt/3SRVf51gV6DUiWL8gpy
-# X0rUMIm3QTL2/o9FuqDmSfXrX8oHptyQDr6lJHTxS3Ap4xDOtpH0O+NiY3qmNu/n
-# j3WBiucleqSot4WuhuYjqQ03vXasGOOcQNh/ae6uvi4dM66DzZDvXWR5SGmRo2Gb
-# kwQaw5EjEePt/lk6gMgcByfNpZlCvPa7PfgiL7BBX/Z9JMAAeAk1lnTPOy4FZfrW
-# fwgCGRit3QDrMt8vs1e63v16XlauvBOUHtkeh6W8VsM0NTjdzYWBmy0zAR+AGVL5
-# w26xXnJeohcu+FOHP3TbAc2S4VttfGbGFa4ResuaHOJLEDb5039pbw/bLP499mEC
-# 9W7uIjzoHr530+xnLi6q9gCpwFlz4O630GLjQ0obbuAq4zFQY8cmsWoMvwveEYgh
-# Drfj6C69Crq6jiC6vToFuzvkAeX62CKUW9XzNyryWzVj0h/++qk8kXVk3GkB3AM3
-# cUu4+vlPojRy/2RG/0cze0aXDp8wB0WWVtw1nqHLqe9pYbdE/IP2b7qplxWpetrA
-# DL7e7Sx298bmgjvqvfDmIyistJtRMq6W3/dJUKEXMriUc2db6OC2V7uH+BxLfI/a
-# rz6N30Dnb7+1Ir+klMV4kubgwgyb7CJkBeOSraGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD6P0cvxW6Q
+# HnT6gYaeXwQvtMzBMP3hRlMUGelf6t1tJDANBgkqhkiG9w0BAQEFAASCAgCzJgwt
+# UtcMhMOTXA0yG0oNUxs8ZybeEnEPfvjL/NAFN0jsaVWx7KlKTtZiMJ+68q2a1p3Y
+# uUBCFhjy10MQPhfRoDUwfHnomJ13W2hQQ5Dp4LKO3JSZywPVaB4dh3wMZLoFLBTc
+# cDNrBB5X5l/1HNTNL1oGyCH7hJ25PaVjlDqMpK/YiyfE7Imr+eBfr2HZ++kDA8Gm
+# K57pC51c8I92hfypxv/rgphO2z/fkiFsoHxl0qY69T3L49s4I0TZVOfcRQZl/GjM
+# MgBxsKuMNMxC8kZAj4zSRd7iEAR/c5leqQA2+GV+7ADJZwxG0jlLX3VhShSGVx4X
+# AsBv4imhFG184KhmvmxDPUZEb4Z8BPu18brZOA5pckbrLxQ9qAe000Y73YVDHkyd
+# Sbp37ADVqZErceiOXeyEmnLDn1o7dVspQu92RiZRn1Ki0lBuMlAxhMYzLlkhEgHd
+# zdEX0GHIwS1/k5AwHw0F9rFCWz1zU/fHbY/Zu+j18f2l4IPfCsYBIj8aX8uJPsGS
+# QjUrCDJqSE/Tx9z8HH6MBGU2/F8wx6P3suMwWMsr+xPA89av/wJnnwZGabzLguDL
+# bYBwkt4g5SzhGc/4C0I2QA0qQR7dE4v+7QGKC8y/Jy1HVnx4sfkdhAbfsvcq09U3
+# FUmT26AhLXTnkuRoG16v0Wp3NCYfPTcH36XY86GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDEwMzIyNDZaMC8GCSqGSIb3DQEJBDEiBCAwFxINvRo49awzEjE1
-# dPyKn2KaqWCTYZ3Lws3OONWYgzANBgkqhkiG9w0BAQEFAASCAgBA2JNMVUPWpUuE
-# XzriToP8cjIY/iyV0CKYqjfDjBI9FHlgHHo+cZi9FR6WOo3wn1qlze0GfU4SzOuQ
-# WsyECu2fYYQ5fyPtMKRBj9RZXuF59lKMCB83EuujXZiPlZl+6q/GisWu5XS0D6RN
-# jl1cvzLSidDaJ4bOZKfLGX7BVFkgX2a+oTSNFFsQ+iR31uaecPxDyxRc/F1DPMyE
-# RuyZ2Hs2zo2CjfReFRPz3qkVUuD2KRtZ5HyLfYy9jsh79SbDsp5W0RvQGdvmy541
-# XVyVIE0zIkcI1rCAkVVi6lkV9te17yt8z0rbYD1bUqeHzxAt6uY2nFgg2nGQ489j
-# Uz8qUXhOW77jx0Fm4wdliVQIhqZTOTp7YcGF++emIS1Ieat5eRifXL3NCNy+Xxnt
-# 9raKjHbb9fa2LBh82Bc24wsg3LcvoWaiLjVwnkYsiqeKWWAHcgA5d6LMFgrGbLUK
-# DNQPGBnZ11WUnrLxP/gfzy/n/g8vH3DzAMIencsYam32tHYGvVVPkX7RyepHwo5P
-# Q9KG88scj1tPh7JsAW8XFVkqqVHAfMlhwrkfmP3+uVX9JDD8WEmAzYssgWAm1s/s
-# PeLwWFj2KdRYF2G5SkgQ/O/AN5yuIljAwejgsSLMDvd5FS+/8lBwCZqiRFm7pNs9
-# wtqDKI9Wgsht49LMU6K5IL/BKZVg/A==
+# BTEPFw0yNjA1MDEwMzU5NTBaMC8GCSqGSIb3DQEJBDEiBCAXAC/eHtoVmTAmeGyb
+# H6KoSHYf1ANVSE0Vdk02B3YjsTANBgkqhkiG9w0BAQEFAASCAgAsgBCXOV1nqjdM
+# Z6Z2UXzyGtNeiksQntgf+9y0Y0bfwrU/njsYQqBQZL1K9UzcL+DoJaNDQzXFNmUz
+# JrmSQVmNvBYlGvWpYQnycBj+3BSwfSUGBXVe+2Xe/fQV9xDCUS3oYbbZOWF9y0yT
+# TyOgq0zzAwzWXkHg+324QBxsktbqVj8y4k8H9srmoqGT09JSyt7+SMbXu5Cdd46j
+# Yuk6KajVYxmeVMkHIEBPmpoIgZhuKD6yZFqsUxldYBNszea4Wzxp6VncqYaYD/tf
+# Guv24CWtN3jFTYmW6HCxq00A42V1/SAm4pM6gwwUGMD5jJEJao42y8WfqpOX4bUU
+# tVkp+S8Zd6xV7PA1rqxqs5DabpEoGmQWybfOzcHlMqzacR3DXkar7A5Zd5PCerWJ
+# l775k3pyeLxIcJffgSS9klIuRgpabLmvogpRy64ceRSZTFyTCFlV3W8c40g9riIG
+# CI2PZTw+rEP+m98CzNHWacc4W4vM5lxuldnjxxKdpDwFRMvGw9cFzRkV25JwrEt0
+# xvdu4U6kMqCngbpQ6Sp2BRTNYsP0Yc8y1lABbVXo7xvycIlRri2QNuC3wePrY80r
+# 7lEjC3aVEuo8dFDgiYECOL9jb/hXw+iFCIW+rmfSP89Zi5YM/J5B0uRddeg239dA
+# TFJPQH0Ys+1NexQKJYgq9y1EoP36Fg==
 # SIG # End signature block
