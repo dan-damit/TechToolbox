@@ -7,7 +7,7 @@ The agent is designed to:
 
 - Auto-discover available module functions at runtime.
 - Merge discovered metadata with curated tool metadata from `manifest.json`.
-- Let an Ollama-backed LLM choose and call tools iteratively.
+- Let an Ollama-backed LLM choose and call tools iteractively.
 - Enforce a confirmation gate for destructive operations.
 
 ---
