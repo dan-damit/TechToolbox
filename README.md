@@ -217,4 +217,4 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
 
 - Author: Dan Damit
 - License: Internal use
-- Module version: 0.4.56
+- Module version: 0.4.57
