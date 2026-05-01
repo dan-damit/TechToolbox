@@ -134,4 +134,4 @@ Invoke-TechAgent -Prompt "Run a quick system health summary." -Model "qwen3.6:35
 ## Maintainer Note
 
 The source of truth is `FunctionsToExport` in `TechToolbox.psd1`.
-When you add or remove exported functions, update this file in the same change.
+When adding or removing exported functions, update this file in the same change.
