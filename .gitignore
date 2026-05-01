@@ -1,5 +1,6 @@
 # Directories to ignore:
 Out/
+.venv/
 
 # Files to ignore:
 Autodiscover*
