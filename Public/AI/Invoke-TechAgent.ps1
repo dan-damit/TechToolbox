@@ -54,6 +54,29 @@ function Invoke-TechAgent {
         $Model = $cfg.model
     }
 
+    $waitTimeoutSeconds = [Math]::Max(300, ($MaxIterations * 180))
+    $waitPollSeconds = 5
+    $waitHeartbeatSeconds = 60
+
+    if ($cfg -and $cfg.wait) {
+        $timeoutCfg = $cfg.wait.timeoutSeconds -as [int]
+        if ($null -ne $timeoutCfg -and $timeoutCfg -gt 0) {
+            $waitTimeoutSeconds = $timeoutCfg
+        }
+
+        $pollCfg = $cfg.wait.pollSeconds -as [int]
+        if ($null -ne $pollCfg -and $pollCfg -gt 0) {
+            $waitPollSeconds = $pollCfg
+        }
+
+        $heartbeatCfg = $cfg.wait.heartbeatSeconds -as [int]
+        if ($null -ne $heartbeatCfg -and $heartbeatCfg -ge 0) {
+            $waitHeartbeatSeconds = $heartbeatCfg
+        }
+    }
+
+    $agentProc = $null
+
     try {
         # Resolve agent path from module root (Public/AI is not the module root).
         $moduleRoot = Get-ModuleRoot
@@ -147,16 +170,98 @@ function Invoke-TechAgent {
             $pythonArgs += '--destructive-confirmed'
         }
 
-        $env:PYTHONIOENCODING = 'utf-8'
-        $result = & $pythonCommand.Source @pythonArgs 2>&1
-        $env:PYTHONIOENCODING = $null
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = [string]$pythonCommand.Source
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        $startInfo.Environment['PYTHONIOENCODING'] = 'utf-8'
 
-        if ($LASTEXITCODE -ne 0) {
-            $errorText = ($result | Out-String).Trim()
-            throw ("Tech agent exited with code {0}: {1}" -f $LASTEXITCODE, $errorText)
+        foreach ($arg in $pythonArgs) {
+            [void]$startInfo.ArgumentList.Add([string]$arg)
         }
 
-        $message = ($result | Out-String).Trim()
+        $agentProc = [System.Diagnostics.Process]::new()
+        $agentProc.StartInfo = $startInfo
+        if (-not $agentProc.Start()) {
+            throw "Failed to start Python process for tech agent."
+        }
+
+        $agentDeadline = (Get-Date).AddSeconds($waitTimeoutSeconds)
+        $agentState = [ordered]@{
+            TimedOut = $false
+        }
+
+        $poll = {
+            if (-not $agentProc.HasExited) {
+                if ((Get-Date) -ge $agentDeadline) {
+                    $agentState.TimedOut = $true
+                    try { $agentProc.Kill() } catch { }
+                    return @{ Status = 'Timeout' }
+                }
+
+                return @{ Status = 'Running' }
+            }
+
+            $stdoutText = ''
+            $stderrText = ''
+
+            try { $stdoutText = [string]$agentProc.StandardOutput.ReadToEnd() } catch { }
+            try { $stderrText = [string]$agentProc.StandardError.ReadToEnd() } catch { }
+
+            return @{
+                Status = 'Done'
+                Code   = [int]$agentProc.ExitCode
+                StdOut = $stdoutText
+                StdErr = $stderrText
+            }
+        }
+
+        $getStatus = {
+            param($obj)
+
+            switch ($obj.Status) {
+                'Timeout' { return 'Timeout' }
+                'Done' {
+                    if ($obj.Code -eq 0) { return 'Success' }
+                    return 'Error'
+                }
+                default { return 'Running' }
+            }
+        }
+
+        $terminal = @{
+            'Success' = @{ Level = 'Ok'; Message = 'Tech agent completed successfully.'; Return = $true }
+            'Error'   = @{ Level = 'Error'; Message = { param($obj, $status) "Tech agent failed with exit code $($obj.Code)." }; Return = $true }
+            'Timeout' = @{ Level = 'Error'; Message = "Tech agent timed out after ${waitTimeoutSeconds} seconds."; Return = $true }
+        }
+
+        $final = Wait-TerminalState `
+            -Target 'TechAgent' `
+            -PollScript $poll `
+            -GetStatus $getStatus `
+            -TerminalStates $terminal `
+            -TimeoutSeconds ($waitTimeoutSeconds + 60) `
+            -PollSeconds $waitPollSeconds `
+            -HeartbeatSeconds $waitHeartbeatSeconds `
+            -NotFoundMessage 'Tech agent process not discovered yet...' `
+            -WaitingMessage 'Tech agent working '
+
+        if ($agentState.TimedOut) {
+            throw ("Tech agent timed out after {0} seconds." -f $waitTimeoutSeconds)
+        }
+
+        if ([int]$final.Code -ne 0) {
+            $errorText = [string]$final.StdErr
+            if ([string]::IsNullOrWhiteSpace($errorText)) {
+                $errorText = [string]$final.StdOut
+            }
+            $errorText = $errorText.Trim()
+            throw ("Tech agent exited with code {0}: {1}" -f $final.Code, $errorText)
+        }
+
+        $message = ([string]$final.StdOut).Trim()
         if ([string]::IsNullOrWhiteSpace($message)) {
             $message = 'Tech agent completed successfully with no output.'
         }
@@ -167,13 +272,18 @@ function Invoke-TechAgent {
         Write-Log -Level Error -Message ("Invoke-TechAgent failed: {0}" -f $_.Exception.Message)
         throw
     }
+    finally {
+        if ($agentProc -and -not $agentProc.HasExited) {
+            try { $agentProc.Kill() } catch { }
+        }
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCIVSg4CZsqmWqG
-# X/ok1YwXyRllOFOKgh+381BLMXz7K6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCObga0xXf/zZVT
+# ZWREIGfGEzxjasHXeWnCQwSWqj4h1aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -306,34 +416,34 @@ function Invoke-TechAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD6P0cvxW6Q
-# HnT6gYaeXwQvtMzBMP3hRlMUGelf6t1tJDANBgkqhkiG9w0BAQEFAASCAgCzJgwt
-# UtcMhMOTXA0yG0oNUxs8ZybeEnEPfvjL/NAFN0jsaVWx7KlKTtZiMJ+68q2a1p3Y
-# uUBCFhjy10MQPhfRoDUwfHnomJ13W2hQQ5Dp4LKO3JSZywPVaB4dh3wMZLoFLBTc
-# cDNrBB5X5l/1HNTNL1oGyCH7hJ25PaVjlDqMpK/YiyfE7Imr+eBfr2HZ++kDA8Gm
-# K57pC51c8I92hfypxv/rgphO2z/fkiFsoHxl0qY69T3L49s4I0TZVOfcRQZl/GjM
-# MgBxsKuMNMxC8kZAj4zSRd7iEAR/c5leqQA2+GV+7ADJZwxG0jlLX3VhShSGVx4X
-# AsBv4imhFG184KhmvmxDPUZEb4Z8BPu18brZOA5pckbrLxQ9qAe000Y73YVDHkyd
-# Sbp37ADVqZErceiOXeyEmnLDn1o7dVspQu92RiZRn1Ki0lBuMlAxhMYzLlkhEgHd
-# zdEX0GHIwS1/k5AwHw0F9rFCWz1zU/fHbY/Zu+j18f2l4IPfCsYBIj8aX8uJPsGS
-# QjUrCDJqSE/Tx9z8HH6MBGU2/F8wx6P3suMwWMsr+xPA89av/wJnnwZGabzLguDL
-# bYBwkt4g5SzhGc/4C0I2QA0qQR7dE4v+7QGKC8y/Jy1HVnx4sfkdhAbfsvcq09U3
-# FUmT26AhLXTnkuRoG16v0Wp3NCYfPTcH36XY86GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCzGcilv2VF
+# llnimpc5F6eKScysi6Os7uJ+ISP9F9boGzANBgkqhkiG9w0BAQEFAASCAgBFVOkm
+# b/dATW+5iCxWkESKMRr2J+QEQYelfcQxgD6TBgMTM9JCnwwEOfBPTOLV+7jUe+MT
+# T+lsYCjrTDGQyEOnVgS/EpX46E+Bb9e/o7xADd0jVX/oDuFmhMarqrEqjkOHu9L1
+# lKJOk+tiLijzLTzWgKhWWqpY/H50MbF0E3zXsPR9DB/+IOjuMiZI4pGzzlgb4L36
+# 77ciZkk1PRErFhD+zizAEsQGAlOuRU+Ag3ZvxAAd8wOq35G1eptVx15pKpbqZHxB
+# EgENi9YLoBBqqE5wyDm9yZMzn8pFSIGEvEgjyQ9DMPblnUUQxxN9THnJ5Bj7hmdC
+# KN41TURxtw4bQmeZlH2AgYhvOGMuNqhsfJFdM5DUuJAQV1TFDM4il4+8XGcK0Ujz
+# ZJ/QDGOBcb1IagQOGDdMaDaWhFFAYI0rdXWXNDDfo9sqlin1f1vyol0dNDXIb/p2
+# +qmKX5HWW94QhHclPq2NHcs8bYrw0c5Xe8oXf6kj2JJ6fke+r0CW7roG8kmyT9tw
+# TFKqgl5xriXyqB5rIpypD9Q35tkB7NRYviovjwP1WhFBPYIvfkF+zNpu/qf2kQ6C
+# x6hlpJPqsiVZANdltFfe6hpnG+sW6F73j97nhzxuGow5wC1EMQDQjcpuQNGN6qxR
+# B5jwa6mZW8okN6lM8UYP2S9dO8CfEGyS5KFBc6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDEwMzU5NTBaMC8GCSqGSIb3DQEJBDEiBCAXAC/eHtoVmTAmeGyb
-# H6KoSHYf1ANVSE0Vdk02B3YjsTANBgkqhkiG9w0BAQEFAASCAgAsgBCXOV1nqjdM
-# Z6Z2UXzyGtNeiksQntgf+9y0Y0bfwrU/njsYQqBQZL1K9UzcL+DoJaNDQzXFNmUz
-# JrmSQVmNvBYlGvWpYQnycBj+3BSwfSUGBXVe+2Xe/fQV9xDCUS3oYbbZOWF9y0yT
-# TyOgq0zzAwzWXkHg+324QBxsktbqVj8y4k8H9srmoqGT09JSyt7+SMbXu5Cdd46j
-# Yuk6KajVYxmeVMkHIEBPmpoIgZhuKD6yZFqsUxldYBNszea4Wzxp6VncqYaYD/tf
-# Guv24CWtN3jFTYmW6HCxq00A42V1/SAm4pM6gwwUGMD5jJEJao42y8WfqpOX4bUU
-# tVkp+S8Zd6xV7PA1rqxqs5DabpEoGmQWybfOzcHlMqzacR3DXkar7A5Zd5PCerWJ
-# l775k3pyeLxIcJffgSS9klIuRgpabLmvogpRy64ceRSZTFyTCFlV3W8c40g9riIG
-# CI2PZTw+rEP+m98CzNHWacc4W4vM5lxuldnjxxKdpDwFRMvGw9cFzRkV25JwrEt0
-# xvdu4U6kMqCngbpQ6Sp2BRTNYsP0Yc8y1lABbVXo7xvycIlRri2QNuC3wePrY80r
-# 7lEjC3aVEuo8dFDgiYECOL9jb/hXw+iFCIW+rmfSP89Zi5YM/J5B0uRddeg239dA
-# TFJPQH0Ys+1NexQKJYgq9y1EoP36Fg==
+# BTEPFw0yNjA1MDIxNDQ0MDhaMC8GCSqGSIb3DQEJBDEiBCDD9kztiXQbT91T+hG9
+# 4x1rqXh0HEBxbrOPHzUtIs8jfjANBgkqhkiG9w0BAQEFAASCAgAN95NnIrHKMCA3
+# KwlZAyqsRp1oJwc7rHTvdWBhyeaKYuafX0ZG4r0XkOCnBfDUkG5kzJtfKWsnK2LT
+# bZE2C2/H1HYTnH9Go05sAQmMd/+cMqUaYnKCrx3a6M4lh2VOcAG0r7pwbhcH/9Aq
+# +T2UwM1vQyij9dfLM1RDFDAAuJ72QFXd2Km3vQU2d9OtDaFHqkH8Kax/q+m4b3pV
+# umrY/bMP/q43SXVyRV7l5CtWXmP2V75Ua6sij0z2pKvWG27JVFyNIDtcyXOLUOaD
+# jVHn/wTGApNbLVdePKY81i4MkhY56e2xoV78zFrIMJILKCcG/Q7SV+yeYESlyzsm
+# HDzTZAthfwQHjBTSG0bjKl9ULL++zINnuWu9g2+ih+MWPwcr4zAZMweASKhXY5lY
+# 721djIuszLMNFFaZnlnOqlBX0YDSZeDsfnFcOoEfFF4911UPMghzNiKHiYOcWLIv
+# 03FEq4vGmEF3ErXHLZm1BrCfVhb+yBPcZK/XZzGDPNdEOrWrKFpHRBKPVtu6nD/Z
+# BU8/0Xfq8C1J9LtsvcIDqpxyhixjL/zQoPUwwofR+c91/CcZjDndiQejJ/Ai+qHY
+# jCFvJ5KkG+0WHGYFUPt2otLwXo4oYgrFa/PxE3hFXSlTbDpgLPEF82vIpk/Km4V6
+# u2tMFQDklU+p5A9tRKgsNtajCyngCA==
 # SIG # End signature block
