@@ -119,7 +119,12 @@
     },
     "agent": {
       "model": "qwen3.6:35b",
-      "promptPackPath": "C:\\TechToolbox\\AI\\prompts.json"
+      "promptPackPath": "C:\\TechToolbox\\AI\\prompts.json",
+      "wait": {
+        "timeoutSeconds": 2700,
+        "pollSeconds": 5,
+        "heartbeatSeconds": 60
+      }
     },
     "messageTrace": {
       "autoExport": true,

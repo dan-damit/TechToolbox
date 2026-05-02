@@ -1,0 +1,22 @@
+<#
+.SYNOPSIS
+    Searches for user accounts in Active Directory or the directory.
+.DESCRIPTION
+    The Search-User function queries directory services for user accounts based on provided filters. It supports searching by name, department, group membership, or account status. Results are returned as PowerShell objects containing relevant user properties.
+.PARAMETER Name
+    Specifies the common name or SAM account name to search for. Accepts wildcards (*).
+.PARAMETER Department
+    Specifies the organizational department to filter results.
+.PARAMETER Group
+    Specifies a security or distribution group to filter users by membership.
+.PARAMETER Enabled
+    Boolean parameter to filter users by their enabled/disabled status. Defaults to $true.
+.EXAMPLE
+    Search-User -Name "Smith"
+    Searches for all users with "Smith" in their name.
+.EXAMPLE
+    Search-User -Department "Engineering" -Enabled $true
+    Retrieves all enabled users in the Engineering department.
+.NOTES
+    Requires appropriate Active Directory module permissions.
+#>

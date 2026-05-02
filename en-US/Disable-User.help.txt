@@ -1,0 +1,91 @@
+TOPIC
+
+    Disable-User
+
+SHORT DESCRIPTION
+
+    Disables an Active Directory user and optionally performs Exchange Online offboarding steps.
+
+LONG DESCRIPTION
+
+    Disable-User runs a structured offboarding workflow for a single user identity.
+    The command resolves the user in AD, disables the account, optionally moves the
+    account to the configured Disabled OU, updates the AD Description with an
+    offboarding note, and can optionally run Exchange Online mailbox actions.
+
+    Cloud actions are controlled by configuration and switches:
+
+    - IncludeEXO: run Exchange Online forwarding and manager mailbox access steps.
+    - ForceCloud: bypass hybrid auto-disable short-circuit and force cloud steps.
+
+    When settings.offboarding.useHybridAutoDisable is true and -ForceCloud is not
+    used, EXO actions are skipped to allow directory sync systems to handle cloud
+    propagation.
+
+PARAMETERS
+
+    -Identity <String>
+        Required. User identity accepted by Search-User (for example
+        sAMAccountName, UPN, or display name).
+
+    -IncludeEXO
+        Optional. Enables Exchange Online offboarding steps for this run.
+
+    -ForwardToSmtpAddress <String>
+        Optional. Overrides manager-based forwarding target with a specific SMTP
+        address.
+
+    -DeliverToMailboxAndForward
+        Optional. Controls whether a copy is retained in mailbox while forwarding.
+
+    -ForceCloud
+        Optional. Forces cloud steps even when hybrid auto-disable is enabled.
+
+    -Credential <PSCredential>
+        Optional. Credential used for AD and, where applicable, cloud auth.
+
+WHATIF AND CONFIRM
+
+    Disable-User supports ShouldProcess. Use -WhatIf to preview AD and EXO changes
+    before committing.
+
+OUTPUTS
+
+    PSCustomObject with step-by-step results such as:
+
+    - ADDisable
+    - ADGroups
+    - Forwarding
+    - ManagerAccess
+
+    Non-fatal cloud failures are returned in corresponding *Error properties.
+
+EXAMPLES
+
+    Disable-User -Identity "jdoe"
+
+    Disable-User -Identity "jdoe" -IncludeEXO
+
+    Disable-User -Identity "jdoe@company.com" -IncludeEXO -ForwardToSmtpAddress "helpdesk@company.com"
+
+    Disable-User -Identity "jdoe" -IncludeEXO -DeliverToMailboxAndForward:$false
+
+    Disable-User -Identity "jdoe" -IncludeEXO -WhatIf
+
+    Disable-User -Identity "jdoe" -ForceCloud -IncludeEXO
+
+CONFIGURATION
+
+    Disable-User relies on settings.offboarding in Config/config.json:
+
+    - includeEXO
+    - useHybridAutoDisable
+    - cleanupADGroups
+    - disabledOU
+
+SEE ALSO
+
+    Search-User
+    Disable-ADUserAccount
+    Remove-ADUserGroups
+    Write-OffboardingSummary
