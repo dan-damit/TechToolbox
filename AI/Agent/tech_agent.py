@@ -7,7 +7,10 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
+from datetime import datetime, timezone
+from typing import Optional
 
 from langchain.agents import create_agent
 from langchain_core.tools import StructuredTool
@@ -16,6 +19,11 @@ from langchain_ollama import ChatOllama
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _READ_MAX_BYTES = 50_000  # ~50 KB cap to avoid flooding the context window
+_MEMORY_CONTEXT_MAX_CHARS = 6_000
+_MEMORY_HISTORY_ITEMS = 8
+_MEMORY_HISTORY_MAX_ITEMS = 200
+_MEMORY_TEXT_PREVIEW_MAX_CHARS = 500
+_MEMORY_TREND_WINDOW_ITEMS = 30
 
 DESTRUCTIVE_VERBS = {
     "clear",
@@ -93,17 +101,26 @@ def make_tool(name, spec, destructive_confirmed: bool = False):
     )
 
 
-def _build_goal_prompt(prompt: str) -> str:
+def _build_goal_prompt(prompt: str, memory_context: Optional[str] = None) -> str:
     """Bias the model toward iterative execution until completion/conclusion."""
-    return (
+    header = (
         "You are a local automation agent. "
         "Work step-by-step, call tools as needed, and continue iterating until the goal is completed "
         "or you can clearly justify why it cannot be completed safely. "
         "Never execute destructive actions without explicit confirmation. "
         "If confirmation is missing, stop and report exactly what confirmation is required. "
         "If blocked, explain the blocker and provide the next best action.\n\n"
-        f"Goal: {prompt}"
     )
+
+    if memory_context:
+        return (
+            f"{header}"
+            "Persistent memory context (advisory):\n"
+            f"{memory_context}\n\n"
+            f"Goal: {prompt}"
+        )
+
+    return f"{header}Goal: {prompt}"
 
 
 def _extract_output(result) -> str:
@@ -132,6 +149,68 @@ def _extract_output(result) -> str:
                     return "\n".join(parts)
 
     return str(result)
+
+
+def _extract_tool_call_count(result) -> int:
+    """Count assistant-issued tool calls from LangChain 1.x agent payload."""
+    count = 0
+    if not isinstance(result, dict):
+        return count
+
+    messages = result.get("messages")
+    if not isinstance(messages, list):
+        return count
+
+    for message in messages:
+        tool_calls = None
+        if isinstance(message, dict):
+            tool_calls = message.get("tool_calls")
+            if not tool_calls:
+                additional_kwargs = message.get("additional_kwargs") or {}
+                if isinstance(additional_kwargs, dict):
+                    tool_calls = additional_kwargs.get("tool_calls")
+        else:
+            tool_calls = getattr(message, "tool_calls", None)
+            if not tool_calls:
+                additional_kwargs = getattr(message, "additional_kwargs", None) or {}
+                if isinstance(additional_kwargs, dict):
+                    tool_calls = additional_kwargs.get("tool_calls")
+
+        if isinstance(tool_calls, list):
+            count += len(tool_calls)
+
+    return count
+
+
+def _classify_outcome(output_text: str, status: str) -> str:
+    """Classify final run outcome for memory summaries."""
+    if status == "error":
+        return "error"
+
+    lower = (output_text or "").lower()
+    needs_confirmation_markers = [
+        "confirmation is required",
+        "requires explicit confirmation",
+        "requires confirmation",
+        "--destructive-confirmed",
+        "not authorized",
+        "confirm destructive",
+    ]
+    blocked_markers = [
+        "blocked",
+        "cannot be completed",
+        "cannot complete",
+        "can't complete",
+        "unable to complete",
+        "missing",
+        "not available",
+    ]
+
+    if any(marker in lower for marker in needs_confirmation_markers):
+        return "needs-confirmation"
+    if any(marker in lower for marker in blocked_markers):
+        return "blocked"
+    return "completed"
 
 
 def _safe_path(path_str: str) -> Path:
@@ -217,6 +296,8 @@ def run_agent(
     verbose: bool = True,
     max_iterations: int = 15,
     destructive_confirmed: bool = False,
+    memory_context: Optional[str] = None,
+    return_metadata: bool = False,
 ):
     """
     Run the agent with the given prompt.
@@ -246,7 +327,7 @@ def run_agent(
         name="techtoolbox-local-agent",
     )
 
-    goal_prompt = _build_goal_prompt(prompt)
+    goal_prompt = _build_goal_prompt(prompt, memory_context=memory_context)
 
     # recursion_limit is the closest 1.x equivalent to capping tool/reasoning loops.
     recursion_limit = max(10, (max_iterations * 3) + 2)
@@ -258,7 +339,152 @@ def run_agent(
         },
         config={"recursion_limit": recursion_limit},
     )
-    return _extract_output(result)
+    output_text = _extract_output(result)
+
+    if return_metadata:
+        metadata = {
+            "toolCalls": _extract_tool_call_count(result),
+        }
+        return output_text, metadata
+
+    return output_text
+
+
+class MemoryStore:
+    def __init__(self, path):
+        self.path = path
+        if not os.path.exists(path):
+            self.data = {"preferences": {}, "facts": {}, "history": []}
+            self.save()
+        else:
+            with open(path, "r", encoding="utf-8") as f:
+                self.data = json.load(f)
+
+    def save(self):
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(self.data, f, indent=2)
+
+    def remember_fact(self, key, value):
+        self.data["facts"][key] = value
+        self.save()
+
+    def remember_preference(self, key, value):
+        self.data["preferences"][key] = value
+        self.save()
+
+    def add_history(self, entry, max_items: int = _MEMORY_HISTORY_MAX_ITEMS):
+        self.data["history"].append(entry)
+        if max_items > 0 and len(self.data["history"]) > max_items:
+            self.data["history"] = self.data["history"][-max_items:]
+        self.save()
+
+    def update_trend_facts(self, window_items: int = _MEMORY_TREND_WINDOW_ITEMS):
+        """Compute compact rolling run stats and persist them in facts."""
+        history = self.data.get("history") or []
+        recent = history[-window_items:] if window_items > 0 else history
+
+        run_count = len(recent)
+        status_counts = {"success": 0, "error": 0}
+        outcome_counts = {
+            "completed": 0,
+            "blocked": 0,
+            "needs-confirmation": 0,
+            "error": 0,
+        }
+        duration_values = []
+        tool_call_values = []
+
+        for item in recent:
+            if not isinstance(item, dict):
+                continue
+
+            status = item.get("status")
+            if status in status_counts:
+                status_counts[status] += 1
+
+            outcome = item.get("outcome")
+            if outcome in outcome_counts:
+                outcome_counts[outcome] += 1
+
+            duration_ms = item.get("durationMs")
+            if isinstance(duration_ms, (int, float)):
+                duration_values.append(int(duration_ms))
+
+            tool_calls = item.get("toolCalls")
+            if isinstance(tool_calls, (int, float)):
+                tool_call_values.append(int(tool_calls))
+
+        avg_duration_ms = int(sum(duration_values) / len(duration_values)) if duration_values else 0
+        avg_tool_calls = round(sum(tool_call_values) / len(tool_call_values), 2) if tool_call_values else 0.0
+        success_rate = round((status_counts["success"] / run_count), 3) if run_count else 0.0
+
+        last = recent[-1] if recent else {}
+        trend_summary = {
+            "windowItems": window_items,
+            "runCount": run_count,
+            "successRate": success_rate,
+            "avgDurationMs": avg_duration_ms,
+            "avgToolCalls": avg_tool_calls,
+            "statusCounts": status_counts,
+            "outcomeCounts": outcome_counts,
+            "lastStatus": last.get("status") if isinstance(last, dict) else None,
+            "lastOutcome": last.get("outcome") if isinstance(last, dict) else None,
+            "lastModel": last.get("model") if isinstance(last, dict) else None,
+            "lastRunTimestampUtc": last.get("timestampUtc") if isinstance(last, dict) else None,
+            "trendLastUpdatedUtc": _utc_now_iso(),
+        }
+
+        if "facts" not in self.data or not isinstance(self.data["facts"], dict):
+            self.data["facts"] = {}
+        self.data["facts"]["trendSummary"] = trend_summary
+        self.save()
+
+    def to_prompt_context(
+        self,
+        max_chars: int = _MEMORY_CONTEXT_MAX_CHARS,
+        history_items: int = _MEMORY_HISTORY_ITEMS,
+    ) -> str:
+        """Render compact memory text suitable for prompt prepending."""
+        preferences = self.data.get("preferences") or {}
+        facts = self.data.get("facts") or {}
+        history = self.data.get("history") or []
+
+        lines = ["Preferences:"]
+        if preferences:
+            for key, value in preferences.items():
+                lines.append(f"- {key}: {json.dumps(value, ensure_ascii=False)}")
+        else:
+            lines.append("- (none)")
+
+        lines.append("Facts:")
+        if facts:
+            for key, value in facts.items():
+                lines.append(f"- {key}: {json.dumps(value, ensure_ascii=False)}")
+        else:
+            lines.append("- (none)")
+
+        lines.append(f"Recent history (last {history_items}):")
+        if history:
+            for item in history[-history_items:]:
+                lines.append(f"- {json.dumps(item, ensure_ascii=False)}")
+        else:
+            lines.append("- (none)")
+
+        context = "\n".join(lines)
+        if len(context) > max_chars:
+            return context[:max_chars] + "\n[Memory context truncated]"
+        return context
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _preview_text(value: str, max_chars: int = _MEMORY_TEXT_PREVIEW_MAX_CHARS) -> str:
+    text = (value or "").strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + "..."
 
 
 def main():
@@ -285,19 +511,73 @@ def main():
         action="store_true",
         help="Explicitly authorize destructive operations for this run.",
     )
+    parser.add_argument(
+        "--memory-file",
+        default=str(Path(__file__).resolve().parent / "memory.json"),
+        help="Path to persistent memory JSON file (default: AI/Agent/memory.json).",
+    )
+    parser.add_argument(
+        "--no-memory",
+        action="store_true",
+        help="Do not prepend persistent memory context to the goal prompt.",
+    )
     args = parser.parse_args()
 
     if args.max_iterations < 1:
         raise ValueError("--max-iterations must be at least 1")
 
-    output = run_agent(
-        args.prompt,
-        model=args.model,
-        verbose=not args.quiet,
-        max_iterations=args.max_iterations,
-        destructive_confirmed=args.destructive_confirmed,
-    )
-    print(output)
+    memory = None
+    memory_context = None
+    if not args.no_memory:
+        try:
+            memory = MemoryStore(args.memory_file)
+            memory_context = memory.to_prompt_context()
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"Warning: failed to load memory file '{args.memory_file}': {exc}", file=sys.stderr)
+
+    started = time.monotonic()
+    output = ""
+    error = None
+    run_metadata = {}
+    try:
+        output, run_metadata = run_agent(
+            args.prompt,
+            model=args.model,
+            verbose=not args.quiet,
+            max_iterations=args.max_iterations,
+            destructive_confirmed=args.destructive_confirmed,
+            memory_context=memory_context,
+            return_metadata=True,
+        )
+        print(output)
+    except Exception as exc:
+        error = exc
+    finally:
+        if memory is not None:
+            duration_ms = int((time.monotonic() - started) * 1000)
+            entry = {
+                "timestampUtc": _utc_now_iso(),
+                "status": "error" if error else "success",
+                "outcome": _classify_outcome(output, "error" if error else "success"),
+                "prompt": _preview_text(args.prompt),
+                "model": args.model,
+                "durationMs": duration_ms,
+                "maxIterations": args.max_iterations,
+                "destructiveConfirmed": args.destructive_confirmed,
+                "toolCalls": int(run_metadata.get("toolCalls", 0)),
+            }
+            if error is None:
+                entry["outputPreview"] = _preview_text(output)
+            else:
+                entry["error"] = _preview_text(str(error))
+            try:
+                memory.add_history(entry)
+                memory.update_trend_facts()
+            except OSError as save_exc:
+                print(f"Warning: failed to update memory history: {save_exc}", file=sys.stderr)
+
+    if error is not None:
+        raise error
 
 
 if __name__ == "__main__":

@@ -1,0 +1,11 @@
+{
+  "preferences": {
+    "installStyle": "clean-factory",
+    "defaultModel": "qwen3.6:35b"
+  },
+  "facts": {
+    "moduleRoot": "C:\\TechToolbox",
+    "defaultLanguage": "en-US"
+  },
+  "history": []
+}
