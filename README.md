@@ -201,7 +201,7 @@ Get-RemoteInstalledSoftware -ComputerName srv01 -WhatIf
 Invoke-PurviewPurge -UserPrincipalName you@company.com -CaseName Case-001 -SearchName Search-001 -WhatIf
 Get-MessageTrace -MessageId '<test@company.com>' -WhatIf
 Get-BatteryHealth -WhatIf
-Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta -WhatIf
+Invoke-AADSyncRemote -ComputerName aadconnect-01 -PolicyType Delta -WhatIf
 ```
 
 ## Troubleshooting
