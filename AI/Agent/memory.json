@@ -5,7 +5,54 @@
   },
   "facts": {
     "moduleRoot": "C:\\TechToolbox",
-    "defaultLanguage": "en-US"
+    "defaultLanguage": "en-US",
+    "trendSummary": {
+      "windowItems": 30,
+      "runCount": 2,
+      "successRate": 0.5,
+      "avgDurationMs": 110327,
+      "avgToolCalls": 1.5,
+      "statusCounts": {
+        "success": 1,
+        "error": 1
+      },
+      "outcomeCounts": {
+        "completed": 1,
+        "blocked": 0,
+        "needs-confirmation": 0,
+        "error": 1
+      },
+      "lastStatus": "error",
+      "lastOutcome": "error",
+      "lastModel": "qwen3.6:35b",
+      "lastRunTimestampUtc": "2026-05-03T19:48:24+00:00",
+      "trendLastUpdatedUtc": "2026-05-03T19:48:24+00:00"
+    }
   },
-  "history": []
+  "history": [
+    {
+      "timestampUtc": "2026-05-03T19:44:49+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Pleaes look at the Search-User.help.txt file and expand on it based on what the function does. Be detailed in the help block. Thank you!",
+      "model": "qwen3.6:35b",
+      "durationMs": 204506,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "toolCalls": 3,
+      "outputPreview": "This looks like a truncated export of your largest files on a Windows 11 system (user `dan`), likely from a disk usage analyzer or file explorer plugin. Since there's no specific question, here's a quick breakdown and a few ways I can help:\n\n### \ud83d\udd0d What's in this list?\n| Category | Examples | Typical Size Range |\n|----------|----------|-------------------|\n| **Windows System** | `C:\\Windows\\Installer\\*.msp`, `WinSxS\\*.dll` | 270\u2013347 MB |\n| **Browsers** | `msedge.dll`, `chrome.dll` (multiple versi..."
+    },
+    {
+      "timestampUtc": "2026-05-03T19:48:24+00:00",
+      "status": "error",
+      "outcome": "error",
+      "prompt": "Please look at the C:\\TechToolbox module, read the Search-User.ps1 function, and add a more detailed Search-User.help.txt file in C:\\TechToolbox\\en-US folder.",
+      "model": "qwen3.6:35b",
+      "durationMs": 16148,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "toolCalls": 0,
+      "error": "[Errno 13] Permission denied: 'C:\\\\TechToolbox'"
+    }
+  ]
 }

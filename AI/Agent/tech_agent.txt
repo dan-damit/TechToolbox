@@ -241,11 +241,6 @@ def make_read_file_tool():
         if not p.exists():
             return f"Error: file not found: {p}"
         if not p.is_file():
-            if p.is_dir():
-                return (
-                    f"Error: '{p}' is a directory, not a file. "
-                    "Provide a full file path such as 'en-US/Search-User.help.txt'."
-                )
             return f"Error: '{p}' is not a file."
         size = p.stat().st_size
         if size > _READ_MAX_BYTES:
@@ -272,11 +267,6 @@ def make_write_file_tool(destructive_confirmed: bool = False):
             p = _safe_path(path)
         except (ValueError, PermissionError) as exc:
             return f"Error: {exc}"
-        if p.exists() and p.is_dir():
-            return (
-                f"Error: '{p}' is a directory, not a file. "
-                "Provide a full file path such as 'en-US/Search-User.help.txt'."
-            )
         exists = p.exists()
         if exists and not destructive_confirmed:
             return (
@@ -497,64 +487,6 @@ def _preview_text(value: str, max_chars: int = _MEMORY_TEXT_PREVIEW_MAX_CHARS) -
     return text[:max_chars] + "..."
 
 
-def _module_access_preflight(module_root: Path) -> dict:
-    """Check module-root read/write access and return a compact status object."""
-    status = {
-        "path": str(module_root),
-        "readOk": False,
-        "writeOk": False,
-        "readError": None,
-        "writeError": None,
-    }
-
-    try:
-        if not module_root.exists():
-            status["readError"] = "path does not exist"
-            status["writeError"] = "path does not exist"
-            return status
-        if not module_root.is_dir():
-            status["readError"] = "path is not a directory"
-            status["writeError"] = "path is not a directory"
-            return status
-
-        # Trigger an actual directory read to catch ACL/path issues early.
-        _ = next(module_root.iterdir(), None)
-        status["readOk"] = True
-    except OSError as exc:
-        status["readError"] = str(exc)
-        status["writeError"] = "read preflight failed"
-        return status
-
-    probe = module_root / f".tt_access_probe_{os.getpid()}_{int(time.time() * 1000)}.tmp"
-    try:
-        probe.write_text("ok", encoding="utf-8")
-        probe.unlink()
-        status["writeOk"] = True
-    except OSError as exc:
-        status["writeError"] = str(exc)
-        try:
-            if probe.exists():
-                probe.unlink()
-        except OSError:
-            pass
-
-    return status
-
-
-def _print_preflight_status(module_root: Path) -> dict:
-    """Run and print one-line module access preflight status."""
-    status = _module_access_preflight(module_root)
-
-    read_part = "ok" if status["readOk"] else f"fail ({status['readError']})"
-    write_part = "ok" if status["writeOk"] else f"fail ({status['writeError']})"
-
-    print(
-        f"Preflight module access: path='{status['path']}' read={read_part} write={write_part}",
-        file=sys.stderr,
-    )
-    return status
-
-
 def main():
     parser = argparse.ArgumentParser(description="Run the TechToolbox agent.")
     parser.add_argument("--prompt", required=True, help="User prompt for the agent.")
@@ -593,8 +525,6 @@ def main():
 
     if args.max_iterations < 1:
         raise ValueError("--max-iterations must be at least 1")
-
-    _print_preflight_status(_REPO_ROOT)
 
     memory = None
     memory_context = None
