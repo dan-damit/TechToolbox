@@ -4,6 +4,9 @@ function Resolve-Naming {
         [string]$GivenName,
         [string]$Surname
     )
+
+    function New-ADUserNormalize([string]$s) { ($s -replace '\s+', '').ToLower() }
+
     $f = New-ADUserNormalize $GivenName
     $l = New-ADUserNormalize $Surname
 

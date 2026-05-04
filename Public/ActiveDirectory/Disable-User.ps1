@@ -385,10 +385,10 @@ function Disable-User {
                 $finalNote = if ($effective.IncludeEXO) {
                     if ($forwardTarget) {
                         if ($forwardFailed) {
-                            "Disabled on $dateStamp > Mail forwarding FAILED to $forwardTarget ($forwardSource)"
+                            "Disabled on $dateStamp > Mail forwarding FAILED to $forwardTarget"
                         }
                         else {
-                            "Disabled on $dateStamp > Mail forwarding to $forwardTarget ($forwardSource)"
+                            "Disabled on $dateStamp > Mail forwarding to $forwardTarget"
                         }
                     }
                     else {
