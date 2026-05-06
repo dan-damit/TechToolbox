@@ -1,39 +1,101 @@
-function Resolve-Naming {
+function Restart-SecureCrimpAuxTasks {
+    [CmdletBinding()]
     param(
-        [hashtable]$Naming,
-        [string]$GivenName,
-        [string]$Surname
+        [string]$Server = "SECURECRIMP-1.REDACTED.com",
+        [pscredential]$Credential,
+
+        [string[]]$TaskList = @(
+            "Secure Crimp - Monitor TCP",
+            "Secure Crimp - Run Schedule"
+        ),
+
+        [int]$StopTimeoutSec = 20,
+        [int]$SleepSeconds = 2
     )
 
-    function New-ADUserNormalize([string]$s) { ($s -replace '\s+', '').ToLower() }
+    Initialize-TechToolboxRuntime
 
-    $f = New-ADUserNormalize $GivenName
-    $l = New-ADUserNormalize $Surname
+    $sessParams = @{ ComputerName = $Server }
+    if ($PSBoundParameters.ContainsKey('Credential')) { $sessParams.Credential = $Credential }
+    $writeTaskLogShimSource = Get-RemoteWriteTaskLogShimSource
 
-    # UPN prefix
-    switch ($Naming.upnPattern) {
-        'first.last' { $upnPrefix = "$f.$l" }
-        'flast' { $upnPrefix = '{0}{1}' -f $f.Substring(0, 1), $l }
-        default { $upnPrefix = "$f.$l" }
+    $session = $null
+    try {
+        $session = Start-NewPSRemoteSession @sessParams
+
+        Invoke-Command -Session $session -ErrorAction Stop -ArgumentList $TaskList, $StopTimeoutSec, $SleepSeconds, $writeTaskLogShimSource -ScriptBlock {
+        param($TaskList, $StopTimeoutSec, $SleepSeconds, $WriteTaskLogShimSource)
+
+        . ([ScriptBlock]::Create($WriteTaskLogShimSource))
+
+        function Restart-LongRunningTask {
+            param(
+                [Parameter(Mandatory)][string]$TaskName,
+                [int]$TimeoutSec = 20
+            )
+
+            try {
+                $null = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+            }
+            catch {
+                Write-TaskLog -Level "ERROR" -Message "Scheduled task not found: '$TaskName'"
+                return $false
+            }
+
+            try {
+                $info = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction Stop
+
+                if ($info.State -eq 'Running') {
+                    Write-TaskLog -Level "INFO" -Message "Stopping scheduled task: $TaskName"
+                    Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+
+                    $sw = [Diagnostics.Stopwatch]::StartNew()
+                    do {
+                        Start-Sleep -Milliseconds 500
+                        $info = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue
+                    } while ($info -and $info.State -eq 'Running' -and $sw.Elapsed.TotalSeconds -lt $TimeoutSec)
+
+                    if ($info -and $info.State -eq 'Running') {
+                        Write-TaskLog -Level "WARN" -Message "Task still Running after $TimeoutSec sec: $TaskName"
+                    }
+                    else {
+                        Write-TaskLog -Level "INFO" -Message "Task stopped: $TaskName"
+                    }
+                }
+
+                Write-TaskLog -Level "INFO" -Message "Starting scheduled task: $TaskName"
+                Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+                Start-Sleep -Seconds $SleepSeconds
+
+                $post = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue
+                if ($post) {
+                    Write-TaskLog -Level "INFO" -Message "Task state: $TaskName :: $($post.State) (LastTaskResult: $($post.LastTaskResult))"
+                }
+
+                return $true
+            }
+            catch {
+                Write-TaskLog -Level "ERROR" -Message "Failed restarting task '$TaskName': $($_.Exception.Message)"
+                return $false
+            }
+        }
+
+        foreach ($t in $TaskList) {
+            Write-TaskLog -Level "INFO" -Message "Restarting auxiliary task: $t"
+            Restart-LongRunningTask -TaskName $t -TimeoutSec $StopTimeoutSec | Out-Null
+        }
+        }
     }
-
-    # SAM
-    switch ($Naming.samPattern) {
-        'first.last' { $sam = "$f.$l" }
-        'flast' { $sam = '{0}{1}' -f $f.Substring(0, 1), $l }
-        default { $sam = '{0}{1}' -f $f.Substring(0, 1), $l }
-    }
-
-    [pscustomobject]@{
-        UpnPrefix = $upnPrefix
-        Sam       = $sam
+    finally {
+        if ($session) { Remove-PSSession -Session $session -ErrorAction SilentlyContinue }
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAgKTTQYYeM5q/i
-# 57yackYoz/pjW/ZKWcL/7VgZXnB/iaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCwAhD8PLyIQHAv
+# pRmxAYMbiv/89o01zXoCacjAT38ML6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -166,34 +228,34 @@ function Resolve-Naming {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCRMJqfjAKt
-# xhRpb3b2+z+0HPxGhOOO86MVnl//cvJAlzANBgkqhkiG9w0BAQEFAASCAgDIi+KG
-# yP+hR7fbc2XhfNUR/CftwAt08Da/FO5mn3ShadPnX6y2dMmXvu7VGvyK9b5kvInq
-# RqdBQG8lV3kUkH00EucysQd1IwR5EkYDf7c3QKGl2VGNtQ2Bl798o1M3mAGmzD8f
-# zX9EAkYAKHp2LY+5tne5yBQz3cs1G/4qowlxOyaKBAngTj6DNk3ekncPIj6es7XZ
-# cVglDKvMWormr9DUmoDe9CyPqiuwXGIkflyqKzyaCaidLIwIzwAem//Jsswb0oWq
-# kzObTXGEu7F2rMNam+iYYtUbyPFihmKzXPPkcm9Qg8j6FuDj4/laIN2NmlErMuGq
-# Sndqz0IKEEePjjmKl35AtHipGhMhhkLBGOQCE91sJQ6zE4IBY9iP9mjvbdfKvDZP
-# 40t2H7KZOjqwzjt8xj1EqX442177JuvZf9D26kLi+Yu8yj/LePepW/NqxAOXRezk
-# YsFGsWMk/EU5JbvbQPjj1WZeqkrC2zu4Wyemo3tIMhwtglT3zAQMZt1xLScv10QK
-# H77XG5Wwkuh9Pi67PMP/UuhaNAk05GeT5M2dmsFyJmpnFPETs5Y+D8k09V0F3Opp
-# ZWZ9GQc9QdxqA+H5cs0lyD1WRKOnZenIx7/DEsx1cHFzLEW8155e2S7IvPKzeTm/
-# axyp4SrEfOwaO69DDWs75aD5hmQ96QFxGF455aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCpPWgzmBMx
+# Imir5/kVQJW3/p/EOSCnl4eG9qE0Sng7NzANBgkqhkiG9w0BAQEFAASCAgAPN4eN
+# bC1UeQ5FtO6rLa1mYRtti7/nX1ggjg4XuWpDor1ONCY6fCl4Y+g51tTbkcQg46Wa
+# VsllzkQ+RWbZY1aw6zCWWudax4Qu5WIBzA0PC7tY+OLpnZ0mVYJljEDAiJdQDndc
+# pswQ7RlLd8h/mmZlv26und+cLoSiYXRrdMoiWwcg3BenVkO2hRvfg/xpVh4lqf6i
+# uh2ZwRCZkD24y1gCAdmDM6v1w1LZxInrbD0F/AGRF+fjpEAUPJ5HjH6uk4/G763U
+# D5jPjvPsgGgWRa28Kjq9P/B+q432v1L/Q2vVk/nOhKDh3mxwnvHpokoxzMI7oNyW
+# 1ESd4+FbdAxnwssH0FE32zbeT6yTHn5dPS8ftgFMpvhZTST2TbJzRcSwzQsiM+Bu
+# LUD04yiEHaIf85gQ3bFuRsoTZl4osFpCZ2/FyGEIKi6aWe2Nc2VHS6hOg1eSZUUR
+# AV7HVYvslXc/nWTrlRwWQ7UaViFLgVA44c0ivJyirwHGiPaxcttq4yRSnVITcUrx
+# 9SqxM7HiVBToxuSqM2v683Wbt4AUSVx2rLTjCvXYauNlqm93w+HGtsMsOiNJT5Vm
+# xnrxAzu1jiD874EzWKxuNYtZ6k9O1F/+F6rWNXBXXLM6Ru9RlGh/9tME7b3daWpw
+# lxwu41Rn8Cv0ZsGI83f3sZ9EkAE0NrDYeFmKcaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDYxNTExNTVaMC8GCSqGSIb3DQEJBDEiBCCJRtCg9Eipc197SaNP
-# w23QSowwOuyvFu4PMze01mjkqjANBgkqhkiG9w0BAQEFAASCAgBmd/lOUji2B0MK
-# Y/NLV9n7+Nq7tup6afW4pr38KSWsRpobi6BhFDGQZwG8tM0luVrF2jozNLVGWRsW
-# a04NuNlkDfzMW7ZKyZqzbXOa17zFkwDKwfORCqvsd/1NjxKA/bPnPGG80vksxB6n
-# +eZbqT0qBqBND4UyiutcSnihH3YApJop/fCy6Q8czYF6kCttzyRl6ZY+RJdSVIKO
-# znlJKdzNubrpfyehCnz/R5vJyUgXh/e/b4azaGco/FbLsiqKokWGT830MPPqB84d
-# 1ZLRBP73GD+mD2jjSV6UiXKrrBANsa6Lf8aCnlb8MqtpYWWes7nMjX1V51pSsAF2
-# pHsNSPAyI60h8NLuzeIQ9HBMPt7CXhKmDPtchmZ/klcqx4nfIHQeb5OkZIz2zBqL
-# 23SAzHGGwjm361MwMdIVDw5sThBkH/ihSMkd1tem7Dn1VTPGY2StNSbwLlI0XFHH
-# g96YrGybDuDZqCHILJ76MK8GlC/8M8cl5jFWS6YaTAhVX1oPvYO/bYgR15Sx+SxB
-# n4zpwqPUeSVyAubclkFy80NNeGFao5ca7CyRU5tXP5war6dry6LdSHdeYiyf+wW0
-# FRY8Lf63gP1s3ZU2a66XrHfYzkL1W4+1WVykH10BPIGVTaEYkeSuTGhI3zTq8PZM
-# znQ5ZxMz7NKCxRRD9j+35QJsgRTvPA==
+# BTEPFw0yNjA1MDYxNzI5NDFaMC8GCSqGSIb3DQEJBDEiBCAwTGksELSoB+pUWAnz
+# NrkuaNbjhDBV6CaW9GCMyHaBxzANBgkqhkiG9w0BAQEFAASCAgC2ovjdUjpeYnc8
+# EtYX7dtqwSSiA23/Mma3RCdqQdvsNQujVUl0+HHywHmQ8E8JY+uvUaWlCaVTXx2A
+# i2M6Chfew3315WT45VuHWScedAZ44DiJypYolnDHeJXi2YVTrID4ubAu3HH+oCie
+# 2JUqX8oVAsZdrZNL+ay4vk6FfW++36yDIdwYSxvzxM3rP1zcWQDv0qTDwb3OkpLX
+# HtcT8AjVEX8s8RMd1Xw5Grv+g2JpbgZNkrUc7jT9iRnt+zHB25ligEftv/GYZ3Ph
+# Fzyi/85IEgStmLsbMmN3tlrDB/nCePfJg5YnpwHRRl9jUlIkzqKxRZgEcNt5t5HU
+# 6FLTsmN25Nar81Qd3GDADxMWmncMimQZjUwelCJjWGaGStvurxmNDzUb8HvJpmpA
+# GhIqkCFfwQ6d+p5ws6eWgKziIRV9XDeiJnvPyWR1BBEI+Pg4Ybgw23va64pCu/N6
+# 6yuxEQXAzRYSzTy515GlMpk82pCt754VeuaRm3DD5uUZ8t9aNaFUYJ23nyja44JG
+# LYw3T3dD9CnPsGySd43Kob59tUXX05A0C6QlHDNUzjIRbkw2DTIdaEopHtEzNnWA
+# FRT5+KJ3v7PcOq8N3UkAElxP4B/LUhVlFXKc0jgcNeLLOVVcR49XMZnHLdbJO7ts
+# Kx/7qWQ0lfzkvBJmRDRXNaiWU1tgQg==
 # SIG # End signature block
