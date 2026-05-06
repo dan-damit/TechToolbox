@@ -1,39 +1,45 @@
-function Resolve-Naming {
+function Get-RemoteWriteTaskLogShimSource {
+    [CmdletBinding()]
+    param()
+
+    return @'
+function Write-TaskLog {
     param(
-        [hashtable]$Naming,
-        [string]$GivenName,
-        [string]$Surname
+        [Parameter(Mandatory)][string]$Level,
+        [Parameter(Mandatory)][string]$Message
     )
 
-    function New-ADUserNormalize([string]$s) { ($s -replace '\s+', '').ToLower() }
-
-    $f = New-ADUserNormalize $GivenName
-    $l = New-ADUserNormalize $Surname
-
-    # UPN prefix
-    switch ($Naming.upnPattern) {
-        'first.last' { $upnPrefix = "$f.$l" }
-        'flast' { $upnPrefix = '{0}{1}' -f $f.Substring(0, 1), $l }
-        default { $upnPrefix = "$f.$l" }
+    $normalizedLevel = switch -Regex ($Level.ToUpperInvariant()) {
+        '^INFO$' { 'Info'; break }
+        '^WARN(ING)?$' { 'Warn'; break }
+        '^ERROR$' { 'Error'; break }
+        '^DEBUG$' { 'Debug'; break }
+        '^OK$' { 'Ok'; break }
+        '^E-INFO$' { 'E-Info'; break }
+        default { 'Info' }
     }
 
-    # SAM
-    switch ($Naming.samPattern) {
-        'first.last' { $sam = "$f.$l" }
-        'flast' { $sam = '{0}{1}' -f $f.Substring(0, 1), $l }
-        default { $sam = '{0}{1}' -f $f.Substring(0, 1), $l }
+    if (Get-Command -Name Write-Log -ErrorAction SilentlyContinue) {
+        try {
+            Write-Log -Level $normalizedLevel -Message $Message
+            return
+        }
+        catch {
+            # Fall back to host output if Write-Log is present but not usable in this runspace.
+        }
     }
 
-    [pscustomobject]@{
-        UpnPrefix = $upnPrefix
-        Sam       = $sam
-    }
+    $ts = (Get-Date).ToString('s')
+    Write-Host "[$ts][$normalizedLevel] $Message"
 }
+'@
+}
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAgKTTQYYeM5q/i
-# 57yackYoz/pjW/ZKWcL/7VgZXnB/iaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDH9w6P9SXO08b7
+# 8ckbdFXGjfreS4Yw9U7319MZbNzD8qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -166,34 +172,34 @@ function Resolve-Naming {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCRMJqfjAKt
-# xhRpb3b2+z+0HPxGhOOO86MVnl//cvJAlzANBgkqhkiG9w0BAQEFAASCAgDIi+KG
-# yP+hR7fbc2XhfNUR/CftwAt08Da/FO5mn3ShadPnX6y2dMmXvu7VGvyK9b5kvInq
-# RqdBQG8lV3kUkH00EucysQd1IwR5EkYDf7c3QKGl2VGNtQ2Bl798o1M3mAGmzD8f
-# zX9EAkYAKHp2LY+5tne5yBQz3cs1G/4qowlxOyaKBAngTj6DNk3ekncPIj6es7XZ
-# cVglDKvMWormr9DUmoDe9CyPqiuwXGIkflyqKzyaCaidLIwIzwAem//Jsswb0oWq
-# kzObTXGEu7F2rMNam+iYYtUbyPFihmKzXPPkcm9Qg8j6FuDj4/laIN2NmlErMuGq
-# Sndqz0IKEEePjjmKl35AtHipGhMhhkLBGOQCE91sJQ6zE4IBY9iP9mjvbdfKvDZP
-# 40t2H7KZOjqwzjt8xj1EqX442177JuvZf9D26kLi+Yu8yj/LePepW/NqxAOXRezk
-# YsFGsWMk/EU5JbvbQPjj1WZeqkrC2zu4Wyemo3tIMhwtglT3zAQMZt1xLScv10QK
-# H77XG5Wwkuh9Pi67PMP/UuhaNAk05GeT5M2dmsFyJmpnFPETs5Y+D8k09V0F3Opp
-# ZWZ9GQc9QdxqA+H5cs0lyD1WRKOnZenIx7/DEsx1cHFzLEW8155e2S7IvPKzeTm/
-# axyp4SrEfOwaO69DDWs75aD5hmQ96QFxGF455aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA27QbImbJ2
+# 8aBVzRFFVZeKMu1kBRMRxQv9JNlctt55ejANBgkqhkiG9w0BAQEFAASCAgB3kps/
+# CeBn38clmrL4qLOg1p6uwJJmtRe7PvFhjXHcsnnqePfq0BlDrSdAFtJ3cW5LRqwq
+# zldsoTelK3//4nkl1nbvy9mUmBYfhbbQA+DdV23VunP/uywzFWPXPw0Xvc+REl4j
+# KzdamVgdYAJCqNrqVfq8EWpwALjakUWVBvtBT4Qf7CxmVudMlO1xu0I9MfQJT8hf
+# ABM1Td1u9lhDlXv9+1Ki5jbO79+FS6Rh9WBYBl8Aqz5LZcxcDGM5My9oWIRctQEn
+# AZys1DXEPtPoC+tMx/NX463X94DlrzkeXRcRXXF4///JqqOQrLcgEScSPPJ7Ruaw
+# /NhQdoyHWHOLOaql5/9AkcBhtrHMZ2kJROGIPUX67Cw7V19QIGm9R14ttoAcgxcu
+# c4kgXzlPGGW36YoIUMLYq1s0MYkWFcE4O6cJltIUaBktFAeQWDHR21axErxJEVhR
+# MO/g/P53fvkCDBeGxxrKc7HhSt3yqlHte/H4hyX4qrhs0Um6cOswApgDalzrJUN/
+# lt+XETahue/iOHio2P1vp6lqZc0hXtuLVFWzQmo9pmaJHuRkpw4dAdlPfH8neNW0
+# HwHnftLZypcxijv9TlFNOAFt3GMt0AsIdEUG7hVkiJ6FfjRRHlI8JMwPmQNvnk1F
+# J6Y1VBMSwjFD6UbLX4k1l/KhjQgYQJebB8xKR6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDYxNTExNTVaMC8GCSqGSIb3DQEJBDEiBCCJRtCg9Eipc197SaNP
-# w23QSowwOuyvFu4PMze01mjkqjANBgkqhkiG9w0BAQEFAASCAgBmd/lOUji2B0MK
-# Y/NLV9n7+Nq7tup6afW4pr38KSWsRpobi6BhFDGQZwG8tM0luVrF2jozNLVGWRsW
-# a04NuNlkDfzMW7ZKyZqzbXOa17zFkwDKwfORCqvsd/1NjxKA/bPnPGG80vksxB6n
-# +eZbqT0qBqBND4UyiutcSnihH3YApJop/fCy6Q8czYF6kCttzyRl6ZY+RJdSVIKO
-# znlJKdzNubrpfyehCnz/R5vJyUgXh/e/b4azaGco/FbLsiqKokWGT830MPPqB84d
-# 1ZLRBP73GD+mD2jjSV6UiXKrrBANsa6Lf8aCnlb8MqtpYWWes7nMjX1V51pSsAF2
-# pHsNSPAyI60h8NLuzeIQ9HBMPt7CXhKmDPtchmZ/klcqx4nfIHQeb5OkZIz2zBqL
-# 23SAzHGGwjm361MwMdIVDw5sThBkH/ihSMkd1tem7Dn1VTPGY2StNSbwLlI0XFHH
-# g96YrGybDuDZqCHILJ76MK8GlC/8M8cl5jFWS6YaTAhVX1oPvYO/bYgR15Sx+SxB
-# n4zpwqPUeSVyAubclkFy80NNeGFao5ca7CyRU5tXP5war6dry6LdSHdeYiyf+wW0
-# FRY8Lf63gP1s3ZU2a66XrHfYzkL1W4+1WVykH10BPIGVTaEYkeSuTGhI3zTq8PZM
-# znQ5ZxMz7NKCxRRD9j+35QJsgRTvPA==
+# BTEPFw0yNjA1MDYxNzI5MzlaMC8GCSqGSIb3DQEJBDEiBCB/E3gevlowK8ZEDzeS
+# UlF1Yy85Ai5PwfVGSxHZv1HeaDANBgkqhkiG9w0BAQEFAASCAgAAoel6jKsqebH/
+# Tf7EeU+BSRHucK9g6ohXGDPcVDvPpOC5bJb3mqc3+yPxZz5h2VAjJoxlT20Rm+W4
+# tXXDjWXJDK/Eissi3XyFIFFV15owQZrWcer60NDh0pM22ZO8cg8aQ08gUAtImdy2
+# TDL+FT7cTMF6R5o3+odXJAYeTO1E3SBNAL+XnRtPEnMSkc4kUe9QiIeQrBK51ItD
+# N2NI8KDUXTB0+kmnofGbmD746EnhVtXUo1M+ejvJcvj7zg95KQ3RiZI3YY9TuKHO
+# KiA8xDBIm1jj4RR1LqM3pygH6ymLahc+GoB3h9A4FJWzUSuas8yTC8kZHo6rI7aP
+# yFz567VuJ9EGH8oyF7TDyqDDFXVEfYDxHD5bS4F/W5xJzSWN1DDupEPhM/2cUmqq
+# YM2DQo8mH0vM0LOh9XxBdc9bJC3Qk0JR5itsW7beFFLmWowFeZmi19Pg7AANFNmC
+# DVkl4Gq79+iZ+j9eXCGebfkzdoCbytmzHVHGF/WLRtTqNiZyFdbb0o9VcktSqxMj
+# N/DAAKylM7cevoqxvseWR88SYmouPl9+gQzC8W21ewnKlWpk35fej6IaqtE2gJk0
+# bRJjcfMnNp1QFCdiVZQICa66HVxJOBeJ0LnTsIjhoXflbbaC0E1eoGE7iW5VrlEI
+# yohVHHzFcm2bADfjDbYDNbkixmlXWg==
 # SIG # End signature block
