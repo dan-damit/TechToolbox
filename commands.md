@@ -72,6 +72,9 @@ Get-Command -Module TechToolbox | Sort-Object Name
 - Set-OneTimeReboot
 - Set-PageFileSize
 - Start-PDQDiagLocalElevated
+- Restart-SecureCrimpStack
+- Restart-SecureCrimpAuxTasks
+- Restart-SecureCrimpAll
 
 ## Network, Browser, And File Operations
 
