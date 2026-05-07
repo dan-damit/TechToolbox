@@ -1,4 +1,25 @@
 function Restart-SecureCrimpStack {
+    <#
+    .SYNOPSIS
+        Restarts the Secure Crimp stack on a remote server.
+    .DESCRIPTION
+        This function stops and starts the Secure Crimp backend and frontend
+        services on a specified remote server.
+    .PARAMETER Server
+        The remote server to connect to. Default is "SECURECRIMP-1.REDACTED.com".
+    .PARAMETER Credential
+        The credentials to use for the remote session.
+    .PARAMETER TaskList
+        The list of scheduled tasks to restart.
+    .PARAMETER BackendPorts
+        The list of backend ports to check and stop processes on.
+    .PARAMETER FrontendPorts
+        The list of frontend ports to check and stop processes on.
+    .PARAMETER StopTimeoutSec
+        The timeout in seconds to wait for tasks to stop.
+    .PARAMETER SleepSeconds
+        The number of seconds to sleep between operations.
+    #>
     [CmdletBinding()]
     param(
         [string]$Server = "SECURECRIMP-1.REDACTED.com",
@@ -135,8 +156,8 @@ function Restart-SecureCrimpStack {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBiEwMgeExcbvOk
-# wTRUe6rZ426J9pA+ZveghXzznU0da6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCObj/wHJOj2E/2
+# mDFn6DjTtM5upwh5U5/UAPc1AeR9NKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -269,34 +290,34 @@ function Restart-SecureCrimpStack {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDK4eKFFOne
-# a1snFa7tqqmqx4MtHGI+Im2GXH1B0uFvKzANBgkqhkiG9w0BAQEFAASCAgAb5EbP
-# XGt+yPJwJuodOmSFTc33ob6+cOsgTxvQcU6vPxvhRA6ezQSLzZ7zl3VNrIMzaSbE
-# UAQY7peQeE3zlh1U6kaaEo2yOwaPwEZsz3kTqz23CH3bZU8Ppsa0IHGvp/fKBEOc
-# 8I1wY9SUVqx7ATw87+/i6ozX+qyDS5dE39olSeKDssN8qpwFecYYS9YwPsK9i76r
-# 8FGUAOgH9RaK8ReeX+D9jbI86X57QonN5pW6+qtM9QdDnszmAJzQEuMIj6UAT/Nz
-# 2kKtE6y8eSX7jVRuc7Bi+z8WKpf53dGVq3uqVlRR3KLBwK0rhTK8AiR9F5Rv+t3+
-# 3Z8jFjnx2VTub8ovpuHFDXi7mrpfBYOvh85WezozPyXwNisatp8uswVJy7PCiHyU
-# ggQE+QqoTRt/tgN+IW94q1SQUDyUxG1DaV6G4O6Wz8qZZag2YI789x8fG3Y+3R6M
-# H4M2R1RGVoEmhAiIZUk4NvQibReaJ/ztwwFZwyo1c8sdbo0Qzkh5TwEDeEmabIOA
-# Mxc7uiFrGFWmB1MYtJSIAUvV/0Y1jL1R3/HFFZrJozXG68lJA3K/PeEt04zJM+LT
-# gY4UYZZTh1RDuZP9DFQQbcME0PkZ+3ABnh9Dg4b7yANeHvTTQ7Auv1hSHbTB/FAX
-# bG4r6bB4dWlkXzDQbkVxoOwWu2iT1+1GhPjGeKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCALyeDkF498
+# BYYuCKosnNRabaBeBikSCVSH1jRa2tdZ5TANBgkqhkiG9w0BAQEFAASCAgCxc3Se
+# Lo1ZkLfFuun3TGfyMUwFORWCvolBQMapwrLondyCbS8dHwAu//HIGTRlYdY8q9sc
+# ZUrUmbbygnBBE7Ypb36HiCNx+X6fZWFnI/hCs4A6XLB4/8O1tS4tQBTKZv8q8Uh5
+# b0bgmnkJQUkpph3ty3bIeVTVDbNKgkPGHT6umn+noHyn2wQ2IpaNdaZ9dXtdFPH4
+# 70QTIg9h39Hr/tJbhIAABWJFXwL3JiXKoblIdGb2RRRy1D6WBlyaVvRk/mTrggR7
+# DTm22DRaDn+mVDIT9Z/rRQItwF7Ev3ADGOxvY+QyWPWcm5F3QbwQpDJiO2xg6JOv
+# yWj5nA3PowfwiTdk+LqUGBcNj2BpsIyn40JakubyEqd+7QKkiomhNXQZDj1grPHR
+# qMQK4Ld6dBPn8mwRMayQXOXFXV95RpQds60ACDcCyoWV9kWIjpEhTlNi9TZFCISQ
+# X4vD0+Egb8rdX2HVwZbCgSObfIwVrKb5PoKxxKOr0DP1GA9fpHGByeUA7SoKlWIs
+# 2lZ36vt7ZQQSyPgi9bicKGM1tO/KSxbi5K8h3xTwvs1eskfZ0ro7Ysv2vIcO2jsy
+# 9ZRhXBjlHeG7775spsuF3R+V+L1mOfFOjJ9nfPcOfzjyUDHPKaG6ho3yThvk+eUl
+# piTwPwemqP8FJH1o1Z75WfA/3yhKdwDyvFMaOaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDYxNzI5NDJaMC8GCSqGSIb3DQEJBDEiBCAzD19fBugt797CWQTy
-# QJU+FyrKq8L1gjKpwk1NN3uzpjANBgkqhkiG9w0BAQEFAASCAgAnwCqJL6W+ofMf
-# ubSxurdiNp7j35rod8SAg4Ny9CEdKnVYK91ZtQQWrPSCWHaZRi7A5R1tavBco0K4
-# wK5Rd9talBMa8+s6qNEzBfxpPZRwZEVrAyvI2/wjhYRYGUrNl/EI22eWf6ZqnwCM
-# OVSykNYWOg5ANGNlw0BFnB9E2toh3XFRZwg1PJCt9evu8IQANPWzngwXO1upRPoV
-# A9XLJQh8oVBDyiQwrBYgLokEDncM+1sdkOP2u4G9+knyNpvU+TkCqo7c3fpmTq9W
-# 0WpyI62ezm7BX1hdVoPE+loycicd4F73zaiA9MiaWGiukoRWBFItvR5hZLEytbp8
-# 5C7po3+tSf8VeVIx/5TqzqYm5SGRF23DfLmUvK09xKy5qM2TVia2/1g/rWenuFee
-# kaC2HdifAFqQi0E0hZQzV0/t5SJF4E4kxlcJ76Dh1b3EtR/I/CX4BQapLemneMqr
-# golsaTYuWNfx+ZOBI19tjffVutAKx/VT731xkpkJ+ntn80bvx5uIsfMu9yI9MQlB
-# X//egF4Nq3PQePAMlHLW0fgP5MWp4TFEZdj+r+aDxnloRLcdxXFxmv1tEO/5fxIj
-# /5tTuh/HXIIj1jUzUlCTCyZz2XRtMtWIo4MS/KqGfihKvj0kFp+ugyacGAvnMiJq
-# oM15HWMOxtNvSJVol6WkagSUu2rGbA==
+# BTEPFw0yNjA1MDcxNTQ3NDZaMC8GCSqGSIb3DQEJBDEiBCDfT6bB74R7H9hSlSEl
+# 4qmTU5/ps2URQnV+CkdnzJy0WjANBgkqhkiG9w0BAQEFAASCAgAP+kNdD6SZZNMl
+# CF5jMb9/Flpq6+s8cpEl+He1136LQgVrACXgnvEsfspvrQxBGHQbE7CYrmp1ALKC
+# HePI1zvXJlIBHbHO5GSqcrmyTHOxEJJbDVK2qIvvS2H70yoimo2fnG/nevzXgFx9
+# p5TjnD/4b6/cvE5tbTnLT1i/Giy3Aps/bbt5Bjhz8IYlp7a9LZqi80D2P1VHfPSn
+# Xpn3O6/otuZEPpnEBjc4O90wXrCrpcRCnriY+WflHz9q9m+8PUxEkDLyRG3fDQ/3
+# VDOMnUaQIZWtbfLaxB1ctbpqpU5euqv+V8615IeJayAznWDYJOm9LHd7b9KrDPXg
+# sWGM78iPuIhBMu/qBj7ALkt10s7I92ymD5kjkAWglDnOKVoJUWOm0Y8vHdqm3c7J
+# d+RA2kdUtCwlG3zMWisv9UazYCMu//sKeZ+kSNyhlXG5CPiQ2UdkVYnhjfZ4RRV4
+# 2C5w54OhKK6Id7ITI3qfmsnOPop+HpXu1qU141gBJuHg7X+rkdcOVeUB3lhufZbQ
+# tFta+7gLmYXbwNQM0iN+x9QV3QlKeS7ZrvDBuu/wpgrTMPd9zxAMlvd2/xK2F2m8
+# 5tNYdpHUPoyPw6chRBOi8nSugR9BiHgH6rUdv9j1u/+6J6cU43R7miQbKUvyYtYv
+# +vjnmccpXMGSlI2EfJ/lSYK7ndqU0A==
 # SIG # End signature block
