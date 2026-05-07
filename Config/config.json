@@ -73,6 +73,17 @@
         "*.REDACTED.com"
       ]
     },
+    "secureCrimp": {
+      "server": "SECURECRIMP-1.REDACTED.com",
+      "stackTasks": [
+        "Secure Crimp - Run Server",
+        "Secure Crimp - Nginx"
+      ],
+      "auxTasks": [
+        "Secure Crimp - Monitor TCP",
+        "Secure Crimp - Run Schedule"
+      ]
+    },
     "passwords": {
       "domainAdminCred": {
         "username": "REDACTED"
