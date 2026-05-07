@@ -8,12 +8,13 @@ function Restart-SecureCrimpAuxTasks {
         to stop them gracefully, waits for them to stop, and then starts them
         again.
     .PARAMETER Server
-        The hostname or IP address of the Secure Crimp server. Default is
-        "SECURECRIMP-1.vadtek.com".
+        The hostname or IP address of the Secure Crimp server. Default comes
+        from settings.secureCrimp.server in config.json.
     .PARAMETER Credential
         The credentials to use for the remote session.
     .PARAMETER TaskList
-        The list of auxiliary scheduled tasks to restart.
+        The list of auxiliary scheduled tasks to restart. Default comes from
+        settings.secureCrimp.auxTasks in config.json.
     .PARAMETER StopTimeoutSec
         The timeout in seconds to wait for tasks to stop.
     .PARAMETER SleepSeconds
@@ -21,7 +22,7 @@ function Restart-SecureCrimpAuxTasks {
     #>
     [CmdletBinding()]
     param(
-        [string]$Server = "SECURECRIMP-1.vadtek.com",
+        [string]$Server,
         [pscredential]$Credential,
 
         [string[]]$TaskList = @(
@@ -34,6 +35,25 @@ function Restart-SecureCrimpAuxTasks {
     )
 
     Initialize-TechToolboxRuntime
+
+    $secureCrimpCfg = $null
+    if ($script:cfg -and $script:cfg.settings) {
+        $secureCrimpCfg = $script:cfg.settings.secureCrimp
+    }
+
+    if (-not $PSBoundParameters.ContainsKey('Server')) {
+        $configuredServer = [string]$secureCrimpCfg.server
+        if (-not [string]::IsNullOrWhiteSpace($configuredServer)) {
+            $Server = $configuredServer
+        }
+    }
+
+    if (-not $PSBoundParameters.ContainsKey('TaskList')) {
+        $configuredTaskList = @($secureCrimpCfg.auxTasks | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+        if ($configuredTaskList.Count -gt 0) {
+            $TaskList = @($configuredTaskList)
+        }
+    }
 
     $sessParams = @{ ComputerName = $Server }
     if ($PSBoundParameters.ContainsKey('Credential')) { $sessParams.Credential = $Credential }
@@ -114,8 +134,8 @@ function Restart-SecureCrimpAuxTasks {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB9L377fOSa7HA7
-# MFPc5/MnT3xIMowL49JsDJ5WrtaJ9aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAkobOiAKbblk6P
+# V44K07331N3f141XIj4rG6JkzwcibqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -248,34 +268,34 @@ function Restart-SecureCrimpAuxTasks {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA61cSkvAE5
-# CGxedNZSuyJ2bxX9uZ/awI1nzV6ROurygDANBgkqhkiG9w0BAQEFAASCAgAAXhPF
-# 26/Ynv6FMsH7hhA3mHlOJ9yM7sM3Z9LUZGW/vm3icHWJ+jUdypIXCysT123KxRmn
-# i5uDw/U0rtMM0Ag+/QqT5qbRdCWC4UmbFkrKJ4kE7By9PcL6mphRtjVmNDHBNmys
-# vtge5Ck0mz/ZLbVxy1IlcYATw9s82C4pCsN9A2VBrDhWYr5xyimw7J8/YilgP8+q
-# zIi6k+MU+hab6gfUPPNnLdblBcYqi4kf9vkZsbREd79B9hm8UvljatM8c+lrDWud
-# fXCmTRzIIfi/mSG8UKWzAqqymMgZx4C/A0Q/vZVaR5/qGqwHClsM7MvFgRJzZtf1
-# Oy4gzoDJ64LFUyS8jVqDqX3aHmpVBsn1moM5g7ljIxttHH+JxU68HqOAHJzxmRQg
-# fb12q2G6q2kYTk0CWI79/Uh3Q7kpV6xIVhjic6Zcq0pFRbP8VXt2H0GWnN1gefEp
-# I3+XmvE7Xg7AwErwASmtezI27f3orXp+21MetFAXSgqPr1NBqFshtqeHPyGHDFPQ
-# CzYy65kcmL5cXdofCqI0/I64IH/CpAp+m2yFk0okGfckM3Xr7GjkoyedBKf96+Nk
-# ti5Opit8VsB2fR39SdxZD5yqpRLUIM5sLkLLcUDqsBSS+BqVq8Tbg0y4FM273q8T
-# CmJY1mK1ncv87Z0l47NP/fuZ5CfkC4nhoN7ftaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBZ5/0Vbmc8
+# IMP2kKN1XdEcbApbalzsbVzUrUxaXOVfOjANBgkqhkiG9w0BAQEFAASCAgCx+L6c
+# al/GiIA8bhgVmwcPw8qrttZB69C2ZY9J5bfCCgaGViTJQcFZ/OpiPQAT704NG1lX
+# Kf/Pz8eLhBm0Y3jAIUqAD3nUMtYuGAj3AY7yTn1JeEQRf3HXlEcvkEZT3vgfe/8O
+# tu4klC/Es6/F/FNT+DNiraKSA8egc1sVFdSb+5RinGdxdjAIk+HxlN9R2BR5TI8+
+# gdyJcGUGw3V9T7dgUYHNgNhKLcv69FKXUR38oFwYx5pvyog6QjswrHdHEhyEmaL5
+# Tzc7O+l0d4EcOtNeJRvkQh348fbO2UJKqNqXQXq7CIDzbmMOVECv1RinqgHOQvjl
+# jWvxiahphjTI+5S+hw+58Ix3ltQ4y1Fr2cHl9R0RAbMMSY1V580wCVOYAt/w2M1W
+# A/aC+4MY11GNdefQwbNpITJd4ISc+EFyT/jch+NLHwlA3lxXGB46YoywTbnVODvG
+# P3sJ3n0YMxypBYaPjBllthbIlhI33dBkpFI7rsJX7RD0zXbP2NkheS9/UxoNe6fM
+# xmzulrDVR8suzuo4QcotM/9Nya1Q/MiSehxk+JsyxWv97/Ixi45CQ8fFs/wf9xF6
+# zb1TnL+f4RnhZU9pJPiVE8kBhGYMb1+Cak9/51wHKAJybZabY8Pco70bS9CJ7y7I
+# qu911hIz1xI2SlASYtlOwoycGarTSYE21xyB1KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDcxNTQ3NDZaMC8GCSqGSIb3DQEJBDEiBCBghVwcScDYKzrgUJP1
-# id27dlbjWsxxZUd6Fg2tnYL3PDANBgkqhkiG9w0BAQEFAASCAgALi57sk/o5iG3O
-# L2+sEfKLnhFJb1l1RRid/wL4KNw21Cpit2ax3SRpb5QvkWTzUxDk6+BEW/5HXtoH
-# TsYizv6lslZkXxQkAVlF0KfskdLCunwAx74ib0g5+/MeFcrIsPvWKpoUTSahJjlA
-# wI6PawQbc/Z55oh8lbQD6BhMIEXLeb/cUwgxxPwYhi06vebMosdgAo14DRFFouXW
-# PTK2/mhgfbUL8T6xIW87sV+KQEhGXiVm1AfLg6ISYyHrfrZ2mLnXvdaHAu7sfp+E
-# nJBUN5wyyVrpxwkRn63fH8ptF5GbV45PcpV0mhbVnzl0iVrO41uNp9n4Tamr21BS
-# r0IKmH63cSRJA3b9CdImGJtITeejqXG15Vlt7fR4Uwa0GWgxgE7BaIbbUi1WKgxJ
-# 2VROdmTgtq+87IEOwc8led83+VPNs7QvLwYbtTU6Wk+xAgQAxqx9fFYSSpcwBIPK
-# f0BNmx95HU/QTiQzLWZwKSedxmGQvpsFBE2tnrwgu1PJKAHaB1oC9UZ+HnFf8Z+I
-# tSqCsf+8S8eej0INZaM2TRjGEfzSI1dzrdx6oOsKEFJ42qzsXRh6CxLPuSCVQrUi
-# 9k5eDwIcbvc5GjTsXhhyOHEye23AMbhgN56/uB+Os1aEo+3nhsWGi4+7jGkox3nr
-# GPPqYGkireNz1AuSuxfr3vcisAMrJw==
+# BTEPFw0yNjA1MDcxNTU0MjNaMC8GCSqGSIb3DQEJBDEiBCBKJfUQmn0dC6h/D1Jc
+# 9No32Z2bZv0TeQZfqMykRtoUljANBgkqhkiG9w0BAQEFAASCAgDG09UOY/O3FYe1
+# 7HLAydvnhinRC5C8VLQfphqm03dqVaH9kVaf+uDkGfoGRcNnH2gOkV4l6glMvNVc
+# jC0DQfKIlW/x+/9ULT2txcYK/MiKKCWv274k4NMV8jnAuHBZ1uYRe0lbHvKpwe5K
+# bLx3n+lZfnCBh4bhpmk0r89NDnzudZpPD6vWmoY1zOICaZIFvK+HLCY7ruzqfkA1
+# J+yrllLudHnmiOQ1y8L5rKSFi1m6vtnb8KeObBqWvIIMohux28nNWQfuPEgHND7i
+# 4aeE9N50AfBH7yvAkSYI9SRRdSQBx989BsScWu14ERWLiXfThMwVnXCNPgXrnpZp
+# SMensbed1DiQZsNhXy82x5r1nA3ueMRP2NGJvTtIC8lyBZbfEbjiMVQWO73b5HsX
+# Qfo5YEZwJDbQdf1XyFusax47mKoa71Om7sBRdpArLtGQSnxCw7qMyc8OnynpRXWh
+# eogyExJAjNZeZaJ/+PY7VZW4x0NK7fPyAEnHglXz/ZCgBBA0DkY+UQl+gpCiwzKH
+# vk7INtIEF9J1LLw7MM6eQNBs+a7HUqQEvJTVddeYug+9Yb0EJo5YmOwa8crxU20W
+# yFBpOXVjly0sWT4EhbmNusB/+7LmqdhI+BUTOxAj5Z04l3JLZLfjfpb17oqmVTfF
+# +v0bFWWUlX+UoOqda7/BZjhKxdFBdw==
 # SIG # End signature block

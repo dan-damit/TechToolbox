@@ -73,6 +73,17 @@
         "*.vadtek.com"
       ]
     },
+    "secureCrimp": {
+      "server": "SECURECRIMP-1.vadtek.com",
+      "stackTasks": [
+        "Secure Crimp - Run Server",
+        "Secure Crimp - Nginx"
+      ],
+      "auxTasks": [
+        "Secure Crimp - Monitor TCP",
+        "Secure Crimp - Run Schedule"
+      ]
+    },
     "passwords": {
       "domainAdminCred": {
         "username": "ddadmin"
