@@ -218,11 +218,13 @@ function Get-MessageTrace {
     # does not shadow the TechToolbox function after the first run.
     function Confirm-EXOConnected {
         if (-not (Get-Command -Name Get-MessageTraceV2 -ErrorAction SilentlyContinue)) {
-            $connectCmd = Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue
+            $connectCmd = Get-Command -Name Connect-ExchangeOnlineAlways -ErrorAction SilentlyContinue
             if ($connectCmd) {
                 try {
-                    $connectParams = @{
-                        ShowBanner = $false
+                    $connectParams = @{}
+
+                    if ($connectCmd.Parameters.ContainsKey('ShowBanner')) {
+                        $connectParams.ShowBanner = $false
                     }
 
                     if ($connectCmd.Parameters.ContainsKey('ShowProgress')) {
@@ -335,9 +337,11 @@ function Get-MessageTrace {
             [Parameter()][string] $SubjectFilterType,
             [Parameter()][int]    $ResultSize = 5000
         )
-        # Docs: V2 supports 90 days history but only 10 days per request; up to 5000 rows; times are returned as UTC.  [Learn]
-        # When result size is exceeded, query subsequent data by using StartingRecipientAddress and EndDate with
-        # the values from the previous result's Recipient address and Received time.  [Learn]
+        # Docs: V2 supports 90 days history but only 10 days per request; up to
+        # 5000 rows; times are returned as UTC. When result size is exceeded,
+        # query subsequent data by using StartingRecipientAddress and EndDate
+        # with the values from the previous result's Recipient address and
+        # Received time.
         $sliceStart = $StartDate
         $endLimit = $EndDate
         $maxSpan = [TimeSpan]::FromDays(10)
@@ -487,8 +491,8 @@ function Get-MessageTrace {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCANT1O+nGzaWtYl
-# ijHf1f3t9lLTy1JNvjjZP7LjItmRiqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBp4XJaRiJsuHhz
+# N9rRjvOstTYH8Izu2YsyU8xptf6vNaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -621,34 +625,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCNnhaQK1lQ
-# /3JEgoO5ot7e1Gfam7OlCwy4IGv2SjSybDANBgkqhkiG9w0BAQEFAASCAgA5dTv0
-# ovBi0ZPcKcr+KhB7T7HtlAfT2bJS7wv8Oy/yiN0UG6/DSjyO6ugosoA5WCYIyHTe
-# dNBbr7uq0PJti9O02g6awDzLfFK9aQWrHLQq41XnejA2aGrWzYQ+9pH27X4h9e3q
-# /47VVpnJWG2XWk3zF4gVDlzWqpOKkj7jxloV20p0NPg/lxVk2cESoNaBS02vCYHu
-# Je8JiV+3TiME9KJMDffq2jAX3/BW/8C1mfiK28Du8by1WoTvILClCix2wMwZKxOA
-# dK+tNwRSa+i8cNBoFIw1s1nexPOUP/hIhfvJnM6D1ND59R1Oi1mwGr+s8d6Y2B2j
-# 1GaoQCSIQXBNZVUu7sAY/6NpaZ7gK7xtUPAA7bHBrO1U4VdkvpogPx+sEInfIxtt
-# yMC5+smrendo6vGYnhZNhWj2fX1+sALSsNP5oZe7v8clMQK1hTR0qbVL1UVmoAQF
-# WWIoUV+rTmk0k1ltrFCcF6YeA65E6tdWJtJY9l+tRbutXtv/CworpZEvtSGMKtHn
-# yIRbY4Kjw8H/09sUC9pCrPlDSjz9wtsqhp8RTUcWILM/zI4tjS0PqtTkIKnLUMGQ
-# PQC2f0fqlAH5kNlztBaonVzh+4lOESikymt8XvGeIY6rrq57J9d8au5G1iCjd9tT
-# Jl3l8J7M1enuDeOqdTOfyQAtatlunLW+Nzwf6KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCQb3n1xXM6
+# IxSCtr1QiyxEyDZOEfEwWKS5As163GjhPDANBgkqhkiG9w0BAQEFAASCAgBHNQ4L
+# VrSYM2XCyGWjFtaPnJAIzC9CnsnHCawaUtEQPUGDmOx49gyjY6KcoJxojz0SY3Yy
+# 8oMVvBuKayIoZk290Iks+BkSiBCsS+tRAlaohGNwFZdT9IZlDcsoWyq8wDH1MNlx
+# /yIFvEzV1hjl9s/X+9ghgpw2YQzeGrVO/oPdTNSSXgTUnvnn8MhDNQkYm5XOQUAL
+# MFCZNDTl4F8RKixb/wuatF+BYqqXr2OZrc6T7aXouZ2F/jzPPcj4QqBtyEZo0NCl
+# krim23L3oVgEmj+tfJpA7oAxR7q5vtoxW7eWFb3JDaxPYJ9gl7o5+iYW+N4MP0Qt
+# y4QkQIa+9hFlUQOMhQMr4cnrhOutb7brRU7qGrKuDglsZdRi83Krb6XtZl/hgb5Z
+# 9parlNVAjqCbhK4xo5tlCF0KkUyAZVdckYe6Ipb+cbbgPL4OR4pRlONTBpwUEaiD
+# NQDcScscJqPM+AiELM+7+PI6s4V4/+MqsYSKJ90oNQ9Ahe1xMD3Wm869dgP0ofY3
+# hjFA57Mpq5JJbr91eVk8IHtJT9p23tni5WoH3KPUHi0ufOnZ4kn+gJV6PKqmjUqy
+# NweWjNYgnK4WVJJ1fvKsEQ+c+vgoE25S7MV0vuX38/ss2OoMjGm5dqakIBN0r6hg
+# 8V7NVFq4TR07F34Xo6I4xWVDPHV0scroweNKh6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjExNjUyMjhaMC8GCSqGSIb3DQEJBDEiBCD5maMwdTA8NiysTLmz
-# NuKDFPRaJGYyNPxB+0+BdNaa6jANBgkqhkiG9w0BAQEFAASCAgBd3rnpNjDt3IAq
-# Wn8In8BvwrsA/WDtNE/8sPmWkDUlvOa8i47s/2100kBVXsuCEyGbCcrjVW1lbjG4
-# qr9q9o2CqyNZTf1cMYb/ogaMNgXm4iU86a+KnrBaGPJm1avaIv/9Qztq/OcQbqZY
-# HGLdUzi1N1214c9o22iPYNh5iLWun4HVKaIwh2+qqH5RyVkX7rz5SB4I1uLhDUCo
-# p7h3RfKubVVEfeljJfszGDuKerkY5XciOQyns2lOdVf/aQoNQjSxxjlnF/ebweRS
-# 1i0OlOYmf/iSlY0qD9S7ufovNxoAPX4CvdQIpH+eqCpLKkhKvkvhcw6G3oNXad1p
-# wXlRDaDx1bzpOMlggA02zcQqwEZ3ER8WvJlixcjjOfnb1qPV6PcNM1verBKxozR2
-# jsr07h3Y5/JTxj6p6uoeIqgHxjtUVNy78NzsYZTn844kHUETmVcDEv2qjF3PJ9x2
-# gjLyfUkGZ5ptdHGTX1QUx44CiYEjYnUPum5lJNDCvqF3pmrouuI79gBo/3DT5yPN
-# XTlUGagpW+rA5LUaSpQURY6fJcDh+InNmqjkDO9biTWsk/skwW38IiwCQ3zGAjtT
-# MG29ka7JZFmzsbPzq43Y+iTVjSPRRICspglnwexcO6iZErjSQgL0y5Kfg/J8tagT
-# ytnvRqf6aqMtzl6yVuUiZWUTUEeA8Q==
+# BTEPFw0yNjA1MDgyMTE5MThaMC8GCSqGSIb3DQEJBDEiBCCptuAhIYxW9qcQimQZ
+# KhLYyWw3LG/R9wq5OFVAyz1KwTANBgkqhkiG9w0BAQEFAASCAgA6TYVmFjR6dpN6
+# w6bR1Tzk0lN1W3ogwes4+YgdXIp3S8bZTljiNXcNKdIS0+wRJ9jnI4h+4rKXpkRz
+# 0cqnPn7oWt6TNkxw5aAv4qXqOSAyEGBvAlT88LxQ0KOy9s0JKT3aH2miAxp9sOLD
+# 0Rozr04kXLx2blQtUaz1978+UoFuOUNE4MMa8GXXZRgx1ST7OXWpnF5k0eUUzurl
+# nY5sldlqjTWwS/O/kRJT+nwIxNgJQWs/QecA10kVNUZahvu/BedyMliYK5oBk35C
+# ssre8yUbZNdrFXg/grPzElsYjokEI/MLLZwAILBKwho8ozvolR59CUm0OOfqth3q
+# Ix2QgP47jLnTEYggveZik2Krt/jM8xLEpJrJZ7owCWB/MUL7ixF4mzAp6uH9W3eW
+# VUlAkD7vaUF8Rp0kylVjE2fIAg3P7Ax8bkFL4I2rYP1VjGZ6nxamvsWll2Oh9RAY
+# 9z3zk9RF+UC126HHDsuWoCwySkGnH1FFi2xf044i6D91vFQZnFimy59aULE+9U6i
+# Ml8YiMVLqTGNYJ+lcMFH7lKbtPWNNsfz3lK/X19Eej+MYYL2yssqpuAuc4H96588
+# QLTro5W8dtGfPkueI0vtLWRq3NlwwdPxstRUQ+c7Knl5NT+Zn8j9QZI5RpTjGYe3
+# 7t7/bECEwDD7qQzF8EdZ0fKE3LPNnA==
 # SIG # End signature block
