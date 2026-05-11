@@ -2,6 +2,21 @@ function Get-ActiveDirectoryModule {
     [CmdletBinding()]
     param()
 
+    function Import-ActiveDirectoryModuleQuietly {
+        # Suppress AD provider default-drive warning during module import.
+        $prevWarn = $WarningPreference
+        try {
+            $WarningPreference = 'SilentlyContinue'
+            Import-Module ActiveDirectory -ErrorAction Stop
+        }
+        finally {
+            $WarningPreference = $prevWarn
+        }
+
+        # Remove AD: drive after import to prevent later re-init warning noise.
+        Remove-PSDrive -Name AD -ErrorAction SilentlyContinue
+    }
+
     # Already loaded?
     if (Get-Module -Name ActiveDirectory -ErrorAction SilentlyContinue) {
         return
@@ -11,7 +26,7 @@ function Get-ActiveDirectoryModule {
     $installed = Get-Module -Name ActiveDirectory -ListAvailable -ErrorAction SilentlyContinue
     if ($installed) {
         try {
-            Import-Module ActiveDirectory -ErrorAction Stop
+            Import-ActiveDirectoryModuleQuietly
             return
         }
         catch {
@@ -31,7 +46,7 @@ function Get-ActiveDirectoryModule {
 
     # Try import again after install
     try {
-        Import-Module ActiveDirectory -ErrorAction Stop
+        Import-ActiveDirectoryModuleQuietly
     }
     catch {
         throw "ActiveDirectory module installed but could not be imported. Check RSAT installation."
@@ -41,8 +56,8 @@ function Get-ActiveDirectoryModule {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC1WRQQ4uvm6gat
-# LwVgjW17Yvabc/Z2xvYfRHOkRihCO6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCXg43FYlodBEQ2
+# 21jXXkOvDgfDfbzNtTeOH/tLQ5jl2KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -175,34 +190,34 @@ function Get-ActiveDirectoryModule {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAkLfiIrai8
-# 0VvR9YgOTV827dPWwRTXUecE/UWKECAv8DANBgkqhkiG9w0BAQEFAASCAgCqeS5U
-# Ge+r342vFWncczd7SWUKJ5yjxsJf+sJI0R4Zgp9kUJXTUCFqKnFNwWeqhws4zBLY
-# rw5w3wE7V2REEfuZAlIhuMFeV9YzPpmDgg6Rg4kYH88HXIaieYV7Mug0uKCyHl0u
-# RwcEU9VDZEvLNsShfTqvGYJMjWcagVMQsTDm3jobevFR026Jky2fABP+m+0U0Dli
-# cymmpw+F1VK2uN3i6qPKymqVnCiCwgXe9xXREIBPZEM3PD7CqAL9U9UGsYKmFzT6
-# 4VUCsl3wUQ4M85KKNE2U4LTgJqd67fhSVTfUBS70HsO/p9UunYvMGBh2sA4vWTaV
-# EYSnDJXN+1w7zQrcz+ceC4jDpifEjOa/x+9QXe0kot9UPvDWn9jKYkECJNdXsYC4
-# 0gK46borQ0jfnjRfclQmvs2l2LoVdWm0DcYoXAsh2gaS05Wu0fQUgJSekt2f1xDN
-# ibyZq+/LR46/z9IictIAs7Lc47J4vfa3mBuoC0Q6/KlSf+dNoCuVZXfCzbtGdQXI
-# t/GaIJly+uzNNWyDu0wJCDFjO3PLLPuF1BUgofl+nxtPzfI9fanaG7gdY6R7PQo1
-# gWrxptbz9xN9ek4pNarpLxwVo7bSkBllo/r1Aq43p2UOTvYp2fGhhnHeXzU2+wJR
-# HrjTls4SQAoMFQPGnZ/f925oJWe/TCgAu3zqFKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCxjB2BLyN8
+# topzp8ndoa95raYDJ/pEv4sG5QfZvaug/zANBgkqhkiG9w0BAQEFAASCAgCcs3od
+# SabbFT7vM6iPnqBIOgTnefWsYKYNEReweht83GCiu/3qyf7VUYylFKa1MeBa5pbl
+# GSwBziludMgEFCV9mtDlbQHpIg+/fXS7rXZSuuyZikAP/Z7jXPliqEl2v3hOfRLP
+# To4nxBjCNq626qFP/BxwE6kIxir4zHMqMnxJ2RUP5qCC8b3H/C0IPz6aiNvkPQcG
+# T8CkqcInJGInR4fYyWFQKypgrTr9slHI7QrCaAUHkhhamKoHlJS1dF6fQ0GH0kpG
+# 6FKjArmfUF7dkKlnDZ38Fa7zux94EcgL3dT7NtKVn2pZWPOF4kVTKhMCeEjIq7CF
+# ehMdQ/9MLCon6J3sJS3ZvztoncCSnTU8TUFqp3u0Nk2Xn1/S5Jn6HMEWpl97elzc
+# NzhNOXUj3oMMzo+rGtdSkZiFsxIL6MdRqevQ1IOceNCcPq4a74wxwOfQeUZqWax7
+# 4kHE/PUpOb6UQjkh/LTbqyMoL0zJu6EvCdPluZX6W7dNO9CHe7ttJq2F0OYPAMwa
+# Xn23FechKwz4EIPjF2ZdGRLmD3hUYjOHWheHwn1Ab1ujcvFBzvKG2Q0AL2zN6TxR
+# hkuMkFpD8r7pUoFxsm5kaGL0Mg6vAmJxPpMUTqiWrGJKFOAGNFEV4zvDibxsH5lY
+# b/Dmk8kbYBJRkLSFxngZ1AlggoqLLSJ0htXHjKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDMxODAzMTdaMC8GCSqGSIb3DQEJBDEiBCAfWhs+KewSlh+Sk2LY
-# RMbCIKYP8uOkZQJbpKx1od6qYDANBgkqhkiG9w0BAQEFAASCAgDNm6uemD2LfqzF
-# NmokDwOnimExIriXxQpxkJ2Z0od3YxVVrdO6X1/nzGcZRH3LNzO99xCWCPo3ZalZ
-# O0RHfAkKsnVc3gGAUA56s9J0xjRPhkxqELKIb0HDKsc7plk7zD4zU9UH/EKbhhDk
-# y13LcZ52bPMXZmdxTj4gqML7SEXORxhO2cHJ7CTwYbzVTIedD3+GpoLY9XVBEKOr
-# DW6z+UC5SW1u/b7VxgL4KZ5ABmPwAruvFH0iGF8ITYblUdufu6GQXWhO1s32OG63
-# JsRLLirq5DLwBaNgkCyv0Ez3PC2WvZb+vh8rScHHV8XJ6uDIgKG6WEi0EdmcZevm
-# a7dmAuBKLozpLx6y84se6VTPxXso98jOzNI9XqhTiZNlQzFy7vxwcQqDK25XuUIz
-# EO/PdFXISHZXw+lGfIjyMBNFsnkabWoGHjX1uUG7M7cLNhNin6fg4LyYi/kg9hN3
-# WyfAXWHVG/vir/rTbei8CtloI/Y4Li/cbqWB4T6S/BjR0Kx6HdEhpD3JSYl1oTmi
-# XXA/MRx5obcrVKFRfKXMYRZdwpWRWJ8dfBhZFKqpFKgivh88ppsNkusDlvP+QfnO
-# +aHgJLDvjsh+3kPzT21gMJDDeBXAf2rGiYUWCPxHncjbnVEQkvqv6TwnSRPAmgpo
-# UyEDWCuIqkr6XDTB8BYfsJRqhEjbKg==
+# BTEPFw0yNjA1MTExMzA3NTlaMC8GCSqGSIb3DQEJBDEiBCA0NFoVkDfHzQEO2nsZ
+# BVJvXfTczV4B4+TN9yDIokvauDANBgkqhkiG9w0BAQEFAASCAgBL3OdnSd/KzjPA
+# I0pe+q8SgKYqzOxDHa+C7qEjKGRBAdnGsgqTmF2QOx08NPXShtnOBIB50D9gzTRU
+# 63X3i6E5mv2lVkD/H9YP7gEuR0fo0yzWtFX+yfJmSoSENsJnN3UdYo4sCVmx7oNv
+# dh6VjNSLaO8TeMoWEbyTr3wRAUtGNNrrXZgT0Ja/Ty6fWa1CFjdBBTkYa7UgBhRS
+# MP5gaqNuvjOoEuplTPO1ZKzkBSRcxlWLPB7hFUsnw6MeUt/kITAfnMCdw4w+xkIO
+# 468eZeCuvJokzopSNiLKP7UllmwgX+wgE9he6S6N5j0lpRymcsHv/oOGf/KVBJcE
+# cD9pZLEVBk/dMjcOdpMRGObbqWQNeQbH5b3rkSXnCb0pB2j2XBRSZON15yfN5mVF
+# p96xuhjZxUfIXXM8mKDgS5AyO+Zd4OleTsVGPCkKPYzd9OxoRv4C9Rvyg6IaFkU6
+# G+Povm/2AZthnA1J5w4PYS+2486xWtGS5XaztS46hIvwjskBn0uZLhxlEI1BoefD
+# vxzahrlOPtCayWz8C/X9ZqAnh3Z09/wiacxYvs3huW40QmIbQcrLncMHTUrTPTAc
+# 1RXpjObq27klfqCsXvVqh/S8QnQSLrO2Ry5JYvolCFa0aUritzwzaYUoe8pWO3kj
+# Hyo5sl5JGqLC49TXaR34z0VCwOlRBw==
 # SIG # End signature block
