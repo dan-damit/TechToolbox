@@ -38,7 +38,7 @@ Continue?
 }
 
 function Show-Done {
-    param([string]$Text = "Epicor fix complete`n`nBrowser cache cleared (cookies kept).`nReopen Edge/Chrome and try again.")
+    param([string]$Text = "Epicor fix complete`n`nBrowser cache cleared (cookies kept).`nReopen Edge/Chrome and try again.`n`nIf issue persists, contact IT support.")
     try {
         Add-Type -AssemblyName System.Windows.Forms | Out-Null
         [System.Windows.Forms.MessageBox]::Show(
