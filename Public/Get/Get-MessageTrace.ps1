@@ -101,7 +101,7 @@ function Get-MessageTrace {
     .OUTPUTS
     None. Results are written to the console via Write-Log, and optionally
     exported to CSV by Export-MessageTraceResults. No objects are returned to
-    the pipeline
+    the pipeline.
 
     .EXAMPLE
     Get-MessageTrace -Sender "alice@contoso.com"
