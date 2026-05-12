@@ -407,92 +407,96 @@ function Get-MessageTrace {
         return $results
     }
 
-    # --- Log filters (friendly) ---
-    Write-Log -Level Info -Message "Message trace filters:"
-    Write-Log -Level Info -Message ("  MessageId : {0}" -f ($MessageId ?? '<none>'))
-    Write-Log -Level Info -Message ("  Sender    : {0}" -f ($Sender ?? '<none>'))
-    Write-Log -Level Info -Message ("  Recipient : {0}" -f ($Recipient ?? '<none>'))
-    Write-Log -Level Info -Message ("  Subject   : {0}" -f ($Subject ?? '<none>'))
-    Write-Log -Level Info -Message ("  Window    : {0} → {1} (UTC shown by EXO)" -f $StartDate.ToString('u'), $EndDate.ToString('u'))
+    try {
+        # --- Log filters (friendly) ---
+        Write-Log -Level Info -Message "Message trace filters:"
+        Write-Log -Level Info -Message ("  MessageId : {0}" -f ($MessageId ?? '<none>'))
+        Write-Log -Level Info -Message ("  Sender    : {0}" -f ($Sender ?? '<none>'))
+        Write-Log -Level Info -Message ("  Recipient : {0}" -f ($Recipient ?? '<none>'))
+        Write-Log -Level Info -Message ("  Subject   : {0}" -f ($Subject ?? '<none>'))
+        Write-Log -Level Info -Message ("  Window    : {0} → {1} (UTC shown by EXO)" -f $StartDate.ToString('u'), $EndDate.ToString('u'))
 
-    # --- Execute (chunked) ---
-    $summary = Invoke-MessageTraceV2Chunked `
-        -StartDate         $StartDate `
-        -EndDate           $EndDate `
-        -MessageId         $MessageId `
-        -SenderAddress     $Sender `
-        -RecipientAddress  $Recipient `
-        -Subject           $Subject `
-        -SubjectFilterType $SubjectFilterType `
-        -ResultSize        5000
+        # --- Execute (chunked) ---
+        $summary = Invoke-MessageTraceV2Chunked `
+            -StartDate         $StartDate `
+            -EndDate           $EndDate `
+            -MessageId         $MessageId `
+            -SenderAddress     $Sender `
+            -RecipientAddress  $Recipient `
+            -Subject           $Subject `
+            -SubjectFilterType $SubjectFilterType `
+            -ResultSize        5000
 
-    if (-not $summary -or $summary.Count -eq 0) {
-        Write-Log -Level Warn -Message "No results found. Check filters, UTC vs. local time, and the 10-day-per-call limit."
-        return
-    }
+        if (-not $summary -or $summary.Count -eq 0) {
+            Write-Log -Level Warn -Message "No results found. Check filters, UTC vs. local time, and the 10-day-per-call limit."
+            return
+        }
 
-    # Summary view (EXO returns UTC timestamps)
-    $summaryView = $summary |
-    Select-Object Received, SenderAddress, RecipientAddress, Subject, Status, MessageTraceId
+        # Summary view (EXO returns UTC timestamps)
+        $summaryView = $summary |
+        Select-Object Received, SenderAddress, RecipientAddress, Subject, Status, MessageTraceId
 
-    Write-Log -Level Ok   -Message ("Summary results ({0}):" -f $summaryView.Count)
-    Write-Log -Level Info -Message ($summaryView | Sort-Object Received | Format-Table -AutoSize | Out-String)
+        Write-Log -Level Ok   -Message ("Summary results ({0}):" -f $summaryView.Count)
+        Write-Log -Level Info -Message ($summaryView | Sort-Object Received | Format-Table -AutoSize | Out-String)
 
-    # --- Details ---
-    Write-Log -Level Info -Message "Enumerating per-recipient details..."
-    $detailsAll = New-Object System.Collections.Generic.List[object]
+        # --- Details ---
+        Write-Log -Level Info -Message "Enumerating per-recipient details..."
+        $detailsAll = New-Object System.Collections.Generic.List[object]
 
-    foreach ($row in $summary) {
-        $mtid = $row.MessageTraceId
-        $rcpt = $row.RecipientAddress
-        if (-not $mtid -or -not $rcpt) { continue }
+        foreach ($row in $summary) {
+            $mtid = $row.MessageTraceId
+            $rcpt = $row.RecipientAddress
+            if (-not $mtid -or -not $rcpt) { continue }
 
-        try {
-            $details = Invoke-WithBackoff { & $getDetailCmd -MessageTraceId $mtid -RecipientAddress $rcpt -ErrorAction Stop }
-            if ($details) {
-                $detailsView = @($details | Select-Object `
-                @{n = 'Recipient'; e = { $rcpt } },
-                @{n = 'MessageTraceId'; e = { $mtid } },
-                Date, Event, Detail)
-                $detailsAll.AddRange($detailsView)
+            try {
+                $details = Invoke-WithBackoff { & $getDetailCmd -MessageTraceId $mtid -RecipientAddress $rcpt -ErrorAction Stop }
+                if ($details) {
+                    $detailsView = @($details | Select-Object `
+                    @{n = 'Recipient'; e = { $rcpt } },
+                    @{n = 'MessageTraceId'; e = { $mtid } },
+                    Date, Event, Detail)
+                    $detailsAll.AddRange($detailsView)
+                }
+            }
+            catch {
+                Write-Log -Level Warn -Message ("Failed to get details for {0} / MTID {1}: {2}" -f $rcpt, $mtid, $_.Exception.Message)
             }
         }
-        catch {
-            Write-Log -Level Warn -Message ("Failed to get details for {0} / MTID {1}: {2}" -f $rcpt, $mtid, $_.Exception.Message)
+
+        if ($detailsAll.Count -gt 0) {
+            Write-Log -Level Ok   -Message ("Details ({0} rows):" -f $detailsAll.Count)
+            Write-Log -Level Info -Message ($detailsAll | Format-Table -AutoSize | Out-String)
         }
-    }
-
-    if ($detailsAll.Count -gt 0) {
-        Write-Log -Level Ok   -Message ("Details ({0} rows):" -f $detailsAll.Count)
-        Write-Log -Level Info -Message ($detailsAll | Format-Table -AutoSize | Out-String)
-    }
-    else {
-        Write-Log -Level Warn -Message "No detail records returned."
-    }
-
-    # --- Export ---
-    $shouldExport = $autoExport -or (-not [string]::IsNullOrWhiteSpace($ExportFolder))
-    if ($shouldExport) {
-        if ([string]::IsNullOrWhiteSpace($ExportFolder)) {
-            $ExportFolder = $defaultExport
+        else {
+            Write-Log -Level Warn -Message "No detail records returned."
         }
 
-        if ($PSCmdlet.ShouldProcess($ExportFolder, "Export message trace results")) {
-            Export-MessageTraceResults `
-                -Summary $summaryView `
-                -Details $detailsAll `
-                -ExportFolder $ExportFolder `
-                -WhatIf:$WhatIfPreference `
-                -Confirm:$false
+        # --- Export ---
+        $shouldExport = $autoExport -or (-not [string]::IsNullOrWhiteSpace($ExportFolder))
+        if ($shouldExport) {
+            if ([string]::IsNullOrWhiteSpace($ExportFolder)) {
+                $ExportFolder = $defaultExport
+            }
+
+            if ($PSCmdlet.ShouldProcess($ExportFolder, "Export message trace results")) {
+                Export-MessageTraceResults `
+                    -Summary $summaryView `
+                    -Details $detailsAll `
+                    -ExportFolder $ExportFolder `
+                    -WhatIf:$WhatIfPreference `
+                    -Confirm:$false
+            }
         }
     }
-    [void](Invoke-DisconnectExchangeOnline)
+    finally {
+        [void](Invoke-DisconnectExchangeOnline)
+    }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBp4XJaRiJsuHhz
-# N9rRjvOstTYH8Izu2YsyU8xptf6vNaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCSfGSsOax1QGu2
+# 8Z81ai27yKn2Bws8KM0IuLXi5S1mAKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -625,34 +629,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCQb3n1xXM6
-# IxSCtr1QiyxEyDZOEfEwWKS5As163GjhPDANBgkqhkiG9w0BAQEFAASCAgBHNQ4L
-# VrSYM2XCyGWjFtaPnJAIzC9CnsnHCawaUtEQPUGDmOx49gyjY6KcoJxojz0SY3Yy
-# 8oMVvBuKayIoZk290Iks+BkSiBCsS+tRAlaohGNwFZdT9IZlDcsoWyq8wDH1MNlx
-# /yIFvEzV1hjl9s/X+9ghgpw2YQzeGrVO/oPdTNSSXgTUnvnn8MhDNQkYm5XOQUAL
-# MFCZNDTl4F8RKixb/wuatF+BYqqXr2OZrc6T7aXouZ2F/jzPPcj4QqBtyEZo0NCl
-# krim23L3oVgEmj+tfJpA7oAxR7q5vtoxW7eWFb3JDaxPYJ9gl7o5+iYW+N4MP0Qt
-# y4QkQIa+9hFlUQOMhQMr4cnrhOutb7brRU7qGrKuDglsZdRi83Krb6XtZl/hgb5Z
-# 9parlNVAjqCbhK4xo5tlCF0KkUyAZVdckYe6Ipb+cbbgPL4OR4pRlONTBpwUEaiD
-# NQDcScscJqPM+AiELM+7+PI6s4V4/+MqsYSKJ90oNQ9Ahe1xMD3Wm869dgP0ofY3
-# hjFA57Mpq5JJbr91eVk8IHtJT9p23tni5WoH3KPUHi0ufOnZ4kn+gJV6PKqmjUqy
-# NweWjNYgnK4WVJJ1fvKsEQ+c+vgoE25S7MV0vuX38/ss2OoMjGm5dqakIBN0r6hg
-# 8V7NVFq4TR07F34Xo6I4xWVDPHV0scroweNKh6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBb14yJ8VZG
+# qeI1A96AV2LK99aZbBF/xremug0iaeUTSjANBgkqhkiG9w0BAQEFAASCAgBKcB+x
+# 1sOU/SDjKj3n+TsSxZv6XlkcM3OO5zIQ18aUIwZ+LKCUbI21srP6jsdXD+EeUmYl
+# DSE/56yvlJMBl3m6CNPTbVYj2ZotwAQTnh/b3ehOBezb+/GeOPmWz1RNNq/IPeS7
+# Klmi9h7+ZIdx93IQPN0dIKaJsOImMd3GLUA8C2DO7SKiQrReaaMlyEOjNF2dURhy
+# bZqhOo8Yal8PHqNDcQE1R3cmlwcZztH2FB3VivgA3+tnceROtjU+T6+cs7Jstpi4
+# 0SyLIYycGJea2G1gYRIu2WTDknXw5DzOuMgUY6Wtb2q1yFzbvPmA0dCvdcdEIseP
+# B0kjiwwh/tBdlk6S+HCJaydMNlbIMvO8bwvL6PZH7/UQSrdBEyCakGvsnKdl8g+5
+# DJdd3Nv2PzPQh1/PQrj6mdUkgyG2nBR5pwtzAckIu2GGwQg+w0KvnjlLBGmxu4U1
+# 0JBEh17jQiPYXaeO5D1lkZgxN2vS4BaRI0AyRoBIq9/06WFaeczueC+uWDKHqWW3
+# 3r64zSPNbWpj8Xgsclqub+2Z0XO3yxybGtcYHRA3yny3LLxNePKhWhh32aRJ8lEu
+# GtB29IKNfuCOg4C+B70Whc4F5nq8Aikkh5nhVlnm/+e7peNDYHkHQ/QykyNcX1EU
+# OWp2gM8LSGtmuk+i+U/WfVKfL1w6j442IzxwzqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDgyMTE5MThaMC8GCSqGSIb3DQEJBDEiBCCptuAhIYxW9qcQimQZ
-# KhLYyWw3LG/R9wq5OFVAyz1KwTANBgkqhkiG9w0BAQEFAASCAgA6TYVmFjR6dpN6
-# w6bR1Tzk0lN1W3ogwes4+YgdXIp3S8bZTljiNXcNKdIS0+wRJ9jnI4h+4rKXpkRz
-# 0cqnPn7oWt6TNkxw5aAv4qXqOSAyEGBvAlT88LxQ0KOy9s0JKT3aH2miAxp9sOLD
-# 0Rozr04kXLx2blQtUaz1978+UoFuOUNE4MMa8GXXZRgx1ST7OXWpnF5k0eUUzurl
-# nY5sldlqjTWwS/O/kRJT+nwIxNgJQWs/QecA10kVNUZahvu/BedyMliYK5oBk35C
-# ssre8yUbZNdrFXg/grPzElsYjokEI/MLLZwAILBKwho8ozvolR59CUm0OOfqth3q
-# Ix2QgP47jLnTEYggveZik2Krt/jM8xLEpJrJZ7owCWB/MUL7ixF4mzAp6uH9W3eW
-# VUlAkD7vaUF8Rp0kylVjE2fIAg3P7Ax8bkFL4I2rYP1VjGZ6nxamvsWll2Oh9RAY
-# 9z3zk9RF+UC126HHDsuWoCwySkGnH1FFi2xf044i6D91vFQZnFimy59aULE+9U6i
-# Ml8YiMVLqTGNYJ+lcMFH7lKbtPWNNsfz3lK/X19Eej+MYYL2yssqpuAuc4H96588
-# QLTro5W8dtGfPkueI0vtLWRq3NlwwdPxstRUQ+c7Knl5NT+Zn8j9QZI5RpTjGYe3
-# 7t7/bECEwDD7qQzF8EdZ0fKE3LPNnA==
+# BTEPFw0yNjA1MTIxMzQ4MTdaMC8GCSqGSIb3DQEJBDEiBCDkml0T+EO01FpEdI8P
+# 5qvnAqB26SkqDnREE75FW2tNKTANBgkqhkiG9w0BAQEFAASCAgAjdOi4TE8lhPkf
+# 1O7fSFh7p4vpWyIOSGAHI2R0afNqtACQLOjfZRwS474dTa3WQYiv9UZ3WDRI3GSt
+# U5gk4PnGzsC4ziwIM441N44GfhJxiSQZEmbTINuxP+/pZjP6KPh/SbpIeFc3hUWk
+# G3yX/9Xx9hzpx3IL902co78toj+M/JBMqgMIcafm36/uvaCFRU+yQxIZD2Qyi3b5
+# wrh/RCV6mh1rQvOigAJ0aFrtkegdgiZeRyKuw9fAgos052urVclU6YOWlCWHJhtt
+# 7dGYb8qrvmCWubEs7VwGx7c1tzC7fRXe1t3kQDdFTPMQmOzfHVGPPYR/ajZCOq0P
+# kdL3A3eoRxeEEPdFqxDXA1SkzuwyX8hbRLE5KuS6oOQ0neC1XDMXqk/TsvDRpUiX
+# Seq96IUj9vxaXw4iqkCQ0vKRVWi1h6YL8sRh7LDBjRMdp/zMN6X8xWkb04sCc5lq
+# l7Xgasf+/t1yUFwGEPoATgOfWhrTu8E0M9uJk9k8nskgtFyJBxDN0E6pklMqWdJR
+# 3WpSUpr92ytgKiGc5iuORKT5mYPVgT1y0p/PWEMetiMvhDqMSet52TDJY0MrXHh8
+# pGtX3JnASNTUJkERt7aKAtuNU3XKEibt8BVDNl350itWgpcWxSKOV8mjS4RVwHqu
+# YDOn+RTd7DWsZ35NN6SPxmeGeGRjcQ==
 # SIG # End signature block
