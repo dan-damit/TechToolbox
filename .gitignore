@@ -16,3 +16,5 @@ wordlist.txt
 Get-AdAudit.ps1
 Get-DuplicateFile.ps1
 Get-VSCodeExtension.ps1
+
+TSG_PrintQueueLabel_VAD.cs
