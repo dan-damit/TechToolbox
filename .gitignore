@@ -18,3 +18,4 @@ Get-DuplicateFile.ps1
 Get-VSCodeExtension.ps1
 
 TSG_PrintQueueLabel_VAD.cs
+TSG_PrintQueueLabel_VAD-Existing.cs
