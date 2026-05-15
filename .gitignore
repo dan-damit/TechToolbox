@@ -1,6 +1,7 @@
 # Directories to ignore:
 Out/
 BTTriggerApi/
+BPMLogic/
 # Python virtual environments
 .venv/
 venv/
