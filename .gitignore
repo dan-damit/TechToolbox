@@ -1,5 +1,6 @@
 # Directories to ignore:
 Out/
+BTTriggerApi/
 # Python virtual environments
 .venv/
 venv/
@@ -16,6 +17,3 @@ wordlist.txt
 Get-AdAudit.ps1
 Get-DuplicateFile.ps1
 Get-VSCodeExtension.ps1
-
-TSG_PrintQueueLabel_VAD.cs
-TSG_PrintQueueLabel_VAD-Existing.cs
