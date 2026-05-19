@@ -5,8 +5,10 @@ function Get-FilesUsingKeywords {
 
     .DESCRIPTION
         Recursively searches files under a given directory for lines matching
-        any of the supplied keywords.  Supports both local and remote execution
-        via PSRemoting.
+        any of the supplied keywords.  The search always runs asynchronously: a
+        PowerShell runspace is used for local execution and Invoke-Command
+        -AsJob is used for remote execution.  Either way Wait-TerminalState
+        drives the poll/spinner loop until completion.
 
     .PARAMETER Path
         The directory to search.  Required.
@@ -46,6 +48,17 @@ function Get-FilesUsingKeywords {
     .PARAMETER SshPort
         SSH port to use when -UseSsh is specified.  Defaults to 22.
 
+    .PARAMETER TimeoutSeconds
+        Maximum seconds to wait for the search to complete.  Defaults to 600.
+
+    .PARAMETER PollSeconds
+        How often Wait-TerminalState re-checks job/runspace state.  Defaults to
+        3.
+
+    .PARAMETER HeartbeatSeconds
+        How often a "still searching" log line is emitted while waiting.
+        Defaults to 30.
+
     .OUTPUTS
         PSCustomObject with properties: ComputerName, FilePath, LineNumber,
         Line, Keyword
@@ -65,22 +78,26 @@ function Get-FilesUsingKeywords {
 
         [switch]$UseSsh,
         [switch]$UseCredSSP,
-        [int]$SshPort = 22
+        [int]$SshPort = 22,
+
+        [ValidateRange(10, 86400)][int]$TimeoutSeconds   = 600,
+        [ValidateRange(1, 3600)] [int]$PollSeconds       = 3,
+        [ValidateRange(0, 3600)] [int]$HeartbeatSeconds  = 30
     )
 
     Set-StrictMode -Version Latest
     Initialize-TechToolboxRuntime
 
-    # Core search logic – defined as a scriptblock so it can run locally or be
-    # serialised into Invoke-Command for remote execution.
+    # Core search logic – a self-contained scriptblock with no module-level
+    # dependencies so it executes cleanly in a fresh runspace or remote session.
     $searchBlock = {
         param(
-            [string]$SearchPath,
+            [string]  $SearchPath,
             [string[]]$SearchKeywords,
-            [string]$Filter,
-            [bool]$Recurse,
-            [bool]$IsCaseSensitive,
-            [bool]$IsSimpleMatch
+            [string]  $Filter,
+            [bool]    $Recurse,
+            [bool]    $IsCaseSensitive,
+            [bool]    $IsSimpleMatch
         )
 
         $gciParams = @{
@@ -92,8 +109,7 @@ function Get-FilesUsingKeywords {
         if ($Recurse) { $gciParams.Recurse = $true }
 
         $files = Get-ChildItem @gciParams
-
-        $hits = New-Object System.Collections.Generic.List[object]
+        $hits  = New-Object System.Collections.Generic.List[object]
 
         foreach ($file in $files) {
             foreach ($kw in $SearchKeywords) {
@@ -103,16 +119,16 @@ function Get-FilesUsingKeywords {
                     ErrorAction = 'SilentlyContinue'
                 }
                 if ($IsCaseSensitive) { $ssParams.CaseSensitive = $true }
-                if ($IsSimpleMatch) { $ssParams.SimpleMatch = $true }
+                if ($IsSimpleMatch)   { $ssParams.SimpleMatch    = $true }
 
-                $matches = Select-String @ssParams
-                foreach ($m in $matches) {
+                $ssMatches = Select-String @ssParams
+                foreach ($m in $ssMatches) {
                     $hits.Add([PSCustomObject]@{
-                            FilePath   = $m.Path
-                            LineNumber = $m.LineNumber
-                            Line       = $m.Line.Trim()
-                            Keyword    = $kw
-                        })
+                        FilePath   = $m.Path
+                        LineNumber = $m.LineNumber
+                        Line       = $m.Line.Trim()
+                        Keyword    = $kw
+                    })
                 }
             }
         }
@@ -120,8 +136,21 @@ function Get-FilesUsingKeywords {
         return $hits
     }
 
+    # Shared arg list keeps both paths in sync.
+    $invokeArgs = @(
+        $Path,
+        $Keywords,
+        $FileFilter,
+        (-not $NoRecurse),
+        $CaseSensitive.IsPresent,
+        $SimpleMatch.IsPresent
+    )
+
     $runRemote = (-not [string]::IsNullOrWhiteSpace($ComputerName))
 
+    # -----------------------------------------------------------------------
+    # REMOTE PATH  –  Invoke-Command -AsJob + Wait-TerminalState
+    # -----------------------------------------------------------------------
     if ($runRemote) {
         Write-Log -Level Info -Message "Searching files on $ComputerName under '$Path' for keyword(s): $($Keywords -join ', ')"
 
@@ -131,6 +160,7 @@ function Get-FilesUsingKeywords {
         }
 
         $session = $null
+        $job     = $null
         try {
             $session = Start-NewPSRemoteSession `
                 -ComputerName $ComputerName `
@@ -139,15 +169,54 @@ function Get-FilesUsingKeywords {
                 -UseCredSSP:  $UseCredSSP `
                 -Port         $SshPort
 
-            $results = Invoke-Command -Session $session -ScriptBlock $searchBlock -ArgumentList @(
-                $Path,
-                $Keywords,
-                $FileFilter,
-                (-not $NoRecurse),
-                $CaseSensitive.IsPresent,
-                $SimpleMatch.IsPresent
-            )
+            $job = Invoke-Command -Session $session -ScriptBlock $searchBlock `
+                -ArgumentList $invokeArgs -AsJob
 
+            # -- Poll scriptblock closes over $job --
+            $poll = {
+                @{ State = $job.State; Job = $job }
+            }
+
+            $getStatus = {
+                param($obj)
+                $obj.State   # NotStarted / Running / Completed / Failed / Stopped
+            }
+
+            $terminal = @{
+                'Completed' = @{
+                    Level   = 'Ok'
+                    Message = "File search on $ComputerName completed."
+                    Return  = $true
+                }
+                'Failed'    = @{
+                    Level   = 'Error'
+                    Message = {
+                        param($obj, $status)
+                        $reason = try { ($obj.Job.ChildJobs[0].JobStateInfo.Reason.Message) } catch { 'unknown error' }
+                        "File search job failed on ${ComputerName}: $reason"
+                    }
+                    Return  = $true
+                }
+                'Stopped'   = @{
+                    Level   = 'Warn'
+                    Message = "File search job was stopped on $ComputerName."
+                    Return  = $true
+                }
+            }
+
+            $final = Wait-TerminalState `
+                -Target           "FileSearch:$ComputerName" `
+                -PollScript       $poll `
+                -GetStatus        $getStatus `
+                -TerminalStates   $terminal `
+                -TimeoutSeconds   $TimeoutSeconds `
+                -PollSeconds      $PollSeconds `
+                -HeartbeatSeconds $HeartbeatSeconds `
+                -WaitingMessage   "Searching $ComputerName "
+
+            if ($final.State -ne 'Completed') { return }
+
+            $results = Receive-Job -Job $final.Job -ErrorAction Stop
             $results | ForEach-Object {
                 [PSCustomObject]@{
                     ComputerName = $ComputerName
@@ -163,23 +232,66 @@ function Get-FilesUsingKeywords {
             throw
         }
         finally {
-            if ($session) {
-                Stop-PSRemoteSession -Session $session -Confirm:$false
-            }
+            if ($job)     { Remove-Job -Job $job -Force -ErrorAction SilentlyContinue }
+            if ($session) { Stop-PSRemoteSession -Session $session -Confirm:$false }
         }
     }
+    # -----------------------------------------------------------------------
+    # LOCAL PATH  –  PowerShell runspace + BeginInvoke + Wait-TerminalState
+    # -----------------------------------------------------------------------
     else {
         Write-Log -Level Info -Message "Searching files locally under '$Path' for keyword(s): $($Keywords -join ', ')"
 
+        $rs          = $null
+        $ps          = $null
+        $asyncResult = $null
         try {
-            $results = & $searchBlock `
-                -SearchPath      $Path `
-                -SearchKeywords  $Keywords `
-                -Filter          $FileFilter `
-                -Recurse         (-not $NoRecurse) `
-                -IsCaseSensitive $CaseSensitive.IsPresent `
-                -IsSimpleMatch   $SimpleMatch.IsPresent
+            $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+            $rs.Open()
 
+            $ps = [powershell]::Create()
+            $ps.Runspace = $rs
+
+            # AddScript + positional AddArgument to match the param() declaration.
+            [void]$ps.AddScript($searchBlock.ToString())
+            foreach ($arg in $invokeArgs) { [void]$ps.AddArgument($arg) }
+
+            $asyncResult = $ps.BeginInvoke()
+
+            # -- Poll scriptblock closes over $asyncResult and $ps --
+            $poll = {
+                @{ Completed = $asyncResult.IsCompleted; PS = $ps }
+            }
+
+            $getStatus = {
+                param($obj)
+                if ($obj.Completed) { 'Completed' } else { 'Running' }
+            }
+
+            $terminal = @{
+                'Completed' = @{
+                    Level   = 'Ok'
+                    Message = 'Local file search completed.'
+                    Return  = $true
+                }
+            }
+
+            $null = Wait-TerminalState `
+                -Target           "FileSearch:$env:COMPUTERNAME" `
+                -PollScript       $poll `
+                -GetStatus        $getStatus `
+                -TerminalStates   $terminal `
+                -TimeoutSeconds   $TimeoutSeconds `
+                -PollSeconds      $PollSeconds `
+                -HeartbeatSeconds $HeartbeatSeconds `
+                -WaitingMessage   'Searching '
+
+            if ($ps.HadErrors) {
+                $errMsg = ($ps.Streams.Error | ForEach-Object { $_.ToString() }) -join '; '
+                throw "Local search runspace reported errors: $errMsg"
+            }
+
+            $results = $ps.EndInvoke($asyncResult)
             $results | ForEach-Object {
                 [PSCustomObject]@{
                     ComputerName = $env:COMPUTERNAME
@@ -194,14 +306,21 @@ function Get-FilesUsingKeywords {
             Write-Log -Level Error -Message "Get-FilesUsingKeywords failed locally: $($_.Exception.Message)"
             throw
         }
+        finally {
+            if ($ps -and $asyncResult -and -not $asyncResult.IsCompleted) {
+                $ps.Stop()
+            }
+            if ($ps) { $ps.Dispose() }
+            if ($rs) { $rs.Dispose() }
+        }
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBk6NXKwmwvu0Oi
-# INnuKls2EdwVR4HxwTa+66huohakqqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD74innFP/W7NzX
+# WgddG7GSYhduJePVz8fb0al6zphn6aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -334,34 +453,34 @@ function Get-FilesUsingKeywords {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCABqCbaMXKi
-# UAdT1hTedMNqfU69uGqhKe9IZl90ZZOL1zANBgkqhkiG9w0BAQEFAASCAgBx2xCm
-# i6akVvpQSJU8AYPtR6o8SX+Luq7cPyIjhEesB2cMPY6AIOxPbiODEa19esq0vgrQ
-# 7q6KalgoGuSwOlQ3H4QEB3DPNr3Xlal+sNePt3x+N9T3gvydWFhOcGSchkzKU7iL
-# K8LyeOGgW4vztK5zcshcYwSTyg2AhXEG4WbL8pptnOhGGvbQpv9JrN15WTXDkVPw
-# u/m+9q0mJ/aV1Tm5oVk/qSWKOgt9h562e6Q0ZySEPC7TKNGbAI3ULHbn8gDah/r3
-# 1XfYx5esiTdFF+tOvgJGwmrAqDfw6qb1peQKe6yte+EgayapwsKWTkJNKotUP8nI
-# IzZSy72Dn9/xU3hmYwbbTSs0W+OvbI/PeLrjFBZXXuatO3a//vclwQtS5f/4/wRP
-# bR+92CGhO8BOAEo57qFWJooq61pm/0WI2XCbMoJhK8C8+DhS0usKxkc12ui+oGCz
-# d1K4WQ3ZsxPhs5cp4fM/KVqOB3SDWkYyFLz6h0s3U4FAhgEeVatcl6lc22YKl0Z/
-# pFlWPp0HIQ/Fou6eZarda/5i08UYm20ENoEEXaeVK9jVV+aEk1jHVSewh58um9tT
-# x26xQeXPtkTn7vxH+SlpTL2yN+8wCXtkpQDtDjA07kNlVm1c0hEtBpA+n7p9Hf2Y
-# 8mGFtV8wxBv7c2yoIzhstaxLP2BN86CseTA9sqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAUwRNek5RN
+# mjimgf0tVbW/n1TJgafMubgyvf61Lvu06zANBgkqhkiG9w0BAQEFAASCAgBj3oKN
+# Ve3GhcTcUerB+JK/T93xsG/dIksZZbDQxsBuTwX6E783+4DcLKsNdNkrqKlLImpe
+# BLJmMVDfzFHFiCuO6f8QNbOpItEY+KioVmZ0LGABpQbU1tygBcwo7NpaNXGQ9GGK
+# npadYZJlCAE5U+1Bi52zERJre8Y0OBS0evQiCHRWOY6/1vI7sI8hN+ZVj1foV67z
+# kYzynRk0PlGv9/b5mkhxIkKwueaOLgXBmvuIxgjoDjC+1nwHSQviIjNZc+IFRk8v
+# HjCH16q4IelytwNQetyHIwdj+ve8dBJTrizN6Q2zjTpXt7HU4y3QkPAru1igHRmo
+# ONuk/3o5c3gsPJk5HbvVfJH+pUiSODmojIZP+cf4FP2fKZkPVOMKhmNmDD/xH54Q
+# D3P71GO1EMc7iNSehzu82axLjLyfwOS7twvqZa7FE7+oYugG89xIxo07xAn/ttqC
+# pmbdBZjctH/W0lPvQPB9lAkG+f6Lue2AukemI6LfwCzsEd7RXGRQolqhiq5UMmjE
+# DvY49IefdNTXsnzR//nmp8L+p8aB0eKNBA1M+/723oUfmLMTZIVr5U3iSwRgC+YL
+# pPaM5I+hEw+6xkOccjdm1bvV+3zB03J+0nMxBLj276nxJEKJ36R/rf0G8S/Z3Oxa
+# ka4jMcsHfanBwbTeLCyS1VEZRDC66Ez4jZNV9KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MTkxNDEyMDdaMC8GCSqGSIb3DQEJBDEiBCDHCJ6bG1yuiAcR+xMy
-# DfAxPeBzhEifaGUdRwaZM4pDWjANBgkqhkiG9w0BAQEFAASCAgBpFD01rKQhoYV6
-# zBdPKPhkYkgJ19jpFjGstBqJX5/0CY7YX8Kx/xvxGPh90xgIdl810mePd0MEBbdY
-# OSE/Z+7J6ySz7FmcOJPqEAzNAF3d1ZX7t0sPN2mWv4DYdqUfRkGNE0e/RbkkHmir
-# 0M1g0QWFv8k4MbSjo9Qcgxl8Rmyj8A2iCXDu3zKU3ol54kssvze7+Ug7C/tvDLvh
-# iCsr35bK1UnpEKrEcCgIrTBGDw8a8KVMyDSjFOtkxUONzqTmAXGrHkoKtMoeZAmM
-# LwF/WwvAlN3tklNEb21GdIvxh5uL+YVOoPWQ2HPOVc6fT9lIjfmbc1gvgVR7xcyw
-# TbK8PhVdUL0+qM4SPW+vdk/MUv9oMY4h6mWPDZNUGFRDbB6zMqFz9mTEXFUhR09F
-# uEuajP7/Q+xiBB1q0V+JUS7cRZ1YK8ImimDRl/cDjeg4Vqy83zZyKTysbZx25vrx
-# M1VmwuyNk9ANOdYvAOfOdTi/RmaeeDRgUfmZL9pR8v0yI9e39FC6R14M9cNu78Ft
-# vpx6mwuIHqHSmluwWO5irlDe/yuGnLxzavxWyhU3XkhKIjo10DP4aVJWhKAIeYdi
-# b2eKJTr/YsL/mwW7lM4Rq8Fk93FFr0nZpF9lSdUWJFCFTs0weJsUS05zG1supccC
-# e1IcxMlhatCEnYJWsQQguwD6lrjGGw==
+# BTEPFw0yNjA1MTkxNDIwMDdaMC8GCSqGSIb3DQEJBDEiBCCSuyo9wwyr6CXEpZsy
+# cwqRdD1dSm1eLPORIrEczVQEDTANBgkqhkiG9w0BAQEFAASCAgAKBhCY/QnSI6fq
+# /yMVQm25l+L+i17g+HB+A00tV0mlLj0gPsOZ0arCWYJiEXIlE/S/JQRCTXr2oUo+
+# Pqp9d2pApLEHJhZZQGMB2bqW3keALAJsC7SjMl+zXt3+gTz0Ih9o9ftika+fCKgS
+# FeSGHYkYiDN3bnyNXh3GneD3Jv54sI07ykYhjgCNed2IUix2wlPfz48EqfTdcS4K
+# WFNNBLjaLgWqPk1ao3PDr7KXQS3lTlX9Vb6rguHLEwu7te9JhMAtXpFxbmfwbyKw
+# JBxgm7ne/zPjhrrTFmstnZq6k17wSejaU7B9AFdLiVy9SkBw8UGFhnZzn4jPvslE
+# dz+kvOC+MhXAKjg6skx4ReoBVXNWQ0RXsNMwquMGNrJ0hivKAGLtLk1t+QhN+28K
+# arD0IQ1YnfouLzWeXHVWHtINI9xdtNt9xbQYsZ6s9IoMMrWaB2vLglTKEs1aBHHn
+# 7PqoRDmviqytj8Nri5AZ7ASv8KJ1EDRxIG+Mw0QHOaY4nJvBr9tak2HCwk1s+n3z
+# /nFV6sSj73o6RMZER7bce6louYAjynnY+WJ6QO7NNYh6OpPjLIkui6xUzvFBfVW9
+# h4Hzz7l42dJwQ4ZqWUQ11Ra5mSLL7qkatELpYpp7nXukZakALu2i0rRRb9sq32pP
+# B9MpTsnlUxSEVg7CpNSLX9sWTZ17UA==
 # SIG # End signature block
