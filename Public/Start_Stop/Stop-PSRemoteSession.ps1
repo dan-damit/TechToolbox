@@ -21,7 +21,7 @@ function Stop-PSRemoteSession {
         One or more session Ids (Get-PSSession output).
 
     .PARAMETER InstanceId
-        One or more session InstanceIds (GUID).
+        One or more session InstanceIds (GUID)
 
     .PARAMETER Name
         One or more session names.
@@ -94,38 +94,49 @@ function Stop-PSRemoteSession {
 
     process {
         try {
+            $matchedSessions = @()
+
             switch ($PSCmdlet.ParameterSetName) {
                 'BySession' {
-                    if ($Session) { Add-SessionsToList $Session }
+                    if ($Session) {
+                        $matchedSessions = @($Session)
+                        Add-SessionsToList $Session
+                    }
                 }
                 'ById' {
-                    Add-SessionsToList @(Get-PSSession | Where-Object Id -In $Id)
+                    $matchedSessions = @(Get-PSSession | Where-Object Id -In $Id)
+                    Add-SessionsToList $matchedSessions
                 }
                 'ByInstanceId' {
-                    Add-SessionsToList @(Get-PSSession | Where-Object InstanceId -In $InstanceId)
+                    $matchedSessions = @(Get-PSSession | Where-Object InstanceId -In $InstanceId)
+                    Add-SessionsToList $matchedSessions
                 }
                 'ByName' {
-                    Add-SessionsToList @(Get-PSSession | Where-Object Name -In $Name)
+                    $matchedSessions = @(Get-PSSession | Where-Object Name -In $Name)
+                    Add-SessionsToList $matchedSessions
                 }
                 default {
-                    $sessions = Get-PSSession
+                    $matchedSessions = @(Get-PSSession)
 
                     if ($ComputerName) {
                         $cn = @($ComputerName)
-                        $sessions = $sessions | Where-Object { $cn -contains $_.ComputerName }
+                        $matchedSessions = @($matchedSessions | Where-Object { $cn -contains $_.ComputerName })
                     }
                     if ($NamePrefix) {
-                        $sessions = $sessions | Where-Object { $_.Name -like "$NamePrefix*" }
+                        $matchedSessions = @($matchedSessions | Where-Object { $_.Name -like "$NamePrefix*" })
                     }
                     if ($OnlyDisconnected) {
-                        $sessions = $sessions | Where-Object State -In @('Disconnected', 'Broken', 'Closed')
+                        $matchedSessions = @($matchedSessions | Where-Object State -In @('Disconnected', 'Broken', 'Closed'))
                     }
 
-                    Add-SessionsToList $sessions
+                    Add-SessionsToList $matchedSessions
                 }
             }
-            Write-Verbose ("Stop-PSRemoteSession: matched {0} session(s)." -f @($sessions).Count)
-            Write-Verbose (($sessions | Select-Object Id, Name, ComputerName, State | Out-String).Trim())
+
+            Write-Verbose ("Stop-PSRemoteSession: matched {0} session(s)." -f @($matchedSessions).Count)
+            if (@($matchedSessions).Count -gt 0) {
+                Write-Verbose ((@($matchedSessions) | Select-Object Id, Name, ComputerName, State | Out-String).Trim())
+            }
         }
         catch {
             Write-Log -Level Error -Message "Stop-PSRemoteSession: failed during selection: $($_.Exception.Message)"
@@ -170,8 +181,8 @@ function Stop-PSRemoteSession {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBwKsg9/gqsNmdH
-# 3pMIM7JbcEIKfPwFSxYTfpMvKoK0K6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCelGRp//otkQfO
+# 8IpYzlGhJzuoMUQ2QZwP7b8ZNkYBxqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -304,34 +315,34 @@ function Stop-PSRemoteSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBSaegsR4Jv
-# dYzalUu4I0EfAugUPTcHqWk/YDksaueTqjANBgkqhkiG9w0BAQEFAASCAgBxIZox
-# QHeMr/8IgaZacS7gOsG8cwSwqXeUR25F0WXx3rYLZZxTrfSbvxiRVmBh1ryTl1+5
-# BUjjp0yn8NZ3NbeHl/nLpAR/dZ1gu3n0PJMMYK039bZyAM+eCHvSyzNIqmsDh7SS
-# HgwrSKbYVFzhgqEY8b0Ircf3j59Dg6mIITFC+DuGxcNd0hdr0nlCRRwP6gbdbFdq
-# wyBuFRmrsjBYG5DOqT19vtll1pmoYfB5PKjCdMq5aYP6B5d0o8L3wtCfqXcHWU9V
-# uqObbvVMLxWWCzVnfQa9wmkKprQYgHz2zNYo6nuManWdaWkJI6tTiJxpQwJm60xe
-# eMd4Amd/m3i923SfYqDzH0HqdenqRBwH2dIe3Z3u0ahA6FcDEVWukJeQF4WXPeL2
-# T0os/zmEr4rEaoQmX2T28diKW09eWBuF5j36SAc+0yK3LRX2gVvSny204nWOiXEH
-# skld7IHPByKywz9fXfQrogGcdhjNE9vD/9cNk9KHYTOabzwag642S0Z0RHDbWzxF
-# 8Q4YIk6YwkMqZmz9gtG/yB5g2a6vaAwYVmXAFV1fvIwrUnPJWMnbFEeycXHIUyRH
-# FdlNC5NPgVyYd/kxP/WNMZBTjTKGXGVOm5sUf+S16reAlM7xgbcqefM9wh53CxVi
-# wnXYUoNcEhvhlePmL1c+tjFVyDjIofSHq+lTcaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCOOWyIwV/J
+# HVHNBuEHMZGpQz74QzZ7tQiukwqwHE4fQTANBgkqhkiG9w0BAQEFAASCAgDOaewa
+# 9Sk4pJy+Th9vIPO1oQr6GPCj2iBt5eFMGjJfCMyIW4bDZCk6vPm80G4bN8UZj/TE
+# wbIO8zhGGrIv3nSm1vuBIE8LgpZv50DmRi9BKNdWGxoDnOLabqmPrRz61ULJ+Jk3
+# EgpMUAMhvODeMoFtjfcNsMCqPsukDJlP6vuIec6YTx1HMl6reUghrZL3b8kPjNla
+# 4KVdkjF8tOHTlEXgiUSdyNApGL/ek/yDgCpCFVQXgWUsHjDHw6b9h2vaVDzVfIJK
+# O38W43F9J/IQcQ4qX6jDBPn8OcBJMwbns18wWXcXR3zzDnX4AZkpQprEL4TLkaJY
+# xg2KwpQPL2wJ6hPEQXvOdb4etW51XEzvjW8g20FABU0W94KNro7a9NVh+5KGJU27
+# uWzPmEFP3lQNx79aPPlyVEJNRKK2FD/B00CEKk/fhsgJ6y/T1ibnsZB+XB1hLbF7
+# faQyKNnzTb3+bT4WITbe45qo6Po2V4oqK2xM4TguT+IgDvYvUQAGJd02xGmeez02
+# rzOGL6qFJQC43DQxpRaEOLfr0AEBTleUCM2Wohst3tmNypE6OZssBFj1nhNdHupj
+# SFDeHf3YjTuqqSj/aRQ6dM7PaoLCh/4XsPTwWoTVLpxDBEIJhT1Nvxlbg77J2wbK
+# LzVe1DZXBvwhYPMflTdPkh8C1b90x2DGcrh/HKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTcxNTMwMzBaMC8GCSqGSIb3DQEJBDEiBCAV+gW/sXcFrMK5PuOP
-# uwuEdy4zlcSPNippAn0XBXoxODANBgkqhkiG9w0BAQEFAASCAgCytUQbyWaFfBAE
-# Er+ELl1ne1B9QvSQ53ZUUDWBAJ3xcN6+ZHoh3R1M1bPLH2dJn8hhgzZBRItR/Ej5
-# WZrf/zxHaX9+9mOKOICS9g6Ne9+tCNX5Zoi+PXHy0axv9ToOawUtLAZniJu9Cjb1
-# tGw8BRtLNqHmpbvqBphgAvhcsIRd+Ws5dXB+nApmsiDGm6Nk2gDz5hMqDGqICMmE
-# V8NpoQ0+OnyRIFM1oJj+oqsyEMbWTq5yU5oME6csFZBjY/qBEfFxD0Hz72dZkc4V
-# xjUIYrUaylS7JeYRzxwnlgQAdlVJofvZISZZitGb55i0XoD4pU+yvnjqC51317XO
-# 7r75ddmshxvoZFJSKFvK6p9o0bLKf+TsLrm8vrYPxi+R9mViMx38M8AlQNYA0v7o
-# u74HNmY+/E/K9dmay3EaErjzzwiE7djr6mQDRnh1RupmyTAu1UL+BdvyC+Vzymbs
-# Z8lM6+5sSPv1ja42m6sSCnAyDnh+PhWaxLvNI6FXTuoBQS6BRn18fpnRVH4ZsPNb
-# pF3BP0unNHjQqTWMrnka5IJsA/9Xs0GRPk1/58UKxr/D02uBTjrbzGY43KoHdx5g
-# BGpUiloUnzuET3jqBaYkllgV2kzAL8LfohM0CxEnCdA50HcPto5WuFF7Oe2ET7ZB
-# glTgzBiyVSk3OwRlIwAnrnBj/Krcsg==
+# BTEPFw0yNjA1MTkxNTUzMDJaMC8GCSqGSIb3DQEJBDEiBCBvNDyv6cqWllV6Eq8C
+# C+oCFXUEuuAlgZan2gxteFAB1DANBgkqhkiG9w0BAQEFAASCAgB9u+HYxsH5Dsq/
+# J27tRrUIeqCrdXPJqXw18EoedNTPcO1sxCh1UsdzTyfkIJZxcWXHkxPE8AaELMuH
+# MEVG3vs6hlD/zn5NdhGFMzXmaJQXA99H1No67Q/F0tfE6a5TsfpyXmP8fqkL0y6T
+# 8fRMtHsU+KY2d0Ez9osoi9oFUby2B/CLp8SaTEEasNwFmK0EEK9jWE907hNM+1JY
+# IRab5A2PFsbsLXOXl0lUUtF6G8XFm1UEY1R/K6/77RKlnPE6ZBIOFO57KoCaCDDp
+# uu5bbq8MCwLmA7xqXPmkSFROQWNfkaOeLR8dryQxJVpZwaSyOTHOauIU7WmVjsnF
+# b64CGcwgVXZ2SVG6v4TmWx+gZuVE7t/3c/htFctF8P5diURmhPvI34X5m16lCB4l
+# 5iC8hC4KuFydJBXcGZ7tuAPNLY/D4MGIbWtfDviNp4MF5lDiEMQEjsXXfanApF4V
+# b5WyjFHXPX1tPvuz8etfmlSsYQ2cC/tBFkNoYikvwGPW41BIOb5/k16TclPJUoIR
+# ynCiHuUI8Esxsz9yvoBTZrQFLxUEi9VVVO95mAJX6lU8OZhZxHttTXqAXY1sGkmU
+# /AnpQG13sQ+TOuU6WjimU3x7SpPmN9ViAxeYBEuJW1y/s6AmTM9FkhwNIvVZ4im0
+# JNRJx8bYadTauaXIkk2ac0/G22IdZg==
 # SIG # End signature block

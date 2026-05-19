@@ -49,19 +49,26 @@ function Get-FilesUsingKeywords {
         SSH port to use when -UseSsh is specified.  Defaults to 22.
 
     .PARAMETER TimeoutSeconds
-        Maximum seconds to wait for the search to complete.  Defaults to 600.
+        Maximum seconds to wait for the search to complete.  Defaults to 1200.
 
     .PARAMETER PollSeconds
         How often Wait-TerminalState re-checks job/runspace state.  Defaults to
-        3.
+        30.
 
     .PARAMETER HeartbeatSeconds
         How often a "still searching" log line is emitted while waiting.
-        Defaults to 30.
+        Defaults to 120.
+
+    .PARAMETER ExportCsv
+        When specified, exports match results to CSV. If -CsvPath is not
+        provided, a timestamped file name is created in the current directory.
+
+    .PARAMETER CsvPath
+        Path to write CSV results. Implies CSV export.
 
     .OUTPUTS
-        PSCustomObject with properties: ComputerName, FilePath, LineNumber,
-        Line, Keyword
+        PSCustomObject summary with metadata, match counts, file summary,
+        and match detail records.
     #>
     [CmdletBinding()]
     param(
@@ -80,9 +87,12 @@ function Get-FilesUsingKeywords {
         [switch]$UseCredSSP,
         [int]$SshPort = 22,
 
-        [ValidateRange(10, 86400)][int]$TimeoutSeconds   = 600,
-        [ValidateRange(1, 3600)] [int]$PollSeconds       = 3,
-        [ValidateRange(0, 3600)] [int]$HeartbeatSeconds  = 30
+        [ValidateRange(10, 86400)][int]$TimeoutSeconds = 1200,
+        [ValidateRange(1, 3600)] [int]$PollSeconds = 30,
+        [ValidateRange(0, 3600)] [int]$HeartbeatSeconds = 120,
+
+        [switch]$ExportCsv,
+        [string]$CsvPath
     )
 
     Set-StrictMode -Version Latest
@@ -103,13 +113,13 @@ function Get-FilesUsingKeywords {
         $gciParams = @{
             LiteralPath = $SearchPath
             Filter      = $Filter
-            File        = $true
             ErrorAction = 'SilentlyContinue'
         }
         if ($Recurse) { $gciParams.Recurse = $true }
 
-        $files = Get-ChildItem @gciParams
-        $hits  = New-Object System.Collections.Generic.List[object]
+        # Use PSIsContainer filtering instead of -File for compatibility with older hosts.
+        $files = @(Get-ChildItem @gciParams | Where-Object { -not $_.PSIsContainer })
+        $hits = New-Object System.Collections.Generic.List[object]
 
         foreach ($file in $files) {
             foreach ($kw in $SearchKeywords) {
@@ -119,16 +129,16 @@ function Get-FilesUsingKeywords {
                     ErrorAction = 'SilentlyContinue'
                 }
                 if ($IsCaseSensitive) { $ssParams.CaseSensitive = $true }
-                if ($IsSimpleMatch)   { $ssParams.SimpleMatch    = $true }
+                if ($IsSimpleMatch) { $ssParams.SimpleMatch = $true }
 
                 $ssMatches = Select-String @ssParams
                 foreach ($m in $ssMatches) {
                     $hits.Add([PSCustomObject]@{
-                        FilePath   = $m.Path
-                        LineNumber = $m.LineNumber
-                        Line       = $m.Line.Trim()
-                        Keyword    = $kw
-                    })
+                            FilePath   = $m.Path
+                            LineNumber = $m.LineNumber
+                            Line       = $m.Line.Trim()
+                            Keyword    = $kw
+                        })
                 }
             }
         }
@@ -147,6 +157,9 @@ function Get-FilesUsingKeywords {
     )
 
     $runRemote = (-not [string]::IsNullOrWhiteSpace($ComputerName))
+    $resolvedComputerName = if ($runRemote) { $ComputerName } else { $env:COMPUTERNAME }
+    $searchStartedAt = Get-Date
+    $allMatches = @()
 
     # -----------------------------------------------------------------------
     # REMOTE PATH  –  Invoke-Command -AsJob + Wait-TerminalState
@@ -160,7 +173,7 @@ function Get-FilesUsingKeywords {
         }
 
         $session = $null
-        $job     = $null
+        $job = $null
         try {
             $session = Start-NewPSRemoteSession `
                 -ComputerName $ComputerName `
@@ -217,7 +230,7 @@ function Get-FilesUsingKeywords {
             if ($final.State -ne 'Completed') { return }
 
             $results = Receive-Job -Job $final.Job -ErrorAction Stop
-            $results | ForEach-Object {
+            $allMatches = @($results | ForEach-Object {
                 [PSCustomObject]@{
                     ComputerName = $ComputerName
                     FilePath     = $_.FilePath
@@ -225,14 +238,14 @@ function Get-FilesUsingKeywords {
                     Line         = $_.Line
                     Keyword      = $_.Keyword
                 }
-            }
+            })
         }
         catch {
             Write-Log -Level Error -Message "Get-FilesUsingKeywords failed on ${ComputerName}: $($_.Exception.Message)"
             throw
         }
         finally {
-            if ($job)     { Remove-Job -Job $job -Force -ErrorAction SilentlyContinue }
+            if ($job) { Remove-Job -Job $job -Force -ErrorAction SilentlyContinue }
             if ($session) { Stop-PSRemoteSession -Session $session -Confirm:$false }
         }
     }
@@ -242,8 +255,8 @@ function Get-FilesUsingKeywords {
     else {
         Write-Log -Level Info -Message "Searching files locally under '$Path' for keyword(s): $($Keywords -join ', ')"
 
-        $rs          = $null
-        $ps          = $null
+        $rs = $null
+        $ps = $null
         $asyncResult = $null
         try {
             $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
@@ -286,13 +299,32 @@ function Get-FilesUsingKeywords {
                 -HeartbeatSeconds $HeartbeatSeconds `
                 -WaitingMessage   'Searching '
 
-            if ($ps.HadErrors) {
-                $errMsg = ($ps.Streams.Error | ForEach-Object { $_.ToString() }) -join '; '
+            $results = $ps.EndInvoke($asyncResult)
+
+            $runspaceErrors = @($ps.Streams.Error | Where-Object { $_ })
+            $runspaceErrorMessages = @(
+                $runspaceErrors |
+                ForEach-Object {
+                    if ($_.Exception -and -not [string]::IsNullOrWhiteSpace($_.Exception.Message)) {
+                        $_.Exception.Message
+                    }
+                    else {
+                        $_.ToString()
+                    }
+                } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+            )
+
+            if (@($runspaceErrorMessages).Count -gt 0) {
+                $errMsg = $runspaceErrorMessages -join '; '
                 throw "Local search runspace reported errors: $errMsg"
             }
 
-            $results = $ps.EndInvoke($asyncResult)
-            $results | ForEach-Object {
+            if ($ps.HadErrors) {
+                Write-Verbose 'Local search runspace signaled HadErrors, but no actionable error details were present.'
+            }
+
+            $allMatches = @($results | ForEach-Object {
                 [PSCustomObject]@{
                     ComputerName = $env:COMPUTERNAME
                     FilePath     = $_.FilePath
@@ -300,7 +332,7 @@ function Get-FilesUsingKeywords {
                     Line         = $_.Line
                     Keyword      = $_.Keyword
                 }
-            }
+            })
         }
         catch {
             Write-Log -Level Error -Message "Get-FilesUsingKeywords failed locally: $($_.Exception.Message)"
@@ -314,13 +346,69 @@ function Get-FilesUsingKeywords {
             if ($rs) { $rs.Dispose() }
         }
     }
+
+    $searchCompletedAt = Get-Date
+    $duration = New-TimeSpan -Start $searchStartedAt -End $searchCompletedAt
+
+    $files = @(
+        $allMatches |
+        Group-Object -Property FilePath |
+        Sort-Object -Property @{ Expression = 'Count'; Descending = $true }, @{ Expression = 'Name'; Descending = $false } |
+        ForEach-Object {
+            [PSCustomObject]@{
+                FilePath   = $_.Name
+                MatchCount = $_.Count
+                Keywords   = @($_.Group.Keyword | Sort-Object -Unique)
+            }
+        }
+    )
+
+    $csvOutputPath = $null
+    if ($ExportCsv -or -not [string]::IsNullOrWhiteSpace($CsvPath)) {
+        $targetPath = $CsvPath
+        if ([string]::IsNullOrWhiteSpace($targetPath)) {
+            $targetPath = Join-Path -Path (Get-Location).Path -ChildPath (
+                "Get-FilesUsingKeywords-{0}-{1}.csv" -f $resolvedComputerName, (Get-Date -Format 'yyyyMMdd_HHmmss')
+            )
+        }
+
+        $targetDir = Split-Path -Parent $targetPath
+        if (-not [string]::IsNullOrWhiteSpace($targetDir) -and -not (Test-Path -LiteralPath $targetDir)) {
+            $null = New-Item -ItemType Directory -Path $targetDir -Force
+        }
+
+        @($allMatches) |
+            Select-Object ComputerName, FilePath, LineNumber, Keyword, Line |
+            Export-Csv -LiteralPath $targetPath -NoTypeInformation -Encoding UTF8
+
+        $csvOutputPath = try { (Resolve-Path -LiteralPath $targetPath).Path } catch { $targetPath }
+        Write-Log -Level Info -Message "Exported $(@($allMatches).Count) match(es) to CSV: $csvOutputPath"
+    }
+
+    [PSCustomObject]@{
+        ComputerName   = $resolvedComputerName
+        SearchPath     = $Path
+        Keywords       = @($Keywords)
+        FileFilter     = $FileFilter
+        Recurse        = (-not $NoRecurse.IsPresent)
+        CaseSensitive  = $CaseSensitive.IsPresent
+        SimpleMatch    = $SimpleMatch.IsPresent
+        StartedAt      = $searchStartedAt
+        CompletedAt    = $searchCompletedAt
+        DurationSeconds = [math]::Round($duration.TotalSeconds, 3)
+        MatchCount     = @($allMatches).Count
+        FileCount      = @($files).Count
+        CsvPath        = $csvOutputPath
+        Files          = @($files)
+        Matches        = @($allMatches)
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD74innFP/W7NzX
-# WgddG7GSYhduJePVz8fb0al6zphn6aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDpxsNCJ1PHdPSs
+# t736HBY8ZcfSdQQRCF0dBclt99qp3qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -453,34 +541,34 @@ function Get-FilesUsingKeywords {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAUwRNek5RN
-# mjimgf0tVbW/n1TJgafMubgyvf61Lvu06zANBgkqhkiG9w0BAQEFAASCAgBj3oKN
-# Ve3GhcTcUerB+JK/T93xsG/dIksZZbDQxsBuTwX6E783+4DcLKsNdNkrqKlLImpe
-# BLJmMVDfzFHFiCuO6f8QNbOpItEY+KioVmZ0LGABpQbU1tygBcwo7NpaNXGQ9GGK
-# npadYZJlCAE5U+1Bi52zERJre8Y0OBS0evQiCHRWOY6/1vI7sI8hN+ZVj1foV67z
-# kYzynRk0PlGv9/b5mkhxIkKwueaOLgXBmvuIxgjoDjC+1nwHSQviIjNZc+IFRk8v
-# HjCH16q4IelytwNQetyHIwdj+ve8dBJTrizN6Q2zjTpXt7HU4y3QkPAru1igHRmo
-# ONuk/3o5c3gsPJk5HbvVfJH+pUiSODmojIZP+cf4FP2fKZkPVOMKhmNmDD/xH54Q
-# D3P71GO1EMc7iNSehzu82axLjLyfwOS7twvqZa7FE7+oYugG89xIxo07xAn/ttqC
-# pmbdBZjctH/W0lPvQPB9lAkG+f6Lue2AukemI6LfwCzsEd7RXGRQolqhiq5UMmjE
-# DvY49IefdNTXsnzR//nmp8L+p8aB0eKNBA1M+/723oUfmLMTZIVr5U3iSwRgC+YL
-# pPaM5I+hEw+6xkOccjdm1bvV+3zB03J+0nMxBLj276nxJEKJ36R/rf0G8S/Z3Oxa
-# ka4jMcsHfanBwbTeLCyS1VEZRDC66Ez4jZNV9KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAJycIOZcrW
+# a4+1bTwhzYElJIYphWrhEbCkO/56BKGKZDANBgkqhkiG9w0BAQEFAASCAgCYsy2c
+# w5z3RId/FkJZu+0PucIbxyda0Wq0I9UsLSLvOkaYXdIgdeQWR7pJKi8SFwdUFLkl
+# m8OTIodcbTgozA8iPm6ZQc6zhcldRCXV84K+F6Rwq+GgC1ey9ilfDKcL5iM9+KPl
+# SiE3OsSy+lueKxtcq8z54JZDm4DPCev7oiN8yyByAsYRKLAfOLApB/Yzde51OuTZ
+# xB0qxmApG4VJ02O2xgX8K2hrYw88L3lBUea2WS7ByhUjMmdmgUUA+6RVf00m6y0z
+# OsIcUKiqheU8snOCM5dJzF+y4oW1frHcGpJHCJLYUx8T3H8nvP6MXfi1ZwKOFYzd
+# OPSMQn6k/aPpYeL1qWzNo4f5a0DtTUq/m6mGbyWITEWMLIPRs5kYz1L4vk+GdAVp
+# I+tuGheaRw9iH0N2li3dHV5gUEmPO5wLAOy8jVsrLgYHpHY5XxBGrrQBHAhcTfB6
+# z+FYFelWHOCur4l+9SMJp44x9+Gvkxs8FjOPdIXa/Yi4W9gfnqn1+NJMw12rZebr
+# TH42xTR9r+zTMXGCopyvbGW8HZi1jfX+qHui7qkFywED7LclczQgh/eolduIufMn
+# 3bDktg/2+ADCm3mWtRdL5h+N7OBMff3hxWpkz1UmstDeYpyY1cd+tlrJpbVSFKbf
+# iYMQuCcO7zVk9Hy6xtna+mVXA19Ejtu80oxMbqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MTkxNDIwMDdaMC8GCSqGSIb3DQEJBDEiBCCSuyo9wwyr6CXEpZsy
-# cwqRdD1dSm1eLPORIrEczVQEDTANBgkqhkiG9w0BAQEFAASCAgAKBhCY/QnSI6fq
-# /yMVQm25l+L+i17g+HB+A00tV0mlLj0gPsOZ0arCWYJiEXIlE/S/JQRCTXr2oUo+
-# Pqp9d2pApLEHJhZZQGMB2bqW3keALAJsC7SjMl+zXt3+gTz0Ih9o9ftika+fCKgS
-# FeSGHYkYiDN3bnyNXh3GneD3Jv54sI07ykYhjgCNed2IUix2wlPfz48EqfTdcS4K
-# WFNNBLjaLgWqPk1ao3PDr7KXQS3lTlX9Vb6rguHLEwu7te9JhMAtXpFxbmfwbyKw
-# JBxgm7ne/zPjhrrTFmstnZq6k17wSejaU7B9AFdLiVy9SkBw8UGFhnZzn4jPvslE
-# dz+kvOC+MhXAKjg6skx4ReoBVXNWQ0RXsNMwquMGNrJ0hivKAGLtLk1t+QhN+28K
-# arD0IQ1YnfouLzWeXHVWHtINI9xdtNt9xbQYsZ6s9IoMMrWaB2vLglTKEs1aBHHn
-# 7PqoRDmviqytj8Nri5AZ7ASv8KJ1EDRxIG+Mw0QHOaY4nJvBr9tak2HCwk1s+n3z
-# /nFV6sSj73o6RMZER7bce6louYAjynnY+WJ6QO7NNYh6OpPjLIkui6xUzvFBfVW9
-# h4Hzz7l42dJwQ4ZqWUQ11Ra5mSLL7qkatELpYpp7nXukZakALu2i0rRRb9sq32pP
-# B9MpTsnlUxSEVg7CpNSLX9sWTZ17UA==
+# BTEPFw0yNjA1MTkxNjE4MjRaMC8GCSqGSIb3DQEJBDEiBCA2sToHfBT7fdbxvLR0
+# nS9eG+lnmLNQkEG1i4VsRYal9TANBgkqhkiG9w0BAQEFAASCAgBVjL+74srGs1ts
+# q33ZLjisIwn9xsw7MnULT6gyVjJrcnP7WHySDrmYQcBX7EKArGhL/tnLbvt02Kia
+# /hU0ZsHe9IQNkB9R/GJW+ePZ8qN1VEmsWKqeT8XNfGknzRBq1fDKLxBiijZHJw1N
+# y5j2IPvU3xAKXN51VN57Ic2tLEUYArEu9HGR8j7hfEjk+YGUxHp9xphv/PFTb2Qy
+# OQ9NjViUqwDHRf4W4wEWmUMt0/JMxEasZw3AV7uizsyVUEDI+QtGDf0Z5l97j1SP
+# 21ZIH3dA0mZMDA2QKVZ5JfTDWm9ZHIvmY6yUmXZ73068OhM8AB2X9dQJo3kpeY/3
+# hccCMB0F3QnQlH+vLaTatFDbgYnHvmVhw1ZcFzAwaVUNK38vgUjw7KZgS/h9AcGp
+# aW2xGK4SM/WZ54zv9Zkz27i0+20KResCM8IIykyND17/jzMwZh/IiCeDIJ+u8QFx
+# AQMgr+0IEY5kntoAGMICGE84whVXVhfdeHygrFsj5pfPEgQcgAHRxKIVRw4TDf36
+# 1S9Yn+tB2K2b0OJzLqGL703wzg7qC2EJ9wTNNnlI3J1HCgxlR3bRT1XDv/Q0p570
+# mrd/OZFHcio8EGKJKN8pb2RONWAiMXWwutIeH/GJ/KfFd8rS0SRy4k812gqjyyiK
+# Q/Knyee9lm3fmDuiX1+Lp83rPi+sNg==
 # SIG # End signature block
