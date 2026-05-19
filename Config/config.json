@@ -57,6 +57,12 @@
       "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\TechToolbox_LogsAndExports\\Exports\\LargeFileSearch"
     },
+    "fileSearch": {
+      "exportDirectory": "C:\\TechToolbox_LogsAndExports\\Exports\\FilesSearches",
+      "exportFileNamePattern": "Get-FilesUsingKeywords-{computer}-{yyyyMMdd_HHmmss}.csv",
+      "singleFileNamePattern": "Get-FilesUsingKeywords-{computer}.csv",
+      "appendToSingleFile": true
+    },
     "systemRepair": {
       "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
       "logPath": "C:\\TechToolbox_LogsAndExports\\Logs\\SystemRepair",

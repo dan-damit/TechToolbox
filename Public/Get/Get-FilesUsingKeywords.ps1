@@ -61,10 +61,19 @@ function Get-FilesUsingKeywords {
 
     .PARAMETER ExportCsv
         When specified, exports match results to CSV. If -CsvPath is not
-        provided, a timestamped file name is created in the current directory.
+        provided, a file name is created using
+        settings.fileSearch.singleFileNamePattern (when
+        settings.fileSearch.appendToSingleFile=true) or
+        settings.fileSearch.exportFileNamePattern in
+        settings.fileSearch.exportDirectory when configured, otherwise in the
+        current directory with a built-in fallback naming pattern.
 
     .PARAMETER CsvPath
         Path to write CSV results. Implies CSV export.
+
+    .PARAMETER IncludeBinary
+        When specified, searches binary and non-text files. By default, binary
+        files (detected via encoding) are skipped.
 
     .OUTPUTS
         PSCustomObject summary with metadata, match counts, file summary,
@@ -92,7 +101,8 @@ function Get-FilesUsingKeywords {
         [ValidateRange(0, 3600)] [int]$HeartbeatSeconds = 120,
 
         [switch]$ExportCsv,
-        [string]$CsvPath
+        [string]$CsvPath,
+        [switch]$IncludeBinary
     )
 
     Set-StrictMode -Version Latest
@@ -107,7 +117,8 @@ function Get-FilesUsingKeywords {
             [string]  $Filter,
             [bool]    $Recurse,
             [bool]    $IsCaseSensitive,
-            [bool]    $IsSimpleMatch
+            [bool]    $IsSimpleMatch,
+            [bool]    $SearchBinary
         )
 
         $gciParams = @{
@@ -122,6 +133,24 @@ function Get-FilesUsingKeywords {
         $hits = New-Object System.Collections.Generic.List[object]
 
         foreach ($file in $files) {
+            # Skip binary files unless explicitly requested
+            if (-not $SearchBinary) {
+                try {
+                    $encoding = [System.Text.Encoding]::UTF8
+                    $reader = [System.IO.StreamReader]::new($file.FullName, $encoding, $true)
+                    $firstLine = $reader.ReadLine()
+                    $reader.Dispose()
+                    if ($null -eq $firstLine) { continue } # Empty file, skip
+                    # If detected encoding is not UTF8 or contains null bytes, likely binary
+                    if ($firstLine -match '[\x00-\x08\x0E-\x1F]') {
+                        continue # Skip binary
+                    }
+                }
+                catch {
+                    continue # Skip files we can't read as text
+                }
+            }
+
             foreach ($kw in $SearchKeywords) {
                 $ssParams = @{
                     LiteralPath = $file.FullName
@@ -133,10 +162,12 @@ function Get-FilesUsingKeywords {
 
                 $ssMatches = Select-String @ssParams
                 foreach ($m in $ssMatches) {
+                    # Sanitize line: remove control characters but keep printable ones
+                    $sanitizedLine = $m.Line -replace '[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', ''
                     $hits.Add([PSCustomObject]@{
                             FilePath   = $m.Path
                             LineNumber = $m.LineNumber
-                            Line       = $m.Line.Trim()
+                            Line       = $sanitizedLine.Trim()
                             Keyword    = $kw
                         })
                 }
@@ -153,7 +184,8 @@ function Get-FilesUsingKeywords {
         $FileFilter,
         (-not $NoRecurse),
         $CaseSensitive.IsPresent,
-        $SimpleMatch.IsPresent
+        $SimpleMatch.IsPresent,
+        $IncludeBinary.IsPresent
     )
 
     $runRemote = (-not [string]::IsNullOrWhiteSpace($ComputerName))
@@ -231,14 +263,15 @@ function Get-FilesUsingKeywords {
 
             $results = Receive-Job -Job $final.Job -ErrorAction Stop
             $allMatches = @($results | ForEach-Object {
-                [PSCustomObject]@{
-                    ComputerName = $ComputerName
-                    FilePath     = $_.FilePath
-                    LineNumber   = $_.LineNumber
-                    Line         = $_.Line
-                    Keyword      = $_.Keyword
-                }
-            })
+                    [PSCustomObject]@{
+                        ComputerName = $ComputerName
+                        FileName     = Split-Path -Leaf $_.FilePath
+                        FilePath     = $_.FilePath
+                        LineNumber   = $_.LineNumber
+                        Line         = $_.Line
+                        Keyword      = $_.Keyword
+                    }
+                })
         }
         catch {
             Write-Log -Level Error -Message "Get-FilesUsingKeywords failed on ${ComputerName}: $($_.Exception.Message)"
@@ -325,14 +358,15 @@ function Get-FilesUsingKeywords {
             }
 
             $allMatches = @($results | ForEach-Object {
-                [PSCustomObject]@{
-                    ComputerName = $env:COMPUTERNAME
-                    FilePath     = $_.FilePath
-                    LineNumber   = $_.LineNumber
-                    Line         = $_.Line
-                    Keyword      = $_.Keyword
-                }
-            })
+                    [PSCustomObject]@{
+                        ComputerName = $env:COMPUTERNAME
+                        FileName     = Split-Path -Leaf $_.FilePath
+                        FilePath     = $_.FilePath
+                        LineNumber   = $_.LineNumber
+                        Line         = $_.Line
+                        Keyword      = $_.Keyword
+                    }
+                })
         }
         catch {
             Write-Log -Level Error -Message "Get-FilesUsingKeywords failed locally: $($_.Exception.Message)"
@@ -353,13 +387,17 @@ function Get-FilesUsingKeywords {
     $files = @(
         $allMatches |
         Group-Object -Property FilePath |
-        Sort-Object -Property @{ Expression = 'Count'; Descending = $true }, @{ Expression = 'Name'; Descending = $false } |
+        Sort-Object -Property @{ Expression = 'Count'; Descending = $true }, @{ Expression = { Split-Path -Leaf $_.Name }; Descending = $false }, @{ Expression = 'Name'; Descending = $false } |
         ForEach-Object {
+            $firstItem = @($_.Group)[0]
             [PSCustomObject]@{
+                FileName   = if ($firstItem -and $firstItem.FileName) { $firstItem.FileName } else { Split-Path -Leaf $_.Name }
                 FilePath   = $_.Name
                 MatchCount = $_.Count
-                Keywords   = @($_.Group.Keyword | Sort-Object -Unique)
-            }
+                Keywords   = ($_.Group.Keyword | Sort-Object -Unique) -join ', '
+            } | Add-Member -MemberType ScriptMethod -Name ToString -Value {
+                '{0}: {1} match(es) [{2}]' -f (Split-Path -Leaf $this.FilePath), $this.MatchCount, $this.Keywords
+            } -Force -PassThru
         }
     )
 
@@ -367,8 +405,59 @@ function Get-FilesUsingKeywords {
     if ($ExportCsv -or -not [string]::IsNullOrWhiteSpace($CsvPath)) {
         $targetPath = $CsvPath
         if ([string]::IsNullOrWhiteSpace($targetPath)) {
-            $targetPath = Join-Path -Path (Get-Location).Path -ChildPath (
-                "Get-FilesUsingKeywords-{0}-{1}.csv" -f $resolvedComputerName, (Get-Date -Format 'yyyyMMdd_HHmmss')
+            $defaultExportDir = (Get-Location).Path
+            $defaultFileNamePattern = 'Get-FilesUsingKeywords-{computer}-{yyyyMMdd_HHmmss}.csv'
+            $singleFileNamePattern = 'Get-FilesUsingKeywords-{computer}.csv'
+            $appendToSingleFile = $false
+            if ($script:cfg -and $script:cfg.settings -and $script:cfg.settings.fileSearch) {
+                $cfgExportDir = [string]$script:cfg.settings.fileSearch.exportDirectory
+                if (-not [string]::IsNullOrWhiteSpace($cfgExportDir)) {
+                    $defaultExportDir = $cfgExportDir
+                }
+
+                $cfgFileNamePattern = [string]$script:cfg.settings.fileSearch.exportFileNamePattern
+                if (-not [string]::IsNullOrWhiteSpace($cfgFileNamePattern)) {
+                    $defaultFileNamePattern = $cfgFileNamePattern
+                }
+
+                $cfgSingleFileNamePattern = [string]$script:cfg.settings.fileSearch.singleFileNamePattern
+                if (-not [string]::IsNullOrWhiteSpace($cfgSingleFileNamePattern)) {
+                    $singleFileNamePattern = $cfgSingleFileNamePattern
+                }
+
+                if ($null -ne $script:cfg.settings.fileSearch.appendToSingleFile) {
+                    $appendToSingleFile = [bool]$script:cfg.settings.fileSearch.appendToSingleFile
+                }
+            }
+
+            if ($appendToSingleFile) {
+                $defaultFileNamePattern = $singleFileNamePattern
+            }
+
+            $resolvedFileName = $defaultFileNamePattern.
+            Replace('{computer}', $resolvedComputerName).
+            Replace('{yyyyMMdd}', (Get-Date).ToString('yyyyMMdd')).
+            Replace('{yyyyMMdd_HHmmss}', (Get-Date).ToString('yyyyMMdd_HHmmss')).
+            Replace('{yyyyMMdd-HHmmss}', (Get-Date).ToString('yyyyMMdd-HHmmss'))
+
+            # Sanitize invalid Windows filename characters from configured patterns.
+            foreach ($badChar in [System.IO.Path]::GetInvalidFileNameChars()) {
+                $resolvedFileName = $resolvedFileName.Replace([string]$badChar, '_')
+            }
+
+            # Windows does not allow trailing spaces/periods in file names.
+            $resolvedFileName = $resolvedFileName.Trim().TrimEnd('.')
+
+            if (-not $resolvedFileName.EndsWith('.csv', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $resolvedFileName = "$resolvedFileName.csv"
+            }
+
+            if ([string]::IsNullOrWhiteSpace($resolvedFileName)) {
+                $resolvedFileName = "Get-FilesUsingKeywords-{0}-{1}.csv" -f $resolvedComputerName, (Get-Date -Format 'yyyyMMdd_HHmmss')
+            }
+
+            $targetPath = Join-Path -Path $defaultExportDir -ChildPath (
+                $resolvedFileName
             )
         }
 
@@ -377,38 +466,50 @@ function Get-FilesUsingKeywords {
             $null = New-Item -ItemType Directory -Path $targetDir -Force
         }
 
-        @($allMatches) |
-            Select-Object ComputerName, FilePath, LineNumber, Keyword, Line |
-            Export-Csv -LiteralPath $targetPath -NoTypeInformation -Encoding UTF8
+        $exportRows = @($allMatches) | Select-Object ComputerName, FileName, FilePath, LineNumber, Keyword, Line
+        $appendMode = Test-Path -LiteralPath $targetPath
+
+        if ($appendMode) {
+            $exportRows | Export-Csv -LiteralPath $targetPath -NoTypeInformation -Encoding UTF8 -Append
+        }
+        else {
+            $exportRows | Export-Csv -LiteralPath $targetPath -NoTypeInformation -Encoding UTF8
+        }
 
         $csvOutputPath = try { (Resolve-Path -LiteralPath $targetPath).Path } catch { $targetPath }
-        Write-Log -Level Info -Message "Exported $(@($allMatches).Count) match(es) to CSV: $csvOutputPath"
+        if ($appendMode) {
+            Write-Log -Level Info -Message "Appended $(@($allMatches).Count) match(es) to CSV: $csvOutputPath"
+        }
+        else {
+            Write-Log -Level Info -Message "Exported $(@($allMatches).Count) match(es) to CSV: $csvOutputPath"
+        }
     }
 
     [PSCustomObject]@{
-        ComputerName   = $resolvedComputerName
-        SearchPath     = $Path
-        Keywords       = @($Keywords)
-        FileFilter     = $FileFilter
-        Recurse        = (-not $NoRecurse.IsPresent)
-        CaseSensitive  = $CaseSensitive.IsPresent
-        SimpleMatch    = $SimpleMatch.IsPresent
-        StartedAt      = $searchStartedAt
-        CompletedAt    = $searchCompletedAt
+        ComputerName    = $resolvedComputerName
+        SearchPath      = $Path
+        Keywords        = ($Keywords -join ', ')
+        FileFilter      = $FileFilter
+        Recurse         = (-not $NoRecurse.IsPresent)
+        CaseSensitive   = $CaseSensitive.IsPresent
+        SimpleMatch     = $SimpleMatch.IsPresent
+        IncludeBinary   = $IncludeBinary.IsPresent
+        StartedAt       = $searchStartedAt
+        CompletedAt     = $searchCompletedAt
         DurationSeconds = [math]::Round($duration.TotalSeconds, 3)
-        MatchCount     = @($allMatches).Count
-        FileCount      = @($files).Count
-        CsvPath        = $csvOutputPath
-        Files          = @($files)
-        Matches        = @($allMatches)
+        MatchCount      = @($allMatches).Count
+        FileCount       = @($files).Count
+        CsvPath         = $csvOutputPath
+        Files           = @($files)
+        Matches         = @($allMatches)
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDpxsNCJ1PHdPSs
-# t736HBY8ZcfSdQQRCF0dBclt99qp3qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAb441nl+covacm
+# wTUN9wUCXqwF8NF3NxDh/nO1rlk+/qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -541,34 +642,34 @@ function Get-FilesUsingKeywords {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAJycIOZcrW
-# a4+1bTwhzYElJIYphWrhEbCkO/56BKGKZDANBgkqhkiG9w0BAQEFAASCAgCYsy2c
-# w5z3RId/FkJZu+0PucIbxyda0Wq0I9UsLSLvOkaYXdIgdeQWR7pJKi8SFwdUFLkl
-# m8OTIodcbTgozA8iPm6ZQc6zhcldRCXV84K+F6Rwq+GgC1ey9ilfDKcL5iM9+KPl
-# SiE3OsSy+lueKxtcq8z54JZDm4DPCev7oiN8yyByAsYRKLAfOLApB/Yzde51OuTZ
-# xB0qxmApG4VJ02O2xgX8K2hrYw88L3lBUea2WS7ByhUjMmdmgUUA+6RVf00m6y0z
-# OsIcUKiqheU8snOCM5dJzF+y4oW1frHcGpJHCJLYUx8T3H8nvP6MXfi1ZwKOFYzd
-# OPSMQn6k/aPpYeL1qWzNo4f5a0DtTUq/m6mGbyWITEWMLIPRs5kYz1L4vk+GdAVp
-# I+tuGheaRw9iH0N2li3dHV5gUEmPO5wLAOy8jVsrLgYHpHY5XxBGrrQBHAhcTfB6
-# z+FYFelWHOCur4l+9SMJp44x9+Gvkxs8FjOPdIXa/Yi4W9gfnqn1+NJMw12rZebr
-# TH42xTR9r+zTMXGCopyvbGW8HZi1jfX+qHui7qkFywED7LclczQgh/eolduIufMn
-# 3bDktg/2+ADCm3mWtRdL5h+N7OBMff3hxWpkz1UmstDeYpyY1cd+tlrJpbVSFKbf
-# iYMQuCcO7zVk9Hy6xtna+mVXA19Ejtu80oxMbqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAi8VyNDOWr
+# hTVZLFv6dbJR4WuYecWwMlZ0wjZOTyjo3TANBgkqhkiG9w0BAQEFAASCAgBNN6V8
+# i4BKUGcRioPHcWS5dTsnNRLh1N/qOL/dUJKOMuVHs2xGYTNrQchvFeYxkedL6+88
+# nufQIgLwq5vQtyYI+f6lRzSRRTA5g0H9M11B/GIa334aHaceUj12Y1Yaa41sQvLL
+# bR9pjkWSFjZ237XNSOeAP9AMhUn4KpLBNTOTsnSt/+jhqEw7/a8j09jEanlhHt9a
+# Gmom84oddvhPv3cY0Yw8dITkvCyR1QVFpCVTXqckDI7YLRNBGAzNOlgvZb/77QtE
+# OlOuTJ4lVK2ZnAL3xLiq4jB+q6oQQD5vSyIHHtlllsaiG+Jcwhd7+s1jjrreyArK
+# SJ13cmcsQkiBzcclTQaSHWMnMAowXc8g4XwschIkOKAmi7C6i5pi6k7TZfC2QzFE
+# 3n4rKRAwXeD5IHBNNJwBRKlH80ILLrtDqFgjA/uVqQt6zH+9zsNDjTwZmYZ2d4Vu
+# hLVz7WFePYR2YubnpNyrDp0KjD6sQD98HgvQypwrxSdfw53L4mAmAPCu1DGIuT58
+# ryuedclDn238a3sNinJRQAAfrxCbdAJm5S7835FmoTWUAd+sHY94a3eTTCFuypCe
+# gZOWXScAfHpwqaBP/ewkCTUOaHREvLlLdGIh4y73v97xcQCGaB+Sx3DvS2PyBT4t
+# BB21poMCabUl7KGpsJjk3CyeC+61rJT8rmWVOKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MTkxNjE4MjRaMC8GCSqGSIb3DQEJBDEiBCA2sToHfBT7fdbxvLR0
-# nS9eG+lnmLNQkEG1i4VsRYal9TANBgkqhkiG9w0BAQEFAASCAgBVjL+74srGs1ts
-# q33ZLjisIwn9xsw7MnULT6gyVjJrcnP7WHySDrmYQcBX7EKArGhL/tnLbvt02Kia
-# /hU0ZsHe9IQNkB9R/GJW+ePZ8qN1VEmsWKqeT8XNfGknzRBq1fDKLxBiijZHJw1N
-# y5j2IPvU3xAKXN51VN57Ic2tLEUYArEu9HGR8j7hfEjk+YGUxHp9xphv/PFTb2Qy
-# OQ9NjViUqwDHRf4W4wEWmUMt0/JMxEasZw3AV7uizsyVUEDI+QtGDf0Z5l97j1SP
-# 21ZIH3dA0mZMDA2QKVZ5JfTDWm9ZHIvmY6yUmXZ73068OhM8AB2X9dQJo3kpeY/3
-# hccCMB0F3QnQlH+vLaTatFDbgYnHvmVhw1ZcFzAwaVUNK38vgUjw7KZgS/h9AcGp
-# aW2xGK4SM/WZ54zv9Zkz27i0+20KResCM8IIykyND17/jzMwZh/IiCeDIJ+u8QFx
-# AQMgr+0IEY5kntoAGMICGE84whVXVhfdeHygrFsj5pfPEgQcgAHRxKIVRw4TDf36
-# 1S9Yn+tB2K2b0OJzLqGL703wzg7qC2EJ9wTNNnlI3J1HCgxlR3bRT1XDv/Q0p570
-# mrd/OZFHcio8EGKJKN8pb2RONWAiMXWwutIeH/GJ/KfFd8rS0SRy4k812gqjyyiK
-# Q/Knyee9lm3fmDuiX1+Lp83rPi+sNg==
+# BTEPFw0yNjA1MTkxNzQwMzdaMC8GCSqGSIb3DQEJBDEiBCBogYCipfW8xcIe9jfe
+# DcDvW3YWMmS5IBgfuUD2OuOdezANBgkqhkiG9w0BAQEFAASCAgBjgoVptwYUmxOA
+# Qg0yz2dKgYuVo+JwH5Dfx0CBDskx7JiReknxFIWg79EPqOhTLF+0J5Yj+mVB2c97
+# M0lZ/DYczkoobP6ZVq2YUtxyL7tpW05Or/bly/8xc2HxTpdz71BFkoXwiJt+jE+O
+# qkJ0MVjqeD6kgAKUidMJV/8rEMtZvFarjAo3W4H+AKAD0+DBYfSWIvpMv1kaf1Nd
+# WBUTvRgaP60oWbCBDDTZ66ExBGxoMScB2LqGd+9xp1eyBm/zNmTDbatiVrk7WxLm
+# hGhPHSmHdXsKp2PpzP/UxNVRQmXLE+cPbYIu513x9FRmQctgNZNFqHw8t24uPhd/
+# nXbSo6vpF/8ALelZbP0ca0+hM+2PUXcm8mSRC+tVChhH7lONt9/OTx5SwtYL9Go2
+# rLSfgwMxVC/X+wZqGDQD+MGRzs0M5TV5PEExc9lDjcnUxKDvrUAfTv/TiVGl/Yw5
+# 8uIvUIOmAkrjl5JbBCvhv8h+KBFIS8FtVYSyJcURC0IcL4dw/8mQfIFHDtgSC37r
+# MlMi1OtMbHvIURhy5WVif2hsUccmjJ1IwpRePP2oY5n5DI9/hCheLu53rwpeh73k
+# A8+cVklfzI2Y3oxenw3QExOMjvo12oBVAv2ykgfyAhHobi1C7XWDw4v5lPoWx2xa
+# YF/FzlY44Nbq7DpqAsUrZF3HHwWJWQ==
 # SIG # End signature block
