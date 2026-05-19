@@ -64,6 +64,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 - Get-SystemTrustDiagnostic
 - Get-SystemUptime
 - Get-WindowsProductKey
+- Get-FilesUsingKeyworkds
 - Invoke-DownloadsCleanup
 - Invoke-RestartService
 - Invoke-SystemRepair
