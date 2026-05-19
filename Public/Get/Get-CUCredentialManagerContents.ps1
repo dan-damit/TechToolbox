@@ -1,14 +1,16 @@
 function Get-CUCredentialManagerContents {
 	<#
 	.SYNOPSIS
-	Returns Credential Manager entry metadata for the current user context, including remote interactive user sessions.
+	Returns Credential Manager entry metadata for the current user context,
+	including remote interactive user sessions.
 
 	.DESCRIPTION
-	Uses `cmdkey /list` and parses only metadata fields (Target, Type, User, Persistence, Comment).
-	No secret material is read or returned.
+	Uses `cmdkey /list` and parses only metadata fields (Target, Type, User,
+	Persistence, Comment). No secret material is read or returned.
 
-	For remote hosts, this function can query the active interactive session by creating a short-lived
-	scheduled task with InteractiveToken on the target machine.
+	For remote hosts, this function can query the active interactive session by
+	creating a short-lived scheduled task with InteractiveToken on the target
+	machine.
 
 	.PARAMETER ComputerName
 	One or more computer names to query. Defaults to localhost.
@@ -344,8 +346,8 @@ function Get-CUCredentialManagerContents {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCaYMgBP70oYgZB
-# w70sSCZnbgeTQowM0WKxgYXuN+ohjaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC18q2qmyTHQPX5
+# IG5zX78R88eun9JXuep/E+PBMBUCrKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -478,34 +480,34 @@ function Get-CUCredentialManagerContents {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDZvUVa3YTD
-# CSsVOLVZEtvEeGgMtjiXlCPrixZXRKpCpjANBgkqhkiG9w0BAQEFAASCAgC5MRd2
-# 0mN5rbwYZY8PJCqT4TwFLH1BorW7S2zFKDWAmRQ8PvWF7CsN9yxqpvgHzvBVBIeK
-# otE9eo3r+POpvKUtDs3xPqv2atneqvrncXOKMvgu4lFplHqU5qYwe9j1u/7S899y
-# Xxba+WiE3LMitkGPk1M7+Rwvnpr45c17vcvU+x00+l24Tdx8E7ego0L/omGltfCx
-# xLJNsw4f0C28U4XdGyb7oD+XhF+FcG44VeTEPM+iRC0b85wl1vHfO7N29fCCVCWu
-# 2CjQ43gQchd8/oACVdaT8+7ISulOm9YQSSJpsT2chIMvU8Orm10k3hKG2YYsQZkG
-# JTKK+vmZvbyVH/7SoIukhXnp9Y9WUOhKab8bFf4J4llWEygCDYJJQc7gG5nH+udv
-# sc54ThcY91qHUGCqvZjVYPQ+lQIRqCU8Jt6GOFaAzhGdkQVgwprGzUpqKaEEUmfr
-# fAieP/N2aXQxHYqWHqmeiGv1twen7JZvvhP19Q4vMy+/0CfKtakXb6mAv78sRe7L
-# 1WtnTpnGT8D8DI+ZsfRjIcPkzzQl18q1V/A5xhrtlFRgz8aVKpNzNO8iVxA6U/3r
-# 6OQ0vc6LYqzHiDPHlKKrOlGMUewRSLpSEN51qSnAte5ivcLBPPpI2Z219M9nOUuI
-# dQD6VqhqAdw8E9ZtXeofCj8sgZDMKKGyCC6+qqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0byEWt/ST
+# bS/8JFy1N6qDOXJsBcxpoQJJ5z6oVI3EKTANBgkqhkiG9w0BAQEFAASCAgARm9io
+# d10fK6Cioatmd2QjodLhphT+fckWUVYu/76xMlWlbkaLg27a0SKSA1LfnDc+UbSc
+# ZwSAOKVP+sRuhx7664e4hyp4fSG2WJRmFlKAdKSG82ryPUulLVlXOkQVUppFvp8L
+# gRuM587j4eg5ahGp4FZCUQ20C6IaF84HvxyMDYymRB6MoXn4ahr1MFl4/awwHqz7
+# WwygRUFVviUbkDUjS0YU6YLLkuknWdDwkkOs80w607YxneGR+yNJRDbEexdyRFTB
+# VXDrmJSCkPYMF7KVL4dLF69hXJNAjIcCzM70D75pkwT1qcbwFY+DZhGLekTndPrz
+# 2p+GBImhNlTgbw1Zo9Laf+1+oo55IjPryUSttzo/Ee2pwf/a72iiyL8z/Ayvsh4i
+# Dd2LSydNcotmxsyyMNnmQ/mOvMuOfigjdJQOwpxKoJV+byN5dd+0nZnbdxxgMsQf
+# rw3Wn0JoyE3El44bUcVW9dlydHurje+qxZqFVLhmDRBFgPH7zraCxMz47G0i8d7f
+# R5VynSc9fcryXLX+cIZJheBOvxT/VtYVZs/Qu8zpDE/Svx3+irIE4vDggCYKCY7U
+# 4ttUAw3IxcGcIXPl3DxAA5ehVEiqA3fiNmElgt/kMndNKHt8fhFsvscC6qECHuRU
+# 4bfsaEDLCJcjmhcudjFY+JmqGEiQI81GnAUbhKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MTkyMTM1MTBaMC8GCSqGSIb3DQEJBDEiBCAv766dCojE3V07wA47
-# Gi2K+nDBi7WRx82a/L5KU5bBUTANBgkqhkiG9w0BAQEFAASCAgAkBrmTRAv+4B9u
-# hhEvYaVkv8V1mA6W6m9Hp1BTT/5NJZC3wpzPKtctPGLzlGMts2EH+/1KXjfvv7H+
-# aAwYTGnQAPGHGw/ELXVcJYBTAMJMtUkFsR/7Ur77xwSnkjuFc6qBN8WYFZMpWQLy
-# d2WapaCkOK36zkcrDBACZZoxLYlqNIHTQJaYNdvaZA/A+WgS6aFs/8HDH6B+uvIM
-# B9dn46g31Cc86XxU9nE2IO8t2m9C527PO15uUdYz8D9oUQpFJcu67xkCFzZIU2G0
-# koyY+XpNzmc3vHnQGlHNV8kLuB9Bd82UqpGXxRBbEF4vSaEmnnZWocViKVER4S7u
-# AyPtywAKWTSiADP8QviBguBAf6RDJbS9fT0lakD4oKlOxCiJIA2wI50P5OgRjvQF
-# ZrzThBgKuH5GTLLM9J5fdzlTn0NQPCCjmFQkcd57+A2sVrM0EWBnV2xPXxMNfACo
-# H4wdeVdcsN0vy2+tZ2G9JyqdI7UEhLqSMBGpXmsgyqYLc5JiCBFOyNbSBofmne+A
-# tRqYL037oIcD7+YiNXRgT8AEkYqblY7TmWHyRdoZ/7wB+9SHB5dNfC1ynPetPoQ/
-# ik39J1rHoTkcnwPwgPxk9dQsgDrKNvr9SimO0pBbbGtvoC+D3OkwKQdHE5caihZk
-# oY2WG6CpWrfDPP45bRJbSN9FFp1srw==
+# BTEPFw0yNjA1MTkyMTM1NDRaMC8GCSqGSIb3DQEJBDEiBCDG/xTx7Vta1rBTDrTs
+# RUaStMsNFb8XMa5bUUC3doF8aTANBgkqhkiG9w0BAQEFAASCAgApHXXJZtB55oQf
+# EsCtVtMboOp0gbUnT+CWO4GX6CTMK0c5m04idcJuvsvpF7Hqr2YYo9meaDfVQnmL
+# i5+D1gcxxdzjgn5wR6TCFA2suLT9XE31KZkt8UzhM0ssSjBk5+jQ36t042z3VMCn
+# aTbqtnG/S+7709VeBhAsq6omfB9Jk/SokM4n26Zw2rS7I4XuTAM7WhtVBXITMGCz
+# 6owgCxZ9WMaDaF6OxDmAd8D4skVpnanaWdMfC9fN0+R4kAAxqYjKWrfMcs8awPqv
+# WiBpDBlEzbkFfqpIOHpLhxVC4r6R1XEhJU5zv9E0EDw096EXHGwv5QrmfpnNDMwg
+# fHSVQvaIMPwGPAY2CEGXmgPhtJo7YaOp99G0C6vfUy8kiLl4ySQFGyDV4yEcmaBB
+# rr3gYuiOj2xtb81+vAuAkkDCdiALtc9bkjSxNZvMP8Vvaa8jvGUYCnLtBB6vlNje
+# kWcvvcrpYpPfSBkz0w/AUpA7ZB8ZUGakZpj3Pmt7RvpzN5uFwFUiDnx0wYbaOOPl
+# nJKq23fhrBTzQBx9v3UhMxKuIflxKToN3Z+ERi8IibYV//YzrkQXJU5MXbydoW5h
+# +Dd8cdX9/jN0fGQ8crIXvgh+02TGqnaP24PavocLNgR7ntXtqoqcoXk/PNymJ0Fm
+# MUBfZKewCNj6daJ+3wespP14oFkHDg==
 # SIG # End signature block
