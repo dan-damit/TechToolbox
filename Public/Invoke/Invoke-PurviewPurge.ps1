@@ -119,6 +119,84 @@ function Invoke-PurviewPurge {
     $ticketNorm = $null
     $purgeSubmitted = $false
 
+    function Convert-FriendlyContentMatchQuery {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Query
+        )
+
+        $normalized = $Query
+        $notes = New-Object System.Collections.Generic.List[string]
+
+        # Convert field=value and field==value into Purview KQL field:value form.
+        $eqPattern = '(?ix)\b(?<field>[a-z][a-z0-9_]*)\s*(?:=|==)\s*(?<value>"[^"]+"|''[^'']+''|[^\s\)\(]+)'
+        $rewritten = [regex]::Replace($normalized, $eqPattern, {
+                param($m)
+                $field = $m.Groups['field'].Value
+                $value = $m.Groups['value'].Value.Trim()
+
+                if ($value.StartsWith("'") -and $value.EndsWith("'")) {
+                    $value = '"{0}"' -f $value.Trim("'")
+                }
+                elseif ($value -notmatch '^".*"$') {
+                    $value = '"{0}"' -f $value.Trim('"')
+                }
+
+                return ('{0}:{1}' -f $field, $value)
+            })
+
+        if ($rewritten -ne $normalized) {
+            $notes.Add("Converted '=' or '==' clauses to Purview field:value syntax.")
+            $normalized = $rewritten
+        }
+
+        # Convert user-friendly contains on subject into wildcard contains semantics.
+        $subjectContainsPattern = '(?ix)\b(?<field>subject)\s+contains\s+(?<value>"[^"]+"|''[^'']+''|[^\s\)\(]+)'
+        $rewritten = [regex]::Replace($normalized, $subjectContainsPattern, {
+                param($m)
+                $field = $m.Groups['field'].Value
+                $rawValue = $m.Groups['value'].Value.Trim()
+
+                if (($rawValue.StartsWith('"') -and $rawValue.EndsWith('"')) -or ($rawValue.StartsWith("'") -and $rawValue.EndsWith("'"))) {
+                    $rawValue = $rawValue.Substring(1, $rawValue.Length - 2)
+                }
+
+                $rawValue = $rawValue -replace '"', '""'
+                return ('{0}:"*{1}*"' -f $field, $rawValue)
+            })
+
+        if ($rewritten -ne $normalized) {
+            $notes.Add("Converted 'subject contains ...' to subject:\"*...*\" for a forgiving contains-style match.")
+            $normalized = $rewritten
+        }
+
+        # Address fields do not support wildcard matching in Purview KQL; map contains to exact value.
+        $addressContainsPattern = '(?ix)\b(?<field>from|sender|to|cc|bcc|participants)\s+contains\s+(?<value>"[^"]+"|''[^'']+''|[^\s\)\(]+)'
+        $rewritten = [regex]::Replace($normalized, $addressContainsPattern, {
+                param($m)
+                $field = $m.Groups['field'].Value
+                $rawValue = $m.Groups['value'].Value.Trim()
+
+                if (($rawValue.StartsWith('"') -and $rawValue.EndsWith('"')) -or ($rawValue.StartsWith("'") -and $rawValue.EndsWith("'"))) {
+                    $rawValue = $rawValue.Substring(1, $rawValue.Length - 2)
+                }
+
+                $rawValue = $rawValue -replace '"', '""'
+                return ('{0}:"{1}"' -f $field, $rawValue)
+            })
+
+        if ($rewritten -ne $normalized) {
+            $notes.Add("Converted address-field 'contains' clauses to exact field:\"value\" because wildcard contains is unsupported.")
+            $normalized = $rewritten
+        }
+
+        return [pscustomobject]@{
+            Query = $normalized
+            Notes = $notes.ToArray()
+        }
+    }
+
     try {
         # ---- Config & defaults ----
         $purv = $script:cfg.settings.purview
@@ -183,6 +261,8 @@ function Invoke-PurviewPurge {
 
         # ----- Query prompt + validation/normalization -----
         $promptQuery = $defaults.promptForContentMatchQuery ?? $true
+        $normalizeFriendlyQuery = $purv.purge.normalizeFriendlyQuery
+        if ($null -eq $normalizeFriendlyQuery) { $normalizeFriendlyQuery = $true }
         $UseExistingQuery = $false
         $UpdateScope = $false
         $AllowQueryWeaken = $true
@@ -233,6 +313,17 @@ function Invoke-PurviewPurge {
 
                 if ($ContentMatchQuery -match '^(?i)(q|quit|exit)$') {
                     throw "User cancelled: ContentMatchQuery entry aborted."
+                }
+
+                if ($normalizeFriendlyQuery) {
+                    $converted = Convert-FriendlyContentMatchQuery -Query $ContentMatchQuery
+                    if ($converted.Query -ne $ContentMatchQuery) {
+                        foreach ($note in $converted.Notes) {
+                            Write-Log -Level Info -Message $note
+                        }
+                        Write-Log -Level Info -Message ("Normalized ContentMatchQuery: {0}" -f $converted.Query)
+                    }
+                    $ContentMatchQuery = $converted.Query
                 }
 
                 $warningsRef = [ref] $null
@@ -358,8 +449,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDTz0CtSgiJxjq2
-# MgcOUvuRIGIdbKIgwrX27dGJLWUPnaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCApc1cpFQnZcBGA
+# cCA5Hs18JIPzHUi/bE37BrqDdr0L6qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -492,34 +583,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCt54U/LSMf
-# G1ozIEZgj+n05kJLmrpMYQ7mvsBLmbZLPzANBgkqhkiG9w0BAQEFAASCAgBse5oV
-# 5H0Xl/aGd44GxMECWGj0CN61+NNuwCTYDDcY10bRO7YYJfuz+V7A/eAx8hvsdPha
-# b2Sb5hhmzMgkdrI+udN3BNrafFILThlm8Y13whgeZqSGzmqqmUCNqk/kbrrQ6sQq
-# 5Xcrpa4m+7FQ8EDU13REgVOcvS3qQpIPKTtqIJBLrFsJNexdAOUemTjuT5vlMKzx
-# +hwvE1Za8uoZADo12wQju3ZP+HxUFisS3S3Ww47SGlyo9GVl6WtQ9UMKLKekq+yZ
-# bNUWH7aLwoAeyzxQkBNjVJx4WjGsRZs4TsRp3yQ5Pc9hy74zV4j98n73q/vRTwVs
-# ppp0JvUs6GZ1hAIaxUUGX2yOE1OE7oGMHbtG9GgLhlniX4OT+OG5b7prLX/yLaAm
-# ngo/E99oFKwgDDb73k7XXg7DA6jIG3Ge1ebvC6giS9n0IENld/u8yWJw6roJe/fJ
-# 2/g/xRVWab6oPsHCxQq+DXbu+idyNy++g2yLLc5JTc3rpTZzslCbZpxCrcTy+OCE
-# lpvlUwK4iB82OKBV702fGtJCcwZVsSMEzAJkRD+q6oDLI2si2NVbWELiqdeyM2M+
-# J0vqLI9TO3uAfiqtjf1tnOrSpwwxGzPqKiK+ZyCNKmudny4repVKM8ld1RytLvfu
-# Fg5lrWuPSFTzMbYNRWKqeFfJtmfP1fDHjDPLdKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCq1Hbo3+KK
+# HBJAHDt3hwuw21UzA3wY6B4OOqIWiz6vrTANBgkqhkiG9w0BAQEFAASCAgB7Qweo
+# FV8iR1PUy0XHNbTtI7TUcMBgp9MtXzLG2UUA7gFrn/fuNZVCy+w1OA02iP1JHrGc
+# /KCuF/vlNdBcRBe5gMzgFr2hCvwxFJwkQoEnA8zqVoDuI2VSqnRXGxLNPkMMTN+e
+# 66xIddkxicxgBDoqKc/gobvc78ehlUOU8++n6vq8xdCeQrJKEijORQ4Aq1n7GPuY
+# DPxoK8Y2w98/4fXK+VYo6CJuN9JCcWHOqQrjZL40lj2NdyN36jIh8/EH0sX1k69u
+# 5QZKDGzwrAX617sXVX5LiJ5sWXgyPJsZpXOBJvu9iHWQJ9HFpRY0+AovX1VdRi/U
+# QwWG7QzfpzvhOxyq/XeOAXcwchopCxbDG7ZSYATCeQ3olMvTPYJV6f0x9hidKjOx
+# HOJl4e5cQoREga6vRz7BahLmFUMKH0Rc/PfGEzBPvQwjz8w1IF9gUoOBVaxSDgHn
+# JsRRBUwit0U5aPRB/l6uopx9FkJ2yJ4AvR3MAyqKCDC95bZZH/03oqu+ZBOYtiCm
+# DHtiy2odHQ3kxCkRbYZ0QC7qOpi1AM8YfJMA0KWiphv9fbv0qF7pLm2s9/VawxTj
+# 83pM51LJq3hp1HjTpDIxuoeKFnPS5q5D6/8l/4HjMaqusHcNYebOTD7UVGHhm6lH
+# lb9zlPhoR2xMTic4QTtuheLpTMJv/KU/BCKo1qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDcxOTQzMjVaMC8GCSqGSIb3DQEJBDEiBCBYfQ4bE6AZnejGmYIH
-# xZf13Y3B3BVPz0udzOTkYuS1qjANBgkqhkiG9w0BAQEFAASCAgAcNnj194eeBN2D
-# MoR/tIzho62aqt4cBRGz0UBcsxT/JiK3YFEPNnJhJXOIeADXm1Gi0kaUNsbcLW9f
-# tE9mT9asgKwocPvNdAzcwV7sJnh5dnp9Udoer+/kKDFCOpiA/x6quTBvUf58v9A4
-# JzbeG9HjNwSOtc2P9WYGWDUTGGltRLvrjjUe3Ak1K5JwRrK9vQphxfL+SQTNRKpW
-# dlc5EOvGjnQ+/hoDu8tMXguvchpzcyoAbiSPw9RfrOGsCfEEPBdtAe92VYEEGsRS
-# nSgi5MOguhyMImDbh4X4RxjNNrJucLKVOTFiVXfcNEoYcT0ABGt4jH+OzDBDGGs2
-# f2PNtH3m+nRrpPduSEDC/Qx2lgKdhd6d2tccjiIiPOISsfaDcD2iBjr/hISSoTE2
-# ZY74z+w3v37INdopZucwCeW1b9GgwtwZb8SWEv4ltxj/P01mFzlrk42z1eBT0Rrh
-# 24lTWv1+8HRmNA+urCweBAOXyg1RKNPNF9AgmLT6P8IXnlt1khEwLl3KGrjeEpja
-# YTyDSugo+tobhafKKK4zVucbxGs9sAR96Wvi7O4tKPzaiaCBpoL+rFKX7fGwWssd
-# dMZ+X93rgFnD4wWX/tCQxP0POJmV9NysGsLzl3IbiJahd7wn/bNWkEWXLG0go9Ex
-# riyuTlERMEPi+frGk2gJl9Asx7PZrA==
+# BTEPFw0yNjA1MjAxOTE1NTFaMC8GCSqGSIb3DQEJBDEiBCBcTV8fyHPqttUWmg5D
+# lL3EHuQz8ZM+jX60fBrOMne/QjANBgkqhkiG9w0BAQEFAASCAgDHMnDHpxZFf+wz
+# on8UtwUr5EziV8AoXutYMbBqdBNXMgNcjzZgJpBvZVEOUGiZitDjzwuaNEi2bbFV
+# JvqoBGw2ji12Ej/vnKySfifMUqPDs0GoL+OU5SsL5bf3XOPRpTX2c2Ea7naij0iC
+# TcVX7uno20KFMDDhoYoyOteoHCOhGcskDvcRw84Al9jP5Gfsrxi7gH++8Hi/2RtF
+# hWbVpS9sJk7j9G8LNPmgeVC1XkUm4odUZx/ePWdhT49pVMSWGWyEuZjVPMys//xO
+# FBgIfsXVW7PW/OXStpZ91BdSfEootklI+qYDsqlFiswV2CTITomLDVf5ROW38bZh
+# 1BaHLSWpjc89+7YcEL32TmFPfvxHfzoYtbn45MKqjqs6GyL+NLePkudcDm0ljPD/
+# UQCeyXVqCEqTrH402IKullqV0bc8Dt5VH2Ikm78uZasWBco0qd9XYrdudUlkrTr+
+# PmM097Yr4RsBvsMuf7pS/zgItB2WPiVt6iDycyYY7CeR6wU8PWMKE+ExXCjF00ed
+# y8E52FipV9ecc6oGenAoUHF2eTg1crhmxL0mf+2Ly1q84wzoQBTtHDB+mtnmHBH3
+# w3ie1N401vAWE+HOyDKbM/PwvQl9ZISzFEYVygdKi1lGsyMM+YYCf6jgZzTyBwdr
+# 3YwO31Ck2erRtnoRgowfhJWwSPhn6Q==
 # SIG # End signature block
