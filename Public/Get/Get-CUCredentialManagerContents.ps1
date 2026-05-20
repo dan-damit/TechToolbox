@@ -9,8 +9,8 @@ function Get-CUCredentialManagerContents {
 	Persistence, Comment). No secret material is read or returned.
 
 	For remote hosts, this function can query the active interactive session by
-	creating a short-lived scheduled task with InteractiveToken on the target
-	machine.
+	creating a short-lived scheduled task in the interactive user context on the
+	target machine.
 
 	.PARAMETER ComputerName
 	One or more computer names to query. Defaults to localhost.
@@ -282,7 +282,14 @@ function Get-CUCredentialManagerContents {
 						if ($runWithCmdlets) {
 							$action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument "/c $cmd"
 							$trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddSeconds(3))
-							$principal = New-ScheduledTaskPrincipal -UserId $activeUser -LogonType InteractiveToken -RunLevel Limited
+
+							# Host versions differ on accepted enum values for interactive task logon.
+							try {
+								$principal = New-ScheduledTaskPrincipal -UserId $activeUser -LogonType Interactive -RunLevel Limited
+							}
+							catch {
+								$principal = New-ScheduledTaskPrincipal -UserId $activeUser -LogonType InteractiveOrPassword -RunLevel Limited
+							}
 
 							Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
 							Start-ScheduledTask -TaskName $taskName
@@ -346,8 +353,8 @@ function Get-CUCredentialManagerContents {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC18q2qmyTHQPX5
-# IG5zX78R88eun9JXuep/E+PBMBUCrKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCASvRnBa8OTDTp3
+# ELKlqUwWJWUfT6MexenKczsqzbIRnaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -480,34 +487,34 @@ function Get-CUCredentialManagerContents {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0byEWt/ST
-# bS/8JFy1N6qDOXJsBcxpoQJJ5z6oVI3EKTANBgkqhkiG9w0BAQEFAASCAgARm9io
-# d10fK6Cioatmd2QjodLhphT+fckWUVYu/76xMlWlbkaLg27a0SKSA1LfnDc+UbSc
-# ZwSAOKVP+sRuhx7664e4hyp4fSG2WJRmFlKAdKSG82ryPUulLVlXOkQVUppFvp8L
-# gRuM587j4eg5ahGp4FZCUQ20C6IaF84HvxyMDYymRB6MoXn4ahr1MFl4/awwHqz7
-# WwygRUFVviUbkDUjS0YU6YLLkuknWdDwkkOs80w607YxneGR+yNJRDbEexdyRFTB
-# VXDrmJSCkPYMF7KVL4dLF69hXJNAjIcCzM70D75pkwT1qcbwFY+DZhGLekTndPrz
-# 2p+GBImhNlTgbw1Zo9Laf+1+oo55IjPryUSttzo/Ee2pwf/a72iiyL8z/Ayvsh4i
-# Dd2LSydNcotmxsyyMNnmQ/mOvMuOfigjdJQOwpxKoJV+byN5dd+0nZnbdxxgMsQf
-# rw3Wn0JoyE3El44bUcVW9dlydHurje+qxZqFVLhmDRBFgPH7zraCxMz47G0i8d7f
-# R5VynSc9fcryXLX+cIZJheBOvxT/VtYVZs/Qu8zpDE/Svx3+irIE4vDggCYKCY7U
-# 4ttUAw3IxcGcIXPl3DxAA5ehVEiqA3fiNmElgt/kMndNKHt8fhFsvscC6qECHuRU
-# 4bfsaEDLCJcjmhcudjFY+JmqGEiQI81GnAUbhKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDQxv5S//Q1
+# N98ovqLWfhkHTAgvIsQhHCmx7Jr9oInOATANBgkqhkiG9w0BAQEFAASCAgDb2uFS
+# RTH8EwFqC2/ViXEfsMsg3mYEdv1IK5GuJcuxnZo3v1YMQI8fxjBPnP69n0Ge4F78
+# ugRe07Im48iTJaELuq0BeOu85ij7nnHrYSKbZ0hZpSzn5FuM/hTj8WY3rJIKGBZz
+# meuYMKVaDHGZlmeb2e6mLGnWKrDELdtingN/GMyM+q9PFb5kGbehOed8MihiM1Jt
+# W+QyqhlA8X6JEjGqcbmuCXfUGDMtg6+4Ml5Kt4ibV2yIENRXsZ+XBFfcoZb9h4t5
+# vv1sDVeLMnHC1RbV3opH+aKR4k0+H/wOrHvUIXRRLMY3AkkZag1zv3ao+Sdu5Z2O
+# OJ9BWWGS8TLStjpnKCxAIHjiARjnkemwqoMntKVJAgr2ECJiNJp1rNSUm6mk4dWV
+# 3DH1SgTZB6TUDjOHEehKn50Fu9V36YZ5hBpqLDOrn6cwVulo8MWS7BMpNxDJ5ev8
+# NBK56wBzjG4vZFXa4+CXr7t5F6pN8ogoxtfbic7SOqaMLhkti3cbSaG/aCtThvG4
+# VjimczV3qTwABMMALV4LLQc5lKp7bb6O0uWLEiUyseWKDUOvtdWXPyd4sTgmN7Lq
+# bcTBrlyWSuaHrWKugr9oi9i2e0pZSQadqUkHOoIL0Mox4pSmukFOMYwRMpaHZNut
+# NWLxPVdaXqtfdkW6TcZM6b/EG+7i7e3e+p88oKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MTkyMTM1NDRaMC8GCSqGSIb3DQEJBDEiBCDG/xTx7Vta1rBTDrTs
-# RUaStMsNFb8XMa5bUUC3doF8aTANBgkqhkiG9w0BAQEFAASCAgApHXXJZtB55oQf
-# EsCtVtMboOp0gbUnT+CWO4GX6CTMK0c5m04idcJuvsvpF7Hqr2YYo9meaDfVQnmL
-# i5+D1gcxxdzjgn5wR6TCFA2suLT9XE31KZkt8UzhM0ssSjBk5+jQ36t042z3VMCn
-# aTbqtnG/S+7709VeBhAsq6omfB9Jk/SokM4n26Zw2rS7I4XuTAM7WhtVBXITMGCz
-# 6owgCxZ9WMaDaF6OxDmAd8D4skVpnanaWdMfC9fN0+R4kAAxqYjKWrfMcs8awPqv
-# WiBpDBlEzbkFfqpIOHpLhxVC4r6R1XEhJU5zv9E0EDw096EXHGwv5QrmfpnNDMwg
-# fHSVQvaIMPwGPAY2CEGXmgPhtJo7YaOp99G0C6vfUy8kiLl4ySQFGyDV4yEcmaBB
-# rr3gYuiOj2xtb81+vAuAkkDCdiALtc9bkjSxNZvMP8Vvaa8jvGUYCnLtBB6vlNje
-# kWcvvcrpYpPfSBkz0w/AUpA7ZB8ZUGakZpj3Pmt7RvpzN5uFwFUiDnx0wYbaOOPl
-# nJKq23fhrBTzQBx9v3UhMxKuIflxKToN3Z+ERi8IibYV//YzrkQXJU5MXbydoW5h
-# +Dd8cdX9/jN0fGQ8crIXvgh+02TGqnaP24PavocLNgR7ntXtqoqcoXk/PNymJ0Fm
-# MUBfZKewCNj6daJ+3wespP14oFkHDg==
+# BTEPFw0yNjA1MTkyMTQxNDNaMC8GCSqGSIb3DQEJBDEiBCA6YB6kNElZFreMuT3h
+# w1AVDONuBLuCQ12UfLq4JXUZmTANBgkqhkiG9w0BAQEFAASCAgASgbOYfRfLPma/
+# fJ8TZFVv3VbiA+mfUb9rMjiZt/L8V1RD6intCcmXAbPYNv6La7UOcNi0TbT8v8PM
+# gU8C3Uikbm7TcGKsjGPX7AXz0v7sqM2exgbVeCW0SEEjdZ2ARV39vxZ/TyWKIWpN
+# 8MFL/241i2UKdiK0MEjeu6b7qHS3Lvl6gcYtMIsXh2F/hbcW5N98xhu3W5NPrhWD
+# O0wv4uiBMOLr3kl3lQ1GmZw07dm24WlPksFj6/t5rRxs5Z7rClRqllJ+30bh2csX
+# v8n/4Z1KjfwVop36GsBZolU9TbYzFFbGQbPqv8STplXUmt2+9GDFCf8oFaihtAwm
+# zXxQP3fasiDBmzta2GRQK1sgWIqEcg7uQRYkaC2LjD2N0Tw0uAaiQ2XSH79Ya/w4
+# halDk/kJCiobGY0cyAfchJzau4YbCJqU8syMLinRyiWFB8yR4yrF30Hj0v+3KeVb
+# x7j51KPLe97MA8G6K+KUKGiP0AYqml/XNh+DKFrZRp1wzRbq9mpqWuV7P6NNk0Ai
+# mkAJ35K+M+rJ5eqB4cHeZjlMHKRAqVMXhgCKLsImuSX5fTovtr6H+0b4w5jNUtya
+# zVkEsMjPzO/RXcVgjYkxBxXNlocQ4fPVVLAnInryeCM+th4+NYg9g3+561JZfkpV
+# rUukJAYHKENQYeAINjGxTx1VHRHdoA==
 # SIG # End signature block
