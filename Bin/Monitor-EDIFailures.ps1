@@ -111,7 +111,7 @@ foreach ($item in @($items)) {
                 Remove-Item $tempPath -ErrorAction SilentlyContinue
             }
 
-            # Parse fields (these patterns match your real report format)
+            # Parse fields (these patterns match report format)
             $partner = Get-RegexGroup $pdfText "Trading Partner:\s*([^\r\n]+)"
             $tset = Get-RegexGroup $pdfText "T-Set:\s*(\d+)"
             $ship = Get-RegexGroup $pdfText "Shipment ID:\s*(\d+)"
@@ -154,7 +154,7 @@ foreach ($item in @($items)) {
             }
         }
 
-        # Write results if we got any attachments parsed
+        # Write results if any attachments are parsed
         if ($rows.Count -gt 0) {
             $rows | Export-Csv -Path $OutCsv -Append -NoTypeInformation
         }
@@ -164,10 +164,10 @@ foreach ($item in @($items)) {
         $null = $item.Move($processedFolder)
     }
     catch {
-        # Don’t fail the whole run — tag the message so you can see it later
+        # Don’t fail the whole run — tag the message so it can be reviewed later
         try { $item.Categories = "EDI-ParseFailed" } catch {}
         try { $item.UnRead = $false } catch {}
-        # Optional: write a minimal line to CSV so you know it errored
+        # write a minimal line to CSV so you know it errored
         [pscustomobject]@{
             Time     = $item.ReceivedTime
             Partner  = ""
