@@ -1,9 +1,15 @@
-Start-NewPSRemoteSession -ComputerName '<domain controller>' -Credential (Get-Credential)
+# Assumes TechToolbox is loaded and Start-NewPSRemoteSession is available.
+# Adjust the computer name and username as needed.
+#
+# Author: (https://github.com/dan-damit)
+
+$DC = Read-Host "Enter the domain controller to connect to (e.g. dc01)"
+Start-NewPSRemoteSession -ComputerName $DC -Credential (Get-Credential)
 
 $session = Get-PSSession | Select-Object -First 1
 
 Invoke-Command -Session $session -ScriptBlock {
-    $user = "<username>"
+    $user = Read-Host "Enter the username to monitor (e.g. jdoe)"
     Write-Host "Monitoring AD bad password attempts for $user (Ctrl+C to stop)..." -ForegroundColor Cyan
 
     $lastBad = $null
@@ -28,3 +34,5 @@ Invoke-Command -Session $session -ScriptBlock {
         Start-Sleep -Seconds 2
     }
 }
+
+Stop-PSRemoteSession -Session $session
