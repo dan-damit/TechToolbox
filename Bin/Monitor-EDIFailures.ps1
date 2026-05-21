@@ -117,8 +117,8 @@ foreach ($item in @($items)) {
             $ship = Get-RegexGroup $pdfText "Shipment ID:\s*(\d+)"
 
             $mapError = Get-RegexGroup $pdfText "Mapping Error:\s*'([^']+)'"   # quoted
-            if (-not $mapError) { 
-                $mapError = Get-RegexGroup $pdfText "Mapping Error:\s*([^\r\n]+)" 
+            if (-not $mapError) {
+                $mapError = Get-RegexGroup $pdfText "Mapping Error:\s*([^\r\n]+)"
             }
 
             if (-not $mapError -and $pdfText -match "Transaction will not be sent") {
