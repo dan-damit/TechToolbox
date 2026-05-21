@@ -116,41 +116,57 @@ foreach ($item in @($items)) {
             $tset = Get-RegexGroup $pdfText "T-Set:\s*(\d+)"
             $ship = Get-RegexGroup $pdfText "Shipment ID:\s*(\d+)"
 
-            $mapError = Get-RegexGroup $pdfText "Mapping Error:\s*'([^']+)'"   # e.g. Smart Condition...
-            if (-not $mapError) { $mapError = Get-RegexGroup $pdfText "Mapping Error:\s*([^\r\n]+)" }
+            $mapError = Get-RegexGroup $pdfText "Mapping Error:\s*'([^']+)'"   # quoted
+            if (-not $mapError) { 
+                $mapError = Get-RegexGroup $pdfText "Mapping Error:\s*([^\r\n]+)" 
+            }
 
-            # Add a “fail-safe” error summary if mapping error is blank but “Transaction will not be sent” exists
             if (-not $mapError -and $pdfText -match "Transaction will not be sent") {
                 $mapError = "Transaction will not be sent (reason not captured)"
             }
 
             if (-not $mapError) {
-                # capture common “mandatory missing” style messages
-                $mapError = Get-RegexGroup $pdfText "mandatory.*missing[^\r\n]*"
+                # Required-field / missing data cases
+                $mapError = Get-RegexGroup $pdfText "(mandatory.*missing[^\r\n]*)"
             }
 
             if (-not $mapError) {
-                # capture abort reason lines like “operator triggered Abort”
-                $mapError = Get-RegexGroup $pdfText "triggered Abort[^\r\n]*"
+                # Abort-style failures
+                $mapError = Get-RegexGroup $pdfText "(triggered Abort[^\r\n]*)"
             }
 
-            if ($mapError -like "*Smart Condition*") {
-                $mapError = "SmartConditionAbort"
+            if (-not $mapError) {
+                # Specific LIN03 missing
+                $mapError = Get-RegexGroup $pdfText "(Data element\s+'LIN03'.*?mandatory.*?missing[^\r\n]*)"
             }
-            elseif ($mapError -like "*mandatory*missing*") {
-                $mapError = "MissingRequiredField"
+
+            if (-not $mapError) {
+                # General LIN segment error
+                $mapError = Get-RegexGroup $pdfText "(The\s+'LIN'\s+segment.*?element\s+errors[^\r\n]*)"
             }
-            elseif ($mapError -like "*Transaction will not be sent*") {
-                $mapError = "SuppressedTransaction"
+
+            # Final fallback
+            if (-not $mapError) {
+                $mapError = "Unknown"
+            }
+
+
+            $failureType = switch -Regex ($mapError) {
+                "LIN03" { "MissingLIN03"; break }
+                "mandatory.*missing" { "MissingRequiredField"; break }
+                "Smart Condition" { "SmartConditionAbort"; break }
+                "triggered Abort" { "AbortCondition"; break }
+                "Transaction will not be sent" { "SuppressedTransaction"; break }
+                default { "Other" }
             }
 
             $rows += [pscustomobject]@{
-                Time     = $item.ReceivedTime
-                Partner  = $partner
-                TSet     = $tset
-                Shipment = $ship
-                Error    = $mapError
-                Subject  = $item.Subject
+                Time        = $item.ReceivedTime
+                Partner     = $partner
+                TSet        = $tset
+                Shipment    = $ship
+                FailureType = $failureType
+                Subject     = $item.Subject
             }
         }
 
@@ -169,12 +185,12 @@ foreach ($item in @($items)) {
         try { $item.UnRead = $false } catch {}
         # write a minimal line to CSV so you know it errored
         [pscustomobject]@{
-            Time     = $item.ReceivedTime
-            Partner  = ""
-            TSet     = ""
-            Shipment = ""
-            Error    = "ParseFailed: $($_.Exception.Message)"
-            Subject  = $item.Subject
+            Time        = $item.ReceivedTime
+            Partner     = ""
+            TSet        = ""
+            Shipment    = ""
+            FailureType = "ParseFailed"
+            Subject     = $item.Subject
         } | Export-Csv -Path $OutCsv -Append -NoTypeInformation
     }
 }
