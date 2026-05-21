@@ -167,7 +167,7 @@ function Invoke-PurviewPurge {
             })
 
         if ($rewritten -ne $normalized) {
-            $notes.Add("Converted 'subject contains ...' to subject:\"*...*\" for a forgiving contains-style match.")
+            $notes.Add("Converted 'subject contains ...' to subject:`"*...*`" for a forgiving contains-style match.")
             $normalized = $rewritten
         }
 
@@ -187,7 +187,7 @@ function Invoke-PurviewPurge {
             })
 
         if ($rewritten -ne $normalized) {
-            $notes.Add("Converted address-field 'contains' clauses to exact field:\"value\" because wildcard contains is unsupported.")
+            $notes.Add("Converted address-field 'contains' clauses to exact field:`"value`" because wildcard contains is unsupported.")
             $normalized = $rewritten
         }
 
@@ -220,7 +220,8 @@ function Invoke-PurviewPurge {
 
         # ----- Ticket normalize + confirmation/fix loop (interactive) -----
         while ($true) {
-            $raw = ($Ticket ?? '').Trim()
+            $raw = [string]$Ticket
+            $raw = $raw.Trim()
 
             if ([string]::IsNullOrWhiteSpace($raw)) {
                 $Ticket = Read-Host "Enter ticket in format #INC-<integer> (or 'q' to cancel)"
@@ -260,9 +261,17 @@ function Invoke-PurviewPurge {
         Connect-Purview -UserPrincipalName $UserPrincipalName -ErrorAction Stop
 
         # ----- Query prompt + validation/normalization -----
-        $promptQuery = $defaults.promptForContentMatchQuery ?? $true
-        $normalizeFriendlyQuery = $purv.purge.normalizeFriendlyQuery
-        if ($null -eq $normalizeFriendlyQuery) { $normalizeFriendlyQuery = $true }
+        $promptQuery = $defaults.promptForContentMatchQuery
+        if ($null -eq $promptQuery) { $promptQuery = $true }
+        $normalizeFriendlyQuery = $true
+        if ($purv.purge -is [hashtable]) {
+            if ($purv.purge.ContainsKey('normalizeFriendlyQuery')) {
+                $normalizeFriendlyQuery = [bool]$purv.purge['normalizeFriendlyQuery']
+            }
+        }
+        elseif ($purv.purge.PSObject.Properties['normalizeFriendlyQuery']) {
+            $normalizeFriendlyQuery = [bool]$purv.purge.normalizeFriendlyQuery
+        }
         $UseExistingQuery = $false
         $UpdateScope = $false
         $AllowQueryWeaken = $true
@@ -449,8 +458,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCApc1cpFQnZcBGA
-# cCA5Hs18JIPzHUi/bE37BrqDdr0L6qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCrH8TvMLf/u7KU
+# Uji+qZt/NUj5aTol26qFwrhnKR+1HKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -583,34 +592,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCq1Hbo3+KK
-# HBJAHDt3hwuw21UzA3wY6B4OOqIWiz6vrTANBgkqhkiG9w0BAQEFAASCAgB7Qweo
-# FV8iR1PUy0XHNbTtI7TUcMBgp9MtXzLG2UUA7gFrn/fuNZVCy+w1OA02iP1JHrGc
-# /KCuF/vlNdBcRBe5gMzgFr2hCvwxFJwkQoEnA8zqVoDuI2VSqnRXGxLNPkMMTN+e
-# 66xIddkxicxgBDoqKc/gobvc78ehlUOU8++n6vq8xdCeQrJKEijORQ4Aq1n7GPuY
-# DPxoK8Y2w98/4fXK+VYo6CJuN9JCcWHOqQrjZL40lj2NdyN36jIh8/EH0sX1k69u
-# 5QZKDGzwrAX617sXVX5LiJ5sWXgyPJsZpXOBJvu9iHWQJ9HFpRY0+AovX1VdRi/U
-# QwWG7QzfpzvhOxyq/XeOAXcwchopCxbDG7ZSYATCeQ3olMvTPYJV6f0x9hidKjOx
-# HOJl4e5cQoREga6vRz7BahLmFUMKH0Rc/PfGEzBPvQwjz8w1IF9gUoOBVaxSDgHn
-# JsRRBUwit0U5aPRB/l6uopx9FkJ2yJ4AvR3MAyqKCDC95bZZH/03oqu+ZBOYtiCm
-# DHtiy2odHQ3kxCkRbYZ0QC7qOpi1AM8YfJMA0KWiphv9fbv0qF7pLm2s9/VawxTj
-# 83pM51LJq3hp1HjTpDIxuoeKFnPS5q5D6/8l/4HjMaqusHcNYebOTD7UVGHhm6lH
-# lb9zlPhoR2xMTic4QTtuheLpTMJv/KU/BCKo1qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAy6qhlkdAi
+# i8FRrxBUanIIpjLiwl0qmOiLypSrcKziZzANBgkqhkiG9w0BAQEFAASCAgBlrfJW
+# QCrLmkkoCRWO1IAjkPHVOWtAjf2K6+kLMMlFV5sc8o3B6baND6RRM5QvOzLSghRk
+# Z+i+epJa4MxhXjGxW2fsLDFn17rSj6mJdqERnhfCXuUiDcF8xLyaGQ6QT4HTjg39
+# OBes7tRxkqzdDMNWYZfvpDZjFaNJfTuiHWILVi7rnwVxP4ZhcFbj4lDLYnRDMLcE
+# 6pLtZvRwHUiXTAm5KF+FmEmo4IbapfLa1/HeJp3VyanAmVyIw0NDqRCOFQj6Euef
+# zCPzE1/gIclxGzrCEhwSBmM8/JMmdQnK6tXejGpjIL6MCepDF39JUnPLdlmiImb8
+# Zyy7x65ZM7ie1wm4i0r7rPaaESjY5Vxp9xdoYfq6cT9215pr//g4fHWpo14RIzWi
+# ZBwsi9uqdpCE/vQgleYd/hCTYhhnMmrlKLKNR2C6AV3BGPru/A2K/WRZhavjuuDT
+# YypNqDxgD9ERkc9ITknMkuHYnw8m2MVMNrBelzkcXt7ObtItdbjlKJV5ESc2RBB/
+# l6pI413xxzQjYN+CvDqKFPFophCaExpYtodGq9F6fho54PuEjiOVxgpTJiY98reC
+# hbbc9rNJ8ld3WtY7M5UKLADN7wWA9RmaLcYanlWFKlIDHabn/t5KGLa79AjI9Vw+
+# KkJ8sz+Bxa7DnKF/kZ0F3Zw2W57UFf7kuXcDnKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MjAxOTE1NTFaMC8GCSqGSIb3DQEJBDEiBCBcTV8fyHPqttUWmg5D
-# lL3EHuQz8ZM+jX60fBrOMne/QjANBgkqhkiG9w0BAQEFAASCAgDHMnDHpxZFf+wz
-# on8UtwUr5EziV8AoXutYMbBqdBNXMgNcjzZgJpBvZVEOUGiZitDjzwuaNEi2bbFV
-# JvqoBGw2ji12Ej/vnKySfifMUqPDs0GoL+OU5SsL5bf3XOPRpTX2c2Ea7naij0iC
-# TcVX7uno20KFMDDhoYoyOteoHCOhGcskDvcRw84Al9jP5Gfsrxi7gH++8Hi/2RtF
-# hWbVpS9sJk7j9G8LNPmgeVC1XkUm4odUZx/ePWdhT49pVMSWGWyEuZjVPMys//xO
-# FBgIfsXVW7PW/OXStpZ91BdSfEootklI+qYDsqlFiswV2CTITomLDVf5ROW38bZh
-# 1BaHLSWpjc89+7YcEL32TmFPfvxHfzoYtbn45MKqjqs6GyL+NLePkudcDm0ljPD/
-# UQCeyXVqCEqTrH402IKullqV0bc8Dt5VH2Ikm78uZasWBco0qd9XYrdudUlkrTr+
-# PmM097Yr4RsBvsMuf7pS/zgItB2WPiVt6iDycyYY7CeR6wU8PWMKE+ExXCjF00ed
-# y8E52FipV9ecc6oGenAoUHF2eTg1crhmxL0mf+2Ly1q84wzoQBTtHDB+mtnmHBH3
-# w3ie1N401vAWE+HOyDKbM/PwvQl9ZISzFEYVygdKi1lGsyMM+YYCf6jgZzTyBwdr
-# 3YwO31Ck2erRtnoRgowfhJWwSPhn6Q==
+# BTEPFw0yNjA1MjAyMDU3NDNaMC8GCSqGSIb3DQEJBDEiBCAXMR4YYGskNbN8HnkA
+# n0FCy2YGwZm6zln/GBwa7ON+NjANBgkqhkiG9w0BAQEFAASCAgAnre9uFaVh67wh
+# JMNkdc2DDa89HjddwFue/XYdcOqjJPhTVwPZHF0VJBBD2Y9LCE3KYgWMvesodeVe
+# ApykL3M2sFg8Esq0vO9WixsogLcDN2VCX5BwwvcupJNvq9hvyCiEVTVX+j/GHHc/
+# WAvoDhDNqzS1FQiE6Yha3lXXY3nBMUKbxKXSiQ7Lmjc48kfe3E5OKATOP5bIOa9k
+# eKwtZKhZAPpMucmQGOpSUEdimAag8rnrsncqSMB/72pmpFZXqcI5hFSPVUTb41qE
+# ljV+GhqEPvoseyJQIr/DeR5sHUtVo/vxxlLxzbZGyBPXCIu1kv89TGXFXcQj/3Lp
+# uX6JvcLMMTD5Qb2aS2t2rkb/qebuxUQd4en8NDqRFEnfcvSNPG9a0p2SH6gHyyuw
+# F3i/2WiHmsyWvV0eUQHMuFSkQf/+kNxpHDP/1sGsyyBE0GaoqIJZ4lMGif3c/oYO
+# rlN6PvNiwnDxA3lKpCM4W1FSSouUt3awq5FcHIEg7d3WTyHnLXqR1A1wCY/iZR/4
+# HEMZofUltnfILxJDbZgpgwthlKsoe1GnKh2bk5hLXSpEdq84L453+GgBnn780cvo
+# fbYSL7voQtW6s0ysBrB7NbAi7yTNb+cnUbFaouRXMbM69ptJqFnDiN7skABOw86c
+# jdWe+q0ILWiEgvEIxjz89pbL5Xet+A==
 # SIG # End signature block
