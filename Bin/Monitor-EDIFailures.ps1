@@ -150,7 +150,6 @@ foreach ($item in @($items)) {
                 $mapError = "Unknown"
             }
 
-
             $failureType = switch -Regex ($mapError) {
                 "LIN03" { "MissingLIN03"; break }
                 "mandatory.*missing" { "MissingRequiredField"; break }
