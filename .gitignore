@@ -19,3 +19,4 @@ Get-DuplicateFile.ps1
 Get-VSCodeExtension.ps1
 
 Standard-MTL-Label.cs
+Standard-MTL-Label_test.cs
