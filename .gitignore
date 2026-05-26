@@ -1,7 +1,6 @@
 # Directories to ignore:
 Out/
-BTTriggerApi/
-BPMLogic/
+
 # Python virtual environments
 .venv/
 venv/
@@ -18,3 +17,5 @@ wordlist.txt
 Get-AdAudit.ps1
 Get-DuplicateFile.ps1
 Get-VSCodeExtension.ps1
+
+Standard-MTL-Label.cs
