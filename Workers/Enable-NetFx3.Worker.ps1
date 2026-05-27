@@ -11,11 +11,78 @@ function Enable-NetFx3Core {
     $system32 = Join-Path $env:SystemRoot 'System32'
     $dism = Join-Path $system32 'dism.exe'
 
+    if (-not (Get-Command -Name Write-Log -ErrorAction SilentlyContinue)) {
+        function Write-Log {
+            [CmdletBinding()]
+            param(
+                [string]$Level = 'Info',
+                [Parameter(Mandatory)][string]$Message
+            )
+
+            $line = "[{0}] {1}" -f $Level, $Message
+            Write-Information -MessageData $line -InformationAction Continue
+        }
+    }
+
     function Join-TTArgs {
         param([string[]]$TTArgs)
         ($TTArgs | ForEach-Object {
             if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
         }) -join ' '
+    }
+
+    function Get-TTTextTail {
+        param(
+            [string]$Text,
+            [int]$MaxLines = 8
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
+
+        $lines = @($Text -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($lines.Count -eq 0) { return $null }
+
+        return ($lines | Select-Object -Last $MaxLines) -join "`n"
+    }
+
+    function Get-TTFileTail {
+        param(
+            [string]$Path,
+            [int]$MaxLines = 120
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
+        if (-not (Test-Path -LiteralPath $Path)) { return $null }
+
+        try {
+            $lines = Get-Content -LiteralPath $Path -Tail $MaxLines -ErrorAction Stop
+            if (-not $lines -or $lines.Count -eq 0) { return $null }
+            return ($lines -join "`n")
+        }
+        catch {
+            return $null
+        }
+    }
+
+    function Get-TTTokenIntegrityLevel {
+        # Returns 'Low', 'Medium', 'High', 'System', or the raw SID string.
+        # DISM /online requires High or System. WinRM sessions (including CredSSP) commonly
+        # run wsmprovhost.exe at Medium integrity when the PSSessionConfiguration was not
+        # registered with -RunAsAdministrator — even if the connecting user is a domain admin.
+        try {
+            $sid = ([Security.Principal.WindowsIdentity]::GetCurrent()).Groups |
+            Where-Object { $_.Value -match '^S-1-16-' } |
+            Select-Object -First 1
+            if ($null -eq $sid) { return 'Unknown' }
+            switch ($sid.Value) {
+                'S-1-16-4096' { return 'Low' }
+                'S-1-16-8192' { return 'Medium' }
+                'S-1-16-12288' { return 'High' }
+                'S-1-16-16384' { return 'System' }
+                default { return $sid.Value }
+            }
+        }
+        catch { return 'Unknown' }
     }
 
     function Invoke-TTExe {
@@ -37,12 +104,19 @@ function Enable-NetFx3Core {
         $psi.Arguments = $argLine
         $psi.UseShellExecute = $false
         $psi.CreateNoWindow = $true
-        $psi.RedirectStandardOutput = $false
-        $psi.RedirectStandardError = $false
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
 
         $proc = New-Object System.Diagnostics.Process
         $proc.StartInfo = $psi
         $null = $proc.Start()
+
+        # Start async reads BEFORE WaitForExit to prevent pipe-buffer deadlock.
+        # If both stdout and stderr are redirected and the child writes enough output
+        # to fill the OS pipe buffer (~4 KB), it blocks on write while the parent
+        # blocks on WaitForExit — resulting in a deadlock and eventual timeout.
+        $stdOutTask = $proc.StandardOutput.ReadToEndAsync()
+        $stdErrTask = $proc.StandardError.ReadToEndAsync()
 
         $timedOut = $false
         if ($TimeoutMinutes -gt 0) {
@@ -57,11 +131,173 @@ function Enable-NetFx3Core {
         }
 
         $exitCode = if ($timedOut) { -1 } else { $proc.ExitCode }
+        $stdOut = $null
+        $stdErr = $null
+
+        try { $stdOut = $stdOutTask.GetAwaiter().GetResult() } catch {}
+        try { $stdErr = $stdErrTask.GetAwaiter().GetResult() } catch {}
 
         [pscustomobject]@{
             ExitCode = $exitCode
             TimedOut = $timedOut
             Success  = (-not $timedOut -and $exitCode -in 0, 3010)
+            StdOut   = $stdOut
+            StdErr   = $stdErr
+        }
+    }
+
+    function Invoke-TTDismAsSystem {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][string]$DismPath,
+            [Parameter(Mandatory)][string[]]$Arguments,
+            [int]$TimeoutMinutes = 60
+        )
+
+        $taskName = "TT_EnableNetFx3_{0}" -f ([guid]::NewGuid().ToString('N'))
+        $workDir = Join-Path $env:TEMP ("TT_EnableNetFx3_{0}" -f ([guid]::NewGuid().ToString('N')))
+        $runnerPath = Join-Path $workDir 'run-dism.ps1'
+        $argsPath = Join-Path $workDir 'dism-args.json'
+        $resultPath = Join-Path $workDir 'result.json'
+
+        # Guard: reuse an existing pending fallback task when possible.
+        try {
+            $existingTasks = Get-ScheduledTask -TaskName 'TT_EnableNetFx3_*' -ErrorAction SilentlyContinue | Sort-Object TaskName -Descending
+            foreach ($et in @($existingTasks)) {
+                $action = @($et.Actions | Select-Object -First 1)
+                if (-not $action) { continue }
+
+                $actionArgs = [string]$action.Arguments
+                $existingRunner = $null
+                if ($actionArgs -match '-File\s+"([^"]+run-dism\.ps1)"') {
+                    $existingRunner = $Matches[1]
+                }
+                elseif ($actionArgs -match "-File\s+'([^']+run-dism\.ps1)'") {
+                    $existingRunner = $Matches[1]
+                }
+
+                if (-not $existingRunner) { continue }
+
+                $existingWorkDir = Split-Path $existingRunner -Parent
+                $existingResultPath = Join-Path $existingWorkDir 'result.json'
+                $hasResult = Test-Path -LiteralPath $existingResultPath
+                $state = [string]$et.State
+
+                # Reuse only actively running tasks with no result file yet.
+                if (($state -eq 'Running') -and -not $hasResult) {
+                    return [pscustomobject]@{
+                        Attempted  = $true
+                        Pending    = $true
+                        ReusedTask = $true
+                        TaskName   = [string]$et.TaskName
+                        ResultPath = $existingResultPath
+                        WorkDir    = $existingWorkDir
+                    }
+                }
+            }
+        }
+        catch {
+            # Best effort guard only; continue with new task creation.
+        }
+
+        try {
+            New-Item -ItemType Directory -Path $workDir -Force | Out-Null
+
+            $Arguments | ConvertTo-Json -Compress | Set-Content -LiteralPath $argsPath -Encoding UTF8
+
+            $runnerScript = @"
+`$ErrorActionPreference = 'Continue'
+`$dismPath = '$($DismPath -replace "'", "''")'
+`$argsPath = '$($argsPath -replace "'", "''")'
+`$resultPath = '$($resultPath -replace "'", "''")'
+`$timeoutMinutes = $([Math]::Max(1, $TimeoutMinutes))
+
+try {
+    `$raw = Get-Content -LiteralPath `$argsPath -Raw -Encoding UTF8
+    `$args = @()
+    if (-not [string]::IsNullOrWhiteSpace(`$raw)) {
+        `$parsed = ConvertFrom-Json -InputObject `$raw
+        if (`$parsed -is [System.Array]) { `$args = @(`$parsed) }
+        elseif (`$null -ne `$parsed) { `$args = @([string]`$parsed) }
+    }
+
+    `$psi = New-Object System.Diagnostics.ProcessStartInfo
+    `$psi.FileName = `$dismPath
+    `$psi.Arguments = ([string]::Join(' ', (`$args | ForEach-Object {
+        if (`$_ -match '[\s"]') { '"' + (`$_ -replace '"', '\\"') + '"' } else { `$_ }
+    })))
+    `$psi.UseShellExecute = `$false
+    `$psi.CreateNoWindow = `$true
+    `$psi.RedirectStandardOutput = `$true
+    `$psi.RedirectStandardError = `$true
+
+    `$proc = New-Object System.Diagnostics.Process
+    `$proc.StartInfo = `$psi
+    `$null = `$proc.Start()
+
+    # Start async reads BEFORE WaitForExit to prevent pipe-buffer deadlock.
+    `$stdOutTask = `$proc.StandardOutput.ReadToEndAsync()
+    `$stdErrTask = `$proc.StandardError.ReadToEndAsync()
+
+    `$timedOut = `$false
+    `$timeoutMs = [int][TimeSpan]::FromMinutes([Math]::Max(1, `$timeoutMinutes)).TotalMilliseconds
+    if (-not `$proc.WaitForExit(`$timeoutMs)) {
+        `$timedOut = `$true
+        try { `$proc.Kill() } catch {}
+    }
+
+    `$output = [pscustomobject]@{
+        ExitCode = (if (`$timedOut) { -1 } else { `$proc.ExitCode })
+        StdOut   = try { `$stdOutTask.GetAwaiter().GetResult() } catch { '' }
+        StdErr   = (if (`$timedOut) {
+            "Timed out after `$timeoutMinutes minute(s) waiting for DISM in SYSTEM fallback task."
+        }
+        else {
+            try { `$stdErrTask.GetAwaiter().GetResult() } catch { '' }
+        })
+    }
+}
+catch {
+    `$output = [pscustomobject]@{
+        ExitCode = 1
+        StdOut   = ''
+        StdErr   = `$_.Exception.Message
+    }
+}
+
+`$output | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath `$resultPath -Encoding UTF8
+"@
+
+            Set-Content -LiteralPath $runnerPath -Value $runnerScript -Encoding UTF8
+
+            $psExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+            $taskCommand = '"{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}"' -f $psExe, $runnerPath
+
+            # Use a near-future trigger and let Task Scheduler launch it, rather than
+            # forcing on-demand run (which can be blocked by policy with 0x800710E0).
+            $startTime = (Get-Date).AddMinutes(2).ToString('HH:mm')
+
+            & schtasks.exe /Create /TN $taskName /SC ONCE /ST $startTime /RU SYSTEM /RL HIGHEST /TR $taskCommand /F | Out-Null
+            return [pscustomobject]@{
+                Attempted  = $true
+                Pending    = $true
+                ReusedTask = $false
+                TaskName   = $taskName
+                ResultPath = $resultPath
+                WorkDir    = $workDir
+            }
+        }
+        catch {
+            return [pscustomobject]@{
+                Attempted = $true
+                Pending   = $false
+                ExitCode  = 1
+                StdOut    = $null
+                StdErr    = $_.Exception.Message
+            }
+        }
+        finally {
+            # Cleanup is handled by the local caller after it reads result.json.
         }
     }
 
@@ -78,27 +314,164 @@ function Enable-NetFx3Core {
     $dismExit = $null
     $state = $null
     $msg = $null
+    $runAsUser = $null
+    $isAdmin = $false
+    $dismStdOutTail = $null
+    $dismStdErrTail = $null
+    $dismErrorHint = $null
+    $dismLogTail = $null
+    $dismLogErrorHint = $null
+    $systemFallbackUsed = $false
+    $systemTaskPending = $false
+    $systemTaskName = $null
+    $systemTaskResultPath = $null
+    $systemTaskWorkDir = $null
+    $systemTaskReused = $false
+    $integrityLevel = 'Unknown'
 
     try {
-        $result = Invoke-TTExe -FilePath $dism -Arguments $argsList -TimeoutMinutes $TimeoutMinutes
-        $dismExit = $result.ExitCode
-
-        if ($result.TimedOut) {
-            $msg = "Timeout after $TimeoutMinutes minutes."
-            $overallSuccess = $false
-        }
-        elseif ($dismExit -in 0, 3010) {
-            $overallSuccess = $true
-        }
-        else {
-            $msg = "DISM failed with exit code $dismExit."
-            $overallSuccess = $false
-        }
+        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $runAsUser = $id.Name
+        $principal = [Security.Principal.WindowsPrincipal]$id
+        $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     }
     catch {
-        $overallSuccess = $false
-        $msg = $_.Exception.Message
-        $dismExit = 1
+        # Keep defaults; this is only diagnostic context.
+    }
+
+    $integrityLevel = Get-TTTokenIntegrityLevel
+
+    if (-not $isAdmin) {
+        $dismExit = 5
+        $msg = 'DISM requires an elevated administrator token on the target machine.'
+    }
+    elseif ($integrityLevel -eq 'Medium' -and $runAsUser -ne 'NT AUTHORITY\SYSTEM') {
+        # WinRM sessions (including CredSSP) run wsmprovhost.exe at Medium integrity when the
+        # PSSessionConfiguration was not registered with -RunAsAdministrator.  The $isAdmin check
+        # above passes (it tests group membership, not token elevation), but DISM /online requires
+        # a High-integrity process and will return exit code 5 immediately.  Skip the wasted DISM
+        # call and jump straight to the SYSTEM task fallback with an actionable remediation message.
+        #
+        # To eliminate the SYSTEM fallback entirely, re-register the endpoint on the target:
+        #   Register-PSSessionConfiguration -Name PowerShell.7 -RunAsAdministrator -Force
+        #   (or Microsoft.PowerShell for Windows PowerShell)
+        Write-Log -Level 'Warn' -Message "[Enable-NetFx3Core] Session is running at Medium integrity as '$runAsUser'. DISM /online requires High integrity. Re-register the WinRM PSSessionConfiguration with -RunAsAdministrator to use the direct DISM path. Proceeding with SYSTEM task fallback."
+        $dismExit = 5
+        $msg = 'Session token at Medium integrity — DISM requires High integrity. Re-register the WinRM endpoint with -RunAsAdministrator to eliminate this fallback.'
+        $fallback = Invoke-TTDismAsSystem -DismPath $dism -Arguments $argsList -TimeoutMinutes $TimeoutMinutes
+        if ($fallback -and $fallback.Attempted) {
+            if ($fallback.Pending) {
+                $systemFallbackUsed = $true
+                $systemTaskPending = $true
+                $systemTaskName = [string]$fallback.TaskName
+                $systemTaskResultPath = [string]$fallback.ResultPath
+                $systemTaskWorkDir = [string]$fallback.WorkDir
+                $systemTaskReused = [bool]$fallback.ReusedTask
+                $msg = 'SYSTEM fallback task started; waiting is handled by caller.'
+            }
+            else {
+                $dismExit = if ($fallback.ExitCode) { [int]$fallback.ExitCode } else { 1 }
+                $dismStdErrTail = Get-TTTextTail -Text $fallback.StdErr -MaxLines 8
+                $msg = "Failed to start SYSTEM fallback task (Exit $dismExit)."
+                if ($dismStdErrTail -match '(?im)^.*(0x[0-9a-f]{8}|access is denied|error:|failed).*$') {
+                    $dismErrorHint = ($Matches[0]).Trim()
+                }
+            }
+        }
+    }
+
+    if (-not $msg) {
+        try {
+            $result = Invoke-TTExe -FilePath $dism -Arguments $argsList -TimeoutMinutes $TimeoutMinutes
+            $dismExit = $result.ExitCode
+            $dismStdOutTail = Get-TTTextTail -Text $result.StdOut -MaxLines 8
+            $dismStdErrTail = Get-TTTextTail -Text $result.StdErr -MaxLines 8
+
+            if ($result.TimedOut) {
+                $msg = "Timeout after $TimeoutMinutes minutes."
+                $overallSuccess = $false
+            }
+            elseif ($dismExit -in 0, 3010) {
+                $overallSuccess = $true
+            }
+            else {
+                $isAccessDenied = ($dismExit -eq 5)
+                $isCatastrophicFailure = (($dismStdErrTail -match '(?i)0x8000ffff') -or ($dismStdOutTail -match '(?i)0x8000ffff'))
+                $isSharingViolation = (($dismStdErrTail -match '(?i)0x80070020') -or ($dismStdOutTail -match '(?i)0x80070020'))
+
+                if ($isAccessDenied) {
+                    $msg = 'DISM failed with exit code 5 (Access denied). Ensure the remote session is elevated and, for UNC installation media, use delegated credentials (CredSSP).'
+                }
+                elseif ($isCatastrophicFailure -or $isSharingViolation) {
+                    $msg = 'DISM failed due to servicing contention (0x8000ffff/0x80070020). Another servicing operation or lock is active. Reboot the target and retry NetFx3 enablement.'
+                }
+                else {
+                    $msg = "DISM failed with exit code $dismExit."
+                }
+
+                if ($dismStdErrTail -match '(?im)^.*(0x[0-9a-f]{8}|access is denied|error:|failed).*$') {
+                    $dismErrorHint = ($Matches[0]).Trim()
+                }
+                elseif ($dismStdOutTail -match '(?im)^.*(0x[0-9a-f]{8}|error:|failed).*$') {
+                    $dismErrorHint = ($Matches[0]).Trim()
+                }
+
+                $dismLogPath = Join-Path $env:WINDIR 'Logs\DISM\dism.log'
+                $dismLogTail = Get-TTFileTail -Path $dismLogPath -MaxLines 120
+                if ($dismLogTail -match '(?im)^.*(error|0x80070005|0x80070020|0x8000ffff|access is denied).*$') {
+                    $dismLogErrorHint = ($Matches[0]).Trim()
+                }
+
+                if ($dismLogTail -match '(?i)0x80070020') {
+                    $isSharingViolation = $true
+                }
+
+                if ($dismLogTail -match '(?i)0x8000ffff') {
+                    $isCatastrophicFailure = $true
+                }
+
+                if (-not $isAccessDenied -and ($isCatastrophicFailure -or $isSharingViolation)) {
+                    $msg = 'DISM failed due to servicing contention (0x8000ffff/0x80070020). Another servicing operation or lock is active. Reboot the target and retry NetFx3 enablement.'
+                }
+
+                # Some systems deny finalize under admin token but succeed as SYSTEM.
+                if ($dismExit -eq 5 -and $runAsUser -ne 'NT AUTHORITY\SYSTEM') {
+                    $fallback = Invoke-TTDismAsSystem -DismPath $dism -Arguments $argsList -TimeoutMinutes $TimeoutMinutes
+                    if ($fallback -and $fallback.Attempted) {
+                        if ($fallback.Pending) {
+                            $systemFallbackUsed = $true
+                            $systemTaskPending = $true
+                            $systemTaskName = [string]$fallback.TaskName
+                            $systemTaskResultPath = [string]$fallback.ResultPath
+                            $systemTaskWorkDir = [string]$fallback.WorkDir
+                            $systemTaskReused = [bool]$fallback.ReusedTask
+                            $msg = 'SYSTEM fallback task started; waiting is handled by caller.'
+                        }
+                        else {
+                            $dismExit = if ($fallback.ExitCode) { [int]$fallback.ExitCode } else { 1 }
+                            $dismStdOutTail = Get-TTTextTail -Text $fallback.StdOut -MaxLines 8
+                            $dismStdErrTail = Get-TTTextTail -Text $fallback.StdErr -MaxLines 8
+                            $msg = "Failed to start SYSTEM fallback task (Exit $dismExit)."
+                            if ($dismStdErrTail -match '(?im)^.*(0x[0-9a-f]{8}|access is denied|error:|failed).*$') {
+                                $dismErrorHint = ($Matches[0]).Trim()
+                            }
+                            elseif ($dismStdOutTail -match '(?im)^.*(0x[0-9a-f]{8}|error:|failed).*$') {
+                                $dismErrorHint = ($Matches[0]).Trim()
+                            }
+                        }
+                    }
+                }
+
+                if (-not $overallSuccess) {
+                    $overallSuccess = $false
+                }
+            }
+        }
+        catch {
+            $overallSuccess = $false
+            $msg = $_.Exception.Message
+            $dismExit = 1
+        }
     }
 
     if ($overallSuccess -and $Validate) {
@@ -114,25 +487,46 @@ function Enable-NetFx3Core {
         }
     }
 
+    $exitCode = if ($overallSuccess) {
+        $dismExit
+    }
+    else {
+        if ($dismExit) { $dismExit } else { 1 }
+    }
+
     [pscustomobject]@{
-        ComputerName   = $env:COMPUTERNAME
-        ExitCode       = (if ($overallSuccess) { $dismExit } else { if ($dismExit) { $dismExit } else { 1 } })
-        Success        = [bool]$overallSuccess
-        RebootRequired = ($dismExit -eq 3010)
-        State          = $state
-        Message        = $msg
-        Source         = $Source
-        NoRestart      = [bool]$NoRestart
-        Quiet          = [bool]$Quiet
-        Validate       = [bool]$Validate
+        ComputerName         = $env:COMPUTERNAME
+        ExitCode             = $exitCode
+        Success              = [bool]$overallSuccess
+        RebootRequired       = ($dismExit -eq 3010)
+        State                = $state
+        Message              = $msg
+        Source               = $Source
+        NoRestart            = [bool]$NoRestart
+        Quiet                = [bool]$Quiet
+        Validate             = [bool]$Validate
+        RunAsUser            = $runAsUser
+        IsAdmin              = [bool]$isAdmin
+        TokenIntegrityLevel  = $integrityLevel
+        DismStdOutTail       = $dismStdOutTail
+        DismStdErrTail       = $dismStdErrTail
+        DismErrorHint        = $dismErrorHint
+        DismLogTail          = $dismLogTail
+        DismLogErrorHint     = $dismLogErrorHint
+        SystemFallbackUsed   = [bool]$systemFallbackUsed
+        SystemTaskPending    = [bool]$systemTaskPending
+        SystemTaskName       = $systemTaskName
+        SystemTaskResultPath = $systemTaskResultPath
+        SystemTaskWorkDir    = $systemTaskWorkDir
+        SystemTaskReused     = [bool]$systemTaskReused
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDa6jAl6EedH+Ov
-# 3aVrVjVjS8aTpVa64B/njCuyExt5D6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBlZgxOUwz4Oul1
+# by34+Wiy4rwcR6p0yB4xyIIZ0UYO0KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -265,34 +659,34 @@ function Enable-NetFx3Core {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCDSj0+l3rZ
-# UisLp+KNsoRPZzwJs0Zjfg5xk8rtQNkeozANBgkqhkiG9w0BAQEFAASCAgAuEZmp
-# t4eJ8UsFRH40Vmf31dqxAGPGE0cxtl1jljKvUu5X+zFANeSL8SU52E5OAZGs01dW
-# YQvDnzF40p3oJoJJWq0qms52p/NYRr504jukTW6nwRpjbtHBNsysJyTMqqAlAmaI
-# TkJr1U93x3ENSiY6mGSrgWr2JjncTVSNBAxe6R4Avc+hK7srCzdzxc3Kc/cvAvbM
-# u6f1AbEYZVZYJL5roUcdYi7t+Gj9tF5sHzi57c698bBOLc/qAoR9NKbsXva6U4Py
-# 3lCWgYmGJbmdaRnnr+lYfRn3fGDPVv5GHRbDF0CBvKJXyeIxPKW7yzOT1vSp343i
-# IZsvIEthjHJJpJKGoWW1f+MPZwF7rSG9MR02mt3otoS4eU/u7w/ch7OzkVBA5BaU
-# ILK8FQWrInyeKz2BWhW/Jxarj28xYiiOI6cbDmjH8xKNtlVag90JqAXDuAiEoGew
-# koc9Wri9go9sMncgOXKtdSCduNJvaQmKhLoeHP06VMaxT+T/6IDjlNF9L0J7oSjw
-# cRBVaKARpVic1epvFZOu1cEet5DzRZ4Fs5mNqihNo5R3WXWFTa5zsIPuxv6Q1LR/
-# yKLDlc0rkDOykJz4tF6/0ScsnfaI4hgHZW9uABmA0bJJfyKq19ArJVfrrSPQ1NuM
-# rMmcihbyxNvkG2eQnYHw3l95ODzuVhnL0zoqV6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA1riH7RIiL
+# FelQ7SmPFqVkK/AOsjsal6Znxc3WUfTLMTANBgkqhkiG9w0BAQEFAASCAgAXb5A8
+# z5vh5ej5klUA/34uKK51ywFsGT1/qF9WeUZggRRidT0nAhguotUV1y2DGi/zxkmF
+# HNQjsyMBljGZKEZrcMAxV3wje71jhHyCgeBSv1GShFv/pyc6B6dpEC1rjTUyZlmB
+# EOsqE7BLCw2X1suuMkr+ZYHDTOvnPG74pvEpJcpuPgGcxV1iPCFEKQgcErK/tXDt
+# xl3s9npeT7siclHUTXRp3v7nl2sDuDmROLphfLhZfUsCm4Iqc82pawL+PnIbJFB0
+# dFBhJcrI3ihkz6ezgu7xt1wQnej7y44+I0ojKUB/PGvZ/c4TGPK//bdQA8qXr9V4
+# Yl1p3aimrzPhKKx2babK9UXH/ZkiYJvL2sVamXDvj5FKRbjI/mcXqKHwFY3ahsPt
+# dZvHknS0pGEN3o1nsgGvlPY0+1jtfiTZNQ+Wu4Y+1bSHrFxL+774yVo8WiSmTnk2
+# 17CvAOgJCSFsDF7smepqudFZid3I1fhu06k8/rAr4Vkcl89mksqUWxq4vuepbunr
+# jvG00RizOttf3lT82djZu8dloLCTdcPNEyL0rUN0VKS+k7qzIiHgw8EmnpORseak
+# t+gIg42kLRLSahrxMTMT9fFupGm/97J/8/B9laZ2Mqlz9M6ZZJZY2IzE+Yabbzfs
+# +52ZTD2MGmjOlO6s9SBaoHfuFwoDvq1oGtza4KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTExOTQwMTNaMC8GCSqGSIb3DQEJBDEiBCAzHohTkPnmUzAmLY1l
-# g3B0ClFupTRtWWklWE91lOPgzTANBgkqhkiG9w0BAQEFAASCAgC/d8G60ksORUTL
-# tq3SphA6l2F9vWSJxDivLg3XurvsBkW88zdmHCHOwdA4iKC3VYgcDUk5DURSJIUe
-# 826Yu3DY+/Ghbb7A0iP2MYqLxrf4zTpbkW4fRwVrtRAQkZPdd5ryPGo22HzeAmI1
-# fmJA/dNkDABkO2eNSlqfW/Z6p1yNwj+dMeCXes8GqzZ5hxWxLatNRtIhbafz+8Gu
-# 1dISIoR4QUixGEfg0fdrZyavjP1GGeeh/0sjMyDA/uajnidI01FTavoheevqs4XR
-# QNehtnePM/xVPjC61aGlAEcX1oOnEDSDAcWZNfQQeGV26IDjRFHV9W4ALhO4ZB9W
-# QheSAQRZoLSZU1wqIj0QpVi7tT0lnOaAIlRnAs/p+7yyg5qBZYFcYUGzLZe0HlM6
-# PvidsDWdr4Ue9wUbI7c0Ro0R2B39xNSFvH/9/r4ZgN4oiO2hiL75yYD90pj8Dx8P
-# P6kYlZVcv3rGAfzsfYOh0diPPiRDLodpSNKE7p1ZJR65y9sd6YkmRsMUYYDPklut
-# 8GPbQ0xbTfvbgb+GnQ2yZUyFrmXGzTL1PJ41Oj53awY7QLDc6aCBN9A0ehd6IYwk
-# 2/HqQFYN/p3VEfwlOSuM7uHISlc3wT+k60I7QwuiyEh92SZMsqR4LustST9B9LGv
-# GlT/AR80dxxo0RDzQI3/yWch3TKMLQ==
+# BTEPFw0yNjA1MjcyMTI4NTFaMC8GCSqGSIb3DQEJBDEiBCAKJpOfTRJ62raiS3Ar
+# MNO+ELEsZZ6w6ARGqrXIJ6ODQjANBgkqhkiG9w0BAQEFAASCAgCR59Uwp5boZiGH
+# cRnirXMfckYo1GiSUmKoSnezWdRJQn3IWc+mna0FgJbFn2aLi0zuPF5chPYm0KGa
+# 7G6WarnHodwQOiqRMq42RwEIF4P0XobEobXdPHh0fDq0l6y4Bn5RXgFa0YJcsCZo
+# pJqC9hNYIsTFz/MyxiPKDtL21ICaNOCqg8L89B7L1iIv9AeeOF6W+2bBqsHgllwW
+# T57MPnUPy3wlCfm1IK7H5PhIhC6tXaAUqNeWzact0L7MfN0pJQy358YJvy4PLGid
+# 9q43IQ9wg45AeAJIXFd+N/7pJRRusG9o+Z035Bd0i6Q6CDomTZ/UjD5FgKFIhsmW
+# h/QP4l4V+cdV0/3FBqSKPWdGxSD3OYFIZEpwTouEBYsIk04Pe3YNwmNzYXjjdlka
+# siTF5PZtoVXHrEbmfsfDCh1aKDJwUDDbPQbD1j4JZHoFJdrg+KSTmH/pLvvy7CFG
+# TXQqHzVXyMv2nr29QVH070g+G2qQg9YparI8XIKWvJrEuAW0ZwyWg4ZFP69EDsTy
+# oohb3J8/dZoaOvV0h0K0fqTMaAuj/GuCLXZzP1HACc+9NX1Y38afXhu0aMHnTZu/
+# iNqJnykX13pnXWrJgY3lJvmU8m6mPOr84LDc44I6tkNK0gOUcHZB/6guNJk6Lt0n
+# JwMFex4LNF9Qpy6XoEiZzg8qEycpxA==
 # SIG # End signature block
