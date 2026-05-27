@@ -4,6 +4,7 @@ function Enable-NetFx3 {
         [string[]]$ComputerName,
         [System.Management.Automation.PSCredential]$Credential,
         [string]$Source,
+        [switch]$UseCredSSP,
         [switch]$Quiet,
         [switch]$NoRestart,
         [int]$TimeoutMinutes = 60,
@@ -24,22 +25,35 @@ function Enable-NetFx3 {
             Write-Log -Level 'Warn' -Message "[Enable-NetFx3] -Source '$Source' is not a UNC path. Ensure it exists on EACH target."
         }
 
+        if ($Source -and $Source.StartsWith('\\') -and -not $UseCredSSP) {
+            Write-Log -Level 'Warn' -Message "[Enable-NetFx3] UNC source detected without -UseCredSSP. If the share requires delegated credentials, remote DISM can fail with access denied."
+        }
+
         Write-Log -Level 'Info' -Message "[Enable-NetFx3] Remote mode → targets: $($ComputerName -join ', ')"
 
         $moduleRoot = Get-ModuleRoot
         $workerLocal = Join-Path $moduleRoot 'Workers\Enable-NetFx3.worker.ps1'
 
-        # Package: helpers (libs) + workers (entry scripts)
-        # For now, include only a bootstrap helper IF your remote worker relies on module funcs like Write-Log/Initialize-TechToolboxRuntime.
-        # The worker below is self-contained, so HelperLibs can be empty.
         $pkg = New-HelpersPackage -HelperLibs @() -WorkerFiles @( $workerLocal )
+
+        function Get-Tail {
+            param(
+                [string]$Text,
+                [int]$Lines = 8
+            )
+
+            if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
+            $parts = @($Text -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($parts.Count -eq 0) { return $null }
+            ($parts | Select-Object -Last $Lines) -join "`n"
+        }
 
         $results = @()
 
         foreach ($cn in $ComputerName) {
             $session = $null
             try {
-                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential
+                $session = Start-NewPSRemoteSession -ComputerName $cn -Credential $Credential -UseCredSSP:$UseCredSSP
 
                 $r = Invoke-RemoteWorker `
                     -Session          $session `
@@ -54,6 +68,109 @@ function Enable-NetFx3 {
                     Validate       = $Validate
                     NoRestart      = $NoRestart
                     Quiet          = $Quiet
+                }
+
+                if ($r -and $r.SystemTaskPending) {
+                    $taskName = [string]$r.SystemTaskName
+                    $resultPath = [string]$r.SystemTaskResultPath
+                    $workDir = [string]$r.SystemTaskWorkDir
+
+                    if ($r.SystemTaskReused) {
+                        Write-Log -Level 'Info' -Message "[Enable-NetFx3][$cn] Reusing existing pending SYSTEM fallback task '$taskName'."
+                    }
+
+                    Wait-TerminalState `
+                        -Target "SYSTEM fallback $cn" `
+                        -PollScript {
+                        $statusObj = Invoke-Command -Session $session -ScriptBlock {
+                            param($tn, $rp)
+
+                            if (Test-Path -LiteralPath $rp) {
+                                return [pscustomobject]@{ Status = 'ResultReady' }
+                            }
+
+                            $statusOut = & schtasks.exe /Query /TN $tn /FO LIST /V 2>$null
+                            if (-not $statusOut) {
+                                return [pscustomobject]@{ Status = 'Unknown' }
+                            }
+
+                            $stateLine = @($statusOut | Where-Object { $_ -match '^\s*Status\s*:\s*' } | Select-Object -First 1)
+                            $state = if ($stateLine) { ($stateLine -replace '^\s*Status\s*:\s*', '').Trim() } else { 'Unknown' }
+
+                            if ($state -match 'Could not start|Could not run') {
+                                return [pscustomobject]@{ Status = 'TaskFinishedNoResult' }
+                            }
+
+                            [pscustomobject]@{ Status = 'Waiting' }
+                        } -ArgumentList $taskName, $resultPath
+
+                        $statusObj
+                    } `
+                        -GetStatus { param($o) $o.Status } `
+                        -TerminalStates @{
+                        ResultReady = @{ Level = 'Ok'; Message = "[Enable-NetFx3][$cn] SYSTEM fallback result ready." }
+                        TaskFinishedNoResult = @{ Level = 'Warn'; Message = "[Enable-NetFx3][$cn] SYSTEM task finished without result file." }
+                    } `
+                        -TimeoutSeconds ([int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalSeconds) `
+                        -PollSeconds 15 `
+                        -HeartbeatSeconds 120 `
+                        -NotFoundToken 'Waiting' `
+                        -NotFoundMessage 'Waiting for SYSTEM DISM task result...' `
+                        -WaitingMessage "Waiting SYSTEM DISM task [$cn] " `
+                        -ThrowOnTimeout:$false `
+                        -ReturnLastOnTimeout `
+                        -ContextFormatter { param($lastObj, $lastStatus) "Computer=$cn Task=$taskName LastStatus=$lastStatus" } | Out-Null
+
+                    $fallback = Invoke-Command -Session $session -ScriptBlock {
+                        param($tn, $rp, $wd)
+
+                        $exitCode = 1
+                        $stdOut = $null
+                        $stdErr = $null
+
+                        try {
+                            if (Test-Path -LiteralPath $rp) {
+                                $raw = Get-Content -LiteralPath $rp -Raw -Encoding UTF8
+                                $parsed = $raw | ConvertFrom-Json
+                                $exitCode = [int]$parsed.ExitCode
+                                $stdOut = [string]$parsed.StdOut
+                                $stdErr = [string]$parsed.StdErr
+                            }
+                            else {
+                                $stdErr = 'SYSTEM fallback task did not produce result.json before timeout or completion.'
+                            }
+                        }
+                        catch {
+                            $stdErr = $_.Exception.Message
+                        }
+
+                        [pscustomobject]@{
+                            ExitCode = $exitCode
+                            StdOut = $stdOut
+                            StdErr = $stdErr
+                        }
+                    } -ArgumentList $taskName, $resultPath, $workDir
+
+                    $r.SystemTaskPending = $false
+                    $r.SystemFallbackUsed = $true
+                    $r.ExitCode = [int]$fallback.ExitCode
+                    $r.Success = ($r.ExitCode -in 0, 3010)
+                    $r.RebootRequired = ($r.ExitCode -eq 3010)
+                    $r.DismStdOutTail = Get-Tail -Text $fallback.StdOut -Lines 8
+                    $r.DismStdErrTail = Get-Tail -Text $fallback.StdErr -Lines 8
+
+                    if ($r.Success) {
+                        $r.Message = $null
+                    }
+                    else {
+                        $r.Message = "DISM failed with exit code $($r.ExitCode) after SYSTEM fallback."
+                        if ($r.DismStdErrTail -match '(?im)^.*(0x[0-9a-f]{8}|access is denied|error:|failed).*$') {
+                            $r.DismErrorHint = ($Matches[0]).Trim()
+                        }
+                        elseif ($r.DismStdOutTail -match '(?im)^.*(0x[0-9a-f]{8}|error:|failed).*$') {
+                            $r.DismErrorHint = ($Matches[0]).Trim()
+                        }
+                    }
                 }
 
                 if ($r) { $results += $r }
@@ -75,6 +192,10 @@ function Enable-NetFx3 {
 
         foreach ($r in $results) {
             if ($r.Success) {
+                if ($r.SystemFallbackUsed) {
+                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] Completed via SYSTEM fallback path."
+                }
+
                 if ($r.RebootRequired) {
                     Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] Success (reboot required)."
                 }
@@ -85,6 +206,27 @@ function Enable-NetFx3 {
             else {
                 $tail = if ($r.Message) { " - $($r.Message)" } else { "" }
                 Write-Log -Level 'Error' -Message "[Enable-NetFx3][$($r.ComputerName)] Failed (Exit $($r.ExitCode))$tail"
+
+                if ($r.ExitCode -eq 5) {
+                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] Exit 5 typically means access denied. Confirm elevated token on target and use -Source with -UseCredSSP for UNC media when required."
+                }
+
+                if ($r.DismErrorHint) {
+                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] DISM hint: $($r.DismErrorHint)"
+                }
+
+                if ($r.DismLogErrorHint) {
+                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] DISM log hint: $($r.DismLogErrorHint)"
+                }
+
+                $hasServicingLockHint = ($r.DismErrorHint -match '(?i)0x8000ffff|0x80070020') -or ($r.DismLogErrorHint -match '(?i)0x8000ffff|0x80070020')
+                if ($hasServicingLockHint) {
+                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] Servicing contention detected (0x8000ffff/0x80070020). Reboot target to clear pending locks, then retry."
+                }
+
+                if ($r.ExitCode -eq 5 -and -not $Source) {
+                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] Try again with -Source \\server\share\sources\sxs (matching OS build) plus -UseCredSSP."
+                }
             }
         }
 
@@ -176,8 +318,8 @@ function Enable-NetFx3 {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCZMKY3cQidZIZc
-# dFEW4VCiBsii1Hvwl456iVCLub+hkaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC0BTwQyIv8p1cp
+# eR2uXUGI3ylOutmFZNtb9pdPPGW8iKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -310,34 +452,34 @@ function Enable-NetFx3 {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC9LVMspKBP
-# uGI2956rbO3kd9ywBxnK4gmNR2vuBO5u4jANBgkqhkiG9w0BAQEFAASCAgCzEXaN
-# Q79kAPgjCEnddFAvm+1SWIgxFjY3S5pr5lOs7QjYiUvqWKapLXO+TDbVMgpoMqLq
-# FiqwJCURCnIIPeDASalz/qgZ0nxp6WT0dVvauzNc841+DGQTh/3wJfo6nX0hVp41
-# A4nZhhzC/kyV2MCZaebCg50lxORuU5QPYSODxSnBwj4MeXtjIyrekLMo2ypyE6f+
-# 1XFfMhFsJyIBywHCxmp5uDsrFwknhySttxRk48S8TOKYI0RtH1ZCNkeGkU6XBdRU
-# es+0VKde8tcwNJs68Okn5DGzkTRXhOPNkvTOYFiMLIZNYQA1BJuS9opEuWB4q2LG
-# 9qgPv8GjMHL6kgBzWelGK7PacGhUUif3dfzC8VJi2sOHO/VZsC9nsRrJ3TMO8A1S
-# SDeRDLpGQeAyvu+aWZmWbdWfrSUCpcKrE03IyTDShbvQMl6t2WCzVVq3O7Yuivrm
-# U0qwUtftHcwY4mGWQs9Z53CIbMCloSDY4UUzf2dx5W6yObPunsIUBpRYIEruPFbA
-# hhtiG+V9YO4GuJxxSWTSBKGoFtyMJgc2KHjF3JiXPl7WjkzTNDAfu0nX5kMlwbW3
-# TrzmS02QEC8DAMEBIndhfNBYNY5/jTzeWMLJJx6x7UH+G0Gn7rW22lLbrMvycnIT
-# WWXcGDWzN4oMK8yN11Dnhn7YDCS6agV/DrA01KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBbQI40kBe8
+# OMPc6o2GTJ81i9c7Ikd83m441kpvfy4gwDANBgkqhkiG9w0BAQEFAASCAgDGSaCb
+# dKuS8FnoKjZ8GV4e3CQPwodc9YWMZyv72opm3bCVn2ooKzwhR2dwnQ/r6kaPgdc2
+# qccby0iMEKMrnBKeoY0NN8Eukgfz4X47adt70doSwtsYT2CqA5yLhVdKpYH+30Re
+# 1sURHbhEtJGnZc2poAHOXiacfzdzHgvilzUR3vFJYoJNf6USVHpduplHt2gqrhR9
+# FWznIi8FGzK3ntNgUGWEWnLXJ3zGlBDR6VvKZFPe29cgvehqytDG1FnyRIx0Sx/6
+# kYELPO7ApafQ8T5Vcz4z+WLotckyDS5DsPdDYmhZPu9cRyD2SirUULWaZgYV+IQP
+# vT6E3trbPC3ALuU9+Rl6JVJZ+czCnTSvzAzGIefVGx3qgyNkfQi+zWtdiF87fplI
+# 2an4ev8ea92ZCWd6RDQNQ1mkLdqv1tiBB8GC2Crprv6pzZ+bTO2DYKTFLykEsL1N
+# 1abLK30FOpD6yjSP9HUgCQhFKFG5ILpo2Mbly3Y+dcwhS9y/o3C2ZZscGd7QAaP7
+# XHz2dU6h1z92KQRw9RTH1rmDSfiXluoD9DCY9a2W2uwDKTD2PnQFq/pHLYrTXzJO
+# vzr/Vl/ShwF0p9dB2l8S9GtWMfKeGJbpDFxoQj0vjS/ehrX3LW1huxZ7381OmxRb
+# qZZSYtN2vZIjuvV/SruOZKG9fqd627kxyznK3aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTkxODExMzJaMC8GCSqGSIb3DQEJBDEiBCChVfbn5pPGufW+QnF3
-# YCCYwTJ719GgI2XWYP7+z/M0ITANBgkqhkiG9w0BAQEFAASCAgCCqLXRf5/Rajab
-# Dj65bFhnQ9KmyzRSVYDmCOLyVO9DNY50gpmXqYTW0pHuqRyKhgSr8QkIYo7a/jTJ
-# VO6Vy65uvERR8+a93g2kyf7DPLeV1cMYi4b52mrAD6VaymE369eaoHat9efbYdO3
-# XDUQ117Oi013XWMHl9gPdX0Qc2XR/SIc7eFVMcd+7wi/J4leiE2x0agwDuBE72Dx
-# TUqLNXmDUDC4LhNt8M9WYhw+kbp2mzKD1MmWXrQsXYoB8Z42XetWufCcqNzI1pVu
-# nIycfKRoXpQHfWJETNG08jGOS7tz+wnkFkD2hbhdAD2yTosQuRZ9/lSFxQxw8ZDm
-# 4WIcpFjTj60YQwPztvwvyu1Cl2y9UXokPe2I3ALQWTrwPoDsX/7fe8S+DOdaxIVh
-# vFUyTtMk1wJM0s4/L7qDfniWedr0KciBPZJJRBSuuHKm4vU97QZ37C2TEX63F4c/
-# hb5O+jRqD9qR2zzY6aS3Ak6JJZ9+/w+yY+vlq0bD2hCCBOOfG3PGF5S1+GxYCgB9
-# 3PJ1W05XWsEFCrEiDC4A28sNAE1kK3tXfYCDtwMM5qiUe51s1FSuxUJ9gxx8E4zk
-# pWhyM14ssN9TQ4yqTVpm5FZgUPS/GKPsPuen3Lwu6BI0m9dSQZqu0+d/8MMWrnxp
-# n2U1HQrSPzfFx/jaVEWbSZMUM9aS+Q==
+# BTEPFw0yNjA1MjcyMDI3MDNaMC8GCSqGSIb3DQEJBDEiBCAfmgvE6qezWIdxKe3l
+# oDkiD7y3iZOYhzZoYQzDIDqLWjANBgkqhkiG9w0BAQEFAASCAgCEONOmqiYxcJ4K
+# 6oOX3C0BMGliigiQ3vxNcqhwmxuD879CTFfx8EdJUGEY914t6e/vFaqQEJ1WWdB0
+# nks0Q2YorH6hKPp7OdYNjmjSDkbgKyTFdz/S6xcRz/8CO4c/bfnGIzoRz2134/zD
+# PL/VaP5Sf9UBLOcxizHynFazJPh2R+OWFDPSORZ1/8rIsf2X2cO2e3ZhB1AvEQoW
+# K2KJveNuqhMXjQ3MXuPGB2QZ7jTR7uCA0IIz3lpANHIEF9EuqTLd7x+7QjkH4mDa
+# QHSXcxMu0J708Ypcykjv6pT7OmYrUMvWvsKrcGfgTsnm4vrb5MDaJ+0v4gI3rNc5
+# DQL7b74jKG8OXlXNGbCKF0Vzo+ahfUJvWyCb4PZ8EnmAwYVLIdUw4ybPXlo19to8
+# II2YJuJDVIVtI+8TE8w9kVlSetNWoMDbUKzwfRnKB+2dg0jEduiYs1lc6wDWFaia
+# gAOnJiTMPsKbv3rpqDa72tmGfm6D4yBKyYD6zakDGW0h7y9XT1vTc1TFHJxsHOK/
+# FQrKDQYbHoJajykcjHYCP1jf0H7eadvl7zGXKPuihgxUp8M+Z91RDgWLak/xHZpV
+# kF/id7sWavL9aTPqzrjTs8boK8alFlQLsrGRgoQBYWx6ysjtt9+pWk6oo3h+dpBy
+# wx7fI8gO4ep0WjwfJaopLzNSL/p2zg==
 # SIG # End signature block
