@@ -57,6 +57,9 @@
       "defaultMinSizeMB": 256,
       "exportDirectory": "C:\\TechToolbox_LogsAndExports\\Exports\\LargeFileSearch"
     },
+    "errorEvents": {
+      "exportPath": "C:\\TechToolbox_LogsAndExports\\Exports\\ErrorEvents"
+    },
     "fileSearch": {
       "exportDirectory": "C:\\TechToolbox_LogsAndExports\\Exports\\FilesSearches",
       "exportFileNamePattern": "Get-FilesUsingKeywords-{computer}-{yyyyMMdd_HHmmss}.csv",
