@@ -26,7 +26,7 @@ function Enable-NetFx3 {
         }
 
         if ($Source -and $Source.StartsWith('\\') -and -not $UseCredSSP) {
-            Write-Log -Level 'Warn' -Message "[Enable-NetFx3] UNC source detected without -UseCredSSP. If the share requires delegated credentials, remote DISM can fail with access denied."
+            Write-Log -Level 'Warn' -Message "[Enable-NetFx3] UNC source detected without -UseCredSSP. If the share requires delegated credentials, remote feature enablement can fail with access denied."
         }
 
         Write-Log -Level 'Info' -Message "[Enable-NetFx3] Remote mode → targets: $($ComputerName -join ', ')"
@@ -73,7 +73,6 @@ function Enable-NetFx3 {
                 if ($r -and $r.SystemTaskPending) {
                     $taskName = [string]$r.SystemTaskName
                     $resultPath = [string]$r.SystemTaskResultPath
-                    $workDir = [string]$r.SystemTaskWorkDir
 
                     if ($r.SystemTaskReused) {
                         Write-Log -Level 'Info' -Message "[Enable-NetFx3][$cn] Reusing existing pending SYSTEM fallback task '$taskName'."
@@ -97,7 +96,7 @@ function Enable-NetFx3 {
                             $stateLine = @($statusOut | Where-Object { $_ -match '^\s*Status\s*:\s*' } | Select-Object -First 1)
                             $state = if ($stateLine) { ($stateLine -replace '^\s*Status\s*:\s*', '').Trim() } else { 'Unknown' }
 
-                            if ($state -match 'Could not start|Could not run') {
+                            if ($state -match 'Could not start|Could not run|Ready') {
                                 return [pscustomobject]@{ Status = 'TaskFinishedNoResult' }
                             }
 
@@ -108,69 +107,59 @@ function Enable-NetFx3 {
                     } `
                         -GetStatus { param($o) $o.Status } `
                         -TerminalStates @{
-                        ResultReady = @{ Level = 'Ok'; Message = "[Enable-NetFx3][$cn] SYSTEM fallback result ready." }
+                        ResultReady          = @{ Level = 'Ok'; Message = "[Enable-NetFx3][$cn] SYSTEM fallback result ready." }
                         TaskFinishedNoResult = @{ Level = 'Warn'; Message = "[Enable-NetFx3][$cn] SYSTEM task finished without result file." }
                     } `
                         -TimeoutSeconds ([int][TimeSpan]::FromMinutes([Math]::Max(1, $TimeoutMinutes)).TotalSeconds) `
                         -PollSeconds 15 `
                         -HeartbeatSeconds 120 `
-                        -NotFoundToken 'Waiting' `
-                        -NotFoundMessage 'Waiting for SYSTEM DISM task result...' `
-                        -WaitingMessage "Waiting SYSTEM DISM task [$cn] " `
+                        -NotFoundToken 'TaskRunning' `
+                        -NotFoundMessage 'Waiting for SYSTEM feature task result...' `
+                        -WaitingMessage "Waiting SYSTEM feature task [$cn] " `
                         -ThrowOnTimeout:$false `
                         -ReturnLastOnTimeout `
                         -ContextFormatter { param($lastObj, $lastStatus) "Computer=$cn Task=$taskName LastStatus=$lastStatus" } | Out-Null
 
                     $fallback = Invoke-Command -Session $session -ScriptBlock {
-                        param($tn, $rp, $wd)
+                        param($rp)
 
-                        $exitCode = 1
-                        $stdOut = $null
-                        $stdErr = $null
+                        $result = [pscustomobject]@{
+                            ExitCode       = 1
+                            Success        = $false
+                            RebootRequired = $false
+                            State          = $null
+                            Message        = 'SYSTEM fallback task did not produce result.json before timeout or completion.'
+                        }
 
                         try {
                             if (Test-Path -LiteralPath $rp) {
                                 $raw = Get-Content -LiteralPath $rp -Raw -Encoding UTF8
                                 $parsed = $raw | ConvertFrom-Json
-                                $exitCode = [int]$parsed.ExitCode
-                                $stdOut = [string]$parsed.StdOut
-                                $stdErr = [string]$parsed.StdErr
-                            }
-                            else {
-                                $stdErr = 'SYSTEM fallback task did not produce result.json before timeout or completion.'
+                                if ($parsed) {
+                                    $result.ExitCode = [int]$parsed.ExitCode
+                                    $result.Success = [bool]$parsed.Success
+                                    $result.RebootRequired = [bool]$parsed.RebootRequired
+                                    $result.State = [string]$parsed.State
+                                    $result.Message = [string]$parsed.Message
+                                }
                             }
                         }
                         catch {
-                            $stdErr = $_.Exception.Message
+                            $result.Message = $_.Exception.Message
                         }
 
-                        [pscustomobject]@{
-                            ExitCode = $exitCode
-                            StdOut = $stdOut
-                            StdErr = $stdErr
-                        }
-                    } -ArgumentList $taskName, $resultPath, $workDir
+                        $result
+                    } -ArgumentList $resultPath
 
                     $r.SystemTaskPending = $false
                     $r.SystemFallbackUsed = $true
                     $r.ExitCode = [int]$fallback.ExitCode
-                    $r.Success = ($r.ExitCode -in 0, 3010)
-                    $r.RebootRequired = ($r.ExitCode -eq 3010)
-                    $r.DismStdOutTail = Get-Tail -Text $fallback.StdOut -Lines 8
-                    $r.DismStdErrTail = Get-Tail -Text $fallback.StdErr -Lines 8
-
-                    if ($r.Success) {
-                        $r.Message = $null
-                    }
-                    else {
-                        $r.Message = "DISM failed with exit code $($r.ExitCode) after SYSTEM fallback."
-                        if ($r.DismStdErrTail -match '(?im)^.*(0x[0-9a-f]{8}|access is denied|error:|failed).*$') {
-                            $r.DismErrorHint = ($Matches[0]).Trim()
-                        }
-                        elseif ($r.DismStdOutTail -match '(?im)^.*(0x[0-9a-f]{8}|error:|failed).*$') {
-                            $r.DismErrorHint = ($Matches[0]).Trim()
-                        }
-                    }
+                    $r.Success = [bool]$fallback.Success
+                    $r.RebootRequired = [bool]$fallback.RebootRequired
+                    $r.State = $fallback.State
+                    $r.Message = $fallback.Message
+                    $r.DismStdOutTail = $null
+                    $r.DismStdErrTail = Get-Tail -Text $fallback.Message -Lines 8
                 }
 
                 if ($r) { $results += $r }
@@ -210,18 +199,8 @@ function Enable-NetFx3 {
                 if ($r.ExitCode -eq 5) {
                     Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] Exit 5 typically means access denied. Confirm elevated token on target and use -Source with -UseCredSSP for UNC media when required."
                 }
-
-                if ($r.DismErrorHint) {
-                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] DISM hint: $($r.DismErrorHint)"
-                }
-
-                if ($r.DismLogErrorHint) {
-                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] DISM log hint: $($r.DismLogErrorHint)"
-                }
-
-                $hasServicingLockHint = ($r.DismErrorHint -match '(?i)0x8000ffff|0x80070020') -or ($r.DismLogErrorHint -match '(?i)0x8000ffff|0x80070020')
-                if ($hasServicingLockHint) {
-                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] Servicing contention detected (0x8000ffff/0x80070020). Reboot target to clear pending locks, then retry."
+                elseif ($r.Message -match '(?i)access is denied|0x80070005') {
+                    Write-Log -Level 'Warn' -Message "[Enable-NetFx3][$($r.ComputerName)] Access denied indicates the remote token is not elevated enough for feature servicing. Configure the target WinRM endpoint with -RunAsCredential (an admin account) and retry."
                 }
 
                 if ($r.ExitCode -eq 5 -and -not $Source) {
@@ -234,56 +213,66 @@ function Enable-NetFx3 {
     }
 
     # ----------------------------
-    # Local mode (direct DISM, no ExternalCommand)
+    # Local mode
     # ----------------------------
     Write-Log -Level 'Info' -Message "[Enable-NetFx3] Starting enablement (local)."
 
-    $system32 = Join-Path $env:SystemRoot 'System32'
-    $dism = Join-Path $system32 'dism.exe'
-
-    $argsList = @('/online', '/enable-feature', '/featurename:NetFx3', '/All')
-    if ($Quiet) { $argsList += '/Quiet' }
-    if ($NoRestart) { $argsList += '/NoRestart' }
-
-    # If Source provided, use LimitAccess
-    if ($PSBoundParameters.ContainsKey('Source') -and $Source) {
-        $argsList += "/Source:$Source"
-        $argsList += '/LimitAccess'
+    $invokeParams = @{
+        Online      = $true
+        FeatureName = 'NetFx3'
+        All         = $true
+        ErrorAction = 'Stop'
+    }
+    if ($NoRestart) { $invokeParams.NoRestart = $true }
+    if ($Source) {
+        $invokeParams.Source = $Source
+        $invokeParams.LimitAccess = $true
     }
 
     $overallSuccess = $false
-    $dismExit = $null
+    $exitCode = 1
     $state = $null
     $msg = $null
+    $savedProgressPreference = $null
 
     try {
-        $result = Invoke-TTExe -FilePath $dism -Arguments $argsList -TimeoutMinutes $TimeoutMinutes
-        $dismExit = $result.ExitCode
-
-        if ($result.TimedOut) {
-            $msg = "Timeout after $TimeoutMinutes minutes."
-            Write-Log -Level 'Error' -Message "[Enable-NetFx3] $msg"
-            $overallSuccess = $false
+        if ($Quiet) {
+            $savedProgressPreference = $ProgressPreference
+            $ProgressPreference = 'SilentlyContinue'
         }
-        elseif ($dismExit -in 0, 3010) {
+
+        $result = Enable-WindowsOptionalFeature @invokeParams
+        $state = (Get-WindowsOptionalFeature -Online -FeatureName NetFx3 -ErrorAction Stop).State
+        $restartNeeded = [bool]$result.RestartNeeded -or ($state -in 'EnablePending', 'EnabledPending')
+
+        if ($state -in 'Enabled', 'EnablePending', 'EnabledPending') {
             $overallSuccess = $true
-            if ($dismExit -eq 3010) {
+            $exitCode = if ($restartNeeded) { 3010 } else { 0 }
+
+            if ($exitCode -eq 3010) {
                 Write-Log -Level 'Warn' -Message "[Enable-NetFx3] Reboot required to complete NetFx3 enablement."
             }
             else {
-                Write-Log -Level 'Ok' -Message "[Enable-NetFx3] DISM completed successfully."
+                Write-Log -Level 'Ok' -Message "[Enable-NetFx3] Feature enablement completed successfully."
             }
         }
         else {
-            $msg = "DISM failed with exit code $dismExit."
+            $msg = "NetFx3 state not enabled after operation (State=$state)."
             Write-Log -Level 'Error' -Message "[Enable-NetFx3] $msg"
             $overallSuccess = $false
+            $exitCode = 1
         }
     }
     catch {
         $overallSuccess = $false
         $msg = $_.Exception.Message
+        $exitCode = if ($_.Exception -is [System.UnauthorizedAccessException]) { 5 } else { 1 }
         Write-Log -Level 'Error' -Message "[Enable-NetFx3] Failed: $msg"
+    }
+    finally {
+        if ($Quiet -and $null -ne $savedProgressPreference) {
+            $ProgressPreference = $savedProgressPreference
+        }
     }
 
     if ($overallSuccess -and $Validate) {
@@ -303,8 +292,6 @@ function Enable-NetFx3 {
         }
     }
 
-    $exitCode = if ($overallSuccess) { if ($dismExit) { $dismExit } else { 0 } } else { 1 }
-
     [pscustomobject]@{
         ComputerName   = $env:COMPUTERNAME
         ExitCode       = $exitCode
@@ -318,8 +305,8 @@ function Enable-NetFx3 {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC0BTwQyIv8p1cp
-# eR2uXUGI3ylOutmFZNtb9pdPPGW8iKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCZrmaE9/EL8H8f
+# ig8uJansCQ1xoWhRo3at6D0Lfuhri6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -452,34 +439,34 @@ function Enable-NetFx3 {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBbQI40kBe8
-# OMPc6o2GTJ81i9c7Ikd83m441kpvfy4gwDANBgkqhkiG9w0BAQEFAASCAgDGSaCb
-# dKuS8FnoKjZ8GV4e3CQPwodc9YWMZyv72opm3bCVn2ooKzwhR2dwnQ/r6kaPgdc2
-# qccby0iMEKMrnBKeoY0NN8Eukgfz4X47adt70doSwtsYT2CqA5yLhVdKpYH+30Re
-# 1sURHbhEtJGnZc2poAHOXiacfzdzHgvilzUR3vFJYoJNf6USVHpduplHt2gqrhR9
-# FWznIi8FGzK3ntNgUGWEWnLXJ3zGlBDR6VvKZFPe29cgvehqytDG1FnyRIx0Sx/6
-# kYELPO7ApafQ8T5Vcz4z+WLotckyDS5DsPdDYmhZPu9cRyD2SirUULWaZgYV+IQP
-# vT6E3trbPC3ALuU9+Rl6JVJZ+czCnTSvzAzGIefVGx3qgyNkfQi+zWtdiF87fplI
-# 2an4ev8ea92ZCWd6RDQNQ1mkLdqv1tiBB8GC2Crprv6pzZ+bTO2DYKTFLykEsL1N
-# 1abLK30FOpD6yjSP9HUgCQhFKFG5ILpo2Mbly3Y+dcwhS9y/o3C2ZZscGd7QAaP7
-# XHz2dU6h1z92KQRw9RTH1rmDSfiXluoD9DCY9a2W2uwDKTD2PnQFq/pHLYrTXzJO
-# vzr/Vl/ShwF0p9dB2l8S9GtWMfKeGJbpDFxoQj0vjS/ehrX3LW1huxZ7381OmxRb
-# qZZSYtN2vZIjuvV/SruOZKG9fqd627kxyznK3aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCClWn9qVzSx
+# x/dEcdvaNstQRbDOyLGh2Mbil1SUvGwSojANBgkqhkiG9w0BAQEFAASCAgADO07Q
+# EavDc3xlADg7wOIu4uLl1qcRBIYvvkNB1RYLh02NIGDBe9+FhCVMcDbHWs2RH5EU
+# Nq1iEfhV5sD1N5UE6yHZa5y28AYPGxPDnCIUwm5o3t8vtj2tzPhMnyiTjrBqvh6Z
+# Ma8DH5k55R09W+XbHQwsPJTygcrs4L4zr17T1Mr5TIB36zclYEoUo6La3FMqhiqE
+# hzAxSMxEqFyA5QuLUkVl5fvRMDC6C6wx4YqlUwhpA8chdBZAtmIpKBhyOUM072AS
+# Spat6rd3VyqatZDYGIePMMwzkCrMokKCeOZBDxJVWFmYI4/soQAgbWHiGJ6qaVMk
+# mxCz6yJ+sXctfWCRhzTyQMhb2zPKVME43qIK0W0Mwkz/CLXoSNpMFVzRpVpkEFtu
+# aAIvBBdovIcmBjkKS0hupP2RCtXxNyx4xB3LreJmD44NOry1vj9D8djVnFzUYyxd
+# FgSiJlZ7YPMs5yBX37PthJV9SF+AYHiZayUYTF371mVyXakM8UKp1X4mSu/5x/NX
+# 7JN3xM3aIzmjKejVFsL1uHfS6V6a6Uirciz2S6Nii5fU2WvJx8dbzDGE4iU1fYP+
+# eUzYhLz9yzDypifKfe8VJ2s5FLr82Ta1Sys75FJWkOzJ0iKgD0iaFzqd1Q4wqwU+
+# suijWyghmNd+llgvDpAWudRnxUtkfvyoOAINNqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MjcyMDI3MDNaMC8GCSqGSIb3DQEJBDEiBCAfmgvE6qezWIdxKe3l
-# oDkiD7y3iZOYhzZoYQzDIDqLWjANBgkqhkiG9w0BAQEFAASCAgCEONOmqiYxcJ4K
-# 6oOX3C0BMGliigiQ3vxNcqhwmxuD879CTFfx8EdJUGEY914t6e/vFaqQEJ1WWdB0
-# nks0Q2YorH6hKPp7OdYNjmjSDkbgKyTFdz/S6xcRz/8CO4c/bfnGIzoRz2134/zD
-# PL/VaP5Sf9UBLOcxizHynFazJPh2R+OWFDPSORZ1/8rIsf2X2cO2e3ZhB1AvEQoW
-# K2KJveNuqhMXjQ3MXuPGB2QZ7jTR7uCA0IIz3lpANHIEF9EuqTLd7x+7QjkH4mDa
-# QHSXcxMu0J708Ypcykjv6pT7OmYrUMvWvsKrcGfgTsnm4vrb5MDaJ+0v4gI3rNc5
-# DQL7b74jKG8OXlXNGbCKF0Vzo+ahfUJvWyCb4PZ8EnmAwYVLIdUw4ybPXlo19to8
-# II2YJuJDVIVtI+8TE8w9kVlSetNWoMDbUKzwfRnKB+2dg0jEduiYs1lc6wDWFaia
-# gAOnJiTMPsKbv3rpqDa72tmGfm6D4yBKyYD6zakDGW0h7y9XT1vTc1TFHJxsHOK/
-# FQrKDQYbHoJajykcjHYCP1jf0H7eadvl7zGXKPuihgxUp8M+Z91RDgWLak/xHZpV
-# kF/id7sWavL9aTPqzrjTs8boK8alFlQLsrGRgoQBYWx6ysjtt9+pWk6oo3h+dpBy
-# wx7fI8gO4ep0WjwfJaopLzNSL/p2zg==
+# BTEPFw0yNjA1MjgxMzUwMDVaMC8GCSqGSIb3DQEJBDEiBCCIypqphIEVn0ElJXf2
+# L5luzln2gRY71AsylQf9DKaY2DANBgkqhkiG9w0BAQEFAASCAgCfImpoNxtcxyWr
+# JwHtsn/BSbL3dBrthRF5+cHkKopgcS63ZRjeFcUkOJEVIpGJ93GNA2cpwfuYaKRE
+# y+jERM7vHaDmtIZ5aWSbKEeFpUyPoA7ccXAounAKAFvXwRwNustspCrVtXeqIIF8
+# cW0XSjAbKMFXO1G8KWlpMtA61nTF9w8uvmLqosc+zgUXJqNdVbupp7QS8X/RBEp2
+# IMjpnsG6CDKtFT/L2JNLS4bz81QaRTnVg8oQTHmofEaziAbPzNoOa3KGTx7AJayf
+# WpSQr+FOFyMUMs2tVwr7Ak9BU0JbrhxQx7t8O7gxgbKZhs0O8vKQ0vD5EROnQNir
+# 5d7LA6SbbJ6vbfvu+WnO01oHHvni3ka6iFyV0PyCOa6bMPYi09S3JjMWYhhsP85H
+# woipgyj8ouy6r/0ta2ZeviKKm0Bg7Y/Uf+vOAibC1+1Pf8sAgCMICChN+Iuxnb0N
+# eRmL4mHUWWzsj0hd4O7YLHOg3TDACZoY4Hh1MGNp1qY/Y7abMSkxl8ffAjwHXEn9
+# pOukxZvTwFe9Ypg5aG9imZW6pk1Cw30UPMZceufLMSifl91OMs0FfXHL1xzjszno
+# 6eiaBjdodzDQAt3nbrBU2+5qnXRe90k01VhSwJXk1Ax9IAGQn8fOkQFjdhs/BWPM
+# ZjEfuplrO6BWwRsNDB07e/cq+Qr0UQ==
 # SIG # End signature block
