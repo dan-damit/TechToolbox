@@ -114,7 +114,7 @@ Current exported command set includes tooling in these areas:
 
 - Active Directory user lifecycle and search (`Search-User`, `Disable-User`, `Reset-ADPassword`, `Set-EmailAlias`, `Set-ProxyAddress`, `New-OnPremUserFromTemplate`)
 - Messaging and compliance (`Get-MessageTrace`, `Invoke-PurviewPurge`, `Get-AuditSharedMailboxDeletions`, `Get-SharedMailboxPermissions`, `Test-MailHeaderAuth`)
-- Endpoint and system operations (`Get-SystemSnapshot`, `Get-SystemUptime`, `Invoke-SystemRepair`, `Set-PageFileSize`, `Enable-NetFx3`, `Reset-WindowsUpdateComponents`, `Set-OneTimeReboot`)
+- Endpoint and system operations (`Get-ErrorEvents`, `Get-SystemSnapshot`, `Get-SystemUptime`, `Invoke-SystemRepair`, `Set-PageFileSize`, `Enable-NetFx3`, `Reset-WindowsUpdateComponents`, `Set-OneTimeReboot`)
 - Network and browser tasks (`Invoke-SubnetScan`, `Start-DnsQueryLogger`, `Clear-BrowserProfileData`, `Watch-ISPConnection`)
 - Remote worker utilities and helpers (`Invoke-SCW`, `Start-NewPSRemoteSession`, `Stop-PSRemoteSession`, `Test-PathAs`)
 - AI-assisted workflows (`Invoke-CodeAssistant`, `Invoke-CodeAssistantFolder`, `Invoke-CodeAssistantWrapper`, `Invoke-TechAgent`)
@@ -174,6 +174,16 @@ Set-PageFileSize -ComputerName 'Server01.domain.local'
 
 # Explicit values
 Set-PageFileSize -ComputerName 'Server01.domain.local' -InitialSize 4096 -MaximumSize 8192 -Path 'C:\pagefile.sys'
+```
+
+### Error event review
+
+```powershell
+# Recent critical and error events from the local System log
+Get-ErrorEvents -LogName System
+
+# Only specific IDs from the last day
+Get-ErrorEvents -LogName System -EventId 41,6008 -StartTime (Get-Date).AddDays(-1) -MaxEvents 50
 ```
 
 ## Project Layout

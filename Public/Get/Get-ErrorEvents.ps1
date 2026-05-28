@@ -20,6 +20,10 @@ function Get-ErrorEvents {
 	.PARAMETER StartTime
 	    Optional lower time bound for returned events.
 
+    .PARAMETER EventId
+        Optional event ID filter. When specified, only matching Critical and
+        Error events are returned.
+
     .PARAMETER ExportPath
         Optional CSV export path. If a directory or path without an extension is
         provided, a timestamped CSV file is created in that location.
@@ -61,10 +65,23 @@ function Get-ErrorEvents {
 	    Application log on SRV-01.
 
     .EXAMPLE
+        Get-ErrorEvents -LogName System -StartTime '2026-05-28T08:00:00' -MaxEvents 200
+        Get-ErrorEvents -LogName System -StartTime (Get-Date).AddDays(-1) -MaxEvents 200
+
+        Returns up to 200 Critical and Error events from the System log
+        that were created on or after 2026-05-28 08:00:00.
+
+    .EXAMPLE
         Get-ErrorEvents -LogName System -ComputerName SRV-01,SRV-02 -Export C:\Temp
 
         Returns matching events and exports the combined results to a
         timestamped CSV file under C:\Temp.
+
+	.EXAMPLE
+	    Get-ErrorEvents -LogName System -EventId 41, 6008 -MaxEvents 50
+
+	    Returns up to 50 Critical and Error events from the System log where
+	    the event ID is 41 or 6008.
 	#>
     [CmdletBinding()]
     param(
@@ -80,6 +97,9 @@ function Get-ErrorEvents {
         [int]$MaxEvents = 100,
 
         [datetime]$StartTime,
+
+        [Alias('Id')]
+        [int[]]$EventId,
 
         [Alias('Export')]
         [string]$ExportPath,
@@ -126,6 +146,7 @@ function Get-ErrorEvents {
         }
 
         $hasStartTime = $PSBoundParameters.ContainsKey('StartTime')
+        $hasEventId = $PSBoundParameters.ContainsKey('EventId') -and $null -ne $EventId -and $EventId.Count -gt 0
         $shouldExport = $PSBoundParameters.ContainsKey('ExportPath') -and -not [string]::IsNullOrWhiteSpace($ExportPath)
 
         if (-not $shouldExport -and -not [string]::IsNullOrWhiteSpace($ExportPath)) {
@@ -155,6 +176,18 @@ function Get-ErrorEvents {
 
             if ($isDirectory) {
                 $directoryPath = $expandedPath
+
+                if ([System.IO.Path]::GetFileName($directoryPath) -ne 'ErrorEvents') {
+                    $directoryPath = Join-Path -Path $directoryPath -ChildPath 'ErrorEvents'
+                }
+
+                $hostFolderName = ($env:COMPUTERNAME -replace '[^A-Za-z0-9._-]', '_')
+                if ([string]::IsNullOrWhiteSpace($hostFolderName)) {
+                    $hostFolderName = 'UnknownHost'
+                }
+
+                $directoryPath = Join-Path -Path $directoryPath -ChildPath $hostFolderName
+
                 if (-not (Test-Path -LiteralPath $directoryPath)) {
                     New-Item -Path $directoryPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
                 }
@@ -181,7 +214,9 @@ function Get-ErrorEvents {
                 [string]$TargetLogName,
                 [int]$TargetMaxEvents,
                 [object]$TargetStartTime,
-                [bool]$HasStartTime
+                [bool]$HasStartTime,
+                [int[]]$TargetEventId,
+                [bool]$HasEventId
             )
 
             $filter = @{
@@ -191,6 +226,10 @@ function Get-ErrorEvents {
 
             if ($HasStartTime) {
                 $filter.StartTime = $TargetStartTime
+            }
+
+            if ($HasEventId) {
+                $filter.Id = $TargetEventId
             }
 
             $events = Get-WinEvent -FilterHashtable $filter -MaxEvents $TargetMaxEvents -ErrorAction Stop
@@ -223,7 +262,7 @@ function Get-ErrorEvents {
                 Write-Log -Level Info -Message ("Querying {0} log on the local computer." -f $LogName)
 
                 try {
-                    $targetResults = & $queryScript -TargetLogName $LogName -TargetMaxEvents $MaxEvents -TargetStartTime $StartTime -HasStartTime $hasStartTime
+                    $targetResults = & $queryScript -TargetLogName $LogName -TargetMaxEvents $MaxEvents -TargetStartTime $StartTime -HasStartTime $hasStartTime -TargetEventId $EventId -HasEventId $hasEventId
                     if ($targetResults) {
                         [void]$allResults.AddRange([object[]]$targetResults)
                         $targetResults
@@ -261,18 +300,20 @@ function Get-ErrorEvents {
 
                 $session = Start-NewPSRemoteSession @sessionParams
 
-                $targetResults = Invoke-Command -Session $session -ErrorAction Stop -ArgumentList $LogName, $MaxEvents, $StartTime, $hasStartTime, $queryScriptSource -ScriptBlock {
+                $targetResults = Invoke-Command -Session $session -ErrorAction Stop -ArgumentList $LogName, $MaxEvents, $StartTime, $hasStartTime, $EventId, $hasEventId, $queryScriptSource -ScriptBlock {
                     param(
                         [string]$TargetLogName,
                         [int]$TargetMaxEvents,
                         [object]$TargetStartTime,
                         [bool]$HasStartTime,
+                        [int[]]$TargetEventId,
+                        [bool]$HasEventId,
                         [string]$RemoteQueryScriptSource
                     )
 
                     $remoteQueryScript = [ScriptBlock]::Create($RemoteQueryScriptSource)
 
-                    & $RemoteQueryScript -TargetLogName $TargetLogName -TargetMaxEvents $TargetMaxEvents -TargetStartTime $TargetStartTime -HasStartTime $HasStartTime
+                    & $RemoteQueryScript -TargetLogName $TargetLogName -TargetMaxEvents $TargetMaxEvents -TargetStartTime $TargetStartTime -HasStartTime $HasStartTime -TargetEventId $TargetEventId -HasEventId $HasEventId
                 }
 
                 if ($targetResults) {
@@ -315,8 +356,8 @@ function Get-ErrorEvents {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD/AMrnSzgdKq5L
-# AhW+jdYycYxRt/ZpCTzQxaawEFLZSKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCgg4zRASAPHI4+
+# az2QkRmQSvILH4GE14v1PANg9FjaHaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -449,34 +490,34 @@ function Get-ErrorEvents {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAbDb1f4DNE
-# x4pM+JzjblkzQ42r1xLp9zd1k/7Wjo18qTANBgkqhkiG9w0BAQEFAASCAgAIvWXL
-# R2WMAGu7KOzgX7EuAkwnkgFcf8QnuXxTaazwhA5luPUwTKHZ46rPsEkGAeFLQK73
-# l20l3ozHe22+YyTULOc/ijXIp8LzfRzApJXa7l4NZMSTn38v5ottGdECYAvsovql
-# ZasK4a6ti3pHZKpq6gKE1LJQTbi9UuncwzMV6FN+nQM9+PLuKm5Wb6qL2HuXv0tw
-# FEgDXTfZ0lkieYL16iQ7W9/9ZTJLmpMlYL4WiWUrK7p2w1c5FBpGwFVftD5z39wU
-# zgJwP2jiHMN3SF3HkFd8aabPa8E49w+78IQqhNMfqJqbt0lyfb3QpCJDUOhdO/7U
-# 984BLXpbW9BnVyIRVaWZowVDVi497Lt7abbDDhV9EL63ynk1PuEu8oDq+NUx2b79
-# EWzVoc9g0Z7n/4QB5tjuxirme14uRyKNzUREL8EwoMg5ozPYElR76CZ7gjltcdfr
-# 6yb8GedsZl6mQGMFCA+jbFPNX6uZ7aTeD+Z/pfh0EVtduthYArEgbcAEHqMrOP/5
-# GroXV28tuFdE6kJpP77uWOOzGZ5BkrnFx2oApTpWflJwsugNC+BFN5pQQA3zjYjO
-# VEV3fMoK7aWd9Tt9YNvtshPV6EMUXT5/Qz/aSNQ/KH9yDt6j1eehNUDNFHLSVts7
-# n2wdAvK2t3E4FYrTlyfNDgtKQlnvxxT2ZC14mKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDi0z2OCX29
+# ubvmVIPf4ht98jsW+g5EOvtbQuqAUOJwWzANBgkqhkiG9w0BAQEFAASCAgB3ctg9
+# FMy3VB9EajcnVRlPjAiRJkv6H+fQntMlt4XfHxW2B6ile7/zPUoq9kbvSJg5j8kK
+# c9I+wyFDatfGRWAFwh2pOUKflT33MkSJ5P1jU9xMX1hFX7kIRJEzgL04SzIYA/m6
+# osA/ujh56cfprdR8k2uD+5ciUpYTRy/yvPLnQDKeW3GKdonk1w+i59Qmd5nAm4uu
+# 68zm4hbqkYlpRBazH4XVNZ637hUJWYcrS+wuHV9sBqe2Qcs3eyI24txNuxCD1Mmo
+# JI7ua2uL6S4N5Jj5b1Ddy7bEvszultxe2cPu6OCiE+kwFAs3/2aguLgL/GLCptjZ
+# G0IKvuLswszKnBD/mgrh9nXbM0iiz68OyJ6iqll6HhLPJ/QZLTxRgLPe1Mu8X7Tw
+# iwALCNODnFC07sUc6KUzObZV9zWIDb2PtTnFYadr8fau6+eTqVRvHKWE/e0kjlTf
+# bow5kTYlt8UWXg3bGrzt6446EhIE72+1OQXJGLMUa98am09dTWSx7CWj6I2eFRJ5
+# 3LyVxa2fr6dpvigriUVuxBWhtToBoaAujeJpkW0tj0CKeWHmpw1k5Yv2xyk8seA4
+# 421m9e4Sa4cWIVuFq9TY7OonoXwM0eLx4mPJzAUbqCn55miP4SQYe4lSF57U4luo
+# YMYEDtwkdmdRjEh0IOwtLzSB6BLZqy9MGg6HaKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MjgxNzA2NDZaMC8GCSqGSIb3DQEJBDEiBCDMYIr5HVhBzeCw6lZl
-# XrsNd6v3144tZ7UX1gJUu42GGzANBgkqhkiG9w0BAQEFAASCAgAR+f8Pbp5IdRvo
-# ogdb+CHF7Kla2CnQHKZlL9/N8+BAWYRgwXbIN8HC41tci8tdpfmc+Cs4ahqcGeAS
-# fRlvdUFhGp3ICrohoBlf48QORXrlJhoseBiRMOHyEkCxA7B7fhfegT2I+4HqL7QH
-# UXiugAhjlrt/0HcvknYNgaP4BbIVenB6X3c/BqBbk3WnhyvlJSKusadRaT6RAsBj
-# SQCwZ8WLrtNHx69U5fTfg5v845gQvdinVFxH3tOVOw0Mt9OVM5ZCjDkhPP/A2lem
-# bwrvGaVV0GSHvbEwrC9UGC9h9A3ZpGr4diAQ9z+sKYszTzAz2HWcwcxlQWxPitrM
-# 88Le5knqPSoDjKBr3t924a3SY1rKI9roEywk9Dwe57Su2R89dVGoiz7RM2mgmolr
-# Ks97QCoKwv0B7bR6gsxTs9mjy6GI+QUBm/oBg7pDnGSD4KY6mCvVfcGoaFLoKgDP
-# 4SDPvzioRIDDSsPav8J+V+x7Ck0Goiivaa/NgDuI+UB5QKs6eiBDQz4pU7hJWrJw
-# +R0F0VdttVSADf/Olce0LDr+Fmza6TAKMlyuD8559P+NApbpCgoR+GPhRcBhGpcX
-# RXMUc7ZTskqiwB1Ms1U0VokXAIHyIAH651ErDIama+ykPzP7cbsY6I6xA08QWTA0
-# GEs1jT+ANMJ9bKsuLoDskc3WA83+4g==
+# BTEPFw0yNjA1MjgyMTMyMzVaMC8GCSqGSIb3DQEJBDEiBCCDMBERpQs3H/C4h6Nl
+# 03uJKSn3wXZJTv/khZS+u0gUUDANBgkqhkiG9w0BAQEFAASCAgBsjc88EPwc75uO
+# J1j9Q/APSPFD8bueeZEQAaRqJetCtmeQjC5reXuEcA3Kf0mkDZvsf7NxRGG49olE
+# PqmOjCJw0fwxJXSlRo4o453XLg3hXav6MLF9JirgHbek2UuDMIW8wCY9g5rbgtrn
+# J0yHRAD4fJdDD3l2jYP49VaBdr2O4mJXfNbAR2KpShh5vr7L2hwP3f5hdkquMPWm
+# ZZoh2Z8MsR4OP2iiwdRuqDrvQ0ulSTxCVq0sODvvcrGB42WrHy5mPtyOtAc5LB2i
+# MRW9+jEBJOQqooYi33vyhMB3Y7MdUknYW2cuTzATveAgICSb6lgxcS+rgGtvvsjg
+# k/A4VETPa7qlKAE+pUK0RReCgCelVn3uKyGBbYMVLORd1AHWXECbFetPXHoBydIi
+# c3JjDGh1mMNVL+v6dpQPBExCyXsokbRdIRb+n47Z22ZgBdRzM1wzAz1FJ8KVSAEB
+# 1tiZ2aeOLrtkwjGp0Vx1LDXiSprOqTWCsnyoEmkBiGhwv/0yQFwzvL4fVSKe6Vqn
+# Hl59JHiFo4HA0Nkdpu8TuzJp4XrI56OfT+osNmXKlYxIUXzA8nGxpLFoaBUUub8p
+# uSj6M5q6olywG2+ObmBUbtoFPI6lkte0AeiMT26UpsTOkrBW/3RSR396ymZcKwoy
+# tSH/WfhPw+hmzlIQ0hTO4dMUENiMzA==
 # SIG # End signature block
