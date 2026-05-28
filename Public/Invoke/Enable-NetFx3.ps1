@@ -1,4 +1,43 @@
 function Enable-NetFx3 {
+    <#
+    .SYNOPSIS
+        Enables the .NET Framework 3.5 feature on the specified computer(s).
+
+    .DESCRIPTION
+        This function allows you to enable the .NET Framework 3.5 feature on
+        local or remote computers. It supports specifying a source path for the
+        feature files, using CredSSP for delegated credentials, and various
+        other options.
+
+    .PARAMETER ComputerName
+        The name(s) of the target computer(s) where the .NET Framework 3.5
+        feature should be enabled.
+
+    .PARAMETER Credential
+        The credentials to use for the remote session. If not specified, the
+        script will attempt to use stored domain admin credentials.
+
+    .PARAMETER Source
+        The path to the source files for the .NET Framework 3.5 feature. Can be
+        a local path or a UNC path.
+
+    .PARAMETER UseCredSSP
+        Switch to indicate whether to use CredSSP for delegated credentials in
+        remote sessions.
+
+    .PARAMETER Quiet
+        Switch to suppress output messages.
+
+    .PARAMETER NoRestart
+        Switch to prevent automatic restart after enabling the feature.
+
+    .PARAMETER TimeoutMinutes
+        The maximum time, in minutes, to wait for the feature to be enabled.
+        Default is 60 minutes.
+
+    .PARAMETER Validate
+        Switch to perform validation after enabling the feature.
+    #>
     [CmdletBinding()]
     param(
         [string[]]$ComputerName,
@@ -48,7 +87,7 @@ function Enable-NetFx3 {
             ($parts | Select-Object -Last $Lines) -join "`n"
         }
 
-        function Normalize-NetFx3State {
+        function Format-NetFx3State {
             param([string]$StateValue)
 
             if ([string]::IsNullOrWhiteSpace($StateValue)) { return $null }
@@ -156,7 +195,7 @@ function Enable-NetFx3 {
                                     $result.ExitCode = [int]$parsed.ExitCode
                                     $result.Success = [bool]$parsed.Success
                                     $result.RebootRequired = [bool]$parsed.RebootRequired
-                                    $result.State = Normalize-NetFx3State -StateValue ([string]$parsed.State)
+                                    $result.State = Format-NetFx3State -StateValue ([string]$parsed.State)
                                     $result.Message = [string]$parsed.Message
                                 }
                             }
@@ -334,8 +373,8 @@ function Enable-NetFx3 {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBRw6q4RK5+V537
-# snXqd4eLmLiJ0/W7WsrOGOmlcSrMgqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAQ8zgCgV1zq904
+# p2o5uLfOBWRTN/etGVnmooLNLvUDNqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -468,34 +507,34 @@ function Enable-NetFx3 {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAATgzW7t17
-# B72LbmCZCz4HCAqOaOmgSrt2rUqSHasXHTANBgkqhkiG9w0BAQEFAASCAgCS9rvb
-# RAesEXM5Gw/8UMMhUYGwLie2W2J4fPgqX5Y6mOcAEPHolfvYtI7eyOMS2+ORBWlG
-# c5uhGktSsU3rTN9rFsJBHL+7U/oM3dLMa5pRknE+pPvxvl9z0rdxPOY4hNUfAG18
-# fHJpCgVglyTC4zOTVRD5YNVcAYdz7hbdkmdOIx0QVPaEWUzyTQI/J7nQoi/3AG7N
-# xaRG3BDvzh6RYtZkg9eaNqTMYXr1G4yLifh4FFaTOPz/Bu9RPNfkEvlyINjc56m+
-# 0lAw560SD59sDDT0I3PaTkTlhb0zrzq6y104cjCfDPLu5JCis4Rn7N2VeuH76MEz
-# 9NUjgRwtilKSRu85tHioO5Gp4SiKRbV7CKBXbyRbpGn4lCTcWHqf0ng2l0AHD7+t
-# XnkKUUIZB7BAdmbehalfdtqmFDfcScW2vlI8LEGak4UdwjptF6t0PxFMQodfQ9Rx
-# L4MEmwE1+ktbigqux5VdBU0ZKuOgPYE0o0xDLYox5MrvvQY/MVFWqH5YNb8RASGX
-# x/jYNNeNmWSJPz+hthI6hrp0ujUlyYIBbdSHuP4CJimkSKnrkesSxBLzPdqm/9SR
-# a2sFZCURlUoOcgf9zZqXtxdRPsSviZ6I9Did3ftiyWvsLANOhByXsRfSY3X4p/Jo
-# Ap9jt3vyfsvcoL6DwQz2DYr2Fnj9Ld7Hc1APeqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBbUXhdfDUp
+# +4DtjuX4VzMfJtvIB4h+RFutKgGZNXnYuzANBgkqhkiG9w0BAQEFAASCAgDCutO7
+# h05iAeWA6KTeQ0gEwXLibOfNl5TvVOiBL4bRGg7nklB0uSx/MWOmJYX6SL2WzfN+
+# 7SIext5lBVoXRYALdwuysc0ArHeHVZGHnFhmcE+iyLYmIK4PlaOH2ZbSp2lNbtbp
+# 8yKgiP9cJRk4zlplTtYjofvcz7l49Po5GxxhPzc+DpnDEwiZ8x80rsdeByCq6EYV
+# P3AKiwKyon6f7k3/GEjm5wRQ9nnyVhqrQxsP1lwBBHnt42ZwADBOh85+r71aVU6p
+# ZAmrdTZLH6+FEjN26npiOLyByh6wQrqJ8Yi6ddC+Vj6Dg3Vrtuhq90QmUKbxsyfx
+# kca1p64D9wtJxukTZZqL0UVZbW40iJ4xutJnfvLVKP/mJsdpfK1V8PtjmZILCHqM
+# X4H0MTOlWlBCB/8dD1MrXAiKmTAfHOL5eOvANT+FSUiiYboxwRRhK74PuMHbk9uJ
+# edIMFGoBohXXEfRXe8EXEXWCU1hLeEbvz0tXEKPumEaSuoCdJ75hp/MewOSxzuFe
+# JQ4LEq2f+upbld0ti98QMuwaC2Tn0Sdz3xSb627JGZcqGE4kCTAS93dCpYYj3M4b
+# vbRfzAUhZU0pN1835hJtyBIpwZjvXSCQO9/gnu5+dFblOml9LhcuRMhau1hy9QGN
+# xJe4puqkYNu2+PqAf3FgF8g+knEXS5hv8a5x9aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MjgxNDMwNTlaMC8GCSqGSIb3DQEJBDEiBCA27oFSADsuWssOONC7
-# pJXcKZ5R6nmJcX1gP2IGeFZZ9zANBgkqhkiG9w0BAQEFAASCAgCwaqmLIoKKVYXl
-# y/lAZgiHhQ0VUOBD/qwUu80/kT+odQhTIbd60y30B4r0rviYvF9ZNnCCsVuwt5Cn
-# FSgbPiMgmEezLrvRFQgoyCnHQaE397LOv7t645ytxDPM/7KPxmCK4hyNqMtfZVh2
-# 8pwlV/DKMRgGGl7wXzRcbi3uRvE9ko1zuMe+UJo6zk2VNPGBUxjX+B6jKWzCHRtC
-# Uryo6oMEQOAK4qlKDzy+J91V74kJceyId/oScBCunoG0xqhvmk1JJO1KMIPM/dzA
-# PagERCIuOskY2RGaogPu2ai1nv9Y7CZMp+rzq3T78d/nAx7VlnjYfwARzZdJa2ut
-# BIpyYmhvpOwZoW3RoCI2OL/ysMsPtue2IqgYBTOqHcPMSnZFtXnLw8gDlNNcmVbN
-# kAP5Yx6+yerriO2qIDRc6af3mWMKZv6VmLsXqgKTEbryHYQOO6PCcUMMNs48OlSo
-# 9JRFNGAHAL6uwQu2/YQtr18D7WXr6UPe5iy+fe4NlWKa3wDwVVfJ5QmSE6b/6iI7
-# 3vN7XPge5oeKuJtx2Jo8af6DIrpqB2I0SMo9Y4S5gDW2FkBfzyuYn1Xg6ZPfQJ3X
-# 7249KzoqarJlxFp7OwvVX45MurT5TT7m8a7wHJQD6bygyzpVDnelzmi6VHkp6NKP
-# tKlW1SUfyKY4KPCj8YL1LaHwUKip8w==
+# BTEPFw0yNjA1MjgxNDMzNDlaMC8GCSqGSIb3DQEJBDEiBCCqp5NmakHYzbRjyELX
+# o1SX1yxFSomEkyyMV9Hu83wjDDANBgkqhkiG9w0BAQEFAASCAgCaI5m3ExauNa1i
+# ypXufxV+JxlYiItJ/zV1cRA1sfyM3CTwzVVKrF7aqT0m1B0GE6yBn6cqKeGoK9SS
+# K8VeIrIN1VTJLMNDKXqooma/yI0F2MVLLzZHuS+4uMCBIvlMN8Xc4fx+E88i4ZV+
+# GNDOOrCR937xi/6omNy8SmH5jF0tMDkCRevOTc1kisb75vQzMj98r6hV0HkVtrJT
+# QHrlMYQs6slQaamXDR1l7WhfrFn7hym7nK+vGMO8p7mTnC2tvsme5M/VrJoprJo9
+# sj3b3N6yVboBGbmu30W5tMFMrgTaeqaNitG8b0NGovstEHg4JyiaA4nDM4hCqNTk
+# cpBGz0eZFP3hCG4b/SR1GQnGuWdFdwoXQUB3D+ajiFSeqYiIWqtZ5llRQ1DVXzN5
+# S3GQLFBP89UEfSctIPymSbQ4OigEDA7F7Fimb8zUadqzvXjsvshJlaQUwiiwPBYB
+# xUwjXbmlDt1HG1Kzl798TlCnxJWnLzJlu7gWYn5ezIxEvRjIE0sDsm4Z9dXBhZfR
+# CCNy4dOe9NhE7PEquPfqMqs/E3+A3jeXg9nurqBX8uoBxA+Thd5ROgsodBBKFUDD
+# pHMhbeDyWs2GWRlyjhEhjxWyhXxxiUaBgCGFtqc3tB5XRKH7cVPDnSUePGs+6cQs
+# PXlkRTiO7KPOEcKUo0XWAkiaoHgskQ==
 # SIG # End signature block
