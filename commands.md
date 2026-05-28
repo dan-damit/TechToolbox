@@ -59,6 +59,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 - Find-LargeFiles
 - Get-BatteryHealth
 - Get-LocalAdminMembers
+- Get-ErrorEvents
 - Get-PDQDiagLogs
 - Get-SystemSnapshot
 - Get-SystemTrustDiagnostic
@@ -125,6 +126,9 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta
 
 # Pagefile tuning
 Set-PageFileSize -ComputerName Server01.domain.local -InitialSize 4096 -MaximumSize 8192
+
+# Review recent system errors for specific event IDs
+Get-ErrorEvents -LogName System -EventId 41,6008 -StartTime (Get-Date).AddDays(-1) -MaxEvents 50
 
 # TechAgent first-time setup (create/repair .venv and install Python deps)
 Install-TechAgentRuntime
