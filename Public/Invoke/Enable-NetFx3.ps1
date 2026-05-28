@@ -48,6 +48,22 @@ function Enable-NetFx3 {
             ($parts | Select-Object -Last $Lines) -join "`n"
         }
 
+        function Normalize-NetFx3State {
+            param([string]$StateValue)
+
+            if ([string]::IsNullOrWhiteSpace($StateValue)) { return $null }
+
+            $trimmed = $StateValue.Trim()
+            switch ($trimmed) {
+                '0' { return 'Unknown' }
+                '1' { return 'Disabled' }
+                '2' { return 'Enabled' }
+                '3' { return 'EnablePending' }
+                '4' { return 'DisablePending' }
+                default { return $trimmed }
+            }
+        }
+
         $results = @()
 
         foreach ($cn in $ComputerName) {
@@ -73,6 +89,7 @@ function Enable-NetFx3 {
                 if ($r -and $r.SystemTaskPending) {
                     $taskName = [string]$r.SystemTaskName
                     $resultPath = [string]$r.SystemTaskResultPath
+                    $workDir = [string]$r.SystemTaskWorkDir
 
                     if ($r.SystemTaskReused) {
                         Write-Log -Level 'Info' -Message "[Enable-NetFx3][$cn] Reusing existing pending SYSTEM fallback task '$taskName'."
@@ -96,7 +113,7 @@ function Enable-NetFx3 {
                             $stateLine = @($statusOut | Where-Object { $_ -match '^\s*Status\s*:\s*' } | Select-Object -First 1)
                             $state = if ($stateLine) { ($stateLine -replace '^\s*Status\s*:\s*', '').Trim() } else { 'Unknown' }
 
-                            if ($state -match 'Could not start|Could not run|Ready') {
+                            if ($state -match 'Could not start|Could not run') {
                                 return [pscustomobject]@{ Status = 'TaskFinishedNoResult' }
                             }
 
@@ -139,7 +156,7 @@ function Enable-NetFx3 {
                                     $result.ExitCode = [int]$parsed.ExitCode
                                     $result.Success = [bool]$parsed.Success
                                     $result.RebootRequired = [bool]$parsed.RebootRequired
-                                    $result.State = [string]$parsed.State
+                                    $result.State = Normalize-NetFx3State -StateValue ([string]$parsed.State)
                                     $result.Message = [string]$parsed.Message
                                 }
                             }
@@ -150,6 +167,18 @@ function Enable-NetFx3 {
 
                         $result
                     } -ArgumentList $resultPath
+
+                    if (-not $r.SystemTaskReused) {
+                        Invoke-Command -Session $session -ScriptBlock {
+                            param($tn, $wd)
+
+                            try { & schtasks.exe /Delete /TN $tn /F 2>$null | Out-Null } catch {}
+
+                            if (-not [string]::IsNullOrWhiteSpace($wd) -and (Test-Path -LiteralPath $wd)) {
+                                try { Remove-Item -LiteralPath $wd -Recurse -Force -ErrorAction Stop } catch {}
+                            }
+                        } -ArgumentList $taskName, $workDir | Out-Null
+                    }
 
                     $r.SystemTaskPending = $false
                     $r.SystemFallbackUsed = $true
@@ -305,8 +334,8 @@ function Enable-NetFx3 {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCZrmaE9/EL8H8f
-# ig8uJansCQ1xoWhRo3at6D0Lfuhri6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBRw6q4RK5+V537
+# snXqd4eLmLiJ0/W7WsrOGOmlcSrMgqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -439,34 +468,34 @@ function Enable-NetFx3 {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCClWn9qVzSx
-# x/dEcdvaNstQRbDOyLGh2Mbil1SUvGwSojANBgkqhkiG9w0BAQEFAASCAgADO07Q
-# EavDc3xlADg7wOIu4uLl1qcRBIYvvkNB1RYLh02NIGDBe9+FhCVMcDbHWs2RH5EU
-# Nq1iEfhV5sD1N5UE6yHZa5y28AYPGxPDnCIUwm5o3t8vtj2tzPhMnyiTjrBqvh6Z
-# Ma8DH5k55R09W+XbHQwsPJTygcrs4L4zr17T1Mr5TIB36zclYEoUo6La3FMqhiqE
-# hzAxSMxEqFyA5QuLUkVl5fvRMDC6C6wx4YqlUwhpA8chdBZAtmIpKBhyOUM072AS
-# Spat6rd3VyqatZDYGIePMMwzkCrMokKCeOZBDxJVWFmYI4/soQAgbWHiGJ6qaVMk
-# mxCz6yJ+sXctfWCRhzTyQMhb2zPKVME43qIK0W0Mwkz/CLXoSNpMFVzRpVpkEFtu
-# aAIvBBdovIcmBjkKS0hupP2RCtXxNyx4xB3LreJmD44NOry1vj9D8djVnFzUYyxd
-# FgSiJlZ7YPMs5yBX37PthJV9SF+AYHiZayUYTF371mVyXakM8UKp1X4mSu/5x/NX
-# 7JN3xM3aIzmjKejVFsL1uHfS6V6a6Uirciz2S6Nii5fU2WvJx8dbzDGE4iU1fYP+
-# eUzYhLz9yzDypifKfe8VJ2s5FLr82Ta1Sys75FJWkOzJ0iKgD0iaFzqd1Q4wqwU+
-# suijWyghmNd+llgvDpAWudRnxUtkfvyoOAINNqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAATgzW7t17
+# B72LbmCZCz4HCAqOaOmgSrt2rUqSHasXHTANBgkqhkiG9w0BAQEFAASCAgCS9rvb
+# RAesEXM5Gw/8UMMhUYGwLie2W2J4fPgqX5Y6mOcAEPHolfvYtI7eyOMS2+ORBWlG
+# c5uhGktSsU3rTN9rFsJBHL+7U/oM3dLMa5pRknE+pPvxvl9z0rdxPOY4hNUfAG18
+# fHJpCgVglyTC4zOTVRD5YNVcAYdz7hbdkmdOIx0QVPaEWUzyTQI/J7nQoi/3AG7N
+# xaRG3BDvzh6RYtZkg9eaNqTMYXr1G4yLifh4FFaTOPz/Bu9RPNfkEvlyINjc56m+
+# 0lAw560SD59sDDT0I3PaTkTlhb0zrzq6y104cjCfDPLu5JCis4Rn7N2VeuH76MEz
+# 9NUjgRwtilKSRu85tHioO5Gp4SiKRbV7CKBXbyRbpGn4lCTcWHqf0ng2l0AHD7+t
+# XnkKUUIZB7BAdmbehalfdtqmFDfcScW2vlI8LEGak4UdwjptF6t0PxFMQodfQ9Rx
+# L4MEmwE1+ktbigqux5VdBU0ZKuOgPYE0o0xDLYox5MrvvQY/MVFWqH5YNb8RASGX
+# x/jYNNeNmWSJPz+hthI6hrp0ujUlyYIBbdSHuP4CJimkSKnrkesSxBLzPdqm/9SR
+# a2sFZCURlUoOcgf9zZqXtxdRPsSviZ6I9Did3ftiyWvsLANOhByXsRfSY3X4p/Jo
+# Ap9jt3vyfsvcoL6DwQz2DYr2Fnj9Ld7Hc1APeqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MjgxMzUwMDVaMC8GCSqGSIb3DQEJBDEiBCCIypqphIEVn0ElJXf2
-# L5luzln2gRY71AsylQf9DKaY2DANBgkqhkiG9w0BAQEFAASCAgCfImpoNxtcxyWr
-# JwHtsn/BSbL3dBrthRF5+cHkKopgcS63ZRjeFcUkOJEVIpGJ93GNA2cpwfuYaKRE
-# y+jERM7vHaDmtIZ5aWSbKEeFpUyPoA7ccXAounAKAFvXwRwNustspCrVtXeqIIF8
-# cW0XSjAbKMFXO1G8KWlpMtA61nTF9w8uvmLqosc+zgUXJqNdVbupp7QS8X/RBEp2
-# IMjpnsG6CDKtFT/L2JNLS4bz81QaRTnVg8oQTHmofEaziAbPzNoOa3KGTx7AJayf
-# WpSQr+FOFyMUMs2tVwr7Ak9BU0JbrhxQx7t8O7gxgbKZhs0O8vKQ0vD5EROnQNir
-# 5d7LA6SbbJ6vbfvu+WnO01oHHvni3ka6iFyV0PyCOa6bMPYi09S3JjMWYhhsP85H
-# woipgyj8ouy6r/0ta2ZeviKKm0Bg7Y/Uf+vOAibC1+1Pf8sAgCMICChN+Iuxnb0N
-# eRmL4mHUWWzsj0hd4O7YLHOg3TDACZoY4Hh1MGNp1qY/Y7abMSkxl8ffAjwHXEn9
-# pOukxZvTwFe9Ypg5aG9imZW6pk1Cw30UPMZceufLMSifl91OMs0FfXHL1xzjszno
-# 6eiaBjdodzDQAt3nbrBU2+5qnXRe90k01VhSwJXk1Ax9IAGQn8fOkQFjdhs/BWPM
-# ZjEfuplrO6BWwRsNDB07e/cq+Qr0UQ==
+# BTEPFw0yNjA1MjgxNDMwNTlaMC8GCSqGSIb3DQEJBDEiBCA27oFSADsuWssOONC7
+# pJXcKZ5R6nmJcX1gP2IGeFZZ9zANBgkqhkiG9w0BAQEFAASCAgCwaqmLIoKKVYXl
+# y/lAZgiHhQ0VUOBD/qwUu80/kT+odQhTIbd60y30B4r0rviYvF9ZNnCCsVuwt5Cn
+# FSgbPiMgmEezLrvRFQgoyCnHQaE397LOv7t645ytxDPM/7KPxmCK4hyNqMtfZVh2
+# 8pwlV/DKMRgGGl7wXzRcbi3uRvE9ko1zuMe+UJo6zk2VNPGBUxjX+B6jKWzCHRtC
+# Uryo6oMEQOAK4qlKDzy+J91V74kJceyId/oScBCunoG0xqhvmk1JJO1KMIPM/dzA
+# PagERCIuOskY2RGaogPu2ai1nv9Y7CZMp+rzq3T78d/nAx7VlnjYfwARzZdJa2ut
+# BIpyYmhvpOwZoW3RoCI2OL/ysMsPtue2IqgYBTOqHcPMSnZFtXnLw8gDlNNcmVbN
+# kAP5Yx6+yerriO2qIDRc6af3mWMKZv6VmLsXqgKTEbryHYQOO6PCcUMMNs48OlSo
+# 9JRFNGAHAL6uwQu2/YQtr18D7WXr6UPe5iy+fe4NlWKa3wDwVVfJ5QmSE6b/6iI7
+# 3vN7XPge5oeKuJtx2Jo8af6DIrpqB2I0SMo9Y4S5gDW2FkBfzyuYn1Xg6ZPfQJ3X
+# 7249KzoqarJlxFp7OwvVX45MurT5TT7m8a7wHJQD6bygyzpVDnelzmi6VHkp6NKP
+# tKlW1SUfyKY4KPCj8YL1LaHwUKip8w==
 # SIG # End signature block

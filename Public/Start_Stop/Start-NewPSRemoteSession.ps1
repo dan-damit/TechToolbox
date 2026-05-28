@@ -47,6 +47,10 @@ function Start-NewPSRemoteSession {
     .PARAMETER IdleTimeoutSec
         Idle timeout (milliseconds) for the session.
 
+    .PARAMETER AsList
+        When set, returns a list-style summary object for display instead of the
+        raw PSSession object.
+
     .OUTPUTS
         System.Management.Automation.Runspaces.PSSession
     #>
@@ -68,7 +72,9 @@ function Start-NewPSRemoteSession {
         [string]$KeyFilePath,
 
         [int]$ConnectTimeoutSec = 20,
-        [int]$IdleTimeoutSec = 1800000  # 30 minutes
+        [int]$IdleTimeoutSec = 1800000,  # 30 minutes
+
+        [switch]$AsList
     )
 
     Set-StrictMode -Version Latest
@@ -83,6 +89,31 @@ function Start-NewPSRemoteSession {
             $id = [Security.Principal.WindowsIdentity]::GetCurrent()
             $principal = [Security.Principal.WindowsPrincipal]$id
             return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        }
+
+        function Get-SessionOutputObject {
+            param(
+                [Parameter(Mandatory)]
+                [System.Management.Automation.Runspaces.PSSession]$Session,
+                [switch]$AsList
+            )
+
+            if (-not $AsList) {
+                return $Session
+            }
+
+            [pscustomobject]@{
+                Id                = $Session.Id
+                Name              = $Session.Name
+                Transport         = $Session.Transport
+                ComputerName      = $Session.ComputerName
+                ComputerType      = $Session.ComputerType
+                State             = $Session.State
+                ConfigurationName = $Session.ConfigurationName
+                Availability      = $Session.Availability
+                RunspaceId        = $Session.Runspace.InstanceId
+                PSSession         = $Session
+            }
         }
 
         function Test-CredSSPClientDelegationConfigured {
@@ -339,7 +370,7 @@ function Start-NewPSRemoteSession {
 
             $portInfo = if ($sshParams.Port) { " (port $($sshParams.Port))" } else { "" }
             Write-Log -Level Ok -Message "Connected to $ComputerName via SSH$portInfo."
-            return $s
+            return (Get-SessionOutputObject -Session $s -AsList:$AsList)
         }
         else {
             if ($UseCredSSP) {
@@ -367,7 +398,7 @@ function Start-NewPSRemoteSession {
                 }
                 $s = New-PSSession @wsmanParams
                 Write-Log -Level Ok -Message "Connected to $ComputerName via WSMan ($Ps7ConfigName)."
-                return $s
+                return (Get-SessionOutputObject -Session $s -AsList:$AsList)
             }
             catch {
                 # Fallback to Windows PowerShell endpoint
@@ -382,7 +413,7 @@ function Start-NewPSRemoteSession {
                 }
                 $s = New-PSSession @wsmanParams
                 Write-Log -Level Ok -Message "Connected to $ComputerName via WSMan ($WinPsConfigName)."
-                return $s
+                return (Get-SessionOutputObject -Session $s -AsList:$AsList)
             }
         }
     }
@@ -399,8 +430,8 @@ function Start-NewPSRemoteSession {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBkgcyRls5HMdfl
-# dEJQL9galQrWogncZBb/+r/i3DV5JqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAnDxubrT0sWDMO
+# MkzRGCA3xWWIkTP2seNiIez3K4IR3KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -533,34 +564,34 @@ function Start-NewPSRemoteSession {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA6KOiZsmyU
-# Rio2y9WUycNHvB0M7EDDLfJpdh4QAq8q6DANBgkqhkiG9w0BAQEFAASCAgAbLGaA
-# 4YPlhcipK9lENjmU09j/4By8faoxFOuMIyoblCJusX9AezH45qTcRQh5ebGjrVdV
-# 7tA+bvfFzeDEm+VUPAWfZBaxYXNdNmlV2SU1GuSMykfysoeznD8LS6+n+GNzp+q8
-# 55L+XaR1lz0IihNdEi3AEMfyixNSJu3lbPWnZQ7INWnpLpcFfNSj3f6hL3URkvb+
-# z5Shrcv1AbvV698WXbFR3Yqp/EKTtRk7Te64zA+X6dEEFvNpzNZaMc3pJHoxcQO0
-# giwzcKI2mbCI7q95IFQ4WrnubC9XG+NZ9wqR3W/Tf0gbYF8Jscg+dKUOkiRxIitf
-# j8PJJP02qvAt2bT9co9TuM9Xwheo/Cx9QZbaFxkLFNtYCSFpfx9FHYjX1q246tlZ
-# HNFK5QAAXxMnWVGMDNlJYBzsd6BrZe9pobgBbGz0C2nmjAEaGf11yk6B7Qr/NRQs
-# 0p+m4QnAguBePoyRxL9i29TbVITMIsBAXsUbyYdiKJYLDFRDzT9ZrjwiI7byWvOE
-# TuuyI4FZa4Op885iQkP197I/OWIg4ixZlOz5v7W6HEqYF+lDcC7zrgQKc0dPV+AY
-# 1vDbZQEdGPz+eC4orEBTKRabq2UFDXNavQaNE9FlsSRnKyPLgPIKH9J9jIWLIub3
-# 6SawGItV65EtYsLabN9JLT5VgTo0ujTN17Zz56GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8gPHl3FeN
+# zqMuh81vKygRX6qY8wIrGbD4o7KviNYU/zANBgkqhkiG9w0BAQEFAASCAgABIJxZ
+# fKyezNp8UO8mBKYDy6Iu3bcUp1mVXH8UJvS1a4T51PsDi9i74SvkKO1sTDPOtDHe
+# m9ehC7aZKb5ynC6hsDvRDJxTpYHuswaKCkT/E4mC6uGW/jJavX011/VyECtGC0bJ
+# bKqQP9GOjZ1dwCXHUcxdaf7XKPwD9NtQrcFouLLWjpUWqWEMwkRBsDSbFOzhjdWE
+# CkXCDftYFQg3hwyUc4ld8NSDge9MupzjwTuz1Ewaowep6YvnYuV2zQp1XzgvmOFV
+# SwDIRz2zxBxSv1KCZG1u2B5OSLPOBG2r6xb69XLAy2gRiv6HY0xYGx8tmncCy8Ts
+# tg2aepR7SIwE7sHELMaXk+UiCmglmGne2XO2OxUUctKkiP3OefCqfZvtiPCv6djt
+# fpBBVinM9y9bM+motW8Y+7ZtWhfxSbVwzGFXkT36jVtUnliPe350uMLLsj7Rfrfh
+# Ng2UE/7WgD9BR16LPvCq0hGVqBTjsWSpf97vLJPfIX3A6u7M2SH/h2ypwXcVEPis
+# vIKqr4ZJ0j4jmTl57SXVNhDfSmu25Vdhw3tzuO88R0X63skjByvj+oLhAYLCTzmU
+# l3PdWD6wsmjrPcRGHa0DbfKjbRIphWcEu0kO3Viz3BtLlqdXAZSo2/nVf8f6OfJU
+# urfuR6FbP624p9rGdKURwJ8Lht45Z8atHFjh9qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjIxOTIyNDlaMC8GCSqGSIb3DQEJBDEiBCAUOyLuLNZ3le4hallb
-# ZHv7aeGPpLqIvsAhhYuCSXR6EDANBgkqhkiG9w0BAQEFAASCAgAZQmk71gaXItZc
-# g3eRv1aU9Uv6LvGvlR40zrMEO9NXx3uYX7s1oM1mfZ8+IrvaaT5MWyZu/tNP8Bnv
-# H9CsYgPxOftCct48v6fk535+HV5U5Y/YTpOeQ/1hlzYyMMnugspDufd+Ole7Oubv
-# ChoJ1fcDB3g9lrRlKFx33Ow6gjsPXXbduvlSsfk+yhWYLly17AF9NsBFkw9RHpcM
-# FfMMjbyxnbW3sA9pxugPbev3DbW79m84rIdkObykhUbNjS8xGvnqkmdnVEiJUKQW
-# +y5VE5mO9sk+mz+bJ5Qyj053C2INLhdY8rSXrAwa/JqjW69sgrfFuXv41RQATm6s
-# QQG6geIZCSPZH9oR1gVswtlCCwjotA/vBxqPhLdZqarmrJnjCtf6NzlVNbzDb6DX
-# /kuNS3W21yZJgdpFoshzBSttTKg+aLBY0FmxZYeuVvt3ngBeYsqK/b2tRciZgquJ
-# tOPkmDT1rN6E4nqtDMviMTMGtOuIIJio6533gewemLT6EF2XV8heEjfun1PI38XZ
-# 9WfZLqZzG9xaS1iTVXsfe2IppKEGqrQQMg2dhR4yHg5ivN2vkppTvf+YiTdvTKM+
-# yRDwslyitQ2MIYqGawUhjZqKw+F9CCutL065i6cOGMOL2togejv2tVhtT0aBtBdr
-# /TceEdTqurYjAlJXCJv5h+citZsbYA==
+# BTEPFw0yNjA1MjgxMzU3NTFaMC8GCSqGSIb3DQEJBDEiBCC/cX5geNLp7o0xlaoN
+# kjTL4Lzg8fQGiuSjFRIXsUFqczANBgkqhkiG9w0BAQEFAASCAgBrR9EmdlKFMGle
+# SEClfs91rXhpKwiNRZfWGVIr8AC0SB+Ec+Dyd4yKGlUpSHs1/iYyp9wdqdtq2uyK
+# Kg5rnk/5gD0QP6biCwOLiD1lw2CYBFi+SlCOny17Y3KFbxrLmcKjaKWZmsm2OEp6
+# u3Rr81s8grfTdOP+99tYBW9Ny/jRdBZ2LWoBqMLCvxrBxfsaYEiveJutz9/0Njsm
+# smK29psZcarp++fI9zs+pb8UhRWaLzvLqSRXvIOaRquXldtsW+cy5AUfJVnhZJSb
+# tkhRFzbwpRgDlhHzTsTgImUrmDbeenyFFYktlsp4Pb9DneepTjKEUIWBBfiffH2h
+# ktZHI6BPlb4AaVfocQYRdhkknk/ni5NGXYzv8j+6NM1JM/2GWRtWx2nq3D5paZLo
+# CJ9cdt5c+DNN3uSkt+veLqNThuYPePoMr2KdmQFttvrfh1ChsC+9zuFap6cZmeKn
+# GfAL2I1paIQrQVat/WAUGqznnZdadickl600pE4X4kbOgGusjMcceqsV1NO9rGSV
+# s1QF0AyY4H6mOqRkqbr/CD7Ue/QBm4EG0oa4Nv31WTTyux+ew+pIS7X8+fFhyKIv
+# xBkPs3l4kjY4vTMrmSztczMUVZKyDLXwS1KX7RU1lEYAU5NFjJL24GJfgWu2SNso
+# Ec66N5LEGUbDMDm78bMu+QdLsvn+ug==
 # SIG # End signature block
