@@ -25,6 +25,7 @@ The local AI assistant work is actively evolving under [Public/AI](https://githu
     - [Exchange Online message trace](#exchange-online-message-trace)
     - [AAD Connect remote sync](#aad-connect-remote-sync)
     - [Pagefile tuning](#pagefile-tuning)
+    - [Error event review](#error-event-review)
   - [Project Layout](#project-layout)
   - [Development And QA](#development-and-qa)
   - [Troubleshooting](#troubleshooting)
@@ -227,4 +228,4 @@ Invoke-AADSyncRemote -ComputerName aadconnect-01 -PolicyType Delta -WhatIf
 
 - Author: Dan Damit
 - License: Internal use
-- Module version: 0.4.59
+- Module version: 0.4.60
