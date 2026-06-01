@@ -136,12 +136,42 @@ else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
 # --- Gate self-install / self-heal (skip or once) ---
 try {
     if ($env:TT_SkipHomeInit -ne '1') {
-        # Simple sentinel: run only if the destination doesn't exist (or add your own version/sentinel check)
-        if (-not (Test-Path 'C:\TechToolbox\.ready')) {
-            Initialize-TechToolboxHome -HomePath 'C:\TechToolbox'
-            # Optional sentinel drop
-            try { New-Item -ItemType File -Path 'C:\TechToolbox\.ready' -Force | Out-Null } catch {}
-            __tt_trace "Initialize-TechToolboxHome executed"
+
+        # --- Determine OneDrive root (Business → Personal → Consumer → Fallback) ---
+        $OneDriveRoot = $env:OneDriveCommercial
+        if (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDrive }
+        if (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDriveConsumer }
+        if (-not $OneDriveRoot) { $OneDriveRoot = $env:USERPROFILE }
+
+        # --- Define TechToolbox home path (override allowed) ---
+        $TT_Home = if ($env:TT_Home) {
+            $env:TT_Home
+        }
+        else {
+            Join-Path $OneDriveRoot 'TechStuff\TechToolbox'
+        }
+
+        # --- Define TechToolbox module root (where the module actually lives) ---
+        # If you ever separate source vs installed copy, change this line.
+        $TT_ModuleRoot = $TT_Home
+
+        # --- Export for child sessions ---
+        $env:TT_Home = $TT_Home
+        $env:TT_ModuleRoot = $TT_ModuleRoot
+
+        # Sentinel file
+        $sentinel = Join-Path $TT_Home '.ready'
+
+        # --- Run initialization only if sentinel missing ---
+        if (-not (Test-Path $sentinel)) {
+            try {
+                Initialize-TechToolboxHome -HomePath $TT_Home
+                New-Item -ItemType File -Path $sentinel -Force | Out-Null
+                __tt_trace "Initialize-TechToolboxHome executed"
+            }
+            catch {
+                Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
+            }
         }
         else {
             __tt_trace "Home already initialized; skipping"
@@ -153,7 +183,6 @@ try {
 }
 catch {
     Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
-    # Continue; tool can still run from the current location this session.
 }
 
 # --- Load Private functions ---
@@ -206,8 +235,8 @@ Write-TTLoadedLine -Status Loaded
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAhDTQl1CtIuJsi
-# LjFadx4Rof+NveGHsfcqzrlgTIt6uqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAqLsCag+GkZpQN
+# 5bYAs+eihaoqJPrslsRjAanJ8ZbFVKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -340,34 +369,34 @@ Write-TTLoadedLine -Status Loaded
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXb8UwYIsF
-# 8AQ8rha1k3y/IDQI6BFFFd8ko2ZjIwCjmDANBgkqhkiG9w0BAQEFAASCAgBSe8yj
-# HKZ8+x+tsGRR5k507igwTHgRlc48oRZC0rDulj18RcE5bvazXT5GhDeiJtn2oQ1F
-# 987TNOeLghYh7M/OvsJK4bCdul81Xpegd+rcSbI9RGyWHRtnI8fVZtWDjDz7ehl/
-# sTcgynC8dNN343QoJGHpXbHg+s3MTdbkRWSyvXGTnn+ihUVFsmrd96HwMw6ZvX9I
-# EdlQyJ0iVijAUqgZmUvV/jp2uQjzrwqqTCgQzmNGl6NGrHXwBuiyqLGHKEJ9J643
-# QvAnNdu17HmEkhuq1KcH/qYK9E/kK/I8ZhdfGvEuFEBFAFjyBtKgNPMA7GTTUiEq
-# sghq7Hr4Zn15HT04Ajccd79mBMSziB0TjcxWW5jlDOx5Ej61m0PToEsxaOwsxdLm
-# cgkgNBRfU638SVjYAcqwJjLLFHNQIcMNWYdN2D4Ciky5CY9/AJ2Do5SorKsAiDht
-# xGKmyOUerKcxdW4dlICAi/jgEpZN+v9WrnaykUL3GysRKt90e99C/ii22uMg5NzG
-# 0gUAXvrbp8dYSHMaYKiW78sveRNkPmxs9bZBzjU8CPJrxnRon3B28KO+HEKrL3MN
-# fYE/OOHC3ppMXe/DUv0voUKxySTJuPRkvSwtmQFRuVpptZyaIr7Rlh84gfHL47p+
-# S/xHCKjoWMdShj3jrVR6Uh1Q2ePLr4auwi2rxKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAVYyess+eY
+# U1TMfJBkN4UAdrtVhRgwzwYNtPchcmGD9zANBgkqhkiG9w0BAQEFAASCAgA0f3k3
+# p/ZNhRwD++/HSKo62exd41X4uwMGPoGuwaEXt8Qv/t5L4XRFKSUM8gZansuKcLni
+# yaUJzLEOvSLPLA4kWhvkANXs0Moiuy6gIgo22KUwhT16C73p/YNu0ABpD+2tTs55
+# gCLLULUSK4tuCKHSpSkOS2yBrSYYB1GaaOCUwPCBuz8aqygn+H0cnUn2aJRSw1eG
+# 8Nwllc9vTatZMyR2qPRm8mWvfYhyK12U5GI27G6XB44i8yrmfnwLTJSiLUPpPTbX
+# NtGxcFyj7Pe4wxVcMSu9+LTKnIak7frBc233TP8MzuoHggwpquhqrRwbw9cxZScK
+# G+mvhdtyIyOKp7goEls/sN8tU9Zykkqnpb+HjqllHYR/MGSuqPavpvIcSX1J8aqu
+# qPu/Gjq2kDBqmG/arkkPzqByrN0g1vk85PV/XcC7AuMqSCp8SJ1O9UU51wCK2skI
+# PVE0ATWUx+hQQRh9T1EBRN28x0I8Z4Oa4JgAVWJvGpoaE/KlPLfZ0QUUeWdXtxAE
+# 4rPuGCK1ToRym8btfYzrfe7oPB/XgvoKQ0v0PT/pZgP9Q/5LuNHH2ejqL6dLL22M
+# HKvcGB0P5WUROjT4o/f8rK3Ornvt8/3uZIfMKdKnzsaFDlbIz4y8aRnV5w+sD3BG
+# F76OVEyYSP6YEl2Ybbvw2yJp2D7HWjIyhHnK4KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDMxNzUzNTVaMC8GCSqGSIb3DQEJBDEiBCD2ngWi/vjTarkbZFWO
-# ScPLfb4TQUGQ/htJHqp2DQD3LDANBgkqhkiG9w0BAQEFAASCAgBPuNinATZfJFTN
-# geh2VyG/TUel4ghyQ6Fuzud/ijsD1c1ComRhEynAVXAi+VUg7Qz5wyvegHWH4/hV
-# a9IUTZ7ANx2LrTa68TIJXZ34hAwoB42xD5vxpJFkZZE+UCMcOczx6OA+APxZzZ6u
-# WxMMtyg2RPl9M9amFkXJfrGC+tpJ1W9CZxn/+xkBLYt/ICx3A2MJzVVipw7wgZPs
-# LpmcBe7O9jF3pOt2/W5CKnxHtfD4VBq0SimDXfFNUByGFL7VG3+unCDY5M//jnco
-# BWeRd4+KZQ1DeBYFUj1nn6VclXnpFUPJLxGrLQjMpgtgdD46vsb4Q361zhrPe9ZK
-# n5CwfW/qKD+laJSYzP32PVA6d0F6nHF35hjoO1FptDZ2p5tPB5tgPEM52I8bqkHi
-# gK4Cj7QeAgzDWtDw+RspO6JhRkzGlZiG10NjpOE4xTkD7RoFx9FhCqUrvJbPP4xI
-# HgS85rEcKKAwXyyb45LAUFx79MGy7IPLDba6LNqXwUGIgiv27ZYtjcepBSGEcHDt
-# tAFAKiI/4ufsRLQ6IqRSCHh9AsOQdKSDURImOSaO8S95iQNRHYTDoeploqqyhRkw
-# k6CxvjzWa9Szzt1aJCUz3z0wRTcgMH5qN2gEXxS2+pg+ZzlkhgdQOCoqOeB8LXPg
-# ASQLw1fZBCwLBATGAyKeRssQ7aOdYA==
+# BTEPFw0yNjA1MzExODMzNDVaMC8GCSqGSIb3DQEJBDEiBCAcucGB9iyjIO9YPQs8
+# /XTbIFZrApeEjqnJmMugUgAJyjANBgkqhkiG9w0BAQEFAASCAgBzYqqUvxPr16jj
+# 0CDUWbOuNs2/Dd3toFgYwXHLFv2RJ3bRDkCSJnAuGN5Kw3HXENfmIgX/mbUAkw1g
+# m+u1Yvz3owcJVx28CutSbYzoUW2NPwP73jVw62hlCdHnI1vtUMIAWps7GgKUpPRt
+# Dl69KAnQ5MzKOPGjcP2YCkILiLxYILy1WSAdxgntZX0rLMzk76jKOYytf3r5Lauv
+# Blc/e5EIDDXBGjdbr7c50VR3fhMNqzou6MYO1PsDZG/ciLrjJM62etayO5ugfCic
+# /DV5kNDJJ8Vm0JRa012UG+KhuN115M7rmLNPLQpv2U33gkDRldMF8J4NSMzxfBOO
+# 3SuAW6dNh3axzUiTMpGKsc68RPCt/sfVVylktpSSs2sHn5HDWt6by3/dS3GcaHbu
+# UQgFRHL653j8oNhJaHlAuZjVHunADsFx2Gz9IiW6O2yV+NYOkGIUXku+J/bdRPa8
+# yT5w/4FsVSpZiy5WlRtPFnSamPQhJIv7mXSV6vej0rl4kIyXQ3GqaYRz/7aYyWlO
+# LptGxVqH6IcehLAoychN+f1+UTiDKxosaBTo6QaNebUtjOYkilyaQULG746SFJwO
+# H/M86yXoV6jzHCFFZj4r6oyZHg9cJIbffKcXq7p+FleCgC35lrSDm/foUwmK0vgX
+# 34zXbDZoDhE+z2mGv9sMDqUsVoQFog==
 # SIG # End signature block
