@@ -43,7 +43,7 @@
     "systemUptime": {
       "logFileNameFormat": "SystemUptime_{yyyyMMdd}.log",
       "exportPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\SystemUptime",
-      "logPath": "%TT_LogsRoot%\\SystemUptime"
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\SystemUptime"
     },
     "workerPath": {
       "default": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Workers"
@@ -71,13 +71,13 @@
     },
     "systemRepair": {
       "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
-      "logPath": "%TT_LogsRoot%\\SystemRepair",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\SystemRepair",
       "defaultRepairSource": "\\\\utility-1\\OS-Files\\25H2\\sources\\sxs",
       "defaultRepairSourceIndex": 6,
       "retryWithoutSourceOnNotFound": true,
       "useCredSSPByDefault": true,
       "defaultComputerName": null,
-      "logDir": "%TT_LogsRoot%\\SystemRepair",
+      "logDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\SystemRepair",
       "runRemote": true
     },
     "remoting": {
@@ -122,14 +122,14 @@
       "autoConnect": true
     },
     "sharedMailboxAudit": {
-      "logPath": "%TT_LogsRoot%\\SharedMailboxAudit",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\SharedMailboxAudit",
       "exportPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\SharedMailboxAudit",
       "workerPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Workers\\Get-SharedMailboxDeletions.worker.ps1",
       "logFileNameFormat": "SharedMailboxAudit_{yyyyMMdd}.log",
       "exportPathFileNameFormat": "SharedMailboxDeletions_{yyyyMMdd_HHmmss}.csv"
     },
     "remoteSoftwareInventory": {
-      "logPath": "%TT_LogsRoot%\\RemoteSoftwareInventory",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\RemoteSoftwareInventory",
       "outDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\RemoteSoftwareInventory",
       "throttleLimit": 32,
       "includeAppx": false,
@@ -193,7 +193,7 @@
       "promptForContentMatchQuery": true
     },
     "browserCleanup": {
-      "logPath": "%TT_LogsRoot%\\BrowserCleanup",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\BrowserCleanup",
       "killProcesses": true,
       "includeCookies": true,
       "includeCache": true,
@@ -205,7 +205,7 @@
     },
     "logging": {
       "includeTimestamps": true,
-      "logPath": "%TT_LogsRoot%",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs",
       "enableConsole": true,
       "enableFileLogging": true,
       "logFile": "TechToolbox.log",
@@ -231,17 +231,17 @@
     },
     "dnsLogging": {
       "autoEnableDiagnostics": true,
-      "logPath": "%TT_LogsRoot%\\DNS",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\DNS",
       "enabled": true,
       "parseMode": "simple",
       "maxLogSizeMB": 50
     },
     "aadSync": {
-      "logPath": "%TT_LogsRoot%\\AADSync",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\AADSync",
       "defaultPolicyType": "Delta",
       "defaultPort": 5985,
       "logFile": "AADSync.log",
-      "logDir": "%TT_LogsRoot%\\AADSync",
+      "logDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\AADSync",
       "allowKerberos": true
     },
     "systemSnapshot": {
@@ -263,7 +263,7 @@
     },
     "offboarding": {
       "log": {
-        "dir": "%TT_LogsRoot%\\Offboarding",
+        "dir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\Offboarding",
         "fileNameFormat": "Offboarding_{yyyyMMdd}.log",
         "retentionDays": 90
       },
@@ -275,7 +275,7 @@
     "subnetScan": {
       "resolveNames": true,
       "pingTimeoutMs": 250,
-      "logPath": "%TT_LogsRoot%\\SubnetScan",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\SubnetScan",
       "exportDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\SubnetScan",
       "httpTimeoutMs": 1000,
       "defaultPort": 80,
@@ -328,8 +328,8 @@
     },
     "windowsUpdate": {
       "logFileNameFormat": "WindowsUpdate_{yyyyMMdd}.log",
-      "logPath": "%TT_LogsRoot%\\WindowsUpdate",
-      "logDir": "%TT_LogsRoot%\\WindowsUpdate"
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\WindowsUpdate",
+      "logDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\WindowsUpdate"
     },
     "naming": {
       "copyAttributes": [
@@ -377,12 +377,12 @@
       }
     },
     "copyDirectory": {
-      "logPath": "%TT_LogsRoot%\\Robocopy",
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\Robocopy",
       "waitSeconds": 5,
       "retryCount": 2,
       "mirror": false,
       "runRemote": true,
-      "logDir": "%TT_LogsRoot%\\Robocopy",
+      "logDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
       "copyFlags": [
@@ -403,15 +403,15 @@
       "includeInOffboarding": true
     },
     "ispConnection": {
-      "logPath": "%TT_LogsRoot%\\ISPConnection"
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\ISPConnection"
     },
     "windowsActivation": {
       "logFileNameFormat": "ActivationInfo_{computer}_{yyyyMMdd-HHmmss}.txt",
-      "logPath": "%TT_LogsRoot%\\WindowsActivation",
-      "logDir": "%TT_LogsRoot%\\WindowsActivation"
+      "logPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\WindowsActivation",
+      "logDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs\\WindowsActivation"
     }
   },
   "paths": {
-    "logs": "%TT_LogsRoot%"
+    "logs": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Logs"
   }
 }
