@@ -58,6 +58,40 @@ Get-ToolboxHelp -ShowEffectiveConfig
 
 Primary configuration lives at `Config/config.json`.
 
+For tenant-specific values, keep public-safe defaults in `Config/config.json` and
+put real values in `Config/config.secrets.json` (gitignored by default).
+`Get-TechToolboxConfig` now deep-merges `settings` and `paths` from
+`config.secrets.json` into `config.json` at load time.
+
+Example `Config/config.secrets.json` override:
+
+```json
+{
+  "settings": {
+    "tenant": {
+      "organizationName": "valueaddedcompanies.onmicrosoft.com",
+      "upnSuffix": "REDACTED.com",
+      "tenantId": "00000000-0000-0000-0000-000000000000"
+    },
+    "ad": {
+      "domainController": "DC-1.REDACTED.com",
+      "searchBase": "DC=REDACTED,DC=com"
+    },
+    "remoting": {
+      "credSSPDelegateComputers": "*.REDACTED.com"
+    },
+    "secureCrimp": {
+      "server": "SECURECRIMP-1.REDACTED.com"
+    }
+  }
+}
+```
+
+Optional environment controls:
+
+- `TT_ConfigSecretsPath`: override the secrets file location.
+- `TT_DisableConfigSecretsMerge=1`: disable secrets merge for troubleshooting.
+
 ### Portable path tokens
 
 For portability across machines and user profiles, prefer environment-style

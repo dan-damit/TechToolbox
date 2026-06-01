@@ -15,23 +15,64 @@ function Read-Secrets {
         }
     }
 
+    function ConvertTo-Hashtable {
+        param([Parameter(Mandatory)]$InputObject)
+
+        if ($InputObject -is [hashtable]) { return $InputObject }
+
+        if ($InputObject -is [System.Collections.IDictionary]) {
+            $ht = @{}
+            foreach ($k in $InputObject.Keys) {
+                $ht[$k] = ConvertTo-Hashtable -InputObject $InputObject[$k]
+            }
+            return $ht
+        }
+
+        if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
+            return @(
+                $InputObject | ForEach-Object { ConvertTo-Hashtable -InputObject $_ }
+            )
+        }
+
+        if ($InputObject -is [pscustomobject]) {
+            $ht = @{}
+            foreach ($p in $InputObject.PSObject.Properties) {
+                $ht[$p.Name] = ConvertTo-Hashtable -InputObject $p.Value
+            }
+            return $ht
+        }
+
+        return $InputObject
+    }
+
     try {
         $raw = Get-Content -LiteralPath $path -Raw -Encoding UTF8
         if ([string]::IsNullOrWhiteSpace($raw)) { throw "Empty secrets file." }
 
-        $obj = $raw | ConvertFrom-Json -Depth 50
-
-        # Convert to hashtable-ish structure we can reliably write back
-        $secrets = @{
-            passwords = @{
-                domainAdminCred = @{
-                    password = ''
-                }
-            }
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            $secrets = ConvertFrom-Json -InputObject $raw -AsHashtable
+        }
+        else {
+            $secrets = ConvertTo-Hashtable -InputObject (ConvertFrom-Json -InputObject $raw -Depth 50)
         }
 
-        if ($obj.passwords -and $obj.passwords.domainAdminCred -and $obj.passwords.domainAdminCred.password) {
-            $secrets.passwords.domainAdminCred.password = [string]$obj.passwords.domainAdminCred.password
+        if (-not ($secrets -is [hashtable])) {
+            $secrets = @{}
+        }
+
+        if (-not $secrets.ContainsKey('passwords') -or -not ($secrets.passwords -is [hashtable])) {
+            $secrets.passwords = @{}
+        }
+
+        if (-not $secrets.passwords.ContainsKey('domainAdminCred') -or -not ($secrets.passwords.domainAdminCred -is [hashtable])) {
+            $secrets.passwords.domainAdminCred = @{}
+        }
+
+        if (-not $secrets.passwords.domainAdminCred.ContainsKey('password') -or $null -eq $secrets.passwords.domainAdminCred.password) {
+            $secrets.passwords.domainAdminCred.password = ''
+        }
+        else {
+            $secrets.passwords.domainAdminCred.password = [string]$secrets.passwords.domainAdminCred.password
         }
 
         return $secrets
@@ -44,8 +85,8 @@ function Read-Secrets {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDl4APWauY2GhCa
-# 01+q8ZHROBZjOujbHOXcpG0WppPkFaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCaavczWUk2JKVh
+# 5PztkNVXxug6nvOYBI6PjN1SwNLNmKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -178,34 +219,34 @@ function Read-Secrets {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDJ+ahorkta
-# yTe5fOfgZCD7uW/Nw3L+ThduPGEGurRWjTANBgkqhkiG9w0BAQEFAASCAgAkcJE7
-# B3hOLVfC3LL2prFfVNJcTJid+dqS7/UlkH/Rt6/GHZEQToPNQZCb1K4quj8s2iPx
-# 1puP1KCYWLYyPzGwwy1p/p/rRKTtQz2R37+OOT5AOqsjbA6p8lwK9Sx63uma0Nkc
-# wLdJpb5GIDC8ZYu3c2OtFMB2GyFL24Lo0mwH6vXaQqCHPUmaarDS9tBBnAOSNNDG
-# GJvO1uuSOT2iBmS4tf6+071lh20azwYQb3aDzxdKLz0+CarRQ4YPebXEIvqO0k7y
-# mqOl8ft0rHaG5DrxHJAQJvoNMUTOm+nrEA0wzO4dCIEDasW4fYZxmX5KL4qTPUH5
-# 8BtCEa1+uks9t+OtIe9TEc6PueZeib4JLPUpUbKBIsd9h49UpZ1QnENT4KgpZAkr
-# Kl0D9UOs5FilyOf9NCSGQ/Dx5JA+6iFcvpov9M6sb2EsszEhsnoc5ee800SNk9r/
-# BmqEokmQh3jaDNhxGAKRvSwg7nz6jdH6rCLvRv7dcpTRKZdUxveCdvXA+fyT2vlv
-# 6WHGhndL9MFeWbqBbAKkd1rnnCP+gyA1hdoQrMQ6xbPhmxDs/I+9dtV5Jinlql2Q
-# ayqNamA2rIU5g9/hO+PEYG2NeDFrMWRtW/YeA4a3QbTUCh7bzUK8ZLvJOk7cZat4
-# ILYFMWnm9Irne9QInvB8s1jTDJ7kq7G7RYQ28aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDcGoQyn+Hh
+# QuqzAypRg+VuPAEn377xdf2S4Gul+VdAyTANBgkqhkiG9w0BAQEFAASCAgBCyy2v
+# Mf/P3G1q9LT3ck29o4dMqVqJSrBXUoD7AYmAg8h0bMjYCCzm10vOJ6iCFBdUreMU
+# j6N0ft17TL6g20aYZCmhoBv9SMgtxFayEGcDyGGUz/0IQx73YwB+rV/iU9HcbTA4
+# 4B9bxZ9d8lhgTR5fXE3ZIUjywnk58BfNZW3kvTEpWVpqaFC5lsgHStfEf+N3LXEp
+# VjdpxaitjT2wIgE8rADPln6E2Z3ztKgbTt7tWE4vQX88M4LtjuoGG8sqLEZ558ep
+# Z/h6/NSaHFMCheSAINu47lkgDJx3iy8QKBxtS8CDje+4ljg44pWhw47usKlJ3aS+
+# dMew4etdeOb/PIUMESl8acLmxDKu7hc+LvRKLGMMcMYTijhMX3yyN+d2cQRBO1ID
+# 1SU/ddPoXpRaCKneN8Rt42FaxZeqGbI/cIseiD6E88AkNWNa3CPRt5IoALvEys4w
+# 1eSmJvEGLy4p1QrRro71+FwKT73W65I8bjzBZgxCehbdSR+N9n6jiEKW3tb2x/oY
+# XpSrS29hTT9cR1FoprDOMrHTMq1U4AyDtFUxDO4D2S1iSEGJtQiCqVSKW3gpNgjp
+# I/50DC2ECm/nxrh8kETtCJKYguPfQB5a8TOtGekYuqAbNlJ17cVqLteG8geBMWj5
+# DE40sQqdMH88Fa+aT1+Q/0OfFp3Tkv5PdpF/8aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTEyMTMwMzBaMC8GCSqGSIb3DQEJBDEiBCDvNSC88238vv+biDtl
-# /by7aKe7R6x/gzb9GqKHlnX6TjANBgkqhkiG9w0BAQEFAASCAgAu0YAqNz3QB1zQ
-# UriL0wv9VYjUfVcP+1ngKIH+Om4fTmUPnmFaVjlbIpuJmoEQ/wmJ6zhv3+w/Cvd0
-# ZYJtVjaJI/LM3yUxF+UvszQ0P58LOL2uvgGIuyf1v28EOBd6wO8JyrXFoyADPLAl
-# jjNAJpkEOwB38/RTuLXPzXyBBqPhyZaSPNuiou8ojTQeMk+B6VLNJfAEFyYEjQea
-# G7QjtVRHDubD8Nm7N/hX5NSK/vluou2mEzi/UOrOSbllH9ISo4hgEEqZY/lRItjR
-# nmHt9ayawYEVOIvx8H20/AT9u5ozdNbD4TkGyN4AIrJqGxHucBsG2kw/Wt9GnhYQ
-# VfbR0amAbEYfmZ4Gntg21WyYuEZtlXd5/zBPXoMM0HQXAyBlYBQFdsgH1WVgNGl8
-# ufXUkegySg4D2ykJkQDPbQDyfYhyfsbbeL2gc7vafEYva4PfE1MgV0eY2WIxxPRG
-# +dcQ3JWWFCaPFaVZ4kwLJFNKOjZRnC/YeYiqAx9q+TJNrETvVb8uEC4Yzdww4LEj
-# GweM3/VmIikrMXkmGXKfZErYteXcj1KDTPuoHc9Gqtb/yiVkYuK8hsEcXTXw2syb
-# E5YKozLYfSltCsoJSSuH2JksTZ2aUzJec0VzdqFxaigyTCqmfrfTrt0aW2C2e3yG
-# US3GROYHR8ZpakbJ+hSR3NwrQmzb8g==
+# BTEPFw0yNjA2MDEyMTE4MjZaMC8GCSqGSIb3DQEJBDEiBCANNGG+3geezRh6jSh/
+# 8ih2J32kdBgz/EytIMLKbpCUnTANBgkqhkiG9w0BAQEFAASCAgBNFX8lbkCVnZPM
+# Ze0V5vqH2cNH2SkaX3P+LDQSG9/BtpeaiRNE5HYW0lPNLFfo+Qj7qvlXRmAZDtsj
+# vKSXKvxFdNV4lJKpPlodQW3P933OG8e19Q+ub3kggrZcGwNRnUJ8N3pQbHZHp2l2
+# ZNX5hYNHzebk35fTeSD2bsygvdsLDCvDYQqY5YyBVfhYWLuKA6dRAxKTrb7pbFCx
+# hCm9GhQIdT5W5M6DUczE5kk47tzeFgdW9Vh2EPMhrlxYwX6vLEJAbdR3C5gQOm8U
+# GszqBvyI8b/9be0sdtCnG6WG1F35jS12pZk7DgD0gH9HnUtEG56YguRQgbUcLlwo
+# 5xZpLtNK7wcIr3+JRW9mRyLseGvRxEeODB+kLalRtXNocfGHGWj2C3yTNKaJSxdo
+# 4icMR34OlnWy+5iFdXg7I/JjnZ5uwgxHbRWmN+f8awImDHAQyPuhaLDWOjYjT22+
+# q1bGF9gk53RjVrWZrUxLhp+e9nHrYqeVij944reo+yLsLvkKchG6pbDu09pQyzUx
+# vzcBAl+OxgRrDbLcW118+fSSqQHv2sFwwqDqjoCeFTmConzLT1t8wQ8t38pbwMQO
+# kbD2DCgV+YReMliMphp/YCKHbgyKMuE7keSuppzVuHnvYYXlz9Vup1ez7lLw/bzx
+# pWz22D0XEtWqqwjyc4vUTfjEcKgE1Q==
 # SIG # End signature block
