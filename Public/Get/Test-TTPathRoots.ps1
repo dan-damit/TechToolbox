@@ -1,58 +1,73 @@
-function Invoke-CodeAssistantWrapper {
+function Test-TTPathRoots {
     <#
     .SYNOPSIS
-        Wrapper for Invoke-CodeAssistant that handles file input and module review mode.
-    .PARAMETER Path
-        The path to the file or module to analyze.
-    .PARAMETER Mode
-        The analysis mode. Valid options: General, Static, Security, Refactor,
-        Tests, Combined, ModuleReview, ExplainDesign.
-    .OUTPUTS
-        A markdown file containing the analysis report, saved to
-        <TechToolboxModuleRoot>\\CodeAnalysis.
-    .NOTES
-        - For 'ModuleReview' mode, provide the path to the module directory.
-          The wrapper will read and concatenate all .ps1 files in the module
-          before passing to Invoke-CodeAssistant.
-        - For other modes, provide the path to a single .ps1 file.
+    Shows effective TechToolbox path roots and key resolved config paths.
+
+    .DESCRIPTION
+    Returns the active module/home/log/export roots derived from environment
+    variables and runtime defaults. Optionally creates the root directories.
+
+    .PARAMETER EnsureDirectories
+    Creates the effective logs and exports root directories if they do not exist.
+
+    .EXAMPLE
+    Test-TTPathRoots
+
+    .EXAMPLE
+    Test-TTPathRoots -EnsureDirectories
     #>
     [CmdletBinding()]
+    [OutputType([pscustomobject])]
     param(
-        [Parameter(Mandatory)]
-        [string]$Path,
-
-        [ValidateSet('General', 'Static', 'Security', 'Refactor', 'Tests', 'Combined', 'ModuleReview', 'ExplainDesign')]
-        [string]$Mode = 'General'
+        [switch]$EnsureDirectories
     )
 
     Initialize-TechToolboxRuntime
 
-    if (-not (Test-Path -LiteralPath $Path)) {
-        throw "Path not found: $Path"
+    $oneDriveRoot = $env:OneDriveCommercial
+    if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDrive }
+    if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDriveConsumer }
+    if (-not $oneDriveRoot) { $oneDriveRoot = $env:USERPROFILE }
+
+    $homeRoot = if ($env:TT_Home) {
+        $env:TT_Home
+    }
+    else {
+        Join-Path $oneDriveRoot 'TechStuff\TechToolbox'
     }
 
-    # MODULE REVIEW MODE: wrapper stays dumb
-    if ($Mode -eq 'ModuleReview') {
-        Invoke-CodeAssistant -Code "<MODULE REVIEW PLACEHOLDER>" -FileName "ModuleReview" -Mode $Mode
-        return
+    $moduleRoot = if ($env:TT_ModuleRoot) { $env:TT_ModuleRoot } else { Get-ModuleRoot }
+    $logsRoot = if ($env:TT_LogsRoot) { $env:TT_LogsRoot } else { Join-Path $homeRoot 'LogsAndExports\Logs' }
+    $exportsRoot = if ($env:TT_ExportsRoot) { $env:TT_ExportsRoot } else { Join-Path $homeRoot 'LogsAndExports\Exports' }
+
+    if ($EnsureDirectories) {
+        foreach ($p in @($logsRoot, $exportsRoot)) {
+            if (-not (Test-Path -LiteralPath $p)) {
+                New-Item -ItemType Directory -Path $p -Force | Out-Null
+            }
+        }
     }
 
-    # NORMAL FILE MODE
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        throw "File not found: $Path"
+    [pscustomobject]@{
+        OneDriveRoot          = $oneDriveRoot
+        TechToolboxHome       = $homeRoot
+        ModuleRoot            = $moduleRoot
+        LogsRoot              = $logsRoot
+        ExportsRoot           = $exportsRoot
+        ConfigPath            = $script:ConfigPath
+        ConfigLoggingLogPath  = $script:cfg.settings.logging.logPath
+        ConfigDefaultsPath    = $script:cfg.settings.defaults.configPath
+        ConfigPathsLogs       = $script:cfg.paths.logs
+        LogsRootExists        = Test-Path -LiteralPath $logsRoot
+        ExportsRootExists     = Test-Path -LiteralPath $exportsRoot
     }
-
-    $code = Get-Content -LiteralPath $Path -Raw
-    $fileName = [System.IO.Path]::GetFileName($Path)
-
-    Invoke-CodeAssistant -Code $code -FileName $fileName -Mode $Mode
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAf211rpJJSwjcN
-# uv/MqcjfayPyfnu6UUgu9NizthT+paCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCWiUHbrHkZ+znz
+# NVWjZe7Ewn/q0JzHIN2uM/rIVE+1Q6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -185,34 +200,34 @@ function Invoke-CodeAssistantWrapper {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCung/WSg8d
-# ob8UXsbCalyKRsbSvbWL/0I8+EAfPfx4CzANBgkqhkiG9w0BAQEFAASCAgAWadkM
-# bMXh0UHzrG+JGGfLB5jQa8U6BWEsRuFp5Bj12rzucdYkxImjYap2S6qyspu2D3uO
-# QxY24hscPJk8EKrObKXC4YczHamsVaU3iRIwii72u9mzpVUpVSS3uN5SCiX2sff4
-# LEVqa4MWGfYz/UCH15SDMnVut7AYD3NI5WhiUjTFZlzXQ8j3iHauFVMQiGX15KiT
-# ovrk+7qCG8av/iDMJhioIwoBmuAH8CVu2yvdph1z84i+fxaALvB5mZaF3nm/VkbC
-# RQDGkMrXE2zzSD0tadhSH6JWHET+vIM5XJetJv0xGQ0q+CvEgrtiFr0/eaFLLQdm
-# zM5xgnOuj2RkIzrfJiG9UU0xC66WPY7FWVuge6r6MqS8CRVJmKLUh8IVF3tZx6xn
-# sKnEI7fsVcBCMBXlU/0g1JtkAKBtlDWL3sVGTviQwEJqHyVvSNQNO67uf9DYAXRB
-# 9dOZpKJws3fWKY5kABUJw5Ev3dru8TOtA6ZNARqzZYjjD0OzRf1QLl9JpZp4sgnZ
-# xG9Dhw2jRLfGPxqh70yo2QLkpDVByE4+Yk6UyA2c2koal3s/9RjyOr/iSmlA7Dge
-# cpkWTcnoSfXxZ04z8ILrfphtHofI0aaGGZWp5Gk8xfBLDOsMj7IfmKaxzIdKMiGo
-# jE5zqJRA68Sv7smDjKCCAK+rIht7CXYaxbmYc6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAfAsVQglra
+# KWJXROZhrpC/+s/e8rVHFLHCDzUpysu7sTANBgkqhkiG9w0BAQEFAASCAgCocX1m
+# IeFqXTDQ+BJF2cy1vt6q8Wzu0S0ohqAoWlHQ3gshMQp816tZ5OOlIUJmqgrgTQyq
+# zmgUXp8LEtTQ7u73eEVvK7GXvRm3VlvKFXzu3TgqY+GwinaJNqD5ScddWZTY9YZk
+# 0tSdzfKNGzgiW88YbHnqLbOSzYo+tccbGddYRYmB5bk8zkcUti3/gO6D/tZ3ULxC
+# wLSSDvVopQSgvQp7YOPts3zLF6uupnN2NcViVIoxs0MIGOcgXONs9uWHz5ytdGGG
+# m5H/tgK/PfjXqrNWgN4IDl3MvFHKoI5slvoGmDUo9kjnP5bti8Hk9XrCFMKKbtTC
+# xQ6kxE4JO6vCahvQcT86WIuq+5APRuY87sAiwvCj5Yt2qBEDNw365vLGq95JI0sG
+# GN84k6PL8Slsln5P5KBFsaXOleavJXZbKLKgIOIaw7kr7HTNZ5e+ly97vigY8vje
+# Zn/YJC+u2TnWwAkcHYSpETo9JeHAyI5MM89CbmCpXxSt3twfKGMcU6ZWmLyBu+Ba
+# B3KS86TdjuYig/vKUsk/z6nTUPUtaRMt96Xyrp+ynft/g2rdCLXF8DTTX2ntoaIv
+# S0PcMsYCCn1UtZuYesInUwcWJ6oNKcPBVys4uIC7OtGKZWCM7VMCDh7W4sONkCbb
+# I/oHdrYu2s5Peo/BqpV0DwnaxbeKincosP+8rqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MDExMzQxMTZaMC8GCSqGSIb3DQEJBDEiBCD4RMgQLsI8hzGPChIn
-# qpeLDgBnPd4Q6t6NHo9ZcDK+3zANBgkqhkiG9w0BAQEFAASCAgDD05dFi8nPL0aA
-# siLRXQ7i+mDTfbEz+g1Cei+4j2PFcgOE/24eWzMJfBbzBf2kvDOoavCSJ6oWvelE
-# 2rjW4d/XhGhuJiFTZMYVu4e+41zVJDYePz1ke5YgFK7cvOdxMvylzX4FuYoGHQ0k
-# Raqwpe16c4kcdiUlXDmTsRvXD/nludg6vb9XF9K5XP1u2y8imaCdwRoxZP3Y17bV
-# bB0bR3u0NLeiPqyfhqYssbFGbq0I1h2h2ouZDL7JIgcO7c0qHa2lLiZrwAOF8KHj
-# oSmy6OBelfWrpLe9dNuf2gs3Xc1KhIzaehoqTFbulu44jTqj82d6bZ9uiX5nKmGj
-# 2chV+Y+lW/2kY/KBFFEge08lcV9JZXP/W+BONl5azc3I3MY05RWEcpfBnEEm8a0T
-# zNtvGREeUl2BTOatMZhnTFB9eMTD1hrLXmuW/jNmlo7bAO8ilukTyiH4ktZvmuAY
-# wyjxLDE1ydIeps8uVDCRrFNXw5QWdZPKZ/FNzZek9IHW02Kphe2LuYe0dY2yi9Eu
-# Q/gtMV6uSpHMThnEdroU1WMCXi2mOiHC6DagJRsIGEdWdnskzhT9azMIS1UW0epJ
-# PsaKjSCHPTPGDNN5rVJZ4XHenRWANlsaZ6S/eXewG+lj1yjuf5vgVC1+TwZl2wLI
-# EcbUBhzZqwSdW3pg3w93j3lkmn6ChA==
+# BTEPFw0yNjA2MDExMzQxMThaMC8GCSqGSIb3DQEJBDEiBCC6Sy6GcRlbH4OrAz5e
+# +87OuCinmzxeoFofq3e4/rU/UjANBgkqhkiG9w0BAQEFAASCAgBZzXvY3uXVRAgZ
+# bf2g65Cxd4MCWcdB9Q0pgrsKajfNNVeCX23GQ5gAWBKDfVALegedFkfJSU4isOB7
+# pkTFPN4A++6yxA8ybwTTcAkPmzhU30Lp+/IIAKoItBuzVlfYwDc9JVM87alcFvfW
+# awID4xhQ/7uBpFUtcefBky/pkqdhxqL/ccQTsXi/DxbTG7CsmlSygvWgRn9T6/QU
+# tRcM9Yh67D9IRD8kBpKMOMDAoIM9hXhEQRKcwq7iwPaveLGCUtiXo/9+Ea87zE8f
+# yzB5/6OJDHtQkxRsZxQbbhkMUmfEZ65H2cKJVFQ/QKHgr69Mf+Eb4N7P36Rt4Lai
+# Xn4n2n5Uagh2QzswSbxeMYooOl2gAaNU1PrC/ga8PM+YSd6SzMqIMw0DeXtpxKvr
+# +Dp9Vy6nWzTwVJxlzyE/70wQLsykzO+yBS+Gr3iPCG1djK4+vaHez5Uqzi1469ba
+# sEnwfYi8MFkM9ScfC3OM+FMzsKgioCahzA+tNTv6eH7KsorbyT5rxTy8dLm3QqUh
+# ArJp95iHAl1vxqHrxumt8rxNBETn6+1EGIj3nnC1mIsHID9ODL3WkPFmMZXL3AVF
+# +Arby6o5tFRah8SW8oyi0ynbmbR8s1t9wd1qNdM2EFyfkZ6N4471144iU0UzfLiV
+# VkD9B9Z9Px7kS31HF2lr1cMJDVH5Ig==
 # SIG # End signature block

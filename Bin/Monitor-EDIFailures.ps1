@@ -6,10 +6,15 @@
 
 [CmdletBinding()]
 param(
-    [string]$OutCsv = "C:\TechToolbox_LogsAndExports\Logs\EDI_Failures\EDI_Failures.csv",
+    [string]$OutCsv,
     [string]$InboxSubFolder = "EDI Failures",
     [string]$ProcessedSubFolder = "Processed"
 )
+
+if (-not $PSBoundParameters.ContainsKey('OutCsv') -or [string]::IsNullOrWhiteSpace($OutCsv)) {
+    $logsRoot = if ($env:TT_LogsRoot) { $env:TT_LogsRoot } else { 'C:\TechToolbox_LogsAndExports\Logs' }
+    $OutCsv = Join-Path $logsRoot 'EDI_Failures\EDI_Failures.csv'
+}
 
 function Get-RegexGroup {
     param(

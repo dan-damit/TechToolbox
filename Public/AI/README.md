@@ -21,7 +21,7 @@ Core analysis engine.
 Takes raw code text and a filename, streams analysis to the console, and generates a Markdown report in:
 
 ```
-C:\TechToolbox\CodeAnalysis
+<TechToolboxModuleRoot>\CodeAnalysis
 ```
 
 Used internally by all other AI commands.
@@ -33,7 +33,7 @@ Analyzes **every `.ps1` file** in a folder (recursively).
 
 **Usage:**
 ```powershell
-Invoke-CodeAssistantFolder -Path C:\TechToolbox\Public
+Invoke-CodeAssistantFolder -Path (Join-Path (Get-ModuleRoot) 'Public')
 ```
 
 For each file, it:
@@ -112,7 +112,7 @@ This prevents the model from misinterpreting cryptographic data as code.
 All analysis reports are saved to:
 
 ```
-C:\TechToolbox\CodeAnalysis
+<TechToolboxModuleRoot>\CodeAnalysis
 ```
 
 Each file is named:

@@ -35,7 +35,7 @@ function Get-TechToolboxConfig {
         Loads the main TechToolbox configuration file and returns the parsed
         settings.
     .EXAMPLE
-        $config = Get-TechToolboxConfig -Path 'C:\TechToolbox\Config\config.json'
+        $config = Get-TechToolboxConfig -Path '$env:TT_ModuleRoot\Config\config.json'
         $config.settings.passwords.default
         Loads the configuration and inspects the default password settings.
     .EXAMPLE
@@ -86,11 +86,117 @@ function Get-TechToolboxConfig {
         return $InputObject
     }
 
+    function Get-TechToolboxPathRoots {
+        param([Parameter(Mandatory)][string]$ConfigFilePath)
+
+        $oneDriveRoot = $env:OneDriveCommercial
+        if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDrive }
+        if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDriveConsumer }
+        if (-not $oneDriveRoot) { $oneDriveRoot = $env:USERPROFILE }
+
+        $ttHome = if ($env:TT_Home) {
+            $env:TT_Home
+        }
+        else {
+            Join-Path $oneDriveRoot 'TechStuff\TechToolbox'
+        }
+
+        $defaultModuleRoot = Split-Path -Parent (Split-Path -Parent $ConfigFilePath)
+        $moduleRoot = if ($env:TT_ModuleRoot) { $env:TT_ModuleRoot } else { $defaultModuleRoot }
+
+        $logsRoot = if ($env:TT_LogsRoot) {
+            $env:TT_LogsRoot
+        }
+        else {
+            Join-Path (Join-Path $ttHome 'LogsAndExports') 'Logs'
+        }
+
+        $exportsRoot = if ($env:TT_ExportsRoot) {
+            $env:TT_ExportsRoot
+        }
+        else {
+            Join-Path (Join-Path $ttHome 'LogsAndExports') 'Exports'
+        }
+
+        return @{
+            ModuleRoot  = $moduleRoot.TrimEnd('\\')
+            LogsRoot    = $logsRoot.TrimEnd('\\')
+            ExportsRoot = $exportsRoot.TrimEnd('\\')
+            HomeRoot    = $ttHome.TrimEnd('\\')
+        }
+    }
+
+    function Rebase-AbsolutePathPrefix {
+        param(
+            [string]$Value,
+            [Parameter(Mandatory)][string]$FromRoot,
+            [Parameter(Mandatory)][string]$ToRoot
+        )
+
+        if ([string]::IsNullOrEmpty($Value)) {
+            return $Value
+        }
+
+        $from = $FromRoot.TrimEnd('\\')
+        $to = $ToRoot.TrimEnd('\\')
+        if ([string]::IsNullOrWhiteSpace($from) -or [string]::IsNullOrWhiteSpace($to)) {
+            return $Value
+        }
+
+        if ($Value.StartsWith($from, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $suffix = $Value.Substring($from.Length).TrimStart('\\', '/')
+            if ([string]::IsNullOrWhiteSpace($suffix)) { return $to }
+            return (Join-Path $to $suffix)
+        }
+
+        return $Value
+    }
+
+    function Resolve-TechToolboxConfigNode {
+        param(
+            $Node,
+            [Parameter(Mandatory)][hashtable]$PathRoots
+        )
+
+        if ($null -eq $Node) {
+            return $null
+        }
+
+        if ($Node -is [hashtable]) {
+            foreach ($k in @($Node.Keys)) {
+                $Node[$k] = Resolve-TechToolboxConfigNode -Node $Node[$k] -PathRoots $PathRoots
+            }
+            return $Node
+        }
+
+        if ($Node -is [System.Collections.IList]) {
+            for ($i = 0; $i -lt $Node.Count; $i++) {
+                $Node[$i] = Resolve-TechToolboxConfigNode -Node $Node[$i] -PathRoots $PathRoots
+            }
+            return $Node
+        }
+
+        if ($Node -is [string]) {
+            $resolved = [Environment]::ExpandEnvironmentVariables($Node)
+
+            $resolved = Rebase-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox_LogsAndExports\Logs' -ToRoot $PathRoots.LogsRoot
+            $resolved = Rebase-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox_LogsAndExports\Exports' -ToRoot $PathRoots.ExportsRoot
+            $resolved = Rebase-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox' -ToRoot $PathRoots.ModuleRoot
+
+            return $resolved
+        }
+
+        return $Node
+    }
+
     if (-not (Test-Path -LiteralPath $Path)) {
         throw "Get-TechToolboxConfig: config file not found at '$Path'."
     }
 
     $fi = Get-Item -LiteralPath $Path
+
+    $pathRoots = Get-TechToolboxPathRoots -ConfigFilePath $Path
+    $pathFingerprint = '{0}|{1}|{2}|{3}' -f $pathRoots.ModuleRoot, $pathRoots.LogsRoot, $pathRoots.ExportsRoot, $pathRoots.HomeRoot
 
     # --- Simple session cache (StrictMode-safe) ---
     if (-not (Get-Variable -Name __cfgCache -Scope Script -ErrorAction SilentlyContinue)) {
@@ -100,7 +206,8 @@ function Get-TechToolboxConfig {
     $cache = $script:__cfgCache
     if ($cache -and
         $cache.Path -eq $fi.FullName -and
-        $cache.LastWriteTimeUtc -eq $fi.LastWriteTimeUtc) {
+        $cache.LastWriteTimeUtc -eq $fi.LastWriteTimeUtc -and
+        $cache.PathFingerprint -eq $pathFingerprint) {
         return $cache.Data
     }
 
@@ -114,10 +221,13 @@ function Get-TechToolboxConfig {
         $data = ConvertTo-Hashtable (ConvertFrom-Json -InputObject $jsonRaw)
     }
 
+    $data = Resolve-TechToolboxConfigNode -Node $data -PathRoots $pathRoots
+
     # --- Update cache ---
     $script:__cfgCache = @{
         Path             = $fi.FullName
         LastWriteTimeUtc = $fi.LastWriteTimeUtc
+        PathFingerprint  = $pathFingerprint
         Data             = $data
     }
 
@@ -130,8 +240,8 @@ function Get-TechToolboxConfig {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBZ2c+f+jBOff5v
-# zsctQdWtQwafMfXur/HX2xzZBuWmUqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDe4OeHyRPgCeR+
+# nMevL3r/7x4u4bu5QwA811G4LB52JaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -264,34 +374,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBZl1w5yv2K
-# xBEWYLlNm4pWvVX2AVPUoWOcYGD4tWtSnTANBgkqhkiG9w0BAQEFAASCAgAf5m58
-# D00Qw+OQLcN8Zg9oo7MbH1j5Nm8YzKfnD4SL53xnZc5lDWUDkC97LNbBq0s3+ds8
-# TWmv1C+QtVFMOIMUWnh1c5r/FtizS7k8nK9i7dmuky/Oey7jZFwQSZ09wCAulZs4
-# XNhayOzEF5o0jiEr/U7OtJ5MbrsBJ+scAZs/CeTa4yMCRPVm3PN4Wrd70saiwSNp
-# 34qONJ8ej/cwDDqnQnt418NgD3Z2w1C5QJJuKJ83g5FMMTKVVBXprb8C8TiOr+YC
-# IvFtr9NnVlrY+Xbszwcr09q1CrYPSko44A38ZGutKUu6SqGh/uYnR2y7EXSfeas2
-# LLrlAA9br5kWFux1jFshdCSM3axH7S1MDgqRDHN6THP+ciLq+XHEDnnvEOoqiRKV
-# iPn/uvZ5pujFuxuHrLDD3rgwIdE9tvPnLcutSQSfLsdgBRuzNOHo8nSzOEDtjAkK
-# 9JsiNfGZhpTAJpTYKt0X3V3nA00Hv/gRbRVtE9d5WEzEOASMGNY9SRJOEZvFCy8B
-# MDVKZgxc8AhExewS3uoO8Uv7Di84XCbPLNRCWs8MfJuSzdehThdPpI6WQdZ2Rkwp
-# 68dqwbHz8XysF+q/gl0VIQFfbsFNkQMhsRYi8KboN+E1YqPrm6roNsSncnxbSi00
-# BsscuxuovA3HrdVPdFEmRX6F6w2z1KaFIunAN6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCrKM7vecWm
+# K+Dd6m5Wgd+kXc2YAE/Utpy93TThLGBu1DANBgkqhkiG9w0BAQEFAASCAgBGE44c
+# gpTnWtvFI7GoblPwMviracrAfc/s4eXC0xePqp7cVXtycm8FjrtZzgtrbxKMD49s
+# 3A7spl/qtIV7Jk3MsVLZGjjiGemTYGsKTnpMwCKXWzBmQ0q8Ox3eDlJalRxaZC6o
+# 8C49Y0fjuuZirsjxgXQEYn+SQTWIQpkdHpwn2vBiVYcFv6TLW2ve288l3ZTR+hzv
+# SbzzwpFBPdiJQ62mQlBk0Y74wNHlrUHk6hBXuZdI5+PdZoqDg0fdLamCRMyf+fB5
+# 9CM0iv72k4oHp4afRltHub+/SQjJA8VH2xK9XT/51L8CT0UbZCaUfukDSEm+4d3w
+# ktR9m+baZz58fQj34uxulGYyUjBQOyZWfavXer3MCA9BgibagKOgAxOwIFGppiQ5
+# X5pnIl0VSfAaI7Hz3bWFjdL20wCg93QTjXXPmUDmpvQ/8Ncj23ODbWf0Wtzu6h4l
+# 7mtAa9hAZ9HtKYCLk4+Pyu46tWfh1XAwJdERHjgr1kQIsPn5WoEZhAhXKvxYZn75
+# g5Kw8v6pv2sH63w2nTaKXuV8TFH9pYIO42uQGC6qyylYp1ymxoygnI49q4raPHaJ
+# Vdhs+v4+5d4KZ2rlIec93t4CCmdzyOvaObIW0Db+OJiXq0PFW6RBLpA0O4uMd2Ze
+# g2KfFvdYDEjE4Yy2G603eZqL/adKuR+U0+a01KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MDMxNzU4MjhaMC8GCSqGSIb3DQEJBDEiBCAWfRRLJLsNCHUkcCTt
-# qU9V7MC9qKgBXNCUk2BwrYYRdjANBgkqhkiG9w0BAQEFAASCAgB3d9m+OyDBJTPN
-# iTnLIjmmhfY5uB3v939CDuHqkhDSKg3+BXieRTSPaZJ1wAwnMPcbxqz+32R/zD2o
-# dhH4D9jXCFiLtxVjmHC615QSn39tScJVG92Tlp4b+qYCLiyzMXDYn45R05twTI26
-# oNLEYvx54kT3tTP6yRNZ+wEJdNdgR8IQAS4KYrUuKcHWDqUX5Iig6mWFP7KqMS+l
-# Ep4INujMuum94cLskzC5yNM83OOJfQneRht3aNXiJajJCiak6nFooCKAGIvHxAe6
-# aonc2z0I/FjqT4FClR70cFUxqdoRTb9/xUP/qIRDzm1SXOOxbGLnXxg+Ef+d0qKh
-# oNgdxBjWCIV7Vx+ztvD9/YsZZomVcBamcxejA+KqWkH2HNCB+IKC/ESqfWm845yP
-# qxf+IeosyOESTVhRzIzi3oOQ4pfW8ONN2a47czAfR3rrP2XIQDfY0TZK4epoSvWi
-# Rax2MVQG32aN35tIcQxBE3YH7ooqVMeTgEGvjhHCyRDNiIYl6YdKGwiEwbjek5Bj
-# lGkCgW34mVNBRSsIGGoaJ+KR5oaBehVW+HieDvxUUlDKdOQTn8pfx26QqFFZSPTv
-# 26WlP2KIU1HGO8+DElyVfA1xSSKnfSQ0h/vv2slNBJecFu5pbZ4txn+mi1qqBB84
-# F6PTZmlVkt5ltbppWaEeMQUBX+AmkQ==
+# BTEPFw0yNjA2MDExMzQxMTdaMC8GCSqGSIb3DQEJBDEiBCD7VahzzvkNa6vjSWWG
+# EudcndDMSPCNEonEnEbt1QggKDANBgkqhkiG9w0BAQEFAASCAgA1DtTlgsha2jMS
+# mtTVxc6rZrbyrBocMzOF4zIT1Jy4Hr/XuqAN4fu4r5x2XTpnpBhpuDIjfwTCqOUz
+# K3+rSAwpo3gnv31LaL/0FfQdoaQi9i1wXW1TPqbcmScuMfk6BDzXlrySKioID5Gs
+# 9vl8jfogGwJB+qmrv+S5s97iqw2xGILUx1IskxQRZRB/hgYWrca5bNnpSQ8gtS5X
+# yMVqsQqCMqQ7BsOLYZAvd//IKybHTpdbRgpmIYUrDGXgDUfkz+8M9SvrnepdfWyg
+# mM9qMua77ycVy0SXYnDLUNZIInp0nzQkriON+GFdxZfuEzdGmP4LGL8biVeVfXr8
+# xdnkjnnpMSRowSPNg4ouHB9+9zJmmyImJ3a91PCYL2tkLpKcTc/9NDHMxVXXWQkB
+# qIcSW+B2Xk2mr/KkL3/HpbfobjtXXeP1ilk6X8hP0u5kikSBfy/mhuETOe9xKdGj
+# 8ouf/25FNrJ/2rIrgL07N9oyl8fn+0MdUu2a0tdDn4xf0mvKam/fT4XurmI3azBo
+# XL/JxXX8IuR2hwKwzBMTTzI7FofAFgzZz4ciDHBOkyZHBS5ZMKlviNSzyLLqDI58
+# wiU9gfCBaAdd8nbMNZ3eWq0nbMFiVcKOAj7KSekoYZzOd8oON+1bELp1sp8+J7sk
+# x1FuJj2lp8ecPWvee1rEn1PDEF8DGg==
 # SIG # End signature block
