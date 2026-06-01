@@ -1,0 +1,278 @@
+Recipient,MessageTraceId,Date,Event,Detail
+kerickson@vadtek.com,a6d0d6da-d00e-418e-9f9d-08de79486ca5,3/3/2026 5:15:13 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,a6d0d6da-d00e-418e-9f9d-08de79486ca5,3/3/2026 5:15:18 PM,Spam,Spam confidence level: 9
+kerickson@vadtek.com,a6d0d6da-d00e-418e-9f9d-08de79486ca5,3/3/2026 5:15:18 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,a6d0d6da-d00e-418e-9f9d-08de79486ca5,3/3/2026 5:15:18 PM,TRANSFER,
+kerickson@vadtek.com,a6d0d6da-d00e-418e-9f9d-08de79486ca5,3/3/2026 5:15:20 PM,Deliver,The message was delivered to the Junk Email folder.
+kerickson@vadtek.com,560d6d61-fd14-4dc1-323d-08de79483518,3/3/2026 5:13:43 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,560d6d61-fd14-4dc1-323d-08de79483518,3/3/2026 5:13:45 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,560d6d61-fd14-4dc1-323d-08de79483518,3/3/2026 5:13:46 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,560d6d61-fd14-4dc1-323d-08de79483518,3/3/2026 5:14:09 PM,TRANSFER,
+kerickson@vadtek.com,560d6d61-fd14-4dc1-323d-08de79483518,3/3/2026 5:14:10 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,b77d2cf1-35d1-480f-d79c-08de794695c7,3/3/2026 5:02:03 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,b77d2cf1-35d1-480f-d79c-08de794695c7,3/3/2026 5:02:07 PM,TRANSFER,
+kerickson@vadtek.com,b77d2cf1-35d1-480f-d79c-08de794695c7,3/3/2026 5:02:09 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,315a487f-3909-42e4-743d-08de79466d36,3/3/2026 5:00:54 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,315a487f-3909-42e4-743d-08de79466d36,3/3/2026 5:01:04 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,315a487f-3909-42e4-743d-08de79466d36,3/3/2026 5:01:07 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,315a487f-3909-42e4-743d-08de79466d36,3/3/2026 5:01:29 PM,TRANSFER,
+kerickson@vadtek.com,315a487f-3909-42e4-743d-08de79466d36,3/3/2026 5:01:31 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,704993fc-6643-406d-8e99-08de79466088,3/3/2026 5:00:32 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,704993fc-6643-406d-8e99-08de79466088,3/3/2026 5:00:33 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,704993fc-6643-406d-8e99-08de79466088,3/3/2026 5:00:33 PM,TRANSFER,
+kerickson@vadtek.com,704993fc-6643-406d-8e99-08de79466088,3/3/2026 5:00:34 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,398ea52a-abb8-4ae7-e4c0-08de79460082,3/3/2026 4:57:50 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,398ea52a-abb8-4ae7-e4c0-08de79460082,3/3/2026 4:57:52 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,398ea52a-abb8-4ae7-e4c0-08de79460082,3/3/2026 4:58:20 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,398ea52a-abb8-4ae7-e4c0-08de79460082,3/3/2026 4:59:29 PM,TRANSFER,
+kerickson@vadtek.com,398ea52a-abb8-4ae7-e4c0-08de79460082,3/3/2026 4:59:30 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,6b0d873c-589d-4c91-d1a5-08de79455870,3/3/2026 4:53:10 PM,Receive (with external delay),Message received by: SA0PR22MB3485.namprd22.prod.outlook.com. There was a delay of 15 minutes prior to the message being received by Office 365.
+kerickson@vadtek.com,6b0d873c-589d-4c91-d1a5-08de79455870,3/3/2026 4:53:13 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,6b0d873c-589d-4c91-d1a5-08de79455870,3/3/2026 4:53:13 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,bcc4691e-e7d1-4b34-183b-08de79451a40,3/3/2026 4:51:25 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,bcc4691e-e7d1-4b34-183b-08de79451a40,3/3/2026 4:51:27 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,bcc4691e-e7d1-4b34-183b-08de79451a40,3/3/2026 4:51:28 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,bcc4691e-e7d1-4b34-183b-08de79451a40,3/3/2026 4:51:45 PM,TRANSFER,
+kerickson@vadtek.com,bcc4691e-e7d1-4b34-183b-08de79451a40,3/3/2026 4:51:46 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,d784d75d-9699-4f3f-b7bf-08de7944ee40,3/3/2026 4:50:13 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,d784d75d-9699-4f3f-b7bf-08de7944ee40,3/3/2026 4:50:14 PM,TRANSFER,
+kerickson@vadtek.com,d784d75d-9699-4f3f-b7bf-08de7944ee40,3/3/2026 4:50:15 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,d784d75d-9699-4f3f-b7bf-08de7944ee40,3/3/2026 4:50:44 PM,TRANSFER,
+kerickson@vadtek.com,d784d75d-9699-4f3f-b7bf-08de7944ee40,3/3/2026 4:50:45 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,8dee3f85-d5a9-4f38-3b14-08de7943900b,3/3/2026 4:40:23 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,8dee3f85-d5a9-4f38-3b14-08de7943900b,3/3/2026 4:40:24 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,8dee3f85-d5a9-4f38-3b14-08de7943900b,3/3/2026 4:40:25 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,8dee3f85-d5a9-4f38-3b14-08de7943900b,3/3/2026 4:41:40 PM,TRANSFER,
+kerickson@vadtek.com,8dee3f85-d5a9-4f38-3b14-08de7943900b,3/3/2026 4:41:41 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,a27845fa-21d9-41aa-7a25-08de79430487,3/3/2026 4:36:29 PM,Receive,Message received by: BL1PPFC66ECC6D4.namprd22.prod.outlook.com
+kerickson@vadtek.com,a27845fa-21d9-41aa-7a25-08de79430487,3/3/2026 4:36:32 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,a27845fa-21d9-41aa-7a25-08de79430487,3/3/2026 4:36:33 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,c7e39c26-0593-4449-fcab-08de79413eb7,3/3/2026 4:23:49 PM,Receive,Message received by: PH0PR22MB2922.namprd22.prod.outlook.com
+kerickson@vadtek.com,c7e39c26-0593-4449-fcab-08de79413eb7,3/3/2026 4:23:52 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,c7e39c26-0593-4449-fcab-08de79413eb7,3/3/2026 4:23:53 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,5182743c-ba2e-4ace-456a-08de7940ae83,3/3/2026 4:19:48 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,5182743c-ba2e-4ace-456a-08de7940ae83,3/3/2026 4:19:54 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,5182743c-ba2e-4ace-456a-08de7940ae83,3/3/2026 4:19:54 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,5182743c-ba2e-4ace-456a-08de7940ae83,3/3/2026 4:20:42 PM,TRANSFER,
+kerickson@vadtek.com,5182743c-ba2e-4ace-456a-08de7940ae83,3/3/2026 4:20:43 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,71cb3cbe-0686-45a5-9c47-08de793ec286,3/3/2026 4:06:03 PM,Receive,Message received by: IA3PR22MB5829.namprd22.prod.outlook.com
+kerickson@vadtek.com,71cb3cbe-0686-45a5-9c47-08de793ec286,3/3/2026 4:06:05 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,71cb3cbe-0686-45a5-9c47-08de793ec286,3/3/2026 4:06:06 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,e66dd09d-8da5-4c27-4e5c-08de793e682b,3/3/2026 4:03:37 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,e66dd09d-8da5-4c27-4e5c-08de793e682b,3/3/2026 4:03:48 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,e66dd09d-8da5-4c27-4e5c-08de793e682b,3/3/2026 4:03:51 PM,TRANSFER,
+kerickson@vadtek.com,e66dd09d-8da5-4c27-4e5c-08de793e682b,3/3/2026 4:03:53 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,3785de93-07d0-4f00-f93d-08de793e3657,3/3/2026 4:02:05 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,3785de93-07d0-4f00-f93d-08de793e3657,3/3/2026 4:02:05 PM,TRANSFER,
+kerickson@vadtek.com,3785de93-07d0-4f00-f93d-08de793e3657,3/3/2026 4:02:07 PM,TRANSFER,
+kerickson@vadtek.com,3785de93-07d0-4f00-f93d-08de793e3657,3/3/2026 4:02:08 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,3160d020-39f1-4850-730e-08de793dd5f4,3/3/2026 3:59:23 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,3160d020-39f1-4850-730e-08de793dd5f4,3/3/2026 3:59:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,3160d020-39f1-4850-730e-08de793dd5f4,3/3/2026 3:59:26 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,3160d020-39f1-4850-730e-08de793dd5f4,3/3/2026 3:59:59 PM,TRANSFER,
+kerickson@vadtek.com,3160d020-39f1-4850-730e-08de793dd5f4,3/3/2026 4:00:00 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,d0dfd900-5da2-4226-c9e6-08de793d90da,3/3/2026 3:57:33 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,d0dfd900-5da2-4226-c9e6-08de793d90da,3/3/2026 3:57:34 PM,TRANSFER,
+kerickson@vadtek.com,d0dfd900-5da2-4226-c9e6-08de793d90da,3/3/2026 3:57:35 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,d0dfd900-5da2-4226-c9e6-08de793d90da,3/3/2026 3:58:34 PM,TRANSFER,
+kerickson@vadtek.com,d0dfd900-5da2-4226-c9e6-08de793d90da,3/3/2026 3:58:35 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,b4aa1338-f434-4e2b-9be0-08de793d5621,3/3/2026 3:55:50 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,b4aa1338-f434-4e2b-9be0-08de793d5621,3/3/2026 3:55:53 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,b4aa1338-f434-4e2b-9be0-08de793d5621,3/3/2026 3:55:54 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,b4aa1338-f434-4e2b-9be0-08de793d5621,3/3/2026 3:56:13 PM,TRANSFER,
+kerickson@vadtek.com,b4aa1338-f434-4e2b-9be0-08de793d5621,3/3/2026 3:56:14 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,63aa8024-5582-4b6b-0472-08de793a746e,3/3/2026 3:35:13 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,63aa8024-5582-4b6b-0472-08de793a746e,3/3/2026 3:35:14 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,63aa8024-5582-4b6b-0472-08de793a746e,3/3/2026 3:35:14 PM,TRANSFER,
+kerickson@vadtek.com,63aa8024-5582-4b6b-0472-08de793a746e,3/3/2026 3:35:15 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,28491af9-0b8b-4042-e1f5-08de7938f909,3/3/2026 3:24:38 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,28491af9-0b8b-4042-e1f5-08de7938f909,3/3/2026 3:24:39 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,28491af9-0b8b-4042-e1f5-08de7938f909,3/3/2026 3:24:40 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,28491af9-0b8b-4042-e1f5-08de7938f909,3/3/2026 3:26:08 PM,TRANSFER,
+kerickson@vadtek.com,28491af9-0b8b-4042-e1f5-08de7938f909,3/3/2026 3:26:08 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,7731709b-8ff4-4cc3-49fd-08de793803e2,3/3/2026 3:17:43 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,7731709b-8ff4-4cc3-49fd-08de793803e2,3/3/2026 3:17:46 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,7731709b-8ff4-4cc3-49fd-08de793803e2,3/3/2026 3:17:46 PM,TRANSFER,
+kerickson@vadtek.com,7731709b-8ff4-4cc3-49fd-08de793803e2,3/3/2026 3:17:47 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,087f8844-3651-433e-3731-08de79367707,3/3/2026 3:06:49 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,087f8844-3651-433e-3731-08de79367707,3/3/2026 3:06:56 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,087f8844-3651-433e-3731-08de79367707,3/3/2026 3:07:33 PM,Defer,Reason: 421 4.7.720 A transient error occured during Advanced Threat Protection scanning.
+kerickson@vadtek.com,087f8844-3651-433e-3731-08de79367707,3/3/2026 3:08:22 PM,TRANSFER,
+kerickson@vadtek.com,087f8844-3651-433e-3731-08de79367707,3/3/2026 3:08:22 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,52a21521-e375-4bed-ea83-08de79363534,3/3/2026 3:04:49 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,52a21521-e375-4bed-ea83-08de79363534,3/3/2026 3:04:51 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,52a21521-e375-4bed-ea83-08de79363534,3/3/2026 3:04:51 PM,TRANSFER,
+kerickson@vadtek.com,52a21521-e375-4bed-ea83-08de79363534,3/3/2026 3:04:52 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,aadab4bc-eafc-4933-e76c-08de7936346f,3/3/2026 3:04:46 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,aadab4bc-eafc-4933-e76c-08de7936346f,3/3/2026 3:04:47 PM,TRANSFER,
+kerickson@vadtek.com,aadab4bc-eafc-4933-e76c-08de7936346f,3/3/2026 3:04:54 PM,TRANSFER,
+kerickson@vadtek.com,aadab4bc-eafc-4933-e76c-08de7936346f,3/3/2026 3:04:55 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,edc060af-d667-4aaa-c8c6-08de7932f794,3/3/2026 2:41:34 PM,Receive,Message received by: IA3PR22MB5832.namprd22.prod.outlook.com
+kerickson@vadtek.com,edc060af-d667-4aaa-c8c6-08de7932f794,3/3/2026 2:41:34 PM,Submit,The message was submitted.
+kerickson@vadtek.com,edc060af-d667-4aaa-c8c6-08de7932f794,3/3/2026 2:41:37 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,0bb9809d-b7a5-48ec-c93b-08de79315182,3/3/2026 2:29:54 PM,Receive,Message received by: SJ0PR22MB3065.namprd22.prod.outlook.com
+kerickson@vadtek.com,0bb9809d-b7a5-48ec-c93b-08de79315182,3/3/2026 2:29:54 PM,Submit,The message was submitted.
+kerickson@vadtek.com,0bb9809d-b7a5-48ec-c93b-08de79315182,3/3/2026 2:29:55 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,0bb9809d-b7a5-48ec-c93b-08de79315182,3/3/2026 2:30:10 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,bdbf36d3-256e-4b39-6458-08de792f6018,3/3/2026 2:15:55 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,bdbf36d3-256e-4b39-6458-08de792f6018,3/3/2026 2:15:56 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,bdbf36d3-256e-4b39-6458-08de792f6018,3/3/2026 2:15:56 PM,TRANSFER,
+kerickson@vadtek.com,bdbf36d3-256e-4b39-6458-08de792f6018,3/3/2026 2:15:57 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,b1911201-92f2-432a-47a2-08de792f357c,3/3/2026 2:14:42 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,b1911201-92f2-432a-47a2-08de792f357c,3/3/2026 2:14:47 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,b1911201-92f2-432a-47a2-08de792f357c,3/3/2026 2:15:15 PM,TRANSFER,
+kerickson@vadtek.com,b1911201-92f2-432a-47a2-08de792f357c,3/3/2026 2:15:16 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,24781a7f-4f8f-4e3d-3221-08de792f0616,3/3/2026 2:13:21 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,24781a7f-4f8f-4e3d-3221-08de792f0616,3/3/2026 2:13:24 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,24781a7f-4f8f-4e3d-3221-08de792f0616,3/3/2026 2:13:56 PM,TRANSFER,
+kerickson@vadtek.com,24781a7f-4f8f-4e3d-3221-08de792f0616,3/3/2026 2:13:58 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,b5e1ec7b-0d51-4df7-5987-08de792dae52,3/3/2026 2:03:45 PM,Receive,Message received by: CYYPR22MB4363.namprd22.prod.outlook.com
+kerickson@vadtek.com,b5e1ec7b-0d51-4df7-5987-08de792dae52,3/3/2026 2:03:49 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,b5e1ec7b-0d51-4df7-5987-08de792dae52,3/3/2026 2:03:53 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,3690d75f-50b0-422f-9ab3-08de7923d351,3/3/2026 12:53:11 PM,Receive,Message received by: MN0PR22MB5420.namprd22.prod.outlook.com
+kerickson@vadtek.com,3690d75f-50b0-422f-9ab3-08de7923d351,3/3/2026 12:53:13 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,3690d75f-50b0-422f-9ab3-08de7923d351,3/3/2026 12:53:14 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,51f50b71-eca2-4cd4-254a-08de791a90fd,3/3/2026 11:46:56 AM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,51f50b71-eca2-4cd4-254a-08de791a90fd,3/3/2026 11:46:58 AM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,51f50b71-eca2-4cd4-254a-08de791a90fd,3/3/2026 11:47:15 AM,TRANSFER,
+kerickson@vadtek.com,51f50b71-eca2-4cd4-254a-08de791a90fd,3/3/2026 11:47:15 AM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,09e90581-60eb-4bf3-11fd-08de791a90ac,3/3/2026 11:46:56 AM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,09e90581-60eb-4bf3-11fd-08de791a90ac,3/3/2026 11:46:57 AM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,09e90581-60eb-4bf3-11fd-08de791a90ac,3/3/2026 11:47:12 AM,TRANSFER,
+kerickson@vadtek.com,09e90581-60eb-4bf3-11fd-08de791a90ac,3/3/2026 11:47:13 AM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,d8366e65-6bd4-4a00-b69a-08de78f037fd,3/3/2026 6:43:49 AM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,d8366e65-6bd4-4a00-b69a-08de78f037fd,3/3/2026 6:43:50 AM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,d8366e65-6bd4-4a00-b69a-08de78f037fd,3/3/2026 6:43:51 AM,TRANSFER,
+kerickson@vadtek.com,d8366e65-6bd4-4a00-b69a-08de78f037fd,3/3/2026 6:43:52 AM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,c14fb968-5c25-4113-ac40-08de78b6577d,3/2/2026 11:49:30 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,c14fb968-5c25-4113-ac40-08de78b6577d,3/2/2026 11:49:33 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,c14fb968-5c25-4113-ac40-08de78b6577d,3/2/2026 11:49:35 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,c14fb968-5c25-4113-ac40-08de78b6577d,3/2/2026 11:49:49 PM,TRANSFER,
+kerickson@vadtek.com,c14fb968-5c25-4113-ac40-08de78b6577d,3/2/2026 11:49:52 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,d232f29f-a1c3-4065-e8fd-08de78b61a55,3/2/2026 11:47:47 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,d232f29f-a1c3-4065-e8fd-08de78b61a55,3/2/2026 11:47:48 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,d232f29f-a1c3-4065-e8fd-08de78b61a55,3/2/2026 11:47:49 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,d232f29f-a1c3-4065-e8fd-08de78b61a55,3/2/2026 11:48:03 PM,TRANSFER,
+kerickson@vadtek.com,d232f29f-a1c3-4065-e8fd-08de78b61a55,3/2/2026 11:48:04 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,cf78ae1c-addd-4ba2-81be-08de78b50e1a,3/2/2026 11:40:16 PM,Receive,Message received by: IA2PR22MB5476.namprd22.prod.outlook.com
+kerickson@vadtek.com,cf78ae1c-addd-4ba2-81be-08de78b50e1a,3/2/2026 11:40:21 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,cf78ae1c-addd-4ba2-81be-08de78b50e1a,3/2/2026 11:40:22 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,cf78ae1c-addd-4ba2-81be-08de78b50e1a,3/2/2026 11:40:38 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,22142f20-a7ae-4066-64fc-08de78b38ae5,3/2/2026 11:29:33 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,22142f20-a7ae-4066-64fc-08de78b38ae5,3/2/2026 11:29:40 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,22142f20-a7ae-4066-64fc-08de78b38ae5,3/2/2026 11:29:40 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,22142f20-a7ae-4066-64fc-08de78b38ae5,3/2/2026 11:30:11 PM,TRANSFER,
+kerickson@vadtek.com,22142f20-a7ae-4066-64fc-08de78b38ae5,3/2/2026 11:30:16 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,ea92a5aa-2658-4752-ab39-08de78aefb5a,3/2/2026 10:56:49 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,ea92a5aa-2658-4752-ab39-08de78aefb5a,3/2/2026 10:56:50 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,ea92a5aa-2658-4752-ab39-08de78aefb5a,3/2/2026 10:56:54 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,ea92a5aa-2658-4752-ab39-08de78aefb5a,3/2/2026 10:57:11 PM,TRANSFER,
+kerickson@vadtek.com,ea92a5aa-2658-4752-ab39-08de78aefb5a,3/2/2026 10:57:13 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,38d1c640-576c-46c1-12a8-08de78aefb17,3/2/2026 10:56:48 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,38d1c640-576c-46c1-12a8-08de78aefb17,3/2/2026 10:56:49 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,38d1c640-576c-46c1-12a8-08de78aefb17,3/2/2026 10:56:51 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,38d1c640-576c-46c1-12a8-08de78aefb17,3/2/2026 10:57:05 PM,TRANSFER,
+kerickson@vadtek.com,38d1c640-576c-46c1-12a8-08de78aefb17,3/2/2026 10:57:05 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,5b35428d-fbf1-49d4-0173-08de78ac3ea2,3/2/2026 10:37:17 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,5b35428d-fbf1-49d4-0173-08de78ac3ea2,3/2/2026 10:37:18 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,5b35428d-fbf1-49d4-0173-08de78ac3ea2,3/2/2026 10:37:19 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,5b35428d-fbf1-49d4-0173-08de78ac3ea2,3/2/2026 10:37:34 PM,TRANSFER,
+kerickson@vadtek.com,5b35428d-fbf1-49d4-0173-08de78ac3ea2,3/2/2026 10:37:38 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,3d89277b-c4d5-4860-ae6e-08de78abfb35,3/2/2026 10:35:22 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,3d89277b-c4d5-4860-ae6e-08de78abfb35,3/2/2026 10:35:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,3d89277b-c4d5-4860-ae6e-08de78abfb35,3/2/2026 10:35:25 PM,TRANSFER,
+kerickson@vadtek.com,3d89277b-c4d5-4860-ae6e-08de78abfb35,3/2/2026 10:35:25 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,f19cd53b-ff9b-40c9-fdba-08de78aaaaba,3/2/2026 10:25:56 PM,Receive,Message received by: CYYPR22MB4215.namprd22.prod.outlook.com
+kerickson@vadtek.com,f19cd53b-ff9b-40c9-fdba-08de78aaaaba,3/2/2026 10:25:59 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,f19cd53b-ff9b-40c9-fdba-08de78aaaaba,3/2/2026 10:25:59 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,71fee250-2dab-43f0-b7a7-08de78aa5325,3/2/2026 10:23:28 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,71fee250-2dab-43f0-b7a7-08de78aa5325,3/2/2026 10:23:29 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,71fee250-2dab-43f0-b7a7-08de78aa5325,3/2/2026 10:23:59 PM,TRANSFER,
+kerickson@vadtek.com,71fee250-2dab-43f0-b7a7-08de78aa5325,3/2/2026 10:24:01 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,874d21ec-7597-42c1-fc7d-08de78aa3bef,3/2/2026 10:22:59 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,874d21ec-7597-42c1-fc7d-08de78aa3bef,3/2/2026 10:23:03 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,874d21ec-7597-42c1-fc7d-08de78aa3bef,3/2/2026 10:23:07 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,874d21ec-7597-42c1-fc7d-08de78aa3bef,3/2/2026 10:23:37 PM,TRANSFER,
+kerickson@vadtek.com,874d21ec-7597-42c1-fc7d-08de78aa3bef,3/2/2026 10:23:39 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,181ff113-de1d-4b1c-843a-08de78a7e1a6,3/2/2026 10:05:59 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,181ff113-de1d-4b1c-843a-08de78a7e1a6,3/2/2026 10:06:04 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,181ff113-de1d-4b1c-843a-08de78a7e1a6,3/2/2026 10:06:27 PM,TRANSFER,
+kerickson@vadtek.com,181ff113-de1d-4b1c-843a-08de78a7e1a6,3/2/2026 10:06:29 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,6c293bde-2650-4032-3ec3-08de78a7a63a,3/2/2026 10:04:18 PM,Receive,Message received by: EA2PR22MB5188.namprd22.prod.outlook.com
+kerickson@vadtek.com,6c293bde-2650-4032-3ec3-08de78a7a63a,3/2/2026 10:04:18 PM,Submit,The message was submitted.
+kerickson@vadtek.com,6c293bde-2650-4032-3ec3-08de78a7a63a,3/2/2026 10:04:22 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,99e25cca-428e-43ee-5422-08de78a7412b,3/2/2026 10:01:28 PM,Receive,Message received by: LV3PR22MB5812.namprd22.prod.outlook.com
+kerickson@vadtek.com,99e25cca-428e-43ee-5422-08de78a7412b,3/2/2026 10:01:32 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,99e25cca-428e-43ee-5422-08de78a7412b,3/2/2026 10:01:33 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,c7b1496c-3b3b-4b44-2494-08de78a68393,3/2/2026 9:56:14 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,c7b1496c-3b3b-4b44-2494-08de78a68393,3/2/2026 9:56:15 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,c7b1496c-3b3b-4b44-2494-08de78a68393,3/2/2026 9:56:16 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,c7b1496c-3b3b-4b44-2494-08de78a68393,3/2/2026 9:56:44 PM,TRANSFER,
+kerickson@vadtek.com,c7b1496c-3b3b-4b44-2494-08de78a68393,3/2/2026 9:56:45 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,e583ece5-0fee-4f28-4a69-08de78a5c0d4,3/2/2026 9:50:52 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,e583ece5-0fee-4f28-4a69-08de78a5c0d4,3/2/2026 9:50:53 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,e583ece5-0fee-4f28-4a69-08de78a5c0d4,3/2/2026 9:50:55 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,e583ece5-0fee-4f28-4a69-08de78a5c0d4,3/2/2026 9:51:23 PM,TRANSFER,
+kerickson@vadtek.com,e583ece5-0fee-4f28-4a69-08de78a5c0d4,3/2/2026 9:51:24 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,cf62a0c6-dc1b-4931-43e2-08de78a55f9f,3/2/2026 9:48:02 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,cf62a0c6-dc1b-4931-43e2-08de78a55f9f,3/2/2026 9:48:05 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,cf62a0c6-dc1b-4931-43e2-08de78a55f9f,3/2/2026 9:48:18 PM,TRANSFER,
+kerickson@vadtek.com,cf62a0c6-dc1b-4931-43e2-08de78a55f9f,3/2/2026 9:48:19 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,0ed59ff9-73b9-444b-c96f-08de78a31030,3/2/2026 9:31:29 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,0ed59ff9-73b9-444b-c96f-08de78a31030,3/2/2026 9:31:30 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,0ed59ff9-73b9-444b-c96f-08de78a31030,3/2/2026 9:31:33 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,0ed59ff9-73b9-444b-c96f-08de78a31030,3/2/2026 9:31:49 PM,TRANSFER,
+kerickson@vadtek.com,0ed59ff9-73b9-444b-c96f-08de78a31030,3/2/2026 9:31:51 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,72a8a666-df84-40ea-c5d1-08de78a2d9ab,3/2/2026 9:30:07 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,72a8a666-df84-40ea-c5d1-08de78a2d9ab,3/2/2026 9:30:15 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,72a8a666-df84-40ea-c5d1-08de78a2d9ab,3/2/2026 9:30:15 PM,TRANSFER,
+kerickson@vadtek.com,72a8a666-df84-40ea-c5d1-08de78a2d9ab,3/2/2026 9:30:16 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,3f917e47-e250-4f3a-7b41-08de78a15a11,3/2/2026 9:19:13 PM,Receive,Message received by: LV8PR22MB5628.namprd22.prod.outlook.com
+kerickson@vadtek.com,3f917e47-e250-4f3a-7b41-08de78a15a11,3/2/2026 9:19:13 PM,Submit,The message was submitted.
+kerickson@vadtek.com,3f917e47-e250-4f3a-7b41-08de78a15a11,3/2/2026 9:19:14 PM,TRANSFER,
+kerickson@vadtek.com,3f917e47-e250-4f3a-7b41-08de78a15a11,3/2/2026 9:19:17 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,86bd35ad-9def-433d-d085-08de78a0411f,3/2/2026 9:11:23 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,86bd35ad-9def-433d-d085-08de78a0411f,3/2/2026 9:11:23 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,86bd35ad-9def-433d-d085-08de78a0411f,3/2/2026 9:11:25 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,86bd35ad-9def-433d-d085-08de78a0411f,3/2/2026 9:11:40 PM,TRANSFER,
+kerickson@vadtek.com,86bd35ad-9def-433d-d085-08de78a0411f,3/2/2026 9:11:41 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,475a6e4e-7f8a-483c-b0c9-08de78a0346b,3/2/2026 9:11:02 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,475a6e4e-7f8a-483c-b0c9-08de78a0346b,3/2/2026 9:11:02 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,475a6e4e-7f8a-483c-b0c9-08de78a0346b,3/2/2026 9:11:04 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,475a6e4e-7f8a-483c-b0c9-08de78a0346b,3/2/2026 9:11:16 PM,TRANSFER,
+kerickson@vadtek.com,475a6e4e-7f8a-483c-b0c9-08de78a0346b,3/2/2026 9:11:17 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,1837ec80-0d7f-4f85-d18d-08de78a00c66,3/2/2026 9:09:54 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,1837ec80-0d7f-4f85-d18d-08de78a00c66,3/2/2026 9:09:59 PM,TRANSFER,
+kerickson@vadtek.com,1837ec80-0d7f-4f85-d18d-08de78a00c66,3/2/2026 9:10:00 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,6de933b2-b462-4cf6-1f6a-08de789ceefe,3/2/2026 8:47:39 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,6de933b2-b462-4cf6-1f6a-08de789ceefe,3/2/2026 8:47:41 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,6de933b2-b462-4cf6-1f6a-08de789ceefe,3/2/2026 8:47:41 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,6de933b2-b462-4cf6-1f6a-08de789ceefe,3/2/2026 8:47:57 PM,TRANSFER,
+kerickson@vadtek.com,6de933b2-b462-4cf6-1f6a-08de789ceefe,3/2/2026 8:47:59 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,7fe597d6-d126-4fc8-5666-08de789b30c9,3/2/2026 8:35:08 PM,Receive,Message received by: SJ2PR22MB5245.namprd22.prod.outlook.com
+kerickson@vadtek.com,7fe597d6-d126-4fc8-5666-08de789b30c9,3/2/2026 8:35:09 PM,Submit,The message was submitted.
+kerickson@vadtek.com,7fe597d6-d126-4fc8-5666-08de789b30c9,3/2/2026 8:35:10 PM,TRANSFER,
+kerickson@vadtek.com,7fe597d6-d126-4fc8-5666-08de789b30c9,3/2/2026 8:35:12 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,7fe597d6-d126-4fc8-5666-08de789b30c9,3/2/2026 8:35:27 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,9e861f4f-da6a-4487-4b15-08de789873b2,3/2/2026 8:15:36 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,9e861f4f-da6a-4487-4b15-08de789873b2,3/2/2026 8:15:43 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,9e861f4f-da6a-4487-4b15-08de789873b2,3/2/2026 8:15:44 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,9e861f4f-da6a-4487-4b15-08de789873b2,3/2/2026 8:16:19 PM,TRANSFER,
+kerickson@vadtek.com,9e861f4f-da6a-4487-4b15-08de789873b2,3/2/2026 8:16:20 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,8f7431af-ee03-49d8-0e41-08de78982564,3/2/2026 8:13:20 PM,Receive,Message received by: SJ4PPF391DD7304.namprd22.prod.outlook.com
+kerickson@vadtek.com,8f7431af-ee03-49d8-0e41-08de78982564,3/2/2026 8:13:23 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,8f7431af-ee03-49d8-0e41-08de78982564,3/2/2026 8:13:24 PM,Spam,Spam confidence level: 5
+kerickson@vadtek.com,8f7431af-ee03-49d8-0e41-08de78982564,3/2/2026 8:13:25 PM,Deliver,The message was delivered to the Junk Email folder.
+kerickson@vadtek.com,36330499-9e84-4064-3f2b-08de789756a0,3/2/2026 8:07:32 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,36330499-9e84-4064-3f2b-08de789756a0,3/2/2026 8:07:33 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,36330499-9e84-4064-3f2b-08de789756a0,3/2/2026 8:07:34 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,36330499-9e84-4064-3f2b-08de789756a0,3/2/2026 8:08:02 PM,TRANSFER,
+kerickson@vadtek.com,36330499-9e84-4064-3f2b-08de789756a0,3/2/2026 8:08:02 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,337d599a-6e79-43b6-3334-08de7895edb9,3/2/2026 7:57:33 PM,Redirect,The message was directed to ayoki@vadtek.com.
+kerickson@vadtek.com,337d599a-6e79-43b6-3334-08de7895edb9,3/2/2026 7:57:34 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,337d599a-6e79-43b6-3334-08de7895edb9,3/2/2026 7:57:36 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@vadtek.com,337d599a-6e79-43b6-3334-08de7895edb9,3/2/2026 7:57:52 PM,TRANSFER,
+kerickson@vadtek.com,337d599a-6e79-43b6-3334-08de7895edb9,3/2/2026 7:57:53 PM,Deliver,The message was successfully delivered.
+kerickson@vadtek.com,71eb9f73-4352-4961-66d3-08de78944222,3/2/2026 7:45:29 PM,Receive (with external delay),Message received by: LV3PR22MB4535.namprd22.prod.outlook.com. There was a delay of 55 minutes prior to the message being received by Office 365.
+kerickson@vadtek.com,71eb9f73-4352-4961-66d3-08de78944222,3/2/2026 7:45:33 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@vadtek.com,71eb9f73-4352-4961-66d3-08de78944222,3/2/2026 7:45:34 PM,Deliver,The message was successfully delivered.

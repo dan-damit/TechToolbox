@@ -1,0 +1,24 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              bblank@vadtek.com
+Display Name:      Brian Blank
+SamAccountName:    bblank
+Timestamp:         4/17/2026 10:51:25 AM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: True
+  SamAccountName: bblank
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+===============================================
+ End of Summary
+===============================================

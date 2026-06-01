@@ -1,0 +1,24 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              lgitchell@vadtek.com
+Display Name:      Logan Gitchell
+SamAccountName:    lgitchell
+Timestamp:         4/22/2026 1:04:00 PM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: True
+  SamAccountName: lgitchell
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+===============================================
+ End of Summary
+===============================================

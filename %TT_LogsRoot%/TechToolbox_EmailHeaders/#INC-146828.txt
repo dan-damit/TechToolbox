@@ -1,0 +1,129 @@
+Received: from LV3PR22MB5195.namprd22.prod.outlook.com
+ (2603:10b6:408:1db::17) by CO6PR22MB2434.namprd22.prod.outlook.com with
+ HTTPS; Tue, 3 Mar 2026 18:55:02 +0000
+Received: from BL1PR13CA0297.namprd13.prod.outlook.com
+ (2603:10b6:208:2bc::32) by LV3PR22MB5195.namprd22.prod.outlook.com
+ (2603:10b6:408:1db::17) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9654.22; Tue, 3 Mar
+ 2026 18:55:01 +0000
+Received: from BL6PEPF00020E63.namprd04.prod.outlook.com
+ (2603:10b6:208:2bc:cafe::c7) by BL1PR13CA0297.outlook.office365.com
+ (2603:10b6:208:2bc::32) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9654.22 via Frontend Transport;
+ Tue, 3 Mar 2026 18:54:52 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ BL6PEPF00020E63.mail.protection.outlook.com (10.167.249.24) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9654.16 via Frontend Transport; Tue, 3 Mar 2026 18:55:00 +0000
+Received: from mail-30-r90.ipv4.syd02.ds.network
+ (mail-30-r90.ipv4.syd02.ds.network [103.250.212.28])	by
+ gw3135.fortimail.com with ESMTPS id 623IhO14023470-623IhO16023470
+	(version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NO)	for
+ <kruppel@vadtek.com>; Tue, 3 Mar 2026 12:43:27 -0600
+Received: from cp-wc25.per01.ds.network (ipb9b89b23.ipv4.syd02.ds.network
+ [185.184.155.35])	by halon-out02.au.ds.network (Halon) with ESMTPS	id
+ da73d0b6-1730-11f1-90a5-d094665788dc;	Wed, 04 Mar 2026 02:43:21 +0800
+ (AWST)
+Received: from localhost ([127.0.0.1]:40344 helo=cp-wc25.per01.ds.network)
+	by cp-wc25.per01.ds.network with esmtpa (Exim 4.96.2)	(envelope-from
+ <info@neoarc.com.au>)	id 1vxUiH-005yCQ-1g	for kruppel@vadtek.com;	Wed, 04
+ Mar 2026 02:43:21 +0800
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=neoarc.com.au; dkim=fail (signature did not verify)
+ header.d=neoarc.com.au;dmarc=none action=none
+ header.from=neoarc.com.au;compauth=none reason=405
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ neoarc.com.au discourages use of 173.243.133.135 as permitted sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=softfail
+ (fortimail.com: domain of info@neoarc.com.au does not designate
+ 103.250.212.28 as permitted sender) smtp.mailfrom=info@neoarc.com.au;
+	dkim=pass header.i=@neoarc.com.au;
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=neoarc.com.au; s=default; h=Content-Transfer-Encoding:Content-Type:
+	Message-ID:Subject:To:From:Date:MIME-Version:Sender:Reply-To:Cc:Content-ID:
+	Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc
+	:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:
+	List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=SmQnWMn9htQsgSzniGZpmAdYfE/4tSCZETd8ZAfLMxo=;
+ b=jZ+Yw9NY0D/NTYlL6QsHe7fqMz
+	18x5A34+Y2C+pLXYNbK+Is+lf25Vp9y2d7/rtKadyKdKw4QnWX5/TkKvnSZdhA+bcieFRx2IvPvDI
+	uei2gf1mP4aZrD4l4MaK48vEmeql5plBja+UGtmIeWSsn1a6KX6+eKRKKOagNOPQ0/Y8OfL09h93w
+	oRda9kg+/D150xdnidLslL0fLct3PfzIVGh/kmEdLgMQyAyfUf+H/B+Qq4dBSV09XPuNTEkt5g3MM
+	qFgAaJuZ8J20Zog6EfByNgFmIpXj9UntsdCgUAVE2p020i7Lq+0jDkU1KpGNZ7QFjYv9A6wLjhPho
+	z7AGdEdw==;
+MIME-Version: 1.0
+Date: Wed, 4 Mar 2026 02:43:21 +0800
+From: Tavis Mills <info@neoarc.com.au>
+To: Karen Ruppel <kruppel@vadtek.com>
+Subject: =?UTF-8?B?KlBvc3NpYmxlIFNwYW0qIFVQREFURSBNWSBESVJFQ1QgREVQT1NJ?=
+ =?UTF-8?B?VCBERUVUUw==?=
+User-Agent: Roundcube Webmail/1.6.0
+Message-Id: <de70c728625248463e1ad8e7080b6a2a@neoarc.com.au>
+X-Sender: info@neoarc.com.au
+Disposition-Notification-To: "Tavis Mills" <info@neoarc.com.au>
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17725645898020.33409746343511504"
+Content-Transfer-Encoding: 7bit
+X-Antiabuse: This header was added to track abuse, please include it with
+ any abuse report
+X-Antiabuse: Primary Hostname - cp-wc25.per01.ds.network
+X-Antiabuse: Original Domain - vadtek.com
+X-Antiabuse: Originator/Caller UID/GID - [47 12] / [47 12]
+X-Antiabuse: Sender Address Domain - neoarc.com.au
+X-Get-Message-Sender-Via: cp-wc25.per01.ds.network: authenticated_id:
+ info@neoarc.com.au
+X-Authenticated-Sender: cp-wc25.per01.ds.network: info@neoarc.com.au
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFlQSAEGDgcoBg0HCRoLRgsHBUYJHUhYSFlQSAMaHRgYDQQoHgkMHA0DRgsHBUhZSFlIWVxIWVhbRlpdWEZaWVpGWlBIW0hYSFhIWUhYSFhIWEhZUEgDGh0YGA0EKB4JDBwNA0YLBwVIWQ==
+X-Feas-Deferred: Spam outbreak
+X-Feas-Client-Ip: 103.250.212.28
+X-Fe-Last-Public-Client-Ip: 103.250.212.28
+X-Fe-Envelope-From: info@neoarc.com.au
+X-Feas-Spf: spf-result=soft-fail, ip=103.250.212.28,
+ helo=mail-30-r90.ipv4.syd02.ds.network, mailFrom=info@neoarc.com.au
+X-Fe-Policy-Id: 0:1:1:vadtek.com
+Return-Path: info@neoarc.com.au
+X-Ms-Exchange-Organization-Expirationstarttime: 03 Mar 2026 18:55:00.7832
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ 1f7088dc-c0de-4a1c-9d3a-08de79565f65
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ BL6PEPF00020E63:EE_|LV3PR22MB5195:EE_|CO6PR22MB2434:EE_
+X-Ms-Exchange-Organization-Authsource:
+ BL6PEPF00020E63.namprd04.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ 1f7088dc-c0de-4a1c-9d3a-08de79565f65
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:0;ARA:13230040|704161311799003|27102699006|82310400026|14062099003|54012099003|42103499003|43540500003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(704161311799003)(27102699006)(82310400026)(14062099003)(54012099003)(42103499003)(43540500003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 03 Mar 2026 18:55:00.5197
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ 1f7088dc-c0de-4a1c-9d3a-08de79565f65
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ BL6PEPF00020E63.namprd04.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: LV3PR22MB5195
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:02.3122810
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9654.014
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944506478)(944626604)(4710137)(4712097)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+

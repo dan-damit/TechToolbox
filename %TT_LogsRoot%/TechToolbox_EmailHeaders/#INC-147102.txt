@@ -1,0 +1,131 @@
+Received: from DS4PPFA7EB98CEC.namprd22.prod.outlook.com (::1) by
+ PH0PR22MB2938.namprd22.prod.outlook.com with HTTPS; Wed, 4 Mar 2026
+ 15:55:40 +0000
+Received: from BN9P220CA0006.NAMP220.PROD.OUTLOOK.COM
+ (2603:10b6:408:13e::11) by DS4PPFA7EB98CEC.namprd22.prod.outlook.com
+ (2603:10b6:f:fc00::b3e) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9654.22; Wed, 4 Mar
+ 2026 15:54:59 +0000
+Received: from BN2PEPF0000449F.namprd02.prod.outlook.com
+ (2603:10b6:408:13e:cafe::2f) by BN9P220CA0006.outlook.office365.com
+ (2603:10b6:408:13e::11) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9654.22 via Frontend Transport;
+ Wed, 4 Mar 2026 15:54:34 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ BN2PEPF0000449F.mail.protection.outlook.com (10.167.243.150) with
+ Microsoft SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9678.18 via Frontend Transport; Wed, 4 Mar 2026 15:54:58 +0000
+Received: from a8-91.smtp-out.amazonses.com (a8-91.smtp-out.amazonses.com
+ [54.240.8.91])	by gw3135.fortimail.com with ESMTPS id
+ 624FhMH7015888-624FhMH9015888	(version=TLSv1.3
+ cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NO)	for
+ <alarson@vadtek.com>; Wed, 4 Mar 2026 09:43:24 -0600
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=mail.readicollect.com; dkim=pass (signature was verified)
+ header.d=readicollect.com;dkim=pass (signature was verified)
+ header.d=amazonses.com;dmarc=pass action=none
+ header.from=readicollect.com;compauth=pass reason=100
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ mail.readicollect.com discourages use of 173.243.133.135 as permitted
+ sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of
+ 0100019cb9849d57-4db72cd0-0bd8-4716-917f-a04cc2363de4-000000@mail.readicollect.com
+ designates 54.240.8.91 as permitted sender)
+ smtp.mailfrom=0100019cb9849d57-4db72cd0-0bd8-4716-917f-a04cc2363de4-000000@mail.readicollect.com;
+	dkim=pass header.i=@amazonses.com	dkim=pass header.i=@readicollect.com;
+	dmarc=pass header.from=readicollect.com;
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=wpx6r42uyizwus73sobcqpjv5nmpdmgx; d=readicollect.com;	t=1772639002;
+	h=From:To:Reply-To:Subject:Message-ID:Date:MIME-Version:Content-Type;
+	bh=tFpysxhb+QiYPbc9trgZNGG1RCwwXCtwVXM7n+hAwkg=;
+	b=NRAaBZG3HYi/eEPoCF0IP/zb1zm9CbtaY+QhjdYuAS4RlYs0KWkkzVMdOiH5MrLn
+	4Z+FDKpIql5nSijtUoPgSNIWlZ3/Qh/BH5Wo9pOwZ9y6L2VIznMMM6Cvnkotoronpxk
+	iLyTIQVHjvHjpqCcs69rXg0KZIFaNzqpxFeNbe9Z6bNudYl/cUWAxVdzoXTFviN3UjI
+	IO5TbCVAAqajlvt4bl0BD8oVir8GuauZJ2tqpuLV6UcPx73xdcwAg/LI9i+BccoVoeu
+	lAMsWTB+4Aywzg2UhFAnuyc1cvmHyMqK9zaflZmPc1DoXAA56HvPIPehQaCZPwFEGqK
+	e4mhAorG8w==
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1772639002;
+	h=From:To:Reply-To:Subject:Message-ID:Date:MIME-Version:Content-Type:Feedback-ID;
+	bh=tFpysxhb+QiYPbc9trgZNGG1RCwwXCtwVXM7n+hAwkg=;
+	b=E9AE8a4pwtNg3eyQ5IZKuwI5TyJOzOGdu0GBjo07jmwFO1e/3x0GnShcFYyC727d
+	7qamgoIBIvYQtmCp6fU8CUcsWh5aj79WLwSZECy9LDQjTtvOag2P8pSuXm4hW//+E7N
+	DLzIGcIUC3uWL3t4WJ73kTEUAjukwHxyjB1OYruw=
+From: Robert Holder <info@readicollect.com>
+To: Amanda Larson <alarson@vadtek.com>
+Reply-To: Robert Holder <reply@vistageinc.org>
+Subject: =?UTF-8?B?UGF0aElOVjY4Mzg1MTgxLS9NaWtlIEtvc3RlbG5pay0vVmFsdWUg?=
+ =?UTF-8?B?QWRkZWQgRGlzdHJpYnV0b3JzfCBQYXRoKDU2My05MDM4LTAzODkz?=
+ =?UTF-8?B?OSk=?=
+Message-Id:
+ <0100019cb9849d57-4db72cd0-0bd8-4716-917f-a04cc2363de4-000000@email.amazonses.com>
+X-Priority: 1 (Highest)
+X-Msmail-Priority: High
+Importance: High
+Date: Wed, 4 Mar 2026 15:43:21 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17726397766940.6730474440340807"
+Feedback-Id:
+ ::1.us-east-1./fbc0UDY6GpIC9v1ItWhiKBbMrusxmIArjBbuSj1Q+Q=:AmazonSES
+X-Ses-Outgoing: 2026.03.04-54.240.8.91
+X-Fe-Attachment-Name: Invoice_68385181.pdf
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFBaSFhZWFhYWVELClFQXFEMXV9FXAwKX1oLDFhFWAoMUEVcX1leRVFZXw5FCVhcCwtaW15bDA1cRVhYWFhYWCgFCQEERhoNCQwBCwcEBA0LHEYLBwVIWEhZUEgJBAkaGwcGKB4JDBwNA0YLBwVIWUhZSFlZSF1cRlpcWEZQRlFZSF5IWEhYSFlIWEhYSFhIWVBICQQJGhsHBigeCQwcDQNGCwcFSFk=
+X-Feas-Deferred: Spam outbreak,FortiSandbox
+X-Feas-Client-Ip: 54.240.8.91
+X-Fe-Last-Public-Client-Ip: 54.240.8.91
+X-Fe-Envelope-From:
+ 0100019cb9849d57-4db72cd0-0bd8-4716-917f-a04cc2363de4-000000@mail.readicollect.com
+X-Feas-Spf: spf-result=pass, ip=54.240.8.91,
+ helo=a8-91.smtp-out.amazonses.com,
+ mailFrom=0100019cb9849d57-4db72cd0-0bd8-4716-917f-a04cc2363de4-000000@mail.readicollect.com
+X-Fe-Policy-Id: 0:1:1:vadtek.com
+Return-Path:
+ 0100019cb9849d57-4db72cd0-0bd8-4716-917f-a04cc2363de4-000000@mail.readicollect.com
+X-Ms-Exchange-Organization-Expirationstarttime: 04 Mar 2026 15:54:59.1041
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ d536bf49-28b7-4399-f029-08de7a066381
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ BN2PEPF0000449F:EE_|DS4PPFA7EB98CEC:EE_|PH0PR22MB2938:EE_
+X-Ms-Exchange-Organization-Authsource:
+ BN2PEPF0000449F.namprd02.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ d536bf49-28b7-4399-f029-08de7a066381
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:0;ARA:13230040|704161111799003|3109299003|4022899009|6049299003|32142699015|82310400026|69100299015|30052699003|8096899003|54012099003|14062099003|7053199007|4053099003|4013099003|43540500003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(704161111799003)(3109299003)(4022899009)(6049299003)(32142699015)(82310400026)(69100299015)(30052699003)(8096899003)(54012099003)(14062099003)(7053199007)(4053099003)(4013099003)(43540500003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 04 Mar 2026 15:54:58.8460
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ d536bf49-28b7-4399-f029-08de7a066381
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ BN2PEPF0000449F.namprd02.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: DS4PPFA7EB98CEC
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:41.2962456
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9678.010
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944506478)(944626604)(4710137)(4712097)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+Content-Transfer-Encoding: 7bit
+

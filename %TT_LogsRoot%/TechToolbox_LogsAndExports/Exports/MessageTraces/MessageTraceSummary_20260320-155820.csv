@@ -1,0 +1,55 @@
+Received,SenderAddress,RecipientAddress,Subject,Status,MessageTraceId
+3/20/2026 7:18:11 PM,orders@gazellemarketing.com,skhamissi@vadtek.com,"RE: invoice request po's 368805, 369416, 369559 - VALUE ADDED DISTRIBUTORS",Delivered,f2b4f231-5402-4456-b5ec-08de86b56d16
+3/20/2026 4:45:02 PM,orders@gazellemarketing.com,alarson@vadtek.com,Invoice 152028 from Gazelle,Quarantined,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c
+3/20/2026 4:45:02 PM,orders@gazellemarketing.com,idcinput@vadtek.com,Invoice 152028 from Gazelle,Quarantined,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c
+3/20/2026 4:45:02 PM,orders@gazellemarketing.com,loneil@vadtek.com,Invoice 152028 from Gazelle,Quarantined,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c
+3/20/2026 4:45:02 PM,orders@gazellemarketing.com,sjanz@vadtek.com,Invoice 152028 from Gazelle,Quarantined,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c
+3/20/2026 4:45:02 PM,orders@gazellemarketing.com,skhamissi@vadtek.com,Invoice 152028 from Gazelle,Quarantined,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c
+3/20/2026 4:45:02 PM,orders@gazellemarketing.com,vadap@vadtek.com,Invoice 152028 from Gazelle,Expanded,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c
+3/20/2026 4:42:58 PM,orders@gazellemarketing.com,alarson@vadtek.com,Invoice 152027 from Gazelle,Quarantined,9d6299a1-c15b-4a35-c497-08de869fbe2f
+3/20/2026 4:42:58 PM,orders@gazellemarketing.com,idcinput@vadtek.com,Invoice 152027 from Gazelle,Quarantined,9d6299a1-c15b-4a35-c497-08de869fbe2f
+3/20/2026 4:42:58 PM,orders@gazellemarketing.com,loneil@vadtek.com,Invoice 152027 from Gazelle,Quarantined,9d6299a1-c15b-4a35-c497-08de869fbe2f
+3/20/2026 4:42:58 PM,orders@gazellemarketing.com,sjanz@vadtek.com,Invoice 152027 from Gazelle,Quarantined,9d6299a1-c15b-4a35-c497-08de869fbe2f
+3/20/2026 4:42:58 PM,orders@gazellemarketing.com,skhamissi@vadtek.com,Invoice 152027 from Gazelle,Quarantined,9d6299a1-c15b-4a35-c497-08de869fbe2f
+3/20/2026 4:42:58 PM,orders@gazellemarketing.com,vadap@vadtek.com,Invoice 152027 from Gazelle,Expanded,9d6299a1-c15b-4a35-c497-08de869fbe2f
+3/19/2026 7:23:12 PM,orders@gazellemarketing.com,asmith@vadtek.com,RE: Value Added Distributors - Fort Payne - Purchase Order #369843 attached,Delivered,1e23e464-f84e-4657-1550-08de85ecf66c
+3/19/2026 7:23:12 PM,orders@gazellemarketing.com,cwinpigler@vadtek.com,RE: Value Added Distributors - Fort Payne - Purchase Order #369843 attached,Delivered,1e23e464-f84e-4657-1550-08de85ecf66c
+3/19/2026 7:23:12 PM,orders@gazellemarketing.com,kgehling@vadtek.com,RE: Value Added Distributors - Fort Payne - Purchase Order #369843 attached,Delivered,1e23e464-f84e-4657-1550-08de85ecf66c
+3/19/2026 7:23:12 PM,orders@gazellemarketing.com,mvandenheuvel@vadtek.com,RE: Value Added Distributors - Fort Payne - Purchase Order #369843 attached,Delivered,1e23e464-f84e-4657-1550-08de85ecf66c
+3/19/2026 7:23:12 PM,orders@gazellemarketing.com,rtuttle@vadtek.com,RE: Value Added Distributors - Fort Payne - Purchase Order #369843 attached,Delivered,1e23e464-f84e-4657-1550-08de85ecf66c
+3/19/2026 7:23:12 PM,orders@gazellemarketing.com,shaworders@vadtek.com,RE: Value Added Distributors - Fort Payne - Purchase Order #369843 attached,Delivered,1e23e464-f84e-4657-1550-08de85ecf66c
+3/19/2026 7:23:12 PM,orders@gazellemarketing.com,smolck@vadtek.com,RE: Value Added Distributors - Fort Payne - Purchase Order #369843 attached,Delivered,1e23e464-f84e-4657-1550-08de85ecf66c
+3/19/2026 7:23:12 PM,orders@gazellemarketing.com,VADPOAck@vadtek.com,RE: Value Added Distributors - Fort Payne - Purchase Order #369843 attached,Expanded,1e23e464-f84e-4657-1550-08de85ecf66c
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,agraf@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,arivera@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,ayocius@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,cknelson@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,dgervais@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,hholst@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,jwautier@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,kbauldry@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,kerickson@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,kphillips@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,kwolske@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,mhafenbreadl@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,TMOPOack@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Expanded,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,tobrien@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 7:16:13 PM,orders@gazellemarketing.com,vkorhonen@vadtek.com,RE: Transmotion - Green Bay - Purchase Order #399892 attached,Delivered,8a48ab5e-5e2e-4595-bb51-08de85ebfca7
+3/19/2026 6:03:42 PM,orders@gazellemarketing.com,alarson@vadtek.com,Invoice 152002 from Gazelle,Quarantined,d0db9ea4-10d9-4f03-136d-08de85e1db7d
+3/19/2026 6:03:42 PM,orders@gazellemarketing.com,idcinput@vadtek.com,Invoice 152002 from Gazelle,Quarantined,d0db9ea4-10d9-4f03-136d-08de85e1db7d
+3/19/2026 6:03:42 PM,orders@gazellemarketing.com,loneil@vadtek.com,Invoice 152002 from Gazelle,Quarantined,d0db9ea4-10d9-4f03-136d-08de85e1db7d
+3/19/2026 6:03:42 PM,orders@gazellemarketing.com,sjanz@vadtek.com,Invoice 152002 from Gazelle,Quarantined,d0db9ea4-10d9-4f03-136d-08de85e1db7d
+3/19/2026 6:03:42 PM,orders@gazellemarketing.com,skhamissi@vadtek.com,Invoice 152002 from Gazelle,Quarantined,d0db9ea4-10d9-4f03-136d-08de85e1db7d
+3/19/2026 6:03:42 PM,orders@gazellemarketing.com,vadap@vadtek.com,Invoice 152002 from Gazelle,Expanded,d0db9ea4-10d9-4f03-136d-08de85e1db7d
+3/19/2026 6:02:30 PM,orders@gazellemarketing.com,alarson@vadtek.com,Invoice 152000 from Gazelle,Quarantined,548921c1-4588-40ea-14bf-08de85e1b035
+3/19/2026 6:02:30 PM,orders@gazellemarketing.com,idcinput@vadtek.com,Invoice 152000 from Gazelle,Quarantined,548921c1-4588-40ea-14bf-08de85e1b035
+3/19/2026 6:02:30 PM,orders@gazellemarketing.com,loneil@vadtek.com,Invoice 152000 from Gazelle,Quarantined,548921c1-4588-40ea-14bf-08de85e1b035
+3/19/2026 6:02:30 PM,orders@gazellemarketing.com,sjanz@vadtek.com,Invoice 152000 from Gazelle,Quarantined,548921c1-4588-40ea-14bf-08de85e1b035
+3/19/2026 6:02:30 PM,orders@gazellemarketing.com,skhamissi@vadtek.com,Invoice 152000 from Gazelle,Quarantined,548921c1-4588-40ea-14bf-08de85e1b035
+3/19/2026 6:02:30 PM,orders@gazellemarketing.com,vadap@vadtek.com,Invoice 152000 from Gazelle,Expanded,548921c1-4588-40ea-14bf-08de85e1b035
+3/19/2026 5:59:07 PM,orders@gazellemarketing.com,alarson@vadtek.com,Invoice 151797 from Gazelle,Quarantined,9084ac14-e738-4688-4534-08de85e13761
+3/19/2026 5:59:07 PM,orders@gazellemarketing.com,idcinput@vadtek.com,Invoice 151797 from Gazelle,Quarantined,9084ac14-e738-4688-4534-08de85e13761
+3/19/2026 5:59:07 PM,orders@gazellemarketing.com,loneil@vadtek.com,Invoice 151797 from Gazelle,Quarantined,9084ac14-e738-4688-4534-08de85e13761
+3/19/2026 5:59:07 PM,orders@gazellemarketing.com,sjanz@vadtek.com,Invoice 151797 from Gazelle,Quarantined,9084ac14-e738-4688-4534-08de85e13761
+3/19/2026 5:59:07 PM,orders@gazellemarketing.com,skhamissi@vadtek.com,Invoice 151797 from Gazelle,Quarantined,9084ac14-e738-4688-4534-08de85e13761
+3/19/2026 5:59:07 PM,orders@gazellemarketing.com,vadap@vadtek.com,Invoice 151797 from Gazelle,Expanded,9084ac14-e738-4688-4534-08de85e13761

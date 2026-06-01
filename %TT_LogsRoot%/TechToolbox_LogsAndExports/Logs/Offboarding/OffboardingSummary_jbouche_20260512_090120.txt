@@ -1,0 +1,24 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              jbouche@vadtek.com
+Display Name:      James Bouche
+SamAccountName:    jbouche
+Timestamp:         5/12/2026 9:01:20 AM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: True
+  SamAccountName: jbouche
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+===============================================
+ End of Summary
+===============================================

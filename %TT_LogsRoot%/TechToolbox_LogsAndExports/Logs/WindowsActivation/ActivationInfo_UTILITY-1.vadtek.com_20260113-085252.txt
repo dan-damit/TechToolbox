@@ -1,0 +1,25 @@
+Computer Name: UTILITY-1.vadtek.com
+OEM Product Key: 
+
+=== Partial Keys ===
+None found.
+
+=== SLMGR /DLV Output ===
+Software licensing service version: 10.0.17763.8146
+
+Name: Windows(R), ServerStandard edition
+Description: Windows(R) Operating System, VOLUME_MAK channel
+Activation ID: 44a5b4c3-e4b1-483b-81e8-0f78f4d98283
+Application ID: 55c92734-d682-4d71-983e-d6ec3f16059f
+Extended PID: 03612-04298-019-293553-03-1033-17763.0000-2132023
+Product Key Channel: Volume:MAK
+Installation ID: 090240549937726231802836460656203303326120786354619498535052486
+Use License URL: https://activation-v2.sls.microsoft.com/SLActivateProduct/SLActivateProduct.asmx?configextension=Retail
+Validation URL: https://validation-v2.sls.microsoft.com/SLWGA/slwga.asmx
+Partial Product Key: H8T4D
+License Status: Licensed
+Remaining Windows rearm count: 1001
+Remaining SKU rearm count: 1001
+Trusted time: 1/13/2026 8:52:51 AM
+
+

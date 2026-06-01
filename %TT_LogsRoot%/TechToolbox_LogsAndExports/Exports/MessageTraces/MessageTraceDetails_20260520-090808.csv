@@ -1,0 +1,24 @@
+Recipient,MessageTraceId,Date,Event,Detail
+tcarron@vadtek.com,d0c28f2a-29a7-4221-5c41-08deb5eff0a8,5/19/2026 9:45:27 PM,Receive,Message received by: BL1PPF6D267B6B8.namprd22.prod.outlook.com
+tcarron@vadtek.com,d0c28f2a-29a7-4221-5c41-08deb5eff0a8,5/19/2026 9:45:31 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+tcarron@vadtek.com,d0c28f2a-29a7-4221-5c41-08deb5eff0a8,5/19/2026 9:45:32 PM,Deliver,The message was successfully delivered.
+ddamit@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:31 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+ddamit@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:32 PM,Deliver,The message was successfully delivered.
+gkoebke@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:31 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+gkoebke@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:33 PM,Deliver,The message was successfully delivered.
+glao@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:31 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+glao@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:32 PM,Deliver,The message was successfully delivered to the folder: Support@vadtek
+helpdesk@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:31 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+helpdesk@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:33 PM,Deliver,The message was successfully delivered.
+jfranzen@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:31 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+jfranzen@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:32 PM,Deliver,The message was successfully delivered to the folder: Support_DL
+jperez@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:31 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+jperez@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:32 PM,Deliver,The message was successfully delivered.
+support@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:28 PM,Receive,Message received by: SN4PR22MB996934.namprd22.prod.outlook.com
+support@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:30 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+support@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:31 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+support@vadtek.com,390796b8-0aea-4891-89ce-08deb5eff0a1,5/19/2026 9:45:32 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]
+tcarron@vadtek.com,e131f14c-3861-4466-b057-08deb5ee4514,5/19/2026 9:33:32 PM,Receive,Message received by: EA2PR22MB5066.namprd22.prod.outlook.com
+tcarron@vadtek.com,e131f14c-3861-4466-b057-08deb5ee4514,5/19/2026 9:33:35 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+tcarron@vadtek.com,e131f14c-3861-4466-b057-08deb5ee4514,5/19/2026 9:33:36 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+tcarron@vadtek.com,e131f14c-3861-4466-b057-08deb5ee4514,5/19/2026 9:33:53 PM,Deliver,The message was successfully delivered.

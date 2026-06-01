@@ -1,0 +1,11 @@
+ComputerName,LogName,TimeCreated,Id,Level,LevelDisplay,ProviderName,MachineName,RecordId,TaskDisplay,OpcodeDisplay,KeywordsDisplay,Message,PSComputerName,RunspaceId,PSShowComputerName
+GBAY-MXL1063QM2,Application,5/18/2026 7:51,1002,2,Error,Application Hang,GBAY-MXL1063QM2.vadtek.com,141668,Hanging Events,Info,,"The program dllhost.exe version 10.0.26100.8328 stopped interacting with Windows and was closed. To see if more information about the problem is available, check the problem history in the Security and Maintenance control panel.
+",GBAY-MXL1063QM2.vadtek.com,effaf645-3365-4398-8712-52194d46dc34,TRUE
+GBAY-MXL1063QM2,Application,5/15/2026 7:51,1002,2,Error,Application Hang,GBAY-MXL1063QM2.vadtek.com,140242,Hanging Events,Info,,"The program dllhost.exe version 10.0.26100.8115 stopped interacting with Windows and was closed. To see if more information about the problem is available, check the problem history in the Security and Maintenance control panel.
+",GBAY-MXL1063QM2.vadtek.com,effaf645-3365-4398-8712-52194d46dc34,TRUE
+GBAY-MXL1063QM2,Application,5/11/2026 7:49,1002,2,Error,Application Hang,GBAY-MXL1063QM2.vadtek.com,138494,Hanging Events,Info,,"The program dllhost.exe version 10.0.26100.8115 stopped interacting with Windows and was closed. To see if more information about the problem is available, check the problem history in the Security and Maintenance control panel.
+",GBAY-MXL1063QM2.vadtek.com,effaf645-3365-4398-8712-52194d46dc34,TRUE
+GBAY-MXL1063QM2,Application,5/4/2026 7:48,1002,2,Error,Application Hang,GBAY-MXL1063QM2.vadtek.com,135608,Hanging Events,Info,,"The program dllhost.exe version 10.0.26100.8115 stopped interacting with Windows and was closed. To see if more information about the problem is available, check the problem history in the Security and Maintenance control panel.
+",GBAY-MXL1063QM2.vadtek.com,effaf645-3365-4398-8712-52194d46dc34,TRUE
+GBAY-MXL1063QM2,Application,5/1/2026 15:10,1002,2,Error,Application Hang,GBAY-MXL1063QM2.vadtek.com,134731,Hanging Events,Info,,"The program M365Copilot.exe version 19.2604.56051.0 stopped interacting with Windows and was closed. To see if more information about the problem is available, check the problem history in the Security and Maintenance control panel.
+",GBAY-MXL1063QM2.vadtek.com,effaf645-3365-4398-8712-52194d46dc34,TRUE

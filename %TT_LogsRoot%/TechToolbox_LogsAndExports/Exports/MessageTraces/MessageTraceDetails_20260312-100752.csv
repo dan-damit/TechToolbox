@@ -1,0 +1,40 @@
+Recipient,MessageTraceId,Date,Event,Detail
+barbb@ltlsupply.com,835f0981-2d47-4126-ef50-08de8046a3f1,3/12/2026 2:50:03 PM,Receive,Message received by: LV3PR22MB5795.namprd22.prod.outlook.com
+barbb@ltlsupply.com,835f0981-2d47-4126-ef50-08de8046a3f1,3/12/2026 2:50:15 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+barbb@ltlsupply.com,835f0981-2d47-4126-ef50-08de8046a3f1,3/12/2026 2:50:18 PM,Fail,Reason: [{LED=552 5.6.0 Headers too large (32768 max)};{MSG=};{FQDN=gw3135.fortimail.com};{IP=173.243.133.135};{LRT=3/12/2026 2:50:15 PM}]. OutboundProxyTargetIP: 173.243.133.135. OutboundProxyTargetHostName: gw3135.fortimail.com
+barbb@ltlsupply.com,af7e9f5a-0102-48e0-7cdd-08de80469575,3/12/2026 2:49:39 PM,Receive,Message received by: SA1PR22MB5466.namprd22.prod.outlook.com
+barbb@ltlsupply.com,af7e9f5a-0102-48e0-7cdd-08de80469575,3/12/2026 2:49:44 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+barbb@ltlsupply.com,af7e9f5a-0102-48e0-7cdd-08de80469575,3/12/2026 2:49:49 PM,Send external,Message sent to gw3135.fortimail.com at 173.243.133.135
+barbb@ltlsupply.com,5474e514-dca1-4cf2-f6da-08de804687dd,3/12/2026 2:49:16 PM,Receive,Message received by: PH3PPF70D516A3B.namprd22.prod.outlook.com
+barbb@ltlsupply.com,5474e514-dca1-4cf2-f6da-08de804687dd,3/12/2026 2:49:19 PM,TRANSFER,
+barbb@ltlsupply.com,5474e514-dca1-4cf2-f6da-08de804687dd,3/12/2026 2:49:21 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+barbb@ltlsupply.com,5474e514-dca1-4cf2-f6da-08de804687dd,3/12/2026 2:49:24 PM,Send external,Message sent to gw3135.fortimail.com at 173.243.133.135
+BarbB@ltlsupply.com,8a20eb47-f86f-407e-5ac8-08de80413584,3/12/2026 2:11:09 PM,Receive,Message received by: IA2PR22MB5500.namprd22.prod.outlook.com
+BarbB@ltlsupply.com,8a20eb47-f86f-407e-5ac8-08de80413584,3/12/2026 2:11:09 PM,Submit,The message was submitted.
+BarbB@ltlsupply.com,8a20eb47-f86f-407e-5ac8-08de80413584,3/12/2026 2:11:13 PM,TRANSFER,
+BarbB@ltlsupply.com,8a20eb47-f86f-407e-5ac8-08de80413584,3/12/2026 2:11:15 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+BarbB@ltlsupply.com,8a20eb47-f86f-407e-5ac8-08de80413584,3/12/2026 2:11:47 PM,TRANSFER,
+BarbB@ltlsupply.com,8a20eb47-f86f-407e-5ac8-08de80413584,3/12/2026 2:11:48 PM,Send external,Message sent to mx1-us1.ppe-hosted.com at 148.163.129.50
+barbb@ltlsupply.com,bc23713d-8b64-4760-bbcf-08de802ac852,3/12/2026 11:30:37 AM,Receive,Message received by: SAWPR22MB996705.namprd22.prod.outlook.com
+barbb@ltlsupply.com,bc23713d-8b64-4760-bbcf-08de802ac852,3/12/2026 11:30:37 AM,Submit,The message was submitted.
+barbb@ltlsupply.com,bc23713d-8b64-4760-bbcf-08de802ac852,3/12/2026 11:30:38 AM,TRANSFER,
+barbb@ltlsupply.com,bc23713d-8b64-4760-bbcf-08de802ac852,3/12/2026 11:30:38 AM,TRANSFER,
+barbb@ltlsupply.com,bc23713d-8b64-4760-bbcf-08de802ac852,3/12/2026 11:30:40 AM,Send external,Message sent to mx2-us1.ppe-hosted.com at 67.231.154.163
+BarbB@ltlsupply.com,fad9247d-b318-493a-6e61-08de7f71a1c6,3/11/2026 1:25:17 PM,TRANSFER,
+BarbB@ltlsupply.com,fad9247d-b318-493a-6e61-08de7f71a1c6,3/11/2026 1:25:17 PM,TRANSFER,
+BarbB@ltlsupply.com,fad9247d-b318-493a-6e61-08de7f71a1c6,3/11/2026 1:25:18 PM,TRANSFER,
+BarbB@ltlsupply.com,fad9247d-b318-493a-6e61-08de7f71a1c6,3/11/2026 1:25:19 PM,Send external,Message sent to mx2-us1.ppe-hosted.com at 67.231.154.163
+BarbB@ltlsupply.com,e5530cc5-848b-4150-27c1-08de7f695e43,3/11/2026 12:26:10 PM,TRANSFER,
+BarbB@ltlsupply.com,e5530cc5-848b-4150-27c1-08de7f695e43,3/11/2026 12:26:11 PM,TRANSFER,
+BarbB@ltlsupply.com,e5530cc5-848b-4150-27c1-08de7f695e43,3/11/2026 12:26:12 PM,TRANSFER,
+BarbB@ltlsupply.com,e5530cc5-848b-4150-27c1-08de7f695e43,3/11/2026 12:26:15 PM,Send external,Message sent to mx2-us1.ppe-hosted.com at 67.231.154.163
+BarbB@ltlsupply.com,2e8c1ed6-3ad9-4522-ad05-08de7ecaf3e1,3/10/2026 5:32:08 PM,TRANSFER,
+BarbB@ltlsupply.com,2e8c1ed6-3ad9-4522-ad05-08de7ecaf3e1,3/10/2026 5:32:09 PM,TRANSFER,
+BarbB@ltlsupply.com,2e8c1ed6-3ad9-4522-ad05-08de7ecaf3e1,3/10/2026 5:32:10 PM,TRANSFER,
+BarbB@ltlsupply.com,2e8c1ed6-3ad9-4522-ad05-08de7ecaf3e1,3/10/2026 5:32:11 PM,TRANSFER,
+BarbB@ltlsupply.com,2e8c1ed6-3ad9-4522-ad05-08de7ecaf3e1,3/10/2026 5:32:12 PM,Send external,Message sent to mx2-us1.ppe-hosted.com at 148.163.129.51
+BarbB@ltlsupply.com,20bc2399-d131-46fa-159d-08de7ebee5e5,3/10/2026 4:05:50 PM,Receive,Message received by: SJ2PR22MB3966.namprd22.prod.outlook.com
+BarbB@ltlsupply.com,20bc2399-d131-46fa-159d-08de7ebee5e5,3/10/2026 4:05:50 PM,Submit,The message was submitted.
+BarbB@ltlsupply.com,20bc2399-d131-46fa-159d-08de7ebee5e5,3/10/2026 4:05:51 PM,TRANSFER,
+BarbB@ltlsupply.com,20bc2399-d131-46fa-159d-08de7ebee5e5,3/10/2026 4:05:52 PM,TRANSFER,
+BarbB@ltlsupply.com,20bc2399-d131-46fa-159d-08de7ebee5e5,3/10/2026 4:05:53 PM,Send external,Message sent to mx2-us1.ppe-hosted.com at 67.231.154.163

@@ -1,0 +1,4 @@
+"Recipient","MessageTraceId","Date","Event","Detail"
+"jsimon@vadtek.com","c668e3ef-0e70-4196-c998-08de4ee7f84c","1/8/2026 6:58:55 PM","Receive (with external delay)","Message received by: IA3PR22MB5935.namprd22.prod.outlook.com. There was a delay of 11 minutes prior to the message being received by Office 365."
+"jsimon@vadtek.com","c668e3ef-0e70-4196-c998-08de4ee7f84c","1/8/2026 6:59:01 PM","Transport rule","Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+"jsimon@vadtek.com","c668e3ef-0e70-4196-c998-08de4ee7f84c","1/8/2026 6:59:02 PM","Deliver","The message was successfully delivered."

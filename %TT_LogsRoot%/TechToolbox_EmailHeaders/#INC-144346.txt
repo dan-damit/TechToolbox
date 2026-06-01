@@ -1,0 +1,132 @@
+Received: from SA1PR22MB5465.namprd22.prod.outlook.com
+ (2603:10b6:806:3e8::21) by DM6PR22MB1787.namprd22.prod.outlook.com with
+ HTTPS; Mon, 23 Feb 2026 19:48:24 +0000
+Received: from CH2PR12CA0026.namprd12.prod.outlook.com
+ (2603:10b6:610:57::36) by SA1PR22MB5465.namprd22.prod.outlook.com
+ (2603:10b6:806:3e8::21) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9632.21; Mon, 23
+ Feb 2026 19:48:20 +0000
+Received: from CH2PEPF0000009A.namprd02.prod.outlook.com
+ (2603:10b6:610:57:cafe::38) by CH2PR12CA0026.outlook.office365.com
+ (2603:10b6:610:57::36) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9632.22 via Frontend Transport;
+ Mon, 23 Feb 2026 19:48:13 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ CH2PEPF0000009A.mail.protection.outlook.com (10.167.244.22) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9632.12 via Frontend Transport; Mon, 23 Feb 2026 19:48:19 +0000
+Received: from bounce.ei.uhc.com (bounce.ei.uhc.com [192.28.145.55])	by
+ gw3135.fortimail.com with ESMTPS id 61NJlFHT027990-61NJlFHV027990
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO)
+	for <ayocius@transmotion.us>; Mon, 23 Feb 2026 13:47:16 -0600
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=bounce.ei.uhc.com; dkim=fail (signature did not verify)
+ header.d=ei.uhc.com;dkim=fail (signature did not verify)
+ header.d=mktdns.com;dmarc=fail action=oreject
+ header.from=ei.uhc.com;compauth=none reason=451
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ bounce.ei.uhc.com discourages use of 173.243.133.135 as permitted sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of
+ 213-XTD-056.0.317800.0.0.7763.9.72398146@bounce.ei.uhc.com designates
+ 192.28.145.55 as permitted sender)
+ smtp.mailfrom=213-XTD-056.0.317800.0.0.7763.9.72398146@bounce.ei.uhc.com;
+	dkim=pass header.i=@ei.uhc.com	dkim=pass header.i=@mktdns.com;	dmarc=pass
+ header.from=ei.uhc.com;
+X-Msfbl: +BpziIGv0C4/mAdEO5QA2/o4K5vsUtn8twQ8uH14pRE=|eyJiIjoiZHZwLTE5Mi0
+	yOC0xNDUtNTUiLCJ1IjoiMjEzLVhURC0wNTY6MDoxODE5MTo2NzEzMDoxOTM0ODE
+	6Nzc2Mzo5OjMxNzgwMDo3MjM5ODE0NiIsInIiOiJheW9jaXVzQHRyYW5zbW90aW9
+	uLnVzIiwiZyI6ImJnLWFiZC05OTkifQ==
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+ t=1771876015;	s=m1; d=ei.uhc.com; i=@ei.uhc.com;
+	h=List-Unsubscribe:List-Unsubscribe-Post:Content-Type:MIME-Version:Subject:To:From:Date;
+	bh=lvsQD3JI/EwZxuKZM3gWMzCVU6eE/XN5zXwEiDpQT+o=;
+	b=i1Ep5DfFzccjZpWEirE475kCoxubEdl/rSKzTa1Rr/QEQN2YiOGwfkH5VG03/1J2
+	D2XGcu+lPAulUZnh8QHNn9vQ9osJuUJzltISJ3e2CbwqjOaF7CgQ7ZeqpnWP7mTSc/V
+	e/gmHH2nW38j8z3/M/kl5tpsPw2N9olP7/Qe45Vs=
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+ t=1771876015;	s=m1; d=mktdns.com; i=@mktdns.com;
+	h=List-Unsubscribe:List-Unsubscribe-Post:Content-Type:MIME-Version:Subject:To:From:Date;
+	bh=lvsQD3JI/EwZxuKZM3gWMzCVU6eE/XN5zXwEiDpQT+o=;
+	b=R9snvthprKH3uUlaUEYcihi1YbozJc45pYECwq0OTmoDQ0zS84CdNWBtqSxL3+31
+	Q5MTZniYYnXici6uVJFfp+LxmPPLr8z+lCv/vDw1mt1MidtJIU2D0OGlQ5NI7HvBLQm
+	nWzZMbSEfvrkyDb0RNeQ6Yb10maF/afsobgy4KNI=
+Date: Mon, 23 Feb 2026 13:46:55 -0600
+From: UnitedHealthcare <info@ei.uhc.com>
+Reply-To: dmfulfillment@ei.uhc.com
+To: Amanda Yocius <ayocius@vadtek.com>
+Message-Id:
+ <491551121.20941801.1771876015765@abmktmail-batch1o.marketo.org>
+Subject: =?UTF-8?B?WypOZXdzbGV0dGVyKl0gVW5pdGVkSGVhbHRoY2FyZSByZXF1ZXN0?=
+ =?UTF-8?B?cyB5b3VyIHBlcm1pc3Npb24=?=
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17718761376750.81517517817079"
+X-Binding: bg-abd-999
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+List-Unsubscribe:
+ <https://go.ei.uhc.com/u/MjEzLVhURC0wNTYAAAGgKwMOkyncIWL4Y_M9L-RTCzJo9-zNojXoPEdyPwXh4VfKLryNt2BB_Tm76fOqstF_dIwyP2E=?emailAddress=MjEzLVhURC0wNTYAAAGgKwMOk5dbkn4EEzwpA-zbblMvvbkUVK6I4RwKAb7ZTJzV7qkrOE8JdaSR1DZvfVlozAn9pKmG>,
+ <mailto:K4WWC2CZI4YXCR3WGVNGMT2OGZIDI22MMV3GG5ZUINITIND2G44FARJZMIZTIZSEL5MXOPI=.317800.7763.9@unsub-ab.mktomail.com>
+X-Marketoid: 213-XTD-056:0:18191:67130:193481:7763:9:317800:72398146
+X-Pviq: mkto-213XTD056-000001-000000-317800
+X-Mailfrom: 213-XTD-056.0.317800.0.0.7763.9.72398146@bounce.ei.uhc.com
+X-Mktarchive: false
+X-Msys-Api: {"options":{"open_tracking":false,"click_tracking":false}}
+X-Mktmaildkim: true
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSF1QSFpZW0UwPCxFWF1eRlhGW1lfUFhYRlhGWEZfX15bRlFGX1pbUVBZXF4oCgcdBgsNRg0BRh0AC0YLBwVIWEhaWkgJEQcLAR0bKBwaCQYbBQccAQcGRh0bSFlIWUhZW0hZUVpGWlBGWVxdRl1dSF5IWEhYSFlIWEhYSFhIWlpICREHCwEdGygcGgkGGwUHHAEHBkYdG0hZ
+X-Feas-Deferred: FortiSandbox
+X-Feas-Client-Ip: 192.28.145.55
+X-Fe-Last-Public-Client-Ip: 192.28.145.55
+X-Fe-Envelope-From:
+ 213-XTD-056.0.317800.0.0.7763.9.72398146@bounce.ei.uhc.com
+X-Feas-Spf: spf-result=pass, ip=192.28.145.55, helo=bounce.ei.uhc.com,
+ mailFrom=213-XTD-056.0.317800.0.0.7763.9.72398146@bounce.ei.uhc.com
+X-Feas-Newsletter: newsletter
+X-Fe-Policy-Id: 0:1:1:vadtek.com
+Return-Path: 213-XTD-056.0.317800.0.0.7763.9.72398146@bounce.ei.uhc.com
+X-Ms-Exchange-Organization-Expirationstarttime: 23 Feb 2026 19:48:19.7321
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ 8873df7a-c565-4617-7bf2-08de73147ed0
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ CH2PEPF0000009A:EE_|SA1PR22MB5465:EE_|DM6PR22MB1787:EE_
+X-Ms-Exchange-Organization-Authsource:
+ CH2PEPF0000009A.namprd02.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ 8873df7a-c565-4617-7bf2-08de73147ed0
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:4;ARA:13230040|82310400026|1032899013|69100299015|3072899012|3092899012|7049299003|3109299003|5062899012|12012899012|7149299003|2092899012|4123199012|4022899009|5073199012|5063199012|31052699007|39142699007|14062099003|13003099007|8096899003|4076899003|2066899003|3122999024|54012099003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(82310400026)(1032899013)(69100299015)(3072899012)(3092899012)(7049299003)(3109299003)(5062899012)(12012899012)(7149299003)(2092899012)(4123199012)(4022899009)(5073199012)(5063199012)(31052699007)(39142699007)(14062099003)(13003099007)(8096899003)(4076899003)(2066899003)(3122999024)(54012099003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 23 Feb 2026 19:48:19.4330
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ 8873df7a-c565-4617-7bf2-08de73147ed0
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ CH2PEPF0000009A.namprd02.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: SA1PR22MB5465
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:04.5959356
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9632.007
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944490095)(944506478)(944626604)(4710137)(4712097)(4714117)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+Content-Transfer-Encoding: 7bit
+

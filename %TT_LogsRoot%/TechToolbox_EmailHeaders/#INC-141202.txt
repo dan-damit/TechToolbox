@@ -1,0 +1,124 @@
+Received: from SA6PR22MB5731.namprd22.prod.outlook.com
+ (2603:10b6:806:40f::17) by DM6PR22MB1836.namprd22.prod.outlook.com with
+ HTTPS; Fri, 13 Feb 2026 21:26:57 +0000
+Received: from SJ0PR03CA0251.namprd03.prod.outlook.com
+ (2603:10b6:a03:3a0::16) by SA6PR22MB5731.namprd22.prod.outlook.com
+ (2603:10b6:806:40f::17) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9611.13; Fri, 13
+ Feb 2026 21:24:57 +0000
+Received: from SJ1PEPF00001CDE.namprd05.prod.outlook.com
+ (2603:10b6:a03:3a0:cafe::7f) by SJ0PR03CA0251.outlook.office365.com
+ (2603:10b6:a03:3a0::16) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9611.13 via Frontend Transport;
+ Fri, 13 Feb 2026 21:24:40 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ SJ1PEPF00001CDE.mail.protection.outlook.com (10.167.242.6) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9611.8 via Frontend Transport; Fri, 13 Feb 2026 21:24:56 +0000
+Received: from a4-14.smtp-out.eu-west-1.amazonses.com
+ (a4-14.smtp-out.eu-west-1.amazonses.com [54.240.4.14])	by
+ gw3135.fortimail.com with ESMTPS id 61DLDZgR017460-61DLDZgT017460
+	(version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NO)	for
+ <alarson@vadtek.com>; Fri, 13 Feb 2026 15:13:37 -0600
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=kenneth.recycletechno.com; dkim=pass (signature was
+ verified) header.d=recycletechno.com;dkim=pass (signature was verified)
+ header.d=amazonses.com;dmarc=pass action=none
+ header.from=recycletechno.com;compauth=pass reason=100
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ kenneth.recycletechno.com discourages use of 173.243.133.135 as permitted
+ sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of
+ 0102019c58da191d-2fe4d4d5-eb96-42cd-b78a-ac65542c2f47-000000@kenneth.recycletechno.com
+ designates 54.240.4.14 as permitted sender)
+ smtp.mailfrom=0102019c58da191d-2fe4d4d5-eb96-42cd-b78a-ac65542c2f47-000000@kenneth.recycletechno.com;
+	dkim=pass header.i=@amazonses.com	dkim=pass header.i=@recycletechno.com;
+	dmarc=pass header.from=recycletechno.com;
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=vn4f4pxsx3sohdd5opqbqegpsiuftmko; d=recycletechno.com;	t=1771017214;
+	h=Content-Transfer-Encoding:From:To:Subject:Message-ID:Date:MIME-Version:Content-Type;
+	bh=yUjw4Z5QOI17ZCxXOT4AqKD0vjvA0r3M9/y31B3PKdE=;
+	b=eLDSxj/19WNUrDXs5n3jjVLDS4x8JuesjnEEnl+gwdAzGsH6+s/0VawY6fSA3Ard
+	pZUV5h/a6ppe1uqQVSL6oB0eb944lOdW8WfA6PM9x7ftInMAVBR5pL+G2QCAQJkaFGF
+	/maldvHu5toQ13uKkSJsOuyoW2z6kH/8Hdp8Qi2+PZhGKi/gTVGIEz8tSEajWKazY8c
+	HsLWqZJQF07j0v3tc5J0hd+h97puoVz8LOCpc8NMGUiY/SIKDPhxbTmpR+JWkjPlPkA
+	QCSBUI8k9XxLf1Svm8KIGr1LwNMVf9XC2zg6AL137pjBTyAL7dI1aKN2ehR3SvH3GNJ
+	GVlREC2RyQ==
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ihchhvubuqgjsxyuhssfvqohv7z3u4hn; d=amazonses.com; t=1771017214;
+	h=Content-Transfer-Encoding:From:To:Subject:Message-ID:Date:MIME-Version:Content-Type:Feedback-ID;
+	bh=yUjw4Z5QOI17ZCxXOT4AqKD0vjvA0r3M9/y31B3PKdE=;
+	b=ZbuHbNWixq73c4mI5M5+MpX3nHIZIgGfE72y4DPUcEX8zjK6kFfnYJ4jUDyhzD/z
+	KESosqFqTnGSm1xQtlWy6W/0KwlRhVecsptOaT7Nnsrp89jztfYCy+HOfxDolpg4LrV
+	5m0YDAoJbl4jteW1V0Msz+eM6ZjtFh42RIXwTj2g=
+Content-Transfer-Encoding: 7bit
+From: eDoc_SecureQuarantinePV9DXOS <kenneth@recycletechno.com>
+To: Amanda Larson <alarson@vadtek.com>
+Subject: =?UTF-8?B?UGxlYXNlIENvbXBsZXRlIGVTaWduYXR1cmU=?=
+Message-Id:
+ <0102019c58da191d-2fe4d4d5-eb96-42cd-b78a-ac65542c2f47-000000@eu-west-1.amazonses.com>
+Date: Fri, 13 Feb 2026 21:13:34 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17710180642570.47155722113545984"
+Feedback-Id:
+ ::1.eu-west-1.a9fdo8QnxdhRURbtURvjybIH89Y7Z/ihbjoP1wzMbZk=:AmazonSES
+X-Ses-Outgoing: 2026.02.13-54.240.4.14
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFBeSFhZWFpYWVELXVAMCVlRWQxFWg4NXAxcDF1FDQpRXkVcWgsMRQpfUAlFCQteXV1cWgtaDlxfRVhYWFhYWCgDDQYGDRwARhoNCxELBA0cDQsABgdGCwcFSFhIWVBICQQJGhsHBigeCQwcDQNGCwcFSFlIWUhZWUhdXEZaXFhGXEZZXEheSFhIWEhZSFhIWEhYSFlQSAkECRobBwYoHgkMHA0DRgsHBUhZ
+X-Feas-Deferred: Spam outbreak,FortiSandbox
+X-Feas-Client-Ip: 54.240.4.14
+X-Fe-Last-Public-Client-Ip: 54.240.4.14
+X-Fe-Envelope-From:
+ 0102019c58da191d-2fe4d4d5-eb96-42cd-b78a-ac65542c2f47-000000@kenneth.recycletechno.com
+X-Feas-Spf: spf-result=pass, ip=54.240.4.14,
+ helo=a4-14.smtp-out.eu-west-1.amazonses.com,
+ mailFrom=0102019c58da191d-2fe4d4d5-eb96-42cd-b78a-ac65542c2f47-000000@kenneth.recycletechno.com
+X-Fe-Policy-Id: 0:1:1:vadtek.com
+Return-Path:
+ 0102019c58da191d-2fe4d4d5-eb96-42cd-b78a-ac65542c2f47-000000@kenneth.recycletechno.com
+X-Ms-Exchange-Organization-Expirationstarttime: 13 Feb 2026 21:24:56.8465
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ d213c780-8a72-4959-7229-08de6b465608
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ SJ1PEPF00001CDE:EE_|SA6PR22MB5731:EE_|DM6PR22MB1836:EE_
+X-Ms-Exchange-Organization-Authsource:
+ SJ1PEPF00001CDE.namprd05.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ d213c780-8a72-4959-7229-08de6b465608
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:0;ARA:13230040|32142699015|69100299015|82310400026|3109299003|7049299003|8096899003|14062099003|54012099003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(32142699015)(69100299015)(82310400026)(3109299003)(7049299003)(8096899003)(14062099003)(54012099003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 13 Feb 2026 21:24:56.7317
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ d213c780-8a72-4959-7229-08de6b465608
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ SJ1PEPF00001CDE.namprd05.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: SA6PR22MB5731
+X-Ms-Exchange-Transport-Endtoendlatency: 00:02:01.0814112
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9611.011
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944506478)(944626604)(4710137)(4712097)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+

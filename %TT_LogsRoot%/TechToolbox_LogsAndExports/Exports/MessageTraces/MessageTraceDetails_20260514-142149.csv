@@ -1,0 +1,18 @@
+Recipient,MessageTraceId,Date,Event,Detail
+agraf@vadtek.com,ccfabb7b-ba92-47de-8ea7-08deb1be001b,5/14/2026 1:37:54 PM,Receive,Message received by: SN7PR22MB3885.namprd22.prod.outlook.com
+agraf@vadtek.com,ccfabb7b-ba92-47de-8ea7-08deb1be001b,5/14/2026 1:37:57 PM,TRANSFER,
+agraf@vadtek.com,ccfabb7b-ba92-47de-8ea7-08deb1be001b,5/14/2026 1:37:59 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@vadtek.com,ccfabb7b-ba92-47de-8ea7-08deb1be001b,5/14/2026 1:37:59 PM,Deliver,The message was successfully delivered to the folder: Order Confirmation
+agraf@vadtek.com,52159e95-4755-4647-4803-08deb1b9895c,5/14/2026 1:06:00 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@vadtek.com,52159e95-4755-4647-4803-08deb1b9895c,5/14/2026 1:06:01 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+agraf@vadtek.com,52159e95-4755-4647-4803-08deb1b9895c,5/14/2026 1:06:32 PM,Deliver,The message was successfully delivered to the folder: Order Confirmation
+agraf@vadtek.com,0b930f2d-106a-4369-7e16-08deb1297662,5/13/2026 7:54:40 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@vadtek.com,0b930f2d-106a-4369-7e16-08deb1297662,5/13/2026 7:54:41 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+agraf@vadtek.com,0b930f2d-106a-4369-7e16-08deb1297662,5/13/2026 7:55:31 PM,Deliver,The message was successfully delivered to the folder: Order Confirmation
+agraf@vadtek.com,19ef1018-0fd7-4d86-4993-08deaf99617f,5/11/2026 8:10:47 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@vadtek.com,19ef1018-0fd7-4d86-4993-08deaf99617f,5/11/2026 8:10:48 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+agraf@vadtek.com,19ef1018-0fd7-4d86-4993-08deaf99617f,5/11/2026 8:11:09 PM,Deliver,The message was successfully delivered to the folder: Order Confirmation
+agraf@vadtek.com,28eb6b12-8982-452e-735e-08deab96375f,5/6/2026 5:38:05 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@vadtek.com,28eb6b12-8982-452e-735e-08deab96375f,5/6/2026 5:38:05 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+agraf@vadtek.com,28eb6b12-8982-452e-735e-08deab96375f,5/6/2026 5:38:34 PM,TRANSFER,
+agraf@vadtek.com,28eb6b12-8982-452e-735e-08deab96375f,5/6/2026 5:38:41 PM,Deliver,The message was successfully delivered to the folder: Order Confirmation

@@ -1,0 +1,23 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              aemfinger@vadtek.com
+Display Name:      Alvin Emfinger
+SamAccountName:    aemfinger
+Timestamp:         2/4/2026 2:50:39 PM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[Disable-ADUserAccount]
+  Success: True
+  SamAccountName: aemfinger
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+===============================================
+ End of Summary
+===============================================

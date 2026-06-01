@@ -1,0 +1,25 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              tmccue@vadtek.com
+Display Name:      Tyrone McCue
+SamAccountName:    tmccue
+Timestamp:         4/7/2026 8:48:25 AM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: False
+  SamAccountName: tmccue
+  Disabled: False
+  MovedToOU: False
+  OU: 
+  Error: Authentication failed, see inner exception.
+
+===============================================
+ End of Summary
+===============================================

@@ -1,0 +1,133 @@
+Received: from DS7PR22MB3621.namprd22.prod.outlook.com (2603:10b6:8:74::13)
+ by SA1PR22MB5503.namprd22.prod.outlook.com with HTTPS; Thu, 5 Mar 2026
+ 19:50:55 +0000
+Received: from BN9PR03CA0157.namprd03.prod.outlook.com
+ (2603:10b6:408:f4::12) by DS7PR22MB3621.namprd22.prod.outlook.com
+ (2603:10b6:8:74::13) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9654.22; Thu, 5 Mar
+ 2026 19:50:44 +0000
+Received: from BN2PEPF000044AC.namprd04.prod.outlook.com
+ (2603:10b6:408:f4:cafe::30) by BN9PR03CA0157.outlook.office365.com
+ (2603:10b6:408:f4::12) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9654.22 via Frontend Transport;
+ Thu, 5 Mar 2026 19:50:38 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ BN2PEPF000044AC.mail.protection.outlook.com (10.167.243.107) with
+ Microsoft SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9678.18 via Frontend Transport; Thu, 5 Mar 2026 19:50:44 +0000
+Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com
+ [209.85.210.195])	by gw3135.fortimail.com with ESMTPS id
+ 625JddVb026657-625JddVd026657	(version=TLSv1.3
+ cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=OK)	for
+ <prvs=15246d89e4=aberry@vadtek.com>; Thu, 5 Mar 2026 13:39:40 -0600
+Received: by mail-pf1-f195.google.com with SMTP id
+ d2e1a72fcca58-8299f1ca894so34075b3a.2        for
+ <prvs=15246d89e4=aberry@vadtek.com>; Thu, 05 Mar 2026 11:39:40 -0800 (PST)
+Received: by 2002:a05:6a21:6e95:b0:38b:e944:3e98 with SMTP id
+ adf61e73a8af0-3982dd66799mr5912470637.5; Thu, 05 Mar 2026 11:39:39 -0800
+ (PST)
+Authentication-Results: spf=none (sender IP is 173.243.133.135)
+ smtp.helo=gw3135.fortimail.com; dkim=fail (signature did not verify)
+ header.d=googlemail.com;dmarc=fail action=quarantine
+ header.from=googlemail.com;compauth=none reason=451
+Received-Spf: None (protection.outlook.com: gw3135.fortimail.com does not
+ designate permitted sender hosts)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	dkim=pass
+ header.i=@googlemail.com;	dmarc=pass header.from=googlemail.com;
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=googlemail.com; s=20230601; t=1772739579; x=1773344379;
+ darn=vadtek.com;
+        h=in-reply-to:references:subject:from:date:message-id:auto-submitted
+         :to:from:to:cc:subject:date:message-id:reply-to;
+        bh=nbCAnYiH4kyrGna2/8oXSFW0vMPlG+vLTY1xpbAY+Xs=;
+        b=OAv+rZdb4+wOiYB1ep6AVc/QSeYz8foL1b2fUEZfBRyJZf21pX1pEHuzOxc+wY7Ib8
+         Rdvkrs1GWbZPt4a7snGE0Dm9ZIdiAHHKJSRnAkZN2rGPs5UDN90n/dch2B9CpF8GAeQJ
+         EUp3ls+q/65C3m2i7/59ZrR2T1r01ynd7y51R/CsLh49WHbOIVAGpuikj7ZQ84hmIUST
+         rHghepJ0IjDDDkwkkQ20UgR7KWbVNyb7eMmcGpExWKMY0FEzLCvFLEjtrKyTkQjCtsLZ
+         CsR2RnuWmNbt/wSQEZDAPEeaqr2FtJVcg+Kj4eK/54RlOklWaZD9gbB/r54ghLhuwc9j
+         5QtQ==
+X-Google-Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1772739579; x=1773344379;
+        h=in-reply-to:references:subject:from:date:message-id:auto-submitted
+         :to:x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;
+        bh=nbCAnYiH4kyrGna2/8oXSFW0vMPlG+vLTY1xpbAY+Xs=;
+        b=IvKsT3eI96d++/fx+wBDcFsZHygpp4jexHOdGYS52SLyDKtnaX2W1QfNnbSG3hIQ2m
+         +5JTPUOhimEfvJ6WMROFSzcErN4KJfZbVZP0ME4DztBY2a0J3pCUvAZBqkcyc2L29Ify
+         glkSK2XKEK07zMnaESlAcJWlIZzY+QP2/VJEj5uKr6uuL66nkN5LK5vAMwaXAUEQWxgP
+         TP46Gra03eQHO1NJC3l5NbsLITnF6Nd9CRRXQv9TJn3dUrwDcjPo6QOT7HV/OjStu0jM
+         JcNG/vKB3yCXFH1heSAYMauTbt6NsRozqgsDv/H6XMxbvORqRJF2lVzCvkQIonWSHDz8
+         gl1g==
+X-Gm-Message-State:
+ AOJu0YxdF9RHPvZoap842gsvsfODPifkoVe1mn8AgmtmOJTXUQY9b4Kl
+	KV1Ael1CgoIvIUGDfLGFr6sARtM3d8PggmrJAjRad02+ivwGZ06nis9FR7WnZpD4FToWFaiWo4r
+	1mZXjKg28inYZX3IQEl8a7CtWHyK2O9fryAcbUIIPGeMFRCM+0trOaxTEfA==
+X-Received: by 2002:a05:6a21:6e95:b0:38b:e944:3e98 with SMTP id
+ adf61e73a8af0-3982dd66799mr6432336637.5.1772739579467;        Thu, 05 Mar
+ 2026 11:39:39 -0800 (PST)
+Auto-Submitted: auto-replied
+Message-Id: <69a9dbfb.050a0220.210c3.2b1d.GMR@mx.google.com>
+Date: Thu, 5 Mar 2026 11:39:39 -0800
+From: Mail Delivery Subsystem <mailer-daemon@googlemail.com>
+Subject: =?UTF-8?B?RGVsaXZlcnkgU3RhdHVzIE5vdGlmaWNhdGlvbiAoRmFpbHVyZSk=?=
+References:
+ <SA1PR22MB55038BA4596FAD3FBC4020EBA37DA@SA1PR22MB5503.namprd22.prod.outlook.com>
+In-Reply-To:
+ <SA1PR22MB55038BA4596FAD3FBC4020EBA37DA@SA1PR22MB5503.namprd22.prod.outlook.com>
+X-Failed-Recipients: christiansen@hiniker.co
+X-Fe-Attachment-Name: icon.png
+To: Alexa Berry <aberry@vadtek.com>
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFhISFhIWV9ICQoNGhoRKB4JDBwNA0YLBwVIWUhZSFlcSFpYUUZQXUZaWVhGWVFdSFhIWEhYSFlIWEhYSFhIWV9ICQoNGhoRKB4JDBwNA0YLBwVIWQ==
+X-Feas-Deferred: Spam outbreak,FortiSandbox
+X-Feas-Client-Ip: 209.85.210.195
+X-Fe-Last-Public-Client-Ip: 209.85.210.195
+X-Fe-Policy-Id: 0:1:1:vadtek.com
+Return-Path: <>
+X-Ms-Exchange-Organization-Expirationstarttime: 05 Mar 2026 19:50:44.3948
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ 8a071a01-d907-4291-c212-08de7af07d2b
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ BN2PEPF000044AC:EE_|DS7PR22MB3621:EE_|SA1PR22MB5503:EE_
+MIME-Version: 1.0
+X-Ms-Exchange-Organization-Authsource:
+ BN2PEPF000044AC.namprd04.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ 8a071a01-d907-4291-c212-08de7af07d2b
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17727413705800.5144394958175507"
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:2;ARA:13230040|704160311799003|7093399015|1930700014|82310400026|43022699015|3072899012|12012899012|5062899012|6062899009|5082899009|13012899012|3092899012|4092899012|2092899012|5009299003|6049299003|13102899012|4053099003|13003099007|8096899003|14062099003|54012099003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(704160311799003)(7093399015)(1930700014)(82310400026)(43022699015)(3072899012)(12012899012)(5062899012)(6062899009)(5082899009)(13012899012)(3092899012)(4092899012)(2092899012)(5009299003)(6049299003)(13102899012)(4053099003)(13003099007)(8096899003)(14062099003)(54012099003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 05 Mar 2026 19:50:44.1200
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ 8a071a01-d907-4291-c212-08de7af07d2b
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ BN2PEPF000044AC.namprd04.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: DS7PR22MB3621
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:10.9346699
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9678.017
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944490095)(944506478)(944626604)(4710137)(4713098)(4714117)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ +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
+Content-Transfer-Encoding: 7bit
+

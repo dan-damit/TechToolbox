@@ -1,0 +1,7 @@
+Recipient,MessageTraceId,Date,Event,Detail
+Customerservice@worldwide.com,35fd5fe9-7041-491e-d56d-08dea188a31e,4/23/2026 10:35:36 PM,Receive,Message received by: BY1PR22MB5681.namprd22.prod.outlook.com
+Customerservice@worldwide.com,35fd5fe9-7041-491e-d56d-08dea188a31e,4/23/2026 10:35:36 PM,Submit,The message was submitted.
+Customerservice@worldwide.com,35fd5fe9-7041-491e-d56d-08dea188a31e,4/23/2026 10:35:39 PM,Transport rule,"Transport rule: 'Disclaimer - Outside the organization', ID: ('D62F586B-D8F7-4E6E-A4A6-8DB98D5629CD'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+Customerservice@worldwide.com,35fd5fe9-7041-491e-d56d-08dea188a31e,4/23/2026 10:35:39 PM,Transport rule,"Transport rule: 'Deliver using FortiMail Connector', ID: ('98316158-F1BF-4158-AE0A-246DD260E0A2'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+Customerservice@worldwide.com,35fd5fe9-7041-491e-d56d-08dea188a31e,4/23/2026 10:35:39 PM,TRANSFER,
+Customerservice@worldwide.com,35fd5fe9-7041-491e-d56d-08dea188a31e,4/23/2026 10:35:40 PM,Send external,Message sent to 173.243.133.135

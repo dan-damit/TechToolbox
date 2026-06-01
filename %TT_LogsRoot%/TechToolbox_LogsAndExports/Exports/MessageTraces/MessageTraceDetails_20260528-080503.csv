@@ -1,0 +1,13 @@
+Recipient,MessageTraceId,Date,Event,Detail
+agraf@vadtek.com,c59056f0-b0bf-40a3-a2e1-08deb7381bd9,5/21/2026 12:54:35 PM,Receive,Message received by: LV3PR22MB5123.namprd22.prod.outlook.com
+agraf@vadtek.com,c59056f0-b0bf-40a3-a2e1-08deb7381bd9,5/21/2026 12:54:37 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@vadtek.com,c59056f0-b0bf-40a3-a2e1-08deb7381bd9,5/21/2026 12:54:38 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+agraf@vadtek.com,c59056f0-b0bf-40a3-a2e1-08deb7381bd9,5/21/2026 12:54:52 PM,Deliver,The message was successfully delivered.
+agraf@vadtek.com,386f916f-b9ec-4139-7ab5-08deb5c74934,5/19/2026 4:54:27 PM,Receive,Message received by: SJ2PR22MB5182.namprd22.prod.outlook.com
+agraf@vadtek.com,386f916f-b9ec-4139-7ab5-08deb5c74934,5/19/2026 4:54:38 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@vadtek.com,386f916f-b9ec-4139-7ab5-08deb5c74934,5/19/2026 4:54:40 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+agraf@vadtek.com,386f916f-b9ec-4139-7ab5-08deb5c74934,5/19/2026 4:54:58 PM,Deliver,The message was successfully delivered.
+agraf@vadtek.com,a85c72f3-e707-4f03-d524-08deb5c47c1c,5/19/2026 4:34:26 PM,Receive,Message received by: CH4PR22MB5898.namprd22.prod.outlook.com
+agraf@vadtek.com,a85c72f3-e707-4f03-d524-08deb5c47c1c,5/19/2026 4:34:32 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@vadtek.com,a85c72f3-e707-4f03-d524-08deb5c47c1c,5/19/2026 4:34:33 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+agraf@vadtek.com,a85c72f3-e707-4f03-d524-08deb5c47c1c,5/19/2026 4:34:48 PM,Deliver,The message was successfully delivered.

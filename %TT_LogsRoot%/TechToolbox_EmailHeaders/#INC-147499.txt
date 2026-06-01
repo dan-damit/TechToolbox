@@ -1,0 +1,118 @@
+Received: from PH7PR22MB3705.namprd22.prod.outlook.com
+ (2603:10b6:510:12c::17) by CH2PR22MB1880.namprd22.prod.outlook.com with
+ HTTPS; Thu, 5 Mar 2026 20:19:44 +0000
+Received: from DM6PR02CA0058.namprd02.prod.outlook.com
+ (2603:10b6:5:177::35) by PH7PR22MB3705.namprd22.prod.outlook.com
+ (2603:10b6:510:12c::17) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9654.22; Thu, 5 Mar
+ 2026 20:19:34 +0000
+Received: from DS1PEPF00017094.namprd03.prod.outlook.com
+ (2603:10b6:5:177:cafe::a9) by DM6PR02CA0058.outlook.office365.com
+ (2603:10b6:5:177::35) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9678.18 via Frontend Transport;
+ Thu, 5 Mar 2026 20:19:34 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ DS1PEPF00017094.mail.protection.outlook.com (10.167.17.137) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9678.18 via Frontend Transport; Thu, 5 Mar 2026 20:19:34 +0000
+Received: from b3jqgyhv.customer.procore.com (b3jqgyhv.customer.procore.com
+ [137.22.227.19])	by gw3135.fortimail.com with ESMTPS id
+ 625KJSfg011948-625KJSfi011948	(version=TLSv1.2
+ cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)	for
+ <sgenna@vadtek.com>; Thu, 5 Mar 2026 14:19:29 -0600
+Received: from [10.90.39.239] ([10.90.39.239])	by
+ i-0d6abef719485a8d8.mta1vrest.sd.prd.sparkpost (ecelerity 5.2.0.75207
+ r(msys-ecelerity:tags/5.2.0.3)) with REST	id A8/0A-09437-D44E9A96; Thu, 05
+ Mar 2026 20:15:09 +0000
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=customer.procore.com; dkim=pass (signature was verified)
+ header.d=customer.procore.com;dmarc=pass action=none
+ header.from=customer.procore.com;compauth=pass reason=100
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ customer.procore.com discourages use of 173.243.133.135 as permitted
+ sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of
+ msprvs1=205242S26VsgY=bounces-266693-880@customer.procore.com designates
+ 137.22.227.19 as permitted sender)
+ smtp.mailfrom=msprvs1=205242S26VsgY=bounces-266693-880@customer.procore.com;
+	dkim=pass header.i=@customer.procore.com;	dmarc=pass
+ header.from=customer.procore.com;
+X-Msfbl: jVwaAOEAgZzHQrIOcjVfTAFM4b1LcGChjdMk/1PALj8=|eyJtZXNzYWdlX2lkIjo
+	iNjlhNjRkZTRhOTY5MTYzOTIwOGEiLCJyIjoic2dlbm5hQHZhZHRlay5jb20iLCJ
+	0ZW5hbnRfaWQiOiJzcGMiLCJzdWJhY2NvdW50X2lkIjoiODgwIiwiY3VzdG9tZXJ
+	faWQiOiIyNjY2OTMifQ==
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=customer.procore.com; s=scph0523; t=1772741709;	i=@customer.procore.com;
+	bh=G943/s5+5Iey4D1MtX7z6T015Og7UUm1VOlBPY1gSh4=;
+	h=From:Message-ID:Subject:To:Date:Content-Type:From:To:Cc:Subject;
+	b=Y+gpYvc+xli6Z1vM7xiB/JjOB2SiUssZ1lFGE6HRdS/5sreUgxFMWO/kQsyCAG3nw
+	 X+soaHoEZs+5x3GTOo95JU+qBHRW1MQshVfH/ejY3ualwniyz5ayvEG+o+0SGuE4yv
+	 lxD582yTcryFt2XMeb7umpXRQom/BnZ93EwxpWp4=
+From: Procore <team@customer.procore.com>
+Message-Id:
+ <A8.0A.09437.D44E9A96@i-0d6abef719485a8d8.mta1vrest.sd.prd.sparkpost>
+Subject: =?UTF-8?B?W1N0ZXAgMV0gU2FtLCBBY2Nlc3MgQXVndXN0IFdpbnRlciAmIFNv?=
+ =?UTF-8?B?bnMsIEluYy4gLSBIUSdzIFByb2plY3Qgd2l0aCBQcm9jb3Jl?=
+To: Sam Genna <sgenna@vadtek.com>
+Date: Thu, 5 Mar 2026 20:15:09 +0000
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17727424190020.022446852392140504"
+MIME-Version: 1.0
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSF5ZSAUbGBoeG1lVWlhdWlxaO1pePhsPMVUKBx0GCw0bRVpeXl5RW0VQUFgoCx0bHAcFDRpGGBoHCwcaDUYLBwVIWEhZX0gbDw0GBgkoHgkMHA0DRgsHBUhZSFlIWVtIWVtfRlpaRlpaX0ZZUUheSFhIWEhZSFhIWEhYSFlfSBsPDQYGCSgeCQwcDQNGCwcFSFk=
+X-Feas-Deferred: FortiSandbox
+X-Feas-Client-Ip: 137.22.227.19
+X-Fe-Last-Public-Client-Ip: 137.22.227.19
+X-Fe-Envelope-From:
+ msprvs1=205242S26VsgY=bounces-266693-880@customer.procore.com
+X-Feas-Spf: spf-result=pass, ip=137.22.227.19,
+ helo=b3jqgyhv.customer.procore.com,
+ mailFrom=msprvs1=205242S26VsgY=bounces-266693-880@customer.procore.com
+X-Fe-Policy-Id: 0:1:1:vadtek.com
+Return-Path: msprvs1=205242S26VsgY=bounces-266693-880@customer.procore.com
+X-Ms-Exchange-Organization-Expirationstarttime: 05 Mar 2026 20:19:34.4256
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ a34a96db-d92b-4e90-835d-08de7af48459
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ DS1PEPF00017094:EE_|PH7PR22MB3705:EE_|CH2PR22MB1880:EE_
+X-Ms-Exchange-Organization-Authsource:
+ DS1PEPF00017094.namprd03.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ a34a96db-d92b-4e90-835d-08de7af48459
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:2;ARA:13230040|39142699007|1032899013|69100299015|12012899012|31052699007|82310400026|2092899012|5062899012|3109299003|3072899012|7049299003|4022899009|4123199012|5063199012|7149299003|5073199012|13003099007|2066899003|54012099003|14062099003|8096899003|3122999024;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(39142699007)(1032899013)(69100299015)(12012899012)(31052699007)(82310400026)(2092899012)(5062899012)(3109299003)(3072899012)(7049299003)(4022899009)(4123199012)(5063199012)(7149299003)(5073199012)(13003099007)(2066899003)(54012099003)(14062099003)(8096899003)(3122999024);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 05 Mar 2026 20:19:34.1407
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ a34a96db-d92b-4e90-835d-08de7af48459
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ DS1PEPF00017094.namprd03.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: PH7PR22MB3705
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:10.5522689
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9678.017
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944490095)(944506478)(944626604)(4710137)(4712097)(4714117)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+Content-Transfer-Encoding: 7bit
+

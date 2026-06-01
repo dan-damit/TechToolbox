@@ -1,0 +1,131 @@
+Received: from SJ4PPF21CDB1AD5.namprd22.prod.outlook.com
+ (2603:10b6:a0f:fc02::f8e) by CO6PR22MB2434.namprd22.prod.outlook.com with
+ HTTPS; Sat, 14 Feb 2026 19:05:04 +0000
+Received: from CH2PR08CA0026.namprd08.prod.outlook.com
+ (2603:10b6:610:5a::36) by SJ4PPF21CDB1AD5.namprd22.prod.outlook.com
+ (2603:10b6:a0f:fc02::f8e) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9611.14; Sat, 14
+ Feb 2026 19:05:00 +0000
+Received: from CH1PEPF0000A34B.namprd04.prod.outlook.com
+ (2603:10b6:610:5a:cafe::da) by CH2PR08CA0026.outlook.office365.com
+ (2603:10b6:610:5a::36) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9611.14 via Frontend Transport;
+ Sat, 14 Feb 2026 19:04:49 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ CH1PEPF0000A34B.mail.protection.outlook.com (10.167.244.10) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9632.12 via Frontend Transport; Sat, 14 Feb 2026 19:04:59 +0000
+Received: from outbound1f.eu.mailhop.org (outbound1f.eu.mailhop.org
+ [52.28.59.28])	by gw3135.fortimail.com with ESMTPS id
+ 61EIqhxl020084-61EIqhxn020084	(version=TLSv1.3
+ cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NO)	for
+ <kruppel@vadtek.com>; Sat, 14 Feb 2026 12:52:45 -0600
+Received: from 116068dynamic082008.asianet.co.in
+ (116068dynamic082008.asianet.co.in [116.68.82.8])	by
+ outbound2.eu.mailhop.org (Halon) with ESMTPSA	id
+ 563d458c-09d6-11f1-b68b-754228886235;	Sat, 14 Feb 2026 18:52:41 +0000
+ (UTC)
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=inapp.com; dkim=fail (signature did not verify)
+ header.d=inapp.com;dkim=fail (signature did not verify)
+ header.d=outbound.mailhop.org;dmarc=fail action=none
+ header.from=inapp.com;compauth=none reason=405
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ inapp.com discourages use of 173.243.133.135 as permitted sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=softfail
+ (fortimail.com: domain of anish.sreekumar@inapp.com does not designate
+ 52.28.59.28 as permitted sender) smtp.mailfrom=anish.sreekumar@inapp.com;
+	dkim=pass header.i=@inapp.com	dkim=pass header.i=@outbound.mailhop.org;
+	dmarc=pass header.from=inapp.com;
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;	d=inapp.com;
+ s=duo-1649415967024-c3741284;
+	h=message-id:date:content-type:subject:to:reply-to:from:mime-version:
+	 cfbl-address:cfbl-feedback-id:from;
+	bh=ZuD7C7cmbfUB9DA9g/nspaX+iJYGuW6cjBrDXITu4iY=;
+	b=EOYLA/J0tJP4w+gjTHpzG8kfjragVT7LLR5XMU+0FYH8Ldmmjr6hGebndgB565m5x1xVQoanxIIGV
+	 RTctk6xjAmY5PK1XdxDwexiK4BLkw2PUxfBydCqKQ7eGB0mhQU8Yy5yrM7qfZp/cP32LIhrxub5bPg
+	 zRqAs7LUPTl5x6U4=
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=outbound.mailhop.org; s=dkim-high;
+	h=message-id:date:content-type:subject:to:reply-to:from:mime-version:
+	 cfbl-address:cfbl-feedback-id:from;
+	bh=ZuD7C7cmbfUB9DA9g/nspaX+iJYGuW6cjBrDXITu4iY=;
+	b=g8Pbw5URZh/bJHyWVICuqsN1Ks/dv4i0aq4fuQwY7N3XvtoYZlt65m0rDImlAQW82Bcvc7YdVETVD
+	 3uCPL5Zrk6Hoem97AOuO6EjMf9GDV+SdKcTcoq/EiFS9ExXGr+MtZwtwtFLVoIR14HxmhIpPrp0wbX
+	 J1K40ob1spuuTP3DxMW9OWKH2yX/O1k3c5OELSQC7SaUU8MG9CRH9Kl0XpBjxpjyCmOekBmTMPhMUX
+	 rL/gfxuDE8tWvnDpDfE/x6rwEtyTfSSCv9bLy0BqG7po/Dve0mjDpmpJZ2PIhAT9RCsi2c9KfBABGd
+	 WNpdk+t/IG0pL7t3pZtB0bkegW8xxxw==
+X-Originating-Ip: 116.68.82.8
+X-Mho-Routepath: Um9iYmluU01UUA==
+X-Mho-User: 563d458c-09d6-11f1-b68b-754228886235
+X-Report-Abuse-To:
+ https://support.duocircle.com/support/solutions/articles/5000540958-duocircle-standard-smtp-abuse-information
+X-Mail-Handler: DuoCircle Outbound SMTP
+Cfbl-Feedback-Id: 563d458c-09d6-11f1-b68b-754228886235:1
+Cfbl-Address: prvs=0505efdd6b=abuse@outbound.mailhop.org; report=arf
+MIME-Version: 1.0
+From: Anish Sreekumar <anish.sreekumar@inapp.com>
+Reply-To: anish.sreekumar@inapp.com
+To: Karen Ruppel <kruppel@vadtek.com>
+Subject: =?UTF-8?B?KlBvc3NpYmxlIFNwYW0qIElUIHBsYW5zIC0gTWVldGluZyByZXF1?=
+ =?UTF-8?B?ZXN0IHdpdGggVmFsdWUgQWRkZWQgRGlzdHJpYnV0b3JzIExMQw==?=
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17711072682650.42914846605504375"
+X-Mailer: Smart_Send_3_1_6
+Date: Sun, 15 Feb 2026 00:22:39 +0530
+Message-Id: <23696258262720272813276@LPT1086>
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFpdSAkGARsARhsaDQ0DHQUJGigBBgkYGEYLBwVIWEhZUEgDGh0YGA0EKB4JDBwNA0YLBwVIWUhZSFlZSF1aRlpQRl1RRlpQSFtIWEhYSFlIWEhYSFhIWVBIAxodGBgNBCgeCQwcDQNGCwcFSFk=
+X-Feas-Deferred: Spam outbreak,FortiSandbox
+X-Feas-Client-Ip: 52.28.59.28
+X-Fe-Last-Public-Client-Ip: 52.28.59.28
+X-Fe-Envelope-From: anish.sreekumar@inapp.com
+X-Feas-Spf: spf-result=soft-fail, ip=52.28.59.28,
+ helo=outbound1f.eu.mailhop.org, mailFrom=anish.sreekumar@inapp.com
+X-Fe-Policy-Id: 0:1:1:vadtek.com
+Return-Path: anish.sreekumar@inapp.com
+X-Ms-Exchange-Organization-Expirationstarttime: 14 Feb 2026 19:05:00.2576
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ fdd4d4a4-b3ae-443c-6759-08de6bfbf3b0
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ CH1PEPF0000A34B:EE_|SJ4PPF21CDB1AD5:EE_|CO6PR22MB2434:EE_
+X-Ms-Exchange-Organization-Authsource:
+ CH1PEPF0000A34B.namprd04.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ fdd4d4a4-b3ae-443c-6759-08de6bfbf3b0
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:4;ARA:13230040|12012899012|82310400026|5062899012|2092899012|3072899012|3092899012|27102699006|8096899003|13003099007|5976026|14062099003|54012099003|43540500003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(12012899012)(82310400026)(5062899012)(2092899012)(3072899012)(3092899012)(27102699006)(8096899003)(13003099007)(5976026)(14062099003)(54012099003)(43540500003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 14 Feb 2026 19:04:59.9148
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ fdd4d4a4-b3ae-443c-6759-08de6bfbf3b0
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ CH1PEPF0000A34B.namprd04.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: SJ4PPF21CDB1AD5
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:04.4166298
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9611.011
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944490095)(944506478)(944626604)(4710137)(4712097)(4714117)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+Content-Transfer-Encoding: 7bit
+
