@@ -1,4 +1,0 @@
-Recipient,MessageTraceId,Date,Event,Detail
-jcarriveau@vadtek.com,35ffab62-fd98-4d27-f74d-08deb66b1f24,5/20/2026 12:27:14 PM,Receive (with external delay),Message received by: SJ2PR22MB4556.namprd22.prod.outlook.com. There was a delay of 12 minutes prior to the message being received by Office 365.
-jcarriveau@vadtek.com,35ffab62-fd98-4d27-f74d-08deb66b1f24,5/20/2026 12:27:17 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
-jcarriveau@vadtek.com,35ffab62-fd98-4d27-f74d-08deb66b1f24,5/20/2026 12:27:19 PM,Deliver,The message was successfully delivered.
