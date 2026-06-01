@@ -96,7 +96,7 @@
     },
     "passwords": {
       "domainAdminCred": {
-        "username": "ddadmin"
+        "username": ""
       },
       "wordListPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Config\\wordlist.txt",
       "default": {

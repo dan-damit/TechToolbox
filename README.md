@@ -16,6 +16,7 @@ The local AI assistant work is actively evolving under [Public/AI](https://githu
   - [What You Get](#what-you-get)
   - [Quick Start](#quick-start)
   - [Configuration](#configuration)
+    - [Portable path tokens](#portable-path-tokens)
   - [Command Reference](#command-reference)
   - [Command Discovery](#command-discovery)
   - [Common Workflows](#common-workflows)
@@ -56,6 +57,33 @@ Get-ToolboxHelp -ShowEffectiveConfig
 ## Configuration
 
 Primary configuration lives at `Config/config.json`.
+
+### Portable path tokens
+
+For portability across machines and user profiles, prefer environment-style
+tokens in `Config/config.json` path values instead of hardcoded absolute paths.
+
+- Use `%TT_ModuleRoot%` for module-owned files and folders (for example:
+  `Config`, `Workers`, `Private`, `AI`).
+- Use `%TT_Home%` for machine/user-specific operational data roots (for example:
+  `LogsAndExports`).
+- `%TT_LogsRoot%` and `%TT_ExportsRoot%` are also supported when you want to
+  point directly to logs/exports roots.
+
+Example:
+
+```json
+{
+  "settings": {
+    "workerPath": {
+      "default": "%TT_ModuleRoot%\\Workers"
+    },
+    "logging": {
+      "logPath": "%TT_Home%\\LogsAndExports\\Logs"
+    }
+  }
+}
+```
 
 Start with a small baseline and expand only the sections you use:
 
