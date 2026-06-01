@@ -194,6 +194,60 @@ function Get-TechToolboxConfig {
         return $Node
     }
 
+    function Merge-TechToolboxConfigNode {
+        param(
+            [Parameter(Mandatory)]$Base,
+            [Parameter(Mandatory)]$Override
+        )
+
+        if ($Override -is [hashtable] -and $Base -is [hashtable]) {
+            foreach ($key in $Override.Keys) {
+                if ($Base.ContainsKey($key)) {
+                    $Base[$key] = Merge-TechToolboxConfigNode -Base $Base[$key] -Override $Override[$key]
+                }
+                else {
+                    $Base[$key] = $Override[$key]
+                }
+            }
+
+            return $Base
+        }
+
+        # Arrays and scalar values are replaced wholesale by the override value.
+        return $Override
+    }
+
+    function Get-TechToolboxSecretsOverride {
+        param([Parameter(Mandatory)][string]$ConfigFilePath)
+
+        if ($env:TT_DisableConfigSecretsMerge -eq '1') {
+            return $null
+        }
+
+        $configDir = Split-Path -Parent $ConfigFilePath
+        $secretsPath = if ([string]::IsNullOrWhiteSpace($env:TT_ConfigSecretsPath)) {
+            Join-Path $configDir 'config.secrets.json'
+        }
+        else {
+            [Environment]::ExpandEnvironmentVariables($env:TT_ConfigSecretsPath)
+        }
+
+        if (-not (Test-Path -LiteralPath $secretsPath)) {
+            return $null
+        }
+
+        $raw = Get-Content -LiteralPath $secretsPath -Raw -Encoding UTF8 -ErrorAction Stop
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            return $null
+        }
+
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            return (ConvertFrom-Json -InputObject $raw -AsHashtable)
+        }
+
+        return (ConvertTo-Hashtable (ConvertFrom-Json -InputObject $raw))
+    }
+
     if (-not (Test-Path -LiteralPath $Path)) {
         throw "Get-TechToolboxConfig: config file not found at '$Path'."
     }
@@ -202,6 +256,21 @@ function Get-TechToolboxConfig {
 
     $pathRoots = Get-TechToolboxPathRoots -ConfigFilePath $Path
     $pathFingerprint = '{0}|{1}|{2}|{3}' -f $pathRoots.ModuleRoot, $pathRoots.LogsRoot, $pathRoots.ExportsRoot, $pathRoots.HomeRoot
+
+    $secretsPath = if ([string]::IsNullOrWhiteSpace($env:TT_ConfigSecretsPath)) {
+        Join-Path (Split-Path -Parent $fi.FullName) 'config.secrets.json'
+    }
+    else {
+        [Environment]::ExpandEnvironmentVariables($env:TT_ConfigSecretsPath)
+    }
+
+    $secretsLastWrite = ''
+    if (Test-Path -LiteralPath $secretsPath) {
+        $secretsLastWrite = (Get-Item -LiteralPath $secretsPath).LastWriteTimeUtc.ToString('o')
+    }
+
+    $secretsMergeFlag = if ($env:TT_DisableConfigSecretsMerge -eq '1') { 'off' } else { 'on' }
+    $cacheFingerprint = '{0}|{1}|{2}|{3}' -f $pathFingerprint, $secretsPath, $secretsLastWrite, $secretsMergeFlag
 
     # --- Simple session cache (StrictMode-safe) ---
     if (-not (Get-Variable -Name __cfgCache -Scope Script -ErrorAction SilentlyContinue)) {
@@ -212,7 +281,7 @@ function Get-TechToolboxConfig {
     if ($cache -and
         $cache.Path -eq $fi.FullName -and
         $cache.LastWriteTimeUtc -eq $fi.LastWriteTimeUtc -and
-        $cache.PathFingerprint -eq $pathFingerprint) {
+        $cache.PathFingerprint -eq $cacheFingerprint) {
         return $cache.Data
     }
 
@@ -226,13 +295,26 @@ function Get-TechToolboxConfig {
         $data = ConvertTo-Hashtable (ConvertFrom-Json -InputObject $jsonRaw)
     }
 
+    $secretsOverride = Get-TechToolboxSecretsOverride -ConfigFilePath $fi.FullName
+    if ($secretsOverride) {
+        if ($secretsOverride.ContainsKey('settings') -and $secretsOverride.settings -is [hashtable]) {
+            if (-not ($data.settings -is [hashtable])) { $data.settings = @{} }
+            $data.settings = Merge-TechToolboxConfigNode -Base $data.settings -Override $secretsOverride.settings
+        }
+
+        if ($secretsOverride.ContainsKey('paths') -and $secretsOverride.paths -is [hashtable]) {
+            if (-not ($data.paths -is [hashtable])) { $data.paths = @{} }
+            $data.paths = Merge-TechToolboxConfigNode -Base $data.paths -Override $secretsOverride.paths
+        }
+    }
+
     $data = Resolve-TechToolboxConfigNode -Node $data -PathRoots $pathRoots
 
     # --- Update cache ---
     $script:__cfgCache = @{
         Path             = $fi.FullName
         LastWriteTimeUtc = $fi.LastWriteTimeUtc
-        PathFingerprint  = $pathFingerprint
+        PathFingerprint  = $cacheFingerprint
         Data             = $data
     }
 
@@ -245,8 +327,8 @@ function Get-TechToolboxConfig {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDeVOejhZfqTycY
-# /jR6MEttcVCALAOEbEO6CDZjFj26b6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAcJ3njA+rTMCfH
+# GElJobYAZ1h3vByr75b5nWbAPq+ZfaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -379,34 +461,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD6ToYlHA0b
-# n7pjyGyye6ZTi15FTvTYKYShkLpBXhPuBjANBgkqhkiG9w0BAQEFAASCAgB9pByH
-# hQ/dqF50ZMPlYvHyjF1LLFl9oLl7vMCP6UP3qj3i/PmCPr0+PDK5/qmB+goN0GuR
-# 8X5hn9+H92st/i/01g3W07t3TWnQkJFOO+wzww3STsBfYukeL4OFW1OMjhOndaug
-# g6mn7gvDDbVFZOAdFgi3l9zxQTyPgwSJVihMqagxQ5mPum1mtronqQr2v2feennx
-# cAGuLRY/OGCGrtwMkxdQvi/03Af6AT1vLznJbhyK7nsN88htu6uUasiQb/f90xIX
-# KE6006ByKK64+GgSbNRTLs802srbzLLTvt+wVMeykrzODZpzA8d64KhSnvrtQEHb
-# JJUlC38JiXai6gJyKJNbi+QBC1h2B5gUx9JmiKO5eqfL07ezZ0TFxbmCti3zM0ug
-# 7a0jDQf4vmskm7E6mp6nPUw5lHJut2HsaWJ+UJ26f6LAq105w4wvLSb8buyjKxZA
-# 79qCXlj+JDtvqZh5SwotjCejiA9jSJOSQNbw/DBXJW+OtGiIRve3+p4c00HI10ZO
-# pAu6w9P3p7ng42pAPj7PgysujIMbAQk48M7m6La9xJs11vho9xj5X2I3Q+6SQ417
-# bCs2EJEjZ2TXVEDLUdZnDf2VzRVI2SE6GsuGU7Rl+P3AJ6ZC6qcO8GTb/5GPNvHu
-# wcY4nGiam1qaMzK1fmbwnx0BR6Mqy7L6qBbYkqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCLvJDQX5o8
+# b1Ju8joFYCaQGM1Kqop9lIifybul8Q8rQzANBgkqhkiG9w0BAQEFAASCAgBhTJcF
+# k0fCi4wyqbOPg7mcKLWmYHkRD62Kk0hQwZmwYwk6pcPASZfwuhe9qOG8wPQ1XNs3
+# Jj/F5+1p2DlE/lVwFyJKXp8QhHP8b5uuscOGzlNbxIkxg+9YNQ3h2h32OWIUtyxb
+# 3dM66Fv3PNy5r37/iITRhl1pvdB64MWoqolJkyUggtJCRN+pIAHGF5rOJ/5eSyiN
+# v1mX8iVP+bUxjqAd8ZRs+Wsv8kFDlp8esslChXiZw/yRsd6CbNzlKk4qTf9WhZoL
+# 0kXBwqJqUcdcYIMzYGwkg46Wmq7PZyWf+BibCtoLPHVJ/F4eHdMW/9oOaYvz6b4z
+# G+DUnck1B/VDqXHcj183YM+p0t2+tKUgECdt/MF16LD+yPgkAZTdzLZBTvu/KDUR
+# T0jQtZs8QqGK7JYz1A54T7dOC5jhsXJvMwnzpnkPymzjIh3OXOEumasLqBPloI6R
+# dtHNQejcTrouaCEKkdY/rW6HWeoLXSdIhBOMcbWuAI/93pDikAdpwZq+0LOuhPJQ
+# 8JlOp+Bd0e94xTSROSlTLC7lSCkARseXgaISzp7HPGkEEG/3mrRve7DPLOv73P4v
+# glUWcKtf0hWZR825q9bztfgQo9Xyw3/DG53IHKsSi8YBNSPFeMaFrXriUkoCFsY5
+# 8zH80k0+6DLkqLKHJjTydUL/bDUeOZUf0syQJ6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MDExNTAxMTRaMC8GCSqGSIb3DQEJBDEiBCDa7UgK1a6903uGVgAC
-# oKvBHidTg9mm5GFYp47nBMrtHDANBgkqhkiG9w0BAQEFAASCAgA9hJW/+zyA5fYi
-# ZxUZekQJJRhO+4er//nB9qatnvmPT73k9lHk4eWaYFfmMheOHJuJv7SVRbn+xIsv
-# as83g7c+onIK30Ht2RHeLVEOc3iNsv/HgSt1nVri9QmctrnusA+6CZoeNZcmq60J
-# ZNDhII2fje+yHTe9PO13PfjVoSLMLi/NrauK4lWsOBULSPm9ZQ7UxsLQhbRsb2uw
-# DufwoTOVD7efZrFnL20Zd95/u05lDxX2bp+VjY9QBTkNnwZbO6xRuxO/2GkDBcGw
-# cWOuAYc8SLjH5asdKsvzYKDlSKqbCBTVR0Lf/EtnVGMVGXzLYrz2GI0HwJFkZ7jD
-# UdvUFc8+qTkrIUaM2dtdh4UVcMGnkVyM9iWY4LiEggYLOj8TenJ0KJ7u+2lxBM2/
-# JVXeD8vLev3V/3dl+wvDSZyyrcscFQrLKgVp83SQUR7zVrbCjDVXeEt6+nN5kTm/
-# sScvcwvWF1HweVrEOL4PV6jtgCRrMBzQjgGmTLRQsAJFPPAbGgRBAa8blhJObUMW
-# YzQRknVYBKGDRe8XcAGxTRYOl2zB9QD8fHeLeDr7d1vzrwlfJhzBifyDd+3YD/r4
-# kl8p3JxFXNEH0BU0cT1wGcyLouB1vlcO/ckqrMmuwfl5VhVot9/BU/g9+70+JY5u
-# XK3Lqq6vHqWfaYmhocvsPV96G5mKTw==
+# BTEPFw0yNjA2MDEyMTE4MjlaMC8GCSqGSIb3DQEJBDEiBCDOyZFCKD8uR2yIdoKB
+# 3HECof5TsN3qLjpHWkG8BdJW8DANBgkqhkiG9w0BAQEFAASCAgCvw5+zVUwS/o8Y
+# 26nrZfI9CAHt0vMcFZ+j5Beukl6QbNDON9WlxIAFE8pyDgTPj/YAIKR8bO/GQBFE
+# 9Owi3t6Xziuv1NZzWQ/FwSDfTJ0J1TU/kPP0KT6Vd1FcJhNYWHIDIy2OcKlmdkp/
+# f0kCEVpmYLU52zHvyHhqE8oPK1yAI7GRm2s6WD/h6ZK65GDFKKCWyKN1qJoTfEBn
+# lKfz0CHAAwH+PKKASeoiLRupZhtXN61ibStlmn1zyMVB5cBnZSzES0UUVGuzcFq3
+# +aYJpoiYNYkB0Yh+476Gk/aV0mf9qBAQ02r+vfQrWKhw+EJVStVG1/MRdce+0alZ
+# 6twkt24LMsCd6oRkqWxjxgdCLdvcQBJv9jk2izwIKEmDJeBcPnBPSUObsiLdQnxg
+# 2sVggaTbpgtSzv4G5rr9es0ghmjUdIIdvSsWNEkm/HCgyki7dYu68kRNzfTQ3PbV
+# D9jnH9K8UjgE06XIUSibygw6Dn7Ha/BaGxf5bS7QvbhGt2LrryQXzGFoETkHcKzQ
+# 3xCDJL7z3BMOaivAv12bXIB61kOgu3o8V6bHLvgGMkibAnibX8pIdVH4ubVLX5Wr
+# UEs3MBtI1nRNFzyocB5kt9HQVE2QeYr2biPLJGxThdbyoHk1GDvKiLkOijUr5PmO
+# WVbHSNm+xdx1ECQ5TWbjwcT38Xpj1A==
 # SIG # End signature block

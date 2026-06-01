@@ -30,8 +30,8 @@
       "resolveGroups": true,
       "resolveManager": true,
       "enableProxyAddressSearch": true,
-      "domainController": "DC-1.vadtek.com",
-      "searchBase": "DC=vadtek,DC=com",
+      "domainController": "dc-1.example.com",
+      "searchBase": "DC=example,DC=com",
       "enableMailSearch": true,
       "searchScope": "Subtree"
     },
@@ -81,10 +81,10 @@
       "runRemote": true
     },
     "remoting": {
-      "credSSPDelegateComputers": "*.vadtek.com"
+      "credSSPDelegateComputers": "*.example.com"
     },
     "secureCrimp": {
-      "server": "SECURECRIMP-1.vadtek.com",
+      "server": "securecrimp-1.example.com",
       "stackTasks": [
         "Secure Crimp - Run Server",
         "Secure Crimp - Nginx"
@@ -168,12 +168,12 @@
     },
     "tenant": {
       "authorityUrl": "https://login.microsoftonline.com",
-      "organizationName": "valueaddedcompanies.onmicrosoft.com",
+      "organizationName": "example.onmicrosoft.com",
       "clientId": "9c0e43db-f3fc-4bba-9530-10b5d063730b",
-      "upnSuffix": "vadtek.com",
+      "upnSuffix": "example.com",
       "defaultMailboxLanguage": "en-US",
       "defaultUsageLocation": "US",
-      "tenantId": "e1b83792-ab2b-418b-9481-fe12c76f201e"
+      "tenantId": "00000000-0000-0000-0000-000000000000"
     },
     "purview": {
       "purge": {
@@ -366,7 +366,7 @@
         "Directory.ReadWrite.All",
         "AuditLog.Read.All"
       ],
-      "tenantId": "e1b83792-ab2b-418b-9481-fe12c76f201e",
+      "tenantId": "00000000-0000-0000-0000-000000000000",
       "environment": "Global",
       "profile": "v1.0",
       "appOnly": {
