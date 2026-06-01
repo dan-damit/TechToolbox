@@ -36,32 +36,35 @@
       "searchScope": "Subtree"
     },
     "resetPassword": {
-      "passwordFunctionPath": "%TT_ModuleRoot%\\Private\\System\\Utilities\\PasswordRelated",
+      "passwordFunctionPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Private\\System\\Utilities\\PasswordRelated",
       "initialPasswordLength": 12,
       "showPassword": true
     },
     "systemUptime": {
       "logFileNameFormat": "SystemUptime_{yyyyMMdd}.log",
-      "exportPath": "%TT_ExportsRoot%\\SystemUptime",
+      "exportPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\SystemUptime",
       "logPath": "%TT_LogsRoot%\\SystemUptime"
     },
     "workerPath": {
-      "default": "%TT_ModuleRoot%\\Workers"
+      "default": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Workers"
     },
     "trustWorkerHelpersRoot": {
-      "default": "%TT_ModuleRoot%\\Private\\System"
+      "default": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Private\\System"
     },
     "largeFileSearch": {
-      "defaultSearchDirectory": ["C:\\", "D:\\"],
+      "defaultSearchDirectory": [
+        "C:\\",
+        "D:\\"
+      ],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
-      "exportDirectory": "%TT_ExportsRoot%\\LargeFileSearch"
+      "exportDirectory": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\LargeFileSearch"
     },
     "errorEvents": {
-      "exportPath": "%TT_ExportsRoot%\\ErrorEvents"
+      "exportPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\ErrorEvents"
     },
     "fileSearch": {
-      "exportDirectory": "%TT_ExportsRoot%\\FilesSearches",
+      "exportDirectory": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\FilesSearches",
       "exportFileNamePattern": "Get-FilesUsingKeywords-{computer}-{yyyyMMdd_HHmmss}.csv",
       "singleFileNamePattern": "Get-FilesUsingKeywords-{computer}.csv",
       "appendToSingleFile": true
@@ -78,9 +81,7 @@
       "runRemote": true
     },
     "remoting": {
-      "credSSPDelegateComputers": [
-        "*.vadtek.com"
-      ]
+      "credSSPDelegateComputers": "*.vadtek.com"
     },
     "secureCrimp": {
       "server": "SECURECRIMP-1.vadtek.com",
@@ -97,7 +98,7 @@
       "domainAdminCred": {
         "username": "ddadmin"
       },
-      "wordListPath": "%TT_ModuleRoot%\\Config\\wordlist.txt",
+      "wordListPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Config\\wordlist.txt",
       "default": {
         "separator": "-",
         "style": "Readable",
@@ -107,9 +108,9 @@
     },
     "batteryReport": {
       "waitTimeoutSeconds": 10,
-      "debugInfo": "%TT_ExportsRoot%\\BatteryReports\\",
-      "reportPath": "%TT_ExportsRoot%\\BatteryReports\\",
-      "outputJson": "%TT_ExportsRoot%\\BatteryReports\\",
+      "debugInfo": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\BatteryReports\\",
+      "reportPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\BatteryReports\\",
+      "outputJson": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\BatteryReports\\",
       "reportFileNamePattern": "BatteryReport.html",
       "jsonFileNamePattern": "InstalledBatteries.json",
       "debugFileNamePattern": "BatteryReportDebug.log"
@@ -122,14 +123,14 @@
     },
     "sharedMailboxAudit": {
       "logPath": "%TT_LogsRoot%\\SharedMailboxAudit",
-      "exportPath": "%TT_ExportsRoot%\\SharedMailboxAudit",
-      "workerPath": "%TT_ModuleRoot%\\Workers\\Get-SharedMailboxDeletions.worker.ps1",
+      "exportPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\SharedMailboxAudit",
+      "workerPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Workers\\Get-SharedMailboxDeletions.worker.ps1",
       "logFileNameFormat": "SharedMailboxAudit_{yyyyMMdd}.log",
       "exportPathFileNameFormat": "SharedMailboxDeletions_{yyyyMMdd_HHmmss}.csv"
     },
     "remoteSoftwareInventory": {
       "logPath": "%TT_LogsRoot%\\RemoteSoftwareInventory",
-      "outDir": "%TT_ExportsRoot%\\RemoteSoftwareInventory",
+      "outDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\RemoteSoftwareInventory",
       "throttleLimit": 32,
       "includeAppx": false,
       "logFile": "RemoteSoftwareInventory.log",
@@ -139,7 +140,7 @@
     },
     "agent": {
       "model": "qwen3.6:35b",
-      "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json",
+      "promptPackPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\AI\\prompts.json",
       "wait": {
         "timeoutSeconds": 2700,
         "pollSeconds": 5,
@@ -151,7 +152,7 @@
       "promptForMissingInputs": true,
       "defaultLookbackHours": 48,
       "timestampFormat": "yyyyMMdd-HHmmss",
-      "defaultExportFolder": "%TT_ExportsRoot%\\MessageTraces",
+      "defaultExportFolder": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\MessageTraces",
       "summaryFileNamePattern": "MessageTraceSummary_{0}.csv",
       "detailsFileNamePattern": "MessageTraceDetails_{0}.csv"
     },
@@ -222,7 +223,7 @@
       "showProgress": true,
       "promptForDateRanges": true,
       "promptForContentMatchQuery": true,
-      "configPath": "%TT_ModuleRoot%\\Config\\config.json"
+      "configPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Config\\config.json"
     },
     "output": {
       "encoding": "UTF8",
@@ -244,8 +245,8 @@
       "allowKerberos": true
     },
     "systemSnapshot": {
-      "helperPath": "%TT_ModuleRoot%\\Private\\System\\Snapshot",
-      "workerPath": "%TT_ModuleRoot%\\Workers\\Get-SystemSnapshot.Worker.ps1",
+      "helperPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Private\\System\\Snapshot",
+      "workerPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\Workers\\Get-SystemSnapshot.Worker.ps1",
       "includeRoles": false,
       "includeServices": true,
       "helperFiles": [
@@ -258,7 +259,7 @@
         "Get-SnapshotOS.ps1",
         "Get-SnapshotServices.ps1"
       ],
-      "exportPath": "%TT_ExportsRoot%\\SystemSnapshot"
+      "exportPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\SystemSnapshot"
     },
     "offboarding": {
       "log": {
@@ -275,7 +276,7 @@
       "resolveNames": true,
       "pingTimeoutMs": 250,
       "logPath": "%TT_LogsRoot%\\SubnetScan",
-      "exportDir": "%TT_ExportsRoot%\\SubnetScan",
+      "exportDir": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\LogsAndExports\\Exports\\SubnetScan",
       "httpTimeoutMs": 1000,
       "defaultPort": 80,
       "httpBanner": true,
@@ -356,7 +357,7 @@
         "ModuleReview": "review",
         "ExplainDesign": "review"
       },
-      "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json"
+      "promptPackPath": "C:\\Users\\ddamit\\OneDrive - Value Added Companies\\Documents\\TechStuff\\TechToolbox\\AI\\prompts.json"
     },
     "graph": {
       "scopes": [
@@ -384,12 +385,18 @@
       "logDir": "%TT_LogsRoot%\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": ["/E", "/COPYALL"]
+      "copyFlags": [
+        "/E",
+        "/COPYALL"
+      ]
     },
     "downloadsCleanup": {
       "dryRun": false,
       "cutoffYear": 2024,
-      "excludeExtensions": [".pst", ".ost"],
+      "excludeExtensions": [
+        ".pst",
+        ".ost"
+      ],
       "includeExtensions": null
     },
     "teams": {
@@ -408,4 +415,3 @@
     "logs": "%TT_LogsRoot%"
   }
 }
-
