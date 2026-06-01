@@ -30,6 +30,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 
 - Get-TechToolboxConfig
 - Get-ToolboxHelp
+- Test-TTPathRoots
 
 ## Active Directory And Identity
 
@@ -129,6 +130,12 @@ Set-PageFileSize -ComputerName Server01.domain.local -InitialSize 4096 -MaximumS
 
 # Review recent system errors for specific event IDs
 Get-ErrorEvents -LogName System -EventId 41,6008 -StartTime (Get-Date).AddDays(-1) -MaxEvents 50
+
+# Validate effective TechToolbox roots (module/logs/exports)
+Test-TTPathRoots
+
+# Ensure logs/exports directories exist
+Test-TTPathRoots -EnsureDirectories
 
 # TechAgent first-time setup (create/repair .venv and install Python deps)
 Install-TechAgentRuntime

@@ -68,13 +68,13 @@ Start with a small baseline and expand only the sections you use:
       "promptForCredentials": true,
       "promptForDateRanges": true,
       "showProgress": true,
-      "configPath": "C:\\TechToolbox\\Config\\config.json"
+      "configPath": "%TT_ModuleRoot%\\Config\\config.json"
     },
     "logging": {
       "enableConsole": true,
       "enableFileLogging": true,
       "minimumLevel": "Info",
-      "logPath": "C:\\TechToolbox_LogsAndExports\\Logs",
+      "logPath": "%TT_LogsRoot%",
       "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log"
     },
     "browserCleanup": {
@@ -98,6 +98,9 @@ Start with a small baseline and expand only the sections you use:
 ```
 
 Use `Get-TechToolboxConfig` to inspect the effective loaded settings.
+
+For path-root troubleshooting (module/logs/exports), run `Test-TTPathRoots`.
+Use `Test-TTPathRoots -EnsureDirectories` to create missing logs/exports roots.
 
 ## Command Reference
 
