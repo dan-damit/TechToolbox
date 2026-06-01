@@ -33,7 +33,7 @@ Copyright = '(c) Dan Damit. All rights reserved.'
 Description = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows.'
 
 # Minimum version of the PowerShell engine required by this module
-PowerShellVersion = '7.6.0'
+PowerShellVersion = '7.6.2'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''
