@@ -126,7 +126,7 @@ function Get-TechToolboxConfig {
         }
     }
 
-    function Rebase-AbsolutePathPrefix {
+    function Assert-AbsolutePathPrefix {
         param(
             [string]$Value,
             [Parameter(Mandatory)][string]$FromRoot,
@@ -184,9 +184,9 @@ function Get-TechToolboxConfig {
             $resolved = $resolved.Replace('%TT_LogsRoot%', $PathRoots.LogsRoot)
             $resolved = $resolved.Replace('%TT_ExportsRoot%', $PathRoots.ExportsRoot)
 
-            $resolved = Rebase-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox_LogsAndExports\Logs' -ToRoot $PathRoots.LogsRoot
-            $resolved = Rebase-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox_LogsAndExports\Exports' -ToRoot $PathRoots.ExportsRoot
-            $resolved = Rebase-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox' -ToRoot $PathRoots.ModuleRoot
+            $resolved = Assert-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox_LogsAndExports\Logs' -ToRoot $PathRoots.LogsRoot
+            $resolved = Assert-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox_LogsAndExports\Exports' -ToRoot $PathRoots.ExportsRoot
+            $resolved = Assert-AbsolutePathPrefix -Value $resolved -FromRoot 'C:\TechToolbox' -ToRoot $PathRoots.ModuleRoot
 
             return $resolved
         }
@@ -327,8 +327,8 @@ function Get-TechToolboxConfig {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAcJ3njA+rTMCfH
-# GElJobYAZ1h3vByr75b5nWbAPq+ZfaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBXFOJcVtUefDEy
+# l5tTnjjQwTQSsUxDrRZ1mKuU4Lz81aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -461,34 +461,34 @@ function Get-TechToolboxConfig {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCLvJDQX5o8
-# b1Ju8joFYCaQGM1Kqop9lIifybul8Q8rQzANBgkqhkiG9w0BAQEFAASCAgBhTJcF
-# k0fCi4wyqbOPg7mcKLWmYHkRD62Kk0hQwZmwYwk6pcPASZfwuhe9qOG8wPQ1XNs3
-# Jj/F5+1p2DlE/lVwFyJKXp8QhHP8b5uuscOGzlNbxIkxg+9YNQ3h2h32OWIUtyxb
-# 3dM66Fv3PNy5r37/iITRhl1pvdB64MWoqolJkyUggtJCRN+pIAHGF5rOJ/5eSyiN
-# v1mX8iVP+bUxjqAd8ZRs+Wsv8kFDlp8esslChXiZw/yRsd6CbNzlKk4qTf9WhZoL
-# 0kXBwqJqUcdcYIMzYGwkg46Wmq7PZyWf+BibCtoLPHVJ/F4eHdMW/9oOaYvz6b4z
-# G+DUnck1B/VDqXHcj183YM+p0t2+tKUgECdt/MF16LD+yPgkAZTdzLZBTvu/KDUR
-# T0jQtZs8QqGK7JYz1A54T7dOC5jhsXJvMwnzpnkPymzjIh3OXOEumasLqBPloI6R
-# dtHNQejcTrouaCEKkdY/rW6HWeoLXSdIhBOMcbWuAI/93pDikAdpwZq+0LOuhPJQ
-# 8JlOp+Bd0e94xTSROSlTLC7lSCkARseXgaISzp7HPGkEEG/3mrRve7DPLOv73P4v
-# glUWcKtf0hWZR825q9bztfgQo9Xyw3/DG53IHKsSi8YBNSPFeMaFrXriUkoCFsY5
-# 8zH80k0+6DLkqLKHJjTydUL/bDUeOZUf0syQJ6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBoOnWTM9Mb
+# xvVTy67j0ndfrrNNxdbYt5qBY7AVjOAcbzANBgkqhkiG9w0BAQEFAASCAgBObvU5
+# hwBD4GLWZjs3YE0vp1YhH7qjp8MK7FI15otHFYOn4HltnAyU44+BJO+9ZaFMzYYW
+# 5DELe1wSGbJID59Tm09N/oVK/8m3r3eOt/+iLMa/kTrusRmO8snfiwCX62wWDAZx
+# Z7YeBc4l04YCpDiSg8T5zjyDrJdTpJVKPjyW47h6pGcGXXGZi+QER3NVZLwfJGBE
+# ZiEKYQk1icivVgw8M8lN+MlgMiUkCFSVE7EtkFtHMbW9x8/wdrq9DAQQANvhdFYG
+# gPGn/VYHiyz6kMixb/65UfQaP1cS6fEJm5rTRP9fuG45LH8I8qLr+m4Uuhhz/4lo
+# cb79LXFqrJN36m6h27yPftu14o22/5Pxm6oPPfpuqYqSfm4/ZzQMonYHSabBfqzJ
+# t8gXAmGOvshSPoJ8E+iDbMsqPpJuyaQg6LnTEqpWyH7LQecgpc4M9vPP4DuUVi1c
+# nxG/jGd0Vj2B9y8DM11cm0xigZoEOrD3qZE+1NdYN8Ri4hGVvUnYwYy4H/XBg7H1
+# p4AMKgUIrkA/f6chwq4jWUCL8hrcGtqtNEFZ0PdKonv40fzwktjsOTTjUj9uH4m2
+# TnoKS3LvZE2Rqbm0pDmm58/jHdRuH4DtiYiRemizV2Erzr8vQcBqKVP+f0n4I0cB
+# 4Qt3pPsz7vJ0BvRTLJSh/LiRDUY2xG+QUVaS+KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MDEyMTE4MjlaMC8GCSqGSIb3DQEJBDEiBCDOyZFCKD8uR2yIdoKB
-# 3HECof5TsN3qLjpHWkG8BdJW8DANBgkqhkiG9w0BAQEFAASCAgCvw5+zVUwS/o8Y
-# 26nrZfI9CAHt0vMcFZ+j5Beukl6QbNDON9WlxIAFE8pyDgTPj/YAIKR8bO/GQBFE
-# 9Owi3t6Xziuv1NZzWQ/FwSDfTJ0J1TU/kPP0KT6Vd1FcJhNYWHIDIy2OcKlmdkp/
-# f0kCEVpmYLU52zHvyHhqE8oPK1yAI7GRm2s6WD/h6ZK65GDFKKCWyKN1qJoTfEBn
-# lKfz0CHAAwH+PKKASeoiLRupZhtXN61ibStlmn1zyMVB5cBnZSzES0UUVGuzcFq3
-# +aYJpoiYNYkB0Yh+476Gk/aV0mf9qBAQ02r+vfQrWKhw+EJVStVG1/MRdce+0alZ
-# 6twkt24LMsCd6oRkqWxjxgdCLdvcQBJv9jk2izwIKEmDJeBcPnBPSUObsiLdQnxg
-# 2sVggaTbpgtSzv4G5rr9es0ghmjUdIIdvSsWNEkm/HCgyki7dYu68kRNzfTQ3PbV
-# D9jnH9K8UjgE06XIUSibygw6Dn7Ha/BaGxf5bS7QvbhGt2LrryQXzGFoETkHcKzQ
-# 3xCDJL7z3BMOaivAv12bXIB61kOgu3o8V6bHLvgGMkibAnibX8pIdVH4ubVLX5Wr
-# UEs3MBtI1nRNFzyocB5kt9HQVE2QeYr2biPLJGxThdbyoHk1GDvKiLkOijUr5PmO
-# WVbHSNm+xdx1ECQ5TWbjwcT38Xpj1A==
+# BTEPFw0yNjA2MDEyMTIzNTJaMC8GCSqGSIb3DQEJBDEiBCDecWWAA3koklKH5Jdh
+# eh7dUfNE264tieWlIionXG1R3DANBgkqhkiG9w0BAQEFAASCAgCHft9f9JWiErmZ
+# K8jWcMyUDs6x/qVichhuABJ1RZB4w/w5h3y39LccLdQQJAhwubpF6CZ5mpvi8JVn
+# VvOc9M5yfqzRcaJTKfesKZBuf/uatelOl+bC1swjFax4gHbvleoBMsICVAqeJI9x
+# V0MkKH9C79tHGXYEuw1Sye/10NRNGvApnRtuJJTwF5ViPye7AmldJj+qXFjLjlHt
+# 81bZlQvlg2XsubX1rY+G8rJ+lhyEY03GffU/6AtilQbqftwD6+zAa8kTJCz86+gC
+# 30gq9f/GBxmLFQda/0K2UYxrhdKzwwG5GQAS2EEH1A5qd2veUBv+O4V5U5o+5yfx
+# dWC4dQYt/IAVcmkuzW++GSxG23t9GJUhKrAAgxKo2FjJeHsc+gTUfX+tpwM/cvMs
+# orjF4o1N0Q3dDrgf/SK2RV49Ttyv6jqwrVaptBRDCWL8N+VIPLYxn0wjf6eBUSNB
+# zRLzobErRwYzK/JAN5TaTbgtSjQNG1jOECWgwUa2mSbKQ85EQtggVr8pikaRO/Ym
+# pfkHd7l53EDftgdOq+C9kg7XtCvZu1mHfHzx4unc2WiIkCtqRDRY1VX5tV8492QF
+# EGXFTQoqUjSeoBxx2pitweLoyGyJZ2Hf0d519sPh1VM8b+xfbYCGvOwTO7zY05fM
+# cFDkwEN872T5wjm2un3Lidc8tYkn2w==
 # SIG # End signature block
