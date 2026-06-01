@@ -1,0 +1,74 @@
+Received: from SA1PR22MB5680.namprd22.prod.outlook.com
+ (2603:10b6:806:3e4::13) by CH2PR22MB2054.namprd22.prod.outlook.com with
+ HTTPS; Mon, 2 Mar 2026 21:23:28 +0000
+Received: from SJ0PR22MB2541.namprd22.prod.outlook.com
+ (2603:10b6:a03:320::23) by SA1PR22MB5680.namprd22.prod.outlook.com
+ (2603:10b6:806:3e4::13) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9654.21; Mon, 2 Mar
+ 2026 21:23:26 +0000
+Received: from SJ0PR22MB2541.namprd22.prod.outlook.com
+ ([fe80::438e:40a1:a758:147c]) by SJ0PR22MB2541.namprd22.prod.outlook.com
+ ([fe80::438e:40a1:a758:147c%4]) with mapi id 15.20.9654.015; Mon, 2 Mar
+ 2026 21:23:25 +0000
+Authentication-Results: dkim=none (message not signed)
+ header.d=none;dmarc=none action=none header.from=REDACTED.com;
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17724877923470.03414474929621836"
+Subject: =?UTF-8?B?VXNlciBBY2NvdW50IE5vdyBBY3RpdmU=?=
+From: "Value Added Companies - Do Not Reply" <donotreply@REDACTED.com>
+To: Heath Holst <hholst@REDACTED.com>
+Reply-To: smartcrimperadmins@REDACTED.com
+Date: Mon, 2 Mar 2026 21:23:24 +0000
+Message-Id:
+ <177248660477.12028.9295243156819017127@SECURECRIMP-1.REDACTED.com>
+X-Ms-Exchange-Organization-Expirationstarttime: 02 Mar 2026 21:23:25.0624
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ 3291a96e-74bf-4e72-0e3b-08de78a1f059
+X-Ms-Exchange-Organization-Authsource:
+ SJ0PR22MB2541.namprd22.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Internal
+X-Ms-Exchange-Organization-Authmechanism: 06
+X-Clientproxiedby: CH0PR03CA0328.namprd03.prod.outlook.com
+ (2603:10b6:610:118::14) To SJ0PR22MB2541.namprd22.prod.outlook.com
+ (2603:10b6:a03:320::23)
+X-Ms-Exchange-Organization-Messagedirectionality: Originating
+Return-Path: donotreply@REDACTED.com
+MIME-Version: 1.0
+X-Ms-Exchange-Messagesentrepresentingtype: 1
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ SJ0PR22MB2541:EE_|SA1PR22MB5680:EE_|CH2PR22MB2054:EE_
+X-Ms-Office365-Filtering-Correlation-Id:
+ 3291a96e-74bf-4e72-0e3b-08de78a1f059
+X-Ms-Exchange-Atpmessageproperties: SA
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:0;ARA:13230040|366016|13003099007|8096899003|16122699012|41050700001;
+X-Forefront-Antispam-Report:
+ CIP:255.255.255.255;CTRY:;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:SJ0PR22MB2541.namprd22.prod.outlook.com;PTR:;CAT:NONE;SFS:(13230040)(366016)(13003099007)(8096899003)(16122699012)(41050700001);DIR:INT;
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ 3291a96e-74bf-4e72-0e3b-08de78a1f059
+X-Ms-Exchange-Crosstenant-Authsource:
+ SJ0PR22MB2541.namprd22.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Internal
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 02 Mar 2026 21:23:25.4154
+ (UTC)
+X-Ms-Exchange-Crosstenant-Fromentityheader: Hosted
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Mailboxtype: HOSTED
+X-Ms-Exchange-Crosstenant-Userprincipalname:
+ /v0+OccSNEaoEkvLFbkNfXQ31HyXkR71uLWJ2rDMZU1cTqFa4BqyqavOApVfvwPWFXT+nHcyAlPCfbtKVF2/0Eg9vSEclgv5dAFxoe7GSnw=
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: SA1PR22MB5680
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:02.9817017
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9654.014
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944506478)(944626604)(920097)(425001)(930201)(20251009189)(140003);
+X-Microsoft-Antispam-Message-Info:
+ xWMQT6xoxYPJpLUjwiGokq30Ems7Gfs5rupNhRAa9Y+GfpRuEhajPBDDE6uS9oOIxEhMum4xFhegGSuu0Uq3VwX0MFMirSjsqHHnaJdq0QIcoTyAj1ngrVU9Wi8YAKdbXUHU2iZ909qtgmOlC4i1uMo+QThaS56jotdd/unBrOIF+/AQ8SyHrwRRtSTyGrSq1bFWGQHzl2IQ2/alWdw3ccfKbwklgHNWg+Msd7piaqvOVjT8vyW5bV5doRurSnay13IrXH4daS7iVYXQXkhS54F1OT9FPHuVaTSFHvCRFIfdHBHdZhhCC2LgjHnPN1w2tdIwoWuJMpY5dVYX+CWHfBqU/b5vYwXZR2iRTXqU91NRquDrzpUtkkULQNd4f07D2eYYGqJV+oh2HdAwCfGZxxh61ZbbaMBCiBQ9hjtazh4vvZNJ4smr1+D24i/v8/9vWaFlQqMHWLZ/hmznTSeapuv7Yun4DLVfMo4iLWzbeazIxKgZvtfQ/0IdnbT+FPRxnJtTJHqT36+ZTOx9ZSsuUEQ50K5nK17v+oeEu15W8OKoPh4lsLXuw9aRmShac2jD4GdClpWCeaVucvpZlsmNOjfI3gzgEpo+f5OXD0S3oMr0oP54Nl9i+d8QH+gjGJy5khSzChjHuuvX5ExThxOeWCtzCSIohmBHu62KlR48Tya7y7m/JCHLWVU5p/jG0Aqme0GjuDg8jU/dTOPrqSWZm9rfKlMNaBqZor+oNt+R/b6roPOYnaCYpI8oszxrYybAIxfb+KbsDrNPStfj23sSSQZCqfEskpdCWkLRmBCYxUcOeOmdgQWemcj86NOPWfEe8Li9c3svDOVEV+Fz83tXj2AtHEOLxwmN49a0eQCU0JeVGx62G0F5xLyDsO4GEb1v
+Content-Transfer-Encoding: 7bit
+

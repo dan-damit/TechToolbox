@@ -1,0 +1,40 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              jcavozos@REDACTED.com
+Display Name:      Jose Cavozos
+SamAccountName:    jcavozos
+Timestamp:         4/21/2026 11:01:20 AM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: True
+  SamAccountName: jcavozos
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+[ForwardingError]
+  Action: ForwardingError
+  Success: Unknown
+  Length: 260
+
+[ManagerAccess]
+  Action: Grant-ManagerMailboxAccess
+  Success: False
+  Identity: jcavozos@REDACTED.com
+  Manager: tbeason@REDACTED.com
+  FullAccess: False
+  SendAs: False
+  Errors: FullAccess: The term 'Add-MailboxPermission' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again. SendAs: The term 'Add-RecipientPermission' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+
+===============================================
+ End of Summary
+===============================================

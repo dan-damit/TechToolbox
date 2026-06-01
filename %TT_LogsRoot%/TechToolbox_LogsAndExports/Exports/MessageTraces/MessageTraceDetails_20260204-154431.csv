@@ -1,0 +1,10 @@
+Recipient,MessageTraceId,Date,Event,Detail
+ap@REDACTED.com,106789c6-ea69-4584-4455-08de6340e5dc,2/3/2026 4:25:53 PM,Receive (with external delay),Message received by: PH7PR22MB4843.namprd22.prod.outlook.com. There was a delay of 8642 minutes prior to the message being received by Office 365.
+ap@REDACTED.com,106789c6-ea69-4584-4455-08de6340e5dc,2/3/2026 4:25:55 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+ap@REDACTED.com,106789c6-ea69-4584-4455-08de6340e5dc,2/3/2026 4:25:56 PM,Deliver,The message was successfully delivered.
+ap@REDACTED.com,17af5390-61da-4854-bf91-08de6340e4f5,2/3/2026 4:25:55 PM,Receive (with external delay),Message received by: MW4PR22MB3159.namprd22.prod.outlook.com. There was a delay of 8642 minutes prior to the message being received by Office 365.
+ap@REDACTED.com,17af5390-61da-4854-bf91-08de6340e4f5,2/3/2026 4:26:02 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+ap@REDACTED.com,17af5390-61da-4854-bf91-08de6340e4f5,2/3/2026 4:26:03 PM,Deliver,The message was successfully delivered.
+ap@REDACTED.com,d7004dc1-e7fa-4f1d-ebeb-08de6340e4d9,2/3/2026 4:25:51 PM,Receive (with external delay),Message received by: CYYPR22MB4180.namprd22.prod.outlook.com. There was a delay of 7237 minutes prior to the message being received by Office 365.
+ap@REDACTED.com,d7004dc1-e7fa-4f1d-ebeb-08de6340e4d9,2/3/2026 4:25:57 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+ap@REDACTED.com,d7004dc1-e7fa-4f1d-ebeb-08de6340e4d9,2/3/2026 4:25:58 PM,Deliver,The message was successfully delivered.

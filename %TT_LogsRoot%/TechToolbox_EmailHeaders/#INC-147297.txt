@@ -1,0 +1,138 @@
+Received: from LVUPR22MB996726.namprd22.prod.outlook.com
+ (2603:10b6:408:3a3::14) by SJ0PR22MB2944.namprd22.prod.outlook.com with
+ HTTPS; Thu, 5 Mar 2026 01:06:12 +0000
+Received: from MN2PR08CA0015.namprd08.prod.outlook.com
+ (2603:10b6:208:239::20) by LVUPR22MB996726.namprd22.prod.outlook.com
+ (2603:10b6:408:3a3::14) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9654.22; Thu, 5 Mar
+ 2026 01:06:07 +0000
+Received: from BN2PEPF000055E1.namprd21.prod.outlook.com
+ (2603:10b6:208:239:cafe::13) by MN2PR08CA0015.outlook.office365.com
+ (2603:10b6:208:239::20) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9654.23 via Frontend Transport;
+ Thu, 5 Mar 2026 01:05:36 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ BN2PEPF000055E1.mail.protection.outlook.com (10.167.245.11) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9700.0 via Frontend Transport; Thu, 5 Mar 2026 01:06:06 +0000
+Received: from a6-247.smtp-out.eu-west-1.amazonses.com
+ (a6-247.smtp-out.eu-west-1.amazonses.com [54.240.6.247])	by
+ gw3135.fortimail.com with ESMTPS id 62514fGh018836-62514fGj018836
+	(version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NO)	for
+ <alarson@REDACTED.com>; Wed, 4 Mar 2026 19:04:43 -0600
+Authentication-Results: spf=fail (sender IP is 173.243.133.135)
+ smtp.mailfrom=eu-west-1.amazonses.com; dkim=fail (signature did not
+ verify) header.d=proesaelectronica.com;dkim=fail (signature did not
+ verify) header.d=amazonses.com;dmarc=fail action=none
+ header.from=proesaelectronica.com;compauth=none reason=405
+Received-Spf: Fail (protection.outlook.com: domain of
+ eu-west-1.amazonses.com does not designate 173.243.133.135 as permitted
+ sender) receiver=protection.outlook.com; client-ip=173.243.133.135;
+ helo=gw3135.fortimail.com;
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of
+ 0102019cbb868364-8a438e2a-0347-44aa-a35f-b4c10d1681e1-000000@eu-west-1.amazonses.com
+ designates 54.240.6.247 as permitted sender)
+ smtp.mailfrom=0102019cbb868364-8a438e2a-0347-44aa-a35f-b4c10d1681e1-000000@eu-west-1.amazonses.com;
+	dkim=pass header.i=@amazonses.com	dkim=pass
+ header.i=@proesaelectronica.com;	dmarc=pass
+ header.from=proesaelectronica.com;
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=3uzijslkyl7y5y5dzhvwlrqegfyek5mh; d=proesaelectronica.com;	t=1772672680;
+	h=From:To:Subject:Message-ID:Date:MIME-Version:Content-Type;
+	bh=2bAoIm0RoGFln2GyxuSyDvA5EQ1V1vgMGwqKtfzeI9k=;
+	b=tm03BexWenBkd7ygzm3CRG43niB9Fgw+5ouqwvAk+cJj9wGxQLidLBDTqf/jmnxs
+	rHXZqU12gQ+ODkeGv9h+dJf1kgcSxGxKYNhOs1vR4IneXzJjA96qJ4rMUgKlFk0tLsR
+	OpF7istAfwSVF+6Od0gIwXVFXV3wPbWK/0FimI7kULXw47kscNeHbAYbJHn4QyQTt9E
+	SAcEEy2XK5m1+Fz818AkIaYr6tuu7nA97llcfe3jVg4dadJFN4SgMS13wrB93uyTtRn
+	jbWYjaPAQX8BVEBVZoJSD0tZrZywI4xLrXrTmHKcmTC36AXqTW/MUigzqW7w5VpLv+G
+	0/c5FiLpfw==
+Dkim-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ihchhvubuqgjsxyuhssfvqohv7z3u4hn; d=amazonses.com; t=1772672680;
+	h=From:To:Subject:Message-ID:Date:MIME-Version:Content-Type:Feedback-ID;
+	bh=2bAoIm0RoGFln2GyxuSyDvA5EQ1V1vgMGwqKtfzeI9k=;
+	b=eUVoRZMuf8NShhee+/QTx6nIUaU16skVLzE3NmjXBnd948Ac9ahx058oIWr5H7Le
+	QfbtSjgv1B105GmKITWnDwR9/qvz1K24coMr+5AY2UUJF9PMn+2eEkXiCrdasCExmG+
+	ERayvViRWmDoFErDbJHjdD3kDzHjLZMZ618RA3Ic=
+X-Priority: 3
+X-Msmail-Priority: Normal
+Importance: normal
+From: TaskOnly <NotificationNoreplyMxNoreplyIQFvJ
+ <notification@proesaelectronica.com>
+To: Amanda Larson <alarson@REDACTED.com>
+Subject: =?UTF-8?B?KlBvc3NpYmxlIFNwYW0qIEZvbGxvdy1VcCBvbiBTdWJtaXR0ZWQg?=
+ =?UTF-8?B?RW50cnkg4oCTIE1Ibg==?=
+Message-Id:
+ <0102019cbb868364-8a438e2a-0347-44aa-a35f-b4c10d1681e1-000000@eu-west-1.amazonses.com>
+Date: Thu, 5 Mar 2026 01:04:40 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17726728379520.47233021121858587"
+Feedback-Id:
+ ::1.eu-west-1.hiBISQ6BTcN646y/EWC6b0yZBCoMETAhikyaigtM7g4=:AmazonSES
+X-Ses-Outgoing: 2026.03.05-54.240.6.247
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFBcSFhZWFpYWVELCgpQXlBbXlxFUAlcW1ANWglFWFtcX0VcXAkJRQlbXQ5FClwLWVgMWV5QWQ1ZRVhYWFhYWCgNHUUfDRscRVlGCQUJEgcGGw0bRgsHBUhYSFlQSAkECRobBwYoHgkMHA0DRgsHBUhZSFlIWVpIXVxGWlxYRl5GWlxfSF5IWEhYSFlIWEhYSFhIWVBICQQJGhsHBigeCQwcDQNGCwcFSFk=
+X-Feas-Deferred: FortiSandbox
+X-Feas-Client-Ip: 54.240.6.247
+X-Fe-Last-Public-Client-Ip: 54.240.6.247
+X-Fe-Envelope-From:
+ 0102019cbb868364-8a438e2a-0347-44aa-a35f-b4c10d1681e1-000000@eu-west-1.amazonses.com
+X-Feas-Spf: sender-alignment=not-aligned, header
+ from="TaskOnly<NotificationNoreplyMxNoreplyIQFvJ"
+ <notification@proesaelectronica.com>, reply-to=, spf-result=pass,
+ ip=54.240.6.247, helo=a6-247.smtp-out.eu-west-1.amazonses.com,
+ mailFrom=0102019cbb868364-8a438e2a-0347-44aa-a35f-b4c10d1681e1-000000@eu-west-1.amazonses.com
+X-Feas-Bec-Sender-Alignment: sender-alignment=not-aligned, header
+ from="TaskOnly<NotificationNoreplyMxNoreplyIQFvJ"
+ <notification@proesaelectronica.com>, reply-to=, spf-result=pass,
+ ip=54.240.6.247, helo=a6-247.smtp-out.eu-west-1.amazonses.com,
+ mailFrom=0102019cbb868364-8a438e2a-0347-44aa-a35f-b4c10d1681e1-000000@eu-west-1.amazonses.com
+X-Fe-Policy-Id: 0:1:1:REDACTED.com
+Return-Path:
+ 0102019cbb868364-8a438e2a-0347-44aa-a35f-b4c10d1681e1-000000@eu-west-1.amazonses.com
+X-Ms-Exchange-Organization-Expirationstarttime: 05 Mar 2026 01:06:06.6873
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ 4d799ec3-2475-41eb-b39b-08de7a536152
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ BN2PEPF000055E1:EE_|LVUPR22MB996726:EE_|SJ0PR22MB2944:EE_
+X-Ms-Exchange-Organization-Authsource:
+ BN2PEPF000055E1.namprd21.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ 4d799ec3-2475-41eb-b39b-08de7a536152
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:0;ARA:13230040|704160111799003|39142699007|4123199012|5073199012|31052699007|5063199012|1032899013|7149299003|32142699015|82310400026|69100299015|3109299003|7049299003|8096899003|2066899003|54012099003|14062099003|43540500003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(704160111799003)(39142699007)(4123199012)(5073199012)(31052699007)(5063199012)(1032899013)(7149299003)(32142699015)(82310400026)(69100299015)(3109299003)(7049299003)(8096899003)(2066899003)(54012099003)(14062099003)(43540500003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 05 Mar 2026 01:06:06.2499
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ 4d799ec3-2475-41eb-b39b-08de7a536152
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ BN2PEPF000055E1.namprd21.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: LVUPR22MB996726
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:06.0669322
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9678.010
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944506478)(944626604)(4710137)(4712097)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ J5N++piEo2U0Z0WnNueA3X7BmoEGEFS671uXrpyBx/5ex8rGhSeS97oWbKRb6CJdQtT0qnNJhcJ67F8j/esFfJGg8cUHSISTHsycdOBbknAk4WMltI/75rM/f4D4+tXrBb2FQZyZ68fIuzMUkmivfntg/SRNgLq59VsVid+7k2D3DAQW8g924VTb1BJlwV8trUd0cKyxIJCDpS/SNRsGyE/0UGnHSh8mDcHvd14MkCkGguX4jztFDCvUKsSWZ2hx+epfC/HkeEYjpS+f0Wt+gvISlVCkIZnxJF5Wkk0GOrNyDvnOZf4g9wJMIrGe5I+X78eFidkK0WpPQUHQe73dmtBzTTLQGAm0owyD/9vJbi9/vX3f2woSargGq4QbfyAZ8QbjGUe0JpDvcTlx3dehQjwlE57BB4qJtB2iSHT37a1IRhw5krpeQ0OewRleUgeCfDqiva1w7ul/hRTDuhB/DeBqXrrbURxAg+ErvuVD76W7nE1VjbBSmj3RBu6GXcLDfD17mTKrFNWGdfDe8skp7CnXwZuOrSF51l0lQactlAz2FKIhAJ5J1OeXZtMv/SojHV0X3nPXelTdsSU70qubzOkByce+bLFeqLpZvWbWx86kewpYy4xQ/JNHA9Rne45v8h82THSwd963j6rzdQh25nkaXUWaE7weDIfok2YYYaPDlix/JfnRDEzNmqUnUHOi4cFudeX/YqLB01Oq1BS69fKBWbaFnx29Rtu676mQtA2+59jd05O8nFuIZBrkmFGs74lTB6hC9vhIuBA7Z9lKjunDZ/nvLvQ5HbWuGJ5z6wxTQzOYANgOz0KUN5NYji8gJ6dhTWdYEQ2xiYmLM9vyNrsXbXjUocZjUFjSbPHJtGoByXnzZp84G0fq71i/LO9+/9HbwRz2E6EH9p+gEcQlQ1cST0HwoDKuo+HYimWj8dMZjs2JhLKR/7v5c1aNJHzLDuezAIlCji6NBFMBoc3Ib6NZ7IX3Od0bfWfSapNZFcgN06aliGtUyXCthN59Bl1WynqGMyQEOJcXVRRlcfKY4OcUqzj/y14GK3+YhfvEpxDXPzOB7hcEiwyJbKWPK3cogM2zyfBIN9S5n4jD9YP+ZfB6AYJ8/uHHIQV0/nEsLFAKG1F1LlD3nXUCsMhOciLK8zbWu9V+yJ/EAY12dDAF96epvbxRYQfHzOMJlQKk1jAtIBNqamS+FNBcURWgozWXiUw6JFRLOPZ/jALnItXAaX+GFLsV4cQz+nN2HVnDd6nW8rkiZe9MbhcS1Y5DNf47CGnbVyat/GUX4ymBM1w3q4Fqyyb9uylXKva2Q2sI7rwzDFxu/OHQpm3B3EXYVPO0v5aijHy7eyXSmAldmxykD0eDOBpQmUNgf+pq5xptFTCYCWyWuEv9lbC2xgtJjXLocnKfbAfrfArngjQx9IaKJZAyTEFrEhJ6UEIySlo64Xc+lcnHMdQCPI9zuTR5Ho/fkR2UvM5nYeHdNluyBldUEE/6DAxyT6VHGGAgVUGr1T/EfIE5UgKwnJU9SM2AAjViDk7GkRnJItPdDGtuhKr02t27S5JQZAu9NaQfoxCqp0djrqBlig3GCQSzQG3qgsftaMf6+0npXyTLsEvmYH1CxexDqPKID05xPBn2c4bJlvYVJm8muTyUB9r9h/EmV3JNhGXv1KSj+nN3Lf8gh424I9y39ZZE1uddXWfrHNjheo9gXr4aTtvrlwdHVHWG1PEKCV2OE32kLWX1nTv+j4/v1f78Kr1BN8XlKHdWSBL1gSJWKO3OjT22MMV0CADDzZ6sD/I8bPQu88qhPbzzElRxsfxmEyX1zVTRVCjtgtMKrOJJWmy6MBFm/jjq/NSYqsQ4fYXD9U4Gzv2VlDdh6G2tIRMBo+/e//yNiVud22h/E/SeukzFS5fkFD9cuYWd/4wO6TR8N2TpPOOQrdWOmwDYKj/TpKubaOznDV4k4pXnXF8DaQP2f9Sw40bX8IT/kQU/hK+7xsLaR5esg5msD4DO6iL8NG9Lj/y9xVMPQ+u2Q4enIcZjQc7INitFoxc4rFzjVQU+2lKLVi/NHkx3/IJRWAQEMwW3ghxUibo9UdLvhjhT87BwxgrXWOjrpbqgQP/kqJSuq3+BP/t2fsSpDsmnm/OH0d/lKiLZUtsA8dkOQ7WvyTrAOT/PZ6QzdRR4vs5FNhl16kXOvUTjglueiSy2A+STuYxj9cf6FN7uS8fmyLMlw5u6dT6973wLNxdTFxOFo14Qv24sG2kPtrFHfMxPTR2qDRh0q80/+Fy4KtMcyeRgkfn4tayNwwaW2gtOfdb3mcDSvI0FH0VU2Sr+XXuu/7k2zcMG7qxcVGsy2vB3cjDC/gfnNFJwVlGH5IFuqKuL2s5jLcFyti1TYtVOvo3K7kNhoBeem//WemoR/Vf/dU5aUNZ9XOW2C8GPBSCm7L8Fgl5yLvOh9dNHE+BD6xkCDugn8qS+RPYfR0b4DsXaOb56dOSG0a+JOChii0cJvHFod3U2SQhGzoSPm6LsYHHY8O1fQVWxshWNj0VsFWFx1kHVLbBsB96iAlXqKeKLuAquKyfqQBo8Pnxu78ivDM8CJV+FsrjUs7BGLED7NkSh0rU2n8xYf9UdCCWFIPJKDGHUhdOPCd80JU0SZOu21popqUwarVSZ/0sOIQRiW9slXUPVQezbQXweg3N0q39PDlSM
+Content-Transfer-Encoding: 7bit
+

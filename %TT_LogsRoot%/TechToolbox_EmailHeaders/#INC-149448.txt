@@ -1,0 +1,128 @@
+Received: from LV8PR22MB5273.namprd22.prod.outlook.com
+ (2603:10b6:408:1c2::18) by SJ2PR22MB5261.namprd22.prod.outlook.com with
+ HTTPS; Wed, 11 Mar 2026 13:39:38 +0000
+Received: from BL1PR13CA0021.namprd13.prod.outlook.com
+ (2603:10b6:208:256::26) by LV8PR22MB5273.namprd22.prod.outlook.com
+ (2603:10b6:408:1c2::18) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9700.13; Wed, 11
+ Mar 2026 13:39:03 +0000
+Received: from BL6PEPF0001AB4B.namprd04.prod.outlook.com
+ (2603:10b6:208:256:cafe::1a) by BL1PR13CA0021.outlook.office365.com
+ (2603:10b6:208:256::26) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9678.25 via Frontend Transport;
+ Wed, 11 Mar 2026 13:39:03 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ BL6PEPF0001AB4B.mail.protection.outlook.com (10.167.242.69) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9678.18 via Frontend Transport; Wed, 11 Mar 2026 13:39:03 +0000
+Received: from cr91.mta.exacttarget.com (cr91.mta.exacttarget.com
+ [136.147.176.91])	by gw3135.fortimail.com with ESMTPS id
+ 62BDcgtT027278-62BDcgtV027278	(version=TLSv1.2
+ cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO)	for
+ <shipping-gb@REDACTED.com>; Wed, 11 Mar 2026 08:38:43 -0500
+Received: by cr91.mta.exacttarget.com id hm5o682fmd46 for
+ <shipping-gb@REDACTED.com>; Wed, 11 Mar 2026 13:38:42 +0000 (envelope-from
+ <bounce-CHZVUGBMSAVUXIRMVJ6ZJCUQGQ.70251@bounce.s7.exacttarget.com>)
+Authentication-Results: spf=fail (sender IP is 173.243.133.135)
+ smtp.mailfrom=bounce.s7.exacttarget.com; dkim=fail (signature did not
+ verify) header.d=idealtridon.com;dmarc=fail action=none
+ header.from=idealtridon.com;compauth=none reason=405
+Received-Spf: Fail (protection.outlook.com: domain of
+ bounce.s7.exacttarget.com does not designate 173.243.133.135 as permitted
+ sender) receiver=protection.outlook.com; client-ip=173.243.133.135;
+ helo=gw3135.fortimail.com;
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of
+ bounce-CHZVUGBMSAVUXIRMVJ6ZJCUQGQ.70251@bounce.s7.exacttarget.com
+ designates 136.147.176.91 as permitted sender)
+ smtp.mailfrom=bounce-CHZVUGBMSAVUXIRMVJ6ZJCUQGQ.70251@bounce.s7.exacttarget.com;
+	dkim=pass header.i=@idealtridon.com;	dmarc=pass
+ header.from=idealtridon.com;
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; s=200608;
+ d=idealtridon.com;
+ h=From:To:Subject:Date:List-Help:MIME-Version:List-Unsubscribe:
+ List-Unsubscribe-Post:Reply-To:Message-ID:Content-Type;
+ i=rdavis@idealtridon.com; bh=SUGshCeE2TVypqf8h98ezY4LH1ZzF29PBYS/1nJ29jg=;
+ b=cXLl2Il9T9AJVJyEDMqNEdmQmbVvMNIv+p65XnrZ6pmCyGxV7Pw7ryB/9k3jfQRUwlK16jGP7q6M
+   psXuczClLJe1xpFeQduhAw8hboEUUh6+eAkUrRQSZiRGa+ZTbqIGWOoNAY9oT8URNoNlvWY2Txoi
+   6cYhBnE1T+COI7VwIwQ=
+From: Rodny Davis <rdavis@idealtridon.com>
+To: "Shipping-GB" <Shipping-GB@REDACTED.com>
+Subject: =?UTF-8?B?WypOZXdzbGV0dGVyKl0gQ2FtcGJlbGwgRml0dGluZ3MgTm93IEF2?=
+ =?UTF-8?B?YWlsYWJsZSBvbiBXYXJlaG91c2UgVHdv?=
+Date: Wed, 11 Mar 2026 07:38:42 -0600
+List-Help:
+ <https://cl.S7.exct.net/subscription_center.aspx?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtaWQiOiI3Mjk3NzQ3IiwicyI6IjE2MjUzMzY1MDIiLCJsaWQiOiIzNzMyNCIsImoiOiIxNDgwODQiLCJqYiI6IjM1MjU0IiwiZCI6IjcwMjUxIn0.8esx78SfZ3PqUUfvv-W7qZzAqMstEBur9xN0ysjP5jw>
+MIME-Version: 1.0
+X-Messagekey: 310191-2965706073-155798132
+X-Delivery: Transactional
+X-Sfmc-Stack: 7
+X-Job: 7297747_148084
+List-Unsubscribe:
+ <http://www2.campbellfittings.com/listUnsubscribeHeader/u/310191/bf5bf79ef4d8eef764d3666587686f607f673391c428a54e716e1fe61b1c9ed1/2968246002>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+X-Report-Abuse-To: abuse@pd25.com
+Reply-To: rdavis@idealtridon.com
+Message-Id: <7738513c-ad5c-4aaa-9d97-14844f296592@atl1s07mta2978.xt.local>
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17732365378690.07896294701520234"
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSF5dSAoHHQYLDUUrIDI+PS8qJTspPj0wITolPiJeMiIrPTkvOUZfWFpdWSgKBx0GCw1GG19GDRAJCxwcCRoPDRxGCwcFSFhIWlpIGwABGBgBBg9FDwooHgkMHA0DRgsHBUhZSFlIWVxIWVteRllcX0ZZX15GUVlIXkhYSFhIWUhYSFhIWEhaWkgbAAEYGAEGD0UPCigeCQwcDQNGCwcFSFk=
+X-Feas-Deferred: FortiSandbox
+X-Feas-Client-Ip: 136.147.176.91
+X-Fe-Last-Public-Client-Ip: 136.147.176.91
+X-Fe-Envelope-From:
+ bounce-CHZVUGBMSAVUXIRMVJ6ZJCUQGQ.70251@bounce.s7.exacttarget.com
+X-Feas-Spf: spf-result=pass, ip=136.147.176.91,
+ helo=cr91.mta.exacttarget.com,
+ mailFrom=bounce-CHZVUGBMSAVUXIRMVJ6ZJCUQGQ.70251@bounce.s7.exacttarget.com
+X-Feas-Newsletter: newsletter
+X-Fe-Policy-Id: 0:1:1:REDACTED.com
+Return-Path:
+ bounce-CHZVUGBMSAVUXIRMVJ6ZJCUQGQ.70251@bounce.s7.exacttarget.com
+X-Ms-Exchange-Organization-Expirationstarttime: 11 Mar 2026 13:39:03.6444
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ 313b7e6b-99e0-40a9-cd31-08de7f738f5d
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ BL6PEPF0001AB4B:EE_|LV8PR22MB5273:EE_|SJ2PR22MB5261:EE_
+X-Ms-Exchange-Organization-Authsource:
+ BL6PEPF0001AB4B.namprd04.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ 313b7e6b-99e0-40a9-cd31-08de7f738f5d
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:0;ARA:13230040|704161211799003|4022899009|3109299003|5073199012|7149299003|7049299003|82310400026|69100299015|31052699007|39142699007|16102099003|19002099003|56012099003|18002099003|21082099003|14062099003|54012099003|3122999024|55112099003|13003099007|4076899003|8096899003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(704161211799003)(4022899009)(3109299003)(5073199012)(7149299003)(7049299003)(82310400026)(69100299015)(31052699007)(39142699007)(16102099003)(19002099003)(56012099003)(18002099003)(21082099003)(14062099003)(54012099003)(3122999024)(55112099003)(13003099007)(4076899003)(8096899003);DIR:INB;
+X-Auto-Response-Suppress: DR, OOF, AutoReply
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 11 Mar 2026 13:39:03.2738
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ 313b7e6b-99e0-40a9-cd31-08de7f738f5d
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ BL6PEPF0001AB4B.namprd04.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: LV8PR22MB5273
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:35.3837817
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9700.003
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944490095)(944506478)(944626604)(4710137)(4713098)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+Content-Transfer-Encoding: 7bit
+

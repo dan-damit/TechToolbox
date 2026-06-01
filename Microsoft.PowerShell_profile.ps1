@@ -12,11 +12,24 @@ if (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDriveConsumer }
 if (-not $OneDriveRoot) { $OneDriveRoot = $env:USERPROFILE }
 
 # --- Define TechToolbox home path (override allowed) ---
-$TT_Home = if ($env:TT_Home) {
+$IsValidTTModuleRoot = {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    Test-Path (Join-Path $Path 'TechToolbox.psd1')
+}
+
+$TT_Home = if (& $IsValidTTModuleRoot $env:TT_Home) {
     $env:TT_Home
 }
 else {
-    Join-Path $OneDriveRoot 'TechStuff\TechToolbox'
+    # Resolve common OneDrive layouts first, then fall back to the legacy path.
+    $ttHomeCandidates = @(
+        (Join-Path $OneDriveRoot 'Documents\TechStuff\TechToolbox'),
+        (Join-Path $OneDriveRoot 'TechStuff\TechToolbox'),
+        (Join-Path $env:USERPROFILE 'Documents\TechStuff\TechToolbox')
+    )
+
+    ($ttHomeCandidates | Where-Object { & $IsValidTTModuleRoot $_ } | Select-Object -First 1) ?? $ttHomeCandidates[0]
 }
 
 # --- Define TechToolbox module root (source location) ---
@@ -179,8 +192,8 @@ function prompt {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAMb+PN3y1zHe5C
-# DFUJdv7Nsv2L+4CE7q9Ok0tPbsXOK6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDkJHrklaMK/aTz
+# dlALcS5amDiHEWEah9yrq7dKqZ1IlKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -313,34 +326,34 @@ function prompt {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDjTTJEdvbl
-# Xtg7F0aVJWxS7r05ViXfiZGLQwuVrDgIrDANBgkqhkiG9w0BAQEFAASCAgDWEjWy
-# b1Hxz8Dkcy5KATBuWmxuoPGS/PiPKa0F2BgquZ4N9hFowZ91HliSGP+V1S2OBWky
-# J4wuiw3B2/QOZgEIM++tCbsSO+49djAIDz9uAZYWjdKEN4Vpdm5YawjjJrGiZkRP
-# 2LpgHq7iTN95N7x+N/YYFstPKRdwUj0LE8BVi6NcweRsNoDLR8ELFmROY+e6UyiE
-# 5I9JTNQRTPcXtwTofjRFd5RDW3ArL4NZrJwc9NLGtdlmn9KO9xEQ9HVG0PqVN6j/
-# KDoepOlG2ka0tiVaRVcFT/Y9q5t7YWQ5D1rHNLlBuW5qp5AAbq+FpCw6hkEQNM9i
-# /8vo4JHG7YV3xvsLQpFLUBdSbmqEgAo5TimzvB1ODa5KwUU8PR99AAisnB8H3vZ6
-# 65oF2REHrs92L7x8/pT+GPPn6uRnSMpscoSf3Hjk2V+RBQPZDeUBNk4aG+sSR1Fq
-# KOR6ECNuVVYEbgCMD9rjUjMWSTm5vjIGbkSHeiWbDi06JNNYu9PucHGcfnAeDb0j
-# xkwXPwsgUhYUxHYd9yF3Wym5wz/9jn/yIaadJ6ZmpI0KKb/EOtIowd+3acJ46QOO
-# 2PTL6kREYrmZtHw1TrKWAHICfaIaUCfMHYsPIR+o6xe+sgvzzBtQpgwIk9m1uTHC
-# rss9Gt8XCS8lqN3nwmV9ePFezl1vU9bt5tpk3aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDJM9p2/+GU
+# X67MfD8jrGuyWwaUWhlSXzXSw7562UMYEDANBgkqhkiG9w0BAQEFAASCAgC22niG
+# yG5HWecm68yF3TG8Rra3BlXTpvMk2C9JKQtgqxH0qridc5vCad2v+BoNF696W8IR
+# JbM/wR0Oz721OkUoFMoUQiFgyMSTns8kOw7j6LqKPcD87ce5H/efW35cLrO+CdzL
+# aqsGU73iWugDWFNqqRRPl6nahiNdts07edLeDqejRHn9USiBKoRKbX2Cg74vsOJ4
+# Wm/858u1PDG6RUjpkpPw99jpP5kDfu9k1n5PoSTcoE+Oa/7iY6NhI99qsw/g6Qpz
+# /AOyveg/oKUtiVDzRJVey4aeGR4s/K5/kH0c19mndaCQ34A5WNH4dvp46HN/3vvU
+# PZJPuukLDB6JTdV1jabix6E2iUqhoC4DkeHhdnqvYPhkDDg9zzq5YNTq+xaNwMg1
+# cx3V5yHnCt0kBlEitC6r8ETnrY2lvWm9a0NOKeECZw8Le7oMfXWpgGM9ggq2VMiX
+# N5yNFMDphTVU9yEomecqvixFGhT/xCX9pgjPFhK87T9T7dATgU7d5Ei16gKFAmKB
+# 0gXThOkXKvxAmmCn2rXA96U7o3iZWKG8xjFtbk/oakyU3JW4JlbdqeFIdOtwYEKM
+# S8Y0k2oc21a7KtRb8jHFjJH8WHiUYQ5+3Baweazha/GPO8ti2OTQvQTi9U3Dcnhg
+# aZOdmgI4lfScGGgl9Xlk39Be79SwRXqL/ye5uqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MDExMzQxMjBaMC8GCSqGSIb3DQEJBDEiBCD/TiuffmKm3sp6G1ON
-# UReFLCM5wk8xawU6BDkeh1mFSDANBgkqhkiG9w0BAQEFAASCAgB/fIgCVXHBA1iY
-# 0sVBK1Ua1MK2zRNrAB+EK651228BDY0Nevpn2polj2qDjAR+4DJkD4jV/7K98mHG
-# aYffsNgVFtmA1XpMt/9r4Y1UYRU7w8f5Djght0xLjDLH29aKqV2luf1zZPnV03h0
-# lJfoCU4ZbzJqyBivK+CuvSk8+ixzemOHL4VLiXtazsMrIkiTdIhAgxreq8KgwarK
-# aDy2OQ5/zGWoo7831zp7GX3MPqge5BJTrLhr+kOsDVCqBkakzccCd1RKIESdNz5U
-# WSl5WbVyR9jIdrH5UU/QnBl8L5W4YAI7fL+oYq0n6P1E1wS94Lj6gxQEQ5uVF445
-# jGpjUFkX/pUzHtzPCrgVhowXjYLEv9CJ9p+iCmkdGzjovfMZHjaKSJXgXI+jTg4h
-# ohg2jQCKHgFLGciHF2ppupabcXUtwsx8IUUUgxKVdd7Fm0AtSRXjuoQeDbj8sdxU
-# Oo0bfmOF+f0ewPKEqoqaNGjQtJI4J9mdHjxe5Fl8FEwh0p4Q1uHmDKW0vD/FxV6r
-# YmSdHtCbOgUf7QkCPuxszswj+GiRuCNJQghUPScq2KS6fLHri6T4PyVRwxvrrYBU
-# 3REBsjaR3nVGZcjkNX4uQICbuSzJg0GmXuDPnE75vg/C12cxgWBCPTkSCsiold9b
-# r4rptP6uMotlicN7jEsn/2wI78duAw==
+# BTEPFw0yNjA2MDExNDE2MjBaMC8GCSqGSIb3DQEJBDEiBCCccYSEHCTqIovyj8QH
+# NblBCfIC3kQYz0cM16jPQyRa5DANBgkqhkiG9w0BAQEFAASCAgBG9m6vdxnja4EM
+# 6vgMgeJyZbphkYmAKqZvBSCup+6a1UtfU2d98qVoIkDekb2e9TadNJ/4JVwQgmu+
+# oY+xf68kMsj5jtAxIcsrdqVG/wfOIwB7luvst1KTXiiRHqXtHCC00OngVtlBBlte
+# y0O0cOIxgEyXX87H/M+Uay/lvix/dyzM835qXK/ApmV+Jr1nij+w0qtfyxFSnzMh
+# HegG5TII7N+svGhVIArJ39MmgURn2prhS2EDpVdhmugaDcBfZTaVSyBDoEQFb7nv
+# s9vcPLzUr3gYUrcaINCSQqSBO4//2W/mbBQn2IOpWRJN/oNFtmMWLfgBInZJ95bX
+# TblYg1dDvvYsthjwXcXpbDic4sCIxQGm92YiMjU0PU8jXLAxAZ9D2mFSyGsaxeie
+# iQGd+faCrQb/dbvrN2e3/rfUymd2AgP+NsmA5NMzebDmJdJWNMb42wuOCacBQSjL
+# sn80Zy0aPISlrwtNg5xXM7K/lv3tFv7OMUyaCsEUDPrMY/c0nKnOQdjgOjYiTq2E
+# Z0DrgeLCAWqkzYwwx0mIvY7imRxd/q8smcaY5a5yVJTdV4G+b7A6DIKxJ1qDg/18
+# GKzsZYIgpEpEhj9H8c3S3epYnlHY1rWeRXuMFZfSMjVXnq8uIQwkNIMHHLH1rl+D
+# M38TrXCG3ZkNSN+lXfXM3EaLHzgabw==
 # SIG # End signature block

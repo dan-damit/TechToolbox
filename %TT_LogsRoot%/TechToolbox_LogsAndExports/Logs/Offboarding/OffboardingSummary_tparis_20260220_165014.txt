@@ -1,0 +1,23 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              tparis@REDACTED.com
+Display Name:      Trevor Paris
+SamAccountName:    tparis
+Timestamp:         2/20/2026 4:50:14 PM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[Disable-ADUserAccount]
+  Success: True
+  SamAccountName: tparis
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+===============================================
+ End of Summary
+===============================================

@@ -1,0 +1,157 @@
+Received: from LV4PR22MB6091.namprd22.prod.outlook.com
+ (2603:10b6:408:2de::6) by CH2PR22MB1800.namprd22.prod.outlook.com with
+ HTTPS; Tue, 24 Feb 2026 20:08:09 +0000
+Received: from DS7P222CA0013.NAMP222.PROD.OUTLOOK.COM (2603:10b6:8:2e::22)
+ by LV4PR22MB6091.namprd22.prod.outlook.com (2603:10b6:408:2de::6) with
+ Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9632.22; Tue, 24
+ Feb 2026 20:07:50 +0000
+Received: from DS3PEPF0000C37E.namprd04.prod.outlook.com
+ (2603:10b6:8:2e:cafe::fb) by DS7P222CA0013.outlook.office365.com
+ (2603:10b6:8:2e::22) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9632.22 via Frontend Transport;
+ Tue, 24 Feb 2026 20:07:33 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ DS3PEPF0000C37E.mail.protection.outlook.com (10.167.23.8) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9632.12 via Frontend Transport; Tue, 24 Feb 2026 20:07:48 +0000
+Received: from us-smtp-delivery-137.mimecast.com
+ (us-smtp-delivery-137.mimecast.com [170.10.133.137])	by
+ gw3135.fortimail.com with ESMTPS id 61OK7YH7015159-61OK7YH9015159
+	(version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=OK)	for
+ <kerickson@REDACTED.com>; Tue, 24 Feb 2026 14:07:35 -0600
+Received: from mail-qv1-f70.google.com (mail-qv1-f70.google.com
+ [209.85.219.70]) by relay.mimecast.com with ESMTP with STARTTLS
+ (version=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384) id
+ us-mta-650-9f_5y6I8NMOxbxXtuES4Vg-1; Tue, 24 Feb 2026 15:07:32 -0500
+Received: by mail-qv1-f70.google.com with SMTP id
+ 6a1803df08f44-8950562d351so127401236d6.3        for
+ <kerickson@REDACTED.com>; Tue, 24 Feb 2026 12:07:32 -0800 (PST)
+Received: from 193155701165 named unknown by gmailapi.google.com with
+ HTTPREST; Tue, 24 Feb 2026 12:07:30 -0800
+Received: from 193155701165 named unknown by gmailapi.google.com with
+ HTTPREST; Tue, 24 Feb 2026 12:07:30 -0800
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=email.zoominfo.com; dkim=pass (signature was verified)
+ header.d=email.zoominfo.com;dmarc=pass action=none
+ header.from=email.zoominfo.com;compauth=pass reason=100
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ email.zoominfo.com discourages use of 173.243.133.135 as permitted sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of derek.merklin@email.zoominfo.com designates
+ 170.10.133.137 as permitted sender)
+ smtp.mailfrom=derek.merklin@email.zoominfo.com;	dkim=pass
+ header.i=@email.zoominfo.com;	dmarc=pass header.from=email.zoominfo.com;
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=email.zoominfo.com;
+	s=mimecast20200310-ezicom; t=1771963654;
+	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
+	 to:to:cc:mime-version:mime-version:content-type:content-type;
+	bh=jXPr5qJX3ext+IL1O9LfHaQEv4bRbvA5ai82BYC98zQ=;
+	b=fbn4hfjCPrOgsEczOmUXD5Jk37hHJPjZiWRDeGK+I8Z6UWYno8LECykbq/gOFDbZZbgQlY
+	07pVIGsbkUfZJt8UKh3hYcRh6YAcuUlzijhn26gntrRiyX0nmutTA//j9drMVyrbvY4SNf
+	iOXvO8kW238hEoTRmfHw8tIwa2ZzYQN3S/f6XY7w+qMiHbvuohSVLFcyad66/uTJdSp8ZF
+	R72CihPQ31d/FkBlyBUD9Pm+JEqAKwQIxnvc3MfgpXOEO2f+4aPseCDzIhGI5kLd3s9ukH
+	SNxCObSesgFZMlMc26afbq8HDSbKLqithyrnudmI2P2MYJMW8J6lsMJfj7ExCA==
+X-Mc-Unique: 9f_5y6I8NMOxbxXtuES4Vg-1
+X-Mimecast-Mfc-Agg-Id: 9f_5y6I8NMOxbxXtuES4Vg_1771963652
+X-Google-Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1771963652; x=1772568452;
+        h=to:subject:message-id:date:mime-version:from:x-gm-gg
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;
+        bh=U1gMgNDSRQnLtlnjqjFPxD3l7FgVeWrMKLTZ1AZZ+Xs=;
+        b=aV3gSyYYLY/TZBQYxKlbgpbnsct8FqeHzLhPFgrE16zeqq5wNGbE7VBKJvsT7CCdFm
+         NxE01Q6SY76L+MQCWMjma7+RsCX+mbATDvnL7uIKKCF1xVskCTHbo1J2ghq25eUENaKU
+         Qtnbj6IIfSv5vmyz4m8rufsPdojq+h1Xorb/g2qZz1EiXThB/zO0ciX6WaCnOMtwA2/s
+         E2w9e5yvhvSpRXDS/2VbL+FsT+jjpU6wY9cr7YVPiEqWgjN6pcw3xk09GnkCQsqeQguL
+         Yu5CYJ2ZRKWjV3KH5nh+zdUpNyfXMfYN3XNmFM3yNyyMEoMgcwt7uyDRQRig0Rb9s/TQ
+         2Rqg==
+X-Gm-Message-State:
+ AOJu0YyJS5j/eDjaWiRaMPaoYJPhwSP3RKX4GX32r7bD11Myv0esEomX
+	CZBbTZ+XIHPwphC8OnNB1kam3k7ISbCQMdlWCvYh7CTZO1nD08JGuq4NZR7rThC3ZCgdMTutyLX
+	67kIDpbMJ343GJ2nzWfrNZ2C/xJlwQgd7gb3AZIhxMzdvcKwc7jZhIx+RzZmEiWIWGpfVPpdF+5
+	OIwzVAr3FquAr5qfxu71whq8LRZTEzOAJvvq5aicXE/Umn6MSpZ4O/IeT6cGZ6iocY7ZwvWHAmB
+	r2ytIqD5jwGXpZAOUYA3vZgWKDPc5Tuj3Iu5d2IV5npjFXhyg==
+X-Gm-Gg:
+ AZuq6aJMeBPsOdynTBoKUNCFKDGxatIi5DR5wixHPOjRA04Yy0vgCqr+fOU97092umc
+	u5eyNJ6o4YFSt6dgiqBOvbGvq1OA/WwOXsu7folsdJtHbDFLNEkNuhWvaInaq84F1wyYGocA7Mu
+	77nmUtDb3aJX4MGiNh7xcvaIkNrIKCWWJYR3jHkVLOXz5wqn+1dB+PLS0L4HXMDyihb+IbfHBCC
+	mHNTA==
+X-Received: by 2002:a05:620a:1708:b0:8c7:1952:789f with SMTP id
+ af79cd13be357-8cb8ca88601mr1546184585a.71.1771963651955;        Tue, 24
+ Feb 2026 12:07:31 -0800 (PST)
+X-Received: by 2002:a05:620a:1708:b0:8c7:1952:789f with SMTP id
+ af79cd13be357-8cb8ca88601mr1546179485a.71.1771963651361; Tue, 24 Feb 2026
+ 12:07:31 -0800 (PST)
+From: Derek Merklin <derek.merklin@email.zoominfo.com>
+MIME-Version: 1.0
+X-Outreach-Sent: true
+Date: Tue, 24 Feb 2026 12:07:30 -0800
+X-Gm-Features:
+ AaiRm50_0D0dZOyF-Hap362cLMn25s5qoU5wQRpOQzt7K-F9TTfVANlL75awHxc
+Message-Id:
+ <CANMMZmgiWPHrkuZBNFfvmn0+q_NPWGwcpXhc7FLnsgva1-aVvQ@mail.gmail.com>
+Subject: =?UTF-8?B?S2V2aW4gQ2FwYWNpdHk=?=
+To: Kevin Erickson <kerickson@REDACTED.com>
+X-Mimecast-Spam-Score: 0
+X-Mimecast-Mfc-Proc-Id:
+ yOjX1tFZepZwdTXZ3U0kOEHXTHbfS2TN6BSjbvOxVek_1771963652
+X-Mimecast-Originator: email.zoominfo.com
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17719638146450.31800363890569094"
+X-Fe-Attachment-Name: dVQ9f3XHr9BVsRkJEeHFZx3QPnjrtOQA2T6Xa3oV9nE
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFtaSAwNGg0DRgUNGgMEAQYoDQUJAQRGEgcHBQEGDgdGCwcFSFhIWlhIAw0aAQsDGwcGKB4JDBwNA0YLBwVIWUhZSFlcSFlfWEZZWEZZW1tGWVtfSF5IWEhYSFlIWEhYSFhIWlhIAw0aAQsDGwcGKB4JDBwNA0YLBwVIWQ==
+X-Feas-Deferred: FortiSandbox
+X-Feas-Client-Ip: 170.10.133.137
+X-Fe-Last-Public-Client-Ip: 170.10.133.137
+X-Fe-Envelope-From: derek.merklin@email.zoominfo.com
+X-Feas-Spf: spf-result=pass, ip=170.10.133.137,
+ helo=us-smtp-delivery-137.mimecast.com,
+ mailFrom=derek.merklin@email.zoominfo.com
+X-Fe-Policy-Id: 0:1:1:REDACTED.com
+Return-Path: derek.merklin@email.zoominfo.com
+X-Ms-Exchange-Organization-Expirationstarttime: 24 Feb 2026 20:07:48.5186
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ 17d4ee90-f107-447b-e5d4-08de73e061e0
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ DS3PEPF0000C37E:EE_|LV4PR22MB6091:EE_|CH2PR22MB1800:EE_
+X-Ms-Exchange-Organization-Authsource:
+ DS3PEPF0000C37E.namprd04.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ 17d4ee90-f107-447b-e5d4-08de73e061e0
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:0;ARA:13230040|82310400026|43022699015|27102699006|5073199012|4073199012|69100299015|7149299003|12012899012|6049299003|4076899003|8096899003|4053099003|13003099007|54012099003|14062099003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(82310400026)(43022699015)(27102699006)(5073199012)(4073199012)(69100299015)(7149299003)(12012899012)(6049299003)(4076899003)(8096899003)(4053099003)(13003099007)(54012099003)(14062099003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 24 Feb 2026 20:07:48.2739
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ 17d4ee90-f107-447b-e5d4-08de73e061e0
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ DS3PEPF0000C37E.namprd04.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: LV4PR22MB6091
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:21.4305575
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9632.007
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944506478)(944626604)(4710137)(4712097)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+Content-Transfer-Encoding: 7bit
+

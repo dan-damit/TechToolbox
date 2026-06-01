@@ -1,0 +1,41 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              jchapman@REDACTED.com
+Display Name:      Jeran Jacob Chapman
+SamAccountName:    jchapman
+Timestamp:         5/28/2026 12:18:35 PM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: True
+  SamAccountName: jchapman
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+[Forwarding]
+  Action: Forwarding
+  Success: Unknown
+  (no data)
+
+[ManagerAccess]
+  Action: ManagerAccess
+  Success: Unknown
+  Length: 3
+  LongLength: 3
+  Rank: 1
+  SyncRoot: Microsoft.Exchange.Management.RecipientTasks.MailboxAcePresentationObject Microsoft.Exchange.Data.Directory.Permission.RecipientPermission 
+  IsReadOnly: False
+  IsFixedSize: True
+  IsSynchronized: False
+  Count: 3
+
+===============================================
+ End of Summary
+===============================================

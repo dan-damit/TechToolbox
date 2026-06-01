@@ -1,0 +1,41 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              mhafenbreadl@REDACTED.com
+Display Name:      Marv Hafenbreadl
+SamAccountName:    mhafenbreadl
+Timestamp:         3/13/2026 8:30:41 PM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: True
+  SamAccountName: mhafenbreadl
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+[Forwarding]
+  Action: Forwarding
+  Success: Unknown
+  (no data)
+
+[ManagerAccess]
+  Action: ManagerAccess
+  Success: Unknown
+  Length: 3
+  LongLength: 3
+  Rank: 1
+  SyncRoot: Microsoft.Exchange.Management.RecipientTasks.MailboxAcePresentationObject Microsoft.Exchange.Data.Directory.Permission.RecipientPermission 
+  IsReadOnly: False
+  IsFixedSize: True
+  IsSynchronized: False
+  Count: 3
+
+===============================================
+ End of Summary
+===============================================

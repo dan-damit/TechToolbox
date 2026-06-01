@@ -1,0 +1,177 @@
+Received: from DS1PR22MB5726.namprd22.prod.outlook.com
+ (2603:10b6:8:1df::22) by SA1PR22MB5466.namprd22.prod.outlook.com with
+ HTTPS; Fri, 20 Feb 2026 18:04:26 +0000
+Received: from BN9PR03CA0852.namprd03.prod.outlook.com
+ (2603:10b6:408:13d::17) by DS1PR22MB5726.namprd22.prod.outlook.com
+ (2603:10b6:8:1df::22) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9632.16; Fri, 20
+ Feb 2026 18:04:20 +0000
+Received: from BN1PEPF00004681.namprd03.prod.outlook.com
+ (2603:10b6:408:13d:cafe::4c) by BN9PR03CA0852.outlook.office365.com
+ (2603:10b6:408:13d::17) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9632.15 via Frontend Transport;
+ Fri, 20 Feb 2026 18:04:14 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ BN1PEPF00004681.mail.protection.outlook.com (10.167.243.87) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9632.12 via Frontend Transport; Fri, 20 Feb 2026 18:04:18 +0000
+Received: from mail-vs1-f41.google.com (mail-vs1-f41.google.com
+ [209.85.217.41])	by gw3135.fortimail.com with ESMTPS id
+ 61KI2tJ8010404-61KI2tJA010404	(version=TLSv1.3
+ cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=OK)	for <sjanz@REDACTED.com>;
+ Fri, 20 Feb 2026 12:02:56 -0600
+Received: by mail-vs1-f41.google.com with SMTP id
+ ada2fe7eead31-5f9ed174ebcso1260610137.1        for <sjanz@REDACTED.com>;
+ Fri, 20 Feb 2026 10:02:55 -0800 (PST)
+Received: from 535970614478 named unknown by gmailapi.google.com with
+ HTTPREST; Fri, 20 Feb 2026 10:02:53 -0800
+Received: from 535970614478 named unknown by gmailapi.google.com with
+ HTTPREST; Fri, 20 Feb 2026 10:02:53 -0800
+Arc-Seal: i=2; a=rsa-sha256; s=arcselector10001; d=microsoft.com; cv=pass;
+ b=wd6wFqo1Kwh2TRJlXFTeTtIedZsOuHXHsbxk/Y7lsPmOO5+DPw8dr1/63O76JuK2hmauMLpxjCyGi/7PQd5CVO+jsLeMPoRjUY/UsxcHcs2Wj4htxAn7CVBKvzPZbT0GOcmHccqbFXBmE4LEUyuXq/ukfmVS0bwffuTVzXXGedzcDQ8gMynYPAH3I+ZwaGVm0XlKYRxA1HxRiaXioChi5ndYECoNhbcdb9o5DCTrNGi97Ydnfwt1k1W5CcBi2T1R2gHDrNPLHFIeafMe2dlWwSpzpg7TjOz3tO3vteaHLTTkhq2y//cWXX5/XOt2KCuDbfhIiqvT7Z3RjMywXlBrag==
+Arc-Seal: i=1; a=rsa-sha256; t=1771610574; cv=none;        d=google.com;
+ s=arc-20240605;
+        b=SUvS7gRrIw25bLQgfMdNPVhqUey9Qj8RhAUXlkBnXNOhwkFFJVhhFAg2tsj126RGHy
+         zvPcesv9SByxBYcnTICt8VFQTIG10XxcBzMl0Dy4yqTu5wiyaO4LJNH67HEJz+c9AjDN
+         BXfTVPproKxy1jX5AezQkLdt/EvG2YQFXR3QYi+1RtqDBY33zhRyJgA9puazs+gAjE1L
+         NECTQrSlkn0Qle39LD/Guj9w90QF489fuywxMchCWvBaxP9iK7nfrspLNijNCVe3XZDh
+         CbvkJ6/ub3qfhgw1rS6d8Q4N7EKNKOw/6M5GiomZ/wUPeoz0nEIAW/j3G7hXmfUQn+1J
+         th1g==
+Arc-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed;
+ d=microsoft.com; s=arcselector10001;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-AntiSpam-MessageData-ChunkCount:X-MS-Exchange-AntiSpam-MessageData-0:X-MS-Exchange-AntiSpam-MessageData-1;
+ bh=h5bmbpMJAaD5GmQ1Sl22ZoetDrtI0HAVuJY+qTjupJ8=;
+ b=TnPKdnoiMtz6Y6ylAkzTuHzVMlQ9dxANf4766lZEi2aZ/cHkPGrVj8qlNCh/VS1ZpO1rb4eKx5qCf23fUGx/TMqtMI1bDrrvLx1pa161NgtWwv3ZVit2YNToLz+VbMxVys2omIc3n3dydZoweBpTaXgYX6CgcGvuNFDfAaVL0BXjw7hkpX5kFw353W9d5hdAlKOiDaY6zBO0Wcq23zbLkrmNukcgilyKbJe8z8NFXtARBmwJnvT3PEDtVaHd0B55KQ2A/XY9lxx7VT8kW5fsqaXDXW3QLtGyNhitc3moNjfGVLvRR8J+7mKk426dThups62lG2RG89vjCCXiIQX97g==
+Arc-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com;
+ s=arc-20240605;
+        h=to:subject:message-id:date:reply-to:from:sender:mime-version
+         :dkim-signature;
+        bh=h5bmbpMJAaD5GmQ1Sl22ZoetDrtI0HAVuJY+qTjupJ8=;
+        fh=9K6SDaTmhzcI08Sca58rEZa+oG8dwjNgZ6edKnyvFV4=;
+        b=J+EQp3dOjysjCwTBbHBNY1IShVcoNLp/cBbHBxs/zmQBaSQBrUZxmrl1kazxIAeg2V
+         FZlFcslXDNPV/iBSdt3V8n6rIo08nIGu8fDm9oTGoxcQGof1bUR7WcK48kcNMdEK+6mB
+         ATfCVG6ld19jXhJ+ENDXZTAdQQKwQJgOlhWY7WZxj3+NRRsizEuJqIvabH7TyUEG09OC
+         00RW9hrFAXcVcm3jvr9KKMSlfTV4G2F8Cl5T23IeMI7TjNmPfuD7vPDb3MlEke4qNd1r
+         f27ZchdWCe0fTg0aj7GP+zxLtsVpSTNKsLKGb0jpTztNHgC5/28RpNdWDcb0E/LPm8C/
+         3wRA==;        darn=REDACTED.com
+Arc-Authentication-Results: i=2; mx.microsoft.com 1; spf=softfail (sender
+ ip is 173.243.133.135) smtp.rcpttodomain=REDACTED.com
+ smtp.mailfrom=gmail.com; dmarc=pass (p=none sp=quarantine pct=100)
+ action=none header.from=gmail.com; dkim=pass (signature was verified)
+ header.d=gmail.com; arc=pass (0 oda=0 ltdi=1)
+Arc-Authentication-Results: i=1; mx.google.com; arc=none
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=gmail.com; dkim=pass (signature was verified)
+ header.d=gmail.com;dmarc=pass action=none
+ header.from=gmail.com;compauth=pass reason=100
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ gmail.com discourages use of 173.243.133.135 as permitted sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of powerballservice398@gmail.com designates
+ 209.85.217.41 as permitted sender)
+ smtp.mailfrom=powerballservice398@gmail.com;	dkim=pass
+ header.i=@gmail.com;	dmarc=pass header.from=gmail.com;
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;        d=gmail.com;
+ s=20230601; t=1771610574; x=1772215374; darn=REDACTED.com;
+        h=to:subject:message-id:date:reply-to:from:sender:mime-version:from
+         :to:cc:subject:date:message-id:reply-to;
+        bh=h5bmbpMJAaD5GmQ1Sl22ZoetDrtI0HAVuJY+qTjupJ8=;
+        b=kK5Yt2dZB3atAQ23S0rrXi5gwj8+6v9dFZDP0q7Avr4GTpRHfkByCe++TrtmoQnzXB
+         cpeA5woLPji0JHa/GP5z3m9iJz5by9RfZdqD0qW/cNv+mDBzyigfkLGAOa+xl11HF51M
+         coGDe97YWZl88iHtIdw8wIgc09yCHmW7NAmojvJu4zoX79R2uqFaMGGhEORgsbN5bwJW
+         D9tFIIueBL39DK9sc2yMisYdC6XjpWZVAuxj48FD3AhFZzr9ejJvVY9spauWFoVxPFZE
+         fia9XYPy14/xO/rVsAL6GfZcWsZePSe/GKCdlqjRxXmkPUfqFI/00odk6uyLfodp7MoF
+         cmyg==
+X-Google-Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1771610574; x=1772215374;
+        h=to:subject:message-id:date:reply-to:from:sender:mime-version
+         :x-gm-gg:x-gm-message-state:from:to:cc:subject:date:message-id
+         :reply-to;        bh=h5bmbpMJAaD5GmQ1Sl22ZoetDrtI0HAVuJY+qTjupJ8=;
+        b=UVhOONQkrCAL1VSzwzCiFSn1gfI3YgQga+0A6zia7iHrjpCT3guu/m9Fxsu30p3c7H
+         s3CRgw72cA8TvRByXT+xy+VJyZhuf42b88UPxMYgTzkZQkpiwpakBhhzI6eofpv7Yzxl
+         7Ea2LqNUhv5EAcKoN0BqpL/0WdtR6zGGfItYPRQklTiyLSr3430JrOVZP6DyQ9Y965Nm
+         1By9mJtC69H+JF6DSXUkwjZg0KIt+7ud3jBAbcYBLwndTTzLXokjI6/21yL1DNxGEPOC
+         BA/5CJvHKkv9TeB5nzmeJ8TT4/i8kZxyfRzlfdxAblrSuE7JY1mWoK4vBj3aglI09l5j
+         GxfA==
+X-Gm-Message-State:
+ AOJu0YxLN9n2BleyKf6MgWRth97qWJEnYXLehLOriuCleRnR8O3AlCKP
+	amyodcxbpOBAHY4Bkl06lV2AYOlWfL54+A20GHzzFUGGGDkcG2XeF9BdKa2V6KxUdDU6+1CvV3O
+	gXYoXXABIuiKtP2gBT3+FX5JbcCVUqJj432/Y8UCT5Q==
+X-Gm-Gg:
+ AZuq6aKhSsdJ1CaFdxBJ3LQng0zaRosDrK3Trkn4+cPmfRrvSJrd+jCTFDrtw2cI08H
+	RNH2/Lgd6uhAj6wE1E7xJcibDDVbp/PjfidKhnFG3VACOQtSEMytNH++wpMrVly6mbzGCf+96ek
+	Drs3u5b0S6nYiSR68j8D44bW0GrV2hcWPlzH9xypVpBp3AKvEioXL0XanmEpMkzENHGq97rqknv
+	PKKNrJt5u1x2rJX/9tTNBcRz0ST53C7+HF1ERKZ+i6Asgczg9/Kf1XB6YhiuPQ2SOa8QfUDQYqR
+	s+adtJTQvg==
+X-Received: by 2002:a05:6102:4192:b0:5ee:a590:6b11 with SMTP id
+ ada2fe7eead31-5feb311ef1emr488755137.36.1771610574342; Fri, 20 Feb 2026
+ 10:02:54 -0800 (PST)
+MIME-Version: 1.0
+Sender: "Buyers Products, Inc" <powerballservice398@gmail.com>
+From: Inc Buyers Products <powerballservice398@gmail.com>
+Reply-To: katierussell440@gmail.com
+Date: Fri, 20 Feb 2026 10:02:53 -0800
+X-Google-Sender-Auth: XI4yC8A48s2wR_8SVmoouPGwTBE
+X-Gm-Features:
+ AaiRm52GqqKBX2cdv718tJAP5ptid7xl7FZPDE1nXRePqVX5cwTk2XnC3BalTQg
+Message-Id:
+ <CANYSOpSZ5F63qwf9KbcX_DGLz1cTE_raGQJLbz0X5CQ+pQQnVw@mail.gmail.com>
+Subject: =?UTF-8?B?UmVxdWVzdCBmb3IgQ3VzdG9tZXIgQWNjb3VudA==?=
+To: Stephanie Janz <sjanz@REDACTED.com>
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17716172987220.05385262843112104"
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFpRSBgHHw0aCgkEBBsNGh4BCw1bUVAoDwUJAQRGCwcFSFhIWV5IGwIJBhIoHgkMHA0DRgsHBUhZSFlIWVtIWlhRRlBdRlpZX0ZcWUheSFhIWEhZSFhIWEhYSFleSBsCCQYSKB4JDBwNA0YLBwVIWQ==
+X-Feas-Deferred: FortiSandbox
+X-Feas-Client-Ip: 209.85.217.41
+X-Fe-Last-Public-Client-Ip: 209.85.217.41
+X-Fe-Envelope-From: powerballservice398@gmail.com
+X-Feas-Spf: spf-result=pass, ip=209.85.217.41,
+ helo=mail-vs1-f41.google.com, mailFrom=powerballservice398@gmail.com
+X-Fe-Policy-Id: 0:1:1:REDACTED.com
+Return-Path: powerballservice398@gmail.com
+X-Ms-Exchange-Organization-Expirationstarttime: 20 Feb 2026 18:04:19.0228
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ 66e491c5-eb67-4321-9234-08de70aa77d2
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ BN1PEPF00004681:EE_|DS1PR22MB5726:EE_|SA1PR22MB5466:EE_
+X-Ms-Exchange-Organization-Authsource:
+ BN1PEPF00004681.namprd03.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ 66e491c5-eb67-4321-9234-08de70aa77d2
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:0;ARA:13230040|82310400026|7093399015|5073199012|69100299015|7049299003|7149299003|3109299003|8096899003|4076899003|13003099007|14062099003|54012099003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(82310400026)(7093399015)(5073199012)(69100299015)(7049299003)(7149299003)(3109299003)(8096899003)(4076899003)(13003099007)(14062099003)(54012099003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 20 Feb 2026 18:04:18.7584
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ 66e491c5-eb67-4321-9234-08de70aa77d2
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ BN1PEPF00004681.namprd03.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: DS1PR22MB5726
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:07.7171859
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9632.007
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944506478)(944626604)(4710137)(4712097)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ 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
+Content-Transfer-Encoding: 7bit
+

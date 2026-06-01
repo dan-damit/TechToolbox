@@ -1,0 +1,4 @@
+Recipient,MessageTraceId,Date,Event,Detail
+kaerickson@REDACTED.com,505ed789-f5b0-4dc3-95a0-08dead0434e8,5/8/2026 1:17:52 PM,Receive,Message received by: SJ2PR22MB5334.namprd22.prod.outlook.com
+kaerickson@REDACTED.com,505ed789-f5b0-4dc3-95a0-08dead0434e8,5/8/2026 1:17:54 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kaerickson@REDACTED.com,505ed789-f5b0-4dc3-95a0-08dead0434e8,5/8/2026 1:17:55 PM,Deliver,The message was successfully delivered.

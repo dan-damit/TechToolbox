@@ -1,0 +1,24 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              jadams@REDACTED.com
+Display Name:      Jeremiah Adams
+SamAccountName:    jadams
+Timestamp:         4/27/2026 3:26:23 PM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: True
+  SamAccountName: jadams
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+===============================================
+ End of Summary
+===============================================

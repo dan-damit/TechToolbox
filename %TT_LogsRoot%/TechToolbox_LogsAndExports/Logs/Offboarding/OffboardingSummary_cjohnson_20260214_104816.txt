@@ -1,0 +1,23 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              cjohnson@REDACTED.com
+Display Name:      Clarence Johnson
+SamAccountName:    cjohnson
+Timestamp:         2/14/2026 10:48:16 AM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[Disable-ADUserAccount]
+  Success: True
+  SamAccountName: cjohnson
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+===============================================
+ End of Summary
+===============================================

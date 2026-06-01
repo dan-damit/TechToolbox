@@ -1,0 +1,228 @@
+Recipient,MessageTraceId,Date,Event,Detail
+skhamissi@REDACTED.com,f2b4f231-5402-4456-b5ec-08de86b56d16,3/20/2026 7:18:11 PM,Receive,Message received by: DS3PR22MB942291.namprd22.prod.outlook.com
+skhamissi@REDACTED.com,f2b4f231-5402-4456-b5ec-08de86b56d16,3/20/2026 7:18:15 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+skhamissi@REDACTED.com,f2b4f231-5402-4456-b5ec-08de86b56d16,3/20/2026 7:18:16 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+skhamissi@REDACTED.com,f2b4f231-5402-4456-b5ec-08de86b56d16,3/20/2026 7:18:33 PM,Deliver,The message was successfully delivered.
+alarson@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:07 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+alarson@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:09 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+alarson@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:27 PM,Spam,Spam confidence level: 8
+alarson@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:30 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+idcinput@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:07 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+idcinput@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:09 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+idcinput@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:27 PM,Spam,Spam confidence level: 8
+idcinput@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:30 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+loneil@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:07 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+loneil@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:09 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+loneil@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:27 PM,Spam,Spam confidence level: 8
+loneil@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:30 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+sjanz@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:07 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+sjanz@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:09 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+sjanz@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:27 PM,Spam,Spam confidence level: 8
+sjanz@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:30 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+skhamissi@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:07 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+skhamissi@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:09 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+skhamissi@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:27 PM,Spam,Spam confidence level: 8
+skhamissi@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:30 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+vadap@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:02 PM,Receive,Message received by: DM4PR22MB3744.namprd22.prod.outlook.com
+vadap@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:04 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+vadap@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:07 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+vadap@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:27 PM,Spam,Spam confidence level: 8
+vadap@REDACTED.com,a6c7e0fe-a4d8-4ebf-fca4-08de86a0080c,3/20/2026 4:45:29 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]
+alarson@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:02 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+alarson@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:05 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+alarson@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:35 PM,Spam,Spam confidence level: 8
+alarson@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:39 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+idcinput@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:02 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+idcinput@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:05 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+idcinput@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:35 PM,Spam,Spam confidence level: 8
+idcinput@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:39 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+loneil@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:02 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+loneil@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:05 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+loneil@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:35 PM,Spam,Spam confidence level: 8
+loneil@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:41 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+sjanz@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:02 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+sjanz@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:05 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+sjanz@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:35 PM,Spam,Spam confidence level: 8
+sjanz@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:39 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+skhamissi@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:02 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+skhamissi@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:05 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+skhamissi@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:35 PM,Spam,Spam confidence level: 8
+skhamissi@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:39 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+vadap@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:00 PM,Receive,Message received by: EA2PR22MB4753.namprd22.prod.outlook.com
+vadap@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:01 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+vadap@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:43:02 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+vadap@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:35 PM,Spam,Spam confidence level: 8
+vadap@REDACTED.com,9d6299a1-c15b-4a35-c497-08de869fbe2f,3/20/2026 4:45:38 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]
+asmith@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+asmith@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:26 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+asmith@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:41 PM,TRANSFER,
+asmith@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:45 PM,Deliver,The message was successfully delivered.
+cwinpigler@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+cwinpigler@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:26 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+cwinpigler@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:41 PM,TRANSFER,
+cwinpigler@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:43 PM,Deliver,The message was successfully delivered.
+kgehling@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kgehling@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:26 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kgehling@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:41 PM,TRANSFER,
+kgehling@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:42 PM,Deliver,The message was successfully delivered.
+mvandenheuvel@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:13 PM,Receive,Message received by: DS4PPF5B5DDC2A5.namprd22.prod.outlook.com
+mvandenheuvel@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+mvandenheuvel@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:26 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+mvandenheuvel@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:42 PM,Deliver,The message was successfully delivered.
+rtuttle@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+rtuttle@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:26 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rtuttle@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:41 PM,TRANSFER,
+rtuttle@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:43 PM,Deliver,The message was successfully delivered.
+shaworders@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+shaworders@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:26 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+shaworders@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:41 PM,TRANSFER,
+shaworders@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:42 PM,Deliver,The message was successfully delivered.
+smolck@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+smolck@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:26 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+smolck@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:41 PM,TRANSFER,
+smolck@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:43 PM,Deliver,The message was successfully delivered.
+VADPOAck@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:13 PM,Receive,Message received by: DS4PPF5B5DDC2A5.namprd22.prod.outlook.com
+VADPOAck@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:23 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+VADPOAck@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:25 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+VADPOAck@REDACTED.com,1e23e464-f84e-4657-1550-08de85ecf66c,3/19/2026 7:23:41 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]
+agraf@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+agraf@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+agraf@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+agraf@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:38 PM,Deliver,The message was successfully delivered to the folder: Order Confirmation
+arivera@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+arivera@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+arivera@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+arivera@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:38 PM,Deliver,The message was successfully delivered.
+ayocius@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:14 PM,Receive,Message received by: DS4PPF70DA99095.namprd22.prod.outlook.com
+ayocius@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+ayocius@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+ayocius@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:37 PM,Deliver,The message was successfully delivered.
+cknelson@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+cknelson@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+cknelson@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+cknelson@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:37 PM,Deliver,The message was successfully delivered to the folder: Orders
+dgervais@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:15 PM,Redirect,The message was directed to hholst@REDACTED.com.
+dgervais@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:15 PM,TRANSFER,
+dgervais@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+dgervais@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+dgervais@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:17 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+dgervais@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+dgervais@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:37 PM,Deliver,The message was successfully delivered.
+dgervais@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:37 PM,Deliver,The message was successfully delivered to the folder: Vendor Acks
+hholst@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:15 PM,TRANSFER,
+hholst@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+hholst@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:17 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+hholst@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:37 PM,Deliver,The message was successfully delivered.
+jwautier@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+jwautier@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+jwautier@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+jwautier@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:38 PM,Deliver,The message was successfully delivered to the folder: Confirmations
+kbauldry@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kbauldry@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kbauldry@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+kbauldry@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:38 PM,Deliver,The message was successfully delivered to the folder: Confirmation
+kerickson@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kerickson@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kerickson@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+kerickson@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:38 PM,Deliver,The message was successfully delivered.
+kphillips@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:15 PM,Redirect,The message was directed to mhafenbreadl@REDACTED.com.
+kphillips@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kphillips@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kphillips@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+kphillips@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:37 PM,Deliver,The message was successfully delivered.
+kwolske@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+kwolske@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+kwolske@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+kwolske@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:38 PM,Deliver,The message was successfully delivered to the folder: TMOPOAck
+mhafenbreadl@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:15 PM,Redirect,The message was directed to mhafenbreadl@REDACTED.com.
+mhafenbreadl@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+mhafenbreadl@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+mhafenbreadl@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+mhafenbreadl@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:37 PM,Deliver,The message was successfully delivered.
+TMOPOack@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:14 PM,Receive,Message received by: DS4PPF70DA99095.namprd22.prod.outlook.com
+TMOPOack@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:15 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+TMOPOack@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+TMOPOack@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]
+tobrien@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+tobrien@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+tobrien@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+tobrien@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:38 PM,Deliver,The message was successfully delivered to the folder: Confirmations
+vkorhonen@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+vkorhonen@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:18 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+vkorhonen@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:36 PM,TRANSFER,
+vkorhonen@REDACTED.com,8a48ab5e-5e2e-4595-bb51-08de85ebfca7,3/19/2026 7:16:37 PM,Deliver,The message was successfully delivered to the folder: PO ACK'S
+alarson@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:45 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+alarson@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:49 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+alarson@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:24 PM,Spam,Spam confidence level: 8
+alarson@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:28 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+idcinput@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:45 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+idcinput@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:49 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+idcinput@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:24 PM,Spam,Spam confidence level: 8
+idcinput@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:28 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+loneil@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:45 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+loneil@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:49 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+loneil@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:24 PM,Spam,Spam confidence level: 8
+loneil@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:28 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+sjanz@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:45 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+sjanz@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:49 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+sjanz@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:24 PM,Spam,Spam confidence level: 8
+sjanz@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:28 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+skhamissi@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:45 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+skhamissi@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:49 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+skhamissi@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:24 PM,Spam,Spam confidence level: 8
+skhamissi@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:28 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+vadap@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:44 PM,Receive,Message received by: DM3PPFAA69ECDCF.namprd22.prod.outlook.com
+vadap@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:44 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+vadap@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:03:45 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+vadap@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:24 PM,Spam,Spam confidence level: 8
+vadap@REDACTED.com,d0db9ea4-10d9-4f03-136d-08de85e1db7d,3/19/2026 6:04:27 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]
+alarson@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:36 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+alarson@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:38 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+alarson@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:22 PM,Spam,Spam confidence level: 8
+alarson@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:25 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+idcinput@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:36 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+idcinput@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:38 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+idcinput@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:22 PM,Spam,Spam confidence level: 8
+idcinput@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:25 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+loneil@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:36 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+loneil@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:38 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+loneil@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:22 PM,Spam,Spam confidence level: 8
+loneil@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:25 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+sjanz@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:36 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+sjanz@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:38 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+sjanz@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:22 PM,Spam,Spam confidence level: 8
+sjanz@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:25 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+skhamissi@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:36 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+skhamissi@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:38 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+skhamissi@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:22 PM,Spam,Spam confidence level: 8
+skhamissi@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:25 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+vadap@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:31 PM,Receive,Message received by: DS4PPFC37490408.namprd22.prod.outlook.com
+vadap@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:32 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+vadap@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:02:36 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+vadap@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:22 PM,Spam,Spam confidence level: 8
+vadap@REDACTED.com,548921c1-4588-40ea-14bf-08de85e1b035,3/19/2026 6:03:24 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]
+alarson@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+alarson@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:19 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+alarson@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:40 PM,Spam,Spam confidence level: 8
+alarson@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:44 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+idcinput@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+idcinput@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:19 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+idcinput@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:40 PM,Spam,Spam confidence level: 8
+idcinput@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:43 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+loneil@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+loneil@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:19 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+loneil@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:40 PM,Spam,Spam confidence level: 8
+loneil@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:43 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+sjanz@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+sjanz@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:19 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+sjanz@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:40 PM,Spam,Spam confidence level: 8
+sjanz@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:43 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+skhamissi@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+skhamissi@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:19 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+skhamissi@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:40 PM,Spam,Spam confidence level: 8
+skhamissi@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:43 PM,Deliver,The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+vadap@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:13 PM,Receive,Message received by: LV3PR22MB4462.namprd22.prod.outlook.com
+vadap@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:14 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+vadap@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+vadap@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:40 PM,Spam,Spam confidence level: 8
+vadap@REDACTED.com,9084ac14-e738-4688-4534-08de85e13761,3/19/2026 5:59:42 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]

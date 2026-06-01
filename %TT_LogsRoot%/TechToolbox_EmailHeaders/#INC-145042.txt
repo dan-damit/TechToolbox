@@ -1,0 +1,126 @@
+Received: from EA2PR22MB5115.namprd22.prod.outlook.com
+ (2603:10b6:303:25c::7) by SJ4PPF66A3E1A8E.namprd22.prod.outlook.com with
+ HTTPS; Wed, 25 Feb 2026 17:08:22 +0000
+Received: from PH8P220CA0007.NAMP220.PROD.OUTLOOK.COM
+ (2603:10b6:510:345::22) by EA2PR22MB5115.namprd22.prod.outlook.com
+ (2603:10b6:303:25c::7) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9654.11; Wed, 25
+ Feb 2026 17:08:19 +0000
+Received: from CY4PEPF0000E9D5.namprd05.prod.outlook.com
+ (2603:10b6:510:345:cafe::78) by PH8P220CA0007.outlook.office365.com
+ (2603:10b6:510:345::22) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9632.24 via Frontend Transport;
+ Wed, 25 Feb 2026 17:08:17 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ CY4PEPF0000E9D5.mail.protection.outlook.com (10.167.241.68) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9632.12 via Frontend Transport; Wed, 25 Feb 2026 17:08:18 +0000
+Received: from mta-15-225-203.activenetwork.com.sparkpostmail.com
+ (mta-15-225-203.activenetwork.com.sparkpostmail.com [199.15.225.203])	by
+ gw3135.fortimail.com with ESMTPS id 61PH7jUn010105-61PH7jUp010105
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <sfrancois@REDACTED.com>; Wed, 25 Feb 2026 11:07:46 -0600
+Received: from [10.90.9.75] ([10.90.9.75])	by
+ i-0476808c27e71976c.mta1vrest.sd.prd.sparkpost (ecelerity 5.2.0.75117
+ r(msys-ecelerity:tags/5.2.0.1)) with REST	id 97/0D-13968-06C2F996; Wed, 25
+ Feb 2026 17:07:44 +0000
+Authentication-Results: spf=softfail (sender IP is 173.243.133.135)
+ smtp.mailfrom=bounces.email.active.com; dkim=fail (signature did not
+ verify) header.d=awntx3.email.active.com;dmarc=fail action=none
+ header.from=awntx3.email.active.com;compauth=none reason=405
+Received-Spf: SoftFail (protection.outlook.com: domain of transitioning
+ bounces.email.active.com discourages use of 173.243.133.135 as permitted
+ sender)
+X-Feas-Dkim: Valid
+X-Feas-Dkim: Valid
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of
+ msprvs1=20516XOVfnIKm=bounces-240922-33@bounces.email.active.com
+ designates 199.15.225.203 as permitted sender)
+ smtp.mailfrom=msprvs1=20516XOVfnIKm=bounces-240922-33@bounces.email.active.com;
+	dkim=pass header.i=@awntx3.email.active.com;	dmarc=pass
+ header.from=awntx3.email.active.com;
+X-Msfbl: OLqdfDqLjwae+aeBsztv3GffzDJpmLQnY2FMtF7O6u8=|eyJtZXNzYWdlX2lkIjo
+	iNjk5NzYwMmM5ZjY5NmU3ZjUwNzkiLCJjdXN0b21lcl9pZCI6IjI0MDkyMiIsInI
+	iOiJzZnJhbmNvaXNAdmFkdGVrLmNvbSIsInRlbmFudF9pZCI6InNwYyIsInN1YmF
+	jY291bnRfaWQiOiIzMyJ9
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=awntx3.email.active.com; s=scph0119; t=1772039264;
+	i=@awntx3.email.active.com;
+	bh=F2jQeW4apUdtVBm+gLIINd7dy02YKYTd7UhL5A/BsA4=;
+	h=Content-Type:To:Message-ID:Date:Subject:From:List-Unsubscribe:
+	 List-Unsubscribe-Post:From:To:Cc:Subject;
+	b=DB1XNyRcgMyUKLyxfZyLDhSRD9GcOgJqCm3faCyJpNeeAaOvgdGAS9suPOeBAp86A
+	 PcG1abTdFlAyLa401woDSyOV2SQpVov6OPkaIufVSrPZqSA4MMr7UPESVGhgB5Eh1Z
+	 NksSiPQL6iZ4hsENYfURyT/86RYtZiPDHWqzRcys=
+Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17720396421000.04619678655884418"
+To: Shaun Francois <sfrancois@REDACTED.com>
+Message-Id:
+ <97.0D.13968.06C2F996@i-0476808c27e71976c.mta1vrest.sd.prd.sparkpost>
+Date: Wed, 25 Feb 2026 17:07:12 +0000
+MIME-Version: 1.0
+Reply-To: tyler2miler@proton.me
+Subject: =?UTF-8?B?WypOZXdzbGV0dGVyKl0gQVBQTEUgQ09OVFJBQ1QgQUdSRUVNRU5U?=
+From: Apple <noreply@awntx3.email.active.com>
+List-Unsubscribe:
+ <mailto:unsubscribe@unsub.spmta.com?subject=unsubscribe:xnbs0ixHdZ3HfCGOfYc7gUoQJHRUczxuSqdyEqdshho~|eyAicmNwdF90byI6ICJzZnJhbmNvaXNAdmFkdGVrLmNvbSIsICJ0ZW5hbnRfaWQiOiAic3BjIiwgImN1c3RvbWVyX2lkIjogIjI0MDkyMiIsICJtZXNzYWdlX2lkIjogIjY5OTc2MDJjOWY2OTZlN2Y1MDc5IiwgInN1YmFjY291bnRfaWQiOiAiMzMiIH0~>,<https://unsubscribe.spmta.com/u/swmngQUQ89b4EHjtW2J0Xg~~/AAOtGhA~/mDkblRmvh6KrBzSYF6OJkZSSV32faqIo0nT348QCMe-2jXAoImCDICF-Xp88NklkFL88nkNO1AnpiiBa0qKa_Q~~>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+List-Id: <spc.240922.33.sparkpostmail.com>
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSF5cSAUbGBoeG1lVWlhdWV4wJz4OBiEjBVUKBx0GCw0bRVpcWFFaWkVbWygKBx0GCw0bRg0FCQEERgkLHAEeDUYLBwVIWEhaWEgbDhoJBgsHARsoHgkMHA0DRgsHBUhZSFlIWVxIWVFRRlldRlpaXUZaWFtIXkhYSFhIWUhYSFhIWEhaWEgbDhoJBgsHARsoHgkMHA0DRgsHBUhZ
+X-Feas-Deferred: FortiSandbox
+X-Feas-Client-Ip: 199.15.225.203
+X-Fe-Last-Public-Client-Ip: 199.15.225.203
+X-Fe-Envelope-From:
+ msprvs1=20516XOVfnIKm=bounces-240922-33@bounces.email.active.com
+X-Feas-Spf: spf-result=pass, ip=199.15.225.203,
+ helo=mta-15-225-203.activenetwork.com.sparkpostmail.com,
+ mailFrom=msprvs1=20516XOVfnIKm=bounces-240922-33@bounces.email.active.com
+X-Feas-Newsletter: newsletter
+X-Fe-Policy-Id: 0:1:1:REDACTED.com
+Return-Path:
+ msprvs1=20516XOVfnIKm=bounces-240922-33@bounces.email.active.com
+X-Ms-Exchange-Organization-Expirationstarttime: 25 Feb 2026 17:08:19.1364
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ ca32d123-db8d-4ab2-5432-08de7490793d
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ CY4PEPF0000E9D5:EE_|EA2PR22MB5115:EE_|SJ4PPF66A3E1A8E:EE_
+X-Ms-Exchange-Organization-Authsource:
+ CY4PEPF0000E9D5.namprd05.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ ca32d123-db8d-4ab2-5432-08de7490793d
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:4;ARA:13230040|29132699027|7149299003|82310400026|4022899009|4123199012|31052699007|5063199012|5073199012|39142699007|69100299015|3072899012|7049299003|2092899012|1032899013|3109299003|12012899012|8096899003|2066899003|7053199007|54012099003|14062099003;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(29132699027)(7149299003)(82310400026)(4022899009)(4123199012)(31052699007)(5063199012)(5073199012)(39142699007)(69100299015)(3072899012)(7049299003)(2092899012)(1032899013)(3109299003)(12012899012)(8096899003)(2066899003)(7053199007)(54012099003)(14062099003);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 25 Feb 2026 17:08:18.9212
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ ca32d123-db8d-4ab2-5432-08de7490793d
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ CY4PEPF0000E9D5.namprd05.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: EA2PR22MB5115
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:03.3904790
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9632.007
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944490095)(944506478)(944626604)(4710137)(4712097)(4714117)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ TtW5wPHNk5Idlx2aRuAbg2arkMNWimwynlZcUWX3flIYVJYftJ6b7ok7wlDGNCA915kY7ss/zDkwUFyCu1d0HNGtSxZE6b+UGmC+iA2spNTafGy+uLpyUuyZ6w0Ogq276eRpmH7mX965+L8TDZjopYdBve4gvXXkVae4D9bvjiKfDWRwCIbQ3VncEC+zyTf4qk01eeEQ49+vM7yIgSBToGaOArHN75vWwBwGFwyKbqQIZ+tdTtoMf7ONkNuImFOte3c2z8ZqOAGXf0ouN+heid66MjOSfyeE7yGnLlXfPh6sx/amnS9wOo/0Xzcyn9T/dWwL6P7OtC/RCE775gOrn8FJ99+R1SJ4d38owo+Wt09jwdNhyl5RyWonsP28HGBhzbF4C91JMBTWyPTREEj9v6Wk6zgtmQ1LCwEnq8zh9Ys0FoP3HEnMRunzW9Wggn0A1l18e8mS1q/NYFO7ooBsFnrCB17FESbYQIZLOFQOf3EydSTz+DAMb1um/u1I4C2yn0Y36tuY75/Qwen2JbaOV9k4X/e8ladiab+rAyrVsNH75mqMgypZprw6MA2hJNdCtXSL+OjptYWvQf69qB0Z0N06v0nvSpXzypDbe65VsdOKx5TZ2UN2jFs+5bPPj/gvGEEDqfMOw4iVFjbRST22qqyZpA0+sKcoFdUSbNwfHUw8yRoamjq1n+r92qbVy/cCef5pbaS2wlwIdUJMpMO/l4SHpF5DQrkHEOeMGzkVW/Ab05l3eg7QsHxDBxr8q8fZ98/srBzNki5JW484/9I0fI/VTcCYkptxUHrN1ZtE1oy1WWJnxLQPjCC/lELHRgMC4VUrF3XWdeFCWIy4BjLWrYMx9qtysVjz/wLj2gnCbexvBeuMm/Ajjvyy2HzudxlfIgmklVXGfsmC2VqLLbR5fixk69x68dG3tkmdnN/BTrDbbIoccsKJyxt1PySIBaaeuzG3xkBRv28wolYOy4McAnqTJXjVfn23SoJaeorCto0ztpW0Xou3VjOtLqD5HL4xijNlObXTZKHYCTr1bVts+KN+yuMltBDZ0/UQjlIITwBcWZydZMtJkuLHBBRAVxdr6ZXFN7WlhFCpeFG+HoqjTts+bMXqz68pFiPfDu3yaQg4Lamb3OWD0emzhfq9163ERUmreQ2NRa01yZ1gyaSYWKALuPlmoyaGLnaMB+5rSmG0+qp3Mn+77R9h0mzbFDgSz6TsdEVcqowJwfIJIjbgl0Xuli7sYaqZ/ZElDhd6k767OO5WnSdxxJ+iBwI2Pt5+ahZM3LKjrxq1MejB7ztUaHSH2+4GII8Et/MTHV7pu1rPJ30/f5GSBZhkWYORU0f5MHi6oVL96qym2EcXTCRLfr8NxcKMPq6AtIlLZoVRgAjuYO5a0ikrtHOTYxQvR7Z5vPSYqWZPvRwCgDxpYl4o1w+sIWA2eSsv4SmBRH/he4ZyeTNOm3zJA6/YKg+UTf+jBVUEGs3S1srNJtFPljLCL81krJ5dOEuUa9KUDt4kUdUEfsJKffY3OD9vz2U5+jvOxIqY4Nh3qSrmvY0ZPIyYiIn6E8GdguqQlUYLUy38Z9X7l0EBvRzaEh4nTxCQNEPac7O82dqPIG7KNapJiwPijD55QSffI5U8pldUM2NKucgcgfd7JRTb4XXwNS8BlUpbvB17BhMrQ5ZMyltTeNIcrdpRswnFA4nCufLdFbJmSWiNzTpCFXHK/j4swxJxi42W/HNjaiuHZIa+6rYJkhhZfiSk4lEA77NcPEa9ddeYpPtxzLC+mZxijRpUvjm2jldSSUwz/s5SPLuLXon2xNDJX1BeE9l+FvajjjwXdRZwCDo0RZen5kC/Xt1AgkxSYnKlRWjdjalryiPMPGy2vg1tarPfw07Fbt9ZYbj26VzrLaxl3Kvr4HEbagtzPh6sQmmk7FSQEjuUBu/lFg3GY2OUYumVModP+QipQhAbUtXeWhdA9sGmaxzRRboqHEVJGphR7EztBQ4l0gOCry2D/oQcTQ8QU43xOlBGGxylXme0QXjskYgu1CVTHNGBIFLdVZ5/YzLpRc0EsXzs+3HhKFe4jUSD0tF3v6dLVa03HzQxYMPf7fEnLgJRmhGSCMhEM4U6Cqvm/EGab9BWgOFjH5PWTzRX6fVsS9Cu4koeN/Eg3C+pOzFw5jokmAqO5dfo+brNSrdQ4DK59Y1GSwxlRbIhkZ7PTjccAn304xdoaFpn1vQpDL+iCi3O7KwL5TG0rIXrUtOOLXITRvE58LWacnug9RDcxePkkhFR0F+lyariOB7gXCeKqVT3E9akBHBAwh4WIE/btY76FnQtlAIRJaHgMOMklKh9Uk9gcA5Nk30HmlwpCcS+ac6oSFipQmgEm6yDt8ZKUgjDeLvTaDab59UUxpPUEMz4C9BElAesNCCDauZxRoRit/wBV3hjzvORT5tYcBEYPApy8G36q/GGaQTI/kBSl9sus5mUDYdEJh/nwvzqQNzn0fN9OB11LDdcihKaZCkzAIbdFxUiLlPkyH1r7a6OqlFicoSBXYDc6TqJfZiGYZXHYgnWYPNgNBoYTOJS/RUpceb6D1KICGiyG2N/MdacWW9OdRHJghBlWZuhF1ZzuiAUtWCgkgm0MvQIZuIjxM9/86QNIWvkRgMrJOfmKVnHRK9u247GvnZf3tCoDr0=
+

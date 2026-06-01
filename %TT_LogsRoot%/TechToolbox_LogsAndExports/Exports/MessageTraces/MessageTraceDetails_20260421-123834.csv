@@ -1,0 +1,27 @@
+Recipient,MessageTraceId,Date,Event,Detail
+alarson@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:13 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+alarson@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:14 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+alarson@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:35 PM,Deliver,The message was successfully delivered to the folder: zVADAP
+idcinput@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:13 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+idcinput@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:14 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+idcinput@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:35 PM,Deliver,The message was successfully delivered to the folder: VADAP
+loneil@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:13 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+loneil@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:14 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+loneil@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:35 PM,Deliver,The message was successfully delivered to the folder: VADAP
+sjanz@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:13 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+sjanz@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:14 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+sjanz@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:35 PM,Deliver,The message was successfully delivered to the folder: VAD AP
+skhamissi@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:13 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+skhamissi@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:14 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+skhamissi@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:35 PM,Deliver,The message was successfully delivered to the folder: VADAP
+VADAP@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:07 PM,Receive,Message received by: SN7PR22MB3887.namprd22.prod.outlook.com
+VADAP@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:11 PM,Expand DL,The message was sent to a distribution list (DL) that was expanded to the recipients of the DL.
+VADAP@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:13 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+VADAP@REDACTED.com,609047c8-253c-4835-e7e1-08de94ca5563,4/7/2026 5:23:34 PM,Drop,Reason: [{LED=250 2.1.5 RESOLVER.GRP.Expanded; distribution list expanded};{MSG=};{FQDN=};{IP=};{LRT=}]
+LLONG@REDACTED.com,115c0677-59c9-495c-0569-08de9b215aea,4/15/2026 7:01:11 PM,Receive,Message received by: DS7PR22MB3573.namprd22.prod.outlook.com
+LLONG@REDACTED.com,115c0677-59c9-495c-0569-08de9b215aea,4/15/2026 7:01:16 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+LLONG@REDACTED.com,115c0677-59c9-495c-0569-08de9b215aea,4/15/2026 7:01:17 PM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+LLONG@REDACTED.com,115c0677-59c9-495c-0569-08de9b215aea,4/15/2026 7:01:46 PM,Deliver,The message was successfully delivered.
+llong@REDACTED.com,263fc926-7953-4802-9bbf-08de9fbde5bf,4/21/2026 3:51:50 PM,Receive,Message received by: CH3PR22MB5522.namprd22.prod.outlook.com
+llong@REDACTED.com,263fc926-7953-4802-9bbf-08de9fbde5bf,4/21/2026 3:51:53 PM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
+llong@REDACTED.com,263fc926-7953-4802-9bbf-08de9fbde5bf,4/21/2026 3:51:54 PM,Deliver,The message was successfully delivered.

@@ -1,0 +1,24 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              jcavozos@REDACTED.com
+Display Name:      Jose Cavozos
+SamAccountName:    jcavozos
+Timestamp:         4/21/2026 11:00:56 AM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[ADDisable]
+  Action: Disable-ADUserAccount
+  Success: True
+  SamAccountName: jcavozos
+  Disabled: True
+  MovedToOU: False
+  OU: 
+
+===============================================
+ End of Summary
+===============================================

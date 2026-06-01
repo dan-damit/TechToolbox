@@ -1,0 +1,30 @@
+===============================================
+ TechToolbox Offboarding Summary
+===============================================
+
+User:              dd.test2@REDACTED.com
+Display Name:      DD Test 2
+SamAccountName:    ddtest2
+ObjectId:          
+Timestamp:         1/21/2026 1:37:29 PM
+
+-----------------------------------------------
+ Actions Performed
+-----------------------------------------------
+
+[Disable-ADUserAccount]
+  Success: True
+  SamAccountName: ddtest2
+  Disabled: True
+  MovedToOU: False
+  OU: OU=Non-Sync OU,OU=Users - ServiceAccounts,DC=REDACTED,DC=com
+
+[Move-UserToDisabledOU]
+  Success: False
+  SamAccountName: ddtest2
+  TargetOU: OU=Non-Sync OU,OU=Users - ServiceAccounts,DC=REDACTED,DC=com
+  Error: The operation could not be performed because the object's parent is either uninstantiated or deleted.
+
+===============================================
+ End of Summary
+===============================================

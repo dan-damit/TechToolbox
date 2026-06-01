@@ -1,0 +1,148 @@
+Received: from SN7PR22MB3836.namprd22.prod.outlook.com
+ (2603:10b6:806:356::16) by SA0PR22MB2143.namprd22.prod.outlook.com with
+ HTTPS; Tue, 3 Mar 2026 20:20:47 +0000
+Received: from CH0P223CA0009.NAMP223.PROD.OUTLOOK.COM
+ (2603:10b6:610:116::35) by SN7PR22MB3836.namprd22.prod.outlook.com
+ (2603:10b6:806:356::16) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9632.15; Tue, 3 Mar
+ 2026 20:20:38 +0000
+Received: from DM2PEPF00003FC9.namprd04.prod.outlook.com
+ (2603:10b6:610:116:cafe::2) by CH0P223CA0009.outlook.office365.com
+ (2603:10b6:610:116::35) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9654.22 via
+ Frontend Transport; Tue, 3 Mar 2026 20:20:19 +0000
+Received: from gw3135.fortimail.com (173.243.133.135) by
+ DM2PEPF00003FC9.mail.protection.outlook.com (10.167.23.27) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.20.9654.16 via Frontend Transport; Tue, 3 Mar 2026 20:20:37 +0000
+Received: from mx0a-00058003.pphosted.com (mx0a-00058003.pphosted.com
+ [148.163.133.204])	by gw3135.fortimail.com  with ESMTPS id
+ 623KKZTe002113-623KKZTg002113	(version=TLSv1.3
+ cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NO)	for
+ <ahershey@REDACTED.com>; Tue, 3 Mar 2026 14:20:36 -0600
+Received: from m0319814.ppops.net (m0319814.ppops.net [127.0.0.1])	by
+ pps.tlsfallback (8.18.1.12/8.18.1.12) with ESMTP id 623BWfEo397466	for
+ <ahershey@REDACTED.com>; Tue, 3 Mar 2026 20:20:35 GMT
+Received: from smtp-us.ser.proofpoint.com (pmta-use.ser.proofpoint.com
+ [3.215.31.156])	by mx0a-00058003.pphosted.com (PPS) with ESMTPS id
+ 4cmebx2r63-1	(version=TLSv1.3 cipher=TLS_AES_128_GCM_SHA256 bits=128
+ verify=NOT)	for <ahershey@REDACTED.com>; Tue, 03 Mar 2026 20:20:35 +0000
+ (GMT)
+Received: from wn0sdwk0004HF ([20.72.216.193])	by cmsmtp with ESMTPSA	id
+ xWELv38OGV4jQxWELvP1b0; Tue, 03 Mar 2026 20:20:34 +0000
+Authentication-Results: spf=fail (sender IP is 173.243.133.135)
+ smtp.mailfrom=symbeo.com; dkim=fail (signature did not verify)
+ header.d=symbeo.com;dmarc=fail action=oreject
+ header.from=symbeo.com;compauth=none reason=451
+Received-Spf: Fail (protection.outlook.com: domain of symbeo.com does not
+ designate 173.243.133.135 as permitted sender)
+ receiver=protection.outlook.com; client-ip=173.243.133.135;
+ helo=gw3135.fortimail.com;
+Authentication-Results-Original: gw3135.fortimail.com;	spf=pass
+ (fortimail.com: domain of emailreceiver_no-reply@symbeo.com designates
+ 148.163.133.204 as permitted sender)
+ smtp.mailfrom=emailreceiver_no-reply@symbeo.com;	dkim=pass
+ header.i=@symbeo.com;	dmarc=pass header.from=symbeo.com;
+Dkim-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=symbeo.com; h=
+	content-transfer-encoding:content-type:date:from:message-id
+	:message-id:mime-version:subject:to; s=SEL01; bh=jBrBuWdpJEpSFjx
+	Fzf30VRwRPOhDb3zjkgm/nDsqysg=; b=oA5Czp6kxHHsYLafO8xB0y9VDit/fsY
+	U6os6JbKkEdU5aWpiUxZ0tlCLBnfvWc9AtZeRy4M+xxbQS39+8YqiawkqKPP818J
+	eg5C6BQJEkXu/F/AnfShJVAMZ+ygZjDQu5DVZfySNQ/t9ZY3AlNjpqGb/SKygJvb
+	g4JphDbFwWn5oh6VzaedP/ZK71K16ZcUwGaUjA4DQBoVkvS+W/lmbZCoxYkJbt+9
+	7rLTxbXORzjsNTB/TPPr4j713rWcuKrIWT2SyXsf5o3PG3BcBp2r3BX80nQEx9BP
+	z+tuhwWkrYffWnqTC/iQqsSUfVdUnxZTAeF85Ujfi/PATPic5MjpwFg==
+X-Mailer:
+ SER-1f2a626db17df19661934d447931d8b105731155a6c33bd0c94831a70dce938f
+X-Mailer: CorVel Communications Mailer 1.0
+X-Cloudmark-Mid: xWELv38OGV4jQxWELvP1b0
+X-Proofpoint-Cid: 4c6e1bfd-72be-4298-bef8-4a09520e85c8
+From: emailreceiver_no-reply@symbeo.com
+Date: Tue, 3 Mar 2026 12:20:33 -0800
+Subject: =?UTF-8?B?UHJvZCAtIEFjY2VwdGVkIEZvciBQcm9jZXNzaW5nOiBWYWx1ZSBB?=
+ =?UTF-8?B?ZGRlZCBEaXN0cmlidXRvcnMgLSBJbnZvaWNlICM5OTI2MDcgYXR0?=
+ =?UTF-8?B?YWNoZWQgLSBFMjAyNjAzMDMxMjE5MzE4NDcyOA==?=
+To: Amanda Hershey <ahershey@REDACTED.com>
+Message-Id: <0f3d9baa-7d73-4c58-95db-3131dabc0fe4@azure.symbeo.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="----sinikael-?=_1-17726270329130.15593358355110198"
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Orig-Guid: os9isX9oH-cTlEvjel3siAtC-sFcz2HP
+X-Authority-Analysis: v=2.4 cv=CeMFJbrl c=1 sm=1 tr=0 ts=69a74293 cx=c_pps
+ a=yK1pcp7eJ+Tn9SJ3j3n75g==:117 a=yK1pcp7eJ+Tn9SJ3j3n75g==:17
+ a=IkcTkHD0fZMA:10 a=Yq5XynenixoA:10 a=VkNPw1HP01LnGYTKEx00:22
+ a=PfH7Gj5aq6epzO7kCgAc:22 a=DDsDBzbQMKevmOvSU1UA:22 a=SSmOFEACAAAA:8
+ a=3g80flMcAAAA:8 a=MBbkf4meq5aEXWoj1nQA:9 a=W8ESdC_nmlITOY4P:21
+ a=_W_S_7VecoQA:10 a=QEXdDO2ut3YA:10 a=G69WFyCBNqGPyalROSdv:22
+ a=LZtFMuD1p091OJ1dpCy4:22 a=3urWGuTZa-U-TZ_dHwj2:22
+X-Proofpoint-Guid: os9isX9oH-cTlEvjel3siAtC-sFcz2HP
+X-Proofpoint-Spam-Details-Enc:
+ AW1haW4tMjYwMzAzMDE2NiBTYWx0ZWRfX1I4ZHhdGgHcB
+ Rernt8GJY632W+jEHs3IfegUa0Tl1RFxhXJ/At6kSmTIuik/gyQSp6QnZal7vkYRyPtVud9r2Ae
+ A1Bb19xPR0uepC8r+V3o/wt7gezYMBBVe7lKNkiO+WyezJIVbLHmF66zLenLkBRdPTyD+7FHBfT
+ QreQJP8ceZyQ+qN/PYHG7jVfHfk7iRndFm/c8l3/9Xt2iv2yWKdoTpIvbdge7Kmci/DNbNgBNTe
+ iwcItX9GF3HZLvAZPYESw+cu2WXOIAgGl4OUeXhdFVTqnXD1SfN8pcHHs8EddOmAkK+PxuNvvJW
+ OtzLZux1ggBahLIqaZi8J9si12gcZ06/Jtqr047UwZ1VJZjpEc1dMVBH7nwF/6ZjWFPJ6sW9J3Q
+ LLKkiwZOkNNr5qvGUDI2S5I/THd2KA==
+X-Proofpoint-Virus-Version: vendor=baseguard
+ engine=ICAP:2.0.293,Aquarius:18.0.1121,Hydra:6.1.51,FMLib:17.12.100.49
+ definitions=2026-03-03_03,2026-03-03_01,2025-10-01_01
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0
+ malwarescore=0 bulkscore=0 spamscore=0 phishscore=0 lowpriorityscore=0
+ adultscore=0 suspectscore=0 classifier=typeunknown authscore=0 authtc=
+ authcc= route=outbound adjust=0 reason=mlx scancount=1
+ engine=8.22.0-2602130000 definitions=main-2603030166
+X-Feas-Bec-Info:
+ WlpIGw0aAQkEARIJHAEHBlJSCRoLAAEeDUhZUEhYSFhIWUhZXkguLT4lKyQlWFhYWlxYW1FZSFtbSA0FCQEEGg0LDQEeDRo3BgdFGg0YBBEoGxEFCg0HRgsHBUhYSFlRSAkADRobAA0RKB4JDBwNA0YLBwVIWUhZSFldSFlcUEZZXltGWVtbRlpYXEheSFhIWEhZSFhIWEhYSFlRSAkADRobAA0RKB4JDBwNA0YLBwVIWQ==
+X-Feas-Dkim: Valid
+X-Feas-Client-Ip: 148.163.133.204
+X-Fe-Last-Public-Client-Ip: 148.163.133.204
+X-Fe-Envelope-From: emailreceiver_no-reply@symbeo.com
+X-Feas-Spf: spf-result=pass, ip=148.163.133.204,
+ helo=mx0a-00058003.pphosted.com,
+ mailFrom=emailreceiver_no-reply@symbeo.com
+X-Fe-Policy-Id: 0:1:1:REDACTED.com
+Return-Path: emailreceiver_no-reply@symbeo.com
+X-Ms-Exchange-Organization-Expirationstarttime: 03 Mar 2026 20:20:37.9524
+ (UTC)
+X-Ms-Exchange-Organization-Expirationstarttimereason: OriginalSubmit
+X-Ms-Exchange-Organization-Expirationinterval: 1:00:00:00.0000000
+X-Ms-Exchange-Organization-Expirationintervalreason: OriginalSubmit
+X-Ms-Exchange-Organization-Network-Message-Id:
+ b302febe-7eda-4e0b-6c8b-08de79625563
+X-Eopattributedmessage: 0
+X-Eoptenantattributedmessage: e1b83792-ab2b-418b-9481-fe12c76f201e:0
+X-Ms-Exchange-Organization-Messagedirectionality: Incoming
+X-Ms-Publictraffictype: Email
+X-Ms-Traffictypediagnostic:
+ DM2PEPF00003FC9:EE_|SN7PR22MB3836:EE_|SA0PR22MB2143:EE_
+X-Ms-Exchange-Organization-Authsource:
+ DM2PEPF00003FC9.namprd04.prod.outlook.com
+X-Ms-Exchange-Organization-Authas: Anonymous
+X-Ms-Office365-Filtering-Correlation-Id:
+ b302febe-7eda-4e0b-6c8b-08de79625563
+X-Ms-Exchange-Atpmessageproperties: SA|SL
+X-Ms-Exchange-Organization-Scl: 1
+X-Microsoft-Antispam:
+ BCL:2;ARA:13230040|704162311799003|3072899012|12012899012|5062899012|82310400026|2092899012|3092899012|8096899003|3613699012;
+X-Forefront-Antispam-Report:
+ CIP:173.243.133.135;CTRY:CA;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:gw3135.fortimail.com;PTR:gw3135.fortimail.com;CAT:NONE;SFS:(13230040)(704162311799003)(3072899012)(12012899012)(5062899012)(82310400026)(2092899012)(3092899012)(8096899003)(3613699012);DIR:INB;
+X-Ms-Exchange-Crosstenant-Originalarrivaltime: 03 Mar 2026 20:20:37.6739
+ (UTC)
+X-Ms-Exchange-Crosstenant-Network-Message-Id:
+ b302febe-7eda-4e0b-6c8b-08de79625563
+X-Ms-Exchange-Crosstenant-Id: e1b83792-ab2b-418b-9481-fe12c76f201e
+X-Ms-Exchange-Crosstenant-Authsource:
+ DM2PEPF00003FC9.namprd04.prod.outlook.com
+X-Ms-Exchange-Crosstenant-Authas: Anonymous
+X-Ms-Exchange-Crosstenant-Fromentityheader: Internet
+X-Ms-Exchange-Transport-Crosstenantheadersstamped: SN7PR22MB3836
+X-Ms-Exchange-Transport-Endtoendlatency: 00:00:09.3461753
+X-Ms-Exchange-Processed-By-Bccfoldering: 15.20.9654.014
+X-Ms-Exchange-Externalinoutlookresult: NotEnabled
+X-Microsoft-Antispam-Mailbox-Delivery:
+ ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944490095)(944506478)(944626604)(4710137)(4713098)(4714117)(4999163)(920097)(930201)(20251009189)(140003)(1420198);
+X-Microsoft-Antispam-Message-Info:
+ WyaXl5Tq9d3eMXiD9xh1ipN6syqtLyzFskyBYRu0HBCK0H7MLkLYEb661SfizK0Us2OsFHgfFcTJLDlXfhhH8sqP1APhOvfXY2cFzzYCLve7AolrGSymAVGhnCAA+4BuTmwwA4AiuCD1Mh1mKoD5ThuXQRg5H+/3VLwq8nVpItq9oGbD7OQgRVyQh6FdVdY420HHl71OJAjmDxZHXBdcTc4CBKaqhZDwUNM1egzjFO7ywsEIn+PTirQwo8sVF7fPpnXIY82xDMY5OMfKEKhUymc/kWVMnCWuDRmO+a3vBiUZlYSiVIm/q0IC3g0gPEqqiU1RO4bJJJQQ0heTnUzopMNLp7YFqS119oKEMrfTY6b7w+9T4yDPVUeZbbWrsj9C05CIYbfp9Vj7hji0Tv9LaylWDL6y9h2rXToDQqCvgCCEYhHdRVnvqtnUEeKLqJ3kV8Y/md6fpXsu5+2RGeC2gTmJhvu7PuRUjjtbIhsSOUnddTDgDuowfjqGsLVquQ98iiDY2IVJu9u101rNe6iwHMEOWGMaqbKSdrkgqCrstIxJuuNuN3en3gP/KraPZ9paoB/qQZi+hsF5ZXUSDew9GcsmS0+qy7FVA8b05Ius74JGKarctXG3H54hR2KZQNdwemI1Ofi8SawjOOjsoCDygwXjBnc/DC1VXNT2ceIinZ9dGrJkqLpe3EikuI/PxIiUkeG15LroR7VgmkVUEKjmvzUZM5WkAI+l83hG59zG1tWkn5wDFgIXf9W71cWDPmboCQT1y0/NSX0RsqyFf4hrX2UBMrBHXdbqp1TAeH0q3vDO82xpRBPmQe+W7CJiY+5IAwPIqC2F7RwEhc3sAaBi8PYG1P9ohD8Ih8UW86pjS6J/YpuJsuO+Z1TE39m87rjT/qFTd0wptqu6Uix33pej8r1H00uYPXe98IePkc4mGoRMEjEm92ARHRMmhc+uoMedHAxIj/456R9hEv8+w/CuaOZ+bNgSfmW3YZnBdgUfVM1wvcrSPmlAUrP4zV7jd7BjTO+JxheecszqfdpHCg2aeVp4FSn+w5QOQ+4t/VKtiGy78YbrjA+ET7ISutsN0eNq78tDfmWch4PUUYq6DCqjxej1E8+0bsbZAhG4OlA8qq/cnYv2a+C9KXFAPw6O4ZPEFJsb+ajJEcCZXvc11WZ1iF+ljZFhpk66z+yGDAgcdP7v/PrI4v6J1husMs4Jnu/PKVXGzHAGPIWIwd0MnCEZkTZibip9bPA0ghDLfpnrxOdYi0Zn7Plrt61PdMLZ8S6Zvq3u1Dc0//PKL8mFVlBAIkVpty7tyPNvA85gPv0zf0t3tZIE4ERnhyoKmZismvVzHbYCefHjABvcOCVewtp29vJcz3Uzg/XCbG/SwlJoavCDfK3lpgGIU0R+/vDBpAtR/pJZx16SJfYwLpRQDID8rQe09UOz2M6zwejJWXpWjHvqjfNbNRp0pm3rsuakX9PDfam8TFte7XgSNxfyGvdn27O/vZrh3gIfkbetizDeYEzJlHSqqfZ2LLE3VKaPDfXT8OOa5SDGPCh7n1AgroyBPHddpGRwxNd0qT1gMjjLsVdnprS1LAyHk3RhH2LKepZftw3V2biB5wE4gX+WUG0s41mMsqFyWoMcr7Jw917jYBJJru5yl9Vl4F4qsCiCMoUVMF4Kl+chhJsWzoiZpBoCajli64e4IwQeOlTyRXSm21KDwu3z5AeW0f2XMN1Aypeuuz/LmInLIS1Wn3qB1DgiSofJ0LpDcFMDiQiZV2lqbjo18Awq7nMjyZ1ilKlmHgGdlN2lvRfelAKUECmSm2ysgmZqLdKyKLuoZJk1/1AiqMdAVrbQfXgm8OR6zU4QNxhLEbr+cHKrvtxxicEcl1pIt5HCNZ8SrF8yaXdJxOL4+aR3Ggpt/ycG7NA5t3Rw1H41Yf7jb2vQ4oyPvDx2LUydCEBrVqiTA/xX/Zzd4bfS24hPPqw6C7AhWEuivr3YhBA2KaI0zhKnWLmPkUjJ+g/WZYF93fJ3OyD+oF/fhX9bw+7Ad3BjBUMVPlYbOrozfTBYRTLqh+n1HIIIVxgwV33Qmw0PYIdEDBt6ECroiZuqUEPs+v3XvGsHJg8KTxGn/kfnjvaCHz+F7NJmIRaywZBNYrtodWnCe68/IT2tFlSoa1+6dHNX09zSXBR+idl4HXVMHu26TykIrrX/OoY/PiZ/TGtxmkzYcqFTG0YSXxd8x9s/LZohCrTUEvftHdqglT+1IdGT2kuyLVNdcfL6DgHNe0exYvigxYsDx8fD9if44gEWJyQlyh308khx1w/J1G6Nt+hY2RwnNdOAbyazHjQPNgOHsZngoIYr6AiyAG9f71bslDUS8GHAxchcfJC9ge6KxyfzMZ8LVh95oNzbecHJUOzNHHXY8AwzZFMorvSkhl/wjhbF05NCA3TbjMNY8W3xH/qpvN9rV1F7zlL2A9czFOzdsddYafe58rHDhmBMtgx2hU+V13Vf2rfM6/OHwOu2FbrimUy45Lrivs+x7VZ086fJtIVQgW1McC3B5IxICQ6auZ9RPigrid6+qE6qgHNGsPuY9hvwP9YClhSPEZpyQB0W+heRrVWbJcsC0XHHzB94TipdhLwxrA/8pgbuBOhGAFyXQP/t0OAhZ55cXNu85WMUqlbSu6oFmoCm3KauXv4ADT9tLQK7uUp35ANAOpRqKJN1TdnZKehhdZHHG+Wz0iGaT8FaoKP6o/rxQR4h5Q2WwjxzFbPufR1DJEFew5YH61FePvTKojlDX35mYPrH1Q==
+
