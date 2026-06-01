@@ -1,5 +1,0 @@
-"Recipient","MessageTraceId","Date","Event","Detail"
-"arivera@REDACTED.com","84a8e7d2-71f0-4b6d-689d-08de4ec31266","1/8/2026 2:34:49 PM","Receive","Message received by: IA0PPFD156F5025.namprd22.prod.outlook.com"
-"arivera@REDACTED.com","84a8e7d2-71f0-4b6d-689d-08de4ec31266","1/8/2026 2:34:52 PM","Transport rule","Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
-"arivera@REDACTED.com","84a8e7d2-71f0-4b6d-689d-08de4ec31266","1/8/2026 2:34:53 PM","Defer","Reason: 400 4.7.721 Advanced Threat Protection scanning in progress."
-"arivera@REDACTED.com","84a8e7d2-71f0-4b6d-689d-08de4ec31266","1/8/2026 2:35:39 PM","Deliver","The message was successfully delivered."

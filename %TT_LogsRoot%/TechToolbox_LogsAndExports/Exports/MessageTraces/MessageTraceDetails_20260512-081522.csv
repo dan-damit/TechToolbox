@@ -1,5 +1,0 @@
-Recipient,MessageTraceId,Date,Event,Detail
-MTimmons@REDACTED.com,5be3c385-85a2-4a50-9eb7-08deb01be608,5/12/2026 11:45:08 AM,Receive (with external delay),Message received by: CH3PR22MB4200.namprd22.prod.outlook.com. There was a delay of 11 minutes prior to the message being received by Office 365.
-MTimmons@REDACTED.com,5be3c385-85a2-4a50-9eb7-08deb01be608,5/12/2026 11:45:49 AM,Transport rule,"Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '', ID: (00000000-0000-0000-0000-000000000000)."
-MTimmons@REDACTED.com,5be3c385-85a2-4a50-9eb7-08deb01be608,5/12/2026 11:45:52 AM,Defer,Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
-MTimmons@REDACTED.com,5be3c385-85a2-4a50-9eb7-08deb01be608,5/12/2026 11:46:34 AM,Deliver,The message was successfully delivered.
