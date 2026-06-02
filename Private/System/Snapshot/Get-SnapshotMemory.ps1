@@ -14,11 +14,23 @@ function Get-SnapshotMemory {
     Write-Verbose "Collecting memory information..."
 
     function Convert-KBToGB {
-        param([Nullable[ulong]]$KB)
-        if ($KB -eq $null) { return $null }
-        if ($KB -eq 0) { return $null }  # Guard against 0 values from CIM failures
-        # KB -> bytes -> GB
-        [math]::Round(( [double]($KB * 1KB) / 1GB ), 2)
+        param([object]$KB)
+
+        if ($null -eq $KB) { return $null }
+
+        # Handle providers that return numeric strings with separators.
+        $raw = [string]$KB
+        if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
+
+        $normalized = $raw -replace '[^0-9]', ''
+        if ([string]::IsNullOrWhiteSpace($normalized)) { return $null }
+
+        [System.UInt64]$kbValue = 0
+        if (-not [System.UInt64]::TryParse($normalized, [ref]$kbValue)) { return $null }
+        if ($kbValue -eq 0) { return $null }  # Guard against 0 values from provider failures
+
+        # KB -> GB
+        [math]::Round(([double]$kbValue / 1MB), 2)
     }
 
     function Get-MemoryInfoViaCIM {
@@ -29,20 +41,31 @@ function Get-SnapshotMemory {
             # Validate we actually got meaningful data (not 0 or null from failed CIM)
             if ($os.TotalVisibleMemorySize -eq 0 -or $os.TotalVisibleMemorySize -eq $null) {
                 Write-Verbose "Get-SnapshotMemory(CIM): TotalVisibleMemorySize is 0 or null, may indicate CIM context issue"
-                return $null
+                return [pscustomobject]@{
+                    Source  = 'CIM'
+                    TotalGB = $null
+                    FreeGB  = $null
+                    Error   = 'TotalVisibleMemorySize was 0 or null'
+                }
             }
 
             $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
             $freeGB = Convert-KBToGB $os.FreePhysicalMemory
 
-            return @{
+            return [pscustomobject]@{
+                Source  = 'CIM'
                 TotalGB = $totalGB
                 FreeGB  = $freeGB
             }
         }
         catch {
             Write-Verbose ("Get-SnapshotMemory(CIM): {0}" -f $_.Exception.Message)
-            return $null
+            return [pscustomobject]@{
+                Source  = 'CIM'
+                TotalGB = $null
+                FreeGB  = $null
+                Error   = $_.Exception.Message
+            }
         }
     }
 
@@ -53,41 +76,123 @@ function Get-SnapshotMemory {
 
             if ($os.TotalVisibleMemorySize -eq 0 -or $os.TotalVisibleMemorySize -eq $null) {
                 Write-Verbose "Get-SnapshotMemory(WMI): TotalVisibleMemorySize is 0 or null"
-                return $null
+                return [pscustomobject]@{
+                    Source  = 'WMI'
+                    TotalGB = $null
+                    FreeGB  = $null
+                    Error   = 'TotalVisibleMemorySize was 0 or null'
+                }
             }
 
             $totalGB = Convert-KBToGB $os.TotalVisibleMemorySize
             $freeGB = Convert-KBToGB $os.FreePhysicalMemory
 
-            return @{
+            return [pscustomobject]@{
+                Source  = 'WMI'
                 TotalGB = $totalGB
                 FreeGB  = $freeGB
             }
         }
         catch {
             Write-Verbose ("Get-SnapshotMemory(WMI): {0}" -f $_.Exception.Message)
-            return $null
+            return [pscustomobject]@{
+                Source  = 'WMI'
+                TotalGB = $null
+                FreeGB  = $null
+                Error   = $_.Exception.Message
+            }
+        }
+    }
+
+    function Get-MemoryInfoViaComputerInfo {
+        try {
+            # Get-ComputerInfo can succeed in environments where CIM/WMI classes are unreliable.
+            $ci = Get-ComputerInfo -Property CsTotalPhysicalMemory, OsFreePhysicalMemory -ErrorAction Stop
+
+            $totalBytes = $ci.CsTotalPhysicalMemory
+            if ($null -eq $totalBytes -or [double]$totalBytes -le 0) {
+                return [pscustomobject]@{
+                    Source  = 'ComputerInfo'
+                    TotalGB = $null
+                    FreeGB  = $null
+                    Error   = 'CsTotalPhysicalMemory was empty or invalid'
+                }
+            }
+
+            $totalGB = [math]::Round(([double]$totalBytes / 1GB), 2)
+            $freeGB = Convert-KBToGB $ci.OsFreePhysicalMemory
+
+            return [pscustomobject]@{
+                Source  = 'ComputerInfo'
+                TotalGB = $totalGB
+                FreeGB  = $freeGB
+            }
+        }
+        catch {
+            Write-Verbose ("Get-SnapshotMemory(ComputerInfo): {0}" -f $_.Exception.Message)
+            return [pscustomobject]@{
+                Source  = 'ComputerInfo'
+                TotalGB = $null
+                FreeGB  = $null
+                Error   = $_.Exception.Message
+            }
         }
     }
 
     try {
-        # Try CIM first
-        $memInfo = Get-MemoryInfoViaCIM
-        
-        # Fallback to WMI if CIM failed
+        # Try methods in order and keep diagnostics from each attempt.
+        $attempts = New-Object System.Collections.Generic.List[object]
+
+        $cimAttempt = Get-MemoryInfoViaCIM
+        $attempts.Add($cimAttempt)
+
+        $memInfo = $null
+        if ($cimAttempt.TotalGB -ne $null -and $cimAttempt.FreeGB -ne $null) {
+            $memInfo = $cimAttempt
+        }
+
         if ($null -eq $memInfo) {
             Write-Verbose "Get-SnapshotMemory: CIM failed, attempting WMI fallback..."
-            $memInfo = Get-MemoryInfoViaWMI
+            $wmiAttempt = Get-MemoryInfoViaWMI
+            $attempts.Add($wmiAttempt)
+
+            if ($wmiAttempt.TotalGB -ne $null -and $wmiAttempt.FreeGB -ne $null) {
+                $memInfo = $wmiAttempt
+            }
+        }
+
+        if ($null -eq $memInfo) {
+            Write-Verbose "Get-SnapshotMemory: WMI failed, attempting Get-ComputerInfo fallback..."
+            $ciAttempt = Get-MemoryInfoViaComputerInfo
+            $attempts.Add($ciAttempt)
+
+            if ($ciAttempt.TotalGB -ne $null -and $ciAttempt.FreeGB -ne $null) {
+                $memInfo = $ciAttempt
+            }
         }
 
         $totalGB = $null
         $freeGB = $null
-        $cimMethod = "Failed"
+        $cimMethod = 'Failed'
+        $diagnosticError = $null
         
         if ($memInfo) {
             $totalGB = $memInfo.TotalGB
             $freeGB = $memInfo.FreeGB
-            $cimMethod = if ($memInfo.Source) { $memInfo.Source } else { "CIM/WMI" }
+            $cimMethod = if ($memInfo.Source) { [string]$memInfo.Source } else { 'Unknown' }
+        }
+        else {
+            $attemptErrors = @(
+                $attempts |
+                Where-Object { $_ -and $_.Error } |
+                ForEach-Object { "{0}: {1}" -f $_.Source, $_.Error }
+            )
+            if ($attemptErrors.Count -gt 0) {
+                $diagnosticError = ($attemptErrors -join ' | ')
+            }
+            else {
+                $diagnosticError = 'All memory providers returned empty values without a specific error.'
+            }
         }
 
         $usedGB = $null
@@ -128,6 +233,7 @@ function Get-SnapshotMemory {
             PercentFree   = $pctFree
             PageFile      = $page   # optional nested object; safe for serialization
             CIMMethod     = $cimMethod  # Track which method succeeded (for diagnostics)
+            Error         = $diagnosticError
         }
 
         Write-Verbose "Memory information collected."
@@ -150,8 +256,8 @@ function Get-SnapshotMemory {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDI5KKawIGp4fsy
-# ZzYGDueAZY+2rqoaPfMwE20FZsRa7KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAYcbL59nQYlQU9
+# aTEhy2FV7gGF5OyoaO+qRs62j0FUnaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -284,34 +390,34 @@ function Get-SnapshotMemory {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCCDFpfGJfA
-# iGmliNjkVkl7ZEpQKZaUI1Wlxq9T2iDv4zANBgkqhkiG9w0BAQEFAASCAgDILCYO
-# ImChOugbm6xOXAc18aM5mzRsz9nVLuP1mvi/3g2/qAXSPesD9GZVfzeNMLEcdgWd
-# ncXYAToBJFZiaV8yGC5KciTTCrVAUlGUkf42dNYVb7R5fokQ6I9L5g/LmPcpEZ/W
-# v4q4OuUUKHuC0tiN/FEsoGzaSB4pSksgBeOGu5Yq3xPX2VkdukvGL+mh9d8FkN7I
-# /A/Khhg14Y/mgvZr/PwfKh7Bh45EKUQXKCh2fhcg2wwUO7AlURDE7XnB9UC0KQRy
-# zuTPkZrdQHiKHxrKVCq+cQXpTtc6Y9ipz9pW/HJ+n68X06hSyvisJx8PvjcSrVw3
-# Cuy7r+fS/etjl+h4y3K2z2YWQ7ZGDk+ar24xfhaq7FOqnHPG5EF0oOlgmq93bjJB
-# A7SrOpwx2Aq6yEov4FlC30PSzGDR77YNXgv4h+gkwAC7+w1NKWp0zTMS/blpyMX+
-# gD/NhIL4S9GAiLYJgLb3EG9/UBujK7UIFIbrTNxb7jyaztfwgNOdjvpb7GKD21FN
-# AnAIhGmwIHTQPi0VujPJ9i12A6uKzYCazw52cca5K42cKdN/30SMqBCmp2trlcKL
-# qnPONns6sTFiNcXwmi/K0pWCc1xXQ4V6SY8UTeyzki+PN+LJ8fCRbeJDfvGyDcLX
-# iPB6IeS2Ief4J/F7IwHAoDdq7YmTBy+IskY9+qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCwCIHaGaoK
+# u7kc/wRw1bGrRxYZuyIwLg7jUmQwOH0nwTANBgkqhkiG9w0BAQEFAASCAgBZLVWT
+# RRU4epvpFeff6fmXTIH8HPwkmXW02hUgTMAbrcA7G8nQIJPVF6pgKoxbRp7FT+Nt
+# 3AC9EzptueB8D4VZsH2fOD/QxoqtKdnzUnMj39dew8zgDmZzTzs4f0JBedVXKJQ5
+# +LBcC7dppYqZbgXzRv3kY3ltttRBOeXMUsovC+N1zrqQ9U/PQnYwtwsHD2vM+Iz6
+# Av3zql9ECrv7oZhYwY0Rnx2eF5FHBMphxRJyt0n1vovxnLE4U/1dmL55cAqFWZ8e
+# hq0rZBmOGvNU+i0oiJ8kPfFhB6HLTa/B4K8Ye29RidphBqRHpGqgXFXApyukDkeX
+# 2vmvVR/yzeWXX8/rqAaNQuU/yY0NEPNHSbxLucu12QvcvZotYOlcXotsOS1xC4hg
+# +7wFqP6E/67A6LqaWlvct9qo8LaV95i8uMptH3+smlRfBGcrowERIuD6ucOtqTK4
+# XDG2siDf0imU+XGSEGhGuH+N4Es1B+PetVzXeruC7hWn8bk+74J6NzsyirONiShS
+# rCuFuXtEBV/qiAU2HsIivVw5A9ykqa12siLFQmDEo4Iz1xgiYmQoCRXeU9tnR9zU
+# ZtuOdk0/sOgyEgd0jHEkLRCZayoOqQeolwSha04//uhVPBerk8JAEWr03wGcoKJd
+# yTb19frSb+OTKxrIFQIFwioVnlrPH47SukBLaKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjIyMTM2MjNaMC8GCSqGSIb3DQEJBDEiBCCQlca9uC1LlXK5IWM7
-# j86nEqc+JFZzwo/UEY2SpjuKGTANBgkqhkiG9w0BAQEFAASCAgCDFN59S08yhgGJ
-# tfasrXVwoybfHboWkt/3lNk0I07VPM+IY07K8BjRkMHUcJldJ2EZaDytZB+JWGMi
-# qrQ2Tw1dvhhwihtSf/gppOZEnx2stcEqrdZx23NZtomG2hiuoJaJDMpkziHAY2/L
-# gmcmiGNBLrAjSwj9fUuWfL9ey9EYCWHBenkii640gDoO7cWdlVsnvLw4Xmw95pC2
-# cBRqhWsGAOiRxDZu0xNRxqyIgs+HHrzP470UeglbaBe0kn8z2bZdNRZqA+xxrBzk
-# KUU5O/c98V+K/3LcxwmW1V6TAUBBGXQjWlCHCbsao3wdWNLG9SQzdiK2V5ioDpIg
-# VNPBZ8/dMni5DRZ2X0yhtliIimuI7I6lUsQl1AMM31C7HJXVr9EGyfBrt5nCJvXY
-# nBcSjqtWnWSkLUNY/0MedjwDJPkXf6mQrnjwFZHZEVy5x0pVueG8xehAE4OHkpvs
-# 4HIVXAJ8iw0cg5dzw/o1fLXGzi2ysFEPWuscd95SnZlzJLq9p0HGsbFdDPWTe5pV
-# I1r+5a7y7M2SPcbqAeqAZCkUhHvtT+nJcF/LpqCY7tYuyrxl+UCagR2TrQbfLy4q
-# dEHCkHiwnfo+V5kPk0ZzPJI4DOgwcAuDF/Qnq2rvbTsMoLVgDOfd6ASju04VzcVK
-# HVW+o7ZMPPmKdYd+wapYsQmHnBCNmw==
+# BTEPFw0yNjA2MDIxNDE3MTNaMC8GCSqGSIb3DQEJBDEiBCAQNFmxrwdubOVzktEM
+# akTdYmc1sQuI4FMKf/yY2PN+WDANBgkqhkiG9w0BAQEFAASCAgBE6Dxbf4mDs8YW
+# Gxtn2KUIaFkLzh73pJZjiHuOrcQ11G+jjM40V0TuPiAamTnnsg/aFRbE1t4Z/Jva
+# 25vESgFbBW8Yf9Cph0Uy65b6PVinNBpSDSHq8LD382EyshoQsnqyJUT5EUaUFU2P
+# BrbYHpAdPhjv3w1ntbr7CHd4bkxkB/BISwl5O3OunkBJFZeWwwE3OFaNWQCT8bVf
+# 4TZwV9NzVfH5EkM7z6WvNvhB0gO8C+eSNRUyxE/UiYCLqB15NjfdYP7xhO710rYr
+# vvWDOp6TYQaMFxgLxQ9hi8grgs9SStXI5aY/FRODvzJq2N+f++nsppGXZorvycix
+# GhEhPCKylSkT4jwbq22idN12ZeDn5og2xDLt4IgPFPg6ovbDfhdY4eai+IfO7LOc
+# BJp5ZtBe7L0PMor7uMBZiAg8MSaAoZFsCfkf5v4umIoanEDgHe/KeQ6GyqkFzR89
+# 26LmjpUr+oOBfamR6iNGhnl7pJff3j73gm8wDUHss7HBZjMYhi+10xfTOEKgprIe
+# DOuaT0L8DgobQcBKAhUx1DBn+uUIIb25fbB5Ou6ACwgMEF3jT7dh8HBjZpxZJ3n1
+# +x+IXGC0MTIgQ/AIQGN4k0juC6dLfW4oO6ur5WoX0WFKAhLRhG3Yd9n0kA1uOLhQ
+# Tmv4hCg/mFnHN+h7XQIMJ3sax8gz2g==
 # SIG # End signature block
