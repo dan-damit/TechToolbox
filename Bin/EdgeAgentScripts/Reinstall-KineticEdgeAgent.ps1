@@ -3,6 +3,9 @@
 # TO BE USED FOR NON IT PERSONNEL
 
 # Define constants
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+
 $kineticEdgeAgentVersionsUrl = "https://epicorsaascdn.blob.core.windows.net/edgeagent/kinetic_edge_versions.json"
 $kineticWindows64InstallerName = "edgeagent-local-kinetic-windows-x64-installer.exe"
 $installedEdgeAgentDisplayNamePattern = "*Epicor*Edge Agent*"
@@ -88,16 +91,6 @@ function Get-InstalledEdgeAgents {
     }
 
     return $entries | Sort-Object DisplayName, PSPath -Unique
-}
-
-function Get-InstalledEdgeAgent {
-    $entries = Get-InstalledEdgeAgents
-
-    if ($entries) {
-        return $entries | Select-Object -First 1
-    }
-
-    return $null
 }
 
 function Stop-EdgeAgentProcessesAndServices {
@@ -255,21 +248,23 @@ function Invoke-EdgeAgentInstaller {
     $process = Start-Process -FilePath $installerPath -ArgumentList $parameters -PassThru
     $process.WaitForExit()
 
-    if ($process.ExitCode -eq 77) {
-        Write-Output "This script must be run as administrator for the first time installation on port $edgeAgentPort."
+    if ($process.ExitCode -eq 0) {
+        Write-Message "Edge Agent installation completed successfully."
     }
-    elseif ($process.ExitCode -eq 0) {
-        Write-Output "Edge Agent installation completed successfully."
+    elseif ($process.ExitCode -eq 77) {
+        throw "Installer requires administrator privileges for first-time installation on port $edgeAgentPort. Exit code: 77"
     }
     else {
-        Write-Output "The process exited with code: $($process.ExitCode)."
+        throw "Installer exited with code $($process.ExitCode)."
     }
 
     $UserProfilePath = $env:USERPROFILE
-    Write-Output "Installer log is located at: $UserProfilePath/edgeagent_install.log"
+    Write-Message "Installer log is located at: $UserProfilePath/edgeagent_install.log"
 }
 
 function Install-EdgeAgent {
+    $scriptSucceeded = $false
+
     try {
         Write-Message "Preparing to remove any existing edge agent and install a fresh copy"
 
@@ -280,7 +275,9 @@ function Install-EdgeAgent {
         $edgeAgentInstallerPath = Get-EdgeAgent -EdgeAgentVersion $edgeAgentVersion
 
         Write-Message "Executing Edge Agent installer silently"
-        Invoke-EdgeAgentInstaller -InstallerPath $edgeAgentInstallerPath
+        [void](Invoke-EdgeAgentInstaller -InstallerPath $edgeAgentInstallerPath)
+
+        $scriptSucceeded = $true
     }
     catch {
         $ErrorMessage = $_.Exception.Message
@@ -290,6 +287,26 @@ function Install-EdgeAgent {
     finally {
         Write-Host "Edge Agent Silent Installer Log file created at: $logFilepath"
     }
+
+    return [bool]$scriptSucceeded
 }
 
-Install-EdgeAgent
+function Complete-ScriptExecution {
+    param (
+        [Parameter(Mandatory = $true)]
+        [bool]$Succeeded
+    )
+
+    # Defensive cleanup for hosted runners that may keep background state alive.
+    Get-Job -ErrorAction SilentlyContinue | Remove-Job -Force -ErrorAction SilentlyContinue
+    Get-EventSubscriber -ErrorAction SilentlyContinue | Unregister-Event -Force -ErrorAction SilentlyContinue
+
+    if ($Succeeded) {
+        [System.Environment]::Exit(0)
+    }
+
+    [System.Environment]::Exit(1)
+}
+
+$installSucceeded = Install-EdgeAgent
+Complete-ScriptExecution -Succeeded $installSucceeded
