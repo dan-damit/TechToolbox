@@ -30,9 +30,39 @@ function Show-SystemSnapshotReport {
     # --- Memory ---
     $mem = $Snapshot.Memory
     Write-Host "Memory" -ForegroundColor Yellow
-    Write-Host "  Total: $([math]::Round($mem.TotalMemoryGB,2)) GB"
-    Write-Host "  Used : $([math]::Round($mem.UsedMemoryGB,2)) GB ($([math]::Round($mem.PercentUsed,1))%)"
-    Write-Host "  Free : $([math]::Round($mem.FreeMemoryGB,2)) GB ($([math]::Round($mem.PercentFree,1))%)"
+
+    function Format-NullableNumber {
+        param(
+            [Parameter()][AllowNull()][object]$Value,
+            [int]$Decimals = 2
+        )
+
+        if ($null -eq $Value) { return 'N/A' }
+        return [math]::Round([double]$Value, $Decimals)
+    }
+
+    if ($mem) {
+        $totalText = Format-NullableNumber -Value $mem.TotalMemoryGB -Decimals 2
+        $usedText = Format-NullableNumber -Value $mem.UsedMemoryGB -Decimals 2
+        $freeText = Format-NullableNumber -Value $mem.FreeMemoryGB -Decimals 2
+        $pctUsedText = Format-NullableNumber -Value $mem.PercentUsed -Decimals 1
+        $pctFreeText = Format-NullableNumber -Value $mem.PercentFree -Decimals 1
+
+        Write-Host "  Total: $totalText GB"
+        Write-Host "  Used : $usedText GB ($pctUsedText%)"
+        Write-Host "  Free : $freeText GB ($pctFreeText%)"
+
+        if ($mem.CIMMethod) {
+            Write-Host "  Source: $($mem.CIMMethod)"
+        }
+
+        if ($mem.Error) {
+            Write-Host "  Note: $($mem.Error)" -ForegroundColor DarkYellow
+        }
+    }
+    else {
+        Write-Host "  (no memory data)" -ForegroundColor DarkYellow
+    }
     Write-Host ""
 
     # --- Disks ---
@@ -110,8 +140,8 @@ function Show-SystemSnapshotReport {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA1J56T9YhHEekZ
-# Wyh00BaZti9UWuErwiqkTHAiwJXqQ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDZU/mhiyBIlE+y
+# H2goNyzX4BTRZLnBOhI+UYb/cvaixKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -244,34 +274,34 @@ function Show-SystemSnapshotReport {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAXC5HX+cD5
-# 1rCL2Ac46dIU+uIeZ4xLNMO2Q64y5nCOjjANBgkqhkiG9w0BAQEFAASCAgC4gvSd
-# dDA6l7wfLILHN+Nta/34DcbaSaF4gibxf/hOTVCN7xrhD++vEyp5ZwhxVlEhnOBh
-# qJJ47ri8v8i82toz7xLwWMFJtcTpsVPJWtR2b3WTuLMsmvProRldruRGpFd4wM/J
-# GEvS+gzxuD5gbOvXs/zelUtBs5GXwUhCd4dnhRmeYoOS1962IV2fViBT0lPGu8DU
-# 9GvNv6DohuPt+Z6ujOjlkXEqiSrS3euuLT2crOj+BOec01otbmZHLRf/DAUHH9Pp
-# ZCnQ4HFusA3NwSud74IJuKP58er4wCG/n+oTvCMVxGXiVahxAsrmupQBOZxTwG5K
-# clhWgt+Z04q9uy08M1EZHepJ5L1iCkgTzOybIgB4rHxqGeoNDOFtQFOk6bg6oBlH
-# pgL7UCI4Q+i+KxUrcYLhHuUgayctsTly+fa/kXzcDinF3hhEalYB2pvgTclgdOB7
-# qAnuBqKQnhtXj/lV/2ZjeuSaVXwybso/KAxk48wx1yaUesqWSoQvlu6HTvkkVMn9
-# y5DyDjRPBLP83cGzerFGp+H8Fq8DHdiux7M1NYD5skLwUUc3kSOd5rnfMFepR6U4
-# 8R6Imv2FIIZ6RF2Q8dlf3wCBgMNfcu4lVng3Sa+OeWCCCVxaZiJ/GWlk4NCes1jI
-# PP5DctKukmKbUVYkW1n4In362aQMpByPVLgkJqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBkPuSbETem
+# q4JYAA+vgno8bQkz0iAcR1RLC8rBIbiDdDANBgkqhkiG9w0BAQEFAASCAgDEr8qF
+# 55/9g4/h9cpLeGHHLpKB8zfe1+prnCT4B/dID0xlG6gQ38/HzC0s1nukHSeauYoN
+# sx2NBSRUYsUjtJPKnfxc4X7aRuevLcWGYe/aRZmodffW5zTBh9E5Jyvm0F6trB3L
+# M8bU4K+udTtLs9Eq6ZocMfsu2T6wDQB+o7AiJJdC3Gpi9OfmLvXuPVxoGLhknvwq
+# eISKb3cJ21Mved1H3bQCX9tFA1KFu4aOWeRS6y51H+Cpp9azEjPudmkxAdgnOud0
+# klyn6ByjWbTUH31t1otkoLquJkoxvdE1hbntlR1wGyHtwOL49TqjYW5QaJCh9xKn
+# KohNckvgwoy/+sxZhAeNfk3yNM3KhwCfHfPG+aNqLAEukzs2v0B2P4eNFMtwNaDy
+# uk+Pf9wSVCxLw7SwTuHKcDhq/LwAzJPNqM+da+mPT05Wxb1eyrB4vNbjMndB1zha
+# mnkC4//IN1LVWPo6oWtE3BwSqRs5wNsEJoq9BIsmXKlEwA5XeaDVDU29n5DY2eZ3
+# LUAytSOq5qzuJVNGWqrl7T35fFycbhaD82NXRytYmddO7KCAUq/5SOaFe8ZWNB/g
+# uBdc/+OKAoRrDxrd2r90R3dhDICGBQ6QovuZ2AnXhncgRs4BI7KLinoRHo0iUV2m
+# om1uyyjzwT7U+TJepGsYM3ccHX0/UYCEtMe2GqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MjExNjEzNTZaMC8GCSqGSIb3DQEJBDEiBCAwdPvDlDl5nDZ1S38r
-# cRv5wi/dBFHT9MmsztMpnU6YQTANBgkqhkiG9w0BAQEFAASCAgCfPmKg+JMS5Inl
-# ORAscy4tOVDjBX7/LeCBnf/muibjtEiL6Hr0Do2AuO7lIqVhdbdCJJh2/A8cKRqB
-# FQ1nzAtlj3E6ObTXJQvzRrroB/dgoZeLwOaK8Ru5r60zPODjfE7aayQ3JF+fdDtj
-# jq4eKx2HkDt8KpVWU7EHEJdgKPX0GFLMyG9iBfnkQLDvtzMaZrFSHaU1HQdnUQBB
-# 9Us+wG51Uu8FQXXIOdKfleNielgYoonilzByhKQC2iZBJbAlYMMQoc/xbiwX7MCK
-# fInbbzblM+XR0zw2SqbwE6nKfBuKvAktOd/3UILNwPDzgQ8lWxx7GrAYgio+hYDB
-# KKCtiY/k6riAtY4/xbzUSpLSz2L8L2e8WunhqvY8uNTnOrL3RUo46qbe3Qu0CyhG
-# V0/PezxIys4Vtd3o6odClO1znUbEtfdHh5dNL+LtExlZeGwtrk9qEvlbraBjKyjX
-# IesDsJ+8ua0DHJf4By8pXVnAgZKFZ2dYqf/ph1gSDFPO1fhbXRmiU9dhn1oJyayd
-# wgawzykyFtAgyIGmRIpWVvODWo1x7X0Wr01qc/82gJEviG21MiZoOLc5ymD9GlZb
-# Yts/U2rFT5m4kXIMEK14a3d1S9tGp417KooEa47dGkLp6J7SE2zcVlAlBdEZpSs1
-# sgIm/nemG+BqXYdxFH6Vqh0tjP64lw==
+# BTEPFw0yNjA2MDIxNDExMzRaMC8GCSqGSIb3DQEJBDEiBCAm4nJSnuSVeY7kFeoH
+# MtI2YXJg31Z2//GT1jxSERvGuTANBgkqhkiG9w0BAQEFAASCAgBuANk3VP0fmzFa
+# ZZO5XVYPDY0sHXv2CKYmSfzEJpGFWc+P30DT+W/8BWozYBSx22+dbhINlOkIobP4
+# rO1sDiGnLXr3TyJt9zjo/e0xwJM6TL1lOTCMY1XpPbwp2pQ/MWW52d+O4K32TUz0
+# D4JdDohxgK3YkoVcPsZ9tnp9hdjFCHrcvKJSGc9alzluaVuPn78DDCiFiFYmLB9k
+# mSWxJm6us6YSUw1w9RXW7q0ykpoeuRWeYu139/BthDD8Ote4y78MSe2YT/hMF/lU
+# 7r1/q2H3NH5HXE0BZG14BlGZg0Oluck/JAnA9hI0oKM6SKYN0jiI7icYS5DqyDda
+# uH4m1qofipQjagHi+onmoWiCqQ/PZO7J9fBZy78KFa6GXbFkQc0aUJdDhx+DSJyw
+# L3XOBVmXBOxKgaorPYUCpqkrfSmt8vecagmj+wVjsvxAEJ/f1tmwigx9N05A8fZv
+# m1BELmZZ41FCGzNW3yt4d79/ZcYgMZGqvisIbbhN2O2fZxKwNqZgUf6TPTaME/n9
+# ZDb4juhAPYVRkJuatQLtle5UXzKua/lZhAz5xK7tzcRzaQQYdJArUXhJjLzpnLvw
+# Jdo+npUp5h65hWIty6u+koFcBuRRIvmuktDr3XCjZNSVhlS2iNNYuu6AhaVuey0I
+# QimR1wJOtWjbIl7ZO1DKYmURkaQClg==
 # SIG # End signature block
