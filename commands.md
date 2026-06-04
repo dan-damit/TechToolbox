@@ -1,6 +1,6 @@
 # **TechToolbox Command Reference**
 
-Back to project overview: **`[README.md](https://github.com/dan-damit/TechToolbox/blob/main/README.md)`**
+Back to project overview: **[README.md](https://github.com/dan-damit/TechToolbox/blob/main/README.md)**
 
 This document provides a categorized, operator‑focused reference for all exported public commands in TechToolbox.  
 Each entry includes:
