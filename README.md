@@ -41,8 +41,8 @@ This is not a script dump — it’s an operator framework.
 # **5‑Minute Demo**
 
 ```powershell
-# Find stale AD accounts
-Search-User -Stale -Days 90
+# Disable an AD user account
+Disable-User -Identity 'jdoe' -Credential (Get-Credential)
 
 # Purge a custodian mailbox
 Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Custodian-01
@@ -246,7 +246,7 @@ This subsystem is evolving rapidly.
 A categorized catalog with examples is available in:
 
 ```
-commands.md
+[commands.md]()
 ```
 
 ---
