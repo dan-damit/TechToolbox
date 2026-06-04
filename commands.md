@@ -99,7 +99,7 @@ Initialize-TTWordList
 Creates a new on‑prem AD user using a template object.  
 **Example:**  
 ```powershell
-New-OnPremUserFromTemplate -SamAccountName jdoe -OU "OU=Users,DC=domain,DC=com"
+New-OnPremUserFromTemplate -TemplateIdentity "jdoe" -GivenName "Jane" -Surname "Smith" -DisplayName "Jane Smith"
 ```
 
 ### **Reset-ADPassword**  
@@ -303,7 +303,7 @@ Reset-WindowsUpdateComponents
 Schedules a one‑time reboot with optional delay.  
 **Example:**  
 ```powershell
-Set-OneTimeReboot -DelayMinutes 10
+Set-OneTimeReboot -ComputerName "Server01.domain.com" -Credential (Get-Credential)
 ```
 
 ### **Set-PageFileSize**  
@@ -399,10 +399,10 @@ Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta
 ```
 
 ### **Invoke-SCW**  
-Runs a SecureCrimp worker task remotely.  
+EASTER EGG : Run it an find out :)  
 **Example:**  
 ```powershell
-Invoke-SCW -ComputerName pc01 -TaskName Inventory
+Invoke-SCW
 ```
 
 ### **Start-NewPSRemoteSession**  
