@@ -34,7 +34,9 @@ function Restart-SecureCrimpStack {
         [int[]]$FrontendPorts = @(80, 443),
 
         [int]$StopTimeoutSec = 20,
-        [int]$SleepSeconds = 2
+        [int]$SleepSeconds = 2,
+        [int]$StartValidationSec = 15,
+        [int]$StartValidationPollMs = 500
     )
 
     Initialize-TechToolboxRuntime
@@ -66,8 +68,8 @@ function Restart-SecureCrimpStack {
     try {
         $session = Start-NewPSRemoteSession @sessParams
 
-        Invoke-Command -Session $session -ErrorAction Stop -ArgumentList $TaskList, $BackendPorts, $FrontendPorts, $StopTimeoutSec, $SleepSeconds, $writeTaskLogShimSource -ScriptBlock {
-        param($TaskList, $BackendPorts, $FrontendPorts, $StopTimeoutSec, $SleepSeconds, $WriteTaskLogShimSource)
+        Invoke-Command -Session $session -ErrorAction Stop -ArgumentList $TaskList, $BackendPorts, $FrontendPorts, $StopTimeoutSec, $SleepSeconds, $StartValidationSec, $StartValidationPollMs, $writeTaskLogShimSource -ScriptBlock {
+        param($TaskList, $BackendPorts, $FrontendPorts, $StopTimeoutSec, $SleepSeconds, $StartValidationSec, $StartValidationPollMs, $WriteTaskLogShimSource)
 
         . ([ScriptBlock]::Create($WriteTaskLogShimSource))
 
@@ -96,7 +98,9 @@ function Restart-SecureCrimpStack {
         function Restart-LongRunningTask {
             param(
                 [Parameter(Mandatory)][string]$TaskName,
-                [int]$TimeoutSec = 20
+                [int]$TimeoutSec = 20,
+                [int]$ValidationSec = 15,
+                [int]$ValidationPollMs = 500
             )
 
             try {
@@ -129,7 +133,50 @@ function Restart-SecureCrimpStack {
 
                 Write-TaskLog -Level "INFO" -Message "Starting scheduled task: $TaskName"
                 Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop
-                return $true
+
+                $startWatch = [Diagnostics.Stopwatch]::StartNew()
+                $post = $null
+                do {
+                    Start-Sleep -Milliseconds $ValidationPollMs
+                    $post = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue
+
+                    if (-not $post) {
+                        continue
+                    }
+
+                    if ($post.State -eq 'Running') {
+                        Write-TaskLog -Level "INFO" -Message "Task healthy: $TaskName :: Running"
+                        return $true
+                    }
+
+                    if ($post.State -eq 'Ready' -and $post.LastTaskResult -eq 0) {
+                        Write-TaskLog -Level "INFO" -Message "Task healthy: $TaskName :: Ready (LastTaskResult: 0)"
+                        return $true
+                    }
+
+                    if ($post.State -eq 'Ready' -and $post.LastTaskResult -ne 0) {
+                        Write-TaskLog -Level "ERROR" -Message "Task unhealthy after start: $TaskName :: Ready (LastTaskResult: $($post.LastTaskResult))"
+                        return $false
+                    }
+                } while ($startWatch.Elapsed.TotalSeconds -lt $ValidationSec)
+
+                if ($post) {
+                    if ($post.State -eq 'Running') {
+                        Write-TaskLog -Level "INFO" -Message "Task healthy after wait: $TaskName :: Running"
+                        return $true
+                    }
+
+                    if ($post.State -eq 'Ready' -and $post.LastTaskResult -eq 0) {
+                        Write-TaskLog -Level "INFO" -Message "Task healthy after wait: $TaskName :: Ready (LastTaskResult: 0)"
+                        return $true
+                    }
+
+                    Write-TaskLog -Level "ERROR" -Message "Task did not become healthy after start: $TaskName :: State=$($post.State), LastTaskResult=$($post.LastTaskResult)"
+                    return $false
+                }
+
+                Write-TaskLog -Level "ERROR" -Message "Task info unavailable after start: $TaskName"
+                return $false
             }
             catch {
                 Write-TaskLog -Level "ERROR" -Message "Failed restarting task '$TaskName': $($_.Exception.Message)"
@@ -147,10 +194,18 @@ function Restart-SecureCrimpStack {
         Start-Sleep -Seconds $SleepSeconds
 
         # Restart tasks (long-running safe)
+        $failedTasks = [System.Collections.Generic.List[string]]::new()
         foreach ($t in $TaskList) {
             Write-TaskLog -Level "INFO" -Message "Restarting task: $t"
-            Restart-LongRunningTask -TaskName $t -TimeoutSec $StopTimeoutSec | Out-Null
+            $ok = Restart-LongRunningTask -TaskName $t -TimeoutSec $StopTimeoutSec -ValidationSec $StartValidationSec -ValidationPollMs $StartValidationPollMs
+            if (-not $ok) {
+                $failedTasks.Add($t) | Out-Null
+            }
             Start-Sleep -Seconds $SleepSeconds
+        }
+
+        if ($failedTasks.Count -gt 0) {
+            throw "SecureCrimp stack task restart failed for: $($failedTasks -join ', ')"
         }
 
         # Verify ports are listening again
@@ -177,8 +232,8 @@ function Restart-SecureCrimpStack {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA88Vr9Ual78e9K
-# Lmjs9hazXGc32ga6boEzX7GKO8OJIKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDDwc2b8wArMH3W
+# j+f7UiRgCqZmyZgfCyu3grq7+9wvfKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -311,34 +366,34 @@ function Restart-SecureCrimpStack {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAW+bPXCNpF
-# LRhILjqWtSy4iV/+tNfbahtq4d3k7CR5xTANBgkqhkiG9w0BAQEFAASCAgAL+9Fq
-# 8KaRP/fNzSuAxcyQOoULoa86E5i+pRJZuc2bK4PLBlRsjQWTQSwkp7b/HAovv97c
-# 8qYbBdOYkUDcRC4TojLcQi3biZLpPx+BCJbNB9kSQepTqG6IqDR/vaDHkX/TeJVP
-# aTWytYfebQlXFpHQbGC8hpx40RTUeJCM+F08dEIKOhHKEbN4KZy/9r1LjYmdSgqO
-# dmZY5F9wUuhTZWRncamfSqJkbzHIZwa2xN259JwbGKZ7Jye5AQacxELvW4ak6SCD
-# 5gNV1yemq212cIHIOZj88usp6LQnu1/L4npAfE45r2wzMqeilBsaBgauW4UP8VrU
-# K4FfOBskeaYbOBArt9ws/4eEAqDn96dJ8ssSao/KS4FAKzjZl1P/HhEbP3bZZr8V
-# b+TxzXGRtbiCOWYMANAtDnDVblQ78cr2Lz2L2kZpt9qL8OYZA61yMJl7Cjk4VRTG
-# sp8PNxhZDeRB9wE8LBMT9YpClNdopTLnSE6WazKLHAv2E6kfryf5XHxbbXLLj4gl
-# 6UsZALw2mcnPpNp2iA5dh+Wacbw2xMKbTM/l4tobrambdQpNwf9+iwCx4lsJaCAt
-# 29SO9IK2TVYXGqf04VtmErfhgklLU/9KKcPqRXllxemgxUR4poDn4FnwGyprPav/
-# XSYJaB2zHDD5NVA/fe+0TtXTzTzHryX5IoGgkKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCArrCa8Aimo
+# tSnQpyWH+/HvArQLvc/d1sG3zF+wqsAm8DANBgkqhkiG9w0BAQEFAASCAgDQk4jL
+# UBcS/KoAS50r7DKzfW4rcAnpOXWkiI+nednP0tDd8xpqPdag+FFHvL5opHpM4Mzd
+# 3Fa6QDBwvx4BauoEZmPrguzgyvVyEj1tB8IvofQ6eSxNSE4H1WYs8Z1LNahLzB68
+# FBNTjfRs8d9laZqv4UmhPnWJfi9meM4zUt8Td8Hm74nSEJnUsT0Uwu0qbstegvx6
+# 1nG2bLmVv5WVk+ovxA/Homt80SxH9F4RJueWFuFHAgIhrgUPzsrtduIlOkgS1TJb
+# IErJeR2q2ChN2jDIvUAcjtAZsknrYR/XC5/u7JMKuYRvDp9T2dYePdn4l1os9a8t
+# VJKf4B1e/wIRWIFCMni+XHszUv8MOmfw6oLpNCzroid993LhlQel3DEiHLdh8ZGl
+# bUxnZIv7qhGps7wifx5Z2MZ3IVawacIfNtAxeTDns9nC1lAv8J7xRqWu5+stOJop
+# Tp0PAa/LePgwaR1cUoBhYdwnkyg6UBHTXLhM1STqtVEzzzHCwCuMNwKhDCdPilHR
+# dl75UPWr8amiK5ic1FQvKWmn7K+M4edFUwzCALDDwg0GVYvpLtSZlkOP4CnoFq9T
+# oMvfkYVxgJHacYFkTOb6StgxoitoBEYHDX/elnW3xq6Qf30JTAE4Ozwa+fDYnO2E
+# yakiOhyDHcUFMkzZGShV3fRskHCe38mAmHx4maGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDcxNTU0MjNaMC8GCSqGSIb3DQEJBDEiBCBBnq/Cx+jOmxtzNrLI
-# D4xHIbI2ixKvthgwNrRYU7RkRjANBgkqhkiG9w0BAQEFAASCAgClYMMWdaLUN/O0
-# iTl+y05nd9aggrQrIsTyHAc0iWxM6DIYthnlZclb7XMJsS2imRpUv2AjtM9j10Hg
-# pWeWxT7yg0YkETr/deztcuitxqeTpDYFM7VwP/hv6VCNPwUWyYDePhCvbsuDpDr9
-# 9iv16t7/3Dosj+prWrjCP//BxGsx/5CwbQF33Pu1ldPALUdLa1LztNAuLddzpfQC
-# m9lyVc9nS47eHw3O6SHA4sCFfFm3rnyEdqaUiH7CfZXIBOVWY8o8dZim0WSfHJgF
-# HZSpqYBbPpvsCCmjP8TT8R2PkOPj4M8lNukWqnVXf9yhHexu6HuZ0ka16Jws5y4r
-# mrzZ9Q2s9Rxg5NqZ6KCn9oqybbtvvnrcznqdiBNWLqNFnExEJ830T9c14r7DJpT7
-# GEOXM5fBo/X/csunIzrlqUmBbDuBYZ12qjUC1J1/CuBcqvMrqcn816mgVkef6KfY
-# LPia+eZn5VLd9f4IMBU6y+tgTGBfPTj3fnLN6T45JkoUR0w9j+fEDHyzb7f9zfSW
-# QGSyOyBydr3nFnirDdFruDgicnRGw2sP5qXWELLMouQMcE83J4CBx3M3G2n0OGMF
-# S2pE6f3Dvz+92l3kyKw/Vn1HV3Ou2zzceIIp1cn028QQ8UvSzt3DljVUnQGftGF7
-# GC/mLxfkHh5RpCshkzYPHVyiDEEaqA==
+# BTEPFw0yNjA2MDQyMTEwNDJaMC8GCSqGSIb3DQEJBDEiBCBvh13/amgeTW53SYuj
+# yw+MIIRqgHkZmf8kot3/eaz+ezANBgkqhkiG9w0BAQEFAASCAgCtdFsC9W8TgfoN
+# pPG26aeL5YjK16wZB61C9ny0AK3cuh+pBfSwVwrOhmACai0ODN14oklyItkWFt66
+# gFFMwXQwhzzpOXHpjMTSXf3hte3dNOmc0iNrRcLLSWMJMHiXZS9Cqtb57IBc5TV5
+# q/3TSvRFxBIjp2kbSrnoEwPQ4FRIgUQJU2nONp3m1o2FFu6OEQfuf1vAc3jmhAlv
+# JYe6uf2GH5t1PMH/TQPYvXnC/Z1bK0vfzS+8BkgD6JDz5t+SqzxPKcWkiqDaTJO3
+# G+ldW7LyG8Lc/Bx6AunsNFGQa9zXV/0G/c2/YXxyJypwNz+vDvgON6Ndnq9a/erV
+# xa+crSww8UvjoVaID7qFda07oo5pKuSiqR+eZKQBCYl/XuseYWYtDVQJP0m1bK1/
+# dfHoaSxrN6pwBpDPj2/+0b6hgJC7Bss3lC4RmUQaUwpow4klS6JfNITjkRhXMM7b
+# I5c1DnTAj7ew8Qw6pG6YJCwcCIKmeG8ZsZlV/z+gI4J5zt0xCLltPARa2RTkQ7br
+# cCNWKW06x87tRBVJwzbYInks+OqsDJ6BKDCNVNVXQAP4/S72N/0iAJ8iSUfh3b+o
+# GldB+hxcY/MWqDKf4C1f7QUi8mcbA8ovC3+V8ePnL/KVNtqUIB5+gcKb6mlf6Qso
+# 4qITD9T9Y2CaK85HodlQeDx0bwEuRQ==
 # SIG # End signature block
