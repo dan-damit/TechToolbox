@@ -1,52 +1,84 @@
-# TechToolbox
+# **TechToolbox**  
+*A PowerShell 7+ Operator Framework for Enterprise IT Automation*
 
-TechToolbox is a PowerShell 7 module for day-to-day enterprise IT work:
-Active Directory operations, remote inventory and repair, Exchange Online and
-Purview workflows, system diagnostics, browser cleanup, and subnet tooling.
+TechToolbox is a modular, configuration‑driven PowerShell framework for real‑world enterprise operations:  
+Active Directory lifecycle, Exchange Online and Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI‑assisted automation.
 
-This project consolidates practical admin scripts into a single, structured,
-maintainable module with shared configuration, logging, and helper utilities.
+It unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model.
 
-The local AI assistant work is actively evolving under [Public/AI](https://github.com/dan-damit/TechToolbox/tree/main/Public/AI) and [AI/Agent](https://github.com/dan-damit/TechToolbox/tree/main/AI/Agent).
+The local AI assistant and agent system is actively evolving under:  
+- **Public/AI**  
+- **AI/Agent**
 
-## Table Of Contents
+---
 
-- [TechToolbox](#techtoolbox)
-  - [Table Of Contents](#table-of-contents)
-  - [What You Get](#what-you-get)
-  - [Quick Start](#quick-start)
-  - [Configuration](#configuration)
-    - [Portable path tokens](#portable-path-tokens)
-  - [Command Reference](#command-reference)
-  - [Command Discovery](#command-discovery)
-  - [Common Workflows](#common-workflows)
-    - [Browser profile cleanup](#browser-profile-cleanup)
-    - [Remote software inventory](#remote-software-inventory)
-    - [Purview purge flow](#purview-purge-flow)
-    - [Exchange Online message trace](#exchange-online-message-trace)
-    - [AAD Connect remote sync](#aad-connect-remote-sync)
-    - [Pagefile tuning](#pagefile-tuning)
-    - [Error event review](#error-event-review)
-  - [Project Layout](#project-layout)
-  - [Development And QA](#development-and-qa)
-  - [Troubleshooting](#troubleshooting)
-  - [Metadata](#metadata)
+# **Why TechToolbox?**
 
-## What You Get
+TechToolbox exists to solve the problems every IT team eventually hits:
 
-- Consistent advanced functions with `CmdletBinding`, validation, and `WhatIf` support where appropriate.
-- Centralized configuration via `Config/config.json`.
-- Centralized logging with console and optional file output.
-- A loader-driven module model (`TechToolbox.psm1`) that auto-imports private and public functions.
-- Worker-based patterns for heavier remote tasks.
+- Scripts scattered across machines  
+- Inconsistent logging and error handling  
+- Hardcoded paths and environment assumptions  
+- Repeated boilerplate for remoting, credentials, and configuration  
+- No unified way to run heavier remote tasks  
+- No safe way to integrate AI into operational workflows  
 
-## Quick Start
+TechToolbox provides:
+
+- **A consistent function model** (`CmdletBinding`, validation, WhatIf)  
+- **Centralized configuration** with secrets merging  
+- **Portable path tokens** for roaming environments  
+- **A structured module loader** with automatic import  
+- **A worker-based execution model** for remote and long‑running tasks  
+- **A unified logging subsystem** (console + file)  
+- **AI-assisted workflows** for code, refactoring, and operator tasks  
+- **A predictable, maintainable folder structure**  
+
+This is not a script dump — it’s an operator framework.
+
+---
+
+# **5‑Minute Demo**
+
+```powershell
+# Find stale AD accounts
+Search-User -Stale -Days 90
+
+# Purge a custodian mailbox
+Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Custodian-01
+
+# Remote software inventory
+Get-RemoteInstalledSoftware -ComputerName srv01,srv02 -Consolidated
+
+# Browser cleanup preview
+Clear-BrowserProfileData -WhatIf
+
+# Quick system snapshot
+Get-SystemSnapshot
+```
+
+---
+
+# **What You Get**
+
+- Advanced functions with `CmdletBinding`, validation, and `WhatIf` support  
+- Centralized configuration (`Config/config.json` + secrets merge)  
+- Portable path tokens for roaming environments  
+- Unified logging (console + optional file output)  
+- Worker-based patterns for remote and background tasks  
+- A loader-driven module model (`TechToolbox.psm1`)  
+- AI-assisted workflows for code and operator automation  
+- A clean, predictable folder structure  
+
+---
+
+# **Quick Start**
 
 ```powershell
 # PowerShell 7+ recommended
 Import-Module .\TechToolbox.psd1 -Force
 
-# List exported commands
+# Browse exported commands
 Get-Command -Module TechToolbox | Sort-Object Name
 
 # Built-in toolbox help
@@ -54,16 +86,32 @@ Get-ToolboxHelp
 Get-ToolboxHelp -ShowEffectiveConfig
 ```
 
-## Configuration
+---
 
-Primary configuration lives at `Config/config.json`.
+# **Configuration**
 
-For tenant-specific values, keep public-safe defaults in `Config/config.json` and
-put real values in `Config/config.secrets.json` (gitignored by default).
-`Get-TechToolboxConfig` now deep-merges `settings` and `paths` from
-`config.secrets.json` into `config.json` at load time.
+Primary configuration lives in:
 
-Example `Config/config.secrets.json` override:
+```
+Config/config.json
+```
+
+Tenant‑specific or sensitive values belong in:
+
+```
+Config/config.secrets.json
+```
+
+(secrets file is gitignored)
+
+At module load, `Get-TechToolboxConfig` deep‑merges:
+
+- `settings`  
+- `paths`  
+
+from `config.secrets.json` into `config.json`.
+
+### **Example secrets override**
 
 ```json
 {
@@ -87,24 +135,23 @@ Example `Config/config.secrets.json` override:
 }
 ```
 
-Optional environment controls:
+### **Environment Controls**
 
-- `TT_ConfigSecretsPath`: override the secrets file location.
-- `TT_DisableConfigSecretsMerge=1`: disable secrets merge for troubleshooting.
+- `TT_ConfigSecretsPath` — override secrets file path  
+- `TT_DisableConfigSecretsMerge=1` — disable merge for troubleshooting  
 
-### Portable path tokens
+---
 
-For portability across machines and user profiles, prefer environment-style
-tokens in `Config/config.json` path values instead of hardcoded absolute paths.
+## **Portable Path Tokens**
 
-- Use `%TT_ModuleRoot%` for module-owned files and folders (for example:
-  `Config`, `Workers`, `Private`, `AI`).
-- Use `%TT_Home%` for machine/user-specific operational data roots (for example:
-  `LogsAndExports`).
-- `%TT_LogsRoot%` and `%TT_ExportsRoot%` are also supported when you want to
-  point directly to logs/exports roots.
+Use tokens instead of absolute paths for portability:
 
-Example:
+- `%TT_ModuleRoot%` — module-owned files (Config, Workers, Private, AI)  
+- `%TT_Home%` — machine/user-specific operational data  
+- `%TT_LogsRoot%` — resolved logs root  
+- `%TT_ExportsRoot%` — resolved exports root  
+
+### Example
 
 ```json
 {
@@ -119,7 +166,7 @@ Example:
 }
 ```
 
-Start with a small baseline and expand only the sections you use:
+### Baseline config
 
 ```json
 {
@@ -159,119 +206,154 @@ Start with a small baseline and expand only the sections you use:
 }
 ```
 
-Use `Get-TechToolboxConfig` to inspect the effective loaded settings.
+Inspect effective settings:
 
-For path-root troubleshooting (module/logs/exports), run `Test-TTPathRoots`.
-Use `Test-TTPathRoots -EnsureDirectories` to create missing logs/exports roots.
+```powershell
+Get-TechToolboxConfig
+```
 
-## Command Reference
+Path troubleshooting:
 
-For a categorized command catalog with quick examples, see [commands.md](commands.md).
+```powershell
+Test-TTPathRoots
+Test-TTPathRoots -EnsureDirectories
+```
 
-## Command Discovery
+---
 
-There are many public commands; this is the fastest way to browse them:
+# **AI-Assisted Workflows**
+
+TechToolbox includes local AI helpers for:
+
+- Code generation and refactoring  
+- Folder-wide transformations  
+- Operator task automation  
+- Agent-driven workflows via Python bridge  
+
+Commands include:
+
+- `Invoke-CodeAssistant`  
+- `Invoke-CodeAssistantFolder`  
+- `Invoke-CodeAssistantWrapper`  
+- `Invoke-TechAgent`  
+
+This subsystem is evolving rapidly.
+
+---
+
+# **Command Reference**
+
+A categorized catalog with examples is available in:
+
+```
+commands.md
+```
+
+---
+
+# **Command Discovery**
 
 ```powershell
 Get-Command -Module TechToolbox | Sort-Object Name
 ```
 
-Current exported command set includes tooling in these areas:
+### Categories
 
-- Active Directory user lifecycle and search (`Search-User`, `Disable-User`, `Reset-ADPassword`, `Set-EmailAlias`, `Set-ProxyAddress`, `New-OnPremUserFromTemplate`)
-- Messaging and compliance (`Get-MessageTrace`, `Invoke-PurviewPurge`, `Get-AuditSharedMailboxDeletions`, `Get-SharedMailboxPermissions`, `Test-MailHeaderAuth`)
-- Endpoint and system operations (`Get-ErrorEvents`, `Get-SystemSnapshot`, `Get-SystemUptime`, `Invoke-SystemRepair`, `Set-PageFileSize`, `Enable-NetFx3`, `Reset-WindowsUpdateComponents`, `Set-OneTimeReboot`)
-- Network and browser tasks (`Invoke-SubnetScan`, `Start-DnsQueryLogger`, `Clear-BrowserProfileData`, `Watch-ISPConnection`)
-- Remote worker utilities and helpers (`Invoke-SCW`, `Start-NewPSRemoteSession`, `Stop-PSRemoteSession`, `Test-PathAs`)
-- AI-assisted workflows (`Invoke-CodeAssistant`, `Invoke-CodeAssistantFolder`, `Invoke-CodeAssistantWrapper`, `Invoke-TechAgent`)
+- **Identity & Directory**  
+  `Search-User`, `Disable-User`, `Reset-ADPassword`, `New-OnPremUserFromTemplate`
 
-## Common Workflows
+- **Messaging & Compliance**  
+  `Get-MessageTrace`, `Invoke-PurviewPurge`, `Get-AuditSharedMailboxDeletions`
 
-### Browser profile cleanup
+- **Endpoint & OS**  
+  `Get-ErrorEvents`, `Get-SystemSnapshot`, `Invoke-SystemRepair`, `Set-PageFileSize`
+
+- **Network & Browser**  
+  `Invoke-SubnetScan`, `Clear-BrowserProfileData`, `Watch-ISPConnection`
+
+- **Remote Execution & Workers**  
+  `Invoke-SCW`, `Start-NewPSRemoteSession`, `Test-PathAs`
+
+- **AI & Automation**  
+  `Invoke-CodeAssistant`, `Invoke-TechAgent`
+
+---
+
+# **Common Workflows**
+
+## Browser profile cleanup
 
 ```powershell
-# Preview cleanup for all supported browsers
 Clear-BrowserProfileData -WhatIf
-
-# Chrome cache only
 Clear-BrowserProfileData -Browser Chrome -IncludeCache:$true -IncludeCookies:$false
 ```
 
-### Remote software inventory
+## Remote software inventory
 
 ```powershell
-# Two hosts, one consolidated export
 Get-RemoteInstalledSoftware -ComputerName srv01,srv02 -Consolidated
-
-# Include Appx packages
 Get-RemoteInstalledSoftware -ComputerName laptop01 -IncludeAppx -Credential (Get-Credential)
 ```
 
-### Purview purge flow
+## Purview purge flow
 
 ```powershell
-Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName "Case-001" -SearchName "CustodianSearch-01"
-
-# Dry run
-Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName "Case-001" -SearchName "CustodianSearch-01" -WhatIf
+Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Custodian-01
+Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Custodian-01 -WhatIf
 ```
 
-### Exchange Online message trace
+## Exchange Online message trace
 
 ```powershell
 Get-MessageTrace -MessageId '<abc123@company.com>'
-
 Get-MessageTrace -MessageId '<abc123@company.com>' -StartDate (Get-Date).AddHours(-12) -EndDate (Get-Date)
 ```
 
-### AAD Connect remote sync
+## AAD Connect remote sync
 
 ```powershell
 Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Delta
-
 Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Initial -UseKerberos -WhatIf
 ```
 
-### Pagefile tuning
+## Pagefile tuning
 
 ```powershell
-# Use config defaults
 Set-PageFileSize -ComputerName 'Server01.domain.local'
-
-# Explicit values
 Set-PageFileSize -ComputerName 'Server01.domain.local' -InitialSize 4096 -MaximumSize 8192 -Path 'C:\pagefile.sys'
 ```
 
-### Error event review
+## Error event review
 
 ```powershell
-# Recent critical and error events from the local System log
 Get-ErrorEvents -LogName System
-
-# Only specific IDs from the last day
 Get-ErrorEvents -LogName System -EventId 41,6008 -StartTime (Get-Date).AddDays(-1) -MaxEvents 50
 ```
 
-## Project Layout
+---
 
-- `Private/`: internal helper functions and subsystem implementations.
-- `Public/`: exported commands (one function per file by convention).
-- `Workers/`: task workers used by remote and background workflows.
-- `Config/`: runtime and build configuration files.
-- `AI/Agent/`: Python bridge and agent tooling for local AI-assisted operations.
-- `TechToolbox.psm1`: module loader/bootstrap.
-- `TechToolbox.psd1`: module manifest and export definition.
+# **Project Layout**
 
-## Development And QA
+- `Private/` — internal helpers and subsystems  
+- `Public/` — exported commands (one function per file)  
+- `Workers/` — remote/background task workers  
+- `Config/` — runtime and build configuration  
+- `AI/Agent/` — Python bridge and agent tooling  
+- `TechToolbox.psm1` — module loader/bootstrap  
+- `TechToolbox.psd1` — module manifest  
+
+---
+
+# **Development & QA**
 
 ```powershell
 # ScriptAnalyzer
 Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
-# Build/sign/package pipeline options
+# Build/sign/package pipeline
 .\Build.ps1 -Analyze -AutoVersionPatch -ExportPublic
 
-# Basic dry-run sanity checks
+# Dry-run sanity checks
 Clear-BrowserProfileData -WhatIf
 Get-RemoteInstalledSoftware -ComputerName srv01 -WhatIf
 Invoke-PurviewPurge -UserPrincipalName you@company.com -CaseName Case-001 -SearchName Search-001 -WhatIf
@@ -280,17 +362,21 @@ Get-BatteryHealth -WhatIf
 Invoke-AADSyncRemote -ComputerName aadconnect-01 -PolicyType Delta -WhatIf
 ```
 
-## Troubleshooting
+---
 
-- Import issues: ensure PowerShell 7+ and import using `Import-Module .\TechToolbox.psd1 -Force`.
-- Missing command: verify the function is listed in `FunctionsToExport` in `TechToolbox.psd1`.
-- Remoting failures: confirm WinRM availability, auth method, and privileges on target hosts.
-- Purview/EXO issues: confirm required roles/modules and account permissions.
-- Battery report issues: run elevated if `powercfg` report generation is blocked.
-- Logging issues: ensure configured log directories exist and file logging is enabled.
+# **Troubleshooting**
 
-## Metadata
+- **Import issues**: use PowerShell 7+ and `Import-Module .\TechToolbox.psd1 -Force`  
+- **Missing command**: ensure it’s listed in `FunctionsToExport`  
+- **Remoting failures**: verify WinRM, auth method, and privileges  
+- **Purview/EXO issues**: confirm required roles/modules  
+- **Battery report issues**: run elevated if `powercfg` is blocked  
+- **Logging issues**: ensure log directories exist  
 
-- Author: Dan Damit
-- License: Internal use
-- Module version: 0.4.62
+---
+
+# **Metadata**
+
+- **Author:** Dan Damit  
+- **License:** Internal use  
+- **Module version:** 0.4.62  
