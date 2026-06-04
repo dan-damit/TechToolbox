@@ -243,9 +243,7 @@ This subsystem is evolving rapidly.
 
 # **Command Reference**
 
-A categorized catalog with examples is available in:
-
-[commands.md](https://github.com/dan-damit/TechToolbox/blob/main/commands.md)
+- A categorized catalog with examples is available in: [commands.md](https://github.com/dan-damit/TechToolbox/blob/main/commands.md)
 
 ---
 
