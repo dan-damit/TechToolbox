@@ -245,9 +245,7 @@ This subsystem is evolving rapidly.
 
 A categorized catalog with examples is available in:
 
-```
-**[COMMANDS.md](https://github.com/dan-damit/TechToolbox/blob/main/COMMANDS.md)**
-```
+[commands.md](https://github.com/dan-damit/TechToolbox/blob/main/commands.md)
 
 ---
 
