@@ -69,19 +69,19 @@ Example `Config/config.secrets.json` override:
 {
   "settings": {
     "tenant": {
-      "organizationName": "valueaddedcompanies.onmicrosoft.com",
-      "upnSuffix": "REDACTED.com",
+      "organizationName": "yourdomain.onmicrosoft.com",
+      "upnSuffix": "yourdomain.com",
       "tenantId": "00000000-0000-0000-0000-000000000000"
     },
     "ad": {
-      "domainController": "DC-1.REDACTED.com",
-      "searchBase": "DC=REDACTED,DC=com"
+      "domainController": "DC-1.yourdomain.com",
+      "searchBase": "DC=yourdomain,DC=com"
     },
     "remoting": {
-      "credSSPDelegateComputers": "*.REDACTED.com"
+      "credSSPDelegateComputers": "*.yourdomain.com"
     },
-    "secureCrimp": {
-      "server": "SECURECRIMP-1.REDACTED.com"
+    "secureCom": {
+      "server": "PC01.yourdomain.com"
     }
   }
 }
