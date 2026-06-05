@@ -1,10 +1,11 @@
 <#
 .SYNOPSIS
-  Closes Edge/Chrome and clears cache only (keeps cookies) for the current user.
+    Closes Edge/Chrome and clears cache + Chromium network caches (keeps cookies) for the current user.
 .DESCRIPTION
   - Shows a confirmation prompt (Yes/No).
   - Closes Edge + Chrome.
-  - Clears common cache locations including Service Worker caches.
+    - Clears common cache locations including Service Worker caches.
+    - Clears Chromium per-profile network state used by internal DNS/socket caches.
   - Does NOT delete cookie databases.
 .NOTES
   Author: (https://github.com/dan-damit)
@@ -38,7 +39,7 @@ Continue?
 }
 
 function Show-Done {
-    param([string]$Text = "Epicor fix complete`n`nBrowser cache cleared (cookies kept).`nReopen Edge/Chrome and try again.`n`nIf issue persists, contact IT support.")
+    param([string]$Text = "Epicor fix complete`n`nBrowser/network cache cleared (cookies kept).`nReopen Edge/Chrome and try again.`n`nIf issue persists, contact IT support.")
     try {
         Add-Type -AssemblyName System.Windows.Forms | Out-Null
         [System.Windows.Forms.MessageBox]::Show(
@@ -108,13 +109,27 @@ $cacheRelPaths = @(
     "Service Worker\ScriptCache"
 )
 
+# Chromium network-state items (NO cookies)
+# These are the nearest scriptable equivalents to edge://net-internals/#sockets and #dns resets.
+$networkRelPaths = @(
+    "Network\Network Persistent State",
+    "Network\TransportSecurity",
+    "Network\Reporting and NEL",
+    "Network\Trust Tokens",
+    "Network\Trust Tokens-journal",
+    "Network\Network Data",
+    "Network\Network Data-journal"
+)
+
 Stop-Browsers
 
 # Edge
 $edgeBase = Join-Path -Path $env:LOCALAPPDATA -ChildPath "Microsoft\Edge\User Data"
 foreach ($prof in (Get-ChromiumProfiles -BasePath $edgeBase)) {
     $profilePath = [string]$prof.FullName
-    $toRemove = foreach ($rel in $cacheRelPaths) { Join-Path -Path $profilePath -ChildPath $rel }
+    $toRemove = foreach ($rel in ($cacheRelPaths + $networkRelPaths)) {
+        Join-Path -Path $profilePath -ChildPath $rel
+    }
     Remove-PathSafe -Paths $toRemove
 }
 
@@ -122,7 +137,9 @@ foreach ($prof in (Get-ChromiumProfiles -BasePath $edgeBase)) {
 $chromeBase = Join-Path -Path $env:LOCALAPPDATA -ChildPath "Google\Chrome\User Data"
 foreach ($prof in (Get-ChromiumProfiles -BasePath $chromeBase)) {
     $profilePath = [string]$prof.FullName
-    $toRemove = foreach ($rel in $cacheRelPaths) { Join-Path -Path $profilePath -ChildPath $rel }
+    $toRemove = foreach ($rel in ($cacheRelPaths + $networkRelPaths)) {
+        Join-Path -Path $profilePath -ChildPath $rel
+    }
     Remove-PathSafe -Paths $toRemove
 }
 
