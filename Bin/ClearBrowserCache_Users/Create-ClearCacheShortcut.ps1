@@ -1,6 +1,6 @@
 # Author: (https://github.com/dan-damit)
 $VbsPath = "C:\ProgramData\VAC\Scripts\BrowserCleanup\RunHidden.vbs"
-$ShortcutPath = "C:\Users\Public\Desktop\Fix Epicor (Reset Browser Cache).lnk"
+$ShortcutPath = "C:\Users\Public\Desktop\Fix Epicor (Browser Reset).lnk"
 $IconLocation = "$env:WINDIR\System32\shell32.dll,238"
 
 $WshShell = New-Object -ComObject WScript.Shell
