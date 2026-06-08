@@ -1,481 +1,135 @@
-# **TechToolbox Command Reference**
+# TechToolbox Command Reference
 
-Back to project overview: **[README.md](https://github.com/dan-damit/TechToolbox/blob/main/README.md)**
+Back to project overview: [README.md](https://github.com/dan-damit/TechToolbox/blob/main/README.md)
 
-This document provides a categorized, operator‑focused reference for all exported public commands in TechToolbox.  
-Each entry includes:
+This is a quick operator index for exported public commands.
+Use this file to find the right command quickly, then use help for full usage.
 
-- A **one‑sentence description**  
-- A **short, practical example**  
-- Notes when relevant (WhatIf support, prerequisites, etc.)
-
-For full syntax and parameter details:
+## Getting Full Details
 
 ```powershell
 Get-Help <Command-Name> -Detailed
 Get-Help <Command-Name> -Examples
-```
-
-To browse commands after module load:
-
-```powershell
 Get-ToolboxHelp
 Get-ToolboxHelp -List
 Get-ToolboxHelp <Command-Name>
 ```
 
-To view the live exported command set:
+To view the live export set:
 
 ```powershell
 Import-Module .\TechToolbox.psd1 -Force
 Get-Command -Module TechToolbox | Sort-Object Name
 ```
 
----
+## Flags
 
-# **Core**
-
-### **Get-TechToolboxConfig**  
-Returns the fully merged configuration (config.json + secrets).  
-**Example:**  
-```powershell
-Get-TechToolboxConfig
-```
-
-### **Get-ToolboxHelp**  
-Displays module help, command lists, and per‑command summaries.  
-**Example:**  
-```powershell
-Get-ToolboxHelp -ShowEffectiveConfig
-```
-
-### **Test-TTPathRoots**  
-Validates module/logs/exports root paths; can create missing directories.  
-**Example:**  
-```powershell
-Test-TTPathRoots -EnsureDirectories
-```
+- `WhatIf`: supports `-WhatIf`
+- `Risk`: can make impactful changes
+- `Elevated`: typically requires admin privileges
+- `Remote`: built for remoting or remote targets
+- `Interactive`: prompts or runs interactively
 
 ---
 
-# **Active Directory & Identity**
+## Core
 
-### **Disable-User**  
-Disables an AD user and applies optional lifecycle actions.  
-**Example:**  
-```powershell
-Disable-User -Identity jsmith
-```
+| Command | Summary | Flags |
+|---|---|---|
+| Get-TechToolboxConfig | Return merged runtime config, including secrets overlay. | |
+| Get-ToolboxHelp | Show module help, lists, and command summaries. | |
+| Test-TTPathRoots | Validate toolbox path roots and optionally create missing directories. | |
 
-### **Get-AllUsers**  
-Returns all AD users with optional filtering.  
-**Example:**  
-```powershell
-Get-AllUsers -EnabledOnly
-```
+## Active Directory and Identity
 
-### **Get-DomainAdminCredential**  
-Retrieves the stored domain admin credential (if initialized).  
-**Example:**  
-```powershell
-Get-DomainAdminCredential
-```
+| Command | Summary | Flags |
+|---|---|---|
+| Disable-User | Disable an AD user and optionally run lifecycle actions. | WhatIf, Risk |
+| Get-AllUsers | Return AD users with optional filters. | |
+| Get-DomainAdminCredential | Retrieve stored domain admin credential if initialized. | |
+| Initialize-DomainAdminCred | Prompt for and securely store domain admin credential. | Interactive |
+| Initialize-TTWordList | Load or generate the password word list. | |
+| New-OnPremUserFromTemplate | Create an on-prem AD user from a template identity. | Risk |
+| Reset-ADPassword | Reset an AD user password, optionally random. | Risk |
+| Search-User | Search AD users by lifecycle, attributes, or stale criteria. | |
+| Set-EmailAlias | Add or update AD email alias attributes. | Risk |
+| Set-ProxyAddress | Manage proxyAddresses for hybrid identity scenarios. | Risk |
 
-### **Initialize-DomainAdminCred**  
-Prompts and stores a domain admin credential securely.  
-**Example:**  
-```powershell
-Initialize-DomainAdminCred
-```
+## Exchange, Purview, and Messaging
 
-### **Initialize-TTWordList**  
-Loads or generates a word list for password generation workflows.  
-**Example:**  
-```powershell
-Initialize-TTWordList
-```
+| Command | Summary | Flags |
+|---|---|---|
+| Get-AuditSharedMailboxDeletions | Retrieve shared mailbox deletion audit events. | |
+| Get-AutodiscoverXmlInteractive | Run interactive Autodiscover XML retrieval for troubleshooting. | Interactive |
+| Get-MessageTrace | Run Exchange Online message trace by ID or filter. | |
+| Get-SharedMailboxPermissions | Show effective permissions for a shared mailbox. | |
+| Invoke-PurviewPurge | Execute Purview purge action against case and search. | WhatIf, Risk |
+| Test-MailHeaderAuth | Analyze SPF, DKIM, and DMARC from message headers. | |
 
-### **New-OnPremUserFromTemplate**  
-Creates a new on‑prem AD user using a template object.  
-**Example:**  
-```powershell
-New-OnPremUserFromTemplate -TemplateIdentity "jdoe" -GivenName "Jane" -Surname "Smith" -DisplayName "Jane Smith"
-```
+## Endpoint and System Operations
 
-### **Reset-ADPassword**  
-Resets an AD user password with optional random generation.  
-**Example:**  
-```powershell
-Reset-ADPassword -Identity jdoe -Random
-```
+| Command | Summary | Flags |
+|---|---|---|
+| Enable-NetFx3 | Enable .NET Framework 3.5 on Windows systems. | Elevated |
+| Find-LargeFiles | Find large files across drives or directories. | |
+| Get-BatteryHealth | Generate battery health report via powercfg. | |
+| Get-LocalAdminMembers | List members of local Administrators group. | Elevated |
+| Get-ErrorEvents | Retrieve recent critical and error event logs. | |
+| Get-PDQDiagLogs | Collect PDQ Deploy and Inventory diagnostic logs. | |
+| Get-SystemSnapshot | Capture quick system health snapshot. | |
+| Get-SystemTrustDiagnostic | Run trust chain and certificate diagnostics. | |
+| Get-SystemUptime | Return friendly uptime view. | |
+| Get-WindowsProductKey | Read Windows product key from registry. | Elevated |
+| Get-FilesUsingKeywords | Search files for keyword matches. | |
+| Get-CUCredentialManagerContents | List stored Windows Credential Manager items. | |
+| Invoke-DownloadsCleanup | Clean Downloads folder by age and size rules. | WhatIf, Risk |
+| Invoke-RestartService | Restart a service with retry and wait logic. | Elevated, Risk |
+| Invoke-SystemRepair | Run DISM and SFC repair workflows. | Elevated, Risk |
+| Remove-EpicorEdgeAgent | Remove Epicor Edge Agent components. | Elevated, Risk |
+| Reset-WindowsUpdateComponents | Safely reset Windows Update components. | Elevated, Risk |
+| Set-OneTimeReboot | Schedule one-time reboot locally or remotely. | Remote, Risk |
+| Set-PageFileSize | Configure pagefile size locally or remotely. | Elevated, Remote, Risk |
+| Start-PDQDiagLocalElevated | Launch local PDQ diagnostics elevated. | Elevated |
+| Restart-SecureCrimpStack | Restart SecureCrimp stack service set. | Elevated, Risk |
+| Restart-SecureCrimpAuxTasks | Restart SecureCrimp auxiliary task set. | Elevated, Risk |
+| Restart-SecureCrimpAll | Restart full SecureCrimp stack and task set. | Elevated, Risk |
 
-### **Search-User**  
-Searches AD for users by lifecycle, attributes, or stale criteria.  
-**Example:**  
-```powershell
-Search-User -Stale -Days 90
-```
+## Network, Browser, and File Operations
 
-### **Set-EmailAlias**  
-Adds or updates an AD user’s email alias attributes.  
-**Example:**  
-```powershell
-Set-EmailAlias -Identity jdoe -Alias "john.doe@domain.com"
-```
+| Command | Summary | Flags |
+|---|---|---|
+| Clear-BrowserProfileData | Remove browser cache, cookies, and local storage. | WhatIf, Risk |
+| Copy-Directory | Copy directory tree with robust error handling. | |
+| Get-InstalledPrinters | List installed printers on the current system. | |
+| Invoke-SubnetScan | Scan subnet for active hosts and selected ports. | |
+| Remove-Printers | Remove printers matching provided filters. | WhatIf, Risk |
+| Start-DnsQueryLogger | Start DNS query logging session to output path. | |
+| Watch-ISPConnection | Monitor ISP connectivity and log outages. | |
 
-### **Set-ProxyAddress**  
-Manages proxyAddresses for hybrid identity scenarios.  
-**Example:**  
-```powershell
-Set-ProxyAddress -Identity jdoe -Add "smtp:alias@domain.com"
-```
+## Remoting and Worker Orchestration
 
----
+| Command | Summary | Flags |
+|---|---|---|
+| Get-RemoteInstalledSoftware | Collect installed software from remote hosts. | Remote |
+| Invoke-AADSyncRemote | Trigger remote AAD Connect sync (Delta or Initial). | Remote, Risk |
+| Invoke-SCW | Easter egg command. | Interactive |
+| Start-NewPSRemoteSession | Start new PowerShell remoting session with defaults. | Remote |
+| Stop-PSRemoteSession | Stop active PowerShell remoting session. | Remote |
+| Test-PathAs | Test path access under alternate credentials. | Remote |
 
-# **Exchange, Purview & Messaging**
+## AI-Assisted Workflows
 
-### **Get-AuditSharedMailboxDeletions**  
-Retrieves mailbox audit logs for deletion events.  
-**Example:**  
-```powershell
-Get-AuditSharedMailboxDeletions -Mailbox shared@domain.com
-```
-
-### **Get-AutodiscoverXmlInteractive**  
-Interactive Autodiscover XML retrieval for troubleshooting.  
-**Example:**  
-```powershell
-Get-AutodiscoverXmlInteractive -Mailbox user@domain.com
-```
-
-### **Get-MessageTrace**  
-Runs an EXO message trace by ID or filters.  
-**Example:**  
-```powershell
-Get-MessageTrace -MessageId '<abc123@domain.com>'
-```
-
-### **Get-SharedMailboxPermissions**  
-Shows permissions assigned to a shared mailbox.  
-**Example:**  
-```powershell
-Get-SharedMailboxPermissions -Mailbox shared@domain.com
-```
-
-### **Invoke-PurviewPurge**  
-Executes a Purview purge action against a case/search. Supports WhatIf.  
-**Example:**  
-```powershell
-Invoke-PurviewPurge -UserPrincipalName admin@domain.com -CaseName Case-001 -SearchName Custodian-01
-```
-
-### **Test-MailHeaderAuth**  
-Analyzes message headers for SPF/DKIM/DMARC authentication.  
-**Example:**  
-```powershell
-Test-MailHeaderAuth -Path .\message.eml
-```
+| Command | Summary | Flags |
+|---|---|---|
+| Invoke-CodeAssistant | Run local AI code assistant on one file. | |
+| Invoke-CodeAssistantFolder | Run AI-assisted transformation across a folder. | |
+| Invoke-CodeAssistantWrapper | Wrap code assistant execution with added context. | |
+| Install-TechAgentRuntime | Create or repair Python runtime and dependencies for agent. | Risk |
+| Invoke-TechAgent | Run local tool-using AI agent prompt workflow. | Interactive |
 
 ---
 
-# **Endpoint & System Operations**
+## Maintainer Note
 
-### **Enable-NetFx3**  
-Enables .NET Framework 3.5 on Windows systems.  
-**Example:**  
-```powershell
-Enable-NetFx3
-```
-
-### **Find-LargeFiles**  
-Searches for large files across drives or directories.  
-**Example:**  
-```powershell
-Find-LargeFiles -Path C:\ -MinimumSizeGB 5
-```
-
-### **Get-BatteryHealth**  
-Generates a battery report using `powercfg`.  
-**Example:**  
-```powershell
-Get-BatteryHealth
-```
-
-### **Get-LocalAdminMembers**  
-Lists members of the local Administrators group.  
-**Example:**  
-```powershell
-Get-LocalAdminMembers
-```
-
-### **Get-ErrorEvents**  
-Retrieves recent critical/error events with filtering.  
-**Example:**  
-```powershell
-Get-ErrorEvents -LogName System -EventId 41,6008
-```
-
-### **Get-PDQDiagLogs**  
-Collects PDQ Deploy/Inventory diagnostic logs.  
-**Example:**  
-```powershell
-Get-PDQDiagLogs -OutputPath C:\Temp
-```
-
-### **Get-SystemSnapshot**  
-Captures a quick system health snapshot (CPU, RAM, disk, services).  
-**Example:**  
-```powershell
-Get-SystemSnapshot
-```
-
-### **Get-SystemTrustDiagnostic**  
-Runs trust chain and certificate validation diagnostics.  
-**Example:**  
-```powershell
-Get-SystemTrustDiagnostic
-```
-
-### **Get-SystemUptime**  
-Returns system uptime in a friendly format.  
-**Example:**  
-```powershell
-Get-SystemUptime
-```
-
-### **Get-WindowsProductKey**  
-Retrieves the Windows product key from the registry.  
-**Example:**  
-```powershell
-Get-WindowsProductKey
-```
-
-### **Get-FilesUsingKeywords**  
-Searches files for matching keywords.  
-**Example:**  
-```powershell
-Get-FilesUsingKeywords -Path C:\Logs -Keywords error,failure
-```
-
-### **Get-CUCredentialManagerContents**  
-Lists stored credentials from Windows Credential Manager.  
-**Example:**  
-```powershell
-Get-CUCredentialManagerContents
-```
-
-### **Invoke-DownloadsCleanup**  
-Cleans up the Downloads folder based on age/size rules.  
-**Example:**  
-```powershell
-Invoke-DownloadsCleanup -DaysOld 30
-```
-
-### **Invoke-RestartService**  
-Restarts a service with optional wait and retry logic.  
-**Example:**  
-```powershell
-Invoke-RestartService -Name Spooler
-```
-
-### **Invoke-SystemRepair**  
-Runs DISM/SFC repair workflows.  
-**Example:**  
-```powershell
-Invoke-SystemRepair -Full
-```
-
-### **Remove-EpicorEdgeAgent**  
-Removes Epicor Edge Agent components.  
-**Example:**  
-```powershell
-Remove-EpicorEdgeAgent
-```
-
-### **Reset-WindowsUpdateComponents**  
-Resets Windows Update components safely.  
-**Example:**  
-```powershell
-Reset-WindowsUpdateComponents
-```
-
-### **Set-OneTimeReboot**  
-Schedules a one‑time reboot with optional delay.  
-**Example:**  
-```powershell
-Set-OneTimeReboot -ComputerName "Server01.domain.com" -Credential (Get-Credential)
-```
-
-### **Set-PageFileSize**  
-Configures pagefile size locally or remotely.  
-**Example:**  
-```powershell
-Set-PageFileSize -ComputerName Server01 -InitialSize 4096 -MaximumSize 8192
-```
-
-### **Start-PDQDiagLocalElevated**  
-Runs PDQ diagnostics elevated on the local machine.  
-**Example:**  
-```powershell
-Start-PDQDiagLocalElevated
-```
-
-### **Restart-SecureCrimpStack / AuxTasks / All**  
-Restarts SecureCrimp components or the full stack.  
-**Example:**  
-```powershell
-Restart-SecureCrimpAll
-```
-
----
-
-# **Network, Browser & File Operations**
-
-### **Clear-BrowserProfileData**  
-Cleans browser cache, cookies, and local storage. Supports WhatIf.  
-**Example:**  
-```powershell
-Clear-BrowserProfileData -Browser Chrome -IncludeCache -WhatIf
-```
-
-### **Copy-Directory**  
-Copies a directory with robust error handling.  
-**Example:**  
-```powershell
-Copy-Directory -Source C:\Data -Destination D:\Backup
-```
-
-### **Get-InstalledPrinters**  
-Lists installed printers on the system.  
-**Example:**  
-```powershell
-Get-InstalledPrinters
-```
-
-### **Invoke-SubnetScan**  
-Scans a subnet for active hosts and open ports.  
-**Example:**  
-```powershell
-Invoke-SubnetScan -Subnet 192.168.1.0/24
-```
-
-### **Remove-Printers**  
-Removes printers matching filters.  
-**Example:**  
-```powershell
-Remove-Printers -Name "*PDF*"
-```
-
-### **Start-DnsQueryLogger**  
-Starts a DNS query logging session.  
-**Example:**  
-```powershell
-Start-DnsQueryLogger -OutputPath C:\Logs
-```
-
-### **Watch-ISPConnection**  
-Monitors ISP connectivity and logs outages.  
-**Example:**  
-```powershell
-Watch-ISPConnection
-```
-
----
-
-# **Remoting & Worker Orchestration**
-
-### **Get-RemoteInstalledSoftware**  
-Collects installed software from remote hosts; supports consolidation.  
-**Example:**  
-```powershell
-Get-RemoteInstalledSoftware -ComputerName srv01,srv02 -Consolidated
-```
-
-### **Invoke-AADSyncRemote**  
-Triggers AAD Connect sync remotely (Delta/Initial).  
-**Example:**  
-```powershell
-Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta
-```
-
-### **Invoke-SCW**  
-EASTER EGG : Run it an find out :)  
-**Example:**  
-```powershell
-Invoke-SCW
-```
-
-### **Start-NewPSRemoteSession**  
-Starts a new PowerShell remoting session with safe defaults.  
-**Example:**  
-```powershell
-Start-NewPSRemoteSession -ComputerName srv01
-```
-
-### **Stop-PSRemoteSession**  
-Stops an existing PS remoting session.  
-**Example:**  
-```powershell
-Stop-PSRemoteSession
-```
-
-### **Test-PathAs**  
-Tests path access under alternate credentials.  
-**Example:**  
-```powershell
-Test-PathAs -Path \\server\share -Credential (Get-Credential)
-```
-
----
-
-# **AI-Assisted Workflows**
-
-### **Invoke-CodeAssistant**  
-Runs a local AI code assistant for single-file operations.  
-**Example:**  
-```powershell
-Invoke-CodeAssistant -Path .\script.ps1 -Prompt "Refactor this."
-```
-
-### **Invoke-CodeAssistantFolder**  
-Runs AI-assisted transformations across a folder.  
-**Example:**  
-```powershell
-Invoke-CodeAssistantFolder -Path .\Public -Prompt "Standardize comment-based help."
-```
-
-### **Invoke-CodeAssistantWrapper**  
-Wraps code assistant operations with additional context or tooling.  
-**Example:**  
-```powershell
-Invoke-CodeAssistantWrapper -Path .\Module -Prompt "Modernize functions."
-```
-
-### **Install-TechAgentRuntime**  
-Creates/repairs the Python runtime and installs dependencies.  
-**Example:**  
-```powershell
-Install-TechAgentRuntime -UpgradePackages -PullModel
-```
-
-### **Invoke-TechAgent**  
-Runs the local tool‑using AI agent.  
-**Example:**  
-```powershell
-Invoke-TechAgent -Prompt "Generate a system health summary."
-```
-
----
-
-# **Maintainer Note**
-
-The authoritative export list lives in:
-
-```
-TechToolbox.psd1 → FunctionsToExport
-```
-
-When adding or removing commands, update both:
-
-- `FunctionsToExport`
-- This `commands.md`
+The authoritative export list lives in `TechToolbox.psd1` under `FunctionsToExport`.
+When adding or removing commands, update both `FunctionsToExport` and this file.
