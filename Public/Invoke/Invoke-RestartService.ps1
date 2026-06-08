@@ -95,20 +95,41 @@ function Invoke-RestartService {
 
         Write-Log -Level E-Info -Message "`n[$computer] Processing service '$ServiceName'..."
 
+        $workerArgs = @(
+            $ServiceName,
+            $TimeoutSeconds,
+            $Force,
+            $PSBoundParameters.ContainsKey('Verbose')
+        )
+
         # -------------------------
         # Local execution
         # -------------------------
-        if ($computer -eq $env:COMPUTERNAME -or $computer -eq 'localhost') {
-
-            if ($Credential) {
-                Write-Log -Level Warn -Message "Credential ignored for local execution on '$computer'"
-            }
+        if ($computer -ieq $env:COMPUTERNAME -or $computer -ieq 'localhost' -or $computer -eq '.') {
 
             if ($PSCmdlet.ShouldProcess("$computer : $ServiceName", "Restart service")) {
-                Restart-ServiceWorker `
-                    -ServiceName $ServiceName `
-                    -TimeoutSeconds $TimeoutSeconds `
-                    -Force:$Force
+                if ($Credential) {
+                    $session = $null
+                    try {
+                        Write-Log -Level Info -Message "[$computer] Local credential provided; using localhost remoting session."
+                        $session = Start-NewPSRemoteSession -ComputerName 'localhost' -Credential $Credential
+                        Invoke-Command `
+                            -Session $session `
+                            -ScriptBlock ${function:Restart-ServiceWorker} `
+                            -ArgumentList $workerArgs
+                    }
+                    finally {
+                        if ($session) {
+                            Remove-PSSession -Session $session
+                        }
+                    }
+                }
+                else {
+                    Restart-ServiceWorker `
+                        -ServiceName $ServiceName `
+                        -TimeoutSeconds $TimeoutSeconds `
+                        -Force:$Force
+                }
             }
 
             continue
@@ -118,6 +139,7 @@ function Invoke-RestartService {
         # Remote execution
         # -------------------------
         try {
+            $session = $null
             $sessionParams = @{
                 ComputerName = $computer
             }
@@ -133,12 +155,7 @@ function Invoke-RestartService {
                 Invoke-Command `
                     -Session $session `
                     -ScriptBlock ${function:Restart-ServiceWorker} `
-                    -ArgumentList @(
-                    $ServiceName,
-                    $TimeoutSeconds,
-                    $Force,
-                    $PSBoundParameters.ContainsKey('Verbose')
-                )
+                    -ArgumentList $workerArgs
             }
         }
         catch {
@@ -156,8 +173,8 @@ function Invoke-RestartService {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCyqM0oXevYKlTQ
-# wxOOQ+kzhO1fFJrL1OZd3ixaXLHnpqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCrtqJCb1xhWfwZ
+# YEuH+knKJabeWnODuNgGeE9s4Wz3GqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -290,34 +307,34 @@ function Invoke-RestartService {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBS89HJyyur
-# aqY0SvZNgQxbQ0mqwbWHKb+NKDAAnf1NHzANBgkqhkiG9w0BAQEFAASCAgB1bXPv
-# OBoqVFtd75Ml9Dn0hqKCpn1/PPeWpA2IJ+DbeLRL0cGoM9nxfha43Q71OI+ZTPOF
-# PJZaF6d+xDlHwwFePnN9S/DXsaa8oUoZrea43jONI9aNclPHlP6DykXxcwT0RXY8
-# AVjVMJS9fNY6MYJn4gkDZuAlm5UWG+wYPUVD44lVtAraH6dEZaQkEcOPo263bNrf
-# XfgujPoSIuYqUdd+Zemu1YQf1PHsUlVEvaq37lygccGNFSze/BJccthmJ+sMH56D
-# 4UKPxc9t03TV8FxObOH4/oalBgTTqVuz22tB5GLQscuB5Je8duPaursNU3l1iFVN
-# gGMfpLLXN4y0vGs/ms8u3uWTB47oCzYBFgNwCEcNqAG/Em++yCyE7l5Guw9Slbmt
-# FP7aw0XTcpLseTbf5qU8OpACG2NBh1DVvJ1G4J/VNepn6V8aptc6oE6rom06lFEq
-# Ca7KzK4ySdYbffx/TzFja5LzDIrJlpklkOrvTqaGvuS6TQDOLH5GBfNuhpYYN9nZ
-# tVPu2XStlDFLDatH6s8a5Rn56VXvdR1Qp4nIob5ZWese4DQXEv4OoDV3sCJnMB+j
-# DLjQwXuBdRmWI0A6h+4Kk6Pe0WI75FNfpLu3fmxc36NjzhbHS4jbdAZPVf4zkgcA
-# 6KqVuVLeua+IsKNrYWjY8eK2xPG9sOOOmzmFY6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCIjXuSfAGx
+# EPFEiSp/MYRfaPB/BhJ/+7gDmmFNKdhdcDANBgkqhkiG9w0BAQEFAASCAgDGyn6U
+# eriri2nO9AOqHZXfvAW9SvyVptWBmj+vHWJzFT/oX5fmX02n1fBM3zPqQAyIVKEt
+# w04spGxyl0TNq53TU6EL5zln22+Pw8rKbng//WEGTygQ8PCJCWV+rXvo6jdgxcbU
+# lAOEX/KhnC2dgXEipoULAFtMqtHKDU5wx2p/IkIOQR9sudG7xEcakbAG8SXeI7fy
+# Diz2hJgkq8u8XRqoBQ0DjN1KePF33uL2uBW1F1eMa29pWMZhooVhrB90NuaRLcOE
+# CW7Ih8fYMomAa4t0Yi390s3J3kEbj0qaCShc1/mCI1AtoOr2Xac+vgbf/iQQdLSr
+# SuQnrzKcBGdsvl+VU/JYctoLtD5obMnwDkbyFR+jLQx0iE+KmZCkE5POYdx1Uun3
+# 2K0J7j1Addm9k6R3A1zWuiW5ik2zQK3Z0f30sW/0OlW1FBiU2SNcCMSLLrZEjj/k
+# yOQPr/wFm7HC41XkIkhIfuWZq36LOiyfgwJXiNf+y4UQNlQq+7flWAA/JFk02hp4
+# wMPuntsB586z9DfQmLqoZFHM2O4HEqgf+4f2BVsiH0dnmkyq6XIoStKqFh3YUnzS
+# 2aG+W9ELMB5vyZUFC/td15WFKgHIH5c/qh8jnWfHqx1wtSjGlZXRFLy/xzneE1/R
+# aieSta9ib5AX05jAMNQKK46iUAcU7xlHGVIeHqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTAxODQ5MTZaMC8GCSqGSIb3DQEJBDEiBCB8fR3u4DgVg/sihcFK
-# yuL/g8IYfslGovUSgtJTocNHhTANBgkqhkiG9w0BAQEFAASCAgApteZXub9aIZYC
-# MKid2x444gBwY32sdrmEgGJXzxZiMxwU8S5twQn4+78CExLL0PpSFeXwjzVu/qck
-# P3veVFHQkyR0860torRyJB41sq3gKpWHUcgy4TQ38xnUjUKBCiNyok//APZY47lN
-# 6lwZ437176A4fVh+nzdxbEk4FfDBUH/eqPE9U5rO7Ab0aU5+Hd3eHZ4ejSTyRoSW
-# hldkPT4D2SZzJ0tzjS/iQQoghwaR1ShxyzGqi3OFd/h7RGXF4PVZgQ5GhRuV+ujS
-# hl0ubwkAE3fO3LXHV65sspTcEkedWAMAZiEhePdG1aBzVBCQK8bjJB81WWFSO6ob
-# +gHH2CoN7PWqAKtW8XLkQBQEqlnqraUy5SCYvBeU4KUl0vK916xr8B2CLl/z3m0u
-# 0gSrohbNn8LOBh+MLWf8IYgLpt8K1yQVKTUn66tuiVuRh0WW7tquSu9zYfrhdnTa
-# YloTNxVQScVgEWjbfXdHoJVFzl75ZJl4Aa+rOAW8x45BJ85PGRpx0Wjunn80In2q
-# /s0HDpTqf/FUhOAh5lhhvc0mkghR5KPiOLwg4s15R9Uf2lzi6pXQevq4Lqfz2Om1
-# DhQ5M4+HS+Arv9nFJGfYMXvRLPTaevz6GnROX/dTVEEW0zeGTfVBaUjblNcuv9dY
-# E7nzTUD/8haUBlQszAsHGqRYe5LsEw==
+# BTEPFw0yNjA2MDgxODI2NTRaMC8GCSqGSIb3DQEJBDEiBCCtk60czXa8vqr2I3TX
+# xGMiCR9T2EnDMg8NRmcFEW7TbzANBgkqhkiG9w0BAQEFAASCAgBfaUOZLAThQdu9
+# Yhc5f96xuxe66QAO1JaW4lH9N8aD1XRreLUlciPnFSPh9PJ1VWCArkr0NKx7O3tn
+# MdHsBRl7XZDALyxwuMl+rHuPQ4GuXvqQnS3FR8fyL77Am8lCQO5AmUA8D57nTT8X
+# HdvvNYpG/DUBmHmbx2DsssPalEQsR5/dk1pkvk/O/N3cptnlVYhYM6SJcl6Z4APk
+# PzJ52Wcw/GcN4i7/iVYnCMLobNAH0q136v+KhxgN5gTTm4iL7R9X2et+cH/cWMJi
+# 6UaXThQaq/JewtnG02WQmtfRRAfpeU4XRtJb0HV1yM36a3ANls7RtD5vudlPTb1h
+# MeTVZYIKbYN8SJcySBtBA6uGQTm9CQELGE57c2CV/KTWQvB4spyRRiz5hoVsM7V6
+# 55FNdT4p0PIlqRTehUibMsdqivbmhQ213YRQOKV7PzF32How3ZsXbiHz4JZFUcmp
+# WPu1Kod79eByksOuobKVihc5cVOA/fzAU0cd2yr8rwe0rU+VrCkHBAqbjvGrFXfz
+# DMSq0RiSS+41gbYRypnz5f82SUtckIeNgwsNAPvN89bKCG1Cu/vG15l4k8AFZ6t0
+# 0kM7MBF5NXdJRA5uHgqhKb7aGGZn+3e/hQykz1b9DvAziOemjU86i06dTrK0p1zo
+# /t/rouRmUu44mCo6PLR/54pmETIBYQ==
 # SIG # End signature block
