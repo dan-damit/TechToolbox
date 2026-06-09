@@ -126,18 +126,27 @@ def run_tool(tool_name: str, args: Dict[str, Any]):
     env["TT_ARGS_JSON"] = args_json
     env["TT_MODULE_MANIFEST_PATH"] = str(module_manifest)
 
-    completed = subprocess.run(
-        [
-            "pwsh",
-            "-NoLogo",
-            "-NonInteractive",
-            "-Command",
-            script,
-        ],
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    _SUBPROCESS_TIMEOUT_SECONDS = int(os.environ.get("TT_TOOL_TIMEOUT_SECONDS", "120"))
+
+    try:
+        completed = subprocess.run(
+            [
+                "pwsh",
+                "-NoLogo",
+                "-NonInteractive",
+                "-Command",
+                script,
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=_SUBPROCESS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"Tool '{tool_name}' timed out after {_SUBPROCESS_TIMEOUT_SECONDS}s. "
+            "Increase TT_TOOL_TIMEOUT_SECONDS if the tool legitimately needs more time."
+        )
 
     if completed.returncode != 0:
         raise RuntimeError(f"Tool {tool_name} failed: {completed.stderr}")

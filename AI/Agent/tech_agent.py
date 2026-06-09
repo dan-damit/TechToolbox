@@ -647,7 +647,11 @@ def main():
                 print(f"Warning: failed to update memory history: {save_exc}", file=sys.stderr)
 
     if error is not None:
-        raise error
+        import traceback
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        # Use sys.exit rather than re-raising so the process terminates cleanly even
+        # when LangChain/Ollama leaves non-daemon threads alive in the background.
+        sys.exit(1)
 
 
 if __name__ == "__main__":
