@@ -24,6 +24,8 @@ _MEMORY_HISTORY_ITEMS = 8
 _MEMORY_HISTORY_MAX_ITEMS = 200
 _MEMORY_TEXT_PREVIEW_MAX_CHARS = 500
 _MEMORY_TREND_WINDOW_ITEMS = 30
+_MEMORY_HISTORY_FILE_SUFFIX = ".history.json"
+_MEMORY_FORMAT_VERSION = 2
 
 DESTRUCTIVE_VERBS = {
     "clear",
@@ -67,17 +69,40 @@ def _is_destructive_tool(tool_name: str) -> bool:
     return any(keyword in normalized for keyword in DESTRUCTIVE_NAME_KEYWORDS)
 
 
+def _required_tool_params(spec) -> list[str]:
+    """Return required parameter names from registry metadata when available."""
+    params = spec.get("parameters") or {}
+    if not isinstance(params, dict):
+        return []
+
+    required = []
+    for name, meta in params.items():
+        if isinstance(meta, dict) and meta.get("Mandatory"):
+            required.append(str(name))
+
+    return sorted(required)
+
+
 def make_tool(name, spec, destructive_confirmed: bool = False):
     """
     Wrap a PowerShell tool so the agent can call it.
     """
     is_destructive = _is_destructive_tool(name)
+    required_params = _required_tool_params(spec)
 
     def _func(input_str: str = ""):
         try:
             args = json.loads(input_str) if input_str.strip() else {}
         except json.JSONDecodeError:
             args = {}
+
+        if required_params:
+            missing = [param for param in required_params if param not in args or args[param] in (None, "", [])]
+            if missing:
+                return (
+                    f"Missing required parameter(s): {', '.join(missing)}. "
+                    f"Retry {name} with a JSON object that includes those fields."
+                )
 
         if is_destructive and destructive_confirmed and "__confirm_destructive" not in args:
             args["__confirm_destructive"] = True
@@ -362,17 +387,77 @@ def run_agent(
 
 class MemoryStore:
     def __init__(self, path):
-        self.path = path
-        if not os.path.exists(path):
-            self.data = {"preferences": {}, "facts": {}, "history": []}
-            self.save()
+        self.path = Path(path)
+        self.history_path = self.path.with_name(f"{self.path.stem}{_MEMORY_HISTORY_FILE_SUFFIX}")
+        self.data = {"preferences": {}, "facts": {}, "history": []}
+        self.history = []
+        self._needs_base_migration = False
+
+        if self.path.exists():
+            with self.path.open("r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                if loaded.get("_memoryFormatVersion") != _MEMORY_FORMAT_VERSION:
+                    self._needs_base_migration = True
+                self.data.update(loaded)
+
+        legacy_history = self.data.pop("history", [])
+        if isinstance(legacy_history, list):
+            legacy_history = [item for item in legacy_history if isinstance(item, dict)]
         else:
-            with open(path, "r", encoding="utf-8") as f:
-                self.data = json.load(f)
+            legacy_history = []
+
+        if self.history_path.exists():
+            with self.history_path.open("r", encoding="utf-8") as f:
+                loaded_history = json.load(f)
+            if isinstance(loaded_history, list):
+                self.history = [item for item in loaded_history if isinstance(item, dict)]
+        else:
+            self.history = legacy_history
+
+        self._sync_recent_history()
+
+        if not self.path.exists() or legacy_history or self._needs_base_migration:
+            self._write_base_file()
+            self._needs_base_migration = False
+
+        if not self.history_path.exists() and self.history:
+            self._write_history_file()
+
+    def _atomic_write_text(self, target_path: Path, content: str):
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = target_path.with_name(
+            f".{target_path.name}.{os.getpid()}.{int(time.time() * 1000)}.tmp"
+        )
+        try:
+            with temp_path.open("w", encoding="utf-8", newline="\n") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_path, target_path)
+        finally:
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except OSError:
+                pass
+
+    def _sync_recent_history(self):
+        self.data["history"] = self.history[-_MEMORY_HISTORY_ITEMS:]
+
+    def _write_base_file(self):
+        payload = dict(self.data)
+        payload["_memoryFormatVersion"] = _MEMORY_FORMAT_VERSION
+        payload["history"] = self.data.get("history", [])
+        self._atomic_write_text(self.path, json.dumps(payload, indent=2, ensure_ascii=False))
+
+    def _write_history_file(self):
+        capped_history = self.history[-_MEMORY_HISTORY_MAX_ITEMS:] if _MEMORY_HISTORY_MAX_ITEMS > 0 else self.history
+        self._atomic_write_text(self.history_path, json.dumps(capped_history, indent=2, ensure_ascii=False))
 
     def save(self):
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, indent=2)
+        self._sync_recent_history()
+        self._write_base_file()
 
     def remember_fact(self, key, value):
         self.data["facts"][key] = value
@@ -383,14 +468,16 @@ class MemoryStore:
         self.save()
 
     def add_history(self, entry, max_items: int = _MEMORY_HISTORY_MAX_ITEMS):
-        self.data["history"].append(entry)
-        if max_items > 0 and len(self.data["history"]) > max_items:
-            self.data["history"] = self.data["history"][-max_items:]
+        self.history.append(entry)
+        if max_items > 0 and len(self.history) > max_items:
+            self.history = self.history[-max_items:]
+        self._sync_recent_history()
+        self._write_history_file()
         self.save()
 
     def update_trend_facts(self, window_items: int = _MEMORY_TREND_WINDOW_ITEMS):
         """Compute compact rolling run stats and persist them in facts."""
-        history = self.data.get("history") or []
+        history = self.history or []
         recent = history[-window_items:] if window_items > 0 else history
 
         run_count = len(recent)
@@ -457,7 +544,7 @@ class MemoryStore:
         """Render compact memory text suitable for prompt prepending."""
         preferences = self.data.get("preferences") or {}
         facts = self.data.get("facts") or {}
-        history = self.data.get("history") or []
+        history = self.history or []
 
         lines = ["Preferences:"]
         if preferences:
