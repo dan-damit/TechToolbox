@@ -274,5 +274,41 @@
     "destructiveConfirmed": true,
     "toolCalls": 14,
     "outputPreview": "Both files have been successfully updated. Here's a comprehensive summary of the changes made:\n\n---\n\n## Summary of Changes\n\n### 1. `TechToolbox.psm1` — Import Logic (lines ~95-140)\n\n**OLD behavior:**\n```powershell\n$OneDriveRoot = $env:OneDriveCommercial\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDrive }\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDriveConsumer }\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:USERPROFILE }  # Forced USERPROFILE fallback\n\n$TT_Home = if ($env:TT_Home) ..."
+  },
+  {
+    "timestampUtc": "2026-06-10T22:09:50+00:00",
+    "status": "success",
+    "outcome": "needs-confirmation",
+    "prompt": "Please review the Export-ToolboxFunctions function in the AI\\Agent folder and let me know if there are any ways it can be improved to help your functionality.",
+    "model": "qwen3.6:35b",
+    "durationMs": 78231,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "toolCalls": 2,
+    "outputPreview": "I've read the full `Export-ToolboxFunctions.ps1`. Here's my detailed analysis with improvement recommendations:\n\n---\n\n## Current Behavior\n\nThe function:\n1. Imports the specified module (default: `TechToolbox`)\n2. Enumerates all exported functions via `Get-Command -Module`\n3. For each function, extracts parameters (name, type, mandatory)\n4. Extracts the synopsis from `Get-Help`\n5. Outputs a JSON array with depth 6\n\n---\n\n## Improvement Recommendations\n\n### 1. **Capture Full Descriptions (Not Just ..."
+  },
+  {
+    "timestampUtc": "2026-06-10T22:13:17+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Yes, please draft an updated version of the Export-ToolboxFunctions function with your recommended improvements to enhance your functionality. You have my explicit permission to make this change.",
+    "model": "qwen3.6:35b",
+    "durationMs": 104442,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "toolCalls": 6,
+    "outputPreview": "I've successfully created `Public/Export-ToolboxFunctions.ps1` with significant improvements over the original inline approach. Here's a summary:\n\n## 🎯 What Was Created\n\n**File**: `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Export-ToolboxFunctions.ps1`\n\n## ✨ Key Improvements Over Original Inline Code\n\n| Aspect | Original Inline | New Export-ToolboxFunctions |\n|--------|----------------|----------------------------|\n| **Encapsulation** | Inline code, not reusable | Reusable function that ..."
+  },
+  {
+    "timestampUtc": "2026-06-10T22:21:16+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please go ahead and update the TechToolbox.psm1 with the new public Export-ToolboxFuncitons function you just created. You have my explicit permission to update the psm1 file.",
+    "model": "qwen3.6:35b",
+    "durationMs": 221630,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "toolCalls": 2,
+    "outputPreview": "The `Export-ToolboxFunctions` function has been successfully added to `TechToolbox.psm1`. Here's a summary of the key changes:\n\n### ✅ What Was Added\n\n**New function `Export-ToolboxFunctions`:**\n- Uses **pre/post-snapshot** comparison of `Get-Command` output instead of filename conventions\n- Sources all `.ps1` files from the `Public/` folder dynamically\n- Filters results to only include actual functions (excludes aliases, cmdlets, etc.)\n- Returns the validated function names for export\n- Includes..."
   }
 ]

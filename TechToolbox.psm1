@@ -83,22 +83,24 @@ function Write-TTLoadedLine {
 # TechToolbox Loader v2 (fast import)
 # --------------------------------------------
 
+# Important: avoid any code outside of functions that relies on module state or config
+$script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
+
 # Predefine script-scoped vars before any reads
-if (-not (Get-Variable -Name ModuleRoot         -Scope Script -ErrorAction SilentlyContinue)) { $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase }
-if (-not (Get-Variable -Name TT_Initialized     -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_Initialized = $false }
-if (-not (Get-Variable -Name TT_RuntimeReady    -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_RuntimeReady = $false }
-if (-not (Get-Variable -Name ConfigPath         -Scope Script -ErrorAction SilentlyContinue)) { $script:ConfigPath = $null }
-if (-not (Get-Variable -Name SecretsPath        -Scope Script -ErrorAction SilentlyContinue)) { $script:SecretsPath = $null }
-if (-not (Get-Variable -Name domainAdminCred    -Scope Script -ErrorAction SilentlyContinue)) { $script:domainAdminCred = $null }
-if (-not (Get-Variable -Name TT_Secrets         -Scope Script -ErrorAction SilentlyContinue)) { $script:TT_Secrets = $null }
-if (-not (Get-Variable -Name log                -Scope Script -ErrorAction SilentlyContinue)) { $script:log = $null }
-if (-not (Get-Variable -Name ModuleDependencies -Scope Script -ErrorAction SilentlyContinue)) { $script:ModuleDependencies = $null }
-if (-not (Get-Variable -Name PrivateLoaded      -Scope Script -ErrorAction SilentlyContinue)) { $script:PrivateLoaded = $false }
-if (-not (Get-Variable -Name cfg                -Scope Script -ErrorAction SilentlyContinue)) { $script:cfg = $null }
-if (-not (Get-Variable -Name __cfgCache         -Scope Script -ErrorAction SilentlyContinue)) { $script:__cfgCache = $null }
+if (-not (Test-Path -Path 'variable:script:TT_Initialized')) { $script:TT_Initialized = $false }
+if (-not (Test-Path -Path 'variable:script:TT_RuntimeReady')) { $script:TT_RuntimeReady = $false }
+if (-not (Test-Path -Path 'variable:script:ConfigPath')) { $script:ConfigPath = $null }
+if (-not (Test-Path -Path 'variable:script:SecretsPath')) { $script:SecretsPath = $null }
+if (-not (Test-Path -Path 'variable:script:domainAdminCred')) { $script:domainAdminCred = $null }
+if (-not (Test-Path -Path 'variable:script:TT_Secrets')) { $script:TT_Secrets = $null }
+if (-not (Test-Path -Path 'variable:script:log')) { $script:log = $null }
+if (-not (Test-Path -Path 'variable:script:ModuleDependencies')) { $script:ModuleDependencies = $null }
+if (-not (Test-Path -Path 'variable:script:PrivateLoaded')) { $script:PrivateLoaded = $false }
+if (-not (Test-Path -Path 'variable:script:cfg')) { $script:cfg = $null }
+if (-not (Test-Path -Path 'variable:script:__cfgCache')) { $script:__cfgCache = $null }
 
 # --- Standard runtime container (used by workers/helpers locally + remotely) ---
-if (-not (Get-Variable -Name TT -Scope Script -ErrorAction SilentlyContinue)) {
+if (-not (Test-Path -Path 'variable:script:TT')) {
     $script:TT = [ordered]@{
         RuntimeId   = [guid]::NewGuid().ToString()
         IsRemote    = $false
@@ -208,6 +210,15 @@ $privateRoot = Join-Path $script:ModuleRoot 'Private'
 Get-ChildItem -Path $privateRoot -Recurse -Filter *.ps1 |
 ForEach-Object { . $_.FullName }
 
+# --- Load canonical Export-ToolboxFunctions helper ---
+$exportHelper = Join-Path $script:ModuleRoot 'Public\Export-ToolboxFunctions.ps1'
+if (Test-Path -Path $exportHelper) {
+    . $exportHelper
+}
+else {
+    throw "Required helper not found: $exportHelper"
+}
+
 # --- Lazy runtime initialization (config/logging/etc.) ---
 function Initialize-TechToolboxRuntime {
     if ($script:TT_RuntimeReady) { return }
@@ -227,16 +238,22 @@ function Initialize-TechToolboxRuntime {
     }
 }
 
-# --- Load **Public** functions only (1 function per file convention) ---
+# --- Load Public scripts in module scope before export discovery ---
 $publicRoot = Join-Path $script:ModuleRoot 'Public'
-$publicFiles = Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File
-foreach ($file in $publicFiles) {
-    # Trust convention: the file defines a function named as the basename
-    # This avoids Select-String scans and is how most PS modules are structured.
-    . $file.FullName
+if (Test-Path -Path $publicRoot) {
+    Get-ChildItem -Path $publicRoot -Recurse -Filter *.ps1 -File |
+    Where-Object { $_.Name -ne 'Export-ToolboxFunctions.ps1' } |
+    ForEach-Object {
+        __tt_trace "Sourcing public: $($_.Name)"
+        . $_.FullName
+    }
 }
-$publicFunctionNames = $publicFiles.BaseName
-__tt_trace ("Loaded Public functions: {0}" -f ($publicFunctionNames -join ', '))
+
+# --- Load **Public** functions using the robust exporter ---
+$publicFunctionNames = Export-ToolboxFunctions
+if ($publicFunctionNames.Count -gt 0) {
+    __tt_trace ("Exporting {0} public functions: {1}" -f $publicFunctionNames.Count, ($publicFunctionNames -join ', '))
+}
 
 if ($env:TT_ExportLocalHelper -eq '1') {
     Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
@@ -253,8 +270,8 @@ Write-TTLoadedLine -Status Loaded
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCClBHNhKtIl3ElZ
-# bjOf+ags8h8+MlzIcMB3u3YU08cFhaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCzkNZfmje2epUc
+# N5Fm/jAAWwYQjh6ayvq2ShyC6391AKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -387,34 +404,34 @@ Write-TTLoadedLine -Status Loaded
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDIqNkqMqXy
-# 2DMmyB2Y557deWcfIFuDrZN1H2XK40HPSzANBgkqhkiG9w0BAQEFAASCAgAsrzgY
-# LN+BAnq7u9i1ALXEok8B2Wu6qMdLQWzG9e3h4B+6bYpSUn/H7mEfKX9o9Aq8Zu2F
-# /IioLLXR2pFb2zPrgZWXKcZFNx70FlZaEu5olzQocp8+FZVdhrPqOeJuC/z8Abtq
-# TQHIkpv7klysoYcnJ9UAW3BrMt3IxcyCk+Jn7gHnuGgJoOrnTu1AsNQJqBByFntt
-# ucMQouQ0Lm2Gf6ctSJZWs/XMAaBHTb7ivNN9sz4EAS0oYMBD7RLjtxFwloNnHmK7
-# ONwExrUtpHcQ68efIx/FI3ET+t12f0Lh1XhE1FgcSRk+UewlocRkq2sammdrVu84
-# uDscddxgq24mEHH7Lk2AepHrd/Z1Zb1oDCacr2PiyzmIPylJV7+oqLjVPabpJBIR
-# Fzf1O388ehrys1bxVrGDOl0ag1zM4D4MZ7tZ3fTXQtMWmMQZ753OYNyQJ7nm4JN7
-# kLxQ/6ZWMMGcivdl9ONvUQ9DTyL4xT0KcU97zdMaJXeVHio+X2SWI8cQaJ0RgOcy
-# HaN8sWKSz/z9r+ZrOYMQuxRokMgQE8z22tn1+TOKEryR/iT3hMRFZZ8LbwJnYgum
-# desKFTJEe99PY+wFDaLD6hNkMB4yvdm1WbnWnG909ZTHFNvBC8VJpN+Oagd7ZDoB
-# xCH+TeBhkiMDbucWvSy0XHWif+hCZCxvSq3Pb6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB7YmSwva68
+# Qc9aMCrVaYQfFheZfBSfuqH5Q9YRGIzk9DANBgkqhkiG9w0BAQEFAASCAgB/flXv
+# AQ3CSz7p99ldihi5+WsInat0F7Uk5bJXmpQnpl9Fnr8d/Q2ZMPjAh8+mg93Q9Foc
+# xom6AaItpsv34iXmaq2LdAdhbrgWqCpgiALIIa/xGRJ6YLxuwF+j1o2+bo1P7Tun
+# 5T7nSkPUjVovUh8/M/ogXAwzfjASRYCfQBSetIov1sIGEjvfwdNQEfJO3uZEXuxb
+# BPjyeTD4ZxC1FhQmo4Mhe2ulzdjQoI5SrOi++OT2GjNcHUSHHG9iLQofRypBwXTh
+# fHO4ytN5/mXH19J02INNxlGNE+IU1tlTaiYka7bheZorRfnCJqW9s+1jZ0FekvQZ
+# oVvJpohOs4K1uUlOjgJiK6ElyvKhuZ+ps2f5exMrnS7eO0p5wPqFLSDCpp8J9CsG
+# g2BlqKewzYEcQd5z7jryI9FG1HCRmk83aqPMC65Nmh2DSjor0Q3kTTz/NCpK3oKx
+# /AFLfEJYs6R9VFskqXcP8BvG3TfCTZlJwLcmGQqvuttKrhM2lNfpKS8Lv3HR0NrL
+# nrxMpnA80eBtMMDPXu/mO70tIZCZgaNqtKHhgS2Oj3UW9zebkUAym9nZ/KMH7Wx9
+# 9fswdMmwRGKukUI+F9zW8zogk24sXO2Q6RPXC1/c87ufIE9JEanEvwvuZbsUNu38
+# tzQV0UMw8rvH1H06vhZCt3bjzN7rPbYm/uVidaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTAxODQyMzVaMC8GCSqGSIb3DQEJBDEiBCB82fRhDsmXiFKgUiHU
-# Rr9LD8zKeWULXQfeK1l0qisLVDANBgkqhkiG9w0BAQEFAASCAgB1vo3Z+5QCPxP4
-# 68x0JU0efR2Ap+JcURc8OW8RfntpZzleDi7q746Ac4W0f3jV9ooG5QueToRET3CT
-# 6znVLCm1u/IYyIOG1yzKDL4tel5U5pbreVun8NErBnArdV/lt6t5kPog9Ffi86Nx
-# X3KUazXSlyS7sGEzgNCLeldgAXuRstWM1F8xJNosMppnlBwRgAA6K1RVlKXOah+t
-# 2sc+ef1gjulm3c+osyywrBgxD3eI1gGR1+xvwAsAghLKaMErFdJBbbi7ERJJ9Joj
-# dpwbNYd7QZgi24kndTfU2fYkg2gF39WXsEE/D2aXKtGo+vfCQD2mukvSckWF3nyu
-# D/GctwVWh+8A8ppAMXKsTxpfGaDJkH7+YJ373E9kGQ7cCp0q8nbbZLXg7v0DTFcL
-# z6mFMnPVe0WjzATGtsUxY62mz1asd/MRVujU/ZUtom/mAwcz+COuNscYC1YSba9+
-# mYviV9Y8HUu0XyQkmsSa1LeiFNdx4uvyvNXqQ8oHS0YmZv2tpRmTO2SUDIUG/po7
-# F1IylSW/C2qPXuTh++D4mlswCj+WZqcmaO3Ju8plCS8b1YRDQr8RznDGQZa7oG6Z
-# RX5v9oz8yXaXENbbGMG2Ab19pRPrneU3qBFv8Cls+FWIytvNnXUlWwsQ2STS78+4
-# EoGo7A5Hip0Ln2eIrTGsGDpzOaVjyg==
+# BTEPFw0yNjA2MTAyMjUwNTdaMC8GCSqGSIb3DQEJBDEiBCAJOMeggqWk/wIMmGq+
+# IcDAOCnI5sZ9Nkwe9vGWMXrY4zANBgkqhkiG9w0BAQEFAASCAgA8cQP/VjaIiopt
+# v0hKEaB3Wp0oy2o79h0vKXO3VCb6xCYi4K9lZlk+Sb7TuvOkvUVe4pCCijkteBpK
+# PpAK9mhvMYFNBpJPhlX5iub+4S8AaMysh/6QHIulNSnDiBHStEKbeQeQoxfhR14U
+# cqPv0ArMbHFg+qJBLU3oW9+wAaZIl7L2uZCyt6q+qyIRn27K71GIX6e8HPyGSuiq
+# 3gjknS6IOlARROFXPxUboHKhDW7MPmd3M214H8wmIgVVcdUs/U0s7XOOAdCPs/JQ
+# ysi4VM6ygs1Uj+yOea7kxoKR0xo+hQCyTsuL6gvIAo9p6IpoNgii/BFfKt1MN6tN
+# cqqe6UzI4j+En4f9+AJ7RWzmo4rDmAWOdoyUFQQRna8dP2+dbMf50CCkmENn4sMw
+# hgbsTGPJgxQ9w94iG9Su5j5+szs6mmokVBFWmjO215P3CxjuEPAbOHHw9f75m+j4
+# 3cgP/EKgIsWp3KG+B08kADYfRNEWhIhki1nmR4Mk7rdhrq2VDnIP9IS2VsVHU02O
+# 6OcNjmI6l6XzT4k52eAHnVHqf36SFKQT856NKPWMjnv9kUvU4I7F0oh2TCTFmxHC
+# j90jqpLPnBKDbCaHRT3Qy7Tb59ujwrkx6pnGcD+iMJ+CL2ssNgDgyKBtPuqFbHYs
+# sQ2V49L/evpOJSqg4zUD/LTFmO3KbA==
 # SIG # End signature block
