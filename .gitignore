@@ -1,3 +1,8 @@
 # Temp
 *.tmp
 *.bak
+Out/
+EndpointTrackingScripts/
+*.secrets.json
+wordlist.txt
+LogsAndExports/
