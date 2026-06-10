@@ -8,65 +8,29 @@
     "defaultLanguage": "en-US",
     "trendSummary": {
       "windowItems": 30,
-      "runCount": 23,
-      "successRate": 0.783,
-      "avgDurationMs": 147938,
+      "runCount": 26,
+      "successRate": 0.808,
+      "avgDurationMs": 146418,
       "avgToolCalls": 3.35,
       "statusCounts": {
-        "success": 18,
+        "success": 21,
         "error": 5
       },
       "outcomeCounts": {
-        "completed": 4,
+        "completed": 6,
         "blocked": 9,
-        "needs-confirmation": 5,
+        "needs-confirmation": 6,
         "error": 5
       },
       "lastStatus": "success",
-      "lastOutcome": "blocked",
+      "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-10T00:49:50+00:00",
-      "trendLastUpdatedUtc": "2026-06-10T00:49:50+00:00"
+      "lastRunTimestampUtc": "2026-06-10T22:21:16+00:00",
+      "trendLastUpdatedUtc": "2026-06-10T22:21:16+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-09T23:34:31+00:00",
-      "status": "success",
-      "outcome": "needs-confirmation",
-      "prompt": "Is there anything else you see that could be adjusted to better let you do workflows?",
-      "model": "qwen3.6:35b",
-      "durationMs": 90908,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "toolCalls": 0,
-      "outputPreview": "Based on the session history provided, there are specific environmental and procedural adjustments needed to stabilize your workflows:\n\n### 1. Critical Environment Blocker (PowerShell Profile Conflict)\nIn the most recent run (`23:24:39`), tool execution failed with a `Set-PSReadLineOption` error originating from a file in your OneDrive directory (`C:\\Users\\dan\\OneDrive\\Documents\\PowerShell`).\n*   **Impact**: This error likely prevents critical tools (like `Get-TechToolboxConfig`) and modules fro..."
-    },
-    {
-      "timestampUtc": "2026-06-09T23:38:45+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "I removed the profile entirely from the TechToolbox Root. Run your scan again and let me know your updated findings.",
-      "model": "qwen3.6:35b",
-      "durationMs": 67063,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "toolCalls": 17,
-      "outputPreview": "Good news - my scan confirms that **`TechToolboxConfig.json` has been successfully removed** from the TechToolbox root (`C:\\TechToolbox`). The file no longer exists there.\n\nI also checked for any residual configuration traces:\n\n| Location | Status |\n|----------|--------|\n| `C:\\TechToolbox\\TechToolboxConfig.json` | ✅ **Removed** (no longer exists) |\n| `~/.TechToolbox/TechToolboxConfig.json` | Not found |\n| `$env:TT_Home` fallback path | File absent (confirmed in earlier scan) |\n\n### Summary\nThe c..."
-    },
-    {
-      "timestampUtc": "2026-06-09T23:47:33+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "I adjusted the memory.json and your core code to handle memory better. I also Corrected the moduleRoot directory setting in memory.json too. Do you recognize the changes?",
-      "model": "qwen3.6:35b",
-      "durationMs": 218814,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "toolCalls": 11,
-      "outputPreview": "I can see the changes that were applied to **`Get-TechToolboxEnvironmentHealth.ps1`** from the recent history, but I'm unable to locate `memory.json` anywhere on the system (it's not at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\memory.json` or any other obvious location I checked).\n\n### Changes I Can Confirm in `Get-TechToolboxEnvironmentHealth.ps1`:\n\nFrom the file content I was able to read, I can see all 4 fixes that were applied in the previous successful run:\n\n1. **✅ Fix 1 - Missing Envir..."
-    },
     {
       "timestampUtc": "2026-06-09T23:55:04+00:00",
       "status": "success",
@@ -126,6 +90,42 @@
       "destructiveConfirmed": true,
       "toolCalls": 14,
       "outputPreview": "Both files have been successfully updated. Here's a comprehensive summary of the changes made:\n\n---\n\n## Summary of Changes\n\n### 1. `TechToolbox.psm1` — Import Logic (lines ~95-140)\n\n**OLD behavior:**\n```powershell\n$OneDriveRoot = $env:OneDriveCommercial\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDrive }\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDriveConsumer }\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:USERPROFILE }  # Forced USERPROFILE fallback\n\n$TT_Home = if ($env:TT_Home) ..."
+    },
+    {
+      "timestampUtc": "2026-06-10T22:09:50+00:00",
+      "status": "success",
+      "outcome": "needs-confirmation",
+      "prompt": "Please review the Export-ToolboxFunctions function in the AI\\Agent folder and let me know if there are any ways it can be improved to help your functionality.",
+      "model": "qwen3.6:35b",
+      "durationMs": 78231,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "toolCalls": 2,
+      "outputPreview": "I've read the full `Export-ToolboxFunctions.ps1`. Here's my detailed analysis with improvement recommendations:\n\n---\n\n## Current Behavior\n\nThe function:\n1. Imports the specified module (default: `TechToolbox`)\n2. Enumerates all exported functions via `Get-Command -Module`\n3. For each function, extracts parameters (name, type, mandatory)\n4. Extracts the synopsis from `Get-Help`\n5. Outputs a JSON array with depth 6\n\n---\n\n## Improvement Recommendations\n\n### 1. **Capture Full Descriptions (Not Just ..."
+    },
+    {
+      "timestampUtc": "2026-06-10T22:13:17+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Yes, please draft an updated version of the Export-ToolboxFunctions function with your recommended improvements to enhance your functionality. You have my explicit permission to make this change.",
+      "model": "qwen3.6:35b",
+      "durationMs": 104442,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "toolCalls": 6,
+      "outputPreview": "I've successfully created `Public/Export-ToolboxFunctions.ps1` with significant improvements over the original inline approach. Here's a summary:\n\n## 🎯 What Was Created\n\n**File**: `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Export-ToolboxFunctions.ps1`\n\n## ✨ Key Improvements Over Original Inline Code\n\n| Aspect | Original Inline | New Export-ToolboxFunctions |\n|--------|----------------|----------------------------|\n| **Encapsulation** | Inline code, not reusable | Reusable function that ..."
+    },
+    {
+      "timestampUtc": "2026-06-10T22:21:16+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please go ahead and update the TechToolbox.psm1 with the new public Export-ToolboxFuncitons function you just created. You have my explicit permission to update the psm1 file.",
+      "model": "qwen3.6:35b",
+      "durationMs": 221630,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "toolCalls": 2,
+      "outputPreview": "The `Export-ToolboxFunctions` function has been successfully added to `TechToolbox.psm1`. Here's a summary of the key changes:\n\n### ✅ What Was Added\n\n**New function `Export-ToolboxFunctions`:**\n- Uses **pre/post-snapshot** comparison of `Get-Command` output instead of filename conventions\n- Sources all `.ps1` files from the `Public/` folder dynamically\n- Filters results to only include actual functions (excludes aliases, cmdlets, etc.)\n- Returns the validated function names for export\n- Includes..."
     }
   ]
 }

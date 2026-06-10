@@ -437,3 +437,25 @@ Remember to disconnect from Purview when finished using Disconnect-ExchangeOnlin
 2026-06-10 10:29:55 [Debug] [Initialize-DomainAdminCred] Domain admin credential loaded into session.
 2026-06-10 13:44:28 [Debug] [Get-DomainAdminCredential] Reconstructed credential from config.json + config.secrets.json.
 2026-06-10 13:44:28 [Debug] [Initialize-DomainAdminCred] Domain admin credential loaded into session.
+2026-06-10 17:08:30 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260610_170830_23800.txt
+2026-06-10 17:08:30 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 17:08:30 [Info] TechAgent: Status=Running
+2026-06-10 17:09:31 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 17:09:51 [Info] TechAgent: Status=Success
+2026-06-10 17:09:51 [Ok] Tech agent completed successfully.
+2026-06-10 17:11:32 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260610_171132_23800.txt
+2026-06-10 17:11:32 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 17:11:32 [Warn] Destructive operations explicitly authorized for this run.
+2026-06-10 17:11:32 [Info] TechAgent: Status=Running
+2026-06-10 17:12:33 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 17:13:18 [Info] TechAgent: Status=Success
+2026-06-10 17:13:18 [Ok] Tech agent completed successfully.
+2026-06-10 17:17:34 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260610_171734_23800.txt
+2026-06-10 17:17:34 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 17:17:34 [Warn] Destructive operations explicitly authorized for this run.
+2026-06-10 17:17:34 [Info] TechAgent: Status=Running
+2026-06-10 17:18:35 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 17:19:35 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 17:20:36 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 17:21:17 [Info] TechAgent: Status=Success
+2026-06-10 17:21:17 [Ok] Tech agent completed successfully.
