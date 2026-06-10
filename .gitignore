@@ -1,26 +1,3 @@
-# Directories to ignore:
-Out/
-EndpointTrackingScripts/
-
-# Python virtual environments
-.venv/
-venv/
-env/
-
-# Files to ignore:
-Autodiscover*
-vcenter*
-.ready
-config.local.json
-*.secrets.json
-wordlist.txt
-
-Get-AdAudit.ps1
-Get-DuplicateFile.ps1
-Get-VSCodeExtension.ps1
-
-Standard-MTL-Label.cs
-Standard-MTL-Label_test.cs
-Standard-MTL-Label_ORIGINAL.cs
-%TT_LogsRoot%
-LogsAndExports
+# Temp
+*.tmp
+*.bak

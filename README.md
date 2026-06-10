@@ -34,7 +34,7 @@ TechToolbox provides:
 - **AI-assisted workflows** for code, refactoring, and operator tasks  
 - **A predictable, maintainable folder structure**  
 
-This is not a script dump — it’s an operator framework.
+This is not a script dump — it's an operator framework.
 
 ---
 
@@ -294,8 +294,8 @@ Get-RemoteInstalledSoftware -ComputerName laptop01 -IncludeAppx -Credential (Get
 ## Purview purge flow
 
 ```powershell
-Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Custodian-01
-Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Custodian-01 -WhatIf
+Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Search-001
+Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Search-001 -WhatIf
 ```
 
 ## Exchange Online message trace
@@ -363,7 +363,7 @@ Invoke-AADSyncRemote -ComputerName aadconnect-01 -PolicyType Delta -WhatIf
 # **Troubleshooting**
 
 - **Import issues**: use PowerShell 7+ and `Import-Module .\TechToolbox.psd1 -Force`  
-- **Missing command**: ensure it’s listed in `FunctionsToExport`  
+- **Missing command**: ensure it's listed in `FunctionsToExport`  
 - **Remoting failures**: verify WinRM, auth method, and privileges  
 - **Purview/EXO issues**: confirm required roles/modules  
 - **Battery report issues**: run elevated if `powercfg` is blocked  
@@ -375,4 +375,4 @@ Invoke-AADSyncRemote -ComputerName aadconnect-01 -PolicyType Delta -WhatIf
 
 - **Author:** Dan Damit  
 - **License:** Internal use  
-- **Module version:** 0.4.62  
+- **Module version:** 0.4.63

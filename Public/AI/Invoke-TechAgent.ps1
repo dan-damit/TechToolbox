@@ -22,6 +22,9 @@ function Invoke-TechAgent {
     .PARAMETER ConfirmDestructive
         Explicitly authorizes destructive operations for this run.
 
+    .PARAMETER NoTranscript
+        Disables the per-run console transcript log.
+
     .EXAMPLE
         Invoke-TechAgent "Run system diagnostics and summarize findings."
     #>
@@ -45,6 +48,11 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [switch]$ConfirmDestructive
+
+        ,
+
+        [Parameter()]
+        [switch]$NoTranscript
     )
 
     # Initialize the TechToolbox runtime and load agent configuration
@@ -76,6 +84,10 @@ function Invoke-TechAgent {
     }
 
     $agentProc = $null
+    $stdoutTask = $null
+    $stderrTask = $null
+    $transcriptStarted = $false
+    $transcriptPath = $null
 
     try {
         # Resolve agent path from module root (Public/AI is not the module root).
@@ -151,6 +163,40 @@ function Invoke-TechAgent {
             }
         }
 
+        $transcriptEnabled = $true
+        $transcriptRoot = $null
+        if ($cfg -and $cfg.transcript) {
+            if ($null -ne $cfg.transcript.enabled) {
+                $transcriptEnabled = [bool]$cfg.transcript.enabled
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace([string]$cfg.transcript.outputRoot)) {
+                $transcriptRoot = [string]$cfg.transcript.outputRoot
+            }
+        }
+
+        if ($NoTranscript.IsPresent) {
+            $transcriptEnabled = $false
+        }
+
+        if ($transcriptEnabled) {
+            if ([string]::IsNullOrWhiteSpace($transcriptRoot)) {
+                $transcriptRoot = Join-Path $moduleRoot 'LogsAndExports\Logs\TechAgentTranscripts'
+            }
+
+            try {
+                $null = New-Item -ItemType Directory -Path $transcriptRoot -Force
+                $transcriptPath = Join-Path $transcriptRoot ("TechAgent_{0}_{1}.txt" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), $PID)
+                Start-Transcript -Path $transcriptPath -Force | Out-Null
+                $transcriptStarted = $true
+                Write-Log -Level Info -Message ("Tech agent transcript started: {0}" -f $transcriptPath)
+                Write-Host ("Tech agent transcript: {0}" -f $transcriptPath)
+            }
+            catch {
+                Write-Log -Level Warn -Message ("Tech agent transcript could not be started: {0}" -f $_.Exception.Message)
+            }
+        }
+
         Write-Log -Level Info -Message ("Invoking local tech agent: {0}" -f $agentPath)
 
         $pythonArgs = @()
@@ -177,6 +223,7 @@ function Invoke-TechAgent {
         $startInfo.RedirectStandardOutput = $true
         $startInfo.RedirectStandardError = $true
         $startInfo.Environment['PYTHONIOENCODING'] = 'utf-8'
+        $startInfo.Environment['PYTHONUTF8'] = '1'
 
         foreach ($arg in $pythonArgs) {
             [void]$startInfo.ArgumentList.Add([string]$arg)
@@ -184,9 +231,15 @@ function Invoke-TechAgent {
 
         $agentProc = [System.Diagnostics.Process]::new()
         $agentProc.StartInfo = $startInfo
+
         if (-not $agentProc.Start()) {
             throw "Failed to start Python process for tech agent."
         }
+
+        # Use async stream readers to avoid redirected-pipe deadlocks without using
+        # PowerShell event handlers on background threads (which require a runspace).
+        $stdoutTask = $agentProc.StandardOutput.ReadToEndAsync()
+        $stderrTask = $agentProc.StandardError.ReadToEndAsync()
 
         $agentDeadline = (Get-Date).AddSeconds($waitTimeoutSeconds)
         $agentState = [ordered]@{
@@ -204,11 +257,19 @@ function Invoke-TechAgent {
                 return @{ Status = 'Running' }
             }
 
+            # Ensure process and async stream readers have fully completed.
+            try { $null = $agentProc.WaitForExit(2000) } catch { }
+
             $stdoutText = ''
             $stderrText = ''
-
-            try { $stdoutText = [string]$agentProc.StandardOutput.ReadToEnd() } catch { }
-            try { $stderrText = [string]$agentProc.StandardError.ReadToEnd() } catch { }
+            try {
+                if ($stdoutTask) { $stdoutText = [string]$stdoutTask.GetAwaiter().GetResult() }
+            }
+            catch { }
+            try {
+                if ($stderrTask) { $stderrText = [string]$stderrTask.GetAwaiter().GetResult() }
+            }
+            catch { }
 
             return @{
                 Status = 'Done'
@@ -273,8 +334,16 @@ function Invoke-TechAgent {
         throw
     }
     finally {
+        if ($transcriptStarted) {
+            try { Stop-Transcript | Out-Null } catch { }
+        }
+
         if ($agentProc -and -not $agentProc.HasExited) {
             try { $agentProc.Kill() } catch { }
+        }
+
+        if ($agentProc) {
+            try { $agentProc.Dispose() } catch { }
         }
     }
 }
@@ -282,8 +351,8 @@ function Invoke-TechAgent {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCObga0xXf/zZVT
-# ZWREIGfGEzxjasHXeWnCQwSWqj4h1aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB1YG82Tj2T3W4W
+# yj6ZJoUG8IC1/ZZ4IP6wubJ4TpKCfaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -416,34 +485,34 @@ function Invoke-TechAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCzGcilv2VF
-# llnimpc5F6eKScysi6Os7uJ+ISP9F9boGzANBgkqhkiG9w0BAQEFAASCAgBFVOkm
-# b/dATW+5iCxWkESKMRr2J+QEQYelfcQxgD6TBgMTM9JCnwwEOfBPTOLV+7jUe+MT
-# T+lsYCjrTDGQyEOnVgS/EpX46E+Bb9e/o7xADd0jVX/oDuFmhMarqrEqjkOHu9L1
-# lKJOk+tiLijzLTzWgKhWWqpY/H50MbF0E3zXsPR9DB/+IOjuMiZI4pGzzlgb4L36
-# 77ciZkk1PRErFhD+zizAEsQGAlOuRU+Ag3ZvxAAd8wOq35G1eptVx15pKpbqZHxB
-# EgENi9YLoBBqqE5wyDm9yZMzn8pFSIGEvEgjyQ9DMPblnUUQxxN9THnJ5Bj7hmdC
-# KN41TURxtw4bQmeZlH2AgYhvOGMuNqhsfJFdM5DUuJAQV1TFDM4il4+8XGcK0Ujz
-# ZJ/QDGOBcb1IagQOGDdMaDaWhFFAYI0rdXWXNDDfo9sqlin1f1vyol0dNDXIb/p2
-# +qmKX5HWW94QhHclPq2NHcs8bYrw0c5Xe8oXf6kj2JJ6fke+r0CW7roG8kmyT9tw
-# TFKqgl5xriXyqB5rIpypD9Q35tkB7NRYviovjwP1WhFBPYIvfkF+zNpu/qf2kQ6C
-# x6hlpJPqsiVZANdltFfe6hpnG+sW6F73j97nhzxuGow5wC1EMQDQjcpuQNGN6qxR
-# B5jwa6mZW8okN6lM8UYP2S9dO8CfEGyS5KFBc6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8rxJ/a1Ow
+# Ht+vnmiDZ7fJhNxMrDDTBhYq3RJtrQWaZzANBgkqhkiG9w0BAQEFAASCAgC3mEph
+# c/XVXBCCR2vcC6A1TIM0FTC4z66r//Mfr2CMyFQprLz9KQgg3yNb/NeFmDsa3jyX
+# 6nJu49zSZXBwI3SQk0/D8ohPLtm7JjLObyfx1Uo+P/61r99hcfpH7FlHaYORd4Jw
+# Tviaa4NPnQEGvHKE9kleMtGfc/DsEahW/rzegc5GJyTICi/jqGRXkb1yV4o+DxmZ
+# BSccuYwNPKRyH5H4O9qOTZwteCqLN//iyA1OASdBM9JM/Dorydb8HT7RULCzTXvf
+# qE/eSl4Xokd7n1ELHpXr6aPWZCUmI3xKa2xKv65M9rlETFOz7EfxInPaVYRlvfTP
+# 7fJ5O3Lkpa5/0BdknFrho5/NQYbc3uP+NenaZxRE+UZf8N/u2NZx5sbrhHWPdgnz
+# delKqKOhflObl7rgGFUHdvQYc/lXECydviZCIj1rDrM7nsbM455DtR1ttc5xLgVg
+# DPbl7VfBnelyVlOkbuM+qEy51Qel6M9LgkhOK/b+KRLb2WmToNjLYUNwN+OyhogC
+# OjFxkFoaVPIh7mmxLbMcx5jqpuAQYk37b2Nn4kXSCrtdHnm2Gk7bfuqpDprDk11/
+# C864pZqjH4hWxNL3pMx/ADST+hQdFUEmgfwcVvIlFLLwkAQZ/656sHDi+VRLFiRH
+# FGCS1dMNTCjKHZVot67KLVAkPt4TnIWP8tfa16GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDIxNDQ0MDhaMC8GCSqGSIb3DQEJBDEiBCDD9kztiXQbT91T+hG9
-# 4x1rqXh0HEBxbrOPHzUtIs8jfjANBgkqhkiG9w0BAQEFAASCAgAN95NnIrHKMCA3
-# KwlZAyqsRp1oJwc7rHTvdWBhyeaKYuafX0ZG4r0XkOCnBfDUkG5kzJtfKWsnK2LT
-# bZE2C2/H1HYTnH9Go05sAQmMd/+cMqUaYnKCrx3a6M4lh2VOcAG0r7pwbhcH/9Aq
-# +T2UwM1vQyij9dfLM1RDFDAAuJ72QFXd2Km3vQU2d9OtDaFHqkH8Kax/q+m4b3pV
-# umrY/bMP/q43SXVyRV7l5CtWXmP2V75Ua6sij0z2pKvWG27JVFyNIDtcyXOLUOaD
-# jVHn/wTGApNbLVdePKY81i4MkhY56e2xoV78zFrIMJILKCcG/Q7SV+yeYESlyzsm
-# HDzTZAthfwQHjBTSG0bjKl9ULL++zINnuWu9g2+ih+MWPwcr4zAZMweASKhXY5lY
-# 721djIuszLMNFFaZnlnOqlBX0YDSZeDsfnFcOoEfFF4911UPMghzNiKHiYOcWLIv
-# 03FEq4vGmEF3ErXHLZm1BrCfVhb+yBPcZK/XZzGDPNdEOrWrKFpHRBKPVtu6nD/Z
-# BU8/0Xfq8C1J9LtsvcIDqpxyhixjL/zQoPUwwofR+c91/CcZjDndiQejJ/Ai+qHY
-# jCFvJ5KkG+0WHGYFUPt2otLwXo4oYgrFa/PxE3hFXSlTbDpgLPEF82vIpk/Km4V6
-# u2tMFQDklU+p5A9tRKgsNtajCyngCA==
+# BTEPFw0yNjA2MTAwMTI4MjFaMC8GCSqGSIb3DQEJBDEiBCAbmSeodnpBQeBVnJd6
+# QMQFZG1Emwck9YzaporB4y1aEDANBgkqhkiG9w0BAQEFAASCAgC0zX4XEY1WiR/S
+# 4JoNHf1l19eJUjflyN1ADSlR40vs/E6dIup6BpuZISrDpULVlfd+evl64sjvFcbX
+# oU2iXqLQRZzlatIW82fMN06byuDrhwHnkdg1oT4zQXJsLc2UpqQxPYxJh9NxL/7h
+# twCWzgkwTb3zh81kWhK2gmo1EuxIsPqgci9k9YVpdvYEUwRYqnIh89XJbwOhTOrQ
+# MXAJxCFu/SXI0Yahh11ObfIHySXxv2IirgJvho+CGKWp42o1D+Grjf8Fcf6t4fzx
+# fuO0FXffflQjFQjQ2qEjHjQ1YeAwCtQE9ECCR2DDa6TmRfELCjkbIbQp1/3hCGRL
+# aaN9z49kSl6CdOjiyL/ujMrpwbXs8Peql7jTj5Wa73KZsNR4YNx7vGLUzw1N/Zzl
+# m1APSWvkNw/TuYVgsqjxHwJaDhg+2NepK/HKQQ3DAQ8tV3KJ6wSg8yhrVR9X1MdQ
+# ueR6O5M3b7QszdRfmqMDJh/yqnsMxJ+99ANUzUERbmHPDG5FCXyVFtKvFY5ro+rk
+# DEFsIqRpOrrQ29tbk3tutd6bFZ6Yw47nKydNnn/gDpCrYWQMcMB3rWyurEWWWwrk
+# FQCKyBbDUqU6OVp7cj/KdfTIuDrWdXDiNtUP4Q9iRp7KiYV9WHr+9AwNPu9oN9AE
+# 7GRli9LGreYXnIs6MAlY2DUiyonjJA==
 # SIG # End signature block

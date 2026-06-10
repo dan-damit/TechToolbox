@@ -30,19 +30,26 @@ function Get-TechToolboxEnvironmentHealth {
     )
 
     $results = @()
+
+    # --- Fix 1: Missing Environment Fallback ---
+    # If $env:TT_Home is not set, fallback to the known TechToolbox root path.
     $ttRoot = $env:TT_Home
+    if (-not $ttRoot) {
+        $ttRoot = "C:\Users\dan\OneDrive\TechStuff\TechToolbox"
+    }
 
     # --- Check 1: TechToolbox Root Directory Existence & Writability ---
     try {
         if (Test-Path -Path $ttRoot -PathType Container) {
-            # Test writability by checking access to a subfolder or using Test-Path write permission heuristic
-            $tempFile = Join-Path $ttRoot "TTHealthCheck.tmp"
-            $writable = $true
+            # Test writability by attempting to create and remove a temporary file
+            $writable = $false
             try {
+                $tempFile = Join-Path $ttRoot "TTHealthCheck.tmp"
                 [io.file]::Create($tempFile).Close()
-                Remove-Item $tempFile -ErrorAction SilentlyContinue
+                Remove-Item $tempFile -ErrorAction Stop
+                $writable = $true
             }
-            catch {
+            catch [System.UnauthorizedAccessException], [System.IO.IOException] {
                 $writable = $false
             }
 
@@ -59,7 +66,7 @@ function Get-TechToolboxEnvironmentHealth {
                     Category = "Environment"
                     Check    = "TechToolbox Root Writability"
                     Status   = "FAIL"
-                    Detail   = "$ttRoot exists but cannot be written to. Check permissions."
+                    Detail   = "$ttRoot exists but cannot be written to. Check permissions or OneDrive sync."
                 }
             }
         }
@@ -86,12 +93,13 @@ function Get-TechToolboxEnvironmentHealth {
         $oneDriveSvc = Get-Service -Name OneDrive -ErrorAction SilentlyContinue
         if ($oneDriveSvc) {
             if ($oneDriveSvc.Status -eq 'Running') {
-                # Check for active sync via registry or process (heuristic)
+                # --- Fix 2: Hardcoded OneDrive Path ---
+                # Use dynamic $ttRoot instead of hardcoded "C:\TechToolbox"
                 $results += [PSCustomObject]@{
                     Category = "Sync Interference"
                     Check    = "OneDrive Active Sync"
                     Status   = "WARNING"
-                    Detail   = "OneDrive is running. Monitor for file lock contention on C:\TechToolbox paths."
+                    Detail   = "OneDrive is running. Monitor for file lock contention on `$ttRoot paths."
                 }
             }
             else {
@@ -126,7 +134,11 @@ function Get-TechToolboxEnvironmentHealth {
         $psOpt = Get-PSReadlineOption -ErrorAction SilentlyContinue
         if ($psOpt) {
             $predSource = $psOpt.PredictionSource
-            if ([Enum]::ToObject([Microsoft.PowerShell.PSReadLine2.PredictionSource], $predSource) -eq [Microsoft.PowerShell.PSReadLine2.PredictionSource]::HistoryAndPlugin) {
+
+            # --- Fix 3: PSReadLine Check Robustness ---
+            # Avoid [Enum]::ToObject which can crash if the assembly is not loaded.
+            # Use string comparison instead for safety in constrained contexts.
+            if ([string]$predSource -eq 'HistoryAndPlugin') {
                 $results += [PSCustomObject]@{
                     Category = "PowerShell Runtime"
                     Check    = "PSReadLine Prediction Source"
@@ -200,11 +212,12 @@ function Get-TechToolboxEnvironmentHealth {
 }
 
 Export-ModuleMember -Function Get-TechToolboxEnvironmentHealth
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC+SjpFEUFL2qV8
-# 4HmYWtFir2dEc2LPB5Tv5jyREZokZaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBK1FZN2QLA3DZr
+# nR+2djGqFoDGVArGf7JZekaL4DGqv6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -337,34 +350,34 @@ Export-ModuleMember -Function Get-TechToolboxEnvironmentHealth
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCTxSHgHsEo
-# 8b8Z/2LwGWf3UIrdLAfHUoaoF4fvGdWCNTANBgkqhkiG9w0BAQEFAASCAgBorb2G
-# tynrEEpR++jegT76xfj7/OZE/fiuACpKJTcQ7NnPGVSM5fI6MJtT0RLxLMhrU6gI
-# NjRcPuk5MEeukvlQYW/SlBGExCnI+suO+D9L5zGjd+svY0zahgZWSX3/0D2Ewa3c
-# tOILjomF9LRm1KtGi1nt8bP1K5q3ozyHnvpJ/kYrTmAVkR4jEtY3NoW27paSM1qD
-# I4oX0W24zFXVTzS4K7/Y30HWwz/hh9BbpFlTejcikjl84BHt20jD47yj1XdMOOOR
-# WkY1zlkzRqX4DhcXfFPfpOCZYi86hd2usbd384lv97cRTPmfEZtxYbWDfxd+Ddw1
-# NjprriiAhO4GP6hshaIcjON9ef16ZWC1cZBcmSjBj+oJy1BDmNQjnmCK91aFjy7q
-# X5bUcxeXlCMupBZU55+B1KTiiTiztedKIWS0775FqwsJrXJdaiUVDFdnftt100do
-# myYkm7O4JFHyzv7GFWf7FDo2uB0jDsreuQ7ETDVjdcuGZBTMtuew5GU7++XvgrYR
-# 3mUQe90NixKZRdb63eVqBg9NV2BKFpSRGUG54VAwH1pahojL5QdJvA5ofun4rBsS
-# U062ckwVJUMeXX2Nd+R+BCXWbcC62wuysxAxIDVQCB4Az6Zva8UelAnrul4hbE3x
-# 1RL+NI90hn17MgaHPANIQbeDm3gIq5xdTmzCc6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBMdZnD/Ty+
+# O1UBRlzbdmz9CaTVCRc2SzfKcOM0TGlyIzANBgkqhkiG9w0BAQEFAASCAgCMx2gN
+# mub2YwA8PCcq0BHC5mRBDMz/Au7WxDHTVoVzWy1NDG/AK8RNvyOgRMxiETG3fwQq
+# m6J3ehlLFBqJkBEbppEsrD88/nYxbTJ2Ep1hWc3mnM3+1xU31iFw7zWWtNFMLwac
+# LhLsWNETNjiwMO/hHPSTHSbuZB2kZDHNryV4F8tma7T36sVHjO25UTx98//mJKGX
+# t/X3zzohY2+GIeJDTQFBRoF5V5HeHf1GxrzDG9NeQP3A690dDgRdTJQbx5Ebwoeo
+# r7WcDUHXj6cwH6oddRGZX9RznsDGJGOpKe2EHINUIWQfvcrAfWEvZwDS9iXyt/QD
+# f+z/Eqviq0A9buzWlAB4ptmaoELZHv4c8v7h6ydf5qlNSAqMUgy1nqVlV9DHWOyQ
+# stV/em1o5QROEun4GsEZ6WrpSPyG5RQfkCviO4hnnk+T33QesWlJMnSGpe+eS2gV
+# I9iSpBXNdGREu+c0Z+S6U1cs0Wr06/DKMsuL8sat/8hah9I4okU8XM4f4pnViKWu
+# zo4twgCflOUtV0CzCAwsIjtct/xTLOhkAQpRroxH513pmYuAx8R2zRZaeI5yYiqm
+# IY+dxLtkLcKay9tx/RNbplsTbUUreex+DJcER+8INWmpjUPxTZO3tLkjn5aKXNb7
+# oA48ZyCjuYhxvcesp1HmD1zY4xXzQ3KjmSuzWKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MDkwNTU0NDZaMC8GCSqGSIb3DQEJBDEiBCC3ivUg7l0XCb/6U5fJ
-# SCJA8my+kaNzlqcqH/0+yZsblTANBgkqhkiG9w0BAQEFAASCAgAMoVoad69XM+Nc
-# VQJRvsQWRjAuZIw/gsJrOXpVd7SOL9D7oCyZo5YeswGG/gf7ltuF5B9nVzlW/iLo
-# 5HkL6k86bkNpKbUch5AnW4xpqv5pOtftIoCdwqo9EXh562fs7L7iWj1G1WTMKELe
-# aj4FutgqGAjKAZH1ibdc7sGnHhX9E0AQVWYTfD208QdtBK1CDIV/Q7zTxaduOKi7
-# gwXlZ/CFa6BXD1Ta6F9VIqq+vlwh192LW5L2h2JtA+/6RUU+URi4U4fPQatvKtFF
-# mcdSaF7mO3rBsnS1FJ1L8P+1Np26qUZVqUPN3CvbOAvU5Nc0bNm9QXfXJePtO4So
-# PnNXG3JYQkklKia7+aT/WTMIorySCX+EqSxd+REixrKIUsKPgVWH5w57zSXSXMhA
-# zveqvsxcex56dx5UXm4ZB5ktNMm1UW5iG3ZUxHBd2CJDG/16zeo636qighXnafN4
-# kZ5OikbQPmb0SgQx8Guc8D8DeR7/cfIyj5EwLrw45rA5bX/vJ8cIE6zUq1hAHPst
-# RmNEmrHDS+DGAVxjt+yBeBMMiBkT8jjuH7E4pD05o7Vp+jEmZLDpLZJrWv5g8NVg
-# lYuqHL/SN56dGwSJAEj19pSyZQbtiv/NcVjXsyUA+JxLBTveSVvjgDWSeNYCjuYi
-# sHYW5fr8Nb2avKOzhiuv7iy+MqcEAw==
+# BTEPFw0yNjA2MDkyMzIwMTJaMC8GCSqGSIb3DQEJBDEiBCBAlavNUcMOQhXX2dou
+# 6I7JEPXLn/kGtuy7kR29eeQP5DANBgkqhkiG9w0BAQEFAASCAgCJ4nt/MXyT1ygX
+# R9zQ2jZakWQGHDhzoJY1/MvRGzxtTJ8FK8X2Eu3UANjlu57N0BHsFPSln3iXAr5W
+# EH3L8y9oshYLheLsUH4rEbqGCe5rMFXDffh+8OAgYz7JcivvLM7AXZKZYJbSNDfz
+# bUDmd3JpOwkRjwcAT+TSDRTajfAZi5bxPBk9EbDUfSwpT1UkTFGcxbbRmLnXvfIJ
+# z9B8ZtYkrrhBC/UM9zeU929rb6fE4VRp/iVTitYF8VIR4lvJ3S1M6UHdVZdteXA3
+# uaeBbopDAxWOl3pP9EiDaHSbbvtyou0pIR6eL0J1WpuDmAkvNKpDxlxCfGJ26DZv
+# UQdVmGyhJIHLUDPKgR0Y89qKW9HB/fMOe35aSu+v8OXDNaDAYN9Z+raNEvm+HCZw
+# 0RO4GJP6RL/zXu3oWZlnErFC/ZZd6KuUE+dq9Ttu/ATlxZ95O4uo89fcpOYPNvyv
+# 52bt7C53OxdeoYFEIDV3z6HecNh9TyTMwI9bUknp4zlUQ7IukzcvXrIovi92lTT5
+# msCNMZ4WdwCMYUhwUVttTgCRfqSCA00evISBNSc7fz9zh8YGBzV2ub9JRT9vwUSL
+# fF9yLu8etMIkHs819uzDzc4cI6ULPzUg6Ev7845gYwzHLGFAchVDc9vBa/OYiGM2
+# Urbn/l2j7bPh85l2AtpBJFzXWyhFKw==
 # SIG # End signature block

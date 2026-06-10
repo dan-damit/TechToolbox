@@ -132,6 +132,7 @@ def run_tool(tool_name: str, args: Dict[str, Any]):
         completed = subprocess.run(
             [
                 "pwsh",
+                "-NoProfile",
                 "-NoLogo",
                 "-NonInteractive",
                 "-Command",

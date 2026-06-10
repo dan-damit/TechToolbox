@@ -141,6 +141,10 @@
     "agent": {
       "model": "qwen3.6:35b",
       "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json",
+      "transcript": {
+        "enabled": true,
+        "outputRoot": "%TT_LogsRoot%\TechAgentTranscripts"
+      },
       "wait": {
         "timeoutSeconds": 2700,
         "pollSeconds": 5,
