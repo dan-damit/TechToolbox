@@ -1,8 +1,13 @@
 # Temp
 *.tmp
 *.bak
+*.secrets.json
+
+# Directories
 Out/
 EndpointTrackingScripts/
-*.secrets.json
-wordlist.txt
 LogsAndExports/
+
+# Files
+wordlist.txt
+TechToolbox.log

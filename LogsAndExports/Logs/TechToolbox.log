@@ -435,3 +435,5 @@ Location: ddamit@vadtek.com; Item count: 1; Total size: 438663; Failed count: 0;
 Remember to disconnect from Purview when finished using Disconnect-ExchangeOnline command...
 2026-06-10 10:29:55 [Debug] [Get-DomainAdminCredential] Reconstructed credential from config.json + config.secrets.json.
 2026-06-10 10:29:55 [Debug] [Initialize-DomainAdminCred] Domain admin credential loaded into session.
+2026-06-10 13:44:28 [Debug] [Get-DomainAdminCredential] Reconstructed credential from config.json + config.secrets.json.
+2026-06-10 13:44:28 [Debug] [Initialize-DomainAdminCred] Domain admin credential loaded into session.
