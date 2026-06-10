@@ -1,67 +1,222 @@
 <#
 .SYNOPSIS
-    Exports all public functions from the TechToolbox module with parameter metadata as JSON.
+    Exports all public functions from the TechToolbox module with comprehensive parameter metadata as JSON.
 
 .DESCRIPTION
     This script is called by the Python agent to auto-discover available tools.
-    It outputs a JSON array describing:
-    - Function name
-    - Module name
-    - Parameters (name, type, mandatory)
-    - Synopsis (from comment-based help)
+    It outputs a JSON array describing each function with:
+    - Function name and aliases
+    - Module name, version, and source path
+    - Parameters (name, type, mandatory, default value, allowed values, parameter description)
+    - Full help text sections (Synopsis, Description, Examples, Notes)
+    - Auto-classified safety status (destructive vs. safe)
+
+.NOTES
+    Designed for AI agent consumption. Depth 10 ensures full nesting of parameter metadata and examples.
 #>
 
 param(
     [string]$ModuleName = "TechToolbox"
 )
 
-# Import the module
-$importedModule = Import-Module $ModuleName -PassThru -ErrorAction Stop
+# ============================================================
+# Configuration
+# ============================================================
+$script:DestructiveVerbs = @(
+    'Remove-', 'Clear-', 'Disable-', 'Stop-', 'Restart-',
+    'Delete-', 'Drop-', 'Erase-', 'Purge-', 'Kill-',
+    'Close-', 'Break-'
+)
 
-if (-not $importedModule) {
-    throw "Unable to import module: $ModuleName"
+# ============================================================
+# Import Module
+# ============================================================
+try {
+    $importedModule = Import-Module $ModuleName -PassThru -ErrorAction Stop
+}
+catch {
+    Write-Error "Unable to import module '$ModuleName': $_"
+    exit 1
 }
 
-# Get all exported functions
-$functions = Get-Command -Module $importedModule.Name -CommandType Function | ForEach-Object {
+if (-not $importedModule) {
+    Write-Error "Import of module '$ModuleName' returned null."
+    exit 1
+}
 
-    # Extract parameters
+# ============================================================
+# Gather Aliases Map (for resolving function aliases)
+# ============================================================
+$aliasMap = @{}
+try {
+    $allAliases = Get-Alias -ErrorAction SilentlyContinue
+    foreach ($a in $allAliases) {
+        if ($a.Definition -match '^Microsoft\.PowerShell\.Core\\?') {
+            $target = $a.Definition -replace '^Microsoft\.PowerShell\.Core\\?'
+            if (-not $aliasMap.ContainsKey($target)) {
+                $aliasMap[$target] = @()
+            }
+            $aliasMap[$target] += $a.Name
+        }
+        else {
+            # Module-scoped aliases
+            $aliasMap[$a.Definition] += $a.Name
+        }
+    }
+}
+catch {
+    Write-Warning "Could not build alias map: $_"
+}
+
+# ============================================================
+# Process Each Function
+# ============================================================
+$functions = Get-Command -Module $importedModule.Name -CommandType Function | Where-Object {
+    # Exclude private/internal functions (name contains underscore after module scope)
+    $_.Name -notlike '*_*'
+} | ForEach-Object {
+
+    $funcName = $_.Name
+    $isDestructive = $false
+
+    foreach ($dv in $script:DestructiveVerbs) {
+        if ($funcName -like "${dv}*") {
+            $isDestructive = $true
+            break
+        }
+    }
+
+    # --------------------------------------------------------
+    # Resolve aliases for this function
+    # --------------------------------------------------------
+    $resolvedAliases = @()
+    $fullTarget = "Microsoft.PowerShell.Core\$funcName"
+    if ($aliasMap.ContainsKey($fullTarget)) {
+        $resolvedAliases += $aliasMap[$fullTarget]
+    }
+    # Also check by module-qualified name
+    $modQualified = "${importedModule.Name}\$funcName"
+    if ($aliasMap.ContainsKey($modQualified)) {
+        $resolvedAliases += $aliasMap[$modQualified]
+    }
+
+    # --------------------------------------------------------
+    # Extract full help (Full mode for Description, Examples, Notes)
+    # --------------------------------------------------------
+    $helpObj = Get-Help $funcName -Full -ErrorAction SilentlyContinue
+
+    $synopsis = if ($helpObj?.Synopsis) { $helpObj.Synopsis }                    else { '' }
+    $description = if ($helpObj?.Description.Text) { (@($helpObj.Description.Text) -join "`n") } else { '' }
+
+    $examples = ''
+    try {
+        $exampleList = @($helpObj.Examples.Example)
+        if ($exampleList.Count -gt 0) {
+            $exampleStrings = $exampleList | ForEach-Object {
+                $_.code + "`n" + (($_.remarks | Where-Object { $_ }) -join "`n")
+            }
+            $examples = $exampleStrings -join "`n`n"
+        }
+    }
+    catch {
+        Write-Verbose "Could not extract examples for $funcName"
+    }
+
+    $notes = ''
+    try {
+        $remarkBlocks = @($helpObj.Remarks.Text | Where-Object { $_ })
+        if ($remarkBlocks.Count -gt 0) {
+            $notes = $remarkBlocks -join "`n"
+        }
+    }
+    catch {
+        Write-Verbose "Could not extract notes for $funcName"
+    }
+
+    # --------------------------------------------------------
+    # Extract enhanced parameter metadata
+    # --------------------------------------------------------
     $params = @{}
     foreach ($p in $_.Parameters.Values) {
+
         $isMandatory = $false
+        $defaultValue = $null
+        $allowedValues = $null
+
         foreach ($attr in $p.Attributes) {
-            if ($attr -is [System.Management.Automation.ParameterAttribute] -and $attr.Mandatory) {
-                $isMandatory = $true
+            if ($attr -is [System.Management.Automation.ParameterAttribute]) {
+                if ($attr.Mandatory) { $isMandatory = $true }
+                if (-not [string]::IsNullOrEmpty($attr.DefaultValue)) {
+                    $defaultValue = $attr.DefaultValue.ToString()
+                }
+            }
+            elseif ($attr -is [System.Management.Automation.ValidateSetAttribute]) {
+                $allowedValues = @($attr.ValidValues)
             }
         }
 
-        $params[$p.Name] = @{
-            Type      = $p.ParameterType.FullName
-            Mandatory = $isMandatory
+        # Get parameter description from help
+        $paramDescription = ''
+        try {
+            $paramHelpObj = Get-Help $funcName -Parameter $p.Name -ErrorAction SilentlyContinue
+            if ($paramHelpObj?.Description) {
+                $paramDescription = @($paramHelpObj.Description.Text | Where-Object { $_ }) -join "`n"
+            }
+        }
+        catch {
+            # Silently skip — many params don't have individual help entries
+        }
+
+        # Get aliases for the parameter
+        $paramAliases = try {
+            if ($p.Aliases) { @($p.Aliases) } else { @() }
+        }
+        catch {
+            @()
+        }
+
+        $params[$p.Name] = [PSCustomObject]@{
+            Type          = $p.ParameterType.FullName
+            Mandatory     = $isMandatory
+            DefaultValue  = $defaultValue
+            AllowedValues = $allowedValues
+            Description   = $paramDescription
+            Aliases       = $paramAliases
         }
     }
 
-    # Extract synopsis from help
-    $help = Get-Help $_.Name -ErrorAction SilentlyContinue
-    $synopsis = $help?.Synopsis
-
-    # Build object
+    # --------------------------------------------------------
+    # Build final function descriptor
+    # --------------------------------------------------------
     [PSCustomObject]@{
-        Name       = $_.Name
-        Module     = $_.ModuleName
-        Parameters = $params
-        Synopsis   = $synopsis
+        Name          = $funcName
+        Aliases       = if ($resolvedAliases) { @($resolvedAliases | Select-Object -Unique) } else { @() }
+        Module        = $importedModule.Name
+        ModuleVersion = $importedModule.Version.ToString()
+        Source        = if ($_.Source) { $_.Source } else { 'built-in' }
+        Parameters    = $params
+        Synopsis      = $synopsis
+        Description   = $description
+        Examples      = $examples
+        Notes         = $notes
+        IsDestructive = $isDestructive
+        SafetyWarning = if ($isDestructive) {
+            "This function may delete, remove, or disable data. Requires explicit confirmation before execution."
+        }
+        else { '' }
     }
 }
 
+# ============================================================
 # Output JSON
-$functions | ConvertTo-Json -Depth 6
+# ============================================================
+$functions | ConvertTo-Json -Depth 10
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBOa4t9cZAh8VNI
-# i27dArr31jOy5KV9quQfbA7dAJyVZqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAlEMzwLhiz22op
+# q7kzzqlc7a2qi/PYyCnygTxxRPT8C6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -194,34 +349,34 @@ $functions | ConvertTo-Json -Depth 6
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCUQIuZZwXL
-# tDpoF7RWSP4Z0oJ28Od6ivlNFRjXVR6ExDANBgkqhkiG9w0BAQEFAASCAgA6CGBE
-# luZT++ymKrtRZ8xjetmTa4x4I6oho6IipJNZ7LHljAYDkMG24S9VF8QZ5g9dQSfa
-# jb7F0c49llN1Q6YJREak84Xac2a2TasP6yTHwAf4JBva4jwHQ8CYphyRmiiEckdH
-# aX7/gZacUtyidSLS63jo292VoWkv1YAWoyxiI7QKhucKNa3Th7gustI18UHxwOCg
-# LvJ+2QxkQs+7EUEFn8AmftXIb0DXmvGPPJE+v4SWugJaEcIqklquj3iVP9+x8iN6
-# f9KR70NM/kSh60hH7uQiILtlUjd/JWLmKBW9D3kVUTOSLBQ1rhpsh8rhaRilpcff
-# rSrOgqL0Lt8+KF5yHynkh3OkliLUE3201ug47vKq25vCFJN8eU1goSBw9oflbmyF
-# DWebh6spxsvTiRk8QElOm2hpkFSVnpWPZejGZHO8L5MHzBL/UusVcqQx45qYJ7ad
-# vKIlE+Z1ypeyEWQrO9uzKEB5AY3tfY7p84fXMxskOPQhxzrIsrNdxnP1JeeWl/cl
-# yXH4pThhCznjOKWOIPoSUKkqHnj2CaN7Md5YuVSwpToFAcsFhoy6W2mFF7AdJn2Q
-# ThPlsn8lXo4o9NMe8EKNYRrB3MwZ9iLk0+pnxs1Ad8cli0wZpURRx0WRtlBTm7Q0
-# RIns/15MSgS8kcX5xFfoHY1v1wp6/Z/vr4OkZKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDLZcocaisI
+# nkNV3cjKxXFdW3Io+exl6uuct6Fvw5pVhjANBgkqhkiG9w0BAQEFAASCAgBhfujc
+# cBS25MsfzJNZI6SmNPxnWR+LZDXqVt8hiUdcmXYZoMMV0GPVd80agX0XHZAHnXC3
+# N1e501Z5HSLWj26XbGUJg4Msn2RgH7C6hgn4B6nKjOwdWd58lf3lDZMwFMwgfbfl
+# DE1HlxPUCa7k0vcO/veM/IrJ2QeIxNbaIw6vV8YgdkEt6BZhsrrhH+ONt0VBLdRs
+# 33Xpfvt/ySGcwPzpwKRynQDsGraIleEsdkclh/+4QJU3fmCmEH4173o2ttAD3toS
+# D5RyRpDyPdY+/wyP1V0BRgrNZCy5+spc1YgRH4eCdaBd+tssBiDDzj3/slJRbV9A
+# H9RLLvsOT/o9FuVzTmtJQcFG8Hu2/AROF0VrlX7Q5nZc7QZfVyuOtp+Ekk3sgaqD
+# to1MFFtKVyX1cHy2NUhTETPe+SXQNxtwLw03JwFSGmDp5TJ9sQh63OO1fCW5O8+V
+# k6//HUrvGcFAF3t9IQt9mrD0fLPxMVyZ8KYbZzBcM6OlPEFvVLK7xkU84e/qXQSY
+# xPq0ABZSqOWSmc/MEVZXq8V4PVREZDceMgb1yytf9s2QgPMoko9OtpOtTegr6qhT
+# hrEvL9RSzl/ge0Uh+0EMQaRIN7l8Ljt5GFpwYWKWlHIYYL5zLEbEC4Ty4TnapS0U
+# MiEVEapHOL7oW0SvF4CeUaaj6mxTAFaL9jhwcKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDEwMzMxNTRaMC8GCSqGSIb3DQEJBDEiBCC8SG4qBtnsCU9fUFar
-# wvwa7+gUhCNSM+Tqry/9JxrxfDANBgkqhkiG9w0BAQEFAASCAgBvi0Uw8ZTZCrFh
-# LjWzgzEIWhYIvwF0+LSbRXsA4M1UvE2GfRI5ROFvTDdDkYNvQY6L13CclFQ38SZG
-# leGxRhu+qR0iuSBKU4ffM7YsugGgaEEK7Jh93a3xspbg7HtNW+epkFZGVrsrURQW
-# /TyXzWx1wEW4BxLeRYpa/4JkL5ElcPgiys6VgQO8qV3i36xnwDRSMiVpK5QwY+8b
-# yeem0lzRDN6E6yCtyQaXu/BxqwDYfAnTmlxmwDJTiZNxxfA6wTrn1AYARa4FGUdP
-# N4qZLgI2X/Fk0QUmHFGCht9SZnUhezMg1CDWT70Le46FT6hKwAmR21fvqKaPM51O
-# jsKbgPgM0+YNMM7h9bnj6wLq8kKOim8SNl7GDfckPYFoYVCKHu1TRcI2f5NV9+H4
-# GLikz+gOqFj7lp2emerhPKiepmpHTHXx7JwP37p5fFlsOUNUOEqGlxaV23uYvBV8
-# ste0nyplmkYLLQz7x0PvoK3oMvCmF7dTDAcP1UFxPe1KtOD5sM3fEGgtYzRGkJ6P
-# SswzNTkpkABm3HkRzAxyZCnr5yFgsHNNMbdTA+W7KLL1+W5XOU+Hw8VjhWwvqhi9
-# JlbHRSOmo3YlwrFQ1AdWI4gB1JvuY5nfTxl2Se/vbmR1rwdpCWh1TG/N829UtsgA
-# a1/nb3H9t79QlHSCs7ECRM0pxRQ1oA==
+# BTEPFw0yNjA2MTAyMzU2NDFaMC8GCSqGSIb3DQEJBDEiBCA2SxQCSG1MmZD0C8Cl
+# EREAPRYjZMhwHvOgvK2bG4ERcjANBgkqhkiG9w0BAQEFAASCAgBKU8x45zNivVxP
+# THcaa6ZL5gCA9X+gCbaB5QYdNszv8H8CDGP7+65StfEt2dCcboNa1Q4VL3JcBxSt
+# yMrQg1dWj6e0eIa3ezvfKPaLz227xPtAAVQ6HOSK78D6UXY797OI+aJzbnGUQeN6
+# 7jARu0Gxd5PaGwm5isCthGOzow1omw3I8Kt5tJGXQjFnbOKol/ryqLLnFFgK/tPu
+# R8e7svMd4tqWGASwPioYBkQLdiLMugyqcsYd+K5Cs5W6KOFesQYCQ18lsMJ6+pIs
+# y92lb36WYTh9wKo0gax+ZEktAn/Fj8Ujx/aM113wB+9AfiJbaruLD13Szh9KoUeM
+# bX5yhUB0OrrTWSNmkWMpHM1SUyWN5q+9Tm2L2ixVR9apD9gAczVKtOV8CAGRWbxA
+# dJbQiqMu7EbtLJtw1H0WMHPTM6ITQ0sOGbUsBHfpk3zrcQY7yOVgOShG6V1k9GFJ
+# HoK+V7XfxtTXYxs1ReY+EEe/0iWd8YdSunqStZExvsUb+na5DehnEDGx4a88A/ke
+# h3zeFdrsBzMCRyT7ebA6schFApqpmlvaMHutS5inNQqh4aGuU1LwM/AjZxcqf4x2
+# rNqdEJFIxkHbNi0dSOooCStx/RScgZoWHJk3TV2VKWmqRQVbzD18SQnZS1f3COp9
+# /WrlgoSDkMAT7tgd+S8VBmPf+Vl3EA==
 # SIG # End signature block

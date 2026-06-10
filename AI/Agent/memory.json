@@ -8,65 +8,29 @@
     "defaultLanguage": "en-US",
     "trendSummary": {
       "windowItems": 30,
-      "runCount": 26,
-      "successRate": 0.808,
-      "avgDurationMs": 146418,
-      "avgToolCalls": 3.35,
+      "runCount": 29,
+      "successRate": 0.828,
+      "avgDurationMs": 142508,
+      "avgToolCalls": 3.21,
       "statusCounts": {
-        "success": 21,
+        "success": 24,
         "error": 5
       },
       "outcomeCounts": {
-        "completed": 6,
-        "blocked": 9,
+        "completed": 8,
+        "blocked": 10,
         "needs-confirmation": 6,
         "error": 5
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-10T22:21:16+00:00",
-      "trendLastUpdatedUtc": "2026-06-10T22:21:16+00:00"
+      "lastRunTimestampUtc": "2026-06-10T23:09:15+00:00",
+      "trendLastUpdatedUtc": "2026-06-10T23:09:15+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-09T23:55:04+00:00",
-      "status": "success",
-      "outcome": "needs-confirmation",
-      "prompt": "Please update the final line in README.md located at the moduleRoot to reflect the current module version.",
-      "model": "qwen3.6:35b",
-      "durationMs": 109959,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "toolCalls": 4,
-      "outputPreview": "I found the issue:\n\n- **Current README version**: `0.4.62`\n- **Actual module manifest version** (`TechToolbox.psd1`): `0.4.63`\n\nThe final line of your `README.md` currently reads:\n\n```markdown\n- **Module version:** 0.4.62\n```\n\nIt needs to be updated to:\n\n```markdown\n- **Module version:** 0.4.63\n```\n\n### ⚠️ Blocker: Confirmation Required\n\nTo complete this update, I need the session to be run with the `--destructive-confirmed` flag because writing over an existing file requires that authorization...."
-    },
-    {
-      "timestampUtc": "2026-06-09T23:56:53+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please update the final line in README.md located at the moduleRoot to reflect the current module version.",
-      "model": "qwen3.6:35b",
-      "durationMs": 92541,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "toolCalls": 4,
-      "outputPreview": "The final line in `README.md` has been updated from **0.4.62** → **0.4.63**, matching the current module manifest (`TechToolbox.psd1`). Done."
-    },
-    {
-      "timestampUtc": "2026-06-10T00:03:07+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please review the parts of the module that handle setting the envar of the moduleRoot 'C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox' and let me know if it is portable to other workstations that import my TechToolbox Module.",
-      "model": "qwen3.6:35b",
-      "durationMs": 108474,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "toolCalls": 9,
-      "outputPreview": "Based on the code in `TechToolbox.psm1`, here is a review of how the module root environment variable (`$env:TT_Home` / `$env:TT_ModuleRoot`) is set, and an assessment of its portability to other workstations.\n\n### 1. How the Module Root is Currently Determined\nThe module uses two parallel mechanisms for tracking its location:\n\n| Variable | Set By | Purpose | Portability Impact |\n|----------|--------|---------|---------------------|\n| `$script:ModuleRoot` | `$ExecutionContext.SessionState.Module..."
-    },
     {
       "timestampUtc": "2026-06-10T00:28:48+00:00",
       "status": "success",
@@ -126,6 +90,42 @@
       "destructiveConfirmed": true,
       "toolCalls": 2,
       "outputPreview": "The `Export-ToolboxFunctions` function has been successfully added to `TechToolbox.psm1`. Here's a summary of the key changes:\n\n### ✅ What Was Added\n\n**New function `Export-ToolboxFunctions`:**\n- Uses **pre/post-snapshot** comparison of `Get-Command` output instead of filename conventions\n- Sources all `.ps1` files from the `Public/` folder dynamically\n- Filters results to only include actual functions (excludes aliases, cmdlets, etc.)\n- Returns the validated function names for export\n- Includes..."
+    },
+    {
+      "timestampUtc": "2026-06-10T22:56:28+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Do you have access to see the file at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent named Export-ToolboxFunctions?",
+      "model": "qwen3.6:35b",
+      "durationMs": 40505,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "toolCalls": 2,
+      "outputPreview": "Yes, I have access to that file. I was just able to read `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent\\Export-ToolboxFunctions.ps1` successfully.\n\nIt is a PowerShell script used for tool discovery by your AI agent. Here's a brief summary of what it does:\n\n1. **Imports** the specified module (defaults to `TechToolbox`).\n2. **Enumerates** all exported functions from that module using `Get-Command`.\n3. **Extracts metadata** for each function, including:\n   - Function name and module name\n  ..."
+    },
+    {
+      "timestampUtc": "2026-06-10T22:59:23+00:00",
+      "status": "success",
+      "outcome": "blocked",
+      "prompt": "Do you have any suggestions to improve the file at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent named Export-ToolboxFunctions that would enhance your ability to perform the tasks it is meant for?",
+      "model": "qwen3.6:35b",
+      "durationMs": 58495,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "toolCalls": 1,
+      "outputPreview": "I've read the full `Export-ToolboxFunctions.ps1`. Here's my detailed analysis with improvement recommendations:\n\n---\n\n## Current Behavior\n\nThe script:\n1. Imports the specified module (default: `TechToolbox`)\n2. Enumerates all exported functions via `Get-Command -Module`\n3. For each function, extracts parameters (name, type, mandatory)\n4. Extracts the synopsis from `Get-Help`\n5. Outputs a JSON array with depth 6\n\n---\n\n## Improvement Recommendations\n\n### 1. **Capture Full Descriptions (Not Just Sy..."
+    },
+    {
+      "timestampUtc": "2026-06-10T23:09:15+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Yes, please draft an updated version of Export-ToolboxFunctions.ps1 located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent that you recommeded to enhance your ability to reason. You have my explicit permission for modifying this file.",
+      "model": "qwen3.6:35b",
+      "durationMs": 226855,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "toolCalls": 3,
+      "outputPreview": "The file has been successfully updated. Here's a summary of what was changed and how it enhances my reasoning:\n\n## ✅ Updated `Export-ToolboxFunctions.ps1` — Key Enhancements\n\n### 1. **Full Help Text Sections** (Not Just Synopsis)\n- **Synopsis** — Quick one-line description\n- **Description** — Full paragraph explaining *what* the function does and *why*\n- **Examples** — Real usage code from `Get-Help -Full` so I can show you concrete examples\n- **Notes** — Caveats, remarks, \"see also\" context tha..."
     }
   ]
 }

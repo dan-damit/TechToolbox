@@ -4,14 +4,15 @@ function Invoke-TechAgent {
         Sends a prompt to the TechToolbox local agent.
 
     .DESCRIPTION
-        This function calls the Python-based agent located in AI/Agent/.
-        It passes the user prompt and prints the agent's response.
+        This function calls the Python-based agent located in AI/Agent/. It
+        passes the user prompt and prints the agent's response.
 
     .PARAMETER Prompt
         The natural-language instruction for the agent.
 
     .PARAMETER Model
-        Optional Ollama model name (for example: llama3, mistral, qwen2.5-coder).
+        Optional Ollama model name (for example: llama3, mistral,
+        qwen2.5-coder).
 
     .PARAMETER MaxIterations
         Maximum number of tool/reasoning iterations before the agent concludes.
@@ -88,6 +89,78 @@ function Invoke-TechAgent {
     $stderrTask = $null
     $transcriptStarted = $false
     $transcriptPath = $null
+    $markdownPath = $null
+    $markdownStatus = 'NotStarted'
+    $markdownError = $null
+    $capturedStdOut = ''
+    $capturedStdErr = ''
+    $runStartedUtc = [DateTime]::UtcNow
+
+    $writeMarkdownLog = {
+        param(
+            [string]$Path,
+            [string]$Status,
+            [string]$PromptText,
+            [string]$ModelName,
+            [int]$IterationLimit,
+            [bool]$DestructiveAuthorized,
+            [string]$StdOut,
+            [string]$StdErr,
+            [string]$ErrorText,
+            [int]$ExitCode,
+            [string]$TranscriptFile,
+            [DateTime]$StartedUtc,
+            [DateTime]$CompletedUtc
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Path)) {
+            return
+        }
+
+        $dir = Split-Path -Parent $Path
+        if (-not [string]::IsNullOrWhiteSpace($dir)) {
+            $null = New-Item -ItemType Directory -Path $dir -Force
+        }
+
+        $lines = @(
+            '# Tech Agent Run'
+            ''
+            ('- Status: {0}' -f $Status)
+            ('- StartedUtc: {0}' -f $StartedUtc.ToString('o'))
+            ('- CompletedUtc: {0}' -f $CompletedUtc.ToString('o'))
+            ('- Model: {0}' -f $(if ([string]::IsNullOrWhiteSpace($ModelName)) { '(default)' } else { $ModelName }))
+            ('- MaxIterations: {0}' -f $IterationLimit)
+            ('- ConfirmDestructive: {0}' -f $DestructiveAuthorized)
+            ('- ExitCode: {0}' -f $ExitCode)
+            ('- TranscriptPath: {0}' -f $(if ([string]::IsNullOrWhiteSpace($TranscriptFile)) { '(none)' } else { $TranscriptFile }))
+            ''
+            '## Prompt'
+            ''
+            '```text'
+            $PromptText
+            '```'
+            ''
+            '## Output'
+            ''
+            '```text'
+            $StdOut
+            '```'
+            ''
+            '## Error Output'
+            ''
+            '```text'
+            $StdErr
+            '```'
+            ''
+            '## Exception'
+            ''
+            '```text'
+            $(if ([string]::IsNullOrWhiteSpace($ErrorText)) { '(none)' } else { $ErrorText })
+            '```'
+        )
+
+        Set-Content -Path $Path -Value ($lines -join [Environment]::NewLine) -Encoding utf8
+    }
 
     try {
         # Resolve agent path from module root (Public/AI is not the module root).
@@ -165,6 +238,8 @@ function Invoke-TechAgent {
 
         $transcriptEnabled = $true
         $transcriptRoot = $null
+        $markdownEnabled = $true
+        $markdownRoot = $null
         if ($cfg -and $cfg.transcript) {
             if ($null -ne $cfg.transcript.enabled) {
                 $transcriptEnabled = [bool]$cfg.transcript.enabled
@@ -172,6 +247,14 @@ function Invoke-TechAgent {
 
             if (-not [string]::IsNullOrWhiteSpace([string]$cfg.transcript.outputRoot)) {
                 $transcriptRoot = [string]$cfg.transcript.outputRoot
+            }
+
+            if ($null -ne $cfg.transcript.markdownEnabled) {
+                $markdownEnabled = [bool]$cfg.transcript.markdownEnabled
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace([string]$cfg.transcript.markdownOutputRoot)) {
+                $markdownRoot = [string]$cfg.transcript.markdownOutputRoot
             }
         }
 
@@ -194,6 +277,22 @@ function Invoke-TechAgent {
             }
             catch {
                 Write-Log -Level Warn -Message ("Tech agent transcript could not be started: {0}" -f $_.Exception.Message)
+            }
+        }
+
+        if ($markdownEnabled) {
+            if ([string]::IsNullOrWhiteSpace($markdownRoot)) {
+                $markdownRoot = Join-Path $moduleRoot 'LogsAndExports\Logs\TechAgentMarkdown'
+            }
+
+            try {
+                $null = New-Item -ItemType Directory -Path $markdownRoot -Force
+                $markdownPath = Join-Path $markdownRoot ("TechAgent_{0}_{1}.md" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), $PID)
+                Write-Host ("Tech agent markdown log: {0}" -f $markdownPath)
+            }
+            catch {
+                $markdownPath = $null
+                Write-Log -Level Warn -Message ("Tech agent markdown log could not be initialized: {0}" -f $_.Exception.Message)
             }
         }
 
@@ -318,22 +417,53 @@ function Invoke-TechAgent {
             if ([string]::IsNullOrWhiteSpace($errorText)) {
                 $errorText = [string]$final.StdOut
             }
+            $capturedStdOut = [string]$final.StdOut
+            $capturedStdErr = [string]$final.StdErr
             $errorText = $errorText.Trim()
             throw ("Tech agent exited with code {0}: {1}" -f $final.Code, $errorText)
         }
 
         $message = ([string]$final.StdOut).Trim()
+        $capturedStdOut = [string]$final.StdOut
+        $capturedStdErr = [string]$final.StdErr
         if ([string]::IsNullOrWhiteSpace($message)) {
             $message = 'Tech agent completed successfully with no output.'
         }
 
+        $markdownStatus = 'Success'
+
         return $message
     }
     catch {
+        $markdownStatus = 'Error'
+        $markdownError = $_.Exception.Message
         Write-Log -Level Error -Message ("Invoke-TechAgent failed: {0}" -f $_.Exception.Message)
         throw
     }
     finally {
+        if (-not [string]::IsNullOrWhiteSpace($markdownPath)) {
+            try {
+                $exitCode = if ($agentProc -and $agentProc.HasExited) { [int]$agentProc.ExitCode } else { -1 }
+                & $writeMarkdownLog `
+                    -Path $markdownPath `
+                    -Status $markdownStatus `
+                    -PromptText $Prompt `
+                    -ModelName $Model `
+                    -IterationLimit $MaxIterations `
+                    -DestructiveAuthorized $ConfirmDestructive.IsPresent `
+                    -StdOut $capturedStdOut `
+                    -StdErr $capturedStdErr `
+                    -ErrorText $markdownError `
+                    -ExitCode $exitCode `
+                    -TranscriptFile $transcriptPath `
+                    -StartedUtc $runStartedUtc `
+                    -CompletedUtc ([DateTime]::UtcNow)
+            }
+            catch {
+                Write-Log -Level Warn -Message ("Tech agent markdown log could not be written: {0}" -f $_.Exception.Message)
+            }
+        }
+
         if ($transcriptStarted) {
             try { Stop-Transcript | Out-Null } catch { }
         }
@@ -351,8 +481,8 @@ function Invoke-TechAgent {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB1YG82Tj2T3W4W
-# yj6ZJoUG8IC1/ZZ4IP6wubJ4TpKCfaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAlB02MFtQyjhRX
+# 1N3uWAHRjpB5xtv642sHSv0T6ovgK6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -485,34 +615,34 @@ function Invoke-TechAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8rxJ/a1Ow
-# Ht+vnmiDZ7fJhNxMrDDTBhYq3RJtrQWaZzANBgkqhkiG9w0BAQEFAASCAgC3mEph
-# c/XVXBCCR2vcC6A1TIM0FTC4z66r//Mfr2CMyFQprLz9KQgg3yNb/NeFmDsa3jyX
-# 6nJu49zSZXBwI3SQk0/D8ohPLtm7JjLObyfx1Uo+P/61r99hcfpH7FlHaYORd4Jw
-# Tviaa4NPnQEGvHKE9kleMtGfc/DsEahW/rzegc5GJyTICi/jqGRXkb1yV4o+DxmZ
-# BSccuYwNPKRyH5H4O9qOTZwteCqLN//iyA1OASdBM9JM/Dorydb8HT7RULCzTXvf
-# qE/eSl4Xokd7n1ELHpXr6aPWZCUmI3xKa2xKv65M9rlETFOz7EfxInPaVYRlvfTP
-# 7fJ5O3Lkpa5/0BdknFrho5/NQYbc3uP+NenaZxRE+UZf8N/u2NZx5sbrhHWPdgnz
-# delKqKOhflObl7rgGFUHdvQYc/lXECydviZCIj1rDrM7nsbM455DtR1ttc5xLgVg
-# DPbl7VfBnelyVlOkbuM+qEy51Qel6M9LgkhOK/b+KRLb2WmToNjLYUNwN+OyhogC
-# OjFxkFoaVPIh7mmxLbMcx5jqpuAQYk37b2Nn4kXSCrtdHnm2Gk7bfuqpDprDk11/
-# C864pZqjH4hWxNL3pMx/ADST+hQdFUEmgfwcVvIlFLLwkAQZ/656sHDi+VRLFiRH
-# FGCS1dMNTCjKHZVot67KLVAkPt4TnIWP8tfa16GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDOOthf8elC
+# I/3Xxe2Hpua56nh5HpJjVYLLIcQBwrUZODANBgkqhkiG9w0BAQEFAASCAgDBzUCN
+# h6j8/3jKaljNvsLrnhmkrquyjfkwzvBZ5DzoYTYmHWuNSqqCjFGWvI1KMWLO+Du5
+# qSJsqWW11d2QFhj1mBa1FrW+UZahQ4bm+NZpSD/4Vose7rmh8pxOBoo6J97OQ3/Q
+# y/3wmG35VH37nvkq+WbjF1HHWwQMXz3eW7sCI4M8t2y6Cb+UPCCtgocd+L4DkExZ
+# MM3PRmW1SyX8D1J5Q87UGhHzTsUt2U40Oz8QBuyFe4Tt0utE8doBqoIXuoGgf+g7
+# DM5bpzGHE2PMvIoqlDao9l2lqgNtPpBBwusOFlDHwNsGStdbSMjfB4q9CKnYElMx
+# iaROnNY5ltkfF5VFGUXmmqz9Hfh96inGqRWMxNSd2HNbsh5bGx6fDDWCu9+VbQZL
+# T4lLUxJ8FFvBas39cHPzbVE6Fgr1qWMt2gZOHEnmjvzqPXZQ3qWQnHlFZxEuDxPV
+# hE+st8XAAwowpiirPLDZbpxhttC/+f7f2Ct//iI/cpKaE2r+YyYW6S6BKetgP37a
+# HFQ8MUtY7oS7yvL+NZbFgS8OMvAz//PcEyDjk/C+aVl1W6rwFaeyhyBFb9DhBQwS
+# KC9cJ8h9O1aeZ3lukkazg/8GPZbvOFMgiIqapVSgRIQRdv50qBe3e8O1ftgfI1/Y
+# ukhFC4BhcrpLy1HH1yLFOMuO2aJU2eE7pCc6KKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTAwMTI4MjFaMC8GCSqGSIb3DQEJBDEiBCAbmSeodnpBQeBVnJd6
-# QMQFZG1Emwck9YzaporB4y1aEDANBgkqhkiG9w0BAQEFAASCAgC0zX4XEY1WiR/S
-# 4JoNHf1l19eJUjflyN1ADSlR40vs/E6dIup6BpuZISrDpULVlfd+evl64sjvFcbX
-# oU2iXqLQRZzlatIW82fMN06byuDrhwHnkdg1oT4zQXJsLc2UpqQxPYxJh9NxL/7h
-# twCWzgkwTb3zh81kWhK2gmo1EuxIsPqgci9k9YVpdvYEUwRYqnIh89XJbwOhTOrQ
-# MXAJxCFu/SXI0Yahh11ObfIHySXxv2IirgJvho+CGKWp42o1D+Grjf8Fcf6t4fzx
-# fuO0FXffflQjFQjQ2qEjHjQ1YeAwCtQE9ECCR2DDa6TmRfELCjkbIbQp1/3hCGRL
-# aaN9z49kSl6CdOjiyL/ujMrpwbXs8Peql7jTj5Wa73KZsNR4YNx7vGLUzw1N/Zzl
-# m1APSWvkNw/TuYVgsqjxHwJaDhg+2NepK/HKQQ3DAQ8tV3KJ6wSg8yhrVR9X1MdQ
-# ueR6O5M3b7QszdRfmqMDJh/yqnsMxJ+99ANUzUERbmHPDG5FCXyVFtKvFY5ro+rk
-# DEFsIqRpOrrQ29tbk3tutd6bFZ6Yw47nKydNnn/gDpCrYWQMcMB3rWyurEWWWwrk
-# FQCKyBbDUqU6OVp7cj/KdfTIuDrWdXDiNtUP4Q9iRp7KiYV9WHr+9AwNPu9oN9AE
-# 7GRli9LGreYXnIs6MAlY2DUiyonjJA==
+# BTEPFw0yNjA2MTAyMzU2NDJaMC8GCSqGSIb3DQEJBDEiBCAhJAyCA+wHhoqPW8wJ
+# WXLDRU2VF5ZmCWlQp4PJ75MSozANBgkqhkiG9w0BAQEFAASCAgBJBhSwVGFsVqMp
+# dYVuYWYIuHg4cCbJB4qP6gCkIo9m/naJlpsApkfWSNHpxMqfcXcdJ0awTwLOeehi
+# F/aCzz2qP8mB0m405atmeRXKncH88mVxaselQpcVDEcu+x0hNdse+AveWnB08xr5
+# gcq7BZwdJvDOTZXMqMB0hJIk31AbzW52n9TXP1e8KdHMMzT8k9Azp3a1wdgdi1IE
+# jCjkADkG3937BwgYyAy8Uvi+Hlx0KVpxQEyXzGE+Pq7otTYMYqG4+QpW3+Tf0kWK
+# ATGxM2G1ZaD/gsg3Z/U6YKDNWPa4Xxwrt7uYdkBzFlwzajXCXaBsGa3uDzJn+UMk
+# 2nx0Xu/ZpHMGRhwtI/bIChtJOahAEtbcfy79dp+hzyOx67Koc/gljC1iBs6ICYuF
+# 8OHUVJIiS4S7i9IgW1GY7OZewXetj/lt6pzrF1PTFX4/Ow1BrexvIAjEteQnpaKj
+# +sERv03ZRRNPEDGEtKGMctFqHxm4FOAuoLGmhVhRFiPUoE977vPp909a6eBDbq2V
+# UH0bSDqVdB7dJSDvsJfF+LXdkHXzU3u/WnGp0aUjaK+W6XBqQKWxa4ZbLwcAjxnc
+# gFRWxn5NnaHO96s5QadTM7bYT9uXF/QiNaZYEejbhFz958lvLQA2Iln/hZ6JCW08
+# DrpqOAyIAPMI9U2s546lsfXEeAew3w==
 # SIG # End signature block

@@ -459,3 +459,22 @@ Remember to disconnect from Purview when finished using Disconnect-ExchangeOnlin
 2026-06-10 17:20:36 [Info] TechAgent: Still waiting (Status=Running)...
 2026-06-10 17:21:17 [Info] TechAgent: Status=Success
 2026-06-10 17:21:17 [Ok] Tech agent completed successfully.
+2026-06-10 17:55:46 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260610_175546_3656.txt
+2026-06-10 17:55:46 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 17:55:46 [Info] TechAgent: Status=Running
+2026-06-10 17:56:32 [Info] TechAgent: Status=Success
+2026-06-10 17:56:32 [Ok] Tech agent completed successfully.
+2026-06-10 17:58:24 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260610_175824_3656.txt
+2026-06-10 17:58:24 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 17:58:24 [Info] TechAgent: Status=Running
+2026-06-10 17:59:25 [Info] TechAgent: Status=Success
+2026-06-10 17:59:25 [Ok] Tech agent completed successfully.
+2026-06-10 18:05:27 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260610_180527_3656.txt
+2026-06-10 18:05:27 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 18:05:27 [Warn] Destructive operations explicitly authorized for this run.
+2026-06-10 18:05:27 [Info] TechAgent: Status=Running
+2026-06-10 18:06:28 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 18:07:29 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 18:08:30 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 18:09:15 [Info] TechAgent: Status=Success
+2026-06-10 18:09:15 [Ok] Tech agent completed successfully.
