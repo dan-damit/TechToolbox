@@ -395,3 +395,41 @@ During task with name 'tools' and id '84591c44-18ce-adba-ecea-2520424947b8'
 2026-06-09 19:49:44 [Info] TechAgent: Still waiting (Status=Running)...
 2026-06-09 19:49:54 [Info] TechAgent: Status=Success
 2026-06-09 19:49:54 [Ok] Tech agent completed successfully.
+2026-06-10 10:05:32 [Info] Using ticket: #INC-195894
+2026-06-10 10:05:32 [Info] Connecting to Purview (SearchOnly) as ddcloudadmin@REDACTED.com...
+2026-06-10 10:05:53 [Ok] Connected to Purview.
+2026-06-10 10:05:55 [Info] 
+2026-06-10 10:05:55 [Warn] Existing Compliance Search found: #INC-195894
+2026-06-10 10:05:55 [Warn]   from:"envesya.com"
+2026-06-10 10:05:55 [Info] 
+2026-06-10 10:05:59 [Info] Using existing ContentMatchQuery: from:"envesya.com"
+2026-06-10 10:05:59 [E-Info] Ensuring mailbox-only Compliance Search '#INC-195894' exists in case 'Content Search'...
+2026-06-10 10:06:02 [Info] Compliance Search already exists: #INC-195894. Updating for this run...
+2026-06-10 10:06:02 [Warn] Using existing ContentMatchQuery for '#INC-195894': from:"envesya.com"
+2026-06-10 10:06:06 [Ok] Search updated: #INC-195894
+2026-06-10 10:06:12 [Info] Search '#INC-195894' existed; update applied. Registration wait skipped.
+2026-06-10 10:06:14 [Info] Pre-start status: Completed
+2026-06-10 10:06:14 [Info] Search was created/updated; forcing Start to run the latest query.
+2026-06-10 10:06:21 [Info] Search started: #INC-195894
+2026-06-10 10:06:21 [Info] Waiting for search '#INC-195894' to complete (timeout=2400s, poll=20s)...
+2026-06-10 10:06:24 [Info] #INC-195894: Status=Starting
+2026-06-10 10:08:44 [Info] #INC-195894: Status=Completed
+2026-06-10 10:08:44 [Ok] Search '#INC-195894' completed.
+2026-06-10 10:08:44 [Ok] Search status: Completed; Items: 4
+2026-06-10 10:08:44 [Info] Preparing HardDelete purge for '#INC-195894' in case 'Content Search'.
+2026-06-10 10:08:44 [Warn] This will permanently delete all items found by the search.
+2026-06-10 10:08:49 [E-Info] Search '#INC-195894' reports 4 items.
+2026-06-10 10:10:25 [Ok] Purge submitted: 0f73d89d-d2e7-42bb-031b-08dec7026318
+2026-06-10 10:10:28 [Info] 0f73d89d-d2e7-42bb-031b-08dec7026318: Status=Starting
+2026-06-10 10:11:13 [Info] 0f73d89d-d2e7-42bb-031b-08dec7026318: Status=InProgress
+2026-06-10 10:11:35 [Info] 0f73d89d-d2e7-42bb-031b-08dec7026318: Status=Completed
+2026-06-10 10:11:35 [Warn] Purge '0f73d89d-d2e7-42bb-031b-08dec7026318' completed. Items processed: 4.
+Results:
+Purge Type: HardDelete; Item count: 4; Total size 1797987; Details: {
+Location: bkleist@REDACTED.com; Item count: 3; Total size: 1359324; Failed count: 0; ,
+Location: ddamit@REDACTED.com; Item count: 1; Total size: 438663; Failed count: 0;
+}
+2026-06-10 10:11:35 [Info] 
+2026-06-10 10:11:35 [Ok] Summary: ticket='#INC-195894' search='#INC-195894' status='Completed' items=4 purgeSubmitted=True
+2026-06-10 10:11:35 [E-Info] 
+Remember to disconnect from Purview when finished using Disconnect-ExchangeOnline command...
