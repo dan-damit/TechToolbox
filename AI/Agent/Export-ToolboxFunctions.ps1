@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Exports all public functions from the TechToolbox module with comprehensive parameter metadata as JSON.
+    Exports all public (and optionally private) functions from the TechToolbox module with comprehensive parameter metadata as JSON.
 
 .DESCRIPTION
     This script is called by the Python agent to auto-discover available tools.
@@ -11,12 +11,20 @@
     - Full help text sections (Synopsis, Description, Examples, Notes)
     - Auto-classified safety status (destructive vs. safe)
 
+.PARAMETER ModuleName
+    The name of the module to export functions from. Defaults to "TechToolbox".
+
+.PARAMETER IncludePrivate
+    When specified, includes private/internal functions (those with underscores in their names) in addition to public functions.
+    By default, only public functions are exported for backward compatibility.
+
 .NOTES
     Designed for AI agent consumption. Depth 10 ensures full nesting of parameter metadata and examples.
 #>
 
 param(
-    [string]$ModuleName = "TechToolbox"
+    [string]$ModuleName = "TechToolbox",
+    [bool]$IncludePrivate = $true
 )
 
 # ============================================================
@@ -72,8 +80,14 @@ catch {
 # Process Each Function
 # ============================================================
 $functions = Get-Command -Module $importedModule.Name -CommandType Function | Where-Object {
-    # Exclude private/internal functions (name contains underscore after module scope)
-    $_.Name -notlike '*_*'
+    # Exclude private/internal functions unless IncludePrivate is specified
+    if ($IncludePrivate) {
+        $true  # Include all functions when the switch is set
+    }
+    else {
+        # Default behavior: exclude names containing underscores (private convention)
+        $_.Name -notlike '*_*'
+    }
 } | ForEach-Object {
 
     $funcName = $_.Name
@@ -164,7 +178,7 @@ $functions = Get-Command -Module $importedModule.Name -CommandType Function | Wh
             }
         }
         catch {
-            # Silently skip — many params don't have individual help entries
+            # Silently skip -- many params don't have individual help entries
         }
 
         # Get aliases for the parameter
@@ -215,8 +229,8 @@ $functions | ConvertTo-Json -Depth 10
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAlEMzwLhiz22op
-# q7kzzqlc7a2qi/PYyCnygTxxRPT8C6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAfflynSqtrMNjW
+# IogCAOH6TzcEr75j7tVjd6cnNJftDaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -349,34 +363,34 @@ $functions | ConvertTo-Json -Depth 10
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDLZcocaisI
-# nkNV3cjKxXFdW3Io+exl6uuct6Fvw5pVhjANBgkqhkiG9w0BAQEFAASCAgBhfujc
-# cBS25MsfzJNZI6SmNPxnWR+LZDXqVt8hiUdcmXYZoMMV0GPVd80agX0XHZAHnXC3
-# N1e501Z5HSLWj26XbGUJg4Msn2RgH7C6hgn4B6nKjOwdWd58lf3lDZMwFMwgfbfl
-# DE1HlxPUCa7k0vcO/veM/IrJ2QeIxNbaIw6vV8YgdkEt6BZhsrrhH+ONt0VBLdRs
-# 33Xpfvt/ySGcwPzpwKRynQDsGraIleEsdkclh/+4QJU3fmCmEH4173o2ttAD3toS
-# D5RyRpDyPdY+/wyP1V0BRgrNZCy5+spc1YgRH4eCdaBd+tssBiDDzj3/slJRbV9A
-# H9RLLvsOT/o9FuVzTmtJQcFG8Hu2/AROF0VrlX7Q5nZc7QZfVyuOtp+Ekk3sgaqD
-# to1MFFtKVyX1cHy2NUhTETPe+SXQNxtwLw03JwFSGmDp5TJ9sQh63OO1fCW5O8+V
-# k6//HUrvGcFAF3t9IQt9mrD0fLPxMVyZ8KYbZzBcM6OlPEFvVLK7xkU84e/qXQSY
-# xPq0ABZSqOWSmc/MEVZXq8V4PVREZDceMgb1yytf9s2QgPMoko9OtpOtTegr6qhT
-# hrEvL9RSzl/ge0Uh+0EMQaRIN7l8Ljt5GFpwYWKWlHIYYL5zLEbEC4Ty4TnapS0U
-# MiEVEapHOL7oW0SvF4CeUaaj6mxTAFaL9jhwcKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAn5/OTgfUj
+# w0RpavyLreHdeYkvXI8TjYk/1I3ntc/ZPjANBgkqhkiG9w0BAQEFAASCAgAZ0ArG
+# SGfmVhztFBONLO0ETuok/sBPnuJ3pY6Ajk9tgFwPuIIr5pLUw2LnneA+RNcjt//1
+# je4WbpYb/J3AuOEVJtedUuP2SSSK5sMayAfbLe2Kwswq3NxqxIlOlLBFDgvfxY1T
+# VEkeJsQ/961mCxlbTa2TWIQgYuetd5zvBoKKJKu1lBgG9pc4+Z/HjDUVieSiXKkE
+# R8EBplhSvHF/bKiHesa2qXvkk8NM0jDXhwtfqEYUC/OPg3X89B+KuJFcB7OrC/Wc
+# AYMNTOaeyEskaPsc6QxKagFC7NCJxVy5iZZGHyP13mmYivRwaq5aRyH+o9hOMikE
+# NJXaXigIYpz1OhMOgZ9AHXGY4DE8/vFkGw4Q9AsSNO4Xgz0RCjrqQ8ghm8KXdhAF
+# dsbeOZG20CxqH2PS5hiyJgdEWM3ezlRzTyAJif0o72EsTv7mzY+g3V0KugJsG9c9
+# 8C5PqYDZQWLjtYuho2+1GPrQ6o5dmI9tkaSo7wrlSczQ7VkJzpUWqZsJg3jiG885
+# o8+rjA706ZVAElkhpIaE88wAOKeLgRlyDLrp0or8Ipug73W2TH/hrrWCUh6Facuv
+# TUYHnx0osI9bEJ7beTrnGmTchpobcs6N3ejng5mqkWIPGVniXLDwuWS997np5tJZ
+# USrH3eXXUGzgXWL0se+Ab66wZe0jj79x9qWe+qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTAyMzU2NDFaMC8GCSqGSIb3DQEJBDEiBCA2SxQCSG1MmZD0C8Cl
-# EREAPRYjZMhwHvOgvK2bG4ERcjANBgkqhkiG9w0BAQEFAASCAgBKU8x45zNivVxP
-# THcaa6ZL5gCA9X+gCbaB5QYdNszv8H8CDGP7+65StfEt2dCcboNa1Q4VL3JcBxSt
-# yMrQg1dWj6e0eIa3ezvfKPaLz227xPtAAVQ6HOSK78D6UXY797OI+aJzbnGUQeN6
-# 7jARu0Gxd5PaGwm5isCthGOzow1omw3I8Kt5tJGXQjFnbOKol/ryqLLnFFgK/tPu
-# R8e7svMd4tqWGASwPioYBkQLdiLMugyqcsYd+K5Cs5W6KOFesQYCQ18lsMJ6+pIs
-# y92lb36WYTh9wKo0gax+ZEktAn/Fj8Ujx/aM113wB+9AfiJbaruLD13Szh9KoUeM
-# bX5yhUB0OrrTWSNmkWMpHM1SUyWN5q+9Tm2L2ixVR9apD9gAczVKtOV8CAGRWbxA
-# dJbQiqMu7EbtLJtw1H0WMHPTM6ITQ0sOGbUsBHfpk3zrcQY7yOVgOShG6V1k9GFJ
-# HoK+V7XfxtTXYxs1ReY+EEe/0iWd8YdSunqStZExvsUb+na5DehnEDGx4a88A/ke
-# h3zeFdrsBzMCRyT7ebA6schFApqpmlvaMHutS5inNQqh4aGuU1LwM/AjZxcqf4x2
-# rNqdEJFIxkHbNi0dSOooCStx/RScgZoWHJk3TV2VKWmqRQVbzD18SQnZS1f3COp9
-# /WrlgoSDkMAT7tgd+S8VBmPf+Vl3EA==
+# BTEPFw0yNjA2MTEwNjMxMDNaMC8GCSqGSIb3DQEJBDEiBCCZxEEkkb6XqCASnXkG
+# tlO7UJmnRaRgSntUOZ3qk9M8rDANBgkqhkiG9w0BAQEFAASCAgAEnOe1TNaBKcAL
+# iun9Zh3rQFLTDIgE2A3DZak+Jx0FzARgJvarDB6XQucEJLA2xrZkLGEOJztPtnaL
+# lgeIxeXJK55o+TDbjzSe7rJweLFxl4JC64c9V6lz2HScvor3jhgQDbaT2AF+woIa
+# oQ7ocfVyOHQCqCuyxH30k+DuL3UdC7iz2KORy+8tOK3Bm1/5JCm3yWIYebJ79nN1
+# l3GIq3eut6LUr7zcrGOvtHNhTZZiDcYNErT8pxbxUq9TM+9liYo1qeOv4CecQsoO
+# yN/QiKlUR1zQA++oxliPaeyaNFXobTrr7WKoEFv6aYjXKTRWDa0n37G0O3DwTRxN
+# 36pmFYgCnHGvrX30zHswcVs1TdoeomDAlyP5H/2M9yHuwBmoJAH791B6/nWLPBI5
+# 7EPrQOIKzPXakzDHqml26MC1cWx2utzrrjDk/6OgYJBPW0v/s0WY+MfoN+ucOG3f
+# OKGVAtSVd+jzvjXJT1X582w3uryMNHNvaGGgH+DOtx2L7Lj0CyV8ThrhsOEfortR
+# 5qmiqFjmI99a7uwKXThRWlwoeA3gmJlntnBoirAGyUX9/aetmUPVtYi0cwN2jZ3/
+# pp7p1f/DsMNpIjZRhw0oPQ9pmlwfLWVGkcD+8jRoxR5+/XI4BnNRo0h8kHscjd15
+# 5Avfexky+FUMH24TikxGZ/FohOrhbA==
 # SIG # End signature block

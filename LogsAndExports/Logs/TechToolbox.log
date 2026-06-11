@@ -572,3 +572,35 @@ Traceback (most recent call last):
     raise GraphRecursionError(msg)
 langgraph.errors.GraphRecursionError: Recursion limit of 47 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
 For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2026-06-11 01:08:51 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_010851_16084.txt
+2026-06-11 01:08:51 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 01:08:51 [Info] TechAgent: Status=Running
+2026-06-11 01:09:52 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 01:10:53 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 01:11:18 [Info] TechAgent: Status=Success
+2026-06-11 01:11:18 [Ok] Tech agent completed successfully.
+2026-06-11 01:16:10 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_011610_16084.txt
+2026-06-11 01:16:10 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 01:16:10 [Info] TechAgent: Status=Running
+2026-06-11 01:17:11 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 01:17:21 [Info] TechAgent: Status=Success
+2026-06-11 01:17:21 [Ok] Tech agent completed successfully.
+2026-06-11 01:21:56 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 01:21:56 [Warn] Destructive operations explicitly authorized for this run.
+2026-06-11 01:21:57 [Info] TechAgent: Status=Running
+2026-06-11 01:22:57 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 01:23:43 [Info] TechAgent: Status=Success
+2026-06-11 01:23:43 [Ok] Tech agent completed successfully.
+2026-06-11 01:33:25 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_013325_16084.txt
+2026-06-11 01:33:26 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 01:33:26 [Info] TechAgent: Status=Running
+2026-06-11 01:34:26 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 01:35:27 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 01:35:42 [Info] TechAgent: Status=Success
+2026-06-11 01:35:42 [Ok] Tech agent completed successfully.
+2026-06-11 01:37:19 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_013719_16084.txt
+2026-06-11 01:37:19 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 01:37:19 [Info] TechAgent: Status=Running
+2026-06-11 01:38:19 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 01:38:45 [Info] TechAgent: Status=Success
+2026-06-11 01:38:45 [Ok] Tech agent completed successfully.
