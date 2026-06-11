@@ -604,3 +604,498 @@ For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/erro
 2026-06-11 01:38:19 [Info] TechAgent: Still waiting (Status=Running)...
 2026-06-11 01:38:45 [Info] TechAgent: Status=Success
 2026-06-11 01:38:45 [Ok] Tech agent completed successfully.
+2026-06-11 08:27:56 [Debug] [Get-DomainAdminCredential] Reconstructed credential from config.json + config.secrets.json.
+2026-06-11 08:27:56 [Debug] [Initialize-DomainAdminCred] Domain admin credential loaded into session.
+2026-06-11 08:28:52 [E-Info] 
+Connecting to Exchange Online...
+
+2026-06-11 08:29:01 [Info] Message trace filters:
+2026-06-11 08:29:01 [Info]   MessageId : 
+2026-06-11 08:29:01 [Info]   Sender    : *@global.komatsu
+2026-06-11 08:29:01 [Info]   Recipient : rkostelnik@REDACTED.com
+2026-06-11 08:29:01 [Info]   Subject   : 
+2026-06-11 08:29:01 [Info]   Window    : 2026-05-12 08:28:52Z → 2026-06-11 08:28:52Z (UTC shown by EXO)
+2026-06-11 08:29:04 [Ok] Summary results (64):
+2026-06-11 08:29:04 [Info] 
+Received              SenderAddress                       RecipientAddress      Subject                                                          Status      MessageTraceId
+--------              -------------                       ----------------      -------                                                          ------      --------------
+5/12/2026 6:44:09 PM  james.lowe@global.komatsu           rkostelnik@REDACTED.com Payment Advice Note from 05/12/2026                              Delivered   1bec9c33-1c34-4786-4d52-08deb056742c
+5/13/2026 6:28:44 PM  KAC_AccountsPayable@global.komatsu  rkostelnik@REDACTED.com KAC Peoria Remittance Notification                               Delivered   d7792f11-5501-4898-8f60-08deb11d7762
+5/13/2026 6:33:40 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/13/2026 VNDR 15157                   Delivered   3a0e6fd9-0489-41a8-bec4-08deb11e27c5
+5/14/2026 3:02:45 PM  katelin.lopeman@global.komatsu      rkostelnik@REDACTED.com 15156 - Missing Invoice                                          Delivered   2d23f956-c1af-4d78-6227-08deb1c9db52
+5/14/2026 6:14:08 PM  james.lowe@global.komatsu           rkostelnik@REDACTED.com Payment Advice Note from 05/14/2026                              Delivered   dff2cf89-93e9-4318-cc2a-08deb1e49743
+5/14/2026 6:32:43 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/14/2026 VNDR 15157                   Delivered   7779cc60-278c-4ce0-1b53-08deb1e72fdc
+5/18/2026 1:53:15 PM  leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   9d8a5124-1617-4da3-bb29-08deb4e4cf5f
+5/18/2026 1:53:38 PM  leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   5d9f925e-33a0-4a30-3cd5-08deb4e4dca5
+5/18/2026 1:54:00 PM  leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   80f1efd9-a169-4817-e9ea-08deb4e4e9ca
+5/18/2026 1:54:00 PM  leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   a3d16b9a-7887-48f7-c61a-08deb4e4ea28
+5/18/2026 6:37:47 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/18/2026 VNDR 15157                   Delivered   9b802d70-64ba-4da7-37f5-08deb50c8f13
+5/18/2026 6:47:25 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/18/2026                              Delivered   a3fe4f94-02e2-42ad-85e2-08deb50de78f
+5/19/2026 7:03:03 PM  sarah.wilson@global.komatsu         rkostelnik@REDACTED.com Payment Advice Note from 05/19/2026 VNDR 15137                   Delivered   2497e82a-a6c6-43d0-1a79-08deb5d9412c
+5/20/2026 5:20:08 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Re: [External]SKIPPED KOMATSU INVOICES                           Delivered   0c1a2d49-ac34-40ad-c8e0-08deb6940a7d
+5/20/2026 5:43:37 PM  zachary.meredith@global.komatsu     rkostelnik@REDACTED.com RE: [External]SKIPPED KOMATSU INVOICES                           Delivered   e5453e19-983d-40d7-59ba-08deb697525d
+5/20/2026 5:57:42 PM  zachary.meredith@global.komatsu     rkostelnik@REDACTED.com RE: [External]SKIPPED KOMATSU INVOICES                           Delivered   6a529ddd-3c0a-4b1d-d6b9-08deb6994a1e
+5/20/2026 6:05:22 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/20/2026 VNDR 15157                   Delivered   74f31b48-31e3-4c0a-c80d-08deb69a5c38
+5/20/2026 6:43:45 PM  KAC_AccountsPayable@global.komatsu  rkostelnik@REDACTED.com KAC Peoria Remittance Notification                               Delivered   bb3ca2fc-8c4f-48ab-9945-08deb69fb965
+5/20/2026 7:01:19 PM  zachary.meredith@global.komatsu     rkostelnik@REDACTED.com RE: [External]SKIPPED KOMATSU INVOICES                           Delivered   61469d05-66d6-4f4a-f141-08deb6a22d81
+5/20/2026 7:24:29 PM  zachary.meredith@global.komatsu     rkostelnik@REDACTED.com FW: [External]FW: Acct# 219728391 Komatsu American International Delivered   aeaf06df-a9f7-48bb-0789-08deb6a569a6
+5/20/2026 7:24:53 PM  zachary.meredith@global.komatsu     rkostelnik@REDACTED.com RE: [External]SKIPPED KOMATSU INVOICES                           Delivered   7b2f0477-9c11-4ca1-37ec-08deb6a57850
+5/21/2026 12:15:15 PM zachary.meredith@global.komatsu     rkostelnik@REDACTED.com RE: [External]SKIPPED KOMATSU INVOICES                           Delivered   5b4370df-cf6a-4437-1a20-08deb7329dc0
+5/21/2026 1:13:27 PM  zachary.meredith@global.komatsu     rkostelnik@REDACTED.com FW: [External]SKIPPED KOMATSU INVOICES                           Delivered   a28b6607-d378-4f9e-e687-08deb73abf53
+5/21/2026 4:55:12 PM  lana.carney@global.komatsu          rkostelnik@REDACTED.com RE: [External]FW: Acct# 219728391 Komatsu American International Delivered   128c63fa-27e0-476c-4539-08deb759b948
+5/21/2026 5:03:04 PM  christy.fitzhugh@global.komatsu     rkostelnik@REDACTED.com RE: [External]FW: Acct# 219728391 Komatsu American International Delivered   40425312-61fc-4f6c-71d9-08deb75ad312
+5/21/2026 5:06:38 PM  christy.fitzhugh@global.komatsu     rkostelnik@REDACTED.com RE: [External]FW: Acct# 219728391 Komatsu American International Delivered   f8ba06c6-0179-4f7d-e621-08deb75b5272
+5/21/2026 6:08:15 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/21/2026 VNDR 15157                   Delivered   494935f6-3ab6-4246-8ece-08deb763edc7
+5/21/2026 9:24:23 PM  leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   d3142d83-10ad-466d-405b-08deb77f5440
+5/21/2026 9:24:23 PM  leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   c8149c78-787c-4ec6-7a53-08deb77f5467
+5/21/2026 9:24:23 PM  leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   61d289d6-5350-46a6-6789-08deb77f5474
+5/26/2026 4:03:59 PM  james.lowe@global.komatsu           rkostelnik@REDACTED.com Payment Advice Note from 05/26/2026                              Delivered   4d75faf8-5964-438e-f8a6-08debb4065bd
+5/26/2026 5:33:18 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/26/2026 VNDR 15157                   Quarantined 8fe9e263-adcc-43f6-19c6-08debb4ce04f
+5/27/2026 1:14:44 PM  KAC_PAccountsPayable@global.komatsu rkostelnik@REDACTED.com RE: [External]FW: Acct# 219728391 Komatsu American International Delivered   29b7cbfe-6755-40ea-8325-08debbf1eb55
+5/27/2026 4:03:04 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/27/2026 VNDR 15157                   Quarantined d9121045-98c6-48fb-84ee-08debc096faa
+5/27/2026 8:10:43 PM  KAC_AccountsPayable@global.komatsu  rkostelnik@REDACTED.com KAC Peoria Remittance Notification                               Delivered   f7a0b289-ac26-4bd1-a70a-08debc2c086e
+5/28/2026 6:23:17 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/28/2026 VNDR 15157                   Quarantined 685532a9-905b-4dc7-6caa-08debce63071
+5/28/2026 6:23:17 PM  scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 05/28/2026 VNDR 15137                   Quarantined 7c6f828e-f4a3-4e81-a0ca-08debce63089
+5/28/2026 6:48:43 PM  james.lowe@global.komatsu           rkostelnik@REDACTED.com Payment Advice Note from 05/28/2026                              Delivered   8ddaf04f-33c9-41be-a411-08debce9be4a
+5/29/2026 3:25:46 PM  sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]remittance please?                                 Delivered   6952535a-c04b-4030-fc47-08debd968e42
+5/29/2026 3:36:05 PM  katelin.lopeman@global.komatsu      rkostelnik@REDACTED.com Re: [External]missing remittance                                 Delivered   e1bb3c1c-b4bd-4793-a723-08debd97ff34
+5/29/2026 3:57:12 PM  sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]remittance please?                                 Delivered   efd4fcf8-b71b-430e-53e2-08debd9af248
+5/29/2026 6:14:22 PM  sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]remittance please?                                 Delivered   c519cc1d-ead7-413f-dcfc-08debdae1c3e
+5/29/2026 7:02:14 PM  james.lowe@global.komatsu           rkostelnik@REDACTED.com Payment Advice Note from 05/29/2026                              Delivered   3f9ab524-2263-4525-8827-08debdb4cc02
+6/1/2026 12:13:14 PM  Rylie.Carter@global.komatsu         rkostelnik@REDACTED.com Re: **KNA requesting quote                                       Delivered   74569d53-8b62-4cac-e143-08debfd727de
+6/2/2026 4:15:43 PM   Rylie.Carter@global.komatsu         rkostelnik@REDACTED.com Re: **KNA requesting quote                                       Delivered   49f9a72e-80e1-46f7-cad9-08dec0c2327a
+6/3/2026 6:31:03 PM   KAC_AccountsPayable@global.komatsu  rkostelnik@REDACTED.com KAC Peoria Remittance Notification                               Delivered   b7edeec8-0270-4907-aeaf-08dec19e4491
+6/3/2026 6:53:23 PM   scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 06/03/2026 VNDR 15157                   Quarantined df304fdb-4b05-497d-c6a8-08dec1a163a0
+6/4/2026 2:09:40 PM   leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   010a0fb8-2e8d-49a6-41fe-08dec242eb3a
+6/4/2026 2:10:03 PM   leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   27465e35-3cf5-4c70-c7a1-08dec242f911
+6/4/2026 2:10:25 PM   leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   c24669c4-f6e2-49e1-d085-08dec24305ea
+6/4/2026 2:10:25 PM   leah.miller@global.komatsu          rkostelnik@REDACTED.com TimberPro AP Remittance Advice                                   Delivered   60ff7635-04a9-4786-0e65-08dec2430642
+6/4/2026 6:47:46 PM   scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 06/04/2026 VNDR 15137                   Quarantined d40c8194-43d9-48d7-da08-08dec269c515
+6/4/2026 6:47:47 PM   scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 06/04/2026 VNDR 15157                   Quarantined 6ec88d5a-6773-472b-edde-08dec269c565
+6/5/2026 4:07:34 PM   scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 06/05/2026 VNDR 15157                   Quarantined d571e7e6-d63b-40fb-5f83-08dec31c8e63
+6/5/2026 4:07:35 PM   scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 06/05/2026 VNDR 15137                   Quarantined 49d148ae-b0b7-42b0-6bef-08dec31c8e83
+6/5/2026 7:25:17 PM   james.lowe@global.komatsu           rkostelnik@REDACTED.com Payment Advice Note from 06/05/2026                              Delivered   2c4754cf-69d5-49ae-fe99-08dec3382d28
+6/8/2026 6:25:40 PM   scott.harwood@global.komatsu        rkostelnik@REDACTED.com Payment Advice Note from 06/08/2026 VNDR 15157                   Quarantined 36e86eb9-1504-4e14-c722-08dec58b583a
+6/9/2026 12:07:34 PM  sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]remittance please?                                 Delivered   61518d30-dd8d-4415-59fe-08dec61fb0d5
+6/9/2026 12:44:52 PM  sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]remittance please?                                 Delivered   35ef8edf-b89e-4955-447b-08dec624e6b1
+6/9/2026 1:08:07 PM   sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]remittance please?                                 Delivered   ea5c5411-6430-4543-21ae-08dec6282615
+6/9/2026 1:51:28 PM   sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]remittance please?                                 Delivered   91438588-f8b8-4350-37c6-08dec62e3461
+6/10/2026 5:02:39 PM  sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]another remittance please?                         Delivered   9e77650f-5cec-43fe-e29e-08dec7121416
+6/10/2026 5:11:34 PM  sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]DM copies                                          Delivered   ab55af03-71be-4dac-0c37-08dec713531f
+6/11/2026 12:31:53 PM sarah.wilson@global.komatsu         rkostelnik@REDACTED.com RE: [External]another remittance please?                         Delivered   58286b4f-b5ef-43b5-13ca-08dec7b56b72
+
+
+2026-06-11 08:29:04 [Info] Enumerating per-recipient details...
+2026-06-11 08:33:01 [Ok] Details (211 rows):
+2026-06-11 08:33:01 [Info] 
+Recipient             MessageTraceId                       Date                  Event          Detail
+---------             --------------                       ----                  -----          ------
+rkostelnik@REDACTED.com 61d289d6-5350-46a6-6789-08deb77f5474 5/21/2026 9:24:25 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 61d289d6-5350-46a6-6789-08deb77f5474 5/21/2026 9:24:26 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 61d289d6-5350-46a6-6789-08deb77f5474 5/21/2026 9:24:41 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com c8149c78-787c-4ec6-7a53-08deb77f5467 5/21/2026 9:24:26 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com c8149c78-787c-4ec6-7a53-08deb77f5467 5/21/2026 9:24:26 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com c8149c78-787c-4ec6-7a53-08deb77f5467 5/21/2026 9:24:42 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com d3142d83-10ad-466d-405b-08deb77f5440 5/21/2026 9:24:27 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com d3142d83-10ad-466d-405b-08deb77f5440 5/21/2026 9:24:28 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com d3142d83-10ad-466d-405b-08deb77f5440 5/21/2026 9:24:45 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 494935f6-3ab6-4246-8ece-08deb763edc7 5/21/2026 6:08:19 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 494935f6-3ab6-4246-8ece-08deb763edc7 5/21/2026 6:08:22 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com f8ba06c6-0179-4f7d-e621-08deb75b5272 5/21/2026 5:06:40 PM  Receive        Message received by: SJ2PR22MB3848.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com f8ba06c6-0179-4f7d-e621-08deb75b5272 5/21/2026 5:06:48 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com f8ba06c6-0179-4f7d-e621-08deb75b5272 5/21/2026 5:06:50 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 40425312-61fc-4f6c-71d9-08deb75ad312 5/21/2026 5:03:05 PM  Receive        Message received by: CH3PR22MB4417.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 40425312-61fc-4f6c-71d9-08deb75ad312 5/21/2026 5:03:13 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 40425312-61fc-4f6c-71d9-08deb75ad312 5/21/2026 5:03:15 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 128c63fa-27e0-476c-4539-08deb759b948 5/21/2026 4:55:15 PM  Receive        Message received by: DM3PPFC5355C082.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 128c63fa-27e0-476c-4539-08deb759b948 5/21/2026 4:55:23 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 128c63fa-27e0-476c-4539-08deb759b948 5/21/2026 4:55:24 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com a28b6607-d378-4f9e-e687-08deb73abf53 5/21/2026 1:13:29 PM  Receive        Message received by: EAYPR22MB996888.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com a28b6607-d378-4f9e-e687-08deb73abf53 5/21/2026 1:13:33 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com a28b6607-d378-4f9e-e687-08deb73abf53 5/21/2026 1:13:35 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com a28b6607-d378-4f9e-e687-08deb73abf53 5/21/2026 1:14:31 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 5b4370df-cf6a-4437-1a20-08deb7329dc0 5/21/2026 12:15:16 PM Receive        Message received by: IA1PR22MB6095.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 5b4370df-cf6a-4437-1a20-08deb7329dc0 5/21/2026 12:15:20 PM Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 5b4370df-cf6a-4437-1a20-08deb7329dc0 5/21/2026 12:15:21 PM Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 5b4370df-cf6a-4437-1a20-08deb7329dc0 5/21/2026 12:15:54 PM Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 7b2f0477-9c11-4ca1-37ec-08deb6a57850 5/20/2026 7:24:54 PM  Receive        Message received by: LV3PR22MB4481.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 7b2f0477-9c11-4ca1-37ec-08deb6a57850 5/20/2026 7:25:17 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 7b2f0477-9c11-4ca1-37ec-08deb6a57850 5/20/2026 7:25:18 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com aeaf06df-a9f7-48bb-0789-08deb6a569a6 5/20/2026 7:24:32 PM  Receive        Message received by: CYYPR22MB4215.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com aeaf06df-a9f7-48bb-0789-08deb6a569a6 5/20/2026 7:24:35 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com aeaf06df-a9f7-48bb-0789-08deb6a569a6 5/20/2026 7:24:36 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com aeaf06df-a9f7-48bb-0789-08deb6a569a6 5/20/2026 7:25:07 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 61469d05-66d6-4f4a-f141-08deb6a22d81 5/20/2026 7:01:23 PM  Receive        Message received by: CH3PR22MB4369.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 61469d05-66d6-4f4a-f141-08deb6a22d81 5/20/2026 7:01:31 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 61469d05-66d6-4f4a-f141-08deb6a22d81 5/20/2026 7:01:34 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com bb3ca2fc-8c4f-48ab-9945-08deb69fb965 5/20/2026 6:43:48 PM  TRANSFER       
+rkostelnik@REDACTED.com bb3ca2fc-8c4f-48ab-9945-08deb69fb965 5/20/2026 6:43:48 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com bb3ca2fc-8c4f-48ab-9945-08deb69fb965 5/20/2026 6:43:49 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com bb3ca2fc-8c4f-48ab-9945-08deb69fb965 5/20/2026 6:43:50 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 74f31b48-31e3-4c0a-c80d-08deb69a5c38 5/20/2026 6:05:28 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 74f31b48-31e3-4c0a-c80d-08deb69a5c38 5/20/2026 6:05:30 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 6a529ddd-3c0a-4b1d-d6b9-08deb6994a1e 5/20/2026 5:57:45 PM  Receive        Message received by: DS1PR22MB5850.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 6a529ddd-3c0a-4b1d-d6b9-08deb6994a1e 5/20/2026 5:57:50 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 6a529ddd-3c0a-4b1d-d6b9-08deb6994a1e 5/20/2026 5:57:51 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com e5453e19-983d-40d7-59ba-08deb697525d 5/20/2026 5:43:37 PM  Receive        Message received by: LV8PR22MB5628.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com e5453e19-983d-40d7-59ba-08deb697525d 5/20/2026 5:43:47 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com e5453e19-983d-40d7-59ba-08deb697525d 5/20/2026 5:43:49 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 0c1a2d49-ac34-40ad-c8e0-08deb6940a7d 5/20/2026 5:20:09 PM  Receive        Message received by: SA1PR22MB4573.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 0c1a2d49-ac34-40ad-c8e0-08deb6940a7d 5/20/2026 5:20:19 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 0c1a2d49-ac34-40ad-c8e0-08deb6940a7d 5/20/2026 5:20:21 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 2497e82a-a6c6-43d0-1a79-08deb5d9412c 5/19/2026 7:03:05 PM  TRANSFER       
+rkostelnik@REDACTED.com 2497e82a-a6c6-43d0-1a79-08deb5d9412c 5/19/2026 7:03:05 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 2497e82a-a6c6-43d0-1a79-08deb5d9412c 5/19/2026 7:03:05 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 2497e82a-a6c6-43d0-1a79-08deb5d9412c 5/19/2026 7:03:08 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com a3fe4f94-02e2-42ad-85e2-08deb50de78f 5/18/2026 6:47:30 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com a3fe4f94-02e2-42ad-85e2-08deb50de78f 5/18/2026 6:47:31 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 9b802d70-64ba-4da7-37f5-08deb50c8f13 5/18/2026 6:37:51 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 9b802d70-64ba-4da7-37f5-08deb50c8f13 5/18/2026 6:37:52 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 9b802d70-64ba-4da7-37f5-08deb50c8f13 5/18/2026 6:38:25 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com a3d16b9a-7887-48f7-c61a-08deb4e4ea28 5/18/2026 1:54:05 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com a3d16b9a-7887-48f7-c61a-08deb4e4ea28 5/18/2026 1:54:06 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com a3d16b9a-7887-48f7-c61a-08deb4e4ea28 5/18/2026 1:54:52 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 80f1efd9-a169-4817-e9ea-08deb4e4e9ca 5/18/2026 1:54:09 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 80f1efd9-a169-4817-e9ea-08deb4e4e9ca 5/18/2026 1:54:10 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 80f1efd9-a169-4817-e9ea-08deb4e4e9ca 5/18/2026 1:54:26 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 5d9f925e-33a0-4a30-3cd5-08deb4e4dca5 5/18/2026 1:53:41 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 5d9f925e-33a0-4a30-3cd5-08deb4e4dca5 5/18/2026 1:53:43 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 5d9f925e-33a0-4a30-3cd5-08deb4e4dca5 5/18/2026 1:53:59 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 9d8a5124-1617-4da3-bb29-08deb4e4cf5f 5/18/2026 1:53:21 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 9d8a5124-1617-4da3-bb29-08deb4e4cf5f 5/18/2026 1:53:23 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 9d8a5124-1617-4da3-bb29-08deb4e4cf5f 5/18/2026 1:53:43 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 7779cc60-278c-4ce0-1b53-08deb1e72fdc 5/14/2026 6:32:53 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 7779cc60-278c-4ce0-1b53-08deb1e72fdc 5/14/2026 6:32:55 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 7779cc60-278c-4ce0-1b53-08deb1e72fdc 5/14/2026 6:33:14 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com dff2cf89-93e9-4318-cc2a-08deb1e49743 5/14/2026 6:14:11 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com dff2cf89-93e9-4318-cc2a-08deb1e49743 5/14/2026 6:14:13 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 2d23f956-c1af-4d78-6227-08deb1c9db52 5/14/2026 3:02:47 PM  Receive        Message received by: SN4PR22MB2855.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 2d23f956-c1af-4d78-6227-08deb1c9db52 5/14/2026 3:03:01 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 2d23f956-c1af-4d78-6227-08deb1c9db52 5/14/2026 3:03:03 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 3a0e6fd9-0489-41a8-bec4-08deb11e27c5 5/13/2026 6:33:51 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 3a0e6fd9-0489-41a8-bec4-08deb11e27c5 5/13/2026 6:33:52 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 3a0e6fd9-0489-41a8-bec4-08deb11e27c5 5/13/2026 6:34:42 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com d7792f11-5501-4898-8f60-08deb11d7762 5/13/2026 6:28:47 PM  TRANSFER       
+rkostelnik@REDACTED.com d7792f11-5501-4898-8f60-08deb11d7762 5/13/2026 6:28:47 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com d7792f11-5501-4898-8f60-08deb11d7762 5/13/2026 6:28:48 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com d7792f11-5501-4898-8f60-08deb11d7762 5/13/2026 6:28:49 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 1bec9c33-1c34-4786-4d52-08deb056742c 5/12/2026 6:44:16 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 1bec9c33-1c34-4786-4d52-08deb056742c 5/12/2026 6:44:23 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 74569d53-8b62-4cac-e143-08debfd727de 6/1/2026 12:13:22 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 74569d53-8b62-4cac-e143-08debfd727de 6/1/2026 12:13:22 PM  TRANSFER       
+rkostelnik@REDACTED.com 74569d53-8b62-4cac-e143-08debfd727de 6/1/2026 12:13:24 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 3f9ab524-2263-4525-8827-08debdb4cc02 5/29/2026 7:02:16 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 3f9ab524-2263-4525-8827-08debdb4cc02 5/29/2026 7:02:18 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com c519cc1d-ead7-413f-dcfc-08debdae1c3e 5/29/2026 6:14:25 PM  Receive        Message received by: CH3PR22MB4387.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com c519cc1d-ead7-413f-dcfc-08debdae1c3e 5/29/2026 6:14:30 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com c519cc1d-ead7-413f-dcfc-08debdae1c3e 5/29/2026 6:14:30 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com c519cc1d-ead7-413f-dcfc-08debdae1c3e 5/29/2026 6:15:02 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com efd4fcf8-b71b-430e-53e2-08debd9af248 5/29/2026 3:57:12 PM  Receive        Message received by: DSVPR22MB996665.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com efd4fcf8-b71b-430e-53e2-08debd9af248 5/29/2026 3:57:18 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com efd4fcf8-b71b-430e-53e2-08debd9af248 5/29/2026 3:57:19 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com efd4fcf8-b71b-430e-53e2-08debd9af248 5/29/2026 3:58:06 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com e1bb3c1c-b4bd-4793-a723-08debd97ff34 5/29/2026 3:36:07 PM  Receive        Message received by: SJ0PR22MB2861.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com e1bb3c1c-b4bd-4793-a723-08debd97ff34 5/29/2026 3:36:14 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com e1bb3c1c-b4bd-4793-a723-08debd97ff34 5/29/2026 3:36:16 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com e1bb3c1c-b4bd-4793-a723-08debd97ff34 5/29/2026 3:36:50 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 6952535a-c04b-4030-fc47-08debd968e42 5/29/2026 3:25:50 PM  Receive        Message received by: LV8PR22MB5223.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 6952535a-c04b-4030-fc47-08debd968e42 5/29/2026 3:25:56 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 6952535a-c04b-4030-fc47-08debd968e42 5/29/2026 3:25:58 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 6952535a-c04b-4030-fc47-08debd968e42 5/29/2026 3:26:30 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 8ddaf04f-33c9-41be-a411-08debce9be4a 5/28/2026 6:48:52 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 8ddaf04f-33c9-41be-a411-08debce9be4a 5/28/2026 6:48:53 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 7c6f828e-f4a3-4e81-a0ca-08debce63089 5/28/2026 6:23:21 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 7c6f828e-f4a3-4e81-a0ca-08debce63089 5/28/2026 6:23:23 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 7c6f828e-f4a3-4e81-a0ca-08debce63089 5/28/2026 6:23:38 PM  Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com 7c6f828e-f4a3-4e81-a0ca-08debce63089 5/28/2026 6:23:39 PM  Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com 685532a9-905b-4dc7-6caa-08debce63071 5/28/2026 6:23:19 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 685532a9-905b-4dc7-6caa-08debce63071 5/28/2026 6:23:20 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 685532a9-905b-4dc7-6caa-08debce63071 5/28/2026 6:23:32 PM  Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com 685532a9-905b-4dc7-6caa-08debce63071 5/28/2026 6:23:33 PM  Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com f7a0b289-ac26-4bd1-a70a-08debc2c086e 5/27/2026 8:10:46 PM  TRANSFER       
+rkostelnik@REDACTED.com f7a0b289-ac26-4bd1-a70a-08debc2c086e 5/27/2026 8:10:46 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com f7a0b289-ac26-4bd1-a70a-08debc2c086e 5/27/2026 8:10:46 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com f7a0b289-ac26-4bd1-a70a-08debc2c086e 5/27/2026 8:10:48 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com d9121045-98c6-48fb-84ee-08debc096faa 5/27/2026 4:03:10 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com d9121045-98c6-48fb-84ee-08debc096faa 5/27/2026 4:03:11 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com d9121045-98c6-48fb-84ee-08debc096faa 5/27/2026 4:03:40 PM  Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com d9121045-98c6-48fb-84ee-08debc096faa 5/27/2026 4:03:41 PM  Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com 29b7cbfe-6755-40ea-8325-08debbf1eb55 5/27/2026 1:14:45 PM  Receive        Message received by: IA2PR22MB5585.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 29b7cbfe-6755-40ea-8325-08debbf1eb55 5/27/2026 1:14:47 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 29b7cbfe-6755-40ea-8325-08debbf1eb55 5/27/2026 1:14:49 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 8fe9e263-adcc-43f6-19c6-08debb4ce04f 5/26/2026 5:33:24 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 8fe9e263-adcc-43f6-19c6-08debb4ce04f 5/26/2026 5:33:28 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 8fe9e263-adcc-43f6-19c6-08debb4ce04f 5/26/2026 5:33:45 PM  Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com 8fe9e263-adcc-43f6-19c6-08debb4ce04f 5/26/2026 5:33:47 PM  Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com 4d75faf8-5964-438e-f8a6-08debb4065bd 5/26/2026 4:04:04 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 4d75faf8-5964-438e-f8a6-08debb4065bd 5/26/2026 4:04:05 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 58286b4f-b5ef-43b5-13ca-08dec7b56b72 6/11/2026 12:31:55 PM Receive        Message received by: PH3PPF244120B13.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 58286b4f-b5ef-43b5-13ca-08dec7b56b72 6/11/2026 12:32:01 PM Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 58286b4f-b5ef-43b5-13ca-08dec7b56b72 6/11/2026 12:32:02 PM Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 58286b4f-b5ef-43b5-13ca-08dec7b56b72 6/11/2026 12:32:51 PM Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com ab55af03-71be-4dac-0c37-08dec713531f 6/10/2026 5:11:38 PM  Receive        Message received by: IA3PR22MB5733.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com ab55af03-71be-4dac-0c37-08dec713531f 6/10/2026 5:11:43 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com ab55af03-71be-4dac-0c37-08dec713531f 6/10/2026 5:11:49 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 9e77650f-5cec-43fe-e29e-08dec7121416 6/10/2026 5:02:42 PM  Receive        Message received by: SJ2PR22MB4236.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 9e77650f-5cec-43fe-e29e-08dec7121416 6/10/2026 5:02:52 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 9e77650f-5cec-43fe-e29e-08dec7121416 6/10/2026 5:02:55 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 91438588-f8b8-4350-37c6-08dec62e3461 6/9/2026 1:51:30 PM   Receive        Message received by: EAYPR22MB996890.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 91438588-f8b8-4350-37c6-08dec62e3461 6/9/2026 1:51:32 PM   TRANSFER       
+rkostelnik@REDACTED.com 91438588-f8b8-4350-37c6-08dec62e3461 6/9/2026 1:51:33 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 91438588-f8b8-4350-37c6-08dec62e3461 6/9/2026 1:51:34 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 91438588-f8b8-4350-37c6-08dec62e3461 6/9/2026 1:51:49 PM   Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com ea5c5411-6430-4543-21ae-08dec6282615 6/9/2026 1:08:08 PM   Receive        Message received by: DS1PR22MB5850.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com ea5c5411-6430-4543-21ae-08dec6282615 6/9/2026 1:08:14 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com ea5c5411-6430-4543-21ae-08dec6282615 6/9/2026 1:08:15 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com ea5c5411-6430-4543-21ae-08dec6282615 6/9/2026 1:08:48 PM   Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 35ef8edf-b89e-4955-447b-08dec624e6b1 6/9/2026 12:44:54 PM  Receive        Message received by: SA6PR22MB5695.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 35ef8edf-b89e-4955-447b-08dec624e6b1 6/9/2026 12:45:00 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 35ef8edf-b89e-4955-447b-08dec624e6b1 6/9/2026 12:45:01 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 35ef8edf-b89e-4955-447b-08dec624e6b1 6/9/2026 12:45:36 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 61518d30-dd8d-4415-59fe-08dec61fb0d5 6/9/2026 12:07:36 PM  Receive        Message received by: SJ2PR22MB4830.namprd22.prod.outlook.com
+rkostelnik@REDACTED.com 61518d30-dd8d-4415-59fe-08dec61fb0d5 6/9/2026 12:07:43 PM  Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 61518d30-dd8d-4415-59fe-08dec61fb0d5 6/9/2026 12:07:43 PM  Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 61518d30-dd8d-4415-59fe-08dec61fb0d5 6/9/2026 12:08:26 PM  Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 36e86eb9-1504-4e14-c722-08dec58b583a 6/8/2026 6:25:45 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 36e86eb9-1504-4e14-c722-08dec58b583a 6/8/2026 6:25:47 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 36e86eb9-1504-4e14-c722-08dec58b583a 6/8/2026 6:26:04 PM   Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com 36e86eb9-1504-4e14-c722-08dec58b583a 6/8/2026 6:26:05 PM   Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com 2c4754cf-69d5-49ae-fe99-08dec3382d28 6/5/2026 7:25:23 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 2c4754cf-69d5-49ae-fe99-08dec3382d28 6/5/2026 7:25:25 PM   Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 49d148ae-b0b7-42b0-6bef-08dec31c8e83 6/5/2026 4:07:40 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 49d148ae-b0b7-42b0-6bef-08dec31c8e83 6/5/2026 4:07:41 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 49d148ae-b0b7-42b0-6bef-08dec31c8e83 6/5/2026 4:07:56 PM   Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com 49d148ae-b0b7-42b0-6bef-08dec31c8e83 6/5/2026 4:07:57 PM   Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com d571e7e6-d63b-40fb-5f83-08dec31c8e63 6/5/2026 4:07:38 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com d571e7e6-d63b-40fb-5f83-08dec31c8e63 6/5/2026 4:07:40 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com d571e7e6-d63b-40fb-5f83-08dec31c8e63 6/5/2026 4:08:24 PM   Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com d571e7e6-d63b-40fb-5f83-08dec31c8e63 6/5/2026 4:08:25 PM   Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com 6ec88d5a-6773-472b-edde-08dec269c565 6/4/2026 6:47:57 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 6ec88d5a-6773-472b-edde-08dec269c565 6/4/2026 6:47:59 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 6ec88d5a-6773-472b-edde-08dec269c565 6/4/2026 6:48:17 PM   Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com 6ec88d5a-6773-472b-edde-08dec269c565 6/4/2026 6:48:18 PM   Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com d40c8194-43d9-48d7-da08-08dec269c515 6/4/2026 6:47:49 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com d40c8194-43d9-48d7-da08-08dec269c515 6/4/2026 6:47:50 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com d40c8194-43d9-48d7-da08-08dec269c515 6/4/2026 6:48:05 PM   Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com d40c8194-43d9-48d7-da08-08dec269c515 6/4/2026 6:48:06 PM   Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com 60ff7635-04a9-4786-0e65-08dec2430642 6/4/2026 2:10:28 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 60ff7635-04a9-4786-0e65-08dec2430642 6/4/2026 2:10:29 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 60ff7635-04a9-4786-0e65-08dec2430642 6/4/2026 2:11:13 PM   Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com c24669c4-f6e2-49e1-d085-08dec24305ea 6/4/2026 2:10:28 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com c24669c4-f6e2-49e1-d085-08dec24305ea 6/4/2026 2:10:29 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com c24669c4-f6e2-49e1-d085-08dec24305ea 6/4/2026 2:10:43 PM   Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 27465e35-3cf5-4c70-c7a1-08dec242f911 6/4/2026 2:10:19 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 27465e35-3cf5-4c70-c7a1-08dec242f911 6/4/2026 2:10:19 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 27465e35-3cf5-4c70-c7a1-08dec242f911 6/4/2026 2:10:36 PM   Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 010a0fb8-2e8d-49a6-41fe-08dec242eb3a 6/4/2026 2:09:45 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 010a0fb8-2e8d-49a6-41fe-08dec242eb3a 6/4/2026 2:09:47 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com 010a0fb8-2e8d-49a6-41fe-08dec242eb3a 6/4/2026 2:10:04 PM   Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com df304fdb-4b05-497d-c6a8-08dec1a163a0 6/3/2026 6:53:25 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com df304fdb-4b05-497d-c6a8-08dec1a163a0 6/3/2026 6:53:26 PM   Defer          Reason: 400 4.7.721 Advanced Threat Protection scanning in progress.
+rkostelnik@REDACTED.com df304fdb-4b05-497d-c6a8-08dec1a163a0 6/3/2026 6:53:38 PM   Spam           Spam confidence level: 8
+rkostelnik@REDACTED.com df304fdb-4b05-497d-c6a8-08dec1a163a0 6/3/2026 6:53:39 PM   Deliver        The message was successfully delivered to the folder: DefaultFolderType:QuarantinedEmailSecured
+rkostelnik@REDACTED.com b7edeec8-0270-4907-aeaf-08dec19e4491 6/3/2026 6:31:09 PM   TRANSFER       
+rkostelnik@REDACTED.com b7edeec8-0270-4907-aeaf-08dec19e4491 6/3/2026 6:31:09 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com b7edeec8-0270-4907-aeaf-08dec19e4491 6/3/2026 6:31:10 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com b7edeec8-0270-4907-aeaf-08dec19e4491 6/3/2026 6:31:11 PM   Deliver        The message was successfully delivered.
+rkostelnik@REDACTED.com 49f9a72e-80e1-46f7-cad9-08dec0c2327a 6/2/2026 4:15:49 PM   Transport rule Transport rule: 'External Message Warning', ID: ('9EBA060A-D262-4314-9E15-550EC0111D71'), DLP policy: '…
+rkostelnik@REDACTED.com 49f9a72e-80e1-46f7-cad9-08dec0c2327a 6/2/2026 4:15:49 PM   TRANSFER       
+rkostelnik@REDACTED.com 49f9a72e-80e1-46f7-cad9-08dec0c2327a 6/2/2026 4:15:51 PM   Deliver        The message was successfully delivered.
+
+
+2026-06-11 08:33:01 [Ok] Export complete.
+2026-06-11 08:33:01 [Info]  Summary: C:\Users\ddamit\OneDrive - Value Added Companies\Documents\TechStuff\TechToolbox\LogsAndExports\Exports\MessageTraces\MessageTraceSummary_20260611-083301.csv
+2026-06-11 08:33:01 [Info]  Details: C:\Users\ddamit\OneDrive - Value Added Companies\Documents\TechStuff\TechToolbox\LogsAndExports\Exports\MessageTraces\MessageTraceDetails_20260611-083301.csv
+2026-06-11 08:33:02 [E-Info] 
+Disconnected from Exchange Online.
+2026-06-11 09:17:38 [Info] Starting Disable-User workflow for 'THarris'...
+2026-06-11 09:17:38 [Warn] settings.offboarding.disabledOU is empty; OU move will be skipped.
+2026-06-11 09:17:38 [Info] Offboarding: Resolving user 'THarris'...
+2026-06-11 09:17:39 [Ok] User 'tharris@REDACTED.com' found and normalized.
+2026-06-11 09:17:39 [Info] Offboarding: Disabling AD account for 'tharris'...
+2026-06-11 09:17:39 [Info] Disabling AD account: tharris
+2026-06-11 09:17:40 [Ok] AD account disabled: tharris
+2026-06-11 09:17:40 [Info] Appended AD description note for 'tharris': Disabled on 2026-06-11 09:17
+2026-06-11 09:17:40 [Info] Hybrid auto-disable enabled; cloud actions deferred to AAD Connect or downstream automation.
+2026-06-11 09:17:40 [Info] Writing offboarding summary for: tharris@REDACTED.com
+2026-06-11 09:17:40 [Ok] Offboarding summary written to: C:\Users\ddamit\OneDrive - Value Added Companies\Documents\TechStuff\TechToolbox\LogsAndExports\Logs\Offboarding\OffboardingSummary_tharris_20260611_091740.txt
+2026-06-11 09:17:40 [Ok] Disable-User workflow completed for 'tharris@REDACTED.com' (hybrid short-circuit).
+
+2026-06-11 09:26:56 [Info] Creating remote session to AADConnect-1.REDACTED.com on port 5985 ...
+2026-06-11 09:26:57 [Ok] Session established using supplied credentials.
+2026-06-11 09:26:57 [Info] Checking ADSync module and service state on AADConnect-1.REDACTED.com ...
+2026-06-11 09:27:00 [Ok] Sync (Delta) triggered successfully on AADConnect-1.REDACTED.com.
+2026-06-11 09:27:00 [Info] Remote session closed.
+2026-06-11 10:13:20 [Info] Starting Disable-User workflow for 'TAdams'...
+2026-06-11 10:13:20 [Warn] settings.offboarding.disabledOU is empty; OU move will be skipped.
+2026-06-11 10:13:20 [Info] Offboarding: Resolving user 'TAdams'...
+2026-06-11 10:13:21 [Ok] User 'tadams@REDACTED.com' found and normalized.
+2026-06-11 10:13:21 [Info] Offboarding: Disabling AD account for 'tadams'...
+2026-06-11 10:13:21 [Info] Disabling AD account: tadams
+2026-06-11 10:13:21 [Ok] AD account disabled: tadams
+2026-06-11 10:13:21 [Info] Appended AD description note for 'tadams': Disabled on 2026-06-11 10:13 > Mail forwarding to jthomas@REDACTED.com (manager)
+2026-06-11 10:13:21 [Info] EXO: starting Exchange Online actions.
+2026-06-11 10:13:21 [E-Info] 
+Connecting to Exchange Online...
+
+2026-06-11 10:13:28 [Info] EXO: setting forwarding for 'tadams@REDACTED.com' to 'jthomas@REDACTED.com' (manager; keep copy: True)...
+2026-06-11 10:13:30 [Info] EXO: granting manager mailbox access for 'tadams@REDACTED.com' to 'jthomas@REDACTED.com'...
+2026-06-11 10:13:30 [Info] Granting mailbox access for 'tadams@REDACTED.com' to manager 'jthomas@REDACTED.com'...
+2026-06-11 10:13:34 [Ok] Granted FullAccess to jthomas@REDACTED.com
+2026-06-11 10:13:41 [Ok] Granted SendAs to jthomas@REDACTED.com
+2026-06-11 10:13:41 [Info] AD description already contains a similar note; skipping append for 'tadams'.
+2026-06-11 10:13:41 [Info] Offboarding: Generating summary for 'tadams@REDACTED.com'...
+2026-06-11 10:13:41 [Info] Writing offboarding summary for: tadams@REDACTED.com
+2026-06-11 10:13:41 [Ok] Offboarding summary written to: C:\Users\ddamit\OneDrive - Value Added Companies\Documents\TechStuff\TechToolbox\LogsAndExports\Logs\Offboarding\OffboardingSummary_tadams_20260611_101341.txt
+2026-06-11 10:13:41 [Ok] Disable-User workflow completed for 'tadams@REDACTED.com'.
+2026-06-11 10:14:12 [Info] Creating remote session to AADConnect-1.REDACTED.com on port 5985 ...
+2026-06-11 10:14:12 [Ok] Session established using supplied credentials.
+2026-06-11 10:14:12 [Info] Checking ADSync module and service state on AADConnect-1.REDACTED.com ...
+2026-06-11 10:14:14 [Ok] Sync (Delta) triggered successfully on AADConnect-1.REDACTED.com.
+2026-06-11 10:14:14 [Info] Remote session closed.
+2026-06-11 10:15:04 [E-Info] 
+Effective: At=01:00 | DateTime=2026-06-12 01:00:00 | TaskName=TT_OneTimeReboot | SelfDelete=False | Force=True | Wake=False | Remove=False
+2026-06-11 10:15:05 [Error] Failed to create PSSession to LTL-FS1.ltlsupply.local: Connecting to remote server LTL-FS1.ltlsupply.local failed with the following error message : WinRM cannot process the request. The following error with errorcode 0x80090311 occurred while using Kerberos authentication: We can't sign you in with this credential because your domain isn't available. Make sure your device is connected to your organization's network and try again. If you previously signed in on this device with another credential, you can sign in with that credential.  
+ Possible causes are:
+  -The user name or password specified are invalid.
+  -Kerberos is used when no authentication method and no user name are specified.
+  -Kerberos accepts domain user names, but not local user names.
+  -The Service Principal Name (SPN) for the remote computer name and port does not exist.
+  -The client and remote computers are in different domains and there is no trust between the two domains.
+ After checking for the above issues, try the following:
+  -Check the Event Viewer for events related to authentication.
+  -Change the authentication method; add the destination computer to the WinRM TrustedHosts configuration setting or use HTTPS transport.
+ Note that computers in the TrustedHosts list might not be authenticated.
+   -For more information about WinRM configuration, run the following command: winrm help config. For more information, see the about_Remote_Troubleshooting Help topic.
+2026-06-11 10:15:05 [Error] [LTL-FS1.ltlsupply.local] Connecting to remote server LTL-FS1.ltlsupply.local failed with the following error message : WinRM cannot process the request. The following error with errorcode 0x80090311 occurred while using Kerberos authentication: We can't sign you in with this credential because your domain isn't available. Make sure your device is connected to your organization's network and try again. If you previously signed in on this device with another credential, you can sign in with that credential.  
+ Possible causes are:
+  -The user name or password specified are invalid.
+  -Kerberos is used when no authentication method and no user name are specified.
+  -Kerberos accepts domain user names, but not local user names.
+  -The Service Principal Name (SPN) for the remote computer name and port does not exist.
+  -The client and remote computers are in different domains and there is no trust between the two domains.
+ After checking for the above issues, try the following:
+  -Check the Event Viewer for events related to authentication.
+  -Change the authentication method; add the destination computer to the WinRM TrustedHosts configuration setting or use HTTPS transport.
+ Note that computers in the TrustedHosts list might not be authenticated.
+   -For more information about WinRM configuration, run the following command: winrm help config. For more information, see the about_Remote_Troubleshooting Help topic.
+2026-06-11 10:20:58 [E-Info] 
+Effective: At=01:00 | DateTime=2026-06-12 01:00:00 | TaskName=TT_OneTimeReboot | SelfDelete=False | Force=True | Wake=False | Remove=False
+2026-06-11 10:21:01 [Ok] Connected to LTL-FS1.ltlsupply.local via WSMan (Microsoft.PowerShell).
+2026-06-11 15:08:04 [E-Info] 
+Connecting to Exchange Online...
+
+2026-06-11 15:08:11 [Info] Message trace filters:
+2026-06-11 15:08:11 [Info]   MessageId : 
+2026-06-11 15:08:11 [Info]   Sender    : *@melotte.dist.com
+2026-06-11 15:08:11 [Info]   Recipient : 
+2026-06-11 15:08:11 [Info]   Subject   : 
+2026-06-11 15:08:11 [Info]   Window    : 2026-04-12 15:08:03Z → 2026-06-11 15:08:03Z (UTC shown by EXO)
+2026-06-11 15:08:15 [Warn] No results found. Check filters, UTC vs. local time, and the 10-day-per-call limit.
+2026-06-11 15:08:15 [E-Info] 
+Disconnected from Exchange Online.
+2026-06-11 15:15:21 [Info] Using ticket: #INC-198670
+2026-06-11 15:15:21 [Info] Connecting to Purview (SearchOnly) as ddcloudadmin@REDACTED.com...
+2026-06-11 15:15:49 [Ok] Connected to Purview.
+2026-06-11 15:16:07 [E-Info] Final ContentMatchQuery: from:"heather@freed.ca" AND subject:"Folder"
+2026-06-11 15:16:07 [E-Info] Ensuring mailbox-only Compliance Search '#INC-198670' exists in case 'Content Search'...
+2026-06-11 15:16:10 [Info] Compliance Search already exists: #INC-198670. Updating for this run...
+2026-06-11 15:16:10 [Warn] Using new ContentMatchQuery for '#INC-198670': from:"heather@freed.ca" AND subject:"Folder"
+2026-06-11 15:16:18 [Ok] Search updated: #INC-198670
+2026-06-11 15:16:20 [Info] Search '#INC-198670' existed; update applied. Registration wait skipped.
+2026-06-11 15:16:23 [Info] Pre-start status: Completed
+2026-06-11 15:16:23 [Info] Search was created/updated; forcing Start to run the latest query.
+2026-06-11 15:16:32 [Info] Search started: #INC-198670
+2026-06-11 15:16:32 [Info] Waiting for search '#INC-198670' to complete (timeout=2400s, poll=20s)...
+2026-06-11 15:16:34 [Info] #INC-198670: Status=Starting
+2026-06-11 15:18:49 [Info] #INC-198670: Still waiting (Status=Starting)...
+2026-06-11 15:19:36 [Info] #INC-198670: Status=Completed
+2026-06-11 15:19:36 [Ok] Search '#INC-198670' completed.
+2026-06-11 15:19:36 [Ok] Search status: Completed; Items: 2
+2026-06-11 15:19:36 [Info] Preparing HardDelete purge for '#INC-198670' in case 'Content Search'.
+2026-06-11 15:19:36 [Warn] This will permanently delete all items found by the search.
+2026-06-11 15:19:43 [E-Info] Search '#INC-198670' reports 2 items.
+2026-06-11 15:20:26 [Ok] Purge submitted: 557a88ae-f926-49da-be22-08dec7f6dcd7
+2026-06-11 15:20:30 [Info] 557a88ae-f926-49da-be22-08dec7f6dcd7: Status=Starting
+2026-06-11 15:21:14 [Info] 557a88ae-f926-49da-be22-08dec7f6dcd7: Status=InProgress
+2026-06-11 15:21:36 [Info] 557a88ae-f926-49da-be22-08dec7f6dcd7: Status=Completed
+2026-06-11 15:21:36 [Warn] Purge '557a88ae-f926-49da-be22-08dec7f6dcd7' completed. Items processed: 2.
+Results:
+Purge Type: HardDelete; Item count: 2; Total size 91680; Details: {
+Location: bkleist@REDACTED.com; Item count: 1; Total size: 57303; Failed count: 0; ,
+Location: ddamit@REDACTED.com; Item count: 1; Total size: 34377; Failed count: 0;
+}
+2026-06-11 15:21:36 [Info] 
+2026-06-11 15:21:36 [Ok] Summary: ticket='#INC-198670' search='#INC-198670' status='Completed' items=2 purgeSubmitted=True
+2026-06-11 15:21:36 [E-Info] 
+Remember to disconnect from Purview when finished using Disconnect-ExchangeOnline command...
+2026-06-11 15:25:34 [Info] Using ticket: #INC-198688
+2026-06-11 15:25:34 [Info] Connecting to Purview (SearchOnly) as ddcloudadmin@REDACTED.com...
+2026-06-11 15:25:56 [Ok] Connected to Purview.
+2026-06-11 15:26:26 [E-Info] Final ContentMatchQuery: from:"redarrow6@priority1inc.net" AND subject:"START WITH PRIORITY 1"
+2026-06-11 15:26:26 [E-Info] Ensuring mailbox-only Compliance Search '#INC-198688' exists in case 'Content Search'...
+2026-06-11 15:26:29 [Info] Compliance Search already exists: #INC-198688. Updating for this run...
+2026-06-11 15:26:29 [Warn] Using new ContentMatchQuery for '#INC-198688': from:"redarrow6@priority1inc.net" AND subject:"START WITH PRIORITY 1"
+2026-06-11 15:26:33 [Ok] Search updated: #INC-198688
+2026-06-11 15:26:35 [Info] Search '#INC-198688' existed; update applied. Registration wait skipped.
+2026-06-11 15:26:38 [Info] Pre-start status: Completed
+2026-06-11 15:26:38 [Info] Search was created/updated; forcing Start to run the latest query.
+2026-06-11 15:26:44 [Info] Search started: #INC-198688
+2026-06-11 15:26:44 [Info] Waiting for search '#INC-198688' to complete (timeout=2400s, poll=20s)...
+2026-06-11 15:26:47 [Info] #INC-198688: Status=Starting
+2026-06-11 15:29:10 [Info] #INC-198688: Status=Completed
+2026-06-11 15:29:10 [Ok] Search '#INC-198688' completed.
+2026-06-11 15:29:10 [Ok] Search status: Completed; Items: 3
+2026-06-11 15:29:10 [Info] Preparing HardDelete purge for '#INC-198688' in case 'Content Search'.
+2026-06-11 15:29:10 [Warn] This will permanently delete all items found by the search.
+2026-06-11 15:29:20 [E-Info] Search '#INC-198688' reports 3 items.
+2026-06-11 15:29:36 [Ok] Purge submitted: 8a66e777-7d5d-40bd-919b-08dec7f824b2
+2026-06-11 15:29:39 [Info] 8a66e777-7d5d-40bd-919b-08dec7f824b2: Status=Starting
+2026-06-11 15:30:49 [Info] 8a66e777-7d5d-40bd-919b-08dec7f824b2: Status=InProgress
+2026-06-11 15:31:12 [Info] 8a66e777-7d5d-40bd-919b-08dec7f824b2: Status=Completed
+2026-06-11 15:31:12 [Warn] Purge '8a66e777-7d5d-40bd-919b-08dec7f824b2' completed. Items processed: 3.
+Results:
+Purge Type: HardDelete; Item count: 3; Total size 268571; Details: {
+Location: llambie@REDACTED.com; Item count: 1; Total size: 107605; Failed count: 0; ,
+Location: jsimon@REDACTED.com; Item count: 1; Total size: 107466; Failed count: 0; ,
+Location: ddamit@REDACTED.com; Item count: 1; Total size: 53500; Failed count: 0;
+}
+2026-06-11 15:31:12 [Info] 
+2026-06-11 15:31:12 [Ok] Summary: ticket='#INC-198688' search='#INC-198688' status='Completed' items=3 purgeSubmitted=True
+2026-06-11 15:31:12 [E-Info] 
+Remember to disconnect from Purview when finished using Disconnect-ExchangeOnline command...
+2026-06-11 16:46:13 [Info] Starting Disable-User workflow for 'ddtest1'...
+2026-06-11 16:46:13 [Warn] settings.offboarding.disabledOU is empty; OU move will be skipped.
+2026-06-11 16:46:13 [Info] Offboarding: Resolving user 'ddtest1'...
+2026-06-11 16:46:13 [Ok] User 'ddtest1@REDACTED.com' found and normalized.
+2026-06-11 16:46:13 [Info] Offboarding: Disabling AD account for 'ddtest1'...
+2026-06-11 16:46:13 [Info] Disabling AD account: ddtest1
+2026-06-11 16:46:13 [Ok] AD account disabled: ddtest1
+2026-06-11 16:46:13 [Info] Appended AD description note for 'ddtest1': Disabled on 2026-06-11 16:46
+2026-06-11 16:46:13 [Info] Hybrid auto-disable enabled; cloud actions deferred to AAD Connect or downstream automation.
+2026-06-11 16:46:13 [Info] Writing offboarding summary for: ddtest1@REDACTED.com
+2026-06-11 16:46:13 [Ok] Offboarding summary written to: C:\Users\ddamit\OneDrive - Value Added Companies\Documents\TechStuff\TechToolbox\LogsAndExports\Logs\Offboarding\OffboardingSummary_ddtest1_20260611_164613.txt
+2026-06-11 16:46:13 [Ok] Disable-User workflow completed for 'ddtest1@REDACTED.com' (hybrid short-circuit).
+
+2026-06-11 16:47:45 [Info] Starting Disable-User workflow for 'ddtest1'...
+2026-06-11 16:47:45 [Warn] settings.offboarding.disabledOU is empty; OU move will be skipped.
+2026-06-11 16:47:45 [Info] Offboarding: Resolving user 'ddtest1'...
+2026-06-11 16:47:45 [Ok] User 'ddtest1@REDACTED.com' found and normalized.
+2026-06-11 16:47:45 [Info] Offboarding: Disabling AD account for 'ddtest1'...
+2026-06-11 16:47:45 [Info] Disabling AD account: ddtest1
+2026-06-11 16:47:45 [Ok] AD account disabled: ddtest1
+2026-06-11 16:47:45 [Info] Appended AD description note for 'ddtest1': Disabled on 2026-06-11 16:47 > Mail forwarding to ddamit@REDACTED.com (manager)
+2026-06-11 16:47:45 [Info] EXO: starting Exchange Online actions.
+2026-06-11 16:47:45 [E-Info] 
+Connecting to Exchange Online...
+
+2026-06-11 16:47:54 [Info] EXO: setting forwarding for 'ddtest1@REDACTED.com' to 'ddamit@REDACTED.com' (manager; keep copy: True)...
+2026-06-11 16:47:56 [Info] EXO: granting manager mailbox access for 'ddtest1@REDACTED.com' to 'ddamit@REDACTED.com'...
+2026-06-11 16:47:56 [Info] Granting mailbox access for 'ddtest1@REDACTED.com' to manager 'ddamit@REDACTED.com'...
+2026-06-11 16:47:58 [Ok] Granted FullAccess to ddamit@REDACTED.com
+2026-06-11 16:48:04 [Ok] Granted SendAs to ddamit@REDACTED.com
+2026-06-11 16:48:04 [Info] AD description already contains a similar note; skipping append for 'ddtest1'.
+2026-06-11 16:48:04 [Info] Offboarding: Generating summary for 'ddtest1@REDACTED.com'...
+2026-06-11 16:48:04 [Info] Writing offboarding summary for: ddtest1@REDACTED.com
+2026-06-11 16:48:04 [Error] Failed to write offboarding summary: The property 'Properties' cannot be found on this object. Verify that the property exists.
+2026-06-11 16:48:04 [Ok] Disable-User workflow completed for 'ddtest1@REDACTED.com'.
