@@ -1,6 +1,6 @@
 # TechToolbox
 
-A PowerShell 7+ Operator Framework for Enterprise IT Automation.
+_A PowerShell 7+ Operator Framework for Enterprise IT Automation._
 
 TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It targets real-world enterprise operations: Active Directory lifecycle, Exchange Online / Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI-assisted automation.
 
