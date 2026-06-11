@@ -57,33 +57,53 @@ function Write-OffboardingSummary {
             if ($step -and $step.PSObject.Properties['Action']) {
                 $action = $step.Action
             }
+            elseif ($step -is [hashtable] -and $step.ContainsKey('Action')) {
+                $action = $step['Action']
+            }
             else {
                 $action = $key
             }
             $lines += "  Action: $action"
 
-            # Normalize Success
-            $success = $null
+            # Normalize Success (Improved Logic)
+            $successVal = $null
+            $hasSuccessProp = $false
+
             if ($step -and $step.PSObject.Properties['Success']) {
-                $success = $step.Success
+                $successVal = $step.Success
+                $hasSuccessProp = $true
+            }
+            elseif ($step -is [hashtable] -and $step.ContainsKey('Success')) {
+                $successVal = $step['Success']
+                $hasSuccessProp = $true
+            }
+
+            # Apply Smart Defaults
+            if ($hasSuccessProp) {
+                $success = $successVal
+            }
+            elseif ($step.PSObject.Properties['Error']) {
+                # If Success is missing but Error exists, it likely failed
+                $success = "Failed"
             }
             else {
-                # If no Success property, assume unknown
-                $success = "Unknown"
+                $success = "Unknown (No Status Data)"
             }
+
             $lines += "  Success: $success"
 
-            # Dump all other properties
+            # Dump relevant details only
             if ($step) {
-                foreach ($p in $step.PSObject.Properties.Name) {
-                    if ($p -in @("Action", "Success")) { continue }
+                $relevantProps = @('Output', 'Result', 'Details')
+                foreach ($p in ($relevantProps | Where-Object { $step.PSObject.Properties[$_] })) {
                     $value = $step.$p
-                    if ($null -eq $value) { $value = "" }
-                    $lines += "  ${p}: $value"
+                    if ($null -ne $value) {
+                        # Truncate long outputs to keep summary readable
+                        $strVal = $value.ToString()
+                        if ($strVal.Length -gt 100) { $strVal = $strVal.Substring(0, 100) + "..." }
+                        $lines += "  ${p}: $strVal"
+                    }
                 }
-            }
-            else {
-                $lines += "  (no data)"
             }
         }
 
@@ -116,8 +136,8 @@ function Write-OffboardingSummary {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD5d6mQY5eeFijC
-# BcyWAKPGak4jGSNmYvM/hrQV6fhddKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDFs6z0UNzqKIfx
+# jmrxETeK5qQ7C4NiBfhnNmXhjDRBg6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -250,34 +270,34 @@ function Write-OffboardingSummary {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDbVDd3Cmeg
-# AClGqJrNkPP3eW8WkmA99jEte/y8Saz7ZjANBgkqhkiG9w0BAQEFAASCAgAGM8Mm
-# 0bq6TyZ6LwFYX2D61AKKOSdFGrErnjtbQXibAR1nLM1oFc7B1TrqE1V78lBFqLo1
-# bypgevtNly3jLZOa/909z94TJ/K3AlcIGYMY9hZOJqI5kgjn0WBsCnMAFK26Pao9
-# +xD4ZsdH5qvCdXkyoNIMHT28EahYwtrYvh5DbfG5l70LcHa52UiOkkUNHwEeW9PD
-# uv8Zou6ieQutd65vbcJcgmKQYqW7OynqB6BaYmP5m3STjS/gyGesb1W4tbSxMpZm
-# pgHOQlyv2u1ftF+dPUsm2VS1ipovkonUhiik4GfD+aiEvAzpFTw/BaEdojDQRdte
-# MWsKzFKBwsV7j3DS8VXvMd+bdRwetQq2cWvA85lP1Bdm8LGENN4AGvjfyyLf8BMj
-# aR7lekSbtgbe/J2LxZzBo+6ijqbB1SA3A13WYj8XdTzzC3UOInRosTPsstVgdorF
-# nBZDogI5bwI5HzGjUfEs2/tA86AD3Lw2Xlvu1g3Gpzr3owynZlmC1BSp2W3S6hEK
-# mXCOhd71upyXHtlgwVnxsbcdCxdAt/Hzef1Aiza/CWw04fihZrbIvW+KiwGuJ5q3
-# y5OPFvg2SE8Hl/TaeR82mYA/QGr87OzvVd5qgtxf+o9QsfNcVtzYdST9V2NoU5Ua
-# ahCXIxkLSnbopPZW60OD/BoJ0VoUxEUwc/oSF6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCBn2NEOLUq
+# QbTwAAuI5wD5ogw/iGJHoluODm5Cr1+oszANBgkqhkiG9w0BAQEFAASCAgAPbsph
+# qzNSx7H3pQLPhGOOBxHjcR7N5cOIX+6GE+d9jonOLPpZyl4SV7Vwl/+XBF3c0+tX
+# evIpL/aE3gVet0TiD0NUzh6MbzMc7BGr7ZcR/TT+nj80/R2dVJyN5g7mlX97Swba
+# hNETIgqm3E5e9hsSy7ndtQPaza7iqDAZyCTZxMjPl5meo3w2zFIDpPhM2hjtq/qo
+# jHL660MrI7pZ8kNJBlvp2BmbgqbbJPq2ZvQkazVALOblDAXDLfNEqj2fVllzKmL2
+# 5GEZsXERWqZ2PG5KOWhqbMklLqX1J8jh4zcl39cpBZuEWz/6cCW2oHmCs0EfBG2i
+# hstsb4rhWd12aqdFECGV9WOAdInk5LLPXmT+zXtQAu5sdwIeP4Jm+VvhAPYTb9PL
+# cN5/5/KDMxYeCS+hSfQOn+kVYfO3gMvL1verR+TD+G/SvPwmoGkLUxIXpl6vh4Uf
+# O+8ruADODQK5XU3n2+92AOxjifhqiijBv9z1NNEAIqqjYOTO8KCfYanySZQj3v1b
+# guiISRcWl1i5xTKfo2KZHWRV3UTyM7NXlniWHkDsCbSLLT7uSzaDuQtslmYTVzoh
+# 6gwobK+qEBzSLNyUjRnSer0KXKcsSq9M1lIaHwmGrr1frNko/xqA28+EiyK1tsiF
+# Fd2C1Ef27Z0ICcwcKoEQFtKs1Kv8soMv1rZzx6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MDExNTAxMTVaMC8GCSqGSIb3DQEJBDEiBCD2tTqbp95fPaRqAiYY
-# TXGur1e7FUX8wcTJ+AUlHueDHDANBgkqhkiG9w0BAQEFAASCAgAXqKfXGdO77Ye0
-# 6Y0i1VpgvzqK0K83FmEATWexBMV8mZ058qwaUlgaNy6EXHE6zw9X+yaXiR8ts9Ow
-# jU6DtxOt2DptFDSCuYByYAOFrEQXW1bQVa3c4IFMpU/zsZ83vAIS08kg4J6zg7VK
-# 1TN/xRKik7/x7Y4RgUeSRtkQ3k9wmyid9V0uitCgjM6vjvExHlizYW75TJlJTXEd
-# /dHC5oDe4L3I1IrWNUDMeofSbRrxE3UZm6ExwFZbq/U/lJJJJitmFV7TYCb2/QOp
-# 50LkdQNLvytJAyUs4k4glywhJinLIcpVvKH7E6/+HSufyyUmY/DwddRLOSaIq+AP
-# 3AZkOStPuON8Gm+bMK2mGRJMRmJm1VzRxXj3J5ELtXLxAKQGUt1AH5q4ZH6+hHAU
-# mRIYEryEWGfKnS0id1OaOupQrefkeTrqLJPH4PbxvH9UxWMtXxC30KLVAWdprtvG
-# 726934AU+ZHy8ro9HEx4MEwNfo14PrRzJNBrAUirH5nyZ8JQ5Biz0mHqkhYDubpI
-# E1K6WeqXHJ4aGtu5elyrg1WMHAL0+mJB7jmBvMtwWOvjjitiRd7XWgcOvYCJQi+2
-# BPZswSvrbBAJ/ev/i9dM6EhwNhGID7bdEoHUZVVNZWdNygftZrV5s5Ye+yjF/COR
-# BchxpQ3pn97Pb1jwgalCaBqw4WoRjg==
+# BTEPFw0yNjA2MTEyMTQ1NDJaMC8GCSqGSIb3DQEJBDEiBCArM4JQdJKI9szelKyF
+# spRTFrIxi1UfAUJ4mpcwaT28sjANBgkqhkiG9w0BAQEFAASCAgB5iEWKnRdVEbfA
+# 08D5MFFVvv4/lw6tdAWFyTJOPLc+FUiAd1KnzN2TgUItCajw6mtHnZ1LJQVqxcc8
+# i19m5jGOIpS2plAp03hdrMxG/yRCuvvTeTHisW+pppsP7trBbYYCnw7Rmj6fowbm
+# e8uvtXsja8GuCjPA6PIdwAl+mHWQD9w1d2wzDySX8ZvO5shx3wpb3qNfpIYLImuE
+# tqu+GZTVsQHbKghPbcQLejXUnrxlbR1K5SHwZyWlw8/1kK8Ol9tU4SndulLKkvc+
+# 7/J83Vu1TuRktx1WmItbFKwIO9kSEM4Poo7uc3zGnUGNeuhVhsrjpFJBz6OUMtt1
+# is+9YmuaB7Qv37jneOb0EuOgm5rsTimwuvqdLrnLcjCvKGAXS2RVC9UT7psnFfxy
+# nsbJQe3HQbxC8wmuvSffSCJwKKxndQWUfIWIIG8VS4zcvLQImYmBmMAZL8Y5QkRc
+# DXYAt0f8GQvThNV3hFwbwfBhetVYfEa7rlZm2cZXZVc8ta7dANQqhunJsaUcPk76
+# MC2ZXxgqT4quW3QUynMQHkgln0hytGJNmduprY5072PsQxpppuDxSDEXCmRN6jf/
+# +zKPTieFofuP6QcDH71l0Hh8+29zKN3CY4dyvV74DVe9qBCRvXAR/RAO5NvDSR/v
+# 0Lp8mWvSn/n8mOxBn92m2IjjvvdEUQ==
 # SIG # End signature block
