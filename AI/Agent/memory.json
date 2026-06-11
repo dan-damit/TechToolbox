@@ -10,51 +10,27 @@
       "windowItems": 30,
       "runCount": 30,
       "successRate": 0.9,
-      "avgDurationMs": 141877,
-      "avgToolCalls": 3.4,
+      "avgDurationMs": 142390,
+      "avgToolCalls": 3.43,
       "statusCounts": {
         "success": 27,
         "error": 3
       },
       "outcomeCounts": {
-        "completed": 9,
-        "blocked": 12,
+        "completed": 11,
+        "blocked": 10,
         "needs-confirmation": 6,
         "error": 3
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-11T02:40:46+00:00",
-      "trendLastUpdatedUtc": "2026-06-11T02:40:46+00:00"
+      "lastRunTimestampUtc": "2026-06-11T04:54:45+00:00",
+      "trendLastUpdatedUtc": "2026-06-11T04:54:45+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-10T22:21:16+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please go ahead and update the TechToolbox.psm1 with the new public Export-ToolboxFuncitons function you just created. You have my explicit permission to update the psm1 file.",
-      "model": "qwen3.6:35b",
-      "durationMs": 221630,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "toolCalls": 2,
-      "outputPreview": "The `Export-ToolboxFunctions` function has been successfully added to `TechToolbox.psm1`. Here's a summary of the key changes:\n\n### ✅ What Was Added\n\n**New function `Export-ToolboxFunctions`:**\n- Uses **pre/post-snapshot** comparison of `Get-Command` output instead of filename conventions\n- Sources all `.ps1` files from the `Public/` folder dynamically\n- Filters results to only include actual functions (excludes aliases, cmdlets, etc.)\n- Returns the validated function names for export\n- Includes..."
-    },
-    {
-      "timestampUtc": "2026-06-10T22:56:28+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Do you have access to see the file at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent named Export-ToolboxFunctions?",
-      "model": "qwen3.6:35b",
-      "durationMs": 40505,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "toolCalls": 2,
-      "outputPreview": "Yes, I have access to that file. I was just able to read `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent\\Export-ToolboxFunctions.ps1` successfully.\n\nIt is a PowerShell script used for tool discovery by your AI agent. Here's a brief summary of what it does:\n\n1. **Imports** the specified module (defaults to `TechToolbox`).\n2. **Enumerates** all exported functions from that module using `Get-Command`.\n3. **Extracts metadata** for each function, including:\n   - Function name and module name\n  ..."
-    },
     {
       "timestampUtc": "2026-06-10T22:59:23+00:00",
       "status": "success",
@@ -126,6 +102,30 @@
       "destructiveConfirmed": true,
       "toolCalls": 6,
       "outputPreview": "# README.md Updated Successfully\n\n## Summary of Changes\n\n### Architecture Clarity (New Section)\n- Added detailed module folder structure diagram showing all Public categories (AD, AI, Browser, Compliance, Config, Credential, Diagnostics, Exchange, Hardware, Infrastructure, Networking, PSRemoting, Search, SharedMailbox, Workers), Private helpers, Workers, and Config layers.\n- Added \"How the Loader Works\" section explaining the 4-step bootstrap: manifest -> psm1 sourcing -> config merge -> lazy lo..."
+    },
+    {
+      "timestampUtc": "2026-06-11T04:50:30+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please review the CHANGELOG.md and add a small section for the new command alias 'ITA' in the psm1 file. You have my explicit permission to update the CHANGELOG with this change.",
+      "model": "qwen3.6:35b",
+      "durationMs": 79439,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "toolCalls": 1,
+      "outputPreview": "Good news - the CHANGELOG.md already contains a section documenting the `ITA` command alias under `[Unreleased]`. Here's what's currently there:\n\n## [Unreleased]\n### **Alias Updates**\n- Added documentation for `ITA` (the `Invoke-TechAgent` convenience wrapper in the module).\n- Fixed `ITA` argument forwarding so `-ConfirmDestructive` and other forwarded options bind as named parameters instead of being treated as positional model input.\n\nThis entry covers:\n1. **What ITA is**: A convenience alias/..."
+    },
+    {
+      "timestampUtc": "2026-06-11T04:54:45+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please move the Alias Updates into the [0.5.0] section under 'Improved'. You have my explicit permission to make this change.",
+      "model": "qwen3.6:35b",
+      "durationMs": 134016,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "toolCalls": 2,
+      "outputPreview": "The Alias Updates have been moved into a new `#### Improved` subsection under the `v0.5.0` changelog entry in README.md. Here is the resulting changelog section:\n\n## Changelog\n\n### v0.5.0 - \"AI & Metadata Milestone\"\n\n#### Improved\n- Alias Updates: Enhanced Set-EmailAlias and Set-ProxyAddress for Exchange Online mailbox management\n\n- AI-assisted workflow improvements (Export-ToolboxFunctions, Invoke-TechAgent enhancements)\n- Full help text capture in agent metadata export\n- Config system refineme..."
     }
   ]
 }

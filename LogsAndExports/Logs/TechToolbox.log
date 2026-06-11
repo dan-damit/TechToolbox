@@ -505,3 +505,18 @@ Remember to disconnect from Purview when finished using Disconnect-ExchangeOnlin
 2026-06-10 21:40:09 [Info] TechAgent: Still waiting (Status=Running)...
 2026-06-10 21:40:49 [Info] TechAgent: Status=Success
 2026-06-10 21:40:49 [Ok] Tech agent completed successfully.
+2026-06-10 23:44:44 [Error] Invoke-TechAgent failed: Ollama model '-ConfirmDestructive' is not available locally. Run: ollama pull -ConfirmDestructive. Available models: minimax-m3:cloud, qwen2.5-coder:14b, qwen2.5-coder:32b, qwen3-coder-next:latest, qwen3:30b, qwen3:30b-instruct, qwen3.6:35b
+2026-06-10 23:49:09 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260610_234909_10764.txt
+2026-06-10 23:49:09 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 23:49:09 [Warn] Destructive operations explicitly authorized for this run.
+2026-06-10 23:49:09 [Info] TechAgent: Status=Running
+2026-06-10 23:50:09 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 23:50:35 [Info] TechAgent: Status=Success
+2026-06-10 23:50:35 [Ok] Tech agent completed successfully.
+2026-06-10 23:52:31 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 23:52:31 [Warn] Destructive operations explicitly authorized for this run.
+2026-06-10 23:52:31 [Info] TechAgent: Status=Running
+2026-06-10 23:53:31 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 23:54:32 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 23:54:47 [Info] TechAgent: Status=Success
+2026-06-10 23:54:47 [Ok] Tech agent completed successfully.

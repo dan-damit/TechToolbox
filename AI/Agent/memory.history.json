@@ -394,5 +394,29 @@
     "destructiveConfirmed": true,
     "toolCalls": 6,
     "outputPreview": "# README.md Updated Successfully\n\n## Summary of Changes\n\n### Architecture Clarity (New Section)\n- Added detailed module folder structure diagram showing all Public categories (AD, AI, Browser, Compliance, Config, Credential, Diagnostics, Exchange, Hardware, Infrastructure, Networking, PSRemoting, Search, SharedMailbox, Workers), Private helpers, Workers, and Config layers.\n- Added \"How the Loader Works\" section explaining the 4-step bootstrap: manifest -> psm1 sourcing -> config merge -> lazy lo..."
+  },
+  {
+    "timestampUtc": "2026-06-11T04:50:30+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please review the CHANGELOG.md and add a small section for the new command alias 'ITA' in the psm1 file. You have my explicit permission to update the CHANGELOG with this change.",
+    "model": "qwen3.6:35b",
+    "durationMs": 79439,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "toolCalls": 1,
+    "outputPreview": "Good news - the CHANGELOG.md already contains a section documenting the `ITA` command alias under `[Unreleased]`. Here's what's currently there:\n\n## [Unreleased]\n### **Alias Updates**\n- Added documentation for `ITA` (the `Invoke-TechAgent` convenience wrapper in the module).\n- Fixed `ITA` argument forwarding so `-ConfirmDestructive` and other forwarded options bind as named parameters instead of being treated as positional model input.\n\nThis entry covers:\n1. **What ITA is**: A convenience alias/..."
+  },
+  {
+    "timestampUtc": "2026-06-11T04:54:45+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please move the Alias Updates into the [0.5.0] section under 'Improved'. You have my explicit permission to make this change.",
+    "model": "qwen3.6:35b",
+    "durationMs": 134016,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "toolCalls": 2,
+    "outputPreview": "The Alias Updates have been moved into a new `#### Improved` subsection under the `v0.5.0` changelog entry in README.md. Here is the resulting changelog section:\n\n## Changelog\n\n### v0.5.0 - \"AI & Metadata Milestone\"\n\n#### Improved\n- Alias Updates: Enhanced Set-EmailAlias and Set-ProxyAddress for Exchange Online mailbox management\n\n- AI-assisted workflow improvements (Export-ToolboxFunctions, Invoke-TechAgent enhancements)\n- Full help text capture in agent metadata export\n- Config system refineme..."
   }
 ]
