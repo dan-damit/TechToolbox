@@ -6,7 +6,12 @@
 # Directories
 Out/
 EndpointTrackingScripts/
-LogsAndExports/
+
+LogsAndExports/*
+!LogsAndExports/Logs/
+LogsAndExports/Logs/*
+!LogsAndExports/Logs/TechAgentMarkdown/
+!LogsAndExports/Logs/TechAgentMarkdown/**
 
 # Files
 wordlist.txt

@@ -478,3 +478,10 @@ Remember to disconnect from Purview when finished using Disconnect-ExchangeOnlin
 2026-06-10 18:08:30 [Info] TechAgent: Still waiting (Status=Running)...
 2026-06-10 18:09:15 [Info] TechAgent: Status=Success
 2026-06-10 18:09:15 [Ok] Tech agent completed successfully.
+2026-06-10 19:18:53 [Error] Invoke-TechAgent failed: The property 'markdownEnabled' cannot be found on this object. Verify that the property exists.
+2026-06-10 19:19:18 [Error] Invoke-TechAgent failed: The property 'markdownEnabled' cannot be found on this object. Verify that the property exists.
+2026-06-10 19:20:06 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 19:20:06 [Info] TechAgent: Status=Running
+2026-06-10 19:21:06 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 19:21:57 [Info] TechAgent: Status=Success
+2026-06-10 19:21:57 [Ok] Tech agent completed successfully.
