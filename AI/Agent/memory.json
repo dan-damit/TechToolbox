@@ -8,41 +8,29 @@
     "defaultLanguage": "en-US",
     "trendSummary": {
       "windowItems": 30,
-      "runCount": 29,
-      "successRate": 0.828,
-      "avgDurationMs": 142508,
-      "avgToolCalls": 3.21,
+      "runCount": 30,
+      "successRate": 0.833,
+      "avgDurationMs": 141312,
+      "avgToolCalls": 3.13,
       "statusCounts": {
-        "success": 24,
+        "success": 25,
         "error": 5
       },
       "outcomeCounts": {
         "completed": 8,
-        "blocked": 10,
+        "blocked": 11,
         "needs-confirmation": 6,
         "error": 5
       },
       "lastStatus": "success",
-      "lastOutcome": "completed",
+      "lastOutcome": "blocked",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-10T23:09:15+00:00",
-      "trendLastUpdatedUtc": "2026-06-10T23:09:15+00:00"
+      "lastRunTimestampUtc": "2026-06-11T00:21:53+00:00",
+      "trendLastUpdatedUtc": "2026-06-11T00:21:53+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-10T00:28:48+00:00",
-      "status": "success",
-      "outcome": "needs-confirmation",
-      "prompt": "I love that assessment! Thank you for the recommendations. Please draft a safer fallback logic for these lines.",
-      "model": "qwen3.6:35b",
-      "durationMs": 85162,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "toolCalls": 0,
-      "outputPreview": "To ensure I'm targeting exactly what you need, could you clarify if **\"these lines\"** refers to:\n1. The PowerShell profile configuration line (`Set-PSReadLineOption`) that caused the earlier crash?\n2. The version-sync logic used to parse/update the `README.md` module version?\n\nBelow are safer fallback drafts for **both scenarios**. You can let me know which one (or both) you'd like implemented, or point me to the exact file/lines if I missed the mark.\n\n---\n### 🔹 Draft 1: Safer Version Sync Logic..."
-    },
     {
       "timestampUtc": "2026-06-10T00:49:50+00:00",
       "status": "success",
@@ -126,6 +114,18 @@
       "destructiveConfirmed": true,
       "toolCalls": 3,
       "outputPreview": "The file has been successfully updated. Here's a summary of what was changed and how it enhances my reasoning:\n\n## ✅ Updated `Export-ToolboxFunctions.ps1` — Key Enhancements\n\n### 1. **Full Help Text Sections** (Not Just Synopsis)\n- **Synopsis** — Quick one-line description\n- **Description** — Full paragraph explaining *what* the function does and *why*\n- **Examples** — Real usage code from `Get-Help -Full` so I can show you concrete examples\n- **Notes** — Caveats, remarks, \"see also\" context tha..."
+    },
+    {
+      "timestampUtc": "2026-06-11T00:21:53+00:00",
+      "status": "success",
+      "outcome": "blocked",
+      "prompt": "Please look at the function named Invoke-TechAgent located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and make recommendations on what can be improved to enhance your functionality.",
+      "model": "qwen3.6:35b",
+      "durationMs": 106624,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "toolCalls": 1,
+      "outputPreview": "## 📋 Analysis of `Invoke-TechAgent`\n\nI've read the full function at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1`. Here's a detailed review with recommendations:\n\n---\n\n## ✅ What's Done Well\n\n- **Proper parameter validation** with `[ValidateNotNullOrEmpty()]` and range checks\n- **Smart Python discovery chain**: venv → system python → `py` launcher\n- **Ollama model pre-validation**: Verifies the requested model exists before launching, with actionable error messages\n..."
     }
   ]
 }
