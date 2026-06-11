@@ -394,7 +394,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** Internal use
-- **Module version:** 0.4.65
+- **Module version:** 0.5.0
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
 
@@ -402,7 +402,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 ## Changelog
 
-### v0.4.65
+### v0.5.0 — “AI & Metadata Milestone”
 - AI-assisted workflow improvements (Export-ToolboxFunctions, Invoke-TechAgent enhancements)
 - Full help text capture in agent metadata export
 - Config system refinements and path token stabilization
