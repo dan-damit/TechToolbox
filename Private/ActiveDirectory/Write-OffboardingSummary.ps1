@@ -9,31 +9,33 @@ function Write-OffboardingSummary {
     )
 
     # Helper: safely check if an object has a given property name
-    function Safe-HasProperty {
+    function Confirm-HasProperty {
         param($Obj, $PropName)
         try {
             if ($null -eq $Obj) { return $false }
             # Check PSObject properties by name array (safer than direct index access)
             $names = $Obj.PSObject.Properties.Name
             if ($null -ne $names -and $names -contains $PropName) { return $true }
-        } catch { /* ignore */ }
+        }
+        catch { /* ignore */ }
         return $false
     }
 
     # Helper: safely get a property value from an object (PSObject or hashtable)
-    function Safe-GetProperty {
+    function Confirm-GetProperty {
         param($Obj, $PropName, [object]$Default = $null)
         try {
             if ($null -eq $Obj) { return $Default }
             # Try PSObject first
-            if (Safe-HasProperty -Obj $Obj -PropName $PropName) {
+            if (Confirm-HasProperty -Obj $Obj -PropName $PropName) {
                 return $Obj.PSObject.Properties[$PropName].Value
             }
             # Fall back to hashtable
             if ($Obj -is [hashtable] -and $Obj.ContainsKey($PropName)) {
                 return $Obj[$PropName]
             }
-        } catch { /* ignore */ }
+        }
+        catch { /* ignore */ }
         return $Default
     }
 
@@ -66,9 +68,9 @@ function Write-OffboardingSummary {
         $lines += " TechToolbox Offboarding Summary"
         $lines += "==============================================="
         $lines += ""
-        $lines += "User:              {0}" -f (Safe-GetProperty -Obj $User -PropName 'UserPrincipalName' -Default 'Unknown')
-        $lines += "Display Name:      {0}" -f (Safe-GetProperty -Obj $User -PropName 'DisplayName' -Default 'Unknown')
-        $lines += "SamAccountName:    {0}" -f (Safe-GetProperty -Obj $User -PropName 'SamAccountName' -Default 'Unknown')
+        $lines += "User:              {0}" -f (Confirm-GetProperty -Obj $User -PropName 'UserPrincipalName' -Default 'Unknown')
+        $lines += "Display Name:      {0}" -f (Confirm-GetProperty -Obj $User -PropName 'DisplayName' -Default 'Unknown')
+        $lines += "SamAccountName:    {0}" -f (Confirm-GetProperty -Obj $User -PropName 'SamAccountName' -Default 'Unknown')
         $lines += "Timestamp:         {0}" -f (Get-Date)
         $lines += ""
         $lines += "-----------------------------------------------"
@@ -82,25 +84,28 @@ function Write-OffboardingSummary {
             $lines += "[$key]"
 
             # Normalize Action (with safe fallback)
-            $action = Safe-GetProperty -Obj $step -PropName 'Action' -Default $key
+            $action = Confirm-GetProperty -Obj $step -PropName 'Action' -Default $key
             $lines += "  Action: $action"
 
             # Normalize Success (Improved Logic with safe property access)
             $success = $null
             if ($null -ne $step) {
-                $successVal = Safe-GetProperty -Obj $step -PropName 'Success' -Default $null
+                $successVal = Confirm-GetProperty -Obj $step -PropName 'Success' -Default $null
                 if ($null -ne $successVal) {
                     $success = $successVal
-                } else {
+                }
+                else {
                     # If Success is missing but Error exists, it likely failed
-                    $errorVal = Safe-GetProperty -Obj $step -PropName 'Error' -Default $null
+                    $errorVal = Confirm-GetProperty -Obj $step -PropName 'Error' -Default $null
                     if ($null -ne $errorVal) {
                         $success = "Failed"
-                    } else {
+                    }
+                    else {
                         $success = "Unknown (No Status Data)"
                     }
                 }
-            } else {
+            }
+            else {
                 $success = "Unknown (No Status Data)"
             }
 
@@ -112,8 +117,8 @@ function Write-OffboardingSummary {
                 foreach ($p in $relevantProps) {
                     try {
                         # Only process if property exists (with safe check)
-                        if (Safe-HasProperty -Obj $step -PropName $p) {
-                            $value = Safe-GetProperty -Obj $step -PropName $p -Default $null
+                        if (Confirm-HasProperty -Obj $step -PropName $p) {
+                            $value = Confirm-GetProperty -Obj $step -PropName $p -Default $null
                             if ($null -ne $value) {
                                 # Truncate long outputs to keep summary readable
                                 $strVal = $value.ToString()
@@ -121,7 +126,8 @@ function Write-OffboardingSummary {
                                 $lines += "  ${p}: $strVal"
                             }
                         }
-                    } catch {
+                    }
+                    catch {
                         # Silently skip problematic properties
                     }
                 }
@@ -158,8 +164,8 @@ function Write-OffboardingSummary {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDkfza9vYWuIvje
-# A+enZagf8EflD7FKWqNVk8lXzgUpkqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA0KwuqP+zR5d4l
+# AOaeyDuIlYWW3rUzjZLJNMCYTbTO0aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -292,34 +298,34 @@ function Write-OffboardingSummary {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBFLwcPx5eW
-# fXqdbLMGPmBe9H18mSaYfPuVL8hrEuFFujANBgkqhkiG9w0BAQEFAASCAgATd7EY
-# sMrgfsbWbi/zmjs89lF55yb3FqVeJCmlLZRzwUg3foWOW9NKv1U2QiQuMVNL3qb6
-# MSKPzWHDUMXQfAuy5aN6rdijk+N3WjqURoFJjNpc+qdYZror6tKLBkGjnbXoA9nf
-# rYC7Tdticg1T+U6W6hKGT+fxKCCAYoPgaaWa3hthveDexyVisJZ3yavgru4ntEki
-# elXKj6ei8vaiA8LPtEwW1qotGyjLhgSMhRX+NK2TQiK5yB4zGNrF++ZX7Hiad6AT
-# vu8KK0vndYZr5jGob5MTMbbuRa8wB0IJ3QieDldxKh/s/dRF75UP3ZQxW7FHGlRP
-# dwN2VhGCewOwlOxE72Ahbfz9UzJLhhxF2/HwWJLMcdpQPL9DAE8tT4OQKjcBsAAL
-# dnDpdGsFMUKxtzJIfTfBVVq/kEaui527nCcbNyzNabt3/zkyaSLZCRBLx23hHh4J
-# crOjdupUntx0LM5+MMZrxegB5hanUpIcNopK7mN6djGMviDGJg4VUH5hqE9BpAJ/
-# trnJq0KOuP1d5Q1xcukUgpqT33AE6C4J4JFnhfdpLV1W+GxCJY0u5Al1dM0ED6A/
-# zLg47MZM8MsJVTWTczRAux6W+5n3kC0MQ6snWIgOOGzgQ0pqyMB5CQm2xLBa7Ei5
-# 5zyj3YNQlg/QqvVMusqx2zZytXR+XH3K7zCP6qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA+imKyRvWM
+# oZ73xo6W8bzLZrgjBUDYMnVynVQ2qe257jANBgkqhkiG9w0BAQEFAASCAgCUxv5N
+# l0TQbzFn2CLM6+KJ3hBkNTGp3tG5XODDYyLk0Z+xxB/v+nTRDDn6hJVC9D0rCzZa
+# DqE2Rliv/izubYHMT59RW68TGY1pxeCjMC7/Xa5AX/CrqkZ/UFne0vu+G5iMRJkh
+# wCT/4Y8J04E4uEqixTwj6EuOaUa0O8It+GoezoovyC7iC4pdPOao8f9HnD9sJIN5
+# s42NVckYln9dYsh2c7QSWv69SCjAKO/j4J6pd14m7KKNd0Dx6qDlXcsYGh9YZ4Dx
+# swohS/+3PsWchGSYA/UGBrG0JxlG6fZRyBsMRgmuVXsJenr1o7paiBc+7+s7LNOM
+# h0Yzb6meVGEKQ8sXTQfaAiO1Cgjf//myM4n8JEwdIhae4Npna/Z5/hfEAPSPvXEE
+# jQk618+YwYL3i8rsepej+3gqadNAELPXCXuKi+q0a0Ka/v54Oqag4tsLS9E6xQC9
+# TJj3OSrl4hUJkNlaeLONe3Cqn7rWgrphThOmLULMeRGpV4Ia7SGANX9C2IbOIk2C
+# kIk6K1dS24RW8Lq04PBOxSjMUzMprFfFYL3F/lUXlz2XSn00abCUxVHXQJIJgcnP
+# fLQyMeN+d0Kghg4dH8wS1dI36VO9rvQDBCXOQ9Wpl1jimVBCtFKtfbc6UmI3sQys
+# EGtZbnmOF4bRZAEHwgwXIi5hh+vA/eSw/CmqaqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTEyMzA2MjFaMC8GCSqGSIb3DQEJBDEiBCDYcDy+93SV4PVDf82u
-# 5gKlnuPptERHQGM1rC8AjsWRqDANBgkqhkiG9w0BAQEFAASCAgBybuv9FiBPqMtE
-# SI/ISm2mSx3+nf/6i6MLquNcR60rdcDclGUOD+N2f1psOTzvrlQ3c/hw6WDKy4wp
-# hB0sIyNC8yjUd/f+WqFwUEj0eBhrXfNfTX7Qr8g5Rg5bNEmME0kgaL0cx/KbwbrX
-# YFCKekWXjIEX4svaXgzh7FRUXdf1kyzQfJQuYpl3BRlzP4YQC3pVufWuiPlxJP5q
-# Bl93zBJkw9E/dUhheU6yWx57urY7pM6rSUm7/Yr5qV9Qc17KtjBd3BsMnwvQE5F1
-# y/9avfq0IruyMvZY6b/W9R55t7waMJ5yjqF99iTSqvnMdYtvtGectnFHQhLJdsF4
-# m3htin8CJDXxWIvBWacYu5xvMTI/OW0LprlpBZtd/NrZSrhh/koN+5sA1beVLvcu
-# bjoNUb3DbIvyQz0knT2qeO1oM1ciDp8jLOxdKFXQFaZyVYXiUZEoOF4DUSOsL2xc
-# taW09X3Qb405mHEP3VvAEGbt+namqqw0AWCT3/SJT1F1AsCjygQFTTVgiX/gNLEP
-# IKI+B3n26Op1HkLMRLdBLUkClbtd/g9u3DrQIQMAD1fzdwZ3QGvlOr7dSJ5wVnUn
-# T2m+KASwbQ/wcyOthMXl64sus98Eva7ACjKe6LmGYi5uNnxJzfk9vgsxVnSn1vAk
-# UxLjEn4jcq3Y+vKrJw3CucKF+emQRg==
+# BTEPFw0yNjA2MTEyMzA5NDJaMC8GCSqGSIb3DQEJBDEiBCCBohESsa49JCoAaKsP
+# OuNAtEJK/IkUANlz5yAvwGsymTANBgkqhkiG9w0BAQEFAASCAgA2TLCzmFZZE5P8
+# x9krG4QbX5jvqBvRqoQd7sAZykReHfgcIq4smDZc2toc17BFDK13/V1P55SF4oJJ
+# dAgRAbdab/55L1JSlfrJTjqE3HL/bfkWl7XzsMbtqwaTo3ri56lrXR8H1I2zgTy1
+# UZfLfTps8XEz7nnmJZC7oQW2limBDX9Ce27qfLYt2YAkOR5ABB91UTKrqWnk77oK
+# IbjkCL/NKKLxeuR2XKT+NOv+NyNwK/NG0KUrI8rD7WZGFA8hwyOECM57/mXI1Lps
+# HAR5dnIA3qXYYz+v3UuIRiZB0BOQ8Sq5xq381EJIB7nYpNKnctC8NAo8PC04vUrV
+# CEUSNkups5nEPePcnC3LqgkdYRHFd/sMTjvGurzyDPCmgJqc2o74ymHzXLCmGN0P
+# Uriy7tCk0FNZ+khcsIItCkeuP4TjhwZEZcwo3xQgSXUst6aU4IVZD1+kquLEer1t
+# lESgfln+VA3tORh1TkqtOUtEzMwnUhMK+ph2KzHU3+m5fMKt7kuwhIzVs6f/d+sT
+# A4VlhARihVYbKn7X4BEJYEJSi9IhW4ZZsWqVVy/Q8t38EYEQZmb0+3Ng7bpwGTUY
+# Ir66WoY+FEbucRBQoaNNlKCOwlTeCmZOxWB4dYoZ/Lv5d6W5L9l/zPQdIyRHcfgI
+# 951ZGMIpzoX61LPBfCprIEwofkpC1w==
 # SIG # End signature block
