@@ -79,6 +79,149 @@ function Write-TTLoadedLine {
         -ForegroundColor DarkGray
 }
 
+function Get-TechAgentPromptTemplate {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $pattern = Join-Path $script:TT.PromptTemplates "$Name.*"
+    $file = Get-ChildItem $pattern -ErrorAction Ignore | Select-Object -First 1
+
+    if (-not $file) {
+        throw "Prompt template '$Name' not found in '$($script:TT.PromptTemplates)'."
+    }
+
+    Get-Content -Path $file.FullName -Raw
+}
+
+function Add-TechAgentHistory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Prompt,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Parameters
+    )
+
+    $entry = [ordered]@{
+        Timestamp = (Get-Date).ToString('o')
+        Prompt    = $Prompt
+        Params    = $Parameters
+    }
+
+    $json = $entry | ConvertTo-Json -Depth 10
+    $json | Add-Content -Path $script:TT.AgentHistoryFile
+}
+
+# Main user-facing function: ITA (Invoke-TechAgent with prompt templates,
+# context injection, history, and safety checks)
+function ITA {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Prompt,
+
+        # Optional: name of a template in PromptTemplates\
+        [string]$Template,
+
+        # Optional: path to a context file to inject
+        [string]$ContextFile,
+
+        # Everything else passes straight through to Invoke-TechAgent
+        [Parameter(ValueFromRemainingArguments)]
+        $Rest
+    )
+
+    $restList = @()
+    if ($null -ne $Rest) {
+        $restList = @($Rest)
+    }
+
+    # Parse only what ITA itself needs. Keep raw forwarding for Invoke-TechAgent.
+    $confirmDestructive = $false
+    for ($i = 0; $i -lt $restList.Count; $i++) {
+        $item = $restList[$i]
+        if ($item -is [string] -and $item.StartsWith('-')) {
+            $name = $item.TrimStart('-')
+            if ($name -ieq 'ConfirmDestructive') {
+                if ($i + 1 -lt $restList.Count -and -not (($restList[$i + 1] -is [string]) -and $restList[$i + 1].StartsWith('-'))) {
+                    try {
+                        $confirmDestructive = [System.Management.Automation.LanguagePrimitives]::ConvertTo($restList[$i + 1], [bool])
+                    }
+                    catch {
+                        $confirmDestructive = $true
+                    }
+                    $i++
+                }
+                else {
+                    $confirmDestructive = $true
+                }
+            }
+        }
+    }
+
+    # Template injection
+    if ($Template) {
+        $templateText = Get-TechAgentPromptTemplate -Name $Template
+        $Prompt = "$templateText`n`n--- OPERATOR PROMPT ---`n$Prompt"
+    }
+
+    # Context file injection
+    if ($ContextFile) {
+        if (-not (Test-Path $ContextFile)) {
+            throw "Context file '$ContextFile' not found."
+        }
+
+        $context = Get-Content -Path $ContextFile -Raw
+        $Prompt = "$Prompt`n`n--- CONTEXT FILE: $ContextFile ---`n$context"
+    }
+
+    # Safety: extra confirmation if ConfirmDestructive is present
+    if ($confirmDestructive) {
+        $answer = Read-Host "This action may modify or delete data. Continue? [y/N]"
+        if ($answer -notmatch '^(y|yes)$') {
+            Write-Warning "Operation cancelled by user."
+            return
+        }
+    }
+
+    # ShouldProcess integration
+    if ($PSCmdlet.ShouldProcess("TechAgent", "Invoke")) {
+        # History logging only when action is approved.
+        Add-TechAgentHistory -Prompt $Prompt -Parameters @{
+            Template          = $Template
+            ContextFile       = $ContextFile
+            ForwardedArgument = $restList
+        }
+
+        Invoke-TechAgent -Prompt $Prompt @restList
+    }
+}
+
+function Register-ITACompletions {
+    Register-ArgumentCompleter -CommandName ITA -ParameterName Template -ScriptBlock {
+        param($commandName, $parameterName, $wordToComplete)
+
+        if (-not (Test-Path $script:TT.PromptTemplates)) { return }
+
+        Get-ChildItem -Path $script:TT.PromptTemplates -File |
+        ForEach-Object {
+            $name = $_.BaseName
+            if ($name -like "$wordToComplete*") {
+                [System.Management.Automation.CompletionResult]::new(
+                    $name,
+                    $name,
+                    'ParameterValue',
+                    "Prompt template: $name"
+                )
+            }
+        }
+    }
+}
+
 # --------------------------------------------
 # TechToolbox Loader v2 (fast import)
 # --------------------------------------------
@@ -118,6 +261,14 @@ if (-not (Test-Path -Path 'variable:script:TT')) {
         LogRoot     = (Join-Path $env:TEMP 'TechToolbox')
     }
 }
+
+# --- Config/data paths (OneDrive-aware) ---
+$script:TT['Home'] = Join-Path $env:APPDATA 'TechToolbox'
+$script:TT['PromptTemplates'] = Join-Path $script:TT.Home 'PromptTemplates'
+$script:TT['AgentHistoryFile'] = Join-Path $script:TT.Home 'AgentHistory.jsonl'
+
+if (-not (Test-Path $script:TT.Home)) { New-Item -ItemType Directory -Path $script:TT.Home | Out-Null }
+if (-not (Test-Path $script:TT.PromptTemplates)) { New-Item -ItemType Directory -Path $script:TT.PromptTemplates | Out-Null }
 
 # Guard re-import (but still print status line)
 if ($script:TT_Initialized) {
@@ -258,7 +409,8 @@ if ($publicFunctionNames.Count -gt 0) {
 if ($env:TT_ExportLocalHelper -eq '1') {
     Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
 }
-Export-ModuleMember -Function $publicFunctionNames
+$allExportFunctions = @($publicFunctionNames + 'ITA') | Select-Object -Unique
+Export-ModuleMember -Function $allExportFunctions
 
 $script:TT_Initialized = $true
 __tt_trace "Import complete"
@@ -266,12 +418,13 @@ __tt_trace "Import complete"
 # --- Call on import ---
 Show-TTBannerOncePerSession
 Write-TTLoadedLine -Status Loaded
+Register-ITACompletions
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCzkNZfmje2epUc
-# N5Fm/jAAWwYQjh6ayvq2ShyC6391AKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBtwzge4XpoMIX0
+# rTzEmlyWlH+Ruzft+2wixwYwq4wBl6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -404,34 +557,34 @@ Write-TTLoadedLine -Status Loaded
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB7YmSwva68
-# Qc9aMCrVaYQfFheZfBSfuqH5Q9YRGIzk9DANBgkqhkiG9w0BAQEFAASCAgB/flXv
-# AQ3CSz7p99ldihi5+WsInat0F7Uk5bJXmpQnpl9Fnr8d/Q2ZMPjAh8+mg93Q9Foc
-# xom6AaItpsv34iXmaq2LdAdhbrgWqCpgiALIIa/xGRJ6YLxuwF+j1o2+bo1P7Tun
-# 5T7nSkPUjVovUh8/M/ogXAwzfjASRYCfQBSetIov1sIGEjvfwdNQEfJO3uZEXuxb
-# BPjyeTD4ZxC1FhQmo4Mhe2ulzdjQoI5SrOi++OT2GjNcHUSHHG9iLQofRypBwXTh
-# fHO4ytN5/mXH19J02INNxlGNE+IU1tlTaiYka7bheZorRfnCJqW9s+1jZ0FekvQZ
-# oVvJpohOs4K1uUlOjgJiK6ElyvKhuZ+ps2f5exMrnS7eO0p5wPqFLSDCpp8J9CsG
-# g2BlqKewzYEcQd5z7jryI9FG1HCRmk83aqPMC65Nmh2DSjor0Q3kTTz/NCpK3oKx
-# /AFLfEJYs6R9VFskqXcP8BvG3TfCTZlJwLcmGQqvuttKrhM2lNfpKS8Lv3HR0NrL
-# nrxMpnA80eBtMMDPXu/mO70tIZCZgaNqtKHhgS2Oj3UW9zebkUAym9nZ/KMH7Wx9
-# 9fswdMmwRGKukUI+F9zW8zogk24sXO2Q6RPXC1/c87ufIE9JEanEvwvuZbsUNu38
-# tzQV0UMw8rvH1H06vhZCt3bjzN7rPbYm/uVidaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAI//wcTcnT
+# 4YWF+rA0J5NGjp/O4F/rJAz80rd+ZqJ61TANBgkqhkiG9w0BAQEFAASCAgBr+C8r
+# GC4DiISOeigFpUpnKbpk9etgFs1QdUXYJxbOqaEmlUD6ERg/qnJQECb2M5IYL6Rr
+# dk4nCTiv21bwMmShFH8Gxl2YpLhdgODrQSN6WRxCJNcUeFm216xud+dJwCpCmszU
+# GtUUu4SFDx3pj8aM9qDQ+fh6WpT1r1Vrqd3VvJcRNVi+wcqsrS6BtKwACypTRFkq
+# xtm0yegzPBW/wOt56kIE+4PsfyPdwyOjsy6Yn5WLJ4YUoEM1sTEPmO0evDToPYzN
+# 3FqQnrlRY9JQcjMkPa8/+Kf7h3N+dkwpg8lI0sz72XobIW8C5rGz2b5krYEPpaX9
+# oVo4bqOgaMM9tthsU1kO7DP4UwyitaI2JCec0Xkjn7lG0DSblin4DEq2tGN+KRyH
+# KVH3LM9nEIK8Gk3Uc9obXTVQqNegzFQS0b2R+jquZDabIb4oD94qLRlraZLiVoj5
+# VWLZ275tSLLoYyM8FUw4KEXlp2rw2HiXYYCFq/u2uelQh2pp5g3NgnL7qSppBHwe
+# HQ+CAHjpeVp11EL5BvGYML/hiSShLrA2Telb1y72NExb4GhDEhFcSHL/qimqzhFE
+# wUbfO1b99uPJcJrjUDGc07KNUlhbn+nBxcJEwWWiF/KCqBm2tPTzpxzx1NJO/uEQ
+# LeVUYye+UT5TMuw/X491Y9yMjgOL6x4LYnCqWqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTAyMjUwNTdaMC8GCSqGSIb3DQEJBDEiBCAJOMeggqWk/wIMmGq+
-# IcDAOCnI5sZ9Nkwe9vGWMXrY4zANBgkqhkiG9w0BAQEFAASCAgA8cQP/VjaIiopt
-# v0hKEaB3Wp0oy2o79h0vKXO3VCb6xCYi4K9lZlk+Sb7TuvOkvUVe4pCCijkteBpK
-# PpAK9mhvMYFNBpJPhlX5iub+4S8AaMysh/6QHIulNSnDiBHStEKbeQeQoxfhR14U
-# cqPv0ArMbHFg+qJBLU3oW9+wAaZIl7L2uZCyt6q+qyIRn27K71GIX6e8HPyGSuiq
-# 3gjknS6IOlARROFXPxUboHKhDW7MPmd3M214H8wmIgVVcdUs/U0s7XOOAdCPs/JQ
-# ysi4VM6ygs1Uj+yOea7kxoKR0xo+hQCyTsuL6gvIAo9p6IpoNgii/BFfKt1MN6tN
-# cqqe6UzI4j+En4f9+AJ7RWzmo4rDmAWOdoyUFQQRna8dP2+dbMf50CCkmENn4sMw
-# hgbsTGPJgxQ9w94iG9Su5j5+szs6mmokVBFWmjO215P3CxjuEPAbOHHw9f75m+j4
-# 3cgP/EKgIsWp3KG+B08kADYfRNEWhIhki1nmR4Mk7rdhrq2VDnIP9IS2VsVHU02O
-# 6OcNjmI6l6XzT4k52eAHnVHqf36SFKQT856NKPWMjnv9kUvU4I7F0oh2TCTFmxHC
-# j90jqpLPnBKDbCaHRT3Qy7Tb59ujwrkx6pnGcD+iMJ+CL2ssNgDgyKBtPuqFbHYs
-# sQ2V49L/evpOJSqg4zUD/LTFmO3KbA==
+# BTEPFw0yNjA2MTEwNDI1NDhaMC8GCSqGSIb3DQEJBDEiBCC+aOmfiJdEprxJycLK
+# UYhNuGDMkvN2+jZSqUNW7WsgdjANBgkqhkiG9w0BAQEFAASCAgBpIhSF6Xy9neDz
+# zUygIB0C13qVR8V+7lEV7aBCXnZvxeuJ69haAr8cIgy8ae4wEajKh3zumciZBmAT
+# Gfz+FHhVxA/7l8t4tDu8DRkbcD/Qov6pb+QROLHrbGc8XkF5Bo+yQVBIQeRLHYTW
+# Fym1xOOiDpdHsL1A5tEL23Ch8C8UC1LFp8kOG/Dqy96OvYy/l1yDcGzOGFP0XUq0
+# ackH9IuxTy3GK/E9sgcXN+hni5tDxUFwnRd3N77nsdIoEZtreeRjxHrH++MXzrp5
+# 6QwlBfhsncT1oS9xqHGUfpCjOf9VH6HC9RtW8MN812DmNIEKFpotu0LSISAW6+yv
+# Cmpu8Ly/ffjq4AJSpAFba4jheg8Y8Zf+ttzcZVzqBjM48KsBU8kPLrfgrP2ZJpcY
+# GRv7CEE1uZ8zwMgZh9Q7xk1PzkMtBGrtIFG7UHIviGg52cjh9W9PIIJxbbAV4r0p
+# t3cTBO4mUk+wYAE3Mg8A02ZwPluyY0wZdI0a+uDJN57e5thHpHZUQJN24MD6VmWq
+# JBHdrQ2gM0ejp4Q4LIowqEGtymUWl918/cv8A2Xou1t77JlM/edVaHI+ZePWVV2c
+# XJ4qaYGMUxALhe+PM9x2zylmXcUdqPdvM8LqoEv1ATFuybLAwqQ7Fntwfrr3j4MH
+# oLs+SuYB5gk5qtHr8uA3aqHNQ+la3g==
 # SIG # End signature block
