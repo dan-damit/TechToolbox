@@ -34,6 +34,8 @@ _MEMORY_TREND_WINDOW_ITEMS = 30
 _MEMORY_HISTORY_FILE_SUFFIX = ".history.json"
 _MEMORY_FORMAT_VERSION = 2
 _ENV_TRUE_VALUES = {"1", "true", "yes", "on"}
+_SIGNED_FILE_POLICY_VALUES = {"ignore", "strip"}
+_POWERSHELL_FILE_EXTENSIONS = {".ps1", ".psm1", ".psd1", ".ps1xml"}
 
 _ASCII_MARKDOWN_INSTRUCTION = (
     "Format the final answer as plain Markdown using ASCII characters only. "
@@ -58,6 +60,10 @@ DESTRUCTIVE_NAME_KEYWORDS = {
     "purge",
     "wipe",
 }
+
+_AUTHENTICODE_SIGNATURE_BLOCK_RE = re.compile(
+    r"(?ims)^\s*#\s*SIG\s*#\s*Begin signature block\b.*?^\s*#\s*SIG\s*#\s*End signature block\s*$"
+)
 
 if __package__ in (None, ""):
     _THIS_DIR = Path(__file__).resolve().parent
@@ -169,6 +175,41 @@ def _env_flag(name: str, default: bool = False) -> bool:
     if raw is None:
         return default
     return raw.strip().lower() in _ENV_TRUE_VALUES
+
+
+def _env_signed_file_policy(
+    name: str = "TECHTOOLBOX_SIGNED_FILE_POLICY",
+    default: str = "ignore",
+) -> str:
+    """Parse signed-file policy from environment with strict fallback."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+
+    value = raw.strip().lower()
+    if value in _SIGNED_FILE_POLICY_VALUES:
+        return value
+    return default
+
+
+def _is_powershell_path(path: Path) -> bool:
+    """Return True when the target file extension is PowerShell-related."""
+    return path.suffix.lower() in _POWERSHELL_FILE_EXTENSIONS
+
+
+def _contains_authenticode_signature_block(text: str) -> bool:
+    """Detect an Authenticode signature block in PowerShell comment form."""
+    if not text:
+        return False
+    return _AUTHENTICODE_SIGNATURE_BLOCK_RE.search(text) is not None
+
+
+def _strip_authenticode_signature_block(text: str) -> tuple[str, bool]:
+    """Remove Authenticode signature block comments from text."""
+    if not text:
+        return text, False
+    stripped, count = _AUTHENTICODE_SIGNATURE_BLOCK_RE.subn("", text)
+    return stripped.rstrip() + "\n", count > 0
 
 
 def _extract_output(result) -> str:
@@ -441,8 +482,12 @@ def make_read_file_tool():
     )
 
 
-def make_write_file_tool(destructive_confirmed: bool = False):
+def make_write_file_tool(destructive_confirmed: bool = False, signed_file_policy: str = "ignore"):
     """Returns a StructuredTool for writing a file within the workspace."""
+
+    policy = (signed_file_policy or "ignore").strip().lower()
+    if policy not in _SIGNED_FILE_POLICY_VALUES:
+        policy = "ignore"
 
     def _write(path: str, content: str) -> str:
         try:
@@ -460,9 +505,26 @@ def make_write_file_tool(destructive_confirmed: bool = False):
                 f"Safety block: '{p}' already exists and overwriting is not authorized. "
                 "The user must re-run with --destructive-confirmed to allow overwriting existing files."
             )
+
+        if exists and _is_powershell_path(p):
+            existing_text = p.read_text(encoding="utf-8", errors="replace")
+            if _contains_authenticode_signature_block(existing_text):
+                if policy == "ignore":
+                    return (
+                        f"Safety block: '{p}' appears to contain an Authenticode signature block. "
+                        "Signed file overwrite was skipped by policy='ignore'. "
+                        "Re-run with --signed-file-policy strip to allow overwriting without the signature block."
+                    )
+
+                content, removed = _strip_authenticode_signature_block(content)
+                if not removed:
+                    content = content.rstrip() + "\n"
+
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
         action = "overwritten" if exists else "created"
+        if exists and _is_powershell_path(p) and policy == "strip":
+            return f"Success: file {action}: {p} (signed-file policy applied: strip)"
         return f"Success: file {action}: {p}"
 
     return StructuredTool.from_function(
@@ -472,6 +534,8 @@ def make_write_file_tool(destructive_confirmed: bool = False):
             "Write text content to a file within the TechToolbox workspace. "
             "Requires 'path' (relative or absolute within the workspace) and 'content' (full text to write). "
             "Overwrites existing files only when the session is run with --destructive-confirmed. "
+            "If an existing PowerShell file appears Authenticode-signed, overwrite behavior is controlled by signed-file policy: "
+            "'ignore' blocks overwrite, 'strip' permits overwrite without signature block. "
             "Always read the file first with read_file before overwriting to avoid data loss."
         ),
     )
@@ -486,6 +550,7 @@ def run_agent(
     memory_context: Optional[str] = None,
     auto_retry_on_recursion: bool = False,
     return_metadata: bool = False,
+    signed_file_policy: str = "ignore",
 ):
     """
     Run the agent with the given prompt.
@@ -499,7 +564,12 @@ def run_agent(
         for name, spec in registry.items()
     ]
     tools.append(make_read_file_tool())
-    tools.append(make_write_file_tool(destructive_confirmed=destructive_confirmed))
+    tools.append(
+        make_write_file_tool(
+            destructive_confirmed=destructive_confirmed,
+            signed_file_policy=signed_file_policy,
+        )
+    )
 
     llm = ChatOllama(model=model)
 
@@ -950,6 +1020,16 @@ def main():
             "Default: TECHTOOLBOX_AGENT_AUTO_RETRY_ON_RECURSION or disabled."
         ),
     )
+    parser.add_argument(
+        "--signed-file-policy",
+        choices=sorted(_SIGNED_FILE_POLICY_VALUES),
+        default=_env_signed_file_policy(),
+        help=(
+            "Policy when overwriting an existing PowerShell file that appears Authenticode-signed: "
+            "'ignore' blocks overwrite, 'strip' overwrites and removes signature block text. "
+            "Default: TECHTOOLBOX_SIGNED_FILE_POLICY or 'ignore'."
+        ),
+    )
     args = parser.parse_args()
 
     if args.max_iterations < 1:
@@ -980,6 +1060,7 @@ def main():
             memory_context=memory_context,
             auto_retry_on_recursion=args.auto_retry_on_recursion,
             return_metadata=True,
+            signed_file_policy=args.signed_file_policy,
         )
         if isinstance(run_result, tuple) and len(run_result) == 2:
             output = str(run_result[0])
@@ -1004,6 +1085,7 @@ def main():
                 "durationMs": duration_ms,
                 "maxIterations": args.max_iterations,
                 "destructiveConfirmed": args.destructive_confirmed,
+                "signedFilePolicy": args.signed_file_policy,
                 "autoRetryOnRecursion": args.auto_retry_on_recursion,
                 "toolCalls": int(tool_calls_value) if isinstance(tool_calls_value, (int, float)) else 0,
             }
