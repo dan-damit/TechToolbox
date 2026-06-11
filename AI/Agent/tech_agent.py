@@ -21,10 +21,10 @@ from langchain_ollama import ChatOllama
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _READ_MAX_BYTES = 50_000  # ~50 KB cap to avoid flooding the context window
-_MEMORY_CONTEXT_MAX_CHARS = 6_000
+_MEMORY_CONTEXT_MAX_CHARS = int(os.getenv("TECHTOOLBOX_MEMORY_CONTEXT_MAX_CHARS", "10000"))
 _MEMORY_HISTORY_ITEMS = 8
 _MEMORY_HISTORY_MAX_ITEMS = 200
-_MEMORY_TEXT_PREVIEW_MAX_CHARS = 500
+_MEMORY_TEXT_PREVIEW_MAX_CHARS = int(os.getenv("TECHTOOLBOX_MEMORY_TEXT_PREVIEW_MAX_CHARS", "1400"))
 _MEMORY_TREND_WINDOW_ITEMS = 30
 _MEMORY_HISTORY_FILE_SUFFIX = ".history.json"
 _MEMORY_FORMAT_VERSION = 2
@@ -256,6 +256,51 @@ def _extract_tool_call_count(result) -> int:
     return count
 
 
+def _extract_tool_call_names(result) -> list[str]:
+    """Collect ordered tool names invoked by the assistant during a run."""
+    names = []
+    seen = set()
+    if not isinstance(result, dict):
+        return names
+
+    messages = result.get("messages")
+    if not isinstance(messages, list):
+        return names
+
+    for message in messages:
+        tool_calls = None
+        if isinstance(message, dict):
+            tool_calls = message.get("tool_calls")
+            if not tool_calls:
+                additional_kwargs = message.get("additional_kwargs") or {}
+                if isinstance(additional_kwargs, dict):
+                    tool_calls = additional_kwargs.get("tool_calls")
+        else:
+            tool_calls = getattr(message, "tool_calls", None)
+            if not tool_calls:
+                additional_kwargs = getattr(message, "additional_kwargs", None) or {}
+                if isinstance(additional_kwargs, dict):
+                    tool_calls = additional_kwargs.get("tool_calls")
+
+        if not isinstance(tool_calls, list):
+            continue
+
+        for tool_call in tool_calls:
+            name = None
+            if isinstance(tool_call, dict):
+                name = tool_call.get("name")
+            else:
+                name = getattr(tool_call, "name", None)
+
+            if isinstance(name, str):
+                normalized = name.strip()
+                if normalized and normalized not in seen:
+                    seen.add(normalized)
+                    names.append(normalized)
+
+    return names
+
+
 def _classify_outcome(output_text: str, status: str) -> str:
     """Classify final run outcome for memory summaries."""
     if status == "error":
@@ -285,6 +330,50 @@ def _classify_outcome(output_text: str, status: str) -> str:
     if any(marker in lower for marker in blocked_markers):
         return "blocked"
     return "completed"
+
+
+def _extract_next_step(output_text: str) -> str:
+    """Best-effort extraction of the next suggested action from model output."""
+    if not output_text:
+        return ""
+
+    patterns = [
+        r"(?im)^next\s+best\s+action\s*:\s*(.+)$",
+        r"(?im)^next\s+step\s*:\s*(.+)$",
+        r"(?im)^recommended\s+next\s+step\s*:\s*(.+)$",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, output_text)
+        if match:
+            return _preview_text(match.group(1), max_chars=180)
+
+    # Fallback: capture the first imperative-style bullet/list item from the end.
+    lines = [line.strip() for line in output_text.splitlines() if line.strip()]
+    for line in reversed(lines):
+        if re.match(r"^(-|\*|\d+\.)\s+", line):
+            return _preview_text(re.sub(r"^(-|\*|\d+\.)\s+", "", line), max_chars=180)
+
+    return ""
+
+
+def _build_run_summary(prompt_text: str, output_text: str, status: str, outcome: str, tool_names: list[str]) -> dict:
+    """Create compact, structured per-run memory for better multi-run chaining."""
+    summary = {
+        "intent": _preview_text(prompt_text, max_chars=220),
+        "actionsTaken": tool_names[:12],
+        "blockers": "",
+        "nextBestStep": "",
+    }
+
+    if status == "error":
+        summary["blockers"] = _preview_text(output_text, max_chars=220)
+        return summary
+
+    if outcome in ("blocked", "needs-confirmation"):
+        summary["blockers"] = _preview_text(output_text, max_chars=220)
+
+    summary["nextBestStep"] = _extract_next_step(output_text)
+    return summary
 
 
 def _safe_path(path_str: str) -> Path:
@@ -429,6 +518,7 @@ def run_agent(
     if return_metadata:
         metadata = {
             "toolCalls": _extract_tool_call_count(result),
+            "toolNames": _extract_tool_call_names(result),
         }
         return output_text, metadata
 
@@ -613,7 +703,38 @@ class MemoryStore:
         lines.append(f"Recent history (last {history_items}):")
         if history:
             for item in history[-history_items:]:
-                lines.append(f"- {json.dumps(item, ensure_ascii=False)}")
+                if not isinstance(item, dict):
+                    lines.append(f"- {json.dumps(item, ensure_ascii=False)}")
+                    continue
+
+                ts = item.get("timestampUtc") or "unknown-time"
+                status = item.get("status") or "unknown-status"
+                outcome = item.get("outcome") or "unknown-outcome"
+                model = item.get("model") or "unknown-model"
+                duration_ms = item.get("durationMs")
+                tool_calls = item.get("toolCalls")
+                run_summary_raw = item.get("runSummary")
+                run_summary = run_summary_raw if isinstance(run_summary_raw, dict) else {}
+
+                intent = run_summary.get("intent") or item.get("prompt") or ""
+                actions = run_summary.get("actionsTaken") or []
+                blockers = run_summary.get("blockers") or ""
+                next_step = run_summary.get("nextBestStep") or ""
+
+                actions_text = ", ".join(str(x) for x in actions[:8]) if isinstance(actions, list) and actions else "(none)"
+                duration_text = f"{duration_ms}ms" if isinstance(duration_ms, (int, float)) else "n/a"
+                tool_calls_text = str(tool_calls) if isinstance(tool_calls, (int, float)) else "n/a"
+
+                lines.append(
+                    f"- {ts} | {status}/{outcome} | model={model} | duration={duration_text} | toolCalls={tool_calls_text}"
+                )
+                if intent:
+                    lines.append(f"  intent: {intent}")
+                lines.append(f"  actions: {actions_text}")
+                if blockers:
+                    lines.append(f"  blockers: {blockers}")
+                if next_step:
+                    lines.append(f"  next: {next_step}")
         else:
             lines.append("- (none)")
 
@@ -745,9 +866,9 @@ def main():
     started = time.monotonic()
     output = ""
     error = None
-    run_metadata = {}
+    run_metadata: dict[str, object] = {}
     try:
-        output, run_metadata = run_agent(
+        run_result = run_agent(
             args.prompt,
             model=args.model,
             verbose=not args.quiet,
@@ -756,12 +877,20 @@ def main():
             memory_context=memory_context,
             return_metadata=True,
         )
+        if isinstance(run_result, tuple) and len(run_result) == 2:
+            output = str(run_result[0])
+            metadata_obj = run_result[1]
+            run_metadata = metadata_obj if isinstance(metadata_obj, dict) else {}
+        else:
+            output = str(run_result)
+            run_metadata = {}
         print(output)
     except Exception as exc:
         error = exc
     finally:
         if memory is not None:
             duration_ms = int((time.monotonic() - started) * 1000)
+            tool_calls_value = run_metadata.get("toolCalls", 0) if isinstance(run_metadata, dict) else 0
             entry = {
                 "timestampUtc": _utc_now_iso(),
                 "status": "error" if error else "success",
@@ -771,12 +900,30 @@ def main():
                 "durationMs": duration_ms,
                 "maxIterations": args.max_iterations,
                 "destructiveConfirmed": args.destructive_confirmed,
-                "toolCalls": int(run_metadata.get("toolCalls", 0)),
+                "toolCalls": int(tool_calls_value) if isinstance(tool_calls_value, (int, float)) else 0,
             }
+            tool_names = run_metadata.get("toolNames") if isinstance(run_metadata, dict) else []
+            if not isinstance(tool_names, list):
+                tool_names = []
+
             if error is None:
                 entry["outputPreview"] = _preview_text(output)
+                entry["runSummary"] = _build_run_summary(
+                    args.prompt,
+                    output,
+                    status="success",
+                    outcome=entry["outcome"],
+                    tool_names=tool_names,
+                )
             else:
                 entry["error"] = _preview_text(str(error))
+                entry["runSummary"] = _build_run_summary(
+                    args.prompt,
+                    str(error),
+                    status="error",
+                    outcome=entry["outcome"],
+                    tool_names=tool_names,
+                )
             try:
                 memory.add_history(entry)
                 memory.update_trend_facts()

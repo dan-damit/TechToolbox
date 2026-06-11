@@ -10,8 +10,8 @@
       "windowItems": 30,
       "runCount": 30,
       "successRate": 0.9,
-      "avgDurationMs": 142390,
-      "avgToolCalls": 3.43,
+      "avgDurationMs": 151068,
+      "avgToolCalls": 4.03,
       "statusCounts": {
         "success": 27,
         "error": 3
@@ -25,24 +25,12 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-11T04:54:45+00:00",
-      "trendLastUpdatedUtc": "2026-06-11T04:54:45+00:00"
+      "lastRunTimestampUtc": "2026-06-11T05:24:42+00:00",
+      "trendLastUpdatedUtc": "2026-06-11T05:24:42+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-10T22:59:23+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "Do you have any suggestions to improve the file at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent named Export-ToolboxFunctions that would enhance your ability to perform the tasks it is meant for?",
-      "model": "qwen3.6:35b",
-      "durationMs": 58495,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "toolCalls": 1,
-      "outputPreview": "I've read the full `Export-ToolboxFunctions.ps1`. Here's my detailed analysis with improvement recommendations:\n\n---\n\n## Current Behavior\n\nThe script:\n1. Imports the specified module (default: `TechToolbox`)\n2. Enumerates all exported functions via `Get-Command -Module`\n3. For each function, extracts parameters (name, type, mandatory)\n4. Extracts the synopsis from `Get-Help`\n5. Outputs a JSON array with depth 6\n\n---\n\n## Improvement Recommendations\n\n### 1. **Capture Full Descriptions (Not Just Sy..."
-    },
     {
       "timestampUtc": "2026-06-10T23:09:15+00:00",
       "status": "success",
@@ -126,6 +114,18 @@
       "destructiveConfirmed": true,
       "toolCalls": 2,
       "outputPreview": "The Alias Updates have been moved into a new `#### Improved` subsection under the `v0.5.0` changelog entry in README.md. Here is the resulting changelog section:\n\n## Changelog\n\n### v0.5.0 - \"AI & Metadata Milestone\"\n\n#### Improved\n- Alias Updates: Enhanced Set-EmailAlias and Set-ProxyAddress for Exchange Online mailbox management\n\n- AI-assisted workflow improvements (Export-ToolboxFunctions, Invoke-TechAgent enhancements)\n- Full help text capture in agent metadata export\n- Config system refineme..."
+    },
+    {
+      "timestampUtc": "2026-06-11T05:24:42+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please move the Alias Updates section in CHANGELOG.md into the [0.5.0] section under 'Improved' per your recommendation. You have my explicit permission to make this change.",
+      "model": "qwen3.6:35b",
+      "durationMs": 307367,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "toolCalls": 18,
+      "outputPreview": "The CHANGELOG.md has been updated successfully. Here's what was changed:\n\n## Summary of Changes\n\n**Moved:** The \"Alias Updates\" section from `[Unreleased]` into `[0.5.0]` under the **Improved** subsection.\n\n### Before\n```markdown\n## [Unreleased]\n...\n### **Alias Updates**\n- Added documentation for `ITA`...\n- Fixed `ITA` argument forwarding...\n```\n\n### After\n```markdown\n## [0.5.0] - 20260610\n### **Improved**\n- **Loader Architecture**\n- **Configuration System**\n- **Logging Subsystem**\n- **Developer..."
     }
   ]
 }

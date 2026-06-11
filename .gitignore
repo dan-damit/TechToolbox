@@ -6,6 +6,7 @@
 # Directories
 Out/
 EndpointTrackingScripts/
+.venv/
 
 LogsAndExports/*
 !LogsAndExports/Logs/
