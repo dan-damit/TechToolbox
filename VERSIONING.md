@@ -1,5 +1,3 @@
-# VERSIONING.md (Ready to Paste)
-
 ## TechToolbox Versioning Policy
 
 TechToolbox uses a **Milestone‑Driven Semantic Versioning** model:
