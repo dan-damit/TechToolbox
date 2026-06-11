@@ -122,6 +122,27 @@ function Invoke-TechAgent {
             $null = New-Item -ItemType Directory -Path $dir -Force
         }
 
+        $renderedOutput = if ([string]::IsNullOrWhiteSpace($StdOut)) {
+            '(none)'
+        }
+        else {
+            $StdOut.TrimEnd()
+        }
+
+        $rawError = if ([string]::IsNullOrWhiteSpace($StdErr)) {
+            '(none)'
+        }
+        else {
+            $StdErr.TrimEnd()
+        }
+
+        $rawException = if ([string]::IsNullOrWhiteSpace($ErrorText)) {
+            '(none)'
+        }
+        else {
+            $ErrorText.TrimEnd()
+        }
+
         $lines = @(
             '# Tech Agent Run'
             ''
@@ -142,24 +163,22 @@ function Invoke-TechAgent {
             ''
             '## Output'
             ''
-            '```text'
-            $StdOut
-            '```'
+            $renderedOutput
             ''
             '## Error Output'
             ''
-            '```text'
-            $StdErr
-            '```'
+            '~~~~text'
+            $rawError
+            '~~~~'
             ''
             '## Exception'
             ''
-            '```text'
-            $(if ([string]::IsNullOrWhiteSpace($ErrorText)) { '(none)' } else { $ErrorText })
-            '```'
+            '~~~~text'
+            $rawException
+            '~~~~'
         )
 
-        Set-Content -Path $Path -Value ($lines -join [Environment]::NewLine) -Encoding utf8
+        Set-Content -Path $Path -Value ($lines -join [Environment]::NewLine) -Encoding utf8BOM
     }
 
     try {
@@ -323,6 +342,8 @@ function Invoke-TechAgent {
         $startInfo.CreateNoWindow = $true
         $startInfo.RedirectStandardOutput = $true
         $startInfo.RedirectStandardError = $true
+        $startInfo.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
+        $startInfo.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
         $startInfo.Environment['PYTHONIOENCODING'] = 'utf-8'
         $startInfo.Environment['PYTHONUTF8'] = '1'
 
@@ -483,8 +504,8 @@ function Invoke-TechAgent {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD0sh/tTOWgv/uo
-# KVwRLQ9+WGRnfYI04EnHb8Kfwh5Ri6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD8spFXCXfdo11K
+# w+h+PvEPG3qRCO6JHF1eaqAbgvf1FaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -617,34 +638,34 @@ function Invoke-TechAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBJKxqqlvMD
-# CulbLKGPRJrUPjNNGZX+6dxxrN/TfjgdQDANBgkqhkiG9w0BAQEFAASCAgBIFKBA
-# gdkrSuFKS1XsHr2RP7+tNwjQlirpN0troi1zifvYkJvc0QMs+8mgJckrWAtrQpss
-# L5gTILCttv1NZ23XkxMqPt4pK2aItWNdZcBgVsxzHVVJmgtXLHP7WsPUrxSCazNd
-# +IfDe47uwMpH/y0GRVVpNJ6b41511mjumPpDXxgheSR8iMwrHa9Km8GHlLdps4U0
-# ZB/seMBzq6SFMIrtlGjv4FljkjsWP9l6yC3Rksl9WvJDgOGknqFZiVgRog61Vd/x
-# AYi5OaSvvtdwYPWN9/Y/MwgI/YAyvGxUhVNFJ93tw/Ig7qT4mh1emZ5BGo7oFsv3
-# /lw1zXTURrwLDRD5oMJyrJy+F8PnifVwp8fEyofr6m1+n0sceQ8PfyqUy6qidwQ+
-# mqrlA913FToIWtEgEtyKkuNEn9xBLzlV9GUbSjG2pkRdrNrbHcIB2d6VxYcIAMQe
-# kgTZPeOaFFN3zVQ8gPLFUXzxnRXyuKXO4wfGI4ni9Bk4odb9W8RD6Om4DpeDn9VB
-# hxiOlH1JJY4cBkrSqAMDNEZkcEpmgzwEngpi9mfYylfqlvUas8oNelq/c+ogI6MR
-# rVBNOQ0bsXNSbTOIuUUAHQ3gLHKqh7LPhakFu3y+3utuXo/yqjkAxfRmI/gwTPCH
-# 1uFL4zPldMzNDErUpyfk6+91vtOja5l9CftDEaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBxz4FF8XXZ
+# n6Vdu2s0ae4w0QGyGyD85cXJGx1ybPr+bzANBgkqhkiG9w0BAQEFAASCAgDE85zJ
+# ck8l9d8dGMTbzX71aHX5f+96bzCwKxcWqx63MBlY4ClAOH3toxt4V3tlG+mZLTQy
+# gYTKXPoAJbix2npuKE5oCEwzyQZa2hYW4Z0Gpw548HybpVYUn23DX8SWGxPcI25i
+# j8qCRq9A/TgLIN5Dvch00fIjWNrHQFEsNKPjXQ7tSDUUaYsBKQNfYN3PX9jqDj/7
+# BO6AekF7sGMs5UMV6qeoVOLJFQL5pW8swkJLWLrq15jPMKgdOIVMwMWFfPSrEoo8
+# P/Tcbp94ZNhCCWRKCp9JAERI7pq1nOyYA0F1SbjnpUSx6sls57O//FqBq7BShxk8
+# aKNaxeXq2vdnyhCtmo5z08TntS9gOQ48q7i1f7a4eJMrs08XsbqBB7zDMs+DavlV
+# WAxNcVdfUSm1BfEf0Mqd7DNY4Ea10RxgGlyrrG056SWrg1ogK7X7VIWSKKSGOHDi
+# XujiM5pjGTHc1a4i7WVyem/OlY1BwOkcd92cb209P0ewMXd89flFveB/V53xDraN
+# sMGfSq2maHxbMuFj1op/l6cv/Y6jg1zUIzwcbvEE3gVbiTzmAykM43BUhL8ehtzD
+# /RttdvwsLzw+HjaIp49xtpPIG6KnZJ4Xi3E7UAH5ygzMpYsj0c37sj71HRRZqrqI
+# W5XvcRo6MWl9qV1Bfb6iCt5AZchJItNT0EcqSaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTEwMDE5NThaMC8GCSqGSIb3DQEJBDEiBCAI3DsoGGpxOj1RzVqD
-# jaGRsmlvWeVwS2NWRtqO5w0+4zANBgkqhkiG9w0BAQEFAASCAgByfGUQuqDKwdqk
-# gnlwAIe4hGyqdysCeUJwNNA7TU6KI+ECHZziEAmnbD5JF4XkY6DmM8sbc68PVZa4
-# J4wTzOJ38klhDGe8UllLOMHGAR1dpi36OB8Jw7KItQ0jCXSgw7+gZtX7v6jhlyMT
-# gQ31w5EEm6IHV7I1C+wSvPIJoRRjJkh4hsOORDjJKOfj+lH6NzSAl12kq9Z+7+G6
-# iRQ7yq9PoFhoGbJuTvGr2P71eaoNiK8gVwZSnsA8PX3tGS+Y6o6BJoxKwbh387+e
-# ZS2gVq3LJP3j6i9qT/LcTYJULcZhmdwEq3m8fshcB70tpOIMbG3ru3QrVCv5wqbH
-# roox2dpkARCQoTJk1w0HBPmKqtns5Y1UEf0UaloRxJssbU+p5HOep1zy+ywHU1qX
-# JqI+EPywDy7zKfiZ5VxlTKdtbDCZ47PH7WZv5pbDBVlB00bJxaaWI2j6FH6tyceY
-# XChvxldifd8U8VBGGulbM7vwGw/V/kkpfYUU2EwuPeINwlFGeBtTutjIUify1qNl
-# A8YcwE51VK98l8XKK01JQlw8cspwjhq8qzMFfv5S2DetwrfhDt5VHRE++9Gk8soR
-# geXKIa0+FfnkSYzg9ebm5ohLMPN/9ahzBRBnI7Ps5I879BEvxvkDjLs+vSsMt3iB
-# hqXodjbZkUXrjGsqZGNiuSBP2HjIqg==
+# BTEPFw0yNjA2MTEwMDM1MzBaMC8GCSqGSIb3DQEJBDEiBCAbd29+vYeEBkqIHQUM
+# r20RoUU56BiF1elYJTr85m2BvjANBgkqhkiG9w0BAQEFAASCAgCzPmsuaV2alp2s
+# RuN8yZd4Jg/WMmT+3ex0dSG4fj2/uRjUabgoGIHEZdJUxvfsS7hE1kQjKdDIKNID
+# aezxzDSJmgV7Ka5ExDd5qLelRx+fRgIjC5GB0R/TcmL06EJiYNyCZ0xRFBLqbL2B
+# AvbsxKhPQ8ZxjB3WsDmbQUxCsTxsHW0+CT+vnLXB3su9gMcpGyozDDNVz7yBEI3u
+# uDVqGO5aAPMZKUVESe8TWMVVcgFBS7hCJA76Dj8zl0h4GhmGFJn6F7awFkDUqOjo
+# W5yAaCqCzKswrs413fppFRxpJlp/BtkfqENllGI0RZfJGW4vd+8TV+6TJvwBzunc
+# oc6+1yt1BXoSykTOQvKdDnnEmvRKGxx+DJzjuBJxkBJsqg6a1SkTMvf/81p8nItn
+# CP3/2RjcwaY1VMbcgUl3DqBzHrbScYbrUCd+T6ldLSQgJR+LTUk3UxFiaEASThrd
+# ERhY2tYoZsyenGvpe7tOQlbKDM2/P0rIwqUQQqJnZec92TWWDtolYJOZ3CezS8br
+# LZ8GlfRxOKCTqgdxQy2S+AGyyCGBoI5+b/MpmbmqW4K2rI6hgrWqml+TtlH+LTU7
+# qpHqyTSTSVcnH6ZIQx/FyzmtHmWKorqC2S4MWQF7XCgnd93CqKDuScltC5f/Zjez
+# vIchOXeb0GBIU7bLnNYnVrjE6g2Cjw==
 # SIG # End signature block

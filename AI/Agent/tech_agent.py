@@ -6,8 +6,10 @@ Entry point for the TechToolbox local agent.
 import argparse
 import json
 import os
+import re
 import sys
 import time
+import unicodedata
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
@@ -26,6 +28,12 @@ _MEMORY_TEXT_PREVIEW_MAX_CHARS = 500
 _MEMORY_TREND_WINDOW_ITEMS = 30
 _MEMORY_HISTORY_FILE_SUFFIX = ".history.json"
 _MEMORY_FORMAT_VERSION = 2
+
+_ASCII_MARKDOWN_INSTRUCTION = (
+    "Format the final answer as plain Markdown using ASCII characters only. "
+    "Do not use emoji, smart quotes, Unicode bullets, box-drawing characters, or arrow glyphs. "
+    "Use '-' for bullets, '##'/'###' for headings, and '->' when an arrow is needed."
+)
 
 DESTRUCTIVE_VERBS = {
     "clear",
@@ -134,7 +142,8 @@ def _build_goal_prompt(prompt: str, memory_context: Optional[str] = None) -> str
         "or you can clearly justify why it cannot be completed safely. "
         "Never execute destructive actions without explicit confirmation. "
         "If confirmation is missing, stop and report exactly what confirmation is required. "
-        "If blocked, explain the blocker and provide the next best action.\n\n"
+        "If blocked, explain the blocker and provide the next best action. "
+        f"{_ASCII_MARKDOWN_INSTRUCTION}\n\n"
     )
 
     if memory_context:
@@ -174,6 +183,46 @@ def _extract_output(result) -> str:
                     return "\n".join(parts)
 
     return str(result)
+
+
+def _normalize_ascii_markdown(text: str) -> str:
+    """Normalize model output into ASCII-safe markdown for durable Windows logging."""
+    if not text:
+        return text
+
+    replacements = {
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2015": "-",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2022": "-",
+        "\u2023": "-",
+        "\u2043": "-",
+        "\u2212": "-",
+        "\u2192": "->",
+        "\u21d2": "=>",
+        "\u2190": "<-",
+        "\u2026": "...",
+        "\u00a0": " ",
+    }
+
+    normalized = text
+    for source, replacement in replacements.items():
+        normalized = normalized.replace(source, replacement)
+
+    normalized = unicodedata.normalize("NFKD", normalized)
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+
+    cleaned_lines = []
+    for line in normalized.splitlines():
+        line = re.sub(r"^(#{1,6})\s+", r"\1 ", line)
+        line = re.sub(r"^([*+-])\s+", r"\1 ", line)
+        cleaned_lines.append(line.rstrip())
+
+    return "\n".join(cleaned_lines).strip()
 
 
 def _extract_tool_call_count(result) -> int:
@@ -356,7 +405,8 @@ def run_agent(
         system_prompt=(
             "You are a local automation agent. Work step-by-step, use tools when helpful, "
             "and complete the task safely. Never execute destructive actions without explicit "
-            "confirmation. If blocked, explain exactly what is missing and propose the next step."
+            "confirmation. If blocked, explain exactly what is missing and propose the next step. "
+            f"{_ASCII_MARKDOWN_INSTRUCTION}"
         ),
         debug=verbose,
         name="techtoolbox-local-agent",
@@ -374,7 +424,7 @@ def run_agent(
         },
         config={"recursion_limit": recursion_limit},
     )
-    output_text = _extract_output(result)
+    output_text = _normalize_ascii_markdown(_extract_output(result))
 
     if return_metadata:
         metadata = {
