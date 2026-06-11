@@ -530,3 +530,45 @@ Remember to disconnect from Purview when finished using Disconnect-ExchangeOnlin
 2026-06-11 00:24:37 [Info] TechAgent: Still waiting (Status=Running)...
 2026-06-11 00:24:47 [Info] TechAgent: Status=Success
 2026-06-11 00:24:47 [Ok] Tech agent completed successfully.
+2026-06-11 00:52:06 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_005206_16084.txt
+2026-06-11 00:52:06 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 00:52:06 [Info] TechAgent: Status=Running
+2026-06-11 00:53:06 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 00:54:07 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 00:54:12 [Info] TechAgent: Status=Success
+2026-06-11 00:54:12 [Ok] Tech agent completed successfully.
+2026-06-11 00:54:55 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_005455_16084.txt
+2026-06-11 00:54:55 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 00:54:55 [Info] TechAgent: Status=Running
+2026-06-11 00:55:56 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 00:56:56 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 00:57:01 [Info] TechAgent: Status=Error
+2026-06-11 00:57:01 [Error] Tech agent failed with exit code 1.
+2026-06-11 00:57:02 [Error] Invoke-TechAgent failed: Tech agent exited with code 1: Preflight module access: path='C:\Users\dan\OneDrive\TechStuff\TechToolbox' read=ok write=ok
+Traceback (most recent call last):
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py", line 871, in main
+    run_result = run_agent(
+        args.prompt,
+    ...<5 lines>...
+        return_metadata=True,
+    )
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py", line 508, in run_agent
+    result = agent.invoke(
+        {
+    ...<4 lines>...
+        config={"recursion_limit": recursion_limit},
+    )
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3365, in invoke
+    for chunk in self.stream(
+                 ~~~~~~~~~~~^
+        input,
+        ^^^^^^
+    ...<10 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    ):
+    ^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langgraph\pregel\main.py", line 2803, in stream
+    raise GraphRecursionError(msg)
+langgraph.errors.GraphRecursionError: Recursion limit of 47 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT

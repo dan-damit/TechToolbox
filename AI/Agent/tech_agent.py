@@ -18,6 +18,11 @@ from langchain.agents import create_agent
 from langchain_core.tools import StructuredTool
 from langchain_ollama import ChatOllama
 
+try:
+    from langgraph.errors import GraphRecursionError
+except Exception:  # pragma: no cover - defensive fallback when langgraph internals change
+    GraphRecursionError = None
+
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _READ_MAX_BYTES = 50_000  # ~50 KB cap to avoid flooding the context window
@@ -28,6 +33,7 @@ _MEMORY_TEXT_PREVIEW_MAX_CHARS = int(os.getenv("TECHTOOLBOX_MEMORY_TEXT_PREVIEW_
 _MEMORY_TREND_WINDOW_ITEMS = 30
 _MEMORY_HISTORY_FILE_SUFFIX = ".history.json"
 _MEMORY_FORMAT_VERSION = 2
+_ENV_TRUE_VALUES = {"1", "true", "yes", "on"}
 
 _ASCII_MARKDOWN_INSTRUCTION = (
     "Format the final answer as plain Markdown using ASCII characters only. "
@@ -155,6 +161,14 @@ def _build_goal_prompt(prompt: str, memory_context: Optional[str] = None) -> str
         )
 
     return f"{header}Goal: {prompt}"
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    """Parse an environment variable into a bool using common truthy values."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in _ENV_TRUE_VALUES
 
 
 def _extract_output(result) -> str:
@@ -470,6 +484,7 @@ def run_agent(
     max_iterations: int = 15,
     destructive_confirmed: bool = False,
     memory_context: Optional[str] = None,
+    auto_retry_on_recursion: bool = False,
     return_metadata: bool = False,
 ):
     """
@@ -505,20 +520,98 @@ def run_agent(
 
     # recursion_limit is the closest 1.x equivalent to capping tool/reasoning loops.
     recursion_limit = max(10, (max_iterations * 3) + 2)
-    result = agent.invoke(
-        {
-            "messages": [
-                {"role": "user", "content": goal_prompt}
-            ]
-        },
-        config={"recursion_limit": recursion_limit},
-    )
-    output_text = _normalize_ascii_markdown(_extract_output(result))
+    retried_on_recursion = False
+    retry_succeeded = False
+    retry_recursion_limit = None
+
+    def _invoke_with_limit(limit: int):
+        return agent.invoke(
+            {
+                "messages": [
+                    {"role": "user", "content": goal_prompt}
+                ]
+            },
+            config={"recursion_limit": limit},
+        )
+
+    try:
+        result = _invoke_with_limit(recursion_limit)
+        output_text = _normalize_ascii_markdown(_extract_output(result))
+    except Exception as exc:
+        is_graph_recursion = bool(GraphRecursionError and isinstance(exc, GraphRecursionError))
+        if not is_graph_recursion:
+            raise
+
+        if auto_retry_on_recursion:
+            retried_on_recursion = True
+            retry_recursion_limit = max(recursion_limit + 12, int(recursion_limit * 1.5))
+            try:
+                result = _invoke_with_limit(retry_recursion_limit)
+                output_text = _normalize_ascii_markdown(_extract_output(result))
+                retry_succeeded = True
+            except Exception as retry_exc:
+                retry_is_graph_recursion = bool(
+                    GraphRecursionError and isinstance(retry_exc, GraphRecursionError)
+                )
+                if not retry_is_graph_recursion:
+                    raise
+
+                output_text = _normalize_ascii_markdown(
+                    "## Agent Iteration Limit Reached\n\n"
+                    "The agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n"
+                    f"- initial recursion_limit used: {recursion_limit}\n"
+                    f"- retry recursion_limit used: {retry_recursion_limit}\n"
+                    f"- max_iterations requested: {max_iterations}\n"
+                    "- auto-retry attempts: 1\n\n"
+                    "Next best action:\n"
+                    "- Retry with a narrower prompt or a higher --max-iterations value.\n"
+                    "- If this repeats, inspect tool outputs for loops or missing termination cues."
+                )
+
+                if return_metadata:
+                    metadata = {
+                        "toolCalls": 0,
+                        "toolNames": [],
+                        "retriedOnRecursion": retried_on_recursion,
+                        "retrySucceeded": retry_succeeded,
+                        "initialRecursionLimit": recursion_limit,
+                        "retryRecursionLimit": retry_recursion_limit,
+                    }
+                    return output_text, metadata
+
+                return output_text
+        else:
+            output_text = _normalize_ascii_markdown(
+                "## Agent Iteration Limit Reached\n\n"
+                "The agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n"
+                f"- recursion_limit used: {recursion_limit}\n"
+                f"- max_iterations requested: {max_iterations}\n\n"
+                "Next best action:\n"
+                "- Retry with a narrower prompt or a higher --max-iterations value.\n"
+                "- If this repeats, inspect tool outputs for loops or missing termination cues."
+            )
+
+        if return_metadata:
+            metadata = {
+                "toolCalls": 0,
+                "toolNames": [],
+                "retriedOnRecursion": retried_on_recursion,
+                "retrySucceeded": retry_succeeded,
+                "initialRecursionLimit": recursion_limit,
+                "retryRecursionLimit": retry_recursion_limit,
+            }
+            return output_text, metadata
+
+        return output_text
 
     if return_metadata:
         metadata = {
             "toolCalls": _extract_tool_call_count(result),
             "toolNames": _extract_tool_call_names(result),
+            "retriedOnRecursion": retried_on_recursion,
+            "retrySucceeded": retry_succeeded,
+            "initialRecursionLimit": recursion_limit,
+            "retryRecursionLimit": retry_recursion_limit,
         }
         return output_text, metadata
 
@@ -847,6 +940,16 @@ def main():
         action="store_true",
         help="Do not prepend persistent memory context to the goal prompt.",
     )
+    parser.add_argument(
+        "--auto-retry-on-recursion",
+        action=argparse.BooleanOptionalAction,
+        default=_env_flag("TECHTOOLBOX_AGENT_AUTO_RETRY_ON_RECURSION", default=False),
+        help=(
+            "If enabled, perform exactly one automatic retry with a higher recursion limit "
+            "when a LangGraph recursion-limit error occurs. "
+            "Default: TECHTOOLBOX_AGENT_AUTO_RETRY_ON_RECURSION or disabled."
+        ),
+    )
     args = parser.parse_args()
 
     if args.max_iterations < 1:
@@ -875,6 +978,7 @@ def main():
             max_iterations=args.max_iterations,
             destructive_confirmed=args.destructive_confirmed,
             memory_context=memory_context,
+            auto_retry_on_recursion=args.auto_retry_on_recursion,
             return_metadata=True,
         )
         if isinstance(run_result, tuple) and len(run_result) == 2:
@@ -900,6 +1004,7 @@ def main():
                 "durationMs": duration_ms,
                 "maxIterations": args.max_iterations,
                 "destructiveConfirmed": args.destructive_confirmed,
+                "autoRetryOnRecursion": args.auto_retry_on_recursion,
                 "toolCalls": int(tool_calls_value) if isinstance(tool_calls_value, (int, float)) else 0,
             }
             tool_names = run_metadata.get("toolNames") if isinstance(run_metadata, dict) else []

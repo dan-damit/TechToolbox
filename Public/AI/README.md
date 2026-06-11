@@ -65,6 +65,7 @@ It supports:
 - optional model selection for local Ollama-compatible models  
 - configurable iteration depth for multi-step workflows  
 - optional quiet mode for reduced console verbosity  
+- optional single auto-retry on recursion-limit stop conditions  
 - explicit destructive-operation confirmation when needed  
 
 **Usage:**
@@ -74,7 +75,15 @@ Invoke-TechAgent -Prompt "Cleanup the harddrive on localhost"
 # Optional examples
 Invoke-TechAgent -Prompt "Run system diagnostics and summarize findings" -Model qwen2.5-coder
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -MaxIterations 25 -Quiet
+Invoke-TechAgent -Prompt "Investigate repeated login failures" -AutoRetryOnRecursion
+Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetryOnRecursion
 ```
+
+**Recursion Auto-Retry Switches**
+
+- `-AutoRetryOnRecursion` enables exactly one automatic retry when the Python agent reaches a recursion limit.
+- `-DisableAutoRetryOnRecursion` forces auto-retry off for the current invocation, even if enabled by environment defaults.
+- Only one of these switches can be used at a time.
 
 ---
 
