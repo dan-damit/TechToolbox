@@ -9,52 +9,28 @@
     "trendSummary": {
       "windowItems": 30,
       "runCount": 30,
-      "successRate": 0.9,
-      "avgDurationMs": 151068,
-      "avgToolCalls": 4.03,
+      "successRate": 0.867,
+      "avgDurationMs": 152605,
+      "avgToolCalls": 4.43,
       "statusCounts": {
-        "success": 27,
-        "error": 3
+        "success": 26,
+        "error": 4
       },
       "outcomeCounts": {
-        "completed": 11,
-        "blocked": 10,
+        "completed": 12,
+        "blocked": 8,
         "needs-confirmation": 6,
-        "error": 3
+        "error": 4
       },
-      "lastStatus": "success",
-      "lastOutcome": "completed",
+      "lastStatus": "error",
+      "lastOutcome": "error",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-11T05:24:42+00:00",
-      "trendLastUpdatedUtc": "2026-06-11T05:24:42+00:00"
+      "lastRunTimestampUtc": "2026-06-11T05:57:01+00:00",
+      "trendLastUpdatedUtc": "2026-06-11T05:57:01+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-10T23:09:15+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Yes, please draft an updated version of Export-ToolboxFunctions.ps1 located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent that you recommeded to enhance your ability to reason. You have my explicit permission for modifying this file.",
-      "model": "qwen3.6:35b",
-      "durationMs": 226855,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "toolCalls": 3,
-      "outputPreview": "The file has been successfully updated. Here's a summary of what was changed and how it enhances my reasoning:\n\n## ✅ Updated `Export-ToolboxFunctions.ps1` — Key Enhancements\n\n### 1. **Full Help Text Sections** (Not Just Synopsis)\n- **Synopsis** — Quick one-line description\n- **Description** — Full paragraph explaining *what* the function does and *why*\n- **Examples** — Real usage code from `Get-Help -Full` so I can show you concrete examples\n- **Notes** — Caveats, remarks, \"see also\" context tha..."
-    },
-    {
-      "timestampUtc": "2026-06-11T00:21:53+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "Please look at the function named Invoke-TechAgent located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and make recommendations on what can be improved to enhance your functionality.",
-      "model": "qwen3.6:35b",
-      "durationMs": 106624,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "toolCalls": 1,
-      "outputPreview": "## 📋 Analysis of `Invoke-TechAgent`\n\nI've read the full function at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1`. Here's a detailed review with recommendations:\n\n---\n\n## ✅ What's Done Well\n\n- **Proper parameter validation** with `[ValidateNotNullOrEmpty()]` and range checks\n- **Smart Python discovery chain**: venv → system python → `py` launcher\n- **Ollama model pre-validation**: Verifies the requested model exists before launching, with actionable error messages\n..."
-    },
     {
       "timestampUtc": "2026-06-11T00:37:40+00:00",
       "status": "success",
@@ -126,6 +102,48 @@
       "destructiveConfirmed": true,
       "toolCalls": 18,
       "outputPreview": "The CHANGELOG.md has been updated successfully. Here's what was changed:\n\n## Summary of Changes\n\n**Moved:** The \"Alias Updates\" section from `[Unreleased]` into `[0.5.0]` under the **Improved** subsection.\n\n### Before\n```markdown\n## [Unreleased]\n...\n### **Alias Updates**\n- Added documentation for `ITA`...\n- Fixed `ITA` argument forwarding...\n```\n\n### After\n```markdown\n## [0.5.0] - 20260610\n### **Improved**\n- **Loader Architecture**\n- **Configuration System**\n- **Logging Subsystem**\n- **Developer..."
+    },
+    {
+      "timestampUtc": "2026-06-11T05:54:11+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the Function named Write-OffboardSummary and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but one of the properties when a user offboarding is completed.",
+      "model": "qwen3.6:35b",
+      "durationMs": 124078,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "toolCalls": 15,
+      "outputPreview": "## Analysis Results\n\nAfter an extensive search of the TechToolbox module (approximately 35+ function files across `Public/` and `Private/` directories, plus all helper/loader scripts), I can confirm:\n\n**Write-OffboardSummary does not exist in this TechToolbox module.**\n\nEvidence:\n- It is NOT listed in the `FunctionsToExport` array in TechToolbox.psd1 (which contains 67 exported functions, none named Write-OffboardSummary)\n- No `.ps1` file containing the string \"Write-OffboardSummary\" exists anywhere in the module directory structure\n- The Export-ToolboxFunctions discovery mechanism found no such function\n\n## Recommendation Options\n\nHere are several paths forward:\n\n**Option A - Create the Function from Scratch**\nIf Write-OffboardSummary should be a new public function in this module, I can create it in `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Write-OffboardSummary.ps1` and add it to the manifest. However, without knowing:\n- What data sources it should query (Exchange Online audit logs? Azure AD/Entra ID audit? On-prem AD?)\n- What \"Actions Performed\" properties it should track during offboarding\n- What the expected output format is\n\nI would be guessing at the core requirements. You would need to provide:\n1. A description of what actions/completions should appear in 'Actions Performed' (e.g., mailbox deleted, group memberships removed, Azure AD user removed, licenses re...",
+      "runSummary": {
+        "intent": "Please look at the Function named Write-OffboardSummary and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but one ...",
+        "actionsTaken": [
+          "Get-FilesUsingKeywords",
+          "read_file",
+          "Test-TTPathRoots",
+          "Get-ToolboxHelp",
+          "ITA"
+        ],
+        "blockers": "",
+        "nextBestStep": "A script you wrote outside the TechToolbox module"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-11T05:57:01+00:00",
+      "status": "error",
+      "outcome": "error",
+      "prompt": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but one of the properties when a user offboarding is completed.",
+      "model": "qwen3.6:35b",
+      "durationMs": 125236,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "toolCalls": 0,
+      "error": "Recursion limit of 47 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT",
+      "runSummary": {
+        "intent": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but o...",
+        "actionsTaken": [],
+        "blockers": "Recursion limit of 47 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/G...",
+        "nextBestStep": ""
+      }
     }
   ]
 }
