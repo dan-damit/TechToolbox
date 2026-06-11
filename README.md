@@ -7,7 +7,7 @@ Active Directory lifecycle, Exchange Online and Purview workflows, remote diagno
 It unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model.
 
 The local AI assistant and agent system is actively evolving under:  
-- **Public/AI**  
+- **[Public/AI](https://github.com/dan-damit/TechToolbox/tree/main/Public/AI)**  
 - **[AI/Agent](https://github.com/dan-damit/TechToolbox/tree/main/AI/Agent)**
 
 ---
