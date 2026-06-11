@@ -55,6 +55,10 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
   - Improved ScriptAnalyzer compatibility.
   - Better WhatIf support across destructive commands.
 
+- **Alias Updates**
+  - Added documentation for `ITA` (the `Invoke-TechAgent` convenience wrapper in the module).
+  - Fixed `ITA` argument forwarding so `-ConfirmDestructive` and other forwarded options bind as named parameters instead of being treated as positional model input.
+
 ### **Fixed**
 - Path token inconsistencies in certain subsystems.
 - Occasional loader re‑entry issues during module import.
@@ -78,10 +82,6 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 
 ## [Unreleased]  
 Changes planned for upcoming milestones:
-
-### **Alias Updates**
-- Added documentation for `ITA` (the `Invoke-TechAgent` convenience wrapper in the module).
-- Fixed `ITA` argument forwarding so `-ConfirmDestructive` and other forwarded options bind as named parameters instead of being treated as positional model input.
 
 ### **0.6.0 — Cross‑Platform Stabilization**
 - Path normalization across Windows/macOS/Linux.

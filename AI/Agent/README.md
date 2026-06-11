@@ -145,6 +145,32 @@ python -m AI.Agent.tech_agent --prompt "Run network diagnostics for localhost"
 - `--destructive-confirmed`
 	- Explicitly permits destructive operations for that run.
 
+### Agent environment variables
+
+- `TECHTOOLBOX_OLLAMA_MODEL`
+	- Default model when `--model` is not provided.
+	- Default fallback: `llama3`.
+
+- `TECHTOOLBOX_AGENT_MAX_ITERATIONS`
+	- Default iteration cap when `--max-iterations` is not provided.
+	- Default fallback: `15`.
+
+- `TECHTOOLBOX_MEMORY_CONTEXT_MAX_CHARS`
+	- Max characters of persistent memory context injected into the goal prompt.
+	- Default fallback: `10000`.
+
+- `TECHTOOLBOX_MEMORY_TEXT_PREVIEW_MAX_CHARS`
+	- Max characters persisted for prompt/output preview fields in memory history.
+	- Default fallback: `1400`.
+
+Example session overrides:
+
+```powershell
+$env:TECHTOOLBOX_MEMORY_CONTEXT_MAX_CHARS = "12000"
+$env:TECHTOOLBOX_MEMORY_TEXT_PREVIEW_MAX_CHARS = "1800"
+python .\AI\Agent\tech_agent.py --prompt "Check system health and summarize findings"
+```
+
 Example:
 
 ```powershell
