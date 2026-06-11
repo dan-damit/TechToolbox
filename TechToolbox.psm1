@@ -130,7 +130,7 @@ function ITA {
         # Optional: path to a context file to inject
         [string]$ContextFile,
 
-        # Everything else passes straight through to Invoke-TechAgent
+        # Optional forwarding arguments for Invoke-TechAgent
         [Parameter(ValueFromRemainingArguments)]
         $Rest
     )
@@ -140,24 +140,78 @@ function ITA {
         $restList = @($Rest)
     }
 
-    # Parse only what ITA itself needs. Keep raw forwarding for Invoke-TechAgent.
+    # Parse forwarding args into a named hashtable so they bind correctly.
+    $agentArgs = @{}
     $confirmDestructive = $false
     for ($i = 0; $i -lt $restList.Count; $i++) {
         $item = $restList[$i]
         if ($item -is [string] -and $item.StartsWith('-')) {
             $name = $item.TrimStart('-')
-            if ($name -ieq 'ConfirmDestructive') {
-                if ($i + 1 -lt $restList.Count -and -not (($restList[$i + 1] -is [string]) -and $restList[$i + 1].StartsWith('-'))) {
+            $valueProvided = $false
+            $nextValue = $null
+            if ($i + 1 -lt $restList.Count -and -not (($restList[$i + 1] -is [string]) -and $restList[$i + 1].StartsWith('-'))) {
+                $valueProvided = $true
+                $nextValue = $restList[$i + 1]
+            }
+
+            switch -Regex ($name.ToLowerInvariant()) {
+                '^model$' {
+                    if (-not $valueProvided) {
+                        throw "ITA: -Model requires a value."
+                    }
+
+                    $agentArgs['Model'] = [string]$nextValue
+                    $i++
+                    continue
+                }
+
+                '^maxiterations$' {
+                    if (-not $valueProvided) {
+                        throw "ITA: -MaxIterations requires a value."
+                    }
+
                     try {
-                        $confirmDestructive = [System.Management.Automation.LanguagePrimitives]::ConvertTo($restList[$i + 1], [bool])
+                        $agentArgs['MaxIterations'] = [System.Management.Automation.LanguagePrimitives]::ConvertTo($nextValue, [int])
                     }
                     catch {
-                        $confirmDestructive = $true
+                        throw "ITA: -MaxIterations value '$nextValue' is not a valid integer."
                     }
+
                     $i++
+                    continue
                 }
-                else {
-                    $confirmDestructive = $true
+
+                '^(quiet|confirmdestructive|notranscript)$' {
+                    $switchValue = $true
+                    if ($valueProvided) {
+                        try {
+                            $switchValue = [System.Management.Automation.LanguagePrimitives]::ConvertTo($nextValue, [bool])
+                            $i++
+                        }
+                        catch {
+                            $switchValue = $true
+                        }
+                    }
+
+                    $parameterName = switch ($name.ToLowerInvariant()) {
+                        'quiet' { 'Quiet' }
+                        'confirmdestructive' { 'ConfirmDestructive' }
+                        'notranscript' { 'NoTranscript' }
+                    }
+
+                    if ($switchValue) {
+                        $agentArgs[$parameterName] = $true
+                    }
+
+                    if ($parameterName -eq 'ConfirmDestructive') {
+                        $confirmDestructive = $switchValue
+                    }
+
+                    continue
+                }
+
+                default {
+                    throw "ITA: Unsupported parameter '$item'. Allowed forwarded parameters are -Model, -MaxIterations, -Quiet, -ConfirmDestructive, and -NoTranscript."
                 }
             }
         }
@@ -195,9 +249,10 @@ function ITA {
             Template          = $Template
             ContextFile       = $ContextFile
             ForwardedArgument = $restList
+            ForwardedParsed   = $agentArgs
         }
 
-        Invoke-TechAgent -Prompt $Prompt @restList
+        Invoke-TechAgent -Prompt $Prompt @agentArgs
     }
 }
 
@@ -423,8 +478,8 @@ Register-ITACompletions
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBtwzge4XpoMIX0
-# rTzEmlyWlH+Ruzft+2wixwYwq4wBl6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD8ExyrKBwMxg3C
+# OTb/1MakXaAd2IS6sQM6Mno314btX6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -557,34 +612,34 @@ Register-ITACompletions
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAI//wcTcnT
-# 4YWF+rA0J5NGjp/O4F/rJAz80rd+ZqJ61TANBgkqhkiG9w0BAQEFAASCAgBr+C8r
-# GC4DiISOeigFpUpnKbpk9etgFs1QdUXYJxbOqaEmlUD6ERg/qnJQECb2M5IYL6Rr
-# dk4nCTiv21bwMmShFH8Gxl2YpLhdgODrQSN6WRxCJNcUeFm216xud+dJwCpCmszU
-# GtUUu4SFDx3pj8aM9qDQ+fh6WpT1r1Vrqd3VvJcRNVi+wcqsrS6BtKwACypTRFkq
-# xtm0yegzPBW/wOt56kIE+4PsfyPdwyOjsy6Yn5WLJ4YUoEM1sTEPmO0evDToPYzN
-# 3FqQnrlRY9JQcjMkPa8/+Kf7h3N+dkwpg8lI0sz72XobIW8C5rGz2b5krYEPpaX9
-# oVo4bqOgaMM9tthsU1kO7DP4UwyitaI2JCec0Xkjn7lG0DSblin4DEq2tGN+KRyH
-# KVH3LM9nEIK8Gk3Uc9obXTVQqNegzFQS0b2R+jquZDabIb4oD94qLRlraZLiVoj5
-# VWLZ275tSLLoYyM8FUw4KEXlp2rw2HiXYYCFq/u2uelQh2pp5g3NgnL7qSppBHwe
-# HQ+CAHjpeVp11EL5BvGYML/hiSShLrA2Telb1y72NExb4GhDEhFcSHL/qimqzhFE
-# wUbfO1b99uPJcJrjUDGc07KNUlhbn+nBxcJEwWWiF/KCqBm2tPTzpxzx1NJO/uEQ
-# LeVUYye+UT5TMuw/X491Y9yMjgOL6x4LYnCqWqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD3W/pwIdRi
+# LeixQq43mWlbM9cCRtVhfydBtzbECGum0TANBgkqhkiG9w0BAQEFAASCAgDFekGU
+# cFRK9MakGQIg1Ve2Kh5Q3py3R8KuJ5e30Ni5Rc620jQT4EqqgRXj7KOkT4/PDihU
+# nzXJD0+oI0QA9ml+l2BAztYetSfN4f5aMmBrno5AQ8plUkWZgzlZ2kKj43rXRuqi
+# QWxVSaFNsECS5MdyQkwiggD/M9PR4eBwFzSJkdimPy30L4cHtuxm3YKnhtWeSS8e
+# TZMOnbJDI2OOBdjgIpyFou+Q4HPmiS6JChGKTviW+gtNbCXUoC8Z/aopivKQqv3P
+# EChiFr83O8tMB1toiJVBJXveCdwpNu1ndIwTipmrR+jW0I0A40x5gAXYmB53ulJ0
+# yoh0uwIfSNpWK9vq64jteU2mUimRV8vDaHFEipOULQoq/9e9zZQxg0ZEQOoZPMTB
+# ZVpBPUa+33Tu4agAbVFj8uNAsqpSn+ERJJJs/DpgtqsQxAYEz1FXQc5slBWOf1Lo
+# H29R8Je7oeb7mKPmCnbfSmSs+W12A2zOpkFcjFffJterbuQv7oQgrHq9UnlrF5Ke
+# c+uBMJgkuVEXPhiUKrtud18KtryYRVCfWU/tBBXcEi31YPIynFbiTuygy16KxN76
+# 5Medu43LgAWueUiQevg4p4XnRun+kjzYIXJEyMwbB9BhKSJwFSSk2nDUmBRfs4ef
+# eoKtorqXfVdyUYbtGBKAowRFXpQE0uMIFzW/o6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTEwNDI1NDhaMC8GCSqGSIb3DQEJBDEiBCC+aOmfiJdEprxJycLK
-# UYhNuGDMkvN2+jZSqUNW7WsgdjANBgkqhkiG9w0BAQEFAASCAgBpIhSF6Xy9neDz
-# zUygIB0C13qVR8V+7lEV7aBCXnZvxeuJ69haAr8cIgy8ae4wEajKh3zumciZBmAT
-# Gfz+FHhVxA/7l8t4tDu8DRkbcD/Qov6pb+QROLHrbGc8XkF5Bo+yQVBIQeRLHYTW
-# Fym1xOOiDpdHsL1A5tEL23Ch8C8UC1LFp8kOG/Dqy96OvYy/l1yDcGzOGFP0XUq0
-# ackH9IuxTy3GK/E9sgcXN+hni5tDxUFwnRd3N77nsdIoEZtreeRjxHrH++MXzrp5
-# 6QwlBfhsncT1oS9xqHGUfpCjOf9VH6HC9RtW8MN812DmNIEKFpotu0LSISAW6+yv
-# Cmpu8Ly/ffjq4AJSpAFba4jheg8Y8Zf+ttzcZVzqBjM48KsBU8kPLrfgrP2ZJpcY
-# GRv7CEE1uZ8zwMgZh9Q7xk1PzkMtBGrtIFG7UHIviGg52cjh9W9PIIJxbbAV4r0p
-# t3cTBO4mUk+wYAE3Mg8A02ZwPluyY0wZdI0a+uDJN57e5thHpHZUQJN24MD6VmWq
-# JBHdrQ2gM0ejp4Q4LIowqEGtymUWl918/cv8A2Xou1t77JlM/edVaHI+ZePWVV2c
-# XJ4qaYGMUxALhe+PM9x2zylmXcUdqPdvM8LqoEv1ATFuybLAwqQ7Fntwfrr3j4MH
-# oLs+SuYB5gk5qtHr8uA3aqHNQ+la3g==
+# BTEPFw0yNjA2MTEwNDQ4NDJaMC8GCSqGSIb3DQEJBDEiBCDMcS4yOE4M2aj/KkL6
+# AX+R/MXBsqc+3kslzYlFzWDArTANBgkqhkiG9w0BAQEFAASCAgBfRjkPWwNBwk9i
+# IBWMhNk4YLDx8X/M8F0PTb6gBg6Akw7GjhwgNKt3KFSPt/zsORfYhPN9M8zOsF76
+# ulc+2623VgCi3zIKn6cn7NLPE33vcySCr3k+tZUIfjREGdahRQ/wbOl4lTdR1dUI
+# 3GNIzzm7cLMZEh8ZLI1mJCCDCABo8iPReJxNclHsYLwrsxHyYyZJfdvZ7mVzkgRk
+# 1jrtTn/r48Z7XQLo3L+/TE0DX5oHyvBs97cliqc8nACamjTnVgtL2wX8vceY4Dq0
+# CXW2F9X66E0hk0gGyl8GNYKzFJ4vFgeQqU4iOOIqNhEdDqQ4FbtQpRHcfz0iENxw
+# +n1JsnW+6C2QEU4NWH/6qGeuQOCLd03sZP1UD60BJBXYj3wPv+CGqPyUaekgt3ti
+# XdDSy7+OwD1KKWA2ihjnqCOJ6w7XyEMc6YIG5RWdaARWkGA2kPWnG9Z5Z/p88vL3
+# AoVlOiHKFWvAvnLo2YJNoEr5HbNuPYxFL55WDHQOBxTi3q+um5NXuMwM4ksPi4Tn
+# oaaE7sXjmD44wpus3gAH6Eq7MLj6CWq57ek3DU9gj6K24GMSoGDHKyY7Okk0aWgX
+# tgzLmvAU7prN/NtHtpLnYv94jOBpO4Str/shGWj8SKtF7wDL9gHwd+IhA/xsdwWG
+# 4P2/3BfSlo0qG92M+HTYXYvzDLorSQ==
 # SIG # End signature block

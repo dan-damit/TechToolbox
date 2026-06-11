@@ -79,6 +79,10 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 ## [Unreleased]  
 Changes planned for upcoming milestones:
 
+### **Alias Updates**
+- Added documentation for `ITA` (the `Invoke-TechAgent` convenience wrapper in the module).
+- Fixed `ITA` argument forwarding so `-ConfirmDestructive` and other forwarded options bind as named parameters instead of being treated as positional model input.
+
 ### **0.6.0 — Cross‑Platform Stabilization**
 - Path normalization across Windows/macOS/Linux.
 - Worker compatibility improvements.
