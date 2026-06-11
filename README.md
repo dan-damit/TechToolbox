@@ -8,7 +8,7 @@ It unifies practical admin tooling into a single, predictable, portable module w
 
 The local AI assistant and agent system is actively evolving under:  
 - **Public/AI**  
-- **AI/Agent**
+- **[AI/Agent](https://github.com/dan-damit/TechToolbox/tree/main/AI/Agent)**
 
 ---
 
