@@ -584,5 +584,80 @@
       "blockers": "Based on the code analysis of `Write-OffboardingSummary`, here is an explanation of why you are seeing 'Unknown' for most properties and specific recommendations to fix it.\n\n## Root Cause Analysis\n\nThe issue lies in how ...",
       "nextBestStep": "Test by running an offboard where one step works perfectly and another fails (to verify 'Failed' logic)."
     }
+  },
+  {
+    "timestampUtc": "2026-06-11T22:34:47+00:00",
+    "status": "success",
+    "outcome": "blocked",
+    "prompt": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that 'Properties didn't exist on this object' when I included the -IncludeEXO and -ForceCloud switches from the Disable-User function. Can you please take a look at why this error during the Write-OffboardingSummary funciton would happen and report your findings, please?",
+    "model": "qwen3.6:35b",
+    "durationMs": 281819,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "autoRetryOnRecursion": false,
+    "toolCalls": 21,
+    "outputPreview": "Based on my analysis of the error \"Properties didn't exist on this object\" when using `-IncludeEXO` and `-ForceCloud` switches with `Write-OffboardingSummary`, here are the likely causes:\n\n## Root Cause Analysis\n\nThe error \"Properties didn't exist on this object\" is a common PowerShell error that occurs when attempting to access a property on an object that doesn't contain it. This typically happens in three scenarios:\n\n### 1. **Property Name Mismatch**\n- `Write-OffboardingSummary` likely accesses properties like `$user.PrimarySmtpAddress`, `$user.RecipientTypeDetails`, or `$user.CloudExchangeRecipientDisplayType`\n- When `-IncludeEXO` is used, these properties should be added to the output object\n- However, if the property names in `Write-OffboardingSummary` don't exactly match what `Disable-User` returns with those switches, you get this error\n\n### 2. **Conditional Property Population**\n- With `-ForceCloud`, `Disable-User` may query Exchange Online and add properties to the returned object\n- But if:\n  - Exchange Online isn't connected\n  - The user doesn't have an EXO mailbox\n  - The cloud properties fail to populate silently\n- Then the properties that `Write-OffboardingSummary` expects won't exist on the object\n\n### 3. **Object Type Changes**\n- When `-IncludeEXO` and `-ForceCloud` are used together, the object structure may change:\n  - It might become a custom object with diff...",
+    "runSummary": {
+      "intent": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that 'Properties did...",
+      "actionsTaken": [
+        "Get-FilesUsingKeywords",
+        "read_file",
+        "Get-TechToolboxConfig",
+        "Find-LargeFiles",
+        "ITA",
+        "Export-ToolboxFunctions"
+      ],
+      "blockers": "Based on my analysis of the error \"Properties didn't exist on this object\" when using `-IncludeEXO` and `-ForceCloud` switches with `Write-OffboardingSummary`, here are the likely causes:\n\n## Root Cause Analysis\n\nThe err...",
+      "nextBestStep": "Add defensive checks (use `$user | Get-Member` or property existence checks) in the summary function"
+    }
+  },
+  {
+    "timestampUtc": "2026-06-11T22:49:52+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com' (manager; keep copy: True)...\n2026-06-11 16:47:56 [Info] EXO: granting manager mailbox access for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com'...\n2026-06-11 16:47:56 [Info] Granting mailbox access for 'ddtest1@vadtek.com' to manager 'ddamit@vadtek.com'...\n2026-06-11 16:47:58 [Ok] Granted FullAccess to ddamit@vadtek.com\n2026-06-11 16:48:04 [Ok] Granted SendAs to ddamit@vadtek.com\n2026-06-11 16:48:04 [Info] AD description already contains a similar note; skipping append for 'ddtest1'.\n2026-06-11 16:48:04 [Info] Offboarding: Generating summary for 'ddtest1@vadtek.com'...\n2026-06-11 16:48:04 [Info] Writing offboarding summary for: ddtest1@vadtek.com\n2026-06-11 16:48:04 [Error] Failed to write offboarding summary: The property 'Properties' cannot be found on this object. Verify that the property exists.\n2026-06-11 16:48:04 [Ok] Disable-User workflow completed for 'ddtest1@vadtek.com'.\n\nThis user does not have a mailbox license attached to it in 365, so I'm wondering at that point if that would be the cause of that Error line?",
+    "model": "qwen3.6:35b",
+    "durationMs": 170690,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "autoRetryOnRecursion": false,
+    "toolCalls": 10,
+    "outputPreview": "## Root Cause Analysis\n\nYour hypothesis is correct. The user ddtest1 has no mailbox license in 365, and that causes the error. Here is the exact breakdown.\n\n### What happens during Disable-User\n\nWhen `Disable-User` processes EXO steps for ddtest1, it still attempts to call Exchange Online cmdlets (e.g., setting forwarding, granting FullAccess/SendAs). Because there is no mailbox, those EXO calls do not return structured objects (PSCustomObject or hashtable) as expected. Instead they return simple types:\n- `$true` / `$false` (boolean)\n- A string (error message or confirmation text)\n- `$null`\n\n### Where the error originates\n\nIn `Write-OffboardingSummary`, the code iterates over `$Results.Keys` and assigns each step to `$step`. Then it does this:\n\n```powershell\nif ($step -and $step.PSObject.Properties['Action']) { ... }\n```\n\nThe member `.PSObject.Properties` exists only on objects that support reflection-PSCustomObject, PSObject wrappers, and hashtables (which have `.ContainsKey`). Simple booleans, strings, and `$null` do not expose `PSObject.Properties`. When one of those simple types is passed in as `$step`, PowerShell throws:\n\n> The property 'Properties' cannot be found on this object. Verify that the property exists.\n\n### Why it does not affect every step\n\nEarlier steps in the transcript (e.g., AD disabling, local mailbox operations) likely returned PSCustomObject or hashtable...",
+    "runSummary": {
+      "intent": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com' (manager; keep copy: True)...\n2026...",
+      "actionsTaken": [
+        "Get-FilesUsingKeywords",
+        "Test-TTPathRoots",
+        "read_file",
+        "Get-TechToolboxConfig",
+        "Find-LargeFiles",
+        "Export-ToolboxFunctions"
+      ],
+      "blockers": "",
+      "nextBestStep": "`$null`"
+    }
+  },
+  {
+    "timestampUtc": "2026-06-11T23:04:59+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Yes, please apply the fix to 'Write-OffboardingSummary' located at 'C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory\\' for handing those errors. Per your analysis, the function needs defensive type-checking before accessing .PSObject.Properties. You have my explicit permission to make this change on the function.",
+    "model": "qwen3.6:35b",
+    "durationMs": 592698,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "outputPreview": "## Fix Applied Successfully\n\nThe `Write-OffboardingSummary` function at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory\\Write-OffboardingSummary.ps1` has been updated with defensive type-checking to prevent \"Properties did not exist on this object\" errors when accessing `.PSObject.Properties`.\n\n### What Was Changed\n\nThe root cause was direct indexed access to `$step.PSObject.Properties['X']` which throws when:\n- `$step` is a hashtable (no PSObject support)\n- `$step` is null\n- The property accessor itself fails in edge cases\n\nThe fix introduces two nested helper functions:\n\n**1. Safe-HasProperty** - Safely checks if an object has a given property name:\n- Uses `$Obj.PSObject.Properties.Name` (array of names) with `-contains` instead of direct indexed access\n- Wraps the operation in try/catch to handle any unexpected failures\n- Returns `$false` for null objects or on error\n\n**2. Safe-GetProperty** - Safely retrieves a property value:\n- Checks PSObject first using Safe-HasProperty, then falls back to hashtable `.ContainsKey()` check\n- Always returns the specified default (e.g., 'Unknown' or $null) instead of throwing\n\n### Where Property Access Was Updated\n\n| Section | Before | After |\n|---------|--------|-------|\n| UserPrincipalName | `$User.UserPrincipalName` | `Safe-GetProperty -Obj $User -PropName 'UserPrincipalName' -Default 'Unknown'` |\n| DisplayName | `$U...",
+    "runSummary": {
+      "intent": "Yes, please apply the fix to 'Write-OffboardingSummary' located at 'C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory\\' for handing those errors. Per your analysis, the function needs defensive type-che...",
+      "actionsTaken": [
+        "Get-FilesUsingKeywords",
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": "All helpers silently swallow errors and return safe defaults rather than propagating exceptions"
+    }
   }
 ]
