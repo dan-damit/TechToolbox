@@ -10,39 +10,27 @@
       "windowItems": 30,
       "runCount": 30,
       "successRate": 0.833,
-      "avgDurationMs": 141312,
-      "avgToolCalls": 3.13,
+      "avgDurationMs": 137243,
+      "avgToolCalls": 3.07,
       "statusCounts": {
         "success": 25,
         "error": 5
       },
       "outcomeCounts": {
-        "completed": 8,
-        "blocked": 11,
+        "completed": 7,
+        "blocked": 12,
         "needs-confirmation": 6,
         "error": 5
       },
       "lastStatus": "success",
       "lastOutcome": "blocked",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-11T00:21:53+00:00",
-      "trendLastUpdatedUtc": "2026-06-11T00:21:53+00:00"
+      "lastRunTimestampUtc": "2026-06-11T00:37:40+00:00",
+      "trendLastUpdatedUtc": "2026-06-11T00:37:40+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-10T00:49:50+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "Please review the parts of the module that handle setting the envar of the moduleRoot 'C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox' and let me know if it is portable to other workstations that import my TechToolbox Module. Please 1. **Decouple ModuleRoot from TT_Home:** Keep $script:ModuleRoot dynamic (which it already is), but allow $TT_ModuleRoot (the config/log home) to default to a standard user data location like $env:APPDATA\\TechToolbox instead of forcing the OneDrive path.\n2. **Use the Mo...",
-      "model": "qwen3.6:35b",
-      "durationMs": 974874,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "toolCalls": 14,
-      "outputPreview": "Both files have been successfully updated. Here's a comprehensive summary of the changes made:\n\n---\n\n## Summary of Changes\n\n### 1. `TechToolbox.psm1` — Import Logic (lines ~95-140)\n\n**OLD behavior:**\n```powershell\n$OneDriveRoot = $env:OneDriveCommercial\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDrive }\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:OneDriveConsumer }\nif (-not $OneDriveRoot) { $OneDriveRoot = $env:USERPROFILE }  # Forced USERPROFILE fallback\n\n$TT_Home = if ($env:TT_Home) ..."
-    },
     {
       "timestampUtc": "2026-06-10T22:09:50+00:00",
       "status": "success",
@@ -126,6 +114,18 @@
       "destructiveConfirmed": false,
       "toolCalls": 1,
       "outputPreview": "## 📋 Analysis of `Invoke-TechAgent`\n\nI've read the full function at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1`. Here's a detailed review with recommendations:\n\n---\n\n## ✅ What's Done Well\n\n- **Proper parameter validation** with `[ValidateNotNullOrEmpty()]` and range checks\n- **Smart Python discovery chain**: venv → system python → `py` launcher\n- **Ollama model pre-validation**: Verifies the requested model exists before launching, with actionable error messages\n..."
+    },
+    {
+      "timestampUtc": "2026-06-11T00:37:40+00:00",
+      "status": "success",
+      "outcome": "blocked",
+      "prompt": "Please look at the function named Invoke-TechAgent located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and make recommendations on what can be improved to enhance your functionality.",
+      "model": "qwen3.6:35b",
+      "durationMs": 82440,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "toolCalls": 1,
+      "outputPreview": "I've analyzed the `Invoke-TechAgent` function thoroughly. Below is a detailed breakdown with actionable improvement recommendations, organized by priority and impact.\n\n---\n\n## 1. High-Impact Improvements\n\n### A. Set Explicit Working Directory for the Python Process\n\n**Current behavior:** The function does not set `$startInfo.WorkingDirectory`. The Python process inherits the caller's working directory.\n\n**Why it matters:** If the user runs the agent from a different directory, relative paths ins..."
     }
   ]
 }

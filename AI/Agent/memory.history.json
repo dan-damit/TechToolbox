@@ -358,5 +358,17 @@
     "destructiveConfirmed": false,
     "toolCalls": 1,
     "outputPreview": "## 📋 Analysis of `Invoke-TechAgent`\n\nI've read the full function at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1`. Here's a detailed review with recommendations:\n\n---\n\n## ✅ What's Done Well\n\n- **Proper parameter validation** with `[ValidateNotNullOrEmpty()]` and range checks\n- **Smart Python discovery chain**: venv → system python → `py` launcher\n- **Ollama model pre-validation**: Verifies the requested model exists before launching, with actionable error messages\n..."
+  },
+  {
+    "timestampUtc": "2026-06-11T00:37:40+00:00",
+    "status": "success",
+    "outcome": "blocked",
+    "prompt": "Please look at the function named Invoke-TechAgent located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and make recommendations on what can be improved to enhance your functionality.",
+    "model": "qwen3.6:35b",
+    "durationMs": 82440,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "toolCalls": 1,
+    "outputPreview": "I've analyzed the `Invoke-TechAgent` function thoroughly. Below is a detailed breakdown with actionable improvement recommendations, organized by priority and impact.\n\n---\n\n## 1. High-Impact Improvements\n\n### A. Set Explicit Working Directory for the Python Process\n\n**Current behavior:** The function does not set `$startInfo.WorkingDirectory`. The Python process inherits the caller's working directory.\n\n**Why it matters:** If the user runs the agent from a different directory, relative paths ins..."
   }
 ]

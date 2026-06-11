@@ -485,3 +485,8 @@ Remember to disconnect from Purview when finished using Disconnect-ExchangeOnlin
 2026-06-10 19:21:06 [Info] TechAgent: Still waiting (Status=Running)...
 2026-06-10 19:21:57 [Info] TechAgent: Status=Success
 2026-06-10 19:21:57 [Ok] Tech agent completed successfully.
+2026-06-10 19:36:17 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-10 19:36:17 [Info] TechAgent: Status=Running
+2026-06-10 19:37:17 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-10 19:37:43 [Info] TechAgent: Status=Success
+2026-06-10 19:37:43 [Ok] Tech agent completed successfully.
