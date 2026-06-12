@@ -1132,3 +1132,158 @@ Connecting to Exchange Online...
 2026-06-11 18:04:13 [Info] TechAgent: Still waiting (Status=Running)...
 2026-06-11 18:05:03 [Info] TechAgent: Status=Success
 2026-06-11 18:05:03 [Ok] Tech agent completed successfully.
+2026-06-11 20:47:35 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_204735_16084.txt
+2026-06-11 20:47:35 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 20:47:35 [Info] TechAgent: Status=Running
+2026-06-11 20:48:35 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 20:49:31 [Info] TechAgent: Status=Success
+2026-06-11 20:49:31 [Ok] Tech agent completed successfully.
+2026-06-11 21:01:49 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_210149_16084.txt
+2026-06-11 21:01:49 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 21:01:49 [Info] TechAgent: Status=Running
+2026-06-11 21:02:50 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 21:03:30 [Info] TechAgent: Status=Error
+2026-06-11 21:03:30 [Error] Tech agent failed with exit code 1.
+2026-06-11 21:03:30 [Error] Invoke-TechAgent failed: Tech agent exited with code 1: Preflight module access: path='C:\Users\dan\OneDrive\TechStuff\TechToolbox' read=ok write=ok
+Traceback (most recent call last):
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py", line 1054, in main
+    run_result = run_agent(
+        args.prompt,
+    ...<7 lines>...
+        signed_file_policy=args.signed_file_policy,
+    )
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py", line 608, in run_agent
+    result = _invoke_with_limit(recursion_limit)
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py", line 598, in _invoke_with_limit
+    return agent.invoke(
+           ~~~~~~~~~~~~^
+        {
+        ^
+    ...<4 lines>...
+        config={"recursion_limit": limit},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3365, in invoke
+    for chunk in self.stream(
+                 ~~~~~~~~~~~^
+        input,
+        ^^^^^^
+    ...<10 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    ):
+    ^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langgraph\pregel\main.py", line 2759, in stream
+    for _ in runner.tick(
+             ~~~~~~~~~~~^
+        [t for t in loop.tasks.values() if not t.writes],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        schedule_task=loop.accept_push,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ):
+    ^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langgraph\pregel\_runner.py", line 167, in tick
+    run_with_retry(
+    ~~~~~~~~~~~~~~^
+        t,
+        ^^
+    ...<10 lines>...
+        },
+        ^^
+    )
+    ^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langgraph\pregel\_retry.py", line 126, in run_with_retry
+    return task.proc.invoke(task.input, config)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 656, in invoke
+    input = context.run(step.invoke, input, config, **kwargs)
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 400, in invoke
+    ret = self.func(*args, **kwargs)
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain\agents\factory.py", line 1317, in model_node
+    model_response = _execute_model_sync(request)
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain\agents\factory.py", line 1289, in _execute_model_sync
+    output = model_.invoke(messages)
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 5739, in invoke
+    return self.bound.invoke(
+           ~~~~~~~~~~~~~~~~~^
+        input,
+        ^^^^^^
+        self._merge_configs(config),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        **{**self.kwargs, **kwargs},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 471, in invoke
+    self.generate_prompt(
+    ~~~~~~~~~~~~~~~~~~~~^
+        [self._convert_input(input)],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    ).generations[0][0],
+    ^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1749, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1556, in generate
+    self._generate_with_cache(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        m,
+        ^^
+    ...<2 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1896, in _generate_with_cache
+    result = self._generate(
+        messages, stop=stop, run_manager=run_manager, **kwargs
+    )
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_ollama\chat_models.py", line 1200, in _generate
+    final_chunk = self._chat_stream_with_aggregation(
+        messages, stop, run_manager, verbose=self.verbose, **kwargs
+    )
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_ollama\chat_models.py", line 1135, in _chat_stream_with_aggregation
+    for chunk in self._iterate_over_stream(messages, stop, **kwargs):
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_ollama\chat_models.py", line 1224, in _iterate_over_stream
+    for stream_resp in self._create_chat_stream(messages, stop, **kwargs):
+                       ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\langchain_ollama\chat_models.py", line 1122, in _create_chat_stream
+    yield from self._client.chat(**chat_params)
+  File "C:\Users\dan\OneDrive\TechStuff\TechToolbox\.venv\Lib\site-packages\ollama\_client.py", line 194, in inner
+    raise ResponseError(err)
+ollama._types.ResponseError: XML syntax error on line 3: element <function> closed by </parameter> (status code: -1)
+During task with name 'model' and id '66441fa8-1416-4586-c541-6ea2a1f8a2b1'
+2026-06-11 21:30:58 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_213058_16084.txt
+2026-06-11 21:30:58 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 21:30:58 [Info] TechAgent: Status=Running
+2026-06-11 21:31:59 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 21:32:34 [Info] TechAgent: Status=Success
+2026-06-11 21:32:34 [Ok] Tech agent completed successfully.
+2026-06-11 21:53:34 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_215334_16084.txt
+2026-06-11 21:53:34 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 21:53:34 [Info] TechAgent: Status=Running
+2026-06-11 21:54:35 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 21:55:35 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 21:56:16 [Info] TechAgent: Status=Success
+2026-06-11 21:56:16 [Ok] Tech agent completed successfully.
+2026-06-11 22:00:56 [Info] ITA prompt source resolved from: -PromptFile (C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\Tasks\CurrentTask.txt)
+2026-06-11 22:00:56 [Info] Tech agent transcript started: C:\Users\dan\OneDrive\TechStuff\TechToolbox\LogsAndExports\Logs\TechAgentTranscripts\TechAgent_20260611_220056_16084.txt
+2026-06-11 22:00:56 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 22:00:56 [Info] TechAgent: Status=Running
+2026-06-11 22:01:56 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 22:02:57 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 22:03:57 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 22:04:43 [Info] TechAgent: Status=Success
+2026-06-11 22:04:43 [Ok] Tech agent completed successfully.
+2026-06-11 22:09:55 [Error] Invoke-TechAgent failed: The property 'IsPresent' cannot be found on this object. Verify that the property exists.
+2026-06-11 22:12:03 [Info] Invoking local tech agent: C:\Users\dan\OneDrive\TechStuff\TechToolbox\AI\Agent\tech_agent.py
+2026-06-11 22:12:03 [Info] TechAgent: Status=Running
+2026-06-11 22:13:03 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-11 22:13:24 [Info] TechAgent: Status=Success
+2026-06-11 22:13:24 [Ok] Tech agent completed successfully.
