@@ -10,8 +10,8 @@
       "windowItems": 30,
       "runCount": 30,
       "successRate": 0.933,
-      "avgDurationMs": 176333,
-      "avgToolCalls": 5.27,
+      "avgDurationMs": 148461,
+      "avgToolCalls": 4.87,
       "statusCounts": {
         "success": 28,
         "error": 2
@@ -23,40 +23,14 @@
         "error": 2
       },
       "lastStatus": "success",
-      "lastOutcome": "completed",
+      "lastOutcome": "blocked",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-12T03:13:23+00:00",
-      "trendLastUpdatedUtc": "2026-06-12T03:13:23+00:00"
+      "lastRunTimestampUtc": "2026-06-12T04:42:24+00:00",
+      "trendLastUpdatedUtc": "2026-06-12T04:42:24+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-11T22:49:52+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com' (manager; keep copy: True)...\n2026-06-11 16:47:56 [Info] EXO: granting manager mailbox access for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com'...\n2026-06-11 16:47:56 [Info] Granting mailbox access for 'ddtest1@vadtek.com' to manager 'ddamit@vadtek.com'...\n2026-06-11 16:47:58 [Ok] Granted FullAccess to ddamit@vadtek.com\n2026-06-11 16:48:04 [Ok] Granted SendAs to ddamit@vadtek.com\n2026-06-11 16:48:04 [Info] AD description already contains a similar note; skipping append for 'ddtest1'.\n2026-06-11 16:48:04 [Info] Offboarding: Generating summary for 'ddtest1@vadtek.com'...\n2026-06-11 16:48:04 [Info] Writing offboarding summary for: ddtest1@vadtek.com\n2026-06-11 16:48:04 [Error] Failed to write offboarding summary: The property 'Properties' cannot be found on this object. Verify that the property exists.\n2026-06-11 16:48:04 [Ok] Disable-User workflow completed for 'ddtest1@vadtek.com'.\n\nThis user does not have a mailbox license attached to it in 365, so I'm wondering at that point if that would be the cause of that Error line?",
-      "model": "qwen3.6:35b",
-      "durationMs": 170690,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 10,
-      "outputPreview": "## Root Cause Analysis\n\nYour hypothesis is correct. The user ddtest1 has no mailbox license in 365, and that causes the error. Here is the exact breakdown.\n\n### What happens during Disable-User\n\nWhen `Disable-User` processes EXO steps for ddtest1, it still attempts to call Exchange Online cmdlets (e.g., setting forwarding, granting FullAccess/SendAs). Because there is no mailbox, those EXO calls do not return structured objects (PSCustomObject or hashtable) as expected. Instead they return simple types:\n- `$true` / `$false` (boolean)\n- A string (error message or confirmation text)\n- `$null`\n\n### Where the error originates\n\nIn `Write-OffboardingSummary`, the code iterates over `$Results.Keys` and assigns each step to `$step`. Then it does this:\n\n```powershell\nif ($step -and $step.PSObject.Properties['Action']) { ... }\n```\n\nThe member `.PSObject.Properties` exists only on objects that support reflection-PSCustomObject, PSObject wrappers, and hashtables (which have `.ContainsKey`). Simple booleans, strings, and `$null` do not expose `PSObject.Properties`. When one of those simple types is passed in as `$step`, PowerShell throws:\n\n> The property 'Properties' cannot be found on this object. Verify that the property exists.\n\n### Why it does not affect every step\n\nEarlier steps in the transcript (e.g., AD disabling, local mailbox operations) likely returned PSCustomObject or hashtable...",
-      "runSummary": {
-        "intent": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com' (manager; keep copy: True)...\n2026...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "Test-TTPathRoots",
-          "read_file",
-          "Get-TechToolboxConfig",
-          "Find-LargeFiles",
-          "Export-ToolboxFunctions"
-        ],
-        "blockers": "",
-        "nextBestStep": "`$null`"
-      }
-    },
     {
       "timestampUtc": "2026-06-11T23:04:59+00:00",
       "status": "success",
@@ -211,6 +185,29 @@
         ],
         "blockers": "",
         "nextBestStep": "Requires ActiveDirectory PowerShell module; throws if unavailable"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T04:42:24+00:00",
+      "status": "success",
+      "outcome": "blocked",
+      "prompt": "\"Please look at the Install-TechAgentRuntime function located at\r\nC:\\repos\\TechToolbox\\Public\\AI and create matching documentation for it as a\r\nfile named about_Install-TechAgentRuntime.help.txt in the folder\r\nC:\\repos\\TechToolbox\\en-US\"",
+      "model": "qwen3.6:35b",
+      "durationMs": 138694,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "outputPreview": "The documentation file has been successfully created at `C:\\repos\\TechToolbox\\en-US\\about_Install-TechAgentRuntime.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n### SHORT DESCRIPTION\nDescribes Install-TechAgentRuntime as a bootstrapper for the local Python runtime environment used by Invoke-TechAgent and related AI/agent functions.\n\n### LONG DESCRIPTION\n- **What it does**: Lists all key operations -- initializing TechToolbox runtime, locating Python, creating/repairing .venv, upgrading pip optionally, installing requirements.txt packages, pulling Ollama models when requested, and returning a summary [PSCustomObject].\n- **Requirements**: Notes prerequisites (Python on PATH or explicit -PythonPath, Ollama on PATH for model pulls, presence of Agent\\requirements.txt).\n- **Typical Usage**: Four code examples covering default use, full upgrade + model pull, explicit Python path, and forced venv recreation.\n- **Parameters**: Documents all six parameters (-PythonPath, -ForceRecreateVenv, -UpgradePip, -UpgradePackages, -PullModel, -Model) including their types, validation rules, and defaults.\n- **Return Value**: Explains the PSCustomObject properties (VenvPath, PythonExecutable, PythonVersion, LangChainVersion, RequirementsPath, ModelPulled, Model, Success).\n- **Notes**: Covers dependency on Initialize-TechToolboxRuntime, error cond...",
+      "runSummary": {
+        "intent": "\"Please look at the Install-TechAgentRuntime function located at\r\nC:\\repos\\TechToolbox\\Public\\AI and create matching documentation for it as a\r\nfile named about_Install-TechAgentRuntime.help.txt in the folder\r\nC:\\repos\\T...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "The documentation file has been successfully created at `C:\\repos\\TechToolbox\\en-US\\about_Install-TechAgentRuntime.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n### ...",
+        "nextBestStep": "Get-TechToolboxConfig"
       }
     }
   ]
