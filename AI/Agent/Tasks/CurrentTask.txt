@@ -1,0 +1,4 @@
+"Please look at the Reset-ADPassword function located at
+C:\Users\dan\OneDrive\TechStuff\TechToolbox\Public\ActiveDirectory and create matching
+documentation for it as a file named about_Reset-ADPassword.help.txt in the
+folder C:\Users\dan\OneDrive\TechStuff\TechToolbox\en-US"

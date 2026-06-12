@@ -1,0 +1,165 @@
+about_Invoke-PurviewPurge
+
+TOPIC
+    about_Invoke-PurviewPurge
+
+SHORT DESCRIPTION
+    Executes an end-to-end Microsoft Purview mailbox HardDelete purge workflow.
+
+LONG DESCRIPTION
+    Invoke-PurviewPurge orchestrates a full content-purge workflow against
+    Microsoft Purview Compliance Search using the fixed case name "Content
+    Search".  It handles ticket validation, query normalization, search
+    creation/updates, wait-for-completion polling, and the final purge
+    submission.
+
+    Workflow summary:
+    - Initializes TechToolbox runtime/config and logging.
+    - Normalizes and validates the ticket as "#INC-<integer>".
+    - Optionally prompts to confirm or correct the ticket input.
+    - Connects to Purview (Exchange Online session via Import-ExchangeOnlineModule +
+      Connect-Purview).
+    - Reuses an existing search query when safe, or prompts for a new query.
+    - Lints ContentMatchQuery and blocks continuation until valid.
+    - Ensures mailbox-only Compliance Search exists/updates by ticket name.
+    - Waits for search object registration (when newly created).
+    - Starts the search when required and waits for completion.
+    - Submits a HardDelete purge when matching mailbox items are found.
+
+    The function supports ShouldProcess (-WhatIf/-Confirm) for start and purge
+    actions.  If WhatIf/Confirm prevents actionable steps, execution exits
+    safely with logs.
+
+    Interactive behavior:
+    - When prompting is enabled by config, missing/invalid ticket and query
+      values are requested interactively.
+    - Enter 'q', 'quit', or 'exit' at any prompt to cancel the operation.
+
+    Default timeout/poll values are sourced from config and fall back to:
+    - Search completion timeout: 2400 seconds (40 minutes)
+    - Search completion poll:   20 seconds
+    - Registration timeout:      90 seconds
+    - Registration poll:          3 seconds
+
+    Config keys used by Invoke-PurviewPurge:
+    - purview.purge.requireConfirmation     - Boolean controlling purge confirmation prompting.
+    - purview.purge.timeoutSeconds           - Max wait time for search completion (default 2400).
+    - purview.purge.pollSeconds              - Poll interval during search-completion wait (default 20).
+    - purview.registrationWaitSeconds        - Max wait time for search object to register (default 90).
+    - purview.registrationPollSeconds        - Poll interval during registration wait (default 3).
+    - defaults.promptForContentMatchQuery    - Whether to prompt for the query when not supplied (default true).
+    - purview.purge.normalizeFriendlyQuery   - Whether to auto-convert friendly query syntax (default true).
+
+    Query normalization (Convert-FriendlyContentMatchQuery):
+    When normalizeFriendlyQuery is enabled, Invoke-PurviewPurge can translate
+    a simplified, human-readable query into proper Purview KQL:
+    - Field=value / field==value  ->  field:"value"
+    - "subject contains X"        ->  subject:"*X*"
+    - Address-field contains      ->  from:"exact" (wildcards unsupported in address fields)
+
+    Safety considerations:
+    - The purge is submitted only when the completed search item count is greater
+      than zero.
+    - Search reuse skips a new query entry but still lints and updates scope.
+    - If the search creation/update step is suppressed by -WhatIf, the function
+      returns early without starting or purging.
+
+SYNTAX
+    Invoke-PurviewPurge [-UserPrincipalName] <String> [-Ticket] <String>
+        [-ContentMatchQuery <String>] [-Log <Hashtable>] [-ShowProgress]
+        [-WhatIF] [-Confirm] [<CommonParameters>]
+
+PARAMETERS
+    -UserPrincipalName <String>
+        UPN used to connect to Purview/Exchange Online for the search
+        and purge operations (for example, analyst@company.com).
+
+        Required.  Not pipeline-aware.
+
+    -Ticket <String>
+        Internal ticket identifier.  Expected format is "#INC-<integer>".
+        The value is normalized to uppercase and prefixed with '#' if omitted,
+        then validated against the pattern '^#INC-\d+$'.
+
+        Required.  Not pipeline-aware.
+
+    -ContentMatchQuery <String>
+        KQL/keyword query used by Compliance Search to select mailbox items for
+        purge (for example, from:("pm-bounces.broobe.*" OR "broobe.*") AND subject:"Aligned Assets").
+
+        If omitted and prompting is enabled, the function prompts for input.
+        If a search with the same ticket already exists and has a query, the
+        function can reuse that query instead.  The query text is linted before
+        continuation.
+
+    -Log <Hashtable>
+        Optional hashtable of per-invocation logging overrides.  Values are
+        merged into module-level logging behavior.
+
+    -ShowProgress <Switch>
+        Enables console progress/log output for this invocation.
+
+    -WhatIf [<switch>]
+        Shows what would happen if the cmdlet runs.  Does not run the command.
+
+    -Confirm [<switch>]
+        Prompts for confirmation before running the command.
+
+INPUTS
+    None.  This function does not accept pipeline input.
+
+OUTPUTS
+    None.  Operational status is emitted through logging.
+
+NOTES
+    Permissions:
+    - Requires permissions to create/start Compliance Searches and submit purge
+      actions in Microsoft Purview Compliance Center.
+
+    Fixed case name:
+    - Always uses "Content Search" as the Purview Case.
+
+    Naming conventions:
+    - Search name is the normalized ticket (for example, #INC-151695).
+    - Description includes ticket and a timestamp for uniqueness.
+
+    Safety notes:
+    - Purge is submitted only when completed search item count > 0.
+    - Function logs a reminder to disconnect Exchange Online at end.
+    - Search object registration wait is skipped if the search already existed.
+
+EXAMPLE 1
+    PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" `
+        -Ticket "#INC-151695" `
+        -ContentMatchQuery 'from:("pm-bounces.broobe.*" OR "broobe.*") AND subject:"Aligned Assets"'
+
+    Runs a full purge with explicit ticket and query values.
+
+EXAMPLE 2
+    PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" -Ticket "inc-151695"
+
+    Normalizes the ticket to "#INC-151695", prompts for a query when enabled,
+    then runs the workflow.
+
+EXAMPLE 3
+    PS> Invoke-PurviewPurge -UserPrincipalName "user@company.com" -Ticket "#INC-151695" -WhatIf
+
+    Simulates start and purge actions; logs intended operations without actually
+    submitting a purge.
+
+SEE ALSO
+    - Initialize-TechToolboxRuntime
+    - Connect-Purview
+    - Import-ExchangeOnlineModule
+    - Test-MailHeaderAuth
+
+KEYWORDS
+    - Invoke-PurviewPurge
+    - Purview
+    - Compliance Search
+    - HardDelete
+    - purge
+    - mailbox purge
+    - Content Search
+    - ticket
+    - KQL
