@@ -14,3 +14,9 @@
 2026-06-12 18:17:55 [Info] TechAgent: Status=Running
 2026-06-12 18:18:41 [Info] TechAgent: Status=Success
 2026-06-12 18:18:41 [Ok] Tech agent completed successfully.
+2026-06-12 18:21:43 [Info] ITA prompt source resolved from: -PromptFile (C:\repos\TechToolbox\AI\Agent\Tasks\CurrentTask.txt)
+2026-06-12 18:21:43 [Info] Invoking local tech agent: C:\repos\TechToolbox\AI\Agent\tech_agent.py
+2026-06-12 18:21:43 [Info] TechAgent: Status=Running
+2026-06-12 18:22:44 [Info] TechAgent: Still waiting (Status=Running)...
+2026-06-12 18:22:54 [Info] TechAgent: Status=Success
+2026-06-12 18:22:54 [Ok] Tech agent completed successfully.
