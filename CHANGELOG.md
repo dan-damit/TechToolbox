@@ -18,6 +18,7 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
   - `Invoke-CodeAssistant` and `Invoke-CodeAssistantFolder` provide local AI‑assisted code analysis.
   - `Invoke-CodeAssistantWrapper` standardizes AI task execution patterns.
   - New `AI/Agent/` subsystem for Python bridge and agent tooling.
+  - New `AI/Tasks/` library of standardized prompt templates for common tasks.
 
 - **Full Metadata Export System**
   - `Export-ToolboxFunctions` now exports:

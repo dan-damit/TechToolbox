@@ -9,192 +9,28 @@
     "trendSummary": {
       "windowItems": 30,
       "runCount": 30,
-      "successRate": 0.967,
-      "avgDurationMs": 173676,
-      "avgToolCalls": 6.3,
+      "successRate": 0.933,
+      "avgDurationMs": 148461,
+      "avgToolCalls": 4.87,
       "statusCounts": {
-        "success": 29,
-        "error": 1
+        "success": 28,
+        "error": 2
       },
       "outcomeCounts": {
-        "completed": 17,
-        "blocked": 9,
-        "needs-confirmation": 3,
-        "error": 1
+        "completed": 18,
+        "blocked": 8,
+        "needs-confirmation": 2,
+        "error": 2
       },
       "lastStatus": "success",
-      "lastOutcome": "completed",
+      "lastOutcome": "blocked",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-11T23:04:59+00:00",
-      "trendLastUpdatedUtc": "2026-06-11T23:04:59+00:00"
+      "lastRunTimestampUtc": "2026-06-12T04:42:24+00:00",
+      "trendLastUpdatedUtc": "2026-06-12T04:42:24+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-11T06:11:14+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but one of the properties when a user offboarding is completed.",
-      "model": "qwen3.6:35b",
-      "durationMs": 141465,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 21,
-      "outputPreview": "## Findings\n\nI explored the TechToolbox module structure extensively to locate the `Write-OffboardingSummary` function:\n\n1. The function is **not listed** in `FunctionsToExport` of `TechToolbox.psd1`, confirming it is either a private helper or lives outside this module.\n2. Previous runs also failed with recursion errors on the last attempt, and the tool (`Get-FilesUsingKeywords`) requires specific parameter formatting that isn't straightforward through my current interface.\n\n## Blocker\n\n**Cannot locate the source file for `Write-OffboardingSummary`** with the available tools in this session. Without access to the function's code, I cannot provide specific recommendations.\n\n## Next Best Action\n\nPlease do one of the following:\n- **Option 1**: Copy and paste the contents of the `Write-OffboardingSummary` function (or the file containing it) so I can review and recommend changes.\n- **Option 2**: Provide the file path to `Write-OffboardingSummary` if you know where it resides, and I will attempt a direct read with confirmation.\n- **Option 3**: Confirm the module root path again and grant explicit permission to search that directory for the function source file so I can open and review it directly.",
-      "runSummary": {
-        "intent": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but o...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "Get-ToolboxHelp",
-          "read_file",
-          "ITA",
-          "Test-TTPathRoots",
-          "Get-TechToolboxConfig",
-          "Invoke-TechAgent"
-        ],
-        "blockers": "",
-        "nextBestStep": "**Option 3**: Confirm the module root path again and grant explicit permission to search that directory for the function source file so I can open and review it directly."
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T06:17:19+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the function named Export-ToolboxFunctions.ps1 at location C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent and provide recommenations on including the private functions in the list to enhance your functionality as it relates to tool discovery.",
-      "model": "qwen3.6:35b",
-      "durationMs": 67877,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "outputPreview": "Now I have a clear picture of the current script and its limitations. Let me provide detailed recommendations.\n\n## Analysis of Export-ToolboxFunctions.ps1\n\n### Current Behavior\nThe script explicitly filters out private/internal functions at line 73:\n```powershell\n$functions = Get-Command -Module $importedModule.Name -CommandType Function | Where-Object {\n    # Exclude private/internal functions (name contains underscore after module scope)\n    $_.Name -notlike '*_*'\n}\n```\n\nThis means ALL functions with underscores in their names are excluded from tool discovery, even if they might be useful for agents or related to tool functionality.\n\n## Recommendations for Including Private Functions\n\n### Recommendation 1: Add an `-IncludePrivate` Parameter (Highest Priority)\n\nAdd a switch parameter that allows the agent to optionally include private functions:\n\n```powershell\nparam(\n    [string]$ModuleName = \"TechToolbox\",\n    [switch]$IncludePrivate\n)\n```\n\nThen modify the filter logic:\n```powershell\n$functions = Get-Command -Module $importedModule.Name -CommandType Function | Where-Object {\n    if ($IncludePrivate) {\n        # Include everything\n        $true\n    }\n    else {\n        # Current behavior: exclude private/internal functions\n        $_.Name -notlike '*_*'\n    }\n}\n```\n\n**Why this helps**: Agents can optionally discover private functions when they need deeper access to module inte...",
-      "runSummary": {
-        "intent": "Please look at the function named Export-ToolboxFunctions.ps1 at location C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent and provide recommenations on including the private functions in the list to enhance your fun...",
-        "actionsTaken": [
-          "read_file",
-          "Get-FilesUsingKeywords"
-        ],
-        "blockers": "",
-        "nextBestStep": "**Consider adding alias metadata** for private functions (currently only aliases for public functions are resolved)"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T06:23:38+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "The highest priority item is **Recommendation 1** (adding the -IncludePrivate parameter), as it directly addresses the goal of including private functions in tool discovery while maintaining backward compatibility with the current public-only behavior. Please add this enhancement to the Export-ToolboxFunctions.ps1 function at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent. I give you explicit permission to make this change.",
-      "model": "qwen3.6:35b",
-      "durationMs": 100387,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "outputPreview": "## Summary of Changes Made to Export-ToolboxFunctions.ps1\n\n### What was implemented\n\n**Added the `-IncludePrivate` switch parameter** as requested, enabling the function to discover and export private/internal functions when needed.\n\n### Specific changes:\n\n1. **Added new parameter to the param block:**\n   - `[switch]$IncludePrivate` - a boolean switch that defaults to false\n\n2. **Updated documentation:**\n   - Updated .SYNOPSIS to mention optional private function export\n   - Added `.PARAMETER ModuleName` documentation\n   - Added `.PARAMETER IncludePrivate` documentation explaining the new behavior\n   - Clarified backward compatibility in the notes\n\n3. **Modified the Where-Object filter logic:**\n   ```powershell\n   # Before (only public functions):\n   $_.Name -notlike '*_*'\n\n   # After (conditional based on $IncludePrivate):\n   if ($IncludePrivate) {\n       $true  # Include all functions when the switch is set\n   }\n   else {\n       $_.Name -notlike '*_*'  # Default: exclude underscore names\n   }\n   ```\n\n### Backward compatibility\n\n- **Without `-IncludePrivate`**: Behavior is unchanged -- only public functions (those without underscores in their names) are exported, matching the previous default behavior\n- **With `-IncludePrivate`**: All functions including private/internal ones are included in the tool discovery output\n\n### Usage examples:\n\n```powershell\n# Default behavior (publ...",
-      "runSummary": {
-        "intent": "The highest priority item is **Recommendation 1** (adding the -IncludePrivate parameter), as it directly addresses the goal of including private functions in tool discovery while maintaining backward compatibility with t...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": "**With `-IncludePrivate`**: All functions including private/internal ones are included in the tool discovery output"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T06:35:37+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but one of the properties when a user offboarding is completed.",
-      "model": "qwen3.6:35b",
-      "durationMs": 130796,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "outputPreview": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n- Retry with a narrower prompt or a higher --max-iterations value.\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but o...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n-...",
-        "nextBestStep": "- Retry with a narrower prompt or a higher --max-iterations value."
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T06:38:41+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "Please look at the Function named Write-OffboardingSummary at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory and provide recommendations to be more consistent with showing the correct values under the 'Actions Performed' section. Currenly is says 'Unknown' for all but one of the properties when a user offboarding is completed.",
-      "model": "qwen3.6:35b",
-      "durationMs": 81098,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "outputPreview": "Based on the code analysis of `Write-OffboardingSummary`, here is an explanation of why you are seeing 'Unknown' for most properties and specific recommendations to fix it.\n\n## Root Cause Analysis\n\nThe issue lies in how the function determines the **Success** status:\n\n```powershell\nif ($step -and $step.PSObject.Properties['Success']) {\n    $success = $step.Success\n}\nelse {\n    # If no Success property, assume unknown\n    $success = \"Unknown\"\n}\n```\n\n1.  **Property Existence Check:** This code only checks if a property *named* `Success` exists on the object. It does **not** check the value of that property.\n2.  **Hashtable vs. PSCustomObject:** If the calling script passes a standard **Hashtable** (e.g., `$Results['Step1'] = @{ Action='...' }`) instead of a `[PSCustomObject]`, or if it omits the `Success` key entirely, this check fails and defaults to \"Unknown\".\n3.  **Missing Error Context:** Even if an error occurred during a step (which usually populates an `Error` property), the function ignores it for the status line unless `Success` is explicitly `$false`.\n\n## Recommendations\n\n### Recommendation 1: Implement Smart Defaults (Infer Status)\n\nInstead of blindly defaulting to \"Unknown\", inspect the step data. If a step has an `Error` property but no `Success` property, assume **Failed**. This makes the summary actionable immediately without requiring the user to dig into raw logs...",
-      "runSummary": {
-        "intent": "Please look at the Function named Write-OffboardingSummary at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory and provide recommendations to be more consistent with showing the correct values under th...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "read_file"
-        ],
-        "blockers": "Based on the code analysis of `Write-OffboardingSummary`, here is an explanation of why you are seeing 'Unknown' for most properties and specific recommendations to fix it.\n\n## Root Cause Analysis\n\nThe issue lies in how ...",
-        "nextBestStep": "Test by running an offboard where one step works perfectly and another fails (to verify 'Failed' logic)."
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T22:34:47+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that 'Properties didn't exist on this object' when I included the -IncludeEXO and -ForceCloud switches from the Disable-User function. Can you please take a look at why this error during the Write-OffboardingSummary funciton would happen and report your findings, please?",
-      "model": "qwen3.6:35b",
-      "durationMs": 281819,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 21,
-      "outputPreview": "Based on my analysis of the error \"Properties didn't exist on this object\" when using `-IncludeEXO` and `-ForceCloud` switches with `Write-OffboardingSummary`, here are the likely causes:\n\n## Root Cause Analysis\n\nThe error \"Properties didn't exist on this object\" is a common PowerShell error that occurs when attempting to access a property on an object that doesn't contain it. This typically happens in three scenarios:\n\n### 1. **Property Name Mismatch**\n- `Write-OffboardingSummary` likely accesses properties like `$user.PrimarySmtpAddress`, `$user.RecipientTypeDetails`, or `$user.CloudExchangeRecipientDisplayType`\n- When `-IncludeEXO` is used, these properties should be added to the output object\n- However, if the property names in `Write-OffboardingSummary` don't exactly match what `Disable-User` returns with those switches, you get this error\n\n### 2. **Conditional Property Population**\n- With `-ForceCloud`, `Disable-User` may query Exchange Online and add properties to the returned object\n- But if:\n  - Exchange Online isn't connected\n  - The user doesn't have an EXO mailbox\n  - The cloud properties fail to populate silently\n- Then the properties that `Write-OffboardingSummary` expects won't exist on the object\n\n### 3. **Object Type Changes**\n- When `-IncludeEXO` and `-ForceCloud` are used together, the object structure may change:\n  - It might become a custom object with diff...",
-      "runSummary": {
-        "intent": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that 'Properties did...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "read_file",
-          "Get-TechToolboxConfig",
-          "Find-LargeFiles",
-          "ITA",
-          "Export-ToolboxFunctions"
-        ],
-        "blockers": "Based on my analysis of the error \"Properties didn't exist on this object\" when using `-IncludeEXO` and `-ForceCloud` switches with `Write-OffboardingSummary`, here are the likely causes:\n\n## Root Cause Analysis\n\nThe err...",
-        "nextBestStep": "Add defensive checks (use `$user | Get-Member` or property existence checks) in the summary function"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T22:49:52+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com' (manager; keep copy: True)...\n2026-06-11 16:47:56 [Info] EXO: granting manager mailbox access for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com'...\n2026-06-11 16:47:56 [Info] Granting mailbox access for 'ddtest1@vadtek.com' to manager 'ddamit@vadtek.com'...\n2026-06-11 16:47:58 [Ok] Granted FullAccess to ddamit@vadtek.com\n2026-06-11 16:48:04 [Ok] Granted SendAs to ddamit@vadtek.com\n2026-06-11 16:48:04 [Info] AD description already contains a similar note; skipping append for 'ddtest1'.\n2026-06-11 16:48:04 [Info] Offboarding: Generating summary for 'ddtest1@vadtek.com'...\n2026-06-11 16:48:04 [Info] Writing offboarding summary for: ddtest1@vadtek.com\n2026-06-11 16:48:04 [Error] Failed to write offboarding summary: The property 'Properties' cannot be found on this object. Verify that the property exists.\n2026-06-11 16:48:04 [Ok] Disable-User workflow completed for 'ddtest1@vadtek.com'.\n\nThis user does not have a mailbox license attached to it in 365, so I'm wondering at that point if that would be the cause of that Error line?",
-      "model": "qwen3.6:35b",
-      "durationMs": 170690,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 10,
-      "outputPreview": "## Root Cause Analysis\n\nYour hypothesis is correct. The user ddtest1 has no mailbox license in 365, and that causes the error. Here is the exact breakdown.\n\n### What happens during Disable-User\n\nWhen `Disable-User` processes EXO steps for ddtest1, it still attempts to call Exchange Online cmdlets (e.g., setting forwarding, granting FullAccess/SendAs). Because there is no mailbox, those EXO calls do not return structured objects (PSCustomObject or hashtable) as expected. Instead they return simple types:\n- `$true` / `$false` (boolean)\n- A string (error message or confirmation text)\n- `$null`\n\n### Where the error originates\n\nIn `Write-OffboardingSummary`, the code iterates over `$Results.Keys` and assigns each step to `$step`. Then it does this:\n\n```powershell\nif ($step -and $step.PSObject.Properties['Action']) { ... }\n```\n\nThe member `.PSObject.Properties` exists only on objects that support reflection-PSCustomObject, PSObject wrappers, and hashtables (which have `.ContainsKey`). Simple booleans, strings, and `$null` do not expose `PSObject.Properties`. When one of those simple types is passed in as `$step`, PowerShell throws:\n\n> The property 'Properties' cannot be found on this object. Verify that the property exists.\n\n### Why it does not affect every step\n\nEarlier steps in the transcript (e.g., AD disabling, local mailbox operations) likely returned PSCustomObject or hashtable...",
-      "runSummary": {
-        "intent": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for 'ddtest1@vadtek.com' to 'ddamit@vadtek.com' (manager; keep copy: True)...\n2026...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "Test-TTPathRoots",
-          "read_file",
-          "Get-TechToolboxConfig",
-          "Find-LargeFiles",
-          "Export-ToolboxFunctions"
-        ],
-        "blockers": "",
-        "nextBestStep": "`$null`"
-      }
-    },
     {
       "timestampUtc": "2026-06-11T23:04:59+00:00",
       "status": "success",
@@ -216,6 +52,162 @@
         ],
         "blockers": "",
         "nextBestStep": "All helpers silently swallow errors and return safe defaults rather than propagating exceptions"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T01:49:26+00:00",
+      "status": "success",
+      "outcome": "blocked",
+      "prompt": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
+      "model": "qwen3.6:35b",
+      "durationMs": 110544,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "outputPreview": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n- Retry with a narrower prompt or a higher --max-iterations value.\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "runSummary": {
+        "intent": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n-...",
+        "nextBestStep": "- Retry with a narrower prompt or a higher --max-iterations value."
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T02:03:30+00:00",
+      "status": "error",
+      "outcome": "error",
+      "prompt": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
+      "model": "qwen3.6:35b",
+      "durationMs": 98899,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "error": "XML syntax error on line 3: element <function> closed by </parameter> (status code: -1)",
+      "runSummary": {
+        "intent": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
+        "actionsTaken": [],
+        "blockers": "XML syntax error on line 3: element <function> closed by </parameter> (status code: -1)",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T02:32:30+00:00",
+      "status": "success",
+      "outcome": "needs-confirmation",
+      "prompt": "Please look at the Invoke-TechAgent function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US",
+      "model": "qwen3.6:35b",
+      "durationMs": 91347,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "outputPreview": "The documentation file has been successfully created at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Invoke-TechAgent.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n- **Topic**: about_Invoke-TechAgent\n- **Short Description**: Sends a natural-language prompt to the TechToolbox local agent and returns the agent's response.\n- **Long Description**: Explains that Invoke-TechAgent is the primary entry point for interacting with the Python-based automation agent, covering its workflow (prompt acceptance, validation, process launch, wait management, logging).\n\n### Parameters Documented\n- **-Prompt** (Mandatory): Natural-language instruction passed to the Python agent.\n- **-Model**: Optional Ollama model name; validated against local models if specified.\n- **-MaxIterations**: Integer 1-500, default 15; controls iteration and wait timeout calculation.\n- **-Quiet**: Legacy compatibility switch (traces suppressed by default).\n- **-ConfirmDestructive**: Authorizes destructive operations via `--destructive-confirmed` flag.\n- **-AutoRetryOnRecursion**: Enables auto-retry on recursion limits (`--auto-retry-on-recursion`).\n- **-DisableAutoRetryOnRecursion**: Disables auto-retry (`--no-auto-retry-on-recursion`); mutually exclusive with -AutoRetryOnRecursion.\n- **-NoTranscript**: Disables per-run console transcript logging.\n\n### Ad...",
+      "runSummary": {
+        "intent": "Please look at the Invoke-TechAgent function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder C:\\User...",
+        "actionsTaken": [
+          "read_file",
+          "Get-FilesUsingKeywords",
+          "write_file"
+        ],
+        "blockers": "The documentation file has been successfully created at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Invoke-TechAgent.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation...",
+        "nextBestStep": "**SEE ALSO**: Links to related functions (Initialize-TechToolboxRuntime, Get-FilesUsingKeywords, etc.)"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T02:56:14+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\"Please look at the Invoke-PurviewPurge function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Invoke and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\"",
+      "model": "qwen3.6:35b",
+      "durationMs": 159457,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "outputPreview": "The documentation file has been successfully created at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Invoke-PurviewPurge.help.txt`.\n\nHere is a summary of what was included:\n\n## Documentation Summary\n\n### Structure\n- Standard PowerShell about\\_*.help.txt format with ASCII-only plain Markdown.\n- All sections follow the conventional layout used by the TechToolbox help system.\n\n### Content Sections\n\n- **TOPIC / SHORT DESCRIPTION**: Identifies the function and its purpose as an end-to-end Purview mailbox HardDelete purge workflow.\n\n- **LONG DESCRIPTION**: Covers the full workflow in detail including:\n  - Ticket normalization and validation (`#INC-<integer>`).\n  - Interactive prompting behavior (q/quit/exit to cancel).\n  - Default timeout/poll values (2400s/20s for search completion, 90s/3s for registration).\n  - All config keys used by the function.\n  - Query normalization rules (`field=value` -> `field:\"value\"`, `subject contains` -> `subject:\"*...*\"`).\n  - Safety considerations (purge only when item count > 0, early exit on `-WhatIf`).\n\n- **SYNTAX**: Full parameter list with type information.\n\n- **PARAMETERS**: All 7 parameters documented individually:\n  - `-UserPrincipalName` (required)\n  - `-Ticket` (required)\n  - `-ContentMatchQuery` (optional)\n  - `-Log` (optional hashtable)\n  - `-ShowProgress` (switch)\n  - `-WhatIf` / `-Confirm` (common parameters)\n\n- **INPUTS / O...",
+      "runSummary": {
+        "intent": "\"Please look at the Invoke-PurviewPurge function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Invoke and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\n...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": "**KEYWORDS**: Searchable terms for PowerShell help discovery (`Invoke-PurviewPurge`, Purview, Compliance Search, HardDelete, purge, mailbox purge, Content Search, ticket, KQL)."
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T03:04:39+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\"Please look at the Get-MessageTrace function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Get and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\"",
+      "model": "qwen3.6:35b",
+      "durationMs": 221922,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "outputPreview": "The documentation has been successfully created. Here's a summary:\n\n## Documentation Created\n\n**File:** `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Get-MessageTrace.help.txt`\n\n### Contents Included\n\n- **SHORT DESCRIPTION**: One-line summary of the function's purpose\n- **LONG DESCRIPTION**: Detailed explanation of the 7-step workflow (validation, connection, chunked summary query, throttle handling, detail query, export, disconnect) plus date handling and subject filter type resolution\n- **PARAMETERS**: All 8 parameters documented with types, descriptions, and defaults:\n  - MessageId\n  - Sender\n  - Recipient\n  - Subject\n  - SubjectFilterType\n  - StartDate\n  - EndDate\n  - ExportFolder\n- **INPUTS**: None (no pipeline support)\n- **OUTPUTS**: Console via Write-Log and optional CSV export; no pipeline output\n- **7 EXAMPLES** covering: basic sender trace, date range override, recipient trace, subject filter with StartsWith, combined MessageId+Sender, custom ExportFolder, and WhatIf preview\n- **NOTES**: Key constraints (EXO module v3.7.0+, 90-day history, 10-day/5000-row limits per call, UTC timestamps, throttle tuning)\n- **LINKS**: Related functions (Export-MessageTraceResults, Connect-ExchangeOnlineAlways, Invoke-DisconnectExchangeOnline, Get-MessageTraceV2, Get-MessageTraceDetailV2)\n\n## Notes\n\nThe goal prompt specified the filename as `about_Invoke-PurviewPurge.help.txt...",
+      "runSummary": {
+        "intent": "\"Please look at the Get-MessageTrace function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Get and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\nfolder...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": "**LINKS**: Related functions (Export-MessageTraceResults, Connect-ExchangeOnlineAlways, Invoke-DisconnectExchangeOnline, Get-MessageTraceV2, Get-MessageTraceDetailV2)"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T03:13:23+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\"Please look at the Reset-ADPassword function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\ActiveDirectory and create matching\r\ndocumentation for it as a file named about_Reset-ADPassword.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\"",
+      "model": "qwen3.6:35b",
+      "durationMs": 79580,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "outputPreview": "The documentation for `Reset-ADPassword` has been created successfully. Here is a summary:\n\n## Task Completed\n\nDocumentation file created at:\n`C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Reset-ADPassword.help.txt`\n\n## Contents Summary\n\n### SHORT DESCRIPTION\nResets an Active Directory user's password using TechToolbox's private password generator and returns a summary object.\n\n### LONG DESCRIPTION\nExplains the function's behavior: generates a password via `Get-NewPassword`, applies it via `Set-ADAccountPassword`, and optionally unlocks the account, forces change-at-logon, or delivers plaintext via console/file/clipboard. Password generation style (Readable, Random, Passphrase) and config values are read from `$script:cfg` at runtime.\n\n### PARAMETERS\n- `-Identity` - AD user identity (required, supports sAMAccountName, UPN, DN)\n- `-ChangePasswordAtLogon` - Forces password change at next logon (default: true)\n- `-Unlock` - Unlocks the account after reset\n- `-Style` - Password generation style: 'Random', 'Readable', or 'Passphrase' (default: 'Readable')\n- `-OutFile` - Path to write plaintext password to file\n- `-Clipboard` - Copies plaintext password to Windows clipboard\n- `-Credential` - Reserved for module interface; passed through to AD cmdlets\n\n### OUTPUTS\nA `[pscustomobject]` containing `SamAccountName`, `DistinguishedName`, `ChangePasswordAtLogon`, `Unlocked`, `Pas...",
+      "runSummary": {
+        "intent": "\"Please look at the Reset-ADPassword function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\ActiveDirectory and create matching\r\ndocumentation for it as a file named about_Reset-ADPassword.help.txt in th...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": "Requires ActiveDirectory PowerShell module; throws if unavailable"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T04:42:24+00:00",
+      "status": "success",
+      "outcome": "blocked",
+      "prompt": "\"Please look at the Install-TechAgentRuntime function located at\r\nC:\\repos\\TechToolbox\\Public\\AI and create matching documentation for it as a\r\nfile named about_Install-TechAgentRuntime.help.txt in the folder\r\nC:\\repos\\TechToolbox\\en-US\"",
+      "model": "qwen3.6:35b",
+      "durationMs": 138694,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "outputPreview": "The documentation file has been successfully created at `C:\\repos\\TechToolbox\\en-US\\about_Install-TechAgentRuntime.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n### SHORT DESCRIPTION\nDescribes Install-TechAgentRuntime as a bootstrapper for the local Python runtime environment used by Invoke-TechAgent and related AI/agent functions.\n\n### LONG DESCRIPTION\n- **What it does**: Lists all key operations -- initializing TechToolbox runtime, locating Python, creating/repairing .venv, upgrading pip optionally, installing requirements.txt packages, pulling Ollama models when requested, and returning a summary [PSCustomObject].\n- **Requirements**: Notes prerequisites (Python on PATH or explicit -PythonPath, Ollama on PATH for model pulls, presence of Agent\\requirements.txt).\n- **Typical Usage**: Four code examples covering default use, full upgrade + model pull, explicit Python path, and forced venv recreation.\n- **Parameters**: Documents all six parameters (-PythonPath, -ForceRecreateVenv, -UpgradePip, -UpgradePackages, -PullModel, -Model) including their types, validation rules, and defaults.\n- **Return Value**: Explains the PSCustomObject properties (VenvPath, PythonExecutable, PythonVersion, LangChainVersion, RequirementsPath, ModelPulled, Model, Success).\n- **Notes**: Covers dependency on Initialize-TechToolboxRuntime, error cond...",
+      "runSummary": {
+        "intent": "\"Please look at the Install-TechAgentRuntime function located at\r\nC:\\repos\\TechToolbox\\Public\\AI and create matching documentation for it as a\r\nfile named about_Install-TechAgentRuntime.help.txt in the folder\r\nC:\\repos\\T...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "The documentation file has been successfully created at `C:\\repos\\TechToolbox\\en-US\\about_Install-TechAgentRuntime.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n### ...",
+        "nextBestStep": "Get-TechToolboxConfig"
       }
     }
   ]

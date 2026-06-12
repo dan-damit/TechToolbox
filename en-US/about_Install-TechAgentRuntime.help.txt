@@ -1,0 +1,128 @@
+
+# about_Install-TechAgentRuntime
+
+## SHORT DESCRIPTION
+
+Bootstraps the local Python runtime environment used by Invoke-TechAgent and related
+AI/agent functions in TechToolbox.
+
+## LONG DESCRIPTION
+
+Install-TechAgentRuntime bootstraps the Python virtual environment (.venv) that supports
+Invoke-TechAgent and other AI-capable tools within TechToolbox. It creates or repairs a
+repository-scoped virtual environment at <moduleRoot>\.venv\ and installs the agent
+dependencies listed in Agent\requirements.txt.
+
+### What it does
+
+- Initializes the TechToolbox runtime via Initialize-TechToolboxRuntime.
+- Locates the Python interpreter (uses -PythonPath if given, otherwise falls back to
+  python, then py -3).
+- Creates a new virtual environment at <moduleRoot>\.venv\ if one does not already exist,
+  or optionally deletes and recreates it when -ForceRecreateVenv is used.
+- Optionally upgrades pip, setuptools, and wheel inside the virtual environment.
+- Installs Python packages from AI\Agent\requirements.txt using the venv's pip.
+- Optionally pulls an Ollama model after installation when -PullModel is specified.
+- Returns a [PSCustomObject] summarising the runtime details (Python version, executable,
+  LangChain version, etc.).
+
+### Requirements
+
+- Windows with Python installed (python or py on PATH).
+- Ollama installed on PATH if -PullModel is used.
+- The agent requirements file at <moduleRoot>\AI\Agent\requirements.txt must exist.
+
+### Typical Usage
+
+Install the runtime without pulling a model:
+
+```powershell
+Install-TechAgentRuntime
+```
+
+Upgrade pip, upgrade all packages, and pull a specific model:
+
+```powershell
+Install-TechAgentRuntime -UpgradePip -UpgradePackages -PullModel -Model "qwen3.6:35b"
+```
+
+Use an explicit Python executable:
+
+```powershell
+Install-TechAgentRuntime -PythonPath "C:\Python312\python.exe"
+```
+
+Force a fresh virtual environment from scratch:
+
+```powershell
+Install-TechAgentRuntime -ForceRecreateVenv
+```
+
+### Parameters
+
+- **PythonPath**: Specifies an explicit Python executable to use when building the virtual
+  environment. If omitted, the command searches PATH for python then py.
+- **ForceRecreateVenv**: When present, deletes any existing .venv directory before creating
+  a fresh virtual environment. Use with caution as this removes all previously installed
+  packages.
+- **UpgradePip**: When present, upgrades pip, setuptools, and wheel inside the virtual
+  environment before installing requirements.
+- **UpgradePackages**: When present, adds --upgrade to the pip install command so that
+  existing packages are also upgraded.
+- **PullModel**: When present, pulls an Ollama model after installing Python requirements.
+- **Model**: Specifies the Ollama model name to pull. If omitted, defaults to the value of
+  settings.agent.model from the TechToolbox configuration.
+
+### Return Value
+
+Returns a [PSCustomObject] with these properties:
+
+- **VenvPath**: Full path to the virtual environment directory.
+- **PythonExecutable**: Path to the Python interpreter inside .venv.
+- **PythonVersion**: Version string reported by platform.python_version().
+- **LangChainVersion**: Version of the langchain package installed in the venv.
+- **RequirementsPath**: Path to the requirements.txt file used.
+- **ModelPulled**: Boolean indicating whether a model was pulled.
+- **Model**: The model name that was pulled (null if -PullModel not used).
+- **Success**: Always $true when the command completes without error.
+
+### Notes
+
+- This function depends on Initialize-TechToolboxRuntime and must be able to locate the
+  TechToolbox module root.
+- If Python is not found on PATH, an error is thrown suggesting installation or use of
+  -PythonPath.
+- If the Ollama executable is not found when -PullModel is used, an error is thrown.
+- The command respects -WhatIf and -Confirm via SupportsShouldProcess for all mutating
+  operations (venv creation/removal, pip upgrades, package installation, model pulling).
+
+## EXAMPLES
+
+### Example 1: Default bootstrap
+
+```powershell
+Install-TechAgentRuntime
+```
+
+Installs the Python runtime using the default python interpreter and the configured
+default model (if any) from settings.
+
+### Example 2: Full upgrade with model pull
+
+```powershell
+Install-TechAgentRuntime -UpgradePip -UpgradePackages -PullModel -Model "qwen3.6:35b"
+```
+
+Upgrades pip, installs all agent dependencies with --upgrade, and pulls the specified
+Ollama model.
+
+## SEE ALSO
+
+- Invoke-TechAgent
+- Initialize-TechToolboxRuntime
+- Get-TechToolboxConfig
+
+## KEYWORDS
+
+Install-TechAgentRuntime, TechAgent, Python, virtual environment, .venv, pip, Ollama,
+LangChain, requirements, bootstrap, agent runtime

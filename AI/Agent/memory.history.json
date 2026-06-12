@@ -659,5 +659,161 @@
       "blockers": "",
       "nextBestStep": "All helpers silently swallow errors and return safe defaults rather than propagating exceptions"
     }
+  },
+  {
+    "timestampUtc": "2026-06-12T01:49:26+00:00",
+    "status": "success",
+    "outcome": "blocked",
+    "prompt": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
+    "model": "qwen3.6:35b",
+    "durationMs": 110544,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "outputPreview": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n- Retry with a narrower prompt or a higher --max-iterations value.\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "runSummary": {
+      "intent": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
+      "actionsTaken": [],
+      "blockers": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n-...",
+      "nextBestStep": "- Retry with a narrower prompt or a higher --max-iterations value."
+    }
+  },
+  {
+    "timestampUtc": "2026-06-12T02:03:30+00:00",
+    "status": "error",
+    "outcome": "error",
+    "prompt": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
+    "model": "qwen3.6:35b",
+    "durationMs": 98899,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "error": "XML syntax error on line 3: element <function> closed by </parameter> (status code: -1)",
+    "runSummary": {
+      "intent": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
+      "actionsTaken": [],
+      "blockers": "XML syntax error on line 3: element <function> closed by </parameter> (status code: -1)",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-12T02:32:30+00:00",
+    "status": "success",
+    "outcome": "needs-confirmation",
+    "prompt": "Please look at the Invoke-TechAgent function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US",
+    "model": "qwen3.6:35b",
+    "durationMs": 91347,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "outputPreview": "The documentation file has been successfully created at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Invoke-TechAgent.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n- **Topic**: about_Invoke-TechAgent\n- **Short Description**: Sends a natural-language prompt to the TechToolbox local agent and returns the agent's response.\n- **Long Description**: Explains that Invoke-TechAgent is the primary entry point for interacting with the Python-based automation agent, covering its workflow (prompt acceptance, validation, process launch, wait management, logging).\n\n### Parameters Documented\n- **-Prompt** (Mandatory): Natural-language instruction passed to the Python agent.\n- **-Model**: Optional Ollama model name; validated against local models if specified.\n- **-MaxIterations**: Integer 1-500, default 15; controls iteration and wait timeout calculation.\n- **-Quiet**: Legacy compatibility switch (traces suppressed by default).\n- **-ConfirmDestructive**: Authorizes destructive operations via `--destructive-confirmed` flag.\n- **-AutoRetryOnRecursion**: Enables auto-retry on recursion limits (`--auto-retry-on-recursion`).\n- **-DisableAutoRetryOnRecursion**: Disables auto-retry (`--no-auto-retry-on-recursion`); mutually exclusive with -AutoRetryOnRecursion.\n- **-NoTranscript**: Disables per-run console transcript logging.\n\n### Ad...",
+    "runSummary": {
+      "intent": "Please look at the Invoke-TechAgent function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder C:\\User...",
+      "actionsTaken": [
+        "read_file",
+        "Get-FilesUsingKeywords",
+        "write_file"
+      ],
+      "blockers": "The documentation file has been successfully created at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Invoke-TechAgent.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation...",
+      "nextBestStep": "**SEE ALSO**: Links to related functions (Initialize-TechToolboxRuntime, Get-FilesUsingKeywords, etc.)"
+    }
+  },
+  {
+    "timestampUtc": "2026-06-12T02:56:14+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\"Please look at the Invoke-PurviewPurge function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Invoke and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\"",
+    "model": "qwen3.6:35b",
+    "durationMs": 159457,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 3,
+    "outputPreview": "The documentation file has been successfully created at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Invoke-PurviewPurge.help.txt`.\n\nHere is a summary of what was included:\n\n## Documentation Summary\n\n### Structure\n- Standard PowerShell about\\_*.help.txt format with ASCII-only plain Markdown.\n- All sections follow the conventional layout used by the TechToolbox help system.\n\n### Content Sections\n\n- **TOPIC / SHORT DESCRIPTION**: Identifies the function and its purpose as an end-to-end Purview mailbox HardDelete purge workflow.\n\n- **LONG DESCRIPTION**: Covers the full workflow in detail including:\n  - Ticket normalization and validation (`#INC-<integer>`).\n  - Interactive prompting behavior (q/quit/exit to cancel).\n  - Default timeout/poll values (2400s/20s for search completion, 90s/3s for registration).\n  - All config keys used by the function.\n  - Query normalization rules (`field=value` -> `field:\"value\"`, `subject contains` -> `subject:\"*...*\"`).\n  - Safety considerations (purge only when item count > 0, early exit on `-WhatIf`).\n\n- **SYNTAX**: Full parameter list with type information.\n\n- **PARAMETERS**: All 7 parameters documented individually:\n  - `-UserPrincipalName` (required)\n  - `-Ticket` (required)\n  - `-ContentMatchQuery` (optional)\n  - `-Log` (optional hashtable)\n  - `-ShowProgress` (switch)\n  - `-WhatIf` / `-Confirm` (common parameters)\n\n- **INPUTS / O...",
+    "runSummary": {
+      "intent": "\"Please look at the Invoke-PurviewPurge function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Invoke and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\n...",
+      "actionsTaken": [
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": "**KEYWORDS**: Searchable terms for PowerShell help discovery (`Invoke-PurviewPurge`, Purview, Compliance Search, HardDelete, purge, mailbox purge, Content Search, ticket, KQL)."
+    }
+  },
+  {
+    "timestampUtc": "2026-06-12T03:04:39+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\"Please look at the Get-MessageTrace function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Get and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\"",
+    "model": "qwen3.6:35b",
+    "durationMs": 221922,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 3,
+    "outputPreview": "The documentation has been successfully created. Here's a summary:\n\n## Documentation Created\n\n**File:** `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Get-MessageTrace.help.txt`\n\n### Contents Included\n\n- **SHORT DESCRIPTION**: One-line summary of the function's purpose\n- **LONG DESCRIPTION**: Detailed explanation of the 7-step workflow (validation, connection, chunked summary query, throttle handling, detail query, export, disconnect) plus date handling and subject filter type resolution\n- **PARAMETERS**: All 8 parameters documented with types, descriptions, and defaults:\n  - MessageId\n  - Sender\n  - Recipient\n  - Subject\n  - SubjectFilterType\n  - StartDate\n  - EndDate\n  - ExportFolder\n- **INPUTS**: None (no pipeline support)\n- **OUTPUTS**: Console via Write-Log and optional CSV export; no pipeline output\n- **7 EXAMPLES** covering: basic sender trace, date range override, recipient trace, subject filter with StartsWith, combined MessageId+Sender, custom ExportFolder, and WhatIf preview\n- **NOTES**: Key constraints (EXO module v3.7.0+, 90-day history, 10-day/5000-row limits per call, UTC timestamps, throttle tuning)\n- **LINKS**: Related functions (Export-MessageTraceResults, Connect-ExchangeOnlineAlways, Invoke-DisconnectExchangeOnline, Get-MessageTraceV2, Get-MessageTraceDetailV2)\n\n## Notes\n\nThe goal prompt specified the filename as `about_Invoke-PurviewPurge.help.txt...",
+    "runSummary": {
+      "intent": "\"Please look at the Get-MessageTrace function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Get and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\nfolder...",
+      "actionsTaken": [
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": "**LINKS**: Related functions (Export-MessageTraceResults, Connect-ExchangeOnlineAlways, Invoke-DisconnectExchangeOnline, Get-MessageTraceV2, Get-MessageTraceDetailV2)"
+    }
+  },
+  {
+    "timestampUtc": "2026-06-12T03:13:23+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\"Please look at the Reset-ADPassword function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\ActiveDirectory and create matching\r\ndocumentation for it as a file named about_Reset-ADPassword.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\"",
+    "model": "qwen3.6:35b",
+    "durationMs": 79580,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "outputPreview": "The documentation for `Reset-ADPassword` has been created successfully. Here is a summary:\n\n## Task Completed\n\nDocumentation file created at:\n`C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\\about_Reset-ADPassword.help.txt`\n\n## Contents Summary\n\n### SHORT DESCRIPTION\nResets an Active Directory user's password using TechToolbox's private password generator and returns a summary object.\n\n### LONG DESCRIPTION\nExplains the function's behavior: generates a password via `Get-NewPassword`, applies it via `Set-ADAccountPassword`, and optionally unlocks the account, forces change-at-logon, or delivers plaintext via console/file/clipboard. Password generation style (Readable, Random, Passphrase) and config values are read from `$script:cfg` at runtime.\n\n### PARAMETERS\n- `-Identity` - AD user identity (required, supports sAMAccountName, UPN, DN)\n- `-ChangePasswordAtLogon` - Forces password change at next logon (default: true)\n- `-Unlock` - Unlocks the account after reset\n- `-Style` - Password generation style: 'Random', 'Readable', or 'Passphrase' (default: 'Readable')\n- `-OutFile` - Path to write plaintext password to file\n- `-Clipboard` - Copies plaintext password to Windows clipboard\n- `-Credential` - Reserved for module interface; passed through to AD cmdlets\n\n### OUTPUTS\nA `[pscustomobject]` containing `SamAccountName`, `DistinguishedName`, `ChangePasswordAtLogon`, `Unlocked`, `Pas...",
+    "runSummary": {
+      "intent": "\"Please look at the Reset-ADPassword function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\ActiveDirectory and create matching\r\ndocumentation for it as a file named about_Reset-ADPassword.help.txt in th...",
+      "actionsTaken": [
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": "Requires ActiveDirectory PowerShell module; throws if unavailable"
+    }
+  },
+  {
+    "timestampUtc": "2026-06-12T04:42:24+00:00",
+    "status": "success",
+    "outcome": "blocked",
+    "prompt": "\"Please look at the Install-TechAgentRuntime function located at\r\nC:\\repos\\TechToolbox\\Public\\AI and create matching documentation for it as a\r\nfile named about_Install-TechAgentRuntime.help.txt in the folder\r\nC:\\repos\\TechToolbox\\en-US\"",
+    "model": "qwen3.6:35b",
+    "durationMs": 138694,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 2,
+    "outputPreview": "The documentation file has been successfully created at `C:\\repos\\TechToolbox\\en-US\\about_Install-TechAgentRuntime.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n### SHORT DESCRIPTION\nDescribes Install-TechAgentRuntime as a bootstrapper for the local Python runtime environment used by Invoke-TechAgent and related AI/agent functions.\n\n### LONG DESCRIPTION\n- **What it does**: Lists all key operations -- initializing TechToolbox runtime, locating Python, creating/repairing .venv, upgrading pip optionally, installing requirements.txt packages, pulling Ollama models when requested, and returning a summary [PSCustomObject].\n- **Requirements**: Notes prerequisites (Python on PATH or explicit -PythonPath, Ollama on PATH for model pulls, presence of Agent\\requirements.txt).\n- **Typical Usage**: Four code examples covering default use, full upgrade + model pull, explicit Python path, and forced venv recreation.\n- **Parameters**: Documents all six parameters (-PythonPath, -ForceRecreateVenv, -UpgradePip, -UpgradePackages, -PullModel, -Model) including their types, validation rules, and defaults.\n- **Return Value**: Explains the PSCustomObject properties (VenvPath, PythonExecutable, PythonVersion, LangChainVersion, RequirementsPath, ModelPulled, Model, Success).\n- **Notes**: Covers dependency on Initialize-TechToolboxRuntime, error cond...",
+    "runSummary": {
+      "intent": "\"Please look at the Install-TechAgentRuntime function located at\r\nC:\\repos\\TechToolbox\\Public\\AI and create matching documentation for it as a\r\nfile named about_Install-TechAgentRuntime.help.txt in the folder\r\nC:\\repos\\T...",
+      "actionsTaken": [
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "The documentation file has been successfully created at `C:\\repos\\TechToolbox\\en-US\\about_Install-TechAgentRuntime.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n### ...",
+      "nextBestStep": "Get-TechToolboxConfig"
+    }
   }
 ]

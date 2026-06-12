@@ -976,9 +976,65 @@ def _print_preflight_status(module_root: Path) -> dict:
     return status
 
 
+def _resolve_prompt_text(
+    prompt: Optional[str],
+    prompt_file: Optional[str],
+    prompt_stdin: bool = False,
+) -> str:
+    """Resolve effective prompt from --prompt, --prompt-file, or --prompt-stdin."""
+    prompt_text = (prompt or "").strip()
+    prompt_file_value = (prompt_file or "").strip()
+    source_count = int(bool(prompt_text)) + int(bool(prompt_file_value)) + int(bool(prompt_stdin))
+
+    if source_count > 1:
+        raise ValueError(
+            "Provide exactly one prompt source: --prompt, --prompt-file, or --prompt-stdin."
+        )
+
+    if prompt_file_value:
+        path = _safe_path(prompt_file_value)
+        if not path.exists():
+            raise ValueError(f"--prompt-file not found: {path}")
+        if not path.is_file():
+            raise ValueError(f"--prompt-file must reference a file: {path}")
+
+        file_prompt = path.read_text(encoding="utf-8", errors="replace").strip()
+        if not file_prompt:
+            raise ValueError(f"--prompt-file is empty: {path}")
+        return file_prompt
+
+    if prompt_stdin:
+        stdin_prompt = sys.stdin.read().strip()
+        if not stdin_prompt:
+            raise ValueError("--prompt-stdin was set but no input was provided on STDIN.")
+        return stdin_prompt
+
+    if prompt_text:
+        return prompt_text
+
+    raise ValueError("A prompt is required. Provide --prompt, --prompt-file, or --prompt-stdin.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run the TechToolbox agent.")
-    parser.add_argument("--prompt", required=True, help="User prompt for the agent.")
+    parser.add_argument(
+        "--prompt",
+        help="User prompt for the agent. Mutually exclusive with --prompt-file.",
+    )
+    parser.add_argument(
+        "--prompt-file",
+        help=(
+            "Path to a UTF-8 text file (relative to workspace root or absolute within it) "
+            "to load as the prompt. Mutually exclusive with --prompt."
+        ),
+    )
+    parser.add_argument(
+        "--prompt-stdin",
+        action="store_true",
+        help=(
+            "Read the prompt from STDIN. Mutually exclusive with --prompt and --prompt-file."
+        ),
+    )
     parser.add_argument(
         "--model",
         default=os.getenv("TECHTOOLBOX_OLLAMA_MODEL", "llama3"),
@@ -1032,6 +1088,8 @@ def main():
     )
     args = parser.parse_args()
 
+    resolved_prompt = _resolve_prompt_text(args.prompt, args.prompt_file, args.prompt_stdin)
+
     if args.max_iterations < 1:
         raise ValueError("--max-iterations must be at least 1")
 
@@ -1052,7 +1110,7 @@ def main():
     run_metadata: dict[str, object] = {}
     try:
         run_result = run_agent(
-            args.prompt,
+            resolved_prompt,
             model=args.model,
             verbose=not args.quiet,
             max_iterations=args.max_iterations,
@@ -1080,7 +1138,7 @@ def main():
                 "timestampUtc": _utc_now_iso(),
                 "status": "error" if error else "success",
                 "outcome": _classify_outcome(output, "error" if error else "success"),
-                "prompt": _preview_text(args.prompt),
+                "prompt": _preview_text(resolved_prompt),
                 "model": args.model,
                 "durationMs": duration_ms,
                 "maxIterations": args.max_iterations,
@@ -1096,7 +1154,7 @@ def main():
             if error is None:
                 entry["outputPreview"] = _preview_text(output)
                 entry["runSummary"] = _build_run_summary(
-                    args.prompt,
+                    resolved_prompt,
                     output,
                     status="success",
                     outcome=entry["outcome"],
@@ -1105,7 +1163,7 @@ def main():
             else:
                 entry["error"] = _preview_text(str(error))
                 entry["runSummary"] = _build_run_summary(
-                    args.prompt,
+                    resolved_prompt,
                     str(error),
                     status="error",
                     outcome=entry["outcome"],
