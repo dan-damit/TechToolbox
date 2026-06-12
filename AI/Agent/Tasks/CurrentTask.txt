@@ -1,4 +1,2 @@
-"Please look at the Clear-BrowserProfileData function located at
-C:\repos\TechToolbox\Public\System and create matching documentation for it as a
-file named about_Clear-BrowserProfileData.help.txt in the folder
-C:\repos\TechToolbox\en-US"
+"what would be the command in a powershell console to see the about_*.help.txt
+files?"
