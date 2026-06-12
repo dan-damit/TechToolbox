@@ -1,0 +1,187 @@
+about_Get-MessageTrace
+======================
+
+SHORT DESCRIPTION
+-----------------
+Retrieves Exchange Online message trace summaries and per-recipient details
+using the V2 cmdlets, with automatic date-range chunking and throttle-aware
+retries.
+
+LONG DESCRIPTION
+----------------
+Get-MessageTrace executes a full message trace workflow against Exchange Online:
+
+1. VALIDATION
+   Confirms that at least one filter (MessageId, Sender, Recipient, or
+   Subject) is supplied and that StartDate is earlier than EndDate. An error
+   is thrown if neither condition holds.
+
+2. CONNECTION
+   Auto-connects to Exchange Online if the V2 cmdlets are not already visible
+   in the session. It uses Connect-ExchangeOnlineAlways (an internal wrapper)
+   when available, otherwise falls back to the native Connect-ExchangeOnline.
+   Only the specific commands needed (Get-MessageTraceV2,
+   Get-MessageTraceDetailV2, Disconnect-ExchangeOnline) are imported from EXO
+   to avoid shadowing the TechToolbox function with deprecated cmdlets.
+
+3. CHUNKED SUMMARY QUERY (Get-MessageTraceV2)
+   Exchange Online limits each Get-MessageTraceV2 call to a 10-day window and
+   returns at most 5,000 rows per request. This function automatically splits
+   the requested date range into <=10-day slices and uses the continuation-token
+   pattern (StartingRecipientAddress + adjusted EndDate) to page through result
+   sets larger than 5,000 rows.
+
+4. THROTTLE HANDLING
+   All Exchange Online calls are wrapped in an exponential-backoff retry loop
+   (up to 5 attempts, doubling delay from 1 second up to a 30-second cap) that
+   retries on HTTP 429 / 503 / "Too many requests" / "temporarily unavailable"
+   errors. A 200 ms inter-request pause is applied between continuation pages to
+   stay within the tenant rate limit (~100 requests per 5 minutes).
+
+5. DETAIL QUERY (Get-MessageTraceDetailV2)
+   For every row in the summary, individual delivery-event details are fetched by
+   MessageTraceId and RecipientAddress. Non-fatal per-recipient failures are
+   logged as warnings and do not abort the run.
+
+6. EXPORT (optional)
+   When settings.messageTrace.autoExport is true, or when -ExportFolder is
+   supplied, both the summary view and the detail rows are passed to
+   Export-MessageTraceResults. The -WhatIf flag is honoured; no files are
+   written during a preview run.
+
+7. DISCONNECT
+   Invoke-DisconnectExchangeOnline is called at the end of every run to ensure
+   the EXO session is closed.
+
+DATE HANDLING
+All timestamps returned by Exchange Online are in UTC. The local datetime values
+you pass to -StartDate and -EndDate are forwarded as-is; be mindful of timezone
+offset when specifying narrow windows. The 90-day maximum trace history limit
+also applies.
+
+SUBJECT FILTER TYPE
+The SubjectFilterType parameter controls how the -Subject value is matched. The
+resolution order at runtime is: caller-supplied value, config default, "Contains",
+then first available enum value from the installed EXO module. An invalid
+caller-supplied value falls back with a warning rather than a hard error.
+
+PARAMETERS
+----------
+-MESSAGEID <string>
+  Internet Message-ID of the email to trace (e.g., "<abc123@mail.contoso.com>").
+  Passed directly to Get-MessageTraceV2 as the MessageId filter. Can be combined
+  with Sender or Recipient to narrow results.
+
+-SENDER <string>
+  SMTP address of the sending mailbox to filter on (e.g., "alice@contoso.com").
+  Passed to Get-MessageTraceV2 as SenderAddress.
+
+-RECIPIENT <string>
+  SMTP address of the recipient to filter on (e.g., "bob@contoso.com"). Passed
+  to Get-MessageTraceV2 as RecipientAddress.
+
+-SUBJECT <string>
+  Subject text to filter on. The matching mode is controlled by -SubjectFilterType
+  (default: Contains). Wildcards are not supported; the value is passed verbatim to
+  the EXO cmdlet.
+
+-SUBJECTFILTERTYPE <string>
+  Controls how the -Subject value is matched. Accepted values depend on the installed
+  EXO module version (typically: Contains, StartsWith, Equals, or Exact). When omitted,
+  "Contains" is used if supported by the module, otherwise the first available enum
+  value is selected automatically. Ignored when -Subject is not specified.
+
+-STARTDATE <datetime>
+  The inclusive start of the trace window. Accepts any [datetime] value. Defaults to
+  now minus settings.messageTrace.defaultLookbackHours (config), falling back to 48
+  hours when the config value is absent or zero. Exchange Online supports a maximum
+  history of 90 days from today.
+
+-ENDDATE <datetime>
+  The inclusive end of the trace window. Defaults to the current date/time when omitted.
+  Must be later than -StartDate.
+
+-EXPORTFOLDER <string>
+  Filesystem path to write CSV export files into. Overrides settings.messageTrace.defaultExportFolder
+  (and the global paths.exportDirectory fallback) for this invocation. When omitted and
+  settings.messageTrace.autoExport is false, no files are written.
+
+- WHATIF [<SwitchParameter>]
+  When specified with CmdletBinding's SupportsShouldProcess, pre-execs a WhatIf run: EXO
+  queries are still executed, but no CSV files are written and no disconnect is performed.
+
+INPUTS
+------
+None. This function does not accept pipeline input.
+
+OUTPUTS
+-------
+None. Results are written to the console via Write-Log, and optionally exported to CSV
+by Export-MessageTraceResults. No objects are returned to the pipeline.
+
+EXAMPLE 1
+---------
+Get-MessageTrace -Sender "alice@contoso.com"
+
+Traces all mail from alice@contoso.com over the configured default lookback window
+(e.g., last 48 hours). Results are displayed in the console.
+
+EXAMPLE 2
+---------
+Get-MessageTrace -Sender "alice@contoso.com" -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date)
+
+Traces mail from alice over the last 7 days. The date range is automatically split
+into <=10-day chunks (only one chunk needed here).
+
+EXAMPLE 3
+---------
+Get-MessageTrace -Recipient "bob@contoso.com" -StartDate (Get-Date).AddDays(-30) -EndDate (Get-Date)
+
+Traces mail to bob over 30 days. Three <=10-day slices are issued automatically.
+
+EXAMPLE 4
+---------
+Get-MessageTrace -Subject "Invoice" -SubjectFilterType StartsWith -StartDate (Get-Date).AddDays(-3)
+
+Traces messages whose subject starts with "Invoice" over the last 3 days.
+
+EXAMPLE 5
+---------
+Get-MessageTrace -MessageId "<abc123@mail.contoso.com>" -Sender "alice@contoso.com"
+
+Combines MessageId and Sender filters to narrow results to a specific message from
+a known sender.
+
+EXAMPLE 6
+---------
+Get-MessageTrace -Sender "alice@contoso.com" -ExportFolder "C:\Exports\Traces"
+
+Runs the trace and writes summary + detail CSV files to the specified folder, overriding
+the default export path from config.
+
+EXAMPLE 7
+---------
+Get-MessageTrace -Sender "alice@contoso.com" -WhatIf
+
+Previews the trace run: EXO queries are still executed, but no CSV files are written and
+no disconnect is performed.
+
+NOTES
+-----
+- Requires ExchangeOnlineManagement module v3.7.0 or later, which exposes Get-MessageTraceV2
+  and Get-MessageTraceDetailV2 after connecting.
+- Exchange Online message trace history is limited to 90 days from today.
+- Each Get-MessageTraceV2 call covers at most 10 days and returns up to 5,000 rows; both
+  limits are handled automatically by this function.
+- All Exchange Online timestamps are returned in UTC regardless of local timezone.
+- The 200 ms inter-page sleep and 5-attempt exponential backoff are tuned for the default
+  tenant throttle limit (~100 EXO requests per 5 minutes).
+
+LINKS
+-----
+Export-MessageTraceResults
+Connect-ExchangeOnlineAlways
+Invoke-DisconnectExchangeOnline
+Get-MessageTraceV2
+Get-MessageTraceDetailV2
+

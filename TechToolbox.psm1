@@ -121,8 +121,12 @@ function Add-TechAgentHistory {
 function ITA {
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [Parameter(Mandatory, Position = 0)]
+        [Parameter(Position = 0)]
         [string]$Prompt,
+
+        # Optional: path to a prompt text file. If omitted and -Prompt is empty,
+        # ITA attempts to load a default prompt file.
+        [string]$PromptFile,
 
         # Optional: name of a template in PromptTemplates\
         [string]$Template,
@@ -216,6 +220,71 @@ function ITA {
             }
         }
     }
+
+    $moduleRoot = Get-ModuleRoot
+    $promptSourceLabel = 'inline -Prompt'
+
+    # Resolve prompt source: explicit -Prompt, explicit -PromptFile, or default file.
+    if (-not [string]::IsNullOrWhiteSpace($Prompt) -and -not [string]::IsNullOrWhiteSpace($PromptFile)) {
+        throw "ITA: Specify only one prompt source: -Prompt or -PromptFile."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($PromptFile)) {
+        $resolvedPromptPath = if ([System.IO.Path]::IsPathRooted($PromptFile)) {
+            $PromptFile
+        }
+        else {
+            Join-Path $moduleRoot $PromptFile
+        }
+
+        if (-not (Test-Path -LiteralPath $resolvedPromptPath -PathType Leaf)) {
+            throw "ITA: Prompt file not found: $resolvedPromptPath"
+        }
+
+        $Prompt = (Get-Content -LiteralPath $resolvedPromptPath -Raw)
+        if ([string]::IsNullOrWhiteSpace($Prompt)) {
+            throw "ITA: Prompt file is empty: $resolvedPromptPath"
+        }
+
+        $promptSourceLabel = "-PromptFile ($resolvedPromptPath)"
+    }
+    elseif ([string]::IsNullOrWhiteSpace($Prompt)) {
+        $defaultPromptFile = $null
+        if ($script:cfg -and $script:cfg.settings -and $script:cfg.settings.agent) {
+            $defaultPromptCandidate = [string]$script:cfg.settings.agent.defaultPromptFile
+            if (-not [string]::IsNullOrWhiteSpace($defaultPromptCandidate)) {
+                $defaultPromptFile = $defaultPromptCandidate
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($defaultPromptFile)) {
+            $defaultPromptFile = 'AI\Agent\prompt.txt'
+        }
+
+        $resolvedDefaultPromptPath = if ([System.IO.Path]::IsPathRooted($defaultPromptFile)) {
+            $defaultPromptFile
+        }
+        else {
+            Join-Path $moduleRoot $defaultPromptFile
+        }
+
+        if (-not (Test-Path -LiteralPath $resolvedDefaultPromptPath -PathType Leaf)) {
+            throw (
+                "ITA: No prompt text supplied and default prompt file was not found: {0}. " +
+                "Provide -Prompt, provide -PromptFile, or create the default prompt file." -f $resolvedDefaultPromptPath
+            )
+        }
+
+        $Prompt = (Get-Content -LiteralPath $resolvedDefaultPromptPath -Raw)
+        if ([string]::IsNullOrWhiteSpace($Prompt)) {
+            throw "ITA: Default prompt file is empty: $resolvedDefaultPromptPath"
+        }
+
+        $promptSourceLabel = "default prompt file ($resolvedDefaultPromptPath)"
+    }
+
+    Write-Host ("ITA prompt source: {0}" -f $promptSourceLabel)
+    Write-Log -Level Info -Message ("ITA prompt source resolved from: {0}" -f $promptSourceLabel)
 
     # Template injection
     if ($Template) {
@@ -478,8 +547,8 @@ Register-ITACompletions
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD8ExyrKBwMxg3C
-# OTb/1MakXaAd2IS6sQM6Mno314btX6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBMZN262HfiftRv
+# gCrazze91XWkNDGdorsYyusnA2Lu/aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -612,34 +681,34 @@ Register-ITACompletions
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD3W/pwIdRi
-# LeixQq43mWlbM9cCRtVhfydBtzbECGum0TANBgkqhkiG9w0BAQEFAASCAgDFekGU
-# cFRK9MakGQIg1Ve2Kh5Q3py3R8KuJ5e30Ni5Rc620jQT4EqqgRXj7KOkT4/PDihU
-# nzXJD0+oI0QA9ml+l2BAztYetSfN4f5aMmBrno5AQ8plUkWZgzlZ2kKj43rXRuqi
-# QWxVSaFNsECS5MdyQkwiggD/M9PR4eBwFzSJkdimPy30L4cHtuxm3YKnhtWeSS8e
-# TZMOnbJDI2OOBdjgIpyFou+Q4HPmiS6JChGKTviW+gtNbCXUoC8Z/aopivKQqv3P
-# EChiFr83O8tMB1toiJVBJXveCdwpNu1ndIwTipmrR+jW0I0A40x5gAXYmB53ulJ0
-# yoh0uwIfSNpWK9vq64jteU2mUimRV8vDaHFEipOULQoq/9e9zZQxg0ZEQOoZPMTB
-# ZVpBPUa+33Tu4agAbVFj8uNAsqpSn+ERJJJs/DpgtqsQxAYEz1FXQc5slBWOf1Lo
-# H29R8Je7oeb7mKPmCnbfSmSs+W12A2zOpkFcjFffJterbuQv7oQgrHq9UnlrF5Ke
-# c+uBMJgkuVEXPhiUKrtud18KtryYRVCfWU/tBBXcEi31YPIynFbiTuygy16KxN76
-# 5Medu43LgAWueUiQevg4p4XnRun+kjzYIXJEyMwbB9BhKSJwFSSk2nDUmBRfs4ef
-# eoKtorqXfVdyUYbtGBKAowRFXpQE0uMIFzW/o6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAs45B9xBV3
+# 7g5J5trK8aGCsd0AEDeGtL8C/omvDBPbTTANBgkqhkiG9w0BAQEFAASCAgAlAs6k
+# P/HvXf2IP994jLVX3FkGflCWmQWi3gL64TYTohMBNWzUnYQXW4HPziKI8nPvwiec
+# /Ut/DdVbCmYnZdMZT53FbDeTTkcd2x7eB5AQN+n6dBPFNK9K/O6BSIKr76HKU//Q
+# tJeCilP4n/eRYj/Xlvn7mepSHfrlkLVhUFV+4JEdLvnQK7nqV8sJ/CQfEDpSVRJ+
+# CODVsSaYWcRN844ZNm1lVFg7x59dpZsWUWEUzZmu0+++Q4urN2Pn2T0LJvCBaU7c
+# FDtvzJe1rMWHSv1LOXUq2zAbktVoFUIX4auMsRopd7uQ7oOTCK9RAMjUsMbxtuCF
+# xcyfGt5JdQFMMzpxvIMXYfQSjG9HcKxBCdASyqyLTC0hVfAr1gRAFp6ha/4ymxhp
+# lHjkciryL+iCtq659ZukyMkDj/FwrFlwN3+ch/YmMh8tl5Rg8dIWfXXrJoFZhRWK
+# O7GllpWuk7WL3X6vUZgtQk01fac7Jo7pvCAMJNSDB4CgXTl9Lim1im3jZKQpCm3A
+# l3WYjTAeghmOAUWBH2lTb5K55E0OsRXSpGXBzXWjUKNOkVGMCwSgabvD7gd5ii5a
+# EjPMGhyGvCjXafTWN10aofPXEQlnlANfUltrjYHlc9uodmq2UBlbYpp9D1cLKUik
+# cHfCf85Z4G0ZjOTLTN8lgDKa6oafLVTx8tllT6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTEwNDQ4NDJaMC8GCSqGSIb3DQEJBDEiBCDMcS4yOE4M2aj/KkL6
-# AX+R/MXBsqc+3kslzYlFzWDArTANBgkqhkiG9w0BAQEFAASCAgBfRjkPWwNBwk9i
-# IBWMhNk4YLDx8X/M8F0PTb6gBg6Akw7GjhwgNKt3KFSPt/zsORfYhPN9M8zOsF76
-# ulc+2623VgCi3zIKn6cn7NLPE33vcySCr3k+tZUIfjREGdahRQ/wbOl4lTdR1dUI
-# 3GNIzzm7cLMZEh8ZLI1mJCCDCABo8iPReJxNclHsYLwrsxHyYyZJfdvZ7mVzkgRk
-# 1jrtTn/r48Z7XQLo3L+/TE0DX5oHyvBs97cliqc8nACamjTnVgtL2wX8vceY4Dq0
-# CXW2F9X66E0hk0gGyl8GNYKzFJ4vFgeQqU4iOOIqNhEdDqQ4FbtQpRHcfz0iENxw
-# +n1JsnW+6C2QEU4NWH/6qGeuQOCLd03sZP1UD60BJBXYj3wPv+CGqPyUaekgt3ti
-# XdDSy7+OwD1KKWA2ihjnqCOJ6w7XyEMc6YIG5RWdaARWkGA2kPWnG9Z5Z/p88vL3
-# AoVlOiHKFWvAvnLo2YJNoEr5HbNuPYxFL55WDHQOBxTi3q+um5NXuMwM4ksPi4Tn
-# oaaE7sXjmD44wpus3gAH6Eq7MLj6CWq57ek3DU9gj6K24GMSoGDHKyY7Okk0aWgX
-# tgzLmvAU7prN/NtHtpLnYv94jOBpO4Str/shGWj8SKtF7wDL9gHwd+IhA/xsdwWG
-# 4P2/3BfSlo0qG92M+HTYXYvzDLorSQ==
+# BTEPFw0yNjA2MTIwMjUyMjRaMC8GCSqGSIb3DQEJBDEiBCBDCob1IcdINaKiJj7X
+# g8Z/Am9f51nOxQWgMgn0jysR3jANBgkqhkiG9w0BAQEFAASCAgArdKHRhggX3/+i
+# gCLRL87VUgbAG90Q0pyK2fLCZiZHskGUb+FBnGowKwIon/xaPQII4LGY+xAIrHak
+# HzGaOQMzAWxsml988x4fGjj4HqdlKQWXlWFsKkpMT8ET0ilm1UjjOv6StGFAuJ8M
+# ANXON6xrM4wc+UoJ7WwDYjm1DRTwDoEdOvbLBTSVIcR6llwTVQrGqIOTpmam07nS
+# Y8AShoq7qu8nMovT+Mi7O6Hrw5rWNFGUiXXZXB8IsXht9wFDifWKy5fIhig2VQeG
+# tglDNrpo9uZn9xRb4V5djaYmGWEQIk7izPbKR5tIAcRXb9zBOV9XF30EmpMDdjIJ
+# GzspnQJJO0+okSBAHG9vr/J7wTBYAXMIgCdPphr0fr+VQ6Xq2K12H5A5JspigrFJ
+# 1Eco9J6NdCwyZ3yCx6OufQsQ0wnGSduaZrR+RtVPxXNCQChYLjA+z9B+Riyuzr1W
+# siUDYtZqb2eGmNUKYCZEb/MSw0Xlin7VhCxR1JCCqVCb7+SYU/7QnacXy9ETXhra
+# 2+jg4NG6DQdnL9hJTGFIoo7+FDrfrQZpZ/p9LAu6W+LmfUxcVA5qtUKUSF5ofwdt
+# yqqWkP0F2BDNASjp5LjcuP2jAT59DT4Ux2ktm4ju3q6k9pw5rxxRTmPkby+ih0tG
+# S7OGW6D1IFFq1Nv3Qq2aOtM4ZsZB5Q==
 # SIG # End signature block
