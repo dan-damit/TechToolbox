@@ -1,0 +1,122 @@
+TOPIC
+about_Clear-BrowserProfileData
+
+SYNOPSIS
+    Clears Chromium browser profile data for Chrome and/or Edge.
+
+DESCRIPTION
+    Performs a browser profile cleanup workflow for Google Chrome, Microsoft
+    Edge, or both. The function follows these steps:
+      1. Loads runtime configuration from settings.browserCleanup.
+      2. Applies config-driven defaults only for parameters not explicitly
+         supplied by the caller.
+      3. Resolves one or both target browsers (Chrome, Edge, or All).
+      4. Optionally stops browser processes before deletion to avoid file
+         locks on cache and cookie databases.
+      5. Discovers Chromium profile folders beneath each browser's User Data
+         path.
+      6. Optionally filters the discovered set to named profiles such as
+         Default or Profile 1.
+      7. Clears cookies, cache, and optionally local storage by delegating
+         to the internal profile-cleanup helpers.
+      8. Logs each stage of the run via Write-Log.
+
+    CONFIG-DRIVEN DEFAULTS
+    When a parameter is omitted, the function attempts to read its default
+    value from settings.browserCleanup in config.json. This includes:
+      - includeCache
+      - includeCookies
+      - skipLocalStorage
+      - killProcesses
+      - sleepAfterKillMs
+      - defaultBrowser
+      - defaultProfiles
+    Caller-supplied parameter values always take precedence over config.
+
+    SHOULDPROCESS / SAFETY
+    This function supports -WhatIf and -Confirm. Process termination and any
+    downstream deletion work are guarded by ShouldProcess-aware flow so you can
+    preview the intended browser/profile targets before making changes.
+
+    SCOPE
+    This workflow is designed for Chromium-style profile layouts used by Chrome
+    and Edge. It does not target Firefox, Internet Explorer, or non-Chromium
+    storage paths.
+
+PARAMETERS
+    -Browser <String>
+        Specifies which browser to process. Valid values are:
+          - Chrome
+          - Edge
+          - All
+        Default: All (unless overridden by settings.browserCleanup.defaultBrowser)
+
+    -Profiles <String[]>
+        One or more Chromium profile folder names to target, for example:
+          - Default
+          - Profile 1
+          - Profile 2
+        When omitted, all discovered profiles for the selected browser(s) are
+        processed unless settings.browserCleanup.defaultProfiles defines a default
+        filter.
+
+    -IncludeCookies <Bool>
+        When $true, clears cookie databases for each targeted profile by calling
+        Clear-CookiesForProfile. Defaults to $true.
+
+    -IncludeCache <Bool>
+        When $true, clears browser cache folders for each targeted profile by
+        calling Clear-CacheForProfile. Defaults to $true.
+
+    -SkipLocalStorage <Bool>
+        When $true, local storage content is preserved even when cookies are
+        being cleared. When $false, local storage cleanup is delegated to
+        Clear-CookiesForProfile as part of that workflow. Defaults to $false.
+
+    -KillProcesses <Bool>
+        When $true, attempts to stop the relevant browser processes before any
+        cleanup begins. This helps prevent file locks on cookies and cache
+        files. Defaults to $true.
+
+    -SleepAfterKillMs <Int>
+        Number of milliseconds to wait after stopping browser processes before
+        profile cleanup continues. Gives the browser time to fully release locks
+        on profile files. Defaults to 1500.
+
+EXAMPLES
+    Example 1:
+        Clear-BrowserProfileData -Browser Chrome -Profiles 'Default','Profile 2' -WhatIf
+        Previews cleanup of the Default and Profile 2 Chrome profiles without
+        stopping processes or deleting any browser data.
+
+    Example 2:
+        Clear-BrowserProfileData -Browser All -IncludeCache:$true -IncludeCookies:$false -Confirm
+        Processes both Chrome and Edge, clearing cache only, and prompts before
+        destructive actions are taken.
+
+    Example 3:
+        Clear-BrowserProfileData -Browser Edge -Profiles 'Default' -KillProcesses:$false
+        Clears the Edge Default profile without attempting to stop Edge first.
+        Useful when process management is handled externally.
+
+    Example 4:
+        Clear-BrowserProfileData -Browser Chrome -SkipLocalStorage:$true
+        Clears Chrome cookies and cache while preserving local storage.
+
+NOTES
+    - Requires the internal helper functions Get-BrowserUserDataPath,
+      Get-BrowserProfileFolders, Clear-CookiesForProfile, and
+      Clear-CacheForProfile.
+    - Assumes Chromium-style profile folders such as Default and Profile 1.
+    - If no profiles are discovered for a browser, that browser is skipped and
+      a warning is logged.
+    - If profile filtering removes all discovered profiles, that browser is
+      skipped and a warning is logged.
+    - The function currently returns no PSCustomObject results despite older help
+      text implying otherwise.
+
+LINKS
+    Get-BrowserUserDataPath
+    Get-BrowserProfileFolders
+    Clear-CookiesForProfile
+    Clear-CacheForProfile

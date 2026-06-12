@@ -1,4 +1,4 @@
-"Please look at the Install-TechAgentRuntime function located at
-C:\repos\TechToolbox\Public\AI and create matching documentation for it as a
-file named about_Install-TechAgentRuntime.help.txt in the folder
+"Please look at the Clear-BrowserProfileData function located at
+C:\repos\TechToolbox\Public\System and create matching documentation for it as a
+file named about_Clear-BrowserProfileData.help.txt in the folder
 C:\repos\TechToolbox\en-US"
