@@ -10,50 +10,27 @@
       "windowItems": 30,
       "runCount": 30,
       "successRate": 0.933,
-      "avgDurationMs": 148461,
+      "avgDurationMs": 150578,
       "avgToolCalls": 4.87,
       "statusCounts": {
         "success": 28,
         "error": 2
       },
       "outcomeCounts": {
-        "completed": 18,
+        "completed": 19,
         "blocked": 8,
-        "needs-confirmation": 2,
+        "needs-confirmation": 1,
         "error": 2
       },
       "lastStatus": "success",
-      "lastOutcome": "blocked",
+      "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-12T04:42:24+00:00",
-      "trendLastUpdatedUtc": "2026-06-12T04:42:24+00:00"
+      "lastRunTimestampUtc": "2026-06-12T23:10:43+00:00",
+      "trendLastUpdatedUtc": "2026-06-12T23:10:43+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-11T23:04:59+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Yes, please apply the fix to 'Write-OffboardingSummary' located at 'C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory\\' for handing those errors. Per your analysis, the function needs defensive type-checking before accessing .PSObject.Properties. You have my explicit permission to make this change on the function.",
-      "model": "qwen3.6:35b",
-      "durationMs": 592698,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "outputPreview": "## Fix Applied Successfully\n\nThe `Write-OffboardingSummary` function at `C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory\\Write-OffboardingSummary.ps1` has been updated with defensive type-checking to prevent \"Properties did not exist on this object\" errors when accessing `.PSObject.Properties`.\n\n### What Was Changed\n\nThe root cause was direct indexed access to `$step.PSObject.Properties['X']` which throws when:\n- `$step` is a hashtable (no PSObject support)\n- `$step` is null\n- The property accessor itself fails in edge cases\n\nThe fix introduces two nested helper functions:\n\n**1. Safe-HasProperty** - Safely checks if an object has a given property name:\n- Uses `$Obj.PSObject.Properties.Name` (array of names) with `-contains` instead of direct indexed access\n- Wraps the operation in try/catch to handle any unexpected failures\n- Returns `$false` for null objects or on error\n\n**2. Safe-GetProperty** - Safely retrieves a property value:\n- Checks PSObject first using Safe-HasProperty, then falls back to hashtable `.ContainsKey()` check\n- Always returns the specified default (e.g., 'Unknown' or $null) instead of throwing\n\n### Where Property Access Was Updated\n\n| Section | Before | After |\n|---------|--------|-------|\n| UserPrincipalName | `$User.UserPrincipalName` | `Safe-GetProperty -Obj $User -PropName 'UserPrincipalName' -Default 'Unknown'` |\n| DisplayName | `$U...",
-      "runSummary": {
-        "intent": "Yes, please apply the fix to 'Write-OffboardingSummary' located at 'C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory\\' for handing those errors. Per your analysis, the function needs defensive type-che...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": "All helpers silently swallow errors and return safe defaults rather than propagating exceptions"
-      }
-    },
     {
       "timestampUtc": "2026-06-12T01:49:26+00:00",
       "status": "success",
@@ -208,6 +185,29 @@
         ],
         "blockers": "The documentation file has been successfully created at `C:\\repos\\TechToolbox\\en-US\\about_Install-TechAgentRuntime.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n### ...",
         "nextBestStep": "Get-TechToolboxConfig"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-12T23:10:43+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\"Please look at the Clear-BrowserProfileData function located at\r\nC:\\repos\\TechToolbox\\Public\\System and create matching documentation for it as a\r\nfile named about_Clear-BrowserProfileData.help.txt in the folder\r\nC:\\repos\\TechToolbox\\en-US\"",
+      "model": "qwen3.6:35b",
+      "durationMs": 141752,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "outputPreview": "The documentation file has been successfully created at `C:\\repos\\TechToolbox\\en-US\\about_Clear-BrowserProfileData.help.txt`.\n\nHere is a summary of what was included in the documentation:\n\n## Documentation Overview\n\n### TOPIC\nDescribes the purpose and scope of Clear-BrowserProfileData.\n\n### SYNOPSIS\nClears Chromium browser profile data for Chrome and/or Edge.\n\n### DESCRIPTION\n- Detailed step-by-step workflow of the function (config loading, parameter resolution, browser discovery, process killing, profile discovery/filtering, cleanup delegation, logging).\n- Config-driven defaults section explaining settings.browserCleanup keys (includeCache, includeCookies, skipLocalStorage, killProcesses, sleepAfterKillMs, defaultBrowser, defaultProfiles).\n- Safety notes about -WhatIf/-Confirm support and ShouldProcess-aware flow.\n- Scope clarification: Chromium-style profile layouts only (Chrome, Edge), no Firefox/IE/non-Chromium paths.\n\n### PARAMETERS\n- Browser (ValidateSet: Chrome, Edge, All)\n- Profiles (string array of folder names like Default, Profile 1)\n- IncludeCookies (bool, default $true)\n- IncludeCache (bool, default $true)\n- SkipLocalStorage (bool, default $false)\n- KillProcesses (bool, default $true)\n- SleepAfterKillMs (int, default 1500)\n\n### EXAMPLES\n- WhatIf dry-run for specific Chrome profiles.\n- Full browser cache-only cleanup with -Confirm.\n- Edge Default profile without pro...",
+      "runSummary": {
+        "intent": "\"Please look at the Clear-BrowserProfileData function located at\r\nC:\\repos\\TechToolbox\\Public\\System and create matching documentation for it as a\r\nfile named about_Clear-BrowserProfileData.help.txt in the folder\r\nC:\\rep...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": "No PSCustomObject pipeline output returned."
       }
     }
   ]
