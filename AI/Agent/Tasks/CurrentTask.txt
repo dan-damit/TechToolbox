@@ -1,9 +1,6 @@
-"I get the following error when I try to run the Get-Help about_<topic> command
-in PowerShell: 'Get-Help : No help files found in the HelpPath directory.' How
-can I resolve this issue?
-
-[18:19:20] C:\repos\TechToolbox [main]
-λ Get-help about_Invoke_TechAgent
-Get-Help: Get-Help could not find about_Invoke_TechAgent in a help file in this session. To download updated help topics type: "Update-Help". To get help online, search for the help topic in the TechNet library at https://go.microsoft.com/fwlink/?LinkID=107116.
-
-[18:20:35] C:\repos\TechToolbox [main]"
+"Thank you for that analysis. Please go ahead and keep the function in place for
+now as you pointed out that the -ShowEffectiveConfig param is useful and
+helpful. Please remove the overview screen from the Get-ToolboxHelp function
+located at C:\repos\TechToolbox\Public\Get and replace it with the note in its
+help topics pointing users to PowerShell's native 'Get-Help'. You have my
+explicit permission to perform this task."
