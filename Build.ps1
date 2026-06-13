@@ -15,6 +15,7 @@
 param(
     [switch]$AutoVersionPatch,
     [switch]$RegenerateGuid,
+    [switch]$SkipSigning,
     [switch]$SkipValidSigs = $true,
     [switch]$Recurse,
     [switch]$Analyze,         # Run PSSA (PowerShell ScriptAnalyzer)
@@ -158,41 +159,46 @@ function Get-CodeSigningCert {
     return $null
 }
 
-if (-not $Thumbprint) {
-    if ($Interactive) { $Thumbprint = Read-Host "Enter code signing thumbprint" }
-    else { throw "Thumbprint not provided (set Config\build.config.json signing.thumbprint or pass -Thumbprint)." }
-}
-$cert = Get-CodeSigningCert -Thumb $Thumbprint
-if (-not $cert) { throw "Code signing cert not found or missing private key for thumbprint $Thumbprint." }
-
-# What to sign
-$search = @{ Path = $ModuleRoot; Include = '*.ps1', '*.psm1', '*.psd1'; File = $true; Recurse = $true }
-$files = Get-ChildItem @search | Where-Object {
-    $_.FullName -notmatch '\\(Out|Bin|CodeAnalysis|\.git)\\'
-}
-
 $ok = 0; $skip = 0; $warn = 0
-Write-Host "Signing $(($files|Measure-Object).Count) file(s)..." -ForegroundColor Cyan
-foreach ($f in $files) {
-    try {
-        if ($SkipValidSigs) {
-            $sig = Get-AuthenticodeSignature -FilePath $f.FullName
-            if ($sig.Status -eq 'Valid') { $skip++; continue }
-        }
-        $params = @{
-            FilePath      = $f.FullName
-            Certificate   = $cert
-            HashAlgorithm = 'SHA256'
-        }
-        if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
-        $r = Set-AuthenticodeSignature @params
-        if ($r.Status -eq 'Valid') { $ok++ } else { $warn++ }
-    }
-    catch {
-        $warn++
-    }
+if ($SkipSigning) {
+    Write-Host "Signing skipped (-SkipSigning)." -ForegroundColor DarkYellow
 }
-Write-Host "Signing complete → OK: $ok  Skipped: $skip  Warnings/Errors: $warn" -ForegroundColor Cyan
+else {
+    if (-not $Thumbprint) {
+        if ($Interactive) { $Thumbprint = Read-Host "Enter code signing thumbprint" }
+        else { throw "Thumbprint not provided (set Config\build.config.json signing.thumbprint or pass -Thumbprint)." }
+    }
+    $cert = Get-CodeSigningCert -Thumb $Thumbprint
+    if (-not $cert) { throw "Code signing cert not found or missing private key for thumbprint $Thumbprint." }
+
+    # What to sign
+    $search = @{ Path = $ModuleRoot; Include = '*.ps1', '*.psm1'; File = $true; Recurse = $true }
+    $files = Get-ChildItem @search | Where-Object {
+        $_.FullName -notmatch '\\(Out|Bin|CodeAnalysis|\.git)\\'
+    }
+
+    Write-Host "Signing $(($files|Measure-Object).Count) file(s)..." -ForegroundColor Cyan
+    foreach ($f in $files) {
+        try {
+            if ($SkipValidSigs) {
+                $sig = Get-AuthenticodeSignature -FilePath $f.FullName
+                if ($sig.Status -eq 'Valid') { $skip++; continue }
+            }
+            $params = @{
+                FilePath      = $f.FullName
+                Certificate   = $cert
+                HashAlgorithm = 'SHA256'
+            }
+            if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
+            $r = Set-AuthenticodeSignature @params
+            if ($r.Status -eq 'Valid') { $ok++ } else { $warn++ }
+        }
+        catch {
+            $warn++
+        }
+    }
+    Write-Host "Signing complete → OK: $ok  Skipped: $skip  Warnings/Errors: $warn" -ForegroundColor Cyan
+}
 
 # ---------------- 07. (Optional) Package -------------------------------------
 $artifact = $null
@@ -230,8 +236,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAo3fFcLsGKEiX9
-# hw8y/b7zg3GANlqoq3TSo6xP0W2o7KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDmiYcuk/HLiMz2
+# zjRL3xKIvmesjiINJlj8SYRQ+j0t4KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -364,34 +370,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCKV0L6yxhD
-# Ce+Lfb/F5Av0sjLkKpTsX3gJuu4CEqMQszANBgkqhkiG9w0BAQEFAASCAgB5X68w
-# XJ41jlCwGaMuEtopXxt77rHyP1LNZLX1KDQW7axVle47CMZUUeAwOZDynx9ZZ25e
-# 5m8V0ZMMMEW/k7bo99TJH37BBaMhoyohP3YFyWVMeGTvCa2v3FEypVgMh2gU9Kf8
-# UpqeXmZv2zqC9nQmvlRBsg2GxtZm4qTtnDM+CIwM59qg/vPO0MRxtUuOvANHk3Eh
-# 09dX0VjcqyOSdMeAYW7EY6jhqHkBosJ5GBkMHgnW6AZKUsv1aIEYQVboOgpDQ4Tj
-# xaFgtEaiNZzxAvhmadL7fyVouRgFNawsjM4HiPqAZXz1rfYAn68wNU1hu0u5qMVr
-# tDMOdbcBHzW4VMkioNoVTHrhd3N3ykbRWGRTZUbcqndB/O7j0Qsi1nw8yvYlxki6
-# sxx32Wxvu/RzvianV2GsYrr2vTn424gPD7nDuQoJ3RMvHZIVqDn9QPKj/dXXBfiI
-# fmJXzN9NY7r7rExNEWOrWNbDjicas11vCeFB9peEwgD299aw/yzuDDFNZjSqZb0O
-# f1TeKbDSXe428mZd7FCKqiaONmMHZ0yydG7lCNOsvN5O65FqafZFPPfKC/TAxVH1
-# /yN/4GTz2glcVeM1gc/rWDcyxk3nZl8338JjeCHnvuNNS8fpXB1z3a5DmqHrjbVi
-# Cad/bQU7suYTqMks4SeBC4pmuWcc11V0KHOFZKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8JniIaEY6
+# ENiQrZK2wCMdFQ2k/Gz8jX/rKrg/A+5yODANBgkqhkiG9w0BAQEFAASCAgAQnv7Y
+# 6qNOS5Qfu6UfrLHnVJahznDMC8/qHOfvKXJgrbOn7krZEHIa4XxIcGl7xFnoC7GF
+# jUVMeU7QkKk+vp4T0895mF4efel95mJYTjN9yBtnpwj2Se2cqu3vyVdAdWjmvnB4
+# ioVR/I4nH45vYl9tuW9FJkUScpFr+Eqp6frGv/OCcaYAIy6wFcnJMsiSjMWHksxB
+# G9jWJgIeKfHfyZyiXVAPhj4NMEY26U/d2shWctlGdpG2isGMKMfffSPGm6X3xI/5
+# wskioYje9Q0x943PAoYAwNFQSy/w/sWYYLoZUp5higkZdeDJTJts0Z/Pow+yIvgw
+# LieCNdDaHiXxQAuclL8e3vqdDQQqeRtGZHZpsCbjZeRYFYN3qBGvlY+XKg14aAHB
+# 9Lpvi9qRwK1IyBdwreBsirWHnzPkAbS63huTXHo4b9kPwRCzpbQgPq6AR95LXO7a
+# NND3G5dqRl08bIBf0EU9hc97OjZJcnpWrpDZVqh7gcyLu3J3cdCThyZU2guh6EVc
+# 3BerBY+FU7kexpPs6O/ITpuwSdaQEWZ05JwXDu97WBg5vFFPms1QFlP1QCE60XIj
+# YU2yHe2d9Ib7/97qlAWpJrbYFjh8QzSm9/PqD2ab98rQWLx5UG8p7hjThkNzZyo3
+# QVfRzR1ZIfzLnYvup8gnwpXy29VMIbPa4L4A7KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTEwNDQxMjBaMC8GCSqGSIb3DQEJBDEiBCCRqbRbb65rVF2LtH+4
-# dSt7ol+HDQz/jMHgYobtjPbCeTANBgkqhkiG9w0BAQEFAASCAgAh5+ZX0BSO+T2j
-# f2OvBvFOlvAy6yzh3r9t+rrY2EskaKZ+WJNjugMrd2UA4+1W1/bivWfjEwIoKsxt
-# yJshp9IETF5TAJLnKrde7inLNwV6n3JkF2LBGUouaD18Zj1h0853gSecTIHy+ZVu
-# usur/dQ3GrrAcnZ0ksl7RgEAf22qOohOuORcaT//8KTC4Lz4mBd9vbagM4YOlfFp
-# 9qYH8tLJqGzB9IPggdPnSsjmWkBtjIzE4tH6FQco0c0lZ6FEdTMDwTBqQQRM6Ech
-# puIEQJRfC3z7QgZy5h4qn4FA0al5kNtMMtZwhZPttb9lFMoWOW9FxzbVzHcaPNO8
-# B0pW5wIEBJbDcrjwNXHWvzK8mwaXTWdT3gxzitCkpRknS1/97jejfe0esv1yw8uX
-# N1GVDZg5Hh6i53ynQ9mv1gK87+FEXIqrpNOY3Ts7CbqdwtxbLgjG75RbFsBpcUSw
-# h0KXDqrcsN8WuleDs5JooQNDPQ7cvjEHfXe0Mv4uehg7Kr+vNpFU62KsPa6pGim5
-# sc2qTOaD6MA2yx3UYBiW5zIu5fyfoa5x/4uZNYRkKoxfiym1/eUVTHM1zW7547sx
-# JfskCWR9U/w8c/DwnmXYoi1DynelcIdNg5Bf8ZzIF8xHQtO3PuqlxFrscpIWEb++
-# oTYQijDbZXgN1/5W9+LnamhXizlFyw==
+# BTEPFw0yNjA2MTMwNDMwMDJaMC8GCSqGSIb3DQEJBDEiBCB6TUwgAO+3S7/rQdd+
+# r/DWrp1/LmlJDH8STfTR2Lvr0DANBgkqhkiG9w0BAQEFAASCAgB3fKIG4dt6vKop
+# cwW17Xy9h8N2M+o8kvwJnCP9Pplc6EIVW2iTbZK11hf2Bxyf06YFNUEx3HIySdw3
+# j/Mc1GskrmtKc42oZotCFaIV8ElYKAwUmHm0d+Sugu5lRHK7Pfc/tAqDs0amyiTn
+# D5Dt7Yhill9bkqdSk/gk982mChOFOcODDPXG43CfABAyM2Ws+bra1QzP7fMNCdpb
+# D07/uFx+XpK2Gtd764XBINjTmQk9khnvXsoXimZFadAgxoqNl4AvIbdcRiIBbIAZ
+# zGlj5LUeCxstZIlljroOAw6odGx6rL3eSXFH9PKrIEwZla2odtpCwswQeYuWG8MO
+# y1yl3e6qTIaGtUqp7iXH7UHOknxlkIAgYOcDqBAngauUxBetAsu/acglOkK8oz/C
+# pL8u7uERIx5L4mdIwuskmbqEDishqvMDJZFtoPTrYNU+mDZC6NxiG/7KwaTxvwPh
+# E4uSnMCfkSVZ4VxPcBf9jChD+1V+UosTtkpBjEddYLHbvqAbjHvbAPuH9whQSoqD
+# WCv1ydzqa7JmgPPvbn7xjYr4hEV3KVFHCZA+lJCeWqRXODdSDYCZB4Ooy7Iog71P
+# PjXTb0f6I4QT4Cx/X38ZPjH8dMX8vz5Cg70oX/xvT37ESzCpKGwPzT67Ig9UeH+J
+# KUoqAMMSVMg/eBVPNqphxVgfnr0fmQ==
 # SIG # End signature block
