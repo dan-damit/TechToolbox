@@ -37,6 +37,7 @@ jobs:
         shell: pwsh
         run: |
           $exclude = @(
+            '.venv',
             '.git',
             '.github',
             '.vscode',
