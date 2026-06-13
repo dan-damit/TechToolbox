@@ -5,6 +5,7 @@
   - (Optional) Run PSSA analysis
   - Sign module files
   - (Optional) Package artifacts
+    - (Optional) Release automation (bump/commit/tag/push)
 
 .NOTES
   - Prefers PS7+ but works on Windows PowerShell 5.1+
@@ -14,9 +15,10 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [switch]$AutoVersionPatch,
+    [switch]$Release,
     [switch]$RegenerateGuid,
     [switch]$SkipSigning,
-    [switch]$SkipValidSigs = $true,
+    [bool]$SkipValidSigs = $true,
     [switch]$Recurse,
     [switch]$Analyze,         # Run PSSA (PowerShell ScriptAnalyzer)
     [switch]$FailOnPssa,      # Fail build if PSSA finds issues
@@ -28,6 +30,22 @@ param(
     [string]$TimestampServer,
     [string]$Thumbprint
 )
+
+function Invoke-Git {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$gitArgs,
+        [switch]$IgnoreExitCode
+    )
+
+    $output = & git -C $ModuleRoot @Args 2>&1
+    if ($LASTEXITCODE -ne 0 -and -not $IgnoreExitCode) {
+        $joined = ($output | Out-String).Trim()
+        throw "git $($gitArgs -join ' ') failed: $joined"
+    }
+
+    return ($output | Out-String).Trim()
+}
 
 # ---------------- 01. Load config --------------------------------------------
 $cfg = $null
@@ -41,6 +59,27 @@ $outDir = $cfg.artifacts.outDir ?? (Join-Path $ModuleRoot 'Out')
 $pssaSettings = $cfg.quality.pssaSettings ?? (Join-Path $ModuleRoot 'PSScriptAnalyzerSettings.psd1')
 $analyzeEnabled = $Analyze.IsPresent -or ($cfg.quality.analyze -eq $true)
 $failOnPssa = $FailOnPssa.IsPresent -or ($cfg.quality.failOnPssa -eq $true)
+
+# Release mode implies patch bump + manifest update flow, then git commit/tag/push.
+if ($Release) {
+    $AutoVersionPatch = $true
+
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        throw "git is required for -Release but was not found in PATH."
+    }
+
+    $repoRoot = Invoke-Git -Args @('rev-parse', '--show-toplevel')
+    if (-not $repoRoot) {
+        throw "-Release requires running inside a git repository."
+    }
+
+    $preReleaseDirty = Invoke-Git -Args @('status', '--porcelain')
+    if (-not [string]::IsNullOrWhiteSpace($preReleaseDirty)) {
+        throw "Working tree is not clean. Commit or stash local changes before running -Release."
+    }
+
+    Write-Host "Release mode enabled: auto-version patch + manifest update + git release steps." -ForegroundColor Cyan
+}
 
 # ---------------- 02. Validate environment -----------------------------------
 $manifestPath = Join-Path $ModuleRoot 'TechToolbox.psd1'
@@ -219,7 +258,47 @@ if ($Pack) {
     Write-Host "Packaged → $artifact" -ForegroundColor Green
 }
 
-# ---------------- 08. Emit summary -------------------------------------------
+# ---------------- 08. (Optional) Release commit/tag/push ---------------------
+$releaseTag = $null
+$releaseCommit = $null
+$releasePushed = $false
+if ($Release) {
+    $releaseTag = "v$newVersion"
+
+    $existingTag = Invoke-Git -Args @('tag', '--list', $releaseTag)
+    if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
+        throw "Tag already exists: $releaseTag"
+    }
+
+    $branchName = Invoke-Git -Args @('rev-parse', '--abbrev-ref', 'HEAD')
+
+    Invoke-Git -Args @('add', '-A') | Out-Null
+    & git -C $ModuleRoot diff --cached --quiet
+    if ($LASTEXITCODE -eq 0) {
+        throw "No staged changes detected after release build. Nothing to commit/tag."
+    }
+
+    $commitMessage = "release: $releaseTag"
+    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create release commit ($commitMessage)")) {
+        Invoke-Git -Args @('commit', '-m', $commitMessage) | Out-Null
+        $releaseCommit = Invoke-Git -Args @('rev-parse', '--short', 'HEAD')
+        Write-Host "Release commit created: $releaseCommit" -ForegroundColor Green
+    }
+
+    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create git tag $releaseTag")) {
+        Invoke-Git -Args @('tag', '-a', $releaseTag, '-m', "Release $releaseTag") | Out-Null
+        Write-Host "Tag created: $releaseTag" -ForegroundColor Green
+    }
+
+    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push branch '$branchName' and tag '$releaseTag' to origin")) {
+        Invoke-Git -Args @('push', 'origin', $branchName) | Out-Null
+        Invoke-Git -Args @('push', 'origin', $releaseTag) | Out-Null
+        $releasePushed = $true
+        Write-Host "Pushed branch + tag. Tag push should trigger .github/workflows/publish.yml" -ForegroundColor Green
+    }
+}
+
+# ---------------- 09. Emit summary -------------------------------------------
 $result = [pscustomobject]@{
     ManifestPath    = $manifestPath
     Version         = [pscustomobject]@{ Old = $oldVersion; New = $newVersion }
@@ -230,14 +309,21 @@ $result = [pscustomobject]@{
     FilesSkipped    = $skip
     FilesWarned     = $warn
     ArtifactPath    = $artifact
+    Release         = [pscustomobject]@{
+        Enabled      = [bool]$Release
+        Commit       = $releaseCommit
+        Tag          = $releaseTag
+        Pushed       = $releasePushed
+        PipelineHint = if ($releasePushed -and $releaseTag) { "GitHub Actions publish workflow triggers on pushed v* tags." } else { $null }
+    }
 }
 $result
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDmiYcuk/HLiMz2
-# zjRL3xKIvmesjiINJlj8SYRQ+j0t4KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDLOEjUUvLDYbYy
+# /biF2DeahiFe/FHnq1HObrCN48Ts7KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -370,34 +456,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8JniIaEY6
-# ENiQrZK2wCMdFQ2k/Gz8jX/rKrg/A+5yODANBgkqhkiG9w0BAQEFAASCAgAQnv7Y
-# 6qNOS5Qfu6UfrLHnVJahznDMC8/qHOfvKXJgrbOn7krZEHIa4XxIcGl7xFnoC7GF
-# jUVMeU7QkKk+vp4T0895mF4efel95mJYTjN9yBtnpwj2Se2cqu3vyVdAdWjmvnB4
-# ioVR/I4nH45vYl9tuW9FJkUScpFr+Eqp6frGv/OCcaYAIy6wFcnJMsiSjMWHksxB
-# G9jWJgIeKfHfyZyiXVAPhj4NMEY26U/d2shWctlGdpG2isGMKMfffSPGm6X3xI/5
-# wskioYje9Q0x943PAoYAwNFQSy/w/sWYYLoZUp5higkZdeDJTJts0Z/Pow+yIvgw
-# LieCNdDaHiXxQAuclL8e3vqdDQQqeRtGZHZpsCbjZeRYFYN3qBGvlY+XKg14aAHB
-# 9Lpvi9qRwK1IyBdwreBsirWHnzPkAbS63huTXHo4b9kPwRCzpbQgPq6AR95LXO7a
-# NND3G5dqRl08bIBf0EU9hc97OjZJcnpWrpDZVqh7gcyLu3J3cdCThyZU2guh6EVc
-# 3BerBY+FU7kexpPs6O/ITpuwSdaQEWZ05JwXDu97WBg5vFFPms1QFlP1QCE60XIj
-# YU2yHe2d9Ib7/97qlAWpJrbYFjh8QzSm9/PqD2ab98rQWLx5UG8p7hjThkNzZyo3
-# QVfRzR1ZIfzLnYvup8gnwpXy29VMIbPa4L4A7KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCVi4vLWZ0L
+# VHoeG7icIdbFYdX/Mi8459T7Ibz7rnjz7zANBgkqhkiG9w0BAQEFAASCAgCFLqbD
+# pRmxBBibgOYCIPholYDMoGY/0huWl/+YO3fBZpNGEB3xzsQCLLbR07paiABk1GQx
+# 8M3AbrE2NV2Zfm/aZtalVE1LOW/VN5oB12+rAxv5SVipbInovN4wOP5NRZBKfbKv
+# BaCgSr7CZGh24u/jePSkCN4EPzBZuHfNKTVRfq2wlseYAIS36FeeAAVovNc43T0U
+# XzgPlr9UPpKglrM89z5A+lUMKNBV69nMunHtx1hlaUbLU8UpXMSgkFMcrmS6P7b2
+# KdWmpssJ+qBIi3E6WS8FEcDWEB7ePEM0TNbVQQ0osg/9w5xINWgUmxyoEDxXlRxU
+# zHP/P9ZAWxB9sLZ81vwVPUT33qYCvovL1aXaTx25+lbNcIc9+WqNz3CawMCqOs/f
+# 8Nxw+4a0v8UBXDY6G35tmdZ548URs5vgwPbGYJ1DTclGSiJiM8j2ojA6Fi14dNCP
+# Xl5KMxdFdQwp60ntCntU31VmRkeOfoutjcfEVq93eVUObyNPo9TcF6urXDZLBqIA
+# ZzCWVMAqiv3ITJ9JSmsoMbmqI2SGO99eSA1T6ATmIjQgWdGV971p7T3gxpluu1t2
+# B/GS2mLqwuCK2I3KdMtTgDMGRuufAGZAF3xtctzHZ9rS1VJjlm+yEqaBRHGOp3NJ
+# +nuf1F9iaYozpsxSyWS2o7tzI1Tn+qVISSdNlKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTMwNDMwMDJaMC8GCSqGSIb3DQEJBDEiBCB6TUwgAO+3S7/rQdd+
-# r/DWrp1/LmlJDH8STfTR2Lvr0DANBgkqhkiG9w0BAQEFAASCAgB3fKIG4dt6vKop
-# cwW17Xy9h8N2M+o8kvwJnCP9Pplc6EIVW2iTbZK11hf2Bxyf06YFNUEx3HIySdw3
-# j/Mc1GskrmtKc42oZotCFaIV8ElYKAwUmHm0d+Sugu5lRHK7Pfc/tAqDs0amyiTn
-# D5Dt7Yhill9bkqdSk/gk982mChOFOcODDPXG43CfABAyM2Ws+bra1QzP7fMNCdpb
-# D07/uFx+XpK2Gtd764XBINjTmQk9khnvXsoXimZFadAgxoqNl4AvIbdcRiIBbIAZ
-# zGlj5LUeCxstZIlljroOAw6odGx6rL3eSXFH9PKrIEwZla2odtpCwswQeYuWG8MO
-# y1yl3e6qTIaGtUqp7iXH7UHOknxlkIAgYOcDqBAngauUxBetAsu/acglOkK8oz/C
-# pL8u7uERIx5L4mdIwuskmbqEDishqvMDJZFtoPTrYNU+mDZC6NxiG/7KwaTxvwPh
-# E4uSnMCfkSVZ4VxPcBf9jChD+1V+UosTtkpBjEddYLHbvqAbjHvbAPuH9whQSoqD
-# WCv1ydzqa7JmgPPvbn7xjYr4hEV3KVFHCZA+lJCeWqRXODdSDYCZB4Ooy7Iog71P
-# PjXTb0f6I4QT4Cx/X38ZPjH8dMX8vz5Cg70oX/xvT37ESzCpKGwPzT67Ig9UeH+J
-# KUoqAMMSVMg/eBVPNqphxVgfnr0fmQ==
+# BTEPFw0yNjA2MTMwNDU5MzJaMC8GCSqGSIb3DQEJBDEiBCCmX4KCqt7UK2ZY5xbR
+# PA05NcEciZ8oRdPX5ib1iTp8CDANBgkqhkiG9w0BAQEFAASCAgCvolgnByauxj4C
+# Q+nIS++vJ3yY0i96RlYfdtmOGeVzDiT8+V+T13ljeIWA0cTaWZxoI8xzwIv2Giyk
+# 3KauZv3soh1d2YkpAHjlhKv/mi8qbsyhzuXQQQGVP5XOsLT2/DYCqheg0K1P45VR
+# /c06O2f8i0K4tKCo3lVY0qxEgrC8ssBrHMNzqMe01Ehu00KmXIW1U6BwBeBgim4b
+# v9fgqoXi1/wjAuAl/Vny2sI8gMa5QzJ+tsF50eNVBE7EDPFh1QNGnILZbVj5FYdC
+# jskuYGEhGKg7aybiqYVTyBavuwaNxV/cswPvmjcYdPQrrvAAMywuSgasp/tfGnvU
+# BT0ym7bKgAsIUEuv/gM5b4lVHMgCX8iaT8FiqrWe3qW5+WF3xFFH3bfrSmPxd8sX
+# 4vQ+8U2jj4itK3XacrQ5SOpvJO6mx0BWMOBcJX00jtqZmKj62PwY/SeLaE7RfnF2
+# 1PuSklhq9jZy4XHRtIcMoLKRXKrp4fS3scnJ5Jc7VRceEVcrj1c1fDPvIEWLWYM5
+# GhhwhjqmzVtzB8Q83Gs9+dGtNBey+7losDVQOssn1ltreZymWh5iV7oiCIrxr1jO
+# BjLsocdwBuYq06erHqTCS98rFgrFgx/oji5s6cjolOkpVfTbsH6UHfoD3wJpj996
+# eGwNvBe9CvoyFs7QKJaPWgGc+tWGFg==
 # SIG # End signature block

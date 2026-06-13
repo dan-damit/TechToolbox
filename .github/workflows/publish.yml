@@ -1,0 +1,40 @@
+name: Publish to PowerShell Gallery
+
+on:
+  push:
+    tags:
+      - 'v*'   # Only run when pushing a version tag like v0.5.6
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PowerShell 7
+        uses: PowerShell/PowerShell-For-GitHub-Actions@v2
+        with:
+          version: '7.4.x'
+
+      - name: Publish Module to PSGallery
+        shell: pwsh
+        env:
+          NUGET_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          Write-Host "Publishing TechToolbox to PowerShell Gallery..."
+
+          # Build the module into a clean output folder
+          $modulePath = Join-Path $PWD "TechToolbox"
+          $manifest = Join-Path $modulePath "TechToolbox.psd1"
+
+          # Validate manifest
+          Test-ModuleManifest $manifest
+
+          # Publish
+          Publish-Module `
+            -Path $modulePath `
+            -NuGetApiKey $env:NUGET_KEY `
+            -Repository PSGallery `
+            -Verbose
