@@ -136,7 +136,8 @@ jobs:
 
           $exclude = @($ExcludeJson | ConvertFrom-Json)
 
-          $stagePath = Join-Path ([System.IO.Path]::GetTempPath()) ("TechToolbox-publish-" + [Guid]::NewGuid().ToString('N'))
+          $stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("TechToolbox-publish-" + [Guid]::NewGuid().ToString('N'))
+          $stagePath = Join-Path $stageRoot 'TechToolbox'
           New-Item -ItemType Directory -Path $stagePath -Force | Out-Null
 
           $topLevelExclude = $exclude | Where-Object { $_ -notmatch '[\\/]' }
@@ -166,8 +167,8 @@ jobs:
               -Verbose
           }
           finally {
-            if (Test-Path -LiteralPath $stagePath) {
-              Remove-Item -LiteralPath $stagePath -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $stageRoot) {
+              Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue
             }
           }
           '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
