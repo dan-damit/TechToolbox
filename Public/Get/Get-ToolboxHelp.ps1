@@ -135,7 +135,13 @@ function Get-ToolboxHelp {
         [switch]$AsJson,
 
         [Parameter(ParameterSetName = 'Command')]
-        [switch]$Examples
+        [switch]$Examples,
+
+        [Parameter(ParameterSetName = 'Config')]
+        [string]$Section,
+
+        [Parameter(ParameterSetName = 'Config')]
+        [string]$Search
     )
 
     begin {
@@ -165,7 +171,7 @@ function Get-ToolboxHelp {
                     Show-CommandList -AsJson $AsJson -HostEnv $hostEnvironment
                 }
                 'Config' {
-                    Show-Configuration -AsJson $AsJson -ConfigState $configState -HostEnv $hostEnvironment
+                    Show-Configuration -AsJson $AsJson -ConfigState $configState -HostEnv $hostEnvironment -Section $Section -Search $Search
                 }
                 'Command' {
                     Show-CommandHelp -Name $Name -Examples $Examples -HostEnv $hostEnvironment
@@ -476,14 +482,21 @@ function Show-CommandList {
 function Show-Configuration {
     <#
     .SYNOPSIS
-        Displays the effective configuration.
+        Displays the effective configuration with optional JSON output,
+        colorized sections, section filtering, and regex search.
     #>
     param(
         [bool]$AsJson = $false,
+
         [Parameter(Mandatory)]
         [hashtable]$ConfigState,
+
         [Parameter(Mandatory)]
-        [hashtable]$HostEnv
+        [hashtable]$HostEnv,
+
+        [string]$Section,
+
+        [string]$Search
     )
 
     $config = $null
@@ -515,7 +528,7 @@ function Show-Configuration {
             }
         }
         catch {
-            Write-Verbose ("Get-ToolboxHelp: Configuration load failed: {0}" -f $_.Exception.Message)
+            Write-Verbose ("Show-Configuration: Configuration load failed: {0}" -f $_.Exception.Message)
         }
     }
 
@@ -528,14 +541,84 @@ function Show-Configuration {
         return
     }
 
+    # ---- Section filtering ----
+    if ($Section) {
+        if ($config.PSObject.Properties.Name -contains $Section) {
+            $config = $config.$Section
+            Write-FormattedText -Text ("[Section: {0}]" -f $Section) -ForegroundColor Green -IsInteractive $HostEnv.IsInteractive
+        }
+        else {
+            Write-FormattedText -Text ("Section '{0}' not found." -f $Section) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+            return
+        }
+    }
+
+    # ---- JSON mode ----
     if ($AsJson) {
         $config | ConvertTo-Json -Depth 20
+        Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+        return
     }
-    else {
-        # Pretty-print JSON but without forcing the user into JSON mode
-        $json = $config | ConvertTo-Json -Depth 20
-        $json | Out-String
+
+    # ---- Regex search mode ----
+    if ($Search) {
+        Write-FormattedText -Text ("[Search: {0}]" -f $Search) -ForegroundColor Green -IsInteractive $HostEnv.IsInteractive
+
+        function Search-Config {
+            param(
+                [object]$Obj,
+                [string]$Path = ''
+            )
+
+            if ($Obj -is [System.Collections.IDictionary]) {
+                foreach ($key in $Obj.Keys) {
+                    $newPath = if ($Path) { "$Path.$key" } else { $key }
+                    Search-Config -Obj $Obj[$key] -Path $newPath
+                }
+            }
+            elseif ($Obj -is [System.Collections.IEnumerable] -and -not ($Obj -is [string])) {
+                $i = 0
+                foreach ($item in $Obj) {
+                    Search-Config -Obj $item -Path "$Path[$i]"
+                    $i++
+                }
+            }
+            else {
+                $value = [string]$Obj
+                if ($Path -match $Search -or $value -match $Search) {
+                    Write-FormattedText -Text ("{0} = {1}" -f $Path, $value) -ForegroundColor Cyan -IsInteractive $HostEnv.IsInteractive
+                }
+            }
+        }
+
+        Search-Config -Obj $config
+        Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+        return
     }
+
+    # ---- Colorized pretty output ----
+    function Show-ColorizedObject {
+        param([object]$Obj, [int]$Indent = 0)
+
+        $pad = ' ' * $Indent
+
+        if ($Obj -is [System.Collections.IDictionary]) {
+            foreach ($key in $Obj.Keys) {
+                Write-FormattedText -Text ("{0}{1}:" -f $pad, $key) -ForegroundColor DarkCyan -IsInteractive $HostEnv.IsInteractive
+                Show-ColorizedObject -Obj $Obj[$key] -Indent ($Indent + 4)
+            }
+        }
+        elseif ($Obj -is [System.Collections.IEnumerable] -and -not ($Obj -is [string])) {
+            foreach ($item in $Obj) {
+                Show-ColorizedObject -Obj $item -Indent ($Indent + 2)
+            }
+        }
+        else {
+            Write-FormattedText -Text ("{0}{1}" -f $pad, $Obj) -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+        }
+    }
+
+    Show-ColorizedObject -Obj $config
 
     Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
 }
