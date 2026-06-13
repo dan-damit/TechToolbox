@@ -47,6 +47,13 @@ PARAMETERS
         --destructive-confirmed flag to the Python agent and logs a warning
         message: "Destructive operations explicitly authorized for this run."
 
+    -SignedFilePolicy
+        Sets how the agent handles overwriting existing Authenticode-signed
+        PowerShell files. Allowed values:
+        - ignore: Block overwrite when a signature block is detected.
+        - strip: Allow overwrite and strip signature block text.
+        Passes --signed-file-policy to the Python agent.
+
     -AutoRetryOnRecursion
         Enables automatic retry when the Python agent hits a recursion limit.
         Passes --auto-retry-on-recursion to the Python agent.
@@ -101,6 +108,14 @@ EXAMPLES
         Description
         -----------
         Sends a prompt and explicitly authorizes destructive operations for this run.
+
+    Example 4:
+        Invoke-TechAgent "Update Public/Get/Get-ToolboxHelp.ps1" -ConfirmDestructive -SignedFilePolicy strip
+
+        Description
+        -----------
+        Allows overwrite of an Authenticode-signed PowerShell file by stripping
+        the signature block during write.
 
 SEE ALSO
     - about_TechToolbox
