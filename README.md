@@ -398,7 +398,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 ## Metadata
 
 - **Author:** Dan Damit
-- **License:** Internal use
+- **License:** MIT License
 - **Module version:** 0.5.16
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
