@@ -13,24 +13,63 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install PowerShell 7.6.2
+        shell: pwsh
+        run: |
+          $version = '7.6.2'
+          $zipPath = Join-Path $env:RUNNER_TEMP "powershell-$version-win-x64.zip"
+          $installDir = Join-Path $env:RUNNER_TEMP "powershell-$version"
+          $downloadUrl = "https://github.com/PowerShell/PowerShell/releases/download/v$version/PowerShell-$version-win-x64.zip"
+
+          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+          Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $installDir -Force
+
+          $pwshExe = Join-Path $installDir 'pwsh.exe'
+          if (-not (Test-Path -LiteralPath $pwshExe)) {
+            throw "PowerShell $version install failed; expected executable not found at $pwshExe"
+          }
+
+          "PWSH_76_EXE=$pwshExe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & $pwshExe -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+
       - name: Publish Module to PSGallery
         shell: pwsh
         env:
           NUGET_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
-          Write-Host "Publishing TechToolbox to PowerShell Gallery..."
-
           if ([string]::IsNullOrWhiteSpace($env:NUGET_KEY)) {
             throw "Missing PSGALLERY_API_KEY secret. Set repository secret 'PSGALLERY_API_KEY' and re-run."
           }
 
-          $modulePath = $PWD.Path
-          $manifest = Join-Path $modulePath "TechToolbox.psd1"
+          if ([string]::IsNullOrWhiteSpace($env:PWSH_76_EXE)) {
+            throw "Missing PWSH_76_EXE environment variable from install step."
+          }
 
+          if (-not (Test-Path -LiteralPath $env:PWSH_76_EXE)) {
+            throw "PowerShell 7.6.2 executable not found: $env:PWSH_76_EXE"
+          }
+
+          Write-Host "Publishing TechToolbox to PowerShell Gallery with $env:PWSH_76_EXE..."
+
+          $publishScriptPath = Join-Path $env:RUNNER_TEMP 'publish-module.ps1'
+          @'
+          param(
+            [Parameter(Mandatory)]
+            [string]$ModulePath,
+            [Parameter(Mandatory)]
+            [string]$NuGetKey
+          )
+
+          $manifest = Join-Path $ModulePath "TechToolbox.psd1"
           Test-ModuleManifest $manifest
 
           Publish-Module `
-            -Path $modulePath `
-            -NuGetApiKey $env:NUGET_KEY `
+            -Path $ModulePath `
+            -NuGetApiKey $NuGetKey `
             -Repository PSGallery `
             -Verbose
+          '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
+
+          $modulePath = $PWD.Path
+          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY
