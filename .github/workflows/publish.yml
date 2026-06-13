@@ -136,15 +136,40 @@ jobs:
 
           $exclude = @($ExcludeJson | ConvertFrom-Json)
 
-          $manifest = Join-Path $ModulePath "TechToolbox.psd1"
+          $stagePath = Join-Path ([System.IO.Path]::GetTempPath()) ("TechToolbox-publish-" + [Guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $stagePath -Force | Out-Null
+
+          $topLevelExclude = $exclude | Where-Object { $_ -notmatch '[\\/]' }
+          Get-ChildItem -LiteralPath $ModulePath -Force | ForEach-Object {
+            if ($topLevelExclude -contains $_.Name) {
+              return
+            }
+            Copy-Item -LiteralPath $_.FullName -Destination $stagePath -Recurse -Force
+          }
+
+          foreach ($entry in ($exclude | Where-Object { $_ -match '[\\/]' })) {
+            $relativePath = $entry -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
+            $excludePath = Join-Path $stagePath $relativePath
+            if (Test-Path -LiteralPath $excludePath) {
+              Remove-Item -LiteralPath $excludePath -Recurse -Force
+            }
+          }
+
+          $manifest = Join-Path $stagePath "TechToolbox.psd1"
           Test-ModuleManifest $manifest
 
-          Publish-Module `
-            -Path $ModulePath `
-            -Exclude $exclude `
-            -NuGetApiKey $NuGetKey `
-            -Repository PSGallery `
-            -Verbose
+          try {
+            Publish-Module `
+              -Path $stagePath `
+              -NuGetApiKey $NuGetKey `
+              -Repository PSGallery `
+              -Verbose
+          }
+          finally {
+            if (Test-Path -LiteralPath $stagePath) {
+              Remove-Item -LiteralPath $stagePath -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
           '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
 
           $modulePath = $PWD.Path
