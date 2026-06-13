@@ -19,6 +19,39 @@ function Initialize-ModulePath {
         )
     )
 
+    $conventionalRootCandidates = @(
+        (Join-Path $HOME 'Documents\PowerShell\Modules')
+        (Join-Path $HOME 'Documents\WindowsPowerShell\Modules')
+        (Join-Path $env:ProgramFiles 'PowerShell\Modules')
+        $(if (-not [string]::IsNullOrWhiteSpace(${env:ProgramFiles(x86)})) { Join-Path ${env:ProgramFiles(x86)} 'PowerShell\Modules' })
+        (Join-Path $PSHOME 'Modules')
+    )
+
+    $conventionalRoots = $conventionalRootCandidates |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+    Select-Object -Unique
+
+    $normalizedModuleRoot = $ModuleRoot
+    try {
+        if (Test-Path -LiteralPath $ModuleRoot) {
+            $normalizedModuleRoot = (Resolve-Path -LiteralPath $ModuleRoot -ErrorAction Stop).Path
+        }
+    }
+    catch {}
+
+    $isConventionalModuleRoot = $false
+    foreach ($root in $conventionalRoots) {
+        if ($normalizedModuleRoot.TrimEnd('\\').StartsWith($root.TrimEnd('\\'), [System.StringComparison]::OrdinalIgnoreCase)) {
+            $isConventionalModuleRoot = $true
+            break
+        }
+    }
+
+    if (-not $isConventionalModuleRoot) {
+        Write-Verbose "Skipping PSModulePath update for non-conventional module root: $ModuleRoot"
+        return
+    }
+
     # Ensure directory exists
     if (-not (Test-Path -LiteralPath $ModuleRoot)) {
         New-Item -ItemType Directory -Path $ModuleRoot -Force | Out-Null
@@ -36,8 +69,6 @@ function Initialize-ModulePath {
     if ($needsAdd) {
         $new = @($parts + $ModuleRoot) -join $sep
         [Environment]::SetEnvironmentVariable('PSModulePath', $new, $Scope)
-    }
-    else {
     }
 
     # Ensure the current session sees it immediately
