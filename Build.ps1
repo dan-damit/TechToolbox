@@ -38,7 +38,7 @@ function Invoke-Git {
         [switch]$IgnoreExitCode
     )
 
-    $output = & git -C $ModuleRoot @Args 2>&1
+    $output = & git -C $ModuleRoot @gitArgs 2>&1
     if ($LASTEXITCODE -ne 0 -and -not $IgnoreExitCode) {
         $joined = ($output | Out-String).Trim()
         throw "git $($gitArgs -join ' ') failed: $joined"
@@ -68,12 +68,12 @@ if ($Release) {
         throw "git is required for -Release but was not found in PATH."
     }
 
-    $repoRoot = Invoke-Git -Args @('rev-parse', '--show-toplevel')
+    $repoRoot = Invoke-Git -gitArgs @('rev-parse', '--show-toplevel')
     if (-not $repoRoot) {
         throw "-Release requires running inside a git repository."
     }
 
-    $preReleaseDirty = Invoke-Git -Args @('status', '--porcelain')
+    $preReleaseDirty = Invoke-Git -gitArgs @('status', '--porcelain')
     if (-not [string]::IsNullOrWhiteSpace($preReleaseDirty)) {
         throw "Working tree is not clean. Commit or stash local changes before running -Release."
     }
@@ -265,14 +265,14 @@ $releasePushed = $false
 if ($Release) {
     $releaseTag = "v$newVersion"
 
-    $existingTag = Invoke-Git -Args @('tag', '--list', $releaseTag)
+    $existingTag = Invoke-Git -gitArgs @('tag', '--list', $releaseTag)
     if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
         throw "Tag already exists: $releaseTag"
     }
 
-    $branchName = Invoke-Git -Args @('rev-parse', '--abbrev-ref', 'HEAD')
+    $branchName = Invoke-Git -gitArgs @('rev-parse', '--abbrev-ref', 'HEAD')
 
-    Invoke-Git -Args @('add', '-A') | Out-Null
+    Invoke-Git -gitArgs @('add', '-A') | Out-Null
     & git -C $ModuleRoot diff --cached --quiet
     if ($LASTEXITCODE -eq 0) {
         throw "No staged changes detected after release build. Nothing to commit/tag."
@@ -280,19 +280,19 @@ if ($Release) {
 
     $commitMessage = "release: $releaseTag"
     if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create release commit ($commitMessage)")) {
-        Invoke-Git -Args @('commit', '-m', $commitMessage) | Out-Null
-        $releaseCommit = Invoke-Git -Args @('rev-parse', '--short', 'HEAD')
+        Invoke-Git -gitArgs @('commit', '-m', $commitMessage) | Out-Null
+        $releaseCommit = Invoke-Git -gitArgs @('rev-parse', '--short', 'HEAD')
         Write-Host "Release commit created: $releaseCommit" -ForegroundColor Green
     }
 
     if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create git tag $releaseTag")) {
-        Invoke-Git -Args @('tag', '-a', $releaseTag, '-m', "Release $releaseTag") | Out-Null
+        Invoke-Git -gitArgs @('tag', '-a', $releaseTag, '-m', "Release $releaseTag") | Out-Null
         Write-Host "Tag created: $releaseTag" -ForegroundColor Green
     }
 
     if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push branch '$branchName' and tag '$releaseTag' to origin")) {
-        Invoke-Git -Args @('push', 'origin', $branchName) | Out-Null
-        Invoke-Git -Args @('push', 'origin', $releaseTag) | Out-Null
+        Invoke-Git -gitArgs @('push', 'origin', $branchName) | Out-Null
+        Invoke-Git -gitArgs @('push', 'origin', $releaseTag) | Out-Null
         $releasePushed = $true
         Write-Host "Pushed branch + tag. Tag push should trigger .github/workflows/publish.yml" -ForegroundColor Green
     }
@@ -322,8 +322,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDLOEjUUvLDYbYy
-# /biF2DeahiFe/FHnq1HObrCN48Ts7KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB/WXHw9H2wJW14
+# FslWio5QRdLKF0vKkuwYAY7MfOUqq6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -456,34 +456,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCVi4vLWZ0L
-# VHoeG7icIdbFYdX/Mi8459T7Ibz7rnjz7zANBgkqhkiG9w0BAQEFAASCAgCFLqbD
-# pRmxBBibgOYCIPholYDMoGY/0huWl/+YO3fBZpNGEB3xzsQCLLbR07paiABk1GQx
-# 8M3AbrE2NV2Zfm/aZtalVE1LOW/VN5oB12+rAxv5SVipbInovN4wOP5NRZBKfbKv
-# BaCgSr7CZGh24u/jePSkCN4EPzBZuHfNKTVRfq2wlseYAIS36FeeAAVovNc43T0U
-# XzgPlr9UPpKglrM89z5A+lUMKNBV69nMunHtx1hlaUbLU8UpXMSgkFMcrmS6P7b2
-# KdWmpssJ+qBIi3E6WS8FEcDWEB7ePEM0TNbVQQ0osg/9w5xINWgUmxyoEDxXlRxU
-# zHP/P9ZAWxB9sLZ81vwVPUT33qYCvovL1aXaTx25+lbNcIc9+WqNz3CawMCqOs/f
-# 8Nxw+4a0v8UBXDY6G35tmdZ548URs5vgwPbGYJ1DTclGSiJiM8j2ojA6Fi14dNCP
-# Xl5KMxdFdQwp60ntCntU31VmRkeOfoutjcfEVq93eVUObyNPo9TcF6urXDZLBqIA
-# ZzCWVMAqiv3ITJ9JSmsoMbmqI2SGO99eSA1T6ATmIjQgWdGV971p7T3gxpluu1t2
-# B/GS2mLqwuCK2I3KdMtTgDMGRuufAGZAF3xtctzHZ9rS1VJjlm+yEqaBRHGOp3NJ
-# +nuf1F9iaYozpsxSyWS2o7tzI1Tn+qVISSdNlKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDYW74mm4u7
+# xDENcjO4P6Jl8KqUEdfxs8pNMxVN5Qzw/TANBgkqhkiG9w0BAQEFAASCAgAEEdqp
+# L+xTBr7nJEuW6dvKqMpZHWqp9XnQmCUoOtYS45mHeSJ6w5BK4HgDryz1emsHG+E6
+# 7Y1s39hUkdu3/8d73JD/onHuWwrmwhJL7Byw/DwRIQF6/DTRbYtqhFXynCDuBf8W
+# jHTu8uZ/Ua3Ckdj2fv7MdENqQW2w+y13nT0o8qRkTGajTCvIJ1iFdap9gYGALIO1
+# nJd0ec9Ptuk8VRoaz81lAbIeUQQGZnqHscx72u8uvvfNf09GdM8ZAmXkUixP28rL
+# Bu8Q/WKaq6RWpELMXV199Zgm7jPzCqSb6mTpCma5ljCdypp/wD/z0hH8qHZzbShu
+# lLSLmQwuag9d9GqeifWKi07W2rWVWfgzm/k/r4ikT4XwnsLMybQxqz8a+7ZOGCse
+# DUlxu5LHgshp5MnjpPFYEv+Phx5+FMa8vM0Lma8jtMy1Uw586fNBdIu1et41+u6s
+# zg5uUTLeKFAZ5+ejAefDsVOQTm+DwtOs/yz2mExtiYla8DXSZZCsPq42cB9j+275
+# uIF7STA1/tD16PAnXQ/ixXf10HpUn12Hdihrrzj+BvuiusSCAPLawp7XvDxWNrf0
+# 988qPUd66xhb0VYzht5vw/O8PQ3H0gle9HA/E0Dk9F7XNdfsrbnjT35sEaYocqXS
+# ZvAPVxloA9Zfwfy+CAkmzvt1zAsu29dymx7aMaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTMwNDU5MzJaMC8GCSqGSIb3DQEJBDEiBCCmX4KCqt7UK2ZY5xbR
-# PA05NcEciZ8oRdPX5ib1iTp8CDANBgkqhkiG9w0BAQEFAASCAgCvolgnByauxj4C
-# Q+nIS++vJ3yY0i96RlYfdtmOGeVzDiT8+V+T13ljeIWA0cTaWZxoI8xzwIv2Giyk
-# 3KauZv3soh1d2YkpAHjlhKv/mi8qbsyhzuXQQQGVP5XOsLT2/DYCqheg0K1P45VR
-# /c06O2f8i0K4tKCo3lVY0qxEgrC8ssBrHMNzqMe01Ehu00KmXIW1U6BwBeBgim4b
-# v9fgqoXi1/wjAuAl/Vny2sI8gMa5QzJ+tsF50eNVBE7EDPFh1QNGnILZbVj5FYdC
-# jskuYGEhGKg7aybiqYVTyBavuwaNxV/cswPvmjcYdPQrrvAAMywuSgasp/tfGnvU
-# BT0ym7bKgAsIUEuv/gM5b4lVHMgCX8iaT8FiqrWe3qW5+WF3xFFH3bfrSmPxd8sX
-# 4vQ+8U2jj4itK3XacrQ5SOpvJO6mx0BWMOBcJX00jtqZmKj62PwY/SeLaE7RfnF2
-# 1PuSklhq9jZy4XHRtIcMoLKRXKrp4fS3scnJ5Jc7VRceEVcrj1c1fDPvIEWLWYM5
-# GhhwhjqmzVtzB8Q83Gs9+dGtNBey+7losDVQOssn1ltreZymWh5iV7oiCIrxr1jO
-# BjLsocdwBuYq06erHqTCS98rFgrFgx/oji5s6cjolOkpVfTbsH6UHfoD3wJpj996
-# eGwNvBe9CvoyFs7QKJaPWgGc+tWGFg==
+# BTEPFw0yNjA2MTMwNTEwMjZaMC8GCSqGSIb3DQEJBDEiBCCVqZcp0k1GK1t9QYOa
+# XnqqU+NzGwQ04KvmKSo/ya3rijANBgkqhkiG9w0BAQEFAASCAgAW/wNuBKBGLPhx
+# 3BeHKpZwrDH9G57KzdwqRruYuBCRqLqo8dAkvPjg/RsJw2ejqI9XwoYfm5mfmre/
+# oQNbtv1kUeFNJ0b2pO+cvve7avtJ9D4iVAKctfFsfrnvaOQsB+EMerb6eGp75Wa7
+# sEujkQwWlvQFQEz5s9ib9PBipTxqQpTLVT7HbaRg8AgHINGd7YezReXOPaW+CEyE
+# lOEQvjqJ051uIHu6KO88Hhyghy0GjRHR3niDZqWmfAw4eppT2OVQYt0PFs8q2tdZ
+# EPqJ/xpI+9cIGlrggzspihRG7iwcQyVLZeBI5yRA6cU+2BV8U3ha+0iYNsdrqb0z
+# beJ1+CK8wrk47WXBiRo4+mAijmtItOFKBJOI8LzwMPxwyTIg168JnpQ1DXLfP9+k
+# 2mZrEzshfkOjljbgFcXYrFiUKMRiNkvflIMXC6AASJbJu+oDUXfKGGSZlZTlpPmx
+# Mn8NwynWb44lAOA9nsDRsgW3l58n3olrNhjOoheKmJVK9oV0QM/k8Q32GBsP1sXZ
+# xfI1wAuCQju2ViZTGfgX0PW9PO8RWKw/MB8ZwjZKSBXLw1DpyumU3opF8sAl0Bo5
+# ugbN3IcwPwsltzR6VK9wx/SvHmmfFX9xWH/jdStwDUm4uGHktcKCc3Ffihc1XZnc
+# JkQSbQMtZ7VbbBRXOq7U+i4ad6zraw==
 # SIG # End signature block
