@@ -185,6 +185,21 @@ function ITA {
                     continue
                 }
 
+                '^signedfilepolicy$' {
+                    if (-not $valueProvided) {
+                        throw "ITA: -SignedFilePolicy requires a value. Allowed values: ignore, strip."
+                    }
+
+                    $policyValue = [string]$nextValue
+                    if ($policyValue -notin @('ignore', 'strip')) {
+                        throw "ITA: -SignedFilePolicy value '$policyValue' is invalid. Allowed values: ignore, strip."
+                    }
+
+                    $agentArgs['SignedFilePolicy'] = $policyValue
+                    $i++
+                    continue
+                }
+
                 '^(quiet|confirmdestructive|notranscript)$' {
                     $switchValue = $true
                     if ($valueProvided) {
@@ -215,7 +230,7 @@ function ITA {
                 }
 
                 default {
-                    throw "ITA: Unsupported parameter '$item'. Allowed forwarded parameters are -Model, -MaxIterations, -Quiet, -ConfirmDestructive, and -NoTranscript."
+                    throw "ITA: Unsupported parameter '$item'. Allowed forwarded parameters are -Model, -MaxIterations, -SignedFilePolicy, -Quiet, -ConfirmDestructive, and -NoTranscript."
                 }
             }
         }
@@ -547,8 +562,8 @@ Register-ITACompletions
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBMZN262HfiftRv
-# gCrazze91XWkNDGdorsYyusnA2Lu/aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDQ3Z37PL+rqUfd
+# MLtk8pA9c11Crtg8Mv96+MQulKp0wqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -681,34 +696,34 @@ Register-ITACompletions
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAs45B9xBV3
-# 7g5J5trK8aGCsd0AEDeGtL8C/omvDBPbTTANBgkqhkiG9w0BAQEFAASCAgAlAs6k
-# P/HvXf2IP994jLVX3FkGflCWmQWi3gL64TYTohMBNWzUnYQXW4HPziKI8nPvwiec
-# /Ut/DdVbCmYnZdMZT53FbDeTTkcd2x7eB5AQN+n6dBPFNK9K/O6BSIKr76HKU//Q
-# tJeCilP4n/eRYj/Xlvn7mepSHfrlkLVhUFV+4JEdLvnQK7nqV8sJ/CQfEDpSVRJ+
-# CODVsSaYWcRN844ZNm1lVFg7x59dpZsWUWEUzZmu0+++Q4urN2Pn2T0LJvCBaU7c
-# FDtvzJe1rMWHSv1LOXUq2zAbktVoFUIX4auMsRopd7uQ7oOTCK9RAMjUsMbxtuCF
-# xcyfGt5JdQFMMzpxvIMXYfQSjG9HcKxBCdASyqyLTC0hVfAr1gRAFp6ha/4ymxhp
-# lHjkciryL+iCtq659ZukyMkDj/FwrFlwN3+ch/YmMh8tl5Rg8dIWfXXrJoFZhRWK
-# O7GllpWuk7WL3X6vUZgtQk01fac7Jo7pvCAMJNSDB4CgXTl9Lim1im3jZKQpCm3A
-# l3WYjTAeghmOAUWBH2lTb5K55E0OsRXSpGXBzXWjUKNOkVGMCwSgabvD7gd5ii5a
-# EjPMGhyGvCjXafTWN10aofPXEQlnlANfUltrjYHlc9uodmq2UBlbYpp9D1cLKUik
-# cHfCf85Z4G0ZjOTLTN8lgDKa6oafLVTx8tllT6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC3gVGuA+32
+# X5U1eNZQ8ECR5raSY2vOeA8f9atwi3CnHzANBgkqhkiG9w0BAQEFAASCAgDAV+ic
+# 4L/5EJHVQguhPRL0t73kK+aXEXvKfBO9eycGwymulvu9uDXUi/CwPbsvRIZU6s/x
+# 2zkdTEERoxPTf5xM5xf3ZesWTRDHzNlWE4akDw7fDKBmxZyvDjgSGcEzBiZb1AYA
+# 1q7L3nc8y/psXUcaY+0yppsa9WV5mZKzGtB3jeyebQ0YlxeSeW1QapP/WXSo+itM
+# rjkEMGXpfTLiIHJvzmvzhzglGTw+X/1g4jzkJwN9XBCxaIiYMWbp3UuOA16Ssxwj
+# n1EwlIQMZIdn7a2srrQ5shNtkUi+GridyjInbtrbz6LaK2cwjVowWi8ZeAijOBXW
+# so6Vn5zyiChMINPHuX+i7NqOpUErQHzSrBH8OF9YxQxjRYZEPtGTCtz6tLMOT2wN
+# xho4Mks/onQH11Dk78XRdbyhwdifjXK5b/AaQFjy8b0DvGwMqQ5nrMWqRC16/ji6
+# LIGaVN1mcAV8OaOBc6ieWvn3GnUiB2gCt8wyHX0efnTe2khPwfDjEdyfDsT2ezRq
+# uZtiiTJLJPQ1R1rHwyIEFQWWNGjc8bj+SNGO1f52VDP8tAsmf/ITEFFQVVJBOYip
+# rjyzjkoPRmnqGKCxcwY1b2x1jXu//4yAhGKxnf4aoViApbQG8Jrg1jLhgm7ggS9q
+# MATYlQoGdWeb7fIlNG3IOm6/pJjBI+XyTLpvk6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTIwMjUyMjRaMC8GCSqGSIb3DQEJBDEiBCBDCob1IcdINaKiJj7X
-# g8Z/Am9f51nOxQWgMgn0jysR3jANBgkqhkiG9w0BAQEFAASCAgArdKHRhggX3/+i
-# gCLRL87VUgbAG90Q0pyK2fLCZiZHskGUb+FBnGowKwIon/xaPQII4LGY+xAIrHak
-# HzGaOQMzAWxsml988x4fGjj4HqdlKQWXlWFsKkpMT8ET0ilm1UjjOv6StGFAuJ8M
-# ANXON6xrM4wc+UoJ7WwDYjm1DRTwDoEdOvbLBTSVIcR6llwTVQrGqIOTpmam07nS
-# Y8AShoq7qu8nMovT+Mi7O6Hrw5rWNFGUiXXZXB8IsXht9wFDifWKy5fIhig2VQeG
-# tglDNrpo9uZn9xRb4V5djaYmGWEQIk7izPbKR5tIAcRXb9zBOV9XF30EmpMDdjIJ
-# GzspnQJJO0+okSBAHG9vr/J7wTBYAXMIgCdPphr0fr+VQ6Xq2K12H5A5JspigrFJ
-# 1Eco9J6NdCwyZ3yCx6OufQsQ0wnGSduaZrR+RtVPxXNCQChYLjA+z9B+Riyuzr1W
-# siUDYtZqb2eGmNUKYCZEb/MSw0Xlin7VhCxR1JCCqVCb7+SYU/7QnacXy9ETXhra
-# 2+jg4NG6DQdnL9hJTGFIoo7+FDrfrQZpZ/p9LAu6W+LmfUxcVA5qtUKUSF5ofwdt
-# yqqWkP0F2BDNASjp5LjcuP2jAT59DT4Ux2ktm4ju3q6k9pw5rxxRTmPkby+ih0tG
-# S7OGW6D1IFFq1Nv3Qq2aOtM4ZsZB5Q==
+# BTEPFw0yNjA2MTMwMzMzMjVaMC8GCSqGSIb3DQEJBDEiBCBLgdlLPRNZPLhc7o1+
+# CTA5ouK2LvyFg+z+lk1sxdIUmzANBgkqhkiG9w0BAQEFAASCAgDCvS7h1/HS7+eg
+# 3DWBXlK2HT08tazYFI0jaPXfa8tHnqjAc2MdH/voX2Ur44ezD70nu6maLDx0eX+f
+# rik4455he+Wc7o9+jk/MOFL8gQr1yAaEGuNRLkO9EER++AFzPgapKsGIXDS//Tjv
+# TSVyVEEZIckGW2Dlqs+KeX/wjbSYSM5+ObH422M0m0VTWR2cc74MKjeLSs+r13vH
+# qEhQH2QwmuYJzPK0rIa5FefqD4wqg+/D4qXTmM6MraHutznAwNs0KvIvLdJjSQyH
+# g/mMXevJ3NH465iD8vsBD7JvgJ/w28uLjf+hdClMEn1ZgTp7O9L5u7BW8j7bXjJO
+# LzgsYCnkG/DZm0lQ5zKmp6oCTLTuMFp3dEU1w+R7RQdifs7e30UmMF/WzioNNcz0
+# KUYG/i5cgjbNyOwUaY0e4/fKxjKRVm52H0lo3gdh8/RUstvqqKCpRoShk0dY+BvT
+# FIikdLQZTp81lhDmW96T0qrz7YoBmhCxuBf6vxS0QtHgFMvM5gJgpW8q6ZUfMdlk
+# S5g9paOaD5VRIMo2ekZBRh95fZmDoWIr/qnVu9A8Zzr8IpMocAl3Enjs1b8Gxyih
+# j3243pqOLUK9sMudLhn8w7MyU8GCYlYxOM/mDRa/EtmqkNHlfv/cRw0Cvlv4Cmrd
+# X9VlLv9zppVgwj8gdmEJpHDjke8xhw==
 # SIG # End signature block
