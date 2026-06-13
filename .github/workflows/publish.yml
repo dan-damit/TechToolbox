@@ -33,6 +33,72 @@ jobs:
           "PWSH_76_EXE=$pwshExe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           & $pwshExe -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
 
+      - name: Set PSGallery exclusions
+        shell: pwsh
+        run: |
+          $exclude = @(
+            '.git',
+            '.github',
+            '.vscode',
+            'Out',
+            'CodeAnalysis',
+            'LogsAndExports',
+            'Bin',
+            'Build.ps1',
+            'TechToolbox.code-workspace',
+            'dotnet-tools.json',
+            'PSScriptAnalyzerSettings.psd1',
+            'VERSIONING.md',
+            'CHANGELOG.md',
+            'commands.md',
+            'Config/build.config.json'
+          )
+
+          $excludeJson = $exclude | ConvertTo-Json -Compress
+          $delimiter = "EOF$([Guid]::NewGuid().ToString('N'))"
+          "PSGALLERY_EXCLUDE_JSON<<$delimiter" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $excludeJson | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "$delimiter" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Preview PSGallery package contents
+        shell: pwsh
+        run: |
+          $modulePath = $PWD.Path
+          if ([string]::IsNullOrWhiteSpace($env:PSGALLERY_EXCLUDE_JSON)) {
+            throw "Missing PSGALLERY_EXCLUDE_JSON environment variable from exclusions step."
+          }
+          $exclude = @($env:PSGALLERY_EXCLUDE_JSON | ConvertFrom-Json)
+
+          $stagePath = Join-Path $env:RUNNER_TEMP 'TechToolbox-publish-preview'
+          if (Test-Path -LiteralPath $stagePath) {
+            Remove-Item -LiteralPath $stagePath -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $stagePath -Force | Out-Null
+
+          $topLevelExclude = $exclude | Where-Object { $_ -notmatch '[\\/]' }
+
+          Get-ChildItem -LiteralPath $modulePath -Force | ForEach-Object {
+            if ($topLevelExclude -contains $_.Name) {
+              return
+            }
+            Copy-Item -LiteralPath $_.FullName -Destination $stagePath -Recurse -Force
+          }
+
+          $nestedExclude = Join-Path $stagePath 'Config/build.config.json'
+          if (Test-Path -LiteralPath $nestedExclude) {
+            Remove-Item -LiteralPath $nestedExclude -Force
+          }
+
+          $files = Get-ChildItem -LiteralPath $stagePath -Recurse -File |
+            ForEach-Object {
+              $_.FullName.Substring($stagePath.Length + 1).Replace('\\', '/')
+            } |
+            Sort-Object
+
+          Write-Host 'Preview of files to be published:'
+          $files | ForEach-Object { Write-Host " - $_" }
+          Write-Host "Total files: $($files.Count)"
+
       - name: Publish Module to PSGallery
         shell: pwsh
         env:
@@ -44,6 +110,10 @@ jobs:
 
           if ([string]::IsNullOrWhiteSpace($env:PWSH_76_EXE)) {
             throw "Missing PWSH_76_EXE environment variable from install step."
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:PSGALLERY_EXCLUDE_JSON)) {
+            throw "Missing PSGALLERY_EXCLUDE_JSON environment variable from exclusions step."
           }
 
           if (-not (Test-Path -LiteralPath $env:PWSH_76_EXE)) {
@@ -58,18 +128,23 @@ jobs:
             [Parameter(Mandatory)]
             [string]$ModulePath,
             [Parameter(Mandatory)]
-            [string]$NuGetKey
+            [string]$NuGetKey,
+            [Parameter(Mandatory)]
+            [string]$ExcludeJson
           )
+
+          $exclude = @($ExcludeJson | ConvertFrom-Json)
 
           $manifest = Join-Path $ModulePath "TechToolbox.psd1"
           Test-ModuleManifest $manifest
 
           Publish-Module `
             -Path $ModulePath `
+            -Exclude $exclude `
             -NuGetApiKey $NuGetKey `
             -Repository PSGallery `
             -Verbose
           '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
 
           $modulePath = $PWD.Path
-          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY
+          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON
