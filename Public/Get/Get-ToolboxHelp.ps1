@@ -586,7 +586,7 @@ function Show-Configuration {
             else {
                 $value = [string]$Obj
                 if ($Path -match $Search -or $value -match $Search) {
-                    Write-FormattedText -Text ("{0} = {1}" -f $Path, $value) -ForegroundColor Cyan -IsInteractive $HostEnv.IsInteractive
+                    Write-FormattedText -Text ("{0} = {1}" -f $Path, $value) -ForegroundColor DarkCyan -IsInteractive $HostEnv.IsInteractive
                 }
             }
         }
