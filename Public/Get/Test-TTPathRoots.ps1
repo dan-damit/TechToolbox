@@ -49,17 +49,17 @@ function Test-TTPathRoots {
     }
 
     [pscustomobject]@{
-        OneDriveRoot          = $oneDriveRoot
-        TechToolboxHome       = $homeRoot
-        ModuleRoot            = $moduleRoot
-        LogsRoot              = $logsRoot
-        ExportsRoot           = $exportsRoot
-        ConfigPath            = $script:ConfigPath
-        ConfigLoggingLogPath  = $script:cfg.settings.logging.logPath
-        ConfigDefaultsPath    = $script:cfg.settings.defaults.configPath
-        ConfigPathsLogs       = $script:cfg.paths.logs
-        LogsRootExists        = Test-Path -LiteralPath $logsRoot
-        ExportsRootExists     = Test-Path -LiteralPath $exportsRoot
+        OneDriveRoot         = $oneDriveRoot
+        TechToolboxHome      = $homeRoot
+        ModuleRoot           = $moduleRoot
+        LogsRoot             = $logsRoot
+        ExportsRoot          = $exportsRoot
+        ConfigPath           = $script:ConfigPath
+        ConfigLoggingLogPath = $script:cfg.settings.logging.logPath
+        ConfigDefaultsPath   = $script:cfg.settings.defaults.configPath
+        ConfigPathsLogs      = $script:cfg.paths.logs
+        LogsRootExists       = Test-Path -LiteralPath $logsRoot
+        ExportsRootExists    = Test-Path -LiteralPath $exportsRoot
     }
 }
 
