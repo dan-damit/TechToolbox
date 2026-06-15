@@ -1,9 +1,12 @@
 name: Publish to PowerShell Gallery
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   publish:
