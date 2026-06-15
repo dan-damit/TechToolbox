@@ -17,6 +17,12 @@ public static class ToolRegistry
             registry[tool.Name] = tool;
         }
 
+        // 1b. Add built-in file tools for basic workspace navigation/edit tasks.
+        foreach (var tool in GetBuiltInTools())
+        {
+            registry[tool.Name] = tool;
+        }
+
         // 2. Apply manifest overrides
         foreach (var kv in manifest)
         {
@@ -54,6 +60,43 @@ public static class ToolRegistry
         }
 
         return registry;
+    }
+
+    private static IEnumerable<ToolSpec> GetBuiltInTools()
+    {
+        return new[]
+        {
+            new ToolSpec(
+                Name: "READ-FILE",
+                Description: "Reads the full text content of a file from disk.",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Absolute or relative file path.")
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()),
+
+            new ToolSpec(
+                Name: "LIST-DIRECTORY",
+                Description: "Lists directory entries. Folder names end with '/'.",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Absolute or relative directory path.")
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()),
+
+            new ToolSpec(
+                Name: "WRITE-FILE",
+                Description: "Writes text to a file, creating parent directories as needed.",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Absolute or relative file path."),
+                    ["content"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Text content to write.")
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>())
+        };
     }
 
     private static IEnumerable<ToolSpec> DiscoverTools()

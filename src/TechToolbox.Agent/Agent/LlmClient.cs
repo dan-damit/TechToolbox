@@ -30,13 +30,19 @@ public class LlmClient
         };
 
         HttpResponseMessage response;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
 
         try
         {
             response = await _http.PostAsJsonAsync(
                 "http://localhost:11434/api/generate",
                 payload,
-                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase },
+                cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return new LlmResponse("LLM request timed out after 90 seconds.");
         }
         catch (Exception ex)
         {
@@ -45,12 +51,33 @@ public class LlmClient
 
         if (!response.IsSuccessStatusCode)
         {
-            var err = await response.Content.ReadAsStringAsync();
+            string err;
+            try
+            {
+                err = await response.Content.ReadAsStringAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                err = "(error body read timed out)";
+            }
+
             return new LlmResponse($"LLM error: {response.StatusCode} - {err}");
         }
 
-        var json = await response.Content.ReadFromJsonAsync<OllamaResponse>();
-        return new LlmResponse(json?.Response ?? "");
+        try
+        {
+            var body = await response.Content.ReadAsStringAsync(cts.Token);
+            var json = JsonSerializer.Deserialize<OllamaResponse>(body);
+            return new LlmResponse(json?.Response ?? "");
+        }
+        catch (OperationCanceledException)
+        {
+            return new LlmResponse("LLM response read timed out after 90 seconds.");
+        }
+        catch (Exception ex)
+        {
+            return new LlmResponse($"LLM response parse failed: {ex.Message}");
+        }
     }
 }
 
