@@ -132,7 +132,7 @@
     "agent": {
       "model": "qwen3.6:35b",
       "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json",
-      "defaultPromptFile": "AI\\Agent\\prompt.txt",
+      "defaultPromptFile": "AI\\prompt.txt",
       "transcript": {
         "enabled": true,
         "outputRoot": "%TT_LogsRoot%\\TechAgentTranscripts"

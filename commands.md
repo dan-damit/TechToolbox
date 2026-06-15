@@ -124,7 +124,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Invoke-CodeAssistant | Run local AI code assistant on one file. | |
 | Invoke-CodeAssistantFolder | Run AI-assisted transformation across a folder. | |
 | Invoke-CodeAssistantWrapper | Wrap code assistant execution with added context. | |
-| Install-TechAgentRuntime | Create or repair Python runtime and dependencies for agent. | Risk |
+| Install-TechAgentRuntime | Restore/build the C# TechToolbox.Agent runtime and optionally pull model dependencies. | Risk |
 | Invoke-TechAgent | Run local tool-using AI agent prompt workflow (supports single recursion auto-retry toggle). | Interactive |
 
 ---

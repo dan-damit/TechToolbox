@@ -72,7 +72,8 @@ TechToolbox/
 ├── Config/                   # Runtime configuration (config.json, secrets)
 │   ├── config.json           # Base settings (git-tracked)
 │   └── config.secrets.json   # Tenant secrets (git-ignored)
-├── AI/Agent/                 # Python bridge and agent tooling
+├── AI/                       # Prompt assets and templates
+├── src/TechToolbox.Agent/    # C# local agent runtime
 └── commands.md               # Full command catalog with examples
 ```
 
