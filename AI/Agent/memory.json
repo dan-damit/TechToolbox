@@ -10,7 +10,7 @@
       "windowItems": 30,
       "runCount": 30,
       "successRate": 0.933,
-      "avgDurationMs": 176267,
+      "avgDurationMs": 174593,
       "avgToolCalls": 4.3,
       "statusCounts": {
         "success": 28,
@@ -25,32 +25,12 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-13T03:36:08+00:00",
-      "trendLastUpdatedUtc": "2026-06-13T03:36:08+00:00"
+      "lastRunTimestampUtc": "2026-06-15T06:13:44+00:00",
+      "trendLastUpdatedUtc": "2026-06-15T06:13:44+00:00"
     }
   },
   "_memoryFormatVersion": 2,
   "history": [
-    {
-      "timestampUtc": "2026-06-12T23:22:50+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\"I get the following error when I try to run the Get-Help about_<topic> command\r\nin PowerShell: 'Get-Help : No help files found in the HelpPath directory.' How\r\ncan I resolve this issue?\r\n\r\n[18:19:20] C:\\repos\\TechToolbox [main]\r\nλ Get-help about_Invoke_TechAgent\r\nGet-Help: Get-Help could not find about_Invoke_TechAgent in a help file in this session. To download updated help topics type: \"Update-Help\". To get help online, search for the help topic in the TechNet library at https://go.microsoft.com/fwlink/?LinkID=107116.\r\n\r\n[18:20:35] C:\\repos\\TechToolbox [main]\"",
-      "model": "qwen3.6:35b",
-      "durationMs": 65642,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "outputPreview": "## Why This Happens\nBy default, `Get-Help` only searches the PowerShell installation's built-in `en-US` directory for custom `about_` topics. Your documentation files are currently sitting in your repository (`C:\\repos\\TechToolbox\\en-US`), which PowerShell does not automatically scan by design.\n\n## How to Resolve It\nYou need to copy your `about_*.help.txt` files into the active PowerShell version's help directory. The target path depends on which engine you are running:\n\n### Option A: Windows PowerShell 5.1 (Legacy)\nTarget Directory: `%windir%\\System32\\WindowsPowerShell\\v1.0\\en-US`\n\nRun this command in an **Administrator** console:\n```powershell\nCopy-Item \"C:\\repos\\TechToolbox\\en-US\\about_*.help.txt\" -Destination \"$env:windir\\System32\\WindowsPowerShell\\v1.0\\en-US\\\"\n```\n\n### Option B: PowerShell 7+ (Modern/Current)\nTarget Directory: `$PSHOME\\en-US` (typically `C:\\Program Files\\PowerShell\\7\\en-US`)\n\nRun this command in an **Administrator** console:\n```powershell\nCopy-Item \"C:\\repos\\TechToolbox\\en-US\\about_*.help.txt\" -Destination \"$PSHOME\\en-US\\\"\n```\n\n## Important Next Steps\n1. **File Naming Convention**: The strict PowerShell standard for `about_` topics is `about_<TopicName>.txt`. While `.help.txt` works in modern versions, if you experience discovery issues later, rename the files to remove the intermediate suffix (e.g., `about_Invoke_TechAgent.txt`).\n2. **New Session Required...",
-      "runSummary": {
-        "intent": "\"I get the following error when I try to run the Get-Help about_<topic> command\r\nin PowerShell: 'Get-Help : No help files found in the HelpPath directory.' How\r\ncan I resolve this issue?\r\n\r\n[18:19:20] C:\\repos\\TechToolbo...",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": "**Verify**: Run `Get-Help about_Invoke_TechAgent -Full` in the new session. It should now locate your documentation without errors."
-      }
-    },
     {
       "timestampUtc": "2026-06-12T23:52:34+00:00",
       "status": "success",
@@ -204,6 +184,29 @@
         ],
         "blockers": "",
         "nextBestStep": "Non-interactive mode: The same information output via `Write-Information`"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-15T06:13:44+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\"Please read the function named Stop-PSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Stop-PSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en-US.\"",
+      "model": "qwen3.6:35b",
+      "durationMs": 83817,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "outputPreview": "## Task Completed Successfully\n\nI read `C:\\repos\\TechToolbox\\Public\\Start_Stop\\Stop-PSRemoteSession.ps1` and analyzed its full functionality, including:\n- All 9 parameters (`-Session`, `-Id`, `-InstanceId`, `-Name`, `-ComputerName`, `-NamePrefix`, `-OnlyDisconnected`, `-OlderThanMinutes`, `-PassThru`)\n- Four parameter sets (`BySession`, `ById`, `ByInstanceId`, `ByName`, `ByFilter` default)\n- Safety features: `SupportsShouldProcess` for confirmation, InstanceId-based deduplication, and best-effort removal (non-fatal on individual errors)\n- Internal dependencies (`Initialize-TechToolboxRuntime`, `Write-Log`)\n\n### Output File Created\n\n`C:\\repos\\TechToolbox\\en-US\\about_Stop-PSRemoteSession.help.txt` contains:\n- **TOPIC** - identifies the help file\n- **SHORT DESCRIPTION** - one-line summary\n- **LONG DESCRIPTION** - covers targeting options, safety behavior (ShouldProcess, deduplication, best-effort), and internal mechanisms\n- **PARAMETERS** - all 9 parameters documented with type hints and descriptions\n- **EXAMPLES** - four practical scenarios:\n  1. Remove a session by `-Id`\n  2. Remove all disconnected sessions (`-OnlyDisconnected`)\n  3. Remove TechToolbox sessions by `-NamePrefix 'TT:'`\n  4. Combine `-OlderThanMinutes` with `-PassThru` for logging\n- **NOTES** - initialization requirements, error-handling behavior, and Get-PSSession inspection recommendation\n- **RELATED LINKS** - o...",
+      "runSummary": {
+        "intent": "\"Please read the function named Stop-PSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Stop-PSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": "**RELATED LINKS** - online docs URL and references to `Get-PSSession`, `Remove-PSSession`, and `about_PSSessions`"
       }
     }
   ]
