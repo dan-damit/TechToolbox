@@ -251,7 +251,6 @@ The full catalog is at [commands.md](commands.md). Below is a categorized summar
 | `Invoke-CodeAssistantFolder`  | Runs the assistant on an entire folder                                                       |
 | `Invoke-CodeAssistantWrapper` | Wrapper for structured AI task execution                                                     |
 | `Invoke-TechAgent`            | Orchestrates the agent-driven workflow engine (single recursion auto-retry toggle available) |
-| `Initialize-TTWordList`       | Initializes the AI word list used by the agent                                               |
 
 ### Export & Packaging
 
