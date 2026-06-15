@@ -1,10 +1,18 @@
 using System.Management.Automation;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using TechToolbox.Agent.Agent;
 
 namespace TechToolbox.Agent.Execution;
 
 public static class PowerShellBridge
 {
+    private static readonly JsonSerializerOptions SummaryJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     public static object? RunTool(string toolName, IDictionary<string, object?> args)
     {
         if (string.IsNullOrWhiteSpace(toolName))
@@ -69,7 +77,10 @@ public static class PowerShellBridge
             if (!File.Exists(path))
                 throw new FileNotFoundException($"File not found: {path}", path);
 
-            result = File.ReadAllText(path);
+            var content = File.ReadAllText(path);
+            result = ShouldSummarizeFile(content)
+                ? BuildFileSummaryJson(path, content)
+                : content;
             return true;
         }
 
@@ -131,4 +142,105 @@ public static class PowerShellBridge
 
         return text;
     }
+
+    private static bool ShouldSummarizeFile(string content)
+    {
+        var threshold = GetReadFileSummaryThresholdChars();
+        return content.Length > threshold;
+    }
+
+    private static int GetReadFileSummaryThresholdChars()
+    {
+        const int defaultChars = 12000;
+        const int minChars = 1000;
+        const int maxChars = 200_000;
+
+        var raw = Environment.GetEnvironmentVariable("TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS");
+        if (int.TryParse(raw, out var parsed))
+        {
+            return Math.Clamp(parsed, minChars, maxChars);
+        }
+
+        return defaultChars;
+    }
+
+    private static string BuildFileSummaryJson(string path, string content)
+    {
+        var lines = SplitLines(content);
+        var head = lines.Take(12).ToArray();
+        var tail = lines.Length <= 12 ? Array.Empty<string>() : lines.Skip(Math.Max(0, lines.Length - 12)).ToArray();
+        var sectionHeadings = ExtractSectionHeadings(lines);
+        var functionNames = ExtractFunctionNames(lines);
+
+        var summary = new FileSummaryResult(
+            Kind: "file-summary",
+            Path: path,
+            FileName: System.IO.Path.GetFileName(path),
+            Extension: System.IO.Path.GetExtension(path),
+            SizeBytes: Encoding.UTF8.GetByteCount(content),
+            LineCount: lines.Length,
+            Sections: sectionHeadings,
+            FunctionNames: functionNames,
+            Head: head,
+            Tail: tail);
+
+        return JsonSerializer.Serialize(summary, SummaryJsonOptions);
+    }
+
+    private static string[] SplitLines(string content)
+        => content.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+
+    private static string[] ExtractSectionHeadings(IEnumerable<string> lines)
+    {
+        var headings = new List<string>();
+        var sectionRegex = new Regex(@"^\s*(?:#\s*)?\.(?<name>[A-Z][A-Z0-9_-]*)\b", RegexOptions.Compiled);
+
+        foreach (var line in lines)
+        {
+            var match = sectionRegex.Match(line);
+            if (!match.Success)
+                continue;
+
+            var heading = match.Groups["name"].Value;
+            if (!headings.Contains(heading, StringComparer.OrdinalIgnoreCase))
+            {
+                headings.Add(heading);
+            }
+        }
+
+        return headings.ToArray();
+    }
+
+    private static string[] ExtractFunctionNames(IEnumerable<string> lines)
+    {
+        var names = new List<string>();
+        var functionRegex = new Regex(@"^\s*function\s+(?<name>[A-Za-z_][A-Za-z0-9_-]*)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        foreach (var line in lines)
+        {
+            var match = functionRegex.Match(line);
+            if (!match.Success)
+                continue;
+
+            var name = match.Groups["name"].Value;
+            if (!names.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                names.Add(name);
+            }
+        }
+
+        return names.ToArray();
+    }
+
+    private sealed record FileSummaryResult(
+        string Kind,
+        string Path,
+        string FileName,
+        string Extension,
+        long SizeBytes,
+        int LineCount,
+        string[] Sections,
+        string[] FunctionNames,
+        string[] Head,
+        string[] Tail);
 }

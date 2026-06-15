@@ -6,6 +6,8 @@ namespace TechToolbox.Agent.Agent;
 
 public class AgentOrchestrator
 {
+    private static readonly int MaxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
+
     private static readonly Dictionary<string, string> ToolAliases = new(StringComparer.OrdinalIgnoreCase)
     {
         ["read_file"] = "READ-FILE",
@@ -35,6 +37,8 @@ public class AgentOrchestrator
         _maxIterations = maxIterations;
         _autoRetry = autoRetry;
         _tracePath = tracePath;
+
+        _llm.DiagnosticTrace = msg => Trace($"LlmClient {msg}");
     }
 
     public AgentResult Run(string prompt)
@@ -81,6 +85,7 @@ public class AgentOrchestrator
     {
         var messages = new List<string>();
         messages.Add(BuildGoalPrompt(prompt));
+        var consecutiveLlmFailures = 0;
 
         for (int i = 0; i < iterationLimit; i++)
         {
@@ -95,6 +100,16 @@ public class AgentOrchestrator
 
             if (string.IsNullOrWhiteSpace(text))
             {
+                consecutiveLlmFailures++;
+                Trace($"Iteration {i + 1} consecutive LLM failures={consecutiveLlmFailures}");
+
+                if (consecutiveLlmFailures >= MaxConsecutiveLlmFailures)
+                {
+                    var msg = $"LLM returned empty responses {consecutiveLlmFailures} times in a row.";
+                    Trace($"Iteration {i + 1} aborting: {msg}");
+                    return new RunLoopResult(msg, ReachedIterationLimit: false);
+                }
+
                 var isLastIteration = i >= (iterationLimit - 1);
                 if (isLastIteration)
                 {
@@ -103,9 +118,33 @@ public class AgentOrchestrator
                 }
 
                 Trace($"Iteration {i + 1} empty LLM response; retrying");
-                messages.Add("LLM returned an empty response. Return either a valid tool call or a final answer.");
                 continue;
             }
+
+            if (IsRetryableLlmFailure(text))
+            {
+                consecutiveLlmFailures++;
+                Trace($"Iteration {i + 1} consecutive LLM failures={consecutiveLlmFailures}");
+
+                if (consecutiveLlmFailures >= MaxConsecutiveLlmFailures)
+                {
+                    var msg = $"LLM request repeatedly failed ({consecutiveLlmFailures} consecutive attempts). Last error: {text}";
+                    Trace($"Iteration {i + 1} aborting: {Preview(msg)}");
+                    return new RunLoopResult(msg, ReachedIterationLimit: false);
+                }
+
+                var isLastIteration = i >= (iterationLimit - 1);
+                if (isLastIteration)
+                {
+                    Trace($"Iteration {i + 1} retryable LLM failure on final iteration: {Preview(text)}");
+                    return new RunLoopResult(text, ReachedIterationLimit: false);
+                }
+
+                Trace($"Iteration {i + 1} retryable LLM failure; retrying");
+                continue;
+            }
+
+            consecutiveLlmFailures = 0;
 
             // 2. Detect tool call patterns from structured JSON or mixed prose.
             if (TryParseToolCall(text, out var toolName, out var toolArgs))
@@ -126,7 +165,14 @@ public class AgentOrchestrator
                 Trace($"Iteration {i + 1} tool {toolName} completed resultLength={toolResult?.Length ?? 0} preview={Preview(toolResult)}");
 
                 // 4. Feed result back into the loop
-                messages.Add($"ToolResult({toolName}): {toolResult}");
+                var maxToolResultChars = GetMaxToolResultChars();
+                var toolResultForPrompt = PrepareToolResultForPrompt(toolResult, maxToolResultChars, out var wasTruncated, out var originalLength);
+                if (wasTruncated)
+                {
+                    Trace($"Iteration {i + 1} tool {toolName} result truncated originalLength={originalLength} maxChars={maxToolResultChars}");
+                }
+
+                messages.Add($"ToolResult({toolName}): {toolResultForPrompt}");
                 continue;
             }
 
@@ -196,6 +242,61 @@ public class AgentOrchestrator
         return normalized.Length <= 120 ? normalized : normalized[..120];
     }
 
+    private static bool IsRetryableLlmFailure(string text)
+    {
+        return text.StartsWith("LLM request timed out", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("LLM response read timed out", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("LLM request failed", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("LLM error:", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("LLM response parse failed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int GetMaxConsecutiveLlmFailures()
+    {
+        const int defaultFailures = 2;
+        const int minFailures = 1;
+        const int maxFailures = 10;
+
+        var raw = Environment.GetEnvironmentVariable("TT_AGENT_MAX_CONSEC_LLM_FAILURES");
+        if (int.TryParse(raw, out var parsed))
+        {
+            return Math.Clamp(parsed, minFailures, maxFailures);
+        }
+
+        return defaultFailures;
+    }
+
+    private static int GetMaxToolResultChars()
+    {
+        const int defaultChars = 12000;
+        const int minChars = 500;
+        const int maxChars = 200_000;
+
+        var raw = Environment.GetEnvironmentVariable("TT_AGENT_MAX_TOOL_RESULT_CHARS");
+        if (int.TryParse(raw, out var parsed))
+        {
+            return Math.Clamp(parsed, minChars, maxChars);
+        }
+
+        return defaultChars;
+    }
+
+    private static string PrepareToolResultForPrompt(string? toolResult, int maxChars, out bool wasTruncated, out int originalLength)
+    {
+        var text = toolResult ?? "null";
+        originalLength = text.Length;
+
+        if (text.Length <= maxChars)
+        {
+            wasTruncated = false;
+            return text;
+        }
+
+        wasTruncated = true;
+        var head = text[..maxChars];
+        return $"{head}\n\n[TRUNCATED_TOOL_RESULT original_length={text.Length} shown={maxChars}]";
+    }
+
     private string BuildGoalPrompt(string prompt)
     {
         var availableTools = string.Join(", ", _tools.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase));
@@ -206,6 +307,7 @@ public class AgentOrchestrator
             "You may only call one of the exact tool names listed below. " +
             "If a tool is needed, call it using the format TOOLNAME{json} or TOOLCALL{TOOLNAME} {json}. " +
             "Tool-call JSON must be strict JSON with double-quoted keys and values. " +
+            "READ-FILE may return a structured file-summary object for large files; use its shape to infer file structure instead of expecting the full body. " +
             "Do not emit pseudo-tools such as read_file, list_directory, or write_file unless they are explicitly listed in available tools. " +
             "When calling a tool, output only the tool call with no extra commentary. " +
             "Do not hallucinate tool names. " +
@@ -533,10 +635,10 @@ public class AgentOrchestrator
         if (!TryExtractBalancedObject(text, startIndex, out var candidate, out endIndex))
             return false;
 
-        // Convert simple JS-like object syntax (e.g., {path: "x"}) into strict JSON.
+        // Convert simple object syntax (e.g., {path: "x"} or {path="x"}) into strict JSON.
         var normalized = Regex.Replace(
             candidate,
-            @"(?<=[\{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:",
+            @"(?<=[\{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*[:=]",
             "\"$1\":");
 
         try

@@ -35,9 +35,11 @@ public static class ToolWrapper
                 try
                 {
                     args = string.IsNullOrWhiteSpace(jsonArgs)
-                        ? new Dictionary<string, object?>()
-                        : JsonSerializer.Deserialize<Dictionary<string, object?>>(jsonArgs)
-                          ?? new Dictionary<string, object?>();
+                        ? new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                        : new Dictionary<string, object?>(
+                            JsonSerializer.Deserialize<Dictionary<string, object?>>(jsonArgs)
+                                ?? new Dictionary<string, object?>(),
+                            StringComparer.OrdinalIgnoreCase);
                 }
                 catch
                 {
@@ -91,11 +93,13 @@ public static class ToolWrapper
     {
         var missing = new List<string>();
 
+        var argsLookup = new Dictionary<string, object?>(args, StringComparer.OrdinalIgnoreCase);
+
         foreach (var param in spec.Parameters)
         {
             if (param.Value.Mandatory)
             {
-                if (!args.TryGetValue(param.Key, out var value) ||
+                if (!argsLookup.TryGetValue(param.Key, out var value) ||
                     value is null ||
                     (value is string s && string.IsNullOrWhiteSpace(s)))
                 {
