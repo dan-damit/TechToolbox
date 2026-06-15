@@ -71,6 +71,9 @@
         "[csharp]": {
             "editor.defaultFormatter": "ms-dotnettools.csharp"
         },
+        "[github-actions-workflow]": {
+            "editor.defaultFormatter": "redhat.vscode-yaml"
+        },
     },
     // ------------------------------
     // Recommended Extensions

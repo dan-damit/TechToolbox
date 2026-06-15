@@ -1,0 +1,36 @@
+name: Update Badges
+
+on:
+    schedule:
+        - cron: "0 * * * *" # every hour
+    push:
+        branches: [main]
+    release:
+        types: [published]
+
+jobs:
+    build-badges:
+        runs-on: windows-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Install PowerShellGet (for Find-Module)
+              run: Install-Module PowerShellGet -Force -Scope CurrentUser
+              shell: pwsh
+
+            - name: Build badges
+              run: pwsh ./assets/badges/build-badges.ps1
+
+            - name: Commit changes
+              run: |
+                  git config user.name "github-actions"
+                  git config user.email "github-actions@github.com"
+                  git add assets/badges/*.svg
+                  git diff --cached --quiet || git commit -m "Auto-update badges"
+              shell: bash
+
+            - name: Push
+              run: git push
+              shell: bash
