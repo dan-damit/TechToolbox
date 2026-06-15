@@ -14,7 +14,8 @@ TechToolbox unifies practical admin tooling into a single, predictable, portable
 
 ```powershell
 # Import the module (PowerShell 7+ recommended)
-Import-Module .\TechToolbox.psd1 -Force
+Install-Module TechToolbox -Force
+Import-Module TechToolbox -Force
 
 # Browse all exported commands
 Get-Command -Module TechToolbox | Sort-Object Name
