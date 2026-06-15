@@ -1,4 +1,4 @@
-function Get-MessageTrace { 
+function Get-MessageTrace {
     <#
     .SYNOPSIS
     Retrieves Exchange Online message trace summaries and per-recipient details
