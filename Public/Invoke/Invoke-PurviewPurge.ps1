@@ -340,39 +340,57 @@ function Invoke-PurviewPurge {
             }
         }
 
+        # Work with a local query variable so parameter validation attributes do not
+        # block retry attempts while prompting/linting.
+        $workingContentMatchQuery = $ContentMatchQuery
+
         # If we didn’t reuse an existing query, run the normal prompt + lint loop
         if (-not $UseExistingQuery) {
 
             while ($true) {
 
-                if ([string]::IsNullOrWhiteSpace($ContentMatchQuery)) {
+                if ([string]::IsNullOrWhiteSpace($workingContentMatchQuery)) {
                     if ($promptQuery) {
-                        $ContentMatchQuery = Read-Host "Enter ContentMatchQuery (or type 'q' to cancel) (e.g., from:(""pm-bounces.broobe.*"" OR ""broobe.*"") AND subject:""Aligned Assets"")"
+                        $workingContentMatchQuery = Read-Host "Enter ContentMatchQuery (or type 'q' to cancel) (e.g., from:(""pm-bounces.broobe.*"" OR ""broobe.*"") AND subject:""Aligned Assets"")"
                     }
                     else {
                         throw "ContentMatchQuery is required but prompting is disabled by config."
                     }
                 }
 
-                $ContentMatchQuery = $ContentMatchQuery.Trim()
+                $workingContentMatchQuery = $workingContentMatchQuery.Trim()
 
-                if ($ContentMatchQuery -match '^(?i)(q|quit|exit)$') {
+                if ($workingContentMatchQuery -match '^(?i)(q|quit|exit)$') {
                     throw "User cancelled: ContentMatchQuery entry aborted."
                 }
 
+                if ([string]::IsNullOrWhiteSpace($workingContentMatchQuery)) {
+                    Write-Log -Level Warn -Message "ContentMatchQuery cannot be empty."
+                    $workingContentMatchQuery = $null
+                    continue
+                }
+
+                # Convert smart quotes from Outlook/Teams to straight quotes expected by KQL tooling.
+                $queryAfterQuoteNormalization =
+                ($workingContentMatchQuery -replace '[\u2018\u2019]', "'") -replace '[\u201C\u201D]', '"'
+                if ($queryAfterQuoteNormalization -ne $workingContentMatchQuery) {
+                    Write-Log -Level Warn -Message "Smart quotes detected in ContentMatchQuery; normalized to straight quotes."
+                    $workingContentMatchQuery = $queryAfterQuoteNormalization
+                }
+
                 if ($normalizeFriendlyQuery) {
-                    $converted = Convert-FriendlyContentMatchQuery -Query $ContentMatchQuery
-                    if ($converted.Query -ne $ContentMatchQuery) {
+                    $converted = Convert-FriendlyContentMatchQuery -Query $workingContentMatchQuery
+                    if ($converted.Query -ne $workingContentMatchQuery) {
                         foreach ($note in $converted.Notes) {
                             Write-Log -Level Info -Message $note
                         }
                         Write-Log -Level Info -Message ("Normalized ContentMatchQuery: {0}" -f $converted.Query)
                     }
-                    $ContentMatchQuery = $converted.Query
+                    $workingContentMatchQuery = $converted.Query
                 }
 
                 $warningsRef = [ref] $null
-                $isValid = Test-ContentMatchQueryLint -Query $ContentMatchQuery -Warnings $warningsRef
+                $isValid = Test-ContentMatchQueryLint -Query $workingContentMatchQuery -Warnings $warningsRef
 
                 if (-not $isValid) {
                     $warnings = $warningsRef.Value
@@ -382,11 +400,12 @@ function Invoke-PurviewPurge {
                         }
                     }
                     Write-Log -Level Warn -Message "KQL must be corrected before continuing."
-                    $ContentMatchQuery = $null
+                    $workingContentMatchQuery = $null
                     continue
                 }
 
-                Write-Log -Level E-Info -Message ("Final ContentMatchQuery: {0}" -f $ContentMatchQuery)
+                Write-Log -Level E-Info -Message ("Final ContentMatchQuery: {0}" -f $workingContentMatchQuery)
+                $ContentMatchQuery = $workingContentMatchQuery
                 break
             }
         }
@@ -494,8 +513,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAuilJfpYU04/7h
-# FIXGtRW0ZNdLYnNV3f4ZM0j7TXk0aKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAUGFqcLeR9s9vL
+# BoPaQdc1LCjdVFwfLhCoh3mZehM/EaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -628,34 +647,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCjK0YiFNgT
-# DiWzEKJpNLjESKXDQQQG8haXY9LErfLV0jANBgkqhkiG9w0BAQEFAASCAgAmQFmU
-# LaOx8RBDrbBs5xAqzgO92qTvRst+WiJka7boTJyoOdVkMHqUdaSdtUimXIF44hh8
-# IhCGi8Ch9uJi6pvGODS7ZIAvDAci0ej3WY9Zfc1a/ym6YJ1AD4ty6Qd/ygeWl+T2
-# gS1cAsKxMu/K7d9g/SrKqkqtNqwFZepCTVcukmLpbVy+iHxQGFQrgD6wh8UrRMq2
-# qyJ6CO0olUR6fp06Zl8M1YATzjmmWyVPPZn/wZBEtE8++Pw4fOzvakFfRYgp3T9N
-# lHGrGWwgICJ11y3VOxfoXjV1siGAzdM7PefUYQC/fcpygGEOToZN7HiOGkDYnUcu
-# RV9+ZY9RAeRxI5Hmllxy0TOzO8jhiYG3+BeD+9EIIurMzYP6Lw57HOjm2EPpBeNk
-# JGdAI1alpOTrk7WCaVJuTLGkniyKRBqcaFjJNxNztY5ispgy97pf4+ZDhRIPbyRj
-# XWAYOArxTX8N7cujl7h1fiHKfA1Oe/98XcZ711xAN41FY473IvdY68VbPjTTk9nB
-# ZgqMgQxA5f1Zn7NP6vtz8cJTMGeUX3j3ZKFzckc1OO2cKRPxveBynaNnRoOPQZTC
-# BKVVqSKZHf85AF1ytOFh9+YGkuY80cepmpRAmvxP5913npaF7xawqX3yh549UCYr
-# IheZebToHg0lvqCHLAdW8jbWqZtAgXVtJY/wsKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBWC7S10krr
+# 2OcihSVsicPOfy2JsH0tDSObGaXsuDEUFzANBgkqhkiG9w0BAQEFAASCAgBhGaOa
+# B7y6aC0udxnjOaZJcWsTjX1p7BHmPgdEh9liNDxe5ps00yT2+YUkFV8qHP1WG7Eb
+# T0lyuiSKYlt2ubZfSlxKlDCTd9L6hD4aeFWWVF9AeQxiWSe4TeTxmTpf78R5+9sF
+# r6sH6mrxTMK9knS7gU/iy+DIZ6duCF9RzduFJesDE+BusqTS+F9xMW61/PkxWEvd
+# YEx90h4FnE3s+QYlmIyOwj1qb/gZxkKpPZQdckO/sFXPXM60Sh3A83GxpfR2iENY
+# LWRX5AJHhYPPzx+hEOUp1x8gpFCN9OTaiR0NscpS5OW3qkelh0Po6Xi0TIbVCYQz
+# +1SByiVzy8WFYllmejEsG2lAbCHZUwKPZLvIREKOLxRywjz3OtHtoaDSS1gKlpq+
+# Ux2fCcX4jc2Z7d96F5DpqSp9wF0oizYh2BGG09kvmqDTHkmGN0iEhvSTv/A3eMDT
+# 6GLLwYg0AU2FfrHocPUdjkorXPE6nJ+1PJXdlwJ5mrgoZO+MafBD0Cd30rtNRXBs
+# prxvGpsH+QsAG5l4EcRyin/C+1jM1MP3sj2bSNw2XBrlf161oeS55dQtMoDK4jfj
+# /mMDdRKxIul2P+19YnamQxCq+iemjEd35hPw2regJpUT9hn6N+VJOv848a+1e+/V
+# ipMOpWIPYMm0+7vQk3YInKMYzxFNUz9fHY0l/aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTUxNjA4MTlaMC8GCSqGSIb3DQEJBDEiBCBWZWYphwIKR3mWO5ed
-# wVS3XZX0qk13EAXY2l6sBtNVbjANBgkqhkiG9w0BAQEFAASCAgCILBZEszykohh0
-# XKCxvbm63hhzGuV+gQHwleWQj38Wys7PtXDQ/9VXBN2Db0HihNlM4d8HLzlRXskI
-# sb4qP/BW7UwKY8RyiM88AUhfRPzchRVO7QKlHv9VQ4lw7mbaz0hAJ8h2C/RP2ehd
-# H3gH1anmX/nq7mRrzAYiLB7aXB5GRACxMTSYgfwVtwoqTrfGKLswpP/lbOX3ej+T
-# KxhEnALjFjqQMZh/jiQrMtnyQrFwYQlyXXNIkCaGMyB2sseO0m3VtEL42Ig0N4WR
-# ignbDKk1GpXRPffTM2IkuFMFtg2ioIsKxEmfiBkZYY3Y7WyN89+y/pogiS26AVA3
-# y+8f+KnHMaOSjekdNTXLxEBsF52uySBVquG5gabatBs3nJJIYKeEaqyNXaSaTSgS
-# LSQSKo3vOSp4qWR+/ndjDRxC4MSUzR6zJX25H+66ph0NTurL2OFBVqENrZbyHMER
-# 6Yribjb00rmT6FkZqzANyaHE64QNkstkmuSI4ikLAEouhcN+ShXw3zJbuDY8qlCk
-# hOMNfC4QkWkPWkyagX/v02Y/Bk4BvF66faw4DhsAVRbqaMtOo6h0n9J6ASyOZSgd
-# 0deW5CSHue0T7iSB8O+wlfzd7vuJcMlICJLOn/0axnee4XMPcwZZ6I9bsHhZjmcU
-# yqXHO+2kbkadCySazW/1JnOOYhcCmQ==
+# BTEPFw0yNjA2MTUxNjEzMjBaMC8GCSqGSIb3DQEJBDEiBCD7JBD3L9XjqbMh/k0e
+# 94J2dpRqcVs3nwEpF3uvMMgJITANBgkqhkiG9w0BAQEFAASCAgCVYFEgw2KITLsk
+# wCOyMEBbEpYW7D52YlZ62WvAlDYIRXTj8rn/w7+kABKwpWIzlXkO0Pf23+JW2+r4
+# vT22FfdMAfQzj4JWfu4x2DKAVod1/+oWFLq+r0q4z2OsBQ/3IlReelWMQVwCusQM
+# vHQZyIXoO3bn8oDMWvstPv1Jw/Wsxa5QowcdQp9K9KKe2EJjeCLumvag8aE+3/J3
+# AOxHA1JtNhrvSyeDoEyqBNJSlKeLswMJNSSqMVooZF67j5kmgEiry7WSqtgpoNIO
+# cyio5cmRpVFAynPxfNG77yzDkxL/fRBUHEoJRvczgc2as4YIe2u247YPgrEAQ5il
+# GRyylQ5nJ2yv5MEy5Cnwyu2hnvW1luEchSbxnJFOTAg+kOTaQL7/o+AgGiBx1roV
+# ABF3jeyatMiBK7wNwq3X++QMneEndym+Sd3GaA5eUvVc1GCt+jMaOWCfwsQ9jTEM
+# JxX2fWkFA92TE5K8RvdPFvOlmJvn7E2GAw1v2n5oRukHMnIDWVc6EZ8vie3mTfoR
+# mJVf92gjDQe+B7/gtDlwxfp63bHykS4coYC4WQOmxRteJbbKHRh/p9ADUu0wDda2
+# ERudjMItnhoFo8o34PYNhf3js2FIXY9xgOB098bTFdLMLkM3j40+ZdnnGl3Zp5aI
+# CvMDPhKEH4DILUV5eLhYp+TSnAl5YQ==
 # SIG # End signature block
