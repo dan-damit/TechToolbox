@@ -4,8 +4,8 @@ function Invoke-TechAgent {
         Sends a prompt to the TechToolbox local agent.
 
     .DESCRIPTION
-        This function calls the C# TechToolbox.Agent runner under src/ and
-        prints the agent's response.
+        This function calls the Python-based agent located in AI/Agent/. It
+        passes the user prompt and prints the agent's response.
 
     .PARAMETER Prompt
         The natural-language instruction for the agent.
@@ -29,7 +29,7 @@ function Invoke-TechAgent {
         overwrite while removing the signature block text.
 
     .PARAMETER AutoRetryOnRecursion
-        Enables a single automatic retry when the C# agent hits an iteration
+        Enables a single automatic retry when the Python agent hits a recursion
         limit.
 
     .PARAMETER DisableAutoRetryOnRecursion
@@ -117,17 +117,15 @@ function Invoke-TechAgent {
     $transcriptStarted = $false
     $transcriptPath = $null
     $markdownPath = $null
-    $tracePath = $null
     $markdownStatus = 'NotStarted'
     $markdownError = $null
     $capturedStdOut = ''
     $capturedStdErr = ''
-    $capturedExitCode = -1
     $runStartedUtc = [DateTime]::UtcNow
 
-    if ($AutoRetryOnRecursion.IsPresent -and $DisableAutoRetryOnRecursion.IsPresent) {
-        throw 'Specify only one of -AutoRetryOnRecursion or -DisableAutoRetryOnRecursion.'
-    }
+        if ($AutoRetryOnRecursion.IsPresent -and $DisableAutoRetryOnRecursion.IsPresent) {
+            throw 'Specify only one of -AutoRetryOnRecursion or -DisableAutoRetryOnRecursion.'
+        }
 
     $writeMarkdownLog = {
         param(
@@ -144,7 +142,6 @@ function Invoke-TechAgent {
             [string]$ErrorText,
             [int]$ExitCode,
             [string]$TranscriptFile,
-            [string]$TraceFile,
             [DateTime]$StartedUtc,
             [DateTime]$CompletedUtc
         )
@@ -192,7 +189,6 @@ function Invoke-TechAgent {
             ('- AutoRetryOnRecursion: {0}' -f $AutoRetryOnRecursionMode)
             ('- ExitCode: {0}' -f $ExitCode)
             ('- TranscriptPath: {0}' -f $(if ([string]::IsNullOrWhiteSpace($TranscriptFile)) { '(none)' } else { $TranscriptFile }))
-            ('- TracePath: {0}' -f $(if ([string]::IsNullOrWhiteSpace($TraceFile)) { '(none)' } else { $TraceFile }))
             ''
             '## Prompt'
             ''
@@ -221,18 +217,36 @@ function Invoke-TechAgent {
     }
 
     try {
-        # Resolve C# agent project paths from module root (Public/AI is not the module root).
+        # Resolve agent path from module root (Public/AI is not the module root).
         $moduleRoot = Get-ModuleRoot
-        $agentProjectPath = Join-Path $moduleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
-        $agentDllPath = Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll'
+        $agentPath = Join-Path $moduleRoot 'AI\Agent\tech_agent.py'
 
-        if (-not (Test-Path -LiteralPath $agentProjectPath -PathType Leaf)) {
-            throw "Tech agent project not found: $agentProjectPath"
+        if (-not (Test-Path -LiteralPath $agentPath -PathType Leaf)) {
+            throw "Tech agent entry script not found: $agentPath"
         }
 
-        $dotnetCommand = Get-Command -Name dotnet -ErrorAction SilentlyContinue
-        if (-not $dotnetCommand) {
-            throw "dotnet executable not found. Install .NET SDK 8+ or add dotnet to PATH."
+        $pythonCommand = $null
+        $pythonArgsPrefix = @()
+
+        # Prefer repo-local virtual environment for deterministic dependencies.
+        $venvPython = Join-Path $moduleRoot '.venv\Scripts\python.exe'
+        if (Test-Path -LiteralPath $venvPython -PathType Leaf) {
+            $pythonCommand = @{ Source = $venvPython }
+        }
+
+        if (-not $pythonCommand) {
+            $pythonCommand = Get-Command -Name python -ErrorAction SilentlyContinue
+        }
+
+        if (-not $pythonCommand) {
+            $pythonCommand = Get-Command -Name py -ErrorAction SilentlyContinue
+            if ($pythonCommand) {
+                $pythonArgsPrefix = @('-3')
+            }
+        }
+
+        if (-not $pythonCommand) {
+            throw "Python executable not found. Install Python or add it to PATH (python/py)."
         }
 
         if (-not [string]::IsNullOrWhiteSpace($Model)) {
@@ -338,67 +352,149 @@ function Invoke-TechAgent {
             }
         }
 
-        try {
-            $traceRoot = Join-Path $moduleRoot 'LogsAndExports\Logs\TechAgentTrace'
-            $null = New-Item -ItemType Directory -Path $traceRoot -Force
-            $tracePath = Join-Path $traceRoot ("TechAgentTrace_{0}_{1}.log" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), $PID)
-            Write-Host ("Tech agent trace log: {0}" -f $tracePath)
-        }
-        catch {
-            $tracePath = $null
-            Write-Log -Level Warn -Message ("Tech agent trace log could not be initialized: {0}" -f $_.Exception.Message)
+        Write-Log -Level Info -Message ("Invoking local tech agent: {0}" -f $agentPath)
+
+        $pythonArgs = @()
+        $pythonArgs += $pythonArgsPrefix
+        $pythonArgs += @($agentPath, '--prompt', $Prompt, '--max-iterations', $MaxIterations)
+
+        if (-not [string]::IsNullOrWhiteSpace($Model)) {
+            $pythonArgs += @('--model', $Model)
         }
 
-        Write-Log -Level Info -Message ("Invoking local tech agent: {0}" -f $agentProjectPath)
-
-        if (-not (Test-Path -LiteralPath $agentDllPath -PathType Leaf)) {
-            Write-Log -Level Info -Message 'TechToolbox.Agent release build not found; building now.'
-            & $dotnetCommand.Source build $agentProjectPath --configuration Release | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-                throw 'Failed to build TechToolbox.Agent project.'
-            }
-        }
-
-        try {
-            Add-Type -Path $agentDllPath -ErrorAction Stop
-        }
-        catch {
-            # Ignore duplicate loads when the assembly is already loaded.
-            if ($_.Exception.Message -notmatch 'already loaded') {
-                throw
-            }
-        }
-
-        $effectiveSignedFilePolicy = if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy }
-        $effectiveAutoRetry = if ($AutoRetryOnRecursion.IsPresent) {
-            $true
-        }
-        elseif ($DisableAutoRetryOnRecursion.IsPresent) {
-            $false
-        }
-        else {
-            $false
-        }
+        # Suppress LangChain/LangGraph debug traces by default so the console only shows
+        # the agent's final response instead of raw model metadata.
+        $pythonArgs += '--quiet'
 
         if ($ConfirmDestructive.IsPresent) {
             Write-Log -Level Warn -Message 'Destructive operations explicitly authorized for this run.'
+            $pythonArgs += '--destructive-confirmed'
         }
 
-        $message = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
-            $Prompt,
-            $Model,
-            (-not $Quiet.IsPresent),
-            $MaxIterations,
-            $ConfirmDestructive.IsPresent,
-            $null,
-            $effectiveAutoRetry,
-            $false,
-            $effectiveSignedFilePolicy,
-            $tracePath)
+        if (-not [string]::IsNullOrWhiteSpace($SignedFilePolicy)) {
+            $pythonArgs += @('--signed-file-policy', $SignedFilePolicy)
+        }
 
-        $capturedStdOut = [string]$message
-        $capturedStdErr = ''
-        $capturedExitCode = 0
+        if ($AutoRetryOnRecursion.IsPresent) {
+            $pythonArgs += '--auto-retry-on-recursion'
+        }
+        elseif ($DisableAutoRetryOnRecursion.IsPresent) {
+            $pythonArgs += '--no-auto-retry-on-recursion'
+        }
+
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = [string]$pythonCommand.Source
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        $startInfo.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
+        $startInfo.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
+        $startInfo.Environment['PYTHONIOENCODING'] = 'utf-8'
+        $startInfo.Environment['PYTHONUTF8'] = '1'
+
+        foreach ($arg in $pythonArgs) {
+            [void]$startInfo.ArgumentList.Add([string]$arg)
+        }
+
+        $agentProc = [System.Diagnostics.Process]::new()
+        $agentProc.StartInfo = $startInfo
+
+        if (-not $agentProc.Start()) {
+            throw "Failed to start Python process for tech agent."
+        }
+
+        # Use async stream readers to avoid redirected-pipe deadlocks without using
+        # PowerShell event handlers on background threads (which require a runspace).
+        $stdoutTask = $agentProc.StandardOutput.ReadToEndAsync()
+        $stderrTask = $agentProc.StandardError.ReadToEndAsync()
+
+        $agentDeadline = (Get-Date).AddSeconds($waitTimeoutSeconds)
+        $agentState = [ordered]@{
+            TimedOut = $false
+        }
+
+        $poll = {
+            if (-not $agentProc.HasExited) {
+                if ((Get-Date) -ge $agentDeadline) {
+                    $agentState.TimedOut = $true
+                    try { $agentProc.Kill() } catch { }
+                    return @{ Status = 'Timeout' }
+                }
+
+                return @{ Status = 'Running' }
+            }
+
+            # Ensure process and async stream readers have fully completed.
+            try { $null = $agentProc.WaitForExit(2000) } catch { }
+
+            $stdoutText = ''
+            $stderrText = ''
+            try {
+                if ($stdoutTask) { $stdoutText = [string]$stdoutTask.GetAwaiter().GetResult() }
+            }
+            catch { }
+            try {
+                if ($stderrTask) { $stderrText = [string]$stderrTask.GetAwaiter().GetResult() }
+            }
+            catch { }
+
+            return @{
+                Status = 'Done'
+                Code   = [int]$agentProc.ExitCode
+                StdOut = $stdoutText
+                StdErr = $stderrText
+            }
+        }
+
+        $getStatus = {
+            param($obj)
+
+            switch ($obj.Status) {
+                'Timeout' { return 'Timeout' }
+                'Done' {
+                    if ($obj.Code -eq 0) { return 'Success' }
+                    return 'Error'
+                }
+                default { return 'Running' }
+            }
+        }
+
+        $terminal = @{
+            'Success' = @{ Level = 'Ok'; Message = 'Tech agent completed successfully.'; Return = $true }
+            'Error'   = @{ Level = 'Error'; Message = { param($obj, $status) "Tech agent failed with exit code $($obj.Code)." }; Return = $true }
+            'Timeout' = @{ Level = 'Error'; Message = "Tech agent timed out after ${waitTimeoutSeconds} seconds."; Return = $true }
+        }
+
+        $final = Wait-TerminalState `
+            -Target 'TechAgent' `
+            -PollScript $poll `
+            -GetStatus $getStatus `
+            -TerminalStates $terminal `
+            -TimeoutSeconds ($waitTimeoutSeconds + 60) `
+            -PollSeconds $waitPollSeconds `
+            -HeartbeatSeconds $waitHeartbeatSeconds `
+            -NotFoundMessage 'Tech agent process not discovered yet...' `
+            -WaitingMessage 'Tech agent working '
+
+        if ($agentState.TimedOut) {
+            throw ("Tech agent timed out after {0} seconds." -f $waitTimeoutSeconds)
+        }
+
+        if ([int]$final.Code -ne 0) {
+            $errorText = [string]$final.StdErr
+            if ([string]::IsNullOrWhiteSpace($errorText)) {
+                $errorText = [string]$final.StdOut
+            }
+            $capturedStdOut = [string]$final.StdOut
+            $capturedStdErr = [string]$final.StdErr
+            $errorText = $errorText.Trim()
+            throw ("Tech agent exited with code {0}: {1}" -f $final.Code, $errorText)
+        }
+
+        $message = ([string]$final.StdOut).Trim()
+        $capturedStdOut = [string]$final.StdOut
+        $capturedStdErr = [string]$final.StdErr
         if ([string]::IsNullOrWhiteSpace($message)) {
             $message = 'Tech agent completed successfully with no output.'
         }
@@ -410,14 +506,13 @@ function Invoke-TechAgent {
     catch {
         $markdownStatus = 'Error'
         $markdownError = $_.Exception.Message
-        $capturedExitCode = 1
         Write-Log -Level Error -Message ("Invoke-TechAgent failed: {0}" -f $_.Exception.Message)
         throw
     }
     finally {
         if (-not [string]::IsNullOrWhiteSpace($markdownPath)) {
             try {
-                $exitCode = $capturedExitCode
+                $exitCode = if ($agentProc -and $agentProc.HasExited) { [int]$agentProc.ExitCode } else { -1 }
                 & $writeMarkdownLog `
                     -Path $markdownPath `
                     -Status $markdownStatus `
@@ -427,16 +522,15 @@ function Invoke-TechAgent {
                     -DestructiveAuthorized $ConfirmDestructive.IsPresent `
                     -SignedFilePolicyValue $SignedFilePolicy `
                     -AutoRetryOnRecursionMode $(
-                    if ($AutoRetryOnRecursion.IsPresent) { 'Enabled' }
-                    elseif ($DisableAutoRetryOnRecursion.IsPresent) { 'Disabled' }
-                    else { 'Default' }
-                ) `
+                        if ($AutoRetryOnRecursion.IsPresent) { 'Enabled' }
+                        elseif ($DisableAutoRetryOnRecursion.IsPresent) { 'Disabled' }
+                        else { 'Default' }
+                    ) `
                     -StdOut $capturedStdOut `
                     -StdErr $capturedStdErr `
                     -ErrorText $markdownError `
                     -ExitCode $exitCode `
                     -TranscriptFile $transcriptPath `
-                    -TraceFile $tracePath `
                     -StartedUtc $runStartedUtc `
                     -CompletedUtc ([DateTime]::UtcNow)
             }
@@ -462,8 +556,8 @@ function Invoke-TechAgent {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCApWgHZ7yyT5EcQ
-# 7nEnJjiudB9gCbi7tSRgIgwn4gCzjaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCqxT+MBUv3hBur
+# QxxYEIe9wDXXSh4kgBqR8aUMZ6g/i6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -596,34 +690,34 @@ function Invoke-TechAgent {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBsyDB6SSWG
-# 78Qj0p0hJA0hKfMCA0kMTUyocvWx+pwklTANBgkqhkiG9w0BAQEFAASCAgBsRjwN
-# 7L7p50CehiH90RTdmkAEEO2UbKzPiGGVpINnkBQ1CGa616J1HtK88VH5yNL5lPzV
-# VgE7AUO1CYBC5JfS+UJT2YmoizFIjnuyP9CJuHW6YFTNpSrT9LcXsbGTBsfyR2Hv
-# 6B8CaKBG1CAn7DtG2BCLGN3j4J2XUkXU4P8qurHeFztI/LO3zWk202MylSENwY0K
-# 0b9dISChy7OKDiCJninUCu2OpVxUZ8ltEU5xdaavswcCAFqPUZNxknJkYgOD3Md/
-# HRNdTbykuURdjLElmxjT0juYb14uqfhM1YywdctGMzQeOO5S0tMLxsdCFYuDfvSZ
-# 6IHpwGTXgNg5PpNrKt7Ha7mGgBI2c4mCZ/i/BgKOZZYnmzULsqolENPmzw3yqojH
-# LWWxTlij4RnYBZoukV99tn91S5sywNI1tBMQBhyKlnffV7hrjru2Ce74wdrrj+E7
-# W99m+aTvzy+jW+nGT00V4YPwottm7wzfDXaIShudCL7KmFHm21CmjbTfgJjy3r1t
-# 9gIfTIauMbBYH6kMTkk7crs2Q3xBNMlYfUj+Bb19UeEbf5SmK5BGJQZCsMjIkIn3
-# 7duEb/UYTyJtKHatthcJRQlvCgEUAlzIW0d+1ecOIX8uRSsP2CsmItZ83kiEby3R
-# zrbDh28sIHbhgmUuTgzC8wIq8pD6cuzFDYbDFqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCARGYcR0mFE
+# OsqcepQ583k9+SIy8h3lH//RVtpN0mpnpjANBgkqhkiG9w0BAQEFAASCAgCV13gB
+# mW9r+A24GN8oCq2EHJQ0btC3ggXQMHWJ7ZH2QbF3CWgDU2N0QoWP27LzIlBBXxEd
+# Cjjks9uaji5DtV4d8IeZedMEC0u5bztFMWGyGKToLbjW6MNkmGfvaYrWkH+MFh3W
+# OR9XcX0p/FXRPkvOH0bVhhCyv77PX4FBa4qMtx9ykkbAq4Gjm3vT9VABbuovWlJC
+# PCqCQUc1A3sf4bKkwYQLq1gC0qxH3HPgRgcCan20hqjCQSJOE9tv/zka9RIKjQbJ
+# 8z9LuOzpm8o07jUxRARkr2F8nclt7PmHdypizWUZ9yD5GROiKEKituUx9nUBHc9s
+# 1Lr1l4QSQ9RfjkJapIVZIePlC4pCLFoGAgJRiQaI3JLNQioYaos425+gSZihhj3Q
+# j0vQqHlPGXn+F6yYA3CqDhtKMvi/Zot2nRJxISqq+ysuy1tbz9ShTmh5kj5C7ivp
+# XX31w7TlWtoGxEkE7h1JIa/L9fc4PQnlKsRW878yZWk7qn5cgjujaRza+s20JAaR
+# T2YQFwthRePTw28H3xqW/SOmts5LNcL0xnEpX1/5/NXEFM+UQnqFiWApEyq0q9tn
+# KseFtA5se3ze6RE5Fb2pNbcMExba2JiXSxno3K6E7PwVo67rceBAkqo7gXMink2k
+# G917LPbcuYYyuSSrORKg9H75WEYZxW9XTdJqHqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTUwMzE3MTNaMC8GCSqGSIb3DQEJBDEiBCAYrX8LdRT76rYf5kjA
-# zAzqgohFP903YexLiojRj5WRTjANBgkqhkiG9w0BAQEFAASCAgCAzrAMsc0Qqpq8
-# UeYft7PKmhAJZs2ojN2laCFHyPMRvaW8TkeNG7hqJM0+DPTCpTbWOS0DLTGGr8Uq
-# G/XZw9dlR9Qzj9MLWxWNGIT3458MpNR6PkD9Jc1hGJ+i6mM+Q1JmWIqb5PJ54QnV
-# /JCMiIDdY22tMCM1HjjoQwvHqXZquAiCRcUFx9mNYpp6OGo5WxRgdb7Q1fsmQNbr
-# kFRao7rnFV7wyIeQE+LE/3HEL3iSWxFe8+6iAQcTzW77wL6jvQlWPfc2dvL7l3gj
-# 0RRJrA70llDovCJavPPwxHOC3clZauNRNWeKQ7FHlFZjoZjRUqTHTt8UtIXNkrvC
-# 3L7ZEH4R9IR2NVjCU3AF3qJayEhZSMbGRA43+DwbEfRVG7aUt4DHYFH3V0hyYzxn
-# M5/f/MZ0g2Ud3weGBiwg5dZZfaHEPAZKPjVumPRvLiXFk1sHi/Cje8xIm/RIKjZF
-# rJh9pggAcDtunOwnMNBwS7l1+SACBVHq/mMTm4DeGxOhIDi9FXjZcs4qYI4Ip87G
-# SUQgljIrQXeQyzGuxQ9w3JaWPdtOEMvbvSaovEdGozizCgKjb0NpT+7deXlwkQXn
-# /saxFUjCKmTlcOlgkqKsXeIW25zD6KyIT1a65WSCvOmR021NQXq/R4by9zTPhNyD
-# z8JjkSfWaemcKL7oVdcnmiuQZ6x48Q==
+# BTEPFw0yNjA2MTMwMzMzMjRaMC8GCSqGSIb3DQEJBDEiBCCF9Bh6rGGMWYlIbdCA
+# 0KjRvMGiNoOOxPP6TCl3zTc6IDANBgkqhkiG9w0BAQEFAASCAgBra3vEWTNntEvc
+# NCPPc/SWdEUlqZi1U/6uqdxgHacJJe07P4/H9dsGKlq6te51A/R6FPpjRbYObkpE
+# GbF4AK+mmreHC1oOM3IhMcP76BVajpk5LNfECwZp5Sq0t4Tf6JXszwYfekQ3A4rj
+# xMXz1pk3VXWSvtZymr6zJzZVk+WiOskw1SYi0hnm51I1j/jOaXzd0S/C/nyMUvmu
+# wWRcCsevuySdknhKlKbupzzGzmVP0WDpjtQ39Z8tVxNI9BY3UNYAPsBiVwpqS6Bz
+# C3slx8GCmXInrFtnWA+fXBJrUSD6H2/vhrfG/ceEgRX93Ot5SYLyfN9sqhagvWsl
+# DACPHpnQdJSkedwNEaTlOpBPxe3RmeVoRllSv2pITxgRXMKuuoTNCEt+ZoILO2U3
+# rXuwF/AaHZpSvGjKQRSJ5P4TJf10m6Pz6GIx+5fMcjsk1+Hwwjj7+7UtlaxIIEb9
+# m+M3SNCbmbfrElIfPfDWtisLDW44zwLjbuNlkYl9wLBS3LtrAQMksFhEL3DW1tYD
+# AYEKpLtL5BOs43J3VbVLlr1VnmlYkgSwVH31TrG77Hvbu45LPLomFZGbnDzf9yIG
+# MvJL8/AAkCb9sRIBeFu5Tky5U4CbztL6FCcZTeh5Ocp6Rvt4BCHapT76+q2Duxi6
+# JknuRz1l9MGQ8LTMHMMJxEhRoT/3mg==
 # SIG # End signature block

@@ -7,16 +7,6 @@
 Out/
 EndpointTrackingScripts/
 .venv/
-src/**/obj/
-src/**/bin/
-!src/TechToolbox.Agent/bin/
-src/TechToolbox.Agent/bin/**
-!src/TechToolbox.Agent/bin/Release/
-src/TechToolbox.Agent/bin/Release/**
-!src/TechToolbox.Agent/bin/Release/net8.0/
-src/TechToolbox.Agent/bin/Release/net8.0/**
-!src/TechToolbox.Agent/bin/Release/net8.0/TechToolbox.Agent.dll
-!src/TechToolbox.Agent/bin/Release/net8.0/TechToolbox.Agent.deps.json
 
 LogsAndExports/*
 !LogsAndExports/Logs/

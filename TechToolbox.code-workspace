@@ -71,9 +71,6 @@
         "[csharp]": {
             "editor.defaultFormatter": "ms-dotnettools.csharp"
         },
-        "[xml]": {
-            "editor.defaultFormatter": "csharpier.csharpier-vscode"
-        },
     },
     // ------------------------------
     // Recommended Extensions

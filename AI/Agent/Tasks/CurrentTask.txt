@@ -1,0 +1,6 @@
+"Thank you for that analysis. Please go ahead and keep the function in place for
+now as you pointed out that the -ShowEffectiveConfig param is useful and
+helpful. Please remove the overview screen from the Get-ToolboxHelp function
+located at C:\repos\TechToolbox\Public\Get and replace it with the note in its
+help topics pointing users to PowerShell's native 'Get-Help'. You have my
+explicit permission to perform this task."
