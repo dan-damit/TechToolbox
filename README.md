@@ -252,6 +252,10 @@ The full catalog is at [commands.md](commands.md). Below is a categorized summar
 | `Invoke-TechAgent` | Orchestrates the agent-driven workflow engine (single recursion auto-retry toggle available) |
 | `Initialize-TTWordList` | Initializes the AI word list used by the agent |
 
+TechAgent runtime distribution note:
+- PSGallery publishes the PowerShell module and C# agent source/project files, but not prebuilt TechToolbox.Agent binaries.
+- `Install-TechAgentRuntime` and `Invoke-TechAgent` build the C# runtime locally on demand (requires .NET SDK 8+).
+
 ### Export & Packaging
 
 | Function | Purpose |

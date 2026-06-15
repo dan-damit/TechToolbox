@@ -54,9 +54,7 @@ jobs:
             'commands.md',
             'Config/build.config.json',
             'AI/Agent',
-            'src/TechToolbox.Agent/bin/Debug',
-            'src/TechToolbox.Agent/bin/Release/net8.0/publish',
-            'src/TechToolbox.Agent/bin/Release/net8.0/TechToolbox.Agent.pdb',
+            'src/TechToolbox.Agent/bin',
             'src/TechToolbox.Agent/obj',
             'src/TechToolbox.Agent.Tests'
           )
@@ -109,7 +107,7 @@ jobs:
           $files | ForEach-Object { Write-Host " - $_" }
           Write-Host "Total files: $($files.Count)"
 
-      - name: Verify staged C# agent runtime files
+      - name: Verify staged C# agent source files
         shell: pwsh
         run: |
           $stagePath = Join-Path $env:RUNNER_TEMP 'TechToolbox-publish-preview'
@@ -119,8 +117,6 @@ jobs:
 
           $requiredFiles = @(
             'src/TechToolbox.Agent/TechToolbox.Agent.csproj',
-            'src/TechToolbox.Agent/bin/Release/net8.0/TechToolbox.Agent.dll',
-            'src/TechToolbox.Agent/bin/Release/net8.0/TechToolbox.Agent.deps.json',
             'Public/AI/Invoke-TechAgent.ps1',
             'Public/AI/Install-TechAgentRuntime.ps1'
           )
