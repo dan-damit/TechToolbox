@@ -173,6 +173,7 @@ The full catalog is at [commands.md](commands.md). Below is a categorized summar
 | `Search-User`                | Searches for AD users by criteria               |
 | `Get-AllUsers`               | Enumerates all AD users (with filters)          |
 | `Get-LocalAdminMembers`      | Lists members of the local Administrators group |
+| `Initialize-TTWordList`      | Initializes word list for Password generator    |
 
 ### Exchange Online & Compliance
 
