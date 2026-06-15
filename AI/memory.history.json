@@ -1,0 +1,80 @@
+[
+  {
+    "Timestamp": "0001-01-01T00:00:00+00:00",
+    "Intent": "",
+    "Status": "success",
+    "Outcome": "completed",
+    "ToolCalls": 1,
+    "ToolNames": [],
+    "DurationMs": 66116
+  },
+  {
+    "Timestamp": "0001-01-01T00:00:00+00:00",
+    "Intent": "",
+    "Status": "success",
+    "Outcome": "needs-confirmation",
+    "ToolCalls": 2,
+    "ToolNames": [],
+    "DurationMs": 248787
+  },
+  {
+    "Timestamp": "0001-01-01T00:00:00+00:00",
+    "Intent": "",
+    "Status": "success",
+    "Outcome": "needs-confirmation",
+    "ToolCalls": 1,
+    "ToolNames": [],
+    "DurationMs": 156128
+  },
+  {
+    "Timestamp": "0001-01-01T00:00:00+00:00",
+    "Intent": "",
+    "Status": "success",
+    "Outcome": "needs-confirmation",
+    "ToolCalls": 2,
+    "ToolNames": [],
+    "DurationMs": 234914
+  },
+  {
+    "Timestamp": "0001-01-01T00:00:00+00:00",
+    "Intent": "",
+    "Status": "success",
+    "Outcome": "completed",
+    "ToolCalls": 2,
+    "ToolNames": [],
+    "DurationMs": 128590
+  },
+  {
+    "Timestamp": "2026-06-15T05:51:28.9461825+00:00",
+    "Intent": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
+    "Status": "success",
+    "Outcome": "completed",
+    "ToolCalls": 3,
+    "ToolNames": [
+      "LIST-DIRECTORY",
+      "READ-FILE",
+      "READ-FILE"
+    ],
+    "DurationMs": 667069
+  },
+  {
+    "Timestamp": "2026-06-15T05:55:37.4840305+00:00",
+    "Intent": "TOOLNAME{\u0022name\u0022: \u0022READ-FILE\u0022, \u0022parameters\u0022: {\u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox\\\\Public\\\\Start_Stop\\\\Stop-PSRemoteSession.ps1\u0022}}",
+    "Status": "success",
+    "Outcome": "completed",
+    "ToolCalls": 0,
+    "ToolNames": [],
+    "DurationMs": 27285
+  },
+  {
+    "Timestamp": "2026-06-15T06:06:35.6740283+00:00",
+    "Intent": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022an error was encountered while running the model: read tcp 127.0.0.1:57171-\\u003e127.0.0.",
+    "Status": "success",
+    "Outcome": "completed",
+    "ToolCalls": 1,
+    "ToolNames": [
+      "READ-FILE"
+    ],
+    "DurationMs": 467927
+  }
+]

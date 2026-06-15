@@ -1,0 +1,177 @@
+name: Publish to PowerShell Gallery
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PowerShell 7.6.2
+        shell: pwsh
+        run: |
+          $version = '7.6.2'
+          $zipPath = Join-Path $env:RUNNER_TEMP "powershell-$version-win-x64.zip"
+          $installDir = Join-Path $env:RUNNER_TEMP "powershell-$version"
+          $downloadUrl = "https://github.com/PowerShell/PowerShell/releases/download/v$version/PowerShell-$version-win-x64.zip"
+
+          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+          Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $installDir -Force
+
+          $pwshExe = Join-Path $installDir 'pwsh.exe'
+          if (-not (Test-Path -LiteralPath $pwshExe)) {
+            throw "PowerShell $version install failed; expected executable not found at $pwshExe"
+          }
+
+          "PWSH_76_EXE=$pwshExe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & $pwshExe -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+
+      - name: Set PSGallery exclusions
+        shell: pwsh
+        run: |
+          $exclude = @(
+            '.venv',
+            '.git',
+            '.github',
+            '.vscode',
+            'Out',
+            'CodeAnalysis',
+            'LogsAndExports',
+            'Bin',
+            'Build.ps1',
+            'TechToolbox.code-workspace',
+            'dotnet-tools.json',
+            'PSScriptAnalyzerSettings.psd1',
+            'VERSIONING.md',
+            'CHANGELOG.md',
+            'commands.md',
+            'Config/build.config.json'
+          )
+
+          $excludeJson = $exclude | ConvertTo-Json -Compress
+          $delimiter = "EOF$([Guid]::NewGuid().ToString('N'))"
+          "PSGALLERY_EXCLUDE_JSON<<$delimiter" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $excludeJson | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "$delimiter" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Preview PSGallery package contents
+        shell: pwsh
+        run: |
+          $modulePath = $PWD.Path
+          if ([string]::IsNullOrWhiteSpace($env:PSGALLERY_EXCLUDE_JSON)) {
+            throw "Missing PSGALLERY_EXCLUDE_JSON environment variable from exclusions step."
+          }
+          $exclude = @($env:PSGALLERY_EXCLUDE_JSON | ConvertFrom-Json)
+
+          $stagePath = Join-Path $env:RUNNER_TEMP 'TechToolbox-publish-preview'
+          if (Test-Path -LiteralPath $stagePath) {
+            Remove-Item -LiteralPath $stagePath -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $stagePath -Force | Out-Null
+
+          $topLevelExclude = $exclude | Where-Object { $_ -notmatch '[\\/]' }
+
+          Get-ChildItem -LiteralPath $modulePath -Force | ForEach-Object {
+            if ($topLevelExclude -contains $_.Name) {
+              return
+            }
+            Copy-Item -LiteralPath $_.FullName -Destination $stagePath -Recurse -Force
+          }
+
+          $nestedExclude = Join-Path $stagePath 'Config/build.config.json'
+          if (Test-Path -LiteralPath $nestedExclude) {
+            Remove-Item -LiteralPath $nestedExclude -Force
+          }
+
+          $files = Get-ChildItem -LiteralPath $stagePath -Recurse -File |
+            ForEach-Object {
+              $_.FullName.Substring($stagePath.Length + 1).Replace('\\', '/')
+            } |
+            Sort-Object
+
+          Write-Host 'Preview of files to be published:'
+          $files | ForEach-Object { Write-Host " - $_" }
+          Write-Host "Total files: $($files.Count)"
+
+      - name: Publish Module to PSGallery
+        shell: pwsh
+        env:
+          NUGET_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_KEY)) {
+            throw "Missing PSGALLERY_API_KEY secret. Set repository secret 'PSGALLERY_API_KEY' and re-run."
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:PWSH_76_EXE)) {
+            throw "Missing PWSH_76_EXE environment variable from install step."
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:PSGALLERY_EXCLUDE_JSON)) {
+            throw "Missing PSGALLERY_EXCLUDE_JSON environment variable from exclusions step."
+          }
+
+          if (-not (Test-Path -LiteralPath $env:PWSH_76_EXE)) {
+            throw "PowerShell 7.6.2 executable not found: $env:PWSH_76_EXE"
+          }
+
+          Write-Host "Publishing TechToolbox to PowerShell Gallery with $env:PWSH_76_EXE..."
+
+          $publishScriptPath = Join-Path $env:RUNNER_TEMP 'publish-module.ps1'
+          @'
+          param(
+            [Parameter(Mandatory)]
+            [string]$ModulePath,
+            [Parameter(Mandatory)]
+            [string]$NuGetKey,
+            [Parameter(Mandatory)]
+            [string]$ExcludeJson
+          )
+
+          $exclude = @($ExcludeJson | ConvertFrom-Json)
+
+          $stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("TechToolbox-publish-" + [Guid]::NewGuid().ToString('N'))
+          $stagePath = Join-Path $stageRoot 'TechToolbox'
+          New-Item -ItemType Directory -Path $stagePath -Force | Out-Null
+
+          $topLevelExclude = $exclude | Where-Object { $_ -notmatch '[\\/]' }
+          Get-ChildItem -LiteralPath $ModulePath -Force | ForEach-Object {
+            if ($topLevelExclude -contains $_.Name) {
+              return
+            }
+            Copy-Item -LiteralPath $_.FullName -Destination $stagePath -Recurse -Force
+          }
+
+          foreach ($entry in ($exclude | Where-Object { $_ -match '[\\/]' })) {
+            $relativePath = $entry -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
+            $excludePath = Join-Path $stagePath $relativePath
+            if (Test-Path -LiteralPath $excludePath) {
+              Remove-Item -LiteralPath $excludePath -Recurse -Force
+            }
+          }
+
+          $manifest = Join-Path $stagePath "TechToolbox.psd1"
+          Test-ModuleManifest $manifest
+
+          try {
+            Publish-Module `
+              -Path $stagePath `
+              -NuGetApiKey $NuGetKey `
+              -Repository PSGallery `
+              -Verbose
+          }
+          finally {
+            if (Test-Path -LiteralPath $stageRoot) {
+              Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+          '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
+
+          $modulePath = $PWD.Path
+          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON

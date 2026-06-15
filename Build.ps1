@@ -5,6 +5,7 @@
   - (Optional) Run PSSA analysis
   - Sign module files
   - (Optional) Package artifacts
+    - (Optional) Release automation (bump/commit/tag/push)
 
 .NOTES
   - Prefers PS7+ but works on Windows PowerShell 5.1+
@@ -14,8 +15,10 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [switch]$AutoVersionPatch,
+    [switch]$Release,
     [switch]$RegenerateGuid,
-    [switch]$SkipValidSigs = $true,
+    [switch]$SkipSigning,
+    [bool]$SkipValidSigs = $true,
     [switch]$Recurse,
     [switch]$Analyze,         # Run PSSA (PowerShell ScriptAnalyzer)
     [switch]$FailOnPssa,      # Fail build if PSSA finds issues
@@ -27,6 +30,22 @@ param(
     [string]$TimestampServer,
     [string]$Thumbprint
 )
+
+function Invoke-Git {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$gitArgs,
+        [switch]$IgnoreExitCode
+    )
+
+    $output = & git -C $ModuleRoot @gitArgs 2>&1
+    if ($LASTEXITCODE -ne 0 -and -not $IgnoreExitCode) {
+        $joined = ($output | Out-String).Trim()
+        throw "git $($gitArgs -join ' ') failed: $joined"
+    }
+
+    return ($output | Out-String).Trim()
+}
 
 # ---------------- 01. Load config --------------------------------------------
 $cfg = $null
@@ -40,6 +59,27 @@ $outDir = $cfg.artifacts.outDir ?? (Join-Path $ModuleRoot 'Out')
 $pssaSettings = $cfg.quality.pssaSettings ?? (Join-Path $ModuleRoot 'PSScriptAnalyzerSettings.psd1')
 $analyzeEnabled = $Analyze.IsPresent -or ($cfg.quality.analyze -eq $true)
 $failOnPssa = $FailOnPssa.IsPresent -or ($cfg.quality.failOnPssa -eq $true)
+
+# Release mode implies patch bump + manifest update flow, then git commit/tag/push.
+if ($Release) {
+    $AutoVersionPatch = $true
+
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        throw "git is required for -Release but was not found in PATH."
+    }
+
+    $repoRoot = Invoke-Git -gitArgs @('rev-parse', '--show-toplevel')
+    if (-not $repoRoot) {
+        throw "-Release requires running inside a git repository."
+    }
+
+    $preReleaseDirty = Invoke-Git -gitArgs @('status', '--porcelain')
+    if (-not [string]::IsNullOrWhiteSpace($preReleaseDirty)) {
+        throw "Working tree is not clean. Commit or stash local changes before running -Release."
+    }
+
+    Write-Host "Release mode enabled: auto-version patch + manifest update + git release steps." -ForegroundColor Cyan
+}
 
 # ---------------- 02. Validate environment -----------------------------------
 $manifestPath = Join-Path $ModuleRoot 'TechToolbox.psd1'
@@ -158,41 +198,46 @@ function Get-CodeSigningCert {
     return $null
 }
 
-if (-not $Thumbprint) {
-    if ($Interactive) { $Thumbprint = Read-Host "Enter code signing thumbprint" }
-    else { throw "Thumbprint not provided (set Config\build.config.json signing.thumbprint or pass -Thumbprint)." }
-}
-$cert = Get-CodeSigningCert -Thumb $Thumbprint
-if (-not $cert) { throw "Code signing cert not found or missing private key for thumbprint $Thumbprint." }
-
-# What to sign
-$search = @{ Path = $ModuleRoot; Include = '*.ps1', '*.psm1', '*.psd1'; File = $true; Recurse = $true }
-$files = Get-ChildItem @search | Where-Object {
-    $_.FullName -notmatch '\\(Out|Bin|CodeAnalysis|\.git)\\'
-}
-
 $ok = 0; $skip = 0; $warn = 0
-Write-Host "Signing $(($files|Measure-Object).Count) file(s)..." -ForegroundColor Cyan
-foreach ($f in $files) {
-    try {
-        if ($SkipValidSigs) {
-            $sig = Get-AuthenticodeSignature -FilePath $f.FullName
-            if ($sig.Status -eq 'Valid') { $skip++; continue }
-        }
-        $params = @{
-            FilePath      = $f.FullName
-            Certificate   = $cert
-            HashAlgorithm = 'SHA256'
-        }
-        if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
-        $r = Set-AuthenticodeSignature @params
-        if ($r.Status -eq 'Valid') { $ok++ } else { $warn++ }
-    }
-    catch {
-        $warn++
-    }
+if ($SkipSigning) {
+    Write-Host "Signing skipped (-SkipSigning)." -ForegroundColor DarkYellow
 }
-Write-Host "Signing complete → OK: $ok  Skipped: $skip  Warnings/Errors: $warn" -ForegroundColor Cyan
+else {
+    if (-not $Thumbprint) {
+        if ($Interactive) { $Thumbprint = Read-Host "Enter code signing thumbprint" }
+        else { throw "Thumbprint not provided (set Config\build.config.json signing.thumbprint or pass -Thumbprint)." }
+    }
+    $cert = Get-CodeSigningCert -Thumb $Thumbprint
+    if (-not $cert) { throw "Code signing cert not found or missing private key for thumbprint $Thumbprint." }
+
+    # What to sign
+    $search = @{ Path = $ModuleRoot; Include = '*.ps1', '*.psm1'; File = $true; Recurse = $true }
+    $files = Get-ChildItem @search | Where-Object {
+        $_.FullName -notmatch '\\(Out|Bin|CodeAnalysis|\.git)\\'
+    }
+
+    Write-Host "Signing $(($files|Measure-Object).Count) file(s)..." -ForegroundColor Cyan
+    foreach ($f in $files) {
+        try {
+            if ($SkipValidSigs) {
+                $sig = Get-AuthenticodeSignature -FilePath $f.FullName
+                if ($sig.Status -eq 'Valid') { $skip++; continue }
+            }
+            $params = @{
+                FilePath      = $f.FullName
+                Certificate   = $cert
+                HashAlgorithm = 'SHA256'
+            }
+            if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
+            $r = Set-AuthenticodeSignature @params
+            if ($r.Status -eq 'Valid') { $ok++ } else { $warn++ }
+        }
+        catch {
+            $warn++
+        }
+    }
+    Write-Host "Signing complete → OK: $ok  Skipped: $skip  Warnings/Errors: $warn" -ForegroundColor Cyan
+}
 
 # ---------------- 07. (Optional) Package -------------------------------------
 $artifact = $null
@@ -213,7 +258,47 @@ if ($Pack) {
     Write-Host "Packaged → $artifact" -ForegroundColor Green
 }
 
-# ---------------- 08. Emit summary -------------------------------------------
+# ---------------- 08. (Optional) Release commit/tag/push ---------------------
+$releaseTag = $null
+$releaseCommit = $null
+$releasePushed = $false
+if ($Release) {
+    $releaseTag = "v$newVersion"
+
+    $existingTag = Invoke-Git -gitArgs @('tag', '--list', $releaseTag)
+    if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
+        throw "Tag already exists: $releaseTag"
+    }
+
+    $branchName = Invoke-Git -gitArgs @('rev-parse', '--abbrev-ref', 'HEAD')
+
+    Invoke-Git -gitArgs @('add', '-A') | Out-Null
+    & git -C $ModuleRoot diff --cached --quiet
+    if ($LASTEXITCODE -eq 0) {
+        throw "No staged changes detected after release build. Nothing to commit/tag."
+    }
+
+    $commitMessage = "release: $releaseTag"
+    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create release commit ($commitMessage)")) {
+        Invoke-Git -gitArgs @('commit', '-m', $commitMessage) | Out-Null
+        $releaseCommit = Invoke-Git -gitArgs @('rev-parse', '--short', 'HEAD')
+        Write-Host "Release commit created: $releaseCommit" -ForegroundColor Green
+    }
+
+    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create git tag $releaseTag")) {
+        Invoke-Git -gitArgs @('tag', '-a', $releaseTag, '-m', "Release $releaseTag") | Out-Null
+        Write-Host "Tag created: $releaseTag" -ForegroundColor Green
+    }
+
+    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push branch '$branchName' and tag '$releaseTag' to origin")) {
+        Invoke-Git -gitArgs @('push', 'origin', $branchName) | Out-Null
+        Invoke-Git -gitArgs @('push', 'origin', $releaseTag) | Out-Null
+        $releasePushed = $true
+        Write-Host "Pushed branch + tag. Tag push should trigger .github/workflows/publish.yml" -ForegroundColor Green
+    }
+}
+
+# ---------------- 09. Emit summary -------------------------------------------
 $result = [pscustomobject]@{
     ManifestPath    = $manifestPath
     Version         = [pscustomobject]@{ Old = $oldVersion; New = $newVersion }
@@ -224,14 +309,21 @@ $result = [pscustomobject]@{
     FilesSkipped    = $skip
     FilesWarned     = $warn
     ArtifactPath    = $artifact
+    Release         = [pscustomobject]@{
+        Enabled      = [bool]$Release
+        Commit       = $releaseCommit
+        Tag          = $releaseTag
+        Pushed       = $releasePushed
+        PipelineHint = if ($releasePushed -and $releaseTag) { "GitHub Actions publish workflow triggers on pushed v* tags." } else { $null }
+    }
 }
 $result
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAo3fFcLsGKEiX9
-# hw8y/b7zg3GANlqoq3TSo6xP0W2o7KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB/WXHw9H2wJW14
+# FslWio5QRdLKF0vKkuwYAY7MfOUqq6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -364,34 +456,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCKV0L6yxhD
-# Ce+Lfb/F5Av0sjLkKpTsX3gJuu4CEqMQszANBgkqhkiG9w0BAQEFAASCAgB5X68w
-# XJ41jlCwGaMuEtopXxt77rHyP1LNZLX1KDQW7axVle47CMZUUeAwOZDynx9ZZ25e
-# 5m8V0ZMMMEW/k7bo99TJH37BBaMhoyohP3YFyWVMeGTvCa2v3FEypVgMh2gU9Kf8
-# UpqeXmZv2zqC9nQmvlRBsg2GxtZm4qTtnDM+CIwM59qg/vPO0MRxtUuOvANHk3Eh
-# 09dX0VjcqyOSdMeAYW7EY6jhqHkBosJ5GBkMHgnW6AZKUsv1aIEYQVboOgpDQ4Tj
-# xaFgtEaiNZzxAvhmadL7fyVouRgFNawsjM4HiPqAZXz1rfYAn68wNU1hu0u5qMVr
-# tDMOdbcBHzW4VMkioNoVTHrhd3N3ykbRWGRTZUbcqndB/O7j0Qsi1nw8yvYlxki6
-# sxx32Wxvu/RzvianV2GsYrr2vTn424gPD7nDuQoJ3RMvHZIVqDn9QPKj/dXXBfiI
-# fmJXzN9NY7r7rExNEWOrWNbDjicas11vCeFB9peEwgD299aw/yzuDDFNZjSqZb0O
-# f1TeKbDSXe428mZd7FCKqiaONmMHZ0yydG7lCNOsvN5O65FqafZFPPfKC/TAxVH1
-# /yN/4GTz2glcVeM1gc/rWDcyxk3nZl8338JjeCHnvuNNS8fpXB1z3a5DmqHrjbVi
-# Cad/bQU7suYTqMks4SeBC4pmuWcc11V0KHOFZKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDYW74mm4u7
+# xDENcjO4P6Jl8KqUEdfxs8pNMxVN5Qzw/TANBgkqhkiG9w0BAQEFAASCAgAEEdqp
+# L+xTBr7nJEuW6dvKqMpZHWqp9XnQmCUoOtYS45mHeSJ6w5BK4HgDryz1emsHG+E6
+# 7Y1s39hUkdu3/8d73JD/onHuWwrmwhJL7Byw/DwRIQF6/DTRbYtqhFXynCDuBf8W
+# jHTu8uZ/Ua3Ckdj2fv7MdENqQW2w+y13nT0o8qRkTGajTCvIJ1iFdap9gYGALIO1
+# nJd0ec9Ptuk8VRoaz81lAbIeUQQGZnqHscx72u8uvvfNf09GdM8ZAmXkUixP28rL
+# Bu8Q/WKaq6RWpELMXV199Zgm7jPzCqSb6mTpCma5ljCdypp/wD/z0hH8qHZzbShu
+# lLSLmQwuag9d9GqeifWKi07W2rWVWfgzm/k/r4ikT4XwnsLMybQxqz8a+7ZOGCse
+# DUlxu5LHgshp5MnjpPFYEv+Phx5+FMa8vM0Lma8jtMy1Uw586fNBdIu1et41+u6s
+# zg5uUTLeKFAZ5+ejAefDsVOQTm+DwtOs/yz2mExtiYla8DXSZZCsPq42cB9j+275
+# uIF7STA1/tD16PAnXQ/ixXf10HpUn12Hdihrrzj+BvuiusSCAPLawp7XvDxWNrf0
+# 988qPUd66xhb0VYzht5vw/O8PQ3H0gle9HA/E0Dk9F7XNdfsrbnjT35sEaYocqXS
+# ZvAPVxloA9Zfwfy+CAkmzvt1zAsu29dymx7aMaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTEwNDQxMjBaMC8GCSqGSIb3DQEJBDEiBCCRqbRbb65rVF2LtH+4
-# dSt7ol+HDQz/jMHgYobtjPbCeTANBgkqhkiG9w0BAQEFAASCAgAh5+ZX0BSO+T2j
-# f2OvBvFOlvAy6yzh3r9t+rrY2EskaKZ+WJNjugMrd2UA4+1W1/bivWfjEwIoKsxt
-# yJshp9IETF5TAJLnKrde7inLNwV6n3JkF2LBGUouaD18Zj1h0853gSecTIHy+ZVu
-# usur/dQ3GrrAcnZ0ksl7RgEAf22qOohOuORcaT//8KTC4Lz4mBd9vbagM4YOlfFp
-# 9qYH8tLJqGzB9IPggdPnSsjmWkBtjIzE4tH6FQco0c0lZ6FEdTMDwTBqQQRM6Ech
-# puIEQJRfC3z7QgZy5h4qn4FA0al5kNtMMtZwhZPttb9lFMoWOW9FxzbVzHcaPNO8
-# B0pW5wIEBJbDcrjwNXHWvzK8mwaXTWdT3gxzitCkpRknS1/97jejfe0esv1yw8uX
-# N1GVDZg5Hh6i53ynQ9mv1gK87+FEXIqrpNOY3Ts7CbqdwtxbLgjG75RbFsBpcUSw
-# h0KXDqrcsN8WuleDs5JooQNDPQ7cvjEHfXe0Mv4uehg7Kr+vNpFU62KsPa6pGim5
-# sc2qTOaD6MA2yx3UYBiW5zIu5fyfoa5x/4uZNYRkKoxfiym1/eUVTHM1zW7547sx
-# JfskCWR9U/w8c/DwnmXYoi1DynelcIdNg5Bf8ZzIF8xHQtO3PuqlxFrscpIWEb++
-# oTYQijDbZXgN1/5W9+LnamhXizlFyw==
+# BTEPFw0yNjA2MTMwNTEwMjZaMC8GCSqGSIb3DQEJBDEiBCCVqZcp0k1GK1t9QYOa
+# XnqqU+NzGwQ04KvmKSo/ya3rijANBgkqhkiG9w0BAQEFAASCAgAW/wNuBKBGLPhx
+# 3BeHKpZwrDH9G57KzdwqRruYuBCRqLqo8dAkvPjg/RsJw2ejqI9XwoYfm5mfmre/
+# oQNbtv1kUeFNJ0b2pO+cvve7avtJ9D4iVAKctfFsfrnvaOQsB+EMerb6eGp75Wa7
+# sEujkQwWlvQFQEz5s9ib9PBipTxqQpTLVT7HbaRg8AgHINGd7YezReXOPaW+CEyE
+# lOEQvjqJ051uIHu6KO88Hhyghy0GjRHR3niDZqWmfAw4eppT2OVQYt0PFs8q2tdZ
+# EPqJ/xpI+9cIGlrggzspihRG7iwcQyVLZeBI5yRA6cU+2BV8U3ha+0iYNsdrqb0z
+# beJ1+CK8wrk47WXBiRo4+mAijmtItOFKBJOI8LzwMPxwyTIg168JnpQ1DXLfP9+k
+# 2mZrEzshfkOjljbgFcXYrFiUKMRiNkvflIMXC6AASJbJu+oDUXfKGGSZlZTlpPmx
+# Mn8NwynWb44lAOA9nsDRsgW3l58n3olrNhjOoheKmJVK9oV0QM/k8Q32GBsP1sXZ
+# xfI1wAuCQju2ViZTGfgX0PW9PO8RWKw/MB8ZwjZKSBXLw1DpyumU3opF8sAl0Bo5
+# ugbN3IcwPwsltzR6VK9wx/SvHmmfFX9xWH/jdStwDUm4uGHktcKCc3Ffihc1XZnc
+# JkQSbQMtZ7VbbBRXOq7U+i4ad6zraw==
 # SIG # End signature block
