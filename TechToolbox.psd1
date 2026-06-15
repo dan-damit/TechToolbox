@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.5.21'
+ModuleVersion = '0.5.22'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
