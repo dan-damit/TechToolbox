@@ -2,15 +2,16 @@
 
 <p align="center">
   <a href="https://www.powershellgallery.com/packages/TechToolbox">
-    <img src="https://img.shields.io/powershellgallery/v/TechToolbox?style=flat-square&color=00fff2&label=Version&logo=powershell&logoColor=00fff2" />
+    <img src="https://img.shields.io/badge/Version-TechToolbox-blueviolet?style=plastic&logo=powershell&logoColor=white" />
   </a>
   <a href="https://www.powershellgallery.com/packages/TechToolbox">
-    <img src="https://img.shields.io/powershellgallery/dt/TechToolbox?style=flat-square&color=ff00f7&label=Downloads&logo=powershell&logoColor=ff00f7" />
+    <img src="https://img.shields.io/badge/Downloads-PSGallery-orange?style=plastic&logo=powershell&logoColor=white" />
   </a>
   <a href="https://github.com/dan-damit/TechToolbox/releases">
-    <img src="https://img.shields.io/github/v/release/dan-damit/TechToolbox?style=flat-square&color=00ff85&label=Release&logo=github&logoColor=00ff85" />
+    <img src="https://img.shields.io/badge/Release-GitHub-black?style=plastic&logo=github&logoColor=white" />
   </a>
 </p>
+
 
 ## _A PowerShell 7+ Operator Framework for Enterprise IT Automation._
 
