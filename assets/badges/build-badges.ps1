@@ -1,34 +1,118 @@
 param()
 
-Write-Host "Fetching PSGallery data..."
-$module = Find-Module -Name "TechToolbox"
+Write-Host "=== TechToolbox Badge Builder ===" -ForegroundColor Cyan
 
-$psVersion = $module.Version.ToString()
-$psDownloads = $module.TotalDownloads
+# -----------------------------
+# Helper: Format numbers nicely
+# -----------------------------
+function Format-Number {
+    param([long]$n)
+    if ($null -eq $n) { return "0" }
+    return "{0:N0}" -f $n
+}
 
-Write-Host "Fetching GitHub release data..."
-$gh = Invoke-RestMethod "https://api.github.com/repos/dan-damit/TechToolbox/releases/latest"
+# -----------------------------
+# Fetch PSGallery Data
+# -----------------------------
+Write-Host "`n[1/4] Fetching PSGallery data..." -ForegroundColor Yellow
 
-$ghVersion = $gh.tag_name
+try {
+    $module = Find-Module -Name "TechToolbox" -ErrorAction Stop
 
-Write-Host "Building badge data..."
+    $psVersion = $module.Version.ToString()
+    $psDownloads = $module.TotalDownloads
+
+    if ($null -eq $psDownloads -or $psDownloads -lt 0) {
+        Write-Warning "PSGallery returned no download count. Using 0."
+        $psDownloads = 0
+    }
+
+    $psDownloadsFormatted = Format-Number $psDownloads
+}
+catch {
+    Write-Warning "Failed to fetch PSGallery data: $_"
+    $psVersion = "N/A"
+    $psDownloadsFormatted = "0"
+}
+
+Write-Host "  Version: $psVersion"
+Write-Host "  Downloads: $psDownloadsFormatted"
+
+# -----------------------------
+# Fetch GitHub Release Data
+# -----------------------------
+Write-Host "`n[2/4] Fetching GitHub release data..." -ForegroundColor Yellow
+
+try {
+    $gh = Invoke-RestMethod "https://api.github.com/repos/dan-damit/TechToolbox/releases/latest" -ErrorAction Stop
+
+    $ghVersion = $gh.tag_name
+    $ghDownloads = ($gh.assets | Measure-Object -Property download_count -Sum).Sum
+    $ghDownloadsFormatted = Format-Number $ghDownloads
+}
+catch {
+    Write-Warning "Failed to fetch GitHub release data: $_"
+    $ghVersion = "N/A"
+    $ghDownloadsFormatted = "0"
+}
+
+Write-Host "  GitHub Release: $ghVersion"
+Write-Host "  GitHub Downloads: $ghDownloadsFormatted"
+
+# -----------------------------
+# Build Replacement Table
+# -----------------------------
+Write-Host "`n[3/4] Preparing badge data..." -ForegroundColor Yellow
+
 $badgeData = @{
     VERSION             = $psVersion
-    PSGALLERY_DOWNLOADS = $psDownloads
+    PSGALLERY_DOWNLOADS = $psDownloadsFormatted
     GH_RELEASE          = $ghVersion
+    GH_DOWNLOADS        = $ghDownloadsFormatted
 }
+
+$badgeData.GetEnumerator() | ForEach-Object {
+    Write-Host "  $($_.Key) = $($_.Value)"
+}
+
+# -----------------------------
+# Process Templates
+# -----------------------------
+Write-Host "`n[4/4] Generating SVG badges..." -ForegroundColor Yellow
 
 $templatePath = "assets/badges/templates"
 $outputPath = "assets/badges"
 
-Get-ChildItem $templatePath -Filter *.template | ForEach-Object {
-    $template = Get-Content $_.FullName -Raw
+$templates = Get-ChildItem $templatePath -Filter *.template -ErrorAction SilentlyContinue
+
+if (-not $templates) {
+    Write-Error "No template files found in $templatePath"
+    exit 1
+}
+
+foreach ($file in $templates) {
+    Write-Host "  Processing $($file.Name)..."
+
+    $template = Get-Content $file.FullName -Raw
+
+    # Validate placeholders
     foreach ($key in $badgeData.Keys) {
-        $template = $template -replace "{{$key}}", $badgeData[$key]
+        if ($template -notmatch "{{$key}}") {
+            Write-Warning "Template '$($file.Name)' does not contain placeholder {{$key}}"
+        }
     }
 
-    $outFile = Join-Path $outputPath ($_.BaseName.Replace(".svg", "") + ".svg")
+    # Replace placeholders
+    foreach ($key in $badgeData.Keys) {
+        $value = $badgeData[$key]
+        $template = $template -replace "{{$key}}", $value
+    }
+
+    # Output final SVG
+    $outFile = Join-Path $outputPath ($file.BaseName.Replace(".svg", "") + ".svg")
     Set-Content -Path $outFile -Value $template -Encoding UTF8
 
-    Write-Host "Generated $outFile"
+    Write-Host "    → Generated $outFile" -ForegroundColor Green
 }
+
+Write-Host "`n=== Badge Build Complete ===" -ForegroundColor Cyan
