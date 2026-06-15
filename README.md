@@ -4,7 +4,7 @@
 [![PSGallery Downloads](https://img.shields.io/powershellgallery/dt/TechToolbox.svg?style=for-the-badge&logo=powershell)](https://www.powershellgallery.com/packages/TechToolbox)
 [![GitHub Release](https://img.shields.io/github/v/release/dan-damit/TechToolbox?style=for-the-badge&logo=github)](https://github.com/dan-damit/TechToolbox/releases)
 
-#### _A PowerShell 7+ Operator Framework for Enterprise IT Automation._
+## _A PowerShell 7+ Operator Framework for Enterprise IT Automation._
 
 TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It targets real-world enterprise operations: Active Directory lifecycle, Exchange Online / Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI-assisted automation.
 
@@ -43,7 +43,7 @@ TechToolbox follows a **loader-driven, one-function-per-file** pattern with deep
 
 ### Module Layers
 
-```
+```plaintext
 TechToolbox/
 ├── TechToolbox.psd1          # Module manifest (metadata + declared exports)
 ├── TechToolbox.psm1          # Bootstrap/loader (home init, dot-sourcing, export wiring)
