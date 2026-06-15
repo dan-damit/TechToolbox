@@ -84,6 +84,9 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 ## [Unreleased]  
 Changes planned for upcoming milestones:
 
+### **Fixed**
+- Added support for forwarding `-SignedFilePolicy` (`ignore`/`strip`) through `ITA` to `Invoke-TechAgent`, enabling `--signed-file-policy` passthrough to the Python agent for Authenticode-signed file overwrite workflows.
+
 ### **0.6.0 — Cross‑Platform Stabilization**
 - Path normalization across Windows/macOS/Linux.
 - Worker compatibility improvements.

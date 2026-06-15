@@ -67,6 +67,7 @@ It supports:
 - optional quiet mode for reduced console verbosity  
 - optional single auto-retry on recursion-limit stop conditions  
 - explicit destructive-operation confirmation when needed  
+- signed-file overwrite policy control for Authenticode-signed PowerShell files  
 
 **Usage:**
 ```powershell
@@ -77,6 +78,7 @@ Invoke-TechAgent -Prompt "Run system diagnostics and summarize findings" -Model 
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -MaxIterations 25 -Quiet
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -AutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetryOnRecursion
+Invoke-TechAgent -Prompt "Update Public/Get/Get-ToolboxHelp.ps1" -ConfirmDestructive -SignedFilePolicy strip
 ```
 
 **Recursion Auto-Retry Switches**

@@ -1,0 +1,109 @@
+== Stop-PSRemoteSession ==
+
+TOPIC
+    about_Stop-PSRemoteSession
+
+SHORT DESCRIPTION
+    Removes local PSSessions by multiple targeting criteria with support for
+    pipeline input, filtering, and confirmation.
+
+LONG DESCRIPTION
+    The Stop-PSRemoteSession cmdlet removes one or more local PSSession objects
+    from the current runspace. It supports flexible targeting through several
+    parameter sets: by PSSession object (via pipeline), by Id, by InstanceId
+    (GUID), by Name, or by filter criteria including ComputerName, NamePrefix,
+    OnlyDisconnected state filtering, and OlderThanMinutes age threshold.
+
+    The cmdlet is designed with safety in mind:
+    - It uses SupportsShouldProcess to require confirmation before removing any
+      session when the user has not suppressed it. This prevents accidental
+      removal of active sessions.
+    - It deduplicates candidates by InstanceId before attempting removal, so
+      passing duplicate or overlapping references does not cause errors.
+    - Removal is best-effort: if a single session cannot be removed, the
+      cmdlet logs an error but continues processing remaining sessions
+      rather than aborting the entire operation.
+
+PARAMETERS
+    -Session <PSSession[]>
+        One or more PSSession objects to remove. Accepts pipeline input by
+        value. Use Get-PSSession to obtain session objects.
+
+    -Id <int[]>
+        One or more session Id integers. The cmdlet resolves these against the
+        current sessions and removes matches.
+
+    -InstanceId <guid[]>
+        One or more session InstanceIds (GUIDs). Useful when you have a GUID
+        but not the full session object.
+
+    -Name <string[]>
+        One or more session name strings. Matches sessions whose Name property
+        equals any of the supplied values.
+
+    -ComputerName <string[]>
+        Filters to sessions whose ComputerName matches any of the supplied host
+        names. Used in conjunction with other filter logic.
+
+    -NamePrefix <string>
+        Removes sessions whose Name starts with this prefix. For example,
+        using 'TT:' targets sessions created by TechToolbox modules.
+
+    -OnlyDisconnected <switch>
+        When present, only removes sessions in Disconnected, Broken, or Closed
+        state. Active (Opened) sessions are excluded even if they match other
+        criteria. Useful for cleaning up stale sessions.
+
+    -OlderThanMinutes <int>
+        Only removes sessions created more than N minutes ago. Combined with
+        other filters to target old sessions.
+
+    -PassThru <switch>
+        When present, outputs the PSSession objects that were removed. Without
+        this switch the cmdlet produces no output on success.
+
+EXAMPLES
+    Example 1: Remove a specific session by Id
+    --------
+    Stop-PSRemoteSession -Id 5
+
+    This removes the local PSSession with Id 5 after confirmation (unless
+    -Confirm:$false is specified).
+
+    Example 2: Remove all disconnected sessions
+    ---------
+    Stop-PSRemoteSession -OnlyDisconnected
+
+    Removes every session currently in a Disconnected, Broken, or Closed state.
+    Each removal triggers a confirmation prompt.
+
+    Example 3: Remove TechToolbox sessions by NamePrefix
+    --------------
+    Stop-PSRemoteSession -NamePrefix 'TT:'
+
+    Targets all sessions whose Name begins with 'TT:', commonly those created
+    by TechToolbox automation modules.
+
+    Example 4: Remove old sessions and pass them through
+    -------------
+    $removed = Stop-PSRemoteSession -OlderThanMinutes 30 -PassThru
+
+    Removes sessions older than 30 minutes and captures the resulting PSSession
+    objects in $removed for further processing or logging.
+
+NOTES
+    - The cmdlet relies on Initialize-TechToolboxRuntime during execution,
+      ensuring the module environment is ready before session queries occur.
+    - Internal error handling suppresses individual removal failures so that
+      one problematic session does not block cleanup of the remaining ones.
+    - Logging uses Write-Log for informational and error output at configurable
+      severity levels (Info, Ok, Error).
+    - Use Get-PSSession to inspect current sessions before removing them.
+
+RELATED LINKS
+    Online Version: https://techtoolbox/docs/Stop-PSRemoteSession
+    about_PSSessions
+    Get-PSSession
+    Remove-PSSession
+
+----

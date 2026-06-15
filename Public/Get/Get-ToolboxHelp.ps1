@@ -8,7 +8,10 @@ function Get-ToolboxHelp {
         configuration in an interactive, formatted manner. The function supports
         multiple display modes:
 
-        - Overview: Displays general information and usage suggestions
+        - Default (no parameters): Displays a brief note pointing users to
+          PowerShell's native 'Get-Help' cmdlet for detailed command
+          documentation.
+
         - List: Displays all public exported commands grouped by verb
         - Command Help: Shows detailed help for a specific command with fuzzy
           matching
@@ -58,7 +61,9 @@ function Get-ToolboxHelp {
     .EXAMPLE
         PS> Get-ToolboxHelp
 
-        Displays the main help overview with common usage commands and links.
+        Displays a brief note pointing users to PowerShell's native 'Get-Help'
+        cmdlet for detailed documentation. Use '-List' to see available commands
+        or '-Name <Cmdlet>' for specific help.
 
     .EXAMPLE
         PS> Get-ToolboxHelp -List
@@ -130,7 +135,13 @@ function Get-ToolboxHelp {
         [switch]$AsJson,
 
         [Parameter(ParameterSetName = 'Command')]
-        [switch]$Examples
+        [switch]$Examples,
+
+        [Parameter(ParameterSetName = 'Config')]
+        [string]$Section,
+
+        [Parameter(ParameterSetName = 'Config')]
+        [string]$Search
     )
 
     begin {
@@ -160,7 +171,7 @@ function Get-ToolboxHelp {
                     Show-CommandList -AsJson $AsJson -HostEnv $hostEnvironment
                 }
                 'Config' {
-                    Show-Configuration -AsJson $AsJson -ConfigState $configState -HostEnv $hostEnvironment
+                    Show-Configuration -AsJson $AsJson -ConfigState $configState -HostEnv $hostEnvironment -Section $Section -Search $Search
                 }
                 'Command' {
                     Show-CommandHelp -Name $Name -Examples $Examples -HostEnv $hostEnvironment
@@ -344,7 +355,7 @@ function Split-TextToColumns {
 function Show-HelpOverview {
     <#
     .SYNOPSIS
-        Displays the help overview screen.
+        Displays a brief note pointing users to PowerShell's native Get-Help cmdlet.
     #>
     param(
         [Parameter(Mandatory)]
@@ -352,37 +363,21 @@ function Show-HelpOverview {
     )
 
     if ($HostEnv.IsInteractive) {
-        Write-Host ''
-        Write-Host '=======================' -ForegroundColor DarkCyan
-        Write-Host 'TechToolbox Help Center' -ForegroundColor Cyan
-        Write-Host '=======================' -ForegroundColor DarkCyan
-        Write-Host ''
+        Write-Host '' -ForegroundColor Gray
+        Write-FormattedText -Text 'For detailed help on any TechToolbox command, use PowerShell native Get-Help:' -ForegroundColor Cyan -IsInteractive $true
+        Write-FormattedText -Text '  Get-Help <CommandName>       Show detailed help for a specific command' -ForegroundColor Yellow -IsInteractive $true
+        Write-FormattedText -Text '  Get-Help <CommandName> -Full Show complete documentation including examples' -ForegroundColor Yellow -IsInteractive $true
+        Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $true
+        Write-FormattedText -Text 'To see all available public commands, run: Get-ToolboxHelp -List' -ForegroundColor Cyan -IsInteractive $true
+        Write-Host '' -ForegroundColor Gray
     }
-
-    Write-FormattedText -Text 'A technician-grade PowerShell toolkit for:' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '  • Diagnostics' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '  • Automation' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '  • Environment-agnostic workflows' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-
-    Write-FormattedText -Text '----------------------------------------' -ForegroundColor DarkGray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text ' Common Commands:' -ForegroundColor White -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '----------------------------------------' -ForegroundColor DarkGray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-
-    Write-FormattedText -Text '  Get-ToolboxHelp -List' -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '    Lists all available PUBLIC commands (grouped by verb).' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-
-    Write-FormattedText -Text '  Get-ToolboxHelp Invoke-SubnetScan' -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '    Shows detailed help for a specific command.' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-
-    Write-FormattedText -Text '  Get-ToolboxHelp -ShowEffectiveConfig' -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '    Displays the current configuration.' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-    Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-
-    Write-FormattedText -Text '========================================' -ForegroundColor DarkCyan -IsInteractive $HostEnv.IsInteractive
+    else {
+        Write-Information "For detailed help on any TechToolbox command, use PowerShell native Get-Help."
+        Write-Information "  Get-Help <CommandName>       Show detailed help for a specific command"
+        Write-Information "  Get-Help <CommandName> -Full Show complete documentation including examples"
+        Write-Information ""
+        Write-Information "To see all available public commands, run: Get-ToolboxHelp -List"
+    }
 }
 
 function Show-CommandList {
@@ -487,14 +482,21 @@ function Show-CommandList {
 function Show-Configuration {
     <#
     .SYNOPSIS
-        Displays the effective configuration.
+        Displays the effective configuration with optional JSON output,
+        colorized sections, section filtering, and regex search.
     #>
     param(
         [bool]$AsJson = $false,
+
         [Parameter(Mandatory)]
         [hashtable]$ConfigState,
+
         [Parameter(Mandatory)]
-        [hashtable]$HostEnv
+        [hashtable]$HostEnv,
+
+        [string]$Section,
+
+        [string]$Search
     )
 
     $config = $null
@@ -526,7 +528,7 @@ function Show-Configuration {
             }
         }
         catch {
-            Write-Verbose ("Get-ToolboxHelp: Configuration load failed: {0}" -f $_.Exception.Message)
+            Write-Verbose ("Show-Configuration: Configuration load failed: {0}" -f $_.Exception.Message)
         }
     }
 
@@ -539,12 +541,84 @@ function Show-Configuration {
         return
     }
 
+    # ---- Section filtering ----
+    if ($Section) {
+        if ($config.PSObject.Properties.Name -contains $Section) {
+            $config = $config.$Section
+            Write-FormattedText -Text ("[Section: {0}]" -f $Section) -ForegroundColor Green -IsInteractive $HostEnv.IsInteractive
+        }
+        else {
+            Write-FormattedText -Text ("Section '{0}' not found." -f $Section) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+            return
+        }
+    }
+
+    # ---- JSON mode ----
     if ($AsJson) {
-        $config | ConvertTo-Json -Depth 10
+        $config | ConvertTo-Json -Depth 20
+        Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+        return
     }
-    else {
-        $config | Format-List
+
+    # ---- Regex search mode ----
+    if ($Search) {
+        Write-FormattedText -Text ("[Search: {0}]" -f $Search) -ForegroundColor Green -IsInteractive $HostEnv.IsInteractive
+
+        function Search-Config {
+            param(
+                [object]$Obj,
+                [string]$Path = ''
+            )
+
+            if ($Obj -is [System.Collections.IDictionary]) {
+                foreach ($key in $Obj.Keys) {
+                    $newPath = if ($Path) { "$Path.$key" } else { $key }
+                    Search-Config -Obj $Obj[$key] -Path $newPath
+                }
+            }
+            elseif ($Obj -is [System.Collections.IEnumerable] -and -not ($Obj -is [string])) {
+                $i = 0
+                foreach ($item in $Obj) {
+                    Search-Config -Obj $item -Path "$Path[$i]"
+                    $i++
+                }
+            }
+            else {
+                $value = [string]$Obj
+                if ($Path -match $Search -or $value -match $Search) {
+                    Write-FormattedText -Text ("{0} = {1}" -f $Path, $value) -ForegroundColor DarkCyan -IsInteractive $HostEnv.IsInteractive
+                }
+            }
+        }
+
+        Search-Config -Obj $config
+        Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+        return
     }
+
+    # ---- Colorized pretty output ----
+    function Show-ColorizedObject {
+        param([object]$Obj, [int]$Indent = 0)
+
+        $pad = ' ' * $Indent
+
+        if ($Obj -is [System.Collections.IDictionary]) {
+            foreach ($key in $Obj.Keys) {
+                Write-FormattedText -Text ("{0}{1}:" -f $pad, $key) -ForegroundColor DarkCyan -IsInteractive $HostEnv.IsInteractive
+                Show-ColorizedObject -Obj $Obj[$key] -Indent ($Indent + 4)
+            }
+        }
+        elseif ($Obj -is [System.Collections.IEnumerable] -and -not ($Obj -is [string])) {
+            foreach ($item in $Obj) {
+                Show-ColorizedObject -Obj $item -Indent ($Indent + 2)
+            }
+        }
+        else {
+            Write-FormattedText -Text ("{0}{1}" -f $pad, $Obj) -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
+        }
+    }
+
+    Show-ColorizedObject -Obj $config
 
     Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
 }
@@ -577,20 +651,20 @@ function Show-CommandHelp {
             $candidates = Get-Command -Module $modInfo.Name -CommandType Function -ErrorAction SilentlyContinue
         }
 
-        $matches = $candidates |
+        $CMHMatches = $candidates |
         Where-Object { $_.Name -like "*$Name*" } |
         Select-Object -ExpandProperty Name -Unique |
         Sort-Object
 
-        if ($matches.Count -eq 1) {
+        if ($CMHMatches.Count -eq 1) {
             Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
-            Write-FormattedText -Text ("Resolved '{0}' → '{1}'" -f $Name, $matches[0]) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
-            $Name = $matches[0]
+            Write-FormattedText -Text ("Resolved '{0}' => '{1}'" -f $Name, $CMHMatches[0]) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
+            $Name = $CMHMatches[0]
         }
-        elseif ($matches.Count -gt 1) {
+        elseif ($CMHMatches.Count -gt 1) {
             Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
             Write-FormattedText -Text ("Multiple commands found for '{0}':" -f $Name) -ForegroundColor Yellow -IsInteractive $HostEnv.IsInteractive
-            $matches | ForEach-Object { Write-FormattedText -Text ("  {0}" -f $_) -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive }
+            $CMHMatches | ForEach-Object { Write-FormattedText -Text ("  {0}" -f $_) -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive }
             Write-FormattedText -Text '' -ForegroundColor Gray -IsInteractive $HostEnv.IsInteractive
             return
         }
@@ -627,8 +701,8 @@ function Show-CommandHelp {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDfMttbkjr1xTu5
-# H++HL2gGhOJF+lz0T/NGAjemSxoXhaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAEAsU3adasUDcg
+# eQD5YSLZe9IT78HpTnuhzKpAb4baiKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -761,34 +835,34 @@ function Show-CommandHelp {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCKAI8YzSnI
-# fuRJtRcQc9bBjMye1YI09T9tvI15TCmGmDANBgkqhkiG9w0BAQEFAASCAgAGOWzJ
-# 4PWKWjv/QfTgCdPwkKI8O46mQYIiBSNGcnRl3bMNFV8iybk/MU+lUu+OWpeVpMt/
-# 2Dd0QJMhZ9P5hnqBu1SPAbG99Fc241O2jLwNfI5MX6GOHbho5haUVdVvWiDUD0zB
-# h6bX3RHWZx3Cnsl0lgh++isZo6WiXY8BkJIIVq4H8glqb92TM/Okn/w9rxXN4GaM
-# mdBOQaVmxgcnMsKi4CClo3XuLO97mAK7LJDPl3pZDVyKzFfm2ooRj4F3lX1ZP1QU
-# m8ZMx7usYCm3PgsfyJ70pnULuZYKKLb4XjBCTaaWMRssGkH4jFtiRwgn+5/O4O+n
-# zd8Mc9EHwtsjvrAolI/gIkJsJP9yu+zYZlXb6xVOfbDugO1sQqZeaIkwsIoFTPD0
-# KjMfLfVVyoOIgBIGoIF0LB2apiPNeN1HO7PZyz4zIGlFN1eXfT8XSyQ+0mQMvpGE
-# fwWt7LheUTqp01+rG5IU163BieMzv6yiNrxA+CHLs04bjJ0NCKlf+LPYm1H/nOSy
-# wcesrD4ziv8nlzBozcaNhX/3egBsSZ+NEP7zvg+MJDu34jJOelFn6fLzd9JHYHIG
-# bwNd8XSAGmrwFHlK2/euP+Cld02Y52RtX2w3wOdf8v8zSJriLP3xP6I++AFHbrOz
-# Xbf5DZzcdo8Ti6hMqU4zVUi8zad5cBszynkaDqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAyCR4U4HQ6
+# +GqKxfwhN+cta/Ld2uR1aFkg5Ntp/lNfrzANBgkqhkiG9w0BAQEFAASCAgDTPfyf
+# bcmHIlnZEsoq/XyPMWdyGwIpr2yrZ0CjIKSmNWCW9RGtQQkVa3P6OJzG2euiaa4N
+# e484bj3Otbevga1KQw4/uVmfsvp1uNobNLncgNmhqSj7W1mwZcO26uU+Hf3llRMy
+# 4y2TpC0dS1m5JLbMro61luoGp4nYqL2rBuesSjYm21SNnjp7iF9F+edT26RDYuNq
+# SblPy1yvyTpWbopf56E/W3wKfK0HX6CnjE2FLwHfW2wIi9B7wcFVe0sCK4DnaqrH
+# az+TSDkmvZnExBovi0igwJ6Yp37TwJ91UCsZr42Ny+xNIXFDWklPoZ+5j4pzo8ku
+# Gwy+SIwLJBrzwGJGLB30gmwkrYWEOoQ6tHSU6Sb7A+6fVQlNKRtxkYlywbrgeQuE
+# fVjzS2EvoeT1nT3ZTYRnkJC/sC8b49gHsIerMxeKhuKGMXh8SLmUQoBjxBxQ6Ex8
+# oWd7swc80Z5MGP+tp/PfJC660YABcovvAHLFwH9Cg1CazlcHoW4VxdTSmuauQE3f
+# U6HkYmVYn5uiPMMs9BMJ/lrBp1kxDZoLEd+hYw3svBuQf+6htV//mFMIMFPiGIBa
+# 9an4O5ISPeId1QG/tWcPno/hUB1E7m2Oa03+lPdOOIGUyHTWCdOxPcE85IKy4XFv
+# /NT3a04W8jRzXjYlncLWr+MlDgTDOTaAhLCPsaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA0MTMyMDE3MzJaMC8GCSqGSIb3DQEJBDEiBCAY4QMiMdgB42CWL/Dp
-# tRRRySLYxucJBWTC7Xm72za2gDANBgkqhkiG9w0BAQEFAASCAgCSmMjKzTjeohx+
-# mX16khkLwUIJjxZ/DsV6Pv8y7VTEtC0PKuEt9X14OJYHhJPcin9rim9cEzuIQcVJ
-# aCjIcpp/81P/ojmXVHwfyC33cHL3wP9ttAH8xcwxEuly1h1XPhnRDtFJ2VQvVi7t
-# WO1oB8ooeiANfyJqTJ1R4XbLDYbQjruuVZ97dMGgisIxl6s1/C6ZnrHxutESCTxV
-# E8hz5JO+b4OKO2AZbwPg02sTS/4nSdMixyN1VXlcnfh5pIZIsH/kd1p2A72tL+bv
-# YqrbITG0+JuJJTU6qV39ftmzQcdYMDywBHEkprBBsOEheu3PbqyJHo4sQKFOcE6u
-# 1TB5PFrwL9kO/b4YDBvcuFSavKd7BaRUqQGmNUg7d3RuIRXjos5/Glvv0nToyfqS
-# Dg7z43bU2u8dv/j4x8XfJgHReBUcnaTFitK/HaFQ/kvwJd/QM1cku6bI92D/oTOb
-# g47AVNX7L7mv5+NyKXXBcj4lSzF9HOrTy2gVKQActFiRf7qw3vTX7mRiwwv/FJo5
-# MvREQ30QkkXhPFlOzGv6aHn0fKONrWMK91IRguU3ZVhLpczVSsj5+DdrFNfgFN63
-# W0Ylm0H33T24PAW6EfM08B2eu8LsHQiOzQbZ9K3hFPABgoAu9He9YOpO7yecYZn4
-# qHUSsYZweKRUnV4d2xBdRK9Hvo8+2g==
+# BTEPFw0yNjA2MTQwNTEzMTRaMC8GCSqGSIb3DQEJBDEiBCBwXW1tFGhVTsRbCqus
+# 4jQnJjmJJgsC+ftlZiJTA/wPxDANBgkqhkiG9w0BAQEFAASCAgCSjsmf5lse/wXh
+# XqwP6G1PqFcgbnL5sdK8QqNcjt3FpFLoAaisy2uhFFpJ89+SbkLMet8uNmWVq6Rh
+# NjFWlfflgbC7EQVbW+h5xfacXz5V79ip818IDClCd+oxODz7xCQNUS5tjKwW+DR7
+# wnkq3UEPLFatnzVtDrFxRiojvpe580PDqMlr07u62Rxd1zxMCaxlODJfTlNtcmKu
+# 3pkG9y74U0mglA7PPk55nmgPqDZn7NzrO4G/KYGug+5F3Clep1ljg3LJ6rK2p6yB
+# U6AvDh4uaU8nId1HbMlmCkVXzeb1TAoGiOFPFlo7aVZsoO2F5hTSiaCAYCrwH7qa
+# qaaOO19f769XxpZ6w/c9Bjgi2MKcmLDzLhI7vXnBTg0L8dVjY8SALTH53ZS2rVbP
+# 7iWMQeokBspjTQrPvZlf4yP6d2g+AlpM9LaunQBM7yrzyO9hu0wpMI+5YwAextNO
+# ooQyT2uXzGfxhMH+L292p6rMfXMVeFLd8AXZpJqzpHe8XE2uOGCTDU3767EEX0z7
+# jtAAQXGpTEka9l1qno8c4F+o+b7QZsKavXWw0u4D+2E6H/HXFnnEw07EnJJ0xxgC
+# GY9wzEDtXc+VPozJEr5l7iTVfm4sWlYZ6rpo0CtBQGEmHPce4gvjGu1WjqDmHVz3
+# 0h1btX6yGKvxOXasDlUP6W5zQszPPg==
 # SIG # End signature block

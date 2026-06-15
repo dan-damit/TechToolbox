@@ -1,0 +1,134 @@
+help about_Start-NewPSRemoteSession
+online version https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_Remote
+
+TOPIC
+    about_Start-NewPSRemoteSession
+
+SHORT DESCRIPTION
+    Creates a remote PSSession with intelligent transport and endpoint selection.
+
+LONG DESCRIPTION
+    The Start-NewPSRemoteSession function creates a remote PowerShell session (PSSession)
+    to a target computer. It is designed as a robust wrapper around New-PSSession that
+    handles several common remoting scenarios automatically.
+
+    TRANSPORT OPTIONS
+    -------------------
+    - WSMan (Windows Remote Management): The default transport. Tries the PowerShell 7
+      endpoint first (ConfigurationName 'PowerShell.7'), then falls back to the standard
+      Windows PowerShell endpoint ('Microsoft.PowerShell').
+
+    - SSH: Available only with PowerShell 7+. Requires OpenSSH client (ssh.exe) on PATH.
+      Supports password or key-based authentication. In non-interactive contexts, a
+      KeyFilePath is required to prevent hanging prompts.
+
+    AUTHENTICATION OPTIONS
+    ----------------------
+    - Default (Kerberos/NTLM): Standard Windows authentication using the Credential
+      parameter or current context credentials.
+
+    - CredSSP: Enables credential delegation from the local session through the remote
+      server to a third party. The function automatically bootstraps CredSSP on both
+      the client and server side if needed. Requires elevation for initial client-side
+      configuration.
+
+    TIMEOUT CONFIGURATION
+    ---------------------
+    - ConnectTimeoutSec: Open/operation timeout in seconds (default 20).
+    - IdleTimeoutSec: Session idle timeout in milliseconds (default 1800,000 = 30 minutes).
+
+    OUTPUT FORMAT
+    -------------
+    By default, the function returns a System.Management.Automation.Runspaces.PSSession object.
+    Use the -AsList parameter to receive a summary object with properties: Id, Name, Transport,
+    ComputerName, ComputerType, State, ConfigurationName, Availability, and RunspaceId.
+
+PARAMETERS
+    -ComputerName <string>
+        Required. The DNS name or IP address of the target computer.
+
+    -Credential <pscredential>
+        PSCredential object for authentication. Required when connecting to a different
+        user context. For SSH+Key auth, the UserName property provides the login name.
+
+    -SessionName <string>
+        Custom name for the session. Auto-generated if omitted.
+
+    -UseSsh [<switch>]
+        Force SSH transport instead of WSMan. Requires PowerShell 7+.
+
+    -UseCredSSP [<switch>]
+        Enable CredSSP delegation. Automatically configures client and server if needed.
+        Client-side configuration requires elevation.
+
+    -Port <int>
+        SSH port number (default 22). Ignored for WSMan.
+
+    -Ps7ConfigName <string>
+        WSMan endpoint name for PowerShell 7 (default 'PowerShell.7').
+
+    -WinPsConfigName <string>
+        WSMan fallback endpoint name (default 'Microsoft.PowerShell').
+
+    -UserName <string>
+        SSH username when not using PSCredential.
+
+    -KeyFilePath <string>
+        Path to SSH private key file. Required for non-interactive SSH sessions.
+
+    -ConnectTimeoutSec <int>
+        Connection timeout in seconds (default 20).
+
+    -IdleTimeoutSec <int>
+        Session idle timeout in milliseconds (default 1800000).
+
+    -AsList [<switch>]
+        Return a summary object instead of the raw PSSession.
+
+INPUTS
+    None. This function does not accept pipeline input.
+
+OUTPUTS
+    System.Management.Automation.Runspaces.PSSession
+    or
+    [pscustomobject] (when -AsList is used)
+
+EXAMPLES
+    Example 1: Basic WSMan connection to local machine
+    -----------------------------------------------
+    PS C:\> Start-NewPSRemoteSession -ComputerName localhost
+
+    Creates a PSSession to the local machine using the PowerShell 7 WSMan endpoint.
+
+    Example 2: SSH connection with key authentication (non-interactive)
+    -------------------------------------------------------------------
+    PS C:\> $cred = Get-Credential
+    PS C:\> Start-NewPSRemoteSession -ComputerName server01 -UserName $cred.UserName `
+            -KeyFilePath 'C:\keys\id_ed25519' -UseSsh
+
+    Example 3: Connection with CredSSP delegation
+    --------------------------------------------
+    PS C:\> Start-NewPSRemoteSession -ComputerName webserver01 -Credential $cred `
+            -UseCredSSP
+
+    Creates a session and ensures CredSSP is configured on both client and server for
+    delegated authentication to downstream resources.
+
+NOTES
+    - CredSSP bootstrap requires the calling session to be elevated (Administrator) for
+      initial client-side Enable-WSManCredSSP configuration.
+    - SSH transport with -KeyFilePath is required in non-interactive contexts (scheduled
+      tasks, workers) to avoid hanging prompts.
+    - The function uses Write-Log for status messages; ensure logging is configured if
+      this behavior is unexpected.
+    - Session cleanup is the caller's responsibility. Use Stop-PSRemoteSession or
+      Remove-PSSession when done.
+
+RELATED TOPICS
+    about_Remote
+    about_SSH
+    about_CredSSP
+    New-PSSession
+    Remove-PSSession
+    Enable-WSManCredSSP
+    Get-PSSession

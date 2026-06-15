@@ -52,10 +52,7 @@
       "default": "%TT_ModuleRoot%\\Private\\System"
     },
     "largeFileSearch": {
-      "defaultSearchDirectory": [
-        "C:\\",
-        "D:\\"
-      ],
+      "defaultSearchDirectory": ["C:\\", "D:\\"],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
       "exportDirectory": "%TT_Home%\\LogsAndExports\\Exports\\LargeFileSearch"
@@ -85,14 +82,8 @@
     },
     "secureCrimp": {
       "server": "securecrimp-1.example.com",
-      "stackTasks": [
-        "Secure Crimp - Run Server",
-        "Secure Crimp - Nginx"
-      ],
-      "auxTasks": [
-        "Secure Crimp - Monitor TCP",
-        "Secure Crimp - Run Schedule"
-      ]
+      "stackTasks": ["Secure Crimp - Run Server", "Secure Crimp - Nginx"],
+      "auxTasks": ["Secure Crimp - Monitor TCP", "Secure Crimp - Run Schedule"]
     },
     "passwords": {
       "domainAdminCred": {
@@ -193,6 +184,12 @@
       "search": {
         "maxAttempts": 40,
         "delaySeconds": 10
+      },
+      "ticket": {
+        "pattern": "^(?<prefix>[A-Za-z]+-)?(?<id>\\d+)$",
+        "normalizePrefix": "INC-",
+        "requireHash": true,
+        "forceUpper": true
       },
       "autoConnect": true,
       "promptForContentMatchQuery": true
@@ -390,18 +387,12 @@
       "logDir": "%TT_Home%\\LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": [
-        "/E",
-        "/COPYALL"
-      ]
+      "copyFlags": ["/E", "/COPYALL"]
     },
     "downloadsCleanup": {
       "dryRun": false,
       "cutoffYear": 2024,
-      "excludeExtensions": [
-        ".pst",
-        ".ost"
-      ],
+      "excludeExtensions": [".pst", ".ost"],
       "includeExtensions": null
     },
     "teams": {

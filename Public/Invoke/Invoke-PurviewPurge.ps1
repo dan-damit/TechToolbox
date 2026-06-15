@@ -218,40 +218,70 @@ function Invoke-PurviewPurge {
         $regPoll = [int]$purv.registrationPollSeconds
         if ($regPoll -le 0) { $regPoll = 3 }
 
-        # ----- Ticket normalize + confirmation/fix loop (interactive) -----
+        # ---- Ticket normalization using config-driven rules ----
+
+        # Load ticket rules from config (with safe fallbacks)
+        $ticketCfg = $script:cfg.settings.purview.ticket
+        $pattern = $ticketCfg.pattern
+        if (-not $pattern) { $pattern = '^(?<prefix>[A-Za-z]+-)?(?<id>\d+)$' }
+
+        $normalizePrefix = $ticketCfg.normalizePrefix
+        $requireHash = $ticketCfg.requireHash
+        $forceUpper = $ticketCfg.forceUpper
+        if ($null -eq $forceUpper) { $forceUpper = $true }
+
         while ($true) {
             $raw = [string]$Ticket
             $raw = $raw.Trim()
 
+            if ($raw -match '^(?i)(q|quit|exit)$') {
+                throw "User cancelled: ticket entry aborted."
+            }
+
             if ([string]::IsNullOrWhiteSpace($raw)) {
-                $Ticket = Read-Host "Enter ticket in format #INC-<integer> (or 'q' to cancel)"
-                if ($Ticket -match '^(?i)(q|quit|exit)$') { throw "User cancelled: ticket entry aborted." }
+                $Ticket = Read-Host "Enter ticket (or 'q' to cancel)"
                 continue
             }
 
-            # Normalize: uppercase, ensure leading '#'
-            $ticketNorm = $raw.ToUpper()
-            if ($ticketNorm -notmatch '^#') { $ticketNorm = "#$ticketNorm" }
+            # Apply uppercase normalization if configured
+            if ($forceUpper) {
+                $raw = $raw.ToUpper()
+            }
 
-            # Validate after normalization
-            if ($ticketNorm -notmatch '^#INC-\d+$') {
-                Write-Log -Level Warn -Message "Ticket must be '#INC-<integer>' (example: #INC-151695)."
+            # Validate against configured pattern
+            if ($raw -notmatch $pattern) {
+                Write-Log -Level Warn -Message "Ticket does not match required pattern: $pattern"
                 $Ticket = Read-Host "Re-enter ticket (or 'q' to cancel)"
-                if ($Ticket -match '^(?i)(q|quit|exit)$') { throw "User cancelled: ticket entry aborted." }
                 continue
             }
 
-            # Confirm
-            $resp = Read-Host "Ticket is '$ticketNorm'. Is this correct? (Y/n/q)"
-            if ($resp -match '^(?i)(q|quit|exit)$') { throw "User cancelled: ticket confirmation aborted." }
+            # Extract captured groups
+            $prefix = $Matches['prefix']
+            $id = $Matches['id']
 
+            # Normalize prefix if configured
+            if ($normalizePrefix) {
+                $prefix = $normalizePrefix
+            }
+
+            # Rebuild normalized ticket
+            $ticketNorm = "$prefix$id"
+
+            # Optional leading '#'
+            if ($requireHash -and $ticketNorm -notmatch '^#') {
+                $ticketNorm = "#$ticketNorm"
+            }
+
+            # Confirm with user
+            $resp = Read-Host "Ticket is '$ticketNorm'. Is this correct? (Y/n/q)"
+            if ($resp -match '^(?i)(q|quit|exit)$') {
+                throw "User cancelled: ticket confirmation aborted."
+            }
             if ($resp -match '^(?i)n(o)?$') {
                 $Ticket = Read-Host "Enter the correct ticket (or 'q' to cancel)"
-                if ($Ticket -match '^(?i)(q|quit|exit)$') { throw "User cancelled: ticket entry aborted." }
                 continue
             }
 
-            # Default accept on Enter or 'y'
             Write-Log -Level Info -Message ("Using ticket: {0}" -f $ticketNorm)
             break
         }
@@ -458,8 +488,8 @@ function Invoke-PurviewPurge {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCrH8TvMLf/u7KU
-# Uji+qZt/NUj5aTol26qFwrhnKR+1HKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAj/HQ35smofzvT
+# exTxwFgly8sYMztftXebyXgTk923saCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -592,34 +622,34 @@ function Invoke-PurviewPurge {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAy6qhlkdAi
-# i8FRrxBUanIIpjLiwl0qmOiLypSrcKziZzANBgkqhkiG9w0BAQEFAASCAgBlrfJW
-# QCrLmkkoCRWO1IAjkPHVOWtAjf2K6+kLMMlFV5sc8o3B6baND6RRM5QvOzLSghRk
-# Z+i+epJa4MxhXjGxW2fsLDFn17rSj6mJdqERnhfCXuUiDcF8xLyaGQ6QT4HTjg39
-# OBes7tRxkqzdDMNWYZfvpDZjFaNJfTuiHWILVi7rnwVxP4ZhcFbj4lDLYnRDMLcE
-# 6pLtZvRwHUiXTAm5KF+FmEmo4IbapfLa1/HeJp3VyanAmVyIw0NDqRCOFQj6Euef
-# zCPzE1/gIclxGzrCEhwSBmM8/JMmdQnK6tXejGpjIL6MCepDF39JUnPLdlmiImb8
-# Zyy7x65ZM7ie1wm4i0r7rPaaESjY5Vxp9xdoYfq6cT9215pr//g4fHWpo14RIzWi
-# ZBwsi9uqdpCE/vQgleYd/hCTYhhnMmrlKLKNR2C6AV3BGPru/A2K/WRZhavjuuDT
-# YypNqDxgD9ERkc9ITknMkuHYnw8m2MVMNrBelzkcXt7ObtItdbjlKJV5ESc2RBB/
-# l6pI413xxzQjYN+CvDqKFPFophCaExpYtodGq9F6fho54PuEjiOVxgpTJiY98reC
-# hbbc9rNJ8ld3WtY7M5UKLADN7wWA9RmaLcYanlWFKlIDHabn/t5KGLa79AjI9Vw+
-# KkJ8sz+Bxa7DnKF/kZ0F3Zw2W57UFf7kuXcDnKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDhTk4ktQz0
+# aaa3HmueEG7/+VfCPM2auxo63ogJi0SX3DANBgkqhkiG9w0BAQEFAASCAgCHfYNn
+# zdt7Dbp4XXw0S1tsrTnb2IYIM/AMjJ4/9nkM8dM7fGage1jFjwY3fMPBTUGEas0h
+# UUokPQaZMIkNPTUenMzvd/f+nFWWNsxHyXAS/0Bx+dt8RmtRCbZxOYGcSB93mWne
+# o66m2Tdtwq8FVLJdgENBRXGSdm7B+hYT73oqyc3IaHNNaVjMUOpPAV7Z4qW5HPSZ
+# i4iYmglum0I6uVHQ3HtYB0HYHwE3iTodwpkZr9ynIFF5cTFBA+Q4os6iBrm1mWdH
+# DBHXR5xVuUAqhjI1yk2YXD0uKI+FKyjsmqOd1v3tOV9KsPazJF7ah4B9GY/mSMcF
+# B2g2hiO/RTIiC5pipm+EoI8xe7ZXbZHmLDIFocW3OWIbQ/q2ju6lvAhm6OIiHQo4
+# 0CLkI29vIF41Q9uEtsXw6XG+ipkQ4D5ZzTo3tzhBsywoM89kgRtkN6qJC6EJv4Ev
+# sfEOnDFDACyEf3UyjJ5+0g7yCrK3zNO/ahsEEAsp6FlUiOPiPLYXfTjJ9MY7G+d9
+# hcSStlaFfCG+AOBTGCbIZpfFWNKqMuEF0BM98154FyQiVZqcapuvJ/GO/gFoMB01
+# XBj787g5P3GNqgwOPCf0NyDsPPMTouZpQtBHre+/ZXm95v1vpgHMYlpZZXY+ulKW
+# lop0sEKrSLDZQDAmCfg/JVL00gegzyvueNSP7qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MjAyMDU3NDNaMC8GCSqGSIb3DQEJBDEiBCAXMR4YYGskNbN8HnkA
-# n0FCy2YGwZm6zln/GBwa7ON+NjANBgkqhkiG9w0BAQEFAASCAgAnre9uFaVh67wh
-# JMNkdc2DDa89HjddwFue/XYdcOqjJPhTVwPZHF0VJBBD2Y9LCE3KYgWMvesodeVe
-# ApykL3M2sFg8Esq0vO9WixsogLcDN2VCX5BwwvcupJNvq9hvyCiEVTVX+j/GHHc/
-# WAvoDhDNqzS1FQiE6Yha3lXXY3nBMUKbxKXSiQ7Lmjc48kfe3E5OKATOP5bIOa9k
-# eKwtZKhZAPpMucmQGOpSUEdimAag8rnrsncqSMB/72pmpFZXqcI5hFSPVUTb41qE
-# ljV+GhqEPvoseyJQIr/DeR5sHUtVo/vxxlLxzbZGyBPXCIu1kv89TGXFXcQj/3Lp
-# uX6JvcLMMTD5Qb2aS2t2rkb/qebuxUQd4en8NDqRFEnfcvSNPG9a0p2SH6gHyyuw
-# F3i/2WiHmsyWvV0eUQHMuFSkQf/+kNxpHDP/1sGsyyBE0GaoqIJZ4lMGif3c/oYO
-# rlN6PvNiwnDxA3lKpCM4W1FSSouUt3awq5FcHIEg7d3WTyHnLXqR1A1wCY/iZR/4
-# HEMZofUltnfILxJDbZgpgwthlKsoe1GnKh2bk5hLXSpEdq84L453+GgBnn780cvo
-# fbYSL7voQtW6s0ysBrB7NbAi7yTNb+cnUbFaouRXMbM69ptJqFnDiN7skABOw86c
-# jdWe+q0ILWiEgvEIxjz89pbL5Xet+A==
+# BTEPFw0yNjA2MTMwNjQ5MTRaMC8GCSqGSIb3DQEJBDEiBCCcVeWYgf0Rw5xEWfaY
+# hrsxX3qRYfZp1ejwOe6ghtYYhDANBgkqhkiG9w0BAQEFAASCAgBG+mZJDapbn4Bt
+# 9jnlEFGT2k0cnCw6xoXSHn/M+e+hYH5adpmrU6+TjSuKGmxmZpegr6snU2s0C6IX
+# ylazhPR0IP1xDna/O/trIZPDG81ISlF0OWB64kLjbKTTH4Rp43tdhSVyXbKqth3t
+# MvAYwKGbDlrSrT9iW0vLyGjG91Ip/i1WhDQCOwDmHieVYeWBGEF8e6pcz7OkRMXG
+# skU27suQUTVF7E5HTQRMx924DREfaAl7+ATad1nlft9n6bcPlr4Fq+s7mE28qQnY
+# aCZX3410FnxEW3hkty1lHR+z8M46GSga0FSAkpOK4HBQNKDEDf1fk4lyXXG4CfYU
+# G+bi2Wa5H8eHf/A1J4/Z6nVUsf2x7kTeuKU1jdljf0mbs9nxuG21r6HfEZjPoP2F
+# JioRIeo2yUUILoAINSW9FOGB+oP5Dbjr1s887KsP/mlW5+lGzxdNop/6qWNGn63Z
+# XsD/5rF1Tq27ND7ni2XdaVHOxPCtLiUc7ufiJCbjzAmaPGGe4Gpo5pNhCG2iGJrR
+# 3dO8G8PL/rtA8GUroCJ/Zrsr+G6OUkczM2Yml3uNrYf4arWdJ+W/r2W/M5TXcR43
+# iV8OGOlxOLSXEFnsNyRfYq/GFL/671LBEmVgmpgCWvJH5YxaoGKG6o2Li5VavJAx
+# pzJ2/cOJde7pvurBlD/ernClLxfNsA==
 # SIG # End signature block
