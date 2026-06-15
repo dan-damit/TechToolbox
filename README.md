@@ -4,7 +4,6 @@
 [![PSGallery Downloads](https://img.shields.io/powershellgallery/dt/TechToolbox.svg?style=for-the-badge&logo=powershell)](https://www.powershellgallery.com/packages/TechToolbox)
 [![GitHub Release](https://img.shields.io/github/v/release/dan-damit/TechToolbox?style=for-the-badge&logo=github)](https://github.com/dan-damit/TechToolbox/releases)
 
-
 #### _A PowerShell 7+ Operator Framework for Enterprise IT Automation._
 
 TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It targets real-world enterprise operations: Active Directory lifecycle, Exchange Online / Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI-assisted automation.
@@ -45,29 +44,32 @@ TechToolbox follows a **loader-driven, one-function-per-file** pattern with deep
 
 ```
 TechToolbox/
-├── TechToolbox.psd1          # Module manifest (FunctionsToExport, required modules)
-├── TechToolbox.psm1          # Loader / bootstrap (sources Public/*.ps1, Private/*, Config)
-├── Public/                   # Exported commands (one .ps1 per function)
-│   ├── AD/                   # Active Directory user lifecycle
-│   ├── AI/                   # AI assistant and agent bridge
-│   ├── Browser/              # Browser profile cleanup
-│   ├── Compliance/           # Purview / email compliance
-│   ├── Config/               # Configuration helpers
-│   ├── Credential/           # Credential management (CU, domain admin)
-│   ├── Diagnostics/          # System / error diagnostics
-│   ├── Exchange/             # Message trace, autodiscover
-│   ├── Hardware/             # Battery, product key, uptime
-│   ├── Infrastructure/       # NetFx3, pagefile, reboot, printers
-│   ├── Networking/           # Subnet scan, DNS logger, ISP watch
-│   ├── PSRemoting/           # Session management
-│   ├── Search/               # File / large file helpers
-│   ├── SharedMailbox/        # Permissions, deletion audit
-│   └── Workers/              # Remote worker helpers
-├── Private/                  # Internal helpers (not exported)
-│   ├── Config/               # Config merge logic, path resolution
-│   ├── Logging/              # Console + file logging engine
-│   ├── Helpers/              # Shared utility functions
-│   └── Validation/           # Input validation wrappers
+├── TechToolbox.psd1          # Module manifest (metadata + declared exports)
+├── TechToolbox.psm1          # Bootstrap/loader (home init, dot-sourcing, export wiring)
+├── Public/                   # Exported command scripts + export helper
+│   ├── ActiveDirectory/      # AD lifecycle and identity operations
+│   ├── AI/                   # AI assistant and agent bridge commands
+│   ├── Get/                  # Read/query commands
+│   ├── Invoke/               # Action/orchestration commands
+│   ├── Set/                  # Configuration/change commands
+│   ├── Start_Stop/           # Session/service start-stop commands
+│   ├── System/               # Local system and endpoint operations
+│   ├── Test/                 # Validation/diagnostic test commands
+│   └── Export-ToolboxFunctions.ps1  # Canonical export discovery helper
+├── Private/                  # Internal helpers (dot-sourced, not exported)
+│   ├── AADSync/              # AAD Connect internals
+│   ├── ActiveDirectory/      # AD internal helper functions
+│   ├── AI/                   # Agent/prompt helper internals
+│   ├── Browser/              # Browser cleanup internals
+│   ├── Exchange/             # Exchange helper internals
+│   ├── Input/                # Prompt/input utility internals
+│   ├── Loader/               # Module home/bootstrap initialization
+│   ├── Logging/              # Logging engine internals
+│   ├── M365/                 # Microsoft 365 helper internals
+│   ├── Network/              # Network helper internals
+│   ├── Purview/              # Purview/compliance helper internals
+│   ├── Security/             # Security helper internals
+│   └── System/               # Shared system helper internals
 ├── Workers/                  # Remote / background task workers
 ├── Config/                   # Runtime configuration (config.json, secrets)
 │   ├── config.json           # Base settings (git-tracked)
@@ -78,24 +80,23 @@ TechToolbox/
 
 ### How the Loader Works
 
-1. **Manifest loads first** -- `TechToolbox.psd1` defines `FunctionsToExport` and required module dependencies.
-2. **psm1 bootstrap** -- `TechToolbox.psm1` is invoked after manifest load:
-   - Resolves path tokens (`%TT_ModuleRoot%`, `%TT_Home%`) via the config system.
-   - Sources all `.ps1` files from `Private/` (internal helpers).
-   - Calls `Export-ModuleMember` to expose every function in `FunctionsToExport`.
-3. **Config merge** -- On first use, `Get-TechToolboxConfig` deep-merges `config.json` and `config.secrets.json`, caching the result.
-4. **Lazy logging init** -- The logging subsystem initializes on first log call, respecting config settings.
+1. **Manifest loads first** -- `TechToolbox.psd1` points to `TechToolbox.psm1` and provides module metadata/declared exports.
+2. **Bootstrap establishes module state** -- `TechToolbox.psm1` sets module/home paths and one-time home initialization.
+3. **Private helpers are dot-sourced** -- all `.ps1` files under `Private/` are loaded recursively into module scope.
+4. **Public scripts are dot-sourced** -- all `.ps1` files under `Public/` are loaded (excluding `Export-ToolboxFunctions.ps1` in that pass).
+5. **Exports are discovered and published** -- at import time, `Export-ToolboxFunctions` discovers public function names, then `Export-ModuleMember` exports those functions plus `ITA`.
+6. **Runtime init remains lazy** -- `Initialize-TechToolboxRuntime` initializes config/logging/interop/environment only when needed.
 
 ### Path Tokens
 
 Portable path tokens replace absolute paths for roaming safety:
 
-| Token | Resolves To | Use For |
-|-------|-------------|---------|
-| `%TT_ModuleRoot%` | `C:\...\TechToolbox\` | Module-owned files (Config, Workers, Private) |
-| `%TT_Home%` | User/machine home directory | Operational data (logs, exports, temp) |
-| `%TT_LogsRoot%` | Resolved logs root | Log file output paths |
-| `%TT_ExportsRoot%` | Resolved exports root | Exported reports / files |
+| Token              | Resolves To                 | Use For                                       |
+| ------------------ | --------------------------- | --------------------------------------------- |
+| `%TT_ModuleRoot%`  | `C:\...\TechToolbox\`       | Module-owned files (Config, Workers, Private) |
+| `%TT_Home%`        | User/machine home directory | Operational data (logs, exports, temp)        |
+| `%TT_LogsRoot%`    | Resolved logs root          | Log file output paths                         |
+| `%TT_ExportsRoot%` | Resolved exports root       | Exported reports / files                      |
 
 ---
 
@@ -108,10 +109,10 @@ All configuration flows through `Get-TechToolboxConfig`. The effective config is
 
 ### Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| `TT_ConfigSecretsPath` | Override the secrets file location |
-| `TT_DisableConfigSecretsMerge=1` | Skip merge for troubleshooting |
+| Variable                         | Purpose                            |
+| -------------------------------- | ---------------------------------- |
+| `TT_ConfigSecretsPath`           | Override the secrets file location |
+| `TT_DisableConfigSecretsMerge=1` | Skip merge for troubleshooting     |
 
 ### Configuring Secrets
 
@@ -163,101 +164,101 @@ The full catalog is at [commands.md](commands.md). Below is a categorized summar
 
 ### Active Directory & Identity Management
 
-| Function | Purpose |
-|----------|---------|
-| `Disable-User` | Disables an AD user account (destructive) |
-| `Reset-ADPassword` | Resets an AD user password |
-| `New-OnPremUserFromTemplate` | Creates an on-prem user from a template |
-| `Search-User` | Searches for AD users by criteria |
-| `Get-AllUsers` | Enumerates all AD users (with filters) |
-| `Get-LocalAdminMembers` | Lists members of the local Administrators group |
+| Function                     | Purpose                                         |
+| ---------------------------- | ----------------------------------------------- |
+| `Disable-User`               | Disables an AD user account (destructive)       |
+| `Reset-ADPassword`           | Resets an AD user password                      |
+| `New-OnPremUserFromTemplate` | Creates an on-prem user from a template         |
+| `Search-User`                | Searches for AD users by criteria               |
+| `Get-AllUsers`               | Enumerates all AD users (with filters)          |
+| `Get-LocalAdminMembers`      | Lists members of the local Administrators group |
 
 ### Exchange Online & Compliance
 
-| Function | Purpose |
-|----------|---------|
-| `Get-MessageTrace` | Traces an email message through Exchange / EOP |
-| `Invoke-PurviewPurge` | Purges content via Purview compliance portal (destructive) |
-| `Get-AuditSharedMailboxDeletions` | Audits deleted shared mailboxes |
-| `Get-SharedMailboxPermissions` | Lists permissions on shared mailboxes |
-| `Get-AutodiscoverXmlInteractive` | Interactive Autodiscover XML viewer |
-| `Set-EmailAlias` | Sets or adds an email alias for a mailbox user |
-| `Set-ProxyAddress` | Sets the proxy address (SMTP) for a mailbox user |
-| `Test-MailHeaderAuth` | Tests email header authentication results |
+| Function                          | Purpose                                                    |
+| --------------------------------- | ---------------------------------------------------------- |
+| `Get-MessageTrace`                | Traces an email message through Exchange / EOP             |
+| `Invoke-PurviewPurge`             | Purges content via Purview compliance portal (destructive) |
+| `Get-AuditSharedMailboxDeletions` | Audits deleted shared mailboxes                            |
+| `Get-SharedMailboxPermissions`    | Lists permissions on shared mailboxes                      |
+| `Get-AutodiscoverXmlInteractive`  | Interactive Autodiscover XML viewer                        |
+| `Set-EmailAlias`                  | Sets or adds an email alias for a mailbox user             |
+| `Set-ProxyAddress`                | Sets the proxy address (SMTP) for a mailbox user           |
+| `Test-MailHeaderAuth`             | Tests email header authentication results                  |
 
 ### System Diagnostics & Health
 
-| Function | Purpose |
-|----------|---------|
-| `Get-SystemSnapshot` | Captures key system state information |
-| `Get-ErrorEvents` | Queries Windows Event Logs for errors |
-| `Get-BatteryHealth` | Reads battery health / cycle count from powercfg |
-| `Get-SystemUptime` | Reports system uptime |
-| `Get-WindowsProductKey` | Retrieves the installed Windows product key |
-| `Get-PDQDiagLogs` | Retrieves PDQ diagnostics logs |
-| `Get-SystemTrustDiagnostic` | Runs a system trust diagnostic |
+| Function                    | Purpose                                          |
+| --------------------------- | ------------------------------------------------ |
+| `Get-SystemSnapshot`        | Captures key system state information            |
+| `Get-ErrorEvents`           | Queries Windows Event Logs for errors            |
+| `Get-BatteryHealth`         | Reads battery health / cycle count from powercfg |
+| `Get-SystemUptime`          | Reports system uptime                            |
+| `Get-WindowsProductKey`     | Retrieves the installed Windows product key      |
+| `Get-PDQDiagLogs`           | Retrieves PDQ diagnostics logs                   |
+| `Get-SystemTrustDiagnostic` | Runs a system trust diagnostic                   |
 
 ### Endpoint & Infrastructure Operations
 
-| Function | Purpose |
-|----------|---------|
-| `Invoke-SystemRepair` | Runs Windows system repair / SFC DISM operations |
-| `Reset-WindowsUpdateComponents` | Resets the Windows Update stack |
-| `Enable-NetFx3` | Enables the .NET Framework 3.5 feature |
-| `Set-PageFileSize` | Configures pagefile size (initial and maximum) |
-| `Set-OneTimeReboot` | Schedules a one-time reboot at a given time |
+| Function                                    | Purpose                                           |
+| ------------------------------------------- | ------------------------------------------------- |
+| `Invoke-SystemRepair`                       | Runs Windows system repair / SFC DISM operations  |
+| `Reset-WindowsUpdateComponents`             | Resets the Windows Update stack                   |
+| `Enable-NetFx3`                             | Enables the .NET Framework 3.5 feature            |
+| `Set-PageFileSize`                          | Configures pagefile size (initial and maximum)    |
+| `Set-OneTimeReboot`                         | Schedules a one-time reboot at a given time       |
 | `Get-InstalledPrinters` / `Remove-Printers` | Manage installed printers (destructive on remove) |
 
 ### Remote Execution & Worker Patterns
 
-| Function | Purpose |
-|----------|---------|
-| `Invoke-AADSyncRemote` | Runs an AAD Connect synchronization remotely |
-| `Invoke-SCW` | Executes a remote command via Secure Credential Wrapper |
-| `Start-NewPSRemoteSession` / `Stop-PSRemoteSession` | Manage PSRemoting sessions (destructive stop) |
-| `Get-RemoteInstalledSoftware` | Inventory software on remote computers |
-| `Copy-Directory` | Copies directory contents (robocopy wrapper) |
+| Function                                            | Purpose                                                 |
+| --------------------------------------------------- | ------------------------------------------------------- |
+| `Invoke-AADSyncRemote`                              | Runs an AAD Connect synchronization remotely            |
+| `Invoke-SCW`                                        | Executes a remote command via Secure Credential Wrapper |
+| `Start-NewPSRemoteSession` / `Stop-PSRemoteSession` | Manage PSRemoting sessions (destructive stop)           |
+| `Get-RemoteInstalledSoftware`                       | Inventory software on remote computers                  |
+| `Copy-Directory`                                    | Copies directory contents (robocopy wrapper)            |
 
 ### Browser Cleanup
 
-| Function | Purpose |
-|----------|---------|
+| Function                   | Purpose                                    |
+| -------------------------- | ------------------------------------------ |
 | `Clear-BrowserProfileData` | Deletes browser profile data (destructive) |
-| `Invoke-DownloadsCleanup` | Cleans the Downloads folder (destructive) |
+| `Invoke-DownloadsCleanup`  | Cleans the Downloads folder (destructive)  |
 
 ### Networking & Connectivity
 
-| Function | Purpose |
-|----------|---------|
-| `Invoke-SubnetScan` | Scans a subnet for active hosts / services |
-| `Start-DnsQueryLogger` | Starts DNS query logging for analysis |
-| `Watch-ISPConnection` | Monitors ISP connection health over time |
+| Function               | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `Invoke-SubnetScan`    | Scans a subnet for active hosts / services |
+| `Start-DnsQueryLogger` | Starts DNS query logging for analysis      |
+| `Watch-ISPConnection`  | Monitors ISP connection health over time   |
 
 ### Credential Management
 
-| Function | Purpose |
-|----------|---------|
-| `Get-DomainAdminCredential` | Retrieves domain admin credentials from secure store |
-| `Initialize-DomainAdminCred` | Initializes and stores domain admin credential for session use |
-| `Get-CUCredentialManagerContents` | Lists entries in the Credential Manager |
+| Function                          | Purpose                                                        |
+| --------------------------------- | -------------------------------------------------------------- |
+| `Get-DomainAdminCredential`       | Retrieves domain admin credentials from secure store           |
+| `Initialize-DomainAdminCred`      | Initializes and stores domain admin credential for session use |
+| `Get-CUCredentialManagerContents` | Lists entries in the Credential Manager                        |
 
 ### AI-Assisted Workflows
 
-| Function | Purpose |
-|----------|---------|
-| `Invoke-CodeAssistant` | Sends a prompt to the local code assistant |
-| `Invoke-CodeAssistantFolder` | Runs the assistant on an entire folder |
-| `Invoke-CodeAssistantWrapper` | Wrapper for structured AI task execution |
-| `Invoke-TechAgent` | Orchestrates the agent-driven workflow engine (single recursion auto-retry toggle available) |
-| `Initialize-TTWordList` | Initializes the AI word list used by the agent |
+| Function                      | Purpose                                                                                      |
+| ----------------------------- | -------------------------------------------------------------------------------------------- |
+| `Invoke-CodeAssistant`        | Sends a prompt to the local code assistant                                                   |
+| `Invoke-CodeAssistantFolder`  | Runs the assistant on an entire folder                                                       |
+| `Invoke-CodeAssistantWrapper` | Wrapper for structured AI task execution                                                     |
+| `Invoke-TechAgent`            | Orchestrates the agent-driven workflow engine (single recursion auto-retry toggle available) |
+| `Initialize-TTWordList`       | Initializes the AI word list used by the agent                                               |
 
 ### Export & Packaging
 
-| Function | Purpose |
-|----------|---------|
+| Function                  | Purpose                                                |
+| ------------------------- | ------------------------------------------------------ |
 | `Export-ToolboxFunctions` | Exports all module functions as metadata for the agent |
-| `Get-ToolboxHelp` | Displays the built-in help catalog |
-| `Get-TechToolboxConfig` | Retrieves or updates configuration |
+| `Get-ToolboxHelp`         | Displays the built-in help catalog                     |
+| `Get-TechToolboxConfig`   | Retrieves or updates configuration                     |
 
 ---
 
@@ -382,16 +383,16 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 ## Troubleshooting
 
-| Issue | Resolution |
-|-------|------------|
-| Module import fails | Use PowerShell 7+ and `Import-Module .\TechToolbox.psd1 -Force` |
-| Command not found | Check that it is listed in `FunctionsToExport` in the manifest |
-| Config errors | Verify both `config.json` and `config.secrets.json` are valid JSON; use `TT_DisableConfigSecretsMerge=1` to isolate issues |
-| Path token resolution fails | Run `Test-TTPathRoots -EnsureDirectories` to validate paths |
-| Remoting failures | Verify WinRM is running, auth method matches server config, and credentials have appropriate privileges |
-| Purview / EXO errors | Confirm required roles (Compliance Administrator, etc.) and Exchange Online module installed |
-| Battery report fails | Run elevated if `powercfg` is blocked by group policy |
-| Logging silent | Ensure log directories exist; check `logging.enableFileLogging` setting |
+| Issue                       | Resolution                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Module import fails         | Use PowerShell 7+ and `Import-Module .\TechToolbox.psd1 -Force`                                                            |
+| Command not found           | Check that it is listed in `FunctionsToExport` in the manifest                                                             |
+| Config errors               | Verify both `config.json` and `config.secrets.json` are valid JSON; use `TT_DisableConfigSecretsMerge=1` to isolate issues |
+| Path token resolution fails | Run `Test-TTPathRoots -EnsureDirectories` to validate paths                                                                |
+| Remoting failures           | Verify WinRM is running, auth method matches server config, and credentials have appropriate privileges                    |
+| Purview / EXO errors        | Confirm required roles (Compliance Administrator, etc.) and Exchange Online module installed                               |
+| Battery report fails        | Run elevated if `powercfg` is blocked by group policy                                                                      |
+| Logging silent              | Ensure log directories exist; check `logging.enableFileLogging` setting                                                    |
 
 ---
 
@@ -406,7 +407,9 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 ---
 
 ### v0.5.0 - "AI & Metadata Milestone"
+
 #### Highlights
+
 - AI-assisted workflow improvements (Export-ToolboxFunctions, Invoke-TechAgent enhancements)
 - Full help text capture in agent metadata export
 - Config system refinements and path token stabilization
