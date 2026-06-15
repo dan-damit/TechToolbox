@@ -1,0 +1,41 @@
+# ============================================================
+# about_Start-NewPSRemoteSession
+# ============================================================
+
+# TOPIC
+#     about_Start-NewPSRemoteSession
+
+# SHORT DESCRIPTION
+#     Creates a remote PSSession, preferring PowerShell 7 endpoints (WSMan)
+#     with fallback to Windows PowerShell, and supporting SSH transport.
+
+# LONG DESCRIPTION
+#     The Start-NewPSRemoteSession function provides a robust wrapper for
+#     establishing remote PowerShell sessions. It abstracts the complexity of
+#     endpoint configuration and transport selection.
+
+#     **WSMan Transport Behavior:**
+#     -   Prefers the 'PowerShell.7' configuration name endpoint.
+#     -   Automatically falls back to 'Microsoft.PowerShell' if PowerShell 7 is
+#         unavailable on the target.
+
+#     **SSH Transport Behavior:**
+#     -   Utilizes New-PSSession with -HostName.
+#     -   Requires PowerShell 7 or greater running locally.
+#     -   Supports authentication via standard passwords or SSH key files.
+
+#     **General Features:**
+#     -   Applies sensible connection timeouts to prevent hanging.
+#     -   Returns a live PSSession object on success.
+#     -   Throws detailed exceptions if the session cannot be established.
+
+# EXAMPLES
+#     # Example 1: Create a session preferring PowerShell 7 via WSMan
+#     Start-NewPSRemoteSession -ComputerName 'ContosoServer'
+#
+#     # Example 2: Create a session using SSH with a key file
+#     Start-NewPSRemoteSession -HostName 'ssh.contoso.com' -KeyFilePath '.\id_rsa'
+
+# SEE ALSO
+#     New-PSSession
+#     Enable-RemoteCredSSPServer

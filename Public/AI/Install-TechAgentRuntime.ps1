@@ -1,23 +1,23 @@
 function Install-TechAgentRuntime {
     <#
     .SYNOPSIS
-        Bootstraps the local .NET runtime/build for Invoke-TechAgent.
+        Bootstraps the local Python runtime for Invoke-TechAgent.
 
     .DESCRIPTION
-        Restores and builds src/TechToolbox.Agent so Invoke-TechAgent can run
-        the C# agent runner via dotnet.
+        Creates (or repairs) the repository virtual environment and installs
+        AI/Agent/requirements.txt into .venv.
 
     .PARAMETER PythonPath
-        Optional explicit dotnet executable path.
+        Optional explicit Python executable path to build the virtual environment.
 
     .PARAMETER ForceRecreateVenv
-        Deprecated. Retained for backward compatibility.
+        Deletes and recreates .venv before installation.
 
     .PARAMETER UpgradePip
-        Deprecated. Retained for backward compatibility.
+        Upgrades pip/setuptools/wheel inside .venv.
 
     .PARAMETER UpgradePackages
-        Deprecated. Retained for backward compatibility.
+        Uses pip --upgrade when installing requirements.
 
     .PARAMETER PullModel
         Pulls the selected Ollama model after runtime installation.
@@ -58,50 +58,84 @@ function Install-TechAgentRuntime {
     Initialize-TechToolboxRuntime
 
     $moduleRoot = Get-ModuleRoot
-    $agentProjectPath = Join-Path $moduleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
-    $agentOutputPath = Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll'
+    $agentRoot = Join-Path $moduleRoot 'AI\Agent'
+    $requirementsPath = Join-Path $agentRoot 'requirements.txt'
+    $venvPath = Join-Path $moduleRoot '.venv'
+    $venvPython = Join-Path $venvPath 'Scripts\python.exe'
 
-    if (-not (Test-Path -LiteralPath $agentProjectPath -PathType Leaf)) {
-        throw "Agent project not found: $agentProjectPath"
+    if (-not (Test-Path -LiteralPath $requirementsPath -PathType Leaf)) {
+        throw "Agent requirements file not found: $requirementsPath"
     }
 
     if ([string]::IsNullOrWhiteSpace($Model) -and $script:cfg -and $script:cfg.settings -and $script:cfg.settings.agent) {
         $Model = $script:cfg.settings.agent.model
     }
 
-    $dotnetCommand = $null
+    $pythonCommand = $null
+    $pythonArgsPrefix = @()
 
     if (-not [string]::IsNullOrWhiteSpace($PythonPath)) {
         if (-not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
-            throw "Provided dotnet path does not exist: $PythonPath"
+            throw "PythonPath does not exist: $PythonPath"
         }
-        $dotnetCommand = @{ Source = $PythonPath }
+        $pythonCommand = @{ Source = $PythonPath }
     }
     else {
-        $dotnetCommand = Get-Command -Name dotnet -ErrorAction SilentlyContinue
-    }
+        $pythonCommand = Get-Command -Name python -ErrorAction SilentlyContinue
 
-    if (-not $dotnetCommand) {
-        throw "dotnet executable not found. Install .NET SDK 8+ or pass -PythonPath with a dotnet path."
-    }
-
-    if ($ForceRecreateVenv.IsPresent -or $UpgradePip.IsPresent -or $UpgradePackages.IsPresent) {
-        Write-Log -Level Warn -Message 'ForceRecreateVenv/UpgradePip/UpgradePackages are deprecated for the C# agent runtime and are ignored.'
-    }
-
-    if ($PSCmdlet.ShouldProcess($agentProjectPath, 'Restore TechToolbox.Agent project')) {
-        Write-Log -Level Info -Message ("Restoring C# agent project: {0}" -f $agentProjectPath)
-        & $dotnetCommand.Source restore $agentProjectPath
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to restore TechToolbox.Agent project."
+        if (-not $pythonCommand) {
+            $pythonCommand = Get-Command -Name py -ErrorAction SilentlyContinue
+            if ($pythonCommand) {
+                $pythonArgsPrefix = @('-3')
+            }
         }
     }
 
-    if ($PSCmdlet.ShouldProcess($agentProjectPath, 'Build TechToolbox.Agent project (Release)')) {
-        Write-Log -Level Info -Message ("Building C# agent project: {0}" -f $agentProjectPath)
-        & $dotnetCommand.Source build $agentProjectPath --configuration Release
+    if (-not $pythonCommand) {
+        throw "Python executable not found. Install Python or pass -PythonPath."
+    }
+
+    if ($ForceRecreateVenv.IsPresent -and (Test-Path -LiteralPath $venvPath -PathType Container)) {
+        if ($PSCmdlet.ShouldProcess($venvPath, 'Remove existing virtual environment')) {
+            Remove-Item -LiteralPath $venvPath -Recurse -Force
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
+        if ($PSCmdlet.ShouldProcess($venvPath, 'Create Python virtual environment')) {
+            Write-Log -Level Info -Message ("Creating virtual environment: {0}" -f $venvPath)
+            & $pythonCommand.Source @pythonArgsPrefix -m venv $venvPath
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to create Python virtual environment."
+            }
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
+        throw "Virtual environment Python not found after setup: $venvPython"
+    }
+
+    if ($UpgradePip.IsPresent) {
+        if ($PSCmdlet.ShouldProcess($venvPython, 'Upgrade pip tooling')) {
+            Write-Log -Level Info -Message 'Upgrading pip tooling in virtual environment.'
+            & $venvPython -m pip install --upgrade pip setuptools wheel
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to upgrade pip tooling in virtual environment."
+            }
+        }
+    }
+
+    $pipInstallArgs = @('-m', 'pip', 'install')
+    if ($UpgradePackages.IsPresent) {
+        $pipInstallArgs += '--upgrade'
+    }
+    $pipInstallArgs += @('-r', $requirementsPath)
+
+    if ($PSCmdlet.ShouldProcess($requirementsPath, 'Install Tech agent Python requirements')) {
+        Write-Log -Level Info -Message ("Installing agent dependencies from: {0}" -f $requirementsPath)
+        & $venvPython @pipInstallArgs
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to build TechToolbox.Agent project."
+            throw "Failed to install agent dependencies."
         }
     }
 
@@ -124,27 +158,32 @@ function Install-TechAgentRuntime {
         }
     }
 
-    $dotnetInfo = & $dotnetCommand.Source --version 2>$null
+    $runtimeDetails = & $venvPython -c "import platform, sys; print(platform.python_version()); print(sys.executable)"
+    $langchainVersion = & $venvPython -c "import langchain; print(langchain.__version__)"
+
+    $pythonVersion = if ($runtimeDetails -and $runtimeDetails.Count -ge 1) { $runtimeDetails[0] } else { $null }
+    $pythonExe = if ($runtimeDetails -and $runtimeDetails.Count -ge 2) { $runtimeDetails[1] } else { $venvPython }
 
     $result = [PSCustomObject]@{
-        ProjectPath      = $agentProjectPath
-        DotnetExecutable = [string]$dotnetCommand.Source
-        DotnetVersion    = ($dotnetInfo | Out-String).Trim()
-        OutputPath       = $agentOutputPath
+        VenvPath         = $venvPath
+        PythonExecutable = $pythonExe
+        PythonVersion    = $pythonVersion
+        LangChainVersion = ($langchainVersion | Out-String).Trim()
+        RequirementsPath = $requirementsPath
         ModelPulled      = [bool]$PullModel.IsPresent
         Model            = $Model
         Success          = $true
     }
 
-    Write-Log -Level Info -Message ("Tech agent runtime is ready. dotnet={0}, output={1}" -f $result.DotnetVersion, $result.OutputPath)
+    Write-Log -Level Info -Message ("Tech agent runtime is ready. Python={0}, LangChain={1}" -f $result.PythonVersion, $result.LangChainVersion)
     return $result
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC43q8qO2CU4nJr
-# YJ68IBevKEWkr7CABAISiBHr6ic6laCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBd7hL4n+Uvrpkp
+# kyN2oEu+NFHzw382fIpe5InRpIO8dKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -277,34 +316,34 @@ function Install-TechAgentRuntime {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAy8IQB2FwA
-# vFBim+oT1XU+4u73RkyUofnGFoZQ2aFKCjANBgkqhkiG9w0BAQEFAASCAgC7N5ca
-# q9ui6mUECdK7fpaEvSvZAhuFjH7+hwt9GnmjRstFisQlusEK2FvSjxQW/OV9YSAz
-# LR6RwaaCCZcpFXLOvj6Tty0AcV0a++lzM5fhGrRoeny7jhHpVRFdh85BBoSvUZcs
-# aq4VaXBLgh+gyYsguOi0sWj6G/ruyeENh1uyK55beLv/LliInIBqbupiMN+taSjo
-# InR30Kswn2w1LihNhoHXucY25hjVGCXEHWODYMz7MD3qBQEx1whH/5lF6KPkbokq
-# +ZXI6ynr/MMEZWe9fueHGnnb1mSPbQj2EQPoLezAkSY1HyK+Ym0P+OMWeTOoGe13
-# TtwfyB+uEthgtSHrwDsxO5Vxio2buVPQSAtQ2lN/Ko3SsKFB/3KS3nhRS4BG0uPS
-# YOfttJbXZqJNWL0d0dfASsLwjnmjs2Rz27m220xJ1AQbq5lo7SXbHe3sqHuILNiu
-# yQ/mEzptDI2ekTClUcl8XAr6ReMivmQSO1OwZriX7CY/ngUk0DnlnWj5XW0yP0je
-# 74nIhQhX9BrXGjBwibfT2IJh+7riSIsmGXuhC0CqgaMZ4vlGXaaE29F/ZyHZmL6q
-# gDD6Kv84P5wbQu1m6UjOab1Gau6CJ6VIkGLbts9QfJd4PgT1+M/eVvPKonK/Ovwp
-# Sgp6Q6VQk53CmScZsVCMgWXSNu19eDhsxFCoZaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD3uHZEBtuu
+# Q52TWbPLGXKSf+L1FeOHZWKslPO8C7tOhDANBgkqhkiG9w0BAQEFAASCAgAb+cuZ
+# 3HfQHa0hGkEvHPjuKz/saqOZajdjkYkubiPejfmCkV200PrLypNfDp3xmtLvZJuP
+# SQlWpi7qOCEmWe/pRE1FR99Jco5fZdfiGZQ2cm9RIN6peZ3CFIsNw1wNgOxoFQe0
+# 1jFnx28wirlOMQY/V0OzlX/E097YYM6bYcthhfDAs0n2kERXVnbIRD3Mv5HJ1vk7
+# iNSJ9dVFZQthYzwIJgkvHS56lFkgpWE3hxi/4Mi800GSji8RummMLKCk3CtZBKbI
+# 5HShYPE8Fl32YhAEa3LAftYD3DpfVOeQq3NRQcIxXWnhmKt5ZkxuJEFFPUTGmDfJ
+# Jx1tzJIPeN85x7gUqoq6FSCm/gNxZD2apYo+niD2pjmfQH/+e++0nnM/o4kDWvM8
+# yE/xmYO9grcFiveF9dRkh7Y+jiBuaB59yVx6OUVtP09JXcX5AQqFSvbAI8UYCkq4
+# uraW0iLfWqbZUjzUSk8E9wJm6K89qVRvqRbbFNSkHRB+N54y0hWgroJRm+Izs8kf
+# 3ntuKBRTxwc9sQDzgeK4S0x2ZoA/Ad3ZHu2jbWVCMBSsr86lXEAV+o6qZbAQPGGD
+# nV8f4Ds9rzl0dygQ8S2pTt/WR/UtZz1rtFhh4NNenCfXeH92CmDbDovSB5Gv+YCS
+# cW21N9y70809YqBK1LWkoSC4rvrLZ/735C/mkaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTUwMjIwNDJaMC8GCSqGSIb3DQEJBDEiBCA8x8RAPUrnRXYIkE39
-# 1tAs92Fo6fXyeMIBeXBVFUozlDANBgkqhkiG9w0BAQEFAASCAgAae1qDmPe+X2mH
-# Yana2dsgZfR7/dxJFuzTYIJv2TMeLi2m1MCNucGq/nnlenQpkRv59cjBO7WUyQy9
-# wNqoT0VKJ1yZSl1JzmMsFUwa1wL8LzzgMIMiI70v/f04ldn1RClAncUGyrBr344H
-# dLZ5lP5Ie53j8MRx6J0AcQ54+RkSeUdf4h2zfnhR/3jlDgAapftf5IHAqQrUKtgd
-# WtdMgjW8ZM77KLboBnIdoZ/BrnIC23AsPNU0gpztGI8wVyMgeWXZuHnV/bliLi32
-# LV8Xi5OkZbDsld0ODbmGKjJJd67C9ZDg9Mb9wr4c1xYN4BTbgvYxGEWE6THsDYxa
-# 71l8u5aGuMea+au/I+nFX3ySRbzgwVEuBf9n+6thewo7OaXAEb41U1Kb/sJtdXw9
-# OX6e8wnlbf8IjzNVrMUoP7nTEWwnL3dWtrfxjeGtzVXROHNP5iD5+P54oEE963cj
-# SvAqn6NcA+J4FXIEY3RY+DSbZZXdin2Zo94CthrMW/mkpksiiaqqG1EE+c0sac0R
-# Pt0jM3OgRa6qaG4S2/dYgeIIS9ofR4H1JlxXkZHuR9wbehtBbbfLnUDNhAi7awHe
-# BC3cpE5rDyPRxYZhLo8Iw/mpADmrxyCCs6uURnRptDdliNHkyq+AQiKKefKR5VJf
-# oED4LxuhJ43+JB+zCeZALvZ36wncvg==
+# BTEPFw0yNjA1MDExODQwMDJaMC8GCSqGSIb3DQEJBDEiBCDy85nyqgh516oW42IR
+# WKc4CK01wk7uW3WdZ6mVrMEtTzANBgkqhkiG9w0BAQEFAASCAgBaHAHDgpRl7X/B
+# faSPImWPTCChhpevu+DhbamAwMDyn1MwUnSCnrm1fQG2hRnGFFKrRwrk7I9wIu2K
+# LExzn1lAJiW5p72w7nqAjQIQh/1rCcYWHx8BHU+I2aBaj8K2bkZG8k6Nlf1Dp0ok
+# Mb76ffDX9vzBKcjGPmCfqOSO6T4fIjqKop7XESF7dGQHL1tzVz9QkKWHl9bTrraU
+# OyRtFne9q/BBdglnKwZWzwtCGuzsSyLRf4DFmRu4punnQiwB7CSSGT+xIL0UJEEh
+# nQAWSlvkRHv+oOH0Dohk/8rn+oKPOP6sk3cCv+RywQaDReua/T1YIWG+7lrU/LPW
+# 5yJ4LmeAxX7yrBPzeDZ4rqorid5/Hf+fCKJwaLYSzuEHIRT8TWuPGNiF1ORKbMqU
+# nzWQ8fnJPhMCPws/ZyOvELYNtdiwvvMG1anSHjpmCEce8moPyu1JFd58FZ23uH/e
+# iKTFeYfmW0j5O6UxO0ZPsQo0J+xEn6H00bSzTTMP2V7NT4gIT6K8cA3hfB4FDcmg
+# GlQOhZ7M9vAoJLezvlXfG/Sg0C7/0qp2g9cIfr/wM163MoA1cNrRIy0uRNAuecab
+# jnkyVmHZdkluRG/H8s90DJSc0UmXo40zXb5SxEzAz6sZswAkViDto/c22uTtqfc2
+# 9n3jGgoIUtHGMN4oe/RPbZarQ2WKYA==
 # SIG # End signature block

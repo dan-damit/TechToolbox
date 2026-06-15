@@ -52,11 +52,7 @@ jobs:
             'VERSIONING.md',
             'CHANGELOG.md',
             'commands.md',
-            'Config/build.config.json',
-            'AI/Agent',
-            'src/TechToolbox.Agent/bin',
-            'src/TechToolbox.Agent/obj',
-            'src/TechToolbox.Agent.Tests'
+            'Config/build.config.json'
           )
 
           $excludeJson = $exclude | ConvertTo-Json -Compress
@@ -89,12 +85,9 @@ jobs:
             Copy-Item -LiteralPath $_.FullName -Destination $stagePath -Recurse -Force
           }
 
-          foreach ($entry in ($exclude | Where-Object { $_ -match '[\\/]' })) {
-            $relativePath = $entry -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
-            $excludePath = Join-Path $stagePath $relativePath
-            if (Test-Path -LiteralPath $excludePath) {
-              Remove-Item -LiteralPath $excludePath -Recurse -Force
-            }
+          $nestedExclude = Join-Path $stagePath 'Config/build.config.json'
+          if (Test-Path -LiteralPath $nestedExclude) {
+            Remove-Item -LiteralPath $nestedExclude -Force
           }
 
           $files = Get-ChildItem -LiteralPath $stagePath -Recurse -File |
@@ -106,29 +99,6 @@ jobs:
           Write-Host 'Preview of files to be published:'
           $files | ForEach-Object { Write-Host " - $_" }
           Write-Host "Total files: $($files.Count)"
-
-      - name: Verify staged C# agent source files
-        shell: pwsh
-        run: |
-          $stagePath = Join-Path $env:RUNNER_TEMP 'TechToolbox-publish-preview'
-          if (-not (Test-Path -LiteralPath $stagePath -PathType Container)) {
-            throw "Publish preview stage path not found: $stagePath"
-          }
-
-          $requiredFiles = @(
-            'src/TechToolbox.Agent/TechToolbox.Agent.csproj',
-            'Public/AI/Invoke-TechAgent.ps1',
-            'Public/AI/Install-TechAgentRuntime.ps1'
-          )
-
-          foreach ($relativeFile in $requiredFiles) {
-            $candidatePath = Join-Path $stagePath ($relativeFile -replace '/', [System.IO.Path]::DirectorySeparatorChar)
-            if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
-              throw "Required staged file missing from publish package: $relativeFile"
-            }
-          }
-
-          Write-Host 'Staged package verification passed.'
 
       - name: Publish Module to PSGallery
         shell: pwsh

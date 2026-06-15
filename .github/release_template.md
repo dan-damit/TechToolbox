@@ -12,7 +12,7 @@ Version **0.5.0** establishes the foundation for future cross‑platform stabili
 - Introduced `Invoke-TechAgent` for structured, agent‑driven automation workflows.  
 - Added `Invoke-CodeAssistant` and `Invoke-CodeAssistantFolder` for local AI‑assisted code analysis.  
 - Added `Invoke-CodeAssistantWrapper` to standardize AI task execution patterns.  
-- New C# local agent runtime under `src/TechToolbox.Agent/`.
+- New `AI/Agent/` subsystem for Python bridge and agent tooling.
 
 ### **Full Metadata Export System**
 - `Export-ToolboxFunctions` now exports:
