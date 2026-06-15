@@ -326,7 +326,7 @@ Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Initial -UseKerber
 
 .EXAMPLE
     New-MyCommand -Name 'test'
-    #> Does something useful.
+      Does something useful.
 
 .PARAMETER Name
     Description of the Name parameter.
