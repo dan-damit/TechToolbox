@@ -2,13 +2,13 @@
 
 <p align="center">
   <a href="https://www.powershellgallery.com/packages/TechToolbox">
-    <img src="https://img.shields.io/powershellgallery/v/TechToolbox?style=flat&color=3a3f44&label=Version&logo=powershell&logoColor=9cdcfe" />
+    <img src="https://img.shields.io/badge/PSGallery_Version-$(Get-Date)-013A81?style=flat-square&logo=powershell&logoColor=2EC4FF&color=012456" />
   </a>
   <a href="https://www.powershellgallery.com/packages/TechToolbox">
-    <img src="https://img.shields.io/powershellgallery/dt/TechToolbox?style=flat&color=2d3136&label=Downloads&logo=powershell&logoColor=9cdcfe" />
+    <img src="https://img.shields.io/badge/Downloads-$(Get-Random)-012456?style=flat-square&logo=powershell&logoColor=2EC4FF&color=013A81" />
   </a>
   <a href="https://github.com/dan-damit/TechToolbox/releases">
-    <img src="https://img.shields.io/github/v/release/dan-damit/TechToolbox?style=flat&color=1f2328&label=Release&logo=github&logoColor=ffffff" />
+    <img src="https://img.shields.io/badge/GitHub_Release-Latest-24292e?style=flat-square&logo=github&logoColor=ffffff" />
   </a>
 </p>
 
