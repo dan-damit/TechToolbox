@@ -1,3 +1,3 @@
-"This run is just a test to see how you do witn the Csharp versus the python.
-Please write a simple Csharp program that prints 'Hello, World!' to the console
-that way we can see if you don't throw errors on this test."
+"Please read the function named Start-NewPSRemoteSession located at the
+directory of C:\repos\TechToolbox\Public\Start_Stop and create a .help.txt file
+for it located at C:\repos\TechToolbox\en-US."

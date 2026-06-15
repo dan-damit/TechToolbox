@@ -117,6 +117,7 @@ function Invoke-TechAgent {
     $transcriptStarted = $false
     $transcriptPath = $null
     $markdownPath = $null
+    $tracePath = $null
     $markdownStatus = 'NotStarted'
     $markdownError = $null
     $capturedStdOut = ''
@@ -143,6 +144,7 @@ function Invoke-TechAgent {
             [string]$ErrorText,
             [int]$ExitCode,
             [string]$TranscriptFile,
+            [string]$TraceFile,
             [DateTime]$StartedUtc,
             [DateTime]$CompletedUtc
         )
@@ -190,6 +192,7 @@ function Invoke-TechAgent {
             ('- AutoRetryOnRecursion: {0}' -f $AutoRetryOnRecursionMode)
             ('- ExitCode: {0}' -f $ExitCode)
             ('- TranscriptPath: {0}' -f $(if ([string]::IsNullOrWhiteSpace($TranscriptFile)) { '(none)' } else { $TranscriptFile }))
+            ('- TracePath: {0}' -f $(if ([string]::IsNullOrWhiteSpace($TraceFile)) { '(none)' } else { $TraceFile }))
             ''
             '## Prompt'
             ''
@@ -335,6 +338,17 @@ function Invoke-TechAgent {
             }
         }
 
+        try {
+            $traceRoot = Join-Path $moduleRoot 'LogsAndExports\Logs\TechAgentTrace'
+            $null = New-Item -ItemType Directory -Path $traceRoot -Force
+            $tracePath = Join-Path $traceRoot ("TechAgentTrace_{0}_{1}.log" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), $PID)
+            Write-Host ("Tech agent trace log: {0}" -f $tracePath)
+        }
+        catch {
+            $tracePath = $null
+            Write-Log -Level Warn -Message ("Tech agent trace log could not be initialized: {0}" -f $_.Exception.Message)
+        }
+
         Write-Log -Level Info -Message ("Invoking local tech agent: {0}" -f $agentProjectPath)
 
         if (-not (Test-Path -LiteralPath $agentDllPath -PathType Leaf)) {
@@ -379,7 +393,8 @@ function Invoke-TechAgent {
             $null,
             $effectiveAutoRetry,
             $false,
-            $effectiveSignedFilePolicy)
+            $effectiveSignedFilePolicy,
+            $tracePath)
 
         $capturedStdOut = [string]$message
         $capturedStdErr = ''
@@ -421,6 +436,7 @@ function Invoke-TechAgent {
                     -ErrorText $markdownError `
                     -ExitCode $exitCode `
                     -TranscriptFile $transcriptPath `
+                    -TraceFile $tracePath `
                     -StartedUtc $runStartedUtc `
                     -CompletedUtc ([DateTime]::UtcNow)
             }
