@@ -58,6 +58,7 @@ catch {
 
 Write-Host "  GitHub Release: $ghVersion"
 Write-Host "  GitHub Downloads: $ghDownloadsFormatted"
+Write-Host "  Required PowerShell: 7.6+"
 
 # -----------------------------
 # Build Replacement Table
@@ -69,6 +70,7 @@ $badgeData = @{
     PSGALLERY_DOWNLOADS = $psDownloadsFormatted
     GH_RELEASE          = $ghVersion
     GH_DOWNLOADS        = $ghDownloadsFormatted
+    REQUIRED_PWSH       = "7.6+"
 }
 
 $badgeData.GetEnumerator() | ForEach-Object {
