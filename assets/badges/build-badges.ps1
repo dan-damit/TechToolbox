@@ -16,23 +16,30 @@ function Format-Number {
 # -----------------------------
 Write-Host "`n[1/4] Fetching PSGallery data..." -ForegroundColor Yellow
 
+Write-Host "`n[1/4] Fetching PSGallery data..." -ForegroundColor Yellow
+
+$psVersion = "N/A"
+$psDownloads = 0
+$psDownloadsFormatted = "0"
+
 try {
     $module = Find-Module -Name "TechToolbox" -ErrorAction Stop
 
+    # Version
     $psVersion = $module.Version.ToString()
-    $psDownloads = $module.TotalDownloads
 
-    if ($null -eq $psDownloads -or $psDownloads -lt 0) {
-        Write-Warning "PSGallery returned no download count. Using 0."
-        $psDownloads = 0
+    # Downloads (property may not exist)
+    if ($module.PSObject.Properties.Match('TotalDownloads')) {
+        $value = $module.TotalDownloads
+        if ($null -ne $value -and $value -is [int] -and $value -ge 0) {
+            $psDownloads = $value
+        }
     }
 
     $psDownloadsFormatted = Format-Number $psDownloads
 }
 catch {
     Write-Warning "Failed to fetch PSGallery data: $_"
-    $psVersion = "N/A"
-    $psDownloadsFormatted = "0"
 }
 
 Write-Host "  Version: $psVersion"
