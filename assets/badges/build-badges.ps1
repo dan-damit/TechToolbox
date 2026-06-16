@@ -16,11 +16,8 @@ function Format-Number {
 # -----------------------------
 Write-Host "`n[1/4] Fetching PSGallery data..." -ForegroundColor Yellow
 
-Write-Host "`n[1/4] Fetching PSGallery data..." -ForegroundColor Yellow
-
 $psVersion = "N/A"
 $psDownloads = 0
-$psDownloadsFormatted = "0"
 
 try {
     $module = Find-Module -Name "TechToolbox" -ErrorAction Stop
@@ -35,12 +32,30 @@ try {
             $psDownloads = $value
         }
     }
-
-    $psDownloadsFormatted = Format-Number $psDownloads
 }
 catch {
     Write-Warning "Failed to fetch PSGallery data: $_"
 }
+
+# --- Smoothing: prevent PSGallery API regressions ---
+$downloadsFile = "./assets/badges/last-downloads.txt"
+
+# Load previous value
+$previousDownloads = 0
+if (Test-Path $downloadsFile) {
+    $previousDownloads = [int](Get-Content $downloadsFile)
+}
+
+# Prevent regression if API is stale
+if ($psDownloads -lt $previousDownloads) {
+    $psDownloads = $previousDownloads
+}
+
+# Save updated value
+$psDownloads | Out-File $downloadsFile
+
+# Format for badges
+$psDownloadsFormatted = Format-Number $psDownloads
 
 Write-Host "  Version: $psVersion"
 Write-Host "  Downloads: $psDownloadsFormatted"
