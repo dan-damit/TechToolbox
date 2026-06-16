@@ -8,6 +8,9 @@
 
   <rect width="220" height="30" rx="6" fill="#0a0f1c"/>
   <rect width="220" height="30" rx="6" fill="none" stroke="url(#accent)" stroke-width="1"/>
+  
+  <rect x="6" y="6" width="60" height="2" fill="url(#accent)" opacity="0.8"/>
+  <rect x="30" y="10" width="22" height="1" fill="#7c3aed" opacity="0.6"/>
 
   <g font-family="Consolas, Menlo, monospace" font-size="12">
     <text x="10" y="20" fill="#9ca3af">Requires PowerShell</text>
