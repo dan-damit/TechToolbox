@@ -125,6 +125,23 @@ $psdata = [ordered]@{}
 if ($manifest.PrivateData -and $manifest.PrivateData.PSData) {
     $psdata = [ordered]@{} + $manifest.PrivateData.PSData
 }
+
+# Normalize tags so gallery metadata remains valid (for example, "active directory" -> "active-directory").
+if ($psdata.Contains('Tags') -and $null -ne $psdata.Tags) {
+    $normalizedTags = @(
+        $psdata.Tags | ForEach-Object {
+            if ($_ -is [string]) {
+                ($_ -replace '\s+', '-').Trim('-')
+            }
+            else {
+                $_
+            }
+        }
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique
+
+    $psdata['Tags'] = $normalizedTags
+}
+
 $privateData = if ($psdata.Count -gt 0) { [ordered]@{ PSData = $psdata } } else { @{} }
 
 # Update manifest once
