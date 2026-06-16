@@ -160,6 +160,31 @@ jobs:
           }
 
           $manifest = Join-Path $stagePath "TechToolbox.psd1"
+
+          # Normalize gallery tags to avoid invalid values with whitespace (for example, "active directory").
+          $manifestData = Import-PowerShellDataFile -Path $manifest
+          $psData = [ordered]@{}
+          if ($manifestData.PrivateData -and $manifestData.PrivateData.PSData) {
+            $psData = [ordered]@{} + $manifestData.PrivateData.PSData
+          }
+
+          if ($psData.Contains('Tags') -and $null -ne $psData.Tags) {
+            $normalizedTags = @(
+              $psData.Tags | ForEach-Object {
+                if ($_ -is [string]) {
+                  ($_ -replace '\s+', '-').Trim('-')
+                }
+                else {
+                  $_
+                }
+              }
+            ) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique
+
+            $psData['Tags'] = $normalizedTags
+            Update-ModuleManifest -Path $manifest -PrivateData ([ordered]@{ PSData = $psData })
+            Write-Host ("Normalized manifest tags for publish: {0}" -f ($normalizedTags -join ', '))
+          }
+
           Test-ModuleManifest $manifest
 
           try {
