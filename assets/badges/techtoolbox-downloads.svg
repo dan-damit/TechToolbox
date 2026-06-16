@@ -13,8 +13,8 @@
   <rect x="28" y="10" width="20" height="1" fill="#ff00f7" opacity="0.6"/>
 
   <g font-family="Consolas, Menlo, monospace" font-size="12">
-    <text x="10" y="19" fill="#9ca3af">Downloads</text>
-    <text x="150" y="19" fill="#e5e7eb">0</text>
+    <text x="10" y="20" fill="#9ca3af">Downloads</text>
+    <text x="150" y="20" fill="#e5e7eb">0</text>
   </g>
 </svg>
 
