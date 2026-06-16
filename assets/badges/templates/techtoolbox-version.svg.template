@@ -1,7 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="30" role="img" 
 aria-label="Version">
-<a href="https://www.powershellgallery.com/packages/TechToolbox" 
-target="_blank">
   <defs>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#00eaff"/>
@@ -19,5 +17,4 @@ target="_blank">
     <text x="10" y="20" fill="#9ca3af">PSGallery</text>
     <text x="135" y="20" fill="#e5e7eb">{{VERSION}}</text>
   </g>
-</a>
 </svg>
