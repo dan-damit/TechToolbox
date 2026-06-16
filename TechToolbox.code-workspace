@@ -74,6 +74,9 @@
         "[github-actions-workflow]": {
             "editor.defaultFormatter": "redhat.vscode-yaml"
         },
+        "[xml]": {
+            "editor.defaultFormatter": "csharpier.csharpier-vscode"
+        },
     },
     // ------------------------------
     // Recommended Extensions
