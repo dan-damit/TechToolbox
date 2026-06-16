@@ -67,6 +67,33 @@ if ($psDownloads -eq 0) {
     }
 }
 
+<#
+# Fallback: scrape the PSGallery package page if the API returned 0
+if ($psDownloads -eq 0) {
+    Write-Host "  API returned 0 downloads — attempting HTML scrape fallback..." -ForegroundColor DarkYellow
+    try {
+        $pageHtml = (Invoke-WebRequest -Uri "https://www.powershellgallery.com/packages/TechToolbox/" -UseBasicParsing -ErrorAction Stop).Content
+
+        # Regex that tolerates spans, whitespace, <br>, and commas
+        $regex = '<li class="package-details-info-main">.*?([\d,]+).*?<br\s*/?>\s*<text[^>]*>\s*Downloads\s*</text>'
+
+        if ($pageHtml -match $regex) {
+            $scraped = [long]($Matches[1] -replace ',', '')
+            if ($scraped -gt 0) {
+                $psDownloads = $scraped
+                Write-Host "  Scraped downloads: $psDownloads" -ForegroundColor DarkGreen
+            }
+        }
+        else {
+            Write-Warning "Scrape fallback: could not locate download count in PSGallery HTML."
+        }
+    }
+    catch {
+        Write-Warning "Scrape fallback failed: $_"
+    }
+}
+#>
+
 # --- Smoothing: prevent PSGallery API regressions ---
 $downloadsFile = "./assets/badges/last-downloads.txt"
 
