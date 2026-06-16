@@ -1,20 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="30" role="img" aria-label="Requires PowerShell">
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="30" role="img"
+aria-label="Requires PowerShell">
+<a
+href="https://learn.microsoft.com/powershell/scripting/install/installing-powershell"
+target="_blank">
   <defs>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#00eaff"/>
+      <stop offset="50%" stop-color="#ff00f7"/>
       <stop offset="100%" stop-color="#7c3aed"/>
     </linearGradient>
   </defs>
 
-  <rect width="220" height="30" rx="6" fill="#0a0f1c"/>
-  <rect width="220" height="30" rx="6" fill="none" stroke="url(#accent)" stroke-width="1"/>
-  
-  <rect x="6" y="6" width="60" height="2" fill="url(#accent)" opacity="0.8"/>
-  <rect x="30" y="10" width="22" height="1" fill="#7c3aed" opacity="0.6"/>
+  <rect width="240" height="30" rx="6" fill="#0a0f1c"/>
+  <rect width="240" height="30" rx="6" fill="none" stroke="url(#accent)" stroke-width="1"/>
+
+  <rect x="6" y="6" width="70" height="2" fill="url(#accent)" opacity="0.8"/>
+  <rect x="40" y="10" width="26" height="1" fill="#00eaff" opacity="0.6"/>
 
   <g font-family="Consolas, Menlo, monospace" font-size="12">
-    <text x="10" y="20" fill="#9ca3af">Requires PowerShell</text>
-    <text x="160" y="20" fill="#e5e7eb">7.6+</text>
+    <text x="10" y="20" fill="#9ca3af">Powered by</text>
+    <text x="135" y="20" fill="#e5e7eb">TechToolbox</text>
   </g>
+</a>
 </svg>
 
