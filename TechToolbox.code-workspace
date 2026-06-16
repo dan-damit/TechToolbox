@@ -30,7 +30,7 @@
         "powershell.codeFormatting.preset": "Stroustrup",
         "powershell.codeFormatting.useCorrectCasing": true,
         "powershell.scriptAnalysis.enable": true,
-        "powershell.scriptAnalysis.settingsPath": "C:\\TechToolbox\\PSScriptAnalyzerSettings.psd1",
+        "powershell.scriptAnalysis.settingsPath": "C:\\repos\\TechToolbox\\PSScriptAnalyzerSettings.psd1",
         // ------------------------------
         // Editor Behavior
         // ------------------------------
