@@ -122,7 +122,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = 'automation','networking','diagnostics','toolbox','troubleshooting','enterprise','sysadmin','itpro','helpdesk','technician','workflow','utilities','agent','ai','active directory','exchange','windows','security','performance','monitoring'
+        Tags = 'automation','networking','diagnostics','toolbox','troubleshooting','enterprise','sysadmin','itpro','helpdesk','technician','workflow','utilities','agent','ai','activedirectory','exchange','windows','security','performance','monitoring'
 
         # A URL to the license for this module.
         LicenseUri = 'https://opensource.org/licenses/MIT'
