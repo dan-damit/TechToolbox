@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="30" role="img" aria-label="Downloads">
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="30" role="img" 
+aria-label="Downloads">
+<a href="https://www.powershellgallery.com/packages/TechToolbox" 
+target="_blank">
   <defs>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#ff00f7"/>
@@ -16,4 +19,6 @@
     <text x="10" y="20" fill="#9ca3af">Downloads</text>
     <text x="150" y="20" fill="#e5e7eb">{{PSGALLERY_DOWNLOADS}}</text>
   </g>
+</a>
 </svg>
+  
