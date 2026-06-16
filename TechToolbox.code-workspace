@@ -15,7 +15,8 @@
             "Exports": true,
             "Tests/Output": true,
             "Dependencies/EXO/obj": true,
-            "Dependencies/EXO/bin": true
+            "Dependencies/EXO/bin": true,
+            "**/*.psd1": true
         },
         "search.exclude": {
             "Logs": true,
