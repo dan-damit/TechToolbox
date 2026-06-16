@@ -1,21 +1,21 @@
 # TechToolbox
 
 <p align="center">
-<a href="https://www.powershellgallery.com/packages/TechToolbox" target="_blank">
-  <img src="assets/badges/techtoolbox-version.svg" />
-</a>
-<a href="https://www.powershellgallery.com/packages/TechToolbox" target="_blank">
-  <img src="assets/badges/techtoolbox-downloads.svg" />
-</a>
-<a href="https://github.com/dan-damit/TechToolbox/releases" target="_blank">
-  <img src="assets/badges/techtoolbox-release.svg" />
-</a>
-<a href="https://learn.microsoft.com/powershell/scripting/install/installing-powershell" target="_blank">
-  <img src="assets/badges/techtoolbox-requires.svg" />
-</a>
-<a href="https://thedamits.com/" target="_blank">
-  <img src="assets/badges/powered-by-techtoolbox.svg" />
-</a>
+  <a href="https://www.powershellgallery.com/packages/TechToolbox" target="_blank">
+    <img src="assets/badges/techtoolbox-version.svg" />
+  </a>
+  <a href="https://www.powershellgallery.com/packages/TechToolbox" target="_blank">
+    <img src="assets/badges/techtoolbox-downloads.svg" />
+  </a>
+  <a href="https://github.com/dan-damit/TechToolbox/releases" target="_blank">
+    <img src="assets/badges/techtoolbox-release.svg" />
+  </a>
+  <a href="https://learn.microsoft.com/powershell/scripting/install/installing-powershell" target="_blank">
+    <img src="assets/badges/techtoolbox-requires.svg" />
+  </a>
+  <a href="https://thedamits.com/" target="_blank">
+    <img src="assets/badges/powered-by-techtoolbox.svg" />
+  </a>
 </p>
 
 ## _A PowerShell 7+ Operator Framework for Enterprise IT Automation._
