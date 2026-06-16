@@ -15,7 +15,7 @@ aria-label="Requires PowerShell">
 
   <g font-family="Consolas, Menlo, monospace" font-size="12">
     <text x="10" y="20" fill="#9ca3af">Requires Powershell</text>
-    <text x="10" y="135" fill="#e5e7eb">7.6+</text>
+    <text x="150" y="20" fill="#e5e7eb">7.6+</text>
   </g>
 </svg>
 
