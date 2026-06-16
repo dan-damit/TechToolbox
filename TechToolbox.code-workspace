@@ -15,8 +15,7 @@
             "Exports": true,
             "Tests/Output": true,
             "Dependencies/EXO/obj": true,
-            "Dependencies/EXO/bin": true,
-            "**/TechToolbox.psd1": true
+            "Dependencies/EXO/bin": true
         },
         "search.exclude": {
             "Logs": true,
