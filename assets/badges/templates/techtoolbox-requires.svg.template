@@ -15,7 +15,7 @@ aria-label="Requires PowerShell">
   <rect x="40" y="10" width="26" height="1" fill="#00eaff" opacity="0.6"/>
 
   <g font-family="Consolas, Menlo, monospace" font-size="12">
-    <text x="10" y="20" fill="#9ca3af">Powered by</text>
-    <text x="135" y="20" fill="#e5e7eb">TechToolbox</text>
+    <text x="10" y="20" fill="#9ca3af">Requires Powershell</text>
+    <text x="135" y="20" fill="#e5e7eb">{{REQUIRED_PWSH}}</text>
   </g>
 </svg>
