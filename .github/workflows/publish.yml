@@ -168,7 +168,7 @@ jobs:
             $psData = [ordered]@{} + $manifestData.PrivateData.PSData
           }
 
-          if ($psData.Contains('Tags') -and $null -ne $psData.Tags) {
+          if (($psData.Keys -contains 'Tags') -and $null -ne $psData.Tags) {
             $normalizedTags = @(
               $psData.Tags | ForEach-Object {
                 if ($_ -is [string]) {

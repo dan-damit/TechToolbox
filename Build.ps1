@@ -120,14 +120,21 @@ $functionsToExport = if ($mergedExports.Count -gt 0) { $mergedExports } else { @
 # Keep aliases explicit (avoid '*') for faster module analysis
 $aliasesToExport = @()  # set to concrete alias names when you have them
 
-# Preserve existing PrivateData.PSData
-$psdata = [ordered]@{}
-if ($manifest.PrivateData -and $manifest.PrivateData.PSData) {
-    $psdata = [ordered]@{} + $manifest.PrivateData.PSData
+# Preserve existing PrivateData (both top-level keys and PSData)
+$privateData = [ordered]@{}
+if ($manifest.PrivateData) {
+    $privateData = [ordered]@{} + $manifest.PrivateData
 }
 
-# Normalize tags so gallery metadata remains valid (for example, "active directory" -> "active-directory").
-if ($psdata.Contains('Tags') -and $null -ne $psdata.Tags) {
+$psdata = [ordered]@{}
+if ($privateData.PSData) {
+    $psdata = [ordered]@{} + $privateData.PSData
+}
+
+# Normalize tags so gallery metadata remains valid (example: "active directory" -> "active-directory" then filter both deprecated forms).
+if (($psdata.Keys -contains 'Tags') -and $null -ne $psdata.Tags) {
+    $deprecatedTags = @('active-directory', 'active directory')
+
     $normalizedTags = @(
         $psdata.Tags | ForEach-Object {
             if ($_ -is [string]) {
@@ -137,14 +144,18 @@ if ($psdata.Contains('Tags') -and $null -ne $psdata.Tags) {
                 $_
             }
         }
-    ) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique
+    ) | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_) -and
+        ($deprecatedTags -notcontains [string]$_)
+    } | Select-Object -Unique
 
     $psdata['Tags'] = $normalizedTags
 }
 
-$privateData = if ($psdata.Count -gt 0) { [ordered]@{ PSData = $psdata } } else { @{} }
+# Rebuild full PrivateData with normalized PSData
+$privateData['PSData'] = $psdata
 
-# Update manifest once
+# Update manifest once (both exports and PrivateData)
 Update-ModuleManifest -Path $manifestPath `
     -FunctionsToExport $functionsToExport `
     -AliasesToExport   $aliasesToExport `
@@ -339,8 +350,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCOSMGwfFpW7Ypd
-# +OOZqiMFMMhOG0gLoMIOKZWkNX9QYKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA6Btqy2nnmcfA5
+# M5ZVCSNAbtCizUN1eQCLjFzStBaIUaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -473,34 +484,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB5N1VNq7Or
-# fdShTGIzZ3Q2yC8A2qudJFat1qwIkDSPLzANBgkqhkiG9w0BAQEFAASCAgCcb3/r
-# BSlDHoLjofEom2eKMfgVvWQ3SJ3oLdHkOdjABua3HJKGY/sVRufmo53PBUQjz956
-# anirkJFM+Bx5EeeDfCARontlg3CD2SSFNFWcDbVQcUdWLWxXDO8Wz02HUcYid9/Z
-# QgmxgqzBGiyorgV4TB3QJVG5EoEeZjbEsS1zgK3rYthXgHHDEviJTh0fUCVRSgYf
-# s9EnOf/9C1+c41iUBIJPuhLtXLbLkQinucsy84DlyLPfDhiF21Esey8ko56V6lz0
-# ZhsPjdyXnjHcOokbonhqcYFN+pmyBdb8toXW5uQdcGQdnUKg5YiVS97kYcSqlvOH
-# VPIrqk2n2Qmiw7wsgmvpRIOllcGa29Bz7uhpbMdb4I81yDSIPVwKJNszHpIeoKsC
-# mSF0Hp+Ym5X8YhJ5yODWlrweSXHVopY0IC5YFngmE3Aa+1Y06WOJDTM2hrtVEF1f
-# khl8+qv555XEOtCLpNek8YVsgaq9t2xstbwOiDMGLu8OBWY5w1P7c2dVDtTX0Mhe
-# jtdYqa0X3mXa23In8mtmCiw45g5gWIsCQXii1wmLkyph4+EKOndZyXEv1yeLIe8k
-# MQsiLXXfM1sARa3gjWwajrjoyrWH5h6W/2KLnFPKIltNlIIlJlkGUpVeDjHAuANd
-# h/2nhjy/ldAfooEDPM28bf17pKqHJJMQ77dFSqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDskb7K1/jT
+# bjy7w/EJiiLg35rp6LsUGdmgUQTThW1pVzANBgkqhkiG9w0BAQEFAASCAgAtnCPv
+# EhuP76KxMV9VcE8lN6q7Wkik5yar9x5rmZXyFOHvMQYKkDub8Q0N29AwbwV2w8C2
+# SopI6VsiGtoFy+7PThpLVETMbG8L2XKU2MM1xPWcoV64ArmSdbXBLCuJtp4iRJj+
+# y/T1bFA05cl76vIlCOZf/FB2Bw5HxE+z6qEQhufpyJv+z2vo0V/btZ8JQxIlp+NH
+# dbsnIaT8oVyXkIJaKTpluu7Kk281HqMHRuAtQzuU23WZ34p6cqisGcS0Z4ZTqTLM
+# +FQ3diYTa+F41yb6L+VpCSvy3lAraizal44l4PokNdwP5jovrCxwsFsOnjiDoQpi
+# aVteVLpjQyNf7uJiCPvAahY22PBApB3bE2Ib4FaP4wpVXhFWhzbdkkrTeaUFZWDN
+# 1n+5UpQBUZHKipR4eEp2eAKpLhlDX+0qkr98SVn7jTOMtqNr6PDt3RPmHJef4hqd
+# 4q/dZRGBOQGmNLqNc07m0zOmyfPNTRDCxuXGsBvkvY8u+vnedM4Y9sfF7yeJtxj2
+# wymEWfW753vNqACi6GXaY3IdyNjQWh9dxQOuj2Tenojfeb8MXRARbnkzswDfqZrw
+# k/FA4JxWqkoMkNSgZTFM4QlbDkhwNV12F4XSOd0ED195vS/ko0r2hZMUMNy06TPL
+# E7LxY1UPDttvSxux+dtuHxOfdLp9KS+FFHYHFKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTYwNDU3MzBaMC8GCSqGSIb3DQEJBDEiBCApFWAiwYNkpMdCGF1A
-# XIjH/MWxxDvBz09UMzjeScWFCzANBgkqhkiG9w0BAQEFAASCAgA45QJZ5bR4OeCA
-# o5NMZ00dfZFblXAvw4Lr40tjRdBBia8XcB1zGrRh4q2BbFcqF0MvEBvWcuJLSsMN
-# pQnrBiNkrFhRXmX5DUbJH3mv380t0IlRFX+XDM6gJTEa2ymgLXTwaP/VugOB2YQK
-# ZgtCQZs8EbZ64s7sITgpHoMH3D9B0JmdKNOt+Z/y7WP1LG0jeYTtukHs3mwuNovE
-# 9LaoWTNEKwU4EMS3TVCJA7gt3+4kg6paxvywHgjQaxY7fsEcUAWDYoXaOrjKUyIm
-# 1CXJUnQ1aY7GMiJr1mQ8bLYhUbtDyeyHyii92kfUymK4dJQaRZyELHB+G9Un3QbM
-# yl7qHbYBDf2JyyO1C4pQ0r9d2Ysc1Aq/ITTqZcGNGA1++HrY+zDtGhJW1O7c8GL9
-# ItHAo0XdujEOaELCp5YXefkFeRLnCEeVFPHLxlUNBRCd1XGmv4lEtC3YBECVe1p1
-# LKR+UlBH0kfB/n+MEJrls40vhMpxa/oP9Dne0anhZLvM0xLGnoKhFZuhef/TJUDS
-# A5K3lh4W2zGydyEIeolM+iyjPSpXdln2mte/0aFsY0cAfKKsCHjB2lA7drjz07Mn
-# sjZqdd88zYuLa0S3iYlumPsY30baRHlW4skBLxXuiZLTqtJtHuTiZGUJwIKi0yfo
-# TKnyISXwQXwLtwqXSQIREhNFjN/AtA==
+# BTEPFw0yNjA2MTYwNTExNTBaMC8GCSqGSIb3DQEJBDEiBCCzmZdFtzMCYW7+gjvW
+# P0vND5C3coIZqs8jIwzmHmzOnzANBgkqhkiG9w0BAQEFAASCAgAUj3+o+FnccUrq
+# 0B6POe4GWOH82zY6rgOwyKG/qUJTTGrhGb/kC0jjvzv/tNcnIHRJdbiAxXxmrNev
+# kFNICBjQ6ZdnJIbZpsZx4JqbaCcxIX18znveYeZf6/LxAsZYcqZ7MbvuumONWEff
+# ZfOL//53GApfqjG2xP5Nv0tcwuL02EyRehHsN9pdbThCHDc7aHDANBZLqwU501P+
+# Y5agTDVdP6QKDFaYd2Fda4Y2eD+wScdPJIgCN0NkNWuplvyqd6cYcKwPU8M6f45U
+# HcfzyeDSBO5bAMf8dm3BI0T0RfY4e3Fsj3E4RysWJ77m3uIRrco+OsqJXHWXxhww
+# 4cBt6NxcSl7O9xFvjh8pXRELOElAYG4gYNsP9zavXCbxFsdBP/xFvalcG2MOoMUE
+# adOFzoRx8DgJm+1w4jUnF1QmLPAOY0IChWRy2MNKlMliR2Ykmn4ky6aUUCaF1qkO
+# Dq8VSyJLvYF5kNbMd25bwinzsN1N/lTfXfE/H9aXejZj/O9Ykoljktbc8oj6Vwqo
+# /uH4w9rO7k+A3Q4czZbMcvB7v58ZrYkTXdytcib0XBcqXPZUYA/V5/EmLfLKCqcU
+# cENMIA1HvV6N1XxQxt5iTlzu6/bkkjWge83yIiryoipbpkT/jq6t5ZPLTaDqwwLC
+# GHbKh2EpJXBvaYYdRumdOz0WWOXl2Q==
 # SIG # End signature block
