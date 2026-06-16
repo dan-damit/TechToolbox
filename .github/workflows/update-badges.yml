@@ -1,39 +1,39 @@
 name: Update Badges
 
 env:
-    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
-    schedule:
-        - cron: "0 * * * *" # every hour
-    push:
-        branches: [main]
-    release:
-        types: [published]
+  schedule:
+    - cron: "0 * * * *" # every day
+  push:
+    branches: [main]
+  release:
+    types: [published]
 
 jobs:
-    build-badges:
-        runs-on: windows-latest
+  build-badges:
+    runs-on: windows-latest
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Install PowerShellGet (for Find-Module)
-              run: Install-Module PowerShellGet -Force -Scope CurrentUser
-              shell: pwsh
+      - name: Install PowerShellGet (for Find-Module)
+        run: Install-Module PowerShellGet -Force -Scope CurrentUser
+        shell: pwsh
 
-            - name: Build badges
-              run: pwsh ./assets/badges/build-badges.ps1
+      - name: Build badges
+        run: pwsh ./assets/badges/build-badges.ps1
 
-            - name: Commit changes
-              run: |
-                  git config user.name "github-actions"
-                  git config user.email "github-actions@github.com"
-                  git add assets/badges/*.svg
-                  git diff --cached --quiet || git commit -m "Auto-update badges"
-              shell: bash
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add assets/badges/*.svg
+          git diff --cached --quiet || git commit -m "Auto-update badges"
+        shell: bash
 
-            - name: Push
-              run: git push
-              shell: bash
+      - name: Push
+        run: git push
+        shell: bash

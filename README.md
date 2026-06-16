@@ -4,9 +4,9 @@
   <img src="assets/badges/techtoolbox-version.svg" />
   <img src="assets/badges/techtoolbox-downloads.svg" />
   <img src="assets/badges/techtoolbox-release.svg" />
+  <img src="assets/badges/techtoolbox-requires.svg" />
   <img src="assets/badges/powered-by-techtoolbox.svg" />
 </p>
-
 
 ## _A PowerShell 7+ Operator Framework for Enterprise IT Automation._
 

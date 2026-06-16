@@ -13,7 +13,7 @@
   <rect x="30" y="10" width="22" height="1" fill="#7c3aed" opacity="0.6"/>
 
   <g font-family="Consolas, Menlo, monospace" font-size="12">
-    <text x="10" y="19" fill="#9ca3af">GitHub Release</text>
-    <text x="140" y="19" fill="#e5e7eb">{{GH_RELEASE}}</text>
+    <text x="10" y="20" fill="#9ca3af">GitHub Release</text>
+    <text x="140" y="20" fill="#e5e7eb">{{GH_RELEASE}}</text>
   </g>
 </svg>
