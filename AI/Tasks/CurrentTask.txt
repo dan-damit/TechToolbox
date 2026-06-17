@@ -1,3 +1,1 @@
-"Please read the function named Start-NewPSRemoteSession.ps1 located at the
-directory of C:\repos\TechToolbox\Public\Start_Stop and create a file named
-about_Start-NewPSRemoteSession.help.txt located at C:\repos\TechToolbox\en-US."
+"Do you think you would perform better with a C# orchestration layer over the current python orchestration layer?"
