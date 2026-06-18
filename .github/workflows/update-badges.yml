@@ -8,8 +8,6 @@ on:
     - cron: "0 * * * *" # every day
   push:
     branches: [main]
-  release:
-    types: [published]
 
 permissions:
   contents: write
