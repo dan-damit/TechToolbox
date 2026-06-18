@@ -22,6 +22,10 @@
   <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml">
     <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml/badge.svg" />
   </a>
+
+  <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml">
+    <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml/badge.svg" />
+  </a>
 </p>
 
 ## _A PowerShell 7+ Operator Framework for Enterprise IT Automation._
