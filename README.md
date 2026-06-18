@@ -1,5 +1,5 @@
 # TechToolbox
-
+[![Update Badges](https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml/badge.svg)](https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml)
 <p align="center">
   <a href="https://www.powershellgallery.com/packages/TechToolbox" target="_blank">
     <img src="assets/badges/techtoolbox-version.svg" />
