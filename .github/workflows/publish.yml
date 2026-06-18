@@ -16,10 +16,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install PowerShell 7.6.2
+      - name: Install PowerShell 7.6.3
         shell: pwsh
         run: |
-          $version = '7.6.2'
+          $version = '7.6.3'
           $zipPath = Join-Path $env:RUNNER_TEMP "powershell-$version-win-x64.zip"
           $installDir = Join-Path $env:RUNNER_TEMP "powershell-$version"
           $downloadUrl = "https://github.com/PowerShell/PowerShell/releases/download/v$version/PowerShell-$version-win-x64.zip"
@@ -109,6 +109,8 @@ jobs:
         env:
           NUGET_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
+          $ErrorActionPreference = 'Stop'
+
           if ([string]::IsNullOrWhiteSpace($env:NUGET_KEY)) {
             throw "Missing PSGALLERY_API_KEY secret. Set repository secret 'PSGALLERY_API_KEY' and re-run."
           }
@@ -122,10 +124,39 @@ jobs:
           }
 
           if (-not (Test-Path -LiteralPath $env:PWSH_76_EXE)) {
-            throw "PowerShell 7.6.2 executable not found: $env:PWSH_76_EXE"
+            throw "PowerShell 7.6.3 executable not found: $env:PWSH_76_EXE"
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:GITHUB_REF_NAME)) {
+            throw "Missing GITHUB_REF_NAME; expected a tag like v0.5.32."
+          }
+
+          if ($env:GITHUB_REF_NAME -notmatch '^v') {
+            throw "Tag '$($env:GITHUB_REF_NAME)' does not start with 'v'. Expected format v<semver>."
+          }
+
+          $tagVersion = $env:GITHUB_REF_NAME.Substring(1)
+          if ([string]::IsNullOrWhiteSpace($tagVersion)) {
+            throw "Could not parse version from tag '$($env:GITHUB_REF_NAME)'."
+          }
+
+          $sourceManifestPath = Join-Path $PWD.Path 'TechToolbox.psd1'
+          if (-not (Test-Path -LiteralPath $sourceManifestPath)) {
+            throw "Module manifest not found at $sourceManifestPath"
+          }
+
+          $sourceManifestData = Import-PowerShellDataFile -Path $sourceManifestPath
+          $manifestVersion = [string]$sourceManifestData.ModuleVersion
+          if ([string]::IsNullOrWhiteSpace($manifestVersion)) {
+            throw "ModuleVersion is missing from $sourceManifestPath"
+          }
+
+          if ($manifestVersion -ne $tagVersion) {
+            throw "Tag version '$tagVersion' does not match manifest ModuleVersion '$manifestVersion'."
           }
 
           Write-Host "Publishing TechToolbox to PowerShell Gallery with $env:PWSH_76_EXE..."
+          Write-Host "Validated tag and manifest version: $tagVersion"
 
           $publishScriptPath = Join-Path $env:RUNNER_TEMP 'publish-module.ps1'
           @'
@@ -135,8 +166,16 @@ jobs:
             [Parameter(Mandatory)]
             [string]$NuGetKey,
             [Parameter(Mandatory)]
-            [string]$ExcludeJson
+            [string]$ExcludeJson,
+            [Parameter(Mandatory)]
+            [string]$ExpectedVersion
           )
+
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+            $PSNativeCommandUseErrorActionPreference = $true
+          }
 
           $exclude = @($ExcludeJson | ConvertFrom-Json)
 
@@ -194,6 +233,34 @@ jobs:
               -NuGetApiKey $NuGetKey `
               -Repository PSGallery `
               -Verbose
+
+            $maxAttempts = 24
+            $delaySeconds = 15
+            $published = $false
+
+            for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+              Write-Host ("Checking PSGallery for TechToolbox version {0} (attempt {1}/{2})..." -f $ExpectedVersion, $attempt, $maxAttempts)
+
+              $galleryVersions = @(
+                Find-Module -Name 'TechToolbox' -Repository 'PSGallery' -AllVersions -ErrorAction Stop |
+                  Select-Object -ExpandProperty Version |
+                  ForEach-Object { $_.ToString() }
+              )
+
+              if ($galleryVersions -contains $ExpectedVersion) {
+                Write-Host ("Verified PSGallery now shows TechToolbox {0}." -f $ExpectedVersion)
+                $published = $true
+                break
+              }
+
+              if ($attempt -lt $maxAttempts) {
+                Start-Sleep -Seconds $delaySeconds
+              }
+            }
+
+            if (-not $published) {
+              throw ("Publish completed but PSGallery did not reflect TechToolbox {0} within {1} seconds." -f $ExpectedVersion, ($maxAttempts * $delaySeconds))
+            }
           }
           finally {
             if (Test-Path -LiteralPath $stageRoot) {
@@ -203,4 +270,4 @@ jobs:
           '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
 
           $modulePath = $PWD.Path
-          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON
+          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON -ExpectedVersion $tagVersion
