@@ -55,7 +55,8 @@ jobs:
             'VERSIONING.md',
             'CHANGELOG.md',
             'commands.md',
-            'Config/build.config.json'
+            'Config/build.config.json',
+            'src'
           )
 
           $excludeJson = $exclude | ConvertTo-Json -Compress
