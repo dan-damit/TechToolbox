@@ -1,4 +1,6 @@
-# TechToolbox
+<p align="center">
+  <img src="assets/TransparentReadmeHeader.png" alt="TechToolbox" width="100%" style="max-width:900px; opacity:0.95;">
+</p>
 
 <p align="center">
   <a href="https://www.powershellgallery.com/packages/TechToolbox" target="_blank">
