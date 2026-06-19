@@ -24,15 +24,21 @@
   <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml">
     <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml/badge.svg" />
   </a>
-
   <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml">
     <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml/badge.svg" />
   </a>
 </p>
 
-## _A PowerShell 7+ Operator Framework for Enterprise IT Automation._
+<div align="center">
+  <p style="font-size:1.2em; font-weight:600; margin-top:1em;">
 
-TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It targets real-world enterprise operations: Active Directory lifecycle, Exchange Online / Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI-assisted automation.
+  ## _Modular. Worker-Driven. PowerShell Automation at Scale._
+
+  <br>
+
+  TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It targets real-world enterprise operations: Active Directory lifecycle, Exchange Online / Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI-assisted automation.
+  </p>
+</div>
 
 ---
 
