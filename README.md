@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/TransparentReadmeHeader.png" alt="TechToolbox" width="100%" style="max-width:900px; opacity:0.95;">
+  <img src="assets/DualThemeSupportReadmeHeader.png" alt="TechToolbox" width="100%" style="max-width:900px; opacity:1;" />
 </p>
 
 <p align="center">
