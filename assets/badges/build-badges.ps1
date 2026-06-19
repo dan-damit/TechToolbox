@@ -94,23 +94,6 @@ if ($psDownloads -eq 0) {
 }
 #>
 
-# --- Smoothing: prevent PSGallery API regressions ---
-$downloadsFile = "./assets/badges/last-downloads.txt"
-
-# Load previous value
-$previousDownloads = 0
-if (Test-Path $downloadsFile) {
-    $previousDownloads = [int](Get-Content $downloadsFile)
-}
-
-# Prevent regression if API is stale
-if ($psDownloads -lt $previousDownloads) {
-    $psDownloads = $previousDownloads
-}
-
-# Save updated value
-$psDownloads | Out-File $downloadsFile
-
 # Format for badges
 $psDownloadsFormatted = Format-Number $psDownloads
 
