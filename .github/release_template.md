@@ -1,20 +1,26 @@
-# 🚀 TechToolbox v0.5.0 — *AI & Metadata Milestone*
-
-## 📌 Summary  
-This milestone marks a major evolution of TechToolbox from a powerful admin toolkit into a **true operator framework** with AI‑assisted development, deep metadata export, and a hardened loader/config architecture.  
-Version **0.5.0** establishes the foundation for future cross‑platform stability, worker orchestration improvements, and a path toward a 1.0 release.
+# 🚀 TechToolbox v0.5.0
+### AI & Metadata Milestone
+---
+## Summary  
+This milestone marks TechToolbox’s evolution from a powerful admin toolkit into a **operator‑grade automation framework**, introducing AI‑assisted workflows, deep metadata export, and a hardened loader/config architecture. 
+**v0.5.0 establishes the foundation for scalable automation, AI integration, and future cross‑platform support.**
 
 ---
 
-## ✨ New Features
+## 📌 Release Highlights
 
 ### **AI Agent Bridge**
-- Introduced `Invoke-TechAgent` for structured, agent‑driven automation workflows.  
-- Added `Invoke-CodeAssistant` and `Invoke-CodeAssistantFolder` for local AI‑assisted code analysis.  
-- Added `Invoke-CodeAssistantWrapper` to standardize AI task execution patterns.  
-- New `AI/Agent/` subsystem for Python bridge and agent tooling.
+- Introduced `Invoke-TechAgent` for structured, agent-driven automation workflows  
+- Added AI-assisted development tooling:
+  - `Invoke-CodeAssistant`
+  - `Invoke-CodeAssistantFolder`
+  - `Invoke-CodeAssistantWrapper`
+- Established the `AI/Agent/` subsystem for Python bridge integration and extensible agent tooling
 
 ### **Full Metadata Export System**
+
+Enables full introspection of the module for AI agents, documentation tooling, and automation pipelines.
+
 - `Export-ToolboxFunctions` now exports:
   - Function names, aliases, categories  
   - Parameter metadata (types, defaults, mandatory flags, aliases, allowed values)  
@@ -33,10 +39,14 @@ Version **0.5.0** establishes the foundation for future cross‑platform stabili
 ## 🛠 Improvements
 
 ### **Loader Architecture**
-- More deterministic bootstrap sequence.  
-- Cleaner separation between module root and operational home.  
-- Improved path token resolution (`%TT_ModuleRoot%`, `%TT_Home%`, `%TT_LogsRoot%`, `%TT_ExportsRoot%`).  
-- Private helpers load earlier and more predictably.
+- Deterministic and repeatable bootstrap sequence  
+- Clear separation between module root and operational home  
+- Improved path token resolution:
+  - `%TT_ModuleRoot%`
+  - `%TT_Home%`
+  - `%TT_LogsRoot%`
+  - `%TT_ExportsRoot%`
+- Private helpers load earlier and more predictably
 
 ### **Configuration System**
 - Deep merge between `config.json` and `config.secrets.json`.  
@@ -72,14 +82,15 @@ Version **0.5.0** establishes the foundation for future cross‑platform stabili
 ---
 
 ## 🔧 Breaking Changes  
-None in this release.  
-TechToolbox remains pre‑1.0, but this milestone stabilizes core architecture and prepares for future API guarantees.
+None in this release.
+This milestone stabilizes core architecture ahead of future API guarantees.
 
 ---
 
 ## 📦 Installation  
 ```powershell
-Import-Module .\TechToolbox.psd1 -Force
+Install-Module TechToolbox -Scope CurrentUser
+Import-Module TechToolbox
 ```
 
 ---
