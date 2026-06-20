@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
 
 namespace TechToolbox.Agent.Agent;
@@ -57,9 +58,12 @@ public class AgentOrchestrator
         {
             stopwatch.Stop();
             return FinalizeResult(
+                prompt,
                 attempt.OutputText,
                 initialToolNames,
                 stopwatch.ElapsedMilliseconds,
+                status: "success",
+                outcome: "completed",
                 retriedOnIterationLimit: false,
                 retrySucceeded: false,
                 initialIterationLimit: _maxIterations,
@@ -78,9 +82,12 @@ public class AgentOrchestrator
             if (!retryAttempt.ReachedIterationLimit)
             {
                 return FinalizeResult(
+                    prompt,
                     retryAttempt.OutputText,
                     retryToolNames,
                     stopwatch.ElapsedMilliseconds,
+                    status: "success",
+                    outcome: "completed",
                     retriedOnIterationLimit: true,
                     retrySucceeded: true,
                     initialIterationLimit: _maxIterations,
@@ -88,9 +95,12 @@ public class AgentOrchestrator
             }
 
             return FinalizeResult(
+                prompt,
                 BuildIterationLimitMessage(_maxIterations, retryIterations),
                 new List<string>(),
                 stopwatch.ElapsedMilliseconds,
+                status: "error",
+                outcome: "iteration-limit",
                 retriedOnIterationLimit: true,
                 retrySucceeded: false,
                 initialIterationLimit: _maxIterations,
@@ -99,9 +109,12 @@ public class AgentOrchestrator
 
         stopwatch.Stop();
         return FinalizeResult(
+            prompt,
             BuildIterationLimitMessage(_maxIterations),
             new List<string>(),
             stopwatch.ElapsedMilliseconds,
+            status: "error",
+            outcome: "iteration-limit",
             retriedOnIterationLimit: false,
             retrySucceeded: false,
             initialIterationLimit: _maxIterations,
@@ -248,9 +261,12 @@ public class AgentOrchestrator
     }
 
     private AgentResult FinalizeResult(
+        string prompt,
         string output,
         List<string> toolNames,
         long durationMs,
+        string status,
+        string outcome,
         bool retriedOnIterationLimit,
         bool retrySucceeded,
         int initialIterationLimit,
@@ -275,12 +291,17 @@ public class AgentOrchestrator
         {
             Timestamp = DateTimeOffset.UtcNow,
             Intent = output[..Math.Min(output.Length, 200)],
-            Status = "success",
-            Outcome = "completed",
+            Status = status,
+            Outcome = outcome,
             ToolCalls = result.ToolCallCount,
             ToolNames = toolNames,
             DurationMs = result.DurationMs
         });
+
+        if (_memory is not null)
+        {
+            MemoryLearner.LearnFromRun(_memory, prompt, output);
+        }
 
         return result;
     }

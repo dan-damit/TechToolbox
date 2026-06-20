@@ -17,6 +17,8 @@ LONG DESCRIPTION
     The function supports:
     - Selecting an Ollama model (validated against locally available models)
     - Configuring iteration limits and wait timeouts
+    - Loading persistent memory from AI\memory.json by default
+    - Learning lightweight user preferences, facts, and recent run history
     - Explicitly authorizing destructive operations
     - Managing console transcripts and structured markdown run logs
     - Automatic retry on recursion limits
@@ -76,6 +78,10 @@ OUTPUTS
 NOTES
         - Prefers the packaged AgentRuntime\TechToolbox.Agent\TechToolbox.Agent.dll
             when present, then falls back to local development build outputs under src.
+        - Uses persistent memory by default at AI\memory.json unless agent.memoryPath is
+            overridden in TechToolbox config.
+        - The memory layer stores lightweight preferences, facts, and recent run
+            history to improve follow-up prompts without requiring a separate service.
     - Configures wait timeout/polling based on MaxIterations and config settings.
       Default poll interval is 5 seconds; heartbeat interval is 60 seconds.
     - Writes structured markdown logs to LogsAndExports\Logs\TechAgentMarkdown

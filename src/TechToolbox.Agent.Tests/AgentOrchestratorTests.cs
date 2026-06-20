@@ -1,4 +1,5 @@
 using TechToolbox.Agent.Agent;
+using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
 using Xunit;
 
@@ -364,6 +365,52 @@ public class AgentOrchestratorTests
         finally
         {
             Environment.SetEnvironmentVariable("TT_AGENT_MAX_TOOL_RESULT_CHARS", null);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_PersistsRunHistoryAndLearnsPreferencesAndFacts()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "TechToolbox.Agent.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var memoryPath = Path.Combine(tempRoot, "memory.json");
+
+        try
+        {
+            var llm = new FakeLlmClient(new[]
+            {
+                FinalDecision("Completed. model=qwen3.6:35b")
+            });
+
+            var memory = new MemoryStore(memoryPath);
+            var orchestrator = new AgentOrchestrator(
+                llm,
+                CreateRegistry(Array.Empty<string>()),
+                new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase),
+                memory,
+                maxIterations: 5,
+                autoRetry: false);
+
+            var prompt = "Prefer concise answers. Please use markdown bullet lists. My default model is qwen3.6:35b.";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Completed. model=qwen3.6:35b", result.OutputText);
+            Assert.Single(memory.History);
+            Assert.Equal("success", memory.History[0].Status);
+            Assert.Equal("completed", memory.History[0].Outcome);
+            Assert.Contains(memory.Preferences.Values.OfType<string>(), value => value.Contains("concise answers", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(memory.Preferences.Values.OfType<string>(), value => value.Contains("markdown bullet lists", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(memory.Facts.Values.OfType<string>(), value => string.Equals(value, "qwen3.6:35b", StringComparison.OrdinalIgnoreCase));
+            Assert.True(File.Exists(memoryPath));
+            Assert.True(File.Exists(Path.Combine(tempRoot, "memory.history.json")));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
         }
     }
 
