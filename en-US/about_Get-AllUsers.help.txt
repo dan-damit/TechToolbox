@@ -1,0 +1,119 @@
+about_Get-AllUsers
+
+TOPIC
+    about_Get-AllUsers
+
+SHORT DESCRIPTION
+    Enumerates user accounts known to a computer.
+
+LONG DESCRIPTION
+    Get-AllUsers returns a merged view of local user accounts, user profiles
+    present on the machine, and users currently logged on.
+
+    For local targets, the worker runs directly on the host system. For remote
+    targets, the function uses the TechToolbox remoting engine via
+    Start-NewPSRemoteSession and Invoke-RemoteWorker to execute the
+    enumeration logic remotely.
+
+SYNTAX
+    Get-AllUsers [[-ComputerName] <string[]>] [-Credential <pscredential>]
+        [-UseSsh] [-UseCredSSP] [-Port <int>] [-Ps7ConfigName <string>]
+        [-WinPsConfigName <string>] [-UserName <string>]
+        [-KeyFilePath <string>]
+
+PARAMETERS
+    -ComputerName
+        One or more computer names to enumerate users on.
+
+        Type: string[]
+        Aliases: Name, CN
+        Default value: $env:COMPUTERNAME
+        Accept pipeline input: True (ByPropertyName, ByValue)
+
+    -Credential
+        Specifies the credential used for remote session creation when
+        targeting remote computers.
+
+        Type: pscredential
+        Required: False
+
+    -UseSsh
+        Uses SSH transport instead of WSMan for remote execution.
+
+        Type: SwitchParameter
+        Required: False
+
+    -UseCredSSP
+        Uses CredSSP authentication for WSMan remoting.
+
+        Type: SwitchParameter
+        Required: False
+
+    -Port
+        Specifies the SSH port when -UseSsh is specified. Defaults to 22.
+
+        Type: int
+        Default value: 22
+        Required: False
+
+    -Ps7ConfigName
+        Specifies the WSMan PowerShell 7 endpoint name. Defaults to
+        'PowerShell.7'.
+
+        Type: string
+        Default value: PowerShell.7
+        Required: False
+
+    -WinPsConfigName
+        Specifies the WSMan Windows PowerShell endpoint name. Defaults to
+        'Microsoft.PowerShell'.
+
+        Type: string
+        Default value: Microsoft.PowerShell
+        Required: False
+
+    -UserName
+        Specifies the SSH username when not using PSCredential for
+        authentication.
+
+        Type: string
+        Required: False
+
+    -KeyFilePath
+        Specifies the path to the SSH private key file when using key-based
+        authentication.
+
+        Type: string
+        Required: False
+
+EXAMPLES
+    Example 1:
+        Get-AllUsers
+
+        Description
+        -----------
+        Enumerates users on the local computer by defaulting ComputerName to
+        $env:COMPUTERNAME.
+
+    Example 2:
+        Get-AllUsers -ComputerName PC-01 -Credential $cred
+
+        Description
+        -----------
+        Enumerates users on a remote computer named PC-01 using the provided
+        credential object stored in $cred. This uses the TechToolbox remoting
+        engine.
+
+NOTES
+    - Relies on internal helper functions such as
+      Initialize-TechToolboxRuntime, Get-ModuleRoot, New-HelpersPackage, and
+      Invoke-RemoteWorker.
+    - Local targets dot-source the worker and call Get-AllUsersCore directly.
+    - Remote targets package the worker and execute it through the module's
+      remoting infrastructure.
+
+SEE ALSO
+    - Start-NewPSRemoteSession
+    - Invoke-RemoteWorker
+    - about_Start-NewPSRemoteSession
+    - about_UserProvisioning

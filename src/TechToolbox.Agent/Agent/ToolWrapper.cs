@@ -59,7 +59,7 @@ public static class ToolWrapper
                     args["__confirm_destructive"] = true;
                 }
 
-                // Preserve Python agent behavior by passing signed-file policy to tools that support it.
+                // Preserve signed-file policy behavior by passing it to tools that support it.
                 if (HasParameter(spec, "SignedFilePolicy") && !HasArgument(args, "SignedFilePolicy"))
                 {
                     args["SignedFilePolicy"] = normalizedSignedFilePolicy;

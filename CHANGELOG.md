@@ -17,7 +17,7 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
   - `Invoke-TechAgent` orchestrates structured AI workflows.
   - `Invoke-CodeAssistant` and `Invoke-CodeAssistantFolder` provide local AI‑assisted code analysis.
   - `Invoke-CodeAssistantWrapper` standardizes AI task execution patterns.
-  - New `AI/Agent/` subsystem for Python bridge and agent tooling.
+  - New packaged `TechToolbox.Agent` C# runtime for agent orchestration.
   - New `AI/Tasks/` library of standardized prompt templates for common tasks.
 
 - **Full Metadata Export System**
@@ -85,7 +85,7 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 Changes planned for upcoming milestones:
 
 ### **Fixed**
-- Added support for forwarding `-SignedFilePolicy` (`ignore`/`strip`) through `ITA` to `Invoke-TechAgent`, enabling `--signed-file-policy` passthrough to the Python agent for Authenticode-signed file overwrite workflows.
+- Added support for forwarding `-SignedFilePolicy` (`ignore`/`strip`) through `ITA` to `Invoke-TechAgent`, enabling signed-file overwrite policy passthrough to the packaged C# agent runtime for Authenticode-signed file overwrite workflows.
 
 ### **0.6.0 — Cross‑Platform Stabilization**
 - Path normalization across Windows/macOS/Linux.

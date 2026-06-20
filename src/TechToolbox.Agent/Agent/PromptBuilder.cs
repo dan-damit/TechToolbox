@@ -6,6 +6,11 @@ namespace TechToolbox.Agent.Agent;
 
 public static class PromptBuilder
 {
+    private const string AsciiMarkdownInstruction =
+        "Format the final answer as plain Markdown using ASCII characters only. " +
+        "Do not use emoji, smart quotes, Unicode bullets, box-drawing characters, or arrow glyphs. " +
+        "Use '-' for bullets, '##'/'###' for headings, and '->' when an arrow is needed.";
+
     public static List<AgentChatMessage> BuildInitialMessages(
         string userPrompt,
         IReadOnlyDictionary<string, ToolSpec> registry,
@@ -16,33 +21,37 @@ public static class PromptBuilder
             new()
             {
                 Role = "system",
-                Content = BuildSystemPrompt(registry, memory)
+                Content = BuildSystemPrompt(registry)
             },
             new()
             {
                 Role = "user",
-                Content = userPrompt
+                Content = BuildGoalPrompt(userPrompt, memory)
             }
         };
 
         return messages;
     }
 
-    public static AgentChatMessage BuildToolResultMessage(string toolName, string toolResult)
+    public static AgentChatMessage BuildToolResultMessage(string toolName, string toolResult, bool succeeded = true)
     {
         return new AgentChatMessage
         {
             Role = "user",
             Content =
 $"""
-Tool execution completed.
+Tool result received.
 
-Tool name: {toolName}
+Tool: {toolName}
+Status: {(succeeded ? "success" : "error")}
 
-Tool result:
+BEGIN_TOOL_RESULT
 {toolResult}
+END_TOOL_RESULT
 
-Based on this result, return the next JSON decision object only.
+Return only the next JSON decision object.
+If the goal can now be completed, set needsTool=false and provide finalAnswer.
+If another tool is still required, set needsTool=true with the exact toolName and toolArgs.
 """
         };
     }
@@ -56,14 +65,14 @@ Based on this result, return the next JSON decision object only.
         };
     }
 
-    private static string BuildSystemPrompt(
-        IReadOnlyDictionary<string, ToolSpec> registry,
-        MemoryStore? memory)
+    private static string BuildSystemPrompt(IReadOnlyDictionary<string, ToolSpec> registry)
     {
         var sb = new StringBuilder();
 
         sb.AppendLine("You are a local automation agent running inside TechToolbox.");
-        sb.AppendLine("Think briefly and act precisely.");
+        sb.AppendLine("Work step-by-step, use tools when helpful, and complete the task safely.");
+        sb.AppendLine("Never execute destructive actions without explicit confirmation.");
+        sb.AppendLine("If blocked, explain exactly what is missing and propose the next step.");
         sb.AppendLine("For every turn, return ONLY a valid JSON object matching this schema:");
         sb.AppendLine(@"{");
         sb.AppendLine(@"  ""needsTool"": true|false,");
@@ -75,10 +84,11 @@ Based on this result, return the next JSON decision object only.
         sb.AppendLine();
         sb.AppendLine("Rules:");
         sb.AppendLine("- Output valid JSON only.");
-        sb.AppendLine("- No markdown.");
+        sb.AppendLine("- No markdown outside the JSON object.");
         sb.AppendLine("- No code fences.");
         sb.AppendLine("- If a tool is needed, set needsTool=true and provide toolName/toolArgs.");
         sb.AppendLine("- If no tool is needed, set needsTool=false and provide finalAnswer.");
+        sb.AppendLine($"- When needsTool=false, finalAnswer must follow this style: {AsciiMarkdownInstruction}");
         sb.AppendLine("- Never invent tool results.");
         sb.AppendLine("- Use only exact tool names from the available tools list.");
         sb.AppendLine("- Prefer the smallest useful number of tool calls.");
@@ -100,21 +110,52 @@ Based on this result, return the next JSON decision object only.
 
             sb.AppendLine($"- {tool.Name}: {tool.Description} (required params: {requiredText})");
         }
-
-        if (memory is not null)
-        {
-            var prefs = memory.Preferences.Take(5).Select(kv => $"{kv.Key}={kv.Value}");
-            var facts = memory.Facts.Take(5).Select(kv => $"{kv.Key}={kv.Value}");
-            var history = memory.History.TakeLast(3)
-                .Select(h => $"{h.Timestamp:u} | {h.Intent} | tools={string.Join(",", h.ToolNames)}");
-
-            sb.AppendLine();
-            sb.AppendLine("Persistent memory:");
-            sb.AppendLine($"Preferences: {(prefs.Any() ? string.Join("; ", prefs) : "none")}");
-            sb.AppendLine($"Facts: {(facts.Any() ? string.Join("; ", facts) : "none")}");
-            sb.AppendLine($"Recent history: {(history.Any() ? string.Join(" || ", history) : "none")}");
-        }
-
         return sb.ToString();
+    }
+
+    private static string BuildGoalPrompt(string prompt, MemoryStore? memory)
+    {
+        var header =
+            "You are a local automation agent. " +
+            "Work step-by-step, call tools as needed, and continue iterating until the goal is completed " +
+            "or you can clearly justify why it cannot be completed safely. " +
+            "Never execute destructive actions without explicit confirmation. " +
+            "If confirmation is missing, stop and report exactly what confirmation is required. " +
+            "If blocked, explain the blocker and provide the next best action. " +
+            $"{AsciiMarkdownInstruction}";
+
+        var memoryContext = BuildMemoryContext(memory);
+        if (string.IsNullOrWhiteSpace(memoryContext))
+            return $"{header}{Environment.NewLine}{Environment.NewLine}Goal: {prompt}";
+
+        return
+$"""
+{header}
+
+Persistent memory context (advisory):
+{memoryContext}
+
+Goal: {prompt}
+""";
+    }
+
+    private static string BuildMemoryContext(MemoryStore? memory)
+    {
+        if (memory is null)
+            return string.Empty;
+
+        var prefs = memory.Preferences.Take(5).Select(kv => $"{kv.Key}={kv.Value}");
+        var facts = memory.Facts.Take(5).Select(kv => $"{kv.Key}={kv.Value}");
+        var history = memory.History.TakeLast(3)
+            .Select(h => $"{h.Timestamp:u} | {h.Intent} | tools={string.Join(",", h.ToolNames)}");
+
+        return string.Join(
+            Environment.NewLine,
+            new[]
+            {
+                $"Preferences: {(prefs.Any() ? string.Join("; ", prefs) : "none")}",
+                $"Facts: {(facts.Any() ? string.Join("; ", facts) : "none")}",
+                $"Recent history: {(history.Any() ? string.Join(" || ", history) : "none")}"
+            });
     }
 }

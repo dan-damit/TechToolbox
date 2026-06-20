@@ -1,0 +1,44 @@
+# about_Start-DnsQueryLogger
+
+## SHORT DESCRIPTION
+Starts real-time DNS query logging using the Windows DNS debug log.
+
+## LONG DESCRIPTION
+The `Start-DnsQueryLogger` cmdlet enables the Windows DNS debug log to capture DNS queries in real time. It reads configuration settings from the TechToolbox config.json file to determine if DNS logging is enabled, the log file path, and parsing mode.
+
+If logging is enabled in the configuration, the cmdlet ensures that the log directory exists and then starts the DNS query logger by calling an internal worker function.
+
+### Configuration Requirements
+This cmdlet relies on the following settings in your TechToolbox config.json:
+- `dnsLogging.enabled`: Must be set to `$true` for logging to start. If false, a warning is logged and the cmdlet returns immediately.
+- `dnsLogging.logPath`: The directory path where DNS logs will be stored.
+- `dnsLogging.parseMode`: Determines how the log data is parsed (if applicable).
+
+### Behavior
+- If DNS logging is disabled in the config, a warning message is written to the log indicating that DNS logging is disabled.
+- If the specified log directory does not exist, it is created automatically.
+- Output is written to the Information stream for user feedback.
+
+## PARAMETERS
+This cmdlet does not accept any parameters. It relies entirely on configuration settings in config.json.
+
+## INPUTS
+None. You cannot pipe objects to Start-DnsQueryLogger.
+
+## OUTPUTS
+None. Output is written to the Information stream.
+
+## EXAMPLES
+### Example 1: Start DNS Query Logger
+```powershell
+Start-DnsQueryLogger
+```
+This command starts the DNS query logger based on the configuration settings found in config.json.
+
+## NOTES
+- This cmdlet requires TechToolbox runtime to be initialized.
+- Ensure that the user running this cmdlet has write permissions to the specified log path.
+- For more information about TechToolbox, visit [TechToolbox](https://github.com/dan-damit/TechToolbox).
+
+## SEE ALSO
+- https://github.com/dan-damit/TechToolbox

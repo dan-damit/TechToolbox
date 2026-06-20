@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text;
 
 namespace TechToolbox.Agent.Agent;
 
@@ -37,6 +38,7 @@ public class LlmClient
             Model = _model,
             Messages = messages.ToList(),
             Stream = false,
+            Think = false,
             Format = "json",
             Options = new Dictionary<string, object?>
             {
@@ -99,6 +101,14 @@ public class LlmClient
             var parsed = JsonSerializer.Deserialize<OllamaChatResponse>(body, JsonOptions);
             var content = parsed?.Message?.Content ?? "";
             Trace($"Parsed content length={content.Length}");
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                var emptyContentDiagnostics = BuildEmptyContentDiagnostics(body);
+                Trace($"Parsed content was empty. {emptyContentDiagnostics}");
+                return new LlmResponse($"LLM returned empty content. {emptyContentDiagnostics}", body, false);
+            }
+
             return new LlmResponse(content, body, true);
         }
         catch (Exception ex)
@@ -131,5 +141,58 @@ public class LlmClient
             return Math.Clamp(parsed, minSeconds, maxSeconds);
 
         return defaultSeconds;
+    }
+
+    private static string Preview(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return "(empty)";
+
+        var normalized = text.Replace("\r", " ").Replace("\n", " ").Trim();
+        return normalized.Length <= 240 ? normalized : normalized[..240];
+    }
+
+    private static string BuildEmptyContentDiagnostics(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+            return "Body was empty.";
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            var sb = new StringBuilder();
+
+            if (root.TryGetProperty("done_reason", out var doneReason) && doneReason.ValueKind == JsonValueKind.String)
+                sb.Append($"done_reason={doneReason.GetString()}; ");
+
+            if (root.TryGetProperty("done", out var done) && (done.ValueKind == JsonValueKind.True || done.ValueKind == JsonValueKind.False))
+                sb.Append($"done={done.GetBoolean()}; ");
+
+            if (root.TryGetProperty("eval_count", out var evalCount) && evalCount.ValueKind == JsonValueKind.Number)
+                sb.Append($"eval_count={evalCount.GetInt32()}; ");
+
+            if (root.TryGetProperty("prompt_eval_count", out var promptEvalCount) && promptEvalCount.ValueKind == JsonValueKind.Number)
+                sb.Append($"prompt_eval_count={promptEvalCount.GetInt32()}; ");
+
+            if (root.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.Object)
+            {
+                if (message.TryGetProperty("role", out var role) && role.ValueKind == JsonValueKind.String)
+                    sb.Append($"message_role={role.GetString()}; ");
+
+                if (message.TryGetProperty("content", out var messageContent) && messageContent.ValueKind == JsonValueKind.String)
+                    sb.Append($"message_content_length={messageContent.GetString()?.Length ?? 0}; ");
+
+                if (message.TryGetProperty("thinking", out var thinking) && thinking.ValueKind == JsonValueKind.String)
+                    sb.Append($"thinking_length={thinking.GetString()?.Length ?? 0}; ");
+            }
+
+            sb.Append($"body_preview={Preview(body)}");
+            return sb.ToString().Trim();
+        }
+        catch
+        {
+            return $"Body preview: {Preview(body)}";
+        }
     }
 }

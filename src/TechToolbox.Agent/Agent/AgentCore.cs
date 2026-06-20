@@ -92,7 +92,11 @@ public static class AgentCore
                 MaxIterations = maxIterations,
                 UsedTools = result.ToolNames,
                 ToolCallCount = result.ToolCallCount,
-                DurationMs = result.DurationMs
+                DurationMs = result.DurationMs,
+                RetriedOnIterationLimit = result.RetriedOnIterationLimit,
+                RetrySucceeded = result.RetrySucceeded,
+                InitialIterationLimit = result.InitialIterationLimit,
+                RetryIterationLimit = result.RetryIterationLimit
             };
 
             var combined = new

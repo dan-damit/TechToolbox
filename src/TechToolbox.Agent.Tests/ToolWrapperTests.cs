@@ -152,6 +152,9 @@ public class ToolWrapperTests
             Assert.Equal("Demo-Tool", doc.RootElement.GetProperty("functionNames")[0].GetString());
             Assert.Contains("SYNOPSIS", doc.RootElement.GetProperty("sections").EnumerateArray().Select(x => x.GetString()));
             Assert.Equal(Path.GetFileName(tempFile), doc.RootElement.GetProperty("fileName").GetString());
+            Assert.DoesNotContain(
+                doc.RootElement.GetProperty("tail").EnumerateArray().Select(x => x.GetString() ?? string.Empty),
+                line => line.Contains("SIG # Begin signature block", StringComparison.OrdinalIgnoreCase));
         }
         finally
         {

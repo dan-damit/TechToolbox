@@ -8,6 +8,10 @@ namespace TechToolbox.Agent.Execution;
 
 public static class PowerShellBridge
 {
+    private static readonly Regex AuthenticodeSignatureBlockRegex = new(
+        @"(?ims)^\s*#\s*SIG\s*#\s*Begin signature block\b.*?^\s*#\s*SIG\s*#\s*End signature block\s*$",
+        RegexOptions.Compiled);
+
     private static readonly JsonSerializerOptions SummaryJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -151,7 +155,7 @@ public static class PowerShellBridge
 
     private static int GetReadFileSummaryThresholdChars()
     {
-        const int defaultChars = 12000;
+        const int defaultChars = 50000;
         const int minChars = 1000;
         const int maxChars = 200_000;
 
@@ -166,7 +170,8 @@ public static class PowerShellBridge
 
     private static string BuildFileSummaryJson(string path, string content)
     {
-        var lines = SplitLines(content);
+        var contentForSummary = StripAuthenticodeSignatureBlock(content);
+        var lines = SplitLines(contentForSummary);
         var head = lines.Take(12).ToArray();
         var tail = lines.Length <= 12 ? Array.Empty<string>() : lines.Skip(Math.Max(0, lines.Length - 12)).ToArray();
         var sectionHeadings = ExtractSectionHeadings(lines);
@@ -185,6 +190,15 @@ public static class PowerShellBridge
             Tail: tail);
 
         return JsonSerializer.Serialize(summary, SummaryJsonOptions);
+    }
+
+    private static string StripAuthenticodeSignatureBlock(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return content;
+
+        var stripped = AuthenticodeSignatureBlockRegex.Replace(content, string.Empty).TrimEnd();
+        return string.IsNullOrWhiteSpace(stripped) ? content : stripped;
     }
 
     private static string[] SplitLines(string content)

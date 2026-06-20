@@ -68,7 +68,7 @@ public static class ToolRegistry
         {
             new ToolSpec(
                 Name: "READ-FILE",
-                Description: "Reads the full text content of a file from disk.",
+                Description: "Reads text content from a file. Large files may return a structured summary instead of the full body.",
                 Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["path"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Absolute or relative file path.")
