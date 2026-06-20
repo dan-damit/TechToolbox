@@ -107,7 +107,7 @@ TechToolbox/
 ├── Config/                   # Runtime configuration (config.json, secrets)
 │   ├── config.json           # Base settings (git-tracked)
 │   └── config.secrets.json   # Tenant secrets (git-ignored)
-├── AI/Agent/                 # Python bridge and agent tooling
+├── AgentRuntime/             # Packaged C# TechToolbox agent runtime for PSGallery installs
 └── commands.md               # Full command catalog with examples
 ```
 

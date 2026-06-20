@@ -83,7 +83,7 @@ Invoke-TechAgent -Prompt "Update Public/Get/Get-ToolboxHelp.ps1" -ConfirmDestruc
 
 **Recursion Auto-Retry Switches**
 
-- `-AutoRetryOnRecursion` enables exactly one automatic retry when the Python agent reaches a recursion limit.
+- `-AutoRetryOnRecursion` enables exactly one automatic retry when the packaged C# agent reaches an iteration limit.
 - `-DisableAutoRetryOnRecursion` forces auto-retry off for the current invocation, even if enabled by environment defaults.
 - Only one of these switches can be used at a time.
 

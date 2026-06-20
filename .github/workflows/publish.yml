@@ -16,6 +16,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Publish TechToolbox.Agent runtime
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $env:RUNNER_TEMP 'TechToolbox.Agent.publish'
+          if (Test-Path -LiteralPath $publishDir) {
+            Remove-Item -LiteralPath $publishDir -Recurse -Force
+          }
+
+          dotnet publish .\src\TechToolbox.Agent\TechToolbox.Agent.csproj -c Release -o $publishDir
+
+          $agentDll = Join-Path $publishDir 'TechToolbox.Agent.dll'
+          if (-not (Test-Path -LiteralPath $agentDll -PathType Leaf)) {
+            throw "TechToolbox.Agent publish did not produce $agentDll"
+          }
+
+          "TECH_AGENT_PUBLISH_DIR=$publishDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Install PowerShell 7.6.3
         shell: pwsh
         run: |
@@ -94,6 +111,18 @@ jobs:
             Remove-Item -LiteralPath $nestedExclude -Force
           }
 
+          if ([string]::IsNullOrWhiteSpace($env:TECH_AGENT_PUBLISH_DIR)) {
+            throw "Missing TECH_AGENT_PUBLISH_DIR environment variable from publish step."
+          }
+
+          if (-not (Test-Path -LiteralPath $env:TECH_AGENT_PUBLISH_DIR -PathType Container)) {
+            throw "Published TechToolbox.Agent runtime directory not found: $env:TECH_AGENT_PUBLISH_DIR"
+          }
+
+          $agentRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.Agent'
+          New-Item -ItemType Directory -Path $agentRuntimePath -Force | Out-Null
+          Copy-Item -Path (Join-Path $env:TECH_AGENT_PUBLISH_DIR '*') -Destination $agentRuntimePath -Recurse -Force
+
           $files = Get-ChildItem -LiteralPath $stagePath -Recurse -File |
             ForEach-Object {
               $_.FullName.Substring($stagePath.Length + 1).Replace('\\', '/')
@@ -168,7 +197,9 @@ jobs:
             [Parameter(Mandatory)]
             [string]$ExcludeJson,
             [Parameter(Mandatory)]
-            [string]$ExpectedVersion
+            [string]$ExpectedVersion,
+            [Parameter(Mandatory)]
+            [string]$AgentPublishDir
           )
 
           Set-StrictMode -Version Latest
@@ -198,6 +229,14 @@ jobs:
               Remove-Item -LiteralPath $excludePath -Recurse -Force
             }
           }
+
+          if (-not (Test-Path -LiteralPath $AgentPublishDir -PathType Container)) {
+            throw "Published TechToolbox.Agent runtime directory not found: $AgentPublishDir"
+          }
+
+          $agentRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.Agent'
+          New-Item -ItemType Directory -Path $agentRuntimePath -Force | Out-Null
+          Copy-Item -Path (Join-Path $AgentPublishDir '*') -Destination $agentRuntimePath -Recurse -Force
 
           $manifest = Join-Path $stagePath "TechToolbox.psd1"
 
@@ -270,4 +309,4 @@ jobs:
           '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
 
           $modulePath = $PWD.Path
-          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON -ExpectedVersion $tagVersion
+          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON -ExpectedVersion $tagVersion -AgentPublishDir $env:TECH_AGENT_PUBLISH_DIR

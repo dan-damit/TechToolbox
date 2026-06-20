@@ -1,26 +1,28 @@
 function Install-TechAgentRuntime {
     <#
     .SYNOPSIS
-        Bootstraps the local Python runtime for Invoke-TechAgent.
+        Verifies Ollama availability and optionally pulls the configured agent model.
 
     .DESCRIPTION
-        Creates (or repairs) the repository virtual environment and installs
-        AI/Agent/requirements.txt into .venv.
+        For the packaged TechToolbox agent runtime, this command no longer
+        manages a repository-local Python environment. It validates that Ollama
+        is installed, reports available local models, and optionally pulls the
+        configured model for Invoke-TechAgent.
 
     .PARAMETER PythonPath
-        Optional explicit Python executable path to build the virtual environment.
+        Deprecated compatibility parameter. Ignored.
 
     .PARAMETER ForceRecreateVenv
-        Deletes and recreates .venv before installation.
+        Deprecated compatibility parameter. Ignored.
 
     .PARAMETER UpgradePip
-        Upgrades pip/setuptools/wheel inside .venv.
+        Deprecated compatibility parameter. Ignored.
 
     .PARAMETER UpgradePackages
-        Uses pip --upgrade when installing requirements.
+        Deprecated compatibility parameter. Ignored.
 
     .PARAMETER PullModel
-        Pulls the selected Ollama model after runtime installation.
+        Pulls the selected Ollama model after validating the local Ollama runtime.
 
     .PARAMETER Model
         Ollama model to pull when -PullModel is used. Defaults to settings.agent.model.
@@ -29,7 +31,7 @@ function Install-TechAgentRuntime {
         Install-TechAgentRuntime
 
     .EXAMPLE
-        Install-TechAgentRuntime -UpgradePip -UpgradePackages -PullModel -Model "qwen3.6:35b"
+        Install-TechAgentRuntime -PullModel -Model "qwen3.6:35b"
     #>
 
     [CmdletBinding(SupportsShouldProcess)]
@@ -57,96 +59,65 @@ function Install-TechAgentRuntime {
 
     Initialize-TechToolboxRuntime
 
-    $moduleRoot = Get-ModuleRoot
-    $agentRoot = Join-Path $moduleRoot 'AI\Agent'
-    $requirementsPath = Join-Path $agentRoot 'requirements.txt'
-    $venvPath = Join-Path $moduleRoot '.venv'
-    $venvPython = Join-Path $venvPath 'Scripts\python.exe'
-
-    if (-not (Test-Path -LiteralPath $requirementsPath -PathType Leaf)) {
-        throw "Agent requirements file not found: $requirementsPath"
-    }
-
     if ([string]::IsNullOrWhiteSpace($Model) -and $script:cfg -and $script:cfg.settings -and $script:cfg.settings.agent) {
         $Model = $script:cfg.settings.agent.model
     }
 
-    $pythonCommand = $null
-    $pythonArgsPrefix = @()
-
+    $ignoredCompatibilityParameters = @()
     if (-not [string]::IsNullOrWhiteSpace($PythonPath)) {
-        if (-not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
-            throw "PythonPath does not exist: $PythonPath"
-        }
-        $pythonCommand = @{ Source = $PythonPath }
+        $ignoredCompatibilityParameters += 'PythonPath'
     }
-    else {
-        $pythonCommand = Get-Command -Name python -ErrorAction SilentlyContinue
-
-        if (-not $pythonCommand) {
-            $pythonCommand = Get-Command -Name py -ErrorAction SilentlyContinue
-            if ($pythonCommand) {
-                $pythonArgsPrefix = @('-3')
-            }
-        }
+    if ($ForceRecreateVenv.IsPresent) {
+        $ignoredCompatibilityParameters += 'ForceRecreateVenv'
     }
-
-    if (-not $pythonCommand) {
-        throw "Python executable not found. Install Python or pass -PythonPath."
-    }
-
-    if ($ForceRecreateVenv.IsPresent -and (Test-Path -LiteralPath $venvPath -PathType Container)) {
-        if ($PSCmdlet.ShouldProcess($venvPath, 'Remove existing virtual environment')) {
-            Remove-Item -LiteralPath $venvPath -Recurse -Force
-        }
-    }
-
-    if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
-        if ($PSCmdlet.ShouldProcess($venvPath, 'Create Python virtual environment')) {
-            Write-Log -Level Info -Message ("Creating virtual environment: {0}" -f $venvPath)
-            & $pythonCommand.Source @pythonArgsPrefix -m venv $venvPath
-            if ($LASTEXITCODE -ne 0) {
-                throw "Failed to create Python virtual environment."
-            }
-        }
-    }
-
-    if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
-        throw "Virtual environment Python not found after setup: $venvPython"
-    }
-
     if ($UpgradePip.IsPresent) {
-        if ($PSCmdlet.ShouldProcess($venvPython, 'Upgrade pip tooling')) {
-            Write-Log -Level Info -Message 'Upgrading pip tooling in virtual environment.'
-            & $venvPython -m pip install --upgrade pip setuptools wheel
-            if ($LASTEXITCODE -ne 0) {
-                throw "Failed to upgrade pip tooling in virtual environment."
+        $ignoredCompatibilityParameters += 'UpgradePip'
+    }
+    if ($UpgradePackages.IsPresent) {
+        $ignoredCompatibilityParameters += 'UpgradePackages'
+    }
+
+    if ($ignoredCompatibilityParameters.Count -gt 0) {
+        Write-Warning ("Deprecated parameters are ignored by the packaged C# agent runtime: {0}" -f ($ignoredCompatibilityParameters -join ', '))
+    }
+
+    $ollamaCommand = Get-Command -Name ollama -ErrorAction SilentlyContinue
+    if (-not $ollamaCommand) {
+        throw "Ollama executable not found. Install Ollama or add it to PATH."
+    }
+
+    $getAvailableModels = {
+        $ollamaListOutput = & $ollamaCommand.Source list 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $ollamaError = ($ollamaListOutput | Out-String).Trim()
+            throw ("Unable to query local Ollama models: {0}" -f $ollamaError)
+        }
+
+        $availableModels = @()
+        foreach ($line in $ollamaListOutput) {
+            $trimmed = "$line".Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed)) {
+                continue
+            }
+
+            if ($trimmed -match '^NAME\s+') {
+                continue
+            }
+
+            $parts = $trimmed -split '\s+'
+            if ($parts.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($parts[0])) {
+                $availableModels += $parts[0]
             }
         }
+
+        return @($availableModels | Sort-Object -Unique)
     }
 
-    $pipInstallArgs = @('-m', 'pip', 'install')
-    if ($UpgradePackages.IsPresent) {
-        $pipInstallArgs += '--upgrade'
-    }
-    $pipInstallArgs += @('-r', $requirementsPath)
-
-    if ($PSCmdlet.ShouldProcess($requirementsPath, 'Install Tech agent Python requirements')) {
-        Write-Log -Level Info -Message ("Installing agent dependencies from: {0}" -f $requirementsPath)
-        & $venvPython @pipInstallArgs
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to install agent dependencies."
-        }
-    }
+    $availableModels = & $getAvailableModels
 
     if ($PullModel.IsPresent) {
         if ([string]::IsNullOrWhiteSpace($Model)) {
             throw 'PullModel requested, but no model was specified and no default model is configured.'
-        }
-
-        $ollamaCommand = Get-Command -Name ollama -ErrorAction SilentlyContinue
-        if (-not $ollamaCommand) {
-            throw "Ollama executable not found. Install Ollama or add it to PATH."
         }
 
         if ($PSCmdlet.ShouldProcess($Model, 'Pull Ollama model')) {
@@ -155,27 +126,27 @@ function Install-TechAgentRuntime {
             if ($LASTEXITCODE -ne 0) {
                 throw ("Failed to pull Ollama model: {0}" -f $Model)
             }
+
+            $availableModels = & $getAvailableModels
         }
     }
 
-    $runtimeDetails = & $venvPython -c "import platform, sys; print(platform.python_version()); print(sys.executable)"
-    $langchainVersion = & $venvPython -c "import langchain; print(langchain.__version__)"
-
-    $pythonVersion = if ($runtimeDetails -and $runtimeDetails.Count -ge 1) { $runtimeDetails[0] } else { $null }
-    $pythonExe = if ($runtimeDetails -and $runtimeDetails.Count -ge 2) { $runtimeDetails[1] } else { $venvPython }
-
-    $result = [PSCustomObject]@{
-        VenvPath         = $venvPath
-        PythonExecutable = $pythonExe
-        PythonVersion    = $pythonVersion
-        LangChainVersion = ($langchainVersion | Out-String).Trim()
-        RequirementsPath = $requirementsPath
-        ModelPulled      = [bool]$PullModel.IsPresent
-        Model            = $Model
-        Success          = $true
+    $modelAvailable = $false
+    if (-not [string]::IsNullOrWhiteSpace($Model)) {
+        $modelAvailable = $availableModels -contains $Model
     }
 
-    Write-Log -Level Info -Message ("Tech agent runtime is ready. Python={0}, LangChain={1}" -f $result.PythonVersion, $result.LangChainVersion)
+    $result = [PSCustomObject]@{
+        OllamaExecutable            = [string]$ollamaCommand.Source
+        Model                       = $Model
+        ModelPulled                 = [bool]$PullModel.IsPresent
+        ModelAvailable              = $modelAvailable
+        AvailableModels             = @($availableModels)
+        IgnoredCompatibilityParams  = @($ignoredCompatibilityParameters)
+        Success                     = $true
+    }
+
+    Write-Log -Level Info -Message ("Tech agent runtime is ready. Ollama={0}, Model={1}, Available={2}" -f $result.OllamaExecutable, $result.Model, $result.ModelAvailable)
     return $result
 }
 

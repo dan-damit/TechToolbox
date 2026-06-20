@@ -273,7 +273,7 @@ function ITA {
         }
 
         if ([string]::IsNullOrWhiteSpace($defaultPromptFile)) {
-            $defaultPromptFile = 'AI\Agent\prompt.txt'
+            $defaultPromptFile = 'AI\prompt.txt'
         }
 
         $resolvedDefaultPromptPath = if ([System.IO.Path]::IsPathRooted($defaultPromptFile)) {

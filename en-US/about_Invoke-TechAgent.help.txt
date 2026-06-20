@@ -9,10 +9,10 @@ SHORT DESCRIPTION
 
 LONG DESCRIPTION
     Invoke-TechAgent is the primary entry point for interacting with the
-    TechToolbox Python-based automation agent. It accepts a prompt string,
-    validates configuration, launches the underlying tech_agent.py process, and
-    waits for completion while managing transcripts, markdown logs, and error
-    handling.
+    packaged TechToolbox local automation agent runtime. It accepts a prompt
+    string, validates configuration, launches the TechToolbox.Agent C# runtime,
+    and waits for completion while managing transcripts, markdown logs, and
+    error handling.
 
     The function supports:
     - Selecting an Ollama model (validated against locally available models)
@@ -24,7 +24,7 @@ LONG DESCRIPTION
 PARAMETERS
     -Prompt (Mandatory)
         The natural-language instruction for the agent. Must not be null or empty.
-        This is passed directly to the Python agent as the --prompt argument.
+        This is passed directly to the TechToolbox.Agent runtime.
 
     -Model
         Optional Ollama model name (e.g., llama3, mistral, qwen2.5-coder).
@@ -43,26 +43,24 @@ PARAMETERS
         Legacy compatibility switch. Agent traces are now suppressed by default.
 
     -ConfirmDestructive
-        Explicitly authorizes destructive operations for this run. Passes the
-        --destructive-confirmed flag to the Python agent and logs a warning
-        message: "Destructive operations explicitly authorized for this run."
+        Explicitly authorizes destructive operations for this run and logs a
+        warning message: "Destructive operations explicitly authorized for this
+        run."
 
     -SignedFilePolicy
         Sets how the agent handles overwriting existing Authenticode-signed
         PowerShell files. Allowed values:
         - ignore: Block overwrite when a signature block is detected.
         - strip: Allow overwrite and strip signature block text.
-        Passes --signed-file-policy to the Python agent.
+        Passes the selected policy to the TechToolbox.Agent runtime.
 
     -AutoRetryOnRecursion
-        Enables automatic retry when the Python agent hits a recursion limit.
-        Passes --auto-retry-on-recursion to the Python agent.
+        Enables automatic retry when the C# agent hits an iteration limit.
 
     -DisableAutoRetryOnRecursion
         Disables recursion-limit auto-retry for this invocation, overriding
-        environment defaults. Passes --no-auto-retry-on-recursion to the Python
-        agent. Mutually exclusive with -AutoRetryOnRecursion; using both will
-        throw an exception.
+        environment defaults. Mutually exclusive with -AutoRetryOnRecursion;
+        using both will throw an exception.
 
     -NoTranscript
         Disables the per-run console transcript log. By default, transcripts are
@@ -76,16 +74,17 @@ OUTPUTS
     System.String - The trimmed stdout output from the agent on success.
 
 NOTES
-    - Resolves the Python executable from a local .venv first, then falls back to
-      system python or py launcher.
+        - Prefers the packaged AgentRuntime\TechToolbox.Agent\TechToolbox.Agent.dll
+            when present, then falls back to local development build outputs under src.
     - Configures wait timeout/polling based on MaxIterations and config settings.
       Default poll interval is 5 seconds; heartbeat interval is 60 seconds.
     - Writes structured markdown logs to LogsAndExports\Logs\TechAgentMarkdown
       containing status, timestamps, prompt, output, errors, and exit codes.
-    - Requires Python (python, py, or venv python) available on PATH or in .venv.
     - Requires Ollama installed and accessible on PATH when -Model is used.
+        - Launches the C# runtime in a fresh child pwsh process to avoid stale DLL
+            reuse and PowerShell assembly conflicts.
     - Uses async stream readers to avoid redirected-pipe deadlocks.
-    - Terminates the agent process on timeout or failure.
+        - Terminates the child process on timeout or failure.
 
 EXAMPLES
     Example 1:

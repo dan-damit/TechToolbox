@@ -15,7 +15,7 @@ This milestone marks TechToolbox’s evolution from a powerful admin toolkit int
   - `Invoke-CodeAssistant`
   - `Invoke-CodeAssistantFolder`
   - `Invoke-CodeAssistantWrapper`
-- Established the `AI/Agent/` subsystem for Python bridge integration and extensible agent tooling
+- Established the packaged C# TechToolbox agent runtime for local orchestration
 
 ### **Full Metadata Export System**
 

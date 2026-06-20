@@ -4,8 +4,8 @@ function Invoke-TechAgent {
         Sends a prompt to the TechToolbox local agent.
 
     .DESCRIPTION
-        This function calls the Python-based agent located in AI/Agent/. It
-        passes the user prompt and prints the agent's response.
+        This function calls the TechToolbox.Agent C# runtime and prints the
+        agent's response.
 
     .PARAMETER Prompt
         The natural-language instruction for the agent.
@@ -29,7 +29,7 @@ function Invoke-TechAgent {
         overwrite while removing the signature block text.
 
     .PARAMETER AutoRetryOnRecursion
-        Enables a single automatic retry when the Python agent hits a recursion
+        Enables a single automatic retry when the C# agent hits an iteration
         limit.
 
     .PARAMETER DisableAutoRetryOnRecursion
@@ -111,9 +111,6 @@ function Invoke-TechAgent {
         }
     }
 
-    $agentProc = $null
-    $stdoutTask = $null
-    $stderrTask = $null
     $transcriptStarted = $false
     $transcriptPath = $null
     $markdownPath = $null
@@ -122,6 +119,10 @@ function Invoke-TechAgent {
     $capturedStdOut = ''
     $capturedStdErr = ''
     $runStartedUtc = [DateTime]::UtcNow
+    $agentProc = $null
+    $stdoutTask = $null
+    $stderrTask = $null
+    $requestPath = $null
 
         if ($AutoRetryOnRecursion.IsPresent -and $DisableAutoRetryOnRecursion.IsPresent) {
             throw 'Specify only one of -AutoRetryOnRecursion or -DisableAutoRetryOnRecursion.'
@@ -217,36 +218,20 @@ function Invoke-TechAgent {
     }
 
     try {
-        # Resolve agent path from module root (Public/AI is not the module root).
         $moduleRoot = Get-ModuleRoot
-        $agentPath = Join-Path $moduleRoot 'AI\Agent\tech_agent.py'
+        $assemblyCandidates = @(
+            (Join-Path $moduleRoot 'AgentRuntime\TechToolbox.Agent\TechToolbox.Agent.dll'),
+            (Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish\TechToolbox.Agent.dll'),
+            (Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll'),
+            (Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll')
+        )
 
-        if (-not (Test-Path -LiteralPath $agentPath -PathType Leaf)) {
-            throw "Tech agent entry script not found: $agentPath"
-        }
+        $agentAssemblyPath = $assemblyCandidates |
+            Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+            Select-Object -First 1
 
-        $pythonCommand = $null
-        $pythonArgsPrefix = @()
-
-        # Prefer repo-local virtual environment for deterministic dependencies.
-        $venvPython = Join-Path $moduleRoot '.venv\Scripts\python.exe'
-        if (Test-Path -LiteralPath $venvPython -PathType Leaf) {
-            $pythonCommand = @{ Source = $venvPython }
-        }
-
-        if (-not $pythonCommand) {
-            $pythonCommand = Get-Command -Name python -ErrorAction SilentlyContinue
-        }
-
-        if (-not $pythonCommand) {
-            $pythonCommand = Get-Command -Name py -ErrorAction SilentlyContinue
-            if ($pythonCommand) {
-                $pythonArgsPrefix = @('-3')
-            }
-        }
-
-        if (-not $pythonCommand) {
-            throw "Python executable not found. Install Python or add it to PATH (python/py)."
+        if ([string]::IsNullOrWhiteSpace($agentAssemblyPath)) {
+            throw "TechToolbox.Agent assembly not found. Install the packaged agent runtime or build/publish src\TechToolbox.Agent."
         }
 
         if (-not [string]::IsNullOrWhiteSpace($Model)) {
@@ -352,149 +337,121 @@ function Invoke-TechAgent {
             }
         }
 
-        Write-Log -Level Info -Message ("Invoking local tech agent: {0}" -f $agentPath)
-
-        $pythonArgs = @()
-        $pythonArgs += $pythonArgsPrefix
-        $pythonArgs += @($agentPath, '--prompt', $Prompt, '--max-iterations', $MaxIterations)
-
-        if (-not [string]::IsNullOrWhiteSpace($Model)) {
-            $pythonArgs += @('--model', $Model)
-        }
-
-        # Suppress LangChain/LangGraph debug traces by default so the console only shows
-        # the agent's final response instead of raw model metadata.
-        $pythonArgs += '--quiet'
-
         if ($ConfirmDestructive.IsPresent) {
             Write-Log -Level Warn -Message 'Destructive operations explicitly authorized for this run.'
-            $pythonArgs += '--destructive-confirmed'
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($SignedFilePolicy)) {
-            $pythonArgs += @('--signed-file-policy', $SignedFilePolicy)
-        }
-
+        $autoRetryOnIterationLimit = $false
         if ($AutoRetryOnRecursion.IsPresent) {
-            $pythonArgs += '--auto-retry-on-recursion'
+            $autoRetryOnIterationLimit = $true
         }
         elseif ($DisableAutoRetryOnRecursion.IsPresent) {
-            $pythonArgs += '--no-auto-retry-on-recursion'
+            $autoRetryOnIterationLimit = $false
         }
 
+        $memoryPath = $null
+        $memoryPathProperty = if ($cfg) { $cfg.PSObject.Properties['memoryPath'] } else { $null }
+        if ($null -ne $memoryPathProperty -and -not [string]::IsNullOrWhiteSpace([string]$memoryPathProperty.Value)) {
+            $memoryPath = [string]$memoryPathProperty.Value
+        }
+
+        $diagnosticTracePath = $null
+        $diagnosticTracePathProperty = if ($cfg) { $cfg.PSObject.Properties['diagnosticTracePath'] } else { $null }
+        if ($null -ne $diagnosticTracePathProperty -and -not [string]::IsNullOrWhiteSpace([string]$diagnosticTracePathProperty.Value)) {
+            $diagnosticTracePath = [string]$diagnosticTracePathProperty.Value
+        }
+
+        Write-Log -Level Info -Message ("Invoking local tech agent via C# assembly: {0}" -f $agentAssemblyPath)
+
+        $request = [ordered]@{
+            Prompt = $Prompt
+            Model = $(if ([string]::IsNullOrWhiteSpace($Model)) { 'llama3' } else { $Model })
+            Verbose = $false
+            MaxIterations = $MaxIterations
+            ConfirmDestructive = $ConfirmDestructive.IsPresent
+            MemoryPath = $memoryPath
+            AutoRetryOnRecursion = $autoRetryOnIterationLimit
+            ReturnMetadata = $false
+            SignedFilePolicy = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
+            DiagnosticTracePath = $diagnosticTracePath
+        }
+
+        $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
+        $request | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $requestPath -Encoding utf8
+
+        $childPwsh = Join-Path $PSHOME 'pwsh.exe'
+        if (-not (Test-Path -LiteralPath $childPwsh -PathType Leaf)) {
+            $childPwsh = (Get-Process -Id $PID).Path
+        }
+
+        $childScript = @'
+    $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$request = Get-Content -LiteralPath $env:TT_AGENT_REQUEST_PATH -Raw | ConvertFrom-Json
+Add-Type -Path $env:TT_AGENT_ASSEMBLY_PATH -ErrorAction Stop
+$result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
+    [string]$request.Prompt,
+    [string]$request.Model,
+    [bool]$request.Verbose,
+    [int]$request.MaxIterations,
+    [bool]$request.ConfirmDestructive,
+    [string]$request.MemoryPath,
+    [bool]$request.AutoRetryOnRecursion,
+    [bool]$request.ReturnMetadata,
+    [string]$request.SignedFilePolicy,
+    [string]$request.DiagnosticTracePath)
+[Console]::Write($result)
+'@
+
+        $encodedChildScript = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($childScript))
         $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-        $startInfo.FileName = [string]$pythonCommand.Source
+        $startInfo.FileName = $childPwsh
         $startInfo.UseShellExecute = $false
         $startInfo.CreateNoWindow = $true
         $startInfo.RedirectStandardOutput = $true
         $startInfo.RedirectStandardError = $true
         $startInfo.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
         $startInfo.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
-        $startInfo.Environment['PYTHONIOENCODING'] = 'utf-8'
-        $startInfo.Environment['PYTHONUTF8'] = '1'
+        $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
+        $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
+        [void]$startInfo.ArgumentList.Add('-NoProfile')
+        [void]$startInfo.ArgumentList.Add('-NonInteractive')
+        [void]$startInfo.ArgumentList.Add('-EncodedCommand')
+        [void]$startInfo.ArgumentList.Add($encodedChildScript)
 
-        foreach ($arg in $pythonArgs) {
-            [void]$startInfo.ArgumentList.Add([string]$arg)
-        }
-
-        $agentProc = [System.Diagnostics.Process]::new()
-        $agentProc.StartInfo = $startInfo
-
-        if (-not $agentProc.Start()) {
-            throw "Failed to start Python process for tech agent."
-        }
-
-        # Use async stream readers to avoid redirected-pipe deadlocks without using
-        # PowerShell event handlers on background threads (which require a runspace).
-        $stdoutTask = $agentProc.StandardOutput.ReadToEndAsync()
-        $stderrTask = $agentProc.StandardError.ReadToEndAsync()
-
-        $agentDeadline = (Get-Date).AddSeconds($waitTimeoutSeconds)
-        $agentState = [ordered]@{
-            TimedOut = $false
-        }
-
-        $poll = {
-            if (-not $agentProc.HasExited) {
-                if ((Get-Date) -ge $agentDeadline) {
-                    $agentState.TimedOut = $true
-                    try { $agentProc.Kill() } catch { }
-                    return @{ Status = 'Timeout' }
-                }
-
-                return @{ Status = 'Running' }
+        try {
+            $agentProc = [System.Diagnostics.Process]::new()
+            $agentProc.StartInfo = $startInfo
+            if (-not $agentProc.Start()) {
+                throw 'Failed to start child PowerShell process for TechToolbox.Agent.'
             }
 
-            # Ensure process and async stream readers have fully completed.
+            $stdoutTask = $agentProc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $agentProc.StandardError.ReadToEndAsync()
+
+            if (-not $agentProc.WaitForExit($waitTimeoutSeconds * 1000)) {
+                try { $agentProc.Kill() } catch { }
+                throw ("Tech agent timed out after {0} seconds." -f $waitTimeoutSeconds)
+            }
+
             try { $null = $agentProc.WaitForExit(2000) } catch { }
 
-            $stdoutText = ''
-            $stderrText = ''
-            try {
-                if ($stdoutTask) { $stdoutText = [string]$stdoutTask.GetAwaiter().GetResult() }
-            }
-            catch { }
-            try {
-                if ($stderrTask) { $stderrText = [string]$stderrTask.GetAwaiter().GetResult() }
-            }
-            catch { }
+            $capturedStdOut = if ($stdoutTask) { [string]$stdoutTask.GetAwaiter().GetResult() } else { '' }
+            $capturedStdErr = if ($stderrTask) { [string]$stderrTask.GetAwaiter().GetResult() } else { '' }
 
-            return @{
-                Status = 'Done'
-                Code   = [int]$agentProc.ExitCode
-                StdOut = $stdoutText
-                StdErr = $stderrText
+            if ($agentProc.ExitCode -ne 0) {
+                $errorText = if ([string]::IsNullOrWhiteSpace($capturedStdErr)) { $capturedStdOut } else { $capturedStdErr }
+                throw ("Tech agent exited with code {0}: {1}" -f $agentProc.ExitCode, $errorText.Trim())
             }
+
+            $message = $capturedStdOut
+        }
+        catch {
+            throw ("Tech agent failed: {0}" -f $_.Exception.Message)
         }
 
-        $getStatus = {
-            param($obj)
-
-            switch ($obj.Status) {
-                'Timeout' { return 'Timeout' }
-                'Done' {
-                    if ($obj.Code -eq 0) { return 'Success' }
-                    return 'Error'
-                }
-                default { return 'Running' }
-            }
-        }
-
-        $terminal = @{
-            'Success' = @{ Level = 'Ok'; Message = 'Tech agent completed successfully.'; Return = $true }
-            'Error'   = @{ Level = 'Error'; Message = { param($obj, $status) "Tech agent failed with exit code $($obj.Code)." }; Return = $true }
-            'Timeout' = @{ Level = 'Error'; Message = "Tech agent timed out after ${waitTimeoutSeconds} seconds."; Return = $true }
-        }
-
-        $final = Wait-TerminalState `
-            -Target 'TechAgent' `
-            -PollScript $poll `
-            -GetStatus $getStatus `
-            -TerminalStates $terminal `
-            -TimeoutSeconds ($waitTimeoutSeconds + 60) `
-            -PollSeconds $waitPollSeconds `
-            -HeartbeatSeconds $waitHeartbeatSeconds `
-            -NotFoundMessage 'Tech agent process not discovered yet...' `
-            -WaitingMessage 'Tech agent working '
-
-        if ($agentState.TimedOut) {
-            throw ("Tech agent timed out after {0} seconds." -f $waitTimeoutSeconds)
-        }
-
-        if ([int]$final.Code -ne 0) {
-            $errorText = [string]$final.StdErr
-            if ([string]::IsNullOrWhiteSpace($errorText)) {
-                $errorText = [string]$final.StdOut
-            }
-            $capturedStdOut = [string]$final.StdOut
-            $capturedStdErr = [string]$final.StdErr
-            $errorText = $errorText.Trim()
-            throw ("Tech agent exited with code {0}: {1}" -f $final.Code, $errorText)
-        }
-
-        $message = ([string]$final.StdOut).Trim()
-        $capturedStdOut = [string]$final.StdOut
-        $capturedStdErr = [string]$final.StdErr
+        $message = ([string]$message).Trim()
+        $capturedStdOut = $message
         if ([string]::IsNullOrWhiteSpace($message)) {
             $message = 'Tech agent completed successfully with no output.'
         }
@@ -512,7 +469,7 @@ function Invoke-TechAgent {
     finally {
         if (-not [string]::IsNullOrWhiteSpace($markdownPath)) {
             try {
-                $exitCode = if ($agentProc -and $agentProc.HasExited) { [int]$agentProc.ExitCode } else { -1 }
+                $exitCode = if ($markdownStatus -eq 'Success') { 0 } else { -1 }
                 & $writeMarkdownLog `
                     -Path $markdownPath `
                     -Status $markdownStatus `
@@ -543,13 +500,14 @@ function Invoke-TechAgent {
             try { Stop-Transcript | Out-Null } catch { }
         }
 
-        if ($agentProc -and -not $agentProc.HasExited) {
-            try { $agentProc.Kill() } catch { }
+        if (-not [string]::IsNullOrWhiteSpace($requestPath) -and (Test-Path -LiteralPath $requestPath -PathType Leaf)) {
+            try { Remove-Item -LiteralPath $requestPath -Force } catch { }
         }
 
         if ($agentProc) {
             try { $agentProc.Dispose() } catch { }
         }
+
     }
 }
 
