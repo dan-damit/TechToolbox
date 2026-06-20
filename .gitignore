@@ -9,6 +9,10 @@ EndpointTrackingScripts/
 .venv/
 obj/
 bin/
+!src/TechToolbox.Agent/bin/
+src/TechToolbox.Agent/bin/**
+!src/TechToolbox.Agent/bin/**/
+!src/TechToolbox.Agent/bin/**/TechToolbox.Agent.dll
 
 LogsAndExports/*
 !LogsAndExports/Logs/

@@ -64,6 +64,8 @@ It supports:
 - prompt-driven troubleshooting and task planning  
 - optional model selection for local Ollama-compatible models  
 - configurable iteration depth for multi-step workflows  
+- always-on lightweight memory stored in `AI\memory.json` by default  
+- automatic capture of recent run history plus learned preferences/facts  
 - optional quiet mode for reduced console verbosity  
 - optional single auto-retry on recursion-limit stop conditions  
 - explicit destructive-operation confirmation when needed  
