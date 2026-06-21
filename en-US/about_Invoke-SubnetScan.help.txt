@@ -1,0 +1,118 @@
+# about_Invoke-SubnetScan
+
+## SHORT DESCRIPTION
+Performs a subnet scan to discover hosts and gather network information.
+
+## LONG DESCRIPTION
+The Invoke-SubnetScan function scans a specified subnet (in CIDR notation) to identify active hosts. It can retrieve MAC addresses, resolve DNS names, check TCP port availability, and optionally fetch HTTP banner information from discovered hosts.
+
+This cmdlet supports both local execution and remote execution on target computers via WSMan or SSH protocols.
+
+## SYNTAX
+
+### Default (Remote)
+Invoke-SubnetScan [-CIDR] <String> [[-ComputerName] <String>] [[-Transport] {WSMan | SSH}] [[-Credential] <PSCredential>] [[-UserName] <String>] [[-KeyFilePath] <String>] [[-Port] <Int32>] [-ResolveNames] [-HttpBanner] [<CommonParameters>]
+
+### Local Only
+Invoke-SubnetScan [-CIDR] <String> [-LocalOnly] [[-Port] <Int32>] [-ResolveNames] [-HttpBanner] [<CommonParameters>]
+
+## PARAMETERS
+
+### -CIDR
+The subnet to scan in CIDR notation (e.g., '192.168.1.0/24').
+
+- **Required?** true
+- **Position?** 1
+- **Default value:** None
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -ComputerName
+Specifies the remote computer on which to execute the scan. If not specified, and LocalOnly is not used, the behavior depends on other parameters or defaults.
+
+- **Required?** false
+- **Position?** 2
+- **Default value:** None
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -Transport
+Specifies the protocol for remote execution. Valid values are 'WSMan' and 'SSH'. The default is 'WSMan'.
+
+- **Required?** false
+- **Position?** named
+- **Default value:** WSMan
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -Credential
+Specifies a PSCredential object for remote authentication. This is typically used with WSMan transport.
+
+- **Required?** false
+- **Position?** named
+- **Default value:** None
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -UserName
+Specifies the username for SSH authentication. Used when Transport is 'SSH'.
+
+- **Required?** false
+- **Position?** named
+- **Default value:** None
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -KeyFilePath
+Specifies the path to an SSH private key file. Used when Transport is 'SSH'.
+
+- **Required?** false
+- **Position?** named
+- **Default value:** None
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -LocalOnly
+Forces local execution even if ComputerName is specified.
+
+- **Required?** false
+- **Position?** named
+- **Default value:** False
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -Port
+Specifies the TCP port to check for availability on discovered hosts. If not specified, it defaults to a value read from configuration.
+
+- **Required?** false
+- **Position?** named
+- **Default value:** Configured default
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -ResolveNames
+Indicates that the cmdlet should attempt to resolve hostnames via DNS, NetBIOS, and mDNS for discovered hosts.
+
+- **Required?** false
+- **Position?** named
+- **Default value:** False
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+### -HttpBanner
+Indicates that the cmdlet should fetch HTTP banner information from discovered hosts if they are running web services.
+
+- **Required?** false
+- **Position?** named
+- **Default value:** False
+- **Accept pipeline input?** false
+- **Accept wildcard characters?** false
+
+## INPUTS
+None. You cannot pipe objects to Invoke-SubnetScan.
+
+## OUTPUTS
+System.Object. Invoke-SubnetScan returns custom objects containing information about the scanned hosts, such as IP address, MAC address, hostname, and port status.
+
+## NOTES
+Additional notes regarding usage, limitations, or dependencies can be added here.
