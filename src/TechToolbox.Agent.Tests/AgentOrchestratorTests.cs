@@ -507,6 +507,9 @@ public class AgentOrchestratorTests
                 CreateRegistry(Array.Empty<string>()),
                 new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase),
                 memory,
+                model: "test",
+                destructiveConfirmed: false,
+                signedFilePolicy: "ignore",
                 maxIterations: 5,
                 autoRetry: false);
 
@@ -544,6 +547,9 @@ public class AgentOrchestratorTests
             CreateRegistry(tools.Keys),
             tools,
             memory: null,
+            model: "test",
+            destructiveConfirmed: false,
+            signedFilePolicy: "ignore",
             maxIterations,
             autoRetry);
     }

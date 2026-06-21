@@ -177,7 +177,17 @@ Goal: {prompt}
         var prefs = memory.Preferences.Take(5).Select(kv => $"{kv.Key}={kv.Value}");
         var facts = memory.Facts.Take(5).Select(kv => $"{kv.Key}={kv.Value}");
         var history = memory.History.TakeLast(3)
-            .Select(h => $"{h.Timestamp:u} | {h.Intent} | tools={string.Join(",", h.ToolNames)}");
+            .Select(h =>
+            {
+                var intent = h.RunSummary?.Intent;
+                if (string.IsNullOrWhiteSpace(intent))
+                {
+                    intent = !string.IsNullOrWhiteSpace(h.Prompt) ? h.Prompt : h.OutputPreview;
+                }
+
+                var actions = h.RunSummary?.ActionsTaken ?? h.ToolNames;
+                return $"{h.TimestampUtc:u} | {intent} | tools={string.Join(",", actions)}";
+            });
 
         return string.Join(
             Environment.NewLine,

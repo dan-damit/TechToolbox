@@ -1,0 +1,73 @@
+# about_Invoke-AADSyncRemote
+
+## SHORT DESCRIPTION
+Remotely triggers Azure AD Connect (ADSync) sync cycle on a target server via PowerShell Remoting.
+
+## LONG DESCRIPTION
+The Invoke-AADSyncRemote function is designed to remotely trigger an Azure Active Directory Connect (AADConnect) synchronization cycle. It establishes a remote PSSession to the specified AAD Connect host, validates that the ADSync module and service are available, and then executes the Start-ADSyncSyncCycle cmdlet.
+
+This function supports both Kerberos authentication and credential-based authentication. If no credentials are provided, it defaults to using the current user's Kerberos ticket. It also allows configuration of the WinRM port (5985 for HTTP or 5986 for HTTPS).
+
+The function utilizes TechToolbox configuration settings for default values where applicable, such as the default policy type and port number. It uses Write-Log for unified logging within the TechToolbox environment.
+
+## PARAMETERS
+
+### -ComputerName
+Specifies the FQDN or hostname of the AAD Connect server to connect to.
+
+    Required?                    true
+    Position?                    named
+    Default value                None
+    Accept pipeline input?       False
+    Accept wildcard characters?  false
+
+### -PolicyType
+Specifies the type of synchronization cycle to trigger. Valid values are 'Delta' or 'Initial'.
+If not specified, the default is pulled from the TechToolbox configuration (AADSync.DefaultPolicyType).
+
+    Required?                    false
+    Position?                    named
+    Default value                Configured default or 'Delta'
+    Accept pipeline input?       False
+    Accept wildcard characters?  false
+
+### -Port
+Specifies the WinRM port to use for the remote connection. Valid values are 5985 (HTTP) or 5986 (HTTPS).
+If not specified, the default is pulled from the TechToolbox configuration (AADSync.DefaultPort).
+
+    Required?                    false
+    Position?                    named
+    Default value                Configured default or 5985
+    Accept pipeline input?       False
+    Accept wildcard characters?  false
+
+### -Credential
+Specifies a PSCredential object for authenticating the remote connection. If this parameter is not provided, the function attempts to use Kerberos authentication with the current user's credentials.
+
+    Required?                    false
+    Position?                    named
+    Default value                None
+    Accept pipeline input?       False
+    Accept wildcard characters?  false
+
+## INPUTS
+None. You cannot pipe objects to Invoke-AADSyncRemote.
+
+## OUTPUTS
+None. Output is written to the Information stream.
+
+## NOTES
+This function requires PowerShell Remoting (WinRM) to be enabled on the target server and appropriate permissions to execute Start-ADSyncSyncCycle.
+
+## EXAMPLE 1
+Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta
+
+This command triggers a delta synchronization cycle on the AAD Connect server named 'aadconnect01'.
+
+## EXAMPLE 2
+Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Initial -WhatIf
+
+This command simulates triggering an initial synchronization cycle on the AAD Connect server named 'aadconnect01' without actually executing it.
+
+## LINKS
+[TechToolbox](https://github.com/dan-damit/TechToolbox)

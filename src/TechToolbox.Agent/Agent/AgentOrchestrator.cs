@@ -17,6 +17,9 @@ public class AgentOrchestrator
     private readonly IReadOnlyDictionary<string, ToolSpec> _registry;
     private readonly Dictionary<string, Func<string, Task<string>>> _tools;
     private readonly Memory.MemoryStore? _memory;
+    private readonly string _model;
+    private readonly bool _destructiveConfirmed;
+    private readonly string _signedFilePolicy;
     private readonly int _maxIterations;
     private readonly bool _autoRetry;
     private readonly string? _tracePath;
@@ -28,6 +31,9 @@ public class AgentOrchestrator
         IReadOnlyDictionary<string, ToolSpec> registry,
         Dictionary<string, Func<string, Task<string>>> tools,
         Memory.MemoryStore? memory,
+        string model,
+        bool destructiveConfirmed,
+        string signedFilePolicy,
         int maxIterations,
         bool autoRetry,
         string? tracePath = null,
@@ -37,6 +43,9 @@ public class AgentOrchestrator
         _registry = registry;
         _tools = tools;
         _memory = memory;
+        _model = model;
+        _destructiveConfirmed = destructiveConfirmed;
+        _signedFilePolicy = string.IsNullOrWhiteSpace(signedFilePolicy) ? "ignore" : signedFilePolicy;
         _maxIterations = maxIterations;
         _autoRetry = autoRetry;
         _tracePath = tracePath;
@@ -374,15 +383,36 @@ public class AgentOrchestrator
             RetryIterationLimit = retryIterationLimit
         };
 
-        _memory?.AddHistory(new Memory.RunHistory
+        _memory?.AddRun(new Memory.RunHistory
         {
-            Timestamp = DateTimeOffset.UtcNow,
-            Intent = output[..Math.Min(output.Length, 200)],
+            TimestampUtc = DateTimeOffset.UtcNow,
             Status = status,
             Outcome = outcome,
+            Prompt = prompt,
+            Model = _model,
+            DurationMs = result.DurationMs,
+            MaxIterations = _maxIterations,
+            DestructiveConfirmed = _destructiveConfirmed,
+            SignedFilePolicy = _signedFilePolicy,
+            AutoRetryOnRecursion = _autoRetry,
             ToolCalls = result.ToolCallCount,
-            ToolNames = toolNames,
-            DurationMs = result.DurationMs
+            ToolNames = toolNames
+                .Select(NormalizeActionName)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToList(),
+            OutputPreview = Truncate(output, 4000),
+            Error = status.Equals("error", StringComparison.OrdinalIgnoreCase) ? Truncate(output, 4000) : null,
+            RunSummary = new Memory.RunSummary
+            {
+                Intent = Truncate(prompt, 220),
+                ActionsTaken = toolNames
+                    .Select(NormalizeActionName)
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                Blockers = outcome.Equals("completed", StringComparison.OrdinalIgnoreCase) ? string.Empty : Truncate(output, 320),
+                NextBestStep = BuildNextBestStep(output, outcome)
+            }
         });
 
         if (_memory is not null)
@@ -524,6 +554,52 @@ Next best action:
         wasTruncated = true;
         var head = text[..maxChars];
         return $"{head}\n\n[TRUNCATED_TOOL_RESULT original_length={text.Length} shown={maxChars}]";
+    }
+
+    private static string NormalizeActionName(string toolName)
+    {
+        if (string.IsNullOrWhiteSpace(toolName))
+            return string.Empty;
+
+        return toolName.Trim().ToLowerInvariant().Replace('-', '_').Replace(' ', '_');
+    }
+
+    private static string BuildNextBestStep(string output, string outcome)
+    {
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            return outcome.Equals("completed", StringComparison.OrdinalIgnoreCase)
+                ? string.Empty
+                : "Review the run output and resolve the blocker before retrying.";
+        }
+
+        var lines = output
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line));
+
+        foreach (var line in lines)
+        {
+            if (line.StartsWith("Next best action", StringComparison.OrdinalIgnoreCase)
+                || line.StartsWith("Next step", StringComparison.OrdinalIgnoreCase)
+                || line.StartsWith("What Is Required", StringComparison.OrdinalIgnoreCase))
+            {
+                return Truncate(line, 220);
+            }
+        }
+
+        return outcome.Equals("completed", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : "Retry after addressing the error details captured in outputPreview.";
+    }
+
+    private static string Truncate(string value, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var normalized = value.Trim();
+        return normalized.Length <= maxChars ? normalized : normalized[..maxChars] + "...";
     }
 
     private static bool TryApplyReadFileFallback(List<AgentChatMessage> messages, string? rawBody, out string reason)
