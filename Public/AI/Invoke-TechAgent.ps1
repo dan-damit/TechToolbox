@@ -124,6 +124,81 @@ function Invoke-TechAgent {
     $stderrTask = $null
     $requestPath = $null
 
+    $resolveExpectedOutputPath = {
+        param(
+            [string]$PromptText
+        )
+
+        if ([string]::IsNullOrWhiteSpace($PromptText)) {
+            return $null
+        }
+
+        $fileNameMatch = [regex]::Match(
+            $PromptText,
+            '(?is)\bname\s+it\s+["'']?(?<name>[^"''`\r\n]+?\.help\.txt)\b')
+
+        if (-not $fileNameMatch.Success) {
+            return $null
+        }
+
+        $fileName = $fileNameMatch.Groups['name'].Value.Trim()
+        if ([string]::IsNullOrWhiteSpace($fileName)) {
+            return $null
+        }
+
+        $pathMatches = [regex]::Matches($PromptText, '(?i)[A-Za-z]:\\[^\s"''`\r\n]+')
+        if ($pathMatches.Count -eq 0) {
+            return $null
+        }
+
+        $candidateDirs = @()
+        foreach ($match in $pathMatches) {
+            $candidatePath = [string]$match.Value
+            if ([string]::IsNullOrWhiteSpace($candidatePath)) {
+                continue
+            }
+
+            $candidatePath = $candidatePath.Trim().TrimEnd('.', ',', ';')
+            if ($candidatePath -match '(?i)\.[A-Za-z0-9]{1,5}$') {
+                continue
+            }
+
+            $candidateDirs += $candidatePath
+        }
+
+        if ($candidateDirs.Count -eq 0) {
+            return $null
+        }
+
+        $targetDirectory = $candidateDirs |
+            Where-Object { $_ -match '(?i)\\en-US$' } |
+            Select-Object -Last 1
+
+        if ([string]::IsNullOrWhiteSpace($targetDirectory)) {
+            $targetDirectory = $candidateDirs | Select-Object -Last 1
+        }
+
+        if ([string]::IsNullOrWhiteSpace($targetDirectory)) {
+            return $null
+        }
+
+        return (Join-Path -Path $targetDirectory -ChildPath $fileName)
+    }
+
+    $expectedOutputPath = & $resolveExpectedOutputPath -PromptText $Prompt
+
+    $effectivePrompt = $Prompt
+    if (-not [string]::IsNullOrWhiteSpace($expectedOutputPath)) {
+        $effectivePrompt = @"
+$Prompt
+
+Hard requirement:
+- Create the output file at this exact path: $expectedOutputPath
+- Use WRITE-FILE to create/update the file.
+- Do not return a final answer until WRITE-FILE has succeeded.
+"@
+    }
+
         if ($AutoRetryOnRecursion.IsPresent -and $DisableAutoRetryOnRecursion.IsPresent) {
             throw 'Specify only one of -AutoRetryOnRecursion or -DisableAutoRetryOnRecursion.'
         }
@@ -355,6 +430,35 @@ function Invoke-TechAgent {
             $memoryPath = [string]$memoryPathProperty.Value
         }
 
+        if (-not [string]::IsNullOrWhiteSpace($memoryPath)) {
+            try {
+                $memoryDirectory = Split-Path -Path $memoryPath -Parent
+                if (-not [string]::IsNullOrWhiteSpace($memoryDirectory)) {
+                    $null = New-Item -ItemType Directory -Path $memoryDirectory -Force
+                }
+
+                if (-not (Test-Path -LiteralPath $memoryPath -PathType Leaf)) {
+                    $memorySeed = @{
+                        Preferences = @{}
+                        Facts = @{}
+                        History = @()
+                    } | ConvertTo-Json -Depth 4
+
+                    Set-Content -LiteralPath $memoryPath -Value $memorySeed -Encoding utf8
+                    Write-Log -Level Info -Message ("Initialized missing agent memory file: {0}" -f $memoryPath)
+                }
+
+                $memoryHistoryPath = Join-Path $memoryDirectory (([System.IO.Path]::GetFileNameWithoutExtension($memoryPath)) + '.history.json')
+                if (-not (Test-Path -LiteralPath $memoryHistoryPath -PathType Leaf)) {
+                    Set-Content -LiteralPath $memoryHistoryPath -Value '[]' -Encoding utf8
+                    Write-Log -Level Info -Message ("Initialized missing agent memory history file: {0}" -f $memoryHistoryPath)
+                }
+            }
+            catch {
+                throw ("Failed to initialize agent memory files at '{0}': {1}" -f $memoryPath, $_.Exception.Message)
+            }
+        }
+
         $diagnosticTracePath = $null
         $diagnosticTracePathProperty = if ($cfg) { $cfg.PSObject.Properties['diagnosticTracePath'] } else { $null }
         if ($null -ne $diagnosticTracePathProperty -and -not [string]::IsNullOrWhiteSpace([string]$diagnosticTracePathProperty.Value)) {
@@ -364,7 +468,7 @@ function Invoke-TechAgent {
         Write-Log -Level Info -Message ("Invoking local tech agent via C# assembly: {0}" -f $agentAssemblyPath)
 
         $request = [ordered]@{
-            Prompt = $Prompt
+            Prompt = $effectivePrompt
             Model = $(if ([string]::IsNullOrWhiteSpace($Model)) { 'llama3' } else { $Model })
             Verbose = $false
             MaxIterations = $MaxIterations
@@ -374,6 +478,7 @@ function Invoke-TechAgent {
             ReturnMetadata = $false
             SignedFilePolicy = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
             DiagnosticTracePath = $diagnosticTracePath
+            ExpectedOutputPath = $expectedOutputPath
         }
 
         $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
@@ -399,7 +504,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [bool]$request.AutoRetryOnRecursion,
     [bool]$request.ReturnMetadata,
     [string]$request.SignedFilePolicy,
-    [string]$request.DiagnosticTracePath)
+    [string]$request.DiagnosticTracePath,
+    [string]$request.ExpectedOutputPath)
 [Console]::Write($result)
 '@
 
@@ -454,6 +560,28 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
         $capturedStdOut = $message
         if ([string]::IsNullOrWhiteSpace($message)) {
             $message = 'Tech agent completed successfully with no output.'
+        }
+
+        # Surface orchestrator-level failures as real failures so markdown status
+        # and caller behavior do not report false positives.
+        $knownFailurePrefixes = @(
+            'Agent returned invalid JSON twice.',
+            'LLM request repeatedly failed',
+            'Iteration limit reached.'
+        )
+
+        foreach ($failurePrefix in $knownFailurePrefixes) {
+            if ($message.StartsWith($failurePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw ("Tech agent failed: {0}" -f $message)
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($expectedOutputPath)) {
+            if (-not (Test-Path -LiteralPath $expectedOutputPath -PathType Leaf)) {
+                throw ("Tech agent failed: expected output file was not created: {0}" -f $expectedOutputPath)
+            }
+
+            Write-Log -Level Info -Message ("Tech agent created expected output file: {0}" -f $expectedOutputPath)
         }
 
         $markdownStatus = 'Success'
@@ -514,8 +642,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCh40MMVVJYNWLq
-# xRT3zcP2wOGqYq1Ue0Rr9+eo4gpFx6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA1jWWWM1Uea7En
+# CgEgmt9ECDc1WOM7n+F14pyIUzCsbKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -648,34 +776,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCABps25bJSa
-# PRj+axHJAPWX7uFoZft7747BEPmBg0fezjANBgkqhkiG9w0BAQEFAASCAgC+1CpZ
-# qdhAk3A0pLz3pUAQOA/mDS5xhYs+rPlSXEerl9Jlc/djUzM8xlXHfCecOb0JfQ/L
-# 7sEP8wetjL0jZzkdXqXOEn4zPQItRuz+ko7gDmlHInnI0+N3Ks8umVBimTUYZsP3
-# I18dJvnFle/+SLWhj+98RGDvzsJX0NnPOAfUlTJvggd85XaOS7SCszey6lBR9TMO
-# NIaOEX/A5vwQFQL6nA3kj+yNt54CYdpmKVdsd3RID86g00xK3dvVbuZfaI+yNyj2
-# A7nwaUdboTAspI9S5Bmm2zLXPLMkQUzpOLkWm+/PwLaloJjYUp8iSY8wiwk/WKe1
-# BRKUH7mwwyHqTcIm21Ox8gvB845CWOfT4AvNnkTnVuU/R0iUUbeEkj2asVSxdPZw
-# 2Cs3n1eFFBmww7KOG6PmFWUz8lsW7oJ4wiByITzVKRSvDbvZO3KDiiVP5rb0dbVN
-# X0ojeMwlAlcL+oKkiE7o7cozQ5404JyvNnhQQWe1ymywq4fa6IKHDogqNa1KIOTs
-# XdeR4sPZagWqbwJuzda6hp+OnOCKM8UihcMDMKzj5rRqkmQ35tEWxKphw0NZ3mqG
-# ikVzqCYUSLxeNf0VJlpb3JSGSYRak3ll5wYBDAXi/Fevs0fkt3EbO0nj2VP1y3YN
-# SCKnfVUfIxmVf57FpPCtZbZ+Vw8tuzZ0iEEemaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB5K3tpqLNH
+# FHiBK4XdItdrDc2HVwVibVyNwSgnFJJy+TANBgkqhkiG9w0BAQEFAASCAgCTh2aI
+# HI3CYvV6tlwvNzKpO8OBwlpaX91UFHeZ856064jwWtU8hOQl8dsaLxGLSNHIwYY4
+# afPnq4ztKsruePs6ftF8Gh5WDV7UX7yiRSJzQATwlX8WTehI3mAPJofnVmna/GPb
+# /aFdpU5Y82cZH/+eDLJLtZxYi5L1E9ykMsZuBDDeDU2ykztUwiAs21JpoEHzEE6J
+# Dyzcl2B5Ln6DOR8YvXf+rtI8ysGfuYh48vOMmMwQToklWeECLlytxyW+32zzlUn8
+# dsyWmSob6/W2WDF5jJn63ESH/RCVABcdCcHSg5rcaR1c4Ra6GYYtbg/8B4nyJH1i
+# dYLedPihfRUzwXLC09V6cYu9uDfh9CmhosO42r6+cB081tCK2TSTrB/6bSXdsQvH
+# 78nFpRV2bvWO7lOY1YwafxSFtLBs8QLrGureZoWCw4UK6TVSSRokQrjqTVmzLzoL
+# Jsr9QUXvC+2P9X6gfAwpdNDLs/iGHy/oyb62SVY5e48fexz6h08ye5Uicectnj8t
+# Jty1Q1RaJFjRtWABKXATBgpHtyDjkziJ0wMOXul9ytE6K4FcZQjSQHkP1lhjBHmh
+# HWijSLZy4YgGCBy1JpX+4P5dI2uRXE+zetcA+YKDHcwZztSPb3Ydrl/u7EDp2eY2
+# nr+ml6LdtTaKK8lCIN1IV7X5QH31BxgrTiUC7aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MjAwNDAwNTZaMC8GCSqGSIb3DQEJBDEiBCBoBDpOVRp3eqiP0WNh
-# BQY3rqvCWret2XFtBqOt9eB7LDANBgkqhkiG9w0BAQEFAASCAgBhO5iWtwMmXb7B
-# xFnJqQzXYOdoqt86HnZJYAa3HjBJkOTyAsJxApPEO0GFiVaVQ8FF4D8LKlyNk0BG
-# +imV0w/klgV3tFyrINp9DQ0h0IlwYbNFj5wpsgqy6j5BDM8ahtiySFLGpmhs3SkP
-# Jr9UFlG4T763uu29uE6Od/plqdfgyjxeYPf0TA3R1OUI/y2m5BWUDtD7+1ouZXG2
-# zaUd32+ptwf0kw7YN0Xp4ym6K3laUHfn3x/K68Mpm0eA7g0xjMj2vhz60wf1NPus
-# AMgeKeTcY95ktXj8lWGp8bIjt/WmddPrM1JNNU5q7qO3leYdQxS/82l0v8eW2NkX
-# j8/IgrdjWmBarAfqL/amiIoX5i1CR7k1OqK8yOMhQ0hullOb1bBsABNcWGHvgKfI
-# Ge7jNyusmhDH2soFDS5y0bt86xHOavPZCLHyvAuRF/1xiWQzoHkur/003lX28dce
-# sqK6yC6AXTBQQxlSOeiAQZfVPH3bALHfJam9A/h4/rPt7NNDuhNaFPX/CwCCjkbW
-# CYZbMwk8jaOARkDeLPQ+dS/nkdElPw+0Jgd042rSGf54T0zpEleC0UBqV0PtyWOj
-# 85t8qfXS4sZ2ADRf5jJinToWtellw5cZAhSYTOASzZDe0vNmtOJBDnGb3e3iGOBw
-# IRxR+AjoTIuAMl1lG1f430enRA5GIQ==
+# BTEPFw0yNjA2MjEwNDEwNDhaMC8GCSqGSIb3DQEJBDEiBCA8ICKd9tBL4550oi0T
+# yK1YaYHp4SKth7hevAsAxXMWBjANBgkqhkiG9w0BAQEFAASCAgDJCgCvKNRUjwb6
+# Wk03mnVxDHVrvgleMuwAod2lBPaDFayy3DjtiCUNwszmxIVoZkNG3VI9chZZmG36
+# d2y3JXB/PDAaFtDJ43tYlg73JFtxC9z83mOULPIaSC3jxpzWXvSSnm6dnUkMdcaP
+# mP5PPT2BBmEbqURpN4m4XYTwb3HuFkNzbtUmgAD9OAEhvLYCyM6/zi/zt3jRL5TM
+# FTweyPlSb37jFvEmEf+75bHkG8GdvTO+wb7oppuenmr1MstmnMqbmU/LFpAiNhkj
+# H77npIjot2RiOvtsMjrLOygWVngeFojUqAt87kML9MSYcenpvW+7S4Dg8GiXTKF1
+# Ay8rq8cTO1eRex2Dw/W/nTwNo2fXmoRylogZaY+BssqsYtJ8GeneXDbEyJ4i+yTK
+# xeDTbTj82kQNjURmsOjCiSb3Ogbi4/ouFYes55z1u4doYnRc0pkwiA0gjDl8pkBR
+# yUlP15SiJre76WnAb4fc3Knu5119tUDXGkGMybcaea/Uy8xhgYN++Sr85PRskwfi
+# ebRx2hDIlhdi6YQA0D+nrYK75qZzfj57lDZf1urV/ysFAPt3DusnsQWDVTIZEjG4
+# p0NnhLuWxyvQSS0OROe0h2QnaFoYQ59Fd8koHgcVR7e6oCa0JzjgHl40hDjjmo5b
+# CUlvj2sAqNt86N7NHgCvmapNiQessQ==
 # SIG # End signature block

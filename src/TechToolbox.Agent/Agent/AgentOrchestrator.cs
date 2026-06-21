@@ -20,6 +20,7 @@ public class AgentOrchestrator
     private readonly int _maxIterations;
     private readonly bool _autoRetry;
     private readonly string? _tracePath;
+    private readonly string? _expectedOutputPath;
     private readonly object _traceLock = new();
 
     public AgentOrchestrator(
@@ -29,7 +30,8 @@ public class AgentOrchestrator
         Memory.MemoryStore? memory,
         int maxIterations,
         bool autoRetry,
-        string? tracePath = null)
+        string? tracePath = null,
+        string? expectedOutputPath = null)
     {
         _llm = llm;
         _registry = registry;
@@ -38,6 +40,7 @@ public class AgentOrchestrator
         _maxIterations = maxIterations;
         _autoRetry = autoRetry;
         _tracePath = tracePath;
+        _expectedOutputPath = expectedOutputPath;
 
         _llm.DiagnosticTrace = msg => Trace($"LlmClient {msg}");
     }
@@ -125,6 +128,16 @@ public class AgentOrchestrator
     {
         var messages = PromptBuilder.BuildInitialMessages(prompt, _registry, _memory);
         var consecutiveLlmFailures = 0;
+        var expectedOutputPath = string.IsNullOrWhiteSpace(_expectedOutputPath)
+            ? ExtractExpectedOutputPathFromPrompt(prompt)
+            : _expectedOutputPath;
+        var requiresWriteFile = !string.IsNullOrWhiteSpace(expectedOutputPath);
+        var writeFileCompleted = false;
+
+        if (requiresWriteFile)
+        {
+            Trace($"RunLoop enforcing WRITE-FILE completion for expected output path: {expectedOutputPath}");
+        }
 
         for (int i = 0; i < iterationLimit; i++)
         {
@@ -183,14 +196,64 @@ public class AgentOrchestrator
 
                 if (!JsonHelpers.TryParseDecision(repairedRaw, out decision) || decision is null)
                 {
-                    return new RunLoopResult(
-                        $"Agent returned invalid JSON twice. Last response: {repairedRaw}",
-                        ReachedIterationLimit: false);
+                    if (JsonHelpers.TryExtractWriteFileDecision(repairedRaw, out var recoveredDecision, out var recoveryReason)
+                        && recoveredDecision is not null)
+                    {
+                        decision = recoveredDecision;
+                        Trace($"Iteration {i + 1} salvaged malformed WRITE-FILE decision: {recoveryReason}");
+                    }
+                    else if (JsonHelpers.LooksLikeWriteFileDecision(repairedRaw))
+                    {
+                        Trace($"Iteration {i + 1} malformed WRITE-FILE detected; issuing targeted recovery prompt");
+
+                        messages.Add(PromptBuilder.BuildWriteFileRecoveryMessage(repairedRaw));
+
+                        var writeFileRecoveryResponse = await _llm.GenerateDecisionAsync(messages).ConfigureAwait(false);
+                        var writeFileRecoveryRaw = (writeFileRecoveryResponse.Text ?? "").Trim();
+
+                        Trace($"Iteration {i + 1} targeted recovery response length={writeFileRecoveryRaw.Length} preview={Preview(writeFileRecoveryRaw)}");
+
+                        messages.Add(new AgentChatMessage
+                        {
+                            Role = "assistant",
+                            Content = writeFileRecoveryRaw
+                        });
+
+                        if (!JsonHelpers.TryParseDecision(writeFileRecoveryRaw, out decision) || decision is null)
+                        {
+                            return new RunLoopResult(
+                                $"Agent returned invalid JSON twice. Last response: {repairedRaw}",
+                                ReachedIterationLimit: false);
+                        }
+
+                        if (!decision.NeedsTool || !decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return new RunLoopResult(
+                                $"Agent returned invalid JSON twice. Last response: {repairedRaw}",
+                                ReachedIterationLimit: false);
+                        }
+                    }
+                    else
+                    {
+                        return new RunLoopResult(
+                            $"Agent returned invalid JSON twice. Last response: {repairedRaw}",
+                            ReachedIterationLimit: false);
+                    }
                 }
             }
 
             if (!decision.NeedsTool)
             {
+                if (requiresWriteFile && !writeFileCompleted)
+                {
+                    var requirementError =
+                        $"Required WRITE-FILE step has not completed yet. Create the output file at '{expectedOutputPath}' before returning finalAnswer.";
+
+                    Trace($"Iteration {i + 1} blocked final answer because WRITE-FILE hard requirement is unmet.");
+                    messages.Add(PromptBuilder.BuildToolResultMessage("WRITE-FILE", requirementError, succeeded: false));
+                    continue;
+                }
+
                 Trace($"Iteration {i + 1} final answer detected length={decision.FinalAnswer?.Length ?? 0}");
                 return new RunLoopResult(decision.FinalAnswer ?? string.Empty, ReachedIterationLimit: false);
             }
@@ -234,6 +297,21 @@ public class AgentOrchestrator
                 toolResult = ex.Message;
             }
 
+            if (requiresWriteFile && decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!TryGetToolArgString(decision.ToolArgs, "path", out var writePath))
+                {
+                    toolExecutionSucceeded = false;
+                    toolResult = "WRITE-FILE must include a string path argument.";
+                }
+                else if (!PathsEqual(writePath, expectedOutputPath!))
+                {
+                    toolExecutionSucceeded = false;
+                    toolResult = $"WRITE-FILE must target expected path '{expectedOutputPath}', but received '{writePath}'.";
+                    Trace($"Iteration {i + 1} rejected WRITE-FILE path mismatch expected={expectedOutputPath} actual={writePath}");
+                }
+            }
+
             if (toolExecutionSucceeded && decision.ToolName.Equals("READ-FILE", StringComparison.OrdinalIgnoreCase))
             {
                 var compactThreshold = GetReadFilePromptCompactThresholdChars();
@@ -243,6 +321,15 @@ public class AgentOrchestrator
                     Trace($"Iteration {i + 1} compacted READ-FILE result for prompt originalLength={toolResult.Length} threshold={compactThreshold} compactLength={compactedToolResult.Length}");
                     toolResult = compactedToolResult;
                 }
+            }
+
+            if (requiresWriteFile
+                && decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
+                && toolExecutionSucceeded
+                && !toolResult.StartsWith("Error", StringComparison.OrdinalIgnoreCase))
+            {
+                writeFileCompleted = true;
+                Trace($"Iteration {i + 1} marked WRITE-FILE hard requirement as completed.");
             }
 
             var maxToolResultChars = GetMaxToolResultChars();
@@ -469,6 +556,60 @@ Next best action:
         messages[^1] = PromptBuilder.BuildToolResultMessage(toolName, compactResult, succeeded: true);
         reason = $"replaced READ-FILE raw content with compact fallback view length={compactResult.Length}";
         return true;
+    }
+
+    private static string? ExtractExpectedOutputPathFromPrompt(string prompt)
+    {
+        if (string.IsNullOrWhiteSpace(prompt))
+            return null;
+
+        var match = Regex.Match(
+            prompt,
+            @"(?im)^\s*-\s*Create\s+the\s+output\s+file\s+at\s+this\s+exact\s+path\s*:\s*(?<path>[A-Za-z]:\\[^\r\n]+)$",
+            RegexOptions.Compiled);
+
+        if (!match.Success)
+            return null;
+
+        var path = match.Groups["path"].Value.Trim();
+        return string.IsNullOrWhiteSpace(path) ? null : path;
+    }
+
+    private static bool TryGetToolArgString(IDictionary<string, object?> args, string key, out string value)
+    {
+        value = string.Empty;
+        if (args is null)
+            return false;
+
+        var match = args.FirstOrDefault(kv => string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(match.Key))
+            return false;
+
+        value = match.Value switch
+        {
+            null => string.Empty,
+            string s => s,
+            JsonElement el when el.ValueKind == JsonValueKind.String => el.GetString() ?? string.Empty,
+            JsonElement el => el.ToString(),
+            _ => match.Value?.ToString() ?? string.Empty
+        };
+
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        try
+        {
+            var fullLeft = Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullRight = Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            return string.Equals(fullLeft, fullRight, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     private static bool TryExtractToolResult(string content, out string toolName, out string toolResult, out string status)

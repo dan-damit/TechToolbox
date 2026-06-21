@@ -15,7 +15,8 @@ public static class AgentCore
         bool autoRetryOnRecursion = false,
         bool returnMetadata = false,
         string signedFilePolicy = "ignore",
-        string? diagnosticTracePath = null)
+        string? diagnosticTracePath = null,
+        string? expectedOutputPath = null)
     {
         return RunAgentAsync(
             prompt,
@@ -26,8 +27,9 @@ public static class AgentCore
             memoryPath,
             autoRetryOnRecursion,
             returnMetadata,
-                signedFilePolicy,
-                diagnosticTracePath).GetAwaiter().GetResult();
+            signedFilePolicy,
+            diagnosticTracePath,
+            expectedOutputPath).GetAwaiter().GetResult();
     }
 
     public static async Task<string> RunAgentAsync(
@@ -40,7 +42,8 @@ public static class AgentCore
         bool autoRetryOnRecursion = false,
         bool returnMetadata = false,
         string signedFilePolicy = "ignore",
-        string? diagnosticTracePath = null)
+        string? diagnosticTracePath = null,
+        string? expectedOutputPath = null)
     {
         if (string.IsNullOrWhiteSpace(prompt))
             return "Error: prompt must not be empty.";
@@ -78,7 +81,8 @@ public static class AgentCore
             memory,
             maxIterations,
             autoRetryOnRecursion,
-            diagnosticTracePath);
+            diagnosticTracePath,
+            expectedOutputPath);
 
         // 6. Run the agent
         var result = await orchestrator.RunAsync(prompt).ConfigureAwait(false);

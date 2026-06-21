@@ -1,4 +1,5 @@
-"Please look at the function named Invoke-RestartService.ps1 located at
-C:\repos\TechToolbox\Public\Invoke and write a detailed help document for
-PowerShell's Get-Help to consume. Output the file to C:\repos\TechToolbox\en-US
-and name it about_Invoke-RestartService.help.txt"
+"Please look at the function located at
+C:\repos\TechToolbox\Public\Invoke\Invoke-RestartService.ps1 and write a
+detailed help document for PowerShell’s Get-Help to consume to the directory
+located at to C:\repos\TechToolbox\en-US and name it
+about_Invoke-RestartService.help.txt"

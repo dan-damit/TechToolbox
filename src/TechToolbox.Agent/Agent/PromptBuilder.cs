@@ -65,6 +65,35 @@ If another tool is still required, set needsTool=true with the exact toolName an
         };
     }
 
+    public static AgentChatMessage BuildWriteFileRecoveryMessage(string invalidResponse)
+    {
+        const int maxChars = 4000;
+        var snippet = invalidResponse ?? string.Empty;
+        if (snippet.Length > maxChars)
+        {
+            snippet = snippet[..maxChars] + "\n[truncated]";
+        }
+
+        return new AgentChatMessage
+        {
+            Role = "user",
+            Content =
+$@"Your previous response appears to be an intended WRITE-FILE tool call, but the JSON envelope is invalid.
+
+Return ONLY one valid JSON object using this exact minimal shape:
+{{""needsTool"":true,""toolName"":""WRITE-FILE"",""toolArgs"":{{""path"":""..."",""content"":""...""}},""reason"":""recover write-file""}}
+
+Rules:
+- Use toolName exactly WRITE-FILE.
+- Include only path and content inside toolArgs.
+- Escape all newlines inside content as \n.
+- No markdown, no code fences, no commentary.
+
+Invalid response snippet:
+{snippet}"
+        };
+    }
+
     private static string BuildSystemPrompt(IReadOnlyDictionary<string, ToolSpec> registry)
     {
         var sb = new StringBuilder();
@@ -89,6 +118,7 @@ If another tool is still required, set needsTool=true with the exact toolName an
         sb.AppendLine("- If a tool is needed, set needsTool=true and provide toolName/toolArgs.");
         sb.AppendLine("- If no tool is needed, set needsTool=false and provide finalAnswer.");
         sb.AppendLine($"- When needsTool=false, finalAnswer must follow this style: {AsciiMarkdownInstruction}");
+        sb.AppendLine("- If the goal asks to create or write a file at a specific path/name, you must call WRITE-FILE and only return finalAnswer after WRITE-FILE succeeds.");
         sb.AppendLine("- Never invent tool results.");
         sb.AppendLine("- Use only exact tool names from the available tools list.");
         sb.AppendLine("- Prefer the smallest useful number of tool calls.");

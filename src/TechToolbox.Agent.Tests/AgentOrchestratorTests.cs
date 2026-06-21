@@ -179,6 +179,125 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_SalvagesMalformedWriteFileDecisionWithoutExtraLlmTurn()
+    {
+        string? capturedJsonArgs = null;
+
+        var llm = new RecordingFakeLlmClient(new[]
+        {
+            "not valid json",
+            "I will now write the file. {\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\":\"hello\\nworld\"},\"reason\":\"recover\"}",
+            FinalDecision("Done")
+        });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["WRITE-FILE"] = args =>
+            {
+                capturedJsonArgs = args;
+                return Task.FromResult("ok");
+            }
+        };
+
+        var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 5, autoRetry: false);
+
+        var result = await orchestrator.RunAsync("write help file");
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(1, result.ToolCallCount);
+        Assert.Contains("WRITE-FILE", result.ToolNames);
+        Assert.NotNull(capturedJsonArgs);
+        Assert.Contains("about_Invoke-RestartService.help.txt", capturedJsonArgs!, StringComparison.Ordinal);
+        Assert.Contains("hello\\nworld", capturedJsonArgs!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_UsesTargetedRecoveryTurn_ForUnrecoverableMalformedWriteFileDecision()
+    {
+        var llm = new RecordingFakeLlmClient(new[]
+        {
+            "not valid json",
+            "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\":\"unterminated",
+            "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\":\"Recovered content\"},\"reason\":\"recover write-file\"}",
+            FinalDecision("Done")
+        });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["WRITE-FILE"] = _ => Task.FromResult("ok")
+        };
+
+        var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 6, autoRetry: false);
+
+        var result = await orchestrator.RunAsync("write help file");
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(1, result.ToolCallCount);
+        Assert.Contains("WRITE-FILE", result.ToolNames);
+        Assert.True(llm.MessageSnapshots.Count >= 3);
+        Assert.Contains("Your previous response appears to be an intended WRITE-FILE tool call", llm.MessageSnapshots[2].Last().Content);
+    }
+
+    [Fact]
+    public async Task RunAsync_BlocksFinalAnswerUntilWriteFileCompletes_WhenPromptRequiresOutputPath()
+    {
+        var llm = new RecordingFakeLlmClient(new[]
+        {
+            FinalDecision("Drafted help content"),
+            "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\":\"help content\"},\"reason\":\"write required file\"}",
+            FinalDecision("Done")
+        });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["WRITE-FILE"] = _ => Task.FromResult("ok")
+        };
+
+        var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 6, autoRetry: false);
+
+        var prompt =
+            "Create help doc\n\nHard requirement:\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-RestartService.help.txt\n- Use WRITE-FILE to create/update the file.\n- Do not return a final answer until WRITE-FILE has succeeded.";
+
+        var result = await orchestrator.RunAsync(prompt);
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(1, result.ToolCallCount);
+        Assert.Contains("WRITE-FILE", result.ToolNames);
+        Assert.True(llm.MessageSnapshots.Count >= 2);
+        Assert.Contains("Required WRITE-FILE step has not completed yet", llm.MessageSnapshots[1].Last().Content);
+    }
+
+    [Fact]
+    public async Task RunAsync_RejectsWrongWriteFilePath_WhenPromptRequiresExactOutputPath()
+    {
+        var llm = new RecordingFakeLlmClient(new[]
+        {
+            "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\temp\\\\wrong.help.txt\",\"content\":\"bad\"},\"reason\":\"write file\"}",
+            FinalDecision("Done too early"),
+            "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\":\"good\"},\"reason\":\"write required file\"}",
+            FinalDecision("Done")
+        });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["WRITE-FILE"] = _ => Task.FromResult("ok")
+        };
+
+        var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 8, autoRetry: false);
+
+        var prompt =
+            "Create help doc\n\nHard requirement:\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-RestartService.help.txt\n- Use WRITE-FILE to create/update the file.\n- Do not return a final answer until WRITE-FILE has succeeded.";
+
+        var result = await orchestrator.RunAsync(prompt);
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(2, result.ToolCallCount);
+        Assert.Equal(2, result.ToolNames.Count(name => string.Equals(name, "WRITE-FILE", StringComparison.OrdinalIgnoreCase)));
+        Assert.Contains("must target expected path", llm.MessageSnapshots[1].Last().Content);
+        Assert.Contains("Required WRITE-FILE step has not completed yet", llm.MessageSnapshots[2].Last().Content);
+    }
+
+    [Fact]
     public async Task RunAsync_RetriesWhenLlmReturnsEmptyResponse()
     {
         var llm = new FakeLlmClient(new[]
