@@ -10,96 +10,28 @@
     "trendSummary": {
       "windowItems": 30,
       "runCount": 30,
-      "successRate": 0.967,
-      "avgDurationMs": 163398,
+      "successRate": 0.9,
+      "avgDurationMs": 158863,
       "avgToolCalls": 2.7,
       "statusCounts": {
-        "success": 29,
-        "error": 1
+        "success": 27,
+        "error": 3
       },
       "outcomeCounts": {
-        "completed": 19,
-        "blocked": 6,
+        "blocked": 5,
+        "completed": 18,
         "error": 1,
-        "needs-confirmation": 4
+        "needs-confirmation": 4,
+        "iteration-limit": 2
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-21T05:05:19.9393392\u002B00:00",
-      "trendLastUpdatedUtc": "2026-06-21T05:05:19.9633376\u002B00:00"
+      "lastRunTimestampUtc": "2026-06-21T16:23:01.4711809\u002B00:00",
+      "trendLastUpdatedUtc": "2026-06-21T16:23:01.4932637\u002B00:00"
     }
   },
   "history": [
-    {
-      "timestampUtc": "2026-06-11T06:17:19+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the function named Export-ToolboxFunctions.ps1 at location C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent and provide recommenations on including the private functions in the list to enhance your functionality as it relates to tool discovery.",
-      "model": "qwen3.6:35b",
-      "durationMs": 67877,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [],
-      "outputPreview": "Now I have a clear picture of the current script and its limitations. Let me provide detailed recommendations.\n\n## Analysis of Export-ToolboxFunctions.ps1\n\n### Current Behavior\nThe script explicitly filters out private/internal functions at line 73:\n\u0060\u0060\u0060powershell\n$functions = Get-Command -Module $importedModule.Name -CommandType Function | Where-Object {\n    # Exclude private/internal functions (name contains underscore after module scope)\n    $_.Name -notlike \u0027*_*\u0027\n}\n\u0060\u0060\u0060\n\nThis means ALL functions with underscores in their names are excluded from tool discovery, even if they might be useful for agents or related to tool functionality.\n\n## Recommendations for Including Private Functions\n\n### Recommendation 1: Add an \u0060-IncludePrivate\u0060 Parameter (Highest Priority)\n\nAdd a switch parameter that allows the agent to optionally include private functions:\n\n\u0060\u0060\u0060powershell\nparam(\n    [string]$ModuleName = \u0022TechToolbox\u0022,\n    [switch]$IncludePrivate\n)\n\u0060\u0060\u0060\n\nThen modify the filter logic:\n\u0060\u0060\u0060powershell\n$functions = Get-Command -Module $importedModule.Name -CommandType Function | Where-Object {\n    if ($IncludePrivate) {\n        # Include everything\n        $true\n    }\n    else {\n        # Current behavior: exclude private/internal functions\n        $_.Name -notlike \u0027*_*\u0027\n    }\n}\n\u0060\u0060\u0060\n\n**Why this helps**: Agents can optionally discover private functions when they need deeper access to module inte...",
-      "runSummary": {
-        "intent": "Please look at the function named Export-ToolboxFunctions.ps1 at location C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent and provide recommenations on including the private functions in the list to enhance your fun...",
-        "actionsTaken": [
-          "read_file",
-          "Get-FilesUsingKeywords"
-        ],
-        "blockers": "",
-        "nextBestStep": "**Consider adding alias metadata** for private functions (currently only aliases for public functions are resolved)"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T06:23:38+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "The highest priority item is **Recommendation 1** (adding the -IncludePrivate parameter), as it directly addresses the goal of including private functions in tool discovery while maintaining backward compatibility with the current public-only behavior. Please add this enhancement to the Export-ToolboxFunctions.ps1 function at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent. I give you explicit permission to make this change.",
-      "model": "qwen3.6:35b",
-      "durationMs": 100387,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [],
-      "outputPreview": "## Summary of Changes Made to Export-ToolboxFunctions.ps1\n\n### What was implemented\n\n**Added the \u0060-IncludePrivate\u0060 switch parameter** as requested, enabling the function to discover and export private/internal functions when needed.\n\n### Specific changes:\n\n1. **Added new parameter to the param block:**\n   - \u0060[switch]$IncludePrivate\u0060 - a boolean switch that defaults to false\n\n2. **Updated documentation:**\n   - Updated .SYNOPSIS to mention optional private function export\n   - Added \u0060.PARAMETER ModuleName\u0060 documentation\n   - Added \u0060.PARAMETER IncludePrivate\u0060 documentation explaining the new behavior\n   - Clarified backward compatibility in the notes\n\n3. **Modified the Where-Object filter logic:**\n   \u0060\u0060\u0060powershell\n   # Before (only public functions):\n   $_.Name -notlike \u0027*_*\u0027\n\n   # After (conditional based on $IncludePrivate):\n   if ($IncludePrivate) {\n       $true  # Include all functions when the switch is set\n   }\n   else {\n       $_.Name -notlike \u0027*_*\u0027  # Default: exclude underscore names\n   }\n   \u0060\u0060\u0060\n\n### Backward compatibility\n\n- **Without \u0060-IncludePrivate\u0060**: Behavior is unchanged -- only public functions (those without underscores in their names) are exported, matching the previous default behavior\n- **With \u0060-IncludePrivate\u0060**: All functions including private/internal ones are included in the tool discovery output\n\n### Usage examples:\n\n\u0060\u0060\u0060powershell\n# Default behavior (publ...",
-      "runSummary": {
-        "intent": "The highest priority item is **Recommendation 1** (adding the -IncludePrivate parameter), as it directly addresses the goal of including private functions in tool discovery while maintaining backward compatibility with t...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": "**With \u0060-IncludePrivate\u0060**: All functions including private/internal ones are included in the tool discovery output"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T06:35:37+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the \u0027Actions Performed\u0027 section. Currenly is says \u0027Unknown\u0027 for all but one of the properties when a user offboarding is completed.",
-      "model": "qwen3.6:35b",
-      "durationMs": 130796,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n- Retry with a narrower prompt or a higher --max-iterations value.\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the \u0027Actions Performed\u0027 section. Currenly is says \u0027Unknown\u0027 for all but o...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n-...",
-        "nextBestStep": "- Retry with a narrower prompt or a higher --max-iterations value."
-      }
-    },
     {
       "timestampUtc": "2026-06-11T06:38:41+00:00",
       "status": "success",
@@ -734,6 +666,83 @@
         "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-SubnetScan.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechTool...",
         "actionsTaken": [
           "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-21T16:19:28.5040555+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 72509,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-21T16:21:51.6100199+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 42794,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-21T16:23:01.4711809+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 47693,
+      "maxIterations": 20,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 7,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "list_directory",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Invoke-NetFx3 (based on Enable-NetFx3) has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
           "write_file"
         ],
         "blockers": "",
