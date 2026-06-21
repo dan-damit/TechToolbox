@@ -424,10 +424,32 @@ Hard requirement:
             $autoRetryOnIterationLimit = $false
         }
 
+        $getConfigValue = {
+            param(
+                $configObject,
+                [string]$keyName
+            )
+
+            if ($null -eq $configObject -or [string]::IsNullOrWhiteSpace($keyName)) {
+                return $null
+            }
+
+            if ($configObject -is [hashtable] -and $configObject.ContainsKey($keyName)) {
+                return $configObject[$keyName]
+            }
+
+            $property = $configObject.PSObject.Properties[$keyName]
+            if ($null -ne $property) {
+                return $property.Value
+            }
+
+            return $null
+        }
+
         $memoryPath = $null
-        $memoryPathProperty = if ($cfg) { $cfg.PSObject.Properties['memoryPath'] } else { $null }
-        if ($null -ne $memoryPathProperty -and -not [string]::IsNullOrWhiteSpace([string]$memoryPathProperty.Value)) {
-            $memoryPath = [string]$memoryPathProperty.Value
+        $memoryPathValue = & $getConfigValue $cfg 'memoryPath'
+        if (-not [string]::IsNullOrWhiteSpace([string]$memoryPathValue)) {
+            $memoryPath = [string]$memoryPathValue
         }
 
         if (-not [string]::IsNullOrWhiteSpace($memoryPath)) {
@@ -461,9 +483,9 @@ Hard requirement:
         }
 
         $diagnosticTracePath = $null
-        $diagnosticTracePathProperty = if ($cfg) { $cfg.PSObject.Properties['diagnosticTracePath'] } else { $null }
-        if ($null -ne $diagnosticTracePathProperty -and -not [string]::IsNullOrWhiteSpace([string]$diagnosticTracePathProperty.Value)) {
-            $diagnosticTracePath = [string]$diagnosticTracePathProperty.Value
+        $diagnosticTracePathValue = & $getConfigValue $cfg 'diagnosticTracePath'
+        if (-not [string]::IsNullOrWhiteSpace([string]$diagnosticTracePathValue)) {
+            $diagnosticTracePath = [string]$diagnosticTracePathValue
         }
 
         Write-Log -Level Info -Message ("Invoking local tech agent via C# assembly: {0}" -f $agentAssemblyPath)
@@ -571,18 +593,33 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
             'Iteration limit reached.'
         )
 
+        $knownFailureDetected = $false
         foreach ($failurePrefix in $knownFailurePrefixes) {
             if ($message.StartsWith($failurePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-                throw ("Tech agent failed: {0}" -f $message)
+                $knownFailureDetected = $true
+                break
             }
         }
 
+        $expectedOutputExists = $false
         if (-not [string]::IsNullOrWhiteSpace($expectedOutputPath)) {
-            if (-not (Test-Path -LiteralPath $expectedOutputPath -PathType Leaf)) {
+            $expectedOutputExists = Test-Path -LiteralPath $expectedOutputPath -PathType Leaf
+            if (-not $expectedOutputExists) {
                 throw ("Tech agent failed: expected output file was not created: {0}" -f $expectedOutputPath)
             }
 
             Write-Log -Level Info -Message ("Tech agent created expected output file: {0}" -f $expectedOutputPath)
+        }
+
+        if ($knownFailureDetected) {
+            if ($expectedOutputExists) {
+                Write-Log -Level Warn -Message (
+                    "Tech agent reported orchestrator failure text, but expected output file exists. Treating run as success. Message: {0}" -f $message
+                )
+            }
+            else {
+                throw ("Tech agent failed: {0}" -f $message)
+            }
         }
 
         $markdownStatus = 'Success'
@@ -643,8 +680,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCIgFXteKYulqcm
-# EBvpz/n6zEilzICee/BBVrw6DdaIsKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAbbD+kWQbY/2Og
+# Chw7bmLBzh5aZu18neqCvFQZM+pl56CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -777,34 +814,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBA2krdTV36
-# xmGdB96F/8bFKb8Aa0IlJ1lYzkHXQYiYcTANBgkqhkiG9w0BAQEFAASCAgB8w6fs
-# NzHWNwV4Ofi8ZTtQu9lH3RPQghbEFAbkBNOTDadWyr0ogwT8htKBhsb684T2gAEK
-# NBcQCo/FpjplcnvvLlBcakHt8kAJ+/+tW6svh0URqYzrfKwyZ9wFYK4opz81+fT4
-# JpQb87/0NTBF3fzXLzJ+TXSCWa6PdIqWUFf6mlYRGFlPaC+Th0mo0OwYbZ0xe+VZ
-# iEKH7NeRTshu6ToWotwLXfu9hS4Mj/JffpW55/1Od5yYpz+SAe/5WDaqbo07EsLL
-# RNoLXLzo9BF7xMYJPZvjhQ6qYRukojClubB8dhevQWl712AvgJ986ltR5G+LoXZQ
-# eZNt9hGxUjAYcgf4x2S7y3i2LrEApFxDKteedBJMpvXpgQL+M44H56ysemz53RVT
-# oQIdQMxNCxqqhk3KqHsjKdIVvTFT6tQHQtJ7lPwNnijhIYOIRVdG1ZVBU1BA2Q5o
-# l6MVI7IcXVwHLGxor5nBX67hjOAI9dqv+fXVY3Bx5tyvKQlHtFf7QglQW4Oc6057
-# d6fsNV0B/6/SppOWIOxhDQtepYevNUhlRJ+ONkhmyFideHdxGhGcc4SJ2iEpNASM
-# bTiRJYQOjqhpT9P5dxdANYeDm97IIQJt64hxiBFQijMUPBMuXaGu5ZXd7FV9bCxM
-# UyzZIHeeFk4AN2AOVCnbGSDSwitb5apij8mPc6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD3bQoCgY0d
+# iqGVsEGroZspOwkES/0Ieg3ZHNqtodQaWjANBgkqhkiG9w0BAQEFAASCAgBvclBw
+# lsyqq16NTFXIXPptjDfki/fkTU8BzPXkbb5XtdyAvBOKOAavzgyfEdb/3kO5ryMS
+# FsVOj0pN2qPQHK3Kt426Z1VYUunbekFiC224y41q0g0LBgf6AM1fKzAJ5R9mS6Kw
+# QKWPio0XGU0Gc5jl4vL4qMgwPWhF4+hB3T8OpETlEhIlODySZp5hyu6q7S5jX7is
+# W1PxFFWzjUljl6v6CKp++QFnVXYywUhkt4FUpQc7lSOj+aeTojrvod4fIQjIQ3HT
+# GeCrmmKGx3mAtU87FMtMB1dBidrLlkEvmqNmJNZvlS116V8Z6E4D9BI7/Wh8AbyG
+# XqwXpUJCZ/EWK+ldesmlFH4ZFAsknNJDC9kPi6hWbZiiw2TpZzhpCQbJckXZHt+x
+# 0BdLfB5zyFSX5EXMF7UvgnmSNyIpfLzl0jRf6rSlKhI9TdwuS+49aQ64ilcVRjCB
+# R4Fl2aa/erxCpms95eU3nWrURHIaIMGYdv16RmQuMFOrRDeflP9zvCDa0PosM/54
+# oG2Hnw/toVTnC918a0r9cci4b5CptkiMhUxRDcZ/SUcyJYEAVyGgik+RXNaGyB0Z
+# 7HZ6GCh/BnCrcH3jCPedMHIUaBRXHG4Ls1pcQIZWMyeg6gkYu0oS0q31HmR5LztQ
+# w13G8OTIivVbhdyRzzX3vRv9yS2rt16cmacOJKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MjEwNDM3MzlaMC8GCSqGSIb3DQEJBDEiBCBUveqIDhkvcdQHeoJX
-# quzSyhhZhG8TOPf/HUIYxPBfRzANBgkqhkiG9w0BAQEFAASCAgCKbxB7SJwGNivK
-# lLEFE3Q8gs1unfZNjuVzfYTO5GsL77EEEVv7A3EnMZlR8HPXCZENblbU63jqN7y1
-# MfQ04zd1WV2DPu0gatnbuYpBjb5Do2AdLgoXDliHN4nU/ga0IgN7m/yl+Qspv1ng
-# 1IFaQlXA+eaO2eUswsFXOUw6SMva2/p0yKyzeGmtJwGFiO9xzPnElFcbxu6euwko
-# KdmvMBzbuKu16KzSig8FHrfSBiu40OilGtskA+zd28eSSdcEZgP50b2w29au7eGA
-# PbO8ygS784DISWLJGD1/8h+j7UclVbn0R2Q5iKNXE0kjvE8TZs/HMmvw2JNU1shw
-# 7V7Pgx7J+SH4raZJ40DDMNtSWIn9AEdb5Je6IKwDuY8iRp1dULh7XzWZ2p3x3jzr
-# aYXloTVozBNeu9O4yoLOK5SeVsszsboeWHetB9TgnekOQQAEH7qmfMcT0bP/LEyJ
-# BC2HzbdnwW2Mg0/eg3JE9kVVAu9jGadGZO3f5HDDUHpk5izX18s/REC/Vv9xjkCM
-# B8FAZ5mG9ku4ykz8miZRt5rrrzicSI9yiPGvhcmV7Vk4lI3VjbHXgfj+PG/XIIYd
-# jGNg0u4zTzorZTgMqKXOO+7xVNDGfpuguKF/0meO3WvVj4+5UY3SBEAXVDWFpz+H
-# 8x9m+gXzRS3qN4YWR6Kfr+P93dKFmg==
+# BTEPFw0yNjA2MjEwNDU1MDNaMC8GCSqGSIb3DQEJBDEiBCCa7phqNCLceMl/aioC
+# dK1gtJP1X7LkZ5Qb/MRXjOMajTANBgkqhkiG9w0BAQEFAASCAgBpdp7cTe4hHH9h
+# aG6duEW86ylqazIcNTkrLw3lVjwU89tJA+LxXj6+2K+DO7tC7I0JwJPOr1BTEMYj
+# Ld0CxMx9Wl1FWNcTGuHEYa3P4EKq7H39W3+s2pccIb/QdMruV+x29Bhl0LliGGdO
+# fO6fw8/i0tRUrfyivB2DDrcNGSvKlHtVHtt4ODsBJEWed8s6NKYZmNUejL1orQY3
+# RYnG/0h5gZljnIASDzno66EdNUZ2sEF/4LBhQQ/mq1oefRRj/5pmAJVERH0rQned
+# GzVmfCu36C1o8F/O19oTyTDpQPDjRqkIHNWnS9hztfxvYK+Fdhfio8vAhXAz4S0r
+# JeExE0jv0y02VcIP3vPXATjw3YcHnFxAjHco/EqTNmMEMFK93PM8FC4SFrJ54+TZ
+# 5lRVXU9O7Wi1EHgdfZaTBcUuZKMDfHk4ccDG1UelqX7Ndf4wYZOsSs3Plkrlc6d1
+# o41GK9leCmnnHGAGkLbFBSRpY7hU6emwc0Mg0sAzUW5n10LYjiXdbMBXs8j4oLw9
+# CM7ntyLhW3Ysnbb/994y8csD1+J0n3v3jcVlIDjiz2hD9AmOiZUcp8cnaDgY6kht
+# N2lyV7kdFcODulKI7toeuPMH4RR6+gK29YtyhzzBAP/F+w3QMw4zC+jh7eeEt51j
+# /tpBUS0RTJJs6AGd/jaCe934RrIquA==
 # SIG # End signature block

@@ -1,0 +1,67 @@
+## about_Invoke-SystemRepair
+
+### SHORT DESCRIPTION Describes how to invoke system repair operations on a
+local or remote computer.
+
+### LONG DESCRIPTION The Invoke-SystemRepair function performs various system
+repair operations including DISM RestoreHealth, StartComponentCleanup,
+ResetBase, SFC /scannow, and Windows Update component reset. It can be used
+locally or against remote computers.
+
+#### Parameters
+
+**-RestoreHealth** Run DISM RestoreHealth operation to restore the health of the
+Windows image.
+
+**-StartComponentCleanup** Run DISM StartComponentCleanup operation to remove
+unused components from the Windows image.
+
+**-ResetBase** Run DISM ResetBase operation to reset the component store
+baseline after cleanup.
+
+**-SfcScannow** Run SFC /scannow operation to scan and repair protected system
+files.
+
+**-ResetUpdateComponents** Reset Windows Update components to resolve
+update-related issues.
+
+**-ComputerName** Specifies the target computer name for remote execution. If
+not specified, operations are performed locally unless -Local is explicitly set
+or implied by context.
+
+**-Local** Forces operations to run on the local machine even if a ComputerName
+might otherwise suggest remote execution.
+
+**-Credential** Provides credentials for establishing a remote session with the
+target computer. Must be of type [pscredential].
+
+**-UseCredSSP** Enables CredSSP authentication for WSMan remoting, allowing
+remote DISM operations to access delegated network resources such as UNC repair
+sources.
+
+**-RepairSource** Specifies a path to a repair source (e.g., Windows
+installation media or update files) to use during DISM operations. Useful when
+the local component store is corrupted.
+
+**-RepairSourceIndex** Specifies the index of the image in the WIM file if
+multiple images are present in the repair source. Default value is 1. Valid
+range: 1-999.
+
+**-LimitAccess** Limits access to Windows Update during the repair process,
+preventing automatic downloads that might interfere with offline repairs.
+
+**-OperationTimeoutMinutes** Sets the maximum time in minutes to wait for each
+DISM or SFC operation to complete. Default value is 60. Valid range: 1-480.
+
+**-WaitPollSeconds** Sets the interval in seconds between status checks during
+long-running operations. Default value is 5. Valid range: 1-300.
+
+### EXAMPLES
+
+Example 1: Run local SFC scan Invoke-SystemRepair -SfcScannow
+
+Example 2: Run remote DISM RestoreHealth with credentials Invoke-SystemRepair
+-ComputerName 'RemotePC' -Credential (Get-Credential) -RestoreHealth
+
+### SEE ALSO https://learn.microsoft.com/en-us/powershell/module/dism/
+https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/sfc-sfcheck-and-repair-system-files
