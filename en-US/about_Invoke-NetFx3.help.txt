@@ -1,0 +1,61 @@
+# .NAME about_Invoke-NetFx3
+
+# .SYNOPSIS Enables the .NET Framework 3.5 feature on local or remote computers.
+
+# .DESCRIPTION The Invoke-NetFx3 function (implemented as Enable-NetFx3 in
+TechToolbox) enables the Microsoft .NET Framework 3.5 feature. This is often
+required for legacy applications that depend on this version of the framework.
+The function supports enabling the feature on local or remote computers,
+specifying a source path for installation files, and using CredSSP for
+credential delegation.
+
+When running remotely, the function establishes a PowerShell session to the
+target computer(s). It handles the Enable-WindowsOptionalFeature cmdlet
+internally (or equivalent DISM/PowerShell command) to turn on the NetFx3
+feature.
+
+# .SYNTAX Enable-NetFx3 [[-ComputerName] <string[]>] [-Credential
+<PSCredential>] [-Source <string>] [-UseCredSSP] [-Quiet] [-NoRestart]
+[-TimeoutMinutes <int>] [-Validate]
+
+# .PARAMETER ComputerName The name(s) of the target computer(s) where the .NET
+Framework 3.5 feature should be enabled. Default is the local machine.
+
+# .PARAMETER Credential Specifies a user account that has permission to perform
+this action. The default is the current user. If not specified, TechToolbox may
+attempt to use stored domain admin credentials if available.
+
+# .PARAMETER Source The path to the source files for the .NET Framework 3.5
+feature. This can be a local directory or a UNC path (e.g., \\server\share).
+Specifying this is useful when the target computer does not have access to
+Windows Update.
+
+# .PARAMETER UseCredSSP Indicates that this cmdlet uses CredSSP for credential
+delegation in remote sessions. This allows credentials to be passed from the
+local computer to a remote computer for authentication.
+
+# .PARAMETER Quiet Suppresses output messages during execution.
+
+# .PARAMETER NoRestart Prevents automatic restart of the target computer after
+enabling the feature if required.
+
+# .PARAMETER TimeoutMinutes Specifies the maximum time, in minutes, to wait for
+the feature enablement process to complete. The default is 60 minutes.
+
+# .PARAMETER Validate Indicates that this cmdlet performs validation checks
+after attempting to enable the feature to ensure it was successful.
+
+# .EXAMPLE Enable-NetFx3 -ComputerName "Server01" Enables .NET Framework 3.5 on
+Server01 using default credentials and Windows Update source.
+
+# .EXAMPLE Enable-NetFx3 -ComputerName @("PC1", "PC2") -Source
+"D:\\Sources\\sxs" -Credential (Get-Credential) Enables .NET Framework 3.5 on
+PC1 and PC2 using local source files and specific credentials.
+
+# .EXAMPLE Enable-NetFx3 -UseCredSSP -Quiet Enables .NET Framework 3.5 on the
+local machine using CredSSP for credential delegation, suppressing output
+messages.
+
+# .NOTES This help document is generated based on the Enable-NetFx3 function
+found in TechToolbox. Although the requested file name uses 'Invoke', the actual
+implementation in the codebase is 'Enable'.
