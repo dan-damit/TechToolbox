@@ -73,6 +73,8 @@ jobs:
             'CHANGELOG.md',
             'commands.md',
             'Config/build.config.json',
+            'AI/memory.json',
+            'AI/memory.history.json',
             'src'
           )
 
@@ -106,9 +108,12 @@ jobs:
             Copy-Item -LiteralPath $_.FullName -Destination $stagePath -Recurse -Force
           }
 
-          $nestedExclude = Join-Path $stagePath 'Config/build.config.json'
-          if (Test-Path -LiteralPath $nestedExclude) {
-            Remove-Item -LiteralPath $nestedExclude -Force
+          foreach ($entry in ($exclude | Where-Object { $_ -match '[\\/]' })) {
+            $relativePath = $entry -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
+            $excludePath = Join-Path $stagePath $relativePath
+            if (Test-Path -LiteralPath $excludePath) {
+              Remove-Item -LiteralPath $excludePath -Recurse -Force
+            }
           }
 
           if ([string]::IsNullOrWhiteSpace($env:TECH_AGENT_PUBLISH_DIR)) {
