@@ -1,4 +1,4 @@
-"Please look at the function named Invoke-CodeAssistant.ps1 located at
-C:\repos\TechToolbox\Public\AI and write a detailed help document for
+"Please look at the function named Invoke-RestartService.ps1 located at
+C:\repos\TechToolbox\Public\Invoke and write a detailed help document for
 PowerShell's Get-Help to consume. Output the file to C:\repos\TechToolbox\en-US
-and name it about_Invoke-CodeAssistant.help.txt"
+and name it about_Invoke-RestartService.help.txt"
