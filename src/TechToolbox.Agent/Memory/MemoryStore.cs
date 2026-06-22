@@ -20,7 +20,7 @@ public class MemoryStore
         PropertyNameCaseInsensitive = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     public MemoryStore(string path)
@@ -28,7 +28,8 @@ public class MemoryStore
         _basePath = path;
         _historyPath = Path.Combine(
             Path.GetDirectoryName(path)!,
-            Path.GetFileNameWithoutExtension(path) + ".history.json");
+            Path.GetFileNameWithoutExtension(path) + ".history.json"
+        );
 
         Load();
     }
@@ -40,8 +41,9 @@ public class MemoryStore
             try
             {
                 var json = File.ReadAllText(_basePath);
-                var payload = JsonSerializer.Deserialize<MemoryPayload>(json, _jsonOptions)
-                              ?? new MemoryPayload();
+                var payload =
+                    JsonSerializer.Deserialize<MemoryPayload>(json, _jsonOptions)
+                    ?? new MemoryPayload();
 
                 Preferences = payload.Preferences ?? new();
                 Facts = payload.Facts ?? new();
@@ -60,8 +62,9 @@ public class MemoryStore
             try
             {
                 var json = File.ReadAllText(_historyPath);
-                var hist = JsonSerializer.Deserialize<List<RunHistory>>(json, _jsonOptions)
-                           ?? new List<RunHistory>();
+                var hist =
+                    JsonSerializer.Deserialize<List<RunHistory>>(json, _jsonOptions)
+                    ?? new List<RunHistory>();
                 if (hist.Count > 0)
                 {
                     History = hist;
@@ -87,14 +90,17 @@ public class MemoryStore
             Preferences = Preferences,
             Facts = Facts,
             History = History.TakeLast(BaseHistoryWindow).ToList(),
-            MemoryFormatVersion = 2
+            MemoryFormatVersion = 2,
         };
 
         Directory.CreateDirectory(Path.GetDirectoryName(_basePath)!);
         File.WriteAllText(_basePath, JsonSerializer.Serialize(payload, _jsonOptions));
 
         Directory.CreateDirectory(Path.GetDirectoryName(_historyPath)!);
-        File.WriteAllText(_historyPath, JsonSerializer.Serialize(History.TakeLast(HistoryFileWindow).ToList(), _jsonOptions));
+        File.WriteAllText(
+            _historyPath,
+            JsonSerializer.Serialize(History.TakeLast(HistoryFileWindow).ToList(), _jsonOptions)
+        );
     }
 
     public void AddRun(RunHistory entry)
@@ -111,8 +117,7 @@ public class MemoryStore
         Save();
     }
 
-    public void AddHistory(RunHistory entry)
-        => AddRun(entry);
+    public void AddHistory(RunHistory entry) => AddRun(entry);
 
     public void SetPreference(string key, object? value)
     {
@@ -126,11 +131,9 @@ public class MemoryStore
         Save();
     }
 
-    public object? GetPreference(string key)
-        => Preferences.TryGetValue(key, out var v) ? v : null;
+    public object? GetPreference(string key) => Preferences.TryGetValue(key, out var v) ? v : null;
 
-    public object? GetFact(string key)
-        => Facts.TryGetValue(key, out var v) ? v : null;
+    public object? GetFact(string key) => Facts.TryGetValue(key, out var v) ? v : null;
 
     private void NormalizeHistory()
     {
@@ -145,17 +148,22 @@ public class MemoryStore
             entry.Outcome = string.IsNullOrWhiteSpace(entry.Outcome) ? "completed" : entry.Outcome;
             entry.Prompt ??= string.Empty;
             entry.Model ??= string.Empty;
-            entry.SignedFilePolicy = string.IsNullOrWhiteSpace(entry.SignedFilePolicy) ? "ignore" : entry.SignedFilePolicy;
+            entry.SignedFilePolicy = string.IsNullOrWhiteSpace(entry.SignedFilePolicy)
+                ? "ignore"
+                : entry.SignedFilePolicy;
             entry.ToolNames ??= new List<string>();
             entry.OutputPreview ??= string.Empty;
             entry.RunSummary ??= new RunSummary
             {
                 Intent = BuildIntent(entry.Prompt, entry.OutputPreview),
-                ActionsTaken = entry.ToolNames.Select(NormalizeActionName).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                ActionsTaken = entry
+                    .ToolNames.Select(NormalizeActionName)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
                 Blockers = entry.Outcome.Equals("completed", StringComparison.OrdinalIgnoreCase)
                     ? string.Empty
                     : BuildBlockers(entry.OutputPreview),
-                NextBestStep = BuildNextBestStep(entry.OutputPreview, entry.Outcome)
+                NextBestStep = BuildNextBestStep(entry.OutputPreview, entry.Outcome),
             };
         }
     }
@@ -169,23 +177,46 @@ public class MemoryStore
         }
 
         var statusCounts = window
-            .GroupBy(h => string.IsNullOrWhiteSpace(h.Status) ? "unknown" : h.Status, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key.ToLowerInvariant(), g => g.Count(), StringComparer.OrdinalIgnoreCase);
+            .GroupBy(
+                h => string.IsNullOrWhiteSpace(h.Status) ? "unknown" : h.Status,
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                g => g.Key.ToLowerInvariant(),
+                g => g.Count(),
+                StringComparer.OrdinalIgnoreCase
+            );
 
         var outcomeCounts = window
-            .GroupBy(h => string.IsNullOrWhiteSpace(h.Outcome) ? "unknown" : h.Outcome, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key.ToLowerInvariant(), g => g.Count(), StringComparer.OrdinalIgnoreCase);
+            .GroupBy(
+                h => string.IsNullOrWhiteSpace(h.Outcome) ? "unknown" : h.Outcome,
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                g => g.Key.ToLowerInvariant(),
+                g => g.Count(),
+                StringComparer.OrdinalIgnoreCase
+            );
 
         var successCount = statusCounts.TryGetValue("success", out var count) ? count : 0;
-        var avgDuration = (int)Math.Round(window.Average(h => h.DurationMs), MidpointRounding.AwayFromZero);
-        var avgToolCalls = Math.Round(window.Average(h => h.ToolCalls), 2, MidpointRounding.AwayFromZero);
+        var avgDuration = (int)
+            Math.Round(window.Average(h => h.DurationMs), MidpointRounding.AwayFromZero);
+        var avgToolCalls = Math.Round(
+            window.Average(h => h.ToolCalls),
+            2,
+            MidpointRounding.AwayFromZero
+        );
         var latest = window[^1];
 
         Facts["trendSummary"] = new TrendSummary
         {
             WindowItems = BaseHistoryWindow,
             RunCount = window.Count,
-            SuccessRate = Math.Round((double)successCount / window.Count, 3, MidpointRounding.AwayFromZero),
+            SuccessRate = Math.Round(
+                (double)successCount / window.Count,
+                3,
+                MidpointRounding.AwayFromZero
+            ),
             AvgDurationMs = avgDuration,
             AvgToolCalls = avgToolCalls,
             StatusCounts = statusCounts,
@@ -194,7 +225,7 @@ public class MemoryStore
             LastOutcome = latest.Outcome,
             LastModel = latest.Model,
             LastRunTimestampUtc = latest.TimestampUtc.ToString("o"),
-            TrendLastUpdatedUtc = DateTimeOffset.UtcNow.ToString("o")
+            TrendLastUpdatedUtc = DateTimeOffset.UtcNow.ToString("o"),
         };
     }
 
@@ -208,8 +239,8 @@ public class MemoryStore
         return Truncate(output, 220);
     }
 
-    private static string BuildBlockers(string output)
-        => string.IsNullOrWhiteSpace(output) ? string.Empty : Truncate(output, 320);
+    private static string BuildBlockers(string output) =>
+        string.IsNullOrWhiteSpace(output) ? string.Empty : Truncate(output, 320);
 
     private static string BuildNextBestStep(string output, string outcome)
     {
@@ -228,9 +259,11 @@ public class MemoryStore
 
         foreach (var line in lines)
         {
-            if (line.StartsWith("Next best action", StringComparison.OrdinalIgnoreCase)
+            if (
+                line.StartsWith("Next best action", StringComparison.OrdinalIgnoreCase)
                 || line.StartsWith("Next step", StringComparison.OrdinalIgnoreCase)
-                || line.StartsWith("What Is Required", StringComparison.OrdinalIgnoreCase))
+                || line.StartsWith("What Is Required", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 return Truncate(line, 220);
             }

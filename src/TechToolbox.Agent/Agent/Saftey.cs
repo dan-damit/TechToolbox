@@ -12,7 +12,7 @@ public static class Safety
         "remove",
         "restart",
         "stop",
-        "uninstall"
+        "uninstall",
     };
 
     // Name keywords that imply destructive behavior
@@ -23,7 +23,7 @@ public static class Safety
         "destroy",
         "format",
         "purge",
-        "wipe"
+        "wipe",
     };
 
     /// <summary>
@@ -48,16 +48,23 @@ public static class Safety
     /// <summary>
     /// Enforces destructive confirmation via __confirm_destructive=true.
     /// </summary>
-    public static void RequireDestructiveConfirmation(string toolName, IDictionary<string, object?> args)
+    public static void RequireDestructiveConfirmation(
+        string toolName,
+        IDictionary<string, object?> args
+    )
     {
         if (!IsDestructive(toolName))
             return;
 
-        if (args.TryGetValue("__confirm_destructive", out var value) && IsExplicitConfirmation(value))
+        if (
+            args.TryGetValue("__confirm_destructive", out var value)
+            && IsExplicitConfirmation(value)
+        )
             return;
 
         throw new InvalidOperationException(
-            $"Destructive tool '{toolName}' requires explicit confirmation via __confirm_destructive=true.");
+            $"Destructive tool '{toolName}' requires explicit confirmation via __confirm_destructive=true."
+        );
     }
 
     private static bool IsExplicitConfirmation(object? value)

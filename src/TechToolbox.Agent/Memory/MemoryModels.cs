@@ -1,4 +1,5 @@
 namespace TechToolbox.Agent.Memory;
+
 using System.Text.Json.Serialization;
 
 public class MemoryPayload

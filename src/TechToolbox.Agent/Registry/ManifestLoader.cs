@@ -8,14 +8,12 @@ public static class ManifestLoader
     {
         PropertyNameCaseInsensitive = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true
+        AllowTrailingCommas = true,
     };
 
     public static IReadOnlyDictionary<string, ToolSpec> LoadManifest()
     {
-        var manifestPath = Path.Combine(
-            AppContext.BaseDirectory,
-            "manifest.json");
+        var manifestPath = Path.Combine(AppContext.BaseDirectory, "manifest.json");
 
         if (!File.Exists(manifestPath))
             return new Dictionary<string, ToolSpec>();
@@ -37,7 +35,8 @@ public static class ManifestLoader
                     Description: $"Manifest failed to load: {ex.Message}",
                     Parameters: new Dictionary<string, ParameterSpec>(),
                     Module: "TechToolbox",
-                    Meta: new Dictionary<string, object?>())
+                    Meta: new Dictionary<string, object?>()
+                ),
             };
         }
     }

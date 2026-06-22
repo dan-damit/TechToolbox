@@ -1,5 +1,5 @@
-using TechToolbox.Agent.Registry;
 using TechToolbox.Agent.Memory;
+using TechToolbox.Agent.Registry;
 
 namespace TechToolbox.Agent.Agent;
 
@@ -16,20 +16,24 @@ public static class AgentCore
         bool returnMetadata = false,
         string signedFilePolicy = "ignore",
         string? diagnosticTracePath = null,
-        string? expectedOutputPath = null)
+        string? expectedOutputPath = null
+    )
     {
         return RunAgentAsync(
-            prompt,
-            model,
-            verbose,
-            maxIterations,
-            destructiveConfirmed,
-            memoryPath,
-            autoRetryOnRecursion,
-            returnMetadata,
-            signedFilePolicy,
-            diagnosticTracePath,
-            expectedOutputPath).GetAwaiter().GetResult();
+                prompt,
+                model,
+                verbose,
+                maxIterations,
+                destructiveConfirmed,
+                memoryPath,
+                autoRetryOnRecursion,
+                returnMetadata,
+                signedFilePolicy,
+                diagnosticTracePath,
+                expectedOutputPath
+            )
+            .GetAwaiter()
+            .GetResult();
     }
 
     public static async Task<string> RunAgentAsync(
@@ -43,7 +47,8 @@ public static class AgentCore
         bool returnMetadata = false,
         string signedFilePolicy = "ignore",
         string? diagnosticTracePath = null,
-        string? expectedOutputPath = null)
+        string? expectedOutputPath = null
+    )
     {
         if (string.IsNullOrWhiteSpace(prompt))
             return "Error: prompt must not be empty.";
@@ -85,7 +90,8 @@ public static class AgentCore
             maxIterations,
             autoRetryOnRecursion,
             diagnosticTracePath,
-            expectedOutputPath);
+            expectedOutputPath
+        );
 
         // 6. Run the agent
         var result = await orchestrator.RunAsync(prompt).ConfigureAwait(false);
@@ -103,18 +109,15 @@ public static class AgentCore
                 RetriedOnIterationLimit = result.RetriedOnIterationLimit,
                 RetrySucceeded = result.RetrySucceeded,
                 InitialIterationLimit = result.InitialIterationLimit,
-                RetryIterationLimit = result.RetryIterationLimit
+                RetryIterationLimit = result.RetryIterationLimit,
             };
 
-            var combined = new
-            {
-                Output = result.OutputText,
-                Metadata = metadata
-            };
+            var combined = new { Output = result.OutputText, Metadata = metadata };
 
             return System.Text.Json.JsonSerializer.Serialize(
                 combined,
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
+            );
         }
 
         return result.OutputText;

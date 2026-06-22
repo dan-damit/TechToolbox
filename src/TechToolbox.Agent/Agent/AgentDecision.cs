@@ -12,7 +12,8 @@ public sealed class AgentDecision
     public string ToolName { get; set; } = "";
 
     [JsonPropertyName("toolArgs")]
-    public Dictionary<string, object?> ToolArgs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, object?> ToolArgs { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     [JsonPropertyName("finalAnswer")]
     public string FinalAnswer { get; set; } = "";
@@ -93,7 +94,4 @@ public sealed class OllamaChatResponse
     public long? EvalDuration { get; set; }
 }
 
-public sealed record LlmResponse(
-    string Text,
-    string RawBody = "",
-    bool Success = true);
+public sealed record LlmResponse(string Text, string RawBody = "", bool Success = true);

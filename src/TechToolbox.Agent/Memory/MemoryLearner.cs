@@ -11,21 +11,54 @@ public static class MemoryLearner
 
     private static readonly Regex[] PreferencePatterns =
     {
-        new(@"\bprefer\s+(?<value>[^.!?\r\n]{3,120})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bdefault\s+to\s+(?<value>[^.!?\r\n]{3,120})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bplease\s+use\s+(?<value>[^.!?\r\n]{3,120})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\balways\s+(?<value>[^.!?\r\n]{3,120})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bavoid\s+(?<value>[^.!?\r\n]{3,120})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bdo\s+not\s+(?<value>[^.!?\r\n]{3,120})", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        new(
+            @"\bprefer\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bdefault\s+to\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bplease\s+use\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\balways\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bavoid\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bdo\s+not\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
     };
 
     private static readonly Regex[] FactPatterns =
     {
-        new(@"\bmy\s+default\s+model\s+is\s+(?<value>[A-Za-z0-9._:-]{2,80})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\btenant(?:\s+name|\s+id)?\s+is\s+(?<value>[^.!?\r\n]{2,120})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bmy\s+name\s+is\s+(?<value>[^.!?\r\n]{2,80})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bmy\s+role\s+is\s+(?<value>[^.!?\r\n]{2,80})", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bI\s+work\s+in\s+(?<value>[^.!?\r\n]{2,80})", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        new(
+            @"\bmy\s+default\s+model\s+is\s+(?<value>[A-Za-z0-9._:-]{2,80})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\btenant(?:\s+name|\s+id)?\s+is\s+(?<value>[^.!?\r\n]{2,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bmy\s+name\s+is\s+(?<value>[^.!?\r\n]{2,80})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bmy\s+role\s+is\s+(?<value>[^.!?\r\n]{2,80})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bI\s+work\s+in\s+(?<value>[^.!?\r\n]{2,80})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
     };
 
     public static void LearnFromRun(MemoryStore memory, string prompt, string output)
@@ -86,7 +119,10 @@ public static class MemoryLearner
             yield break;
         }
 
-        var modelRegex = new Regex(@"\b(?:model|ollama)\s*[:=]\s*(?<value>[A-Za-z0-9._:-]{2,80})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        var modelRegex = new Regex(
+            @"\b(?:model|ollama)\s*[:=]\s*(?<value>[A-Za-z0-9._:-]{2,80})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        );
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (Match match in modelRegex.Matches(text))
@@ -101,9 +137,18 @@ public static class MemoryLearner
         }
     }
 
-    private static bool Upsert(Dictionary<string, object?> target, string prefix, string value, int maxEntries)
+    private static bool Upsert(
+        Dictionary<string, object?> target,
+        string prefix,
+        string value,
+        int maxEntries
+    )
     {
-        if (target.Values.OfType<string>().Any(existing => string.Equals(existing, value, StringComparison.OrdinalIgnoreCase)))
+        if (
+            target
+                .Values.OfType<string>()
+                .Any(existing => string.Equals(existing, value, StringComparison.OrdinalIgnoreCase))
+        )
         {
             return false;
         }

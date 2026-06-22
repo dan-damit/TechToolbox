@@ -11,7 +11,8 @@ public static class JsonHelpers
 {
     private static readonly Regex WriteFileToolNameRegex = new(
         "\"toolName\"\\s*:\\s*\"(?<name>[^\"]+)\"",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled
+    );
 
     private const string JsonStringPropertyPatternTemplate =
         "\"{0}\"\\s*:\\s*\"(?<value>(?:\\\\.|[^\"\\\\])*)\"";
@@ -20,7 +21,7 @@ public static class JsonHelpers
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     /// <summary>
@@ -99,7 +100,11 @@ Respond with ONLY the JSON object, no additional text or markdown formatting.
     /// <summary>
     /// Attempts to recover a WRITE-FILE decision from malformed JSON text.
     /// </summary>
-    public static bool TryExtractWriteFileDecision(string text, out AgentDecision? decision, out string reason)
+    public static bool TryExtractWriteFileDecision(
+        string text,
+        out AgentDecision? decision,
+        out string reason
+    )
     {
         decision = null;
         reason = string.Empty;
@@ -149,16 +154,21 @@ Respond with ONLY the JSON object, no additional text or markdown formatting.
             ToolArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
             {
                 ["path"] = path,
-                ["content"] = content
+                ["content"] = content,
             },
-            Reason = "Recovered malformed WRITE-FILE decision"
+            Reason = "Recovered malformed WRITE-FILE decision",
         };
 
         reason = "recovered write-file decision from malformed JSON";
         return true;
     }
 
-    private static bool TryExtractJsonStringProperty(string text, string propertyName, out string value, out string reason)
+    private static bool TryExtractJsonStringProperty(
+        string text,
+        string propertyName,
+        out string value,
+        out string reason
+    )
     {
         value = string.Empty;
         reason = string.Empty;

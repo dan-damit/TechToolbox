@@ -10,8 +10,14 @@ namespace TechToolbox.Agent.Agent;
 public class AgentOrchestrator
 {
     private static readonly int MaxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
-    private static readonly Regex SectionHeadingRegex = new(@"^\s*(?:#\s*)?\.(?<name>[A-Z][A-Z0-9_-]*)\b", RegexOptions.Compiled);
-    private static readonly Regex FunctionNameRegex = new(@"^\s*function\s+(?<name>[A-Za-z_][A-Za-z0-9_-]*)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex SectionHeadingRegex = new(
+        @"^\s*(?:#\s*)?\.(?<name>[A-Z][A-Z0-9_-]*)\b",
+        RegexOptions.Compiled
+    );
+    private static readonly Regex FunctionNameRegex = new(
+        @"^\s*function\s+(?<name>[A-Za-z_][A-Za-z0-9_-]*)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled
+    );
 
     private readonly LlmClient _llm;
     private readonly IReadOnlyDictionary<string, ToolSpec> _registry;
@@ -37,7 +43,8 @@ public class AgentOrchestrator
         int maxIterations,
         bool autoRetry,
         string? tracePath = null,
-        string? expectedOutputPath = null)
+        string? expectedOutputPath = null
+    )
     {
         _llm = llm;
         _registry = registry;
@@ -45,7 +52,9 @@ public class AgentOrchestrator
         _memory = memory;
         _model = model;
         _destructiveConfirmed = destructiveConfirmed;
-        _signedFilePolicy = string.IsNullOrWhiteSpace(signedFilePolicy) ? "ignore" : signedFilePolicy;
+        _signedFilePolicy = string.IsNullOrWhiteSpace(signedFilePolicy)
+            ? "ignore"
+            : signedFilePolicy;
         _maxIterations = maxIterations;
         _autoRetry = autoRetry;
         _tracePath = tracePath;
@@ -54,18 +63,20 @@ public class AgentOrchestrator
         _llm.DiagnosticTrace = msg => Trace($"LlmClient {msg}");
     }
 
-    public AgentResult Run(string prompt)
-        => RunAsync(prompt).GetAwaiter().GetResult();
+    public AgentResult Run(string prompt) => RunAsync(prompt).GetAwaiter().GetResult();
 
     public async Task<AgentResult> RunAsync(string prompt)
     {
         prompt ??= string.Empty;
-        Trace($"RunAsync start maxIterations={_maxIterations} autoRetry={_autoRetry} promptLength={prompt.Length}");
+        Trace(
+            $"RunAsync start maxIterations={_maxIterations} autoRetry={_autoRetry} promptLength={prompt.Length}"
+        );
 
         var stopwatch = Stopwatch.StartNew();
         var initialToolNames = new List<string>();
 
-        var attempt = await RunLoopAsync(prompt, _maxIterations, initialToolNames).ConfigureAwait(false);
+        var attempt = await RunLoopAsync(prompt, _maxIterations, initialToolNames)
+            .ConfigureAwait(false);
         if (!attempt.ReachedIterationLimit)
         {
             stopwatch.Stop();
@@ -79,15 +90,20 @@ public class AgentOrchestrator
                 retriedOnIterationLimit: false,
                 retrySucceeded: false,
                 initialIterationLimit: _maxIterations,
-                retryIterationLimit: null);
+                retryIterationLimit: null
+            );
         }
 
         if (_autoRetry)
         {
-            var retryIterations = Math.Max(_maxIterations + 5, (int)Math.Ceiling(_maxIterations * 1.5));
+            var retryIterations = Math.Max(
+                _maxIterations + 5,
+                (int)Math.Ceiling(_maxIterations * 1.5)
+            );
             var retryToolNames = new List<string>();
 
-            var retryAttempt = await RunLoopAsync(prompt, retryIterations, retryToolNames).ConfigureAwait(false);
+            var retryAttempt = await RunLoopAsync(prompt, retryIterations, retryToolNames)
+                .ConfigureAwait(false);
 
             stopwatch.Stop();
 
@@ -103,7 +119,8 @@ public class AgentOrchestrator
                     retriedOnIterationLimit: true,
                     retrySucceeded: true,
                     initialIterationLimit: _maxIterations,
-                    retryIterationLimit: retryIterations);
+                    retryIterationLimit: retryIterations
+                );
             }
 
             return FinalizeResult(
@@ -116,7 +133,8 @@ public class AgentOrchestrator
                 retriedOnIterationLimit: true,
                 retrySucceeded: false,
                 initialIterationLimit: _maxIterations,
-                retryIterationLimit: retryIterations);
+                retryIterationLimit: retryIterations
+            );
         }
 
         stopwatch.Stop();
@@ -130,10 +148,15 @@ public class AgentOrchestrator
             retriedOnIterationLimit: false,
             retrySucceeded: false,
             initialIterationLimit: _maxIterations,
-            retryIterationLimit: null);
+            retryIterationLimit: null
+        );
     }
 
-    private async Task<RunLoopResult> RunLoopAsync(string prompt, int iterationLimit, List<string> toolNames)
+    private async Task<RunLoopResult> RunLoopAsync(
+        string prompt,
+        int iterationLimit,
+        List<string> toolNames
+    )
     {
         var messages = PromptBuilder.BuildInitialMessages(prompt, _registry, _memory);
         var consecutiveLlmFailures = 0;
@@ -145,7 +168,9 @@ public class AgentOrchestrator
 
         if (requiresWriteFile)
         {
-            Trace($"RunLoop enforcing WRITE-FILE completion for expected output path: {expectedOutputPath}");
+            Trace(
+                $"RunLoop enforcing WRITE-FILE completion for expected output path: {expectedOutputPath}"
+            );
         }
 
         for (int i = 0; i < iterationLimit; i++)
@@ -172,7 +197,8 @@ public class AgentOrchestrator
                 {
                     return new RunLoopResult(
                         $"LLM request repeatedly failed ({consecutiveLlmFailures} consecutive attempts). Last error: {raw}",
-                        ReachedIterationLimit: false);
+                        ReachedIterationLimit: false
+                    );
                 }
 
                 continue;
@@ -180,11 +206,7 @@ public class AgentOrchestrator
 
             consecutiveLlmFailures = 0;
 
-            messages.Add(new AgentChatMessage
-            {
-                Role = "assistant",
-                Content = raw
-            });
+            messages.Add(new AgentChatMessage { Role = "assistant", Content = raw });
 
             if (!JsonHelpers.TryParseDecision(raw, out var decision) || decision is null)
             {
@@ -192,61 +214,86 @@ public class AgentOrchestrator
 
                 messages.Add(PromptBuilder.BuildRepairMessage(raw));
 
-                var repairResponse = await _llm.GenerateDecisionAsync(messages).ConfigureAwait(false);
+                var repairResponse = await _llm.GenerateDecisionAsync(messages)
+                    .ConfigureAwait(false);
                 var repairedRaw = (repairResponse.Text ?? "").Trim();
 
-                Trace($"Iteration {i + 1} repair response length={repairedRaw.Length} preview={Preview(repairedRaw)}");
+                Trace(
+                    $"Iteration {i + 1} repair response length={repairedRaw.Length} preview={Preview(repairedRaw)}"
+                );
 
-                messages.Add(new AgentChatMessage
-                {
-                    Role = "assistant",
-                    Content = repairedRaw
-                });
+                messages.Add(new AgentChatMessage { Role = "assistant", Content = repairedRaw });
 
                 if (!JsonHelpers.TryParseDecision(repairedRaw, out decision) || decision is null)
                 {
-                    if (JsonHelpers.TryExtractWriteFileDecision(repairedRaw, out var recoveredDecision, out var recoveryReason)
-                        && recoveredDecision is not null)
+                    if (
+                        JsonHelpers.TryExtractWriteFileDecision(
+                            repairedRaw,
+                            out var recoveredDecision,
+                            out var recoveryReason
+                        ) && recoveredDecision is not null
+                    )
                     {
                         decision = recoveredDecision;
-                        Trace($"Iteration {i + 1} salvaged malformed WRITE-FILE decision: {recoveryReason}");
+                        Trace(
+                            $"Iteration {i + 1} salvaged malformed WRITE-FILE decision: {recoveryReason}"
+                        );
                     }
                     else if (JsonHelpers.LooksLikeWriteFileDecision(repairedRaw))
                     {
-                        Trace($"Iteration {i + 1} malformed WRITE-FILE detected; issuing targeted recovery prompt");
+                        Trace(
+                            $"Iteration {i + 1} malformed WRITE-FILE detected; issuing targeted recovery prompt"
+                        );
 
                         messages.Add(PromptBuilder.BuildWriteFileRecoveryMessage(repairedRaw));
 
-                        var writeFileRecoveryResponse = await _llm.GenerateDecisionAsync(messages).ConfigureAwait(false);
+                        var writeFileRecoveryResponse = await _llm.GenerateDecisionAsync(messages)
+                            .ConfigureAwait(false);
                         var writeFileRecoveryRaw = (writeFileRecoveryResponse.Text ?? "").Trim();
 
-                        Trace($"Iteration {i + 1} targeted recovery response length={writeFileRecoveryRaw.Length} preview={Preview(writeFileRecoveryRaw)}");
+                        Trace(
+                            $"Iteration {i + 1} targeted recovery response length={writeFileRecoveryRaw.Length} preview={Preview(writeFileRecoveryRaw)}"
+                        );
 
-                        messages.Add(new AgentChatMessage
-                        {
-                            Role = "assistant",
-                            Content = writeFileRecoveryRaw
-                        });
+                        messages.Add(
+                            new AgentChatMessage
+                            {
+                                Role = "assistant",
+                                Content = writeFileRecoveryRaw,
+                            }
+                        );
 
-                        if (!JsonHelpers.TryParseDecision(writeFileRecoveryRaw, out decision) || decision is null)
+                        if (
+                            !JsonHelpers.TryParseDecision(writeFileRecoveryRaw, out decision)
+                            || decision is null
+                        )
                         {
                             return new RunLoopResult(
                                 $"Agent returned invalid JSON twice. Last response: {repairedRaw}",
-                                ReachedIterationLimit: false);
+                                ReachedIterationLimit: false
+                            );
                         }
 
-                        if (!decision.NeedsTool || !decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+                        if (
+                            !decision.NeedsTool
+                            || !decision.ToolName.Equals(
+                                "WRITE-FILE",
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        )
                         {
                             return new RunLoopResult(
                                 $"Agent returned invalid JSON twice. Last response: {repairedRaw}",
-                                ReachedIterationLimit: false);
+                                ReachedIterationLimit: false
+                            );
                         }
                     }
                     else
                     {
                         return new RunLoopResult(
                             $"Agent returned invalid JSON twice. Last response: {repairedRaw}",
-                            ReachedIterationLimit: false);
+                            ReachedIterationLimit: false
+                        );
                     }
                 }
             }
@@ -258,13 +305,26 @@ public class AgentOrchestrator
                     var requirementError =
                         $"Required WRITE-FILE step has not completed yet. Create the output file at '{expectedOutputPath}' before returning finalAnswer.";
 
-                    Trace($"Iteration {i + 1} blocked final answer because WRITE-FILE hard requirement is unmet.");
-                    messages.Add(PromptBuilder.BuildToolResultMessage("WRITE-FILE", requirementError, succeeded: false));
+                    Trace(
+                        $"Iteration {i + 1} blocked final answer because WRITE-FILE hard requirement is unmet."
+                    );
+                    messages.Add(
+                        PromptBuilder.BuildToolResultMessage(
+                            "WRITE-FILE",
+                            requirementError,
+                            succeeded: false
+                        )
+                    );
                     continue;
                 }
 
-                Trace($"Iteration {i + 1} final answer detected length={decision.FinalAnswer?.Length ?? 0}");
-                return new RunLoopResult(decision.FinalAnswer ?? string.Empty, ReachedIterationLimit: false);
+                Trace(
+                    $"Iteration {i + 1} final answer detected length={decision.FinalAnswer?.Length ?? 0}"
+                );
+                return new RunLoopResult(
+                    decision.FinalAnswer ?? string.Empty,
+                    ReachedIterationLimit: false
+                );
             }
 
             if (!_tools.TryGetValue(decision.ToolName, out var toolFunc))
@@ -273,7 +333,13 @@ public class AgentOrchestrator
 
                 var toolError = $"Tool '{decision.ToolName}' was not found.";
 
-                messages.Add(PromptBuilder.BuildToolResultMessage(decision.ToolName, toolError, succeeded: false));
+                messages.Add(
+                    PromptBuilder.BuildToolResultMessage(
+                        decision.ToolName,
+                        toolError,
+                        succeeded: false
+                    )
+                );
                 continue;
             }
 
@@ -288,7 +354,13 @@ public class AgentOrchestrator
             {
                 var serializationError = $"Failed to serialize tool args: {ex.Message}";
 
-                messages.Add(PromptBuilder.BuildToolResultMessage(decision.ToolName, serializationError, succeeded: false));
+                messages.Add(
+                    PromptBuilder.BuildToolResultMessage(
+                        decision.ToolName,
+                        serializationError,
+                        succeeded: false
+                    )
+                );
                 continue;
             }
 
@@ -306,7 +378,10 @@ public class AgentOrchestrator
                 toolResult = ex.Message;
             }
 
-            if (requiresWriteFile && decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+            if (
+                requiresWriteFile
+                && decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 if (!TryGetToolArgString(decision.ToolArgs, "path", out var writePath))
                 {
@@ -316,40 +391,66 @@ public class AgentOrchestrator
                 else if (!PathsEqual(writePath, expectedOutputPath!))
                 {
                     toolExecutionSucceeded = false;
-                    toolResult = $"WRITE-FILE must target expected path '{expectedOutputPath}', but received '{writePath}'.";
-                    Trace($"Iteration {i + 1} rejected WRITE-FILE path mismatch expected={expectedOutputPath} actual={writePath}");
+                    toolResult =
+                        $"WRITE-FILE must target expected path '{expectedOutputPath}', but received '{writePath}'.";
+                    Trace(
+                        $"Iteration {i + 1} rejected WRITE-FILE path mismatch expected={expectedOutputPath} actual={writePath}"
+                    );
                 }
             }
 
-            if (toolExecutionSucceeded && decision.ToolName.Equals("READ-FILE", StringComparison.OrdinalIgnoreCase))
+            if (
+                toolExecutionSucceeded
+                && decision.ToolName.Equals("READ-FILE", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 var compactThreshold = GetReadFilePromptCompactThresholdChars();
-                var compactedToolResult = MaybeCompactReadFileResultForPrompt(toolResult, compactThreshold);
+                var compactedToolResult = MaybeCompactReadFileResultForPrompt(
+                    toolResult,
+                    compactThreshold
+                );
                 if (!string.Equals(compactedToolResult, toolResult, StringComparison.Ordinal))
                 {
-                    Trace($"Iteration {i + 1} compacted READ-FILE result for prompt originalLength={toolResult.Length} threshold={compactThreshold} compactLength={compactedToolResult.Length}");
+                    Trace(
+                        $"Iteration {i + 1} compacted READ-FILE result for prompt originalLength={toolResult.Length} threshold={compactThreshold} compactLength={compactedToolResult.Length}"
+                    );
                     toolResult = compactedToolResult;
                 }
             }
 
-            if (requiresWriteFile
+            if (
+                requiresWriteFile
                 && decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
                 && toolExecutionSucceeded
-                && !toolResult.StartsWith("Error", StringComparison.OrdinalIgnoreCase))
+                && !toolResult.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 writeFileCompleted = true;
                 Trace($"Iteration {i + 1} marked WRITE-FILE hard requirement as completed.");
             }
 
             var maxToolResultChars = GetMaxToolResultChars();
-            var toolResultForPrompt = PrepareToolResultForPrompt(toolResult, maxToolResultChars, out var wasTruncated, out var originalLength);
+            var toolResultForPrompt = PrepareToolResultForPrompt(
+                toolResult,
+                maxToolResultChars,
+                out var wasTruncated,
+                out var originalLength
+            );
 
             if (wasTruncated)
             {
-                Trace($"Iteration {i + 1} tool result truncated originalLength={originalLength} maxChars={maxToolResultChars}");
+                Trace(
+                    $"Iteration {i + 1} tool result truncated originalLength={originalLength} maxChars={maxToolResultChars}"
+                );
             }
 
-            messages.Add(PromptBuilder.BuildToolResultMessage(decision.ToolName, toolResultForPrompt, toolExecutionSucceeded));
+            messages.Add(
+                PromptBuilder.BuildToolResultMessage(
+                    decision.ToolName,
+                    toolResultForPrompt,
+                    toolExecutionSucceeded
+                )
+            );
         }
 
         Trace($"RunLoop reached iteration limit={iterationLimit}");
@@ -366,9 +467,12 @@ public class AgentOrchestrator
         bool retriedOnIterationLimit,
         bool retrySucceeded,
         int initialIterationLimit,
-        int? retryIterationLimit)
+        int? retryIterationLimit
+    )
     {
-        Trace($"FinalizeResult toolCalls={toolNames.Count} durationMs={durationMs} outputLength={output?.Length ?? 0}");
+        Trace(
+            $"FinalizeResult toolCalls={toolNames.Count} durationMs={durationMs} outputLength={output?.Length ?? 0}"
+        );
 
         output ??= "";
 
@@ -380,40 +484,46 @@ public class AgentOrchestrator
             RetriedOnIterationLimit = retriedOnIterationLimit,
             RetrySucceeded = retrySucceeded,
             InitialIterationLimit = initialIterationLimit,
-            RetryIterationLimit = retryIterationLimit
+            RetryIterationLimit = retryIterationLimit,
         };
 
-        _memory?.AddRun(new Memory.RunHistory
-        {
-            TimestampUtc = DateTimeOffset.UtcNow,
-            Status = status,
-            Outcome = outcome,
-            Prompt = prompt,
-            Model = _model,
-            DurationMs = result.DurationMs,
-            MaxIterations = _maxIterations,
-            DestructiveConfirmed = _destructiveConfirmed,
-            SignedFilePolicy = _signedFilePolicy,
-            AutoRetryOnRecursion = _autoRetry,
-            ToolCalls = result.ToolCallCount,
-            ToolNames = toolNames
-                .Select(NormalizeActionName)
-                .Where(t => !string.IsNullOrWhiteSpace(t))
-                .ToList(),
-            OutputPreview = Truncate(output, 4000),
-            Error = status.Equals("error", StringComparison.OrdinalIgnoreCase) ? Truncate(output, 4000) : null,
-            RunSummary = new Memory.RunSummary
+        _memory?.AddRun(
+            new Memory.RunHistory
             {
-                Intent = Truncate(prompt, 220),
-                ActionsTaken = toolNames
+                TimestampUtc = DateTimeOffset.UtcNow,
+                Status = status,
+                Outcome = outcome,
+                Prompt = prompt,
+                Model = _model,
+                DurationMs = result.DurationMs,
+                MaxIterations = _maxIterations,
+                DestructiveConfirmed = _destructiveConfirmed,
+                SignedFilePolicy = _signedFilePolicy,
+                AutoRetryOnRecursion = _autoRetry,
+                ToolCalls = result.ToolCallCount,
+                ToolNames = toolNames
                     .Select(NormalizeActionName)
                     .Where(t => !string.IsNullOrWhiteSpace(t))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList(),
-                Blockers = outcome.Equals("completed", StringComparison.OrdinalIgnoreCase) ? string.Empty : Truncate(output, 320),
-                NextBestStep = BuildNextBestStep(output, outcome)
+                OutputPreview = Truncate(output, 4000),
+                Error = status.Equals("error", StringComparison.OrdinalIgnoreCase)
+                    ? Truncate(output, 4000)
+                    : null,
+                RunSummary = new Memory.RunSummary
+                {
+                    Intent = Truncate(prompt, 220),
+                    ActionsTaken = toolNames
+                        .Select(NormalizeActionName)
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList(),
+                    Blockers = outcome.Equals("completed", StringComparison.OrdinalIgnoreCase)
+                        ? string.Empty
+                        : Truncate(output, 320),
+                    NextBestStep = BuildNextBestStep(output, outcome),
+                },
             }
-        });
+        );
 
         if (_memory is not null)
         {
@@ -423,12 +533,14 @@ public class AgentOrchestrator
         return result;
     }
 
-    private static string BuildIterationLimitMessage(int initialIterationLimit, int? retryIterationLimit = null)
+    private static string BuildIterationLimitMessage(
+        int initialIterationLimit,
+        int? retryIterationLimit = null
+    )
     {
         if (retryIterationLimit.HasValue)
         {
-            return
-$"""
+            return $"""
 ## Agent Iteration Limit Reached
 
 The agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.
@@ -444,8 +556,7 @@ Next best action:
 """;
         }
 
-        return
-$"""
+        return $"""
 ## Agent Iteration Limit Reached
 
 The agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.
@@ -533,14 +644,21 @@ Next best action:
         const int minChars = 1000;
         const int maxChars = 50000;
 
-        var raw = Environment.GetEnvironmentVariable("TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS");
+        var raw = Environment.GetEnvironmentVariable(
+            "TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS"
+        );
         if (int.TryParse(raw, out var parsed))
             return Math.Clamp(parsed, minChars, maxChars);
 
         return defaultChars;
     }
 
-    private static string PrepareToolResultForPrompt(string? toolResult, int maxChars, out bool wasTruncated, out int originalLength)
+    private static string PrepareToolResultForPrompt(
+        string? toolResult,
+        int maxChars,
+        out bool wasTruncated,
+        out int originalLength
+    )
     {
         var text = toolResult ?? "null";
         originalLength = text.Length;
@@ -580,9 +698,11 @@ Next best action:
 
         foreach (var line in lines)
         {
-            if (line.StartsWith("Next best action", StringComparison.OrdinalIgnoreCase)
+            if (
+                line.StartsWith("Next best action", StringComparison.OrdinalIgnoreCase)
                 || line.StartsWith("Next step", StringComparison.OrdinalIgnoreCase)
-                || line.StartsWith("What Is Required", StringComparison.OrdinalIgnoreCase))
+                || line.StartsWith("What Is Required", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 return Truncate(line, 220);
             }
@@ -602,7 +722,11 @@ Next best action:
         return normalized.Length <= maxChars ? normalized : normalized[..maxChars] + "...";
     }
 
-    private static bool TryApplyReadFileFallback(List<AgentChatMessage> messages, string? rawBody, out string reason)
+    private static bool TryApplyReadFileFallback(
+        List<AgentChatMessage> messages,
+        string? rawBody,
+        out string reason
+    )
     {
         reason = string.Empty;
 
@@ -613,7 +737,14 @@ Next best action:
         if (!string.Equals(lastMessage.Role, "user", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        if (!TryExtractToolResult(lastMessage.Content, out var toolName, out var toolResult, out var status))
+        if (
+            !TryExtractToolResult(
+                lastMessage.Content,
+                out var toolName,
+                out var toolResult,
+                out var status
+            )
+        )
             return false;
 
         if (!string.Equals(toolName, "READ-FILE", StringComparison.OrdinalIgnoreCase))
@@ -629,8 +760,13 @@ Next best action:
         if (string.Equals(compactResult, toolResult, StringComparison.Ordinal))
             return false;
 
-        messages[^1] = PromptBuilder.BuildToolResultMessage(toolName, compactResult, succeeded: true);
-        reason = $"replaced READ-FILE raw content with compact fallback view length={compactResult.Length}";
+        messages[^1] = PromptBuilder.BuildToolResultMessage(
+            toolName,
+            compactResult,
+            succeeded: true
+        );
+        reason =
+            $"replaced READ-FILE raw content with compact fallback view length={compactResult.Length}";
         return true;
     }
 
@@ -642,7 +778,8 @@ Next best action:
         var match = Regex.Match(
             prompt,
             @"(?im)^\s*-\s*Create\s+the\s+output\s+file\s+at\s+this\s+exact\s+path\s*:\s*(?<path>[A-Za-z]:\\[^\r\n]+)$",
-            RegexOptions.Compiled);
+            RegexOptions.Compiled
+        );
 
         if (!match.Success)
             return null;
@@ -651,13 +788,19 @@ Next best action:
         return string.IsNullOrWhiteSpace(path) ? null : path;
     }
 
-    private static bool TryGetToolArgString(IDictionary<string, object?> args, string key, out string value)
+    private static bool TryGetToolArgString(
+        IDictionary<string, object?> args,
+        string key,
+        out string value
+    )
     {
         value = string.Empty;
         if (args is null)
             return false;
 
-        var match = args.FirstOrDefault(kv => string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase));
+        var match = args.FirstOrDefault(kv =>
+            string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase)
+        );
         if (string.IsNullOrWhiteSpace(match.Key))
             return false;
 
@@ -665,9 +808,10 @@ Next best action:
         {
             null => string.Empty,
             string s => s,
-            JsonElement el when el.ValueKind == JsonValueKind.String => el.GetString() ?? string.Empty,
+            JsonElement el when el.ValueKind == JsonValueKind.String => el.GetString()
+                ?? string.Empty,
             JsonElement el => el.ToString(),
-            _ => match.Value?.ToString() ?? string.Empty
+            _ => match.Value?.ToString() ?? string.Empty,
         };
 
         return !string.IsNullOrWhiteSpace(value);
@@ -677,8 +821,10 @@ Next best action:
     {
         try
         {
-            var fullLeft = Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var fullRight = Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullLeft = Path.GetFullPath(left)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullRight = Path.GetFullPath(right)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
             return string.Equals(fullLeft, fullRight, StringComparison.OrdinalIgnoreCase);
         }
@@ -688,7 +834,12 @@ Next best action:
         }
     }
 
-    private static bool TryExtractToolResult(string content, out string toolName, out string toolResult, out string status)
+    private static bool TryExtractToolResult(
+        string content,
+        out string toolName,
+        out string toolResult,
+        out string status
+    )
     {
         toolName = string.Empty;
         toolResult = string.Empty;
@@ -697,8 +848,12 @@ Next best action:
         if (string.IsNullOrWhiteSpace(content))
             return false;
 
-        var toolLine = content.Split('\n').FirstOrDefault(line => line.StartsWith("Tool:", StringComparison.OrdinalIgnoreCase));
-        var statusLine = content.Split('\n').FirstOrDefault(line => line.StartsWith("Status:", StringComparison.OrdinalIgnoreCase));
+        var toolLine = content
+            .Split('\n')
+            .FirstOrDefault(line => line.StartsWith("Tool:", StringComparison.OrdinalIgnoreCase));
+        var statusLine = content
+            .Split('\n')
+            .FirstOrDefault(line => line.StartsWith("Status:", StringComparison.OrdinalIgnoreCase));
         var beginMarker = "BEGIN_TOOL_RESULT";
         var endMarker = "END_TOOL_RESULT";
         var beginIndex = content.IndexOf(beginMarker, StringComparison.Ordinal);
@@ -735,7 +890,9 @@ Next best action:
 
         var paramBlock = ExtractParamBlock(lines, 18);
         var structureHints = lines
-            .Where(line => Regex.IsMatch(line, "^\\s*(begin|process|end)\\s*\\{", RegexOptions.IgnoreCase))
+            .Where(line =>
+                Regex.IsMatch(line, "^\\s*(begin|process|end)\\s*\\{", RegexOptions.IgnoreCase)
+            )
             .Select(line => line.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -745,14 +902,22 @@ Next best action:
 
         var sb = new StringBuilder();
         sb.AppendLine("READ_FILE_FALLBACK_COMPACT_VIEW");
-        sb.AppendLine("Reason: previous LLM response returned empty content after the full READ-FILE result.");
+        sb.AppendLine(
+            "Reason: previous LLM response returned empty content after the full READ-FILE result."
+        );
         sb.AppendLine($"OriginalLength: {toolResult.Length}");
         sb.AppendLine($"LineCount: {lines.Length}");
         if (!string.IsNullOrWhiteSpace(diagnostics))
             sb.AppendLine($"PriorEmptyContentDiagnostics: {diagnostics}");
-        sb.AppendLine($"Functions: {(functions.Length == 0 ? "(none detected)" : string.Join(", ", functions))}");
-        sb.AppendLine($"HelpSections: {(sections.Length == 0 ? "(none detected)" : string.Join(", ", sections))}");
-        sb.AppendLine($"StructureHints: {(structureHints.Length == 0 ? "(none detected)" : string.Join(", ", structureHints))}");
+        sb.AppendLine(
+            $"Functions: {(functions.Length == 0 ? "(none detected)" : string.Join(", ", functions))}"
+        );
+        sb.AppendLine(
+            $"HelpSections: {(sections.Length == 0 ? "(none detected)" : string.Join(", ", sections))}"
+        );
+        sb.AppendLine(
+            $"StructureHints: {(structureHints.Length == 0 ? "(none detected)" : string.Join(", ", structureHints))}"
+        );
         sb.AppendLine();
         sb.AppendLine("ParameterExcerpt:");
         sb.AppendLine(string.IsNullOrWhiteSpace(paramBlock) ? "(none detected)" : paramBlock);
@@ -764,7 +929,10 @@ Next best action:
 
     private static string ExtractParamBlock(string[] lines, int maxLines)
     {
-        var startIndex = Array.FindIndex(lines, line => line.Contains("param(", StringComparison.OrdinalIgnoreCase));
+        var startIndex = Array.FindIndex(
+            lines,
+            line => line.Contains("param(", StringComparison.OrdinalIgnoreCase)
+        );
         if (startIndex < 0)
             return string.Empty;
 
@@ -791,9 +959,9 @@ Next best action:
 
         var selected = lines
             .Take(maxLines)
-            .Select(line => line.Length <= maxLineChars
-                ? line
-                : line[..maxLineChars] + " [LINE_TRUNCATED]")
+            .Select(line =>
+                line.Length <= maxLineChars ? line : line[..maxLineChars] + " [LINE_TRUNCATED]"
+            )
             .ToArray();
 
         var text = string.Join(Environment.NewLine, selected).Trim();
@@ -814,15 +982,27 @@ Next best action:
             var root = doc.RootElement;
             var fields = new List<string>();
 
-            if (root.TryGetProperty("done_reason", out var doneReason) && doneReason.ValueKind == JsonValueKind.String)
+            if (
+                root.TryGetProperty("done_reason", out var doneReason)
+                && doneReason.ValueKind == JsonValueKind.String
+            )
                 fields.Add($"done_reason={doneReason.GetString()}");
 
-            if (root.TryGetProperty("eval_count", out var evalCount) && evalCount.ValueKind == JsonValueKind.Number)
+            if (
+                root.TryGetProperty("eval_count", out var evalCount)
+                && evalCount.ValueKind == JsonValueKind.Number
+            )
                 fields.Add($"eval_count={evalCount.GetInt32()}");
 
-            if (root.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.Object)
+            if (
+                root.TryGetProperty("message", out var message)
+                && message.ValueKind == JsonValueKind.Object
+            )
             {
-                if (message.TryGetProperty("thinking", out var thinking) && thinking.ValueKind == JsonValueKind.String)
+                if (
+                    message.TryGetProperty("thinking", out var thinking)
+                    && thinking.ValueKind == JsonValueKind.String
+                )
                     fields.Add($"thinking_length={thinking.GetString()?.Length ?? 0}");
             }
 
@@ -843,8 +1023,10 @@ Next best action:
             return toolResult;
 
         var trimmed = toolResult.TrimStart();
-        if (trimmed.StartsWith("{", StringComparison.Ordinal)
-            && trimmed.Contains("\"kind\":\"file-summary\"", StringComparison.OrdinalIgnoreCase))
+        if (
+            trimmed.StartsWith("{", StringComparison.Ordinal)
+            && trimmed.Contains("\"kind\":\"file-summary\"", StringComparison.OrdinalIgnoreCase)
+        )
         {
             return toolResult;
         }
@@ -861,7 +1043,10 @@ Next best action:
         return normalized.Contains("function ", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("[CmdletBinding()]", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("param(", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("# SIG # Begin signature block", StringComparison.OrdinalIgnoreCase);
+            || normalized.Contains(
+                "# SIG # Begin signature block",
+                StringComparison.OrdinalIgnoreCase
+            );
     }
 }
 

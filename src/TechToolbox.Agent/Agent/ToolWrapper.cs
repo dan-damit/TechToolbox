@@ -6,19 +6,24 @@ namespace TechToolbox.Agent.Agent;
 
 public static class ToolWrapper
 {
-    private static readonly HashSet<string> SignedFilePolicyValues = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> SignedFilePolicyValues = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         "ignore",
-        "strip"
+        "strip",
     };
 
     public static Dictionary<string, Func<string, Task<string>>> BuildTools(
         IReadOnlyDictionary<string, ToolSpec> registry,
         bool destructiveConfirmed,
         string signedFilePolicy,
-        Func<string, IDictionary<string, object?>, object?>? toolExecutor = null)
+        Func<string, IDictionary<string, object?>, object?>? toolExecutor = null
+    )
     {
-        var tools = new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase);
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        );
         var normalizedSignedFilePolicy = NormalizeSignedFilePolicy(signedFilePolicy);
         var executor = toolExecutor ?? PowerShellBridge.RunTool;
 
@@ -39,7 +44,8 @@ public static class ToolWrapper
                         : new Dictionary<string, object?>(
                             JsonSerializer.Deserialize<Dictionary<string, object?>>(jsonArgs)
                                 ?? new Dictionary<string, object?>(),
-                            StringComparer.OrdinalIgnoreCase);
+                            StringComparer.OrdinalIgnoreCase
+                        );
                 }
                 catch
                 {
@@ -60,7 +66,9 @@ public static class ToolWrapper
                 }
 
                 // Preserve signed-file policy behavior by passing it to tools that support it.
-                if (HasParameter(spec, "SignedFilePolicy") && !HasArgument(args, "SignedFilePolicy"))
+                if (
+                    HasParameter(spec, "SignedFilePolicy") && !HasArgument(args, "SignedFilePolicy")
+                )
                 {
                     args["SignedFilePolicy"] = normalizedSignedFilePolicy;
                 }
@@ -81,7 +89,7 @@ public static class ToolWrapper
                 {
                     null => "null",
                     string s => s,
-                    _ => JsonSerializer.Serialize(result)
+                    _ => JsonSerializer.Serialize(result),
                 };
             };
         }
@@ -89,7 +97,10 @@ public static class ToolWrapper
         return tools;
     }
 
-    private static List<string> GetMissingRequiredParams(ToolSpec spec, Dictionary<string, object?> args)
+    private static List<string> GetMissingRequiredParams(
+        ToolSpec spec,
+        Dictionary<string, object?> args
+    )
     {
         var missing = new List<string>();
 
@@ -99,9 +110,11 @@ public static class ToolWrapper
         {
             if (param.Value.Mandatory)
             {
-                if (!argsLookup.TryGetValue(param.Key, out var value) ||
-                    value is null ||
-                    (value is string s && string.IsNullOrWhiteSpace(s)))
+                if (
+                    !argsLookup.TryGetValue(param.Key, out var value)
+                    || value is null
+                    || (value is string s && string.IsNullOrWhiteSpace(s))
+                )
                 {
                     missing.Add(param.Key);
                 }
@@ -120,9 +133,11 @@ public static class ToolWrapper
         return SignedFilePolicyValues.Contains(normalized) ? normalized : "ignore";
     }
 
-    private static bool HasParameter(ToolSpec spec, string parameterName)
-        => spec.Parameters.Keys.Any(k => string.Equals(k, parameterName, StringComparison.OrdinalIgnoreCase));
+    private static bool HasParameter(ToolSpec spec, string parameterName) =>
+        spec.Parameters.Keys.Any(k =>
+            string.Equals(k, parameterName, StringComparison.OrdinalIgnoreCase)
+        );
 
-    private static bool HasArgument(Dictionary<string, object?> args, string parameterName)
-        => args.Keys.Any(k => string.Equals(k, parameterName, StringComparison.OrdinalIgnoreCase));
+    private static bool HasArgument(Dictionary<string, object?> args, string parameterName) =>
+        args.Keys.Any(k => string.Equals(k, parameterName, StringComparison.OrdinalIgnoreCase));
 }

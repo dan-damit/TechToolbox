@@ -43,17 +43,16 @@ public static class ToolRegistry
                     ? existing.Description
                     : overrideSpec.Description,
 
-                Parameters = overrideSpec.Parameters?.Count > 0
-                    ? overrideSpec.Parameters
-                    : existing.Parameters,
+                Parameters =
+                    overrideSpec.Parameters?.Count > 0
+                        ? overrideSpec.Parameters
+                        : existing.Parameters,
 
                 Module = string.IsNullOrWhiteSpace(overrideSpec.Module)
                     ? existing.Module
                     : overrideSpec.Module,
 
-                Meta = overrideSpec.Meta?.Count > 0
-                    ? overrideSpec.Meta
-                    : existing.Meta
+                Meta = overrideSpec.Meta?.Count > 0 ? overrideSpec.Meta : existing.Meta,
             };
 
             registry[name] = merged;
@@ -71,31 +70,48 @@ public static class ToolRegistry
                 Description: "Reads text content from a file. Large files may return a structured summary instead of the full body.",
                 Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["path"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Absolute or relative file path.")
+                    ["path"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Absolute or relative file path."
+                    ),
                 },
                 Module: "TechToolbox.Agent.Builtin",
-                Meta: new Dictionary<string, object?>()),
-
+                Meta: new Dictionary<string, object?>()
+            ),
             new ToolSpec(
                 Name: "LIST-DIRECTORY",
                 Description: "Lists directory entries. Folder names end with '/'.",
                 Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["path"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Absolute or relative directory path.")
+                    ["path"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Absolute or relative directory path."
+                    ),
                 },
                 Module: "TechToolbox.Agent.Builtin",
-                Meta: new Dictionary<string, object?>()),
-
+                Meta: new Dictionary<string, object?>()
+            ),
             new ToolSpec(
                 Name: "WRITE-FILE",
                 Description: "Writes text to a file, creating parent directories as needed.",
                 Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["path"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Absolute or relative file path."),
-                    ["content"] = new ParameterSpec(Mandatory: true, Type: "System.String", Help: "Text content to write.")
+                    ["path"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Absolute or relative file path."
+                    ),
+                    ["content"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Text content to write."
+                    ),
                 },
                 Module: "TechToolbox.Agent.Builtin",
-                Meta: new Dictionary<string, object?>())
+                Meta: new Dictionary<string, object?>()
+            ),
         };
     }
 
@@ -107,36 +123,36 @@ public static class ToolRegistry
         if (!string.IsNullOrWhiteSpace(modulePath))
         {
             ps.AddCommand("Import-Module")
-              .AddParameter("Name", modulePath)
-              .AddParameter("Force")
-              .AddParameter("ErrorAction", "Stop");
+                .AddParameter("Name", modulePath)
+                .AddParameter("Force")
+                .AddParameter("ErrorAction", "Stop");
         }
         else
         {
             ps.AddCommand("Import-Module")
-              .AddParameter("Name", "TechToolbox")
-              .AddParameter("Force")
-              .AddParameter("ErrorAction", "Stop");
+                .AddParameter("Name", "TechToolbox")
+                .AddParameter("Force")
+                .AddParameter("ErrorAction", "Stop");
         }
 
         ps.Invoke();
 
         if (ps.HadErrors)
             throw new InvalidOperationException(
-                $"Tool discovery failed during module import: {ps.Streams.Error[0]}");
+                $"Tool discovery failed during module import: {ps.Streams.Error[0]}"
+            );
 
         ps.Commands.Clear();
 
         ps.AddCommand("Get-Command")
-          .AddParameter("Module", "TechToolbox")
-          .AddParameter("CommandType", "Function")
-          .AddParameter("ErrorAction", "Stop");
+            .AddParameter("Module", "TechToolbox")
+            .AddParameter("CommandType", "Function")
+            .AddParameter("ErrorAction", "Stop");
 
         var results = ps.Invoke();
 
         if (ps.HadErrors)
-            throw new InvalidOperationException(
-                $"Tool discovery failed: {ps.Streams.Error[0]}");
+            throw new InvalidOperationException($"Tool discovery failed: {ps.Streams.Error[0]}");
 
         var list = new List<ToolSpec>();
 
@@ -149,25 +165,29 @@ public static class ToolRegistry
             if (command.Name.Contains('_', StringComparison.Ordinal))
                 continue;
 
-            var parameters = new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase);
+            var parameters = new Dictionary<string, ParameterSpec>(
+                StringComparer.OrdinalIgnoreCase
+            );
             foreach (var p in command.Parameters.Values)
             {
-                var isMandatory = p.Attributes
-                    .OfType<ParameterAttribute>()
-                    .Any(a => a.Mandatory);
+                var isMandatory = p.Attributes.OfType<ParameterAttribute>().Any(a => a.Mandatory);
 
                 parameters[p.Name] = new ParameterSpec(
                     Mandatory: isMandatory,
                     Type: p.ParameterType?.FullName,
-                    Help: null);
+                    Help: null
+                );
             }
 
-            list.Add(new ToolSpec(
-                Name: command.Name,
-                Description: $"PowerShell tool {command.Name}.",
-                Parameters: parameters,
-                Module: command.ModuleName ?? "TechToolbox",
-                Meta: new Dictionary<string, object?>()));
+            list.Add(
+                new ToolSpec(
+                    Name: command.Name,
+                    Description: $"PowerShell tool {command.Name}.",
+                    Parameters: parameters,
+                    Module: command.ModuleName ?? "TechToolbox",
+                    Meta: new Dictionary<string, object?>()
+                )
+            );
         }
 
         return list;
@@ -202,9 +222,7 @@ public record ToolSpec(
     string Description,
     Dictionary<string, ParameterSpec> Parameters,
     string Module,
-    Dictionary<string, object?> Meta);
+    Dictionary<string, object?> Meta
+);
 
-public record ParameterSpec(
-    bool Mandatory,
-    string? Type,
-    string? Help);
+public record ParameterSpec(bool Mandatory, string? Type, string? Help);
