@@ -446,3 +446,4 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 - AI-assisted workflow improvements (Export-ToolboxFunctions, Invoke-TechAgent enhancements)
 - Full help text capture in agent metadata export
 - Config system refinements and path token stabilization
+- [Release Template](https://github.com/dan-damit/TechToolbox/blob/main/.github/release_template.md)
