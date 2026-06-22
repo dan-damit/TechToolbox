@@ -207,4 +207,150 @@ public class ToolWrapperTests
                 File.Delete(tempFile);
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // WRITE-FILE destructive-overwrite safety tests
+    // ---------------------------------------------------------------------------
+
+    [Fact]
+    public void IsDestructive_WriteFile_ReturnsTrue()
+    {
+        Assert.True(Safety.IsDestructive("WRITE-FILE"));
+        Assert.True(Safety.IsDestructive("write-file"));
+    }
+
+    [Fact]
+    public async Task BuildTools_AutoConfirmsWriteFile_WhenDestructiveConfirmed()
+    {
+        IDictionary<string, object?>? capturedArgs = null;
+
+        var registry = new Dictionary<string, ToolSpec>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["WRITE-FILE"] = new ToolSpec(
+                Name: "WRITE-FILE",
+                Description: "Writes a file",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path"] = new ParameterSpec(Mandatory: true, Type: "string", Help: null),
+                    ["content"] = new ParameterSpec(Mandatory: true, Type: "string", Help: null),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
+        };
+
+        var tools = ToolWrapper.BuildTools(
+            registry,
+            destructiveConfirmed: true,
+            signedFilePolicy: "ignore",
+            toolExecutor: (_, args) =>
+            {
+                capturedArgs = new Dictionary<string, object?>(
+                    args,
+                    StringComparer.OrdinalIgnoreCase
+                );
+                return "ok";
+            }
+        );
+
+        await tools["WRITE-FILE"]("{\"path\":\"c:\\\\temp\\\\test.txt\",\"content\":\"hello\"}");
+
+        Assert.NotNull(capturedArgs);
+        Assert.True(capturedArgs!.ContainsKey("__confirm_destructive"));
+        Assert.Equal("True", capturedArgs["__confirm_destructive"]?.ToString());
+    }
+
+    [Fact]
+    public void RunTool_WriteFile_CreatesNewFile_WithoutDestructiveConfirmed()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-WriteNew-{Guid.NewGuid():N}.txt"
+        );
+
+        try
+        {
+            Assert.False(File.Exists(tempFile));
+
+            var result = PowerShellBridge.RunTool(
+                "WRITE-FILE",
+                new Dictionary<string, object?> { ["path"] = tempFile, ["content"] = "new content" }
+            );
+
+            Assert.Equal("ok", result);
+            Assert.Equal("new content", File.ReadAllText(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_WriteFile_BlocksOverwrite_WhenDestructiveNotConfirmed()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-WriteBlock-{Guid.NewGuid():N}.txt"
+        );
+        File.WriteAllText(tempFile, "original");
+
+        try
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                PowerShellBridge.RunTool(
+                    "WRITE-FILE",
+                    new Dictionary<string, object?>
+                    {
+                        ["path"] = tempFile,
+                        ["content"] = "overwritten",
+                    }
+                )
+            );
+
+            Assert.Contains(
+                "destructive confirmation",
+                ex.Message,
+                StringComparison.OrdinalIgnoreCase
+            );
+            Assert.Equal("original", File.ReadAllText(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_WriteFile_AllowsOverwrite_WhenDestructiveConfirmed()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-WriteAllow-{Guid.NewGuid():N}.txt"
+        );
+        File.WriteAllText(tempFile, "original");
+
+        try
+        {
+            var result = PowerShellBridge.RunTool(
+                "WRITE-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["content"] = "overwritten",
+                    ["__confirm_destructive"] = true,
+                }
+            );
+
+            Assert.Equal("ok", result);
+            Assert.Equal("overwritten", File.ReadAllText(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
 }

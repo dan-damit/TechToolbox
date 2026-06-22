@@ -118,6 +118,20 @@ public static class PowerShellBridge
             var path = GetRequiredStringArg(args, "path");
             var content = GetRequiredStringArg(args, "content");
 
+            // Overwriting an existing file is destructive — require confirmation.
+            if (File.Exists(path))
+            {
+                var confirmed =
+                    args.TryGetValue("__confirm_destructive", out var cv)
+                    && Agent.Safety.IsExplicitConfirmation(cv);
+
+                if (!confirmed)
+                    throw new InvalidOperationException(
+                        $"WRITE-FILE cannot overwrite existing file '{path}' without destructive confirmation. "
+                            + "Re-run the agent with --destructive-confirmed."
+                    );
+            }
+
             var dir = Path.GetDirectoryName(path);
             if (!string.IsNullOrWhiteSpace(dir))
             {
