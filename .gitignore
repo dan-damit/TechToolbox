@@ -8,6 +8,7 @@ Out/
 EndpointTrackingScripts/
 .venv/
 obj/
+/Bin/
 bin/
 !src/TechToolbox.Agent/bin/
 src/TechToolbox.Agent/bin/**
