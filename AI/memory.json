@@ -10,108 +10,28 @@
     "trendSummary": {
       "windowItems": 30,
       "runCount": 30,
-      "successRate": 0.9,
-      "avgDurationMs": 158863,
-      "avgToolCalls": 2.7,
+      "successRate": 0.867,
+      "avgDurationMs": 148861,
+      "avgToolCalls": 1.73,
       "statusCounts": {
-        "success": 27,
-        "error": 3
+        "success": 26,
+        "error": 4
       },
       "outcomeCounts": {
-        "blocked": 5,
-        "completed": 18,
+        "completed": 19,
+        "blocked": 3,
         "error": 1,
         "needs-confirmation": 4,
-        "iteration-limit": 2
+        "iteration-limit": 3
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-21T16:23:01.4711809\u002B00:00",
-      "trendLastUpdatedUtc": "2026-06-21T16:23:01.4932637\u002B00:00"
+      "lastRunTimestampUtc": "2026-06-23T01:10:55.8274059\u002B00:00",
+      "trendLastUpdatedUtc": "2026-06-23T01:10:55.8284598\u002B00:00"
     }
   },
   "history": [
-    {
-      "timestampUtc": "2026-06-11T06:38:41+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "Please look at the Function named Write-OffboardingSummary at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory and provide recommendations to be more consistent with showing the correct values under the \u0027Actions Performed\u0027 section. Currenly is says \u0027Unknown\u0027 for all but one of the properties when a user offboarding is completed.",
-      "model": "qwen3.6:35b",
-      "durationMs": 81098,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [],
-      "outputPreview": "Based on the code analysis of \u0060Write-OffboardingSummary\u0060, here is an explanation of why you are seeing \u0027Unknown\u0027 for most properties and specific recommendations to fix it.\n\n## Root Cause Analysis\n\nThe issue lies in how the function determines the **Success** status:\n\n\u0060\u0060\u0060powershell\nif ($step -and $step.PSObject.Properties[\u0027Success\u0027]) {\n    $success = $step.Success\n}\nelse {\n    # If no Success property, assume unknown\n    $success = \u0022Unknown\u0022\n}\n\u0060\u0060\u0060\n\n1.  **Property Existence Check:** This code only checks if a property *named* \u0060Success\u0060 exists on the object. It does **not** check the value of that property.\n2.  **Hashtable vs. PSCustomObject:** If the calling script passes a standard **Hashtable** (e.g., \u0060$Results[\u0027Step1\u0027] = @{ Action=\u0027...\u0027 }\u0060) instead of a \u0060[PSCustomObject]\u0060, or if it omits the \u0060Success\u0060 key entirely, this check fails and defaults to \u0022Unknown\u0022.\n3.  **Missing Error Context:** Even if an error occurred during a step (which usually populates an \u0060Error\u0060 property), the function ignores it for the status line unless \u0060Success\u0060 is explicitly \u0060$false\u0060.\n\n## Recommendations\n\n### Recommendation 1: Implement Smart Defaults (Infer Status)\n\nInstead of blindly defaulting to \u0022Unknown\u0022, inspect the step data. If a step has an \u0060Error\u0060 property but no \u0060Success\u0060 property, assume **Failed**. This makes the summary actionable immediately without requiring the user to dig into raw logs...",
-      "runSummary": {
-        "intent": "Please look at the Function named Write-OffboardingSummary at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory and provide recommendations to be more consistent with showing the correct values under th...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "read_file"
-        ],
-        "blockers": "Based on the code analysis of \u0060Write-OffboardingSummary\u0060, here is an explanation of why you are seeing \u0027Unknown\u0027 for most properties and specific recommendations to fix it.\n\n## Root Cause Analysis\n\nThe issue lies in how ...",
-        "nextBestStep": "Test by running an offboard where one step works perfectly and another fails (to verify \u0027Failed\u0027 logic)."
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T22:34:47+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that \u0027Properties didn\u0027t exist on this object\u0027 when I included the -IncludeEXO and -ForceCloud switches from the Disable-User function. Can you please take a look at why this error during the Write-OffboardingSummary funciton would happen and report your findings, please?",
-      "model": "qwen3.6:35b",
-      "durationMs": 281819,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 21,
-      "toolNames": [],
-      "outputPreview": "Based on my analysis of the error \u0022Properties didn\u0027t exist on this object\u0022 when using \u0060-IncludeEXO\u0060 and \u0060-ForceCloud\u0060 switches with \u0060Write-OffboardingSummary\u0060, here are the likely causes:\n\n## Root Cause Analysis\n\nThe error \u0022Properties didn\u0027t exist on this object\u0022 is a common PowerShell error that occurs when attempting to access a property on an object that doesn\u0027t contain it. This typically happens in three scenarios:\n\n### 1. **Property Name Mismatch**\n- \u0060Write-OffboardingSummary\u0060 likely accesses properties like \u0060$user.PrimarySmtpAddress\u0060, \u0060$user.RecipientTypeDetails\u0060, or \u0060$user.CloudExchangeRecipientDisplayType\u0060\n- When \u0060-IncludeEXO\u0060 is used, these properties should be added to the output object\n- However, if the property names in \u0060Write-OffboardingSummary\u0060 don\u0027t exactly match what \u0060Disable-User\u0060 returns with those switches, you get this error\n\n### 2. **Conditional Property Population**\n- With \u0060-ForceCloud\u0060, \u0060Disable-User\u0060 may query Exchange Online and add properties to the returned object\n- But if:\n  - Exchange Online isn\u0027t connected\n  - The user doesn\u0027t have an EXO mailbox\n  - The cloud properties fail to populate silently\n- Then the properties that \u0060Write-OffboardingSummary\u0060 expects won\u0027t exist on the object\n\n### 3. **Object Type Changes**\n- When \u0060-IncludeEXO\u0060 and \u0060-ForceCloud\u0060 are used together, the object structure may change:\n  - It might become a custom object with diff...",
-      "runSummary": {
-        "intent": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that \u0027Properties did...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "read_file",
-          "Get-TechToolboxConfig",
-          "Find-LargeFiles",
-          "ITA",
-          "Export-ToolboxFunctions"
-        ],
-        "blockers": "Based on my analysis of the error \u0022Properties didn\u0027t exist on this object\u0022 when using \u0060-IncludeEXO\u0060 and \u0060-ForceCloud\u0060 switches with \u0060Write-OffboardingSummary\u0060, here are the likely causes:\n\n## Root Cause Analysis\n\nThe err...",
-        "nextBestStep": "Add defensive checks (use \u0060$user | Get-Member\u0060 or property existence checks) in the summary function"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-11T22:49:52+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for \u0027ddtest1@REDACTED.com\u0027 to \u0027ddamit@REDACTED.com\u0027 (manager; keep copy: True)...\n2026-06-11 16:47:56 [Info] EXO: granting manager mailbox access for \u0027ddtest1@REDACTED.com\u0027 to \u0027ddamit@REDACTED.com\u0027...\n2026-06-11 16:47:56 [Info] Granting mailbox access for \u0027ddtest1@REDACTED.com\u0027 to manager \u0027ddamit@REDACTED.com\u0027...\n2026-06-11 16:47:58 [Ok] Granted FullAccess to ddamit@REDACTED.com\n2026-06-11 16:48:04 [Ok] Granted SendAs to ddamit@REDACTED.com\n2026-06-11 16:48:04 [Info] AD description already contains a similar note; skipping append for \u0027ddtest1\u0027.\n2026-06-11 16:48:04 [Info] Offboarding: Generating summary for \u0027ddtest1@REDACTED.com\u0027...\n2026-06-11 16:48:04 [Info] Writing offboarding summary for: ddtest1@REDACTED.com\n2026-06-11 16:48:04 [Error] Failed to write offboarding summary: The property \u0027Properties\u0027 cannot be found on this object. Verify that the property exists.\n2026-06-11 16:48:04 [Ok] Disable-User workflow completed for \u0027ddtest1@REDACTED.com\u0027.\n\nThis user does not have a mailbox license attached to it in 365, so I\u0027m wondering at that point if that would be the cause of that Error line?",
-      "model": "qwen3.6:35b",
-      "durationMs": 170690,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 10,
-      "toolNames": [],
-      "outputPreview": "## Root Cause Analysis\n\nYour hypothesis is correct. The user ddtest1 has no mailbox license in 365, and that causes the error. Here is the exact breakdown.\n\n### What happens during Disable-User\n\nWhen \u0060Disable-User\u0060 processes EXO steps for ddtest1, it still attempts to call Exchange Online cmdlets (e.g., setting forwarding, granting FullAccess/SendAs). Because there is no mailbox, those EXO calls do not return structured objects (PSCustomObject or hashtable) as expected. Instead they return simple types:\n- \u0060$true\u0060 / \u0060$false\u0060 (boolean)\n- A string (error message or confirmation text)\n- \u0060$null\u0060\n\n### Where the error originates\n\nIn \u0060Write-OffboardingSummary\u0060, the code iterates over \u0060$Results.Keys\u0060 and assigns each step to \u0060$step\u0060. Then it does this:\n\n\u0060\u0060\u0060powershell\nif ($step -and $step.PSObject.Properties[\u0027Action\u0027]) { ... }\n\u0060\u0060\u0060\n\nThe member \u0060.PSObject.Properties\u0060 exists only on objects that support reflection-PSCustomObject, PSObject wrappers, and hashtables (which have \u0060.ContainsKey\u0060). Simple booleans, strings, and \u0060$null\u0060 do not expose \u0060PSObject.Properties\u0060. When one of those simple types is passed in as \u0060$step\u0060, PowerShell throws:\n\n\u003E The property \u0027Properties\u0027 cannot be found on this object. Verify that the property exists.\n\n### Why it does not affect every step\n\nEarlier steps in the transcript (e.g., AD disabling, local mailbox operations) likely returned PSCustomObject or hashtable...",
-      "runSummary": {
-        "intent": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for \u0027ddtest1@REDACTED.com\u0027 to \u0027ddamit@REDACTED.com\u0027 (manager; keep copy: True)...\n2026...",
-        "actionsTaken": [
-          "Get-FilesUsingKeywords",
-          "Test-TTPathRoots",
-          "read_file",
-          "Get-TechToolboxConfig",
-          "Find-LargeFiles",
-          "Export-ToolboxFunctions"
-        ],
-        "blockers": "",
-        "nextBestStep": "\u0060$null\u0060"
-      }
-    },
     {
       "timestampUtc": "2026-06-11T23:04:59+00:00",
       "status": "success",
@@ -745,6 +665,80 @@
           "list_directory",
           "write_file"
         ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-23T00:52:10.1658989+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-DownloadsCleanup.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 136838,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Te...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      }
+    },
+    {
+      "timestampUtc": "2026-06-23T01:05:18.7720687+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-DownloadsCleanup.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 65033,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Invoke-DownloadsCleanup has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Te...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-23T01:10:55.8274059+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Are you currently the best model to use for agentic tasks locally? You are qwen3.6:35b.",
+      "model": "qwen3.6:35b",
+      "durationMs": 31679,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "- Yes, I am currently the best model for agentic tasks locally.\n- My default model is qwen3.6:35b as per your preferences.",
+      "runSummary": {
+        "intent": "Are you currently the best model to use for agentic tasks locally? You are qwen3.6:35b.",
+        "actionsTaken": [],
         "blockers": "",
         "nextBestStep": ""
       }

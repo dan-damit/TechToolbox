@@ -1,3 +1,4 @@
+using TechToolbox.Agent.Configuration;
 using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
 
@@ -5,6 +6,39 @@ namespace TechToolbox.Agent.Agent;
 
 public static class AgentCore
 {
+    /// <summary>
+    /// Runs an agent with the specified configuration.
+    /// </summary>
+    public static string RunAgent(AgentConfiguration config, string prompt)
+    {
+        return RunAgentAsync(config, prompt).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Runs an agent asynchronously with the specified configuration.
+    /// </summary>
+    public static async Task<string> RunAgentAsync(AgentConfiguration config, string prompt)
+    {
+        if (string.IsNullOrWhiteSpace(prompt))
+            return "Error: prompt must not be empty.";
+
+        if (config == null)
+            return "Error: configuration must not be null.";
+
+        try
+        {
+            return await RunAgentInternalAsync(config, prompt).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Legacy method: runs an agent with individual parameters.
+    /// Maintained for backward compatibility. Use RunAgent(AgentConfiguration, string) for new code.
+    /// </summary>
     public static string RunAgent(
         string prompt,
         string model = "llama3",
@@ -36,6 +70,10 @@ public static class AgentCore
             .GetResult();
     }
 
+    /// <summary>
+    /// Legacy method: runs an agent asynchronously with individual parameters.
+    /// Maintained for backward compatibility. Use RunAgentAsync(AgentConfiguration, string) for new code.
+    /// </summary>
     public static async Task<string> RunAgentAsync(
         string prompt,
         string model = "llama3",
@@ -53,21 +91,61 @@ public static class AgentCore
         if (string.IsNullOrWhiteSpace(prompt))
             return "Error: prompt must not be empty.";
 
-        // 1. Load tool registry
-        var registry = ToolRegistry.BuildToolRegistry();
+        // Convert legacy parameters to configuration
+        var config = new AgentConfiguration
+        {
+            Mode = AgentMode.TechToolbox,
+            Model = model,
+            MaxIterations = maxIterations,
+            AutoRetryOnIterationLimit = autoRetryOnRecursion,
+            DestructiveConfirmed = destructiveConfirmed,
+            SignedFilePolicy = signedFilePolicy,
+            MemoryPath = memoryPath,
+            ReturnMetadata = returnMetadata,
+            DiagnosticTracePath = diagnosticTracePath,
+            ExpectedOutputPath = expectedOutputPath,
+            ToolProviders = new()
+            {
+                new GenericToolProvider(),
+                new PowerShellToolProvider()
+            }
+        };
+
+        var output = await RunAgentInternalAsync(config, prompt).ConfigureAwait(false);
+
+        if (!returnMetadata)
+            return output;
+
+        // For backward compatibility with old API, return metadata if requested
+        // (Note: metadata is already included if output is JSON)
+        return output;
+    }
+
+    private static async Task<string> RunAgentInternalAsync(
+        AgentConfiguration config,
+        string prompt
+    )
+    {
+        // 1. Build tool registry from configured tool providers
+        var toolProviders = config.ToolProviders ?? Enumerable.Empty<IToolProvider>();
+        var registry = ToolRegistry.BuildToolRegistry(toolProviders);
         if (registry.Count == 0)
-            return "Error: No tools were discovered. Verify module import and manifest.";
+            return "Error: No tools were discovered. Verify tool providers and manifest.";
 
         // 2. Build tool wrappers
-        var tools = ToolWrapper.BuildTools(registry, destructiveConfirmed, signedFilePolicy);
+        var tools = ToolWrapper.BuildTools(
+            registry,
+            config.DestructiveConfirmed,
+            config.SignedFilePolicy
+        );
 
         // 3. Initialize memory store (optional)
         MemoryStore? memory = null;
-        if (!string.IsNullOrWhiteSpace(memoryPath))
+        if (!string.IsNullOrWhiteSpace(config.MemoryPath))
         {
             try
             {
-                memory = new MemoryStore(memoryPath);
+                memory = new MemoryStore(config.MemoryPath);
             }
             catch (Exception ex)
             {
@@ -76,7 +154,7 @@ public static class AgentCore
         }
 
         // 4. Initialize LLM client
-        var llm = new LlmClient(model);
+        var llm = new LlmClient(config.Model);
 
         // 5. Create orchestrator
         var orchestrator = new AgentOrchestrator(
@@ -84,25 +162,26 @@ public static class AgentCore
             registry,
             tools,
             memory,
-            model,
-            destructiveConfirmed,
-            signedFilePolicy,
-            maxIterations,
-            autoRetryOnRecursion,
-            diagnosticTracePath,
-            expectedOutputPath
+            config.Model,
+            config.DestructiveConfirmed,
+            config.SignedFilePolicy,
+            config.MaxIterations,
+            config.AutoRetryOnIterationLimit,
+            config.DiagnosticTracePath,
+            config.ExpectedOutputPath
         );
 
         // 6. Run the agent
         var result = await orchestrator.RunAsync(prompt).ConfigureAwait(false);
 
         // 7. Optionally attach metadata
-        if (returnMetadata)
+        if (config.ReturnMetadata)
         {
             var metadata = new
             {
-                Model = model,
-                MaxIterations = maxIterations,
+                Mode = config.Mode.ToString(),
+                Model = config.Model,
+                MaxIterations = config.MaxIterations,
                 UsedTools = result.ToolNames,
                 ToolCallCount = result.ToolCallCount,
                 DurationMs = result.DurationMs,

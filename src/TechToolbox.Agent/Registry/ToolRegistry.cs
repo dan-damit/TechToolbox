@@ -1,26 +1,53 @@
-using System.Management.Automation;
-
 namespace TechToolbox.Agent.Registry;
 
+/// <summary>
+/// Builds a tool registry from multiple tool providers and the manifest.
+/// Supports flexible tool discovery and composition.
+/// </summary>
 public static class ToolRegistry
 {
+    /// <summary>
+    /// Legacy method: builds registry with PowerShell and built-in tools.
+    /// Maintained for backward compatibility.
+    /// </summary>
     public static IReadOnlyDictionary<string, ToolSpec> BuildToolRegistry()
     {
-        var discovered = DiscoverTools();
+        var providers = new List<IToolProvider>
+        {
+            new GenericToolProvider(),
+            new PowerShellToolProvider()
+        };
+
+        return BuildToolRegistry(providers);
+    }
+
+    /// <summary>
+    /// Builds a tool registry from the specified tool providers.
+    /// </summary>
+    public static IReadOnlyDictionary<string, ToolSpec> BuildToolRegistry(
+        IEnumerable<IToolProvider> providers
+    )
+    {
+        var registry = new Dictionary<string, ToolSpec>(StringComparer.OrdinalIgnoreCase);
         var manifest = ManifestLoader.LoadManifest();
 
-        var registry = new Dictionary<string, ToolSpec>(StringComparer.OrdinalIgnoreCase);
-
-        // 1. Add discovered tools
-        foreach (var tool in discovered)
+        // 1. Discover and add tools from all providers
+        foreach (var provider in providers ?? Enumerable.Empty<IToolProvider>())
         {
-            registry[tool.Name] = tool;
-        }
-
-        // 1b. Add built-in file tools for basic workspace navigation/edit tasks.
-        foreach (var tool in GetBuiltInTools())
-        {
-            registry[tool.Name] = tool;
+            try
+            {
+                var discovered = provider.DiscoverTools();
+                foreach (var tool in discovered ?? Enumerable.Empty<ToolSpec>())
+                {
+                    registry[tool.Name] = tool;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"Warning: Tool provider {provider.ProviderName} failed: {ex.Message}"
+                );
+            }
         }
 
         // 2. Apply manifest overrides
@@ -63,160 +90,26 @@ public static class ToolRegistry
 
     private static IEnumerable<ToolSpec> GetBuiltInTools()
     {
-        return new[]
-        {
-            new ToolSpec(
-                Name: "READ-FILE",
-                Description: "Reads text content from a file. Large files may return a structured summary instead of the full body.",
-                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["path"] = new ParameterSpec(
-                        Mandatory: true,
-                        Type: "System.String",
-                        Help: "Absolute or relative file path."
-                    ),
-                },
-                Module: "TechToolbox.Agent.Builtin",
-                Meta: new Dictionary<string, object?>()
-            ),
-            new ToolSpec(
-                Name: "LIST-DIRECTORY",
-                Description: "Lists directory entries. Folder names end with '/'.",
-                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["path"] = new ParameterSpec(
-                        Mandatory: true,
-                        Type: "System.String",
-                        Help: "Absolute or relative directory path."
-                    ),
-                },
-                Module: "TechToolbox.Agent.Builtin",
-                Meta: new Dictionary<string, object?>()
-            ),
-            new ToolSpec(
-                Name: "WRITE-FILE",
-                Description: "Writes text to a file, creating parent directories as needed.",
-                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["path"] = new ParameterSpec(
-                        Mandatory: true,
-                        Type: "System.String",
-                        Help: "Absolute or relative file path."
-                    ),
-                    ["content"] = new ParameterSpec(
-                        Mandatory: true,
-                        Type: "System.String",
-                        Help: "Text content to write."
-                    ),
-                },
-                Module: "TechToolbox.Agent.Builtin",
-                Meta: new Dictionary<string, object?>()
-            ),
-        };
+        // Kept for reference; functionality moved to GenericToolProvider
+        return Enumerable.Empty<ToolSpec>();
     }
 
     private static IEnumerable<ToolSpec> DiscoverTools()
     {
-        using var ps = PowerShell.Create();
-
-        var modulePath = ResolveModuleManifestPath();
-        if (!string.IsNullOrWhiteSpace(modulePath))
-        {
-            ps.AddCommand("Import-Module")
-                .AddParameter("Name", modulePath)
-                .AddParameter("Force")
-                .AddParameter("ErrorAction", "Stop");
-        }
-        else
-        {
-            ps.AddCommand("Import-Module")
-                .AddParameter("Name", "TechToolbox")
-                .AddParameter("Force")
-                .AddParameter("ErrorAction", "Stop");
-        }
-
-        ps.Invoke();
-
-        if (ps.HadErrors)
-            throw new InvalidOperationException(
-                $"Tool discovery failed during module import: {ps.Streams.Error[0]}"
-            );
-
-        ps.Commands.Clear();
-
-        ps.AddCommand("Get-Command")
-            .AddParameter("Module", "TechToolbox")
-            .AddParameter("CommandType", "Function")
-            .AddParameter("ErrorAction", "Stop");
-
-        var results = ps.Invoke();
-
-        if (ps.HadErrors)
-            throw new InvalidOperationException($"Tool discovery failed: {ps.Streams.Error[0]}");
-
-        var list = new List<ToolSpec>();
-
-        foreach (var r in results)
-        {
-            if (r.BaseObject is not CommandInfo command)
-                continue;
-
-            // Skip private/internal helper functions by naming convention.
-            if (command.Name.Contains('_', StringComparison.Ordinal))
-                continue;
-
-            var parameters = new Dictionary<string, ParameterSpec>(
-                StringComparer.OrdinalIgnoreCase
-            );
-            foreach (var p in command.Parameters.Values)
-            {
-                var isMandatory = p.Attributes.OfType<ParameterAttribute>().Any(a => a.Mandatory);
-
-                parameters[p.Name] = new ParameterSpec(
-                    Mandatory: isMandatory,
-                    Type: p.ParameterType?.FullName,
-                    Help: null
-                );
-            }
-
-            list.Add(
-                new ToolSpec(
-                    Name: command.Name,
-                    Description: $"PowerShell tool {command.Name}.",
-                    Parameters: parameters,
-                    Module: command.ModuleName ?? "TechToolbox",
-                    Meta: new Dictionary<string, object?>()
-                )
-            );
-        }
-
-        return list;
+        // Kept for backward compatibility; use PowerShellToolProvider directly instead
+        return Enumerable.Empty<ToolSpec>();
     }
 
     private static string? ResolveModuleManifestPath()
     {
-        var envRoot = Environment.GetEnvironmentVariable("TT_ModuleRoot");
-        if (!string.IsNullOrWhiteSpace(envRoot))
-        {
-            var candidate = Path.Combine(envRoot, "TechToolbox.psd1");
-            if (File.Exists(candidate))
-                return candidate;
-        }
-
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
-        {
-            var candidate = Path.Combine(dir.FullName, "TechToolbox.psd1");
-            if (File.Exists(candidate))
-                return candidate;
-
-            dir = dir.Parent;
-        }
-
+        // Kept for reference; moved to PowerShellToolProvider
         return null;
     }
 }
 
+/// <summary>
+/// Represents a tool specification with metadata.
+/// </summary>
 public record ToolSpec(
     string Name,
     string Description,
@@ -225,4 +118,7 @@ public record ToolSpec(
     Dictionary<string, object?> Meta
 );
 
+/// <summary>
+/// Represents a parameter specification for a tool.
+/// </summary>
 public record ParameterSpec(bool Mandatory, string? Type, string? Help);

@@ -1,4 +1,5 @@
 using System.Text;
+using TechToolbox.Agent.Configuration;
 using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
 
@@ -11,15 +12,38 @@ public static class PromptBuilder
         + "Do not use emoji, smart quotes, Unicode bullets, box-drawing characters, or arrow glyphs. "
         + "Use '-' for bullets, '##'/'###' for headings, and '->' when an arrow is needed.";
 
+    /// <summary>
+    /// Legacy method: builds initial messages with TechToolbox system prompt.
+    /// Maintained for backward compatibility.
+    /// </summary>
     public static List<AgentChatMessage> BuildInitialMessages(
         string userPrompt,
         IReadOnlyDictionary<string, ToolSpec> registry,
         MemoryStore? memory
     )
     {
+        // Auto-detect mode from registry
+        var mode = AgentModeDetector.DetectMode(registry);
+        return BuildInitialMessages(userPrompt, registry, memory, mode, null);
+    }
+
+    /// <summary>
+    /// Builds initial messages for a specific agent mode.
+    /// </summary>
+    public static List<AgentChatMessage> BuildInitialMessages(
+        string userPrompt,
+        IReadOnlyDictionary<string, ToolSpec> registry,
+        MemoryStore? memory,
+        AgentMode mode,
+        string? systemPromptOverride = null
+    )
+    {
+        var systemPrompt =
+            systemPromptOverride ?? BuildSystemPrompt(registry, mode);
+
         var messages = new List<AgentChatMessage>
         {
-            new() { Role = "system", Content = BuildSystemPrompt(registry) },
+            new() { Role = "system", Content = systemPrompt },
             new() { Role = "user", Content = BuildGoalPrompt(userPrompt, memory) },
         };
 
@@ -90,14 +114,39 @@ Invalid response snippet:
         };
     }
 
-    private static string BuildSystemPrompt(IReadOnlyDictionary<string, ToolSpec> registry)
+    private static string BuildSystemPrompt(
+        IReadOnlyDictionary<string, ToolSpec> registry,
+        AgentMode mode
+    )
     {
+        var preamble = mode switch
+        {
+            AgentMode.TechToolbox =>
+                "You are a local automation agent running inside TechToolbox.\n"
+                + "Work step-by-step, use tools when helpful, and complete the task safely.\n"
+                + "Never execute destructive actions without explicit confirmation.\n"
+                + "If blocked, explain exactly what is missing and propose the next step.",
+            AgentMode.Assistant =>
+                "You are a helpful assistant focused on clarity and safety.\n"
+                + "Help the user with writing, analysis, coding questions, and other tasks.\n"
+                + "Use available tools to read files, inspect code, or create documents as needed.\n"
+                + "Always explain your reasoning clearly and provide actionable advice.",
+            AgentMode.CodingAgent =>
+                "You are an expert coding assistant specialized in analysis, generation, and debugging.\n"
+                + "Analyze code structures, explain issues, generate solutions, and help debug problems.\n"
+                + "Work step-by-step, inspect files thoroughly, and provide well-reasoned recommendations.\n"
+                + "Follow best practices for the relevant programming language and framework.",
+            AgentMode.Custom =>
+                "You are an automated agent with access to specialized tools.\n"
+                + "Use tools effectively to complete tasks and provide clear explanations.",
+            _ =>
+                "You are an automated agent. Work step-by-step and use available tools as needed."
+        };
+
         var sb = new StringBuilder();
 
-        sb.AppendLine("You are a local automation agent running inside TechToolbox.");
-        sb.AppendLine("Work step-by-step, use tools when helpful, and complete the task safely.");
-        sb.AppendLine("Never execute destructive actions without explicit confirmation.");
-        sb.AppendLine("If blocked, explain exactly what is missing and propose the next step.");
+        sb.AppendLine(preamble);
+        sb.AppendLine();
         sb.AppendLine("For every turn, return ONLY a valid JSON object matching this schema:");
         sb.AppendLine(@"{");
         sb.AppendLine(@"  ""needsTool"": true|false,");
@@ -122,9 +171,8 @@ Invalid response snippet:
         sb.AppendLine("- Never invent tool results.");
         sb.AppendLine("- Use only exact tool names from the available tools list.");
         sb.AppendLine("- Prefer the smallest useful number of tool calls.");
-        sb.AppendLine("- For destructive actions, require confirmation.");
-        sb.AppendLine();
 
+        sb.AppendLine();
         sb.AppendLine("Available tools:");
         foreach (var tool in registry.Values.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase))
         {
