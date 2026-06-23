@@ -16,6 +16,12 @@ This milestone marks TechToolbox’s evolution from a powerful admin toolkit int
   - `Invoke-CodeAssistantFolder`
   - `Invoke-CodeAssistantWrapper`
 - Established the packaged C# TechToolbox agent runtime for local orchestration
+- Expanded the agent runtime into multiple modes so it can cover a wider range of tasks:
+  - `TechToolbox` for module-native automation and safe system actions
+  - `Assistant` for general chat, Q&A, writing help, and email drafting
+  - `CodingAgent` for code analysis, debugging, and refactoring
+  - `Custom` for user-defined workflows and specialized tool sets
+- Added a configuration-driven agent entrypoint so mode selection, tool providers, and runtime behavior can be changed without altering the core orchestrator
 
 ### **Full Metadata Export System**
 
@@ -52,6 +58,7 @@ Enables full introspection of the module for AI agents, documentation tooling, a
 - Deep merge between `config.json` and `config.secrets.json`.  
 - Environment variable overrides (`TT_ConfigSecretsPath`, `TT_DisableConfigSecretsMerge`).  
 - More stable caching and lazy initialization.
+- Added agent mode configuration so the same runtime can be used for TechToolbox automation, general assistant tasks, and coding-focused workflows.
 
 ### **Logging Subsystem**
 - Lazy initialization on first log call.  
@@ -62,6 +69,7 @@ Enables full introspection of the module for AI agents, documentation tooling, a
 - Standardized function template.  
 - Improved ScriptAnalyzer compatibility.  
 - Better WhatIf support across destructive commands.
+- Preserved backward compatibility so existing TechToolbox agent entrypoints continue to behave the same while newer modes are added on top.
 
 ---
 
