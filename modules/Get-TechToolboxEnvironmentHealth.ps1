@@ -35,7 +35,7 @@ function Get-TechToolboxEnvironmentHealth {
     # If $env:TT_Home is not set, fallback to the known TechToolbox root path.
     $ttRoot = $env:TT_Home
     if (-not $ttRoot) {
-        $ttRoot = "C:\Users\dan\OneDrive\TechStuff\TechToolbox"
+        $ttRoot = "C:\Users\dan\OneDrive\TechToolbox"
     }
 
     # --- Check 1: TechToolbox Root Directory Existence & Writability ---

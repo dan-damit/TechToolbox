@@ -14,7 +14,7 @@ function Initialize-ModulePath {
                 if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDrive }
                 if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDriveConsumer }
                 if (-not $oneDriveRoot) { $oneDriveRoot = $env:USERPROFILE }
-                Join-Path $oneDriveRoot 'TechStuff\TechToolbox'
+                Join-Path $oneDriveRoot 'TechToolbox'
             }
         )
     )
