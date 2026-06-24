@@ -98,7 +98,7 @@ function Get-TechToolboxConfig {
             $env:TT_Home
         }
         else {
-            Join-Path $oneDriveRoot 'TechStuff\TechToolbox'
+            Join-Path $oneDriveRoot 'TechToolbox'
         }
 
         $defaultModuleRoot = Split-Path -Parent (Split-Path -Parent $ConfigFilePath)

@@ -33,7 +33,7 @@ function Test-TTPathRoots {
         $env:TT_Home
     }
     else {
-        Join-Path $oneDriveRoot 'TechStuff\TechToolbox'
+        Join-Path $oneDriveRoot 'TechToolbox'
     }
 
     $moduleRoot = if ($env:TT_ModuleRoot) { $env:TT_ModuleRoot } else { Get-ModuleRoot }
