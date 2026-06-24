@@ -401,8 +401,8 @@ if (-not (Test-Path -Path 'variable:script:TT')) {
     }
 }
 
-# --- Config/data paths (module-root by default; override with TT_Home) ---
-$script:TT['Home'] = if ($env:TT_Home) { $env:TT_Home } else { $script:ModuleRoot }
+# --- Config/data paths bootstrap (final binding happens after home resolution) ---
+$script:TT['Home'] = $script:ModuleRoot
 $script:TT['PromptTemplates'] = Join-Path $script:TT.Home 'PromptTemplates'
 $script:TT['AgentHistoryFile'] = Join-Path $script:TT.Home 'AgentHistory.jsonl'
 
@@ -436,6 +436,24 @@ try {
         # -------------------------------------------------------
         if ($env:TT_Home) {
             $TT_Home = $env:TT_Home
+            $legacyHomeMigrated = $false
+
+            # Migrate legacy home tails like "...\\TechStuff\\TechToolbox" to "...\\TechToolbox"
+            if ($TT_Home -match '(?i)[\\/]+TechStuff[\\/]+TechToolbox[\\/]*$') {
+                $legacyTT_HomeOriginal = $TT_Home
+                $TT_Home = [regex]::Replace(
+                    $TT_Home,
+                    '(?i)[\\/]+TechStuff[\\/]+TechToolbox[\\/]*$',
+                    '\\TechToolbox'
+                )
+                $legacyHomeMigrated = $true
+                __tt_trace "Migrated legacy TT_Home tail from TechStuff\\TechToolbox to TechToolbox."
+            }
+
+            try {
+                $TT_Home = [System.IO.Path]::GetFullPath($TT_Home)
+            }
+            catch {}
         }
         else {
             $TT_Home = $script:ModuleRoot
@@ -450,6 +468,11 @@ try {
         $env:TT_Home = $TT_Home
         $env:TT_ModuleRoot = $TT_ModuleRoot
 
+        # Rebind runtime container paths to the effective home.
+        $script:TT['Home'] = $TT_Home
+        $script:TT['PromptTemplates'] = Join-Path $script:TT.Home 'PromptTemplates'
+        $script:TT['AgentHistoryFile'] = Join-Path $script:TT.Home 'AgentHistory.jsonl'
+
         # --- Centralized path roots (OneDrive-aware) ---
         $TT_LogsAndExportsRoot = Join-Path $TT_Home 'LogsAndExports'
         $env:TT_LogsAndExportsRoot = $TT_LogsAndExportsRoot
@@ -462,6 +485,32 @@ try {
                 New-Item -ItemType Directory -Path $path -Force | Out-Null
             }
         }
+
+        if (-not (Test-Path -LiteralPath $script:TT.PromptTemplates)) {
+            New-Item -ItemType Directory -Path $script:TT.PromptTemplates -Force | Out-Null
+        }
+
+        # One-time warning for users upgraded from legacy "TechStuff\TechToolbox" home paths.
+        if ($legacyHomeMigrated) {
+            $migrationMarkerDir = Join-Path $TT_Home '.ttb'
+            $migrationMarker = Join-Path $migrationMarkerDir 'legacy-home-migrated.txt'
+
+            if (-not (Test-Path -LiteralPath $migrationMarkerDir)) {
+                New-Item -ItemType Directory -Path $migrationMarkerDir -Force | Out-Null
+            }
+
+            if (-not (Test-Path -LiteralPath $migrationMarker)) {
+                Write-Warning (
+                    "TechToolbox detected a legacy TT_Home path and migrated it to '$TT_Home'. " +
+                    "Previous value was '$legacyTT_HomeOriginal'. This warning is shown once."
+                )
+
+                Set-Content -Path $migrationMarker -Value (
+                    "MigratedUtc={0}`r`nOriginal={1}`r`nMigrated={2}" -f ((Get-Date).ToUniversalTime().ToString('o')), $legacyTT_HomeOriginal, $TT_Home
+                ) -Encoding UTF8
+            }
+        }
+
         __tt_trace "Runtime folders ensured (no home copy)."
     }
     else {
