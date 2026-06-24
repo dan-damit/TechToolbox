@@ -171,8 +171,8 @@ function Invoke-TechAgent {
         }
 
         $targetDirectory = $candidateDirs |
-            Where-Object { $_ -match '(?i)\\en-US$' } |
-            Select-Object -Last 1
+        Where-Object { $_ -match '(?i)\\en-US$' } |
+        Select-Object -Last 1
 
         if ([string]::IsNullOrWhiteSpace($targetDirectory)) {
             $targetDirectory = $candidateDirs | Select-Object -Last 1
@@ -199,9 +199,9 @@ Hard requirement:
 "@
     }
 
-        if ($AutoRetryOnRecursion.IsPresent -and $DisableAutoRetryOnRecursion.IsPresent) {
-            throw 'Specify only one of -AutoRetryOnRecursion or -DisableAutoRetryOnRecursion.'
-        }
+    if ($AutoRetryOnRecursion.IsPresent -and $DisableAutoRetryOnRecursion.IsPresent) {
+        throw 'Specify only one of -AutoRetryOnRecursion or -DisableAutoRetryOnRecursion.'
+    }
 
     $writeMarkdownLog = {
         param(
@@ -302,8 +302,8 @@ Hard requirement:
         )
 
         $agentAssemblyPath = $assemblyCandidates |
-            Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
-            Select-Object -First 1
+        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+        Select-Object -First 1
 
         if ([string]::IsNullOrWhiteSpace($agentAssemblyPath)) {
             throw "TechToolbox.Agent assembly not found. Install the packaged agent runtime or build/publish src\TechToolbox.Agent."
@@ -461,10 +461,10 @@ Hard requirement:
 
                 if (-not (Test-Path -LiteralPath $memoryPath -PathType Leaf)) {
                     $memorySeed = @{
-                        preferences = @{}
-                        facts = @{}
+                        preferences          = @{}
+                        facts                = @{}
                         _memoryFormatVersion = 2
-                        history = @()
+                        history              = @()
                     } | ConvertTo-Json -Depth 4
 
                     Set-Content -LiteralPath $memoryPath -Value $memorySeed -Encoding utf8
@@ -491,17 +491,17 @@ Hard requirement:
         Write-Log -Level Info -Message ("Invoking local tech agent via C# assembly: {0}" -f $agentAssemblyPath)
 
         $request = [ordered]@{
-            Prompt = $effectivePrompt
-            Model = $(if ([string]::IsNullOrWhiteSpace($Model)) { 'llama3' } else { $Model })
-            Verbose = $false
-            MaxIterations = $MaxIterations
-            ConfirmDestructive = $ConfirmDestructive.IsPresent
-            MemoryPath = $memoryPath
+            Prompt               = $effectivePrompt
+            Model                = $(if ([string]::IsNullOrWhiteSpace($Model)) { 'llama3' } else { $Model })
+            Verbose              = $false
+            MaxIterations        = $MaxIterations
+            ConfirmDestructive   = $ConfirmDestructive.IsPresent
+            MemoryPath           = $memoryPath
             AutoRetryOnRecursion = $autoRetryOnIterationLimit
-            ReturnMetadata = $false
-            SignedFilePolicy = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
-            DiagnosticTracePath = $diagnosticTracePath
-            ExpectedOutputPath = $expectedOutputPath
+            ReturnMetadata       = $false
+            SignedFilePolicy     = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
+            DiagnosticTracePath  = $diagnosticTracePath
+            ExpectedOutputPath   = $expectedOutputPath
         }
 
         $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
@@ -645,10 +645,10 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
                     -DestructiveAuthorized $ConfirmDestructive.IsPresent `
                     -SignedFilePolicyValue $SignedFilePolicy `
                     -AutoRetryOnRecursionMode $(
-                        if ($AutoRetryOnRecursion.IsPresent) { 'Enabled' }
-                        elseif ($DisableAutoRetryOnRecursion.IsPresent) { 'Disabled' }
-                        else { 'Default' }
-                    ) `
+                    if ($AutoRetryOnRecursion.IsPresent) { 'Enabled' }
+                    elseif ($DisableAutoRetryOnRecursion.IsPresent) { 'Disabled' }
+                    else { 'Default' }
+                ) `
                     -StdOut $capturedStdOut `
                     -StdErr $capturedStdErr `
                     -ErrorText $markdownError `
@@ -680,8 +680,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAbbD+kWQbY/2Og
-# Chw7bmLBzh5aZu18neqCvFQZM+pl56CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC+/0JiKFMouYlb
+# fPM4i2yK9TcUpVFgORX73rIySLBybqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -814,34 +814,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD3bQoCgY0d
-# iqGVsEGroZspOwkES/0Ieg3ZHNqtodQaWjANBgkqhkiG9w0BAQEFAASCAgBvclBw
-# lsyqq16NTFXIXPptjDfki/fkTU8BzPXkbb5XtdyAvBOKOAavzgyfEdb/3kO5ryMS
-# FsVOj0pN2qPQHK3Kt426Z1VYUunbekFiC224y41q0g0LBgf6AM1fKzAJ5R9mS6Kw
-# QKWPio0XGU0Gc5jl4vL4qMgwPWhF4+hB3T8OpETlEhIlODySZp5hyu6q7S5jX7is
-# W1PxFFWzjUljl6v6CKp++QFnVXYywUhkt4FUpQc7lSOj+aeTojrvod4fIQjIQ3HT
-# GeCrmmKGx3mAtU87FMtMB1dBidrLlkEvmqNmJNZvlS116V8Z6E4D9BI7/Wh8AbyG
-# XqwXpUJCZ/EWK+ldesmlFH4ZFAsknNJDC9kPi6hWbZiiw2TpZzhpCQbJckXZHt+x
-# 0BdLfB5zyFSX5EXMF7UvgnmSNyIpfLzl0jRf6rSlKhI9TdwuS+49aQ64ilcVRjCB
-# R4Fl2aa/erxCpms95eU3nWrURHIaIMGYdv16RmQuMFOrRDeflP9zvCDa0PosM/54
-# oG2Hnw/toVTnC918a0r9cci4b5CptkiMhUxRDcZ/SUcyJYEAVyGgik+RXNaGyB0Z
-# 7HZ6GCh/BnCrcH3jCPedMHIUaBRXHG4Ls1pcQIZWMyeg6gkYu0oS0q31HmR5LztQ
-# w13G8OTIivVbhdyRzzX3vRv9yS2rt16cmacOJKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBw3S18CP+M
+# Mhjt77qUC5zFYlkkoILwd/m3hiZVYlewyDANBgkqhkiG9w0BAQEFAASCAgAMgVJv
+# LL2vf6gof2QJTpiSOuQoDKoxKwj2IdUIp6BHkfNCUt7u42CHSyqnWD5LdJTbqPBL
+# fvTIX7ZCPwOT909glnzMCrVJUtwozI4pd/yW7KsVIhoKkiH8K6aGV5/30MOkC+N+
+# km7vjAz5HCeVCQj4r4FtkBtnqNhfRlW1VrXrGaQrANFlXxyO+QtZ8/ueCx5sj4nn
+# QXua+5131YKUL8DAiloATia9S9TqU4cdeRdIPlaJju6G2OuiZ1Zi1i0ld1cTgzI0
+# T9EeHAnE18T33t13LNqpIzAC7XuJjGmF1S8AABS2feckiZTzXJZF8DeITzEHjiPm
+# HnFuFGzeyD8lZKtJrssp50ohsxUCraXT6lF+PfY3B5w9+1z0uEreFrp7mDBGWWZm
+# 6usxVXiVjN1pboYp5WBS0UXuo5GHMXa/w48Pvmu77aNHOZQtSYtMf4lHUAU235cM
+# HsKXVVoVnc/xO8Uhb4cZnlm+MwjOASFFmiQmCbF3B4brY20nuQTDsFSc0brbjs43
+# P76/dIBuHLhwumVP7pzq7Ifz8vyDzvUtinb5uaW78iMkiRy6J6OlQvBx4j/mZAQk
+# OK9DjnzBbIvYx7zt2xJVqVZJm1aPw4KXisAo8pp6j7eOaFYAul/tHoLyMTRDNbRr
+# tSnlSW5YO3sUYlQ0iWpKZK9kmT+Xxvi7cFNWCKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MjEwNDU1MDNaMC8GCSqGSIb3DQEJBDEiBCCa7phqNCLceMl/aioC
-# dK1gtJP1X7LkZ5Qb/MRXjOMajTANBgkqhkiG9w0BAQEFAASCAgBpdp7cTe4hHH9h
-# aG6duEW86ylqazIcNTkrLw3lVjwU89tJA+LxXj6+2K+DO7tC7I0JwJPOr1BTEMYj
-# Ld0CxMx9Wl1FWNcTGuHEYa3P4EKq7H39W3+s2pccIb/QdMruV+x29Bhl0LliGGdO
-# fO6fw8/i0tRUrfyivB2DDrcNGSvKlHtVHtt4ODsBJEWed8s6NKYZmNUejL1orQY3
-# RYnG/0h5gZljnIASDzno66EdNUZ2sEF/4LBhQQ/mq1oefRRj/5pmAJVERH0rQned
-# GzVmfCu36C1o8F/O19oTyTDpQPDjRqkIHNWnS9hztfxvYK+Fdhfio8vAhXAz4S0r
-# JeExE0jv0y02VcIP3vPXATjw3YcHnFxAjHco/EqTNmMEMFK93PM8FC4SFrJ54+TZ
-# 5lRVXU9O7Wi1EHgdfZaTBcUuZKMDfHk4ccDG1UelqX7Ndf4wYZOsSs3Plkrlc6d1
-# o41GK9leCmnnHGAGkLbFBSRpY7hU6emwc0Mg0sAzUW5n10LYjiXdbMBXs8j4oLw9
-# CM7ntyLhW3Ysnbb/994y8csD1+J0n3v3jcVlIDjiz2hD9AmOiZUcp8cnaDgY6kht
-# N2lyV7kdFcODulKI7toeuPMH4RR6+gK29YtyhzzBAP/F+w3QMw4zC+jh7eeEt51j
-# /tpBUS0RTJJs6AGd/jaCe934RrIquA==
+# BTEPFw0yNjA2MjQyMzMyMThaMC8GCSqGSIb3DQEJBDEiBCBCDfuxUw1+kzYPYEG2
+# PRXCNm8eyZqSSO2unohb1V+cxzANBgkqhkiG9w0BAQEFAASCAgBXsNDdw/ihz/n9
+# Ab1ufZWbvAhj8eVASyDeoPwoXY1cxrJ5c+fj3SEnZe1eVpgvjHzQVqg9v/HVO5KA
+# zbbCqApKEdtAo40MstQDQgi4qOC2cHFYiKexhoULpYjcg1Q33ne9AbIP7rRvLVMw
+# uJ0olI65Nmr7C0FskZSr7VeTOBl/00t46gudZ7+sArJTe9TGFMhj2eSF+9oXIiUz
+# O6/Ojh2grHsOpjFHuMG+1v1NqjNiB/OAJTjfQU28sWm51UbM65L0m85FWdXK4SWm
+# HlkpS6x1Co38oMYbGHost3yg7niaOstSH9uP3h2EBKaKID6XqsJuYxkS0Pjx36tI
+# tcMiNgBY+4vnbwYadkT9/AIZm/lxOLUSaxdO9/8gaM2nZ69ckFKWS9boLttZbdxK
+# /bJinONsptWrrH85aA9VtE+ehmS224V11QwVWq9LG1ff4a6BgaqnJ5YDe7i25YSO
+# Lu7EYlMCuFnvzroqm7GJXDoCVSGy3wyaAqCRGtB9qFihs3Y7tgD9G3Oif+xxFl5Y
+# dqFDQuUrz2ouU/mraRsgUzGC26w6VgjQKGtI5E1Q6fewEBy/HoI9DeUXVmSPuPgy
+# h6GaoG0w03vXrVKVKZv9ZEtzC85ZgduW65U0nOqdBlSCbE6DF6Q4ul44EJlMWRId
+# f7XXjLRvGaQW4zpMdrgJylmcPubq1g==
 # SIG # End signature block
