@@ -86,6 +86,7 @@ Changes planned for upcoming milestones:
 
 ### **Fixed**
 - Added support for forwarding `-SignedFilePolicy` (`ignore`/`strip`) through `ITA` to `Invoke-TechAgent`, enabling signed-file overwrite policy passthrough to the packaged C# agent runtime for Authenticode-signed file overwrite workflows.
+- Refactored TechToolbox home initialization to default runtime data paths to module root and removed first-import home staging/copy behavior. Runtime folders (`LogsAndExports/Logs`, `LogsAndExports/Exports`) are now ensured in-place unless `TT_Home` is explicitly set.
 
 ### **0.6.0 — Cross‑Platform Stabilization**
 - Path normalization across Windows/macOS/Linux.

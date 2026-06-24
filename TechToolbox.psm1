@@ -401,8 +401,8 @@ if (-not (Test-Path -Path 'variable:script:TT')) {
     }
 }
 
-# --- Config/data paths (OneDrive-aware) ---
-$script:TT['Home'] = Join-Path $env:APPDATA 'TechToolbox'
+# --- Config/data paths (module-root by default; override with TT_Home) ---
+$script:TT['Home'] = if ($env:TT_Home) { $env:TT_Home } else { $script:ModuleRoot }
 $script:TT['PromptTemplates'] = Join-Path $script:TT.Home 'PromptTemplates'
 $script:TT['AgentHistoryFile'] = Join-Path $script:TT.Home 'AgentHistory.jsonl'
 
@@ -426,29 +426,19 @@ $initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolbo
 if (Test-Path $initHelper) { . $initHelper; __tt_trace "Sourced Initialize-TechToolboxHome.ps1" }
 else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
 
-# --- Gate self-install / self-heal (skip or once) ---
+# --- Resolve runtime/data roots (module-root by default) ---
 try {
     if ($env:TT_SkipHomeInit -ne '1') {
 
         # -------------------------------------------------------
         # Determine TechToolbox home (config/data root)
-        # Priority: $env:TT_Home > APPDATA\TechToolbox > OneDrive fallback > ModuleRoot
+        # Priority: $env:TT_Home > ModuleRoot
         # -------------------------------------------------------
         if ($env:TT_Home) {
             $TT_Home = $env:TT_Home
         }
         else {
-            # Default to standard user data location (APPDATA)
-            $appDataHome = Join-Path $env:APPDATA 'TechToolbox'
-
-            # If no OneDrive env vars, fall back to ModuleRoot itself
-            # so code + config live together (standard PowerShell module behavior)
-            if ($appDataHome) {
-                $TT_Home = $appDataHome
-            }
-            else {
-                $TT_Home = $script:ModuleRoot
-            }
+            $TT_Home = $script:ModuleRoot
         }
 
         # --- TechToolbox module root is always the actual import location ---
@@ -466,26 +456,13 @@ try {
         $env:TT_LogsRoot = Join-Path $TT_LogsAndExportsRoot 'Logs'
         $env:TT_ExportsRoot = Join-Path $TT_LogsAndExportsRoot 'Exports'
 
-        # Sentinel file (only used if home == module root)
-        $sentinel = Join-Path $TT_Home '.ready'
-
-        # --- Run initialization only if sentinel missing and home != ModuleRoot ---
-        if (-not (Test-Path $sentinel) -and ($TT_Home -ne $script:ModuleRoot)) {
-            try {
-                Initialize-TechToolboxHome -HomePath $TT_Home
-                New-Item -ItemType File -Path $sentinel -Force | Out-Null
-                __tt_trace "Initialize-TechToolboxHome executed"
-            }
-            catch {
-                Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
+        # Ensure runtime folders exist. No self-copy or self-heal staging is performed.
+        foreach ($path in @($TT_LogsAndExportsRoot, $env:TT_LogsRoot, $env:TT_ExportsRoot)) {
+            if (-not (Test-Path -LiteralPath $path)) {
+                New-Item -ItemType Directory -Path $path -Force | Out-Null
             }
         }
-        elseif ($TT_Home -eq $script:ModuleRoot) {
-            __tt_trace "Home equals ModuleRoot; no copy needed."
-        }
-        else {
-            __tt_trace "Home already initialized; skipping"
-        }
+        __tt_trace "Runtime folders ensured (no home copy)."
     }
     else {
         __tt_trace "Home init skipped via TT_SkipHomeInit=1"

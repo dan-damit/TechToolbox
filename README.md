@@ -78,7 +78,7 @@ TechToolbox follows a **loader-driven, one-function-per-file** pattern with deep
 ```plaintext
 TechToolbox/
 ├── TechToolbox.psd1          # Module manifest (metadata + declared exports)
-├── TechToolbox.psm1          # Bootstrap/loader (home init, dot-sourcing, export wiring)
+├── TechToolbox.psm1          # Bootstrap/loader (runtime path resolution, dot-sourcing, export wiring)
 ├── Public/                   # Exported command scripts + export helper
 │   ├── ActiveDirectory/      # AD lifecycle and identity operations
 │   ├── AI/                   # AI assistant and agent bridge commands
@@ -114,7 +114,7 @@ TechToolbox/
 ### How the Loader Works
 
 1. **Manifest loads first** -- `TechToolbox.psd1` points to `TechToolbox.psm1` and provides module metadata/declared exports.
-2. **Bootstrap establishes module state** -- `TechToolbox.psm1` sets module/home paths and one-time home initialization.
+2. **Bootstrap establishes module state** -- `TechToolbox.psm1` sets module/home paths and resolves runtime roots without first-import home copy.
 3. **Private helpers are dot-sourced** -- all `.ps1` files under `Private/` are loaded recursively into module scope.
 4. **Public scripts are dot-sourced** -- all `.ps1` files under `Public/` are loaded (excluding `Export-ToolboxFunctions.ps1` in that pass).
 5. **Exports are discovered and published** -- at import time, `Export-ToolboxFunctions` discovers public function names, then `Export-ModuleMember` exports those functions plus `ITA`.
@@ -127,7 +127,7 @@ Portable path tokens replace absolute paths for roaming safety:
 | Token              | Resolves To                 | Use For                                       |
 | ------------------ | --------------------------- | --------------------------------------------- |
 | `%TT_ModuleRoot%`  | `C:\...\TechToolbox\`       | Module-owned files (Config, Workers, Private) |
-| `%TT_Home%`        | User/machine home directory | Operational data (logs, exports, temp)        |
+| `%TT_Home%`        | Module root by default (or override) | Operational data root (logs, exports, prompt templates, history) |
 | `%TT_LogsRoot%`    | Resolved logs root          | Log file output paths                         |
 | `%TT_ExportsRoot%` | Resolved exports root       | Exported reports / files                      |
 
@@ -390,6 +390,7 @@ end {}
 - **Private helpers stay private** -- nothing in `Private/` is exported; use them only from other module functions.
 - **No side effects on import** -- the `.psm1` bootstrap should not run user-facing code; lazy-init everything.
 - **All paths use tokens** -- never hardcode absolute paths; resolve via `%TT_ModuleRoot%` or `%TT_Home%`.
+- **Module-root first import** -- by default, first import does not stage/copy module content to a separate home path. Set `TT_Home` only when you intentionally want runtime data outside module root.
 - **WhatIf support** -- every destructive function must respect `$PSCmdlet.ShouldProcess()`.
 
 ### Testing Conventions
