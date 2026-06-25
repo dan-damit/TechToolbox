@@ -39,5 +39,22 @@ jobs:
         shell: bash
 
       - name: Push
-        run: git push origin HEAD:main
+        run: |
+          set -euo pipefail
+
+          # Remote main can advance between checkout and push; rebase and retry.
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push attempt ${attempt} failed due to concurrent updates; retrying..."
+            git rebase --abort || true
+          done
+
+          echo "Failed to push badge updates after 3 attempts."
+          exit 1
         shell: bash
