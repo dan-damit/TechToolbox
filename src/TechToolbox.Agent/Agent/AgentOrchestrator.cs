@@ -208,11 +208,27 @@ public class AgentOrchestrator
 
             messages.Add(new AgentChatMessage { Role = "assistant", Content = raw });
 
-            if (!JsonHelpers.TryParseDecision(raw, out var decision) || decision is null)
+            AgentDecision? decision = null;
+            var decisionValidationError = string.Empty;
+
+            var parsedDecision = JsonHelpers.TryParseDecision(raw, out decision) && decision is not null;
+            if (parsedDecision && !TryValidateDecision(decision!, out decisionValidationError))
+            {
+                parsedDecision = false;
+                Trace(
+                    $"Iteration {i + 1} planner decision failed schema validation: {decisionValidationError}"
+                );
+            }
+
+            if (!parsedDecision)
             {
                 Trace($"Iteration {i + 1} invalid planner JSON; issuing repair prompt");
 
-                messages.Add(PromptBuilder.BuildRepairMessage(raw));
+                var invalidResponseForRepair = string.IsNullOrWhiteSpace(decisionValidationError)
+                    ? raw
+                    : $"{raw}\n\n[SCHEMA_ERROR] {decisionValidationError}";
+
+                messages.Add(PromptBuilder.BuildRepairMessage(invalidResponseForRepair));
 
                 var repairResponse = await _llm.GenerateDecisionAsync(messages)
                     .ConfigureAwait(false);
@@ -224,7 +240,17 @@ public class AgentOrchestrator
 
                 messages.Add(new AgentChatMessage { Role = "assistant", Content = repairedRaw });
 
-                if (!JsonHelpers.TryParseDecision(repairedRaw, out decision) || decision is null)
+                var repairedDecisionValid =
+                    JsonHelpers.TryParseDecision(repairedRaw, out decision) && decision is not null;
+                if (repairedDecisionValid && !TryValidateDecision(decision!, out decisionValidationError))
+                {
+                    repairedDecisionValid = false;
+                    Trace(
+                        $"Iteration {i + 1} repaired decision failed schema validation: {decisionValidationError}"
+                    );
+                }
+
+                if (!repairedDecisionValid)
                 {
                     if (
                         JsonHelpers.TryExtractWriteFileDecision(
@@ -263,10 +289,18 @@ public class AgentOrchestrator
                             }
                         );
 
-                        if (
-                            !JsonHelpers.TryParseDecision(writeFileRecoveryRaw, out decision)
-                            || decision is null
-                        )
+                        var recoveryDecisionValid =
+                            JsonHelpers.TryParseDecision(writeFileRecoveryRaw, out decision)
+                            && decision is not null;
+                        if (recoveryDecisionValid && !TryValidateDecision(decision!, out decisionValidationError))
+                        {
+                            recoveryDecisionValid = false;
+                            Trace(
+                                $"Iteration {i + 1} targeted recovery decision failed schema validation: {decisionValidationError}"
+                            );
+                        }
+
+                        if (!recoveryDecisionValid)
                         {
                             return new RunLoopResult(
                                 $"Agent returned invalid JSON twice. Last response: {repairedRaw}",
@@ -425,8 +459,20 @@ public class AgentOrchestrator
                 && !toolResult.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
             )
             {
-                writeFileCompleted = true;
-                Trace($"Iteration {i + 1} marked WRITE-FILE hard requirement as completed.");
+                if (File.Exists(expectedOutputPath!))
+                {
+                    writeFileCompleted = true;
+                    Trace($"Iteration {i + 1} marked WRITE-FILE hard requirement as completed.");
+                }
+                else
+                {
+                    toolExecutionSucceeded = false;
+                    toolResult =
+                        $"WRITE-FILE reported success but expected output file does not exist yet at '{expectedOutputPath}'. Retry WRITE-FILE with the exact path and full content.";
+                    Trace(
+                        $"Iteration {i + 1} WRITE-FILE returned success but expected file was missing: {expectedOutputPath}"
+                    );
+                }
             }
 
             var maxToolResultChars = GetMaxToolResultChars();
@@ -815,6 +861,57 @@ Next best action:
         };
 
         return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool TryValidateDecision(AgentDecision decision, out string error)
+    {
+        error = string.Empty;
+
+        if (decision is null)
+        {
+            error = "decision is null";
+            return false;
+        }
+
+        if (decision.NeedsTool)
+        {
+            if (string.IsNullOrWhiteSpace(decision.ToolName))
+            {
+                error = "needsTool=true requires non-empty toolName";
+                return false;
+            }
+
+            if (decision.ToolArgs is null)
+            {
+                error = "needsTool=true requires toolArgs object";
+                return false;
+            }
+
+            if (decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!TryGetToolArgString(decision.ToolArgs, "path", out _))
+                {
+                    error = "WRITE-FILE requires non-empty string toolArgs.path";
+                    return false;
+                }
+
+                if (!TryGetToolArgString(decision.ToolArgs, "content", out _))
+                {
+                    error = "WRITE-FILE requires non-empty string toolArgs.content";
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(decision.FinalAnswer))
+        {
+            error = "needsTool=false requires non-empty finalAnswer";
+            return false;
+        }
+
+        return true;
     }
 
     private static bool PathsEqual(string left, string right)

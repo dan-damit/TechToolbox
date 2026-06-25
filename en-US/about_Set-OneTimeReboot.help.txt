@@ -1,0 +1,74 @@
+.EXTERNALHELP Set-OneTimeReboot-help.xml
+
+.NOTES
+  NAME: about_Set-OneTimeReboot
+
+.DESCRIPTION
+  The Set-OneTimeReboot function schedules or removes a one-time reboot task
+  locally or on remote computers. It creates, updates, or unregisters a Windows
+  Scheduled Task that runs 'shutdown.exe /r' at a specified target local
+  date/time.
+
+  Key Features: - Local scheduling when -ComputerName is not provided. - Remote
+  scheduling over PowerShell remoting (WSMan or SSH) when -ComputerName is
+  provided. - Idempotent task updates: if a task with the same name exists, it
+  is removed and recreated. - Supports removing existing tasks via -Remove. -
+  Uses configuration defaults from settings.oneTimeReboot for parameters like
+  At, SelfDelete,
+    defaultComment, and taskNamePrefix when not explicitly specified.
+
+.PARAMETER ComputerName
+  Specifies the target computer(s) to schedule or remove the reboot task on.
+  Accepts values from the pipeline and by property name. Aliases: CN, Host,
+  Name.
+
+.PARAMETER DateTime
+  Specifies the exact local date and time for the one-time reboot. If omitted,
+  the -At parameter is used instead.
+
+.PARAMETER Credential
+  Specifies a credential object for remote authentication (WSMan or SSH). For
+  SSH, this can also be a username string to enable key-based authentication via
+  PowerShell remoting helpers.
+
+.PARAMETER At
+  Specifies the time of day (HH:mm format) for the reboot if -DateTime is not
+  provided. The task will be scheduled for the next occurrence of this time. If
+  that time has already passed today, it rolls over to tomorrow.
+
+.PARAMETER SelfDelete
+  A switch parameter. When specified, the scheduled task will automatically
+  delete itself after execution.
+
+.PARAMETER TaskName
+  Specifies a custom name for the scheduled task. Defaults are derived from
+  configuration or function logic if not provided.
+
+.PARAMETER Remove
+  A switch parameter. When specified, the function removes (unregisters) an
+  existing reboot task instead of creating or updating one.
+
+.PARAMETER Comment
+  Specifies a comment to associate with the scheduled task.
+
+.PARAMETER DeleteExpiredTaskAfterMinutes
+  Specifies how many minutes after expiration the system should delete the task
+  if it was not used.
+
+.EXAMPLE
+  Set-OneTimeReboot -At '02:00'
+
+  Description: Schedules a one-time reboot for today at 2:00 AM local time. If
+  2:00 AM has already passed, it schedules for tomorrow at 2:00 AM.
+
+.EXAMPLE
+  Set-OneTimeReboot -ComputerName 'SERVER01' -DateTime '4/21/2026 1:00:00 AM'
+
+  Description: Schedules a one-time reboot on the remote computer SERVER01 for
+  April 21, 2026, at 1:00 AM.
+
+.EXAMPLE
+  Set-OneTimeReboot -Remove -TaskName 'MyRebootTask'
+
+  Description: Removes the scheduled task named 'MyRebootTask' from the local
+  computer.

@@ -180,6 +180,27 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_RepairsSchemaInvalidDecision_WhenFinalAnswerMissing()
+    {
+        var llm = new RecordingFakeLlmClient(
+            new[] { "{\"needsTool\":false,\"finalAnswer\":\"\",\"reason\":\"done\"}", FinalDecision("Recovered") }
+        );
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase),
+            maxIterations: 5,
+            autoRetry: false
+        );
+
+        var result = await orchestrator.RunAsync("test goal");
+
+        Assert.Equal("Recovered", result.OutputText);
+        Assert.True(llm.MessageSnapshots.Count >= 2);
+        Assert.Contains("SCHEMA_ERROR", llm.MessageSnapshots[1].Last().Content);
+    }
+
+    [Fact]
     public async Task RunAsync_SalvagesMalformedWriteFileDecisionWithoutExtraLlmTurn()
     {
         string? capturedJsonArgs = null;
@@ -330,6 +351,67 @@ public class AgentOrchestratorTests
             "Required WRITE-FILE step has not completed yet",
             llm.MessageSnapshots[2].Last().Content
         );
+    }
+
+    [Fact]
+    public async Task RunAsync_RetriesWriteFile_WhenToolReportsSuccessButExpectedFileIsMissing()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-writefile-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var expectedOutputPath = Path.Combine(tempRoot, "about_Invoke-RestartService.help.txt");
+            var jsonPath = expectedOutputPath.Replace("\\", "\\\\", StringComparison.Ordinal);
+
+            var llm = new RecordingFakeLlmClient(
+                new[]
+                {
+                    $"{{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"content\":\"first\"}},\"reason\":\"write required file\"}}",
+                    $"{{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"content\":\"second\"}},\"reason\":\"retry write required file\"}}",
+                    FinalDecision("Done"),
+                }
+            );
+
+            var writeCount = 0;
+            var tools = new Dictionary<string, Func<string, Task<string>>>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["WRITE-FILE"] = _ =>
+                {
+                    writeCount++;
+                    if (writeCount == 2)
+                    {
+                        File.WriteAllText(expectedOutputPath, "second");
+                    }
+
+                    return Task.FromResult("ok");
+                },
+            };
+
+            var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 8, autoRetry: false);
+
+            var prompt =
+                $"Create help doc\n\nHard requirement:\n- Create the output file at this exact path: {expectedOutputPath}\n- Use WRITE-FILE to create/update the file.\n- Do not return a final answer until WRITE-FILE has succeeded.";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Done", result.OutputText);
+            Assert.Equal(2, writeCount);
+            Assert.True(File.Exists(expectedOutputPath));
+            Assert.Contains(
+                "expected output file does not exist yet",
+                llm.MessageSnapshots[1].Last().Content
+            );
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
     }
 
     [Fact]

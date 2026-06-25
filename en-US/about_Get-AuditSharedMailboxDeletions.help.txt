@@ -1,0 +1,81 @@
+.EXTERNALHELP Get-AuditSharedMailboxDeletions-help.xml
+
+.NOTES
+  NAME: about_Get-AuditSharedMailboxDeletions
+
+.DESCRIPTION
+  The Get-AuditSharedMailboxDeletions function finds shared mailbox deletion
+  activity and optionally exports results to CSV.
+
+  It initializes TechToolbox runtime, ensures Exchange Online connectivity, and
+  runs the shared mailbox audit worker for the specified mailbox and time
+  window.
+
+  Key Features: - Defaults StartDate to 14 days ago and EndDate to now. -
+  Supports optional subject filters (literal and regex). - Supports operation
+  filtering (SoftDelete, HardDelete, MoveToDeletedItems). - Can export matched
+  records to CSV and optionally return the objects.
+
+.PARAMETER Mailbox
+  Specifies the mailbox identity to audit. Accepts alias, UPN, SMTP address,
+  etc. This parameter is mandatory.
+
+.PARAMETER StartDate
+  Specifies the query start date for the audit log search. Defaults to 14 days
+  before execution time if not provided.
+
+.PARAMETER EndDate
+  Specifies the query end date for the audit log search. Defaults to the current
+  execution time if not provided.
+
+.PARAMETER SubjectContains
+  Specifies optional case-insensitive literal subject fragments. Any message
+  with a subject containing any of these fragments is included in the results.
+
+.PARAMETER SubjectRegex
+  Specifies optional regex patterns tested against message subjects. Any message
+  whose subject matches any of these patterns is included in the results.
+
+.PARAMETER Operations
+  Specifies the Unified Audit Log (UAL) operations to include in the search.
+  Defaults to 'SoftDelete', 'HardDelete', and 'MoveToDeletedItems'.
+
+.PARAMETER ExportCsv
+  A switch parameter. When specified, exports the audit results to a CSV file.
+  If -PassThru is not set, returns only the path to the exported CSV file.
+
+.PARAMETER ExportPath
+  Specifies the destination folder for the CSV export when -ExportCsv is used.
+  Defaults to the configured shared mailbox audit export path in settings, then
+  falls back to $env:TEMP if not configured.
+
+.PARAMETER PassThru
+  A switch parameter. When used with -ExportCsv, returns the actual record
+  objects instead of only the exported file path.
+
+.EXAMPLE
+  Get-AuditSharedMailboxDeletions -Mailbox 'sharedmailbox@contoso.com'
+
+  Description: Audits deletion activity for sharedmailbox@contoso.com over the
+  last 14 days using default settings.
+
+.EXAMPLE
+  Get-AuditSharedMailboxDeletions -Mailbox 'sharedmailbox@contoso.com'
+  -StartDate '2026-01-01' -EndDate '2026-01-31'
+
+  Description: Audits deletion activity for sharedmailbox@contoso.com between
+  January 1, 2026 and January 31, 2026.
+
+.EXAMPLE
+  Get-AuditSharedMailboxDeletions -Mailbox 'sharedmailbox@contoso.com'
+  -SubjectContains 'Invoice' -Operations @('HardDelete')
+
+  Description: Audits only HardDelete operations for sharedmailbox@contoso.com
+  where the subject contains 'Invoice'.
+
+.EXAMPLE
+  Get-AuditSharedMailboxDeletions -Mailbox 'sharedmailbox@contoso.com'
+  -ExportCsv -PassThru
+
+  Description: Audits deletion activity, exports results to CSV, and returns the
+  record objects.

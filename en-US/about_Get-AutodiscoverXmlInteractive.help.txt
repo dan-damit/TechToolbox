@@ -1,0 +1,56 @@
+.EXTERNALHELP Get-AutodiscoverXmlInteractive-help.xml
+
+.NOTES
+  NAME: about_Get-AutodiscoverXmlInteractive
+
+.DESCRIPTION
+  The Get-AutodiscoverXmlInteractive function performs an interactive (or
+  parameterized) Autodiscover XML probe for Exchange, Hosted, or Microsoft 365
+  environments.
+
+  It prompts for or accepts parameters for Email address, Schema version, and
+  URI endpoint. It then POSTs the Outlook Autodiscover request, follows any
+  redirects, saves the resulting XML response to a temporary file, and
+  summarizes common nodes found in the response. The function is hardened
+  against DNS/connection errors and missing ResponseUri scenarios.
+
+.PARAMETER Email
+  Specifies the mailbox UPN or SMTP email address to test for Autodiscover
+  information. If omitted, the user will be prompted to enter it interactively.
+
+.PARAMETER Uri
+  Specifies a full Autodiscover endpoint URL (e.g.,
+  https://autodiscover.domain.com/autodiscover/autodiscover.xml). If omitted,
+  the function will attempt to construct and suggest a URI based on the domain
+  extracted from the Email parameter.
+
+.PARAMETER Schema
+  Specifies the AcceptableResponseSchema for the Autodiscover request. Valid
+  values are: -
+  'http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a'
+  (Default) -
+  'http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006'
+
+.PARAMETER TryAllPaths
+  A switch parameter. When specified, the function will attempt a sequence of
+  common Autodiscover endpoint paths derived from the email's domain instead of
+  relying on a single URI or prompt.
+
+.EXAMPLE
+  Get-AutodiscoverXmlInteractive
+
+  Description: Runs the function interactively, prompting for Email address and
+  other parameters as needed.
+
+.EXAMPLE
+  Get-AutodiscoverXmlInteractive -Email 'user@domain.com' -Uri
+  'https://autodiscover.domain.com/autodiscover/autodiscover.xml'
+
+  Description: Probes the Autodiscover service for user@domain.com using a
+  specific URI endpoint.
+
+.EXAMPLE
+  Get-AutodiscoverXmlInteractive -Email 'user@domain.com' -TryAllPaths
+
+  Description: Attempts to find the correct Autodiscover endpoint by trying
+  multiple common paths derived from domain.com.

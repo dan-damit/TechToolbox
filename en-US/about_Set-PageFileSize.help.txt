@@ -1,0 +1,64 @@
+.NAME
+    about_Set-PageFileSize
+
+.SYNOPSIS
+    Sets the page file size on a remote computer.
+
+.DESCRIPTION
+    The Set-PageFileSize function configures the initial and maximum page file
+    size on a remote computer via PowerShell remoting. It allows you to specify
+    custom sizes for both the initial and maximum page file, as well as the path
+    where the page file will be created.
+
+    If the -InitialSize or -MaximumSize parameters are not provided, the user
+    will be prompted to enter these values. Similarly, if the -Path parameter is
+    not provided, the function defaults to the configured default path found in
+    the system configuration.
+
+.PARAMETER ComputerName
+    Specifies the name of the remote computer to configure the page file on.
+    This parameter is mandatory and accepts values from the pipeline.
+
+.PARAMETER InitialSize
+    Specifies the initial size of the page file in megabytes (MB). If this
+    parameter is omitted, the user will be prompted for a value.
+
+.PARAMETER MaximumSize
+    Specifies the maximum size of the page file in megabytes (MB). If this
+    parameter is omitted, the user will be prompted for a value.
+
+.PARAMETER Path
+    Specifies the path where the page file will be created. If not provided, the
+    function uses the default path configured in the system settings
+    ($script:cfg.settings.pagefile.defaultPath).
+
+.PARAMETER Credential
+    Specifies the credentials to use when connecting to the remote computer via
+    PowerShell remoting. If this parameter is omitted, the function falls back
+    to using the 'promptForCredentials' setting defined in the configuration.
+
+.EXAMPLE
+    Set-PageFileSize -ComputerName 'SERVER01'
+
+    Description: Prompts the user for initial and maximum page file sizes and
+    configures the page file on SERVER01 using default settings for path and
+    credentials.
+
+.EXAMPLE
+    Set-PageFileSize -ComputerName 'SERVER02' -InitialSize 4096 -MaximumSize
+    8192
+
+    Description: Sets the initial page file size to 4096 MB and the maximum size
+    to 8192 MB on SERVER02. Prompts for path and credentials if not provided in
+    config.
+
+.EXAMPLE
+    Set-PageFileSize -ComputerName 'SERVER03' -InitialSize 2048 -MaximumSize
+    4096 \
+        -Path 'D:\PageFile' -Credential (Get-Credential)
+
+    Description: Sets the page file on SERVER03 with specific sizes, places it
+    on drive D:, and uses explicitly provided credentials.
+
+.NOTES
+    NAME: about_Set-PageFileSize

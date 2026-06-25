@@ -1,0 +1,26 @@
+.EXTERNALHELP Set-ProxyAddress-help.xml
+
+.NOTES
+  NAME: about_Set-ProxyAddress
+
+.DESCRIPTION
+  The Set-ProxyAddress function sets the primary SMTP proxy address for a
+  specified Active Directory user. It ensures that the new primary address is
+  added correctly and removes any existing primary SMTP addresses from the
+  user's mail attributes.
+
+.PARAMETER Username
+  Specifies the username (sAMAccountName) of the Active Directory user whose
+  proxy address will be modified.
+
+.PARAMETER ProxyAddress
+  Specifies the new primary SMTP proxy address to set for the user. This
+  parameter validates that the input is a properly formatted email address using
+  a regular expression pattern.
+
+.EXAMPLE
+  Set-ProxyAddress -Username "jdoe" -ProxyAddress "jdoe@example.com"
+
+  Description: Sets the primary SMTP proxy address for the user 'jdoe' to
+  'jdoe@example.com'. Any existing primary SMTP addresses for this user will be
+  removed.
