@@ -1,0 +1,81 @@
+.NAME
+    about_Set-EmailAlias
+
+.SYNOPSIS
+    Safely sets, removes, or promotes an SMTP alias on an on-prem AD user.
+
+.DESCRIPTION
+    The Set-EmailAlias function adds an SMTP proxy address (secondary) to a user,
+    removes an existing SMTP alias, or promotes an existing secondary alias to be the
+    primary SMTP address. It ensures that exactly one primary (uppercase 'SMTP:')
+    address exists after changes are made.
+
+    The function includes several safety checks:
+    - Prevents duplicate aliases on the same user object.
+    - Validates email format and domain against an optional whitelist.
+    - Avoids collisions with other Active Directory objects by default.
+    - Is idempotent: if no change is required, no write operation is performed.
+
+.PARAMETER Identity
+    Specifies the identity of the user to modify. Acceptable values include:
+    - samAccountName
+    - Distinguished Name (DN)
+    - GUID
+    - User Principal Name (UPN)
+
+    This parameter is mandatory.
+
+.PARAMETER EmailAlias
+    Specifies the SMTP alias to add, remove, or make primary. The value should be a
+    full email address (e.g., 'jane.doe@REDACTED.com').
+
+    This parameter is mandatory.
+
+.PARAMETER MakePrimary
+    If this switch is specified, the function ensures that the EmailAlias becomes the
+    *primary* SMTP address for the user. The primary address must be in uppercase format
+    (e.g., 'SMTP:jane.doe@REDACTED.com').
+
+.PARAMETER Remove
+    If this switch is specified, the function removes the specified EmailAlias from the
+    user's proxyAddresses attribute.
+
+.PARAMETER AllowedDomains
+    Specifies an optional array of domains that are permitted for aliases. If provided,
+    the EmailAlias domain must be in this list. This acts as a whitelist to prevent
+    adding aliases from unauthorized domains.
+
+.PARAMETER FailIfInUse
+    A boolean parameter (default: $true). When set to $true, the function will fail if
+    the specified EmailAlias already exists on a different Active Directory object. Set
+    this to $false to allow overwriting an alias currently in use by another object.
+
+.PARAMETER Credential
+    Specifies a PSCredential object containing credentials with permission to query and
+    update Active Directory (e.g., Domain Admin). If not provided, the current user's
+    context is used.
+
+.PARAMETER Server
+    Specifies the FQDN or hostname of a specific Domain Controller to target for the
+    operation. This is useful when using -Credential to avoid referral issues with
+    cross-domain queries.
+
+.EXAMPLE
+    # Add a secondary SMTP alias to a user, prompting for credentials
+    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'john.doe@REDACTED.com'
+
+.EXAMPLE
+    # Promote an existing secondary alias to primary
+    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'john.doe@REDACTED.com' -MakePrimary
+
+.EXAMPLE
+    # Remove a specific SMTP alias from a user
+    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'old.alias@REDACTED.com' -Remove
+
+.EXAMPLE
+    # Add an alias only if it is not in use by another object, allowing overwrite
+    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'newalias@REDACTED.com' -FailIfInUse $false
+
+.NOTES
+    This function is idempotent. If the desired state already matches the current state,
+    no changes are made to Active Directory.
