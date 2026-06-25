@@ -1,68 +1,32 @@
-# about_Invoke-DownloadsCleanup
+.EXTERNALHELP Invoke-DownloadsCleanup-help.xml
 
-## SHORT DESCRIPTION
-Cleans up old files from the Downloads folder on local or remote computers.
+.NOTES
+  NAME: about_Invoke-DownloadsCleanup
 
-## LONG DESCRIPTION
-The `Invoke-DownloadsCleanup` function removes files older than a specified cutoff year from user Downloads directories. It can operate locally or target a remote computer via PowerShell remoting.
+.DESCRIPTION
+  The Invoke-DownloadsCleanup function cleans up old files from the Downloads folder.
+  It removes files older than a specified cutoff year from user Downloads directories,
+  either locally or on a remote computer.
 
-By default, if no `-ComputerName` is specified, the cleanup runs on the local machine. If a `-ComputerName` is provided, it attempts to clean up the Downloads folder for all users on that remote system.
+.PARAMETER ComputerName
+  Specifies the name of the remote computer to clean up. If not specified, the cleanup
+  runs on the local computer.
 
-The function respects configuration settings stored in `script:cfg.settings.downloadsCleanup`, specifically:
-- `cutoffYear`: The default year threshold if not explicitly provided via parameters.
-- `dryRun`: If true, simulates the cleanup without deleting files (logs actions instead).
+.PARAMETER CutoffYear
+  Specifies the year threshold for file deletion. Files older than this year will be removed.
+  If not specified, the value from the configuration settings (downloadsCleanup.cutoffYear) is used.
 
-## PARAMETERS
+.PARAMETER Local
+  A switch parameter that forces the cleanup to run locally even if a ComputerName is specified.
 
-### -ComputerName <string>
-The name of the remote computer to clean up. If this parameter is omitted or empty, the function runs locally on the current machine.
+.EXAMPLE
+  Invoke-DownloadsCleanup -Local
 
-*   **Required?** False
-*   **Position?** Named
-*   **Default Value:** Localhost (if not specified)
+  Description:
+  Cleans up old files in the local user's Downloads folder using the default cutoff year from configuration.
 
-### -CutoffYear <int>
-The year threshold for file deletion. Files with a modification date older than January 1st of this year will be removed.
+.EXAMPLE
+  Invoke-DownloadsCleanup -ComputerName "SERVER01" -CutoffYear 2020
 
-If not provided, the function uses the `cutoffYear` value from the TechToolbox configuration settings (`$script:cfg.settings.downloadsCleanup.cutoffYear`).
-
-*   **Required?** False
-*   **Position?** Named
-*   **Default Value:** Configured cutoff year (see Description)
-
-### -Local <switch>
-Forces the cleanup to run locally, even if a `-ComputerName` is specified. This is useful for overriding remote targets when local execution is desired.
-
-*   **Required?** False
-*   **Position?** Named
-*   **Default Value:** False
-
-## INPUTS
-None. You cannot pipe objects to `Invoke-DownloadsCleanup`.
-
-## OUTPUTS
-None by default. If `-WhatIf` or `-Confirm` is used (supported via `[CmdletBinding(SupportsShouldProcess)]`), it outputs descriptive text about the actions that would be taken.
-
-## NOTES
-This function relies on the TechToolbox runtime environment (`Initialize-TechToolboxRuntime`) and configuration settings. Ensure these are initialized before running if not done automatically by the module load process.
-
-## EXAMPLES
-### Example 1: Local Cleanup with Default Cutoff Year
-Invoke-DownloadsCleanup -Local
-
-This command cleans up files in the local user's Downloads folder that are older than the configured cutoff year.
-
-### Example 2: Remote Cleanup with Specific Cutoff Year
-Invoke-DownloadsCleanup -ComputerName "SERVER01" -CutoffYear 2020
-
-This command connects to SERVER01 and removes files from all users' Downloads folders that are older than January 1, 2020.
-
-### Example 3: Dry Run Simulation
-If the configuration setting `$script:cfg.settings.downloadsCleanup.dryRun` is set to `$true`, running:
-Invoke-DownloadsCleanup -Local
-
-will log which files would be deleted without actually deleting them.
-
-## SEE ALSO
-- Get-Help Invoke-DownloadsCleanup
-- TechToolbox Configuration Settings
+  Description:
+  Cleans up files older than January 1, 2020, in the Downloads folders of all users on SERVER01.

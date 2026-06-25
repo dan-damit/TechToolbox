@@ -1,5 +1,4 @@
 "Please look at the function located at
-C:\repos\TechToolbox\Public\Invoke\Invoke-DownloadsCleanup.ps1 and write a
-detailed help document for PowerShell’s Get-Help to consume to the directory
-located at to C:\repos\TechToolbox\en-US and name it
-about_Invoke-DownloadsCleanup.help.txt"
+C:\repos\TechToolbox\Public\Invoke\Set-EmailAlias.ps1 and write a detailed help
+document for PowerShell’s Get-Help to consume to the directory located at to
+C:\repos\TechToolbox\en-US and name it about_Set-EmailAlias.help.txt"
