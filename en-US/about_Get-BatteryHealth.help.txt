@@ -1,0 +1,76 @@
+.EXTERNALHELP Get-BatteryHealth-help.xml
+
+.NOTES
+  NAME: about_Get-BatteryHealth
+
+.DESCRIPTION
+  The Get-BatteryHealth function generates a Windows battery report using the
+  'powercfg /batteryreport' command and parses its HTML output into structured
+  JSON data containing health metrics.
+
+  It analyzes the "Installed batteries" table within the generated HTML report
+  to calculate key statistics such as design capacity, full charge capacity, and
+  overall battery health percentage. The function logs progress details and
+  exports the parsed results to a specified JSON file for further analysis or
+  reporting.
+
+  Paths for the output HTML report and the JSON export can be provided via
+  parameters or automatically retrieved from the TechToolbox configuration
+  (specifically the BatteryReport section) if not explicitly specified.
+
+.PARAMETER ReportPath
+  Specifies the full path where the generated Windows battery report HTML file
+  will be saved (e.g., C:\Temp\battery-report.html).
+
+  If this parameter is omitted, the function attempts to retrieve the default
+  path from the TechToolbox configuration. If no config value exists, it may use
+  a system default or prompt for input depending on implementation details.
+
+.PARAMETER OutputJson
+  Specifies the full path where the parsed battery health data will be exported
+  as a JSON file (e.g., C:\Temp\installed-batteries.json).
+
+  This file contains structured objects representing each installed battery with
+  metrics such as capacity and health ratios. If omitted, the function attempts
+  to retrieve the default path from the TechToolbox configuration.
+
+.PARAMETER DebugInfo
+  Specifies an optional path to write parser debug information (e.g., detected
+  HTML headings) if table detection fails during parsing.
+
+  This is primarily useful for troubleshooting issues with the HTML parsing
+  logic. If omitted, the function attempts to retrieve the default path from the
+  TechToolbox configuration.
+
+.INPUTS
+  None. You cannot pipe objects to Get-BatteryHealth.
+
+.OUTPUTS
+  [pscustomobject[]] An array of battery health objects containing capacity and
+  health metrics derived from the parsed report.
+
+.EXAMPLE
+  Get-BatteryHealth
+
+  Description: Runs the function using default paths for the HTML report and
+  JSON output as defined in the TechToolbox configuration. It generates the
+  battery report, parses it, and exports the results.
+
+.EXAMPLE
+  Get-BatteryHealth -ReportPath 'C:\Temp\battery-report.html' -OutputJson
+  'C:\Temp\batteries.json'
+
+  Description: Generates a battery report and saves the HTML to
+  C:\Temp\battery-report.html. It then parses the report and exports the
+  structured JSON data to C:\Temp\batteries.json.
+
+.EXAMPLE
+  Get-BatteryHealth -ReportPath 'C:\Temp\battery-report.html' -OutputJson
+  'C:\Temp\batteries.json' -WhatIf
+
+  Description: Previews the file creation and JSON export actions without
+  actually writing any files. This is useful for verifying paths and intended
+  behavior before execution.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

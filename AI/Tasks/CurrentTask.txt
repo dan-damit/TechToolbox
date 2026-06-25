@@ -1,4 +1,6 @@
 "Please look at the function located at
-C:\repos\TechToolbox\Public\Invoke\Set-EmailAlias.ps1 and write a detailed help
-document for PowerShell’s Get-Help to consume to the directory located at to
-C:\repos\TechToolbox\en-US and name it about_Set-EmailAlias.help.txt"
+C:\repos\TechToolbox\Public\Get\Get-FilesUsingKeywords.ps1 and write a detailed
+help document for PowerShell’s Get-Help to consume to the directory located at
+to C:\repos\TechToolbox\en-US and name it about_Get-FilesUsingKeywords.help.txt.
+Please follow the same format as the other help documents in that directory. Be
+sure to not use markdown formatting."

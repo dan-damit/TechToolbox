@@ -1,0 +1,92 @@
+.EXTERNALHELP Get-ErrorEvents-help.xml
+
+.NOTES
+  NAME: about_Get-ErrorEvents
+
+.DESCRIPTION
+  The Get-ErrorEvents function retrieves Critical (Level 1) and Error (Level 2)
+  events from a specified Windows event log on the local or remote computers.
+
+  For local targets, it queries the event log directly. For remote targets, it
+  utilizes the TechToolbox remoting helper via Start-NewPSRemoteSession to
+  establish a session and retrieve the events.
+
+  The function supports filtering by Event ID and start time. Results can be
+  exported to a CSV file if an ExportPath is provided.
+
+.PARAMETER LogName
+  Specifies the name of the event log to query, such as 'System', 'Application',
+  or 'Security'. This parameter is mandatory.
+
+.PARAMETER ComputerName
+  Specifies one or more computer names to query. Defaults to the local computer
+  ($env:COMPUTERNAME). Accepts pipeline input by property name.
+
+.PARAMETER MaxEvents
+  Specifies the maximum number of events to retrieve per target. The value must
+  be between 1 and 5000. Defaults to 100.
+
+.PARAMETER StartTime
+  Specifies the start time for the event query. Only events occurring at or
+  after this time will be returned.
+
+.PARAMETER EventId
+  Specifies one or more event IDs to filter by. When provided, only events with
+  matching IDs are returned. Alias: 'Id'.
+
+.PARAMETER ExportPath
+  Specifies a path to export the retrieved events as a CSV file. If a directory
+  is specified, a timestamped CSV file will be created within that directory.
+  Alias: 'Export'.
+
+.PARAMETER Credential
+  Specifies a credential object for authenticating remote sessions. Required if
+  default credentials are insufficient.
+
+.PARAMETER UseSsh
+  Indicates that SSH transport should be used for remote connections instead of
+  WSMan (WinRM).
+
+.PARAMETER UseCredSSP
+  Enables CredSSP authentication for WSMan remoting. This allows delegation of
+  credentials to the remote computer.
+
+.PARAMETER Port
+  Specifies the port number to use for the remote connection. Defaults to the
+  standard port for the transport protocol (5985/5986 for WSMan, 22 for SSH).
+
+.INPUTS
+  System.String. You can pipe a string containing one or more computer names to
+  Get-ErrorEvents.
+
+.OUTPUTS
+  [pscustomobject[]]. The function returns an array of custom objects
+  representing the retrieved event log entries.
+
+.EXAMPLE
+  Get-ErrorEvents -LogName System
+
+  Description: Retrieves up to 100 Critical and Error events from the System log
+  on the local computer using default settings.
+
+.EXAMPLE
+  Get-ErrorEvents -LogName Application -ComputerName SRV01, SRV02 -MaxEvents 50
+
+  Description: Retrieves up to 50 Critical and Error events from the Application
+  log on both SRV01 and SRV02.
+
+.EXAMPLE
+  Get-ErrorEvents -LogName Security -EventId 4625, 4720 -StartTime
+  (Get-Date).AddDays(-1)
+
+  Description: Retrieves Critical and Error events with IDs 4625 or 4720 from
+  the Security log that occurred in the last 24 hours on the local computer.
+
+.EXAMPLE
+  Get-ErrorEvents -LogName System -ExportPath 'C:\Temp\Errors'
+
+  Description: Retrieves events and exports them to a CSV file with a
+  timestamped name inside the C:\Temp\Errors directory.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)
