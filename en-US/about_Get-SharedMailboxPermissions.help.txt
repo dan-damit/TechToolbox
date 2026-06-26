@@ -1,0 +1,58 @@
+.EXTERNALHELP Get-SharedMailboxPermissions-help.xml
+
+.NOTES
+  NAME: about_Get-SharedMailboxPermissions
+
+.DESCRIPTION
+  The Get-SharedMailboxPermissions function reports allowed permissions on a
+  shared mailbox. It retrieves Full Access, Send As, and Send on Behalf
+  permissions. Optionally, it can also retrieve folder-level permissions (such
+  as Calendar) for the specified mailbox.
+
+.PARAMETER Identity
+  Specifies the identity of the shared mailbox. Accepts UPN, alias, or email
+  address. This parameter is mandatory.
+
+.PARAMETER IncludeFolderPermissions
+  A switch parameter that indicates whether to include folder-level permissions
+  in the output. When specified, the function queries permissions for a specific
+  folder within the mailbox.
+
+.PARAMETER Folder
+  Specifies the name of the folder to query when -IncludeFolderPermissions is
+  used. The default value is "Calendar".
+
+.PARAMETER ExportCsv
+  Specifies an optional file path to export the permission report to a CSV file.
+  If omitted, the results are displayed in the console only.
+
+.INPUTS
+  System.String. You can pipe a mailbox identity string to
+  Get-SharedMailboxPermissions.
+
+.OUTPUTS
+  PSCustomObject. The function returns objects representing the permissions
+  found on the mailbox.
+
+.EXAMPLE
+  Get-SharedMailboxPermissions -Identity "ap@contoso.com"
+
+  Description: Reports Full Access, Send As, and Send on Behalf permissions for
+  the shared mailbox ap@contoso.com.
+
+.EXAMPLE
+  Get-SharedMailboxPermissions -Identity "sales@contoso.com"
+  -IncludeFolderPermissions
+
+  Description: Reports standard permissions plus Calendar folder permissions for
+  the sales@contoso.com mailbox.
+
+.EXAMPLE
+  Get-SharedMailboxPermissions -Identity "hr@contoso.com"
+  -IncludeFolderPermissions -Folder "Inbox" -ExportCsv C:\Temp\hr-perms.csv
+
+  Description: Reports standard permissions plus Inbox folder permissions for
+  hr@contoso.com and exports the report to a CSV file.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

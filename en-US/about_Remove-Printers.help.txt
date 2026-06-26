@@ -1,0 +1,53 @@
+.EXTERNALHELP Remove-Printers-help.xml
+
+.NOTES
+  NAME: about_Remove-Printers
+
+.DESCRIPTION
+  The Remove-Printers function removes all printers from the system, with
+  optional removal of ports, drivers, and per-user mappings.
+
+  It uses Win32_Printer (CIM) to remove queues after resetting the spooler and
+  clearing the spool folder. Optionally removes TCP/IP ports and printer
+  drivers. Adds fallbacks for provider hiccups and frees common process locks
+  (splwow64/PrintIsolationHost). Can also remove per-user connections across all
+  profiles.
+
+.PARAMETER IncludePorts
+  Also remove TCP/IP printer ports (non-standard).
+
+.PARAMETER IncludeDrivers
+  Also remove printer drivers (after queues are gone).
+
+.PARAMETER Force
+  Best-effort forced cleanup of driver packages via pnputil if standard removal
+  fails.
+
+.PARAMETER AllUsers
+  Attempt to remove per-user network printer connections for all user profiles.
+
+.PARAMETER PassThru
+  Output a summary object with counts and failures.
+
+.INPUTS
+  None. You cannot pipe objects to Remove-Printers.
+
+.OUTPUTS
+  [pscustomobject]. The function returns a summary object with counts and
+  failures when -PassThru is specified.
+
+.EXAMPLE
+  Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru
+
+  Description: Removes all printers, TCP/IP ports, drivers, and per-user
+  connections for all users. Forces driver cleanup if standard removal fails.
+  Outputs a summary object.
+
+.EXAMPLE
+  Remove-Printers -WhatIf
+
+  Description: Simulates the removal of all printers without actually performing
+  any actions.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

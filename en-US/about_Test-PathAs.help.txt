@@ -1,0 +1,43 @@
+.EXTERNALHELP Test-PathAs-help.xml
+
+.NOTES
+  NAME: about_Test-PathAs
+
+.DESCRIPTION
+  The Test-PathAs function tests whether a specified file system or UNC path
+  exists using alternate credentials. It leverages the TechToolbox impersonation
+  subsystem to evaluate the existence of the path under the security context of
+  the provided credential. This is particularly useful for validating SMB
+  access, deployment accounts, service accounts, and cross-domain permissions
+  without changing the current user session.
+
+.PARAMETER Path
+  Specifies the file system or UNC path to test. This parameter is mandatory.
+
+.PARAMETER Credential
+  Specifies the credential to use for impersonation while testing the path. This
+  parameter is mandatory and must be a PSCredential object.
+
+.INPUTS
+  None. You cannot pipe objects to Test-PathAs.
+
+.OUTPUTS
+  [bool] $true if the path exists under the specified credentials, otherwise
+  $false.
+
+.EXAMPLE
+  Test-PathAs -Path "\\server\share\installer.msi" -Credential $cred
+
+  Description: Tests whether the file installer.msi exists on the remote share
+  using the provided credential object stored in $cred. Returns True if
+  accessible, False otherwise.
+
+.EXAMPLE
+  Test-PathAs -Path "C:\RestrictedFolder" -Credential $svc
+
+  Description: Checks for the existence of C:\RestrictedFolder by impersonating
+  the service account stored in $svc. Useful for verifying local access rights
+  for services.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

@@ -1,0 +1,57 @@
+.EXTERNALHELP Start-PDQDiagLocalElevated-help.xml
+
+.NOTES
+  NAME: about_Start-PDQDiagLocalElevated
+
+.DESCRIPTION
+  The Start-PDQDiagLocalElevated function opens a new elevated PowerShell
+  console (triggering a UAC prompt) and runs the local PDQ diagnostic collection
+  script under the SYSTEM context. It imports the TechToolbox module within that
+  elevated session, calls the private Start-PDQDiagLocalSystem cmdlet, and
+  captures a full transcript of the output to a log file in the specified drop
+  path.
+
+.PARAMETER LocalDropPath
+  Specifies the destination folder for the final ZIP archive containing the
+  logs. The default value is 'C:\PDQDiagLogs'.
+
+.PARAMETER ExtraPaths
+  Specifies additional files or folders to include in the diagnostic collection.
+  This parameter accepts an array of strings representing paths to extra items.
+
+.PARAMETER ConnectDataPath
+  Specifies the root directory for PDQ Connect agent data. The default value is
+  '$env:ProgramData\PDQ\PDQConnectAgent'.
+
+.PARAMETER StayOpen
+  A switch parameter that keeps the elevated console window open after the
+  script completes. This adds the -NoExit flag and displays a prompt to allow
+  time to read any output or errors.
+
+.PARAMETER ForcePwsh
+  A switch parameter that forces the use of pwsh.exe (PowerShell Core)
+  explicitly. If not specified, the function auto-detects whether to use
+  pwsh.exe or powershell.exe.
+
+.INPUTS
+  None. You cannot pipe objects to Start-PDQDiagLocalElevated.
+
+.OUTPUTS
+  None. This function does not return any objects.
+
+.EXAMPLE
+  Start-PDQDiagLocalElevated -StayOpen
+
+  Description: Starts the elevated PDQ diagnostic collection and keeps the
+  console window open after completion so you can review the transcript log for
+  any errors or details.
+
+.EXAMPLE
+  Start-PDQDiagLocalElevated -ExtraPaths 'C:\Temp\PDQ','D:\Logs\PDQ'
+
+  Description: Starts the elevated PDQ diagnostic collection and includes
+  additional files or folders located at C:\Temp\PDQ and D:\Logs\PDQ in the
+  final archive.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

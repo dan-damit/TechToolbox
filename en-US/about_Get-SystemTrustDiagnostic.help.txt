@@ -1,0 +1,76 @@
+.EXTERNALHELP Get-SystemTrustDiagnostic-help.xml
+
+.NOTES
+  NAME: about_Get-SystemTrustDiagnostic
+
+.DESCRIPTION
+  The Get-SystemTrustDiagnostic function collects health and configuration
+  information relevant to system trust on Windows endpoints. It queries local or
+  remote computers for Secure Boot status, TPM availability and state, Windows
+  Trust settings (such as Device Guard/Credential Guard), and general system
+  integrity indicators.
+
+  This diagnostic tool helps administrators verify that the security posture of
+  a machine meets organizational requirements for trusted execution
+  environments. It supports both WSMan and SSH remoting protocols.
+
+.PARAMETER ComputerName
+  Specifies one or more target computers to query. Defaults to the local
+  computer if not specified. Accepts pipeline input by value.
+
+.PARAMETER Credential
+  Specifies a credential object used for authenticating remote connections via
+  WSMan or SSH. If omitted, default authentication mechanisms are used.
+
+.PARAMETER UseSsh
+  Indicates that SSH transport should be used instead of WSMan (WinRM) for
+  remoting. When this switch is present, the function will attempt to connect
+  via SSH.
+
+.PARAMETER Port
+  Specifies the port number for SSH connections. The default value is 22. This
+  parameter is only relevant when UseSsh is specified.
+
+.PARAMETER Ps7ConfigName
+  Specifies the WSMan configuration name (endpoint) for PowerShell 7 remoting.
+  The default value is 'PowerShell.7'.
+
+.PARAMETER WinPsConfigName
+  Specifies the WSMan configuration name (endpoint) for Windows PowerShell
+  remoting. The default value is 'Microsoft.PowerShell'.
+
+.PARAMETER UserName
+  Specifies the username to use for SSH authentication if a credential object is
+  not provided or if key-based auth is being configured manually.
+
+.PARAMETER KeyFilePath
+  Specifies the path to an SSH private key file for key-based authentication.
+
+.INPUTS
+  System.String. You can pipe computer names to Get-SystemTrustDiagnostic.
+
+.OUTPUTS
+  PSCustomObject. The function returns a custom object containing properties for
+  each trust section (Secure Boot, TPM, Windows Trust, and general System info).
+  Each section includes a health state, condition description, and relevant
+  evidence.
+
+.EXAMPLE
+  Get-SystemTrustDiagnostic
+
+  Description: Runs the diagnostic on the local computer using default settings.
+
+.EXAMPLE
+  Get-SystemTrustDiagnostic -ComputerName SRV01 -UseSsh -Credential $cred
+
+  Description: Runs the diagnostic on SRV01 via SSH using the provided
+  credential object.
+
+.EXAMPLE
+  Get-SystemTrustDiagnostic -ComputerName WS01, WS02 -KeyFilePath C:\keys\id_rsa
+
+  Description: Runs the diagnostic on two workstations using key-based SSH
+  authentication with the specified private key file.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

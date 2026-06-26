@@ -32,7 +32,7 @@ public static class MemoryLearner
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         ),
         new(
-            @"\bdo\s+not\s+(?<value>[^.!?\r\n]{3,120})",
+            @"\b(?<value>do\s+not\s+[^.!?\r\n]{3,120})",
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         ),
     };

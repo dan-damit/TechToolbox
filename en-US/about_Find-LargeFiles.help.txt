@@ -1,0 +1,78 @@
+.EXTERNALHELP Find-LargeFiles-help.xml
+
+.NOTES
+  NAME: about_Find-LargeFiles
+
+.DESCRIPTION
+  The Find-LargeFiles function searches for files exceeding a specified size
+  threshold in local or remote locations. It supports recursive searching with
+  depth control and can export results to CSV.
+
+.PARAMETER SearchDirectory
+  Specifies the directory path(s) to search for large files. Multiple
+  directories can be provided as an array, separated by semicolons if entered
+  via prompt. If omitted, uses the default from configuration or prompts the
+  user.
+
+.PARAMETER MinSizeMB
+  Specifies the minimum file size in megabytes (MB) to consider "large". Files
+  smaller than this value are ignored. Defaults to 256 MB if not specified and
+  no config is set.
+
+.PARAMETER Depth
+  Specifies the maximum depth of subdirectories to search relative to the
+  SearchDirectory. If omitted, searches recursively without limit.
+
+.PARAMETER Export
+  A switch parameter that enables exporting the results to a CSV file instead of
+  just displaying them in the console.
+
+.PARAMETER ExportDirectory
+  Specifies the directory where the exported CSV file will be saved when -Export
+  is used. Defaults to the current working directory if not specified.
+
+.PARAMETER CsvDelimiter
+  Specifies the delimiter character for the exported CSV file. Default is a
+  comma (',').
+
+.PARAMETER ComputerName
+  Specifies the name of the remote computer(s) to search on. If omitted,
+  searches locally unless -Local is explicitly set or implied by context.
+
+.PARAMETER Local
+  A switch parameter that forces local execution even if ComputerName might
+  otherwise imply remote execution.
+
+.PARAMETER Credential
+  Specifies an optional PSCredential object to use for authenticating remote
+  connections when searching on remote computers.
+
+.INPUTS
+  None. You cannot pipe objects to Find-LargeFiles.
+
+.OUTPUTS
+  System.IO.FileInfo objects representing the large files found, or a path
+  string if Export is used indicating where the CSV was saved.
+
+.EXAMPLE
+  Find-LargeFiles -SearchDirectory "C:\Logs" -MinSizeMB 100
+
+  Description: Searches C:\Logs for any file larger than 100 MB and displays the
+  results in the console.
+
+.EXAMPLE
+  Find-LargeFiles -SearchDirectory "D:\Data", "E:\Backups" -Depth 5 -Export
+  -ExportDirectory "C:\Temp"
+
+  Description: Searches D:\Data and E:\Backups up to 5 levels deep for files
+  larger than the default 256 MB. Exports the results to a CSV file in C:\Temp.
+
+.EXAMPLE
+  Find-LargeFiles -ComputerName "Server01" -SearchDirectory "C:\Program Files"
+  -MinSizeMB 500
+
+  Description: Connects remotely to Server01 and searches C:\Program Files for
+  files larger than 500 MB.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

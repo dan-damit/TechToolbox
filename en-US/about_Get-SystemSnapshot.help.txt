@@ -1,0 +1,80 @@
+.EXTERNALHELP Get-SystemSnapshot-help.xml
+
+.NOTES
+  NAME: about_Get-SystemSnapshot
+
+.DESCRIPTION
+  The Get-SystemSnapshot function retrieves a comprehensive system snapshot from
+  one or more remote computers. It acts as a thin controller that resolves
+  configuration, prepares helper packages, and executes the worker locally or
+  remotely via Invoke-TTRemoteWorker.
+
+  Key features include: - Support for multiple target computers. - Optional
+  inclusion of service information (default from config). - Optional inclusion
+  of server role information (default from config). - CSV export capability to a
+  specified output directory. - Interactive report display option after snapshot
+  completion. - Credential support for remote connections. - Preference for
+  PowerShell 7 remoting when supported.
+
+.PARAMETER ComputerName
+  Specifies one or more target computers to retrieve snapshots from. This
+  parameter is mandatory and does not accept pipeline input by property name
+  (requires explicit specification). Aliases: 'CN', 'DNSHostName', 'Computer'.
+
+.PARAMETER Report
+  Indicates that an interactive report should be displayed after the snapshot
+  data is collected.
+
+.PARAMETER Credential
+  Specifies a credential object for authenticating remote connections. If
+  omitted, default authentication mechanisms are used.
+
+.PARAMETER IncludeServices
+  Indicates that service information should be included in the snapshot. If not
+  specified, the setting from the configuration file is used as the default.
+
+.PARAMETER IncludeRoles
+  Indicates that server role information should be included in the snapshot. If
+  not specified, the setting from the configuration file is used as the default.
+
+.PARAMETER OutDir
+  Specifies the output directory where CSV files will be exported. If omitted,
+  the default value from the configuration file is used.
+
+.PARAMETER NoExport
+  Indicates that CSV export should be skipped. By default, snapshots are
+  exported to CSV if an output directory is specified or configured.
+
+.PARAMETER PreferPS7
+  Indicates a preference for using PowerShell 7 for remote sessions. This
+  setting is honored by Start-NewPSRemoteSession if the target system supports
+  it.
+
+.INPUTS
+  System.String. You can pipe computer names to Get-SystemSnapshot.
+
+.OUTPUTS
+  PSCustomObject. The function returns custom objects containing the snapshot
+  data.
+
+.EXAMPLE
+  Get-SystemSnapshot -ComputerName SRV01
+
+  Description: Retrieves a system snapshot from SRV01 using default settings for
+  services, roles, and export.
+
+.EXAMPLE
+  Get-SystemSnapshot -ComputerName SRV02, SRV03 -IncludeServices -IncludeRoles
+  -OutDir C:\Snapshots
+
+  Description: Retrieves snapshots from SRV02 and SRV03, including service and
+  role information, and exports the data to CSV files in C:\Snapshots.
+
+.EXAMPLE
+  Get-SystemSnapshot -ComputerName SRV04 -Credential $cred -Report -NoExport
+
+  Description: Retrieves a snapshot from SRV04 using the specified credential,
+  displays an interactive report, but skips CSV export.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

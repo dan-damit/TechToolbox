@@ -1,0 +1,58 @@
+about_Initialize-TTWordList
+
+TOPIC
+    about_Initialize-TTWordList
+
+SHORT DESCRIPTION
+    Initializes a word list file with a curated set of words.
+
+LONG DESCRIPTION
+    Initialize-TTWordList creates a word list file containing a curated starter
+    list of words. This is useful for generating initial data files for various
+    purposes such as spell checking, filtering, or other text processing tasks.
+
+    The function optionally filters out words containing ambiguous characters
+    (specifically the letters 'i', 'l', and 'o') to avoid confusion in contexts
+    where visual distinction is important.
+
+SYNTAX
+    Initialize-TTWordList [[-Path] <string>] [-NoAmbiguous]
+
+PARAMETERS
+    -Path
+        The file path where the word list will be written. If not specified,
+        defaults to '<TechToolboxModuleRoot>\Config\wordlist.txt'.
+
+        Type: string Required: False Default value:
+        <TechToolboxModuleRoot>\Config\wordlist.txt
+
+    -NoAmbiguous
+        If specified, filters out words containing the letters 'i', 'l', or 'o'
+        from the curated starter list.
+
+        Type: SwitchParameter Required: False
+
+EXAMPLES
+    Example 1:
+        Initialize-TTWordList
+
+        Description ----------- Initializes a word list file with the default
+        curated set of words at the default path
+        (<TechToolboxModuleRoot>\Config\wordlist.txt).
+
+    Example 2:
+        Initialize-TTWordList -Path 'C:\custom\path\wordlist.txt' -NoAmbiguous
+
+        Description ----------- Initializes a word list file with words that do
+        not contain ambiguous characters ('i', 'l', 'o') and writes it to the
+        specified custom path.
+
+NOTES
+    - The curated starter list includes common English words such as river,
+      stone, blue, green, tiger, etc. Users can add more words to this list
+      within the function source code if needed.
+    - This function is typically used during setup or configuration phases of
+      applications that require a predefined vocabulary.
+
+SEE ALSO
+    - about_Get-ToolboxHelp - about_TechToolboxConfig

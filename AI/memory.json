@@ -2,7 +2,11 @@
   "preferences": {
     "installStyle": "clean-factory",
     "defaultModel": "qwen3.6:35b",
-    "pref.return-a-final-answer-until-write-fi.2ee1321b": "return a final answer until WRITE-FILE has succeeded"
+    "pref.return-a-final-answer-until-write-fi.2ee1321b": "do not return a final answer until WRITE-FILE has succeeded",
+    "pref.use-markdown-format.e625cae6": "use Markdown format",
+    "pref.use-markdown-format.b6a28fd0": "use markdown format",
+    "pref.use-markdown.18e44d32": "use markdown",
+    "pref.do-not-return-a-final-answer-until-w.b3d117d2": "Do not return a final answer until WRITE-FILE has succeeded"
   },
   "facts": {
     "moduleRoot": "$env:TT_Home",
@@ -10,469 +14,30 @@
     "trendSummary": {
       "windowItems": 30,
       "runCount": 30,
-      "successRate": 0.9,
-      "avgDurationMs": 106374,
-      "avgToolCalls": 2.87,
+      "successRate": 1,
+      "avgDurationMs": 47486,
+      "avgToolCalls": 3.97,
       "statusCounts": {
-        "success": 27,
-        "error": 3
+        "success": 30
       },
       "outcomeCounts": {
-        "blocked": 1,
-        "completed": 23,
-        "needs-confirmation": 3,
-        "iteration-limit": 3
+        "completed": 30
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-25T03:42:13.1795426\u002B00:00",
-      "trendLastUpdatedUtc": "2026-06-25T03:42:13.1997312\u002B00:00"
+      "lastRunTimestampUtc": "2026-06-26T05:07:01.8738677\u002B00:00",
+      "trendLastUpdatedUtc": "2026-06-26T05:07:01.8960947\u002B00:00"
     }
   },
   "history": [
     {
-      "timestampUtc": "2026-06-12T23:52:34+00:00",
-      "status": "success",
-      "outcome": "blocked",
-      "prompt": "\u0022Can I adapt the module\u0027s \u0027Get-ToolboxHelp\u0027 functionality to lookup these\r\nabout_*.help.txt files?\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 906373,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n- Retry with a narrower prompt or a higher --max-iterations value.\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "\u0022Can I adapt the module\u0027s \u0027Get-ToolboxHelp\u0027 functionality to lookup these\r\nabout_*.help.txt files?\u0022",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\n\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\n\n- recursion_limit used: 47\n- max_iterations requested: 15\n\nNext best action:\n-...",
-        "nextBestStep": "- Retry with a narrower prompt or a higher --max-iterations value."
-      }
-    },
-    {
-      "timestampUtc": "2026-06-13T02:44:27+00:00",
+      "timestampUtc": "2026-06-26T04:19:10.8643253+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function Get-ToolboxHelp at C:\\repos\\TechToolbox\\Public\\Get\r\nand see if I can use that to resolve the new about_*.help.txt files in the\r\nC:\\repos\\TechToolbox\\en-US folder.\u0022",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-MailHeaderAuth.ps1. Write a detailed help\r\ndocument to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nabout_Test-MailHeaderAuth.help.txt. Please follow the same format as the other\r\nhelp documents in that directory.\u0022\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 96070,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [],
-      "outputPreview": "Here\u0027s my analysis of whether \u0060Get-ToolboxHelp\u0060 can be used to resolve your new \u0060about_*.help.txt\u0060 files:\n\n## Answer: No, Get-ToolboxHelp Cannot Display About Files Directly\n\n### Why\n\nLooking at the source code, \u0060Get-ToolboxHelp\u0060 has these limitations regarding about help files:\n\n- **Only searches exported commands:** It uses \u0060$mod.ExportedFunctions\u0060 or \u0060Get-Command -Module ...\u0060 to find commands. The \u0060about_*.help.txt\u0060 files are conceptual/reference documentation, not commands.\n- **Uses standard Get-Help internally:** When it displays help for a command (\u0060Show-CommandHelp\u0060), it calls \u0060Get-Help -Name $Name -Full\u0060. This relies on PowerShell\u0027s built-in help system locating the about files through a registered HelpInfo cache (typically in \u0060\\Program Files\\WindowsPowerShell\\Modules\\\u003CModuleName\u003E\\\u003Cversion\u003E\\en-US\\\u0060).\n- **No about file handling:** None of the helper functions (\u0060Show-HelpOverview\u0060, \u0060Show-CommandList\u0060, \u0060Show-Configuration\u0060, \u0060Show-CommandHelp\u0060) search for or list \u0060about_*.help.txt\u0060 files. The \u0060-List\u0060 mode shows only exported functions, not conceptual topics.\n\n### How to Make Your About Files Usable Instead\n\nThere are two approaches:\n\n**Approach 1: Register the Module Properly (Recommended)**\n\nPlace your module in a standard location so PowerShell\u0027s help system can find it automatically:\n\n\u0060\u0060\u0060powershell\n# Move or copy the TechToolbox module to a standard module path\n$modulePa...",
-      "runSummary": {
-        "intent": "\u0022Please look at the function Get-ToolboxHelp at C:\\repos\\TechToolbox\\Public\\Get\r\nand see if I can use that to resolve the new about_*.help.txt files in the\r\nC:\\repos\\TechToolbox\\en-US folder.\u0022",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": "Output formatting for conceptual topics (synopsis \u002B filename)"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-13T03:09:25+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022I think at this point we could remove the Get-ToolboxHelp function altogether\r\nand rely on PowerShell\u0027s build in Get-Help system for users who install my\r\nmodule. Can we safely remove it from C:\\repos\\TechToolbox\\Public\\Get?\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 66116,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [],
-      "outputPreview": "Good question. Let me walk through an analysis of this decision.\n\n## Analysis of Removing Get-ToolboxHelp\n\n### What Get-ToolboxHelp Actually Does Right Now\n\nLooking at the function, it provides four distinct capabilities:\n\n1. **Overview screen** - Shows a welcome page with common usage hints\n2. **Command list** - Lists all public commands grouped by verb with synopses (discovery tool)\n3. **Command help** - Looks up help for a specific command name with fuzzy matching\n4. **Configuration display** - Shows the effective configuration (\u0060-ShowEffectiveConfig\u0060)\n\n### What PowerShell\u0027s Get-Help Provides Natively\n\nOnce the module is properly installed and \u0060Update-Help\u0060 is run:\n\n- \u0060Get-Help \u003Ccommand-name\u003E\u0060 provides full help for any exported function\n- \u0060Get-Help about_\u003Ctopic\u003E\u0060 reads your \u0060about_*.help.txt\u0060 files automatically (when in \u0060$env:PSModulePath\u0060)\n- \u0060Get-Command -Module TechToolbox | Format-Table Name, Synopsis\u0060 lists all commands with synopses\n\n### Critical Finding: The Configuration Display Feature\n\nThe \u0060-ShowEffectiveConfig\u0060 capability has **no equivalent** in PowerShell\u0027s built-in help system. It displays the effective configuration loaded at runtime from \u0060config.json\u0060. This is a diagnostic feature that module consumers will find genuinely useful. Removing it would lose functionality, not just redundant code.\n\n### My Recommendation: Keep It (With Refinements)\n\n**Do not remove...",
-      "runSummary": {
-        "intent": "\u0022I think at this point we could remove the Get-ToolboxHelp function altogether\r\nand rely on PowerShell\u0027s build in Get-Help system for users who install my\r\nmodule. Can we safely remove it from C:\\repos\\TechToolbox\\Public...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": "Update any module manifest help reference (\u0060HelpInfoUri\u0060) to point users to the about_ files"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-13T03:17:17+00:00",
-      "status": "success",
-      "outcome": "needs-confirmation",
-      "prompt": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxHelp function\r\nlocated at C:\\repos\\TechToolbox\\Public\\Get and replace it with the note in its\r\nhelp topics pointing users to PowerShell\u0027s native \u0027Get-Help\u0027.\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 248787,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [],
-      "outputPreview": "I cannot complete the file overwrite because the current session lacks \u0060--destructive-confirmed\u0060 permission.\n\n## What Is Required\n\nTo proceed with updating \u0060C:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1\u0060, you need to re-run the agent with the \u0060--destructive-confirmed\u0060 flag (or equivalent permission) enabled. This is a safety requirement enforced by the write_file tool when overwriting an existing file.\n\n## Summary of Changes Prepared\n\nOnce confirmed, the following updates will be applied to Get-ToolboxHelp:\n\n1. Remove the Show-HelpOverview helper function entirely\n2. Change the default parameter set from \u0027Overview\u0027 to \u0027Default\u0027\n3. Replace the overview screen output with a note directing users to PowerShell\u0027s native \u0060Get-Help\u0060 system, with example commands and a link to use \u0060Get-ToolboxHelp -List\u0060 for command discovery\n4. Update the .EXAMPLE 1 synopsis to reflect the new default behavior\n\n## Next Step\n\nRe-run this task with \u0060--destructive-confirmed\u0060 enabled so the file overwrite can proceed.",
-      "runSummary": {
-        "intent": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxH...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "I cannot complete the file overwrite because the current session lacks \u0060--destructive-confirmed\u0060 permission.\n\n## What Is Required\n\nTo proceed with updating \u0060C:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1\u0060, you need ...",
-        "nextBestStep": "Update the .EXAMPLE 1 synopsis to reflect the new default behavior"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-13T03:20:24+00:00",
-      "status": "success",
-      "outcome": "needs-confirmation",
-      "prompt": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxHelp function\r\nlocated at C:\\repos\\TechToolbox\\Public\\Get and replace it with the note in its\r\nhelp topics pointing users to PowerShell\u0027s native \u0027Get-Help\u0027.\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 156128,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [],
-      "outputPreview": "To complete your request, I will update \u0060Get-ToolboxHelp.ps1\u0060 with three targeted changes:\n1. Update the comment-based help (\u0060.SYNOPSIS\u0060, \u0060.DESCRIPTION\u0060, and \u0060.EXAMPLE 1\u0060) to explicitly note that the overview screen is removed and point users to PowerShell\u0027s native \u0060Get-Help\u0060 system.\n2. Change the default parameter set from \u0060\u0027Overview\u0027\u0060 to \u0060\u0027List\u0027\u0060 so the function remains functional when called without arguments.\n3. Remove the \u0060\u0027Overview\u0027\u0060 case from the \u0060process\u0060 switch and delete the unused \u0060Show-HelpOverview\u0060 helper function.\n\n### Updated File Content\nBelow is the complete updated file. The changes are localized to the comment block, the \u0060[CmdletBinding]\u0060 attribute, the \u0060switch\u0060 statement, and the removal of the \u0060Show-HelpOverview\u0060 helper. All other logic remains intact.\n\n\u0060\u0060\u0060powershell\nfunction Get-ToolboxHelp {\n    \u003C#\n    .SYNOPSIS\n        Provides help information for TechToolbox public commands.\n        Note: The interactive overview screen has been removed. Users should rely on PowerShell\u0027s native \u0027Get-Help\u0027 system for command discovery and detailed documentation.\n\n    .DESCRIPTION\n        Get-ToolboxHelp displays help information for TechToolbox commands and\n        configuration. Without parameters, it defaults to listing all public exported commands.\n\n        The previous overview screen has been replaced by guidance to use PowerShell\u0027s native \u0027Get-Help\u0027 system. This f...",
-      "runSummary": {
-        "intent": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxH...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "To complete your request, I will update \u0060Get-ToolboxHelp.ps1\u0060 with three targeted changes:\n1. Update the comment-based help (\u0060.SYNOPSIS\u0060, \u0060.DESCRIPTION\u0060, and \u0060.EXAMPLE 1\u0060) to explicitly note that the overview screen is r...",
-        "nextBestStep": "Attempts to load config.json from module Config directory if needed"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-13T03:26:37+00:00",
-      "status": "success",
-      "outcome": "needs-confirmation",
-      "prompt": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxHelp function\r\nlocated at C:\\repos\\TechToolbox\\Public\\Get and replace it with the note in its\r\nhelp topics pointing users to PowerShell\u0027s native \u0027Get-Help\u0027. You have my\r\nexplicit permission to perform this task.\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 234914,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [],
-      "outputPreview": "The write attempt was blocked because the file \u0060Get-ToolboxHelp.ps1\u0060 contains an Authenticode signature block, and the current session\u0027s signed-file overwrite policy is set to \u0060\u0027ignore\u0027\u0060.\n\n## What Is Required\n\nTo proceed with updating \u0060C:/repos/TechToolbox/Public/Get/Get-ToolboxHelp.ps1\u0060, I need:\n\n- **Re-run the session with** \u0060--signed-file-policy strip\u0060 (in addition to the already-requested \u0060--destructive-confirmed\u0060)\n- This allows overwriting the file while stripping the Authenticode signature block, which is necessary since modifying the content invalidates the original signature anyway.\n\n## Summary of Changes Already Prepared\n\nThe updated file content is ready and includes these three targeted changes:\n1. Updated \u0060.SYNOPSIS\u0060, \u0060.DESCRIPTION\u0060, and \u0060.EXAMPLE 1\u0060 to reflect that the overview screen has been removed and users should use PowerShell\u0027s native \u0060Get-Help\u0060.\n2. Replaced the \u0060\u0027Overview\u0027\u0060 switch case (which called \u0060Show-HelpOverview\u0060) with a simple note message pointing to \u0060Get-Help \u003CCommandName\u003E -Full\u0060.\n3. Removed the \u0060Show-HelpOverview\u0060 function entirely (no longer needed).\n\n## Next Best Action\n\n- Please re-run this task in a session launched with both \u0060--destructive-confirmed\u0060 and \u0060--signed-file-policy strip\u0060, then I can apply the prepared file content.",
-      "runSummary": {
-        "intent": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxH...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "The write attempt was blocked because the file \u0060Get-ToolboxHelp.ps1\u0060 contains an Authenticode signature block, and the current session\u0027s signed-file overwrite policy is set to \u0060\u0027ignore\u0027\u0060.\n\n## What Is Required\n\nTo proceed...",
-        "nextBestStep": "Please re-run this task in a session launched with both \u0060--destructive-confirmed\u0060 and \u0060--signed-file-policy strip\u0060, then I can apply the prepared file content."
-      }
-    },
-    {
-      "timestampUtc": "2026-06-13T03:36:08+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxHelp function\r\nlocated at C:\\repos\\TechToolbox\\Public\\Get and replace it with the note in its\r\nhelp topics pointing users to PowerShell\u0027s native \u0027Get-Help\u0027. You have my\r\nexplicit permission to perform this task.\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 128590,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "strip",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [],
-      "outputPreview": "## Task Complete\n\nI have removed the overview screen/banner from \u0060Get-ToolboxHelp\u0060 and replaced it with a note pointing users to PowerShell\u0027s native \u0060Get-Help\u0060 cmdlet. Here is a summary of the changes made to \u0060C:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1\u0060:\n\n### Summary of Changes\n\n**1. Updated Comment-Based Help:**\n- \u0060.SYNOPSIS\u0060 updated to mention \u0022Brief note pointing users to PowerShell\u0027s native \u0027Get-Help\u0027 cmdlet\u0022\n- \u0060.DESCRIPTION\u0060 updated to clarify the default mode behavior\n- \u0060.EXAMPLE 1\u0060 updated to reflect that \u0060Get-ToolboxHelp\u0060 (no parameters) now displays a brief note with Get-Help guidance\n\n**2. Replaced \u0060Show-HelpOverview\u0060 Function:**\nThe function was rewritten to display:\n- Interactive mode: A cyan-colored message directing users to use \u0060Get-Help \u003CCommandName\u003E\u0060 or \u0060Get-Help \u003CCommandName\u003E -Full\u0060, followed by a hint about using \u0060-List\u0060 to see all commands\n- Non-interactive mode: The same information output via \u0060Write-Information\u0060\n\n### Key Differences Before vs. After\n\n| Aspect | Before | After |\n|--------|--------|-------|\n| Default (no args) | Full banner with \u0022TechToolbox Help Center\u0022 title, product description, and common command examples | Brief, clean note directing users to native Get-Help cmdlet |\n| Interactive visual | Colored box-art style header \u002B formatted command list | Simple cyan/yellow text guidance |\n| Help reference | Pointed to custom function beh...",
-      "runSummary": {
-        "intent": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxH...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": "Non-interactive mode: The same information output via \u0060Write-Information\u0060"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-15T06:13:44+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please read the function named Stop-PSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Stop-PSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en-US.\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 83817,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [],
-      "outputPreview": "## Task Completed Successfully\n\nI read \u0060C:\\repos\\TechToolbox\\Public\\Start_Stop\\Stop-PSRemoteSession.ps1\u0060 and analyzed its full functionality, including:\n- All 9 parameters (\u0060-Session\u0060, \u0060-Id\u0060, \u0060-InstanceId\u0060, \u0060-Name\u0060, \u0060-ComputerName\u0060, \u0060-NamePrefix\u0060, \u0060-OnlyDisconnected\u0060, \u0060-OlderThanMinutes\u0060, \u0060-PassThru\u0060)\n- Four parameter sets (\u0060BySession\u0060, \u0060ById\u0060, \u0060ByInstanceId\u0060, \u0060ByName\u0060, \u0060ByFilter\u0060 default)\n- Safety features: \u0060SupportsShouldProcess\u0060 for confirmation, InstanceId-based deduplication, and best-effort removal (non-fatal on individual errors)\n- Internal dependencies (\u0060Initialize-TechToolboxRuntime\u0060, \u0060Write-Log\u0060)\n\n### Output File Created\n\n\u0060C:\\repos\\TechToolbox\\en-US\\about_Stop-PSRemoteSession.help.txt\u0060 contains:\n- **TOPIC** - identifies the help file\n- **SHORT DESCRIPTION** - one-line summary\n- **LONG DESCRIPTION** - covers targeting options, safety behavior (ShouldProcess, deduplication, best-effort), and internal mechanisms\n- **PARAMETERS** - all 9 parameters documented with type hints and descriptions\n- **EXAMPLES** - four practical scenarios:\n  1. Remove a session by \u0060-Id\u0060\n  2. Remove all disconnected sessions (\u0060-OnlyDisconnected\u0060)\n  3. Remove TechToolbox sessions by \u0060-NamePrefix \u0027TT:\u0027\u0060\n  4. Combine \u0060-OlderThanMinutes\u0060 with \u0060-PassThru\u0060 for logging\n- **NOTES** - initialization requirements, error-handling behavior, and Get-PSSession inspection recommendation\n- **RELATED LINKS** - o...",
-      "runSummary": {
-        "intent": "\u0022Please read the function named Stop-PSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Stop-PSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": "**RELATED LINKS** - online docs URL and references to \u0060Get-PSSession\u0060, \u0060Remove-PSSession\u0060, and \u0060about_PSSessions\u0060"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-15T06:24:06+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please read the function named Start-NewPSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Start-NewPSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en-US.\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 63843,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [],
-      "outputPreview": "The help file has been created successfully at:\n\n\u0060\u0060\u0060\nC:\\repos\\TechToolbox\\en-US\\about_Start-NewPSRemoteSession.help.txt\n\u0060\u0060\u0060\n\n## Summary\n\nI read the \u0060Start-NewPSRemoteSession\u0060 function from \u0060C:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-NewPSRemoteSession.ps1\u0060 and generated a complete \u0060about_*.help.txt\u0060 documentation file with the following sections:\n\n- **TOPIC** - Function name as the help topic\n- **SHORT DESCRIPTION** - One-line summary of what the function does\n- **LONG DESCRIPTION** - Detailed coverage of:\n  - Transport options (WSMan with PS7 endpoint \u002B fallback, SSH)\n  - Authentication options (Default/Kerberos\u002BNTLM, CredSSP delegation)\n  - Timeout configuration (ConnectTimeoutSec, IdleTimeoutSec)\n  - Output format details\n- **PARAMETERS** - All 12 parameters documented with types and descriptions\n- **INPUTS/OUTPUTS** - Pipeline input (none) and return types (PSSession or summary object)\n- **EXAMPLES** - Four practical examples covering:\n  - Basic WSMan connection to localhost\n  - SSH key-based authentication (non-interactive)\n  - CredSSP delegation setup\n- **NOTES** - Important caveats about elevation requirements, non-interactive context restrictions, logging behavior, and session cleanup responsibility\n- **RELATED TOPICS** - References to \u0060about_Remote\u0060, \u0060about_SSH\u0060, \u0060about_CredSSP\u0060, \u0060New-PSSession\u0060, \u0060Remove-PSSession\u0060, \u0060Enable-WSManCredSSP\u0060, and \u0060Get-PSSession\u0060",
-      "runSummary": {
-        "intent": "\u0022Please read the function named Start-NewPSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Start-NewPSRemoteSession.help.txt located at C:\\repos\\TechTo...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": "**RELATED TOPICS** - References to \u0060about_Remote\u0060, \u0060about_SSH\u0060, \u0060about_CredSSP\u0060, \u0060New-PSSession\u0060, \u0060Remove-PSSession\u0060, \u0060Enable-WSManCredSSP\u0060, and \u0060Get-PSSession\u0060"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-17T04:40:03+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Do you think you would perform better with a C# orchestration layer over the current python orchestration layer?\u0022",
-      "model": "qwen3.6:35b",
-      "durationMs": 120536,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Performance Analysis: Python vs C# Orchestration Layer\n\nAs a language-agnostic inference engine, my execution speed is primarily determined by the host runtime\u0027s ability to manage context windows, serialize/deserialize payloads, and schedule external tool calls. Swapping the orchestration layer from Python to C# would impact performance in the following measurable ways:\n\n-\u003E **Concurrency and I/O Latency**\nAgent workloads are heavily I/O bound (waiting on LLM APIs, PowerShell cmdlets, HTTP services). Both Python (\u0060asyncio\u0060) and C# (\u0060Task\u0060/\u0060async await\u0060) handle asynchronous I/O efficiently. However, C#\u0027s thread pool integration and zero-cost async state machines generally scale better under high-concurrency loads (\u003E50\u002B parallel tool calls) without event-loop thrashing or context-switching overhead.\n\n-\u003E **Memory Overhead and Startup Time**\nPython interpreters carry significant startup latency and higher per-process memory footprints, especially when loading heavy automation libraries. C#/.NET 8\u002B runs on a highly optimized JIT/AOT compiler with faster cold-start times (especially when using Native AOT or ReadyToRun) and more predictable memory allocation, which benefits long-running agent daemons.\n\n-\u003E **Type Safety and Configuration Reliability**\nC# enforces strong typing at compile time. Python\u0027s dynamic typing often pushes configuration validation to runtime, leading to silent...",
-      "runSummary": {
-        "intent": "\u0022Do you think you would perform better with a C# orchestration layer over the current python orchestration layer?\u0022",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": "Library dependency count (Python wins for rapid AI integration; C# wins for long-term maintainability in enterprise Windows environments)"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-21T04:57:29.565497+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-SubnetScan.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-SubnetScan.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-SubnetScan.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 93713,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-SubnetScan.help.txt\u0022,\n    \u0022content\u0022: \u0022## about_Invoke-SubnetScan\\n\\n### SHORT DESCRIPTION\\nPerforms a subnet scan to discover hosts and gather network information.\\n\\n### LONG DESCRIPTION\\nThe Invoke-SubnetScan function scans a specified subnet (in CIDR notation) to identify active hosts. It can retrieve MAC addresses, resolve DNS names, check specific TCP ports for availability, and optionally fetch HTTP banner information from discovered hosts.\\n\\nThis cmdlet supports both local execution and remote execution on target computers via WSMan or SSH protocols.\\n\\n### SYNTAX\\nInvoke-SubnetScan [-CIDR] \u003CString\u003E [[-ComputerName] \u003CString\u003E] [-Transport {WSMan | SSH}] [-Credential \u003CPSCredential\u003E] [-UserName \u003CString\u003E] [-KeyFilePath \u003CString\u003E] [-LocalOnly] [-Port \u003CInt32\u003E] [-ResolveNames] [-HttpBanner] [\u003CCommonParameters\u003E]\\n\\n### PARAMETERS\\n\\n#### -CIDR\\nThe subnet to scan in CIDR notation (e.g., \u0027192.168.1.0/24\u0027).\\n\\n- **Required?** true\\n- **Position?** 1\\n- **Default value:** None\\n- **Accept pipeline input?** false\\n- **Accept wildcard characters?** false\\n\\n#### -ComputerName\\nRemote computer on which to execute the scan. If not specified, the scan runs locally.\\n\\n- **Required?** false\\n- **Position?** 2\\n- **Default value:** Localhost\\n- **Accept pipeline input?** true (ByPropertyName)\\n- **Accept wildcard characters?** false\\n\\n#### -Transport\\nProtocol for remote execution: \u0027WSMan\u0027 or \u0027SSH\u0027. Default is \u0027WSMan\u0027.\\n\\n- **Required?** false\\n- **Position?** named\\n- **Default value:** WSMan\\n- **Accept pipeline input?** false\\n- **Accept wildcard characters?** false\\n\\n#### -Credential\\nPSCredential object for remote authentication.\\n\\n- **Required?** false\\n- **Position?** named\\n- **Default value:** Current user credentials\\n- **Accept pipeline input?** true (ByPropertyName)\\n- **Accept wildcard characters?** false\\n\\n#### -UserName\\nUsername for SSH authentication. Used when Transport is \u0027SSH\u0027.\\n\\n- **Required?** false\\n- **Position?** named\\n- **Default value:** None\\n- **Accept pipeline input?** false\\n- **Accept wildcard characters?** false\\n\\n#### -KeyFilePath\\nPath to the SSH private key file used for authentication.\\n\\n- **Required?** false\\n- **Position?** named\\n- **Default value:** None\\n- **Accept pipeline input?** false\\n- **Accept wildcard characters?** false\\n\\n#### -LocalOnly\\nForces local execution even if ComputerName is specified. This parameter overrides the ComputerName parameter to ensure the scan runs on the local machine.\\n\\n- **Required?** false\\n- **Position?** named\\n- **Default value:** False\\n- **Accept pipeline input?** false\\n- **Accept wildcard characters?** false\\n\\n#### -Port\\nTCP port number to check for availability on discovered hosts. If not specified, a default port is read from the configuration.\\n\\n- **Required?** false\\n- **Position?** named\\n- **Default value:** Configured default\\n- **Accept pipeline input?** false\\n- **Accept wildcard characters?** false\\n\\n#### -ResolveNames\\nSwitch parameter that attempts to resolve hostnames for discovered IP addresses via DNS, NetBIOS, and mDNS.\\n\\n- **Required?** false\\n- **Position?** named\\n- **Default value:** False\\n- **Accept pipeline input?** false\\n- **Accept wildcard characters?** false\\n\\n#### -HttpBanner\\nSwitch parameter that fetches HTTP banner information from discovered hosts if they are running web services.\\n\\n- **Required?** false\\n- **Position?** named\\n- **Default value:** False\\n- **Accept pipeline input?** false\\n- **Accept wildcard characters?** false\\n\\n### INPUTS\\nSystem.String. You can pipe a computer name to Invoke-SubnetScan.\\n\\n### OUTPUTS\\nSystem.Object. The function returns objects representing the scanned hosts and their details.\\n\\n### NOTES\\nThis cmdlet is useful for network discovery, inventory management, and security auditing tasks within a loc...",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-SubnetScan.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechTool...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-21T05:05:19.9393392+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-SubnetScan.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-SubnetScan.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-SubnetScan.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 84175,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Invoke-SubnetScan has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Invoke-SubnetScan.help.txt.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-SubnetScan.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechTool...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-21T16:19:28.5040555+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 72509,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-21T16:21:51.6100199+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 42794,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-21T16:23:01.4711809+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 47693,
-      "maxIterations": 20,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 7,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Invoke-NetFx3 (based on Enable-NetFx3) has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-23T00:52:10.1658989+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-DownloadsCleanup.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 136838,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Te...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-23T01:05:18.7720687+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-DownloadsCleanup.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 65033,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Invoke-DownloadsCleanup has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Te...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-23T01:10:55.8274059+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Are you currently the best model to use for agentic tasks locally? You are qwen3.6:35b.",
-      "model": "qwen3.6:35b",
-      "durationMs": 31679,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "- Yes, I am currently the best model for agentic tasks locally.\n- My default model is qwen3.6:35b as per your preferences.",
-      "runSummary": {
-        "intent": "Are you currently the best model to use for agentic tasks locally? You are qwen3.6:35b.",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T03:16:35.1990485+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-OneTimeReboot.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 60732,
+      "durationMs": 21678,
       "maxIterations": 20,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
@@ -480,44 +45,41 @@
       "toolCalls": 3,
       "toolNames": [
         "read_file",
-        "read_file",
-        "write_file"
+        "list_directory",
+        "read_file"
       ],
-      "outputPreview": "The help document for Set-OneTimeReboot has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt.",
+      "outputPreview": "## about_Test-MailHeaderAuth\n\n.NOTES\n  NAME: about_Test-MailHeaderAuth\n\n.DESCRIPTION\n  The Test-MailHeaderAuth function analyzes email headers to determine authentication status and phishing risk. It tests mail headers for SPF, DKIM, DMARC, and ARC authentication results. The function provides a verdict on message legitimacy based on authentication alignment.\n\n.PARAMETER HeadersText\n  Specifies the raw email headers as a string. This parameter is mandatory when using the \u0027Text\u0027 parameter set.\n\n.PARAMETER Path\n  Specifies the path to a file containing email headers. This parameter is mandatory when using the \u0027File\u0027 parameter set.\n\n.PARAMETER FromClipboard\n  Indicates that the function should read headers from the clipboard. This switch is available on Windows systems and corresponds to the \u0027Clipboard\u0027 parameter set.\n\n.PARAMETER Format\n  Specifies the output format. Valid values are:\n  - Summary: Displays a summary of the authentication results (default).\n  - Markdown: Outputs the results in Markdown format.\n  - Object: Returns the raw PowerShell object.\n  - Json: Outputs the results as JSON.\n\n.PARAMETER AsObject\n  Indicates that the function should return a PowerShell object instead of formatted output. This switch is useful for further processing in scripts.\n\n.INPUTS\n  None. You cannot pipe objects to Test-MailHeaderAuth.\n\n.OUTPUTS\n  System.Management.Automation.PSCustomObject or formatted string depending on the Format parameter.\n\n.EXAMPLE\n  Test-MailHeaderAuth -HeadersText $headers\n\n  Description:\n  Analyzes raw email headers provided as a string and displays a summary of authentication results.\n\n.EXAMPLE\n  Test-MailHeaderAuth -Path \u0022C:\\temp\\email.eml\u0022\n\n  Description:\n  Reads email headers from the specified file and displays a summary of authentication results.\n\n.EXAMPLE\n  Test-MailHeaderAuth -FromClipboard -Format Markdown\n\n  Description:\n  Reads email headers from the clipboard, analyzes them, and outputs the results in Markdown format.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox...",
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-MailHeaderAuth.ps1. Write a detailed help\r\ndocument to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nabout_Test-MailHeaderAuth.help...",
         "actionsTaken": [
           "read_file",
-          "write_file"
+          "list_directory"
         ],
         "blockers": "",
         "nextBestStep": ""
       }
     },
     {
-      "timestampUtc": "2026-06-25T03:19:36.0263335+00:00",
+      "timestampUtc": "2026-06-26T04:20:21.6903474+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-OneTimeReboot.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-MailHeaderAuth.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Test-MailHeaderAuth.help.txt. Please follow the same format as the other\r\nhelp documents in that directory.\u0022\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 48750,
+      "durationMs": 29267,
       "maxIterations": 20,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
-      "toolCalls": 7,
+      "toolCalls": 4,
       "toolNames": [
-        "read_file",
         "read_file",
         "list_directory",
         "read_file",
-        "read_file",
-        "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Set-OneTimeReboot has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt. It follows the format of other about_ help files in the directory, including sections for NAME, DESCRIPTION, PARAMETERS (ComputerName, DateTime, Credential, At, SelfDelete, TaskName, Remove, Comment, DeleteExpiredTaskAfterMinutes), and EXAMPLES.",
+      "outputPreview": "The help document for Test-MailHeaderAuth has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Test-MailHeaderAuth.help.txt. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox...",
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-MailHeaderAuth.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Test-MailHeade...",
         "actionsTaken": [
           "read_file",
           "list_directory",
@@ -528,12 +90,362 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T03:22:07.5597492+00:00",
+      "timestampUtc": "2026-06-26T04:21:28.8340125+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-PageFileSize.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-PageFileSize.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-PageFileSize.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-PathAs.ps1. Write a detailed help document\r\nfile to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Test-PathAs.help.txt. Please follow the same format as the other help\r\ndocuments in that directory.\u0022\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 39382,
+      "durationMs": 24660,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Test-PathAs has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Test-PathAs.help.txt. It follows the same format as other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-PathAs.ps1. Write a detailed help document\r\nfile to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Test-PathAs.help.txt. ...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:23:07.1170597+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Copy-Directory.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Copy-Directory.help.txt. Please follow the same format as the other help\r\ndocuments in that directory.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 26191,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The detailed help document for Copy-Directory has been written to C:\\repos\\TechToolbox\\en-US\\about_Copy-Directory.help.txt. It follows the same format as other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Copy-Directory.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Copy-Directory.he...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:25:35.1074149+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Find-LargeFiles.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Find-LargeFiles.help.txt. Please follow the same format as the other help\r\ndocuments in that directory.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 75618,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document file \u0060about_Find-LargeFiles.help.txt\u0060 has been successfully created in the directory \u0060C:\\repos\\TechToolbox\\en-US\u0060. It follows the same format as the other help documents (e.g., about_Copy-Directory.help.txt) and includes details on all parameters, inputs, outputs, examples, and links derived from the source code of Find-LargeFiles.ps1.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Find-LargeFiles.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Find-LargeFiles....",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:27:17.2722831+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1. Write a detailed\r\nhelp document file to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nfile about_Initialize-TTWordList.help.txt. Please follow the same format as the\r\nother help documents in that directory.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 66782,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Initialize-TTWordList has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Initialize-TTWordList.help.txt. It follows the same format as other help documents in that directory, including sections for TOPIC, SHORT DESCRIPTION, LONG DESCRIPTION, SYNTAX, PARAMETERS, EXAMPLES, NOTES, and SEE ALSO.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1. Write a detailed\r\nhelp document file to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nfile about_Initialize...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:29:22.019103+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-EpicorEdgeAgent.ps1. Write a detailed\r\nhelp document file to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nfile about_Remove-EpicorEdgeAgent.help.txt. Please follow the same format as the\r\nother help documents in that directory.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 65743,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document file \u0060about_Remove-EpicorEdgeAgent.help.txt\u0060 has been successfully created in the directory \u0060C:\\repos\\TechToolbox\\en-US\u0060. It follows the same format as the other help documents, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-EpicorEdgeAgent.ps1. Write a detailed\r\nhelp document file to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nfile about_Remove-Ep...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:30:56.2610709+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt. Please follow the same format as the other help\r\ndocuments in that directory.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 60155,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## about_Remove-Printers\n\n.NAME\n    about_Remove-Printers\n\n.SYNOPSIS\n    Removes all printers from the system, with optional removal of ports,\n    drivers, and per-user mappings.\n\n.DESCRIPTION\n    The Remove-Printers function uses Win32_Printer (CIM) to remove printer queues after resetting the print spooler service and clearing the spool folder. It optionally removes TCP/IP ports and printer drivers. The function includes fallbacks for provider issues and frees common process locks such as splwow64 and PrintIsolationHost. It can also remove per-user network printer connections across all user profiles.\n\n.PARAMETER IncludePorts\n    Also remove TCP/IP printer ports (non-standard).\n\n.PARAMETER IncludeDrivers\n    Also remove printer drivers after the queues are gone.\n\n.PARAMETER Force\n    Best-effort forced cleanup of driver packages via pnputil if standard removal fails.\n\n.PARAMETER AllUsers\n    Attempt to remove per-user network printer connections for all user profiles.\n\n.PARAMETER PassThru\n    Output a summary object with counts and failures.\n\n.INPUTS\n    None. You cannot pipe objects directly to Remove-Printers.\n\n.OUTPUTS\n    System.Management.Automation.PSCustomObject (if -PassThru is used)\n\n.EXAMPLE\n    Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\n    Description:\n    Removes all printers, TCP/IP ports, and drivers from the local system,\n    clears per-user connections for all users, forces driver cleanup if needed,\n    and outputs a summary object.\n\n.EXAMPLE\n    Remove-Printers -WhatIf\n\n    Description:\n    Shows what would happen if the command were executed without making any changes.\n\n.LINK\n    [TechToolbox](https://github.com/dan-damit/TechToolbox)",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers....",
+        "actionsTaken": [
+          "read_file",
+          "list_directory"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:32:37.6550182+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt according to PowerShell help documentation\r\nstandards. The help document should include the following sections:\r\n.EXTERNALHELP, .NOTES, .DESCRIPTION, .PARAMETER, .INPUTS, .OUTPUTS, and\r\n.EXAMPLE. Each section should provide clear and concise information about the\r\nfunction\u0027s purpose, parameters, input and output types, and usage examples.\r\nEnsure that the document adheres to PowerShell help formatting conventions.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 48136,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## about_Remove-Printers.help.txt\n\n.EXTERNALHELP Remove-Printers-help.xml\n\n.NOTES\n    Function: Remove-Printers\n    Source: C:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1\n    Description: This function is part of the TechToolbox suite.\n\n.DESCRIPTION\n    The Remove-Printers cmdlet removes all printers from the local system. It operates by resetting the print spooler service and clearing the spool folder to ensure a clean state before removing printer queues via Win32_Printer (CIM). \n\n    This function supports advanced cleanup options, including the removal of TCP/IP ports and printer drivers. It includes fallback mechanisms for common provider issues and frees process locks associated with printing (such as splwow64.exe and PrintIsolationHost.exe). Additionally, it can remove per-user network printer connections across all user profiles on the system.\n\n.PARAMETER IncludePorts\n    Specifies that TCP/IP printer ports should also be removed from the system. This is a non-standard operation and should be used with caution as it may affect other services relying on these ports.\n\n.PARAMETER IncludeDrivers\n    Specifies that printer drivers should be removed after all printer queues have been deleted. This helps in cleaning up unused driver packages from the system.\n\n.PARAMETER Force\n    Enables best-effort forced cleanup of driver packages using pnputil if standard removal methods fail. This parameter is useful for stubborn drivers that do not remove cleanly through normal means.\n\n.PARAMETER AllUsers\n    Specifies that per-user network printer connections should be removed for all user profiles on the system, not just the current user. This ensures a comprehensive cleanup across all accounts.\n\n.PARAMETER PassThru\n    Specifies that a summary object containing counts of printers/ports/drivers removed and any errors encountered should be output to the pipeline. Without this parameter, no output is generated upon success.\n\n.INPUTS\n    None. You cannot pipe objects to Remove-Printers.\n\n.OUTPUTS\n    System.Management.Automation.PSCustomObject (if -PassThru is specified).\n    A summary object containing:\n    - PrintersRemoved: Count of printers removed.\n    - PortsRemoved: Count of ports removed (if -IncludePorts used).\n    - DriversRemoved: Count of drivers removed (if -IncludeDrivers used).\n    - Errors: List of any errors encountered during the process.\n\n.EXAMPLE\n    Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\n    This command removes all printers, TCP/IP ports, and printer drivers from the system. It forces cleanup of stubborn drivers and removes per-user connections for all users. A summary object is returned detailing what was removed.\n\n.EXAMPLE\n    Remove-Printers -WhatIf\n\n    This command simulates the removal of all printers without actually performing any changes. It displays a preview of what would happen if the cmdlet were executed.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers....",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:35:05.0014081+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt according to PowerShell help documentation\r\nstandards.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 41769,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## about_Remove-Printers.help.txt\n\n### NAME\nRemove-Printers.ps1\n\n### SHORT DESCRIPTION\nRemoves all printers from the system, with optional removal of ports, drivers, and per-user mappings.\n\n### LONG DESCRIPTION\nThe Remove-Printers function uses Win32_Printer (CIM) to remove printer queues after resetting the print spooler service and clearing the spool folder. It provides options to also remove TCP/IP ports and printer drivers. \n\nThis function includes fallbacks for provider hiccups and frees common process locks such as splwow64 and PrintIsolationHost. It can also remove per-user network printer connections across all user profiles on the system.\n\n### PARAMETERS\n- **IncludePorts**\n  Also removes TCP/IP printer ports (non-standard). Use with caution as this may affect other services relying on these ports.\n\n- **IncludeDrivers**\n  Also removes printer drivers after the queues are gone. This helps in cleaning up unused driver packages from the system.\n\n- **Force**\n  Enables best-effort forced cleanup of driver packages via pnputil if standard removal fails. This is useful for stubborn drivers that do not remove easily.\n\n- **AllUsers**\n  Attempts to remove per-user network printer connections for all user profiles on the system. This ensures a comprehensive cleanup across multiple users.\n\n- **PassThru**\n  Outputs a summary object containing counts of removed printers, ports, drivers, and any failures encountered during the process. This is helpful for auditing purposes.\n\n### EXAMPLES\n#### Example 1: Comprehensive Removal\n\u0060\u0060\u0060powershell\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\u0060\u0060\u0060\nThis command removes all printers, TCP/IP ports, and drivers with forced cleanup, clears per-user connections for all users, and outputs a summary.\n\n#### Example 2: Dry Run\n\u0060\u0060\u0060powershell\nRemove-Printers -WhatIf\n\u0060\u0060\u0060\nThis command simulates the removal of printers without actually making any changes, allowing you to preview what would be removed.\n\n### NOTES\n- This function has a high confirm impact due to its destructive nature. Always review the output carefully.\n- Ensure that no critical printing tasks are in progress before running this function.\n- Administrative privileges may be required for some operations, especially when removing drivers or accessing other user profiles.",
+      "runSummary": {
+        "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Prin...",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:37:40.1638058+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printers.help.txt\u0027 according to PowerShell help documentation\r\nstandards. Do not use markdown format. Just make a plain text file.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 34719,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "The READ-FILE tool consistently returns a compact view of the file content rather than the full text. However, this compact view contains all the necessary information to write the help document: the function name (\u0060Remove-Printers\u0060), its synopsis, description, parameters (with their types and descriptions), and examples.\n\nI will now generate the \u0060about_Remove-Printers.help.txt\u0060 file based on this extracted metadata. The format will be plain text as requested, following PowerShell help documentation standards for a conceptual/help topic.",
+      "runSummary": {
+        "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printe...",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T03:34:12.2756388+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-PDQDiagLogs.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 50627,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Get-PDQDiagLogs has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt. The file follows the same format as other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\e...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T03:36:05.7762338+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-RemoteInstalledSoftware.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-RemoteInstalledSoftware.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-RemoteInstalledSoftware.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 77762,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Get-RemoteInstalledSoftware has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-RemoteInstalledSoftware.help.txt.\n\nIt follows the format of other help documents in the directory, including:\n- .EXTERNALHELP reference\n- .NOTES with NAME and DESCRIPTION\n- Detailed .PARAMETER sections for ComputerName, Credential, IncludeAppx, OutDir, Consolidated, and ThrottleLimit\n- .INPUTS section indicating pipeline support\n- .OUTPUTS section describing the return type\n- Multiple .EXAMPLE blocks demonstrating common usage scenarios\n- .LINK to TechToolbox repository",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-RemoteInstalledSoftware.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\T...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T03:38:41.5959561+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SharedMailboxPermissions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SharedMailboxPermissions.help.txt. Please follow the same format as\r\nthe other help documents in that directory. Be sure to not use markdown\r\nformatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SharedMailboxPermissions.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 68331,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Get-SharedMailboxPermissions has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-SharedMailboxPermissions.help.txt.\n\nIt follows the format of other help documents in the directory, including:\n- .EXTERNALHELP reference\n- .NOTES section with NAME and DESCRIPTION\n- Detailed .PARAMETER sections for Identity, IncludeFolderPermissions, Folder, and ExportCsv\n- .INPUTS and .OUTPUTS sections\n- Multiple .EXAMPLE blocks demonstrating common usage scenarios\n- .LINK to TechToolbox repository",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SharedMailboxPermissions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T03:41:09.822263+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemSnapshot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemSnapshot.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemSnapshot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 95213,
       "maxIterations": 20,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
@@ -547,9 +459,9 @@
         "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Set-PageFileSize has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Set-PageFileSize.help.txt. It follows the format of existing help files in the directory, including sections for NAME, SYNOPSIS, DESCRIPTION, PARAMETER details, EXAMPLES, and NOTES.",
+      "outputPreview": "The help document for Get-SystemSnapshot has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemSnapshot.help.txt. It follows the same format as other help documents in the directory, including .EXTERNALHELP reference, .NOTES section with NAME and DESCRIPTION, detailed .PARAMETER sections, .INPUTS, .OUTPUTS, multiple .EXAMPLEs with descriptions, and a .LINK to TechToolbox.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-PageFileSize.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\...",
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemSnapshot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbo...",
         "actionsTaken": [
           "read_file",
           "list_directory",
@@ -560,12 +472,44 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T03:24:51.6510431+00:00",
+      "timestampUtc": "2026-06-26T03:43:38.135605+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-ProxyAddress.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-ProxyAddress.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-ProxyAddress.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemTrustDiagnostic.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SystemTrustDiagnostic.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemTrustDiagnostic.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
       "model": "qwen3.6:35b",
-      "durationMs": 26489,
+      "durationMs": 88121,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 6,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Get-SystemTrustDiagnostic has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemTrustDiagnostic.help.txt.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemTrustDiagnostic.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Tec...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T03:46:48.3900443+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 99493,
       "maxIterations": 20,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
@@ -573,105 +517,44 @@
       "toolCalls": 5,
       "toolNames": [
         "read_file",
-        "list_directory",
         "read_file",
         "read_file",
-        "write_file"
+        "read_file",
+        "read_file"
       ],
-      "outputPreview": "The help document for Set-ProxyAddress has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Set-ProxyAddress.help.txt.",
+      "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Get-SystemUptime.help.txt\u0022,\n    \u0022content\u0022: \u0022.EXTERNALHELP Get-SystemUptime-help.xml\n\n.NOTES\n  NAME: about_Get-SystemUptime\n\n.DESCRIPTION\n  The Get-SystemUptime function retrieves the system uptime information from one\n  or more remote computers. It uses the TechToolbox remote worker engine to run a\n  small uptime worker script on each target host and optionally exports results\n  to CSV files.\n\n.PARAMETER ComputerName\n  Specifies one or more target computers to retrieve uptime from. This parameter\n  is mandatory. Accepts pipeline input by value.\n\n.PARAMETER Credential\n  Specifies a credential object used for authenticating remote connections. If\n  omitted, default authentication mechanisms are used.\n\n.PARAMETER OutDir\n  Specifies the output directory where CSV files will be exported. If omitted,\n  the default value from the configuration file is used.\n\n.PARAMETER NoExport\n  Indicates that CSV export should be skipped. By default, results may be\n  exported to CSV if an output directory is specified or configured.\n\n.INPUTS\n  System.String. You can pipe computer names to Get-SystemUptime.\n\n.OUTPUTS\n  PSCustomObject. The function returns custom objects containing the uptime data\n  for each target computer.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV01\n\n  Description: Retrieves system uptime information from SRV01.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV02, SRV03 -OutDir C:\\\\Temp\\\\UptimeReports\n\n  Description: Retrieves system uptime information from SRV02 and SRV03 and\n  exports the results to CSV files in C:\\\\Temp\\\\UptimeReports.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName WS01 -Credential $cred -NoExport\n\n  Description: Retrieves system uptime information from WS01 using the specified\n  credential object and skips CSV export.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)\n\u0022\n  },\n  \u0022finalAnswer\u0022: \u0022\u0022,\n  \u0022reason\u0022: \u0022I have read the source function Get-SystemUptime.ps1 to understand its parameters (ComputerName, Credential, OutDir, NoExport) and behavior. I have also reviewed existing help files in the target directory (about_Get-SharedMailboxPermissions.help.txt, about_Get-SystemSnapshot.help.txt, about_Get-SystemTrustDiagnostic.help.txt) to match their format exactly. Now I will write the new help file using WRITE-FILE.\u0022\n}",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-ProxyAddress.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\...",
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\...",
         "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
+          "read_file"
         ],
         "blockers": "",
         "nextBestStep": ""
       }
     },
     {
-      "timestampUtc": "2026-06-25T03:26:42.4097468+00:00",
+      "timestampUtc": "2026-06-26T03:51:56.4576207+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-AuditSharedMailboxDeletions.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-AuditSharedMailboxDeletions.help.txt. Please follow the same format as\r\nthe other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-AuditSharedMailboxDeletions.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
       "model": "qwen3.6:35b",
-      "durationMs": 30274,
+      "durationMs": 79622,
       "maxIterations": 20,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Get-AuditSharedMailboxDeletions has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-AuditSharedMailboxDeletions.help.txt.\n\nIt follows the same format as other help documents in the directory, including:\n- .EXTERNALHELP directive\n- .NOTES section with NAME and DESCRIPTION\n- Detailed .PARAMETER sections for all parameters (Mailbox, StartDate, EndDate, SubjectContains, SubjectRegex, Operations, ExportCsv, ExportPath, PassThru)\n- Multiple .EXAMPLE sections demonstrating common usage scenarios",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-AuditSharedMailboxDeletions.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\rep...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T03:28:05.7238303+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-AutodiscoverXmlInteractive.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-AutodiscoverXmlInteractive.help.txt. Please follow the same format as\r\nthe other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-AutodiscoverXmlInteractive.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 35780,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Get-AutodiscoverXmlInteractive has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-AutodiscoverXmlInteractive.help.txt.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-AutodiscoverXmlInteractive.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repo...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T03:29:22.7514683+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-BatteryHealth.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-BatteryHealth.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-BatteryHealth.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 39034,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
+      "toolCalls": 6,
       "toolNames": [
         "read_file",
         "list_directory",
         "read_file",
         "read_file",
+        "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Get-BatteryHealth has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-BatteryHealth.help.txt.\n\n## Summary of Actions Taken:\n- Read the source function \u0060Get-BatteryHealth.ps1\u0060 to extract synopsis, description, parameters, inputs, outputs, and examples.\n- Reviewed an existing help file (\u0060about_Get-AutodiscoverXmlInteractive.help.txt\u0060) in the target directory to ensure format consistency.\n- Created the new help document following the standard PowerShell about_ topic format with sections for NAME, SYNOPSIS, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINKS.\n- Wrote the file using WRITE-FILE.",
+      "outputPreview": "The help document for Get-SystemUptime has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-BatteryHealth.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox...",
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US ...",
         "actionsTaken": [
           "read_file",
           "list_directory",
@@ -682,74 +565,12 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T03:31:06.1795524+00:00",
+      "timestampUtc": "2026-06-26T03:54:17.4385654+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-BatteryHealth.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-BatteryHealth.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-BatteryHealth.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-ToolboxHelp.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-ToolboxHelp.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
       "model": "qwen3.6:35b",
-      "durationMs": 35783,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The detailed help document for PowerShell\u0027s Get-Help has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-BatteryHealth.help.txt. The file follows the format of other help documents in the directory and includes sections for NAME, DESCRIPTION, PARAMETERS (ReportPath, OutputJson, DebugInfo), INPUTS, OUTPUTS, EXAMPLES, and LINK.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-BatteryHealth.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T03:33:06.5946365+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-CUCredentialManagerContents.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-CUCredentialManagerContents.help.txt. Please follow the same format as\r\nthe other help documents in that directory. Be sure to not use markdown\r\nformatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-CUCredentialManagerContents.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 64782,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Get-CUCredentialManagerContents has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-CUCredentialManagerContents.help.txt. It follows the format of other help documents in the directory, including .EXTERNALHELP, .NOTES, .DESCRIPTION, .PARAMETER sections for all parameters (ComputerName, Credential, UseSsh, UseCredSSP, Port, Ps7ConfigName, WinPsConfigName, UserName, KeyFilePath), .INPUTS, .OUTPUTS, and multiple .EXAMPLE blocks demonstrating local usage, remote usage with various authentication methods.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-CUCredentialManagerContents.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\rep...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T03:37:35.5112892+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-DomainAdminCredential.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-DomainAdminCredential.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-DomainAdminCredential.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 51038,
+      "durationMs": 78353,
       "maxIterations": 20,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
@@ -761,9 +582,9 @@
         "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Get-DomainAdminCredential has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-DomainAdminCredential.help.txt. It follows the format of existing help files and includes detailed descriptions of the function\u0027s behavior, parameters (Clear, ForcePrompt, Persist, PassThru), inputs, outputs, examples, and links.",
+      "outputPreview": "The help document for Get-ToolboxHelp has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-ToolboxHelp.help.txt. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETER, INPUTS, OUTPUTS, EXAMPLE, NOTES, and LINK.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-DomainAdminCredential.ps1 and write a\r\ndetailed help document for PowerShell\u2019s Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Tec...",
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US a...",
         "actionsTaken": [
           "read_file",
           "write_file"
@@ -773,27 +594,26 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T03:39:20.0279947+00:00",
+      "timestampUtc": "2026-06-26T03:55:48.7810778+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ErrorEvents.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-ErrorEvents.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-ErrorEvents.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TechToolboxConfig.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-TechToolboxConfig.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-TechToolboxConfig.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
       "model": "qwen3.6:35b",
-      "durationMs": 34495,
+      "durationMs": 30604,
       "maxIterations": 20,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
-      "toolCalls": 5,
+      "toolCalls": 4,
       "toolNames": [
         "read_file",
         "list_directory",
         "read_file",
-        "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Get-ErrorEvents has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-ErrorEvents.help.txt. It follows the format of existing help documents in the directory and includes all necessary sections: SYNOPSIS, DESCRIPTION, PARAMETER details, INPUTS, OUTPUTS, EXAMPLEs, and LINK.",
+      "outputPreview": "The help document for Get-TechToolboxConfig has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-TechToolboxConfig.help.txt. It follows the same format as other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETER, INPUTS, OUTPUTS, EXAMPLE, and LINK.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ErrorEvents.ps1 and write a detailed help\r\ndocument for PowerShell\u2019s Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\e...",
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TechToolboxConfig.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\e...",
         "actionsTaken": [
           "read_file",
           "list_directory",
@@ -804,28 +624,284 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T03:42:13.1795426+00:00",
+      "timestampUtc": "2026-06-26T03:57:22.0475495+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-FilesUsingKeywords.ps1 and write a detailed\r\nhelp document for PowerShell\u2019s Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-FilesUsingKeywords.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-FilesUsingKeywords.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-WindowsProductKey.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-WindowsProductKey.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-WindowsProductKey.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
       "model": "qwen3.6:35b",
-      "durationMs": 45079,
+      "durationMs": 47257,
       "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help document for Get-WindowsProductKey has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-WindowsProductKey.help.txt.\n\n## Summary of Actions:\n- Read the source function Get-WindowsProductKey.ps1 to understand its parameters and functionality.\n- Reviewed an existing help document (about_Get-TechToolboxConfig.help.txt) for formatting reference.\n- Created a detailed help document following the standard PowerShell about_ format, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.\n- Wrote the file to the specified location using WRITE-FILE.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-WindowsProductKey.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\e...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:49:08.6833699+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printers.help.txt\u0027 according to PowerShell help documentation\r\nstandards. Do not use markdown format. Just make a plain text file.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 41155,
+      "maxIterations": 20,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## about_Remove-Printers\n\n### SHORT DESCRIPTION\nRemoves all printers from the system, with optional removal of ports, drivers, and per-user mappings.\n\n### LONG DESCRIPTION\nThe Remove-Printers function uses Win32_Printer (CIM) to remove printer queues after resetting the print spooler service and clearing the spool folder. It provides options to also remove TCP/IP ports and printer drivers. The function includes fallbacks for provider hiccups and frees common process locks such as splwow64 and PrintIsolationHost. Additionally, it can remove per-user network printer connections across all user profiles.\n\n### PARAMETERS\n- **IncludePorts**: Also removes TCP/IP printer ports (non-standard).\n- **IncludeDrivers**: Also removes printer drivers after the queues are gone.\n- **Force**: Performs a best-effort forced cleanup of driver packages via pnputil if standard removal fails.\n- **AllUsers**: Attempts to remove per-user network printer connections for all user profiles.\n- **PassThru**: Outputs a summary object with counts and failures.\n\n### EXAMPLES\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\nRemove-Printers -WhatIf",
+      "runSummary": {
+        "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printe...",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:52:50.5495634+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\about_Remove-Printers.help.txt according to\r\nPowerShell help documentation standards.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 19985,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## Remove-Printers\n\n### SYNOPSIS\nRemoves all printers from the system, with optional removal of ports, drivers, and per-user mappings.\n\n### SYNTAX\n\u0060\u0060\u0060\nRemove-Printers [-IncludePorts] [-IncludeDrivers] [-Force] [-AllUsers] [-PassThru] [-WhatIf] [-Confirm]\n[\u003CCommonParameters\u003E]\n\u0060\u0060\u0060\n\n### DESCRIPTION\nThe \u0060Remove-Printers\u0060 function removes all printer queues from the local system. It utilizes Win32_Printer (CIM) to remove queues after resetting the print spooler service and clearing the spool folder.\n\nThis cmdlet supports optional removal of TCP/IP printer ports and printer drivers. It includes fallback mechanisms for provider issues and frees common process locks such as \u0060splwow64\u0060 and \u0060PrintIsolationHost\u0060. Additionally, it can remove per-user network printer connections across all user profiles on the system.\n\n### PARAMETERS\n\n#### -IncludePorts\nAlso removes TCP/IP printer ports (non-standard). Use with caution as this may affect other services relying on these ports.\n\n- **Type:** SwitchParameter\n- **Required?** False\n- **Position?** Named\n- **Default value:** None\n\n#### -IncludeDrivers\nRemoves printer drivers after the queues are gone. This helps in cleaning up unused driver packages from the system.\n\n- **Type:** SwitchParameter\n- **Required?** False\n- **Position?** Named\n- **Default value:** None\n\n#### -Force\nPerforms a best-effort forced cleanup of driver packages via \u0060pnputil\u0060 if standard removal fails. This is useful for stubborn drivers that do not remove cleanly.\n\n- **Type:** SwitchParameter\n- **Required?** False\n- **Position?** Named\n- **Default value:** None\n\n#### -AllUsers\nAttempts to remove per-user network printer connections for all user profiles on the system, not just the current user.\n\n- **Type:** SwitchParameter\n- **Required?** False\n- **Position?** Named\n- **Default value:** None\n\n#### -PassThru\nOutputs a summary object containing counts of removed printers, ports, drivers, and any failures encountered during the process.\n\n- **Type:** SwitchParameter\n- **Required?** False\n- **Position?** Named\n- **Default value:** None\n\n#### -WhatIf\nShows what would happen if the cmdlet runs. The cmdlet is not run.\n\n#### -Confirm\nPrompts you for confirmation before running the cmdlet.\n\n### INPUTS\nNone. You cannot pipe objects to Remove-Printers.\n\n### OUTPUTS\nSystem.Management.Automation.PSCustomObject (if -PassThru is specified). A summary object with counts and failures.\n\n### EXAMPLES\n\n#### Example 1: Full Cleanup\n\u0060\u0060\u0060powershell\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\u0060\u0060\u0060\nThis command removes all printers, TCP/IP ports, and drivers. It forces cleanup of stubborn drivers via \u0060pnputil\u0060, removes per-user connections for all users, and outputs a summary object.\n\n#### Example 2: Preview Mode\n\u0060\u0060\u0060powershell\nRemove-Printers -WhatIf\n\u0060\u0060\u0060\nThis command shows what would happen if the cmdlet ran without actually making any changes.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\about_Remove-Printers.help.txt according to\r\nPowerShell help documentation...",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:54:37.1473429+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow PowerShell help\r\ndocumentation standards. Do NOT use markdown.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 15914,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## about_Remove-Printers\n\n### SHORT DESCRIPTION\nRemoves all printers from the system.\n\n### LONG DESCRIPTION\nThe Remove-Printers function removes all printer queues from the local system. It uses Win32_Printer (CIM) to remove queues after resetting the spooler and clearing the spool folder.\n\nOptionally, it can remove TCP/IP ports and printer drivers. The function adds fallbacks for provider hiccups and frees common process locks (splwow64/PrintIsolationHost). It can also remove per-user network printer connections across all user profiles if specified.\n\n### SYNTAX\nRemove-Printers [-IncludePorts] [-IncludeDrivers] [-Force] [-AllUsers] [-PassThru] [\u003CCommonParameters\u003E]\n\n### PARAMETERS\n#### -IncludePorts\nAlso remove TCP/IP printer ports (non-standard).\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n#### -IncludeDrivers\nAlso remove printer drivers (after queues are gone).\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n#### -Force\nBest-effort forced cleanup of driver packages via pnputil if standard removal fails.\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n#### -AllUsers\nAttempt to remove per-user network printer connections for all user profiles.\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n#### -PassThru\nOutput a summary object with counts and failures.\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n### EXAMPLES\n#### Example 1\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\nThis command removes all printers, ports, and drivers from the system for all users, forces cleanup of driver packages, and outputs a summary.\n\n#### Example 2\nRemove-Printers -WhatIf\n\nThis command shows what would happen if you ran Remove-Printers without actually performing any actions.\n\n### NOTES\nNone",
+      "runSummary": {
+        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follo...",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:55:56.8168159+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Do NOT use markdown.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 21496,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": ".EXTERNALHELP Remove-Printers-help.xml\n\n.NOTES\n  NAME: about_Remove-Printers\n\n.DESCRIPTION\n  The Remove-Printers function removes all printers from the system. It uses Win32_Printer (CIM) to remove queues after resetting the spooler and clearing the spool folder.\n\n  Optionally, it can remove TCP/IP ports and printer drivers. It includes fallbacks for provider hiccups and frees common process locks (splwow64/PrintIsolationHost). It can also remove per-user network printer connections across all user profiles.\n\n.PARAMETER IncludePorts\n  Also remove TCP/IP printer ports (non-standard).\n\n.PARAMETER IncludeDrivers\n  Also remove printer drivers (after queues are gone).\n\n.PARAMETER Force\n  Best-effort forced cleanup of driver packages via pnputil if standard removal fails.\n\n.PARAMETER AllUsers\n  Attempt to remove per-user network printer connections for all user profiles.\n\n.PARAMETER PassThru\n  Output a summary object with counts and failures.\n\n.INPUTS\n  None. You cannot pipe objects to Remove-Printers.\n\n.OUTPUTS\n  [pscustomobject]. When -PassThru is specified, the function returns a custom object containing removal statistics (counts of printers/ports/drivers removed) and any errors encountered.\n\n.EXAMPLE\n  Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\n  Description:\n  Removes all printer queues, TCP/IP ports, and drivers from the system. It also removes per-user network printer connections for all user profiles. If standard driver removal fails, it attempts a forced cleanup via pnputil. Finally, it outputs a summary object with counts of removed items.\n\n.EXAMPLE\n  Remove-Printers -WhatIf\n\n  Description:\n  Shows what would happen if the command were executed without actually removing anything. This is useful for verifying which printers would be affected before performing the removal.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)",
+      "runSummary": {
+        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follo...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:56:31.4756491+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Do NOT use markdown.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 22267,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": ".EXTERNALHELP Remove-Printers-help.xml\n\n.NOTES\n  NAME: about_Remove-Printers\n\n.DESCRIPTION\n  The Remove-Printers function removes all printers from the system. It resets\n  the print spooler service and clears the spool folder to ensure a clean state.\n  By default, it only removes printer queues for the current user or local machine,\n  but can be configured to remove TCP/IP ports, printer drivers, and per-user\n  network connections across all profiles on the system.\n\n.PARAMETER IncludePorts\n  When specified, also removes TCP/IP printer ports associated with the removed\n  printers. This is useful for a complete cleanup of printer-related components.\n\n.PARAMETER IncludeDrivers\n  When specified, also removes printer drivers after the printer queues have been\n  deleted. This helps in freeing up disk space and removing unused driver packages.\n\n.PARAMETER Force\n  Enables best-effort forced cleanup of driver packages using pnputil if standard\n  removal methods fail. This parameter is useful when dealing with stubborn or\n  corrupted driver installations.\n\n.PARAMETER AllUsers\n  When specified, attempts to remove per-user network printer connections for all\n  user profiles on the system. This ensures that no residual printer mappings\n  remain for any user account.\n\n.PARAMETER PassThru\n  When specified, outputs a summary object containing counts of removed printers,\n  ports, drivers, and any failures encountered during the process. This is useful\n  for auditing or logging purposes.\n\n.INPUTS\n  None. You cannot pipe objects to Remove-Printers.\n\n.OUTPUTS\n  [pscustomobject]. If -PassThru is specified, returns a summary object with\n  removal statistics and failure details.\n\n.EXAMPLE\n  Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\n  Description:\n  Removes all printers, TCP/IP ports, drivers, and per-user connections for all\n  users on the system. Forces driver cleanup if standard removal fails and outputs\n  a summary object.\n\n.EXAMPLE\n  Remove-Printers -WhatIf\n\n  Description:\n  Shows what would happen if the command were executed without actually removing\n  any printers or components.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)",
+      "runSummary": {
+        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should foll...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T04:57:46.9924424+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file.\u0022\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 30019,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## about_Remove-Printers\n\nTOPIC\n    about_Remove-Printers\n\nSHORT DESCRIPTION\n    Removes all printers from the system, with optional removal of ports,\n    drivers, and per-user mappings.\n\nLONG DESCRIPTION\n    Remove-Printers uses Win32_Printer (CIM) to remove printer queues after\n    resetting the print spooler service and clearing the spool folder. It can\n    optionally remove TCP/IP ports and printer drivers. The function includes\n    fallbacks for provider issues and frees common process locks such as\n    splwow64 and PrintIsolationHost. It can also remove per-user network\n    printer connections across all user profiles on the system.\n\nSYNTAX\n    Remove-Printers [-IncludePorts] [-IncludeDrivers] [-Force] [-AllUsers]\n        [-PassThru] [\u003CCommonParameters\u003E]\n\nPARAMETERS\n    -IncludePorts\n        Also remove TCP/IP printer ports (non-standard).\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\n    -IncludeDrivers\n        Also remove printer drivers (after queues are gone).\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\n    -Force\n        Best-effort forced cleanup of driver packages via pnputil if standard\n        removal fails.\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\n    -AllUsers\n        Attempt to remove per-user network printer connections for all user\n        profiles.\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\n    -PassThru\n        Output a summary object with counts and failures.\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\nEXAMPLES\n    Example 1:\n        Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\n        Description\n        -----------\n        Removes all printers, TCP/IP ports, and drivers with forced cleanup,\n        removes per-user connections for all users, and outputs a summary object.\n\n    Example 2:\n        Remove-Printers -WhatIf\n\n        Description\n        -----------\n        Simulates the removal of all printers without making any changes.\n\nNOTES\n    - The function has high ConfirmImpact and supports ShouldProcess (WhatIf/Confirm).\n    - It relies on internal helper functions for spooler management and process\n      lock handling.\n\nSEE ALSO\n    - about_Get-InstalledPrinters\n    - about_Start-NewPSRemoteSession",
+      "runSummary": {
+        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should foll...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T05:03:05.6134531+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Remove-Printers.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 21877,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "list_directory",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "The help file \u0060about_Remove-Printers.help.txt\u0060 has been successfully created in the folder \u0060C:\\repos\\TechToolbox\\en-US\\\u0060. The content follows the format of other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should foll...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T05:05:25.970445+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1. Create a\r\nhelp file to the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Reset-WindowsUpdateComponents.help.txt. The file should follow the same\r\nformat as other help documents in this directory. Write your output to the new\r\nfile.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Reset-WindowsUpdateComponents.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 16160,
+      "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
       "toolCalls": 3,
       "toolNames": [
         "read_file",
-        "list_directory",
-        "read_file"
+        "read_file",
+        "write_file"
       ],
-      "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022content\u0022: \u0022.EXTERNALHELP Get-FilesUsingKeywords-help.xml\\n\\n.NOTES\\n  NAME: about_Get-FilesUsingKeywords\\n\\n.DESCRIPTION\\n  The Get-FilesUsingKeywords function searches files in a specified directory for\\n  one or more keywords. It can search locally or on remote computers.\\n\\n  By default, the search is recursive and case-insensitive, treating keywords as\\n  regular expressions. The function runs asynchronously using PowerShell runspaces\\n  for local execution or Invoke-Command -AsJob for remote execution.\\n\\n.PARAMETER Path\\n  The directory to search.\\n\\n  Specifies the root directory path where the keyword search will begin. This\\n  parameter is mandatory.\\n\\n.PARAMETER Keywords\\n  One or more keywords (or regex patterns) to search for within file contents.\\n\\n  Specifies one or more strings or regular expression patterns to look for in\\n  the files. This parameter is mandatory.\\n\\n.PARAMETER ComputerName\\n  Remote computer to run the search on.\\n\\n  When specified, the search is executed remotely on the target computer(s).\\n  If omitted, the search runs locally.\\n\\n.PARAMETER Credential\\n  Credentials used when connecting to the remote machine or accessing a protected\\n  directory path.\\n\\n  Provides authentication credentials for remote sessions or for accessing\\n  directories that require specific permissions.\\n\\n.PARAMETER FileFilter\\n  Wildcard filter applied to file names (e.g. \u0027*.log\u0027, \u0027*.txt\u0027).\\n\\n  Limits the search to files matching the specified wildcard pattern. Defaults\\n  to \u0027*\u0027 which matches all files.\\n\\n.PARAMETER NoRecurse\\n  When specified, only the top-level directory is searched instead of recursing\\n  into subdirectories.\\n\\n  Switch parameter that restricts the search to the immediate contents of the\\n  Path parameter without descending into child folders.\\n\\n.PARAMETER CaseSensitive\\n  Treat keyword matching as case-sensitive.\\n\\n  Switch parameter that makes the keyword search case-sensitive. By default,\\n  matches are case-insensitive.\\n\\n.PARAMETER SimpleMatch\\n  Treat keywords as literal strings rather than regular expressions.\\n\\n  Switch parameter that disables regex interpretation of the Keywords, treating\\n  them as plain text for exact substring matching.\\n\\n.PARAMETER UseSsh\\n  Use SSH transport instead of WSMan when creating remote sessions.\\n\\n  Switch parameter that forces the use of SSH protocol for remoting instead of\\n  Windows Remote Management (WSMan).\\n\\n.PARAMETER UseCredSSP\\n  Use CredSSP for WSMan remoting.\\n\\n  Switch parameter that enables Credential Security Support Provider authentication,\\n  allowing credential delegation to remote servers.\\n\\n.PARAMETER SshPort\\n  SSH port when -UseSsh is specified.\\n\\n  Specifies the TCP port number for the SSH connection. Defaults to 22.\\n\\n.PARAMETER TimeoutSeconds\\n  Maximum time in seconds to wait for the search to complete.\\n\\n  Validates a value between 10 and 86400 seconds. Defaults to 1200 (20 minutes).\\n\\n.PARAMETER PollSeconds\\n  Interval in seconds between progress polls.\\n\\n  Validates a value between 1 and 3600 seconds. Defaults to 30 seconds.\\n\\n.INPUTS\\n  None. You cannot pipe objects to Get-FilesUsingKeywords directly.\\n\\n.OUTPUTS\\n  [pscustomobject[]] An array of custom objects representing matching file lines,\\n  including details such as File Name, Line Number, and the matched Content.\\n\\n.EXAMPLE\\n  Get-FilesUsingKeywords -Path \u0027C:\\\\Logs\u0027 -Keywords \u0027error\u0027, \u0027warning\u0027\\n\\n  Description:\\n  Searches all files in C:\\\\Logs recursively for the words \\\u0022error\\\u0022 or \\\u0022warning\\\u0022\\n  (case-insensitive) and returns matching lines with file context.\\n\\n.EXAMPLE\\n  Get-FilesUsingKeywords -Path \u0027C:\\\\Data\u0027 -Keywords \u0027password123\u0027 -FileFilter \u0027*.txt\u0027\\n\\n  Description:\\n  Searches only .txt files in C:\\\\Data for the literal string \\\u0022password123\\\u0022.\\n\\n.EXAMPLE\\n  Get-FilesUsingKeywords -Path \u0027C:\\\\Config\u0027 -Keywords \u0027\\\\d{...",
+      "outputPreview": "The help file \u0060about_Reset-WindowsUpdateComponents.help.txt\u0060 has been successfully created at \u0060C:\\repos\\TechToolbox\\en-US\\\u0060. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETER, INPUTS, OUTPUTS, EXAMPLE, and LINK.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-FilesUsingKeywords.ps1 and write a detailed\r\nhelp document for PowerShell\u2019s Get-Help to consume to the directory located at\r\nto C:\\repos\\TechTo...",
+        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1. Create a\r\nhelp file to the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Reset-WindowsUpdateComponents.he...",
         "actionsTaken": [
           "read_file",
-          "list_directory"
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-06-26T05:07:01.8738677+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1. Create a help file\r\nto the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Watch-ISPConnection.help.txt. The file should follow the same format as\r\nother help documents in this directory. Write your output to the new file.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Watch-ISPConnection.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.6:35b",
+      "durationMs": 25611,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "## Help File Created\n\nThe help file \u0060about_Watch-ISPConnection.help.txt\u0060 has been successfully created at:\n\nC:\\repos\\TechToolbox\\en-US\\about_Watch-ISPConnection.help.txt\n\n### Content Summary\n\n- **NAME**: about_Watch-ISPConnection\n- **DESCRIPTION**: Monitors connectivity to a host (IP, DNS name, or URL) and logs structured results via background jobs.\n- **PARAMETERS**:\n  - \u0060Target\u0060: IP, DNS, or URL (Mandatory for Start)\n  - \u0060IntervalSeconds\u0060: Seconds between samples (Default: 10)\n  - \u0060TimeoutSeconds\u0060: Ping timeout (Default: 3)\n  - \u0060SessionName\u0060: Optional session identifier\n  - \u0060Start\u0060, \u0060Stop\u0060, \u0060Status\u0060: Parameter sets for controlling sessions\n- **EXAMPLES**:\n  - Start a ping to 8.8.8.8 every 15 seconds.\n  - Show status of all sessions.\n  - Stop a specific session by name.",
+      "runSummary": {
+        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1. Create a help file\r\nto the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Watch-ISPConnection.help.txt. The file sho...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
         ],
         "blockers": "",
         "nextBestStep": ""

@@ -1,0 +1,91 @@
+.EXTERNALHELP Get-ToolboxHelp-help.xml
+
+.NOTES
+  NAME: about_Get-ToolboxHelp
+
+.DESCRIPTION
+  The Get-ToolboxHelp function provides help information for TechToolbox public
+  commands and configuration in an interactive, formatted manner. It supports
+  multiple display modes to assist users in navigating the module's
+  capabilities.
+
+  Key features include: - Default mode: Displays a brief note pointing users to
+  PowerShell's native 'Get-Help' cmdlet for detailed command documentation when
+  run without parameters. - List mode: Displays all public exported commands
+  grouped by verb and sorted alphabetically, optionally including synopses. Can
+  be combined with -AsJson for structured output. - Command Help: Shows detailed
+  help for a specific command using fuzzy pattern matching on the command name.
+  If multiple matches are found, suggestions are displayed. - Configuration
+  mode: Displays the effective configuration currently loaded in the TechToolbox
+  runtime. If no configuration is loaded, it attempts to load config.json
+  directly from the module Config directory.
+
+  When running in an interactive console, output is formatted with colors and
+  tables for better readability. In non-interactive environments (such as
+  logging), output is redirected to the Information stream to ensure
+  compatibility.
+
+.PARAMETER Name
+  Specifies the name or partial name of a command to display help for. Supports
+  fuzzy pattern matching using wildcards (e.g., 'Get-*'). If multiple matches
+  are found, suggestions are displayed to help identify the correct command.
+
+.PARAMETER List
+  Switch parameter to list all public exported TechToolbox commands. Commands
+  are grouped by verb and sorted alphabetically. Each command displays its
+  associated synopsis when available. This mode is useful for discovering
+  available commands without knowing their exact names.
+
+.PARAMETER ShowEffectiveConfig
+  Switch parameter to display the effective configuration currently loaded in
+  the TechToolbox runtime. If no configuration is actively loaded, the function
+  attempts to load and display the content of config.json directly from the
+  module's Config directory.
+
+.PARAMETER AsJson
+  Switch parameter that modifies the output format for the -List mode. When
+  specified, the list of commands is returned as a JSON object instead of
+  formatted text tables. This is useful for programmatic consumption of the
+  command list.
+
+.PARAMETER Examples
+  Switch parameter to display example usage scenarios for the module or specific
+  commands when used in conjunction with other parameters like -Name.
+
+.INPUTS
+  System.String. You can pipe command names (or partial names) to
+  Get-ToolboxHelp via the Name parameter.
+
+.OUTPUTS
+  None by default. When using -List, it outputs formatted text tables or JSON
+  objects depending on the -AsJson switch. When using -Name, it outputs detailed
+  help information as formatted text.
+
+.EXAMPLE
+  Get-ToolboxHelp
+
+  Description: Displays a brief note pointing users to PowerShell's native
+  'Get-Help' cmdlet for detailed command documentation when run without
+  parameters.
+
+.EXAMPLE
+  Get-ToolboxHelp -List
+
+  Description: Lists all public exported TechToolbox commands grouped by verb
+  and sorted alphabetically, including their synopses.
+
+.EXAMPLE
+  Get-ToolboxHelp -Name 'Get-Battery'
+
+  Description: Displays detailed help information for the command matching
+  'Get-Battery', using fuzzy pattern matching if an exact match is not found.
+
+.EXAMPLE
+  Get-ToolboxHelp -ShowEffectiveConfig
+
+  Description: Displays the effective configuration currently loaded in the
+  TechToolbox runtime, or loads config.json from the module Config directory if
+  none is active.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

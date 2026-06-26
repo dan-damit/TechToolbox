@@ -1,0 +1,64 @@
+.EXTERNALHELP Test-MailHeaderAuth-help.xml
+
+.NOTES
+  NAME: about_Test-MailHeaderAuth
+
+.DESCRIPTION
+  The Test-MailHeaderAuth function analyzes raw email headers to determine the
+  authentication status of a message. It checks for SPF, DKIM, DMARC, and ARC
+  results to provide a verdict on message legitimacy and phishing risk.
+
+.PARAMETER HeadersText
+  Specifies the raw email headers as a string. This parameter is mandatory when
+  using the 'Text' parameter set.
+
+.PARAMETER Path
+  Specifies the path to a file containing raw email headers. This parameter is
+  mandatory when using the 'File' parameter set.
+
+.PARAMETER FromClipboard
+  A switch parameter that instructs the function to read the email headers from
+  the system clipboard instead of from text input or a file. This feature is
+  available on Windows systems only.
+
+.PARAMETER Format
+  Specifies the output format for the authentication results. Valid values are:
+  - 'Summary': Displays a concise summary of the authentication status
+  (default). - 'Markdown': Returns the results in Markdown formatted text. -
+  'Object': Returns detailed PowerShell objects containing all analysis data. -
+  'Json': Returns the results as a JSON string.
+
+.PARAMETER AsObject
+  A switch parameter that forces the function to return a PowerShell object
+  regardless of the Format setting. This is useful for further programmatic
+  processing of the authentication details.
+
+.INPUTS
+  None. You cannot pipe objects to Test-MailHeaderAuth.
+
+.OUTPUTS
+  PSCustomObject or formatted string depending on the Format parameter selected.
+
+.EXAMPLE
+  Test-MailHeaderAuth -HeadersText $rawHeaders
+
+  Description: Analyzes the raw email headers stored in the variable $rawHeaders
+  and displays a summary of the SPF, DKIM, DMARC, and ARC authentication
+  results.
+
+.EXAMPLE
+  Test-MailHeaderAuth -Path 'C:\Temp\message.eml' -Format Markdown
+
+  Description: Reads email headers from the file C:\Temp\message.eml and returns
+  the authentication analysis in Markdown format for easy reading or
+  documentation.
+
+.EXAMPLE
+  Test-MailHeaderAuth -FromClipboard -AsObject
+
+  Description: Reads email headers directly from the clipboard, analyzes them,
+  and returns a detailed PowerShell object containing all authentication details
+  without formatting.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

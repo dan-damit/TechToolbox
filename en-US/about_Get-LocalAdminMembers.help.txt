@@ -1,0 +1,73 @@
+.EXTERNALHELP Get-LocalAdminMembers-help.xml
+
+.NOTES
+  NAME: about_Get-LocalAdminMembers
+
+.DESCRIPTION
+  The Get-LocalAdminMembers function retrieves members of a local group
+  (default: Administrators) on one or more computers. It returns detailed
+  information for each member, including the Security Identifier (SID), account
+  name, domain, and object type (User, Group, or Well-Known SID).
+
+  By default, only direct members are returned. If the -Recurse switch is used,
+  the function attempts to expand nested groups recursively for both local and
+  domain accounts. The recursion depth can be controlled using the -MaxDepth
+  parameter.
+
+  This function supports pipeline input for computer names and can use alternate
+  credentials via the -Credential parameter for remote operations.
+
+.PARAMETER ComputerName
+  Specifies one or more computers to query. Accepts pipeline input by property
+  name. Defaults to the local computer ($env:COMPUTERNAME).
+
+.PARAMETER Group
+  Specifies the name of the local group to inspect. Defaults to
+  'Administrators'.
+
+.PARAMETER Recurse
+  Indicates that nested groups should be expanded. When specified, the function
+  attempts to resolve members of sub-groups recursively.
+
+.PARAMETER MaxDepth
+  Specifies the maximum depth for recursive group expansion. Valid values are
+  between 0 and 50. Defaults to 5.
+
+.PARAMETER IncludeGroups
+  Indicates whether group objects themselves should be included in the output
+  list. When true (default), groups found during recursion are listed as
+  members. When false, only leaf members (users) are typically returned,
+  depending on implementation details.
+
+.PARAMETER Credential
+  Specifies a credential object for authenticating remote connections to target
+  computers.
+
+.INPUTS
+  System.String. You can pipe computer names to Get-LocalAdminMembers.
+
+.OUTPUTS
+  [pscustomobject[]]. The function returns an array of custom objects
+  representing the group members with properties such as SID, Name, Domain, and
+  Type.
+
+.EXAMPLE
+  Get-LocalAdminMembers
+
+  Description: Gets the direct members of the local Administrators group on the
+  current computer.
+
+.EXAMPLE
+  Get-LocalAdminMembers -ComputerName SRV01, SRV02 -Recurse -MaxDepth 3
+
+  Description: Gets all direct and nested members (up to depth 3) of the local
+  Administrators group on SRV01 and SRV02.
+
+.EXAMPLE
+  Get-LocalAdminMembers -ComputerName DC01 -Credential (Get-Credential)
+
+  Description: Prompts for credentials and retrieves the direct members of the
+  local Administrators group on DC01 using the provided alternate credentials.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

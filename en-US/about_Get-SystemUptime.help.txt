@@ -1,0 +1,63 @@
+.EXTERNALHELP Get-SystemUptime-help.xml
+
+.NOTES
+  NAME: about_Get-SystemUptime
+
+.DESCRIPTION
+  The Get-SystemUptime function retrieves the system uptime information from one
+  or more remote computers. It uses the TechToolbox remote worker engine to
+  execute a small uptime worker script on each target host and optionally
+  exports the results to CSV files.
+
+  Key features include: - Support for multiple target computers via an array of
+  computer names. - Optional credential support for authenticating remote
+  connections. - CSV export capability to a specified output directory. - Option
+  to skip CSV export if desired. - Uses PowerShell remoting (preferably PS7) to
+  collect uptime data efficiently.
+
+.PARAMETER ComputerName
+  Specifies one or more target computers to retrieve uptime information from.
+  This parameter is mandatory and does not accept pipeline input by property
+  name (requires explicit specification).
+
+.PARAMETER Credential
+  Specifies a credential object for authenticating remote connections. If
+  omitted, default authentication mechanisms are used.
+
+.PARAMETER OutDir
+  Specifies the output directory where CSV files will be exported. If omitted,
+  the default value from the configuration file is used.
+
+.PARAMETER NoExport
+  Indicates that CSV export should be skipped. By default, uptime results are
+  exported to CSV if an output directory is specified or configured in the
+  settings.
+
+.INPUTS
+  System.String. You can pipe computer names to Get-SystemUptime.
+
+.OUTPUTS
+  PSCustomObject. The function returns custom objects containing the uptime data
+  for each queried computer, including properties such as ComputerName,
+  LastBootTime, and Uptime (formatted as a compact timespan string).
+
+.EXAMPLE
+  Get-SystemUptime -ComputerName SRV01
+
+  Description: Retrieves the system uptime from SRV01 using default settings for
+  export.
+
+.EXAMPLE
+  Get-SystemUptime -ComputerName SRV02, SRV03 -OutDir C:\UptimeReports
+
+  Description: Retrieves uptime information from SRV02 and SRV03 and exports the
+  results to CSV files in C:\UptimeReports.
+
+.EXAMPLE
+  Get-SystemUptime -ComputerName SRV04 -Credential $cred -NoExport
+
+  Description: Retrieves uptime from SRV04 using the specified credential but
+  skips exporting to CSV.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)
