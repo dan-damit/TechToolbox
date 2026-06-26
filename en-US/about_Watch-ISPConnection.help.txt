@@ -1,0 +1,62 @@
+.EXTERNALHELP Watch-ISPConnection-help.xml
+
+.NOTES
+  NAME: about_Watch-ISPConnection
+
+.DESCRIPTION
+  The Watch-ISPConnection function monitors connectivity to a host (IP, DNS
+  name,
+or URL) and logs structured results.
+
+  It starts a background monitoring job that pings the formatted target at the
+  specified interval and writes CSV rows to a per-session log file. Provides
+  Start/Stop/Status capabilities for managing multiple sessions.
+
+.PARAMETER Target
+  IP, DNS name, or URL (e.g., https://example.com). URLs will be formatted to
+  host. This parameter is mandatory for the Start operation and has an alias of
+  FirewallIP.
+
+.PARAMETER IntervalSeconds
+  Seconds between samples. Minimum 1. Default 10.
+
+.PARAMETER TimeoutSeconds
+  Timeout for each ping attempt. Default 3.
+
+.PARAMETER SessionName
+  Optional name; if omitted, a random one is generated.
+
+.PARAMETER Start
+  Start a new monitoring session. This is the default parameter set.
+
+.PARAMETER Stop
+  Stop a running session by name.
+
+.PARAMETER Status
+  Show status of all sessions (jobs, start time, last heartbeat, etc.).
+
+.INPUTS
+  None. You cannot pipe objects to Watch-ISPConnection.
+
+.OUTPUTS
+  None. This function does not return any output by default.
+
+.EXAMPLE
+  Watch-ISPConnection -Target "8.8.8.8" -IntervalSeconds 15 -SessionName
+  "MyPing"
+
+  Description: Starts a monitoring session named 'MyPing' that pings Google DNS
+  every 15 seconds.
+
+.EXAMPLE
+  Watch-ISPConnection -Status
+
+  Description: Shows the status of all active and recent monitoring sessions.
+
+.EXAMPLE
+  Watch-ISPConnection -Stop "MyPing"
+
+  Description: Stops the monitoring session named 'MyPing'.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

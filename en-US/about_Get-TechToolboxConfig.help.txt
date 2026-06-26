@@ -1,0 +1,46 @@
+.EXTERNALHELP Get-TechToolboxConfig-help.xml
+
+.NOTES
+  NAME: about_Get-TechToolboxConfig
+
+.DESCRIPTION
+  The Get-TechToolboxConfig function loads and validates a TechToolbox JSON
+  configuration file. It reads the specified JSON file from disk, converts it
+  into a hashtable-based object graph, and validates that required top-level
+  keys (schemaVersion and settings) exist. It also ensures that the default
+  password settings are present and correctly structured.
+
+  Key features include: - In-memory caching based on resolved file path and
+  LastWriteTimeUtc to avoid redundant reads. - Support for PowerShell 7+ via
+  ConvertFrom-Json -AsHashtable, with a fallback for Windows PowerShell 5.1. -
+  Strict validation that throws errors if the file is missing, empty, or
+  contains invalid JSON. - Preservation of raw configuration values without
+  trimming or mutation.
+
+.PARAMETER Path
+  Specifies the path to the TechToolbox JSON configuration file to load. This
+  parameter is mandatory, does not accept pipeline input by property name, and
+  requires an existing file with valid JSON content.
+
+.INPUTS
+  None. You cannot pipe objects to Get-TechToolboxConfig.
+
+.OUTPUTS
+  System.Collections.Hashtable. The function returns the parsed configuration as
+  a nested hashtable/array structure.
+
+.EXAMPLE
+  Get-TechToolboxConfig -Path '.\Config\config.json'
+
+  Description: Loads the main TechToolbox configuration file from the relative
+  path and returns the parsed settings.
+
+.EXAMPLE
+  $config = Get-TechToolboxConfig -Path '$env:TT_ModuleRoot\Config\config.json'
+  $config.settings.passwords.default
+
+  Description: Loads the configuration using an environment variable path,
+  assigns it to a variable, and inspects the default password settings.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

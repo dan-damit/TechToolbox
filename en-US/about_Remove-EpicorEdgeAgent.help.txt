@@ -1,0 +1,67 @@
+.EXTERNALHELP Remove-EpicorEdgeAgent-help.xml
+
+.NOTES
+  NAME: about_Remove-EpicorEdgeAgent
+
+.DESCRIPTION
+  The Remove-EpicorEdgeAgent function is a public wrapper that runs the
+  Remove-EpicorEdgeAgent worker on one or more computers. It is Windows
+  PowerShell 5.1-compatible and uses remote execution via PowerShell Remoting.
+  It streams progress and returns worker results.
+
+.PARAMETER ComputerName
+  Specifies one or more target computers. Defaults to the local computer
+  ($env:COMPUTERNAME). Accepts pipeline input by property name.
+
+.PARAMETER Credential
+  Specifies a PSCredential object used for creating the PSSession on remote
+  computers. This is particularly useful when falling back to New-PSSession or
+  using Start-NewPSSession.
+
+.PARAMETER ThrottleLimit
+  Reserved for future use. Currently, the function iterates sequentially over
+  targets.
+
+.PARAMETER AsJob
+  A switch parameter that invokes the worker as a background job on each remote
+  computer and returns Job objects instead of waiting for completion.
+
+.PARAMETER PassThru
+  A switch parameter that emits the worker's result object(s) to the pipeline.
+
+.PARAMETER WorkerPath
+  Specifies the path to the worker script. Defaults to
+  ..\Workers\Remove-EpicorEdgeAgent.Worker.ps1 relative to the module root.
+
+.PARAMETER AnalyzeOnly
+  A switch parameter that sends -AnalyzeOnly to the worker, enabling a dry-run
+  mode where no system changes are made.
+
+.INPUTS
+  None. You cannot pipe objects directly to Remove-EpicorEdgeAgent unless they
+  support ComputerName via ValueFromPipelineByPropertyName.
+
+.OUTPUTS
+  System.Management.Automation.Job (if -AsJob is used) Worker result objects (if
+  -PassThru is used)
+
+.EXAMPLE
+  Remove-EpicorEdgeAgent
+
+  Description: Removes the Epicor Edge Agent from the local computer using
+  default settings.
+
+.EXAMPLE
+  Remove-EpicorEdgeAgent -ComputerName "Server01", "Server02" -Credential $cred
+
+  Description: Removes the Epicor Edge Agent from Server01 and Server02 using
+  the provided credentials.
+
+.EXAMPLE
+  Remove-EpicorEdgeAgent -AnalyzeOnly -PassThru
+
+  Description: Performs a dry-run analysis of the Epicor Edge Agent removal on
+  the local computer and outputs the result to the pipeline.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

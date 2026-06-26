@@ -1,0 +1,67 @@
+.EXTERNALHELP Get-RemoteInstalledSoftware-help.xml
+
+.NOTES
+  NAME: about_Get-RemoteInstalledSoftware
+
+.DESCRIPTION
+  The Get-RemoteInstalledSoftware function retrieves a list of installed
+  software from one or more remote computers using PowerShell Remoting. It
+  queries the registry on the target machines to identify installed applications
+  and can optionally include AppX packages in the results.
+
+  The function supports exporting the inventory data to CSV files, either as
+  individual files per computer or a single consolidated file containing all
+  results.
+
+.PARAMETER ComputerName
+  Specifies one or more remote computers to query. This parameter is mandatory.
+  Accepts pipeline input by property name. Aliases: 'Name', 'CN'.
+
+.PARAMETER Credential
+  Specifies a credential object for authenticating the remote session. Required
+  if default credentials are insufficient.
+
+.PARAMETER IncludeAppx
+  If specified, includes AppX packages in the results. By default, only Win32
+  applications are retrieved.
+
+.PARAMETER OutDir
+  Specifies the output directory for CSV exports. Defaults to the current
+  location.
+
+.PARAMETER Consolidated
+  If specified, exports all results to a single CSV file instead of separate
+  files per computer.
+
+.PARAMETER ThrottleLimit
+  Specifies the maximum number of concurrent remote sessions allowed. Range:
+  1-128. Default: 32.
+
+.INPUTS
+  System.String. You can pipe computer names to Get-RemoteInstalledSoftware.
+
+.OUTPUTS
+  [pscustomobject[]]. The function returns an array of custom objects
+  representing the installed software and their details.
+
+.EXAMPLE
+  Get-RemoteInstalledSoftware -ComputerName SRV01
+
+  Description: Gets the list of installed software on SRV01 using default
+  settings.
+
+.EXAMPLE
+  Get-RemoteInstalledSoftware -ComputerName SRV02, SRV03 -IncludeAppx
+  -Consolidated -OutDir C:\Temp\Inventory
+
+  Description: Retrieves both Win32 and AppX installed software from SRV02 and
+  SRV03, consolidating the results into a single CSV file in C:\Temp\Inventory.
+
+.EXAMPLE
+  Get-RemoteInstalledSoftware -ComputerName SRV04 -Credential (Get-Credential)
+
+  Description: Prompts for credentials and retrieves installed software from
+  SRV04 using the provided credentials.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

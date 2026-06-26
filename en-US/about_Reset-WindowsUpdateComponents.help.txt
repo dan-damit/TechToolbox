@@ -1,0 +1,41 @@
+.EXTERNALHELP Reset-WindowsUpdateComponents-help.xml
+
+.NOTES
+  NAME: about_Reset-WindowsUpdateComponents
+
+.DESCRIPTION
+  The Reset-WindowsUpdateComponents function resets Windows Update components on
+  a local or remote computer.
+
+  It stops Windows Update services, renames update-related folders
+  (SoftwareDistribution and Catroot2), and clears cached data to resolve update
+  issues. This is useful when updates are stuck, failing, or not installing
+  correctly.
+
+.PARAMETER ComputerName
+  The name of the computer to reset. Defaults to the local computer.
+
+.PARAMETER Credential
+  Credentials to use for remote connections.
+
+.INPUTS
+  None. You cannot pipe objects to Reset-WindowsUpdateComponents.
+
+.OUTPUTS
+  None. This function does not return any output by default.
+
+.EXAMPLE
+  Reset-WindowsUpdateComponents -ComputerName "SERVER01"
+
+  Description: Resets Windows Update components on the remote computer SERVER01
+  using current credentials.
+
+.EXAMPLE
+  $cred = Get-Credential Reset-WindowsUpdateComponents -ComputerName
+  "WORKSTATION02" -Credential $cred
+
+  Description: Resets Windows Update components on WORKSTATION02 using specific
+  administrative credentials.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

@@ -1,0 +1,78 @@
+.EXTERNALHELP Get-InstalledPrinters-help.xml
+
+.NOTES
+  NAME: about_Get-InstalledPrinters
+
+.DESCRIPTION
+  The Get-InstalledPrinters function retrieves printers installed for the
+  currently logged-on user on a local or remote computer.
+
+  It opens a remote PowerShell session using Start-NewPSRemoteSession, detects
+  the active interactive user on the target host, and returns the printers
+  visible to that user. User-specific printer connections are resolved from the
+  user's HKEY_USERS\printer connection registry key and correlated with
+  Win32_Printer output so the results include both machine and per-user printer
+  mappings.
+
+.PARAMETER ComputerName
+  Specifies one or more remote computers to query. This parameter is mandatory.
+  Accepts pipeline input by property name. Aliases: 'Name', 'CN'.
+
+.PARAMETER Credential
+  Specifies a credential object for authenticating the remote session. Required
+  if default credentials are insufficient.
+
+.PARAMETER UseSsh
+  Indicates that SSH transport should be used for the remote connection instead
+  of WSMan (WinRM).
+
+.PARAMETER UseCredSSP
+  Enables CredSSP authentication for WSMan remoting. This allows delegation of
+  credentials to the remote computer.
+
+.PARAMETER Port
+  Specifies the port number to use for the SSH connection when -UseSsh is
+  specified. Defaults to 22.
+
+.PARAMETER Ps7ConfigName
+  Specifies the name of the PowerShell 7 configuration endpoint on the remote
+  host when using WSMan. Defaults to 'PowerShell.7'.
+
+.PARAMETER WinPsConfigName
+  Specifies the name of the Windows PowerShell (5.x) configuration endpoint on
+  the remote host when using WSMan. Defaults to 'Microsoft.PowerShell'.
+
+.PARAMETER UserName
+  Specifies the username for SSH authentication when not using a PSCredential
+  object.
+
+.PARAMETER KeyFilePath
+  Specifies the path to the private key file for SSH key-based authentication.
+
+.INPUTS
+  System.String. You can pipe computer names to Get-InstalledPrinters.
+
+.OUTPUTS
+  [pscustomobject[]]. The function returns an array of custom objects
+  representing the installed printers and their connection details.
+
+.EXAMPLE
+  Get-InstalledPrinters -ComputerName SRV01
+
+  Description: Gets the printers installed for the currently logged-on user on
+  SRV01 using default settings (WSMan, port 5985/5986).
+
+.EXAMPLE
+  Get-InstalledPrinters -ComputerName SRV02 -UseSsh -Port 2222 -UserName admin
+
+  Description: Gets the printers installed for the currently logged-on user on
+  SRV02 using SSH transport on port 2222 with username 'admin'.
+
+.EXAMPLE
+  Get-InstalledPrinters -ComputerName SRV03, SRV04 -Credential (Get-Credential)
+
+  Description: Prompts for credentials and retrieves printers from both SRV03
+  and SRV04 using the provided credentials.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)

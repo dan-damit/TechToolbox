@@ -1,0 +1,91 @@
+.EXTERNALHELP Get-PDQDiagLogs-help.xml
+
+.NOTES
+  NAME: about_Get-PDQDiagLogs
+
+.DESCRIPTION
+  The Get-PDQDiagLogs function collects PDQ diagnostics under SYSTEM context on
+  local and remote computers. It runs a one-time Scheduled Task as SYSTEM to
+  perform the collection, zips the logs on the target machine, and copies them
+  back to C:\PDQDiagLogs (or a specified LocalDropPath) on the collector.
+
+  Key features include: - Support for both local and remote computers. -
+  PS7-first remoting via New-PSRemoteSession helper with fallback included. -
+  Resilient copy mechanism using Copy-Item followed by robocopy /B. - Event Log
+  export via wevtutil. - ZIP files are named PDQDiag_<Computer>_<timestamp>.zip
+  and stored on the
+    collector machine.
+
+.PARAMETER ComputerName
+  Specifies one or more target computers to collect diagnostics from. Defaults
+  to the local computer ($env:COMPUTERNAME). Accepts pipeline input by property
+  name. Aliases: 'CN', 'DNSHostName', 'Computer'.
+
+.PARAMETER Credential
+  Specifies a credential object for authenticating remote connections. If
+  omitted and $Global:TTDomainCred exists, the New-PSRemoteSession helper may
+  use it.
+
+.PARAMETER LocalDropPath
+  Specifies the path on the collector machine where retrieved ZIP files will be
+  stored. Default value is 'C:\PDQDiagLogs'.
+
+.PARAMETER TransferMode
+  Specifies the retrieval method for remote ZIP files. Valid values are: -
+  FromSession (default): Uses PowerShell session to transfer. - Bytes: Transfers
+  as byte array. - SMB: Uses SMB protocol for transfer.
+
+.PARAMETER ExtraPaths
+  Specifies additional file or folder paths on the target computers to include
+  in the diagnostic collection.
+
+.PARAMETER ConnectDataPath
+  Specifies the PDQ Connect data root directory. Default value is
+  "$env:ProgramData\PDQ\PDQConnectAgent".
+
+.PARAMETER UseSsh
+  Indicates that SSH transport should be used for remote connections instead of
+  WSMan (WinRM). Passed through to session creation if supported by the helper.
+
+.PARAMETER SshPort
+  Specifies the port number to use for SSH connection when -UseSsh is specified.
+  Default value is 22. Passed through to session creation if supported.
+
+.PARAMETER Ps7ConfigName
+  Specifies the name of the PowerShell 7 configuration endpoint on the remote
+  host when using WSMan. Passed through to session creation if supported.
+
+.PARAMETER WinPsConfigName
+  Specifies the name of the Windows PowerShell (5.x) configuration endpoint on
+  the remote host when using WSMan. Passed through to session creation if
+  supported.
+
+.INPUTS
+  System.String. You can pipe computer names to Get-PDQDiagLogs.
+
+.OUTPUTS
+  None. The function does not return objects; it performs actions and stores
+  results in LocalDropPath.
+
+.EXAMPLE
+  Get-PDQDiagLogs -ComputerName SRV01
+
+  Description: Collects PDQ diagnostics from SRV01 using default settings
+  (WSMan, local drop path C:\PDQDiagLogs) and stores the resulting ZIP file on
+  the collector.
+
+.EXAMPLE
+  Get-PDQDiagLogs -ComputerName SRV02 -UseSsh -Port 2222 -Credential $cred
+
+  Description: Collects PDQ diagnostics from SRV02 using SSH transport on port
+  2222 with the specified credential, storing results in C:\PDQDiagLogs.
+
+.EXAMPLE
+  Get-PDQDiagLogs -ComputerName SRV03, SRV04 -LocalDropPath D:\Logs
+  -TransferMode SMB
+
+  Description: Collects PDQ diagnostics from SRV03 and SRV04 using SMB transfer
+  mode and stores the ZIP files in D:\Logs on the collector.
+
+.LINK
+  [TechToolbox](https://github.com/dan-damit/TechToolbox)
