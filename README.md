@@ -44,6 +44,8 @@
 
 ## Table of Contents
 
+- [_Modular. Worker-Driven. PowerShell Automation at Scale._](#modular-worker-driven-powershell-automation-at-scale)
+- [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
   - [One-Liner Demos](#one-liner-demos)
 - [Architecture Overview](#architecture-overview)
@@ -55,29 +57,31 @@
   - [Configuring Secrets](#configuring-secrets)
   - [Baseline Settings (config.json)](#baseline-settings-configjson)
 - [Command Reference](#command-reference)
-  - [Active Directory & Identity Management](#active-directory--identity-management)
-  - [Exchange Online & Compliance](#exchange-online--compliance)
-  - [System Diagnostics & Health](#system-diagnostics--health)
-  - [Endpoint & Infrastructure Operations](#endpoint--infrastructure-operations)
-  - [Remote Execution & Worker Patterns](#remote-execution--worker-patterns)
+  - [Active Directory \& Identity Management](#active-directory--identity-management)
+  - [Exchange Online \& Compliance](#exchange-online--compliance)
+  - [System Diagnostics \& Health](#system-diagnostics--health)
+  - [Endpoint \& Infrastructure Operations](#endpoint--infrastructure-operations)
+  - [Remote Execution \& Worker Patterns](#remote-execution--worker-patterns)
   - [Browser Cleanup](#browser-cleanup)
-  - [Networking & Connectivity](#networking--connectivity)
+  - [Networking \& Connectivity](#networking--connectivity)
   - [Credential Management](#credential-management)
   - [AI-Assisted Workflows](#ai-assisted-workflows)
-  - [Export & Packaging](#export--packaging)
+  - [Export \& Packaging](#export--packaging)
 - [Common Workflows](#common-workflows)
   - [Browser profile cleanup](#browser-profile-cleanup)
   - [Remote software inventory](#remote-software-inventory)
   - [Purview purge flow](#purview-purge-flow)
   - [Exchange Online message trace](#exchange-online-message-trace)
   - [AAD Connect remote sync](#aad-connect-remote-sync)
-- [Developer & Contributor Guide](#developer--contributor-guide)
+- [Developer \& Contributor Guide](#developer--contributor-guide)
   - [Creating a New Command](#creating-a-new-command)
   - [Module Architecture Rules](#module-architecture-rules)
   - [Testing Conventions](#testing-conventions)
 - [Security Notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
 - [Metadata](#metadata)
+  - [v0.5.0 - "AI \& Metadata Milestone"](#v050---ai--metadata-milestone)
+    - [Highlights](#highlights)
 
 ## Quick Start
 
@@ -471,7 +475,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.5.44
+- **Module version:** 0.5.45
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
 
