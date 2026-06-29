@@ -42,6 +42,43 @@
 
 ---
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+  - [One-Liner Demos](#one-liner-demos)
+- [Architecture Overview](#architecture-overview)
+  - [Module Layers](#module-layers)
+  - [How the Loader Works](#how-the-loader-works)
+  - [Path Tokens](#path-tokens)
+- [Configuration](#configuration)
+  - [Environment Variables](#environment-variables)
+  - [Configuring Secrets](#configuring-secrets)
+  - [Baseline Settings (config.json)](#baseline-settings-configjson)
+- [Command Reference](#command-reference)
+  - [Active Directory & Identity Management](#active-directory--identity-management)
+  - [Exchange Online & Compliance](#exchange-online--compliance)
+  - [System Diagnostics & Health](#system-diagnostics--health)
+  - [Endpoint & Infrastructure Operations](#endpoint--infrastructure-operations)
+  - [Remote Execution & Worker Patterns](#remote-execution--worker-patterns)
+  - [Browser Cleanup](#browser-cleanup)
+  - [Networking & Connectivity](#networking--connectivity)
+  - [Credential Management](#credential-management)
+  - [AI-Assisted Workflows](#ai-assisted-workflows)
+  - [Export & Packaging](#export--packaging)
+- [Common Workflows](#common-workflows)
+  - [Browser profile cleanup](#browser-profile-cleanup)
+  - [Remote software inventory](#remote-software-inventory)
+  - [Purview purge flow](#purview-purge-flow)
+  - [Exchange Online message trace](#exchange-online-message-trace)
+  - [AAD Connect remote sync](#aad-connect-remote-sync)
+- [Developer & Contributor Guide](#developer--contributor-guide)
+  - [Creating a New Command](#creating-a-new-command)
+  - [Module Architecture Rules](#module-architecture-rules)
+  - [Testing Conventions](#testing-conventions)
+- [Security Notes](#security-notes)
+- [Troubleshooting](#troubleshooting)
+- [Metadata](#metadata)
+
 ## Quick Start
 
 ```powershell
