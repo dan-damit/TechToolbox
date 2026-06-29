@@ -261,7 +261,7 @@ public class ToolWrapperTests
     }
 
     [Fact]
-    public void RunTool_WriteFile_CreatesNewFile_WithoutDestructiveConfirmed()
+    public void RunTool_WriteFile_CreatesNewFile_WhenDestructiveConfirmed()
     {
         var tempFile = Path.Combine(
             Path.GetTempPath(),
@@ -274,7 +274,12 @@ public class ToolWrapperTests
 
             var result = PowerShellBridge.RunTool(
                 "WRITE-FILE",
-                new Dictionary<string, object?> { ["path"] = tempFile, ["content"] = "new content" }
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["content"] = "new content",
+                    ["__confirm_destructive"] = true,
+                }
             );
 
             Assert.Equal("ok", result);
@@ -310,7 +315,7 @@ public class ToolWrapperTests
             );
 
             Assert.Contains(
-                "destructive confirmation",
+                "__confirm_destructive=true",
                 ex.Message,
                 StringComparison.OrdinalIgnoreCase
             );

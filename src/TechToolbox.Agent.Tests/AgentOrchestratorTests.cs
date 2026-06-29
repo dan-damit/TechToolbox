@@ -1,3 +1,4 @@
+using System.Text.Json;
 using TechToolbox.Agent.Agent;
 using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
@@ -309,6 +310,70 @@ public class AgentOrchestratorTests
             "Required WRITE-FILE step has not completed yet",
             llm.MessageSnapshots[1].Last().Content
         );
+    }
+
+    [Fact]
+    public async Task RunAsync_InferWriteFilePath_WhenMissingAndPromptRequiresExactOutputPath()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-infer-path-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var expectedOutputPath = Path.Combine(tempRoot, "about_Test.help.txt");
+            string? capturedJsonArgs = null;
+
+            var llm = new RecordingFakeLlmClient(
+                new[]
+                {
+                    "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"content\":\"updated\"},\"reason\":\"write file\"}",
+                    FinalDecision("Done"),
+                }
+            );
+
+            var tools = new Dictionary<string, Func<string, Task<string>>>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["WRITE-FILE"] = args =>
+                {
+                    capturedJsonArgs = args;
+
+                    using var doc = JsonDocument.Parse(args);
+                    var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+                    var content = doc.RootElement.GetProperty("content").GetString() ?? string.Empty;
+
+                    File.WriteAllText(path, content);
+                    return Task.FromResult("ok");
+                },
+            };
+
+            var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 4, autoRetry: false);
+
+            var prompt =
+                $"Create help doc\n\nHard requirement:\n- Create the output file at this exact path: {expectedOutputPath}\n- Use WRITE-FILE to create/update the file.\n- Do not return a final answer until WRITE-FILE has succeeded.";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Done", result.OutputText);
+            Assert.NotNull(capturedJsonArgs);
+            Assert.True(File.Exists(expectedOutputPath));
+
+            using var capturedDoc = JsonDocument.Parse(capturedJsonArgs!);
+            Assert.Equal(
+                expectedOutputPath,
+                capturedDoc.RootElement.GetProperty("path").GetString(),
+                ignoreCase: true
+            );
+            Assert.Equal("updated", capturedDoc.RootElement.GetProperty("content").GetString());
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
     }
 
     [Fact]

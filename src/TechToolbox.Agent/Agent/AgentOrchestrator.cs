@@ -212,6 +212,12 @@ public class AgentOrchestrator
             var decisionValidationError = string.Empty;
 
             var parsedDecision = JsonHelpers.TryParseDecision(raw, out decision) && decision is not null;
+            if (parsedDecision && TryPopulateMissingWriteFilePath(decision!, expectedOutputPath))
+            {
+                Trace(
+                    $"Iteration {i + 1} inferred missing WRITE-FILE path from hard requirement: {expectedOutputPath}"
+                );
+            }
             if (parsedDecision && !TryValidateDecision(decision!, out decisionValidationError))
             {
                 parsedDecision = false;
@@ -242,6 +248,12 @@ public class AgentOrchestrator
 
                 var repairedDecisionValid =
                     JsonHelpers.TryParseDecision(repairedRaw, out decision) && decision is not null;
+                if (repairedDecisionValid && TryPopulateMissingWriteFilePath(decision!, expectedOutputPath))
+                {
+                    Trace(
+                        $"Iteration {i + 1} inferred missing WRITE-FILE path from hard requirement during repair: {expectedOutputPath}"
+                    );
+                }
                 if (repairedDecisionValid && !TryValidateDecision(decision!, out decisionValidationError))
                 {
                     repairedDecisionValid = false;
@@ -292,6 +304,15 @@ public class AgentOrchestrator
                         var recoveryDecisionValid =
                             JsonHelpers.TryParseDecision(writeFileRecoveryRaw, out decision)
                             && decision is not null;
+                        if (
+                            recoveryDecisionValid
+                            && TryPopulateMissingWriteFilePath(decision!, expectedOutputPath)
+                        )
+                        {
+                            Trace(
+                                $"Iteration {i + 1} inferred missing WRITE-FILE path from hard requirement during targeted recovery: {expectedOutputPath}"
+                            );
+                        }
                         if (recoveryDecisionValid && !TryValidateDecision(decision!, out decisionValidationError))
                         {
                             recoveryDecisionValid = false;
@@ -861,6 +882,35 @@ Next best action:
         };
 
         return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool TryPopulateMissingWriteFilePath(
+        AgentDecision decision,
+        string? expectedOutputPath
+    )
+    {
+        if (decision is null)
+            return false;
+
+        if (!decision.NeedsTool)
+            return false;
+
+        if (!decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(expectedOutputPath))
+            return false;
+
+        if (decision.ToolArgs is null)
+        {
+            decision.ToolArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        if (TryGetToolArgString(decision.ToolArgs, "path", out _))
+            return false;
+
+        decision.ToolArgs["path"] = expectedOutputPath;
+        return true;
     }
 
     private static bool TryValidateDecision(AgentDecision decision, out string error)

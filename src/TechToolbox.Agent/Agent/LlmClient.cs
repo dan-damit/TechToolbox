@@ -7,6 +7,7 @@ namespace TechToolbox.Agent.Agent;
 public class LlmClient
 {
     private static readonly int RequestTimeoutSeconds = GetTimeoutSeconds();
+    private static readonly int NumPredict = GetNumPredict();
     private readonly HttpClient _http;
     private readonly string _model;
 
@@ -43,7 +44,7 @@ public class LlmClient
                 ["temperature"] = 0.2,
                 ["top_p"] = 0.9,
                 ["repeat_penalty"] = 1.05,
-                ["num_predict"] = 1024,
+                ["num_predict"] = NumPredict,
             },
         };
 
@@ -152,6 +153,19 @@ public class LlmClient
             return Math.Clamp(parsed, minSeconds, maxSeconds);
 
         return defaultSeconds;
+    }
+
+    private static int GetNumPredict()
+    {
+        const int defaultNumPredict = 1024;
+        const int minNumPredict = 128;
+        const int maxNumPredict = 8192;
+
+        var raw = Environment.GetEnvironmentVariable("TT_AGENT_LLM_NUM_PREDICT");
+        if (int.TryParse(raw, out var parsed))
+            return Math.Clamp(parsed, minNumPredict, maxNumPredict);
+
+        return defaultNumPredict;
     }
 
     private static string Preview(string? text)
