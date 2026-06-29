@@ -96,7 +96,7 @@
     },
     "passwords": {
       "domainAdminCred": {
-        "username": "REDACTED"
+        "username": "REDACTED\\REDACTED"
       },
       "wordListPath": "%TT_ModuleRoot%\\Config\\wordlist.txt",
       "default": {
