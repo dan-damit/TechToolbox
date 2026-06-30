@@ -10,6 +10,10 @@ function Invoke-TechAgent {
     .PARAMETER Prompt
         The natural-language instruction for the agent.
 
+    .PARAMETER PromptFile
+        Optional path to a prompt text file. If omitted and -Prompt is empty,
+        Invoke-TechAgent attempts to load a default prompt file.
+
     .PARAMETER Model
         Optional Ollama model name (for example: llama3, mistral,
         qwen2.5-coder).
@@ -45,9 +49,12 @@ function Invoke-TechAgent {
 
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
+        [Parameter(Position = 0)]
         [ValidateNotNullOrEmpty()]
         [string]$Prompt,
+
+        [Parameter()]
+        [string]$PromptFile,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -89,6 +96,67 @@ function Invoke-TechAgent {
     if ([string]::IsNullOrWhiteSpace($Model) -and $cfg -and -not [string]::IsNullOrWhiteSpace($cfg.model)) {
         $Model = $cfg.model
     }
+
+    $moduleRoot = Get-ModuleRoot
+    $promptSourceLabel = 'inline -Prompt'
+
+    if (-not [string]::IsNullOrWhiteSpace($Prompt) -and -not [string]::IsNullOrWhiteSpace($PromptFile)) {
+        throw 'Invoke-TechAgent: Specify only one prompt source: -Prompt or -PromptFile.'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($PromptFile)) {
+        $resolvedPromptPath = if ([System.IO.Path]::IsPathRooted($PromptFile)) {
+            $PromptFile
+        }
+        else {
+            Join-Path $moduleRoot $PromptFile
+        }
+
+        if (-not (Test-Path -LiteralPath $resolvedPromptPath -PathType Leaf)) {
+            throw "Invoke-TechAgent: Prompt file not found: $resolvedPromptPath"
+        }
+
+        $Prompt = Get-Content -LiteralPath $resolvedPromptPath -Raw
+        if ([string]::IsNullOrWhiteSpace($Prompt)) {
+            throw "Invoke-TechAgent: Prompt file is empty: $resolvedPromptPath"
+        }
+
+        $promptSourceLabel = "-PromptFile ($resolvedPromptPath)"
+    }
+    elseif ([string]::IsNullOrWhiteSpace($Prompt)) {
+        $defaultPromptFile = $null
+        if ($cfg -and $cfg.defaultPromptFile -and -not [string]::IsNullOrWhiteSpace([string]$cfg.defaultPromptFile)) {
+            $defaultPromptFile = [string]$cfg.defaultPromptFile
+        }
+
+        if ([string]::IsNullOrWhiteSpace($defaultPromptFile)) {
+            $defaultPromptFile = 'AI\prompt.txt'
+        }
+
+        $resolvedDefaultPromptPath = if ([System.IO.Path]::IsPathRooted($defaultPromptFile)) {
+            $defaultPromptFile
+        }
+        else {
+            Join-Path $moduleRoot $defaultPromptFile
+        }
+
+        if (-not (Test-Path -LiteralPath $resolvedDefaultPromptPath -PathType Leaf)) {
+            throw (
+                'Invoke-TechAgent: No prompt text supplied and default prompt file was not found: {0}. ' +
+                'Provide -Prompt, provide -PromptFile, or create the default prompt file.' -f $resolvedDefaultPromptPath
+            )
+        }
+
+        $Prompt = Get-Content -LiteralPath $resolvedDefaultPromptPath -Raw
+        if ([string]::IsNullOrWhiteSpace($Prompt)) {
+            throw "Invoke-TechAgent: Default prompt file is empty: $resolvedDefaultPromptPath"
+        }
+
+        $promptSourceLabel = "default prompt file ($resolvedDefaultPromptPath)"
+    }
+
+    Write-Host ("Invoke-TechAgent prompt source: {0}" -f $promptSourceLabel)
+    Write-Log -Level Info -Message ("Invoke-TechAgent prompt source resolved from: {0}" -f $promptSourceLabel)
 
     $waitTimeoutSeconds = [Math]::Max(300, ($MaxIterations * 180))
     $waitPollSeconds = 15
