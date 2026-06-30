@@ -752,6 +752,51 @@ public class AgentOrchestratorTests
         }
     }
 
+    [Fact]
+    public async Task RunAsync_MarksInvalidJsonTerminalFailureAsErrorInMemoryHistory()
+    {
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "TechToolbox.Agent.Tests",
+            Guid.NewGuid().ToString("N")
+        );
+        Directory.CreateDirectory(tempRoot);
+        var memoryPath = Path.Combine(tempRoot, "memory.json");
+
+        try
+        {
+            var llm = new FakeLlmClient(new[] { "not-json", "still-not-json" });
+            var memory = new MemoryStore(memoryPath);
+            var orchestrator = new AgentOrchestrator(
+                llm,
+                CreateRegistry(Array.Empty<string>()),
+                new Dictionary<string, Func<string, Task<string>>>(
+                    StringComparer.OrdinalIgnoreCase
+                ),
+                memory,
+                model: "test",
+                destructiveConfirmed: false,
+                signedFilePolicy: "ignore",
+                maxIterations: 5,
+                autoRetry: false
+            );
+
+            var result = await orchestrator.RunAsync("test goal");
+
+            Assert.Contains("Agent returned invalid JSON twice.", result.OutputText);
+            Assert.Single(memory.History);
+            Assert.Equal("error", memory.History[0].Status);
+            Assert.Equal("invalid-json", memory.History[0].Outcome);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
     private static AgentOrchestrator CreateOrchestrator(
         LlmClient llm,
         Dictionary<string, Func<string, Task<string>>> tools,

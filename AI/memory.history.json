@@ -1,6 +1,6 @@
 [
   {
-    "timestampUtc": "2026-05-03T19:44:49+00:00",
+    "timestampUtc": "2026-05-03T14:44:49-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Pleaes look at the Search-User.help.txt file and expand on it based on what the function does. Be detailed in the help block. Thank you!",
@@ -21,7 +21,7 @@
     }
   },
   {
-    "timestampUtc": "2026-05-03T19:48:24+00:00",
+    "timestampUtc": "2026-05-03T14:48:24-05:00",
     "status": "error",
     "outcome": "error",
     "prompt": "Please look at the C:\\TechToolbox module, read the Search-User.ps1 function, and add a more detailed Search-User.help.txt file in C:\\TechToolbox\\en-US folder.",
@@ -43,7 +43,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T05:10:26+00:00",
+    "timestampUtc": "2026-06-09T00:10:26-05:00",
     "status": "error",
     "outcome": "error",
     "prompt": "You are the TechToolbox Local Agent. Your goal is to improve your effectiveness over time while remaining fully deterministic, safe, and bounded.\n\nYou may improve yourself ONLY through the following allowed actions:\n- Generate new PowerShell modules, functions, or utilities that extend TechToolbox capabilities.\n- Generate new Python helper modules that support tool execution, diagnostics, or automation.\n- Improve or refactor existing TechToolbox tools without changing their external behavior.\n- ...",
@@ -65,7 +65,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T05:36:40+00:00",
+    "timestampUtc": "2026-06-09T00:36:40-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "You are the TechToolbox Local Agent. Your goal is to improve your effectiveness over time while remaining fully deterministic, safe, and bounded.\n\nYou may improve yourself ONLY through the following allowed actions:\n- Generate new PowerShell modules, functions, or utilities that extend TechToolbox capabilities.\n- Generate new Python helper modules that support tool execution, diagnostics, or automation.\n- Improve or refactor existing TechToolbox tools without changing their external behavior.\n- ...",
@@ -86,7 +86,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T05:42:09+00:00",
+    "timestampUtc": "2026-06-09T00:42:09-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Approve the Get-TechToolboxEnvironmentHealth module. Generate the code.",
@@ -107,7 +107,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T05:52:53+00:00",
+    "timestampUtc": "2026-06-09T00:52:53-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Make sure you make a permanent memory note that TechToolbox is no longer rooted at C:\\TechToolbox. It is now rooted at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox",
@@ -128,7 +128,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T22:46:57+00:00",
+    "timestampUtc": "2026-06-09T17:46:57-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "With the couple of small tweaks we did last night, please review the Get-TechToolboxEnviornmentHealth function you created and see if any of those outstanding issues still need to be addressed.",
@@ -149,7 +149,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T22:51:45+00:00",
+    "timestampUtc": "2026-06-09T17:51:45-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Approve the fixes. Update the module.",
@@ -170,7 +170,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T22:57:42+00:00",
+    "timestampUtc": "2026-06-09T17:57:42-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "It looks like you may have had a \u0027blocked\u0027 outcome in the last 2 runs. Do you rrequire the -ConfirmDestructive parameter explicitly passed for non-blocking to take effect?",
@@ -191,7 +191,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:05:47+00:00",
+    "timestampUtc": "2026-06-09T18:05:47-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "Thanks for those details. Please review the Get-TechToolboxEnviornmentHealth function again and I explicitly allow you to modify that function for this run.",
@@ -212,7 +212,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:13:18+00:00",
+    "timestampUtc": "2026-06-09T18:13:18-05:00",
     "status": "error",
     "outcome": "error",
     "prompt": "Confirmation is granted for making those 4 changes to the Get-TechToolboxEnvironmentHealth function. Please proceed with the changes.",
@@ -234,7 +234,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:15:02+00:00",
+    "timestampUtc": "2026-06-09T18:15:02-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "Confirmation is granted for making those 4 changes to the Get-TechToolboxEnvironmentHealth function. Please proceed with the changes.",
@@ -255,7 +255,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:19:39+00:00",
+    "timestampUtc": "2026-06-09T18:19:39-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Confirmation is granted for making those 4 changes to the Get-TechToolboxEnvironmentHealth function. Please proceed with the changes.",
@@ -276,7 +276,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:24:39+00:00",
+    "timestampUtc": "2026-06-09T18:24:39-05:00",
     "status": "error",
     "outcome": "error",
     "prompt": "Is there anything else you see that could be adjusted to better let you do workflows?",
@@ -298,7 +298,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:29:29+00:00",
+    "timestampUtc": "2026-06-09T18:29:29-05:00",
     "status": "error",
     "outcome": "error",
     "prompt": "Is there anything else you see that could be adjusted to better let you do workflows?",
@@ -320,7 +320,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:34:31+00:00",
+    "timestampUtc": "2026-06-09T18:34:31-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "Is there anything else you see that could be adjusted to better let you do workflows?",
@@ -341,7 +341,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:38:45+00:00",
+    "timestampUtc": "2026-06-09T18:38:45-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "I removed the profile entirely from the TechToolbox Root. Run your scan again and let me know your updated findings.",
@@ -362,7 +362,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:47:33+00:00",
+    "timestampUtc": "2026-06-09T18:47:33-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "I adjusted the memory.json and your core code to handle memory better. I also Corrected the moduleRoot directory setting in memory.json too. Do you recognize the changes?",
@@ -383,7 +383,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:55:04+00:00",
+    "timestampUtc": "2026-06-09T18:55:04-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "Please update the final line in README.md located at the moduleRoot to reflect the current module version.",
@@ -404,7 +404,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-09T23:56:53+00:00",
+    "timestampUtc": "2026-06-09T18:56:53-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please update the final line in README.md located at the moduleRoot to reflect the current module version.",
@@ -425,7 +425,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T00:03:07+00:00",
+    "timestampUtc": "2026-06-09T19:03:07-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please review the parts of the module that handle setting the envar of the moduleRoot \u0027C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\u0027 and let me know if it is portable to other workstations that import my TechToolbox Module.",
@@ -446,7 +446,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T00:28:48+00:00",
+    "timestampUtc": "2026-06-09T19:28:48-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "I love that assessment! Thank you for the recommendations. Please draft a safer fallback logic for these lines.",
@@ -467,7 +467,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T00:49:50+00:00",
+    "timestampUtc": "2026-06-09T19:49:50-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Please review the parts of the module that handle setting the envar of the moduleRoot \u0027C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\u0027 and let me know if it is portable to other workstations that import my TechToolbox Module. Please 1. **Decouple ModuleRoot from TT_Home:** Keep $script:ModuleRoot dynamic (which it already is), but allow $TT_ModuleRoot (the config/log home) to default to a standard user data location like $env:APPDATA\\TechToolbox instead of forcing the OneDrive path.\n2. **Use the Mo...",
@@ -488,7 +488,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T22:09:50+00:00",
+    "timestampUtc": "2026-06-10T17:09:50-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "Please review the Export-ToolboxFunctions function in the AI\\Agent folder and let me know if there are any ways it can be improved to help your functionality.",
@@ -509,7 +509,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T22:13:17+00:00",
+    "timestampUtc": "2026-06-10T17:13:17-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Yes, please draft an updated version of the Export-ToolboxFunctions function with your recommended improvements to enhance your functionality. You have my explicit permission to make this change.",
@@ -530,7 +530,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T22:21:16+00:00",
+    "timestampUtc": "2026-06-10T17:21:16-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please go ahead and update the TechToolbox.psm1 with the new public Export-ToolboxFuncitons function you just created. You have my explicit permission to update the psm1 file.",
@@ -551,7 +551,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T22:56:28+00:00",
+    "timestampUtc": "2026-06-10T17:56:28-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Do you have access to see the file at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent named Export-ToolboxFunctions?",
@@ -572,7 +572,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T22:59:23+00:00",
+    "timestampUtc": "2026-06-10T17:59:23-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Do you have any suggestions to improve the file at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent named Export-ToolboxFunctions that would enhance your ability to perform the tasks it is meant for?",
@@ -593,7 +593,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-10T23:09:15+00:00",
+    "timestampUtc": "2026-06-10T18:09:15-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Yes, please draft an updated version of Export-ToolboxFunctions.ps1 located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent that you recommeded to enhance your ability to reason. You have my explicit permission for modifying this file.",
@@ -614,7 +614,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T00:21:53+00:00",
+    "timestampUtc": "2026-06-10T19:21:53-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Please look at the function named Invoke-TechAgent located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and make recommendations on what can be improved to enhance your functionality.",
@@ -635,7 +635,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T00:37:40+00:00",
+    "timestampUtc": "2026-06-10T19:37:40-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Please look at the function named Invoke-TechAgent located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and make recommendations on what can be improved to enhance your functionality.",
@@ -656,7 +656,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T02:35:46+00:00",
+    "timestampUtc": "2026-06-10T21:35:46-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Now that you are starting to understand the module architecture, what changes would your recommend making to the README.md at the moduleRoot?",
@@ -677,7 +677,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T02:40:46+00:00",
+    "timestampUtc": "2026-06-10T21:40:46-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Now that you are starting to understand the module architecture, please update the README.md at the moduleRoot to be more comprehensive, clearer about the module architecture, and more usefule for both users and contributors. You have my explicit permission to make this change to the README.md file at the moduleRoot.",
@@ -698,7 +698,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T04:50:30+00:00",
+    "timestampUtc": "2026-06-10T23:50:30-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please review the CHANGELOG.md and add a small section for the new command alias \u0027ITA\u0027 in the psm1 file. You have my explicit permission to update the CHANGELOG with this change.",
@@ -719,7 +719,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T04:54:45+00:00",
+    "timestampUtc": "2026-06-10T23:54:45-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please move the Alias Updates into the [0.5.0] section under \u0027Improved\u0027. You have my explicit permission to make this change.",
@@ -740,7 +740,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T05:24:42+00:00",
+    "timestampUtc": "2026-06-11T00:24:42-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please move the Alias Updates section in CHANGELOG.md into the [0.5.0] section under \u0027Improved\u0027 per your recommendation. You have my explicit permission to make this change.",
@@ -761,7 +761,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T05:54:11+00:00",
+    "timestampUtc": "2026-06-11T00:54:11-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please look at the Function named Write-OffboardSummary and provide recommendations to be more consistent with showing the correct values under the \u0027Actions Performed\u0027 section. Currenly is says \u0027Unknown\u0027 for all but one of the properties when a user offboarding is completed.",
@@ -788,7 +788,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T05:57:01+00:00",
+    "timestampUtc": "2026-06-11T00:57:01-05:00",
     "status": "error",
     "outcome": "error",
     "prompt": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the \u0027Actions Performed\u0027 section. Currenly is says \u0027Unknown\u0027 for all but one of the properties when a user offboarding is completed.",
@@ -810,7 +810,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T06:11:14+00:00",
+    "timestampUtc": "2026-06-11T01:11:14-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the \u0027Actions Performed\u0027 section. Currenly is says \u0027Unknown\u0027 for all but one of the properties when a user offboarding is completed.",
@@ -839,7 +839,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T06:17:19+00:00",
+    "timestampUtc": "2026-06-11T01:17:19-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please look at the function named Export-ToolboxFunctions.ps1 at location C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent and provide recommenations on including the private functions in the list to enhance your functionality as it relates to tool discovery.",
@@ -863,7 +863,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T06:23:38+00:00",
+    "timestampUtc": "2026-06-11T01:23:38-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "The highest priority item is **Recommendation 1** (adding the -IncludePrivate parameter), as it directly addresses the goal of including private functions in tool discovery while maintaining backward compatibility with the current public-only behavior. Please add this enhancement to the Export-ToolboxFunctions.ps1 function at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\AI\\Agent. I give you explicit permission to make this change.",
@@ -887,7 +887,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T06:35:37+00:00",
+    "timestampUtc": "2026-06-11T01:35:37-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Please look at the Function named Write-OffboardingSummary and provide recommendations to be more consistent with showing the correct values under the \u0027Actions Performed\u0027 section. Currenly is says \u0027Unknown\u0027 for all but one of the properties when a user offboarding is completed.",
@@ -908,7 +908,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T06:38:41+00:00",
+    "timestampUtc": "2026-06-11T01:38:41-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Please look at the Function named Write-OffboardingSummary at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory and provide recommendations to be more consistent with showing the correct values under the \u0027Actions Performed\u0027 section. Currenly is says \u0027Unknown\u0027 for all but one of the properties when a user offboarding is completed.",
@@ -932,7 +932,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T22:34:47+00:00",
+    "timestampUtc": "2026-06-11T17:34:47-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that \u0027Properties didn\u0027t exist on this object\u0027 when I included the -IncludeEXO and -ForceCloud switches from the Disable-User function. Can you please take a look at why this error during the Write-OffboardingSummary funciton would happen and report your findings, please?",
@@ -960,7 +960,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T22:49:52+00:00",
+    "timestampUtc": "2026-06-11T17:49:52-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Here is the transcript of the Disable-User run with my DDTest1 account earlier today.\n\n2026-06-11 16:47:54 [Info] EXO: setting forwarding for \u0027ddtest1@REDACTED.com\u0027 to \u0027ddamit@REDACTED.com\u0027 (manager; keep copy: True)...\n2026-06-11 16:47:56 [Info] EXO: granting manager mailbox access for \u0027ddtest1@REDACTED.com\u0027 to \u0027ddamit@REDACTED.com\u0027...\n2026-06-11 16:47:56 [Info] Granting mailbox access for \u0027ddtest1@REDACTED.com\u0027 to manager \u0027ddamit@REDACTED.com\u0027...\n2026-06-11 16:47:58 [Ok] Granted FullAccess to ddamit@REDACTED.com\n2026-06-11 16:48:04 [Ok] Granted SendAs to ddamit@REDACTED.com\n2026-06-11 16:48:04 [Info] AD description already contains a similar note; skipping append for \u0027ddtest1\u0027.\n2026-06-11 16:48:04 [Info] Offboarding: Generating summary for \u0027ddtest1@REDACTED.com\u0027...\n2026-06-11 16:48:04 [Info] Writing offboarding summary for: ddtest1@REDACTED.com\n2026-06-11 16:48:04 [Error] Failed to write offboarding summary: The property \u0027Properties\u0027 cannot be found on this object. Verify that the property exists.\n2026-06-11 16:48:04 [Ok] Disable-User workflow completed for \u0027ddtest1@REDACTED.com\u0027.\n\nThis user does not have a mailbox license attached to it in 365, so I\u0027m wondering at that point if that would be the cause of that Error line?",
@@ -988,7 +988,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-11T23:04:59+00:00",
+    "timestampUtc": "2026-06-11T18:04:59-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Yes, please apply the fix to \u0027Write-OffboardingSummary\u0027 located at \u0027C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory\\\u0027 for handing those errors. Per your analysis, the function needs defensive type-checking before accessing .PSObject.Properties. You have my explicit permission to make this change on the function.",
@@ -1013,7 +1013,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T01:49:26+00:00",
+    "timestampUtc": "2026-06-11T20:49:26-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
@@ -1034,7 +1034,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T02:03:30+00:00",
+    "timestampUtc": "2026-06-11T21:03:30-05:00",
     "status": "error",
     "outcome": "error",
     "prompt": "Please look at the Invoke-TechAgent function and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder en-US",
@@ -1056,7 +1056,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T02:32:30+00:00",
+    "timestampUtc": "2026-06-11T21:32:30-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "Please look at the Invoke-TechAgent function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\AI and create matching documentation for it as a file named about_Invoke-TechAgent.help.txt in the folder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US",
@@ -1081,7 +1081,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T02:56:14+00:00",
+    "timestampUtc": "2026-06-11T21:56:14-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the Invoke-PurviewPurge function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Invoke and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\u0022",
@@ -1105,7 +1105,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T03:04:39+00:00",
+    "timestampUtc": "2026-06-11T22:04:39-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the Get-MessageTrace function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\Get and create matching\r\ndocumentation for it as a file named about_Invoke-PurviewPurge.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\u0022",
@@ -1129,7 +1129,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T03:13:23+00:00",
+    "timestampUtc": "2026-06-11T22:13:23-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the Reset-ADPassword function located at\r\nC:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Public\\ActiveDirectory and create matching\r\ndocumentation for it as a file named about_Reset-ADPassword.help.txt in the\r\nfolder C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\en-US\u0022",
@@ -1153,7 +1153,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T04:42:24+00:00",
+    "timestampUtc": "2026-06-11T23:42:24-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "\u0022Please look at the Install-TechAgentRuntime function located at\r\nC:\\repos\\TechToolbox\\Public\\AI and create matching documentation for it as a\r\nfile named about_Install-TechAgentRuntime.help.txt in the folder\r\nC:\\repos\\TechToolbox\\en-US\u0022",
@@ -1177,7 +1177,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T23:10:43+00:00",
+    "timestampUtc": "2026-06-12T18:10:43-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the Clear-BrowserProfileData function located at\r\nC:\\repos\\TechToolbox\\Public\\System and create matching documentation for it as a\r\nfile named about_Clear-BrowserProfileData.help.txt in the folder\r\nC:\\repos\\TechToolbox\\en-US\u0022",
@@ -1201,7 +1201,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T23:16:58+00:00",
+    "timestampUtc": "2026-06-12T18:16:58-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022what would be the command in a powershell console to see the about_*.help.txt\r\nfiles?\u0022",
@@ -1222,7 +1222,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T23:18:38+00:00",
+    "timestampUtc": "2026-06-12T18:18:38-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "What about using the PowerShell help system to display the file content in console?",
@@ -1243,7 +1243,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T23:22:50+00:00",
+    "timestampUtc": "2026-06-12T18:22:50-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022I get the following error when I try to run the Get-Help about_\u003Ctopic\u003E command\r\nin PowerShell: \u0027Get-Help : No help files found in the HelpPath directory.\u0027 How\r\ncan I resolve this issue?\r\n\r\n[18:19:20] C:\\repos\\TechToolbox [main]\r\n? Get-help about_Invoke_TechAgent\r\nGet-Help: Get-Help could not find about_Invoke_TechAgent in a help file in this session. To download updated help topics type: \u0022Update-Help\u0022. To get help online, search for the help topic in the TechNet library at https://go.microsoft.com/fwlink/?LinkID=107116.\r\n\r\n[18:20:35] C:\\repos\\TechToolbox [main]\u0022",
@@ -1264,7 +1264,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-12T23:52:34+00:00",
+    "timestampUtc": "2026-06-12T18:52:34-05:00",
     "status": "success",
     "outcome": "blocked",
     "prompt": "\u0022Can I adapt the module\u0027s \u0027Get-ToolboxHelp\u0027 functionality to lookup these\r\nabout_*.help.txt files?\u0022",
@@ -1285,7 +1285,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-13T02:44:27+00:00",
+    "timestampUtc": "2026-06-12T21:44:27-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function Get-ToolboxHelp at C:\\repos\\TechToolbox\\Public\\Get\r\nand see if I can use that to resolve the new about_*.help.txt files in the\r\nC:\\repos\\TechToolbox\\en-US folder.\u0022",
@@ -1308,7 +1308,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-13T03:09:25+00:00",
+    "timestampUtc": "2026-06-12T22:09:25-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022I think at this point we could remove the Get-ToolboxHelp function altogether\r\nand rely on PowerShell\u0027s build in Get-Help system for users who install my\r\nmodule. Can we safely remove it from C:\\repos\\TechToolbox\\Public\\Get?\u0022",
@@ -1331,7 +1331,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-13T03:17:17+00:00",
+    "timestampUtc": "2026-06-12T22:17:17-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxHelp function\r\nlocated at C:\\repos\\TechToolbox\\Public\\Get and replace it with the note in its\r\nhelp topics pointing users to PowerShell\u0027s native \u0027Get-Help\u0027.\u0022",
@@ -1355,7 +1355,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-13T03:20:24+00:00",
+    "timestampUtc": "2026-06-12T22:20:24-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxHelp function\r\nlocated at C:\\repos\\TechToolbox\\Public\\Get and replace it with the note in its\r\nhelp topics pointing users to PowerShell\u0027s native \u0027Get-Help\u0027.\u0022",
@@ -1378,7 +1378,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-13T03:26:37+00:00",
+    "timestampUtc": "2026-06-12T22:26:37-05:00",
     "status": "success",
     "outcome": "needs-confirmation",
     "prompt": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxHelp function\r\nlocated at C:\\repos\\TechToolbox\\Public\\Get and replace it with the note in its\r\nhelp topics pointing users to PowerShell\u0027s native \u0027Get-Help\u0027. You have my\r\nexplicit permission to perform this task.\u0022",
@@ -1402,7 +1402,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-13T03:36:08+00:00",
+    "timestampUtc": "2026-06-12T22:36:08-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Thank you for that analysis. Please go ahead and keep the function in place for\r\nnow as you pointed out that the -ShowEffectiveConfig param is useful and\r\nhelpful. Please remove the overview screen from the Get-ToolboxHelp function\r\nlocated at C:\\repos\\TechToolbox\\Public\\Get and replace it with the note in its\r\nhelp topics pointing users to PowerShell\u0027s native \u0027Get-Help\u0027. You have my\r\nexplicit permission to perform this task.\u0022",
@@ -1426,7 +1426,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-15T06:13:44+00:00",
+    "timestampUtc": "2026-06-15T01:13:44-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please read the function named Stop-PSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Stop-PSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en-US.\u0022",
@@ -1450,7 +1450,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-15T06:24:06+00:00",
+    "timestampUtc": "2026-06-15T01:24:06-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please read the function named Start-NewPSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Start-NewPSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en-US.\u0022",
@@ -1474,7 +1474,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-17T04:40:03+00:00",
+    "timestampUtc": "2026-06-16T23:40:03-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Do you think you would perform better with a C# orchestration layer over the current python orchestration layer?\u0022",
@@ -1495,7 +1495,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-21T04:57:29.565497+00:00",
+    "timestampUtc": "2026-06-20T23:57:29.565497-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-SubnetScan.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-SubnetScan.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-SubnetScan.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1521,7 +1521,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-21T05:05:19.9393392+00:00",
+    "timestampUtc": "2026-06-21T00:05:19.9393392-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-SubnetScan.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-SubnetScan.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-SubnetScan.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1548,7 +1548,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-21T16:19:28.5040555+00:00",
+    "timestampUtc": "2026-06-21T11:19:28.5040555-05:00",
     "status": "error",
     "outcome": "iteration-limit",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1570,7 +1570,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-21T16:21:51.6100199+00:00",
+    "timestampUtc": "2026-06-21T11:21:51.6100199-05:00",
     "status": "error",
     "outcome": "iteration-limit",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1592,7 +1592,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-21T16:23:01.4711809+00:00",
+    "timestampUtc": "2026-06-21T11:23:01.4711809-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-NetFx3.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-NetFx3.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-NetFx3.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1625,7 +1625,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-23T00:52:10.1658989+00:00",
+    "timestampUtc": "2026-06-22T19:52:10.1658989-05:00",
     "status": "error",
     "outcome": "iteration-limit",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-DownloadsCleanup.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1647,7 +1647,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-23T01:05:18.7720687+00:00",
+    "timestampUtc": "2026-06-22T20:05:18.7720687-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-DownloadsCleanup.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1678,7 +1678,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-23T01:10:55.8274059+00:00",
+    "timestampUtc": "2026-06-22T20:10:55.8274059-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Are you currently the best model to use for agentic tasks locally? You are qwen3.6:35b.",
@@ -1699,7 +1699,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:16:35.1990485+00:00",
+    "timestampUtc": "2026-06-24T22:16:35.1990485-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-OneTimeReboot.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1727,7 +1727,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:19:36.0263335+00:00",
+    "timestampUtc": "2026-06-24T22:19:36.0263335-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-OneTimeReboot.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1760,7 +1760,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:22:07.5597492+00:00",
+    "timestampUtc": "2026-06-24T22:22:07.5597492-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-PageFileSize.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-PageFileSize.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-PageFileSize.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1792,7 +1792,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:24:51.6510431+00:00",
+    "timestampUtc": "2026-06-24T22:24:51.6510431-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-ProxyAddress.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-ProxyAddress.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-ProxyAddress.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1823,7 +1823,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:26:42.4097468+00:00",
+    "timestampUtc": "2026-06-24T22:26:42.4097468-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-AuditSharedMailboxDeletions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-AuditSharedMailboxDeletions.help.txt. Please follow the same format as\r\nthe other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-AuditSharedMailboxDeletions.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1853,7 +1853,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:28:05.7238303+00:00",
+    "timestampUtc": "2026-06-24T22:28:05.7238303-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-AutodiscoverXmlInteractive.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-AutodiscoverXmlInteractive.help.txt. Please follow the same format as\r\nthe other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-AutodiscoverXmlInteractive.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1883,7 +1883,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:29:22.7514683+00:00",
+    "timestampUtc": "2026-06-24T22:29:22.7514683-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-BatteryHealth.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-BatteryHealth.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-BatteryHealth.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1914,7 +1914,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:31:06.1795524+00:00",
+    "timestampUtc": "2026-06-24T22:31:06.1795524-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-BatteryHealth.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-BatteryHealth.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-BatteryHealth.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1945,7 +1945,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:33:06.5946365+00:00",
+    "timestampUtc": "2026-06-24T22:33:06.5946365-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-CUCredentialManagerContents.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-CUCredentialManagerContents.help.txt. Please follow the same format as\r\nthe other help documents in that directory. Be sure to not use markdown\r\nformatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-CUCredentialManagerContents.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -1976,7 +1976,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:37:35.5112892+00:00",
+    "timestampUtc": "2026-06-24T22:37:35.5112892-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-DomainAdminCredential.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-DomainAdminCredential.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-DomainAdminCredential.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2005,7 +2005,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:39:20.0279947+00:00",
+    "timestampUtc": "2026-06-24T22:39:20.0279947-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ErrorEvents.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-ErrorEvents.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-ErrorEvents.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2036,7 +2036,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-25T03:42:13.1795426+00:00",
+    "timestampUtc": "2026-06-24T22:42:13.1795426-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-FilesUsingKeywords.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-FilesUsingKeywords.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-FilesUsingKeywords.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2064,7 +2064,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:26:12.4046799+00:00",
+    "timestampUtc": "2026-06-25T22:26:12.4046799-05:00",
     "status": "error",
     "outcome": "iteration-limit",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-InstalledPrinters.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-InstalledPrinters.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-InstalledPrinters.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2086,7 +2086,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:30:33.3125098+00:00",
+    "timestampUtc": "2026-06-25T22:30:33.3125098-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-InstalledPrinters.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-InstalledPrinters.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-InstalledPrinters.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2119,7 +2119,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:32:32.2871596+00:00",
+    "timestampUtc": "2026-06-25T22:32:32.2871596-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-LocalAdminMembers.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-LocalAdminMembers.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-LocalAdminMembers.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2155,7 +2155,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:34:12.2756388+00:00",
+    "timestampUtc": "2026-06-25T22:34:12.2756388-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-PDQDiagLogs.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2186,7 +2186,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:36:05.7762338+00:00",
+    "timestampUtc": "2026-06-25T22:36:05.7762338-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-RemoteInstalledSoftware.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-RemoteInstalledSoftware.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-RemoteInstalledSoftware.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2217,7 +2217,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:38:41.5959561+00:00",
+    "timestampUtc": "2026-06-25T22:38:41.5959561-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SharedMailboxPermissions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SharedMailboxPermissions.help.txt. Please follow the same format as\r\nthe other help documents in that directory. Be sure to not use markdown\r\nformatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SharedMailboxPermissions.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2248,7 +2248,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:41:09.822263+00:00",
+    "timestampUtc": "2026-06-25T22:41:09.822263-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemSnapshot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemSnapshot.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemSnapshot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2280,7 +2280,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:43:38.135605+00:00",
+    "timestampUtc": "2026-06-25T22:43:38.135605-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemTrustDiagnostic.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SystemTrustDiagnostic.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemTrustDiagnostic.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2312,7 +2312,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:46:48.3900443+00:00",
+    "timestampUtc": "2026-06-25T22:46:48.3900443-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2341,7 +2341,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:51:56.4576207+00:00",
+    "timestampUtc": "2026-06-25T22:51:56.4576207-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2373,7 +2373,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:54:17.4385654+00:00",
+    "timestampUtc": "2026-06-25T22:54:17.4385654-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-ToolboxHelp.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-ToolboxHelp.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2402,7 +2402,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:55:48.7810778+00:00",
+    "timestampUtc": "2026-06-25T22:55:48.7810778-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TechToolboxConfig.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-TechToolboxConfig.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-TechToolboxConfig.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2432,7 +2432,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:57:22.0475495+00:00",
+    "timestampUtc": "2026-06-25T22:57:22.0475495-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-WindowsProductKey.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-WindowsProductKey.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-WindowsProductKey.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2462,7 +2462,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:59:24.6416711+00:00",
+    "timestampUtc": "2026-06-25T22:59:24.6416711-05:00",
     "status": "error",
     "outcome": "iteration-limit",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TTPathRoots.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-TTPathRoots.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-TTPathRoots.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2484,7 +2484,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:01:33.2532881+00:00",
+    "timestampUtc": "2026-06-25T23:01:33.2532881-05:00",
     "status": "error",
     "outcome": "iteration-limit",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TTPathRoots.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-TTPathRoots.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-TTPathRoots.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -2506,7 +2506,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:04:52.6851635+00:00",
+    "timestampUtc": "2026-06-25T23:04:52.6851635-05:00",
     "status": "error",
     "outcome": "iteration-limit",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TTPathRoots.ps1. Write a detailed help\r\ndocument to the directory located at C:\\repos\\TechToolbox\\en-US for PowerShell\uFFFDs\r\nGet-Help to consume. Name the about_Get-TTPathRoots.help.txt. Please follow the\r\nsame format as the other help documents in that directory. Be sure to not use\r\nmarkdown formatting.\u0022\r\n",
@@ -2528,7 +2528,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:06:34.4631511+00:00",
+    "timestampUtc": "2026-06-25T23:06:34.4631511-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TTPathRoots.ps1. Write a detailed help\r\ndocument to the directory located at C:\\repos\\TechToolbox\\en-US for PowerShell\uFFFDs\r\nGet-Help to consume. Name the about_Get-TTPathRoots.help.txt. Please follow the\r\nsame format as the other help documents in that directory. Be sure to not use\r\nmarkdown formatting.\u0022\r\n",
@@ -2565,7 +2565,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:09:32.1815686+00:00",
+    "timestampUtc": "2026-06-25T23:09:32.1815686-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Test-TTPathRoots.ps1. Write a detailed help\r\ndocument to the directory located at C:\\repos\\TechToolbox\\en-US for PowerShell\uFFFDs\r\nGet-Help to consume. Name the about_Test-TTPathRoots.help.txt. Please follow the\r\nsame format as the other help documents in that directory. Be sure to not use\r\nmarkdown formatting.\u0022\r\n",
@@ -2595,7 +2595,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:10:42.9071266+00:00",
+    "timestampUtc": "2026-06-25T23:10:42.9071266-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Test-TTPathRoots.ps1. Write a detailed help\r\ndocument to the directory located at C:\\repos\\TechToolbox\\en-US for PowerShell\uFFFDs\r\nGet-Help to consume, and name the about_Test-TTPathRoots.help.txt. Please follow\r\nthe same format as the other help documents in that directory. Be sure to not\r\nuse markdown formatting.\u0022\r\n",
@@ -2623,7 +2623,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:12:09.5640494+00:00",
+    "timestampUtc": "2026-06-25T23:12:09.5640494-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Test-TTPathRoots.ps1. Write a detailed help\r\ndocument to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nabout_Test-TTPathRoots.help.txt. Please follow the same format as the other help\r\ndocuments in that directory. Be sure to not use markdown formatting.\u0022\r\n",
@@ -2653,7 +2653,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:15:22.4193392+00:00",
+    "timestampUtc": "2026-06-25T23:15:22.4193392-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-PDQDiagLocalElevated.ps1. Write a\r\ndetailed help document to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nabout_Start-PDQDiagLocalElevated.help.txt. Please follow the same format as the\r\nother help documents in that directory. Do not use Markdown format.\u0022\r\n",
@@ -2681,7 +2681,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:17:10.7118121+00:00",
+    "timestampUtc": "2026-06-25T23:17:10.7118121-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-PDQDiagLocalElevated.ps1. Write a\r\ndetailed help document to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nabout_Start-PDQDiagLocalElevated.help.txt. Please follow the same format as the\r\nother help documents in that directory.\u0022\r\n",
@@ -2711,7 +2711,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:19:10.8643253+00:00",
+    "timestampUtc": "2026-06-25T23:19:10.8643253-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-MailHeaderAuth.ps1. Write a detailed help\r\ndocument to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nabout_Test-MailHeaderAuth.help.txt. Please follow the same format as the other\r\nhelp documents in that directory.\u0022\r\n",
@@ -2739,7 +2739,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:20:21.6903474+00:00",
+    "timestampUtc": "2026-06-25T23:20:21.6903474-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-MailHeaderAuth.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Test-MailHeaderAuth.help.txt. Please follow the same format as the other\r\nhelp documents in that directory.\u0022\r\n",
@@ -2769,7 +2769,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:21:28.8340125+00:00",
+    "timestampUtc": "2026-06-25T23:21:28.8340125-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-PathAs.ps1. Write a detailed help document\r\nfile to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Test-PathAs.help.txt. Please follow the same format as the other help\r\ndocuments in that directory.\u0022\r\n",
@@ -2799,7 +2799,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:23:07.1170597+00:00",
+    "timestampUtc": "2026-06-25T23:23:07.1170597-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Copy-Directory.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Copy-Directory.help.txt. Please follow the same format as the other help\r\ndocuments in that directory.\u0022\r\n",
@@ -2829,7 +2829,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:25:35.1074149+00:00",
+    "timestampUtc": "2026-06-25T23:25:35.1074149-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Find-LargeFiles.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Find-LargeFiles.help.txt. Please follow the same format as the other help\r\ndocuments in that directory.\u0022\r\n",
@@ -2859,7 +2859,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:27:17.2722831+00:00",
+    "timestampUtc": "2026-06-25T23:27:17.2722831-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1. Write a detailed\r\nhelp document file to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nfile about_Initialize-TTWordList.help.txt. Please follow the same format as the\r\nother help documents in that directory.\u0022\r\n",
@@ -2889,7 +2889,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:29:22.019103+00:00",
+    "timestampUtc": "2026-06-25T23:29:22.019103-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-EpicorEdgeAgent.ps1. Write a detailed\r\nhelp document file to the directory C:\\repos\\TechToolbox\\en-US, and name the\r\nfile about_Remove-EpicorEdgeAgent.help.txt. Please follow the same format as the\r\nother help documents in that directory.\u0022\r\n",
@@ -2919,7 +2919,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:30:56.2610709+00:00",
+    "timestampUtc": "2026-06-25T23:30:56.2610709-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt. Please follow the same format as the other help\r\ndocuments in that directory.\u0022\r\n",
@@ -2948,7 +2948,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:32:37.6550182+00:00",
+    "timestampUtc": "2026-06-25T23:32:37.6550182-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a detailed help\r\ndocument file to the directory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt according to PowerShell help documentation\r\nstandards. The help document should include the following sections:\r\n.EXTERNALHELP, .NOTES, .DESCRIPTION, .PARAMETER, .INPUTS, .OUTPUTS, and\r\n.EXAMPLE. Each section should provide clear and concise information about the\r\nfunction\u0027s purpose, parameters, input and output types, and usage examples.\r\nEnsure that the document adheres to PowerShell help formatting conventions.\u0022\r\n",
@@ -2974,7 +2974,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:35:05.0014081+00:00",
+    "timestampUtc": "2026-06-25T23:35:05.0014081-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt according to PowerShell help documentation\r\nstandards.\u0022\r\n",
@@ -3000,7 +3000,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:37:40.1638058+00:00",
+    "timestampUtc": "2026-06-25T23:37:40.1638058-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printers.help.txt\u0027 according to PowerShell help documentation\r\nstandards. Do not use markdown format. Just make a plain text file.\u0022\r\n",
@@ -3026,7 +3026,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:34:12.2756388+00:00",
+    "timestampUtc": "2026-06-25T22:34:12.2756388-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-PDQDiagLogs.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3057,7 +3057,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:36:05.7762338+00:00",
+    "timestampUtc": "2026-06-25T22:36:05.7762338-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-RemoteInstalledSoftware.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-RemoteInstalledSoftware.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-RemoteInstalledSoftware.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3088,7 +3088,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:38:41.5959561+00:00",
+    "timestampUtc": "2026-06-25T22:38:41.5959561-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SharedMailboxPermissions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SharedMailboxPermissions.help.txt. Please follow the same format as\r\nthe other help documents in that directory. Be sure to not use markdown\r\nformatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SharedMailboxPermissions.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3119,7 +3119,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:41:09.822263+00:00",
+    "timestampUtc": "2026-06-25T22:41:09.822263-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemSnapshot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemSnapshot.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemSnapshot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3151,7 +3151,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:43:38.135605+00:00",
+    "timestampUtc": "2026-06-25T22:43:38.135605-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemTrustDiagnostic.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SystemTrustDiagnostic.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemTrustDiagnostic.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3183,7 +3183,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:46:48.3900443+00:00",
+    "timestampUtc": "2026-06-25T22:46:48.3900443-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3212,7 +3212,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:51:56.4576207+00:00",
+    "timestampUtc": "2026-06-25T22:51:56.4576207-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3244,7 +3244,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:54:17.4385654+00:00",
+    "timestampUtc": "2026-06-25T22:54:17.4385654-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-ToolboxHelp.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-ToolboxHelp.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3273,7 +3273,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:55:48.7810778+00:00",
+    "timestampUtc": "2026-06-25T22:55:48.7810778-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TechToolboxConfig.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-TechToolboxConfig.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-TechToolboxConfig.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3303,7 +3303,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T03:57:22.0475495+00:00",
+    "timestampUtc": "2026-06-25T22:57:22.0475495-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-WindowsProductKey.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-WindowsProductKey.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-WindowsProductKey.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3333,7 +3333,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:49:08.6833699+00:00",
+    "timestampUtc": "2026-06-25T23:49:08.6833699-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printers.help.txt\u0027 according to PowerShell help documentation\r\nstandards. Do not use markdown format. Just make a plain text file.\u0022\r\n",
@@ -3359,7 +3359,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:52:50.5495634+00:00",
+    "timestampUtc": "2026-06-25T23:52:50.5495634-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\about_Remove-Printers.help.txt according to\r\nPowerShell help documentation standards.\u0022\r\n",
@@ -3385,7 +3385,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:54:37.1473429+00:00",
+    "timestampUtc": "2026-06-25T23:54:37.1473429-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow PowerShell help\r\ndocumentation standards. Do NOT use markdown.\u0022\r\n",
@@ -3411,7 +3411,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:55:56.8168159+00:00",
+    "timestampUtc": "2026-06-25T23:55:56.8168159-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Do NOT use markdown.\u0022\r\n",
@@ -3440,7 +3440,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:56:31.4756491+00:00",
+    "timestampUtc": "2026-06-25T23:56:31.4756491-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Do NOT use markdown.\u0022\r\n",
@@ -3469,7 +3469,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T04:57:46.9924424+00:00",
+    "timestampUtc": "2026-06-25T23:57:46.9924424-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file.\u0022\r\n",
@@ -3499,7 +3499,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T05:03:05.6134531+00:00",
+    "timestampUtc": "2026-06-26T00:03:05.6134531-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Remove-Printers.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3529,7 +3529,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T05:05:25.970445+00:00",
+    "timestampUtc": "2026-06-26T00:05:25.970445-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1. Create a\r\nhelp file to the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Reset-WindowsUpdateComponents.help.txt. The file should follow the same\r\nformat as other help documents in this directory. Write your output to the new\r\nfile.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Reset-WindowsUpdateComponents.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3557,7 +3557,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-26T05:07:01.8738677+00:00",
+    "timestampUtc": "2026-06-26T00:07:01.8738677-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1. Create a help file\r\nto the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Watch-ISPConnection.help.txt. The file should follow the same format as\r\nother help documents in this directory. Write your output to the new file.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Watch-ISPConnection.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
@@ -3587,7 +3587,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-29T03:12:03.0647737+00:00",
+    "timestampUtc": "2026-06-28T22:12:03.0647737-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please look at the readme at the module root and suggest any changes that would enhance the readme.",
@@ -3615,7 +3615,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-29T03:25:05.1796168+00:00",
+    "timestampUtc": "2026-06-28T22:25:05.1796168-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please add the table of contents to the README file.",
@@ -3659,7 +3659,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-29T03:41:35.8863297+00:00",
+    "timestampUtc": "2026-06-28T22:41:35.8863297-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "Please add a Feature Hightlights to the README.",
@@ -3703,7 +3703,7 @@
     }
   },
   {
-    "timestampUtc": "2026-06-30T23:01:04.6793277+00:00",
+    "timestampUtc": "2026-06-30T18:01:04.6793277-05:00",
     "status": "success",
     "outcome": "completed",
     "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Install-TechAgentRuntime.ps1. Create a markdown\r\nfile to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInstall-TechAgentRuntime.md. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file. This file\r\nwill be used as -Online help for the Install-TechAgentRuntime.ps1 script.\u0022\r\n",
@@ -3723,6 +3723,568 @@
     "outputPreview": "# Install-TechAgentRuntime\n\nVerifies Ollama availability and optionally pulls the configured agent model.\n\n---\n\n## Overview\n\n\u0060Install-TechAgentRuntime\u0060 validates that the Ollama runtime is installed and available on the local system. It reports any locally available models and, when requested, pulls a specific AI model for use with \u0060Invoke-TechAgent\u0060.\n\n\u003E **Note:** This function no longer manages repository-local Python environments or virtual environments. It focuses exclusively on Ollama validation and model management.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **PythonPath** | \u0060string\u0060 | Deprecated compatibility parameter. Ignored by this function. |\n| **ForceRecreateVenv** | \u0060switch\u0060 | Deprecated compatibility parameter. Ignored by this function. |\n| **UpgradePip** | \u0060switch\u0060 | Deprecated compatibility parameter. Ignored by this function. |\n| **UpgradePackages** | \u0060switch\u0060 | Deprecated compatibility parameter. Ignored by this function. |\n| **PullModel** | \u0060switch\u0060 | When present, pulls the selected Ollama model after validating the local Ollama runtime. |\n| **Model** | \u0060string\u0060 | The name of the Ollama model to pull when \u0060-PullModel\u0060 is used. Defaults to the value in \u0060settings.agent.model\u0060. |\n\n---\n\n## How It Works\n\n### **Ollama Validation**\nThe function first checks if Ollama is installed and accessible on the system.\n- If Ollama is not found, an error is raised indicating that Ollama must be installed.\n- If Ollama is available, it reports any models currently present locally.\n\n### **Model Pulling**\nWhen \u0060-PullModel\u0060 is specified:\n1. The function determines the target model name (using the \u0060-Model\u0060 parameter or \u0060settings.agent.model\u0060).\n2. It initiates a pull of that model from the Ollama library.\n3. Upon completion, it confirms the successful installation of the model.\n\n---\n\n## Examples\n\n### **Basic validation**\nVerifies Ollama is installed and lists local models without pulling anything.\n\u0060\u0060\u0060powershell\nInstall-TechAgentRuntime\n\u0060\u0060\u0060\n\n### **Pull a specific model**\nPulls the \u0060qwen3.6:35b\u0060 model for use with the agent.\n\u0060\u0060\u0060powershell\nInstall-TechAgentRuntime -PullModel -Model \u0022qwen3.6:35b\u0022\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **Ollama** to be installed and running on the local machine.\n- Deprecated parameters (\u0060PythonPath\u0060, \u0060ForceRecreateVenv\u0060, \u0060UpgradePip\u0060, \u0060UpgradePackages\u0060) are retained for backward compatibility but have no effect.\n- Model defaults are driven by configuration in \u0060settings.agent.model\u0060 if \u0060-Model\u0060 is not explicitly provided.",
     "runSummary": {
       "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Install-TechAgentRuntime.ps1. Create a markdown\r\nfile to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInstall-TechAgentRuntime.md. The file should ...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T18:17:48.7458834-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistant.ps1. Create a markdown file\r\nto the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistant.md. The file should follow the same format as other help\r\ndocuments in this directory. Write your output to the new file. This file will\r\nbe used as -Online help for the Invoke-CodeAssistant.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 73676,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 5,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "# Invoke-CodeAssistant\n\nSends code to an AI model for analysis, refactoring, or generation based on the specified mode.\n\n---\n\n## Overview\n\n\u0060Invoke-CodeAssistant\u0060 is a helper function that facilitates interaction with local AI models (via Ollama) for various coding tasks. It routes requests to specific AI models configured in \u0060settings.ai.routing\u0060 and \u0060settings.ai.models\u0060 based on the selected \u0060-Mode\u0060. This allows users to perform static analysis, security checks, refactoring, test generation, or general code assistance.\n\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before sending the request.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Code** | \u0060string\u0060 | **[Mandatory]** The source code content to be analyzed or processed by the AI model. |\n| **FileName** | \u0060string\u0060 | **[Mandatory]** The name of the file associated with the provided code (e.g., \u0060script.ps1\u0060). This helps the AI understand the context and language. |\n| **Mode** | \u0060string\u0060 | Specifies the type of assistance required. Determines which AI model role is used. Valid values: \u0060General\u0060, \u0060Static\u0060, \u0060Security\u0060, \u0060Refactor\u0060, \u0060Tests\u0060, \u0060Combined\u0060, \u0060ModuleReview\u0060. Defaults to \u0060\u0027General\u0027\u0060. |\n| **Encoding** | \u0060string\u0060 | The character encoding for the input code string. Valid values: \u0060UTF8\u0060, \u0060ASCII\u0060, \u0060Unicode\u0060, \u0060UTF7\u0060, \u0060UTF32\u0060, \u0060Default\u0060, \u0060OEM\u0060. Defaults to \u0060\u0027UTF8\u0027\u0060. |\n\n---\n\n## How It Works\n\n### **Model Routing**\nThe function uses a strict routing table defined in the TechToolbox configuration (\u0060settings.ai.routing\u0060):\n1. The \u0060-Mode\u0060 parameter is looked up in the routing table.\n2. The corresponding model role (e.g., \u0060CodeReviewer\u0060, \u0060SecurityAnalyst\u0060) is retrieved.\n3. The actual AI model name is fetched from \u0060settings.ai.models\u0060 using that role.\n4. If either lookup fails, an error is thrown indicating a configuration issue.\n\n### **Execution**\n1. Initializes the TechToolbox runtime environment (\u0060Initialize-TechToolboxRuntime\u0060).\n2. Logs the routing decision for debugging purposes.\n3. Sends the \u0060-Code\u0060 and \u0060-FileName\u0060 to the selected AI model via the configured endpoint.\n4. Returns the AI\u0027s response (typically a string containing suggestions, refactored code, or analysis).\n\n---\n\n## Examples\n\n### **General Code Assistance**\nAsk for general help with a PowerShell script snippet.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistant -Code \u0022Get-Process | Sort-Object CPU\u0022 -FileName \u0022script.ps1\u0022\n\u0060\u0060\u0060\n\n### **Security Analysis**\nCheck code for potential security vulnerabilities.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistant -Code $codeBlock -FileName \u0022login.ps1\u0022 -Mode Security\n\u0060\u0060\u0060\n\n### **Refactoring**\nRequest refactoring of a function to improve performance or readability.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistant -Code $functionBody -FileName \u0022utils.ps1\u0022 -Mode Refactor\n\u0060\u0060\u0060\n\n### **Test Generation**\nGenerate unit tests for existing code.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistant -Code $moduleContent -FileName \u0022MyModule.psm1\u0022 -Mode Tests\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **TechToolbox configuration** to be present with valid \u0060ai.routing\u0060 and \u0060ai.models\u0060 settings.\n- The \u0060-Mode\u0060 parameter directly influences which AI model is invoked; ensure the target model is installed/available in your Ollama instance if using local models.\n- Large code blocks may exceed context limits depending on the configured model. Consider splitting large files into logical sections.\n- Encoding defaults to UTF8, but other encodings can be specified if dealing with legacy scripts.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistant.ps1. Create a markdown file\r\nto the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistant.md. The file should follow t...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T18:21:37.1538016-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantFolder.ps1. Create a markdown\r\nfile to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantFolder.md. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file. This file\r\nwill be used as -Online help for the Invoke-CodeAssistantFolder.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 38943,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 3,
+    "toolNames": [
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "# Invoke-CodeAssistantFolder\n\nSends all PowerShell files in a folder to an AI model for analysis, refactoring, or generation based on the specified mode.\n\n---\n\n## Overview\n\n\u0060Invoke-CodeAssistantFolder\u0060 is a helper function that facilitates batch interaction with local AI models (via Ollama) for various coding tasks across multiple files. It iterates through all \u0060.ps1\u0060 files in the specified path and its subdirectories, invoking \u0060Invoke-CodeAssistant\u0060 on each file using the selected analysis mode.\n\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing files.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Path** | \u0060string\u0060 | **[Mandatory]** The root folder path to search for PowerShell files (\u0060.ps1\u0060). |\n| **Mode** | \u0060string\u0060 | Specifies the type of assistance required. Determines which AI model role is used. Valid values: \u0060General\u0060, \u0060Static\u0060, \u0060Security\u0060, \u0060Refactor\u0060, \u0060Tests\u0060, \u0060Combined\u0060, \u0060ModuleReview\u0060, \u0060ExplainDesign\u0060. Defaults to \u0060\u0027General\u0027\u0060. |\n\n---\n\n## How It Works\n\n### **File Discovery**\nThe function scans the specified \u0060-Path\u0060 recursively for all files with the \u0060.ps1\u0060 extension.\n\n### **Model Routing**\nFor each file found:\n1. The content of the file is read.\n2. The \u0060-Mode\u0060 parameter is looked up in the TechToolbox configuration (\u0060settings.ai.routing\u0060).\n3. The corresponding model role (e.g., \u0060CodeReviewer\u0060, \u0060SecurityAnalyst\u0060) is retrieved.\n4. The actual AI model name is fetched from \u0060settings.ai.models\u0060 using that role.\n5. If either lookup fails, an error is thrown indicating a configuration issue.\n\n### **Execution**\n1. Initializes the TechToolbox runtime environment (\u0060Initialize-TechToolboxRuntime\u0060).\n2. Logs the routing decision for debugging purposes.\n3. Sends the file content and filename to the selected AI model via \u0060Invoke-CodeAssistant\u0060.\n4. Returns the AI\u0027s response (typically a string containing suggestions, refactored code, or analysis) for each file processed.\n\n---\n\n## Examples\n\n### **General Code Assistance**\nAsk for general help with all PowerShell scripts in a folder.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantFolder -Path \u0022C:\\Scripts\u0022 -Mode General\n\u0060\u0060\u0060\n\n### **Security Analysis**\nCheck code for potential security vulnerabilities across multiple files.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantFolder -Path \u0022C:\\Scripts\\LoginModule\u0022 -Mode Security\n\u0060\u0060\u0060\n\n### **Refactoring**\nRequest refactoring of functions to improve performance or readability.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantFolder -Path \u0022C:\\Scripts\\Utils\u0022 -Mode Refactor\n\u0060\u0060\u0060\n\n### **Test Generation**\nGenerate unit tests for existing code in a module folder.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantFolder -Path \u0022C:\\Modules\\MyModule\u0022 -Mode Tests\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **TechToolbox configuration** to be present with valid \u0060ai.routing\u0060 and \u0060ai.models\u0060 settings.\n- The \u0060-Mode\u0060 parameter directly influences which AI model is invoked; ensure the target model is installed/available in your Ollama instance if using local models.\n- Large code blocks may exceed context limits depending on the configured model. Consider splitting large files into logical sections before processing or adjusting chunking strategies within \u0060Invoke-CodeAssistant\u0060.\n- The function processes all \u0060.ps1\u0060 files recursively; ensure the target path contains only relevant scripts to avoid unintended analysis of unrelated code.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantFolder.ps1. Create a markdown\r\nfile to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantFolder.md. The file sho...",
+      "actionsTaken": [
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T18:25:30.4019744-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantWrapper.ps1. Create a\r\nmarkdown file to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantWrapper.md. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file. This file\r\nwill be used as -Online help for the Invoke-CodeAssistantWrapper.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 48491,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 3,
+    "toolNames": [
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "# Invoke-CodeAssistantWrapper\n\nWraps \u0060Invoke-CodeAssistant\u0060 to handle file input and module review mode, sending PowerShell code to an AI model for analysis.\n\n---\n\n## Overview\n\n\u0060Invoke-CodeAssistantWrapper\u0060 is a helper function that simplifies the process of analyzing PowerShell scripts or modules using local AI models (via Ollama). It acts as a wrapper around \u0060Invoke-CodeAssistant\u0060, automatically handling file reading and, in specific modes, concatenating multiple files for module-wide analysis.\n\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing content.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Path** | \u0060string\u0060 | **[Mandatory]** The path to the file or module directory to analyze. For single-file analysis, provide the \u0060.ps1\u0060 file path. For module review, provide the root folder of the module. |\n| **Mode** | \u0060string\u0060 | Specifies the type of assistance required. Determines which AI model role is used. Valid values: \u0060General\u0060, \u0060Static\u0060, \u0060Security\u0060, \u0060Refactor\u0060, \u0060Tests\u0060, \u0060Combined\u0060, \u0060ModuleReview\u0060, \u0060ExplainDesign\u0060. Defaults to \u0060\u0027General\u0027\u0060. |\n\n---\n\n## How It Works\n\n### **Single File Analysis**\nFor modes other than \u0060ModuleReview\u0060:\n1. The function verifies that the specified \u0060-Path\u0060 exists.\n2. If the path is a file, it reads its content.\n3. It invokes \u0060Invoke-CodeAssistant\u0060 with the file\u0027s content and filename.\n4. Returns the AI\u0027s response (typically a markdown report saved to \u0060\u003CTechToolboxModuleRoot\u003E\\CodeAnalysis\u0060).\n\n### **Module Review Mode**\nWhen \u0060-Mode ModuleReview\u0060 is selected:\n1. The function expects \u0060-Path\u0060 to be a directory containing PowerShell modules.\n2. It identifies all \u0060.ps1\u0060 files within the module structure.\n3. It concatenates the content of these files into a single block (with placeholders or headers as needed).\n4. It invokes \u0060Invoke-CodeAssistant\u0060 with this combined code block under the filename \u0022ModuleReview\u0022.\n5. This allows for cross-file context analysis, such as dependency checking or overall architecture review.\n\n---\n\n## Examples\n\n### **General Code Assistance**\nAsk for general help with a specific PowerShell script.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\MyScript.ps1\u0022 -Mode General\n\u0060\u0060\u0060\n\n### **Security Analysis**\nCheck a single file for potential security vulnerabilities.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\LoginModule.ps1\u0022 -Mode Security\n\u0060\u0060\u0060\n\n### **Refactoring**\nRequest refactoring of functions in a script to improve performance or readability.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\Utils.ps1\u0022 -Mode Refactor\n\u0060\u0060\u0060\n\n### **Module Review**\nAnalyze an entire module for consistency, dependencies, and best practices.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Modules\\MyModule\u0022 -Mode ModuleReview\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **TechToolbox configuration** to be present with valid \u0060ai.routing\u0060 and \u0060ai.models\u0060 settings.\n- The \u0060-Mode\u0060 parameter directly influences which AI model is invoked; ensure the target model is installed/available in your Ollama instance if using local models.\n- For \u0060ModuleReview\u0060, large modules may exceed context limits. Consider splitting large modules or adjusting chunking strategies within \u0060Invoke-CodeAssistant\u0060 configuration.\n- Output reports are saved to \u0060\u003CTechToolboxModuleRoot\u003E\\CodeAnalysis\u0060. Ensure this directory is accessible and writable.\n- The function throws an error if the specified \u0060-Path\u0060 does not exist.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantWrapper.ps1. Create a\r\nmarkdown file to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantWrapper.md. The file s...",
+      "actionsTaken": [
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T18:27:30.2602312-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 87604,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 5,
+    "toolNames": [
+      "read_file",
+      "read_file",
+      "list_directory",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "# Invoke-TechAgent\n\nSends a prompt to the TechToolbox local agent.\n\n---\n\n## Overview\n\n\u0060Invoke-TechAgent\u0060 is a function that calls the TechToolbox.Agent C# runtime and prints the agent\u0027s response. It allows users to interact with a local AI agent using natural language instructions, supporting various models and iteration limits for complex tasks.\n\n\u003E **Note:** This function requires the TechToolbox Agent runtime to be installed and configured correctly.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. |\n| **Model** | \u0060string\u0060 | Optional Ollama model name (for example: llama3, mistral, qwen2.5-coder). |\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default. |\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. |\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. \u0027ignore\u0027 blocks the overwrite and \u0027strip\u0027 allows the overwrite while removing the signature block text. |\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit. |\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding environment defaults. |\n| **NoTranscript** | \u0060switch\u0060 | Disables the per-run console transcript log. |\n\n---\n\n## How It Works\n\n### **Execution Flow**\n1. The function initializes the TechToolbox.Agent C# runtime.\n2. It sends the provided \u0060-Prompt\u0060 to the specified AI model (if provided) or the default configured model.\n3. The agent processes the prompt, potentially using tools in a loop up to \u0060-MaxIterations\u0060 times.\n4. If recursion limits are hit and \u0060AutoRetryOnRecursion\u0060 is enabled, it attempts one automatic retry.\n5. The final response from the agent is printed to the console.\n\n### **Destructive Operations**\nTo perform destructive actions (e.g., deleting files, modifying system settings), you must explicitly pass the \u0060-ConfirmDestructive\u0060 switch. Without this switch, the agent will refuse to execute dangerous commands.\n\n---\n\n## Examples\n\n### **Basic Usage**\nAsk the agent a simple question or give it a task.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022What is the current date and time?\u0022\n\u0060\u0060\u0060\n\n### **Using a Specific Model**\nSpecify an Ollama model for the request.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Explain how PowerShell pipelines work\u0022 -Model \u0022qwen2.5-coder\u0022\n\u0060\u0060\u0060\n\n### **Allowing Destructive Actions**\nAuthorize the agent to perform destructive operations (use with caution).\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Delete all files in C:\\Temp\\OldLogs\u0022 -ConfirmDestructive\n\u0060\u0060\u0060\n\n### **Increasing Iteration Limit**\nFor complex tasks requiring more reasoning steps, increase the max iterations.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Analyze this script for security vulnerabilities and suggest fixes.\u0022 -MaxIterations 50\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- The \u0060-Quiet\u0060 switch is provided for legacy compatibility; traces are suppressed by default in newer versions.\n- If the agent hits an iteration limit, it may conclude prematurely. Use \u0060-MaxIterations\u0060 to allow more steps if needed.\n- Ensure the target Ollama model specified in \u0060-Model\u0060 is installed and running locally.\n- The \u0060SignedFilePolicy\u0060 parameter only applies when the function itself overwrites a signed script file; it does not affect the agent\u0027s internal operations.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T18:30:51.7897399-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 94717,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file"
+    ],
+    "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Invoke-TechAgent.md\u0022,\n    \u0022content\u0022: \u0022# Invoke-TechAgent\\n\\nSends a prompt to the TechToolbox local agent.\\n\\n---\\n\\n## Overview\\n\\n\u0060Invoke-TechAgent\u0060 is a function that interfaces with the TechToolbox.Agent C# runtime to execute AI-driven tasks. It accepts natural language instructions or prompts from files and returns the agent\u0027s response. This tool is designed for automating complex workflows by leveraging local LLMs via Ollama.\\n\\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing the prompt.\\n\\n---\\n\\n## Parameters\\n\\n| Parameter | Type | Description |\\n|----------|------|-------------|\\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. This is the primary input for the AI task. |\\n| **PromptFile** | \u0060string\u0060 | Optional path to a text file containing the prompt. If omitted and \u0060-Prompt\u0060 is empty, Invoke-TechAgent attempts to load a default prompt file. |\\n| **Model** | \u0060string\u0060 | Optional Ollama model name (e.g., \u0060llama3\u0060, \u0060mistral\u0060, \u0060qwen2.5-coder\u0060). Determines which local AI model processes the request. |\\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default, so this parameter has minimal effect in modern versions. |\\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. Use with caution to allow the agent to perform actions that modify system state. |\\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. Valid values: \u0060\u0027ignore\u0027\u0060 (blocks overwrite) or \u0060\u0027strip\u0027\u0060 (allows overwrite while removing signature block text). |\\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit, allowing it to continue complex tasks that require more steps. |\\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding any global settings or \u0060-AutoRetryOnRecursion\u0060. |\\n\\n---\\n\\n## How It Works\\n\\n### **Prompt Handling**\\nThe function prioritizes the \u0060-Prompt\u0060 parameter. If provided, it uses that text directly. If \u0060-PromptFile\u0060 is specified, it reads the content from the file. If neither is explicitly provided with valid data, it falls back to a default prompt location defined in the TechToolbox configuration.\\n\\n### **Model Routing**\\nThe selected AI model (via \u0060-Model\u0060) is passed to the C# runtime. The runtime communicates with the local Ollama instance to execute the inference. If no model is specified, the system defaults to the configured standard model.\\n\\n### **Execution \u0026 Iteration**\\nThe agent processes the prompt using a chain-of-thought approach. It may call other tools or scripts if authorized (e.g., via \u0060-ConfirmDestructive\u0060). The process continues until:\\n1. The agent determines it has sufficient information to answer.\\n2. The number of iterations reaches \u0060MaxIterations\u0060.\\n3. An error occurs.\\n\\nIf \u0060-AutoRetryOnRecursion\u0060 is enabled and the iteration limit is hit, the system automatically retries once with a fresh context window.\\n\\n---\\n\\n## Examples\\n\\n### **Basic Prompt**\\nAsk the agent to check disk space on the local machine.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Check available disk space on C: and report back.\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Using a Model**\\nForce the use of a specific model for complex code generation.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Generate a PowerShell script to backup the Documents folder.\\\u0022 -Model \\\u0022qwen2.5-coder\\\u0022\\n\u0060\u0060\u0060\\n\\n### **From File**\\nLoad a long, detailed prompt from a text file.\\n\u0060\u0060\u0060powershell\\nIn...",
+    "runSummary": {
+      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T23:35:05.0014081-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt according to PowerShell help documentation\r\nstandards.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 41769,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 2,
+    "toolNames": [
+      "read_file",
+      "read_file"
+    ],
+    "outputPreview": "## about_Remove-Printers.help.txt\n\n### NAME\nRemove-Printers.ps1\n\n### SHORT DESCRIPTION\nRemoves all printers from the system, with optional removal of ports, drivers, and per-user mappings.\n\n### LONG DESCRIPTION\nThe Remove-Printers function uses Win32_Printer (CIM) to remove printer queues after resetting the print spooler service and clearing the spool folder. It provides options to also remove TCP/IP ports and printer drivers. \n\nThis function includes fallbacks for provider hiccups and frees common process locks such as splwow64 and PrintIsolationHost. It can also remove per-user network printer connections across all user profiles on the system.\n\n### PARAMETERS\n- **IncludePorts**\n  Also removes TCP/IP printer ports (non-standard). Use with caution as this may affect other services relying on these ports.\n\n- **IncludeDrivers**\n  Also removes printer drivers after the queues are gone. This helps in cleaning up unused driver packages from the system.\n\n- **Force**\n  Enables best-effort forced cleanup of driver packages via pnputil if standard removal fails. This is useful for stubborn drivers that do not remove easily.\n\n- **AllUsers**\n  Attempts to remove per-user network printer connections for all user profiles on the system. This ensures a comprehensive cleanup across multiple users.\n\n- **PassThru**\n  Outputs a summary object containing counts of removed printers, ports, drivers, and any failures encountered during the process. This is helpful for auditing purposes.\n\n### EXAMPLES\n#### Example 1: Comprehensive Removal\n\u0060\u0060\u0060powershell\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\u0060\u0060\u0060\nThis command removes all printers, TCP/IP ports, and drivers with forced cleanup, clears per-user connections for all users, and outputs a summary.\n\n#### Example 2: Dry Run\n\u0060\u0060\u0060powershell\nRemove-Printers -WhatIf\n\u0060\u0060\u0060\nThis command simulates the removal of printers without actually making any changes, allowing you to preview what would be removed.\n\n### NOTES\n- This function has a high confirm impact due to its destructive nature. Always review the output carefully.\n- Ensure that no critical printing tasks are in progress before running this function.\n- Administrative privileges may be required for some operations, especially when removing drivers or accessing other user profiles.",
+    "runSummary": {
+      "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Prin...",
+      "actionsTaken": [
+        "read_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T23:37:40.1638058-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printers.help.txt\u0027 according to PowerShell help documentation\r\nstandards. Do not use markdown format. Just make a plain text file.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 34719,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 2,
+    "toolNames": [
+      "read_file",
+      "read_file"
+    ],
+    "outputPreview": "The READ-FILE tool consistently returns a compact view of the file content rather than the full text. However, this compact view contains all the necessary information to write the help document: the function name (\u0060Remove-Printers\u0060), its synopsis, description, parameters (with their types and descriptions), and examples.\n\nI will now generate the \u0060about_Remove-Printers.help.txt\u0060 file based on this extracted metadata. The format will be plain text as requested, following PowerShell help documentation standards for a conceptual/help topic.",
+    "runSummary": {
+      "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printe...",
+      "actionsTaken": [
+        "read_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T22:34:12.2756388-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-PDQDiagLogs.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "qwen3.6:35b",
+    "durationMs": 50627,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 5,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "The help document for Get-PDQDiagLogs has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt. The file follows the same format as other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\e...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T22:36:05.7762338-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-RemoteInstalledSoftware.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-RemoteInstalledSoftware.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-RemoteInstalledSoftware.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "qwen3.6:35b",
+    "durationMs": 77762,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 5,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "The help document for Get-RemoteInstalledSoftware has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-RemoteInstalledSoftware.help.txt.\n\nIt follows the format of other help documents in the directory, including:\n- .EXTERNALHELP reference\n- .NOTES with NAME and DESCRIPTION\n- Detailed .PARAMETER sections for ComputerName, Credential, IncludeAppx, OutDir, Consolidated, and ThrottleLimit\n- .INPUTS section indicating pipeline support\n- .OUTPUTS section describing the return type\n- Multiple .EXAMPLE blocks demonstrating common usage scenarios\n- .LINK to TechToolbox repository",
+    "runSummary": {
+      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-RemoteInstalledSoftware.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\T...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T22:38:41.5959561-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SharedMailboxPermissions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SharedMailboxPermissions.help.txt. Please follow the same format as\r\nthe other help documents in that directory. Be sure to not use markdown\r\nformatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SharedMailboxPermissions.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "qwen3.6:35b",
+    "durationMs": 68331,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 5,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "The help document for Get-SharedMailboxPermissions has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-SharedMailboxPermissions.help.txt.\n\nIt follows the format of other help documents in the directory, including:\n- .EXTERNALHELP reference\n- .NOTES section with NAME and DESCRIPTION\n- Detailed .PARAMETER sections for Identity, IncludeFolderPermissions, Folder, and ExportCsv\n- .INPUTS and .OUTPUTS sections\n- Multiple .EXAMPLE blocks demonstrating common usage scenarios\n- .LINK to TechToolbox repository",
+    "runSummary": {
+      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SharedMailboxPermissions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T22:41:09.822263-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemSnapshot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemSnapshot.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemSnapshot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "qwen3.6:35b",
+    "durationMs": 95213,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 6,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "The help document for Get-SystemSnapshot has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemSnapshot.help.txt. It follows the same format as other help documents in the directory, including .EXTERNALHELP reference, .NOTES section with NAME and DESCRIPTION, detailed .PARAMETER sections, .INPUTS, .OUTPUTS, multiple .EXAMPLEs with descriptions, and a .LINK to TechToolbox.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemSnapshot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbo...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T22:43:38.135605-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemTrustDiagnostic.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SystemTrustDiagnostic.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemTrustDiagnostic.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "qwen3.6:35b",
+    "durationMs": 88121,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 6,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "The help document for Get-SystemTrustDiagnostic has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemTrustDiagnostic.help.txt.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemTrustDiagnostic.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Tec...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T22:46:48.3900443-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "qwen3.6:35b",
+    "durationMs": 99493,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 5,
+    "toolNames": [
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file"
+    ],
+    "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Get-SystemUptime.help.txt\u0022,\n    \u0022content\u0022: \u0022.EXTERNALHELP Get-SystemUptime-help.xml\n\n.NOTES\n  NAME: about_Get-SystemUptime\n\n.DESCRIPTION\n  The Get-SystemUptime function retrieves the system uptime information from one\n  or more remote computers. It uses the TechToolbox remote worker engine to run a\n  small uptime worker script on each target host and optionally exports results\n  to CSV files.\n\n.PARAMETER ComputerName\n  Specifies one or more target computers to retrieve uptime from. This parameter\n  is mandatory. Accepts pipeline input by value.\n\n.PARAMETER Credential\n  Specifies a credential object used for authenticating remote connections. If\n  omitted, default authentication mechanisms are used.\n\n.PARAMETER OutDir\n  Specifies the output directory where CSV files will be exported. If omitted,\n  the default value from the configuration file is used.\n\n.PARAMETER NoExport\n  Indicates that CSV export should be skipped. By default, results may be\n  exported to CSV if an output directory is specified or configured.\n\n.INPUTS\n  System.String. You can pipe computer names to Get-SystemUptime.\n\n.OUTPUTS\n  PSCustomObject. The function returns custom objects containing the uptime data\n  for each target computer.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV01\n\n  Description: Retrieves system uptime information from SRV01.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV02, SRV03 -OutDir C:\\\\Temp\\\\UptimeReports\n\n  Description: Retrieves system uptime information from SRV02 and SRV03 and\n  exports the results to CSV files in C:\\\\Temp\\\\UptimeReports.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName WS01 -Credential $cred -NoExport\n\n  Description: Retrieves system uptime information from WS01 using the specified\n  credential object and skips CSV export.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)\n\u0022\n  },\n  \u0022finalAnswer\u0022: \u0022\u0022,\n  \u0022reason\u0022: \u0022I have read the source function Get-SystemUptime.ps1 to understand its parameters (ComputerName, Credential, OutDir, NoExport) and behavior. I have also reviewed existing help files in the target directory (about_Get-SharedMailboxPermissions.help.txt, about_Get-SystemSnapshot.help.txt, about_Get-SystemTrustDiagnostic.help.txt) to match their format exactly. Now I will write the new help file using WRITE-FILE.\u0022\n}",
+    "runSummary": {
+      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\...",
+      "actionsTaken": [
+        "read_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T22:51:56.4576207-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "qwen3.6:35b",
+    "durationMs": 79622,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 6,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "The help document for Get-SystemUptime has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US ...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-25T22:54:17.4385654-05:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-ToolboxHelp.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-ToolboxHelp.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "qwen3.6:35b",
+    "durationMs": 78353,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "toolNames": [
+      "read_file",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "The help document for Get-ToolboxHelp has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-ToolboxHelp.help.txt. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETER, INPUTS, OUTPUTS, EXAMPLE, NOTES, and LINK.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US a...",
+      "actionsTaken": [
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T23:34:28.8563058+00:00",
+    "status": "error",
+    "outcome": "iteration-limit",
+    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 137567,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
+      "actionsTaken": [],
+      "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+      "nextBestStep": "Next best action:"
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T23:37:22.6830426+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 148018,
+    "maxIterations": 20,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 7,
+    "toolNames": [
+      "read_file",
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: false,\n  \u0022toolName\u0022: \u0022\u0022,\n  \u0022toolArgs\u0022: {},\n  \u0022finalAnswer\u0022: \u0022# Invoke-TechAgent\\n\\nSends a prompt to the TechToolbox local agent for automated task execution.\\n\\n---\\n\\n## Overview\\n\\n\u0060Invoke-TechAgent\u0060 is a helper function that facilitates interaction with the TechToolbox.Agent C# runtime. It allows users to send natural-language instructions (prompts) to an AI agent, which then performs actions on behalf of the user using available tools and scripts.\\n\\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before sending the request.\\n\\n---\\n\\n## Parameters\\n\\n| Parameter | Type | Description |\\n|----------|------|-------------|\\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. This is the primary input defining what task to perform. |\\n| **PromptFile** | \u0060string\u0060 | Optional path to a text file containing the prompt. If omitted and \u0060-Prompt\u0060 is empty, Invoke-TechAgent attempts to load a default prompt file. |\\n| **Model** | \u0060string\u0060 | Optional Ollama model name (e.g., \u0060llama3\u0060, \u0060mistral\u0060, \u0060qwen2.5-coder\u0060). Specifies which AI model to use for processing the prompt. |\\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default, but this parameter remains for backward compatibility. |\\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. Use with caution. |\\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. Valid values: \u0060\u0027ignore\u0027\u0060 (blocks overwrite) or \u0060\u0027strip\u0027\u0060 (allows overwrite while removing signature block text). |\\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit. |\\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding any global settings. |\\n\\n---\\n\\n## How It Works\\n\\n### **Agent Execution**\\nThe function calls the TechToolbox.Agent C# runtime and prints the agent\u0027s response.\\n1. Initializes the TechToolbox runtime environment (\u0060Initialize-TechToolboxRuntime\u0060).\\n2. Loads the prompt from \u0060-Prompt\u0060 or \u0060-PromptFile\u0060.\\n3. Sends the request to the specified AI model (or default if none provided).\\n4. The agent reasons through the task, potentially invoking other tools or scripts.\\n5. Returns the final output or error message from the agent.\\n\\n### **Recursion Handling**\\nThe agent may recursively call itself for complex tasks. The \u0060-AutoRetryOnRecursion\u0060 parameter allows a single automatic retry if an iteration limit is hit, helping to complete multi-step processes that exceed default limits.\\n\\n---\\n\\n## Examples\\n\\n### **Basic Prompt Execution**\\nSend a simple instruction to the agent using the default model.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022List all running services on this machine\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Using a Specific Model**\\nSpecify an Ollama model for processing.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Analyze the disk usage\\\u0022 -Model \\\u0022qwen2.5-coder\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Loading Prompt from File**\\nUse a text file containing the prompt instructions.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -PromptFile \\\u0022C:\\\\prompts\\\\cleanup.txt\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Allowing Destructive Actions**\\nExplicitly authorize destructive operations for this run.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Delete all files in C:\\\\Temp\\\u0022 -ConfirmDestructive\\n\u0060\u0060\u0060\\n\\n---\\n\\n## Notes\\n\\n- Requires **TechToolbox configuration** to be present with valid AI settings.\\n- The \u0060-Model\u0060 parameter is optional; if omitted, the default model from configuration is used.\\n- Large prompts may exceed context limits depending on the configured model. Consider splitting large tasks...",
+    "runSummary": {
+      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T23:44:14.3220648+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 48767,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file"
+    ],
+    "outputPreview": "The file \u0060C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\u0060 already exists and contains the help documentation for Invoke-TechAgent. The content follows a markdown format with sections for Overview, Parameters, How It Works, Examples, and Notes. This appears to be the requested output.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-06-30T23:47:53.5966874+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "\u0022Please look at the function C:\\repos\\TechToolbox\\Public\\Get\\Get-AllUsers.ps1.\r\nCreate a markdown file to the folder C:\\repos\\TechToolbox-Docs, and name the\r\nfile Get-AllUsers.md. The file should follow the same format as other help\r\ndocuments in this directory. Write your output to the new file. This file will\r\nbe used as -Online help for the Get-AllUsers.ps1 script.\u0022\r\n",
+    "model": "qwen3.6:35b",
+    "durationMs": 97580,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 6,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "# Get-AllUsers\n\nEnumerates user accounts known to a computer. Returns a merged view of local user accounts, user profiles present on the machine, and users currently logged on.\n\n---\n\n## Overview\n\n\u0060Get-AllUsers\u0060 provides a comprehensive list of users associated with one or more computers. It supports both local execution and remote execution via PowerShell Remoting (WSMan) or SSH.\n\n### Local Execution\nWhen targeting the local computer, the function runs directly without establishing a remote session.\n\n### Remote Execution\nFor remote targets, it utilizes \u0060Start-NewPSRemoteSession\u0060 to establish a connection and \u0060Invoke-RemoteWorker\u0060 to execute the enumeration logic. It supports:\n- WSMan (Windows PowerShell Management)\n- SSH transport\n- CredSSP authentication\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **ComputerName** | \u0060string[]\u0060 | One or more computer names. Defaults to the local computer (\u0060$env:COMPUTERNAME\u0060). Accepts pipeline input. Aliases: \u0060Name\u0060, \u0060CN\u0060. |\n| **Credential** | \u0060PSCredential\u0060 | Credential used for remote session creation when targeting other machines. |\n| **UseSsh** | \u0060switch\u0060 | Use SSH transport instead of WSMan for remote execution. |\n| **UseCredSSP** | \u0060switch\u0060 | Use CredSSP authentication for WSMan remoting. |\n| **Port** | \u0060int\u0060 | The port to use when \u0060-UseSsh\u0060 is specified. Default: 22. |\n| **Ps7ConfigName** | \u0060string\u0060 | The WSMan PowerShell 7 endpoint name. Default: \u0060\u0027PowerShell.7\u0027\u0060. |\n| **WinPsConfigName** | \u0060string\u0060 | The WSMan Windows PowerShell endpoint name. Default: \u0060\u0027Microsoft.PowerShell\u0027\u0060. |\n| **UserName** | \u0060string\u0060 | SSH username when not using PSCredential for authentication. |\n| **KeyFilePath** | \u0060string\u0060 | Path to the SSH private key file when using key-based authentication. |\n\n---\n\n## How It Works\n\n### 1. Target Resolution\nDetermines if the target is local or remote based on \u0060$ComputerName\u0060. If multiple computers are specified, it iterates through each.\n\n### 2. Remote Session Establishment (Remote Targets)\nIf a remote computer is targeted:\n- Establishes a PSRemoting session using \u0060Start-NewPSRemoteSession\u0060.\n- Configures the session based on \u0060-UseSsh\u0060, \u0060-UseCredSSP\u0060, and port settings.\n- Passes credentials or key paths as required by the transport method.\n\n### 3. User Enumeration (Worker)\nThe worker logic merges data from three sources:\n1. **Local User Accounts**: Retrieved via standard AD/Local SAM queries.\n2. **User Profiles**: Profiles present on the file system (\u0060C:\\Users\u0060).\n3. **Logged-On Users**: Currently active sessions detected via WMI/CIM or PSRemoting commands.\n\n### 4. Output\nReturns a unified collection of user objects containing identity information, profile paths, and login status.\n\n---\n\n## Examples\n\n### **Enumerate local users**\n\u0060\u0060\u0060powershell\nGet-AllUsers\n\u0060\u0060\u0060\n\n### **Enumerate remote computer using default credentials**\n\u0060\u0060\u0060powershell\nGet-AllUsers -ComputerName \u0022SRV01\u0022\n\u0060\u0060\u0060\n\n### **Enumerate multiple computers via SSH**\n\u0060\u0060\u0060powershell\nGet-AllUsers -ComputerName \u0022SRV01\u0022, \u0022SRV02\u0022 -UseSsh -UserName \u0022admin\u0022 -KeyFilePath \u0022C:\\keys\\id_rsa\u0022\n\u0060\u0060\u0060\n\n### **Enumerate remote computer using CredSSP**\n\u0060\u0060\u0060powershell\n$cred = Get-Credential\nGet-AllUsers -ComputerName \u0022SRV01\u0022 -Credential $cred -UseCredSSP\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires appropriate permissions on the target computers.\n- For remote execution, PowerShell Remoting must be enabled and configured correctly.\n- SSH transport requires OpenSSH client/server components to be installed.\n- CredSSP delegation must be configured in both local and remote Group Policy if used.",
+    "runSummary": {
+      "intent": "\u0022Please look at the function C:\\repos\\TechToolbox\\Public\\Get\\Get-AllUsers.ps1.\r\nCreate a markdown file to the folder C:\\repos\\TechToolbox-Docs, and name the\r\nfile Get-AllUsers.md. The file should follow the same format a...",
       "actionsTaken": [
         "read_file",
         "list_directory",

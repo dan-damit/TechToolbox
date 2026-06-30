@@ -79,14 +79,15 @@ public class AgentOrchestrator
             .ConfigureAwait(false);
         if (!attempt.ReachedIterationLimit)
         {
+            var terminalFailureOutcome = GetTerminalFailureOutcome(attempt.OutputText);
             stopwatch.Stop();
             return FinalizeResult(
                 prompt,
                 attempt.OutputText,
                 initialToolNames,
                 stopwatch.ElapsedMilliseconds,
-                status: "success",
-                outcome: "completed",
+                status: terminalFailureOutcome is null ? "success" : "error",
+                outcome: terminalFailureOutcome ?? "completed",
                 retriedOnIterationLimit: false,
                 retrySucceeded: false,
                 initialIterationLimit: _maxIterations,
@@ -109,15 +110,16 @@ public class AgentOrchestrator
 
             if (!retryAttempt.ReachedIterationLimit)
             {
+                var retryFailureOutcome = GetTerminalFailureOutcome(retryAttempt.OutputText);
                 return FinalizeResult(
                     prompt,
                     retryAttempt.OutputText,
                     retryToolNames,
                     stopwatch.ElapsedMilliseconds,
-                    status: "success",
-                    outcome: "completed",
+                    status: retryFailureOutcome is null ? "success" : "error",
+                    outcome: retryFailureOutcome ?? "completed",
                     retriedOnIterationLimit: true,
-                    retrySucceeded: true,
+                    retrySucceeded: retryFailureOutcome is null,
                     initialIterationLimit: _maxIterations,
                     retryIterationLimit: retryIterations
                 );
@@ -677,6 +679,23 @@ Next best action:
             || text.StartsWith("LLM error:", StringComparison.OrdinalIgnoreCase)
             || text.StartsWith("LLM returned empty content", StringComparison.OrdinalIgnoreCase)
             || text.StartsWith("LLM response parse failed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetTerminalFailureOutcome(string? output)
+    {
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+
+        if (output.StartsWith("Agent returned invalid JSON twice.", StringComparison.OrdinalIgnoreCase))
+            return "invalid-json";
+
+        if (output.StartsWith("LLM request repeatedly failed", StringComparison.OrdinalIgnoreCase))
+            return "llm-failure";
+
+        if (output.StartsWith("Error:", StringComparison.OrdinalIgnoreCase))
+            return "runtime-error";
+
+        return null;
     }
 
     private static int GetMaxConsecutiveLlmFailures()

@@ -1,6 +1,5 @@
-"Please look at the function
-C:\repos\TechToolbox\Public\AI\Invoke-CodeAssistant.ps1. Create a markdown file
-to the folder C:\repos\TechToolbox-Docs, and name the file
-Invoke-CodeAssistant.md. The file should follow the same format as other help
+"Please look at the function C:\repos\TechToolbox\Public\Get\Get-AllUsers.ps1.
+Create a markdown file to the folder C:\repos\TechToolbox-Docs, and name the
+file Get-AllUsers.md. The file should follow the same format as other help
 documents in this directory. Write your output to the new file. This file will
-be used as -Online help for the Invoke-CodeAssistant.ps1 script."
+be used as -Online help for the Get-AllUsers.ps1 script."
