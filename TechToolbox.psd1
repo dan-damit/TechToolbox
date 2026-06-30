@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.5.45'
+ModuleVersion = '0.5.46'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -87,13 +87,12 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User'
                'Invoke-SubnetScan', 'Invoke-SystemRepair', 'Invoke-TechAgent', 
                'New-OnPremUserFromTemplate', 'Remove-EpicorEdgeAgent', 
                'Remove-Printers', 'Reset-ADPassword', 
-               'Reset-WindowsUpdateComponents', 'Restart-SecureCrimpAll', 
-               'Restart-SecureCrimpAuxTasks', 'Restart-SecureCrimpStack', 
-               'Search-User', 'Set-EmailAlias', 'Set-OneTimeReboot', 
-               'Set-PageFileSize', 'Set-ProxyAddress', 'Start-DnsQueryLogger', 
-               'Start-NewPSRemoteSession', 'Start-PDQDiagLocalElevated', 
-               'Stop-PSRemoteSession', 'Test-MailHeaderAuth', 'Test-PathAs', 
-               'Test-TTPathRoots', 'Watch-ISPConnection', 'ITA'
+               'Reset-WindowsUpdateComponents', 'Search-User', 'Set-EmailAlias', 
+               'Set-OneTimeReboot', 'Set-PageFileSize', 'Set-ProxyAddress', 
+               'Start-DnsQueryLogger', 'Start-NewPSRemoteSession', 
+               'Start-PDQDiagLocalElevated', 'Stop-PSRemoteSession', 
+               'Test-MailHeaderAuth', 'Test-PathAs', 'Test-TTPathRoots', 
+               'Watch-ISPConnection', 'ITA'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
