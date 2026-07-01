@@ -2,6 +2,77 @@ function Checkpoint-ConfigBranch {
     [CmdletBinding()]
     param()
 
+    function Get-ChildValue {
+        param(
+            [Parameter(Mandatory)]$Parent,
+            [Parameter(Mandatory)][string]$Name
+        )
+
+        if ($null -eq $Parent) { return $null }
+
+        if ($Parent -is [System.Collections.IDictionary]) {
+            if ($Parent.Contains($Name)) { return $Parent[$Name] }
+            return $null
+        }
+
+        $prop = $Parent.PSObject.Properties[$Name]
+        if ($null -ne $prop) { return $prop.Value }
+        return $null
+    }
+
+    function Set-ChildValue {
+        param(
+            [Parameter(Mandatory)]$Parent,
+            [Parameter(Mandatory)][string]$Name,
+            [Parameter(Mandatory)]$Value
+        )
+
+        if ($Parent -is [System.Collections.IDictionary]) {
+            $Parent[$Name] = $Value
+            return
+        }
+
+        $prop = $Parent.PSObject.Properties[$Name]
+        if ($null -ne $prop) {
+            $prop.Value = $Value
+        }
+        else {
+            $Parent | Add-Member -MemberType NoteProperty -Name $Name -Value $Value -Force
+        }
+    }
+
+    function Ensure-ChildHashtable {
+        param(
+            [Parameter(Mandatory)]$Parent,
+            [Parameter(Mandatory)][string]$Name
+        )
+
+        $child = Get-ChildValue -Parent $Parent -Name $Name
+        if ($null -eq $child -or -not ($child -is [System.Collections.IDictionary] -or $child -is [pscustomobject])) {
+            $child = @{}
+            Set-ChildValue -Parent $Parent -Name $Name -Value $child
+        }
+
+        return $child
+    }
+
+    function Ensure-StringProperty {
+        param(
+            [Parameter(Mandatory)]$Parent,
+            [Parameter(Mandatory)][string]$Name
+        )
+
+        $value = Get-ChildValue -Parent $Parent -Name $Name
+        if ($null -eq $value) {
+            Set-ChildValue -Parent $Parent -Name $Name -Value ''
+            return
+        }
+
+        if ([string]::IsNullOrWhiteSpace([string]$value)) {
+            Set-ChildValue -Parent $Parent -Name $Name -Value ''
+        }
+    }
+
     if (-not $script:cfg) {
         throw "[Checkpoint-ConfigBranch] Config not loaded. Initialize-TechToolboxRuntime must populate `$script:cfg."
     }
@@ -9,23 +80,17 @@ function Checkpoint-ConfigBranch {
         throw "[Checkpoint-ConfigBranch] ConfigPath not set."
     }
 
-    if (-not $script:cfg.settings) { $script:cfg.settings = @{} }
-    if (-not $script:cfg.settings.passwords) { $script:cfg.settings.passwords = @{} }
-    if (-not $script:cfg.settings.passwords.domainAdminCred) {
-        $script:cfg.settings.passwords.domainAdminCred = @{
-            username = ''
-        }
-    }
-    elseif (-not $script:cfg.settings.passwords.domainAdminCred.username) {
-        $script:cfg.settings.passwords.domainAdminCred.username = ''
-    }
+    $settingsNode = Ensure-ChildHashtable -Parent $script:cfg -Name 'settings'
+    $passwordsNode = Ensure-ChildHashtable -Parent $settingsNode -Name 'passwords'
+    $domainCredNode = Ensure-ChildHashtable -Parent $passwordsNode -Name 'domainAdminCred'
+    Ensure-StringProperty -Parent $domainCredNode -Name 'username'
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAM4ZweKkqto2S2
-# FnFw3DxczKcUZ6wqe95R2RUXuUA83qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAMlozbk8XYQz1k
+# 5AA+1CHrk088KYQO5RBKjdxnFB2iQaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -158,34 +223,34 @@ function Checkpoint-ConfigBranch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDiiiEOgx+b
-# nteA5BhjJiTKieCqJDlnwCuY9KE6VyT5LTANBgkqhkiG9w0BAQEFAASCAgC1kFr3
-# rWj7oCRpWgw6Kf31l7Dmf8i2d2lz2erkwP4VdKiHSBoNvoBr2D2XL/xoY24KvoBh
-# KU3LFQTVHNzHp+FgPoJVgMNCElBZZJ6ZxjFXm7yuS3g2PxGIhKBoqG/11618GVx9
-# 57/pmsVI8gE5eoelhB6LQzH0mEFxyGrQuXCkCtQOita7xh79VznxaTrfE5xV9fiD
-# fAdOH3uWS18z0LBu8olIX+iuEFQTnfWyUd8Sbcra54FoYq52ZUdZuMussm1aq2Mj
-# cFQ8T05lLUpVA8vIemKYv5ttdzOEEV4Rh9b7mrNYxvGNc4p5lCuyCVV3vNx8P2Bs
-# amvCfdoR7Sm2F5BXOnIx1lEtoW0pxs8+lVwSEr6/0dAXTXR3MLoW9qS2Fw3lCbmM
-# F2ECZO4q4ErWgJoJxGOI7+DJdLgfkGKXw/oipmP6RAkHzGGBvqNRzgo/DH0OpB78
-# evvZ8W4/x+6oE6FqZRgJ9lRtAkUXsUJYVZuVGZ1N4ocI0cowabD0VCyeg0Jiw1pD
-# hj52GzeMhYaUpMZ4sAp/jZI0M7cSCSfEA/RxLJJlEg3ldfSarLKtILl7sCOAxVuw
-# aTwvrmmtvpOflIIoxePTEbjQba+FBVYHncIu2j2LM3Nh64S2YxAtMslfE1BAiDLM
-# xT3jxzQpMHwN0izgQhjX/+y/eLFjFxv4irArIqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAa7i7YdJOv
+# u6QDIoteF46ddM1fFQPHHN+Uo7VCQlg6BDANBgkqhkiG9w0BAQEFAASCAgBlfYb/
+# q+OqRDpNPNsZapHYoQ/SDLZh018sz11+UQ1q+76t+AE7JJPBsLGxfOAywAU328Wn
+# eYRIqsX55XEZjOGhAbNsF13+NQICy+YEAPASO5xzKASpiIzk296hHRoW4d7e+Q2K
+# 1zKTfsLSTSVJ2evfno4VvjDjgaxaEMpjp2Sf54EVAhzkWEdjZCKAAND0zy11dbLb
+# f5SIL8bZFn9DHHWe629TtS84KWCBbjqLOFUzuYOv255Uec+VoOuh6YZIaXY1S4xn
+# y7uIX8A4mnjLZb+g1TNx9hSE01qVa+EBIxbj3WCv/YvqpmiF26wwabj8myCTTuLj
+# boyKGhJrOw9hvdSPbtmc3x092sC9Oo1U6bOinhL9Vp6mxsTuidGCVY6zhlVn/zJZ
+# QLJN1QxsgfbLkrcqySA/qKyzXAptmfIuAi5slCOo3xgpVkBhT1HgcJiRzeJFIMG7
+# TvG95VOgQKhYX43naBIj2z0lKbpRJPM/kBToo69E0hUibnc/9bVvFNPi67Ku85zR
+# qGZHZbbl3ghhfjwb5ZsK0CQjC8AOfekers698DU/dKwCZ4qomkl1Lk0uvFNDV4ab
+# j13pRhegREGThhR2zIKvCIBFgpXkmG5+XruOXT1cNnb38n/A5N6kC8nD80OBwpUB
+# sF7CKgSH7M0BXxZfr1VmCpYC8FBl1Zs80RjPG6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTEyMTE3MTJaMC8GCSqGSIb3DQEJBDEiBCAjsKPtGZ3xv0rgirlR
-# AY/3wILgEGiTOEr/ZIYpfMdDdzANBgkqhkiG9w0BAQEFAASCAgDFil+0xwF/55bZ
-# PUgYiw5NtENlQHzLeXYCwhhiD2pE0tmiWwt8nEZlZskGFTJCE8+uXJGptwLz2Pzx
-# 73Nwc/y/n1bJ5oYHAG4Vz94zgGksisvX3RseXN9Ha5xf+glKzOnsosNZZIWaM+AL
-# 9aaQ3XAsqb29gNCIAgbZx4LvL6aoEUeEz/pqvNCG3cry3rqbtmK6qHLgyAe9+qyA
-# N0iSYflpKBKKkJo0gqIHi71uzsQ2p/GX+Pyet34UBmJEw82Z4fdgGLiOgEsfHDyp
-# TkFMjjioFoj0VgEaxSCH2XjTVstKo4fbKVHSfDw3X37j/dxxlpt5b38o7eaSvxb9
-# yaZ2p3tJYyOPdpdx1yDWRnlTC5EDH955FnfKZ/aEBbvRfPiTom/6CIdTsVxy7pYO
-# ouI4a7LQlwJj1MrVZDixYlQVhOoEUkudqe4B0NYUYrgG9xMFp4uwF7srn/yTGsv3
-# zfZvnuQihazJqXtF76tY+pQeTPj5oDJtYujD0IrYUI0jifP6cofkD39ayn8FH7yp
-# eghMpLRrr5LEN0nC0HR7axP4DKWy3rGYxsFIBnGkjaET+yS7LtuGpE4W22KQn/l9
-# zuB8iQilt6t6DctxuIEebPDbFT9VvBxoWxe40ttY+KXFUMNXpGsZlqF2Fm/qoT+6
-# 0YNZZmGznnnwE+OoF0FxwytqNmu7EA==
+# BTEPFw0yNjA3MDExNDQ2NDhaMC8GCSqGSIb3DQEJBDEiBCA8ETTAp2uZDGLdnsxA
+# WTar1duNvq8R2bOeVeggnE6XxzANBgkqhkiG9w0BAQEFAASCAgDPROXPk7AxaEt5
+# CCihEmVlLiVYg3VF7rIFjIkLmDNSUnk7TMuopeaAizqRqrLICQ7xIGX66QN92xX2
+# C509zhzPtMXBWA9MZwEoGeuq6BhvnX+6T+080B4GUAFn8cWxMHxXcocc2+FwwfkF
+# YQWD35DP1P4MYhs9bztbj0luwbc+jnpiEEa3RGDJralWTiPFHNcHKdXWzf7HO9k8
+# Zdpdb9DxKvBywGCtRenPQGwbVeRe+8NkfC0qGWVQEmFwk1NJwkPg4EtAotQFErG9
+# ib5oECCNSeuZ8bW9y8oHyzzurxtL0kPkvjGadu3WZn+wRS0iKXh7MMf3QFe9p/VC
+# GGZbJXm3C4a4U/FGPCVmuyrFuNfHoVS+EYIzbhRISvQlL/F0Wz3fDenXMlBuCpTL
+# P6g4kRDcNwNiak8AzP+ETuSJ7UjDycLo3f8TaDFauvkscq33pSuSGfhnqfRgVKaU
+# /KmvPAux1xL5Kyz2ufF1VbJrgXWTtQbmcuWDbj5KXRarB9KU/Gx/Mt1nw6u5D2w2
+# 0lFMbiLNePoD95/tdiTD8EWhE52H61WYUxeUdbVKTZmfnAauYNh7YCelvh54zvwm
+# 00qdZwa9JwYwG16m0VUVwGlARmJ0Y3EN3x4WfTJ9QKncndNDZb8v52A26f5ubDBC
+# ZOXgpPC7RKjYCAI1g6GD8mPwIbdy/Q==
 # SIG # End signature block
