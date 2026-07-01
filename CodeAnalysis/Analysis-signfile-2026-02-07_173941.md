@@ -72,7 +72,7 @@ param(
     [switch]$SkipValidSigs
 )
 
-# --- Configuration: fixed thumbprint for VADTEK Code Signing cert ---
+# --- Configuration: fixed thumbprint for TEK Code Signing cert ---
 $Thumbprint = '7168509FC1A2AE7AFC4C40342D6A8FED7413029C'
 
 function Get-CodeSigningCertByThumbprint {

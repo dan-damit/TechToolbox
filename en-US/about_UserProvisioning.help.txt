@@ -8,7 +8,7 @@ SHORT DESCRIPTION
 
 LONG DESCRIPTION
 
-    This document describes the full provisioning model used by VadTekToolbox
+    This document describes the full provisioning model used by Toolbox
     for creating on-prem Active Directory users based on template users.
 
 PROVISIONING WORKFLOW
