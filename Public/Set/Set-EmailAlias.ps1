@@ -13,7 +13,7 @@ function Set-EmailAlias {
         User identity (samAccountName, DN, GUID, or UPN).
 
     .PARAMETER EmailAlias
-        The SMTP alias to add or make primary (e.g., jane.doe@REDACTED.com).
+        The SMTP alias to add or make primary (e.g., jane.doe@.com).
 
     .PARAMETER MakePrimary
         If specified, ensures EmailAlias is the *primary* (uppercase 'SMTP:').
@@ -43,7 +43,7 @@ function Set-EmailAlias {
 
     .EXAMPLE
         # Promote to primary with explicit DC
-        Set-EmailAlias -Identity jdoe -EmailAlias john.doe@REDACTED.com -MakePrimary -Credential $cred -Server 'dc01.REDACTED.com'
+        Set-EmailAlias -Identity jdoe -EmailAlias john.doe@.com -MakePrimary -Credential $cred -Server 'dc01..com'
     #>
 
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]

@@ -40,7 +40,7 @@ function Get-PDQDiagLogs {
     .EXAMPLE
       Get-PDQDiagLogs
     .EXAMPLE
-      Get-PDQDiagLogs -ComputerName EDI-2.REDACTED.com -Credential (Get-Credential)
+      Get-PDQDiagLogs -ComputerName EDI-2..com -Credential (Get-Credential)
     .EXAMPLE
       Get-PDQDiagLogs. -ComputerName PC01,PC02 -ExtraPaths 'C:\Temp\PDQ','D:\Logs\PDQ'
     #>
