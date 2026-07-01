@@ -184,6 +184,15 @@ All configuration flows through `Get-TechToolboxConfig`. The effective config is
 - `Config/config.json` -- base settings (tracked in source control)
 - `Config/config.secrets.json` -- tenant-specific and sensitive overrides (git-ignored)
 
+Keep `config.json` limited to portable defaults, placeholders, and non-sensitive behavior settings. Put any environment-specific values there only if they are safe to share across every copy of the repo.
+
+Move anything that identifies your environment into `config.secrets.json`, including:
+
+- Domain controllers and search bases
+- Tenant identifiers and org-specific UPN suffixes
+- Internal hostnames, servers, and UNC paths
+- Credential-related values or other machine-specific overrides
+
 ### Environment Variables
 
 | Variable                         | Purpose                            |
@@ -192,6 +201,8 @@ All configuration flows through `Get-TechToolboxConfig`. The effective config is
 | `TT_DisableConfigSecretsMerge=1` | Skip merge for troubleshooting     |
 
 ### Configuring Secrets
+
+Use the ignored overlay for site-specific values. Start from `Config/config.secrets.example.json`, copy it to `Config/config.secrets.json`, then fill in your local values:
 
 ```json
 {

@@ -30,8 +30,8 @@
       "resolveGroups": true,
       "resolveManager": true,
       "enableProxyAddressSearch": true,
-      "domainController": "dc-1.example.com",
-      "searchBase": "DC=example,DC=com",
+      "domainController": "dc01.yourdomain.local",
+      "searchBase": "DC=yourdomain,DC=local",
       "enableMailSearch": true,
       "searchScope": "Subtree"
     },
@@ -72,7 +72,7 @@
     "systemRepair": {
       "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
       "logPath": "%TT_Home%\\LogsAndExports\\Logs\\SystemRepair",
-      "defaultRepairSource": "\\\\utility-1\\OS-Files\\25H2\\sources\\sxs",
+      "defaultRepairSource": "\\\\fileserver\\OS-Files\\sources\\sxs",
       "defaultRepairSourceIndex": 6,
       "retryWithoutSourceOnNotFound": true,
       "useCredSSPByDefault": true,
@@ -81,10 +81,10 @@
       "runRemote": true
     },
     "remoting": {
-      "credSSPDelegateComputers": "*.example.com"
+      "credSSPDelegateComputers": "*.yourdomain.local"
     },
     "secureCrimp": {
-      "server": "securecrimp-1.example.com",
+      "server": "securecrimp-1.yourdomain.local",
       "stackTasks": [
         "Secure Crimp - Run Server",
         "Secure Crimp - Nginx"
@@ -172,9 +172,9 @@
     },
     "tenant": {
       "authorityUrl": "https://login.microsoftonline.com",
-      "organizationName": "example.onmicrosoft.com",
-      "clientId": "9c0e43db-f3fc-4bba-9530-10b5d063730b",
-      "upnSuffix": "example.com",
+      "organizationName": "yourdomain.onmicrosoft.com",
+      "clientId": "00000000-0000-0000-0000-000000000000",
+      "upnSuffix": "yourdomain.com",
       "defaultMailboxLanguage": "en-US",
       "defaultUsageLocation": "US",
       "tenantId": "00000000-0000-0000-0000-000000000000"
