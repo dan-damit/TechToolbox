@@ -95,9 +95,6 @@
       ]
     },
     "passwords": {
-      "domainAdminCred": {
-        "username": "REDACTED"
-      },
       "wordListPath": "%TT_ModuleRoot%\\Config\\wordlist.txt",
       "default": {
         "separator": "-",
