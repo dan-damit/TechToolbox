@@ -176,7 +176,10 @@ function Get-DomainAdminCredential {
     $cfgNode = $script:cfg.settings.passwords.domainAdminCred
     $storedUserCfg = [string]$cfgNode.username
     $storedUserSecrets = [string]$secrets.passwords.domainAdminCred.username
-    $storedUser = if (-not [string]::IsNullOrWhiteSpace($storedUserCfg)) { $storedUserCfg } else { $storedUserSecrets }
+    $hasStoredUserCfg = -not [string]::IsNullOrWhiteSpace($storedUserCfg)
+    $hasStoredUserSecrets = -not [string]::IsNullOrWhiteSpace($storedUserSecrets)
+    # Prefer secrets as the canonical source; fall back to config.json for legacy values.
+    $storedUser = if ($hasStoredUserSecrets) { $storedUserSecrets } elseif ($hasStoredUserCfg) { $storedUserCfg } else { '' }
     $storedBlob = [string]$secrets.passwords.domainAdminCred.password
 
     # --- CLEAR path ---
@@ -208,7 +211,7 @@ function Get-DomainAdminCredential {
         if ($PassThru) { return $script:domainAdminCred } else { return }
     }
 
-    # --- If not forcing prompt, try to rebuild from config + secrets ---
+    # --- If not forcing prompt, try to rebuild from stored values ---
     $hasUser = -not [string]::IsNullOrWhiteSpace($storedUser)
     $hasPass = -not [string]::IsNullOrWhiteSpace($storedBlob)
 
@@ -216,6 +219,18 @@ function Get-DomainAdminCredential {
         try {
             $securePwd = $storedBlob | ConvertTo-SecureString
             $script:domainAdminCred = [PSCredential]::new($storedUser, $securePwd)
+
+            # One-time migration: if username existed only in config.json, backfill secrets.
+            if (-not $hasStoredUserSecrets -and $hasStoredUserCfg) {
+                try {
+                    $secrets.passwords.domainAdminCred.username = $storedUserCfg
+                    Write-Secrets -Secrets $secrets | Out-Null
+                    Write-Log -Level 'Debug' -Message "[Get-DomainAdminCredential] Backfilled domain admin username to config.secrets.json from config.json."
+                }
+                catch {
+                    Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Rebuilt credential, but failed to backfill username to config.secrets.json: $($_.Exception.Message)"
+                }
+            }
 
             Write-Log -Level 'Debug' -Message "[Get-DomainAdminCredential] Reconstructed credential from config.json + config.secrets.json."
             if ($PassThru) { return $script:domainAdminCred } else { return }
@@ -268,8 +283,8 @@ function Get-DomainAdminCredential {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCkSNtQuVloCp/F
-# aXE7kawv7hDSnTj/ZbB1QYQkSdn4DaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBOyJLXnIdoEeQ2
+# E6L8sg1x8JaE60bP7LZDJm4idJPQP6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -402,34 +417,34 @@ function Get-DomainAdminCredential {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBDMPfbI2w2
-# GMCz37NoONTEvvk31Je8fI0QsPWxO10GUTANBgkqhkiG9w0BAQEFAASCAgDafclb
-# +6B9qoaeuY0GVQNmNOB7cnPbpgu9UIB++aoM8sPHieeOvEV/KEgQnKYVjGB9YaAh
-# hzFoZDUHKcn1mYuuzwD7h1WfvUFhJhMKDxa4TPNmiHtiYMUAj4UrFwu1vlau9wfp
-# 2+XJpkrBb8c4Pn40fw/CCBrK9yC0K1SPycy24Z//ZUyFFZ6HFxOZ31ORI5FhHkZa
-# PZf5UJ/gStsFnHVWh/Yz6DmndtP80gyz+Vx24CkU7GUIM5ayDf7fKMdbFqjRa+a/
-# nDjh6gL9YmpsdkfDYMJ2dG73eicP0sRvlI8D45IdYJXuwpVivE223GE3wdG9vtrL
-# uF+AeNuytHGIvm9qks8RZ/sDyMRPyB5tHeCcG3XJ3JE9gkMd80M83vaAFhJ2cVi0
-# xEFYGAnTSmn/Gflj9lWrL12xHZOQB1G1bZARPa4BDU4VMuRAYu1k16uxFZR8cjEg
-# AziiHXOudhYbZufcrnqivZYg92N9HIQugZe6ydNoMSn2gJ6WIvRaIlwgq6iay5wa
-# ZWlWi18KqaWhqzH2MYw6oBcj07loxzwhMMoMxxGmNdZpsmB3kybIkGyzD2vfLFkY
-# TsRDnYkL9w2vrJGi/iYhkQQYGMtuaVMV0NvZZy8k9LaBnwDCRlCgk4y1izu9E+2f
-# +uGWHrXoMdGWdaXm0Xph0d718xf05OzFug93naGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBTvUcOMElX
+# yWyOCNnA0Gq+lkLkCo4NbwKBlremElhWijANBgkqhkiG9w0BAQEFAASCAgAPMPey
+# A4GymPJXo/0gVvHEnzAtkkF9uQwIenRepvSwMc0PdeD1RJtzd1xQmZ61Oqov5h8n
+# d/R+MiOyPLyAWJt+MOegtomf8aMHA3miC7MQZZNA81iDu7YgWkQpkB4EcBn+Vbnc
+# d1myUNjIQE9KNFjJUJU4ImVUJXmNBHEGgUtNYMn2uMHA1MTZu/MFTc5+EazyEd+t
+# wW5EBMY/G0ISlyIbb/BJt7yIKX6Y8KmbsRjWAQ3ZVe6eIMS6uwqm7pOgc6eDphhd
+# l6RNJPZcvYpXJBxdrqP9utkS0mgZ8bKDJMcqvhRwVEklcSBgwQLPLSTLF3iz4Jc5
+# OuJrMkT5IWVCJ8pdOY32zFkNaNGJbrsRz2KfDxyYaZo6VGIFkliEChQrAlMmH1Ys
+# KE9wp1F2UawmeotSVDpwbLUbpm/rzBKqoRSv50V51IG2N/d7uraARk3Bjk2fLrD+
+# 5qnvf1RfcSnxuAEdeVl2K2Nd5UstasEY8G+TnfY8qZIZBw9gXH2RhOHQNCihNu23
+# WnrvpXfMr0U3c7NQWZ+yZziPlnhsWin8oYDI1+mMajivxtrxrAT6AXYWKbtyS+96
+# dSynaubHZP/xQd3G09/xk9i1lm1ZFqKVU0wyPA5qdQki1c4zCfRCXtpY70OOBxrv
+# 63io9KS5MrmOIN3bILQQo7nM2pRPe5WVePL1wqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MDExMzQ4MzZaMC8GCSqGSIb3DQEJBDEiBCAT12T2iUQ7AQKg7Wpd
-# aqIods/+3IxwoD9hbavn2RaSGDANBgkqhkiG9w0BAQEFAASCAgCRnFz+rD9pgtH7
-# Wn9gmtHSG6OVs2sHzpetPAury4vrlOJ9nGgdQHRsKHaDPeKvWXHXqzX72sDbVPR0
-# uw7k/rPC2jVDNaZJcnyAdSuzpRwkQKSqfn86sQe1pGPVGMk5QHu95kZFyGZlsjTc
-# SUqO+iQqMFCaUDBnJWSGwY4JDi1kLHsjtrh1PpozvpXLXkp/x07mz0ZLfa8EU3l+
-# L8uCs1o2m5QWPRSZ6pkM0ivW//XqWDkTfqxHl9++JBJ3jqXMZukSI8y6P5JucEJV
-# vWx3eBUZSkFhD7mKTvaMW0rDdVWlQXRJvgQp7Xv/NBcrAVsILSI/WtESBKqBXPB/
-# OLsf5eDCoD/xSL0KhupWlo8hUy/OmU9wH2Ue9usv25ZxpFDhKA3zxDZie4Iiu9jz
-# ll+sCe+ky8JhJx/Edl/8gKZzEUqIWnmOgfsfHwKv5kkKIqcm08ArGWtnJizMIe2b
-# SJ03joUQxtDOJqK8tmDtdwFXT+fOsmxqX+/RuZYUBKlUE4/CtYr8Wgd+zlyA6khW
-# wAdtUr81an7YyCZtRqJCaKiQ2usqHlezln7qhSUvS1pBXqhLVepPfD8RcBWXyCM+
-# 0fYuIwATOvEq8DWz71JMlBSI2MiqNlAMxDi/MB2S040PkAcucMKnywXVPMxB2/nZ
-# 5cqMn6NuHm1gljA2ZJ5p7OybK40jmg==
+# BTEPFw0yNjA3MDExNDIwMzVaMC8GCSqGSIb3DQEJBDEiBCCfnt7jQTTHQQXIkiV9
+# aLpmt+yjuGq8cEAV8ev3w+RdZjANBgkqhkiG9w0BAQEFAASCAgDLglxx5v7z9s3Q
+# 1Qrmq3O+DQ8L6LPgCSFL1Knsv3sDdo5sP8+/VMu4x1/Sqbff1+gSPEC+H+/DLdlP
+# AcqyjK/mHpFVuCW0TY/O3IG1u/+oNf3v3cSR2TAUV7jImfCpGxMuhkrru2MvnimY
+# CpbextfiKlS7lKrn2e76y/ol1rmzKwJhlQrh3BFuLxfWJOWlVUanMmYHP1lh6Xqk
+# S8Ib/qZEX8r+ZR9UZ+5lyd+b/UGopMDRlky1z2qGxX0KoLwfnxg14PsR53icAQl2
+# +/BEP7LIlqDQ7G4fCNjXeKRnldTwFMkXv3j55G8sURmeBpWr7Yvmyme70Yi/9syW
+# g09e2XT5gl5mSCByrd9UUmz7eC5OkEvQNAwe0FkcSUFhpFku+33xRrIYqLOHhiQP
+# 44uknK6MaV9dO83ng1rAKfdl1+CEbogckchuwh07hxQhlgv4nVN+MBkQ8UZukE5g
+# t09yJcN15J+VntRscV06JXCNaiJ7D9WTIneEj5iPemEYg6VLKWrwyrPkkM/BE0fK
+# nMtu+dmk2ciwWOGNJnh8JF+TG5WLQ1PmtK1rhPG+yTqhkoxgFb2mBNcUkrPPaPJn
+# daOi7BMtPHGCEcfsyrp4MguwosqLkYAmGgsxvqN5Sf7fTV04a8AEiSb+minYCTPw
+# woX1LRVh0hCZzvkYz5UfAjrBrsh9Jg==
 # SIG # End signature block
