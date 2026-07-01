@@ -1,5 +1,17 @@
-"Please look at the function C:\repos\TechToolbox\Public\Get\Get-AllUsers.ps1.
-Create a markdown file to the folder C:\repos\TechToolbox-Docs, and name the
-file Get-AllUsers.md. The file should follow the same format as other help
-documents in this directory. Write your output to the new file. This file will
-be used as -Online help for the Get-AllUsers.ps1 script."
+Please read the function at:
+C:\repos\TechToolbox\Public\System\Watch-ISPConnection.ps1
+
+Generate a complete Watch-ISPConnection.md help document following
+Get-Help -Online best practices.
+
+You MUST write the final markdown to this exact file path:
+C:\repos\TechToolbox-Docs\Watch-ISPConnection.md
+
+Important requirements:
+- You MUST call the WRITE-FILE tool.
+- The WRITE-FILE toolArgs MUST include:
+    "path": "C:\\repos\\TechToolbox-Docs\\Watch-ISPConnection.md"
+    "content": "<escaped markdown>"
+- All newlines in the content MUST be escaped as \n inside JSON.
+- Do NOT return finalAnswer until WRITE-FILE succeeds.
+- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.

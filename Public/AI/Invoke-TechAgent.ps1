@@ -21,6 +21,10 @@ function Invoke-TechAgent {
     .PARAMETER MaxIterations
         Maximum number of tool/reasoning iterations before the agent concludes.
 
+    .PARAMETER PromptHistoryItems
+        Number of recent memory history entries to inject into prompt context.
+        Set to 0 to disable recent history injection for this run.
+
     .PARAMETER Quiet
         Legacy compatibility switch. Agent traces are now suppressed by default.
 
@@ -66,6 +70,10 @@ function Invoke-TechAgent {
         [Parameter()]
         [ValidateRange(1, 500)]
         [int]$MaxIterations = 15,
+
+        [Parameter()]
+        [ValidateRange(0, 20)]
+        [int]$PromptHistoryItems,
 
         [Parameter()]
         [switch]$Quiet,
@@ -534,6 +542,22 @@ Hard requirement:
             $memoryPath = [string]$memoryPathValue
         }
 
+        [int]$resolvedPromptHistoryItems = 2
+        if ($PSBoundParameters.ContainsKey('PromptHistoryItems')) {
+            $resolvedPromptHistoryItems = [int]$PromptHistoryItems
+        }
+        else {
+            $promptHistoryItemsValue = & $getConfigValue $cfg 'promptHistoryItems'
+            if ($null -ne $promptHistoryItemsValue) {
+                [int]$parsedPromptHistoryItems = 0
+                if ([int]::TryParse([string]$promptHistoryItemsValue, [ref]$parsedPromptHistoryItems)) {
+                    $resolvedPromptHistoryItems = $parsedPromptHistoryItems
+                }
+            }
+        }
+
+        $resolvedPromptHistoryItems = [Math]::Max(0, [Math]::Min(20, $resolvedPromptHistoryItems))
+
         if (-not [string]::IsNullOrWhiteSpace($memoryPath)) {
             try {
                 $memoryDirectory = Split-Path -Path $memoryPath -Parent
@@ -577,6 +601,7 @@ Hard requirement:
             Model                = $(if ([string]::IsNullOrWhiteSpace($Model)) { 'llama3' } else { $Model })
             Verbose              = $false
             MaxIterations        = $MaxIterations
+            PromptHistoryItems   = $resolvedPromptHistoryItems
             ConfirmDestructive   = $ConfirmDestructive.IsPresent
             MemoryPath           = $memoryPath
             AutoRetryOnRecursion = $autoRetryOnIterationLimit
@@ -610,7 +635,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [bool]$request.ReturnMetadata,
     [string]$request.SignedFilePolicy,
     [string]$request.DiagnosticTracePath,
-    [string]$request.ExpectedOutputPath)
+    [string]$request.ExpectedOutputPath,
+    [int]$request.PromptHistoryItems)
 [Console]::Write($result)
 '@
 
@@ -762,8 +788,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDK0+leOgJD8Ok2
-# ganZxkThtpUJQOp7KzLpEVrjuhuBEaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCbP5UX3SR9Pjc9
+# oVPAvcYLntFqgoHseLazoBJhG4QuyqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -896,34 +922,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC4oNG4apX5
-# vx84Yw/ELVrnRXr4gqRQWRY6foArysBamDANBgkqhkiG9w0BAQEFAASCAgBGvcT/
-# /YmKb+/HsuillYUrU8ZfxDOuOWPV3lJBmY5N+XNLhortYZ0e0a4uA4rWZIIBInjP
-# zLnSEsCosQY+07s9OBJf3P/p3LfgkFKtzjtuahviBMCPQKCQCeZjiQVqpjLB8lwh
-# 316Hz2RERKLsIcAE0QKrpo5hx3IyIa/iIj8DVp5qmw5giZHmeSZxfxLkOHo1yJzk
-# UcS+UF/tF10KMVWyka91HGl5FaV94scrfe/GwPJU6c60dYUAKflqLyCDthLnDxnx
-# 1As2kC9azFkPEg/DlxB1s6HIEqfcxrfvwrBfxAmY9xlaQTZdl9V3KkEuY+fKSCK7
-# g7FpDvtCBT2BJzR44mfuns+vCAZpASoG5BqjEfkyhbjkVq9rizEJ4LwmeIl7wcg4
-# aUlbcMXxe+Y32/DV3O8HsrnyCufKAKVmWG8mVtPbGp3o+GghpQlut4BPkFfxrqOI
-# xajnzNiZmW839CbbSarae59BM1EBwE/hQwVCV/QrtS/cC4cRkia5ye/gFRZ//5sH
-# WWqYzotCGjdfJAgrF42HKKIdNhODpJwFw2AYm59mbHgnvFgD7M9RzEsh/zRPRmbI
-# AZLoeIFUJNJhsB78dvRcylO3uIxKsh6mvbP2aS5ZigPsed3KmhH45PPVY3aXPQEK
-# NEWF1pRZ4G4Q8bc9IO0fHkBihx0Cy/UGDGTW56GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCZEXoep2mo
+# RLNM6WJRhWa54pFBkVs+5NlqG2wl2PX7NzANBgkqhkiG9w0BAQEFAASCAgADUQ9X
+# 5YCpqzH9V98dCRmOh0WEDP/14YzWO/wtPQ8Wn2tpM2QICbOao3q6toA88QiRPm0j
+# q11We4iGPPzm51sP/dZm+6lXwZZW10wkvRfq9iJLgvh+YnJDESxmrU/MoRmqxe9r
+# PlZnIVYYLQ9J1zMZfFKyeeNUlI/naKQ5/j8EKJ/OgJ1dIOvqEBsAnesDwKPpFmfm
+# xAwV3i7oRHgq8dK4nJo57Hg6ve5dju7XKQEObEALOAHD55t3RjX17xTH0zLmk2lk
+# qe1u9HPtJBhkESeMoyp28+Deq99bHe9kd7j7VMP4sj5U8U8axf/1F7kFh6/MycTe
+# nHlA+l6sX2fpE+fin3CXdS4K9BT8+AqD9xGh0mi4xWvbWTNKKCGDS+ZLfugcbE2m
+# lVezygPF20EqhwyPQkvkOxblz7BSSILrjl+ivjec1xrgHUeSReUlhfJQwnJrVPh5
+# UrNWUUFhGSSXtdOIHM/8m1RQreSJD4d9pCGgwtD46tKq/MwaTIxf/+ldIF3++w+j
+# tZTdJc+8j9gLbGO5Q5iKXIsl1T5JiKdnfOFeUWTyUPySPHgWX7ZhB2S9aNLLQTJ9
+# yhdNs/JaKVoGK9hyE3Nquzx64MHrA/m3qR6t+xCzRVIfCEGfQBivANTS/nLVBTya
+# ikMtd94edwauhuUfM9e3mxZdbG7gXekTIIt1IaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MzAyMzUzMDZaMC8GCSqGSIb3DQEJBDEiBCBM6XdCF/2lT31rwLis
-# 8lMNty+0+iFoIJMxcKb7lEvaSTANBgkqhkiG9w0BAQEFAASCAgC0a2h4+1FDyWeu
-# CNV1v3EBj7kJh0fYlqdSBOy5WfBABakKx0L9CbKOKvlSd4J7i/BE1Ph17Qp36CtR
-# sKT6eTbgIOEdxPG44KmOEOBsiTPen/v2BKsc4Unt2sy4kSE9PfS5SvgIXLYSGkT8
-# u0fCXmLVxEEYUCKI8rpIh32aEn7+FQz58PIN1tJBMSeP1Q+TdSVr32EKN7aYf2G5
-# Xx30F5hUD5hEKirtcmG37UlU2jymcqALOOAWadTlNfOTSKH3hOFLjTpOBQ4GWdMU
-# 4ucit689dQFLSjtAkb56TccjD38R7FNHbB520ylJMq83jBQnVOXG6jpyMBUisPMI
-# I6LUcuVntBxftv7uW4CJyHI6PSi2Zfy2xLoPspBDn12vB7p0thqLN8Iyd9DDlOST
-# weGnHeAXfHYx+1+DWEXzRXsg7Yci++DN4ftF73oMW2Z+g9fecxS+26hUp2nZBTPM
-# ZARUhiyhGgbJ3JIhMaPx19lac+EJJjYxwEJR7adB4EEi2hSJKvOKyg8jzeaulT6a
-# pq8M8W3oVa1baGEsBO75fb/1wrLhmNYJwXCWD1DvtROElJi4sC70dqtUoFEnYWr1
-# XoRUGHSoj2X1a2x0+X+t56HSPN03lQZRuSLYaiz3JagOsTsCc2jAbEEpZKmHCnHz
-# 14TJ44gOI+FPXuLgX4n0Goh71WbXgg==
+# BTEPFw0yNjA3MDEwMDQ1NDlaMC8GCSqGSIb3DQEJBDEiBCAc80JRW+6dk6aoKjT+
+# fEa0ki2RqrShbz+4Pf37sp4qaDANBgkqhkiG9w0BAQEFAASCAgATNnNVNvjg56v9
+# cNsA/fmP2xMNMRIryj5+/cTcmcFAg7ATP07Cto2XUjiQx8OnWVoqEukMSa9pLjTT
+# BeskTLYgp/CVTaiBk8LcpIOYAHqPGFC5phoOBwJxhzoL3Ut0Tsku5aydwOMQ6aGD
+# 8i8V5e7Q2He2ja7ePHhQtLBrUfzEly8ilETvQYi2xYw6MJqKOIOMPUlDR8HAGzkE
+# U6ZSa/3TDMdxGsbEgX5HsveWKGWyivr0k5Kz4OQf4ryxL+0V4VvNNlmRcgQjZGok
+# DMSc32vL7I8r1DX70TMXopVIjZMdENAjH8zMZinCEQ6qom3236YFeH2vu4FNXrgj
+# IZsIUUW5RsrEHnq4Mg3ZWicNYjMwLaTHgXW4L7sbKi45s8WGZNkRFUtzRruYvAiZ
+# 2UGJuhEOUOefAy23TAuk2TGHoAruF/FQbu6VjbckW1Eb4tPJ8yzxnwv4e292aQKT
+# rzWCtE4IbX8hiy/wKpIWDw0s46dkXIjiAB+6+E3s30QDzOaajj1TXF4mFPP5qnah
+# gedUmjGL8OwL5QC/LPVXYgBHCCOmQMcOjMdG9B5E6n1xYTX9iPonSpZNr6UWh6B5
+# zJMRlsCy/gqdjjCvBWfYmpiyjQczKqJjDa21Y2hzimLN9e69kBlccrsDJNfSKIwn
+# G5un5rmtD4xKUdNtIDICL7qCXCRDrg==
 # SIG # End signature block
