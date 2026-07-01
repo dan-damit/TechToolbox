@@ -10,12 +10,20 @@ function Invoke-TechAgent {
     .PARAMETER Prompt
         The natural-language instruction for the agent.
 
+    .PARAMETER PromptFile
+        Optional path to a prompt text file. If omitted and -Prompt is empty,
+        Invoke-TechAgent attempts to load a default prompt file.
+
     .PARAMETER Model
         Optional Ollama model name (for example: llama3, mistral,
         qwen2.5-coder).
 
     .PARAMETER MaxIterations
         Maximum number of tool/reasoning iterations before the agent concludes.
+
+    .PARAMETER PromptHistoryItems
+        Number of recent memory history entries to inject into prompt context.
+        Set to 0 to disable recent history injection for this run.
 
     .PARAMETER Quiet
         Legacy compatibility switch. Agent traces are now suppressed by default.
@@ -41,13 +49,19 @@ function Invoke-TechAgent {
 
     .EXAMPLE
         Invoke-TechAgent "Run system diagnostics and summarize findings."
+
+    .LINK
+        https://dan-damit.github.io/TechToolbox-Docs/Invoke-TechAgent
     #>
 
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
+        [Parameter(Position = 0)]
         [ValidateNotNullOrEmpty()]
         [string]$Prompt,
+
+        [Parameter()]
+        [string]$PromptFile,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -56,6 +70,10 @@ function Invoke-TechAgent {
         [Parameter()]
         [ValidateRange(1, 500)]
         [int]$MaxIterations = 15,
+
+        [Parameter()]
+        [ValidateRange(0, 20)]
+        [int]$PromptHistoryItems,
 
         [Parameter()]
         [switch]$Quiet,
@@ -89,6 +107,67 @@ function Invoke-TechAgent {
     if ([string]::IsNullOrWhiteSpace($Model) -and $cfg -and -not [string]::IsNullOrWhiteSpace($cfg.model)) {
         $Model = $cfg.model
     }
+
+    $moduleRoot = Get-ModuleRoot
+    $promptSourceLabel = 'inline -Prompt'
+
+    if (-not [string]::IsNullOrWhiteSpace($Prompt) -and -not [string]::IsNullOrWhiteSpace($PromptFile)) {
+        throw 'Invoke-TechAgent: Specify only one prompt source: -Prompt or -PromptFile.'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($PromptFile)) {
+        $resolvedPromptPath = if ([System.IO.Path]::IsPathRooted($PromptFile)) {
+            $PromptFile
+        }
+        else {
+            Join-Path $moduleRoot $PromptFile
+        }
+
+        if (-not (Test-Path -LiteralPath $resolvedPromptPath -PathType Leaf)) {
+            throw "Invoke-TechAgent: Prompt file not found: $resolvedPromptPath"
+        }
+
+        $Prompt = Get-Content -LiteralPath $resolvedPromptPath -Raw
+        if ([string]::IsNullOrWhiteSpace($Prompt)) {
+            throw "Invoke-TechAgent: Prompt file is empty: $resolvedPromptPath"
+        }
+
+        $promptSourceLabel = "-PromptFile ($resolvedPromptPath)"
+    }
+    elseif ([string]::IsNullOrWhiteSpace($Prompt)) {
+        $defaultPromptFile = $null
+        if ($cfg -and $cfg.defaultPromptFile -and -not [string]::IsNullOrWhiteSpace([string]$cfg.defaultPromptFile)) {
+            $defaultPromptFile = [string]$cfg.defaultPromptFile
+        }
+
+        if ([string]::IsNullOrWhiteSpace($defaultPromptFile)) {
+            $defaultPromptFile = 'AI\prompt.txt'
+        }
+
+        $resolvedDefaultPromptPath = if ([System.IO.Path]::IsPathRooted($defaultPromptFile)) {
+            $defaultPromptFile
+        }
+        else {
+            Join-Path $moduleRoot $defaultPromptFile
+        }
+
+        if (-not (Test-Path -LiteralPath $resolvedDefaultPromptPath -PathType Leaf)) {
+            throw (
+                'Invoke-TechAgent: No prompt text supplied and default prompt file was not found: {0}. ' +
+                'Provide -Prompt, provide -PromptFile, or create the default prompt file.' -f $resolvedDefaultPromptPath
+            )
+        }
+
+        $Prompt = Get-Content -LiteralPath $resolvedDefaultPromptPath -Raw
+        if ([string]::IsNullOrWhiteSpace($Prompt)) {
+            throw "Invoke-TechAgent: Default prompt file is empty: $resolvedDefaultPromptPath"
+        }
+
+        $promptSourceLabel = "default prompt file ($resolvedDefaultPromptPath)"
+    }
+
+    Write-Host ("Invoke-TechAgent prompt source: {0}" -f $promptSourceLabel)
+    Write-Log -Level Info -Message ("Invoke-TechAgent prompt source resolved from: {0}" -f $promptSourceLabel)
 
     $waitTimeoutSeconds = [Math]::Max(300, ($MaxIterations * 180))
     $waitPollSeconds = 15
@@ -463,6 +542,22 @@ Hard requirement:
             $memoryPath = [string]$memoryPathValue
         }
 
+        [int]$resolvedPromptHistoryItems = 2
+        if ($PSBoundParameters.ContainsKey('PromptHistoryItems')) {
+            $resolvedPromptHistoryItems = [int]$PromptHistoryItems
+        }
+        else {
+            $promptHistoryItemsValue = & $getConfigValue $cfg 'promptHistoryItems'
+            if ($null -ne $promptHistoryItemsValue) {
+                [int]$parsedPromptHistoryItems = 0
+                if ([int]::TryParse([string]$promptHistoryItemsValue, [ref]$parsedPromptHistoryItems)) {
+                    $resolvedPromptHistoryItems = $parsedPromptHistoryItems
+                }
+            }
+        }
+
+        $resolvedPromptHistoryItems = [Math]::Max(0, [Math]::Min(20, $resolvedPromptHistoryItems))
+
         if (-not [string]::IsNullOrWhiteSpace($memoryPath)) {
             try {
                 $memoryDirectory = Split-Path -Path $memoryPath -Parent
@@ -506,6 +601,7 @@ Hard requirement:
             Model                = $(if ([string]::IsNullOrWhiteSpace($Model)) { 'llama3' } else { $Model })
             Verbose              = $false
             MaxIterations        = $MaxIterations
+            PromptHistoryItems   = $resolvedPromptHistoryItems
             ConfirmDestructive   = $ConfirmDestructive.IsPresent
             MemoryPath           = $memoryPath
             AutoRetryOnRecursion = $autoRetryOnIterationLimit
@@ -539,7 +635,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [bool]$request.ReturnMetadata,
     [string]$request.SignedFilePolicy,
     [string]$request.DiagnosticTracePath,
-    [string]$request.ExpectedOutputPath)
+    [string]$request.ExpectedOutputPath,
+    [int]$request.PromptHistoryItems)
 [Console]::Write($result)
 '@
 
@@ -691,8 +788,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCjwird7mjq3hlD
-# g9Hl3T3oMfoH4Pt8oyFlGFj+1zo65qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCbP5UX3SR9Pjc9
+# oVPAvcYLntFqgoHseLazoBJhG4QuyqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -825,34 +922,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCASto3ZrUT4
-# +wK9RECZwK4NpZZyCWAe2wUNKv8pXj4eaTANBgkqhkiG9w0BAQEFAASCAgAwbrXn
-# iinQ8fDhJ+XAVdbDmgdmUKK11IcN5tnYBCtCG8y+UAhtKs8gAJCoNvxWlRMs2KZz
-# NtnV5LZV7GlW++rTG6FPm9v6NwhV/h5IHRju5I504/DOkUtIHJfKE/2RRPjzKrL1
-# fv9yjWhCGDVStM5oKvVNMdaM9hD35Cr+jhVKS+PYcQLApM0+ce89d5pLreMDcDsA
-# p5Ius2G2B7sqmJlIgUKX9bt2C6+mNRBSl9SHK4fjbHuxEaZIZHru21yNKM1m7aDC
-# RRVBoMQylTtG6u6ZE2bfrdy/bzPhQZ1TeJQC9AULbj7j1b+DS2ZyJYhyBnLXIU+z
-# sqau4onseycdirryMWzmPnhB/eyhsgd8v8Zz4k2/yYSXZjalI87nC3CjD32jrMqO
-# 0OhGdB6xfZAs12MeLqGYGpY3okxrE3ne1PZpGtFZlt6U/1ZaasNJ6q4aya1Zacl5
-# oYLP15sapz2wNH61oGgHQGSc3WVPlIfWuOEACLlrqWN5JIYjuGlRI17Um/qOyBwA
-# I+TPmkZ24HicA7qEXarzribM/z11P4tV8opf2MehxSAGVLGsB+kZi0Q4SzsTL4wq
-# nKpPNZPkbgdQjDtyyOhpZMO1Av8k6FFw7BVC2THA0UMiBeo2q2EUoxG2EpesOxow
-# AQuSIqqj2WoA9u9oJhRdtFq4JTuzSTKt9hcDOqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCZEXoep2mo
+# RLNM6WJRhWa54pFBkVs+5NlqG2wl2PX7NzANBgkqhkiG9w0BAQEFAASCAgADUQ9X
+# 5YCpqzH9V98dCRmOh0WEDP/14YzWO/wtPQ8Wn2tpM2QICbOao3q6toA88QiRPm0j
+# q11We4iGPPzm51sP/dZm+6lXwZZW10wkvRfq9iJLgvh+YnJDESxmrU/MoRmqxe9r
+# PlZnIVYYLQ9J1zMZfFKyeeNUlI/naKQ5/j8EKJ/OgJ1dIOvqEBsAnesDwKPpFmfm
+# xAwV3i7oRHgq8dK4nJo57Hg6ve5dju7XKQEObEALOAHD55t3RjX17xTH0zLmk2lk
+# qe1u9HPtJBhkESeMoyp28+Deq99bHe9kd7j7VMP4sj5U8U8axf/1F7kFh6/MycTe
+# nHlA+l6sX2fpE+fin3CXdS4K9BT8+AqD9xGh0mi4xWvbWTNKKCGDS+ZLfugcbE2m
+# lVezygPF20EqhwyPQkvkOxblz7BSSILrjl+ivjec1xrgHUeSReUlhfJQwnJrVPh5
+# UrNWUUFhGSSXtdOIHM/8m1RQreSJD4d9pCGgwtD46tKq/MwaTIxf/+ldIF3++w+j
+# tZTdJc+8j9gLbGO5Q5iKXIsl1T5JiKdnfOFeUWTyUPySPHgWX7ZhB2S9aNLLQTJ9
+# yhdNs/JaKVoGK9hyE3Nquzx64MHrA/m3qR6t+xCzRVIfCEGfQBivANTS/nLVBTya
+# ikMtd94edwauhuUfM9e3mxZdbG7gXekTIIt1IaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MjYwNTAyMjhaMC8GCSqGSIb3DQEJBDEiBCBqnMiloxWeLOYcbXun
-# +MFSJUQKXHjV/bkofQfGByMfWzANBgkqhkiG9w0BAQEFAASCAgBsoeFhVOSF22Pv
-# JQ23Xrcz5ogQQmB+K4yTRqapDu7DQGliCQRWjjO2QLCuU0WitgFdUwvb4vb6KZYZ
-# ZUFFxT8OXU9nWyZOitucFYmY+slT3fJg7lCNatAAApBhIhJOo/XzLU9x8B+1yOxI
-# Y5M7pl4S5IHBhcvaHNk8+rZTMqLr7jZR5NfBC9mQamxEkYNzjzU5y2lEdy9tf+jZ
-# O2YKSAcFF3KtLuTpcxNsS1hZU6sT8LyGBDdNZwGhXfh1ravY7loSUM7Lzlxf4BGd
-# 5JlVt/9T+bxv4rT+flmFZcjIwkcPK8zbGqCml3MwqxpWb/0esKZ6uPkG3da5dRpy
-# VJi9NeaaHqozvo+X4VMJdTll8YNVtk2dCyC12qvpHv45fxXApd4PJEHxeCE81SNF
-# ETvnuYo5IodWscNhPCh2oQX0LMOA8bjUMJUU1iaYqBLrnn5cw8Ryz45vw6U0CwEv
-# z/Ve1IPbfI1NGZfESupAcaQS71dZfKGBZYlsJAoEjzYWaUI/2t2Pu7Dm6uFpgGgM
-# Vqxk48gFaR1uhcceq89tz3c8yoe4fGOdfG6IAP304MmkTBqxjd/uMtvE8HWiqnOd
-# lVVg/MwU53NMG/HUmBbPtofzXH9/4v4EtJrWiWBP9Ya+/pf9EfTajSYU6dAubSm9
-# wW0er5OcP7oZs9G7UxAWpxD5cKeqJw==
+# BTEPFw0yNjA3MDEwMDQ1NDlaMC8GCSqGSIb3DQEJBDEiBCAc80JRW+6dk6aoKjT+
+# fEa0ki2RqrShbz+4Pf37sp4qaDANBgkqhkiG9w0BAQEFAASCAgATNnNVNvjg56v9
+# cNsA/fmP2xMNMRIryj5+/cTcmcFAg7ATP07Cto2XUjiQx8OnWVoqEukMSa9pLjTT
+# BeskTLYgp/CVTaiBk8LcpIOYAHqPGFC5phoOBwJxhzoL3Ut0Tsku5aydwOMQ6aGD
+# 8i8V5e7Q2He2ja7ePHhQtLBrUfzEly8ilETvQYi2xYw6MJqKOIOMPUlDR8HAGzkE
+# U6ZSa/3TDMdxGsbEgX5HsveWKGWyivr0k5Kz4OQf4ryxL+0V4VvNNlmRcgQjZGok
+# DMSc32vL7I8r1DX70TMXopVIjZMdENAjH8zMZinCEQ6qom3236YFeH2vu4FNXrgj
+# IZsIUUW5RsrEHnq4Mg3ZWicNYjMwLaTHgXW4L7sbKi45s8WGZNkRFUtzRruYvAiZ
+# 2UGJuhEOUOefAy23TAuk2TGHoAruF/FQbu6VjbckW1Eb4tPJ8yzxnwv4e292aQKT
+# rzWCtE4IbX8hiy/wKpIWDw0s46dkXIjiAB+6+E3s30QDzOaajj1TXF4mFPP5qnah
+# gedUmjGL8OwL5QC/LPVXYgBHCCOmQMcOjMdG9B5E6n1xYTX9iPonSpZNr6UWh6B5
+# zJMRlsCy/gqdjjCvBWfYmpiyjQczKqJjDa21Y2hzimLN9e69kBlccrsDJNfSKIwn
+# G5un5rmtD4xKUdNtIDICL7qCXCRDrg==
 # SIG # End signature block

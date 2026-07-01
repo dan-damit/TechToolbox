@@ -32,6 +32,9 @@ function Install-TechAgentRuntime {
 
     .EXAMPLE
         Install-TechAgentRuntime -PullModel -Model "qwen3.6:35b"
+
+    .LINK
+        https://dan-damit.github.io/TechToolbox-Docs/Install-TechAgentRuntime
     #>
 
     [CmdletBinding(SupportsShouldProcess)]
@@ -137,13 +140,13 @@ function Install-TechAgentRuntime {
     }
 
     $result = [PSCustomObject]@{
-        OllamaExecutable            = [string]$ollamaCommand.Source
-        Model                       = $Model
-        ModelPulled                 = [bool]$PullModel.IsPresent
-        ModelAvailable              = $modelAvailable
-        AvailableModels             = @($availableModels)
-        IgnoredCompatibilityParams  = @($ignoredCompatibilityParameters)
-        Success                     = $true
+        OllamaExecutable           = [string]$ollamaCommand.Source
+        Model                      = $Model
+        ModelPulled                = [bool]$PullModel.IsPresent
+        ModelAvailable             = $modelAvailable
+        AvailableModels            = @($availableModels)
+        IgnoredCompatibilityParams = @($ignoredCompatibilityParameters)
+        Success                    = $true
     }
 
     Write-Log -Level Info -Message ("Tech agent runtime is ready. Ollama={0}, Model={1}, Available={2}" -f $result.OllamaExecutable, $result.Model, $result.ModelAvailable)
@@ -153,8 +156,8 @@ function Install-TechAgentRuntime {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA/jWLPij8TedmI
-# EvekRAf05AznY1e7ZvBvuHBW1QINk6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAARelPTfoq5Hty
+# h0l8P/zCT/2EJMov08s5iPHFYIGSvKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -287,34 +290,34 @@ function Install-TechAgentRuntime {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBjaCYLo8Vk
-# fXMc2OJc5X3e2bWwpJb9Nz+AFTQ/WLBH0DANBgkqhkiG9w0BAQEFAASCAgCAJ+8A
-# 5KuWAw+SDbjXHwbG/HTDVlmt21ZkiJ2xr/ObK3VdVztkpElRKvBalmxAQGrv8oDO
-# 4ZTEfXIC/8GhblR/pVivqJ4hHTKNmhqGLAB1mazC0WCQs+VsB8ic7tJAtn5w3Yd/
-# v666aIeVyGsjBz3HfHjcLMmUOnbNCZo32qqFNfa9JfvPDBCVXv3YmCDmiVlcQae2
-# zxD9G4lT4QVtmQtVLYjtbVKnRcOgPRgX/ckTNPA05npd6EWFvbcCB0Fk8RXtZZWi
-# LFvtPeRUDtEBLZ4QLEGRuWhV3WfjEvNanEtoCldIKwFYSOM4lAkRqmg+WG+ash9z
-# 0dhHkb7eKN5JjWzlgf0oaqIYo6qRbepvX7x60Q8wJ5ehH8P2OBXO+lNMy9NeO1hT
-# eA755eYEgd2zo2OQ6lsSZ+6RONclO0WKnGMGuyA/xYEF+d3UzTNrAbmR75f283Eu
-# kv8TalXEjoT2vPSPGtPz7TDgtxzdgOpX/3/cqSzZKiHQHxonZda8b6NpdLqRXOzs
-# b940vK/aCCyYKtSJr51GXdd9UPIhRaYv4a51A/w4rPz/c7N34UaLw3xLEiNRTo3j
-# TpcL21NKprJQLF2pwwuwIr4+IB5Add8WG28xh/67OxH59Nk84YINCSR5cw1iKCbb
-# KHnBEoCTYOR8rGAuW3j+mepi7MtWCtCRkYGk2qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBuuuuCX5XE
+# DNr+sLzOJ7RrkOGYqCLHrw5Bg2ZjXS8JDTANBgkqhkiG9w0BAQEFAASCAgCxqW+4
+# Nk5eaziJNF9UK4OabA8+yciTlU8u5C8/iu1+Ev4+TeVqoRQERkIlCrAJICHxUq7S
+# 0hNtP7KRyW89HGRNM4t5ludHUXQhpCYy80y5Nf89PYeqg22PGbG8upjxhzsW1PHf
+# ZsSdZV8sPjabxGUEuL5ZrhbFL4O6HiFATAYoId0sEQhwgFtqA/P1GmKOOaIJY0VC
+# n6bZoDhBsik+Ada6jH92tTM/zWM66lRcvPcuTXAX8pffWnf+fmJwcGkgk5V9ddXJ
+# ZjD7iF1+CZF3xj0boo7VEKPzmaaOM3/oGhKq5+tetchdU9V5l41qga6J+IpRs0Sp
+# mktW1ZG45YA10jX0ANqFBpJqoYg6aIKQRhiNaJ5bzyFiSL1P3nd0D39J16Tn8sPm
+# HFpGeq4sBKyf8A49knMj75EyXVHGJ2XdbIru/3/lKyuDMp0ix4aPRNyDKmS1l7Tm
+# yHhpPtj2gORb1VDUZe66blnFZDLLn9gqbUyo5znPsa4CWUKpeV6AbHEmhHkFM8J2
+# suH9EzUdyFsTkttVepC2gi8r7HfRKh1WJcaKpvtmV/yI7Qz2ULJrMw4Jzj3vlAiw
+# vSc0OeBb8JHdp10Db0qr6hkVZId5QicH+HU23Pks8sDPMwXT4QB/urrQX29cPifQ
+# rAfUzUoHXDejHE4iHkszQWKReutM5Arc7+i8q6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MjAwNDAwNTZaMC8GCSqGSIb3DQEJBDEiBCAwgbLc99dItNV5fFmD
-# JhPRvxLDopubmUq+txugpsXAQDANBgkqhkiG9w0BAQEFAASCAgA6q/GXvPIUttF9
-# BoQ17tJN88CeOD3M6DRph07F4vpZ2ajiRhJrOphkLwAXURyukceABD4GzszwsJcU
-# wtiTqS+TCRIPRBW+aqzHzC9+EtECeQNBJDmsPCU8HMatsjWVzDZuXnWxWRi5A0fh
-# 3ljHqk9i9Q8XzIPP3OtYtKK+aDvHRKT/IgvtlrAKBYF6eRnZw1iuRrkNmE07E95x
-# ArT5E5w94arMoT5awlAQ/u/hOaPsLUBWnTNfk9BMXGvPPtlN0FBImUn6Smn0EmGO
-# bFAY82elJs/m2UojxEmDmQwRtQ/JtRioptCLf7lzITn1CFBidAYXtGR98ToV2grn
-# itMBKr01SBVS/jcbMjrHIBpXsW4mG/R9FqvUSo3evWy1OSwMFHjdDF3gZUPAPNDZ
-# lgJ8h5jbOPevxOg3hy5kDoBFc/uUoaw1UIiGdAu7HYbHiYYB0hh/imPRKDCxCpY3
-# 15bYk/T1D0s4kglkRDgPlPImtAEPDyaDMvT3s7NQhBW8J7aCbw8rGbNQ7eFNUOOm
-# xm60RAX7bS8doF+SOq6jQ8MUplKmi+Yoe9pjWZtMizDKoEIb4KwJ/cLZiyYMuXXB
-# xf6jvYsr3pOXA3g+jXHu8vd36fHJge4Q74KRoewdEsqo7Pj0KG2f3gM4lkzh4sgu
-# FYZaYe50fnqyhn2225YMeUNCuDZ0Cw==
+# BTEPFw0yNjA2MzAyMzA3MDFaMC8GCSqGSIb3DQEJBDEiBCDECWa751AsCA2rE8PQ
+# Y4lonlTR1b07EnMOo1s0x4IQiDANBgkqhkiG9w0BAQEFAASCAgAkMbHBIYmBuUV2
+# 8UJMlRJjhCJG0JoGLka9cqeyJS8dKsl7h1rSGJVxYgh5G5TlAMRFv8t1gDxQhP4i
+# RATvG9GP4p314oYmC1w1S7rLHlwHCyJwh9bACfnTOrBLghO8VQh+mzyP7N6MY9wg
+# 4XcsYUhNa6agt+D36PGRBlBSlgE67mqatX+CKB+4RROMHFAJwEVXfE8c1kAUxB0l
+# a3iosHf4lojgkVtt/EgTOdRT049o9Mz34p1hXYVTmGBCwKA/dtj3XGeh3ELbnHsl
+# WnPKtYsKIRkAktVwWi11rG6I5yc6qeaenztQe7UtR+3+hO7pJBMaFUH7aTdLRnYk
+# HIbqqxaL4uomBwJRL67YlgCZepfnXbtKE5w/jgNmEQaF6qZMlBEZaTari5Bp9GCd
+# +15mgFpHSt2798+h01KjDly6670X0qoEBSIwoZ3cqsc3vlklJav803sOAGcZ9Fk7
+# PT5xJsm63dGL60EggEbHnEvj7drd0c2SGK2Lx2sVBN48ciTje/97bMO1oFfimMzv
+# FtrKsYXT4v28LMCg/e3tF9GrsA46i22bwCKMvAf4AEofPrbVClxXkSOSe2185RrB
+# 9+KwcuUEUqJ5v6MfXaiyfK2dJFEJr2O5Uyu6T420wzZ/UB6vD122tQWF3gBw52X4
+# aRCmoLk4N8LYk+BxMQuospl6sY7wxA==
 # SIG # End signature block
