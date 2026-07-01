@@ -3,33 +3,35 @@ function Watch-ISPConnection {
     .SYNOPSIS
       Monitors connectivity to a host (IP, DNS name, or URL) and logs structured
       results.
-    
+
     .DESCRIPTION
       Starts a background monitoring job that pings the formatted target at the
       specified interval and writes CSV rows to a per-session log file. Provides
       Start/Stop/Status.
-    
+
     .PARAMETER Target
       IP, DNS name, or URL (e.g., https://example.com). URLs will be formatted to
       host.
-    
+
     .PARAMETER IntervalSeconds
       Seconds between samples. Minimum 1. Default 10.
-    
+
     .PARAMETER SessionName
       Optional name; if omitted, a random one is generated.
-    
+
     .PARAMETER TimeoutSeconds
       Timeout for each ping attempt. Default 3.
-    
+
     .PARAMETER Start
       Start a new monitoring session.
-    
+
     .PARAMETER Stop
       Stop a running session by name.
-    
+
     .PARAMETER Status
       Show status of all sessions (jobs, start time, last heartbeat, etc.).
+    .LINK
+        https://dan-damit.github.io/TechToolbox-Docs/Watch-ISPConnection
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Start')]
@@ -65,7 +67,7 @@ function Watch-ISPConnection {
     begin {
         # Load dependencies
         Initialize-TechToolboxRuntime
-        
+
         # SAFE StrictMode-friendly init
         $existing = Get-Variable -Name ISPWatchSessions -Scope Script -ErrorAction SilentlyContinue
         if (-not $existing) {
@@ -249,8 +251,8 @@ function Watch-ISPConnection {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBJXjSE5dAXCG2k
-# LCJyguQEpMJ4ZgnszteTqIIpvGjKuqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBlYNCES/u2MQAz
+# TV8HmxcTEviFFz0jEIyPQ2G4lBjwHqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -383,34 +385,34 @@ function Watch-ISPConnection {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB/PP++7jRj
-# Drq2bH0rRy3gpshxX1McVAw3Yw3g+aHuGzANBgkqhkiG9w0BAQEFAASCAgBI4lxx
-# KBYPJeaTOKWVkkshz/jXhZeMdBUe06iDwLCyjV4pqyZW+UElStCxGz8ZB8wWcuU6
-# y0b9LZmA1dAgEqk8u4PWRzIxBAFDjMmWvhLs4krELrQSvCgxvr/S0GZxP3mgX5Hj
-# ZWsm3CugZMhEfaxCd2RcqHZZhkdDR0E/FJL3/MVUls1fvV65WnDYzB6zxmuRimkr
-# 9V3ZafUjMYEQGmQBuoZHVrY7Ohfq3R3e54Mk/EUGyRW9pEEatfQ/QYw6ZlObw4Qm
-# gQm/4Cz+pBLmUc9510mQNbUky2xjiCMqVgu8T/AHrmlzg0J+Gag0gmyXa5msFRNg
-# HkbcFEBTbORPF/V651JTG7wjvERPIi0DsMQjGp8K7NRgGKkPCGtdnXizhH9ICVLF
-# wrbNfLI7+h30lU4IXhIqGfHiuVrzjesu34/NUPE5Z1+KhRHiWlvbcJZ6NBM0MJ3A
-# 250pCkkPDElJokrRpoKveL6O7qLDNDeFulDJX50NU7MLOamQMp8cZAZBmL8mJyed
-# FrHYBSmgzKMqfYhv3T8wm+jiMVk1NzFS1csnP1SMiVJtCDoX3OvjIyx4MU9zgteg
-# EfF3OyzqIEgKF9CCbW7PPrA/H1qZad/Vit9jw4d/tpr+ZeMguoS0me2/Z9gkSfxM
-# W0o3y+b0SHpWqUF9zUNquSswA8uXActnsRT8faGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAAFdiC9u0Z
+# LfLhs/MAKS54NaW6Q8dQ1l1G0RCGqbbgYzANBgkqhkiG9w0BAQEFAASCAgCZ5gsz
+# aKELGzZXTDLRRGJ0IupCIYvjmDxSyBc6GiDHYkDVJ+OrgE0imq9ceTtLPMIrlHyr
+# fYddR0FbVEcEU5k6lNIelStVsNgRnlgkBAYwPAaNV+P/DgoXP4pKUMzahdskFwz+
+# /x/4mei7YASMOg7m1YzCL7bNTj3UAMLN1TA809bHkYUzUtgTgyQC2WdNFxVSlKs1
+# S3LkDI2tx699ShlNhFO8kB07KKRpNM5Ymkw+9qH6cb/6rUL2uPW5erFc9+zfBDtc
+# lp4MUxczoQNL9vuSWdfvpPRv2megt9WbhPZasFXxBPoDpjHtP8wm8kaPIB1r68/T
+# d0/4qosM3YhSFRa1+NI8fa/QPpoS/U82NZPZBTCi0aLTtUAbqg+3Bzfz1YD7aaBL
+# Wfh3sM7gjt7DYrlJpHC6GQzurl3shcWFD0LcMkIN1CEWXVqU3+6jU4qjB/GB5vnw
+# XeyCGunylroOmEPZS78t6yPyV6E0gqjajmnPWhm81idl/8SMS6KDhN3euc9taJkD
+# sXa7pB37ILHcHPkKgTtgEeTzsQVWyIuBEeaiRN1+TZmHfW4udwCpVru3Kyg1HXK4
+# OyTJJGFlJEi2l3ASlMTlaD/dP0Fn4vDjNUjaZug9Fuv5D9/fuMUuKltgbcRVh8Nb
+# prby12LdOfOfdmglhyqT6eH+5X9y3wF7/KP6qqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMzUxMjJaMC8GCSqGSIb3DQEJBDEiBCA7gYFGKc+iqGs2gVhv
-# /shE7z2Sx2gNDSvKn8aYETgZQTANBgkqhkiG9w0BAQEFAASCAgAf7bElnkpGRHr7
-# lFLid8KfRICB8pdom7+aEHSjdNbWEb7U/DR8cLlACHyO59eo5TLl8G7hNlFChqeH
-# kknBzFk6g7csXTJ9/Lh6AJLQtX1zDtKyqSnDSaZN5GdJeLV0/4QzO7f6T6zCi/dc
-# KfDCUTJmaUisYHuDIl10x41CiXQQSQoBwbytUaShaBCz2sc3oryn9U9RWT1AHC/U
-# T9/jDPOwnVAULgk/ImuCPAQztkQenGCzBE0FDji0uyJQkL2sg++W9WIXcBvEL1jk
-# H0cunYzAB5pmvZUUyEnSqPg1ko8dwYPikhllJEwXqY0cWOIfsVmiVBWdzomu3zfu
-# 921MIzpXyODEu+tUKi0Isr8abYfh81RFmQ9fxR2+hocl5c2mLKU7uKILX4BOt+p1
-# Wz6Q3FXRCOIdXe5W3a0bF97VjaB+7ZXUW0C9gnjSK3wbpoYq/rx+f7le2WJW0wT/
-# 5he7Ut5qKmtP5rtFngMTyqlkCQaO0AgM8gdv4tavKyY0ygLcpLTWE0ej+u+CJEag
-# CmwwA7hMCdRn+BfqgOgxteodulXbgIEXyWwkVqrnIXA8Uh9h8yfLkc+gjUbPU/T0
-# eHKnblTJ/d8U5DbiKPQ6WKwR68jjoDUz//ZBBZjHamiUGhpt2bXxfCdxRhLqcABn
-# wrcTPJeJ+fsZ04N5woheBKqhmuNefQ==
+# BTEPFw0yNjA3MDEwMzE0MDFaMC8GCSqGSIb3DQEJBDEiBCBKQd8gbc9aXZ1KBHBg
+# NaJ+72Bf1wes0tCLaCHvDHQ8zjANBgkqhkiG9w0BAQEFAASCAgCK96TDEKg2bCST
+# ovKlpf/bXZE7H3ge/BO6PITdfWHutFzAwJvJBUyfJzM6EFI+cfqWioWTDW+uxuH7
+# VHyCW1neCTHC//M0viLr/IZPexf8a6CUA36BX/Be+t+X+xthhwLcXyoSHAai9xYB
+# SPscCLBGoP4K7CRCrS5GgEaHm9qmM8Ulr45HY5O/szPuAjSuSpMuHyAWYJRtxcvG
+# Gtgl4+ZGUTaGdD3eVc6yfHnerMVWmahWpYX1rvaj6us01TwUc7503q+6C8UDHMOz
+# phP/kuTkcT1kHbyY8LpT6ZOKjZczl4at3go0MB27uT5xq4RlTdpCK9gn7e56sK/v
+# 3r8eA5vKEM1zdyJzNQhjPKiU6jlQT+k8yRM21FsujWpzq6iURvxvpv5050WBkLXA
+# 1fwaogSOc4e2v3Uy+ekeWmW/sBrdOXUA168xuD1pjAyU0F7+rJtzbXQZ1jyF6o/b
+# 0HkxF1DHUkaCFSNphtJZ5jRIAiVrxnBd3wiINE4uBFnicPZhHJwhefjQsFBuBVIb
+# 3/FizqVNg+i01hn+giB/d7vUSKN5rPe48UX38sEkY66rVA1KPPpxT9InuMO7G2o/
+# hqHj0DjAxh+oLbQwK88uN2D1aC3zHcz3yoK8XoUbaSRqLBukz34Z6ccKJFXUrUx4
+# HG3iDol5+6pIfkAzIN256x8O09akGg==
 # SIG # End signature block

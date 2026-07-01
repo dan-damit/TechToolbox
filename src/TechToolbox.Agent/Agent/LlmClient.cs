@@ -157,13 +157,18 @@ public class LlmClient
 
     private static int GetNumPredict()
     {
-        const int defaultNumPredict = 1024;
+        const int defaultNumPredict = 4096;
         const int minNumPredict = 128;
-        const int maxNumPredict = 8192;
+        const int maxNumPredict = 16384;
 
         var raw = Environment.GetEnvironmentVariable("TT_AGENT_LLM_NUM_PREDICT");
         if (int.TryParse(raw, out var parsed))
+        {
+            // Ollama sentinels: -1 = infinite, -2 = fill context. Pass through unchanged.
+            if (parsed < 0)
+                return parsed;
             return Math.Clamp(parsed, minNumPredict, maxNumPredict);
+        }
 
         return defaultNumPredict;
     }

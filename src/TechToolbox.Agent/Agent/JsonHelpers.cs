@@ -137,8 +137,13 @@ Respond with ONLY the JSON object, no additional text or markdown formatting.
 
         if (!TryExtractJsonStringProperty(text, "content", out var content, out var contentReason))
         {
-            reason = $"content extraction failed: {contentReason}";
-            return false;
+            // Fallback: try to recover content from a truncated (unclosed) JSON string —
+            // this happens when num_predict cuts the model response mid-output.
+            if (!TryExtractTruncatedJsonStringProperty(text, "content", out content, out contentReason))
+            {
+                reason = $"content extraction failed: {contentReason}";
+                return false;
+            }
         }
 
         if (string.IsNullOrWhiteSpace(path))
@@ -194,5 +199,46 @@ Respond with ONLY the JSON object, no additional text or markdown formatting.
             reason = $"{propertyName} decode failed: {ex.Message}";
             return false;
         }
+    }
+
+    /// <summary>
+    /// Attempts to extract a potentially truncated JSON string property value.
+    /// Used as a fallback when the model output was cut off before the closing quote.
+    /// </summary>
+    private static bool TryExtractTruncatedJsonStringProperty(
+        string text,
+        string propertyName,
+        out string value,
+        out string reason
+    )
+    {
+        value = string.Empty;
+        reason = string.Empty;
+
+        // Match everything after the opening quote, even if the string is never closed.
+        var pattern = $"\"(?:{Regex.Escape(propertyName)})\"\\s*:\\s*\"(?<value>.+)";
+        var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        if (!match.Success)
+        {
+            reason = $"{propertyName} truncated property not found";
+            return false;
+        }
+
+        // The captured tail may contain trailing JSON envelope characters — strip them.
+        var raw = match.Groups["value"].Value.TrimEnd();
+
+        // Unescape what we can; errors here just mean we use the raw string.
+        try
+        {
+            // Append a synthetic closing quote so the deserializer can parse it.
+            value = JsonSerializer.Deserialize<string>($"\"{raw}\"") ?? raw;
+        }
+        catch
+        {
+            value = raw;
+        }
+
+        reason = $"{propertyName} recovered from truncated JSON";
+        return !string.IsNullOrWhiteSpace(value);
     }
 }

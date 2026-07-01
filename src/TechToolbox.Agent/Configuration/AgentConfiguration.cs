@@ -58,6 +58,12 @@ public class AgentConfiguration
     public string? MemoryPath { get; set; }
 
     /// <summary>
+    /// Number of recent run-history entries to inject into prompt memory context.
+    /// Set to 0 to disable recent history injection.
+    /// </summary>
+    public int RecentHistoryItemsInPrompt { get; set; } = 2;
+
+    /// <summary>
     /// Whether to return metadata about the agent run along with the output.
     /// </summary>
     public bool ReturnMetadata { get; set; } = false;

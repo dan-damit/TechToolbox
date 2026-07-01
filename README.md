@@ -56,6 +56,9 @@
   - [Environment Variables](#environment-variables)
   - [Configuring Secrets](#configuring-secrets)
   - [Baseline Settings (config.json)](#baseline-settings-configjson)
+- [Invoke-TechAgent Prompt Example](#invoke-techagent-prompt-example)
+  - [Create a prompt text file `prompt.txt`:](#create-a-prompt-text-file-prompttxt)
+  - [Example: Creating an Online Help Markdown File](#example-creating-an-online-help-markdown-file)
 - [Command Reference](#command-reference)
   - [Active Directory \& Identity Management](#active-directory--identity-management)
   - [Exchange Online \& Compliance](#exchange-online--compliance)
@@ -228,6 +231,44 @@ All configuration flows through `Get-TechToolboxConfig`. The effective config is
     }
   }
 }
+```
+
+---
+
+## Invoke-TechAgent Prompt Example
+
+### Create a prompt text file `prompt.txt`:
+- Point the agent function call to this file using `-PromptFile` param.
+- Also, `-Prompt` param can be used for inline prompt text, but for complex prompts, a file is preferred.
+
+### Example: Creating an Online Help Markdown File
+
+The **TechAgent** uses a _structured JSON decision schema_ and will have an
+easier time writing files when the prompt clearly specifies the required
+WRITE-FILE action.
+
+Use a prompt similar to the following for consistent results:
+
+```
+Please read the function at:
+C:\repos\TechToolbox\Public\Get\Get-SystemUptime.ps1
+
+Generate a complete Get-SystemUptime.md help document following
+Get-Help -Online best practices.
+
+You MUST write the final markdown to this exact file path:
+C:\repos\TechToolbox-Docs\Get-SystemUptime.md
+
+Requirements:
+- You MUST call the WRITE-FILE tool.
+- The WRITE-FILE toolArgs MUST include:
+    "path": "C:\\repos\\TechToolbox-Docs\\Get-SystemUptime.md"
+    "content": "<escaped markdown>"
+- All newlines in the content MUST be escaped as \n inside JSON.
+- Do NOT return finalAnswer until WRITE-FILE succeeds.
+
+If the agent outputs markdown in the console instead of using WRITE-FILE,
+consider the task incomplete and retry with the exact prompt above.
 ```
 
 ---
@@ -475,7 +516,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.5.46
+- **Module version:** 0.5.48
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
 

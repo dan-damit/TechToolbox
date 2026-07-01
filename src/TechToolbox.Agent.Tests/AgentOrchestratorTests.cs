@@ -243,13 +243,55 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
-    public async Task RunAsync_UsesTargetedRecoveryTurn_ForUnrecoverableMalformedWriteFileDecision()
+    public async Task RunAsync_SalvagesTruncatedWriteFileContent_WithoutExtraLlmTurn()
     {
+        // Truncated mid-content-value: "content":"unterminated  (no closing quote or braces)
+        // The new TryExtractTruncatedJsonStringProperty fallback should recover this locally.
+        string? capturedContent = null;
+
         var llm = new RecordingFakeLlmClient(
             new[]
             {
                 "not valid json",
                 "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\":\"unterminated",
+                FinalDecision("Done"),
+            }
+        );
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["WRITE-FILE"] = args =>
+            {
+                var doc = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(args);
+                capturedContent = doc?["content"].GetString();
+                return Task.FromResult("ok");
+            },
+        };
+
+        var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 6, autoRetry: false);
+
+        var result = await orchestrator.RunAsync("write help file");
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(1, result.ToolCallCount);
+        Assert.Contains("WRITE-FILE", result.ToolNames);
+        // Salvaged content should be the truncated value (no extra LLM turn needed)
+        Assert.Equal("unterminated", capturedContent);
+    }
+
+    [Fact]
+    public async Task RunAsync_UsesTargetedRecoveryTurn_ForUnrecoverableMalformedWriteFileDecision()
+    {
+        // Truncated BEFORE the opening quote of content value: "content": <no quote>
+        // Both TryExtractJsonStringProperty and TryExtractTruncatedJsonStringProperty fail,
+        // so the targeted recovery turn must fire.
+        var llm = new RecordingFakeLlmClient(
+            new[]
+            {
+                "not valid json",
+                "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\": ",
                 "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\":\"Recovered content\"},\"reason\":\"recover write-file\"}",
                 FinalDecision("Done"),
             }
@@ -742,6 +784,51 @@ public class AgentOrchestratorTests
             );
             Assert.True(File.Exists(memoryPath));
             Assert.True(File.Exists(Path.Combine(tempRoot, "memory.history.json")));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_MarksInvalidJsonTerminalFailureAsErrorInMemoryHistory()
+    {
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "TechToolbox.Agent.Tests",
+            Guid.NewGuid().ToString("N")
+        );
+        Directory.CreateDirectory(tempRoot);
+        var memoryPath = Path.Combine(tempRoot, "memory.json");
+
+        try
+        {
+            var llm = new FakeLlmClient(new[] { "not-json", "still-not-json" });
+            var memory = new MemoryStore(memoryPath);
+            var orchestrator = new AgentOrchestrator(
+                llm,
+                CreateRegistry(Array.Empty<string>()),
+                new Dictionary<string, Func<string, Task<string>>>(
+                    StringComparer.OrdinalIgnoreCase
+                ),
+                memory,
+                model: "test",
+                destructiveConfirmed: false,
+                signedFilePolicy: "ignore",
+                maxIterations: 5,
+                autoRetry: false
+            );
+
+            var result = await orchestrator.RunAsync("test goal");
+
+            Assert.Contains("Agent returned invalid JSON twice.", result.OutputText);
+            Assert.Single(memory.History);
+            Assert.Equal("error", memory.History[0].Status);
+            Assert.Equal("invalid-json", memory.History[0].Outcome);
         }
         finally
         {

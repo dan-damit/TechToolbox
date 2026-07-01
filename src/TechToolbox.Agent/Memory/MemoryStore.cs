@@ -5,7 +5,7 @@ namespace TechToolbox.Agent.Memory;
 
 public class MemoryStore
 {
-    private const int BaseHistoryWindow = 30;
+    private const int BaseHistoryWindow = 20;
     private const int HistoryFileWindow = 250;
     private readonly string _basePath;
     private readonly string _historyPath;

@@ -143,6 +143,7 @@
       "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json",
       "defaultPromptFile": "AI\\prompt.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
+      "promptHistoryItems": 2,
       "transcript": {
         "enabled": true,
         "outputRoot": "%TT_LogsRoot%\\TechAgentTranscripts"
