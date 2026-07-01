@@ -27,14 +27,14 @@
 
 .PARAMETER EmailAlias
     Specifies the SMTP alias to add, remove, or make primary. The value should be a
-    full email address (e.g., 'jane.doe@REDACTED.com').
+    full email address (e.g., 'jane.doe@example.com').
 
     This parameter is mandatory.
 
 .PARAMETER MakePrimary
     If this switch is specified, the function ensures that the EmailAlias becomes the
     *primary* SMTP address for the user. The primary address must be in uppercase format
-    (e.g., 'SMTP:jane.doe@REDACTED.com').
+    (e.g., 'SMTP:jane.doe@example.com').
 
 .PARAMETER Remove
     If this switch is specified, the function removes the specified EmailAlias from the
@@ -62,19 +62,19 @@
 
 .EXAMPLE
     # Add a secondary SMTP alias to a user, prompting for credentials
-    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'john.doe@REDACTED.com'
+    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'john.doe@example.com'
 
 .EXAMPLE
     # Promote an existing secondary alias to primary
-    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'john.doe@REDACTED.com' -MakePrimary
+    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'john.doe@example.com' -MakePrimary
 
 .EXAMPLE
     # Remove a specific SMTP alias from a user
-    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'old.alias@REDACTED.com' -Remove
+    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'old.alias@example.com' -Remove
 
 .EXAMPLE
     # Add an alias only if it is not in use by another object, allowing overwrite
-    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'newalias@REDACTED.com' -FailIfInUse $false
+    Set-EmailAlias -Identity 'jdoe' -EmailAlias 'newalias@example.com' -FailIfInUse $false
 
 .NOTES
     This function is idempotent. If the desired state already matches the current state,
