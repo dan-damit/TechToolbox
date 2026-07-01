@@ -7,6 +7,9 @@ namespace TechToolbox.Agent.Agent;
 
 public static class PromptBuilder
 {
+    private const int DefaultRecentHistoryItems = 2;
+    private const int MaxRecentHistoryItems = 20;
+
     private const string AsciiMarkdownInstruction =
         "Format the final answer as plain Markdown using ASCII characters only. "
         + "Do not use emoji, smart quotes, Unicode bullets, box-drawing characters, or arrow glyphs. "
@@ -24,7 +27,29 @@ public static class PromptBuilder
     {
         // Auto-detect mode from registry
         var mode = AgentModeDetector.DetectMode(registry);
-        return BuildInitialMessages(userPrompt, registry, memory, mode, null);
+        return BuildInitialMessages(
+            userPrompt,
+            registry,
+            memory,
+            mode,
+            null,
+            DefaultRecentHistoryItems
+        );
+    }
+
+    /// <summary>
+    /// Builds initial messages and allows overriding the number of recent history items
+    /// injected into prompt memory context.
+    /// </summary>
+    public static List<AgentChatMessage> BuildInitialMessages(
+        string userPrompt,
+        IReadOnlyDictionary<string, ToolSpec> registry,
+        MemoryStore? memory,
+        int recentHistoryItems
+    )
+    {
+        var mode = AgentModeDetector.DetectMode(registry);
+        return BuildInitialMessages(userPrompt, registry, memory, mode, null, recentHistoryItems);
     }
 
     /// <summary>
@@ -35,7 +60,8 @@ public static class PromptBuilder
         IReadOnlyDictionary<string, ToolSpec> registry,
         MemoryStore? memory,
         AgentMode mode,
-        string? systemPromptOverride = null
+        string? systemPromptOverride = null,
+        int recentHistoryItems = DefaultRecentHistoryItems
     )
     {
         var systemPrompt =
@@ -44,7 +70,7 @@ public static class PromptBuilder
         var messages = new List<AgentChatMessage>
         {
             new() { Role = "system", Content = systemPrompt },
-            new() { Role = "user", Content = BuildGoalPrompt(userPrompt, memory) },
+            new() { Role = "user", Content = BuildGoalPrompt(userPrompt, memory, recentHistoryItems) },
         };
 
         return messages;
@@ -189,7 +215,11 @@ Invalid response snippet:
         return sb.ToString();
     }
 
-    private static string BuildGoalPrompt(string prompt, MemoryStore? memory)
+    private static string BuildGoalPrompt(
+        string prompt,
+        MemoryStore? memory,
+        int recentHistoryItems
+    )
     {
         var header =
             "You are a local automation agent. "
@@ -200,7 +230,7 @@ Invalid response snippet:
             + "If blocked, explain the blocker and provide the next best action. "
             + $"{AsciiMarkdownInstruction}";
 
-        var memoryContext = BuildMemoryContext(memory);
+        var memoryContext = BuildMemoryContext(memory, recentHistoryItems);
         if (string.IsNullOrWhiteSpace(memoryContext))
             return $"{header}{Environment.NewLine}{Environment.NewLine}Goal: {prompt}";
 
@@ -214,15 +244,17 @@ Goal: {prompt}
 """;
     }
 
-    private static string BuildMemoryContext(MemoryStore? memory)
+    private static string BuildMemoryContext(MemoryStore? memory, int recentHistoryItems)
     {
         if (memory is null)
             return string.Empty;
 
+        var clampedRecentHistoryItems = Math.Clamp(recentHistoryItems, 0, MaxRecentHistoryItems);
+
         var prefs = memory.Preferences.Take(5).Select(kv => $"{kv.Key}={kv.Value}");
         var facts = memory.Facts.Take(5).Select(kv => $"{kv.Key}={kv.Value}");
         var history = memory
-            .History.TakeLast(3)
+            .History.TakeLast(clampedRecentHistoryItems)
             .Select(h =>
             {
                 var intent = h.RunSummary?.Intent;

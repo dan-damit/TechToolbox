@@ -7,11 +7,13 @@ namespace TechToolbox.Agent.Tests;
 public class LlmClientTests
 {
     [Theory]
-    [InlineData(null, 1024)]
-    [InlineData("not-a-number", 1024)]
+    [InlineData(null, 4096)]
+    [InlineData("not-a-number", 4096)]
     [InlineData("64", 128)]
     [InlineData("256", 256)]
-    [InlineData("12000", 8192)]
+    [InlineData("20000", 16384)]
+    [InlineData("-1", -1)]
+    [InlineData("-2", -2)]
     public void GetNumPredict_RespectsEnvironmentOverride_WithBounds(string? rawValue, int expected)
     {
         var previous = Environment.GetEnvironmentVariable("TT_AGENT_LLM_NUM_PREDICT");

@@ -30,6 +30,7 @@ public class AgentOrchestrator
     private readonly bool _autoRetry;
     private readonly string? _tracePath;
     private readonly string? _expectedOutputPath;
+    private readonly int _recentHistoryItemsInPrompt;
     private readonly object _traceLock = new();
 
     public AgentOrchestrator(
@@ -43,7 +44,8 @@ public class AgentOrchestrator
         int maxIterations,
         bool autoRetry,
         string? tracePath = null,
-        string? expectedOutputPath = null
+        string? expectedOutputPath = null,
+        int recentHistoryItemsInPrompt = 2
     )
     {
         _llm = llm;
@@ -59,6 +61,7 @@ public class AgentOrchestrator
         _autoRetry = autoRetry;
         _tracePath = tracePath;
         _expectedOutputPath = expectedOutputPath;
+        _recentHistoryItemsInPrompt = Math.Clamp(recentHistoryItemsInPrompt, 0, 20);
 
         _llm.DiagnosticTrace = msg => Trace($"LlmClient {msg}");
     }
@@ -69,7 +72,7 @@ public class AgentOrchestrator
     {
         prompt ??= string.Empty;
         Trace(
-            $"RunAsync start maxIterations={_maxIterations} autoRetry={_autoRetry} promptLength={prompt.Length}"
+            $"RunAsync start maxIterations={_maxIterations} autoRetry={_autoRetry} recentHistoryItemsInPrompt={_recentHistoryItemsInPrompt} promptLength={prompt.Length}"
         );
 
         var stopwatch = Stopwatch.StartNew();
@@ -160,7 +163,12 @@ public class AgentOrchestrator
         List<string> toolNames
     )
     {
-        var messages = PromptBuilder.BuildInitialMessages(prompt, _registry, _memory);
+        var messages = PromptBuilder.BuildInitialMessages(
+            prompt,
+            _registry,
+            _memory,
+            _recentHistoryItemsInPrompt
+        );
         var consecutiveLlmFailures = 0;
         var expectedOutputPath = string.IsNullOrWhiteSpace(_expectedOutputPath)
             ? ExtractExpectedOutputPathFromPrompt(prompt)

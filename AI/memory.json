@@ -6,212 +6,39 @@
     "pref.use-markdown-format.e625cae6": "use Markdown format",
     "pref.use-markdown-format.b6a28fd0": "use markdown format",
     "pref.use-markdown.18e44d32": "use markdown",
-    "pref.do-not-return-a-final-answer-until-w.b3d117d2": "Do not return a final answer until WRITE-FILE has succeeded"
+    "pref.do-not-return-a-final-answer-until-w.b3d117d2": "Do not return a final answer until WRITE-FILE has succeeded",
+    "pref.do-not-return-finalanswer-until-writ.dcd6fb6c": "Do NOT return finalAnswer until WRITE-FILE succeeds"
   },
   "facts": {
     "moduleRoot": "$env:TT_Home",
     "defaultLanguage": "en-US",
     "trendSummary": {
-      "windowItems": 30,
-      "runCount": 30,
-      "successRate": 0.967,
-      "avgDurationMs": 74535,
-      "avgToolCalls": 5,
+      "windowItems": 20,
+      "runCount": 20,
+      "successRate": 1,
+      "avgDurationMs": 33607,
+      "avgToolCalls": 3.1,
       "statusCounts": {
-        "success": 29,
-        "error": 1
+        "success": 20
       },
       "outcomeCounts": {
-        "completed": 29,
-        "iteration-limit": 1
+        "completed": 20
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-06-30T23:47:53.5966874\u002B00:00",
-      "trendLastUpdatedUtc": "2026-06-30T23:47:53.5978865\u002B00:00"
+      "lastRunTimestampUtc": "2026-07-01T03:11:53.6283079\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-01T03:11:53.6546547\u002B00:00"
     }
   },
   "history": [
     {
-      "timestampUtc": "2026-06-25T23:54:37.1473429-05:00",
+      "timestampUtc": "2026-07-01T02:32:28.9888465+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow PowerShell help\r\ndocumentation standards. Do NOT use markdown.\u0022\r\n",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1\r\n\r\nGenerate a complete Set-OneTimeReboot.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Set-OneTimeReboot.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Set-OneTimeReboot.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 15914,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## about_Remove-Printers\n\n### SHORT DESCRIPTION\nRemoves all printers from the system.\n\n### LONG DESCRIPTION\nThe Remove-Printers function removes all printer queues from the local system. It uses Win32_Printer (CIM) to remove queues after resetting the spooler and clearing the spool folder.\n\nOptionally, it can remove TCP/IP ports and printer drivers. The function adds fallbacks for provider hiccups and frees common process locks (splwow64/PrintIsolationHost). It can also remove per-user network printer connections across all user profiles if specified.\n\n### SYNTAX\nRemove-Printers [-IncludePorts] [-IncludeDrivers] [-Force] [-AllUsers] [-PassThru] [\u003CCommonParameters\u003E]\n\n### PARAMETERS\n#### -IncludePorts\nAlso remove TCP/IP printer ports (non-standard).\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n#### -IncludeDrivers\nAlso remove printer drivers (after queues are gone).\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n#### -Force\nBest-effort forced cleanup of driver packages via pnputil if standard removal fails.\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n#### -AllUsers\nAttempt to remove per-user network printer connections for all user profiles.\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n#### -PassThru\nOutput a summary object with counts and failures.\n\n    Required?                    false\n    Position?                    named\n    Default value                False\n    Accept pipeline input?       False\n    Accept wildcard characters?  false\n\n### EXAMPLES\n#### Example 1\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\nThis command removes all printers, ports, and drivers from the system for all users, forces cleanup of driver packages, and outputs a summary.\n\n#### Example 2\nRemove-Printers -WhatIf\n\nThis command shows what would happen if you ran Remove-Printers without actually performing any actions.\n\n### NOTES\nNone",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follo...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T23:55:56.8168159-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Do NOT use markdown.\u0022\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 21496,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": ".EXTERNALHELP Remove-Printers-help.xml\n\n.NOTES\n  NAME: about_Remove-Printers\n\n.DESCRIPTION\n  The Remove-Printers function removes all printers from the system. It uses Win32_Printer (CIM) to remove queues after resetting the spooler and clearing the spool folder.\n\n  Optionally, it can remove TCP/IP ports and printer drivers. It includes fallbacks for provider hiccups and frees common process locks (splwow64/PrintIsolationHost). It can also remove per-user network printer connections across all user profiles.\n\n.PARAMETER IncludePorts\n  Also remove TCP/IP printer ports (non-standard).\n\n.PARAMETER IncludeDrivers\n  Also remove printer drivers (after queues are gone).\n\n.PARAMETER Force\n  Best-effort forced cleanup of driver packages via pnputil if standard removal fails.\n\n.PARAMETER AllUsers\n  Attempt to remove per-user network printer connections for all user profiles.\n\n.PARAMETER PassThru\n  Output a summary object with counts and failures.\n\n.INPUTS\n  None. You cannot pipe objects to Remove-Printers.\n\n.OUTPUTS\n  [pscustomobject]. When -PassThru is specified, the function returns a custom object containing removal statistics (counts of printers/ports/drivers removed) and any errors encountered.\n\n.EXAMPLE\n  Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\n  Description:\n  Removes all printer queues, TCP/IP ports, and drivers from the system. It also removes per-user network printer connections for all user profiles. If standard driver removal fails, it attempts a forced cleanup via pnputil. Finally, it outputs a summary object with counts of removed items.\n\n.EXAMPLE\n  Remove-Printers -WhatIf\n\n  Description:\n  Shows what would happen if the command were executed without actually removing anything. This is useful for verifying which printers would be affected before performing the removal.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Write a help file to the\r\nfolder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follo...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T23:56:31.4756491-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Do NOT use markdown.\u0022\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 22267,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": ".EXTERNALHELP Remove-Printers-help.xml\n\n.NOTES\n  NAME: about_Remove-Printers\n\n.DESCRIPTION\n  The Remove-Printers function removes all printers from the system. It resets\n  the print spooler service and clears the spool folder to ensure a clean state.\n  By default, it only removes printer queues for the current user or local machine,\n  but can be configured to remove TCP/IP ports, printer drivers, and per-user\n  network connections across all profiles on the system.\n\n.PARAMETER IncludePorts\n  When specified, also removes TCP/IP printer ports associated with the removed\n  printers. This is useful for a complete cleanup of printer-related components.\n\n.PARAMETER IncludeDrivers\n  When specified, also removes printer drivers after the printer queues have been\n  deleted. This helps in freeing up disk space and removing unused driver packages.\n\n.PARAMETER Force\n  Enables best-effort forced cleanup of driver packages using pnputil if standard\n  removal methods fail. This parameter is useful when dealing with stubborn or\n  corrupted driver installations.\n\n.PARAMETER AllUsers\n  When specified, attempts to remove per-user network printer connections for all\n  user profiles on the system. This ensures that no residual printer mappings\n  remain for any user account.\n\n.PARAMETER PassThru\n  When specified, outputs a summary object containing counts of removed printers,\n  ports, drivers, and any failures encountered during the process. This is useful\n  for auditing or logging purposes.\n\n.INPUTS\n  None. You cannot pipe objects to Remove-Printers.\n\n.OUTPUTS\n  [pscustomobject]. If -PassThru is specified, returns a summary object with\n  removal statistics and failure details.\n\n.EXAMPLE\n  Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\n  Description:\n  Removes all printers, TCP/IP ports, drivers, and per-user connections for all\n  users on the system. Forces driver cleanup if standard removal fails and outputs\n  a summary object.\n\n.EXAMPLE\n  Remove-Printers -WhatIf\n\n  Description:\n  Shows what would happen if the command were executed without actually removing\n  any printers or components.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should foll...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T23:57:46.9924424-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file.\u0022\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 30019,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## about_Remove-Printers\n\nTOPIC\n    about_Remove-Printers\n\nSHORT DESCRIPTION\n    Removes all printers from the system, with optional removal of ports,\n    drivers, and per-user mappings.\n\nLONG DESCRIPTION\n    Remove-Printers uses Win32_Printer (CIM) to remove printer queues after\n    resetting the print spooler service and clearing the spool folder. It can\n    optionally remove TCP/IP ports and printer drivers. The function includes\n    fallbacks for provider issues and frees common process locks such as\n    splwow64 and PrintIsolationHost. It can also remove per-user network\n    printer connections across all user profiles on the system.\n\nSYNTAX\n    Remove-Printers [-IncludePorts] [-IncludeDrivers] [-Force] [-AllUsers]\n        [-PassThru] [\u003CCommonParameters\u003E]\n\nPARAMETERS\n    -IncludePorts\n        Also remove TCP/IP printer ports (non-standard).\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\n    -IncludeDrivers\n        Also remove printer drivers (after queues are gone).\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\n    -Force\n        Best-effort forced cleanup of driver packages via pnputil if standard\n        removal fails.\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\n    -AllUsers\n        Attempt to remove per-user network printer connections for all user\n        profiles.\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\n    -PassThru\n        Output a summary object with counts and failures.\n\n        Type: SwitchParameter\n        Required: False\n        Default value: None\n        Accept pipeline input: False\n\nEXAMPLES\n    Example 1:\n        Remove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\n        Description\n        -----------\n        Removes all printers, TCP/IP ports, and drivers with forced cleanup,\n        removes per-user connections for all users, and outputs a summary object.\n\n    Example 2:\n        Remove-Printers -WhatIf\n\n        Description\n        -----------\n        Simulates the removal of all printers without making any changes.\n\nNOTES\n    - The function has high ConfirmImpact and supports ShouldProcess (WhatIf/Confirm).\n    - It relies on internal helper functions for spooler management and process\n      lock handling.\n\nSEE ALSO\n    - about_Get-InstalledPrinters\n    - about_Start-NewPSRemoteSession",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should foll...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-26T00:03:05.6134531-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Remove-Printers.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 21877,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help file \u0060about_Remove-Printers.help.txt\u0060 has been successfully created in the folder \u0060C:\\repos\\TechToolbox\\en-US\\\u0060. The content follows the format of other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1. Create a help file to\r\nthe folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Remove-Printers.help.txt. The file should foll...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-26T00:05:25.970445-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1. Create a\r\nhelp file to the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Reset-WindowsUpdateComponents.help.txt. The file should follow the same\r\nformat as other help documents in this directory. Write your output to the new\r\nfile.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Reset-WindowsUpdateComponents.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 16160,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help file \u0060about_Reset-WindowsUpdateComponents.help.txt\u0060 has been successfully created at \u0060C:\\repos\\TechToolbox\\en-US\\\u0060. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETER, INPUTS, OUTPUTS, EXAMPLE, and LINK.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1. Create a\r\nhelp file to the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Reset-WindowsUpdateComponents.he...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-26T00:07:01.8738677-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1. Create a help file\r\nto the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Watch-ISPConnection.help.txt. The file should follow the same format as\r\nother help documents in this directory. Write your output to the new file.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Watch-ISPConnection.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 25611,
+      "durationMs": 65250,
       "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
@@ -222,129 +49,13 @@
         "read_file",
         "read_file",
         "read_file",
-        "write_file"
+        "invoke_codeassistantwrapper"
       ],
-      "outputPreview": "## Help File Created\n\nThe help file \u0060about_Watch-ISPConnection.help.txt\u0060 has been successfully created at:\n\nC:\\repos\\TechToolbox\\en-US\\about_Watch-ISPConnection.help.txt\n\n### Content Summary\n\n- **NAME**: about_Watch-ISPConnection\n- **DESCRIPTION**: Monitors connectivity to a host (IP, DNS name, or URL) and logs structured results via background jobs.\n- **PARAMETERS**:\n  - \u0060Target\u0060: IP, DNS, or URL (Mandatory for Start)\n  - \u0060IntervalSeconds\u0060: Seconds between samples (Default: 10)\n  - \u0060TimeoutSeconds\u0060: Ping timeout (Default: 3)\n  - \u0060SessionName\u0060: Optional session identifier\n  - \u0060Start\u0060, \u0060Stop\u0060, \u0060Status\u0060: Parameter sets for controlling sessions\n- **EXAMPLES**:\n  - Start a ping to 8.8.8.8 every 15 seconds.\n  - Show status of all sessions.\n  - Stop a specific session by name.",
+      "outputPreview": "# Set-OneTimeReboot\n\n## SYNOPSIS\nSchedules or removes a one-time reboot task locally or on remote computers.\n\n## DESCRIPTION\nThe \u0060Set-OneTimeReboot\u0060 function creates, updates, or removes a Windows Scheduled Task that runs \u0060shutdown.exe /r\u0060 one time at a target local date/time. \n\n### Key Features:\n- **Local Scheduling**: When \u0060-ComputerName\u0060 is not provided, the task is scheduled on the local machine.\n- **Remote Scheduling**: Supports remote scheduling over PowerShell remoting (WSMan or SSH) when \u0060-ComputerName\u0060 is specified.\n- **Time Resolution**:\n  - If \u0060-DateTime\u0060 is supplied, that exact local timestamp is used.\n  - If \u0060-DateTime\u0060 is omitted, the \u0060-At\u0060 parameter (HH:mm format) is used for the next occurrence. If today\u0027s time has passed, scheduling rolls to tomorrow.\n- **Idempotent Task Update**: If a task with the same \u0060-TaskName\u0060 already exists, it is removed and recreated with the new settings.\n- **Remove Mode**: Pass \u0060-Remove\u0060 to unregister the task instead of creating it.\n- **Configuration Defaults**: Unbound parameters can be populated from \u0060settings.oneTimeReboot\u0060 in the TechToolbox config, including \u0060At\u0060, \u0060SelfDelete\u0060, \u0060defaultComment\u0060, \u0060taskNamePrefix\u0060, and optional \u0060deleteExpiredTaskAfterMinutes\u0060.\n- **Safe Execution**: Supports \u0060-WhatIf\u0060 and \u0060-Confirm\u0060 for safe preview of operations.\n\n## PARAMETERS\n\n### -ComputerName\nTarget computer name(s) for remote scheduling/removal. Accepts values from the pipeline and property name input.\n- **Type**: \u0060string[]\u0060\n- **Aliases**: CN, Host, Name\n- **Default Value**: Local machine if omitted.\n\n### -DateTime\nExact local date/time to use for scheduling.\n- **Type**: \u0060Nullable[datetime]\u0060\n- **Description**: If provided, this exact timestamp is used. Declared before Credential to allow positional binding of the second argument as DateTime in calls like \u0060Set-OneTimeReboot -ComputerName PC01 \u00274/21/2026 1:00:00 AM\u0027\u0060.\n\n### -Credential\nCredential for remote session creation (WSMan/SSH). Also supports username-only for SSH key auth via PSRemoting helper.\n- **Type**: \u0060pscredential\u0060\n\n### -At\nTime in HH:mm format to schedule the reboot if \u0060-DateTime\u0060 is not provided. Uses the next occurrence of this time.\n- **Type**: \u0060string\u0060\n- **Validation Pattern**: \u0060^(?:[01]\\d|2[0-5]):[0-5\\d]$\u0060\n\n### -TaskName\nName of the scheduled task. If omitted, a default name is generated using \u0060-taskNamePrefix\u0060 from config or a standard prefix.\n- **Type**: \u0060string\u0060\n\n### -Comment\nDescription for the scheduled task.\n- **Type**: \u0060string\u0060\n\n### -SelfDelete\nIf specified, the scheduled task will be deleted after it runs successfully.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -WakeToRun\nIf specified, the computer will wake from sleep to run the reboot task. Requires hardware support.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -ForceCloseApps\nIf specified, applications will be forced closed if they are running at the time of the reboot.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -Remove\nIf specified, unregisters the existing scheduled task instead of creating or updating it.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -WhatIf\nShows what would happen if the cmdlet runs. The cmdlet is not run.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -Confirm\nPrompts you for confirmation before running the cmdlet.\n- **Type**: \u0060SwitchParameter\u0060\n\n## INPUTS\n\u0060string[]\u0060 (ComputerName)\n\n## OUTPUTS\nNone or Microsoft.PowerShell.Commands.ScheduledTaskInfo depending on operation.\n\n## EXAMPLES\n\n### Example 1: Schedule a local reboot at a specific time\n\u0060\u0060\u0060powershell\nSet-OneTimeReboot -DateTime \u00272026-07-01 02:30:00\u0027\n\u0060\u0060\u0060\nThis schedules the current computer to reboot on July 1, 2026, at 2:30 AM.\n\n### Example 2: Schedule a remote reboot using time pattern\n\u0060\u0060\u0060powershell\nSet-OneTimeReboot -ComputerName PC01 -At \u002703:00\u0027 -Credential (Get-Credential)\n\u0060\u0060\u0060\nThis schedules PC01 to reboot at the next occurrence of 3:00 AM, prompting for credentials.\n\n### Example 3: Remove a scheduled reboot task\n\u0060\u0060\u0060powershell\nSet-OneTimeReboot -ComputerName PC01 -TaskName \u0027MyReboot\u0027 -Remove\n\u0060\u0060\u0060\nThis removes the scheduled task nam...",
       "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1. Create a help file\r\nto the folder C:\\repos\\TechToolbox\\en-US\\, and name the file\r\nabout_Watch-ISPConnection.help.txt. The file sho...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1\r\n\r\nGenerate a complete Set-OneTimeReboot.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdo...",
         "actionsTaken": [
           "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-28T22:12:03.0647737-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the readme at the module root and suggest any changes that would enhance the readme.",
-      "model": "qwen3.6:35b",
-      "durationMs": 85795,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "list_directory",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Suggested Changes to Enhance README.md\n\nBased on the visible structure (badges, title, tagline) and standard PowerShell module best practices, here are suggested enhancements:\n\n- **Add Installation Instructions**: Include clear steps for installing via PowerShell Gallery (\u0060Install-Module TechToolbox\u0060) or from source.\n- **Quick Start / Usage Examples**: Provide 2-3 concrete code examples showing common workflows (e.g., initializing the module, running a worker).\n- **Table of Contents**: If the README is long (\u003E50 lines), add a clickable TOC for navigation.\n- **Feature Highlights**: Use bullet points to list key features (Modular, Worker-Driven, Logging, etc.) with brief descriptions.\n- **Link to Documentation**: Add a link to full documentation or help files (\u0060Get-Help TechToolbox\u0060).\n- **Contributing Guidelines**: Link to CONTRIBUTING.md if applicable.\n- **License Badge**: Ensure the license is clearly visible (link to LICENSE.md).\n- **Badges Review**: Verify all badge images load correctly and update URLs if needed.",
-      "runSummary": {
-        "intent": "Please look at the readme at the module root and suggest any changes that would enhance the readme.",
-        "actionsTaken": [
-          "list_directory",
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-28T22:25:05.1796168-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please add the table of contents to the README file.",
-      "model": "qwen3.6:35b",
-      "durationMs": 194284,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 19,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022content\u0022: \u0022# TechToolbox\\n\\n\u003Cp align=\\\u0022center\\\u0022\u003E\\n  \u003Cimg src=\\\u0022assets/DualThemeSupportReadmeHeader.png\\\u0022 alt=\\\u0022TechToolbox\\\u0022 width=\\\u0022100%\\\u0022 style=\\\u0022max-width:900px; opacity:1;\\\u0022 /\u003E\\n\u003C/p\u003E\\n\\n\u003Cp align=\\\u0022center\\\u0022\u003E\\n  \u003Ca href=\\\u0022https://www.powershellgallery.com/packages/TechToolbox\\\u0022 target=\\\u0022_blank\\\u0022\u003E\\n    \u003Cimg src=\\\u0022assets/badges/techtoolbox-version.svg\\\u0022 /\u003E\\n  \u003C/a\u003E\\n  \u003Ca href=\\\u0022https://www.powershellgallery.com/packages/TechToolbox\\\u0022 target=\\\u0022_blank\\\u0022\u003E\\n    \u003Cimg src=\\\u0022assets/badges/techtoolbox-downloads.svg\\\u0022 /\u003E\\n  \u003C/a\u003E\\n  \u003Ca href=\\\u0022https://github.com/dan-damit/TechToolbox/releases\\\u0022 target=\\\u0022_blank\\\u0022\u003E\\n    \u003Cimg src=\\\u0022assets/badges/techtoolbox-release.svg\\\u0022 /\u003E\\n  \u003C/a\u003E\\n  \u003Ca href=\\\u0022https://learn.microsoft.com/powershell/scripting/install/installing-powershell\\\u0022 target=\\\u0022_blank\\\u0022\u003E\\n    \u003Cimg src=\\\u0022assets/badges/techtoolbox-requires.svg\\\u0022 /\u003E\\n  \u003C/a\u003E\\n  \u003Ca href=\\\u0022https://thedamits.com/\\\u0022 target=\\\u0022_blank\\\u0022\u003E\\n    \u003Cimg src=\\\u0022assets/badges/powered-by-techtoolbox.svg\\\u0022 /\u003E\\n  \u003C/a\u003E\\n\u003C/p\u003E\\n\\n\u003Cp align=\\\u0022center\\\u0022\u003E\\n  \u003Ca href=\\\u0022https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml\\\u0022\u003E\\n    \u003Cimg src=\\\u0022https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml/badge.svg\\\u0022 /\u003E\\n  \u003C/a\u003E\\n  \u003Ca href=\\\u0022https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml\\\u0022\u003E\\n    \u003Cimg src=\\\u0022https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml/badge.svg\\\u0022 /\u003E\\n  \u003C/a\u003E\\n\u003C/p\u003E\\n\\n\u003Cdiv align=\\\u0022center\\\u0022\u003E\\n  \u003Cp style=\\\u0022font-size:1.2em; font-weight:600; margin-top:1em;\\\u0022\u003E\\n\\n## _Modular. Worker-Driven. PowerShell Automation at Scale._\\n\\n\u003Cbr\u003E\\n\\nTechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model.\\n\\n\u003C/p\u003E\\n\u003C/div\u003E\\n\\n---\\n\\n## Table of Contents\\n\\n- [Installation](#installation)\\n- [Usage](#usage)\\n  - [Active Directory and Identity](#active-directory-and-identity)\\n    - [Disable-User](#disable-user)\\n    - [Get-AllUsers](#get-allusers)\\n    - [Get-DomainAdminCredential](#get-domainadmincredential)\\n    - [Initialize-DomainAdminCred](#initialize-domainadmincred)\\n    - [Initialize-TTWordList](#initialize-ttwordlist)\\n    - [New-OnPremUserFromTemplate](#new-onpremuserfromtemplate)\\n    - [Reset-ADPassword](#reset-adpassword)\\n    - [Search-User](#search-user)\\n    - [Set-EmailAlias](#set-emailalias)\\n    - [Set-ProxyAddress](#set-proxyaddress)\\n  - [Exchange, Purview, and Messaging](#exchange-purview-and-messaging)\\n    - [Get-AuditSharedMailboxDeletions](#get-auditsharedmailboxdeletions)\\n    - [Get-AutodiscoverXmlInteractive](#get-autodiscoverxmlinteractive)\\n    - [Get-MessageTrace](#get-messagetrace)\\n    - [Get-SharedMailboxPermissions](#get-sharedmailboxpermissions)\\n    - [Invoke-PurviewPurge](#invoke-purviewpurge)\\n    - [Test-MailHeaderAuth](#test-mailheaderauth)\\n  - [Endpoint and System Operations](#endpoint-and-system-operations)\\n    - [Enable-NetFx3](#enable-netfx3)\\n    - [Find-LargeFiles](#find-largefiles)\\n    - [Get-BatteryHealth](#get-batteryhealth)\\n    - [Get-CUCredentialManagerContents](#get-cucredentialmanagercontents)\\n    - [Get-ErrorEvents](#get-errorevents)\\n    - [Get-FilesUsingKeywords](#get-filesusingkeywords)\\n    - [Get-InstalledPrinters](",
-      "runSummary": {
-        "intent": "Please add the table of contents to the README file.",
-        "actionsTaken": [
-          "read_file",
-          "list_directory"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-28T22:41:35.8863297-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please add a Feature Hightlights to the README.",
-      "model": "qwen3.6:35b",
-      "durationMs": 235143,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 14,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "list_directory",
-        "read_file",
-        "write_file",
-        "ita",
-        "invoke_techagent",
-        "invoke_codeassistant",
-        "invoke_codeassistantwrapper",
-        "invoke_codeassistant",
-        "invoke_codeassistant",
-        "invoke_codeassistant",
-        "invoke_codeassistant"
-      ],
-      "outputPreview": "## Issue Analysis\n\nThe \u0060Invoke-CodeAssistant\u0060 tool consistently fails because it attempts to load the \u0060TechToolbox\u0060 module before executing the provided script. The environment is configured such that the module cannot be found in standard paths, causing a fatal error (\u0060ErrorActionPreference = Stop\u0060) that prevents any user-provided code from running.\n\n## Workaround Strategy\n\nSince I cannot execute arbitrary PowerShell scripts via the available tools due to this environment constraint, I will manually construct the updated README content based on the structure observed in previous \u0060READ-FILE\u0060 excerpts and standard Markdown conventions. \n\n1. **Current Structure (from excerpts):**\n   - Header Image\n   - Badges\n   - Intro Paragraph: \u0022TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It tar...\u0022\n   - [Unknown sections follow]\n\n2. **Insertion Point:**\n   I will insert the \u0022Feature Highlights\u0022 section immediately after the intro paragraph (which ends around line 30-40 based on typical badge counts) or before the first \u0060##\u0060 heading if it appears later.\n\n3. **Content to Add:**\n\u0060\u0060\u0060markdown\n## Feature Highlights\n\n- **Modular Architecture**: Built with a clean, modular design for easy maintenance and extension.\n- **Worker-Driven Automation**: Leverages worker patterns for scalable and predictable automation tasks.\n- **Shared Configuration \u0026 Logging**: Centralized configuration and logging across all modules.\n- **Portable Module Design**: Designed to be portable and consistent across different environments.\n- **Comprehensive Tooling**: Unifies practical admin tooling into a single, predictable module.\n\n---\n\u0060\u0060\u0060\n\n## Next Steps for Manual Completion\n\nSince I cannot write the file directly via script execution:\n1. Open \u0060C:\\repos\\TechToolbox\\README.md\u0060 in an editor.\n2. Locate the end of the introductory paragraph (after \u0022...clean development model.\u0022).\n3. Insert the **Feature Highlights** section above it or immediately after it, before any subsequent \u0060##\u0060 headings.\n4. Save the file.\n\nIf you can provide a way to execute PowerShell without module loading constraints (e.g., via a direct command line tool not listed here), I can automate this step.",
-      "runSummary": {
-        "intent": "Please add a Feature Hightlights to the README.",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file",
-          "ita",
-          "invoke_techagent",
-          "invoke_codeassistant",
           "invoke_codeassistantwrapper"
         ],
         "blockers": "",
@@ -352,73 +63,12 @@
       }
     },
     {
-      "timestampUtc": "2026-06-30T18:01:04.6793277-05:00",
+      "timestampUtc": "2026-07-01T02:33:55.4772539+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Install-TechAgentRuntime.ps1. Create a markdown\r\nfile to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInstall-TechAgentRuntime.md. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file. This file\r\nwill be used as -Online help for the Install-TechAgentRuntime.ps1 script.\u0022\r\n",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1\r\n\r\nGenerate a complete Set-OneTimeReboot.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Set-OneTimeReboot.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Set-OneTimeReboot.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 78117,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "# Install-TechAgentRuntime\n\nVerifies Ollama availability and optionally pulls the configured agent model.\n\n---\n\n## Overview\n\n\u0060Install-TechAgentRuntime\u0060 validates that the Ollama runtime is installed and available on the local system. It reports any locally available models and, when requested, pulls a specific AI model for use with \u0060Invoke-TechAgent\u0060.\n\n\u003E **Note:** This function no longer manages repository-local Python environments or virtual environments. It focuses exclusively on Ollama validation and model management.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **PythonPath** | \u0060string\u0060 | Deprecated compatibility parameter. Ignored by this function. |\n| **ForceRecreateVenv** | \u0060switch\u0060 | Deprecated compatibility parameter. Ignored by this function. |\n| **UpgradePip** | \u0060switch\u0060 | Deprecated compatibility parameter. Ignored by this function. |\n| **UpgradePackages** | \u0060switch\u0060 | Deprecated compatibility parameter. Ignored by this function. |\n| **PullModel** | \u0060switch\u0060 | When present, pulls the selected Ollama model after validating the local Ollama runtime. |\n| **Model** | \u0060string\u0060 | The name of the Ollama model to pull when \u0060-PullModel\u0060 is used. Defaults to the value in \u0060settings.agent.model\u0060. |\n\n---\n\n## How It Works\n\n### **Ollama Validation**\nThe function first checks if Ollama is installed and accessible on the system.\n- If Ollama is not found, an error is raised indicating that Ollama must be installed.\n- If Ollama is available, it reports any models currently present locally.\n\n### **Model Pulling**\nWhen \u0060-PullModel\u0060 is specified:\n1. The function determines the target model name (using the \u0060-Model\u0060 parameter or \u0060settings.agent.model\u0060).\n2. It initiates a pull of that model from the Ollama library.\n3. Upon completion, it confirms the successful installation of the model.\n\n---\n\n## Examples\n\n### **Basic validation**\nVerifies Ollama is installed and lists local models without pulling anything.\n\u0060\u0060\u0060powershell\nInstall-TechAgentRuntime\n\u0060\u0060\u0060\n\n### **Pull a specific model**\nPulls the \u0060qwen3.6:35b\u0060 model for use with the agent.\n\u0060\u0060\u0060powershell\nInstall-TechAgentRuntime -PullModel -Model \u0022qwen3.6:35b\u0022\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **Ollama** to be installed and running on the local machine.\n- Deprecated parameters (\u0060PythonPath\u0060, \u0060ForceRecreateVenv\u0060, \u0060UpgradePip\u0060, \u0060UpgradePackages\u0060) are retained for backward compatibility but have no effect.\n- Model defaults are driven by configuration in \u0060settings.agent.model\u0060 if \u0060-Model\u0060 is not explicitly provided.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Install-TechAgentRuntime.ps1. Create a markdown\r\nfile to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInstall-TechAgentRuntime.md. The file should ...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-30T18:17:48.7458834-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistant.ps1. Create a markdown file\r\nto the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistant.md. The file should follow the same format as other help\r\ndocuments in this directory. Write your output to the new file. This file will\r\nbe used as -Online help for the Invoke-CodeAssistant.ps1 script.\u0022\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 73676,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "# Invoke-CodeAssistant\n\nSends code to an AI model for analysis, refactoring, or generation based on the specified mode.\n\n---\n\n## Overview\n\n\u0060Invoke-CodeAssistant\u0060 is a helper function that facilitates interaction with local AI models (via Ollama) for various coding tasks. It routes requests to specific AI models configured in \u0060settings.ai.routing\u0060 and \u0060settings.ai.models\u0060 based on the selected \u0060-Mode\u0060. This allows users to perform static analysis, security checks, refactoring, test generation, or general code assistance.\n\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before sending the request.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Code** | \u0060string\u0060 | **[Mandatory]** The source code content to be analyzed or processed by the AI model. |\n| **FileName** | \u0060string\u0060 | **[Mandatory]** The name of the file associated with the provided code (e.g., \u0060script.ps1\u0060). This helps the AI understand the context and language. |\n| **Mode** | \u0060string\u0060 | Specifies the type of assistance required. Determines which AI model role is used. Valid values: \u0060General\u0060, \u0060Static\u0060, \u0060Security\u0060, \u0060Refactor\u0060, \u0060Tests\u0060, \u0060Combined\u0060, \u0060ModuleReview\u0060. Defaults to \u0060\u0027General\u0027\u0060. |\n| **Encoding** | \u0060string\u0060 | The character encoding for the input code string. Valid values: \u0060UTF8\u0060, \u0060ASCII\u0060, \u0060Unicode\u0060, \u0060UTF7\u0060, \u0060UTF32\u0060, \u0060Default\u0060, \u0060OEM\u0060. Defaults to \u0060\u0027UTF8\u0027\u0060. |\n\n---\n\n## How It Works\n\n### **Model Routing**\nThe function uses a strict routing table defined in the TechToolbox configuration (\u0060settings.ai.routing\u0060):\n1. The \u0060-Mode\u0060 parameter is looked up in the routing table.\n2. The corresponding model role (e.g., \u0060CodeReviewer\u0060, \u0060SecurityAnalyst\u0060) is retrieved.\n3. The actual AI model name is fetched from \u0060settings.ai.models\u0060 using that role.\n4. If either lookup fails, an error is thrown indicating a configuration issue.\n\n### **Execution**\n1. Initializes the TechToolbox runtime environment (\u0060Initialize-TechToolboxRuntime\u0060).\n2. Logs the routing decision for debugging purposes.\n3. Sends the \u0060-Code\u0060 and \u0060-FileName\u0060 to the selected AI model via the configured endpoint.\n4. Returns the AI\u0027s response (typically a string containing suggestions, refactored code, or analysis).\n\n---\n\n## Examples\n\n### **General Code Assistance**\nAsk for general help with a PowerShell script snippet.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistant -Code \u0022Get-Process | Sort-Object CPU\u0022 -FileName \u0022script.ps1\u0022\n\u0060\u0060\u0060\n\n### **Security Analysis**\nCheck code for potential security vulnerabilities.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistant -Code $codeBlock -FileName \u0022login.ps1\u0022 -Mode Security\n\u0060\u0060\u0060\n\n### **Refactoring**\nRequest refactoring of a function to improve performance or readability.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistant -Code $functionBody -FileName \u0022utils.ps1\u0022 -Mode Refactor\n\u0060\u0060\u0060\n\n### **Test Generation**\nGenerate unit tests for existing code.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistant -Code $moduleContent -FileName \u0022MyModule.psm1\u0022 -Mode Tests\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **TechToolbox configuration** to be present with valid \u0060ai.routing\u0060 and \u0060ai.models\u0060 settings.\n- The \u0060-Mode\u0060 parameter directly influences which AI model is invoked; ensure the target model is installed/available in your Ollama instance if using local models.\n- Large code blocks may exceed context limits depending on the configured model. Consider splitting large files into logical sections.\n- Encoding defaults to UTF8, but other encodings can be specified if dealing with legacy scripts.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistant.ps1. Create a markdown file\r\nto the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistant.md. The file should follow t...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-30T18:21:37.1538016-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantFolder.ps1. Create a markdown\r\nfile to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantFolder.md. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file. This file\r\nwill be used as -Online help for the Invoke-CodeAssistantFolder.ps1 script.\u0022\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 38943,
+      "durationMs": 40440,
       "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
@@ -429,9 +79,9 @@
         "read_file",
         "write_file"
       ],
-      "outputPreview": "# Invoke-CodeAssistantFolder\n\nSends all PowerShell files in a folder to an AI model for analysis, refactoring, or generation based on the specified mode.\n\n---\n\n## Overview\n\n\u0060Invoke-CodeAssistantFolder\u0060 is a helper function that facilitates batch interaction with local AI models (via Ollama) for various coding tasks across multiple files. It iterates through all \u0060.ps1\u0060 files in the specified path and its subdirectories, invoking \u0060Invoke-CodeAssistant\u0060 on each file using the selected analysis mode.\n\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing files.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Path** | \u0060string\u0060 | **[Mandatory]** The root folder path to search for PowerShell files (\u0060.ps1\u0060). |\n| **Mode** | \u0060string\u0060 | Specifies the type of assistance required. Determines which AI model role is used. Valid values: \u0060General\u0060, \u0060Static\u0060, \u0060Security\u0060, \u0060Refactor\u0060, \u0060Tests\u0060, \u0060Combined\u0060, \u0060ModuleReview\u0060, \u0060ExplainDesign\u0060. Defaults to \u0060\u0027General\u0027\u0060. |\n\n---\n\n## How It Works\n\n### **File Discovery**\nThe function scans the specified \u0060-Path\u0060 recursively for all files with the \u0060.ps1\u0060 extension.\n\n### **Model Routing**\nFor each file found:\n1. The content of the file is read.\n2. The \u0060-Mode\u0060 parameter is looked up in the TechToolbox configuration (\u0060settings.ai.routing\u0060).\n3. The corresponding model role (e.g., \u0060CodeReviewer\u0060, \u0060SecurityAnalyst\u0060) is retrieved.\n4. The actual AI model name is fetched from \u0060settings.ai.models\u0060 using that role.\n5. If either lookup fails, an error is thrown indicating a configuration issue.\n\n### **Execution**\n1. Initializes the TechToolbox runtime environment (\u0060Initialize-TechToolboxRuntime\u0060).\n2. Logs the routing decision for debugging purposes.\n3. Sends the file content and filename to the selected AI model via \u0060Invoke-CodeAssistant\u0060.\n4. Returns the AI\u0027s response (typically a string containing suggestions, refactored code, or analysis) for each file processed.\n\n---\n\n## Examples\n\n### **General Code Assistance**\nAsk for general help with all PowerShell scripts in a folder.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantFolder -Path \u0022C:\\Scripts\u0022 -Mode General\n\u0060\u0060\u0060\n\n### **Security Analysis**\nCheck code for potential security vulnerabilities across multiple files.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantFolder -Path \u0022C:\\Scripts\\LoginModule\u0022 -Mode Security\n\u0060\u0060\u0060\n\n### **Refactoring**\nRequest refactoring of functions to improve performance or readability.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantFolder -Path \u0022C:\\Scripts\\Utils\u0022 -Mode Refactor\n\u0060\u0060\u0060\n\n### **Test Generation**\nGenerate unit tests for existing code in a module folder.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantFolder -Path \u0022C:\\Modules\\MyModule\u0022 -Mode Tests\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **TechToolbox configuration** to be present with valid \u0060ai.routing\u0060 and \u0060ai.models\u0060 settings.\n- The \u0060-Mode\u0060 parameter directly influences which AI model is invoked; ensure the target model is installed/available in your Ollama instance if using local models.\n- Large code blocks may exceed context limits depending on the configured model. Consider splitting large files into logical sections before processing or adjusting chunking strategies within \u0060Invoke-CodeAssistant\u0060.\n- The function processes all \u0060.ps1\u0060 files recursively; ensure the target path contains only relevant scripts to avoid unintended analysis of unrelated code.",
+      "outputPreview": "Successfully generated and wrote the Set-OneTimeReboot.md help document to C:\\repos\\TechToolbox-Docs\\Set-OneTimeReboot.md.",
       "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantFolder.ps1. Create a markdown\r\nfile to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantFolder.md. The file sho...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1\r\n\r\nGenerate a complete Set-OneTimeReboot.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdo...",
         "actionsTaken": [
           "read_file",
           "write_file"
@@ -441,12 +91,12 @@
       }
     },
     {
-      "timestampUtc": "2026-06-30T18:25:30.4019744-05:00",
+      "timestampUtc": "2026-07-01T02:34:56.9028778+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantWrapper.ps1. Create a\r\nmarkdown file to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantWrapper.md. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file. This file\r\nwill be used as -Online help for the Invoke-CodeAssistantWrapper.ps1 script.\u0022\r\n",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-ProxyAddress.ps1\r\n\r\nGenerate a complete Set-ProxyAddress.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Set-ProxyAddress.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Set-ProxyAddress.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 48491,
+      "durationMs": 24581,
       "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
@@ -457,9 +107,9 @@
         "read_file",
         "write_file"
       ],
-      "outputPreview": "# Invoke-CodeAssistantWrapper\n\nWraps \u0060Invoke-CodeAssistant\u0060 to handle file input and module review mode, sending PowerShell code to an AI model for analysis.\n\n---\n\n## Overview\n\n\u0060Invoke-CodeAssistantWrapper\u0060 is a helper function that simplifies the process of analyzing PowerShell scripts or modules using local AI models (via Ollama). It acts as a wrapper around \u0060Invoke-CodeAssistant\u0060, automatically handling file reading and, in specific modes, concatenating multiple files for module-wide analysis.\n\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing content.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Path** | \u0060string\u0060 | **[Mandatory]** The path to the file or module directory to analyze. For single-file analysis, provide the \u0060.ps1\u0060 file path. For module review, provide the root folder of the module. |\n| **Mode** | \u0060string\u0060 | Specifies the type of assistance required. Determines which AI model role is used. Valid values: \u0060General\u0060, \u0060Static\u0060, \u0060Security\u0060, \u0060Refactor\u0060, \u0060Tests\u0060, \u0060Combined\u0060, \u0060ModuleReview\u0060, \u0060ExplainDesign\u0060. Defaults to \u0060\u0027General\u0027\u0060. |\n\n---\n\n## How It Works\n\n### **Single File Analysis**\nFor modes other than \u0060ModuleReview\u0060:\n1. The function verifies that the specified \u0060-Path\u0060 exists.\n2. If the path is a file, it reads its content.\n3. It invokes \u0060Invoke-CodeAssistant\u0060 with the file\u0027s content and filename.\n4. Returns the AI\u0027s response (typically a markdown report saved to \u0060\u003CTechToolboxModuleRoot\u003E\\CodeAnalysis\u0060).\n\n### **Module Review Mode**\nWhen \u0060-Mode ModuleReview\u0060 is selected:\n1. The function expects \u0060-Path\u0060 to be a directory containing PowerShell modules.\n2. It identifies all \u0060.ps1\u0060 files within the module structure.\n3. It concatenates the content of these files into a single block (with placeholders or headers as needed).\n4. It invokes \u0060Invoke-CodeAssistant\u0060 with this combined code block under the filename \u0022ModuleReview\u0022.\n5. This allows for cross-file context analysis, such as dependency checking or overall architecture review.\n\n---\n\n## Examples\n\n### **General Code Assistance**\nAsk for general help with a specific PowerShell script.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\MyScript.ps1\u0022 -Mode General\n\u0060\u0060\u0060\n\n### **Security Analysis**\nCheck a single file for potential security vulnerabilities.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\LoginModule.ps1\u0022 -Mode Security\n\u0060\u0060\u0060\n\n### **Refactoring**\nRequest refactoring of functions in a script to improve performance or readability.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\Utils.ps1\u0022 -Mode Refactor\n\u0060\u0060\u0060\n\n### **Module Review**\nAnalyze an entire module for consistency, dependencies, and best practices.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Modules\\MyModule\u0022 -Mode ModuleReview\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **TechToolbox configuration** to be present with valid \u0060ai.routing\u0060 and \u0060ai.models\u0060 settings.\n- The \u0060-Mode\u0060 parameter directly influences which AI model is invoked; ensure the target model is installed/available in your Ollama instance if using local models.\n- For \u0060ModuleReview\u0060, large modules may exceed context limits. Consider splitting large modules or adjusting chunking strategies within \u0060Invoke-CodeAssistant\u0060 configuration.\n- Output reports are saved to \u0060\u003CTechToolboxModuleRoot\u003E\\CodeAnalysis\u0060. Ensure this directory is accessible and writable.\n- The function throws an error if the specified \u0060-Path\u0060 does not exist.",
+      "outputPreview": "Successfully generated and wrote the Set-ProxyAddress.md help document to C:\\repos\\TechToolbox-Docs\\Set-ProxyAddress.md following Get-Help -Online best practices.",
       "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantWrapper.ps1. Create a\r\nmarkdown file to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantWrapper.md. The file s...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-ProxyAddress.ps1\r\n\r\nGenerate a complete Set-ProxyAddress.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown...",
         "actionsTaken": [
           "read_file",
           "write_file"
@@ -469,30 +119,27 @@
       }
     },
     {
-      "timestampUtc": "2026-06-30T18:27:30.2602312-05:00",
+      "timestampUtc": "2026-07-01T02:37:43.2251088+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-DnsQueryLogger.ps1\r\n\r\nGenerate a complete Start-DnsQueryLogger.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Start-DnsQueryLogger.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Start-DnsQueryLogger.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 87604,
+      "durationMs": 25401,
       "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
-      "toolCalls": 5,
+      "toolCalls": 3,
       "toolNames": [
         "read_file",
         "read_file",
-        "list_directory",
-        "read_file",
         "write_file"
       ],
-      "outputPreview": "# Invoke-TechAgent\n\nSends a prompt to the TechToolbox local agent.\n\n---\n\n## Overview\n\n\u0060Invoke-TechAgent\u0060 is a function that calls the TechToolbox.Agent C# runtime and prints the agent\u0027s response. It allows users to interact with a local AI agent using natural language instructions, supporting various models and iteration limits for complex tasks.\n\n\u003E **Note:** This function requires the TechToolbox Agent runtime to be installed and configured correctly.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. |\n| **Model** | \u0060string\u0060 | Optional Ollama model name (for example: llama3, mistral, qwen2.5-coder). |\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default. |\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. |\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. \u0027ignore\u0027 blocks the overwrite and \u0027strip\u0027 allows the overwrite while removing the signature block text. |\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit. |\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding environment defaults. |\n| **NoTranscript** | \u0060switch\u0060 | Disables the per-run console transcript log. |\n\n---\n\n## How It Works\n\n### **Execution Flow**\n1. The function initializes the TechToolbox.Agent C# runtime.\n2. It sends the provided \u0060-Prompt\u0060 to the specified AI model (if provided) or the default configured model.\n3. The agent processes the prompt, potentially using tools in a loop up to \u0060-MaxIterations\u0060 times.\n4. If recursion limits are hit and \u0060AutoRetryOnRecursion\u0060 is enabled, it attempts one automatic retry.\n5. The final response from the agent is printed to the console.\n\n### **Destructive Operations**\nTo perform destructive actions (e.g., deleting files, modifying system settings), you must explicitly pass the \u0060-ConfirmDestructive\u0060 switch. Without this switch, the agent will refuse to execute dangerous commands.\n\n---\n\n## Examples\n\n### **Basic Usage**\nAsk the agent a simple question or give it a task.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022What is the current date and time?\u0022\n\u0060\u0060\u0060\n\n### **Using a Specific Model**\nSpecify an Ollama model for the request.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Explain how PowerShell pipelines work\u0022 -Model \u0022qwen2.5-coder\u0022\n\u0060\u0060\u0060\n\n### **Allowing Destructive Actions**\nAuthorize the agent to perform destructive operations (use with caution).\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Delete all files in C:\\Temp\\OldLogs\u0022 -ConfirmDestructive\n\u0060\u0060\u0060\n\n### **Increasing Iteration Limit**\nFor complex tasks requiring more reasoning steps, increase the max iterations.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Analyze this script for security vulnerabilities and suggest fixes.\u0022 -MaxIterations 50\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- The \u0060-Quiet\u0060 switch is provided for legacy compatibility; traces are suppressed by default in newer versions.\n- If the agent hits an iteration limit, it may conclude prematurely. Use \u0060-MaxIterations\u0060 to allow more steps if needed.\n- Ensure the target Ollama model specified in \u0060-Model\u0060 is installed and running locally.\n- The \u0060SignedFilePolicy\u0060 parameter only applies when the function itself overwrites a signed script file; it does not affect the agent\u0027s internal operations.",
+      "outputPreview": "Successfully generated and wrote the Start-DnsQueryLogger.md help document to C:\\repos\\TechToolbox-Docs\\Start-DnsQueryLogger.md.",
       "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-DnsQueryLogger.ps1\r\n\r\nGenerate a complete Start-DnsQueryLogger.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the...",
         "actionsTaken": [
           "read_file",
-          "list_directory",
           "write_file"
         ],
         "blockers": "",
@@ -500,12 +147,12 @@
       }
     },
     {
-      "timestampUtc": "2026-06-30T18:30:51.7897399-05:00",
+      "timestampUtc": "2026-07-01T02:39:50.6759742+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-NewPSRemoteSession.ps1\r\n\r\nGenerate a complete Start-NewPSRemoteSession.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Start-NewPSRemoteSession.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Start-NewPSRemoteSession.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 94717,
+      "durationMs": 52051,
       "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
@@ -513,29 +160,167 @@
       "toolCalls": 4,
       "toolNames": [
         "read_file",
-        "list_directory",
         "read_file",
-        "read_file"
+        "read_file",
+        "write_file"
       ],
-      "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Invoke-TechAgent.md\u0022,\n    \u0022content\u0022: \u0022# Invoke-TechAgent\\n\\nSends a prompt to the TechToolbox local agent.\\n\\n---\\n\\n## Overview\\n\\n\u0060Invoke-TechAgent\u0060 is a function that interfaces with the TechToolbox.Agent C# runtime to execute AI-driven tasks. It accepts natural language instructions or prompts from files and returns the agent\u0027s response. This tool is designed for automating complex workflows by leveraging local LLMs via Ollama.\\n\\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing the prompt.\\n\\n---\\n\\n## Parameters\\n\\n| Parameter | Type | Description |\\n|----------|------|-------------|\\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. This is the primary input for the AI task. |\\n| **PromptFile** | \u0060string\u0060 | Optional path to a text file containing the prompt. If omitted and \u0060-Prompt\u0060 is empty, Invoke-TechAgent attempts to load a default prompt file. |\\n| **Model** | \u0060string\u0060 | Optional Ollama model name (e.g., \u0060llama3\u0060, \u0060mistral\u0060, \u0060qwen2.5-coder\u0060). Determines which local AI model processes the request. |\\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default, so this parameter has minimal effect in modern versions. |\\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. Use with caution to allow the agent to perform actions that modify system state. |\\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. Valid values: \u0060\u0027ignore\u0027\u0060 (blocks overwrite) or \u0060\u0027strip\u0027\u0060 (allows overwrite while removing signature block text). |\\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit, allowing it to continue complex tasks that require more steps. |\\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding any global settings or \u0060-AutoRetryOnRecursion\u0060. |\\n\\n---\\n\\n## How It Works\\n\\n### **Prompt Handling**\\nThe function prioritizes the \u0060-Prompt\u0060 parameter. If provided, it uses that text directly. If \u0060-PromptFile\u0060 is specified, it reads the content from the file. If neither is explicitly provided with valid data, it falls back to a default prompt location defined in the TechToolbox configuration.\\n\\n### **Model Routing**\\nThe selected AI model (via \u0060-Model\u0060) is passed to the C# runtime. The runtime communicates with the local Ollama instance to execute the inference. If no model is specified, the system defaults to the configured standard model.\\n\\n### **Execution \u0026 Iteration**\\nThe agent processes the prompt using a chain-of-thought approach. It may call other tools or scripts if authorized (e.g., via \u0060-ConfirmDestructive\u0060). The process continues until:\\n1. The agent determines it has sufficient information to answer.\\n2. The number of iterations reaches \u0060MaxIterations\u0060.\\n3. An error occurs.\\n\\nIf \u0060-AutoRetryOnRecursion\u0060 is enabled and the iteration limit is hit, the system automatically retries once with a fresh context window.\\n\\n---\\n\\n## Examples\\n\\n### **Basic Prompt**\\nAsk the agent to check disk space on the local machine.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Check available disk space on C: and report back.\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Using a Model**\\nForce the use of a specific model for complex code generation.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Generate a PowerShell script to backup the Documents folder.\\\u0022 -Model \\\u0022qwen2.5-coder\\\u0022\\n\u0060\u0060\u0060\\n\\n### **From File**\\nLoad a long, detailed prompt from a text file.\\n\u0060\u0060\u0060powershell\\nIn...",
+      "outputPreview": "Successfully generated and wrote the Start-NewPSRemoteSession.md help document to C:\\repos\\TechToolbox-Docs\\Start-NewPSRemoteSession.md. The document includes synopsis, syntax, description, parameter details (including mandatory flags, types, defaults), inputs/outputs, notes, and examples for WSMan, SSH, CredSSP, and key-based authentication scenarios.",
       "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-NewPSRemoteSession.ps1\r\n\r\nGenerate a complete Start-NewPSRemoteSession.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST w...",
         "actionsTaken": [
           "read_file",
-          "list_directory"
+          "write_file"
         ],
         "blockers": "",
         "nextBestStep": ""
       }
     },
     {
-      "timestampUtc": "2026-06-25T23:35:05.0014081-05:00",
+      "timestampUtc": "2026-07-01T02:40:49.9446017+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt according to PowerShell help documentation\r\nstandards.\u0022\r\n",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-PDQDiagLocalElevated.ps1\r\n\r\nGenerate a complete Start-PDQDiagLocalElevated.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Start-PDQDiagLocalElevated.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Start-PDQDiagLocalElevated.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 41769,
-      "maxIterations": 20,
+      "durationMs": 21184,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated the Start-PDQDiagLocalElevated.md help document following Get-Help -Online best practices and wrote it to C:\\repos\\TechToolbox-Docs\\Start-PDQDiagLocalElevated.md.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-PDQDiagLocalElevated.ps1\r\n\r\nGenerate a complete Start-PDQDiagLocalElevated.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MU...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-01T02:42:04.2784603+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Stop-PSRemoteSession.ps1\r\n\r\nGenerate a complete Stop-PSRemoteSession.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Stop-PSRemoteSession.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Stop-PSRemoteSession.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 37497,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated and wrote the Stop-PSRemoteSession.md help document to C:\\repos\\TechToolbox-Docs\\Stop-PSRemoteSession.md.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Stop-PSRemoteSession.ps1\r\n\r\nGenerate a complete Stop-PSRemoteSession.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-01T02:45:37.3163336+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-MailHeaderAuth.ps1\r\n\r\nGenerate a complete Test-MailHeaderAuth.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Test-MailHeaderAuth.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Test-MailHeaderAuth.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 39743,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated the Test-MailHeaderAuth.md help document following Get-Help -Online best practices and wrote it to C:\\repos\\TechToolbox-Docs\\Test-MailHeaderAuth.md.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-MailHeaderAuth.ps1\r\n\r\nGenerate a complete Test-MailHeaderAuth.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final m...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-01T02:46:53.1514423+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-PathAs.ps1\r\n\r\nGenerate a complete Test-PathAs.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Test-PathAs.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Test-PathAs.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 18414,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated the Test-PathAs.md help document following Get-Help -Online best practices and wrote it to C:\\repos\\TechToolbox-Docs\\Test-PathAs.md.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Test\\Test-PathAs.ps1\r\n\r\nGenerate a complete Test-PathAs.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this ...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-01T02:51:57.9492957+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Security\\Initialize-DomainAdminCred.ps1\r\n\r\nGenerate a complete Initialize-DomainAdminCred.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Initialize-DomainAdminCred.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Initialize-DomainAdminCred.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 18400,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated and wrote the Initialize-DomainAdminCred.md help document to C:\\repos\\TechToolbox-Docs\\Initialize-DomainAdminCred.md.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Security\\Initialize-DomainAdminCred.ps1\r\n\r\nGenerate a complete Initialize-DomainAdminCred.md help document following\r\nGet-Help -Online best practices.\r\n\r\nY...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-01T02:54:00.1535787+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Clear-BrowserProfileData.ps1\r\n\r\nGenerate a complete Clear-BrowserProfileData.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Clear-BrowserProfileData.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Clear-BrowserProfileData.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 21868,
+      "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
@@ -544,9 +329,9 @@
         "read_file",
         "read_file"
       ],
-      "outputPreview": "## about_Remove-Printers.help.txt\n\n### NAME\nRemove-Printers.ps1\n\n### SHORT DESCRIPTION\nRemoves all printers from the system, with optional removal of ports, drivers, and per-user mappings.\n\n### LONG DESCRIPTION\nThe Remove-Printers function uses Win32_Printer (CIM) to remove printer queues after resetting the print spooler service and clearing the spool folder. It provides options to also remove TCP/IP ports and printer drivers. \n\nThis function includes fallbacks for provider hiccups and frees common process locks such as splwow64 and PrintIsolationHost. It can also remove per-user network printer connections across all user profiles on the system.\n\n### PARAMETERS\n- **IncludePorts**\n  Also removes TCP/IP printer ports (non-standard). Use with caution as this may affect other services relying on these ports.\n\n- **IncludeDrivers**\n  Also removes printer drivers after the queues are gone. This helps in cleaning up unused driver packages from the system.\n\n- **Force**\n  Enables best-effort forced cleanup of driver packages via pnputil if standard removal fails. This is useful for stubborn drivers that do not remove easily.\n\n- **AllUsers**\n  Attempts to remove per-user network printer connections for all user profiles on the system. This ensures a comprehensive cleanup across multiple users.\n\n- **PassThru**\n  Outputs a summary object containing counts of removed printers, ports, drivers, and any failures encountered during the process. This is helpful for auditing purposes.\n\n### EXAMPLES\n#### Example 1: Comprehensive Removal\n\u0060\u0060\u0060powershell\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\u0060\u0060\u0060\nThis command removes all printers, TCP/IP ports, and drivers with forced cleanup, clears per-user connections for all users, and outputs a summary.\n\n#### Example 2: Dry Run\n\u0060\u0060\u0060powershell\nRemove-Printers -WhatIf\n\u0060\u0060\u0060\nThis command simulates the removal of printers without actually making any changes, allowing you to preview what would be removed.\n\n### NOTES\n- This function has a high confirm impact due to its destructive nature. Always review the output carefully.\n- Ensure that no critical printing tasks are in progress before running this function.\n- Administrative privileges may be required for some operations, especially when removing drivers or accessing other user profiles.",
+      "outputPreview": "## Clear-BrowserProfileData\n\n### Synopsis\nClears Chromium browser profile data for Chrome and/or Edge.\n\n### Description\nPerforms a browser profile cleanup workflow for Google Chrome, Microsoft Edge, or both. The function loads runtime configuration from \u0060settings.browserCleanup\u0060 in config.json to apply defaults for parameters not explicitly supplied by the caller. It resolves target browsers (Chrome, Edge, or All), optionally stops browser processes to avoid file locks, discovers Chromium profile folders, and clears cookies, cache, and local storage as configured.\n\nThis function supports \u0060-WhatIf\u0060 and \u0060-Confirm\u0060. Process termination and deletion work are guarded by ShouldProcess-aware flow.\n\n### Parameters\n\n- **Browser**\n  - Type: \u0060string\u0060\n  - Default: \u0060\u0027All\u0027\u0060\n  - Valid values: \u0060\u0027Chrome\u0027\u0060, \u0060\u0027Edge\u0027\u0060, \u0060\u0027All\u0027\u0060\n  - Description: Specifies which browser(s) to clear. Defaults to \u0027All\u0027. Can be overridden by config.\n\n- **Profiles**\n  - Type: \u0060string[]\u0060\n  - Default: \u0060$null\u0060 (all profiles)\n  - Description: Array of specific profile names to target (e.g., \u0060\u0027Default\u0027\u0060, \u0060\u0027Profile 1\u0027\u0060). If omitted, all discovered profiles are processed. Can be overridden by config.\n\n- **IncludeCookies**\n  - Type: \u0060bool\u0060\n  - Default: \u0060$true\u0060\n  - Description: Whether to clear cookies. Defaults to true. Can be overridden by config.\n\n- **IncludeCache**\n  - Type: \u0060bool\u0060\n  - Default: \u0060$true\u0060\n  - Description: Whether to clear cache. Defaults to true. Can be overridden by config.\n\n- **SkipLocalStorage**\n  - Type: \u0060bool\u0060\n  - Default: \u0060$false\u0060\n  - Description: If \u0060$true\u0060, local storage data is preserved. Defaults to false (local storage cleared). Can be overridden by config.\n\n- **KillProcesses**\n  - Type: \u0060bool\u0060\n  - Default: \u0060$true\u0060\n  - Description: Whether to stop browser processes before deletion to avoid file locks. Defaults to true. Can be overridden by config.\n\n- **SleepAfterKillMs**\n  - Type: \u0060int\u0060\n  - Default: \u00601500\u0060\n  - Description: Milliseconds to wait after killing processes before proceeding with cleanup. Defaults to 1500ms. Can be overridden by config.\n\n### Inputs\nNone. The function does not accept pipeline input.\n\n### Outputs\nNone. The function performs actions but does not return objects.\n\n### Examples\n\n#### Example 1: Clear all data for all browsers\n\u0060\u0060\u0060powershell\nClear-BrowserProfileData\n\u0060\u0060\u0060\nThis command clears cookies, cache, and local storage for all Chrome and Edge profiles, killing processes if necessary.\n\n#### Example 2: Clear only Chrome cache\n\u0060\u0060\u0060powershell\nClear-BrowserProfileData -Browser Chrome -IncludeCookies $false -SkipLocalStorage $true\n\u0060\u0060\u0060\nThis command targets only Google Chrome, clears only the cache (skipping cookies and local storage), and does not kill processes if they are running.\n\n#### Example 3: Clear specific profile for Edge with confirmation\n\u0060\u0060\u0060powershell\nClear-BrowserProfileData -Browser Edge -Profiles \u0027Default\u0027 -Confirm\n\u0060\u0060\u0060\nThis command targets the \u0027Default\u0027 profile in Microsoft Edge and prompts for confirmation before proceeding.",
       "runSummary": {
-        "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Prin...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Clear-BrowserProfileData.ps1\r\n\r\nGenerate a complete Clear-BrowserProfileData.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write...",
         "actionsTaken": [
           "read_file"
         ],
@@ -555,13 +340,97 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T23:37:40.1638058-05:00",
+      "timestampUtc": "2026-07-01T02:55:11.4850061+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printers.help.txt\u0027 according to PowerShell help documentation\r\nstandards. Do not use markdown format. Just make a plain text file.\u0022\r\n",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Clear-BrowserProfileData.ps1\r\n\r\nGenerate a complete Clear-BrowserProfileData.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Clear-BrowserProfileData.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Clear-BrowserProfileData.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 34719,
-      "maxIterations": 20,
+      "durationMs": 51154,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated and wrote the Clear-BrowserProfileData.md help document to C:\\repos\\TechToolbox-Docs\\Clear-BrowserProfileData.md following Get-Help -Online best practices.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Clear-BrowserProfileData.ps1\r\n\r\nGenerate a complete Clear-BrowserProfileData.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-01T02:56:17.7352618+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Copy-Directory.ps1\r\n\r\nGenerate a complete Copy-Directory.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Copy-Directory.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Copy-Directory.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 23317,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated and wrote the Copy-Directory.md help document to C:\\repos\\TechToolbox-Docs\\Copy-Directory.md.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Copy-Directory.ps1\r\n\r\nGenerate a complete Copy-Directory.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown ...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-01T02:58:36.1802761+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Find-LargeFiles.ps1\r\n\r\nGenerate a complete Find-LargeFiles.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Find-LargeFiles.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Find-LargeFiles.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 31668,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated and wrote the Find-LargeFiles.md help document to C:\\repos\\TechToolbox-Docs\\Find-LargeFiles.md.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Find-LargeFiles.ps1\r\n\r\nGenerate a complete Find-LargeFiles.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdow...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-01T03:01:24.2184043+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1\r\n\r\nGenerate a complete Initialize-TTWordList.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Initialize-TTWordList.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Initialize-TTWordList.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 12220,
+      "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
@@ -570,9 +439,9 @@
         "read_file",
         "read_file"
       ],
-      "outputPreview": "The READ-FILE tool consistently returns a compact view of the file content rather than the full text. However, this compact view contains all the necessary information to write the help document: the function name (\u0060Remove-Printers\u0060), its synopsis, description, parameters (with their types and descriptions), and examples.\n\nI will now generate the \u0060about_Remove-Printers.help.txt\u0060 file based on this extracted metadata. The format will be plain text as requested, following PowerShell help documentation standards for a conceptual/help topic.",
+      "outputPreview": "I have sufficient information from the compact view to generate the help document. I will now write the file.",
       "runSummary": {
-        "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printe...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1\r\n\r\nGenerate a complete Initialize-TTWordList.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the f...",
         "actionsTaken": [
           "read_file"
         ],
@@ -581,30 +450,27 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T22:34:12.2756388-05:00",
+      "timestampUtc": "2026-07-01T03:02:20.3493925+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-PDQDiagLogs.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1\r\n\r\nGenerate a complete Initialize-TTWordList.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Initialize-TTWordList.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Initialize-TTWordList.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 50627,
-      "maxIterations": 20,
+      "durationMs": 28935,
+      "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
-      "toolCalls": 5,
+      "toolCalls": 3,
       "toolNames": [
-        "read_file",
-        "list_directory",
         "read_file",
         "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Get-PDQDiagLogs has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt. The file follows the same format as other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
+      "outputPreview": "Successfully generated and wrote the Initialize-TTWordList.md help document to C:\\repos\\TechToolbox-Docs\\Initialize-TTWordList.md.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\e...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1\r\n\r\nGenerate a complete Initialize-TTWordList.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the f...",
         "actionsTaken": [
           "read_file",
-          "list_directory",
           "write_file"
         ],
         "blockers": "",
@@ -612,90 +478,28 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T22:36:05.7762338-05:00",
+      "timestampUtc": "2026-07-01T03:03:49.1475615+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-RemoteInstalledSoftware.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-RemoteInstalledSoftware.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-RemoteInstalledSoftware.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-EpicorEdgeAgent.ps1\r\n\r\nGenerate a complete Remove-EpicorEdgeAgent.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Remove-EpicorEdgeAgent.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Remove-EpicorEdgeAgent.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 77762,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Get-RemoteInstalledSoftware has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-RemoteInstalledSoftware.help.txt.\n\nIt follows the format of other help documents in the directory, including:\n- .EXTERNALHELP reference\n- .NOTES with NAME and DESCRIPTION\n- Detailed .PARAMETER sections for ComputerName, Credential, IncludeAppx, OutDir, Consolidated, and ThrottleLimit\n- .INPUTS section indicating pipeline support\n- .OUTPUTS section describing the return type\n- Multiple .EXAMPLE blocks demonstrating common usage scenarios\n- .LINK to TechToolbox repository",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-RemoteInstalledSoftware.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\T...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T22:38:41.5959561-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SharedMailboxPermissions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SharedMailboxPermissions.help.txt. Please follow the same format as\r\nthe other help documents in that directory. Be sure to not use markdown\r\nformatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SharedMailboxPermissions.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 68331,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Get-SharedMailboxPermissions has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-SharedMailboxPermissions.help.txt.\n\nIt follows the format of other help documents in the directory, including:\n- .EXTERNALHELP reference\n- .NOTES section with NAME and DESCRIPTION\n- Detailed .PARAMETER sections for Identity, IncludeFolderPermissions, Folder, and ExportCsv\n- .INPUTS and .OUTPUTS sections\n- Multiple .EXAMPLE blocks demonstrating common usage scenarios\n- .LINK to TechToolbox repository",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SharedMailboxPermissions.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T22:41:09.822263-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemSnapshot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemSnapshot.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemSnapshot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 95213,
-      "maxIterations": 20,
+      "durationMs": 47567,
+      "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
       "toolCalls": 6,
       "toolNames": [
         "read_file",
+        "read_file",
         "list_directory",
-        "read_file",
-        "read_file",
+        "list_directory",
         "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Get-SystemSnapshot has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemSnapshot.help.txt. It follows the same format as other help documents in the directory, including .EXTERNALHELP reference, .NOTES section with NAME and DESCRIPTION, detailed .PARAMETER sections, .INPUTS, .OUTPUTS, multiple .EXAMPLEs with descriptions, and a .LINK to TechToolbox.",
+      "outputPreview": "Successfully generated the Remove-EpicorEdgeAgent.md help document at C:\\repos\\TechToolbox-Docs\\Remove-EpicorEdgeAgent.md. The document includes synopsis, syntax, description, parameter details, inputs/outputs, notes, and examples based on the source code analysis.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemSnapshot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbo...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-EpicorEdgeAgent.ps1\r\n\r\nGenerate a complete Remove-EpicorEdgeAgent.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the...",
         "actionsTaken": [
           "read_file",
           "list_directory",
@@ -706,31 +510,26 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T22:43:38.135605-05:00",
+      "timestampUtc": "2026-07-01T03:04:47.1637552+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemTrustDiagnostic.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Get-SystemTrustDiagnostic.help.txt. Please follow the same format as the\r\nother help documents in that directory. Be sure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemTrustDiagnostic.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1\r\n\r\nGenerate a complete Remove-Printers.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Remove-Printers.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Remove-Printers.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 88121,
-      "maxIterations": 20,
+      "durationMs": 22278,
+      "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
-      "toolCalls": 6,
+      "toolCalls": 2,
       "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
         "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Get-SystemTrustDiagnostic has been created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemTrustDiagnostic.help.txt.",
+      "outputPreview": "Successfully generated and wrote the Remove-Printers.md help document to C:\\repos\\TechToolbox-Docs\\Remove-Printers.md.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemTrustDiagnostic.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Tec...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1\r\n\r\nGenerate a complete Remove-Printers.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdow...",
         "actionsTaken": [
           "read_file",
-          "list_directory",
           "write_file"
         ],
         "blockers": "",
@@ -738,74 +537,13 @@
       }
     },
     {
-      "timestampUtc": "2026-06-25T22:46:48.3900443-05:00",
+      "timestampUtc": "2026-07-01T03:10:39.1636857+00:00",
       "status": "success",
       "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1\r\n\r\nGenerate a complete Reset-WindowsUpdateComponents.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Reset-WindowsUpdateComponents.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Reset-WindowsUpdateComponents.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 99493,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Get-SystemUptime.help.txt\u0022,\n    \u0022content\u0022: \u0022.EXTERNALHELP Get-SystemUptime-help.xml\n\n.NOTES\n  NAME: about_Get-SystemUptime\n\n.DESCRIPTION\n  The Get-SystemUptime function retrieves the system uptime information from one\n  or more remote computers. It uses the TechToolbox remote worker engine to run a\n  small uptime worker script on each target host and optionally exports results\n  to CSV files.\n\n.PARAMETER ComputerName\n  Specifies one or more target computers to retrieve uptime from. This parameter\n  is mandatory. Accepts pipeline input by value.\n\n.PARAMETER Credential\n  Specifies a credential object used for authenticating remote connections. If\n  omitted, default authentication mechanisms are used.\n\n.PARAMETER OutDir\n  Specifies the output directory where CSV files will be exported. If omitted,\n  the default value from the configuration file is used.\n\n.PARAMETER NoExport\n  Indicates that CSV export should be skipped. By default, results may be\n  exported to CSV if an output directory is specified or configured.\n\n.INPUTS\n  System.String. You can pipe computer names to Get-SystemUptime.\n\n.OUTPUTS\n  PSCustomObject. The function returns custom objects containing the uptime data\n  for each target computer.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV01\n\n  Description: Retrieves system uptime information from SRV01.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV02, SRV03 -OutDir C:\\\\Temp\\\\UptimeReports\n\n  Description: Retrieves system uptime information from SRV02 and SRV03 and\n  exports the results to CSV files in C:\\\\Temp\\\\UptimeReports.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName WS01 -Credential $cred -NoExport\n\n  Description: Retrieves system uptime information from WS01 using the specified\n  credential object and skips CSV export.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)\n\u0022\n  },\n  \u0022finalAnswer\u0022: \u0022\u0022,\n  \u0022reason\u0022: \u0022I have read the source function Get-SystemUptime.ps1 to understand its parameters (ComputerName, Credential, OutDir, NoExport) and behavior. I have also reviewed existing help files in the target directory (about_Get-SharedMailboxPermissions.help.txt, about_Get-SystemSnapshot.help.txt, about_Get-SystemTrustDiagnostic.help.txt) to match their format exactly. Now I will write the new help file using WRITE-FILE.\u0022\n}",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T22:51:56.4576207-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 79622,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 6,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "The help document for Get-SystemUptime has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US ...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-25T22:54:17.4385654-05:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-ToolboxHelp.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-ToolboxHelp.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 78353,
-      "maxIterations": 20,
+      "durationMs": 47416,
+      "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
@@ -816,9 +554,9 @@
         "read_file",
         "write_file"
       ],
-      "outputPreview": "The help document for Get-ToolboxHelp has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-ToolboxHelp.help.txt. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETER, INPUTS, OUTPUTS, EXAMPLE, NOTES, and LINK.",
+      "outputPreview": "Successfully generated and wrote the Reset-WindowsUpdateComponents.md help document to C:\\repos\\TechToolbox-Docs\\Reset-WindowsUpdateComponents.md. The document includes Synopsis, Syntax, Description, Parameter details (ComputerName, Credential), Inputs/Outputs, Notes on requirements, and Examples for both local and remote execution.",
       "runSummary": {
-        "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US a...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1\r\n\r\nGenerate a complete Reset-WindowsUpdateComponents.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou ...",
         "actionsTaken": [
           "read_file",
           "write_file"
@@ -828,115 +566,27 @@
       }
     },
     {
-      "timestampUtc": "2026-06-30T23:34:28.8563058+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
+      "timestampUtc": "2026-07-01T03:11:53.6283079+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1\r\n\r\nGenerate a complete Watch-ISPConnection.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Watch-ISPConnection.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Watch-ISPConnection.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
       "model": "qwen3.6:35b",
-      "durationMs": 137567,
+      "durationMs": 42763,
       "maxIterations": 15,
       "destructiveConfirmed": true,
       "signedFilePolicy": "ignore",
       "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      }
-    },
-    {
-      "timestampUtc": "2026-06-30T23:37:22.6830426+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 148018,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 7,
+      "toolCalls": 3,
       "toolNames": [
-        "read_file",
-        "read_file",
-        "list_directory",
-        "read_file",
         "read_file",
         "read_file",
         "write_file"
       ],
-      "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: false,\n  \u0022toolName\u0022: \u0022\u0022,\n  \u0022toolArgs\u0022: {},\n  \u0022finalAnswer\u0022: \u0022# Invoke-TechAgent\\n\\nSends a prompt to the TechToolbox local agent for automated task execution.\\n\\n---\\n\\n## Overview\\n\\n\u0060Invoke-TechAgent\u0060 is a helper function that facilitates interaction with the TechToolbox.Agent C# runtime. It allows users to send natural-language instructions (prompts) to an AI agent, which then performs actions on behalf of the user using available tools and scripts.\\n\\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before sending the request.\\n\\n---\\n\\n## Parameters\\n\\n| Parameter | Type | Description |\\n|----------|------|-------------|\\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. This is the primary input defining what task to perform. |\\n| **PromptFile** | \u0060string\u0060 | Optional path to a text file containing the prompt. If omitted and \u0060-Prompt\u0060 is empty, Invoke-TechAgent attempts to load a default prompt file. |\\n| **Model** | \u0060string\u0060 | Optional Ollama model name (e.g., \u0060llama3\u0060, \u0060mistral\u0060, \u0060qwen2.5-coder\u0060). Specifies which AI model to use for processing the prompt. |\\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default, but this parameter remains for backward compatibility. |\\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. Use with caution. |\\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. Valid values: \u0060\u0027ignore\u0027\u0060 (blocks overwrite) or \u0060\u0027strip\u0027\u0060 (allows overwrite while removing signature block text). |\\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit. |\\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding any global settings. |\\n\\n---\\n\\n## How It Works\\n\\n### **Agent Execution**\\nThe function calls the TechToolbox.Agent C# runtime and prints the agent\u0027s response.\\n1. Initializes the TechToolbox runtime environment (\u0060Initialize-TechToolboxRuntime\u0060).\\n2. Loads the prompt from \u0060-Prompt\u0060 or \u0060-PromptFile\u0060.\\n3. Sends the request to the specified AI model (or default if none provided).\\n4. The agent reasons through the task, potentially invoking other tools or scripts.\\n5. Returns the final output or error message from the agent.\\n\\n### **Recursion Handling**\\nThe agent may recursively call itself for complex tasks. The \u0060-AutoRetryOnRecursion\u0060 parameter allows a single automatic retry if an iteration limit is hit, helping to complete multi-step processes that exceed default limits.\\n\\n---\\n\\n## Examples\\n\\n### **Basic Prompt Execution**\\nSend a simple instruction to the agent using the default model.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022List all running services on this machine\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Using a Specific Model**\\nSpecify an Ollama model for processing.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Analyze the disk usage\\\u0022 -Model \\\u0022qwen2.5-coder\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Loading Prompt from File**\\nUse a text file containing the prompt instructions.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -PromptFile \\\u0022C:\\\\prompts\\\\cleanup.txt\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Allowing Destructive Actions**\\nExplicitly authorize destructive operations for this run.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Delete all files in C:\\\\Temp\\\u0022 -ConfirmDestructive\\n\u0060\u0060\u0060\\n\\n---\\n\\n## Notes\\n\\n- Requires **TechToolbox configuration** to be present with valid AI settings.\\n- The \u0060-Model\u0060 parameter is optional; if omitted, the default model from configuration is used.\\n- Large prompts may exceed context limits depending on the configured model. Consider splitting large tasks...",
+      "outputPreview": "Successfully generated and wrote the Watch-ISPConnection.md help document to C:\\repos\\TechToolbox-Docs\\Watch-ISPConnection.md. The document includes synopsis, syntax, description, parameter details, examples, and related links following Get-Help -Online best practices.",
       "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1\r\n\r\nGenerate a complete Watch-ISPConnection.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final...",
         "actionsTaken": [
           "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-30T23:44:14.3220648+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 48767,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "The file \u0060C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\u0060 already exists and contains the help documentation for Invoke-TechAgent. The content follows a markdown format with sections for Overview, Parameters, How It Works, Examples, and Notes. This appears to be the requested output.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-06-30T23:47:53.5966874+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "\u0022Please look at the function C:\\repos\\TechToolbox\\Public\\Get\\Get-AllUsers.ps1.\r\nCreate a markdown file to the folder C:\\repos\\TechToolbox-Docs, and name the\r\nfile Get-AllUsers.md. The file should follow the same format as other help\r\ndocuments in this directory. Write your output to the new file. This file will\r\nbe used as -Online help for the Get-AllUsers.ps1 script.\u0022\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 97580,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 6,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "# Get-AllUsers\n\nEnumerates user accounts known to a computer. Returns a merged view of local user accounts, user profiles present on the machine, and users currently logged on.\n\n---\n\n## Overview\n\n\u0060Get-AllUsers\u0060 provides a comprehensive list of users associated with one or more computers. It supports both local execution and remote execution via PowerShell Remoting (WSMan) or SSH.\n\n### Local Execution\nWhen targeting the local computer, the function runs directly without establishing a remote session.\n\n### Remote Execution\nFor remote targets, it utilizes \u0060Start-NewPSRemoteSession\u0060 to establish a connection and \u0060Invoke-RemoteWorker\u0060 to execute the enumeration logic. It supports:\n- WSMan (Windows PowerShell Management)\n- SSH transport\n- CredSSP authentication\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **ComputerName** | \u0060string[]\u0060 | One or more computer names. Defaults to the local computer (\u0060$env:COMPUTERNAME\u0060). Accepts pipeline input. Aliases: \u0060Name\u0060, \u0060CN\u0060. |\n| **Credential** | \u0060PSCredential\u0060 | Credential used for remote session creation when targeting other machines. |\n| **UseSsh** | \u0060switch\u0060 | Use SSH transport instead of WSMan for remote execution. |\n| **UseCredSSP** | \u0060switch\u0060 | Use CredSSP authentication for WSMan remoting. |\n| **Port** | \u0060int\u0060 | The port to use when \u0060-UseSsh\u0060 is specified. Default: 22. |\n| **Ps7ConfigName** | \u0060string\u0060 | The WSMan PowerShell 7 endpoint name. Default: \u0060\u0027PowerShell.7\u0027\u0060. |\n| **WinPsConfigName** | \u0060string\u0060 | The WSMan Windows PowerShell endpoint name. Default: \u0060\u0027Microsoft.PowerShell\u0027\u0060. |\n| **UserName** | \u0060string\u0060 | SSH username when not using PSCredential for authentication. |\n| **KeyFilePath** | \u0060string\u0060 | Path to the SSH private key file when using key-based authentication. |\n\n---\n\n## How It Works\n\n### 1. Target Resolution\nDetermines if the target is local or remote based on \u0060$ComputerName\u0060. If multiple computers are specified, it iterates through each.\n\n### 2. Remote Session Establishment (Remote Targets)\nIf a remote computer is targeted:\n- Establishes a PSRemoting session using \u0060Start-NewPSRemoteSession\u0060.\n- Configures the session based on \u0060-UseSsh\u0060, \u0060-UseCredSSP\u0060, and port settings.\n- Passes credentials or key paths as required by the transport method.\n\n### 3. User Enumeration (Worker)\nThe worker logic merges data from three sources:\n1. **Local User Accounts**: Retrieved via standard AD/Local SAM queries.\n2. **User Profiles**: Profiles present on the file system (\u0060C:\\Users\u0060).\n3. **Logged-On Users**: Currently active sessions detected via WMI/CIM or PSRemoting commands.\n\n### 4. Output\nReturns a unified collection of user objects containing identity information, profile paths, and login status.\n\n---\n\n## Examples\n\n### **Enumerate local users**\n\u0060\u0060\u0060powershell\nGet-AllUsers\n\u0060\u0060\u0060\n\n### **Enumerate remote computer using default credentials**\n\u0060\u0060\u0060powershell\nGet-AllUsers -ComputerName \u0022SRV01\u0022\n\u0060\u0060\u0060\n\n### **Enumerate multiple computers via SSH**\n\u0060\u0060\u0060powershell\nGet-AllUsers -ComputerName \u0022SRV01\u0022, \u0022SRV02\u0022 -UseSsh -UserName \u0022admin\u0022 -KeyFilePath \u0022C:\\keys\\id_rsa\u0022\n\u0060\u0060\u0060\n\n### **Enumerate remote computer using CredSSP**\n\u0060\u0060\u0060powershell\n$cred = Get-Credential\nGet-AllUsers -ComputerName \u0022SRV01\u0022 -Credential $cred -UseCredSSP\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires appropriate permissions on the target computers.\n- For remote execution, PowerShell Remoting must be enabled and configured correctly.\n- SSH transport requires OpenSSH client/server components to be installed.\n- CredSSP delegation must be configured in both local and remote Group Policy if used.",
-      "runSummary": {
-        "intent": "\u0022Please look at the function C:\\repos\\TechToolbox\\Public\\Get\\Get-AllUsers.ps1.\r\nCreate a markdown file to the folder C:\\repos\\TechToolbox-Docs, and name the\r\nfile Get-AllUsers.md. The file should follow the same format a...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
           "write_file"
         ],
         "blockers": "",

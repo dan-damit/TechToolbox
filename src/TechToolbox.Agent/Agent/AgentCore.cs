@@ -50,7 +50,8 @@ public static class AgentCore
         bool returnMetadata = false,
         string signedFilePolicy = "ignore",
         string? diagnosticTracePath = null,
-        string? expectedOutputPath = null
+        string? expectedOutputPath = null,
+        int recentHistoryItemsInPrompt = 2
     )
     {
         return RunAgentAsync(
@@ -64,7 +65,8 @@ public static class AgentCore
                 returnMetadata,
                 signedFilePolicy,
                 diagnosticTracePath,
-                expectedOutputPath
+                expectedOutputPath,
+                recentHistoryItemsInPrompt
             )
             .GetAwaiter()
             .GetResult();
@@ -85,7 +87,8 @@ public static class AgentCore
         bool returnMetadata = false,
         string signedFilePolicy = "ignore",
         string? diagnosticTracePath = null,
-        string? expectedOutputPath = null
+        string? expectedOutputPath = null,
+        int recentHistoryItemsInPrompt = 2
     )
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -101,6 +104,7 @@ public static class AgentCore
             DestructiveConfirmed = destructiveConfirmed,
             SignedFilePolicy = signedFilePolicy,
             MemoryPath = memoryPath,
+            RecentHistoryItemsInPrompt = recentHistoryItemsInPrompt,
             ReturnMetadata = returnMetadata,
             DiagnosticTracePath = diagnosticTracePath,
             ExpectedOutputPath = expectedOutputPath,
@@ -168,7 +172,8 @@ public static class AgentCore
             config.MaxIterations,
             config.AutoRetryOnIterationLimit,
             config.DiagnosticTracePath,
-            config.ExpectedOutputPath
+            config.ExpectedOutputPath,
+            config.RecentHistoryItemsInPrompt
         );
 
         // 6. Run the agent
