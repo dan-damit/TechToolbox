@@ -4,6 +4,7 @@
 *.secrets.json
 
 # Directories
+LogsAndExports/
 Out/
 EndpointTrackingScripts/
 .venv/
@@ -14,12 +15,6 @@ bin/
 src/TechToolbox.Agent/bin/**
 !src/TechToolbox.Agent/bin/**/
 !src/TechToolbox.Agent/bin/**/TechToolbox.Agent.dll
-
-LogsAndExports/*
-!LogsAndExports/Logs/
-LogsAndExports/Logs/*
-!LogsAndExports/Logs/TechAgentMarkdown/
-!LogsAndExports/Logs/TechAgentMarkdown/**
 
 # Files
 wordlist.txt
