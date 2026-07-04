@@ -209,12 +209,12 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
   "settings": {
     "tenant": {
       "organizationName": "yourdomain.onmicrosoft.com",
-      "upnSuffix": "yourdomain.com",
+      "upnSuffix": "yourdomain.local",
       "tenantId": "0000-0000-0000-0000"
     },
     "ad": {
-      "domainController": "DC-1.yourdomain.com",
-      "searchBase": "DC=yourdomain,DC=com"
+      "domainController": "DC01.yourdomain.local",
+      "searchBase": "DC=yourdomain,DC=local"
     }
   }
 }
