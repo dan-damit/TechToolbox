@@ -136,7 +136,7 @@
       "consolidated": false
     },
     "agent": {
-      "model": "qwen3.6:35b",
+      "model": "ornith:35b",
       "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json",
       "defaultPromptFile": "AI\\prompt.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
