@@ -37,12 +37,26 @@ public static class PowerShellBridge
 
         using var ps = PowerShell.Create();
 
-        // Import the TechToolbox module explicitly
-        // (Assumes the module is discoverable via PSModulePath)
-        ps.AddCommand("Import-Module")
-            .AddParameter("Name", "TechToolbox")
-            .AddParameter("ErrorAction", "Stop")
-            .Invoke();
+        // Import the TechToolbox module explicitly.
+        // Prefer manifest-path import so repo/dev layouts work even when
+        // TechToolbox is not discoverable through PSModulePath.
+        var modulePath = ResolveModuleManifestPath();
+        if (!string.IsNullOrWhiteSpace(modulePath))
+        {
+            ps.AddCommand("Import-Module")
+                .AddParameter("Name", modulePath)
+                .AddParameter("Force")
+                .AddParameter("ErrorAction", "Stop")
+                .Invoke();
+        }
+        else
+        {
+            ps.AddCommand("Import-Module")
+                .AddParameter("Name", "TechToolbox")
+                .AddParameter("Force")
+                .AddParameter("ErrorAction", "Stop")
+                .Invoke();
+        }
 
         if (ps.HadErrors)
             throw new InvalidOperationException(
@@ -359,6 +373,29 @@ public static class PowerShellBridge
     {
         var handler = new HttpClientHandler { AllowAutoRedirect = false };
         return new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+    }
+
+    private static string? ResolveModuleManifestPath()
+    {
+        var envRoot = Environment.GetEnvironmentVariable("TT_ModuleRoot");
+        if (!string.IsNullOrWhiteSpace(envRoot))
+        {
+            var candidate = Path.Combine(envRoot, "TechToolbox.psd1");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "TechToolbox.psd1");
+            if (File.Exists(candidate))
+                return candidate;
+
+            dir = dir.Parent;
+        }
+
+        return null;
     }
 
     private static bool ShouldSummarizeFile(string content)

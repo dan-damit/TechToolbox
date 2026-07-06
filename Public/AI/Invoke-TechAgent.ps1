@@ -47,6 +47,12 @@ function Invoke-TechAgent {
     .PARAMETER NoTranscript
         Disables the per-run console transcript log.
 
+    .PARAMETER AllowMetaTools
+        Allows higher-order meta tools (for example Invoke-CodeAssistant,
+        Invoke-CodeAssistantFolder, Invoke-CodeAssistantWrapper, Invoke-TechAgent)
+        to be available to the agent for this run. Disabled by default to
+        reduce recursive orchestration loops.
+
     .EXAMPLE
         Invoke-TechAgent "Run system diagnostics and summarize findings."
 
@@ -99,6 +105,11 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [bool]$NoTranscript = $true
+
+        ,
+
+        [Parameter()]
+        [switch]$AllowMetaTools
     )
 
     # Initialize the TechToolbox runtime and load agent configuration
@@ -633,6 +644,7 @@ Hard requirement:
             DiagnosticTracePath  = $diagnosticTracePath
             ExpectedOutputPath   = $expectedOutputPath
             AllowedFetchHosts    = @($allowedFetchHosts)
+            AllowMetaTools       = $AllowMetaTools.IsPresent
         }
 
         $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
@@ -661,7 +673,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [string]$request.DiagnosticTracePath,
     [string]$request.ExpectedOutputPath,
     [int]$request.PromptHistoryItems,
-    [string[]]$request.AllowedFetchHosts)
+    [string[]]$request.AllowedFetchHosts,
+    [bool]$request.AllowMetaTools)
 [Console]::Write($result)
 '@
 
@@ -813,8 +826,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCG0GUzI7wRNs/8
-# X8Kum6MVJNEBMsJ3L4dLnl7qOxF8zqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQKHLtVKWvLp9C
+# ClvIcEcyDD79wsQMrvB1UrP52QfpBaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -947,34 +960,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAtXgT3+WNw
-# 2sDD8gztcW8/ESy591++0J1CVEzqdYXFMTANBgkqhkiG9w0BAQEFAASCAgBMiG51
-# pNs8Z/POryL/2vNnGTVkn5EoFVegHZYEsftfewmOoM1KRTBIkOB/ZypEwcLDOYwb
-# BYVvweNO5navoyQAVovkNmikVAL1j3XTzQrgPRrG3+D2Ao0xx5Qc3ZaAylsafsW0
-# zGzhOCRIjT38rjgAQFYp5CJ1S1tbeQ1NKhMvwR6li2UDMmP065MDVZFnGGPaJERY
-# GjIc/qG1JnDjg92VopZuM3CyqzXCEg65NxSGza4q9fJeFgSWp7pcweK3mtUUHmlV
-# XZU2As6XbrueuL2HEJUs+vmsJXV1BDv6bpoWmsAxlU4mURcd2gJKVmxidHdZ7SMT
-# Gkn5Jq0X/ZOapGpllPFz44iHmbQFHUDEgUDWboUIyN7QHn0trQOdDZHsBfbenNqk
-# fqjlSMiqglFNcmLiBx/BebswAtDO4gWKG6wBzsNbGd7Km0l06MQmcPOluaE5V5ms
-# sJwwWggKtI/mDA/DMeru87kwRU8nZ1y/2FPOq6k6QzC8o81aajXm2RdfHaWmXUSt
-# M3lH4AdStRLhYhCFD9Yl3pyxnegxubZNVwNjVJVB0r7TNfe4wU4EMk80giqw/XPG
-# Cp8fr56NIOXe0XZwVm8xx/Qrc9ecISfKMDS/v1916iPbnYy97Y4cGe6sKqo574W6
-# OsgHjeJ51FF+ilU8POV56Ukh+L9bFxklALERTaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDPgyXyn42f
+# GEUzhlfgIS5UCZblswoT0LXeoo2AIgsS/jANBgkqhkiG9w0BAQEFAASCAgBp7YmO
+# SJyHnrNld7FRd19Gr6Vmaky6Ckzc3SBcVPtkN+WP61Nwqie9sY+9qhiBfURc+s2b
+# 7fL29zpOBWYRuKNonohbTAjRQMoTbGC1iUJXTIYkpRLk1vPANDhiLpZ1azXfj0eL
+# ///mu3fgnk/8G0rh3uBJUGF2Nzn/RN2uAF3pYOFgAN5SxHynycX357keJWYmAjC5
+# 251pyJPLc7Fqvk/riZNi3OHN6XYO1+M/8CJbGgVs5k93EYb4HQBeSCmJF5bq5mSj
+# 1cKyQwEuxWTxITb8J1RJN12VH8CwfMq5i05Ko9WBOPdc57ibJd9WGyCv6TJUJ9Yu
+# voHEhp/E9epSCH5K1UUiCBN9OOEBjEyAU8qv2HGIP4jMaN60h1c1cNnpzWsq/xF3
+# 0bgXwhzAkWmK0HPw6kbMAeRYAr3rEMRdIkBYbF1txbc7+fmboXKB+ZYTcQMC2YXs
+# MSAERkB7obi3GJ6MjtWB1UgFeMwtWrvp4VU5p8YUhRRGfDIbIahfyCA0AGH8Kq7l
+# JS8J1f7PqbwmSx4aGDq7Cd8lMXPZ/2YZHfBjoGE9EFZLQztSMMc1eMQt0vg4ESbn
+# F/9Msj6Ttkgf5JzCp+fKtjNEEbPs+KgLAw7n0ey/2VzcuQu/NFVGRjftJoceGbY1
+# zH6kzr0aPwfuEA8z/8Qp/N/IRQr1IsoCZixWpaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MDYwMzE5MzZaMC8GCSqGSIb3DQEJBDEiBCArFGAEbk1wk90yLTGU
-# S/7B4+Qoe7hVG9Z6y1vb4mGH3DANBgkqhkiG9w0BAQEFAASCAgCcK5904EVVYOFJ
-# dAyw8IKH2TEY19FP0yr6Z//QTnfiU/9GDZSyBPr0yt0YAPi90Kgiy3bO0kLkkENM
-# fGS0ETOmH+HTAo57d26U3xh7Gvj/hTiwnks1FmKaeQArlkJjRkSp5oYnqiS4t9lD
-# oXRTW5tb2zaepTFhR5jB6YABj727mxECTB2bpf6ofHpnzULIukpsgVElAc2paJWT
-# g41wgU1XLc8pdRAOEzOxBE055GyMIa5NGXhiKrmwEVcJp3siG8J0s+dVABwAdT33
-# QU1UG1IwnlU4vA9kwceNZP5jJ/l9pV8GnYIcRpEc5SP95W1hbAtokmhPdesGjrzW
-# qZ6CJJOr1dqsM+bqZEHPMAn4+zPp9j/ikYywo3WOwge+n68rYm7yR6JYdiUYVLCP
-# ZEp3eF9oRbYNrRaOoC61HYe4gDhHLJVUJ/37GqfU+SvaEec/ab0/OMeHejeMwPHp
-# hWkHUPJzRiE2P0nabrbv0WGuaJ2vq1lNpVEgVid3sWYm/o+m/cTe5BmTJEr5Uj1s
-# jIgwt02yLOgS86ZEKmmh9jUVY+CFfLLJlVPM1K0yzWA/LsQajLXPTmV4n+CeMkdW
-# cDQlYtXh+9mMVH6w8c+G42Hot0UUShM79ECSOzbUo/j0hOAVLvgnTn7ZL+95H0Z8
-# GIxIct2XbTiwDUqH8ksQuRW1Qs7L3g==
+# BTEPFw0yNjA3MDYwNTIxMTlaMC8GCSqGSIb3DQEJBDEiBCAKZmAUgZSZczWWi1iF
+# 9K3lZPeDtxYPuMXetSKm1UMa5DANBgkqhkiG9w0BAQEFAASCAgC/YZrmxUkJe1Mi
+# qw58bubK5SVutOxVtpgr6DbMns0uzieby+7vaefGQ1iLr1zqBOZE22IIOwWaA6k0
+# jp9mWl9A1RR1bIlbzFpGAzK802hLZXWLYOitKGs4NWg5NjhNX0JAq0bWBF4u94zG
+# S4y43XmVxliFUYikCO44dKOjOOlMcPSoNAPO5hiDMWQ8RSRwZmqGQ7gLg2i2vkbc
+# COHRNMsvY3Y0TfvNW1c2CfDhHHAAQbBHEwCQ9mJ8irkYHN+jH8Skmb2dxAfavJX7
+# xD8MdpdOImswG+yN6l7qp2dBltQMMUvj5+NKspt3o8KGqJjU1Oi6NJw49MjLWlVS
+# USgRSQ5p8Kc37qsXVzSVPwgZ6mD08OEGsLWy7bvotlbEJiNzMuHj2UyQpIYninjy
+# hLZoS/j+n0PVGDjWAsIwAF640rIQw1ge1D+EC3i5UB70PJjPp6OGu+sk26gO6YgY
+# +G8H6zj49gWIRoxFTAK22uq5QDV1YFlHB5QWLhLGyj+IuekCWj7Dx561rT7F5Ak5
+# 68g0BnwDbRpPXWEFF3lYxWUoCPBUERJLC3+/QuyqP+2LxQc00g60Vf1SqyEfEabu
+# Nfb+8625H0Rfrz2VXTINYaN0cn9ZpcK2R3YIK7IUnU85qq3+a/ljACLXOKXxRh7L
+# vkVpmbIddk6E61+NAPn1+ZUY68BDqw==
 # SIG # End signature block

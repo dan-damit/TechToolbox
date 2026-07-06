@@ -7,22 +7,20 @@ using TechToolbox.Agent.Registry;
 
 namespace TechToolbox.Agent.Agent;
 
-public class AgentOrchestrator
+public partial class AgentOrchestrator
 {
     private static readonly int MaxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
-    private static readonly Regex SectionHeadingRegex = new(
-        @"^\s*(?:#\s*)?\.(?<name>[A-Z][A-Z0-9_-]*)\b",
-        RegexOptions.Compiled
-    );
-    private static readonly Regex FunctionNameRegex = new(
-        @"^\s*function\s+(?<name>[A-Za-z_][A-Za-z0-9_-]*)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
+    private static readonly string[] LineSeparators = ["\r\n", "\n"];
+    private static readonly char[] TrimDirectorySeparators =
+    [
+        Path.DirectorySeparatorChar,
+        Path.AltDirectorySeparatorChar,
+    ];
 
     private readonly LlmClient _llm;
     private readonly IReadOnlyDictionary<string, ToolSpec> _registry;
     private readonly Dictionary<string, Func<string, Task<string>>> _tools;
-    private readonly Memory.MemoryStore? _memory;
+    private readonly MemoryStore? _memory;
     private readonly string _model;
     private readonly bool _destructiveConfirmed;
     private readonly string _signedFilePolicy;
@@ -33,11 +31,23 @@ public class AgentOrchestrator
     private readonly int _recentHistoryItemsInPrompt;
     private readonly object _traceLock = new();
 
+    [GeneratedRegex(@"^\s*(?:#\s*)?\.(?<name>[A-Z][A-Z0-9_-]*)\b")]
+    private static partial Regex SectionHeadingRegex();
+
+    [GeneratedRegex(@"^\s*function\s+(?<name>[A-Za-z_][A-Za-z0-9_-]*)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex FunctionNameRegex();
+
+    [GeneratedRegex(@"(?im)^\s*-\s*Create\s+the\s+output\s+file\s+at\s+this\s+exact\s+path\s*:\s*(?<path>[A-Za-z]:\\[^\r\n]+)$")]
+    private static partial Regex ExpectedOutputPathRegex();
+
+    [GeneratedRegex("^\\s*(begin|process|end)\\s*\\{", RegexOptions.IgnoreCase)]
+    private static partial Regex StructureHintRegex();
+
     public AgentOrchestrator(
         LlmClient llm,
         IReadOnlyDictionary<string, ToolSpec> registry,
         Dictionary<string, Func<string, Task<string>>> tools,
-        Memory.MemoryStore? memory,
+        MemoryStore? memory,
         string model,
         bool destructiveConfirmed,
         string signedFilePolicy,
@@ -76,7 +86,7 @@ public class AgentOrchestrator
         );
 
         var stopwatch = Stopwatch.StartNew();
-        var initialToolNames = new List<string>();
+        List<string> initialToolNames = [];
 
         var attempt = await RunLoopAsync(prompt, _maxIterations, initialToolNames)
             .ConfigureAwait(false);
@@ -104,7 +114,7 @@ public class AgentOrchestrator
                 _maxIterations + 5,
                 (int)Math.Ceiling(_maxIterations * 1.5)
             );
-            var retryToolNames = new List<string>();
+            List<string> retryToolNames = [];
 
             var retryAttempt = await RunLoopAsync(prompt, retryIterations, retryToolNames)
                 .ConfigureAwait(false);
@@ -131,7 +141,7 @@ public class AgentOrchestrator
             return FinalizeResult(
                 prompt,
                 BuildIterationLimitMessage(_maxIterations, retryIterations),
-                new List<string>(),
+                [],
                 stopwatch.ElapsedMilliseconds,
                 status: "error",
                 outcome: "iteration-limit",
@@ -146,7 +156,7 @@ public class AgentOrchestrator
         return FinalizeResult(
             prompt,
             BuildIterationLimitMessage(_maxIterations),
-            new List<string>(),
+            [],
             stopwatch.ElapsedMilliseconds,
             status: "error",
             outcome: "iteration-limit",
@@ -218,7 +228,7 @@ public class AgentOrchestrator
 
             messages.Add(new AgentChatMessage { Role = "assistant", Content = raw });
 
-            AgentDecision? decision = null;
+            AgentDecision? decision;
             var decisionValidationError = string.Empty;
 
             var parsedDecision = JsonHelpers.TryParseDecision(raw, out decision) && decision is not null;
@@ -340,8 +350,10 @@ public class AgentOrchestrator
                         }
 
                         if (
-                            !decision.NeedsTool
-                            || !decision.ToolName.Equals(
+                            decision is null
+                            || !decision.NeedsTool
+                            || !string.Equals(
+                                decision.ToolName,
                                 "WRITE-FILE",
                                 StringComparison.OrdinalIgnoreCase
                             )
@@ -361,6 +373,14 @@ public class AgentOrchestrator
                         );
                     }
                 }
+            }
+
+            if (decision is null)
+            {
+                return new RunLoopResult(
+                    "Agent decision was unexpectedly null after parsing/repair.",
+                    ReachedIterationLimit: false
+                );
             }
 
             if (!decision.NeedsTool)
@@ -392,15 +412,17 @@ public class AgentOrchestrator
                 );
             }
 
-            if (!_tools.TryGetValue(decision.ToolName, out var toolFunc))
-            {
-                Trace($"Iteration {i + 1} tool not found: {decision.ToolName}");
+            var toolName = decision.ToolName ?? string.Empty;
 
-                var toolError = $"Tool '{decision.ToolName}' was not found.";
+            if (!_tools.TryGetValue(toolName, out var toolFunc))
+            {
+                Trace($"Iteration {i + 1} tool not found: {toolName}");
+
+                var toolError = $"Tool '{toolName}' was not found.";
 
                 messages.Add(
                     PromptBuilder.BuildToolResultMessage(
-                        decision.ToolName,
+                        toolName,
                         toolError,
                         succeeded: false
                     )
@@ -408,7 +430,7 @@ public class AgentOrchestrator
                 continue;
             }
 
-            toolNames.Add(decision.ToolName);
+            toolNames.Add(toolName);
 
             string jsonArgs;
             try
@@ -421,7 +443,7 @@ public class AgentOrchestrator
 
                 messages.Add(
                     PromptBuilder.BuildToolResultMessage(
-                        decision.ToolName,
+                        toolName,
                         serializationError,
                         succeeded: false
                     )
@@ -429,7 +451,7 @@ public class AgentOrchestrator
                 continue;
             }
 
-            Trace($"Iteration {i + 1} executing tool={decision.ToolName}");
+            Trace($"Iteration {i + 1} executing tool={toolName}");
 
             string toolResult;
             var toolExecutionSucceeded = true;
@@ -445,7 +467,7 @@ public class AgentOrchestrator
 
             if (
                 requiresWriteFile
-                && decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
+                && toolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
             )
             {
                 if (!TryGetToolArgString(decision.ToolArgs, "path", out var writePath))
@@ -466,7 +488,7 @@ public class AgentOrchestrator
 
             if (
                 toolExecutionSucceeded
-                && decision.ToolName.Equals("READ-FILE", StringComparison.OrdinalIgnoreCase)
+                && toolName.Equals("READ-FILE", StringComparison.OrdinalIgnoreCase)
             )
             {
                 var compactThreshold = GetReadFilePromptCompactThresholdChars();
@@ -485,7 +507,7 @@ public class AgentOrchestrator
 
             if (
                 requiresWriteFile
-                && decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
+                && toolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
                 && toolExecutionSucceeded
                 && !toolResult.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
             )
@@ -523,7 +545,7 @@ public class AgentOrchestrator
 
             messages.Add(
                 PromptBuilder.BuildToolResultMessage(
-                    decision.ToolName,
+                    toolName,
                     toolResultForPrompt,
                     toolExecutionSucceeded
                 )
@@ -565,7 +587,7 @@ public class AgentOrchestrator
         };
 
         _memory?.AddRun(
-            new Memory.RunHistory
+            new RunHistory
             {
                 TimestampUtc = DateTimeOffset.UtcNow,
                 Status = status,
@@ -586,7 +608,7 @@ public class AgentOrchestrator
                 Error = status.Equals("error", StringComparison.OrdinalIgnoreCase)
                     ? Truncate(output, 4000)
                     : null,
-                RunSummary = new Memory.RunSummary
+                RunSummary = new RunSummary
                 {
                     Intent = Truncate(prompt, 220),
                     ActionsTaken = toolNames
@@ -786,7 +808,7 @@ Next best action:
         }
 
         var lines = output
-            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Select(line => line.Trim())
             .Where(line => !string.IsNullOrWhiteSpace(line));
 
@@ -869,11 +891,7 @@ Next best action:
         if (string.IsNullOrWhiteSpace(prompt))
             return null;
 
-        var match = Regex.Match(
-            prompt,
-            @"(?im)^\s*-\s*Create\s+the\s+output\s+file\s+at\s+this\s+exact\s+path\s*:\s*(?<path>[A-Za-z]:\\[^\r\n]+)$",
-            RegexOptions.Compiled
-        );
+        var match = ExpectedOutputPathRegex().Match(prompt);
 
         if (!match.Success)
             return null;
@@ -922,7 +940,7 @@ Next best action:
         if (!decision.NeedsTool)
             return false;
 
-        if (!decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(decision.ToolName, "WRITE-FILE", StringComparison.OrdinalIgnoreCase))
             return false;
 
         if (string.IsNullOrWhiteSpace(expectedOutputPath))
@@ -964,7 +982,7 @@ Next best action:
                 return false;
             }
 
-            if (decision.ToolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(decision.ToolName, "WRITE-FILE", StringComparison.OrdinalIgnoreCase))
             {
                 if (!TryGetToolArgString(decision.ToolArgs, "path", out _))
                 {
@@ -996,9 +1014,9 @@ Next best action:
         try
         {
             var fullLeft = Path.GetFullPath(left)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                .TrimEnd(TrimDirectorySeparators);
             var fullRight = Path.GetFullPath(right)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                .TrimEnd(TrimDirectorySeparators);
 
             return string.Equals(fullLeft, fullRight, StringComparison.OrdinalIgnoreCase);
         }
@@ -1049,14 +1067,14 @@ Next best action:
         var normalized = toolResult.Replace("\r\n", "\n").Replace('\r', '\n');
         var lines = normalized.Split('\n');
         var sections = lines
-            .Select(line => SectionHeadingRegex.Match(line))
+            .Select(line => SectionHeadingRegex().Match(line))
             .Where(match => match.Success)
             .Select(match => match.Groups["name"].Value)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         var functions = lines
-            .Select(line => FunctionNameRegex.Match(line))
+            .Select(line => FunctionNameRegex().Match(line))
             .Where(match => match.Success)
             .Select(match => match.Groups["name"].Value)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1065,7 +1083,7 @@ Next best action:
         var paramBlock = ExtractParamBlock(lines, 18);
         var structureHints = lines
             .Where(line =>
-                Regex.IsMatch(line, "^\\s*(begin|process|end)\\s*\\{", RegexOptions.IgnoreCase)
+                StructureHintRegex().IsMatch(line)
             )
             .Select(line => line.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1110,7 +1128,7 @@ Next best action:
         if (startIndex < 0)
             return string.Empty;
 
-        var collected = new List<string>();
+        List<string> collected = [];
         var balance = 0;
 
         for (int i = startIndex; i < lines.Length && collected.Count < maxLines; i++)
@@ -1154,13 +1172,13 @@ Next best action:
         {
             using var doc = JsonDocument.Parse(rawBody);
             var root = doc.RootElement;
-            var fields = new List<string>();
+            List<string> fields = [];
 
             if (
                 root.TryGetProperty("done_reason", out var doneReason)
                 && doneReason.ValueKind == JsonValueKind.String
             )
-                fields.Add($"done_reason={doneReason.GetString()}");
+                    fields.Add($"done_reason={doneReason.GetString()}");
 
             if (
                 root.TryGetProperty("eval_count", out var evalCount)
@@ -1198,7 +1216,7 @@ Next best action:
 
         var trimmed = toolResult.TrimStart();
         if (
-            trimmed.StartsWith("{", StringComparison.Ordinal)
+            trimmed.StartsWith('{')
             && trimmed.Contains("\"kind\":\"file-summary\"", StringComparison.OrdinalIgnoreCase)
         )
         {
@@ -1226,9 +1244,9 @@ Next best action:
 
 public record RunLoopResult(string OutputText, bool ReachedIterationLimit);
 
-public class AgentResult
+public class AgentResult(string output)
 {
-    public string OutputText { get; }
+    public string OutputText { get; } = output;
     public List<string> ToolNames { get; set; } = new();
     public int ToolCallCount { get; set; }
     public int DurationMs { get; set; }
@@ -1236,9 +1254,4 @@ public class AgentResult
     public bool RetrySucceeded { get; set; }
     public int InitialIterationLimit { get; set; }
     public int? RetryIterationLimit { get; set; }
-
-    public AgentResult(string output)
-    {
-        OutputText = output;
-    }
 }

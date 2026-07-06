@@ -86,6 +86,12 @@ public class AgentConfiguration
     public List<string> AllowedFetchHosts { get; set; } = new();
 
     /// <summary>
+    /// Whether higher-order/meta authoring tools should be available to the agent.
+    /// Defaults to false to prevent recursive orchestration and nested assistant loops.
+    /// </summary>
+    public bool AllowMetaTools { get; set; } = false;
+
+    /// <summary>
     /// Creates a default configuration for the specified mode.
     /// </summary>
     public static AgentConfiguration CreateForMode(AgentMode mode)
@@ -104,6 +110,7 @@ public class AgentConfiguration
                     AutoRetryOnIterationLimit = false,
                     DestructiveConfirmed = false,
                     SignedFilePolicy = "ignore",
+                    AllowMetaTools = false,
                     ToolProviders = new()
                     {
                         new GenericToolProvider(),
@@ -119,6 +126,7 @@ public class AgentConfiguration
                     AutoRetryOnIterationLimit = false,
                     DestructiveConfirmed = false,
                     SignedFilePolicy = "ignore",
+                    AllowMetaTools = false,
                     ToolProviders = new() { new GenericToolProvider() }
                 },
             AgentMode.CodingAgent =>
@@ -130,6 +138,7 @@ public class AgentConfiguration
                     AutoRetryOnIterationLimit = true,
                     DestructiveConfirmed = false,
                     SignedFilePolicy = "ignore",
+                    AllowMetaTools = false,
                     ToolProviders = new() { new GenericToolProvider() }
                 },
             AgentMode.Custom =>
@@ -138,6 +147,7 @@ public class AgentConfiguration
                     Mode = AgentMode.Custom,
                     Model = "llama3",
                     MaxIterations = 15,
+                    AllowMetaTools = false,
                     ToolProviders = new() { new GenericToolProvider() }
                 },
             _ => config

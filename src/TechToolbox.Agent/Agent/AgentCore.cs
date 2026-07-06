@@ -6,6 +6,17 @@ namespace TechToolbox.Agent.Agent;
 
 public static class AgentCore
 {
+    private static readonly HashSet<string> MetaToolNames = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "Invoke-CodeAssistant",
+        "Invoke-CodeAssistantFolder",
+        "Invoke-CodeAssistantWrapper",
+        "Invoke-TechAgent",
+        "ITA",
+    };
+
     /// <summary>
     /// Runs an agent with the specified configuration.
     /// </summary>
@@ -52,7 +63,8 @@ public static class AgentCore
         string? diagnosticTracePath = null,
         string? expectedOutputPath = null,
         int recentHistoryItemsInPrompt = 2,
-        IEnumerable<string>? allowedFetchHosts = null
+        IEnumerable<string>? allowedFetchHosts = null,
+        bool allowMetaTools = false
     )
     {
         return RunAgentAsync(
@@ -68,7 +80,8 @@ public static class AgentCore
                 diagnosticTracePath,
                 expectedOutputPath,
                 recentHistoryItemsInPrompt,
-                allowedFetchHosts
+                allowedFetchHosts,
+                allowMetaTools
             )
             .GetAwaiter()
             .GetResult();
@@ -91,7 +104,8 @@ public static class AgentCore
         string? diagnosticTracePath = null,
         string? expectedOutputPath = null,
         int recentHistoryItemsInPrompt = 2,
-        IEnumerable<string>? allowedFetchHosts = null
+        IEnumerable<string>? allowedFetchHosts = null,
+        bool allowMetaTools = false
     )
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -111,6 +125,7 @@ public static class AgentCore
             ReturnMetadata = returnMetadata,
             DiagnosticTracePath = diagnosticTracePath,
             ExpectedOutputPath = expectedOutputPath,
+            AllowMetaTools = allowMetaTools,
             AllowedFetchHosts = allowedFetchHosts?.Where(h => !string.IsNullOrWhiteSpace(h)).ToList()
                 ?? new List<string>(),
             ToolProviders = new()
@@ -138,6 +153,13 @@ public static class AgentCore
         // 1. Build tool registry from configured tool providers
         var toolProviders = config.ToolProviders ?? Enumerable.Empty<IToolProvider>();
         var registry = ToolRegistry.BuildToolRegistry(toolProviders);
+        if (!config.AllowMetaTools)
+        {
+            registry = registry
+                .Where(kv => !MetaToolNames.Contains(kv.Key))
+                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+        }
+
         if (registry.Count == 0)
             return "Error: No tools were discovered. Verify tool providers and manifest.";
 
