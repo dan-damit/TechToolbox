@@ -6275,5 +6275,31 @@
       "blockers": "",
       "nextBestStep": ""
     }
+  },
+  {
+    "timestampUtc": "2026-07-06T03:21:13.4036862+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "I expanded your capabilities to include reaching out to a limited number of URLs, can you confirm this functionality for me please?",
+    "model": "qwen3.6:35b",
+    "durationMs": 25453,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 2,
+    "toolNames": [
+      "fetch_url",
+      "fetch_url"
+    ],
+    "outputPreview": "Yes, I can confirm that internet access functionality is working.\n\nI successfully fetched data from https://api.github.com using the FETCH-URL tool. The response was a valid HTTP 200 OK with JSON content describing available GitHub API endpoints.\n\nNote: Access is restricted to a specific allowlist of hosts (e.g., api.github.com, docs.microsoft.com, etc.). Requests to non-allowlisted domains like wttr.in are blocked for security reasons.",
+    "runSummary": {
+      "intent": "I expanded your capabilities to include reaching out to a limited number of URLs, can you confirm this functionality for me please?",
+      "actionsTaken": [
+        "fetch_url"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
   }
 ]
