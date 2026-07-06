@@ -99,6 +99,51 @@ public class ToolWrapperTests
     }
 
     [Fact]
+    public async Task BuildTools_PassesAllowedFetchHosts_ForFetchTool()
+    {
+        IDictionary<string, object?>? capturedArgs = null;
+
+        var registry = new Dictionary<string, ToolSpec>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FETCH-URL"] = new ToolSpec(
+                Name: "FETCH-URL",
+                Description: "Fetches URL",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["url"] = new ParameterSpec(Mandatory: true, Type: "string", Help: null),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
+        };
+
+        var tools = ToolWrapper.BuildTools(
+            registry,
+            destructiveConfirmed: false,
+            signedFilePolicy: "ignore",
+            allowedFetchHosts: new[] { "learn.microsoft.com", "api.github.com" },
+            toolExecutor: (_, args) =>
+            {
+                capturedArgs = new Dictionary<string, object?>(
+                    args,
+                    StringComparer.OrdinalIgnoreCase
+                );
+                return "ok";
+            }
+        );
+
+        var result = await tools["FETCH-URL"]("{\"url\":\"https://learn.microsoft.com\"}");
+
+        Assert.Equal("ok", result);
+        Assert.NotNull(capturedArgs);
+        Assert.True(capturedArgs!.ContainsKey("__allowed_fetch_hosts"));
+
+        var hosts = Assert.IsType<string[]>(capturedArgs["__allowed_fetch_hosts"]);
+        Assert.Contains("learn.microsoft.com", hosts, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("api.github.com", hosts, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task BuildTools_AutoConfirmsDestructiveTool_WhenAuthorized()
     {
         IDictionary<string, object?>? capturedArgs = null;
@@ -357,5 +402,22 @@ public class ToolWrapperTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public void RunTool_FetchUrl_BlocksDisallowedHost()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            PowerShellBridge.RunTool(
+                "FETCH-URL",
+                new Dictionary<string, object?>
+                {
+                    ["url"] = "https://example.com/",
+                    ["__allowed_fetch_hosts"] = new[] { "learn.microsoft.com" },
+                }
+            )
+        );
+
+        Assert.Contains("blocked host", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

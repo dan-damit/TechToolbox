@@ -80,6 +80,12 @@ public class AgentConfiguration
     public string? ExpectedOutputPath { get; set; }
 
     /// <summary>
+    /// Optional host allowlist for built-in FETCH-URL tool requests.
+    /// When empty, external fetch requests are blocked.
+    /// </summary>
+    public List<string> AllowedFetchHosts { get; set; } = new();
+
+    /// <summary>
     /// Creates a default configuration for the specified mode.
     /// </summary>
     public static AgentConfiguration CreateForMode(AgentMode mode)

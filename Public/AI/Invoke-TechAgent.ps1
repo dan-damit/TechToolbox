@@ -594,6 +594,29 @@ Hard requirement:
             $diagnosticTracePath = [string]$diagnosticTracePathValue
         }
 
+        $allowedFetchHosts = @()
+        $fetchConfigValue = & $getConfigValue $cfg 'fetch'
+        if ($null -ne $fetchConfigValue) {
+            $allowedHostsValue = & $getConfigValue $fetchConfigValue 'allowedHosts'
+            if ($null -ne $allowedHostsValue) {
+                foreach ($host in @($allowedHostsValue)) {
+                    $hostText = [string]$host
+                    if ([string]::IsNullOrWhiteSpace($hostText)) {
+                        continue
+                    }
+
+                    $normalizedHost = $hostText.Trim().Trim('.').ToLowerInvariant()
+                    if ([string]::IsNullOrWhiteSpace($normalizedHost)) {
+                        continue
+                    }
+
+                    if ($allowedFetchHosts -notcontains $normalizedHost) {
+                        $allowedFetchHosts += $normalizedHost
+                    }
+                }
+            }
+        }
+
         Write-Log -Level Info -Message ("Invoking local tech agent via C# assembly: {0}" -f $agentAssemblyPath)
 
         $request = [ordered]@{
@@ -609,6 +632,7 @@ Hard requirement:
             SignedFilePolicy     = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
             DiagnosticTracePath  = $diagnosticTracePath
             ExpectedOutputPath   = $expectedOutputPath
+            AllowedFetchHosts    = @($allowedFetchHosts)
         }
 
         $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
@@ -636,7 +660,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [string]$request.SignedFilePolicy,
     [string]$request.DiagnosticTracePath,
     [string]$request.ExpectedOutputPath,
-    [int]$request.PromptHistoryItems)
+    [int]$request.PromptHistoryItems,
+    [string[]]$request.AllowedFetchHosts)
 [Console]::Write($result)
 '@
 
@@ -788,8 +813,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCbP5UX3SR9Pjc9
-# oVPAvcYLntFqgoHseLazoBJhG4QuyqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCG0GUzI7wRNs/8
+# X8Kum6MVJNEBMsJ3L4dLnl7qOxF8zqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -922,34 +947,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCZEXoep2mo
-# RLNM6WJRhWa54pFBkVs+5NlqG2wl2PX7NzANBgkqhkiG9w0BAQEFAASCAgADUQ9X
-# 5YCpqzH9V98dCRmOh0WEDP/14YzWO/wtPQ8Wn2tpM2QICbOao3q6toA88QiRPm0j
-# q11We4iGPPzm51sP/dZm+6lXwZZW10wkvRfq9iJLgvh+YnJDESxmrU/MoRmqxe9r
-# PlZnIVYYLQ9J1zMZfFKyeeNUlI/naKQ5/j8EKJ/OgJ1dIOvqEBsAnesDwKPpFmfm
-# xAwV3i7oRHgq8dK4nJo57Hg6ve5dju7XKQEObEALOAHD55t3RjX17xTH0zLmk2lk
-# qe1u9HPtJBhkESeMoyp28+Deq99bHe9kd7j7VMP4sj5U8U8axf/1F7kFh6/MycTe
-# nHlA+l6sX2fpE+fin3CXdS4K9BT8+AqD9xGh0mi4xWvbWTNKKCGDS+ZLfugcbE2m
-# lVezygPF20EqhwyPQkvkOxblz7BSSILrjl+ivjec1xrgHUeSReUlhfJQwnJrVPh5
-# UrNWUUFhGSSXtdOIHM/8m1RQreSJD4d9pCGgwtD46tKq/MwaTIxf/+ldIF3++w+j
-# tZTdJc+8j9gLbGO5Q5iKXIsl1T5JiKdnfOFeUWTyUPySPHgWX7ZhB2S9aNLLQTJ9
-# yhdNs/JaKVoGK9hyE3Nquzx64MHrA/m3qR6t+xCzRVIfCEGfQBivANTS/nLVBTya
-# ikMtd94edwauhuUfM9e3mxZdbG7gXekTIIt1IaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAtXgT3+WNw
+# 2sDD8gztcW8/ESy591++0J1CVEzqdYXFMTANBgkqhkiG9w0BAQEFAASCAgBMiG51
+# pNs8Z/POryL/2vNnGTVkn5EoFVegHZYEsftfewmOoM1KRTBIkOB/ZypEwcLDOYwb
+# BYVvweNO5navoyQAVovkNmikVAL1j3XTzQrgPRrG3+D2Ao0xx5Qc3ZaAylsafsW0
+# zGzhOCRIjT38rjgAQFYp5CJ1S1tbeQ1NKhMvwR6li2UDMmP065MDVZFnGGPaJERY
+# GjIc/qG1JnDjg92VopZuM3CyqzXCEg65NxSGza4q9fJeFgSWp7pcweK3mtUUHmlV
+# XZU2As6XbrueuL2HEJUs+vmsJXV1BDv6bpoWmsAxlU4mURcd2gJKVmxidHdZ7SMT
+# Gkn5Jq0X/ZOapGpllPFz44iHmbQFHUDEgUDWboUIyN7QHn0trQOdDZHsBfbenNqk
+# fqjlSMiqglFNcmLiBx/BebswAtDO4gWKG6wBzsNbGd7Km0l06MQmcPOluaE5V5ms
+# sJwwWggKtI/mDA/DMeru87kwRU8nZ1y/2FPOq6k6QzC8o81aajXm2RdfHaWmXUSt
+# M3lH4AdStRLhYhCFD9Yl3pyxnegxubZNVwNjVJVB0r7TNfe4wU4EMk80giqw/XPG
+# Cp8fr56NIOXe0XZwVm8xx/Qrc9ecISfKMDS/v1916iPbnYy97Y4cGe6sKqo574W6
+# OsgHjeJ51FF+ilU8POV56Ukh+L9bFxklALERTaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MDEwMDQ1NDlaMC8GCSqGSIb3DQEJBDEiBCAc80JRW+6dk6aoKjT+
-# fEa0ki2RqrShbz+4Pf37sp4qaDANBgkqhkiG9w0BAQEFAASCAgATNnNVNvjg56v9
-# cNsA/fmP2xMNMRIryj5+/cTcmcFAg7ATP07Cto2XUjiQx8OnWVoqEukMSa9pLjTT
-# BeskTLYgp/CVTaiBk8LcpIOYAHqPGFC5phoOBwJxhzoL3Ut0Tsku5aydwOMQ6aGD
-# 8i8V5e7Q2He2ja7ePHhQtLBrUfzEly8ilETvQYi2xYw6MJqKOIOMPUlDR8HAGzkE
-# U6ZSa/3TDMdxGsbEgX5HsveWKGWyivr0k5Kz4OQf4ryxL+0V4VvNNlmRcgQjZGok
-# DMSc32vL7I8r1DX70TMXopVIjZMdENAjH8zMZinCEQ6qom3236YFeH2vu4FNXrgj
-# IZsIUUW5RsrEHnq4Mg3ZWicNYjMwLaTHgXW4L7sbKi45s8WGZNkRFUtzRruYvAiZ
-# 2UGJuhEOUOefAy23TAuk2TGHoAruF/FQbu6VjbckW1Eb4tPJ8yzxnwv4e292aQKT
-# rzWCtE4IbX8hiy/wKpIWDw0s46dkXIjiAB+6+E3s30QDzOaajj1TXF4mFPP5qnah
-# gedUmjGL8OwL5QC/LPVXYgBHCCOmQMcOjMdG9B5E6n1xYTX9iPonSpZNr6UWh6B5
-# zJMRlsCy/gqdjjCvBWfYmpiyjQczKqJjDa21Y2hzimLN9e69kBlccrsDJNfSKIwn
-# G5un5rmtD4xKUdNtIDICL7qCXCRDrg==
+# BTEPFw0yNjA3MDYwMzE5MzZaMC8GCSqGSIb3DQEJBDEiBCArFGAEbk1wk90yLTGU
+# S/7B4+Qoe7hVG9Z6y1vb4mGH3DANBgkqhkiG9w0BAQEFAASCAgCcK5904EVVYOFJ
+# dAyw8IKH2TEY19FP0yr6Z//QTnfiU/9GDZSyBPr0yt0YAPi90Kgiy3bO0kLkkENM
+# fGS0ETOmH+HTAo57d26U3xh7Gvj/hTiwnks1FmKaeQArlkJjRkSp5oYnqiS4t9lD
+# oXRTW5tb2zaepTFhR5jB6YABj727mxECTB2bpf6ofHpnzULIukpsgVElAc2paJWT
+# g41wgU1XLc8pdRAOEzOxBE055GyMIa5NGXhiKrmwEVcJp3siG8J0s+dVABwAdT33
+# QU1UG1IwnlU4vA9kwceNZP5jJ/l9pV8GnYIcRpEc5SP95W1hbAtokmhPdesGjrzW
+# qZ6CJJOr1dqsM+bqZEHPMAn4+zPp9j/ikYywo3WOwge+n68rYm7yR6JYdiUYVLCP
+# ZEp3eF9oRbYNrRaOoC61HYe4gDhHLJVUJ/37GqfU+SvaEec/ab0/OMeHejeMwPHp
+# hWkHUPJzRiE2P0nabrbv0WGuaJ2vq1lNpVEgVid3sWYm/o+m/cTe5BmTJEr5Uj1s
+# jIgwt02yLOgS86ZEKmmh9jUVY+CFfLLJlVPM1K0yzWA/LsQajLXPTmV4n+CeMkdW
+# cDQlYtXh+9mMVH6w8c+G42Hot0UUShM79ECSOzbUo/j0hOAVLvgnTn7ZL+95H0Z8
+# GIxIct2XbTiwDUqH8ksQuRW1Qs7L3g==
 # SIG # End signature block

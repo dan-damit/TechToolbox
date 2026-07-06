@@ -70,6 +70,19 @@ It supports:
 - optional single auto-retry on recursion-limit stop conditions  
 - explicit destructive-operation confirmation when needed  
 - signed-file overwrite policy control for Authenticode-signed PowerShell files  
+- built-in `FETCH-URL` support for external documentation and threat-intel retrieval from approved hosts only  
+
+`FETCH-URL` host allowlist is configured in `Config\config.json` under:
+
+```json
+"settings": {
+	"agent": {
+		"fetch": {
+			"allowedHosts": [ "learn.microsoft.com", "api.github.com" ]
+		}
+	}
+}
+```
 
 **Usage:**
 ```powershell

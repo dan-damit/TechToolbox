@@ -1,4 +1,6 @@
 using System.Management.Automation;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -8,6 +10,10 @@ namespace TechToolbox.Agent.Execution;
 
 public static class PowerShellBridge
 {
+    private const int DefaultFetchMaxChars = 20_000;
+    private const int AbsoluteFetchMaxChars = 200_000;
+    private static readonly HttpClient _httpClient = CreateHttpClient();
+
     private static readonly Regex AuthenticodeSignatureBlockRegex = new(
         @"(?ims)^\s*#\s*SIG\s*#\s*Begin signature block\b.*?^\s*#\s*SIG\s*#\s*End signature block\s*$",
         RegexOptions.Compiled
@@ -131,6 +137,42 @@ public static class PowerShellBridge
             return true;
         }
 
+        if (toolName.Equals("FETCH-URL", StringComparison.OrdinalIgnoreCase))
+        {
+            var url = GetRequiredStringArg(args, "url");
+            var maxChars = GetOptionalIntArg(args, "maxChars") ?? DefaultFetchMaxChars;
+            maxChars = Math.Clamp(maxChars, 1, AbsoluteFetchMaxChars);
+
+            var requestedUri = ParseFetchUri(url);
+            var allowedHosts = GetAllowedFetchHosts(args);
+            EnsureAllowedFetchHost(requestedUri.Host, allowedHosts);
+
+            var response = FetchWithValidatedRedirects(requestedUri, allowedHosts);
+            var mediaType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
+            var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+            var rawBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            var truncated = rawBody.Length > maxChars;
+            var body = truncated ? rawBody[..maxChars] : rawBody;
+
+            result = JsonSerializer.Serialize(
+                new
+                {
+                    kind = "fetch-result",
+                    url = response.RequestMessage?.RequestUri?.ToString() ?? requestedUri.ToString(),
+                    statusCode = (int)response.StatusCode,
+                    reasonPhrase = response.ReasonPhrase,
+                    contentType,
+                    isTextLike = IsTextLikeContentType(mediaType),
+                    truncated,
+                    maxChars,
+                    content = body,
+                },
+                SummaryJsonOptions
+            );
+
+            return true;
+        }
+
         return false;
     }
 
@@ -155,6 +197,168 @@ public static class PowerShellBridge
             throw new ArgumentException($"Missing required parameter '{name}'.", name);
 
         return text;
+    }
+
+    private static int? GetOptionalIntArg(IDictionary<string, object?> args, string name)
+    {
+        var arg = args.FirstOrDefault(kv =>
+            string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (arg.Equals(default(KeyValuePair<string, object?>)) || arg.Value is null)
+            return null;
+
+        return arg.Value switch
+        {
+            int i => i,
+            long l => checked((int)l),
+            JsonElement el when el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var parsed) =>
+                parsed,
+            JsonElement el when el.ValueKind == JsonValueKind.String && int.TryParse(el.GetString(), out var parsed) =>
+                parsed,
+            _ when int.TryParse(arg.Value.ToString(), out var parsed) => parsed,
+            _ => null,
+        };
+    }
+
+    private static Uri ParseFetchUri(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            throw new ArgumentException($"Invalid URL: {url}", nameof(url));
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("FETCH-URL only allows HTTPS URLs.");
+
+        if (string.IsNullOrWhiteSpace(uri.Host))
+            throw new InvalidOperationException("FETCH-URL requires a URL with a valid host.");
+
+        return uri;
+    }
+
+    private static string[] GetAllowedFetchHosts(IDictionary<string, object?> args)
+    {
+        var arg = args.FirstOrDefault(kv =>
+            string.Equals(kv.Key, "__allowed_fetch_hosts", StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (arg.Value is null)
+            return Array.Empty<string>();
+
+        return arg.Value switch
+        {
+            string single => NormalizeAllowedHostValues(new[] { single }),
+            string[] many => NormalizeAllowedHostValues(many),
+            IEnumerable<string> enumerable => NormalizeAllowedHostValues(enumerable),
+            JsonElement el when el.ValueKind == JsonValueKind.Array => NormalizeAllowedHostValues(
+                el.EnumerateArray().Select(x => x.ToString())
+            ),
+            _ => Array.Empty<string>(),
+        };
+    }
+
+    private static string[] NormalizeAllowedHostValues(IEnumerable<string?> hosts)
+    {
+        return hosts
+            .Where(h => !string.IsNullOrWhiteSpace(h))
+            .Select(h => h!.Trim().Trim('.').ToLowerInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static void EnsureAllowedFetchHost(string host, IReadOnlyCollection<string> allowedHosts)
+    {
+        if (allowedHosts == null || allowedHosts.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "FETCH-URL is disabled because no allowed hosts are configured."
+            );
+        }
+
+        var normalizedHost = host.Trim().Trim('.').ToLowerInvariant();
+        if (!allowedHosts.Contains(normalizedHost, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"FETCH-URL blocked host '{host}'. Allowed hosts: {string.Join(", ", allowedHosts.OrderBy(h => h, StringComparer.OrdinalIgnoreCase))}"
+            );
+        }
+    }
+
+    private static HttpResponseMessage FetchWithValidatedRedirects(
+        Uri initialUri,
+        IReadOnlyCollection<string> allowedHosts
+    )
+    {
+        const int maxRedirects = 5;
+        var currentUri = initialUri;
+
+        for (var redirectCount = 0; redirectCount <= maxRedirects; redirectCount++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+            request.Headers.UserAgent.ParseAdd("TechToolbox-Agent/1.0");
+
+            var response = _httpClient
+                .SendAsync(request, HttpCompletionOption.ResponseContentRead)
+                .GetAwaiter()
+                .GetResult();
+
+            if (!IsRedirect(response.StatusCode))
+            {
+                if ((int)response.StatusCode >= 400)
+                {
+                    var statusCode = (int)response.StatusCode;
+                    var reason = response.ReasonPhrase ?? "HTTP error";
+                    response.Dispose();
+                    throw new InvalidOperationException(
+                        $"FETCH-URL failed with status {statusCode} ({reason})."
+                    );
+                }
+
+                return response;
+            }
+
+            var location = response.Headers.Location;
+            response.Dispose();
+
+            if (location is null)
+                throw new InvalidOperationException("FETCH-URL received redirect with no Location header.");
+
+            currentUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+            if (!string.Equals(currentUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("FETCH-URL blocked redirect to non-HTTPS URL.");
+
+            EnsureAllowedFetchHost(currentUri.Host, allowedHosts);
+        }
+
+        throw new InvalidOperationException("FETCH-URL exceeded maximum redirect count.");
+    }
+
+    private static bool IsRedirect(HttpStatusCode statusCode)
+    {
+        return statusCode is HttpStatusCode.Moved
+            or HttpStatusCode.Redirect
+            or HttpStatusCode.RedirectMethod
+            or HttpStatusCode.TemporaryRedirect
+            or HttpStatusCode.PermanentRedirect;
+    }
+
+    private static bool IsTextLikeContentType(string mediaType)
+    {
+        if (string.IsNullOrWhiteSpace(mediaType))
+            return false;
+
+        var normalized = mediaType.Trim().ToLowerInvariant();
+        return normalized.StartsWith("text/", StringComparison.Ordinal)
+            || normalized.Contains("json", StringComparison.Ordinal)
+            || normalized.Contains("xml", StringComparison.Ordinal)
+            || normalized.Contains("javascript", StringComparison.Ordinal)
+            || normalized.Contains("yaml", StringComparison.Ordinal)
+            || normalized.Contains("html", StringComparison.Ordinal);
+    }
+
+    private static HttpClient CreateHttpClient()
+    {
+        var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        return new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
     }
 
     private static bool ShouldSummarizeFile(string content)

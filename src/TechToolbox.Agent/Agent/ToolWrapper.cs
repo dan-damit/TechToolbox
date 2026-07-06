@@ -18,6 +18,7 @@ public static class ToolWrapper
         IReadOnlyDictionary<string, ToolSpec> registry,
         bool destructiveConfirmed,
         string signedFilePolicy,
+        IEnumerable<string>? allowedFetchHosts = null,
         Func<string, IDictionary<string, object?>, object?>? toolExecutor = null
     )
     {
@@ -25,6 +26,7 @@ public static class ToolWrapper
             StringComparer.OrdinalIgnoreCase
         );
         var normalizedSignedFilePolicy = NormalizeSignedFilePolicy(signedFilePolicy);
+        var normalizedFetchHosts = NormalizeFetchHosts(allowedFetchHosts);
         var executor = toolExecutor ?? PowerShellBridge.RunTool;
 
         foreach (var kv in registry)
@@ -71,6 +73,14 @@ public static class ToolWrapper
                 )
                 {
                     args["SignedFilePolicy"] = normalizedSignedFilePolicy;
+                }
+
+                if (
+                    string.Equals(toolName, "FETCH-URL", StringComparison.OrdinalIgnoreCase)
+                    && !args.ContainsKey("__allowed_fetch_hosts")
+                )
+                {
+                    args["__allowed_fetch_hosts"] = normalizedFetchHosts;
                 }
 
                 // Execute via PowerShell bridge
@@ -140,4 +150,16 @@ public static class ToolWrapper
 
     private static bool HasArgument(Dictionary<string, object?> args, string parameterName) =>
         args.Keys.Any(k => string.Equals(k, parameterName, StringComparison.OrdinalIgnoreCase));
+
+    private static string[] NormalizeFetchHosts(IEnumerable<string>? allowedFetchHosts)
+    {
+        if (allowedFetchHosts is null)
+            return Array.Empty<string>();
+
+        return allowedFetchHosts
+            .Where(h => !string.IsNullOrWhiteSpace(h))
+            .Select(h => h.Trim().Trim('.').ToLowerInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 }

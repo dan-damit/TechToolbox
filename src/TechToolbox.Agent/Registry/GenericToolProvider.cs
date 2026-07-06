@@ -61,6 +61,25 @@ public class GenericToolProvider : IToolProvider
                 Module: "TechToolbox.Agent.Builtin",
                 Meta: new Dictionary<string, object?>()
             ),
+            new ToolSpec(
+                Name: "FETCH-URL",
+                Description: "Fetches text content from an HTTPS URL only when the host is on the allowlist.",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["url"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "HTTPS URL to fetch."
+                    ),
+                    ["maxChars"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional response text cap. Defaults to 20000, max 200000."
+                    ),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
         };
     }
 }

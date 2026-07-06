@@ -51,7 +51,8 @@ public static class AgentCore
         string signedFilePolicy = "ignore",
         string? diagnosticTracePath = null,
         string? expectedOutputPath = null,
-        int recentHistoryItemsInPrompt = 2
+        int recentHistoryItemsInPrompt = 2,
+        IEnumerable<string>? allowedFetchHosts = null
     )
     {
         return RunAgentAsync(
@@ -66,7 +67,8 @@ public static class AgentCore
                 signedFilePolicy,
                 diagnosticTracePath,
                 expectedOutputPath,
-                recentHistoryItemsInPrompt
+                recentHistoryItemsInPrompt,
+                allowedFetchHosts
             )
             .GetAwaiter()
             .GetResult();
@@ -88,7 +90,8 @@ public static class AgentCore
         string signedFilePolicy = "ignore",
         string? diagnosticTracePath = null,
         string? expectedOutputPath = null,
-        int recentHistoryItemsInPrompt = 2
+        int recentHistoryItemsInPrompt = 2,
+        IEnumerable<string>? allowedFetchHosts = null
     )
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -108,6 +111,8 @@ public static class AgentCore
             ReturnMetadata = returnMetadata,
             DiagnosticTracePath = diagnosticTracePath,
             ExpectedOutputPath = expectedOutputPath,
+            AllowedFetchHosts = allowedFetchHosts?.Where(h => !string.IsNullOrWhiteSpace(h)).ToList()
+                ?? new List<string>(),
             ToolProviders = new()
             {
                 new GenericToolProvider(),
@@ -140,7 +145,8 @@ public static class AgentCore
         var tools = ToolWrapper.BuildTools(
             registry,
             config.DestructiveConfirmed,
-            config.SignedFilePolicy
+            config.SignedFilePolicy,
+            config.AllowedFetchHosts
         );
 
         // 3. Initialize memory store (optional)

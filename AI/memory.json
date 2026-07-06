@@ -16,8 +16,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 1,
-      "avgDurationMs": 32261,
-      "avgToolCalls": 2.55,
+      "avgDurationMs": 32264,
+      "avgToolCalls": 2.5,
       "statusCounts": {
         "success": 20
       },
@@ -27,39 +27,11 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-07-05T23:28:38.6618078\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-05T23:28:38.6626137\u002B00:00"
+      "lastRunTimestampUtc": "2026-07-06T03:21:13.4036862\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-06T03:21:13.4048879\u002B00:00"
     }
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-01T02:37:43.2251088+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-DnsQueryLogger.ps1\r\n\r\nGenerate a complete Start-DnsQueryLogger.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Start-DnsQueryLogger.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Start-DnsQueryLogger.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 25401,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "Successfully generated and wrote the Start-DnsQueryLogger.md help document to C:\\repos\\TechToolbox-Docs\\Start-DnsQueryLogger.md.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Start_Stop\\Start-DnsQueryLogger.ps1\r\n\r\nGenerate a complete Start-DnsQueryLogger.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
     {
       "timestampUtc": "2026-07-01T02:39:50.6759742+00:00",
       "status": "success",
@@ -566,6 +538,32 @@
       "runSummary": {
         "intent": "Access the internet to check the current temperature in Paris France in Celcius",
         "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-06T03:21:13.4036862+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "I expanded your capabilities to include reaching out to a limited number of URLs, can you confirm this functionality for me please?",
+      "model": "qwen3.6:35b",
+      "durationMs": 25453,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "Yes, I can confirm that internet access functionality is working.\n\nI successfully fetched data from https://api.github.com using the FETCH-URL tool. The response was a valid HTTP 200 OK with JSON content describing available GitHub API endpoints.\n\nNote: Access is restricted to a specific allowlist of hosts (e.g., api.github.com, docs.microsoft.com, etc.). Requests to non-allowlisted domains like wttr.in are blocked for security reasons.",
+      "runSummary": {
+        "intent": "I expanded your capabilities to include reaching out to a limited number of URLs, can you confirm this functionality for me please?",
+        "actionsTaken": [
+          "fetch_url"
+        ],
         "blockers": "",
         "nextBestStep": ""
       }

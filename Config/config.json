@@ -141,6 +141,24 @@
       "defaultPromptFile": "AI\\prompt.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
       "promptHistoryItems": 2,
+      "fetch": {
+        "allowedHosts": [
+          "learn.microsoft.com",
+          "docs.microsoft.com",
+          "msrc.microsoft.com",
+          "raw.githubusercontent.com",
+          "api.github.com",
+          "csrc.nist.gov",
+          "nvd.nist.gov",
+          "attack.mitre.org",
+          "support.microsoft.com",
+          "azure.microsoft.com",
+          "devblogs.microsoft.com",
+          "techcommunity.microsoft.com",
+          "cisa.gov",
+          "us-cert.gov"
+        ]
+      },
       "transcript": {
         "enabled": true,
         "outputRoot": "%TT_LogsRoot%\\TechAgentTranscripts"
