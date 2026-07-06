@@ -16,8 +16,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 1,
-      "avgDurationMs": 33607,
-      "avgToolCalls": 3.1,
+      "avgDurationMs": 32261,
+      "avgToolCalls": 2.55,
       "statusCounts": {
         "success": 20
       },
@@ -27,97 +27,11 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-07-01T03:11:53.6283079\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-01T03:11:53.6546547\u002B00:00"
+      "lastRunTimestampUtc": "2026-07-05T23:28:38.6618078\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-05T23:28:38.6626137\u002B00:00"
     }
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-01T02:32:28.9888465+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1\r\n\r\nGenerate a complete Set-OneTimeReboot.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Set-OneTimeReboot.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Set-OneTimeReboot.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 65250,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file",
-        "invoke_codeassistantwrapper"
-      ],
-      "outputPreview": "# Set-OneTimeReboot\n\n## SYNOPSIS\nSchedules or removes a one-time reboot task locally or on remote computers.\n\n## DESCRIPTION\nThe \u0060Set-OneTimeReboot\u0060 function creates, updates, or removes a Windows Scheduled Task that runs \u0060shutdown.exe /r\u0060 one time at a target local date/time. \n\n### Key Features:\n- **Local Scheduling**: When \u0060-ComputerName\u0060 is not provided, the task is scheduled on the local machine.\n- **Remote Scheduling**: Supports remote scheduling over PowerShell remoting (WSMan or SSH) when \u0060-ComputerName\u0060 is specified.\n- **Time Resolution**:\n  - If \u0060-DateTime\u0060 is supplied, that exact local timestamp is used.\n  - If \u0060-DateTime\u0060 is omitted, the \u0060-At\u0060 parameter (HH:mm format) is used for the next occurrence. If today\u0027s time has passed, scheduling rolls to tomorrow.\n- **Idempotent Task Update**: If a task with the same \u0060-TaskName\u0060 already exists, it is removed and recreated with the new settings.\n- **Remove Mode**: Pass \u0060-Remove\u0060 to unregister the task instead of creating it.\n- **Configuration Defaults**: Unbound parameters can be populated from \u0060settings.oneTimeReboot\u0060 in the TechToolbox config, including \u0060At\u0060, \u0060SelfDelete\u0060, \u0060defaultComment\u0060, \u0060taskNamePrefix\u0060, and optional \u0060deleteExpiredTaskAfterMinutes\u0060.\n- **Safe Execution**: Supports \u0060-WhatIf\u0060 and \u0060-Confirm\u0060 for safe preview of operations.\n\n## PARAMETERS\n\n### -ComputerName\nTarget computer name(s) for remote scheduling/removal. Accepts values from the pipeline and property name input.\n- **Type**: \u0060string[]\u0060\n- **Aliases**: CN, Host, Name\n- **Default Value**: Local machine if omitted.\n\n### -DateTime\nExact local date/time to use for scheduling.\n- **Type**: \u0060Nullable[datetime]\u0060\n- **Description**: If provided, this exact timestamp is used. Declared before Credential to allow positional binding of the second argument as DateTime in calls like \u0060Set-OneTimeReboot -ComputerName PC01 \u00274/21/2026 1:00:00 AM\u0027\u0060.\n\n### -Credential\nCredential for remote session creation (WSMan/SSH). Also supports username-only for SSH key auth via PSRemoting helper.\n- **Type**: \u0060pscredential\u0060\n\n### -At\nTime in HH:mm format to schedule the reboot if \u0060-DateTime\u0060 is not provided. Uses the next occurrence of this time.\n- **Type**: \u0060string\u0060\n- **Validation Pattern**: \u0060^(?:[01]\\d|2[0-5]):[0-5\\d]$\u0060\n\n### -TaskName\nName of the scheduled task. If omitted, a default name is generated using \u0060-taskNamePrefix\u0060 from config or a standard prefix.\n- **Type**: \u0060string\u0060\n\n### -Comment\nDescription for the scheduled task.\n- **Type**: \u0060string\u0060\n\n### -SelfDelete\nIf specified, the scheduled task will be deleted after it runs successfully.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -WakeToRun\nIf specified, the computer will wake from sleep to run the reboot task. Requires hardware support.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -ForceCloseApps\nIf specified, applications will be forced closed if they are running at the time of the reboot.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -Remove\nIf specified, unregisters the existing scheduled task instead of creating or updating it.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -WhatIf\nShows what would happen if the cmdlet runs. The cmdlet is not run.\n- **Type**: \u0060SwitchParameter\u0060\n\n### -Confirm\nPrompts you for confirmation before running the cmdlet.\n- **Type**: \u0060SwitchParameter\u0060\n\n## INPUTS\n\u0060string[]\u0060 (ComputerName)\n\n## OUTPUTS\nNone or Microsoft.PowerShell.Commands.ScheduledTaskInfo depending on operation.\n\n## EXAMPLES\n\n### Example 1: Schedule a local reboot at a specific time\n\u0060\u0060\u0060powershell\nSet-OneTimeReboot -DateTime \u00272026-07-01 02:30:00\u0027\n\u0060\u0060\u0060\nThis schedules the current computer to reboot on July 1, 2026, at 2:30 AM.\n\n### Example 2: Schedule a remote reboot using time pattern\n\u0060\u0060\u0060powershell\nSet-OneTimeReboot -ComputerName PC01 -At \u002703:00\u0027 -Credential (Get-Credential)\n\u0060\u0060\u0060\nThis schedules PC01 to reboot at the next occurrence of 3:00 AM, prompting for credentials.\n\n### Example 3: Remove a scheduled reboot task\n\u0060\u0060\u0060powershell\nSet-OneTimeReboot -ComputerName PC01 -TaskName \u0027MyReboot\u0027 -Remove\n\u0060\u0060\u0060\nThis removes the scheduled task nam...",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1\r\n\r\nGenerate a complete Set-OneTimeReboot.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdo...",
-        "actionsTaken": [
-          "read_file",
-          "invoke_codeassistantwrapper"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-01T02:33:55.4772539+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1\r\n\r\nGenerate a complete Set-OneTimeReboot.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Set-OneTimeReboot.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Set-OneTimeReboot.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 40440,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "Successfully generated and wrote the Set-OneTimeReboot.md help document to C:\\repos\\TechToolbox-Docs\\Set-OneTimeReboot.md.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1\r\n\r\nGenerate a complete Set-OneTimeReboot.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdo...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-01T02:34:56.9028778+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-ProxyAddress.ps1\r\n\r\nGenerate a complete Set-ProxyAddress.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Set-ProxyAddress.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Set-ProxyAddress.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 24581,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "Successfully generated and wrote the Set-ProxyAddress.md help document to C:\\repos\\TechToolbox-Docs\\Set-ProxyAddress.md following Get-Help -Online best practices.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-ProxyAddress.ps1\r\n\r\nGenerate a complete Set-ProxyAddress.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
     {
       "timestampUtc": "2026-07-01T02:37:43.2251088+00:00",
       "status": "success",
@@ -589,6 +503,69 @@
           "read_file",
           "write_file"
         ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-05T23:15:50.0670867+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How is the weather in PAris France right now?",
+      "model": "qwen3.6:35b",
+      "durationMs": 81526,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "- I do not have access to real-time data tools (such as a live weather API or internet browsing capability) within this TechToolbox environment.\n- To get the current weather in Paris, France, please check a dedicated weather service such as:\n-\u003E https://weather.com\n-\u003E https://www.accuweather.com\n-\u003E A search engine query for \u0022current weather Paris France\u0022",
+      "runSummary": {
+        "intent": "How is the weather in PAris France right now?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-05T23:27:23.2519758+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How can I give you access to the internet at large?",
+      "model": "qwen3.6:35b",
+      "durationMs": 18641,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "- **Direct Internet Access**: As an agent running inside TechToolbox on your local machine, I can access the internet if the host environment allows outbound HTTP/HTTPS traffic. No special configuration is needed from my side; it depends entirely on your network firewall and proxy settings.\n\n- **API Keys for External Services**: If you want me to use specific external APIs (e.g., weather data, translation services), you need to provide the necessary API keys via TechToolbox\u0027s configuration or environment variables.\n\n- **Proxy Configuration**: If your organization uses a web proxy, ensure that the PowerShell process running TechToolbox is configured to route traffic through it. You can set this in your system\u0027s internet options or via PowerShell \u0060$env:https_proxy\u0060 and \u0060$env:http_proxy\u0060 variables.\n\n- **Firewall Rules**: Ensure that outbound ports 80 (HTTP) and 443 (HTTPS) are open for the process running TechToolbox.",
+      "runSummary": {
+        "intent": "How can I give you access to the internet at large?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-05T23:28:38.6618078+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Access the internet to check the current temperature in Paris France in Celcius",
+      "model": "qwen3.6:35b",
+      "durationMs": 3179,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "I cannot access the internet directly as I am a local automation agent running inside TechToolbox without external network connectivity tools for web browsing or API calls. To get the current temperature in Paris, France, you can:\n\n- Visit a weather website like weather.com or accuweather.com and search for \u0022Paris, France\u0022\n- Use a command-line tool if available on your system (e.g., curl with a weather API)\n- Ask me to help write a script that fetches this data once internet access is configured",
+      "runSummary": {
+        "intent": "Access the internet to check the current temperature in Paris France in Celcius",
+        "actionsTaken": [],
         "blockers": "",
         "nextBestStep": ""
       }
