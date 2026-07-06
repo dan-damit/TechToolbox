@@ -161,7 +161,7 @@ TechToolbox/
 2. **Bootstrap establishes module state** -- `TechToolbox.psm1` sets module/home paths and resolves runtime roots without first-import home copy.
 3. **Private helpers are dot-sourced** -- all `.ps1` files under `Private/` are loaded recursively into module scope.
 4. **Public scripts are dot-sourced** -- all `.ps1` files under `Public/` are loaded (excluding `Export-ToolboxFunctions.ps1` in that pass).
-5. **Exports are discovered and published** -- at import time, `Export-ToolboxFunctions` discovers public function names, then `Export-ModuleMember` exports those functions plus `ITA`.
+5. **Exports are discovered and published** -- at import time, `Export-ToolboxFunctions` discovers public function names, then `Export-ModuleMember` exports those functions.
 6. **Runtime init remains lazy** -- `Initialize-TechToolboxRuntime` initializes config/logging/interop/environment only when needed.
 
 ### Path Tokens

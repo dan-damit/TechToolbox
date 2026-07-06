@@ -79,294 +79,6 @@ function Write-TTLoadedLine {
         -ForegroundColor DarkGray
 }
 
-function Get-TechAgentPromptTemplate {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$Name
-    )
-
-    $pattern = Join-Path $script:TT.PromptTemplates "$Name.*"
-    $file = Get-ChildItem $pattern -ErrorAction Ignore | Select-Object -First 1
-
-    if (-not $file) {
-        throw "Prompt template '$Name' not found in '$($script:TT.PromptTemplates)'."
-    }
-
-    Get-Content -Path $file.FullName -Raw
-}
-
-function Add-TechAgentHistory {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$Prompt,
-
-        [Parameter(Mandatory)]
-        [hashtable]$Parameters
-    )
-
-    $entry = [ordered]@{
-        Timestamp = (Get-Date).ToString('o')
-        Prompt    = $Prompt
-        Params    = $Parameters
-    }
-
-    $json = $entry | ConvertTo-Json -Depth 10
-    $json | Add-Content -Path $script:TT.AgentHistoryFile
-}
-
-# Main user-facing function: ITA (Invoke-TechAgent with prompt templates,
-# context injection, history, and safety checks)
-function ITA {
-    [CmdletBinding(SupportsShouldProcess)]
-    param(
-        [Parameter(Position = 0)]
-        [string]$Prompt,
-
-        # Optional: path to a prompt text file. If omitted and -Prompt is empty,
-        # ITA attempts to load a default prompt file.
-        [string]$PromptFile,
-
-        # Optional: name of a template in PromptTemplates\
-        [string]$Template,
-
-        # Optional: path to a context file to inject
-        [string]$ContextFile,
-
-        # Optional: disable ITA invocation history logging for this run.
-        [switch]$NoHistory,
-
-        # Optional forwarding arguments for Invoke-TechAgent
-        [Parameter(ValueFromRemainingArguments)]
-        $Rest
-    )
-
-    $restList = @()
-    if ($null -ne $Rest) {
-        $restList = @($Rest)
-    }
-
-    # Parse forwarding args into a named hashtable so they bind correctly.
-    $agentArgs = @{}
-    $confirmDestructive = $false
-    for ($i = 0; $i -lt $restList.Count; $i++) {
-        $item = $restList[$i]
-        if ($item -is [string] -and $item.StartsWith('-')) {
-            $name = $item.TrimStart('-')
-            $valueProvided = $false
-            $nextValue = $null
-            if ($i + 1 -lt $restList.Count -and -not (($restList[$i + 1] -is [string]) -and $restList[$i + 1].StartsWith('-'))) {
-                $valueProvided = $true
-                $nextValue = $restList[$i + 1]
-            }
-
-            switch -Regex ($name.ToLowerInvariant()) {
-                '^model$' {
-                    if (-not $valueProvided) {
-                        throw "ITA: -Model requires a value."
-                    }
-
-                    $agentArgs['Model'] = [string]$nextValue
-                    $i++
-                    continue
-                }
-
-                '^maxiterations$' {
-                    if (-not $valueProvided) {
-                        throw "ITA: -MaxIterations requires a value."
-                    }
-
-                    try {
-                        $agentArgs['MaxIterations'] = [System.Management.Automation.LanguagePrimitives]::ConvertTo($nextValue, [int])
-                    }
-                    catch {
-                        throw "ITA: -MaxIterations value '$nextValue' is not a valid integer."
-                    }
-
-                    $i++
-                    continue
-                }
-
-                '^signedfilepolicy$' {
-                    if (-not $valueProvided) {
-                        throw "ITA: -SignedFilePolicy requires a value. Allowed values: ignore, strip."
-                    }
-
-                    $policyValue = [string]$nextValue
-                    if ($policyValue -notin @('ignore', 'strip')) {
-                        throw "ITA: -SignedFilePolicy value '$policyValue' is invalid. Allowed values: ignore, strip."
-                    }
-
-                    $agentArgs['SignedFilePolicy'] = $policyValue
-                    $i++
-                    continue
-                }
-
-                '^(quiet|confirmdestructive|notranscript|allowmetatools)$' {
-                    $switchValue = $true
-                    if ($valueProvided) {
-                        try {
-                            $switchValue = [System.Management.Automation.LanguagePrimitives]::ConvertTo($nextValue, [bool])
-                            $i++
-                        }
-                        catch {
-                            $switchValue = $true
-                        }
-                    }
-
-                    $parameterName = switch ($name.ToLowerInvariant()) {
-                        'quiet' { 'Quiet' }
-                        'confirmdestructive' { 'ConfirmDestructive' }
-                        'notranscript' { 'NoTranscript' }
-                        'allowmetatools' { 'AllowMetaTools' }
-                    }
-
-                    if ($switchValue) {
-                        $agentArgs[$parameterName] = $true
-                    }
-
-                    if ($parameterName -eq 'ConfirmDestructive') {
-                        $confirmDestructive = $switchValue
-                    }
-
-                    continue
-                }
-
-                default {
-                    throw "ITA: Unsupported parameter '$item'. Allowed forwarded parameters are -Model, -MaxIterations, -SignedFilePolicy, -Quiet, -ConfirmDestructive, -NoTranscript, and -AllowMetaTools."
-                }
-            }
-        }
-    }
-
-    $moduleRoot = Get-ModuleRoot
-    $promptSourceLabel = 'inline -Prompt'
-
-    # Resolve prompt source: explicit -Prompt, explicit -PromptFile, or default file.
-    if (-not [string]::IsNullOrWhiteSpace($Prompt) -and -not [string]::IsNullOrWhiteSpace($PromptFile)) {
-        throw "ITA: Specify only one prompt source: -Prompt or -PromptFile."
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($PromptFile)) {
-        $resolvedPromptPath = if ([System.IO.Path]::IsPathRooted($PromptFile)) {
-            $PromptFile
-        }
-        else {
-            Join-Path $moduleRoot $PromptFile
-        }
-
-        if (-not (Test-Path -LiteralPath $resolvedPromptPath -PathType Leaf)) {
-            throw "ITA: Prompt file not found: $resolvedPromptPath"
-        }
-
-        $Prompt = (Get-Content -LiteralPath $resolvedPromptPath -Raw)
-        if ([string]::IsNullOrWhiteSpace($Prompt)) {
-            throw "ITA: Prompt file is empty: $resolvedPromptPath"
-        }
-
-        $promptSourceLabel = "-PromptFile ($resolvedPromptPath)"
-    }
-    elseif ([string]::IsNullOrWhiteSpace($Prompt)) {
-        $defaultPromptFile = $null
-        if ($script:cfg -and $script:cfg.settings -and $script:cfg.settings.agent) {
-            $defaultPromptCandidate = [string]$script:cfg.settings.agent.defaultPromptFile
-            if (-not [string]::IsNullOrWhiteSpace($defaultPromptCandidate)) {
-                $defaultPromptFile = $defaultPromptCandidate
-            }
-        }
-
-        if ([string]::IsNullOrWhiteSpace($defaultPromptFile)) {
-            $defaultPromptFile = 'AI\prompt.txt'
-        }
-
-        $resolvedDefaultPromptPath = if ([System.IO.Path]::IsPathRooted($defaultPromptFile)) {
-            $defaultPromptFile
-        }
-        else {
-            Join-Path $moduleRoot $defaultPromptFile
-        }
-
-        if (-not (Test-Path -LiteralPath $resolvedDefaultPromptPath -PathType Leaf)) {
-            throw (
-                "ITA: No prompt text supplied and default prompt file was not found: {0}. " +
-                "Provide -Prompt, provide -PromptFile, or create the default prompt file." -f $resolvedDefaultPromptPath
-            )
-        }
-
-        $Prompt = (Get-Content -LiteralPath $resolvedDefaultPromptPath -Raw)
-        if ([string]::IsNullOrWhiteSpace($Prompt)) {
-            throw "ITA: Default prompt file is empty: $resolvedDefaultPromptPath"
-        }
-
-        $promptSourceLabel = "default prompt file ($resolvedDefaultPromptPath)"
-    }
-
-    Write-Host ("ITA prompt source: {0}" -f $promptSourceLabel)
-    Write-Log -Level Info -Message ("ITA prompt source resolved from: {0}" -f $promptSourceLabel)
-
-    # Template injection
-    if ($Template) {
-        $templateText = Get-TechAgentPromptTemplate -Name $Template
-        $Prompt = "$templateText`n`n--- OPERATOR PROMPT ---`n$Prompt"
-    }
-
-    # Context file injection
-    if ($ContextFile) {
-        if (-not (Test-Path $ContextFile)) {
-            throw "Context file '$ContextFile' not found."
-        }
-
-        $context = Get-Content -Path $ContextFile -Raw
-        $Prompt = "$Prompt`n`n--- CONTEXT FILE: $ContextFile ---`n$context"
-    }
-
-    # Safety: extra confirmation if ConfirmDestructive is present
-    if ($confirmDestructive) {
-        $answer = Read-Host "This action may modify or delete data. Continue? [y/N]"
-        if ($answer -notmatch '^(y|yes)$') {
-            Write-Warning "Operation cancelled by user."
-            return
-        }
-    }
-
-    # ShouldProcess integration
-    if ($PSCmdlet.ShouldProcess("TechAgent", "Invoke")) {
-        # History logging only when action is approved and not explicitly disabled.
-        if (-not $NoHistory) {
-            Add-TechAgentHistory -Prompt $Prompt -Parameters @{
-                Template          = $Template
-                ContextFile       = $ContextFile
-                ForwardedArgument = $restList
-                ForwardedParsed   = $agentArgs
-            }
-        }
-
-        Invoke-TechAgent -Prompt $Prompt @agentArgs
-    }
-}
-
-function Register-ITACompletions {
-    Register-ArgumentCompleter -CommandName ITA -ParameterName Template -ScriptBlock {
-        param($commandName, $parameterName, $wordToComplete)
-
-        if (-not (Test-Path $script:TT.PromptTemplates)) { return }
-
-        Get-ChildItem -Path $script:TT.PromptTemplates -File |
-        ForEach-Object {
-            $name = $_.BaseName
-            if ($name -like "$wordToComplete*") {
-                [System.Management.Automation.CompletionResult]::new(
-                    $name,
-                    $name,
-                    'ParameterValue',
-                    "Prompt template: $name"
-                )
-            }
-        }
-    }
-}
-
 # --------------------------------------------
 # TechToolbox Loader v2 (fast import)
 # --------------------------------------------
@@ -580,8 +292,7 @@ if ($publicFunctionNames.Count -gt 0) {
 if ($env:TT_ExportLocalHelper -eq '1') {
     Export-ModuleMember -Function 'Start-PDQDiagLocalSystem'
 }
-$allExportFunctions = @($publicFunctionNames + 'ITA') | Select-Object -Unique
-Export-ModuleMember -Function $allExportFunctions
+Export-ModuleMember -Function $publicFunctionNames
 
 $script:TT_Initialized = $true
 __tt_trace "Import complete"
@@ -589,13 +300,12 @@ __tt_trace "Import complete"
 # --- Call on import ---
 Show-TTBannerOncePerSession
 Write-TTLoadedLine -Status Loaded
-Register-ITACompletions
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDrpP+zhXygpNt5
-# +uy8E/FRN9UbDkKLbhjaSDu+Hv2JlKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBvNhRLRqVQKq4s
+# T6Gp7+AxoDfmLRk9MLBFf2LLRqNr06CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -728,34 +438,34 @@ Register-ITACompletions
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBtw/iBKBbb
-# A72UHB5r0ie/FYqUEj+NG04uKxxnmBTjFTANBgkqhkiG9w0BAQEFAASCAgDXOgCj
-# 9679P7qAjouZjX2v/QhJNjMHfVMHxnM0bNoDXHpsMP8+3uGUYAN9lHnhXuIsGubx
-# /W4OyRmiDz+ihlHxNv/Y5cnIZU8ot9wRUwyqTL2Vijqp/17zst5UxbCD1XsI1Vd8
-# OKjZbV4vSuWDs60gI+pj3kr5VRmlj0E8KWANNqbU8ze5q9vBYCagyMd3aQBHqcfq
-# 843rmaZBpbi7AlqjuNn4tsx+S7TRR4WecMyvX97nJtyikMtX5TqGlrsNPh0R5L8g
-# KXW5SZPKaOafGz1cg28X+JdvdwsEzexPA9QI3WFXIKFfXdU3INXhp2cNdAzz4CpH
-# 3PfvNUCoux16APOId295a5SnJxg0k8SXNIZGcIiRSmWYPC2UyEZYJlfc1PHGS+Rx
-# grBuNHZickg2CpzkJWGG1aF233UOOrAUuZyd+bvapabSIlSETwoqC6wgbn86n25X
-# tOOP6wkW+eDT2JfSROTbPDwceDYhtWaJX8f6U5dJYjgDJdYN+MUCsp8ZxRysEhrl
-# 7v0JL1NA3zI73M5SJaPhjNJeQ2Vt9QE8mU86ofA94u9TQHsVzQGmiTj7vzKwDlma
-# MjtzPhMDSgpJQJOlK7EUX0f0rkUmZa3NI17H0MKrEYWN74RStRQgzjIAOxgV/0FN
-# 0zWNMU+LJziGh4JxvzI4HGnYwGpvvcJRs87HI6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDNLRcz72P1
+# IShQTgvim7SwJRb7Za95GeiymVkFubrXUTANBgkqhkiG9w0BAQEFAASCAgBEaHWz
+# jjgHDVMniOiEvakbmY7O114IZSDR6SnvAI7a9u0zKmTxnA2hH6BknjzXfJQlR4cG
+# d9eGwwlPa8MlZNKU9xOiblYls0T0AUwzd9W/XVFFvUlgu3e5xHwz2l1qGggSzKHW
+# MWPE9R1FR1bmQllWmdsYYCUEQM4vB+UMWVRWLxnqH9nOFEjtME9rNXrzeZC7rX6C
+# SYv+siKOTU1j0q80IioiBnk4FysDLfPVojzCNUHezVsMkcMOIzisnMADJaeygDGY
+# VVe2diioSMzk9cN7ZpW9eYBLlgBKFHk9uh5joSJvhaufG/b/iLKtTb4oHQJqaEha
+# WQnWYmsTsU51Zr9+pB6YnIZfWqJvyCbNzQxrWfZXef968mc0qSxX+VcgaRNQaVw+
+# xDxiTA+3bJFbeUPep+5lSl1Ref8Gidx/+EJeSP2NB3F1ByAki9p0Gtu2YOg0FXq2
+# f8PVzQlzGQZ4rFPFXSzqJ15HzRBxpYvJFnPdETFGtMSQL/rLtT4Ae5BEEf3vmU53
+# nx5YR1fj9O70loY/rXlnGdsE+aRlhhbpx1t3zaZCiy9r+1J1QJc8G8R1zUKs2cHp
+# REGhxFaLWwFF8DeiG6Sk3VkrOoSFWpIa9TaOK+KCIorDcj8w6V6oGIIGKdX2YE71
+# WHsyzZ7vmGhRy5+rvoQNknwDCjLoYnggGeqFMqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MDYwNTIxMjBaMC8GCSqGSIb3DQEJBDEiBCCM0nCbKIxgtWI6UJd6
-# wUQah0fv8Cr0vC4rQAOXX+9rRDANBgkqhkiG9w0BAQEFAASCAgChL+kxOtKThN/p
-# ObnwaL0os6Vx7vEMatQR92ze4n/CCB1bFxx6ZEqx/gzWTysaAWgp8cIoouz/ZBUi
-# eq104h0tkTF6kduj1/+Riun3lnxL2u76bKNte69W57cVS4k/DziDcatRMU8e4buW
-# LmEvkSU0EFScGPH3iK3H2XT3QgjnPvHhQHR0lXDkzez5tsx7g+UxfszW6NFgaZzR
-# acrJVLHnW9FNl3QNALbSbPWEyFdD6iTbH9iZgjvTrwfNsmJGo0g7i9kqTtpg60MZ
-# pJy7GlW+m0kMTJaG2clp0tPy9B33LhfbapAaCepmBYvSS0/qCj4PZOUp2Ek3Q/Cc
-# 6VZQqJD7XdNwllPahNMDkLHk6aWTAanVv2hQZ9uR44gKb8hkoIvk9S1r/j89cL/W
-# nStD3lOlbKmiDpuYSYelwKTEtxLBhL1xRDrvgsINcuei82kW6N9Xa4jWrnVAI53L
-# S+vXMZ4TOCLHHyEpnzUcI8PyXOsrv+5nEwJ8hmepzLLuYgGG84szv69D6zSRM1h5
-# IV7KK+7yjdtSUhyiyw4J0QEKNeMhsPrtfuNl8LMEAvG0p1ytKiEF8tZ00/08Qj97
-# SILtsLcK+HB28w5DnH278Yg86vt2f39grNwflSIrswTf/f00quHM+9cq9dxDQJWE
-# YO2PyTH/dewKAASWccXN2YCdYrZgsQ==
+# BTEPFw0yNjA3MDYxNzAxNDRaMC8GCSqGSIb3DQEJBDEiBCDv/zvb+T93nlGBJ2Om
+# INcK7htlcv/T0/wMXndna437bDANBgkqhkiG9w0BAQEFAASCAgCr0p/n15fSw0Be
+# jqJQw7x7dIQGGRTrWYLweynAx1t/CApvD39oDV50LrPLoZCkyaYft/uszkmB7Cnf
+# nDjUP890EdXIdjA1btfyw8Giu20hS0DqGD7BgmG/43iVBwJdHgWKXLJD2vYCHMXC
+# v7YPjh0BxpdBRf11R9OOeKRw+Ccb0TT5aiP9AJOQDnWiuex8tBR9KsuDnB8P6UP6
+# OUEO7vTF4uu4rFfWQFOgCTZmVeAs86j6/ivrH+Xzg0/EwlQQd619Wo+XPxQqtQaU
+# pgoxfkVeel5kGKKyL/00M5h3GUXm/eTO2vg+s3t7/gVFdDBmyxYv4oXoFRKdysHK
+# clSvQmG634li1wfQ6eqFq88JcyFUS6yPwL3Lc6skoquuB3g3cuh1FL/pLXVRNpim
+# J1o3fkVylw3ofWOdu2KAV01RZEi7uNcE3QR3+b/MJ1ohglvrszSFfAVsnoDqClMU
+# VBQX2KSaw+9G8zSnojsorPD9vu2i+iu6nhIFktAg0usRf9sy/LNzVF6PH0vEXhA4
+# 903BeXmqe+25SKmlFIgZa0RBQicM0W9R3an47FhKq/K/yG/bOusK4sE9SD2TCQcU
+# OakusNdQMJafBXCHfv96t0isrc+stWJxKSa01nRVlXcfTlXV8tUKQ9HDhrUIzLmn
+# xx+AnU6mrygzPOMV0AAUY7u39xdT2g==
 # SIG # End signature block
