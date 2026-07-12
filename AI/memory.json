@@ -15,284 +15,25 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.85,
-      "avgDurationMs": 55244,
-      "avgToolCalls": 5,
+      "successRate": 0.8,
+      "avgDurationMs": 65588,
+      "avgToolCalls": 4.9,
       "statusCounts": {
-        "success": 17,
-        "error": 3
+        "success": 16,
+        "error": 4
       },
       "outcomeCounts": {
-        "completed": 17,
-        "iteration-limit": 3
+        "completed": 16,
+        "iteration-limit": 4
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "ornith:35b",
-      "lastRunTimestampUtc": "2026-07-06T16:58:28.5116753\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-06T16:58:28.5131032\u002B00:00"
+      "lastRunTimestampUtc": "2026-07-12T17:15:15.5096388\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-12T17:15:15.5109617\u002B00:00"
     }
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-01T03:01:24.2184043+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1\r\n\r\nGenerate a complete Initialize-TTWordList.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Initialize-TTWordList.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Initialize-TTWordList.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 12220,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "I have sufficient information from the compact view to generate the help document. I will now write the file.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1\r\n\r\nGenerate a complete Initialize-TTWordList.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the f...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-01T03:02:20.3493925+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1\r\n\r\nGenerate a complete Initialize-TTWordList.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Initialize-TTWordList.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Initialize-TTWordList.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 28935,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "Successfully generated and wrote the Initialize-TTWordList.md help document to C:\\repos\\TechToolbox-Docs\\Initialize-TTWordList.md.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Initialize-TTWordList.ps1\r\n\r\nGenerate a complete Initialize-TTWordList.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the f...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-01T03:03:49.1475615+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-EpicorEdgeAgent.ps1\r\n\r\nGenerate a complete Remove-EpicorEdgeAgent.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Remove-EpicorEdgeAgent.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Remove-EpicorEdgeAgent.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 47567,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 6,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "Successfully generated the Remove-EpicorEdgeAgent.md help document at C:\\repos\\TechToolbox-Docs\\Remove-EpicorEdgeAgent.md. The document includes synopsis, syntax, description, parameter details, inputs/outputs, notes, and examples based on the source code analysis.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-EpicorEdgeAgent.ps1\r\n\r\nGenerate a complete Remove-EpicorEdgeAgent.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-01T03:04:47.1637552+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1\r\n\r\nGenerate a complete Remove-Printers.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Remove-Printers.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Remove-Printers.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 22278,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "Successfully generated and wrote the Remove-Printers.md help document to C:\\repos\\TechToolbox-Docs\\Remove-Printers.md.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Remove-Printers.ps1\r\n\r\nGenerate a complete Remove-Printers.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdow...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-01T03:10:39.1636857+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1\r\n\r\nGenerate a complete Reset-WindowsUpdateComponents.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Reset-WindowsUpdateComponents.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Reset-WindowsUpdateComponents.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 47416,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "Successfully generated and wrote the Reset-WindowsUpdateComponents.md help document to C:\\repos\\TechToolbox-Docs\\Reset-WindowsUpdateComponents.md. The document includes Synopsis, Syntax, Description, Parameter details (ComputerName, Credential), Inputs/Outputs, Notes on requirements, and Examples for both local and remote execution.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Reset-WindowsUpdateComponents.ps1\r\n\r\nGenerate a complete Reset-WindowsUpdateComponents.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou ...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-01T03:11:53.6283079+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1\r\n\r\nGenerate a complete Watch-ISPConnection.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Watch-ISPConnection.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Watch-ISPConnection.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 42763,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "Successfully generated and wrote the Watch-ISPConnection.md help document to C:\\repos\\TechToolbox-Docs\\Watch-ISPConnection.md. The document includes synopsis, syntax, description, parameter details, examples, and related links following Get-Help -Online best practices.",
-      "runSummary": {
-        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\System\\Watch-ISPConnection.ps1\r\n\r\nGenerate a complete Watch-ISPConnection.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-05T23:15:50.0670867+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How is the weather in PAris France right now?",
-      "model": "qwen3.6:35b",
-      "durationMs": 81526,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "- I do not have access to real-time data tools (such as a live weather API or internet browsing capability) within this TechToolbox environment.\n- To get the current weather in Paris, France, please check a dedicated weather service such as:\n-\u003E https://weather.com\n-\u003E https://www.accuweather.com\n-\u003E A search engine query for \u0022current weather Paris France\u0022",
-      "runSummary": {
-        "intent": "How is the weather in PAris France right now?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-05T23:27:23.2519758+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How can I give you access to the internet at large?",
-      "model": "qwen3.6:35b",
-      "durationMs": 18641,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "- **Direct Internet Access**: As an agent running inside TechToolbox on your local machine, I can access the internet if the host environment allows outbound HTTP/HTTPS traffic. No special configuration is needed from my side; it depends entirely on your network firewall and proxy settings.\n\n- **API Keys for External Services**: If you want me to use specific external APIs (e.g., weather data, translation services), you need to provide the necessary API keys via TechToolbox\u0027s configuration or environment variables.\n\n- **Proxy Configuration**: If your organization uses a web proxy, ensure that the PowerShell process running TechToolbox is configured to route traffic through it. You can set this in your system\u0027s internet options or via PowerShell \u0060$env:https_proxy\u0060 and \u0060$env:http_proxy\u0060 variables.\n\n- **Firewall Rules**: Ensure that outbound ports 80 (HTTP) and 443 (HTTPS) are open for the process running TechToolbox.",
-      "runSummary": {
-        "intent": "How can I give you access to the internet at large?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-05T23:28:38.6618078+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Access the internet to check the current temperature in Paris France in Celcius",
-      "model": "qwen3.6:35b",
-      "durationMs": 3179,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "I cannot access the internet directly as I am a local automation agent running inside TechToolbox without external network connectivity tools for web browsing or API calls. To get the current temperature in Paris, France, you can:\n\n- Visit a weather website like weather.com or accuweather.com and search for \u0022Paris, France\u0022\n- Use a command-line tool if available on your system (e.g., curl with a weather API)\n- Ask me to help write a script that fetches this data once internet access is configured",
-      "runSummary": {
-        "intent": "Access the internet to check the current temperature in Paris France in Celcius",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-06T03:21:13.4036862+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "I expanded your capabilities to include reaching out to a limited number of URLs, can you confirm this functionality for me please?",
-      "model": "qwen3.6:35b",
-      "durationMs": 25453,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "Yes, I can confirm that internet access functionality is working.\n\nI successfully fetched data from https://api.github.com using the FETCH-URL tool. The response was a valid HTTP 200 OK with JSON content describing available GitHub API endpoints.\n\nNote: Access is restricted to a specific allowlist of hosts (e.g., api.github.com, docs.microsoft.com, etc.). Requests to non-allowlisted domains like wttr.in are blocked for security reasons.",
-      "runSummary": {
-        "intent": "I expanded your capabilities to include reaching out to a limited number of URLs, can you confirm this functionality for me please?",
-        "actionsTaken": [
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
     {
       "timestampUtc": "2026-07-06T04:19:18.8142566+00:00",
       "status": "success",
@@ -617,6 +358,270 @@
           "list_directory",
           "read_file",
           "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T16:42:44.6299346+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ToolWrapper.cs\r\n\r\nGenerate complete comments-based help for the function at the specified path.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 123719,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "read_file"
+      ],
+      "outputPreview": "## Comments-Based Help for ToolWrapper.cs\n\n### Overview\nThis file defines the \u0060ToolWrapper\u0060 static class that builds a dictionary of executable tool functions from a registry of \u0060ToolSpec\u0060 definitions. It handles JSON argument parsing, required parameter validation, destructive action confirmation, signed-file policy normalization, fetch host allowlisting, and result serialization.\n\n---\n\n### Class: ToolWrapper\n\n\u0060\u0060\u0060csharp\n/// \u003Csummary\u003E\n/// Provides static methods for building and managing a collection of executable tools.\n/// Each tool is represented as an async function that accepts JSON arguments and returns\n/// a string result. The class handles argument validation, safety checks, and output normalization.\n/// \u003C/summary\u003E\npublic static class ToolWrapper\n{\n    /// \u003Csummary\u003E\n    /// Set of valid values for the SignedFilePolicy configuration option.\n    /// Only \u0022ignore\u0022 and \u0022strip\u0022 are accepted; all other values default to \u0022ignore\u0022.\n    /// \u003C/summary\u003E\n    private static readonly HashSet\u003Cstring\u003E SignedFilePolicyValues = new(\n        StringComparer.OrdinalIgnoreCase\n    )\n    {\n        \u0022ignore\u0022,\n        \u0022strip\u0022,\n    };\n\u0060\u0060\u0060\n\n---\n\n### Method: BuildTools\n\n\u0060\u0060\u0060csharp\n/// \u003Csummary\u003E\n/// Builds a dictionary mapping tool names to their executable async functions.\n/// Each function wraps the underlying PowerShell bridge execution with argument parsing,\n/// validation, safety enforcement, and result normalization.\n/// \u003C/summary\u003E\n/// \u003Cparam name=\u0022registry\u0022\u003E\n/// A read-only dictionary of tool specifications keyed by tool name.\n/// Each ToolSpec defines the tool\u0027s parameters, including which are mandatory.\n/// \u003C/param\u003E\n/// \u003Cparam name=\u0022destructiveConfirmed\u0022\u003E\n/// When true, destructive tools will auto-confirm without requiring explicit user confirmation.\n/// Use with caution as this bypasses safety prompts.\n/// \u003C/param\u003E\n/// \u003Cparam name=\u0022signedFilePolicy\u0022\u003E\n/// Controls how signed-file policy is handled by tools. Valid values are \u0022ignore\u0022 and \u0022strip\u0022.\n/// Invalid or null values default to \u0022ignore\u0022.\n/// \u003C/param\u003E\n/// \u003Cparam name=\u0022allowedFetchHosts\u0022\u003E\n/// Optional list of allowed hostnames for FETCH-URL tool. Empty array means no hosts are allowed.\n/// Hosts are normalized by trimming whitespace, removing trailing dots, and converting to lowercase.\n/// \u003C/param\u003E\n/// \u003Cparam name=\u0022toolExecutor\u0022\u003E\n/// Optional custom executor function. When null, defaults to PowerShellBridge.RunTool.\n/// Allows injection of alternative execution paths for testing or customization.\n/// \u003C/param\u003E\n/// \u003Creturns\u003E\n/// A case-insensitive dictionary mapping each tool name to an async function that accepts\n/// a JSON string of arguments and returns a Task containing the string result.\n/// \u003C/returns\u003E\n/// \u003Cexception cref=\u0022Exception\u0022\u003E\n/// Throws when the underlying tool executor encounters an error during execution.\n/// The exception message is captured and returned as a string rather than propagated.\n/// \u003C/exception\u003E\npublic static Dictionary\u003Cstring, Func\u003Cstring, Task\u003Cstring\u003E\u003E\u003E BuildTools(\n    IReadOnlyDictionary\u003Cstring, ToolSpec\u003E registry,\n    bool destructiveConfirmed,\n    string signedFilePolicy,\n    IEnumerable\u003Cstring\u003E? allowedFetchHosts = null,\n    Func\u003Cstring, IDictionary\u003Cstring, object?\u003E, object?\u003E? toolExecutor = null\n)\n{\n    // Initialize case-insensitive dictionary to store tool name -\u003E function mappings\n    var tools = new Dictionary\u003Cstring, Func\u003Cstring, Task\u003Cstring\u003E\u003E\u003E(\n        StringComparer.OrdinalIgnoreCase\n    );\n\n    // Normalize the signed file policy to a valid value or default to \u0022ignore\u0022\n    var normalizedSignedFilePolicy = NormalizeSignedFilePolicy(signedFilePolicy);\n\n    // Normalize the list of allowed fetch hosts for consistent comparison\n    var normalizedFetchHosts = NormalizeFetchHosts(allowedFetchHosts);\n\n    // Use provided executor or fall back to default PowerShell bridge execution\n    var executor = toolExecutor ?? PowerShellBridge.RunTool;\n\n    // Iterate through each tool specification in the registry\n    foreach (var kv in registry)\n    {\n        var ...",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ToolWrapper.cs\r\n\r\nGenerate complete comments-based help for the function at the specified path.",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T16:45:10.9459347+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ToolWrapper.cs\r\n\r\nGenerate complete comments-based help within the function at the specified path.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 92720,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "toolNames": [
+        "read_file",
+        "write_file",
+        "write_file"
+      ],
+      "outputPreview": "The WRITE-FILE tool requires explicit confirmation for destructive operations. However, I cannot proceed without the proper confirmation mechanism being available in this environment.\n\nTo complete this task, you need to:\n1. Confirm that overwriting the file at C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ToolWrapper.cs is acceptable\n2. Provide the necessary permissions or configuration to allow WRITE-FILE operations without destructive confirmation\n\nAlternatively, I can provide you with the complete commented code that you can manually apply to the file. Would you like me to do that instead?",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ToolWrapper.cs\r\n\r\nGenerate complete comments-based help within the function at the specified path.",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T16:46:25.0305464+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ToolWrapper.cs\r\n\r\nGenerate complete comments-based help within the function at the specified path.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 47218,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Complete comments-based help has been generated and written to the file at C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ToolWrapper.cs.\n\nThe following XML documentation comments were added:\n\n- Class-level summary for ToolWrapper describing its purpose of building and managing tool functions\n- Field documentation for SignedFilePolicyValues explaining valid policy values\n- Comprehensive parameter documentation for BuildTools method including all five parameters with descriptions of their purpose, valid values, and behavior\n- Return value documentation for BuildTools\n- Exception documentation for ArgumentNullException\n- Detailed summaries for each private helper method:\n  - GetMissingRequiredParams: validates arguments against tool specifications\n  - NormalizeSignedFilePolicy: normalizes policy values with default fallback\n  - HasParameter: checks if a parameter exists in a specification\n  - HasArgument: checks if an argument key exists in a dictionary\n  - NormalizeFetchHosts: normalizes and deduplicates fetch hostnames\n- Inline comments explaining key logic blocks within the BuildTools method\n\nAll documentation follows C# XML documentation standards with proper \u003Csummary\u003E, \u003Cparam\u003E, \u003Creturns\u003E, and \u003Cexception\u003E tags.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ToolWrapper.cs\r\n\r\nGenerate complete comments-based help within the function at the specified path.",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T17:01:24.7571025+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\PromptBuilder.cs\r\n\r\nGenerate complete comments-based help within the function at the specified path.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 42692,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "read_file"
+      ],
+      "outputPreview": "## Comments-Based Help for PromptBuilder.cs\n\n### Namespace: TechToolbox.Agent.Agent\n\n### Class: PromptBuilder (static)\n\nA static utility class responsible for building system prompts, goal prompts, and tool result messages for the TechToolbox agent. It supports multiple agent modes (TechToolbox, Assistant, CodingAgent, Custom) and integrates with persistent memory to provide context-aware prompting.\n\n---\n\n### Constants\n\n#### DefaultRecentHistoryItems\n- Type: int\n- Value: 2\n- Description: Default number of recent history items to include in the prompt memory context.\n\n#### MaxRecentHistoryItems\n- Type: int\n- Value: 20\n- Description: Maximum allowed number of recent history items that can be requested.\n\n#### AsciiMarkdownInstruction\n- Type: string (const)\n- Description: Instruction string enforcing ASCII-only Markdown formatting in final answers. Prevents use of emoji, smart quotes, Unicode bullets, box-drawing characters, or arrow glyphs.\n\n---\n\n### Public Methods\n\n#### BuildInitialMessages(string userPrompt, IReadOnlyDictionary\u003Cstring, ToolSpec\u003E registry, MemoryStore? memory)\n- Summary: Legacy overload that builds initial chat messages with TechToolbox system prompt. Auto-detects agent mode from the tool registry and uses default recent history items.\n- Parameters:\n  - userPrompt: The user\u0027s goal or task description.\n  - registry: Dictionary of available tools with their specifications.\n  - memory: Optional persistent memory store for context injection.\n- Returns: List\u003CAgentChatMessage\u003E containing system and user messages.\n- Notes: Maintained for backward compatibility. Delegates to the full overload with auto-detected mode and DefaultRecentHistoryItems.\n\n---\n\n#### BuildInitialMessages(string userPrompt, IReadOnlyDictionary\u003Cstring, ToolSpec\u003E registry, MemoryStore? memory, int recentHistoryItems)\n- Summary: Builds initial chat messages with a customizable number of recent history items injected into the prompt memory context.\n- Parameters:\n  - userPrompt: The user\u0027s goal or task description.\n  - registry: Dictionary of available tools with their specifications.\n  - memory: Optional persistent memory store for context injection.\n  - recentHistoryItems: Number of recent history entries to include (clamped to [0, MaxRecentHistoryItems]).\n- Returns: List\u003CAgentChatMessage\u003E containing system and user messages.\n- Notes: Auto-detects agent mode from the tool registry. Delegates to the full overload.\n\n---\n\n#### BuildInitialMessages(string userPrompt, IReadOnlyDictionary\u003Cstring, ToolSpec\u003E registry, MemoryStore? memory, AgentMode mode, string? systemPromptOverride = null, int recentHistoryItems = DefaultRecentHistoryItems)\n- Summary: Full overload that builds initial chat messages for a specific agent mode with optional system prompt override.\n- Parameters:\n  - userPrompt: The user\u0027s goal or task description.\n  - registry: Dictionary of available tools with their specifications.\n  - memory: Optional persistent memory store for context injection.\n  - mode: The agent mode to use (TechToolbox, Assistant, CodingAgent, Custom).\n  - systemPromptOverride: Optional override for the system prompt. If null, builds from mode.\n  - recentHistoryItems: Number of recent history entries to include (clamped to [0, MaxRecentHistoryItems]).\n- Returns: List\u003CAgentChatMessage\u003E containing system and user messages.\n- Notes: Creates a system message with the appropriate preamble and tool list, and a user message with the goal prompt and memory context.\n\n---\n\n#### BuildToolResultMessage(string toolName, string toolResult, bool succeeded = true)\n- Summary: Builds a user message containing the result of a tool execution.\n- Parameters:\n  - toolName: Name of the executed tool.\n  - toolResult: The raw output or error from the tool.\n  - succeeded: Whether the tool execution was successful. Defaults to true.\n- Returns: AgentChatMessage with role \u0022user\u0022 containing formatted tool result and instructions for the next JSON decision object.\n\n---\n\n#### BuildRepairMessage(string...",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\PromptBuilder.cs\r\n\r\nGenerate complete comments-based help within the function at the specified path.",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T17:04:57.9330982+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\PromptBuilder.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentation comments for all public\r\nmethods and classes within the file.\r\n\r\nUse WRITE=FILE to insert the generated XML documentation comments directly into\r\nthe file.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 72438,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated complete XML documentation comments for PromptBuilder.cs.\n\n## Summary of Changes\n\nAdded comprehensive XML documentation comments to:\n\n- **Class**: \u0060PromptBuilder\u0060 - Documented the class purpose and functionality\n- **Constants**: Added documentation for \u0060DefaultRecentHistoryItems\u0060, \u0060MaxRecentHistoryItems\u0060, and \u0060AsciiMarkdownInstruction\u0060\n- **Public Methods** (5 methods):\n  - \u0060BuildInitialMessages\u0060 (3 overloads) - Documented all parameters and return values\n  - \u0060BuildToolResultMessage\u0060 - Documented tool result message construction\n  - \u0060BuildRepairMessage\u0060 - Documented repair message for invalid JSON responses\n  - \u0060BuildWriteFileRecoveryMessage\u0060 - Documented WRITE-FILE recovery message construction\n- **Private Methods** (3 methods):\n  - \u0060BuildSystemPrompt\u0060 - Documented system prompt generation logic\n  - \u0060BuildGoalPrompt\u0060 - Documented goal prompt construction with memory context\n  - \u0060BuildMemoryContext\u0060 - Documented memory context building from MemoryStore\n\nAll XML documentation includes:\n- \u0060\u003Csummary\u003E\u0060 tags describing purpose\n- \u0060\u003Cparam\u003E\u0060 tags for all parameters with descriptions\n- \u0060\u003Creturns\u003E\u0060 tags for return values\n- Proper formatting and consistency throughout",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\PromptBuilder.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documen...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T17:10:21.5680789+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClient.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentation comments for all public\r\nmethods and classes within the file.\r\n\r\nUse WRITE=FILE to insert the generated XML documentation comments directly into\r\nthe file.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 18731,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "read_file"
+      ],
+      "outputPreview": "The file already contains comprehensive XML documentation comments for all public methods and classes. The LlmClient class and its public members (GenerateDecisionAsync, DiagnosticTrace property) have proper \u003Csummary\u003E, \u003Cparam\u003E, and \u003Creturns\u003E tags. Private methods (Trace, GetTimeoutSeconds, GetNumPredict, Preview, BuildEmptyContentDiagnostics) also have XML doc comments. No additional documentation is needed - the file is already complete.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClient.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentati...",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T17:11:21.537094+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\Saftey.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentation comments for all public\r\nmethods and classes within the file.\r\n\r\nUse WRITE=FILE to insert the generated XML documentation comments directly into\r\nthe file.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 25952,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "## Summary\n\nI have successfully generated and inserted complete XML documentation comments into the Safety.cs file at:\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\Saftey.cs\n\n### What was added:\n\n- **Class-level documentation** for \u0060Safety\u0060 with a summary describing its purpose (safety checks for tool invocations)\n- **XML docs for \u0060IsDestructive\u0060 method** including:\n  - Summary of what the method does\n  - \u0060\u003Cparam\u003E\u0060 for \u0060toolName\u0060\n  - \u0060\u003Creturns\u003E\u0060 describing the boolean return value\n  - \u0060\u003Cexception\u003E\u0060 for \u0060ArgumentNullException\u0060\n- **XML docs for \u0060IsExplicitConfirmation\u0060 method** including:\n  - Summary of what the method does\n  - \u0060\u003Cparam\u003E\u0060 for \u0060value\u0060\n  - \u0060\u003Creturns\u003E\u0060 describing the boolean return value\n- **XML docs for \u0060RequireDestructiveConfirmation\u0060 method** including:\n  - Summary of what the method does\n  - \u0060\u003Cparam\u003E\u0060 for both \u0060toolName\u0060 and \u0060args\u0060\n  - \u0060\u003Cexception\u003E\u0060 for \u0060InvalidOperationException\u0060\n\nAll public methods and the class itself now have complete comments-based help with proper XML documentation format.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\Saftey.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentation ...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T17:12:55.7663323+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentCore.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentation comments for all public\r\nmethods and classes within the file.\r\n\r\nUse WRITE=FILE to insert the generated XML documentation comments directly into\r\nthe file.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 51092,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated complete XML documentation comments for AgentCore.cs.\n\nThe following documentation was added:\n\n-\u003E File-level header with copyright and license information\n-\u003E Class-level documentation for AgentCore describing its purpose\n-\u003E Field documentation for MetaToolNames explaining its role\n-\u003E Complete XML documentation for all public methods:\n   - RunAgent(AgentConfiguration, string) - synchronous agent execution\n   - RunAgentAsync(AgentConfiguration, string) - asynchronous agent execution\n   - RunAgent(string, ...) - legacy synchronous method with individual parameters\n   - RunAgentAsync(string, ...) - legacy asynchronous method with individual parameters\n-\u003E Documentation for all parameters including types, defaults, and descriptions\n-\u003E Method-level documentation explaining behavior and return values\n-\u003E Internal method documentation for RunAgentInternalAsync\n\nAll public methods and classes now have comprehensive XML documentation comments that will be picked up by Visual Studio IntelliSense and can be used to generate API documentation.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentCore.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentati...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T17:14:34.8936135+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentation comments for all public\r\nmethods and classes within the file.\r\n\r\nUse WRITE=FILE to insert the generated XML documentation comments directly into\r\nthe file.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 39997,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML doc...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T17:15:15.5096388+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentation comments for all public\r\nmethods and classes within the file.\r\n\r\nUse WRITE=FILE to insert the generated XML documentation comments directly into\r\nthe file.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 22304,
+      "maxIterations": 80,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 6,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "list_directory",
+        "read_file"
+      ],
+      "outputPreview": "The READ-FILE tool is returning a compact fallback view for this large file (46,560 bytes, 1,258 lines). Based on the partial content visible, I can see:\n\n- The file contains a public partial class \u0060AgentOrchestrator\u0060 in namespace \u0060TechToolbox.Agent.Agent\u0060\n- It has private fields including \u0060_llm\u0060, \u0060_registry\u0060, \u0060_tools\u0060, \u0060_memory\u0060, \u0060_model\u0060, etc.\n- It has static regex patterns for parsing section headings and function names\n\nHowever, I cannot see the full file content to identify all public methods that need XML documentation. The READ-FILE tool is not providing the complete file due to its size.\n\nTo complete this task, I would need either:\n1. A way to read the full file content (perhaps in chunks)\n2. Access to a different tool that can handle large files\n3. The file to be smaller or split into multiple files\n\nSince I cannot see all public methods and classes in the file, I cannot generate complete XML documentation comments for everything. The task cannot be completed safely without full visibility of the code structure.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML doc...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory"
         ],
         "blockers": "",
         "nextBestStep": ""

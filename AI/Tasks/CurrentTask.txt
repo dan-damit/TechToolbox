@@ -1,17 +1,9 @@
 Please read the function at:
-C:\repos\TechToolbox\Public\System\Watch-ISPConnection.ps1
+C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\AgentOrchestrator.cs
 
-Generate a complete Watch-ISPConnection.md help document following
-Get-Help -Online best practices.
+Generate complete comments-based help within the function itself at the
+specified path. Make sure to include XML documentation comments for all public
+methods and classes within the file.
 
-You MUST write the final markdown to this exact file path:
-C:\repos\TechToolbox-Docs\Watch-ISPConnection.md
-
-Important requirements:
-- You MUST call the WRITE-FILE tool.
-- The WRITE-FILE toolArgs MUST include:
-    "path": "C:\\repos\\TechToolbox-Docs\\Watch-ISPConnection.md"
-    "content": "<escaped markdown>"
-- All newlines in the content MUST be escaped as \n inside JSON.
-- Do NOT return finalAnswer until WRITE-FILE succeeds.
-- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.
+Use WRITE=FILE to insert the generated XML documentation comments directly into
+the file.
