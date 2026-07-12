@@ -5,11 +5,25 @@ using TechToolbox.Agent.Registry;
 
 namespace TechToolbox.Agent.Agent;
 
+/// <summary>
+/// Provides methods for building system prompts, goal prompts, and message structures
+/// used by the TechToolbox agent to communicate with language models.
+/// </summary>
 public static class PromptBuilder
 {
+    /// <summary>
+    /// The default number of recent history items included in memory context.
+    /// </summary>
     private const int DefaultRecentHistoryItems = 2;
+
+    /// <summary>
+    /// The maximum number of recent history items that can be included in memory context.
+    /// </summary>
     private const int MaxRecentHistoryItems = 20;
 
+    /// <summary>
+    /// Instruction string for formatting final answers as plain ASCII Markdown.
+    /// </summary>
     private const string AsciiMarkdownInstruction =
         "Format the final answer as plain Markdown using ASCII characters only. "
         + "Do not use emoji, smart quotes, Unicode bullets, box-drawing characters, or arrow glyphs. "
@@ -19,6 +33,10 @@ public static class PromptBuilder
     /// Legacy method: builds initial messages with TechToolbox system prompt.
     /// Maintained for backward compatibility.
     /// </summary>
+    /// <param name="userPrompt">The user's goal or task description.</param>
+    /// <param name="registry">The tool registry containing available tools and their specifications.</param>
+    /// <param name="memory">Optional memory store for persistent context. Can be null.</param>
+    /// <returns>A list of initial chat messages including system and user messages.</returns>
     public static List<AgentChatMessage> BuildInitialMessages(
         string userPrompt,
         IReadOnlyDictionary<string, ToolSpec> registry,
@@ -41,6 +59,11 @@ public static class PromptBuilder
     /// Builds initial messages and allows overriding the number of recent history items
     /// injected into prompt memory context.
     /// </summary>
+    /// <param name="userPrompt">The user's goal or task description.</param>
+    /// <param name="registry">The tool registry containing available tools and their specifications.</param>
+    /// <param name="memory">Optional memory store for persistent context. Can be null.</param>
+    /// <param name="recentHistoryItems">Number of recent history items to include (clamped to MaxRecentHistoryItems).</param>
+    /// <returns>A list of initial chat messages including system and user messages.</returns>
     public static List<AgentChatMessage> BuildInitialMessages(
         string userPrompt,
         IReadOnlyDictionary<string, ToolSpec> registry,
@@ -55,6 +78,13 @@ public static class PromptBuilder
     /// <summary>
     /// Builds initial messages for a specific agent mode.
     /// </summary>
+    /// <param name="userPrompt">The user's goal or task description.</param>
+    /// <param name="registry">The tool registry containing available tools and their specifications.</param>
+    /// <param name="memory">Optional memory store for persistent context. Can be null.</param>
+    /// <param name="mode">The agent mode to use (TechToolbox, Assistant, CodingAgent, or Custom).</param>
+    /// <param name="systemPromptOverride">Optional override for the system prompt. If null, a default is generated.</param>
+    /// <param name="recentHistoryItems">Number of recent history items to include (clamped to MaxRecentHistoryItems). Default is DefaultRecentHistoryItems.</param>
+    /// <returns>A list of initial chat messages including system and user messages.</returns>
     public static List<AgentChatMessage> BuildInitialMessages(
         string userPrompt,
         IReadOnlyDictionary<string, ToolSpec> registry,
@@ -76,12 +106,24 @@ public static class PromptBuilder
         return messages;
     }
 
+    /// <summary>
+    /// Builds a tool result message to be sent back to the agent after a tool execution.
+    /// </summary>
+    /// <param name="toolName">The name of the tool that was executed.</param>
+    /// <param name="toolResult">The result output from the tool execution.</param>
+    /// <param name="succeeded">Whether the tool execution succeeded. Default is true.</param>
+    /// <returns>An AgentChatMessage containing the tool result formatted for agent consumption.</returns>
     public static AgentChatMessage BuildToolResultMessage(
         string toolName,
         string toolResult,
         bool succeeded = true
     )
     {
+        var readFileSafetyGuidance = BuildReadFileSafetyGuidance(toolName, toolResult, succeeded);
+        var safetySection = string.IsNullOrWhiteSpace(readFileSafetyGuidance)
+            ? string.Empty
+            : $"{readFileSafetyGuidance}{Environment.NewLine}{Environment.NewLine}";
+
         return new AgentChatMessage
         {
             Role = "user",
@@ -95,13 +137,19 @@ BEGIN_TOOL_RESULT
 {toolResult}
 END_TOOL_RESULT
 
-Return only the next JSON decision object.
+{safetySection}Return only the next JSON decision object.
+
 If the goal can now be completed, set needsTool=false and provide finalAnswer.
 If another tool is still required, set needsTool=true with the exact toolName and toolArgs.
 """,
         };
     }
 
+    /// <summary>
+    /// Builds a repair message for invalid JSON responses from the agent.
+    /// </summary>
+    /// <param name="invalidResponse">The invalid response that needs to be repaired.</param>
+    /// <returns>An AgentChatMessage containing instructions for the agent to fix its response.</returns>
     public static AgentChatMessage BuildRepairMessage(string invalidResponse)
     {
         return new AgentChatMessage
@@ -111,6 +159,11 @@ If another tool is still required, set needsTool=true with the exact toolName an
         };
     }
 
+    /// <summary>
+    /// Builds a recovery message for failed WRITE-FILE operations.
+    /// </summary>
+    /// <param name="invalidResponse">The invalid response that attempted to write a file.</param>
+    /// <returns>An AgentChatMessage containing instructions for the agent to properly format a WRITE-FILE call.</returns>
     public static AgentChatMessage BuildWriteFileRecoveryMessage(string invalidResponse)
     {
         const int maxChars = 4000;
@@ -136,10 +189,16 @@ Rules:
 - No markdown, no code fences, no commentary.
 
 Invalid response snippet:
-{snippet}",
+{snippet}"
         };
     }
 
+    /// <summary>
+    /// Builds the system prompt based on the agent mode and available tools.
+    /// </summary>
+    /// <param name="registry">The tool registry containing available tools and their specifications.</param>
+    /// <param name="mode">The agent mode to use (TechToolbox, Assistant, CodingAgent, or Custom).</param>
+    /// <returns>A formatted system prompt string including preamble, JSON schema, rules, and available tools.</returns>
     private static string BuildSystemPrompt(
         IReadOnlyDictionary<string, ToolSpec> registry,
         AgentMode mode
@@ -197,6 +256,9 @@ Invalid response snippet:
         sb.AppendLine("- Never invent tool results.");
         sb.AppendLine("- Use only exact tool names from the available tools list.");
         sb.AppendLine("- Prefer the smallest useful number of tool calls.");
+        sb.AppendLine(
+            "- For large files, use READ-FILE chunking with startLine/endLine/maxLines and verify coverage before final conclusions."
+        );
 
         sb.AppendLine();
         sb.AppendLine("Available tools:");
@@ -215,6 +277,32 @@ Invalid response snippet:
         return sb.ToString();
     }
 
+    private static string BuildReadFileSafetyGuidance(string toolName, string toolResult, bool succeeded)
+    {
+        if (!succeeded)
+            return string.Empty;
+
+        if (!string.Equals(toolName, "READ-FILE", StringComparison.OrdinalIgnoreCase))
+            return string.Empty;
+
+        var trimmed = toolResult?.TrimStart() ?? string.Empty;
+        var isSummary =
+            trimmed.StartsWith("{", StringComparison.Ordinal)
+            && trimmed.Contains("\"kind\":\"file-summary\"", StringComparison.OrdinalIgnoreCase);
+
+        if (!isSummary)
+            return string.Empty;
+
+        return "Large-file protocol: use READ-FILE chunking (startLine/endLine/maxLines), verify all relevant symbols across chunks, then finalize.";
+    }
+
+    /// <summary>
+    /// Builds the goal prompt with optional memory context.
+    /// </summary>
+    /// <param name="prompt">The user's goal or task description.</param>
+    /// <param name="memory">Optional memory store for persistent context. Can be null.</param>
+    /// <param name="recentHistoryItems">Number of recent history items to include.</param>
+    /// <returns>A formatted goal prompt string with optional memory context.</returns>
     private static string BuildGoalPrompt(
         string prompt,
         MemoryStore? memory,
@@ -244,6 +332,12 @@ Goal: {prompt}
 """;
     }
 
+    /// <summary>
+    /// Builds the memory context string from the provided MemoryStore.
+    /// </summary>
+    /// <param name="memory">The memory store to extract context from. Can be null.</param>
+    /// <param name="recentHistoryItems">Number of recent history items to include (clamped to MaxRecentHistoryItems).</param>
+    /// <returns>A formatted memory context string, or empty string if no memory is provided.</returns>
     private static string BuildMemoryContext(MemoryStore? memory, int recentHistoryItems)
     {
         if (memory is null)

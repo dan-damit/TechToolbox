@@ -253,6 +253,95 @@ public class ToolWrapperTests
         }
     }
 
+    [Fact]
+    public void RunTool_ReadFile_ReturnsRequestedChunk_ByLineRange()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReadFile-Chunk-{Guid.NewGuid():N}.txt"
+        );
+
+        try
+        {
+            var lines = Enumerable.Range(1, 12).Select(i => $"line-{i}");
+            File.WriteAllLines(tempFile, lines);
+
+            var result = PowerShellBridge.RunTool(
+                "READ-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["startLine"] = 4,
+                    ["endLine"] = 7,
+                }
+            );
+
+            var text = Assert.IsType<string>(result);
+            Assert.Equal(
+                string.Join(Environment.NewLine, new[] { "line-4", "line-5", "line-6", "line-7" }),
+                text
+            );
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_ReadFile_SummaryIncludesChunkingHintsAndVerificationChecklist()
+    {
+        var originalThreshold = Environment.GetEnvironmentVariable(
+            "TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS"
+        );
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReadFile-SummaryHints-{Guid.NewGuid():N}.ps1"
+        );
+
+        Environment.SetEnvironmentVariable("TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS", "1000");
+
+        try
+        {
+            var content = string.Join(
+                Environment.NewLine,
+                new[]
+                {
+                    "function Demo-Tool {",
+                    "    [CmdletBinding()]",
+                    "    param([string]$Name)",
+                    "    Write-Output $Name",
+                    "}",
+                    new string('x', 2000),
+                }
+            );
+
+            File.WriteAllText(tempFile, content);
+
+            var result = PowerShellBridge.RunTool(
+                "READ-FILE",
+                new Dictionary<string, object?> { ["path"] = tempFile }
+            );
+
+            var json = Assert.IsType<string>(result);
+            using var doc = JsonDocument.Parse(json);
+
+            Assert.Equal("file-summary", doc.RootElement.GetProperty("kind").GetString());
+            Assert.True(doc.RootElement.GetProperty("suggestedChunks").GetArrayLength() > 0);
+            Assert.True(doc.RootElement.GetProperty("verificationChecklist").GetArrayLength() > 0);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS",
+                originalThreshold
+            );
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
     // ---------------------------------------------------------------------------
     // WRITE-FILE destructive-overwrite safety tests
     // ---------------------------------------------------------------------------

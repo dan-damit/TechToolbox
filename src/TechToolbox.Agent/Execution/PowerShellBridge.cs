@@ -108,6 +108,16 @@ public static class PowerShellBridge
             if (!File.Exists(path))
                 throw new FileNotFoundException($"File not found: {path}", path);
 
+            var startLine = GetOptionalIntArg(args, "startLine");
+            var endLine = GetOptionalIntArg(args, "endLine");
+            var maxLines = GetOptionalIntArg(args, "maxLines");
+
+            if (startLine.HasValue || endLine.HasValue || maxLines.HasValue)
+            {
+                result = ReadFileChunk(path, startLine, endLine, maxLines);
+                return true;
+            }
+
             var content = File.ReadAllText(path);
             result = ShouldSummarizeFile(content) ? BuildFileSummaryJson(path, content) : content;
             return true;
@@ -404,6 +414,37 @@ public static class PowerShellBridge
         return content.Length > threshold;
     }
 
+    private static string ReadFileChunk(
+        string path,
+        int? startLine,
+        int? endLine,
+        int? maxLines
+    )
+    {
+        const int defaultChunkLines = 200;
+        const int maxChunkLines = 1000;
+
+        var lines = File.ReadAllLines(path);
+        if (lines.Length == 0)
+            return string.Empty;
+
+        var start = Math.Max(1, startLine ?? 1);
+        var chunkSize = Math.Clamp(maxLines ?? defaultChunkLines, 1, maxChunkLines);
+        var end = endLine ?? (start + chunkSize - 1);
+
+        end = Math.Max(start, end);
+
+        if (start > lines.Length)
+            return string.Empty;
+
+        var clampedEnd = Math.Min(end, lines.Length);
+        var count = clampedEnd - start + 1;
+        if (count <= 0)
+            return string.Empty;
+
+        return string.Join(Environment.NewLine, lines.Skip(start - 1).Take(count));
+    }
+
     private static int GetReadFileSummaryThresholdChars()
     {
         const int defaultChars = 50000;
@@ -430,6 +471,7 @@ public static class PowerShellBridge
                 : lines.Skip(Math.Max(0, lines.Length - 12)).ToArray();
         var sectionHeadings = ExtractSectionHeadings(lines);
         var functionNames = ExtractFunctionNames(lines);
+        var suggestedChunks = BuildSuggestedChunks(lines.Length);
 
         var summary = new FileSummaryResult(
             Kind: "file-summary",
@@ -441,7 +483,14 @@ public static class PowerShellBridge
             Sections: sectionHeadings,
             FunctionNames: functionNames,
             Head: head,
-            Tail: tail
+            Tail: tail,
+            SuggestedChunks: suggestedChunks,
+            VerificationChecklist:
+            [
+                "Read the file in chunks with READ-FILE using startLine/endLine.",
+                "Cover all public types and methods before writing conclusions.",
+                "Cross-check each documented symbol against exact signatures from chunked reads.",
+            ]
         );
 
         return JsonSerializer.Serialize(summary, SummaryJsonOptions);
@@ -507,6 +556,25 @@ public static class PowerShellBridge
         return names.ToArray();
     }
 
+    private static FileChunkHint[] BuildSuggestedChunks(int lineCount)
+    {
+        if (lineCount <= 0)
+            return [];
+
+        const int chunkSize = 200;
+        var hints = new List<FileChunkHint>();
+
+        for (var start = 1; start <= lineCount; start += chunkSize)
+        {
+            var end = Math.Min(start + chunkSize - 1, lineCount);
+            hints.Add(new FileChunkHint(start, end));
+            if (hints.Count >= 12 && end < lineCount)
+                break;
+        }
+
+        return hints.ToArray();
+    }
+
     private sealed record FileSummaryResult(
         string Kind,
         string Path,
@@ -517,6 +585,10 @@ public static class PowerShellBridge
         string[] Sections,
         string[] FunctionNames,
         string[] Head,
-        string[] Tail
+        string[] Tail,
+        FileChunkHint[] SuggestedChunks,
+        string[] VerificationChecklist
     );
+
+    private sealed record FileChunkHint(int StartLine, int EndLine);
 }

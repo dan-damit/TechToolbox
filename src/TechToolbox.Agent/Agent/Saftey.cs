@@ -1,7 +1,15 @@
+// <copyright file="Saftey.cs" company="TechToolbox">
+//     Copyright (c) TechToolbox. All rights reserved.
+// </copyright>
+
 using System.Text.RegularExpressions;
 
 namespace TechToolbox.Agent.Agent;
 
+/// <summary>
+/// Provides safety checks for tool invocations, including detection of destructive operations
+/// and enforcement of explicit confirmation requirements.
+/// </summary>
 public static class Safety
 {
     // PowerShell destructive verbs (aligned with your Python version)
@@ -36,8 +44,15 @@ public static class Safety
     };
 
     /// <summary>
-    /// Returns true if the tool name appears destructive.
+    /// Determines whether the specified tool name represents a destructive operation.
     /// </summary>
+    /// <param name="toolName">The name of the tool to evaluate.</param>
+    /// <returns>
+    /// <c>true</c> if the tool is considered destructive; otherwise, <c>false</c>.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="toolName"/> is null.
+    /// </exception>
     public static bool IsDestructive(string toolName)
     {
         if (string.IsNullOrWhiteSpace(toolName))
@@ -61,8 +76,12 @@ public static class Safety
     }
 
     /// <summary>
-    /// Returns true if the value represents an explicit destructive confirmation.
+    /// Determines whether the specified value represents an explicit destructive confirmation.
     /// </summary>
+    /// <param name="value">The value to evaluate for confirmation intent.</param>
+    /// <returns>
+    /// <c>true</c> if the value indicates explicit confirmation; otherwise, <c>false</c>.
+    /// </returns>
     internal static bool IsExplicitConfirmation(object? value)
     {
         if (value is bool b)
@@ -81,8 +100,13 @@ public static class Safety
     }
 
     /// <summary>
-    /// Enforces destructive confirmation via __confirm_destructive=true.
+    /// Enforces destructive confirmation by checking for the <c>__confirm_destructive</c> parameter.
     /// </summary>
+    /// <param name="toolName">The name of the tool being invoked.</param>
+    /// <param name="args">The dictionary of arguments passed to the tool.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when a destructive tool is invoked without explicit confirmation.
+    /// </exception>
     public static void RequireDestructiveConfirmation(
         string toolName,
         IDictionary<string, object?> args

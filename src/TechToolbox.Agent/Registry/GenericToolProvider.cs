@@ -16,13 +16,28 @@ public class GenericToolProvider : IToolProvider
             new ToolSpec(
                 Name: "READ-FILE",
                 Description:
-                    "Reads text content from a file. Large files may return a structured summary instead of the full body.",
+                    "Reads text content from a file. Supports optional chunked reads via startLine/endLine/maxLines. Large files may return a structured summary instead of the full body.",
                 Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["path"] = new ParameterSpec(
                         Mandatory: true,
                         Type: "System.String",
                         Help: "Absolute or relative file path."
+                    ),
+                    ["startLine"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional 1-based first line for chunked reads."
+                    ),
+                    ["endLine"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional 1-based inclusive end line for chunked reads."
+                    ),
+                    ["maxLines"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional chunk size when endLine is omitted (default 200, max 1000)."
                     ),
                 },
                 Module: "TechToolbox.Agent.Builtin",

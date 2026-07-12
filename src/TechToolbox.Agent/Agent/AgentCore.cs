@@ -1,11 +1,22 @@
+// Copyright (c) TechToolbox. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using TechToolbox.Agent.Configuration;
 using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
 
 namespace TechToolbox.Agent.Agent;
 
+/// <summary>
+/// Provides core agent execution functionality for TechToolbox.
+/// Manages tool registration, LLM interaction, and agent orchestration.
+/// </summary>
 public static class AgentCore
 {
+    /// <summary>
+    /// Set of meta-tool names that are filtered out unless explicitly allowed.
+    /// Meta-tools are internal helper tools used by the agent framework itself.
+    /// </summary>
     private static readonly HashSet<string> MetaToolNames = new(
         StringComparer.OrdinalIgnoreCase
     )
@@ -20,6 +31,9 @@ public static class AgentCore
     /// <summary>
     /// Runs an agent with the specified configuration.
     /// </summary>
+    /// <param name="config">The agent configuration containing all necessary settings.</param>
+    /// <param name="prompt">The prompt to send to the agent.</param>
+    /// <returns>The agent's response as a string.</returns>
     public static string RunAgent(AgentConfiguration config, string prompt)
     {
         return RunAgentAsync(config, prompt).GetAwaiter().GetResult();
@@ -28,6 +42,9 @@ public static class AgentCore
     /// <summary>
     /// Runs an agent asynchronously with the specified configuration.
     /// </summary>
+    /// <param name="config">The agent configuration containing all necessary settings.</param>
+    /// <param name="prompt">The prompt to send to the agent.</param>
+    /// <returns>A task representing the asynchronous operation, with the agent's response as its result.</returns>
     public static async Task<string> RunAgentAsync(AgentConfiguration config, string prompt)
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -50,6 +67,21 @@ public static class AgentCore
     /// Legacy method: runs an agent with individual parameters.
     /// Maintained for backward compatibility. Use RunAgent(AgentConfiguration, string) for new code.
     /// </summary>
+    /// <param name="prompt">The prompt to send to the agent.</param>
+    /// <param name="model">The LLM model to use. Defaults to "llama3".</param>
+    /// <param name="verbose">Whether to enable verbose output. Defaults to true.</param>
+    /// <param name="maxIterations">Maximum number of iterations for the agent. Defaults to 15.</param>
+    /// <param name="destructiveConfirmed">Whether destructive operations are confirmed. Defaults to false.</param>
+    /// <param name="memoryPath">Optional path to a memory store file.</param>
+    /// <param name="autoRetryOnRecursion">Whether to automatically retry on recursion detection. Defaults to false.</param>
+    /// <param name="returnMetadata">Whether to return metadata alongside the output. Defaults to false.</param>
+    /// <param name="signedFilePolicy">Policy for handling signed files. Defaults to "ignore".</param>
+    /// <param name="diagnosticTracePath">Optional path for diagnostic trace output.</param>
+    /// <param name="expectedOutputPath">Optional path for expected output comparison.</param>
+    /// <param name="recentHistoryItemsInPrompt">Number of recent history items to include in the prompt. Defaults to 2.</param>
+    /// <param name="allowedFetchHosts">Collection of allowed hosts for fetch operations.</param>
+    /// <param name="allowMetaTools">Whether to allow meta-tools. Defaults to false.</param>
+    /// <returns>The agent's response as a string.</returns>
     public static string RunAgent(
         string prompt,
         string model = "llama3",
@@ -91,6 +123,21 @@ public static class AgentCore
     /// Legacy method: runs an agent asynchronously with individual parameters.
     /// Maintained for backward compatibility. Use RunAgentAsync(AgentConfiguration, string) for new code.
     /// </summary>
+    /// <param name="prompt">The prompt to send to the agent.</param>
+    /// <param name="model">The LLM model to use. Defaults to "llama3".</param>
+    /// <param name="verbose">Whether to enable verbose output. Defaults to true.</param>
+    /// <param name="maxIterations">Maximum number of iterations for the agent. Defaults to 15.</param>
+    /// <param name="destructiveConfirmed">Whether destructive operations are confirmed. Defaults to false.</param>
+    /// <param name="memoryPath">Optional path to a memory store file.</param>
+    /// <param name="autoRetryOnRecursion">Whether to automatically retry on recursion detection. Defaults to false.</param>
+    /// <param name="returnMetadata">Whether to return metadata alongside the output. Defaults to false.</param>
+    /// <param name="signedFilePolicy">Policy for handling signed files. Defaults to "ignore".</param>
+    /// <param name="diagnosticTracePath">Optional path for diagnostic trace output.</param>
+    /// <param name="expectedOutputPath">Optional path for expected output comparison.</param>
+    /// <param name="recentHistoryItemsInPrompt">Number of recent history items to include in the prompt. Defaults to 2.</param>
+    /// <param name="allowedFetchHosts">Collection of allowed hosts for fetch operations.</param>
+    /// <param name="allowMetaTools">Whether to allow meta-tools. Defaults to false.</param>
+    /// <returns>A task representing the asynchronous operation, with the agent's response as its result.</returns>
     public static async Task<string> RunAgentAsync(
         string prompt,
         string model = "llama3",
@@ -145,6 +192,13 @@ public static class AgentCore
         return output;
     }
 
+    /// <summary>
+    /// Internal method that performs the actual agent execution.
+    /// Handles tool registration, memory initialization, LLM client setup, and orchestration.
+    /// </summary>
+    /// <param name="config">The agent configuration containing all necessary settings.</param>
+    /// <param name="prompt">The prompt to send to the agent.</param>
+    /// <returns>A task representing the asynchronous operation, with the agent's response as its result.</returns>
     private static async Task<string> RunAgentInternalAsync(
         AgentConfiguration config,
         string prompt
