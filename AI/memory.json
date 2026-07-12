@@ -16,8 +16,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.8,
-      "avgDurationMs": 65588,
-      "avgToolCalls": 4.9,
+      "avgDurationMs": 69084,
+      "avgToolCalls": 4.7,
       "statusCounts": {
         "success": 16,
         "error": 4
@@ -29,51 +29,11 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "ornith:35b",
-      "lastRunTimestampUtc": "2026-07-12T17:15:15.5096388\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-12T17:15:15.5109617\u002B00:00"
+      "lastRunTimestampUtc": "2026-07-12T17:33:27.3548928\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-12T17:33:27.3562239\u002B00:00"
     }
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-06T04:19:18.8142566+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Trying a new model for us to play with, the Ornith:35b. Are you currently seeing that small adjustment in the config now?",
-      "model": "ornith:35b",
-      "durationMs": 40512,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 14,
-      "toolNames": [
-        "get_techtoolboxconfig",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "read_file"
-      ],
-      "outputPreview": "Yes, I can confirm that the Ornith:35b model adjustment is currently visible in the TechToolbox configuration.\n\nLooking at the config.json file (C:\\repos\\TechToolbox\\Config\\config.json), under the \u0060agent\u0060 section, I can see:\n\n\u0022model\u0022: \u0022ornith:35b\u0022\n\nThis confirms that the configuration has been updated to use the Ornith:35b model as you mentioned.",
-      "runSummary": {
-        "intent": "Trying a new model for us to play with, the Ornith:35b. Are you currently seeing that small adjustment in the config now?",
-        "actionsTaken": [
-          "get_techtoolboxconfig",
-          "list_directory",
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
     {
       "timestampUtc": "2026-07-06T04:35:01.9147131+00:00",
       "status": "success",
@@ -622,6 +582,41 @@
         "actionsTaken": [
           "read_file",
           "list_directory"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-12T17:33:27.3548928+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML documentation comments for all public\r\nmethods and classes within the file.\r\n\r\nUse WRITE=FILE to insert the generated XML documentation comments directly into\r\nthe file.\r\n",
+      "model": "ornith:35b",
+      "durationMs": 110439,
+      "maxIterations": 80,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 10,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully generated complete XML documentation comments for all public methods and classes in AgentOrchestrator.cs.\n\nThe following XML documentation was added:\n\n## Class Documentation\n- AgentOrchestrator: Full class summary with description of orchestration responsibilities\n\n## Public Methods Documented\n1. AgentOrchestrator constructor - All 12 parameters documented with \u003Cparam\u003E tags\n2. Run(string prompt) - Synchronous agent execution method\n3. RunAsync(string prompt) - Asynchronous agent execution with retry logic\n\n## Private Methods Documented\n- RunLoopAsync: Main agent loop implementation\n- FinalizeResult: Result finalization helper\n- BuildIterationLimitMessage: Iteration limit message builder\n- Trace: Diagnostic trace logging\n- Preview: Text preview utility\n- IsRetryableLlmFailure: LLM failure detection\n- GetTerminalFailureOutcome: Terminal failure classification\n- GetMaxConsecutiveLlmFailures: Configuration loader\n- GetMaxToolResultChars: Configuration loader\n- GetReadFilePromptCompactThresholdChars: Configuration loader\n- PrepareToolResultForPrompt: Tool result preparation\n- NormalizeActionName: Action name normalization\n- BuildNextBestStep: Next step builder\n- Truncate: String truncation utility\n- TryApplyReadFileFallback: READ-FILE fallback handler\n- ExtractExpectedOutputPathFromPrompt: Path extraction from prompts\n- TryGetToolArgString: Tool argument extraction\n- TryPopulateMissingWriteFilePath: WRITE-FILE path population\n- TryValidateDecision: Decision validation\n- PathsEqual: Path comparison utility\n- TryExtractToolResult: Tool result extraction\n- BuildReadFileFallbackCompactView: Compact view builder\n- MaybeCompactReadFileResultForPrompt: Conditional compaction\n- LooksLikePowerShellScript: Script detection\n\n## Supporting Types Documented\n- RunLoopResult record: Output text and iteration status\n- AgentResult class: Complete result metadata including tool names, duration, retry status\n\nAll XML documentation follows C# conventions with proper \u003Csummary\u003E, \u003Cparam\u003E, and \u003Creturns\u003E tags. The file has been successfully written to the specified path.",
+      "runSummary": {
+        "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n\r\nGenerate complete comments-based help within the function itself at the\r\nspecified path. Make sure to include XML doc...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
         ],
         "blockers": "",
         "nextBestStep": ""

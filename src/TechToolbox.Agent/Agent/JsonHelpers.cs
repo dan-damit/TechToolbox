@@ -238,7 +238,51 @@ Respond with ONLY the JSON object, no additional text or markdown formatting.
             value = raw;
         }
 
+        // If recovery fell back to raw escaped content (for example "\\n" and "\\\""),
+        // decode one escape layer to avoid writing single-line escaped blobs to disk.
+        if (TryDecodeLikelyEscapedPayload(value, out var decoded))
+        {
+            value = decoded;
+            reason = $"{propertyName} recovered from truncated JSON and decoded escaped payload";
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
         reason = $"{propertyName} recovered from truncated JSON";
         return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool TryDecodeLikelyEscapedPayload(string text, out string decoded)
+    {
+        decoded = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        // Already contains real line breaks; this does not look like an escaped blob.
+        if (text.Contains('\n') || text.Contains('\r'))
+            return false;
+
+        var decodeSignals = 0;
+        if (text.Contains("\\n", StringComparison.Ordinal))
+            decodeSignals++;
+        if (text.Contains("\\r", StringComparison.Ordinal))
+            decodeSignals++;
+        if (text.Contains("\\t", StringComparison.Ordinal))
+            decodeSignals++;
+        if (text.Contains("\\\"", StringComparison.Ordinal))
+            decodeSignals++;
+
+        if (decodeSignals < 2)
+            return false;
+
+        decoded = text
+            .Replace("\\r\\n", "\r\n", StringComparison.Ordinal)
+            .Replace("\\n", "\n", StringComparison.Ordinal)
+            .Replace("\\r", "\r", StringComparison.Ordinal)
+            .Replace("\\t", "\t", StringComparison.Ordinal)
+            .Replace("\\\"", "\"", StringComparison.Ordinal)
+            .Replace("\\\\", "\\", StringComparison.Ordinal);
+
+        return !string.Equals(decoded, text, StringComparison.Ordinal);
     }
 }

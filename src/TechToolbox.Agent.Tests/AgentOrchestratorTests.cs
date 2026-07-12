@@ -282,6 +282,51 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_SalvagesTruncatedEscapedWriteFileContent_AndDecodesPayload()
+    {
+        // Truncated mid-content with escaped newlines. Recovery should decode one
+        // escape layer so WRITE-FILE receives real line breaks.
+        string? capturedContent = null;
+
+        var llm = new RecordingFakeLlmClient(
+            new[]
+            {
+                "not valid json",
+                "{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{\"path\":\"C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Invoke-RestartService.help.txt\",\"content\":\"line-1\\\\nline-2\\\\nusing\\\\tSystem.Diagnostics;",
+                FinalDecision("Done"),
+            }
+        );
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["WRITE-FILE"] = args =>
+            {
+                using var doc = JsonDocument.Parse(args);
+                capturedContent = doc.RootElement.GetProperty("content").GetString();
+                return Task.FromResult("ok");
+            },
+        };
+
+        var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 6, autoRetry: false);
+
+        var result = await orchestrator.RunAsync("write help file");
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(1, result.ToolCallCount);
+        Assert.Contains("WRITE-FILE", result.ToolNames);
+        Assert.NotNull(capturedContent);
+        Assert.Contains("line-1", capturedContent!, StringComparison.Ordinal);
+        Assert.Contains("line-2", capturedContent!, StringComparison.Ordinal);
+        Assert.Contains("using\tSystem.Diagnostics;", capturedContent!, StringComparison.Ordinal);
+        Assert.Contains('\n', capturedContent!);
+        Assert.Contains('\t', capturedContent!);
+        Assert.DoesNotContain("\\n", capturedContent!, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\t", capturedContent!, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_UsesTargetedRecoveryTurn_ForUnrecoverableMalformedWriteFileDecision()
     {
         // Truncated BEFORE the opening quote of content value: "content": <no quote>
