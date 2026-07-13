@@ -1,9 +1,17 @@
-Please read the function at:
+Read this file:
 C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\AgentOrchestrator.cs
 
-Generate complete comments-based help within the function itself at the
-specified path. Make sure to include XML documentation comments for all public
-methods and classes within the file.
+Task: 
+Add or improve XML documentation comments for every public type, public
+constructor, and public method in this file.
 
-Use WRITE=FILE to insert the generated XML documentation comments directly into
-the file.
+Requirements:
+- Modify the existing file in place at this exact path:
+  C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\AgentOrchestrator.cs
+- Preserve all existing code and behavior.
+- Only add or improve XML documentation comments.
+- Prefer REPLACE-IN-FILE for localized edits to this existing file.
+- Use WRITE-FILE only if a localized replacement is not practical.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file update has succeeded.
