@@ -1,19 +1,57 @@
+// <copyright file="MemoryStore.cs" company="TechToolbox">
+//     Copyright (c) TechToolbox. All rights reserved.
+// </copyright>
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace TechToolbox.Agent.Memory;
 
+/// <summary>
+/// Provides persistent storage for agent memory, including preferences,
+/// facts, and run history. Data is serialized to JSON files on disk.
+/// </summary>
 public class MemoryStore
 {
+    /// <summary>
+    /// The number of recent history entries retained in the base memory file.
+    /// </summary>
     private const int BaseHistoryWindow = 20;
+
+    /// <summary>
+    /// The maximum number of history entries retained in the dedicated history file.
+    /// </summary>
     private const int HistoryFileWindow = 250;
+
+    /// <summary>
+    /// Gets or sets the base path for the primary memory JSON file.
+    /// </summary>
     private readonly string _basePath;
+
+    /// <summary>
+    /// Gets or sets the path for the dedicated history JSON file.
+    /// </summary>
     private readonly string _historyPath;
 
+    /// <summary>
+    /// Gets or sets a dictionary containing user preferences persisted across sessions.
+    /// </summary>
     public Dictionary<string, object?> Preferences { get; private set; } = new();
+
+    /// <summary>
+    /// Gets or sets a dictionary containing factual data persisted across sessions.
+    /// </summary>
     public Dictionary<string, object?> Facts { get; private set; } = new();
+
+    /// <summary>
+    /// Gets or sets the list of run history entries recorded during agent execution.
+    /// </summary>
     public List<RunHistory> History { get; private set; } = new();
 
+    /// <summary>
+    /// Gets the JSON serialization options used for reading and writing memory files.
+    /// Configured to produce human-readable output with lenient parsing.
+    /// </summary>
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
@@ -23,6 +61,13 @@ public class MemoryStore
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MemoryStore"/> class.
+    /// </summary>
+    /// <param name="path">
+    /// The file path where the primary memory JSON file will be stored.
+    /// A companion history file will be created in the same directory.
+    /// </param>
     public MemoryStore(string path)
     {
         _basePath = path;
@@ -34,6 +79,11 @@ public class MemoryStore
         Load();
     }
 
+    /// <summary>
+    /// Loads memory data from disk. Reads the primary memory file and the
+    /// companion history file, merging them into the current instance state.
+    /// If either file does not exist or fails to parse, safe defaults are used.
+    /// </summary>
     private void Load()
     {
         if (File.Exists(_basePath))
@@ -80,6 +130,10 @@ public class MemoryStore
         UpdateTrendSummary();
     }
 
+    /// <summary>
+    /// Saves the current state of preferences, facts, and history to disk.
+    /// The history is truncated to the configured window sizes before persistence.
+    /// </summary>
     public void Save()
     {
         NormalizeHistory();
@@ -103,6 +157,13 @@ public class MemoryStore
         );
     }
 
+    /// <summary>
+    /// Adds a single run history entry to the history list and persists the changes.
+    /// </summary>
+    /// <param name="entry">The run history entry to add. Must not be null.</param>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="entry"/> is null.
+    /// </exception>
     public void AddRun(RunHistory entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -117,24 +178,59 @@ public class MemoryStore
         Save();
     }
 
+    /// <summary>
+    /// Adds a single run history entry to the history list and persists the changes.
+    /// This is an alias for <see cref="AddRun(RunHistory)"/>.
+    /// </summary>
+    /// <param name="entry">The run history entry to add. Must not be null.</param>
     public void AddHistory(RunHistory entry) => AddRun(entry);
 
+    /// <summary>
+    /// Sets a preference value and persists the changes to disk.
+    /// </summary>
+    /// <param name="key">The preference key to set or update.</param>
+    /// <param name="value">The preference value. Can be null to clear the preference.</param>
     public void SetPreference(string key, object? value)
     {
         Preferences[key] = value;
         Save();
     }
 
+    /// <summary>
+    /// Sets a fact value and persists the changes to disk.
+    /// </summary>
+    /// <param name="key">The fact key to set or update.</param>
+    /// <param name="value">The fact value. Can be null to clear the fact.</param>
     public void SetFact(string key, object? value)
     {
         Facts[key] = value;
         Save();
     }
 
+    /// <summary>
+    /// Retrieves a preference value by its key.
+    /// </summary>
+    /// <param name="key">The preference key to look up.</param>
+    /// <returns>
+    /// The preference value if found; otherwise, null.
+    /// </returns>
     public object? GetPreference(string key) => Preferences.TryGetValue(key, out var v) ? v : null;
 
+    /// <summary>
+    /// Retrieves a fact value by its key.
+    /// </summary>
+    /// <param name="key">The fact key to look up.</param>
+    /// <returns>
+    /// The fact value if found; otherwise, null.
+    /// </returns>
     public object? GetFact(string key) => Facts.TryGetValue(key, out var v) ? v : null;
 
+    /// <summary>
+    /// Normalizes all history entries by ensuring required fields have valid defaults.
+    /// Sets missing timestamps to the current UTC time, normalizes status and outcome
+    /// values, and builds run summary data including intent, actions taken, blockers,
+    /// and next best step suggestions.
+    /// </summary>
     private void NormalizeHistory()
     {
         foreach (var entry in History)
@@ -168,6 +264,11 @@ public class MemoryStore
         }
     }
 
+    /// <summary>
+    /// Updates the trend summary fact by analyzing recent run history.
+    /// Computes statistics including success rate, average duration, average tool calls,
+    /// and status/outcome distributions over the configured history window.
+    /// </summary>
     private void UpdateTrendSummary()
     {
         var window = History.TakeLast(BaseHistoryWindow).ToList();
@@ -229,6 +330,14 @@ public class MemoryStore
         };
     }
 
+    /// <summary>
+    /// Builds an intent string from the prompt or output preview.
+    /// </summary>
+    /// <param name="prompt">The original user prompt.</param>
+    /// <param name="output">The run output preview.</param>
+    /// <returns>
+    /// A truncated string representing the intent, up to 220 characters.
+    /// </returns>
     private static string BuildIntent(string prompt, string output)
     {
         if (!string.IsNullOrWhiteSpace(prompt))
@@ -239,9 +348,27 @@ public class MemoryStore
         return Truncate(output, 220);
     }
 
+    /// <summary>
+    /// Builds a blockers string from the output preview.
+    /// </summary>
+    /// <param name="output">The run output preview.</param>
+    /// <returns>
+    /// A truncated string representing blockers, up to 320 characters.
+    /// Returns empty string if output is null or whitespace.
+    /// </returns>
     private static string BuildBlockers(string output) =>
         string.IsNullOrWhiteSpace(output) ? string.Empty : Truncate(output, 320);
 
+    /// <summary>
+    /// Builds a next best step suggestion from the output preview and outcome.
+    /// Looks for explicit "Next best action" or similar markers in the output.
+    /// </summary>
+    /// <param name="output">The run output preview.</param>
+    /// <param name="outcome">The run outcome status.</param>
+    /// <returns>
+    /// A suggested next step string, up to 220 characters.
+    /// Returns empty string if the run completed successfully.
+    /// </returns>
     private static string BuildNextBestStep(string output, string outcome)
     {
         if (string.IsNullOrWhiteSpace(output))
@@ -274,6 +401,13 @@ public class MemoryStore
             : "Retry after addressing the error details captured in outputPreview.";
     }
 
+    /// <summary>
+    /// Normalizes a tool name by trimming, lowercasing, and replacing hyphens and spaces with underscores.
+    /// </summary>
+    /// <param name="toolName">The original tool name.</param>
+    /// <returns>
+    /// A normalized tool name string. Returns empty string if input is null or whitespace.
+    /// </returns>
     private static string NormalizeActionName(string toolName)
     {
         if (string.IsNullOrWhiteSpace(toolName))
@@ -284,6 +418,15 @@ public class MemoryStore
         return toolName.Trim().ToLowerInvariant().Replace('-', '_').Replace(' ', '_');
     }
 
+    /// <summary>
+    /// Truncates a string to a maximum character count, appending an ellipsis if truncated.
+    /// </summary>
+    /// <param name="value">The string to truncate.</param>
+    /// <param name="maxChars">The maximum number of characters to retain.</param>
+    /// <returns>
+    /// The truncated string with ellipsis if it exceeded the limit, or the original
+    /// trimmed string if within the limit. Returns empty string if input is null or whitespace.
+    /// </returns>
     private static string Truncate(string value, int maxChars)
     {
         if (string.IsNullOrWhiteSpace(value))

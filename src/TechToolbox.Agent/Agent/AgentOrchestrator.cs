@@ -9,7 +9,6 @@ namespace TechToolbox.Agent.Agent;
 
 public partial class AgentOrchestrator
 {
-    private static readonly int MaxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
     private static readonly string[] LineSeparators = ["\r\n", "\n"];
     private static readonly char[] TrimDirectorySeparators =
     [
@@ -39,6 +38,12 @@ public partial class AgentOrchestrator
 
     [GeneratedRegex(@"(?im)^\s*-\s*Create\s+the\s+output\s+file\s+at\s+this\s+exact\s+path\s*:\s*(?<path>[A-Za-z]:\\[^\r\n]+)$")]
     private static partial Regex ExpectedOutputPathRegex();
+
+    [GeneratedRegex("(?is)\\b(write|rewrite|update|edit|modify|insert|create)\\b|\\buse\\s+write(?:-|=|\\s*)file\\b|\\bwrite(?:-|=|\\s*)file\\b")]
+    private static partial Regex WriteIntentRegex();
+
+    [GeneratedRegex("(?i)(?<path>[A-Za-z]:\\\\[^\\\"'`\\r\\n]*?\\.[A-Za-z0-9]{1,16})\\b")]
+    private static partial Regex DirectFilePathRegex();
 
     [GeneratedRegex("^\\s*(begin|process|end)\\s*\\{", RegexOptions.IgnoreCase)]
     private static partial Regex StructureHintRegex();
@@ -179,6 +184,7 @@ public partial class AgentOrchestrator
             _memory,
             _recentHistoryItemsInPrompt
         );
+        var maxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
         var consecutiveLlmFailures = 0;
         var expectedOutputPath = string.IsNullOrWhiteSpace(_expectedOutputPath)
             ? ExtractExpectedOutputPathFromPrompt(prompt)
@@ -213,7 +219,7 @@ public partial class AgentOrchestrator
                 consecutiveLlmFailures++;
                 Trace($"Iteration {i + 1} consecutive LLM failures={consecutiveLlmFailures}");
 
-                if (consecutiveLlmFailures >= MaxConsecutiveLlmFailures)
+                if (consecutiveLlmFailures >= maxConsecutiveLlmFailures)
                 {
                     return new RunLoopResult(
                         $"LLM request repeatedly failed ({consecutiveLlmFailures} consecutive attempts). Last error: {raw}",
@@ -223,8 +229,6 @@ public partial class AgentOrchestrator
 
                 continue;
             }
-
-            consecutiveLlmFailures = 0;
 
             messages.Add(new AgentChatMessage { Role = "assistant", Content = raw });
 
@@ -263,6 +267,38 @@ public partial class AgentOrchestrator
                 Trace(
                     $"Iteration {i + 1} repair response length={repairedRaw.Length} preview={Preview(repairedRaw)}"
                 );
+
+                if (string.IsNullOrWhiteSpace(repairedRaw) || IsRetryableLlmFailure(repairedRaw))
+                {
+                    if (
+                        TryApplyReadFileFallback(
+                            messages,
+                            repairResponse.RawBody,
+                            out var repairFallbackReason
+                        )
+                    )
+                    {
+                        Trace(
+                            $"Iteration {i + 1} applied READ-FILE fallback after repair failure: {repairFallbackReason}"
+                        );
+                        continue;
+                    }
+
+                    consecutiveLlmFailures++;
+                    Trace(
+                        $"Iteration {i + 1} consecutive LLM failures after repair={consecutiveLlmFailures}"
+                    );
+
+                    if (consecutiveLlmFailures >= maxConsecutiveLlmFailures)
+                    {
+                        return new RunLoopResult(
+                            $"LLM request repeatedly failed ({consecutiveLlmFailures} consecutive attempts). Last error: {repairedRaw}",
+                            ReachedIterationLimit: false
+                        );
+                    }
+
+                    continue;
+                }
 
                 messages.Add(new AgentChatMessage { Role = "assistant", Content = repairedRaw });
 
@@ -312,6 +348,41 @@ public partial class AgentOrchestrator
                         Trace(
                             $"Iteration {i + 1} targeted recovery response length={writeFileRecoveryRaw.Length} preview={Preview(writeFileRecoveryRaw)}"
                         );
+
+                        if (
+                            string.IsNullOrWhiteSpace(writeFileRecoveryRaw)
+                            || IsRetryableLlmFailure(writeFileRecoveryRaw)
+                        )
+                        {
+                            if (
+                                TryApplyReadFileFallback(
+                                    messages,
+                                    writeFileRecoveryResponse.RawBody,
+                                    out var targetedRecoveryFallbackReason
+                                )
+                            )
+                            {
+                                Trace(
+                                    $"Iteration {i + 1} applied READ-FILE fallback after targeted recovery failure: {targetedRecoveryFallbackReason}"
+                                );
+                                continue;
+                            }
+
+                            consecutiveLlmFailures++;
+                            Trace(
+                                $"Iteration {i + 1} consecutive LLM failures after targeted recovery={consecutiveLlmFailures}"
+                            );
+
+                            if (consecutiveLlmFailures >= maxConsecutiveLlmFailures)
+                            {
+                                return new RunLoopResult(
+                                    $"LLM request repeatedly failed ({consecutiveLlmFailures} consecutive attempts). Last error: {writeFileRecoveryRaw}",
+                                    ReachedIterationLimit: false
+                                );
+                            }
+
+                            continue;
+                        }
 
                         messages.Add(
                             new AgentChatMessage
@@ -383,19 +454,21 @@ public partial class AgentOrchestrator
                 );
             }
 
+            consecutiveLlmFailures = 0;
+
             if (!decision.NeedsTool)
             {
                 if (requiresWriteFile && !writeFileCompleted)
                 {
                     var requirementError =
-                        $"Required WRITE-FILE step has not completed yet. Create the output file at '{expectedOutputPath}' before returning finalAnswer.";
+                        $"Required file update step has not completed yet. Use WRITE-FILE or REPLACE-IN-FILE on '{expectedOutputPath}' before returning finalAnswer.";
 
                     Trace(
                         $"Iteration {i + 1} blocked final answer because WRITE-FILE hard requirement is unmet."
                     );
                     messages.Add(
                         PromptBuilder.BuildToolResultMessage(
-                            "WRITE-FILE",
+                            "FILE-UPDATE",
                             requirementError,
                             succeeded: false
                         )
@@ -465,23 +538,20 @@ public partial class AgentOrchestrator
                 toolResult = ex.Message;
             }
 
-            if (
-                requiresWriteFile
-                && toolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
-            )
+            if (requiresWriteFile && IsFileUpdateTool(toolName))
             {
                 if (!TryGetToolArgString(decision.ToolArgs, "path", out var writePath))
                 {
                     toolExecutionSucceeded = false;
-                    toolResult = "WRITE-FILE must include a string path argument.";
+                    toolResult = $"{toolName} must include a string path argument.";
                 }
                 else if (!PathsEqual(writePath, expectedOutputPath!))
                 {
                     toolExecutionSucceeded = false;
                     toolResult =
-                        $"WRITE-FILE must target expected path '{expectedOutputPath}', but received '{writePath}'.";
+                        $"{toolName} must target expected path '{expectedOutputPath}', but received '{writePath}'.";
                     Trace(
-                        $"Iteration {i + 1} rejected WRITE-FILE path mismatch expected={expectedOutputPath} actual={writePath}"
+                        $"Iteration {i + 1} rejected file-update path mismatch tool={toolName} expected={expectedOutputPath} actual={writePath}"
                     );
                 }
             }
@@ -507,7 +577,7 @@ public partial class AgentOrchestrator
 
             if (
                 requiresWriteFile
-                && toolName.Equals("WRITE-FILE", StringComparison.OrdinalIgnoreCase)
+                && IsFileUpdateTool(toolName)
                 && toolExecutionSucceeded
                 && !toolResult.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
             )
@@ -515,15 +585,15 @@ public partial class AgentOrchestrator
                 if (File.Exists(expectedOutputPath!))
                 {
                     writeFileCompleted = true;
-                    Trace($"Iteration {i + 1} marked WRITE-FILE hard requirement as completed.");
+                    Trace($"Iteration {i + 1} marked file-update hard requirement as completed via {toolName}.");
                 }
                 else
                 {
                     toolExecutionSucceeded = false;
                     toolResult =
-                        $"WRITE-FILE reported success but expected output file does not exist yet at '{expectedOutputPath}'. Retry WRITE-FILE with the exact path and full content.";
+                        $"{toolName} reported success but expected output file does not exist yet at '{expectedOutputPath}'. Retry the file update with the exact path.";
                     Trace(
-                        $"Iteration {i + 1} WRITE-FILE returned success but expected file was missing: {expectedOutputPath}"
+                        $"Iteration {i + 1} file-update tool returned success but expected file was missing: tool={toolName} path={expectedOutputPath}"
                     );
                 }
             }
@@ -893,11 +963,37 @@ Next best action:
 
         var match = ExpectedOutputPathRegex().Match(prompt);
 
-        if (!match.Success)
+        if (match.Success)
+        {
+            var explicitPath = NormalizeDetectedPath(match.Groups["path"].Value);
+            if (!string.IsNullOrWhiteSpace(explicitPath))
+                return explicitPath;
+        }
+
+        if (!WriteIntentRegex().IsMatch(prompt))
             return null;
 
-        var path = match.Groups["path"].Value.Trim();
-        return string.IsNullOrWhiteSpace(path) ? null : path;
+        var directPathMatches = DirectFilePathRegex().Matches(prompt);
+        if (directPathMatches.Count == 0)
+            return null;
+
+        for (var i = directPathMatches.Count - 1; i >= 0; i--)
+        {
+            var candidate = NormalizeDetectedPath(directPathMatches[i].Groups["path"].Value);
+            if (!string.IsNullOrWhiteSpace(candidate))
+                return candidate;
+        }
+
+        return null;
+    }
+
+    private static string? NormalizeDetectedPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        var trimmed = path.Trim().TrimEnd('.', ',', ';', ':', ')', ']', '}');
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
     private static bool TryGetToolArgString(
@@ -940,7 +1036,7 @@ Next best action:
         if (!decision.NeedsTool)
             return false;
 
-        if (!string.Equals(decision.ToolName, "WRITE-FILE", StringComparison.OrdinalIgnoreCase))
+        if (!IsFileUpdateTool(decision.ToolName))
             return false;
 
         if (string.IsNullOrWhiteSpace(expectedOutputPath))
@@ -997,6 +1093,27 @@ Next best action:
                 }
             }
 
+            if (string.Equals(decision.ToolName, "REPLACE-IN-FILE", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!TryGetToolArgString(decision.ToolArgs, "path", out _))
+                {
+                    error = "REPLACE-IN-FILE requires non-empty string toolArgs.path";
+                    return false;
+                }
+
+                if (!TryGetToolArgString(decision.ToolArgs, "oldText", out _))
+                {
+                    error = "REPLACE-IN-FILE requires non-empty string toolArgs.oldText";
+                    return false;
+                }
+
+                if (!TryGetToolArgString(decision.ToolArgs, "newText", out _))
+                {
+                    error = "REPLACE-IN-FILE requires non-empty string toolArgs.newText";
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -1024,6 +1141,12 @@ Next best action:
         {
             return string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    private static bool IsFileUpdateTool(string? toolName)
+    {
+        return string.Equals(toolName, "WRITE-FILE", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(toolName, "REPLACE-IN-FILE", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryExtractToolResult(

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using TechToolbox.Agent.Configuration;
+using TechToolbox.Agent.Execution;
 using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
 
@@ -222,7 +223,8 @@ public static class AgentCore
             registry,
             config.DestructiveConfirmed,
             config.SignedFilePolicy,
-            config.AllowedFetchHosts
+            config.AllowedFetchHosts,
+            executor: PowerShellToolExecutor.Instance
         );
 
         // 3. Initialize memory store (optional)

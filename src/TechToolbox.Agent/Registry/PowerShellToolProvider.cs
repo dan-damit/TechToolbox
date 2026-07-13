@@ -11,14 +11,32 @@ public class PowerShellToolProvider : IToolProvider
     private readonly string? _modulePath;
     private readonly string _moduleName;
 
+    /// <summary>
+    /// Gets the display name of this tool provider.
+    /// </summary>
     public string ProviderName => "PowerShell (TechToolbox)";
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PowerShellToolProvider"/> class.
+    /// </summary>
+    /// <param name="modulePath">Optional explicit path to the module manifest (.psd1). If not provided, the provider will attempt to resolve it automatically.</param>
+    /// <param name="moduleName">The name of the PowerShell module to discover tools from. Defaults to "TechToolbox".</param>
     public PowerShellToolProvider(string? modulePath = null, string moduleName = "TechToolbox")
     {
         _modulePath = modulePath;
         _moduleName = moduleName;
     }
 
+    /// <summary>
+    /// Discovers all public PowerShell functions from the TechToolbox module and returns them as <see cref="ToolSpec"/> instances.
+    /// </summary>
+    /// <returns>
+    /// An enumerable collection of <see cref="ToolSpec"/> objects representing each discovered PowerShell function.
+    /// Private or internal helper functions (those containing underscores in their names) are excluded.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the module import or command discovery fails. The exception message contains details about the failure.
+    /// </exception>
     public IEnumerable<ToolSpec> DiscoverTools()
     {
         using var ps = PowerShell.Create();
@@ -97,6 +115,19 @@ public class PowerShellToolProvider : IToolProvider
         return list;
     }
 
+    /// <summary>
+    /// Resolves the path to the TechToolbox module manifest file (TechToolbox.psd1).
+    /// </summary>
+    /// <returns>
+    /// The full path to the module manifest file if found; otherwise, null.
+    /// </returns>
+    /// <remarks>
+    /// Resolution strategy:
+    /// <list type="number">
+    ///   <item>Check the TT_ModuleRoot environment variable for a candidate path.</item>
+    ///   <item>If not found, walk up from the application base directory looking for TechToolbox.psd1.</item>
+    /// </list>
+    /// </remarks>
     private static string? ResolveModuleManifestPath()
     {
         var envRoot = Environment.GetEnvironmentVariable("TT_ModuleRoot");

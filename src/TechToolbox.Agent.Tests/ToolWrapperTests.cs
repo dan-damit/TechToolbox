@@ -182,6 +182,38 @@ public class ToolWrapperTests
     }
 
     [Fact]
+    public async Task BuildTools_UsesIToolExecutor_WhenProvided()
+    {
+        var registry = new Dictionary<string, ToolSpec>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["LIST-DIRECTORY"] = new ToolSpec(
+                Name: "LIST-DIRECTORY",
+                Description: "Lists entries",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path"] = new ParameterSpec(Mandatory: true, Type: "string", Help: null),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
+        };
+
+        var fakeExecutor = new FakeToolExecutor();
+        var tools = ToolWrapper.BuildTools(
+            registry,
+            destructiveConfirmed: false,
+            signedFilePolicy: "ignore",
+            executor: fakeExecutor
+        );
+
+        var result = await tools["LIST-DIRECTORY"]("{\"path\":\"C:\\\\repos\\\\TechToolbox\"}");
+
+        Assert.Equal("ok-from-interface", result);
+        Assert.Single(fakeExecutor.Calls);
+        Assert.Equal("LIST-DIRECTORY", fakeExecutor.Calls[0].ToolName);
+    }
+
+    [Fact]
     public void RunTool_ReadFile_ReturnsStructuredSummary_ForLargeFiles()
     {
         var originalThreshold = Environment.GetEnvironmentVariable(
@@ -330,6 +362,102 @@ public class ToolWrapperTests
             Assert.Equal("file-summary", doc.RootElement.GetProperty("kind").GetString());
             Assert.True(doc.RootElement.GetProperty("suggestedChunks").GetArrayLength() > 0);
             Assert.True(doc.RootElement.GetProperty("verificationChecklist").GetArrayLength() > 0);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS",
+                originalThreshold
+            );
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_ReadFile_UsesDefaultSummaryThreshold_WhenEnvVarUnset()
+    {
+        var originalThreshold = Environment.GetEnvironmentVariable(
+            "TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS"
+        );
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReadFile-DefaultThreshold-{Guid.NewGuid():N}.txt"
+        );
+
+        Environment.SetEnvironmentVariable("TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS", null);
+
+        try
+        {
+            File.WriteAllText(tempFile, new string('x', 13_000));
+
+            var result = PowerShellBridge.RunTool(
+                "READ-FILE",
+                new Dictionary<string, object?> { ["path"] = tempFile }
+            );
+
+            var json = Assert.IsType<string>(result);
+            using var doc = JsonDocument.Parse(json);
+            Assert.Equal("file-summary", doc.RootElement.GetProperty("kind").GetString());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS",
+                originalThreshold
+            );
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_ReadFile_SummaryIncludesPublicSymbolHints_ForCSharpFiles()
+    {
+        var originalThreshold = Environment.GetEnvironmentVariable(
+            "TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS"
+        );
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReadFile-CSharpSummary-{Guid.NewGuid():N}.cs"
+        );
+
+        Environment.SetEnvironmentVariable("TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS", "1000");
+
+        try
+        {
+            var content = string.Join(
+                Environment.NewLine,
+                new[]
+                {
+                    "public class DemoService",
+                    "{",
+                    "    public DemoService() { }",
+                    "    public string Run(string input) => input;",
+                    "}",
+                    new string('x', 3000),
+                }
+            );
+
+            File.WriteAllText(tempFile, content);
+
+            var result = PowerShellBridge.RunTool(
+                "READ-FILE",
+                new Dictionary<string, object?> { ["path"] = tempFile }
+            );
+
+            var json = Assert.IsType<string>(result);
+            using var doc = JsonDocument.Parse(json);
+
+            Assert.Equal("file-summary", doc.RootElement.GetProperty("kind").GetString());
+            var hints = doc.RootElement
+                .GetProperty("publicSymbolHints")
+                .EnumerateArray()
+                .Select(x => x.GetString() ?? string.Empty)
+                .ToArray();
+
+            Assert.Contains(hints, h => h.Contains("public class DemoService", StringComparison.Ordinal));
+            Assert.Contains(hints, h => h.Contains("public method Run", StringComparison.Ordinal));
         }
         finally
         {
@@ -494,6 +622,252 @@ public class ToolWrapperTests
     }
 
     [Fact]
+    public void RunTool_WriteFile_BlocksSuspiciousShortOverwrite_ByDefault()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-WriteShortGuard-{Guid.NewGuid():N}.txt"
+        );
+        var originalRatio = Environment.GetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO"
+        );
+        var originalMinChars = Environment.GetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS"
+        );
+
+        Environment.SetEnvironmentVariable("TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO", null);
+        Environment.SetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS",
+            null
+        );
+
+        File.WriteAllText(tempFile, new string('a', 5000));
+
+        try
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                PowerShellBridge.RunTool(
+                    "WRITE-FILE",
+                    new Dictionary<string, object?>
+                    {
+                        ["path"] = tempFile,
+                        ["content"] = new string('b', 300),
+                        ["__confirm_destructive"] = true,
+                    }
+                )
+            );
+
+            Assert.Contains("blocked suspicious short overwrite", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(new string('a', 5000), File.ReadAllText(tempFile));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO",
+                originalRatio
+            );
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS",
+                originalMinChars
+            );
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_WriteFile_AllowsSuspiciousShortOverwrite_WithExplicitOverride()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-WriteShortGuardAllow-{Guid.NewGuid():N}.txt"
+        );
+        var originalRatio = Environment.GetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO"
+        );
+        var originalMinChars = Environment.GetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS"
+        );
+
+        Environment.SetEnvironmentVariable("TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO", null);
+        Environment.SetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS",
+            null
+        );
+
+        File.WriteAllText(tempFile, new string('a', 5000));
+
+        try
+        {
+            var result = PowerShellBridge.RunTool(
+                "WRITE-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["content"] = new string('b', 300),
+                    ["__confirm_destructive"] = true,
+                    ["__allow_short_write"] = true,
+                }
+            );
+
+            Assert.Equal("ok", result);
+            Assert.Equal(new string('b', 300), File.ReadAllText(tempFile));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO",
+                originalRatio
+            );
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS",
+                originalMinChars
+            );
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_WriteFile_BlocksFirstChunkStyleOverwrite_WhenLineRatioIsTooLow()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-WriteLineGuard-{Guid.NewGuid():N}.txt"
+        );
+        var originalRatio = Environment.GetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO"
+        );
+        var originalLineRatio = Environment.GetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_LINE_RATIO"
+        );
+        var originalMinChars = Environment.GetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS"
+        );
+
+        Environment.SetEnvironmentVariable("TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO", "0.10");
+        Environment.SetEnvironmentVariable("TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_LINE_RATIO", "0.60");
+        Environment.SetEnvironmentVariable(
+            "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS",
+            "1200"
+        );
+
+        var existing = string.Join(
+            Environment.NewLine,
+            Enumerable.Range(1, 900).Select(i => $"line-{i}")
+        );
+        File.WriteAllText(tempFile, existing);
+
+        // Simulate a first-chunk rewrite: many chars retained, but only a fraction of lines.
+        var firstChunkLike = string.Join(
+            Environment.NewLine,
+            Enumerable.Range(1, 220).Select(i => new string('x', 80))
+        );
+
+        try
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                PowerShellBridge.RunTool(
+                    "WRITE-FILE",
+                    new Dictionary<string, object?>
+                    {
+                        ["path"] = tempFile,
+                        ["content"] = firstChunkLike,
+                        ["__confirm_destructive"] = true,
+                    }
+                )
+            );
+
+            Assert.Contains("lineRatio", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(existing, File.ReadAllText(tempFile));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_RATIO",
+                originalRatio
+            );
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_LINE_RATIO",
+                originalLineRatio
+            );
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_WRITE_FILE_SHORT_GUARD_MIN_EXISTING_CHARS",
+                originalMinChars
+            );
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_ReplaceInFile_ReplacesSingleExactOccurrence()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReplaceInFile-{Guid.NewGuid():N}.txt"
+        );
+
+        File.WriteAllText(tempFile, "alpha\nbeta\ngamma");
+
+        try
+        {
+            var result = PowerShellBridge.RunTool(
+                "REPLACE-IN-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["oldText"] = "beta",
+                    ["newText"] = "beta-updated",
+                    ["__confirm_destructive"] = true,
+                }
+            );
+
+            Assert.Equal("ok", result);
+            Assert.Equal("alpha\nbeta-updated\ngamma", File.ReadAllText(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_ReplaceInFile_BlocksWhenMultipleMatchesExist_WithoutReplaceAll()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReplaceInFile-Multi-{Guid.NewGuid():N}.txt"
+        );
+
+        File.WriteAllText(tempFile, "repeat\nrepeat\nfinal");
+
+        try
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                PowerShellBridge.RunTool(
+                    "REPLACE-IN-FILE",
+                    new Dictionary<string, object?>
+                    {
+                        ["path"] = tempFile,
+                        ["oldText"] = "repeat",
+                        ["newText"] = "updated",
+                        ["__confirm_destructive"] = true,
+                    }
+                )
+            );
+
+            Assert.Contains("more specific snippet", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public void RunTool_FetchUrl_BlocksDisallowedHost()
     {
         var ex = Assert.Throws<InvalidOperationException>(() =>
@@ -508,5 +882,121 @@ public class ToolWrapperTests
         );
 
         Assert.Contains("blocked host", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RunTool_TtModuleRootImport_WorksInPooledAndIsolatedModes()
+    {
+        var originalMode = Environment.GetEnvironmentVariable("TT_AGENT_RUNSPACE_EXECUTION_MODE");
+        var originalModuleRoot = Environment.GetEnvironmentVariable("TT_ModuleRoot");
+        var tempModuleRoot = CreateTempTechToolboxModuleRoot();
+
+        try
+        {
+            Environment.SetEnvironmentVariable("TT_ModuleRoot", tempModuleRoot);
+
+            Environment.SetEnvironmentVariable("TT_AGENT_RUNSPACE_EXECUTION_MODE", "pooled");
+            PowerShellBridge.ResetExecutionStateForTests();
+            var pooled = PowerShellBridge.RunTool(
+                "Get-TestModuleMarker",
+                new Dictionary<string, object?>()
+            );
+
+            Environment.SetEnvironmentVariable("TT_AGENT_RUNSPACE_EXECUTION_MODE", "isolated");
+            PowerShellBridge.ResetExecutionStateForTests();
+            var isolated = PowerShellBridge.RunTool(
+                "Get-TestModuleMarker",
+                new Dictionary<string, object?>()
+            );
+
+            Assert.Equal("module-ok", pooled?.ToString());
+            Assert.Equal("module-ok", isolated?.ToString());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TT_AGENT_RUNSPACE_EXECUTION_MODE", originalMode);
+            Environment.SetEnvironmentVariable("TT_ModuleRoot", originalModuleRoot);
+            PowerShellBridge.ResetExecutionStateForTests();
+
+            if (Directory.Exists(tempModuleRoot))
+                Directory.Delete(tempModuleRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void RunTool_Telemetry_TracksPooledReuseAndIsolatedExecutions()
+    {
+        var originalMode = Environment.GetEnvironmentVariable("TT_AGENT_RUNSPACE_EXECUTION_MODE");
+        var originalModuleRoot = Environment.GetEnvironmentVariable("TT_ModuleRoot");
+        var tempModuleRoot = CreateTempTechToolboxModuleRoot();
+
+        try
+        {
+            Environment.SetEnvironmentVariable("TT_ModuleRoot", tempModuleRoot);
+            Environment.SetEnvironmentVariable("TT_AGENT_RUNSPACE_EXECUTION_MODE", "pooled");
+            PowerShellBridge.ResetExecutionStateForTests();
+
+            PowerShellBridge.RunTool("Get-TestModuleMarker", new Dictionary<string, object?>());
+            PowerShellBridge.RunTool("Get-TestModuleMarker", new Dictionary<string, object?>());
+
+            Environment.SetEnvironmentVariable("TT_AGENT_RUNSPACE_EXECUTION_MODE", "isolated");
+            PowerShellBridge.RunTool("Get-TestModuleMarker", new Dictionary<string, object?>());
+
+            var telemetry = PowerShellBridge.GetTelemetrySnapshot();
+            Assert.Equal(3, telemetry.TotalToolExecutions);
+            Assert.Equal(2, telemetry.PooledExecutions);
+            Assert.Equal(1, telemetry.IsolatedExecutions);
+            Assert.Equal(1, telemetry.RunspacePoolCreations);
+            Assert.Equal(1, telemetry.RunspacePoolReuses);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TT_AGENT_RUNSPACE_EXECUTION_MODE", originalMode);
+            Environment.SetEnvironmentVariable("TT_ModuleRoot", originalModuleRoot);
+            PowerShellBridge.ResetExecutionStateForTests();
+
+            if (Directory.Exists(tempModuleRoot))
+                Directory.Delete(tempModuleRoot, recursive: true);
+        }
+    }
+
+    private static string CreateTempTechToolboxModuleRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"TechToolbox-TempModule-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        var manifestPath = Path.Combine(root, "TechToolbox.psd1");
+        var modulePath = Path.Combine(root, "TechToolbox.psm1");
+
+        File.WriteAllText(
+            modulePath,
+            "function Get-TestModuleMarker { [CmdletBinding()] param() 'module-ok' }"
+        );
+
+        File.WriteAllText(
+            manifestPath,
+            "@{\n"
+                + "RootModule = 'TechToolbox.psm1'\n"
+                + "ModuleVersion = '1.0.0'\n"
+                + "GUID = 'd3fbb7f5-97c3-4812-8f99-c76ce76bd555'\n"
+                + "FunctionsToExport = @('Get-TestModuleMarker')\n"
+                + "CmdletsToExport = @()\n"
+                + "VariablesToExport = '*'\n"
+                + "AliasesToExport = @()\n"
+                + "}\n"
+        );
+
+        return root;
+    }
+
+    private sealed class FakeToolExecutor : IToolExecutor
+    {
+        public List<(string ToolName, IDictionary<string, object?> Args)> Calls { get; } = [];
+
+        public object? RunTool(string toolName, IDictionary<string, object?> args)
+        {
+            Calls.Add((toolName, args));
+            return "ok-from-interface";
+        }
     }
 }

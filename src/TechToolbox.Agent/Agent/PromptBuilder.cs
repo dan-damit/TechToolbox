@@ -253,6 +253,9 @@ Invalid response snippet:
         sb.AppendLine(
             "- If the goal asks to create or write a file at a specific path/name, you must call WRITE-FILE and only return finalAnswer after WRITE-FILE succeeds."
         );
+        sb.AppendLine(
+            "- For localized edits to an existing large file, prefer REPLACE-IN-FILE instead of rewriting the entire file with WRITE-FILE."
+        );
         sb.AppendLine("- Never invent tool results.");
         sb.AppendLine("- Use only exact tool names from the available tools list.");
         sb.AppendLine("- Prefer the smallest useful number of tool calls.");

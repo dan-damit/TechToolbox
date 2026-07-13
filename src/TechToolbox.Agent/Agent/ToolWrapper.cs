@@ -11,7 +11,7 @@ namespace TechToolbox.Agent.Agent;
 /// <summary>
 /// Provides static methods for building and managing a dictionary of tool functions.
 /// Each tool function wraps a <see cref="ToolSpec"/> with argument parsing, validation,
-/// safety checks, and execution via the PowerShell bridge.
+/// safety checks, and execution via a tool executor.
 /// </summary>
 public static class ToolWrapper
 {
@@ -48,9 +48,13 @@ public static class ToolWrapper
     /// Hostnames are normalized by trimming whitespace, removing trailing dots,
     /// and converting to lowercase.
     /// </param>
-    /// <param name="toolExecutor">
-    /// An optional custom executor function. When null, defaults to
-    /// <see cref="PowerShellBridge.RunTool"/> for standard PowerShell execution.
+    /// <param name="executor">
+    /// An optional custom tool executor instance. When null, defaults to
+    /// <see cref="PowerShellToolExecutor"/> for standard PowerShell execution.
+    /// </param>
+    /// <param name="legacyToolExecutor">
+    /// Optional legacy delegate executor for backward compatibility. When provided,
+    /// this value takes precedence over <paramref name="toolExecutor"/>.
     /// </param>
     /// <returns>
     /// A dictionary mapping tool names (case-insensitive) to async functions that accept
@@ -64,7 +68,8 @@ public static class ToolWrapper
         bool destructiveConfirmed,
         string signedFilePolicy,
         IEnumerable<string>? allowedFetchHosts = null,
-        Func<string, IDictionary<string, object?>, object?>? toolExecutor = null
+        IToolExecutor? executor = null,
+        Func<string, IDictionary<string, object?>, object?>? legacyToolExecutor = null
     )
     {
         // Initialize the tools dictionary with case-insensitive key comparison
@@ -78,8 +83,10 @@ public static class ToolWrapper
         // Normalize the allowed fetch hosts list
         var normalizedFetchHosts = NormalizeFetchHosts(allowedFetchHosts);
 
-        // Use the provided executor or default to PowerShellBridge.RunTool
-        var executor = toolExecutor ?? PowerShellBridge.RunTool;
+        // Resolve execution strategy, preserving compatibility for legacy delegate callers.
+        IToolExecutor resolvedExecutor = legacyToolExecutor is not null
+            ? new DelegateToolExecutor(legacyToolExecutor)
+            : executor ?? PowerShellToolExecutor.Instance;
 
         // Iterate over each tool specification in the registry
         foreach (var kv in registry)
@@ -145,7 +152,7 @@ public static class ToolWrapper
                 object? result;
                 try
                 {
-                    result = executor(toolName, args);
+                    result = resolvedExecutor.RunTool(toolName, args);
                 }
                 catch (Exception ex)
                 {
@@ -163,6 +170,39 @@ public static class ToolWrapper
         }
 
         return tools;
+    }
+
+    /// <summary>
+    /// Backward-compatible overload that accepts the legacy delegate executor.
+    /// </summary>
+    public static Dictionary<string, Func<string, Task<string>>> BuildTools(
+        IReadOnlyDictionary<string, ToolSpec> registry,
+        bool destructiveConfirmed,
+        string signedFilePolicy,
+        IEnumerable<string>? allowedFetchHosts = null,
+        Func<string, IDictionary<string, object?>, object?>? toolExecutor = null
+    )
+    {
+        return BuildTools(
+            registry,
+            destructiveConfirmed,
+            signedFilePolicy,
+            allowedFetchHosts,
+            executor: null,
+            legacyToolExecutor: toolExecutor
+        );
+    }
+
+    private sealed class DelegateToolExecutor(
+        Func<string, IDictionary<string, object?>, object?> execute
+    ) : IToolExecutor
+    {
+        private readonly Func<string, IDictionary<string, object?>, object?> _execute = execute;
+
+        public object? RunTool(string toolName, IDictionary<string, object?> args)
+        {
+            return _execute(toolName, args);
+        }
     }
 
     /// <summary>

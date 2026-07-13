@@ -202,6 +202,71 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_RetriesWhenRepairTurnReturnsRetryableLlmFailure()
+    {
+        var llm = new FakeLlmClient(
+            new[]
+            {
+                "not valid json",
+                "LLM error: InternalServerError - model worker crashed",
+                FinalDecision("Done"),
+            }
+        );
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase),
+            maxIterations: 5,
+            autoRetry: false
+        );
+
+        var result = await orchestrator.RunAsync("test goal");
+
+        Assert.Equal("Done", result.OutputText);
+    }
+
+    [Fact]
+    public async Task RunAsync_FailsAsLlmFailure_WhenRepairTurnRetryableFailuresRepeat()
+    {
+        var originalMaxFailures = Environment.GetEnvironmentVariable(
+            "TT_AGENT_MAX_CONSEC_LLM_FAILURES"
+        );
+        Environment.SetEnvironmentVariable("TT_AGENT_MAX_CONSEC_LLM_FAILURES", "2");
+
+        try
+        {
+        var llm = new FakeLlmClient(
+            new[]
+            {
+                "not valid json",
+                "LLM error: InternalServerError - model worker crashed",
+                "still not valid json",
+                "LLM error: InternalServerError - model worker crashed",
+            }
+        );
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase),
+            maxIterations: 6,
+            autoRetry: false
+        );
+
+        var result = await orchestrator.RunAsync("test goal");
+
+        Assert.Contains("LLM request repeatedly failed", result.OutputText);
+        Assert.DoesNotContain("invalid JSON twice", result.OutputText, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "TT_AGENT_MAX_CONSEC_LLM_FAILURES",
+                originalMaxFailures
+            );
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_SalvagesMalformedWriteFileDecisionWithoutExtraLlmTurn()
     {
         string? capturedJsonArgs = null;
@@ -394,9 +459,77 @@ public class AgentOrchestratorTests
         Assert.Contains("WRITE-FILE", result.ToolNames);
         Assert.True(llm.MessageSnapshots.Count >= 2);
         Assert.Contains(
-            "Required WRITE-FILE step has not completed yet",
+            "Required file update step has not completed yet",
             llm.MessageSnapshots[1].Last().Content
         );
+    }
+
+    [Fact]
+    public async Task RunAsync_InfersExpectedPath_FromDirectWriteIntentPrompt()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-directpath-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var targetPath = Path.Combine(tempRoot, "AgentOrchestrator.cs");
+            var jsonPath = targetPath.Replace("\\", "\\\\", StringComparison.Ordinal);
+
+            var llm = new RecordingFakeLlmClient(
+                new[]
+                {
+                    FinalDecision("I will now write the file."),
+                    $"{{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"content\":\"updated\"}},\"reason\":\"apply docs\"}}",
+                    FinalDecision("Done"),
+                }
+            );
+
+            var tools = new Dictionary<string, Func<string, Task<string>>>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["WRITE-FILE"] = args =>
+                {
+                    using var doc = JsonDocument.Parse(args);
+                    var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+                    var content = doc.RootElement.GetProperty("content").GetString() ?? string.Empty;
+                    File.WriteAllText(path, content);
+                    return Task.FromResult("ok");
+                },
+            };
+
+            var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 8, autoRetry: false);
+
+            var prompt = $"""
+Please read the function at:
+{targetPath}
+
+Generate complete comments-based help within the function itself at the
+specified path. Make sure to include XML documentation comments for all public
+methods and classes within the file.
+
+Use WRITE=FILE to insert the generated XML documentation comments directly into
+the file.
+""";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Done", result.OutputText);
+            Assert.True(File.Exists(targetPath));
+            Assert.Equal("updated", File.ReadAllText(targetPath));
+            Assert.Contains(
+                "Required file update step has not completed yet",
+                llm.MessageSnapshots[1].Last().Content
+            );
+            Assert.Contains("WRITE-FILE", result.ToolNames);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -500,7 +633,7 @@ public class AgentOrchestratorTests
         );
         Assert.Contains("must target expected path", llm.MessageSnapshots[1].Last().Content);
         Assert.Contains(
-            "Required WRITE-FILE step has not completed yet",
+            "Required file update step has not completed yet",
             llm.MessageSnapshots[2].Last().Content
         );
     }
@@ -556,6 +689,69 @@ public class AgentOrchestratorTests
                 "expected output file does not exist yet",
                 llm.MessageSnapshots[1].Last().Content
             );
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_AllowsReplaceInFile_ToSatisfyRequiredFileUpdate()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-replace-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var expectedOutputPath = Path.Combine(tempRoot, "AgentOrchestrator.cs");
+            File.WriteAllText(expectedOutputPath, "public class Demo { }\n");
+            var jsonPath = expectedOutputPath.Replace("\\", "\\\\", StringComparison.Ordinal);
+            const string originalSnippet = "public class Demo { }";
+            const string replacementSnippet = "/// <summary>Demo.</summary>\\npublic class Demo { }";
+
+            var llm = new RecordingFakeLlmClient(
+                new[]
+                {
+                    $"{{\"needsTool\":true,\"toolName\":\"REPLACE-IN-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"oldText\":\"{originalSnippet}\",\"newText\":\"{replacementSnippet}\"}},\"reason\":\"localized edit\"}}",
+                    FinalDecision("Done"),
+                }
+            );
+
+            var tools = new Dictionary<string, Func<string, Task<string>>>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["REPLACE-IN-FILE"] = args =>
+                {
+                    using var doc = JsonDocument.Parse(args);
+                    var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+                    var oldText = doc.RootElement.GetProperty("oldText").GetString() ?? string.Empty;
+                    var newText = doc.RootElement.GetProperty("newText").GetString() ?? string.Empty;
+                    var content = File.ReadAllText(path);
+                    File.WriteAllText(path, content.Replace(oldText, newText, StringComparison.Ordinal));
+                    return Task.FromResult("ok");
+                },
+            };
+
+            var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 6, autoRetry: false);
+
+            var prompt = $"""
+Please update this file in place:
+{expectedOutputPath}
+
+Add XML documentation comments for the public symbols.
+Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final answer until the file update succeeds.
+""";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Done", result.OutputText);
+            Assert.Contains("REPLACE-IN-FILE", result.ToolNames);
+            Assert.Contains("/// <summary>Demo.</summary>", File.ReadAllText(expectedOutputPath));
         }
         finally
         {
