@@ -261,25 +261,23 @@ WRITE-FILE action.
 Use a prompt similar to the following for consistent results:
 
 ```
-Please read the function at:
-C:\repos\TechToolbox\Public\Get\Get-SystemUptime.ps1
+Read this file:
+C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\AgentOrchestrator.cs
 
-Generate a complete Get-SystemUptime.md help document following
-Get-Help -Online best practices.
-
-You MUST write the final markdown to this exact file path:
-C:\repos\TechToolbox-Docs\Get-SystemUptime.md
+Task: 
+Add or improve XML documentation comments for every public type, public
+constructor, and public method in this file.
 
 Requirements:
-- You MUST call the WRITE-FILE tool.
-- The WRITE-FILE toolArgs MUST include:
-    "path": "C:\\repos\\TechToolbox-Docs\\Get-SystemUptime.md"
-    "content": "<escaped markdown>"
-- All newlines in the content MUST be escaped as \n inside JSON.
-- Do NOT return finalAnswer until WRITE-FILE succeeds.
-
-If the agent outputs markdown in the console instead of using WRITE-FILE,
-consider the task incomplete and retry with the exact prompt above.
+- Modify the existing file in place at this exact path:
+  C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\AgentOrchestrator.cs
+- Preserve all existing code and behavior.
+- Only add or improve XML documentation comments.
+- Prefer REPLACE-IN-FILE for localized edits to this existing file.
+- Use WRITE-FILE only if a localized replacement is not practical.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file update has succeeded.
 ```
 
 ---
