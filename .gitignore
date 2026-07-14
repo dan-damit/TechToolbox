@@ -11,6 +11,7 @@ EndpointTrackingScripts/
 obj/
 /Bin/
 bin/
+SecureCrimp/
 !src/TechToolbox.Agent/bin/
 src/TechToolbox.Agent/bin/**
 !src/TechToolbox.Agent/bin/**/
