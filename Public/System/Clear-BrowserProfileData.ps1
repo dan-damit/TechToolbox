@@ -233,7 +233,7 @@ function Clear-BrowserProfileData {
 
         $moduleRoot = Get-ModuleRoot
         $workerPath = Join-Path $moduleRoot 'Workers\Clear-BrowserProfileData.Worker.ps1'
-        $workerText = Get-Content -LiteralPath $workerPath -Raw -Encoding UTF8
+        $workerPackage = New-HelpersPackage -HelperLibs @() -WorkerFiles @($workerPath)
 
         function Test-IsLocalTarget {
             param([string]$Name)
@@ -264,7 +264,7 @@ function Clear-BrowserProfileData {
                     continue
                 }
 
-                Write-Log -Level Info -Message ("[{0}] Running browser cleanup worker in remote session context." -f $targetComputer)
+                Write-Log -Level Info -Message ("[{0}] Running browser cleanup via Invoke-RemoteWorker." -f $targetComputer)
                 $session = $null
                 try {
                     $sessionParams = @{
@@ -287,43 +287,22 @@ function Clear-BrowserProfileData {
 
                     $session = Start-NewPSRemoteSession @sessionParams
 
-                    $invokeArgs = @(
-                        $workerText
-                        $Browser
-                        ,([string[]]@($Profiles))
-                        $IncludeCookies
-                        $IncludeCache
-                        $SkipLocalStorage
-                        $KillProcesses
-                        $SleepAfterKillMs
-                    )
-
-                    $remoteResult = Invoke-Command -Session $session -ErrorAction Stop -ScriptBlock {
-                        param(
-                            [string]$WorkerSource,
-                            [string]$Browser,
-                            [string[]]$Profiles,
-                            [bool]$IncludeCookies,
-                            [bool]$IncludeCache,
-                            [bool]$SkipLocalStorage,
-                            [bool]$KillProcesses,
-                            [int]$SleepAfterKillMs
-                        )
-
-                        Set-StrictMode -Version Latest
-                        $ErrorActionPreference = 'Stop'
-
-                        . ([ScriptBlock]::Create($WorkerSource))
-
-                        Clear-BrowserProfileDataWorkerCore `
-                            -Browser $Browser `
-                            -Profiles @($Profiles) `
-                            -IncludeCookies $IncludeCookies `
-                            -IncludeCache $IncludeCache `
-                            -SkipLocalStorage $SkipLocalStorage `
-                            -KillProcesses $KillProcesses `
-                            -SleepAfterKillMs $SleepAfterKillMs
-                    } -ArgumentList $invokeArgs
+                    $remoteResult = Invoke-RemoteWorker `
+                        -Session $session `
+                        -HelpersZip $workerPackage.ZipPath `
+                        -HelpersZipHash $workerPackage.ZipHash `
+                        -WorkerRemotePath 'IGNORED' `
+                        -WorkerLocalPath $workerPath `
+                        -EntryPoint 'Clear-BrowserProfileDataWorkerCore' `
+                        -EntryParameters @{
+                        Browser          = $Browser
+                        Profiles         = [string[]]@($Profiles)
+                        IncludeCookies   = $IncludeCookies
+                        IncludeCache     = $IncludeCache
+                        SkipLocalStorage = $SkipLocalStorage
+                        KillProcesses    = $KillProcesses
+                        SleepAfterKillMs = $SleepAfterKillMs
+                    }
 
                     foreach ($line in @($remoteResult.LogLines)) {
                         Write-Log -Level Info -Message "[$targetComputer] $line"
@@ -464,14 +443,18 @@ function Clear-BrowserProfileData {
     }
 
     end {
+        if ($workerPackage -and $workerPackage.ZipPath -and (Test-Path -LiteralPath $workerPackage.ZipPath)) {
+            Remove-Item -LiteralPath $workerPackage.ZipPath -Force -ErrorAction SilentlyContinue
+        }
+
         Write-Log -Level Ok -Message "All requested browser profile cleanup completed."
     }
 }
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDSn+ywwv3+Gka4
-# pNhLLQK8OhdfdD+XqBQHbg0dQO4RnqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCytb+3VaDaU5lJ
+# GByENNhtm3DjpcPH0U3fiG/9wwE5HKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -604,34 +587,34 @@ function Clear-BrowserProfileData {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDOCeSNvBbY
-# 60C11f3/+GrTBQHORLRtUkIF/Nad86qyxzANBgkqhkiG9w0BAQEFAASCAgDGwfHR
-# 52k4JlMbr9kyAV4PsDT6VhVcKrk53SfVvUAuyUdt5wYiM0W94+X15+JFfXe/Qq8k
-# SCC7poErN/e9a+JXI+s/uVA4VzSOW2vhEzrI1bPbm6IkuNXf5QvFmFYWfFEJ/QsH
-# g6y0Srd9Vn3t+d0o4HsZ1PvVBNFFMa57KiLfFwEm4FC+dndW3b226Ny7vK+z+Q0v
-# 1V6jJjI0gGAfJEgzaTh/KmsrHmy9hRkOZ0T61kHboccOIuMp4a+dNgIhf707Gobp
-# AcjZjhNLdu1wEk9+oKveTe4i/hEJV0pM6w2qwU0U6xiD9K1pjJDjWDoUrFuGFHce
-# oG7rLR/TVc580It1374TOOu+RjVrYaYMVWQvpz06kZVEjwtKr/BJFwtoVDVBtTSf
-# ggwYnacH2jUh721+EtibvZUu42XGbEY5Xr2yWM6nEw+Us4gbp8DTAQAvzgUtX0vc
-# nvoTvwQ7ThcnaxA4jyS9ThkD4T7NP5HOTKDw86anqUjEIdy9+z6VVoV3pDdVXnoL
-# AjG5s5KFQRl6dJ0cUD0yskO6IP7sOg2mttaUSVBgECxVRFc9aoSd1sr7Cc86xyvZ
-# uLTRS8GqNEUBlZV4Wb1PM53FyRuHd4XKMpOQeSKpKFZ1ydnnRC7YH6tJV2WDFWGH
-# s9f/tWkv4Btl9DrS/0u4De3HQo1t8EJcFjqJX6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAr44Im5eGb
+# DGe2TiKMLgEQyWn1b4KFRrmoOQWVmyTEpzANBgkqhkiG9w0BAQEFAASCAgB7F4a+
+# eBk6VLMztKSzfKdf/eMEGvs6PZoTUJvOxwuCSlTqYGNEAweq+0mNmWma0oOCPlNQ
+# wxq13hELhUUaWfuYVER34RLgYzQpIqeOSenA++Iyuhjwq+Ka4wgRS0NOe6jn1rxU
+# MIVPm01mm8Tc9Jlx0iwXP/sYexD9TTYzsmaEqqniMQbDDONdEgMKYkEmQ1jD9t/w
+# 6oFDa7h9Er6X8yv+nzvZWBevHmS+vgPjBlnuPZj/ZPhCY8BVhXn8tx4uYmgkfWbV
+# 5D3VnlMScSKcnRZOalKKBKhV5xTxxA11rsXj2yOWFKEnK7auV5cV6ny4vEIy92Un
+# nlhYpKoACBaadTIaWNBBsKTlvZDQfTbDuzbfF9LDlPtN4Db+XT6EfTV+LX2vZMnx
+# iOLJ5F7mQ2bGDh2rs15wwJLgFcQxl6rn7zpE5+0SOPgfwbuNad4KLw2Jzmf/biK0
+# B8ndCKQLHP3cpEV5MzjlJH8FTgqz/MEMZgIeIA1M+GxwYsKNYcvuQCt83hWAJjqz
+# OkRX7jGqXazJaDhtkpNS1U1aEJJaj2nGhe4Sd4NamDWZcSTr/5rYs2IX5tP2lBYW
+# Yi9jnhFd1VGoByzMo8WaAI28mbuUS+yUTlNg+U4Xn+XCVjIzdTSP3kYzI3X7QyFq
+# 2Lp7KCxO9BDkD1u9e5uOcBdvNNXOH0tcIYkThKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MTQyMTU2NDZaMC8GCSqGSIb3DQEJBDEiBCDdl8UKXUQqzKkE8oUb
-# oSInwWx3XTGjCO5j5qwL0qD5pzANBgkqhkiG9w0BAQEFAASCAgCxPZspyHLnG/6Q
-# naZOMUtKVRojt8IbD4ZBBkXJnNn7J1M0W9UYfy7/wZahi6fHxwYhVkMPVxHybbCl
-# 7OXB9aGccBvffapHYVuk8qTGnQ3ohL8GxTV4fj0e3NPN7o6xIgVYTOmL17woYx6a
-# ueHl3XN5JJ29iiGmEZpth3Wzoiy2mQrNdyDpKqm44kbMJ31wtcRxNMiHpkKp23XY
-# 9nXn13y06fZwd64Z5QbKeS8992vcvp93bDzNw7Zm8QV48P+IzxDznmIWfBF1RDL5
-# W3IbQirfKQ+p+gtjde4P6MOrxPOdZMcwDfE72/Q7NzPhBW+YBwMyatyOMkO2Un7z
-# mfi1FByfPvU99A5YcFmhZXqgtMTctHjg/MnZOUcgHASJnHWf+RtvTFUdkXzGr8hD
-# 6sutUXHEd68b12o/uxjl8TYtGhz4ggG/bGQHsMCDuL8rjA9J15T4w81Fio6P+ZIo
-# 9gfBy2RSHzJecnZRJNdYTxd80dHQgwz/BWwkWDc2FZmbUTM0NWJc2E8TEg0Ss1NV
-# +BlHTGGQQx6hCqxamEyuEpxb6GqxVSqW9EoKlqnmixrC1Gy0hdmfTSJghyLyfxNn
-# +dKnUnXEfEIc7z/gpp/++2fBt+7oNzLXzQjjOn05YGZc6Q9ObJUKIKZbUbweYuMO
-# z5HFRb/0Uu2hnGMKPZLwSkldFsF2/g==
+# BTEPFw0yNjA3MTQyMjM0NThaMC8GCSqGSIb3DQEJBDEiBCBbsfeWOPO9V7r7QKfT
+# uz+KsdW97rSWOMP24/UAAI+AcjANBgkqhkiG9w0BAQEFAASCAgDM5zPiBKiH+TIx
+# /93Zi+xjLytdxY+DbheNwgKLQZMfbyWKr5hhxKEDfrjyqtu5WPRUaYvUPs7uQQhW
+# sI3upXLe2mmTlXS5oxasRO9CfhUdgLkR0FR2AuLJ4i07oywlasc4LNes8DuVfq7i
+# Q9MSC2n7Js4rcjZ41Bf3ngk5AiD8dw8KJnEk3H9/wOhMioR4/vSVLGMdp3dzGHIg
+# QrlvJj9fFxqgQpT6DwHOwk2TBzlgl5jVPPQN5uiCUcSaqCXdTUB6A7utWHzSDrKb
+# cJwtbYKdNwYKIwmMY9y+pW/km6OH9HKq7irP2zwYzfl1XWcvO7pKPxOvsIxTumAp
+# 3J4uQmAYin4UWk0TucEFeyPPKJV4AlooC3ERuT6sGdi7Y9ZHdlJ42sgtwYUrjBbh
+# gJP+9F9yZLkjbbHUbLJnETwecosSXdM5WfDyrn14uXOSOOB+xeEjUVcyoJFSKydX
+# P4NOlp+HkmjOo/N2foqp1Hphc9LR5kdnE7nLbP1L/17VZ9hfFZpppkREBnvIcjcc
+# eXGIaSIR9VlYLZq7izs+STBzpEwveJlHzoGCfWf0MV5qNOiSq57Kfnfw+ChEy5gB
+# 7wXED2AHDHJFa+z8V3BDVlM3bc7mFIZDZnZT8iyROdlvCFzV1DygBNhITs0Las7T
+# 6RcvNDaxqYuy3rQc1XALYotKxFSmRA==
 # SIG # End signature block

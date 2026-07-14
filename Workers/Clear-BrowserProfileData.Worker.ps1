@@ -161,6 +161,8 @@ function Clear-BrowserProfileDataWorkerCore {
     }
 
     try {
+        $executingUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+
         $activeUser = Get-ActiveInteractiveUser
         if ([string]::IsNullOrWhiteSpace($activeUser)) {
             throw 'No active interactive user session was found on the remote host.'
@@ -170,7 +172,14 @@ function Clear-BrowserProfileDataWorkerCore {
             $activeUser = "{0}\\{1}" -f $env:USERDOMAIN, $activeUser
         }
 
+        $executingLeaf = (($executingUser -split '\\')[-1]).ToLowerInvariant()
+        $activeLeaf = (($activeUser -split '\\')[-1]).ToLowerInvariant()
+        if ($executingLeaf -ne $activeLeaf) {
+            throw ("Worker must execute under the active interactive user context. Active='{0}', Executing='{1}'." -f $activeUser, $executingUser)
+        }
+
         $profileRoot = Get-UserProfileRoot -InteractiveUser $activeUser
+        Add-WorkerLog -Message ("Executing identity: {0}" -f $executingUser)
         Add-WorkerLog -Message ("Active user: {0}" -f $activeUser)
         Add-WorkerLog -Message ("Profile root: {0}" -f $profileRoot)
 
@@ -211,13 +220,13 @@ function Clear-BrowserProfileDataWorkerCore {
 
             foreach ($profileDir in $profileDirs) {
                 $result = [ordered]@{
-                    Browser         = $target
-                    Profile         = [string]$profileDir.Name
-                    ProfilePath     = [string]$profileDir.FullName
-                    CookiesCleared  = $false
-                    CacheCleared    = $false
-                    Success         = $true
-                    Message         = 'OK'
+                    Browser        = $target
+                    Profile        = [string]$profileDir.Name
+                    ProfilePath    = [string]$profileDir.FullName
+                    CookiesCleared = $false
+                    CacheCleared   = $false
+                    Success        = $true
+                    Message        = 'OK'
                 }
 
                 try {
@@ -257,12 +266,12 @@ function Clear-BrowserProfileDataWorkerCore {
         }
 
         return [ordered]@{
-            ComputerName    = $env:COMPUTERNAME
-            ActiveUser      = $activeUser
-            Success         = (-not $hasFailures)
-            ErrorMessage    = $errorMessage
-            ProfileResults  = @($profileResults)
-            LogLines        = @($logLines)
+            ComputerName   = $env:COMPUTERNAME
+            ActiveUser     = $activeUser
+            Success        = (-not $hasFailures)
+            ErrorMessage   = $errorMessage
+            ProfileResults = @($profileResults)
+            LogLines       = @($logLines)
         }
     }
     catch {
@@ -274,12 +283,12 @@ function Clear-BrowserProfileDataWorkerCore {
         Add-WorkerLog -Message ("FATAL: {0}" -f $fatalMessage)
 
         return [ordered]@{
-            ComputerName    = $env:COMPUTERNAME
-            ActiveUser      = $null
-            Success         = $false
-            ErrorMessage    = $fatalMessage
-            ProfileResults  = @($profileResults)
-            LogLines        = @($logLines)
+            ComputerName   = $env:COMPUTERNAME
+            ActiveUser     = $null
+            Success        = $false
+            ErrorMessage   = $fatalMessage
+            ProfileResults = @($profileResults)
+            LogLines       = @($logLines)
         }
     }
 }
@@ -287,8 +296,8 @@ function Clear-BrowserProfileDataWorkerCore {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAYruSPFMiWdHB+
-# WcSaT8b6FmASUyeVtcxePWa4QxUStqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQLToyZg5XTFa8
+# PwJT4c0K7rIQAuV9ikA12IG3KjrmIKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -421,34 +430,34 @@ function Clear-BrowserProfileDataWorkerCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBILajtRBcd
-# yGLgPkR+ikoeJ/BRA8NM5EnV1FWLRW8W+TANBgkqhkiG9w0BAQEFAASCAgAlaGb+
-# ynWjkx4hYd2tdN2h0Uxq9r087XxDhaqzHaBLE+BFXQ01CAuTh1+0pNDgXVuad8Fq
-# qiKm29B/WeyXB3Aekof5wdydfFVbdgRrYnlGXbsqYhl7qKi8BOw8n5M6hlrPbSbN
-# Z7qx09hmUV9+Zg6zjN4mu9waVq+9eRppEHCNeO6JhCJBM8tbJETVp6vbp001/KOT
-# 1uxM61s1J5mNG2TKt61I67gNYuMPtIwwC9U6ozf60hk82s0qGqpUOucPjFJZvxPv
-# P7nAmzlwo1z06tnxIBc/8Xydb+R3A9+ngo0FejaoEK8ehPL1PLeUd0zyAeMbAJHS
-# tkt6htdzZDNBVN/cyRLFNh36izP5Err5FXgfFajH9nXTgJqau3bEazD32kZCUcwR
-# BPRBgqxoO5xEKsOomf+RspF1+V4zMF4dmLRylxShc5MkCiHUdUkD4JmtAP6c+VB9
-# 307xh2lFD52sSp0MPhE01sp4LA5v8wpwcPH/LZ1MfWgOfwGUrXfNknPupSlqygga
-# 6IyY9JS2HduHU9mPz5xihdWmWULDgBKCYcjylmHC5vKcb0n2woIoSa3uMKEebN4E
-# NhnQR9KA3zVyPNi1wtcZka9O0e2TWr0pYh6MSmEt3S6M66Llkj5gZZn7ehgtY1Ag
-# WjtoDeKaqxceKEQLjD0FPCgQbFJZSe5gtvxRxqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCDNxu0kHK1
+# vyq9lgNPAO/NvLP6Y4xlwtHBHXP2nXcrajANBgkqhkiG9w0BAQEFAASCAgCNng0n
+# 32YDn842ZMkGkmwGESlI0rgHyuQqSoR2nx6QKlXGnjJ2nqY9GfdvTXn+3sSXVbg6
+# 2hUeSxMGRwvcOMmyvh2icff/k47yitmo1aW4BJ3LxrfXb34IXgyEDHVFMuLzF+Bd
+# ra1E2C4qvHmIS8Rig5wPRURS+ySIUx4VYp90LsDnKTzfQyKLeh+FJ3laDmEY0EpD
+# N9A+JXVGYHHsHamCjE/Gq675yh9N4EKPQoNj9v0UlxbDM4JO0J4Xg2nNk9QlwiFs
+# w3kQnuxUFBOWB1SPOAxpdOwnI6i0tJcc/4DK/UTJXeD7mKd8QlhT9wmgUitNMBxu
+# LEVIHIxc+MxXZI/bwB30B6S1QN0Ew9wQ5uJsDbcgkExBAB3v+oQ4Y8IjOfnf7enk
+# 7hmeQ72a/PjtWE0QT+Q+3CqrisYgs6rBoCqhzoJd1j+5Re6x0TfZGkLrKjHnYeAE
+# 2qDnZBCogjTC05OpR0jR2q45NRbSzRdNm14TZ+aIZkZZ+J8KXR6c3SnfJeEEzk/G
+# oEZgjDsIQFP5BwEw/Wp3bxL5ry8lr8EHJB6AYsHhsAxg+YGzb4QLNj5AAbYQFGXg
+# HOPExqoJdlyVosg7zxop49IjEoc5aCVZ6LqOnrJzAImQeVCQ9zLePTr+H8SsaB//
+# ekI7eWnF3SijgJ7OkZrXq5F88igMbmvA/gmfJ6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MTQyMTU4MzdaMC8GCSqGSIb3DQEJBDEiBCB4lRrqbSdLMA38tE1E
-# sszVGhr1FQY7yzmAW3JqiRnyWzANBgkqhkiG9w0BAQEFAASCAgBc+TUwNGtHIWKL
-# pU1pCgtmIewC0Mi6r8L0oEQFOISnjUlVgp55YibGVoAGvQLsWeEqxdl6zg49kweK
-# oQ5zuPc9X19jJo9d1cbdojPV2hLN93fqyCmIeY2L1s3UbLSRUaLtgZgZFtKJt7BA
-# jY/ku/etH6EiPdf11t+4zeO4MNF7ixJrH6bjT8mkPQRuC9jid5mnfkKaCJKNpwLp
-# TbKW1ockKk6dUtGKVIylU2W1DTZiYDhodw5umSosT9yNNLvcYpIEhf6Ve107U0Z4
-# wxg5gTAKkSnH4O2hckYgURIwravV9A7gA0tL4O7b5pb2HuFqovd+u/tmuTX9a9hU
-# KIYL5j6DMSnbxG0soudD/tiuHqajKNS43Wnc5a3macEFdFLs7IzIk9S3O1oHYOMo
-# ti7QP6koO86nZ4opzRjip3ayurPDvTSQkcEkpwh+AD6y4zxI2qW7T0h7gxPWn3Vx
-# F3FRyPED/5OOd118zOksVoDRjx9t0K58VM1LGCc9d+G21Rl1pJmmII85MKgDPuI/
-# r2rdjhqewmR5vkvpcGAQpINeusAxixpOsFy60NXPeLi1+quTnWWh+K7WI0W8U1Fh
-# zcMSQnHVXwtiJyiweCMBO9UILHcOKnUdqcrS+3m383cRCyTLDDlvlZMDhyOTbfaX
-# Kn1hkw1xj+zPl4GeQ8lbpN4sxD+wHg==
+# BTEPFw0yNjA3MTQyMjM0NThaMC8GCSqGSIb3DQEJBDEiBCDxVguJBjb5Pr0y3D+X
+# P51NSip6bmuIcio6g0MthbKyqzANBgkqhkiG9w0BAQEFAASCAgA5pCy4fAEWNImm
+# secIeaboB727c9QkcJX9AG59aoXBqmsfhdMjEa2Uz+J3z9LSB1YN1AQi5Qy0CHq1
+# gS9PCLhWLqXMGbgJINvU3PDpPtFdMpRMOwh+epT28JS60roebYsvjvJaFlOfPUdK
+# WQFjdjZ6ZVbdppPBzn+ZN07ByvckcFaJ+tdmyvDbG33i+pdp4GhRbFLAslhbkvEM
+# maQYoCtlzOBW4rDgPe280c+FpuUoAf3gqU2hZlxEVdig0khee/xNo7gzcBTw4r7t
+# 09dmXcNur0qf49z/TeLllwcqnHdTkOBsOqnAxWnUx+YAdfqrkt7mLW34dQNzSY4O
+# p+EGVjZ+63UYjVYCdrNbtT+/Fs+zF4PG+hopkcqHAA1BmOBrVHfU5y14JeFTuQHn
+# uaSgBpGjAbc2+JDZpGWchgosP0WiJZ7fyyiiwOOvHvyAtSN787b9ymHrMxlHCymx
+# y0d1RyRgvRxhm1tip+fxq7oZAatyFsNQ2H0z4A58tfoJlRpq4hgYxhUuBsozi0ER
+# HKxy0BCTsuIgJmjaaUWmYsMPBMYc+ZImtkHiAZeaUSZYz7QSkhrxfJZk5zO+SpNY
+# GHdF1BPuQuiILmfZalTodPM99k/xMWmXP3aS4/bPRdapURWqpQTZ8DiGesCdIstT
+# Gkzs5fzLYZuj9F24U4cHixVZtpPARA==
 # SIG # End signature block
