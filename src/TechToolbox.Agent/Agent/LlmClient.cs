@@ -47,14 +47,16 @@ public class LlmClient
     }
 
     /// <summary>
-    /// Generates a decision from the LLM based on the provided chat messages.
-    /// Sends a non-streaming chat request to Ollama and parses the JSON response.
+    /// Generates a decision from the LLM with incremental callback support.
+    /// Streams content to a callback for early decision validation and completion.
     /// </summary>
     /// <param name="messages">The conversation history as chat messages.</param>
+    /// <param name="onContentAccumulated">Callback invoked with accumulated content. Return true to stop streaming early.</param>
     /// <param name="cancellationToken">Token for cancelling the operation.</param>
-    /// <returns>An LlmResponse containing the LLM's output or error information.</returns>
-    public virtual async Task<LlmResponse> GenerateDecisionAsync(
+    /// <returns>An LlmResponse containing the accumulated LLM output or error information.</returns>
+    public virtual async Task<LlmResponse> GenerateDecisionWithCallbackAsync(
         IReadOnlyList<AgentChatMessage> messages,
+        Func<string, Task<bool>>? onContentAccumulated = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -67,7 +69,7 @@ public class LlmClient
         {
             Model = _model,
             Messages = messages.ToList(),
-            Stream = false,
+            Stream = true,
             Think = false,
             Format = "json",
             Options = new Dictionary<string, object?>
@@ -86,7 +88,7 @@ public class LlmClient
         HttpResponseMessage response;
         try
         {
-            // Send POST request to Ollama chat API endpoint
+            // Send POST request to Ollama chat API endpoint with streaming enabled
             response = await _http.PostAsJsonAsync(
                 "http://localhost:11434/api/chat",
                 payload,
@@ -113,65 +115,125 @@ public class LlmClient
             return new LlmResponse($"LLM request failed: {ex.Message}", "", false);
         }
 
-        string body;
+        // Check for HTTP error status codes
+        if (!response.IsSuccessStatusCode)
+        {
+            try
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(cts.Token);
+                return new LlmResponse($"LLM error: {response.StatusCode} - {errorBody}", errorBody, false);
+            }
+            catch
+            {
+                return new LlmResponse($"LLM error: {response.StatusCode}", "", false);
+            }
+        }
+
+        // Accumulate streamed content from newline-delimited JSON
+        var accumulatedContent = new StringBuilder();
+        var lastRawLine = "";
+        var stoppedEarly = false;
+
         try
         {
-            // Read the response body content
-            body = await response.Content.ReadAsStringAsync(cts.Token);
-            Trace($"Body length={body.Length}");
+            // Read streaming response line by line
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            string? line;
+            while ((line = await reader.ReadLineAsync()) != null)
+            {
+                // Skip empty lines
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                lastRawLine = line;
+                Trace($"Received stream line length={line.Length}");
+
+                try
+                {
+                    // Parse each newline-delimited JSON object
+                    var parsed = JsonSerializer.Deserialize<OllamaChatResponse>(line, JsonOptions);
+                    
+                    // Accumulate content from message
+                    if (parsed?.Message?.Content is not null)
+                    {
+                        accumulatedContent.Append(parsed.Message.Content);
+                        Trace($"Accumulated content length={accumulatedContent.Length}");
+
+                        // Invoke callback with current accumulated content
+                        if (onContentAccumulated is not null)
+                        {
+                            var shouldStop = await onContentAccumulated(accumulatedContent.ToString());
+                            if (shouldStop)
+                            {
+                                Trace($"Early stop requested by callback at content length={accumulatedContent.Length}");
+                                stoppedEarly = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Check if this is the final chunk
+                    if (parsed?.Done == true)
+                    {
+                        Trace($"Stream complete. Total content length={accumulatedContent.Length}");
+                        break;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    // Log parse error but continue streaming
+                    Trace($"Failed to parse stream line: {ex.Message}");
+                }
+            }
         }
         catch (OperationCanceledException)
         {
-            // Handle response read timeout
-            Trace($"Response read timeout after {RequestTimeoutSeconds}s");
+            // Handle stream timeout
+            Trace($"Stream timeout after {RequestTimeoutSeconds}s");
             return new LlmResponse(
-                $"LLM response read timed out after {RequestTimeoutSeconds} seconds.",
-                "",
+                $"LLM stream timed out after {RequestTimeoutSeconds} seconds.",
+                lastRawLine,
                 false
             );
         }
         catch (Exception ex)
         {
-            // Handle response read failures
-            Trace($"Response read failed: {ex.GetType().Name}: {ex.Message}");
-            return new LlmResponse($"LLM response read failed: {ex.Message}", "", false);
+            // Handle stream read failures
+            Trace($"Stream read failed: {ex.GetType().Name}: {ex.Message}");
+            return new LlmResponse($"LLM stream read failed: {ex.Message}", lastRawLine, false);
         }
 
-        // Check for HTTP error status codes
-        if (!response.IsSuccessStatusCode)
+        var content = accumulatedContent.ToString().Trim();
+
+        // Handle empty content case with diagnostic information
+        if (string.IsNullOrWhiteSpace(content))
         {
-            return new LlmResponse($"LLM error: {response.StatusCode} - {body}", body, false);
+            var emptyContentDiagnostics = BuildEmptyContentDiagnostics(lastRawLine);
+            Trace($"Accumulated content was empty. {emptyContentDiagnostics}");
+            return new LlmResponse(
+                $"LLM returned empty content. {emptyContentDiagnostics}",
+                lastRawLine,
+                false
+            );
         }
 
-        try
-        {
-            // Deserialize and parse the JSON response
-            var parsed = JsonSerializer.Deserialize<OllamaChatResponse>(body, JsonOptions);
-            var content = parsed?.Message?.Content ?? "";
-            Trace($"Parsed content length={content.Length}");
-
-            // Handle empty content case with diagnostic information
-            if (string.IsNullOrWhiteSpace(content))
-            {
-                var emptyContentDiagnostics = BuildEmptyContentDiagnostics(body);
-                Trace($"Parsed content was empty. {emptyContentDiagnostics}");
-                return new LlmResponse(
-                    $"LLM returned empty content. {emptyContentDiagnostics}",
-                    body,
-                    false
-                );
-            }
-
-            // Return successful response with parsed content
-            return new LlmResponse(content, body, true);
-        }
-        catch (Exception ex)
-        {
-            // Handle JSON parsing failures
-            Trace($"JSON parse failed: {ex.GetType().Name}: {ex.Message}");
-            return new LlmResponse($"LLM response parse failed: {ex.Message}", body, false);
-        }
+        // Return successful response with accumulated streamed content
+        return new LlmResponse(content, lastRawLine, stoppedEarly);
     }
+
+    /// <summary>
+    /// Generates a decision from the LLM based on the provided chat messages.
+    /// Uses streaming to incrementally receive the response and accumulates the content.
+    /// </summary>
+    /// <param name="messages">The conversation history as chat messages.</param>
+    /// <param name="cancellationToken">Token for cancelling the operation.</param>
+    /// <returns>An LlmResponse containing the accumulated LLM output or error information.</returns>
+    public virtual async Task<LlmResponse> GenerateDecisionAsync(
+        IReadOnlyList<AgentChatMessage> messages,
+        CancellationToken cancellationToken = default
+    ) => await GenerateDecisionWithCallbackAsync(messages, null, cancellationToken);
 
     /// <summary>
     /// Invokes the diagnostic trace callback with the given message.

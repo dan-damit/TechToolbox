@@ -482,6 +482,13 @@ public class ToolWrapperTests
     }
 
     [Fact]
+    public void IsDestructive_AppendFile_ReturnsTrue()
+    {
+        Assert.True(Safety.IsDestructive("APPEND-FILE"));
+        Assert.True(Safety.IsDestructive("append-file"));
+    }
+
+    [Fact]
     public async Task BuildTools_AutoConfirmsWriteFile_WhenDestructiveConfirmed()
     {
         IDictionary<string, object?>? capturedArgs = null;
@@ -619,6 +626,132 @@ public class ToolWrapperTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public void RunTool_AppendFile_TruncatesThenAppends_WhenRequested()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-Append-{Guid.NewGuid():N}.txt"
+        );
+
+        try
+        {
+            var firstResult = PowerShellBridge.RunTool(
+                "APPEND-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["content"] = "line-1\n",
+                    ["truncateFirst"] = true,
+                    ["__confirm_destructive"] = true,
+                }
+            );
+
+            var secondResult = PowerShellBridge.RunTool(
+                "APPEND-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["content"] = "line-2\n",
+                    ["__confirm_destructive"] = true,
+                }
+            );
+
+            Assert.Equal("ok", firstResult);
+            Assert.Equal("ok", secondResult);
+            Assert.Equal("line-1\nline-2\n", File.ReadAllText(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_AppendFile_BlocksWhenDestructiveNotConfirmed()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-AppendBlocked-{Guid.NewGuid():N}.txt"
+        );
+
+        try
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                PowerShellBridge.RunTool(
+                    "APPEND-FILE",
+                    new Dictionary<string, object?>
+                    {
+                        ["path"] = tempFile,
+                        ["content"] = "line-1\n",
+                    }
+                )
+            );
+
+            Assert.Contains(
+                "__confirm_destructive=true",
+                ex.Message,
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_FinalizeFileWrite_ReturnsFileStats()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-Finalize-{Guid.NewGuid():N}.txt"
+        );
+
+        try
+        {
+            File.WriteAllText(tempFile, "line-1\nline-2\n");
+
+            var result = PowerShellBridge.RunTool(
+                "FINALIZE-FILE-WRITE",
+                new Dictionary<string, object?> { ["path"] = tempFile }
+            );
+
+            var json = Assert.IsType<string>(result);
+            using var doc = JsonDocument.Parse(json);
+            Assert.Equal("finalize-file-write", doc.RootElement.GetProperty("kind").GetString());
+            Assert.Equal(tempFile, doc.RootElement.GetProperty("path").GetString());
+            Assert.True(doc.RootElement.GetProperty("chars").GetInt32() > 0);
+            Assert.True(doc.RootElement.GetProperty("lines").GetInt32() >= 2);
+            Assert.True(doc.RootElement.GetProperty("bytes").GetInt64() > 0);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_FinalizeFileWrite_ThrowsWhenFileMissing()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-FinalizeMissing-{Guid.NewGuid():N}.txt"
+        );
+
+        var ex = Assert.Throws<FileNotFoundException>(() =>
+            PowerShellBridge.RunTool(
+                "FINALIZE-FILE-WRITE",
+                new Dictionary<string, object?> { ["path"] = tempFile }
+            )
+        );
+
+        Assert.Contains("File not found", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -264,7 +264,7 @@ function Invoke-TechAgent {
         if (& $promptIndicatesWriteIntent -Text $PromptText) {
             $genericPathMatches = [regex]::Matches(
                 $PromptText,
-                '(?i)(?<path>[A-Za-z]:\\[^"''`\r\n]*?\.[A-Za-z0-9]{1,16})\b')
+                '(?i)(?<path>[A-Za-z]:\\[^"''`\r\n]*\.[A-Za-z0-9]{1,16})(?=\s|$|[)\],;:])')
 
             if ($genericPathMatches.Count -gt 0) {
                 for ($i = $genericPathMatches.Count - 1; $i -ge 0; $i--) {
@@ -441,6 +441,53 @@ Hard requirement:
         Set-Content -Path $Path -Value ($lines -join [Environment]::NewLine) -Encoding utf8BOM
     }
 
+    # Helper function to parse agent trace output and update agent state
+    $parseAgentTraceLine = {
+        param(
+            [string]$TraceLine,
+            [hashtable]$AgentState  # Mutable state hashtable passed by reference
+        )
+
+        if ([string]::IsNullOrWhiteSpace($TraceLine)) {
+            return
+        }
+
+        # Detect iteration progress: "Iteration X/Y start messages=N"
+        if ($TraceLine -match 'Iteration\s+(\d+)/(\d+)\s+start') {
+            $currentIter = [int]$Matches[1]
+            $totalIters = [int]$Matches[2]
+            
+            $AgentState['currentIteration'] = $currentIter
+            $AgentState['totalIterations'] = $totalIters
+        }
+
+        # Detect early stop via valid decision found during streaming
+        if ($TraceLine -match 'found valid decision during streaming') {
+            $AgentState['foundValidDecision'] = $true
+        }
+
+        # Detect response received (streaming complete or early stopped)
+        if ($TraceLine -match 'response length=(\d+)\s+stoppedEarly=(\w+)') {
+            $responseLength = [int]$Matches[1]
+            $stoppedEarly = $Matches[2] -eq 'true'
+            
+            $AgentState['lastResponseLength'] = $responseLength
+            $AgentState['lastStoppedEarly'] = $stoppedEarly
+        }
+
+        # Detect LLM failures
+        if ($TraceLine -match 'consecutive LLM failures=(\d+)') {
+            $failureCount = [int]$Matches[1]
+            $AgentState['consecutiveLlmFailures'] = $failureCount
+        }
+
+        # Detect tool execution
+        if ($TraceLine -match 'executing tool=(\S+)') {
+            $toolName = $Matches[1]
+            $AgentState['lastToolName'] = $toolName
+        }
+    }
+
     try {
         $moduleRoot = Get-ModuleRoot
         $assemblyCandidates = @(
@@ -456,6 +503,22 @@ Hard requirement:
 
         if ([string]::IsNullOrWhiteSpace($agentAssemblyPath)) {
             throw "TechToolbox.Agent assembly not found. Install the packaged agent runtime or build/publish src\TechToolbox.Agent."
+        }
+
+        # Load Wait-TerminalState and its dependencies for real-time status animation
+        $waitTerminalStateScript = Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Wait-TerminalState.ps1'
+        $getDotPulseScript = Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Get-DotPulse.ps1'
+        
+        $hasWaitTerminalState = $false
+        if ((Test-Path -LiteralPath $waitTerminalStateScript -PathType Leaf) -and (Test-Path -LiteralPath $getDotPulseScript -PathType Leaf)) {
+            try {
+                . $getDotPulseScript
+                . $waitTerminalStateScript
+                $hasWaitTerminalState = $true
+            }
+            catch {
+                $hasWaitTerminalState = $false
+            }
         }
 
         if (-not [string]::IsNullOrWhiteSpace($Model)) {
@@ -749,19 +812,142 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
                 throw 'Failed to start child PowerShell process for TechToolbox.Agent.'
             }
 
-            $stdoutTask = $agentProc.StandardOutput.ReadToEndAsync()
-            $stderrTask = $agentProc.StandardError.ReadToEndAsync()
-
-            if (-not $agentProc.WaitForExit($waitTimeoutSeconds * 1000)) {
-                try { $agentProc.Kill() } catch { }
-                throw ("Tech agent timed out after {0} seconds." -f $waitTimeoutSeconds)
+            # Initialize agent state tracking
+            $agentState = @{
+                currentIteration       = 0
+                totalIterations        = 0
+                foundValidDecision     = $false
+                lastResponseLength     = 0
+                lastStoppedEarly       = $false
+                consecutiveLlmFailures = 0
+                lastToolName           = ''
+                processExited          = $false
+                exitCode               = -1
             }
 
-            try { $null = $agentProc.WaitForExit(2000) } catch { }
+            # Read stderr asynchronously (non-blocking)
+            $stderrTask = $agentProc.StandardError.ReadToEndAsync()
 
-            $capturedStdOut = if ($stdoutTask) { [string]$stdoutTask.GetAwaiter().GetResult() } else { '' }
+            # Create output accumulator
+            $stdoutLines = [System.Collections.Generic.List[string]]::new()
+            $stdoutReader = $agentProc.StandardOutput
+
+            # Define the poll script that drives Wait-TerminalState
+            $pollScript = {
+                # Read any available lines from the process
+                if ($agentProc.HasExited) {
+                    $agentState['processExited'] = $true
+                    $agentState['exitCode'] = $agentProc.ExitCode
+                    return $agentState
+                }
+
+                # Non-blocking read of next line (returns $null if none available immediately)
+                if ($stdoutReader.Peek() -gt 0) {
+                    $line = $stdoutReader.ReadLine()
+                    if ($line -ne $null) {
+                        $stdoutLines.Add($line)
+                        & $parseAgentTraceLine -TraceLine $line -AgentState $agentState
+                    }
+                }
+
+                return $agentState
+            }
+
+            # Define status extraction from agent state
+            $getStatus = {
+                param($state)
+                
+                if ($state['processExited']) {
+                    if ($state['exitCode'] -eq 0) {
+                        return 'AGENT_COMPLETED'
+                    }
+                    else {
+                        return 'AGENT_FAILED'
+                    }
+                }
+
+                # Build status string for polling display
+                $status = "Iteration {0}/{1}" -f $state['currentIteration'], $state['totalIterations']
+                if ($state['lastToolName']) {
+                    $status += " | Tool: {0}" -f $state['lastToolName']
+                }
+                if ($state['foundValidDecision']) {
+                    $status += " | Early stop"
+                }
+                return $status
+            }
+
+            # Define terminal states
+            $terminalStates = @{
+                'AGENT_COMPLETED' = @{
+                    Level   = 'Ok'
+                    Message = 'Tech agent completed successfully.'
+                    Return  = $true
+                }
+                'AGENT_FAILED'    = @{
+                    Level   = 'Error'
+                    Message = { param($obj, $status) "Tech agent failed with exit code {0}." -f $obj['exitCode'] }
+                    Return  = $true
+                }
+            }
+
+            # Use Wait-TerminalState to drive the polling loop if available, otherwise fall back to simple blocking read
+            if ($hasWaitTerminalState) {
+                try {
+                    $waitResult = Wait-TerminalState `
+                        -Target 'TechToolbox.Agent' `
+                        -PollScript $pollScript `
+                        -GetStatus $getStatus `
+                        -TerminalStates $terminalStates `
+                        -TimeoutSeconds $waitTimeoutSeconds `
+                        -PollSeconds 1 `
+                        -TickMs 250 `
+                        -HeartbeatSeconds 5 `
+                        -ThrowOnTimeout:$true
+                }
+                catch {
+                    $hasWaitTerminalState = $false
+                    
+                    # Fall through to the fallback code below
+                }
+            }
+            
+            if (-not $hasWaitTerminalState) {
+                # Fallback: simple blocking read without animation
+                Write-Log -Level E-Info -Message "`nAgent is running..."
+                
+                try {
+                    while ($true) {
+                        if ($agentProc.HasExited) {
+                            break
+                        }
+                        
+                        if ($stdoutReader.Peek() -gt 0) {
+                            $line = $stdoutReader.ReadLine()
+                            if ($line -ne $null) {
+                                $stdoutLines.Add($line)
+                                & $parseAgentTraceLine -TraceLine $line -AgentState $agentState
+                            }
+                        }
+                        else {
+                            Start-Sleep -Milliseconds 100
+                        }
+                    }
+                }
+                catch {
+                    Write-Log -Level Warn -Message ("Error reading agent stdout: {0}" -f $_.Exception.Message)
+                }
+                
+                if (-not $agentProc.WaitForExit($waitTimeoutSeconds * 1000)) {
+                    try { $agentProc.Kill() } catch { }
+                    throw ("Tech agent timed out after {0} seconds." -f $waitTimeoutSeconds)
+                }
+            }
+
+            $capturedStdOut = $stdoutLines -join [Environment]::NewLine
             $capturedStdErr = if ($stderrTask) { [string]$stderrTask.GetAwaiter().GetResult() } else { '' }
 
+            # Final check of exit code
             if ($agentProc.ExitCode -ne 0) {
                 $errorText = if ([string]::IsNullOrWhiteSpace($capturedStdErr)) { $capturedStdOut } else { $capturedStdErr }
                 throw ("Tech agent exited with code {0}: {1}" -f $agentProc.ExitCode, $errorText.Trim())
@@ -874,8 +1060,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBCEwl8jnJl5A6H
-# C9zAvaBeC1MIk6uSyRby/sCQzwrot6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDkuJPSVp+q1b//
+# 8edIVDgJyDtEiI4Mfbu5Kw+ebS/SNKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1008,34 +1194,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDpgzonpZ+g
-# wL+2bop2M7+xMnhFD/8CxAPtfrD1mbRXpzANBgkqhkiG9w0BAQEFAASCAgBeYg/b
-# 8xunIH8UepX+aiZU2vcLT0jRQRXtH4vAJ1Wfxo3mKQAPc2AnuneXtc93hjbAbZOY
-# 0a1oi9w+SKvrFnJDPAfn/racKBSDxoVaBDnXw4uK/eUZwyOjD9fgVYp8mxWlHWbM
-# zohTqN8H98Y8tbJTh7zCq1rCTC7wzw++Hfb2WM/w2JoS7wrDnPZdJYLh+D3gKgGg
-# 8o3LmV+qwTDSVp4aJkX9iRhy5jCWcxEXXcNDHH/seSrzcBh+3Ra9QL0f41SlI6rY
-# m6uNEgQNeydhtu1VdzgVwGoraBPEFoFWBXdk3898g168NiJBjHpyOLhLW2OK5MgQ
-# oYrB2QBHR7opMQXv4ppQkT11rCcgyoumG/A46ft69xlM8A/ZVC+7tvjhPwbELewA
-# AWYew7g7uYYNOI83KUnL2EBOlNlsiWwU5dMjTlnhZxwnLumHFn31n117YMdJekPk
-# WUppKj4pkg2lJexweok5mGlhbQTtwugJr6B7056OcHKd+C9qTmCM02EDyOlfWx9p
-# MbQ6UJa6IcX0Y0gm1SVcpgcFVxLZALCdL6X9VMFIiGjI9euk3tEXeNuPkFI2pPK4
-# qrvkJHlr2mCg5pKUadYgnQazSq09Fu2/PUPGEEYucs8ftrKCaEM2ZQKW8tR2NBIh
-# MO58zaz1ososRMavTgwGS5mebC1xikdLa4KigaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBaL3AfOt/f
+# E48H9tzETaBd88TX4PlV5WQvkCOtavXV2zANBgkqhkiG9w0BAQEFAASCAgA5P8Y7
+# P07oDRByYKL2ayJW6LCUl7pLb+JWUwtn9hQPL4O/iKz9I9wFq+T4xAZlbvKlXjWf
+# q0bSC/nKuZPf2W6F652jPg2G6jbtQP5lGFGDvHz3nM0lUjpc08af0Xvg3clV6h6u
+# DJBXZpmva6md+DuqczmQ+Ty1wZoJoXf9dVV6VMT7hJuRcthjnitUtnnYk/f38uLY
+# mQi7zVawZQxHb91d4a9MBWBVENrKPgrRzBInySBiDB6VEbYr8JEGx/Wnv10kWYbX
+# 4gOG4LFJY1ko7rnAu5uJgIRQI1/AfJTwp5Fm0pUuks9wUXDrcl93HsZRfNhCroZV
+# M9SZqQwQY5CSBn4XU7sjuuSRoEpIVc3jv3mF22PZOAsAURwms70Hbq1OYRqUcl84
+# 5NUjuxftPqHufc9ifqRJb57JaYQYoXtSUye1nx28GwdcjQS70sPAWEXdjDxMWhJ2
+# RWNg2pXlkAOVj5+LnHWxN8z7o1YpXTeU5Pxm7cclDfAufpMFYWFtpbGJfYzG8y5u
+# 9Th7CSHzRn4Kq9E3IB029bW11SU38e3ERDOJfh4ovVGPrCcaIVGx30Jgk4QfI+Dh
+# Y6i2scSkvRWXpHCUWmsEoNOHbWK8CF0XrSPZ9vXOk5J1Wy8Wxxfq6Il52KZCUZyM
+# oqb1441aesySGVWITsI2YlL5dK8HWspkzUbezKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MTMwMzA0MzNaMC8GCSqGSIb3DQEJBDEiBCB5U0NckAOgaHmnhAxX
-# tFKaWPEuKy+3jSXvALlXFiHXYTANBgkqhkiG9w0BAQEFAASCAgAO0x51uTzHiFDn
-# CYsCf/heiKew6/3m39qbdLEa9HRSa0x3d4tVP7Ds4/G2Vf5CZrmFNMqj0z4OfVg2
-# fJMmuMRHA11s5sPLtHdj2sPvvO7GWUxOdDKA2Ppgc/ChCvCVTuLPJeQxXggBB4Ad
-# c0ZaXwQWSoubhCM90KlhoTS4CH7HMrbEZkpeUriFWmVp4D81BXuLUiJfLstJAhRG
-# AA0ROvGVab47+jw2x6bc64YfddAEWUdmaELp1yUK2tPH1/sgzP+zzrKT2SQylGHo
-# sAAHW8rOGMleFrhNBoEWaRiwcvH/zgUbOsOzxK0yEtYi6vRsyAMEW3ix7lCj8tCc
-# /6MSw8X6RZL5GafD7YEagoPyM3gMYp/ZueTqVkax9q+r+6Fjlw5tiq5o2FdGSBpp
-# pNux7GibHbgZvuBgHzjwN5hcSmfE1KeuVeEqskAs/UfBKm1ppa9pGpSFlS+0nA6k
-# kteN3piATQyMOIfBDSVb4oLXyLNGvJq2yNJOHhCuku8PyAM3z9qFDWXPTEPZ+gOY
-# m/+/dlb1QJcRZ6n3mG/vxNHEa1JYsfw9XW+E04uvZfcH72v7PAylkKuytl6raw4i
-# jydCLbJrIvRzUsWrJWnHEFdERFWZ1Q0o1/mOrkxzJ67OevJdBcnq2yzYABZT0pMy
-# zorpgZx3L+M9U81YMFPh+H9BIwoQiw==
+# BTEPFw0yNjA3MTQwNDQ4MDRaMC8GCSqGSIb3DQEJBDEiBCCWxLP38Yvf33Remwnx
+# 4KoKTEyNobZH+Z0eNjzYU6wOdzANBgkqhkiG9w0BAQEFAASCAgCqKyHsl3Uy47jA
+# 5ZCw+ancRN7FRXcQTskY/8QpWhxocMnEryH9gbh09C1sYiZ9mL6qTWlNvXAjwAgA
+# 3xApoTg00sNvo2jKB+zncdi5W1qvRZXrwfkH6yFHTkRwLGSeZ0ODafEabqhypwJg
+# wHIEZCvyQvtRbqlD6jF3npddQdMwUQVo9rHkDU0Y8gI/zA0BNSImOaRlBi6Vo//9
+# 8dWLPn72/HOzNYKrUrCPlar4jsTSKTyP371ufmUx5GaWW3KI4Y9yp3t09lmqNReG
+# E+9KmvPmO5fXbkMfJw4YBWNvHYwo+rGj2xwoIJc77fa1TD5X0gsZNNu4+6Inr8pu
+# UKnZKr0tDWG2LyYKxZlkOl3ZFCOfvYwfnlyHooGOxwXD155FNbJYIRwPXScaCnT1
+# VQDfet7GcOf3qrrExENHd+UYbT1tFrHYPy8/EFsYaaCRs7rxtsY4xCX2fJlydeYz
+# y9Lyt1OAif67++9X3AHSSsat1q9khrzPK6duVclzHnxWlrn40cz4XHDxOXASos/A
+# Z33qHJnt9bq/uZ7RT4n5WyLpoUBzbkuggCQmPvUaqF2qjpFMYPk5AohS5rKDf9pZ
+# IOnX4tieNx9848wxI2LQ1rwxQfhFbuhiynz7cnZTo3CLhS7nPHuDZdrpVCuV8VpP
+# 2tXjoEWzuw4LpjVS+mLZ4b7vn3/LDg==
 # SIG # End signature block

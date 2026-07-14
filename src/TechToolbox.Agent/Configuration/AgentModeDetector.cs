@@ -20,20 +20,26 @@ public static class AgentModeDetector
 
         // Check if TechToolbox PowerShell tools are available
         var toolNames = registry.Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
+        var genericBuiltInTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "read-file",
+            "write-file",
+            "append-file",
+            "finalize-file-write",
+            "replace-in-file",
+            "list-directory",
+            "fetch-url",
+        };
 
         var hasPowerShellTools = toolNames.Any(name =>
-            !name.Equals("read-file", StringComparison.OrdinalIgnoreCase)
-            && !name.Equals("write-file", StringComparison.OrdinalIgnoreCase)
-            && !name.Equals("list-directory", StringComparison.OrdinalIgnoreCase)
+            !genericBuiltInTools.Contains(name)
         );
 
         if (hasPowerShellTools)
             return AgentMode.TechToolbox;
 
         // Only basic file tools available
-        var hasFileTools = toolNames.Contains("read-file")
-            || toolNames.Contains("write-file")
-            || toolNames.Contains("list-directory");
+        var hasFileTools = toolNames.Any(genericBuiltInTools.Contains);
 
         if (hasFileTools && !hasPowerShellTools)
             return AgentMode.Assistant;

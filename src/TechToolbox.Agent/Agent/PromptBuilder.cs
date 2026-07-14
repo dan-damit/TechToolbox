@@ -256,6 +256,12 @@ Invalid response snippet:
         sb.AppendLine(
             "- For localized edits to an existing large file, prefer REPLACE-IN-FILE instead of rewriting the entire file with WRITE-FILE."
         );
+        sb.AppendLine(
+            "- For very large generated outputs, prefer APPEND-FILE in multiple chunks (set truncateFirst=true on the first chunk) to avoid truncated single-response writes."
+        );
+        sb.AppendLine(
+            "- If you used APPEND-FILE chunks for a required output file, call FINALIZE-FILE-WRITE on the same path before returning finalAnswer."
+        );
         sb.AppendLine("- Never invent tool results.");
         sb.AppendLine("- Use only exact tool names from the available tools list.");
         sb.AppendLine("- Prefer the smallest useful number of tool calls.");

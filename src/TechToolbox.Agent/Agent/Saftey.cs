@@ -41,6 +41,7 @@ public static class Safety
     )
     {
         "WRITE-FILE",
+        "APPEND-FILE",
         "REPLACE-IN-FILE",
     };
 

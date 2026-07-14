@@ -42,7 +42,7 @@ public partial class AgentOrchestrator
     [GeneratedRegex("(?is)\\b(write|rewrite|update|edit|modify|insert|create)\\b|\\buse\\s+write(?:-|=|\\s*)file\\b|\\bwrite(?:-|=|\\s*)file\\b")]
     private static partial Regex WriteIntentRegex();
 
-    [GeneratedRegex("(?i)(?<path>[A-Za-z]:\\\\[^\\\"'`\\r\\n]*?\\.[A-Za-z0-9]{1,16})\\b")]
+    [GeneratedRegex("(?i)(?<path>[A-Za-z]:\\\\[^\\\"'`\\r\\n]*\\.[A-Za-z0-9]{1,16})(?=\\s|$|[)\\],;:])")]
     private static partial Regex DirectFilePathRegex();
 
     [GeneratedRegex("^\\s*(begin|process|end)\\s*\\{", RegexOptions.IgnoreCase)]
@@ -81,9 +81,19 @@ public partial class AgentOrchestrator
         _llm.DiagnosticTrace = msg => Trace($"LlmClient {msg}");
     }
 
-    public AgentResult Run(string prompt) => RunAsync(prompt).GetAwaiter().GetResult();
+    /// <summary>
+/// Runs the agent synchronously with the given prompt.
+/// </summary>
+/// <param name="prompt">The user prompt to process.</param>
+/// <returns>An <see cref="AgentResult"/> containing the output and execution details.</returns>
+public AgentResult Run(string prompt) => RunAsync(prompt).GetAwaiter().GetResult();
 
-    public async Task<AgentResult> RunAsync(string prompt)
+    /// <summary>
+/// Runs the agent asynchronously with the given prompt.
+/// </summary>
+/// <param name="prompt">The user prompt to process.</param>
+/// <returns>A task representing the asynchronous operation, returning an <see cref="AgentResult"/> with output and execution details.</returns>
+public async Task<AgentResult> RunAsync(string prompt)
     {
         prompt ??= string.Empty;
         Trace(
@@ -191,6 +201,7 @@ public partial class AgentOrchestrator
             : _expectedOutputPath;
         var requiresWriteFile = !string.IsNullOrWhiteSpace(expectedOutputPath);
         var writeFileCompleted = false;
+        var writeFinalizeRequired = false;
 
         if (requiresWriteFile)
         {
@@ -203,10 +214,15 @@ public partial class AgentOrchestrator
         {
             Trace($"Iteration {i + 1}/{iterationLimit} start messages={messages.Count}");
 
-            var llmResponse = await _llm.GenerateDecisionAsync(messages).ConfigureAwait(false);
+            // Create incremental validator and call LLM with streaming
+            var validator = CreateIncrementalDecisionValidator(expectedOutputPath, i + 1, out var foundValidDecision);
+            var llmResponse = await _llm.GenerateDecisionWithCallbackAsync(messages, validator)
+                .ConfigureAwait(false);
             var raw = (llmResponse.Text ?? "").Trim();
 
-            Trace($"Iteration {i + 1} response length={raw.Length} preview={Preview(raw)}");
+            Trace(
+                $"Iteration {i + 1} response length={raw.Length} stoppedEarly={!llmResponse.Success} preview={Preview(raw)}"
+            );
 
             if (string.IsNullOrWhiteSpace(raw) || IsRetryableLlmFailure(raw))
             {
@@ -260,12 +276,18 @@ public partial class AgentOrchestrator
 
                 messages.Add(PromptBuilder.BuildRepairMessage(invalidResponseForRepair));
 
-                var repairResponse = await _llm.GenerateDecisionAsync(messages)
+                // Use incremental validator for repair response as well
+                var repairValidator = CreateIncrementalDecisionValidator(
+                    expectedOutputPath,
+                    i + 1,
+                    out var repairFoundValidDecision
+                );
+                var repairResponse = await _llm.GenerateDecisionWithCallbackAsync(messages, repairValidator)
                     .ConfigureAwait(false);
                 var repairedRaw = (repairResponse.Text ?? "").Trim();
 
                 Trace(
-                    $"Iteration {i + 1} repair response length={repairedRaw.Length} preview={Preview(repairedRaw)}"
+                    $"Iteration {i + 1} repair response length={repairedRaw.Length} stoppedEarly={!repairResponse.Success} preview={Preview(repairedRaw)}"
                 );
 
                 if (string.IsNullOrWhiteSpace(repairedRaw) || IsRetryableLlmFailure(repairedRaw))
@@ -341,12 +363,20 @@ public partial class AgentOrchestrator
 
                         messages.Add(PromptBuilder.BuildWriteFileRecoveryMessage(repairedRaw));
 
-                        var writeFileRecoveryResponse = await _llm.GenerateDecisionAsync(messages)
-                            .ConfigureAwait(false);
+                        // Use incremental validator for write file recovery as well
+                        var recoveryValidator = CreateIncrementalDecisionValidator(
+                            expectedOutputPath,
+                            i + 1,
+                            out var recoveryFoundValidDecision
+                        );
+                        var writeFileRecoveryResponse = await _llm.GenerateDecisionWithCallbackAsync(
+                            messages,
+                            recoveryValidator
+                        ).ConfigureAwait(false);
                         var writeFileRecoveryRaw = (writeFileRecoveryResponse.Text ?? "").Trim();
 
                         Trace(
-                            $"Iteration {i + 1} targeted recovery response length={writeFileRecoveryRaw.Length} preview={Preview(writeFileRecoveryRaw)}"
+                            $"Iteration {i + 1} targeted recovery response length={writeFileRecoveryRaw.Length} stoppedEarly={!writeFileRecoveryResponse.Success} preview={Preview(writeFileRecoveryRaw)}"
                         );
 
                         if (
@@ -461,7 +491,7 @@ public partial class AgentOrchestrator
                 if (requiresWriteFile && !writeFileCompleted)
                 {
                     var requirementError =
-                        $"Required file update step has not completed yet. Use WRITE-FILE or REPLACE-IN-FILE on '{expectedOutputPath}' before returning finalAnswer.";
+                        $"Required file update step has not completed yet. Use WRITE-FILE, APPEND-FILE, or REPLACE-IN-FILE on '{expectedOutputPath}' before returning finalAnswer.";
 
                     Trace(
                         $"Iteration {i + 1} blocked final answer because WRITE-FILE hard requirement is unmet."
@@ -470,6 +500,24 @@ public partial class AgentOrchestrator
                         PromptBuilder.BuildToolResultMessage(
                             "FILE-UPDATE",
                             requirementError,
+                            succeeded: false
+                        )
+                    );
+                    continue;
+                }
+
+                if (requiresWriteFile && writeFinalizeRequired)
+                {
+                    var finalizeError =
+                        $"Chunked APPEND-FILE write is not finalized yet. Call FINALIZE-FILE-WRITE on '{expectedOutputPath}' before returning finalAnswer.";
+
+                    Trace(
+                        $"Iteration {i + 1} blocked final answer because FINALIZE-FILE-WRITE is required after APPEND-FILE."
+                    );
+                    messages.Add(
+                        PromptBuilder.BuildToolResultMessage(
+                            "FINALIZE-FILE-WRITE",
+                            finalizeError,
                             succeeded: false
                         )
                     );
@@ -504,6 +552,8 @@ public partial class AgentOrchestrator
             }
 
             toolNames.Add(toolName);
+            var isFileUpdateTool = IsFileUpdateTool(toolName);
+            var isFinalizeTool = IsFileWriteFinalizeTool(toolName);
 
             string jsonArgs;
             try
@@ -538,7 +588,7 @@ public partial class AgentOrchestrator
                 toolResult = ex.Message;
             }
 
-            if (requiresWriteFile && IsFileUpdateTool(toolName))
+            if (requiresWriteFile && (isFileUpdateTool || isFinalizeTool))
             {
                 if (!TryGetToolArgString(decision.ToolArgs, "path", out var writePath))
                 {
@@ -577,7 +627,7 @@ public partial class AgentOrchestrator
 
             if (
                 requiresWriteFile
-                && IsFileUpdateTool(toolName)
+                && isFileUpdateTool
                 && toolExecutionSucceeded
                 && !toolResult.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
             )
@@ -585,7 +635,16 @@ public partial class AgentOrchestrator
                 if (File.Exists(expectedOutputPath!))
                 {
                     writeFileCompleted = true;
-                    Trace($"Iteration {i + 1} marked file-update hard requirement as completed via {toolName}.");
+                    if (string.Equals(toolName, "APPEND-FILE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        writeFinalizeRequired = true;
+                        Trace($"Iteration {i + 1} marked file-update as completed via APPEND-FILE and now requires FINALIZE-FILE-WRITE.");
+                    }
+                    else
+                    {
+                        writeFinalizeRequired = false;
+                        Trace($"Iteration {i + 1} marked file-update hard requirement as completed via {toolName}.");
+                    }
                 }
                 else
                 {
@@ -595,6 +654,32 @@ public partial class AgentOrchestrator
                     Trace(
                         $"Iteration {i + 1} file-update tool returned success but expected file was missing: tool={toolName} path={expectedOutputPath}"
                     );
+                }
+            }
+
+            if (
+                requiresWriteFile
+                && isFinalizeTool
+                && toolExecutionSucceeded
+                && !toolResult.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                if (!writeFileCompleted)
+                {
+                    toolExecutionSucceeded = false;
+                    toolResult =
+                        "FINALIZE-FILE-WRITE cannot run before a successful file update. Use WRITE-FILE/APPEND-FILE/REPLACE-IN-FILE first.";
+                }
+                else if (!File.Exists(expectedOutputPath!))
+                {
+                    toolExecutionSucceeded = false;
+                    toolResult =
+                        $"FINALIZE-FILE-WRITE reported success but expected output file does not exist at '{expectedOutputPath}'.";
+                }
+                else
+                {
+                    writeFinalizeRequired = false;
+                    Trace($"Iteration {i + 1} marked chunked file-update finalize requirement as completed.");
                 }
             }
 
@@ -1036,7 +1121,7 @@ Next best action:
         if (!decision.NeedsTool)
             return false;
 
-        if (!IsFileUpdateTool(decision.ToolName))
+        if (!IsFileUpdateTool(decision.ToolName) && !IsFileWriteFinalizeTool(decision.ToolName))
             return false;
 
         if (string.IsNullOrWhiteSpace(expectedOutputPath))
@@ -1052,6 +1137,56 @@ Next best action:
 
         decision.ToolArgs["path"] = expectedOutputPath;
         return true;
+    }
+
+    /// <summary>
+    /// Creates a callback for incremental decision validation during streaming.
+    /// Parses and validates decisions as content accumulates, enabling early stop when a valid decision is found.
+    /// </summary>
+    /// <param name="expectedOutputPath">Optional expected file path for WRITE-FILE operations.</param>
+    /// <param name="iterationNumber">Current iteration number for tracing.</param>
+    /// <param name="foundValidDecision">Output: true if a valid decision was found during streaming.</param>
+    /// <returns>An async callback that returns true when a valid decision is discovered.</returns>
+    private Func<string, Task<bool>> CreateIncrementalDecisionValidator(
+        string? expectedOutputPath,
+        int iterationNumber,
+        out bool foundValidDecision
+    )
+    {
+        foundValidDecision = false;
+
+        return async (accumulatedContent) =>
+        {
+            // Try to parse the accumulated content as a decision
+            if (!JsonHelpers.TryParseDecision(accumulatedContent, out var decision) || decision is null)
+            {
+                // Not yet a valid JSON decision, continue streaming
+                return false;
+            }
+
+            // Attempt to populate missing write file path if needed
+            if (TryPopulateMissingWriteFilePath(decision, expectedOutputPath))
+            {
+                Trace(
+                    $"Iteration {iterationNumber} inferred missing WRITE-FILE path from hard requirement during streaming: {expectedOutputPath}"
+                );
+            }
+
+            // Validate the decision schema
+            if (!TryValidateDecision(decision, out var validationError))
+            {
+                Trace(
+                    $"Iteration {iterationNumber} streaming decision failed schema validation: {validationError}"
+                );
+                // Schema invalid, but might improve as more content streams in, so continue
+                return false;
+            }
+
+            // Found a valid decision!
+            Trace($"Iteration {iterationNumber} found valid decision during streaming; stopping early");
+            await Task.CompletedTask;
+            return true;
+        };
     }
 
     private static bool TryValidateDecision(AgentDecision decision, out string error)
@@ -1089,6 +1224,30 @@ Next best action:
                 if (!TryGetToolArgString(decision.ToolArgs, "content", out _))
                 {
                     error = "WRITE-FILE requires non-empty string toolArgs.content";
+                    return false;
+                }
+            }
+
+            if (string.Equals(decision.ToolName, "APPEND-FILE", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!TryGetToolArgString(decision.ToolArgs, "path", out _))
+                {
+                    error = "APPEND-FILE requires non-empty string toolArgs.path";
+                    return false;
+                }
+
+                if (!TryGetToolArgString(decision.ToolArgs, "content", out _))
+                {
+                    error = "APPEND-FILE requires non-empty string toolArgs.content";
+                    return false;
+                }
+            }
+
+            if (string.Equals(decision.ToolName, "FINALIZE-FILE-WRITE", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!TryGetToolArgString(decision.ToolArgs, "path", out _))
+                {
+                    error = "FINALIZE-FILE-WRITE requires non-empty string toolArgs.path";
                     return false;
                 }
             }
@@ -1146,7 +1305,13 @@ Next best action:
     private static bool IsFileUpdateTool(string? toolName)
     {
         return string.Equals(toolName, "WRITE-FILE", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(toolName, "APPEND-FILE", StringComparison.OrdinalIgnoreCase)
             || string.Equals(toolName, "REPLACE-IN-FILE", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFileWriteFinalizeTool(string? toolName)
+    {
+        return string.Equals(toolName, "FINALIZE-FILE-WRITE", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryExtractToolResult(
@@ -1365,8 +1530,17 @@ Next best action:
     }
 }
 
+/// <summary>
+/// Represents the result of a run loop iteration.
+/// </summary>
+/// <param name="OutputText">The output text from the run loop.</param>
+/// <param name="ReachedIterationLimit">Whether the iteration limit was reached.</param>
 public record RunLoopResult(string OutputText, bool ReachedIterationLimit);
 
+/// <summary>
+/// Represents the result of an agent run, including output, tool usage, and timing information.
+/// </summary>
+/// <param name="output">The final output text from the agent run.</param>
 public class AgentResult(string output)
 {
     public string OutputText { get; } = output;

@@ -2,8 +2,8 @@ namespace TechToolbox.Agent.Registry;
 
 /// <summary>
 /// Provides generic built-in tools available to all agent modes:
-/// file I/O operations (READ-FILE, WRITE-FILE, REPLACE-IN-FILE, LIST-DIRECTORY).
-/// These are safe, non-destructive operations suitable for any use case.
+/// file I/O operations (READ-FILE, WRITE-FILE, APPEND-FILE, FINALIZE-FILE-WRITE,
+/// REPLACE-IN-FILE, LIST-DIRECTORY).
 /// </summary>
 public class GenericToolProvider : IToolProvider
 {
@@ -82,6 +82,46 @@ public class GenericToolProvider : IToolProvider
                         Mandatory: true,
                         Type: "System.String",
                         Help: "Text content to write."
+                    ),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
+            new ToolSpec(
+                Name: "APPEND-FILE",
+                Description:
+                    "Appends text to a file, creating parent directories as needed. Use truncateFirst=true on the first chunk to replace existing content before appending.",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Absolute or relative file path."
+                    ),
+                    ["content"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Text content to append."
+                    ),
+                    ["truncateFirst"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Boolean",
+                        Help: "Optional. When true, truncates/replaces the file before appending this chunk."
+                    ),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
+            new ToolSpec(
+                Name: "FINALIZE-FILE-WRITE",
+                Description:
+                    "Finalizes a chunked APPEND-FILE write for a target path and returns file stats to confirm completion.",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Absolute or relative file path that was written via APPEND-FILE chunks."
                     ),
                 },
                 Module: "TechToolbox.Agent.Builtin",

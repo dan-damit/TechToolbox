@@ -335,6 +335,68 @@ public static class PowerShellBridge
             return true;
         }
 
+        if (toolName.Equals("APPEND-FILE", StringComparison.OrdinalIgnoreCase))
+        {
+            Safety.RequireDestructiveConfirmation(toolName, args);
+
+            var path = GetRequiredStringArg(args, "path");
+            var content = GetRequiredStringArg(args, "content");
+            var truncateFirst = GetOptionalBoolArg(args, "truncateFirst");
+
+            if (truncateFirst && File.Exists(path))
+            {
+                var existingContent = File.ReadAllText(path);
+                if (ShouldBlockSuspiciousShortOverwrite(existingContent, content, args, out var reason))
+                {
+                    throw new InvalidOperationException(reason);
+                }
+            }
+
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            if (truncateFirst)
+            {
+                File.WriteAllText(path, content);
+            }
+            else
+            {
+                File.AppendAllText(path, content);
+            }
+
+            result = "ok";
+            return true;
+        }
+
+        if (toolName.Equals("FINALIZE-FILE-WRITE", StringComparison.OrdinalIgnoreCase))
+        {
+            var path = GetRequiredStringArg(args, "path");
+
+            if (!File.Exists(path))
+            {
+                throw new FileNotFoundException($"File not found: {path}", path);
+            }
+
+            var text = File.ReadAllText(path);
+            var bytes = new FileInfo(path).Length;
+
+            result = JsonSerializer.Serialize(
+                new
+                {
+                    kind = "finalize-file-write",
+                    path,
+                    chars = text.Length,
+                    lines = CountLines(text),
+                    bytes,
+                },
+                SummaryJsonOptions
+            );
+            return true;
+        }
+
         if (toolName.Equals("REPLACE-IN-FILE", StringComparison.OrdinalIgnoreCase))
         {
             Safety.RequireDestructiveConfirmation(toolName, args);

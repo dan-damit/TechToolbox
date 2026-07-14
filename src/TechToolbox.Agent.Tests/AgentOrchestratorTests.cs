@@ -533,6 +533,74 @@ the file.
     }
 
     [Fact]
+    public async Task RunAsync_InfersExpectedPath_FromDirectWriteIntentPrompt_WhenDirectoryContainsDots()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent.directpath-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var targetPath = Path.Combine(tempRoot, "AgentOrchestrator.cs");
+            var jsonPath = targetPath.Replace("\\", "\\\\", StringComparison.Ordinal);
+
+            var llm = new RecordingFakeLlmClient(
+                new[]
+                {
+                    FinalDecision("I will now write the file."),
+                    $"{{\"needsTool\":true,\"toolName\":\"WRITE-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"content\":\"updated\"}},\"reason\":\"apply docs\"}}",
+                    FinalDecision("Done"),
+                }
+            );
+
+            var tools = new Dictionary<string, Func<string, Task<string>>>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["WRITE-FILE"] = args =>
+                {
+                    using var doc = JsonDocument.Parse(args);
+                    var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+                    var content = doc.RootElement.GetProperty("content").GetString() ?? string.Empty;
+                    File.WriteAllText(path, content);
+                    return Task.FromResult("ok");
+                },
+            };
+
+            var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 8, autoRetry: false);
+
+            var prompt = $"""
+Please read the function at:
+{targetPath}
+
+Generate complete comments-based help within the function itself at the
+specified path. Make sure to include XML documentation comments for all public
+methods and classes within the file.
+
+Use WRITE=FILE to insert the generated XML documentation comments directly into
+the file.
+""";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Done", result.OutputText);
+            Assert.True(File.Exists(targetPath));
+            Assert.Equal("updated", File.ReadAllText(targetPath));
+            Assert.Contains(
+                "Required file update step has not completed yet",
+                llm.MessageSnapshots[1].Last().Content
+            );
+            Assert.Contains("WRITE-FILE", result.ToolNames);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_InferWriteFilePath_WhenMissingAndPromptRequiresExactOutputPath()
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-infer-path-{Guid.NewGuid():N}");
@@ -752,6 +820,85 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
             Assert.Equal("Done", result.OutputText);
             Assert.Contains("REPLACE-IN-FILE", result.ToolNames);
             Assert.Contains("/// <summary>Demo.</summary>", File.ReadAllText(expectedOutputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_BlocksFinalAnswerUntilFinalizeAfterAppendFile_ForRequiredOutputPath()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-append-finalize-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var expectedOutputPath = Path.Combine(tempRoot, "about_Test.help.txt");
+            var jsonPath = expectedOutputPath.Replace("\\", "\\\\", StringComparison.Ordinal);
+
+            var llm = new RecordingFakeLlmClient(
+                new[]
+                {
+                    $"{{\"needsTool\":true,\"toolName\":\"APPEND-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"content\":\"line-1\\n\",\"truncateFirst\":true}},\"reason\":\"write chunk\"}}",
+                    FinalDecision("Done too early"),
+                    $"{{\"needsTool\":true,\"toolName\":\"FINALIZE-FILE-WRITE\",\"toolArgs\":{{\"path\":\"{jsonPath}\"}},\"reason\":\"finalize chunked write\"}}",
+                    FinalDecision("Done"),
+                }
+            );
+
+            var tools = new Dictionary<string, Func<string, Task<string>>>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["APPEND-FILE"] = args =>
+                {
+                    using var doc = JsonDocument.Parse(args);
+                    var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+                    var content = doc.RootElement.GetProperty("content").GetString() ?? string.Empty;
+                    var truncateFirst = doc.RootElement.TryGetProperty("truncateFirst", out var truncateEl)
+                        && truncateEl.ValueKind == JsonValueKind.True;
+
+                    if (truncateFirst)
+                    {
+                        File.WriteAllText(path, content);
+                    }
+                    else
+                    {
+                        File.AppendAllText(path, content);
+                    }
+
+                    return Task.FromResult("ok");
+                },
+                ["FINALIZE-FILE-WRITE"] = args =>
+                {
+                    using var doc = JsonDocument.Parse(args);
+                    var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+                    var content = File.ReadAllText(path);
+                    return Task.FromResult($"{{\"kind\":\"finalize-file-write\",\"chars\":{content.Length}}}");
+                },
+            };
+
+            var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 8, autoRetry: false);
+
+            var prompt =
+                $"Create help doc\n\nHard requirement:\n- Create the output file at this exact path: {expectedOutputPath}\n- Use WRITE-FILE to create/update the file.\n- Do not return a final answer until WRITE-FILE has succeeded.";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Done", result.OutputText);
+            Assert.Equal(2, result.ToolCallCount);
+            Assert.Contains("APPEND-FILE", result.ToolNames);
+            Assert.Contains("FINALIZE-FILE-WRITE", result.ToolNames);
+            Assert.True(llm.MessageSnapshots.Count >= 3);
+            Assert.Contains(
+                "Chunked APPEND-FILE write is not finalized yet",
+                llm.MessageSnapshots[2].Last().Content
+            );
         }
         finally
         {
@@ -1144,6 +1291,24 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
             var next = _responses.Count > 0 ? _responses.Dequeue() : "No more responses";
             return Task.FromResult(new LlmResponse(next, next, true));
         }
+
+        public override async Task<LlmResponse> GenerateDecisionWithCallbackAsync(
+            IReadOnlyList<AgentChatMessage> messages,
+            Func<string, Task<bool>>? onContentAccumulated = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            var next = _responses.Count > 0 ? _responses.Dequeue() : "No more responses";
+            
+            // Simulate streaming by calling callback with complete content
+            if (onContentAccumulated is not null)
+            {
+                var shouldStop = await onContentAccumulated(next);
+                return new LlmResponse(next, next, !shouldStop);
+            }
+
+            return new LlmResponse(next, next, true);
+        }
     }
 
     private sealed class RecordingFakeLlmClient : LlmClient
@@ -1171,6 +1336,30 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
 
             var next = _responses.Count > 0 ? _responses.Dequeue() : "No more responses";
             return Task.FromResult(new LlmResponse(next, next, true));
+        }
+
+        public override async Task<LlmResponse> GenerateDecisionWithCallbackAsync(
+            IReadOnlyList<AgentChatMessage> messages,
+            Func<string, Task<bool>>? onContentAccumulated = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            MessageSnapshots.Add(
+                messages
+                    .Select(m => new AgentChatMessage { Role = m.Role, Content = m.Content })
+                    .ToList()
+            );
+
+            var next = _responses.Count > 0 ? _responses.Dequeue() : "No more responses";
+            
+            // Simulate streaming by calling callback with complete content
+            if (onContentAccumulated is not null)
+            {
+                var shouldStop = await onContentAccumulated(next);
+                return new LlmResponse(next, next, !shouldStop);
+            }
+
+            return new LlmResponse(next, next, true);
         }
     }
 
@@ -1203,6 +1392,33 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
                     : new LlmResponse("No more responses", "", false);
 
             return Task.FromResult(next);
+        }
+
+        public override async Task<LlmResponse> GenerateDecisionWithCallbackAsync(
+            IReadOnlyList<AgentChatMessage> messages,
+            Func<string, Task<bool>>? onContentAccumulated = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            MessageSnapshots.Add(
+                messages
+                    .Select(m => new AgentChatMessage { Role = m.Role, Content = m.Content })
+                    .ToList()
+            );
+
+            var next =
+                _responses.Count > 0
+                    ? _responses.Dequeue()
+                    : new LlmResponse("No more responses", "", false);
+
+            // Simulate streaming by calling callback with complete content
+            if (onContentAccumulated is not null && !string.IsNullOrEmpty(next.Text))
+            {
+                var shouldStop = await onContentAccumulated(next.Text);
+                return new LlmResponse(next.Text, next.RawBody, !shouldStop);
+            }
+
+            return next;
         }
     }
 }
