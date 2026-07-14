@@ -256,7 +256,9 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 
 The **TechAgent** uses a _structured JSON decision schema_ and will have an
 easier time writing files when the prompt clearly specifies the required
-WRITE-FILE action.
+WRITE-FILE action. A new tool has been created for the agent to use when
+modifying existing files. REPLACE-IN-FILE should be preferred for localized
+edits.
 
 Use a prompt similar to the following for consistent results:
 
