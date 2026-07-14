@@ -87,12 +87,13 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User'
                'Invoke-SubnetScan', 'Invoke-SystemRepair', 'Invoke-TechAgent', 
                'New-OnPremUserFromTemplate', 'Remove-EpicorEdgeAgent', 
                'Remove-Printers', 'Reset-ADPassword', 
-               'Reset-WindowsUpdateComponents', 'Search-User', 'Set-EmailAlias', 
-               'Set-OneTimeReboot', 'Set-PageFileSize', 'Set-ProxyAddress', 
-               'Start-DnsQueryLogger', 'Start-NewPSRemoteSession', 
-               'Start-PDQDiagLocalElevated', 'Stop-PSRemoteSession', 
-               'Test-MailHeaderAuth', 'Test-PathAs', 'Test-TTPathRoots', 
-               'Watch-ISPConnection'
+               'Reset-WindowsUpdateComponents', 'Restart-SecureCrimpAll', 
+               'Restart-SecureCrimpAuxTasks', 'Restart-SecureCrimpStack', 
+               'Search-User', 'Set-EmailAlias', 'Set-OneTimeReboot', 
+               'Set-PageFileSize', 'Set-ProxyAddress', 'Start-DnsQueryLogger', 
+               'Start-NewPSRemoteSession', 'Start-PDQDiagLocalElevated', 
+               'Stop-PSRemoteSession', 'Test-MailHeaderAuth', 'Test-PathAs', 
+               'Test-TTPathRoots', 'Watch-ISPConnection'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
