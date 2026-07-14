@@ -182,8 +182,7 @@ function Clear-BrowserProfileData {
         [string]$Ps7ConfigName = 'PowerShell.7',
         [string]$WinPsConfigName = 'Microsoft.PowerShell',
         [string]$UserName,
-        [string]$KeyFilePath,
-        [int]$RemoteTaskTimeoutSec = 180
+        [string]$KeyFilePath
     )
 
     begin {
@@ -231,24 +230,46 @@ function Clear-BrowserProfileData {
             Chrome = @{ ProcessName = 'chrome'; DisplayName = 'Google Chrome' }
             Edge   = @{ ProcessName = 'msedge'; DisplayName = 'Microsoft Edge' }
         }
+
+        $moduleRoot = Get-ModuleRoot
+        $workerPath = Join-Path $moduleRoot 'Workers\Clear-BrowserProfileData.Worker.ps1'
+        $workerText = Get-Content -LiteralPath $workerPath -Raw -Encoding UTF8
+
+        function Test-IsLocalTarget {
+            param([string]$Name)
+
+            if ([string]::IsNullOrWhiteSpace($Name)) { return $true }
+
+            $normalized = $Name.Trim().ToLowerInvariant()
+            if ($normalized -in @('.', 'localhost', '127.0.0.1', '::1')) { return $true }
+
+            $localName = $env:COMPUTERNAME.ToLowerInvariant()
+            if ($normalized -eq $localName) { return $true }
+            if ($normalized.StartsWith("$localName.")) { return $true }
+
+            return $false
+        }
     }
 
     process {
-        if ($ComputerName -and @($ComputerName).Count -gt 0) {
+        if ($PSBoundParameters.ContainsKey('ComputerName') -and @($ComputerName).Count -gt 0) {
             if (-not (Get-Command -Name Start-NewPSRemoteSession -ErrorAction SilentlyContinue)) {
                 throw "Start-NewPSRemoteSession is required for remote execution but was not found in the current session."
             }
 
+            $runLocal = $false
             foreach ($targetComputer in @($ComputerName | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)) {
-                $actionLabel = "Clear browser profile data under active interactive user context"
-                if (-not $PSCmdlet.ShouldProcess($targetComputer, $actionLabel)) {
+                if (Test-IsLocalTarget -Name $targetComputer) {
+                    $runLocal = $true
                     continue
                 }
 
+                Write-Log -Level Info -Message ("[{0}] Running browser cleanup worker in remote session context." -f $targetComputer)
                 $session = $null
                 try {
                     $sessionParams = @{
                         ComputerName    = $targetComputer
+                        Credential      = $Credential
                         UseSsh          = $UseSsh
                         UseCredSSP      = $UseCredSSP
                         Port            = $Port
@@ -256,290 +277,72 @@ function Clear-BrowserProfileData {
                         WinPsConfigName = $WinPsConfigName
                     }
 
-                    if ($PSBoundParameters.ContainsKey('Credential')) {
-                        $sessionParams.Credential = $Credential
-                    }
                     if ($PSBoundParameters.ContainsKey('UserName')) {
                         $sessionParams.UserName = $UserName
                     }
+
                     if ($PSBoundParameters.ContainsKey('KeyFilePath')) {
                         $sessionParams.KeyFilePath = $KeyFilePath
                     }
 
                     $session = Start-NewPSRemoteSession @sessionParams
 
+                    $invokeArgs = @(
+                        $workerText
+                        $Browser
+                        ,([string[]]@($Profiles))
+                        $IncludeCookies
+                        $IncludeCache
+                        $SkipLocalStorage
+                        $KillProcesses
+                        $SleepAfterKillMs
+                    )
+
                     $remoteResult = Invoke-Command -Session $session -ErrorAction Stop -ScriptBlock {
                         param(
+                            [string]$WorkerSource,
                             [string]$Browser,
                             [string[]]$Profiles,
                             [bool]$IncludeCookies,
                             [bool]$IncludeCache,
                             [bool]$SkipLocalStorage,
                             [bool]$KillProcesses,
-                            [int]$SleepAfterKillMs,
-                            [int]$TaskTimeoutSec
+                            [int]$SleepAfterKillMs
                         )
 
                         Set-StrictMode -Version Latest
                         $ErrorActionPreference = 'Stop'
 
-                        function Get-ActiveInteractiveUser {
-                            $quser = Get-Command quser.exe -ErrorAction SilentlyContinue
-                            if (-not $quser) { return $null }
+                        . ([ScriptBlock]::Create($WorkerSource))
 
-                            $lines = & quser.exe 2>$null
-                            if (-not $lines) { return $null }
+                        Clear-BrowserProfileDataWorkerCore `
+                            -Browser $Browser `
+                            -Profiles @($Profiles) `
+                            -IncludeCookies $IncludeCookies `
+                            -IncludeCache $IncludeCache `
+                            -SkipLocalStorage $SkipLocalStorage `
+                            -KillProcesses $KillProcesses `
+                            -SleepAfterKillMs $SleepAfterKillMs
+                    } -ArgumentList $invokeArgs
 
-                            foreach ($line in $lines) {
-                                if ($line -match '^\s*>?\s*(\S+)\s+\S+\s+\d+\s+Active\b') {
-                                    return $matches[1]
-                                }
-                            }
-
-                            return $null
-                        }
-
-                        $activeUser = Get-ActiveInteractiveUser
-                        if ([string]::IsNullOrWhiteSpace($activeUser)) {
-                            throw 'No active interactive user session was found on the remote host.'
-                        }
-
-                        if ($activeUser -notmatch '\\') {
-                            if (-not [string]::IsNullOrWhiteSpace($env:USERDOMAIN)) {
-                                $activeUser = "{0}\\{1}" -f $env:USERDOMAIN, $activeUser
-                            }
-                        }
-
-                        $stamp = [guid]::NewGuid().ToString('N')
-                        $taskName = "TT-ClearBrowserProfileData-$stamp"
-                        $outFile = Join-Path $env:windir "Temp\\TT-ClearBrowserProfileData-$stamp.log"
-                        $doneFile = Join-Path $env:windir "Temp\\TT-ClearBrowserProfileData-$stamp.done"
-                        $taskScriptPath = Join-Path $env:windir "Temp\\TT-ClearBrowserProfileData-$stamp.ps1"
-
-                        $payload = [ordered]@{
-                            Browser          = $Browser
-                            Profiles         = @($Profiles)
-                            IncludeCookies   = [bool]$IncludeCookies
-                            IncludeCache     = [bool]$IncludeCache
-                            SkipLocalStorage = [bool]$SkipLocalStorage
-                            KillProcesses    = [bool]$KillProcesses
-                            SleepAfterKillMs = [int]$SleepAfterKillMs
-                        }
-
-                        $payloadJson = ($payload | ConvertTo-Json -Depth 5 -Compress)
-                        $payloadJsonEscaped = $payloadJson.Replace("'", "''")
-
-                        $taskScript = @"
-`$ErrorActionPreference = 'Stop'
-`$payload = ConvertFrom-Json -InputObject '$payloadJsonEscaped'
-
-function Write-TaskLog {
-    param([string]`$Message)
-    Add-Content -LiteralPath '$outFile' -Value ("{0} {1}" -f (Get-Date -Format s), `$Message) -Encoding UTF8
-}
-
-function Get-TargetBrowsers {
-    param([string]`$Requested)
-    switch (`$Requested) {
-        'Chrome' { @('Chrome') }
-        'Edge' { @('Edge') }
-        default { @('Chrome', 'Edge') }
-    }
-}
-
-function Get-UserDataPath {
-    param([string]`$TargetBrowser)
-    switch (`$TargetBrowser) {
-        'Chrome' { Join-Path `$env:LOCALAPPDATA 'Google\\Chrome\\User Data' }
-        'Edge' { Join-Path `$env:LOCALAPPDATA 'Microsoft\\Edge\\User Data' }
-        default { `$null }
-    }
-}
-
-function Get-ProfileDirectories {
-    param([string]`$UserDataPath)
-    if (-not (Test-Path -LiteralPath `$UserDataPath)) { return @() }
-
-    `$all = @()
-    `$defaultPath = Join-Path `$UserDataPath 'Default'
-    if (Test-Path -LiteralPath `$defaultPath) {
-        `$all += Get-Item -LiteralPath `$defaultPath -ErrorAction SilentlyContinue
-    }
-
-    `$all += @(Get-ChildItem -LiteralPath `$UserDataPath -Directory -Filter 'Profile *' -ErrorAction SilentlyContinue)
-    return @(`$all | Where-Object { `$null -ne `$_ } | Sort-Object FullName -Unique)
-}
-
-function Remove-PathIfPresent {
-    param([string]`$LiteralPath)
-    if (Test-Path -LiteralPath `$LiteralPath) {
-        Remove-Item -LiteralPath `$LiteralPath -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
-
-function Clear-CookiesForProfileSimple {
-    param([string]`$ProfilePath, [bool]`$SkipLocalStorage)
-
-    Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'Cookies')
-    Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'Cookies-journal')
-    Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'Network\\Cookies')
-    Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'Network\\Cookies-journal')
-
-    if (-not `$SkipLocalStorage) {
-        Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'Local Storage')
-    }
-}
-
-function Clear-CacheForProfileSimple {
-    param([string]`$ProfilePath)
-
-    Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'Cache')
-    Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'Code Cache')
-    Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'GPUCache')
-    Remove-PathIfPresent -LiteralPath (Join-Path `$ProfilePath 'Service Worker\\CacheStorage')
-}
-
-try {
-    Write-TaskLog "Starting browser cleanup as interactive user: `$env:USERNAME"
-
-    `$targetBrowsers = Get-TargetBrowsers -Requested ([string]`$payload.Browser)
-    if ([bool]`$payload.KillProcesses) {
-        foreach (`$browser in `$targetBrowsers) {
-            switch (`$browser) {
-                'Chrome' { Stop-Process -Name chrome -Force -ErrorAction SilentlyContinue }
-                'Edge' { Stop-Process -Name msedge -Force -ErrorAction SilentlyContinue }
-            }
-        }
-        Start-Sleep -Milliseconds ([int]`$payload.SleepAfterKillMs)
-    }
-
-    foreach (`$browser in `$targetBrowsers) {
-        `$userData = Get-UserDataPath -TargetBrowser `$browser
-        if ([string]::IsNullOrWhiteSpace(`$userData) -or -not (Test-Path -LiteralPath `$userData)) {
-            Write-TaskLog "[`$browser] User data path not found: `$userData"
-            continue
-        }
-
-        `$profileDirs = @(Get-ProfileDirectories -UserDataPath `$userData)
-        if (`$profileDirs.Count -eq 0) {
-            Write-TaskLog "[`$browser] No Chromium profiles discovered beneath `$userData"
-            continue
-        }
-
-        `$requestedProfiles = @(`$payload.Profiles)
-        if (`$requestedProfiles.Count -gt 0) {
-            `$profileDirs = @(`$profileDirs | Where-Object { `$requestedProfiles -contains `$_.Name })
-        }
-
-        if (`$profileDirs.Count -eq 0) {
-            Write-TaskLog "[`$browser] No profiles remain after filtering."
-            continue
-        }
-
-        foreach (`$profileDir in `$profileDirs) {
-            Write-TaskLog "[`$browser] Cleaning profile: `$(`$profileDir.Name)"
-
-            if ([bool]`$payload.IncludeCookies) {
-                Clear-CookiesForProfileSimple -ProfilePath `$profileDir.FullName -SkipLocalStorage ([bool]`$payload.SkipLocalStorage)
-            }
-
-            if ([bool]`$payload.IncludeCache) {
-                Clear-CacheForProfileSimple -ProfilePath `$profileDir.FullName
-            }
-
-            Write-TaskLog "[`$browser] Completed profile: `$(`$profileDir.Name)"
-        }
-    }
-
-    Set-Content -LiteralPath '$doneFile' -Value 'ok' -Encoding UTF8
-}
-catch {
-    Write-TaskLog ("ERROR: {0}" -f `$_.Exception.Message)
-    Set-Content -LiteralPath '$doneFile' -Value 'error' -Encoding UTF8
-}
-"@
-
-                        Set-Content -LiteralPath $taskScriptPath -Value $taskScript -Encoding UTF8 -Force
-
-                        $runWithCmdlets = [bool](Get-Command -Name New-ScheduledTaskAction -ErrorAction SilentlyContinue)
-
-                        try {
-                            if ($runWithCmdlets) {
-                                $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$taskScriptPath`""
-                                $trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddSeconds(3))
-
-                                try {
-                                    $principal = New-ScheduledTaskPrincipal -UserId $activeUser -LogonType Interactive -RunLevel Limited
-                                }
-                                catch {
-                                    $principal = New-ScheduledTaskPrincipal -UserId $activeUser -LogonType InteractiveOrPassword -RunLevel Limited
-                                }
-
-                                Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
-                                Start-ScheduledTask -TaskName $taskName
-                            }
-                            else {
-                                $startTime = (Get-Date).AddMinutes(1).ToString('HH:mm')
-                                $startDate = (Get-Date).ToString('MM/dd/yyyy', [cultureinfo]::InvariantCulture)
-                                $taskCmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$taskScriptPath`""
-
-                                & schtasks.exe /Create /SC ONCE /TN $taskName /TR $taskCmd /ST $startTime /SD $startDate /RU $activeUser /IT /RL LIMITED /F | Out-Null
-                                & schtasks.exe /Run /TN $taskName | Out-Null
-                            }
-
-                            $deadline = (Get-Date).AddSeconds($TaskTimeoutSec)
-                            while ((Get-Date) -lt $deadline) {
-                                if (Test-Path -LiteralPath $doneFile) { break }
-                                Start-Sleep -Milliseconds 500
-                            }
-
-                            if (-not (Test-Path -LiteralPath $doneFile)) {
-                                throw "Timed out waiting for cleanup task completion on $env:COMPUTERNAME"
-                            }
-
-                            $status = [string](Get-Content -LiteralPath $doneFile -Raw -ErrorAction SilentlyContinue)
-                            $logLines = @()
-                            if (Test-Path -LiteralPath $outFile) {
-                                $logLines = @(Get-Content -LiteralPath $outFile -ErrorAction SilentlyContinue)
-                            }
-
-                            [pscustomobject]@{
-                                ComputerName = $env:COMPUTERNAME
-                                SessionUser  = $activeUser
-                                Success      = ($status -match '^ok')
-                                LogLines     = $logLines
-                            }
-                        }
-                        finally {
-                            if ($runWithCmdlets) {
-                                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-                            }
-                            else {
-                                & schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
-                            }
-
-                            Remove-Item -LiteralPath $taskScriptPath -Force -ErrorAction SilentlyContinue
-                            Remove-Item -LiteralPath $doneFile -Force -ErrorAction SilentlyContinue
-                            # Keep the log available for caller parsing before cleanup.
-                            Remove-Item -LiteralPath $outFile -Force -ErrorAction SilentlyContinue
-                        }
-                    } -ArgumentList $Browser, @($Profiles), $IncludeCookies, $IncludeCache, $SkipLocalStorage, $KillProcesses, $SleepAfterKillMs, $RemoteTaskTimeoutSec
-
-                    if ($remoteResult) {
-                        foreach ($line in @($remoteResult.LogLines)) {
-                            Write-Log -Level Info -Message "[$targetComputer] $line"
-                        }
-
-                        if ($remoteResult.Success) {
-                            Write-Log -Level Ok -Message "[$targetComputer] Browser profile cleanup completed in remote interactive user context ($($remoteResult.SessionUser))."
-                        }
-                        else {
-                            Write-Log -Level Error -Message "[$targetComputer] Browser profile cleanup task reported an error in remote interactive user context ($($remoteResult.SessionUser))."
-                        }
+                    foreach ($line in @($remoteResult.LogLines)) {
+                        Write-Log -Level Info -Message "[$targetComputer] $line"
                     }
+
+                    if ($remoteResult.Success) {
+                        Write-Log -Level Ok -Message "[$targetComputer] Browser profile cleanup completed for active user '$($remoteResult.ActiveUser)'."
+                    }
+                    else {
+                        Write-Log -Level Error -Message "[$targetComputer] Browser profile cleanup reported failure: $($remoteResult.ErrorMessage)"
+                    }
+
+                    Write-Output $remoteResult
                 }
                 catch {
                     Write-Log -Level Error -Message "[$targetComputer] Remote browser cleanup failed: $($_.Exception.Message)"
+                    if ($_.ScriptStackTrace) {
+                        Write-Log -Level Error -Message "[$targetComputer] Stack: $($_.ScriptStackTrace)"
+                    }
                 }
                 finally {
                     if ($session) {
@@ -548,7 +351,9 @@ catch {
                 }
             }
 
-            return
+            if (-not $runLocal) {
+                return
+            }
         }
 
         $targetBrowsers = switch ($Browser) {
@@ -568,19 +373,39 @@ catch {
             Write-Information "======================="
         }
 
+        if ($KillProcesses) {
+            foreach ($browserToStop in $targetBrowsers) {
+                $stopBrowserName = $BrowserMeta[$browserToStop].DisplayName
+                $stopProcessName = $BrowserMeta[$browserToStop].ProcessName
+
+                if ($PSCmdlet.ShouldProcess("$stopBrowserName ($stopProcessName)", "Stop process tree before browser data cleanup")) {
+                    for ($attempt = 1; $attempt -le 4; $attempt++) {
+                        Stop-Process -Name $stopProcessName -Force -ErrorAction SilentlyContinue
+                        & taskkill.exe /IM "$stopProcessName.exe" /T /F 2>$null | Out-Null
+
+                        $remaining = @(Get-Process -Name $stopProcessName -ErrorAction SilentlyContinue)
+                        if ($remaining.Count -eq 0) {
+                            break
+                        }
+
+                        Start-Sleep -Milliseconds 350
+                    }
+
+                    $remaining = @(Get-Process -Name $stopProcessName -ErrorAction SilentlyContinue)
+                    if ($remaining.Count -gt 0) {
+                        Write-Log -Level Warn -Message "$stopBrowserName still has $($remaining.Count) running process(es) after kill retries."
+                    }
+                }
+            }
+
+            Start-Sleep -Milliseconds $SleepAfterKillMs
+        }
+
         foreach ($b in $targetBrowsers) {
             Write-Log -Level Info -Message "=== Processing $b ==="
 
             $browserName = $BrowserMeta[$b].DisplayName
             $processName = $BrowserMeta[$b].ProcessName
-
-            # Optional: stop processes
-            if ($KillProcesses) {
-                if ($PSCmdlet.ShouldProcess("$browserName ($processName)", "Stop processes")) {
-                    Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
-                    Start-Sleep -Milliseconds $SleepAfterKillMs
-                }
-            }
 
             $userData = Get-BrowserUserDataPath -Browser $b
             $profileDirs = @(Get-BrowserProfileFolders -UserDataPath $userData)  # ensure array
@@ -645,8 +470,8 @@ catch {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+7zjcO2NXz0b/
-# LJ3D5MUGO1IVAlTCvzm88IoPdoMGwaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDSn+ywwv3+Gka4
+# pNhLLQK8OhdfdD+XqBQHbg0dQO4RnqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -779,34 +604,34 @@ catch {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBhOGg4K+AC
-# rnFSynlr890ZHS2HFY00fqucN85f994I2TANBgkqhkiG9w0BAQEFAASCAgC/l7ib
-# 7d2ezwesAHR32YSsGTma2pa7gY8nO2HJbq2hjKYxeS3CDjFKf3Ng3TSnLn9iOXsL
-# E+mK2BnB0kJqdDpb+vC1Tn4tRkxCwhnhINWg4MWjSD3QA7CeNo9d4N4fWCxg41d4
-# MIUHaxeclp8c+I45PSqCvkiSzB6rxQ6EX/qs/xjf1m17WseTKyVfaAsBW4ULAViT
-# s8a6JTcUFP+0aM4ySkZRirJkeJWhvMKJNU6KL2KyhON37R0sFyQ0qti9+UrBjjIn
-# tWT+72YzIWBvfHHzE0KXBrpCAMhRai3DqqYBiD03YukOl2Y8D9K+vBqMXibdqkj8
-# W3A1gWqhgkT8pjcL7XYr+l7MedelIwrDYFuNFOQZma1M4YwcaodBW5lNEGlgSIPM
-# MUMETd0AX3R2HxVDcpKq0s+Mj1vRCmqE79amXiCul5AnzSLBGJ1ekAaI26lQVVo3
-# RkXakxbCKaSpqQYEQLWcRcZ/er4tYpH3hHlzD5sEbe8r0nhQG8enWf2JzcbSTult
-# w9Q+6pTCj0vDqT+CUYgTmI0+JkyH5eciDmfO98zxPvlNyU34u5s4AubY6YfSIywQ
-# to0UoJq1pxLlDOOHiXnCnuS0s7X8DGM9t2a1rubxQxoNpwNcOhVUsE4r0IOobfEW
-# 4tMnYesdufaPSs999L5wrWvQ1L75xFZ2AaawqqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDOCeSNvBbY
+# 60C11f3/+GrTBQHORLRtUkIF/Nad86qyxzANBgkqhkiG9w0BAQEFAASCAgDGwfHR
+# 52k4JlMbr9kyAV4PsDT6VhVcKrk53SfVvUAuyUdt5wYiM0W94+X15+JFfXe/Qq8k
+# SCC7poErN/e9a+JXI+s/uVA4VzSOW2vhEzrI1bPbm6IkuNXf5QvFmFYWfFEJ/QsH
+# g6y0Srd9Vn3t+d0o4HsZ1PvVBNFFMa57KiLfFwEm4FC+dndW3b226Ny7vK+z+Q0v
+# 1V6jJjI0gGAfJEgzaTh/KmsrHmy9hRkOZ0T61kHboccOIuMp4a+dNgIhf707Gobp
+# AcjZjhNLdu1wEk9+oKveTe4i/hEJV0pM6w2qwU0U6xiD9K1pjJDjWDoUrFuGFHce
+# oG7rLR/TVc580It1374TOOu+RjVrYaYMVWQvpz06kZVEjwtKr/BJFwtoVDVBtTSf
+# ggwYnacH2jUh721+EtibvZUu42XGbEY5Xr2yWM6nEw+Us4gbp8DTAQAvzgUtX0vc
+# nvoTvwQ7ThcnaxA4jyS9ThkD4T7NP5HOTKDw86anqUjEIdy9+z6VVoV3pDdVXnoL
+# AjG5s5KFQRl6dJ0cUD0yskO6IP7sOg2mttaUSVBgECxVRFc9aoSd1sr7Cc86xyvZ
+# uLTRS8GqNEUBlZV4Wb1PM53FyRuHd4XKMpOQeSKpKFZ1ydnnRC7YH6tJV2WDFWGH
+# s9f/tWkv4Btl9DrS/0u4De3HQo1t8EJcFjqJX6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MTQxODE3NDlaMC8GCSqGSIb3DQEJBDEiBCDqi0SzBHxHTI71p3Ak
-# RCsf5fqzHrfVmzCuzVVoq+9LtzANBgkqhkiG9w0BAQEFAASCAgCLgVEVo0avE8e+
-# Tf3Ssq/LeZ9W9jEib14duO2rU9eXhZhUNdOkpU6krXDr9yw1n+Skcj0+SR1PMgX8
-# EAj6lBKlY4uVFAp1uLnhCFWcZ5gII0pXyDbIiD+97GJ1wpLJklXtqv9MU5NEdjbd
-# Z1Vp3MnD1Rf33jTsy769p4p9g06tfiFh+2yKn/+I+W6bu1nGv+VUvg1ynlLuGOAj
-# wwVsu19E3Y4G9eVFBlQUFRbO+xckY16+lvPsppJHJ0OQbsUFDeSpmiyxQimEf7gZ
-# bM1gDC5FnsLkvN8i5tnta7ZlLznQW+kf0hhmtg5scDlEB2XtP3Rmug4S345LgDBd
-# L2R0LxgI3WazClpCuGeE8dT+SnWVouNEy92Sb+2SlIoCwc4YHAiTQewswXNQab50
-# C7gpHicGkhkdd0o67nu5BycI54OKaNI+yU+2KpKB2EgqKJtcQJ5xBEIc9u/cYCJ9
-# 9OHkE+TLeyUbdZgqIXf80MOWCevpOe2SkfNBoLc0TUZRbSQnax0piUzCeFRJEpxL
-# GSI6oqDwG+bjDXCTEhgqW5BXKg45uD7NJ3GMVHuYj+AQSZX96PXBYnuP4kjX5WN8
-# t6yBlJw5Y0sSy9RqyYxYV+51B0McP85JD6nngaBt+dGiYylyHV3VsDomfgEWPbLA
-# ptR+OLOBVyvKXUKg85kv/DoDMP4l/Q==
+# BTEPFw0yNjA3MTQyMTU2NDZaMC8GCSqGSIb3DQEJBDEiBCDdl8UKXUQqzKkE8oUb
+# oSInwWx3XTGjCO5j5qwL0qD5pzANBgkqhkiG9w0BAQEFAASCAgCxPZspyHLnG/6Q
+# naZOMUtKVRojt8IbD4ZBBkXJnNn7J1M0W9UYfy7/wZahi6fHxwYhVkMPVxHybbCl
+# 7OXB9aGccBvffapHYVuk8qTGnQ3ohL8GxTV4fj0e3NPN7o6xIgVYTOmL17woYx6a
+# ueHl3XN5JJ29iiGmEZpth3Wzoiy2mQrNdyDpKqm44kbMJ31wtcRxNMiHpkKp23XY
+# 9nXn13y06fZwd64Z5QbKeS8992vcvp93bDzNw7Zm8QV48P+IzxDznmIWfBF1RDL5
+# W3IbQirfKQ+p+gtjde4P6MOrxPOdZMcwDfE72/Q7NzPhBW+YBwMyatyOMkO2Un7z
+# mfi1FByfPvU99A5YcFmhZXqgtMTctHjg/MnZOUcgHASJnHWf+RtvTFUdkXzGr8hD
+# 6sutUXHEd68b12o/uxjl8TYtGhz4ggG/bGQHsMCDuL8rjA9J15T4w81Fio6P+ZIo
+# 9gfBy2RSHzJecnZRJNdYTxd80dHQgwz/BWwkWDc2FZmbUTM0NWJc2E8TEg0Ss1NV
+# +BlHTGGQQx6hCqxamEyuEpxb6GqxVSqW9EoKlqnmixrC1Gy0hdmfTSJghyLyfxNn
+# +dKnUnXEfEIc7z/gpp/++2fBt+7oNzLXzQjjOn05YGZc6Q9ObJUKIKZbUbweYuMO
+# z5HFRb/0Uu2hnGMKPZLwSkldFsF2/g==
 # SIG # End signature block
