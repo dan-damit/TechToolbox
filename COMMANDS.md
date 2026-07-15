@@ -90,10 +90,6 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Set-OneTimeReboot | Schedule one-time reboot locally or remotely. | Remote, Risk |
 | Set-PageFileSize | Configure pagefile size locally or remotely. | Elevated, Remote, Risk |
 | Start-PDQDiagLocalElevated | Launch local PDQ diagnostics elevated. | Elevated |
-| Restart-SecureCrimpStack | Restart SecureCrimp stack service set. | Elevated, Risk |
-| Restart-SecureCrimpAuxTasks | Restart SecureCrimp auxiliary task set. | Elevated, Risk |
-| Restart-SecureCrimpAll | Restart full SecureCrimp stack and task set. | Elevated, Risk |
-
 ## Network, Browser, and File Operations
 
 | Command | Summary | Flags |
