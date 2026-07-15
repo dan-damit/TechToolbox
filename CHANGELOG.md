@@ -56,7 +56,7 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
   - Improved ScriptAnalyzer compatibility.
   - Better WhatIf support across destructive commands.
 
-- **Alias Updates**
+- **Alias Updates (deprecated)**
   - Added documentation for `ITA` (the `Invoke-TechAgent` convenience wrapper in the module).
   - Fixed `ITA` argument forwarding so `-ConfirmDestructive` and other forwarded options bind as named parameters instead of being treated as positional model input.
 
