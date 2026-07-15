@@ -42,10 +42,10 @@
 
 ---
 
-## Table of Contents
+## Contents
 
 - [_Modular. Worker-Driven. PowerShell Automation at Scale._](#modular-worker-driven-powershell-automation-at-scale)
-- [Table of Contents](#table-of-contents)
+- [Contents](#contents)
 - [Quick Start](#quick-start)
   - [One-Liner Demos](#one-liner-demos)
 - [Architecture Overview](#architecture-overview)
