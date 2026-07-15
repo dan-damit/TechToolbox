@@ -82,11 +82,41 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 ---
 
 ## [Unreleased]  
-Changes planned for upcoming milestones:
+Latest completed enhancements:
+
+### **Added**
+- Expanded `AI\Tasks\Templates` with a multi-scenario task template library, including:
+  - C# XML docs, refactor, and bug-fix templates
+  - PowerShell comment-help, about-help, refactor, bug-fix, and help-authoring templates
+  - CI workflow bug-fix, release/versioning change, docs markdown generation, test authoring, security review, and scenario-analysis templates
+- Added `AI\Tasks\Use-TaskTemplate.ps1` helper workflow with support for:
+  - listing templates
+  - category filtering (`-Category`)
+  - interactive picking (`-Pick`)
+  - template preview (`-Show`)
+  - template open in editor (`-Open`)
+  - shorthand template resolution with or without `.txt`
+- Added public command `Use-TechAgentTaskTemplate` as a thin wrapper over the task-template helper so template workflows are available immediately after module import.
+
+### **Improved**
+- Standardized prompt template structure and placeholder vocabulary across the template library for consistent authoring and easier reuse.
+- Updated `Invoke-TechAgent` default prompt source configuration to `AI\Tasks\CurrentTask.txt` when no `-Prompt` or `-PromptFile` is supplied.
+- Hardened `AI\Tasks\Use-TaskTemplate.ps1` path resolution to derive task/template paths from module root for portability.
 
 ### **Fixed**
+- Agent orchestration reliability:
+  - blocked premature completion when a model returns a progress-style `finalAnswer` that indicates work is still in progress
+  - recovered from schema-invalid progress updates (`needsTool=false` with empty `finalAnswer` and coherent progress `reason`) by steering the loop forward instead of surfacing misleading invalid-JSON terminal failures
+  - added regression coverage for both failure patterns in `src\TechToolbox.Agent.Tests\AgentOrchestratorTests.cs`
 - Removed the `ITA` wrapper from module exports. Operators now call `Invoke-TechAgent` directly as the single agent entry point.
 - Refactored TechToolbox home initialization to default runtime data paths to module root and removed first-import home staging/copy behavior. Runtime folders (`LogsAndExports/Logs`, `LogsAndExports/Exports`) are now ensured in-place unless `TT_Home` is explicitly set.
+
+### **Documentation**
+- Updated `Public\AI\README.md` with:
+  - default `Invoke-TechAgent` prompt-source behavior
+  - `Use-TechAgentTaskTemplate` command usage and workflow
+- Updated top-level `README.md` to reflect template-driven TechAgent prompt staging.
+- Updated `COMMANDS.md` to include `Use-TechAgentTaskTemplate` in AI-assisted workflows.
 
 ### **0.6.0 — Cross‑Platform Stabilization**
 - Path normalization across Windows/macOS/Linux.
