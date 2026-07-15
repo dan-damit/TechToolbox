@@ -57,7 +57,8 @@
   - [Configuring Secrets](#configuring-secrets)
   - [Baseline Settings (config.json)](#baseline-settings-configjson)
 - [Invoke-TechAgent Prompt Example](#invoke-techagent-prompt-example)
-  - [Create a prompt text file `prompt.txt`:](#create-a-prompt-text-file-prompttxt)
+  - [Preferred prompt workflow](#preferred-prompt-workflow)
+  - [Example: stage a task, then run it](#example-stage-a-task-then-run-it)
   - [Example: Creating an Online Help Markdown File](#example-creating-an-online-help-markdown-file)
 - [Command Reference](#command-reference)
   - [Active Directory \& Identity Management](#active-directory--identity-management)
@@ -544,7 +545,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.5.50
+- **Module version:** 0.5.57
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
 
