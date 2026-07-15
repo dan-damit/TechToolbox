@@ -1,0 +1,13 @@
+Primary input file:
+<PRIMARY_INPUT_FILE>
+
+Task:
+Perform a code review focused on correctness, behavioral regressions, risks, and missing tests.
+
+Requirements:
+- Findings must be the primary output.
+- Prioritize bugs, security issues, data-loss risks, and maintainability traps.
+- Reference specific file locations when possible.
+- Keep the summary brief and secondary to the findings.
+- If no significant findings are present, say so explicitly and note any residual testing gaps or assumptions.
+- Do not make code changes unless they are explicitly requested.

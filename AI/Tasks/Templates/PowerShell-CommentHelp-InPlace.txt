@@ -1,16 +1,18 @@
-Read this file:
-C:\repos\TechToolbox\Workers\Clear-BrowserProfileData.Worker.ps1
+Primary input file:
+<PRIMARY_INPUT_FILE>
 
 Task:
 Add or improve PowerShell comment-based help for the script and for any top-level function intended to be called directly.
 
 Requirements:
 - Update this exact file in place:
-  C:\repos\TechToolbox\Workers\Clear-BrowserProfileData.Worker.ps1
+  <PRIMARY_INPUT_FILE>
 - Preserve all existing code and behavior.
 - Only add or improve documentation comments.
 - Use PowerShell comment-based help, not C# XML documentation comments.
 - Prefer REPLACE-IN-FILE for localized edits to this existing file.
+- Use WRITE-FILE only if a localized replacement is not practical.
 - Do not document nested helper functions unless the existing style clearly expects it.
 - Do not stop after analysis.
+- Do not summarize your plan before editing.
 - Do not return a final answer until the file update has succeeded.

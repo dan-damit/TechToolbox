@@ -248,9 +248,17 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 
 ## Invoke-TechAgent Prompt Example
 
-### Create a prompt text file `prompt.txt`:
-- Point the agent function call to this file using `-PromptFile` param.
-- Also, `-Prompt` param can be used for inline prompt text, but for complex prompts, a file is preferred.
+### Preferred prompt workflow
+- `Invoke-TechAgent` now defaults to `AI\Tasks\CurrentTask.txt` when no `-Prompt` or `-PromptFile` is supplied.
+- `Use-TechAgentTaskTemplate` can stage a reusable prompt template into that file before you run the agent.
+- `-Prompt` can still be used for inline prompt text, and `-PromptFile` can still target any other file when needed.
+
+### Example: stage a task, then run it
+
+```powershell
+Use-TechAgentTaskTemplate -Pick
+Invoke-TechAgent
+```
 
 ### Example: Creating an Online Help Markdown File
 
@@ -280,6 +288,15 @@ Requirements:
 - Do not stop after analysis.
 - Do not summarize your plan before editing.
 - Do not return a final answer until the file update has succeeded.
+```
+
+You can place that prompt directly into `AI\Tasks\CurrentTask.txt`, or use a template as a starting point:
+
+```powershell
+Use-TechAgentTaskTemplate -List -Category CSharp
+Use-TechAgentTaskTemplate -Template CSharp-XmlDocs-InPlace -Show
+Use-TechAgentTaskTemplate -Template CSharp-XmlDocs-InPlace
+Invoke-TechAgent
 ```
 
 ---

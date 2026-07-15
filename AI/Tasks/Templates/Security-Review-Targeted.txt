@@ -1,0 +1,19 @@
+Primary input files:
+<PRIMARY_INPUT_FILES>
+
+Additional context:
+<REPO_CONTEXT>
+
+Task:
+Perform a targeted security review for the area described below.
+
+Scope:
+<REVIEW_SCOPE>
+
+Requirements:
+- Focus findings on exploitable risks, privilege boundaries, input handling, secret exposure, unsafe file operations, command execution, and data-loss paths when relevant.
+- Prioritize concrete findings over generic advice.
+- Reference specific files and locations when possible.
+- Call out assumptions and unknowns that materially affect the risk assessment.
+- If no major issues are found, say so explicitly and mention residual risk or review gaps.
+- Do not make code changes unless they are explicitly requested.

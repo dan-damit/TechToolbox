@@ -1,0 +1,20 @@
+Additional context:
+<REPO_CONTEXT>
+
+Task:
+Provide best-practice guidance for the question below.
+
+Question:
+<QUESTION_TOPIC>
+
+Task details:
+<TASK_DETAILS>
+
+Requirements:
+- Tailor the answer to the task details above.
+- Be concrete rather than generic.
+- Call out tradeoffs, failure modes, and operational risks.
+- If the current approach is weak, say so directly and explain why.
+- When useful, propose a recommended baseline approach and 1 to 2 alternatives.
+- Do not make file changes unless they are explicitly requested.
+- If examples help, keep them minimal and relevant.

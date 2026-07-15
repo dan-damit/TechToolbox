@@ -1,0 +1,20 @@
+Primary input file:
+<PRIMARY_INPUT_FILE>
+
+Task:
+Fix the bug described below in this PowerShell file or in the nearest controlling code path.
+
+Bug details:
+<BUG_DESCRIPTION>
+
+Requirements:
+- Update the correct file or files needed to fix the bug at the root cause.
+- Keep the fix narrowly scoped to the described issue.
+- Preserve intended behavior outside the bug fix.
+- If comment-based help becomes inaccurate, update it as part of the fix.
+- Prefer REPLACE-IN-FILE for localized edits to existing files.
+- Use WRITE-FILE only if a localized replacement is not practical.
+- After the first substantive edit, run the cheapest focused validation that can falsify the fix.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the code change and validation have succeeded.

@@ -138,7 +138,7 @@
     "agent": {
       "model": "ornith:35b",
       "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json",
-      "defaultPromptFile": "AI\\prompt.txt",
+      "defaultPromptFile": "AI\\Tasks\\CurrentTask.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
       "promptHistoryItems": 2,
       "fetch": {

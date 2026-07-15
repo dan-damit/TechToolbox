@@ -1,0 +1,17 @@
+Primary input file:
+<PRIMARY_INPUT_FILE>
+
+Task:
+Add or improve XML documentation comments for every public type, public constructor, and public method in this file.
+
+Requirements:
+- Update this exact file in place:
+  <PRIMARY_INPUT_FILE>
+- Preserve all existing code and behavior.
+- Only add or improve XML documentation comments.
+- Prefer REPLACE-IN-FILE for localized edits to this existing file.
+- Use WRITE-FILE only if a localized replacement is not practical.
+- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file update has succeeded.

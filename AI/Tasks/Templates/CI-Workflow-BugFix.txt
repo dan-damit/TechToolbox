@@ -1,0 +1,19 @@
+Primary input files:
+<PRIMARY_INPUT_FILES>
+
+Task:
+Diagnose and fix the CI or workflow problem described below.
+
+Failure details:
+<BUG_DESCRIPTION>
+
+Requirements:
+- Identify the most likely root cause instead of only treating symptoms.
+- Keep the fix narrowly scoped to the failing workflow or directly related code path.
+- Preserve intended pipeline behavior outside the fix.
+- If the issue is ambiguous, prefer the smallest change that increases observability or determinism.
+- Update documentation or comments only when they are materially affected by the fix.
+- Run the narrowest validation available, such as a focused test, build, script validation, or workflow syntax check.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the change and validation have succeeded.

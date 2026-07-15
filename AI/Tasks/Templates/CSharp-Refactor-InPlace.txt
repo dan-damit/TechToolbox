@@ -1,0 +1,23 @@
+Primary input file:
+<PRIMARY_INPUT_FILE>
+
+Task:
+Refactor this file to improve structure, clarity, or maintainability while preserving the intended behavior.
+
+Task details:
+<REFACTOR_GOAL>
+
+Requirements:
+- Update this exact file in place:
+  <PRIMARY_INPUT_FILE>
+- Preserve all existing behavior unless a change is explicitly required below.
+- Keep public APIs stable unless the task explicitly says otherwise.
+- Focus on the task details above.
+- Avoid unrelated cleanup.
+- Prefer small, localized edits over broad rewrites.
+- Prefer REPLACE-IN-FILE for localized edits to this existing file.
+- Use WRITE-FILE only if a localized replacement is not practical.
+- Run focused validation after the first substantive edit.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file update and validation have succeeded.
