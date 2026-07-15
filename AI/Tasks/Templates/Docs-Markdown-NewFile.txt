@@ -1,0 +1,23 @@
+Primary input files:
+<PRIMARY_INPUT_FILES>
+
+Task:
+Write a markdown document for the topic described below.
+
+Topic:
+<DOCUMENT_TOPIC>
+
+Output file:
+<OUTPUT_FILE>
+
+Requirements:
+- Create the output file at this exact path:
+  <OUTPUT_FILE>
+- Use accurate technical details based on the source inputs.
+- Structure the document for fast scanning with concise headings and examples when useful.
+- Keep the tone practical and specific to this repository or scenario.
+- Use WRITE-FILE to create or update the markdown document.
+- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file update has succeeded.

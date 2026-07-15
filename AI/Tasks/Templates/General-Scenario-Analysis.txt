@@ -1,0 +1,16 @@
+Additional context:
+<REPO_CONTEXT>
+
+Scenario:
+<SCENARIO_DESCRIPTION>
+
+Task:
+Analyze this scenario and recommend the best approach.
+
+Requirements:
+- Explain the likely risks, constraints, and tradeoffs in this specific situation.
+- Distinguish immediate actions from longer-term improvements.
+- If the current direction is flawed, say so directly and explain why.
+- When useful, provide a recommended baseline approach and 1 to 2 alternatives.
+- If specific validation or observability steps would reduce uncertainty, include them.
+- Do not make file changes unless they are explicitly requested.

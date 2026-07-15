@@ -1,49 +1,87 @@
-@{
-    IncludeRules = @(
-        'PSAvoidGlobalVars'
-        'PSAvoidUsingCmdletAliases'
-        'PSProvideCommentHelp'
+function Use-TechAgentTaskTemplate {
+    <#
+    .SYNOPSIS
+        Uses a TechAgent task template from the repository task template library.
 
-        'PSUseConsistentIndentation'
-        'PSUseConsistentWhitespace'
-        'PSAvoidTrailingWhitespace'
-        'PSAlignAssignmentStatement'
-        'PSUseCorrectCasing'
+    .DESCRIPTION
+        Thin public wrapper around AI\Tasks\Use-TaskTemplate.ps1 so the task
+        template workflow is available as a normal module command after import.
+
+    .PARAMETER Template
+        File name of the template to copy, for example
+        CSharp-BugFix-InPlace.txt.
+
+    .PARAMETER Destination
+        Destination file path for the copied template. Defaults to
+        AI\Tasks\CurrentTask.txt.
+
+    .PARAMETER List
+        Lists available templates and exits.
+
+    .PARAMETER Show
+        Writes the selected template content to the console.
+
+    .PARAMETER Open
+        Opens the selected template file in VS Code when available, otherwise
+        in the default associated application.
+
+    .PARAMETER Pick
+        Presents an interactive numbered picker to choose a template.
+
+    .PARAMETER SelectionNumber
+        Selects a template by its 1-based number in the picker list. Intended
+        for automation or testing.
+
+    .PARAMETER Category
+        Filters templates by category name before listing, picking, showing,
+        opening, or copying.
+
+    .PARAMETER Force
+        Overwrites an existing destination file without prompting.
+
+    .EXAMPLE
+        Use-TechAgentTaskTemplate -Pick
+
+        Presents an interactive picker and copies the selected template into
+        AI\Tasks\CurrentTask.txt.
+
+    .EXAMPLE
+        Use-TechAgentTaskTemplate -List -Category PowerShell
+
+        Lists only PowerShell-related templates.
+    #>
+
+    [CmdletBinding()]
+    param(
+        [string]$Template,
+        [string]$Destination,
+        [switch]$List,
+        [switch]$Show,
+        [switch]$Open,
+        [switch]$Pick,
+        [int]$SelectionNumber,
+        [string]$Category,
+        [switch]$Force
     )
 
-    Rules        = @{
-        PSUseConsistentIndentation = @{
-            Enable              = $false
-            Kind                = 'space'
-            IndentationSize     = 4
-            PipelineIndentation = 'IncreaseIndentationForFirstPipeline'
-        }
-
-        PSUseConsistentWhitespace  = @{
-            Enable                                  = $true
-            CheckInnerBrace                         = $true
-            CheckOpenBrace                          = $true
-            CheckOpenParen                          = $true
-            CheckOperator                           = $true
-            CheckPipe                               = $true
-            CheckPipeForRedundantWhitespace         = $false
-            CheckSeparator                          = $false
-            CheckParameter                          = $false
-            IgnoreAssignmentOperatorInsideHashTable = $true
-        }
-
-        PSAlignAssignmentStatement = @{
-            Enable         = $true
-            CheckHashtable = $true
-        }
+    $scriptPath = Join-Path $script:ModuleRoot 'AI\Tasks\Use-TaskTemplate.ps1'
+    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+        throw "Use-TechAgentTaskTemplate: Helper script not found: $scriptPath"
     }
+
+    $invokeParams = @{}
+    foreach ($entry in $PSBoundParameters.GetEnumerator()) {
+        $invokeParams[$entry.Key] = $entry.Value
+    }
+
+    & $scriptPath @invokeParams
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA/ZipLlA2P18jh
-# kHeaM9wlrFap8hwnSpIaIY/furjhbaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBoDayX0/DLzCLx
+# 0L9NnbFIwIzPVTqwB9RWVxtLpFwJNKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -176,34 +214,34 @@
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBOV6M0ujmW
-# 23ByjunZm8M2o0j8e6MzR6alK00vo1XgZTANBgkqhkiG9w0BAQEFAASCAgBJ36jO
-# /AoQBUEwhx20UKPpmiVykqlpKmQlSkHrPg7UHZIrlNeyDZMokJFa2hPfYAXqgdvi
-# OLdQMuxDR+qj6uAUNT7Nb5bYClkCRM1jBbdZP9+hyrYR/IY5aPhwknIVdllt5OOm
-# L/9BDiINu9RVGXgMEFivSzvQ/56l7O8rRWqRmIeSAXa73tC30wgbDE544EzZj+76
-# 09koAkSuIvqiaddySISov3vixsu7cWhejQHtgm+KKHpivsaLQa8Bq3nt1Ww5HvWY
-# BlrSRcp4pNMy6NjlVs3B8dIGB0cVy8J/A30mcmO8djEgPW4MPPSPYz/6+Ya8p8Dy
-# YC9boueCPPWZQvDmvakT8DDDqBcCvA+s9pcx2XnVaBylNEI21/JRbsdDLp/CzAiE
-# e0H0HtizazWXDByJIEdm74kSZ6LegajokwIX4yAexljYY/KtIPYOekD3AatjcHxI
-# qd/Wzw4Btzge+pgMzIwWZ1YMay7ZH1/xhcEYZZSOpM7V+/JbEt3nL3yl0P1ontIO
-# 5MUXfadwhiq19WnwIGSTgY0wGntnYr6qLVg135pYgHZ7Vfmusa4ziZJTynyI5nk+
-# 52VfbJNrWqB3CNdoo+sbg73D9woUetPosUWLfRYqOCfrXNEyD6idGUig+Ky8ZI1P
-# AcPPVg/fnCiyja0iXKchQdOhycFG5KUppv+2qaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCvC+ntT+y3
+# Sngjs2cvgXANmODUz5pQ7iG5kBeHbA1WQTANBgkqhkiG9w0BAQEFAASCAgC65uRP
+# o0zFohpx8y4Q4S2Te3VWlsfIK1pvbCJ7QZEO/qX5a1toreGmHhhM5Psh4aROY+qo
+# pppb2MleHnNLvm50zp2JlUJiyDXnJUs72e2uUSIxLJLlBvYIL4RlYgOQHv8x9TxD
+# ABiGPPUAtj995NQm0PzXH/5131T2hO0A+dQY+tKi8bEl92Wv52mktSHnFeNMbCJ7
+# pVEyIDfL/gp0CbEKPCmzFssZo7PmKj/DlpdNVp0xUTmu5ASLPm/M3Z3A/V61919N
+# XZkNgmMuSR0bBZjOftawL6qeoXPPkXO8ukctCXNmzva+E/EjRS1lPPZuzd9ruwan
+# 9PUodz0lEiNK4oxTtSIZmzAL2wPFPN8D4ud5PhnvgDEJCij2zt8890f/2s2N2dtN
+# Um/GBrbqVi7c05a2BTrY5s3p/sqktJ01/gWc0AIA9YWAO3bIUtm2cgaPRYSCgK62
+# w3EgNtH3xm8h0F9Mml8BXZeO5nZMsyispMU64eFdeRkEHGlK6Yf3U6gGWFRsHgQL
+# GzHXbht1g7Ovfcm0ySfd9RQGT2Uvm8oriNvu/tdLCkHGM0p7b3rpOMF3Q5bb3p+H
+# pwZAxuquMTUIm2J0a6aDKhWlRk154mncAb7XzRN6tqvdKqHz4Q8JHis86hUCBK4T
+# 75HfGd7hUbMjlRwC9IgvgutKa0/eqmlmj/AADKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMDkxNTU1MjJaMC8GCSqGSIb3DQEJBDEiBCB2MPEgZMwq7XrMSSGG
-# IuX6H6asf05JcBxvDd5cy09tzTANBgkqhkiG9w0BAQEFAASCAgC+2huVbg0NFOgV
-# Snfhr4WRcAcgn7AlZJad/pMagINESszOS1kVRO9skTTos2vUjTwg7aGyMC8QKSEM
-# J5LnJlSOz/PMH+84TCkavBUcWhaZkOkAs5HjxWvSqYtM23fc6Eaqt9LNX6PjhSZt
-# PoFD4Y67E+GfiwPDzeIvh6lh26LjDd0w7pHqiqtdMhw61pgARVZeElNvePNw5isp
-# HK5cu5H4x9yvZlXGkc3KjeNDCPGPTOAtK2zkIReWGfeR83To3Gg80wRo465Ndf34
-# ebZr2eBFQCnofu4X11FvsTk/njK65BH8M6wG1JUikf2EPHDwYxpFCksx58mn8aV3
-# 4fBtUFMH8esLo06/+ql/z6KwEXGgpR+vJGEdPC3lfwy665z2nNMWAY8/Ux3wJXI7
-# wch9PRkML6SsVCQ8XSH8FR8A9qP+r6H0eI7uXa7Hoh8+N7K5drrAZ5FaJ7xbpKiV
-# OUcYLNdxsutCvVmsawKyBB8Y6tEB2bAwyBgtiPmjhos7YPQ116EpMOf+w77NTB86
-# OAUAMX/MCRHCJpRxossI9fcquiK34K73UJ5cSKlraap8TVNIM4uut4tHFeQCm2eW
-# wQSQhUuO/DRleeJeJrdRpOZm7Dcl0xLz3UEW8UrnpnBK3AkhA2Ngbttn0f0I4lrO
-# i8vTs7TKi1Uzzg3crzEFq1UpWVLYJw==
+# BTEPFw0yNjA3MTUwMzQyMzFaMC8GCSqGSIb3DQEJBDEiBCDKgI/o8kmK2e4rr/92
+# rdTPjXa5GteiIXWf/IRDvQIx8TANBgkqhkiG9w0BAQEFAASCAgBZmTW9oP8uroeQ
+# 9C4WtNtHeYF1QOasuDO3xj5krG/RlQTOa6hslyECtCpntOwhAIS2Cu3E4XdTUnwm
+# 79hYxQU2QDBdz01+jw3jI3sgrjLPVXjhcV158kS8i8yV2LulYe2uSuAHnZV4OcUx
+# WHMZpTf2V57BUmNoNyWi9j+YOXhJe/Nloxg9Zcb7wfRBFXrocbwPXe0udsQ9n6nK
+# k14Jp6tJxDb1pD3WwM3i9REnpf+WxqhDUENMscikxp/YCqdMNJqiuSChK/x0GjWb
+# G47oa7EB4Cpq7aJJa23CodLtF4DKEP7FUv3Bh9eti77PG6Eva5b8H5npF+dfQ9Zn
+# KMPl668OiwwEaOFkAuov0QzcqPqvMOlqmpVjOSAuHBbtJZ8tJAJPj7oIsBcElDzR
+# mJ99ko46moXBAAWQ+2omDKKv8Z2EpHstT0htZ+Vbrzwf/iKGnhfBBGN9lbbThpgj
+# 0OPRfZH3Ov3nGcVQhl554X8XdpUYVuoRTnhQ0TVxJ2s2oSFYPbXI9JviuogSsMXa
+# SLID1f8aaPHCWXjds8AXM4vzzwHOL0HdcnUAtOHfpwUFmD8bdyDqRJSnEaGPSuIQ
+# LwSF3pEmspSxxv3h17olQFqIBi1uGqZO/RvatdNd6ydKlVRxWNpr2iVtmfZelc0H
+# ZkbZq2a0UKsUPCKYFM2BqaSNv8LFYg==
 # SIG # End signature block

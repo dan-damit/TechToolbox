@@ -1,0 +1,23 @@
+Primary input file:
+<PRIMARY_INPUT_FILE>
+
+Task:
+Refactor this PowerShell script or function file to improve structure, clarity, or maintainability while preserving the intended behavior.
+
+Task details:
+<REFACTOR_GOAL>
+
+Requirements:
+- Update this exact file in place:
+  <PRIMARY_INPUT_FILE>
+- Preserve all existing behavior unless a change is explicitly required below.
+- Focus on the task details above.
+- Keep function signatures and user-facing behavior stable unless the task explicitly says otherwise.
+- Avoid unrelated cleanup.
+- Prefer REPLACE-IN-FILE for localized edits to this existing file.
+- Use WRITE-FILE only if a localized replacement is not practical.
+- If script help or comment-based help would become inaccurate, update it as part of the refactor.
+- Run focused validation after the first substantive edit.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file update and validation have succeeded.

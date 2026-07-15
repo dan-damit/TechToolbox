@@ -1,0 +1,19 @@
+Primary input files:
+<PRIMARY_INPUT_FILES>
+
+Task:
+Review the PowerShell command or script and produce the most appropriate help-related outcome described below.
+
+Requested outcome:
+<HELP_GOAL>
+
+Requirements:
+- Use PowerShell-native help conventions.
+- Distinguish between comment-based help in the source file and external `about_*.help.txt` authoring based on the requested outcome.
+- Keep all help content technically accurate to the source behavior, parameters, defaults, and examples.
+- If existing help is incomplete or misleading, say so directly and correct it.
+- If a file update is requested, update only the necessary help files or source comments.
+- Prefer localized edits to existing files.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until any required file update has succeeded.

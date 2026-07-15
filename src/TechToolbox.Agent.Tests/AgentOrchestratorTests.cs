@@ -831,6 +831,159 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
     }
 
     [Fact]
+    public async Task RunAsync_BlocksPrematureProgressFinalAnswer_AfterPartialReplaceInFile()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-replace-progress-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var expectedOutputPath = Path.Combine(tempRoot, "AgentOrchestrator.cs");
+            File.WriteAllText(
+                expectedOutputPath,
+                "public class Demo { }\npublic class AgentResult { }\n"
+            );
+            var jsonPath = expectedOutputPath.Replace("\\", "\\\\", StringComparison.Ordinal);
+            const string firstOriginalSnippet = "public class Demo { }";
+            const string firstReplacementSnippet = "/// <summary>Demo.</summary>\\npublic class Demo { }";
+            const string secondOriginalSnippet = "public class AgentResult { }";
+            const string secondReplacementSnippet = "/// <summary>Agent result.</summary>\\npublic class AgentResult { }";
+
+            var llm = new RecordingFakeLlmClient(
+                new[]
+                {
+                    $"{{\"needsTool\":true,\"toolName\":\"REPLACE-IN-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"oldText\":\"{firstOriginalSnippet}\",\"newText\":\"{firstReplacementSnippet}\"}},\"reason\":\"localized edit\"}}",
+                    FinalDecision(
+                        "The REPLACE-IN-FILE operation succeeded. The XML documentation comment has been added to the AgentOrchestrator class.\n\nNow I need to add documentation for the constructor and AgentResult class. Let me continue with those edits."
+                    ),
+                    $"{{\"needsTool\":true,\"toolName\":\"REPLACE-IN-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"oldText\":\"{secondOriginalSnippet}\",\"newText\":\"{secondReplacementSnippet}\"}},\"reason\":\"finish localized edits\"}}",
+                    FinalDecision("Done"),
+                }
+            );
+
+            var tools = new Dictionary<string, Func<string, Task<string>>>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["REPLACE-IN-FILE"] = args =>
+                {
+                    using var doc = JsonDocument.Parse(args);
+                    var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+                    var oldText = doc.RootElement.GetProperty("oldText").GetString() ?? string.Empty;
+                    var newText = doc.RootElement.GetProperty("newText").GetString() ?? string.Empty;
+                    var content = File.ReadAllText(path);
+                    File.WriteAllText(path, content.Replace(oldText, newText, StringComparison.Ordinal));
+                    return Task.FromResult("ok");
+                },
+            };
+
+            var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 8, autoRetry: false);
+
+            var prompt = $"""
+Please update this file in place:
+{expectedOutputPath}
+
+Add or improve XML documentation comments for every public type, public constructor, and public method in this file.
+Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final answer until the file update succeeds.
+""";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Done", result.OutputText);
+            Assert.Equal(2, result.ToolCallCount);
+            Assert.Equal(
+                2,
+                result.ToolNames.Count(name =>
+                    string.Equals(name, "REPLACE-IN-FILE", StringComparison.OrdinalIgnoreCase)
+                )
+            );
+            Assert.Contains(
+                "Final answer indicates the task is still in progress",
+                llm.MessageSnapshots[2].Last().Content
+            );
+            var finalContent = File.ReadAllText(expectedOutputPath);
+            Assert.Contains("/// <summary>Demo.</summary>", finalContent);
+            Assert.Contains("/// <summary>Agent result.</summary>", finalContent);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_ContinuesAfterSchemaInvalidProgressReason_WithEmptyFinalAnswer()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-progress-reason-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var expectedOutputPath = Path.Combine(tempRoot, "AgentOrchestrator.cs");
+            File.WriteAllText(expectedOutputPath, "public class Demo { }\n");
+            var jsonPath = expectedOutputPath.Replace("\\", "\\\\", StringComparison.Ordinal);
+            const string originalSnippet = "public class Demo { }";
+            const string replacementSnippet = "/// <summary>Demo.</summary>\\npublic class Demo { }";
+
+            var llm = new RecordingFakeLlmClient(
+                new[]
+                {
+                    "{\"needsTool\":false,\"toolArgs\":{},\"finalAnswer\":\"\",\"reason\":\"I have now read all chunks of the file and can identify the remaining public symbols. I need to add documentation for the Demo class.\"}",
+                    $"{{\"needsTool\":true,\"toolName\":\"REPLACE-IN-FILE\",\"toolArgs\":{{\"path\":\"{jsonPath}\",\"oldText\":\"{originalSnippet}\",\"newText\":\"{replacementSnippet}\"}},\"reason\":\"localized edit\"}}",
+                    FinalDecision("Done"),
+                }
+            );
+
+            var tools = new Dictionary<string, Func<string, Task<string>>>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["REPLACE-IN-FILE"] = args =>
+                {
+                    using var doc = JsonDocument.Parse(args);
+                    var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+                    var oldText = doc.RootElement.GetProperty("oldText").GetString() ?? string.Empty;
+                    var newText = doc.RootElement.GetProperty("newText").GetString() ?? string.Empty;
+                    var content = File.ReadAllText(path);
+                    File.WriteAllText(path, content.Replace(oldText, newText, StringComparison.Ordinal));
+                    return Task.FromResult("ok");
+                },
+            };
+
+            var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 6, autoRetry: false);
+
+            var prompt = $"""
+Please update this file in place:
+{expectedOutputPath}
+
+Add or improve XML documentation comments for every public type, public constructor, and public method in this file.
+Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final answer until the file update succeeds.
+""";
+
+            var result = await orchestrator.RunAsync(prompt);
+
+            Assert.Equal("Done", result.OutputText);
+            Assert.Single(result.ToolNames);
+            Assert.Contains("REPLACE-IN-FILE", result.ToolNames);
+            Assert.Contains(
+                "indicates progress but not completion",
+                llm.MessageSnapshots[1].Last().Content
+            );
+            Assert.Contains("/// <summary>Demo.</summary>", File.ReadAllText(expectedOutputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_BlocksFinalAnswerUntilFinalizeAfterAppendFile_ForRequiredOutputPath()
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), $"tt-agent-append-finalize-{Guid.NewGuid():N}");
@@ -1271,7 +1424,7 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
         $"{{\"needsTool\":true,\"toolName\":\"{toolName}\",\"toolArgs\":{{\"{argName}\":\"{argValue}\"}},\"reason\":\"use tool\"}}";
 
     private static string FinalDecision(string answer) =>
-        $"{{\"needsTool\":false,\"finalAnswer\":\"{answer}\",\"reason\":\"done\"}}";
+        $"{{\"needsTool\":false,\"finalAnswer\":{JsonSerializer.Serialize(answer)},\"reason\":\"done\"}}";
 
     private sealed class FakeLlmClient : LlmClient
     {

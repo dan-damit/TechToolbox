@@ -1,0 +1,19 @@
+Primary input files:
+<PRIMARY_INPUT_FILES>
+
+Task:
+Make the release, versioning, packaging, or publishing change described below.
+
+Task details:
+<TASK_DETAILS>
+
+Requirements:
+- Keep the change narrowly scoped to the release or packaging goal.
+- Preserve existing release behavior outside the requested change.
+- Update all directly affected files needed for consistency, such as manifests, workflow files, build scripts, or documentation.
+- Call out any assumptions about version numbers, tag formats, artifact names, or publish destinations.
+- Prefer localized edits to existing files.
+- Run the narrowest validation available, such as build-script validation, manifest validation, or workflow linting.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file updates and validation have succeeded.

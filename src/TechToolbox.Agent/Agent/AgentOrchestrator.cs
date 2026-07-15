@@ -7,6 +7,9 @@ using TechToolbox.Agent.Registry;
 
 namespace TechToolbox.Agent.Agent;
 
+/// <summary>
+/// Orchestrates agent execution by managing LLM interactions, tool invocations, and iteration control.
+/// </summary>
 public partial class AgentOrchestrator
 {
     private static readonly string[] LineSeparators = ["\r\n", "\n"];
@@ -48,6 +51,21 @@ public partial class AgentOrchestrator
     [GeneratedRegex("^\\s*(begin|process|end)\\s*\\{", RegexOptions.IgnoreCase)]
     private static partial Regex StructureHintRegex();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AgentOrchestrator"/> class.
+    /// </summary>
+    /// <param name="llm">The LLM client used to generate agent decisions.</param>
+    /// <param name="registry">The registered tool specifications available to the agent.</param>
+    /// <param name="tools">The executable tool callbacks keyed by tool name.</param>
+    /// <param name="memory">The optional memory store used for prompt history and learning.</param>
+    /// <param name="model">The model identifier associated with the current run.</param>
+    /// <param name="destructiveConfirmed">Indicates whether destructive operations have been explicitly confirmed.</param>
+    /// <param name="signedFilePolicy">The signed-file handling policy applied during file operations.</param>
+    /// <param name="maxIterations">The maximum number of planner/tool iterations allowed per run attempt.</param>
+    /// <param name="autoRetry">Indicates whether the orchestrator should retry automatically after hitting the iteration limit.</param>
+    /// <param name="tracePath">The optional file path used to write diagnostic trace output.</param>
+    /// <param name="expectedOutputPath">The optional required output path that file-update tools must target.</param>
+    /// <param name="recentHistoryItemsInPrompt">The number of recent history items to include in the initial prompt.</param>
     public AgentOrchestrator(
         LlmClient llm,
         IReadOnlyDictionary<string, ToolSpec> registry,
@@ -82,18 +100,18 @@ public partial class AgentOrchestrator
     }
 
     /// <summary>
-/// Runs the agent synchronously with the given prompt.
-/// </summary>
-/// <param name="prompt">The user prompt to process.</param>
-/// <returns>An <see cref="AgentResult"/> containing the output and execution details.</returns>
-public AgentResult Run(string prompt) => RunAsync(prompt).GetAwaiter().GetResult();
+    /// Runs the agent synchronously for the supplied prompt.
+    /// </summary>
+    /// <param name="prompt">The user prompt to process.</param>
+    /// <returns>An <see cref="AgentResult"/> that contains the final output and execution metadata.</returns>
+    public AgentResult Run(string prompt) => RunAsync(prompt).GetAwaiter().GetResult();
 
     /// <summary>
-/// Runs the agent asynchronously with the given prompt.
-/// </summary>
-/// <param name="prompt">The user prompt to process.</param>
-/// <returns>A task representing the asynchronous operation, returning an <see cref="AgentResult"/> with output and execution details.</returns>
-public async Task<AgentResult> RunAsync(string prompt)
+    /// Runs the agent asynchronously for the supplied prompt.
+    /// </summary>
+    /// <param name="prompt">The user prompt to process.</param>
+    /// <returns>A task that resolves to an <see cref="AgentResult"/> containing the final output and execution metadata.</returns>
+    public async Task<AgentResult> RunAsync(string prompt)
     {
         prompt ??= string.Empty;
         Trace(
@@ -260,6 +278,14 @@ public async Task<AgentResult> RunAsync(string prompt)
             }
             if (parsedDecision && !TryValidateDecision(decision!, out decisionValidationError))
             {
+                if (TryHandleIncompleteProgressDecision(messages, decision!, i + 1, out var handledValidationError))
+                {
+                    Trace(
+                        $"Iteration {i + 1} redirected schema-invalid progress update back into the loop: {handledValidationError}"
+                    );
+                    continue;
+                }
+
                 parsedDecision = false;
                 Trace(
                     $"Iteration {i + 1} planner decision failed schema validation: {decisionValidationError}"
@@ -334,6 +360,14 @@ public async Task<AgentResult> RunAsync(string prompt)
                 }
                 if (repairedDecisionValid && !TryValidateDecision(decision!, out decisionValidationError))
                 {
+                    if (TryHandleIncompleteProgressDecision(messages, decision!, i + 1, out var handledValidationError))
+                    {
+                        Trace(
+                            $"Iteration {i + 1} redirected repaired schema-invalid progress update back into the loop: {handledValidationError}"
+                        );
+                        continue;
+                    }
+
                     repairedDecisionValid = false;
                     Trace(
                         $"Iteration {i + 1} repaired decision failed schema validation: {decisionValidationError}"
@@ -518,6 +552,24 @@ public async Task<AgentResult> RunAsync(string prompt)
                         PromptBuilder.BuildToolResultMessage(
                             "FINALIZE-FILE-WRITE",
                             finalizeError,
+                            succeeded: false
+                        )
+                    );
+                    continue;
+                }
+
+                if (LooksLikeIncompleteFinalAnswer(decision.FinalAnswer))
+                {
+                    const string incompleteFinalAnswerError =
+                        "Final answer indicates the task is still in progress. Do not return a progress update as finalAnswer; continue with the next required tool call or return a completed result only after all requested work is done.";
+
+                    Trace(
+                        $"Iteration {i + 1} blocked final answer because it self-reported incomplete work."
+                    );
+                    messages.Add(
+                        PromptBuilder.BuildToolResultMessage(
+                            "FINAL-ANSWER",
+                            incompleteFinalAnswerError,
                             succeeded: false
                         )
                     );
@@ -881,6 +933,69 @@ Next best action:
             return "runtime-error";
 
         return null;
+    }
+
+    private static bool LooksLikeIncompleteFinalAnswer(string? output)
+    {
+        if (string.IsNullOrWhiteSpace(output))
+            return false;
+
+        var normalized = output.Trim().ToLowerInvariant();
+        return normalized.Contains("let me continue", StringComparison.Ordinal)
+            || normalized.Contains("now i need to", StringComparison.Ordinal)
+            || normalized.Contains("next i need to", StringComparison.Ordinal)
+            || normalized.Contains("still need to", StringComparison.Ordinal)
+            || normalized.Contains("i need to continue", StringComparison.Ordinal)
+            || (normalized.Contains("need to", StringComparison.Ordinal)
+                && (
+                    normalized.Contains("add ", StringComparison.Ordinal)
+                    || normalized.Contains("update ", StringComparison.Ordinal)
+                    || normalized.Contains("edit ", StringComparison.Ordinal)
+                    || normalized.Contains("write ", StringComparison.Ordinal)
+                    || normalized.Contains("modify ", StringComparison.Ordinal)
+                    || normalized.Contains("finish ", StringComparison.Ordinal)
+                    || normalized.Contains("complete ", StringComparison.Ordinal)
+                    || normalized.Contains("document", StringComparison.Ordinal)
+                    || normalized.Contains("fix ", StringComparison.Ordinal)
+                    || normalized.Contains("replace ", StringComparison.Ordinal)
+                    || normalized.Contains("create ", StringComparison.Ordinal)
+                ))
+            || normalized.Contains("continue with those edits", StringComparison.Ordinal)
+            || normalized.Contains("continue with the edits", StringComparison.Ordinal)
+            || normalized.Contains("continue with those changes", StringComparison.Ordinal)
+            || normalized.Contains("continue with the changes", StringComparison.Ordinal);
+    }
+
+    private static bool TryHandleIncompleteProgressDecision(
+        List<AgentChatMessage> messages,
+        AgentDecision decision,
+        int iterationNumber,
+        out string handledValidationError
+    )
+    {
+        handledValidationError = string.Empty;
+
+        if (decision.NeedsTool)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(decision.FinalAnswer))
+            return false;
+
+        if (!LooksLikeIncompleteFinalAnswer(decision.Reason))
+            return false;
+
+        handledValidationError = "needsTool=false requires non-empty finalAnswer";
+        var progressError =
+            "Your previous response indicates progress but not completion. If more work is required, set needsTool=true and choose the next tool call. Use needsTool=false only when the task is fully complete and finalAnswer is non-empty.";
+
+        messages.Add(
+            PromptBuilder.BuildToolResultMessage(
+                "FINAL-ANSWER",
+                progressError,
+                succeeded: false
+            )
+        );
+        return true;
     }
 
     private static int GetMaxConsecutiveLlmFailures()
@@ -1531,16 +1646,16 @@ Next best action:
 }
 
 /// <summary>
-/// Represents the result of a run loop iteration.
+/// Represents the outcome of an internal run-loop execution.
 /// </summary>
-/// <param name="OutputText">The output text from the run loop.</param>
-/// <param name="ReachedIterationLimit">Whether the iteration limit was reached.</param>
+/// <param name="OutputText">The output text produced by the run loop.</param>
+/// <param name="ReachedIterationLimit"><see langword="true"/> when the run loop stopped because it exhausted the iteration budget; otherwise, <see langword="false"/>.</param>
 public record RunLoopResult(string OutputText, bool ReachedIterationLimit);
 
 /// <summary>
-/// Represents the result of an agent run, including output, tool usage, and timing information.
+/// Represents the final outcome of an agent run, including output, tool usage, and retry metadata.
 /// </summary>
-/// <param name="output">The final output text from the agent run.</param>
+/// <param name="output">The final output text produced by the agent run.</param>
 public class AgentResult(string output)
 {
     public string OutputText { get; } = output;

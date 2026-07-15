@@ -1,0 +1,19 @@
+Primary input files:
+<PRIMARY_INPUT_FILES>
+
+Task:
+Add or update tests for the behavior described below.
+
+Behavior or regression to cover:
+<TEST_BEHAVIOR>
+
+Requirements:
+- Prefer updating an existing nearby test file if one already covers the same area.
+- If no suitable test file exists, create the smallest appropriate new test file.
+- Keep the tests focused on the described behavior.
+- Avoid changing production code unless a small supporting change is necessary and justified.
+- Use the existing test style and naming conventions in the repository.
+- Run the narrowest relevant test validation after editing.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the test change and validation have succeeded.
