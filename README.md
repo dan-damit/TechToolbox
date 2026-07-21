@@ -304,7 +304,7 @@ Invoke-TechAgent
 
 ## Command Reference
 
-The full catalog is at [commands.md](commands.md). Below is a categorized summary organized by domain.
+The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/blob/main/COMMANDS.md). Below is a categorized summary organized by domain.
 
 ### Active Directory & Identity Management
 
