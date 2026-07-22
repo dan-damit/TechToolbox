@@ -1,12 +1,24 @@
 function Connect-ExchangeOnlineAlways {
     [CmdletBinding()]
     param(
-        [bool]$ShowProgress = $false
+        [bool]$ShowProgress = $false,
+        [string[]]$CommandName
     )
 
     try {
         Write-Log -Level E-Info -Message "`nConnecting to Exchange Online...`n"
-        Connect-ExchangeOnline -ShowProgress:$ShowProgress -ShowBanner:$false
+
+        $connectParams = @{
+            ShowProgress = $ShowProgress
+            ShowBanner   = $false
+        }
+
+        $nativeConnectCmd = Get-Command -Name Connect-ExchangeOnline -ErrorAction Stop
+        if ($CommandName -and $nativeConnectCmd.Parameters.ContainsKey('CommandName')) {
+            $connectParams.CommandName = $CommandName
+        }
+
+        & $nativeConnectCmd @connectParams
         return $true
     }
     catch {
@@ -18,8 +30,8 @@ function Connect-ExchangeOnlineAlways {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA3P4XwbgzAvcnc
-# 9EGyA2zG3HtvQxEJe/UkWhn4P7exEqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBwmgTGx83PKdOD
+# jG8SdpeP+gYTEk2P1x3sEIYOAPqiXqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -152,34 +164,34 @@ function Connect-ExchangeOnlineAlways {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBoWQAALNVw
-# DZkgfAniKo8F3dT8JfvIqI7maN6EUbzEkDANBgkqhkiG9w0BAQEFAASCAgC3RRz6
-# yPyZdwSpXmWB+/mubAODCtMRlG4BI3mn4AiQS6Rpn/0k2hb/iaVAb/nGqcrRY+0l
-# fVBGiIjwRolZN6XDyq8+WI2H3EmDjRe300Qr34CmgmH3cCD8M6AFekt6+J7o0TpS
-# knTA21yzzEF+nFnw+wSa7h2/69Q14Ov1JkqLnRggYzyJdJHuqih7d/q0vt8w41zL
-# k2qTN9UASMgoMcUUDamPH/Dtt9U2zigkeaKFG51venqdcG+lE4McdP3BO17xEpZ9
-# JyNJeDtJ8ElNyZDdsvREjQT9dlNM3Oi/27JhVT344vXcacWgchKxPsoOyl6Uwe9T
-# pjRfA3DFDm0nyKRXJ1ITuTzLAWv7905iinsqnKY8OcK6akSS3e9wN8FzrDL28CSi
-# Ouk8flwXtGAtQts4lyqlxn33OgJVFVxlFGMVxbF3Tyy1vNY2YsQKYkycmOqI02ET
-# RAzybCrzZVcApjGTdyZR3tIrOwcWuN0oTVesI/4QrM+ruGgAeFTBzviC+lacjlcW
-# zR+Ff7VLBP8I5IRChSyPX7FiDyGbR8yxUdll8IuNXrCp1yQVSpFukNa4Z51eqcVf
-# TrC1I35kl5DXM6MMISlkWXTkZfEL2OjFV316LXTRo8C40MnDYZqIA4MGI/s0h8EZ
-# T5aU5Zbuq57i1R7/qJvEE8Xv8epLrzGgXo2zM6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCWgGbdpbFd
+# Du1Yao3cYDCNfrb6gRXNA0z9fYd9oXOpXTANBgkqhkiG9w0BAQEFAASCAgAmudbn
+# f/3ERv4vNi9LROy93SOsIP25XFXV6eqYTQbd/UCzumkdqkf8EBK01a5+G+c1DuUz
+# WKWtpBq6gnjTYH3aAd2JcPDbRGycyMbHzPJu8JR8JZ0XVE+5Qe8oax5nPFel3nN9
+# wfQjTD/UXo16oC49WNazj1obZrkBeynXneMW65ahCcS24ozRf6uTlz9g3exwaH/d
+# OtDNPLazenj/9ep4quWzXOUc4zx7SHJ4cnbc2X6SkJ9xtPXY7soytMfEQIyS1H1z
+# Akr5d2rWTQPe7r90Gj07jkVhGqjFfPDngGClzcSC+nF1We4fnu0rfz3JHOXT+S5w
+# nGLS5Z+Xaz1f+5Ii/8FirWy7Z4apXGduWv3uxMwHpvQTncezsqRzWwB4JhziIBYx
+# HnADkeIBppnsArr5wGhsdqzH412Bjb1Zc59aSZRvfvH54fvq7Avg4F6o5rmG4dhn
+# lPSQK7G3SYRK0Xefz+ZFZIlyqcPS4DF/ov5KJDhZwrpqzphSWTDfH/iVs2yoNz7O
+# qBZnFqViI/W2D3IRYLO/x6ReTtNuzmFuU8t7gWSUY7awwcpjhmNc0whcjsU+c6Mh
+# 5CPQqJfXB0uDQyoquW3NqfuzeR30tr54q5noZNFUS94K/YHSQjK6On7+6IvVU23H
+# Hi/P40V1nX/ysU5oIY75rfXVQkw62fEmWTl2SqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA1MDgyMTE3MjZaMC8GCSqGSIb3DQEJBDEiBCBS+ub8TjXApSrzyeZF
-# SabalshlGOnft3p2n+6q3xouqzANBgkqhkiG9w0BAQEFAASCAgC9skxlqtwlF1D5
-# tHV5JEUM5fsMLdmNvIyc1tdnBpjc4yu7PEEG9FqZLhRrZFEzu7z2xP5COvmwE4gq
-# YYBGyUpbptADrkPSe+NDHrWHlj2De4lPIwcajgBMIiU54msmsGvDppROLcsoDBFu
-# jQJyyy7fM76FQoicuHLlW0+0r0HJQsE0q/Q8tx/AdHzoS5iD9u59bHVD7SlfRqk9
-# Oijg3KcsOiYHxLxzjmW53b/tn8DV01JvOF4zGe23BUGh+caNWaT/eh6TaympQBJj
-# x5l4QIdJb/R1+kOAUAplcMFvwJHwJKdkFM+9SMaOFuLj/jFHqv0eQsz3vQytRPKM
-# qexIrRnWpN9xRgl+6v/6AaQxPUyFoSd3ejuKOPer1k5PJVe2f2wiU82y0ZPRqqnV
-# HpLWfVEJ2YsopTEw62Yh7yqaaaCd4C83j+m7/+EPj80eFJTFbJxxPZf0boNUqntA
-# TiYLVfj6FoOccrjnMwxDrqxCqH8g8HXvj85OzL8r5ywIL5g7KnDlNVjprmHtpeTk
-# kbGj/TC7BXrDZlfG+U8R7qfTQ/5N4ceOi0uJFcCsG8GG0YcZrMHe0HGliAkqt3Uu
-# 5maPL1cOKTenbgMKYfnrjFU9A2eQMptPQd1hnSPx4bXncWXPoOM9zdCRCpPKafHd
-# F4u/fM5OOr7Zg5SxeVfEgz7gudM/Qg==
+# BTEPFw0yNjA3MjIxNDU0MDNaMC8GCSqGSIb3DQEJBDEiBCC5iuEftCi5t06gwLfm
+# YBnCDg1ak3rWNgCaH2jKOBqcADANBgkqhkiG9w0BAQEFAASCAgA7R/eqBKhsIg58
+# F1SdpZvRy9sxGUw2OeNLXnNr5uNeYndAh2e9ztvR1+0iZvVr9aWitAP71HFO1msF
+# +SDaf7izuS875fRuwpINc3clD46CHyROa+WHRe/KTkb8VdrT9hvC1zNCUcgR3Cm8
+# itS0kghjAHU7v+F2UdYjy8MDaIuLErp0VrgCs2fj6cmnVwdjRGJxQSSWteFC3Ai/
+# cgXxF1HbaTVYiOyPtYmdHd0EXk8DrHhT/JB1TAAF5EULjDVIwwXW5bJESOPXgnxR
+# DVt1ePZFUg5+oq4HRV+F41y7MhnbN8s9jEnicwJZXErSEJJ3Z+gV2AmswRbuh4PT
+# CmIT2BOwmWykL/sUc0/Wuj1pv0RmMJQ7EhGIg/Qkqw7vVgI49inJTTQUZyDLv+Rc
+# KgB4u6HO4yl7NWx1gfsOCp5rRMSpFPSBHbzlht9BEtF0oPRhJ56XFruA1fe0Xt/x
+# sy17wcjaad8M8r6eRXmmweoZJkXLa9DS9MtjSEPj+yaNZRe5lY6LzD8g6HXIVXjS
+# HTc200X3uwWyQ3U0GTHqC0LUdr4Ju3Y6AsLC1gQxxR7L3TjWB4EYVfVeg5R1tJAf
+# 5lXA32F7rcmIHhPyad2C0AUt0uHvViaQoYXp9MSTlc5q2zuFHYhn98tlBhF9+VBI
+# 0ancfIvqGJh5Eov2oEZjGl6W8APnRw==
 # SIG # End signature block

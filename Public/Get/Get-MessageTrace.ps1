@@ -221,6 +221,12 @@ function Get-MessageTrace {
     # does not shadow the TechToolbox function after the first run.
     function Confirm-EXOConnected {
         if (-not (Get-Command -Name Get-MessageTraceV2 -ErrorAction SilentlyContinue)) {
+            $requiredExoCommands = @(
+                'Get-MessageTraceV2',
+                'Get-MessageTraceDetailV2',
+                'Disconnect-ExchangeOnline'
+            )
+
             $connectCmd = Get-Command -Name Connect-ExchangeOnlineAlways -ErrorAction SilentlyContinue
             if ($connectCmd) {
                 try {
@@ -235,17 +241,37 @@ function Get-MessageTrace {
                     }
 
                     if ($connectCmd.Parameters.ContainsKey('CommandName')) {
-                        $connectParams.CommandName = @(
-                            'Get-MessageTraceV2',
-                            'Get-MessageTraceDetailV2',
-                            'Disconnect-ExchangeOnline'
-                        )
+                        $connectParams.CommandName = $requiredExoCommands
                     }
 
                     & $connectCmd @connectParams | Out-Null
                 }
                 catch {
                     Write-Log -Level Error -Message ("Failed to connect to Exchange Online: {0}" -f $_.Exception.Message)
+                    throw
+                }
+            }
+            else {
+                try {
+                    $nativeConnectCmd = Get-Command -Name Connect-ExchangeOnline -ErrorAction Stop
+                    $connectParams = @{}
+
+                    if ($nativeConnectCmd.Parameters.ContainsKey('ShowBanner')) {
+                        $connectParams.ShowBanner = $false
+                    }
+
+                    if ($nativeConnectCmd.Parameters.ContainsKey('ShowProgress')) {
+                        $connectParams.ShowProgress = [bool]$exo.showProgress
+                    }
+
+                    if ($nativeConnectCmd.Parameters.ContainsKey('CommandName')) {
+                        $connectParams.CommandName = $requiredExoCommands
+                    }
+
+                    & $nativeConnectCmd @connectParams | Out-Null
+                }
+                catch {
+                    Write-Log -Level Error -Message ("Failed to connect to Exchange Online via native Connect-ExchangeOnline: {0}" -f $_.Exception.Message)
                     throw
                 }
             }
@@ -327,6 +353,43 @@ function Get-MessageTrace {
         throw "Exceeded retry attempts."
     }
 
+    # --- Helper: safely read a field from varied EXO object shapes ---
+    function Get-TraceFieldValue {
+        param(
+            [Parameter()][object]$InputObject,
+            [Parameter(Mandatory)][string]$Name
+        )
+
+        if ($null -eq $InputObject) { return $null }
+
+        if ($InputObject -is [System.Collections.IDictionary]) {
+            if ($InputObject.Contains($Name)) {
+                return $InputObject[$Name]
+            }
+            return $null
+        }
+
+        try {
+            $value = $InputObject.$Name
+            if ($null -ne $value) {
+                return $value
+            }
+        }
+        catch { }
+
+        try {
+            if ($InputObject.PSObject -and $InputObject.PSObject.Properties) {
+                $prop = $InputObject.PSObject.Properties[$Name]
+                if ($prop) {
+                    return $prop.Value
+                }
+            }
+        }
+        catch { }
+
+        return $null
+    }
+
     # --- Chunked V2 invoker (≤10-day slices + continuation when >5k rows) ---
     function Invoke-MessageTraceV2Chunked {
         [CmdletBinding()]
@@ -340,6 +403,7 @@ function Get-MessageTrace {
             [Parameter()][string] $SubjectFilterType,
             [Parameter()][int]    $ResultSize = 5000
         )
+
         # Docs: V2 supports 90 days history but only 10 days per request; up to
         # 5000 rows; times are returned as UTC. When result size is exceeded,
         # query subsequent data by using StartingRecipientAddress and EndDate
@@ -358,6 +422,7 @@ function Get-MessageTrace {
 
             $continuationRecipient = $null
             $continuationEndUtc = $sliceEnd
+            $canContinue = $true
 
             do {
                 $params = @{
@@ -390,19 +455,38 @@ function Get-MessageTrace {
                 if ($batchCount -gt 0) {
                     $results.AddRange($batchItems)
 
-                    # Continuation: use the oldest row's RecipientAddress and Received (UTC)
-                    $last = $batchItems | Sort-Object Received -Descending | Select-Object -Last 1
-                    $continuationRecipient = $last.RecipientAddress
-                    $continuationEndUtc = $last.Received
+                    # Continuation: use the oldest row that has both RecipientAddress and Received.
+                    $last = $batchItems |
+                    Where-Object {
+                        $recipientValue = Get-TraceFieldValue -InputObject $_ -Name 'RecipientAddress'
+                        $receivedValue = Get-TraceFieldValue -InputObject $_ -Name 'Received'
+
+                        -not [string]::IsNullOrWhiteSpace([string]$recipientValue) -and
+                        $null -ne $receivedValue
+                    } |
+                    Sort-Object Received -Descending |
+                    Select-Object -Last 1
+
+                    if ($last) {
+                        $continuationRecipient = [string](Get-TraceFieldValue -InputObject $last -Name 'RecipientAddress')
+                        $continuationEndUtc = Get-TraceFieldValue -InputObject $last -Name 'Received'
+                    }
+                    else {
+                        if ($batchCount -ge $ResultSize) {
+                            Write-Log -Level Warn -Message "Continuation token could not be derived from this batch (missing RecipientAddress/Received). Stopping pagination for this slice to avoid duplicate-looping."
+                        }
+                        $canContinue = $false
+                    }
 
                     # Pace to respect tenant throttling (100 req / 5 min)
                     Start-Sleep -Milliseconds 200
                 }
                 else {
                     $continuationRecipient = $null
+                    $canContinue = $false
                 }
 
-            } while ($batchCount -ge $ResultSize)
+            } while ($batchCount -ge $ResultSize -and $canContinue)
 
             $sliceStart = $sliceEnd
         }
@@ -447,8 +531,12 @@ function Get-MessageTrace {
         $detailsAll = New-Object System.Collections.Generic.List[object]
 
         foreach ($row in $summary) {
-            $mtid = $row.MessageTraceId
-            $rcpt = $row.RecipientAddress
+            $mtid = $null
+            $rcpt = $null
+
+            $mtid = Get-TraceFieldValue -InputObject $row -Name 'MessageTraceId'
+            $rcpt = Get-TraceFieldValue -InputObject $row -Name 'RecipientAddress'
+
             if (-not $mtid -or -not $rcpt) { continue }
 
             try {
@@ -498,8 +586,8 @@ function Get-MessageTrace {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDyWJRRM9r6T4Vy
-# V4dUWmyF6EsVx09o/nJ7UxSuyJ/xfKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC/sUa1BiR5Cjn2
+# Z+UkcRddwWp1/Mx6pXPwi0uuMII2o6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -632,34 +720,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB459C7QMXd
-# kuZ4sStXdA2M+LN4Fql9U6bySypSdKFRfjANBgkqhkiG9w0BAQEFAASCAgCv2Rrx
-# JtzJTOAv7HSJE/Vm8Ll/KmMJqbQrGKc/f/NqU/TSBAB5+bL249ECEGAzukLsb+3J
-# kzMNiIIUMjg/8cD+JTQNCER1/3ewUkqHzxRjPDG4C9OTZ00OzsFLuxNzPmFdXBC8
-# M98FUucBA1gSpx1zySXaPAOPcoiAHKkdgNwOKnZOe+/FyOIHHUxWhIaBzn8ti27K
-# S0lsmbZu21f/afnkeVE9dKZnentgAT0X7RgM+RR2mv8QQy8eOjnZrpODm01YfXNb
-# 1mnICW9CPio97YzyMwymBCi8yZW3uSoFeIg6yP+/AzOCAava/Axl8VmiUu4JNQkT
-# IvUL5D+DSoUStfliMESZ9VcHKF67usB2XRoGPQkNQqkcuk+uC2Mhosj5VibLcurI
-# rS/h4tPP43ww4PGr5WXx8lNhWVxy3AeImqN2FcK437gXUBs3hG6LsJx6gu0DDNZo
-# psdYGQWTuKb6FPO2TAJ1PcaodXicsnJcqPc31Q0QEVh6Diqgu00AlGD6rlrRFmjF
-# AYqe9rK+BrA/l++1ZpbqvtB03gT24xbQz5X2C9wpRSbSw0wUOi016B2A/YNzhkNP
-# ZcYTBMTLGTRR5lmzJhEYUmEmEw4uJhedvL9QiB9gTj+kWyHrnENH6IHFRcCR0XUC
-# wKMMfyTnO0KU37OCubqpoPD21NJHUGo0PaGBXaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB74UAVk/gW
+# rNAgf/W6hYPQK122FoAu7+3Csj0WtHNjGTANBgkqhkiG9w0BAQEFAASCAgBewuVZ
+# CE58Hrc4BXYCqwb4L0tyLZSC05e0yL7cA9b2mVE+EJwY07I9BxWV9kvpTOTrobxV
+# 1Arkdh0DTQXLGYM+nWB3GaEUnt9CoXqmd6Bt99awnrtRI8Buo6/9PAII+snTwDCz
+# IzcRPYk4LpwWMg8L/ij+bEJFZogBspBFoTL6Y8J1BN4ioTa4ZCg0y8e9l7+qNkWc
+# ZqZSTTgjfOQbzJEkbYC39SZGbEuPYSXXnkDltXNLLHL97QqD6tRkfrfnTHeAVWji
+# BB+xGHg8IZGHL37MLWwHEuExfZIBFcqR17LairiJtqP050btTZcO/H/iPcz1ngWN
+# q8i+qIKm1WyI5qUR+s/YVJ71cdRQDMan6YaIv7+AlRtZOuFJrG+fQHXJw0PMV1Qk
+# RSaQzdslTp7Ngpj02o5AHz91pqeR3iSmcyB27AsejnhqATGbo+Wcac7JCcVzYuTe
+# 463Ln8iYvAVD+6TIFZWW3Ntmg6+tid5XiFmso+bD/1POnr6WdSrUODyLdvTboYqv
+# LYJ1Z5LkxAYKijCKsTNq6ahaQa8ux7AQkwAHBBG+mS96ahj9/s6HkLgs85+MSCHF
+# uiCYv+bGhzTXO3PCkJlukVolRuCbQGWmSnGRnE/wpOeyFqzqFD9p9SML/Y5WFwbe
+# JxXLm8DzyOSoPZKIhRzpJ1gGYDRCmDzFWi/jA6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MTYxNDUzMzFaMC8GCSqGSIb3DQEJBDEiBCB+1vvNnjEBTqgw5yEX
-# VBArWFbVgp7bgnNAbTfZecVf1TANBgkqhkiG9w0BAQEFAASCAgC7t3AC2L58viME
-# qWebaVNkhZgYwKy/Qd/DmPOiY898sXnNvWymu4VUW3IRyKbkwg91lv88wXT65RTl
-# MMF+N5S6jmUxZigVxZ8ZlY6nCVvh9SIRSPk2Nu3w9CU43itaa/G1W7DygbWQiHCZ
-# OyhvsOFi7cX6bmTDseUcEEvQ0Ex21vkYCBoi2rtMACi1UGvQdm3jcOdnQUr4mDSl
-# DyldFiqBY5KdVhk14P3wlpDa1FwN6AvL62V3PPvCvuprQt9WFYuoy+ZdnaozmN0t
-# li7PgqpokwmC9g62pCMt8KoQarP/wnafWafljXAb1VIczRtOBpN0tqlaGAlSVqU1
-# Im4mvpCSNacmLsAxolQGbso7fcuULx03Mz8nbhr/V0x2bw0w3LYr4JEwRhxnjPEb
-# 0TyxVhD9jSEXfgJGVzuvbxvQfG7Yh11VfPS+sHA39T9ATo29NTHAKF6nXGALiTXR
-# JvnW3cEJ2gvaGN9NfgjGXUr74HrHQD4OY22OoRsdc27Y8vvnUFYu66xeWozL5zt8
-# XMt+nr3e7zNQ0exR/HwTG3baJBoLuKjdOTTL1sOYmBxDLzle4S9f34rAm8lorO1C
-# ML2obl1kcin9X4fibIfeVabhwAzeLUVILOweKxf0paLHjBb15anEPhKtlkHG78eO
-# o9PzcrnZCfn1ymokLAVAZkClODkCeA==
+# BTEPFw0yNjA3MjIxNTAyMDZaMC8GCSqGSIb3DQEJBDEiBCD6KFYvmIjIxCUFLPfx
+# OKwzAitB2yyKlRvAj/3+KUtrKTANBgkqhkiG9w0BAQEFAASCAgDI2TJ0HqwFMFp0
+# s+UQS0Po73Wl6oeq9i/4Kd1MhNtCTEixrOdKB/fseYq3/xeGQc+ozwP8RldHWJLX
+# qgS/8HcEgMFo09uRmR/ODQK8QB8meWi/KukKCh9L5FfyrXTBDwz2R/PTduSPq2PC
+# Dz0dQQSpeBOT6yTuUAblJl2scfm6gFHgAE8m/g+sczFEiaAS1gtfBFwarIbPqk5v
+# KtKT3bQQvx/5DFxRsqOcNkoBNNOT7r0n0e0v9Gd9e4s8GFQFeQH1KrmliYIOAtLF
+# FTAQ1+sqUirlzLNSVBkHpzg1zXosom0v8EctLoVf4v49cuUJn8GsXwhfgtgA3ykr
+# KprBELMuayB1SWVtQZf7dvU44j9nUlA6Hb4lU8XtzksesNTx9hWlVTKEbuIrmTvj
+# J5LffYCBYXxB48AqdgLR2C0uocLZJj6F/8y1++2qgDu0OyC8r2IQPf8e5qfIkXSG
+# NHKOEKsQ94QTBwsH18PlK42JJtqcByxX3ROUJfR1rUdZvhLduUnYo5jPo2+h4gsj
+# tgc5c8LzcjLZuIo8pyBEXZ+DSGHqZtR+ZTTh9QSPyTiem+EctL2CGovQYGd1tlqh
+# DVVOzMiqZulhxkK0sSa3EmuiNTnZuhYuXwrLZJdJuTa7i2N0HwixZI3aN40Ncq88
+# FEXWEna426G8Ws9ezjwGFRWE/3oK2A==
 # SIG # End signature block
