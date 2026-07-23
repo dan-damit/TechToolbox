@@ -1,33 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-11T17:34:47-05:00",
-    "status": "success",
-    "outcome": "blocked",
-    "prompt": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that \u0027Properties didn\u0027t exist on this object\u0027 when I included the -IncludeEXO and -ForceCloud switches from the Disable-User function. Can you please take a look at why this error during the Write-OffboardingSummary funciton would happen and report your findings, please?",
-    "model": "qwen3.6:35b",
-    "durationMs": 281819,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 21,
-    "toolNames": [],
-    "outputPreview": "Based on my analysis of the error \u0022Properties didn\u0027t exist on this object\u0022 when using \u0060-IncludeEXO\u0060 and \u0060-ForceCloud\u0060 switches with \u0060Write-OffboardingSummary\u0060, here are the likely causes:\n\n## Root Cause Analysis\n\nThe error \u0022Properties didn\u0027t exist on this object\u0022 is a common PowerShell error that occurs when attempting to access a property on an object that doesn\u0027t contain it. This typically happens in three scenarios:\n\n### 1. **Property Name Mismatch**\n- \u0060Write-OffboardingSummary\u0060 likely accesses properties like \u0060$user.PrimarySmtpAddress\u0060, \u0060$user.RecipientTypeDetails\u0060, or \u0060$user.CloudExchangeRecipientDisplayType\u0060\n- When \u0060-IncludeEXO\u0060 is used, these properties should be added to the output object\n- However, if the property names in \u0060Write-OffboardingSummary\u0060 don\u0027t exactly match what \u0060Disable-User\u0060 returns with those switches, you get this error\n\n### 2. **Conditional Property Population**\n- With \u0060-ForceCloud\u0060, \u0060Disable-User\u0060 may query Exchange Online and add properties to the returned object\n- But if:\n  - Exchange Online isn\u0027t connected\n  - The user doesn\u0027t have an EXO mailbox\n  - The cloud properties fail to populate silently\n- Then the properties that \u0060Write-OffboardingSummary\u0060 expects won\u0027t exist on the object\n\n### 3. **Object Type Changes**\n- When \u0060-IncludeEXO\u0060 and \u0060-ForceCloud\u0060 are used together, the object structure may change:\n  - It might become a custom object with diff...",
-    "runSummary": {
-      "intent": "I made the adjustment to the Write-OffboardingSummary function located at C:\\Users\\dan\\OneDrive\\TechStuff\\TechToolbox\\Private\\ActiveDirectory to expand on the Actions Performed accuracy. My test said that \u0027Properties did...",
-      "actionsTaken": [
-        "Get-FilesUsingKeywords",
-        "read_file",
-        "Get-TechToolboxConfig",
-        "Find-LargeFiles",
-        "ITA",
-        "Export-ToolboxFunctions"
-      ],
-      "blockers": "Based on my analysis of the error \u0022Properties didn\u0027t exist on this object\u0022 when using \u0060-IncludeEXO\u0060 and \u0060-ForceCloud\u0060 switches with \u0060Write-OffboardingSummary\u0060, here are the likely causes:\n\n## Root Cause Analysis\n\nThe err...",
-      "nextBestStep": "Add defensive checks (use \u0060$user | Get-Member\u0060 or property existence checks) in the summary function"
-    }
-  },
-  {
     "timestampUtc": "2026-06-11T17:49:52-05:00",
     "status": "success",
     "outcome": "completed",
@@ -7190,6 +7162,45 @@
       "actionsTaken": [],
       "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 20\r\n- max_iterations requested: 20\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
       "nextBestStep": "Next best action:"
+    }
+  },
+  {
+    "timestampUtc": "2026-07-22T02:44:19.8037055+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "If I wanted to implement some Pester tests in the module, where would be a good place to start?",
+    "model": "ornith:35b",
+    "durationMs": 61973,
+    "maxIterations": 20,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 14,
+    "toolNames": [
+      "list_directory",
+      "list_directory",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "list_directory"
+    ],
+    "outputPreview": "## Where to Start with Pester Tests\n\nBased on my exploration of the TechToolbox repository, here are some good starting points for implementing Pester tests:\n\n### Recommended Test Directory Structure\n\nCreate a \u0060Tests\u0060 directory at the root level:\n\u0060\u0060\u0060\nC:\\repos\\TechToolbox\\Tests\\\n\u0060\u0060\u0060\n\nThis is a common PowerShell module testing convention and keeps tests separate from the module source.\n\n### Suggested Test Organization\n\n1. **Test by Function Category**\n   - \u0060Tests\\Public\\\u0060 - Tests for Public folder functions\n   - \u0060Tests\\Private\\\u0060 - Tests for Private folder functions\n   - \u0060Tests\\Workers\\\u0060 - Tests for Worker scripts\n\n2. **Test by Functionality**\n   - \u0060Tests\\Diagnostics\\\u0060 - Tests for diagnostic functions (Get-BatteryHealth, Get-ErrorEvents, etc.)\n   - \u0060Tests\\AD\\\u0060 - Tests for Active Directory functions (Reset-ADPassword, Search-User, etc.)\n   - \u0060Tests\\Exchange\\\u0060 - Tests for Exchange functions (Get-SharedMailboxPermissions, Get-AuditSharedMailboxDeletions, etc.)\n   - \u0060Tests\\Networking\\\u0060 - Tests for networking functions (Invoke-SubnetScan, Watch-ISPConnection, etc.)\n\n### Starting Points\n\n1. **Simple, Pure Functions First**\n   Start with functions that don\u0027t require external dependencies:\n   - \u0060Test-TTInteractive\u0060 (already exists in TechToolbox.psm1)\n   - \u0060Export-ToolboxFunctions\u0060 (in Public folder)\n   - Any utility/helper functions\n\n2. **Worker Scripts**\n   The Workers directory contains standalone scripts that might be easier to test:\n   - \u0060Clear-BrowserProfileData.Worker.ps1\u0060\n   - \u0060Remove-EpicorEdgeAgent.Worker.ps1\u0060\n\n3. **Configuration Functions**\n   - \u0060Get-TechToolboxConfig\u0060 - Test config loading and validation\n\n### Test File Naming Convention\n\nUse the pattern: \u0060\u003CFunctionName\u003E.Tests.ps1\u0060\nExample: \u0060Tests\\Public\\Get-TechToolboxConfig.Tests.ps1\u0060\n\n### Quick Start Example\n\nCreate a basic test file structure:\n\u0060\u0060\u0060\nTests\\\n  Tests.ps1              # Root test runner\n  Public\\\n    Get-TechToolboxConfig.Tests.ps1\n  Private\\\n    Test-TTInteractive.Tests.ps1\n  Workers\\\n    Clear-BrowserProfileData.Tests.ps1\n\u0060\u0060\u0060\n\nThe \u0060Tests.ps1\u0060 root file would import the module and run all tests:\n\u0060\u0060\u0060powershell\nImport-Module -Name \u0027./TechToolbox.psd1\u0027 -Force\n\nDescribe \u0027TechToolbox Module Tests\u0027 {\n    It \u0027Should load successfully\u0027 {\n        Get-Module TechToolbox | Should -Not -BeNullOrEmpty\n    }\n    \n    # Add more describe blocks here\n}\n\u0060\u0060\u0060\n\nThis approach gives you a solid foundation that can grow as you add more tests.",
+    "runSummary": {
+      "intent": "If I wanted to implement some Pester tests in the module, where would be a good place to start?",
+      "actionsTaken": [
+        "list_directory",
+        "read_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
     }
   }
 ]

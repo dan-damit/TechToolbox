@@ -20,59 +20,27 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.3,
-      "avgDurationMs": 184961,
-      "avgToolCalls": 6.05,
+      "avgDurationMs": 184581,
+      "avgToolCalls": 6.35,
       "statusCounts": {
-        "success": 6,
-        "error": 14
+        "error": 14,
+        "success": 6
       },
       "outcomeCounts": {
-        "completed": 6,
         "iteration-limit": 10,
+        "completed": 6,
         "llm-failure": 2,
         "invalid-json": 2
       },
-      "lastStatus": "error",
-      "lastOutcome": "iteration-limit",
+      "lastStatus": "success",
+      "lastOutcome": "completed",
       "lastModel": "ornith:35b",
-      "lastRunTimestampUtc": "2026-07-15T03:21:23.0146101\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-15T03:21:23.0405336\u002B00:00"
+      "lastRunTimestampUtc": "2026-07-22T02:44:19.8037055\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-22T02:44:19.8047208\u002B00:00"
     },
     "fact.read.3316348d": "read"
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-14T03:21:04.4621837+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "What are some examples of API endpoints from the github content you can access?",
-      "model": "ornith:35b",
-      "durationMs": 69570,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 8,
-      "toolNames": [
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "## API Endpoints from the Zerith-Isle/TechToolbox Repository\n\nI was able to access the GitHub repository at \u0060Zerith-Isle/TechToolbox\u0060 (the correct owner, not \u0060techtoolbox\u0060). Here are some examples of API endpoints I can access:\n\n### Repository Info\n- \u0060https://api.github.com/repos/Zerith-Isle/TechToolbox\u0060 - basic repo metadata\n- \u0060https://api.github.com/search/repositories?q=TechToolbox\u0060 - search results (15 total)\n\n### Contents\n- \u0060https://api.github.com/repos/Zerith-Isle/TechToolbox/contents/\u0060 - root directory listing\n\n### Individual Files Found\nThe repo contains these HTML files:\n- \u0060bmi.html\u0060\n- \u0060calculator.html\u0060\n- \u0060chat.html\u0060\n- \u0060converter.html\u0060\n- \u0060encrypt.html\u0060\n- \u0060finance.html\u0060\n- \u0060fitness.html\u0060\n- \u0060index.html\u0060\n- \u0060password.html\u0060\n- \u0060timestamp.html\u0060\n- \u0060todo.html\u0060\n\n### Static Assets Directory\n- \u0060https://api.github.com/repos/Zerith-Isle/TechToolbox/contents/static?ref=main\u0060 - contains subdirectories:\n  - \u0060css/\u0060 (with \u0060style.css\u0060)\n  - \u0060js/\u0060 (with \u0060app.js\u0060, \u0060bmi.js\u0060, \u0060calculator.js\u0060, \u0060chat.js\u0060, \u0060converter.js\u0060, \u0060encrypt.js\u0060, \u0060finance.js\u0060, \u0060fitness.js\u0060, \u0060password.js\u0060, \u0060timestamp.js\u0060, \u0060todo.js\u0060)\n\n### Git Trees\n- \u0060https://api.github.com/repos/Zerith-Isle/TechToolbox/git/trees/main?recursive=1\u0060 - full recursive tree listing\n\nNote: The repo is a static HTML/JS project (no backend API), so the \u0022API endpoints\u0022 are all GitHub REST API endpoints for reading the repository contents.",
-      "runSummary": {
-        "intent": "What are some examples of API endpoints from the github content you can access?",
-        "actionsTaken": [
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
     {
       "timestampUtc": "2026-07-14T03:27:01.6131102+00:00",
       "status": "error",
@@ -621,6 +589,45 @@
         "actionsTaken": [],
         "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 20\r\n- max_iterations requested: 20\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
         "nextBestStep": "Next best action:"
+      }
+    },
+    {
+      "timestampUtc": "2026-07-22T02:44:19.8037055+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "If I wanted to implement some Pester tests in the module, where would be a good place to start?",
+      "model": "ornith:35b",
+      "durationMs": 61973,
+      "maxIterations": 20,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 14,
+      "toolNames": [
+        "list_directory",
+        "list_directory",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file",
+        "list_directory"
+      ],
+      "outputPreview": "## Where to Start with Pester Tests\n\nBased on my exploration of the TechToolbox repository, here are some good starting points for implementing Pester tests:\n\n### Recommended Test Directory Structure\n\nCreate a \u0060Tests\u0060 directory at the root level:\n\u0060\u0060\u0060\nC:\\repos\\TechToolbox\\Tests\\\n\u0060\u0060\u0060\n\nThis is a common PowerShell module testing convention and keeps tests separate from the module source.\n\n### Suggested Test Organization\n\n1. **Test by Function Category**\n   - \u0060Tests\\Public\\\u0060 - Tests for Public folder functions\n   - \u0060Tests\\Private\\\u0060 - Tests for Private folder functions\n   - \u0060Tests\\Workers\\\u0060 - Tests for Worker scripts\n\n2. **Test by Functionality**\n   - \u0060Tests\\Diagnostics\\\u0060 - Tests for diagnostic functions (Get-BatteryHealth, Get-ErrorEvents, etc.)\n   - \u0060Tests\\AD\\\u0060 - Tests for Active Directory functions (Reset-ADPassword, Search-User, etc.)\n   - \u0060Tests\\Exchange\\\u0060 - Tests for Exchange functions (Get-SharedMailboxPermissions, Get-AuditSharedMailboxDeletions, etc.)\n   - \u0060Tests\\Networking\\\u0060 - Tests for networking functions (Invoke-SubnetScan, Watch-ISPConnection, etc.)\n\n### Starting Points\n\n1. **Simple, Pure Functions First**\n   Start with functions that don\u0027t require external dependencies:\n   - \u0060Test-TTInteractive\u0060 (already exists in TechToolbox.psm1)\n   - \u0060Export-ToolboxFunctions\u0060 (in Public folder)\n   - Any utility/helper functions\n\n2. **Worker Scripts**\n   The Workers directory contains standalone scripts that might be easier to test:\n   - \u0060Clear-BrowserProfileData.Worker.ps1\u0060\n   - \u0060Remove-EpicorEdgeAgent.Worker.ps1\u0060\n\n3. **Configuration Functions**\n   - \u0060Get-TechToolboxConfig\u0060 - Test config loading and validation\n\n### Test File Naming Convention\n\nUse the pattern: \u0060\u003CFunctionName\u003E.Tests.ps1\u0060\nExample: \u0060Tests\\Public\\Get-TechToolboxConfig.Tests.ps1\u0060\n\n### Quick Start Example\n\nCreate a basic test file structure:\n\u0060\u0060\u0060\nTests\\\n  Tests.ps1              # Root test runner\n  Public\\\n    Get-TechToolboxConfig.Tests.ps1\n  Private\\\n    Test-TTInteractive.Tests.ps1\n  Workers\\\n    Clear-BrowserProfileData.Tests.ps1\n\u0060\u0060\u0060\n\nThe \u0060Tests.ps1\u0060 root file would import the module and run all tests:\n\u0060\u0060\u0060powershell\nImport-Module -Name \u0027./TechToolbox.psd1\u0027 -Force\n\nDescribe \u0027TechToolbox Module Tests\u0027 {\n    It \u0027Should load successfully\u0027 {\n        Get-Module TechToolbox | Should -Not -BeNullOrEmpty\n    }\n    \n    # Add more describe blocks here\n}\n\u0060\u0060\u0060\n\nThis approach gives you a solid foundation that can grow as you add more tests.",
+      "runSummary": {
+        "intent": "If I wanted to implement some Pester tests in the module, where would be a good place to start?",
+        "actionsTaken": [
+          "list_directory",
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
       }
     }
   ],
