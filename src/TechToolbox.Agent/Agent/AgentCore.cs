@@ -22,9 +22,6 @@ public static class AgentCore
         StringComparer.OrdinalIgnoreCase
     )
     {
-        "Invoke-CodeAssistant",
-        "Invoke-CodeAssistantFolder",
-        "Invoke-CodeAssistantWrapper",
         "Invoke-TechAgent",
         "ITA",
     };

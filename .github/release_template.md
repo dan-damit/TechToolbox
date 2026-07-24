@@ -11,10 +11,6 @@ This milestone marks TechToolbox’s evolution from a powerful admin toolkit int
 
 ### **AI Agent Bridge**
 - Introduced `Invoke-TechAgent` for structured, agent-driven automation workflows  
-- Added AI-assisted development tooling:
-  - `Invoke-CodeAssistant`
-  - `Invoke-CodeAssistantFolder`
-  - `Invoke-CodeAssistantWrapper`
 - Established the packaged C# TechToolbox agent runtime for local orchestration
 - Expanded the agent runtime into multiple modes so it can cover a wider range of tasks:
   - `TechToolbox` for module-native automation and safe system actions

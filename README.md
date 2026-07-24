@@ -391,9 +391,6 @@ The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/bl
 
 | Function                      | Purpose                                                                                      |
 | ----------------------------- | -------------------------------------------------------------------------------------------- |
-| `Invoke-CodeAssistant`        | Sends a prompt to the local code assistant                                                   |
-| `Invoke-CodeAssistantFolder`  | Runs the assistant on an entire folder                                                       |
-| `Invoke-CodeAssistantWrapper` | Wrapper for structured AI task execution                                                     |
 | `Invoke-TechAgent`            | Orchestrates the agent-driven workflow engine (single recursion auto-retry toggle available) |
 
 ### Export & Packaging
