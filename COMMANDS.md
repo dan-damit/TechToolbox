@@ -117,9 +117,6 @@ Get-Command -Module TechToolbox | Sort-Object Name
 
 | Command | Summary | Flags |
 |---|---|---|
-| Invoke-CodeAssistant | Run local AI code assistant on one file. | |
-| Invoke-CodeAssistantFolder | Run AI-assisted transformation across a folder. | |
-| Invoke-CodeAssistantWrapper | Wrap code assistant execution with added context. | |
 | Install-TechAgentRuntime | Verify Ollama runtime and optionally pull the Tech agent model. | Risk |
 | Invoke-TechAgent | Run local tool-using AI agent prompt workflow (supports single recursion auto-retry toggle). | Interactive |
 | Use-TechAgentTaskTemplate | List, filter, preview, pick, open, or copy reusable TechAgent task templates. | Interactive |

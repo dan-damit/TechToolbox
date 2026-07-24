@@ -103,6 +103,13 @@ Latest completed enhancements:
 - Updated `Invoke-TechAgent` default prompt source configuration to `AI\Tasks\CurrentTask.txt` when no `-Prompt` or `-PromptFile` is supplied.
 - Hardened `AI\Tasks\Use-TaskTemplate.ps1` path resolution to derive task/template paths from module root for portability.
 
+### **Removed**
+- Removed obsolete legacy AI commands from the module:
+  - `Invoke-CodeAssistant`
+  - `Invoke-CodeAssistantFolder`
+  - `Invoke-CodeAssistantWrapper`
+- Recommended replacement workflow: `Invoke-TechAgent`.
+
 ### **Fixed**
 - Agent orchestration reliability:
   - blocked premature completion when a model returns a progress-style `finalAnswer` that indicates work is still in progress
