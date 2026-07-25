@@ -1,16 +1,19 @@
-Read this file:
-C:\repos\TechToolbox\Workers\Clear-BrowserProfileData.Worker.ps1
+Primary input files:
+C:\repos\TechToolbox\TechToolbox.psm1
 
 Task:
-Add or improve PowerShell comment-based help for the script and for any top-level function intended to be called directly.
+Add or update tests for the behavior described below.
+
+Behavior or regression to cover: 
+Create a Tests.ps1 file that tests the module load and exported functions.
 
 Requirements:
-- Update this exact file in place:
-  C:\repos\TechToolbox\Workers\Clear-BrowserProfileData.Worker.ps1
-- Preserve all existing code and behavior.
-- Only add or improve documentation comments.
-- Use PowerShell comment-based help, not C# XML documentation comments.
-- Prefer REPLACE-IN-FILE for localized edits to this existing file.
-- Do not document nested helper functions unless the existing style clearly expects it.
+- Do NOT change the production code unless a small supporting change is necessary and justified.
+- Prefer updating an existing nearby test file if one already covers the same area.
+- If no suitable test file exists, create the smallest appropriate new test file.
+- Keep the tests focused on the described behavior.
+- Use the existing test style and naming conventions in the repository.
+- Run the narrowest relevant test validation after editing.
 - Do not stop after analysis.
-- Do not return a final answer until the file update has succeeded.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the test change and validation have succeeded.

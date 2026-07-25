@@ -178,6 +178,11 @@ function Get-MessageTrace {
         [Parameter()][string]  $ExportFolder
     )
 
+    if (-not $PSBoundParameters.ContainsKey('StartDate') -or $null -eq $StartDate) {
+        Write-Log -Level Error -Message 'StartDate is required.'
+        throw 'StartDate is required.'
+    }
+
     # --- Config & defaults ---
     Initialize-TechToolboxRuntime
 
@@ -543,9 +548,9 @@ function Get-MessageTrace {
                 $details = Invoke-WithBackoff { & $getDetailCmd -MessageTraceId $mtid -RecipientAddress $rcpt -ErrorAction Stop }
                 if ($details) {
                     $detailsView = @($details | Select-Object `
-                    @{n = 'Recipient'; e = { $rcpt } },
-                    @{n = 'MessageTraceId'; e = { $mtid } },
-                    Date, Event, Detail)
+                        @{n = 'Recipient'; e = { $rcpt } },
+                        @{n = 'MessageTraceId'; e = { $mtid } },
+                        Date, Event, Detail)
                     $detailsAll.AddRange($detailsView)
                 }
             }
@@ -583,11 +588,12 @@ function Get-MessageTrace {
         Write-Log -Level E-Info -Message "`nRemember to disconnect from Exchange Online..."
     }
 }
+
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC/sUa1BiR5Cjn2
-# Z+UkcRddwWp1/Mx6pXPwi0uuMII2o6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDTdTL2MM5V2jew
+# XE1pmC3B4hjND4j9xkMlZv0G6Ts5BqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -720,34 +726,34 @@ function Get-MessageTrace {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB74UAVk/gW
-# rNAgf/W6hYPQK122FoAu7+3Csj0WtHNjGTANBgkqhkiG9w0BAQEFAASCAgBewuVZ
-# CE58Hrc4BXYCqwb4L0tyLZSC05e0yL7cA9b2mVE+EJwY07I9BxWV9kvpTOTrobxV
-# 1Arkdh0DTQXLGYM+nWB3GaEUnt9CoXqmd6Bt99awnrtRI8Buo6/9PAII+snTwDCz
-# IzcRPYk4LpwWMg8L/ij+bEJFZogBspBFoTL6Y8J1BN4ioTa4ZCg0y8e9l7+qNkWc
-# ZqZSTTgjfOQbzJEkbYC39SZGbEuPYSXXnkDltXNLLHL97QqD6tRkfrfnTHeAVWji
-# BB+xGHg8IZGHL37MLWwHEuExfZIBFcqR17LairiJtqP050btTZcO/H/iPcz1ngWN
-# q8i+qIKm1WyI5qUR+s/YVJ71cdRQDMan6YaIv7+AlRtZOuFJrG+fQHXJw0PMV1Qk
-# RSaQzdslTp7Ngpj02o5AHz91pqeR3iSmcyB27AsejnhqATGbo+Wcac7JCcVzYuTe
-# 463Ln8iYvAVD+6TIFZWW3Ntmg6+tid5XiFmso+bD/1POnr6WdSrUODyLdvTboYqv
-# LYJ1Z5LkxAYKijCKsTNq6ahaQa8ux7AQkwAHBBG+mS96ahj9/s6HkLgs85+MSCHF
-# uiCYv+bGhzTXO3PCkJlukVolRuCbQGWmSnGRnE/wpOeyFqzqFD9p9SML/Y5WFwbe
-# JxXLm8DzyOSoPZKIhRzpJ1gGYDRCmDzFWi/jA6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDM2c2LVFXk
+# 0JArdcRkdDY7iuloGiHhgfDnXeCD37KdWjANBgkqhkiG9w0BAQEFAASCAgARxzeZ
+# 2RVhBgOkidXHO0kULSpdAorMm5bmTjzSrFJVcKoFzy/BCimVeY5CAYkeerFuOKPp
+# AoOzx9ALY0sfluMUn/qKjjUflT/cPU/mX0xU9UIzZ553rmVWevBJaHz7gXILIpy8
+# 9jY+LGS2Ozdz0abFmUGk2VQNIvJO9LscVI699JQEaE94Zh/RAP45//FZwiOycxH+
+# /fQLiyj971Gtte4msDVWF0NuuU5o00zZvM1+j96Yu3LtaDUCIqyhqvXDQFrKixHc
+# S8lsF0luTDUKxoz+bPraIooSiX9AyiZms5LXiP5TFkJN5U9oIln9Y6VfJy+8+IOL
+# EAWzk8ESJBN/WYTm6S6I5JlhxWsvgXFRT55WvmT0OOtayHloplijXXgNxXSOfFUQ
+# NqR9Vau5Z8PN1VvyDAHzVk4HeaB5P142x8l8bzalw4jsXKzbn3e0hhExrymqb1fn
+# 2zrKQ0g4Fv/RMraEvE1PBxWxsf+brNIsr+vO0l1Y/nSOkG2BA8RV3L73bIkxWP3h
+# OfZXr4Zk2eSknxYyGr9BqX+7CpGtGWCmk6BbJywTZf2EJorGOyM1FM7isqwBMtIS
+# ZfKzggdobNDnWowo2pQdUWJmosljGv6BSuXN5zD1mOLFPujMgz9MmqMS7zdBQj/S
+# FUHuSqA0S+H1IMX36vI1lsrTMLpdqnqHY8ZqFKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MjIxNTAyMDZaMC8GCSqGSIb3DQEJBDEiBCD6KFYvmIjIxCUFLPfx
-# OKwzAitB2yyKlRvAj/3+KUtrKTANBgkqhkiG9w0BAQEFAASCAgDI2TJ0HqwFMFp0
-# s+UQS0Po73Wl6oeq9i/4Kd1MhNtCTEixrOdKB/fseYq3/xeGQc+ozwP8RldHWJLX
-# qgS/8HcEgMFo09uRmR/ODQK8QB8meWi/KukKCh9L5FfyrXTBDwz2R/PTduSPq2PC
-# Dz0dQQSpeBOT6yTuUAblJl2scfm6gFHgAE8m/g+sczFEiaAS1gtfBFwarIbPqk5v
-# KtKT3bQQvx/5DFxRsqOcNkoBNNOT7r0n0e0v9Gd9e4s8GFQFeQH1KrmliYIOAtLF
-# FTAQ1+sqUirlzLNSVBkHpzg1zXosom0v8EctLoVf4v49cuUJn8GsXwhfgtgA3ykr
-# KprBELMuayB1SWVtQZf7dvU44j9nUlA6Hb4lU8XtzksesNTx9hWlVTKEbuIrmTvj
-# J5LffYCBYXxB48AqdgLR2C0uocLZJj6F/8y1++2qgDu0OyC8r2IQPf8e5qfIkXSG
-# NHKOEKsQ94QTBwsH18PlK42JJtqcByxX3ROUJfR1rUdZvhLduUnYo5jPo2+h4gsj
-# tgc5c8LzcjLZuIo8pyBEXZ+DSGHqZtR+ZTTh9QSPyTiem+EctL2CGovQYGd1tlqh
-# DVVOzMiqZulhxkK0sSa3EmuiNTnZuhYuXwrLZJdJuTa7i2N0HwixZI3aN40Ncq88
-# FEXWEna426G8Ws9ezjwGFRWE/3oK2A==
+# BTEPFw0yNjA3MjUwNDA2MjFaMC8GCSqGSIb3DQEJBDEiBCCX2SjOhu7xEw0NrQ9p
+# 7WGmBTnRcLOttJhkiaqq5GlVpTANBgkqhkiG9w0BAQEFAASCAgCjmwbF8g7DyrYG
+# S3pjdK6Y9vzXiTlwG5YXp3YPDAok8tDgwxncQCYwhzzKsqUW7L8JYUqu0A5fcJ64
+# 2f7vcT8mgb3CPy/cyef1KsbHL6cfD5Qyvm3WnLB4mdQAHu4xnnE0uP9FQYelmccG
+# uRxwRUwys1x2ENfwT/wC60qoPbeV1VDnj91ETiZYxl+s0KpEqaOp5q5VzXbej4ci
+# Qvbg4oD8WmL80LoST40O8Htqges/UXN5ZkBVYjSoHcaSHbA1JHNHUuajzqLudets
+# MxH4U+F60mGBahggQmPHazYWD5yh6F6SiIZyxDO6PIrHho1cZKsuzPFvX/g8VHsl
+# 3umEozvNM1flPOdP5jpX/vlx1EMPUvQszyWza1VtprAz0bO2k2LPN8Q6yhOE7pkm
+# rJdvbki8TPHbpZ+WnmG7osw1lnWwAmgfyaRjik3PeFWkf8bPx41shovUBAfgmPaa
+# CbXrWIa5eolRsELzEcWygU3IZJJXTEvsGas/z7GzTMJgX7shemPwk/38/losY1fa
+# P3PNS5pb8P6jSg1HJIRB6wLSDRmisFcoPQ84TaXbDLpV7m9uC8Zks27UmRolFE2x
+# AEmXnGCNNzl427YXhexxfKnkCnRVzhDyN98z0Ig9soK08I7bLsCkzhYWGnPHTnCF
+# 70Kz5v5TyMmIopb5QAynrdvTg/UERQ==
 # SIG # End signature block
