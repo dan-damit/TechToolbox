@@ -1,29 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-15T01:13:44-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please read the function named Stop-PSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Stop-PSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en-US.\u0022",
-    "model": "qwen3.6:35b",
-    "durationMs": 83817,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 2,
-    "toolNames": [],
-    "outputPreview": "## Task Completed Successfully\n\nI read \u0060C:\\repos\\TechToolbox\\Public\\Start_Stop\\Stop-PSRemoteSession.ps1\u0060 and analyzed its full functionality, including:\n- All 9 parameters (\u0060-Session\u0060, \u0060-Id\u0060, \u0060-InstanceId\u0060, \u0060-Name\u0060, \u0060-ComputerName\u0060, \u0060-NamePrefix\u0060, \u0060-OnlyDisconnected\u0060, \u0060-OlderThanMinutes\u0060, \u0060-PassThru\u0060)\n- Four parameter sets (\u0060BySession\u0060, \u0060ById\u0060, \u0060ByInstanceId\u0060, \u0060ByName\u0060, \u0060ByFilter\u0060 default)\n- Safety features: \u0060SupportsShouldProcess\u0060 for confirmation, InstanceId-based deduplication, and best-effort removal (non-fatal on individual errors)\n- Internal dependencies (\u0060Initialize-TechToolboxRuntime\u0060, \u0060Write-Log\u0060)\n\n### Output File Created\n\n\u0060C:\\repos\\TechToolbox\\en-US\\about_Stop-PSRemoteSession.help.txt\u0060 contains:\n- **TOPIC** - identifies the help file\n- **SHORT DESCRIPTION** - one-line summary\n- **LONG DESCRIPTION** - covers targeting options, safety behavior (ShouldProcess, deduplication, best-effort), and internal mechanisms\n- **PARAMETERS** - all 9 parameters documented with type hints and descriptions\n- **EXAMPLES** - four practical scenarios:\n  1. Remove a session by \u0060-Id\u0060\n  2. Remove all disconnected sessions (\u0060-OnlyDisconnected\u0060)\n  3. Remove TechToolbox sessions by \u0060-NamePrefix \u0027TT:\u0027\u0060\n  4. Combine \u0060-OlderThanMinutes\u0060 with \u0060-PassThru\u0060 for logging\n- **NOTES** - initialization requirements, error-handling behavior, and Get-PSSession inspection recommendation\n- **RELATED LINKS** - o...",
-    "runSummary": {
-      "intent": "\u0022Please read the function named Stop-PSRemoteSession.ps1 located at the\r\ndirectory of C:\\repos\\TechToolbox\\Public\\Start_Stop and create a file named\r\nabout_Stop-PSRemoteSession.help.txt located at C:\\repos\\TechToolbox\\en...",
-      "actionsTaken": [
-        "read_file",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": "**RELATED LINKS** - online docs URL and references to \u0060Get-PSSession\u0060, \u0060Remove-PSSession\u0060, and \u0060about_PSSessions\u0060"
-    }
-  },
-  {
     "timestampUtc": "2026-06-15T01:24:06-05:00",
     "status": "success",
     "outcome": "completed",
@@ -7255,6 +7231,28 @@
     "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
     "runSummary": {
       "intent": "Please look at the following file:\r\nC:\\repos\\TechToolbox\\Set\\Set-EmailAlias.ps1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a test that throws if the param...",
+      "actionsTaken": [],
+      "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+      "nextBestStep": "Next best action:"
+    }
+  },
+  {
+    "timestampUtc": "2026-07-26T23:52:41.3305432+00:00",
+    "status": "error",
+    "outcome": "iteration-limit",
+    "prompt": "What URI\u0027s do you have access to for Internet searching?",
+    "model": "ornith:35b",
+    "durationMs": 73112,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "runSummary": {
+      "intent": "What URI\u0027s do you have access to for Internet searching?",
       "actionsTaken": [],
       "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
       "nextBestStep": "Next best action:"

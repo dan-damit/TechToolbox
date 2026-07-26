@@ -8,7 +8,6 @@
     "pref.updating-an-existing-nearby-test-fil.ce1b5a3c": "updating an existing nearby test file if one already covers the same area",
     "pref.changing-production-code-unless-a-sm.316d887c": "changing production code unless a small supporting change is necessary and justified",
     "pref.do-not-change-the-production-code-un.fcdbb4c4": "Do NOT change the production code unless a small supporting change is necessary and justified",
-    "pref.do-not-change-the-production-code-un.fbfffa49": "Do NOT change the production code unless a supporting adjustment to the code",
     "pref.do-not-summarize-your-plan-before-ed.f122400d": "Do not summarize your plan before editing",
     "pref.do-not-return-a-final-answer-until-t.0ed92612": "Do not return a final answer until the test change and validation have succeeded"
   },
@@ -19,47 +18,25 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.35,
-      "avgDurationMs": 58688,
+      "avgDurationMs": 58677,
       "avgToolCalls": 3.05,
       "statusCounts": {
-        "error": 13,
-        "success": 7
+        "success": 7,
+        "error": 13
       },
       "outcomeCounts": {
-        "iteration-limit": 13,
-        "completed": 7
+        "completed": 7,
+        "iteration-limit": 13
       },
       "lastStatus": "error",
       "lastOutcome": "iteration-limit",
       "lastModel": "ornith:35b",
-      "lastRunTimestampUtc": "2026-07-26T23:36:56.8177068\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-26T23:36:56.8445335\u002B00:00"
+      "lastRunTimestampUtc": "2026-07-26T23:52:41.3305432\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-26T23:52:41.3317386\u002B00:00"
     },
     "fact.read.3316348d": "read"
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-25T01:23:18.8877253+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Please make the initial scaffolding for the Pester Tests within the module.",
-      "model": "ornith:35b",
-      "durationMs": 73348,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Please make the initial scaffolding for the Pester Tests within the module.",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      }
-    },
     {
       "timestampUtc": "2026-07-25T02:40:54.3841852+00:00",
       "status": "success",
@@ -556,6 +533,28 @@
       "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
       "runSummary": {
         "intent": "Please look at the following file:\r\nC:\\repos\\TechToolbox\\Set\\Set-EmailAlias.ps1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a test that throws if the param...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      }
+    },
+    {
+      "timestampUtc": "2026-07-26T23:52:41.3305432+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "What URI\u0027s do you have access to for Internet searching?",
+      "model": "ornith:35b",
+      "durationMs": 73112,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "runSummary": {
+        "intent": "What URI\u0027s do you have access to for Internet searching?",
         "actionsTaken": [],
         "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
         "nextBestStep": "Next best action:"
