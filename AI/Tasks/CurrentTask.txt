@@ -5,8 +5,8 @@ Task:
 Add or update tests for the behavior described below.
 
 Behavior or regression to cover: 
-Create a Set-EmailAlias.Tests.ps1 test file that throws if the parameters
-Identity or EmailAddress are not provided.
+Create a test that throws if the parameters Identity or EmailAddress are not
+provided.
 
 Requirements:
 - Do NOT change the production code unless a supporting adjustment to the code
