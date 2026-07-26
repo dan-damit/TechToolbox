@@ -1,14 +1,17 @@
-Primary input files:
-C:\repos\TechToolbox\TechToolbox.psm1
+Please look at the following file:
+C:\repos\TechToolbox\Set\Set-EmailAlias.ps1
 
 Task:
 Add or update tests for the behavior described below.
 
 Behavior or regression to cover: 
-Create a Tests.ps1 file that tests the module load and exported functions.
+Create a Set-EmailAlias.Tests.ps1 test file that throws if the parameters
+Identity or EmailAddress are not provided.
 
 Requirements:
-- Do NOT change the production code unless a small supporting change is necessary and justified.
+- Do NOT change the production code unless a supporting adjustment to the code
+    being tested is necessary and justified.
+- The only file you will create is the test file itself.
 - Prefer updating an existing nearby test file if one already covers the same area.
 - If no suitable test file exists, create the smallest appropriate new test file.
 - Keep the tests focused on the described behavior.

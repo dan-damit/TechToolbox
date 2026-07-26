@@ -198,11 +198,7 @@ public static class MemoryLearner
         int maxEntries
     )
     {
-        if (
-            target
-                .Values.OfType<string>()
-                .Any(existing => string.Equals(existing, value, StringComparison.OrdinalIgnoreCase))
-        )
+        if (target.Values.OfType<string>().Any(existing => AreEquivalentPreference(existing, value)))
         {
             return false;
         }
@@ -217,6 +213,117 @@ public static class MemoryLearner
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Determines whether two preference strings should be treated as the same intent.
+    /// Performs exact and normalized comparisons, plus conservative near-duplicate matching
+    /// for prompts that share a long, identical leading phrase.
+    /// </summary>
+    /// <param name="left">The first preference string.</param>
+    /// <param name="right">The second preference string.</param>
+    /// <returns><c>true</c> when both strings represent the same preference; otherwise, <c>false</c>.</returns>
+    private static bool AreEquivalentPreference(string left, string right)
+    {
+        if (string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var normalizedLeft = NormalizeForComparison(left);
+        var normalizedRight = NormalizeForComparison(right);
+
+        if (string.Equals(normalizedLeft, normalizedRight, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (normalizedLeft.Length >= 24 && normalizedRight.Length >= 24)
+        {
+            if (
+                normalizedLeft.Contains(normalizedRight, StringComparison.Ordinal)
+                || normalizedRight.Contains(normalizedLeft, StringComparison.Ordinal)
+            )
+            {
+                return true;
+            }
+
+            var commonLeadingTokens = CountCommonLeadingTokens(normalizedLeft, normalizedRight);
+            if (commonLeadingTokens >= 6 && CountCommonLeadingChars(normalizedLeft, normalizedRight) >= 24)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Normalizes text for preference comparison by lowercasing, removing punctuation,
+    /// and collapsing repeated whitespace.
+    /// </summary>
+    /// <param name="value">The source value to normalize.</param>
+    /// <returns>A normalized value suitable for semantic comparison.</returns>
+    private static string NormalizeForComparison(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var lowered = value.ToLowerInvariant();
+        var cleaned = Regex.Replace(lowered, @"[^a-z0-9]+", " ");
+        return Regex.Replace(cleaned, @"\s+", " ").Trim();
+    }
+
+    /// <summary>
+    /// Counts how many tokens from the start of two normalized strings are equal.
+    /// </summary>
+    /// <param name="left">The first normalized string.</param>
+    /// <param name="right">The second normalized string.</param>
+    /// <returns>The number of matching leading tokens.</returns>
+    private static int CountCommonLeadingTokens(string left, string right)
+    {
+        var leftTokens = left.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var rightTokens = right.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var max = Math.Min(leftTokens.Length, rightTokens.Length);
+        var count = 0;
+
+        for (var i = 0; i < max; i++)
+        {
+            if (!string.Equals(leftTokens[i], rightTokens[i], StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Counts how many characters from the start of two strings are equal.
+    /// </summary>
+    /// <param name="left">The first string.</param>
+    /// <param name="right">The second string.</param>
+    /// <returns>The number of matching leading characters.</returns>
+    private static int CountCommonLeadingChars(string left, string right)
+    {
+        var max = Math.Min(left.Length, right.Length);
+        var count = 0;
+
+        for (var i = 0; i < max; i++)
+        {
+            if (left[i] != right[i])
+            {
+                break;
+            }
+
+            count++;
+        }
+
+        return count;
     }
 
     /// <summary>
