@@ -176,9 +176,6 @@ function Invoke-TechAgent {
         $promptSourceLabel = "default prompt file ($resolvedDefaultPromptPath)"
     }
 
-    Write-Host ("Invoke-TechAgent prompt source: {0}" -f $promptSourceLabel)
-    Write-Log -Level Info -Message ("Invoke-TechAgent prompt source resolved from: {0}" -f $promptSourceLabel)
-
     $waitTimeoutSeconds = [Math]::Max(300, ($MaxIterations * 180))
     $waitPollSeconds = 15
     $waitHeartbeatSeconds = 120
@@ -455,7 +452,7 @@ Hard requirement:
         if ($TraceLine -match 'Iteration\s+(\d+)/(\d+)\s+start') {
             $currentIter = [int]$Matches[1]
             $totalIters = [int]$Matches[2]
-            
+
             $AgentState['currentIteration'] = $currentIter
             $AgentState['totalIterations'] = $totalIters
         }
@@ -469,7 +466,7 @@ Hard requirement:
         if ($TraceLine -match 'response length=(\d+)\s+stoppedEarly=(\w+)') {
             $responseLength = [int]$Matches[1]
             $stoppedEarly = $Matches[2] -eq 'true'
-            
+
             $AgentState['lastResponseLength'] = $responseLength
             $AgentState['lastStoppedEarly'] = $stoppedEarly
         }
@@ -507,7 +504,7 @@ Hard requirement:
         # Load Wait-TerminalState and its dependencies for real-time status animation
         $waitTerminalStateScript = Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Wait-TerminalState.ps1'
         $getDotPulseScript = Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Get-DotPulse.ps1'
-        
+
         $hasWaitTerminalState = $false
         if ((Test-Path -LiteralPath $waitTerminalStateScript -PathType Leaf) -and (Test-Path -LiteralPath $getDotPulseScript -PathType Leaf)) {
             try {
@@ -600,7 +597,6 @@ Hard requirement:
                 Start-Transcript -Path $transcriptPath -Force | Out-Null
                 $transcriptStarted = $true
                 Write-Log -Level Info -Message ("Tech agent transcript started: {0}" -f $transcriptPath)
-                Write-Host ("Tech agent transcript: {0}" -f $transcriptPath)
             }
             catch {
                 Write-Log -Level Warn -Message ("Tech agent transcript could not be started: {0}" -f $_.Exception.Message)
@@ -615,7 +611,6 @@ Hard requirement:
             try {
                 $null = New-Item -ItemType Directory -Path $markdownRoot -Force
                 $markdownPath = Join-Path $markdownRoot ("TechAgent_{0}_{1}.md" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), $PID)
-                Write-Host ("Tech agent markdown log: {0}" -f $markdownPath)
             }
             catch {
                 $markdownPath = $null
@@ -624,7 +619,7 @@ Hard requirement:
         }
 
         if ($ConfirmDestructive.IsPresent) {
-            Write-Log -Level Warn -Message 'Destructive operations explicitly authorized for this run.'
+            Write-Log -Level Warn -Message "`nDestructive operations explicitly authorized for this run."
         }
 
         $autoRetryOnIterationLimit = $false
@@ -855,7 +850,7 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
             # Define status extraction from agent state
             $getStatus = {
                 param($state)
-                
+
                 if ($state['processExited']) {
                     if ($state['exitCode'] -eq 0) {
                         return 'AGENT_COMPLETED'
@@ -906,21 +901,21 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
                 }
                 catch {
                     $hasWaitTerminalState = $false
-                    
+
                     # Fall through to the fallback code below
                 }
             }
-            
+
             if (-not $hasWaitTerminalState) {
                 # Fallback: simple blocking read without animation
                 Write-Log -Level E-Info -Message "`nAgent is running..."
-                
+
                 try {
                     while ($true) {
                         if ($agentProc.HasExited) {
                             break
                         }
-                        
+
                         if ($stdoutReader.Peek() -gt 0) {
                             $line = $stdoutReader.ReadLine()
                             if ($line -ne $null) {
@@ -936,7 +931,7 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
                 catch {
                     Write-Log -Level Warn -Message ("Error reading agent stdout: {0}" -f $_.Exception.Message)
                 }
-                
+
                 if (-not $agentProc.WaitForExit($waitTimeoutSeconds * 1000)) {
                     try { $agentProc.Kill() } catch { }
                     throw ("Tech agent timed out after {0} seconds." -f $waitTimeoutSeconds)
@@ -1059,8 +1054,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAwkCfJbohX3vWg
-# fsx303lavEId8+guCBex9pyDp+Thg6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBOQkMLRj/kHjxw
+# l0XmdcYuD3817p/rEQU61C07U+FSVqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1193,34 +1188,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAA9GbpPsYO
-# LTq/vTjU+tCrviytY1SuR3vn7rsSfUR8ijANBgkqhkiG9w0BAQEFAASCAgA2UX/i
-# RjIQQXkUIdEaWlODCOY6dcNnq/2RwILek2mBYsGn8opp4YFrGkzZyDOZcc/JxRxp
-# oHatexP3xZg1vi3JaIURpdp+laol7F6a4lFaa3GtCBPEcmA12fltm5/gN8ImWgbW
-# gFsY5qE48QTD+zsoRp0xhTQIa8csG5z6Smrb+f96MMWjq0LqiAZhnq8yYXz7lDvG
-# hT2irRQuUwrcRJXqlU13mGNrkvNP/XafLCRsc646m9LzjqFoYfHR2rCfvLOz6fz1
-# +dE9PC7O8n/32ayGzWupCpRC4DNO0oU+Jtfj/T1Zfgp708EfiFgq9aQaBjdXarN8
-# HcLA0k9/0zm7olZy0DN4JQLU66Z9NJVjUfenL7SFgUTAD4c4AWORL0K4TdRBndIU
-# JevM6PMcJNXj8UhTJfWUZvw0QH6rERoufS699VUYY8YYlUzABc40OarukS2hmnLx
-# Vy9SLkNmNjZjksnB3k19xFG1xiNbfwJLQXJjE1gfz24J3QhyxpdosaEjegKO3ztD
-# yxfankgPaWhWzgy1O3BSyEVbQsYsAlpwXgsa7EPn5Zo/awitVdcodUUFQXXIAfcW
-# OH2Pgr9rzhM6a9RdZSnRFFLYLF1Rz88yvtbtWh3fbvuGHwLusHMKpP/86hkLYHS6
-# nP4yEeFX8MqLpHlMMWy/D2bru+zLsL/WjgXujqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA3j8vM48xe
+# RWcsbOhPrttTa1KVdjwMLI/OTM52iQ4F5jANBgkqhkiG9w0BAQEFAASCAgAlwOOe
+# 9h/eiWzWMiLcCCVcnbxaufEaHJim5xYbPRXH5v1zdyc1dLloG9U1rKQgDdhoqySr
+# VkvEWw7RSl6Hhl80WddIbh/fZOH9a9C5WYgd497gqGGhCG/Ezgf7L1L4HJlVD9z2
+# B7Tqs7UHCRWMQ4/ufARQaduRZlBTQf13j7Obj7mLhmsxRz28tS/cFm2zkB41V6T6
+# 5P8rM4u5fSQZMQXWOnBRaoZ615oDP5G9Rd8/d85FcYr8OiLyCiImpSAVEen17BIs
+# ZhgVYp+1419KhLJNkvfuAmuOZbWObDqgOytzSVrvvZGhQUOAjUwO8mxwbomHW1HX
+# Q/yILqOFXo5Awh24l91+Ot622jHMRg85CHWvLruioRKWtc/bArMzWHp5T3KnSjV/
+# 8xSkq9+wAhWEp+3s3oILjqdva6HDmiPfKp3Lb/0kyu0WpLyJf9ti7kZ/uBrtYa7m
+# b85CVGHHeI5mgrz87EAD0ERMLBZz8xMdRyVKf4P2E5b0K9sRJJLZudZpz8M/cK1M
+# QtYdW+mQom/UyX/EjdNlbSMp5xt3DytltiWDgCt5DAKA3W0XFiplBHITvCpnqTjr
+# uqsNSQqc0wyy0lQTEjAQb8gPKG2hodrpExgX3Lk34Zi9Ux4Zd87Tm8aUDkgSjWdr
+# KWEd+Zbyy2geJKlMaJk+IFcUAAR6k385f/uFW6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MjQwMzI1NDVaMC8GCSqGSIb3DQEJBDEiBCA6SJNAkhzXTlO6yKXg
-# zwsc3LFFYchnldk8LgmYYjKU5jANBgkqhkiG9w0BAQEFAASCAgC0Fvadzov2FZru
-# 5Uyy6ESYluVKMSqgI6izxxE4/lyLLumqbalW/PPhb1yekEe0qtC/1MJpV0Ihbaml
-# liDSJ7tVAB4hDA5wnVXaO5qlZ07urG7OICgYGQoTTQ1sycuodmOFfYVu0RjJ5ZjB
-# rcisR74O35l4F6HSNLreWVWvdu0tQOAXiMlAZiUPPaHrajGJDaNDdPt8ROBYX3P+
-# Lp7YhpVbQRVQoD5nAh/agIPnF/AX8HNuhRK2z2SRiUFV1T4R8LX6wnSXmWfhcFIc
-# c83BE79CbE9/WvY3mWQQTUGGD7BJ31Y5APwv6Bws5K5xm5CD/fJCvbwvZqQprdQk
-# HDGNAEhj0uRacVlNYQLDFqqcxX/yhQOOirCwpx9HOPGaZuCTwkpX6BAHbVx5Rzvo
-# CWvXKUlAgyEc/Ik6e229dm6JvNRxQpCv/RfTNQByyI89qtNWaJSBY0vd/yKtrO8o
-# iuGZCEK6qB5YM17EPjHc9qKF1qYu5cAoVe7qk8oSQAy0Ott1lPMRMBW7T4eTveF+
-# Vu1uBAylU3ZFPrVEQWv2io3ZUtPqghVoIICjULaTew9LgoEV4UYZ/jcPGVPp9E5B
-# 3gDAlLmNF/ttBZCPMzlnbvGYzxNQTCzloyxaoD718b50RZFtGu5QpwtWJhjh5kRa
-# TR8tdB6AESZ8a5Ed2XMuq9Ak/ElyPg==
+# BTEPFw0yNjA3MjYyMzQ5NDdaMC8GCSqGSIb3DQEJBDEiBCD11m2B9wBJG+uNCGOD
+# wF7phqLYEJ96iU2KTk7cRBbXPjANBgkqhkiG9w0BAQEFAASCAgCYm106laTF/BuC
+# 1vTqmiLOFsZCA7QBzPE89cJaxtb1JPc9EJB+N3lu2pxhf1TdO2hmY2/uXQ+L4RTU
+# FucQ2bDMKJAKAc5I8zCjZVrzx9MsfLHRwVcV7OMqt2DUHu0Ar0bGXykbLVKOMeuV
+# 4QPwyJBTKkRx3pSC+0JyuG38rwEUIJReA8BdyjbNtAMspzIofiirUTSYsgHvtZWu
+# HZ0KDSna2h4hA3X4V7w6yxbm31ANbdiu/Tuga9XVXB51se+i4hh/QoC/L1CubBO1
+# LQ8igBH32IS4v6KJmE2uPFMG46uwDlVJ4K3/1WPPSY4skgX3kue8uGRu/7sHzQGQ
+# Q++Yv29awBQdX6Hqxa1/4jPKm12qeMANe8QgArCCrZgAEY7IVrBfDD82a97aaKAE
+# ztd/FNbDk63t2a3uL0EjnAlji7NJav9U2Pk6zneumXFSKai8Pm3oSrIqpprkudCW
+# BXMbshjDLwQFN+m2Omu1OiQInBS5k3XWOpA+tSXa9WZTMTF9cEH68QL9PbDb6NYM
+# VdZII9WvKEdCJTH2HuBZJv+/gpLKJ48N6G5kcosuyZU6KGnOg25Gq6sSjcwebXcC
+# y3Bw2FZyvV8GLEwFjFdxXaGP9O8vrabIkgFWvt9GzrCx4Tn5iwl2Mt+k8BCtjUQW
+# WltiIS0VmtlrbEdQkJEE2We9VNx3JA==
 # SIG # End signature block
