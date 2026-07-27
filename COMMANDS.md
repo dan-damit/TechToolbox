@@ -10,6 +10,7 @@ Use this file to find the right command quickly, then use help for full usage.
 ```powershell
 Get-Help <Command-Name> -Detailed
 Get-Help <Command-Name> -Examples
+Get-Help <Command-Name> -Online
 Get-ToolboxHelp
 Get-ToolboxHelp -List
 Get-ToolboxHelp <Command-Name>
@@ -90,6 +91,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Set-OneTimeReboot | Schedule one-time reboot locally or remotely. | Remote, Risk |
 | Set-PageFileSize | Configure pagefile size locally or remotely. | Elevated, Remote, Risk |
 | Start-PDQDiagLocalElevated | Launch local PDQ diagnostics elevated. | Elevated |
+
 ## Network, Browser, and File Operations
 
 | Command | Summary | Flags |
@@ -108,7 +110,6 @@ Get-Command -Module TechToolbox | Sort-Object Name
 |---|---|---|
 | Get-RemoteInstalledSoftware | Collect installed software from remote hosts. | Remote |
 | Invoke-AADSyncRemote | Trigger remote AAD Connect sync (Delta or Initial). | Remote, Risk |
-| Invoke-SCW | Easter egg command. | Interactive |
 | Start-NewPSRemoteSession | Start new PowerShell remoting session with defaults. | Remote |
 | Stop-PSRemoteSession | Stop active PowerShell remoting session. | Remote |
 | Test-PathAs | Test path access under alternate credentials. | Remote |
