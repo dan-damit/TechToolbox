@@ -136,7 +136,12 @@
       "consolidated": false
     },
     "agent": {
+      "provider": "ollama",
       "model": "ornith:35b",
+      "endpoint": "",
+      "deployment": "",
+      "apiVersion": "2024-10-21",
+      "apiKeyEnvVar": "TT_AGENT_LLM_API_KEY",
       "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json",
       "defaultPromptFile": "AI\\Tasks\\CurrentTask.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",

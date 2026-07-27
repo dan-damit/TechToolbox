@@ -18,6 +18,33 @@ function Invoke-TechAgent {
         Optional Ollama model name (for example: llama3, mistral,
         qwen2.5-coder).
 
+    .PARAMETER Provider
+        LLM provider to use. Supported values: ollama, openai,
+        openai-compatible, azure-openai.
+
+    .PARAMETER Endpoint
+        Optional provider endpoint URL.
+        For Azure OpenAI, this should be the resource endpoint
+        (for example https://name.openai.azure.com).
+
+    .PARAMETER Deployment
+        Azure OpenAI deployment name.
+
+    .PARAMETER ApiVersion
+        API version for cloud providers that require it.
+
+    .PARAMETER ApiKeyEnvVar
+        Environment variable name that holds the cloud API key.
+        Defaults to TT_AGENT_LLM_API_KEY.
+
+    .PARAMETER ApiKeyEncrypted
+        Optional DPAPI-protected API key blob produced by ConvertFrom-SecureString.
+        When provided, this takes precedence over settings.agent.apiKeyEncrypted.
+
+    .PARAMETER DisableApiKeyPrompt
+        Disables interactive prompt for capturing and storing a missing cloud API key.
+        Use this for non-interactive automation scenarios.
+
     .PARAMETER MaxIterations
         Maximum number of tool/reasoning iterations before the agent concludes.
 
@@ -73,6 +100,29 @@ function Invoke-TechAgent {
         [string]$Model,
 
         [Parameter()]
+        [ValidateSet('ollama', 'openai', 'openai-compatible', 'azure-openai')]
+        [string]$Provider,
+
+        [Parameter()]
+        [string]$Endpoint,
+
+        [Parameter()]
+        [string]$Deployment,
+
+        [Parameter()]
+        [string]$ApiVersion,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$ApiKeyEnvVar,
+
+        [Parameter()]
+        [string]$ApiKeyEncrypted,
+
+        [Parameter()]
+        [switch]$DisableApiKeyPrompt,
+
+        [Parameter()]
         [ValidateRange(1, 500)]
         [int]$MaxIterations = 15,
 
@@ -117,6 +167,13 @@ function Invoke-TechAgent {
     if ([string]::IsNullOrWhiteSpace($Model) -and $cfg -and -not [string]::IsNullOrWhiteSpace($cfg.model)) {
         $Model = $cfg.model
     }
+    if ([string]::IsNullOrWhiteSpace($Provider) -and $cfg -and -not [string]::IsNullOrWhiteSpace([string]$cfg.provider)) {
+        $Provider = [string]$cfg.provider
+    }
+    if ([string]::IsNullOrWhiteSpace($Provider)) {
+        $Provider = 'ollama'
+    }
+    $Provider = $Provider.Trim().ToLowerInvariant()
 
     $moduleRoot = Get-ModuleRoot
     $promptSourceLabel = 'inline -Prompt'
@@ -209,6 +266,7 @@ function Invoke-TechAgent {
     $stdoutTask = $null
     $stderrTask = $null
     $requestPath = $null
+    $resolvedApiKey = $null
 
     $resolveExpectedOutputPath = {
         param(
@@ -517,7 +575,7 @@ Hard requirement:
             }
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($Model)) {
+        if ($Provider -eq 'ollama' -and -not [string]::IsNullOrWhiteSpace($Model)) {
             $ollamaCommand = Get-Command -Name ollama -ErrorAction SilentlyContinue
             if (-not $ollamaCommand) {
                 throw "Ollama executable not found. Install Ollama or add it to PATH."
@@ -652,6 +710,217 @@ Hard requirement:
             return $null
         }
 
+        $resolveCloudApiKey = {
+            param(
+                $configObject,
+                [string]$providerName,
+                [string]$envVarName,
+                [string]$encryptedOverride
+            )
+
+            if ($providerName -eq 'ollama') {
+                return @{ Key = $null; Source = 'NotRequired'; Error = $null }
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
+                $envValue = [Environment]::GetEnvironmentVariable($envVarName)
+                if (-not [string]::IsNullOrWhiteSpace($envValue)) {
+                    return @{ Key = $envValue; Source = "Environment:$envVarName"; Error = $null }
+                }
+            }
+
+            $encryptedValue = $encryptedOverride
+            if ([string]::IsNullOrWhiteSpace($encryptedValue)) {
+                $encryptedValue = [string](& $getConfigValue $configObject 'apiKeyEncrypted')
+            }
+
+            if ([string]::IsNullOrWhiteSpace($encryptedValue)) {
+                return @{ Key = $null; Source = 'Missing'; Error = $null }
+            }
+
+            try {
+                $secureApiKey = $encryptedValue | ConvertTo-SecureString
+                $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey)
+                try {
+                    $plainApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+                }
+                finally {
+                    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+                }
+
+                if ([string]::IsNullOrWhiteSpace($plainApiKey)) {
+                    return @{ Key = $null; Source = 'DPAPI'; Error = 'DPAPI blob decrypted to empty value.' }
+                }
+
+                return @{ Key = $plainApiKey; Source = 'DPAPI'; Error = $null }
+            }
+            catch {
+                return @{ Key = $null; Source = 'DPAPI'; Error = $_.Exception.Message }
+            }
+        }
+
+        $isInteractiveSession = {
+            if (Get-Command -Name Test-TTInteractive -ErrorAction SilentlyContinue) {
+                return (Test-TTInteractive)
+            }
+
+            try {
+                return ($Host -and $Host.UI -and $Host.UI.RawUI -and -not [Console]::IsInputRedirected)
+            }
+            catch {
+                return $false
+            }
+        }
+
+        $promptAndPersistCloudApiKey = {
+            param(
+                [string]$providerName,
+                [string]$envVarName
+            )
+
+            if ($DisableApiKeyPrompt.IsPresent) {
+                return @{ Key = $null; Source = 'PromptDisabled'; Error = $null }
+            }
+
+            if (-not (& $isInteractiveSession)) {
+                return @{ Key = $null; Source = 'NonInteractive'; Error = $null }
+            }
+
+            Write-Warning (
+                "Cloud provider '{0}' has no usable API key from environment variable or DPAPI config secret." -f $providerName
+            )
+
+            $storeChoice = Read-Host "Store an encrypted API key in config.secrets.json now? [Y/N]"
+            if ([string]::IsNullOrWhiteSpace($storeChoice) -or $storeChoice.Trim().ToUpperInvariant() -ne 'Y') {
+                return @{ Key = $null; Source = 'PromptDeclined'; Error = $null }
+            }
+
+            $secureApiKey = Read-Host "Enter cloud API key" -AsSecureString
+            $encryptedApiKey = ConvertFrom-SecureString $secureApiKey
+
+            $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey)
+            try {
+                $plainApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+            }
+            finally {
+                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+            }
+
+            if ([string]::IsNullOrWhiteSpace($plainApiKey)) {
+                return @{ Key = $null; Source = 'Prompt'; Error = 'Entered API key was empty.' }
+            }
+
+            try {
+                $secrets = Read-Secrets
+                if (-not ($secrets -is [hashtable])) {
+                    $secrets = @{}
+                }
+
+                if (-not $secrets.ContainsKey('settings') -or -not ($secrets.settings -is [hashtable])) {
+                    $secrets.settings = @{}
+                }
+
+                if (-not $secrets.settings.ContainsKey('agent') -or -not ($secrets.settings.agent -is [hashtable])) {
+                    $secrets.settings.agent = @{}
+                }
+
+                $secrets.settings.agent.apiKeyEncrypted = $encryptedApiKey
+                $secretsPath = Write-Secrets -Secrets $secrets
+
+                Write-Log -Level Ok -Message (
+                    "Stored DPAPI-encrypted cloud API key in config secrets file: {0}" -f $secretsPath
+                )
+
+                if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
+                    [Environment]::SetEnvironmentVariable($envVarName, $plainApiKey, 'Process')
+                }
+
+                return @{ Key = $plainApiKey; Source = 'Prompt+DPAPI'; Error = $null }
+            }
+            catch {
+                return @{ Key = $null; Source = 'Prompt+DPAPI'; Error = $_.Exception.Message }
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($Endpoint)) {
+            $endpointValue = & $getConfigValue $cfg 'endpoint'
+            if (-not [string]::IsNullOrWhiteSpace([string]$endpointValue)) {
+                $Endpoint = [string]$endpointValue
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($Deployment)) {
+            $deploymentValue = & $getConfigValue $cfg 'deployment'
+            if (-not [string]::IsNullOrWhiteSpace([string]$deploymentValue)) {
+                $Deployment = [string]$deploymentValue
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($ApiVersion)) {
+            $apiVersionValue = & $getConfigValue $cfg 'apiVersion'
+            if (-not [string]::IsNullOrWhiteSpace([string]$apiVersionValue)) {
+                $ApiVersion = [string]$apiVersionValue
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($ApiKeyEnvVar)) {
+            $apiKeyEnvVarValue = & $getConfigValue $cfg 'apiKeyEnvVar'
+            if (-not [string]::IsNullOrWhiteSpace([string]$apiKeyEnvVarValue)) {
+                $ApiKeyEnvVar = [string]$apiKeyEnvVarValue
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($ApiKeyEnvVar)) {
+            $ApiKeyEnvVar = 'TT_AGENT_LLM_API_KEY'
+        }
+
+        if ($Provider -ne 'ollama') {
+            $apiKeyResolution = & $resolveCloudApiKey -configObject $cfg -providerName $Provider -envVarName $ApiKeyEnvVar -encryptedOverride $ApiKeyEncrypted
+            $resolvedApiKey = [string]$apiKeyResolution.Key
+
+            if ([string]::IsNullOrWhiteSpace($resolvedApiKey)) {
+                $promptResolution = & $promptAndPersistCloudApiKey -providerName $Provider -envVarName $ApiKeyEnvVar
+                if (-not [string]::IsNullOrWhiteSpace([string]$promptResolution.Key)) {
+                    $resolvedApiKey = [string]$promptResolution.Key
+                    $apiKeyResolution = $promptResolution
+                }
+                elseif (-not [string]::IsNullOrWhiteSpace([string]$promptResolution.Error)) {
+                    throw (
+                        "Cloud provider '{0}' API key prompt/store failed via {1}: {2}" -f $Provider, $promptResolution.Source, $promptResolution.Error
+                    )
+                }
+            }
+
+            if ([string]::IsNullOrWhiteSpace($resolvedApiKey)) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$apiKeyResolution.Error)) {
+                    throw (
+                        "Cloud provider '{0}' API key resolution failed via {1}: {2}" -f $Provider, $apiKeyResolution.Source, $apiKeyResolution.Error
+                    )
+                }
+
+                throw (
+                    "Cloud provider '{0}' requires an API key. Set environment variable '{1}', configure settings.agent.apiKeyEncrypted in config.secrets.json, run Set-TechAgentApiKey, or run interactively to store one now." -f $Provider, $ApiKeyEnvVar
+                )
+            }
+
+            if ($Provider -eq 'azure-openai' -and [string]::IsNullOrWhiteSpace($Deployment)) {
+                throw "Provider 'azure-openai' requires -Deployment (or settings.agent.deployment)."
+            }
+        }
+
+        $resolvedModel = $Model
+        if ([string]::IsNullOrWhiteSpace($resolvedModel)) {
+            if ($Provider -eq 'ollama') {
+                $resolvedModel = 'llama3'
+            }
+            elseif ($Provider -ne 'azure-openai') {
+                throw "Provider '$Provider' requires -Model (or settings.agent.model)."
+            }
+            else {
+                $resolvedModel = ''
+            }
+        }
+
         $memoryPath = $null
         $memoryPathValue = & $getConfigValue $cfg 'memoryPath'
         if (-not [string]::IsNullOrWhiteSpace([string]$memoryPathValue)) {
@@ -735,7 +1004,7 @@ Hard requirement:
 
         $request = [ordered]@{
             Prompt               = $effectivePrompt
-            Model                = $(if ([string]::IsNullOrWhiteSpace($Model)) { 'llama3' } else { $Model })
+            Model                = $resolvedModel
             Verbose              = $false
             MaxIterations        = $MaxIterations
             PromptHistoryItems   = $resolvedPromptHistoryItems
@@ -748,6 +1017,10 @@ Hard requirement:
             ExpectedOutputPath   = $expectedOutputPath
             AllowedFetchHosts    = @($allowedFetchHosts)
             AllowMetaTools       = $AllowMetaTools.IsPresent
+            LlmProvider          = $Provider
+            LlmEndpoint          = $Endpoint
+            LlmDeployment        = $Deployment
+            LlmApiVersion        = $ApiVersion
         }
 
         $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
@@ -777,7 +1050,11 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [string]$request.ExpectedOutputPath,
     [int]$request.PromptHistoryItems,
     [string[]]$request.AllowedFetchHosts,
-    [bool]$request.AllowMetaTools)
+    [bool]$request.AllowMetaTools,
+    [string]$request.LlmProvider,
+    [string]$request.LlmEndpoint,
+    [string]$request.LlmDeployment,
+    [string]$request.LlmApiVersion)
 [Console]::Write($result)
 '@
 
@@ -792,6 +1069,9 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
         $startInfo.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
         $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
+        if (-not [string]::IsNullOrWhiteSpace($resolvedApiKey)) {
+            $startInfo.Environment['TT_AGENT_LLM_API_KEY'] = $resolvedApiKey
+        }
         [void]$startInfo.ArgumentList.Add('-NoProfile')
         [void]$startInfo.ArgumentList.Add('-NonInteractive')
         [void]$startInfo.ArgumentList.Add('-EncodedCommand')
@@ -1052,8 +1332,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDBDNMw/7I11vzE
-# 71ERA7M2l9xriJb1XPWDUza0vnB+T6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDTdvSMyEE7JFXK
+# swvN3FCrYl98Ec0K/05LLjyh2GSDCaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1186,34 +1466,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBucCfz+HDR
-# 5Syh1RjwdoTdqPj3NtMx3/JE5Psc49CJDTANBgkqhkiG9w0BAQEFAASCAgCOoFTC
-# 3rE4apcclfF1bSn9mrAt8ui0Ls+/wVgq6DXtsXDlVjGTzy7yji5ejCDsjYUgnUTH
-# 3z/yzn5uptuN4kDZWIBFT+9x/7V2AdkGv7FfkmiI5HhJgVNseAY1JITlWrECVrHV
-# /34cCEIJcIrBHaXaRC8HUisN7QHsk3RiZyLzVtKys0e64wTpn3TPaEp7tKt8v329
-# GyyXzXaIEoEkymzHCfQVCbK4lxFkWUzOqVWXJBMrmzLVrZS95Yz1VstjtXzu0+IJ
-# OzVXetF2RxlWJBABiGWDEFXqa9xyRX6oBvvPFvNDb5Ul7+kAVZ0aevN/i5Gdr5WR
-# PM9foy/gy7LDZ7GgJD65esvMpEbSC2n0cF3YJbVhNvmo4wJrl/TMx3xPYXJkvV3H
-# 6y8PD1iILEqi9V+NPAmPqmyWLWqmyILFsth15fQgj9nSyfTpVc09DlSAySLKFqiU
-# xBN/HQXKVSmwTYCSRryhn1iQIaIxjqvLh5IwloyX/qLHCeDeWJHEIVjt+Eq3iblM
-# 57pevqjix5PVKuiiZlF6DeyNp/rqwNABIHBsDvUTJA8n2fIl5SD5TPXTJ4hahjby
-# Z+JXkwla7iCZ+QKxVQG/BMU3HmThucOUupBbD/DzvWX12bvYl1iub8TWD3+Vfhu5
-# NO7Cb1mAXeWmx3zmCdTm0r8C2gOtKt2P5X1mZKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBSxCjWdSTm
+# cIeyZrP7W7DXm01CAQUfbN962vuXuBwvljANBgkqhkiG9w0BAQEFAASCAgB71vUr
+# CQbMHTAWYqqCmeE0MlUtflqODVV5SkDNfvhOo8m9K914pjWtfPBXjFWElV5TDs2x
+# vDFlw5/BpbK9TUkITY9GCl14D49gcFBQFpkYQ24IFk23a+RiXa+1EXyoAKdhd9z1
+# mI9moa2oLReGNqWBLAuwniwe+9i7oF0veMcQMT4UinZaz4RyK4QLOSoR3BggNWJ9
+# qT5kfnx1Dy5v5dbIIi7Zw/QFl9RVBD/I6kYgOvx1XlHNtKnvKQTHUKhFMXYcn0F8
+# dEWFBpsdzWUkC46W6VJ9epeTApupsiB9Gyhn4noYKaNPv7gOfG7ogaWOQGL75Bbr
+# Z0/cWtmEILva/W83QdtQBGAp93HqCS/bnPhD42PmFH0cxNCt8NHBKKS9DyeoZqYY
+# pJptcSNDFPKCclx/LQBKxVW4l2dWOm4sQtSWO2lE0VE2gmyAF/LYP0sdDw7o670F
+# ZATnIkcuvS3WUQpnTo0XnIL3wP93j7WfagAzUSSJe/KJS19d8VakpdzwGKoZiLQ1
+# dXg0s7bYnziMbgJDHIbDds/4sIrZPFDwFQ6GkjZ2dfTV8C+dqnpUVuHrRyIMo5mK
+# quAqTlW5z/PY6J6s0VAsfUbCVCA8dH+oExKkdq/ortnSkyQV1zwbZuFt5uZsnNtx
+# taF8MXfPnkeZPZa3n//N2qhsXcb9NdrMQMvejqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MjYyMzU0MjBaMC8GCSqGSIb3DQEJBDEiBCCc8vznAaVIg1QdmQV7
-# yqCemMe+no1KGbQJ/U3FkH6euDANBgkqhkiG9w0BAQEFAASCAgBFrJdfkqr3L1O+
-# Yk2I6FG7b6Erbh1OEfmcq+/sTPZ9/nS8dIlKkLY3lwiHirpBW2A3PmRCQsjMLJoq
-# NuqG6Qk47mvIzpNoOuVR9iInqJUBony8lm/gVtmz9ZhvWPBXIvVF2gwjnO8gfJzy
-# 6Ss47nKygvqznuB/HlpOf8IjIH1/IIGKPDhy2HcvOSBs/lHwdXQEFCUMnnGJiOZf
-# BJ5F/26B0znKeMKw5/V7M6X+pZ8FwewNhlW6jd1u4YL3p/e3eQ8HwPNaPSa13qc5
-# xqgRDt72am5aOsHd/TfFCpe11AZvDFCQ0yuQV+jZXJJR8h45lI3ZPyEik0ySJAoq
-# hkqvHWPc/76qs0Jwfhis16RGKuEf96Ti7A/WptT878Ea1dNAbv69Z1cjtsWwq9vS
-# 5H7tyjLtmBZCTPJUZ6RttTc3pVjJmYUFDiQEKfuYl76KGT46mXMU0J4X/fTpOFvQ
-# l1ntafAX84Nm0ftXWlwanjrw71TLzc2OmRkz1g3kQGHxsjLSK4AOu17bX0DE8s+h
-# ENPD98fo+zfc49tAorluWUbG0r4ZxaRT2QC0q+hgS7AtQ5yUvcurvfvyYxscorDr
-# uGp4mrqeFmjD3DAN128T3IsQUDlMVvqlJk010LA8yPTGbhppSTdAkKiureeXFi5e
-# qg71DD22NSjyxzVeGuLaP1Z9aAK4nw==
+# BTEPFw0yNjA3MjcyMjU0MzhaMC8GCSqGSIb3DQEJBDEiBCCXAlcUSKvT++dNO5TD
+# kbe2aBhy77kHTD9L8q5H6dttdzANBgkqhkiG9w0BAQEFAASCAgBdXWOZcjdQDEnp
+# f8AmlRr2kgXnyDH6aG8efMjmNjXr6RMOh7/DleH1CYsMfNh89LFjYY3i/nmOY6BN
+# 4rt0nXOy/xi+SvDbxLOcK46DqvtWK+reuUtv+jcMCD3l1Kxf7hfBlID+3RsTwpFb
+# d46zZCF2mBDHEkmuYmrxhbKP0LiSP6uBh1EX+MDcSIaHz9/oGJGRT0OcriO4YDht
+# 2Nw1olnmepSZj/hW8RMdv+59ZUX2k9LSTn82K7uLL45Mz4Dz7bRNJJJxcYVIlunS
+# kWAif3+gZGT5ewWQpNGq/4R25t28N6jrJRAo5v9/Rn7tCEii3urqeWCPdLW/unWY
+# XhcG9ONcap/Rq8bDlPFFXLXc54KvVVSQiKX2YFSwGmpGNdjgwyI83BP2UiJrHDO+
+# 6+OghJl9DGItwy9EUYp0tAlhN5x7dSLhXjB19/MNNe63IPy2w6AD/moEUZPE3C8b
+# WS0EXG/DFchAzWdnpyLHs2QqyaNdMMk33FJ26HgV5basD9P+eJ+cgRJdZ5rGlEXM
+# /U+4Z0xcjkiVMDsvTyIKkRfKKYvhMra8ErodFVRILNyZE67QxqBy4BhzSCqmPwNI
+# 7f5/N5v3Z9R6HluhvlBTsEG56pRelIQ0duMMltxk4CIDAjWlDsMCEm7D+rlLqLVD
+# gTUodhe8OvltQi4DhBLbwcxaA2zPTw==
 # SIG # End signature block
