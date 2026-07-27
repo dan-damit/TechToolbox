@@ -383,7 +383,6 @@ The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/bl
 | Function                          | Purpose                                                        |
 | --------------------------------- | -------------------------------------------------------------- |
 | `Get-DomainAdminCredential`       | Retrieves domain admin credentials from secure store           |
-| `Initialize-DomainAdminCred`      | Initializes and stores domain admin credential for session use |
 | `Get-CUCredentialManagerContents` | Lists entries in the Credential Manager                        |
 
 ### AI-Assisted Workflows

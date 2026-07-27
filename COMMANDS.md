@@ -48,7 +48,6 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Disable-User | Disable an AD user and optionally run lifecycle actions. | WhatIf, Risk |
 | Get-AllUsers | Return AD users with optional filters. | |
 | Get-DomainAdminCredential | Retrieve stored domain admin credential if initialized. | |
-| Initialize-DomainAdminCred | Prompt for and securely store domain admin credential. | Interactive |
 | Initialize-TTWordList | Load or generate the password word list. | |
 | New-OnPremUserFromTemplate | Create an on-prem AD user from a template identity. | Risk |
 | Reset-ADPassword | Reset an AD user password, optionally random. | Risk |
