@@ -359,7 +359,6 @@ The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/bl
 | Function                                            | Purpose                                                 |
 | --------------------------------------------------- | ------------------------------------------------------- |
 | `Invoke-AADSyncRemote`                              | Runs an AAD Connect synchronization remotely            |
-| `Invoke-SCW`                                        | Executes a remote command via Secure Credential Wrapper |
 | `Start-NewPSRemoteSession` / `Stop-PSRemoteSession` | Manage PSRemoting sessions (destructive stop)           |
 | `Get-RemoteInstalledSoftware`                       | Inventory software on remote computers                  |
 | `Copy-Directory`                                    | Copies directory contents (robocopy wrapper)            |
