@@ -94,7 +94,11 @@ public static class AgentCore
         string? expectedOutputPath = null,
         int recentHistoryItemsInPrompt = 2,
         IEnumerable<string>? allowedFetchHosts = null,
-        bool allowMetaTools = false
+        bool allowMetaTools = false,
+        string llmProvider = "ollama",
+        string? llmEndpoint = null,
+        string? llmDeployment = null,
+        string? llmApiVersion = null
     )
     {
         return RunAgentAsync(
@@ -111,7 +115,11 @@ public static class AgentCore
                 expectedOutputPath,
                 recentHistoryItemsInPrompt,
                 allowedFetchHosts,
-                allowMetaTools
+                allowMetaTools,
+                llmProvider,
+                llmEndpoint,
+                llmDeployment,
+                llmApiVersion
             )
             .GetAwaiter()
             .GetResult();
@@ -150,7 +158,11 @@ public static class AgentCore
         string? expectedOutputPath = null,
         int recentHistoryItemsInPrompt = 2,
         IEnumerable<string>? allowedFetchHosts = null,
-        bool allowMetaTools = false
+        bool allowMetaTools = false,
+        string llmProvider = "ollama",
+        string? llmEndpoint = null,
+        string? llmDeployment = null,
+        string? llmApiVersion = null
     )
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -161,6 +173,10 @@ public static class AgentCore
         {
             Mode = AgentMode.TechToolbox,
             Model = model,
+            LlmProvider = llmProvider,
+            LlmEndpoint = llmEndpoint,
+            LlmDeployment = llmDeployment,
+            LlmApiVersion = llmApiVersion,
             MaxIterations = maxIterations,
             AutoRetryOnIterationLimit = autoRetryOnRecursion,
             DestructiveConfirmed = destructiveConfirmed,
@@ -239,7 +255,7 @@ public static class AgentCore
         }
 
         // 4. Initialize LLM client
-        var llm = new LlmClient(config.Model);
+        var llm = LlmClientFactory.Create(config);
 
         // 5. Create orchestrator
         var orchestrator = new AgentOrchestrator(
@@ -266,6 +282,10 @@ public static class AgentCore
             var metadata = new
             {
                 Mode = config.Mode.ToString(),
+                LlmProvider = config.LlmProvider,
+                LlmEndpoint = config.LlmEndpoint,
+                LlmDeployment = config.LlmDeployment,
+                LlmApiVersion = config.LlmApiVersion,
                 Model = config.Model,
                 MaxIterations = config.MaxIterations,
                 UsedTools = result.ToolNames,

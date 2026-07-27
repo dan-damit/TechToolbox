@@ -1,28 +1,31 @@
 # **TechToolbox AI Agent Commands**
-These commands provide **local, offline PowerShell AI workflows** using a locally‑hosted LLM.  
-They are designed specifically for **Dan’s personal workstation** and are **not intended for cloud use, shared environments, or production systems**.
+These commands provide **PowerShell AI workflows** with a local-first default (Ollama) and optional cloud LLM support.
 
 The goal is to provide fast, private, technician-grade AI automation with:
  
 - prompt-driven agent execution  
 - reusable task template workflows  
 - local memory-supported iteration  
-- zero cloud dependency  
+- optional cloud provider routing (OpenAI-compatible / Azure OpenAI)  
 - AI Agent assistance for building and integrating new toolkits
 
-All analysis is performed **entirely on the local machine**.
+Analysis can run locally or against a configured cloud provider, depending on `settings.agent.provider`.
 
 ---
 
 ## **Available Commands**
 
 ### `Invoke-TechAgent`
-Runs the local TechToolbox AI agent for natural-language task execution and guidance.
+Runs the TechToolbox AI agent for natural-language task execution and guidance.
 
 It supports:
 
 - prompt-driven troubleshooting and task planning  
 - optional model selection for local Ollama-compatible models  
+- provider routing via `-Provider` (`ollama`, `openai`, `openai-compatible`, `azure-openai`)  
+- optional provider endpoint/deployment/api-version controls for cloud runs  
+- cloud API key retrieval from environment variable or DPAPI-encrypted config secret  
+- interactive one-time bootstrap prompt to store missing cloud API key in `config.secrets.json`  
 - configurable iteration depth for multi-step workflows  
 - always-on lightweight memory stored in `AI\memory.json` by default  
 - automatic capture of recent run history plus learned preferences/facts  
@@ -40,6 +43,80 @@ AI\Tasks\CurrentTask.txt
 
 This keeps the active task prompt decoupled from the command itself while making
 template-driven workflows easier to reuse.
+
+### `Test-TechAgentProvider`
+Validates provider settings used by `Invoke-TechAgent` and optionally runs a live connectivity/auth test.
+
+It supports:
+
+- provider-aware validation for `ollama`, `openai`, `openai-compatible`, and `azure-openai`
+- model/endpoint/deployment requirement checks
+- API key presence validation via environment variable or DPAPI-encrypted config secret
+- optional interactive prompt to store a missing cloud API key in `config.secrets.json`
+- optional `-NoNetwork` mode for safe configuration-only checks
+
+### `Set-TechAgentApiKey`
+Sets, rotates, or clears the DPAPI-encrypted cloud API key used by TechAgent cloud providers.
+
+It supports:
+
+- secure input via `-ApiKey` (`SecureString`) or interactive secure prompt
+- DPAPI-encrypted persistence to `settings.agent.apiKeyEncrypted` in `config.secrets.json`
+- explicit key removal using `-Clear`
+- no plain-text key storage on disk
+
+**Usage:**
+```powershell
+# Prompt securely and store encrypted key
+Set-TechAgentApiKey
+
+# Provide SecureString directly
+$secureKey = Read-Host 'Enter cloud API key' -AsSecureString
+Set-TechAgentApiKey -ApiKey $secureKey -Provider openai
+
+# Clear stored encrypted key
+Set-TechAgentApiKey -Clear
+```
+
+**Usage:**
+```powershell
+# Validate current config only (no outbound call)
+Test-TechAgentProvider -NoNetwork
+
+# Validate and live-test Ollama + model availability
+Test-TechAgentProvider -Provider ollama -Model ornith:35b
+
+# Validate and live-test OpenAI
+$env:TT_AGENT_LLM_API_KEY = '<your-key>'
+Test-TechAgentProvider -Provider openai -Model gpt-4o-mini
+
+# Validate and live-test Azure OpenAI
+$env:TT_AGENT_LLM_API_KEY = '<your-key>'
+Test-TechAgentProvider -Provider azure-openai -Endpoint https://your-resource.openai.azure.com -Deployment gpt-4o-mini
+
+# Validate DPAPI-backed secret resolution without network activity
+Test-TechAgentProvider -Provider openai -Model gpt-4o-mini -NoNetwork
+```
+
+### DPAPI Secret Setup
+Store cloud API keys in `Config\config.secrets.json` as a DPAPI-encrypted value:
+
+```powershell
+# Generate DPAPI blob in current Windows user context
+$secure = Read-Host 'Enter cloud API key' -AsSecureString
+$blob = ConvertFrom-SecureString $secure
+
+# Save this value to settings.agent.apiKeyEncrypted in Config\config.secrets.json
+$blob
+```
+
+Notes:
+
+- DPAPI blobs from `ConvertFrom-SecureString` are generally decryptable only by the same user/machine/context.
+- Runtime precedence is: environment variable first, then `settings.agent.apiKeyEncrypted`.
+- If neither source is available and session is interactive, commands can prompt once to capture and persist a DPAPI-protected key.
+- Use `-DisableApiKeyPrompt` to suppress this behavior in automation.
+- Use `Set-TechAgentApiKey` for explicit key rotation/removal workflows.
 
 `FETCH-URL` host allowlist is configured in `Config\config.json` under:
 
@@ -63,6 +140,14 @@ Invoke-TechAgent -Prompt "Investigate repeated login failures" -MaxIterations 25
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -AutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Update Public/Get/Get-ToolboxHelp.ps1" -ConfirmDestructive -SignedFilePolicy strip
+
+# Cloud examples (API key loaded from env var)
+$env:TT_AGENT_LLM_API_KEY = '<your-key>'
+Invoke-TechAgent -Prompt "Summarize these logs" -Provider openai -Model gpt-4o-mini
+Invoke-TechAgent -Prompt "Plan migration steps" -Provider azure-openai -Endpoint https://your-resource.openai.azure.com -Deployment gpt-4o-mini
+
+# Cloud example (API key loaded from DPAPI secret in config.secrets.json)
+Invoke-TechAgent -Prompt "Summarize these logs" -Provider openai -Model gpt-4o-mini
 
 # Use the default active task file (AI\Tasks\CurrentTask.txt)
 Invoke-TechAgent

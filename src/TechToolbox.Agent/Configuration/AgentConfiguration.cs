@@ -19,6 +19,28 @@ public class AgentConfiguration
     public string Model { get; set; } = "llama3";
 
     /// <summary>
+    /// LLM provider identifier.
+    /// Supported values: "ollama", "openai", "openai-compatible", "azure-openai".
+    /// </summary>
+    public string LlmProvider { get; set; } = "ollama";
+
+    /// <summary>
+    /// Optional provider endpoint URL.
+    /// For Azure OpenAI this is the resource endpoint (for example https://name.openai.azure.com).
+    /// </summary>
+    public string? LlmEndpoint { get; set; }
+
+    /// <summary>
+    /// Optional Azure OpenAI deployment name.
+    /// </summary>
+    public string? LlmDeployment { get; set; }
+
+    /// <summary>
+    /// Optional API version for cloud providers that require it (for example Azure OpenAI).
+    /// </summary>
+    public string? LlmApiVersion { get; set; }
+
+    /// <summary>
     /// Maximum number of iterations before the agent stops.
     /// </summary>
     public int MaxIterations { get; set; } = 15;
@@ -106,6 +128,7 @@ public class AgentConfiguration
                 {
                     Mode = AgentMode.TechToolbox,
                     Model = "llama3",
+                    LlmProvider = "ollama",
                     MaxIterations = 15,
                     AutoRetryOnIterationLimit = false,
                     DestructiveConfirmed = false,
@@ -122,6 +145,7 @@ public class AgentConfiguration
                 {
                     Mode = AgentMode.Assistant,
                     Model = "llama3",
+                    LlmProvider = "ollama",
                     MaxIterations = 10,
                     AutoRetryOnIterationLimit = false,
                     DestructiveConfirmed = false,
@@ -134,6 +158,7 @@ public class AgentConfiguration
                 {
                     Mode = AgentMode.CodingAgent,
                     Model = "llama3",
+                    LlmProvider = "ollama",
                     MaxIterations = 20,
                     AutoRetryOnIterationLimit = true,
                     DestructiveConfirmed = false,
@@ -146,6 +171,7 @@ public class AgentConfiguration
                 {
                     Mode = AgentMode.Custom,
                     Model = "llama3",
+                    LlmProvider = "ollama",
                     MaxIterations = 15,
                     AllowMetaTools = false,
                     ToolProviders = new() { new GenericToolProvider() }

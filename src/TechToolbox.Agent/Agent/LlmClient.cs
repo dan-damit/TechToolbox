@@ -11,7 +11,7 @@ namespace TechToolbox.Agent.Agent;
 /// Client for communicating with a local Ollama LLM instance.
 /// Handles request formatting, timeout management, and response parsing.
 /// </summary>
-public class LlmClient
+public class LlmClient : ILlmClient
 {
     // Request timeout in seconds (configurable via environment variable)
     private static readonly int RequestTimeoutSeconds = GetTimeoutSeconds();

@@ -19,7 +19,7 @@ public partial class AgentOrchestrator
         Path.AltDirectorySeparatorChar,
     ];
 
-    private readonly LlmClient _llm;
+    private readonly ILlmClient _llm;
     private readonly IReadOnlyDictionary<string, ToolSpec> _registry;
     private readonly Dictionary<string, Func<string, Task<string>>> _tools;
     private readonly MemoryStore? _memory;
@@ -67,7 +67,7 @@ public partial class AgentOrchestrator
     /// <param name="expectedOutputPath">The optional required output path that file-update tools must target.</param>
     /// <param name="recentHistoryItemsInPrompt">The number of recent history items to include in the initial prompt.</param>
     public AgentOrchestrator(
-        LlmClient llm,
+        ILlmClient llm,
         IReadOnlyDictionary<string, ToolSpec> registry,
         Dictionary<string, Func<string, Task<string>>> tools,
         MemoryStore? memory,
