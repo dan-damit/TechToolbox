@@ -17,63 +17,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.35,
-      "avgDurationMs": 46422,
-      "avgToolCalls": 1.35,
+      "successRate": 0.3,
+      "avgDurationMs": 37633,
+      "avgToolCalls": 0.8,
       "statusCounts": {
-        "success": 7,
-        "error": 13
+        "error": 14,
+        "success": 6
       },
       "outcomeCounts": {
-        "completed": 7,
-        "iteration-limit": 13
+        "iteration-limit": 13,
+        "completed": 6,
+        "llm-failure": 1
       },
-      "lastStatus": "success",
-      "lastOutcome": "completed",
-      "lastModel": "ornith:35b",
-      "lastRunTimestampUtc": "2026-07-27T04:34:34.8844165\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-27T04:34:34.8852963\u002B00:00"
+      "lastStatus": "error",
+      "lastOutcome": "llm-failure",
+      "lastModel": "gpt-4o-mini",
+      "lastRunTimestampUtc": "2026-07-27T23:43:42.3993231\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-27T23:43:42.4004094\u002B00:00"
     },
     "fact.read.3316348d": "read"
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-25T03:40:37.6091171+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Primary input files:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-MessageTrace.ps1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nGet-MessageTrace should throw when StartDate is missing.\r\n\r\nRequirements:\r\n- Prefer updating an existing nearby test file if one already covers the same area.\r\n- If no suitable test file exists, create the smallest appropriate new test file.\r\n- Keep the tests focused on the described behavior.\r\n- Avoid changing production code unless a small supporting change is necessary and justified.\r\n- Use the existing test style and naming conventions in the repository.\r\n- Run the narrowest relevant test validation after editing.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the test change and validation have succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\Public\\Get\\Get-MessageTrace.ps1\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "ornith:35b",
-      "durationMs": 177060,
-      "maxIterations": 40,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 11,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file",
-        "list_directory",
-        "read_file",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "write_file",
-        "write_file"
-      ],
-      "outputPreview": "The test file at C:\\repos\\TechToolbox\\Tests\\Tests.ps1 already contains a test for the described behavior:\n\n\u0060\u0060\u0060powershell\nDescribe \u0022Get-MessageTrace\u0022 {\n    It \u0022Should throw when StartDate is missing\u0022 {\n        { Get-MessageTrace -Sender \u0027test@test.com\u0027 } | Should -Throw\n    }\n}\n\u0060\u0060\u0060\n\nThis test verifies that calling Get-MessageTrace with only a Sender parameter (without StartDate) throws an exception. The test is already in place and covers the required behavior.\n\nThe production file at C:\\repos\\TechToolbox\\Public\\Get\\Get-MessageTrace.ps1 has been written successfully via WRITE-FILE.",
-      "runSummary": {
-        "intent": "Primary input files:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-MessageTrace.ps1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nGet-MessageTrace should throw when StartDat...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
     {
       "timestampUtc": "2026-07-25T03:53:29.2990327+00:00",
       "status": "error",
@@ -513,6 +477,28 @@
         "actionsTaken": [],
         "blockers": "",
         "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-27T23:43:42.3993231+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Hi are you working?",
+      "model": "gpt-4o-mini",
+      "durationMs": 1279,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\u0022,\n        \u0022type\u0022: \u0022insufficient_quota\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022insufficient_quota\u0022\n    }\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\u0022,\n        \u0022type\u0022: \u0022insufficient_quota\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022insufficient_quota\u0022\n    }\n}",
+      "runSummary": {
+        "intent": "Hi are you working?",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-er...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
       }
     }
   ],

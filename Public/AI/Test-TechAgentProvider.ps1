@@ -36,8 +36,12 @@ function Test-TechAgentProvider {
         Defaults to settings.agent.apiKeyEnvVar or TT_AGENT_LLM_API_KEY.
 
     .PARAMETER ApiKeyEncrypted
+        Prefers encrypted config-based API key resolution and skips environment
+        variable lookup. Use this when you want to force stored secret usage.
+
+    .PARAMETER ApiKeyEncryptedBlob
         Optional DPAPI-protected API key blob produced by ConvertFrom-SecureString.
-        When provided, this takes precedence over settings.agent.apiKeyEncrypted.
+        When provided, this overrides settings.agent.apiKeyEncrypted.
 
     .PARAMETER DisableApiKeyPrompt
         Disables interactive prompt for capturing and storing a missing cloud API key.
@@ -91,7 +95,10 @@ function Test-TechAgentProvider {
         [string]$ApiKeyEnvVar,
 
         [Parameter()]
-        [string]$ApiKeyEncrypted,
+        [switch]$ApiKeyEncrypted,
+
+        [Parameter()]
+        [string]$ApiKeyEncryptedBlob,
 
         [Parameter()]
         [switch]$DisableApiKeyPrompt,
@@ -135,14 +142,15 @@ function Test-TechAgentProvider {
             $configObject,
             [string]$providerName,
             [string]$envVarName,
-            [string]$encryptedOverride
+            [string]$encryptedOverride,
+            [switch]$PreferEncryptedOnly
         )
 
         if ($providerName -eq 'ollama') {
             return @{ Key = $null; Source = 'NotRequired'; Error = $null }
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
+        if (-not $PreferEncryptedOnly.IsPresent -and -not [string]::IsNullOrWhiteSpace($envVarName)) {
             $envValue = [Environment]::GetEnvironmentVariable($envVarName)
             if (-not [string]::IsNullOrWhiteSpace($envValue)) {
                 return @{ Key = $envValue; Source = "Environment:$envVarName"; Error = $null }
@@ -373,7 +381,7 @@ function Test-TechAgentProvider {
         }
     }
 
-    $apiKeyResolution = & $resolveCloudApiKey -configObject $cfg -providerName $Provider -envVarName $ApiKeyEnvVar -encryptedOverride $ApiKeyEncrypted
+    $apiKeyResolution = & $resolveCloudApiKey -configObject $cfg -providerName $Provider -envVarName $ApiKeyEnvVar -encryptedOverride $ApiKeyEncryptedBlob -PreferEncryptedOnly:$ApiKeyEncrypted
     $apiKey = [string]$apiKeyResolution.Key
     $result.ApiKeySource = [string]$apiKeyResolution.Source
 
@@ -536,8 +544,8 @@ function Test-TechAgentProvider {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAZ4XeATas654w+
-# VlQ3Pdi86ktSr6Py7XYC2A8sXgkttaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBzqCCgAqNRVpBj
+# KOzaVM+Mo2ghrWnsC+k4762hhtWUsqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -670,34 +678,34 @@ function Test-TechAgentProvider {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD34ArOzVJ9
-# CG+q2KZ+65Ui2mopKgvmDQtRH8/3Vs0WxjANBgkqhkiG9w0BAQEFAASCAgDPsRjq
-# CpQiqFABJRuY1fx5GgxmHwRfCNHr1v8SX9TqIbyHvFRZ52DREvBwU1IofUZb2PL1
-# zez15yHimfB3Dp2JBISXfd/ksLeheRvGMvJaPRfKxfGp3FsUwn+qCAoGJOw2dRqf
-# hRcIvHWJzKoC4bLmp80WxRSOLi7gUGi+miv+6WoiWAtKnlRpFZj5q6NpJns9Fg6s
-# EDLuhrXOh2Nut75r8hmC9MTNdBVSX0DfithSj4UcSteCDsk6viVocwUn/pJas54r
-# m2YvPonFrTN6/T789sl4LbAVU9LeiAqY7Px0r2NITAXP5tYGiWbSotgBRVTTYS53
-# xvx5pzB+hnaGLApML9yc4/xr0fTTVLddjyXOCVPdN8fiXsJA2I/8UZUiVFLf3shK
-# 4l1kp8q2NNjm6s17mbqfYVb2UNNEr2J6CyfUA4QCxmwsoq4zrGDRY6Hi7F/7Mciu
-# qR51S/ffGnM6cB/MjC2FHMTZSDuPlfoFG4cEol5iv/85gy8JmoU5DJPZ+ZFhl2TT
-# ha52JrrRJ3kW/FjZpZM3rsHRIvK2+ff6BNGPPXZpXQjnN7Ak/ds7Cvc6tFfgIYlk
-# e64P4CxqvoM0iZBwnO/IZ+tUInHtVHyb/QQ1U3nnNHu1oEl31VDWWRQLcOwG7y9P
-# 5od4UJxLqcmPERxA8C7rwKRCZoLr6V+rZLV+SqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCUv+250i/x
+# pP3IK1iWWRi4C+SN/tBwfrTThSqa7h3N2zANBgkqhkiG9w0BAQEFAASCAgA7Xkax
+# wZw7V33/bCdA5qB6lN7vZ4+Hec3L629OhIiimvkoonWzl37u5Y6Mh+sptcEMLdzn
+# JRcqNsDGv6veCPHKgxB1Wsb3P0nEW3wSOdQCf8lUeDpsysUK/60ZHP1onxSZx8MB
+# WACcGUHKJfiEoIlMPkdxlIRSabAUtfnqOLuKYj6XOq7jy0HiM5kLjjh17MPODvwm
+# jpF47+2Lo8Sza1e4AquDbcC+Cuk96R2OMwAhc5GFkjJFt+oRrfP7zEYkZZX4Jyuw
+# Te1fBxjkVJF8e+Ov5AK+rZVZeaG88jY6R+8MR01DC/IKKUPbUCKT36x5tMZqiDgo
+# UnzD+JLfxoF0UwYPZ9hgvIrS3EXT6GQPpCwoHSNbsfDhdxz/hqxchSQU6sPN2MFL
+# qukA2IfyCHHWMuqx/UtbXugKrAJVR9DKFTfoe4iNxMwwPA+/d0ckkM+6jg9to8Cw
+# HeDAXg1iWko+xehOY9hDIqDhyaZz8eGMnPaMD28jrwnOfxFPJ5JpltHCmzjlfq/l
+# R2APlaR82z3eoDDq+WWsv+Wf6fIQxf4Vpna2dlGWO4ZKV1/4uMHh/OWv22Q+nJWu
+# tnP1cFEAazs6CUqg4YbIzjT55dXjUv8AgzLQqbohBOGHKR6E97BYmACJjv2RM2Yc
+# 4MItZuvwy3tNXpNpwQ2SM35BbnHS6m/GKRwaVqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MjcyMjU0MzhaMC8GCSqGSIb3DQEJBDEiBCAoizWex6wErkTlF6DX
-# ah3yRz1k+vSiD4++z5T39c0bMjANBgkqhkiG9w0BAQEFAASCAgAwhEY+6qzSd70c
-# 6Sdp+v2AdnH2hlt/NfevMfTIWqC7rordzUhSBqJ/KuFuguzKw5heAoc+znAX3yP2
-# ob7shYI5kJnAg61RwTi9hINHUa0BwpPxnF5Kk82+9EVMpqY60Je53IEv6guJaBAk
-# vFvQdh6aYe5qH4GWcjFzjqPdKIbuV7QuPlbJYlWmTuQ3UOjxJ/UmhSvaYxMksEmS
-# AsOC75RCXRfSS37b1nMM2zECB5DRi6LPwkpCarXwyf1wC3oqmxXSvZrH8xr1A7PP
-# IdEZVlQzZQ5aCfCBtzmP/uckdsEvc5SAtXKRlN5j9K3r7jYkVBlVemufs+uewrPh
-# oPO+AewqWXJGMFrcppj/uvXizMEgVOkvZcZLjfGTznQ/v3nChdkQ6eH+/z8Ovk8S
-# TrgOdqehX+hRawGhFs5mYF2GB6QqD4qkVD/HjVIcKvPlZJyxJ42s+3CS0MXXnxoA
-# zteO+4ObJhhJPOjKRxY5e7FG3VxecFh6JD3EROOr4USmc1hvomN7ckEsSXJ48Wil
-# 2KY1u1k2SOYxWKGPT1D/qnJ6ldwHQlbosgpMH+JyiDm/wVO8rmRuxf4ecRUmdzoF
-# P3vf+RRDtGMTC4CJTfU6rvA+H71ZFWzsUOAQ2koDdKCbzNQmuzOXIz6YL8/JwxK2
-# ih1kwr82QsrQrUtIsxtuLd7mIZy+gQ==
+# BTEPFw0yNjA3MjgwMDAwMDdaMC8GCSqGSIb3DQEJBDEiBCCx6YDl19FmnmxIidRn
+# OWTTOJP+6ZrU9R3hXhCsQx4xCDANBgkqhkiG9w0BAQEFAASCAgC8gd/FsiV0ymGh
+# LN/PuDmPso7de3c/W4Jp6vBgwix49oG6s7wQ7WizjfPmZkWDT7WMMtNt9jc2xnQL
+# iTlCspS5CXkDUyuh955cCOMQ/l8FO7yoc/Y27zO6vuh09exJkkLByftHqUxg7wcA
+# TJU1bCGDz+GeIX6HqsYF+RgXGYXv5y3ImABBvjaorYy/cgXo9p1NGUARtaDlzL/Y
+# iWOZHYmlBlTxGFTMNgjUg8+WhLVo5EkcVCM1vC/RlhoioabQg38m7lB4GvB2J5CZ
+# CfHvjdjTl4W04eUY9eK/pA8CTTPrcVceSgoCagLnwORYkTBz59DYUs8bBpc+8gOq
+# NnrYoZGHK+DHqFbUIEiFgRBrBekIRtP1QZWBEERGSA4T2KsMiXz9B5m7cPcM8rOJ
+# qQKa5B4urlkxrUa/xcSXnMVzBp7e/39k+Z0qz/ng3DCKgkDGDosjgPoYOJSTPcRL
+# 1FsziQIvrU5MakDgcCwR3HKTgYctoeSQpeajNcwlwQBuMpnYO/znxElLVU4v3lV4
+# DnS9ViPMadKXRkSX3Ss15H8qWkvLfRY7SYWT1IljWRZjMUU01cKLS0ChV/rf6Xd0
+# gT+W0+WXBJk7hWp63Oga7SelhdACe6+HJZIa4CFFNBJ80CBG8rLd5V8t8xCl5mGe
+# QpU3ktFj/ZAa2FkQUurwtL4qAu3cSw==
 # SIG # End signature block

@@ -1,27 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-22T19:52:10.1658989-05:00",
-    "status": "error",
-    "outcome": "iteration-limit",
-    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\TechToolbox\\en-US and name it\r\nabout_Invoke-DownloadsCleanup.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Invoke-DownloadsCleanup.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "qwen3.6:35b",
-    "durationMs": 136838,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-    "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-    "runSummary": {
-      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Invoke\\Invoke-DownloadsCleanup.ps1 and write a\r\ndetailed help document for PowerShell\uFFFDs Get-Help to consume to the directory\r\nlocated at to C:\\repos\\Te...",
-      "actionsTaken": [],
-      "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-      "nextBestStep": "Next best action:"
-    }
-  },
-  {
     "timestampUtc": "2026-06-22T20:05:18.7720687-05:00",
     "status": "success",
     "outcome": "completed",
@@ -7239,6 +7217,28 @@
       "actionsTaken": [],
       "blockers": "",
       "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-07-27T23:43:42.3993231+00:00",
+    "status": "error",
+    "outcome": "llm-failure",
+    "prompt": "Hi are you working?",
+    "model": "gpt-4o-mini",
+    "durationMs": 1279,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\u0022,\n        \u0022type\u0022: \u0022insufficient_quota\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022insufficient_quota\u0022\n    }\n}",
+    "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\u0022,\n        \u0022type\u0022: \u0022insufficient_quota\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022insufficient_quota\u0022\n    }\n}",
+    "runSummary": {
+      "intent": "Hi are you working?",
+      "actionsTaken": [],
+      "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-er...",
+      "nextBestStep": "Retry after addressing the error details captured in outputPreview."
     }
   }
 ]
