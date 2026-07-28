@@ -1,119 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-22T20:10:55.8274059-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Are you currently the best model to use for agentic tasks locally? You are qwen3.6:35b.",
-    "model": "qwen3.6:35b",
-    "durationMs": 31679,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "- Yes, I am currently the best model for agentic tasks locally.\n- My default model is qwen3.6:35b as per your preferences.",
-    "runSummary": {
-      "intent": "Are you currently the best model to use for agentic tasks locally? You are qwen3.6:35b.",
-      "actionsTaken": [],
-      "blockers": "",
-      "nextBestStep": ""
-    }
-  },
-  {
-    "timestampUtc": "2026-06-24T22:16:35.1990485-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-OneTimeReboot.help.txt\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "qwen3.6:35b",
-    "durationMs": 60732,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 3,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "The help document for Set-OneTimeReboot has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt.",
-    "runSummary": {
-      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox...",
-      "actionsTaken": [
-        "read_file",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    }
-  },
-  {
-    "timestampUtc": "2026-06-24T22:19:36.0263335-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-OneTimeReboot.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "qwen3.6:35b",
-    "durationMs": 48750,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 7,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "list_directory",
-      "read_file",
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "The help document for Set-OneTimeReboot has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Set-OneTimeReboot.help.txt. It follows the format of other about_ help files in the directory, including sections for NAME, DESCRIPTION, PARAMETERS (ComputerName, DateTime, Credential, At, SelfDelete, TaskName, Remove, Comment, DeleteExpiredTaskAfterMinutes), and EXAMPLES.",
-    "runSummary": {
-      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-OneTimeReboot.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    }
-  },
-  {
-    "timestampUtc": "2026-06-24T22:22:07.5597492-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-PageFileSize.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Set-PageFileSize.help.txt. Please\r\nfollow the same format as the other help documents in that directory.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-PageFileSize.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "qwen3.6:35b",
-    "durationMs": 39382,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 6,
-    "toolNames": [
-      "read_file",
-      "list_directory",
-      "read_file",
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "The help document for Set-PageFileSize has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Set-PageFileSize.help.txt. It follows the format of existing help files in the directory, including sections for NAME, SYNOPSIS, DESCRIPTION, PARAMETER details, EXAMPLES, and NOTES.",
-    "runSummary": {
-      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Set\\Set-PageFileSize.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    }
-  },
-  {
     "timestampUtc": "2026-06-24T22:24:51.6510431-05:00",
     "status": "success",
     "outcome": "completed",
@@ -7229,6 +7115,94 @@
       "actionsTaken": [],
       "blockers": "",
       "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-07-28T04:28:25.2054149+00:00",
+    "status": "error",
+    "outcome": "iteration-limit",
+    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ILlmClient.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ILlmClient.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ILlmClient.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "gpt-4o-mini",
+    "durationMs": 148133,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "runSummary": {
+      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ILlmClient.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequir...",
+      "actionsTaken": [],
+      "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+      "nextBestStep": "Next best action:"
+    }
+  },
+  {
+    "timestampUtc": "2026-07-28T04:35:00.5878547+00:00",
+    "status": "error",
+    "outcome": "iteration-limit",
+    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "gpt-4o-mini",
+    "durationMs": 257482,
+    "maxIterations": 25,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 25\r\n- max_iterations requested: 25\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 25\r\n- max_iterations requested: 25\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+    "runSummary": {
+      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\n...",
+      "actionsTaken": [],
+      "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 25\r\n- max_iterations requested: 25\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+      "nextBestStep": "Next best action:"
+    }
+  },
+  {
+    "timestampUtc": "2026-07-28T04:36:11.6851905+00:00",
+    "status": "error",
+    "outcome": "llm-failure",
+    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "gpt-5.6-luna",
+    "durationMs": 316,
+    "maxIterations": 25,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported parameter: \u0027max_tokens\u0027 is not supported with this model. Use \u0027max_completion_tokens\u0027 instead.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022max_tokens\u0022,\n    \u0022code\u0022: \u0022unsupported_parameter\u0022\n  }\n}",
+    "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported parameter: \u0027max_tokens\u0027 is not supported with this model. Use \u0027max_completion_tokens\u0027 instead.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022max_tokens\u0022,\n    \u0022code\u0022: \u0022unsupported_parameter\u0022\n  }\n}",
+    "runSummary": {
+      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\n...",
+      "actionsTaken": [],
+      "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported parameter: \u0027max_tokens\u0027 is not supported with this model. Use \u0027max_completion_tokens\u0027 instead.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022max_tokens\u0022,\n    \u0022code\u0022: \u0022unsupported...",
+      "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+    }
+  },
+  {
+    "timestampUtc": "2026-07-28T04:45:05.44319+00:00",
+    "status": "error",
+    "outcome": "llm-failure",
+    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "gpt-5.3-codex",
+    "durationMs": 408,
+    "maxIterations": 25,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022This model is not supported in the v1/chat/completions endpoint. Use the v1/responses endpoint instead.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: \u0022model\u0022,\n        \u0022code\u0022: null\n    }\n}",
+    "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022This model is not supported in the v1/chat/completions endpoint. Use the v1/responses endpoint instead.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: \u0022model\u0022,\n        \u0022code\u0022: null\n    }\n}",
+    "runSummary": {
+      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\n...",
+      "actionsTaken": [],
+      "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022This model is not supported in the v1/chat/completions endpoint. Use the v1/responses endpoint instead.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: \u0022model\u0022,\n        \u0022code\u0022: null...",
+      "nextBestStep": "Retry after addressing the error details captured in outputPreview."
     }
   }
 ]
