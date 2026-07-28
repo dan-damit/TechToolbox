@@ -17,134 +17,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.35,
-      "avgDurationMs": 34237,
-      "avgToolCalls": 0.8,
+      "successRate": 0.3,
+      "avgDurationMs": 43508,
+      "avgToolCalls": 0.15,
       "statusCounts": {
-        "error": 13,
-        "success": 7
+        "error": 14,
+        "success": 6
       },
       "outcomeCounts": {
-        "iteration-limit": 12,
-        "completed": 7,
-        "llm-failure": 1
+        "iteration-limit": 11,
+        "completed": 6,
+        "llm-failure": 3
       },
-      "lastStatus": "success",
-      "lastOutcome": "completed",
-      "lastModel": "gpt-4o-mini",
-      "lastRunTimestampUtc": "2026-07-28T02:12:08.3794603\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-28T02:12:08.3803143\u002B00:00"
+      "lastStatus": "error",
+      "lastOutcome": "llm-failure",
+      "lastModel": "gpt-5.3-codex",
+      "lastRunTimestampUtc": "2026-07-28T04:45:05.4431900\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-28T04:45:05.4693777\u002B00:00"
     },
     "fact.read.3316348d": "read"
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-25T03:54:13.2916049+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Primary input files:\r\nC:\\repos\\TechToolbox\\TechToolbox.psm1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a Tests.ps1 file that tests the module load and exported functions.\r\n\r\nRequirements:\r\n- Prefer updating an existing nearby test file if one already covers the same area.\r\n- If no suitable test file exists, create the smallest appropriate new test file.\r\n- Keep the tests focused on the described behavior.\r\n- Avoid changing production code unless a small supporting change is necessary and justified.\r\n- Use the existing test style and naming conventions in the repository.\r\n- Run the narrowest relevant test validation after editing.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the test change and validation have succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\TechToolbox.psm1\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "ornith:35b",
-      "durationMs": 33993,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 20\r\n- max_iterations requested: 20\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 20\r\n- max_iterations requested: 20\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Primary input files:\r\nC:\\repos\\TechToolbox\\TechToolbox.psm1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a Tests.ps1 file that tests the module load and exp...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 20\r\n- max_iterations requested: 20\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      }
-    },
-    {
-      "timestampUtc": "2026-07-25T04:00:25.8181465+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Primary input files:\r\nC:\\repos\\TechToolbox\\TechToolbox.psm1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a Tests.ps1 file that tests the module load and exported functions.\r\n\r\nRequirements:\r\n- Prefer updating an existing nearby test file if one already covers the same area.\r\n- If no suitable test file exists, create the smallest appropriate new test file.\r\n- Keep the tests focused on the described behavior.\r\n- Avoid changing production code unless a small supporting change is necessary and justified.\r\n- Use the existing test style and naming conventions in the repository.\r\n- Run the narrowest relevant test validation after editing.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the test change and validation have succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\TechToolbox.psm1\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "ornith:35b",
-      "durationMs": 90630,
-      "maxIterations": 25,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 13,
-      "toolNames": [
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file",
-        "write_file",
-        "write_file",
-        "read_file",
-        "list_directory",
-        "read_file",
-        "append_file",
-        "append_file",
-        "finalize_file_write"
-      ],
-      "outputPreview": "## Summary\n\nCreated a test file at C:\\repos\\TechToolbox\\TechToolbox.psm1 that tests:\n\n- Module load without errors\n- Module availability in Get-Module\n- All expected functions are exported\n- No unexpected functions are exported\n\nThe test file follows the existing test style and naming conventions from the repository (Tests/Get-MessageTrace.Tests.ps1).\n\n## Test File Content\n\nThe test file includes:\n- A BeforeAll block that imports the module\n- Context \u0022Module Load\u0022 with tests for successful loading\n- Context \u0022Exported Functions\u0022 with tests verifying all 53 exported functions from the module manifest are present and no extras exist\n\n## Validation\n\nThe file write was completed successfully (3259 bytes, 96 lines).",
-      "runSummary": {
-        "intent": "Primary input files:\r\nC:\\repos\\TechToolbox\\TechToolbox.psm1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a Tests.ps1 file that tests the module load and exp...",
-        "actionsTaken": [
-          "list_directory",
-          "read_file",
-          "write_file",
-          "append_file",
-          "finalize_file_write"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
-    {
-      "timestampUtc": "2026-07-26T03:32:09.6670742+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Primary input files:\r\nC:\\repos\\TechToolbox\\Set\\Set-EmailAlias.ps1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a Set-EmailAlias.ps1 test file that throws if the parameters Identity or\r\nEmailAddress are not provided.\r\n\r\nRequirements:\r\n- Do NOT change the production code unless a small supporting change is necessary and justified.\r\n- Prefer updating an existing nearby test file if one already covers the same area.\r\n- If no suitable test file exists, create the smallest appropriate new test file.\r\n- Keep the tests focused on the described behavior.\r\n- Use the existing test style and naming conventions in the repository.\r\n- Run the narrowest relevant test validation after editing.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the test change and validation have succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\Set\\Set-EmailAlias.ps1\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "ornith:35b",
-      "durationMs": 65965,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Primary input files:\r\nC:\\repos\\TechToolbox\\Set\\Set-EmailAlias.ps1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a Set-EmailAlias.ps1 test file that throws if...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      }
-    },
-    {
-      "timestampUtc": "2026-07-26T03:33:32.1104822+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Primary input files:\r\nC:\\repos\\TechToolbox\\Set\\Set-EmailAlias.ps1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a Set-EmailAlias.ps1 test file that throws if the parameters Identity or\r\nEmailAddress are not provided.\r\n\r\nRequirements:\r\n- Do NOT change the production code unless a small supporting change is necessary and justified.\r\n- Prefer updating an existing nearby test file if one already covers the same area.\r\n- If no suitable test file exists, create the smallest appropriate new test file.\r\n- Keep the tests focused on the described behavior.\r\n- Use the existing test style and naming conventions in the repository.\r\n- Run the narrowest relevant test validation after editing.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the test change and validation have succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\Set\\Set-EmailAlias.ps1\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "ornith:35b",
-      "durationMs": 30321,
-      "maxIterations": 20,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 20\r\n- max_iterations requested: 20\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 20\r\n- max_iterations requested: 20\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Primary input files:\r\nC:\\repos\\TechToolbox\\Set\\Set-EmailAlias.ps1\r\n\r\nTask:\r\nAdd or update tests for the behavior described below.\r\n\r\nBehavior or regression to cover: \r\nCreate a Set-EmailAlias.ps1 test file that throws if...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 20\r\n- max_iterations requested: 20\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      }
-    },
     {
       "timestampUtc": "2026-07-26T03:35:22.8545563+00:00",
       "status": "error",
@@ -498,6 +391,94 @@
         "actionsTaken": [],
         "blockers": "",
         "nextBestStep": ""
+      }
+    },
+    {
+      "timestampUtc": "2026-07-28T04:28:25.2054149+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ILlmClient.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ILlmClient.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ILlmClient.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-4o-mini",
+      "durationMs": 148133,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\ILlmClient.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequir...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      }
+    },
+    {
+      "timestampUtc": "2026-07-28T04:35:00.5878547+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-4o-mini",
+      "durationMs": 257482,
+      "maxIterations": 25,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 25\r\n- max_iterations requested: 25\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 25\r\n- max_iterations requested: 25\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\n...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 25\r\n- max_iterations requested: 25\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      }
+    },
+    {
+      "timestampUtc": "2026-07-28T04:36:11.6851905+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-5.6-luna",
+      "durationMs": 316,
+      "maxIterations": 25,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported parameter: \u0027max_tokens\u0027 is not supported with this model. Use \u0027max_completion_tokens\u0027 instead.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022max_tokens\u0022,\n    \u0022code\u0022: \u0022unsupported_parameter\u0022\n  }\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported parameter: \u0027max_tokens\u0027 is not supported with this model. Use \u0027max_completion_tokens\u0027 instead.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022max_tokens\u0022,\n    \u0022code\u0022: \u0022unsupported_parameter\u0022\n  }\n}",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\n...",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported parameter: \u0027max_tokens\u0027 is not supported with this model. Use \u0027max_completion_tokens\u0027 instead.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022max_tokens\u0022,\n    \u0022code\u0022: \u0022unsupported...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      }
+    },
+    {
+      "timestampUtc": "2026-07-28T04:45:05.44319+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-5.3-codex",
+      "durationMs": 408,
+      "maxIterations": 25,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022This model is not supported in the v1/chat/completions endpoint. Use the v1/responses endpoint instead.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: \u0022model\u0022,\n        \u0022code\u0022: null\n    }\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022This model is not supported in the v1/chat/completions endpoint. Use the v1/responses endpoint instead.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: \u0022model\u0022,\n        \u0022code\u0022: null\n    }\n}",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\n...",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022This model is not supported in the v1/chat/completions endpoint. Use the v1/responses endpoint instead.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: \u0022model\u0022,\n        \u0022code\u0022: null...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
       }
     }
   ],

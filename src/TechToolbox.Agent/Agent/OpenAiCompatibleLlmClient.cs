@@ -10,6 +10,12 @@ namespace TechToolbox.Agent.Agent;
 /// </summary>
 public sealed class OpenAiCompatibleLlmClient : ILlmClient
 {
+    private enum OpenAiApiStyle
+    {
+        ChatCompletions,
+        Responses,
+    }
+
     private static readonly int RequestTimeoutSeconds = GetTimeoutSeconds();
     private static readonly int MaxOutputTokens = GetMaxOutputTokens();
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -68,71 +74,67 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
             );
         }
 
+        var apiStyle = OpenAiApiStyle.ChatCompletions;
+
         string requestUrl;
         try
         {
-            requestUrl = BuildRequestUrl();
+            requestUrl = BuildRequestUrl(apiStyle);
         }
         catch (Exception ex)
         {
             return new LlmResponse($"LLM request failed: {ex.Message}", "", false);
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        var attempt = await SendRequestAsync(
+            messages,
+            apiKey,
+            requestUrl,
+            apiStyle,
+            cancellationToken
+        ).ConfigureAwait(false);
 
-        if (IsAzureProvider())
-            request.Headers.Add("api-key", apiKey);
-        else
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        if (!attempt.Success && ShouldFallbackToResponsesEndpoint(attempt.ErrorBody))
+        {
+            apiStyle = OpenAiApiStyle.Responses;
 
-        var payload = BuildPayload(messages);
-        request.Content = JsonContent.Create(payload, options: JsonOptions);
+            try
+            {
+                requestUrl = BuildRequestUrl(apiStyle);
+            }
+            catch (Exception ex)
+            {
+                return new LlmResponse($"LLM request failed: {ex.Message}", "", false);
+            }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(RequestTimeoutSeconds));
+            Trace($"Retrying request via OpenAI responses endpoint url={requestUrl}");
 
-        HttpResponseMessage response;
-        try
-        {
-            response = await _http.SendAsync(request, cts.Token).ConfigureAwait(false);
-            Trace($"HTTP status={(int)response.StatusCode} ({response.StatusCode}) url={requestUrl}");
-        }
-        catch (OperationCanceledException)
-        {
-            return new LlmResponse(
-                $"LLM request timed out after {RequestTimeoutSeconds} seconds.",
-                "",
-                false
-            );
-        }
-        catch (Exception ex)
-        {
-            return new LlmResponse($"LLM request failed: {ex.Message}", "", false);
-        }
-
-        string rawBody;
-        try
-        {
-            rawBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            return new LlmResponse($"LLM response read timed out: {ex.Message}", "", false);
+            attempt = await SendRequestAsync(
+                messages,
+                apiKey,
+                requestUrl,
+                apiStyle,
+                cancellationToken
+            ).ConfigureAwait(false);
         }
 
-        if (!response.IsSuccessStatusCode)
-            return new LlmResponse($"LLM error: {response.StatusCode} - {rawBody}", rawBody, false);
+        if (!attempt.Success)
+        {
+            if (!string.IsNullOrWhiteSpace(attempt.ErrorMessage))
+                return new LlmResponse(attempt.ErrorMessage, attempt.RawBody ?? string.Empty, false);
 
-        var content = ExtractContent(rawBody);
+            return new LlmResponse("LLM request failed with unknown error.", attempt.RawBody ?? string.Empty, false);
+        }
+
+        var content = ExtractContent(attempt.RawBody ?? string.Empty, apiStyle);
         if (string.IsNullOrWhiteSpace(content))
-            return new LlmResponse("LLM returned empty content.", rawBody, false);
+            return new LlmResponse("LLM returned empty content.", attempt.RawBody ?? string.Empty, false);
 
         content = content.Trim();
         if (onContentAccumulated is not null)
             _ = await onContentAccumulated(content).ConfigureAwait(false);
 
-        return new LlmResponse(content, rawBody, true);
+        return new LlmResponse(content, attempt.RawBody ?? string.Empty, true);
     }
 
     /// <inheritdoc/>
@@ -141,7 +143,7 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         CancellationToken cancellationToken = default
     ) => GenerateDecisionWithCallbackAsync(messages, null, cancellationToken);
 
-    private object BuildPayload(IReadOnlyList<AgentChatMessage> messages)
+    private object BuildPayload(IReadOnlyList<AgentChatMessage> messages, OpenAiApiStyle apiStyle)
     {
         if (IsAzureProvider())
         {
@@ -153,6 +155,29 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
                 stream = false,
                 response_format = new { type = "json_object" },
                 max_tokens = MaxOutputTokens,
+            };
+        }
+
+        if (apiStyle == OpenAiApiStyle.Responses)
+        {
+            return new
+            {
+                model = _model,
+                input = messages.Select(m => new
+                {
+                    role = NormalizeResponseRole(m.Role),
+                    content = m.Content,
+                }),
+                temperature = 0.2,
+                top_p = 0.9,
+                max_output_tokens = MaxOutputTokens,
+                text = new
+                {
+                    format = new
+                    {
+                        type = "json_object",
+                    },
+                },
             };
         }
 
@@ -168,7 +193,7 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         };
     }
 
-    private string BuildRequestUrl()
+    private string BuildRequestUrl(OpenAiApiStyle apiStyle)
     {
         if (IsAzureProvider())
         {
@@ -187,9 +212,11 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         }
 
         if (!string.IsNullOrWhiteSpace(_endpoint))
-            return _endpoint!;
+            return BuildNonAzureEndpointUrl(_endpoint!, apiStyle);
 
-        return "https://api.openai.com/v1/chat/completions";
+        return apiStyle == OpenAiApiStyle.Responses
+            ? "https://api.openai.com/v1/responses"
+            : "https://api.openai.com/v1/chat/completions";
     }
 
     private bool IsAzureProvider()
@@ -204,7 +231,7 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         return string.IsNullOrWhiteSpace(provider) ? "openai" : provider.Trim().ToLowerInvariant();
     }
 
-    private static string ExtractContent(string rawBody)
+    private static string ExtractContent(string rawBody, OpenAiApiStyle apiStyle)
     {
         if (string.IsNullOrWhiteSpace(rawBody))
             return string.Empty;
@@ -213,6 +240,13 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         {
             using var doc = JsonDocument.Parse(rawBody);
             var root = doc.RootElement;
+
+            if (apiStyle == OpenAiApiStyle.Responses)
+            {
+                var extracted = ExtractResponsesContent(root);
+                if (!string.IsNullOrWhiteSpace(extracted))
+                    return extracted;
+            }
 
             if (!root.TryGetProperty("choices", out var choices) || choices.ValueKind != JsonValueKind.Array)
                 return string.Empty;
@@ -259,6 +293,206 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
 
         return string.Empty;
     }
+
+    private static string ExtractResponsesContent(JsonElement root)
+    {
+        if (
+            root.TryGetProperty("output_text", out var outputText)
+            && outputText.ValueKind == JsonValueKind.String
+        )
+        {
+            return outputText.GetString() ?? string.Empty;
+        }
+
+        if (
+            root.TryGetProperty("output", out var output)
+            && output.ValueKind == JsonValueKind.Array
+        )
+        {
+            var sb = new StringBuilder();
+
+            foreach (var outputItem in output.EnumerateArray())
+            {
+                if (
+                    !outputItem.TryGetProperty("content", out var content)
+                    || content.ValueKind != JsonValueKind.Array
+                )
+                {
+                    continue;
+                }
+
+                foreach (var part in content.EnumerateArray())
+                {
+                    if (
+                        part.TryGetProperty("text", out var text)
+                        && text.ValueKind == JsonValueKind.String
+                    )
+                    {
+                        sb.Append(text.GetString());
+                    }
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        return string.Empty;
+    }
+
+    private bool ShouldFallbackToResponsesEndpoint(string? rawBody)
+    {
+        if (IsAzureProvider())
+            return false;
+
+        if (!_provider.Equals("openai", StringComparison.Ordinal))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(rawBody))
+            return false;
+
+        return rawBody.Contains("v1/responses endpoint", StringComparison.OrdinalIgnoreCase)
+            || rawBody.Contains("not supported in the v1/chat/completions", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeResponseRole(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+            return "user";
+
+        return role.Trim().ToLowerInvariant() switch
+        {
+            "system" => "system",
+            "assistant" => "assistant",
+            "user" => "user",
+            _ => "user",
+        };
+    }
+
+    private static string BuildNonAzureEndpointUrl(string endpoint, OpenAiApiStyle apiStyle)
+    {
+        var normalizedEndpoint = endpoint.Trim();
+        var suffix = apiStyle == OpenAiApiStyle.Responses
+            ? "/v1/responses"
+            : "/v1/chat/completions";
+
+        if (
+            normalizedEndpoint.EndsWith("/v1/chat/completions", StringComparison.OrdinalIgnoreCase)
+            || normalizedEndpoint.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            return apiStyle == OpenAiApiStyle.Responses
+                ? normalizedEndpoint[..normalizedEndpoint.LastIndexOf("/chat/completions", StringComparison.OrdinalIgnoreCase)] + "/responses"
+                : normalizedEndpoint;
+        }
+
+        if (
+            normalizedEndpoint.EndsWith("/v1/responses", StringComparison.OrdinalIgnoreCase)
+            || normalizedEndpoint.EndsWith("/responses", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            return apiStyle == OpenAiApiStyle.ChatCompletions
+                ? normalizedEndpoint[..normalizedEndpoint.LastIndexOf("/responses", StringComparison.OrdinalIgnoreCase)] + "/chat/completions"
+                : normalizedEndpoint;
+        }
+
+        if (!Uri.TryCreate(normalizedEndpoint, UriKind.Absolute, out var absoluteUri))
+            return normalizedEndpoint;
+
+        var path = absoluteUri.AbsolutePath;
+        if (string.IsNullOrWhiteSpace(path) || path == "/")
+        {
+            return normalizedEndpoint.TrimEnd('/') + suffix;
+        }
+
+        return normalizedEndpoint;
+    }
+
+    private async Task<RequestAttemptResult> SendRequestAsync(
+        IReadOnlyList<AgentChatMessage> messages,
+        string apiKey,
+        string requestUrl,
+        OpenAiApiStyle apiStyle,
+        CancellationToken cancellationToken
+    )
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        if (IsAzureProvider())
+            request.Headers.Add("api-key", apiKey);
+        else
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+        var payload = BuildPayload(messages, apiStyle);
+        request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(RequestTimeoutSeconds));
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(request, cts.Token).ConfigureAwait(false);
+            Trace($"HTTP status={(int)response.StatusCode} ({response.StatusCode}) url={requestUrl}");
+        }
+        catch (OperationCanceledException)
+        {
+            return new RequestAttemptResult(
+                Success: false,
+                RawBody: string.Empty,
+                ErrorBody: string.Empty,
+                ErrorMessage: $"LLM request timed out after {RequestTimeoutSeconds} seconds."
+            );
+        }
+        catch (Exception ex)
+        {
+            return new RequestAttemptResult(
+                Success: false,
+                RawBody: string.Empty,
+                ErrorBody: string.Empty,
+                ErrorMessage: $"LLM request failed: {ex.Message}"
+            );
+        }
+
+        string rawBody;
+        try
+        {
+            rawBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return new RequestAttemptResult(
+                Success: false,
+                RawBody: string.Empty,
+                ErrorBody: string.Empty,
+                ErrorMessage: $"LLM response read timed out: {ex.Message}"
+            );
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return new RequestAttemptResult(
+                Success: false,
+                RawBody: rawBody,
+                ErrorBody: rawBody,
+                ErrorMessage: $"LLM error: {response.StatusCode} - {rawBody}"
+            );
+        }
+
+        return new RequestAttemptResult(
+            Success: true,
+            RawBody: rawBody,
+            ErrorBody: null,
+            ErrorMessage: null
+        );
+    }
+
+    private sealed record RequestAttemptResult(
+        bool Success,
+        string? RawBody,
+        string? ErrorBody,
+        string? ErrorMessage
+    );
 
     private void Trace(string message)
     {
