@@ -1,15 +1,17 @@
 namespace TechToolbox.Agent.Agent;
 
 /// <summary>
-/// Creates LLM client implementations from agent configuration.
+/// Creates <see cref="ILlmClient"/> implementations from agent configuration values.
 /// </summary>
 public static class LlmClientFactory
 {
     /// <summary>
-    /// Creates an <see cref="ILlmClient"/> from the supplied configuration.
+    /// Creates an <see cref="ILlmClient"/> instance based on the configured LLM provider.
     /// </summary>
-    /// <param name="config">Agent configuration.</param>
-    /// <returns>A provider-specific LLM client.</returns>
+    /// <param name="config">The agent configuration containing provider and model settings.</param>
+    /// <returns>A provider-specific <see cref="ILlmClient"/> implementation.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="config"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the configured provider is unsupported.</exception>
     public static ILlmClient Create(Configuration.AgentConfiguration config)
     {
         ArgumentNullException.ThrowIfNull(config);
