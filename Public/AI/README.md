@@ -26,6 +26,8 @@ It supports:
 - optional provider endpoint/deployment/api-version controls for cloud runs  
 - cloud API key retrieval from environment variable or DPAPI-encrypted config secret  
 - interactive one-time bootstrap prompt to store missing cloud API key in `config.secrets.json`  
+- bare `-ApiKeyEncrypted` switch to force encrypted config-based key usage  
+- optional `-ApiKeyEncryptedBlob` override for direct DPAPI blob input  
 - configurable iteration depth for multi-step workflows  
 - always-on lightweight memory stored in `AI\memory.json` by default  
 - automatic capture of recent run history plus learned preferences/facts  
@@ -54,6 +56,8 @@ It supports:
 - API key presence validation via environment variable or DPAPI-encrypted config secret
 - optional interactive prompt to store a missing cloud API key in `config.secrets.json`
 - optional `-NoNetwork` mode for safe configuration-only checks
+- bare `-ApiKeyEncrypted` switch to force encrypted config-based key usage
+- optional `-ApiKeyEncryptedBlob` override for direct DPAPI blob input
 
 ### `Set-TechAgentApiKey`
 Sets, rotates, or clears the DPAPI-encrypted cloud API key used by TechAgent cloud providers.
@@ -114,6 +118,7 @@ Notes:
 
 - DPAPI blobs from `ConvertFrom-SecureString` are generally decryptable only by the same user/machine/context.
 - Runtime precedence is: environment variable first, then `settings.agent.apiKeyEncrypted`.
+- When `-ApiKeyEncrypted` is supplied, the command skips environment variable lookup and uses encrypted config resolution only.
 - If neither source is available and session is interactive, commands can prompt once to capture and persist a DPAPI-protected key.
 - Use `-DisableApiKeyPrompt` to suppress this behavior in automation.
 - Use `Set-TechAgentApiKey` for explicit key rotation/removal workflows.
