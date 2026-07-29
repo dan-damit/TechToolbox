@@ -1,22 +1,23 @@
-Primary input file:
-C:\repos\TechToolbox\Public\AI\Test-TecchAgentProvider.ps1
+Primary input files:
+C:\repos\TechToolbox-Docs\Invoke-TechAgent.ps1
 
 Task:
-Write a detailed PowerShell markdown file document for the source command or script.
+Update the markdown document for the topic described below.
 
-Document topic:
-Storage of TechAgent OpenAI API Key
+Topic:
+Update the markdown document to include a new section on how to invoke the TechAgent tool, detailing the command-line options and examples of usage.
 
 Output file:
-C:\repos\TechToolbox\Public\AI\Test-TecchAgentProvider.md
+C:\repos\TechToolbox-Docs\Invoke-TechAgent.md
 
 Requirements:
-- Create the output file at this exact path:
-  C:\repos\TechToolbox\Public\AI\Test-TecchAgentProvider.md
-- Follow the structure and tone of other help files in the same help directory when they exist.
-- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.
-- Do not use markdown formatting unless the existing help files in that directory already do.
-- Use WRITE-FILE to create or update the output help file.
+- Update the file at:
+  C:\repos\TechToolbox-Docs\Invoke-TechAgent.md
+- Be sure to update the section on the new parameters surrounding OpenAI implementaion.
+- Use accurate technical details based on the source inputs.
+- Structure the document for fast scanning with concise headings and examples when useful.
+- Keep the tone practical and specific to this repository or scenario.
+- Use WRITE-FILE to create or update the markdown document.
 - Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
 - Do not stop after analysis.
 - Do not summarize your plan before editing.
