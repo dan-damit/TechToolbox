@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.5.66'
+ModuleVersion = '0.5.67'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -30,7 +30,7 @@ CompanyName = 'Value Added Companies'
 Copyright = '(c) Dan Damit. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows. The AI Agent now features OpenAI integration for cloud LLM inference for those who do not have hardware to run it. First time users should start with Get-TechToolboxConfig and Get-ToolboxHelp. TechToolbox also utilizes the conventional PowerShell help system, so Get-Help <command-name> is your friend.'
+Description = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows. First time users should start with Get-TechToolboxConfig and Get-ToolboxHelp. TechToolbox also utilizes the conventional PowerShell help system, so Get-Help <command-name> is your friend.'
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '7.6.3'
