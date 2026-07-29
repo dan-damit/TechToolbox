@@ -13,7 +13,7 @@ C:\repos\TechToolbox-Docs\Invoke-TechAgent.md
 Requirements:
 - Update the file at:
   C:\repos\TechToolbox-Docs\Invoke-TechAgent.md
-- Be sure to update the section on the new parameters surrounding OpenAI implementaion.
+- Be sure to update the Parameters table with the new parameters surrounding OpenAI implementation.
 - Use accurate technical details based on the source inputs.
 - Structure the document for fast scanning with concise headings and examples when useful.
 - Keep the tone practical and specific to this repository or scenario.
