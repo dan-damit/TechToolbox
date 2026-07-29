@@ -1,16 +1,22 @@
 Primary input file:
-C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\LlmClientFactory.cs
+C:\repos\TechToolbox\Public\AI\Test-TecchAgentProvider.ps1
 
 Task:
-Add or improve XML documentation comments for every public type, public constructor, and public method in this file.
+Write a detailed PowerShell markdown file document for the source command or script.
+
+Document topic:
+Storage of TechAgent OpenAI API Key
+
+Output file:
+C:\repos\TechToolbox\Public\AI\Test-TecchAgentProvider.md
 
 Requirements:
-- Update this exact file in place:
-  C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\LlmClientFactory.cs
-- Preserve all existing code and behavior.
-- Only add or improve XML documentation comments.
-- Prefer REPLACE-IN-FILE for localized edits to this existing file.
-- Use WRITE-FILE only if a localized replacement is not practical.
+- Create the output file at this exact path:
+  C:\repos\TechToolbox\Public\AI\Test-TecchAgentProvider.md
+- Follow the structure and tone of other help files in the same help directory when they exist.
+- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.
+- Do not use markdown formatting unless the existing help files in that directory already do.
+- Use WRITE-FILE to create or update the output help file.
 - Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
 - Do not stop after analysis.
 - Do not summarize your plan before editing.
