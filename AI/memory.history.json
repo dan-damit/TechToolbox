@@ -1,66 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-25T22:46:48.3900443-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "qwen3.6:35b",
-    "durationMs": 99493,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 5,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file"
-    ],
-    "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Get-SystemUptime.help.txt\u0022,\n    \u0022content\u0022: \u0022.EXTERNALHELP Get-SystemUptime-help.xml\n\n.NOTES\n  NAME: about_Get-SystemUptime\n\n.DESCRIPTION\n  The Get-SystemUptime function retrieves the system uptime information from one\n  or more remote computers. It uses the TechToolbox remote worker engine to run a\n  small uptime worker script on each target host and optionally exports results\n  to CSV files.\n\n.PARAMETER ComputerName\n  Specifies one or more target computers to retrieve uptime from. This parameter\n  is mandatory. Accepts pipeline input by value.\n\n.PARAMETER Credential\n  Specifies a credential object used for authenticating remote connections. If\n  omitted, default authentication mechanisms are used.\n\n.PARAMETER OutDir\n  Specifies the output directory where CSV files will be exported. If omitted,\n  the default value from the configuration file is used.\n\n.PARAMETER NoExport\n  Indicates that CSV export should be skipped. By default, results may be\n  exported to CSV if an output directory is specified or configured.\n\n.INPUTS\n  System.String. You can pipe computer names to Get-SystemUptime.\n\n.OUTPUTS\n  PSCustomObject. The function returns custom objects containing the uptime data\n  for each target computer.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV01\n\n  Description: Retrieves system uptime information from SRV01.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV02, SRV03 -OutDir C:\\\\Temp\\\\UptimeReports\n\n  Description: Retrieves system uptime information from SRV02 and SRV03 and\n  exports the results to CSV files in C:\\\\Temp\\\\UptimeReports.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName WS01 -Credential $cred -NoExport\n\n  Description: Retrieves system uptime information from WS01 using the specified\n  credential object and skips CSV export.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)\n\u0022\n  },\n  \u0022finalAnswer\u0022: \u0022\u0022,\n  \u0022reason\u0022: \u0022I have read the source function Get-SystemUptime.ps1 to understand its parameters (ComputerName, Credential, OutDir, NoExport) and behavior. I have also reviewed existing help files in the target directory (about_Get-SharedMailboxPermissions.help.txt, about_Get-SystemSnapshot.help.txt, about_Get-SystemTrustDiagnostic.help.txt) to match their format exactly. Now I will write the new help file using WRITE-FILE.\u0022\n}",
-    "runSummary": {
-      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\...",
-      "actionsTaken": [
-        "read_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    }
-  },
-  {
-    "timestampUtc": "2026-06-25T22:51:56.4576207-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "qwen3.6:35b",
-    "durationMs": 79622,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 6,
-    "toolNames": [
-      "read_file",
-      "list_directory",
-      "read_file",
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "The help document for Get-SystemUptime has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt. It follows the same format as other help documents in the directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
-    "runSummary": {
-      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1. Write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nC:\\repos\\TechToolbox\\en-US ...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    }
-  },
-  {
     "timestampUtc": "2026-06-25T22:54:17.4385654-05:00",
     "status": "success",
     "outcome": "completed",
@@ -7155,6 +7094,71 @@
     "runSummary": {
       "intent": "What would you recommend for prop selection for my Offshore Electrics M40 RC Boat with a TenShock 2280HP motor on 10S LiPo batteries?",
       "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-07-29T22:31:55.5803779+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Primary input files:\r\nC:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.ps1\r\n\r\nTask:\r\nUpdate the markdown document for the topic described below.\r\n\r\nTopic:\r\nUpdate the markdown document to include a new section on how to invoke the TechAgent tool, detailing the command-line options and examples of usage.\r\n\r\nOutput file:\r\nC:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n\r\nRequirements:\r\n- Create the output file at this exact path:\r\n  C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n- Use accurate technical details based on the source inputs.\r\n- Structure the document for fast scanning with concise headings and examples when useful.\r\n- Keep the tone practical and specific to this repository or scenario.\r\n- Use WRITE-FILE to create or update the markdown document.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "ornith:35b",
+    "durationMs": 59832,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "Successfully updated C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md with a new \u0027Command-Line Usage\u0027 section. The document now includes:\n\n- Overview of command-line invocation syntax\n- Required configuration prerequisites\n- All existing content preserved and enhanced\n- Additional examples for MaxIterations and SignedFilePolicy parameters\n- Updated Notes section with references to the new usage information\n\nThe markdown file is structured for fast scanning with concise headings and practical PowerShell examples.",
+    "runSummary": {
+      "intent": "Primary input files:\r\nC:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.ps1\r\n\r\nTask:\r\nUpdate the markdown document for the topic described below.\r\n\r\nTopic:\r\nUpdate the markdown document to include a new section on how to invoke...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    }
+  },
+  {
+    "timestampUtc": "2026-07-29T22:37:36.547987+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Primary input files:\r\nC:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.ps1\r\n\r\nTask:\r\nUpdate the markdown document for the topic described below.\r\n\r\nTopic:\r\nUpdate the markdown document to include a new section on how to invoke the TechAgent tool, detailing the command-line options and examples of usage.\r\n\r\nOutput file:\r\nC:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n\r\nRequirements:\r\n- Update the file at:\r\n  C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n- Be sure to update the section on the new parameters surrounding OpenAI implementaion.\r\n- Use accurate technical details based on the source inputs.\r\n- Structure the document for fast scanning with concise headings and examples when useful.\r\n- Keep the tone practical and specific to this repository or scenario.\r\n- Use WRITE-FILE to create or update the markdown document.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "ornith:35b",
+    "durationMs": 129798,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 9,
+    "toolNames": [
+      "read_file",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "# Invoke-TechAgent\n\nSends a prompt to the TechToolbox local agent for automated task execution.\n\n---\n\n## Overview\n\n\u0060Invoke-TechAgent\u0060 is a helper function that facilitates interaction with the TechToolbox.Agent C# runtime. It allows users to send natural-language instructions (prompts) to an AI agent, which then performs actions on behalf of the user using available tools and scripts.\n\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before sending the request.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. This is the primary input defining what task to perform. |\n| **PromptFile** | \u0060string\u0060 | Optional path to a text file containing the prompt. If omitted and \u0060-Prompt\u0060 is empty, Invoke-TechAgent attempts to load a default prompt file. |\n| **Model** | \u0060string\u0060 | Optional Ollama model name (e.g., \u0060llama3\u0060, \u0060mistral\u0060, \u0060qwen2.5-coder\u0060). Specifies which AI model to use for processing the prompt. |\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default, but this parameter remains for backward compatibility. |\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. Use with caution. |\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. Valid values: \u0060\u0027ignore\u0027\u0060 (blocks overwrite) or \u0060\u0027strip\u0027\u0060 (allows overwrite while removing signature block text). |\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit. |\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding any global settings. |\n\n---\n\n## OpenAI Implementation\n\n### Supported Providers\n\nInvoke-TechAgent supports multiple LLM providers:\n- **ollama** - Local model execution via Ollama runtime\n- **openai** - OpenAI cloud API (GPT models)\n- **openai-compatible** - Compatible endpoints (e.g., local LLM servers)\n- **azure-openai** - Azure OpenAI Service deployments\n\n### API Key Configuration\n\nFor cloud providers (OpenAI, OpenAI-Compatible, Azure OpenAI), an API key is required. The key can be configured in several ways:\n\n1. **Encrypted Storage (Recommended)**\n   Use \u0060Set-TechAgentApiKey\u0060 to securely store the API key using DPAPI encryption:\n   \u0060\u0060\u0060powershell\n   Set-TechAgentApiKey -Provider openai\n   \u0060\u0060\u0060\n   This prompts interactively for the key and stores it encrypted in \u0060config.secrets.json\u0060.\n\n2. **Environment Variable**\n   Set the environment variable (default: \u0060TT_AGENT_LLM_API_KEY\u0060) to bypass encrypted storage:\n   \u0060\u0060\u0060powershell\n   $env:TT_AGENT_LLM_API_KEY = \u0022your-api-key\u0022\n   Invoke-TechAgent -Prompt \u0022Your instruction\u0022 -Provider openai\n   \u0060\u0060\u0060\n\n3. **Explicit Parameter**\n   Pass the API key directly (not recommended for production):\n   \u0060\u0060\u0060powershell\n   $secureKey = Read-Host \u0022Enter API key\u0022 -AsSecureString\n   Invoke-TechAgent -Prompt \u0022Your instruction\u0022 -Provider openai -ApiKey $secureKey\n   \u0060\u0060\u0060\n\n### Provider Validation\n\nBefore using cloud providers, validate the configuration with \u0060Test-TechAgentProvider\u0060:\n\n\u0060\u0060\u0060powershell\n# Validate OpenAI configuration only (no network call)\nTest-TechAgentProvider -Provider openai -Model gpt-4o-mini -NoNetwork\n\n# Validate with live API test\nTest-TechAgentProvider -Provider openai -Model gpt-4o-mini\n\n# Validate Azure OpenAI deployment\nTest-TechAgentProvider -Provider azure-openai -Endpoint \u0022https://your-resource.openai.azure.com\u0022 -Deployment \u0022gpt-4o-mini\u0022\n\u0060\u0060\u0060\n\n### Provider-Specific Settings\n\n**OpenAI:**\n- Default endpoint: \u0060https://api.openai.com/v1/chat/completions\u0060\n- Requires \u0060-Model\u0060 parameter (e.g., \u0060gpt-4o\u0060, \u0060gpt-4o-mini\u0060, \u0060gpt-3.5-tu...",
+    "runSummary": {
+      "intent": "Primary input files:\r\nC:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.ps1\r\n\r\nTask:\r\nUpdate the markdown document for the topic described below.\r\n\r\nTopic:\r\nUpdate the markdown document to include a new section on how to invoke...",
+      "actionsTaken": [
+        "read_file",
+        "list_directory",
+        "write_file"
+      ],
       "blockers": "",
       "nextBestStep": ""
     }
