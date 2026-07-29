@@ -103,6 +103,8 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
 
 # ---------------- Helper: Import manifest ------------------------------------
 $manifest = Import-PowerShellDataFile -Path $manifestPath
+$manifestDescription = [string]$manifest.Description
+$manifestReleaseNotes = [string]$manifest.PrivateData.PSData.ReleaseNotes
 
 # ---------------- 03. Compute new values -------------------------------------
 $oldGuid = $manifest.Guid
@@ -173,6 +175,8 @@ $privateData['PSData'] = $psdata
 Update-ModuleManifest -Path $manifestPath `
     -FunctionsToExport $functionsToExport `
     -AliasesToExport   $aliasesToExport `
+    -Description       $manifestDescription `
+    -ReleaseNotes      $manifestReleaseNotes `
     -PrivateData       $privateData
 
 # ---------------- 04. Dirty check & update manifest --------------------------
@@ -186,6 +190,8 @@ if ($oldGuid -ne $newGuid -or $oldVersion -ne $newVersion -or $exportsChanged) {
             -Guid $newGuid `
             -FunctionsToExport $functionsToExport `
             -AliasesToExport   $aliasesToExport `
+            -Description       $manifestDescription `
+            -ReleaseNotes      $manifestReleaseNotes `
             -PrivateData $privateData
         $manifestChanged = $true
         Write-Host "Manifest updated → Version: $oldVersion → $newVersion; Guid: $oldGuid → $newGuid" -ForegroundColor Cyan
@@ -364,8 +370,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpblVA8hIlU38Q
-# 2DrXr5LLZUmtb7eRIIxWwrz8U84ki6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCB3fwMVc9Zb9Rc
+# 8QX0nWXTGrcaDjkgaK63+UWMcsA2EqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -498,34 +504,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB5LdeSslaV
-# ybEEZJyicQPuLfmk9pk4pyGRN/xunDx3ZjANBgkqhkiG9w0BAQEFAASCAgCeLpWz
-# cqFHzxTksA5vbmvV+Cv0p6SCIUhkFiCai3yJ7VPgyVEhyeJBsW+2CWyZQOUHHPBo
-# XK3mPkPzWKiNAD/2u15k10sG6L5WC4he/ARkxN4hg/fQRpE1+x+qdmjrOXO5hxzQ
-# oXMb1JxZw1XTdDBkOX8z7+vVYf9c/mpQ0h7jNB9Zgz99pF65l2EVLrg0LT9s1YRJ
-# 5C9UnVYxf+N6iUo/Dy6hxNwsDiqS+MGibIt+0vcssv65D8OzSZBfMHdHIM67QfZ3
-# kj6zzlO7KOkPskpVU6ZuTeBi6HqL6BDwSAOAf/FlqQVhVIx+70U/somM+PNzjZWN
-# jYGiEkCTk/nxj3Q2oZpMxqamtFLhcCoWtYZV8Xg9PeqjTxKXcX9dY92GA/DFhFwB
-# mt4o3L32L0RFutQa1K66unmYDzQyOgnn4rl91jEt2UdYuY3gw12y+6x6IhdDmHSg
-# MJqTHQqTys2NHf/kSbCmfU0rNcpP3u5+9qfLzd1RK/FRNE1To9Vwm1V4Q0lSZlhN
-# ztiIc0DOFIA/jCGod2Ty2ZtGDP3uuqnOtu0k6PhWPRWz2D0COBjItwLeOFLNrdEO
-# os8xjVAFA0fmDyfLKsNLDZQXLeYvoZsbPX5h9LKUn4BiromjJbdcm0ccPEmku9xW
-# oq80UQJii06Ix8Alykkb9zJiWm3J5Jfg0AKXN6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAcBtBl2pRV
+# i9mYGErHqaUb1SUpYgUriY0Dw97Jl/ZPAzANBgkqhkiG9w0BAQEFAASCAgC8QxOu
+# eUT7L4PsLoAcLL2bXj88+8FV5qmff4ore0xQ/flhy7xDNiMzM6toDaJtc2l5lFfv
+# 545Kd7JByUuYTZ+zH9OnsBTgVNA/9EVCGVFs2KVBI3MLkXN4tgeRSXTbHAa0AN1s
+# Euj8Uk6LFWjZS9azIfAkqZtr3pTQtTUp/jvev/BmSNuKhhDOribBW2aGxr23Oeig
+# 9uyH8SEVoE8QGZyTNcguTd6z1QNjTzojLHpeO7KtS2M8MrQU5/F57eUDed1mtaJ3
+# GMAFg9jrCLLVtedFpHwkoOpno+WDM4dF1MOoQRBMLyt9SQTDUxP4v/pfNhMcbuCf
+# cG84ob3WYmFc77utUL4fP/psZOHJRwmL0rkxw/n2BGDFA/KVxosJVlwPF2/yRuyV
+# bBxQTilKr0JEccIzzdnYJCQEwK8Y8ySLW9ovfhI2/iiRiQbLcCRHm9/cnfUUdHc+
+# sftwXeA6eoR0k0/jyVVsOY42MwiAwrI7DpD9GpYXM83opDGLlfzdNNF+Srp0DUpL
+# fpoB0rlpGmuYXMMVnRdylAhvOPj4qHrkL1sUkhMOrKPs83Qr+6RZG7+JCR79fZDD
+# UaUMkEtSmq5/OHXOeweFREWOHOqcbr0ZAuKlYm3PPTJOtzCqjpMl2AdN4EDB+YL4
+# 1i27FRSVkQ1d31ffW5yzg4F/43wy7rimI6z6vaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MDYxNzAxNDRaMC8GCSqGSIb3DQEJBDEiBCDY+itlzJvG2GZbdYx8
-# LTW2ddNuzJkbkk9+evW/ygOP7TANBgkqhkiG9w0BAQEFAASCAgBFCLoGvITf3LnM
-# 9MOfO22L/99HEwYh5luVDXF9IW3pz8poijBEEH/8ICht9XRorhkH7cLi1NMSG9bO
-# KuRgMXi1i8kJHh8V1Dnp8oWFXpuG1rQH+Z16mnENLbyIb1k4oStg8iMYU2PXFhzV
-# WDlvNcqIiHj9uIT6gPOAapju30GTWFRsNFhTTGgswvcqwBxgNLtzeqpj+VpYUCr2
-# PSpKPxzYUjbdqY8GD9JORjZy7wYjvo288tE5bzKqT9WJ2rw16d03tU8X/ib//HB9
-# XBzxLMVpk4LqkxH2Hn2YS3s9Js5voXehLFCy+1MW00Ff/tYETF3chlxi4S1sqHp0
-# VLU0LyddALvAQaZK/i7eJSW+J2NC7FA1RIn8mxik/TPlpHQzRIp885YDrPUwmHAT
-# 6/Z9QqtC2wsj10UfiFTZD91XNv/w/Cd6AbXObJatA9Y0bABBQUtKvj6fti7Ryfbs
-# StzgQNWikl3bxxoHFyCjGyq2RUwHi32TjRF/uLXBxCCR+Ul4KVWB/rW4f1t2TaVY
-# kHvW3Z7YrvWFkxzteQ9djMz1Rx/syWmZCVre0rf9MDQB6uTKjk5HPErb+weofivb
-# FjuIrunDOAyNVLXptl2J+hk+OUinTzLBVTiqSHcxo6ppRCsz3Zgufo1gd9DFX882
-# GSzohgiml6MYwFCHooRynqv1ZTryYA==
+# BTEPFw0yNjA3MjkwMTQ5MTBaMC8GCSqGSIb3DQEJBDEiBCASNDLs1SrVNRUx2+J1
+# 6lB09TPnHFoWgqIrHcc+RL3bpTANBgkqhkiG9w0BAQEFAASCAgAYbf2F7NU7x5ip
+# 8Vz6MDdRT876rBkUT7HjwPqudzAWCKGpym7WXeE7tbyEXGbkHA2t/56ReFWETGSx
+# 0ILbqXxZv3fBJqgCFVrJztVyZA3NwZHJlVJkrZQWZ6osbypeG2DNamF9Zfesw8nl
+# VXaNRicdA6zLNxi4KQDDn2vDCVuODtyUTuCZfca8pttJZrT2ZxPeBjRmCvecgieB
+# 2i4FaW2NVwhE/6iX7foejieYEi8MaG1Bj3qS189tPioUZVcIG1xHPDIclZ2RETtK
+# r4ZJvN7ShOtumSkSDGVzldjemVps7NHuObtTGCjqVCt4NhIrxDJ/JoMNdYgAXu65
+# WMBoP7qOZYZDNGnEwrDTbapq4hutzhPR5rJYVcaO7Risq1oLA9lFLbitMYfSlUzL
+# LBRY9KD5pKJ/2spnAA4yHs7DMEWP25tn2/fBvA7lqtHIHAlk/LQHGOXYVfi6j2fH
+# VdxIa8Ty8EwELbNo/6mW86/+eKkOggoY2s4w4vhlrxSyuNuZ0LvjZ41+t26ZoGQm
+# AQkqA/S8dsaNbrOgR6TJl6G+zPpi7wMNWz1zKlnCkN6cOXdgZsTOQ9++dRGaD47/
+# iStClFCCo8f/IptuzA9VGRSJa74kkyEpp88TREdc78juSonHDAUa6iCLycGA10OQ
+# e0FfmZe9Ipg1FflBrPsWqi2LG+OmZA==
 # SIG # End signature block
