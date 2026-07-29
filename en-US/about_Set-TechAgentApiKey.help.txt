@@ -1,0 +1,129 @@
+about_Set-TechAgentApiKey
+
+TOPIC
+    about_Set-TechAgentApiKey
+
+SHORT DESCRIPTION
+    Explains how TechToolbox stores, rotates, and clears the TechAgent OpenAI
+    API key using DPAPI-encrypted secrets.
+
+LONG DESCRIPTION
+    Set-TechAgentApiKey manages the cloud API key used by the TechAgent runtime.
+    The command writes the key to TechToolbox secrets storage as
+    settings.agent.apiKeyEncrypted in config.secrets.json.
+
+    The key is encrypted with Windows DPAPI by using ConvertFrom-SecureString,
+    so plain-text key material is not written to disk by this command.
+
+    You can use the command to:
+    - Set or rotate a stored API key
+    - Clear a previously stored API key
+    - Optionally include provider context for validation and status messaging
+    - Return a structured result object with -PassThru
+
+    Provider context is optional and supports these values:
+    - openai
+    - openai-compatible
+    - azure-openai
+
+    If -ApiKey is omitted in Set mode and the session is interactive, the
+    command prompts for secure input with Read-Host -AsSecureString.
+    In non-interactive sessions, omitting -ApiKey causes an error.
+
+PARAMETERS
+    -ApiKey
+        SecureString value of the API key to store.
+
+        If omitted while setting a key:
+        - Interactive session -> prompts for secure input.
+        - Non-interactive session -> throws an error requiring -ApiKey.
+
+    -Provider
+        Optional provider context used for validation and operation messaging.
+
+        Allowed values:
+        - openai
+        - openai-compatible
+        - azure-openai
+
+        This parameter does not change encryption behavior. It is used to
+        validate expected provider context and improve result/log detail.
+
+    -Clear
+        Removes settings.agent.apiKeyEncrypted from secrets storage.
+
+        This switch uses a separate parameter set and is mandatory when
+        clearing the stored key.
+
+    -PassThru
+        Returns a PSCustomObject summary of the operation.
+
+        Returned fields:
+        - Success
+        - Action (Set or Clear)
+        - Provider
+        - SecretsPath
+        - KeyStored
+        - Detail
+
+INPUTS
+    System.Security.SecureString (via -ApiKey)
+
+OUTPUTS
+    None by default.
+
+    System.Management.Automation.PSCustomObject when -PassThru is specified.
+
+NOTES
+    - The command is declared with SupportsShouldProcess and ConfirmImpact
+      Medium, so it participates in -WhatIf and -Confirm behavior.
+    - Secrets are read and written through TechToolbox runtime helpers
+      (Read-Secrets and Write-Secrets).
+    - Clearing removes only settings.agent.apiKeyEncrypted and preserves other
+      secrets content.
+    - Encryption is user/machine-context dependent per DPAPI behavior.
+
+EXAMPLES
+    Example 1:
+        Set-TechAgentApiKey
+
+        Description
+        -----------
+        Prompts interactively for a secure API key and stores it as a
+        DPAPI-encrypted secret.
+
+    Example 2:
+        $secureKey = Read-Host "Enter cloud API key" -AsSecureString
+        Set-TechAgentApiKey -ApiKey $secureKey -Provider openai
+
+        Description
+        -----------
+        Stores a provided SecureString key and records openai provider context
+        in operation messaging.
+
+    Example 3:
+        Set-TechAgentApiKey -Clear
+
+        Description
+        -----------
+        Removes the stored encrypted API key from secrets.
+
+    Example 4:
+        Set-TechAgentApiKey -ApiKey $secureKey -WhatIf
+
+        Description
+        -----------
+        Shows what would be changed without writing to secrets.
+
+    Example 5:
+        Set-TechAgentApiKey -Clear -PassThru
+
+        Description
+        -----------
+        Clears the stored key and returns a structured result object.
+
+SEE ALSO
+    - Set-TechAgentApiKey
+    - about_Invoke-TechAgent
+    - about_Install-TechAgentRuntime
+    - https://dan-damit.github.io/TechToolbox-Docs/Set-TechAgentApiKey
