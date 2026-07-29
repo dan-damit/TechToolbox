@@ -30,7 +30,7 @@ CompanyName = 'Value Added Companies'
 Copyright = '(c) Dan Damit. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows. First time users should start with Get-TechToolboxConfig and Get-ToolboxHelp. TechToolbox also utilizes the conventional PowerShell help system, so Get-Help <command-name> is your friend.'
+Description = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows. Invoke-TechAgent now supports OpenAI API key usage for cloud-based inference, allowing operators to leverage the TechAgent workflows without local inference requirements. First time users should start with Get-TechToolboxConfig and Get-ToolboxHelp. TechToolbox also utilizes the conventional PowerShell help system, so Get-Help <command-name> is your friend.'
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '7.6.3'
@@ -136,6 +136,8 @@ PrivateData = @{
 
 - AI-assisted workflow improvements for Export-ToolboxFunctions and Invoke-TechAgent
     - Invoke-TechAgent requires several dependencies including an Ollama-backed model and hardware capable of running it.
+    - Invoke-TechAgent now supports OpenAI API key usage for cloud-based inference, allowing operators to leverage the TechAgent workflows without local inference requirements.
+    - Default behavior of Invoke-TechAgent is to use Ollama for local inference if available, otherwise it will attempt to use OpenAI API if the key is set in the TechToolbox configuration.
 - Full help text capture in agent metadata export
 - Config system refinements and path token stabilization'
 
