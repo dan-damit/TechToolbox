@@ -135,10 +135,15 @@ PrivateData = @{
         ReleaseNotes = 'v0.5.0 - "AI & Metadata Milestone"
 
 - AI-assisted workflow improvements for Export-ToolboxFunctions and Invoke-TechAgent
+
     - Invoke-TechAgent requires several dependencies including an Ollama-backed model and hardware capable of running it.
+	
     - Invoke-TechAgent now supports OpenAI API key usage for cloud-based inference, allowing operators to leverage the TechAgent workflows without local inference requirements.
+	
     - Default behavior of Invoke-TechAgent is to use Ollama for local inference if available, otherwise it will attempt to use OpenAI API if the key is set in the TechToolbox configuration.
+	
 - Full help text capture in agent metadata export
+
 - Config system refinements and path token stabilization'
 
         # Prerelease string of this module
