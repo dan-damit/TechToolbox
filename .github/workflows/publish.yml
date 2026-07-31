@@ -33,10 +33,20 @@ jobs:
 
           "TECH_AGENT_PUBLISH_DIR=$publishDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Install PowerShell 7.6.4
+      - name: Install required PowerShell for publish
         shell: pwsh
         run: |
-          $version = '7.6.4'
+          $manifestPath = Join-Path $PWD.Path 'TechToolbox.psd1'
+          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+            throw "Module manifest not found at $manifestPath"
+          }
+
+          $manifestData = Import-PowerShellDataFile -Path $manifestPath
+          $version = [string]$manifestData.PowerShellVersion
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "PowerShellVersion is missing from $manifestPath"
+          }
+
           $zipPath = Join-Path $env:RUNNER_TEMP "powershell-$version-win-x64.zip"
           $installDir = Join-Path $env:RUNNER_TEMP "powershell-$version"
           $downloadUrl = "https://github.com/PowerShell/PowerShell/releases/download/v$version/PowerShell-$version-win-x64.zip"
@@ -50,7 +60,8 @@ jobs:
             throw "PowerShell $version install failed; expected executable not found at $pwshExe"
           }
 
-          "PWSH_76_EXE=$pwshExe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "PWSH_PUBLISH_EXE=$pwshExe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "PWSH_PUBLISH_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           & $pwshExe -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
 
       - name: Set PSGallery exclusions
@@ -149,16 +160,16 @@ jobs:
             throw "Missing PSGALLERY_API_KEY secret. Set repository secret 'PSGALLERY_API_KEY' and re-run."
           }
 
-          if ([string]::IsNullOrWhiteSpace($env:PWSH_76_EXE)) {
-            throw "Missing PWSH_76_EXE environment variable from install step."
+          if ([string]::IsNullOrWhiteSpace($env:PWSH_PUBLISH_EXE)) {
+            throw "Missing PWSH_PUBLISH_EXE environment variable from install step."
           }
 
           if ([string]::IsNullOrWhiteSpace($env:PSGALLERY_EXCLUDE_JSON)) {
             throw "Missing PSGALLERY_EXCLUDE_JSON environment variable from exclusions step."
           }
 
-          if (-not (Test-Path -LiteralPath $env:PWSH_76_EXE)) {
-            throw "PowerShell 7.6.4 executable not found: $env:PWSH_76_EXE"
+          if (-not (Test-Path -LiteralPath $env:PWSH_PUBLISH_EXE)) {
+            throw "PowerShell publish executable not found: $env:PWSH_PUBLISH_EXE"
           }
 
           if ([string]::IsNullOrWhiteSpace($env:GITHUB_REF_NAME)) {
@@ -185,12 +196,23 @@ jobs:
             throw "ModuleVersion is missing from $sourceManifestPath"
           }
 
+          $requiredPowerShellVersion = [string]$sourceManifestData.PowerShellVersion
+          if ([string]::IsNullOrWhiteSpace($requiredPowerShellVersion)) {
+            throw "PowerShellVersion is missing from $sourceManifestPath"
+          }
+
+          $selectedPwshVersion = (& $env:PWSH_PUBLISH_EXE -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()').Trim()
+          if ([version]$selectedPwshVersion -lt [version]$requiredPowerShellVersion) {
+            throw "Selected publish PowerShell version '$selectedPwshVersion' is lower than manifest requirement '$requiredPowerShellVersion'."
+          }
+
           if ($manifestVersion -ne $tagVersion) {
             throw "Tag version '$tagVersion' does not match manifest ModuleVersion '$manifestVersion'."
           }
 
-          Write-Host "Publishing TechToolbox to PowerShell Gallery with $env:PWSH_76_EXE..."
+          Write-Host "Publishing TechToolbox to PowerShell Gallery with $env:PWSH_PUBLISH_EXE..."
           Write-Host "Validated tag and manifest version: $tagVersion"
+          Write-Host "Validated publish PowerShell version: $selectedPwshVersion (required: $requiredPowerShellVersion)"
 
           $publishScriptPath = Join-Path $env:RUNNER_TEMP 'publish-module.ps1'
           @'
@@ -204,13 +226,19 @@ jobs:
             [Parameter(Mandatory)]
             [string]$ExpectedVersion,
             [Parameter(Mandatory)]
-            [string]$AgentPublishDir
+            [string]$AgentPublishDir,
+            [Parameter(Mandatory)]
+            [string]$RequiredPowerShellVersion
           )
 
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
             $PSNativeCommandUseErrorActionPreference = $true
+          }
+
+          if ([version]$PSVersionTable.PSVersion -lt [version]$RequiredPowerShellVersion) {
+            throw ("This script must run with PowerShell >= {0}. Current version is {1}." -f $RequiredPowerShellVersion, $PSVersionTable.PSVersion)
           }
 
           $exclude = @($ExcludeJson | ConvertFrom-Json)
@@ -314,4 +342,4 @@ jobs:
           '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
 
           $modulePath = $PWD.Path
-          & $env:PWSH_76_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON -ExpectedVersion $tagVersion -AgentPublishDir $env:TECH_AGENT_PUBLISH_DIR
+          & $env:PWSH_PUBLISH_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON -ExpectedVersion $tagVersion -AgentPublishDir $env:TECH_AGENT_PUBLISH_DIR -RequiredPowerShellVersion $requiredPowerShellVersion
