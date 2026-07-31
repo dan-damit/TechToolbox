@@ -8,6 +8,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (optional; defaults to manifest ModuleVersion)"
+        required: false
+        type: string
 
 jobs:
   publish:
@@ -154,6 +159,7 @@ jobs:
         shell: pwsh
         env:
           NUGET_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+          WORKFLOW_INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
           $ErrorActionPreference = 'Stop'
 
@@ -171,19 +177,6 @@ jobs:
 
           if (-not (Test-Path -LiteralPath $env:PWSH_PUBLISH_EXE)) {
             throw "PowerShell publish executable not found: $env:PWSH_PUBLISH_EXE"
-          }
-
-          if ([string]::IsNullOrWhiteSpace($env:GITHUB_REF_NAME)) {
-            throw "Missing GITHUB_REF_NAME; expected a tag like v0.5.32."
-          }
-
-          if ($env:GITHUB_REF_NAME -notmatch '^v') {
-            throw "Tag '$($env:GITHUB_REF_NAME)' does not start with 'v'. Expected format v<semver>."
-          }
-
-          $tagVersion = $env:GITHUB_REF_NAME.Substring(1)
-          if ([string]::IsNullOrWhiteSpace($tagVersion)) {
-            throw "Could not parse version from tag '$($env:GITHUB_REF_NAME)'."
           }
 
           $sourceManifestPath = Join-Path $PWD.Path 'TechToolbox.psd1'
@@ -205,6 +198,41 @@ jobs:
           $selectedPwshVersion = (& $env:PWSH_PUBLISH_EXE -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()').Trim()
           if ([version]$selectedPwshVersion -lt [version]$requiredPowerShellVersion) {
             throw "Selected publish PowerShell version '$selectedPwshVersion' is lower than manifest requirement '$requiredPowerShellVersion'."
+          }
+
+          $tagVersion = $null
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            if ([string]::IsNullOrWhiteSpace($env:GITHUB_REF_NAME)) {
+              throw "Missing GITHUB_REF_NAME; expected a tag like v0.5.32."
+            }
+
+            if ($env:GITHUB_REF_NAME -notmatch '^v') {
+              throw "Tag '$($env:GITHUB_REF_NAME)' does not start with 'v'. Expected format v<semver>."
+            }
+
+            $tagVersion = $env:GITHUB_REF_NAME.Substring(1)
+            if ([string]::IsNullOrWhiteSpace($tagVersion)) {
+              throw "Could not parse version from tag '$($env:GITHUB_REF_NAME)'."
+            }
+          }
+          elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            if (-not [string]::IsNullOrWhiteSpace($env:WORKFLOW_INPUT_VERSION)) {
+              $tagVersion = $env:WORKFLOW_INPUT_VERSION.Trim()
+              if ($tagVersion.StartsWith('v')) {
+                $tagVersion = $tagVersion.Substring(1)
+              }
+            }
+            else {
+              $tagVersion = $manifestVersion
+              Write-Host "No workflow_dispatch version input provided; defaulting publish version to manifest ModuleVersion '$manifestVersion'."
+            }
+          }
+          else {
+            throw "Unsupported trigger context. Expected a tag push or workflow_dispatch."
+          }
+
+          if ([string]::IsNullOrWhiteSpace($tagVersion)) {
+            throw "Could not determine publish version from trigger context."
           }
 
           if ($manifestVersion -ne $tagVersion) {
