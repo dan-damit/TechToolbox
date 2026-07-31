@@ -1,0 +1,63 @@
+.EXTERNALHELP Get-TechAgentQualitySummary-help.xml
+
+.NOTES
+  NAME: about_Get-TechAgentQualitySummary
+
+.DESCRIPTION
+  The Get-TechAgentQualitySummary function reads TechAgent memory history and
+  computes a compact quality report for the most recent runs. The summary
+  includes success rate, average duration/tool calls/preflight score, and
+  distribution counts for execution mode, output contract, and quality profile.
+
+  By default, this command analyzes the most recent 20 runs and returns a
+  structured object suitable for automation or further filtering.
+
+  Key features include:
+  - Configurable window size (1-250 runs) to control how many recent executions are analyzed.
+  - Optional inclusion of recent run samples for detailed inspection.
+  - JSON output mode for integration with other tools or scripts.
+  - Computed metrics: success rate, average duration, average tool calls, and average prompt preflight score.
+  - Distribution counts across status, outcome, execution mode, output contract, and quality profile categories.
+  - Last run metadata including status, outcome, model, and timestamp.
+
+.PARAMETER Window
+  Specifies the number of most recent runs to analyze. Valid range is 1 to 250.
+  Default value is 20.
+
+.PARAMETER IncludeRecent
+  Specifies the number of most recent runs to include as a lightweight sample
+  in the output object. Valid range is 0 to 50.
+  Default value is 5.
+
+.PARAMETER AsJson
+  Switch parameter that returns the summary as formatted JSON text instead of
+  a PowerShell custom object.
+
+.INPUTS
+  None. You cannot pipe objects to Get-TechAgentQualitySummary.
+
+.OUTPUTS
+  System.Management.Automation.PSCustomObject when -AsJson is not specified.
+  System.String when -AsJson is specified.
+
+.EXAMPLE
+  Get-TechAgentQualitySummary
+
+  Description:
+  Returns a quality summary for the most recent 20 runs using default settings.
+
+.EXAMPLE
+  Get-TechAgentQualitySummary -Window 50
+
+  Description:
+  Analyzes the most recent 50 runs and returns a detailed quality report.
+
+.EXAMPLE
+  Get-TechAgentQualitySummary -Window 30 -IncludeRecent 10 -AsJson
+
+  Description:
+  Returns a JSON-formatted summary for the last 30 runs, including 10 recent
+  run samples for detailed inspection.
+
+.LINK
+  https://dan-damit.github.io/TechToolbox-Docs/Get-TechAgentQualitySummary

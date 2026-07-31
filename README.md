@@ -36,7 +36,7 @@
 
   <br>
 
-  TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It targets real-world enterprise operations: Active Directory lifecycle, Exchange Online / Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI-assisted automation.
+  TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It targets real-world enterprise operations: Active Directory lifecycle, Exchange Online / Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI-assisted automation. The TechAgent runtime supports provider-based LLM routing (Ollama, OpenAI, OpenAI-compatible, Azure OpenAI) with quality controls and telemetry-backed reporting.
   </p>
 </div>
 
@@ -58,6 +58,7 @@
   - [Baseline Settings (config.json)](#baseline-settings-configjson)
 - [Invoke-TechAgent Prompt Example](#invoke-techagent-prompt-example)
   - [Preferred prompt workflow](#preferred-prompt-workflow)
+  - [Example: provider and quality controls](#example-provider-and-quality-controls)
   - [Example: stage a task, then run it](#example-stage-a-task-then-run-it)
   - [Example: Creating an Online Help Markdown File](#example-creating-an-online-help-markdown-file)
 - [Command Reference](#command-reference)
@@ -84,8 +85,10 @@
 - [Security Notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
 - [Metadata](#metadata)
-  - [v0.5.0 - "AI \& Metadata Milestone"](#v050---ai--metadata-milestone)
+  - [v0.5.68 - "Provider Routing \& Quality Controls"](#v0568---provider-routing--quality-controls)
     - [Highlights](#highlights)
+  - [v0.5.0 - "AI \& Metadata Milestone"](#v050---ai--metadata-milestone)
+    - [Highlights](#highlights-1)
 
 ## Quick Start
 
@@ -200,6 +203,9 @@ Move anything that identifies your environment into `config.secrets.json`, inclu
 | -------------------------------- | ---------------------------------- |
 | `TT_ConfigSecretsPath`           | Override the secrets file location |
 | `TT_DisableConfigSecretsMerge=1` | Skip merge for troubleshooting     |
+| `TT_AGENT_LLM_API_KEY`           | Optional runtime API key source for cloud providers |
+
+For cloud providers, `Invoke-TechAgent` also supports secure DPAPI-backed key storage in `Config\config.secrets.json` (`settings.agent.apiKeyEncrypted`) via `Set-TechAgentApiKey`.
 
 ### Configuring Secrets
 
@@ -253,6 +259,24 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 - `Invoke-TechAgent` now defaults to `AI\Tasks\CurrentTask.txt` when no `-Prompt` or `-PromptFile` is supplied.
 - `Use-TechAgentTaskTemplate` can stage a reusable prompt template into that file before you run the agent.
 - `-Prompt` can still be used for inline prompt text, and `-PromptFile` can still target any other file when needed.
+- Provider routing supports `ollama` (default), `openai`, `openai-compatible`, and `azure-openai`.
+- Quality controls support `-ExecutionMode` (`execute`, `analyze`, `plan`), `-OutputContract` (`markdown`, `plain-text`, `json`), `-StrictPromptPreflight`, and `-QualityProfile`.
+
+### Example: provider and quality controls
+
+```powershell
+# Cloud provider examples
+Invoke-TechAgent -Prompt "Summarize these logs" -Provider openai -Model gpt-4o-mini
+Invoke-TechAgent -Prompt "Plan migration steps" -ExecutionMode plan -Provider azure-openai -Endpoint https://your-resource.openai.azure.com -Deployment gpt-4o-mini
+
+# Quality guardrails and output contract examples
+Invoke-TechAgent -Prompt "Investigate repeated login failures" -ExecutionMode analyze -OutputContract plain-text -StrictPromptPreflight
+Invoke-TechAgent -Prompt "Return remediation checklist as JSON" -OutputContract json -QualityProfile balanced
+
+# Quality telemetry summary for recent runs
+Get-TechAgentQualitySummary -Window 20
+Get-TechAgentQualitySummary -Window 30 -IncludeRecent 10 -AsJson
+```
 
 ### Example: stage a task, then run it
 
@@ -389,7 +413,11 @@ The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/bl
 
 | Function                      | Purpose                                                                                      |
 | ----------------------------- | -------------------------------------------------------------------------------------------- |
-| `Invoke-TechAgent`            | Orchestrates the agent-driven workflow engine (single recursion auto-retry toggle available) |
+| `Invoke-TechAgent`            | Orchestrates the agent-driven workflow engine with provider routing, execution modes, output contracts, and prompt preflight controls |
+| `Use-TechAgentTaskTemplate`   | Stages reusable prompt templates to `AI\Tasks\CurrentTask.txt` for repeatable runs |
+| `Test-TechAgentProvider`      | Validates provider configuration and optionally probes live connectivity/auth |
+| `Set-TechAgentApiKey`         | Sets/rotates/clears DPAPI-encrypted API keys used by cloud providers |
+| `Get-TechAgentQualitySummary` | Summarizes recent run quality metrics from persisted memory history |
 
 ### Export & Packaging
 
@@ -528,6 +556,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 | Module import fails         | Use PowerShell 7+ and `Import-Module .\TechToolbox.psd1 -Force`                                                            |
 | Command not found           | Check that it is listed in `FunctionsToExport` in the manifest                                                             |
 | Config errors               | Verify both `config.json` and `config.secrets.json` are valid JSON; use `TT_DisableConfigSecretsMerge=1` to isolate issues |
+| OpenAI/Azure OpenAI auth fails | Run `Test-TechAgentProvider -Provider <name>` and set a key via `Set-TechAgentApiKey` or `TT_AGENT_LLM_API_KEY` |
 | Path token resolution fails | Run `Test-TTPathRoots -EnsureDirectories` to validate paths                                                                |
 | Remoting failures           | Verify WinRM is running, auth method matches server config, and credentials have appropriate privileges                    |
 | Purview / EXO errors        | Confirm required roles (Compliance Administrator, etc.) and Exchange Online module installed                               |
@@ -540,9 +569,21 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.5.68
+- **Module version:** 0.5.69
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
+
+---
+
+### v0.5.68 - "Provider Routing & Quality Controls"
+
+#### Highlights
+
+- Provider-based LLM routing in TechAgent (`ollama`, `openai`, `openai-compatible`, `azure-openai`)
+- Cloud API key support with environment variable fallback and DPAPI-backed local secret storage
+- Prompt quality preflight scoring with strict-gate mode for higher-confidence runs
+- Execution mode contracts (`execute`, `analyze`, `plan`) and output contracts (`markdown`, `plain-text`, `json`)
+- Persisted run telemetry in agent memory plus quick quality rollups via `Get-TechAgentQualitySummary`
 
 ---
 
