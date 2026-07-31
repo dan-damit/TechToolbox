@@ -74,9 +74,9 @@ public class LlmClient : ILlmClient
             Format = "json",
             Options = new Dictionary<string, object?>
             {
-                ["temperature"] = 0.2,
-                ["top_p"] = 0.9,
-                ["repeat_penalty"] = 1.05,
+                ["temperature"] = GetTemperature(),
+                ["top_p"] = GetTopP(),
+                ["repeat_penalty"] = GetRepeatPenalty(),
                 ["num_predict"] = NumPredict,
             },
         };
@@ -292,6 +292,45 @@ public class LlmClient : ILlmClient
         }
 
         return defaultNumPredict;
+    }
+
+    private static double GetTemperature()
+    {
+        const double defaultValue = 0.2;
+        const double minValue = 0.0;
+        const double maxValue = 1.0;
+
+        var raw = Environment.GetEnvironmentVariable("TT_AGENT_LLM_TEMPERATURE");
+        if (double.TryParse(raw, out var parsed))
+            return Math.Clamp(parsed, minValue, maxValue);
+
+        return defaultValue;
+    }
+
+    private static double GetTopP()
+    {
+        const double defaultValue = 0.9;
+        const double minValue = 0.1;
+        const double maxValue = 1.0;
+
+        var raw = Environment.GetEnvironmentVariable("TT_AGENT_LLM_TOP_P");
+        if (double.TryParse(raw, out var parsed))
+            return Math.Clamp(parsed, minValue, maxValue);
+
+        return defaultValue;
+    }
+
+    private static double GetRepeatPenalty()
+    {
+        const double defaultValue = 1.05;
+        const double minValue = 0.8;
+        const double maxValue = 2.0;
+
+        var raw = Environment.GetEnvironmentVariable("TT_AGENT_LLM_REPEAT_PENALTY");
+        if (double.TryParse(raw, out var parsed))
+            return Math.Clamp(parsed, minValue, maxValue);
+
+        return defaultValue;
     }
 
     /// <summary>

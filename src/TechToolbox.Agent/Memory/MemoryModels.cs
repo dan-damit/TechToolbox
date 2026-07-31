@@ -138,6 +138,42 @@ public class RunHistory
     public RunSummary? RunSummary { get; set; }
 
     /// <summary>
+    /// Gets or sets the execution mode for this run.
+    /// </summary>
+    [JsonPropertyName("executionMode")]
+    public string ExecutionMode { get; set; } = "execute";
+
+    /// <summary>
+    /// Gets or sets the output contract for this run.
+    /// </summary>
+    [JsonPropertyName("outputContract")]
+    public string OutputContract { get; set; } = "markdown";
+
+    /// <summary>
+    /// Gets or sets the quality profile used for this run.
+    /// </summary>
+    [JsonPropertyName("qualityProfile")]
+    public string QualityProfile { get; set; } = "balanced";
+
+    /// <summary>
+    /// Gets or sets the prompt preflight score (0..100).
+    /// </summary>
+    [JsonPropertyName("promptPreflightScore")]
+    public int PromptPreflightScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets the prompt preflight warning count.
+    /// </summary>
+    [JsonPropertyName("promptPreflightWarningCount")]
+    public int PromptPreflightWarningCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the prompt preflight critical issue count.
+    /// </summary>
+    [JsonPropertyName("promptPreflightCriticalCount")]
+    public int PromptPreflightCriticalCount { get; set; }
+
+    /// <summary>
     /// Gets the timestamp of the run as a DateTimeOffset.
     /// This is a computed property derived from TimestampUtc and is excluded from JSON serialization.
     /// </summary>
@@ -260,4 +296,28 @@ public class TrendSummary
     /// </summary>
     [JsonPropertyName("trendLastUpdatedUtc")]
     public string TrendLastUpdatedUtc { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets average prompt preflight score for runs in the trend window.
+    /// </summary>
+    [JsonPropertyName("avgPromptPreflightScore")]
+    public double AvgPromptPreflightScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets a distribution of execution modes in the trend window.
+    /// </summary>
+    [JsonPropertyName("executionModeCounts")]
+    public Dictionary<string, int> ExecutionModeCounts { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets a distribution of output contracts in the trend window.
+    /// </summary>
+    [JsonPropertyName("outputContractCounts")]
+    public Dictionary<string, int> OutputContractCounts { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets a distribution of quality profiles in the trend window.
+    /// </summary>
+    [JsonPropertyName("qualityProfileCounts")]
+    public Dictionary<string, int> QualityProfileCounts { get; set; } = new();
 }

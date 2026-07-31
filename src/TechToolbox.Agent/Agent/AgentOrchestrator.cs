@@ -31,6 +31,12 @@ public partial class AgentOrchestrator
     private readonly string? _tracePath;
     private readonly string? _expectedOutputPath;
     private readonly int _recentHistoryItemsInPrompt;
+    private readonly string _executionMode;
+    private readonly string _outputContract;
+    private readonly string _qualityProfile;
+    private readonly int _promptPreflightScore;
+    private readonly int _promptPreflightWarningCount;
+    private readonly int _promptPreflightCriticalCount;
     private readonly object _traceLock = new();
 
     [GeneratedRegex(@"^\s*(?:#\s*)?\.(?<name>[A-Z][A-Z0-9_-]*)\b")]
@@ -66,6 +72,12 @@ public partial class AgentOrchestrator
     /// <param name="tracePath">The optional file path used to write diagnostic trace output.</param>
     /// <param name="expectedOutputPath">The optional required output path that file-update tools must target.</param>
     /// <param name="recentHistoryItemsInPrompt">The number of recent history items to include in the initial prompt.</param>
+    /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
+    /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
+    /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
+    /// <param name="promptPreflightScore">Prompt preflight score (0..100).</param>
+    /// <param name="promptPreflightWarningCount">Prompt preflight warning count.</param>
+    /// <param name="promptPreflightCriticalCount">Prompt preflight critical issue count.</param>
     public AgentOrchestrator(
         ILlmClient llm,
         IReadOnlyDictionary<string, ToolSpec> registry,
@@ -78,7 +90,13 @@ public partial class AgentOrchestrator
         bool autoRetry,
         string? tracePath = null,
         string? expectedOutputPath = null,
-        int recentHistoryItemsInPrompt = 2
+        int recentHistoryItemsInPrompt = 2,
+        string executionMode = "execute",
+        string outputContract = "markdown",
+        string qualityProfile = "balanced",
+        int promptPreflightScore = 0,
+        int promptPreflightWarningCount = 0,
+        int promptPreflightCriticalCount = 0
     )
     {
         _llm = llm;
@@ -95,6 +113,12 @@ public partial class AgentOrchestrator
         _tracePath = tracePath;
         _expectedOutputPath = expectedOutputPath;
         _recentHistoryItemsInPrompt = Math.Clamp(recentHistoryItemsInPrompt, 0, 20);
+        _executionMode = NormalizeExecutionMode(executionMode);
+        _outputContract = NormalizeOutputContract(outputContract);
+        _qualityProfile = NormalizeQualityProfile(qualityProfile);
+        _promptPreflightScore = Math.Clamp(promptPreflightScore, 0, 100);
+        _promptPreflightWarningCount = Math.Max(0, promptPreflightWarningCount);
+        _promptPreflightCriticalCount = Math.Max(0, promptPreflightCriticalCount);
 
         _llm.DiagnosticTrace = msg => Trace($"LlmClient {msg}");
     }
@@ -115,7 +139,7 @@ public partial class AgentOrchestrator
     {
         prompt ??= string.Empty;
         Trace(
-            $"RunAsync start maxIterations={_maxIterations} autoRetry={_autoRetry} recentHistoryItemsInPrompt={_recentHistoryItemsInPrompt} promptLength={prompt.Length}"
+            $"RunAsync start maxIterations={_maxIterations} autoRetry={_autoRetry} recentHistoryItemsInPrompt={_recentHistoryItemsInPrompt} executionMode={_executionMode} outputContract={_outputContract} qualityProfile={_qualityProfile} promptPreflightScore={_promptPreflightScore} warnings={_promptPreflightWarningCount} critical={_promptPreflightCriticalCount} promptLength={prompt.Length}"
         );
 
         var stopwatch = Stopwatch.StartNew();
@@ -210,7 +234,9 @@ public partial class AgentOrchestrator
             prompt,
             _registry,
             _memory,
-            _recentHistoryItemsInPrompt
+            _recentHistoryItemsInPrompt,
+            _executionMode,
+            _outputContract
         );
         var maxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
         var consecutiveLlmFailures = 0;
@@ -576,6 +602,21 @@ public partial class AgentOrchestrator
                     continue;
                 }
 
+                if (!ValidateFinalAnswerContract(decision.FinalAnswer, _outputContract, out var contractError))
+                {
+                    Trace(
+                        $"Iteration {i + 1} blocked final answer because output contract '{_outputContract}' was not met: {contractError}"
+                    );
+                    messages.Add(
+                        PromptBuilder.BuildToolResultMessage(
+                            "OUTPUT-CONTRACT",
+                            contractError,
+                            succeeded: false
+                        )
+                    );
+                    continue;
+                }
+
                 Trace(
                     $"Iteration {i + 1} final answer detected length={decision.FinalAnswer?.Length ?? 0}"
                 );
@@ -583,6 +624,21 @@ public partial class AgentOrchestrator
                     decision.FinalAnswer ?? string.Empty,
                     ReachedIterationLimit: false
                 );
+            }
+
+            if (!string.Equals(_executionMode, "execute", StringComparison.OrdinalIgnoreCase))
+            {
+                var modeBlockError =
+                    $"Execution mode '{_executionMode}' does not allow tool calls. Return needsTool=false with a complete {(string.Equals(_executionMode, "plan", StringComparison.OrdinalIgnoreCase) ? "numbered plan" : "analysis")}.";
+                Trace($"Iteration {i + 1} blocked tool call because execution mode is {_executionMode}.");
+                messages.Add(
+                    PromptBuilder.BuildToolResultMessage(
+                        "MODE-GUARD",
+                        modeBlockError,
+                        succeeded: false
+                    )
+                );
+                continue;
             }
 
             var toolName = decision.ToolName ?? string.Empty;
@@ -806,6 +862,12 @@ public partial class AgentOrchestrator
                 DestructiveConfirmed = _destructiveConfirmed,
                 SignedFilePolicy = _signedFilePolicy,
                 AutoRetryOnRecursion = _autoRetry,
+                ExecutionMode = _executionMode,
+                OutputContract = _outputContract,
+                QualityProfile = _qualityProfile,
+                PromptPreflightScore = _promptPreflightScore,
+                PromptPreflightWarningCount = _promptPreflightWarningCount,
+                PromptPreflightCriticalCount = _promptPreflightCriticalCount,
                 ToolCalls = result.ToolCallCount,
                 ToolNames = toolNames
                     .Select(NormalizeActionName)
@@ -1642,6 +1704,110 @@ Next best action:
                 "# SIG # Begin signature block",
                 StringComparison.OrdinalIgnoreCase
             );
+    }
+
+    private static bool ValidateFinalAnswerContract(
+        string? finalAnswer,
+        string outputContract,
+        out string error
+    )
+    {
+        error = string.Empty;
+        var answer = finalAnswer ?? string.Empty;
+
+        if (string.Equals(outputContract, "json", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(answer))
+            {
+                error = "Output contract 'json' requires non-empty valid JSON text in finalAnswer.";
+                return false;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(answer);
+                if (
+                    doc.RootElement.ValueKind != JsonValueKind.Object
+                    && doc.RootElement.ValueKind != JsonValueKind.Array
+                )
+                {
+                    error =
+                        "Output contract 'json' requires finalAnswer to be a JSON object or array.";
+                    return false;
+                }
+
+                return true;
+            }
+            catch
+            {
+                error =
+                    "Output contract 'json' requires finalAnswer to be valid JSON text (object or array).";
+                return false;
+            }
+        }
+
+        if (string.Equals(outputContract, "plain-text", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(answer))
+                return true;
+
+            var normalized = answer.Replace("\r\n", "\n");
+            if (
+                normalized.Contains("```", StringComparison.Ordinal)
+                || normalized.Contains("~~~", StringComparison.Ordinal)
+                || Regex.IsMatch(normalized, @"(?m)^\s*#{1,6}\s+")
+                || Regex.IsMatch(normalized, @"(?m)^\s*[-*+]\s+")
+                || Regex.IsMatch(normalized, @"(?m)^\s*\d+\.\s+")
+            )
+            {
+                error =
+                    "Output contract 'plain-text' forbids markdown headings, lists, and code fences.";
+                return false;
+            }
+
+            return true;
+        }
+
+        return true;
+    }
+
+    private static string NormalizeExecutionMode(string? executionMode)
+    {
+        if (string.IsNullOrWhiteSpace(executionMode))
+            return "execute";
+
+        return executionMode.Trim().ToLowerInvariant() switch
+        {
+            "analyze" => "analyze",
+            "plan" => "plan",
+            _ => "execute",
+        };
+    }
+
+    private static string NormalizeOutputContract(string? outputContract)
+    {
+        if (string.IsNullOrWhiteSpace(outputContract))
+            return "markdown";
+
+        return outputContract.Trim().ToLowerInvariant() switch
+        {
+            "json" => "json",
+            "plain-text" => "plain-text",
+            _ => "markdown",
+        };
+    }
+
+    private static string NormalizeQualityProfile(string? qualityProfile)
+    {
+        if (string.IsNullOrWhiteSpace(qualityProfile))
+            return "balanced";
+
+        return qualityProfile.Trim().ToLowerInvariant() switch
+        {
+            "precise" => "precise",
+            "creative" => "creative",
+            _ => "balanced",
+        };
     }
 }
 

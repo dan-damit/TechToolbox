@@ -79,6 +79,12 @@ public static class AgentCore
     /// <param name="recentHistoryItemsInPrompt">Number of recent history items to include in the prompt. Defaults to 2.</param>
     /// <param name="allowedFetchHosts">Collection of allowed hosts for fetch operations.</param>
     /// <param name="allowMetaTools">Whether to allow meta-tools. Defaults to false.</param>
+    /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
+    /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
+    /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
+    /// <param name="promptPreflightScore">Prompt preflight score (0..100).</param>
+    /// <param name="promptPreflightWarningCount">Prompt preflight warning count.</param>
+    /// <param name="promptPreflightCriticalCount">Prompt preflight critical issue count.</param>
     /// <returns>The agent's response as a string.</returns>
     public static string RunAgent(
         string prompt,
@@ -98,7 +104,13 @@ public static class AgentCore
         string llmProvider = "ollama",
         string? llmEndpoint = null,
         string? llmDeployment = null,
-        string? llmApiVersion = null
+        string? llmApiVersion = null,
+        string executionMode = "execute",
+        string outputContract = "markdown",
+        string qualityProfile = "balanced",
+        int promptPreflightScore = 0,
+        int promptPreflightWarningCount = 0,
+        int promptPreflightCriticalCount = 0
     )
     {
         return RunAgentAsync(
@@ -119,7 +131,13 @@ public static class AgentCore
                 llmProvider,
                 llmEndpoint,
                 llmDeployment,
-                llmApiVersion
+                llmApiVersion,
+                executionMode,
+                outputContract,
+                qualityProfile,
+                promptPreflightScore,
+                promptPreflightWarningCount,
+                promptPreflightCriticalCount
             )
             .GetAwaiter()
             .GetResult();
@@ -143,6 +161,12 @@ public static class AgentCore
     /// <param name="recentHistoryItemsInPrompt">Number of recent history items to include in the prompt. Defaults to 2.</param>
     /// <param name="allowedFetchHosts">Collection of allowed hosts for fetch operations.</param>
     /// <param name="allowMetaTools">Whether to allow meta-tools. Defaults to false.</param>
+    /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
+    /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
+    /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
+    /// <param name="promptPreflightScore">Prompt preflight score (0..100).</param>
+    /// <param name="promptPreflightWarningCount">Prompt preflight warning count.</param>
+    /// <param name="promptPreflightCriticalCount">Prompt preflight critical issue count.</param>
     /// <returns>A task representing the asynchronous operation, with the agent's response as its result.</returns>
     public static async Task<string> RunAgentAsync(
         string prompt,
@@ -162,7 +186,13 @@ public static class AgentCore
         string llmProvider = "ollama",
         string? llmEndpoint = null,
         string? llmDeployment = null,
-        string? llmApiVersion = null
+        string? llmApiVersion = null,
+        string executionMode = "execute",
+        string outputContract = "markdown",
+        string qualityProfile = "balanced",
+        int promptPreflightScore = 0,
+        int promptPreflightWarningCount = 0,
+        int promptPreflightCriticalCount = 0
     )
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -177,6 +207,12 @@ public static class AgentCore
             LlmEndpoint = llmEndpoint,
             LlmDeployment = llmDeployment,
             LlmApiVersion = llmApiVersion,
+            ExecutionMode = executionMode,
+            OutputContract = outputContract,
+            QualityProfile = qualityProfile,
+            PromptPreflightScore = promptPreflightScore,
+            PromptPreflightWarningCount = promptPreflightWarningCount,
+            PromptPreflightCriticalCount = promptPreflightCriticalCount,
             MaxIterations = maxIterations,
             AutoRetryOnIterationLimit = autoRetryOnRecursion,
             DestructiveConfirmed = destructiveConfirmed,
@@ -270,7 +306,13 @@ public static class AgentCore
             config.AutoRetryOnIterationLimit,
             config.DiagnosticTracePath,
             config.ExpectedOutputPath,
-            config.RecentHistoryItemsInPrompt
+            config.RecentHistoryItemsInPrompt,
+            config.ExecutionMode,
+            config.OutputContract,
+            config.QualityProfile,
+            config.PromptPreflightScore,
+            config.PromptPreflightWarningCount,
+            config.PromptPreflightCriticalCount
         );
 
         // 6. Run the agent
@@ -286,6 +328,12 @@ public static class AgentCore
                 LlmEndpoint = config.LlmEndpoint,
                 LlmDeployment = config.LlmDeployment,
                 LlmApiVersion = config.LlmApiVersion,
+                ExecutionMode = config.ExecutionMode,
+                OutputContract = config.OutputContract,
+                QualityProfile = config.QualityProfile,
+                PromptPreflightScore = config.PromptPreflightScore,
+                PromptPreflightWarningCount = config.PromptPreflightWarningCount,
+                PromptPreflightCriticalCount = config.PromptPreflightCriticalCount,
                 Model = config.Model,
                 MaxIterations = config.MaxIterations,
                 UsedTools = result.ToolNames,

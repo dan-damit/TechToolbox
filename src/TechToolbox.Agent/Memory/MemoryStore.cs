@@ -249,6 +249,18 @@ public class MemoryStore
                 : entry.SignedFilePolicy;
             entry.ToolNames ??= new List<string>();
             entry.OutputPreview ??= string.Empty;
+            entry.ExecutionMode = string.IsNullOrWhiteSpace(entry.ExecutionMode)
+                ? "execute"
+                : entry.ExecutionMode.Trim().ToLowerInvariant();
+            entry.OutputContract = string.IsNullOrWhiteSpace(entry.OutputContract)
+                ? "markdown"
+                : entry.OutputContract.Trim().ToLowerInvariant();
+            entry.QualityProfile = string.IsNullOrWhiteSpace(entry.QualityProfile)
+                ? "balanced"
+                : entry.QualityProfile.Trim().ToLowerInvariant();
+            entry.PromptPreflightScore = Math.Clamp(entry.PromptPreflightScore, 0, 100);
+            entry.PromptPreflightWarningCount = Math.Max(0, entry.PromptPreflightWarningCount);
+            entry.PromptPreflightCriticalCount = Math.Max(0, entry.PromptPreflightCriticalCount);
             entry.RunSummary ??= new RunSummary
             {
                 Intent = BuildIntent(entry.Prompt, entry.OutputPreview),
@@ -299,11 +311,49 @@ public class MemoryStore
                 StringComparer.OrdinalIgnoreCase
             );
 
+        var executionModeCounts = window
+            .GroupBy(
+                h => string.IsNullOrWhiteSpace(h.ExecutionMode) ? "execute" : h.ExecutionMode,
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                g => g.Key.ToLowerInvariant(),
+                g => g.Count(),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        var outputContractCounts = window
+            .GroupBy(
+                h => string.IsNullOrWhiteSpace(h.OutputContract) ? "markdown" : h.OutputContract,
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                g => g.Key.ToLowerInvariant(),
+                g => g.Count(),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        var qualityProfileCounts = window
+            .GroupBy(
+                h => string.IsNullOrWhiteSpace(h.QualityProfile) ? "balanced" : h.QualityProfile,
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                g => g.Key.ToLowerInvariant(),
+                g => g.Count(),
+                StringComparer.OrdinalIgnoreCase
+            );
+
         var successCount = statusCounts.TryGetValue("success", out var count) ? count : 0;
         var avgDuration = (int)
             Math.Round(window.Average(h => h.DurationMs), MidpointRounding.AwayFromZero);
         var avgToolCalls = Math.Round(
             window.Average(h => h.ToolCalls),
+            2,
+            MidpointRounding.AwayFromZero
+        );
+        var avgPromptPreflightScore = Math.Round(
+            window.Average(h => h.PromptPreflightScore),
             2,
             MidpointRounding.AwayFromZero
         );
@@ -322,11 +372,15 @@ public class MemoryStore
             AvgToolCalls = avgToolCalls,
             StatusCounts = statusCounts,
             OutcomeCounts = outcomeCounts,
+            ExecutionModeCounts = executionModeCounts,
+            OutputContractCounts = outputContractCounts,
+            QualityProfileCounts = qualityProfileCounts,
             LastStatus = latest.Status,
             LastOutcome = latest.Outcome,
             LastModel = latest.Model,
             LastRunTimestampUtc = latest.TimestampUtc.ToString("o"),
             TrendLastUpdatedUtc = DateTimeOffset.UtcNow.ToString("o"),
+            AvgPromptPreflightScore = avgPromptPreflightScore,
         };
     }
 

@@ -68,11 +68,22 @@ public static class PromptBuilder
         string userPrompt,
         IReadOnlyDictionary<string, ToolSpec> registry,
         MemoryStore? memory,
-        int recentHistoryItems
+        int recentHistoryItems,
+        string executionMode = "execute",
+        string outputContract = "markdown"
     )
     {
         var mode = AgentModeDetector.DetectMode(registry);
-        return BuildInitialMessages(userPrompt, registry, memory, mode, null, recentHistoryItems);
+        return BuildInitialMessages(
+            userPrompt,
+            registry,
+            memory,
+            mode,
+            null,
+            recentHistoryItems,
+            executionMode,
+            outputContract
+        );
     }
 
     /// <summary>
@@ -91,16 +102,31 @@ public static class PromptBuilder
         MemoryStore? memory,
         AgentMode mode,
         string? systemPromptOverride = null,
-        int recentHistoryItems = DefaultRecentHistoryItems
+        int recentHistoryItems = DefaultRecentHistoryItems,
+        string executionMode = "execute",
+        string outputContract = "markdown"
     )
     {
+        var normalizedExecutionMode = NormalizeExecutionMode(executionMode);
+        var normalizedOutputContract = NormalizeOutputContract(outputContract);
         var systemPrompt =
-            systemPromptOverride ?? BuildSystemPrompt(registry, mode);
+            systemPromptOverride
+            ?? BuildSystemPrompt(registry, mode, normalizedExecutionMode, normalizedOutputContract);
 
         var messages = new List<AgentChatMessage>
         {
             new() { Role = "system", Content = systemPrompt },
-            new() { Role = "user", Content = BuildGoalPrompt(userPrompt, memory, recentHistoryItems) },
+            new()
+            {
+                Role = "user",
+                Content = BuildGoalPrompt(
+                    userPrompt,
+                    memory,
+                    recentHistoryItems,
+                    normalizedExecutionMode,
+                    normalizedOutputContract
+                ),
+            },
         };
 
         return messages;
@@ -201,7 +227,9 @@ Invalid response snippet:
     /// <returns>A formatted system prompt string including preamble, JSON schema, rules, and available tools.</returns>
     private static string BuildSystemPrompt(
         IReadOnlyDictionary<string, ToolSpec> registry,
-        AgentMode mode
+        AgentMode mode,
+        string executionMode,
+        string outputContract
     )
     {
         var preamble = mode switch
@@ -268,6 +296,32 @@ Invalid response snippet:
         sb.AppendLine(
             "- For large files, use READ-FILE chunking with startLine/endLine/maxLines and verify coverage before final conclusions."
         );
+        sb.AppendLine($"- Final answer output contract is '{outputContract}'.");
+        if (string.Equals(outputContract, "json", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine(
+                "- When needsTool=false, finalAnswer must be valid JSON text (object or array), not markdown prose."
+            );
+        }
+        else if (string.Equals(outputContract, "plain-text", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine(
+                "- When needsTool=false, finalAnswer must be plain text without markdown headings, bullets, tables, or code fences."
+            );
+        }
+
+        if (string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine(
+                "- Execution mode is analyze: do not call any tools. Return analysis and recommendations only."
+            );
+        }
+        else if (string.Equals(executionMode, "plan", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine(
+                "- Execution mode is plan: do not call any tools. Return an actionable numbered plan only."
+            );
+        }
 
         sb.AppendLine();
         sb.AppendLine("Available tools:");
@@ -315,7 +369,9 @@ Invalid response snippet:
     private static string BuildGoalPrompt(
         string prompt,
         MemoryStore? memory,
-        int recentHistoryItems
+        int recentHistoryItems,
+        string executionMode,
+        string outputContract
     )
     {
         var header =
@@ -329,7 +385,7 @@ Invalid response snippet:
 
         var memoryContext = BuildMemoryContext(memory, recentHistoryItems);
         if (string.IsNullOrWhiteSpace(memoryContext))
-            return $"{header}{Environment.NewLine}{Environment.NewLine}Goal: {prompt}";
+            return $"{header}{Environment.NewLine}{Environment.NewLine}Execution mode: {executionMode}{Environment.NewLine}Output contract: {outputContract}{Environment.NewLine}Goal: {prompt}";
 
         return $"""
 {header}
@@ -337,8 +393,40 @@ Invalid response snippet:
 Persistent memory context (advisory):
 {memoryContext}
 
+Execution mode: {executionMode}
+
+Output contract: {outputContract}
+
 Goal: {prompt}
 """;
+    }
+
+    private static string NormalizeExecutionMode(string? executionMode)
+    {
+        if (string.IsNullOrWhiteSpace(executionMode))
+            return "execute";
+
+        var normalized = executionMode.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "analyze" => "analyze",
+            "plan" => "plan",
+            _ => "execute",
+        };
+    }
+
+    private static string NormalizeOutputContract(string? outputContract)
+    {
+        if (string.IsNullOrWhiteSpace(outputContract))
+            return "markdown";
+
+        var normalized = outputContract.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "json" => "json",
+            "plain-text" => "plain-text",
+            _ => "markdown",
+        };
     }
 
     /// <summary>

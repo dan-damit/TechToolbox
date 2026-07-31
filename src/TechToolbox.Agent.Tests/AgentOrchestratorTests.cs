@@ -137,6 +137,82 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_AnalyzeMode_BlocksToolCalls()
+    {
+        var llm = new FakeLlmClient(new[] { ToolDecision("Echo"), FinalDecision("Analysis complete") });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["Echo"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            tools,
+            maxIterations: 5,
+            autoRetry: false,
+            executionMode: "analyze"
+        );
+
+        var result = await orchestrator.RunAsync("analyze request");
+
+        Assert.Equal("Analysis complete", result.OutputText);
+        Assert.Equal(0, result.ToolCallCount);
+        Assert.Empty(result.ToolNames);
+    }
+
+    [Fact]
+    public async Task RunAsync_PlanMode_BlocksToolCalls()
+    {
+        var llm = new FakeLlmClient(new[] { ToolDecision("Echo"), FinalDecision("1. Do this\n2. Do that") });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["Echo"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            tools,
+            maxIterations: 5,
+            autoRetry: false,
+            executionMode: "plan"
+        );
+
+        var result = await orchestrator.RunAsync("plan request");
+
+        Assert.Equal("1. Do this\n2. Do that", result.OutputText);
+        Assert.Equal(0, result.ToolCallCount);
+        Assert.Empty(result.ToolNames);
+    }
+
+    [Fact]
+    public async Task RunAsync_OutputContractJson_RejectsNonJsonThenAcceptsJson()
+    {
+        var llm = new FakeLlmClient(
+            new[] { FinalDecision("This is not JSON"), FinalDecision("{\"status\":\"ok\"}") }
+        );
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase),
+            maxIterations: 5,
+            autoRetry: false,
+            executionMode: "execute",
+            outputContract: "json"
+        );
+
+        var result = await orchestrator.RunAsync("Return JSON");
+
+        Assert.Equal("{\"status\":\"ok\"}", result.OutputText);
+        Assert.Equal(0, result.ToolCallCount);
+    }
+
+    [Fact]
     public async Task RunAsync_PassesRawToolResultWithoutJsonEscaping()
     {
         var llm = new RecordingFakeLlmClient(
@@ -1311,6 +1387,12 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
             Assert.Single(memory.History);
             Assert.Equal("success", memory.History[0].Status);
             Assert.Equal("completed", memory.History[0].Outcome);
+            Assert.Equal("execute", memory.History[0].ExecutionMode);
+            Assert.Equal("markdown", memory.History[0].OutputContract);
+            Assert.Equal("balanced", memory.History[0].QualityProfile);
+            Assert.Equal(0, memory.History[0].PromptPreflightScore);
+            Assert.Equal(0, memory.History[0].PromptPreflightWarningCount);
+            Assert.Equal(0, memory.History[0].PromptPreflightCriticalCount);
             Assert.Contains(
                 memory.Preferences.Values.OfType<string>(),
                 value => value.Contains("concise answers", StringComparison.OrdinalIgnoreCase)
@@ -1380,11 +1462,68 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
         }
     }
 
+    [Fact]
+    public async Task RunAsync_PersistsPreflightAndProfileTelemetryInMemoryHistory()
+    {
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "TechToolbox.Agent.Tests",
+            Guid.NewGuid().ToString("N")
+        );
+        Directory.CreateDirectory(tempRoot);
+        var memoryPath = Path.Combine(tempRoot, "memory.json");
+
+        try
+        {
+            var llm = new FakeLlmClient(new[] { FinalDecision("{\"plan\":[\"step\"]}") });
+            var memory = new MemoryStore(memoryPath);
+            var orchestrator = new AgentOrchestrator(
+                llm,
+                CreateRegistry(Array.Empty<string>()),
+                new Dictionary<string, Func<string, Task<string>>>(
+                    StringComparer.OrdinalIgnoreCase
+                ),
+                memory,
+                model: "test",
+                destructiveConfirmed: false,
+                signedFilePolicy: "ignore",
+                maxIterations: 5,
+                autoRetry: false,
+                executionMode: "plan",
+                outputContract: "json",
+                qualityProfile: "precise",
+                promptPreflightScore: 82,
+                promptPreflightWarningCount: 1,
+                promptPreflightCriticalCount: 0
+            );
+
+            var result = await orchestrator.RunAsync("return plan in json");
+
+            Assert.Equal("{\"plan\":[\"step\"]}", result.OutputText);
+            Assert.Single(memory.History);
+            Assert.Equal("plan", memory.History[0].ExecutionMode);
+            Assert.Equal("json", memory.History[0].OutputContract);
+            Assert.Equal("precise", memory.History[0].QualityProfile);
+            Assert.Equal(82, memory.History[0].PromptPreflightScore);
+            Assert.Equal(1, memory.History[0].PromptPreflightWarningCount);
+            Assert.Equal(0, memory.History[0].PromptPreflightCriticalCount);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
     private static AgentOrchestrator CreateOrchestrator(
         LlmClient llm,
         Dictionary<string, Func<string, Task<string>>> tools,
         int maxIterations,
-        bool autoRetry
+        bool autoRetry,
+        string executionMode = "execute",
+        string outputContract = "markdown"
     )
     {
         return new AgentOrchestrator(
@@ -1396,7 +1535,9 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
             destructiveConfirmed: false,
             signedFilePolicy: "ignore",
             maxIterations,
-            autoRetry
+            autoRetry,
+            executionMode: executionMode,
+            outputContract: outputContract
         );
     }
 

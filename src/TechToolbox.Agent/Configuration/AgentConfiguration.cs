@@ -25,6 +25,39 @@ public class AgentConfiguration
     public string LlmProvider { get; set; } = "ollama";
 
     /// <summary>
+    /// Execution mode controlling whether the agent should analyze, plan, or execute.
+    /// Supported values: "execute", "plan", "analyze".
+    /// </summary>
+    public string ExecutionMode { get; set; } = "execute";
+
+    /// <summary>
+    /// Output contract controlling final answer format.
+    /// Supported values: "markdown", "plain-text", "json".
+    /// </summary>
+    public string OutputContract { get; set; } = "markdown";
+
+    /// <summary>
+    /// Quality profile used to tune model sampling behavior.
+    /// Supported values: "precise", "balanced", "creative".
+    /// </summary>
+    public string QualityProfile { get; set; } = "balanced";
+
+    /// <summary>
+    /// Prompt preflight quality score from 0 to 100.
+    /// </summary>
+    public int PromptPreflightScore { get; set; }
+
+    /// <summary>
+    /// Number of non-blocking prompt preflight warnings detected.
+    /// </summary>
+    public int PromptPreflightWarningCount { get; set; }
+
+    /// <summary>
+    /// Number of critical prompt preflight issues detected.
+    /// </summary>
+    public int PromptPreflightCriticalCount { get; set; }
+
+    /// <summary>
     /// Optional provider endpoint URL.
     /// For Azure OpenAI this is the resource endpoint (for example https://name.openai.azure.com).
     /// </summary>
@@ -129,6 +162,9 @@ public class AgentConfiguration
                     Mode = AgentMode.TechToolbox,
                     Model = "llama3",
                     LlmProvider = "ollama",
+                    ExecutionMode = "execute",
+                    OutputContract = "markdown",
+                    QualityProfile = "balanced",
                     MaxIterations = 15,
                     AutoRetryOnIterationLimit = false,
                     DestructiveConfirmed = false,
@@ -146,6 +182,9 @@ public class AgentConfiguration
                     Mode = AgentMode.Assistant,
                     Model = "llama3",
                     LlmProvider = "ollama",
+                    ExecutionMode = "execute",
+                    OutputContract = "markdown",
+                    QualityProfile = "balanced",
                     MaxIterations = 10,
                     AutoRetryOnIterationLimit = false,
                     DestructiveConfirmed = false,
@@ -159,6 +198,9 @@ public class AgentConfiguration
                     Mode = AgentMode.CodingAgent,
                     Model = "llama3",
                     LlmProvider = "ollama",
+                    ExecutionMode = "execute",
+                    OutputContract = "markdown",
+                    QualityProfile = "balanced",
                     MaxIterations = 20,
                     AutoRetryOnIterationLimit = true,
                     DestructiveConfirmed = false,
@@ -172,6 +214,9 @@ public class AgentConfiguration
                     Mode = AgentMode.Custom,
                     Model = "llama3",
                     LlmProvider = "ollama",
+                    ExecutionMode = "execute",
+                    OutputContract = "markdown",
+                    QualityProfile = "balanced",
                     MaxIterations = 15,
                     AllowMetaTools = false,
                     ToolProviders = new() { new GenericToolProvider() }
