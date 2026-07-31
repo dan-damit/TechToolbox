@@ -451,16 +451,16 @@ function Invoke-TechAgent {
     $preflightCriticalCount = @($preflight.Critical).Count
 
     Write-Log -Level Info -Message (
-        "Tech agent prompt preflight: score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
+        "`nTech agent prompt preflight: score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
     )
 
     foreach ($warning in @($preflight.Warnings)) {
-        Write-Warning ("Invoke-TechAgent preflight: {0}" -f $warning)
+        Write-Warning ("`nInvoke-TechAgent preflight: {0}" -f $warning)
     }
 
     if (@($preflight.Critical).Count -gt 0) {
         foreach ($criticalMessage in @($preflight.Critical)) {
-            Write-Warning ("Invoke-TechAgent preflight critical: {0}" -f $criticalMessage)
+            Write-Warning ("`nInvoke-TechAgent preflight critical: {0}" -f $criticalMessage)
         }
     }
 
@@ -1521,8 +1521,6 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
             if (-not $expectedOutputExists) {
                 throw ("Tech agent failed: expected output file was not created: {0}" -f $expectedOutputPath)
             }
-
-            Write-Log -Level Info -Message ("Tech agent created expected output file: {0}" -f $expectedOutputPath)
         }
 
         if ($knownFailureDetected) {
@@ -1594,8 +1592,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAyqzNNeJdqfR0s
-# IFILDBpTs2RUbJP1s5WuwXMAPPY+qaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBA+lhaJf4yPrgx
+# mkXslYp0MHGI7eN4ZxiARxGPILWzz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1728,34 +1726,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCAgnn1xk08
-# fGxq/+kYYcFDegVDDPgfSW/cGib0zQE+hzANBgkqhkiG9w0BAQEFAASCAgAmVnHW
-# Sc4kBAeJkihEJVCVHnqlBdKlPA9pEQ+aVENRCO6IcgmNX0hCbKvphtGgviTj+Z9c
-# PnYvTXZjOM+nUdR07JdfF8ZqSZjzIrBvIjfvC1mxslS0yhE9XOeulTOpGnlXHfMm
-# 4htwDFgYLhf/UUSJ51guezsM7Tt/+o4uqTGe5kkfGFsnhHE6Fkk3TTR0bnxNY1OP
-# QLiqeYsoyNGZ4vqnSfXADOZrJP0a/JDyCvscYlhZULXNWu3UECDeSTnsQBPtFk7N
-# e1e/Af/1rnmNgcROBJMt1SBA1IH9FRB1e3wW8+UD/4tSAQk8Z/yvGtQlrSDbQ246
-# Wiy0VI/KajDP4Ne8d3sTjxQFjGj9XqlVzHuIjuOZDCVmNseE3G6lpw0TY7so7mp8
-# yBJurFiKLB7m+86do7BvXcRn3OJxIMuDilADjgQpUnCs26WHfTFe9i9Vtk4V5cwk
-# +ACVxw0MBL/4lCreB5TLTXgSC2nefRH2uUJnBhas8WVyew7gqAVHrI6Hh1rkgdFh
-# wWxgKaNwNHHzNP2Zu89qEZktfrK+PlIBX4x82pCVm6eiRJfGak1EtolngsgW2UnS
-# iRw+80z/DDpzrhEtDF8qwZWfvv5gK0AGSWd7cqm7c6UkKd1IbBG6sEflgT14fcnx
-# LzEFLCVMphbW0Deu8sa68lzhkudRIhsCmrg4raGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBYBhJ50AxJ
+# sRZyPcpxhobpOoir+gfCC7o0gP/oxzJejTANBgkqhkiG9w0BAQEFAASCAgCslmcQ
+# OliSstDjr4nAVdL13fFPt7JNYbL2qVCHECH0d3hEgINNfySQavWUgh7W/HwR1fOF
+# kES1tLakmYpb1ea69yaW+zJrAwjpleyRO2pbzuOrMKkRH7wpBKHcjx/n/6Ilb1s3
+# lHRcTTFR9ORFg3MbP6YxGuyQgtyer2cfAatCsdoBbPG2l0q3gvknpMY7f2+FVrfq
+# 11ih5TvYnK5aO4dE7F46/eeY4K8/dGPkZPG90dIObwkhdjHylzT4+ukj3B8UM9AF
+# ObTf5Qo1FIwrUkLv3W00gxT+jsARvksOvuqbIhW8ZTMg7ICeFfeVWhI5sMGHe+zR
+# W8j1eoqe2GbRQKaH/uo8DsxI/acwWaH83TknVVm3plUzCyJ1zesK2uuDDwMuURGj
+# G+SmYivZHpQcyEMbsVEoAZYVRD5p9Oa1DwDllgGUvfzb8t4wYgLGfYd21W9KSZ0v
+# agu5djMXDc2qpRBfMZPcU5qw8SP20XYp/JCUAVLhyueGt7WUXpBP7YHa2NBtDKJK
+# V3DlpIw9pBTGz1U6Lv0wCgvFEpBR7YQLGEKQVcXBGAs0iwaJ0fEmil5Jb+szHfpT
+# YrnlyapaqEBJgvAmzwtIDOuQuU/N/4DcpO3xMF1mbQllOXb/TvLnor7uGKH0J443
+# k6U+nT3NIaeEDclWLalbS5NVrM+dW6lUQE/UeaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MzEwNDUyNDBaMC8GCSqGSIb3DQEJBDEiBCAt8oh0EmoaK6ENzzLc
-# OQr6njLJwF/y3MeYK1X9dhhfAjANBgkqhkiG9w0BAQEFAASCAgAgecl6xeAKI6Y6
-# wU4hzJX2daGXcbJrLaGSLNXdeADPyCGrxeIQGAuOXWFgPpedv9dVn252Q/bHWOCN
-# rlhPsx+1IZAQwJCcluq+jHbi8khXj5256VwAecsiJTnao0r8OtfaWr6x2XVDy52+
-# qgTRoKeC4uGzN0INLdT6ZfkpVgx1GQJFmp1z+OXrsuamKjGqM5ohCyVnsrJ1Vrpw
-# ZzrZjg9ga/DnSfNUm/GUVm8qWBnN2pHjQSyjO/cOsB0I3/dm8R0fVSzgOPOFpsJM
-# vuLvqQ3C+Y+jxxzRzfjOJjm0i4RfG1vulr1sz4H6Fes1mQliGtPok62cVLxhFqrK
-# g7ihzCieOt5deBAxO3mOs4i8bPXQNaKkCQbKLIryr0V6zCulS4kOA3eduM1FbSFr
-# OKgRGwQbcDKBP9mUFPc0Ps5EDqP3l7OZ89u7BQkw5xxHiCQqTsOjBXUQzXn9ihlU
-# Ob4YxDAoN7e6IAHPUR+UNr9NKYQu2erUlZF8uY1JD5BBojVam/jeejicRPiKWist
-# c7yzHvV6wyU4Cz/ZBMjNC0NMe2TjBsBDl6OFHHl7vvPkecYMZdvxlb2pvguH8wRO
-# ClFHxi7moHjfT8zNxPeNMHhSvK57bdlB0zxukyKWVDVFAaCR8CFcEby5jrcEvZCN
-# Cy7s9Mb/NyxG1kwBgRZ+SIUHEndp5A==
+# BTEPFw0yNjA3MzEwNTA2MzZaMC8GCSqGSIb3DQEJBDEiBCBjUZ+XYvMTyKNZAcIz
+# MUP3vvTtNcU7RFZJ65UNcfUkAzANBgkqhkiG9w0BAQEFAASCAgDGyffzydXJFTf3
+# fPd+jAmf0SS9rSDsKhN++xWzzTVawF96qqRTfl0UYUMdpLI8M4TDBaaRiDtJVSMk
+# ojX8namOj/MTFTZ0s9bFLCdCDOnoSyxkE7XhK+jR/2E4LEJZlhuzKqXiAvRj/pQQ
+# y08AFm4PsgXN8adXD4EcPAJrBC8wvb53ydUmeQ7DvSVTn6AJ0cjoqRudnvqO6D7E
+# T+sFKh/ykGEjnZI7roB9v7Qk5/r5ukECmzZCQZoJMl9l85MsjVkkPRCw2rne7Pcq
+# Op+VZJYWXq2skNpPngTDfTIqIQY7isB+qdniQS8MtNOphr3d1G18ywCFsr11Ih/a
+# JaWcxeNMcqobL7YLrBPkt1nuBldE9FFzd3ufQ53VfU2+Fg8VKdoIt6/NDu3WEMcz
+# OQRrx95V/8g2ZERDJX2g6hnNFwcJGpprjtknZ8X3hnbSVAr5LBV42DcpZDdlJneZ
+# KyDEoINbsoY+I7sGxLqBmE0Xpxk/JtErID/E0QUVNQ0CS6YO/KOwEkLUN0Nc4zcs
+# 8Fht08GWFord/4D9Ucuv7RY5qybQCKjhTWW4bSyun0rzQnVp0U0WBppI/ayp4G5x
+# dgdRqrUO8f/qQxFyoJRPwktu+rAJ1ivQmPOmhL7jj6YSJ4zT5y1EB6x2TbxIwAih
+# mjNx5ORAH4jmoCFYXeN9/swkhleXoA==
 # SIG # End signature block

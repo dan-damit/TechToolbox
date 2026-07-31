@@ -19,8 +19,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.8,
-      "avgDurationMs": 21208,
-      "avgToolCalls": 3.8,
+      "avgDurationMs": 23281,
+      "avgToolCalls": 4.05,
       "statusCounts": {
         "success": 16,
         "error": 4
@@ -32,40 +32,23 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "ornith:35b",
-      "lastRunTimestampUtc": "2026-07-29T22:42:02.5911075\u002B00:00",
-      "trendLastUpdatedUtc": "2026-07-29T22:42:02.6175589\u002B00:00"
+      "lastRunTimestampUtc": "2026-07-31T04:56:40.6822347\u002B00:00",
+      "trendLastUpdatedUtc": "2026-07-31T04:56:40.7057587\u002B00:00",
+      "avgPromptPreflightScore": 5,
+      "executionModeCounts": {
+        "execute": 20
+      },
+      "outputContractCounts": {
+        "markdown": 20
+      },
+      "qualityProfileCounts": {
+        "balanced": 20
+      }
     },
     "fact.read.3316348d": "read",
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-28T04:50:49.4351489+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "gpt-5.3-codex",
-      "durationMs": 10884,
-      "maxIterations": 25,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "write_file"
-      ],
-      "outputPreview": "## Blocked: explicit confirmation required\n\nI cannot proceed because updating this file with WRITE-FILE is treated as a destructive action and requires explicit confirmation.\n\n- Required confirmation: set \u0060__confirm_destructive=true\u0060\n- Target file: \u0060C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\u0060\n- Intended change: XML documentation comment improvements only, with no code or behavior changes\n\n## Next step\n\nProvide the same request again with \u0060__confirm_destructive=true\u0060, and I will immediately perform the WRITE-FILE update and then report completion.",
-      "runSummary": {
-        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\n...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      }
-    },
     {
       "timestampUtc": "2026-07-28T04:58:42.9528385+00:00",
       "status": "success",
@@ -91,7 +74,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T04:53:32.1660162+00:00",
@@ -124,7 +113,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T04:59:44.92242+00:00",
@@ -157,7 +152,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T05:00:22.19185+00:00",
@@ -188,7 +189,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T05:01:22.8188314+00:00",
@@ -219,7 +226,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T05:11:11.0442817+00:00",
@@ -252,7 +265,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T15:41:10.6220121+00:00",
@@ -274,7 +293,13 @@
         "actionsTaken": [],
         "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************L2gA. Y...",
         "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T15:43:37.6679228+00:00",
@@ -296,7 +321,13 @@
         "actionsTaken": [],
         "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************L2gA. Y...",
         "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T15:57:22.5159194+00:00",
@@ -318,7 +349,13 @@
         "actionsTaken": [],
         "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************L2gA. Y...",
         "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T16:01:40.4892159+00:00",
@@ -340,7 +377,13 @@
         "actionsTaken": [],
         "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022The model \u0060ornith:35b\u0060 does not exist or you do not have access to it.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022model_not_found\u0022\n    }\n}",
         "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T16:02:10.3184647+00:00",
@@ -361,7 +404,13 @@
         "actionsTaken": [],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T16:09:05.2412378+00:00",
@@ -394,7 +443,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T16:09:55.7730459+00:00",
@@ -425,7 +480,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T16:11:35.8643299+00:00",
@@ -458,7 +519,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T16:12:33.6108618+00:00",
@@ -490,7 +557,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T17:37:31.558246+00:00",
@@ -511,7 +584,13 @@
         "actionsTaken": [],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T22:31:55.5803779+00:00",
@@ -541,7 +620,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T22:37:36.547987+00:00",
@@ -576,7 +661,13 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     },
     {
       "timestampUtc": "2026-07-29T22:42:02.5911075+00:00",
@@ -609,7 +700,52 @@
         ],
         "blockers": "",
         "nextBestStep": ""
-      }
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-07-31T04:56:40.6822347+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Get-TechAgentQualitySummary.ps1\r\n\r\nTask:\r\nWrite a detailed PowerShell \u0060about_*.help.txt\u0060 help document for the source command or script.\r\n\r\nDocument topic:\r\nGet-TechAgentQualitySummary\r\n\r\nOutput file:\r\nC:\\repos\\TechToolbox\\en-US\\about_Get-TechAgentQualitySummary.help.txt\r\n\r\nRequirements:\r\n- Create the output file at this exact path:\r\n  C:\\repos\\TechToolbox\\en-US\\about_Get-TechAgentQualitySummary.help.txt\r\n- Follow the structure and tone of other help files in the same help directory when they exist.\r\n- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.\r\n- Do not use markdown formatting unless the existing help files in that directory already do.\r\n- Use WRITE-FILE to create or update the output help file.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-TechAgentQualitySummary.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "ornith:35b",
+      "durationMs": 52348,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 7,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Successfully created the help document at C:\\repos\\TechToolbox\\en-US\\about_Get-TechAgentQualitySummary.help.txt. The file follows the structure and conventions of existing help files in the directory, including .EXTERNALHELP reference, .NOTES section with NAME, .DESCRIPTION with key features, .PARAMETER sections for Window/IncludeRecent/AsJson, .INPUTS, .OUTPUTS, three .EXAMPLE blocks matching the source file examples, and .LINK to the documentation page.",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Get-TechAgentQualitySummary.ps1\r\n\r\nTask:\r\nWrite a detailed PowerShell \u0060about_*.help.txt\u0060 help document for the source command or script.\r\n\r\nDocument topic:\r\nGet-TechAge...",
+        "actionsTaken": [
+          "read_file",
+          "list_directory",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "_memoryFormatVersion": 2
