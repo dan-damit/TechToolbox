@@ -85,7 +85,7 @@
 - [Security Notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
 - [Metadata](#metadata)
-  - [v0.5.68 - "Provider Routing \& Quality Controls"](#v0568---provider-routing--quality-controls)
+  - [v0.5.69 - "Provider Routing \& Quality Controls"](#v0569---provider-routing--quality-controls)
     - [Highlights](#highlights)
   - [v0.5.0 - "AI \& Metadata Milestone"](#v050---ai--metadata-milestone)
     - [Highlights](#highlights-1)
@@ -575,7 +575,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 ---
 
-### v0.5.68 - "Provider Routing & Quality Controls"
+### v0.5.69 - "Provider Routing & Quality Controls"
 
 #### Highlights
 
