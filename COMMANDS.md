@@ -118,6 +118,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Command | Summary | Flags |
 |---|---|---|
 | Install-TechAgentRuntime | Verify Ollama runtime and optionally pull the Tech agent model. | Risk |
+| Get-TechAgentQualitySummary | Summarize TechAgent run quality telemetry from memory history and trend data. | |
 | Invoke-TechAgent | Run tool-using AI agent prompt workflow (Ollama local by default, cloud providers optional). | Interactive |
 | Set-TechAgentApiKey | Set, rotate, or clear DPAPI-encrypted cloud API key used by TechAgent providers. | Risk, Interactive |
 | Test-TechAgentProvider | Validate LLM provider configuration and optional live connectivity test. | |

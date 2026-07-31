@@ -29,6 +29,11 @@ It supports:
 - bare `-ApiKeyEncrypted` switch to force encrypted config-based key usage  
 - optional `-ApiKeyEncryptedBlob` override for direct DPAPI blob input  
 - configurable iteration depth for multi-step workflows  
+- execution mode control for `execute`, `plan`, and `analyze` runs  
+- optional strict prompt preflight validation to block low-quality prompts  
+- output contract enforcement for `markdown`, `plain-text`, or `json` final responses  
+- quality profile tuning for deterministic vs exploratory responses  
+- persisted run-quality telemetry (mode, output contract, profile, preflight score) in memory history and trend summaries  
 - always-on lightweight memory stored in `AI\memory.json` by default  
 - automatic capture of recent run history plus learned preferences/facts  
 - optional quiet mode for reduced console verbosity  
@@ -102,6 +107,28 @@ Test-TechAgentProvider -Provider azure-openai -Endpoint https://your-resource.op
 Test-TechAgentProvider -Provider openai -Model gpt-4o-mini -NoNetwork
 ```
 
+### `Get-TechAgentQualitySummary`
+Summarizes recent TechAgent quality telemetry from memory history.
+
+It supports:
+
+- configurable analysis window (`-Window`)
+- recent run sampling (`-IncludeRecent`)
+- structured object output for automation
+- optional JSON output (`-AsJson`)
+
+**Usage:**
+```powershell
+# Default 20-run summary
+Get-TechAgentQualitySummary
+
+# Wider trend view
+Get-TechAgentQualitySummary -Window 50
+
+# JSON output for pipeline ingestion
+Get-TechAgentQualitySummary -Window 30 -IncludeRecent 10 -AsJson
+```
+
 ### DPAPI Secret Setup
 Store cloud API keys in `Config\config.secrets.json` as a DPAPI-encrypted value:
 
@@ -145,6 +172,12 @@ Invoke-TechAgent -Prompt "Investigate repeated login failures" -MaxIterations 25
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -AutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Update Public/Get/Get-ToolboxHelp.ps1" -ConfirmDestructive -SignedFilePolicy strip
+Invoke-TechAgent -Prompt "Explain repeated authentication failures" -ExecutionMode analyze
+Invoke-TechAgent -Prompt "Design a remediation approach" -ExecutionMode plan
+Invoke-TechAgent -Prompt "Summarize host posture" -OutputContract plain-text
+Invoke-TechAgent -Prompt "Return remediation checklist as JSON" -OutputContract json
+Invoke-TechAgent -Prompt "Fix AD sync issue" -StrictPromptPreflight
+Invoke-TechAgent -Prompt "Draft a migration proposal" -QualityProfile creative
 
 # Cloud examples (API key loaded from env var)
 $env:TT_AGENT_LLM_API_KEY = '<your-key>'
@@ -166,6 +199,28 @@ Invoke-TechAgent -PromptFile AI\Tasks\CurrentTask.txt
 - `-AutoRetryOnRecursion` enables exactly one automatic retry when the packaged C# agent reaches an iteration limit.
 - `-DisableAutoRetryOnRecursion` forces auto-retry off for the current invocation, even if enabled by environment defaults.
 - Only one of these switches can be used at a time.
+
+**Execution Mode and Output Contract**
+
+- `-ExecutionMode execute` allows tool invocation and file/system actions.
+- `-ExecutionMode plan` disallows tool calls and requires a plan-style final response.
+- `-ExecutionMode analyze` disallows tool calls and requires analysis/recommendations only.
+- `-OutputContract markdown` allows markdown-style final answers (default).
+- `-OutputContract plain-text` rejects markdown constructs in final answers.
+- `-OutputContract json` requires final answers to be valid JSON object/array text.
+- `-StrictPromptPreflight` blocks execution when prompt quality signals are too weak for reliable action.
+
+**Quality Profile**
+
+- `-QualityProfile precise` lowers randomness for deterministic troubleshooting and implementation.
+- `-QualityProfile balanced` is the default profile for general-purpose work.
+- `-QualityProfile creative` increases variation for brainstorming and exploratory drafting.
+
+**Persisted Quality Telemetry**
+
+- Each run now records `executionMode`, `outputContract`, `qualityProfile`, and prompt preflight score/counts in `AI\memory.json` and `AI\memory.history.json`.
+- `trendSummary` aggregates these values so you can compare quality outcomes over recent runs.
+- Default values can be set in `Config\config.json` under `settings.agent`.
 
 ---
 

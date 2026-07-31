@@ -138,6 +138,9 @@
     "agent": {
       "provider": "ollama",
       "model": "ornith:35b",
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
       "endpoint": "",
       "deployment": "",
       "apiVersion": "2024-10-21",

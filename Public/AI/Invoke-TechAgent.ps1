@@ -56,6 +56,24 @@ function Invoke-TechAgent {
         Number of recent memory history entries to inject into prompt context.
         Set to 0 to disable recent history injection for this run.
 
+    .PARAMETER ExecutionMode
+        Controls whether the agent should execute tools (`execute`), produce a
+        no-tool implementation plan (`plan`), or provide no-tool analysis
+        (`analyze`).
+
+    .PARAMETER StrictPromptPreflight
+        Turns prompt preflight warnings into a blocking validation failure when
+        prompt quality is too low for reliable execution.
+
+    .PARAMETER OutputContract
+        Final response format contract. `markdown` allows Markdown output,
+        `plain-text` requires plain text only, and `json` requires valid JSON
+        object or array text in the final answer.
+
+    .PARAMETER QualityProfile
+        Sampling profile for response quality tuning. `precise` is deterministic,
+        `balanced` is default, and `creative` increases variation.
+
     .PARAMETER Quiet
         Legacy compatibility switch. Agent traces are now suppressed by default.
 
@@ -136,6 +154,21 @@ function Invoke-TechAgent {
         [Parameter()]
         [ValidateRange(0, 20)]
         [int]$PromptHistoryItems,
+
+        [Parameter()]
+        [ValidateSet('execute', 'plan', 'analyze')]
+        [string]$ExecutionMode,
+
+        [Parameter()]
+        [switch]$StrictPromptPreflight,
+
+        [Parameter()]
+        [ValidateSet('markdown', 'plain-text', 'json')]
+        [string]$OutputContract,
+
+        [Parameter()]
+        [ValidateSet('precise', 'balanced', 'creative')]
+        [string]$QualityProfile,
 
         [Parameter()]
         [switch]$Quiet,
@@ -238,6 +271,212 @@ function Invoke-TechAgent {
         }
 
         $promptSourceLabel = "default prompt file ($resolvedDefaultPromptPath)"
+    }
+
+    $resolveExecutionMode = {
+        param(
+            [string]$ModeFromParam,
+            $ConfigObject,
+            [bool]$ParamWasBound
+        )
+
+        if ($ParamWasBound -and -not [string]::IsNullOrWhiteSpace($ModeFromParam)) {
+            return $ModeFromParam.Trim().ToLowerInvariant()
+        }
+
+        $configMode = $null
+        if ($null -ne $ConfigObject) {
+            $modeProperty = $ConfigObject.PSObject.Properties['executionMode']
+            if ($null -ne $modeProperty -and -not [string]::IsNullOrWhiteSpace([string]$modeProperty.Value)) {
+                $configMode = [string]$modeProperty.Value
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($configMode)) {
+            return 'execute'
+        }
+
+        switch ($configMode.Trim().ToLowerInvariant()) {
+            'plan' { return 'plan' }
+            'analyze' { return 'analyze' }
+            default { return 'execute' }
+        }
+    }
+
+    $resolveOutputContract = {
+        param(
+            [string]$ContractFromParam,
+            $ConfigObject,
+            [bool]$ParamWasBound
+        )
+
+        if ($ParamWasBound -and -not [string]::IsNullOrWhiteSpace($ContractFromParam)) {
+            return $ContractFromParam.Trim().ToLowerInvariant()
+        }
+
+        $configContract = $null
+        if ($null -ne $ConfigObject) {
+            $contractProperty = $ConfigObject.PSObject.Properties['outputContract']
+            if ($null -ne $contractProperty -and -not [string]::IsNullOrWhiteSpace([string]$contractProperty.Value)) {
+                $configContract = [string]$contractProperty.Value
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($configContract)) {
+            return 'markdown'
+        }
+
+        switch ($configContract.Trim().ToLowerInvariant()) {
+            'plain-text' { return 'plain-text' }
+            'json' { return 'json' }
+            default { return 'markdown' }
+        }
+    }
+
+    $resolveQualityProfile = {
+        param(
+            [string]$ProfileFromParam,
+            $ConfigObject,
+            [bool]$ParamWasBound
+        )
+
+        if ($ParamWasBound -and -not [string]::IsNullOrWhiteSpace($ProfileFromParam)) {
+            return $ProfileFromParam.Trim().ToLowerInvariant()
+        }
+
+        $configProfile = $null
+        if ($null -ne $ConfigObject) {
+            $profileProperty = $ConfigObject.PSObject.Properties['qualityProfile']
+            if ($null -ne $profileProperty -and -not [string]::IsNullOrWhiteSpace([string]$profileProperty.Value)) {
+                $configProfile = [string]$profileProperty.Value
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($configProfile)) {
+            return 'balanced'
+        }
+
+        switch ($configProfile.Trim().ToLowerInvariant()) {
+            'precise' { return 'precise' }
+            'creative' { return 'creative' }
+            default { return 'balanced' }
+        }
+    }
+
+    $invokePromptPreflight = {
+        param(
+            [string]$PromptText,
+            [string]$Mode
+        )
+
+        $score = 0
+        $warnings = [System.Collections.Generic.List[string]]::new()
+        $critical = [System.Collections.Generic.List[string]]::new()
+
+        if ([string]::IsNullOrWhiteSpace($PromptText)) {
+            $critical.Add('Prompt is empty.')
+            return [ordered]@{ Score = 0; Warnings = @($warnings); Critical = @($critical) }
+        }
+
+        $normalizedPrompt = $PromptText.Trim()
+
+        $hasTaskVerb = [regex]::IsMatch(
+            $normalizedPrompt,
+            '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement)\b')
+        if ($hasTaskVerb) { $score += 20 } else { $warnings.Add('Missing clear task verb (for example: update, analyze, fix, plan).') }
+
+        $hasConcreteTarget = [regex]::IsMatch(
+            $normalizedPrompt,
+            '(?i)([A-Za-z]:\\[^\r\n]+|\b(file|function|class|module|script|command|service|endpoint|api|workflow)\b)')
+        if ($hasConcreteTarget) { $score += 20 } else { $warnings.Add('Missing concrete target (file, function, module, system, or path).') }
+
+        $hasExpectedOutcome = [regex]::IsMatch(
+            $normalizedPrompt,
+            '(?i)\b(expected|outcome|output|result|return|produce|final|success\b|done\b)')
+        if ($hasExpectedOutcome) { $score += 20 } else { $warnings.Add('Missing expected outcome details (what successful output should look like).') }
+
+        $hasConstraints = [regex]::IsMatch(
+            $normalizedPrompt,
+            '(?i)\b(must|should|do not|don''t|avoid|constraint|format|style|security|strict|exact path|preserve|no edits)')
+        if ($hasConstraints) { $score += 20 } else { $warnings.Add('Missing explicit constraints or preferences (style, safety, formatting, scope).') }
+
+        if ($normalizedPrompt.Length -ge 80) {
+            $score += 20
+        }
+        else {
+            $warnings.Add('Prompt is short; add context (environment, errors, affected behavior).')
+        }
+
+        if ($normalizedPrompt.Length -lt 25) {
+            $critical.Add('Prompt is too short for reliable execution.')
+        }
+
+        if ($Mode -eq 'execute' -and -not $hasConcreteTarget) {
+            $critical.Add('Execution mode requires a concrete target to avoid ambiguous changes.')
+        }
+
+        if ($Mode -eq 'execute' -and -not $hasExpectedOutcome) {
+            $critical.Add('Execution mode requires expected outcome details.')
+        }
+
+        return [ordered]@{
+            Score    = $score
+            Warnings = @($warnings)
+            Critical = @($critical)
+        }
+    }
+
+    $resolvedExecutionMode = & $resolveExecutionMode -ModeFromParam $ExecutionMode -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('ExecutionMode')
+    $resolvedOutputContract = & $resolveOutputContract -ContractFromParam $OutputContract -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('OutputContract')
+    $resolvedQualityProfile = & $resolveQualityProfile -ProfileFromParam $QualityProfile -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('QualityProfile')
+
+    $qualitySettings = switch ($resolvedQualityProfile) {
+        'precise' {
+            [ordered]@{ Temperature = '0.10'; TopP = '0.85'; RepeatPenalty = '1.10' }
+            break
+        }
+        'creative' {
+            [ordered]@{ Temperature = '0.50'; TopP = '0.95'; RepeatPenalty = '1.00' }
+            break
+        }
+        default {
+            [ordered]@{ Temperature = '0.20'; TopP = '0.90'; RepeatPenalty = '1.05' }
+            break
+        }
+    }
+
+    $preflight = & $invokePromptPreflight -PromptText $Prompt -Mode $resolvedExecutionMode
+    $preflightScore = [int]$preflight.Score
+    $preflightWarningCount = @($preflight.Warnings).Count
+    $preflightCriticalCount = @($preflight.Critical).Count
+
+    Write-Log -Level Info -Message (
+        "Tech agent prompt preflight: score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
+    )
+
+    foreach ($warning in @($preflight.Warnings)) {
+        Write-Warning ("Invoke-TechAgent preflight: {0}" -f $warning)
+    }
+
+    if (@($preflight.Critical).Count -gt 0) {
+        foreach ($criticalMessage in @($preflight.Critical)) {
+            Write-Warning ("Invoke-TechAgent preflight critical: {0}" -f $criticalMessage)
+        }
+    }
+
+    if ($StrictPromptPreflight.IsPresent) {
+        if ($preflightScore -lt 60 -or @($preflight.Critical).Count -gt 0) {
+            $criticalSummary = if (@($preflight.Critical).Count -eq 0) {
+                'none'
+            }
+            else {
+                (@($preflight.Critical) -join '; ')
+            }
+
+            throw (
+                "Invoke-TechAgent preflight failed (score={0}/100, mode={1}). Critical issues: {2}" -f $preflightScore, $resolvedExecutionMode, $criticalSummary
+            )
+        }
     }
 
     $waitTimeoutSeconds = [Math]::Max(300, ($MaxIterations * 180))
@@ -1013,6 +1252,12 @@ Hard requirement:
         $request = [ordered]@{
             Prompt               = $effectivePrompt
             Model                = $resolvedModel
+            ExecutionMode        = $resolvedExecutionMode
+            OutputContract       = $resolvedOutputContract
+            QualityProfile       = $resolvedQualityProfile
+            PromptPreflightScore = $preflightScore
+            PromptPreflightWarningCount = $preflightWarningCount
+            PromptPreflightCriticalCount = $preflightCriticalCount
             Verbose              = $false
             MaxIterations        = $MaxIterations
             PromptHistoryItems   = $resolvedPromptHistoryItems
@@ -1062,7 +1307,13 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [string]$request.LlmProvider,
     [string]$request.LlmEndpoint,
     [string]$request.LlmDeployment,
-    [string]$request.LlmApiVersion)
+    [string]$request.LlmApiVersion,
+    [string]$request.ExecutionMode,
+    [string]$request.OutputContract,
+    [string]$request.QualityProfile,
+    [int]$request.PromptPreflightScore,
+    [int]$request.PromptPreflightWarningCount,
+    [int]$request.PromptPreflightCriticalCount)
 [Console]::Write($result)
 '@
 
@@ -1077,6 +1328,9 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
         $startInfo.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
         $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
+        $startInfo.Environment['TT_AGENT_LLM_TEMPERATURE'] = [string]$qualitySettings.Temperature
+        $startInfo.Environment['TT_AGENT_LLM_TOP_P'] = [string]$qualitySettings.TopP
+        $startInfo.Environment['TT_AGENT_LLM_REPEAT_PENALTY'] = [string]$qualitySettings.RepeatPenalty
         if (-not [string]::IsNullOrWhiteSpace($resolvedApiKey)) {
             $startInfo.Environment['TT_AGENT_LLM_API_KEY'] = $resolvedApiKey
         }
@@ -1340,8 +1594,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDljHIv7LTtJ2gO
-# GTJDR+QwNtnJ2U4R04d2iCg8JiAv9qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAyqzNNeJdqfR0s
+# IFILDBpTs2RUbJP1s5WuwXMAPPY+qaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1474,34 +1728,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDjGrkjev/S
-# YtwdKiHAyHWCXYDyx9fnpxPhC3ed/8SwkzANBgkqhkiG9w0BAQEFAASCAgAIZ/Xd
-# kKlWZi+4jqfOHdHChawKVB/ZFQtmh7PvXgZEqpLPa4/kuyhnHSFVOhrs60DgZ2vP
-# r9NnR87AWX6FIrnCsE7hwNNxIJzDt0csEbR3fsIZVEgD64jNXFFgIHtpmpRmpFU3
-# 9gBwsE0jIS4FvA/i1f/7VM+0AYx0P/Umvf5J7JiCm7wLrzPbPeEnjsiZuYsPPYvR
-# 4X+Un/uiIM84SQ0fZIQzLkAqhzVJEy+FVK7H9CJPpjUwCCk6BqjuzTqN5b/ppe6n
-# CVsleFc8scaXnb3wQexzgLVjuyD9L0zOCqOstc2y0vujlwuF+irdSGKxLzzrErGS
-# WLKOBvwPVBA9JuQXydTOi36sBnLuEePONuCxF30KG0oDZn9FIa9EqSR6XnZvX8Gu
-# 7rdOI+FyDd9xkt249F6Oy9H9AHvIPaG9DkGzQq/czh8TTClWx3/OmqBXBKHAYoJw
-# yQnIeT9F2igmMeYovxvsoLsOmPpDldT5/I15L3FXrs2k/6HSr1PguFmz9fR04m00
-# nqSm1zMfiUwPJ8KCgdW2GyDMlpN+he0YwNkiQE17yCCf0ANwRCpFrgAcpTe7oU3Y
-# LIfuA+0nYf+vi7Od3/IgV9Tx4dTsTaCTooCmta1SfSXvQk9xTareGLIRB987BkS/
-# q4NG/0//or5L5SwFNVtMvBnS4S+AhtTPYQ9NraGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCAgnn1xk08
+# fGxq/+kYYcFDegVDDPgfSW/cGib0zQE+hzANBgkqhkiG9w0BAQEFAASCAgAmVnHW
+# Sc4kBAeJkihEJVCVHnqlBdKlPA9pEQ+aVENRCO6IcgmNX0hCbKvphtGgviTj+Z9c
+# PnYvTXZjOM+nUdR07JdfF8ZqSZjzIrBvIjfvC1mxslS0yhE9XOeulTOpGnlXHfMm
+# 4htwDFgYLhf/UUSJ51guezsM7Tt/+o4uqTGe5kkfGFsnhHE6Fkk3TTR0bnxNY1OP
+# QLiqeYsoyNGZ4vqnSfXADOZrJP0a/JDyCvscYlhZULXNWu3UECDeSTnsQBPtFk7N
+# e1e/Af/1rnmNgcROBJMt1SBA1IH9FRB1e3wW8+UD/4tSAQk8Z/yvGtQlrSDbQ246
+# Wiy0VI/KajDP4Ne8d3sTjxQFjGj9XqlVzHuIjuOZDCVmNseE3G6lpw0TY7so7mp8
+# yBJurFiKLB7m+86do7BvXcRn3OJxIMuDilADjgQpUnCs26WHfTFe9i9Vtk4V5cwk
+# +ACVxw0MBL/4lCreB5TLTXgSC2nefRH2uUJnBhas8WVyew7gqAVHrI6Hh1rkgdFh
+# wWxgKaNwNHHzNP2Zu89qEZktfrK+PlIBX4x82pCVm6eiRJfGak1EtolngsgW2UnS
+# iRw+80z/DDpzrhEtDF8qwZWfvv5gK0AGSWd7cqm7c6UkKd1IbBG6sEflgT14fcnx
+# LzEFLCVMphbW0Deu8sa68lzhkudRIhsCmrg4raGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MjgwNTAwMzRaMC8GCSqGSIb3DQEJBDEiBCB1YG4n2Ja55RhU+DA4
-# 19dhfGJbMn0RYxG0sUtPMXCDcDANBgkqhkiG9w0BAQEFAASCAgCepk0uadtO6BSa
-# GwX8Nc2TuP+thzKDsHUPMHXmEQAIiMdGW90Q+3RTOvFBE0e6PouEavy16Gqs74IA
-# Qg53FOHWa9mpdh8hT6k5dJ6+Pe6YgfbJQAKRItFQGxZD8F+HeoudMTFGwKgUrTky
-# XTwuxZ0wDEhUk1kJoZb8MifXGOBtUIcm5Dr6gdI6/v+qKfT/i/OXfrnaXDbIRD89
-# CeaIzniYSHjk0wDmaKuM/oN8x2hbuk6RtE5LUOKDYGcU6YoqEfHPnSlewMnHXl6I
-# JSnlspS28me7kJWpMzwFiE5PbUXJUbE6NS+VODLnYrueBwcBHOxsFJl0VOMI5Oe3
-# /L6/8gCktCBRRbTuhuMeaEi3QAT+ikWQKZTiyD9ZT4izFIRiJnCQeISd7PkBDsXQ
-# wMJpdBiGLMqDDNCel4N/JTZZLmpaEujKTtLWt0hCNl0DhZcSQs5ms+SJR+yVK69B
-# 3Vk0kz6CZj4TFvsuow/71+OUuv+8I4mliRLxjMJTkLKiroit5QejfsPQxRxAnDjk
-# vhvzdtjsl2JyJbfHhrs3/8wm+El5ozuXtyUC0iZ3Kcee/BDDmK6lmDqAUTU1BVTX
-# 9Co4jNdYNvrzlv/wiqWLBxpww6ung0WkiGPiMZfE0LrupylCVGXNL9Z7CDA57+ur
-# QavLgcf5KmD7Vim4A78dbumEGUDmdQ==
+# BTEPFw0yNjA3MzEwNDUyNDBaMC8GCSqGSIb3DQEJBDEiBCAt8oh0EmoaK6ENzzLc
+# OQr6njLJwF/y3MeYK1X9dhhfAjANBgkqhkiG9w0BAQEFAASCAgAgecl6xeAKI6Y6
+# wU4hzJX2daGXcbJrLaGSLNXdeADPyCGrxeIQGAuOXWFgPpedv9dVn252Q/bHWOCN
+# rlhPsx+1IZAQwJCcluq+jHbi8khXj5256VwAecsiJTnao0r8OtfaWr6x2XVDy52+
+# qgTRoKeC4uGzN0INLdT6ZfkpVgx1GQJFmp1z+OXrsuamKjGqM5ohCyVnsrJ1Vrpw
+# ZzrZjg9ga/DnSfNUm/GUVm8qWBnN2pHjQSyjO/cOsB0I3/dm8R0fVSzgOPOFpsJM
+# vuLvqQ3C+Y+jxxzRzfjOJjm0i4RfG1vulr1sz4H6Fes1mQliGtPok62cVLxhFqrK
+# g7ihzCieOt5deBAxO3mOs4i8bPXQNaKkCQbKLIryr0V6zCulS4kOA3eduM1FbSFr
+# OKgRGwQbcDKBP9mUFPc0Ps5EDqP3l7OZ89u7BQkw5xxHiCQqTsOjBXUQzXn9ihlU
+# Ob4YxDAoN7e6IAHPUR+UNr9NKYQu2erUlZF8uY1JD5BBojVam/jeejicRPiKWist
+# c7yzHvV6wyU4Cz/ZBMjNC0NMe2TjBsBDl6OFHHl7vvPkecYMZdvxlb2pvguH8wRO
+# ClFHxi7moHjfT8zNxPeNMHhSvK57bdlB0zxukyKWVDVFAaCR8CFcEby5jrcEvZCN
+# Cy7s9Mb/NyxG1kwBgRZ+SIUHEndp5A==
 # SIG # End signature block
