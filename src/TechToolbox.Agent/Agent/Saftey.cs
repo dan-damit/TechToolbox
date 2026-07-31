@@ -12,7 +12,7 @@ namespace TechToolbox.Agent.Agent;
 /// </summary>
 public static class Safety
 {
-    // PowerShell destructive verbs (aligned with your Python version)
+    // PowerShell destructive verbs
     private static readonly HashSet<string> DestructiveVerbs = new(StringComparer.OrdinalIgnoreCase)
     {
         "clear",
