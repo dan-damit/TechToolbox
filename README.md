@@ -85,7 +85,7 @@
 - [Security Notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
 - [Metadata](#metadata)
-  - [v0.5.69 - "Provider Routing \& Quality Controls"](#v0569---provider-routing--quality-controls)
+  - [v0.5.70 - "Provider Routing \& Quality Controls"](#v0570---provider-routing--quality-controls)
     - [Highlights](#highlights)
   - [v0.5.0 - "AI \& Metadata Milestone"](#v050---ai--metadata-milestone)
     - [Highlights](#highlights-1)
@@ -569,13 +569,13 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.5.69
+- **Module version:** 0.5.70
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
 
 ---
 
-### v0.5.69 - "Provider Routing & Quality Controls"
+### v0.5.70 - "Provider Routing & Quality Controls"
 
 #### Highlights
 
