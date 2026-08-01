@@ -1,0 +1,22 @@
+Primary input files:
+<PRIMARY_INPUT_FILES>
+
+Additional context:
+<REPO_CONTEXT>
+
+Task:
+Verify the documentation claim or example below against current live sources using FETCH-URL.
+
+Claim to verify:
+<CLAIM_TO_VERIFY>
+
+Source hints:
+<SOURCE_URLS_OR_HOSTS>
+
+Requirements:
+- Verify against the official or current source first.
+- If the source differs, provide corrected wording that can be pasted back into docs.
+- If the source cannot be reached with FETCH-URL, explain what blocks validation.
+- Prefer concise, technically accurate replacement text over a long explanation.
+- Distinguish confirmed facts from gaps that still need manual review.
+- Do not make file changes unless explicitly requested.

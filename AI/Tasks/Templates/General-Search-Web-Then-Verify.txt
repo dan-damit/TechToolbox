@@ -1,0 +1,23 @@
+Additional context:
+<REPO_CONTEXT>
+
+Task:
+Use SEARCH-WEB to find candidate sources, then verify the strongest claims with FETCH-URL against approved HTTPS URLs only.
+
+Question:
+<QUESTION_TOPIC>
+
+Search guidance:
+<TASK_DETAILS>
+
+Source hints:
+<SOURCE_URLS_OR_HOSTS>
+
+Requirements:
+- Use SEARCH-WEB only for discovery and ranking of likely sources.
+- Use FETCH-URL only on approved HTTPS URLs to verify details.
+- Separate search results, verified facts, and remaining uncertainty.
+- Do not treat snippets or titles as proof on their own.
+- If no approved source can verify the claim, say so directly.
+- Keep excerpts short and relevant.
+- Do not make file changes unless explicitly requested.

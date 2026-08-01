@@ -1,0 +1,25 @@
+Primary input files:
+<PRIMARY_INPUT_FILES>
+
+Additional context:
+<REPO_CONTEXT>
+
+Task:
+Use SEARCH-WEB to locate likely sources for the documentation claim below, then verify the best matches with FETCH-URL if allowed.
+
+Claim to verify:
+<CLAIM_TO_VERIFY>
+
+Search guidance:
+<TASK_DETAILS>
+
+Source hints:
+<SOURCE_URLS_OR_HOSTS>
+
+Requirements:
+- Search for official or authoritative sources first.
+- Use FETCH-URL only on approved HTTPS URLs and only for verification.
+- If the live source differs, provide corrected wording that can be pasted back into docs.
+- Distinguish confirmed facts from search-result inference.
+- If verification is blocked by host allowlists or missing sources, explain the blocker.
+- Do not make file changes unless explicitly requested.

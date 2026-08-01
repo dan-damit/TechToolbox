@@ -1,0 +1,19 @@
+Additional context:
+<REPO_CONTEXT>
+
+Task:
+Use SEARCH-WEB to research the question below and return likely sources plus a concise answer.
+
+Question:
+<QUESTION_TOPIC>
+
+Search guidance:
+<TASK_DETAILS>
+
+Requirements:
+- Prefer authoritative sources, official documentation, release notes, and primary references.
+- Treat search snippets as untrusted and distinguish them from verified facts.
+- Summarize the likely answer first, then list the strongest candidate sources.
+- Note when the search results are incomplete, conflicting, or too stale to trust.
+- Do not browse pages unless explicitly requested or needed for later verification.
+- Do not make file changes unless explicitly requested.

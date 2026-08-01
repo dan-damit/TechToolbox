@@ -1,106 +1,129 @@
-Describe "TechToolbox Module" {
-    BeforeAll {
-        Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
+function Set-TechAgentSearchWebApiKey {
+    <#
+    .SYNOPSIS
+        Securely sets, rotates, or clears the TechAgent SEARCH-WEB API key.
+
+    .DESCRIPTION
+        Manages settings.agent.searchWebApiKeyEncrypted in config.secrets.json
+        using DPAPI. This command never writes plain-text keys to disk. When
+        setting a key, provide a SecureString or enter it interactively.
+
+    .PARAMETER ApiKey
+        Secure SEARCH-WEB API key value to store. If omitted in Set mode and
+        running interactively, you will be prompted with Read-Host -AsSecureString.
+
+    .PARAMETER Clear
+        Removes the stored DPAPI-encrypted SEARCH-WEB API key from secrets.
+
+    .PARAMETER PassThru
+        Returns an object summarizing the operation.
+
+    .EXAMPLE
+        Set-TechAgentSearchWebApiKey
+
+    .EXAMPLE
+        $secureKey = Read-Host "Enter SEARCH-WEB API key" -AsSecureString
+        Set-TechAgentSearchWebApiKey -ApiKey $secureKey
+
+    .EXAMPLE
+        Set-TechAgentSearchWebApiKey -Clear
+
+    .LINK
+        https://dan-damit.github.io/TechToolbox-Docs/Set-TechAgentSearchWebApiKey
+    #>
+
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+    param(
+        [Parameter(ParameterSetName = 'Set')]
+        [securestring]$ApiKey,
+
+        [Parameter(ParameterSetName = 'Clear', Mandatory)]
+        [switch]$Clear,
+
+        [Parameter()]
+        [switch]$PassThru
+    )
+
+    Initialize-TechToolboxRuntime
+
+    $result = [ordered]@{
+        Success     = $false
+        Action      = if ($Clear.IsPresent) { 'Clear' } else { 'Set' }
+        SecretsPath = $null
+        KeyStored   = $false
+        Detail      = $null
     }
 
-    Context "Module Load" {
-        It "Should load without errors" {
-            { Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force } | Should -Not -Throw
-        }
-
-        It "Should be available in Get-Module" {
-            $module = Get-Module -Name TechToolbox
-            $module | Should -Not -BeNullOrEmpty
-        }
+    $isInteractive = $false
+    if (Get-Command -Name Test-TTInteractive -ErrorAction SilentlyContinue) {
+        $isInteractive = (Test-TTInteractive)
     }
 
-    Context "Exported Functions" {
-        BeforeAll {
-            $expectedFunctions = @(
-                'Clear-BrowserProfileData',
-                'Copy-Directory',
-                'Disable-User',
-                'Enable-NetFx3',
-                'Export-ToolboxFunctions',
-                'Find-LargeFiles',
-                'Get-AllUsers',
-                'Get-AuditSharedMailboxDeletions',
-                'Get-AutodiscoverXmlInteractive',
-                'Get-BatteryHealth',
-                'Get-CUCredentialManagerContents',
-                'Get-DomainAdminCredential',
-                'Get-ErrorEvents',
-                'Get-FilesUsingKeywords',
-                'Get-InstalledPrinters',
-                'Get-LocalAdminMembers',
-                'Get-MessageTrace',
-                'Get-PDQDiagLogs',
-                'Get-RemoteInstalledSoftware',
-                'Get-SharedMailboxPermissions',
-                'Get-SystemSnapshot',
-                'Get-SystemTrustDiagnostic',
-                'Get-SystemUptime',
-                'Get-TechToolboxConfig',
-                'Get-ToolboxHelp',
-                'Get-WindowsProductKey',
-                'Initialize-TTWordList',
-                'Install-TechAgentRuntime',
-                'Invoke-AADSyncRemote',
-                'Invoke-DownloadsCleanup',
-                'Invoke-PurviewPurge',
-                'Invoke-RestartService',
-                'Invoke-SCW',
-                'Invoke-SubnetScan',
-                'Invoke-SystemRepair',
-                'Invoke-TechAgent',
-                'New-OnPremUserFromTemplate',
-                'Remove-EpicorEdgeAgent',
-                'Remove-Printers',
-                'Reset-ADPassword',
-                'Reset-WindowsUpdateComponents',
-                'Search-User',
-                'Set-EmailAlias',
-                'Set-OneTimeReboot',
-                'Set-PageFileSize',
-                'Set-ProxyAddress',
-                'Set-TechAgentSearchWebApiKey',
-                'Start-DnsQueryLogger',
-                'Start-NewPSRemoteSession',
-                'Start-PDQDiagLocalElevated',
-                'Stop-PSRemoteSession',
-                'Test-MailHeaderAuth',
-                'Test-PathAs',
-                'Test-TTPathRoots',
-                'Use-TechAgentTaskTemplate',
-                'Watch-ISPConnection'
-            )
+    $secrets = Read-Secrets
+    if (-not ($secrets -is [hashtable])) {
+        $secrets = @{}
+    }
+
+    if (-not $secrets.ContainsKey('settings') -or -not ($secrets.settings -is [hashtable])) {
+        $secrets.settings = @{}
+    }
+
+    if (-not $secrets.settings.ContainsKey('agent') -or -not ($secrets.settings.agent -is [hashtable])) {
+        $secrets.settings.agent = @{}
+    }
+
+    if ($Clear.IsPresent) {
+        if ($PSCmdlet.ShouldProcess('settings.agent.searchWebApiKeyEncrypted', 'Remove DPAPI-encrypted SEARCH-WEB API key')) {
+            if ($secrets.settings.agent.ContainsKey('searchWebApiKeyEncrypted')) {
+                [void]$secrets.settings.agent.Remove('searchWebApiKeyEncrypted')
+            }
+
+            $result.SecretsPath = Write-Secrets -Secrets $secrets
+            $result.Success = $true
+            $result.KeyStored = $false
+            $result.Detail = 'Cleared stored SEARCH-WEB API key.'
+            Write-Log -Level Warn -Message 'Cleared settings.agent.searchWebApiKeyEncrypted from secrets.'
         }
 
-        It "Should export all expected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            foreach ($func in $expectedFunctions) {
-                $exportedFunctions | Should -Contain $func
-            }
+        if ($PassThru.IsPresent) {
+            return [pscustomobject]$result
         }
 
-        It "Should not export unexpected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            $unexpectedFunctions = @()
-            foreach ($func in $exportedFunctions) {
-                if ($func -notin $expectedFunctions) {
-                    $unexpectedFunctions += $func
-                }
-            }
-            $unexpectedFunctions | Should -BeNullOrEmpty
+        return
+    }
+
+    if ($null -eq $ApiKey) {
+        if (-not $isInteractive) {
+            throw 'ApiKey was not provided and session is non-interactive. Pass -ApiKey as SecureString.'
         }
+
+        $ApiKey = Read-Host 'Enter SEARCH-WEB API key' -AsSecureString
+    }
+
+    $encryptedApiKey = ConvertFrom-SecureString -SecureString $ApiKey
+    if ([string]::IsNullOrWhiteSpace($encryptedApiKey)) {
+        throw 'Failed to encrypt API key. No value was produced.'
+    }
+
+    if ($PSCmdlet.ShouldProcess('settings.agent.searchWebApiKeyEncrypted', 'Store DPAPI-encrypted SEARCH-WEB API key')) {
+        $secrets.settings.agent.searchWebApiKeyEncrypted = $encryptedApiKey
+        $result.SecretsPath = Write-Secrets -Secrets $secrets
+        $result.Success = $true
+        $result.KeyStored = $true
+        $result.Detail = 'Stored SEARCH-WEB API key as DPAPI-encrypted secret.'
+        Write-Log -Level Ok -Message $result.Detail
+    }
+
+    if ($PassThru.IsPresent) {
+        return [pscustomobject]$result
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCiRkQMgW0pQ3ee
-# +pePhlTW2fB88jKid9lJVlznQN+0MqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDSNjwK6NV9FEER
+# LRP89Q0JM/5sf0gqJ+XlPM18/PyM/aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -233,34 +256,34 @@ Describe "TechToolbox Module" {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAl0NzGyDp3
-# sviL7LBAv708RWtJpVMcuca5LFPlUwJE/jANBgkqhkiG9w0BAQEFAASCAgA1yMb6
-# EG0vm58/k4pRS601XWyM8itkfzjY9nv+7QrtgqTPDD+QWpUmuz+4skJl9ExGPCT+
-# GG94VxEFdlRUoqHmBhsxFOxEQuHOAULRu4PAo0dW8VI6YXYRQ9nDnqrDFLVlXEHP
-# P9bW9ggm1dtI+5wgvQMZ8pjXD0H1w994chLiFA+GJWRrVEr3UP1KvgtvzN1ol8yx
-# FZBypxNrOl4SKhwsIKCEiNgg6nTl3y6MS2iSimxADYcs78RBQMfQv60sPY9661bK
-# Dx6uFP+chgYsGQS+xsBnsasz51PGD4sJiZLDiGuw0CAsZ8PsXS14u0XN2YuskUTp
-# lw/uQ47Yh4pEFbWt9ym6dXmv+BXTJNvnArj3sz4LP+P6Yx7ENEkrwN00C4ZMESEJ
-# M1y3nNrz4mMTIyqfG/jvEqxktoZZ7aUCptBIn6Nl3XQ3w4UO3BQ4wNb515hIb6pk
-# mAPYkdmy2HJ8X72kzjwfoEjqrrAmDbPKW6+xZ1r+wikSGvBC3G+PghWGwKrY7mhz
-# UuDfrew/CDKjK8knlsMFbyMOxQI7ZByuArLu1F+i1cgzioK4I8O7nj9iKG6cqbxf
-# UoCzDfAjuWBQwwoAGxhDhsh/+G26L0BCvJoZW8aWJfimFdz9MmC56PjIk2O/Wkyh
-# fNRkOBvrn22sxGCWWSEYfdELst22aVn0DyQw4aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAm5SSKpm5F
+# figp7GIWpdQ8xmphP4IC6e2Xkrv2dHH6lDANBgkqhkiG9w0BAQEFAASCAgCYZ/R+
+# LL0ps+0qWUhuAj+t2lrM2+SZ/eALvruLWUo7STeFNWwIHbiVBq41fqDYnuW6gvlK
+# sBNFA9GmLfnukJ5dbYtzgwMcL/e7/bIE/JDAZhvgmQ85PIZroQeCeIGk8xHBGmXS
+# lQBrc37bjipX2ay9/L7trUG+huGzZ4vp7VSgmYxHwlOUKe3t0CVVEwPo/lI7tmjq
+# bph5xDFSQ/Gzq/5V1HizcfHORnhZ/iIWKCE+lo/m9BFWVFZ1UE911iuZ58nO4+NB
+# 9DY4HYI4iJR+XyoRZv4AsjFLxb6wqZGSkEglL4OYJx5ikRauWV7ygYDkjlSHf9l/
+# hJuqXjqVJaz4SWnJCgGRC6W5JDW0eGwz7BfOe25mxyfWcgTiHZcho9wFXq3P3L8i
+# KNt18ROm4oqoVENUT38YPyFe4ODwEpxMhPf7CzfkYlRYbW8k+ujN0A00ot2zM4KQ
+# s1rUHPbizGNe9tQgDS1w0Fpf6/J8NZt5TU9I8w/At8xsrd3jE9cBMFBD4WpXLRkb
+# h7EHskcswT2mOJmJ+6EfDqicKmIGsucqSMeWi6g14tSJjnVxcupRI5v/ODf32jNA
+# 0uH4WKTNrng7/voxKjp8q0+v8MZQ/z+FpCfF+gA1dJTV30zdETPEUsY5480+S1Hx
+# WTLm5b9IjG3vhx9nkQ3kAGfVoKhPUR/PIowKaqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MDEwNDUwNTNaMC8GCSqGSIb3DQEJBDEiBCAIHmiAQg1epV2PIU/z
-# 6+cho8wpYETuxlhwZSXd012N8TANBgkqhkiG9w0BAQEFAASCAgBc9WFiI9KZvfT/
-# 9NL2JuGsymp3+ZrUzrIzgQMWHgWn01FGkLmZNwbzg3bVvrTbA68y+PgrYdtQfz3f
-# QbiIHqSUY4iBV1P/0SNtQ6s0HW3E721a9UUELJe7rLELqvrMRQra+XQNVcS1Neg5
-# TJ8ePVu0JOtLCwrsVzYSIlJRBy9Yav2Ur62ZvwwwfJguF1WHdiepbRIVm+6YIuZ/
-# 0im5fHIi+9n+tmTF96PyBqWbiGtu8lVG8Cvl5w01IEGlA9U3utkSmL4POJ7od6dz
-# AykJfCss/4JTlWs0OMy3q1Phe9J2Xvl1M21Xhgb4JIi144ZSzdudnhhZ/1/S8w1g
-# i7y4oWWFYZ44Al4JrhJSYBxiLXaup1PGh4HzPDTCkcDiUxuFuBp3sm1b5nLuHaEW
-# kONolrsObMMhMno4dxrWHjVNTQbyxHQXSUPQmPnoczIV0LL7waDaiRi8eTlbVJr2
-# GcLLDBVsNqa7Drn95oi12pS2qtDiX59lfqe4bfWoKMyhjeqVc24qXanUXNgLrm2v
-# 7pTeWfOoH5nOf913mpgmcdBygCICx1lZ8XJG1MjLAbmKXVtmJ8kX4ruTPT3e2Lzr
-# KXtZ5xs2E1nUY6RudDZzFhWALeWmcgbF4zVf4CYbQkPtpEERmWBRzNynJCPydq3u
-# 9DGScIeKo1X3oh7m3TDN52emRvkb3g==
+# BTEPFw0yNjA4MDEwNDUwNTJaMC8GCSqGSIb3DQEJBDEiBCBJpRZa5hdesnIgYoLP
+# W3NdFmKQUfj9r2h7Wem7Tuyd1TANBgkqhkiG9w0BAQEFAASCAgAe030911O9z/rK
+# VWCqtaNpnNa9A7TOrZgHf7tEWz+VdMq0CLfIkRkeJRUHGQ2AOlbbWAGFtesIHeFY
+# S/Kdf8udjFiIu5IQOPHp9zIWHHhDFz2rGF81ugTueGTlWSi8QIEJWloLGJAduKae
+# SPYrrlVc8/LXdkgbNv1oPv1p3QwmqqOCqACZxbTBCJs3ocjS2CLseUUw/tw5oln+
+# lphFDKBP00QWO0ohAht82Wzauocyi4tQkiK251TRwvALew4NShkyMUhvL6h/6wvt
+# /bpONgv2V99rWm0U0DD4LcYFRnLM0XQSdStmeaczPptNxCPvfDZwtMLFtDJtZZa5
+# eDhyqVhYCLcCRAVnpk0yG8L4VJTWb4SrgyDVZKDUHD6qPRjwHpcmeXNaahf7PtkI
+# hT3ZWN/YS31FjsLd0xB4dvhPcXjREix8wnI7Lqcut3FTaXbzd0zEzkD0v7MVGzL8
+# 4AJ/PQrjVY1HYHfA/tCe2Q/wp8rEjA2CMcnGREFW7pxRjJ1ybXRCBcnARWqzGwTH
+# F7MWH7undyyNgEIPPY7Nz1G4LtCtfIGp/2KMlNk8BSZOBz/lsoBiXQl+tRLcvet/
+# 4WN5T3/+Re/mZcHoLpsjr8Mun/q89w3Xd2Gfa0u3bJ5TggvnlB8QZRg9YhRdi+1+
+# 27KOQnJ/6wXMVhMRboauI+aQO96w9w==
 # SIG # End signature block

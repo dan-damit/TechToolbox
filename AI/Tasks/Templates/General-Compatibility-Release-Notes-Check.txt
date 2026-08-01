@@ -1,0 +1,19 @@
+Additional context:
+<REPO_CONTEXT>
+
+Task:
+Use FETCH-URL to check current compatibility, deprecation, and release-note information for the topic below.
+
+Topic:
+<TASK_DETAILS>
+
+Source hints:
+<SOURCE_URLS_OR_HOSTS>
+
+Requirements:
+- Focus on version support, breaking changes, deprecations, prerequisites, and known issues.
+- Prefer official docs, compatibility matrices, and current release notes.
+- Separate confirmed incompatibilities from assumptions or risks.
+- If the exact answer is not available, give the narrowest safe recommendation.
+- Capture any source limitations that affect confidence in the result.
+- Do not make file changes unless explicitly requested.

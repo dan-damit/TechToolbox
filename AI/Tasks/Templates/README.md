@@ -24,6 +24,12 @@ Current templates:
 - `General-BestPractices-Question.txt`: ask for best-practice guidance for a specific technology or scenario.
 - `General-CodeReview.txt`: review an existing file for bugs, risks, regressions, and missing tests.
 - `General-Scenario-Analysis.txt`: analyze a design, incident, or operational scenario and recommend an approach.
+- `General-Web-Research-Targeted.txt`: research a question using FETCH-URL against approved sources only.
+- `General-Search-Web-Targeted.txt`: use SEARCH-WEB to find likely sources, then summarize the search results.
+- `General-Search-Web-Then-Verify.txt`: use SEARCH-WEB to discover candidate sources, then verify approved URLs with FETCH-URL.
+- `General-Compatibility-Release-Notes-Check.txt`: check compatibility, deprecations, and release-note details with FETCH-URL.
+- `Docs-Source-Verification.txt`: verify a documentation claim or example against live external sources.
+- `Docs-Search-Web-Source-Verification.txt`: verify a documentation claim by searching for likely sources first, then confirming them.
 
 Helper script:
 - `..\Use-TaskTemplate.ps1`: lists available templates, shows or opens them, and copies a chosen template into `AI/Tasks/CurrentTask.txt` or another destination.

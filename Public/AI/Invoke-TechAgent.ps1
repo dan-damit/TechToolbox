@@ -1006,6 +1006,46 @@ Hard requirement:
             }
         }
 
+        $resolveStoredAgentSecret = {
+            param(
+                $configObject,
+                [string]$secretKeyName,
+                [string]$envVarName
+            )
+
+            if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
+                $envValue = [Environment]::GetEnvironmentVariable($envVarName)
+                if (-not [string]::IsNullOrWhiteSpace($envValue)) {
+                    return @{ Key = $envValue; Source = "Environment:$envVarName"; Error = $null }
+                }
+            }
+
+            $encryptedValue = [string](& $getConfigValue $configObject $secretKeyName)
+            if ([string]::IsNullOrWhiteSpace($encryptedValue)) {
+                return @{ Key = $null; Source = 'Missing'; Error = $null }
+            }
+
+            try {
+                $secureValue = $encryptedValue | ConvertTo-SecureString
+                $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureValue)
+                try {
+                    $plainValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+                }
+                finally {
+                    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+                }
+
+                if ([string]::IsNullOrWhiteSpace($plainValue)) {
+                    return @{ Key = $null; Source = 'DPAPI'; Error = 'DPAPI blob decrypted to empty value.' }
+                }
+
+                return @{ Key = $plainValue; Source = 'DPAPI'; Error = $null }
+            }
+            catch {
+                return @{ Key = $null; Source = 'DPAPI'; Error = $_.Exception.Message }
+            }
+        }
+
         $isInteractiveSession = {
             if (Get-Command -Name Test-TTInteractive -ErrorAction SilentlyContinue) {
                 return (Test-TTInteractive)
@@ -1249,6 +1289,60 @@ Hard requirement:
             }
         }
 
+        $searchWebProvider = 'brave'
+        $searchWebEndpoint = $null
+        $searchWebApiKeyEnvVar = 'TT_AGENT_SEARCH_WEB_API_KEY'
+        $searchWebCountry = 'us'
+        $searchWebLanguage = 'en'
+        $searchWebSafeSearch = 'moderate'
+        $searchWebDefaultCount = 5
+        $searchWebConfigValue = & $getConfigValue $cfg 'searchWeb'
+        if ($null -ne $searchWebConfigValue) {
+            $searchProviderValue = & $getConfigValue $searchWebConfigValue 'provider'
+            if (-not [string]::IsNullOrWhiteSpace([string]$searchProviderValue)) {
+                $searchWebProvider = [string]$searchProviderValue
+            }
+
+            $searchEndpointValue = & $getConfigValue $searchWebConfigValue 'endpoint'
+            if (-not [string]::IsNullOrWhiteSpace([string]$searchEndpointValue)) {
+                $searchWebEndpoint = [string]$searchEndpointValue
+            }
+
+            $searchApiKeyEnvVarValue = & $getConfigValue $searchWebConfigValue 'apiKeyEnvVar'
+            if (-not [string]::IsNullOrWhiteSpace([string]$searchApiKeyEnvVarValue)) {
+                $searchWebApiKeyEnvVar = [string]$searchApiKeyEnvVarValue
+            }
+
+            $searchCountryValue = & $getConfigValue $searchWebConfigValue 'country'
+            if (-not [string]::IsNullOrWhiteSpace([string]$searchCountryValue)) {
+                $searchWebCountry = [string]$searchCountryValue
+            }
+
+            $searchLanguageValue = & $getConfigValue $searchWebConfigValue 'language'
+            if (-not [string]::IsNullOrWhiteSpace([string]$searchLanguageValue)) {
+                $searchWebLanguage = [string]$searchLanguageValue
+            }
+
+            $searchSafeSearchValue = & $getConfigValue $searchWebConfigValue 'safeSearch'
+            if (-not [string]::IsNullOrWhiteSpace([string]$searchSafeSearchValue)) {
+                $searchWebSafeSearch = [string]$searchSafeSearchValue
+            }
+
+            $searchDefaultCountValue = & $getConfigValue $searchWebConfigValue 'defaultCount'
+            if ($null -ne $searchDefaultCountValue) {
+                [int]$parsedSearchCount = 0
+                if ([int]::TryParse([string]$searchDefaultCountValue, [ref]$parsedSearchCount)) {
+                    $searchWebDefaultCount = $parsedSearchCount
+                }
+            }
+        }
+
+        $resolvedSearchWebApiKey = $null
+        if (-not [string]::IsNullOrWhiteSpace($searchWebApiKeyEnvVar)) {
+            $searchWebApiKeyResolution = & $resolveStoredAgentSecret -configObject $cfg -secretKeyName 'searchWebApiKeyEncrypted' -envVarName $searchWebApiKeyEnvVar
+            $resolvedSearchWebApiKey = [string]$searchWebApiKeyResolution.Key
+        }
+
         $request = [ordered]@{
             Prompt               = $effectivePrompt
             Model                = $resolvedModel
@@ -1269,6 +1363,13 @@ Hard requirement:
             DiagnosticTracePath  = $diagnosticTracePath
             ExpectedOutputPath   = $expectedOutputPath
             AllowedFetchHosts    = @($allowedFetchHosts)
+            SearchWebProvider    = $searchWebProvider
+            SearchWebEndpoint    = $searchWebEndpoint
+            SearchWebApiKeyEnvVar = $searchWebApiKeyEnvVar
+            SearchWebCountry     = $searchWebCountry
+            SearchWebLanguage    = $searchWebLanguage
+            SearchWebSafeSearch  = $searchWebSafeSearch
+            SearchWebDefaultCount = $searchWebDefaultCount
             AllowMetaTools       = $AllowMetaTools.IsPresent
             LlmProvider          = $Provider
             LlmEndpoint          = $Endpoint
@@ -1303,6 +1404,13 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [string]$request.ExpectedOutputPath,
     [int]$request.PromptHistoryItems,
     [string[]]$request.AllowedFetchHosts,
+    [string]$request.SearchWebProvider,
+    [string]$request.SearchWebEndpoint,
+    [string]$request.SearchWebApiKeyEnvVar,
+    [string]$request.SearchWebCountry,
+    [string]$request.SearchWebLanguage,
+    [string]$request.SearchWebSafeSearch,
+    [int]$request.SearchWebDefaultCount,
     [bool]$request.AllowMetaTools,
     [string]$request.LlmProvider,
     [string]$request.LlmEndpoint,
@@ -1333,6 +1441,9 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
         $startInfo.Environment['TT_AGENT_LLM_REPEAT_PENALTY'] = [string]$qualitySettings.RepeatPenalty
         if (-not [string]::IsNullOrWhiteSpace($resolvedApiKey)) {
             $startInfo.Environment['TT_AGENT_LLM_API_KEY'] = $resolvedApiKey
+        }
+        if (-not [string]::IsNullOrWhiteSpace($resolvedSearchWebApiKey)) {
+            $startInfo.Environment[$searchWebApiKeyEnvVar] = $resolvedSearchWebApiKey
         }
         [void]$startInfo.ArgumentList.Add('-NoProfile')
         [void]$startInfo.ArgumentList.Add('-NonInteractive')
@@ -1592,8 +1703,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBA+lhaJf4yPrgx
-# mkXslYp0MHGI7eN4ZxiARxGPILWzz6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBoTjs161eMHGSF
+# 4NTh3aUzt/lMpqmQZfwJmeC5tO+DL6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1726,34 +1837,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBYBhJ50AxJ
-# sRZyPcpxhobpOoir+gfCC7o0gP/oxzJejTANBgkqhkiG9w0BAQEFAASCAgCslmcQ
-# OliSstDjr4nAVdL13fFPt7JNYbL2qVCHECH0d3hEgINNfySQavWUgh7W/HwR1fOF
-# kES1tLakmYpb1ea69yaW+zJrAwjpleyRO2pbzuOrMKkRH7wpBKHcjx/n/6Ilb1s3
-# lHRcTTFR9ORFg3MbP6YxGuyQgtyer2cfAatCsdoBbPG2l0q3gvknpMY7f2+FVrfq
-# 11ih5TvYnK5aO4dE7F46/eeY4K8/dGPkZPG90dIObwkhdjHylzT4+ukj3B8UM9AF
-# ObTf5Qo1FIwrUkLv3W00gxT+jsARvksOvuqbIhW8ZTMg7ICeFfeVWhI5sMGHe+zR
-# W8j1eoqe2GbRQKaH/uo8DsxI/acwWaH83TknVVm3plUzCyJ1zesK2uuDDwMuURGj
-# G+SmYivZHpQcyEMbsVEoAZYVRD5p9Oa1DwDllgGUvfzb8t4wYgLGfYd21W9KSZ0v
-# agu5djMXDc2qpRBfMZPcU5qw8SP20XYp/JCUAVLhyueGt7WUXpBP7YHa2NBtDKJK
-# V3DlpIw9pBTGz1U6Lv0wCgvFEpBR7YQLGEKQVcXBGAs0iwaJ0fEmil5Jb+szHfpT
-# YrnlyapaqEBJgvAmzwtIDOuQuU/N/4DcpO3xMF1mbQllOXb/TvLnor7uGKH0J443
-# k6U+nT3NIaeEDclWLalbS5NVrM+dW6lUQE/UeaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDE4VTMfD5G
+# 6bdjeEUSDq8EtdY1CLavpe/UzdhJ+jiImTANBgkqhkiG9w0BAQEFAASCAgCV1iJ+
+# U4wxCBJr1k9MMSMf/mLYBhlRz/D1ObZ6EFcuWmImncwHWSsuvyQbAAgUzjN6jP8h
+# +XswPbejup6EYh2erJeAqw/s2HBVynhcKtSBrja7fn+hKaJHtjttUSxA9hhdHjz0
+# 0Sz5jYgDsYOtLBms0GajX3Y9X0qFNU/C/gsTDt2DDGgW1yjJwm8Y0FCrmJsV7aFT
+# 2l4OVNBNcp5ZoTyTsndL+k2l3iIfYHrThaG/hJ5cwZk+581b+Pobk+zC2C3Ay9cJ
+# P3pWZfDQmRnH38l00phPJiGFUoC3EZOmFYuPdUk/41R+uSQuVFGW+F+1kGOyFvyX
+# YBtcPt8tqjoXX0+dRNe/+NvSgK/2yoFa1n2BD9h+dBMO1kCsqRk4NCwJfqkgmpuK
+# /l8PRVQi/on9fHRN+lmXdR6hjkaANn1KgibLLo/WTWCjEnfrCgSVS0kbKyXnnzKH
+# poNa+nuA1HhENcAQntv9wS+EwxpKZccHME8H78TV0VGfemBgCJm72+vOw766UBSs
+# Mlh1xme3bqqd4xbGCFdekjDkRJZP9wlrItbjnLYErkn3D1LnCZRkbd6KHOzZVEFt
+# l/kcAcQQy0NglDx9uwcNaBUXB2zj6AYHMd+jQOkBE9j0WdeMGgTCZVLUAtn/yD8l
+# Or0S7Tp3WEEogeO4jD3SnXZzXaJBjBelVC/LbKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MzEwNTA2MzZaMC8GCSqGSIb3DQEJBDEiBCBjUZ+XYvMTyKNZAcIz
-# MUP3vvTtNcU7RFZJ65UNcfUkAzANBgkqhkiG9w0BAQEFAASCAgDGyffzydXJFTf3
-# fPd+jAmf0SS9rSDsKhN++xWzzTVawF96qqRTfl0UYUMdpLI8M4TDBaaRiDtJVSMk
-# ojX8namOj/MTFTZ0s9bFLCdCDOnoSyxkE7XhK+jR/2E4LEJZlhuzKqXiAvRj/pQQ
-# y08AFm4PsgXN8adXD4EcPAJrBC8wvb53ydUmeQ7DvSVTn6AJ0cjoqRudnvqO6D7E
-# T+sFKh/ykGEjnZI7roB9v7Qk5/r5ukECmzZCQZoJMl9l85MsjVkkPRCw2rne7Pcq
-# Op+VZJYWXq2skNpPngTDfTIqIQY7isB+qdniQS8MtNOphr3d1G18ywCFsr11Ih/a
-# JaWcxeNMcqobL7YLrBPkt1nuBldE9FFzd3ufQ53VfU2+Fg8VKdoIt6/NDu3WEMcz
-# OQRrx95V/8g2ZERDJX2g6hnNFwcJGpprjtknZ8X3hnbSVAr5LBV42DcpZDdlJneZ
-# KyDEoINbsoY+I7sGxLqBmE0Xpxk/JtErID/E0QUVNQ0CS6YO/KOwEkLUN0Nc4zcs
-# 8Fht08GWFord/4D9Ucuv7RY5qybQCKjhTWW4bSyun0rzQnVp0U0WBppI/ayp4G5x
-# dgdRqrUO8f/qQxFyoJRPwktu+rAJ1ivQmPOmhL7jj6YSJ4zT5y1EB6x2TbxIwAih
-# mjNx5ORAH4jmoCFYXeN9/swkhleXoA==
+# BTEPFw0yNjA4MDEwNDUwNTJaMC8GCSqGSIb3DQEJBDEiBCD6C/lVLiG3MWxaOn6/
+# DVns5K4CSgIlYN7tk13s6fDtxTANBgkqhkiG9w0BAQEFAASCAgBsfPqgRKw1nuNS
+# NtwPv6hbZrry5uCIGK6UITuchmK6wfPM5T6eutVG95P12uUgm5TEDEtH7ZGvEL1g
+# 9JjCRqtFWOYCLwqrVIc63iO3VngtEzrQsNNAUESO7ATCa2MKA6wrUgM+i2eyBj75
+# +GNRGJbkPfnxho47y27a7WUFynsdpIiVxYFoQNMT9jNVi13ivFsOUx3r6mztGyAi
+# zHDpi+cmDnBLBMwAajY81E1sig3arStlpYUwbBcy4FlKssE057/N3VMQNE9sZEgm
+# pTZ9MMgn7GLBsK4Iaf1sSusRO1/mlP/I14k0LuR3T4IuFOYaMM7gl2Eai5mgD/Od
+# pp2p2UlLOXMBcTvxaMtwTTdGFO3n4OaF58BLyEgYvIBFlSl2/H+xvFLeOJe05oBQ
+# jQ2BeTRtBBi7u5wA1Y4gtvDosH6j5+faIMD1kjv4jGvxH/Y3yI0zXNE5QAdrkI0S
+# DJ9nLHSKOYss5E20G86jOuWeMM0e+OasAM4LvxhWlwEDQsyyAl5NgI5mSl/IWYTN
+# Ud1djY9ZAnoVgzCn960y3nZgYY5MzwyvJ25wg0tMGTt557S9MxbU+JEmXSi8uEmy
+# iFDIN1rfMJ1fMnm/NAy6bU64hq1fyg+w1v1jledFwTU0Tzd4rYkLqPEiRTUaqqGn
+# KHDJ6YhYYZXH6Yk7MZ6DVk+tW5BOiw==
 # SIG # End signature block
