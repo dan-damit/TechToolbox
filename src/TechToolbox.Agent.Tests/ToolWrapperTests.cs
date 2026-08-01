@@ -144,6 +144,60 @@ public class ToolWrapperTests
     }
 
     [Fact]
+    public async Task BuildTools_PassesSearchWebDefaults_ForSearchWebTool()
+    {
+        IDictionary<string, object?>? capturedArgs = null;
+
+        var registry = new Dictionary<string, ToolSpec>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["SEARCH-WEB"] = new ToolSpec(
+                Name: "SEARCH-WEB",
+                Description: "Searches the web",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["query"] = new ParameterSpec(Mandatory: true, Type: "string", Help: null),
+                    ["count"] = new ParameterSpec(Mandatory: false, Type: "int", Help: null),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
+        };
+
+        var tools = ToolWrapper.BuildTools(
+            registry,
+            destructiveConfirmed: false,
+            signedFilePolicy: "ignore",
+            searchWebProvider: "brave",
+            searchWebEndpoint: "https://api.search.brave.com/res/v1/web/search",
+            searchWebApiKeyEnvVar: "TT_AGENT_SEARCH_WEB_API_KEY",
+            searchWebCountry: "us",
+            searchWebLanguage: "en",
+            searchWebSafeSearch: "moderate",
+            searchWebDefaultCount: 7,
+            toolExecutor: (_, args) =>
+            {
+                capturedArgs = new Dictionary<string, object?>(
+                    args,
+                    StringComparer.OrdinalIgnoreCase
+                );
+                return "ok";
+            }
+        );
+
+        var result = await tools["SEARCH-WEB"]("{\"query\":\"TechToolbox Fetch Tool\"}");
+
+        Assert.Equal("ok", result);
+        Assert.NotNull(capturedArgs);
+        Assert.Equal("brave", capturedArgs!["__search_web_provider"]?.ToString());
+        Assert.Equal("https://api.search.brave.com/res/v1/web/search", capturedArgs["__search_web_endpoint"]?.ToString());
+        Assert.Equal("TT_AGENT_SEARCH_WEB_API_KEY", capturedArgs["__search_web_api_key_env_var"]?.ToString());
+        Assert.Equal("us", capturedArgs["__search_web_country"]?.ToString());
+        Assert.Equal("en", capturedArgs["__search_web_language"]?.ToString());
+        Assert.Equal("moderate", capturedArgs["__search_web_safe_search"]?.ToString());
+        Assert.Equal("7", capturedArgs["count"]?.ToString());
+    }
+
+    [Fact]
     public async Task BuildTools_AutoConfirmsDestructiveTool_WhenAuthorized()
     {
         IDictionary<string, object?>? capturedArgs = null;

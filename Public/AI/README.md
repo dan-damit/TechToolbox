@@ -41,6 +41,7 @@ It supports:
 - explicit destructive-operation confirmation when needed  
 - signed-file overwrite policy control for Authenticode-signed PowerShell files  
 - built-in `FETCH-URL` support for external documentation and threat-intel retrieval from approved hosts only  
+- built-in `SEARCH-WEB` support for stateless source discovery using a DPAPI-backed search API key (Brave by default)  
 
 When no `-Prompt` or `-PromptFile` is supplied, `Invoke-TechAgent` now defaults to:
 

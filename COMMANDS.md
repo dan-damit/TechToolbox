@@ -121,6 +121,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Get-TechAgentQualitySummary | Summarize TechAgent run quality telemetry from memory history and trend data. | |
 | Invoke-TechAgent | Run tool-using AI agent prompt workflow (Ollama local by default, cloud providers optional). | Interactive |
 | Set-TechAgentApiKey | Set, rotate, or clear DPAPI-encrypted cloud API key used by TechAgent providers. | Risk, Interactive |
+| Set-TechAgentSearchWebApiKey | Set, rotate, or clear DPAPI-encrypted SEARCH-WEB API key used by the web search tool. | Risk, Interactive |
 | Test-TechAgentProvider | Validate LLM provider configuration and optional live connectivity test. | |
 | Use-TechAgentTaskTemplate | List, filter, preview, pick, open, or copy reusable TechAgent task templates. | Interactive |
 

@@ -204,8 +204,9 @@ Move anything that identifies your environment into `config.secrets.json`, inclu
 | `TT_ConfigSecretsPath`           | Override the secrets file location |
 | `TT_DisableConfigSecretsMerge=1` | Skip merge for troubleshooting     |
 | `TT_AGENT_LLM_API_KEY`           | Optional runtime API key source for cloud providers |
+| `TT_AGENT_SEARCH_WEB_API_KEY`    | Optional runtime API key source for SEARCH-WEB provider API |
 
-For cloud providers, `Invoke-TechAgent` also supports secure DPAPI-backed key storage in `Config\config.secrets.json` (`settings.agent.apiKeyEncrypted`) via `Set-TechAgentApiKey`.
+For cloud providers, `Invoke-TechAgent` also supports secure DPAPI-backed key storage in `Config\config.secrets.json` (`settings.agent.apiKeyEncrypted`) via `Set-TechAgentApiKey`. SEARCH-WEB uses the same pattern through `settings.agent.searchWebApiKeyEncrypted` via `Set-TechAgentSearchWebApiKey`.
 
 ### Configuring Secrets
 
@@ -417,6 +418,7 @@ The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/bl
 | `Use-TechAgentTaskTemplate`   | Stages reusable prompt templates to `AI\Tasks\CurrentTask.txt` for repeatable runs |
 | `Test-TechAgentProvider`      | Validates provider configuration and optionally probes live connectivity/auth |
 | `Set-TechAgentApiKey`         | Sets/rotates/clears DPAPI-encrypted API keys used by cloud providers |
+| `Set-TechAgentSearchWebApiKey` | Sets/rotates/clears DPAPI-encrypted SEARCH-WEB API keys used by the search tool |
 | `Get-TechAgentQualitySummary` | Summarizes recent run quality metrics from persisted memory history |
 
 ### Export & Packaging

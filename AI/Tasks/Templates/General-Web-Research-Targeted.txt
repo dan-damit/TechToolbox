@@ -1,0 +1,21 @@
+Additional context:
+<REPO_CONTEXT>
+
+Task:
+Use FETCH-URL to research the question below using only approved HTTPS sources.
+
+Question:
+<QUESTION_TOPIC>
+
+Source hints:
+<SOURCE_URLS_OR_HOSTS>
+
+Requirements:
+- Prefer primary sources, vendor documentation, release notes, and authoritative references.
+- Use FETCH-URL only for HTTPS sources on the allowlist.
+- If a needed host is not allowed, say so directly and do not work around the restriction.
+- Summarize the answer first, then provide supporting evidence.
+- Distinguish verified facts from inference or speculation.
+- Call out stale, conflicting, or missing source material.
+- Keep quoted excerpts short and relevant.
+- Do not make file changes unless explicitly requested.

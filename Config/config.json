@@ -167,6 +167,15 @@
           "us-cert.gov"
         ]
       },
+      "searchWeb": {
+        "provider": "brave",
+        "endpoint": "https://api.search.brave.com/res/v1/web/search",
+        "apiKeyEnvVar": "TT_AGENT_SEARCH_WEB_API_KEY",
+        "country": "us",
+        "language": "en",
+        "safeSearch": "moderate",
+        "defaultCount": 5
+      },
       "transcript": {
         "enabled": true,
         "outputRoot": "%TT_LogsRoot%\\TechAgentTranscripts"
