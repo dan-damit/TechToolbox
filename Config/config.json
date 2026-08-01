@@ -137,7 +137,7 @@
     },
     "agent": {
       "provider": "ollama",
-      "model": "ornith:35b",
+      "model": "laguna-xs-2.1",
       "executionMode": "execute",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
@@ -145,7 +145,6 @@
       "deployment": "",
       "apiVersion": "2024-10-21",
       "apiKeyEnvVar": "TT_AGENT_LLM_API_KEY",
-      "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json",
       "defaultPromptFile": "AI\\Tasks\\CurrentTask.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
       "promptHistoryItems": 2,
@@ -386,23 +385,6 @@
       ],
       "samPattern": "flast",
       "upnPattern": "flast"
-    },
-    "ai": {
-      "models": {
-        "code": "qwen2.5-coder:32b",
-        "review": "qwen3:30b-instruct"
-      },
-      "routing": {
-        "General": "code",
-        "Static": "code",
-        "Security": "code",
-        "Refactor": "code",
-        "Tests": "code",
-        "Combined": "code",
-        "ModuleReview": "review",
-        "ExplainDesign": "review"
-      },
-      "promptPackPath": "%TT_ModuleRoot%\\AI\\prompts.json"
     },
     "graph": {
       "scopes": [
