@@ -141,6 +141,42 @@ public class AgentConfiguration
     public List<string> AllowedFetchHosts { get; set; } = new();
 
     /// <summary>
+    /// Optional provider key for SEARCH-WEB requests.
+    /// Defaults to Brave.
+    /// </summary>
+    public string SearchWebProvider { get; set; } = "brave";
+
+    /// <summary>
+    /// Optional HTTPS endpoint for SEARCH-WEB requests.
+    /// </summary>
+    public string SearchWebEndpoint { get; set; } = "https://api.search.brave.com/res/v1/web/search";
+
+    /// <summary>
+    /// Optional environment variable name containing the SEARCH-WEB API key.
+    /// </summary>
+    public string SearchWebApiKeyEnvVar { get; set; } = "TT_AGENT_SEARCH_WEB_API_KEY";
+
+    /// <summary>
+    /// Optional default country used by SEARCH-WEB when no country is supplied.
+    /// </summary>
+    public string SearchWebCountry { get; set; } = "us";
+
+    /// <summary>
+    /// Optional default language used by SEARCH-WEB when no search language is supplied.
+    /// </summary>
+    public string SearchWebLanguage { get; set; } = "en";
+
+    /// <summary>
+    /// Optional default safe-search mode used by SEARCH-WEB when no safeSearch is supplied.
+    /// </summary>
+    public string SearchWebSafeSearch { get; set; } = "moderate";
+
+    /// <summary>
+    /// Optional default result count used by SEARCH-WEB when no count is supplied.
+    /// </summary>
+    public int SearchWebDefaultCount { get; set; } = 5;
+
+    /// <summary>
     /// Whether higher-order/meta authoring tools should be available to the agent.
     /// Defaults to false to prevent recursive orchestration and nested assistant loops.
     /// </summary>

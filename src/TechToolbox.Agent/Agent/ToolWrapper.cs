@@ -68,6 +68,13 @@ public static class ToolWrapper
         bool destructiveConfirmed,
         string signedFilePolicy,
         IEnumerable<string>? allowedFetchHosts = null,
+        string? searchWebProvider = null,
+        string? searchWebEndpoint = null,
+        string? searchWebApiKeyEnvVar = null,
+        string? searchWebCountry = null,
+        string? searchWebLanguage = null,
+        string? searchWebSafeSearch = null,
+        int searchWebDefaultCount = 5,
         IToolExecutor? executor = null,
         Func<string, IDictionary<string, object?>, object?>? legacyToolExecutor = null
     )
@@ -82,6 +89,16 @@ public static class ToolWrapper
 
         // Normalize the allowed fetch hosts list
         var normalizedFetchHosts = NormalizeFetchHosts(allowedFetchHosts);
+
+        var normalizedSearchWebProvider = NormalizeSearchWebProvider(searchWebProvider);
+        var normalizedSearchWebEndpoint = NormalizeSearchWebEndpoint(searchWebEndpoint);
+        var normalizedSearchWebApiKeyEnvVar = NormalizeSearchWebApiKeyEnvVar(
+            searchWebApiKeyEnvVar
+        );
+        var normalizedSearchWebCountry = NormalizeSearchWebCountry(searchWebCountry);
+        var normalizedSearchWebLanguage = NormalizeSearchWebLanguage(searchWebLanguage);
+        var normalizedSearchWebSafeSearch = NormalizeSearchWebSafeSearch(searchWebSafeSearch);
+        var normalizedSearchWebDefaultCount = Math.Clamp(searchWebDefaultCount, 1, 50);
 
         // Resolve execution strategy, preserving compatibility for legacy delegate callers.
         IToolExecutor resolvedExecutor = legacyToolExecutor is not null
@@ -148,6 +165,41 @@ public static class ToolWrapper
                     args["__allowed_fetch_hosts"] = normalizedFetchHosts;
                 }
 
+                if (string.Equals(toolName, "SEARCH-WEB", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!HasArgument(args, "__search_web_provider"))
+                        args["__search_web_provider"] = normalizedSearchWebProvider;
+
+                    if (!HasArgument(args, "__search_web_endpoint"))
+                        args["__search_web_endpoint"] = normalizedSearchWebEndpoint;
+
+                    if (!HasArgument(args, "__search_web_api_key_env_var"))
+                        args["__search_web_api_key_env_var"] = normalizedSearchWebApiKeyEnvVar;
+
+                    if (!HasArgument(args, "__search_web_country")
+                        && !string.IsNullOrWhiteSpace(normalizedSearchWebCountry))
+                    {
+                        args["__search_web_country"] = normalizedSearchWebCountry;
+                    }
+
+                    if (!HasArgument(args, "__search_web_language")
+                        && !string.IsNullOrWhiteSpace(normalizedSearchWebLanguage))
+                    {
+                        args["__search_web_language"] = normalizedSearchWebLanguage;
+                    }
+
+                    if (!HasArgument(args, "__search_web_safe_search")
+                        && !string.IsNullOrWhiteSpace(normalizedSearchWebSafeSearch))
+                    {
+                        args["__search_web_safe_search"] = normalizedSearchWebSafeSearch;
+                    }
+
+                    if (!HasArgument(args, "count") && normalizedSearchWebDefaultCount > 0)
+                    {
+                        args["count"] = normalizedSearchWebDefaultCount;
+                    }
+                }
+
                 // Execute via PowerShell bridge
                 object? result;
                 try
@@ -180,6 +232,13 @@ public static class ToolWrapper
         bool destructiveConfirmed,
         string signedFilePolicy,
         IEnumerable<string>? allowedFetchHosts = null,
+        string? searchWebProvider = null,
+        string? searchWebEndpoint = null,
+        string? searchWebApiKeyEnvVar = null,
+        string? searchWebCountry = null,
+        string? searchWebLanguage = null,
+        string? searchWebSafeSearch = null,
+        int searchWebDefaultCount = 5,
         Func<string, IDictionary<string, object?>, object?>? toolExecutor = null
     )
     {
@@ -188,6 +247,13 @@ public static class ToolWrapper
             destructiveConfirmed,
             signedFilePolicy,
             allowedFetchHosts,
+            searchWebProvider,
+            searchWebEndpoint,
+            searchWebApiKeyEnvVar,
+            searchWebCountry,
+            searchWebLanguage,
+            searchWebSafeSearch,
+            searchWebDefaultCount,
             executor: null,
             legacyToolExecutor: toolExecutor
         );
@@ -334,5 +400,73 @@ public static class ToolWrapper
             .Select(h => h.Trim().Trim('.').ToLowerInvariant())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static string NormalizeSearchWebProvider(string? provider)
+    {
+        if (string.IsNullOrWhiteSpace(provider))
+            return "brave";
+
+        var normalized = provider.Trim().ToLowerInvariant();
+        return normalized == "brave" ? normalized : "brave";
+    }
+
+    private static string NormalizeSearchWebEndpoint(string? endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return "https://api.search.brave.com/res/v1/web/search";
+
+        var normalized = endpoint.Trim();
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
+            throw new ArgumentException($"Invalid SEARCH-WEB endpoint: {endpoint}", nameof(endpoint));
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "SEARCH-WEB endpoint must use HTTPS."
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(uri.Host))
+            throw new InvalidOperationException("SEARCH-WEB endpoint requires a valid host.");
+
+        return normalized;
+    }
+
+    private static string NormalizeSearchWebApiKeyEnvVar(string? apiKeyEnvVar)
+    {
+        if (string.IsNullOrWhiteSpace(apiKeyEnvVar))
+            return "TT_AGENT_SEARCH_WEB_API_KEY";
+
+        return apiKeyEnvVar.Trim();
+    }
+
+    private static string NormalizeSearchWebCountry(string? country)
+    {
+        if (string.IsNullOrWhiteSpace(country))
+            return "us";
+
+        return country.Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizeSearchWebLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            return "en";
+
+        return language.Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizeSearchWebSafeSearch(string? safeSearch)
+    {
+        if (string.IsNullOrWhiteSpace(safeSearch))
+            return "moderate";
+
+        var normalized = safeSearch.Trim().ToLowerInvariant();
+        return normalized == "off"
+            || normalized == "moderate"
+            || normalized == "strict"
+            ? normalized
+            : "moderate";
     }
 }

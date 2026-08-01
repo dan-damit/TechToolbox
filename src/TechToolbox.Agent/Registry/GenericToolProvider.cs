@@ -176,6 +176,46 @@ public class GenericToolProvider : IToolProvider
                 Module: "TechToolbox.Agent.Builtin",
                 Meta: new Dictionary<string, object?>()
             ),
+            new ToolSpec(
+                Name: "SEARCH-WEB",
+                Description:
+                    "Searches the public web API provider for likely sources and returns a compact result set for read-only discovery.",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["query"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Search query text."
+                    ),
+                    ["count"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional result count. Defaults to 5, max 50."
+                    ),
+                    ["offset"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional 0-based result offset."
+                    ),
+                    ["country"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.String",
+                        Help: "Optional country code such as us."
+                    ),
+                    ["searchLang"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.String",
+                        Help: "Optional search language code such as en."
+                    ),
+                    ["safeSearch"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.String",
+                        Help: "Optional safe-search level: off, moderate, or strict."
+                    ),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
         };
     }
 }

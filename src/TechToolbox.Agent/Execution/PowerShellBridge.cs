@@ -1,5 +1,6 @@
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -19,6 +20,8 @@ public static class PowerShellBridge
 
     private const int DefaultFetchMaxChars = 20_000;
     private const int AbsoluteFetchMaxChars = 200_000;
+    private const int DefaultSearchWebCount = 5;
+    private const int AbsoluteSearchWebCount = 50;
     private const double DefaultWriteFileShortGuardMinRatio = 0.35;
     private const double DefaultWriteFileShortGuardMinLineRatio = 0.60;
     private const int DefaultWriteFileShortGuardMinExistingChars = 1200;
@@ -470,6 +473,111 @@ public static class PowerShellBridge
             return true;
         }
 
+        if (toolName.Equals("SEARCH-WEB", StringComparison.OrdinalIgnoreCase))
+        {
+            var query = GetRequiredStringArg(args, "query");
+            var count = GetOptionalIntArg(args, "count") ?? DefaultSearchWebCount;
+            count = Math.Clamp(count, 1, AbsoluteSearchWebCount);
+
+            var offset = GetOptionalIntArg(args, "offset") ?? 0;
+            offset = Math.Max(0, offset);
+
+            var provider = NormalizeSearchWebProvider(
+                GetOptionalStringArg(args, "__search_web_provider") ?? "brave"
+            );
+            var endpoint = GetOptionalStringArg(args, "__search_web_endpoint")
+                ?? "https://api.search.brave.com/res/v1/web/search";
+            var apiKeyEnvVar = GetOptionalStringArg(args, "__search_web_api_key_env_var")
+                ?? "TT_AGENT_SEARCH_WEB_API_KEY";
+            var apiKey = Environment.GetEnvironmentVariable(apiKeyEnvVar);
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new InvalidOperationException(
+                    $"SEARCH-WEB requires API key environment variable '{apiKeyEnvVar}'."
+                );
+
+            var country = GetOptionalStringArg(args, "country")
+                ?? GetOptionalStringArg(args, "__search_web_country")
+                ?? "us";
+            var searchLanguage = GetOptionalStringArg(args, "searchLang")
+                ?? GetOptionalStringArg(args, "__search_web_language")
+                ?? "en";
+            var safeSearch = NormalizeSearchWebSafeSearch(
+                GetOptionalStringArg(args, "safeSearch")
+                ?? GetOptionalStringArg(args, "__search_web_safe_search")
+            );
+
+            var requestUri = BuildBraveSearchUri(
+                endpoint,
+                query,
+                count,
+                offset,
+                country,
+                searchLanguage,
+                safeSearch
+            );
+
+            using var response = SendBraveSearchRequest(requestUri, apiKey);
+            var rawBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            using var parsed = JsonDocument.Parse(rawBody);
+            if (!parsed.RootElement.TryGetProperty("web", out var webElement))
+            {
+                result = JsonSerializer.Serialize(
+                    new
+                    {
+                        kind = "search-web-result",
+                        provider,
+                        query,
+                        endpoint = requestUri.ToString(),
+                        country,
+                        searchLanguage,
+                        safeSearch,
+                        count,
+                        offset,
+                        results = Array.Empty<object>(),
+                    },
+                    SummaryJsonOptions
+                );
+
+                return true;
+            }
+
+            var results = webElement
+                .TryGetProperty("results", out var valueElement)
+                ? valueElement.EnumerateArray().Select(item => new
+                {
+                    title = item.TryGetProperty("title", out var title) ? title.GetString() : null,
+                    url = item.TryGetProperty("url", out var url) ? url.GetString() : null,
+                    displayUrl = item.TryGetProperty("profile", out var profile)
+                        && profile.TryGetProperty("long_name", out var longName)
+                        ? longName.GetString()
+                        : null,
+                    snippet = item.TryGetProperty("description", out var description)
+                        ? description.GetString()
+                        : null,
+                    age = item.TryGetProperty("age", out var age) ? age.GetString() : null,
+                }).ToArray()
+                : Array.Empty<object>();
+
+            result = JsonSerializer.Serialize(
+                new
+                {
+                    kind = "search-web-result",
+                    provider,
+                    query,
+                    endpoint = requestUri.ToString(),
+                    country,
+                    searchLanguage,
+                    safeSearch,
+                    count,
+                    offset,
+                    results,
+                },
+                SummaryJsonOptions
+            );
+
+            return true;
+        }
+
         return false;
     }
 
@@ -494,6 +602,24 @@ public static class PowerShellBridge
             throw new ArgumentException($"Missing required parameter '{name}'.", name);
 
         return text;
+    }
+
+    private static string? GetOptionalStringArg(IDictionary<string, object?> args, string name)
+    {
+        var arg = args.FirstOrDefault(kv =>
+            string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (arg.Equals(default(KeyValuePair<string, object?>)) || arg.Value is null)
+            return null;
+
+        return arg.Value switch
+        {
+            string s when !string.IsNullOrWhiteSpace(s) => s,
+            JsonElement el when el.ValueKind == JsonValueKind.String => el.GetString(),
+            JsonElement el when el.ValueKind is JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => el.ToString(),
+            _ => arg.Value.ToString(),
+        };
     }
 
     private static int? GetOptionalIntArg(IDictionary<string, object?> args, string name)
@@ -538,6 +664,77 @@ public static class PowerShellBridge
             _ when bool.TryParse(arg.Value.ToString(), out var parsed) => parsed,
             _ => false,
         };
+    }
+
+    private static string NormalizeSearchWebProvider(string value)
+    {
+        return string.Equals(value, "brave", StringComparison.OrdinalIgnoreCase)
+            ? "brave"
+            : "brave";
+    }
+
+    private static string NormalizeSearchWebSafeSearch(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "moderate";
+
+        var normalized = value.Trim().ToLowerInvariant();
+        return normalized == "off"
+            || normalized == "moderate"
+            || normalized == "strict"
+            ? normalized
+            : "moderate";
+    }
+
+    private static Uri BuildBraveSearchUri(
+        string endpoint,
+        string query,
+        int count,
+        int offset,
+        string country,
+        string searchLanguage,
+        string safeSearch
+    )
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+            throw new ArgumentException($"Invalid SEARCH-WEB endpoint: {endpoint}", nameof(endpoint));
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("SEARCH-WEB only allows HTTPS endpoints.");
+
+        var builder = new StringBuilder();
+        builder.Append(uri.GetLeftPart(UriPartial.Path));
+        builder.Append('?');
+        builder.Append("q=").Append(Uri.EscapeDataString(query));
+        builder.Append("&count=").Append(count.ToString(CultureInfo.InvariantCulture));
+        builder.Append("&offset=").Append(offset.ToString(CultureInfo.InvariantCulture));
+        builder.Append("&country=").Append(Uri.EscapeDataString(country));
+        builder.Append("&search_lang=").Append(Uri.EscapeDataString(searchLanguage));
+        builder.Append("&safesearch=").Append(Uri.EscapeDataString(safeSearch));
+
+        return new Uri(builder.ToString(), UriKind.Absolute);
+    }
+
+    private static HttpResponseMessage SendBraveSearchRequest(Uri requestUri, string apiKey)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Add("X-Subscription-Token", apiKey);
+        request.Headers.UserAgent.ParseAdd("TechToolbox-Agent/1.0");
+
+        var response = _httpClient
+            .SendAsync(request, HttpCompletionOption.ResponseContentRead)
+            .GetAwaiter()
+            .GetResult();
+
+        if ((int)response.StatusCode >= 400)
+        {
+            var statusCode = (int)response.StatusCode;
+            var reason = response.ReasonPhrase ?? "HTTP error";
+            response.Dispose();
+            throw new InvalidOperationException($"SEARCH-WEB failed with status {statusCode} ({reason}).");
+        }
+
+        return response;
     }
 
     private static bool ShouldBlockSuspiciousShortOverwrite(

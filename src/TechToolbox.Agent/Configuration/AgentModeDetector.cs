@@ -29,6 +29,7 @@ public static class AgentModeDetector
             "replace-in-file",
             "list-directory",
             "fetch-url",
+            "search-web",
         };
 
         var hasPowerShellTools = toolNames.Any(name =>

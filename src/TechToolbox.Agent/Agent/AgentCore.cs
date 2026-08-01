@@ -78,6 +78,13 @@ public static class AgentCore
     /// <param name="expectedOutputPath">Optional path for expected output comparison.</param>
     /// <param name="recentHistoryItemsInPrompt">Number of recent history items to include in the prompt. Defaults to 2.</param>
     /// <param name="allowedFetchHosts">Collection of allowed hosts for fetch operations.</param>
+    /// <param name="searchWebProvider">SEARCH-WEB provider name. Defaults to brave.</param>
+    /// <param name="searchWebEndpoint">Optional SEARCH-WEB provider endpoint.</param>
+    /// <param name="searchWebApiKeyEnvVar">Environment variable name that contains the SEARCH-WEB API key.</param>
+    /// <param name="searchWebCountry">Default SEARCH-WEB country.</param>
+    /// <param name="searchWebLanguage">Default SEARCH-WEB language.</param>
+    /// <param name="searchWebSafeSearch">Default SEARCH-WEB safe-search mode.</param>
+    /// <param name="searchWebDefaultCount">Default SEARCH-WEB result count.</param>
     /// <param name="allowMetaTools">Whether to allow meta-tools. Defaults to false.</param>
     /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
     /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
@@ -100,6 +107,13 @@ public static class AgentCore
         string? expectedOutputPath = null,
         int recentHistoryItemsInPrompt = 2,
         IEnumerable<string>? allowedFetchHosts = null,
+        string searchWebProvider = "brave",
+        string? searchWebEndpoint = null,
+        string searchWebApiKeyEnvVar = "TT_AGENT_SEARCH_WEB_API_KEY",
+        string searchWebCountry = "us",
+        string searchWebLanguage = "en",
+        string searchWebSafeSearch = "moderate",
+        int searchWebDefaultCount = 5,
         bool allowMetaTools = false,
         string llmProvider = "ollama",
         string? llmEndpoint = null,
@@ -127,6 +141,13 @@ public static class AgentCore
                 expectedOutputPath,
                 recentHistoryItemsInPrompt,
                 allowedFetchHosts,
+                searchWebProvider,
+                searchWebEndpoint,
+                searchWebApiKeyEnvVar,
+                searchWebCountry,
+                searchWebLanguage,
+                searchWebSafeSearch,
+                searchWebDefaultCount,
                 allowMetaTools,
                 llmProvider,
                 llmEndpoint,
@@ -160,6 +181,13 @@ public static class AgentCore
     /// <param name="expectedOutputPath">Optional path for expected output comparison.</param>
     /// <param name="recentHistoryItemsInPrompt">Number of recent history items to include in the prompt. Defaults to 2.</param>
     /// <param name="allowedFetchHosts">Collection of allowed hosts for fetch operations.</param>
+    /// <param name="searchWebProvider">SEARCH-WEB provider name. Defaults to brave.</param>
+    /// <param name="searchWebEndpoint">Optional SEARCH-WEB provider endpoint.</param>
+    /// <param name="searchWebApiKeyEnvVar">Environment variable name that contains the SEARCH-WEB API key.</param>
+    /// <param name="searchWebCountry">Default SEARCH-WEB country.</param>
+    /// <param name="searchWebLanguage">Default SEARCH-WEB language.</param>
+    /// <param name="searchWebSafeSearch">Default SEARCH-WEB safe-search mode.</param>
+    /// <param name="searchWebDefaultCount">Default SEARCH-WEB result count.</param>
     /// <param name="allowMetaTools">Whether to allow meta-tools. Defaults to false.</param>
     /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
     /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
@@ -182,6 +210,13 @@ public static class AgentCore
         string? expectedOutputPath = null,
         int recentHistoryItemsInPrompt = 2,
         IEnumerable<string>? allowedFetchHosts = null,
+        string searchWebProvider = "brave",
+        string? searchWebEndpoint = null,
+        string searchWebApiKeyEnvVar = "TT_AGENT_SEARCH_WEB_API_KEY",
+        string searchWebCountry = "us",
+        string searchWebLanguage = "en",
+        string searchWebSafeSearch = "moderate",
+        int searchWebDefaultCount = 5,
         bool allowMetaTools = false,
         string llmProvider = "ollama",
         string? llmEndpoint = null,
@@ -225,6 +260,13 @@ public static class AgentCore
             AllowMetaTools = allowMetaTools,
             AllowedFetchHosts = allowedFetchHosts?.Where(h => !string.IsNullOrWhiteSpace(h)).ToList()
                 ?? new List<string>(),
+            SearchWebProvider = searchWebProvider,
+            SearchWebEndpoint = searchWebEndpoint ?? string.Empty,
+            SearchWebApiKeyEnvVar = searchWebApiKeyEnvVar,
+            SearchWebCountry = searchWebCountry,
+            SearchWebLanguage = searchWebLanguage,
+            SearchWebSafeSearch = searchWebSafeSearch,
+            SearchWebDefaultCount = searchWebDefaultCount,
             ToolProviders = new()
             {
                 new GenericToolProvider(),
@@ -273,6 +315,13 @@ public static class AgentCore
             config.DestructiveConfirmed,
             config.SignedFilePolicy,
             config.AllowedFetchHosts,
+            config.SearchWebProvider,
+            config.SearchWebEndpoint,
+            config.SearchWebApiKeyEnvVar,
+            config.SearchWebCountry,
+            config.SearchWebLanguage,
+            config.SearchWebSafeSearch,
+            config.SearchWebDefaultCount,
             executor: PowerShellToolExecutor.Instance
         );
 
