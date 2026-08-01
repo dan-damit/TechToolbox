@@ -1,22 +1,24 @@
-Primary input file:
-C:\repos\TechToolbox\Public\AI\Get-TechAgentQualitySummary.ps1
+Read the file below:
+C:\repos\TechToolbox\Public\AI\Invoke-TechAgent.ps1
 
 Task:
-Write a detailed PowerShell `about_*.help.txt` help document for the source command or script.
+Update the documentation for the Invoke-TechAgent PowerShell script to reflect
+the latest features and usage instructions. Please ensure the new parameters are
+included in the documentation's parameters table.
 
-Document topic:
-Get-TechAgentQualitySummary
+Topic:
+Update the markdown document for the topic described below.
 
-Output file:
-C:\repos\TechToolbox\en-US\about_Get-TechAgentQualitySummary.help.txt
+File to update:
+C:\repos\TechToolbox-Docs\Invoke-TechAgent.md
 
 Requirements:
-- Create the output file at this exact path:
-  C:\repos\TechToolbox\en-US\about_Get-TechAgentQualitySummary.help.txt
-- Follow the structure and tone of other help files in the same help directory when they exist.
-- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.
-- Do not use markdown formatting unless the existing help files in that directory already do.
-- Use WRITE-FILE to create or update the output help file.
+- Update the file at this exact path:
+  C:\repos\TechToolbox-Docs\Invoke-TechAgent.md
+- Use accurate technical details based on the source inputs.
+- Structure the document for fast scanning with concise headings and examples when useful.
+- Keep the tone practical and specific to this repository or scenario.
+- Use WRITE-FILE to create or update the markdown document.
 - Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
 - Do not stop after analysis.
 - Do not summarize your plan before editing.
