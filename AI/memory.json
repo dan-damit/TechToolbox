@@ -20,8 +20,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.65,
-      "avgDurationMs": 57200,
-      "avgToolCalls": 3.7,
+      "avgDurationMs": 57521,
+      "avgToolCalls": 3.45,
       "statusCounts": {
         "success": 13,
         "error": 7
@@ -32,10 +32,10 @@
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "gpt-5.3-codex",
-      "lastRunTimestampUtc": "2026-08-01T05:58:46.9733381\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-01T05:58:46.9946745\u002B00:00",
-      "avgPromptPreflightScore": 51,
+      "lastModel": "laguna-xs-2.1:latest",
+      "lastRunTimestampUtc": "2026-08-01T06:24:52.9458759\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-01T06:24:52.9473845\u002B00:00",
+      "avgPromptPreflightScore": 52,
       "executionModeCounts": {
         "execute": 20
       },
@@ -50,45 +50,6 @@
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-07-29T16:11:35.8643299+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How many lines of code are in your Agent C# files? The files are located at C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent, C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Configuration, C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution, C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Memory, and C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Registry",
-      "model": "gpt-4o-mini",
-      "durationMs": 15811,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 6,
-      "toolNames": [
-        "find_largefiles",
-        "list_directory",
-        "get_filesusingkeywords",
-        "list_directory",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Total Lines of Code in Agent C# Files\n- AgentCore.cs: 310 lines\n- Total: 310 lines\n\nThe line count for the other C# files will need to be gathered similarly.",
-      "runSummary": {
-        "intent": "How many lines of code are in your Agent C# files? The files are located at C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent, C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Configuration, C:\\repos\\TechToolbox\\src\\TechToolbox...",
-        "actionsTaken": [
-          "find_largefiles",
-          "list_directory",
-          "get_filesusingkeywords",
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-07-29T16:12:33.6108618+00:00",
       "status": "success",
@@ -724,6 +685,37 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-01T06:24:52.9458759+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please search the web with the new SEARCH-WEB tool and let me know if you can use it or not, and if not, why not.",
+      "model": "laguna-xs-2.1:latest",
+      "durationMs": 22220,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "search_web"
+      ],
+      "outputPreview": "# SEARCH-WEB Tool Test Results\n\nThe SEARCH-WEB tool works correctly and can be used for web searches.\n\n## Test Details\n- **Tool Used**: SEARCH-WEB\n- **Query**: \u0022TechToolbox PowerShell Invoke-TechAgent documentation\u0022\n- **Status**: Success\n- **Provider**: Brave API\n\n## Results Summary\nThe search returned 5 results including:\n1. PowerShell Gallery page for TechToolbox 0.5.44 with the Invoke-TechAgent.ps1 script\n2. Microsoft PowerShell Community Hub\n3. Blog post about creating PowerShell AI agents by Bart Pasmans\n4. GitHub repository for PowerShell Toolbox book\n5. Devolutions documentation on PowerShell Universal AI Agents\n\n## Conclusion\nThe SEARCH-WEB tool is functional and can be used to search the web for information about TechToolbox, PowerShell scripts, and AI agent documentation.",
+      "runSummary": {
+        "intent": "Please search the web with the new SEARCH-WEB tool and let me know if you can use it or not, and if not, why not.",
+        "actionsTaken": [
+          "search_web"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
     }
   ],
   "_memoryFormatVersion": 2

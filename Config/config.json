@@ -137,7 +137,7 @@
     },
     "agent": {
       "provider": "ollama",
-      "model": "laguna-xs-2.1",
+      "model": "laguna-xs-2.1:latest",
       "executionMode": "execute",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
