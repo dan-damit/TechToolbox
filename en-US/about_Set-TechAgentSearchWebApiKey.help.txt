@@ -1,0 +1,111 @@
+about_Set-TechAgentSearchWebApiKey
+
+TOPIC
+    about_Set-TechAgentSearchWebApiKey
+
+SHORT DESCRIPTION
+    Explains how TechToolbox stores, rotates, and clears the TechAgent
+    SEARCH-WEB API key using DPAPI-encrypted secrets.
+
+LONG DESCRIPTION
+    Set-TechAgentSearchWebApiKey manages the SEARCH-WEB API key used by the
+    TechToolbox SEARCH-WEB tool. The command writes the key to TechToolbox
+    secrets storage as settings.agent.searchWebApiKeyEncrypted in
+    config.secrets.json.
+
+    The key is encrypted with Windows DPAPI by using ConvertFrom-SecureString,
+    so plain-text key material is not written to disk by this command.
+
+    You can use the command to:
+    - Set or rotate a stored SEARCH-WEB API key
+    - Clear a previously stored SEARCH-WEB API key
+    - Return a structured result object with -PassThru
+
+    If -ApiKey is omitted in Set mode and the session is interactive, the
+    command prompts for secure input with Read-Host -AsSecureString.
+    In non-interactive sessions, omitting -ApiKey causes an error.
+
+PARAMETERS
+    -ApiKey
+        SecureString value of the SEARCH-WEB API key to store.
+
+        If omitted while setting a key:
+        - Interactive session -> prompts for secure input.
+        - Non-interactive session -> throws an error requiring -ApiKey.
+
+    -Clear
+        Removes settings.agent.searchWebApiKeyEncrypted from secrets storage.
+
+        This switch uses a separate parameter set and is mandatory when
+        clearing the stored key.
+
+    -PassThru
+        Returns a PSCustomObject summary of the operation.
+
+        Returned fields:
+        - Success
+        - Action (Set or Clear)
+        - SecretsPath
+        - KeyStored
+        - Detail
+
+INPUTS
+    System.Security.SecureString (via -ApiKey)
+
+OUTPUTS
+    None by default.
+
+    System.Management.Automation.PSCustomObject when -PassThru is specified.
+
+NOTES
+    - The command is declared with SupportsShouldProcess and ConfirmImpact
+      Medium, so it participates in -WhatIf and -Confirm behavior.
+    - Secrets are read and written through TechToolbox runtime helpers
+      (Read-Secrets and Write-Secrets).
+    - Clearing removes only settings.agent.searchWebApiKeyEncrypted and preserves
+      other secrets content.
+    - Encryption is user/machine-context dependent per DPAPI behavior.
+
+EXAMPLES
+    Example 1:
+        Set-TechAgentSearchWebApiKey
+
+        Description
+        -----------
+        Prompts interactively for a secure SEARCH-WEB API key and stores it as a
+        DPAPI-encrypted secret.
+
+    Example 2:
+        $secureKey = Read-Host "Enter SEARCH-WEB API key" -AsSecureString
+        Set-TechAgentSearchWebApiKey -ApiKey $secureKey
+
+        Description
+        -----------
+        Stores a provided SecureString SEARCH-WEB API key.
+
+    Example 3:
+        Set-TechAgentSearchWebApiKey -Clear
+
+        Description
+        -----------
+        Removes the stored encrypted SEARCH-WEB API key from secrets.
+
+    Example 4:
+        Set-TechAgentSearchWebApiKey -WhatIf
+
+        Description
+        -----------
+        Shows what would be changed without writing to secrets.
+
+    Example 5:
+        Set-TechAgentSearchWebApiKey -Clear -PassThru
+
+        Description
+        -----------
+        Clears the stored key and returns a structured result object.
+
+SEE ALSO
+    - Set-TechAgentSearchWebApiKey
+    - about_Set-TechAgentApiKey
+    - about_Install-TechAgentRuntime
+    - https://dan-damit.github.io/TechToolbox-Docs/Set-TechAgentSearchWebApiKey
