@@ -1,20 +1,13 @@
-Read the file below:
-C:\repos\TechToolbox\Public\AI\Invoke-TechAgent.ps1
+Please read the following PowerShell script:
+C:\repos\TechToolbox\Public\Set\Set-PageFileSize.ps1
 
 Task:
-Update the documentation for the Invoke-TechAgent PowerShell script to reflect
-the latest features and usage instructions. Please ensure the new parameters are
-included in the documentation's parameters table.
-
-Topic:
-Update the markdown document for the topic described below.
-
-File to update:
-C:\repos\TechToolbox-Docs\Invoke-TechAgent.md
+Create a detailed markdown document that encapsulates the functionality and
+usage of the Set-PageFileSize.ps1 script.
 
 Requirements:
-- Update the file at this exact path:
-  C:\repos\TechToolbox-Docs\Invoke-TechAgent.md
+- Create the output file at this exact path:
+  C:\repos\TechToolbox-Docs\Set-PageFileSize.md
 - Use accurate technical details based on the source inputs.
 - Structure the document for fast scanning with concise headings and examples when useful.
 - Keep the tone practical and specific to this repository or scenario.
