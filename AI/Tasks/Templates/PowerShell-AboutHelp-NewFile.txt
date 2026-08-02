@@ -4,12 +4,6 @@ Primary input file:
 Task:
 Write a detailed PowerShell `about_*.help.txt` help document for the source command or script.
 
-Document topic:
-<DOCUMENT_TOPIC>
-
-Output file:
-<OUTPUT_FILE>
-
 Requirements:
 - Create the output file at this exact path:
   <OUTPUT_FILE>

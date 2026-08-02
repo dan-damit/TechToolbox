@@ -1,14 +1,8 @@
-Primary input files:
+Read the file located at the directory:
 <PRIMARY_INPUT_FILES>
 
 Task:
 Write a markdown document for the topic described below.
-
-Topic:
-<DOCUMENT_TOPIC>
-
-Output file:
-<OUTPUT_FILE>
 
 Requirements:
 - Create the output file at this exact path:
