@@ -52,10 +52,7 @@
       "default": "%TT_ModuleRoot%\\Private\\System"
     },
     "largeFileSearch": {
-      "defaultSearchDirectory": [
-        "C:\\",
-        "D:\\"
-      ],
+      "defaultSearchDirectory": ["C:\\", "D:\\"],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
       "exportDirectory": "%TT_Home%\\LogsAndExports\\Exports\\LargeFileSearch"
@@ -85,14 +82,8 @@
     },
     "secureCrimp": {
       "server": "securecrimp-1.yourdomain.local",
-      "stackTasks": [
-        "Secure Crimp - Run Server",
-        "Secure Crimp - Nginx"
-      ],
-      "auxTasks": [
-        "Secure Crimp - Monitor TCP",
-        "Secure Crimp - Run Schedule"
-      ]
+      "stackTasks": ["Secure Crimp - Run Server", "Secure Crimp - Nginx"],
+      "auxTasks": ["Secure Crimp - Monitor TCP", "Secure Crimp - Run Schedule"]
     },
     "passwords": {
       "wordListPath": "%TT_ModuleRoot%\\Config\\wordlist.txt",
@@ -150,20 +141,59 @@
       "promptHistoryItems": 2,
       "fetch": {
         "allowedHosts": [
-          "learn.microsoft.com",
-          "docs.microsoft.com",
-          "msrc.microsoft.com",
-          "raw.githubusercontent.com",
+          "acm.org",
+          "anthropic.com",
           "api.github.com",
-          "csrc.nist.gov",
-          "nvd.nist.gov",
+          "arxiv.org",
           "attack.mitre.org",
-          "support.microsoft.com",
           "azure.microsoft.com",
-          "devblogs.microsoft.com",
-          "techcommunity.microsoft.com",
+          "berkeley.edu",
+          "britannica.com",
+          "caltech.edu",
+          "cdc.gov",
           "cisa.gov",
-          "us-cert.gov"
+          "congress.gov",
+          "csrc.nist.gov",
+          "data.gov",
+          "deepmind.com",
+          "devblogs.microsoft.com",
+          "docs.microsoft.com",
+          "doi.org",
+          "epa.gov",
+          "federalregister.gov",
+          "gnu.org",
+          "harvard.edu",
+          "huggingface.co",
+          "ieee.org",
+          "ietf.org",
+          "learn.microsoft.com",
+          "linuxfoundation.org",
+          "mit.edu",
+          "msrc.microsoft.com",
+          "nature.com",
+          "ncbi.nlm.nih.gov",
+          "nist.gov",
+          "nih.gov",
+          "nsf.gov",
+          "nvd.nist.gov",
+          "openai.com",
+          "ox.ac.uk",
+          "paperswithcode.com",
+          "raw.githubusercontent.com",
+          "science.org",
+          "sciencedirect.com",
+          "sec.gov",
+          "springer.com",
+          "stanford.edu",
+          "support.microsoft.com",
+          "techcommunity.microsoft.com",
+          "us-cert.gov",
+          "w3.org",
+          "wikipedia.org",
+          "wikidata.org",
+          "wikimedia.org",
+          "wiley.com",
+          "whitehouse.gov"
         ]
       },
       "searchWeb": {
@@ -412,18 +442,12 @@
       "logDir": "%TT_Home%\\LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": [
-        "/E",
-        "/COPYALL"
-      ]
+      "copyFlags": ["/E", "/COPYALL"]
     },
     "downloadsCleanup": {
       "dryRun": false,
       "cutoffYear": 2024,
-      "excludeExtensions": [
-        ".pst",
-        ".ost"
-      ],
+      "excludeExtensions": [".pst", ".ost"],
       "includeExtensions": null
     },
     "teams": {
