@@ -1,40 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-25T22:46:48.3900443-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\en-US and name it about_Get-SystemUptime.help.txt. Please\r\nfollow the same format as the other help documents in that directory. Be sure to\r\nnot use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-SystemUptime.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "qwen3.6:35b",
-    "durationMs": 99493,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 5,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file"
-    ],
-    "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox\\\\en-US\\\\about_Get-SystemUptime.help.txt\u0022,\n    \u0022content\u0022: \u0022.EXTERNALHELP Get-SystemUptime-help.xml\n\n.NOTES\n  NAME: about_Get-SystemUptime\n\n.DESCRIPTION\n  The Get-SystemUptime function retrieves the system uptime information from one\n  or more remote computers. It uses the TechToolbox remote worker engine to run a\n  small uptime worker script on each target host and optionally exports results\n  to CSV files.\n\n.PARAMETER ComputerName\n  Specifies one or more target computers to retrieve uptime from. This parameter\n  is mandatory. Accepts pipeline input by value.\n\n.PARAMETER Credential\n  Specifies a credential object used for authenticating remote connections. If\n  omitted, default authentication mechanisms are used.\n\n.PARAMETER OutDir\n  Specifies the output directory where CSV files will be exported. If omitted,\n  the default value from the configuration file is used.\n\n.PARAMETER NoExport\n  Indicates that CSV export should be skipped. By default, results may be\n  exported to CSV if an output directory is specified or configured.\n\n.INPUTS\n  System.String. You can pipe computer names to Get-SystemUptime.\n\n.OUTPUTS\n  PSCustomObject. The function returns custom objects containing the uptime data\n  for each target computer.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV01\n\n  Description: Retrieves system uptime information from SRV01.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName SRV02, SRV03 -OutDir C:\\\\Temp\\\\UptimeReports\n\n  Description: Retrieves system uptime information from SRV02 and SRV03 and\n  exports the results to CSV files in C:\\\\Temp\\\\UptimeReports.\n\n.EXAMPLE\n  Get-SystemUptime -ComputerName WS01 -Credential $cred -NoExport\n\n  Description: Retrieves system uptime information from WS01 using the specified\n  credential object and skips CSV export.\n\n.LINK\n  [TechToolbox](https://github.com/dan-damit/TechToolbox)\n\u0022\n  },\n  \u0022finalAnswer\u0022: \u0022\u0022,\n  \u0022reason\u0022: \u0022I have read the source function Get-SystemUptime.ps1 to understand its parameters (ComputerName, Credential, OutDir, NoExport) and behavior. I have also reviewed existing help files in the target directory (about_Get-SharedMailboxPermissions.help.txt, about_Get-SystemSnapshot.help.txt, about_Get-SystemTrustDiagnostic.help.txt) to match their format exactly. Now I will write the new help file using WRITE-FILE.\u0022\n}",
-    "runSummary": {
-      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1 and write a detailed help\r\ndocument for PowerShell\uFFFDs Get-Help to consume to the directory located at to\r\nC:\\repos\\TechToolbox\\...",
-      "actionsTaken": [
-        "read_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-06-25T22:51:56.4576207-05:00",
     "status": "success",
     "outcome": "completed",
@@ -8574,5 +8539,39 @@
     "promptPreflightScore": 60,
     "promptPreflightWarningCount": 2,
     "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-03T14:52:22.0665169+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please read the file located at C:\\repos\\TechToolbox\\bin\\classes.py and provide a summary of what it does.",
+    "model": "gpt-5.3-codex",
+    "durationMs": 21783,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "toolNames": [
+      "read_file",
+      "read_file",
+      "read_file",
+      "read_file"
+    ],
+    "outputPreview": "## Summary of \u0060classes.py\u0060\n\nThis is a large, multi-purpose Python module that powers a crimping/production reporting tool.\n\nAt a high level, it does four main things:\n\n- Manages persistent configuration and local SQLite data storage.\n- Imports, cleans, and queries production/crimp history data.\n- Computes KPIs, traceability metrics, SPC-style stats, and time-based trends.\n- Produces outputs for users, including console views, plots, and PDF-style reporting artifacts.\n\n## Main components\n\n### \u0060Settings\u0060 class\n\n- Subclasses \u0060dict\u0060 and auto-persists to JSON (\u0060data/settings.json\u0060).\n- On init, it creates the file if missing, otherwise loads existing settings.\n- Any set/delete operation triggers \u0060save()\u0060, so settings are always written back.\n\n### \u0060Database\u0060 class\n\n- Opens SQLite DB at \u0060data/database.db\u0060.\n- Creates/initializes core tables if missing:\n  - \u0060closedjobs\u0060\n  - \u0060datecodes\u0060\n  - \u0060dies\u0060\n  - \u0060history\u0060\n  - \u0060recipes\u0060\n- Provides helpers to:\n  - clear tables globally or by crimper/table\n  - clean out rows for unknown locations/crimpers\n  - execute SQL and return rows as dict-like structures\n\n### \u0060Summarizer\u0060 class\n\nThis appears to be the central orchestration class.\n\n- Initializes plotting mode (headless by default via matplotlib \u0060Agg\u0060).\n- Loads settings and DB, then aligns DB contents with configured crimpers/locations.\n- Maintains trend cache (\u0060data/trends.pickle\u0060) and supports:\n  - \u0060generate_trends()\u0060\n  - \u0060save_trends()\u0060\n  - \u0060load_trends()\u0060\n  - \u0060clear_trends()\u0060\n- Includes date parsing/formatting utilities (\u0060parse_date\u0060, \u0060parse_datetime\u0060, etc.).\n- Computes operational metrics from \u0060history\u0060 and \u0060datecodes\u0060, including:\n  - total crimps\n  - kit/job/operator-qualified crimps\n  - datecode-valid and traceable crimps\n  - per-crimper and per-location rollups\n- Provides deeper reporting queries such as:\n  - incomplete jobs\n  - job traceability breakdowns\n  - weekly trend series over configurable windows\n\n## Data and reporting focus\n\nFrom the schema and SQL logic, the module is focused on manufacturing traceability and quality reporting:\n\n- Tracks crimp events with recipe/job/operator context.\n- Correlates production events to datecode validity windows.\n- Distinguishes traceable vs non-traceable activity.\n- Aggregates by machine (crimper), location, job, and time period.\n\n## Interface and ecosystem clues\n\nImports indicate this file likely supports both CLI and report generation workflows:\n\n- CLI/terminal UX: \u0060rich\u0060, \u0060prompt_toolkit\u0060, command parsing patterns.\n- Plotting/statistics: \u0060matplotlib\u0060, \u0060numpy\u0060, \u0060scipy.stats.norm\u0060.\n- Document output: \u0060reportlab\u0060, \u0060PyPDF2\u0060.\n- Serialization and file handling: \u0060json\u0060, \u0060pickle\u0060, \u0060csv\u0060, \u0060pathlib\u0060.\n\n## Bottom line\n\n\u0060classes.py\u0060 is effectively the core business-logic module for a production analytics tool. It combines config management, SQLite persistence, manufacturing traceability calculations, trend generation, and reporting/output plumbing in one large file.",
+    "runSummary": {
+      "intent": "Please read the file located at C:\\repos\\TechToolbox\\bin\\classes.py and provide a summary of what it does.",
+      "actionsTaken": [
+        "read_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 40,
+    "promptPreflightWarningCount": 3,
+    "promptPreflightCriticalCount": 1
   }
 ]
