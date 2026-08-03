@@ -20,8 +20,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.4,
-      "avgDurationMs": 37177,
-      "avgToolCalls": 1.55,
+      "avgDurationMs": 37470,
+      "avgToolCalls": 1.75,
       "statusCounts": {
         "success": 8,
         "error": 12
@@ -33,10 +33,10 @@
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "laguna-xs-2.1:latest",
-      "lastRunTimestampUtc": "2026-08-02T02:44:37.0111690\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-02T02:44:37.0125766\u002B00:00",
-      "avgPromptPreflightScore": 70,
+      "lastModel": "gpt-5.3-codex",
+      "lastRunTimestampUtc": "2026-08-03T14:52:22.0665169\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-03T14:52:22.0677436\u002B00:00",
+      "avgPromptPreflightScore": 72,
       "executionModeCounts": {
         "execute": 20
       },
@@ -51,33 +51,6 @@
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-01T05:37:04.974136+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "What is the keyboard shortcut for viewing the windows clipboard history?",
-      "model": "ornith:35b",
-      "durationMs": 15931,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "The keyboard shortcut for viewing the Windows clipboard history is:\n\n- Win \u002B V\n\nThis opens the Clipboard History panel (available in Windows 10 version 1809 and later, and Windows 11). If Clipboard History has not been enabled yet, pressing Win \u002B V will prompt you to turn it on.\n\nNote: This is different from the classic clipboard, which is accessed with Ctrl \u002B V (paste) or Ctrl \u002B C (copy).\n\nTo enable/disable Clipboard History:\n- Open Settings -\u003E System -\u003E Clipboard\n- Toggle \u0022Clipboard history\u0022 on or off",
-      "runSummary": {
-        "intent": "What is the keyboard shortcut for viewing the windows clipboard history?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 2
-    },
     {
       "timestampUtc": "2026-08-01T05:41:52.1398845+00:00",
       "status": "success",
@@ -658,6 +631,40 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-03T14:52:22.0665169+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please read the file located at C:\\repos\\TechToolbox\\bin\\classes.py and provide a summary of what it does.",
+      "model": "gpt-5.3-codex",
+      "durationMs": 21783,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## Summary of \u0060classes.py\u0060\n\nThis is a large, multi-purpose Python module that powers a crimping/production reporting tool.\n\nAt a high level, it does four main things:\n\n- Manages persistent configuration and local SQLite data storage.\n- Imports, cleans, and queries production/crimp history data.\n- Computes KPIs, traceability metrics, SPC-style stats, and time-based trends.\n- Produces outputs for users, including console views, plots, and PDF-style reporting artifacts.\n\n## Main components\n\n### \u0060Settings\u0060 class\n\n- Subclasses \u0060dict\u0060 and auto-persists to JSON (\u0060data/settings.json\u0060).\n- On init, it creates the file if missing, otherwise loads existing settings.\n- Any set/delete operation triggers \u0060save()\u0060, so settings are always written back.\n\n### \u0060Database\u0060 class\n\n- Opens SQLite DB at \u0060data/database.db\u0060.\n- Creates/initializes core tables if missing:\n  - \u0060closedjobs\u0060\n  - \u0060datecodes\u0060\n  - \u0060dies\u0060\n  - \u0060history\u0060\n  - \u0060recipes\u0060\n- Provides helpers to:\n  - clear tables globally or by crimper/table\n  - clean out rows for unknown locations/crimpers\n  - execute SQL and return rows as dict-like structures\n\n### \u0060Summarizer\u0060 class\n\nThis appears to be the central orchestration class.\n\n- Initializes plotting mode (headless by default via matplotlib \u0060Agg\u0060).\n- Loads settings and DB, then aligns DB contents with configured crimpers/locations.\n- Maintains trend cache (\u0060data/trends.pickle\u0060) and supports:\n  - \u0060generate_trends()\u0060\n  - \u0060save_trends()\u0060\n  - \u0060load_trends()\u0060\n  - \u0060clear_trends()\u0060\n- Includes date parsing/formatting utilities (\u0060parse_date\u0060, \u0060parse_datetime\u0060, etc.).\n- Computes operational metrics from \u0060history\u0060 and \u0060datecodes\u0060, including:\n  - total crimps\n  - kit/job/operator-qualified crimps\n  - datecode-valid and traceable crimps\n  - per-crimper and per-location rollups\n- Provides deeper reporting queries such as:\n  - incomplete jobs\n  - job traceability breakdowns\n  - weekly trend series over configurable windows\n\n## Data and reporting focus\n\nFrom the schema and SQL logic, the module is focused on manufacturing traceability and quality reporting:\n\n- Tracks crimp events with recipe/job/operator context.\n- Correlates production events to datecode validity windows.\n- Distinguishes traceable vs non-traceable activity.\n- Aggregates by machine (crimper), location, job, and time period.\n\n## Interface and ecosystem clues\n\nImports indicate this file likely supports both CLI and report generation workflows:\n\n- CLI/terminal UX: \u0060rich\u0060, \u0060prompt_toolkit\u0060, command parsing patterns.\n- Plotting/statistics: \u0060matplotlib\u0060, \u0060numpy\u0060, \u0060scipy.stats.norm\u0060.\n- Document output: \u0060reportlab\u0060, \u0060PyPDF2\u0060.\n- Serialization and file handling: \u0060json\u0060, \u0060pickle\u0060, \u0060csv\u0060, \u0060pathlib\u0060.\n\n## Bottom line\n\n\u0060classes.py\u0060 is effectively the core business-logic module for a production analytics tool. It combines config management, SQLite persistence, manufacturing traceability calculations, trend generation, and reporting/output plumbing in one large file.",
+      "runSummary": {
+        "intent": "Please read the file located at C:\\repos\\TechToolbox\\bin\\classes.py and provide a summary of what it does.",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
     }
   ],
   "_memoryFormatVersion": 2
