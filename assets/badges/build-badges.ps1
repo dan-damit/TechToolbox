@@ -11,6 +11,22 @@ function Format-Number {
     return "{0:N0}" -f $n
 }
 
+function Get-SectionDownloadCount {
+    param(
+        [string]$Html,
+        [string]$SectionPattern
+    )
+
+    $total = 0
+    foreach ($match in [regex]::Matches($Html, $SectionPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+        foreach ($rowMatch in [regex]::Matches($match.Groups['body'].Value, '<td>\s*(?<downloads>[\d,]+)\s*</td>', [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+            $total += [long](($rowMatch.Groups['downloads'].Value) -replace ',', '')
+        }
+    }
+
+    return $total
+}
+
 # -----------------------------
 # Fetch PSGallery Data
 # -----------------------------
@@ -43,20 +59,25 @@ if ($psDownloads -eq 0) {
     try {
         $pageHtml = (Invoke-WebRequest -Uri "https://www.powershellgallery.com/packages/TechToolbox/" -UseBasicParsing -ErrorAction Stop).Content
 
-        # Match the total-downloads stat block:
-        # <li class="package-details-info-main">
-        #     82
-        #     <br />
-        #     <text class="text-sideColumn">
-        #         Downloads
-        #     </text>
-        # </li>
+        # Prefer the package total, but fall back to the visible version-history rows
+        # when the summary stat is missing or changes shape.
+        $scraped = 0
+
         if ($pageHtml -match '<li class="package-details-info-main">\s*([\d,]+)\s*<br\s*/?>\s*<text[^>]*>\s*Downloads\s*</text>') {
             $scraped = [long]($Matches[1] -replace ',', '')
-            if ($scraped -gt 0) {
-                $psDownloads = $scraped
-                Write-Host "  Scraped downloads: $psDownloads" -ForegroundColor DarkGreen
+            Write-Host "  Scraped package total: $scraped" -ForegroundColor DarkGreen
+        }
+
+        if ($scraped -eq 0) {
+            $versionHistoryTotal = Get-SectionDownloadCount -Html $pageHtml -SectionPattern '<tbody class="[^"]*\bno-border\b[^"]*"[^>]*>(?<body>.*?)</tbody>'
+            if ($versionHistoryTotal -gt 0) {
+                $scraped = $versionHistoryTotal
+                Write-Host "  Scraped version-history total: $scraped" -ForegroundColor DarkGreen
             }
+        }
+
+        if ($scraped -gt 0) {
+            $psDownloads = $scraped
         }
         else {
             Write-Warning "Scrape fallback: could not locate download count in PSGallery HTML."
