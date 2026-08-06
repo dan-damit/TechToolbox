@@ -34,6 +34,7 @@ Write-Host "`n[1/4] Fetching PSGallery data..." -ForegroundColor Yellow
 
 $psVersion = "N/A"
 $psDownloads = 0
+$apiDownloads = 0
 
 try {
     $module = Find-Module -Name "TechToolbox" -ErrorAction Stop
@@ -41,11 +42,11 @@ try {
     # Version
     $psVersion = $module.Version.ToString()
 
-    # Downloads (property may not exist)
+    # API Downloads (property may not exist)
     if ($module.PSObject.Properties.Match('TotalDownloads')) {
         $value = $module.TotalDownloads
-        if ($null -ne $value -and $value -is [int] -and $value -ge 0) {
-            $psDownloads = $value
+        if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$apiDownloads) -and $apiDownloads -ge 0) {
+            $psDownloads = $apiDownloads
         }
     }
 }
@@ -53,38 +54,36 @@ catch {
     Write-Warning "Failed to fetch PSGallery data: $_"
 }
 
-# Fallback: scrape the PSGallery package page if the API returned 0
-if ($psDownloads -eq 0) {
-    Write-Host "  API returned 0 downloads — attempting HTML scrape fallback..." -ForegroundColor DarkYellow
-    try {
-        $pageHtml = (Invoke-WebRequest -Uri "https://www.powershellgallery.com/packages/TechToolbox/" -UseBasicParsing -ErrorAction Stop).Content
+# Primary source: sum per-version downloads from PSGallery HTML.
+# Fallbacks: package total in HTML, then API total if available.
+Write-Host "  Fetching per-version download totals from package HTML..." -ForegroundColor DarkYellow
+try {
+    $pageHtml = (Invoke-WebRequest -Uri "https://www.powershellgallery.com/packages/TechToolbox/" -UseBasicParsing -ErrorAction Stop).Content
 
-        # Prefer the package total, but fall back to the visible version-history rows
-        # when the summary stat is missing or changes shape.
-        $scraped = 0
-
-        if ($pageHtml -match '<li class="package-details-info-main">\s*([\d,]+)\s*<br\s*/?>\s*<text[^>]*>\s*Downloads\s*</text>') {
-            $scraped = [long]($Matches[1] -replace ',', '')
-            Write-Host "  Scraped package total: $scraped" -ForegroundColor DarkGreen
-        }
-
-        if ($scraped -eq 0) {
-            $versionHistoryTotal = Get-SectionDownloadCount -Html $pageHtml -SectionPattern '<tbody class="[^"]*\bno-border\b[^"]*"[^>]*>(?<body>.*?)</tbody>'
-            if ($versionHistoryTotal -gt 0) {
-                $scraped = $versionHistoryTotal
-                Write-Host "  Scraped version-history total: $scraped" -ForegroundColor DarkGreen
-            }
-        }
-
-        if ($scraped -gt 0) {
-            $psDownloads = $scraped
-        }
-        else {
-            Write-Warning "Scrape fallback: could not locate download count in PSGallery HTML."
-        }
+    $versionHistoryTotal = Get-SectionDownloadCount -Html $pageHtml -SectionPattern '<tbody class="[^"]*\bno-border\b[^"]*"[^>]*>(?<body>.*?)</tbody>'
+    if ($versionHistoryTotal -gt 0) {
+        $psDownloads = $versionHistoryTotal
+        Write-Host "  Using per-version total: $psDownloads" -ForegroundColor DarkGreen
     }
-    catch {
-        Write-Warning "Scrape fallback failed: $_"
+    elseif ($pageHtml -match '<li class="package-details-info-main">\s*([\d,]+)\s*<br\s*/?>\s*<text[^>]*>\s*Downloads\s*</text>') {
+        $psDownloads = [long]($Matches[1] -replace ',', '')
+        Write-Host "  Per-version rows unavailable; using package total: $psDownloads" -ForegroundColor DarkGreen
+    }
+    elseif ($apiDownloads -gt 0) {
+        $psDownloads = $apiDownloads
+        Write-Host "  HTML scrape unavailable; using API total: $psDownloads" -ForegroundColor DarkGreen
+    }
+    else {
+        Write-Warning "Could not determine PSGallery download count from version rows, package total, or API."
+    }
+}
+catch {
+    if ($apiDownloads -gt 0) {
+        $psDownloads = $apiDownloads
+        Write-Warning "HTML scrape failed; using API total downloads instead: $apiDownloads"
+    }
+    else {
+        Write-Warning "Failed to fetch PSGallery HTML and no API total was available: $_"
     }
 }
 
