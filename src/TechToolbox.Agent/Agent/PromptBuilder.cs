@@ -70,7 +70,8 @@ public static class PromptBuilder
         MemoryStore? memory,
         int recentHistoryItems,
         string executionMode = "execute",
-        string outputContract = "markdown"
+        string outputContract = "markdown",
+        string thinkingMode = "auto"
     )
     {
         var mode = AgentModeDetector.DetectMode(registry);
@@ -82,7 +83,8 @@ public static class PromptBuilder
             null,
             recentHistoryItems,
             executionMode,
-            outputContract
+            outputContract,
+            thinkingMode
         );
     }
 
@@ -104,14 +106,22 @@ public static class PromptBuilder
         string? systemPromptOverride = null,
         int recentHistoryItems = DefaultRecentHistoryItems,
         string executionMode = "execute",
-        string outputContract = "markdown"
+        string outputContract = "markdown",
+        string thinkingMode = "auto"
     )
     {
         var normalizedExecutionMode = NormalizeExecutionMode(executionMode);
         var normalizedOutputContract = NormalizeOutputContract(outputContract);
+        var normalizedThinkingMode = NormalizeThinkingMode(thinkingMode);
         var systemPrompt =
             systemPromptOverride
-            ?? BuildSystemPrompt(registry, mode, normalizedExecutionMode, normalizedOutputContract);
+            ?? BuildSystemPrompt(
+                registry,
+                mode,
+                normalizedExecutionMode,
+                normalizedOutputContract,
+                normalizedThinkingMode
+            );
 
         var messages = new List<AgentChatMessage>
         {
@@ -124,7 +134,8 @@ public static class PromptBuilder
                     memory,
                     recentHistoryItems,
                     normalizedExecutionMode,
-                    normalizedOutputContract
+                    normalizedOutputContract,
+                    normalizedThinkingMode
                 ),
             },
         };
@@ -229,7 +240,8 @@ Invalid response snippet:
         IReadOnlyDictionary<string, ToolSpec> registry,
         AgentMode mode,
         string executionMode,
-        string outputContract
+        string outputContract,
+        string thinkingMode
     )
     {
         var preamble = mode switch
@@ -323,6 +335,20 @@ Invalid response snippet:
             );
         }
 
+        var useThinking = ShouldUseThinkingMode(thinkingMode, executionMode);
+        if (useThinking)
+        {
+            sb.AppendLine(
+                "- Thinking mode is enabled for this run: use deeper reasoning before answering, especially for analysis or planning tasks."
+            );
+        }
+        else
+        {
+            sb.AppendLine(
+                "- Thinking mode is disabled for this run: keep reasoning concise and proceed directly when the task is straightforward."
+            );
+        }
+
         sb.AppendLine();
         sb.AppendLine("Available tools:");
         foreach (var tool in registry.Values.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase))
@@ -371,7 +397,8 @@ Invalid response snippet:
         MemoryStore? memory,
         int recentHistoryItems,
         string executionMode,
-        string outputContract
+        string outputContract,
+        string thinkingMode
     )
     {
         var header =
@@ -384,8 +411,11 @@ Invalid response snippet:
             + $"{AsciiMarkdownInstruction}";
 
         var memoryContext = BuildMemoryContext(memory, recentHistoryItems);
+        var thinkingInstruction = ShouldUseThinkingMode(thinkingMode, executionMode)
+            ? "Use deeper reasoning when it helps accuracy."
+            : "Reason concisely and proceed directly.";
         if (string.IsNullOrWhiteSpace(memoryContext))
-            return $"{header}{Environment.NewLine}{Environment.NewLine}Execution mode: {executionMode}{Environment.NewLine}Output contract: {outputContract}{Environment.NewLine}Goal: {prompt}";
+            return $"{header}{Environment.NewLine}{Environment.NewLine}Execution mode: {executionMode}{Environment.NewLine}Output contract: {outputContract}{Environment.NewLine}Thinking mode: {NormalizeThinkingMode(thinkingMode)}{Environment.NewLine}Thinking guidance: {thinkingInstruction}{Environment.NewLine}Goal: {prompt}";
 
         return $"""
 {header}
@@ -396,6 +426,9 @@ Persistent memory context (advisory):
 Execution mode: {executionMode}
 
 Output contract: {outputContract}
+
+Thinking mode: {NormalizeThinkingMode(thinkingMode)}
+Thinking guidance: {thinkingInstruction}
 
 Goal: {prompt}
 """;
@@ -427,6 +460,33 @@ Goal: {prompt}
             "plain-text" => "plain-text",
             _ => "markdown",
         };
+    }
+
+    private static string NormalizeThinkingMode(string? thinkingMode)
+    {
+        if (string.IsNullOrWhiteSpace(thinkingMode))
+            return "auto";
+
+        var normalized = thinkingMode.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "on" => "on",
+            "off" => "off",
+            _ => "auto",
+        };
+    }
+
+    private static bool ShouldUseThinkingMode(string? thinkingMode, string executionMode)
+    {
+        var normalizedThinkingMode = NormalizeThinkingMode(thinkingMode);
+        if (string.Equals(normalizedThinkingMode, "on", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (string.Equals(normalizedThinkingMode, "off", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(executionMode, "plan", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

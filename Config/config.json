@@ -132,6 +132,7 @@
       "executionMode": "execute",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
+      "thinkingMode": "auto",
       "endpoint": "",
       "deployment": "",
       "apiVersion": "2024-10-21",

@@ -20,7 +20,7 @@ public static class LlmClientFactory
 
         return provider switch
         {
-            "ollama" => new LlmClient(config.Model),
+            "ollama" => new LlmClient(config.Model, ResolveThinkingEnabled(config)),
             "openai" =>
                 CreateOpenAiCompatible(
                     provider,
@@ -70,6 +70,19 @@ public static class LlmClientFactory
         }
 
         return new OpenAiCompatibleLlmClient(provider, model, endpoint, deployment, apiVersion);
+    }
+
+    private static bool ResolveThinkingEnabled(Configuration.AgentConfiguration config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        return config.ThinkingMode switch
+        {
+            "on" => true,
+            "off" => false,
+            _ => string.Equals(config.ExecutionMode, "analyze", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(config.ExecutionMode, "plan", StringComparison.OrdinalIgnoreCase),
+        };
     }
 
     private static string NormalizeProvider(string? provider)

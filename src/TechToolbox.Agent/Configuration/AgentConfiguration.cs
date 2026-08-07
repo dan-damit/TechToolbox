@@ -43,6 +43,12 @@ public class AgentConfiguration
     public string QualityProfile { get; set; } = "balanced";
 
     /// <summary>
+    /// Thinking mode for models that support deeper reasoning.
+    /// Supported values: "auto", "on", "off".
+    /// </summary>
+    public string ThinkingMode { get; set; } = "auto";
+
+    /// <summary>
     /// Prompt preflight quality score from 0 to 100.
     /// </summary>
     public int PromptPreflightScore { get; set; }

@@ -34,6 +34,7 @@ public partial class AgentOrchestrator
     private readonly string _executionMode;
     private readonly string _outputContract;
     private readonly string _qualityProfile;
+    private readonly string _thinkingMode;
     private readonly int _promptPreflightScore;
     private readonly int _promptPreflightWarningCount;
     private readonly int _promptPreflightCriticalCount;
@@ -75,6 +76,7 @@ public partial class AgentOrchestrator
     /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
     /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
     /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
+    /// <param name="thinkingMode">Thinking mode: auto, on, or off.</param>
     /// <param name="promptPreflightScore">Prompt preflight score (0..100).</param>
     /// <param name="promptPreflightWarningCount">Prompt preflight warning count.</param>
     /// <param name="promptPreflightCriticalCount">Prompt preflight critical issue count.</param>
@@ -94,6 +96,7 @@ public partial class AgentOrchestrator
         string executionMode = "execute",
         string outputContract = "markdown",
         string qualityProfile = "balanced",
+        string thinkingMode = "auto",
         int promptPreflightScore = 0,
         int promptPreflightWarningCount = 0,
         int promptPreflightCriticalCount = 0
@@ -116,6 +119,7 @@ public partial class AgentOrchestrator
         _executionMode = NormalizeExecutionMode(executionMode);
         _outputContract = NormalizeOutputContract(outputContract);
         _qualityProfile = NormalizeQualityProfile(qualityProfile);
+        _thinkingMode = thinkingMode;
         _promptPreflightScore = Math.Clamp(promptPreflightScore, 0, 100);
         _promptPreflightWarningCount = Math.Max(0, promptPreflightWarningCount);
         _promptPreflightCriticalCount = Math.Max(0, promptPreflightCriticalCount);
@@ -236,7 +240,8 @@ public partial class AgentOrchestrator
             _memory,
             _recentHistoryItemsInPrompt,
             _executionMode,
-            _outputContract
+            _outputContract,
+            _thinkingMode
         );
         var maxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
         var consecutiveLlmFailures = 0;

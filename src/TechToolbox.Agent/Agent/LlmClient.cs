@@ -25,6 +25,9 @@ public class LlmClient : ILlmClient
     // Model name to use for LLM requests
     private readonly string _model;
 
+    // Whether deeper reasoning/thinking should be requested from the model.
+    private readonly bool _thinkingEnabled;
+
     // JSON serialization options with case-insensitive property matching
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -40,9 +43,10 @@ public class LlmClient : ILlmClient
     /// Initializes a new instance of the LlmClient with the specified model.
     /// </summary>
     /// <param name="model">The Ollama model name to use.</param>
-    public LlmClient(string model)
+    public LlmClient(string model, bool thinkingEnabled = false)
     {
         _model = model;
+        _thinkingEnabled = thinkingEnabled;
         _http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
     }
 
@@ -70,7 +74,7 @@ public class LlmClient : ILlmClient
             Model = _model,
             Messages = messages.ToList(),
             Stream = true,
-            Think = false,
+            Think = _thinkingEnabled,
             Format = "json",
             Options = new Dictionary<string, object?>
             {

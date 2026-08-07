@@ -122,6 +122,7 @@ public static class AgentCore
         string executionMode = "execute",
         string outputContract = "markdown",
         string qualityProfile = "balanced",
+        string thinkingMode = "auto",
         int promptPreflightScore = 0,
         int promptPreflightWarningCount = 0,
         int promptPreflightCriticalCount = 0
@@ -156,6 +157,7 @@ public static class AgentCore
                 executionMode,
                 outputContract,
                 qualityProfile,
+                thinkingMode,
                 promptPreflightScore,
                 promptPreflightWarningCount,
                 promptPreflightCriticalCount
@@ -225,6 +227,7 @@ public static class AgentCore
         string executionMode = "execute",
         string outputContract = "markdown",
         string qualityProfile = "balanced",
+        string thinkingMode = "auto",
         int promptPreflightScore = 0,
         int promptPreflightWarningCount = 0,
         int promptPreflightCriticalCount = 0
@@ -245,6 +248,7 @@ public static class AgentCore
             ExecutionMode = executionMode,
             OutputContract = outputContract,
             QualityProfile = qualityProfile,
+            ThinkingMode = thinkingMode,
             PromptPreflightScore = promptPreflightScore,
             PromptPreflightWarningCount = promptPreflightWarningCount,
             PromptPreflightCriticalCount = promptPreflightCriticalCount,
@@ -359,6 +363,7 @@ public static class AgentCore
             config.ExecutionMode,
             config.OutputContract,
             config.QualityProfile,
+            config.ThinkingMode,
             config.PromptPreflightScore,
             config.PromptPreflightWarningCount,
             config.PromptPreflightCriticalCount

@@ -1,5 +1,6 @@
 using System.Reflection;
 using TechToolbox.Agent.Agent;
+using TechToolbox.Agent.Registry;
 using Xunit;
 
 namespace TechToolbox.Agent.Tests;
@@ -28,6 +29,38 @@ public class LlmClientTests
         {
             Environment.SetEnvironmentVariable("TT_AGENT_LLM_NUM_PREDICT", previous);
         }
+    }
+
+    [Fact]
+    public void BuildInitialMessages_IncludesThinkingGuidance_WhenThinkingModeIsOn()
+    {
+        var messages = PromptBuilder.BuildInitialMessages(
+            "Investigate the failing workflow",
+            new Dictionary<string, ToolSpec>(),
+            null,
+            0,
+            "analyze",
+            "markdown",
+            "on"
+        );
+
+        Assert.Contains("deeper reasoning", messages[0].Content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BuildInitialMessages_DoesNotIncludeThinkingGuidance_WhenThinkingModeIsOff()
+    {
+        var messages = PromptBuilder.BuildInitialMessages(
+            "Investigate the failing workflow",
+            new Dictionary<string, ToolSpec>(),
+            null,
+            0,
+            "analyze",
+            "markdown",
+            "off"
+        );
+
+        Assert.DoesNotContain("deeper reasoning", messages[0].Content, StringComparison.OrdinalIgnoreCase);
     }
 
     private static int InvokeGetNumPredict()
