@@ -171,6 +171,10 @@ function Invoke-TechAgent {
         [string]$QualityProfile,
 
         [Parameter()]
+        [ValidateSet('auto', 'on', 'off')]
+        [string]$ThinkingMode,
+
+        [Parameter()]
         [switch]$Quiet,
 
         [Parameter()]
@@ -429,6 +433,25 @@ function Invoke-TechAgent {
     $resolvedExecutionMode = & $resolveExecutionMode -ModeFromParam $ExecutionMode -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('ExecutionMode')
     $resolvedOutputContract = & $resolveOutputContract -ContractFromParam $OutputContract -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('OutputContract')
     $resolvedQualityProfile = & $resolveQualityProfile -ProfileFromParam $QualityProfile -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('QualityProfile')
+
+    $resolvedThinkingMode = if ($PSBoundParameters.ContainsKey('ThinkingMode') -and -not [string]::IsNullOrWhiteSpace($ThinkingMode)) {
+        $ThinkingMode.Trim().ToLowerInvariant()
+    }
+    elseif ($cfg -and $cfg.PSObject.Properties['thinkingMode']) {
+        [string]$cfg.thinkingMode
+    }
+    else {
+        'auto'
+    }
+    if ([string]::IsNullOrWhiteSpace($resolvedThinkingMode)) {
+        $resolvedThinkingMode = 'auto'
+    }
+    $resolvedThinkingMode = $resolvedThinkingMode.Trim().ToLowerInvariant()
+    switch ($resolvedThinkingMode) {
+        'on' { $resolvedThinkingEnabled = $true }
+        'off' { $resolvedThinkingEnabled = $false }
+        default { $resolvedThinkingEnabled = $resolvedExecutionMode -eq 'analyze' -or $resolvedExecutionMode -eq 'plan' }
+    }
 
     $qualitySettings = switch ($resolvedQualityProfile) {
         'precise' {
@@ -1344,37 +1367,38 @@ Hard requirement:
         }
 
         $request = [ordered]@{
-            Prompt               = $effectivePrompt
-            Model                = $resolvedModel
-            ExecutionMode        = $resolvedExecutionMode
-            OutputContract       = $resolvedOutputContract
-            QualityProfile       = $resolvedQualityProfile
-            PromptPreflightScore = $preflightScore
-            PromptPreflightWarningCount = $preflightWarningCount
+            Prompt                       = $effectivePrompt
+            Model                        = $resolvedModel
+            ExecutionMode                = $resolvedExecutionMode
+            OutputContract               = $resolvedOutputContract
+            QualityProfile               = $resolvedQualityProfile
+            ThinkingMode                 = $resolvedThinkingMode
+            PromptPreflightScore         = $preflightScore
+            PromptPreflightWarningCount  = $preflightWarningCount
             PromptPreflightCriticalCount = $preflightCriticalCount
-            Verbose              = $false
-            MaxIterations        = $MaxIterations
-            PromptHistoryItems   = $resolvedPromptHistoryItems
-            ConfirmDestructive   = $ConfirmDestructive.IsPresent
-            MemoryPath           = $memoryPath
-            AutoRetryOnRecursion = $autoRetryOnIterationLimit
-            ReturnMetadata       = $false
-            SignedFilePolicy     = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
-            DiagnosticTracePath  = $diagnosticTracePath
-            ExpectedOutputPath   = $expectedOutputPath
-            AllowedFetchHosts    = @($allowedFetchHosts)
-            SearchWebProvider    = $searchWebProvider
-            SearchWebEndpoint    = $searchWebEndpoint
-            SearchWebApiKeyEnvVar = $searchWebApiKeyEnvVar
-            SearchWebCountry     = $searchWebCountry
-            SearchWebLanguage    = $searchWebLanguage
-            SearchWebSafeSearch  = $searchWebSafeSearch
-            SearchWebDefaultCount = $searchWebDefaultCount
-            AllowMetaTools       = $AllowMetaTools.IsPresent
-            LlmProvider          = $Provider
-            LlmEndpoint          = $Endpoint
-            LlmDeployment        = $Deployment
-            LlmApiVersion        = $ApiVersion
+            Verbose                      = $false
+            MaxIterations                = $MaxIterations
+            PromptHistoryItems           = $resolvedPromptHistoryItems
+            ConfirmDestructive           = $ConfirmDestructive.IsPresent
+            MemoryPath                   = $memoryPath
+            AutoRetryOnRecursion         = $autoRetryOnIterationLimit
+            ReturnMetadata               = $false
+            SignedFilePolicy             = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
+            DiagnosticTracePath          = $diagnosticTracePath
+            ExpectedOutputPath           = $expectedOutputPath
+            AllowedFetchHosts            = @($allowedFetchHosts)
+            SearchWebProvider            = $searchWebProvider
+            SearchWebEndpoint            = $searchWebEndpoint
+            SearchWebApiKeyEnvVar        = $searchWebApiKeyEnvVar
+            SearchWebCountry             = $searchWebCountry
+            SearchWebLanguage            = $searchWebLanguage
+            SearchWebSafeSearch          = $searchWebSafeSearch
+            SearchWebDefaultCount        = $searchWebDefaultCount
+            AllowMetaTools               = $AllowMetaTools.IsPresent
+            LlmProvider                  = $Provider
+            LlmEndpoint                  = $Endpoint
+            LlmDeployment                = $Deployment
+            LlmApiVersion                = $ApiVersion
         }
 
         $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
@@ -1419,6 +1443,7 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [string]$request.ExecutionMode,
     [string]$request.OutputContract,
     [string]$request.QualityProfile,
+    [string]$request.ThinkingMode,
     [int]$request.PromptPreflightScore,
     [int]$request.PromptPreflightWarningCount,
     [int]$request.PromptPreflightCriticalCount)
@@ -1703,8 +1728,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBoTjs161eMHGSF
-# 4NTh3aUzt/lMpqmQZfwJmeC5tO+DL6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCat/mNsl5keVB6
+# ua089CoF9nISIfdBDaF8HArxRI9POqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1837,34 +1862,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDE4VTMfD5G
-# 6bdjeEUSDq8EtdY1CLavpe/UzdhJ+jiImTANBgkqhkiG9w0BAQEFAASCAgCV1iJ+
-# U4wxCBJr1k9MMSMf/mLYBhlRz/D1ObZ6EFcuWmImncwHWSsuvyQbAAgUzjN6jP8h
-# +XswPbejup6EYh2erJeAqw/s2HBVynhcKtSBrja7fn+hKaJHtjttUSxA9hhdHjz0
-# 0Sz5jYgDsYOtLBms0GajX3Y9X0qFNU/C/gsTDt2DDGgW1yjJwm8Y0FCrmJsV7aFT
-# 2l4OVNBNcp5ZoTyTsndL+k2l3iIfYHrThaG/hJ5cwZk+581b+Pobk+zC2C3Ay9cJ
-# P3pWZfDQmRnH38l00phPJiGFUoC3EZOmFYuPdUk/41R+uSQuVFGW+F+1kGOyFvyX
-# YBtcPt8tqjoXX0+dRNe/+NvSgK/2yoFa1n2BD9h+dBMO1kCsqRk4NCwJfqkgmpuK
-# /l8PRVQi/on9fHRN+lmXdR6hjkaANn1KgibLLo/WTWCjEnfrCgSVS0kbKyXnnzKH
-# poNa+nuA1HhENcAQntv9wS+EwxpKZccHME8H78TV0VGfemBgCJm72+vOw766UBSs
-# Mlh1xme3bqqd4xbGCFdekjDkRJZP9wlrItbjnLYErkn3D1LnCZRkbd6KHOzZVEFt
-# l/kcAcQQy0NglDx9uwcNaBUXB2zj6AYHMd+jQOkBE9j0WdeMGgTCZVLUAtn/yD8l
-# Or0S7Tp3WEEogeO4jD3SnXZzXaJBjBelVC/LbKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqxWcYgT22
+# 5yeGTM3aAgMmZHeS/6K89aI7KjYvtg/wzzANBgkqhkiG9w0BAQEFAASCAgDQ0dMq
+# 63AljfHdfeNhzNhV5+4Dav7Z/DwqIAZ/09hw0u0BNppYJCWzkEJTLQmABUpBSFVA
+# 6gYgbkA8Nl87UuDRRAU/6h8ljCJYrtdWgLYCOyuLt4zeI6TxenFZ/pp/VupCeT4F
+# xClhGV6EhbJm92px+OZeERHGJA+ZzVcwvFwrk7nsR9uTnI2FpNWDnsDoS1ukU24i
+# VdoXyB4uvgAiUoPfyhHUWTUfbu68gaBDyDts09h92Rxi1WSF6v5GNA69m/Rq3OQm
+# KLh5aD48/BlUSnEzRFUb96Su5ylzqE3bd2cNzclyh/bB8Uvher0vcpBiQTW4twQx
+# Pp9J5BKM4rvl20Dq4/LEYWoGwrZcLtUIZxiEuwqKPkXzLs7ghlw0S9+5MB7gyI5l
+# 409xt4LE2mn9as/l7qEMs0SD/2cmGjkJG9DCvrOrLTqto8RKmJcfuHu3ndMc5nZo
+# 7Q4ARCWd8dCupBIpBjFwvjPNbObAi8GdcVmrD8XwVHD+tonHkKiGYdUOIPCv5/yM
+# ky3Mq0fkIt2gUKqsXykpcyAaigKG8jIqjpXyV176N1oUKt7FofLE6alMBSRWKkJW
+# GVg3rRQpLBxftdbpHyWf6b2QvzXtrcspIFPmMjXsf+0DGwI+8P+9vU7ATYJHfMGp
+# mrqKy7lfgD+6ixEFJFTcBoYyPOSUs1mOvAb8aKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MDEwNDUwNTJaMC8GCSqGSIb3DQEJBDEiBCD6C/lVLiG3MWxaOn6/
-# DVns5K4CSgIlYN7tk13s6fDtxTANBgkqhkiG9w0BAQEFAASCAgBsfPqgRKw1nuNS
-# NtwPv6hbZrry5uCIGK6UITuchmK6wfPM5T6eutVG95P12uUgm5TEDEtH7ZGvEL1g
-# 9JjCRqtFWOYCLwqrVIc63iO3VngtEzrQsNNAUESO7ATCa2MKA6wrUgM+i2eyBj75
-# +GNRGJbkPfnxho47y27a7WUFynsdpIiVxYFoQNMT9jNVi13ivFsOUx3r6mztGyAi
-# zHDpi+cmDnBLBMwAajY81E1sig3arStlpYUwbBcy4FlKssE057/N3VMQNE9sZEgm
-# pTZ9MMgn7GLBsK4Iaf1sSusRO1/mlP/I14k0LuR3T4IuFOYaMM7gl2Eai5mgD/Od
-# pp2p2UlLOXMBcTvxaMtwTTdGFO3n4OaF58BLyEgYvIBFlSl2/H+xvFLeOJe05oBQ
-# jQ2BeTRtBBi7u5wA1Y4gtvDosH6j5+faIMD1kjv4jGvxH/Y3yI0zXNE5QAdrkI0S
-# DJ9nLHSKOYss5E20G86jOuWeMM0e+OasAM4LvxhWlwEDQsyyAl5NgI5mSl/IWYTN
-# Ud1djY9ZAnoVgzCn960y3nZgYY5MzwyvJ25wg0tMGTt557S9MxbU+JEmXSi8uEmy
-# iFDIN1rfMJ1fMnm/NAy6bU64hq1fyg+w1v1jledFwTU0Tzd4rYkLqPEiRTUaqqGn
-# KHDJ6YhYYZXH6Yk7MZ6DVk+tW5BOiw==
+# BTEPFw0yNjA4MDcwNDQwNTJaMC8GCSqGSIb3DQEJBDEiBCD1t47vCmdoSChQD4eQ
+# TkqnYMNyMfHx0pqMPEEVgySyQzANBgkqhkiG9w0BAQEFAASCAgCQzrSN0hAXyZYz
+# sq1Pk941w9GHi3TaJRw8aNpQBX+gHUt1o6OPU7bNTEQJ2kz3/G2+5/UcjTUloxKB
+# EhA6WjKxdrpc0Fk5RT4xvrIB5ksd4d/F2dWPQpCXhYAUwVL+zblreZfddS6M4T6B
+# t7oJmIjdlf9dTLA6S/Ge1Xitin/ZPu9VG5WmiB2G4CHjerDYTspCatS2DqjguhvB
+# Ma8kT/NIvdEeD3K8NiABn9KSf8z3qN6xbh5DfrSo4DmiOHcxM2J6VlWu3p1aoIHB
+# kHst70oHHn6+OY8KszJ0LqTpA7Znv9lQnM2Lete2a/R++ivUhXxL7X7ywblvxZh6
+# Kbbx3esOeu37P4tsB+HU1JiznGyw2N4F9xdyTUMjGRJneF3p9j2msd4OTfb8cLs/
+# 0Sw9ncR955PeSkxcIsbJfqN4FToigUZcfpnvsQoBVJvHAnAERSe06N3V9lh7WNB3
+# HflQPb7zFWKoQuamb0D/bq5mkOz9ckjdCpDOs1+ZEveyy5LylVrPEeA2XXLW8r7+
+# 1+z+tMecfOE3W2TC8QpxxLE55OLl2RKEd1+QuevnRiN40r4vW0aMCZO3Wh9bvdey
+# FzpiaH1jrO/hUT6JiUCnXf+dnftlblcTdJPZnlh181repS8ZYBwVM51yjiZ3M/hD
+# AW+0jmgWpT/cMUWkF+gCuPutUN4mDQ==
 # SIG # End signature block
