@@ -35,6 +35,7 @@ public partial class AgentOrchestrator
     private readonly string _outputContract;
     private readonly string _qualityProfile;
     private readonly string _thinkingMode;
+    private readonly HeuristicScoringEngine _heuristicScoringEngine = new();
     private readonly int _promptPreflightScore;
     private readonly int _promptPreflightWarningCount;
     private readonly int _promptPreflightCriticalCount;
@@ -245,6 +246,7 @@ public partial class AgentOrchestrator
         );
         var maxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
         var consecutiveLlmFailures = 0;
+        var recentToolFailures = new List<string>();
         var expectedOutputPath = string.IsNullOrWhiteSpace(_expectedOutputPath)
             ? ExtractExpectedOutputPathFromPrompt(prompt)
             : _expectedOutputPath;
@@ -551,6 +553,25 @@ public partial class AgentOrchestrator
 
             consecutiveLlmFailures = 0;
 
+            var heuristicEvaluation = _heuristicScoringEngine.Evaluate(
+                prompt,
+                decision,
+                recentToolFailures,
+                lastSuccessfulTool: _memory?.History.LastOrDefault()?.ToolNames.LastOrDefault(),
+                lastSuccessfulTargetHint: _memory?.History.LastOrDefault()?.RunSummary?.Intent
+            );
+
+            if (decision.NeedsTool && heuristicEvaluation.NeedsClarification)
+            {
+                Trace(
+                    $"Iteration {i + 1} heuristic clarification triggered confidence={heuristicEvaluation.Confidence:F2} tool={decision.ToolName}"
+                );
+                return new RunLoopResult(
+                    heuristicEvaluation.ClarificationMessage,
+                    ReachedIterationLimit: false
+                );
+            }
+
             if (!decision.NeedsTool)
             {
                 if (requiresWriteFile && !writeFileCompleted)
@@ -651,6 +672,7 @@ public partial class AgentOrchestrator
             if (!_tools.TryGetValue(toolName, out var toolFunc))
             {
                 Trace($"Iteration {i + 1} tool not found: {toolName}");
+                recentToolFailures.Add(toolName);
 
                 var toolError = $"Tool '{toolName}' was not found.";
 
@@ -699,6 +721,7 @@ public partial class AgentOrchestrator
             {
                 toolExecutionSucceeded = false;
                 toolResult = ex.Message;
+                recentToolFailures.Add(toolName);
             }
 
             if (requiresWriteFile && (isFileUpdateTool || isFinalizeTool))

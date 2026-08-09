@@ -87,6 +87,28 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_AsksForClarification_WhenToolDecisionIsLowConfidenceAndAmbiguous()
+    {
+        var llm = new RecordingFakeLlmClient(new[] { ToolDecision("READ-FILE") });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["READ-FILE"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 3, autoRetry: false);
+
+        var result = await orchestrator.RunAsync("Investigate the issue and figure out what is wrong.");
+
+        Assert.Equal(0, result.ToolCallCount);
+        Assert.Empty(result.ToolNames);
+        Assert.Contains("clarification", result.OutputText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("need a bit more detail", result.OutputText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task RunAsync_UsesPythonStyleGoalPrompt()
     {
         var llm = new RecordingFakeLlmClient(new[] { FinalDecision("Done") });
