@@ -20,8 +20,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.5,
-      "avgDurationMs": 53211,
-      "avgToolCalls": 2,
+      "avgDurationMs": 60185,
+      "avgToolCalls": 1.6,
       "statusCounts": {
         "success": 10,
         "error": 10
@@ -34,9 +34,9 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gemma4:31b",
-      "lastRunTimestampUtc": "2026-08-07T04:00:27.5715672\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-07T04:00:27.5729681\u002B00:00",
-      "avgPromptPreflightScore": 61,
+      "lastRunTimestampUtc": "2026-08-09T01:19:48.7809011\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-09T01:19:48.7819923\u002B00:00",
+      "avgPromptPreflightScore": 59,
       "executionModeCounts": {
         "execute": 20
       },
@@ -51,75 +51,6 @@
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-01T05:58:46.9733381+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Read the file below:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1\r\n\r\nTask:\r\nUpdate the documentation for the Invoke-TechAgent PowerShell script to reflect\r\nthe latest features and usage instructions. Please ensure the new parameters are\r\nincluded in the documentation\u0027s parameters table.\r\n\r\nTopic:\r\nUpdate the markdown document for the topic described below.\r\n\r\nFile to update:\r\nC:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n\r\nRequirements:\r\n- Update the file at this exact path:\r\n  C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n- Use accurate technical details based on the source inputs.\r\n- Structure the document for fast scanning with concise headings and examples when useful.\r\n- Keep the tone practical and specific to this repository or scenario.\r\n- Use WRITE-FILE to create or update the markdown document.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "gpt-5.3-codex",
-      "durationMs": 40168,
-      "maxIterations": 25,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 7,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file",
-        "write_file",
-        "write_file"
-      ],
-      "outputPreview": "## Update complete\n\nUpdated file:\n- \u0060C:\\repos\\TechToolbox-Docs\\Invoke-TechAgent.md\u0060\n\nThe documentation now reflects the current \u0060Invoke-TechAgent\u0060 script behavior and includes an updated parameters table with the newer options, including:\n- \u0060ApiKeyEncrypted\u0060\n- \u0060ApiKeyEncryptedBlob\u0060\n- \u0060DisableApiKeyPrompt\u0060\n- \u0060PromptHistoryItems\u0060\n- \u0060ExecutionMode\u0060\n- \u0060StrictPromptPreflight\u0060\n- \u0060OutputContract\u0060\n- \u0060QualityProfile\u0060\n- \u0060ConfirmDestructive\u0060\n- \u0060SignedFilePolicy\u0060\n- \u0060AutoRetryOnRecursion\u0060\n- \u0060DisableAutoRetryOnRecursion\u0060\n- \u0060NoTranscript\u0060\n- \u0060AllowMetaTools\u0060\n\nIt also includes practical usage examples and prompt source resolution behavior aligned to the script.",
-      "runSummary": {
-        "intent": "Read the file below:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1\r\n\r\nTask:\r\nUpdate the documentation for the Invoke-TechAgent PowerShell script to reflect\r\nthe latest features and usage instructions. Please ensur...",
-        "actionsTaken": [
-          "read_file",
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-01T06:24:52.9458759+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please search the web with the new SEARCH-WEB tool and let me know if you can use it or not, and if not, why not.",
-      "model": "laguna-xs-2.1:latest",
-      "durationMs": 22220,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "search_web"
-      ],
-      "outputPreview": "# SEARCH-WEB Tool Test Results\n\nThe SEARCH-WEB tool works correctly and can be used for web searches.\n\n## Test Details\n- **Tool Used**: SEARCH-WEB\n- **Query**: \u0022TechToolbox PowerShell Invoke-TechAgent documentation\u0022\n- **Status**: Success\n- **Provider**: Brave API\n\n## Results Summary\nThe search returned 5 results including:\n1. PowerShell Gallery page for TechToolbox 0.5.44 with the Invoke-TechAgent.ps1 script\n2. Microsoft PowerShell Community Hub\n3. Blog post about creating PowerShell AI agents by Bart Pasmans\n4. GitHub repository for PowerShell Toolbox book\n5. Devolutions documentation on PowerShell Universal AI Agents\n\n## Conclusion\nThe SEARCH-WEB tool is functional and can be used to search the web for information about TechToolbox, PowerShell scripts, and AI agent documentation.",
-      "runSummary": {
-        "intent": "Please search the web with the new SEARCH-WEB tool and let me know if you can use it or not, and if not, why not.",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 20,
-      "promptPreflightWarningCount": 4,
-      "promptPreflightCriticalCount": 2
-    },
     {
       "timestampUtc": "2026-08-01T20:24:48.8581836+00:00",
       "status": "success",
@@ -675,6 +606,60 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-09T01:05:10.3123163+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please review your decision making architecture and make a recommendation on implementing a more heuristic method.",
+      "model": "gemma4:31b",
+      "durationMs": 146085,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Decision Making Architecture Review\n\n### Current State\nThe current architecture relies on a linear step-by-step execution loop: Observation -\u003E Tool Selection -\u003E Execution -\u003E Evaluation. While reliable for deterministic tasks, it lacks the ability to handle ambiguity or complex branching without explicit prompts.\n\n### Recommendation: Heuristic Implementation\nTo improve efficiency and autonomy, I recommend implementing a \u0027Heuristic Scoring Engine\u0027 based on the following components:\n\n- Confidence Scoring: Assign a confidence value (0.0 to 1.0) to each potential tool path. If the highest score is below a certain threshold (e.g., 0.7), the agent should trigger a \u0027Clarification\u0027 state rather than guessing.\n- Pattern Matching: Implement a library of common operational patterns (e.g., \u0027Troubleshoot Service\u0027 -\u003E Check Status -\u003E Read Logs -\u003E Restart Service). When a goal matches a pattern, the agent can prioritize those tools.\n- Cost-Benefit Analysis: Evaluate tools based on \u0027cost\u0027 (time/risk) vs \u0027benefit\u0027 (information gain). For example, prefer READ-FILE over a full directory scan if a specific path is suspected.\n- Feedback Loops: Integrate a short-term memory buffer that tracks failed attempts within a session to penalize repetitive, unsuccessful tool calls (preventing infinite loops).\n\n### Implementation Path\n1. Define Heuristic Weights: Establish weights for tool success rates and risk levels.\n2. Integration: Insert the scoring layer between the \u0027Reasoning\u0027 and \u0027Tool Call\u0027 phases.\n3. Validation: Test against a set of ambiguous goals to ensure the agent asks for confirmation when confidence is low.",
+      "runSummary": {
+        "intent": "Please review your decision making architecture and make a recommendation on implementing a more heuristic method.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-09T01:19:48.7809011+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Thank you for the architecture review for your decision making. I added the recommendations to your code.",
+      "model": "gemma4:31b",
+      "durationMs": 55777,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "You are welcome. I appreciate you implementing those recommendations into my decision making architecture. Please let me know if there are any other updates or tasks you would like me to handle.",
+      "runSummary": {
+        "intent": "Thank you for the architecture review for your decision making. I added the recommendations to your code.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 2
     }
   ],
   "_memoryFormatVersion": 2
