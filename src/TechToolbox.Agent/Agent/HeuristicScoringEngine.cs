@@ -8,7 +8,8 @@ namespace TechToolbox.Agent.Agent;
 public sealed class HeuristicScoringEngine
 {
     private const double ClarificationThreshold = 0.66;
-    private const double MaxPenaltyFromFailures = 0.18;
+    private const double InvestigationExploratoryThresholdReduction = 0.06;
+    private const double MaxPenaltyFromFailures = 0.12;
 
     private static readonly Dictionary<string, double> BaseToolWeights =
         new(StringComparer.OrdinalIgnoreCase)
@@ -114,12 +115,26 @@ public sealed class HeuristicScoringEngine
         "url",
     ];
 
+    /// <summary>
+    /// Evaluates the confidence of a proposed tool action based on heuristics such as prompt clarity, target specificity, and recent failure history.
+    /// Returns an evaluation indicating whether clarification is needed before proceeding.
+    /// </summary>
+    /// <param name="prompt">The user's original prompt or instruction.</param>
+    /// <param name="decision">The agent's proposed decision containing the tool name and arguments.</param>
+    /// <param name="recentToolFailures">A collection of recently failed tool names to penalize repeated failures.</param>
+    /// <param name="lastSuccessfulTool">Optional: The name of the last successfully executed tool for context matching.</param>
+    /// <param name="lastSuccessfulTargetHint">Optional: A hint about the target from the last successful tool execution.</param>
+    /// <param name="clarificationCycles">The number of clarification cycles already performed.</param>
+    /// <param name="hasNewConcreteTargetHint">Whether a new, concrete target hint has been provided in this cycle.</param>
+    /// <returns>A HeuristicEvaluation containing confidence score, clarification flag, and message if needed.</returns>
     public HeuristicEvaluation Evaluate(
         string? prompt,
         AgentDecision decision,
         IReadOnlyCollection<string> recentToolFailures,
         string? lastSuccessfulTool = null,
-        string? lastSuccessfulTargetHint = null
+        string? lastSuccessfulTargetHint = null,
+        int clarificationCycles = 0,
+        bool hasNewConcreteTargetHint = false
     )
     {
         if (decision is null || !decision.NeedsTool)
@@ -131,6 +146,9 @@ public sealed class HeuristicScoringEngine
         var normalizedPrompt = promptText.ToLowerInvariant();
         var toolName = decision.ToolName ?? string.Empty;
         var normalizedToolName = NormalizeToolName(toolName);
+        var hasSpecificTargetHint = HasSpecificTargetHint(promptText, decision.ToolArgs);
+        var isInvestigationPrompt = IsInvestigationPrompt(normalizedPrompt);
+        var isLowRiskExploratoryTool = IsLowRiskExploratoryTool(normalizedToolName);
 
         var confidence = 0.72;
 
@@ -139,9 +157,13 @@ public sealed class HeuristicScoringEngine
             confidence = Math.Clamp(baseWeight, 0.0, 1.0);
         }
 
-        if (ContainsAny(normalizedPrompt, InvestigationTerms))
+        if (isInvestigationPrompt)
         {
-            confidence -= 0.08;
+            confidence += 0.04;
+            if (isLowRiskExploratoryTool)
+            {
+                confidence += 0.02;
+            }
         }
 
         var patternBoost = MatchPatternBoost(normalizedPrompt, normalizedToolName);
@@ -178,9 +200,14 @@ public sealed class HeuristicScoringEngine
             confidence += 0.08;
         }
 
-        if (HasSpecificTargetHint(promptText, decision.ToolArgs))
+        if (hasSpecificTargetHint)
         {
             confidence += 0.08;
+        }
+
+        if (hasNewConcreteTargetHint)
+        {
+            confidence += 0.06;
         }
 
         if (string.IsNullOrWhiteSpace(promptText))
@@ -195,7 +222,7 @@ public sealed class HeuristicScoringEngine
 
         if (IsVeryVaguePrompt(normalizedPrompt) && IsAmbiguousToolChoice(normalizedToolName))
         {
-            confidence -= 0.22;
+            confidence -= 0.12;
         }
         else if (IsVeryVaguePrompt(normalizedPrompt))
         {
@@ -209,7 +236,18 @@ public sealed class HeuristicScoringEngine
             );
             if (repeatedFailures > 0)
             {
-                confidence -= Math.Min(MaxPenaltyFromFailures, repeatedFailures * 0.08);
+                var failurePenalty = Math.Min(MaxPenaltyFromFailures, repeatedFailures * 0.04);
+                if (isInvestigationPrompt && isLowRiskExploratoryTool)
+                {
+                    failurePenalty = Math.Max(0.0, failurePenalty - 0.03);
+                }
+
+                if (hasNewConcreteTargetHint)
+                {
+                    failurePenalty = 0.0;
+                }
+
+                confidence -= failurePenalty;
             }
         }
 
@@ -220,12 +258,123 @@ public sealed class HeuristicScoringEngine
 
         confidence = Math.Clamp(confidence, 0.0, 1.0);
 
-        var needsClarification = confidence < ClarificationThreshold;
+        var clarificationThreshold = ClarificationThreshold;
+        if (isInvestigationPrompt && isLowRiskExploratoryTool)
+        {
+            clarificationThreshold -= InvestigationExploratoryThresholdReduction;
+        }
+
+        if (hasNewConcreteTargetHint)
+        {
+            clarificationThreshold -= 0.02;
+        }
+
+        clarificationThreshold = Math.Clamp(clarificationThreshold, 0.45, ClarificationThreshold);
+
+        var needsClarification = confidence < clarificationThreshold;
         var clarificationMessage = needsClarification
-            ? "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step."
+            ? BuildClarificationMessage(
+                promptText,
+                decision.ToolArgs,
+                normalizedToolName,
+                clarificationCycles
+            )
             : string.Empty;
 
         return new HeuristicEvaluation(confidence, needsClarification, clarificationMessage);
+    }
+
+    private static string BuildClarificationMessage(
+        string prompt,
+        IDictionary<string, object?>? toolArgs,
+        string normalizedToolName,
+        int clarificationCycles
+    )
+    {
+        var missingArgKey = GetMissingPrimaryArgKey(normalizedToolName, toolArgs);
+        var cyclePrefix = clarificationCycles > 0
+            ? $"Clarification needed (attempt {clarificationCycles + 1}): "
+            : "Clarification needed: ";
+
+        if (!string.IsNullOrWhiteSpace(missingArgKey))
+        {
+            return $"{cyclePrefix}Please provide exactly one value for '{missingArgKey}' so I can run the next step safely.";
+        }
+
+        if (IsInvestigationPrompt(prompt.ToLowerInvariant()) && !HasSpecificTargetHint(prompt, toolArgs))
+        {
+            return $"{cyclePrefix}I can keep probing, but I need one concrete target such as a file path, service name, or the exact error message to avoid wasting steps.";
+        }
+
+        if (IsLowRiskExploratoryTool(normalizedToolName))
+        {
+            return $"{cyclePrefix}I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.";
+        }
+
+        return $"{cyclePrefix}I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.";
+    }
+
+    private static string GetMissingPrimaryArgKey(
+        string normalizedToolName,
+        IDictionary<string, object?>? toolArgs
+    )
+    {
+        var requiredKey = normalizedToolName switch
+        {
+            "read-file" => "path",
+            "write-file" => "path",
+            "append-file" => "path",
+            "replace-in-file" => "path",
+            "list-directory" => "path",
+            "fetch-url" => "url",
+            "search-web" => "query",
+            _ => string.Empty,
+        };
+
+        if (string.IsNullOrWhiteSpace(requiredKey))
+        {
+            return string.Empty;
+        }
+
+        if (!TryGetToolArgString(toolArgs, requiredKey, out _))
+        {
+            return requiredKey;
+        }
+
+        return string.Empty;
+    }
+
+    private static bool TryGetToolArgString(
+        IDictionary<string, object?>? toolArgs,
+        string key,
+        out string value
+    )
+    {
+        value = string.Empty;
+
+        if (toolArgs is null)
+        {
+            return false;
+        }
+
+        foreach (var kvp in toolArgs)
+        {
+            if (!string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var raw = kvp.Value?.ToString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
+            value = raw;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool HasSpecificTargetHint(string prompt, IDictionary<string, object?>? toolArgs)
@@ -253,13 +402,33 @@ public sealed class HeuristicScoringEngine
 
     private static double MatchPatternBoost(string normalizedPrompt, string normalizedToolName)
     {
-        if (normalizedPrompt.Contains("troubleshoot", StringComparison.OrdinalIgnoreCase)
-            || normalizedPrompt.Contains("troubleshooting", StringComparison.OrdinalIgnoreCase))
+        var boost = 0.0;
+
+        foreach (var kvp in PatternBoosts)
         {
-            if (string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(normalizedToolName, "list-directory", StringComparison.OrdinalIgnoreCase))
+            if (!normalizedPrompt.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
             {
-                return 0.1;
+                continue;
+            }
+
+            if (
+                (string.Equals(kvp.Key, "troubleshoot", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(kvp.Key, "file analysis", StringComparison.OrdinalIgnoreCase))
+                && (string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(normalizedToolName, "list-directory", StringComparison.OrdinalIgnoreCase))
+            )
+            {
+                boost = Math.Max(boost, kvp.Value);
+            }
+
+            if (
+                string.Equals(kvp.Key, "network diagnosis", StringComparison.OrdinalIgnoreCase)
+                && (string.Equals(normalizedToolName, "fetch-url", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(normalizedToolName, "search-web", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase))
+            )
+            {
+                boost = Math.Max(boost, kvp.Value);
             }
         }
 
@@ -284,7 +453,7 @@ public sealed class HeuristicScoringEngine
             }
         }
 
-        return 0;
+        return boost;
     }
 
     private static double MatchGoalFitBoost(string normalizedPrompt, string normalizedToolName)
@@ -318,12 +487,12 @@ public sealed class HeuristicScoringEngine
             return false;
         }
 
-        if (!string.Equals(lastSuccessfulTool, "READ-FILE", StringComparison.OrdinalIgnoreCase))
+        if (!IsLowRiskExploratoryTool(NormalizeToolName(lastSuccessfulTool ?? string.Empty)))
         {
             return false;
         }
 
-        if (!string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase))
+        if (!IsLowRiskExploratoryTool(normalizedToolName))
         {
             return false;
         }
@@ -348,9 +517,9 @@ public sealed class HeuristicScoringEngine
 
     private static bool IsAmbiguousToolChoice(string normalizedToolName)
     {
-        return string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalizedToolName, "list-directory", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalizedToolName, "search-web", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(normalizedToolName, "list-directory", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedToolName, "search-web", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedToolName, "fetch-url", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ContainsAny(string text, IEnumerable<string> terms)
@@ -364,13 +533,32 @@ public sealed class HeuristicScoringEngine
         return false;
     }
 
+    private static bool IsInvestigationPrompt(string normalizedPrompt)
+    {
+        return ContainsAny(normalizedPrompt, InvestigationTerms);
+    }
+
+    private static bool IsLowRiskExploratoryTool(string normalizedToolName)
+    {
+        return string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedToolName, "list-directory", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedToolName, "search-web", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedToolName, "fetch-url", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string NormalizeToolName(string toolName)
     {
         if (string.IsNullOrWhiteSpace(toolName))
             return string.Empty;
 
-        return toolName.Trim().ToLowerInvariant().Replace('-', '_');
+        return toolName.Trim().ToLowerInvariant().Replace('_', '-');
     }
 }
 
+/// <summary>
+/// Represents the result of a heuristic evaluation for a proposed tool action.
+/// </summary>
+/// <param name="Confidence">A score between 0.0 and 1.0 indicating confidence in the decision.</param>
+/// <param name="NeedsClarification">True if more information is needed before proceeding; false otherwise.</param>
+/// <param name="ClarificationMessage">A message explaining what clarification is required, if any.</param>
 public sealed record HeuristicEvaluation(double Confidence, bool NeedsClarification, string ClarificationMessage);

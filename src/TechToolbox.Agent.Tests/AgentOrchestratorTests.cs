@@ -87,9 +87,9 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
-    public async Task RunAsync_AsksForClarification_WhenToolDecisionIsLowConfidenceAndAmbiguous()
+    public async Task RunAsync_AsksForClarification_WhenToolDecisionIsVeryVagueAndAmbiguous()
     {
-        var llm = new RecordingFakeLlmClient(new[] { ToolDecision("READ-FILE") });
+        var llm = new RecordingFakeLlmClient(new[] { ToolDecision("SEARCH-WEB") });
 
         var tools = new Dictionary<string, Func<string, Task<string>>>(
             StringComparer.OrdinalIgnoreCase
@@ -100,12 +100,44 @@ public class AgentOrchestratorTests
 
         var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 3, autoRetry: false);
 
-        var result = await orchestrator.RunAsync("Investigate the issue and figure out what is wrong.");
+        var result = await orchestrator.RunAsync("Please help with this.");
 
         Assert.Equal(0, result.ToolCallCount);
         Assert.Empty(result.ToolNames);
         Assert.Contains("clarification", result.OutputText, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("need a bit more detail", result.OutputText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("exactly one value", result.OutputText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_ForcesBoundedExploration_AfterClarificationCycles()
+    {
+        var llm = new RecordingFakeLlmClient(
+            new[]
+            {
+                ToolDecision("LIST-DIRECTORY"),
+                ToolDecision("LIST-DIRECTORY"),
+                ToolDecision("LIST-DIRECTORY"),
+                FinalDecision("Done"),
+            }
+        );
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["LIST-DIRECTORY"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(llm, tools, maxIterations: 6, autoRetry: false);
+
+        var result = await orchestrator.RunAsync("Investigate issue now");
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(1, result.ToolCallCount);
+        Assert.Contains(
+            llm.MessageSnapshots.SelectMany(snapshot => snapshot).Select(m => m.Content),
+            content => content.Contains("HEURISTIC-BOUND-PROBE", StringComparison.OrdinalIgnoreCase)
+        );
     }
 
     [Fact]

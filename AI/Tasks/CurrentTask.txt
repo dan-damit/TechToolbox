@@ -1,17 +1,16 @@
-Please read the following PowerShell script:
-C:\repos\TechToolbox\Public\Set\Set-PageFileSize.ps1
+Primary input file:
+C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\HeuristicScoringEngine.cs
 
 Task:
-Create a detailed markdown document that encapsulates the functionality and
-usage of the Set-PageFileSize.ps1 script.
+Add or improve XML documentation comments for every public type, public constructor, and public method in this file.
 
 Requirements:
-- Create the output file at this exact path:
-  C:\repos\TechToolbox-Docs\Set-PageFileSize.md
-- Use accurate technical details based on the source inputs.
-- Structure the document for fast scanning with concise headings and examples when useful.
-- Keep the tone practical and specific to this repository or scenario.
-- Use WRITE-FILE to create or update the markdown document.
+- Update this exact file in place:
+  C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\HeuristicScoringEngine.cs
+- Preserve all existing code and behavior.
+- Only add or improve XML documentation comments.
+- Prefer REPLACE-IN-FILE for localized edits to this existing file.
+- Use WRITE-FILE only if a localized replacement is not practical.
 - Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
 - Do not stop after analysis.
 - Do not summarize your plan before editing.

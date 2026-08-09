@@ -12,7 +12,20 @@ namespace TechToolbox.Agent.Agent;
 /// </summary>
 public partial class AgentOrchestrator
 {
+    private const int MaxClarificationCyclesBeforeBoundedProbe = 2;
     private static readonly string[] LineSeparators = ["\r\n", "\n"];
+    private static readonly string[] InvestigationTerms =
+    [
+        "investigate",
+        "troubleshoot",
+        "diagnose",
+        "issue",
+        "problem",
+        "error",
+        "failure",
+        "debug",
+        "check why",
+    ];
     private static readonly char[] TrimDirectorySeparators =
     [
         Path.DirectorySeparatorChar,
@@ -55,6 +68,10 @@ public partial class AgentOrchestrator
 
     [GeneratedRegex("(?i)(?<path>[A-Za-z]:\\\\[^\\\"'`\\r\\n]*\\.[A-Za-z0-9]{1,16})(?=\\s|$|[)\\],;:])")]
     private static partial Regex DirectFilePathRegex();
+    [GeneratedRegex("(?i)\\bservice\\s+(?<name>[A-Za-z0-9_.-]+)\\b")]
+    private static partial Regex ServiceHintRegex();
+    [GeneratedRegex("(?i)https?://[^\\s)\\],;]+")]
+    private static partial Regex UrlHintRegex();
 
     [GeneratedRegex("^\\s*(begin|process|end)\\s*\\{", RegexOptions.IgnoreCase)]
     private static partial Regex StructureHintRegex();
@@ -246,7 +263,9 @@ public partial class AgentOrchestrator
         );
         var maxConsecutiveLlmFailures = GetMaxConsecutiveLlmFailures();
         var consecutiveLlmFailures = 0;
+        var clarificationCycles = 0;
         var recentToolFailures = new List<string>();
+        string? lastFailureTargetHint = null;
         var expectedOutputPath = string.IsNullOrWhiteSpace(_expectedOutputPath)
             ? ExtractExpectedOutputPathFromPrompt(prompt)
             : _expectedOutputPath;
@@ -553,22 +572,85 @@ public partial class AgentOrchestrator
 
             consecutiveLlmFailures = 0;
 
+            var currentTargetHint = ExtractDecisionTargetHint(decision, prompt);
+            var hasNewConcreteTargetHint = !string.IsNullOrWhiteSpace(currentTargetHint)
+                && !string.Equals(
+                    currentTargetHint,
+                    lastFailureTargetHint,
+                    StringComparison.OrdinalIgnoreCase
+                );
+
+            if (hasNewConcreteTargetHint && recentToolFailures.Count > 0)
+            {
+                // Clear stale failure pressure when the user/model provides a new concrete target.
+                recentToolFailures.Clear();
+                Trace(
+                    $"Iteration {i + 1} reset recent tool failure penalties due to new concrete target hint: {currentTargetHint}"
+                );
+            }
+
             var heuristicEvaluation = _heuristicScoringEngine.Evaluate(
                 prompt,
                 decision,
                 recentToolFailures,
                 lastSuccessfulTool: _memory?.History.LastOrDefault()?.ToolNames.LastOrDefault(),
-                lastSuccessfulTargetHint: _memory?.History.LastOrDefault()?.RunSummary?.Intent
+                lastSuccessfulTargetHint: _memory?.History.LastOrDefault()?.RunSummary?.Intent,
+                clarificationCycles: clarificationCycles,
+                hasNewConcreteTargetHint: hasNewConcreteTargetHint
             );
 
             if (decision.NeedsTool && heuristicEvaluation.NeedsClarification)
             {
+                if (
+                    IsInvestigationPrompt(prompt)
+                    && IsLowRiskExploratoryTool(decision.ToolName)
+                    && clarificationCycles < MaxClarificationCyclesBeforeBoundedProbe
+                )
+                {
+                    clarificationCycles++;
+                    Trace(
+                        $"Iteration {i + 1} heuristic clarification cycle={clarificationCycles} confidence={heuristicEvaluation.Confidence:F2} tool={decision.ToolName}"
+                    );
+                    messages.Add(
+                        PromptBuilder.BuildToolResultMessage(
+                            "HEURISTIC-CLARIFICATION",
+                            heuristicEvaluation.ClarificationMessage,
+                            succeeded: false
+                        )
+                    );
+                    continue;
+                }
+
+                if (
+                    IsInvestigationPrompt(prompt)
+                    && IsLowRiskExploratoryTool(decision.ToolName)
+                    && clarificationCycles >= MaxClarificationCyclesBeforeBoundedProbe
+                )
+                {
+                    Trace(
+                        $"Iteration {i + 1} forcing bounded exploratory step after {clarificationCycles} clarification cycles confidence={heuristicEvaluation.Confidence:F2} tool={decision.ToolName}"
+                    );
+                    messages.Add(
+                        PromptBuilder.BuildToolResultMessage(
+                            "HEURISTIC-BOUND-PROBE",
+                            "Proceeding with a bounded exploratory step due to repeated clarification cycles. Keep scope narrow and use conservative assumptions.",
+                            succeeded: false
+                        )
+                    );
+                }
+                else
+                {
+                    Trace(
+                        $"Iteration {i + 1} heuristic clarification triggered confidence={heuristicEvaluation.Confidence:F2} tool={decision.ToolName}"
+                    );
+                    return new RunLoopResult(
+                        heuristicEvaluation.ClarificationMessage,
+                        ReachedIterationLimit: false
+                    );
+                }
+
                 Trace(
-                    $"Iteration {i + 1} heuristic clarification triggered confidence={heuristicEvaluation.Confidence:F2} tool={decision.ToolName}"
-                );
-                return new RunLoopResult(
-                    heuristicEvaluation.ClarificationMessage,
-                    ReachedIterationLimit: false
+                    $"Iteration {i + 1} bypassed clarification return and continued with bounded exploratory execution."
                 );
             }
 
@@ -673,6 +755,7 @@ public partial class AgentOrchestrator
             {
                 Trace($"Iteration {i + 1} tool not found: {toolName}");
                 recentToolFailures.Add(toolName);
+                lastFailureTargetHint = currentTargetHint;
 
                 var toolError = $"Tool '{toolName}' was not found.";
 
@@ -722,6 +805,7 @@ public partial class AgentOrchestrator
                 toolExecutionSucceeded = false;
                 toolResult = ex.Message;
                 recentToolFailures.Add(toolName);
+                lastFailureTargetHint = currentTargetHint;
             }
 
             if (requiresWriteFile && (isFileUpdateTool || isFinalizeTool))
@@ -740,6 +824,11 @@ public partial class AgentOrchestrator
                         $"Iteration {i + 1} rejected file-update path mismatch tool={toolName} expected={expectedOutputPath} actual={writePath}"
                     );
                 }
+            }
+
+            if (toolExecutionSucceeded)
+            {
+                clarificationCycles = 0;
             }
 
             if (
@@ -817,6 +906,12 @@ public partial class AgentOrchestrator
                     writeFinalizeRequired = false;
                     Trace($"Iteration {i + 1} marked chunked file-update finalize requirement as completed.");
                 }
+            }
+
+            if (!toolExecutionSucceeded)
+            {
+                recentToolFailures.Add(toolName);
+                lastFailureTargetHint = currentTargetHint;
             }
 
             var maxToolResultChars = GetMaxToolResultChars();
@@ -1313,6 +1408,77 @@ Next best action:
         };
 
         return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool IsInvestigationPrompt(string prompt)
+    {
+        if (string.IsNullOrWhiteSpace(prompt))
+            return false;
+
+        foreach (var term in InvestigationTerms)
+        {
+            if (prompt.Contains(term, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsLowRiskExploratoryTool(string? toolName)
+    {
+        if (string.IsNullOrWhiteSpace(toolName))
+        {
+            return false;
+        }
+
+        return toolName.Equals("READ-FILE", StringComparison.OrdinalIgnoreCase)
+            || toolName.Equals("LIST-DIRECTORY", StringComparison.OrdinalIgnoreCase)
+            || toolName.Equals("SEARCH-WEB", StringComparison.OrdinalIgnoreCase)
+            || toolName.Equals("FETCH-URL", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? ExtractDecisionTargetHint(AgentDecision decision, string prompt)
+    {
+        if (decision?.ToolArgs is not null)
+        {
+            var preferredKeys = new[] { "path", "service", "target", "url", "file", "query" };
+            foreach (var key in preferredKeys)
+            {
+                if (TryGetToolArgString(decision.ToolArgs, key, out var value))
+                {
+                    return NormalizeDetectedPath(value) ?? value.Trim();
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(prompt))
+        {
+            var pathMatch = DirectFilePathRegex().Match(prompt);
+            if (pathMatch.Success)
+            {
+                return NormalizeDetectedPath(pathMatch.Groups["path"].Value);
+            }
+
+            var serviceMatch = ServiceHintRegex().Match(prompt);
+            if (serviceMatch.Success)
+            {
+                var service = serviceMatch.Groups["name"].Value.Trim();
+                if (!string.IsNullOrWhiteSpace(service))
+                {
+                    return service;
+                }
+            }
+
+            var urlMatch = UrlHintRegex().Match(prompt);
+            if (urlMatch.Success)
+            {
+                return urlMatch.Value.Trim();
+            }
+        }
+
+        return null;
     }
 
     private static bool TryPopulateMissingWriteFilePath(
