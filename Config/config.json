@@ -128,7 +128,7 @@
     },
     "agent": {
       "provider": "ollama",
-      "model": "gemma4:31b",
+      "model": "qwen3.6:35b",
       "executionMode": "execute",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
