@@ -272,6 +272,19 @@ public partial class AgentOrchestrator
         var requiresWriteFile = !string.IsNullOrWhiteSpace(expectedOutputPath);
         var writeFileCompleted = false;
         var writeFinalizeRequired = false;
+        var preflightRisk = _heuristicScoringEngine.EvaluatePreflightRisk(
+            prompt,
+            new PreflightSignalSnapshot(
+                _promptPreflightScore,
+                _promptPreflightWarningCount,
+                _promptPreflightCriticalCount
+            ),
+            _memory?.History
+        );
+
+        Trace(
+            $"RunLoop preflight riskScore={preflightRisk.RiskScore:F2} thresholdAdjustment={preflightRisk.ClarificationThresholdAdjustment:F2} predictiveFailureLikely={preflightRisk.PredictiveFailureLikely} factors={string.Join(" | ", preflightRisk.RiskFactors)}"
+        );
 
         if (requiresWriteFile)
         {
@@ -596,7 +609,8 @@ public partial class AgentOrchestrator
                 lastSuccessfulTool: _memory?.History.LastOrDefault()?.ToolNames.LastOrDefault(),
                 lastSuccessfulTargetHint: _memory?.History.LastOrDefault()?.RunSummary?.Intent,
                 clarificationCycles: clarificationCycles,
-                hasNewConcreteTargetHint: hasNewConcreteTargetHint
+                hasNewConcreteTargetHint: hasNewConcreteTargetHint,
+                preflightRisk: preflightRisk
             );
 
             if (decision.NeedsTool && heuristicEvaluation.NeedsClarification)

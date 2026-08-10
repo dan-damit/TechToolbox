@@ -1,5 +1,7 @@
 namespace TechToolbox.Agent.Agent;
 
+using TechToolbox.Agent.Memory;
+
 /// <summary>
 /// Applies lightweight heuristics to estimate how confident the agent should be in a proposed tool action.
 /// The scoring layer is designed to catch ambiguous or low-signal tool decisions and ask for clarification
@@ -115,6 +117,169 @@ public sealed class HeuristicScoringEngine
         "url",
     ];
 
+    private static readonly string[] HighImpactWorkloadTerms =
+    [
+        "database",
+        "sql",
+        "postgres",
+        "mysql",
+        "mssql",
+        "production",
+        "deploy",
+        "deployment",
+        "migration",
+        "cutover",
+    ];
+
+    private static readonly string[] LowImpactWorkloadTerms =
+    [
+        "summarize",
+        "readme",
+        "documentation",
+        "docs",
+        "note",
+        "explain",
+    ];
+
+    private static readonly string[] CorrelatedWarningTerms =
+    [
+        "cpu",
+        "disk",
+        "i/o",
+        "latency",
+        "memory pressure",
+    ];
+
+    /// <summary>
+    /// Evaluates preflight quality as a risk score by combining raw preflight telemetry,
+    /// prompt context, and recent historical outcomes.
+    /// </summary>
+    /// <param name="prompt">The user prompt or run objective.</param>
+    /// <param name="signals">Current preflight score, warning, and critical counts.</param>
+    /// <param name="history">Optional run history for context-aware thresholds and trend learning.</param>
+    /// <returns>A preflight risk assessment used to bias runtime decision confidence.</returns>
+    public PreflightRiskAssessment EvaluatePreflightRisk(
+        string? prompt,
+        PreflightSignalSnapshot signals,
+        IReadOnlyList<RunHistory>? history = null
+    )
+    {
+        var promptText = (prompt ?? string.Empty).Trim();
+        var normalizedPrompt = promptText.ToLowerInvariant();
+        var factors = new List<string>();
+
+        var warningWeight = 0.08;
+        var criticalWeight = 0.22;
+        var scoreWeight = 0.55;
+
+        if (ContainsAny(normalizedPrompt, HighImpactWorkloadTerms))
+        {
+            warningWeight *= 1.3;
+            criticalWeight *= 1.2;
+            scoreWeight *= 1.15;
+            factors.Add("high-impact workload context increased warning severity");
+        }
+        else if (ContainsAny(normalizedPrompt, LowImpactWorkloadTerms))
+        {
+            warningWeight *= 0.75;
+            criticalWeight *= 0.8;
+            scoreWeight *= 0.9;
+            factors.Add("low-impact workload context reduced warning severity");
+        }
+
+        var normalizedScore = Math.Clamp(signals.Score, 0, 100);
+        var warnings = Math.Max(0, signals.WarningCount);
+        var critical = Math.Max(0, signals.CriticalCount);
+        var hasExplicitPreflightTelemetry = normalizedScore > 0 || warnings > 0 || critical > 0;
+
+        var risk = hasExplicitPreflightTelemetry
+            ? ((100.0 - normalizedScore) / 100.0) * scoreWeight
+            : 0.32;
+        risk += warnings * warningWeight;
+        risk += critical * criticalWeight;
+
+        if (!hasExplicitPreflightTelemetry)
+        {
+            factors.Add("preflight telemetry unavailable; using neutral baseline risk");
+        }
+
+        if (warnings >= 2 && critical >= 1)
+        {
+            risk += 0.1;
+            factors.Add("multiple warnings combined with critical findings predict likely failure");
+        }
+
+        if (warnings >= 3 && normalizedScore < 70)
+        {
+            risk += 0.07;
+            factors.Add("high warning volume with low score indicates fragile baseline");
+        }
+
+        if (critical >= 2)
+        {
+            risk += 0.12;
+            factors.Add("multiple critical findings require stronger guardrails");
+        }
+
+        if (warnings >= 2 && ContainsAny(normalizedPrompt, CorrelatedWarningTerms))
+        {
+            risk += 0.05;
+            factors.Add("correlated minor warning signals suggest elevated runtime risk");
+        }
+
+        var profile = BuildHistoricalProfile(history, normalizedScore, warnings, critical);
+        if (profile.SampleSize >= 5)
+        {
+            if (profile.SuccessRate >= 0.8)
+            {
+                risk -= 0.07;
+                factors.Add("historical runs with similar preflight signals were mostly successful");
+            }
+
+            if (profile.SuccessRate <= 0.55)
+            {
+                risk += 0.08;
+                factors.Add("historical runs with similar preflight signals had frequent failures");
+            }
+
+            if (profile.UnstableOutcomeRate >= 0.2)
+            {
+                risk += 0.06;
+                factors.Add("historical instability (iteration-limit/llm-failure) increased predicted risk");
+            }
+        }
+
+        risk = Math.Clamp(risk, 0.0, 1.0);
+
+        var thresholdAdjustment = risk switch
+        {
+            >= 0.8 => 0.08,
+            >= 0.65 => 0.04,
+            <= 0.3 => -0.03,
+            <= 0.45 => -0.01,
+            _ => 0.0,
+        };
+
+        var predictiveFailureLikely =
+            risk >= 0.72 || (warnings >= 2 && critical >= 1) || profile.UnstableOutcomeRate >= 0.25;
+
+        var remediationSuggestion = BuildRemediationSuggestion(
+            risk,
+            warnings,
+            critical,
+            normalizedPrompt,
+            profile
+        );
+
+        return new PreflightRiskAssessment(
+            risk,
+            thresholdAdjustment,
+            predictiveFailureLikely,
+            remediationSuggestion,
+            factors
+        );
+    }
+
     /// <summary>
     /// Evaluates the confidence of a proposed tool action based on heuristics such as prompt clarity, target specificity, and recent failure history.
     /// Returns an evaluation indicating whether clarification is needed before proceeding.
@@ -134,7 +299,8 @@ public sealed class HeuristicScoringEngine
         string? lastSuccessfulTool = null,
         string? lastSuccessfulTargetHint = null,
         int clarificationCycles = 0,
-        bool hasNewConcreteTargetHint = false
+        bool hasNewConcreteTargetHint = false,
+        PreflightRiskAssessment? preflightRisk = null
     )
     {
         if (decision is null || !decision.NeedsTool)
@@ -256,6 +422,25 @@ public sealed class HeuristicScoringEngine
             confidence -= toolCost * 0.15;
         }
 
+        if (preflightRisk is not null)
+        {
+            confidence -= preflightRisk.RiskScore * 0.14;
+
+            if (preflightRisk.RiskScore <= 0.3)
+            {
+                confidence += 0.02;
+            }
+
+            if (
+                preflightRisk.PredictiveFailureLikely
+                && IsAmbiguousToolChoice(normalizedToolName)
+                && !hasSpecificTargetHint
+            )
+            {
+                confidence -= 0.05;
+            }
+        }
+
         confidence = Math.Clamp(confidence, 0.0, 1.0);
 
         var clarificationThreshold = ClarificationThreshold;
@@ -269,7 +454,12 @@ public sealed class HeuristicScoringEngine
             clarificationThreshold -= 0.02;
         }
 
-        clarificationThreshold = Math.Clamp(clarificationThreshold, 0.45, ClarificationThreshold);
+        if (preflightRisk is not null)
+        {
+            clarificationThreshold += preflightRisk.ClarificationThresholdAdjustment;
+        }
+
+        clarificationThreshold = Math.Clamp(clarificationThreshold, 0.45, 0.82);
 
         var needsClarification = confidence < clarificationThreshold;
         var clarificationMessage = needsClarification
@@ -277,7 +467,8 @@ public sealed class HeuristicScoringEngine
                 promptText,
                 decision.ToolArgs,
                 normalizedToolName,
-                clarificationCycles
+                clarificationCycles,
+                preflightRisk?.RemediationSuggestion
             )
             : string.Empty;
 
@@ -288,7 +479,8 @@ public sealed class HeuristicScoringEngine
         string prompt,
         IDictionary<string, object?>? toolArgs,
         string normalizedToolName,
-        int clarificationCycles
+        int clarificationCycles,
+        string? remediationSuggestion
     )
     {
         var missingArgKey = GetMissingPrimaryArgKey(normalizedToolName, toolArgs);
@@ -298,20 +490,130 @@ public sealed class HeuristicScoringEngine
 
         if (!string.IsNullOrWhiteSpace(missingArgKey))
         {
-            return $"{cyclePrefix}Please provide exactly one value for '{missingArgKey}' so I can run the next step safely.";
+            return AppendRemediation(
+                $"{cyclePrefix}Please provide exactly one value for '{missingArgKey}' so I can run the next step safely.",
+                remediationSuggestion
+            );
         }
 
         if (IsInvestigationPrompt(prompt.ToLowerInvariant()) && !HasSpecificTargetHint(prompt, toolArgs))
         {
-            return $"{cyclePrefix}I can keep probing, but I need one concrete target such as a file path, service name, or the exact error message to avoid wasting steps.";
+            return AppendRemediation(
+                $"{cyclePrefix}I can keep probing, but I need one concrete target such as a file path, service name, or the exact error message to avoid wasting steps.",
+                remediationSuggestion
+            );
         }
 
         if (IsLowRiskExploratoryTool(normalizedToolName))
         {
-            return $"{cyclePrefix}I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.";
+            return AppendRemediation(
+                $"{cyclePrefix}I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.",
+                remediationSuggestion
+            );
         }
 
-        return $"{cyclePrefix}I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.";
+        return AppendRemediation(
+            $"{cyclePrefix}I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.",
+            remediationSuggestion
+        );
+    }
+
+    private static string AppendRemediation(string message, string? remediationSuggestion)
+    {
+        if (string.IsNullOrWhiteSpace(remediationSuggestion))
+        {
+            return message;
+        }
+
+        return $"{message} Suggested preflight remediation: {remediationSuggestion}";
+    }
+
+    private static string BuildRemediationSuggestion(
+        double risk,
+        int warnings,
+        int critical,
+        string normalizedPrompt,
+        HistoricalPreflightProfile profile
+    )
+    {
+        if (risk >= 0.8)
+        {
+            return "Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.";
+        }
+
+        if (critical > 0)
+        {
+            return "Address critical preflight findings first, then proceed with bounded read-only verification steps.";
+        }
+
+        if (warnings >= 3)
+        {
+            return "Mitigate at least one warning and provide a concrete target path or service so execution can remain bounded.";
+        }
+
+        if (profile.SampleSize >= 5 && profile.UnstableOutcomeRate >= 0.2)
+        {
+            return "Use narrower scope and explicit termination criteria; similar runs showed instability in recent history.";
+        }
+
+        if (ContainsAny(normalizedPrompt, HighImpactWorkloadTerms))
+        {
+            return "Confirm capacity and backup posture before taking write actions in a high-impact workload context.";
+        }
+
+        return risk >= 0.6
+            ? "Add one concrete target and run a quick read-only probe before higher-cost actions."
+            : "Preflight posture is acceptable; continue with explicit target hints to keep execution efficient.";
+    }
+
+    private static HistoricalPreflightProfile BuildHistoricalProfile(
+        IReadOnlyList<RunHistory>? history,
+        int score,
+        int warnings,
+        int critical
+    )
+    {
+        if (history is null || history.Count == 0)
+        {
+            return HistoricalPreflightProfile.Empty;
+        }
+
+        var window = history
+            .TakeLast(40)
+            .Where(h =>
+                Math.Abs(h.PromptPreflightScore - score) <= 15
+                && Math.Abs(h.PromptPreflightWarningCount - warnings) <= 1
+                && Math.Abs(h.PromptPreflightCriticalCount - critical) <= 1
+            )
+            .ToArray();
+
+        if (window.Length == 0)
+        {
+            return HistoricalPreflightProfile.Empty;
+        }
+
+        var successCount = window.Count(h =>
+            string.Equals(h.Status, "success", StringComparison.OrdinalIgnoreCase)
+        );
+        var unstableCount = window.Count(h =>
+            string.Equals(h.Outcome, "iteration-limit", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(h.Outcome, "llm-failure", StringComparison.OrdinalIgnoreCase)
+        );
+
+        return new HistoricalPreflightProfile(
+            window.Length,
+            (double)successCount / window.Length,
+            (double)unstableCount / window.Length
+        );
+    }
+
+    private readonly record struct HistoricalPreflightProfile(
+        int SampleSize,
+        double SuccessRate,
+        double UnstableOutcomeRate
+    )
+    {
+        public static HistoricalPreflightProfile Empty => new(0, 0, 0);
     }
 
     private static string GetMissingPrimaryArgKey(
@@ -562,3 +864,27 @@ public sealed class HeuristicScoringEngine
 /// <param name="NeedsClarification">True if more information is needed before proceeding; false otherwise.</param>
 /// <param name="ClarificationMessage">A message explaining what clarification is required, if any.</param>
 public sealed record HeuristicEvaluation(double Confidence, bool NeedsClarification, string ClarificationMessage);
+
+/// <summary>
+/// Captures prompt preflight telemetry used by heuristic risk scoring.
+/// </summary>
+/// <param name="Score">Prompt preflight score (0..100).</param>
+/// <param name="WarningCount">Prompt preflight warning count.</param>
+/// <param name="CriticalCount">Prompt preflight critical issue count.</param>
+public sealed record PreflightSignalSnapshot(int Score, int WarningCount, int CriticalCount);
+
+/// <summary>
+/// Represents the risk assessment derived from preflight telemetry and historical context.
+/// </summary>
+/// <param name="RiskScore">Risk score from 0.0 (low risk) to 1.0 (high risk).</param>
+/// <param name="ClarificationThresholdAdjustment">Adjustment applied to clarification threshold for runtime tool decisions.</param>
+/// <param name="PredictiveFailureLikely">Whether correlated signals indicate elevated failure likelihood.</param>
+/// <param name="RemediationSuggestion">Adaptive remediation guidance based on risk factors.</param>
+/// <param name="RiskFactors">Detected risk factors used to explain the score.</param>
+public sealed record PreflightRiskAssessment(
+    double RiskScore,
+    double ClarificationThresholdAdjustment,
+    bool PredictiveFailureLikely,
+    string RemediationSuggestion,
+    IReadOnlyList<string> RiskFactors
+);

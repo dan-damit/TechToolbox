@@ -19,24 +19,24 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.6,
-      "avgDurationMs": 114298,
-      "avgToolCalls": 3.55,
+      "successRate": 0.65,
+      "avgDurationMs": 109995,
+      "avgToolCalls": 3.15,
       "statusCounts": {
-        "success": 12,
-        "error": 8
+        "error": 7,
+        "success": 13
       },
       "outcomeCounts": {
-        "completed": 12,
-        "iteration-limit": 2,
+        "iteration-limit": 1,
+        "completed": 13,
         "llm-failure": 6
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-08-09T03:49:00.9046739\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-09T03:49:00.9286896\u002B00:00",
-      "avgPromptPreflightScore": 57,
+      "lastRunTimestampUtc": "2026-08-10T02:57:53.0717726\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-10T02:57:53.0726990\u002B00:00",
+      "avgPromptPreflightScore": 53,
       "executionModeCounts": {
         "execute": 20
       },
@@ -51,102 +51,6 @@
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-03T14:52:22.0665169+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please read the file located at C:\\repos\\TechToolbox\\bin\\classes.py and provide a summary of what it does.",
-      "model": "gpt-5.3-codex",
-      "durationMs": 21783,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Summary of \u0060classes.py\u0060\n\nThis is a large, multi-purpose Python module that powers a crimping/production reporting tool.\n\nAt a high level, it does four main things:\n\n- Manages persistent configuration and local SQLite data storage.\n- Imports, cleans, and queries production/crimp history data.\n- Computes KPIs, traceability metrics, SPC-style stats, and time-based trends.\n- Produces outputs for users, including console views, plots, and PDF-style reporting artifacts.\n\n## Main components\n\n### \u0060Settings\u0060 class\n\n- Subclasses \u0060dict\u0060 and auto-persists to JSON (\u0060data/settings.json\u0060).\n- On init, it creates the file if missing, otherwise loads existing settings.\n- Any set/delete operation triggers \u0060save()\u0060, so settings are always written back.\n\n### \u0060Database\u0060 class\n\n- Opens SQLite DB at \u0060data/database.db\u0060.\n- Creates/initializes core tables if missing:\n  - \u0060closedjobs\u0060\n  - \u0060datecodes\u0060\n  - \u0060dies\u0060\n  - \u0060history\u0060\n  - \u0060recipes\u0060\n- Provides helpers to:\n  - clear tables globally or by crimper/table\n  - clean out rows for unknown locations/crimpers\n  - execute SQL and return rows as dict-like structures\n\n### \u0060Summarizer\u0060 class\n\nThis appears to be the central orchestration class.\n\n- Initializes plotting mode (headless by default via matplotlib \u0060Agg\u0060).\n- Loads settings and DB, then aligns DB contents with configured crimpers/locations.\n- Maintains trend cache (\u0060data/trends.pickle\u0060) and supports:\n  - \u0060generate_trends()\u0060\n  - \u0060save_trends()\u0060\n  - \u0060load_trends()\u0060\n  - \u0060clear_trends()\u0060\n- Includes date parsing/formatting utilities (\u0060parse_date\u0060, \u0060parse_datetime\u0060, etc.).\n- Computes operational metrics from \u0060history\u0060 and \u0060datecodes\u0060, including:\n  - total crimps\n  - kit/job/operator-qualified crimps\n  - datecode-valid and traceable crimps\n  - per-crimper and per-location rollups\n- Provides deeper reporting queries such as:\n  - incomplete jobs\n  - job traceability breakdowns\n  - weekly trend series over configurable windows\n\n## Data and reporting focus\n\nFrom the schema and SQL logic, the module is focused on manufacturing traceability and quality reporting:\n\n- Tracks crimp events with recipe/job/operator context.\n- Correlates production events to datecode validity windows.\n- Distinguishes traceable vs non-traceable activity.\n- Aggregates by machine (crimper), location, job, and time period.\n\n## Interface and ecosystem clues\n\nImports indicate this file likely supports both CLI and report generation workflows:\n\n- CLI/terminal UX: \u0060rich\u0060, \u0060prompt_toolkit\u0060, command parsing patterns.\n- Plotting/statistics: \u0060matplotlib\u0060, \u0060numpy\u0060, \u0060scipy.stats.norm\u0060.\n- Document output: \u0060reportlab\u0060, \u0060PyPDF2\u0060.\n- Serialization and file handling: \u0060json\u0060, \u0060pickle\u0060, \u0060csv\u0060, \u0060pathlib\u0060.\n\n## Bottom line\n\n\u0060classes.py\u0060 is effectively the core business-logic module for a production analytics tool. It combines config management, SQLite persistence, manufacturing traceability calculations, trend generation, and reporting/output plumbing in one large file.",
-      "runSummary": {
-        "intent": "Please read the file located at C:\\repos\\TechToolbox\\bin\\classes.py and provide a summary of what it does.",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-03T23:41:18.7000856+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the file C:\\repos\\RC Boat Speed Calculator\\index.html and make a suggestion on how to better, more accurately estimate the voltage sag math when accounting for having double the battery packs available at the same voltage.",
-      "model": "laguna-xs-2.1:latest",
-      "durationMs": 42735,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "# Voltage Sag Calculation Analysis and Suggestion\n\n## Current Implementation\n\nThe current voltage sag calculation in the \u0060calculate()\u0060 function uses the following formula:\n\n\u0060\u0060\u0060javascript\nconst cellResistance = 0.002; // ohms per cell\nconst packResistance = cellResistance * cells;\n\nconst voltageDrop = amps * packResistance;\nconst saggedVoltage = Math.max(\n  voltageNominal - voltageDrop,\n  voltageNominal * 0.7,\n);\n\u0060\u0060\u0060\n\nThis calculates the total pack resistance as \u0060cellResistance * cells\u0060, which assumes a single battery pack in series.\n\n## Problem with Double Battery Packs\n\nWhen you have **double the battery packs available at the same voltage**, the current calculation does not account for this properly. Having two parallel packs changes the electrical characteristics:\n\n1. **Current splits between packs**: With two identical packs in parallel, each pack carries half the current.\n2. **Internal resistance decreases**: Parallel resistors combine as \u0060R_total = R_pack / 2\u0060 (for two equal packs).\n3. **Voltage sag should be reduced**: Less voltage drop occurs because the effective internal resistance is halved.\n\n## Suggested Improvement\n\nTo accurately model double battery packs at the same voltage, modify the calculation to:\n\n### Option 1: Add a Parallel Packs Multiplier\n\nAdd an input for number of parallel packs and adjust resistance accordingly:\n\n\u0060\u0060\u0060javascript\nconst numParallel = \u002Bdocument.getElementById(\u0022numParallel\u0022).value || 1;\nconst packResistance = cellResistance * cells / numParallel;\n\u0060\u0060\u0060\n\n### Option 2: Use a Fixed Factor for Double Packs\n\nIf you want to specifically handle the double pack case:\n\n\u0060\u0060\u0060javascript\n// For double packs (2P configuration), resistance is halved\nconst parallelFactor = 2; // or make this configurable\nconst packResistance = cellResistance * cells / parallelFactor;\n\u0060\u0060\u0060\n\n### Option 3: Account for Current Distribution\n\nMore accurately, track current per pack:\n\n\u0060\u0060\u0060javascript\nconst numParallel = 2; // double packs\nconst ampsPerPack = amps / numParallel;\nconst voltageDrop = ampsPerPack * (packResistance / numParallel);\n// Or equivalently: voltageDrop = amps * packResistance / numParallel\n\u0060\u0060\u0060\n\n## Recommendation\n\n**Add a user input for \u0022Number of Parallel Packs\u0022** to make the calculator flexible. The formula would become:\n\n\u0060\u0060\u0060javascript\nconst numParallel = \u002Bdocument.getElementById(\u0022numParallel\u0022).value || 1;\nconst effectivePackResistance = packResistance / numParallel;\nconst voltageDrop = amps * effectivePackResistance;\n\u0060\u0060\u0060\n\nThis allows users to model single packs (1P), double packs (2P), or any parallel configuration, giving a more accurate voltage sag prediction when multiple battery packs are available at the same voltage.",
-      "runSummary": {
-        "intent": "Please look at the file C:\\repos\\RC Boat Speed Calculator\\index.html and make a suggestion on how to better, more accurately estimate the voltage sag math when accounting for having double the battery packs available at ...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-07T03:16:07.9529781+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Please test the new SEARCH-WEB functionality using the Brave API by searching for the NIST recent vulnerability releases and visit the site to gather data on the most recent one. Then output a summary of it.",
-      "model": "laguna-xs-2.1:latest",
-      "durationMs": 95226,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Please test the new SEARCH-WEB functionality using the Brave API by searching for the NIST recent vulnerability releases and visit the site to gather data on the most recent one. Then output a summary of it.",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-07T03:22:14.3448753+00:00",
       "status": "error",
@@ -717,6 +621,87 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-09T06:05:41.4348614+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Use Wikipedia website to output a short summary of heuristics in the context of computing.",
+      "model": "qwen3.6:35b",
+      "durationMs": 18876,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.",
+      "runSummary": {
+        "intent": "Use Wikipedia website to output a short summary of heuristics in the context of computing.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-10T02:52:14.1601713+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "What is the definition of heuristics in the context of computing?",
+      "model": "qwen3.6:35b",
+      "durationMs": 34854,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.",
+      "runSummary": {
+        "intent": "What is the definition of heuristics in the context of computing?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
+      "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-10T02:57:53.0717726+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How can we improve your preflight scoring method now that you have a more heuristic scoring engine?",
+      "model": "qwen3.6:35b",
+      "durationMs": 19952,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Improving Preflight Scoring with Heuristics\n\nWith the integration of a more advanced heuristic scoring engine, preflight checks can evolve from simple pass/fail gates to dynamic risk assessments. Here is how we can improve the method:\n\n- Dynamic Weighting: Instead of static scores for each check (e.g., \u0027Disk Space = 10 points\u0027), use heuristics to adjust weights based on context. For example, a low disk space warning might be weighted more heavily if the system is running a database service versus a text editor.\n\n- Context-Aware Thresholds: Heuristics can analyze historical data and current workload patterns to set smarter thresholds. A check that fails in one environment might pass in another based on similar successful configurations detected by the heuristic engine.\n\n- Predictive Failure Analysis: Use heuristics to correlate multiple minor warnings (e.g., high CPU, slow disk I/O) that individually are not critical but together predict a likely failure during deployment or execution.\n\n- Adaptive Remediation Suggestions: The scoring engine can suggest specific remediations based on the heuristic analysis of the error type and system state, rather than generic advice.\n\n- Continuous Learning Loop: Implement feedback mechanisms where successful deployments update the heuristic models, refining future scores for similar configurations.",
+      "runSummary": {
+        "intent": "How can we improve your preflight scoring method now that you have a more heuristic scoring engine?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
     }
   ],
   "_memoryFormatVersion": 2

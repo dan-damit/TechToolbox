@@ -1,4 +1,5 @@
 using TechToolbox.Agent.Agent;
+using TechToolbox.Agent.Memory;
 using Xunit;
 
 namespace TechToolbox.Agent.Tests;
@@ -173,5 +174,88 @@ public class HeuristicScoringEngineTests
         );
 
         Assert.True(withNewHint.Confidence > withoutNewHint.Confidence);
+    }
+
+    [Fact]
+    public void EvaluatePreflightRisk_IncreasesWeight_ForHighImpactContext()
+    {
+        var engine = new HeuristicScoringEngine();
+
+        var lowImpact = engine.EvaluatePreflightRisk(
+            "Summarize the README quickly",
+            new PreflightSignalSnapshot(Score: 70, WarningCount: 1, CriticalCount: 0)
+        );
+
+        var highImpact = engine.EvaluatePreflightRisk(
+            "Deploy database migration to production",
+            new PreflightSignalSnapshot(Score: 70, WarningCount: 1, CriticalCount: 0)
+        );
+
+        Assert.True(highImpact.RiskScore > lowImpact.RiskScore);
+        Assert.True(highImpact.ClarificationThresholdAdjustment >= lowImpact.ClarificationThresholdAdjustment);
+    }
+
+    [Fact]
+    public void EvaluatePreflightRisk_ReducesRisk_WhenHistoricalRunsAreStable()
+    {
+        var engine = new HeuristicScoringEngine();
+
+        List<RunHistory> history =
+        [
+            new() { Status = "success", Outcome = "completed", PromptPreflightScore = 72, PromptPreflightWarningCount = 1, PromptPreflightCriticalCount = 0 },
+            new() { Status = "success", Outcome = "completed", PromptPreflightScore = 70, PromptPreflightWarningCount = 1, PromptPreflightCriticalCount = 0 },
+            new() { Status = "success", Outcome = "completed", PromptPreflightScore = 71, PromptPreflightWarningCount = 1, PromptPreflightCriticalCount = 0 },
+            new() { Status = "success", Outcome = "completed", PromptPreflightScore = 69, PromptPreflightWarningCount = 1, PromptPreflightCriticalCount = 0 },
+            new() { Status = "success", Outcome = "completed", PromptPreflightScore = 73, PromptPreflightWarningCount = 1, PromptPreflightCriticalCount = 0 },
+            new() { Status = "success", Outcome = "completed", PromptPreflightScore = 70, PromptPreflightWarningCount = 1, PromptPreflightCriticalCount = 0 },
+        ];
+
+        var withoutHistory = engine.EvaluatePreflightRisk(
+            "Review config before run",
+            new PreflightSignalSnapshot(Score: 70, WarningCount: 1, CriticalCount: 0)
+        );
+
+        var withHistory = engine.EvaluatePreflightRisk(
+            "Review config before run",
+            new PreflightSignalSnapshot(Score: 70, WarningCount: 1, CriticalCount: 0),
+            history
+        );
+
+        Assert.True(withHistory.RiskScore < withoutHistory.RiskScore);
+        Assert.Contains(
+            withHistory.RiskFactors,
+            factor => factor.Contains("historical runs", StringComparison.OrdinalIgnoreCase)
+        );
+    }
+
+    [Fact]
+    public void Evaluate_AppendsAdaptiveRemediation_WhenClarificationIsNeededUnderHighRisk()
+    {
+        var engine = new HeuristicScoringEngine();
+        var decision = new AgentDecision
+        {
+            NeedsTool = true,
+            ToolName = "SEARCH-WEB",
+            ToolArgs = new Dictionary<string, object?>(),
+        };
+
+        var preflightRisk = engine.EvaluatePreflightRisk(
+            "Investigate cpu and disk i/o issue during production deploy",
+            new PreflightSignalSnapshot(Score: 40, WarningCount: 3, CriticalCount: 1)
+        );
+
+        var evaluation = engine.Evaluate(
+            "Help",
+            decision,
+            recentToolFailures: [],
+            preflightRisk: preflightRisk
+        );
+
+        Assert.True(evaluation.NeedsClarification);
+        Assert.Contains(
+            "Suggested preflight remediation",
+            evaluation.ClarificationMessage,
+            StringComparison.OrdinalIgnoreCase
+        );
     }
 }
