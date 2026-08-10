@@ -1,37 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-25T23:35:05.0014081-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt according to PowerShell help documentation\r\nstandards.\u0022\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 41769,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 2,
-    "toolNames": [
-      "read_file",
-      "read_file"
-    ],
-    "outputPreview": "## about_Remove-Printers.help.txt\n\n### NAME\nRemove-Printers.ps1\n\n### SHORT DESCRIPTION\nRemoves all printers from the system, with optional removal of ports, drivers, and per-user mappings.\n\n### LONG DESCRIPTION\nThe Remove-Printers function uses Win32_Printer (CIM) to remove printer queues after resetting the print spooler service and clearing the spool folder. It provides options to also remove TCP/IP ports and printer drivers. \n\nThis function includes fallbacks for provider hiccups and frees common process locks such as splwow64 and PrintIsolationHost. It can also remove per-user network printer connections across all user profiles on the system.\n\n### PARAMETERS\n- **IncludePorts**\n  Also removes TCP/IP printer ports (non-standard). Use with caution as this may affect other services relying on these ports.\n\n- **IncludeDrivers**\n  Also removes printer drivers after the queues are gone. This helps in cleaning up unused driver packages from the system.\n\n- **Force**\n  Enables best-effort forced cleanup of driver packages via pnputil if standard removal fails. This is useful for stubborn drivers that do not remove easily.\n\n- **AllUsers**\n  Attempts to remove per-user network printer connections for all user profiles on the system. This ensures a comprehensive cleanup across multiple users.\n\n- **PassThru**\n  Outputs a summary object containing counts of removed printers, ports, drivers, and any failures encountered during the process. This is helpful for auditing purposes.\n\n### EXAMPLES\n#### Example 1: Comprehensive Removal\n\u0060\u0060\u0060powershell\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\u0060\u0060\u0060\nThis command removes all printers, TCP/IP ports, and drivers with forced cleanup, clears per-user connections for all users, and outputs a summary.\n\n#### Example 2: Dry Run\n\u0060\u0060\u0060powershell\nRemove-Printers -WhatIf\n\u0060\u0060\u0060\nThis command simulates the removal of printers without actually making any changes, allowing you to preview what would be removed.\n\n### NOTES\n- This function has a high confirm impact due to its destructive nature. Always review the output carefully.\n- Ensure that no critical printing tasks are in progress before running this function.\n- Administrative privileges may be required for some operations, especially when removing drivers or accessing other user profiles.",
-    "runSummary": {
-      "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Prin...",
-      "actionsTaken": [
-        "read_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-06-25T23:37:40.1638058-05:00",
     "status": "success",
     "outcome": "completed",
@@ -8486,6 +8454,33 @@
     "qualityProfile": "balanced",
     "promptPreflightScore": 20,
     "promptPreflightWarningCount": 4,
+    "promptPreflightCriticalCount": 2
+  },
+  {
+    "timestampUtc": "2026-08-10T03:03:37.6027451+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "I added those recommendations to the preflight scoring engine for your prompts.",
+    "model": "qwen3.6:35b",
+    "durationMs": 15770,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "Understood. The recommendations have been integrated into the preflight scoring engine.",
+    "runSummary": {
+      "intent": "I added those recommendations to the preflight scoring engine for your prompts.",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 0,
+    "promptPreflightWarningCount": 5,
     "promptPreflightCriticalCount": 2
   }
 ]
