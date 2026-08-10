@@ -1,111 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-30T18:25:30.4019744-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantWrapper.ps1. Create a\r\nmarkdown file to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantWrapper.md. The file should follow the same format as other\r\nhelp documents in this directory. Write your output to the new file. This file\r\nwill be used as -Online help for the Invoke-CodeAssistantWrapper.ps1 script.\u0022\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 48491,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 3,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "# Invoke-CodeAssistantWrapper\n\nWraps \u0060Invoke-CodeAssistant\u0060 to handle file input and module review mode, sending PowerShell code to an AI model for analysis.\n\n---\n\n## Overview\n\n\u0060Invoke-CodeAssistantWrapper\u0060 is a helper function that simplifies the process of analyzing PowerShell scripts or modules using local AI models (via Ollama). It acts as a wrapper around \u0060Invoke-CodeAssistant\u0060, automatically handling file reading and, in specific modes, concatenating multiple files for module-wide analysis.\n\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing content.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Path** | \u0060string\u0060 | **[Mandatory]** The path to the file or module directory to analyze. For single-file analysis, provide the \u0060.ps1\u0060 file path. For module review, provide the root folder of the module. |\n| **Mode** | \u0060string\u0060 | Specifies the type of assistance required. Determines which AI model role is used. Valid values: \u0060General\u0060, \u0060Static\u0060, \u0060Security\u0060, \u0060Refactor\u0060, \u0060Tests\u0060, \u0060Combined\u0060, \u0060ModuleReview\u0060, \u0060ExplainDesign\u0060. Defaults to \u0060\u0027General\u0027\u0060. |\n\n---\n\n## How It Works\n\n### **Single File Analysis**\nFor modes other than \u0060ModuleReview\u0060:\n1. The function verifies that the specified \u0060-Path\u0060 exists.\n2. If the path is a file, it reads its content.\n3. It invokes \u0060Invoke-CodeAssistant\u0060 with the file\u0027s content and filename.\n4. Returns the AI\u0027s response (typically a markdown report saved to \u0060\u003CTechToolboxModuleRoot\u003E\\CodeAnalysis\u0060).\n\n### **Module Review Mode**\nWhen \u0060-Mode ModuleReview\u0060 is selected:\n1. The function expects \u0060-Path\u0060 to be a directory containing PowerShell modules.\n2. It identifies all \u0060.ps1\u0060 files within the module structure.\n3. It concatenates the content of these files into a single block (with placeholders or headers as needed).\n4. It invokes \u0060Invoke-CodeAssistant\u0060 with this combined code block under the filename \u0022ModuleReview\u0022.\n5. This allows for cross-file context analysis, such as dependency checking or overall architecture review.\n\n---\n\n## Examples\n\n### **General Code Assistance**\nAsk for general help with a specific PowerShell script.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\MyScript.ps1\u0022 -Mode General\n\u0060\u0060\u0060\n\n### **Security Analysis**\nCheck a single file for potential security vulnerabilities.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\LoginModule.ps1\u0022 -Mode Security\n\u0060\u0060\u0060\n\n### **Refactoring**\nRequest refactoring of functions in a script to improve performance or readability.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Scripts\\Utils.ps1\u0022 -Mode Refactor\n\u0060\u0060\u0060\n\n### **Module Review**\nAnalyze an entire module for consistency, dependencies, and best practices.\n\u0060\u0060\u0060powershell\nInvoke-CodeAssistantWrapper -Path \u0022C:\\Modules\\MyModule\u0022 -Mode ModuleReview\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- Requires **TechToolbox configuration** to be present with valid \u0060ai.routing\u0060 and \u0060ai.models\u0060 settings.\n- The \u0060-Mode\u0060 parameter directly influences which AI model is invoked; ensure the target model is installed/available in your Ollama instance if using local models.\n- For \u0060ModuleReview\u0060, large modules may exceed context limits. Consider splitting large modules or adjusting chunking strategies within \u0060Invoke-CodeAssistant\u0060 configuration.\n- Output reports are saved to \u0060\u003CTechToolboxModuleRoot\u003E\\CodeAnalysis\u0060. Ensure this directory is accessible and writable.\n- The function throws an error if the specified \u0060-Path\u0060 does not exist.",
-    "runSummary": {
-      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-CodeAssistantWrapper.ps1. Create a\r\nmarkdown file to the folder C:\\repos\\TechToolbox-Docs, and name the file\r\nInvoke-CodeAssistantWrapper.md. The file s...",
-      "actionsTaken": [
-        "read_file",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-06-30T18:27:30.2602312-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 87604,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 5,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "list_directory",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "# Invoke-TechAgent\n\nSends a prompt to the TechToolbox local agent.\n\n---\n\n## Overview\n\n\u0060Invoke-TechAgent\u0060 is a function that calls the TechToolbox.Agent C# runtime and prints the agent\u0027s response. It allows users to interact with a local AI agent using natural language instructions, supporting various models and iteration limits for complex tasks.\n\n\u003E **Note:** This function requires the TechToolbox Agent runtime to be installed and configured correctly.\n\n---\n\n## Parameters\n\n| Parameter | Type | Description |\n|----------|------|-------------|\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. |\n| **Model** | \u0060string\u0060 | Optional Ollama model name (for example: llama3, mistral, qwen2.5-coder). |\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default. |\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. |\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. \u0027ignore\u0027 blocks the overwrite and \u0027strip\u0027 allows the overwrite while removing the signature block text. |\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit. |\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding environment defaults. |\n| **NoTranscript** | \u0060switch\u0060 | Disables the per-run console transcript log. |\n\n---\n\n## How It Works\n\n### **Execution Flow**\n1. The function initializes the TechToolbox.Agent C# runtime.\n2. It sends the provided \u0060-Prompt\u0060 to the specified AI model (if provided) or the default configured model.\n3. The agent processes the prompt, potentially using tools in a loop up to \u0060-MaxIterations\u0060 times.\n4. If recursion limits are hit and \u0060AutoRetryOnRecursion\u0060 is enabled, it attempts one automatic retry.\n5. The final response from the agent is printed to the console.\n\n### **Destructive Operations**\nTo perform destructive actions (e.g., deleting files, modifying system settings), you must explicitly pass the \u0060-ConfirmDestructive\u0060 switch. Without this switch, the agent will refuse to execute dangerous commands.\n\n---\n\n## Examples\n\n### **Basic Usage**\nAsk the agent a simple question or give it a task.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022What is the current date and time?\u0022\n\u0060\u0060\u0060\n\n### **Using a Specific Model**\nSpecify an Ollama model for the request.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Explain how PowerShell pipelines work\u0022 -Model \u0022qwen2.5-coder\u0022\n\u0060\u0060\u0060\n\n### **Allowing Destructive Actions**\nAuthorize the agent to perform destructive operations (use with caution).\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Delete all files in C:\\Temp\\OldLogs\u0022 -ConfirmDestructive\n\u0060\u0060\u0060\n\n### **Increasing Iteration Limit**\nFor complex tasks requiring more reasoning steps, increase the max iterations.\n\u0060\u0060\u0060powershell\nInvoke-TechAgent -Prompt \u0022Analyze this script for security vulnerabilities and suggest fixes.\u0022 -MaxIterations 50\n\u0060\u0060\u0060\n\n---\n\n## Notes\n\n- The \u0060-Quiet\u0060 switch is provided for legacy compatibility; traces are suppressed by default in newer versions.\n- If the agent hits an iteration limit, it may conclude prematurely. Use \u0060-MaxIterations\u0060 to allow more steps if needed.\n- Ensure the target Ollama model specified in \u0060-Model\u0060 is installed and running locally.\n- The \u0060SignedFilePolicy\u0060 parameter only applies when the function itself overwrites a signed script file; it does not affect the agent\u0027s internal operations.",
-    "runSummary": {
-      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-06-30T18:30:51.7897399-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 94717,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 4,
-    "toolNames": [
-      "read_file",
-      "list_directory",
-      "read_file",
-      "read_file"
-    ],
-    "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Invoke-TechAgent.md\u0022,\n    \u0022content\u0022: \u0022# Invoke-TechAgent\\n\\nSends a prompt to the TechToolbox local agent.\\n\\n---\\n\\n## Overview\\n\\n\u0060Invoke-TechAgent\u0060 is a function that interfaces with the TechToolbox.Agent C# runtime to execute AI-driven tasks. It accepts natural language instructions or prompts from files and returns the agent\u0027s response. This tool is designed for automating complex workflows by leveraging local LLMs via Ollama.\\n\\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing the prompt.\\n\\n---\\n\\n## Parameters\\n\\n| Parameter | Type | Description |\\n|----------|------|-------------|\\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. This is the primary input for the AI task. |\\n| **PromptFile** | \u0060string\u0060 | Optional path to a text file containing the prompt. If omitted and \u0060-Prompt\u0060 is empty, Invoke-TechAgent attempts to load a default prompt file. |\\n| **Model** | \u0060string\u0060 | Optional Ollama model name (e.g., \u0060llama3\u0060, \u0060mistral\u0060, \u0060qwen2.5-coder\u0060). Determines which local AI model processes the request. |\\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default, so this parameter has minimal effect in modern versions. |\\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. Use with caution to allow the agent to perform actions that modify system state. |\\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. Valid values: \u0060\u0027ignore\u0027\u0060 (blocks overwrite) or \u0060\u0027strip\u0027\u0060 (allows overwrite while removing signature block text). |\\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit, allowing it to continue complex tasks that require more steps. |\\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding any global settings or \u0060-AutoRetryOnRecursion\u0060. |\\n\\n---\\n\\n## How It Works\\n\\n### **Prompt Handling**\\nThe function prioritizes the \u0060-Prompt\u0060 parameter. If provided, it uses that text directly. If \u0060-PromptFile\u0060 is specified, it reads the content from the file. If neither is explicitly provided with valid data, it falls back to a default prompt location defined in the TechToolbox configuration.\\n\\n### **Model Routing**\\nThe selected AI model (via \u0060-Model\u0060) is passed to the C# runtime. The runtime communicates with the local Ollama instance to execute the inference. If no model is specified, the system defaults to the configured standard model.\\n\\n### **Execution \u0026 Iteration**\\nThe agent processes the prompt using a chain-of-thought approach. It may call other tools or scripts if authorized (e.g., via \u0060-ConfirmDestructive\u0060). The process continues until:\\n1. The agent determines it has sufficient information to answer.\\n2. The number of iterations reaches \u0060MaxIterations\u0060.\\n3. An error occurs.\\n\\nIf \u0060-AutoRetryOnRecursion\u0060 is enabled and the iteration limit is hit, the system automatically retries once with a fresh context window.\\n\\n---\\n\\n## Examples\\n\\n### **Basic Prompt**\\nAsk the agent to check disk space on the local machine.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Check available disk space on C: and report back.\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Using a Model**\\nForce the use of a specific model for complex code generation.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Generate a PowerShell script to backup the Documents folder.\\\u0022 -Model \\\u0022qwen2.5-coder\\\u0022\\n\u0060\u0060\u0060\\n\\n### **From File**\\nLoad a long, detailed prompt from a text file.\\n\u0060\u0060\u0060powershell\\nIn...",
-    "runSummary": {
-      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-06-25T23:35:05.0014081-05:00",
     "status": "success",
     "outcome": "completed",
@@ -8512,5 +8406,86 @@
     "promptPreflightScore": 100,
     "promptPreflightWarningCount": 0,
     "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-09T06:05:41.4348614+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Use Wikipedia website to output a short summary of heuristics in the context of computing.",
+    "model": "qwen3.6:35b",
+    "durationMs": 18876,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.",
+    "runSummary": {
+      "intent": "Use Wikipedia website to output a short summary of heuristics in the context of computing.",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 40,
+    "promptPreflightWarningCount": 3,
+    "promptPreflightCriticalCount": 1
+  },
+  {
+    "timestampUtc": "2026-08-10T02:52:14.1601713+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "What is the definition of heuristics in the context of computing?",
+    "model": "qwen3.6:35b",
+    "durationMs": 34854,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.",
+    "runSummary": {
+      "intent": "What is the definition of heuristics in the context of computing?",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 0,
+    "promptPreflightWarningCount": 5,
+    "promptPreflightCriticalCount": 2
+  },
+  {
+    "timestampUtc": "2026-08-10T02:57:53.0717726+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "How can we improve your preflight scoring method now that you have a more heuristic scoring engine?",
+    "model": "qwen3.6:35b",
+    "durationMs": 19952,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Improving Preflight Scoring with Heuristics\n\nWith the integration of a more advanced heuristic scoring engine, preflight checks can evolve from simple pass/fail gates to dynamic risk assessments. Here is how we can improve the method:\n\n- Dynamic Weighting: Instead of static scores for each check (e.g., \u0027Disk Space = 10 points\u0027), use heuristics to adjust weights based on context. For example, a low disk space warning might be weighted more heavily if the system is running a database service versus a text editor.\n\n- Context-Aware Thresholds: Heuristics can analyze historical data and current workload patterns to set smarter thresholds. A check that fails in one environment might pass in another based on similar successful configurations detected by the heuristic engine.\n\n- Predictive Failure Analysis: Use heuristics to correlate multiple minor warnings (e.g., high CPU, slow disk I/O) that individually are not critical but together predict a likely failure during deployment or execution.\n\n- Adaptive Remediation Suggestions: The scoring engine can suggest specific remediations based on the heuristic analysis of the error type and system state, rather than generic advice.\n\n- Continuous Learning Loop: Implement feedback mechanisms where successful deployments update the heuristic models, refining future scores for similar configurations.",
+    "runSummary": {
+      "intent": "How can we improve your preflight scoring method now that you have a more heuristic scoring engine?",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 20,
+    "promptPreflightWarningCount": 4,
+    "promptPreflightCriticalCount": 2
   }
 ]
