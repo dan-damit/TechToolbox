@@ -19,24 +19,23 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.65,
-      "avgDurationMs": 109995,
+      "successRate": 0.7,
+      "avgDurationMs": 100252,
       "avgToolCalls": 3.15,
       "statusCounts": {
-        "error": 7,
-        "success": 13
+        "success": 14,
+        "error": 6
       },
       "outcomeCounts": {
-        "iteration-limit": 1,
-        "completed": 13,
+        "completed": 14,
         "llm-failure": 6
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-08-10T02:57:53.0717726\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-10T02:57:53.0726990\u002B00:00",
-      "avgPromptPreflightScore": 53,
+      "lastRunTimestampUtc": "2026-08-10T03:03:37.6027451\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-10T03:03:37.6036100\u002B00:00",
+      "avgPromptPreflightScore": 50,
       "executionModeCounts": {
         "execute": 20
       },
@@ -51,34 +50,6 @@
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-07T03:22:14.3448753+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Please test the new SEARCH-WEB functionality by searching NIST\u0027s most recent vulnerability listing, and visit the site to gather data on the most recent one. Please analyze it, and then output a summary of it in markdown.",
-      "model": "laguna-xs-2.1:latest",
-      "durationMs": 210626,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Please test the new SEARCH-WEB functionality by searching NIST\u0027s most recent vulnerability listing, and visit the site to gather data on the most recent one. Please analyze it, and then output a summary of it in markdown...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-07T03:29:06.1655661+00:00",
       "status": "success",
@@ -701,6 +672,33 @@
       "qualityProfile": "balanced",
       "promptPreflightScore": 20,
       "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-10T03:03:37.6027451+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "I added those recommendations to the preflight scoring engine for your prompts.",
+      "model": "qwen3.6:35b",
+      "durationMs": 15770,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Understood. The recommendations have been integrated into the preflight scoring engine.",
+      "runSummary": {
+        "intent": "I added those recommendations to the preflight scoring engine for your prompts.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
       "promptPreflightCriticalCount": 2
     }
   ],
