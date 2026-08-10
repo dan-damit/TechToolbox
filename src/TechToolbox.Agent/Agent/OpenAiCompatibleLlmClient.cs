@@ -16,6 +16,12 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         Responses,
     }
 
+    private enum TokenParameterStyle
+    {
+        MaxTokens,
+        MaxCompletionTokens,
+    }
+
     private static readonly int RequestTimeoutSeconds = GetTimeoutSeconds();
     private static readonly int MaxOutputTokens = GetMaxOutputTokens();
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -75,6 +81,7 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         }
 
         var apiStyle = OpenAiApiStyle.ChatCompletions;
+        var tokenStyle = TokenParameterStyle.MaxTokens;
 
         string requestUrl;
         try
@@ -91,8 +98,27 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
             apiKey,
             requestUrl,
             apiStyle,
+            tokenStyle,
             cancellationToken
         ).ConfigureAwait(false);
+
+        if (
+            !attempt.Success
+            && ShouldRetryWithMaxCompletionTokens(apiStyle, tokenStyle, attempt.ErrorBody)
+        )
+        {
+            tokenStyle = TokenParameterStyle.MaxCompletionTokens;
+            Trace($"Retrying request with token field '{GetTokenFieldName(tokenStyle)}' url={requestUrl}");
+
+            attempt = await SendRequestAsync(
+                messages,
+                apiKey,
+                requestUrl,
+                apiStyle,
+                tokenStyle,
+                cancellationToken
+            ).ConfigureAwait(false);
+        }
 
         if (!attempt.Success && ShouldFallbackToResponsesEndpoint(attempt.ErrorBody))
         {
@@ -114,6 +140,7 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
                 apiKey,
                 requestUrl,
                 apiStyle,
+                tokenStyle,
                 cancellationToken
             ).ConfigureAwait(false);
         }
@@ -143,19 +170,25 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         CancellationToken cancellationToken = default
     ) => GenerateDecisionWithCallbackAsync(messages, null, cancellationToken);
 
-    private object BuildPayload(IReadOnlyList<AgentChatMessage> messages, OpenAiApiStyle apiStyle)
+    private object BuildPayload(
+        IReadOnlyList<AgentChatMessage> messages,
+        OpenAiApiStyle apiStyle,
+        TokenParameterStyle tokenStyle
+    )
     {
         if (IsAzureProvider())
         {
-            return new
+            var payload = new Dictionary<string, object?>
             {
-                messages,
-                temperature = 0.2,
-                top_p = 0.9,
-                stream = false,
-                response_format = new { type = "json_object" },
-                max_tokens = MaxOutputTokens,
+                ["messages"] = messages,
+                ["temperature"] = 0.2,
+                ["top_p"] = 0.9,
+                ["stream"] = false,
+                ["response_format"] = new { type = "json_object" },
             };
+
+            payload[GetTokenFieldName(tokenStyle)] = MaxOutputTokens;
+            return payload;
         }
 
         if (apiStyle == OpenAiApiStyle.Responses)
@@ -181,16 +214,18 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
             };
         }
 
-        return new
+        var chatPayload = new Dictionary<string, object?>
         {
-            model = _model,
-            messages,
-            temperature = 0.2,
-            top_p = 0.9,
-            stream = false,
-            response_format = new { type = "json_object" },
-            max_tokens = MaxOutputTokens,
+            ["model"] = _model,
+            ["messages"] = messages,
+            ["temperature"] = 0.2,
+            ["top_p"] = 0.9,
+            ["stream"] = false,
+            ["response_format"] = new { type = "json_object" },
         };
+
+        chatPayload[GetTokenFieldName(tokenStyle)] = MaxOutputTokens;
+        return chatPayload;
     }
 
     private string BuildRequestUrl(OpenAiApiStyle apiStyle)
@@ -354,6 +389,33 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
             || rawBody.Contains("not supported in the v1/chat/completions", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool ShouldRetryWithMaxCompletionTokens(
+        OpenAiApiStyle apiStyle,
+        TokenParameterStyle tokenStyle,
+        string? rawBody
+    )
+    {
+        if (apiStyle != OpenAiApiStyle.ChatCompletions)
+            return false;
+
+        if (tokenStyle != TokenParameterStyle.MaxTokens)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(rawBody))
+            return false;
+
+        return rawBody.Contains("unsupported parameter", StringComparison.OrdinalIgnoreCase)
+            && rawBody.Contains("max_tokens", StringComparison.OrdinalIgnoreCase)
+            && rawBody.Contains("max_completion_tokens", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetTokenFieldName(TokenParameterStyle tokenStyle)
+    {
+        return tokenStyle == TokenParameterStyle.MaxCompletionTokens
+            ? "max_completion_tokens"
+            : "max_tokens";
+    }
+
     private static string NormalizeResponseRole(string? role)
     {
         if (string.IsNullOrWhiteSpace(role))
@@ -412,6 +474,7 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         string apiKey,
         string requestUrl,
         OpenAiApiStyle apiStyle,
+        TokenParameterStyle tokenStyle,
         CancellationToken cancellationToken
     )
     {
@@ -423,7 +486,7 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         else
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-        var payload = BuildPayload(messages, apiStyle);
+        var payload = BuildPayload(messages, apiStyle, tokenStyle);
         request.Content = JsonContent.Create(payload, options: JsonOptions);
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
