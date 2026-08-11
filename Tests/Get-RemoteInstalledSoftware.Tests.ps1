@@ -1,190 +1,87 @@
-[CmdletBinding()]
-param()
-
-function Convert-InstallDate {
-    [CmdletBinding()]
-    param([string]$Raw)
-
-    if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
-
-    $s = $Raw.Trim()
-    if ($s -match '^\d{8}$') {
-        try { return [datetime]::ParseExact($s, 'yyyyMMdd', $null) } catch {}
+Describe 'Get-RemoteInstalledSoftware worker' {
+    BeforeAll {
+        . (Join-Path $PSScriptRoot '..\Workers\Get-RemoteInstalledSoftware.Worker.ps1')
     }
 
-    try { return [datetime]::Parse($s) } catch { return $null }
+    It 'includes folders from user-local Programs paths' {
+        Mock Get-UninstallFromPath { @() }
+        Mock Get-ChildItem -ParameterFilter { $Path -eq 'HKU:\' } { @() }
+        Mock Get-ChildItem -ParameterFilter { $Path -eq 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' } {
+            @([pscustomobject]@{ PSPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-21-1001' })
+        }
+        Mock Get-ItemProperty -ParameterFilter { $Path -eq 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-21-1001' } {
+            [pscustomobject]@{ ProfileImagePath = 'C:\Users\kschuettpelz' }
+        }
+        Mock Test-Path -ParameterFilter { $LiteralPath -eq 'C:\Users\kschuettpelz\AppData\Local\Programs' -and $PathType -eq 'Container' } { $true }
+        Mock Get-ChildItem -ParameterFilter { $LiteralPath -eq 'C:\Users\kschuettpelz\AppData\Local\Programs' } {
+            @([pscustomobject]@{
+                    Name     = 'ContosoApp'
+                    FullName = 'C:\Users\kschuettpelz\AppData\Local\Programs\ContosoApp'
+                })
+        }
+
+        $items = Get-RemoteInstalledSoftwareCore
+        $match = $items | Where-Object InstallLocation -eq 'C:\Users\kschuettpelz\AppData\Local\Programs\ContosoApp'
+
+        @($match).Count | Should Be 1
+        $match.DisplayName | Should Be 'ContosoApp'
+        $match.Source | Should Be 'FileSystem'
+        $match.Scope | Should Be 'UserProfile(kschuettpelz)'
+    }
 }
 
-function Get-UninstallFromPath {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)][string]$RegPath,
-        [Parameter(Mandatory)][string]$Scope,
-        [Parameter(Mandatory)][string]$Arch
-    )
+Describe 'Get-RemoteInstalledSoftware exports' {
+    BeforeAll {
+        Import-Module -Name (Join-Path $PSScriptRoot '..\TechToolbox.psd1') -Force -ErrorAction Stop
+    }
 
-    $results = @()
-
-    try {
-        $keys = Get-ChildItem -Path $RegPath -ErrorAction SilentlyContinue
-        foreach ($k in $keys) {
-            $p = Get-ItemProperty -Path $k.PSPath -ErrorAction SilentlyContinue
-            if ($p.DisplayName) {
-                $results += [PSCustomObject]@{
-                    ComputerName    = $env:COMPUTERNAME
-                    DisplayName     = $p.DisplayName
-                    DisplayVersion  = $p.DisplayVersion
-                    Publisher       = $p.Publisher
-                    InstallDate     = Convert-InstallDate $p.InstallDate
-                    UninstallString = $p.UninstallString
-                    InstallLocation = $p.InstallLocation
-                    EstimatedSizeKB = $p.EstimatedSize
-                    Scope           = $Scope
-                    Architecture    = $Arch
-                    Source          = 'Registry'
-                    RegistryPath    = $k.PSPath
+    InModuleScope TechToolbox {
+        It 'creates the export directory before writing csv output' {
+            $script:cfg = [pscustomobject]@{
+                settings = [pscustomobject]@{
+                    remoteSoftwareInventory = $null
                 }
             }
-        }
-    }
-    catch {}
+            $outDir = Join-Path $TestDrive 'Missing'
 
-    return $results
-}
-
-function Get-LocalProgramsFromPath {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)][string]$ProgramsPath,
-        [Parameter(Mandatory)][string]$Scope
-    )
-
-    $results = @()
-
-    if (-not (Test-Path -LiteralPath $ProgramsPath -PathType Container)) {
-        return $results
-    }
-
-    try {
-        $programDirs = Get-ChildItem -LiteralPath $ProgramsPath -Directory -ErrorAction SilentlyContinue
-        foreach ($dir in $programDirs) {
-            $results += [PSCustomObject]@{
-                ComputerName    = $env:COMPUTERNAME
-                DisplayName     = $dir.Name
-                DisplayVersion  = $null
-                Publisher       = $null
-                InstallDate     = $null
-                UninstallString = $null
-                InstallLocation = $dir.FullName
-                EstimatedSizeKB = $null
-                Scope           = $Scope
-                Architecture    = 'Unknown'
-                Source          = 'FileSystem'
-                RegistryPath    = $dir.FullName
+            Mock Initialize-TechToolboxRuntime {}
+            Mock Get-ModuleRoot { 'C:\repos\TechToolbox' }
+            Mock New-HelpersPackage { [pscustomobject]@{ ZipPath = 'C:\temp\helpers.zip'; ZipHash = 'abc123' } }
+            Mock Start-NewPSRemoteSession {
+                [System.Runtime.Serialization.FormatterServices]::GetUninitializedObject([System.Management.Automation.Runspaces.PSSession])
             }
-        }
-    }
-    catch {}
-
-    return $results
-}
-
-function Get-UserLocalPrograms {
-    [CmdletBinding()]
-    param()
-
-    $results = @()
-    $seenProgramsPaths = @{}
-    $profileListPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'
-
-    try {
-        $profiles = Get-ChildItem -Path $profileListPath -ErrorAction SilentlyContinue
-        foreach ($profile in $profiles) {
-            $profileProps = Get-ItemProperty -Path $profile.PSPath -ErrorAction SilentlyContinue
-            $profilePath = [Environment]::ExpandEnvironmentVariables([string]$profileProps.ProfileImagePath)
-            if ([string]::IsNullOrWhiteSpace($profilePath)) { continue }
-            if ($profilePath -notlike 'C:\Users\*') { continue }
-
-            $userName = Split-Path -Path $profilePath -Leaf
-            if ($userName -in @('All Users', 'Default', 'Default User', 'Public')) { continue }
-
-            $programsPath = Join-Path $profilePath 'AppData\Local\Programs'
-            $programsKey = $programsPath.ToLowerInvariant()
-            if ($seenProgramsPaths.ContainsKey($programsKey)) { continue }
-
-            $seenProgramsPaths[$programsKey] = $true
-            $results += Get-LocalProgramsFromPath -ProgramsPath $programsPath -Scope "UserProfile($userName)"
-        }
-    }
-    catch {}
-
-    return $results
-}
-
-function Get-RemoteInstalledSoftwareCore {
-    [CmdletBinding()]
-    param(
-        [switch]$IncludeAppx
-    )
-
-    $items = @()
-
-    # HKLM
-    $items += Get-UninstallFromPath -RegPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x64'
-    $items += Get-UninstallFromPath -RegPath "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'Machine' -Arch 'x86'
-
-    # HKCU
-    $items += Get-UninstallFromPath -RegPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User(Current)' -Arch 'x64'
-    $items += Get-UninstallFromPath -RegPath "HKCU:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope 'User(Current)' -Arch 'x86'
-
-    # HKU (other logged-in users)
-    try {
-        $userHives = Get-ChildItem HKU:\ -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^HKEY_USERS\\S-1-5-21-' }
-
-        foreach ($hive in $userHives) {
-            $sid = $hive.PSChildName
-            $items += Get-UninstallFromPath -RegPath "HKU:\$sid\Software\Microsoft\Windows\CurrentVersion\Uninstall" -Scope "User($sid)" -Arch 'x64'
-            $items += Get-UninstallFromPath -RegPath "HKU:\$sid\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Scope "User($sid)" -Arch 'x86'
-        }
-    }
-    catch {}
-
-    # Common per-user install root for apps that do not register an uninstall entry.
-    $items += Get-UserLocalPrograms
-
-    # AppX/MSIX
-    if ($IncludeAppx) {
-        try {
-            $items += Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue |
-            ForEach-Object {
-                [PSCustomObject]@{
-                    ComputerName    = $env:COMPUTERNAME
-                    DisplayName     = $_.Name
-                    DisplayVersion  = $_.Version.ToString()
-                    Publisher       = $_.Publisher
-                    InstallDate     = $null
-                    UninstallString = $null
-                    InstallLocation = $_.InstallLocation
-                    EstimatedSizeKB = $null
-                    Scope           = 'Appx(AllUsers)'
-                    Architecture    = 'Appx/MSIX'
-                    Source          = 'Appx'
-                    RegistryPath    = $_.PackageFullName
-                }
+            Mock Invoke-RemoteWorker {
+                [object[]]@([pscustomobject]@{
+                        ComputerName    = 'PC1'
+                        DisplayName     = 'ContosoApp'
+                        DisplayVersion  = '1.0'
+                        Publisher       = 'Contoso'
+                        InstallDate     = $null
+                        UninstallString = $null
+                        InstallLocation = 'C:\Apps\ContosoApp'
+                        EstimatedSizeKB = $null
+                        Scope           = 'Machine'
+                        Architecture    = 'x64'
+                        Source          = 'Registry'
+                        RegistryPath    = 'HKLM:\Software\Contoso'
+                    })
             }
-        }
-        catch {}
-    }
+            Mock Remove-PSSession {}
 
-    return $items
+            $results = Get-RemoteInstalledSoftware -ComputerName 'PC1' -OutDir $outDir -Consolidated -Confirm:$false
+
+            @($results).Count | Should Be 1
+            (Test-Path -LiteralPath $outDir) | Should Be $true
+            @(Get-ChildItem -Path $outDir -Filter 'InstalledSoftware_AllHosts_*.csv').Count | Should Be 1
+        }
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDNPzZk5FLlGDl1
-# uQbGJjMZBmY41JdyELiLmFwYcwbGNaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNPenqB2HtGrfu
+# uqroC021fPH4yToBVZSUiSOIFyfq2KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -317,34 +214,34 @@ function Get-RemoteInstalledSoftwareCore {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB3+Eqa1RY0
-# SW9nATcXqO/IkgdGrGkvx36hRwbZbNxuJTANBgkqhkiG9w0BAQEFAASCAgAbuFJC
-# BlUEO5DS3ZWnAZcWiLgUBSDOqPQSqKSBibpg1XLI0S4RA6sO7YWOAtYr6GEDGc/4
-# Ga5/+sPf7WaY6zmNCU40xBT/r7GbLgqnG4aL9V5nKzt9a0hEfWs1Lf5zL4ChK4YP
-# 5uLunrRABKEFV+mHleXmlQ5NomZMmadLLagAHbRUoQqdynfRDBm6OY69sMlL+wYm
-# 3u2yongZujXl4MFdeT1xKlWV8M9MQO42oNL7XjNNmUlUSlUehAh9eoTXqGvHtGgw
-# hASN97IgS+ndswMiQzb4OLF/7T36pVnR2wQLLe6eleud7a0G/0T1jj3vlQD4cyAi
-# UX9jiJBxsTLChb+hy5QXWylGgEOBwIxnkNKNrw/BWkVcyOuCTMGNSv/y3JFg87Jy
-# 1zgYB5eoHfR6zm26TCpcu0Ke0d0zMXpoyXOaDpiLv5Q3klmSQE57MjUGjN2B1QZF
-# 5OLL7Uy7X4TfV3QNWsxQCqPJntOuybuZHvY5W20GcinW1SEaZ6uZLXA5W0r6HOMG
-# iRXTwEtTEvYeVGM0JhDSPmk1ZHzbPlaxtYbNRMM7cHriPNXH/aaxcVXiNFoYrW7k
-# CCQnE5zg4VS2usTxZWfRBSruuJyTSY5DrV9kRaIg1QOaVP9+xrFT+QPUxU+TaAMn
-# 9GMIx7MsqoZVPtHO/azKtTB84o9b35WrHG6sXqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC/6E27r829
+# HjrkiHZlp/q+cdAiy/UN7sNRv4pA0j/UPTANBgkqhkiG9w0BAQEFAASCAgCMy0u4
+# jBlLyLd8Hym9vkFXzfmTi4W262GQVRrviijGJ9vUHgo4FUdHY6NQSDmOTCuVh5XO
+# 3aKE8o/0p9YUSqJp82dtUMEk6YVrOUApSU4y8tnMoD64rLJvtBypSSSyrVgLcwX6
+# hjLRkXESgWuuVy2p63fIk3CV+/YaQ64Vga8FEQbo7j/4ex3nrtV6NGfts0hOXK1I
+# IIhn6UstInor+6iwuxGWj4s0ydU3V6y6r87+fDxopDlwO+fJrtPwMdoRpAjCtCok
+# DFMwG786bRYg6dm+vyOrrOmlnHO0egE0Bvg4lI1BnnzyxVkRyikGfH0yboSkRDdS
+# 9qea81MDj/Sr9DZbHrfTpF9r0Cels3VPY0b1n9JM/T9m0BgVCqQnguzNxmJdv3+x
+# yIceIa1lPPodWOFGaykA0ojwlPJJp9SQ3tGwOF9ncRbqpXPcKQ6b5SC4MDRmiLe1
+# Nqc3C+hsIRpgoWszRAmmbzkudbNjpz8S5CtntBK+3StdUHfSbvfA9wnhSF9ZsmoQ
+# DtAZCJQBjkRJogf3WZFWNlbE9fDyV16K4SPnDyCBcN+2xGcrsGeWsHzM4JFhIsIr
+# WUPig0B6WzhLLO8i/U8oMmu2/acUtmTbI8Ak9HYoS6/68pdO3ZbtnhdbLDr2cdVt
+# 54KbEtYFy3UhE5pUIC+Udfey4aTCOQDYdx0Xp6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTExNDAxMzNaMC8GCSqGSIb3DQEJBDEiBCAscTmpyRNyDajj3A3K
-# Na5Ie52fiiRoWZSqkwfBxHgcozANBgkqhkiG9w0BAQEFAASCAgDDHfMXkf899K5f
-# +gvmjTUe/OPwc6dtHDIN4LaeFOrmjmaFgtArvK3l8G4S+E+tcaK1gaHgZujfApkL
-# 6/tcT12z+d5yOPC7yxH3s0mYBwEMVQY9xIbEipKyOexmjO3PJ29SiUX2QsH9C9tX
-# Bu7MTPEMUVR7otbXd8GreDdN6BSk4exykidM3btvEJgnlwbl6yf6qHzkGvQRPor8
-# XhCoqt1wLsKSSGp4UOHnptfbjSRUyxznG8eCCetnX0HgTeupU9y3amXezHvf96JS
-# nE/znT59a0TrNGeYo0lNc+UgoBm5Jxe3juL5mpm3LBGsQPh+P+6KR4DByQ537QwW
-# XrDyfEPVNGvjKpxjvj7A8WlyTW4E8o8RfZPz2NpWQh1Z/PNFFK3Gn5XT2J50snMz
-# zzeHtTppIYtmXmkdWnSTWhO4C5VGS8lmvw3rE1Ij2URLO7EYNSWWo0Y8aIfORm25
-# XBQU34O2ifqgqSIf5ixgg8066NCo2qGMnEcxUhtMr9HteG2sb0KjzFdYsz+5KSL/
-# owJmdFM2TXViP4NDKWEfIVylJ96HZhwb+HIH+6EvCkznqL8uBTPhMP9gCowWmH1l
-# 5uPNzZkPu2pidgPbSXvcoIbnjqaGDlw8je3fU+ZdV0brNbWkOHz8U99kKyvhj/A8
-# gI/eNlmZpaSVQ7D/RFU4EQy680hGQA==
+# BTEPFw0yNjA4MTExNDAxMzJaMC8GCSqGSIb3DQEJBDEiBCDHMnQTVcpmb59AkEz6
+# M0/xjRP1Hy+cMcWCs36UCiCj1DANBgkqhkiG9w0BAQEFAASCAgBNSwrRPz3nxp45
+# bqPvpEvpkJPdLeDp177xAMELz9B7J/qYYw2pjPtIjW90NxXUHcdRORjzzsA36jTn
+# atxVk5kng5S9Gf88ppmX7dhhGc29Z7rIWpFDnQsPuUrw8QzRUMZboFLtgHAMMEw0
+# SmVZgGV0Q5cx8N7iVHtPh8BGyKxHLWzFuQW4L+tMGgcWkG/XDT9aOWPrr58hwlKv
+# Thp+FBJ6U0Z917RQ6P5m5is4Y42GsiY0OCjDVSHByCRC3LRgzN2Nq6JdYMeO/cHg
+# 32cdwVQ3dKSb08wWf51r+yrM8ErHm395VtnXW6DQRKhr1RCSPxmbV6UYC1rJiN+U
+# r21iPgXwkaFXKjdW7rn0Uh68kuWCYz3ukm2IDLEQ8eAmJaxx6rPIIA7V06MLLc3d
+# DL0DJ/BZAJtvJ6UMPNC0PnEFeOSqwGFTQwJq+LyzgO+0NXBXPJp0BU9ElyQRJVwZ
+# LdybsDpbUqBa0XTzNZTzXHBMPqxq2PUl1R6N0rKSUDzt+TU/S1N4a1cbCjqyKpkr
+# IpsGujKRrAPETBNH89/PGt7dA1FE6vOWHCJehAhfAccB7VLsaF1LwSGfvt3JmKs8
+# 2gZD/v7hIJj7qRLJk+d6F1I7EpwJxXd2btAMJVVohS8Sxf1iHZEolnHmOuIwVBhS
+# h/ceoJy3wKb2LuAsi7kYXxPLKahWkQ==
 # SIG # End signature block
