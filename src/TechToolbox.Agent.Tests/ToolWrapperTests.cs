@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using TechToolbox.Agent.Agent;
 using TechToolbox.Agent.Execution;
@@ -96,6 +97,39 @@ public class ToolWrapperTests
         Assert.Equal("ok", result);
         Assert.NotNull(capturedArgs);
         Assert.Equal("strip", capturedArgs!["SignedFilePolicy"]?.ToString());
+    }
+
+    [Fact]
+    public void ParseFetchUri_NormalizesDnsAndQueryShape()
+    {
+        var method = typeof(PowerShellBridge).GetMethod(
+            "ParseFetchUri",
+            BindingFlags.NonPublic | BindingFlags.Static
+        );
+
+        Assert.NotNull(method);
+
+        var uri = method!.Invoke(null, ["https://Example.COM:443/Path/.././?b=2&a=1"]);
+
+        Assert.NotNull(uri);
+        Assert.IsType<Uri>(uri);
+        Assert.Equal("https://example.com/?a=1&b=2", ((Uri)uri).AbsoluteUri);
+    }
+
+    [Fact]
+    public void EnsureAllowedFetchHost_AllowsWildcardHosts()
+    {
+        var method = typeof(PowerShellBridge).GetMethod(
+            "EnsureAllowedFetchHost",
+            BindingFlags.NonPublic | BindingFlags.Static
+        );
+
+        Assert.NotNull(method);
+
+        var allowedHosts = new[] { "*.weather.gov" };
+        var ex = Record.Exception(() => method!.Invoke(null, ["alerts.weather.gov", allowedHosts]));
+
+        Assert.Null(ex);
     }
 
     [Fact]

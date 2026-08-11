@@ -876,7 +876,76 @@ public static class PowerShellBridge
         if (string.IsNullOrWhiteSpace(uri.Host))
             throw new InvalidOperationException("FETCH-URL requires a URL with a valid host.");
 
-        return uri;
+        var normalizedUri = NormalizeFetchUri(uri);
+        return normalizedUri;
+    }
+
+    private static Uri NormalizeFetchUri(Uri uri)
+    {
+        if (uri is null)
+            throw new ArgumentNullException(nameof(uri));
+
+        var builder = new UriBuilder(uri)
+        {
+            Scheme = Uri.UriSchemeHttps,
+            Host = NormalizeHost(uri.Host),
+            Port = -1,
+            Fragment = string.Empty,
+        };
+
+        var path = uri.GetComponents(UriComponents.Path, UriFormat.UriEscaped);
+        builder.Path = NormalizePath(path);
+
+        var query = uri.GetComponents(UriComponents.Query, UriFormat.UriEscaped);
+        builder.Query = NormalizeQuery(query);
+
+        var normalizedUri = builder.Uri;
+        if (!normalizedUri.IsAbsoluteUri || string.IsNullOrWhiteSpace(normalizedUri.Host))
+            throw new InvalidOperationException("FETCH-URL requires a URL with a valid host.");
+
+        return normalizedUri;
+    }
+
+    private static string NormalizeHost(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+            return string.Empty;
+
+        var trimmed = host.Trim().Trim('.');
+        if (trimmed.Length == 0)
+            return string.Empty;
+
+        return trimmed.ToLowerInvariant();
+    }
+
+    private static string NormalizePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return "/";
+
+        if (!path.StartsWith('/'))
+            path = "/" + path;
+
+        return path.TrimEnd('/') switch
+        {
+            "" => "/",
+            string trimmed => trimmed,
+        };
+    }
+
+    private static string NormalizeQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return string.Empty;
+
+        if (query.StartsWith('?'))
+            query = query[1..];
+
+        if (string.IsNullOrWhiteSpace(query))
+            return string.Empty;
+
+        var segments = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join("&", segments.OrderBy(s => s, StringComparer.Ordinal));
     }
 
     private static string[] GetAllowedFetchHosts(IDictionary<string, object?> args)
@@ -918,13 +987,47 @@ public static class PowerShellBridge
             );
         }
 
-        var normalizedHost = host.Trim().Trim('.').ToLowerInvariant();
-        if (!allowedHosts.Contains(normalizedHost, StringComparer.OrdinalIgnoreCase))
+        var normalizedHost = NormalizeHost(host);
+        if (!HostMatchesAnyAllowedPattern(normalizedHost, allowedHosts))
         {
             throw new InvalidOperationException(
                 $"FETCH-URL blocked host '{host}'. Allowed hosts: {string.Join(", ", allowedHosts.OrderBy(h => h, StringComparer.OrdinalIgnoreCase))}"
             );
         }
+    }
+
+    private static bool HostMatchesAnyAllowedPattern(string host, IReadOnlyCollection<string> allowedHosts)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+            return false;
+
+        foreach (var allowedHost in allowedHosts)
+        {
+            if (string.IsNullOrWhiteSpace(allowedHost))
+                continue;
+
+            var normalizedAllowedHost = NormalizeHost(allowedHost);
+            if (string.IsNullOrWhiteSpace(normalizedAllowedHost))
+                continue;
+
+            if (string.Equals(host, normalizedAllowedHost, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (normalizedAllowedHost.StartsWith("*.", StringComparison.Ordinal))
+            {
+                var suffix = normalizedAllowedHost[2..];
+                if (string.IsNullOrWhiteSpace(suffix))
+                    continue;
+
+                if (host.Equals(suffix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (host.EndsWith($".{suffix}", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     private static HttpResponseMessage FetchWithValidatedRedirects(
@@ -970,6 +1073,7 @@ public static class PowerShellBridge
             if (!string.Equals(currentUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("FETCH-URL blocked redirect to non-HTTPS URL.");
 
+            currentUri = NormalizeFetchUri(currentUri);
             EnsureAllowedFetchHost(currentUri.Host, allowedHosts);
         }
 

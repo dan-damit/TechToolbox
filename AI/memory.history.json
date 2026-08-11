@@ -1,141 +1,5 @@
 [
   {
-    "timestampUtc": "2026-06-30T18:30:51.7897399-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same format as other help documents in this directory.\r\nWrite your output to the new file. This file will be used as -Online help for\r\nthe Invoke-TechAgent.ps1 script.\u0022\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 94717,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 4,
-    "toolNames": [
-      "read_file",
-      "list_directory",
-      "read_file",
-      "read_file"
-    ],
-    "outputPreview": "Agent returned invalid JSON twice. Last response: {\n  \u0022needsTool\u0022: true,\n  \u0022toolName\u0022: \u0022WRITE-FILE\u0022,\n  \u0022toolArgs\u0022: {\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Invoke-TechAgent.md\u0022,\n    \u0022content\u0022: \u0022# Invoke-TechAgent\\n\\nSends a prompt to the TechToolbox local agent.\\n\\n---\\n\\n## Overview\\n\\n\u0060Invoke-TechAgent\u0060 is a function that interfaces with the TechToolbox.Agent C# runtime to execute AI-driven tasks. It accepts natural language instructions or prompts from files and returns the agent\u0027s response. This tool is designed for automating complex workflows by leveraging local LLMs via Ollama.\\n\\n\u003E **Note:** The function requires a valid TechToolbox configuration with AI settings defined. It initializes the runtime environment before processing the prompt.\\n\\n---\\n\\n## Parameters\\n\\n| Parameter | Type | Description |\\n|----------|------|-------------|\\n| **Prompt** | \u0060string\u0060 | **[Mandatory]** The natural-language instruction for the agent. This is the primary input for the AI task. |\\n| **PromptFile** | \u0060string\u0060 | Optional path to a text file containing the prompt. If omitted and \u0060-Prompt\u0060 is empty, Invoke-TechAgent attempts to load a default prompt file. |\\n| **Model** | \u0060string\u0060 | Optional Ollama model name (e.g., \u0060llama3\u0060, \u0060mistral\u0060, \u0060qwen2.5-coder\u0060). Determines which local AI model processes the request. |\\n| **MaxIterations** | \u0060int\u0060 | Maximum number of tool/reasoning iterations before the agent concludes. Valid range: 1-500. Defaults to \u006015\u0060. |\\n| **Quiet** | \u0060switch\u0060 | Legacy compatibility switch. Agent traces are now suppressed by default, so this parameter has minimal effect in modern versions. |\\n| **ConfirmDestructive** | \u0060switch\u0060 | Explicitly authorizes destructive operations for this run. Use with caution to allow the agent to perform actions that modify system state. |\\n| **SignedFilePolicy** | \u0060string\u0060 | Policy to use when overwriting an existing Authenticode-signed PowerShell file. Valid values: \u0060\u0027ignore\u0027\u0060 (blocks overwrite) or \u0060\u0027strip\u0027\u0060 (allows overwrite while removing signature block text). |\\n| **AutoRetryOnRecursion** | \u0060switch\u0060 | Enables a single automatic retry when the C# agent hits an iteration limit, allowing it to continue complex tasks that require more steps. |\\n| **DisableAutoRetryOnRecursion** | \u0060switch\u0060 | Disables recursion-limit auto-retry for this invocation, overriding any global settings or \u0060-AutoRetryOnRecursion\u0060. |\\n\\n---\\n\\n## How It Works\\n\\n### **Prompt Handling**\\nThe function prioritizes the \u0060-Prompt\u0060 parameter. If provided, it uses that text directly. If \u0060-PromptFile\u0060 is specified, it reads the content from the file. If neither is explicitly provided with valid data, it falls back to a default prompt location defined in the TechToolbox configuration.\\n\\n### **Model Routing**\\nThe selected AI model (via \u0060-Model\u0060) is passed to the C# runtime. The runtime communicates with the local Ollama instance to execute the inference. If no model is specified, the system defaults to the configured standard model.\\n\\n### **Execution \u0026 Iteration**\\nThe agent processes the prompt using a chain-of-thought approach. It may call other tools or scripts if authorized (e.g., via \u0060-ConfirmDestructive\u0060). The process continues until:\\n1. The agent determines it has sufficient information to answer.\\n2. The number of iterations reaches \u0060MaxIterations\u0060.\\n3. An error occurs.\\n\\nIf \u0060-AutoRetryOnRecursion\u0060 is enabled and the iteration limit is hit, the system automatically retries once with a fresh context window.\\n\\n---\\n\\n## Examples\\n\\n### **Basic Prompt**\\nAsk the agent to check disk space on the local machine.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Check available disk space on C: and report back.\\\u0022\\n\u0060\u0060\u0060\\n\\n### **Using a Model**\\nForce the use of a specific model for complex code generation.\\n\u0060\u0060\u0060powershell\\nInvoke-TechAgent -Prompt \\\u0022Generate a PowerShell script to backup the Documents folder.\\\u0022 -Model \\\u0022qwen2.5-coder\\\u0022\\n\u0060\u0060\u0060\\n\\n### **From File**\\nLoad a long, detailed prompt from a text file.\\n\u0060\u0060\u0060powershell\\nIn...",
-    "runSummary": {
-      "intent": "\u0022Please look at the function\r\nC:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1. Create a markdown file to\r\nthe folder C:\\repos\\TechToolbox-Docs, and name the file Invoke-TechAgent.md. The\r\nfile should follow the same ...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-06-25T23:35:05.0014081-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Printers.help.txt according to PowerShell help documentation\r\nstandards.\u0022\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 41769,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 2,
-    "toolNames": [
-      "read_file",
-      "read_file"
-    ],
-    "outputPreview": "## about_Remove-Printers.help.txt\n\n### NAME\nRemove-Printers.ps1\n\n### SHORT DESCRIPTION\nRemoves all printers from the system, with optional removal of ports, drivers, and per-user mappings.\n\n### LONG DESCRIPTION\nThe Remove-Printers function uses Win32_Printer (CIM) to remove printer queues after resetting the print spooler service and clearing the spool folder. It provides options to also remove TCP/IP ports and printer drivers. \n\nThis function includes fallbacks for provider hiccups and frees common process locks such as splwow64 and PrintIsolationHost. It can also remove per-user network printer connections across all user profiles on the system.\n\n### PARAMETERS\n- **IncludePorts**\n  Also removes TCP/IP printer ports (non-standard). Use with caution as this may affect other services relying on these ports.\n\n- **IncludeDrivers**\n  Also removes printer drivers after the queues are gone. This helps in cleaning up unused driver packages from the system.\n\n- **Force**\n  Enables best-effort forced cleanup of driver packages via pnputil if standard removal fails. This is useful for stubborn drivers that do not remove easily.\n\n- **AllUsers**\n  Attempts to remove per-user network printer connections for all user profiles on the system. This ensures a comprehensive cleanup across multiple users.\n\n- **PassThru**\n  Outputs a summary object containing counts of removed printers, ports, drivers, and any failures encountered during the process. This is helpful for auditing purposes.\n\n### EXAMPLES\n#### Example 1: Comprehensive Removal\n\u0060\u0060\u0060powershell\nRemove-Printers -IncludePorts -IncludeDrivers -Force -AllUsers -PassThru\n\u0060\u0060\u0060\nThis command removes all printers, TCP/IP ports, and drivers with forced cleanup, clears per-user connections for all users, and outputs a summary.\n\n#### Example 2: Dry Run\n\u0060\u0060\u0060powershell\nRemove-Printers -WhatIf\n\u0060\u0060\u0060\nThis command simulates the removal of printers without actually making any changes, allowing you to preview what would be removed.\n\n### NOTES\n- This function has a high confirm impact due to its destructive nature. Always review the output carefully.\n- Ensure that no critical printing tasks are in progress before running this function.\n- Administrative privileges may be required for some operations, especially when removing drivers or accessing other user profiles.",
-    "runSummary": {
-      "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\ndirectory C:\\repos\\TechToolbox\\en-US, and name the file\r\nabout_Remove-Prin...",
-      "actionsTaken": [
-        "read_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-06-25T23:37:40.1638058-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printers.help.txt\u0027 according to PowerShell help documentation\r\nstandards. Do not use markdown format. Just make a plain text file.\u0022\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 34719,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 2,
-    "toolNames": [
-      "read_file",
-      "read_file"
-    ],
-    "outputPreview": "The READ-FILE tool consistently returns a compact view of the file content rather than the full text. However, this compact view contains all the necessary information to write the help document: the function name (\u0060Remove-Printers\u0060), its synopsis, description, parameters (with their types and descriptions), and examples.\n\nI will now generate the \u0060about_Remove-Printers.help.txt\u0060 file based on this extracted metadata. The format will be plain text as requested, following PowerShell help documentation standards for a conceptual/help topic.",
-    "runSummary": {
-      "intent": "\u0022Please ingest the function named Remove-Printers.ps1 located at\r\nC:\\repos\\TechToolbox\\Public\\System. Write a detailed help document file to the\r\nfolder C:\\repos\\TechToolbox\\en-US, and name the file\r\n\u0027about_Remove-Printe...",
-      "actionsTaken": [
-        "read_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-06-25T22:34:12.2756388-05:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\en-US and name it about_Get-PDQDiagLogs.help.txt.\r\nPlease follow the same format as the other help documents in that directory. Be\r\nsure to not use markdown formatting.\u0022\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "qwen3.6:35b",
-    "durationMs": 50627,
-    "maxIterations": 20,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 5,
-    "toolNames": [
-      "read_file",
-      "list_directory",
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "The help document for Get-PDQDiagLogs has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Get-PDQDiagLogs.help.txt. The file follows the same format as other help documents in that directory, including sections for NAME, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, EXAMPLES, and LINK.",
-    "runSummary": {
-      "intent": "\u0022Please look at the function located at\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-PDQDiagLogs.ps1 and write a detailed\r\nhelp document for PowerShell\uFFFDs Get-Help to consume to the directory located at\r\nto C:\\repos\\TechToolbox\\e...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-07-01T00:24:10.5070236+00:00",
     "status": "error",
     "outcome": "invalid-json",
@@ -8234,5 +8098,148 @@
     "promptPreflightScore": 20,
     "promptPreflightWarningCount": 4,
     "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-11T04:04:19.5719852+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+    "model": "qwen3.6:35b",
+    "durationMs": 53032,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 12,
+    "toolNames": [
+      "fetch_url",
+      "fetch_url",
+      "fetch_url",
+      "search_web",
+      "fetch_url",
+      "fetch_url",
+      "fetch_url",
+      "fetch_url",
+      "fetch_url",
+      "fetch_url",
+      "fetch_url",
+      "fetch_url"
+    ],
+    "outputPreview": "## Weather Forecast for Green Bay, Wisconsin\n\nI was unable to fetch live data from weather.gov because the FETCH-URL tool consistently blocks access to \u0027www.weather.gov\u0027 even when \u0027weather.gov\u0027 is in the allowlist (likely due to DNS resolution or redirects). However, based on recent search results:\n\n### Current Conditions \u0026 Trends\n- **Recent Weather**: Hazy sunshine with patchy clouds. Inland temperatures are climbing into the 80s.\n- **Humidity**: High humidity persists, making it feel warmer than the actual temperature.\n- **Severe Weather Context**: There is an active severe weather trend in the Midwest and East. A tornado previously rated EF-3 touched down in Wisconsin\u0027s Fox Valley (about 35 miles south of Green Bay).\n\n### Forecast Summary for Tomorrow\nWhile specific hourly data was not accessible, general trends suggest:\n- **Temperature**: Likely to remain warm with highs in the upper 70s to low 80s.\n- **Conditions**: Partly cloudy to sunny with high humidity.\n- **Alerts**: Monitor local news (e.g., WBAY) for any severe weather updates given the regional activity.\n\nFor precise hourly forecasts, please visit [WBAY Weather](https://www.wbay.com/weather/) or [NWS Green Bay](https://weather.gov/grb) directly.",
+    "runSummary": {
+      "intent": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+      "actionsTaken": [
+        "fetch_url",
+        "search_web"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 1
+  },
+  {
+    "timestampUtc": "2026-08-11T04:09:24.8926991+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+    "model": "qwen3.6:35b",
+    "durationMs": 139259,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 5,
+    "toolNames": [
+      "search_web",
+      "fetch_url",
+      "fetch_url",
+      "fetch_url",
+      "search_web"
+    ],
+    "outputPreview": "Based on search results from the National Weather Service (Green Bay, WI) and local forecasts:\n\n- Forecast: Mostly cloudy skies with a chance of showers and thunderstorms in the afternoon/evening.\n- High Temperature: Near 83 degrees Fahrenheit.\n- Wind: Calm to south southeast around 5 mph.\n\nNote: Direct access to the specific forecast page on \u0060forecast.weather.gov\u0060 was restricted by tool allowlists, so this information is derived from available search snippets.",
+    "runSummary": {
+      "intent": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+      "actionsTaken": [
+        "search_web",
+        "fetch_url"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-11T04:12:25.8144756+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "if adding a wildcard to the allowedHosts lists (e.g. *.weather.gov) allow you to visit subdomains?",
+    "model": "qwen3.6:35b",
+    "durationMs": 50384,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
+    "runSummary": {
+      "intent": "if adding a wildcard to the allowedHosts lists (e.g. *.weather.gov) allow you to visit subdomains?",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 20,
+    "promptPreflightWarningCount": 4,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-11T04:17:27.3068253+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+    "model": "qwen3.6:35b",
+    "durationMs": 33528,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 6,
+    "toolNames": [
+      "fetch_url",
+      "fetch_url",
+      "fetch_url",
+      "search_web",
+      "fetch_url",
+      "fetch_url"
+    ],
+    "outputPreview": "## Green Bay, WI Weather Forecast for Tomorrow (Tuesday, August 11, 2026)\n\n- **High**: 81\u00B0F\n- **Conditions**: Mostly sunny with a slight chance of rain showers in the morning and slight chance of showers/thunderstorms in the afternoon.\n- **Precipitation Chance**: 20%\n- **Wind**: South-southeast, 0 to 5 mph\n- **Heat Index**: As high as 80\u00B0F\n\n### Detailed Forecast\nA slight chance of rain showers between 10am and 11am, then a slight chance of showers and thunderstorms. Mostly sunny. High near 81, with temperatures falling to around 79 in the afternoon.",
+    "runSummary": {
+      "intent": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+      "actionsTaken": [
+        "fetch_url",
+        "search_web"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 1
   }
 ]
