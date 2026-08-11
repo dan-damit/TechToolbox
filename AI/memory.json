@@ -19,26 +19,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.65,
-      "avgDurationMs": 21677,
-      "avgToolCalls": 1.3,
+      "successRate": 0.7,
+      "avgDurationMs": 10236,
+      "avgToolCalls": 0,
       "statusCounts": {
-        "success": 13,
-        "error": 7
+        "success": 14,
+        "error": 6
       },
       "outcomeCounts": {
-        "completed": 13,
-        "llm-failure": 7
+        "completed": 14,
+        "llm-failure": 6
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "gpt-5.4-mini",
-      "lastRunTimestampUtc": "2026-08-10T17:50:57.3485312\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-10T17:50:57.3495200\u002B00:00",
-      "avgPromptPreflightScore": 24,
+      "lastModel": "qwen3.6:35b",
+      "lastRunTimestampUtc": "2026-08-11T01:32:09.3397732\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-11T01:32:09.3409383\u002B00:00",
+      "avgPromptPreflightScore": 15,
       "executionModeCounts": {
-        "execute": 19,
-        "analyze": 1
+        "execute": 17,
+        "analyze": 1,
+        "chat": 2
       },
       "outputContractCounts": {
         "markdown": 20
@@ -51,126 +52,6 @@
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-09T03:35:45.5897008+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Yes, please proceed with file inspection of the AgentOrchestrator.cs and provide feedback on retry/clarification loop controls.",
-      "model": "gpt-5.3-codex",
-      "durationMs": 30426,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 11,
-      "toolNames": [
-        "list_directory",
-        "list_directory",
-        "get_filesusingkeywords",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## AgentOrchestrator.cs inspection: retry and clarification loop controls\n\nI inspected the orchestrator flow and the key controls are present, with a few areas that can still allow local-model looping behavior.\n\n### What is already controlling loops well\n\n- Hard iteration cap per attempt\n  - \u0060RunLoopAsync(prompt, iterationLimit, ...)\u0060 uses \u0060for (int i = 0; i \u003C iterationLimit; i\u002B\u002B)\u0060.\n  - Prevents unbounded loops by design.\n\n- Optional bounded auto-retry\n  - \u0060RunAsync\u0060 retries once when \u0060_autoRetry\u0060 is enabled.\n  - Retry limit is increased (\u0060max(_maxIterations \u002B 5, ceil(_maxIterations * 1.5))\u0060) but still bounded.\n  - If second attempt also hits limit, returns explicit iteration-limit error.\n\n- Consecutive LLM failure breaker\n  - Empty/retryable LLM outputs increment \u0060consecutiveLlmFailures\u0060.\n  - Threshold from \u0060TT_AGENT_MAX_CONSEC_LLM_FAILURES\u0060 (default 2) aborts with terminal failure.\n  - This prevents endless \u0022bad response -\u003E retry\u0022 cycles.\n\n- JSON repair path is bounded by outer iteration\n  - Invalid planner JSON triggers one repair prompt path.\n  - Additional targeted WRITE-FILE recovery exists, but still inside same outer iteration budget.\n\n- Clarification gate before tool execution\n  - Heuristic scoring can force clarification when confidence is low:\n    - \u0060if (decision.NeedsTool \u0026\u0026 heuristicEvaluation.NeedsClarification) return clarification message\u0060.\n  - This is a strong guard against unsafe or ambiguous tool calls.\n\n- Progress-as-final-answer blocker\n  - \u0060LooksLikeIncompleteFinalAnswer(...)\u0060 and \u0060TryHandleIncompleteProgressDecision(...)\u0060 prevent \u0022I am still working\u0022 from being accepted as completion.\n  - This reduces fake completion loops.\n\n- Output contract enforcement\n  - \u0060ValidateFinalAnswerContract(...)\u0060 blocks malformed final outputs and feeds corrective tool-result messages back into loop.\n\n- File-write completion guards\n  - If required output path is specified, final answer is blocked until:\n    - file update tool succeeds on exact path, and\n    - \u0060FINALIZE-FILE-WRITE\u0060 is called after chunked append.\n  - Prevents premature completion loops in file-writing tasks.\n\n### Why a local LLM can still get stuck iterating\n\n- Repeated self-correction without strategy shift\n  - On schema/contract failures, the orchestrator feeds error messages back and continues.\n  - A weaker local model may repeat near-identical invalid decisions each iteration.\n\n- No explicit duplicate-decision breaker\n  - I did not see a hard stop for \u0022same tool \u002B same args \u002B same failure N times\u0022.\n  - This can cause deterministic loops until iteration limit.\n\n- Clarification can become a bounce pattern\n  - Clarification is returned as terminal output for that run.\n  - If caller resubmits without materially better input, same clarification can recur across runs.\n\n- Tool failure memory is shallow\n  - \u0060recentToolFailures\u0060 is tracked, but there is no visible escalating policy like:\n    - block tool after repeated identical failure,\n    - force alternate action,\n    - or force explicit user clarification after N repeats.\n\n- Repair branches increase per-iteration complexity\n  - Invalid JSON -\u003E repair -\u003E targeted recovery can consume many tokens and context.\n  - Local models with weaker instruction-following may degrade and oscillate.\n\n### Practical improvements for retry/clarification loop control\n\n- Add duplicate-action loop detector\n  - Track fingerprint: \u0060toolName \u002B normalized args \u002B normalized error class\u0060.\n  - If repeated 2-3 times consecutively, stop with structured blocker and next-best-action.\n\n- Add duplicate-final-answer detector\n  - If same invalid finalAnswer pattern repeats, force clarification or terminate early.\n\n- Escalate after repeated schema failures\n  - Example: after 2 invalid JSON cycles in one iteration, return terminal \u0022invalid-json\u0022 with concise remediation instead of continuing broad recovery.\n\n- Clarification cooldown token\n  - Include a machine-readable clarification code and require new user data before reattempt.\n  - Prevents imme...",
-      "runSummary": {
-        "intent": "Yes, please proceed with file inspection of the AgentOrchestrator.cs and provide feedback on retry/clarification loop controls.",
-        "actionsTaken": [
-          "list_directory",
-          "get_filesusingkeywords",
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-09T03:47:04.0961806+00:00",
-      "status": "error",
-      "outcome": "llm-failure",
-      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\HeuristicScoringEngine.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\HeuristicScoringEngine.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\HeuristicScoringEngine.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "gemma4:31b",
-      "durationMs": 190776,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
-      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
-      "runSummary": {
-        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\HeuristicScoringEngine.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this fil...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-09T03:49:00.9046739+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\HeuristicScoringEngine.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\HeuristicScoringEngine.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\HeuristicScoringEngine.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 100073,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 12,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file",
-        "replace_in_file",
-        "replace_in_file",
-        "replace_in_file",
-        "read_file",
-        "read_file",
-        "read_file",
-        "replace_in_file",
-        "replace_in_file"
-      ],
-      "outputPreview": "## Summary of Changes\n\nXML documentation comments have been added or improved for the following public symbols in \u0060HeuristicScoringEngine.cs\u0060:\n\n- **HeuristicScoringEngine class**: Already had a summary comment; preserved as is.\n- **Evaluate method**: Added comprehensive XML documentation including description, parameter descriptions for all 7 parameters (prompt, decision, recentToolFailures, lastSuccessfulTool, lastSuccessfulTargetHint, clarificationCycles, hasNewConcreteTargetHint), and return value description.\n- **HeuristicEvaluation record**: Added summary comment and parameter descriptions for Confidence, NeedsClarification, and ClarificationMessage properties.\n\nAll existing code and behavior have been preserved. Only XML documentation comments were added or improved.",
-      "runSummary": {
-        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\HeuristicScoringEngine.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this fil...",
-        "actionsTaken": [
-          "read_file",
-          "replace_in_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-09T06:05:41.4348614+00:00",
       "status": "success",
@@ -635,6 +516,87 @@
       "promptPreflightScore": 40,
       "promptPreflightWarningCount": 3,
       "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-11T01:15:53.2871411+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Would a chat mode be prudent to use alonside your execute, analyze, and plan modes?",
+      "model": "qwen3.6:35b",
+      "durationMs": 39128,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Assessment of a General Chat Mode\n\nAdding a general chat mode alongside the existing execute, analyze, and plan modes can be prudent, but it depends on how it is integrated.\n\n### Benefits\n- **Flexibility**: Allows users to ask open-ended questions without forcing them into a specific workflow (e.g., planning or executing code).\n- **Contextual Assistance**: Can serve as a quick reference for documentation, explanations, or debugging tips without triggering side effects.\n- **User Experience**: Provides a natural language interface for casual inquiries, reducing friction for non-technical users.\n\n### Risks and Considerations\n- **Ambiguity**: Without clear boundaries, chat mode might overlap with plan/execute modes, leading to confusion about whether actions will be taken or just discussed.\n- **Safety**: Ensure that chat mode does not inadvertently trigger destructive actions (e.g., file deletions) without explicit confirmation mechanisms present in execute mode.\n- **Performance**: General chat may require more computational resources for natural language processing compared to structured plan/execute tasks.\n\n### Recommendation\nA general chat mode is prudent if:\n1. It is clearly distinguished from action-oriented modes (plan, execute).\n2. It includes safeguards against unintended side effects.\n3. It complements rather than replaces specialized modes for complex tasks.\n\nIn summary, yes, a chat mode can be valuable as a supplementary interface, provided it is designed with clear boundaries and safety constraints.",
+      "runSummary": {
+        "intent": "Would a chat mode be prudent to use alonside your execute, analyze, and plan modes?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-11T01:31:24.7970016+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "I\u0027ve added a chat mode for us to use for general conversation.",
+      "model": "qwen3.6:35b",
+      "durationMs": 31749,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Analysis of Adding a Chat Mode\n\nAdding a dedicated chat mode alongside functional modes like execute, plan, and analyze is generally considered prudent for the following reasons:\n\n- Flexibility: It provides a safe harbor for queries that do not fit neatly into specific workflows (e.g., casual conversation or broad conceptual questions).\n-\u003E Reduced Friction: Users can ask simple questions without triggering complex tool calls or strict formatting requirements associated with other modes.\n-\u003E Context Isolation: Separating general chat from task-specific contexts helps maintain clarity in the system\u0027s state and memory management.\n\nThis addition enhances the overall usability by accommodating natural language interaction while preserving the specialized capabilities of your existing modes.",
+      "runSummary": {
+        "intent": "I\u0027ve added a chat mode for us to use for general conversation.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-11T01:32:09.3397732+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "I\u0027ve added a chat mode for us to use for general conversation. What do you think if this new mode?",
+      "model": "qwen3.6:35b",
+      "durationMs": 21568,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "The addition of a dedicated chat mode is a prudent step for several reasons:\n\n- Safety and Isolation: By sandboxing this interaction, you create a safe environment for brainstorming, planning, and refining ideas without the risk of accidental side effects or premature execution.\n\n- Focus on Reasoning: The instructions emphasize \u0027clarification-first reasoning.\u0027 This mode encourages deeper analysis and logical structuring before any action is taken, which typically leads to better outcomes in complex tasks.\n\n- Iterative Dialogue: It allows for a back-and-forth dynamic where we can explore nuances or edge cases that might be missed in a direct execution flow. It effectively separates the \u0027thinking\u0027 phase from the \u0027doing\u0027 phase.\n\n- Flexibility: This mode is well-suited for high-level strategy, documentation drafting, and conceptual discussions without being constrained by immediate technical implementation details.\n\nOverall, it provides a structured yet flexible space for intellectual work. Do you have specific goals or topics in mind that you would like to tackle using this new mode?",
+      "runSummary": {
+        "intent": "I\u0027ve added a chat mode for us to use for general conversation. What do you think if this new mode?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "_memoryFormatVersion": 2
