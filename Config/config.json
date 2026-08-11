@@ -129,7 +129,7 @@
     "agent": {
       "provider": "ollama",
       "model": "qwen3.6:35b",
-      "executionMode": "execute",
+      "executionMode": "chat",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
       "thinkingMode": "auto",

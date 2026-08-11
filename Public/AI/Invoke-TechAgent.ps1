@@ -59,7 +59,7 @@ function Invoke-TechAgent {
     .PARAMETER ExecutionMode
         Controls whether the agent should execute tools (`execute`), produce a
         no-tool implementation plan (`plan`), or provide no-tool analysis
-        (`analyze`).
+        (`analyze`), or stay in sandboxed chat mode (`chat`).
 
     .PARAMETER StrictPromptPreflight
         Turns prompt preflight warnings into a blocking validation failure when
@@ -156,7 +156,7 @@ function Invoke-TechAgent {
         [int]$PromptHistoryItems,
 
         [Parameter()]
-        [ValidateSet('execute', 'plan', 'analyze')]
+        [ValidateSet('execute', 'plan', 'analyze', 'chat')]
         [string]$ExecutionMode,
 
         [Parameter()]
@@ -297,13 +297,14 @@ function Invoke-TechAgent {
         }
 
         if ([string]::IsNullOrWhiteSpace($configMode)) {
-            return 'execute'
+            return 'chat'
         }
 
         switch ($configMode.Trim().ToLowerInvariant()) {
             'plan' { return 'plan' }
             'analyze' { return 'analyze' }
-            default { return 'execute' }
+            'chat' { return 'chat' }
+            default { return 'chat' }
         }
     }
 
@@ -450,7 +451,7 @@ function Invoke-TechAgent {
     switch ($resolvedThinkingMode) {
         'on' { $resolvedThinkingEnabled = $true }
         'off' { $resolvedThinkingEnabled = $false }
-        default { $resolvedThinkingEnabled = $resolvedExecutionMode -eq 'analyze' -or $resolvedExecutionMode -eq 'plan' }
+        default { $resolvedThinkingEnabled = $resolvedExecutionMode -eq 'analyze' -or $resolvedExecutionMode -eq 'plan' -or $resolvedExecutionMode -eq 'chat' }
     }
 
     $qualitySettings = switch ($resolvedQualityProfile) {
@@ -1728,8 +1729,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCat/mNsl5keVB6
-# ua089CoF9nISIfdBDaF8HArxRI9POqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlwxDErZufWmuf
+# tttJZWWSY90XIcfb/dMZKbYnuNcUF6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1862,34 +1863,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqxWcYgT22
-# 5yeGTM3aAgMmZHeS/6K89aI7KjYvtg/wzzANBgkqhkiG9w0BAQEFAASCAgDQ0dMq
-# 63AljfHdfeNhzNhV5+4Dav7Z/DwqIAZ/09hw0u0BNppYJCWzkEJTLQmABUpBSFVA
-# 6gYgbkA8Nl87UuDRRAU/6h8ljCJYrtdWgLYCOyuLt4zeI6TxenFZ/pp/VupCeT4F
-# xClhGV6EhbJm92px+OZeERHGJA+ZzVcwvFwrk7nsR9uTnI2FpNWDnsDoS1ukU24i
-# VdoXyB4uvgAiUoPfyhHUWTUfbu68gaBDyDts09h92Rxi1WSF6v5GNA69m/Rq3OQm
-# KLh5aD48/BlUSnEzRFUb96Su5ylzqE3bd2cNzclyh/bB8Uvher0vcpBiQTW4twQx
-# Pp9J5BKM4rvl20Dq4/LEYWoGwrZcLtUIZxiEuwqKPkXzLs7ghlw0S9+5MB7gyI5l
-# 409xt4LE2mn9as/l7qEMs0SD/2cmGjkJG9DCvrOrLTqto8RKmJcfuHu3ndMc5nZo
-# 7Q4ARCWd8dCupBIpBjFwvjPNbObAi8GdcVmrD8XwVHD+tonHkKiGYdUOIPCv5/yM
-# ky3Mq0fkIt2gUKqsXykpcyAaigKG8jIqjpXyV176N1oUKt7FofLE6alMBSRWKkJW
-# GVg3rRQpLBxftdbpHyWf6b2QvzXtrcspIFPmMjXsf+0DGwI+8P+9vU7ATYJHfMGp
-# mrqKy7lfgD+6ixEFJFTcBoYyPOSUs1mOvAb8aKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCsUD1JmG4y
+# Vby/bl9xENvaHnlggZeLw9C3vLWzT02jKjANBgkqhkiG9w0BAQEFAASCAgB1NzMk
+# H57vRvwXc5R34r0K8XF3nOtcxLTtGKjpX5BaLBUgxZhHni7NBdxmv1dReeQQt6B7
+# 5MB0SbzwstYh+IDjFhaQLIQxd+pAQIICzidW5TYvw2CsS05RCLGgEanAfzoXR9bf
+# e/g5XSmR4bgm0cuxmHgU/OwwkPdLmzCeTW8U9TrGJkePtkDN8YzP8xYdrGzKPb83
+# vATMUah4N5sGV7o266M3lhL5ycWnRN/Px3gpCs+wwhM4C0QxcTcU2J5md81G7XtN
+# mLKyCQ5CSFlrUbJClfE4Lp+fy3eMHhuNloaQe/KH33kRiDufTa6lbVHOn3BsZ90i
+# unc8ilNalR00x5+dXPOxUFyUPmQ/5CjGEvBw9cOgKnq4K1kSXcA5c8skdcaXzY0l
+# BVjOmisQ0GO2SoLeoa9NUZ6NT+uua5Pyd3I/N0BC6sS9n1/AVmtg+GPR6G+L4xmG
+# 452TR1hOav/6DES7ILp4ruQMP8MRjal9HqoeQNHqkWtjot/+Sdwyl/r4tXdqCu6M
+# A7WhrQXrVPtLbqQCN7ryR7SpvDB4Tp1g+p8RFAA12V816LdKRVLAB0TeksOk6BM0
+# wFCTGzP8hVTtH6qF+pk7zhVUof/iLXk8+6VY6U3pkB0lLrD+acJVe50EeZ+sVfUN
+# UN8CWCcRDipm8v6uwrhPf1jCe6KwWVBMlTtQcqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MDcwNDQwNTJaMC8GCSqGSIb3DQEJBDEiBCD1t47vCmdoSChQD4eQ
-# TkqnYMNyMfHx0pqMPEEVgySyQzANBgkqhkiG9w0BAQEFAASCAgCQzrSN0hAXyZYz
-# sq1Pk941w9GHi3TaJRw8aNpQBX+gHUt1o6OPU7bNTEQJ2kz3/G2+5/UcjTUloxKB
-# EhA6WjKxdrpc0Fk5RT4xvrIB5ksd4d/F2dWPQpCXhYAUwVL+zblreZfddS6M4T6B
-# t7oJmIjdlf9dTLA6S/Ge1Xitin/ZPu9VG5WmiB2G4CHjerDYTspCatS2DqjguhvB
-# Ma8kT/NIvdEeD3K8NiABn9KSf8z3qN6xbh5DfrSo4DmiOHcxM2J6VlWu3p1aoIHB
-# kHst70oHHn6+OY8KszJ0LqTpA7Znv9lQnM2Lete2a/R++ivUhXxL7X7ywblvxZh6
-# Kbbx3esOeu37P4tsB+HU1JiznGyw2N4F9xdyTUMjGRJneF3p9j2msd4OTfb8cLs/
-# 0Sw9ncR955PeSkxcIsbJfqN4FToigUZcfpnvsQoBVJvHAnAERSe06N3V9lh7WNB3
-# HflQPb7zFWKoQuamb0D/bq5mkOz9ckjdCpDOs1+ZEveyy5LylVrPEeA2XXLW8r7+
-# 1+z+tMecfOE3W2TC8QpxxLE55OLl2RKEd1+QuevnRiN40r4vW0aMCZO3Wh9bvdey
-# FzpiaH1jrO/hUT6JiUCnXf+dnftlblcTdJPZnlh181repS8ZYBwVM51yjiZ3M/hD
-# AW+0jmgWpT/cMUWkF+gCuPutUN4mDQ==
+# BTEPFw0yNjA4MTEwMTMwMjBaMC8GCSqGSIb3DQEJBDEiBCCvFdq8fiTiRuSgzTr3
+# q+slZ/CcKIvThCouoN0t6IyVsDANBgkqhkiG9w0BAQEFAASCAgBEwxxLxsHyrSus
+# BX/AvXH5lrWnhU7oLRm/A3LecdjNUMfq+uOnXGp/SGU0jvNOUp0R900sOznFmUdV
+# 17WyRTjiJ5gu73KxmJrVB1b2Yrp/tG0jwZiJQrBIyRBFMgEqwVn08YaV+n6hRluD
+# HlkOhzQf0eAqSxIz//AykovbTUSmza49IvhexAe+uyhb7rYbMkb1f8Ws8zakjuXf
+# qOLYxGHsoCNkblLbJGzfj4X+wUfEWOjWWy01ypzANsZLn4D/mZgOo7xoHHHsBxoy
+# 57p9M0PMMTFbaEcXxhYdwCnmpQxELMLqwFBIeVvU2vBHfc0vILrLxnuZvymNL6bt
+# 716PmbEu5PgGe7FxgOBi8oJD/4aZY6AiJSEp5qvGaq/e/LKVl+jrOIjg6xw34lNd
+# Wci4JGzuUlu//JFZckfjTY39ZUIIoYKby8bxVdSEiyfM3AjnGVLKibx7PPvG0Awd
+# TFdoPjLVQ8O7DMU1dg51yoUu8QgRw45PGp57LIcS0vmYVYnm4KtHR7u/dUm3fyMm
+# 4IeOoN4HHMbwl0DxnPtRlerdhn8hYf0gXdYkd3o7AzjTbbdYhpjpYeEtDS9eNeug
+# f4Yqv78GTZhnlcffETsisPCLKiJ1r+bnwAcSgG4TdSQUcVDrJHb7JvKZWEVwGHta
+# 8rXlS6FXvdhtMQ2JJv4Lm84HvCttog==
 # SIG # End signature block

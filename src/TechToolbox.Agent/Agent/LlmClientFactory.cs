@@ -80,7 +80,8 @@ public static class LlmClientFactory
         {
             "on" => true,
             "off" => false,
-            _ => string.Equals(config.ExecutionMode, "analyze", StringComparison.OrdinalIgnoreCase)
+            _ => string.Equals(config.ExecutionMode, "chat", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(config.ExecutionMode, "analyze", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(config.ExecutionMode, "plan", StringComparison.OrdinalIgnoreCase),
         };
     }

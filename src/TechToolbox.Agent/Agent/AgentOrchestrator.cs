@@ -91,7 +91,7 @@ public partial class AgentOrchestrator
     /// <param name="tracePath">The optional file path used to write diagnostic trace output.</param>
     /// <param name="expectedOutputPath">The optional required output path that file-update tools must target.</param>
     /// <param name="recentHistoryItemsInPrompt">The number of recent history items to include in the initial prompt.</param>
-    /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
+    /// <param name="executionMode">Execution mode: execute, plan, analyze, or chat.</param>
     /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
     /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
     /// <param name="thinkingMode">Thinking mode: auto, on, or off.</param>
@@ -751,7 +751,9 @@ public partial class AgentOrchestrator
             if (!string.Equals(_executionMode, "execute", StringComparison.OrdinalIgnoreCase))
             {
                 var modeBlockError =
-                    $"Execution mode '{_executionMode}' does not allow tool calls. Return needsTool=false with a complete {(string.Equals(_executionMode, "plan", StringComparison.OrdinalIgnoreCase) ? "numbered plan" : "analysis")}.";
+                    string.Equals(_executionMode, "chat", StringComparison.OrdinalIgnoreCase)
+                        ? "Execution mode 'chat' does not allow tool calls. Return needsTool=false with a clarification question or conceptual answer instead of guessing."
+                        : $"Execution mode '{_executionMode}' does not allow tool calls. Return needsTool=false with a complete {(string.Equals(_executionMode, "plan", StringComparison.OrdinalIgnoreCase) ? "numbered plan" : "analysis")}.";
                 Trace($"Iteration {i + 1} blocked tool call because execution mode is {_executionMode}.");
                 messages.Add(
                     PromptBuilder.BuildToolResultMessage(
@@ -1982,13 +1984,14 @@ Next best action:
     private static string NormalizeExecutionMode(string? executionMode)
     {
         if (string.IsNullOrWhiteSpace(executionMode))
-            return "execute";
+            return "chat";
 
         return executionMode.Trim().ToLowerInvariant() switch
         {
             "analyze" => "analyze",
             "plan" => "plan",
-            _ => "execute",
+            "chat" => "chat",
+            _ => "chat",
         };
     }
 

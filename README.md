@@ -261,7 +261,7 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 - `Use-TechAgentTaskTemplate` can stage a reusable prompt template into that file before you run the agent.
 - `-Prompt` can still be used for inline prompt text, and `-PromptFile` can still target any other file when needed.
 - Provider routing supports `ollama` (default), `openai`, `openai-compatible`, and `azure-openai`.
-- Quality controls support `-ExecutionMode` (`execute`, `analyze`, `plan`), `-OutputContract` (`markdown`, `plain-text`, `json`), `-StrictPromptPreflight`, and `-QualityProfile`.
+- Quality controls support `-ExecutionMode` (`execute`, `analyze`, `plan`, `chat`), with `chat` as the default, `-OutputContract` (`markdown`, `plain-text`, `json`), `-StrictPromptPreflight`, and `-QualityProfile`.
 
 ### Example: provider and quality controls
 
@@ -269,6 +269,7 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 # Cloud provider examples
 Invoke-TechAgent -Prompt "Summarize these logs" -Provider openai -Model gpt-4o-mini
 Invoke-TechAgent -Prompt "Plan migration steps" -ExecutionMode plan -Provider azure-openai -Endpoint https://your-resource.openai.azure.com -Deployment gpt-4o-mini
+Invoke-TechAgent -Prompt "Help me decide what to do next" -ExecutionMode chat
 
 # Quality guardrails and output contract examples
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -ExecutionMode analyze -OutputContract plain-text -StrictPromptPreflight

@@ -141,7 +141,7 @@ public class RunHistory
     /// Gets or sets the execution mode for this run.
     /// </summary>
     [JsonPropertyName("executionMode")]
-    public string ExecutionMode { get; set; } = "execute";
+    public string ExecutionMode { get; set; } = "chat";
 
     /// <summary>
     /// Gets or sets the output contract for this run.

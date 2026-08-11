@@ -25,10 +25,10 @@ public class AgentConfiguration
     public string LlmProvider { get; set; } = "ollama";
 
     /// <summary>
-    /// Execution mode controlling whether the agent should analyze, plan, or execute.
-    /// Supported values: "execute", "plan", "analyze".
+    /// Execution mode controlling whether the agent should analyze, plan, chat, or execute.
+    /// Supported values: "execute", "plan", "analyze", "chat".
     /// </summary>
-    public string ExecutionMode { get; set; } = "execute";
+    public string ExecutionMode { get; set; } = "chat";
 
     /// <summary>
     /// Output contract controlling final answer format.
@@ -204,7 +204,7 @@ public class AgentConfiguration
                     Mode = AgentMode.TechToolbox,
                     Model = "llama3",
                     LlmProvider = "ollama",
-                    ExecutionMode = "execute",
+                    ExecutionMode = "chat",
                     OutputContract = "markdown",
                     QualityProfile = "balanced",
                     MaxIterations = 15,
@@ -224,7 +224,7 @@ public class AgentConfiguration
                     Mode = AgentMode.Assistant,
                     Model = "llama3",
                     LlmProvider = "ollama",
-                    ExecutionMode = "execute",
+                    ExecutionMode = "chat",
                     OutputContract = "markdown",
                     QualityProfile = "balanced",
                     MaxIterations = 10,
@@ -240,7 +240,7 @@ public class AgentConfiguration
                     Mode = AgentMode.CodingAgent,
                     Model = "llama3",
                     LlmProvider = "ollama",
-                    ExecutionMode = "execute",
+                    ExecutionMode = "chat",
                     OutputContract = "markdown",
                     QualityProfile = "balanced",
                     MaxIterations = 20,
@@ -256,7 +256,7 @@ public class AgentConfiguration
                     Mode = AgentMode.Custom,
                     Model = "llama3",
                     LlmProvider = "ollama",
-                    ExecutionMode = "execute",
+                    ExecutionMode = "chat",
                     OutputContract = "markdown",
                     QualityProfile = "balanced",
                     MaxIterations = 15,

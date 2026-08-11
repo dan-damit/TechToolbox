@@ -285,29 +285,48 @@ Invalid response snippet:
         sb.AppendLine("- Output valid JSON only.");
         sb.AppendLine("- No markdown outside the JSON object.");
         sb.AppendLine("- No code fences.");
-        sb.AppendLine("- If a tool is needed, set needsTool=true and provide toolName/toolArgs.");
-        sb.AppendLine("- If no tool is needed, set needsTool=false and provide finalAnswer.");
-        sb.AppendLine(
-            $"- When needsTool=false, finalAnswer must follow this style: {AsciiMarkdownInstruction}"
-        );
-        sb.AppendLine(
-            "- If the goal asks to create or write a file at a specific path/name, you must call WRITE-FILE and only return finalAnswer after WRITE-FILE succeeds."
-        );
-        sb.AppendLine(
-            "- For localized edits to an existing large file, prefer REPLACE-IN-FILE instead of rewriting the entire file with WRITE-FILE."
-        );
-        sb.AppendLine(
-            "- For very large generated outputs, prefer APPEND-FILE in multiple chunks (set truncateFirst=true on the first chunk) to avoid truncated single-response writes."
-        );
-        sb.AppendLine(
-            "- If you used APPEND-FILE chunks for a required output file, call FINALIZE-FILE-WRITE on the same path before returning finalAnswer."
-        );
-        sb.AppendLine("- Never invent tool results.");
-        sb.AppendLine("- Use only exact tool names from the available tools list.");
-        sb.AppendLine("- Prefer the smallest useful number of tool calls.");
-        sb.AppendLine(
-            "- For large files, use READ-FILE chunking with startLine/endLine/maxLines and verify coverage before final conclusions."
-        );
+        if (string.Equals(executionMode, "chat", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine(
+                "- Chat mode is sandboxed and read-only: do not call tools, run code, modify state, or perform side effects."
+            );
+            sb.AppendLine(
+                "- If the request is ambiguous, ask: \"Do you want me to analyze this, plan something, or execute something?\""
+            );
+            sb.AppendLine(
+                "- If the user asks for action, help them refine the request into an analyze, plan, or execute prompt they can approve."
+            );
+            sb.AppendLine(
+                $"- When needsTool=false, finalAnswer must follow this style: {AsciiMarkdownInstruction}"
+            );
+            sb.AppendLine("- Never invent tool results.");
+        }
+        else
+        {
+            sb.AppendLine("- If a tool is needed, set needsTool=true and provide toolName/toolArgs.");
+            sb.AppendLine("- If no tool is needed, set needsTool=false and provide finalAnswer.");
+            sb.AppendLine(
+                $"- When needsTool=false, finalAnswer must follow this style: {AsciiMarkdownInstruction}"
+            );
+            sb.AppendLine(
+                "- If the goal asks to create or write a file at a specific path/name, you must call WRITE-FILE and only return finalAnswer after WRITE-FILE succeeds."
+            );
+            sb.AppendLine(
+                "- For localized edits to an existing large file, prefer REPLACE-IN-FILE instead of rewriting the entire file with WRITE-FILE."
+            );
+            sb.AppendLine(
+                "- For very large generated outputs, prefer APPEND-FILE in multiple chunks (set truncateFirst=true on the first chunk) to avoid truncated single-response writes."
+            );
+            sb.AppendLine(
+                "- If you used APPEND-FILE chunks for a required output file, call FINALIZE-FILE-WRITE on the same path before returning finalAnswer."
+            );
+            sb.AppendLine("- Never invent tool results.");
+            sb.AppendLine("- Use only exact tool names from the available tools list.");
+            sb.AppendLine("- Prefer the smallest useful number of tool calls.");
+            sb.AppendLine(
+                "- For large files, use READ-FILE chunking with startLine/endLine/maxLines and verify coverage before final conclusions."
+            );
+        }
         sb.AppendLine($"- Final answer output contract is '{outputContract}'.");
         if (string.Equals(outputContract, "json", StringComparison.OrdinalIgnoreCase))
         {
@@ -322,7 +341,13 @@ Invalid response snippet:
             );
         }
 
-        if (string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(executionMode, "chat", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine(
+                "- Execution mode is chat: do not call any tools. If the request is ambiguous, ask for clarification instead of guessing."
+            );
+        }
+        else if (string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine(
                 "- Execution mode is analyze: do not call any tools. Return analysis and recommendations only."
@@ -401,8 +426,13 @@ Invalid response snippet:
         string thinkingMode
     )
     {
-        var header =
-            "You are a local automation agent. "
+        var isChatMode = string.Equals(executionMode, "chat", StringComparison.OrdinalIgnoreCase);
+        var header = isChatMode
+            ? "You are a sandboxed chat assistant. Do not call tools, run code, modify state, or perform side effects. "
+            + "Focus on clarification-first reasoning, documentation, conceptual discussion, and prompt drafting. "
+            + "If the request is ambiguous, ask: \"Do you want me to analyze this, plan something, or execute something?\" "
+            + $"{AsciiMarkdownInstruction}"
+            : "You are a local automation agent. "
             + "Work step-by-step, call tools as needed, and continue iterating until the goal is completed "
             + "or you can clearly justify why it cannot be completed safely. "
             + "Never execute destructive actions without explicit confirmation. "
@@ -412,8 +442,12 @@ Invalid response snippet:
 
         var memoryContext = BuildMemoryContext(memory, recentHistoryItems);
         var thinkingInstruction = ShouldUseThinkingMode(thinkingMode, executionMode)
-            ? "Use deeper reasoning when it helps accuracy."
-            : "Reason concisely and proceed directly.";
+            ? isChatMode
+                ? "Use deeper reasoning when it helps clarify the user's intent or compare options."
+                : "Use deeper reasoning when it helps accuracy."
+            : isChatMode
+                ? "Keep responses concise unless additional context is needed to clarify intent."
+                : "Reason concisely and proceed directly.";
         if (string.IsNullOrWhiteSpace(memoryContext))
             return $"{header}{Environment.NewLine}{Environment.NewLine}Execution mode: {executionMode}{Environment.NewLine}Output contract: {outputContract}{Environment.NewLine}Thinking mode: {NormalizeThinkingMode(thinkingMode)}{Environment.NewLine}Thinking guidance: {thinkingInstruction}{Environment.NewLine}Goal: {prompt}";
 
@@ -437,14 +471,15 @@ Goal: {prompt}
     private static string NormalizeExecutionMode(string? executionMode)
     {
         if (string.IsNullOrWhiteSpace(executionMode))
-            return "execute";
+            return "chat";
 
         var normalized = executionMode.Trim().ToLowerInvariant();
         return normalized switch
         {
             "analyze" => "analyze",
             "plan" => "plan",
-            _ => "execute",
+            "chat" => "chat",
+            _ => "chat",
         };
     }
 
@@ -485,7 +520,8 @@ Goal: {prompt}
         if (string.Equals(normalizedThinkingMode, "off", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase)
+        return string.Equals(executionMode, "chat", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase)
             || string.Equals(executionMode, "plan", StringComparison.OrdinalIgnoreCase);
     }
 

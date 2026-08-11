@@ -245,6 +245,42 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_ChatMode_BlocksToolCalls_AndReturnsClarificationStyleAnswer()
+    {
+        var llm = new FakeLlmClient(
+            new[]
+            {
+                ToolDecision("Echo"),
+                FinalDecision("Do you want me to analyze this, plan something, or execute something?"),
+            }
+        );
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["Echo"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            tools,
+            maxIterations: 5,
+            autoRetry: false,
+            executionMode: "chat"
+        );
+
+        var result = await orchestrator.RunAsync("help me decide what to do");
+
+        Assert.Contains(
+            "Do you want me to analyze this, plan something, or execute something?",
+            result.OutputText
+        );
+        Assert.Equal(0, result.ToolCallCount);
+        Assert.Empty(result.ToolNames);
+    }
+
+    [Fact]
     public async Task RunAsync_OutputContractJson_RejectsNonJsonThenAcceptsJson()
     {
         var llm = new FakeLlmClient(
@@ -1441,7 +1477,7 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
             Assert.Single(memory.History);
             Assert.Equal("success", memory.History[0].Status);
             Assert.Equal("completed", memory.History[0].Outcome);
-            Assert.Equal("execute", memory.History[0].ExecutionMode);
+            Assert.Equal("chat", memory.History[0].ExecutionMode);
             Assert.Equal("markdown", memory.History[0].OutputContract);
             Assert.Equal("balanced", memory.History[0].QualityProfile);
             Assert.Equal(0, memory.History[0].PromptPreflightScore);

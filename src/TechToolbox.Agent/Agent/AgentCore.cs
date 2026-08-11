@@ -86,7 +86,7 @@ public static class AgentCore
     /// <param name="searchWebSafeSearch">Default SEARCH-WEB safe-search mode.</param>
     /// <param name="searchWebDefaultCount">Default SEARCH-WEB result count.</param>
     /// <param name="allowMetaTools">Whether to allow meta-tools. Defaults to false.</param>
-    /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
+    /// <param name="executionMode">Execution mode: execute, plan, analyze, or chat.</param>
     /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
     /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
     /// <param name="promptPreflightScore">Prompt preflight score (0..100).</param>
@@ -191,7 +191,7 @@ public static class AgentCore
     /// <param name="searchWebSafeSearch">Default SEARCH-WEB safe-search mode.</param>
     /// <param name="searchWebDefaultCount">Default SEARCH-WEB result count.</param>
     /// <param name="allowMetaTools">Whether to allow meta-tools. Defaults to false.</param>
-    /// <param name="executionMode">Execution mode: execute, plan, or analyze.</param>
+    /// <param name="executionMode">Execution mode: execute, plan, analyze, or chat.</param>
     /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
     /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
     /// <param name="promptPreflightScore">Prompt preflight score (0..100).</param>
@@ -301,7 +301,10 @@ public static class AgentCore
     )
     {
         // 1. Build tool registry from configured tool providers
-        var toolProviders = config.ToolProviders ?? Enumerable.Empty<IToolProvider>();
+        var isChatMode = string.Equals(config.ExecutionMode, "chat", StringComparison.OrdinalIgnoreCase);
+        var toolProviders = isChatMode
+            ? Enumerable.Empty<IToolProvider>()
+            : config.ToolProviders ?? Enumerable.Empty<IToolProvider>();
         var registry = ToolRegistry.BuildToolRegistry(toolProviders);
         if (!config.AllowMetaTools)
         {
@@ -310,24 +313,26 @@ public static class AgentCore
                 .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
         }
 
-        if (registry.Count == 0)
+        if (registry.Count == 0 && !isChatMode)
             return "Error: No tools were discovered. Verify tool providers and manifest.";
 
         // 2. Build tool wrappers
-        var tools = ToolWrapper.BuildTools(
-            registry,
-            config.DestructiveConfirmed,
-            config.SignedFilePolicy,
-            config.AllowedFetchHosts,
-            config.SearchWebProvider,
-            config.SearchWebEndpoint,
-            config.SearchWebApiKeyEnvVar,
-            config.SearchWebCountry,
-            config.SearchWebLanguage,
-            config.SearchWebSafeSearch,
-            config.SearchWebDefaultCount,
-            executor: PowerShellToolExecutor.Instance
-        );
+        var tools = registry.Count == 0
+            ? new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase)
+            : ToolWrapper.BuildTools(
+                registry,
+                config.DestructiveConfirmed,
+                config.SignedFilePolicy,
+                config.AllowedFetchHosts,
+                config.SearchWebProvider,
+                config.SearchWebEndpoint,
+                config.SearchWebApiKeyEnvVar,
+                config.SearchWebCountry,
+                config.SearchWebLanguage,
+                config.SearchWebSafeSearch,
+                config.SearchWebDefaultCount,
+                executor: PowerShellToolExecutor.Instance
+            );
 
         // 3. Initialize memory store (optional)
         MemoryStore? memory = null;
