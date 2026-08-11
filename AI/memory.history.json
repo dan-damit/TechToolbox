@@ -1,37 +1,5 @@
 [
   {
-    "timestampUtc": "2026-07-01T01:49:21.3246194+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "\u0022Please read the function\r\n\u0027C:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1\u0027. Write a markdown file to\r\n\u0027C:\\repos\\TechToolbox-Docs\u0027, and name the file Get-SystemUptime.md - this file\r\nwill be used as -Online help for the function. Use Get-Help -Online best\r\npractices for this document.\u0022\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 20623,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 2,
-    "toolNames": [
-      "read_file",
-      "read_file"
-    ],
-    "outputPreview": "## Get-SystemUptime\n\nRetrieves the system uptime information from one or more remote computers.\n\n### SYNOPSIS\nRetrieves the system uptime information from one or more remote computers.\n\n### DESCRIPTION\nThe \u0060Get-SystemUptime\u0060 function uses the TechToolbox remote worker engine to run a small uptime worker script on each specified remote host. It calculates the time elapsed since the last boot of the operating system.\n\nBy default, it exports the results to CSV files in a designated output directory. You can suppress this export using the \u0060-NoExport\u0060 switch.\n\n### SYNTAX\n\n#### Default (Mandatory ComputerName)\n\u0060\u0060\u0060powershell\nGet-SystemUptime -ComputerName \u003Cstring[]\u003E [-Credential \u003Cpscredential\u003E] [-OutDir \u003Cstring\u003E] [-NoExport] [\u003CCommonParameters\u003E]\n\u0060\u0060\u0060\n\n### PARAMETERS\n\n#### -ComputerName\nSpecifies the names of the computers to query for uptime information. This parameter is mandatory.\n\n\u0060\u0060\u0060powershell\n-ComputerName \u003Cstring[]\u003E\nRequired?                    true\nPosition?                    named\nDefault value                None\nAccept pipeline input?       True (ByValue)\nAccept wildcard characters?  false\n\u0060\u0060\u0060\n\n#### -Credential\nSpecifies a user account that has permission to perform this action. The default is the current user.\n\n\u0060\u0060\u0060powershell\n-Credential \u003Cpscredential\u003E\nRequired?                    false\nPosition?                    named\nDefault value                None\nAccept pipeline input?       False\nAccept wildcard characters?  false\n\u0060\u0060\u0060\n\n#### -OutDir\nSpecifies the directory where the CSV export files will be saved. If not specified, a default path is resolved.\n\n\u0060\u0060\u0060powershell\n-OutDir \u003Cstring\u003E\nRequired?                    false\nPosition?                    named\nDefault value                None\nAccept pipeline input?       False\nAccept wildcard characters?  false\n\u0060\u0060\u0060\n\n#### -NoExport\nIf present, prevents the function from exporting results to CSV files.\n\n\u0060\u0060\u0060powershell\n-NoExport\nRequired?                    false\nPosition?                    named\nDefault value                False\nAccept pipeline input?       False\nAccept wildcard characters?  false\n\u0060\u0060\u0060\n\n### INPUTS\n\u0060string[]\u0060. You can pipe an array of computer names to this cmdlet.\n\n### OUTPUTS\n\u0060pscustomobject\u0060. The function returns custom objects containing uptime details for each queried computer.\n\n### EXAMPLES\n\n#### Example 1: Get Uptime for Localhost\n\u0060\u0060\u0060powershell\nGet-SystemUptime -ComputerName localhost\n\u0060\u0060\u0060\nThis command retrieves the system uptime for the local machine and exports the result to CSV by default.\n\n#### Example 2: Get Uptime for Multiple Remote Computers\n\u0060\u0060\u0060powershell\nGet-SystemUptime -ComputerName \u0022Server01\u0022, \u0022Server02\u0022 -Credential (Get-Credential)\n\u0060\u0060\u0060\nThis command retrieves the system uptime for Server01 and Server02 using alternate credentials.\n\n#### Example 3: Get Uptime Without Exporting to CSV\n\u0060\u0060\u0060powershell\nGet-SystemUptime -ComputerName localhost -NoExport\n\u0060\u0060\u0060\nThis command retrieves the system uptime for the local machine without creating any export files.",
-    "runSummary": {
-      "intent": "\u0022Please read the function\r\n\u0027C:\\repos\\TechToolbox\\Public\\Get\\Get-SystemUptime.ps1\u0027. Write a markdown file to\r\n\u0027C:\\repos\\TechToolbox-Docs\u0027, and name the file Get-SystemUptime.md - this file\r\nwill be used as -Online help fo...",
-      "actionsTaken": [
-        "read_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-07-01T01:55:57.4995925+00:00",
     "status": "success",
     "outcome": "completed",
@@ -8158,6 +8126,41 @@
     "qualityProfile": "balanced",
     "promptPreflightScore": 0,
     "promptPreflightWarningCount": 5,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-11T22:53:13.7502099+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+    "model": "qwen3.6:35b",
+    "durationMs": 124746,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "toolNames": [
+      "search_web",
+      "fetch_url",
+      "fetch_url",
+      "fetch_url"
+    ],
+    "outputPreview": "## Tomorrow\u0027s Weather in Green Bay, Wisconsin\n\n**Date:** Wednesday, August 12, 2026\n\n### Summary\n- **Conditions:** Areas of fog before 9am, then mostly sunny with a slight chance (20%) of showers and thunderstorms between 4pm and 5pm.\n- **High Temperature:** Near 83 F\n- **Low Temperature:** Around 64 F (overnight)\n- **Wind:** Southwest around 3 mph\n- **Humidity/Heat Index:** Heat index values as high as 85 during the day.",
+    "runSummary": {
+      "intent": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+      "actionsTaken": [
+        "search_web",
+        "fetch_url"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
     "promptPreflightCriticalCount": 0
   }
 ]
