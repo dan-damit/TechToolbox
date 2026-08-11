@@ -173,8 +173,8 @@ Invoke-TechAgent -Prompt "Investigate repeated login failures" -MaxIterations 25
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -AutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Update Public/Get/Get-ToolboxHelp.ps1" -ConfirmDestructive -SignedFilePolicy strip
-Invoke-TechAgent -Prompt "Explain repeated authentication failures" -ExecutionMode analyze
-Invoke-TechAgent -Prompt "Design a remediation approach" -ExecutionMode plan
+Invoke-TechAgent -Prompt "Explain repeated authentication failures" -Mode analyze
+Invoke-TechAgent -Prompt "Design a remediation approach" -Mode plan
 Invoke-TechAgent -Prompt "Summarize host posture" -OutputContract plain-text
 Invoke-TechAgent -Prompt "Return remediation checklist as JSON" -OutputContract json
 Invoke-TechAgent -Prompt "Fix AD sync issue" -StrictPromptPreflight
@@ -203,11 +203,11 @@ Invoke-TechAgent -PromptFile AI\Tasks\CurrentTask.txt
 
 **Execution Mode and Output Contract**
 
-- `-ExecutionMode execute` allows tool invocation and file/system actions.
-- `-ExecutionMode plan` disallows tool calls and requires a plan-style final response.
-- `-ExecutionMode analyze` disallows tool calls and requires analysis/recommendations only.
-- `-ExecutionMode chat` disallows tool calls and keeps the agent in clarification-first, read-only chat mode.
-- If `-ExecutionMode` is omitted, chat is the default.
+- `-Mode execute` allows tool invocation and file/system actions.
+- `-Mode plan` disallows tool calls and requires a plan-style final response.
+- `-Mode analyze` disallows tool calls and requires analysis/recommendations only.
+- `-Mode chat` disallows tool calls and keeps the agent in clarification-first, read-only chat mode.
+- If `-Mode` is omitted, chat is the default.
 - `-OutputContract markdown` allows markdown-style final answers (default).
 - `-OutputContract plain-text` rejects markdown constructs in final answers.
 - `-OutputContract json` requires final answers to be valid JSON object/array text.
