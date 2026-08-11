@@ -19,23 +19,22 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.75,
-      "avgDurationMs": 20115,
-      "avgToolCalls": 1.15,
+      "successRate": 0.8,
+      "avgDurationMs": 23751,
+      "avgToolCalls": 1.35,
       "statusCounts": {
-        "error": 5,
-        "success": 15
+        "success": 16,
+        "error": 4
       },
       "outcomeCounts": {
-        "iteration-limit": 1,
-        "completed": 15,
+        "completed": 16,
         "llm-failure": 4
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "gpt-4o-mini",
-      "lastRunTimestampUtc": "2026-08-11T21:47:22.2600607\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-11T21:47:22.2611877\u002B00:00",
+      "lastModel": "qwen3.6:35b",
+      "lastRunTimestampUtc": "2026-08-11T22:53:13.7502099\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-11T22:53:13.7515460\u002B00:00",
       "avgPromptPreflightScore": 32,
       "executionModeCounts": {
         "chat": 18,
@@ -52,34 +51,6 @@
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-11T03:43:51.841649+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Write the data to C:\\Temp\\tomorrows_weather.md\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\Temp\\tomorrows_weather.md\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "qwen3.6:35b",
-      "durationMs": 52032,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Write the data to C:\\Temp\\tomorrows_weather.md\r\n\r\nHard requirement:\r\n- Create the output file at this...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-11T03:47:42.9137792+00:00",
       "status": "success",
@@ -630,6 +601,41 @@
       "qualityProfile": "balanced",
       "promptPreflightScore": 0,
       "promptPreflightWarningCount": 5,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-11T22:53:13.7502099+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+      "model": "qwen3.6:35b",
+      "durationMs": 124746,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "## Tomorrow\u0027s Weather in Green Bay, Wisconsin\n\n**Date:** Wednesday, August 12, 2026\n\n### Summary\n- **Conditions:** Areas of fog before 9am, then mostly sunny with a slight chance (20%) of showers and thunderstorms between 4pm and 5pm.\n- **High Temperature:** Near 83 F\n- **Low Temperature:** Around 64 F (overnight)\n- **Wind:** Southwest around 3 mph\n- **Humidity/Heat Index:** Heat index values as high as 85 during the day.",
+      "runSummary": {
+        "intent": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
     }
   ],
