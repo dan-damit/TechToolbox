@@ -20,8 +20,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.8,
-      "avgDurationMs": 23751,
-      "avgToolCalls": 1.35,
+      "avgDurationMs": 15664,
+      "avgToolCalls": 0.5,
       "statusCounts": {
         "success": 16,
         "error": 4
@@ -33,12 +33,12 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-08-11T22:53:13.7502099\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-11T22:53:13.7515460\u002B00:00",
-      "avgPromptPreflightScore": 32,
+      "lastRunTimestampUtc": "2026-08-11T23:14:05.3752348\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-11T23:14:05.3764748\u002B00:00",
+      "avgPromptPreflightScore": 31,
       "executionModeCounts": {
-        "chat": 18,
-        "execute": 2
+        "chat": 19,
+        "execute": 1
       },
       "outputContractCounts": {
         "markdown": 20
@@ -51,139 +51,6 @@
     "fact.model.5e2c614c": "Model"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-11T03:47:42.9137792+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "would it be more helpful for general chat to open up the SEARCH-WEB and FETCH-URL tool for general chatting?",
-      "model": "qwen3.6:35b",
-      "durationMs": 24489,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Enabling **SEARCH-WEB** and **FETCH-URL** for general chat significantly enhances utility but introduces trade-offs regarding latency and complexity.\n\n### Benefits of Enabling Tools in General Chat\n\n- Real-Time Information:\n  - Access to current events, weather, stock prices, and sports scores that are not present in static training data.\n  - Verification of facts against live sources reduces hallucinations.\n\n- Depth and Specificity:\n  - **FETCH-URL** allows the assistant to read specific documents or articles provided by the user (e.g., a PDF link) rather than relying on general knowledge.\n  - Deep dives into niche topics where search results provide high-quality, targeted content.\n\n### Drawbacks and Risks\n\n- Latency:\n  - Tool calls add significant delay to responses. In casual conversation (",
-      "runSummary": {
-        "intent": "would it be more helpful for general chat to open up the SEARCH-WEB and FETCH-URL tool for general chatting?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 20,
-      "promptPreflightWarningCount": 4,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-11T03:56:07.9799322+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "can you confirm the use of the SEARCH-WEB tool and FETCH-URL tool in this chat mode?",
-      "model": "qwen3.6:35b",
-      "durationMs": 31032,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Yes, in this chat execution mode, I can use the SEARCH-WEB and FETCH-URL tools specifically for read-only web lookups to help answer your questions or gather information.",
-      "runSummary": {
-        "intent": "can you confirm the use of the SEARCH-WEB tool and FETCH-URL tool in this chat mode?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 20,
-      "promptPreflightWarningCount": 4,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-11T04:04:19.5719852+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
-      "model": "qwen3.6:35b",
-      "durationMs": 53032,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 12,
-      "toolNames": [
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "## Weather Forecast for Green Bay, Wisconsin\n\nI was unable to fetch live data from weather.gov because the FETCH-URL tool consistently blocks access to \u0027www.weather.gov\u0027 even when \u0027weather.gov\u0027 is in the allowlist (likely due to DNS resolution or redirects). However, based on recent search results:\n\n### Current Conditions \u0026 Trends\n- **Recent Weather**: Hazy sunshine with patchy clouds. Inland temperatures are climbing into the 80s.\n- **Humidity**: High humidity persists, making it feel warmer than the actual temperature.\n- **Severe Weather Context**: There is an active severe weather trend in the Midwest and East. A tornado previously rated EF-3 touched down in Wisconsin\u0027s Fox Valley (about 35 miles south of Green Bay).\n\n### Forecast Summary for Tomorrow\nWhile specific hourly data was not accessible, general trends suggest:\n- **Temperature**: Likely to remain warm with highs in the upper 70s to low 80s.\n- **Conditions**: Partly cloudy to sunny with high humidity.\n- **Alerts**: Monitor local news (e.g., WBAY) for any severe weather updates given the regional activity.\n\nFor precise hourly forecasts, please visit [WBAY Weather](https://www.wbay.com/weather/) or [NWS Green Bay](https://weather.gov/grb) directly.",
-      "runSummary": {
-        "intent": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
-        "actionsTaken": [
-          "fetch_url",
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-11T04:09:24.8926991+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
-      "model": "qwen3.6:35b",
-      "durationMs": 139259,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "search_web"
-      ],
-      "outputPreview": "Based on search results from the National Weather Service (Green Bay, WI) and local forecasts:\n\n- Forecast: Mostly cloudy skies with a chance of showers and thunderstorms in the afternoon/evening.\n- High Temperature: Near 83 degrees Fahrenheit.\n- Wind: Calm to south southeast around 5 mph.\n\nNote: Direct access to the specific forecast page on \u0060forecast.weather.gov\u0060 was restricted by tool allowlists, so this information is derived from available search snippets.",
-      "runSummary": {
-        "intent": "Please check the website https://weather.gov to gather information on tomorrow\u0027s weather in Green Bay, Wisconsin, USA. Output the results in markdown format in the console.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-11T04:12:25.8144756+00:00",
       "status": "success",
@@ -636,6 +503,114 @@
       "qualityProfile": "balanced",
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-11T23:02:00.7700812+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Use the website https://wikipedia.org to search for information on heuristics in the context of computing. Output a detailed markdown-formatted summary of the results.",
+      "model": "qwen3.6:35b",
+      "durationMs": 24824,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Preflight posture is acceptable; continue with explicit target hints to keep execution efficient.",
+      "runSummary": {
+        "intent": "Use the website https://wikipedia.org to search for information on heuristics in the context of computing. Output a detailed markdown-formatted summary of the results.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-11T23:03:08.9508371+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Use the website https://wikipedia.org to search for information on heuristics in the context of computing. Output a detailed markdown-formatted summary of how heuristics are used in computer programming and computer science.",
+      "model": "qwen3.6:35b",
+      "durationMs": 5583,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Preflight posture is acceptable; continue with explicit target hints to keep execution efficient.",
+      "runSummary": {
+        "intent": "Use the website https://wikipedia.org to search for information on heuristics in the context of computing. Output a detailed markdown-formatted summary of how heuristics are used in computer programming and computer scie...",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-11T23:05:31.2200065+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "I\u0027m curious, when an AI model is trained on data, is that data retained in the parameters?",
+      "model": "qwen3.6:35b",
+      "durationMs": 18532,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Short Answer\nNo, training data is not stored in the model\u0027s parameters like a database stores records. Instead, the model learns compressed patterns and statistical relationships from the data.\n\n## How Parameters Actually Work\n- Neural network parameters (weights and biases) represent mathematical functions that map inputs to outputs\n- During training, these values are adjusted through gradient descent to minimize prediction error across the entire dataset\n- The final parameter values encode general rules about how input features relate to output labels, not individual examples\n- Think of it like learning a language: you don\u0027t memorize every sentence you hear; instead, you internalize grammar and vocabulary patterns that let you generate new sentences\n\n## Memorization vs Generalization\nThe relationship between training data retention and model behavior exists on a spectrum:\n\n### Underfitting (Too Little Retention)\n- Model fails to learn meaningful patterns from the data\n- Performs poorly on both training and test data\n- Parameters are too simple or were not trained long enough\n\n### Good Generalization (Desired State)\n- Model learns useful statistical regularities without memorizing specifics\n- Performs well on unseen data that follows similar distributions\n- This is what most modern models aim for during training\n\n### Memorization/Overfitting (Excessive Retention)\n- Model essentially \u0022memorizes\u0022 specific training examples rather than learning general patterns\n- Can reproduce exact training inputs when prompted with them\n- Performs well on training data but poorly on new, similar data\n- More likely to occur in very large models trained for too long or on small datasets\n\n## When Specific Data IS Retained\nCertain conditions can cause partial retention of training examples:\n\n1. Overfitting: Large models with excessive capacity can memorize noise and specific examples alongside genuine patterns\n2. Exact sequence matching: Some architectures (especially autoregressive language models) may reproduce exact phrases from training data when prompted appropriately\n3. Insufficient regularization: Without proper techniques, models tend toward memorization as they optimize for training loss\n4. Small or unique datasets: When each example is highly distinctive, the model has less opportunity to find general patterns\n\n## Techniques That Prevent Retention\n- Regularization (L1/L2 weight decay): Penalizes large parameter values that indicate overfitting\n- Dropout: Randomly disables neurons during training to prevent co-adaptation on specific examples\n- Early stopping: Halts training before the model begins memorizing noise\n- Differential privacy: Adds mathematical noise during training to guarantee individual data points cannot be reconstructed\n- Data augmentation: Creates variations of existing examples so models learn broader patterns\n- Validation monitoring: Tracks performance on held-out test data to detect overfitting early\n\n## Practical Implications\n- Modern large language models can sometimes reproduce exact phrases from their training data when prompted with specific sequences, but this is not the same as storing a database of records\n- The model\u0027s parameters represent a compressed statistical summary of patterns across millions or billions of examples\n- If you trained on your personal documents and then asked the model to \u0022repeat what I wrote,\u0022 it might reproduce text if that exact phrasing appeared in training, but this is due to pattern matching rather than storage\n- Privacy protections like differential privacy are increasingly used specifically because researchers have demonstrated that some models can partially reconstruct training data under certain conditions\n\n## Summary\nTraining data shapes the model\u0027s parameters through optimization, but the parameters do not contain the raw data. They encode learned patterns and relationships. While extreme cases of overfitting or specific architectures can lead to partial memorization, well-...",
+      "runSummary": {
+        "intent": "I\u0027m curious, when an AI model is trained on data, is that data retained in the parameters?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-11T23:14:05.3752348+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "So essentially you are just doing a ton of math when your iterating?",
+      "model": "qwen3.6:35b",
+      "durationMs": 37148,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Yes, fundamentally it is massive amounts of arithmetic.\n\nWhen you look under the hood of a neural network (the type of AI model used in large language models), every single step involves linear algebra. Specifically, matrix multiplication and addition.\n\nHere is how that math works during iteration:\n\n### 1. The Core Operation: Matrix Multiplication\nAt its heart, an AI layer takes input data (numbers representing words or pixels) and multiplies them by a **weight matrix**. \n- Input vector x Weight matrix = Output vector.\nThis operation calculates the weighted sum of inputs to produce a result.\n\n### 2. Iteration During Training (Learning)\nWhen you asked if data is retained, it helps to understand that during training, the model iterates through this math repeatedly:\n- **Forward Pass**: The model does the matrix multiplication and adds a small number called a \u0027bias\u0027. It produces an answer.\n- **Loss Calculation**: The system compares its mathematical output to the correct answer. This is just subtraction (Error = Predicted - Actual).\n- **Backward Pass (Gradient Descent)**: Using calculus, it calculates how much each weight contributed to the error. \n- **Update Step**: It adjusts the weights slightly in the opposite direction of the error.\n\nThis process repeats millions or billions of times. The \u0027learning\u0027 is simply the model finding a specific set of numbers (weights) that minimizes the math error across all examples it has seen.\n\n### 3. Iteration During Inference (Usage)\nWhen you use an AI, it stops learning and only does one type of iteration:\n- **Forward Pass**: It takes your prompt, converts words to numbers (embeddings), runs them through thousands of layers of matrix multiplication, applies a mathematical function called \u0027softmax\u0027 to turn the result into probabilities, and picks the highest probability as its next word.\n\n### Summary on Data Retention\nTo answer your previous question: The raw data is **not** retained in the parameters. \n- If you train an AI on 100 photos of a cat, it does not store those 100 images inside its weights.\n- Instead, it compresses the *patterns* found in those images into mathematical relationships (weights). It learns that \u0027whiskers \u002B ears \u002B fur texture\u0027 mathematically correlates to the concept of \u0027cat\u0027.\n\nSo yes, you are essentially watching a computer do trillions of multiplications per second to find patterns and minimize error.",
+      "runSummary": {
+        "intent": "So essentially you are just doing a ton of math when your iterating?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
       "promptPreflightCriticalCount": 0
     }
   ],

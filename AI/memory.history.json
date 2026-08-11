@@ -1,146 +1,5 @@
 [
   {
-    "timestampUtc": "2026-07-01T01:55:57.4995925+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TechToolboxConfig.ps1\r\n\r\nGenerate a complete Get-TechToolboxConfig.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Get-TechToolboxConfig.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Get-TechToolboxConfig.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 33991,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 2,
-    "toolNames": [
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "Successfully generated and wrote the Get-TechToolboxConfig.md help document to C:\\repos\\TechToolbox-Docs\\Get-TechToolboxConfig.md. The file follows Get-Help -Online best practices with SYNOPSIS, SYNTAX, DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, and EXAMPLES sections.",
-    "runSummary": {
-      "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TechToolboxConfig.ps1\r\n\r\nGenerate a complete Get-TechToolboxConfig.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the fina...",
-      "actionsTaken": [
-        "read_file",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-07-01T01:58:12.2720596+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1\r\n\r\nGenerate a complete Get-ToolboxHelp.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Get-ToolboxHelp.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Get-ToolboxHelp.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 29747,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 3,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "Successfully generated and wrote the Get-ToolboxHelp.md help document to C:\\repos\\TechToolbox-Docs\\Get-ToolboxHelp.md. The file follows Get-Help -Online best practices with sections for Synopsis, Syntax, Description, Parameters, Inputs, Outputs, Examples, Notes, and Related Links.",
-    "runSummary": {
-      "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-ToolboxHelp.ps1\r\n\r\nGenerate a complete Get-ToolboxHelp.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown t...",
-      "actionsTaken": [
-        "read_file",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-07-01T02:00:28.0267469+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-WindowsProductKey.ps1\r\n\r\nGenerate a complete Get-WindowsProductKey.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Get-WindowsProductKey.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Get-WindowsProductKey.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 37094,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 4,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "Successfully generated and wrote the Get-WindowsProductKey.md help document to C:\\repos\\TechToolbox-Docs\\Get-WindowsProductKey.md following Get-Help -Online best practices.",
-    "runSummary": {
-      "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-WindowsProductKey.ps1\r\n\r\nGenerate a complete Get-WindowsProductKey.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the fina...",
-      "actionsTaken": [
-        "read_file",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-07-01T02:01:31.3195696+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TTPathRoots.ps1\r\n\r\nGenerate a complete Get-TTPathRoots.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown to this exact file path:\r\nC:\\repos\\TechToolbox-Docs\\Get-TTPathRoots.md\r\n\r\nImportant requirements:\r\n- You MUST call the WRITE-FILE tool.\r\n- The WRITE-FILE toolArgs MUST include:\r\n    \u0022path\u0022: \u0022C:\\\\repos\\\\TechToolbox-Docs\\\\Get-TTPathRoots.md\u0022\r\n    \u0022content\u0022: \u0022\u003Cescaped markdown\u003E\u0022\r\n- All newlines in the content MUST be escaped as \\n inside JSON.\r\n- Do NOT return finalAnswer until WRITE-FILE succeeds.\r\n- After WRITE-FILE succeeds, return a short finalAnswer summarizing the action.\r\n",
-    "model": "qwen3.6:35b",
-    "durationMs": 46268,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 7,
-    "toolNames": [
-      "read_file",
-      "list_directory",
-      "list_directory",
-      "read_file",
-      "read_file",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "Successfully generated the Get-TTPathRoots.md help document at C:\\repos\\TechToolbox-Docs\\Get-TTPathRoots.md based on the Test-TTPathRoots.ps1 function.",
-    "runSummary": {
-      "intent": "Please read the function at:\r\nC:\\repos\\TechToolbox\\Public\\Get\\Get-TTPathRoots.ps1\r\n\r\nGenerate a complete Get-TTPathRoots.md help document following\r\nGet-Help -Online best practices.\r\n\r\nYou MUST write the final markdown t...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-07-01T02:02:33.7543307+00:00",
     "status": "success",
     "outcome": "completed",
@@ -8161,6 +8020,114 @@
     "qualityProfile": "balanced",
     "promptPreflightScore": 60,
     "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-11T23:02:00.7700812+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Use the website https://wikipedia.org to search for information on heuristics in the context of computing. Output a detailed markdown-formatted summary of the results.",
+    "model": "qwen3.6:35b",
+    "durationMs": 24824,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Preflight posture is acceptable; continue with explicit target hints to keep execution efficient.",
+    "runSummary": {
+      "intent": "Use the website https://wikipedia.org to search for information on heuristics in the context of computing. Output a detailed markdown-formatted summary of the results.",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-11T23:03:08.9508371+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Use the website https://wikipedia.org to search for information on heuristics in the context of computing. Output a detailed markdown-formatted summary of how heuristics are used in computer programming and computer science.",
+    "model": "qwen3.6:35b",
+    "durationMs": 5583,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Preflight posture is acceptable; continue with explicit target hints to keep execution efficient.",
+    "runSummary": {
+      "intent": "Use the website https://wikipedia.org to search for information on heuristics in the context of computing. Output a detailed markdown-formatted summary of how heuristics are used in computer programming and computer scie...",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-11T23:05:31.2200065+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "I\u0027m curious, when an AI model is trained on data, is that data retained in the parameters?",
+    "model": "qwen3.6:35b",
+    "durationMs": 18532,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Short Answer\nNo, training data is not stored in the model\u0027s parameters like a database stores records. Instead, the model learns compressed patterns and statistical relationships from the data.\n\n## How Parameters Actually Work\n- Neural network parameters (weights and biases) represent mathematical functions that map inputs to outputs\n- During training, these values are adjusted through gradient descent to minimize prediction error across the entire dataset\n- The final parameter values encode general rules about how input features relate to output labels, not individual examples\n- Think of it like learning a language: you don\u0027t memorize every sentence you hear; instead, you internalize grammar and vocabulary patterns that let you generate new sentences\n\n## Memorization vs Generalization\nThe relationship between training data retention and model behavior exists on a spectrum:\n\n### Underfitting (Too Little Retention)\n- Model fails to learn meaningful patterns from the data\n- Performs poorly on both training and test data\n- Parameters are too simple or were not trained long enough\n\n### Good Generalization (Desired State)\n- Model learns useful statistical regularities without memorizing specifics\n- Performs well on unseen data that follows similar distributions\n- This is what most modern models aim for during training\n\n### Memorization/Overfitting (Excessive Retention)\n- Model essentially \u0022memorizes\u0022 specific training examples rather than learning general patterns\n- Can reproduce exact training inputs when prompted with them\n- Performs well on training data but poorly on new, similar data\n- More likely to occur in very large models trained for too long or on small datasets\n\n## When Specific Data IS Retained\nCertain conditions can cause partial retention of training examples:\n\n1. Overfitting: Large models with excessive capacity can memorize noise and specific examples alongside genuine patterns\n2. Exact sequence matching: Some architectures (especially autoregressive language models) may reproduce exact phrases from training data when prompted appropriately\n3. Insufficient regularization: Without proper techniques, models tend toward memorization as they optimize for training loss\n4. Small or unique datasets: When each example is highly distinctive, the model has less opportunity to find general patterns\n\n## Techniques That Prevent Retention\n- Regularization (L1/L2 weight decay): Penalizes large parameter values that indicate overfitting\n- Dropout: Randomly disables neurons during training to prevent co-adaptation on specific examples\n- Early stopping: Halts training before the model begins memorizing noise\n- Differential privacy: Adds mathematical noise during training to guarantee individual data points cannot be reconstructed\n- Data augmentation: Creates variations of existing examples so models learn broader patterns\n- Validation monitoring: Tracks performance on held-out test data to detect overfitting early\n\n## Practical Implications\n- Modern large language models can sometimes reproduce exact phrases from their training data when prompted with specific sequences, but this is not the same as storing a database of records\n- The model\u0027s parameters represent a compressed statistical summary of patterns across millions or billions of examples\n- If you trained on your personal documents and then asked the model to \u0022repeat what I wrote,\u0022 it might reproduce text if that exact phrasing appeared in training, but this is due to pattern matching rather than storage\n- Privacy protections like differential privacy are increasingly used specifically because researchers have demonstrated that some models can partially reconstruct training data under certain conditions\n\n## Summary\nTraining data shapes the model\u0027s parameters through optimization, but the parameters do not contain the raw data. They encode learned patterns and relationships. While extreme cases of overfitting or specific architectures can lead to partial memorization, well-...",
+    "runSummary": {
+      "intent": "I\u0027m curious, when an AI model is trained on data, is that data retained in the parameters?",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 20,
+    "promptPreflightWarningCount": 4,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-11T23:14:05.3752348+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "So essentially you are just doing a ton of math when your iterating?",
+    "model": "qwen3.6:35b",
+    "durationMs": 37148,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Yes, fundamentally it is massive amounts of arithmetic.\n\nWhen you look under the hood of a neural network (the type of AI model used in large language models), every single step involves linear algebra. Specifically, matrix multiplication and addition.\n\nHere is how that math works during iteration:\n\n### 1. The Core Operation: Matrix Multiplication\nAt its heart, an AI layer takes input data (numbers representing words or pixels) and multiplies them by a **weight matrix**. \n- Input vector x Weight matrix = Output vector.\nThis operation calculates the weighted sum of inputs to produce a result.\n\n### 2. Iteration During Training (Learning)\nWhen you asked if data is retained, it helps to understand that during training, the model iterates through this math repeatedly:\n- **Forward Pass**: The model does the matrix multiplication and adds a small number called a \u0027bias\u0027. It produces an answer.\n- **Loss Calculation**: The system compares its mathematical output to the correct answer. This is just subtraction (Error = Predicted - Actual).\n- **Backward Pass (Gradient Descent)**: Using calculus, it calculates how much each weight contributed to the error. \n- **Update Step**: It adjusts the weights slightly in the opposite direction of the error.\n\nThis process repeats millions or billions of times. The \u0027learning\u0027 is simply the model finding a specific set of numbers (weights) that minimizes the math error across all examples it has seen.\n\n### 3. Iteration During Inference (Usage)\nWhen you use an AI, it stops learning and only does one type of iteration:\n- **Forward Pass**: It takes your prompt, converts words to numbers (embeddings), runs them through thousands of layers of matrix multiplication, applies a mathematical function called \u0027softmax\u0027 to turn the result into probabilities, and picks the highest probability as its next word.\n\n### Summary on Data Retention\nTo answer your previous question: The raw data is **not** retained in the parameters. \n- If you train an AI on 100 photos of a cat, it does not store those 100 images inside its weights.\n- Instead, it compresses the *patterns* found in those images into mathematical relationships (weights). It learns that \u0027whiskers \u002B ears \u002B fur texture\u0027 mathematically correlates to the concept of \u0027cat\u0027.\n\nSo yes, you are essentially watching a computer do trillions of multiplications per second to find patterns and minimize error.",
+    "runSummary": {
+      "intent": "So essentially you are just doing a ton of math when your iterating?",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 0,
+    "promptPreflightWarningCount": 5,
     "promptPreflightCriticalCount": 0
   }
 ]
