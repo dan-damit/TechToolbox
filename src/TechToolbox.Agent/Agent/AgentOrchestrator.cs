@@ -111,7 +111,7 @@ public partial class AgentOrchestrator
         string? tracePath = null,
         string? expectedOutputPath = null,
         int recentHistoryItemsInPrompt = 2,
-        string executionMode = "execute",
+        string executionMode = "chat",
         string outputContract = "markdown",
         string qualityProfile = "balanced",
         string thinkingMode = "auto",
@@ -748,24 +748,32 @@ public partial class AgentOrchestrator
                 );
             }
 
+            var toolName = decision.ToolName ?? string.Empty;
+
             if (!string.Equals(_executionMode, "execute", StringComparison.OrdinalIgnoreCase))
             {
-                var modeBlockError =
-                    string.Equals(_executionMode, "chat", StringComparison.OrdinalIgnoreCase)
-                        ? "Execution mode 'chat' does not allow tool calls. Return needsTool=false with a clarification question or conceptual answer instead of guessing."
-                        : $"Execution mode '{_executionMode}' does not allow tool calls. Return needsTool=false with a complete {(string.Equals(_executionMode, "plan", StringComparison.OrdinalIgnoreCase) ? "numbered plan" : "analysis")}.";
-                Trace($"Iteration {i + 1} blocked tool call because execution mode is {_executionMode}.");
-                messages.Add(
-                    PromptBuilder.BuildToolResultMessage(
-                        "MODE-GUARD",
-                        modeBlockError,
-                        succeeded: false
-                    )
-                );
-                continue;
+                var isAllowedChatTool = string.Equals(_executionMode, "chat", StringComparison.OrdinalIgnoreCase)
+                    && (string.Equals(toolName, "SEARCH-WEB", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(toolName, "FETCH-URL", StringComparison.OrdinalIgnoreCase));
+
+                if (!isAllowedChatTool)
+                {
+                    var modeBlockError =
+                        string.Equals(_executionMode, "chat", StringComparison.OrdinalIgnoreCase)
+                            ? "Execution mode 'chat' does not allow tool calls except for SEARCH-WEB and FETCH-URL. Return needsTool=false with a clarification question or conceptual answer instead of guessing."
+                            : $"Execution mode '{_executionMode}' does not allow tool calls. Return needsTool=false with a complete {(string.Equals(_executionMode, "plan", StringComparison.OrdinalIgnoreCase) ? "numbered plan" : "analysis")}.";
+                    Trace($"Iteration {i + 1} blocked tool call because execution mode is {_executionMode} and tool is {toolName}.");
+                    messages.Add(
+                        PromptBuilder.BuildToolResultMessage(
+                            "MODE-GUARD",
+                            modeBlockError,
+                            succeeded: false
+                        )
+                    );
+                    continue;
+                }
             }
 
-            var toolName = decision.ToolName ?? string.Empty;
 
             if (!_tools.TryGetValue(toolName, out var toolFunc))
             {
@@ -1991,6 +1999,7 @@ Next best action:
             "analyze" => "analyze",
             "plan" => "plan",
             "chat" => "chat",
+            "execute" => "execute",
             _ => "chat",
         };
     }

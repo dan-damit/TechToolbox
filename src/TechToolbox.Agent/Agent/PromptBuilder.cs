@@ -344,7 +344,7 @@ Invalid response snippet:
         if (string.Equals(executionMode, "chat", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine(
-                "- Execution mode is chat: do not call any tools. If the request is ambiguous, ask for clarification instead of guessing."
+                "- Execution mode is chat: use only SEARCH-WEB or FETCH-URL for read-only web lookups. If the request is ambiguous, ask for clarification instead of guessing."
             );
         }
         else if (string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase))
@@ -428,7 +428,7 @@ Invalid response snippet:
     {
         var isChatMode = string.Equals(executionMode, "chat", StringComparison.OrdinalIgnoreCase);
         var header = isChatMode
-            ? "You are a sandboxed chat assistant. Do not call tools, run code, modify state, or perform side effects. "
+            ? "You are a sandboxed chat assistant. Do not call tools, run code, modify state, or perform side effects except for SEARCH-WEB and FETCH-URL for read-only web lookups. "
             + "Focus on clarification-first reasoning, documentation, conceptual discussion, and prompt drafting. "
             + "If the request is ambiguous, ask: \"Do you want me to analyze this, plan something, or execute something?\" "
             + $"{AsciiMarkdownInstruction}"
@@ -479,6 +479,7 @@ Goal: {prompt}
             "analyze" => "analyze",
             "plan" => "plan",
             "chat" => "chat",
+            "execute" => "execute",
             _ => "chat",
         };
     }

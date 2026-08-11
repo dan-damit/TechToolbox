@@ -245,6 +245,44 @@ public class AgentOrchestratorTests
     }
 
     [Fact]
+    public async Task RunAsync_ChatMode_AllowsReadOnlyWebTools()
+    {
+        var llm = new FakeLlmClient(
+            new[]
+            {
+                ToolDecision("SEARCH-WEB", "query", "TechToolbox docs"),
+                ToolDecision("FETCH-URL", "url", "https://example.com"),
+                FinalDecision("Done"),
+            }
+        );
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["SEARCH-WEB"] = _ => Task.FromResult("ok"),
+            ["FETCH-URL"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            tools,
+            maxIterations: 5,
+            autoRetry: false,
+            executionMode: "chat"
+        );
+
+        var result = await orchestrator.RunAsync(
+            "look up the TechToolbox documentation for Invoke-TechAgent and summarize what it covers"
+        );
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(2, result.ToolCallCount);
+        Assert.Contains("SEARCH-WEB", result.ToolNames);
+        Assert.Contains("FETCH-URL", result.ToolNames);
+    }
+
+    [Fact]
     public async Task RunAsync_ChatMode_BlocksToolCalls_AndReturnsClarificationStyleAnswer()
     {
         var llm = new FakeLlmClient(

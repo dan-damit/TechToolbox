@@ -302,14 +302,20 @@ public static class AgentCore
     {
         // 1. Build tool registry from configured tool providers
         var isChatMode = string.Equals(config.ExecutionMode, "chat", StringComparison.OrdinalIgnoreCase);
-        var toolProviders = isChatMode
-            ? Enumerable.Empty<IToolProvider>()
-            : config.ToolProviders ?? Enumerable.Empty<IToolProvider>();
+        var toolProviders = config.ToolProviders ?? Enumerable.Empty<IToolProvider>();
         var registry = ToolRegistry.BuildToolRegistry(toolProviders);
         if (!config.AllowMetaTools)
         {
             registry = registry
                 .Where(kv => !MetaToolNames.Contains(kv.Key))
+                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+        }
+
+        if (isChatMode)
+        {
+            registry = registry
+                .Where(kv => string.Equals(kv.Key, "SEARCH-WEB", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(kv.Key, "FETCH-URL", StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
         }
 
