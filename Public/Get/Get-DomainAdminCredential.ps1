@@ -184,7 +184,7 @@ function Get-DomainAdminCredential {
 
     # --- CLEAR path ---
     if ($Clear) {
-        $target = "domainAdminCred (config.json + config.secrets.json)"
+        $target = "domainAdminCred (config.secrets.json)"
         if ($PSCmdlet.ShouldProcess($target, "Clear username + DPAPI password and in-memory cache")) {
             try {
                 $cfgNode.username = ''
@@ -196,7 +196,7 @@ function Get-DomainAdminCredential {
 
                 $script:domainAdminCred = $null
 
-                Write-Log -Level 'Ok' -Message "[Get-DomainAdminCredential] Cleared stored domainAdminCred (config + secrets) and in-memory cache."
+                Write-Log -Level 'Ok' -Message "[Get-DomainAdminCredential] Cleared stored domainAdminCred (config.secrets.json) and in-memory cache."
             }
             catch {
                 Write-Log -Level 'Error' -Message "[Get-DomainAdminCredential] Failed to clear and persist: $($_.Exception.Message)"
@@ -232,7 +232,7 @@ function Get-DomainAdminCredential {
                 }
             }
 
-            Write-Log -Level 'Debug' -Message "[Get-DomainAdminCredential] Reconstructed credential from config.json + config.secrets.json."
+            Write-Log -Level 'Debug' -Message "[Get-DomainAdminCredential] Reconstructed credential from config.secrets.json."
             if ($PassThru) { return $script:domainAdminCred } else { return }
         }
         catch {
@@ -255,7 +255,7 @@ function Get-DomainAdminCredential {
 
     # Persist on request
     if ($Persist) {
-        $target = "domainAdminCred username (config.json) + password (config.secrets.json)"
+        $target = "domainAdminCred username + password (config.secrets.json)"
         if ($PSCmdlet.ShouldProcess($target, "Persist username and DPAPI-protected password")) {
             try {
                 # Username -> config.json and config.secrets.json
@@ -268,7 +268,7 @@ function Get-DomainAdminCredential {
                 $secrets.passwords.domainAdminCred.password = ConvertFrom-SecureString $cred.Password
                 Write-Secrets -Secrets $secrets | Out-Null
 
-                Write-Log -Level 'Ok' -Message "[Get-DomainAdminCredential] Persisted username to config.json + config.secrets.json and password to config.secrets.json ($secretsPath)."
+                Write-Log -Level 'Ok' -Message "[Get-DomainAdminCredential] Persisted username to config.secrets.json and password to config.secrets.json ($secretsPath)."
             }
             catch {
                 Write-Log -Level 'Error' -Message "[Get-DomainAdminCredential] Failed to persist credential: $($_.Exception.Message)"
@@ -283,8 +283,8 @@ function Get-DomainAdminCredential {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBOyJLXnIdoEeQ2
-# E6L8sg1x8JaE60bP7LZDJm4idJPQP6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB1N/soTRS7j/4A
+# oylbHV6s6RSVjAYClfUsC9z+hXzGZaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -417,34 +417,34 @@ function Get-DomainAdminCredential {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBTvUcOMElX
-# yWyOCNnA0Gq+lkLkCo4NbwKBlremElhWijANBgkqhkiG9w0BAQEFAASCAgAPMPey
-# A4GymPJXo/0gVvHEnzAtkkF9uQwIenRepvSwMc0PdeD1RJtzd1xQmZ61Oqov5h8n
-# d/R+MiOyPLyAWJt+MOegtomf8aMHA3miC7MQZZNA81iDu7YgWkQpkB4EcBn+Vbnc
-# d1myUNjIQE9KNFjJUJU4ImVUJXmNBHEGgUtNYMn2uMHA1MTZu/MFTc5+EazyEd+t
-# wW5EBMY/G0ISlyIbb/BJt7yIKX6Y8KmbsRjWAQ3ZVe6eIMS6uwqm7pOgc6eDphhd
-# l6RNJPZcvYpXJBxdrqP9utkS0mgZ8bKDJMcqvhRwVEklcSBgwQLPLSTLF3iz4Jc5
-# OuJrMkT5IWVCJ8pdOY32zFkNaNGJbrsRz2KfDxyYaZo6VGIFkliEChQrAlMmH1Ys
-# KE9wp1F2UawmeotSVDpwbLUbpm/rzBKqoRSv50V51IG2N/d7uraARk3Bjk2fLrD+
-# 5qnvf1RfcSnxuAEdeVl2K2Nd5UstasEY8G+TnfY8qZIZBw9gXH2RhOHQNCihNu23
-# WnrvpXfMr0U3c7NQWZ+yZziPlnhsWin8oYDI1+mMajivxtrxrAT6AXYWKbtyS+96
-# dSynaubHZP/xQd3G09/xk9i1lm1ZFqKVU0wyPA5qdQki1c4zCfRCXtpY70OOBxrv
-# 63io9KS5MrmOIN3bILQQo7nM2pRPe5WVePL1wqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC9/beTHhHU
+# kgQrTo47VKT2OYQHEST8kr8/SqXEFaAFzzANBgkqhkiG9w0BAQEFAASCAgBi8xrZ
+# wOqVVXI5ZNJGtRDNiGMgTO/EQiM8k0HrXCm7rhyAQdRi2NPBYboaWVh9cHV0lorb
+# kQcyXcb9Bg7Q4I92D6pnrybIvlAq7lULgLFYkYHW5DUD2j0cARNpsKyEIxR1vz5M
+# 8/TxiOr79Vyrdcz7r6BbX/JqC0DxiCNUH/MVcaLsWrpq3ldijcGh/g4yjpCAtg0+
+# dZCm75SJjOcAfpZbfGW1xCA+rnCpgrrCQBTeN+TlzeWgCcsFYmzJU+oxrJAY+M/a
+# 0Lro7nuW5NZfZKvEkh8OzLiUhjLRbc7i2nPkomE2uA798HllqRGLcS8/7z73q5Hr
+# bANocghc8Xu6eNuzpiS2Jy6dwBCKAR+vLDgcvRcrOifNDxRY1hIMlvNY6n2DLPAP
+# S/YYWRGRJlYeGNaBceBCtYeIM2ig3H7zlaPILf0hNn5e33DZtyi/D1UL4WdFhumC
+# vbv14gZlRBiy7ZxCsOPi7iNg3pghTftkTkprjITSBM7r6E9ron+Ej/miiPik3w6z
+# hOXgzOTAiWSN5T5gHmwOHgehUF00bR0JKHK9uPnbz7n1yOH4XCn/UFNX/gAmOAuC
+# uae2D/sC7ACA9Qls8zpUcXqki/H/SAq5PIdXoEAN+QjExxgXLHJU5rAQ8ZkVzthT
+# plEv4VwVxsam3RgzRAyhBNqR2cVqoAxVITC5ZqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MDExNDIwMzVaMC8GCSqGSIb3DQEJBDEiBCCfnt7jQTTHQQXIkiV9
-# aLpmt+yjuGq8cEAV8ev3w+RdZjANBgkqhkiG9w0BAQEFAASCAgDLglxx5v7z9s3Q
-# 1Qrmq3O+DQ8L6LPgCSFL1Knsv3sDdo5sP8+/VMu4x1/Sqbff1+gSPEC+H+/DLdlP
-# AcqyjK/mHpFVuCW0TY/O3IG1u/+oNf3v3cSR2TAUV7jImfCpGxMuhkrru2MvnimY
-# CpbextfiKlS7lKrn2e76y/ol1rmzKwJhlQrh3BFuLxfWJOWlVUanMmYHP1lh6Xqk
-# S8Ib/qZEX8r+ZR9UZ+5lyd+b/UGopMDRlky1z2qGxX0KoLwfnxg14PsR53icAQl2
-# +/BEP7LIlqDQ7G4fCNjXeKRnldTwFMkXv3j55G8sURmeBpWr7Yvmyme70Yi/9syW
-# g09e2XT5gl5mSCByrd9UUmz7eC5OkEvQNAwe0FkcSUFhpFku+33xRrIYqLOHhiQP
-# 44uknK6MaV9dO83ng1rAKfdl1+CEbogckchuwh07hxQhlgv4nVN+MBkQ8UZukE5g
-# t09yJcN15J+VntRscV06JXCNaiJ7D9WTIneEj5iPemEYg6VLKWrwyrPkkM/BE0fK
-# nMtu+dmk2ciwWOGNJnh8JF+TG5WLQ1PmtK1rhPG+yTqhkoxgFb2mBNcUkrPPaPJn
-# daOi7BMtPHGCEcfsyrp4MguwosqLkYAmGgsxvqN5Sf7fTV04a8AEiSb+minYCTPw
-# woX1LRVh0hCZzvkYz5UfAjrBrsh9Jg==
+# BTEPFw0yNjA4MTIxNDU4NDRaMC8GCSqGSIb3DQEJBDEiBCAZBb3wtdPh4hucj2Lo
+# Nqaa80YQZzpC+JehQVmKs2XOHzANBgkqhkiG9w0BAQEFAASCAgBWiSqrr4jaXCZN
+# Uj6EcTF8Uy39j3653s/GjUcbcCDN15kLLrcdg8jkgXg45mqQ28OfVxDhOSZJCP39
+# D8XHVnW4e//S/QyIIU8svr0JM4GiTGj4AmlYpRFEc/Y3VrBn405SxFiwT+imYYAP
+# xNHa2YI9mr66L4lCVm1YRX8qPRRs1ExXmzBIZTg/2VjNG+OLHca2KhET3dJj07jY
+# E6JKo577joiDHUpxYuBOAXu0YBfh62rMHx3+1R+p9ZCvuROJf+VHurj0PaObRtzx
+# 0NIm8eu5JdzGQmhR5lt8ojVV/xpGlH9TvGmLmyRGXEfeP+TCx8F6sgumvgRy12Y3
+# xFQ9iqh6KpM0n2aAqwFS6PTrGISmCRuF/ETveLepNsAfVpy0H2m0IpD79qJISnvS
+# v2pC9qyvwU212DiplPdzsF5ClbOCwQQ6Yts2uN0TPqix7uQ8+s/p0UgRgKwLcmP/
+# MFvDa/TJHUpzX4PDsXYsZNtPNAVWbv3jZ5fOBz0n3WjvXpppTcAE0Hg2+iyFaHF5
+# +GZYDkCnxiHs1OHRes3y1mViSyK/CNaqsxruFsRqW0VBrXtNVCJf3nLAs4L7y9Y4
+# OFlD8+nt6yoppe/rD730F7bR7voua9ig6HB8n0VDFSU0HVTHPMAc/7+E75kDHhYS
+# LawmwtHtYe8xyb+dpVJjlZb/o8TnJg==
 # SIG # End signature block
