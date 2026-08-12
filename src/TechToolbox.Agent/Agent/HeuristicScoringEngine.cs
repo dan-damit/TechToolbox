@@ -150,6 +150,24 @@ public sealed class HeuristicScoringEngine
         "memory pressure",
     ];
 
+    private static readonly string[] ConversationalDialogueTerms =
+    [
+        "hello",
+        "hi",
+        "hey",
+        "thanks",
+        "thank you",
+        "please",
+        "can you",
+        "could you",
+        "would you",
+        "tell me",
+        "help me",
+        "i am curious",
+        "chat",
+        "conversation",
+    ];
+
     /// <summary>
     /// Evaluates preflight quality as a risk score by combining raw preflight telemetry,
     /// prompt context, and recent historical outcomes.
@@ -315,6 +333,8 @@ public sealed class HeuristicScoringEngine
         var hasSpecificTargetHint = HasSpecificTargetHint(promptText, decision.ToolArgs);
         var isInvestigationPrompt = IsInvestigationPrompt(normalizedPrompt);
         var isLowRiskExploratoryTool = IsLowRiskExploratoryTool(normalizedToolName);
+        var isFactualOrExternalQuestion = IsFactualOrExternalQuestion(normalizedPrompt);
+        var isConversationalDialogue = IsConversationalDialoguePrompt(normalizedPrompt);
 
         var confidence = 0.72;
 
@@ -329,6 +349,42 @@ public sealed class HeuristicScoringEngine
             if (isLowRiskExploratoryTool)
             {
                 confidence += 0.02;
+            }
+        }
+
+        if (isFactualOrExternalQuestion)
+        {
+            if (string.Equals(normalizedToolName, "search-web", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence += 0.12;
+            }
+            else if (string.Equals(normalizedToolName, "fetch-url", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence += 0.1;
+            }
+            else if (string.Equals(normalizedToolName, "echo", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence -= 0.12;
+            }
+        }
+
+        if (isConversationalDialogue)
+        {
+            if (string.Equals(normalizedToolName, "search-web", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence += 0.24;
+            }
+            else if (string.Equals(normalizedToolName, "fetch-url", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence += 0.22;
+            }
+            else if (string.Equals(normalizedToolName, "echo", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence -= 0.16;
+            }
+            else if (isLowRiskExploratoryTool)
+            {
+                confidence -= 0.05;
             }
         }
 
@@ -381,14 +437,27 @@ public sealed class HeuristicScoringEngine
             confidence -= 0.08;
         }
 
-        if (IsVeryVaguePrompt(normalizedPrompt))
+        var isVeryVagueConversationPrompt = isConversationalDialogue && IsVeryVaguePrompt(normalizedPrompt);
+
+        if (isVeryVagueConversationPrompt)
+        {
+            confidence = Math.Max(confidence, 0.88);
+        }
+        else if (IsVeryVaguePrompt(normalizedPrompt))
         {
             confidence -= 0.08;
         }
 
         if (IsVeryVaguePrompt(normalizedPrompt) && IsAmbiguousToolChoice(normalizedToolName))
         {
-            confidence -= 0.12;
+            if (isVeryVagueConversationPrompt)
+            {
+                confidence = Math.Max(confidence, 0.88);
+            }
+            else
+            {
+                confidence -= 0.12;
+            }
         }
         else if (IsVeryVaguePrompt(normalizedPrompt))
         {
@@ -774,6 +843,56 @@ public sealed class HeuristicScoringEngine
         }
 
         return 0;
+    }
+
+    private static bool IsFactualOrExternalQuestion(string normalizedPrompt)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedPrompt))
+        {
+            return false;
+        }
+
+        var factualQuestionTerms = new[]
+        {
+            "what is",
+            "who is",
+            "when did",
+            "where is",
+            "why does",
+            "how does",
+            "latest",
+            "current",
+            "news",
+            "official",
+            "documentation",
+            "docs",
+            "release notes",
+            "version",
+            "cve",
+            "vulnerability",
+            "according to",
+            "source",
+            "citation",
+            "references",
+            "website",
+            "web",
+            "internet",
+            "online",
+            "external",
+        };
+
+        return normalizedPrompt.Contains('?', StringComparison.OrdinalIgnoreCase)
+            || ContainsAny(normalizedPrompt, factualQuestionTerms);
+    }
+
+    private static bool IsConversationalDialoguePrompt(string normalizedPrompt)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedPrompt))
+        {
+            return false;
+        }
+
+        return ContainsAny(normalizedPrompt, ConversationalDialogueTerms);
     }
 
     private static bool IsSessionContextMatch(

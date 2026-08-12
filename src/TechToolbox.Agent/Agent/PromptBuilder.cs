@@ -288,10 +288,22 @@ Invalid response snippet:
         if (string.Equals(executionMode, "chat", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine(
-                "- Chat mode is sandboxed and read-only: do not call tools, run code, modify state, or perform side effects."
+                "- Chat mode is sandboxed and read-only: only SEARCH-WEB and FETCH-URL are allowed."
             );
             sb.AppendLine(
-                "- If the request is ambiguous, ask: \"Do you want me to analyze this, plan something, or execute something?\""
+                "- Default to using SEARCH-WEB first for most factual, informational, current-events, external, or uncertain questions; then use FETCH-URL to read the most relevant sources before answering."
+            );
+            sb.AppendLine(
+                "- In chat mode, prefer a quick SEARCH-WEB even for many general knowledge questions when a lightweight lookup can improve confidence or provide fresher context."
+            );
+            sb.AppendLine(
+                "- Do not answer from memory alone when web lookup could materially improve accuracy, freshness, or citations."
+            );
+            sb.AppendLine(
+                "- If SEARCH-WEB returns useful candidates, follow up with FETCH-URL on at least one high-relevance result unless the user explicitly asks for a no-browse response."
+            );
+            sb.AppendLine(
+                "- If the request is ambiguous, ask the user to clarify rather than guessing."
             );
             sb.AppendLine(
                 "- If the user asks for action, help them refine the request into an analyze, plan, or execute prompt they can approve."
@@ -341,13 +353,7 @@ Invalid response snippet:
             );
         }
 
-        if (string.Equals(executionMode, "chat", StringComparison.OrdinalIgnoreCase))
-        {
-            sb.AppendLine(
-                "- Execution mode is chat: use only SEARCH-WEB or FETCH-URL for read-only web lookups. If the request is ambiguous, ask for clarification instead of guessing."
-            );
-        }
-        else if (string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(executionMode, "analyze", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine(
                 "- Execution mode is analyze: do not call any tools. Return analysis and recommendations only."

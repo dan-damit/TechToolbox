@@ -99,6 +99,56 @@ public class HeuristicScoringEngineTests
     }
 
     [Fact]
+    public void Evaluate_BiasesConversationalPromptsTowardWebLookupTools()
+    {
+        var engine = new HeuristicScoringEngine();
+
+        var searchDecision = new AgentDecision
+        {
+            NeedsTool = true,
+            ToolName = "SEARCH-WEB",
+            ToolArgs = new Dictionary<string, object?>(),
+        };
+
+        var fetchDecision = new AgentDecision
+        {
+            NeedsTool = true,
+            ToolName = "FETCH-URL",
+            ToolArgs = new Dictionary<string, object?>(),
+        };
+
+        var echoDecision = new AgentDecision
+        {
+            NeedsTool = true,
+            ToolName = "ECHO",
+            ToolArgs = new Dictionary<string, object?>(),
+        };
+
+        var searchEvaluation = engine.Evaluate(
+            "Can you help me think through this conversation?",
+            searchDecision,
+            recentToolFailures: []
+        );
+
+        var fetchEvaluation = engine.Evaluate(
+            "Can you help me think through this conversation?",
+            fetchDecision,
+            recentToolFailures: []
+        );
+
+        var echoEvaluation = engine.Evaluate(
+            "Can you help me think through this conversation?",
+            echoDecision,
+            recentToolFailures: []
+        );
+
+        Assert.True(searchEvaluation.Confidence >= 0.92, $"Expected SEARCH-WEB confidence to be heavily boosted, but got {searchEvaluation.Confidence}");
+        Assert.True(fetchEvaluation.Confidence >= 0.90, $"Expected FETCH-URL confidence to be heavily boosted, but got {fetchEvaluation.Confidence}");
+        Assert.True(searchEvaluation.Confidence > echoEvaluation.Confidence);
+        Assert.True(fetchEvaluation.Confidence > echoEvaluation.Confidence);
+    }
+
+    [Fact]
     public void Evaluate_ProducesStatefulClarificationMessage_WithSpecificMissingArgKey()
     {
         var engine = new HeuristicScoringEngine();
