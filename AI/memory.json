@@ -20,8 +20,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.8,
-      "avgDurationMs": 66694,
-      "avgToolCalls": 1.2,
+      "avgDurationMs": 77923,
+      "avgToolCalls": 1.45,
       "statusCounts": {
         "success": 16,
         "error": 4
@@ -31,15 +31,15 @@
         "iteration-limit": 3,
         "llm-failure": 1
       },
-      "lastStatus": "error",
-      "lastOutcome": "iteration-limit",
+      "lastStatus": "success",
+      "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-08-14T03:40:54.9506192\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-14T03:40:55.0002435\u002B00:00",
-      "avgPromptPreflightScore": 41,
+      "lastRunTimestampUtc": "2026-08-14T03:52:34.3989626\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-14T03:52:34.4003302\u002B00:00",
+      "avgPromptPreflightScore": 49,
       "executionModeCounts": {
-        "chat": 10,
-        "execute": 10
+        "chat": 8,
+        "execute": 12
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,75 +52,21 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-14T03:40:55.0002596\u002B00:00",
-      "totalPreferences": 1,
+      "generatedUtc": "2026-08-14T03:52:34.4003524\u002B00:00",
+      "totalPreferences": 0,
       "totalFacts": 6,
-      "indexEntries": 2,
-      "averageConfidence": 0.73,
+      "indexEntries": 0,
+      "averageConfidence": 0,
       "deprecatedEntries": 0,
-      "health": "healthy",
+      "health": "low",
       "notes": [
-        "Preferences tracked: 1",
+        "Preferences tracked: 0",
         "Facts tracked: 6",
-        "Index entries: 2"
+        "Index entries: 0"
       ]
     }
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-12T23:29:01.1064886+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "What is the weather going to be like tomorrow in Green Bay Wisconsin USA?",
-      "model": "gpt-5.4-nano",
-      "durationMs": 1948,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Quick clarification\nTo answer \u201CWhat is the weather going to be like tomorrow in Green Bay, Wisconsin, USA?\u201D, I need one detail:\n- What date do you mean by \u201Ctomorrow\u201D (your local timezone)?\n\n## If you want, I can also draft a prompt\nIf your real goal is to bias your scoring engine to prefer web lookups (SEARCH-WEB / FETCH-URL) over memory-based answers for weather queries, tell me:\n- Do you want me to analyze the current scoring logic in \u0060HeuristicScoringEngine.cs\u0060, then propose a minimal change?\n- Or do you want me to plan the change at a high level first?\n\nDo you want me to analyze this, plan something, or execute something?",
-      "runSummary": {
-        "intent": "What is the weather going to be like tomorrow in Green Bay Wisconsin USA?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-12T23:29:59.9499853+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "What is the weather going to be like tomorrow in Green Bay Wisconsin USA for the local time zone?",
-      "model": "gpt-5.4-nano",
-      "durationMs": 1709,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
-      "runSummary": {
-        "intent": "What is the weather going to be like tomorrow in Green Bay Wisconsin USA for the local time zone?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 20,
-      "promptPreflightWarningCount": 4,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-12T23:30:17.2408624+00:00",
       "status": "success",
@@ -653,48 +599,86 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T03:47:13.1675672+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: execute only bounded steps and avoid unrelated changes.",
+      "model": "qwen3.6:35b",
+      "durationMs": 134177,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "toolNames": [
+        "fetch_url",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "## Weather Forecast for Washington, DC\n\n**Generated At:** 2026-08-14T03:45:57Z\n\n### Tonight\n- **Conditions:** Mostly Cloudy\n- **Temperature:** Low around 74\u00B0F\n- **Wind:** North wind around 2 mph\n- **Precipitation:** 7% chance\n\n### Friday, August 14\n- **Conditions:** Mostly Cloudy then Slight Chance Showers And Thunderstorms\n- **Temperature:** High near 88\u00B0F\n- **Wind:** Northeast wind around 5 mph\n- **Precipitation:** 30% chance (Rainfall amounts less than a tenth of an inch possible)\n\n### Friday Night, August 14\n- **Conditions:** Chance Showers And Thunderstorms\n- **Temperature:** Low around 72\u00B0F\n- **Wind:** Northeast wind around 3 mph\n- **Precipitation:** 40% chance (Rainfall amounts between a tenth and quarter of an inch possible)\n\n### Saturday, August 15\n- **Conditions:** Chance Rain Showers\n- **Temperature:** High near 87\u00B0F\n- **Wind:** Northeast wind around 6 mph\n- **Precipitation:** 40% chance (Rainfall amounts less than a tenth of an inch possible)\n\n### Saturday Night, August 15\n- **Conditions:** Mostly Cloudy then Chance Rain Showers\n- **Temperature:** Low around 71\u00B0F\n- **Wind:** Southeast wind 2 to 6 mph\n- **Precipitation:** 40% chance",
+      "runSummary": {
+        "intent": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: execute only boun...",
+        "actionsTaken": [
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T03:52:34.3989626+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Check weather for Green Bay, Wisconsin, USA. Fetch the forecast from the official weather website and output a markdown summary for the next 3 days forcast.",
+      "model": "qwen3.6:35b",
+      "durationMs": 94064,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "## Weather Forecast for Green Bay, Wisconsin\n\n**Data Source:** National Weather Service (NWS)\n**Generated At:** August 14, 2026\n\n### Next 3 Days Forecast\n\n#### Friday, August 14\n- **Condition:** Partly Sunny\n- **High:** 84\u00B0F\n- **Wind:** East 5 to 15 mph\n- **Precipitation Chance:** 7%\n\n#### Saturday, August 15\n- **Condition:** Slight Chance of Rain Showers (before 1pm)\n- **High:** 81\u00B0F\n- **Low:** 63\u00B0F (Saturday Night)\n- **Wind:** South Southeast around 5 mph\n- **Precipitation Chance:** 20%\n- **Note:** New rainfall amounts between a tenth and quarter of an inch possible.\n\n#### Sunday, August 16\n- **Condition:** Mostly Sunny\n- **High:** 81\u00B0F\n- **Low:** 56\u00B0F (Sunday Night)\n- **Wind:** North Northwest 5 to 10 mph\n- **Precipitation Chance:** 5%",
+      "runSummary": {
+        "intent": "Check weather for Green Bay, Wisconsin, USA. Fetch the forecast from the official weather website and output a markdown summary for the next 3 days forcast.",
+        "actionsTaken": [
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 80,
+      "promptPreflightWarningCount": 1,
+      "promptPreflightCriticalCount": 0
     }
   ],
-  "memoryIndex": {
-    "unrelated": {
-      "keyword": "unrelated",
-      "value": "unrelated changes",
-      "sourceType": "preference",
-      "confidence": 0.729999999880789,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-14T03:40:54.9990038\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "unrelated",
-        "changes"
-      ]
-    },
-    "changes": {
-      "keyword": "changes",
-      "value": "unrelated changes",
-      "sourceType": "preference",
-      "confidence": 0.7299999998859621,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-14T03:40:54.9990623\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "unrelated",
-        "changes"
-      ]
-    }
-  },
+  "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-14T03:40:55.0002690\u002B00:00",
-    "totalPreferences": 1,
+    "generatedUtc": "2026-08-14T03:52:34.4004897\u002B00:00",
+    "totalPreferences": 0,
     "totalFacts": 6,
-    "indexEntries": 2,
-    "averageConfidence": 0.73,
+    "indexEntries": 0,
+    "averageConfidence": 0,
     "deprecatedEntries": 0,
-    "health": "healthy",
+    "health": "low",
     "notes": [
-      "Preferences tracked: 1",
+      "Preferences tracked: 0",
       "Facts tracked: 6",
-      "Index entries: 2"
+      "Index entries: 0"
     ]
   },
   "_memoryFormatVersion": 2
