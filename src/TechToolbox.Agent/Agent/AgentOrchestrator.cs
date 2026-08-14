@@ -1365,6 +1365,76 @@ Next best action:
         return true;
     }
 
+    private static string BuildReadFileModeGuidance(string toolResult, string? rawBody)
+    {
+        if (string.IsNullOrWhiteSpace(toolResult))
+            return string.Empty;
+
+        var normalized = toolResult.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+            return string.Empty;
+
+        var isSummary = normalized.Contains("\"kind\":\"file-summary\"", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("\"kind\":\"auto-chunk\"", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("\"kind\":\"semantic-chunk\"", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("\"kind\":\"header-footer\"", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("\"kind\":\"stream\"", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("\"kind\":\"file-meta\"", StringComparison.OrdinalIgnoreCase);
+
+        if (!isSummary)
+            return string.Empty;
+
+        var pathHint = TryExtractPathHint(normalized, rawBody);
+        var filePath = string.IsNullOrWhiteSpace(pathHint) ? "the target file" : pathHint;
+
+        if (normalized.Contains("\"kind\":\"file-summary\"", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("\"kind\":\"file-meta\"", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("\"isLarge\":true", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Use READ-FILE-META for {filePath}, then prefer READ-FILE autoChunk=true chunkSize=500 for large files. If the goal is symbol lookup, use READ-FILE semantic=\"target\" contextLines=40. For structure-only reads, use READ-FILE headerLines=200 footerLines=200. For very large files, use READ-FILE stream=true chunkSize=500 with nextToken continuation.";
+        }
+
+        if (normalized.Contains("\"kind\":\"semantic-chunk\"", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Use READ-FILE semantic=\"oldText\" contextLines=40 for targeted symbol lookup in {filePath}. This is safer than a full-file scan and keeps the context focused.";
+        }
+
+        if (normalized.Contains("\"kind\":\"header-footer\"", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Use READ-FILE headerLines=200 footerLines=200 for structure-only inspection of {filePath}; this preserves file shape without pulling the whole file body.";
+        }
+
+        if (normalized.Contains("\"kind\":\"stream\"", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Continue READ-FILE streaming for {filePath} using nextToken until the target context is complete.";
+        }
+
+        return $"Use READ-FILE-META for {filePath} and select the right mode: autoChunk for large files, semantic for symbol lookup, header/footer for structure, or stream for very large files.";
+    }
+
+    private static string? TryExtractPathHint(string toolResult, string? rawBody)
+    {
+        if (string.IsNullOrWhiteSpace(toolResult))
+            return null;
+
+        var pathMatches = Regex.Matches(toolResult, "\"path\"\\s*:\\s*\"(?<path>[^\"]+)\"");
+        foreach (Match match in pathMatches)
+        {
+            var candidate = match.Groups["path"].Value.Trim();
+            if (!string.IsNullOrWhiteSpace(candidate))
+                return candidate;
+        }
+
+        if (!string.IsNullOrWhiteSpace(rawBody))
+        {
+            var fallbackMatch = DirectFilePathRegex().Match(rawBody);
+            if (fallbackMatch.Success)
+                return NormalizeDetectedPath(fallbackMatch.Groups["path"].Value);
+        }
+
+        return null;
+    }
+
     private static string? ExtractExpectedOutputPathFromPrompt(string prompt)
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -1664,6 +1734,54 @@ Next best action:
                 if (!TryGetToolArgString(decision.ToolArgs, "newText", out _))
                 {
                     error = "REPLACE-IN-FILE requires non-empty string toolArgs.newText";
+                    return false;
+                }
+            }
+
+            if (string.Equals(decision.ToolName, "READ-FILE", StringComparison.OrdinalIgnoreCase))
+            {
+                if (TryGetToolArgString(decision.ToolArgs, "path", out var pathValue))
+                {
+                    if (string.IsNullOrWhiteSpace(pathValue))
+                    {
+                        error = "READ-FILE path must be a non-empty string when specified.";
+                        return false;
+                    }
+                }
+
+                var supportedReadModes = new[]
+                {
+                    "startLine",
+                    "endLine",
+                    "maxLines",
+                    "autoChunk",
+                    "chunkSize",
+                    "semantic",
+                    "contextLines",
+                    "headerLines",
+                    "footerLines",
+                    "stream",
+                    "nextToken",
+                    "path",
+                };
+
+                var hasSupportedMode = decision.ToolArgs.Keys.Any(key =>
+                    supportedReadModes.Contains(key, StringComparer.OrdinalIgnoreCase)
+                );
+
+                if (!hasSupportedMode && !TryGetToolArgString(decision.ToolArgs, "path", out _))
+                {
+                    // Preserve compatibility with existing minimal READ-FILE tool calls while
+                    // still accepting the expanded large-file modes introduced in the advanced bridge.
+                    return true;
+                }
+            }
+
+            if (string.Equals(decision.ToolName, "READ-FILE-META", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!TryGetToolArgString(decision.ToolArgs, "path", out _))
+                {
+                    error = "READ-FILE-META requires non-empty string toolArgs.path";
                     return false;
                 }
             }

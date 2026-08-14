@@ -408,6 +408,30 @@ public sealed class HeuristicScoringEngine
             }
         }
 
+        if (ContainsAny(normalizedPrompt, ["large file", "big file", "huge file", "very large", "scale", "full context"]))
+        {
+            if (string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence += 0.12;
+            }
+        }
+
+        if (ContainsAny(normalizedPrompt, ["oldtext", "old text", "symbol", "method", "class", "replace", "locate", "find this", "search for"]))
+        {
+            if (string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence += 0.14;
+            }
+        }
+
+        if (ContainsAny(normalizedPrompt, ["plan", "overview", "structure", "imports", "function names", "file shape", "header", "footer"]))
+        {
+            if (string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase))
+            {
+                confidence += 0.1;
+            }
+        }
+
         if (ContainsAny(normalizedPrompt, WriteTerms))
         {
             confidence += 0.06;
@@ -811,6 +835,34 @@ public sealed class HeuristicScoringEngine
             {
                 return 0.1;
             }
+        }
+
+        if (normalizedPrompt.Contains("large file", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("huge file", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("big file", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("full context", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase))
+                return 0.14;
+        }
+
+        if (normalizedPrompt.Contains("replace", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("oldtext", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("symbol", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("locate", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase))
+                return 0.16;
+        }
+
+        if (normalizedPrompt.Contains("header", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("footer", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("structure", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("imports", StringComparison.OrdinalIgnoreCase)
+            || normalizedPrompt.Contains("function names", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(normalizedToolName, "read-file", StringComparison.OrdinalIgnoreCase))
+                return 0.12;
         }
 
         if (normalizedPrompt.Contains("network", StringComparison.OrdinalIgnoreCase)

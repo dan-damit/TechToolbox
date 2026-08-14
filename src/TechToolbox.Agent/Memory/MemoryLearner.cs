@@ -43,6 +43,26 @@ public static class MemoryLearner
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         ),
         new(
+            @"\bI\s+like\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bI\s+use\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bI\s+typically\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\bmy\s+workflow\s+is\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\b(?:I|we)\s+(?:prefer|like|use|usually|typically)\s+(?<value>[^.!?\r\n]{3,120})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
             @"\balways\s+(?<value>[^.!?\r\n]{3,120})",
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         ),
@@ -67,6 +87,18 @@ public static class MemoryLearner
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         ),
         new(
+            @"\b(?:model|llm|assistant|ollama)\s*(?:[:=]|is)\s*(?<value>[A-Za-z0-9._:-]{2,80})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\b(?:using|running|on)\s+(?<value>Windows|Linux|macOS|Ubuntu|PowerShell|pwsh|VS Code|Visual Studio Code)[^.!?\r\n]{0,80}",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\b(?:path|directory|folder)\s*(?:is|:|=)\s*(?<value>[A-Za-z0-9._:/\\\s-]{3,200})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
             @"\btenant(?:\s+name|\s+id)?\s+is\s+(?<value>[^.!?\r\n]{2,120})",
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         ),
@@ -80,6 +112,10 @@ public static class MemoryLearner
         ),
         new(
             @"\bI\s+work\s+in\s+(?<value>[^.!?\r\n]{2,80})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        ),
+        new(
+            @"\b(?:I|we)\s+(?:use|work\s+with|run|rely\s+on)\s+(?<value>[A-Za-z0-9._:-]{2,80})",
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         ),
     };
@@ -99,20 +135,43 @@ public static class MemoryLearner
         ArgumentNullException.ThrowIfNull(memory);
 
         var changed = false;
+        var preferenceValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var factValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var preference in ExtractValues(prompt, PreferencePatterns))
         {
-            changed |= Upsert(memory.Preferences, "pref", preference, MaxPreferenceEntries);
+            if (preferenceValues.Add(preference))
+            {
+                changed |= Upsert(memory.Preferences, "pref", preference, MaxPreferenceEntries);
+                memory.RecordMemoryEntry("preference", preference);
+            }
         }
 
         foreach (var fact in ExtractValues(prompt, FactPatterns))
         {
-            changed |= Upsert(memory.Facts, "fact", fact, MaxFactEntries);
+            if (factValues.Add(fact))
+            {
+                changed |= Upsert(memory.Facts, "fact", fact, MaxFactEntries);
+                memory.RecordMemoryEntry("fact", fact);
+            }
         }
 
         foreach (var fact in ExtractModelMentions(output))
         {
-            changed |= Upsert(memory.Facts, "fact", fact, MaxFactEntries);
+            if (factValues.Add(fact))
+            {
+                changed |= Upsert(memory.Facts, "fact", fact, MaxFactEntries);
+                memory.RecordMemoryEntry("fact", fact);
+            }
+        }
+
+        foreach (var toolUsage in ExtractToolUsagePatterns(prompt, output))
+        {
+            if (factValues.Add(toolUsage))
+            {
+                changed |= Upsert(memory.Facts, "fact", toolUsage, MaxFactEntries);
+                memory.RecordMemoryEntry("fact", toolUsage);
+            }
         }
 
         if (changed)
@@ -165,7 +224,7 @@ public static class MemoryLearner
         }
 
         var modelRegex = new Regex(
-            @"\b(?:model|ollama)\s*[:=]\s*(?<value>[A-Za-z0-9._:-]{2,80})",
+            @"\b(?:model|ollama|LLM|assistant)\s*[:=]\s*(?<value>[A-Za-z0-9._:-]{2,80})",
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         );
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -179,6 +238,32 @@ public static class MemoryLearner
             }
 
             yield return value;
+        }
+    }
+
+    private static IEnumerable<string> ExtractToolUsagePatterns(string prompt, string output)
+    {
+        var text = string.Join(" ", new[] { prompt, output }.Where(t => !string.IsNullOrWhiteSpace(t)));
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            yield break;
+        }
+
+        var toolRegex = new Regex(
+            @"\b(?:used|ran|invoked|called|triggered)\s+(?<value>[A-Z][A-Za-z0-9_-]{2,40})\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled
+        );
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Match match in toolRegex.Matches(text))
+        {
+            var value = Sanitize(match.Groups["value"].Value);
+            if (!IsUseful(value) || !seen.Add(value))
+            {
+                continue;
+            }
+
+            yield return $"tool usage: {value}";
         }
     }
 

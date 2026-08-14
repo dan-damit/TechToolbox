@@ -336,7 +336,7 @@ Invalid response snippet:
             sb.AppendLine("- Use only exact tool names from the available tools list.");
             sb.AppendLine("- Prefer the smallest useful number of tool calls.");
             sb.AppendLine(
-                "- For large files, use READ-FILE chunking with startLine/endLine/maxLines and verify coverage before final conclusions."
+                "- For large files, prefer READ-FILE-META first, then choose the safest mode: READ-FILE autoChunk=true chunkSize=500 for large-file coverage, READ-FILE semantic=\"token\" contextLines=40 for targeted symbol lookup, READ-FILE headerLines=200 footerLines=200 for structure-only reads, or READ-FILE stream=true chunkSize=500 for very large files."
             );
         }
         sb.AppendLine($"- Final answer output contract is '{outputContract}'.");
@@ -413,7 +413,7 @@ Invalid response snippet:
         if (!isSummary)
             return string.Empty;
 
-        return "Large-file protocol: use READ-FILE chunking (startLine/endLine/maxLines), verify all relevant symbols across chunks, then finalize.";
+        return "Large-file protocol: call READ-FILE-META first, then use autoChunk, semantic, header/footer, or stream modes based on the task; verify the selected slice matches the file's intent before finalizing.";
     }
 
     /// <summary>

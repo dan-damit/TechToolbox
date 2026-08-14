@@ -500,6 +500,159 @@ public class ToolWrapperTests
     }
 
     [Fact]
+    public void RunTool_ReadFile_AutoChunk_ProducesStructuredChunks_ForLargeFiles()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReadFile-AutoChunk-{Guid.NewGuid():N}.txt"
+        );
+
+        try
+        {
+            var lines = Enumerable.Range(1, 1200).Select(i => $"line-{i}").ToArray();
+            File.WriteAllLines(tempFile, lines);
+
+            var result = PowerShellBridge.RunTool(
+                "READ-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["autoChunk"] = true,
+                    ["chunkSize"] = 500,
+                }
+            );
+
+            var json = Assert.IsType<string>(result);
+            using var doc = JsonDocument.Parse(json);
+
+            Assert.Equal("auto-chunk", doc.RootElement.GetProperty("kind").GetString());
+            Assert.Equal(1200, doc.RootElement.GetProperty("totalLines").GetInt32());
+            Assert.Equal(500, doc.RootElement.GetProperty("chunkSize").GetInt32());
+            Assert.True(doc.RootElement.GetProperty("chunks").GetArrayLength() >= 2);
+            Assert.Equal(1, doc.RootElement.GetProperty("chunks")[0].GetProperty("startLine").GetInt32());
+            Assert.Equal(500, doc.RootElement.GetProperty("chunks")[0].GetProperty("endLine").GetInt32());
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_ReadFile_SemanticAndHeaderFooterModes_ReturnStructuredResults()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReadFile-Semantic-{Guid.NewGuid():N}.txt"
+        );
+
+        try
+        {
+            var lines = new[]
+            {
+                "header-1",
+                "header-2",
+                "method start",
+                "alpha",
+                "beta",
+                "target token",
+                "gamma",
+                "delta",
+                "method end",
+                "footer-1",
+                "footer-2",
+            };
+            File.WriteAllLines(tempFile, lines);
+
+            var semanticResult = PowerShellBridge.RunTool(
+                "READ-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["semantic"] = "target token",
+                    ["contextLines"] = 2,
+                }
+            );
+
+            var semanticJson = Assert.IsType<string>(semanticResult);
+            using var semanticDoc = JsonDocument.Parse(semanticJson);
+            Assert.Equal("semantic-chunk", semanticDoc.RootElement.GetProperty("kind").GetString());
+            Assert.Equal(1, semanticDoc.RootElement.GetProperty("matches").GetArrayLength());
+
+            var headerFooterResult = PowerShellBridge.RunTool(
+                "READ-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["headerLines"] = 2,
+                    ["footerLines"] = 2,
+                }
+            );
+
+            var headerFooterJson = Assert.IsType<string>(headerFooterResult);
+            using var headerFooterDoc = JsonDocument.Parse(headerFooterJson);
+            Assert.Equal("header-footer", headerFooterDoc.RootElement.GetProperty("kind").GetString());
+            Assert.Equal(2, headerFooterDoc.RootElement.GetProperty("header").GetArrayLength());
+            Assert.Equal(2, headerFooterDoc.RootElement.GetProperty("footer").GetArrayLength());
+
+            var metaResult = PowerShellBridge.RunTool(
+                "READ-FILE-META",
+                new Dictionary<string, object?> { ["path"] = tempFile }
+            );
+
+            var metaJson = Assert.IsType<string>(metaResult);
+            using var metaDoc = JsonDocument.Parse(metaJson);
+            Assert.Equal("file-meta", metaDoc.RootElement.GetProperty("kind").GetString());
+            Assert.Equal(12, metaDoc.RootElement.GetProperty("totalLines").GetInt32());
+            Assert.Equal(".txt", metaDoc.RootElement.GetProperty("fileType").GetString());
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void RunTool_ReadFile_Stream_ReturnsNextTokenAndContent()
+    {
+        var tempFile = Path.Combine(
+            Path.GetTempPath(),
+            $"TechToolbox-ReadFile-Stream-{Guid.NewGuid():N}.txt"
+        );
+
+        try
+        {
+            var lines = Enumerable.Range(1, 1200).Select(i => $"line-{i}").ToArray();
+            File.WriteAllLines(tempFile, lines);
+
+            var result = PowerShellBridge.RunTool(
+                "READ-FILE",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = tempFile,
+                    ["stream"] = true,
+                    ["chunkSize"] = 300,
+                }
+            );
+
+            var json = Assert.IsType<string>(result);
+            using var doc = JsonDocument.Parse(json);
+
+            Assert.Equal("stream", doc.RootElement.GetProperty("kind").GetString());
+            Assert.True(doc.RootElement.TryGetProperty("nextToken", out var nextToken));
+            Assert.False(string.IsNullOrWhiteSpace(nextToken.GetString()));
+            Assert.Contains("line-1", doc.RootElement.GetProperty("content").GetString());
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public void RunTool_ReadFile_SummaryIncludesPublicSymbolHints_ForCSharpFiles()
     {
         var originalThreshold = Environment.GetEnvironmentVariable(

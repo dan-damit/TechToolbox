@@ -27,7 +27,7 @@ public class GenericToolProvider : IToolProvider
             new ToolSpec(
                 Name: "READ-FILE",
                 Description:
-                    "Reads text content from a file. Supports optional chunked reads via startLine/endLine/maxLines. Large files may return a structured summary instead of the full body.",
+                    "Reads text content from a file. Supports chunked reads, large-file structured summaries, semantic context, header/footer extraction, metadata queries, and streaming reads.",
                 Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["path"] = new ParameterSpec(
@@ -49,6 +49,61 @@ public class GenericToolProvider : IToolProvider
                         Mandatory: false,
                         Type: "System.Int32",
                         Help: "Optional chunk size when endLine is omitted (default 200, max 1000)."
+                    ),
+                    ["autoChunk"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Boolean",
+                        Help: "Optional. When true, reads the file sequentially in chunks and returns structured chunk metadata."
+                    ),
+                    ["chunkSize"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional chunk size used by autoChunk and stream modes (default 500 lines)."
+                    ),
+                    ["semantic"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.String",
+                        Help: "Optional regex or keyword to match within the file and return context windows around each match."
+                    ),
+                    ["contextLines"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional number of lines before and after each semantic match to include (default 40)."
+                    ),
+                    ["headerLines"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional number of leading lines to return from the file."
+                    ),
+                    ["footerLines"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Int32",
+                        Help: "Optional number of trailing lines to return from the file."
+                    ),
+                    ["stream"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.Boolean",
+                        Help: "Optional. When true, returns a first chunk plus a nextToken for continued streaming reads."
+                    ),
+                    ["nextToken"] = new ParameterSpec(
+                        Mandatory: false,
+                        Type: "System.String",
+                        Help: "Optional continuation token for streamed READ-FILE requests."
+                    ),
+                },
+                Module: "TechToolbox.Agent.Builtin",
+                Meta: new Dictionary<string, object?>()
+            ),
+            new ToolSpec(
+                Name: "READ-FILE-META",
+                Description:
+                    "Returns metadata about a file including size, total lines, extension, and whether it exceeds the summary threshold.",
+                Parameters: new Dictionary<string, ParameterSpec>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path"] = new ParameterSpec(
+                        Mandatory: true,
+                        Type: "System.String",
+                        Help: "Absolute or relative file path."
                     ),
                 },
                 Module: "TechToolbox.Agent.Builtin",

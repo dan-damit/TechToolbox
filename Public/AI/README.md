@@ -212,6 +212,35 @@ Invoke-TechAgent -PromptFile AI\Tasks\CurrentTask.txt
 - `-OutputContract plain-text` rejects markdown constructs in final answers.
 - `-OutputContract json` requires final answers to be valid JSON object/array text.
 - `-StrictPromptPreflight` blocks execution when prompt quality signals are too weak for reliable action.
+- `-AutoPromptHint` prints a preflight-ready prompt rewrite suggestion when warnings are detected.
+- `-AutoRerunFromHint` applies one prompt rewrite pass from the preflight hint and continues the run with the improved prompt.
+
+**Prompt Pattern for Higher Success in `-Mode execute`**
+
+Use this compact pattern to reduce clarification loops:
+
+```text
+<task verb> <target>.
+Use <source/tool boundary>.
+Return <output contract/shape>.
+Constraints: <scope, safety, no-write/read-only if applicable>.
+```
+
+Good examples:
+
+```powershell
+Invoke-TechAgent -Prompt "Fetch tomorrow's weather for Green Bay, Wisconsin from https://weather.gov and return a markdown forecast summary with temperatures, precipitation chance, and wind." -Mode execute
+
+# If preflight warnings appear, print an improved prompt suggestion without changing the current run
+Invoke-TechAgent -Prompt "Check weather" -Mode execute -AutoPromptHint
+
+# Automatically rewrite a weak prompt once and continue execution with the rewritten prompt
+Invoke-TechAgent -Prompt "Check weather" -Mode execute -AutoRerunFromHint
+
+Invoke-TechAgent -Prompt "Analyze C:\repos\TechToolbox\README.md and return a plain-text list of missing setup prerequisites. Constraints: read-only, do not modify files." -Mode execute -OutputContract plain-text
+```
+
+If your goal is information lookup only, prefer read-only language in the prompt (for example, "read-only" or "do not modify files") to keep execution bounded.
 
 **Quality Profile**
 

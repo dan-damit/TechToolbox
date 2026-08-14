@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace TechToolbox.Agent.Memory;
 
@@ -42,6 +43,11 @@ public class MemoryStore
     /// Gets or sets a dictionary containing factual data persisted across sessions.
     /// </summary>
     public Dictionary<string, object?> Facts { get; private set; } = new();
+
+    /// <summary>
+    /// Gets or sets a lightweight lookup index keyed by significant memory keywords.
+    /// </summary>
+    public Dictionary<string, MemoryIndexEntry> MemoryIndex { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets or sets the list of run history entries recorded during agent execution.
@@ -98,12 +104,18 @@ public class MemoryStore
                 Preferences = payload.Preferences ?? new();
                 Facts = payload.Facts ?? new();
                 History = payload.History ?? new();
+                MemoryIndex = payload.MemoryIndex ?? new(StringComparer.OrdinalIgnoreCase);
+                if (payload.MemoryHealth is not null)
+                {
+                    Facts["memoryHealth"] = payload.MemoryHealth;
+                }
             }
             catch
             {
                 Preferences = new();
                 Facts = new();
                 History = new();
+                MemoryIndex = new(StringComparer.OrdinalIgnoreCase);
             }
         }
 
@@ -127,7 +139,9 @@ public class MemoryStore
         }
 
         NormalizeHistory();
+        RebuildMemoryIndex();
         UpdateTrendSummary();
+        UpdateMemoryHealthSummary();
     }
 
     /// <summary>
@@ -137,13 +151,17 @@ public class MemoryStore
     public void Save()
     {
         NormalizeHistory();
+        RebuildMemoryIndex();
         UpdateTrendSummary();
+        UpdateMemoryHealthSummary();
 
         var payload = new MemoryPayload
         {
             Preferences = Preferences,
             Facts = Facts,
             History = History.TakeLast(BaseHistoryWindow).ToList(),
+            MemoryIndex = MemoryIndex,
+            MemoryHealth = GetMemoryHealthSummary(),
             MemoryFormatVersion = 2,
         };
 
@@ -193,6 +211,10 @@ public class MemoryStore
     public void SetPreference(string key, object? value)
     {
         Preferences[key] = value;
+        if (value is string text && !string.IsNullOrWhiteSpace(text))
+        {
+            RecordMemoryEntry("preference", text);
+        }
         Save();
     }
 
@@ -204,6 +226,10 @@ public class MemoryStore
     public void SetFact(string key, object? value)
     {
         Facts[key] = value;
+        if (value is string text && !string.IsNullOrWhiteSpace(text))
+        {
+            RecordMemoryEntry("fact", text);
+        }
         Save();
     }
 
@@ -224,6 +250,197 @@ public class MemoryStore
     /// The fact value if found; otherwise, null.
     /// </returns>
     public object? GetFact(string key) => Facts.TryGetValue(key, out var v) ? v : null;
+
+    /// <summary>
+    /// Records a new memory fact or preference and refreshes the memory index.
+    /// </summary>
+    public void RecordMemoryEntry(string sourceType, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var normalized = value.Trim();
+        var keywords = ExtractMemoryKeywords(normalized);
+        if (keywords.Count == 0)
+        {
+            keywords = new List<string> { normalized.Length > 12 ? normalized[..12].Trim() : normalized };
+        }
+
+        foreach (var keyword in keywords)
+        {
+            var key = keyword.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            var existing = MemoryIndex.TryGetValue(key, out var entry) ? entry : null;
+            var frequency = existing?.Frequency ?? 0;
+            var ageDays = existing is not null && DateTimeOffset.TryParse(existing.LastSeenUtc, out var seen)
+                ? Math.Max(0, (DateTimeOffset.UtcNow - seen).TotalDays)
+                : 0d;
+            var baseConfidence = 0.35 + (Math.Min(frequency, 10) * 0.09) + (1d / (1d + ageDays * 0.8d));
+            var finalConfidence = Math.Clamp(baseConfidence, 0d, 1d);
+
+            MemoryIndex[key] = new MemoryIndexEntry
+            {
+                Keyword = key,
+                Value = normalized,
+                SourceType = sourceType,
+                Confidence = finalConfidence,
+                Frequency = frequency + 1,
+                LastSeenUtc = DateTimeOffset.UtcNow.ToString("o"),
+                Deprecated = false,
+                Keywords = ExtractMemoryKeywords(normalized),
+            };
+        }
+
+        UpdateMemoryHealthSummary();
+    }
+
+    public MemoryHealthSummary GetMemoryHealthSummary()
+    {
+        var preferenceEntries = Preferences.Values.OfType<string>().Count();
+        var factEntries = Facts.Where(kvp => !string.Equals(kvp.Key, "memoryHealth", StringComparison.OrdinalIgnoreCase)).Count();
+        var indexEntries = MemoryIndex.Count;
+        var averageConfidence = MemoryIndex.Values.Count == 0 ? 0d : MemoryIndex.Values.Average(v => v.Confidence);
+        var deprecated = MemoryIndex.Values.Count(v => v.Deprecated);
+        var health = averageConfidence >= 0.7 ? "healthy" : averageConfidence >= 0.4 ? "moderate" : "low";
+
+        return new MemoryHealthSummary
+        {
+            GeneratedUtc = DateTimeOffset.UtcNow.ToString("o"),
+            TotalPreferences = preferenceEntries,
+            TotalFacts = factEntries,
+            IndexEntries = indexEntries,
+            AverageConfidence = Math.Round(averageConfidence, 3),
+            DeprecatedEntries = deprecated,
+            Health = health,
+            Notes = new List<string>
+            {
+                $"Preferences tracked: {preferenceEntries}",
+                $"Facts tracked: {factEntries}",
+                $"Index entries: {indexEntries}",
+            },
+        };
+    }
+
+    public MemoryInspectorResult InspectMemory() => MemoryInspector.Inspect(this);
+
+    private void RebuildMemoryIndex()
+    {
+        var rebuilt = new Dictionary<string, MemoryIndexEntry>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var kvp in Preferences)
+        {
+            if (kvp.Value is string value && !string.IsNullOrWhiteSpace(value))
+            {
+                AddToIndex(rebuilt, "preference", value);
+            }
+        }
+
+        foreach (var kvp in Facts)
+        {
+            if (string.Equals(kvp.Key, "memoryHealth", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (kvp.Value is string value && !string.IsNullOrWhiteSpace(value))
+            {
+                AddToIndex(rebuilt, "fact", value);
+            }
+        }
+
+        foreach (var entry in rebuilt.Values)
+        {
+            if (entry.LastSeenUtc is null or "")
+            {
+                entry.LastSeenUtc = DateTimeOffset.UtcNow.ToString("o");
+            }
+
+            if (DateTimeOffset.TryParse(entry.LastSeenUtc, out var seen))
+            {
+                var ageDays = Math.Max(0, (DateTimeOffset.UtcNow - seen).TotalDays);
+                var decay = Math.Pow(0.92, ageDays / 7d);
+                entry.Confidence = Math.Clamp(entry.Confidence * decay, 0d, 1d);
+            }
+        }
+
+        MemoryIndex = rebuilt;
+    }
+
+    private void AddToIndex(Dictionary<string, MemoryIndexEntry> index, string sourceType, string value)
+    {
+        var keywords = ExtractMemoryKeywords(value);
+        if (keywords.Count == 0)
+        {
+            keywords = new List<string> { value.Trim() };
+        }
+
+        foreach (var keyword in keywords)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                continue;
+            }
+
+            var entry = index.TryGetValue(keyword, out var existing) ? existing : new MemoryIndexEntry
+            {
+                Keyword = keyword,
+                SourceType = sourceType,
+                Frequency = 0,
+                Confidence = 0.35,
+                LastSeenUtc = DateTimeOffset.UtcNow.ToString("o"),
+            };
+
+            entry.Value = value;
+            entry.SourceType = sourceType;
+            entry.Frequency += 1;
+            entry.LastSeenUtc = DateTimeOffset.UtcNow.ToString("o");
+            entry.Keywords = keywords;
+            entry.Confidence = ComputeConfidenceValue(entry.Frequency, sourceType, value);
+            index[keyword] = entry;
+        }
+    }
+
+    private static double ComputeConfidenceValue(int frequency, string sourceType, string value)
+    {
+        var strength = Math.Min(frequency * 0.18d, 0.7d);
+        var sourceBoost = string.Equals(sourceType, "preference", StringComparison.OrdinalIgnoreCase) ? 0.15d : 0.2d;
+        var lengthBoost = value.Length > 24 ? 0.1d : 0.05d;
+        return Math.Clamp(0.35d + strength + sourceBoost + lengthBoost, 0d, 1d);
+    }
+
+    private static List<string> ExtractMemoryKeywords(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return new List<string>();
+        }
+
+        var normalized = Regex.Replace(value, "[^a-zA-Z0-9\\s-]", " ", RegexOptions.CultureInvariant);
+        var tokens = normalized
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => t.Trim('-'))
+            .Where(t => t.Length > 2 && !string.Equals(t, "the", StringComparison.OrdinalIgnoreCase) && !string.Equals(t, "with", StringComparison.OrdinalIgnoreCase) && !string.Equals(t, "that", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return tokens.Count > 0 ? tokens.Take(6).ToList() : new List<string> { value.Trim() };
+    }
+
+    private void UpdateMemoryHealthSummary()
+    {
+        if (Facts.ContainsKey("memoryHealth") && Facts["memoryHealth"] is MemoryHealthSummary)
+        {
+            Facts["memoryHealth"] = GetMemoryHealthSummary();
+            return;
+        }
+
+        Facts["memoryHealth"] = GetMemoryHealthSummary();
+    }
 
     /// <summary>
     /// Normalizes all history entries by ensuring required fields have valid defaults.

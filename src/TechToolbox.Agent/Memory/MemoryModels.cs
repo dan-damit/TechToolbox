@@ -33,6 +33,12 @@ public class MemoryPayload
     [JsonPropertyName("history")]
     public List<RunHistory> History { get; set; } = new();
 
+    [JsonPropertyName("memoryIndex")]
+    public Dictionary<string, MemoryIndexEntry> MemoryIndex { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    [JsonPropertyName("memoryHealth")]
+    public MemoryHealthSummary? MemoryHealth { get; set; }
+
     /// <summary>
     /// Gets or sets the memory format version number.
     /// Used for schema compatibility checks during deserialization.
@@ -320,4 +326,124 @@ public class TrendSummary
     /// </summary>
     [JsonPropertyName("qualityProfileCounts")]
     public Dictionary<string, int> QualityProfileCounts { get; set; } = new();
+}
+
+/// <summary>
+/// Represents a single indexed memory entry with confidence, frequency, and recency information.
+/// </summary>
+public class MemoryIndexEntry
+{
+    [JsonPropertyName("keyword")]
+    public string Keyword { get; set; } = string.Empty;
+
+    [JsonPropertyName("value")]
+    public string Value { get; set; } = string.Empty;
+
+    [JsonPropertyName("sourceType")]
+    public string SourceType { get; set; } = "unknown";
+
+    [JsonPropertyName("confidence")]
+    public double Confidence { get; set; }
+
+    [JsonPropertyName("frequency")]
+    public int Frequency { get; set; }
+
+    [JsonPropertyName("lastSeenUtc")]
+    public string LastSeenUtc { get; set; } = DateTimeOffset.UtcNow.ToString("o");
+
+    [JsonPropertyName("deprecated")]
+    public bool Deprecated { get; set; }
+
+    [JsonPropertyName("keywords")]
+    public List<string> Keywords { get; set; } = new();
+}
+
+/// <summary>
+/// Represents a health summary for the memory store.
+/// </summary>
+public class MemoryHealthSummary
+{
+    [JsonPropertyName("generatedUtc")]
+    public string GeneratedUtc { get; set; } = DateTimeOffset.UtcNow.ToString("o");
+
+    [JsonPropertyName("totalPreferences")]
+    public int TotalPreferences { get; set; }
+
+    [JsonPropertyName("totalFacts")]
+    public int TotalFacts { get; set; }
+
+    [JsonPropertyName("indexEntries")]
+    public int IndexEntries { get; set; }
+
+    [JsonPropertyName("averageConfidence")]
+    public double AverageConfidence { get; set; }
+
+    [JsonPropertyName("deprecatedEntries")]
+    public int DeprecatedEntries { get; set; }
+
+    [JsonPropertyName("health")]
+    public string Health { get; set; } = "healthy";
+
+    [JsonPropertyName("notes")]
+    public List<string> Notes { get; set; } = new();
+}
+
+/// <summary>
+/// Structured report returned by the memory inspector.
+/// </summary>
+public class MemoryInspectorResult
+{
+    [JsonPropertyName("health")]
+    public MemoryHealthSummary Health { get; set; } = new();
+
+    [JsonPropertyName("preferences")]
+    public List<MemoryIndexEntry> Preferences { get; set; } = new();
+
+    [JsonPropertyName("facts")]
+    public List<MemoryIndexEntry> Facts { get; set; } = new();
+
+    [JsonPropertyName("index")]
+    public Dictionary<string, List<string>> Index { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// Read-only diagnostics utility for memory inspection.
+/// </summary>
+public static class MemoryInspector
+{
+    public static MemoryInspectorResult Inspect(MemoryStore memory)
+    {
+        ArgumentNullException.ThrowIfNull(memory);
+
+        var health = memory.GetMemoryHealthSummary();
+        var preferences = memory
+            .MemoryIndex.Where(kvp => kvp.Value.SourceType.Equals("preference", StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Value)
+            .DistinctBy(item => item.Value, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(item => item.Confidence)
+            .ToList();
+
+        var facts = memory
+            .MemoryIndex.Where(kvp => kvp.Value.SourceType.Equals("fact", StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Value)
+            .DistinctBy(item => item.Value, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(item => item.Confidence)
+            .ToList();
+
+        var index = memory
+            .MemoryIndex.GroupBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(item => item.Value.Value).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        return new MemoryInspectorResult
+        {
+            Health = health,
+            Preferences = preferences,
+            Facts = facts,
+            Index = index,
+        };
+    }
 }

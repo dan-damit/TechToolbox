@@ -69,6 +69,16 @@ PARAMETERS
         enabled and written to LogsAndExports\Logs\TechAgentTranscripts unless
         overridden by config settings ($cfg.transcript.enabled or $cfg.transcript.outputRoot).
 
+    -AutoPromptHint
+        When preflight warnings or critical findings are present, prints a
+        preflight-ready prompt rewrite suggestion to help improve prompt quality
+        on the next run. This does not change the current run's prompt.
+
+    -AutoRerunFromHint
+        Performs one preflight rewrite pass using the generated prompt hint
+        when prompt quality is weak, then continues the current run using that
+        rewritten prompt.
+
 INPUTS
     String (Prompt parameter)
 

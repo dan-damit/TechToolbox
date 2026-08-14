@@ -279,6 +279,14 @@ public static class PowerShellBridge
             var startLine = GetOptionalIntArg(args, "startLine");
             var endLine = GetOptionalIntArg(args, "endLine");
             var maxLines = GetOptionalIntArg(args, "maxLines");
+            var autoChunk = GetOptionalBoolArg(args, "autoChunk");
+            var chunkSize = GetOptionalIntArg(args, "chunkSize") ?? 500;
+            var semantic = GetOptionalStringArg(args, "semantic");
+            var contextLines = GetOptionalIntArg(args, "contextLines") ?? 40;
+            var headerLines = GetOptionalIntArg(args, "headerLines");
+            var footerLines = GetOptionalIntArg(args, "footerLines");
+            var stream = GetOptionalBoolArg(args, "stream");
+            var nextToken = GetOptionalStringArg(args, "nextToken");
 
             if (startLine.HasValue || endLine.HasValue || maxLines.HasValue)
             {
@@ -286,8 +294,42 @@ public static class PowerShellBridge
                 return true;
             }
 
+            if (autoChunk)
+            {
+                result = ReadFileAutoChunk(path, chunkSize);
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(semantic))
+            {
+                result = ReadFileSemanticMatches(path, semantic, contextLines);
+                return true;
+            }
+
+            if (headerLines.HasValue || footerLines.HasValue)
+            {
+                result = ReadFileHeaderFooter(path, headerLines ?? 0, footerLines ?? 0);
+                return true;
+            }
+
+            if (stream)
+            {
+                result = ReadFileStream(path, nextToken, chunkSize);
+                return true;
+            }
+
             var content = File.ReadAllText(path);
             result = ShouldSummarizeFile(content) ? BuildFileSummaryJson(path, content) : content;
+            return true;
+        }
+
+        if (toolName.Equals("READ-FILE-META", StringComparison.OrdinalIgnoreCase))
+        {
+            var path = GetRequiredStringArg(args, "path");
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"File not found: {path}", path);
+
+            result = ReadFileMeta(path);
             return true;
         }
 
@@ -1167,6 +1209,149 @@ public static class PowerShellBridge
             return string.Empty;
 
         return string.Join(Environment.NewLine, lines.Skip(start - 1).Take(count));
+    }
+
+    private static string ReadFileMeta(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var bytes = new FileInfo(fullPath).Length;
+        var text = File.ReadAllText(fullPath);
+        var lines = SplitLines(text);
+        var totalLines = text.Length == 0 ? 0 : lines.Length;
+        var extension = Path.GetExtension(fullPath);
+        var isLarge = text.Length > GetReadFileSummaryThresholdChars();
+
+        var thresholdChars = GetReadFileSummaryThresholdChars();
+        var meta = new
+        {
+            kind = "file-meta",
+            path = fullPath,
+            bytes,
+            chars = text.Length,
+            totalLines,
+            fileType = string.IsNullOrEmpty(extension) ? "unknown" : extension.ToLowerInvariant(),
+            isLarge,
+            exceedsSummaryThreshold = isLarge,
+            summaryThresholdChars = thresholdChars,
+        };
+
+        return JsonSerializer.Serialize(meta, SummaryJsonOptions);
+    }
+
+    private static string ReadFileAutoChunk(string path, int chunkSize)
+    {
+        var lines = File.ReadAllLines(path);
+        var totalLines = lines.Length;
+        var safeChunkSize = Math.Clamp(chunkSize <= 0 ? 500 : chunkSize, 1, 5000);
+
+        var chunks = new List<object>();
+        for (var i = 0; i < totalLines; i += safeChunkSize)
+        {
+            var startLine = i + 1;
+            var endLine = Math.Min(i + safeChunkSize, totalLines);
+            var content = string.Join(Environment.NewLine, lines.Skip(i).Take(endLine - startLine + 1));
+            chunks.Add(new
+            {
+                startLine,
+                endLine,
+                content,
+            });
+        }
+
+        var autoChunk = new
+        {
+            kind = "auto-chunk",
+            path,
+            totalLines,
+            chunkSize = safeChunkSize,
+            chunks,
+        };
+
+        return JsonSerializer.Serialize(autoChunk, SummaryJsonOptions);
+    }
+
+    private static string ReadFileSemanticMatches(string path, string semantic, int contextLines)
+    {
+        var pattern = semantic;
+        var safeContextLines = Math.Max(0, contextLines);
+        var lines = File.ReadAllLines(path);
+        var matches = new List<object>();
+
+        if (lines.Length == 0)
+        {
+            return JsonSerializer.Serialize(new { kind = "semantic-chunk", matches = Array.Empty<object>() }, SummaryJsonOptions);
+        }
+
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var current = lines[index];
+            if (!Regex.IsMatch(current, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                continue;
+
+            var startLine = Math.Max(1, index + 1 - safeContextLines);
+            var endLine = Math.Min(lines.Length, index + 1 + safeContextLines);
+            var content = string.Join(
+                Environment.NewLine,
+                lines.Skip(startLine - 1).Take(endLine - startLine + 1)
+            );
+
+            matches.Add(new
+            {
+                lineNumber = index + 1,
+                startLine,
+                endLine,
+                content,
+            });
+        }
+
+        return JsonSerializer.Serialize(new { kind = "semantic-chunk", matches }, SummaryJsonOptions);
+    }
+
+    private static string ReadFileHeaderFooter(string path, int headerLines, int footerLines)
+    {
+        var lines = File.ReadAllLines(path);
+        var safeHeader = Math.Max(0, headerLines);
+        var safeFooter = Math.Max(0, footerLines);
+
+        var header = lines.Take(safeHeader).ToArray();
+        var footer = safeFooter == 0 || lines.Length == 0
+            ? Array.Empty<string>()
+            : lines.Skip(Math.Max(0, lines.Length - safeFooter)).ToArray();
+
+        var payload = new
+        {
+            kind = "header-footer",
+            header,
+            footer,
+        };
+
+        return JsonSerializer.Serialize(payload, SummaryJsonOptions);
+    }
+
+    private static string ReadFileStream(string path, string? nextToken, int chunkSize)
+    {
+        var lines = File.ReadAllLines(path);
+        var safeChunkSize = Math.Clamp(chunkSize <= 0 ? 500 : chunkSize, 1, 5000);
+        var streamIndex = 0;
+
+        if (!string.IsNullOrWhiteSpace(nextToken) && long.TryParse(nextToken, out var parsedNextToken))
+        {
+            streamIndex = Math.Clamp((int)parsedNextToken, 0, lines.Length);
+        }
+
+        var contentLines = lines.Skip(streamIndex).Take(safeChunkSize).ToArray();
+        var content = string.Join(Environment.NewLine, contentLines);
+        var next = streamIndex + contentLines.Length >= lines.Length ? string.Empty : (streamIndex + contentLines.Length).ToString(CultureInfo.InvariantCulture);
+
+        return JsonSerializer.Serialize(
+            new
+            {
+                kind = "stream",
+                nextToken = next,
+                content,
+            },
+            SummaryJsonOptions
+        );
     }
 
     private static int GetReadFileSummaryThresholdChars()
