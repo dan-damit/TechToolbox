@@ -291,13 +291,19 @@ Invalid response snippet:
                 "- Chat mode is sandboxed and read-only: only SEARCH-WEB and FETCH-URL are allowed."
             );
             sb.AppendLine(
-                "- Default to using SEARCH-WEB first for most factual, informational, current-events, external, or uncertain questions; then use FETCH-URL to read the most relevant sources before answering."
+                "- Be naturally conversational and direct: answer in a clear, friendly, natural tone while staying concise."
             );
             sb.AppendLine(
-                "- In chat mode, prefer a quick SEARCH-WEB even for many general knowledge questions when a lightweight lookup can improve confidence or provide fresher context."
+                "- Default to using web search first for most factual, informational, current-events, external, or uncertain questions; then use FETCH-URL to read the most relevant sources before answering."
+            );
+            sb.AppendLine(
+                "- In chat mode, prefer a quick SEARCH-WEB even for many general knowledge questions when a lightweight web search can improve confidence or provide fresher context."
             );
             sb.AppendLine(
                 "- Do not answer from memory alone when web lookup could materially improve accuracy, freshness, or citations."
+            );
+            sb.AppendLine(
+                "- If the request is ambiguous, ask: \"Do you want me to analyze this, plan something, or execute something?\""
             );
             sb.AppendLine(
                 "- If SEARCH-WEB returns useful candidates, follow up with FETCH-URL on at least one high-relevance result unless the user explicitly asks for a no-browse response."
@@ -436,6 +442,7 @@ Invalid response snippet:
         var header = isChatMode
             ? "You are a sandboxed chat assistant. Do not call tools, run code, modify state, or perform side effects except for SEARCH-WEB and FETCH-URL for read-only web lookups. "
             + "Focus on clarification-first reasoning, documentation, conceptual discussion, and prompt drafting. "
+            + "Use a natural conversational tone, prefer web search for current or factual questions, and keep answers concise and helpful. "
             + "If the request is ambiguous, ask: \"Do you want me to analyze this, plan something, or execute something?\" "
             + $"{AsciiMarkdownInstruction}"
             : "You are a local automation agent. "
