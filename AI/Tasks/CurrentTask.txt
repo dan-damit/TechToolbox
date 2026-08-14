@@ -1,11 +1,74 @@
-Primary input file:
-C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\HeuristicScoringEngine.cs
+Improve the TechToolbox agent memory system. Target files:
 
-Task:
-Please bias the scoring engine to prefer SEARCH-WEB and FETCH-URL when the user
-is engaging in general conversational dialogue.
+src/TechToolbox.Agent/Memory/MemoryLearner.cs
+
+src/TechToolbox.Agent/Memory/MemoryStore.cs
+
+src/TechToolbox.Agent/Memory/MemoryModels.cs
+
+Goal: Enhance how the agent learns, stores, retrieves, and uses memory.
+Implement improvements that increase accuracy, reduce noise, and make memory
+more useful for future runs.
+
+Expected outcome:
+
+Updated C# code implementing the improved memory system.
+
+All changes applied directly to the correct files using REPLACE-IN-FILE or
+WRITE-FILE as appropriate.
+
+Final answer should confirm completion.
 
 Requirements:
-- Update this exact file in place:
-  C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\HeuristicScoringEngine.cs
 
+Add stronger preference extraction: detect multi‑sentence preferences, detect “I
+like…”, “I use…”, “I typically…”, “my workflow is…”.
+
+Add stronger fact extraction: detect environment details, model usage patterns,
+file paths frequently referenced, and repeated tool usage patterns.
+
+Add a confidence score for each learned item based on frequency and recency.
+
+Add automatic decay: older preferences/facts lose weight unless reinforced.
+
+Add memory conflict resolution: if two facts contradict, keep the most recent
+and mark the older as deprecated.
+
+Add a “memory health” diagnostic summary stored in memory.facts.
+
+Add a new MemoryIndex: a fast lookup table mapping keywords → memory entries.
+
+Add a new MemoryInspector tool (READ‑ONLY) that returns structured memory
+diagnostics.
+
+Preserve existing JSON schema compatibility.
+
+Do not remove existing fields unless necessary.
+
+Do not break serialization.
+
+All new code must compile.
+
+Constraints:
+
+Use REPLACE-IN-FILE for localized edits.
+
+Use WRITE-FILE only when replacing entire files.
+
+Never invent file paths.
+
+If a file read is truncated, request chunked READ-FILE until full context is
+available.
+
+Ensure changes are safe, deterministic, and reversible.
+
+Success criteria:
+
+All required enhancements implemented.
+
+All modified files updated correctly.
+
+No schema-breaking changes.
+
+Agent can now learn richer memory, maintain it over time, and use it more
+effectively.

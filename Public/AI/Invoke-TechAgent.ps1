@@ -65,6 +65,16 @@ function Invoke-TechAgent {
         Turns prompt preflight warnings into a blocking validation failure when
         prompt quality is too low for reliable execution.
 
+    .PARAMETER AutoPromptHint
+        Prints a preflight-ready prompt rewrite suggestion when warnings or
+        critical preflight findings are detected. This does not alter the
+        current run's prompt.
+
+    .PARAMETER AutoRerunFromHint
+        Performs a single preflight rewrite pass using the generated prompt
+        hint when prompt quality is weak. The command then continues with the
+        rewritten prompt for this run only.
+
     .PARAMETER OutputContract
         Final response format contract. `markdown` allows Markdown output,
         `plain-text` requires plain text only, and `json` requires valid JSON
@@ -161,6 +171,12 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [switch]$StrictPromptPreflight,
+
+        [Parameter()]
+        [switch]$AutoPromptHint,
+
+        [Parameter()]
+        [switch]$AutoRerunFromHint,
 
         [Parameter()]
         [ValidateSet('markdown', 'plain-text', 'json')]
@@ -387,13 +403,19 @@ function Invoke-TechAgent {
 
         $hasTaskVerb = [regex]::IsMatch(
             $normalizedPrompt,
-            '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement)\b')
+            '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement|find|fetch|get|retrieve|collect|report)\b')
         if ($hasTaskVerb) { $score += 20 } else { $warnings.Add('Missing clear task verb (for example: update, analyze, fix, plan).') }
 
-        $hasConcreteTarget = [regex]::IsMatch(
+        $hasPathOrSystemTarget = [regex]::IsMatch(
             $normalizedPrompt,
             '(?i)([A-Za-z]:\\[^\r\n]+|\b(file|function|class|module|script|command|service|endpoint|api|workflow)\b)')
-        if ($hasConcreteTarget) { $score += 20 } else { $warnings.Add('Missing concrete target (file, function, module, system, or path).') }
+
+        $hasWebTarget = [regex]::IsMatch(
+            $normalizedPrompt,
+            '(?i)(https?://\S+|\b(url|uri|website|web\s*site|webpage|site|domain|host|weather\.gov)\b)')
+
+        $hasConcreteTarget = $hasPathOrSystemTarget -or $hasWebTarget
+        if ($hasConcreteTarget) { $score += 20 } else { $warnings.Add('Missing concrete target (file, function, module, system, URL, website, or path).') }
 
         $hasExpectedOutcome = [regex]::IsMatch(
             $normalizedPrompt,
@@ -429,6 +451,82 @@ function Invoke-TechAgent {
             Warnings = @($warnings)
             Critical = @($critical)
         }
+    }
+
+    $buildAutoPromptHint = {
+        param(
+            [string]$PromptText,
+            [string]$Mode,
+            [string]$OutputContract,
+            [int]$WarningCount,
+            [int]$CriticalCount
+        )
+
+        if ([string]::IsNullOrWhiteSpace($PromptText)) {
+            return $null
+        }
+
+        if ($WarningCount -le 0 -and $CriticalCount -le 0) {
+            return $null
+        }
+
+        $normalized = $PromptText.Trim()
+
+        $taskVerbMatch = [regex]::Match(
+            $normalized,
+            '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement|find|fetch|get|retrieve|collect|report)\b')
+        $taskVerb = if ($taskVerbMatch.Success) {
+            $taskVerbMatch.Value
+        }
+        elseif ([regex]::IsMatch($normalized, '(?i)\b(weather|forecast)\b')) {
+            'fetch'
+        }
+        else {
+            'analyze'
+        }
+
+        $urlMatch = [regex]::Match($normalized, '(?i)https?://\S+')
+        $pathMatch = [regex]::Match($normalized, '(?i)[A-Za-z]:\\[^\s"''`\r\n]+')
+
+        $targetHint = if ($urlMatch.Success) {
+            "the data from $($urlMatch.Value)"
+        }
+        elseif ($pathMatch.Success) {
+            "the file at $($pathMatch.Value)"
+        }
+        elseif ([regex]::IsMatch($normalized, '(?i)\bweather\b')) {
+            'the weather forecast for the specified location from the official weather website'
+        }
+        else {
+            'the specific file, service, module, or URL'
+        }
+
+        $sourceHint = if ($urlMatch.Success) {
+            "Use $($urlMatch.Value) as the primary source."
+        }
+        elseif ([regex]::IsMatch($normalized, '(?i)\b(website|web\s*site|webpage|url|uri|domain|host|web)\b')) {
+            'Use the specified website or URL as the primary source.'
+        }
+        else {
+            'Use only the minimum required tools and keep the scope bounded.'
+        }
+
+        $contractHint = switch ($OutputContract) {
+            'json' { 'Return valid JSON object or array text only.' }
+            'plain-text' { 'Return plain text only (no markdown).' }
+            default { 'Return the final answer in markdown.' }
+        }
+
+        $modeConstraint = if ($Mode -eq 'execute') {
+            'Constraints: execute only bounded steps and avoid unrelated changes.'
+        }
+        else {
+            "Constraints: respect mode '$Mode'."
+        }
+
+        return (
+            '{0} {1}. {2} {3} {4}' -f $taskVerb, $targetHint, $sourceHint, $contractHint, $modeConstraint
+        )
     }
 
     $resolvedExecutionMode = & $resolveExecutionMode -ModeFromParam $Mode -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('Mode')
@@ -485,6 +583,63 @@ function Invoke-TechAgent {
     if (@($preflight.Critical).Count -gt 0) {
         foreach ($criticalMessage in @($preflight.Critical)) {
             Write-Warning ("`nInvoke-TechAgent preflight critical: {0}" -f $criticalMessage)
+        }
+    }
+
+    if ($AutoPromptHint.IsPresent) {
+        $hint = & $buildAutoPromptHint `
+            -PromptText $Prompt `
+            -Mode $resolvedExecutionMode `
+            -OutputContract $resolvedOutputContract `
+            -WarningCount $preflightWarningCount `
+            -CriticalCount $preflightCriticalCount
+
+        if (-not [string]::IsNullOrWhiteSpace($hint)) {
+            Write-Log -Level Info -Message ("`nInvoke-TechAgent auto prompt hint:`n{0}" -f $hint)
+        }
+    }
+
+    if ($AutoRerunFromHint.IsPresent) {
+        $rerunHint = & $buildAutoPromptHint `
+            -PromptText $Prompt `
+            -Mode $resolvedExecutionMode `
+            -OutputContract $resolvedOutputContract `
+            -WarningCount $preflightWarningCount `
+            -CriticalCount $preflightCriticalCount
+
+        $shouldAutoRewritePrompt = (
+            -not [string]::IsNullOrWhiteSpace($rerunHint) -and (
+                $preflightCriticalCount -gt 0 -or
+                $preflightScore -lt 60 -or
+                $preflightWarningCount -ge 3
+            )
+        )
+
+        if ($shouldAutoRewritePrompt) {
+            Write-Log -Level Warn -Message (
+                "`nInvoke-TechAgent auto rerun: applying one-time prompt rewrite from preflight hint."
+            )
+            Write-Log -Level Info -Message ("Invoke-TechAgent auto rerun prompt:`n{0}" -f $rerunHint)
+
+            $Prompt = $rerunHint
+            $promptSourceLabel = 'auto-rerun hint rewrite'
+
+            $preflight = & $invokePromptPreflight -PromptText $Prompt -Mode $resolvedExecutionMode
+            $preflightScore = [int]$preflight.Score
+            $preflightWarningCount = @($preflight.Warnings).Count
+            $preflightCriticalCount = @($preflight.Critical).Count
+
+            Write-Log -Level Info -Message (
+                "Invoke-TechAgent auto rerun preflight: score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
+            )
+
+            foreach ($warning in @($preflight.Warnings)) {
+                Write-Warning ("`nInvoke-TechAgent preflight (auto rerun): {0}" -f $warning)
+            }
+
+            foreach ($criticalMessage in @($preflight.Critical)) {
+                Write-Warning ("`nInvoke-TechAgent preflight critical (auto rerun): {0}" -f $criticalMessage)
+            }
         }
     }
 
@@ -1729,8 +1884,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBH+cRruVPzgDy0
-# VEd2TPD+uBSHtuLhFmPAZbYeIt3026CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDpOFW13rxX/+93
+# hzPICYlmgH5B1XCIuzSfC/hbAcWCJKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1863,34 +2018,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDKPFlBR5pp
-# KLV3uwIIkeI9NC23ijqe4YxggQaKGjCmdjANBgkqhkiG9w0BAQEFAASCAgDXz6+2
-# tLMd2rRErjvqDyg6uiR7epPzHtuDLD1h/85f5k+69eMZoiTIp0+VkeBoZ6OVBLRI
-# ZGVsYgdVRAaK8UUlHjPxdBsNu67iciNiSTHsbyKc/Pmj0+TfB+2NiPfvoZyXH+60
-# CdOzYYYcSNOz75woy7k44FYNpiTBdabmRYgxs4sygWhr7Spoqf7RPUf2nRmYk4R2
-# xN1KkQUqf6VblUnYMF6WtMvej7DmrdF5bHbfoG97FzZFjxmfX2QESVsK0Bw4/AG1
-# RnlVfbgSfDVlbIBp7MZCVgTJcZRndtWAwZ9Lo90JF0iMR5uzaeV10g7A08CxknTk
-# QtZmTruVvjq1cofXIcUrUGzq3Q3TrRA3esPFXBOx0kS9PFhWU93SU+8C8iw0ny6a
-# mxLsnRMK0uFGM+L+VxGRkwcHzfHUatvvUBrSPYuA3kVcaPRoQ05ij2BG/U8QhzEi
-# q3RG9rCikq8JipISkKPZ6vsLNeS4KuJdE2bSALj524440Tl3qhw6wTqyXZTklE69
-# AJHnvxQKAqOlV7MzPgTdwLDuJpkccOObVug6y6CE5Kr/kkOs9V26I+IYDku65WUq
-# aemNDkzq+fRkVjEnzi48El61F+NoLTHKjPJNxVBLpxi7J/KgnLX6pv54nShyXmdV
-# 3gY+u2H7ksiFfKciY3LYf5/83Ktn3nQwPkBnMaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAm8HqJvT+b
+# /jNlrHajzAt6AEyZciA5EAn7iA6izbajpTANBgkqhkiG9w0BAQEFAASCAgAG58r9
+# XhfhInDI9N2Uc4kXPSpThVp007LnCrUl77neHG15+goo56NBnUVehg4z+0ZezaJM
+# NV49TezaL1dLr1rXtRw/lV6CTruEozUzWuycnsDFv8Ylv4Rk3vwkzuwxdHxs4tob
+# a3PkpbKCiMK4iX8QGgZicMTMGSIZGF7yAD/ou/7W7Q71oAJuzFoju3/K2bI4Oz/X
+# OvifQ97cZioFiOAH05wzTubbMWahXyOUb6JzCOV9vJm6PfiyXwsfql/bsgm2sfxE
+# +1Yupp04misroYn2U32aiyiW6J074gZlj6s/D9vSPF/RLs35jI4hJZSN2B3Nq18Z
+# bDC+KsVW4Wng2XtBIwXmZgBHPD6Ywr/CdwkSP/Fy+RzNgNoGMlrsF7udUwO5dNid
+# 8QTjWC1KWhdBmAB+tkyGdDyPK4ZtoXPs3BAanE06yl/LH4Oag2IngThjOLmJ5HOO
+# erWlsJT+ieQ1JLPZCKe+iPka6BURZ78GFRIN8qGZVSuF2S+iK6pbpcY9Ui5F9rwb
+# gzRMO+zcS94RehpTNSguXxXHLekfNmYoEpKu0FQtxPvVzZNBB6OqTzRfrTHZ2rJ/
+# uHwSSsKDKoUZzKLB7+pgJt6VaNTinClhsY5xOnYVBVHry14huX88DJcFMwYBxuBU
+# +9bc32F67pJREnpI4RdBpjVfxFOZzarttS5vsqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTEwMzM2MzdaMC8GCSqGSIb3DQEJBDEiBCAq6PkcEpHRoIJZlaR5
-# 1LqoyYQX/vjiLRuWz5SLtdpHQDANBgkqhkiG9w0BAQEFAASCAgAxlrWM7AFeaXN/
-# 8QHLlqC5SDfHIutcI9dA/TSxxauefzTkelPjl7NETzLn1esf7OSCRW6yECAKvw7n
-# Q5VTsz07Zu2pUSYmKjubV4DKqxKm7yBT/7gJu3LyQBBngb+rJ+swbdDvfLfP0uju
-# zOx6JtVuC/BQiYmUcLnofjKp5O68KAs1ckFMAyevrBg7vtl9+zKa0uZNm6JOO1x2
-# wQn2UO2fS1iRUOI436oy3S7rByxCJaBhWpNJ9nFNl/+R/B/gxpq1UDS2dUAW0Roy
-# ORFkottOPQtTYQNdcbYJk3uY0hihz49NsefBADEyXXzbRIZVEFlyHNiuncG+yuDb
-# spjpM1BTmpHlGgcShO/UmBg8Z9hqf/J9u5X7TKPFpR/ywRjkBbjw/ClJubY4E9NV
-# AgvtZFrmy9uJREbCFBBYZiMojRYCSF6BpJJ3P9C6ACOWpsIAyRdt0GUYlJn28zPZ
-# JabLNwke4IKV06vpzdLAy1yc0AzjPnW/4PrVg/Ap8U8I6d9PQLne+vJiapp6TtlT
-# U0Qir2oRkQ0kYcpDn8CA9Cf+S0vrfa3e+9k6o3Uq5ZTb7MOYJm31PgJQrVh0gzZ3
-# cABDn8wL2xHXfSbmrAEPX20cJdYDG3aZxfXA5cQ9yD9kBqqGG/IOzwldCDRog25P
-# tYDy9h1C3MplIm9kBox21kAf+eG7Eg==
+# BTEPFw0yNjA4MTQwMzQxNTlaMC8GCSqGSIb3DQEJBDEiBCC27hFmxmBiuV8u83ec
+# gtmPp7plSBV5ZmgPSqVoxMrnVTANBgkqhkiG9w0BAQEFAASCAgAxsz+mJe+Tl9ei
+# 2pjRjYFqseP9VgfhYA0wfZV0FaO9LGo9SYCLEgcuBGX/V9h5JOj+k5UvuF0XRRAI
+# HZeE8kuoih/UBFXSnjk6KDZ6mNBd2SANKzbnBcH7lsKST/dKTwcQ+041jf9URgmq
+# lgplrydRFYzJeraNi6ycIyQjEF0smzgwXgPdYgDeXA/hLcXwU1IEkdz1Qa5UAno3
+# 2C344orLH4WJY/zj2anqBKadaZp3A157EIqGQclOaIAfmuOHda2KfqICnY6G5p17
+# VUiy+vd5LiDElPHkxqe4aPtFSsm3XjCLxHETVD9yf+y6AsJqm9rj7dbxiUMCQnMb
+# 7+CLcJVb1flyungTEzj32apCgSvhNUZvXzwzeX+2FlJf7Kb/KjWGLiE5uz0lYc6K
+# nNfBPMyC4E5vQl5fFdlzc8naY9rclylxptb2Tpk7uA7aR5SijaAUfPPNXZVECFrP
+# w/wQ1gXioePEcKSaMKUONf6LoAjE29e80C8bG8IrAd2bU9v0B/5mL0CIKnNjqfP5
+# XXSbBtZFYgLNq0IspBRN4+Ux7Z8qClSsqvN3edXuA9bfLf8rTAuYtuV/dqS/7xhF
+# MOT8AseeuzZnUYwFoqBWVF+0jrVNrkQBC6WKyZ45WjgAMOlkopq77nJkBV0EJ3JL
+# TTVO/VmUpCRA8RgSb073EJTy12DsHg==
 # SIG # End signature block
