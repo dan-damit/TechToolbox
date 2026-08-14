@@ -99,6 +99,45 @@ public class LlmClientTests
     }
 
     [Fact]
+    public void BuildInitialMessages_ChatMode_PrefersWebSearchAndNaturalConversation()
+    {
+        var messages = PromptBuilder.BuildInitialMessages(
+            "What is the current weather in Green Bay, Wisconsin?",
+            new Dictionary<string, ToolSpec>
+            {
+                ["SEARCH-WEB"] = new ToolSpec(
+                    "SEARCH-WEB",
+                    "Searches the web",
+                    new Dictionary<string, ParameterSpec>(),
+                    "TestModule",
+                    new Dictionary<string, object?>()
+                ),
+                ["FETCH-URL"] = new ToolSpec(
+                    "FETCH-URL",
+                    "Fetches a URL",
+                    new Dictionary<string, ParameterSpec>(),
+                    "TestModule",
+                    new Dictionary<string, object?>()
+                ),
+            },
+            null,
+            AgentMode.TechToolbox,
+            null,
+            0,
+            "chat",
+            "markdown",
+            "auto"
+        );
+
+        var promptText = messages[0].Content + messages[1].Content;
+
+        Assert.Contains("web search", promptText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("natural conversational", promptText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SEARCH-WEB", promptText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("FETCH-URL", promptText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void AgentConfiguration_DefaultsToChatExecutionMode()
     {
         var config = new TechToolbox.Agent.Configuration.AgentConfiguration();
