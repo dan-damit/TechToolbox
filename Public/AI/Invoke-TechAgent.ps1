@@ -1437,10 +1437,41 @@ Hard requirement:
             }
         }
 
+        $resolvedAutoModelRoutingEnabled = $true
+        $resolvedAutoModelRoutingThreshold = 50
+        if ($cfg -and $cfg.PSObject.Properties['autoModelRouting']) {
+            $autoModelRoutingConfig = $cfg.autoModelRouting
+            if ($null -ne $autoModelRoutingConfig) {
+                $autoModelRoutingEnabledValue = $null
+                if ($autoModelRoutingConfig.PSObject.Properties['enabled']) {
+                    $autoModelRoutingEnabledValue = $autoModelRoutingConfig.enabled
+                }
+                if ($null -ne $autoModelRoutingEnabledValue) {
+                    $resolvedAutoModelRoutingEnabled = [bool]$autoModelRoutingEnabledValue
+                }
+
+                $autoModelRoutingThresholdValue = $null
+                if ($autoModelRoutingConfig.PSObject.Properties['threshold']) {
+                    $autoModelRoutingThresholdValue = $autoModelRoutingConfig.threshold
+                }
+                if ($null -ne $autoModelRoutingThresholdValue) {
+                    [int]$parsedThreshold = 50
+                    if ([int]::TryParse([string]$autoModelRoutingThresholdValue, [ref]$parsedThreshold)) {
+                        $resolvedAutoModelRoutingThreshold = [Math]::Max(0, [Math]::Min(100, $parsedThreshold))
+                    }
+                }
+            }
+        }
+
         $resolvedModel = $Model
         if ([string]::IsNullOrWhiteSpace($resolvedModel)) {
             if ($Provider -eq 'ollama') {
-                $resolvedModel = 'llama3'
+                if ($resolvedAutoModelRoutingEnabled) {
+                    $resolvedModel = 'auto'
+                }
+                else {
+                    $resolvedModel = 'llama3'
+                }
             }
             elseif ($Provider -ne 'azure-openai') {
                 throw "Provider '$Provider' requires -Model (or settings.agent.model)."
@@ -1951,8 +1982,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpRZSyMcv33O2o
-# +/IKYJfdSNBu/mcLNPf3keNdXSEnJ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBtLteqQ90FJtTB
+# 1+LX+ja0/PjVyOOVtizfDMCqni2ds6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2085,34 +2116,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCcLYv3Y6UC
-# 8MW/L4XQtGDzYVgg+rPzBopLb48eIhuV2TANBgkqhkiG9w0BAQEFAASCAgA4C95S
-# Iz6yJSZIocZc7EaVFcZxuwvRyYuXFI30mq9PMK7prg328iaJdxQETTOvMwokYURr
-# fujJPi4zy5bkPkP7EELbsTC/Q6GEphGziRgLENLOe1Tz6/7Q3OWkK76h3bywUnO+
-# wbBjMEwMTeKAhEL+y1MBeMuO0l3Vpu+nMjz2D40ZJkEXP3Kps5JHwjEkMCu5BckZ
-# r7QZ9LuYNi0CNrvjwbiLwFJDo8cqEvWxu5zPOuX/ai2sIkudnGdGcX3QUc1tVZJm
-# bz/qf9viwtgIsFVH+iiThTr3w+XtD/7vkcHptLp3lEwGyY1MgHU73q4/WkW+bxy5
-# TOPO9uzKJcwJedckasOUSnHT8aqqkClIgJUQ/VZioYM9LQtaSUJBDglKuDXRsauZ
-# mmL4r6qdPVXIYrTP26ImazhHDZFJpipHmhmf3zyI2f3RFl79D4KrANqp2xko/DSk
-# E2Pfp+vuYEKtjuVjofYFULkecKnvo5fd7rlYOt+ammO2vgnMre1sf+ns57Dp8Kc9
-# pjvB1Rpww2lnTjrpUE+PqQwimnPdjm9DG2B5C5aOQpZCW9Bv2vtZF8BooebsK3Fg
-# YCHIpNvVTL7e5XjMI/I6t5UOTmoNuG+7EOJva8qOmTDW7nS4g55xwQDC+r5G9NXc
-# 9Sfhzd9uzVbr1ncnosEtZ97hLD5LrlIn4GtOCKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCihDejBZpr
+# YaBG/RgcaDOV2OzfugpvmYkMHaulct59EjANBgkqhkiG9w0BAQEFAASCAgASjqEC
+# tgch6QuoaC6PHwAYtxhBQWPxOrxSum7XT63mNnY7MuZPG7Ft3UTvsB9VWTVGsGzv
+# l3sUOji+Jph1YNcXBp/4BJ2bYlO5ifosi6oOP5ZwJ4PsOxpqFafdbTHPbXgyDoFu
+# fTtCuInKVk0tVLdIEq87lPb+SmJyPrWE0rmv3stUry9UmBgUdaf/FJw03nO5u/VJ
+# LJzcrAb+2iLQ+JaiVTiuEbxOGKgDLBSKxe6D+XZ1gSfjAS1EcYuzk1e+rS5iRbL2
+# pFxW6wtD5RBuIkWqTIX93mDl8kL5PajfXZ1IYPqxp9HrmhnoyRq+ZDyMk0Gqa4iN
+# yVw7q1KaaL5Roax6uEe66EqDfCbXLOuTpenHa5DXHB0z95ZmjQ2GQjCXeW2gVLWL
+# KuseRdaUenb6+QSW77ATIMsrxx9O30JfqUudmxRf/k6vCzr8iGO6+zrd0RtcHo5n
+# OWcBFjTH+30VqEhCdCa/KS0ahGBFODVuE2oFFtFnEEbtTRoWyot1rFf0MnmlOTEf
+# yosiOsDiqe37ZhF0wku9Ry6kNq5npSFjvfXg3BMLylMqurM0MR4hpfNA30qwHR9t
+# wxRNzI5KIy6mUYRCBH82exzkgyA37dvfNlRViSSh//nxTvzn3HTbT1lf+kKbu2Qv
+# HuPWjlVsZaN/KX8x/+jE8Chn+gGZGquCObK2saGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTUwMzMzNTVaMC8GCSqGSIb3DQEJBDEiBCANDbHFjrehj1r3Ic4+
-# j1pLNF26pxYYcBHDYsCyw9yy0TANBgkqhkiG9w0BAQEFAASCAgA2Pyk4D0l5HorU
-# r6/W7x4fhRalpGrBXxikqCJ+peqIJ43vBmcHrCdhlJEL/PSP2huImoegIh/S5fcP
-# K7XrLPqV4hhMOnI8i0PYUNtn0W5ZgoE7aDym2E5eo0GXgROIELESh/rqdB5oabTD
-# D4hf1/5Fyf47m+hmePctNU84HBbUZ4JjH9sXUVdpbQ7mCduiFA5iUGagqw+bbUTf
-# DcolQxGgNpTe5ZXEmZpbb225C2YPLuj8vH+dQ8Ge+m+HyKs0Wm+37ZNZTmKRQ6fE
-# oPyG//aALm+fMe8Iid00tUkI6Rmfx1NNyW3zjbUPKSvn9IDb3Oo4aBavA1KeuzZP
-# ZW+KgzHYqdK7v3sOVpbNDX0rHcSgcom57WLq0V+TNmXMTQO5HpRsiwDvx/05IwhY
-# bTscobxV0gEEN7UNF+G127GxQ6zFv3PKibaJrMxDGG8hDSrAaUpCdFwbNYqf8F5d
-# 2s12L77h8/t2CGM30HGvFACtx7ugyp/L4HaBTbF9523GC90HASJlqnEcGRok2OzP
-# W5OLx32AlgRE9AFrOWTU9CwOQH+wVFd6taKuuZ14/GBGm0s5K+AumcuWr0SrEnaA
-# oIEo9ND+4Xf00kLij4HZqK4zUoFOYAb4imQjHztcvnfqBMtwDl0A7oR5etHt0hJE
-# 7IoqTiQruKKmPbYcPDBaCq9cqCzM6g==
+# BTEPFw0yNjA4MTUyMzMyNTZaMC8GCSqGSIb3DQEJBDEiBCAX4sAzeHr9pjtoObX8
+# yZsmp41x+Q/kXQ6UktCZUI4tMjANBgkqhkiG9w0BAQEFAASCAgB5zIsfE+NDfG8m
+# Cy+WY5qBGcI7aLTCeyWhGSwh0Fay31RjloTj95CeoKzENe0OhEChB7D6X4Pqs7gr
+# NtPelJ0/LybY1KRfvOnee3NsklMYUTQ+0+8F84fIZnAo7unyKEZaQA71YtEA2mOl
+# 4DhuZxL1lf4il2A3Kp4YpdOQTi8Py3Of+fOg8o8vxDcpLU8ar+hkm2SnY1EYg0vs
+# /JelnRlfU61ef4i/QnPKNscol+lqF/3LaZKl0N8hyVEAwkmqq0awDvq/ZNHJlmwJ
+# bk4lJ4jTBI/1etUztQYkdtQkmN/2NxSwUiwFNj9uFnuwVpSUN0RXvd+0DCRG9Rjr
+# XFyVQJtCQ85jmQNAF3RNPY1rjCNcPdBngF9F5vxxuvGGiL39bn018zcyLzEt9HhP
+# 5wSJggfmfPshcG7wL+k7GslVptvqo/XXcFuwH9/dihBz91QyoMvmeQ7ojr3depJc
+# yeNmDaUPnKjoUaqoWrAqSPIi/tTo+nAt0bZ8YtoYTYpew5LFAAAoaaKw4smLsffE
+# vTSlaQwDQtARI2+WE05x23QZZwMBJhOnrLnsYxCHIpP6mqLCGOO2hFs5XYg1JILX
+# suqnqsvF86I9IeBy3fWOwsXhRPqbBJbWISvdAJHxvHMybPPCLbR2m2bm/RtquUfs
+# UNcRUk3a5njyxQEyV4Gp61JCv0Blog==
 # SIG # End signature block

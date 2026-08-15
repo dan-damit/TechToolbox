@@ -19,27 +19,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.75,
-      "avgDurationMs": 125068,
-      "avgToolCalls": 3.5,
+      "successRate": 0.8,
+      "avgDurationMs": 160588,
+      "avgToolCalls": 3.35,
       "statusCounts": {
-        "error": 5,
-        "success": 15
+        "success": 16,
+        "error": 4
       },
       "outcomeCounts": {
-        "llm-failure": 3,
-        "completed": 15,
+        "completed": 16,
+        "llm-failure": 2,
         "iteration-limit": 2
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-08-15T17:53:42.9718960\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-15T17:53:42.9727944\u002B00:00",
+      "lastRunTimestampUtc": "2026-08-15T23:09:26.1196185\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-15T23:09:26.1209280\u002B00:00",
       "avgPromptPreflightScore": 81,
       "executionModeCounts": {
-        "execute": 7,
-        "chat": 13
+        "chat": 15,
+        "execute": 5
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-15T17:53:42.9728104\u002B00:00",
+      "generatedUtc": "2026-08-15T23:09:26.1209527\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 9,
       "indexEntries": 0,
@@ -70,83 +70,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-14T17:45:48.8969513+00:00",
-      "status": "error",
-      "outcome": "llm-failure",
-      "prompt": "Review the chat mode code in C:\\repos\\TechToolbox\\src and recommend ways to improve the general conversational abilities.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 8278,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 7,
-      "toolNames": [
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.4-nano in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 200000, Used 198821, Requested 13101. Please try again in 3.576s. Visit https://platform.openai.com/account/rate-limits to learn more.\u0022,\n        \u0022type\u0022: \u0022tokens\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022rate_limit_exceeded\u0022\n    }\n}",
-      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.4-nano in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 200000, Used 198821, Requested 13101. Please try again in 3.576s. Visit https://platform.openai.com/account/rate-limits to learn more.\u0022,\n        \u0022type\u0022: \u0022tokens\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022rate_limit_exceeded\u0022\n    }\n}",
-      "runSummary": {
-        "intent": "Review the chat mode code in C:\\repos\\TechToolbox\\src and recommend ways to improve the general conversational abilities.",
-        "actionsTaken": [
-          "list_directory",
-          "read_file"
-        ],
-        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.4-nano in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 200000, Used 198821, Requested 13101. Please try again in 3.576s. Visit ht...",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-14T17:47:10.8042834+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Review the chat mode code in C:\\repos\\TechToolbox\\src and recommend ways to improve the general conversational abilities.",
-      "model": "gpt-5.3-codex",
-      "durationMs": 21547,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 6,
-      "toolNames": [
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "read_file_meta",
-        "read_file"
-      ],
-      "outputPreview": "## Review scope\nI reviewed the chat-mode orchestration surface in:\n- \u0060C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\u0060\n\nBased on the visible structure (execution mode normalization, prompt shaping controls, iteration/retry loop, heuristics, memory integration, and output-contract enforcement), here are targeted improvements to general conversational ability.\n\n## High-impact improvements\n### 1) Add explicit conversation state machine for chat mode\n- Problem: Chat behavior is likely mixed into generic execute/plan/analyze flow.\n- Improvement: Introduce a lightweight chat state model (\u0060discover\u0060, \u0060clarify\u0060, \u0060answer\u0060, \u0060verify\u0060, \u0060close\u0060) and route prompts through it when \u0060_executionMode == \u0022chat\u0022\u0060.\n- Benefit: More natural turn-taking, fewer abrupt tool-first responses, better follow-up continuity.\n\n### 2) Improve clarification policy before tool invocation\n- Problem: Current heuristics may still over-trigger tools for ambiguous user intent.\n- Improvement:\n  - Require a confidence threshold before first tool call in chat mode.\n  - If below threshold, ask one focused clarification question.\n  - Cap clarification loops with a graceful fallback summary.\n- Benefit: Better conversational quality and reduced unnecessary tool churn.\n\n### 3) Separate \u0022answer-first\u0022 vs \u0022act-first\u0022 response strategy\n- Problem: Users in chat mode often want explanation before action.\n- Improvement: Add a strategy selector:\n  - \u0060answer-first\u0060 for conceptual/help requests.\n  - \u0060act-first\u0060 for explicit operational tasks.\n- Benefit: Responses feel more human and context-aware.\n\n### 4) Strengthen memory retrieval relevance\n- Problem: Including recent history by count alone can miss semantically relevant context.\n- Improvement:\n  - Keep recency window, but add semantic retrieval/rerank for prior turns.\n  - Prefer unresolved threads and user preferences in prompt assembly.\n- Benefit: Better continuity and fewer repeated questions.\n\n### 5) Add conversational style controls in prompt builder\n- Problem: Quality profile alone (\u0060precise/balanced/creative\u0060) is coarse.\n- Improvement: Add chat-specific style knobs:\n  - verbosity target\n  - question-asking tendency\n  - explanation depth\n  - directness level\n- Benefit: More adaptive and user-aligned responses.\n\n## Reliability and UX improvements\n### 6) Better iteration-limit recovery messaging\n- Problem: Retry logic exists, but user-facing messaging can feel mechanical.\n- Improvement: On nearing iteration cap, emit a concise progress checkpoint:\n  - what was attempted\n  - what is blocked\n  - best next step\n- Benefit: Preserves trust and conversational flow under failure.\n\n### 7) Add intent classification guardrail for mixed requests\n- Problem: Multi-intent prompts (question \u002B action) can produce awkward responses.\n- Improvement: Split into sub-intents and respond in two phases:\n  - short direct answer\n  - proposed action plan (with confirmation if needed)\n- Benefit: Cleaner, more helpful interactions.\n\n### 8) Improve output-contract adaptation for chat\n- Problem: Strict contract enforcement can reduce naturalness.\n- Improvement: In chat mode, keep contract-safe formatting but allow a conversational wrapper:\n  - brief acknowledgement\n  - direct answer\n  - optional next-step question\n- Benefit: More natural while still deterministic.\n\n## Safety-aware conversational behavior\n### 9) Confirmation UX for risky actions\n- Problem: Safety checks exist, but confirmation prompts may be generic.\n- Improvement: Generate structured confirmation prompts with:\n  - exact action\n  - scope/target\n  - rollback possibility\n  - explicit confirmation phrase required\n- Benefit: Safer and clearer user experience.\n\n### 10) Tool-result narration layer\n- Problem: Raw tool outputs can be hard to parse conversationally.\n- Improvement: Add a post-tool summarizer that converts output into:\n  - key finding\n  - confidence\n  - implication\n  - recommended next step\n- Benefit: Better comprehension and dialogue quality.\n\n## Suggested implemen...",
-      "runSummary": {
-        "intent": "Review the chat mode code in C:\\repos\\TechToolbox\\src and recommend ways to improve the general conversational abilities.",
-        "actionsTaken": [
-          "list_directory",
-          "read_file",
-          "read_file_meta"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-14T23:04:57.1649167+00:00",
       "status": "success",
@@ -727,11 +650,83 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-15T23:05:48.5833047+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.8:27b",
+      "durationMs": 589027,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "Here is tomorrow\u0027s weather for Green Bay, WI (Sunday, August 16, 2026), sourced from the NWS:\n\n## Green Bay, WI - Sunday, Aug 16\n\n### Daytime (6 AM - 6 PM CDT)\n- **Conditions:** Partly Sunny then Slight Chance Showers and Thunderstorms\n- **High:** 84 F (heat index up to 87 F)\n- **Precipitation:** 20% chance of showers/storms between noon and 2 PM; rainfall less than 0.1 in possible\n- **Wind:** WNW at 2 to 10 mph\n\n### Evening / Overnight (6 PM - 6 AM CDT)\n- **Conditions:** Partly Cloudy\n- **Low:** 60 F\n- **Precipitation:** 0%\n- **Wind:** NNW at 2 to 9 mph\n\n### Quick Summary\nA mostly pleasant, partly sunny day with a brief window of slight storm risk around midday. Evenings cool off nicely into the low 60s with dry skies.\n\n---\n*Source: NOAA National Weather Service (api.weather.gov), forecast generated 2026-08-15 21:54 UTC.*",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-15T23:09:26.1196185+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.6:35b",
+      "durationMs": 151209,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "search_web",
+        "search_web"
+      ],
+      "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin, for tomorrow (August 16):\n\n- **Conditions**: Partly sunny to mostly sunny.\n- **High Temperature**: Around 79\u00B0F.\n- **Low Temperature**: Around 64\u00B0F.\n- **Evening Outlook**: Some clouds with a chance of thunderstorms in spots late at night.",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-15T17:53:42.9729004\u002B00:00",
+    "generatedUtc": "2026-08-15T23:09:26.1210836\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 9,
     "indexEntries": 0,

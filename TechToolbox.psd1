@@ -133,19 +133,15 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = 'v0.5.70 - "OpenAI API Integration & Enhanced Agent Support"
+        ReleaseNotes = 'v0.5.89 - "OpenAI API Integration & Enhanced Agent Support"
 
-- Invoke-TechAgent now supports OpenAI API key usage for cloud-based inference, allowing operators to leverage the TechAgent workflows without local inference requirements.
+- Fixed the Ollama chat payload formatting issue that caused invalid “system message must be at the beginning” errors.
 
-    - Default behavior of Invoke-TechAgent is to use Ollama for local inference if available, otherwise it will attempt to use OpenAI API if the key is set in the TechToolbox configuration.
+- Added automatic routing between the deep reasoning model and the faster model using prompt complexity, execution mode, and tooling context.
 
-- AI-assisted workflow improvements for Export-ToolboxFunctions and Invoke-TechAgent
+- Added configuration support for enabling/disabling auto-routing and tuning the routing threshold without changing code.
 
-- Full help text capture in agent metadata export
-
-- Config system refinements and path token stabilization
-
-- Module version updated to 0.5.70'
+- Module version updated to 0.5.89'
 
         # Prerelease string of this module
         # Prerelease = ''
