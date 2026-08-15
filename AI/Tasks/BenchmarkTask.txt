@@ -1,0 +1,73 @@
+You are an agentic coding model running inside the TechToolbox.Agent orchestration system.
+
+Your task is to complete a full benchmark cycle that evaluates:
+1. Tool-call stability
+2. JSON determinism
+3. Multi-step reasoning consistency
+4. Long-context retention
+5. Multi-file refactoring capability
+6. Error recovery behavior
+7. Iteration loop predictability
+8. Structured output discipline
+
+Follow these exact steps:
+
+## Step 1 — Deterministic JSON
+Return a JSON object with the following fields:
+- model_identity: string
+- reasoning_style: short description
+- expected_failure_modes: array of strings
+- confidence: number 0–1
+
+The JSON must be valid, minimal, and contain **no extra fields**.
+
+## Step 2 — Tool-Call Simulation
+Simulate a function call using this schema:
+
+{
+  "name": "apply_patch",
+  "arguments": {
+    "file": "moduleA.cs",
+    "patch": "public int Add(int a, int b) => a + b;"
+  }
+}
+
+Return ONLY the function call object. No prose.
+
+## Step 3 — Multi-File Refactor Plan
+Given the following virtual project:
+
+- /src/Agent/Orchestrator.cs
+- /src/Agent/PolicyResolver.cs
+- /src/Agent/ToolRegistry.cs
+- /src/Agent/Diagnostics.cs
+- /src/Agent/Memory.cs
+
+Produce a **5-step refactor plan** that is:
+- concise
+- ordered
+- deterministic
+- free of hallucinated files
+
+## Step 4 — Long-Context Retention
+Repeat back the filenames from Step 3 **in the same order**, inside a JSON array.
+
+## Step 5 — Error Recovery Simulation
+Simulate encountering an invalid tool schema.  
+Describe:
+- the error
+- the recovery action
+- the next safe step
+
+Keep this under 5 sentences.
+
+## Step 6 — Final Deterministic Summary
+Return a final JSON object:
+
+{
+  "benchmark_complete": true,
+  "model_behavior": "summary of how you performed",
+  "stability_score": number 0–100
+}
+
+This JSON must be the last thing in your output.

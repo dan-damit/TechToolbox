@@ -1257,19 +1257,17 @@ Next best action:
     )
     {
         var context = PromptBuilder.BuildChatOrchestrationMessage(plan);
+        context.Role = "user";
         const string contextPrefix = "CHAT_ORCHESTRATION_CONTEXT";
 
-        for (var i = messages.Count - 1; i >= 0; i--)
+        for (var i = 0; i < messages.Count; i++)
         {
             var msg = messages[i];
-            if (!string.Equals(msg.Role, "system", StringComparison.OrdinalIgnoreCase))
+            if (!msg.Content.StartsWith(contextPrefix, StringComparison.Ordinal))
                 continue;
 
-            if (msg.Content.StartsWith(contextPrefix, StringComparison.Ordinal))
-            {
-                messages[i] = context;
-                return;
-            }
+            messages[i] = context;
+            return;
         }
 
         messages.Insert(1, context);

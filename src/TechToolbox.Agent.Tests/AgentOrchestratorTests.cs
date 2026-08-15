@@ -109,7 +109,8 @@ public class AgentOrchestratorTests
             m.Content.Contains("CHAT_ORCHESTRATION_CONTEXT", StringComparison.Ordinal));
 
         Assert.NotNull(contextMessage);
-        Assert.Contains("Intent Decomposition", contextMessage!.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("user", contextMessage!.Role, ignoreCase: true);
+        Assert.Contains("Intent Decomposition", contextMessage.Content, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Conversation Compass", contextMessage.Content, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Style Controls", contextMessage.Content, StringComparison.OrdinalIgnoreCase);
     }
