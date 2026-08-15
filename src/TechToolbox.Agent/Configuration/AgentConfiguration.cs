@@ -15,8 +15,20 @@ public class AgentConfiguration
 
     /// <summary>
     /// LLM model identifier (e.g., "llama3", "gpt-4", etc.).
+    /// Set to "auto" to enable prompt-based model routing when supported.
     /// </summary>
-    public string Model { get; set; } = "llama3";
+    public string Model { get; set; } = "auto";
+
+    /// <summary>
+    /// Whether prompt-based model routing should automatically select between the reasoning and fast Ollama models.
+    /// </summary>
+    public bool EnableAutoModelRouting { get; set; } = true;
+
+    /// <summary>
+    /// Complexity threshold used when auto-routing between reasoning and fast models.
+    /// Higher values are more conservative and route more prompts to the reasoning model.
+    /// </summary>
+    public int AutoModelRoutingThreshold { get; set; } = 50;
 
     /// <summary>
     /// LLM provider identifier.
@@ -219,7 +231,7 @@ public class AgentConfiguration
                 new AgentConfiguration
                 {
                     Mode = AgentMode.TechToolbox,
-                    Model = "llama3",
+                    Model = "auto",
                     LlmProvider = "ollama",
                     ExecutionMode = "chat",
                     OutputContract = "markdown",
@@ -239,7 +251,9 @@ public class AgentConfiguration
                 new AgentConfiguration
                 {
                     Mode = AgentMode.Assistant,
-                    Model = "llama3",
+                    Model = "auto",
+                    EnableAutoModelRouting = true,
+                    AutoModelRoutingThreshold = 50,
                     LlmProvider = "ollama",
                     ExecutionMode = "chat",
                     OutputContract = "markdown",
@@ -255,7 +269,9 @@ public class AgentConfiguration
                 new AgentConfiguration
                 {
                     Mode = AgentMode.CodingAgent,
-                    Model = "llama3",
+                    Model = "auto",
+                    EnableAutoModelRouting = true,
+                    AutoModelRoutingThreshold = 50,
                     LlmProvider = "ollama",
                     ExecutionMode = "chat",
                     OutputContract = "markdown",
@@ -271,7 +287,9 @@ public class AgentConfiguration
                 new AgentConfiguration
                 {
                     Mode = AgentMode.Custom,
-                    Model = "llama3",
+                    Model = "auto",
+                    EnableAutoModelRouting = true,
+                    AutoModelRoutingThreshold = 50,
                     LlmProvider = "ollama",
                     ExecutionMode = "chat",
                     OutputContract = "markdown",

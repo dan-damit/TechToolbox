@@ -128,11 +128,15 @@
     },
     "agent": {
       "provider": "ollama",
-      "model": "qwen3.8:27b",
+      "model": "auto",
       "executionMode": "chat",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
       "thinkingMode": "auto",
+      "autoModelRouting": {
+        "enabled": true,
+        "threshold": 50
+      },
       "reasoningEffort": "",
       "reasoningEffortAuto": false,
       "endpoint": "",

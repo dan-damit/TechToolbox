@@ -1670,6 +1670,61 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
     }
 
     [Fact]
+    public void LlmClientFactory_SelectModelForPrompt_UsesReasoningModelForComplexPrompt()
+    {
+        var selected = LlmClientFactory.SelectModelForPrompt(
+            "Debug the failing script, trace the root cause, and refactor the fix across multiple files.",
+            executionMode: "analyze",
+            preflightScore: 85,
+            toolCount: 3
+        );
+
+        Assert.Equal("qwen3.8:27b", selected, ignoreCase: true);
+    }
+
+    [Fact]
+    public void LlmClientFactory_SelectModelForPrompt_UsesFastModelForSimplePrompt()
+    {
+        var selected = LlmClientFactory.SelectModelForPrompt(
+            "Summarize this log in one paragraph.",
+            executionMode: "execute",
+            preflightScore: 10,
+            toolCount: 0
+        );
+
+        Assert.Equal("qwen3.6:35b", selected, ignoreCase: true);
+    }
+
+    [Fact]
+    public void LlmClientFactory_SelectModelForPrompt_PrefersExplicitOverride()
+    {
+        var selected = LlmClientFactory.SelectModelForPrompt(
+            "Debug the failing script and refactor multiple files.",
+            executionMode: "analyze",
+            preflightScore: 80,
+            toolCount: 2,
+            explicitModel: "qwen3.6:35b"
+        );
+
+        Assert.Equal("qwen3.6:35b", selected, ignoreCase: true);
+    }
+
+    [Fact]
+    public void LlmClientFactory_SelectModelForPrompt_RespectsConfiguredThreshold()
+    {
+        var selected = LlmClientFactory.SelectModelForPrompt(
+            "Debug this issue and compare the options before fixing it.",
+            executionMode: "analyze",
+            preflightScore: 70,
+            toolCount: 2,
+            enableAutoRouting: true,
+            routingThreshold: 90
+        );
+
+        Assert.Equal("qwen3.6:35b", selected, ignoreCase: true);
+    }
+
+    [Fact]
     public async Task RunAsync_MarksInvalidJsonTerminalFailureAsErrorInMemoryHistory()
     {
         var tempRoot = Path.Combine(

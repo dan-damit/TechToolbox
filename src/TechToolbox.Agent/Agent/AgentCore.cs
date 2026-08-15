@@ -367,7 +367,7 @@ public static class AgentCore
         }
 
         // 4. Initialize LLM client
-        var llm = LlmClientFactory.Create(config);
+        var llm = LlmClientFactory.Create(config, prompt);
 
         // 5. Create orchestrator
         var orchestrator = new AgentOrchestrator(
