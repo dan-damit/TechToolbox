@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.5.85'
+ModuleVersion = '0.5.86'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -33,7 +33,7 @@ Copyright = '(c) Dan Damit. All rights reserved.'
 Description = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows. Invoke-TechAgent now supports OpenAI API key usage for cloud-based inference, allowing operators to leverage the TechAgent workflows without local inference requirements. First time users should start with Get-TechToolboxConfig and Get-ToolboxHelp. TechToolbox also utilizes the conventional PowerShell help system, so Get-Help <command-name> is your friend.'
 
 # Minimum version of the PowerShell engine required by this module
-PowerShellVersion = '7.6.5'
+PowerShellVersion = '7.6.4'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''
