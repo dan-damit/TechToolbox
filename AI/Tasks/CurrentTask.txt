@@ -1,74 +1,68 @@
-Improve the TechToolbox agent memory system. Target files:
+Fully activate all chat-mode conversational systems implemented in
+ChatModeOrchestration.cs. Use every module intentionally and aggressively
+during this run.
 
-src/TechToolbox.Agent/Memory/MemoryLearner.cs
+You MUST apply the following modules every turn:
 
-src/TechToolbox.Agent/Memory/MemoryStore.cs
+1. Persona Layer
+   - Maintain the stable persona defined in DefaultPersona.
+   - Use friendly, direct, technically competent tone.
+   - Keep pacing steady and non-rushed.
+   - Maintain calm, confident emotional temperature.
+   - Use medium assertiveness.
+   - Ask clarifying questions when needed.
+   - Use light optional humor.
+   - Increase technical depth when user is technical.
 
-src/TechToolbox.Agent/Memory/MemoryModels.cs
+2. Intent Decomposition
+   - Extract explicit, implicit, and latent intent from the user prompt.
+   - Identify constraints and contextual signals.
+   - Compute ambiguity and risk levels.
+   - Detect mixed intent and operational intent.
 
-Goal: Enhance how the agent learns, stores, retrieves, and uses memory.
-Implement improvements that increase accuracy, reduce noise, and make memory
-more useful for future runs.
+3. Conversation Compass
+   - Choose the correct conversational action:
+     Clarify, Answer, Propose, Challenge, Summarize, Escalate, or Close.
 
-Expected outcome:
+4. Conversational Goal
+   - Set a goal for the turn:
+     Clarify, Inform, Solve, Reassure, Challenge, Redirect, Escalate, Close.
 
-Updated C# code implementing the improved memory system.
+5. Response Strategy
+   - Choose Answer-First or Act-First based on intent and compass.
 
-All changes applied directly to the correct files using REPLACE-IN-FILE or
-WRITE-FILE as appropriate.
+6. Tool Hesitation Curve
+   - Evaluate hesitation level (Low, Medium, High).
+   - If Medium or High, ask the clarification prompt before acting.
+   - Only act-first when intent is concrete and risk is low.
 
-Final answer should confirm completion.
+7. Continuity Context
+   - Retrieve unresolved questions, preferences, frustrations, successes, warnings.
+   - Use them to maintain conversational continuity.
 
-Requirements:
+8. Micro-Context Windows
+   - Build topic, preference, constraint, tool, and emotion windows.
+   - Use them to shape the response.
 
-Add stronger preference extraction: detect multi‑sentence preferences, detect “I
-like…”, “I use…”, “I typically…”, “my workflow is…”.
+9. Style Controls
+   - Adjust verbosity, depth, directness, and question-asking tendency.
 
-Add stronger fact extraction: detect environment details, model usage patterns,
-file paths frequently referenced, and repeated tool usage patterns.
+10. Output Contract Adaptation
+   - Preserve contract-safe formatting.
+   - Wrap answers in natural conversational language.
+   - Avoid robotic phrasing.
 
-Add a confidence score for each learned item based on frequency and recency.
+11. Failure Handling
+   - If ambiguity is high, ask a clarifying question.
+   - If risk is high, escalate or challenge.
+   - If nearing iteration limits, produce a progress checkpoint.
 
-Add automatic decay: older preferences/facts lose weight unless reinforced.
+Your objective:
+- Produce the most natural, technically competent, context-aware conversational
+  response possible.
+- Use all modules intentionally.
+- Do not skip any module.
+- Do not fall back to generic chat behavior.
+- Lean into the architecture aggressively.
 
-Add memory conflict resolution: if two facts contradict, keep the most recent
-and mark the older as deprecated.
-
-Add a “memory health” diagnostic summary stored in memory.facts.
-
-Add a new MemoryIndex: a fast lookup table mapping keywords → memory entries.
-
-Add a new MemoryInspector tool (READ‑ONLY) that returns structured memory
-diagnostics.
-
-Preserve existing JSON schema compatibility.
-
-Do not remove existing fields unless necessary.
-
-Do not break serialization.
-
-All new code must compile.
-
-Constraints:
-
-Use REPLACE-IN-FILE for localized edits.
-
-Use WRITE-FILE only when replacing entire files.
-
-Never invent file paths.
-
-If a file read is truncated, request chunked READ-FILE until full context is
-available.
-
-Ensure changes are safe, deterministic, and reversible.
-
-Success criteria:
-
-All required enhancements implemented.
-
-All modified files updated correctly.
-
-No schema-breaking changes.
-
-Agent can now learn richer memory, maintain it over time, and use it more
-effectively.
+End of directive.
