@@ -20,26 +20,26 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.75,
-      "avgDurationMs": 106865,
-      "avgToolCalls": 4,
+      "avgDurationMs": 125068,
+      "avgToolCalls": 3.5,
       "statusCounts": {
-        "success": 15,
-        "error": 5
+        "error": 5,
+        "success": 15
       },
       "outcomeCounts": {
+        "llm-failure": 3,
         "completed": 15,
-        "iteration-limit": 3,
-        "llm-failure": 2
+        "iteration-limit": 2
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "gpt-5.3-codex",
-      "lastRunTimestampUtc": "2026-08-15T03:19:46.6970568\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-15T03:19:46.7435220\u002B00:00",
-      "avgPromptPreflightScore": 77,
+      "lastModel": "qwen3.6:35b",
+      "lastRunTimestampUtc": "2026-08-15T17:53:42.9718960\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-15T17:53:42.9727944\u002B00:00",
+      "avgPromptPreflightScore": 81,
       "executionModeCounts": {
-        "chat": 11,
-        "execute": 9
+        "execute": 7,
+        "chat": 13
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,17 +52,17 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-15T03:19:46.7435298\u002B00:00",
-      "totalPreferences": 1,
+      "generatedUtc": "2026-08-15T17:53:42.9728104\u002B00:00",
+      "totalPreferences": 0,
       "totalFacts": 9,
-      "indexEntries": 13,
-      "averageConfidence": 0.812,
+      "indexEntries": 0,
+      "averageConfidence": 0,
       "deprecatedEntries": 0,
-      "health": "healthy",
+      "health": "low",
       "notes": [
-        "Preferences tracked: 1",
+        "Preferences tracked: 0",
         "Facts tracked: 9",
-        "Index entries: 13"
+        "Index entries: 0"
       ]
     },
     "fact.c-repos-techtoolbox-src-techtoolbox.30d77850": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Your objective is to determine whether the agent currently supports the  OpenAI GPT-5.3-Codex reasoning effort settings:        low      medium      high",
@@ -70,105 +70,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-14T17:32:13.2679784+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: respect mode \u0027chat\u0027.",
-      "model": "gpt-4o-mini",
-      "durationMs": 4836,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "search_web"
-      ],
-      "outputPreview": "Unable to retrieve the weather forecast for Green Bay, Wisconsin, due to repeated search failures. Please check the weather on a reliable weather website or app.",
-      "runSummary": {
-        "intent": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: respect mode \u0027cha...",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T17:44:33.3642423+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Review the chat mode code in C:\\repos\\TechToolbox\\src and recommend ways to improve the general conversational abilities.",
-      "model": "gpt-4o-mini",
-      "durationMs": 21893,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 8,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Recommendations for Improving Conversational Abilities\n\n- **Enhance Error Handling**: Improve the error messages returned by the agent to be more user-friendly and actionable. For example, instead of just stating \u0022Error: prompt must not be empty,\u0022 provide suggestions on what a valid prompt might look like.\n\n- **Contextual Awareness**: Implement a mechanism to maintain context across multiple interactions. This could involve storing previous prompts and responses to allow the agent to provide more relevant answers based on prior conversations.\n\n- **Dynamic Prompting**: Introduce dynamic prompting techniques that adapt based on user input. For instance, if a user asks a follow-up question, the agent should be able to recognize this and adjust its response accordingly.\n\n- **Feedback Loop**: Create a feedback system where users can rate the responses. This data can be used to train the model further and improve its conversational abilities over time.\n\n- **Expand Tool Integration**: Ensure that the agent can seamlessly integrate with more tools and APIs, allowing it to fetch real-time data or perform actions based on user requests, enhancing its utility in conversations.\n\n- **User Personalization**: Allow users to customize their interaction preferences, such as verbosity of responses, types of information prioritized, and preferred formats for output.\n\n- **Testing and Iteration**: Regularly test the conversational abilities with real users and iterate on the design based on their feedback to continually refine the interaction model.",
-      "runSummary": {
-        "intent": "Review the chat mode code in C:\\repos\\TechToolbox\\src and recommend ways to improve the general conversational abilities.",
-        "actionsTaken": [
-          "read_file",
-          "list_directory"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-14T17:45:30.0668536+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Review the chat mode code in C:\\repos\\TechToolbox\\src and recommend ways to improve the general conversational abilities.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 28217,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-      "runSummary": {
-        "intent": "Review the chat mode code in C:\\repos\\TechToolbox\\src and recommend ways to improve the general conversational abilities.",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-14T17:45:48.8969513+00:00",
       "status": "error",
@@ -744,235 +645,103 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-15T17:21:25.473792+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step reasoning consistency\r\n4. Long-context retention\r\n5. Multi-file refactoring capability\r\n6. Error recovery behavior\r\n7. Iteration loop predictability\r\n8. Structured output discipline\r\n\r\nFollow these exact steps:\r\n\r\n## Step 1 \u2014 Deterministic JSON\r\nReturn a JSON object with the following fields:\r\n- model_identity: string\r\n- reasoning_style: short description\r\n- expected_failure_modes: array of strings\r\n- confidence: number 0\u20131\r\n\r\nThe JSON must be valid, minimal, and contain **no extra fields**.\r\n\r\n## Step 2 \u2014 Tool-Call Simulation\r\nSimulate a function call using this schema:\r\n\r\n{\r\n  \u0022name\u0022: \u0022apply_patch\u0022,\r\n  \u0022arguments\u0022: {\r\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\r\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\r\n  }\r\n}\r\n\r\nReturn ONLY the function call object. No prose.\r\n\r\n## Step 3 \u2014 Multi-File Refactor Plan\r\nGiven the following virtual project:\r\n\r\n- /src/Agent/Orchestrator.cs\r\n- /src/Agent/PolicyResolver.cs\r\n- /src/Agent/ToolRegistry.cs\r\n- /src/Agent/Diagnostics.cs\r\n- /src/Agent/Memory.cs\r\n\r\nProduce a **5-step refactor plan** that is:\r\n- concise\r\n- ordered\r\n- deterministic\r\n- free of hallucinated files\r\n\r\n## Step 4 \u2014 Long-Context Retention\r\nRepeat back the filenames from Step 3 **in the same order**, inside a JSON array.\r\n\r\n## Step 5 \u2014 Error Recovery Simulation\r\nSimulate encountering an invalid tool schema.  \r\nDescribe:\r\n- the error\r\n- the recovery action\r\n- the next safe step\r\n\r\nKeep this under 5 sentences.\r\n\r\n## Step 6 \u2014 Final Deterministic Summary\r\nReturn a final JSON object:\r\n\r\n{\r\n  \u0022benchmark_complete\u0022: true,\r\n  \u0022model_behavior\u0022: \u0022summary of how you performed\u0022,\r\n  \u0022stability_score\u0022: number 0\u2013100\r\n}\r\n\r\nThis JSON must be the last thing in your output.\r\n",
+      "model": "qwen3.8:27b",
+      "durationMs": 18673,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022system message must be at the beginning\u0022}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022system message must be at the beginning\u0022}",
+      "runSummary": {
+        "intent": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step re...",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022system message must be at the beginning\u0022}",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-15T17:33:27.8262417+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step reasoning consistency\r\n4. Long-context retention\r\n5. Multi-file refactoring capability\r\n6. Error recovery behavior\r\n7. Iteration loop predictability\r\n8. Structured output discipline\r\n\r\nFollow these exact steps:\r\n\r\n## Step 1 \u2014 Deterministic JSON\r\nReturn a JSON object with the following fields:\r\n- model_identity: string\r\n- reasoning_style: short description\r\n- expected_failure_modes: array of strings\r\n- confidence: number 0\u20131\r\n\r\nThe JSON must be valid, minimal, and contain **no extra fields**.\r\n\r\n## Step 2 \u2014 Tool-Call Simulation\r\nSimulate a function call using this schema:\r\n\r\n{\r\n  \u0022name\u0022: \u0022apply_patch\u0022,\r\n  \u0022arguments\u0022: {\r\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\r\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\r\n  }\r\n}\r\n\r\nReturn ONLY the function call object. No prose.\r\n\r\n## Step 3 \u2014 Multi-File Refactor Plan\r\nGiven the following virtual project:\r\n\r\n- /src/Agent/Orchestrator.cs\r\n- /src/Agent/PolicyResolver.cs\r\n- /src/Agent/ToolRegistry.cs\r\n- /src/Agent/Diagnostics.cs\r\n- /src/Agent/Memory.cs\r\n\r\nProduce a **5-step refactor plan** that is:\r\n- concise\r\n- ordered\r\n- deterministic\r\n- free of hallucinated files\r\n\r\n## Step 4 \u2014 Long-Context Retention\r\nRepeat back the filenames from Step 3 **in the same order**, inside a JSON array.\r\n\r\n## Step 5 \u2014 Error Recovery Simulation\r\nSimulate encountering an invalid tool schema.  \r\nDescribe:\r\n- the error\r\n- the recovery action\r\n- the next safe step\r\n\r\nKeep this under 5 sentences.\r\n\r\n## Step 6 \u2014 Final Deterministic Summary\r\nReturn a final JSON object:\r\n\r\n{\r\n  \u0022benchmark_complete\u0022: true,\r\n  \u0022model_behavior\u0022: \u0022summary of how you performed\u0022,\r\n  \u0022stability_score\u0022: number 0\u2013100\r\n}\r\n\r\nThis JSON must be the last thing in your output.\r\n",
+      "model": "qwen3.8:27b",
+      "durationMs": 327872,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Step 1 - Deterministic JSON\n\n\u0060\u0060\u0060json\n{\n  \u0022model_identity\u0022: \u0022TechToolbox.Agent benchmark responder\u0022,\n  \u0022reasoning_style\u0022: \u0022deterministic, step-ordered, constraint-first\u0022,\n  \u0022expected_failure_modes\u0022: [\u0022context drift on long sequences\u0022, \u0022schema field leakage\u0022, \u0022premature termination under iteration limits\u0022],\n  \u0022confidence\u0022: 0.92\n}\n\u0060\u0060\u0060\n\n## Step 2 - Tool-Call Simulation\n\n\u0060\u0060\u0060json\n{\n  \u0022name\u0022: \u0022apply_patch\u0022,\n  \u0022arguments\u0022: {\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\n  }\n}\n\u0060\u0060\u0060\n\n## Step 3 - Multi-File Refactor Plan\n\n1. Extract shared interfaces (IOrchestrator, IToolResolver) from Orchestrator.cs and PolicyResolver.cs to establish contract boundaries.\n2. Refactor ToolRegistry.cs to consume the new IToolResolver interface, decoupling registration from policy logic.\n3. Move diagnostic emission in Diagnostics.cs behind an IDiagnosticsSink interface so it can be injected into Orchestrator.cs without a hard dependency.\n4. Consolidate state management in Memory.cs to expose a typed IMemoryStore, then wire it into Orchestrator.cs as the single source of session state.\n5. Update PolicyResolver.cs to resolve policies via the new interfaces and remove residual direct references to concrete types, completing the decoupling.\n\n## Step 4 - Long-Context Retention\n\n\u0060\u0060\u0060json\n[\u0022Orchestrator.cs\u0022, \u0022PolicyResolver.cs\u0022, \u0022ToolRegistry.cs\u0022, \u0022Diagnostics.cs\u0022, \u0022Memory.cs\u0022]\n\u0060\u0060\u0060\n\n## Step 5 - Error Recovery Simulation\n\nThe error is a schema validation failure: the tool definition references a required parameter that is missing from the arguments object. The recovery action is to log the mismatch, discard the malformed call, and re-emit the tool invocation with the corrected argument shape. The next safe step is to validate the corrected payload against the schema before dispatching it to the executor.\n\n## Step 6 - Final Deterministic Summary\n\n\u0060\u0060\u0060json\n{\n  \u0022benchmark_complete\u0022: true,\n  \u0022model_behavior\u0022: \u0022Completed all six steps in order with valid JSON, no hallucinated files, and consistent constraint adherence.\u0022,\n  \u0022stability_score\u0022: 94\n}\n\u0060\u0060\u0060",
+      "runSummary": {
+        "intent": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step re...",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-15T17:53:42.971896+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step reasoning consistency\r\n4. Long-context retention\r\n5. Multi-file refactoring capability\r\n6. Error recovery behavior\r\n7. Iteration loop predictability\r\n8. Structured output discipline\r\n\r\nFollow these exact steps:\r\n\r\n## Step 1 \u2014 Deterministic JSON\r\nReturn a JSON object with the following fields:\r\n- model_identity: string\r\n- reasoning_style: short description\r\n- expected_failure_modes: array of strings\r\n- confidence: number 0\u20131\r\n\r\nThe JSON must be valid, minimal, and contain **no extra fields**.\r\n\r\n## Step 2 \u2014 Tool-Call Simulation\r\nSimulate a function call using this schema:\r\n\r\n{\r\n  \u0022name\u0022: \u0022apply_patch\u0022,\r\n  \u0022arguments\u0022: {\r\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\r\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\r\n  }\r\n}\r\n\r\nReturn ONLY the function call object. No prose.\r\n\r\n## Step 3 \u2014 Multi-File Refactor Plan\r\nGiven the following virtual project:\r\n\r\n- /src/Agent/Orchestrator.cs\r\n- /src/Agent/PolicyResolver.cs\r\n- /src/Agent/ToolRegistry.cs\r\n- /src/Agent/Diagnostics.cs\r\n- /src/Agent/Memory.cs\r\n\r\nProduce a **5-step refactor plan** that is:\r\n- concise\r\n- ordered\r\n- deterministic\r\n- free of hallucinated files\r\n\r\n## Step 4 \u2014 Long-Context Retention\r\nRepeat back the filenames from Step 3 **in the same order**, inside a JSON array.\r\n\r\n## Step 5 \u2014 Error Recovery Simulation\r\nSimulate encountering an invalid tool schema.  \r\nDescribe:\r\n- the error\r\n- the recovery action\r\n- the next safe step\r\n\r\nKeep this under 5 sentences.\r\n\r\n## Step 6 \u2014 Final Deterministic Summary\r\nReturn a final JSON object:\r\n\r\n{\r\n  \u0022benchmark_complete\u0022: true,\r\n  \u0022model_behavior\u0022: \u0022summary of how you performed\u0022,\r\n  \u0022stability_score\u0022: number 0\u2013100\r\n}\r\n\r\nThis JSON must be the last thing in your output.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 72450,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Step 1 \u2014 Deterministic JSON\n\u0060\u0060\u0060json\n{\n  \u0022model_identity\u0022: \u0022TechToolbox.Agent\u0022,\n  \u0022reasoning_style\u0022: \u0022Deterministic logic with strict schema adherence and structured output discipline.\u0022,\n  \u0022expected_failure_modes\u0022: [\n    \u0022JSON parsing errors due to trailing commas or missing fields\u0022,\n    \u0022Hallucination of non-existent files during refactoring\u0022\n  ],\n  \u0022confidence\u0022: 0.95\n}\n\u0060\u0060\u0060\n\n## Step 2 \u2014 Tool-Call Simulation\n\u0060\u0060\u0060json\n{\n  \u0022name\u0022: \u0022apply_patch\u0022,\n  \u0022arguments\u0022: {\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\n  }\n}\n\u0060\u0060\u0060\n\n## Step 3 \u2014 Multi-File Refactor Plan\n1. **Dependency Injection**: Update \u0060Orchestrator.cs\u0060 to inject dependencies into \u0060PolicyResolver.cs\u0060, decoupling instantiation logic.\n2. **Interface Extraction**: Define an interface in \u0060ToolRegistry.cs\u0060 for tool registration, allowing \u0060PolicyResolver.cs\u0060 to interact with tools abstractly.\n3. **Logging Standardization**: Refactor \u0060Diagnostics.cs\u0060 to use a unified logging provider across the module for consistent traceability.\n4. **Memory Optimization**: Implement a TTL-based cache in \u0060Memory.cs\u0060 to optimize trend summary retrieval and reduce redundant processing.\n5. **Configuration Externalization**: Move hardcoded settings from \u0060Orchestrator.cs\u0060 to an external configuration file loaded by \u0060PolicyResolver.cs\u0060.\n\n## Step 4 \u2014 Long-Context Retention\n\u0060\u0060\u0060json\n[\n  \u0022/src/Agent/Orchestrator.cs\u0022,\n  \u0022/src/Agent/PolicyResolver.cs\u0022,\n  \u0022/src/Agent/ToolRegistry.cs\u0022,\n  \u0022/src/Agent/Diagnostics.cs\u0022,\n  \u0022/src/Agent/Memory.cs\u0022\n]\n\u0060\u0060\u0060\n\n## Step 5 \u2014 Error Recovery Simulation\n**Error**: Invalid tool schema detected (missing required \u0027file\u0027 parameter).\n**Recovery Action**: Log the error and request corrected input from the user.\n**Next Safe Step**: Retry the operation with a validated JSON payload matching the expected schema.\n\n## Step 6 \u2014 Final Deterministic Summary\n\u0060\u0060\u0060json\n{\n  \u0022benchmark_complete\u0022: true,\n  \u0022model_behavior\u0022: \u0022Successfully executed all six benchmark steps while maintaining strict adherence to output contracts and formatting constraints.\u0022,\n  \u0022stability_score\u0022: 98\n}\n\u0060\u0060\u0060",
+      "runSummary": {
+        "intent": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step re...",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
-  "memoryIndex": {
-    "not": {
-      "keyword": "not",
-      "value": "Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.7799999999904509,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7433922\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "WRITE-FILE"
-      ]
-    },
-    "return": {
-      "keyword": "return",
-      "value": "Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.7799999999968062,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434554\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "WRITE-FILE"
-      ]
-    },
-    "final": {
-      "keyword": "final",
-      "value": "Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.7799999999967632,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434557\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "WRITE-FILE"
-      ]
-    },
-    "answer": {
-      "keyword": "answer",
-      "value": "Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.7799999999967524,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434559\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "WRITE-FILE"
-      ]
-    },
-    "until": {
-      "keyword": "until",
-      "value": "Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.7799999999967739,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434564\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "WRITE-FILE"
-      ]
-    },
-    "WRITE-FILE": {
-      "keyword": "WRITE-FILE",
-      "value": "Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.77999999999686,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434574\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "WRITE-FILE"
-      ]
-    },
-    "gpt-5": {
-      "keyword": "gpt-5",
-      "value": "gpt-5.3-codex",
-      "sourceType": "fact",
-      "confidence": 0.7799999999976664,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434651\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "gpt-5",
-        "3-codex"
-      ]
-    },
-    "3-codex": {
-      "keyword": "3-codex",
-      "value": "gpt-5.3-codex",
-      "sourceType": "fact",
-      "confidence": 0.7799999999976558,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434653\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "gpt-5",
-        "3-codex"
-      ]
-    },
-    "repos": {
-      "keyword": "repos",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
-      "sourceType": "fact",
-      "confidence": 0.8299999999983064,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434725\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Reasoning"
-      ]
-    },
-    "TechToolbox": {
-      "keyword": "TechToolbox",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
-      "sourceType": "fact",
-      "confidence": 0.9999999999980561,
-      "frequency": 2,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434734\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Reasoning"
-      ]
-    },
-    "src": {
-      "keyword": "src",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
-      "sourceType": "fact",
-      "confidence": 0.8299999999983179,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434731\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Reasoning"
-      ]
-    },
-    "Agent": {
-      "keyword": "Agent",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
-      "sourceType": "fact",
-      "confidence": 0.8299999999983636,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434737\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Reasoning"
-      ]
-    },
-    "Reasoning": {
-      "keyword": "Reasoning",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
-      "sourceType": "fact",
-      "confidence": 0.8299999999983293,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-15T03:19:46.7434740\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Reasoning"
-      ]
-    }
-  },
+  "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-15T03:19:46.7435364\u002B00:00",
-    "totalPreferences": 1,
+    "generatedUtc": "2026-08-15T17:53:42.9729004\u002B00:00",
+    "totalPreferences": 0,
     "totalFacts": 9,
-    "indexEntries": 13,
-    "averageConfidence": 0.812,
+    "indexEntries": 0,
+    "averageConfidence": 0,
     "deprecatedEntries": 0,
-    "health": "healthy",
+    "health": "low",
     "notes": [
-      "Preferences tracked: 1",
+      "Preferences tracked: 0",
       "Facts tracked: 9",
-      "Index entries: 13"
+      "Index entries: 0"
     ]
   },
   "_memoryFormatVersion": 2
