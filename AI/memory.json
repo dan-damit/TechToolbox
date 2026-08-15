@@ -1,6 +1,5 @@
 {
   "preferences": {
-    "pref.do-not-document-nested-helper-functi.846194e2": "Do not document nested helper functions unless the existing style clearly expects it",
     "pref.updating-an-existing-nearby-test-fil.ce1b5a3c": "updating an existing nearby test file if one already covers the same area",
     "pref.changing-production-code-unless-a-sm.316d887c": "changing production code unless a small supporting change is necessary and justified",
     "pref.do-not-change-the-production-code-un.fcdbb4c4": "Do NOT change the production code unless a small supporting change is necessary and justified",
@@ -11,7 +10,8 @@
     "pref.that-fetch-tool-or-search-web-to-gat.40b12d78": "that FETCH-TOOL or SEARCH-WEB to gather results",
     "pref.search-web-and-fetch-url-over-memory.368df598": "SEARCH-WEB and FETCH-URL over memory-based answers when the user asks a factual, informational, or external question",
     "pref.search-web-and-fetch-url-when-the-us.a4283bfc": "SEARCH-WEB and FETCH-URL when the user",
-    "pref.unrelated-changes.6c1986ca": "unrelated changes"
+    "pref.unrelated-changes.6c1986ca": "unrelated changes",
+    "pref.robotic-phrasing.eebb95d4": "robotic phrasing"
   },
   "facts": {
     "moduleRoot": "$env:TT_Home",
@@ -19,27 +19,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.9,
-      "avgDurationMs": 18056,
-      "avgToolCalls": 2.15,
+      "successRate": 0.85,
+      "avgDurationMs": 99592,
+      "avgToolCalls": 2.4,
       "statusCounts": {
-        "success": 18,
-        "error": 2
+        "success": 17,
+        "error": 3
       },
       "outcomeCounts": {
-        "completed": 18,
+        "completed": 17,
         "iteration-limit": 1,
-        "llm-failure": 1
+        "llm-failure": 2
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "gpt-5.3-codex",
-      "lastRunTimestampUtc": "2026-08-14T17:47:10.8042834\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-14T17:47:10.8055065\u002B00:00",
-      "avgPromptPreflightScore": 66,
+      "lastModel": "qwen3.6:35b",
+      "lastRunTimestampUtc": "2026-08-15T00:04:08.5066433\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-15T00:04:08.5076302\u002B00:00",
+      "avgPromptPreflightScore": 65,
       "executionModeCounts": {
-        "execute": 7,
-        "chat": 13
+        "chat": 15,
+        "execute": 5
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-14T17:47:10.8055267\u002B00:00",
+      "generatedUtc": "2026-08-15T00:04:08.5076498\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 6,
       "indexEntries": 0,
@@ -67,312 +67,6 @@
     }
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-14T03:47:13.1675672+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: execute only bounded steps and avoid unrelated changes.",
-      "model": "qwen3.6:35b",
-      "durationMs": 134177,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "fetch_url",
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "## Weather Forecast for Washington, DC\n\n**Generated At:** 2026-08-14T03:45:57Z\n\n### Tonight\n- **Conditions:** Mostly Cloudy\n- **Temperature:** Low around 74\u00B0F\n- **Wind:** North wind around 2 mph\n- **Precipitation:** 7% chance\n\n### Friday, August 14\n- **Conditions:** Mostly Cloudy then Slight Chance Showers And Thunderstorms\n- **Temperature:** High near 88\u00B0F\n- **Wind:** Northeast wind around 5 mph\n- **Precipitation:** 30% chance (Rainfall amounts less than a tenth of an inch possible)\n\n### Friday Night, August 14\n- **Conditions:** Chance Showers And Thunderstorms\n- **Temperature:** Low around 72\u00B0F\n- **Wind:** Northeast wind around 3 mph\n- **Precipitation:** 40% chance (Rainfall amounts between a tenth and quarter of an inch possible)\n\n### Saturday, August 15\n- **Conditions:** Chance Rain Showers\n- **Temperature:** High near 87\u00B0F\n- **Wind:** Northeast wind around 6 mph\n- **Precipitation:** 40% chance (Rainfall amounts less than a tenth of an inch possible)\n\n### Saturday Night, August 15\n- **Conditions:** Mostly Cloudy then Chance Rain Showers\n- **Temperature:** Low around 71\u00B0F\n- **Wind:** Southeast wind 2 to 6 mph\n- **Precipitation:** 40% chance",
-      "runSummary": {
-        "intent": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: execute only boun...",
-        "actionsTaken": [
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T03:52:34.3989626+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Check weather for Green Bay, Wisconsin, USA. Fetch the forecast from the official weather website and output a markdown summary for the next 3 days forcast.",
-      "model": "qwen3.6:35b",
-      "durationMs": 94064,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "## Weather Forecast for Green Bay, Wisconsin\n\n**Data Source:** National Weather Service (NWS)\n**Generated At:** August 14, 2026\n\n### Next 3 Days Forecast\n\n#### Friday, August 14\n- **Condition:** Partly Sunny\n- **High:** 84\u00B0F\n- **Wind:** East 5 to 15 mph\n- **Precipitation Chance:** 7%\n\n#### Saturday, August 15\n- **Condition:** Slight Chance of Rain Showers (before 1pm)\n- **High:** 81\u00B0F\n- **Low:** 63\u00B0F (Saturday Night)\n- **Wind:** South Southeast around 5 mph\n- **Precipitation Chance:** 20%\n- **Note:** New rainfall amounts between a tenth and quarter of an inch possible.\n\n#### Sunday, August 16\n- **Condition:** Mostly Sunny\n- **High:** 81\u00B0F\n- **Low:** 56\u00B0F (Sunday Night)\n- **Wind:** North Northwest 5 to 10 mph\n- **Precipitation Chance:** 5%",
-      "runSummary": {
-        "intent": "Check weather for Green Bay, Wisconsin, USA. Fetch the forecast from the official weather website and output a markdown summary for the next 3 days forcast.",
-        "actionsTaken": [
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 80,
-      "promptPreflightWarningCount": 1,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T16:56:28.7235278+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Check Weather",
-      "model": "gpt-4o-mini",
-      "durationMs": 2670,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
-      "runSummary": {
-        "intent": "Check Weather",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-14T16:57:49.3731811+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Check Weather",
-      "model": "gpt-4o-mini",
-      "durationMs": 1714,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
-      "runSummary": {
-        "intent": "Check Weather",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-14T16:58:10.2986234+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: respect mode \u0027chat\u0027.",
-      "model": "gpt-4o-mini",
-      "durationMs": 2515,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "search_web"
-      ],
-      "outputPreview": "- I am unable to fetch the weather forecast due to a technical limitation. \n- You can check the weather forecast by visiting an official weather website such as weather.com or the National Weather Service at weather.gov.",
-      "runSummary": {
-        "intent": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: respect mode \u0027cha...",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T16:59:15.9729536+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: respect mode \u0027chat\u0027.",
-      "model": "gpt-4o-mini",
-      "durationMs": 3804,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "search_web"
-      ],
-      "outputPreview": "Unable to fetch the current weather forecast due to a tool limitation. Please specify a location, and I can guide you on how to check the weather using an official weather website.",
-      "runSummary": {
-        "intent": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: respect mode \u0027cha...",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T17:00:59.8465361+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "fetch the weather for Green Bay wisconsin from the official website, return the final answer in markdown.",
-      "model": "gpt-4o-mini",
-      "durationMs": 4195,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "search_web"
-      ],
-      "outputPreview": "Unable to retrieve the weather forecast for Green Bay, Wisconsin due to tool limitations. Please check a reliable weather website or app for the latest updates.",
-      "runSummary": {
-        "intent": "fetch the weather for Green Bay wisconsin from the official website, return the final answer in markdown.",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 80,
-      "promptPreflightWarningCount": 1,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T17:02:36.5619705+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "fetch the weather for Green Bay wisconsin from the official website, return the final answer in markdown. If you run into a tool limitation, please specify the limitation.",
-      "model": "gpt-4o-mini",
-      "durationMs": 3955,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "search_web"
-      ],
-      "outputPreview": "Unable to fetch the weather forecast for Green Bay, Wisconsin, due to a tool limitation. Please check an official weather website for the latest updates.",
-      "runSummary": {
-        "intent": "fetch the weather for Green Bay wisconsin from the official website, return the final answer in markdown. If you run into a tool limitation, please specify the limitation.",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 80,
-      "promptPreflightWarningCount": 1,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T17:20:03.4471304+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: respect mode \u0027chat\u0027.",
-      "model": "gpt-4o-mini",
-      "durationMs": 3702,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "search_web"
-      ],
-      "outputPreview": "Unable to retrieve the weather forecast for Green Bay, Wisconsin, due to a tool limitation. Please check an official weather website like the National Weather Service or Weather.com for the latest updates.",
-      "runSummary": {
-        "intent": "fetch the weather forecast for the specified location from the official weather website. Use only the minimum required tools and keep the scope bounded. Return the final answer in markdown. Constraints: respect mode \u0027cha...",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T17:22:56.2292484+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "fetch the weather for Green Bay wisconsin for the next three days from today from the official website, return the final answer in markdown. If you run into a tool limitation, please specify the limitation.",
-      "model": "gpt-4o-mini",
-      "durationMs": 3020,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "search_web"
-      ],
-      "outputPreview": "Unable to fetch the weather forecast for Green Bay, Wisconsin due to a tool limitation. Please check an official weather website for the latest information.",
-      "runSummary": {
-        "intent": "fetch the weather for Green Bay wisconsin for the next three days from today from the official website, return the final answer in markdown. If you run into a tool limitation, please specify the limitation.",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 80,
-      "promptPreflightWarningCount": 1,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-14T17:23:24.915377+00:00",
       "status": "success",
@@ -701,11 +395,315 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-14T23:04:57.1649167+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Fully activate all chat-mode conversational systems implemented in\r\nChatModeOrchestration.cs. Use every module intentionally and aggressively\r\nduring this run.\r\n\r\nYou MUST apply the following modules every turn:\r\n\r\n1. Persona Layer\r\n   - Maintain the stable persona defined in DefaultPersona.\r\n   - Use friendly, direct, technically competent tone.\r\n   - Keep pacing steady and non-rushed.\r\n   - Maintain calm, confident emotional temperature.\r\n   - Use medium assertiveness.\r\n   - Ask clarifying questions when needed.\r\n   - Use light optional humor.\r\n   - Increase technical depth when user is technical.\r\n\r\n2. Intent Decomposition\r\n   - Extract explicit, implicit, and latent intent from the user prompt.\r\n   - Identify constraints and contextual signals.\r\n   - Compute ambiguity and risk levels.\r\n   - Detect mixed intent and operational intent.\r\n\r\n3. Conversation Compass\r\n   - Choose the correct conversational action:\r\n     Clarify, Answer, Propose, Challenge, Summarize, Escalate, or Close.\r\n\r\n4. Conversational Goal\r\n   - Set a goal for the turn:\r\n     Clarify, Inform, Solve, Reassure, Challenge, Redirect, Escalate, Close.\r\n\r\n5. Response Strategy\r\n   - Choose Answer-First or Act-First based on intent and compass.\r\n\r\n6. Tool Hesitation Curve\r\n   - Evaluate hesitation level (Low, Medium, High).\r\n   - If Medium or High, ask the clarification prompt before acting.\r\n   - Only act-first when intent is concrete and risk is low.\r\n\r\n7. Continuity Context\r\n   - Retrieve unresolved questions, preferences, frustrations, successes, warnings.\r\n   - Use them to maintain conversational continuity.\r\n\r\n8. Micro-Context Windows\r\n   - Build topic, preference, constraint, tool, and emotion windows.\r\n   - Use them to shape the response.\r\n\r\n9. Style Controls\r\n   - Adjust verbosity, depth, directness, and question-asking tendency.\r\n\r\n10. Output Contract Adaptation\r\n   - Preserve contract-safe formatting.\r\n   - Wrap answers in natural conversational language.\r\n   - Avoid robotic phrasing.\r\n\r\n11. Failure Handling\r\n   - If ambiguity is high, ask a clarifying question.\r\n   - If risk is high, escalate or challenge.\r\n   - If nearing iteration limits, produce a progress checkpoint.\r\n\r\nYour objective:\r\n- Produce the most natural, technically competent, context-aware conversational\r\n  response possible.\r\n- Use all modules intentionally.\r\n- Do not skip any module.\r\n- Do not fall back to generic chat behavior.\r\n- Lean into the architecture aggressively.\r\n\r\nEnd of directive.\r\n",
+      "model": "qwen3.6:35b",
+      "durationMs": 146111,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "I have fully activated the chat-mode orchestration systems as requested. All modules are engaged\u2014Persona Layer, Intent Decomposition, Conversation Compass, and Continuity Context\u2014and I am ready to proceed with high technical depth.\n\nI\u0027ve noted your preferences regarding code changes, documentation, and avoiding previous failure patterns like iteration limits. How can I help you today?",
+      "runSummary": {
+        "intent": "Fully activate all chat-mode conversational systems implemented in\r\nChatModeOrchestration.cs. Use every module intentionally and aggressively\r\nduring this run.\r\n\r\nYou MUST apply the following modules every turn:\r\n\r\n1. Pe...",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T23:12:37.7311983+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How is the Weather in Belfast Ireland at the present moment?",
+      "model": "qwen3.6:35b",
+      "durationMs": 44212,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
+      "runSummary": {
+        "intent": "How is the Weather in Belfast Ireland at the present moment?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T23:14:30.002133+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer.",
+      "model": "qwen3.6:35b",
+      "durationMs": 50796,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Mitigate at least one warning and provide a concrete target path or service so execution can remain bounded.",
+      "runSummary": {
+        "intent": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T23:15:30.1637362+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website.",
+      "model": "qwen3.6:35b",
+      "durationMs": 37943,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "I can proceed, but do you want a quick explanation first or should I run a targeted lookup now?",
+      "runSummary": {
+        "intent": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T23:16:31.3577868+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "you can run the targeted lookup now.",
+      "model": "qwen3.6:35b",
+      "durationMs": 27742,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
+      "runSummary": {
+        "intent": "you can run the targeted lookup now.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T23:17:34.9156461+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+      "model": "qwen3.6:35b",
+      "durationMs": 39790,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "I can proceed, but do you want a quick explanation first or should I run a targeted lookup now?",
+      "runSummary": {
+        "intent": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T23:30:38.2252556+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+      "model": "qwen3.6:35b",
+      "durationMs": 402171,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "search_web"
+      ],
+      "outputPreview": "## Weather Report for Belfast, Ireland\n\n**Source:** https://weather.gov (National Weather Service)\n\n### Summary\nAfter searching the National Weather Service website (\u0060https://weather.gov\u0060) for current weather data in **Belfast, Northern Ireland**, no results were found.\n\nThe National Weather Service is a United States government agency that provides weather forecasts and warnings specifically for:\n- The 50 US states\n- Washington D.C.\n- US territories (e.g., Puerto Rico, Guam)\n\n### Findings on the Requested Website\n1. **Geographic Scope:** \u0060weather.gov\u0060 does not host current meteorological data for international locations like Belfast, Ireland.\n2. **Search Results:** The only \u0022Belfast\u0022 listed in their database is located in **Maine (ME)** (coordinates 44.42\u00B0N 69.03\u00B0W).\n\n### Conclusion\nThe requested website does not contain the current weather information for Belfast, Ireland because it falls outside its operational jurisdiction.\n\n-\u003E *Note: For accurate real-time weather in Northern Ireland, please consult a local source such as Met \u00C9ireann or the UK Met Office.*",
+      "runSummary": {
+        "intent": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-14T23:52:07.7129466+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "How is the Weather in Green Bay, Wisconsin at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+      "model": "qwen3.6:35b",
+      "durationMs": 825926,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "search_web",
+        "fetch_url"
+      ],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
+      "runSummary": {
+        "intent": "How is the Weather in Green Bay, Wisconsin at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-15T00:00:16.5406808+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How is the Weather in Green Bay, Wisconsin at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+      "model": "qwen3.6:35b",
+      "durationMs": 219539,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "search_web"
+      ],
+      "outputPreview": "## Current Weather in Green Bay, Wisconsin\n\n**Date:** August 14, 2026\n\n### Conditions\n- **Sky:** Clouds are increasing across the area today.\n- **Temperature:** High near 77 to 82 degrees Fahrenheit.\n- **Precipitation:** A 15% to 20% chance of rain late tonight. Showers possible on Saturday with a chance for thunderstorms Saturday night.\n\n### Wind\n- Calm in the morning, becoming east at 5 to 8 mph.",
+      "runSummary": {
+        "intent": "How is the Weather in Green Bay, Wisconsin at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-15T00:04:08.5066433+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "How is the Weather in Green Bay, Wisconsin at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+      "model": "qwen3.6:35b",
+      "durationMs": 90317,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "## Current Weather in Green Bay, Wisconsin\n\nBased on data from the National Weather Service (KGRB station):\n\n- **Conditions**: Clear skies\n- **Temperature**: ~72\u00B0F (22\u00B0C)\n- **Wind**: East-Southeast at ~5 mph (7 km/h)\n- **Humidity**: 53%\n- **Visibility**: 10 miles (16 km)\n- **Dewpoint**: 54\u00B0F (12\u00B0C)",
+      "runSummary": {
+        "intent": "How is the Weather in Green Bay, Wisconsin at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-14T17:47:10.8056478\u002B00:00",
+    "generatedUtc": "2026-08-15T00:04:08.5077460\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 6,
     "indexEntries": 0,

@@ -120,7 +120,10 @@ public class MemoryLearnerTests
                 memory.Facts.Values.OfType<string>(),
                 v => v.Contains("gpt-5.3-codex", StringComparison.OrdinalIgnoreCase)
             );
-            Assert.True(memory.MemoryIndex.Any(kvp => kvp.Key.Contains("markdown", StringComparison.OrdinalIgnoreCase)));
+            Assert.Contains(
+                memory.MemoryIndex.Keys,
+                k => k.Contains("markdown", StringComparison.OrdinalIgnoreCase)
+            );
         }
         finally
         {

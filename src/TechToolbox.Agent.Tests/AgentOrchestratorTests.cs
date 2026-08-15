@@ -80,10 +80,132 @@ public class AgentOrchestratorTests
         Assert.Contains("- initial iteration_limit used: 1", result.OutputText);
         Assert.Contains("- retry iteration_limit used: 6", result.OutputText);
         Assert.Contains("- auto-retry attempts: 1", result.OutputText);
+        Assert.Contains("Progress checkpoint:", result.OutputText);
         Assert.Equal(0, result.ToolCallCount);
         Assert.Empty(result.ToolNames);
         Assert.True(result.RetriedOnIterationLimit);
         Assert.False(result.RetrySucceeded);
+    }
+
+    [Fact]
+    public async Task RunAsync_ChatMode_InjectsChatOrchestrationContext()
+    {
+        var llm = new RecordingFakeLlmClient(new[] { FinalDecision("Done") });
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            new Dictionary<string, Func<string, Task<string>>>(StringComparer.OrdinalIgnoreCase),
+            maxIterations: 3,
+            autoRetry: false,
+            executionMode: "chat"
+        );
+
+        var result = await orchestrator.RunAsync("Please help me plan next steps for this migration.");
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Single(llm.MessageSnapshots);
+        var contextMessage = llm.MessageSnapshots[0].FirstOrDefault(m =>
+            m.Content.Contains("CHAT_ORCHESTRATION_CONTEXT", StringComparison.Ordinal));
+
+        Assert.NotNull(contextMessage);
+        Assert.Contains("Intent Decomposition", contextMessage!.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Conversation Compass", contextMessage.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Style Controls", contextMessage.Content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_ChatMode_HighHesitation_BlocksPrematureToolUse()
+    {
+        var llm = new FakeLlmClient(new[] { ToolDecision("SEARCH-WEB") });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["SEARCH-WEB"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            tools,
+            maxIterations: 3,
+            autoRetry: false,
+            executionMode: "chat"
+        );
+
+        var result = await orchestrator.RunAsync("help me with this");
+
+        Assert.Contains("Do you want me to analyze this, plan something, or execute something?", result.OutputText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, result.ToolCallCount);
+        Assert.Empty(result.ToolNames);
+    }
+
+    [Fact]
+    public async Task RunAsync_ChatMode_MediumHesitation_RequestsClarificationBeforeToolUse()
+    {
+        var llm = new FakeLlmClient(new[] { ToolDecision("SEARCH-WEB") });
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["SEARCH-WEB"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            tools,
+            maxIterations: 3,
+            autoRetry: false,
+            executionMode: "chat"
+        );
+
+        var result = await orchestrator.RunAsync(
+            "Can you fetch release notes and summarize the main changes?"
+        );
+
+        Assert.Contains(
+            "I can proceed, but do you want a quick explanation first or should I run a targeted lookup now?",
+            result.OutputText,
+            StringComparison.OrdinalIgnoreCase
+        );
+        Assert.Equal(0, result.ToolCallCount);
+        Assert.Empty(result.ToolNames);
+    }
+
+    [Fact]
+    public async Task RunAsync_ChatMode_MediumHesitation_WithExplicitWebTarget_AllowsToolUse()
+    {
+        var llm = new FakeLlmClient(
+            new[]
+            {
+                ToolDecision("SEARCH-WEB", "query", "weather Belfast site:weather.gov"),
+                FinalDecision("Done"),
+            }
+        );
+
+        var tools = new Dictionary<string, Func<string, Task<string>>>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["SEARCH-WEB"] = _ => Task.FromResult("ok"),
+        };
+
+        var orchestrator = CreateOrchestrator(
+            llm,
+            tools,
+            maxIterations: 4,
+            autoRetry: false,
+            executionMode: "chat"
+        );
+
+        var result = await orchestrator.RunAsync(
+            "How is the weather in Belfast right now? Use https://weather.gov and summarize briefly."
+        );
+
+        Assert.Equal("Done", result.OutputText);
+        Assert.Equal(1, result.ToolCallCount);
+        Assert.Contains("SEARCH-WEB", result.ToolNames);
     }
 
     [Fact]

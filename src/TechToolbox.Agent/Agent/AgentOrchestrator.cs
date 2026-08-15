@@ -219,7 +219,11 @@ public partial class AgentOrchestrator
 
             return FinalizeResult(
                 prompt,
-                BuildIterationLimitMessage(_maxIterations, retryIterations),
+                BuildIterationLimitMessage(
+                    _maxIterations,
+                    retryIterations,
+                    retryAttempt.ProgressCheckpoint
+                ),
                 [],
                 stopwatch.ElapsedMilliseconds,
                 status: "error",
@@ -234,7 +238,7 @@ public partial class AgentOrchestrator
         stopwatch.Stop();
         return FinalizeResult(
             prompt,
-            BuildIterationLimitMessage(_maxIterations),
+            BuildIterationLimitMessage(_maxIterations, checkpoint: attempt.ProgressCheckpoint),
             [],
             stopwatch.ElapsedMilliseconds,
             status: "error",
@@ -272,6 +276,7 @@ public partial class AgentOrchestrator
         var requiresWriteFile = !string.IsNullOrWhiteSpace(expectedOutputPath);
         var writeFileCompleted = false;
         var writeFinalizeRequired = false;
+        ChatTurnPlan? chatTurnPlan = null;
         var preflightRisk = _heuristicScoringEngine.EvaluatePreflightRisk(
             prompt,
             new PreflightSignalSnapshot(
@@ -295,6 +300,21 @@ public partial class AgentOrchestrator
 
         for (int i = 0; i < iterationLimit; i++)
         {
+            if (string.Equals(_executionMode, "chat", StringComparison.OrdinalIgnoreCase))
+            {
+                chatTurnPlan = ChatModeOrchestration.BuildTurnPlan(
+                    prompt,
+                    _memory,
+                    messages,
+                    toolNames,
+                    recentToolFailures,
+                    _promptPreflightScore,
+                    _promptPreflightWarningCount,
+                    _promptPreflightCriticalCount
+                );
+                UpsertChatOrchestrationContext(messages, chatTurnPlan);
+            }
+
             Trace($"Iteration {i + 1}/{iterationLimit} start messages={messages.Count}");
 
             // Create incremental validator and call LLM with streaming
@@ -748,6 +768,83 @@ public partial class AgentOrchestrator
                 );
             }
 
+            if (string.Equals(_executionMode, "chat", StringComparison.OrdinalIgnoreCase) && chatTurnPlan is not null)
+            {
+                if (decision.NeedsTool)
+                {
+                    if (chatTurnPlan.CompassAction == ConversationCompassAction.Escalate)
+                    {
+                        Trace(
+                            $"Iteration {i + 1} blocked tool call due to chat compass escalation."
+                        );
+                        return new RunLoopResult(
+                            "This request looks high-risk. Before I run tools, please confirm the exact safe objective and constraints you want me to follow.",
+                            ReachedIterationLimit: false
+                        );
+                    }
+
+                    if (chatTurnPlan.CompassAction == ConversationCompassAction.Challenge)
+                    {
+                        Trace(
+                            $"Iteration {i + 1} challenged tool call due to chat compass challenge action."
+                        );
+                        return new RunLoopResult(
+                            "Before I act, can we tighten scope? Please provide one concrete target and one success criterion so I can avoid guesswork.",
+                            ReachedIterationLimit: false
+                        );
+                    }
+
+                    if (chatTurnPlan.CompassAction == ConversationCompassAction.Clarify)
+                    {
+                        Trace(
+                            $"Iteration {i + 1} requested clarification because chat compass action is Clarify."
+                        );
+                        return new RunLoopResult(
+                            "Do you want me to analyze this, plan something, or execute something?",
+                            ReachedIterationLimit: false
+                        );
+                    }
+                }
+
+                var hesitation = chatTurnPlan.Hesitation;
+                if (hesitation.Level == ToolHesitationLevel.High)
+                {
+                    var clarification = string.IsNullOrWhiteSpace(hesitation.ClarificationPrompt)
+                        ? "Before I run tools, should I focus on analysis, planning, or a concrete execution step?"
+                        : hesitation.ClarificationPrompt;
+
+                    Trace(
+                        $"Iteration {i + 1} blocked tool call due to high chat hesitation score={hesitation.Score}."
+                    );
+                    return new RunLoopResult(
+                        clarification,
+                        ReachedIterationLimit: false
+                    );
+                }
+
+                if (hesitation.Level == ToolHesitationLevel.Medium)
+                {
+                    if (ShouldClarifyForMediumHesitation(prompt, decision))
+                    {
+                        var nudge = string.IsNullOrWhiteSpace(hesitation.ClarificationPrompt)
+                            ? "I can run a quick lookup now, but do you want a short explanation first?"
+                            : hesitation.ClarificationPrompt;
+
+                        Trace(
+                            $"Iteration {i + 1} requested clarification due to medium chat hesitation score={hesitation.Score}."
+                        );
+                        return new RunLoopResult(
+                            nudge,
+                            ReachedIterationLimit: false
+                        );
+                    }
+
+                    Trace(
+                        $"Iteration {i + 1} allowed tool call despite medium hesitation because target appears concrete."
+                    );
+                }
+            }
+
             var toolName = decision.ToolName ?? string.Empty;
 
             if (!string.Equals(_executionMode, "execute", StringComparison.OrdinalIgnoreCase))
@@ -778,6 +875,26 @@ public partial class AgentOrchestrator
             if (!_tools.TryGetValue(toolName, out var toolFunc))
             {
                 Trace($"Iteration {i + 1} tool not found: {toolName}");
+
+                if (ShouldReturnAmbiguityClarification(prompt, decision))
+                {
+                    return new RunLoopResult(
+                        "I need clarification before selecting the next action. Please provide exactly one value for the primary target (for example a file path, URL, service name, or query).",
+                        ReachedIterationLimit: false
+                    );
+                }
+
+                if (heuristicEvaluation.NeedsClarification)
+                {
+                    Trace(
+                        $"Iteration {i + 1} returned clarification because requested tool '{toolName}' is unavailable and prompt remains ambiguous."
+                    );
+                    return new RunLoopResult(
+                        heuristicEvaluation.ClarificationMessage,
+                        ReachedIterationLimit: false
+                    );
+                }
+
                 recentToolFailures.Add(toolName);
                 lastFailureTargetHint = currentTargetHint;
 
@@ -962,8 +1079,18 @@ public partial class AgentOrchestrator
             );
         }
 
+        var progressCheckpoint = BuildProgressCheckpoint(
+            toolNames,
+            recentToolFailures,
+            lastFailureTargetHint,
+            iterationLimit
+        );
         Trace($"RunLoop reached iteration limit={iterationLimit}");
-        return new RunLoopResult("Iteration limit reached.", ReachedIterationLimit: true);
+        return new RunLoopResult(
+            "Iteration limit reached.",
+            ReachedIterationLimit: true,
+            ProgressCheckpoint: progressCheckpoint
+        );
     }
 
     private AgentResult FinalizeResult(
@@ -1050,9 +1177,14 @@ public partial class AgentOrchestrator
 
     private static string BuildIterationLimitMessage(
         int initialIterationLimit,
-        int? retryIterationLimit = null
+        int? retryIterationLimit = null,
+        string? checkpoint = null
     )
     {
+        var checkpointBlock = string.IsNullOrWhiteSpace(checkpoint)
+            ? string.Empty
+            : $"{Environment.NewLine}Progress checkpoint:{Environment.NewLine}{checkpoint.Trim()}{Environment.NewLine}";
+
         if (retryIterationLimit.HasValue)
         {
             return $"""
@@ -1068,6 +1200,8 @@ The agent stopped because it reached its internal reasoning/tool-call limit befo
 Next best action:
 - Retry with a narrower prompt or a higher --max-iterations value.
 - If this repeats, inspect tool outputs for loops or missing termination cues.
+
+{checkpointBlock}
 """;
         }
 
@@ -1082,6 +1216,57 @@ The agent stopped because it reached its internal reasoning/tool-call limit befo
 Next best action:
 - Retry with a narrower prompt or a higher --max-iterations value.
 - If this repeats, inspect tool outputs for loops or missing termination cues.
+
+{checkpointBlock}
+""";
+    }
+
+    private static void UpsertChatOrchestrationContext(
+        List<AgentChatMessage> messages,
+        ChatTurnPlan plan
+    )
+    {
+        var context = PromptBuilder.BuildChatOrchestrationMessage(plan);
+        const string contextPrefix = "CHAT_ORCHESTRATION_CONTEXT";
+
+        for (var i = messages.Count - 1; i >= 0; i--)
+        {
+            var msg = messages[i];
+            if (!string.Equals(msg.Role, "system", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (msg.Content.StartsWith(contextPrefix, StringComparison.Ordinal))
+            {
+                messages[i] = context;
+                return;
+            }
+        }
+
+        messages.Insert(1, context);
+    }
+
+    private static string BuildProgressCheckpoint(
+        IReadOnlyList<string> attemptedTools,
+        IReadOnlyList<string> recentToolFailures,
+        string? lastFailureTargetHint,
+        int iterationLimit
+    )
+    {
+        var attempted = attemptedTools.Count == 0
+            ? "none"
+            : string.Join(" -> ", attemptedTools.TakeLast(8));
+        var failures = recentToolFailures.Count == 0
+            ? "none"
+            : string.Join(", ", recentToolFailures.TakeLast(5).Distinct(StringComparer.OrdinalIgnoreCase));
+        var blocker = string.IsNullOrWhiteSpace(lastFailureTargetHint)
+            ? "no specific target hint captured"
+            : lastFailureTargetHint;
+
+        return $"""
+- attempted: {attempted}
+- blocked by: {failures}
+- blocker target hint: {blocker}
+- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: {iterationLimit}).
 """;
     }
 
@@ -1533,6 +1718,81 @@ Next best action:
             || toolName.Equals("FETCH-URL", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool ShouldReturnAmbiguityClarification(string prompt, AgentDecision decision)
+    {
+        if (string.IsNullOrWhiteSpace(prompt) || decision is null)
+            return false;
+
+        var normalized = prompt.Trim().ToLowerInvariant();
+        var isShortAmbiguous = normalized.Length <= 40
+            && (normalized.Contains("help", StringComparison.Ordinal)
+                || normalized.Contains("this", StringComparison.Ordinal)
+                || normalized.Contains("that", StringComparison.Ordinal));
+
+        if (!isShortAmbiguous)
+            return false;
+
+        if (decision.ToolArgs is null || decision.ToolArgs.Count == 0)
+            return true;
+
+        return !TryGetToolArgString(decision.ToolArgs, "path", out _)
+            && !TryGetToolArgString(decision.ToolArgs, "url", out _)
+            && !TryGetToolArgString(decision.ToolArgs, "query", out _)
+            && !TryGetToolArgString(decision.ToolArgs, "target", out _);
+    }
+
+    private static bool ShouldClarifyForMediumHesitation(string prompt, AgentDecision decision)
+    {
+        if (decision is null)
+            return true;
+
+        if (decision.ToolArgs is not null)
+        {
+            if (TryGetToolArgString(decision.ToolArgs, "url", out var urlArg) && !string.IsNullOrWhiteSpace(urlArg))
+                return false;
+
+            if (TryGetToolArgString(decision.ToolArgs, "query", out var queryArg) && !string.IsNullOrWhiteSpace(queryArg))
+                return false;
+
+            if (TryGetToolArgString(decision.ToolArgs, "target", out var targetArg) && !string.IsNullOrWhiteSpace(targetArg))
+                return false;
+
+            if (TryGetToolArgString(decision.ToolArgs, "path", out var pathArg) && !string.IsNullOrWhiteSpace(pathArg))
+                return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(prompt))
+        {
+            if (UrlHintRegex().IsMatch(prompt))
+                return false;
+
+            var normalized = prompt.Trim().ToLowerInvariant();
+            var hasWebTargetWords =
+                normalized.Contains("website", StringComparison.Ordinal)
+                || normalized.Contains("domain", StringComparison.Ordinal)
+                || normalized.Contains("url", StringComparison.Ordinal)
+                || normalized.Contains("weather.gov", StringComparison.Ordinal);
+            var hasFactualOrSearchIntent =
+                normalized.Contains("weather", StringComparison.Ordinal)
+                || normalized.Contains("current", StringComparison.Ordinal)
+                || normalized.Contains("latest", StringComparison.Ordinal)
+                || normalized.Contains("today", StringComparison.Ordinal)
+                || normalized.Contains("now", StringComparison.Ordinal)
+                || normalized.Contains("search", StringComparison.Ordinal)
+                || normalized.Contains("fetch", StringComparison.Ordinal)
+                || normalized.Contains("look up", StringComparison.Ordinal)
+                || normalized.Contains("lookup", StringComparison.Ordinal);
+
+            if (hasWebTargetWords && hasFactualOrSearchIntent)
+                return false;
+
+            if (normalized.Length <= 35)
+                return true;
+        }
+
+        return true;
+    }
+
     private static string? ExtractDecisionTargetHint(AgentDecision decision, string prompt)
     {
         if (decision?.ToolArgs is not null)
@@ -1644,6 +1904,13 @@ Next best action:
                     $"Iteration {iterationNumber} streaming decision failed schema validation: {validationError}"
                 );
                 // Schema invalid, but might improve as more content streams in, so continue
+                return false;
+            }
+
+            // Only stop early for tool decisions. For final answers (needsTool=false),
+            // continue streaming until model completion to avoid truncating content.
+            if (!decision.NeedsTool)
+            {
                 return false;
             }
 
@@ -2154,7 +2421,7 @@ Next best action:
 /// </summary>
 /// <param name="OutputText">The output text produced by the run loop.</param>
 /// <param name="ReachedIterationLimit"><see langword="true"/> when the run loop stopped because it exhausted the iteration budget; otherwise, <see langword="false"/>.</param>
-public record RunLoopResult(string OutputText, bool ReachedIterationLimit);
+public record RunLoopResult(string OutputText, bool ReachedIterationLimit, string ProgressCheckpoint = "");
 
 /// <summary>
 /// Represents the final outcome of an agent run, including output, tool usage, and retry metadata.

@@ -183,6 +183,20 @@ If another tool is still required, set needsTool=true with the exact toolName an
     }
 
     /// <summary>
+    /// Builds a deterministic chat-orchestration context message used by chat mode before each turn.
+    /// </summary>
+    /// <param name="plan">The computed chat turn plan.</param>
+    /// <returns>A user message containing the chat orchestration context payload.</returns>
+    internal static AgentChatMessage BuildChatOrchestrationMessage(ChatTurnPlan plan)
+    {
+        return new AgentChatMessage
+        {
+            Role = "system",
+            Content = ChatModeOrchestration.BuildPromptInjection(plan),
+        };
+    }
+
+    /// <summary>
     /// Builds a repair message for invalid JSON responses from the agent.
     /// </summary>
     /// <param name="invalidResponse">The invalid response that needs to be repaired.</param>
@@ -313,6 +327,9 @@ Invalid response snippet:
             );
             sb.AppendLine(
                 "- If the user asks for action, help them refine the request into an analyze, plan, or execute prompt they can approve."
+            );
+            sb.AppendLine(
+                "- Preserve output-contract-safe formatting while wrapping the answer in natural conversational language."
             );
             sb.AppendLine(
                 $"- When needsTool=false, finalAnswer must follow this style: {AsciiMarkdownInstruction}"
