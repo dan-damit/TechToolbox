@@ -84,6 +84,18 @@ function Invoke-TechAgent {
         Sampling profile for response quality tuning. `precise` is deterministic,
         `balanced` is default, and `creative` increases variation.
 
+    .PARAMETER ThinkingMode
+        Thinking mode preference for models that support deeper reasoning.
+        Supported values: `auto`, `on`, `off`.
+
+    .PARAMETER ReasoningEffort
+        Optional explicit reasoning effort override for GPT-5.3-Codex responses.
+        Supported values: `low`, `medium`, `high`, `xhigh`.
+
+    .PARAMETER ReasoningEffortAuto
+        Automatically selects reasoning effort when no explicit override is
+        supplied.
+
     .PARAMETER Quiet
         Legacy compatibility switch. Agent traces are now suppressed by default.
 
@@ -189,6 +201,13 @@ function Invoke-TechAgent {
         [Parameter()]
         [ValidateSet('auto', 'on', 'off')]
         [string]$ThinkingMode,
+
+        [Parameter()]
+        [ValidateSet('low', 'medium', 'high', 'xhigh')]
+        [string]$ReasoningEffort,
+
+        [Parameter()]
+        [switch]$ReasoningEffortAuto,
 
         [Parameter()]
         [switch]$Quiet,
@@ -560,6 +579,38 @@ function Invoke-TechAgent {
         default { $resolvedThinkingEnabled = $resolvedExecutionMode -eq 'analyze' -or $resolvedExecutionMode -eq 'plan' -or $resolvedExecutionMode -eq 'chat' }
     }
 
+    $resolvedReasoningEffort = $null
+    if ($PSBoundParameters.ContainsKey('ReasoningEffort') -and -not [string]::IsNullOrWhiteSpace($ReasoningEffort)) {
+        $resolvedReasoningEffort = $ReasoningEffort.Trim().ToLowerInvariant()
+    }
+    elseif ($cfg -and $cfg.PSObject.Properties['reasoningEffort']) {
+        $resolvedReasoningEffort = [string]$cfg.reasoningEffort
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($resolvedReasoningEffort)) {
+        $resolvedReasoningEffort = $resolvedReasoningEffort.Trim().ToLowerInvariant()
+        switch ($resolvedReasoningEffort) {
+            'low' { }
+            'medium' { }
+            'high' { }
+            'xhigh' { }
+            default {
+                Write-Warning (
+                    "`nInvoke-TechAgent: Ignoring unsupported reasoning effort value '{0}'. Supported values: low, medium, high, xhigh." -f $resolvedReasoningEffort
+                )
+                $resolvedReasoningEffort = $null
+            }
+        }
+    }
+
+    $resolvedReasoningEffortAuto = $false
+    if ($PSBoundParameters.ContainsKey('ReasoningEffortAuto')) {
+        $resolvedReasoningEffortAuto = $ReasoningEffortAuto.IsPresent
+    }
+    elseif ($cfg -and $cfg.PSObject.Properties['reasoningEffortAuto']) {
+        $resolvedReasoningEffortAuto = [bool]$cfg.reasoningEffortAuto
+    }
+
     $qualitySettings = switch ($resolvedQualityProfile) {
         'precise' {
             [ordered]@{ Temperature = '0.10'; TopP = '0.85'; RepeatPenalty = '1.10' }
@@ -582,6 +633,10 @@ function Invoke-TechAgent {
 
     Write-Log -Level Info -Message (
         "`nTech agent prompt preflight: score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
+    )
+
+    Write-Log -Level Info -Message (
+        "Tech agent reasoning effort settings: override={0} auto={1}" -f $(if ([string]::IsNullOrWhiteSpace($resolvedReasoningEffort)) { '(none)' } else { $resolvedReasoningEffort }), $resolvedReasoningEffortAuto
     )
 
     foreach ($warning in @($preflight.Warnings)) {
@@ -1537,6 +1592,8 @@ Hard requirement:
             OutputContract               = $resolvedOutputContract
             QualityProfile               = $resolvedQualityProfile
             ThinkingMode                 = $resolvedThinkingMode
+            ReasoningEffort              = $resolvedReasoningEffort
+            ReasoningEffortAuto          = $resolvedReasoningEffortAuto
             PromptPreflightScore         = $preflightScore
             PromptPreflightWarningCount  = $preflightWarningCount
             PromptPreflightCriticalCount = $preflightCriticalCount
@@ -1608,6 +1665,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [string]$request.OutputContract,
     [string]$request.QualityProfile,
     [string]$request.ThinkingMode,
+    [string]$request.ReasoningEffort,
+    [bool]$request.ReasoningEffortAuto,
     [int]$request.PromptPreflightScore,
     [int]$request.PromptPreflightWarningCount,
     [int]$request.PromptPreflightCriticalCount)
@@ -1892,8 +1951,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA/Wy2PqmkDO+c/
-# KOFFfd2Lxc44q0I5TPV8702IXlNBFKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpRZSyMcv33O2o
+# +/IKYJfdSNBu/mcLNPf3keNdXSEnJ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2026,34 +2085,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCYckTRIzrT
-# DksaKUAk/ukhYq3rzuWHi5te0MJvE7gtwTANBgkqhkiG9w0BAQEFAASCAgCWQuXy
-# 2fsWZhSJc2+I0DKXkhXIJcHaLBPAw375avgXEQ9RFvAuFf5YX/mM6D/kVEEG5aPQ
-# PcRKCy9fLkhTYxWpHt03rPNpdtFhsx+vi7aGj1iBcA3o0CNvFlg6HuTzySGQSZOy
-# N/WP9egx+Cn2p/UDcw6mr21KJMPn9YMYpT3XQpo3vvTUqbPiHcj73j6jdlI1TK87
-# qXWhS2ZxqTrHY6ObeFtH8dzZX32n1oDzdo1VCjmAFrshpq8CuuVPi2NwBIncrTan
-# 7gAvpTd4GX2jxCU0RCKww3ihfgYxIeKATzSVTvn/pqd0fkjd314G1jHHfePcPAh3
-# JVpEzeg9BaX8sMXuZhPjkSceQgPCPUOJSyyaSh/RfwNQFbuuSZyjZW4J3h6u8ad5
-# K1SB7/4LSVEIjx+/x17x3lAIFUa+j0Et13BPdvmHJZQDD5VjIvx79b4rCzIJdzxe
-# GfhPn4cvWaMMxLcKiElvdjxV4JsJfCUOKfiaT4YoZ1toxoJezOBKSTfydkokYXFr
-# rNJNYMzNIOZ3SmTHPuHQbMOEyx6lAG0iuXsr9cuMG8uIL3II1WRML9qc39BHjGDB
-# oSIr3Io4bCmRN5mBEbJxuK5DhpIARv0Q6U85MME3VJlosjCpwoiQOnTekS//BHGV
-# dgXyz9veLwpr7Mb0gXnqd/8Vz8vqx5osrhejiaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCcLYv3Y6UC
+# 8MW/L4XQtGDzYVgg+rPzBopLb48eIhuV2TANBgkqhkiG9w0BAQEFAASCAgA4C95S
+# Iz6yJSZIocZc7EaVFcZxuwvRyYuXFI30mq9PMK7prg328iaJdxQETTOvMwokYURr
+# fujJPi4zy5bkPkP7EELbsTC/Q6GEphGziRgLENLOe1Tz6/7Q3OWkK76h3bywUnO+
+# wbBjMEwMTeKAhEL+y1MBeMuO0l3Vpu+nMjz2D40ZJkEXP3Kps5JHwjEkMCu5BckZ
+# r7QZ9LuYNi0CNrvjwbiLwFJDo8cqEvWxu5zPOuX/ai2sIkudnGdGcX3QUc1tVZJm
+# bz/qf9viwtgIsFVH+iiThTr3w+XtD/7vkcHptLp3lEwGyY1MgHU73q4/WkW+bxy5
+# TOPO9uzKJcwJedckasOUSnHT8aqqkClIgJUQ/VZioYM9LQtaSUJBDglKuDXRsauZ
+# mmL4r6qdPVXIYrTP26ImazhHDZFJpipHmhmf3zyI2f3RFl79D4KrANqp2xko/DSk
+# E2Pfp+vuYEKtjuVjofYFULkecKnvo5fd7rlYOt+ammO2vgnMre1sf+ns57Dp8Kc9
+# pjvB1Rpww2lnTjrpUE+PqQwimnPdjm9DG2B5C5aOQpZCW9Bv2vtZF8BooebsK3Fg
+# YCHIpNvVTL7e5XjMI/I6t5UOTmoNuG+7EOJva8qOmTDW7nS4g55xwQDC+r5G9NXc
+# 9Sfhzd9uzVbr1ncnosEtZ97hLD5LrlIn4GtOCKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTQxNzE4NThaMC8GCSqGSIb3DQEJBDEiBCDW47n9cdvQ8ClUih9Z
-# QliuPGYcE+7vEkAjeMmh2HrdHTANBgkqhkiG9w0BAQEFAASCAgANHuTMOcGgTXtm
-# YXWWhEm4XJOwmiSLyNRWuXADZAmEUgzY0nfD30xgC+8Ku/IHyWskUX9HQA22EKi3
-# zNgZjdg03beuipavQ0j33vbHLrARCxM8I6GeU0J2LbDKcgUzcfU1kyYS8AXCxTRN
-# VK7zsSnnMyqXVtPJ3rp99b52WkPGCxW5E0FauFOdszfSHWKPIjcQL4HmeGbtJOEH
-# RbE2AmzY3h+VAuF/WaUUFE860h/b82vavlEtD3yBjGogvtSmD0QhgLLesoRWMDTA
-# NoSlwKE3UjKUOHWPkUGifgNhVOt7XMc1H1Y91eo6dERvoL0RphhEYnuqaZFhsXvF
-# +dsqRa7/5alKoXt3g6jtySj+ErFQdFWEvDu6CUUWzSDp7EXgsglddy6Gf1CzeDI4
-# Wk77CaAncWc7Vj/qKlPjJZEXsJFmXmYEHQPq1gvCn6U/mrKLihbEOBZoaBu9GDJ2
-# 8QEg0Y+PZvaTeOUfGKu31AbpwfmuC2yD0oAQA177NQft0Vy+YtLk2kmlbxeQDJgO
-# g6XAVRa7XpY1uLtoHQJQXcp/e0Q3og26c1ux3HnszisyrAZyuX4yCuwSwt/ulU3E
-# LvMun4qf5tp5a9JXJ4G2tVynQygtoj4qn/1DSuVVOisTi1bOmGFg6nfdF2heAdS5
-# 0/+mLPXlk9jDi6lek2T5N7i7wNPn9Q==
+# BTEPFw0yNjA4MTUwMzMzNTVaMC8GCSqGSIb3DQEJBDEiBCANDbHFjrehj1r3Ic4+
+# j1pLNF26pxYYcBHDYsCyw9yy0TANBgkqhkiG9w0BAQEFAASCAgA2Pyk4D0l5HorU
+# r6/W7x4fhRalpGrBXxikqCJ+peqIJ43vBmcHrCdhlJEL/PSP2huImoegIh/S5fcP
+# K7XrLPqV4hhMOnI8i0PYUNtn0W5ZgoE7aDym2E5eo0GXgROIELESh/rqdB5oabTD
+# D4hf1/5Fyf47m+hmePctNU84HBbUZ4JjH9sXUVdpbQ7mCduiFA5iUGagqw+bbUTf
+# DcolQxGgNpTe5ZXEmZpbb225C2YPLuj8vH+dQ8Ge+m+HyKs0Wm+37ZNZTmKRQ6fE
+# oPyG//aALm+fMe8Iid00tUkI6Rmfx1NNyW3zjbUPKSvn9IDb3Oo4aBavA1KeuzZP
+# ZW+KgzHYqdK7v3sOVpbNDX0rHcSgcom57WLq0V+TNmXMTQO5HpRsiwDvx/05IwhY
+# bTscobxV0gEEN7UNF+G127GxQ6zFv3PKibaJrMxDGG8hDSrAaUpCdFwbNYqf8F5d
+# 2s12L77h8/t2CGM30HGvFACtx7ugyp/L4HaBTbF9523GC90HASJlqnEcGRok2OzP
+# W5OLx32AlgRE9AFrOWTU9CwOQH+wVFd6taKuuZ14/GBGm0s5K+AumcuWr0SrEnaA
+# oIEo9ND+4Xf00kLij4HZqK4zUoFOYAb4imQjHztcvnfqBMtwDl0A7oR5etHt0hJE
+# 7IoqTiQruKKmPbYcPDBaCq9cqCzM6g==
 # SIG # End signature block
