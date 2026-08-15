@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using TechToolbox.Agent.Configuration;
 using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
 
@@ -52,6 +53,9 @@ public partial class AgentOrchestrator
     private readonly int _promptPreflightScore;
     private readonly int _promptPreflightWarningCount;
     private readonly int _promptPreflightCriticalCount;
+    private readonly string? _effectiveReasoningEffort;
+    private readonly bool _reasoningEffortUsedOverride;
+    private readonly bool _reasoningEffortUsedAuto;
     private readonly object _traceLock = new();
 
     [GeneratedRegex(@"^\s*(?:#\s*)?\.(?<name>[A-Z][A-Z0-9_-]*)\b")]
@@ -117,7 +121,8 @@ public partial class AgentOrchestrator
         string thinkingMode = "auto",
         int promptPreflightScore = 0,
         int promptPreflightWarningCount = 0,
-        int promptPreflightCriticalCount = 0
+        int promptPreflightCriticalCount = 0,
+        AgentConfiguration? configuration = null
     )
     {
         _llm = llm;
@@ -143,6 +148,31 @@ public partial class AgentOrchestrator
         _promptPreflightCriticalCount = Math.Max(0, promptPreflightCriticalCount);
 
         _llm.DiagnosticTrace = msg => Trace($"LlmClient {msg}");
+
+        var reasoningPolicyConfig = configuration
+            ?? new AgentConfiguration
+            {
+                ThinkingMode = _thinkingMode,
+                PromptPreflightScore = _promptPreflightScore,
+                PromptPreflightWarningCount = _promptPreflightWarningCount,
+                PromptPreflightCriticalCount = _promptPreflightCriticalCount,
+            };
+
+        var reasoningResolution = ResolveReasoningEffortWithDetails(reasoningPolicyConfig);
+        reasoningPolicyConfig.EffectiveReasoningEffort = reasoningResolution.Effort;
+        _effectiveReasoningEffort = reasoningPolicyConfig.EffectiveReasoningEffort;
+        _reasoningEffortUsedOverride = reasoningResolution.UsedOverride;
+        _reasoningEffortUsedAuto = reasoningResolution.UsedAuto;
+
+        _llm.ConfigureReasoningEffort(
+            _effectiveReasoningEffort,
+            _reasoningEffortUsedOverride,
+            _reasoningEffortUsedAuto
+        );
+
+        Trace(
+            $"Reasoning effort policy selected={_effectiveReasoningEffort ?? "(null)"} overrideUsed={_reasoningEffortUsedOverride} autoUsed={_reasoningEffortUsedAuto} detail={reasoningResolution.Detail}"
+        );
     }
 
     /// <summary>
@@ -161,7 +191,7 @@ public partial class AgentOrchestrator
     {
         prompt ??= string.Empty;
         Trace(
-            $"RunAsync start maxIterations={_maxIterations} autoRetry={_autoRetry} recentHistoryItemsInPrompt={_recentHistoryItemsInPrompt} executionMode={_executionMode} outputContract={_outputContract} qualityProfile={_qualityProfile} promptPreflightScore={_promptPreflightScore} warnings={_promptPreflightWarningCount} critical={_promptPreflightCriticalCount} promptLength={prompt.Length}"
+            $"RunAsync start maxIterations={_maxIterations} autoRetry={_autoRetry} recentHistoryItemsInPrompt={_recentHistoryItemsInPrompt} executionMode={_executionMode} outputContract={_outputContract} qualityProfile={_qualityProfile} promptPreflightScore={_promptPreflightScore} warnings={_promptPreflightWarningCount} critical={_promptPreflightCriticalCount} reasoningEffort={_effectiveReasoningEffort ?? "(null)"} reasoningOverrideUsed={_reasoningEffortUsedOverride} reasoningAutoUsed={_reasoningEffortUsedAuto} promptLength={prompt.Length}"
         );
 
         var stopwatch = Stopwatch.StartNew();
@@ -2374,6 +2404,143 @@ Next best action:
         return true;
     }
 
+    /// <summary>
+    /// Resolves effective reasoning effort based on explicit override and auto policy signals.
+    /// </summary>
+    /// <param name="config">Agent configuration that carries reasoning and prompt preflight settings.</param>
+    /// <returns>The resolved effort value, or <see langword="null"/> when no effort should be applied.</returns>
+    public static string? ResolveReasoningEffort(AgentConfiguration config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        var resolution = ResolveReasoningEffortWithDetails(config);
+        config.EffectiveReasoningEffort = resolution.Effort;
+        return config.EffectiveReasoningEffort;
+    }
+
+    private static ReasoningEffortResolution ResolveReasoningEffortWithDetails(
+        AgentConfiguration config
+    )
+    {
+        var normalizedOverride = NormalizeReasoningEffortValue(config.ReasoningEffortOverride);
+        var invalidOverrideProvided = !string.IsNullOrWhiteSpace(config.ReasoningEffortOverride)
+            && string.IsNullOrWhiteSpace(normalizedOverride);
+
+        if (!string.IsNullOrWhiteSpace(normalizedOverride))
+        {
+            return new ReasoningEffortResolution(
+                Effort: normalizedOverride,
+                UsedOverride: true,
+                UsedAuto: false,
+                Detail: "explicit override"
+            );
+        }
+
+        if (!config.EnableReasoningEffortAuto)
+        {
+            var detail = invalidOverrideProvided
+                ? $"invalid override '{config.ReasoningEffortOverride}' ignored; auto mode disabled"
+                : "auto mode disabled and no explicit override";
+
+            return new ReasoningEffortResolution(
+                Effort: null,
+                UsedOverride: false,
+                UsedAuto: false,
+                Detail: detail
+            );
+        }
+
+        var score = Math.Clamp(config.PromptPreflightScore, 0, 100);
+        var warnings = Math.Max(0, config.PromptPreflightWarningCount);
+        var critical = Math.Max(0, config.PromptPreflightCriticalCount);
+        var thinkingMode = NormalizeThinkingModeValue(config.ThinkingMode);
+
+        var autoEffort = score switch
+        {
+            <= 40 => "xhigh",
+            <= 65 => "high",
+            <= 85 => "medium",
+            _ => "low",
+        };
+
+        if (critical > 0)
+        {
+            autoEffort = "xhigh";
+        }
+        else if (warnings >= 4)
+        {
+            autoEffort = PromoteReasoningEffort(autoEffort);
+        }
+
+        if (string.Equals(thinkingMode, "off", StringComparison.Ordinal))
+        {
+            autoEffort = "low";
+        }
+        else if (
+            string.Equals(thinkingMode, "on", StringComparison.Ordinal)
+            && string.Equals(autoEffort, "low", StringComparison.Ordinal)
+        )
+        {
+            autoEffort = "medium";
+        }
+
+        var autoDetail =
+            $"auto policy score={score} warnings={warnings} critical={critical} thinkingMode={thinkingMode}";
+
+        if (invalidOverrideProvided)
+        {
+            autoDetail =
+                $"invalid override '{config.ReasoningEffortOverride}' ignored; {autoDetail}";
+        }
+
+        return new ReasoningEffortResolution(
+            Effort: autoEffort,
+            UsedOverride: false,
+            UsedAuto: true,
+            Detail: autoDetail
+        );
+    }
+
+    private static string? NormalizeReasoningEffortValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "low" => "low",
+            "medium" => "medium",
+            "high" => "high",
+            "xhigh" => "xhigh",
+            _ => null,
+        };
+    }
+
+    private static string PromoteReasoningEffort(string effort)
+    {
+        return effort switch
+        {
+            "low" => "medium",
+            "medium" => "high",
+            "high" => "xhigh",
+            "xhigh" => "xhigh",
+            _ => "medium",
+        };
+    }
+
+    private static string NormalizeThinkingModeValue(string? thinkingMode)
+    {
+        if (string.IsNullOrWhiteSpace(thinkingMode))
+            return "auto";
+
+        return thinkingMode.Trim().ToLowerInvariant() switch
+        {
+            "on" => "on",
+            "off" => "off",
+            _ => "auto",
+        };
+    }
+
     private static string NormalizeExecutionMode(string? executionMode)
     {
         if (string.IsNullOrWhiteSpace(executionMode))
@@ -2414,6 +2581,13 @@ Next best action:
             _ => "balanced",
         };
     }
+
+    private sealed record ReasoningEffortResolution(
+        string? Effort,
+        bool UsedOverride,
+        bool UsedAuto,
+        string Detail
+    );
 }
 
 /// <summary>

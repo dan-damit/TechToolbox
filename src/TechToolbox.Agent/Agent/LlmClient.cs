@@ -50,6 +50,12 @@ public class LlmClient : ILlmClient
         _http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
     }
 
+    /// <inheritdoc/>
+    public virtual void ConfigureReasoningEffort(string? reasoningEffort, bool usedOverride, bool usedAuto)
+    {
+        // Ollama client does not currently map reasoning effort to payload fields.
+    }
+
     /// <summary>
     /// Generates a decision from the LLM with incremental callback support.
     /// Streams content to a callback for early decision validation and completion.

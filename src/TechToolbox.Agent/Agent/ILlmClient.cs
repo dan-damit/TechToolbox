@@ -11,6 +11,15 @@ public interface ILlmClient
     Action<string>? DiagnosticTrace { get; set; }
 
     /// <summary>
+    /// Configures reasoning-effort metadata for the next model calls.
+    /// Providers that do not support reasoning effort may ignore these values.
+    /// </summary>
+    /// <param name="reasoningEffort">Effective reasoning effort (low, medium, high, xhigh), or <see langword="null"/>.</param>
+    /// <param name="usedOverride"><see langword="true"/> when explicit override selected the value; otherwise <see langword="false"/>.</param>
+    /// <param name="usedAuto"><see langword="true"/> when automatic policy selected the value; otherwise <see langword="false"/>.</param>
+    void ConfigureReasoningEffort(string? reasoningEffort, bool usedOverride, bool usedAuto);
+
+    /// <summary>
     /// Generates a decision from the LLM with optional incremental callback support.
     /// </summary>
     /// <param name="messages">The conversation history as chat messages.</param>

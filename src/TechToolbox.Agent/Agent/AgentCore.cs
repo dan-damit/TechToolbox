@@ -89,6 +89,8 @@ public static class AgentCore
     /// <param name="executionMode">Execution mode: execute, plan, analyze, or chat.</param>
     /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
     /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
+    /// <param name="reasoningEffort">Optional explicit reasoning effort override: low, medium, high, or xhigh.</param>
+    /// <param name="reasoningEffortAuto">Whether to auto-select reasoning effort when override is not provided.</param>
     /// <param name="promptPreflightScore">Prompt preflight score (0..100).</param>
     /// <param name="promptPreflightWarningCount">Prompt preflight warning count.</param>
     /// <param name="promptPreflightCriticalCount">Prompt preflight critical issue count.</param>
@@ -123,6 +125,8 @@ public static class AgentCore
         string outputContract = "markdown",
         string qualityProfile = "balanced",
         string thinkingMode = "auto",
+        string? reasoningEffort = null,
+        bool reasoningEffortAuto = false,
         int promptPreflightScore = 0,
         int promptPreflightWarningCount = 0,
         int promptPreflightCriticalCount = 0
@@ -158,6 +162,8 @@ public static class AgentCore
                 outputContract,
                 qualityProfile,
                 thinkingMode,
+                reasoningEffort,
+                reasoningEffortAuto,
                 promptPreflightScore,
                 promptPreflightWarningCount,
                 promptPreflightCriticalCount
@@ -194,6 +200,8 @@ public static class AgentCore
     /// <param name="executionMode">Execution mode: execute, plan, analyze, or chat.</param>
     /// <param name="outputContract">Output contract: markdown, plain-text, or json.</param>
     /// <param name="qualityProfile">Quality profile: precise, balanced, or creative.</param>
+    /// <param name="reasoningEffort">Optional explicit reasoning effort override: low, medium, high, or xhigh.</param>
+    /// <param name="reasoningEffortAuto">Whether to auto-select reasoning effort when override is not provided.</param>
     /// <param name="promptPreflightScore">Prompt preflight score (0..100).</param>
     /// <param name="promptPreflightWarningCount">Prompt preflight warning count.</param>
     /// <param name="promptPreflightCriticalCount">Prompt preflight critical issue count.</param>
@@ -228,6 +236,8 @@ public static class AgentCore
         string outputContract = "markdown",
         string qualityProfile = "balanced",
         string thinkingMode = "auto",
+        string? reasoningEffort = null,
+        bool reasoningEffortAuto = false,
         int promptPreflightScore = 0,
         int promptPreflightWarningCount = 0,
         int promptPreflightCriticalCount = 0
@@ -249,6 +259,8 @@ public static class AgentCore
             OutputContract = outputContract,
             QualityProfile = qualityProfile,
             ThinkingMode = thinkingMode,
+            ReasoningEffortOverride = reasoningEffort,
+            EnableReasoningEffortAuto = reasoningEffortAuto,
             PromptPreflightScore = promptPreflightScore,
             PromptPreflightWarningCount = promptPreflightWarningCount,
             PromptPreflightCriticalCount = promptPreflightCriticalCount,
@@ -377,7 +389,8 @@ public static class AgentCore
             config.ThinkingMode,
             config.PromptPreflightScore,
             config.PromptPreflightWarningCount,
-            config.PromptPreflightCriticalCount
+            config.PromptPreflightCriticalCount,
+            configuration: config
         );
 
         // 6. Run the agent
@@ -396,6 +409,9 @@ public static class AgentCore
                 ExecutionMode = config.ExecutionMode,
                 OutputContract = config.OutputContract,
                 QualityProfile = config.QualityProfile,
+                ReasoningEffortOverride = config.ReasoningEffortOverride,
+                EnableReasoningEffortAuto = config.EnableReasoningEffortAuto,
+                EffectiveReasoningEffort = config.EffectiveReasoningEffort,
                 PromptPreflightScore = config.PromptPreflightScore,
                 PromptPreflightWarningCount = config.PromptPreflightWarningCount,
                 PromptPreflightCriticalCount = config.PromptPreflightCriticalCount,

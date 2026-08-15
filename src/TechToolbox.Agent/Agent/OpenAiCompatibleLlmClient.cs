@@ -35,11 +35,22 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
     private readonly string? _endpoint;
     private readonly string? _deployment;
     private readonly string _apiVersion;
+    private string? _effectiveReasoningEffort;
+    private bool _reasoningEffortUsedOverride;
+    private bool _reasoningEffortUsedAuto;
 
     /// <summary>
     /// Optional callback for diagnostic tracing of LLM operations.
     /// </summary>
     public Action<string>? DiagnosticTrace { get; set; }
+
+    /// <inheritdoc/>
+    public void ConfigureReasoningEffort(string? reasoningEffort, bool usedOverride, bool usedAuto)
+    {
+        _effectiveReasoningEffort = NormalizeReasoningEffort(reasoningEffort);
+        _reasoningEffortUsedOverride = usedOverride;
+        _reasoningEffortUsedAuto = usedAuto;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OpenAiCompatibleLlmClient"/> class.
@@ -80,8 +91,25 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
             );
         }
 
-        var apiStyle = OpenAiApiStyle.ChatCompletions;
+        var effectiveReasoningEffort = NormalizeReasoningEffort(_effectiveReasoningEffort);
+        var reasoningEffortSource = _reasoningEffortUsedOverride
+            ? "override"
+            : _reasoningEffortUsedAuto
+                ? "auto"
+                : "none";
+        var apiStyle = ShouldUseResponsesByDefault(effectiveReasoningEffort)
+            ? OpenAiApiStyle.Responses
+            : OpenAiApiStyle.ChatCompletions;
         var tokenStyle = TokenParameterStyle.MaxTokens;
+
+        Trace(
+            $"Reasoning effort selected={effectiveReasoningEffort ?? "(null)"} source={reasoningEffortSource}"
+        );
+
+        if (apiStyle == OpenAiApiStyle.Responses)
+        {
+            Trace("Using /v1/responses API by default for GPT-5.3-Codex reasoning effort support.");
+        }
 
         string requestUrl;
         try
@@ -99,6 +127,8 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
             requestUrl,
             apiStyle,
             tokenStyle,
+            effectiveReasoningEffort,
+            reasoningEffortSource,
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -116,6 +146,8 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
                 requestUrl,
                 apiStyle,
                 tokenStyle,
+                effectiveReasoningEffort,
+                reasoningEffortSource,
                 cancellationToken
             ).ConfigureAwait(false);
         }
@@ -141,6 +173,8 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
                 requestUrl,
                 apiStyle,
                 tokenStyle,
+                effectiveReasoningEffort,
+                reasoningEffortSource,
                 cancellationToken
             ).ConfigureAwait(false);
         }
@@ -170,12 +204,15 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         CancellationToken cancellationToken = default
     ) => GenerateDecisionWithCallbackAsync(messages, null, cancellationToken);
 
-    private object BuildPayload(
+    private PayloadBuildResult BuildPayload(
         IReadOnlyList<AgentChatMessage> messages,
         OpenAiApiStyle apiStyle,
-        TokenParameterStyle tokenStyle
+        TokenParameterStyle tokenStyle,
+        string? reasoningEffort
     )
     {
+        var reasoningDecision = ResolveReasoningEmission(apiStyle, reasoningEffort);
+
         if (IsAzureProvider())
         {
             var payload = new Dictionary<string, object?>
@@ -188,23 +225,27 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
             };
 
             payload[GetTokenFieldName(tokenStyle)] = MaxOutputTokens;
-            return payload;
+            return new PayloadBuildResult(
+                payload,
+                ReasoningEffortEmitted: false,
+                ReasoningDiagnostic: reasoningDecision.Diagnostic
+            );
         }
 
         if (apiStyle == OpenAiApiStyle.Responses)
         {
-            return new
+            var payload = new Dictionary<string, object?>
             {
-                model = _model,
-                input = messages.Select(m => new
+                ["model"] = _model,
+                ["input"] = messages.Select(m => new
                 {
                     role = NormalizeResponseRole(m.Role),
                     content = m.Content,
                 }),
-                temperature = 0.2,
-                top_p = 0.9,
-                max_output_tokens = MaxOutputTokens,
-                text = new
+                ["temperature"] = 0.2,
+                ["top_p"] = 0.9,
+                ["max_output_tokens"] = MaxOutputTokens,
+                ["text"] = new
                 {
                     format = new
                     {
@@ -212,6 +253,20 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
                     },
                 },
             };
+
+            if (reasoningDecision.Emit && !string.IsNullOrWhiteSpace(reasoningDecision.Effort))
+            {
+                payload["reasoning"] = new Dictionary<string, object?>
+                {
+                    ["effort"] = reasoningDecision.Effort,
+                };
+            }
+
+            return new PayloadBuildResult(
+                payload,
+                ReasoningEffortEmitted: reasoningDecision.Emit,
+                ReasoningDiagnostic: reasoningDecision.Diagnostic
+            );
         }
 
         var chatPayload = new Dictionary<string, object?>
@@ -225,7 +280,87 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         };
 
         chatPayload[GetTokenFieldName(tokenStyle)] = MaxOutputTokens;
-        return chatPayload;
+        return new PayloadBuildResult(
+            chatPayload,
+            ReasoningEffortEmitted: false,
+            ReasoningDiagnostic: reasoningDecision.Diagnostic
+        );
+    }
+
+    private ReasoningEmissionDecision ResolveReasoningEmission(
+        OpenAiApiStyle apiStyle,
+        string? reasoningEffort
+    )
+    {
+        var normalizedEffort = NormalizeReasoningEffort(reasoningEffort);
+        if (string.IsNullOrWhiteSpace(normalizedEffort))
+        {
+            return new ReasoningEmissionDecision(
+                Emit: false,
+                Effort: null,
+                Diagnostic: "reasoning.effort omitted: no effective effort selected."
+            );
+        }
+
+        if (!_provider.Equals("openai", StringComparison.Ordinal))
+        {
+            return new ReasoningEmissionDecision(
+                Emit: false,
+                Effort: normalizedEffort,
+                Diagnostic:
+                    $"reasoning.effort omitted: provider '{_provider}' does not support this field."
+            );
+        }
+
+        if (!_model.Equals("gpt-5.3-codex", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ReasoningEmissionDecision(
+                Emit: false,
+                Effort: normalizedEffort,
+                Diagnostic:
+                    $"reasoning.effort omitted: model '{_model}' does not support this field."
+            );
+        }
+
+        if (apiStyle != OpenAiApiStyle.Responses)
+        {
+            return new ReasoningEmissionDecision(
+                Emit: false,
+                Effort: normalizedEffort,
+                Diagnostic:
+                    "reasoning.effort omitted: chat/completions payload does not support this field; waiting for /v1/responses."
+            );
+        }
+
+        return new ReasoningEmissionDecision(
+            Emit: true,
+            Effort: normalizedEffort,
+            Diagnostic: $"reasoning.effort emitted with value '{normalizedEffort}'."
+        );
+    }
+
+    private bool ShouldUseResponsesByDefault(string? reasoningEffort)
+    {
+        if (string.IsNullOrWhiteSpace(reasoningEffort))
+            return false;
+
+        return _provider.Equals("openai", StringComparison.Ordinal)
+            && _model.Equals("gpt-5.3-codex", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizeReasoningEffort(string? reasoningEffort)
+    {
+        if (string.IsNullOrWhiteSpace(reasoningEffort))
+            return null;
+
+        return reasoningEffort.Trim().ToLowerInvariant() switch
+        {
+            "low" => "low",
+            "medium" => "medium",
+            "high" => "high",
+            "xhigh" => "xhigh",
+            _ => null,
+        };
     }
 
     private string BuildRequestUrl(OpenAiApiStyle apiStyle)
@@ -475,6 +610,8 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         string requestUrl,
         OpenAiApiStyle apiStyle,
         TokenParameterStyle tokenStyle,
+        string? reasoningEffort,
+        string reasoningEffortSource,
         CancellationToken cancellationToken
     )
     {
@@ -486,8 +623,11 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         else
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-        var payload = BuildPayload(messages, apiStyle, tokenStyle);
-        request.Content = JsonContent.Create(payload, options: JsonOptions);
+        var payloadResult = BuildPayload(messages, apiStyle, tokenStyle, reasoningEffort);
+        Trace(
+            $"Payload reasoning.effort emitted={payloadResult.ReasoningEffortEmitted} source={reasoningEffortSource} detail={payloadResult.ReasoningDiagnostic}"
+        );
+        request.Content = JsonContent.Create(payloadResult.Payload, options: JsonOptions);
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(RequestTimeoutSeconds));
@@ -555,6 +695,14 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         string? RawBody,
         string? ErrorBody,
         string? ErrorMessage
+    );
+
+    private sealed record ReasoningEmissionDecision(bool Emit, string? Effort, string Diagnostic);
+
+    private sealed record PayloadBuildResult(
+        object Payload,
+        bool ReasoningEffortEmitted,
+        string ReasoningDiagnostic
     );
 
     private void Trace(string message)

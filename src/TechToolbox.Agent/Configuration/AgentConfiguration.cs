@@ -49,6 +49,23 @@ public class AgentConfiguration
     public string ThinkingMode { get; set; } = "auto";
 
     /// <summary>
+    /// Optional explicit override for reasoning effort.
+    /// Supported values: "low", "medium", "high", "xhigh".
+    /// </summary>
+    public string? ReasoningEffortOverride { get; set; }
+
+    /// <summary>
+    /// Whether reasoning effort should be selected automatically when no explicit override is provided.
+    /// </summary>
+    public bool EnableReasoningEffortAuto { get; set; } = false;
+
+    /// <summary>
+    /// Effective reasoning effort selected by policy.
+    /// Supported values: "low", "medium", "high", "xhigh".
+    /// </summary>
+    public string? EffectiveReasoningEffort { get; set; }
+
+    /// <summary>
     /// Prompt preflight quality score from 0 to 100.
     /// </summary>
     public int PromptPreflightScore { get; set; }

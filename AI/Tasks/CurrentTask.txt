@@ -1,68 +1,79 @@
-Fully activate all chat-mode conversational systems implemented in
-ChatModeOrchestration.cs. Use every module intentionally and aggressively
-during this run.
+Your task is to implement full support for OpenAI GPT-5.3-Codex reasoning
+effort modes in the TechToolbox.Agent codebase.
 
-You MUST apply the following modules every turn:
+Target directory:
+C:\repos\TechToolbox\src\TechToolbox.Agent
 
-1. Persona Layer
-   - Maintain the stable persona defined in DefaultPersona.
-   - Use friendly, direct, technically competent tone.
-   - Keep pacing steady and non-rushed.
-   - Maintain calm, confident emotional temperature.
-   - Use medium assertiveness.
-   - Ask clarifying questions when needed.
-   - Use light optional humor.
-   - Increase technical depth when user is technical.
+Reasoning effort modes to support:
+    low
+    medium
+    high
+    xhigh
 
-2. Intent Decomposition
-   - Extract explicit, implicit, and latent intent from the user prompt.
-   - Identify constraints and contextual signals.
-   - Compute ambiguity and risk levels.
-   - Detect mixed intent and operational intent.
+These correspond to the "reasoning.effort" field in the /v1/responses API.
 
-3. Conversation Compass
-   - Choose the correct conversational action:
-     Clarify, Answer, Propose, Challenge, Summarize, Escalate, or Close.
+You MUST perform the following actions:
 
-4. Conversational Goal
-   - Set a goal for the turn:
-     Clarify, Inform, Solve, Reassure, Challenge, Redirect, Escalate, Close.
+1. Modify AgentConfiguration.cs to add:
+   - ReasoningEffortOverride (string? or enum)
+   - EnableReasoningEffortAuto (bool)
+   - EffectiveReasoningEffort (string? or enum)
 
-5. Response Strategy
-   - Choose Answer-First or Act-First based on intent and compass.
+2. Modify the PowerShell/CLI parameter ingestion layer so the user may
+   specify:
+   - -ReasoningEffort <low|medium|high|xhigh>
+   - -ReasoningEffortAuto (switch)
 
-6. Tool Hesitation Curve
-   - Evaluate hesitation level (Low, Medium, High).
-   - If Medium or High, ask the clarification prompt before acting.
-   - Only act-first when intent is concrete and risk is low.
+3. Implement a new policy method in AgentOrchestrator.cs:
+   ResolveReasoningEffort(AgentConfiguration config)
+   This method must:
+   - Respect explicit override
+   - Use auto mode when override is absent
+   - Map preflight score to effort level
+   - Optionally incorporate ThinkingMode
+   - Store the final value in config.EffectiveReasoningEffort
 
-7. Continuity Context
-   - Retrieve unresolved questions, preferences, frustrations, successes, warnings.
-   - Use them to maintain conversational continuity.
+4. Modify OpenAiCompatibleLlmClient.cs so that the Responses API payload
+   includes:
+       reasoning: { effort: "<value>" }
+   ONLY when provider=openai AND model=gpt-5.3-codex AND effort is non-null.
 
-8. Micro-Context Windows
-   - Build topic, preference, constraint, tool, and emotion windows.
-   - Use them to shape the response.
+5. Ensure the reasoning effort value is threaded through the entire call
+   chain:
+   - AgentOrchestrator → LLM client → BuildPayload → SendRequestAsync
 
-9. Style Controls
-   - Adjust verbosity, depth, directness, and question-asking tendency.
+6. Add diagnostics:
+   - Selected reasoning effort
+   - Whether override or auto was used
+   - Whether the field was emitted to the payload
 
-10. Output Contract Adaptation
-   - Preserve contract-safe formatting.
-   - Wrap answers in natural conversational language.
-   - Avoid robotic phrasing.
+7. Add guardrails:
+   - If provider/model does not support reasoning effort, omit the field
+     and log a diagnostic.
 
-11. Failure Handling
-   - If ambiguity is high, ask a clarifying question.
-   - If risk is high, escalate or challenge.
-   - If nearing iteration limits, produce a progress checkpoint.
+8. For EVERY file you modify, you MUST output a WRITE-FILE block with:
+   - The full absolute path
+   - The complete updated file contents
+   - No placeholders
+   - No partial patches
+   - No diff format
+   - The entire file rewritten exactly as it should exist on disk
 
-Your objective:
-- Produce the most natural, technically competent, context-aware conversational
-  response possible.
-- Use all modules intentionally.
-- Do not skip any module.
-- Do not fall back to generic chat behavior.
-- Lean into the architecture aggressively.
+   Example format:
+   WRITE-FILE
+   Path: C:\repos\TechToolbox\src\TechToolbox.Agent\Configuration\AgentConfiguration.cs
+   <full updated file contents here>
 
-End of directive.
+9. After all WRITE-FILE blocks, output a final markdown summary describing:
+   - All files modified
+   - All new fields added
+   - The reasoning-effort policy
+   - The payload changes
+   - Any new parameters
+   - Any new diagnostics
+   - Confirmation that GPT-5.3-Codex reasoning effort is now implemented.
+
+This task is complete only when:
+- All modified files have been emitted via WRITE-FILE blocks
+- The codebase is fully updated
+- The markdown summary reflects the completed implementation

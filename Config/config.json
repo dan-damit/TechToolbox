@@ -133,6 +133,8 @@
       "outputContract": "markdown",
       "qualityProfile": "balanced",
       "thinkingMode": "auto",
+      "reasoningEffort": "",
+      "reasoningEffortAuto": false,
       "endpoint": "",
       "deployment": "",
       "apiVersion": "2024-10-21",

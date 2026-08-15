@@ -1,5 +1,6 @@
 using System.Text.Json;
 using TechToolbox.Agent.Agent;
+using TechToolbox.Agent.Configuration;
 using TechToolbox.Agent.Memory;
 using TechToolbox.Agent.Registry;
 using Xunit;
@@ -1765,6 +1766,63 @@ Use REPLACE-IN-FILE or WRITE-FILE to modify the file and do not return a final a
                 Directory.Delete(tempRoot, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void ResolveReasoningEffort_UsesExplicitOverride_WhenProvided()
+    {
+        var config = new AgentConfiguration
+        {
+            ReasoningEffortOverride = "xhigh",
+            EnableReasoningEffortAuto = true,
+            PromptPreflightScore = 100,
+            PromptPreflightWarningCount = 0,
+            PromptPreflightCriticalCount = 0,
+            ThinkingMode = "off",
+        };
+
+        var effort = AgentOrchestrator.ResolveReasoningEffort(config);
+
+        Assert.Equal("xhigh", effort);
+        Assert.Equal("xhigh", config.EffectiveReasoningEffort);
+    }
+
+    [Fact]
+    public void ResolveReasoningEffort_AutoMode_MapsPreflightSignals()
+    {
+        var config = new AgentConfiguration
+        {
+            ReasoningEffortOverride = null,
+            EnableReasoningEffortAuto = true,
+            PromptPreflightScore = 95,
+            PromptPreflightWarningCount = 0,
+            PromptPreflightCriticalCount = 1,
+            ThinkingMode = "auto",
+        };
+
+        var effort = AgentOrchestrator.ResolveReasoningEffort(config);
+
+        Assert.Equal("xhigh", effort);
+        Assert.Equal("xhigh", config.EffectiveReasoningEffort);
+    }
+
+    [Fact]
+    public void ResolveReasoningEffort_AutoMode_RespectsThinkingModeOff()
+    {
+        var config = new AgentConfiguration
+        {
+            ReasoningEffortOverride = null,
+            EnableReasoningEffortAuto = true,
+            PromptPreflightScore = 52,
+            PromptPreflightWarningCount = 0,
+            PromptPreflightCriticalCount = 0,
+            ThinkingMode = "off",
+        };
+
+        var effort = AgentOrchestrator.ResolveReasoningEffort(config);
+
+        Assert.Equal("low", effort);
+        Assert.Equal("low", config.EffectiveReasoningEffort);
     }
 
     private static AgentOrchestrator CreateOrchestrator(
