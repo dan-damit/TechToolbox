@@ -138,6 +138,41 @@ public class LlmClientTests
     }
 
     [Fact]
+    public void ShouldRetryWithoutThinking_ReturnsTrue_WhenThinkingOnlyResponseHitLengthLimit()
+    {
+        var body =
+            "{" +
+            "\"done_reason\":\"length\"," +
+            "\"message\":{" +
+            "\"role\":\"assistant\"," +
+            "\"content\":\"\"," +
+            "\"thinking\":\"reasoning trace\"" +
+            "}" +
+            "}";
+
+        var shouldRetry = InvokeShouldRetryWithoutThinking(body);
+
+        Assert.True(shouldRetry);
+    }
+
+    [Fact]
+    public void ShouldRetryWithoutThinking_ReturnsFalse_WhenNoThinkingPayloadExists()
+    {
+        var body =
+            "{" +
+            "\"done_reason\":\"length\"," +
+            "\"message\":{" +
+            "\"role\":\"assistant\"," +
+            "\"content\":\"\"" +
+            "}" +
+            "}";
+
+        var shouldRetry = InvokeShouldRetryWithoutThinking(body);
+
+        Assert.False(shouldRetry);
+    }
+
+    [Fact]
     public void AgentConfiguration_DefaultsToChatExecutionMode()
     {
         var config = new TechToolbox.Agent.Configuration.AgentConfiguration();
@@ -157,5 +192,19 @@ public class LlmClientTests
         Assert.NotNull(result);
 
         return (int)result!;
+    }
+
+    private static bool InvokeShouldRetryWithoutThinking(string body)
+    {
+        var method = typeof(LlmClient).GetMethod(
+            "ShouldRetryWithoutThinking",
+            BindingFlags.NonPublic | BindingFlags.Static
+        );
+
+        Assert.NotNull(method);
+        var result = method!.Invoke(null, new object?[] { body });
+        Assert.NotNull(result);
+
+        return (bool)result!;
     }
 }

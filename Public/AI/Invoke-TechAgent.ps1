@@ -1536,6 +1536,48 @@ Hard requirement:
             }
         }
 
+        if ($Provider -eq 'ollama') {
+            $normalizedResolvedModel = if ($null -ne $resolvedModel) { $resolvedModel.Trim() } else { '' }
+            $isAutoRoutingAlias = (
+                [string]::IsNullOrWhiteSpace($normalizedResolvedModel) -or
+                $normalizedResolvedModel -ieq 'auto' -or
+                $normalizedResolvedModel -ieq 'default' -or
+                $normalizedResolvedModel -ieq 'llama3'
+            )
+
+            if ($isAutoRoutingAlias) {
+                try {
+                    $llmClientFactoryType = $null
+                    try {
+                        $llmClientFactoryType = [TechToolbox.Agent.Agent.LlmClientFactory]
+                    }
+                    catch {
+                        $null = Add-Type -Path $agentAssemblyPath -ErrorAction Stop
+                        $llmClientFactoryType = [TechToolbox.Agent.Agent.LlmClientFactory]
+                    }
+
+                    if ($null -ne $llmClientFactoryType) {
+                        $selectedPromptModel = $llmClientFactoryType::SelectModelForPrompt(
+                            $effectivePrompt,
+                            $resolvedExecutionMode,
+                            $preflightScore,
+                            0,
+                            $null,
+                            $resolvedAutoModelRoutingEnabled,
+                            $resolvedAutoModelRoutingThreshold
+                        )
+
+                        if (-not [string]::IsNullOrWhiteSpace([string]$selectedPromptModel)) {
+                            $resolvedModel = [string]$selectedPromptModel
+                        }
+                    }
+                }
+                catch {
+                    Write-Log -Level Warn -Message ("Unable to resolve the effective Ollama model for this run. Keeping the alias value '{0}' in markdown output: {1}" -f $resolvedModel, $_.Exception.Message)
+                }
+            }
+        }
+
         $memoryPath = $null
         $memoryPathValue = & $getConfigValue $cfg 'memoryPath'
         if (-not [string]::IsNullOrWhiteSpace([string]$memoryPathValue)) {
@@ -2012,7 +2054,7 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
                     -Path $markdownPath `
                     -Status $markdownStatus `
                     -PromptText $Prompt `
-                    -ModelName $Model `
+                    -ModelName $resolvedModel `
                     -IterationLimit $MaxIterations `
                     -DestructiveAuthorized $ConfirmDestructive.IsPresent `
                     -SignedFilePolicyValue $SignedFilePolicy `
@@ -2052,8 +2094,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBiaoInZKjjohDW
-# DJSN7zP3QUyaCBYUegkzFDtqS/dsdqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCvE09HqkqQ3EZ4
+# pLVETENo54osevFGjEDB7ZG4HTu8gaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2186,34 +2228,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCPggueUAq5
-# rEaqDgb8eencpGDx1KxEpc+1pqBTsJB/rTANBgkqhkiG9w0BAQEFAASCAgBEfU+c
-# y5iRIF97qIT8bGcngsGtEHghmcbATPWkGVEAldPtKMhmPRkx1Igz6QYuEx+N+LK+
-# iTeV7J8qJ2Cn3DKMqlIq51CU1Xnbyd5XWP4BvlR6IfUvsH4hRDKvviB32cyXSQk/
-# kMV0ALj1Mblzn26vlfml+OUhuidSilba9dcRUjjW0UTV3dqZhPXbRwAV3f5WgERA
-# xADn2Ye19vfBTntZV1wZ07/OJvrDgaTZp5NLWKRxut/m2D3/dshmBpv3RaOcVqOi
-# g/DgK4vahu9eM8ANx4WMKSFHWhfaWU7yWmPy6RiPAHkGFb68gw7yspm8hWI5400B
-# vQd7uDYSyxgeO5CvdVC2N3/DtR23Q7GTaa9QuQEKjsSLUxxchGyNmCjWkH66mCdG
-# 6MEs+XTuxMQgeVtFwita8VPY3mQ47cETpQoANgEDqTguPTpW+HU3LO/9M5YD/KJz
-# lzHSDA5o8PiIhdvHZ/M8cbYgQLo96vh/A3soofJvS3XiO7WMHfdMGOAaRDL0mj4W
-# 9R5Rxcz56gzo1vgUMIpLoXX/1B966RG90kul6iAbDpoKNbDvQiespmIPAKjxfy2/
-# Ydfah2zn37UyqC+cCJZVpLFMNHZWd0n8nHNb0TBNU9BSoCeH8AGW7GnKkKnsdQ9H
-# 1SYGwk8R/ACuwzZmB7sGn5Ph1ubpc0wGRa0z0KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD90KTs61B3
+# nfJuamQ6OLzYTr3gb4Gmjm9VjEF3ExhK6zANBgkqhkiG9w0BAQEFAASCAgAghSk1
+# 8YS/F4q5cI2eJBecVJ3lGOLkkTbNjkgB2odLziMEbNpjI1PjG0aXT1BZJNf+51H6
+# Lf5EeWCyLIgVsHZ9LAZm1ZA4y4T6K9e+3JkNeRBAD5QqDxh1xVs3+z3Xa4QacvuU
+# Muo39wbF9FKjBZiVG/AteXeR4lJk6P1U3HqqS1Qf/MGFl6pmXe2zdCKrVOqnJmxo
+# 4RmkjmS5Q5uNBPuBsz69Jm4lRnULfGtHqt86mlxCmEUAnslwlDNHzBjup7en78ee
+# HgzK15Z0FxvwF4X4Vc68HGwShTjZ1elM3cLhvLRjwruxCsRcoCLpRApr4xkGqAHp
+# 4eoHN2eIwoleedelAFyHeIPX0HcSBfFXwJ2Sk+GfBHktxNOfCrik5mz2WAWryn/K
+# 9l6Lqg0f6uwSMPiwkYJb8B2/k2OJqPL+Cug6SoG/lj/UgX6DtHeVCS74adJeUYtq
+# vWuKHeutRzSHdh/tNW8x4xV1LSEsxeIJzQ9xeI9J25rpsXY4xufYKkGAtD608feL
+# qUXfpocCUktlrUAf5lXf2chOvX9bH6a9XNcDKCoxNwFbIoKFoaLSVTH7uG5KorLl
+# 0nb4taRbcGsz2OIyFI1BAwKhquAq2E7KNEFPPAXY7IhHhYHdGBD3FW9ZZq/NeNYB
+# csNtOIHuhgmaFZv1dFrP1laZCIYbq1NrQFnsWaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTYwMDUyMzdaMC8GCSqGSIb3DQEJBDEiBCC5Z5goI5ZfNlFgK0Bg
-# P6BWwmjixMxfR4k9xDJFUxpSKDANBgkqhkiG9w0BAQEFAASCAgASk+LRJ/ytrgfn
-# 1VcQIhHazUgv+2rfl+0r12LtEfJR2TKe0l50vde80f2X+L2cCsx6Y75W1fJ/OyqZ
-# aJlbogT0fDFN3gI875GEq4jOSVfNzm3XjWJ5TQKpxrSkP1Ifyet8T08csDPnvs4d
-# kiZr5Xvo2z+OUZ05+g+zw87jZzEYaQbAzKLnpvCbM6QIs7JDGr+5YPTKofzfgPH5
-# KZ3owoAy9r2vwF8mZsMRMWiyljD/KULvnN/pvR+SzcCr6Q8XpMZJxwp/+xir1Dz/
-# /6uC5pPKOFSSMwPEBeqf+ENqSYzqNAj9gyMXz0KwKyTWcwfXdRw+PKaH3g/AeiWK
-# 2zxQFUI4Wlsc511WcajB9aDGbnfuYR6lB92b7UENxCEz2KeuJgxYJOThs81tCHh1
-# 6IRkDA5a1d/SeOLrOeAfgTJDA4clYkx2k3ggmnWO40fLepGccjN5vGHUYnbI/GfX
-# 3tx1GvG0FGA6+VybpRhoBpbDQ8iXeriWM1gsZ8qNAImn4zz0PuXfXD9fsPf4HI3y
-# w0KMw0cTEhkK3esAy9oXLiziq7TTLKfjZbymP/egM7dQfQ8NKs4eGyUseezkM8aZ
-# X50+hpIpjpWUo50ZdXvIGP1MCXVccTtL+LwCxwHsjOcm3ofis8prhja3JPdmqdu7
-# R2CK6tjZorjO8jeTIx3ydkEN3CsO+A==
+# BTEPFw0yNjA4MTYwMjIzMjRaMC8GCSqGSIb3DQEJBDEiBCCtGAwQEYpfrSq04j9x
+# ciOqhJ0rfEzsq0UqD9inE3gouDANBgkqhkiG9w0BAQEFAASCAgCip47Rg8vxUvhH
+# /FAnMTYnRmeW8dr2cPnBPEFS86rIuoQoRoSAx6BDoYvZkQGKmRxCCCqmHhn6Xx+U
+# ZBNDJoZvDqciaVaNIzhUPVUIh3ODGz0NxNblfe5ZVzNAgUazUKg/LmaXz2GqHmY4
+# SaDW7RDbMRW1K1vJcYRkLMtCxaBs3h0gKQrJsiOtuZiWz/fiz2EIGsIITQDpJICU
+# HrW4tvW87hY9LYW7ZlkiVO5JQlQQAvSPldnDusVBXpDkDCGPx+FrqMA5aDMCj1Uy
+# CDTeMPZAqhxXWdT47KHrVscPyl8G96Oz2TmaN5OPpUAIv90Yok/HNwpmS5Yt+GGH
+# rdTHroAH729z2ECQI2uj6+xp4GkdTM3vioJ5KOk2B79q2wrUlySpWi7Bj0xf9axd
+# oNdFeXfGbDPtDAT4hU6ynx+/Rg/yjf0MWhGUbx4WhWvZ02Zzt7n24ppz1/5JvDmi
+# W+sOcXvObBfB1tvDDdnI7IMJ/lPhN1LV0fudlgGRkaSV+T85MrSaEDvE+TGKrrVZ
+# k3WYvbdMlgZucTeeX3TO0YiQdiaHQUkPatR7yV8LSygg7aTXIf2kylPovpvYQQa6
+# kgYKZeYjnzkvxzl/rfCF5vsQpTrX+vTnLZhTZ2eQbjX3iNrrF3Hms7VcKRc+y2JA
+# m/JEl3a5q3lIQXih7SISjAe1U69/HQ==
 # SIG # End signature block

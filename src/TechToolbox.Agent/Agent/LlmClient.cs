@@ -69,6 +69,21 @@ public class LlmClient : ILlmClient
         Func<string, Task<bool>>? onContentAccumulated = null,
         CancellationToken cancellationToken = default
     )
+        => await GenerateDecisionWithAttemptOptionsAsync(
+            messages,
+            onContentAccumulated,
+            cancellationToken,
+            _thinkingEnabled,
+            allowThinkingFallback: true
+        ).ConfigureAwait(false);
+
+    private async Task<LlmResponse> GenerateDecisionWithAttemptOptionsAsync(
+        IReadOnlyList<AgentChatMessage> messages,
+        Func<string, Task<bool>>? onContentAccumulated,
+        CancellationToken cancellationToken,
+        bool thinkingEnabledForAttempt,
+        bool allowThinkingFallback
+    )
     {
         // Return empty response if no messages provided
         if (messages is null || messages.Count == 0)
@@ -80,7 +95,7 @@ public class LlmClient : ILlmClient
             Model = _model,
             Messages = messages.ToList(),
             Stream = true,
-            Think = _thinkingEnabled,
+            Think = thinkingEnabledForAttempt,
             Format = "json",
             Options = new Dictionary<string, object?>
             {
@@ -222,6 +237,35 @@ public class LlmClient : ILlmClient
         {
             var emptyContentDiagnostics = BuildEmptyContentDiagnostics(lastRawLine);
             Trace($"Accumulated content was empty. {emptyContentDiagnostics}");
+
+            if (allowThinkingFallback && thinkingEnabledForAttempt && ShouldRetryWithoutThinking(lastRawLine))
+            {
+                Trace("Retrying request with think=false after empty-content completion.");
+                var fallback = await GenerateDecisionWithAttemptOptionsAsync(
+                    messages,
+                    onContentAccumulated,
+                    cancellationToken,
+                    thinkingEnabledForAttempt: false,
+                    allowThinkingFallback: false
+                ).ConfigureAwait(false);
+
+                if (fallback.Success && !string.IsNullOrWhiteSpace(fallback.Text))
+                {
+                    Trace("Fallback retry with think=false succeeded.");
+                    return fallback;
+                }
+
+                var fallbackFailure = string.IsNullOrWhiteSpace(fallback.Text)
+                    ? "fallback produced empty content."
+                    : fallback.Text;
+
+                return new LlmResponse(
+                    $"LLM returned empty content. {emptyContentDiagnostics} FallbackWithThinkingDisabled failed: {fallbackFailure}",
+                    string.IsNullOrWhiteSpace(fallback.RawBody) ? lastRawLine : fallback.RawBody,
+                    false
+                );
+            }
+
             return new LlmResponse(
                 $"LLM returned empty content. {emptyContentDiagnostics}",
                 lastRawLine,
@@ -433,6 +477,51 @@ public class LlmClient : ILlmClient
         {
             // Fallback if JSON parsing fails
             return $"Body preview: {Preview(body)}";
+        }
+    }
+
+    private static bool ShouldRetryWithoutThinking(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            var doneReasonLength =
+                root.TryGetProperty("done_reason", out var doneReason)
+                && doneReason.ValueKind == JsonValueKind.String
+                && string.Equals(doneReason.GetString(), "length", StringComparison.OrdinalIgnoreCase);
+
+            var hasThinking = false;
+            var hasEmptyContent = false;
+
+            if (root.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.Object)
+            {
+                if (
+                    message.TryGetProperty("thinking", out var thinking)
+                    && thinking.ValueKind == JsonValueKind.String
+                )
+                {
+                    hasThinking = !string.IsNullOrWhiteSpace(thinking.GetString());
+                }
+
+                if (
+                    message.TryGetProperty("content", out var messageContent)
+                    && messageContent.ValueKind == JsonValueKind.String
+                )
+                {
+                    hasEmptyContent = string.IsNullOrWhiteSpace(messageContent.GetString());
+                }
+            }
+
+            return hasThinking && (doneReasonLength || hasEmptyContent);
+        }
+        catch
+        {
+            return false;
         }
     }
 }
