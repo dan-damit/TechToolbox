@@ -17,13 +17,22 @@ on:
 jobs:
   publish:
     runs-on: windows-latest
+    env:
+      TECHTOOLBOX_AGENT_PAT: ${{ secrets.TECHTOOLBOX_AGENT_REPO_PAT }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (PAT)
+        if: env.TECHTOOLBOX_AGENT_PAT != ''
         uses: actions/checkout@v4
         with:
           # Use a PAT when the TechToolbox.Agent submodule is private and outside this repo.
-          token: ${{ secrets.TECHTOOLBOX_AGENT_REPO_PAT || github.token }}
+          token: ${{ env.TECHTOOLBOX_AGENT_PAT }}
+          submodules: recursive
+
+      - name: Checkout repository (default token)
+        if: env.TECHTOOLBOX_AGENT_PAT == ''
+        uses: actions/checkout@v4
+        with:
           submodules: recursive
 
       - name: Validate TechToolbox.Agent submodule checkout
