@@ -22,7 +22,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # Use a PAT when the TechToolbox.Agent submodule is private and outside this repo.
+          token: ${{ secrets.TECHTOOLBOX_AGENT_REPO_PAT || github.token }}
           submodules: recursive
+
+      - name: Validate TechToolbox.Agent submodule checkout
+        shell: pwsh
+        run: |
+          $agentProjectPath = Join-Path $PWD.Path 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
+          if (-not (Test-Path -LiteralPath $agentProjectPath -PathType Leaf)) {
+            throw "Missing $agentProjectPath. If TechToolbox.Agent is a private submodule, set repository secret 'TECHTOOLBOX_AGENT_REPO_PAT' with read access to dan-damit/TechToolbox.Agent."
+          }
 
       - name: Publish TechToolbox.Agent runtime
         shell: pwsh
