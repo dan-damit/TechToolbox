@@ -114,7 +114,7 @@ Latest completed enhancements:
 - Agent orchestration reliability:
   - blocked premature completion when a model returns a progress-style `finalAnswer` that indicates work is still in progress
   - recovered from schema-invalid progress updates (`needsTool=false` with empty `finalAnswer` and coherent progress `reason`) by steering the loop forward instead of surfacing misleading invalid-JSON terminal failures
-  - added regression coverage for both failure patterns in `src\TechToolbox.Agent.Tests\AgentOrchestratorTests.cs`
+  - added regression coverage for both failure patterns in `src\TechToolbox.Agent\Tests\AgentOrchestratorTests.cs`
 - Removed the `ITA` wrapper from module exports. Operators now call `Invoke-TechAgent` directly as the single agent entry point.
 - Refactored TechToolbox home initialization to default runtime data paths to module root and removed first-import home staging/copy behavior. Runtime folders (`LogsAndExports/Logs`, `LogsAndExports/Exports`) are now ensured in-place unless `TT_Home` is explicitly set.
 

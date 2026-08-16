@@ -156,6 +156,10 @@ TechToolbox/
 ├── Config/                   # Runtime configuration (config.json, secrets)
 │   ├── config.json           # Base settings (git-tracked)
 │   └── config.secrets.json   # Tenant secrets (git-ignored)
+├── src/
+│   └── TechToolbox.Agent/    # Private C# agent source (git submodule)
+│       ├── TechToolbox.Agent.csproj
+│       └── Tests/            # xUnit tests for agent runtime
 ├── AgentRuntime/             # Packaged C# TechToolbox agent runtime for PSGallery installs
 └── commands.md               # Full command catalog with examples
 ```
@@ -590,7 +594,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.5.90
+- **Module version:** 0.5.92
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
 

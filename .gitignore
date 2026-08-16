@@ -12,10 +12,6 @@ obj/
 /Bin/
 bin/
 SecureCrimp/
-!src/TechToolbox.Agent/bin/
-src/TechToolbox.Agent/bin/**
-!src/TechToolbox.Agent/bin/**/
-!src/TechToolbox.Agent/bin/**/TechToolbox.Agent.dll
 
 # Files
 wordlist.txt
