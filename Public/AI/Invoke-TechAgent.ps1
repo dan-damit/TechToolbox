@@ -556,6 +556,50 @@ function Invoke-TechAgent {
         )
     }
 
+    $evaluatePostflightGoal = {
+        param(
+            [string]$PromptText,
+            [string]$ResponseText,
+            [int]$PreflightScore
+        )
+
+        if ([string]::IsNullOrWhiteSpace($PromptText)) {
+            return @{ Achieved = $false; Reason = 'Prompt was empty.' }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($ResponseText)) {
+            return @{ Achieved = $false; Reason = 'No response text was produced.' }
+        }
+
+        $promptLower = $PromptText.Trim().ToLowerInvariant()
+        $responseLower = $ResponseText.Trim().ToLowerInvariant()
+
+        if ([regex]::IsMatch($responseLower, '(?i)(i need more detail|need more information|clarification needed|unable to|could not|failed to|not enough information)')) {
+            return @{ Achieved = $false; Reason = 'The response requested more clarification or reported inability to complete the task.' }
+        }
+
+        if ($PreflightScore -lt 60 -and $ResponseText.Trim().Length -lt 80) {
+            return @{ Achieved = $false; Reason = 'The response was too short to clearly satisfy the prompt.' }
+        }
+
+        if ($promptLower.Contains('weather') -or $promptLower.Contains('forecast')) {
+            $weatherTerms = @('weather', 'forecast', 'temperature', 'humidity', 'wind', 'rain', 'conditions', 'precipitation')
+            $hasWeatherResponseSignal = $false
+            foreach ($term in $weatherTerms) {
+                if ($responseLower.Contains($term)) {
+                    $hasWeatherResponseSignal = $true
+                    break
+                }
+            }
+
+            if (-not $hasWeatherResponseSignal) {
+                return @{ Achieved = $false; Reason = 'The response did not include weather or forecast information.' }
+            }
+        }
+
+        return @{ Achieved = $true; Reason = '' }
+    }
+
     $resolvedExecutionMode = & $resolveExecutionMode -ModeFromParam $Mode -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('Mode')
     $resolvedOutputContract = & $resolveOutputContract -ContractFromParam $OutputContract -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('OutputContract')
     $resolvedQualityProfile = & $resolveQualityProfile -ProfileFromParam $QualityProfile -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('QualityProfile')
@@ -639,13 +683,15 @@ function Invoke-TechAgent {
         "Tech agent reasoning effort settings: override={0} auto={1}" -f $(if ([string]::IsNullOrWhiteSpace($resolvedReasoningEffort)) { '(none)' } else { $resolvedReasoningEffort }), $resolvedReasoningEffortAuto
     )
 
-    foreach ($warning in @($preflight.Warnings)) {
-        Write-Warning ("`nInvoke-TechAgent preflight: {0}" -f $warning)
-    }
+    if ($StrictPromptPreflight.IsPresent) {
+        foreach ($warning in @($preflight.Warnings)) {
+            Write-Warning ("`nInvoke-TechAgent preflight: {0}" -f $warning)
+        }
 
-    if (@($preflight.Critical).Count -gt 0) {
-        foreach ($criticalMessage in @($preflight.Critical)) {
-            Write-Warning ("`nInvoke-TechAgent preflight critical: {0}" -f $criticalMessage)
+        if (@($preflight.Critical).Count -gt 0) {
+            foreach ($criticalMessage in @($preflight.Critical)) {
+                Write-Warning ("`nInvoke-TechAgent preflight critical: {0}" -f $criticalMessage)
+            }
         }
     }
 
@@ -1064,43 +1110,52 @@ Hard requirement:
         }
 
         if ($Provider -eq 'ollama' -and -not [string]::IsNullOrWhiteSpace($Model)) {
-            $ollamaCommand = Get-Command -Name ollama -ErrorAction SilentlyContinue
-            if (-not $ollamaCommand) {
-                throw "Ollama executable not found. Install Ollama or add it to PATH."
-            }
+            $normalizedModelName = $Model.Trim()
+            $isAutoRoutingAlias = (
+                $normalizedModelName -ieq 'auto' -or
+                $normalizedModelName -ieq 'default' -or
+                $normalizedModelName -ieq 'llama3'
+            )
 
-            $ollamaListOutput = & $ollamaCommand.Source list 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                $ollamaError = ($ollamaListOutput | Out-String).Trim()
-                throw ("Unable to query local Ollama models: {0}" -f $ollamaError)
-            }
-
-            $availableModels = @()
-            foreach ($line in $ollamaListOutput) {
-                $trimmed = "$line".Trim()
-                if ([string]::IsNullOrWhiteSpace($trimmed)) {
-                    continue
+            if (-not $isAutoRoutingAlias) {
+                $ollamaCommand = Get-Command -Name ollama -ErrorAction SilentlyContinue
+                if (-not $ollamaCommand) {
+                    throw "Ollama executable not found. Install Ollama or add it to PATH."
                 }
 
-                if ($trimmed -match '^NAME\s+') {
-                    continue
+                $ollamaListOutput = & $ollamaCommand.Source list 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                    $ollamaError = ($ollamaListOutput | Out-String).Trim()
+                    throw ("Unable to query local Ollama models: {0}" -f $ollamaError)
                 }
 
-                $parts = $trimmed -split '\s+'
-                if ($parts.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($parts[0])) {
-                    $availableModels += $parts[0]
+                $availableModels = @()
+                foreach ($line in $ollamaListOutput) {
+                    $trimmed = "$line".Trim()
+                    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+                        continue
+                    }
+
+                    if ($trimmed -match '^NAME\s+') {
+                        continue
+                    }
+
+                    $parts = $trimmed -split '\s+'
+                    if ($parts.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($parts[0])) {
+                        $availableModels += $parts[0]
+                    }
                 }
-            }
 
-            if (-not $availableModels) {
-                throw ("No local Ollama models were found. Pull the requested model first: ollama pull {0}" -f $Model)
-            }
+                if (-not $availableModels) {
+                    throw ("No local Ollama models were found. Pull the requested model first: ollama pull {0}" -f $Model)
+                }
 
-            if ($availableModels -notcontains $Model) {
-                $knownModels = ($availableModels | Sort-Object -Unique) -join ', '
-                throw (
-                    "Ollama model '{0}' is not available locally. Run: ollama pull {0}. Available models: {1}" -f $Model, $knownModels
-                )
+                if ($availableModels -notcontains $Model) {
+                    $knownModels = ($availableModels | Sort-Object -Unique) -join ', '
+                    throw (
+                        "Ollama model '{0}' is not available locally. Run: ollama pull {0}. Available models: {1}" -f $Model, $knownModels
+                    )
+                }
             }
         }
 
@@ -1889,6 +1944,21 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
             $message = 'Tech agent completed successfully with no output.'
         }
 
+        $postflightAssessment = & $evaluatePostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore
+        if (-not $StrictPromptPreflight.IsPresent -and -not $postflightAssessment.Achieved) {
+            foreach ($warning in @($preflight.Warnings)) {
+                Write-Warning ("`nInvoke-TechAgent postflight: {0}" -f $warning)
+            }
+
+            foreach ($criticalMessage in @($preflight.Critical)) {
+                Write-Warning ("`nInvoke-TechAgent postflight critical: {0}" -f $criticalMessage)
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) {
+                Write-Warning ("`nInvoke-TechAgent postflight: {0}" -f $postflightAssessment.Reason)
+            }
+        }
+
         # Surface orchestrator-level failures as real failures so markdown status
         # and caller behavior do not report false positives.
         $knownFailurePrefixes = @(
@@ -1982,8 +2052,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBtLteqQ90FJtTB
-# 1+LX+ja0/PjVyOOVtizfDMCqni2ds6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBiaoInZKjjohDW
+# DJSN7zP3QUyaCBYUegkzFDtqS/dsdqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2116,34 +2186,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCihDejBZpr
-# YaBG/RgcaDOV2OzfugpvmYkMHaulct59EjANBgkqhkiG9w0BAQEFAASCAgASjqEC
-# tgch6QuoaC6PHwAYtxhBQWPxOrxSum7XT63mNnY7MuZPG7Ft3UTvsB9VWTVGsGzv
-# l3sUOji+Jph1YNcXBp/4BJ2bYlO5ifosi6oOP5ZwJ4PsOxpqFafdbTHPbXgyDoFu
-# fTtCuInKVk0tVLdIEq87lPb+SmJyPrWE0rmv3stUry9UmBgUdaf/FJw03nO5u/VJ
-# LJzcrAb+2iLQ+JaiVTiuEbxOGKgDLBSKxe6D+XZ1gSfjAS1EcYuzk1e+rS5iRbL2
-# pFxW6wtD5RBuIkWqTIX93mDl8kL5PajfXZ1IYPqxp9HrmhnoyRq+ZDyMk0Gqa4iN
-# yVw7q1KaaL5Roax6uEe66EqDfCbXLOuTpenHa5DXHB0z95ZmjQ2GQjCXeW2gVLWL
-# KuseRdaUenb6+QSW77ATIMsrxx9O30JfqUudmxRf/k6vCzr8iGO6+zrd0RtcHo5n
-# OWcBFjTH+30VqEhCdCa/KS0ahGBFODVuE2oFFtFnEEbtTRoWyot1rFf0MnmlOTEf
-# yosiOsDiqe37ZhF0wku9Ry6kNq5npSFjvfXg3BMLylMqurM0MR4hpfNA30qwHR9t
-# wxRNzI5KIy6mUYRCBH82exzkgyA37dvfNlRViSSh//nxTvzn3HTbT1lf+kKbu2Qv
-# HuPWjlVsZaN/KX8x/+jE8Chn+gGZGquCObK2saGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCPggueUAq5
+# rEaqDgb8eencpGDx1KxEpc+1pqBTsJB/rTANBgkqhkiG9w0BAQEFAASCAgBEfU+c
+# y5iRIF97qIT8bGcngsGtEHghmcbATPWkGVEAldPtKMhmPRkx1Igz6QYuEx+N+LK+
+# iTeV7J8qJ2Cn3DKMqlIq51CU1Xnbyd5XWP4BvlR6IfUvsH4hRDKvviB32cyXSQk/
+# kMV0ALj1Mblzn26vlfml+OUhuidSilba9dcRUjjW0UTV3dqZhPXbRwAV3f5WgERA
+# xADn2Ye19vfBTntZV1wZ07/OJvrDgaTZp5NLWKRxut/m2D3/dshmBpv3RaOcVqOi
+# g/DgK4vahu9eM8ANx4WMKSFHWhfaWU7yWmPy6RiPAHkGFb68gw7yspm8hWI5400B
+# vQd7uDYSyxgeO5CvdVC2N3/DtR23Q7GTaa9QuQEKjsSLUxxchGyNmCjWkH66mCdG
+# 6MEs+XTuxMQgeVtFwita8VPY3mQ47cETpQoANgEDqTguPTpW+HU3LO/9M5YD/KJz
+# lzHSDA5o8PiIhdvHZ/M8cbYgQLo96vh/A3soofJvS3XiO7WMHfdMGOAaRDL0mj4W
+# 9R5Rxcz56gzo1vgUMIpLoXX/1B966RG90kul6iAbDpoKNbDvQiespmIPAKjxfy2/
+# Ydfah2zn37UyqC+cCJZVpLFMNHZWd0n8nHNb0TBNU9BSoCeH8AGW7GnKkKnsdQ9H
+# 1SYGwk8R/ACuwzZmB7sGn5Ph1ubpc0wGRa0z0KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTUyMzMyNTZaMC8GCSqGSIb3DQEJBDEiBCAX4sAzeHr9pjtoObX8
-# yZsmp41x+Q/kXQ6UktCZUI4tMjANBgkqhkiG9w0BAQEFAASCAgB5zIsfE+NDfG8m
-# Cy+WY5qBGcI7aLTCeyWhGSwh0Fay31RjloTj95CeoKzENe0OhEChB7D6X4Pqs7gr
-# NtPelJ0/LybY1KRfvOnee3NsklMYUTQ+0+8F84fIZnAo7unyKEZaQA71YtEA2mOl
-# 4DhuZxL1lf4il2A3Kp4YpdOQTi8Py3Of+fOg8o8vxDcpLU8ar+hkm2SnY1EYg0vs
-# /JelnRlfU61ef4i/QnPKNscol+lqF/3LaZKl0N8hyVEAwkmqq0awDvq/ZNHJlmwJ
-# bk4lJ4jTBI/1etUztQYkdtQkmN/2NxSwUiwFNj9uFnuwVpSUN0RXvd+0DCRG9Rjr
-# XFyVQJtCQ85jmQNAF3RNPY1rjCNcPdBngF9F5vxxuvGGiL39bn018zcyLzEt9HhP
-# 5wSJggfmfPshcG7wL+k7GslVptvqo/XXcFuwH9/dihBz91QyoMvmeQ7ojr3depJc
-# yeNmDaUPnKjoUaqoWrAqSPIi/tTo+nAt0bZ8YtoYTYpew5LFAAAoaaKw4smLsffE
-# vTSlaQwDQtARI2+WE05x23QZZwMBJhOnrLnsYxCHIpP6mqLCGOO2hFs5XYg1JILX
-# suqnqsvF86I9IeBy3fWOwsXhRPqbBJbWISvdAJHxvHMybPPCLbR2m2bm/RtquUfs
-# UNcRUk3a5njyxQEyV4Gp61JCv0Blog==
+# BTEPFw0yNjA4MTYwMDUyMzdaMC8GCSqGSIb3DQEJBDEiBCC5Z5goI5ZfNlFgK0Bg
+# P6BWwmjixMxfR4k9xDJFUxpSKDANBgkqhkiG9w0BAQEFAASCAgASk+LRJ/ytrgfn
+# 1VcQIhHazUgv+2rfl+0r12LtEfJR2TKe0l50vde80f2X+L2cCsx6Y75W1fJ/OyqZ
+# aJlbogT0fDFN3gI875GEq4jOSVfNzm3XjWJ5TQKpxrSkP1Ifyet8T08csDPnvs4d
+# kiZr5Xvo2z+OUZ05+g+zw87jZzEYaQbAzKLnpvCbM6QIs7JDGr+5YPTKofzfgPH5
+# KZ3owoAy9r2vwF8mZsMRMWiyljD/KULvnN/pvR+SzcCr6Q8XpMZJxwp/+xir1Dz/
+# /6uC5pPKOFSSMwPEBeqf+ENqSYzqNAj9gyMXz0KwKyTWcwfXdRw+PKaH3g/AeiWK
+# 2zxQFUI4Wlsc511WcajB9aDGbnfuYR6lB92b7UENxCEz2KeuJgxYJOThs81tCHh1
+# 6IRkDA5a1d/SeOLrOeAfgTJDA4clYkx2k3ggmnWO40fLepGccjN5vGHUYnbI/GfX
+# 3tx1GvG0FGA6+VybpRhoBpbDQ8iXeriWM1gsZ8qNAImn4zz0PuXfXD9fsPf4HI3y
+# w0KMw0cTEhkK3esAy9oXLiziq7TTLKfjZbymP/egM7dQfQ8NKs4eGyUseezkM8aZ
+# X50+hpIpjpWUo50ZdXvIGP1MCXVccTtL+LwCxwHsjOcm3ofis8prhja3JPdmqdu7
+# R2CK6tjZorjO8jeTIx3ydkEN3CsO+A==
 # SIG # End signature block
