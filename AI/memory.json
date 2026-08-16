@@ -20,8 +20,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.8,
-      "avgDurationMs": 160588,
-      "avgToolCalls": 3.35,
+      "avgDurationMs": 168348,
+      "avgToolCalls": 3.7,
       "statusCounts": {
         "success": 16,
         "error": 4
@@ -34,9 +34,9 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-08-15T23:09:26.1196185\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-15T23:09:26.1209280\u002B00:00",
-      "avgPromptPreflightScore": 81,
+      "lastRunTimestampUtc": "2026-08-16T00:46:55.0238102\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-16T00:46:55.0252642\u002B00:00",
+      "avgPromptPreflightScore": 79,
       "executionModeCounts": {
         "chat": 15,
         "execute": 5
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-15T23:09:26.1209527\u002B00:00",
+      "generatedUtc": "2026-08-16T00:46:55.0253067\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 9,
       "indexEntries": 0,
@@ -70,33 +70,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-14T23:04:57.1649167+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Fully activate all chat-mode conversational systems implemented in\r\nChatModeOrchestration.cs. Use every module intentionally and aggressively\r\nduring this run.\r\n\r\nYou MUST apply the following modules every turn:\r\n\r\n1. Persona Layer\r\n   - Maintain the stable persona defined in DefaultPersona.\r\n   - Use friendly, direct, technically competent tone.\r\n   - Keep pacing steady and non-rushed.\r\n   - Maintain calm, confident emotional temperature.\r\n   - Use medium assertiveness.\r\n   - Ask clarifying questions when needed.\r\n   - Use light optional humor.\r\n   - Increase technical depth when user is technical.\r\n\r\n2. Intent Decomposition\r\n   - Extract explicit, implicit, and latent intent from the user prompt.\r\n   - Identify constraints and contextual signals.\r\n   - Compute ambiguity and risk levels.\r\n   - Detect mixed intent and operational intent.\r\n\r\n3. Conversation Compass\r\n   - Choose the correct conversational action:\r\n     Clarify, Answer, Propose, Challenge, Summarize, Escalate, or Close.\r\n\r\n4. Conversational Goal\r\n   - Set a goal for the turn:\r\n     Clarify, Inform, Solve, Reassure, Challenge, Redirect, Escalate, Close.\r\n\r\n5. Response Strategy\r\n   - Choose Answer-First or Act-First based on intent and compass.\r\n\r\n6. Tool Hesitation Curve\r\n   - Evaluate hesitation level (Low, Medium, High).\r\n   - If Medium or High, ask the clarification prompt before acting.\r\n   - Only act-first when intent is concrete and risk is low.\r\n\r\n7. Continuity Context\r\n   - Retrieve unresolved questions, preferences, frustrations, successes, warnings.\r\n   - Use them to maintain conversational continuity.\r\n\r\n8. Micro-Context Windows\r\n   - Build topic, preference, constraint, tool, and emotion windows.\r\n   - Use them to shape the response.\r\n\r\n9. Style Controls\r\n   - Adjust verbosity, depth, directness, and question-asking tendency.\r\n\r\n10. Output Contract Adaptation\r\n   - Preserve contract-safe formatting.\r\n   - Wrap answers in natural conversational language.\r\n   - Avoid robotic phrasing.\r\n\r\n11. Failure Handling\r\n   - If ambiguity is high, ask a clarifying question.\r\n   - If risk is high, escalate or challenge.\r\n   - If nearing iteration limits, produce a progress checkpoint.\r\n\r\nYour objective:\r\n- Produce the most natural, technically competent, context-aware conversational\r\n  response possible.\r\n- Use all modules intentionally.\r\n- Do not skip any module.\r\n- Do not fall back to generic chat behavior.\r\n- Lean into the architecture aggressively.\r\n\r\nEnd of directive.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 146111,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "I have fully activated the chat-mode orchestration systems as requested. All modules are engaged\u2014Persona Layer, Intent Decomposition, Conversation Compass, and Continuity Context\u2014and I am ready to proceed with high technical depth.\n\nI\u0027ve noted your preferences regarding code changes, documentation, and avoiding previous failure patterns like iteration limits. How can I help you today?",
-      "runSummary": {
-        "intent": "Fully activate all chat-mode conversational systems implemented in\r\nChatModeOrchestration.cs. Use every module intentionally and aggressively\r\nduring this run.\r\n\r\nYou MUST apply the following modules every turn:\r\n\r\n1. Pe...",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-14T23:12:37.7311983+00:00",
       "status": "success",
@@ -722,11 +695,49 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-16T00:46:55.0238102+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.6:35b",
+      "durationMs": 301294,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 7,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "search_web",
+        "fetch_url",
+        "search_web",
+        "fetch_url",
+        "search_web"
+      ],
+      "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin for tomorrow (August 17, 2026):\n\n- **Conditions**: Partly Sunny\n- **High Temperature**: Around 73\u00B0F\n- **Low Temperature (Tonight)**: Around 64\u00B0F\n\n*Source: National Weather Service*",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-15T23:09:26.1210836\u002B00:00",
+    "generatedUtc": "2026-08-16T00:46:55.0255217\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 9,
     "indexEntries": 0,

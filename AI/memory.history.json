@@ -1,65 +1,5 @@
 [
   {
-    "timestampUtc": "2026-07-14T04:21:53.7318193+00:00",
-    "status": "error",
-    "outcome": "llm-failure",
-    "prompt": "Read this file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n\r\nTask: \r\nAdd or improve XML documentation comments for every public type, public\r\nconstructor, and public method in this file.\r\n\r\nRequirements:\r\n- Modify the existing file in place at this exact path:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "ornith:35b",
-    "durationMs": 1979083,
-    "maxIterations": 50,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 27,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file",
-      "read_file",
-      "replace_in_file",
-      "replace_in_file",
-      "replace_in_file",
-      "replace_in_file",
-      "replace_in_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file",
-      "write_file"
-    ],
-    "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
-    "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
-    "runSummary": {
-      "intent": "Read this file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\r\n\r\nTask: \r\nAdd or improve XML documentation comments for every public type, public\r\nconstructor, and public method in this file.\r\n\r\nR...",
-      "actionsTaken": [
-        "read_file",
-        "replace_in_file",
-        "write_file"
-      ],
-      "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: InternalServerError - {\u0022error\u0022:\u0022llama-server process has terminated: exit status 1\u0022}",
-      "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-07-14T04:29:59.9601675+00:00",
     "status": "error",
     "outcome": "llm-failure",
@@ -7827,6 +7767,44 @@
       "search_web"
     ],
     "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin, for tomorrow (August 16):\n\n- **Conditions**: Partly sunny to mostly sunny.\n- **High Temperature**: Around 79\u00B0F.\n- **Low Temperature**: Around 64\u00B0F.\n- **Evening Outlook**: Some clouds with a chance of thunderstorms in spots late at night.",
+    "runSummary": {
+      "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "actionsTaken": [
+        "search_web",
+        "fetch_url"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-16T00:46:55.0238102+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+    "model": "qwen3.6:35b",
+    "durationMs": 301294,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 7,
+    "toolNames": [
+      "search_web",
+      "fetch_url",
+      "search_web",
+      "fetch_url",
+      "search_web",
+      "fetch_url",
+      "search_web"
+    ],
+    "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin for tomorrow (August 17, 2026):\n\n- **Conditions**: Partly Sunny\n- **High Temperature**: Around 73\u00B0F\n- **Low Temperature (Tonight)**: Around 64\u00B0F\n\n*Source: National Weather Service*",
     "runSummary": {
       "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
       "actionsTaken": [
