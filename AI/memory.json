@@ -20,8 +20,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.8,
-      "avgDurationMs": 168348,
-      "avgToolCalls": 3.7,
+      "avgDurationMs": 227624,
+      "avgToolCalls": 5.1,
       "statusCounts": {
         "success": 16,
         "error": 4
@@ -34,9 +34,9 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-08-16T00:46:55.0238102\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-16T00:46:55.0252642\u002B00:00",
-      "avgPromptPreflightScore": 79,
+      "lastRunTimestampUtc": "2026-08-16T02:26:58.6173501\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-16T02:26:58.6187046\u002B00:00",
+      "avgPromptPreflightScore": 84,
       "executionModeCounts": {
         "chat": 15,
         "execute": 5
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-16T00:46:55.0253067\u002B00:00",
+      "generatedUtc": "2026-08-16T02:26:58.6187288\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 9,
       "indexEntries": 0,
@@ -70,141 +70,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-14T23:12:37.7311983+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How is the Weather in Belfast Ireland at the present moment?",
-      "model": "qwen3.6:35b",
-      "durationMs": 44212,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
-      "runSummary": {
-        "intent": "How is the Weather in Belfast Ireland at the present moment?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T23:14:30.002133+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer.",
-      "model": "qwen3.6:35b",
-      "durationMs": 50796,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Mitigate at least one warning and provide a concrete target path or service so execution can remain bounded.",
-      "runSummary": {
-        "intent": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer.",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T23:15:30.1637362+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website.",
-      "model": "qwen3.6:35b",
-      "durationMs": 37943,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "I can proceed, but do you want a quick explanation first or should I run a targeted lookup now?",
-      "runSummary": {
-        "intent": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website.",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T23:16:31.3577868+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "you can run the targeted lookup now.",
-      "model": "qwen3.6:35b",
-      "durationMs": 27742,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
-      "runSummary": {
-        "intent": "you can run the targeted lookup now.",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-14T23:17:34.9156461+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
-      "model": "qwen3.6:35b",
-      "durationMs": 39790,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "I can proceed, but do you want a quick explanation first or should I run a targeted lookup now?",
-      "runSummary": {
-        "intent": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-14T23:30:38.2252556+00:00",
       "status": "success",
@@ -733,11 +598,194 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-16T01:05:00.3239908+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.6:35b",
+      "durationMs": 76608,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "fetch_url"
+      ],
+      "outputPreview": "## Green Bay, WI Weather Forecast (Tomorrow)\n\nBased on current forecasts:\n\n- **Conditions**: Partly sunny with a chance for spotty showers and storms later in the day or night.\n- **High Temperature**: 79\u00B0F\n- **Low Temperature**: 64\u00B0F\n- **Details**: Hazy skies are possible due to high altitude smoke from distant fires.",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-16T01:10:03.2936214+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.6:35b",
+      "durationMs": 169119,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 6,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "search_web",
+        "fetch_url",
+        "search_web",
+        "search_web"
+      ],
+      "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin for tomorrow (August 17):\n\n- **Conditions**: Partly sunny with a high near 73\u00B0F.\n- **Overnight**: Mostly cloudy with a low around 64\u00B0F.\n- **Precipitation**: There may be spotty showers and storms later in the weekend, but conditions look relatively mild for tomorrow.",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-16T01:22:24.5289139+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.6:35b",
+      "durationMs": 709644,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 10,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "search_web",
+        "fetch_url",
+        "search_web",
+        "search_web",
+        "search_web",
+        "search_web",
+        "search_web",
+        "search_web"
+      ],
+      "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin for tomorrow (Monday, August 17):\n\n- **High**: Around 74\u00B0F\n- **Low**: Around 53\u00B0F\n- **Conditions**: Partly sunny to mostly clear skies.\n- **Precipitation**: A slight chance of showers late in the day or evening is possible.",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-16T01:27:56.2389079+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.6:35b",
+      "durationMs": 235372,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "search_web",
+        "search_web"
+      ],
+      "outputPreview": "Here is the weather forecast for tomorrow in Green Bay, Wisconsin:\n\n**Date:** August 17, 2026 (Monday)\n- **High Temperature:** Around 75\u00B0F\n- **Low Temperature:** Around 62\u00B0F\n- **Conditions:** Partly cloudy with a chance of rain and thunderstorms.\n- **Precipitation Chance:** ~30%\n- **Wind:** Light winds around 3 mph from the northwest.\n- **Humidity:** Moderate to high (approx. 83%).\n\n*Note: Local conditions can change, so it is advisable to check a live weather app for real-time updates.*",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-16T02:26:58.6173501+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.6:35b",
+      "durationMs": 195274,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "search_web",
+        "search_web"
+      ],
+      "outputPreview": "Based on the latest forecast data for Green Bay, Wisconsin (August 17), here are the details:\n\n- **High:** 78\u00B0F\n- **Low:** 67\u00B0F\n- **Conditions:** Mostly cloudy with a chance of showers throughout the day. Thunderstorms are likely late in the evening and overnight.\n- **Precipitation Chance:** 40% before noon, increasing to 50% after 7 PM.",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-16T00:46:55.0255217\u002B00:00",
+    "generatedUtc": "2026-08-16T02:26:58.6188647\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 9,
     "indexEntries": 0,
