@@ -20,15 +20,10 @@ function Show-TTBannerOncePerSession {
 
     Write-Host @"
 
-|===================================|
-|                                   |
-|    +-+-+-+-+-+-+-+-+-+-+-+-+-+    |
-|    |  T e c h T o o l b o x  |    |
-|    +-+-+-+-+-+-+-+-+-+-+-+-+-+    |
-|                                   |
-|===================================|
-| A PowerShell Module for daily ops |
-|===================================|
+╔══════════════════════════════════════╗
+║        T E C H T O O L B O X         ║
+║   Technician-Grade PowerShell Tools  ║
+╚══════════════════════════════════════╝
 "@ -ForegroundColor Green
 
     $env:TT_BANNER_SHOWN = '1'
@@ -151,25 +146,12 @@ try {
         # Priority: $env:TT_Home > ModuleRoot
         # -------------------------------------------------------
         if ($env:TT_Home) {
-            $TT_Home = $env:TT_Home
-            $legacyHomeMigrated = $false
-
-            # Migrate legacy home tails like "...\\TechStuff\\TechToolbox" to "...\\TechToolbox"
-            if ($TT_Home -match '(?i)[\\/]+TechStuff[\\/]+TechToolbox[\\/]*$') {
-                $legacyTT_HomeOriginal = $TT_Home
-                $TT_Home = [regex]::Replace(
-                    $TT_Home,
-                    '(?i)[\\/]+TechStuff[\\/]+TechToolbox[\\/]*$',
-                    '\\TechToolbox'
-                )
-                $legacyHomeMigrated = $true
-                __tt_trace "Migrated legacy TT_Home tail from TechStuff\\TechToolbox to TechToolbox."
-            }
-
             try {
-                $TT_Home = [System.IO.Path]::GetFullPath($TT_Home)
+                $TT_Home = [System.IO.Path]::GetFullPath($env:TT_Home)
             }
-            catch {}
+            catch {
+                $TT_Home = $env:TT_Home
+            }
         }
         else {
             $TT_Home = $script:ModuleRoot
@@ -198,27 +180,6 @@ try {
         foreach ($path in @($TT_LogsAndExportsRoot, $env:TT_LogsRoot, $env:TT_ExportsRoot)) {
             if (-not (Test-Path -LiteralPath $path)) {
                 New-Item -ItemType Directory -Path $path -Force | Out-Null
-            }
-        }
-
-        # One-time warning for users upgraded from legacy "TechStuff\TechToolbox" home paths.
-        if ($legacyHomeMigrated) {
-            $migrationMarkerDir = Join-Path $TT_Home '.ttb'
-            $migrationMarker = Join-Path $migrationMarkerDir 'legacy-home-migrated.txt'
-
-            if (-not (Test-Path -LiteralPath $migrationMarkerDir)) {
-                New-Item -ItemType Directory -Path $migrationMarkerDir -Force | Out-Null
-            }
-
-            if (-not (Test-Path -LiteralPath $migrationMarker)) {
-                Write-Warning (
-                    "TechToolbox detected a legacy TT_Home path and migrated it to '$TT_Home'. " +
-                    "Previous value was '$legacyTT_HomeOriginal'. This warning is shown once."
-                )
-
-                Set-Content -Path $migrationMarker -Value (
-                    "MigratedUtc={0}`r`nOriginal={1}`r`nMigrated={2}" -f ((Get-Date).ToUniversalTime().ToString('o')), $legacyTT_HomeOriginal, $TT_Home
-                ) -Encoding UTF8
             }
         }
 
@@ -296,8 +257,8 @@ Write-TTLoadedLine -Status Loaded
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA4WLJYz+4WnljB
-# ZA2GFPChmT3LSiCizQ0AnDjwD88pQ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAS4MmneL7kNTmA
+# w51q5j+zR5eoiVzbhaZ9gFtGj6AppaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -430,34 +391,34 @@ Write-TTLoadedLine -Status Loaded
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCTNgEdvMV2
-# 45yY/zDXmh8jBwS0iFsqTTMtxUGG/FXIGTANBgkqhkiG9w0BAQEFAASCAgBaSD3+
-# K1joBJ7ypZJWg9//zO2CVtxUFWEGqs0I7Z80xYbH/CofKNId1vUJYzc+kxQHynTv
-# NDkdxXXKAVpEl6SS50lMMEKcPD3UTp9cS6/KyvpJKuc7yZ5+blGC4Y8LfZVGcJmw
-# 6Aahvd/q2DqrTsCAug7uRLUhfLq6I0H9omRz5ODra+g0YzdZtLZfJNMG21HLFdlL
-# E4kEClFGz8F3XLceAtQTpkQ7xtI0CWW8B65sOdp0DVtdlcAN0foXj/WRXuMwxYZy
-# ovmgSE0I31ONEAygBeB0di1EDuveP0O6aaB88vek+HwXOteQ5CCUBgaLhWkBreQU
-# lpx0FgGmLoQ/M0q/RDa+Lz5CpYnAJIFYfW2pAYx/n6Parz0RvCFpsyowbh/d1ZlC
-# bojMqrnRDyOJQ9rYhdnUuuc+hy7TR4TTuODt/wZM1UJnrjeISpl33xaITrcMPH+V
-# pzKHA5DltuCpyclj0wftF2OPA+xUqahKmNhyox/OfffTbPy+HuJ//du/DXTxkuhA
-# v5qbt5nQNCqNLGaS9sdt6nzXKQJdEXVYfImEoF3sXYzAlerIJKT0qtpdgQYL2ivX
-# dAqcj4sSg2xyX2g0sMwg44+WzejDsGUGk42sfyU1WO2eWz65m605lSidS3Dm9sQ2
-# /0KTCZmCYmBpQS+8AMsmRiAYhOP1YKUBx5Sv4KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAIRSM6KA/W
+# Ct2/6QfiPN+LE6jBWAK12r7rvH4m60qXADANBgkqhkiG9w0BAQEFAASCAgAwoVoL
+# WHnFW+lnESNDJ5/WSjGYeHKjIc6MRqMvGLkYvkuKPEUXIqm4gv3W+VH0HV1hzbS6
+# xCDfvDVJgVy8v0q5O8+RsZiC/vsgCohzL5AJhpspbfEmdbyxC0MLAdgs/2gS/R1s
+# igkVsTMTfAecm1mj2d3fLttGzicegwYqOviapFyT+v3GzPEUdo5bo1FfUuAkZ/pA
+# JmQYfQqEN0Hc7BUOb4Oi75yqYq1JJUO/MRIw9v/Oo7eGm8QgxPEiKLA6BSB3dCYh
+# oZfxBSG9qX9o/iNtRkm4JK2Q0imdJ7dixeXAUDUyezMgyfFjwEVcHkzyaZPTqFEa
+# NutkZDdkvXw5gOhFRs2ubJKcrRJ6qbd30pb5W952SN83/jRl1GMN49DYHpVYow1Z
+# fVQgdlMBdLj7ZiXGRT0knkFAze7pv7/OCq/opbywBnKI7BPRBc8epAzNy2Pu9w+i
+# EHtBZow+b9VXWlEFFV6rNpFbEhDCAdSohkWMzPVy35Twt+YdutUbQsr/hXQZfYpS
+# xUNIZYZApVdl96HOyLpiXLJqMy3/MLsdQXmE+/e0OCTuhZr5XJmKkhwGFtdnercu
+# L8rZluMkEVl4guT107vLwMmt7O0tAZUv8oCEtE+9vlKRmvV96WHy5s/YQ8GtBvkX
+# kCjm1ZREbBcGjI1AOdy9UuB4qVmFuHiM8ZGb6KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTAxNzI5NTBaMC8GCSqGSIb3DQEJBDEiBCBo40jepg7DIAwotOm7
-# a2MmFSv8PgwFsYtE96Bq++RM0zANBgkqhkiG9w0BAQEFAASCAgAWhYIMS8AwM+ej
-# Nd0MmXLi27R6pS+wvUNw4w6iVRuhD8h7VyObnXWjce3KUrNLwR4GXftLr/+cPfjI
-# XKOQtHrcY1guiEtSCm0qWwmOQgGWPcCvEDqXwzh8Zr670QGCSTjyNaud4NbA+LYB
-# 935T95LstC8Qx7YNA5lR4E7pSDiCfyMcr6gBamfYnrUOFA1NUMPVzce9D+EtwH2a
-# VzwquFSM7a0xvL+/o8n44mRtWxsGZez7VqaVrutJPItrzDDsdLX3xVS0FQzxU0Xk
-# NqJo9OO29vRZkxPGAyhDH2q3gXY+6M5NBg2z9ZzAN18noEAJNcCY3D+y5LwmyhdT
-# eAs36Wv+a92GiGKSmz6s30hg+KGTBdDnz1HcOdaQNwAAuOFJPHf4qYl5v3knpWQo
-# rFmGiX/VwcQmYVVAqong7naBcdd9ASEGiklSlHOXXgvND3ZcGsK7ZuL4msZsYvrF
-# HD0fipUAnxMyXjc8TVqDjw00YHy5rP7Bg1KqjRoaNqYW1A2BwjvmmAeZKONb3eqm
-# aaYUDfMd0Qx5mXd481p0oFbENmx2iwaYXxhkJ7t6zDA5jQrj0w45IIGLIO/tWJoz
-# VnZhtqKEBLBmtzGbaq8MyiBfBTHdTIEPF6PfgT052bbZQKxAJN5am+A8zYbqXnrg
-# k0X2Eh/RfY3T6CeYp5Ku7EsFYG+2gg==
+# BTEPFw0yNjA4MTYyMjMyMzJaMC8GCSqGSIb3DQEJBDEiBCDJYXZ4VmwG7ALeOyOT
+# 1omFppdXFBovXVudPm9JvRiAajANBgkqhkiG9w0BAQEFAASCAgC3v8eaH6GMCP1O
+# aDXtZd0ot9/2doODG+fcLgTm8jAb+YoJBRyOpFZ8PU/8xLSX9tEDyNtE8zFcc2qo
+# hYJfGD92IjtW23Dg/IlLBbsPXuhu+jNXA4VoUAFcXBOYqAMrFMHyh06YBmZrRzqw
+# 1Sm4qLTndn2gzkQI3va1JcffHrZc0Ivq4VRGT7hTupcqrvTdN5/R8Chu3rKgknVB
+# 2kYLZzknKhoSnCKYBFvIXc0uOOQ4g4mZVHAEc1XZ6ub2FTUKdUvzqps1dpLMpNiy
+# BiS41ANcbHTEseA6sk9vSzJuQ8NKjP25Ca6gyDOixRjPToukWAXrq67O5mAgrY6j
+# O7Va5MNja8dOTPOJR7Gwk1655a+FdbL2a9a5UW0Ml/Ijr2pCWZ+qgbj5u1OEjKlF
+# WTLNxO7yeWw0vJ6fGAMBDeEsgJxfIEW4c14w/jdnGB9BdnP8kFVaccmUhl88cyL5
+# CVRkLSQ35pIKeQ5kINydbkUT0p5EjPa+SSsqx4umfS9TJevHM67iGcvTzG/cwy6Y
+# INpmOJajaeM3Xnp0Q3kbxzKczcvlYn9TobF0n+vdCGhphQPRbqaXT2D1QkKMn0N8
+# MWICDduT5TirkFXsaowbZh01Gh37U9z7POgfDDVkMzko38btA/Pckoj+967BXMr/
+# lPEVco6I2G/OMlQJBcNmDWmWfwgPBQ==
 # SIG # End signature block
