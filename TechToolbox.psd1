@@ -133,15 +133,23 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = 'v0.5.89 - "OpenAI API Integration & Enhanced Agent Support"
+        ReleaseNotes = 'v0.5.90 - "OpenAI API Integration & Enhanced Agent Support"
 
-- Fixed the Ollama chat payload formatting issue that caused invalid “system message must be at the beginning” errors.
+Bug fix
 
-- Added automatic routing between the deep reasoning model and the faster model using prompt complexity, execution mode, and tooling context.
+- Fixed the invalid chat payload issue in Invoke-TechAgent.ps1: orchestration context is no longer injected as a second system message.
+- This preserves the required Ollama chat contract where the system message stays first, preventing the benchmark failure from malformed message ordering.
 
-- Added configuration support for enabling/disabling auto-routing and tuning the routing threshold without changing code.
+Model routing update
 
-- Module version updated to 0.5.89'
+- Updated the model-selection flow to properly honor the auto-routing alias instead of treating it as a literal model name.
+- This keeps routing configurable and lets the runtime resolve between the deep reasoning and faster models cleanly via the agent config and selection logic in LlmClientFactory.cs and config.json.
+
+Warning behavior improvement
+- Changed the prompt-quality warnings to be postflight-only in normal runs: they are only surfaced when the final answer does not satisfy the original goal.
+- Strict preflight enforcement remains intact when explicitly enabled, so the system still fails fast in strict mode without creating noisy warnings for otherwise successful responses.
+
+- Module version updated to 0.5.90'
 
         # Prerelease string of this module
         # Prerelease = ''
