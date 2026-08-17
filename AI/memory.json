@@ -19,27 +19,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.8,
-      "avgDurationMs": 182014,
-      "avgToolCalls": 5.2,
+      "successRate": 0.75,
+      "avgDurationMs": 210015,
+      "avgToolCalls": 4.9,
       "statusCounts": {
-        "success": 16,
-        "error": 4
+        "success": 15,
+        "error": 5
       },
       "outcomeCounts": {
-        "completed": 16,
+        "completed": 15,
         "iteration-limit": 2,
-        "llm-failure": 2
+        "llm-failure": 3
       },
-      "lastStatus": "success",
-      "lastOutcome": "completed",
-      "lastModel": "gpt-5.4-nano",
-      "lastRunTimestampUtc": "2026-08-17T02:00:15.6959027\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-17T02:00:15.6968701\u002B00:00",
-      "avgPromptPreflightScore": 76,
+      "lastStatus": "error",
+      "lastOutcome": "llm-failure",
+      "lastModel": "qwen3:32b",
+      "lastRunTimestampUtc": "2026-08-17T03:05:26.8861745\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-17T03:05:26.8875710\u002B00:00",
+      "avgPromptPreflightScore": 74,
       "executionModeCounts": {
-        "execute": 7,
-        "chat": 13
+        "execute": 6,
+        "chat": 14
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-17T02:00:15.6968911\u002B00:00",
+      "generatedUtc": "2026-08-17T03:05:26.8876025\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 9,
       "indexEntries": 0,
@@ -70,50 +70,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-15T03:08:02.6702544+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please review the code located at C:\\repos\\TechToolbox\\src\\TechToolbox.Agent, specifically if when using -Provider openai with -Model gpt-5.3-codex, if there there should be support to use low, medium, high, or xhigh reasoning settings. Output your summary to the console in markdown format.",
-      "model": "gpt-5.3-codex",
-      "durationMs": 22073,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 11,
-      "toolNames": [
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "get_filesusingkeywords",
-        "list_directory",
-        "list_directory",
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file_meta",
-        "read_file"
-      ],
-      "outputPreview": "## Summary: OpenAI gpt-5.3-codex reasoning settings support\n\nI reviewed the code under \u0060C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\u0060 for provider/model behavior.\n\n### What is currently implemented\n- \u0060AgentConfiguration\u0060 supports:\n  - \u0060LlmProvider\u0060 (including \u0060openai\u0060)\n  - \u0060Model\u0060\n  - \u0060ThinkingMode\u0060 with values \u0060auto|on|off\u0060\n- In \u0060OpenAiCompatibleLlmClient\u0060, request payloads are built with fixed sampling/token fields (for example \u0060temperature\u0060, \u0060top_p\u0060, \u0060max_tokens\u0060 or \u0060max_completion_tokens\u0060, and for responses API \u0060max_output_tokens\u0060).\n- There is fallback logic between:\n  - \u0060/v1/chat/completions\u0060 and \u0060/v1/responses\u0060\n  - \u0060max_tokens\u0060 and \u0060max_completion_tokens\u0060\n\n### What is not implemented\n- I did not find support for explicit reasoning effort levels such as:\n  - \u0060low\u0060\n  - \u0060medium\u0060\n  - \u0060high\u0060\n  - \u0060xhigh\u0060\n- I also did not find model-specific branching for \u0060gpt-5.3-codex\u0060 that maps a reasoning setting into an OpenAI request field.\n- \u0060ThinkingMode\u0060 is present at config level, but there is no visible mapping in the OpenAI-compatible client to a reasoning-effort parameter.\n\n### Conclusion\n- For \u0060-Provider openai\u0060 with \u0060-Model gpt-5.3-codex\u0060, support for \u0060low|medium|high|xhigh\u0060 reasoning settings does **not** appear to be implemented in the current code.\n- If this behavior is desired, a small feature addition is needed: add a reasoning-effort config field and map it into the OpenAI request payload for the relevant endpoint/model path.",
-      "runSummary": {
-        "intent": "Please review the code located at C:\\repos\\TechToolbox\\src\\TechToolbox.Agent, specifically if when using -Provider openai with -Model gpt-5.3-codex, if there there should be support to use low, medium, high, or xhigh rea...",
-        "actionsTaken": [
-          "list_directory",
-          "read_file",
-          "get_filesusingkeywords",
-          "read_file_meta"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-15T03:11:08.0802419+00:00",
       "status": "success",
@@ -783,11 +739,48 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T03:05:26.8861745+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3:32b",
+      "durationMs": 582079,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 5,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "search_web",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-17T02:00:15.6969790\u002B00:00",
+    "generatedUtc": "2026-08-17T03:05:26.8877374\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 9,
     "indexEntries": 0,

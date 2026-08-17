@@ -1,33 +1,5 @@
 [
   {
-    "timestampUtc": "2026-07-15T03:17:53.3820813+00:00",
-    "status": "error",
-    "outcome": "iteration-limit",
-    "prompt": "Read this file:\r\nC:\\repos\\TechToolbox\\Workers\\Clear-BrowserProfileData.Worker.ps1\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Create the output file at this exact path:\r\n  C:\\repos\\TechToolbox\\Workers\\Clear-BrowserProfileData.Worker.ps1\r\n- Preserve all existing code and behavior.\r\n- Only add or improve documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\Workers\\Clear-BrowserProfileData.Worker.ps1\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "ornith:35b",
-    "durationMs": 156857,
-    "maxIterations": 30,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-    "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-    "runSummary": {
-      "intent": "Read this file:\r\nC:\\repos\\TechToolbox\\Workers\\Clear-BrowserProfileData.Worker.ps1\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirem...",
-      "actionsTaken": [],
-      "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-      "nextBestStep": "Next best action:"
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-07-15T03:21:23.0146101+00:00",
     "status": "error",
     "outcome": "iteration-limit",
@@ -7792,5 +7764,42 @@
     "promptPreflightScore": 60,
     "promptPreflightWarningCount": 2,
     "promptPreflightCriticalCount": 1
+  },
+  {
+    "timestampUtc": "2026-08-17T03:05:26.8861745+00:00",
+    "status": "error",
+    "outcome": "llm-failure",
+    "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+    "model": "qwen3:32b",
+    "durationMs": 582079,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 5,
+    "toolNames": [
+      "search_web",
+      "fetch_url",
+      "search_web",
+      "fetch_url",
+      "fetch_url"
+    ],
+    "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
+    "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
+    "runSummary": {
+      "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "actionsTaken": [
+        "search_web",
+        "fetch_url"
+      ],
+      "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
+      "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 0
   }
 ]
