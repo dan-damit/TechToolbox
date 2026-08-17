@@ -8,7 +8,10 @@ function Disable-ADUserAccount {
         [string]$DisabledOU,
 
         [Parameter()]
-        [pscredential]$Credential
+        [pscredential]$Credential,
+
+        [Parameter()]
+        [string]$Server
     )
 
     Write-Log -Level Info -Message ("Disabling AD account: {0}" -f $SamAccountName)
@@ -20,6 +23,7 @@ function Disable-ADUserAccount {
         if ($PSCmdlet.ShouldProcess($SamAccountName, "Disable AD account")) {
             $disableParams = @{ Identity = $SamAccountName; ErrorAction = 'Stop' }
             if ($Credential) { $disableParams.Credential = $Credential }
+            if ($Server) { $disableParams.Server = $Server }
 
             Disable-ADAccount @disableParams
             Write-Log -Level Ok -Message ("AD account disabled: {0}" -f $SamAccountName)
@@ -29,12 +33,14 @@ function Disable-ADUserAccount {
             try {
                 $getParams = @{ Identity = $SamAccountName; ErrorAction = 'Stop' }
                 if ($Credential) { $getParams.Credential = $Credential }
+                if ($Server) { $getParams.Server = $Server }
 
                 $dn = (Get-ADUser @getParams).DistinguishedName
 
                 if ($PSCmdlet.ShouldProcess($SamAccountName, "Move to Disabled OU: $DisabledOU")) {
                     $moveParams = @{ Identity = $dn; TargetPath = $DisabledOU; ErrorAction = 'Stop' }
                     if ($Credential) { $moveParams.Credential = $Credential }
+                    if ($Server) { $moveParams.Server = $Server }
 
                     Move-ADObject @moveParams
                     Write-Log -Level Ok -Message ("Moved to Disabled OU: {0}" -f $DisabledOU)
@@ -73,8 +79,8 @@ function Disable-ADUserAccount {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCFn3i3/cUUcc3H
-# K+t3o/ImUX0qdOCuITcYHy8sauMybKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAj29p/ViqQOpzI
+# CEQ3ov1IMbTzMAxKYXbs+y/81dHks6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -207,34 +213,34 @@ function Disable-ADUserAccount {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA4HRANwyKZ
-# qsU7aCxDPwoc+nib3qG23Y+zI3T1kfyI2TANBgkqhkiG9w0BAQEFAASCAgAqKsfA
-# 8Vx9Uhb+l7uzCdRMMdC1IM8WyFgFHrp6nUe/9Wy5dfr3ap2hWdauVQwRv/Fbk4TZ
-# gNFO2d4ldT3eEod1i/7A1FzgO7mQv6nOe5E9sLrdAcfRfhYiJF1w3OeG6VvmX8wS
-# Gc4F3DI/+6XiUjvYU7ji7fwIgdy+5MyQqaB/yYSubEXyV/BVipw4ziUwZQCdBVIL
-# 3uKr+QqzAvK9igwfDFyfhCHXbkjl4MlhBdK3AbBA9NmM9pWzh0qGx1JhgwFdkzjw
-# bdajrK17cjXXUav2rb009tAWA3j+MB5F4Fzpd/uZr4QqOIGXSTS3IGVtRTO/2Wra
-# sA+Jlqijesuf9M8ughBsDm719uBA+mYpQl1s1D81pT5AJZrQbh7s5AtQMzqAzY97
-# YGAd70syFKnnc5iCKBCxAk+JqQTfw27DM2E/WKfa2ybYcSwMr8jbEVNkGhn487/2
-# izd6+d6yz2PwxwcDrxilhlLCNlfBkujcppAQRwg38z01//Oo4Ov0XEelhl+vpKVF
-# NbEBwAnY2MCtfuaYGmBIb+X57lniPqKOQF+2Bd49iElPiiWlNIqdG35208Xu9xGN
-# ZIVMam0iTj7J6h0CMpm3EEMaieYewzfY2W9EgD4esnO35FRGpqlUIJb50IVeM9hD
-# O1bTJQiU5r4pXYLVFJV3o624QDdYVxBfMlMkKaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA5yepJy2VR
+# vmyquitwTA6r36w+l4A2olE7DxiY36CZOTANBgkqhkiG9w0BAQEFAASCAgByPQMi
+# cHvliGHVSx/GIaADTubNX9ZbZkk96wjLCDQU/D52NqrhobS8sJj5AZLjClOliBlu
+# 1SpL3Bn946qxKVfofmEKvLOjbvEFDOCB+wyqhC0OP7ZOxvvgHM0caDJM/7q6wA6x
+# HfVzbMDSYK69yG1gvszAzQoIvc5zkNB+MYp9MKNu+7/9xUd/M6KqA8ul2mpLRvmg
+# OeZy2s3qv5K1tUqSY2aEaW+5fe+9R1uYUSARJOE/mR0fg+RhoSS2z/KDu6LeogED
+# 5yepxWxoETF0zHmFRovk4bKXikF8CDDUPPLtOKNwxzGhVFVAWFVqLPmnQg+dfMu3
+# GCguNMbg/ZU0otNAzYEXiNzELhaLgV0UuNsGbJBusNUsc5qGtU+guuuQhNXrRHR7
+# RjXDk7dXIaQqZHgq1hCEfLri8M48MlbR3qnUVjrI+Zea0b6lkSivxJwKqPaSwj4l
+# uL7IS4uOoZovLY6wf8Al5cxIR0Vo8ahUpOWKrUZZPhWTzzVOkjY/+6PBrs3tTVJa
+# ZtBCg1eeaCo0UW4zQBNRCtZPUkvgVPqeZVG6B2hlx/0A6IkRXview1pMuyUC35YE
+# cTU9HYw1PSCz1o4lI4L8zm7egJb/nuyQNWcI9liaymr2DdWkoKSkOpPa2OxW/tVU
+# FVf3f1rR9Kj3qk1+i6YbVhv3TVe/UM8hB+70+6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAzMTMxNzM2MTdaMC8GCSqGSIb3DQEJBDEiBCACxbuVUR7PUiElY7xE
-# HxayjHGpM0nZ53HkRc9hYbGVzzANBgkqhkiG9w0BAQEFAASCAgAgfvdW/TNR72gT
-# C2oCg+MOm6ontYbKk3bJMtfGSh5JcN+rMofcy/6cuyBSj4u8yHgadSa0eczRLv0R
-# oMnc2LTqsrFrm7T7anPmBZyqJC+tuFzC54XakpPlNy9YKpVOIMPIQtWksbx4tn9l
-# JpfISGreZpjf4FvhqVuBKw6jdtU/Xa8kKslw2fftjb61K6TyWx4NzolhOl1L2JSu
-# M3vv93c42SiH8PqJK4upAppRCOIN46osXrKwxozeFRumpsp/9fxFAh2ArWxBgBLu
-# 4XC7n3zThNjoRtfVSPr2BIzV9nY9X8CUZ5G289kTHw8nNAJg0xB/K8yGfyls2RZ1
-# Eiu2kuTr3pJsgGHpWzxXGaxbNjTPjNYeT3PmZrZujxyIcFOrU2m/6bF0v1Xf39Z+
-# kcXBteecGzKxKCCgcRHQz2Br45++L1Hq09yq0Q1eDvyeUu2HcQmjnjwL3SV9TdDr
-# f0UXf9cQkfm7LJ9YfGYFAVKxJFkx0ybMiqmZ9ANoQh2FdUxdcHvIwbncyZt2B8JK
-# vA48DnemLQWV1NMcgBiiRYVSSRX/pbUjAkHxeAinxBYs2ODVPHGuvlAIHgZfjrgW
-# E4MGWSunNrUGj58oCOikaGRP5xI0hZL2VnpoMmxFCVUBWzeBSxd7d8MGUZqdseZF
-# ZiGFQ5r3ET6F6/rARVsyo/9cHcUfHA==
+# BTEPFw0yNjA4MTcxODI3MTBaMC8GCSqGSIb3DQEJBDEiBCBALT3ICLhRma+1AyrM
+# n+XFCQ8WXSraFNNhbT6mkdTdnTANBgkqhkiG9w0BAQEFAASCAgBqepQF+F/LGkvo
+# 0P/vDBDLD8HbksAQOFSZj+ZwxSTUjeGkn7VvScbU/T6RtJkuIrdd+krQ37GCXNkP
+# LnFZmLbGLIRapcw8dbDo8KKY0NMwuyqeCCYh7nKedlUIA5PiSDnovAdhrdrU7am7
+# 2UyWP0KoRg97OwMJS7gmT3Q3EuM5jKVDYw8HvdGtuJJ0KVrVhN6T0IoOf779Exw/
+# Xxrmn1J/iGTLFrh46xlSzKYY689F0g3LMQRmBh6pegjg9fpVcGTC/XJ/ZJdxJhHa
+# i1MVj/pwvOebvvNDwjq0MnV2M2eHefoobtxid8du65Gs3ZS3WHY0jtyH7Q6cIRGm
+# QvDlUyaBXr6WoVI9aEHybFKQI/i1HSDrtdGvdO+E836TOVETq/qdazMXQMFvb9iP
+# eB7Ft3Djf4lGvDqYtev22tnM9Q2ssFB3FG3DFrHEbtPHXrPqGW0S8WR2YPmuBLtH
+# Iw7bL6BNu9eHDtZjMcjK7Jbj0G16CJ8ufGPjkr5LKV26JUcC60lUNOgL9Vrd9bCI
+# MusFqPVPzqGqPW6PHZ/B7kxXgIu9Qd6jB6MQgdfDdnmnDisJdwAhiNyTFaQTKj1p
+# xMouPI/idsuqArfkrs4UXnYJMeGHxQyHy/+1XzT/YjvdxkKBUH8sgHQKaVdYex6x
+# ozhnDZlq1hnzpb17V4Zzk4DdYxRjCQ==
 # SIG # End signature block

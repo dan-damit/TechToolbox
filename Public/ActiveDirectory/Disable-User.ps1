@@ -165,6 +165,9 @@ function Disable-User {
         $settings = $cfg.settings
         if (-not $settings) { throw "Config missing 'settings' node." }
 
+        $adCfg = $settings.ad
+        if (-not $adCfg) { throw "Config missing 'settings.ad' node." }
+
         $off = $settings.offboarding
         if (-not $off) { throw "Config missing 'settings.offboarding' node." }
 
@@ -174,6 +177,14 @@ function Disable-User {
             UseHybridAutoDisable = if ($PSBoundParameters.ContainsKey('ForceCloud')) { -not [bool]$ForceCloud } else { [bool]$off.useHybridAutoDisable }
             DisabledOU           = [string]$off.disabledOU
             CleanupADGroups      = [bool]$off.cleanupADGroups
+            ADServer             = [string]$adCfg.domainController
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($effective.ADServer)) {
+            Write-Log -Level Info -Message ("Offboarding: Using AD server '{0}' from settings.ad.domainController." -f $effective.ADServer)
+        }
+        else {
+            Write-Log -Level Info -Message "Offboarding: No AD server configured; ActiveDirectory cmdlets will use default domain controller discovery."
         }
 
         if ($effective.DisabledOU -is [string] -and [string]::IsNullOrWhiteSpace($effective.DisabledOU)) {
@@ -184,6 +195,7 @@ function Disable-User {
         Write-Log -Level Info -Message ("Offboarding: Resolving user '{0}'..." -f $Identity)
         $suParams = @{ Identity = $Identity }
         if ($Credential) { $suParams.Credential = $Credential }
+        if (-not [string]::IsNullOrWhiteSpace($effective.ADServer)) { $suParams.Server = $effective.ADServer }
 
         $user = Search-User @suParams
         if (-not $user) { throw "User '$Identity' not found." }
@@ -233,6 +245,7 @@ function Disable-User {
                 DisabledOU     = $effective.DisabledOU
             }
             if ($Credential) { $disableParams.Credential = $Credential }
+            if (-not [string]::IsNullOrWhiteSpace($effective.ADServer)) { $disableParams.Server = $effective.ADServer }
 
             $results.ADDisable = Disable-ADUserAccount @disableParams
         }
@@ -256,7 +269,8 @@ function Disable-User {
             -SamAccountName $user.SamAccountName `
             -Note $note `
             -SkipIfAlreadyPresent `
-            -Credential $Credential | Out-Null
+            -Credential $Credential `
+            -Server $effective.ADServer | Out-Null
 
         $descriptionNote = $note
 
@@ -266,6 +280,7 @@ function Disable-User {
             if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Cleanup AD group memberships")) {
                 $grpParams = @{ SamAccountName = $user.SamAccountName }
                 if ($Credential) { $grpParams.Credential = $Credential }
+                if (-not [string]::IsNullOrWhiteSpace($effective.ADServer)) { $grpParams.Server = $effective.ADServer }
                 $results.ADGroups = Remove-ADUserGroups @grpParams
             }
         }
@@ -407,7 +422,8 @@ function Disable-User {
                         -SamAccountName $user.SamAccountName `
                         -Note $finalNote `
                         -SkipIfAlreadyPresent `
-                        -Credential $Credential | Out-Null
+                        -Credential $Credential `
+                        -Server $effective.ADServer | Out-Null
                 }
             }
         }
@@ -447,8 +463,8 @@ function Disable-User {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDPa3MhguSVxOFI
-# 5FDP9GTfgh0ArVL+mpg6I/idLYvs0KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBC1uPJYusuP2L5
+# qg73bSr0/8zFScfX32lcyoH/FhMWHqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -581,34 +597,34 @@ function Disable-User {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDNbS43aIFT
-# jDcbxSYzmRf7DOsBJbhwyhg7uJuckUCi7zANBgkqhkiG9w0BAQEFAASCAgB24fB7
-# XCBljoiK13xu02YyzSlV7vaT2nztLH/NJN9KEr9eWuO01dgS2nUsHjmkMyF7yVdI
-# C9jgrmKEUxXcxjryli9yzKhcx404zmdvzXZcnsgUCFah/yUeTv36xUMvrPWYjD3u
-# 34g+BMOrocOPNwtZ6L+Mnuq2cU7z/zkTXI1dpxGes7Yfc/vRWNlvMeijsW+KCHM2
-# 5F3ZU1wUUyPl3eD24SQ1c+8h366M+WeM6eYBXFdQ/l/fuLU3+4WrOHjIWD/QxkFy
-# WVYnJQ1AUMERzmbwEy/qDjWGHK59BAV14m4bWRtkWj5Lknzv5bGJZTzOP2A2kyza
-# wNARKBKq1LELuO+j6grY0jna4ApJw23BMT0F14Gkl64W6h2bDhFCg4CsVVSg3WY5
-# YyhPwmPr1b8rzBekcb+MMb+OPS5Ando2rRxcMEi1SBBDwOicAK+eGyqaF4Azltbr
-# SiPrndV6Tl4HYf4iFoK965g5YymQDy5ArOc7GBV7bRsnAI+j2xSy76ENyooQHZD3
-# oP7vhRutBUL5gx1hfAotm/j/kjWxFb/Kyiql6E+ZATlOAloobgPPxm6kHURX/uId
-# o3pQtOfhctMDAINlJxsoqaLroGyuebVjHg1O2Vy5ml5A5fcLxdvF26kIYLUy3162
-# d2h8x0XjZ9wlGPKho5BEUq3LQf5I3zMDURo9NqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAd4OrQkG5S
+# zcysZQpTC5817DECHKPPaz4cj4IF6BdMJjANBgkqhkiG9w0BAQEFAASCAgCaUsHN
+# 6n9PxSRzmZWWtCJCd/FnTwlZYV6n2R28iN0pe9F1MYZ36Raek6nVtWla3Bm6/KOJ
+# yJuBkgldJqkI+027hRDFYBO6Yh+W8LXntEoNEgtHs/hPbfZ9ZNRWOgLN2l3ofehy
+# Sj/A1gv85J1S1n9nXkroTI1LL8HkHYuv3jH0yCfSe4Pq4cUHbujR8bxvh3oHJuU9
+# E9wtWdDAukGZREIUI/5A9AnVxIAX0Mk9xLPhwh1pe9jnH/u9atXif/OTISBwPvKc
+# VzORCcGJg1we7SENJuFitP4xZI3MoTOP+jfN8K508pc0ZThQwlwFe6Wvernqkd9C
+# Bzg95WkMH3811x6KdzfEeAe6liD+D0l1isxJTNk/JzQLsENIAlNl8Hj1fwqm7/sj
+# uJASBaznKrb6Uiusi+JiIb6eBC8AkYYlkkBhZZA/t6GFp8yfAFQESyz7jnHjlN/y
+# yQLEKfrfn9bX20yuxLll2snrwru5Jkikuj3j7rbjWasuDn/AlSUzpWD+4fLosSpt
+# zRyPl9EpcOntqHliGkVyXJphQ/cH4C7e8PvG5autZNMFOtfrhrru6k7XQuCSDtFp
+# /5s41Hp1U5WD5zSc5IY8dIxC5/CHLEU/3AebMRcJ3agLgIq3wx5+fmLtqQLCm/lA
+# Il5Yo+DeWLcm5gW+q8Qv26e/4j7nscefAOWzlaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA2MTQwNTQ0NTNaMC8GCSqGSIb3DQEJBDEiBCAN+DfHVDORSUHAUvx0
-# aUhJV9a5U5OE0e+BLyrdYRhjvTANBgkqhkiG9w0BAQEFAASCAgAdr3UrZcnTTZgR
-# 3Me2LDCD5BFkn9I4568tz7A+5S+xKdwuj2xLlJSirY+TZHXbaVraHlZP6Opq7/fH
-# bXbhsh/H9+iaHr2j/BbEPpt0ytrsQO45jF8CxRDd+ni8Z82xChfQq7qWtpOHz0gv
-# VmliFTn+hfBftg3Amr2IXNCRUv6El0DDqzxqAnFii8QNGcqs66+uTjF5p1cvs2T2
-# eWgdK1vJVoX463MBtC/Ewao88Atnmmm0IXJ0DU2wDHayTsLyMRPLv4MD4JdlD2iX
-# 5x76brGgi5TDDQ7sXRMMWnR99tEQoTm0YqS8pzcJ/um9cEfeMxiKGvCufQNFSf3s
-# 32HAnCMXS5NGdSMUs8qtdB32B5pSOLjtz6mg/tdfjuKZT5nj7XFRzYzGANE1UAz5
-# FzcfNdaH/6qtC+0e/gTwyCZjmohWRCj0GgkqBud8Z1z3q+pRSLlzqeHseaRDfsDE
-# kNvkc/OjxfLyUVfq7cCvlND6HUJPQlMVVx4S8tC8uNWjsxNYAxUtQi79xq4uOp6X
-# IYL7R/9MRSPYApijvUE73SUgo0XFROXJvzMj+Zra9+MNVQq/bqGZmKNdNMOiVH1n
-# LR4xSCuXGZ1KHLpL5S1/p6HimLAeIOXYJsvC9Q31ewJaS8+cImMtz480yD9C2Imf
-# cM8VeuET84KZGXcRcCeMiP5RleOqyw==
+# BTEPFw0yNjA4MTcxODQyMTFaMC8GCSqGSIb3DQEJBDEiBCAHdgzpn3YPhT7fchkh
+# lqZDFAZx8P+0Ccz79JtnLa5hqjANBgkqhkiG9w0BAQEFAASCAgDJoJlrG6xiDBKs
+# OJcgWxLEXfid7mRLM+SvzaUwQxe5M7J8X0oubMv2p0eeQb2cSGlNVlj46tvuigdi
+# I38jyHTtX8WeoGq/ShlcyiEVypG6IgbUMOkwkwTEu/jLcZHeTBR3/g49dDKhI1Wa
+# OXD0yRnc5AYColoLQWtBPGLGE5QDH9Hv7o8wJuCppSNifQJg0jnYXC+g8TISYOW5
+# G6pr2Fu7fdKFv8T8ybNeV101l16FJ+kynMsTk9jYJz/KbImwkJ5nec/aNR/RWunK
+# E+W9UcNCeENmNEnn4qwF9mqyWXylkKtHj57lZIt2mNrOOnUkmYot/m0tHbtMMN6+
+# rCvPWUTgk6YYKVUGpX7QCQ52zt1YDtznTWEIU/13rrLtShJYENvGVqE7Xsvbtrix
+# HLHJHKpGkSgTy8RwCfkAby9BbL8OsxfR/mkydA+8n7FyIPumxG8Kwqs1tybfd6fZ
+# FCCKrJ7VBFDNWeHp7liEyTmRkTbjS5xmelTQYKSlKYJcNT4x8F/pfhm+Ae/A5V47
+# B/chZmAOMhGE5iVmkAaq4W7ePlBOnkHKvfDZsner+ei3VNNVyBmlIwF78XSmQrPD
+# ds7z+nxuy9XviNBoaY3lLkvV3vkZCRr2Ni8DNrxnt8ieJ/Yhylm1xVqqBW2SrEY+
+# njFgAp864+mhayRcGoIVQLAc03rZyw==
 # SIG # End signature block

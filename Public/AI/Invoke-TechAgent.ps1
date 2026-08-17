@@ -422,12 +422,12 @@ function Invoke-TechAgent {
 
         $hasTaskVerb = [regex]::IsMatch(
             $normalizedPrompt,
-            '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement|find|fetch|get|retrieve|collect|report)\b')
+            '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement|find|fetch|get|retrieve|collect|report|disable|enable|reset|remove|delete|provision|deprovision|offboard)\b')
         if ($hasTaskVerb) { $score += 20 } else { $warnings.Add('Missing clear task verb (for example: update, analyze, fix, plan).') }
 
         $hasPathOrSystemTarget = [regex]::IsMatch(
             $normalizedPrompt,
-            '(?i)([A-Za-z]:\\[^\r\n]+|\b(file|function|class|module|script|command|service|endpoint|api|workflow)\b)')
+            '(?i)([A-Za-z]:\\[^\r\n]+|\b(file|function|class|module|script|command|service|endpoint|api|workflow|active\s*directory|ad\b|account|user|computer|group|ou|organizational\s+unit|exchange\s*online|entra|azure\s*ad)\b)')
 
         $hasWebTarget = [regex]::IsMatch(
             $normalizedPrompt,
@@ -2111,8 +2111,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAXh7MmGEUdRIlQ
-# jw8XtCeU2ucqOwxyOmHSwk440xhWFqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAuQ/zcLVh7Zb8C
+# C6U+O9OWKX8dRY6r6OaleU0WXYJDBKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2245,34 +2245,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAfPF9B46gP
-# d16JpOkD6wxtuPhMZ5VPP8Xyc00xqUyg6jANBgkqhkiG9w0BAQEFAASCAgCLTIhY
-# 1aUW+Ti8UG9jGKHaZhV1krlfnrwLY8suKjRDi3MicN5qiRqvDY5cHuexPPjDmVqo
-# u0QXXwa7AeadG4S7pexnO36RINnLFUVXRpUUwadfVe/FXIPj5W/5F6FEJLeompmq
-# Nrgsb/Jytho5VvegHuqVUsVMy9z48iwxklq9VCZ+nMEgarSVuAy1FHzuPEYEXXVD
-# vO2jxrMtFeewvReBmJE5dw9h+KuVVzXzXC5NPj3nXAlTVF+6A9xf7FjbT8JQqkny
-# 8nRh47NzxSUQ2OIpmne8S++laCX3UzyWWdZykCaGH48C3slKw3uMGdBXB5Idcdks
-# S4+2L7YydLmriGOWI+Mc8bbeFgUVwUmsprAz/dnGKhzwOKxaij7T/xnEMRO2i17n
-# Ng3ReVbnre06fTsQ8eoLfLESxNTkiZQWlu8lvv9trW64feXpuVGAcWuYiPoVbbvZ
-# fgRyplLK3yBYSpcDyOa3ch5NBSpAk8XfdOF/w3c3peKs3owlzVAqYwqIFI2p6Gai
-# QyvmDEvhJgb2L+cOmKmq9dE5Y5KlFMIefBSixUFmhlG7ae6nY0xfpZICLVo/WZb/
-# MswQdpU6CheszVRLnznKgBZ0ItSR+lWiy4J0aQuJYYAq3NML7ep+0CZPwPr8v/we
-# gaZGu+y481biPi9mVASUSbnvPF/sWy4OwRmCG6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCdZKUN0dCn
+# g5CS6a7IPfV7la7EU41QJOFDCByK/BjKcTANBgkqhkiG9w0BAQEFAASCAgC5RGgy
+# /ScMF49ZDNXwq7bS/maGGZlQhIllymbooYKgpTztwM4DK5g7W1XyJHINutY+CFDL
+# XpArTv7mz7Yllt3c8h5HAR4e7nglm5HXnyy0WRsVq1FbdP7CxgIwkNGTn56jCxrT
+# BldKwwhKh/npZ6h1QPN/CylJSHG+PRqcCtUXOAlIQ1SrowX/DySSEULP1PcuzvzV
+# 6KVRtGXfMBwjDK7SPDnF1bKJW/eHu//LF1RSbbxAK/uX8s8VKbTvbknOf3Qz484s
+# UDHXqNkhdJi02e7CYCEKdHg7ccH4fW4Lye4+12wWkPUfwXecKwSAz5UgaaiyvKMo
+# h9zCp6YOL01a8kofExx0RRZt1BLHC3vMbpOxI5IjXM+D1LanqqruVN+l6CgH9KJS
+# lJUNJYFBbcN4Dx5n2Txk840wCxcKWndmprzsv8vfZju9OP2Gqbk44Vvus72Vwqkr
+# AvJ1VDOxl8w2OyuaHi1uq9FQ69JvDcIL2+M5M7El//aId+/czJlIo5qJif9Hb+GF
+# F+f/goJD7RDEmMJ+B9XeL1OYLYBVuvz8JUYBN/dOn647huZRCMVThrFd8zhsKOoi
+# UqPTAdIsQOF78ToLBQnKLRSJj/bZhNpehu7uZPtfFY3czeddGyBfMQWvtdjF7BZQ
+# ne9SJO1r0iI9Zz4R0Nls98nEznSY8gzby1LPdaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTcwMzE2NDRaMC8GCSqGSIb3DQEJBDEiBCD7NUU1xWn5m4Fm46ZF
-# 4vFLoXaYRGKe8vcZtV1Wv2isXjANBgkqhkiG9w0BAQEFAASCAgBJE8iKDF7UBnbR
-# Fhthdg97CwLUva+ANUm3CQAuo96SfmJGqR6iaIleLiYU/sb0p1QLyEyvc55talOx
-# TmwS7G+zQaeBvkbHUsGRhoLW13Ch2kQ7RdhCXnkBtDAt7uHBMBvuu+7fDji3ttel
-# 94M7hkJClowSg+N1YWI/wnMU34RJmhTpKBcNEqQTsb2Yk6Pl2ixlhlW2iUDZSj2f
-# r3s8FBgZNbHeD1RqeZHCBPcfGJAy5IPP4rvVtDURR05djTZOqJ5audha13/ob9qe
-# kg8hZ4i2mYG08+h9ahuy2WVIyvIffeo3zhDaDkZMSoUnXrE2g7URS7AfsqGhiFo0
-# ZiDaaU9PX0zZI0iLRDxCFwGboadwV6sTrpY65KSnjF0Rs7fSBv5f5cKzLnkUEul1
-# tTC292oSzNyvhbdOc9hIUNZ03ZBHVUgdih5J3yxGdHXX+bd2+YQj1HVE6kB8ScN1
-# EU8sCXvnJVTj65KYCmuay5202MOgWxgOA9h3tIWPo4ZWVqSxO8S8AYBh/4oVOZro
-# /xN1t4rjtNKk1v4TpjL76nxJh4zL9ohZNNhc8N4d8Kh/517YtsLaMPpwyZq3grJp
-# P1s+6A8S1lf73FKk1SwYMymBXD4p41Q4F8myEiWuVC+CDX0DrPFivb2Ps8Hpb++i
-# EfTI+hPv75ktVjgv8A9ZoOWJ36X86g==
+# BTEPFw0yNjA4MTcxODMxNTlaMC8GCSqGSIb3DQEJBDEiBCBbK8cXwuz+n/OX4xhA
+# auTWyYvMeXxZgn8SsHouUU/BwDANBgkqhkiG9w0BAQEFAASCAgA9i2FY+mOV0je8
+# wmqmpfaE24KRU6lOb5UrUDKFBrZLf4HWZV8JeYLvTDUse9266lc9ePSFaOvuZQ7x
+# vc3RO+A8hNldHOcJC2JSnt1DTZI7idV9D/pLZ1Sr3u+KZYfMiOBDI1+OTAyEdyVV
+# eTwIcyqWF9v5cZQzfQFL8gq8APNRLDD9nCYPXk86/2mN5hebPxDnKRzbWomq+5ua
+# iy2Mh1cvCjJdh6dAMbaNy1w2UA4/oFcGr93joAVMlEM29FR5DAbTMSg5c+WPvIIz
+# 3DsIEImDYEkCepZ1hKOs+Cw1csXYmm0LofBlBC80W2klMOUbRtueHfXHM4P/gR+x
+# 4bN/GIyqDqgT3GQK4lPVLRar9MwvcndVg1blqYT5kxOkaH2+eM5/RKTU2o0yYlVs
+# WfVqmcvFKNquT3CA2eghk1TdkKVTavGKQJF+u+og6bdZ/Gli3bkLzi3+OlOcNI3P
+# TWetA4ZhjBkzMlSuDZKrdwOyIDcgPx11qpoc1eZFkmJ0rCoytAhkHaT9pGERXc0q
+# C4K4m8No0jwUemFa4enc8JaSFMaoEoSXonbOwuppU/czafrXeG05zgmipePEFgB1
+# q/kmexET4E7NIyWsGdrKxg/hZnE+GINCmMF1INCqCvFMyjCwbXEMm3UMeKNXqSJu
+# Y+IzO5Zd80pikKCStY6weFerbN6SFQ==
 # SIG # End signature block

@@ -2,7 +2,13 @@ function Remove-ADUserGroups {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$SamAccountName
+        [string]$SamAccountName,
+
+        [Parameter()]
+        [pscredential]$Credential,
+
+        [Parameter()]
+        [string]$Server
     )
 
     Write-Log -Level Info -Message ("Cleaning up AD group memberships for: {0}" -f $SamAccountName)
@@ -15,7 +21,15 @@ function Remove-ADUserGroups {
     )
 
     try {
-        $user = Get-ADUser -Identity $SamAccountName -Properties MemberOf -ErrorAction Stop
+        $getUserParams = @{
+            Identity   = $SamAccountName
+            Properties = 'MemberOf'
+            ErrorAction = 'Stop'
+        }
+        if ($Credential) { $getUserParams.Credential = $Credential }
+        if ($Server) { $getUserParams.Server = $Server }
+
+        $user = Get-ADUser @getUserParams
     }
     catch {
         Write-Log -Level Error -Message ("Failed to retrieve AD user {0}: {1}" -f $SamAccountName, $_.Exception.Message)
@@ -32,7 +46,11 @@ function Remove-ADUserGroups {
 
     foreach ($dn in $user.MemberOf) {
         try {
-            $group = Get-ADGroup -Identity $dn -ErrorAction Stop
+            $getGroupParams = @{ Identity = $dn; ErrorAction = 'Stop' }
+            if ($Credential) { $getGroupParams.Credential = $Credential }
+            if ($Server) { $getGroupParams.Server = $Server }
+
+            $group = Get-ADGroup @getGroupParams
 
             # Skip protected groups
             if ($protectedGroups -contains $group.Name) {
@@ -41,10 +59,16 @@ function Remove-ADUserGroups {
             }
 
             # Remove membership
-            Remove-ADGroupMember -Identity $group.DistinguishedName `
-                -Members $user.DistinguishedName `
-                -Confirm:$false `
-                -ErrorAction Stop
+            $removeParams = @{
+                Identity    = $group.DistinguishedName
+                Members     = $user.DistinguishedName
+                Confirm     = $false
+                ErrorAction = 'Stop'
+            }
+            if ($Credential) { $removeParams.Credential = $Credential }
+            if ($Server) { $removeParams.Server = $Server }
+
+            Remove-ADGroupMember @removeParams
 
             Write-Log -Level Ok -Message ("Removed from group: {0}" -f $group.Name)
             $removed += $group.Name
@@ -66,8 +90,8 @@ function Remove-ADUserGroups {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBCk6FDFa71mqkO
-# iqYm96lF6j/uMR2xNJK8hBsUpvVppaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBOpsHd895/XOsb
+# nwIBIjSekLJrYt8NGinxwZzv+PX4xqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -200,34 +224,34 @@ function Remove-ADUserGroups {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDWwoY77lKM
-# C4QP1QUzenXg9hfDo2ZBpzb98y/Sm3nE0TANBgkqhkiG9w0BAQEFAASCAgDK7Oft
-# L/TOnH8OrZBiRQED8nGH2oNuCyKfZKq7CMzYpD5H5s0tJHufuZYmlBT79ZIXD1FD
-# Vb+7zlZXY5nzdsQ7ZX1pOaF5q4NeCzxtnrwTXJWfOop03V2RpK9GQvmAoirWtpQ3
-# KtOreOh+HRKhzttU0Y9HDB8zMYP2uAwGBPlo3AVf8sAcbnOdj/5fpJymPQccmOF4
-# Rspf884urmai1D0bDDH1tXTcYG1Co/8d101rwYR4EyJ0RUK84nVznVlRiwy8tIrW
-# UVdhbz9zA9j4rbU7vh22SFeu2+BwQ/t+fGuHXJH0xYMsDI8OIPIXfdhC6PQ7ZSg+
-# BfTLUYldEVmRBP6zQa7GtAI9v4ZLF+MaAtOB9lSC0EcgeEETuEEfJW4/9si4bhko
-# 2H1l+8wi9Mc7uLm8jhInEHh/ttm0zhXwEYJPNC0rERtjbxYhQUYfQwX1ie+LnLY6
-# iYzF0rJWUz8VPKQJkXPa3IV1IUuxcNlLp8s81inAOOok8Q15U+HbHsjdv4J3LvRI
-# sfdNeRNh+eZ5HZ90djlkAGxpEsDtNu3Xbn4dx/6/bsFMGSt4hLdIhZG/742YL2S/
-# UlqEk31LOZoXPzC4j+Dp4Mh1FDBYn42FSUNNznh15po2/DN9jzmCJO2czuiH+r4o
-# VUUrbR7gjAfd1fE9BL26Yu3NZAvjS+l424abLaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDVuyR9Cc3R
+# DQldxb1rGwTqZk9RPeoSOCoUUIa8uWOeTTANBgkqhkiG9w0BAQEFAASCAgAg3gc5
+# CxZvTI/0JW9RcFZ9a3D/GkpJEm/nTgk2X3wmBnVV7qhEqUhf93XiOf/otDc2A1xy
+# oTsXOovfU/rtzcQ9AFV3jS0MpSfSfjqRNh3TnnHhsWS3mpp+pH+n2YRTZ5JnENfa
+# /eHaaJ59Dq8vXblYM845aMgmk4GDTUwdIH8TXXaLsSwnAJLHecHOpM6dfUsvKUQg
+# hiNu7LvbD2bmm8iTdIZRtvf4x1fGLDeAfrmslQ5iPap2FHAzJOijALWBfuT+z+Hz
+# Gg2Un3peb/8nWLaWG6hRqPco0YIIiOsOI73BtSXLnyR8Yvoy1LNYyr8X4SyJd7QJ
+# L1KHywkAiWCDi6ENYAyh02w5tVRxYAO56LfP8uwotb2pXY3d8KiFH+ktLkuT34Qa
+# xRUjwiCw3OG9I3MPU4nSAJkqF3zjqCAFnRW6Vk/08bDo5ImqiOsn66ywXuxfVPy9
+# bvP7fdFKZhaFXR3cIfaiw9q9a/q37dMY7P8SqJqTqObEsivQYw7CGHAZ3WRz1pes
+# earemb1q1qc0AdY8Qdrfuj/+uHQ9WSgm0fgwKW1vajmVa3fW8hXaUBDlvQAl1AMq
+# hUNUVD/o3w83ETK3hxoayE1kkfH0M0IVdw8AHiouT0vE/LV+F2Tb0YuzdlekrdaT
+# n8zCY88RH7A2TVfmGiD2o/xYh8OepZvanGTy86GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjAyMTEwMDQ1MTNaMC8GCSqGSIb3DQEJBDEiBCDTXyr8bDpT6Z8XQYXs
-# Vcx1Va5f3z/4kP3yvfqVmolF1DANBgkqhkiG9w0BAQEFAASCAgAjfYMi+hEchgys
-# ZTUTjw5G2J4Oy1X9pGKDNtmyf1a4B36M/Di1Zjz5214cTwaqeL30A3jxOI+bbhvL
-# 0PfvkjcyDQjJOlfVY7NLNIICPk5vkXkqvdOMauWSdjgEInYROd3QITS04hVrCGeL
-# QLCckJT8+merIihy70yfhNvxIWM2VrUGmtRxcdil8HRQPgorg6gE08R8e6ogA442
-# +UP41bedB9cYVF/PhkCsemwBJvMrnwAvU3rQaLGmoAAh7Pg7cmynKSsNwCi6Gh7I
-# Z4dfx5JCqD+E/+GOaghiN8IW8mQ2Nd5Sa/6oJ7a8sx3N8c5hLICjeUVwCizUHeJN
-# zfi40FovbrvEQaoMYqQQbvIMSJQOFHYM5Hy4sECtR5Iq9qeI+xY7qlPagVZj9uw4
-# B32dR0rHIZWN92DFL213TGPTKAdnmx5jf2+5EpuU0l5p2wcc4h5rD+5u8vBX71LO
-# cq8yx4cdr/uJRXkADxISiP2llToXr/ePApsw6Hsyhlhr7nzJqB9YfIgKonWKl2rp
-# sS/JY9maL8+P54mC/suvTFIAYLAGL5pnFaJE+mdq4zQTj3xULal9JaEcamryCRj9
-# pRM93G5KN24/wgZ4fjOYQWF1ty1T400UpmPKR6wB8qH4Lb56zHqYzUR86XpMC2rQ
-# 3H4FBxLMXkM4xyvKZDxFIboAJIpxdg==
+# BTEPFw0yNjA4MTcxODI3MTFaMC8GCSqGSIb3DQEJBDEiBCAjXk8qz563gw7Cj138
+# da6ruKiMqBGVJJ+b38WUxQUqVDANBgkqhkiG9w0BAQEFAASCAgCtq/rT7ys/JUuz
+# VkYibGpL9fK4hGaM9M0/ZygAf5UYZsGb5ZkAfszzRRxqFqLkVeDjtJCwr4NhJfiy
+# IusFFx0VGYkztFx9iZm+TeketgIYKWMHATrYnOAjlaN/BiNCbhH8gpSE+lqv8WAp
+# FJCayKl3Helc9g3TVhfg7MEkCGHISqEE4oaBTsF7ziBbBZAEBBCoZquCzmon59cd
+# +fyRmEgNRZ66xyZSRrm1UPijRSRV0DuKmxw+S4N91F4DUoM21waw3hsW4nfhm3dx
+# HU9AyAzXZHLMD8Bqsi1h35JodmuHfjxzEAMnpQBTGToEqmW3DOFDxzdOaDaEjffB
+# jHJtW/Q03D86MXm3UqnQ60L//Y66yG6xUKHh4IvKDThybF46JA2leO14Mh1B2UK0
+# 0r8y0f7pF0HXqO6DwEmxbh1h29U+OT4+anVCySkXPbCm8t8RjGl+YUxVIRqAl0Ek
+# 7UvFz/7WKP7FRhlESkT+3vA/tY9u06di3gA7DynHAmFUxhCV9oM8MNmpysxaZwKJ
+# CYskhmTYGIKsAWj90tvtqPFrLr5OFJi5jtNEjwCLgSET7baUyTXEYiVycEGxWBa1
+# tOq80KC76QpK257lgAKUMApOU8MfBrDJTI4vzT7rrp00UzZ/6fDtS6GZIQH2vvMY
+# 2chNdVaYRVYyJiKJXUpXPLcQbpl+VA==
 # SIG # End signature block

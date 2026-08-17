@@ -1,6 +1,5 @@
 {
   "preferences": {
-    "pref.updating-an-existing-nearby-test-fil.ce1b5a3c": "updating an existing nearby test file if one already covers the same area",
     "pref.changing-production-code-unless-a-sm.316d887c": "changing production code unless a small supporting change is necessary and justified",
     "pref.do-not-change-the-production-code-un.fcdbb4c4": "Do NOT change the production code unless a small supporting change is necessary and justified",
     "pref.do-not-summarize-your-plan-before-ed.f122400d": "Do not summarize your plan before editing",
@@ -11,35 +10,35 @@
     "pref.search-web-and-fetch-url-over-memory.368df598": "SEARCH-WEB and FETCH-URL over memory-based answers when the user asks a factual, informational, or external question",
     "pref.search-web-and-fetch-url-when-the-us.a4283bfc": "SEARCH-WEB and FETCH-URL when the user",
     "pref.unrelated-changes.6c1986ca": "unrelated changes",
-    "pref.robotic-phrasing.eebb95d4": "robotic phrasing"
+    "pref.robotic-phrasing.eebb95d4": "robotic phrasing",
+    "pref.do-not-touch-any-other-accounts.e1d22685": "Do NOT touch any other accounts"
   },
   "facts": {
-    "moduleRoot": "$env:TT_Home",
     "defaultLanguage": "en-US",
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.7,
-      "avgDurationMs": 166074,
-      "avgToolCalls": 3.9,
+      "successRate": 0.75,
+      "avgDurationMs": 53602,
+      "avgToolCalls": 2.25,
       "statusCounts": {
-        "success": 14,
-        "error": 6
+        "success": 15,
+        "error": 5
       },
       "outcomeCounts": {
-        "completed": 14,
-        "llm-failure": 5,
+        "completed": 15,
+        "llm-failure": 4,
         "iteration-limit": 1
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.4-nano",
-      "lastRunTimestampUtc": "2026-08-17T14:18:19.9032692\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-17T14:18:19.9059947\u002B00:00",
-      "avgPromptPreflightScore": 49,
+      "lastRunTimestampUtc": "2026-08-17T18:32:19.7459073\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-17T18:32:19.7979021\u002B00:00",
+      "avgPromptPreflightScore": 50,
       "executionModeCounts": {
-        "chat": 14,
-        "execute": 6
+        "execute": 14,
+        "chat": 6
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,319 +51,27 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-17T14:18:19.9060395\u002B00:00",
-      "totalPreferences": 0,
-      "totalFacts": 10,
-      "indexEntries": 0,
-      "averageConfidence": 0,
+      "generatedUtc": "2026-08-17T18:32:19.7979118\u002B00:00",
+      "totalPreferences": 1,
+      "totalFacts": 11,
+      "indexEntries": 8,
+      "averageConfidence": 0.78,
       "deprecatedEntries": 0,
-      "health": "low",
+      "health": "healthy",
       "notes": [
-        "Preferences tracked: 0",
-        "Facts tracked: 10",
-        "Index entries: 0"
+        "Preferences tracked: 1",
+        "Facts tracked: 11",
+        "Index entries: 8"
       ]
     },
     "fact.c-repos-techtoolbox-src-techtoolbox.30d77850": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Your objective is to determine whether the agent currently supports the  OpenAI GPT-5.3-Codex reasoning effort settings:        low      medium      high",
     "fact.gpt-5-3-codex.a3da4ff8": "gpt-5.3-codex",
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
-    "fact.tool-usage-powershell.a0d62039": "tool usage: PowerShell"
+    "fact.tool-usage-powershell.a0d62039": "tool usage: PowerShell",
+    "fact.tool-usage-without.0330bfdf": "tool usage: without",
+    "fact.tool-usage-for.64540e90": "tool usage: for"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-16T00:46:55.0238102+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 301294,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 7,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "search_web",
-        "fetch_url",
-        "search_web",
-        "fetch_url",
-        "search_web"
-      ],
-      "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin for tomorrow (August 17, 2026):\n\n- **Conditions**: Partly Sunny\n- **High Temperature**: Around 73\u00B0F\n- **Low Temperature (Tonight)**: Around 64\u00B0F\n\n*Source: National Weather Service*",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-16T01:05:00.3239908+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 76608,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "fetch_url"
-      ],
-      "outputPreview": "## Green Bay, WI Weather Forecast (Tomorrow)\n\nBased on current forecasts:\n\n- **Conditions**: Partly sunny with a chance for spotty showers and storms later in the day or night.\n- **High Temperature**: 79\u00B0F\n- **Low Temperature**: 64\u00B0F\n- **Details**: Hazy skies are possible due to high altitude smoke from distant fires.",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-16T01:10:03.2936214+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 169119,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 6,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "search_web",
-        "fetch_url",
-        "search_web",
-        "search_web"
-      ],
-      "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin for tomorrow (August 17):\n\n- **Conditions**: Partly sunny with a high near 73\u00B0F.\n- **Overnight**: Mostly cloudy with a low around 64\u00B0F.\n- **Precipitation**: There may be spotty showers and storms later in the weekend, but conditions look relatively mild for tomorrow.",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-16T01:22:24.5289139+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 709644,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 10,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "search_web",
-        "fetch_url",
-        "search_web",
-        "search_web",
-        "search_web",
-        "search_web",
-        "search_web",
-        "search_web"
-      ],
-      "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin for tomorrow (Monday, August 17):\n\n- **High**: Around 74\u00B0F\n- **Low**: Around 53\u00B0F\n- **Conditions**: Partly sunny to mostly clear skies.\n- **Precipitation**: A slight chance of showers late in the day or evening is possible.",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-16T01:27:56.2389079+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 235372,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "search_web",
-        "search_web"
-      ],
-      "outputPreview": "Here is the weather forecast for tomorrow in Green Bay, Wisconsin:\n\n**Date:** August 17, 2026 (Monday)\n- **High Temperature:** Around 75\u00B0F\n- **Low Temperature:** Around 62\u00B0F\n- **Conditions:** Partly cloudy with a chance of rain and thunderstorms.\n- **Precipitation Chance:** ~30%\n- **Wind:** Light winds around 3 mph from the northwest.\n- **Humidity:** Moderate to high (approx. 83%).\n\n*Note: Local conditions can change, so it is advisable to check a live weather app for real-time updates.*",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-16T02:26:58.6173501+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 195274,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "search_web",
-        "search_web"
-      ],
-      "outputPreview": "Based on the latest forecast data for Green Bay, Wisconsin (August 17), here are the details:\n\n- **High:** 78\u00B0F\n- **Low:** 67\u00B0F\n- **Conditions:** Mostly cloudy with a chance of showers throughout the day. Thunderstorms are likely late in the evening and overnight.\n- **Precipitation Chance:** 40% before noon, increasing to 50% after 7 PM.",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-17T01:34:26.2161067+00:00",
-      "status": "error",
-      "outcome": "llm-failure",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 237176,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "fetch_url"
-      ],
-      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM returned empty content. done_reason=length; done=True; eval_count=4096; prompt_eval_count=7625; message_role=assistant; message_content_length=0; body_preview={\u0022model\u0022:\u0022qwen3.6:35b\u0022,\u0022created_at\u0022:\u00222026-08-17T01:34:26.2112575Z\u0022,\u0022message\u0022:{\u0022role\u0022:\u0022assistant\u0022,\u0022content\u0022:\u0022\u0022},\u0022done\u0022:true,\u0022done_reason\u0022:\u0022length\u0022,\u0022total_duration\u0022:71113792700,\u0022load_duration\u0022:231976900,\u0022prompt_eval_count\u0022:7625,\u0022prompt_eval_d",
-      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM returned empty content. done_reason=length; done=True; eval_count=4096; prompt_eval_count=7625; message_role=assistant; message_content_length=0; body_preview={\u0022model\u0022:\u0022qwen3.6:35b\u0022,\u0022created_at\u0022:\u00222026-08-17T01:34:26.2112575Z\u0022,\u0022message\u0022:{\u0022role\u0022:\u0022assistant\u0022,\u0022content\u0022:\u0022\u0022},\u0022done\u0022:true,\u0022done_reason\u0022:\u0022length\u0022,\u0022total_duration\u0022:71113792700,\u0022load_duration\u0022:231976900,\u0022prompt_eval_count\u0022:7625,\u0022prompt_eval_d",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM returned empty content. done_reason=length; done=True; eval_count=4096; prompt_eval_count=7625; message_role=assistant; message_content_length=0; body_preview={\u0022model\u0022:\u0022qwen3.6:35b\u0022,\u0022created_at\u0022:\u00222026-08-17T01:34:26.2112575Z\u0022,\u0022message\u0022:{\u0022role\u0022:\u0022ass...",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-17T01:46:31.8922252+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 363097,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 8,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "search_web",
-        "fetch_url",
-        "search_web",
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "## Green Bay, WI Weather Forecast for Tomorrow\n\n**Date:** Monday, August 17, 2026\n\n- **Conditions:** Sunny\n- **High Temperature:** Near 82\u00B0F\n- **Heat Index:** Values as high as 81\u00B0F\n- **Wind:** West northwest wind around 2 to 7 mph",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-17T01:53:55.8380993+00:00",
       "status": "success",
@@ -746,21 +453,393 @@
       "promptPreflightScore": 20,
       "promptPreflightWarningCount": 4,
       "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-17T15:17:47.1653143+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named \u0027System.Management.Automation.PSCredential\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 2684,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named \u0027System.Management.Automation.PSCredential\u0027 that you can use to authenticate to our AD instance. Please outpu...",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T15:19:00.5215374+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027System.Management.Automation.PSCredential\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 3410,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Confirmation required\n\nThe Disable-User action is blocked because the tool requires explicit confirmation for destructive actions.\n\nPlease confirm the following before I retry:\n- Disable (account status) the Active Directory user: ddtest1\n- Do not change/disable any other accounts\n\nReply with: \u0060__confirm_destructive=true\u0060",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027System.Management.Automation.PSCredential\u0027 that you can use to authenticate to our AD instan...",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T15:19:22.0505109+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027System.Management.Automation.PSCredential\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 4694,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "disable_user",
+        "disable_user"
+      ],
+      "outputPreview": "## Blocked: Disable-User keeps failing\n\nThe Disable-User tool is repeatedly failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null. Change the value of argument \u0027host\u0027 to a non-null value.\u0022\n\n## Confirmation / missing requirement\n\nI cannot safely proceed because the tool is not executing due to a missing non-null internal parameter (\u0022host\u0022).\n\nPlease provide one of the following so I can retry successfully:\n- The correct tool parameter to set the non-null \u0022host\u0022 value (or the expected parameter name in this environment), or\n- Permission/credentials/configuration that allow the tool to resolve the host automatically.\n\nOnce the tool can run, I will disable only the AD user \u0060ddtest1\u0060 and nothing else, and then report the results in Markdown.",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027System.Management.Automation.PSCredential\u0027 that you can use to authenticate to our AD instan...",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T15:33:47.8232358+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 6368,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "disable_user",
+        "disable_user"
+      ],
+      "outputPreview": "## Blocked: cannot disable the AD user\n\nThe Disable-User tool is failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null.\u0022\n\n### What is missing\n- A non-null execution target/host (e.g., the AD server/computer name or remote session host) required by the tool runtime.\n- The tool call currently has no host/target computer context, so it cannot connect to the AD instance.\n\n### Next best action\n- Provide the AD host/target computer name (or confirm which server to run against), and then I can retry disabling only \u0060ddtest1\u0060.\n\n### Confirmation\n- Please confirm: disable user \u0060ddtest1\u0060 only (no other accounts).",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T18:17:57.1247911+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 4661,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Blocker\n- The Disable-User tool failed with: \u0022Cannot process argument because the value of argument \u0027host\u0027 is null.\u0022\n\n## What is missing\n- The tool invocation requires a non-null \u0022host\u0022 value (or an equivalent required connection parameter) to target the correct AD/host environment.\n\n## Next best action\n- Please provide the required host/connection value for the AD instance (or tell me which host/endpoint to use), and I will re-run the disable action for user \u0060ddtest1\u0060 only.",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T18:18:17.6647405+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 5529,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "disable_user",
+        "disable_user"
+      ],
+      "outputPreview": "## Blocked: cannot disable ddtest1 safely\n\nThe Disable-User tool is failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null.\u0022\n\nThis indicates the tool invocation is missing required connection context (e.g., AD host/server/target) and I cannot proceed without that non-null host value.\n\n### Confirmation required\n- Please provide the AD connection target/host value (or the correct tool parameters/credential context that sets it), so the tool can authenticate and run against the intended Active Directory instance.\n\nOnce the host is available, I will disable only user \u0060ddtest1\u0060 and leave all other accounts untouched.",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T18:30:47.5939056+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 5869,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "disable_user",
+        "disable_user"
+      ],
+      "outputPreview": "## Unable to complete: disable user ddtest1\n\nThe Disable-User tool is failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null. Change the value of argument \u0027host\u0027 to a non-null value.\u0022\n\n## What is missing\n- The tool invocation needs a non-null AD connection/host parameter (or the TechToolbox AD host/tool configuration that supplies it). Right now, the tool is being called without that required connection context.\n\n## Next best action\n- Please provide the AD host/connection details (or ensure the TechToolbox configuration variable that sets the AD host is populated), then I can retry disabling only user \u0027ddtest1\u0027.",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T18:32:19.7459073+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 4926,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "disable_user",
+        "disable_user"
+      ],
+      "outputPreview": "## Blocked: cannot disable the user safely\n\nThe \u0060Disable-User\u0060 tool is failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null.\u0022\n\nI cannot complete the goal because the tool cannot connect to the target AD host/context.\n\n### Confirmation required\n- None for account changes yet; however, I need the missing connection details so the tool can run.\n\n### Next step (what I need from you)\n- Provide the AD/PowerShell remoting target (the value that the tool expects as \u0060host\u0060), or tell me which TechToolbox config/variable contains it.\n- Alternatively, provide the exact AD connection parameters (server/host) that should be used for the \u0060Disable-User\u0060 operation.\n\nOnce \u0060host\u0060 is non-null, I will retry disabling only \u0060ddtest1\u0060 and leave all other accounts untouched.",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
-  "memoryIndex": {},
+  "memoryIndex": {
+    "NOT": {
+      "keyword": "NOT",
+      "value": "Do NOT touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999740946,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T18:32:19.7976067\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "NOT",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "touch": {
+      "keyword": "touch",
+      "value": "Do NOT touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999806005,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T18:32:19.7976740\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "NOT",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "any": {
+      "keyword": "any",
+      "value": "Do NOT touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999805468,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T18:32:19.7976744\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "NOT",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "other": {
+      "keyword": "other",
+      "value": "Do NOT touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999805253,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T18:32:19.7976746\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "NOT",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "accounts": {
+      "keyword": "accounts",
+      "value": "Do NOT touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999806221,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T18:32:19.7976759\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "NOT",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "tool": {
+      "keyword": "tool",
+      "value": "tool usage: for",
+      "sourceType": "fact",
+      "confidence": 0.7799999999824286,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T18:32:19.7976930\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "tool",
+        "usage",
+        "for"
+      ]
+    },
+    "usage": {
+      "keyword": "usage",
+      "value": "tool usage: for",
+      "sourceType": "fact",
+      "confidence": 0.7799999999824286,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T18:32:19.7976933\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "tool",
+        "usage",
+        "for"
+      ]
+    },
+    "for": {
+      "keyword": "for",
+      "value": "tool usage: for",
+      "sourceType": "fact",
+      "confidence": 0.7799999999824286,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T18:32:19.7976936\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "tool",
+        "usage",
+        "for"
+      ]
+    }
+  },
   "memoryHealth": {
-    "generatedUtc": "2026-08-17T14:18:19.9063907\u002B00:00",
-    "totalPreferences": 0,
-    "totalFacts": 10,
-    "indexEntries": 0,
-    "averageConfidence": 0,
+    "generatedUtc": "2026-08-17T18:32:19.7979196\u002B00:00",
+    "totalPreferences": 1,
+    "totalFacts": 11,
+    "indexEntries": 8,
+    "averageConfidence": 0.78,
     "deprecatedEntries": 0,
-    "health": "low",
+    "health": "healthy",
     "notes": [
-      "Preferences tracked: 0",
-      "Facts tracked: 10",
-      "Index entries: 0"
+      "Preferences tracked: 1",
+      "Facts tracked: 11",
+      "Index entries: 8"
     ]
   },
   "_memoryFormatVersion": 2
