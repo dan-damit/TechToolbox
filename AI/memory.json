@@ -20,8 +20,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.8,
-      "avgDurationMs": 185608,
-      "avgToolCalls": 5.05,
+      "avgDurationMs": 182014,
+      "avgToolCalls": 5.2,
       "statusCounts": {
         "success": 16,
         "error": 4
@@ -34,12 +34,12 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.4-nano",
-      "lastRunTimestampUtc": "2026-08-17T01:53:55.8380993\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-17T01:53:55.8390978\u002B00:00",
-      "avgPromptPreflightScore": 78,
+      "lastRunTimestampUtc": "2026-08-17T02:00:15.6959027\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-17T02:00:15.6968701\u002B00:00",
+      "avgPromptPreflightScore": 76,
       "executionModeCounts": {
-        "chat": 14,
-        "execute": 6
+        "execute": 7,
+        "chat": 13
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-17T01:53:55.8391168\u002B00:00",
+      "generatedUtc": "2026-08-17T02:00:15.6968911\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 9,
       "indexEntries": 0,
@@ -70,41 +70,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-15T00:04:08.5066433+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How is the Weather in Green Bay, Wisconsin at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
-      "model": "qwen3.6:35b",
-      "durationMs": 90317,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "## Current Weather in Green Bay, Wisconsin\n\nBased on data from the National Weather Service (KGRB station):\n\n- **Conditions**: Clear skies\n- **Temperature**: ~72\u00B0F (22\u00B0C)\n- **Wind**: East-Southeast at ~5 mph (7 km/h)\n- **Humidity**: 53%\n- **Visibility**: 10 miles (16 km)\n- **Dewpoint**: 54\u00B0F (12\u00B0C)",
-      "runSummary": {
-        "intent": "How is the Weather in Green Bay, Wisconsin at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-15T03:08:02.6702544+00:00",
       "status": "success",
@@ -780,11 +745,49 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T02:00:15.6959027+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 18443,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 7,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "## Weather for tomorrow - Green Bay, Wisconsin\n\n- Date: Monday, 2026-08-17\n- Forecast (NWS):\n  - Partly cloudy, with a low around 60. North wind 3 to 7 mph.\n  - Sunny, with a high near 82. Calm wind becoming west northwest 5 to 7 mph in the afternoon.\n\n- Source: National Weather Service (forecast.weather.gov)\n  - https://forecast.weather.gov/MapClick.php?lat=44.5192\u0026lon=-88.0198",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 1
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-17T01:53:55.8392404\u002B00:00",
+    "generatedUtc": "2026-08-17T02:00:15.6969790\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 9,
     "indexEntries": 0,
