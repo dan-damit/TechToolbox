@@ -39,6 +39,8 @@ It supports:
 - optional quiet mode for reduced console verbosity  
 - optional single auto-retry on recursion-limit stop conditions  
 - explicit destructive-operation confirmation when needed  
+- non-interactive credential forwarding for tool calls via `-ToolCredential`  
+- automatic credential lookup from `-ToolCredentialVariableName` (defaults to `dac`) when `-ToolCredential` is omitted  
 - signed-file overwrite policy control for Authenticode-signed PowerShell files  
 - built-in `FETCH-URL` support for external documentation and threat-intel retrieval from approved hosts only  
 - built-in `SEARCH-WEB` support for stateless source discovery using a DPAPI-backed search API key (Brave by default)  
@@ -180,6 +182,18 @@ Invoke-TechAgent -Prompt "Return remediation checklist as JSON" -OutputContract 
 Invoke-TechAgent -Prompt "Fix AD sync issue" -StrictPromptPreflight
 Invoke-TechAgent -Prompt "Draft a migration proposal" -QualityProfile creative
 
+# Non-interactive credential context for tools that require -Credential
+$dac = Get-Credential
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive -ToolCredential $dac
+
+# Use default credential variable lookup (ToolCredentialVariableName defaults to 'dac')
+$dac = Get-Credential
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive
+
+# Use a custom session variable name for credential lookup
+$domainAdmin = Get-Credential
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive -ToolCredentialVariableName domainAdmin
+
 # Cloud examples (API key loaded from env var)
 $env:TT_AGENT_LLM_API_KEY = '<your-key>'
 Invoke-TechAgent -Prompt "Summarize these logs" -Provider openai -Model gpt-4o-mini
@@ -214,6 +228,12 @@ Invoke-TechAgent -PromptFile AI\Tasks\CurrentTask.txt
 - `-StrictPromptPreflight` blocks execution when prompt quality signals are too weak for reliable action.
 - `-AutoPromptHint` prints a preflight-ready prompt rewrite suggestion when warnings are detected.
 - `-AutoRerunFromHint` applies one prompt rewrite pass from the preflight hint and continues the run with the improved prompt.
+
+**Credential Handling for Tool Calls**
+
+- Prefer passing credential context via Invoke-TechAgent parameters (`-ToolCredential` or `-ToolCredentialVariableName`) instead of embedding `-Credential $dac` in prompt text.
+- If a discovered tool supports a `Credential` parameter and no credential is passed in tool args, the runtime can apply the default credential context automatically.
+- Credential handoff to the child runtime uses a temporary CLIXML file and is cleaned up automatically after the run.
 
 **Prompt Pattern for Higher Success in `-Mode execute`**
 

@@ -20,6 +20,7 @@ LONG DESCRIPTION
     - Loading persistent memory from AI\memory.json by default
     - Learning lightweight user preferences, facts, and recent run history
     - Explicitly authorizing destructive operations
+    - Non-interactive credential forwarding for tool calls that require PSCredential
     - Managing console transcripts and structured markdown run logs
     - Automatic retry on recursion limits
 
@@ -69,6 +70,19 @@ PARAMETERS
         enabled and written to LogsAndExports\Logs\TechAgentTranscripts unless
         overridden by config settings ($cfg.transcript.enabled or $cfg.transcript.outputRoot).
 
+    -ToolCredential
+        Optional PSCredential passed to the agent runtime for non-interactive
+        tool execution. When provided, this credential is securely exported to a
+        temp CLIXML file, passed to the child runtime process, and cleaned up
+        after the run. Tools with a Credential parameter can consume it
+        automatically.
+
+    -ToolCredentialVariableName
+        Optional variable name to resolve a session/global PSCredential when
+        -ToolCredential is not supplied. Defaults to 'dac'.
+        Example: if $dac contains PSCredential, Invoke-TechAgent will use it
+        automatically for tool calls that support Credential.
+
     -AutoPromptHint
         When preflight warnings or critical findings are present, prints a
         preflight-ready prompt rewrite suggestion to help improve prompt quality
@@ -101,6 +115,10 @@ NOTES
             reuse and PowerShell assembly conflicts.
     - Uses async stream readers to avoid redirected-pipe deadlocks.
         - Terminates the child process on timeout or failure.
+        - For non-interactive auth, prefer -ToolCredential or a PSCredential stored
+            in the variable named by -ToolCredentialVariableName (default: $dac).
+        - Avoid embedding "-Credential $dac" inside prompt text. Provide credential
+            context through Invoke-TechAgent parameters instead.
 
 EXAMPLES
     Example 1:
@@ -131,6 +149,24 @@ EXAMPLES
         -----------
         Allows overwrite of an Authenticode-signed PowerShell file by stripping
         the signature block during write.
+
+    Example 5:
+        $dac = Get-Credential
+        Invoke-TechAgent "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive -ToolCredential $dac
+
+        Description
+        -----------
+        Runs a destructive-capable workflow while supplying PSCredential
+        non-interactively for tools that require Credential.
+
+    Example 6:
+        $dac = Get-Credential
+        Invoke-TechAgent "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive
+
+        Description
+        -----------
+        Uses the default variable name ($dac) via
+        -ToolCredentialVariableName 'dac' when -ToolCredential is omitted.
 
 SEE ALSO
     - about_TechToolbox

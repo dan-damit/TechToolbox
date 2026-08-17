@@ -19,8 +19,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 1,
-      "avgDurationMs": 6259,
-      "avgToolCalls": 1.55,
+      "avgDurationMs": 6378,
+      "avgToolCalls": 1.45,
       "statusCounts": {
         "success": 20
       },
@@ -30,8 +30,8 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.4-nano",
-      "lastRunTimestampUtc": "2026-08-17T20:28:18.2739127\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-17T20:28:18.3176962\u002B00:00",
+      "lastRunTimestampUtc": "2026-08-17T20:38:04.1716241\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-17T20:38:04.2153789\u002B00:00",
       "avgPromptPreflightScore": 92,
       "executionModeCounts": {
         "execute": 20
@@ -47,7 +47,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-17T20:28:18.3177096\u002B00:00",
+      "generatedUtc": "2026-08-17T20:38:04.2153940\u002B00:00",
       "totalPreferences": 1,
       "totalFacts": 11,
       "indexEntries": 5,
@@ -68,70 +68,6 @@
     "fact.tool-usage-for.64540e90": "tool usage: for"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-17T18:44:08.9716411+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Disable only AD user ddtest1. Do not touch any other accounts. Use Disable-User and report markdown results. The server name you will use is DC-1.vadtek.com",
-      "model": "gpt-5.4-nano",
-      "durationMs": 5284,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "disable_user",
-        "disable_user"
-      ],
-      "outputPreview": "## Blocked: Disable-User cannot run due to missing host\n\n- The tool keeps failing with: \u0022Cannot process argument because the value of argument \\\u0022host\\\u0022 is null. Change the value of argument \\\u0022host\\\u0022 to a non-null value.\u0022\n\n## What is missing\n- The Disable-User tool appears to require a non-null host/target parameter, but the available tool schema does not expose a parameter name we can set (e.g., there is no documented \u0060host\u0060 parameter).\n\n## Next best action\n- Please provide the correct tool parameter to set the target DC (or update the tool schema/config) so the tool can receive a non-null host.\n- Once the tool can accept the DC target, I will disable only AD user \u0060ddtest1\u0060 on \u0060DC-1.vadtek.com\u0060 and report the results.",
-      "runSummary": {
-        "intent": "Disable only AD user ddtest1. Do not touch any other accounts. Use Disable-User and report markdown results. The server name you will use is DC-1.vadtek.com",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-17T18:47:18.1817016+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Disable only AD user ddtest1. Do not touch any other accounts. Use Disable-User and report markdown results.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 5681,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "disable_user",
-        "disable_user"
-      ],
-      "outputPreview": "## Unable to complete safely\n\n- I attempted to disable the AD user \u0060ddtest1\u0060 using \u0060Disable-User\u0060.\n- The tool repeatedly failed with the same error:\n  - \u0022Cannot process argument because the value of argument \\\u0022host\\\u0022 is null. Change the value of argument \\\u0022host\\\u0022 to a non-null value.\u0022\n\n## What is missing\n\n- The \u0060Disable-User\u0060 tool invocation context is missing the required non-null \u0060host\u0060/target (e.g., the domain controller name) that the tool needs to run against.\n\n## Next step\n\n- Please provide the target host/domain controller to use (for example, \u0060DC-1.vadtek.com\u0060), or tell me which \u0060ComputerName\u0060/host value this environment expects for AD operations, and I will rerun \u0060Disable-User\u0060 for \u0060ddtest1\u0060 only.",
-      "runSummary": {
-        "intent": "Disable only AD user ddtest1. Do not touch any other accounts. Use Disable-User and report markdown results.",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-17T18:51:24.682723+00:00",
       "status": "success",
@@ -695,6 +631,68 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T20:34:42.7919983+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 5373,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T20:38:04.1716241+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 7975,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {
@@ -702,9 +700,9 @@
       "keyword": "not",
       "value": "Do not touch any other accounts",
       "sourceType": "preference",
-      "confidence": 0.7799999999763314,
+      "confidence": 0.7799999999756754,
       "frequency": 1,
-      "lastSeenUtc": "2026-08-17T20:28:18.3174283\u002B00:00",
+      "lastSeenUtc": "2026-08-17T20:38:04.2151025\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -718,9 +716,9 @@
       "keyword": "touch",
       "value": "Do not touch any other accounts",
       "sourceType": "preference",
-      "confidence": 0.7799999999821383,
+      "confidence": 0.7799999999814609,
       "frequency": 1,
-      "lastSeenUtc": "2026-08-17T20:28:18.3174878\u002B00:00",
+      "lastSeenUtc": "2026-08-17T20:38:04.2151622\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -734,9 +732,9 @@
       "keyword": "any",
       "value": "Do not touch any other accounts",
       "sourceType": "preference",
-      "confidence": 0.7799999999820846,
+      "confidence": 0.7799999999814179,
       "frequency": 1,
-      "lastSeenUtc": "2026-08-17T20:28:18.3174881\u002B00:00",
+      "lastSeenUtc": "2026-08-17T20:38:04.2151626\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -750,9 +748,9 @@
       "keyword": "other",
       "value": "Do not touch any other accounts",
       "sourceType": "preference",
-      "confidence": 0.7799999999822029,
+      "confidence": 0.7799999999815361,
       "frequency": 1,
-      "lastSeenUtc": "2026-08-17T20:28:18.3174897\u002B00:00",
+      "lastSeenUtc": "2026-08-17T20:38:04.2151641\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -766,9 +764,9 @@
       "keyword": "accounts",
       "value": "Do not touch any other accounts",
       "sourceType": "preference",
-      "confidence": 0.7799999999823426,
+      "confidence": 0.7799999999816759,
       "frequency": 1,
-      "lastSeenUtc": "2026-08-17T20:28:18.3174913\u002B00:00",
+      "lastSeenUtc": "2026-08-17T20:38:04.2151658\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -780,7 +778,7 @@
     }
   },
   "memoryHealth": {
-    "generatedUtc": "2026-08-17T20:28:18.3177171\u002B00:00",
+    "generatedUtc": "2026-08-17T20:38:04.2154039\u002B00:00",
     "totalPreferences": 1,
     "totalFacts": 11,
     "indexEntries": 5,

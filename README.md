@@ -268,6 +268,8 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 - Provider routing supports `ollama` (default), `openai`, `openai-compatible`, and `azure-openai`.
 - Quality controls support `-Mode` (`execute`, `analyze`, `plan`, `chat`), with `chat` as the default, `-OutputContract` (`markdown`, `plain-text`, `json`), `-StrictPromptPreflight`, and `-QualityProfile`.
 - Reasoning controls support `-ReasoningEffort` (`low`, `medium`, `high`, `xhigh`) and `-ReasoningEffortAuto` for automatic selection.
+- Authentication controls support `-ToolCredential` and `-ToolCredentialVariableName` (default: `dac`) for non-interactive tool authentication.
+- For tool auth, prefer Invoke-TechAgent parameters over embedding `-Credential $dac` inside prompt text.
 
 ### Reasoning effort (GPT-5.3-Codex)
 
@@ -300,6 +302,14 @@ Invoke-TechAgent -Prompt "Return remediation checklist as JSON" -OutputContract 
 # Quality telemetry summary for recent runs
 Get-TechAgentQualitySummary -Window 20
 Get-TechAgentQualitySummary -Window 30 -IncludeRecent 10 -AsJson
+
+# Non-interactive credential context for tool calls
+$dac = Get-Credential
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive -ToolCredential $dac
+
+# Default variable lookup (ToolCredentialVariableName defaults to 'dac')
+$dac = Get-Credential
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive
 ```
 
 ### Example: stage a task, then run it

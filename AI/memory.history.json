@@ -1,81 +1,5 @@
 [
   {
-    "timestampUtc": "2026-07-29T04:59:44.92242+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Set-TechAgentApiKey\r\n\r\nTask:\r\nWrite a detailed PowerShell \u0060about_*.help.txt\u0060 help document for the source command or script.\r\n\r\nDocument topic:\r\nStorage of TechAgent OpenAI API Key\r\n\r\nOutput file:\r\nC:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentApiKey.help.txt\r\n\r\nRequirements:\r\n- Create the output file at this exact path:\r\n  C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentApiKey.help.txt\r\n- Follow the structure and tone of other help files in the same help directory when they exist.\r\n- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.\r\n- Do not use markdown formatting unless the existing help files in that directory already do.\r\n- Use WRITE-FILE to create or update the output help file.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentApiKey.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "gpt-5.3-codex",
-    "durationMs": 18948,
-    "maxIterations": 25,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 7,
-    "toolNames": [
-      "read_file",
-      "list_directory",
-      "read_file",
-      "read_file",
-      "list_directory",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "## Completed\n- Created/updated the required help file at:\n  - C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentApiKey.help.txt\n- Used WRITE-FILE as required.\n- Content documents storage of the TechAgent OpenAI API key, aligned with the Set-TechAgentApiKey.ps1 behavior and parameters.",
-    "runSummary": {
-      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Set-TechAgentApiKey\r\n\r\nTask:\r\nWrite a detailed PowerShell \u0060about_*.help.txt\u0060 help document for the source command or script.\r\n\r\nDocument topic:\r\nStorage of TechAgent Op...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-07-29T05:00:22.19185+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Set-TechAgentApiKey.ps1\r\n\r\nTask:\r\nWrite a detailed PowerShell markdown file document for the source command or script.\r\n\r\nDocument topic:\r\nStorage of TechAgent OpenAI API Key\r\n\r\nOutput file:\r\nC:\\repos\\TechToolbox-Docs\\Set-TechAgentApiKey.md\r\n\r\nRequirements:\r\n- Create the output file at this exact path:\r\n  C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentApiKey.help.txt\r\n- Follow the structure and tone of other help files in the same help directory when they exist.\r\n- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.\r\n- Do not use markdown formatting unless the existing help files in that directory already do.\r\n- Use WRITE-FILE to create or update the output help file.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentApiKey.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "gpt-5.3-codex",
-    "durationMs": 16093,
-    "maxIterations": 25,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 5,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "list_directory",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "## Completed\n- Created and updated the required help file at:\n  - C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentApiKey.help.txt\n- Used WRITE-FILE as required.\n- Content is aligned to the source command behavior and existing help-file style in the en-US directory.",
-    "runSummary": {
-      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Set-TechAgentApiKey.ps1\r\n\r\nTask:\r\nWrite a detailed PowerShell markdown file document for the source command or script.\r\n\r\nDocument topic:\r\nStorage of TechAgent OpenAI A...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-07-29T05:01:22.8188314+00:00",
     "status": "success",
     "outcome": "completed",
@@ -7777,6 +7701,68 @@
     "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
     "model": "gpt-5.4-nano",
     "durationMs": 5119,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 1,
+    "toolNames": [
+      "disable_user"
+    ],
+    "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com",
+    "runSummary": {
+      "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+      "actionsTaken": [
+        "disable_user"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 100,
+    "promptPreflightWarningCount": 0,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-17T20:34:42.7919983+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+    "model": "gpt-5.4-nano",
+    "durationMs": 5373,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 1,
+    "toolNames": [
+      "disable_user"
+    ],
+    "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com",
+    "runSummary": {
+      "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+      "actionsTaken": [
+        "disable_user"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 100,
+    "promptPreflightWarningCount": 0,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-17T20:38:04.1716241+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+    "model": "gpt-5.4-nano",
+    "durationMs": 7975,
     "maxIterations": 15,
     "destructiveConfirmed": true,
     "signedFilePolicy": "ignore",
