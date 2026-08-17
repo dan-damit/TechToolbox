@@ -15,10 +15,9 @@ function Get-DomainAdminCredential {
 
             2. REBUILD FROM STORED SETTINGS
                      If no in-memory credential is available, the function attempts to
-                     reconstruct one from:
-                         - settings.passwords.domainAdminCred.username in config.json
-                         - passwords.domainAdminCred.username in config.secrets.json
-                         - passwords.domainAdminCred.password in config.secrets.json
+                     reconstruct one from encrypted values in config.secrets.json:
+                         - passwords.domainAdminCred.usernameEncrypted
+                         - passwords.domainAdminCred.passwordEncrypted
 
                      The password is stored only as DPAPI-protected SecureString text and
                      can only be decrypted under the same Windows user / machine /
@@ -30,15 +29,13 @@ function Get-DomainAdminCredential {
                      stores the result in memory for the current session.
 
             4. PERSIST OR CLEAR STORED VALUES
-                     -Persist writes the username to config.json and config.secrets.json,
-                     plus the DPAPI-protected password blob to config.secrets.json.
+                     -Persist writes DPAPI-protected username and password blobs to
+                     config.secrets.json.
                      -Clear removes both stored values and clears the in-memory cache.
 
-        STORAGE MODEL The username is stored in both config.json and
-        config.secrets.json for compatibility and easier secrets-only portability.
-        The password is never written to config.json; it is stored only in
-        config.secrets.json using ConvertFrom-SecureString, which relies on
-        Windows DPAPI by default.
+        STORAGE MODEL Both username and password are stored only in
+        config.secrets.json as DPAPI-protected SecureString blobs using
+        ConvertFrom-SecureString.
 
         SHOULDPROCESS / SAFETY This function supports -WhatIf and -Confirm for
         operations that modify stored credential state, specifically:
@@ -54,9 +51,8 @@ function Get-DomainAdminCredential {
         PSCredential object returned to the pipeline.
 
         .PARAMETER Clear
-        Clears the stored domain admin credential from both config.json and
-        config.secrets.json, and removes the in-memory cached credential from
-        $script:domainAdminCred.
+        Clears the stored domain admin credential from config.secrets.json and
+        removes the in-memory cached credential from $script:domainAdminCred.
 
         When specified, the function performs only the clear operation and then
         returns without prompting.
@@ -71,10 +67,9 @@ function Get-DomainAdminCredential {
         .PARAMETER Persist
         Persists a prompted credential to disk after successful entry.
 
-        The username is written to both config.json and config.secrets.json,
-        and the password is written to config.secrets.json as DPAPI-protected
-        SecureString text. This parameter has effect only when the function
-        enters the prompt path.
+        The username and password are written to config.secrets.json as
+        DPAPI-protected SecureString text. This parameter has effect only when
+        the function enters the prompt path.
 
         .PARAMETER PassThru
         Returns the resolved PSCredential object to the pipeline.
@@ -115,9 +110,8 @@ function Get-DomainAdminCredential {
         .EXAMPLE
         Get-DomainAdminCredential -ForcePrompt -Persist
 
-        Prompts for a fresh credential and persists it: username to config.json
-        and config.secrets.json, password to config.secrets.json as
-        DPAPI-protected text.
+        Prompts for a fresh credential and persists both username and password
+        to config.secrets.json as DPAPI-protected text.
 
         .EXAMPLE
         Get-DomainAdminCredential -Clear -Confirm
@@ -133,7 +127,7 @@ function Get-DomainAdminCredential {
 
         .NOTES
         - Requires Initialize-TechToolboxRuntime, Checkpoint-ConfigBranch,
-            Get-SecretsPath, Read-Secrets, Save-Config, and Write-Secrets.
+            Get-SecretsPath, Read-Secrets, and Write-Secrets.
         - Stored passwords are protected with DPAPI and are generally usable
             only by the same Windows user on the same machine and under the same
             security context that created them.
@@ -174,24 +168,48 @@ function Get-DomainAdminCredential {
     $secrets = Read-Secrets
 
     $cfgNode = $script:cfg.settings.passwords.domainAdminCred
-    $storedUserCfg = [string]$cfgNode.username
-    $storedUserSecrets = [string]$secrets.passwords.domainAdminCred.username
-    $hasStoredUserCfg = -not [string]::IsNullOrWhiteSpace($storedUserCfg)
-    $hasStoredUserSecrets = -not [string]::IsNullOrWhiteSpace($storedUserSecrets)
-    # Prefer secrets as the canonical source; fall back to config.json for legacy values.
-    $storedUser = if ($hasStoredUserSecrets) { $storedUserSecrets } elseif ($hasStoredUserCfg) { $storedUserCfg } else { '' }
-    $storedBlob = [string]$secrets.passwords.domainAdminCred.password
+    $secretsNode = $secrets.passwords.domainAdminCred
+
+    $storedUserBlob = [string]$secretsNode.usernameEncrypted
+    $storedPassBlob = [string]$secretsNode.passwordEncrypted
+
+    # Legacy fields retained for backward compatibility during migration.
+    $legacyUserSecrets = [string]$secretsNode.username
+    $legacyPassSecrets = [string]$secretsNode.password
+    $legacyUserCfg = [string]$cfgNode.username
+
+    $hasStoredUserBlob = -not [string]::IsNullOrWhiteSpace($storedUserBlob)
+    $hasStoredPassBlob = -not [string]::IsNullOrWhiteSpace($storedPassBlob)
+    $hasLegacyUserSecrets = -not [string]::IsNullOrWhiteSpace($legacyUserSecrets)
+    $hasLegacyPassSecrets = -not [string]::IsNullOrWhiteSpace($legacyPassSecrets)
+    $hasLegacyUserCfg = -not [string]::IsNullOrWhiteSpace($legacyUserCfg)
+
+    function Convert-SecureStringToPlainText {
+        param([Parameter(Mandatory)][securestring]$SecureString)
+
+        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureString)
+        try {
+            return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+        }
+        finally {
+            if ($bstr -ne [IntPtr]::Zero) {
+                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+            }
+        }
+    }
 
     # --- CLEAR path ---
     if ($Clear) {
-        $target = "domainAdminCred (config.secrets.json)"
+        $target = "passwords.domainAdminCred (config.secrets.json)"
         if ($PSCmdlet.ShouldProcess($target, "Clear username + DPAPI password and in-memory cache")) {
             try {
-                $cfgNode.username = ''
-                Save-Config
+                $secretsNode.usernameEncrypted = ''
+                $secretsNode.passwordEncrypted = ''
 
-                $secrets.passwords.domainAdminCred.username = ''
-                $secrets.passwords.domainAdminCred.password = ''
+                # Clear legacy keys too so old values cannot be accidentally reused.
+                $secretsNode.username = ''
+                $secretsNode.password = ''
+
                 Write-Secrets -Secrets $secrets | Out-Null
 
                 $script:domainAdminCred = $null
@@ -212,23 +230,71 @@ function Get-DomainAdminCredential {
     }
 
     # --- If not forcing prompt, try to rebuild from stored values ---
-    $hasUser = -not [string]::IsNullOrWhiteSpace($storedUser)
-    $hasPass = -not [string]::IsNullOrWhiteSpace($storedBlob)
+    $resolvedUser = ''
+    $resolvedSecurePass = $null
+    $migrationNeeded = $false
+
+    if ($hasStoredUserBlob) {
+        try {
+            $resolvedUser = Convert-SecureStringToPlainText -SecureString ($storedUserBlob | ConvertTo-SecureString)
+        }
+        catch {
+            Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Failed to decrypt usernameEncrypted (DPAPI). Details: $($_.Exception.Message)"
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($resolvedUser)) {
+        if ($hasLegacyUserSecrets) {
+            $resolvedUser = $legacyUserSecrets
+            $migrationNeeded = $true
+        }
+        elseif ($hasLegacyUserCfg) {
+            $resolvedUser = $legacyUserCfg
+            $migrationNeeded = $true
+        }
+    }
+
+    if ($hasStoredPassBlob) {
+        try {
+            $resolvedSecurePass = $storedPassBlob | ConvertTo-SecureString
+        }
+        catch {
+            Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Failed to decrypt passwordEncrypted (DPAPI). Details: $($_.Exception.Message)"
+        }
+    }
+
+    if ($null -eq $resolvedSecurePass -and $hasLegacyPassSecrets) {
+        try {
+            $resolvedSecurePass = $legacyPassSecrets | ConvertTo-SecureString
+            $migrationNeeded = $true
+        }
+        catch {
+            Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Failed to decrypt legacy password field (DPAPI). Details: $($_.Exception.Message)"
+        }
+    }
+
+    $hasUser = -not [string]::IsNullOrWhiteSpace($resolvedUser)
+    $hasPass = $resolvedSecurePass -is [securestring]
 
     if (-not $ForcePrompt -and $hasUser -and $hasPass) {
         try {
-            $securePwd = $storedBlob | ConvertTo-SecureString
-            $script:domainAdminCred = [PSCredential]::new($storedUser, $securePwd)
+            $script:domainAdminCred = [PSCredential]::new($resolvedUser, $resolvedSecurePass)
 
-            # One-time migration: if username existed only in config.json, backfill secrets.
-            if (-not $hasStoredUserSecrets -and $hasStoredUserCfg) {
+            # One-time migration: normalize legacy/plaintext fields to encrypted fields.
+            if ($migrationNeeded -or -not $hasStoredUserBlob -or -not $hasStoredPassBlob) {
                 try {
-                    $secrets.passwords.domainAdminCred.username = $storedUserCfg
+                    $secretsNode.usernameEncrypted = ConvertFrom-SecureString (ConvertTo-SecureString -String $resolvedUser -AsPlainText -Force)
+                    $secretsNode.passwordEncrypted = ConvertFrom-SecureString $resolvedSecurePass
+
+                    # Remove legacy representation after successful migration.
+                    $secretsNode.username = ''
+                    $secretsNode.password = ''
+
                     Write-Secrets -Secrets $secrets | Out-Null
-                    Write-Log -Level 'Debug' -Message "[Get-DomainAdminCredential] Backfilled domain admin username to config.secrets.json from config.json."
+                    Write-Log -Level 'Debug' -Message "[Get-DomainAdminCredential] Migrated domain admin credential to usernameEncrypted/passwordEncrypted in config.secrets.json."
                 }
                 catch {
-                    Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Rebuilt credential, but failed to backfill username to config.secrets.json: $($_.Exception.Message)"
+                    Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Rebuilt credential, but failed to persist encrypted migration values: $($_.Exception.Message)"
                 }
             }
 
@@ -237,7 +303,7 @@ function Get-DomainAdminCredential {
         }
         catch {
             # DPAPI mismatch usually means: different user or different machine or different security context
-            Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Failed to decrypt stored password (DPAPI). Likely different user/machine/context. Will prompt. Details: $($_.Exception.Message)"
+            Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Failed to reconstruct credential from stored values (DPAPI). Likely different user/machine/context. Will prompt. Details: $($_.Exception.Message)"
             # fall through to prompt
         }
     }
@@ -255,20 +321,19 @@ function Get-DomainAdminCredential {
 
     # Persist on request
     if ($Persist) {
-        $target = "domainAdminCred username + password (config.secrets.json)"
+        $target = "passwords.domainAdminCred.usernameEncrypted/passwordEncrypted (config.secrets.json)"
         if ($PSCmdlet.ShouldProcess($target, "Persist username and DPAPI-protected password")) {
             try {
-                # Username -> config.json and config.secrets.json
-                $cfgNode.username = $cred.UserName
-                Save-Config
+                $secretsNode.usernameEncrypted = ConvertFrom-SecureString (ConvertTo-SecureString -String $cred.UserName -AsPlainText -Force)
+                $secretsNode.passwordEncrypted = ConvertFrom-SecureString $cred.Password
 
-                $secrets.passwords.domainAdminCred.username = $cred.UserName
+                # Clear legacy fields now that canonical encrypted fields are populated.
+                $secretsNode.username = ''
+                $secretsNode.password = ''
 
-                # Password -> secrets file only (DPAPI protected)
-                $secrets.passwords.domainAdminCred.password = ConvertFrom-SecureString $cred.Password
                 Write-Secrets -Secrets $secrets | Out-Null
 
-                Write-Log -Level 'Ok' -Message "[Get-DomainAdminCredential] Persisted username to config.secrets.json and password to config.secrets.json ($secretsPath)."
+                Write-Log -Level 'Ok' -Message "[Get-DomainAdminCredential] Persisted encrypted username/password to config.secrets.json ($secretsPath)."
             }
             catch {
                 Write-Log -Level 'Error' -Message "[Get-DomainAdminCredential] Failed to persist credential: $($_.Exception.Message)"
@@ -283,8 +348,8 @@ function Get-DomainAdminCredential {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB1N/soTRS7j/4A
-# oylbHV6s6RSVjAYClfUsC9z+hXzGZaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDzY3iWeF2m4nq9
+# c2iSWzfmnkDYkNTm0QaP1Gd2AWxJqaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -417,34 +482,34 @@ function Get-DomainAdminCredential {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC9/beTHhHU
-# kgQrTo47VKT2OYQHEST8kr8/SqXEFaAFzzANBgkqhkiG9w0BAQEFAASCAgBi8xrZ
-# wOqVVXI5ZNJGtRDNiGMgTO/EQiM8k0HrXCm7rhyAQdRi2NPBYboaWVh9cHV0lorb
-# kQcyXcb9Bg7Q4I92D6pnrybIvlAq7lULgLFYkYHW5DUD2j0cARNpsKyEIxR1vz5M
-# 8/TxiOr79Vyrdcz7r6BbX/JqC0DxiCNUH/MVcaLsWrpq3ldijcGh/g4yjpCAtg0+
-# dZCm75SJjOcAfpZbfGW1xCA+rnCpgrrCQBTeN+TlzeWgCcsFYmzJU+oxrJAY+M/a
-# 0Lro7nuW5NZfZKvEkh8OzLiUhjLRbc7i2nPkomE2uA798HllqRGLcS8/7z73q5Hr
-# bANocghc8Xu6eNuzpiS2Jy6dwBCKAR+vLDgcvRcrOifNDxRY1hIMlvNY6n2DLPAP
-# S/YYWRGRJlYeGNaBceBCtYeIM2ig3H7zlaPILf0hNn5e33DZtyi/D1UL4WdFhumC
-# vbv14gZlRBiy7ZxCsOPi7iNg3pghTftkTkprjITSBM7r6E9ron+Ej/miiPik3w6z
-# hOXgzOTAiWSN5T5gHmwOHgehUF00bR0JKHK9uPnbz7n1yOH4XCn/UFNX/gAmOAuC
-# uae2D/sC7ACA9Qls8zpUcXqki/H/SAq5PIdXoEAN+QjExxgXLHJU5rAQ8ZkVzthT
-# plEv4VwVxsam3RgzRAyhBNqR2cVqoAxVITC5ZqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCLtQ6uTzgm
+# 6slWbd62ZbXhpDMogx5RRtGELskdtVOa6TANBgkqhkiG9w0BAQEFAASCAgA6L6cI
+# GCX9mVXoX93KpzFhGgRtDfeKMwZp0oxC0+VPQf2i+W/RABb49cICADG6JtHGXBhd
+# jOdNZS4eAC9/ezENkrgouATGxFiXbOp/q1/aOtWAgNKVIhCoSKbdOLsKQo0/xRH9
+# ulGCdaxBsjX08ayUD6Q/4qqkBD/e2tSCaPc0K3UBmFtRr58I8IhZ/O2k/4ZC/1p9
+# h7aqRE4x9CjCNEd1gqpPtTHMHcVM/gGIAAbDmewpcMhmLgsGJbr6cTXVaW7V6VCT
+# EnSUueZ7XkQwtyUJCIW2hcseqDaEuDbfcBmAYCA6HxhfdklVkpSqHGwY4OsFopCf
+# zvnTTvbGMWjVU0fcnnTE4EnDDlfWfKHWd/3K//l6U7C1fjYzWECowr5XBpN2nb5j
+# lmlg6jYDlmX++4cUZVjLsbt3j5l4KfohFtlmtbOtvIlmkItOORW0nTbkrvgMoccy
+# Y8ievpRq7AjTC05F2BbSbQNfo0wccaZdWd25alALzass9veYom5ITxw1P0Axu7pY
+# DaoNxMJyYy6sEe8HiZpxBFHkUMuLItkieaseaZo2pYtIwWT2QYTRJmTGy3K/rcer
+# hPquLn5Ejhf4uPOJh60ZeTvxnDJwGsHiWLvATjRcYJoV++9/jH3WPLwJWSLdZmA6
+# iWCId7Ib5+zMP/PrsA2ajYifCkOyMN3ycWN0TKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTIxNDU4NDRaMC8GCSqGSIb3DQEJBDEiBCAZBb3wtdPh4hucj2Lo
-# Nqaa80YQZzpC+JehQVmKs2XOHzANBgkqhkiG9w0BAQEFAASCAgBWiSqrr4jaXCZN
-# Uj6EcTF8Uy39j3653s/GjUcbcCDN15kLLrcdg8jkgXg45mqQ28OfVxDhOSZJCP39
-# D8XHVnW4e//S/QyIIU8svr0JM4GiTGj4AmlYpRFEc/Y3VrBn405SxFiwT+imYYAP
-# xNHa2YI9mr66L4lCVm1YRX8qPRRs1ExXmzBIZTg/2VjNG+OLHca2KhET3dJj07jY
-# E6JKo577joiDHUpxYuBOAXu0YBfh62rMHx3+1R+p9ZCvuROJf+VHurj0PaObRtzx
-# 0NIm8eu5JdzGQmhR5lt8ojVV/xpGlH9TvGmLmyRGXEfeP+TCx8F6sgumvgRy12Y3
-# xFQ9iqh6KpM0n2aAqwFS6PTrGISmCRuF/ETveLepNsAfVpy0H2m0IpD79qJISnvS
-# v2pC9qyvwU212DiplPdzsF5ClbOCwQQ6Yts2uN0TPqix7uQ8+s/p0UgRgKwLcmP/
-# MFvDa/TJHUpzX4PDsXYsZNtPNAVWbv3jZ5fOBz0n3WjvXpppTcAE0Hg2+iyFaHF5
-# +GZYDkCnxiHs1OHRes3y1mViSyK/CNaqsxruFsRqW0VBrXtNVCJf3nLAs4L7y9Y4
-# OFlD8+nt6yoppe/rD730F7bR7voua9ig6HB8n0VDFSU0HVTHPMAc/7+E75kDHhYS
-# LawmwtHtYe8xyb+dpVJjlZb/o8TnJg==
+# BTEPFw0yNjA4MTcxNDQ3MjdaMC8GCSqGSIb3DQEJBDEiBCA6Ulu4ElzWdlIXDpAr
+# jcSwpjuE+D9SAXGmh3b8AeMZPjANBgkqhkiG9w0BAQEFAASCAgCVfiky9ZBmXxW3
+# BwoO7DJAMX1XMyZyT3cjUxKFnTfKU3iXX8jkisXrSIafCwuJK+yLvA5b+ECDCor6
+# GxfKyGHaX1H6zjQMPI9cGp/LRvVkZ5l2twDXdjXVFLE90g+F6ilOFMotg3jmRxBh
+# 6xMm1teacDNlKIyWNvuc8i1tqzzDPrZ1AwPax9TqM0Mr9nFjCNLVL1Ag//NOY2Lp
+# SODxGSK74PhwTGqRmExXNWbeHbrs2p9kIcvn9BuGh29sDbgdDQi7RmzUWHqpK+ai
+# 93SQnQm9X4vk7A9/+MklCDbTlohfePtcbCytz1jbSItTK4jSYbJLN5axayXkL1Gx
+# EKtvM6ds0wboeOkY1vUjgxmxG1Jbot1Ad470c+ThR6d9kB9S6bbcbKvt4Aui2Yus
+# 02Zjl0r5DYJWvJY92aUJ28m+7IaxzSNnpR2bW29DqRjts1XuwCGCzwmKhxhKUyq2
+# tGKudKwG94pPiVneG9B95Mt10FJ74BWZ+5iLLyCInpmKvnMuIsgD8/ZpeEsMQFPM
+# 0vgy+4DFy+PQ5J7K8mJOxYxJRxXpNYPLugnTnlgrfJj8iGpgFfBOfT24BPtITqFP
+# /zm8wVU3sAxwcbb5VB7KTmSjZBbm/rY22bFFz2wD3Yfms9ZGoMB2jLOFmOi2d75t
+# m+sQqQShEbXHjTeEWiQ/YG4DWgV2Xg==
 # SIG # End signature block

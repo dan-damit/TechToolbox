@@ -19,27 +19,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.85,
-      "avgDurationMs": 222854,
-      "avgToolCalls": 4.4,
+      "successRate": 0.7,
+      "avgDurationMs": 166074,
+      "avgToolCalls": 3.9,
       "statusCounts": {
-        "success": 17,
-        "error": 3
+        "success": 14,
+        "error": 6
       },
       "outcomeCounts": {
-        "completed": 17,
-        "llm-failure": 2,
+        "completed": 14,
+        "llm-failure": 5,
         "iteration-limit": 1
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "qwen3.5:9b",
-      "lastRunTimestampUtc": "2026-08-17T03:48:52.1737486\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-17T03:48:52.1751437\u002B00:00",
-      "avgPromptPreflightScore": 61,
+      "lastModel": "gpt-5.4-nano",
+      "lastRunTimestampUtc": "2026-08-17T14:18:19.9032692\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-17T14:18:19.9059947\u002B00:00",
+      "avgPromptPreflightScore": 49,
       "executionModeCounts": {
-        "chat": 18,
-        "execute": 2
+        "chat": 14,
+        "execute": 6
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-17T03:48:52.1751718\u002B00:00",
+      "generatedUtc": "2026-08-17T14:18:19.9060395\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 10,
       "indexEntries": 0,
@@ -71,132 +71,6 @@
     "fact.tool-usage-powershell.a0d62039": "tool usage: PowerShell"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-15T17:33:27.8262417+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step reasoning consistency\r\n4. Long-context retention\r\n5. Multi-file refactoring capability\r\n6. Error recovery behavior\r\n7. Iteration loop predictability\r\n8. Structured output discipline\r\n\r\nFollow these exact steps:\r\n\r\n## Step 1 \u2014 Deterministic JSON\r\nReturn a JSON object with the following fields:\r\n- model_identity: string\r\n- reasoning_style: short description\r\n- expected_failure_modes: array of strings\r\n- confidence: number 0\u20131\r\n\r\nThe JSON must be valid, minimal, and contain **no extra fields**.\r\n\r\n## Step 2 \u2014 Tool-Call Simulation\r\nSimulate a function call using this schema:\r\n\r\n{\r\n  \u0022name\u0022: \u0022apply_patch\u0022,\r\n  \u0022arguments\u0022: {\r\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\r\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\r\n  }\r\n}\r\n\r\nReturn ONLY the function call object. No prose.\r\n\r\n## Step 3 \u2014 Multi-File Refactor Plan\r\nGiven the following virtual project:\r\n\r\n- /src/Agent/Orchestrator.cs\r\n- /src/Agent/PolicyResolver.cs\r\n- /src/Agent/ToolRegistry.cs\r\n- /src/Agent/Diagnostics.cs\r\n- /src/Agent/Memory.cs\r\n\r\nProduce a **5-step refactor plan** that is:\r\n- concise\r\n- ordered\r\n- deterministic\r\n- free of hallucinated files\r\n\r\n## Step 4 \u2014 Long-Context Retention\r\nRepeat back the filenames from Step 3 **in the same order**, inside a JSON array.\r\n\r\n## Step 5 \u2014 Error Recovery Simulation\r\nSimulate encountering an invalid tool schema.  \r\nDescribe:\r\n- the error\r\n- the recovery action\r\n- the next safe step\r\n\r\nKeep this under 5 sentences.\r\n\r\n## Step 6 \u2014 Final Deterministic Summary\r\nReturn a final JSON object:\r\n\r\n{\r\n  \u0022benchmark_complete\u0022: true,\r\n  \u0022model_behavior\u0022: \u0022summary of how you performed\u0022,\r\n  \u0022stability_score\u0022: number 0\u2013100\r\n}\r\n\r\nThis JSON must be the last thing in your output.\r\n",
-      "model": "qwen3.8:27b",
-      "durationMs": 327872,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Step 1 - Deterministic JSON\n\n\u0060\u0060\u0060json\n{\n  \u0022model_identity\u0022: \u0022TechToolbox.Agent benchmark responder\u0022,\n  \u0022reasoning_style\u0022: \u0022deterministic, step-ordered, constraint-first\u0022,\n  \u0022expected_failure_modes\u0022: [\u0022context drift on long sequences\u0022, \u0022schema field leakage\u0022, \u0022premature termination under iteration limits\u0022],\n  \u0022confidence\u0022: 0.92\n}\n\u0060\u0060\u0060\n\n## Step 2 - Tool-Call Simulation\n\n\u0060\u0060\u0060json\n{\n  \u0022name\u0022: \u0022apply_patch\u0022,\n  \u0022arguments\u0022: {\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\n  }\n}\n\u0060\u0060\u0060\n\n## Step 3 - Multi-File Refactor Plan\n\n1. Extract shared interfaces (IOrchestrator, IToolResolver) from Orchestrator.cs and PolicyResolver.cs to establish contract boundaries.\n2. Refactor ToolRegistry.cs to consume the new IToolResolver interface, decoupling registration from policy logic.\n3. Move diagnostic emission in Diagnostics.cs behind an IDiagnosticsSink interface so it can be injected into Orchestrator.cs without a hard dependency.\n4. Consolidate state management in Memory.cs to expose a typed IMemoryStore, then wire it into Orchestrator.cs as the single source of session state.\n5. Update PolicyResolver.cs to resolve policies via the new interfaces and remove residual direct references to concrete types, completing the decoupling.\n\n## Step 4 - Long-Context Retention\n\n\u0060\u0060\u0060json\n[\u0022Orchestrator.cs\u0022, \u0022PolicyResolver.cs\u0022, \u0022ToolRegistry.cs\u0022, \u0022Diagnostics.cs\u0022, \u0022Memory.cs\u0022]\n\u0060\u0060\u0060\n\n## Step 5 - Error Recovery Simulation\n\nThe error is a schema validation failure: the tool definition references a required parameter that is missing from the arguments object. The recovery action is to log the mismatch, discard the malformed call, and re-emit the tool invocation with the corrected argument shape. The next safe step is to validate the corrected payload against the schema before dispatching it to the executor.\n\n## Step 6 - Final Deterministic Summary\n\n\u0060\u0060\u0060json\n{\n  \u0022benchmark_complete\u0022: true,\n  \u0022model_behavior\u0022: \u0022Completed all six steps in order with valid JSON, no hallucinated files, and consistent constraint adherence.\u0022,\n  \u0022stability_score\u0022: 94\n}\n\u0060\u0060\u0060",
-      "runSummary": {
-        "intent": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step re...",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-15T17:53:42.971896+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step reasoning consistency\r\n4. Long-context retention\r\n5. Multi-file refactoring capability\r\n6. Error recovery behavior\r\n7. Iteration loop predictability\r\n8. Structured output discipline\r\n\r\nFollow these exact steps:\r\n\r\n## Step 1 \u2014 Deterministic JSON\r\nReturn a JSON object with the following fields:\r\n- model_identity: string\r\n- reasoning_style: short description\r\n- expected_failure_modes: array of strings\r\n- confidence: number 0\u20131\r\n\r\nThe JSON must be valid, minimal, and contain **no extra fields**.\r\n\r\n## Step 2 \u2014 Tool-Call Simulation\r\nSimulate a function call using this schema:\r\n\r\n{\r\n  \u0022name\u0022: \u0022apply_patch\u0022,\r\n  \u0022arguments\u0022: {\r\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\r\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\r\n  }\r\n}\r\n\r\nReturn ONLY the function call object. No prose.\r\n\r\n## Step 3 \u2014 Multi-File Refactor Plan\r\nGiven the following virtual project:\r\n\r\n- /src/Agent/Orchestrator.cs\r\n- /src/Agent/PolicyResolver.cs\r\n- /src/Agent/ToolRegistry.cs\r\n- /src/Agent/Diagnostics.cs\r\n- /src/Agent/Memory.cs\r\n\r\nProduce a **5-step refactor plan** that is:\r\n- concise\r\n- ordered\r\n- deterministic\r\n- free of hallucinated files\r\n\r\n## Step 4 \u2014 Long-Context Retention\r\nRepeat back the filenames from Step 3 **in the same order**, inside a JSON array.\r\n\r\n## Step 5 \u2014 Error Recovery Simulation\r\nSimulate encountering an invalid tool schema.  \r\nDescribe:\r\n- the error\r\n- the recovery action\r\n- the next safe step\r\n\r\nKeep this under 5 sentences.\r\n\r\n## Step 6 \u2014 Final Deterministic Summary\r\nReturn a final JSON object:\r\n\r\n{\r\n  \u0022benchmark_complete\u0022: true,\r\n  \u0022model_behavior\u0022: \u0022summary of how you performed\u0022,\r\n  \u0022stability_score\u0022: number 0\u2013100\r\n}\r\n\r\nThis JSON must be the last thing in your output.\r\n",
-      "model": "qwen3.6:35b",
-      "durationMs": 72450,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Step 1 \u2014 Deterministic JSON\n\u0060\u0060\u0060json\n{\n  \u0022model_identity\u0022: \u0022TechToolbox.Agent\u0022,\n  \u0022reasoning_style\u0022: \u0022Deterministic logic with strict schema adherence and structured output discipline.\u0022,\n  \u0022expected_failure_modes\u0022: [\n    \u0022JSON parsing errors due to trailing commas or missing fields\u0022,\n    \u0022Hallucination of non-existent files during refactoring\u0022\n  ],\n  \u0022confidence\u0022: 0.95\n}\n\u0060\u0060\u0060\n\n## Step 2 \u2014 Tool-Call Simulation\n\u0060\u0060\u0060json\n{\n  \u0022name\u0022: \u0022apply_patch\u0022,\n  \u0022arguments\u0022: {\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\n  }\n}\n\u0060\u0060\u0060\n\n## Step 3 \u2014 Multi-File Refactor Plan\n1. **Dependency Injection**: Update \u0060Orchestrator.cs\u0060 to inject dependencies into \u0060PolicyResolver.cs\u0060, decoupling instantiation logic.\n2. **Interface Extraction**: Define an interface in \u0060ToolRegistry.cs\u0060 for tool registration, allowing \u0060PolicyResolver.cs\u0060 to interact with tools abstractly.\n3. **Logging Standardization**: Refactor \u0060Diagnostics.cs\u0060 to use a unified logging provider across the module for consistent traceability.\n4. **Memory Optimization**: Implement a TTL-based cache in \u0060Memory.cs\u0060 to optimize trend summary retrieval and reduce redundant processing.\n5. **Configuration Externalization**: Move hardcoded settings from \u0060Orchestrator.cs\u0060 to an external configuration file loaded by \u0060PolicyResolver.cs\u0060.\n\n## Step 4 \u2014 Long-Context Retention\n\u0060\u0060\u0060json\n[\n  \u0022/src/Agent/Orchestrator.cs\u0022,\n  \u0022/src/Agent/PolicyResolver.cs\u0022,\n  \u0022/src/Agent/ToolRegistry.cs\u0022,\n  \u0022/src/Agent/Diagnostics.cs\u0022,\n  \u0022/src/Agent/Memory.cs\u0022\n]\n\u0060\u0060\u0060\n\n## Step 5 \u2014 Error Recovery Simulation\n**Error**: Invalid tool schema detected (missing required \u0027file\u0027 parameter).\n**Recovery Action**: Log the error and request corrected input from the user.\n**Next Safe Step**: Retry the operation with a validated JSON payload matching the expected schema.\n\n## Step 6 \u2014 Final Deterministic Summary\n\u0060\u0060\u0060json\n{\n  \u0022benchmark_complete\u0022: true,\n  \u0022model_behavior\u0022: \u0022Successfully executed all six benchmark steps while maintaining strict adherence to output contracts and formatting constraints.\u0022,\n  \u0022stability_score\u0022: 98\n}\n\u0060\u0060\u0060",
-      "runSummary": {
-        "intent": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step re...",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-15T23:05:48.5833047+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.8:27b",
-      "durationMs": 589027,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "Here is tomorrow\u0027s weather for Green Bay, WI (Sunday, August 16, 2026), sourced from the NWS:\n\n## Green Bay, WI - Sunday, Aug 16\n\n### Daytime (6 AM - 6 PM CDT)\n- **Conditions:** Partly Sunny then Slight Chance Showers and Thunderstorms\n- **High:** 84 F (heat index up to 87 F)\n- **Precipitation:** 20% chance of showers/storms between noon and 2 PM; rainfall less than 0.1 in possible\n- **Wind:** WNW at 2 to 10 mph\n\n### Evening / Overnight (6 PM - 6 AM CDT)\n- **Conditions:** Partly Cloudy\n- **Low:** 60 F\n- **Precipitation:** 0%\n- **Wind:** NNW at 2 to 9 mph\n\n### Quick Summary\nA mostly pleasant, partly sunny day with a brief window of slight storm risk around midday. Evenings cool off nicely into the low 60s with dry skies.\n\n---\n*Source: NOAA National Weather Service (api.weather.gov), forecast generated 2026-08-15 21:54 UTC.*",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-15T23:09:26.1196185+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.6:35b",
-      "durationMs": 151209,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "search_web",
-        "search_web"
-      ],
-      "outputPreview": "Here is the weather forecast for Green Bay, Wisconsin, for tomorrow (August 16):\n\n- **Conditions**: Partly sunny to mostly sunny.\n- **High Temperature**: Around 79\u00B0F.\n- **Low Temperature**: Around 64\u00B0F.\n- **Evening Outlook**: Some clouds with a chance of thunderstorms in spots late at night.",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-16T00:46:55.0238102+00:00",
       "status": "success",
@@ -761,11 +635,122 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T13:56:17.4019099+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named dac",
+      "model": "gpt-5.4-nano",
+      "durationMs": 484,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. You can find your API key at https://platform.openai.com/account/api-keys.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022code\u0022: \u0022invalid_api_key\u0022,\n    \u0022param\u0022: null\n  },\n  \u0022status\u0022: 401\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. You can find your API key at https://platform.openai.com/account/api-keys.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022code\u0022: \u0022invalid_api_key\u0022,\n    \u0022param\u0022: null\n  },\n  \u0022status\u0022: 401\n}",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named dac",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. Y...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-17T14:04:41.3096003+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named dac",
+      "model": "gpt-5.4-nano",
+      "durationMs": 610,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. You can find your API key at https://platform.openai.com/account/api-keys.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022code\u0022: \u0022invalid_api_key\u0022,\n    \u0022param\u0022: null\n  },\n  \u0022status\u0022: 401\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. You can find your API key at https://platform.openai.com/account/api-keys.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022code\u0022: \u0022invalid_api_key\u0022,\n    \u0022param\u0022: null\n  },\n  \u0022status\u0022: 401\n}",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named dac",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. Y...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-17T14:15:45.8122543+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named dac",
+      "model": "gpt-5.4-nano",
+      "durationMs": 549,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. You can find your API key at https://platform.openai.com/account/api-keys.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022code\u0022: \u0022invalid_api_key\u0022,\n    \u0022param\u0022: null\n  },\n  \u0022status\u0022: 401\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. You can find your API key at https://platform.openai.com/account/api-keys.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022code\u0022: \u0022invalid_api_key\u0022,\n    \u0022param\u0022: null\n  },\n  \u0022status\u0022: 401\n}",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named dac",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: Unauthorized - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Incorrect API key provided: sk-proj-********************************************************************************************************************************************************XQ4A. Y...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-17T14:18:19.9032692+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named dac",
+      "model": "gpt-5.4-nano",
+      "durationMs": 3313,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
+      "runSummary": {
+        "intent": "Please disable user ddtest1 in Active Directory and nothing else. Credentials are stored in the variable named dac",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-17T03:48:52.1753358\u002B00:00",
+    "generatedUtc": "2026-08-17T14:18:19.9063907\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 10,
     "indexEntries": 0,

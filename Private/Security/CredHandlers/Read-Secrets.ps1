@@ -9,6 +9,8 @@ function Read-Secrets {
         return @{
             passwords = @{
                 domainAdminCred = @{
+                    usernameEncrypted = ''
+                    passwordEncrypted = ''
                     username = ''
                     password = ''
                 }
@@ -69,6 +71,21 @@ function Read-Secrets {
             $secrets.passwords.domainAdminCred = @{}
         }
 
+        if (-not $secrets.passwords.domainAdminCred.ContainsKey('usernameEncrypted') -or $null -eq $secrets.passwords.domainAdminCred.usernameEncrypted) {
+            $secrets.passwords.domainAdminCred.usernameEncrypted = ''
+        }
+        else {
+            $secrets.passwords.domainAdminCred.usernameEncrypted = [string]$secrets.passwords.domainAdminCred.usernameEncrypted
+        }
+
+        if (-not $secrets.passwords.domainAdminCred.ContainsKey('passwordEncrypted') -or $null -eq $secrets.passwords.domainAdminCred.passwordEncrypted) {
+            $secrets.passwords.domainAdminCred.passwordEncrypted = ''
+        }
+        else {
+            $secrets.passwords.domainAdminCred.passwordEncrypted = [string]$secrets.passwords.domainAdminCred.passwordEncrypted
+        }
+
+        # Legacy fields remain normalized for one-way migration compatibility.
         if (-not $secrets.passwords.domainAdminCred.ContainsKey('username') -or $null -eq $secrets.passwords.domainAdminCred.username) {
             $secrets.passwords.domainAdminCred.username = ''
         }
@@ -93,8 +110,8 @@ function Read-Secrets {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAlVbfinebdRMPk
-# k6H48ffyzsrNRxMR7/4ez+6GPAD6GaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDYOn0z5TlfNGav
+# tGZiq/ym61AWQ0Fbhu5jwxZFNZX7WaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -227,34 +244,34 @@ function Read-Secrets {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCARuHUG15Sh
-# SRzzBNtwk0qMvbHmuneL6MM4vj1jkkYvEDANBgkqhkiG9w0BAQEFAASCAgBkGKg4
-# xN/lgJEYwcuAHF7k9wfU5gaUKpBLM8pH9Pq27lkJ0E9ln6KIMmmioaxwZo+z7es3
-# sRR7lk9zWMhC3LdUl4v4IXUEGnjpLx7rQFP8KnXpATcEPBo6pjpfNyyYSh7wLw2S
-# DuEb4nu3btIpjxFhVOMOYKB02Cvp9T7azgRApuVZDSXs4BaeWda+8ZKLBt8O+2HK
-# DbsKdZvo5jRLveV98mskhRmn18jWzrzK26ePOzGcySSnZQWe9my41slHeQrknnJm
-# LbQcIOBha3Y3vCmHNqDdt85K9q5zAjjXG3VBytQHovqAOucXlE7RrRKo2xS9i0EX
-# kWBQm8LQfV2/2YX7R8gVOHnCrnK2E0VSAauk/NztgvRcVD26Y5K25d+pFZS+iXKA
-# g958jqYeocqfrQjGTWUT2MGFE4mEkJShY2fZdn8uIOMU71pQp4wKkjOeprJeotCt
-# 08txYUb33mgA7DZIkVqPcieg5uH9UTrkIuWLTLv5+Q/Q/VwZGEVBKfQf05ndToXP
-# 1W/xr7YV+gctkl8dYnvsMAJlUzkyP2Oy8JDy0Yts0zBkJ3eFrHkeRH52Hdj8itpd
-# hR2j5orQBqcmbfi5DhbfD1BSUmpGpLzF6dsDLWSobZYC9zwUGw4XjbNDB/awzQFs
-# fBwBiw1AxdMaGS5u/Tp5LMQpNfMde8iRTSwIOKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDjF64GckVj
+# 3tmDYpn4sBsKyOy9sMR8BWMjWqYd7/D4ATANBgkqhkiG9w0BAQEFAASCAgA3xQjv
+# MMyrI1zgfZW+XKePnGIo+YbF0SK6pe/pH4bW9X5n1Yar2dVrAJDlK+N2loXrsm16
+# dh0lu9gSgeKs2cuyVNlrQxpu9nG/t5FKP4Fy6nom+ACVJSp0laLS9Fp2IX1/Kq5O
+# goYk6NMrXzceopflxlJeXAe6hrjFIlBzsoDkyUtWAmjQ26ZvYpl0OifpXlF/Z18b
+# 1oDHUBgRChmuRA+G72Gd2bj9DRYwd0km7vIVzZN5FTg4uOb9EkVsgxkpMEgu8MTC
+# NayXp6ZTv0Q2O5eVaA5TwRSNrkT9pIrTkK8TOiNVdR4kQGr+FXGU+grrONfAEPOb
+# W/owejD0U18m7mT7RopB1Q2q5pbtZLctUu96/pYEUdvBiPfX/3StrrntMihMoR83
+# 5/5cAeakrppNiLDYSFM8vJlgCseDK8Vl+TKj8PeRYeBEwcC+urbKBZUN5efGvDUa
+# ryMc15HjxGTd0a7S8o0nS2zpJ4AUx+OWD6q8gLlwp2kl3Cxn77pgp07JM9UKGH/m
+# MTs3NW2kFZMHTZsZmvur1VKJByo1mgbVGQvrKpA9m5kps4iV/h+WA4rFa+UMMV+4
+# 1VBmx2eDiTk3vyS5NUb07Rk5fhJq6o+sFcxBXCRLGrwPOBCQ+hvb6MuFvHiSvqqq
+# kc3w8eyv44mcp0By7Krdxxyj73Tkhl99DoECwKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA3MDExMzQ4MzVaMC8GCSqGSIb3DQEJBDEiBCDPV4aczsOLuIicf8wW
-# L+D6/n0Te6guJjGwQupbsq2ZpTANBgkqhkiG9w0BAQEFAASCAgCNfKG2L/0cpGBL
-# BJarnCm2ue08cD2lsiFViA/Knc/RPUgdy6Vt0HBAdM37w4t7+gjCvpzwvstgcv9x
-# o0TzpJ1JMlI/hyjfkDNuskv73K/R05MD7bTQFzi5hwUl+9DYXQLmCLh/mL+QjhYM
-# EROAj2UbDwY7SORrPhp720u9ouV+d1ZzMU8l9pCk8imwUF5mLExU2KoRmctgHIF8
-# K6Y/uG1uDkolE/MSe5AbDWgS40pS2KvdqC36Po4nK6mXid+yO2gMWXGzdfMAiF5x
-# DhWbm2lg+Rp8WZo755nKYwcktXhjgNguihJpnptogyzYKA6A94lqnbKasp47Xiy9
-# xjS5gotXlARsGF/a+kGXSxZYzWh4EpEnJCBjVX1cZA/Pthx42ngRONA1TFR5O8TO
-# Oq41OmBIOYOXLkqTYvQpQQ7d3Up4j63U0MnnHHIbnOoiTG7kLx14xS5cmHweaV3L
-# R/9+viULxSuWGwURD5UqwQZwD3T5WjJVYDiAUI2pzZD8XAqEvyO0MDt8TYQeXXiH
-# tW5l+DiYv1F3NdYOAYSRbdHVr9yTlVy3ONS164gNFG/xKYHdDaZxT1U8Cb6E052r
-# EmgzjfSemJ1As5V2YKWVrBM8f5C2kYTQaU3qqg6hnldDA5J5zj1ugpBtWZt/PGI8
-# Db7fUFKsvu2igAI2xEGQGUfvb6gGDQ==
+# BTEPFw0yNjA4MTcxNDQ3MjVaMC8GCSqGSIb3DQEJBDEiBCBRleromoXnucQ2lGMB
+# 4Y/k38QAyzIV2pRHolTMYySIIzANBgkqhkiG9w0BAQEFAASCAgAAj2LxDpHQ95oZ
+# Q2lN7felKertdKvIbE5e14GQfump0H28fGcwZlYxDAS2SLBsxgfJz8+O0FMQJ7dK
+# XF3eBWs3h8XQ4Jo39itZlg+bE8LM05lSlqLjdZhiaTR2RZTzJQz5cofZN5zFmA9F
+# tYYIoE7uE7T4PaXnA9lSvlF+oaWsAasCC47S8vY/QRF8Nmccdo3fAXTxIq9xR6JD
+# 6iYGUSiY1g7W9HYcUlFHUNlMDui462uP6M2LuKEkpNZiBjg6aZ+N89BkeLEY2yew
+# lZIsFNeBLyHx7UFcrAnrbfNPPVCoDrgYvPCnki2UE6fI/UCslPKUFfU8iNH5vxbz
+# sVi/EUuwgfM9KxAlC1y6SZTAf48uwZYso1aL4UgDSD5yoLjXN6NGa3qv63bJndFC
+# F41bFZtAwCH911Bnr+HuvO8NzZ1yjvAocGus/AcgRgQrQyU++UlOQysRncIyFM9J
+# PA+B2SLv9PP2z3cBpHSTERE/S2k/0SnA95hTOc/xNMIWzRkHOqvz+tljnZjszMKz
+# GVAFq1+EyyC8pj9BA2Bq8heNSgX+oAgkk1vLQw/1ONVKoP4ybS/ooU8XrJ7nOLXs
+# lqovP9YX++NrXvmCzW8ak9Qn9O3AaW3GBeTs6Cw11xHsmPGij8afXwV81evbE/Ap
+# e+4xvaE2ExXW3RUw/GKDP+S6JqeOjA==
 # SIG # End signature block
