@@ -1093,6 +1093,8 @@ Hard requirement:
             throw "TechToolbox.Agent assembly not found. Install the packaged agent runtime or build/publish src\TechToolbox.Agent."
         }
 
+        Write-Log -Level Info -Message ("Tech agent runtime assembly: {0}" -f $agentAssemblyPath)
+
         # Load Wait-TerminalState and its dependencies for real-time status animation
         $waitTerminalStateScript = Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Wait-TerminalState.ps1'
         $getDotPulseScript = Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Get-DotPulse.ps1'
@@ -1634,6 +1636,7 @@ Hard requirement:
         $diagnosticTracePathValue = & $getConfigValue $cfg 'diagnosticTracePath'
         if (-not [string]::IsNullOrWhiteSpace([string]$diagnosticTracePathValue)) {
             $diagnosticTracePath = [string]$diagnosticTracePathValue
+            Write-Log -Level Info -Message ("Tech agent diagnostic trace path: {0}" -f $diagnosticTracePath)
         }
 
         $allowedFetchHosts = @()
@@ -2111,8 +2114,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAuQ/zcLVh7Zb8C
-# C6U+O9OWKX8dRY6r6OaleU0WXYJDBKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAitz6zk4Vy+3oA
+# w6KpXCUdGcfz81SN2TxldvMXp4jffqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2245,34 +2248,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCdZKUN0dCn
-# g5CS6a7IPfV7la7EU41QJOFDCByK/BjKcTANBgkqhkiG9w0BAQEFAASCAgC5RGgy
-# /ScMF49ZDNXwq7bS/maGGZlQhIllymbooYKgpTztwM4DK5g7W1XyJHINutY+CFDL
-# XpArTv7mz7Yllt3c8h5HAR4e7nglm5HXnyy0WRsVq1FbdP7CxgIwkNGTn56jCxrT
-# BldKwwhKh/npZ6h1QPN/CylJSHG+PRqcCtUXOAlIQ1SrowX/DySSEULP1PcuzvzV
-# 6KVRtGXfMBwjDK7SPDnF1bKJW/eHu//LF1RSbbxAK/uX8s8VKbTvbknOf3Qz484s
-# UDHXqNkhdJi02e7CYCEKdHg7ccH4fW4Lye4+12wWkPUfwXecKwSAz5UgaaiyvKMo
-# h9zCp6YOL01a8kofExx0RRZt1BLHC3vMbpOxI5IjXM+D1LanqqruVN+l6CgH9KJS
-# lJUNJYFBbcN4Dx5n2Txk840wCxcKWndmprzsv8vfZju9OP2Gqbk44Vvus72Vwqkr
-# AvJ1VDOxl8w2OyuaHi1uq9FQ69JvDcIL2+M5M7El//aId+/czJlIo5qJif9Hb+GF
-# F+f/goJD7RDEmMJ+B9XeL1OYLYBVuvz8JUYBN/dOn647huZRCMVThrFd8zhsKOoi
-# UqPTAdIsQOF78ToLBQnKLRSJj/bZhNpehu7uZPtfFY3czeddGyBfMQWvtdjF7BZQ
-# ne9SJO1r0iI9Zz4R0Nls98nEznSY8gzby1LPdaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBGdjiLm1vd
+# rqFNM1CjnxYIghCNarCMPvNDAJX5WsFFbTANBgkqhkiG9w0BAQEFAASCAgDA8eOs
+# H2F8AEzmOW4bZtQQ1ky7ivF+FdtTm68rnnGZpRHlHduOhDxTS05fBdyu3u9tmvjE
+# sEK8nRXmX4uQ9oonwnEK3E5lGiuuqqG3k7H1/3pJo1R0DEMjsVDcKDWEODkdVXjV
+# D0iuQWlMHYeeh2DqVpcCJCbHyMyPnFgCDVfSp8FFQRCiIpxbsGsPeGPapOlpRGGw
+# IAICswHEkLggXmS7VfgeJzSOKgOTFvbG1uroSpNs4Pybfva61FDQYw2T5OWS3Pr3
+# de75tL9RVBlJqto0OhXAgkfsVfW22RN890MO515a5HkoIm+SPZcWpeFzUglwYfI0
+# 2d0xKPlT1gpWnEUgfpVRVb2Gk1UX3QwHJwS9eB9srKeURFc6Z7vNtqGL0QUu38AX
+# TPoXCmvJ3r7X6MW76w260Pu6NP1PQopGePnTQXx4mMzL6Cx37UQmKo+CmhfTagsQ
+# hO59EkvJcnirS1y1uzV1F3LhjraMBm5v1Hli3Tq8mD8EIGBA/K+jugFJbBu5Uzf9
+# hxe6zZNv6USv//PmIs36NMcFu0tKQjJDWMvUhtofSwZ+SBvqlwFZ2StclYQTkEcb
+# iK/p4bNgdD6lmKkJABvacNr4V7u9cQ8jqT9xMyanu7OfF4cPcIeqskj1vnH0VvXI
+# J9YJGie8f40fIxo6hlUO3AoF9skWHW26CeJ3xKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTcxODMxNTlaMC8GCSqGSIb3DQEJBDEiBCBbK8cXwuz+n/OX4xhA
-# auTWyYvMeXxZgn8SsHouUU/BwDANBgkqhkiG9w0BAQEFAASCAgA9i2FY+mOV0je8
-# wmqmpfaE24KRU6lOb5UrUDKFBrZLf4HWZV8JeYLvTDUse9266lc9ePSFaOvuZQ7x
-# vc3RO+A8hNldHOcJC2JSnt1DTZI7idV9D/pLZ1Sr3u+KZYfMiOBDI1+OTAyEdyVV
-# eTwIcyqWF9v5cZQzfQFL8gq8APNRLDD9nCYPXk86/2mN5hebPxDnKRzbWomq+5ua
-# iy2Mh1cvCjJdh6dAMbaNy1w2UA4/oFcGr93joAVMlEM29FR5DAbTMSg5c+WPvIIz
-# 3DsIEImDYEkCepZ1hKOs+Cw1csXYmm0LofBlBC80W2klMOUbRtueHfXHM4P/gR+x
-# 4bN/GIyqDqgT3GQK4lPVLRar9MwvcndVg1blqYT5kxOkaH2+eM5/RKTU2o0yYlVs
-# WfVqmcvFKNquT3CA2eghk1TdkKVTavGKQJF+u+og6bdZ/Gli3bkLzi3+OlOcNI3P
-# TWetA4ZhjBkzMlSuDZKrdwOyIDcgPx11qpoc1eZFkmJ0rCoytAhkHaT9pGERXc0q
-# C4K4m8No0jwUemFa4enc8JaSFMaoEoSXonbOwuppU/czafrXeG05zgmipePEFgB1
-# q/kmexET4E7NIyWsGdrKxg/hZnE+GINCmMF1INCqCvFMyjCwbXEMm3UMeKNXqSJu
-# Y+IzO5Zd80pikKCStY6weFerbN6SFQ==
+# BTEPFw0yNjA4MTcxOTAyMDVaMC8GCSqGSIb3DQEJBDEiBCApMqMMoBz+BZbQ+ewv
+# nRrrOOvUuzaOm2AvOi2QKyR9VDANBgkqhkiG9w0BAQEFAASCAgBHUPASyPKj9+pf
+# ACgUcpiV+kiWoVXNbKWTgBmcyme2eBTpxafMKg6UzfieU94KztCa8PPAbdcG+T2E
+# czyoNXuQFbLmUu80OW6rEfQD+n/nCR/tccClQHczordm06h8whJBYhAT9bzglW6N
+# nWOl9l4vUXjqAfocT3/OCXT++HZaiXb4xI1oxBqmeztrWw7fzhA499tUhaaGdhNQ
+# lisWMVQeGvOOYTKV4/VpePjAO4A6IP8iBu2QqUWRx2Ocz/qGheh6NBfck2i5HO6/
+# zBcnIxzVU8L8zyCZqcHb/05FNCdsBh6wPFdcY9pLIELRrEZyBMwnHmLiirv1QYCZ
+# fcqmXBFPUFVOZEzkb3CWRZI6cCh2KOuxQZhVZ6xhh6V3tyEciCO34QYUmSW7Fj4e
+# 6EPoWUf30dufa9I72zwst7s+hnWRoGlDtbHjHlSbyFoBm0+hw8q5bfTZ/70OHUtn
+# 4KezeFGb8X4+HB58H0hYr34e9l1R302D+gHb//dV71tXeO9kgrO2curamigSEDtq
+# Tp1ISXyvxTCkzNb1ByHs+F2nD0i3lZBm/8W0ujuQJeWj003KmAI+WgH7xHDmi0bz
+# aFc7ZqPX8EG3CsQz4zfWIflDPH9eiNGWEyqmKmlA+RxlmkovKeGbnP2Jq1veo9X+
+# JJRd3A7HShVO4b2cbO5WfxtY9BCFgA==
 # SIG # End signature block
