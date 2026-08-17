@@ -238,6 +238,17 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [switch]$AllowMetaTools
+
+        ,
+
+        [Parameter()]
+        [pscredential]$ToolCredential
+
+        ,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$ToolCredentialVariableName = 'dac'
     )
 
     # Initialize the TechToolbox runtime and load agent configuration
@@ -801,6 +812,7 @@ function Invoke-TechAgent {
     $stderrTask = $null
     $requestPath = $null
     $resolvedApiKey = $null
+    $toolCredentialPath = $null
 
     $resolveExpectedOutputPath = {
         param(
@@ -1756,6 +1768,39 @@ Hard requirement:
         $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
         $request | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $requestPath -Encoding utf8
 
+        $effectiveToolCredential = $null
+        if ($PSBoundParameters.ContainsKey('ToolCredential') -and $null -ne $ToolCredential) {
+            $effectiveToolCredential = $ToolCredential
+            Write-Log -Level Info -Message 'Tech agent credential source: -ToolCredential parameter.'
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($ToolCredentialVariableName)) {
+            $credentialVarValue = $null
+
+            $credentialVar = Get-Variable -Name $ToolCredentialVariableName -Scope 1 -ErrorAction SilentlyContinue
+            if ($credentialVar) {
+                $credentialVarValue = $credentialVar.Value
+            }
+            elseif ($null -eq $credentialVarValue) {
+                $credentialVar = Get-Variable -Name $ToolCredentialVariableName -Scope Script -ErrorAction SilentlyContinue
+                if ($credentialVar) { $credentialVarValue = $credentialVar.Value }
+            }
+
+            if ($null -eq $credentialVarValue) {
+                $credentialVar = Get-Variable -Name $ToolCredentialVariableName -Scope Global -ErrorAction SilentlyContinue
+                if ($credentialVar) { $credentialVarValue = $credentialVar.Value }
+            }
+
+            if ($credentialVarValue -is [System.Management.Automation.PSCredential]) {
+                $effectiveToolCredential = [System.Management.Automation.PSCredential]$credentialVarValue
+                Write-Log -Level Info -Message ("Tech agent credential source: variable '{0}'." -f $ToolCredentialVariableName)
+            }
+        }
+
+        if ($null -ne $effectiveToolCredential) {
+            $toolCredentialPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-credential-{0}.clixml" -f ([guid]::NewGuid().ToString('N')))
+            $effectiveToolCredential | Export-Clixml -LiteralPath $toolCredentialPath -Force
+        }
+
         $childPwsh = Join-Path $PSHOME 'pwsh.exe'
         if (-not (Test-Path -LiteralPath $childPwsh -PathType Leaf)) {
             $childPwsh = (Get-Process -Id $PID).Path
@@ -1823,6 +1868,9 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
         }
         if (-not [string]::IsNullOrWhiteSpace($resolvedSearchWebApiKey)) {
             $startInfo.Environment[$searchWebApiKeyEnvVar] = $resolvedSearchWebApiKey
+        }
+        if (-not [string]::IsNullOrWhiteSpace($toolCredentialPath)) {
+            $startInfo.Environment['TT_AGENT_DEFAULT_CREDENTIAL_CLIXML'] = $toolCredentialPath
         }
         [void]$startInfo.ArgumentList.Add('-NoProfile')
         [void]$startInfo.ArgumentList.Add('-NonInteractive')
@@ -2104,6 +2152,10 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
             try { Remove-Item -LiteralPath $requestPath -Force } catch { }
         }
 
+        if (-not [string]::IsNullOrWhiteSpace($toolCredentialPath) -and (Test-Path -LiteralPath $toolCredentialPath -PathType Leaf)) {
+            try { Remove-Item -LiteralPath $toolCredentialPath -Force } catch { }
+        }
+
         if ($agentProc) {
             try { $agentProc.Dispose() } catch { }
         }
@@ -2114,8 +2166,8 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAitz6zk4Vy+3oA
-# w6KpXCUdGcfz81SN2TxldvMXp4jffqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBv+dZ8DoCC9WNN
+# wnwFGp5FLQCEB6ZoUfXVlQd480UcMqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2248,34 +2300,34 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBGdjiLm1vd
-# rqFNM1CjnxYIghCNarCMPvNDAJX5WsFFbTANBgkqhkiG9w0BAQEFAASCAgDA8eOs
-# H2F8AEzmOW4bZtQQ1ky7ivF+FdtTm68rnnGZpRHlHduOhDxTS05fBdyu3u9tmvjE
-# sEK8nRXmX4uQ9oonwnEK3E5lGiuuqqG3k7H1/3pJo1R0DEMjsVDcKDWEODkdVXjV
-# D0iuQWlMHYeeh2DqVpcCJCbHyMyPnFgCDVfSp8FFQRCiIpxbsGsPeGPapOlpRGGw
-# IAICswHEkLggXmS7VfgeJzSOKgOTFvbG1uroSpNs4Pybfva61FDQYw2T5OWS3Pr3
-# de75tL9RVBlJqto0OhXAgkfsVfW22RN890MO515a5HkoIm+SPZcWpeFzUglwYfI0
-# 2d0xKPlT1gpWnEUgfpVRVb2Gk1UX3QwHJwS9eB9srKeURFc6Z7vNtqGL0QUu38AX
-# TPoXCmvJ3r7X6MW76w260Pu6NP1PQopGePnTQXx4mMzL6Cx37UQmKo+CmhfTagsQ
-# hO59EkvJcnirS1y1uzV1F3LhjraMBm5v1Hli3Tq8mD8EIGBA/K+jugFJbBu5Uzf9
-# hxe6zZNv6USv//PmIs36NMcFu0tKQjJDWMvUhtofSwZ+SBvqlwFZ2StclYQTkEcb
-# iK/p4bNgdD6lmKkJABvacNr4V7u9cQ8jqT9xMyanu7OfF4cPcIeqskj1vnH0VvXI
-# J9YJGie8f40fIxo6hlUO3AoF9skWHW26CeJ3xKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBtkd0ssk2K
+# D1jRSIFx9QeCFiJeDq4Ir/RSbjtdUnC45zANBgkqhkiG9w0BAQEFAASCAgB8bLIA
+# braWlDvEiuZJpqwZLtK1oSrGzH1QGQr3cJtPqd7U0JQOAu7UwCgKZhPW3QySJM4p
+# qE/nF934xbdj2D8sS4WbIpmYD5OJWyy6OmeClxMfg0obXDyDFu29R6JzNkKcsV2e
+# JD2uBZ9ebdSa+kIiTqTNkoKMaKi8VIPy3S2e2Qu20vrY3lAKJweEuM4MLC0jZBwx
+# VhpDcv/rWhHiVkR1BMSTsKMFqpzc95OXvcV1JI328Lb+0ejk4JhdI6HugxmXYutg
+# tdCq2r1dwfUHF73RrkO/aaM++g2fTcE0x5BBj2YEJ9y3cf4Ys4IE2Pvs/FropfF3
+# ersarVPswbB5z2KluokbLsFrdCQt7kjJzrZApbmM8PTPP4wH8UZJvQGyrEtxfcz1
+# uIEdhIOm83c5gxHU/jw7dMRI9OJJHM8PZG4EQ7xRUV7b898MxxeMyhk8nWzUYFAW
+# KHLntSEkBBilEkmnpGv91MwUeQUlp95uewCMKsH9ZK0sYqreC8/jv9Tw5TkVEMBV
+# jOzG19LDWxu9xqroHxVcQdXGHRPjfXZnW/MuNiTW3nZfGecRKzBNRkMnmwy6lhQg
+# CZzx0XYcRESpJ3jl2dG5CXtwf/Y64Kku0GbqkfQcBDSmt5xXhQDbp+mMvatRmn2h
+# kbmxn856cJdPeuAirPEQtGetGp2XmRF1GQ18cqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTcxOTAyMDVaMC8GCSqGSIb3DQEJBDEiBCApMqMMoBz+BZbQ+ewv
-# nRrrOOvUuzaOm2AvOi2QKyR9VDANBgkqhkiG9w0BAQEFAASCAgBHUPASyPKj9+pf
-# ACgUcpiV+kiWoVXNbKWTgBmcyme2eBTpxafMKg6UzfieU94KztCa8PPAbdcG+T2E
-# czyoNXuQFbLmUu80OW6rEfQD+n/nCR/tccClQHczordm06h8whJBYhAT9bzglW6N
-# nWOl9l4vUXjqAfocT3/OCXT++HZaiXb4xI1oxBqmeztrWw7fzhA499tUhaaGdhNQ
-# lisWMVQeGvOOYTKV4/VpePjAO4A6IP8iBu2QqUWRx2Ocz/qGheh6NBfck2i5HO6/
-# zBcnIxzVU8L8zyCZqcHb/05FNCdsBh6wPFdcY9pLIELRrEZyBMwnHmLiirv1QYCZ
-# fcqmXBFPUFVOZEzkb3CWRZI6cCh2KOuxQZhVZ6xhh6V3tyEciCO34QYUmSW7Fj4e
-# 6EPoWUf30dufa9I72zwst7s+hnWRoGlDtbHjHlSbyFoBm0+hw8q5bfTZ/70OHUtn
-# 4KezeFGb8X4+HB58H0hYr34e9l1R302D+gHb//dV71tXeO9kgrO2curamigSEDtq
-# Tp1ISXyvxTCkzNb1ByHs+F2nD0i3lZBm/8W0ujuQJeWj003KmAI+WgH7xHDmi0bz
-# aFc7ZqPX8EG3CsQz4zfWIflDPH9eiNGWEyqmKmlA+RxlmkovKeGbnP2Jq1veo9X+
-# JJRd3A7HShVO4b2cbO5WfxtY9BCFgA==
+# BTEPFw0yNjA4MTcyMDI2MDNaMC8GCSqGSIb3DQEJBDEiBCDVdJnHbnRBLdVO8ux0
+# SitH02Ot/KfaJOGv9yLS868vYTANBgkqhkiG9w0BAQEFAASCAgDPpA2tJDrbXrvH
+# jwfPF4SIgiT/uT5ulIE9+deOz+PSibNrAgxgwaFBDOJaMkXnpMmszCpYJDaqAD6j
+# WJ861T/5K/zfhRpGrZJsIaAfxEeoRrWIAbMJKP2HUOnNKfwmDjejfknmyhXlXhY5
+# e95wmy9eQR2nc61t/In9d6v/sPrl+S5vs61yrhb86RXaibc+92MTf36UO1zZ9rvF
+# hYa/Am+QmF85tXw2r9iTbr6f/almzYgH2kPxbDK9HyzAUhL+wiNSrvS1ud0aGjw8
+# pYSsK73DCtj3M4R8fe2WiLj9RGfTSMc2JgYEg3OSzIusJlHEwFKMvJAGj7TmBclb
+# JXxEX5lOsiLyAesp79tH6K3pP0aDcMJFOAnkuQ00UMwTRUTkk6srIovTlZbtN8pY
+# F4BcuJnrCQLBZVpGa/XlpaPCCQD6Nd3H7Qqflyv8+XDGvxhw87O5SukFYM3+VcXU
+# tfG++QNzwqmZBhzP6YH2Lp3McBtMcGKPmdwDacu+5SIqCk5r9ktxOeUPeA+mMX0i
+# AsfwZvdSI2un6Q+HJYgvdBGTnDFVDphQhqNBI1F+ZcPLvxQNsBXk90TD6TgqfPRW
+# taDjcYiUAPl8A6UN2ZSIWaMhcUsXtgcZoEqPxBERyrynAoDCAY0cBadqBVbrNluO
+# CpUYiYLyGggZ8AoTHwt44dpYUQFRQw==
 # SIG # End signature block

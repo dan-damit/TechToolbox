@@ -19,8 +19,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 1,
-      "avgDurationMs": 6151,
-      "avgToolCalls": 1.85,
+      "avgDurationMs": 6259,
+      "avgToolCalls": 1.55,
       "statusCounts": {
         "success": 20
       },
@@ -30,9 +30,9 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.4-nano",
-      "lastRunTimestampUtc": "2026-08-17T19:13:23.7990101\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-17T19:13:23.8001055\u002B00:00",
-      "avgPromptPreflightScore": 85,
+      "lastRunTimestampUtc": "2026-08-17T20:28:18.2739127\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-17T20:28:18.3176962\u002B00:00",
+      "avgPromptPreflightScore": 92,
       "executionModeCounts": {
         "execute": 20
       },
@@ -47,17 +47,17 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-17T19:13:23.8001230\u002B00:00",
-      "totalPreferences": 0,
+      "generatedUtc": "2026-08-17T20:28:18.3177096\u002B00:00",
+      "totalPreferences": 1,
       "totalFacts": 11,
-      "indexEntries": 0,
-      "averageConfidence": 0,
+      "indexEntries": 5,
+      "averageConfidence": 0.78,
       "deprecatedEntries": 0,
-      "health": "low",
+      "health": "healthy",
       "notes": [
-        "Preferences tracked: 0",
+        "Preferences tracked: 1",
         "Facts tracked: 11",
-        "Index entries: 0"
+        "Index entries: 5"
       ]
     },
     "fact.c-repos-techtoolbox-src-techtoolbox.30d77850": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Your objective is to determine whether the agent currently supports the  OpenAI GPT-5.3-Codex reasoning effort settings:        low      medium      high",
@@ -68,229 +68,6 @@
     "fact.tool-usage-for.64540e90": "tool usage: for"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-17T15:33:47.8232358+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 6368,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "disable_user",
-        "disable_user"
-      ],
-      "outputPreview": "## Blocked: cannot disable the AD user\n\nThe Disable-User tool is failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null.\u0022\n\n### What is missing\n- A non-null execution target/host (e.g., the AD server/computer name or remote session host) required by the tool runtime.\n- The tool call currently has no host/target computer context, so it cannot connect to the AD instance.\n\n### Next best action\n- Provide the AD host/target computer name (or confirm which server to run against), and then I can retry disabling only \u0060ddtest1\u0060.\n\n### Confirmation\n- Please confirm: disable user \u0060ddtest1\u0060 only (no other accounts).",
-      "runSummary": {
-        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-17T18:17:57.1247911+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 4661,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "disable_user"
-      ],
-      "outputPreview": "## Blocker\n- The Disable-User tool failed with: \u0022Cannot process argument because the value of argument \u0027host\u0027 is null.\u0022\n\n## What is missing\n- The tool invocation requires a non-null \u0022host\u0022 value (or an equivalent required connection parameter) to target the correct AD/host environment.\n\n## Next best action\n- Please provide the required host/connection value for the AD instance (or tell me which host/endpoint to use), and I will re-run the disable action for user \u0060ddtest1\u0060 only.",
-      "runSummary": {
-        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-17T18:18:17.6647405+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 5529,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "disable_user",
-        "disable_user"
-      ],
-      "outputPreview": "## Blocked: cannot disable ddtest1 safely\n\nThe Disable-User tool is failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null.\u0022\n\nThis indicates the tool invocation is missing required connection context (e.g., AD host/server/target) and I cannot proceed without that non-null host value.\n\n### Confirmation required\n- Please provide the AD connection target/host value (or the correct tool parameters/credential context that sets it), so the tool can authenticate and run against the intended Active Directory instance.\n\nOnce the host is available, I will disable only user \u0060ddtest1\u0060 and leave all other accounts untouched.",
-      "runSummary": {
-        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-17T18:30:47.5939056+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 5869,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "disable_user",
-        "disable_user"
-      ],
-      "outputPreview": "## Unable to complete: disable user ddtest1\n\nThe Disable-User tool is failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null. Change the value of argument \u0027host\u0027 to a non-null value.\u0022\n\n## What is missing\n- The tool invocation needs a non-null AD connection/host parameter (or the TechToolbox AD host/tool configuration that supplies it). Right now, the tool is being called without that required connection context.\n\n## Next best action\n- Please provide the AD host/connection details (or ensure the TechToolbox configuration variable that sets the AD host is populated), then I can retry disabling only user \u0027ddtest1\u0027.",
-      "runSummary": {
-        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-17T18:32:19.7459073+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the console at markdown.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 4926,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "disable_user",
-        "disable_user"
-      ],
-      "outputPreview": "## Blocked: cannot disable the user safely\n\nThe \u0060Disable-User\u0060 tool is failing with:\n- \u0022Cannot process argument because the value of argument \u0027host\u0027 is null.\u0022\n\nI cannot complete the goal because the tool cannot connect to the target AD host/context.\n\n### Confirmation required\n- None for account changes yet; however, I need the missing connection details so the tool can run.\n\n### Next step (what I need from you)\n- Provide the AD/PowerShell remoting target (the value that the tool expects as \u0060host\u0060), or tell me which TechToolbox config/variable contains it.\n- Alternatively, provide the exact AD connection parameters (server/host) that should be used for the \u0060Disable-User\u0060 operation.\n\nOnce \u0060host\u0060 is non-null, I will retry disabling only \u0060ddtest1\u0060 and leave all other accounts untouched.",
-      "runSummary": {
-        "intent": "Please disable user ddtest1 in Active Directory. Do NOT touch any other accounts. Credentials are stored in the variable named \u0027$ dac\u0027 that you can use to authenticate to our AD instance. Please output the results in the...",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-17T18:43:01.7367613+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Disable only AD user ddtest1. Do not touch any other accounts. Use Disable-User and report markdown results.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 4699,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "disable_user",
-        "disable_user"
-      ],
-      "outputPreview": "## Unable to complete: Disable AD user ddtest1\n\nThe Disable-User tool cannot run in this environment because it fails with:\n- \u0022Cannot process argument because the value of argument \\\u0022host\\\u0022 is null. Change the value of argument \\\u0022host\\\u0022 to a non-null value.\u0022\n\n## What is missing\n- A non-null \u0022host\u0022 value for the Disable-User tool execution context.\n\n## Next best step\n- Provide the required host/connection context for the AD target (or ensure the tool environment sets it), then I can retry disabling only user ddtest1.",
-      "runSummary": {
-        "intent": "Disable only AD user ddtest1. Do not touch any other accounts. Use Disable-User and report markdown results.",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-17T18:43:20.5329755+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Disable only AD user ddtest1. Do not touch any other accounts. Use Disable-User and report markdown results.",
-      "model": "gpt-5.4-nano",
-      "durationMs": 4721,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "disable_user",
-        "disable_user"
-      ],
-      "outputPreview": "## Unable to complete: Disable AD user ddtest1\n\n- The Disable-User tool repeatedly failed with the same error:\n  - \u0022Cannot process argument because the value of argument \\\u0022host\\\u0022 is null. Change the value of argument \\\u0022host\\\u0022 to a non-null value.\u0022\n\n## What is missing to proceed safely\n\n- The tool appears to require a non-null target/host context (e.g., an AD server/host parameter or an environment setting that the tool uses internally). \n\n## Next best action\n\n- Provide the AD host/server name (or whatever value your environment uses to populate the tool\u0027s internal \u0022host\u0022), and then I can retry disabling only user ddtest1.",
-      "runSummary": {
-        "intent": "Disable only AD user ddtest1. Do not touch any other accounts. Use Disable-User and report markdown results.",
-        "actionsTaken": [
-          "disable_user"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-17T18:44:08.9716411+00:00",
       "status": "success",
@@ -701,21 +478,319 @@
       "promptPreflightScore": 40,
       "promptPreflightWarningCount": 3,
       "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T19:15:42.1393009+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results. There is a variable named dac that is holding the credentials for you to use for authentication",
+      "model": "gpt-5.4-nano",
+      "durationMs": 5286,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com\n\n## Tool output\n- Disable-User: success",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results. There is a variable named dac that is holding the credentials for you to use for authentication",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T19:16:24.1085503+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results. There is a variable named $dac that is holding the credentials for you to use for authentication",
+      "model": "gpt-5.4-nano",
+      "durationMs": 5055,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com\n\n## Notes\n- No additional accounts were modified.",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results. There is a variable named $dac that is holding the credentials for you to use for authentication",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T19:19:50.8182732+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results. Use -Credential $dac for authentication to the domain controller",
+      "model": "gpt-5.4-nano",
+      "durationMs": 4227,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Blocked: credential prompt required\n\nThe Disable-User tool failed because it attempted to prompt for credentials interactively:\n- Evidence: \u0022Cannot process argument transformation on parameter \u0027Credential\u0027. A command that prompts the user failed because the host program or the command type does not support user interaction. The host was attempting to request confirmation with the following message: Enter your credentials.\u0022\n\n## What confirmation/inputs are required next\n- Provide a non-interactive credential value that the tool can use directly (for example, a PSCredential object already available in the session), instead of the string \u0022$dac\u0022.\n\nOnce you provide that, I can re-run Disable-User for only ddtest1@vadtek.com.",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results. Use -Credential $dac for authentication to the domain controller",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T20:23:48.5170111+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User with WhatIf and use -Credential $dac.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 8403,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com (WhatIf)\n\n## Notes\n- Tool execution reported success and no errors were shown in the tool output.",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User with WhatIf and use -Credential $dac.",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 80,
+      "promptPreflightWarningCount": 1,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-17T20:26:58.8156714+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 5760,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com\n- Tool status: success",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T20:27:43.7785203+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 5075,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com\n- Action mode: WhatIf (no actual change applied)\n\n## Notes\n- The tool reported success and no error details were returned in BEGIN_TOOL_RESULT.",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T20:28:18.2739127+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+      "model": "gpt-5.4-nano",
+      "durationMs": 5119,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "disable_user"
+      ],
+      "outputPreview": "## Result\n- Disabled AD user: ddtest1@vadtek.com",
+      "runSummary": {
+        "intent": "Disable only AD user ddtest1@vadtek.com. Do not touch any other accounts. Use Disable-User and report markdown results.",
+        "actionsTaken": [
+          "disable_user"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
-  "memoryIndex": {},
+  "memoryIndex": {
+    "not": {
+      "keyword": "not",
+      "value": "Do not touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999763314,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T20:28:18.3174283\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "touch": {
+      "keyword": "touch",
+      "value": "Do not touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999821383,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T20:28:18.3174878\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "any": {
+      "keyword": "any",
+      "value": "Do not touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999820846,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T20:28:18.3174881\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "other": {
+      "keyword": "other",
+      "value": "Do not touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999822029,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T20:28:18.3174897\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    },
+    "accounts": {
+      "keyword": "accounts",
+      "value": "Do not touch any other accounts",
+      "sourceType": "preference",
+      "confidence": 0.7799999999823426,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-17T20:28:18.3174913\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "touch",
+        "any",
+        "other",
+        "accounts"
+      ]
+    }
+  },
   "memoryHealth": {
-    "generatedUtc": "2026-08-17T19:13:23.8002414\u002B00:00",
-    "totalPreferences": 0,
+    "generatedUtc": "2026-08-17T20:28:18.3177171\u002B00:00",
+    "totalPreferences": 1,
     "totalFacts": 11,
-    "indexEntries": 0,
-    "averageConfidence": 0,
+    "indexEntries": 5,
+    "averageConfidence": 0.78,
     "deprecatedEntries": 0,
-    "health": "low",
+    "health": "healthy",
     "notes": [
-      "Preferences tracked: 0",
+      "Preferences tracked: 1",
       "Facts tracked: 11",
-      "Index entries: 0"
+      "Index entries: 5"
     ]
   },
   "_memoryFormatVersion": 2
