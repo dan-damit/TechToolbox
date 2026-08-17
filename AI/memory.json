@@ -19,24 +19,24 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.8,
-      "avgDurationMs": 227624,
-      "avgToolCalls": 5.1,
+      "successRate": 0.75,
+      "avgDurationMs": 219375,
+      "avgToolCalls": 5.05,
       "statusCounts": {
-        "success": 16,
-        "error": 4
+        "error": 5,
+        "success": 15
       },
       "outcomeCounts": {
-        "completed": 16,
-        "llm-failure": 2,
+        "llm-failure": 3,
+        "completed": 15,
         "iteration-limit": 2
       },
-      "lastStatus": "success",
-      "lastOutcome": "completed",
+      "lastStatus": "error",
+      "lastOutcome": "llm-failure",
       "lastModel": "qwen3.6:35b",
-      "lastRunTimestampUtc": "2026-08-16T02:26:58.6173501\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-16T02:26:58.6187046\u002B00:00",
-      "avgPromptPreflightScore": 84,
+      "lastRunTimestampUtc": "2026-08-17T01:34:26.2161067\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-17T01:34:26.2174464\u002B00:00",
+      "avgPromptPreflightScore": 82,
       "executionModeCounts": {
         "chat": 15,
         "execute": 5
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-16T02:26:58.6187288\u002B00:00",
+      "generatedUtc": "2026-08-17T01:34:26.2174736\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 9,
       "indexEntries": 0,
@@ -70,40 +70,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-14T23:30:38.2252556+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
-      "model": "qwen3.6:35b",
-      "durationMs": 402171,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "search_web"
-      ],
-      "outputPreview": "## Weather Report for Belfast, Ireland\n\n**Source:** https://weather.gov (National Weather Service)\n\n### Summary\nAfter searching the National Weather Service website (\u0060https://weather.gov\u0060) for current weather data in **Belfast, Northern Ireland**, no results were found.\n\nThe National Weather Service is a United States government agency that provides weather forecasts and warnings specifically for:\n- The 50 US states\n- Washington D.C.\n- US territories (e.g., Puerto Rico, Guam)\n\n### Findings on the Requested Website\n1. **Geographic Scope:** \u0060weather.gov\u0060 does not host current meteorological data for international locations like Belfast, Ireland.\n2. **Search Results:** The only \u0022Belfast\u0022 listed in their database is located in **Maine (ME)** (coordinates 44.42\u00B0N 69.03\u00B0W).\n\n### Conclusion\nThe requested website does not contain the current weather information for Belfast, Ireland because it falls outside its operational jurisdiction.\n\n-\u003E *Note: For accurate real-time weather in Northern Ireland, please consult a local source such as Met \u00C9ireann or the UK Met Office.*",
-      "runSummary": {
-        "intent": "How is the Weather in Belfast Ireland at the present moment? Use the internet webs search to find the answer at the https://weather.gov website. Output the summary in markdown format in the console.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-14T23:52:07.7129466+00:00",
       "status": "error",
@@ -781,11 +747,45 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T01:34:26.2161067+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.6:35b",
+      "durationMs": 237176,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "fetch_url"
+      ],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM returned empty content. done_reason=length; done=True; eval_count=4096; prompt_eval_count=7625; message_role=assistant; message_content_length=0; body_preview={\u0022model\u0022:\u0022qwen3.6:35b\u0022,\u0022created_at\u0022:\u00222026-08-17T01:34:26.2112575Z\u0022,\u0022message\u0022:{\u0022role\u0022:\u0022assistant\u0022,\u0022content\u0022:\u0022\u0022},\u0022done\u0022:true,\u0022done_reason\u0022:\u0022length\u0022,\u0022total_duration\u0022:71113792700,\u0022load_duration\u0022:231976900,\u0022prompt_eval_count\u0022:7625,\u0022prompt_eval_d",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM returned empty content. done_reason=length; done=True; eval_count=4096; prompt_eval_count=7625; message_role=assistant; message_content_length=0; body_preview={\u0022model\u0022:\u0022qwen3.6:35b\u0022,\u0022created_at\u0022:\u00222026-08-17T01:34:26.2112575Z\u0022,\u0022message\u0022:{\u0022role\u0022:\u0022assistant\u0022,\u0022content\u0022:\u0022\u0022},\u0022done\u0022:true,\u0022done_reason\u0022:\u0022length\u0022,\u0022total_duration\u0022:71113792700,\u0022load_duration\u0022:231976900,\u0022prompt_eval_count\u0022:7625,\u0022prompt_eval_d",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM returned empty content. done_reason=length; done=True; eval_count=4096; prompt_eval_count=7625; message_role=assistant; message_content_length=0; body_preview={\u0022model\u0022:\u0022qwen3.6:35b\u0022,\u0022created_at\u0022:\u00222026-08-17T01:34:26.2112575Z\u0022,\u0022message\u0022:{\u0022role\u0022:\u0022ass...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-16T02:26:58.6188647\u002B00:00",
+    "generatedUtc": "2026-08-17T01:34:26.2176023\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 9,
     "indexEntries": 0,
