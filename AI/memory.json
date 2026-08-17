@@ -19,27 +19,26 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.75,
-      "avgDurationMs": 210015,
-      "avgToolCalls": 4.9,
+      "successRate": 0.85,
+      "avgDurationMs": 212465,
+      "avgToolCalls": 4.8,
       "statusCounts": {
-        "success": 15,
-        "error": 5
+        "success": 17,
+        "error": 3
       },
       "outcomeCounts": {
-        "completed": 15,
-        "iteration-limit": 2,
+        "completed": 17,
         "llm-failure": 3
       },
-      "lastStatus": "error",
-      "lastOutcome": "llm-failure",
-      "lastModel": "qwen3:32b",
-      "lastRunTimestampUtc": "2026-08-17T03:05:26.8861745\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-17T03:05:26.8875710\u002B00:00",
-      "avgPromptPreflightScore": 74,
+      "lastStatus": "success",
+      "lastOutcome": "completed",
+      "lastModel": "qwen3.5:9b",
+      "lastRunTimestampUtc": "2026-08-17T03:18:26.2227805\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-17T03:18:26.2240454\u002B00:00",
+      "avgPromptPreflightScore": 65,
       "executionModeCounts": {
-        "execute": 6,
-        "chat": 14
+        "execute": 3,
+        "chat": 17
       },
       "outputContractCounts": {
         "markdown": 20
@@ -52,124 +51,25 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-17T03:05:26.8876025\u002B00:00",
+      "generatedUtc": "2026-08-17T03:18:26.2240703\u002B00:00",
       "totalPreferences": 0,
-      "totalFacts": 9,
+      "totalFacts": 10,
       "indexEntries": 0,
       "averageConfidence": 0,
       "deprecatedEntries": 0,
       "health": "low",
       "notes": [
         "Preferences tracked: 0",
-        "Facts tracked: 9",
+        "Facts tracked: 10",
         "Index entries: 0"
       ]
     },
     "fact.c-repos-techtoolbox-src-techtoolbox.30d77850": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Your objective is to determine whether the agent currently supports the  OpenAI GPT-5.3-Codex reasoning effort settings:        low      medium      high",
     "fact.gpt-5-3-codex.a3da4ff8": "gpt-5.3-codex",
-    "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the"
+    "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
+    "fact.tool-usage-powershell.a0d62039": "tool usage: PowerShell"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-15T03:11:08.0802419+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please perform a full code review of the following directory:\r\n\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n\r\nYour objective is to determine whether the agent currently supports the\r\nOpenAI GPT-5.3-Codex reasoning effort settings:\r\n\r\n    low\r\n    medium\r\n    high\r\n    xhigh\r\n\r\nThese settings correspond to the \u0022reasoning.effort\u0022 field in the\r\n/v1/responses API for GPT-5.3-Codex.\r\n\r\nYou MUST:\r\n\r\n1. Identify whether any part of the agent codebase implements or maps\r\n   reasoning effort into the OpenAI request payload.\r\n\r\n2. Identify whether ThinkingMode (auto|on|off) is incorrectly assumed\r\n   to control reasoning effort.\r\n\r\n3. Determine whether the OpenAiCompatibleLlmClient currently sends\r\n   a \u0022reasoning\u0022 object or any equivalent field.\r\n\r\n4. If reasoning effort is NOT implemented, produce a detailed summary\r\n   explaining:\r\n   - what is missing,\r\n   - where the missing logic belongs,\r\n   - which files require modification,\r\n   - what new configuration fields should be added,\r\n   - how the OpenAI request payload must be updated.\r\n\r\n5. Provide a recommended implementation plan including:\r\n   - new AgentConfiguration fields,\r\n   - PowerShell parameter additions,\r\n   - preflight scoring \u2192 reasoning-effort mapping,\r\n   - user override behavior,\r\n   - required changes to OpenAiCompatibleLlmClient.cs,\r\n   - required changes to AgentOrchestrator.cs.\r\n\r\n6. Output your final summary in **markdown format** to the console.\r\n\r\nThis task is complete only when the markdown output includes:\r\n- a clear conclusion,\r\n- a reasoning-effort integration plan,\r\n- explicit file-level patch guidance,\r\n- and confirmation of whether GPT-5.3-Codex reasoning modes are currently supported.\r\n",
-      "model": "gpt-5.3-codex",
-      "durationMs": 30403,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 11,
-      "toolNames": [
-        "list_directory",
-        "get_filesusingkeywords",
-        "list_directory",
-        "read_file",
-        "read_file_meta",
-        "read_file",
-        "read_file",
-        "read_file",
-        "read_file_meta",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Conclusion\n- GPT-5.3-Codex reasoning effort modes are not currently supported in this codebase.\n- There is no implementation that maps or sends reasoning.effort = low|medium|high|xhigh.\n- ThinkingMode (auto|on|off) exists in configuration, but there is no evidence it is translated into OpenAI reasoning effort in request payloads.\n\n## What I reviewed\n- C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\OpenAiCompatibleLlmClient.cs\n- C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Configuration\\AgentConfiguration.cs\n- C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs (targeted semantic read for ThinkingMode references)\n\n## Findings by requirement\n\n### 1) Is reasoning effort implemented or mapped into OpenAI payload?\n- No.\n- In OpenAiCompatibleLlmClient.BuildPayload(...):\n  - Chat payload includes model/messages/temperature/top_p/stream/response_format and token field.\n  - Responses payload includes model/input/temperature/top_p/max_output_tokens/text.format.\n  - No reasoning object is present.\n  - No reasoning.effort field is present.\n\n### 2) Is ThinkingMode incorrectly assumed to control reasoning effort?\n- Current state: ThinkingMode is defined in AgentConfiguration, but no verified mapping to reasoning.effort was found in the reviewed request-construction path.\n- Practical effect: ThinkingMode does not currently drive OpenAI GPT-5.3-Codex reasoning effort.\n- Risk: users may assume ThinkingMode=on means high reasoning effort, but payload does not reflect that.\n\n### 3) Does OpenAiCompatibleLlmClient send reasoning or equivalent?\n- No.\n- For /v1/responses fallback path, payload has no reasoning object.\n- For /v1/chat/completions path, payload has no equivalent reasoning field.\n\n## What is missing\n- A first-class reasoning-effort configuration model.\n- Mapping logic from preflight/heuristics and ThinkingMode to low|medium|high|xhigh.\n- User override behavior for explicit effort selection.\n- Payload emission logic in OpenAiCompatibleLlmClient for responses API:\n  - reasoning: { effort: \u0022low|medium|high|xhigh\u0022 }\n- Guardrails so reasoning is only sent when provider/model/api-style supports it.\n\n## Where missing logic belongs\n- Configuration definition -\u003E AgentConfiguration.cs\n- CLI/PowerShell parameter ingestion -\u003E entrypoint/command binding layer that builds AgentConfiguration\n- Decision/mapping logic -\u003E AgentOrchestrator.cs (or a dedicated policy helper used by orchestrator)\n- Request serialization -\u003E OpenAiCompatibleLlmClient.cs\n\n## File-level patch guidance\n\n### 1) Configuration model\nFile:\n- C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Configuration\\AgentConfiguration.cs\n\nAdd fields:\n- string? ReasoningEffortOverride\n  - Allowed: low, medium, high, xhigh\n  - Null means auto policy\n- bool EnableReasoningEffortAuto\n  - Default true\n- string? EffectiveReasoningEffort\n  - Computed at runtime by orchestrator before LLM call\n\nOptional stronger typing:\n- enum ReasoningEffortLevel { Low, Medium, High, XHigh }\n- enum ReasoningEffortMode { Auto, Override }\n\n### 2) PowerShell/CLI parameters\nFiles:\n- The command/host layer that parses parameters and creates AgentConfiguration (not yet inspected in this run; likely outside this folder or in startup files)\n\nAdd parameters:\n- -ReasoningEffort \u003Clow|medium|high|xhigh\u003E\n- -ReasoningEffortAuto (switch, default true)\n\nBehavior:\n- If -ReasoningEffort is provided -\u003E set ReasoningEffortOverride and use it.\n- Else if auto enabled -\u003E compute from preflight score.\n- Validate values strictly and fail fast on invalid input.\n\n### 3) Preflight scoring -\u003E reasoning-effort mapping\nFile:\n- C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Agent\\AgentOrchestrator.cs\n\nAdd policy method, for example:\n- ResolveReasoningEffort(AgentConfiguration config) -\u003E string?\n\nRecommended mapping (example):\n- If override set -\u003E use override\n- Else if ThinkingMode == off -\u003E low\n- Else if ThinkingMode == on -\u003E high (or xhigh for very complex prompts)\n- Else ThinkingMode == auto -\u003E map PromptPreflightScore:\n  - 0-39 -\u003E xhig...",
-      "runSummary": {
-        "intent": "Please perform a full code review of the following directory:\r\n\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n\r\nYour objective is to determine whether the agent currently supports the\r\nOpenAI GPT-5.3-Codex reasoning effor...",
-        "actionsTaken": [
-          "list_directory",
-          "get_filesusingkeywords",
-          "read_file",
-          "read_file_meta"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-15T03:14:22.92626+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Your task is to implement full support for OpenAI GPT-5.3-Codex reasoning\r\neffort modes in the TechToolbox.Agent codebase.\r\n\r\nTarget directory:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n\r\nReasoning effort modes to support:\r\n    low\r\n    medium\r\n    high\r\n    xhigh\r\n\r\nThese correspond to the \u0022reasoning.effort\u0022 field in the /v1/responses API.\r\n\r\nYou MUST perform the following actions:\r\n\r\n1. Modify AgentConfiguration.cs to add:\r\n   - ReasoningEffortOverride (string? or enum)\r\n   - EnableReasoningEffortAuto (bool)\r\n   - EffectiveReasoningEffort (string? or enum)\r\n\r\n2. Modify the PowerShell/CLI parameter ingestion layer so the user may\r\n   specify:\r\n   - -ReasoningEffort \u003Clow|medium|high|xhigh\u003E\r\n   - -ReasoningEffortAuto (switch)\r\n\r\n3. Implement a new policy method in AgentOrchestrator.cs:\r\n   ResolveReasoningEffort(AgentConfiguration config)\r\n   This method must:\r\n   - Respect explicit override\r\n   - Use auto mode when override is absent\r\n   - Map preflight score to effort level\r\n   - Optionally incorporate ThinkingMode\r\n   - Store the final value in config.EffectiveReasoningEffort\r\n\r\n4. Modify OpenAiCompatibleLlmClient.cs so that the Responses API payload\r\n   includes:\r\n       reasoning: { effort: \u0022\u003Cvalue\u003E\u0022 }\r\n   ONLY when provider=openai AND model=gpt-5.3-codex AND effort is non-null.\r\n\r\n5. Ensure the reasoning effort value is threaded through the entire call\r\n   chain:\r\n   - AgentOrchestrator \u2192 LLM client \u2192 BuildPayload \u2192 SendRequestAsync\r\n\r\n6. Add diagnostics:\r\n   - Selected reasoning effort\r\n   - Whether override or auto was used\r\n   - Whether the field was emitted to the payload\r\n\r\n7. Add guardrails:\r\n   - If provider/model does not support reasoning effort, omit the field\r\n     and log a diagnostic.\r\n\r\n8. Produce code patches for all modified files and apply them.\r\n\r\n9. Output a final markdown summary describing:\r\n   - All files modified\r\n   - All new fields added\r\n   - The reasoning-effort policy\r\n   - The payload changes\r\n   - Any new parameters\r\n   - Any new diagnostics\r\n   - Confirmation that GPT-5.3-Codex reasoning effort is now implemented.\r\n\r\nThis task is complete only when the codebase has been modified and the\r\nmarkdown summary reflects the completed implementation.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "gpt-5.3-codex",
-      "durationMs": 27541,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: Get-FilesUsingKeywords -\u003E LIST-DIRECTORY -\u003E READ-FILE -\u003E READ-FILE-META -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE-META -\u003E READ-FILE\r\n- blocked by: none\r\n- blocker target hint: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: Get-FilesUsingKeywords -\u003E LIST-DIRECTORY -\u003E READ-FILE -\u003E READ-FILE-META -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE-META -\u003E READ-FILE\r\n- blocked by: none\r\n- blocker target hint: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
-      "runSummary": {
-        "intent": "Your task is to implement full support for OpenAI GPT-5.3-Codex reasoning\r\neffort modes in the TechToolbox.Agent codebase.\r\n\r\nTarget directory:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n\r\nReasoning effort modes to sup...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-15T03:17:15.1668562+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Your task is to implement full support for OpenAI GPT-5.3-Codex reasoning\r\neffort modes in the TechToolbox.Agent codebase.\r\n\r\nTarget directory:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n\r\nReasoning effort modes to support:\r\n    low\r\n    medium\r\n    high\r\n    xhigh\r\n\r\nThese correspond to the \u0022reasoning.effort\u0022 field in the /v1/responses API.\r\n\r\nYou MUST perform the following actions:\r\n\r\n1. Modify AgentConfiguration.cs to add:\r\n   - ReasoningEffortOverride (string? or enum)\r\n   - EnableReasoningEffortAuto (bool)\r\n   - EffectiveReasoningEffort (string? or enum)\r\n\r\n2. Modify the PowerShell/CLI parameter ingestion layer so the user may\r\n   specify:\r\n   - -ReasoningEffort \u003Clow|medium|high|xhigh\u003E\r\n   - -ReasoningEffortAuto (switch)\r\n\r\n3. Implement a new policy method in AgentOrchestrator.cs:\r\n   ResolveReasoningEffort(AgentConfiguration config)\r\n   This method must:\r\n   - Respect explicit override\r\n   - Use auto mode when override is absent\r\n   - Map preflight score to effort level\r\n   - Optionally incorporate ThinkingMode\r\n   - Store the final value in config.EffectiveReasoningEffort\r\n\r\n4. Modify OpenAiCompatibleLlmClient.cs so that the Responses API payload\r\n   includes:\r\n       reasoning: { effort: \u0022\u003Cvalue\u003E\u0022 }\r\n   ONLY when provider=openai AND model=gpt-5.3-codex AND effort is non-null.\r\n\r\n5. Ensure the reasoning effort value is threaded through the entire call\r\n   chain:\r\n   - AgentOrchestrator \u2192 LLM client \u2192 BuildPayload \u2192 SendRequestAsync\r\n\r\n6. Add diagnostics:\r\n   - Selected reasoning effort\r\n   - Whether override or auto was used\r\n   - Whether the field was emitted to the payload\r\n\r\n7. Add guardrails:\r\n   - If provider/model does not support reasoning effort, omit the field\r\n     and log a diagnostic.\r\n\r\n8. For EVERY file you modify, you MUST output a WRITE-FILE block with:\r\n   - The full absolute path\r\n   - The complete updated file contents\r\n   - No placeholders\r\n   - No partial patches\r\n   - No diff format\r\n   - The entire file rewritten exactly as it should exist on disk\r\n\r\n   Example format:\r\n   WRITE-FILE\r\n   Path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Configuration\\AgentConfiguration.cs\r\n   \u003Cfull updated file contents here\u003E\r\n\r\n9. After all WRITE-FILE blocks, output a final markdown summary describing:\r\n   - All files modified\r\n   - All new fields added\r\n   - The reasoning-effort policy\r\n   - The payload changes\r\n   - Any new parameters\r\n   - Any new diagnostics\r\n   - Confirmation that GPT-5.3-Codex reasoning effort is now implemented.\r\n\r\nThis task is complete only when:\r\n- All modified files have been emitted via WRITE-FILE blocks\r\n- The codebase is fully updated\r\n- The markdown summary reflects the completed implementation\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Configuration\\AgentConfiguration.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-      "model": "gpt-5.3-codex",
-      "durationMs": 36776,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: READ-FILE-META -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE-META -\u003E READ-FILE -\u003E READ-FILE -\u003E WRITE-FILE -\u003E LIST-DIRECTORY\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: READ-FILE-META -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE-META -\u003E READ-FILE -\u003E READ-FILE -\u003E WRITE-FILE -\u003E LIST-DIRECTORY\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
-      "runSummary": {
-        "intent": "Your task is to implement full support for OpenAI GPT-5.3-Codex reasoning\r\neffort modes in the TechToolbox.Agent codebase.\r\n\r\nTarget directory:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\r\n\r\nReasoning effort modes to sup...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-15T03:19:46.6970568+00:00",
       "status": "success",
@@ -776,20 +676,114 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T03:14:08.2492182+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.5:9b",
+      "durationMs": 42162,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Weather Forecast for Green Bay, Wisconsin\n\nI\u0027m currently unable to retrieve real-time weather data due to system constraints on tool access in this chat session.\n\n### Recommended Actions:\n- Check the [National Weather Service](https://www.weather.gov/gbx) directly for official forecasts\n- Visit a trusted weather app or website like Weather.com, AccuWeather, or The Weather Channel\n- Search \u0022Green Bay WI weather tomorrow\u0022 on your preferred search engine\n\n### What to Look For:\nWhen reviewing the forecast, pay attention to:\n- High and low temperatures\n- Precipitation probability (rain/snow chance)\n- Wind speed and direction\n- Any severe weather warnings or outlooks\n\nWould you like me to help draft a weather monitoring checklist, create a template for tracking daily forecasts, or assist with something else instead?",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T03:16:08.5855614+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Explain what PowerShell is in 3 paragraphs.",
+      "model": "qwen3.5:9b",
+      "durationMs": 12608,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "PowerShell is a task automation and configuration management framework from Microsoft that combines a command-line shell with a scripting language designed to work on Windows systems. It was originally developed as an enhanced version of the traditional Command Prompt (cmd.exe), but has evolved into a powerful tool capable of managing system configurations, automating administrative tasks, and interacting with various APIs and services.\n\nThe PowerShell environment consists of several key components: cmdlets which are .NET-based commands that perform specific actions, modules that group related cmdlets together for particular domains like networking or security, providers that expose different data stores as file-system-like hierarchies, and scripts written in the PowerShell language itself. This architecture allows administrators to build complex automation solutions by chaining multiple operations together.\n\nPowerShell runs on Windows, Linux, and macOS through its cross-platform implementation called PowerShell Core (now simply PowerShell). It supports object-oriented pipelines where data flows between commands as structured objects rather than plain text strings, making it significantly more powerful for system administration tasks. The language also includes features like advanced functions, classes, and event-driven programming that enable sophisticated automation scenarios beyond simple command execution.",
+      "runSummary": {
+        "intent": "Explain what PowerShell is in 3 paragraphs.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-17T03:18:26.2227805+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.5:9b",
+      "durationMs": 88959,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 9,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "search_web",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\nBased on the latest available data from National Weather Service sources:\n\n### Key Highlights\n- **Conditions**: Mostly sunny with a slight chance of showers between 1pm and 4pm, then possible showers and thunderstorms after 4pm.\n- **High Temperature**: Near 83\u00B0F\n- **Precipitation Chance**: Approximately 20%\n- **Wind**: West winds at 6 to 9 mph\n- **Humidity**: Peaks in the morning before gradually dropping throughout the day\n- **Overall Outlook**: A few showers are possible but most of us will remain dry\n\n### Summary\nGreen Bay is set for generally pleasant conditions tomorrow with sunshine dominating the forecast. The main weather concern is a brief window of scattered showers and potential thunderstorms in the late afternoon hours (after 4pm). Temperatures will be warm, reaching around 83\u00B0F at their peak. Wind speeds remain light to moderate.\n\n**Recommendation**: Plan outdoor activities for morning or early afternoon before the evening shower chances increase.",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-17T03:05:26.8877374\u002B00:00",
+    "generatedUtc": "2026-08-17T03:18:26.2242121\u002B00:00",
     "totalPreferences": 0,
-    "totalFacts": 9,
+    "totalFacts": 10,
     "indexEntries": 0,
     "averageConfidence": 0,
     "deprecatedEntries": 0,
     "health": "low",
     "notes": [
       "Preferences tracked: 0",
-      "Facts tracked: 9",
+      "Facts tracked: 10",
       "Index entries: 0"
     ]
   },
