@@ -33,7 +33,9 @@ It supports:
 - optional strict prompt preflight validation to block low-quality prompts  
 - output contract enforcement for `markdown`, `plain-text`, or `json` final responses  
 - quality profile tuning for deterministic vs exploratory responses  
+- optional runtime profile selection via `-RuntimeProfile` for local Ollama execution envelopes  
 - persisted run-quality telemetry (mode, output contract, profile, preflight score) in memory history and trend summaries  
+- resilience policy support (preflight estimator, tiered retry degradation, fallback model activation, optional two-stage planner/executor) via `settings.agent.resilience`  
 - always-on lightweight memory stored in `AI\memory.json` by default  
 - automatic capture of recent run history plus learned preferences/facts  
 - optional quiet mode for reduced console verbosity  
@@ -181,6 +183,7 @@ Invoke-TechAgent -Prompt "Summarize host posture" -OutputContract plain-text
 Invoke-TechAgent -Prompt "Return remediation checklist as JSON" -OutputContract json
 Invoke-TechAgent -Prompt "Fix AD sync issue" -StrictPromptPreflight
 Invoke-TechAgent -Prompt "Draft a migration proposal" -QualityProfile creative
+Invoke-TechAgent -Prompt "Investigate repeated login failures" -RuntimeProfile qwen27b_reason
 
 # Non-interactive credential context for tools that require -Credential
 $dac = Get-Credential
@@ -267,6 +270,18 @@ If your goal is information lookup only, prefer read-only language in the prompt
 - `-QualityProfile precise` lowers randomness for deterministic troubleshooting and implementation.
 - `-QualityProfile balanced` is the default profile for general-purpose work.
 - `-QualityProfile creative` increases variation for brainstorming and exploratory drafting.
+
+**Runtime Profiles and Resilience (Ollama-first)**
+
+- Runtime profiles are configured in `Config\config.json` under `settings.agent.runtimeProfiles`.
+- Use `-RuntimeProfile <name>` to explicitly pick a configured profile for a run.
+- `settings.agent.resilience.preflightEstimatorEnabled` enables per-turn prompt-pressure estimation and adaptive output-cap tightening.
+- `settings.agent.resilience.tieredRetryEnabled` enables tiered retries for retryable LLM failures.
+- `settings.agent.resilience.maxRetryTiers` controls retry tier depth (baseline is tier 0).
+- `settings.agent.resilience.enableFallbackOnRepeatedFailures` and `fallbackAfterConsecutiveFailures` control fallback-model activation.
+- `settings.agent.resilience.twoStageEnabled` enables optional execute-mode planner/executor staging.
+- READ-FILE safety now includes loop guards for both repeated identical calls and repeated non-progress evidence across different READ-FILE argument shapes.
+- When non-progress READ-FILE loops are detected, the orchestrator now fails fast with explicit guard diagnostics instead of burning the full iteration budget.
 
 **Persisted Quality Telemetry**
 

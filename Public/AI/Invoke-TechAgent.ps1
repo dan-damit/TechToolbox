@@ -144,6 +144,9 @@ function Invoke-TechAgent {
         [string]$Model,
 
         [Parameter()]
+        [string]$RuntimeProfile,
+
+        [Parameter()]
         [ValidateSet('ollama', 'openai', 'openai-compatible', 'azure-openai')]
         [string]$Provider,
 
@@ -256,6 +259,9 @@ function Invoke-TechAgent {
     $cfg = $script:cfg.settings.agent
     if ([string]::IsNullOrWhiteSpace($Model) -and $cfg -and -not [string]::IsNullOrWhiteSpace($cfg.model)) {
         $Model = $cfg.model
+    }
+    if ([string]::IsNullOrWhiteSpace($RuntimeProfile) -and $cfg -and -not [string]::IsNullOrWhiteSpace([string]$cfg.runtimeProfile)) {
+        $RuntimeProfile = [string]$cfg.runtimeProfile
     }
     if ([string]::IsNullOrWhiteSpace($Provider) -and $cfg -and -not [string]::IsNullOrWhiteSpace([string]$cfg.provider)) {
         $Provider = [string]$cfg.provider
@@ -1592,6 +1598,40 @@ Hard requirement:
             }
         }
 
+        if (-not [string]::IsNullOrWhiteSpace($RuntimeProfile)) {
+            $RuntimeProfile = $RuntimeProfile.Trim()
+        }
+        if ([string]::IsNullOrWhiteSpace($RuntimeProfile)) {
+            $RuntimeProfile = $null
+        }
+
+        $runtimeProfilesJson = $null
+        $runtimeProfilesConfig = & $getConfigValue $cfg 'runtimeProfiles'
+        if ($null -ne $runtimeProfilesConfig) {
+            try {
+                $runtimeProfilesJson = $runtimeProfilesConfig | ConvertTo-Json -Depth 12 -Compress
+            }
+            catch {
+                Write-Log -Level Warn -Message ("Failed to serialize settings.agent.runtimeProfiles: {0}" -f $_.Exception.Message)
+                $runtimeProfilesJson = $null
+            }
+        }
+
+        $resiliencePolicyJson = $null
+        $resilienceConfig = & $getConfigValue $cfg 'resilience'
+        if ($null -eq $resilienceConfig) {
+            $resilienceConfig = & $getConfigValue $cfg 'resiliencePolicy'
+        }
+        if ($null -ne $resilienceConfig) {
+            try {
+                $resiliencePolicyJson = $resilienceConfig | ConvertTo-Json -Depth 12 -Compress
+            }
+            catch {
+                Write-Log -Level Warn -Message ("Failed to serialize settings.agent.resilience: {0}" -f $_.Exception.Message)
+                $resiliencePolicyJson = $null
+            }
+        }
+
         $memoryPath = $null
         $memoryPathValue = & $getConfigValue $cfg 'memoryPath'
         if (-not [string]::IsNullOrWhiteSpace([string]$memoryPathValue)) {
@@ -1740,6 +1780,9 @@ Hard requirement:
             PromptPreflightScore         = $preflightScore
             PromptPreflightWarningCount  = $preflightWarningCount
             PromptPreflightCriticalCount = $preflightCriticalCount
+            RuntimeProfile               = $RuntimeProfile
+            RuntimeProfilesJson          = $runtimeProfilesJson
+            ResiliencePolicyJson         = $resiliencePolicyJson
             Verbose                      = $false
             MaxIterations                = $MaxIterations
             PromptHistoryItems           = $resolvedPromptHistoryItems
@@ -1845,7 +1888,10 @@ $result = [TechToolbox.Agent.Agent.AgentCore]::RunAgent(
     [bool]$request.ReasoningEffortAuto,
     [int]$request.PromptPreflightScore,
     [int]$request.PromptPreflightWarningCount,
-    [int]$request.PromptPreflightCriticalCount)
+    [int]$request.PromptPreflightCriticalCount,
+    [string]$request.RuntimeProfile,
+    [string]$request.RuntimeProfilesJson,
+    [string]$request.ResiliencePolicyJson)
 [Console]::Write($result)
 '@
 

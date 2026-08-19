@@ -115,6 +115,9 @@ Latest completed enhancements:
   - blocked premature completion when a model returns a progress-style `finalAnswer` that indicates work is still in progress
   - recovered from schema-invalid progress updates (`needsTool=false` with empty `finalAnswer` and coherent progress `reason`) by steering the loop forward instead of surfacing misleading invalid-JSON terminal failures
   - added regression coverage for both failure patterns in `src\TechToolbox.Agent\Tests\AgentOrchestratorTests.cs`
+  - added READ-FILE loop guards for repeated identical calls and repeated non-progress evidence patterns across varying READ-FILE argument shapes
+  - added fail-fast termination path for repeated non-progress READ-FILE loops to prevent iteration-budget exhaustion
+  - added/updated regression coverage for fail-fast READ-FILE loop-guard behavior in `src\TechToolbox.Agent\Tests\AgentOrchestratorTests.cs`
 - Removed the `ITA` wrapper from module exports. Operators now call `Invoke-TechAgent` directly as the single agent entry point.
 - Refactored TechToolbox home initialization to default runtime data paths to module root and removed first-import home staging/copy behavior. Runtime folders (`LogsAndExports/Logs`, `LogsAndExports/Exports`) are now ensured in-place unless `TT_Home` is explicitly set.
 

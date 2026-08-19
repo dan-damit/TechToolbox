@@ -133,6 +133,53 @@
       "outputContract": "markdown",
       "qualityProfile": "balanced",
       "thinkingMode": "auto",
+      "runtimeProfile": "",
+      "runtimeProfiles": {
+        "enabled": true,
+        "defaultProfileName": "qwen27b_fast",
+        "reasoningProfileName": "qwen27b_reason",
+        "fallbackProfileName": "fallback_small",
+        "profiles": {
+          "qwen27b_fast": {
+            "provider": "ollama",
+            "model": "qwen3.8:27b",
+            "maxContextTokens": 6144,
+            "maxOutputTokens": 400,
+            "temperature": 0.2,
+            "topP": 0.9,
+            "repeatPenalty": 1.05,
+            "description": "Fast/default local profile for routine tool orchestration."
+          },
+          "qwen27b_reason": {
+            "provider": "ollama",
+            "model": "qwen3.8:27b",
+            "maxContextTokens": 10240,
+            "maxOutputTokens": 800,
+            "temperature": 0.15,
+            "topP": 0.88,
+            "repeatPenalty": 1.08,
+            "description": "Reasoning-heavy local profile for deeper analysis turns."
+          },
+          "fallback_small": {
+            "provider": "ollama",
+            "model": "qwen3.5:9b",
+            "maxContextTokens": 6144,
+            "maxOutputTokens": 500,
+            "temperature": 0.2,
+            "topP": 0.9,
+            "repeatPenalty": 1.05,
+            "description": "Latency-optimized fallback profile for degraded retries."
+          }
+        }
+      },
+      "resilience": {
+        "preflightEstimatorEnabled": true,
+        "tieredRetryEnabled": true,
+        "twoStageEnabled": false,
+        "maxRetryTiers": 3,
+        "enableFallbackOnRepeatedFailures": true,
+        "fallbackAfterConsecutiveFailures": 3
+      },
       "autoModelRouting": {
         "enabled": true,
         "threshold": 50
@@ -168,6 +215,8 @@
           "doi.org",
           "epa.gov",
           "federalregister.gov",
+          "*.github.com",
+          "*.githubstatus.com",
           "gnu.org",
           "harvard.edu",
           "huggingface.co",
