@@ -19,8 +19,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.35,
-      "avgDurationMs": 133011,
-      "avgToolCalls": 0.9,
+      "avgDurationMs": 132826,
+      "avgToolCalls": 0.85,
       "statusCounts": {
         "success": 7,
         "error": 13
@@ -30,11 +30,11 @@
         "llm-failure": 3,
         "iteration-limit": 10
       },
-      "lastStatus": "error",
-      "lastOutcome": "iteration-limit",
+      "lastStatus": "success",
+      "lastOutcome": "completed",
       "lastModel": "qwen3.5:9b",
-      "lastRunTimestampUtc": "2026-08-19T02:54:09.4203635\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-19T02:54:09.4220391\u002B00:00",
+      "lastRunTimestampUtc": "2026-08-19T03:07:02.5172489\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-19T03:07:02.5183155\u002B00:00",
       "avgPromptPreflightScore": 66,
       "executionModeCounts": {
         "chat": 6,
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-19T02:54:09.4220654\u002B00:00",
+      "generatedUtc": "2026-08-19T03:07:02.5183448\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 11,
       "indexEntries": 0,
@@ -73,44 +73,6 @@
     "fact.tool-usage-for.64540e90": "tool usage: for"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-18T00:16:15.1706884+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 46683,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "search_web"
-      ],
-      "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\nBased on the latest available data:\n\n### Conditions\n- **Partly cloudy** with scattered showers and thunderstorms expected late tonight through early morning\n- Thunderstorms will move through around evening hours (before 10pm)\n\n### Temperature\n- **Low**: Around 57\u00B0F in the evening\n- High temperatures not explicitly stated but conditions suggest warm weather overall\n\n### Precipitation\n- **Chance of precipitation: 40%**\n- Showers expected between 10pm and midnight, then again late tonight through tomorrow morning\n\n### Wind\n- West wind around 5 mph, becoming calm in the evening\n\n### Additional Notes\nA few thunderstorms will move through late tomorrow. Overall conditions are described as pleasant with warm temperatures and less humidity making it feel great outside.\n\n**Sources**: National Weather Service Green Bay (NWS), local weather stations",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-18T00:31:52.3203863+00:00",
       "status": "success",
@@ -713,11 +675,48 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-19T03:07:02.5172489+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.5:9b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 42976,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\nBased on the National Weather Service data retrieved:\n\n- **Current Conditions**: Scattered storms active across Wisconsin this afternoon\n- **Severe Storm Risk**: Level 2/5 Slight risk increased south of Appleton and Manitowoc\n- **Primary Concerns**:\n  - Isolated large hail\n  - Heavy rain expected\n  - Gusty winds possible\n\nThe official NWS Green Bay office (weather.gov/grb) indicates storm activity is the main focus for today through tomorrow morning. For precise temperature forecasts, hourly breakdowns, and detailed precipitation probabilities, I recommend checking the full forecast page directly at weather.gov or using a local news source like WBAY.\n\nWould you like me to help draft an email about these conditions, create a safety checklist for outdoor activities, or search for more specific data points?",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-19T02:54:09.4222897\u002B00:00",
+    "generatedUtc": "2026-08-19T03:07:02.5185258\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 11,
     "indexEntries": 0,
