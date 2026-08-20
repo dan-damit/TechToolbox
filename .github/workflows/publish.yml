@@ -110,6 +110,7 @@ jobs:
             'VERSIONING.md',
             'CHANGELOG.md',
             'commands.md',
+            'Config/Build.ps1',
             'Config/build.config.json',
             'AI/memory.json',
             'AI/memory.history.json',
