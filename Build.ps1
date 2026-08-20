@@ -1,17 +1,3 @@
-<#
-.SYNOPSIS
-  One-shot build for TechToolbox:
-  - Update manifest (version & GUID)
-  - (Optional) Run PSSA analysis
-  - Sign module files
-  - (Optional) Package artifacts
-    - (Optional) Release automation (bump/commit/tag/push)
-
-.NOTES
-  - Prefers PS7+ but works on Windows PowerShell 5.1+
-  - Non-interactive by default; prompts only with -Interactive
-#>
-
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [switch]$AutoVersionPatch,
@@ -20,389 +6,29 @@ param(
     [switch]$SkipSigning,
     [bool]$SkipValidSigs = $true,
     [switch]$Recurse,
-    [switch]$Analyze,         # Run PSSA (PowerShell ScriptAnalyzer)
-    [switch]$FailOnPssa,      # Fail build if PSSA finds issues
-    [switch]$ExportPublic,    # Export only functions discovered in Public\ (else '*')
-    [switch]$Pack,            # Zip to .\Out\TechToolbox_<version>.zip
-    [switch]$Interactive,     # Allow prompts when data is missing
+    [switch]$Analyze,
+    [switch]$FailOnPssa,
+    [switch]$ExportPublic,
+    [switch]$Pack,
+    [switch]$Interactive,
     [string]$ModuleRoot = $PSScriptRoot,
     [string]$ConfigPath,
     [string]$TimestampServer,
     [string]$Thumbprint
 )
 
-function Invoke-Git {
-    param(
-        [Parameter(Mandatory)]
-        [string[]]$gitArgs,
-        [switch]$IgnoreExitCode
-    )
-
-    $output = & git -C $ModuleRoot @gitArgs 2>&1
-    if ($LASTEXITCODE -ne 0 -and -not $IgnoreExitCode) {
-        $joined = ($output | Out-String).Trim()
-        throw "git $($gitArgs -join ' ') failed: $joined"
-    }
-
-    return ($output | Out-String).Trim()
+$buildScript = Join-Path $PSScriptRoot 'Config\Build.ps1'
+if (-not (Test-Path -LiteralPath $buildScript)) {
+    throw "Build implementation not found at '$buildScript'."
 }
 
-# ---------------- 01. Load config --------------------------------------------
-$defaultConfigDir = Join-Path $ModuleRoot 'Config'
-$defaultConfigPath = Join-Path $defaultConfigDir 'build.config.json'
-$legacyConfigPath = Join-Path $ModuleRoot 'build.config.json'
-
-if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
-    if (Test-Path -LiteralPath $defaultConfigPath) {
-        $ConfigPath = $defaultConfigPath
-    }
-    elseif (Test-Path -LiteralPath $legacyConfigPath) {
-        Write-Warning "Legacy build config found at '$legacyConfigPath'. Move it to '$defaultConfigPath'."
-        $ConfigPath = $legacyConfigPath
-    }
-    else {
-        $ConfigPath = $defaultConfigPath
-    }
-}
-elseif (-not [System.IO.Path]::IsPathRooted($ConfigPath)) {
-    $ConfigPath = Join-Path $ModuleRoot $ConfigPath
-}
-
-$cfg = $null
-if (Test-Path -LiteralPath $ConfigPath) {
-    $cfg = Get-Content -Raw -LiteralPath $ConfigPath | ConvertFrom-Json
-}
-else {
-    throw "Build config not found at '$ConfigPath'. Expected '$defaultConfigPath' or a valid override path."
-}
-
-$TimestampServer = $cfg.signing.timestamp ?? 'http://timestamp.digicert.com'
-$Thumbprint = $cfg.signing.thumbprint
-
-$rawOutDir = if ($null -ne $cfg.artifacts -and $null -ne $cfg.artifacts.outDir) { [string]$cfg.artifacts.outDir } else { '.\Out' }
-$outDir = if ([System.IO.Path]::IsPathRooted($rawOutDir)) { $rawOutDir } else { Join-Path $ModuleRoot $rawOutDir }
-
-$rawPssaSettings = if ($null -ne $cfg.quality -and $null -ne $cfg.quality.pssaSettings) { [string]$cfg.quality.pssaSettings } else { '.\PSScriptAnalyzerSettings.psd1' }
-$pssaSettings = if ([System.IO.Path]::IsPathRooted($rawPssaSettings)) { $rawPssaSettings } else { Join-Path $ModuleRoot $rawPssaSettings }
-
-$analyzeEnabled = $Analyze.IsPresent -or ($cfg.quality.analyze -eq $true)
-$failOnPssa = $FailOnPssa.IsPresent -or ($cfg.quality.failOnPssa -eq $true)
-
-# Release mode implies patch bump + manifest update flow, then git commit/tag/push.
-if ($Release) {
-    $AutoVersionPatch = $true
-
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        throw "git is required for -Release but was not found in PATH."
-    }
-
-    $repoRoot = Invoke-Git -gitArgs @('rev-parse', '--show-toplevel')
-    if (-not $repoRoot) {
-        throw "-Release requires running inside a git repository."
-    }
-
-    $preReleaseDirty = Invoke-Git -gitArgs @('status', '--porcelain')
-    if (-not [string]::IsNullOrWhiteSpace($preReleaseDirty)) {
-        throw "Working tree is not clean. Commit or stash local changes before running -Release."
-    }
-
-    $releaseBranch = Invoke-Git -gitArgs @('rev-parse', '--abbrev-ref', 'HEAD')
-    if ([string]::Equals($releaseBranch, 'HEAD', [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "-Release requires a named branch checkout (detached HEAD is not supported for release pushes)."
-    }
-
-    Invoke-Git -gitArgs @('fetch', 'origin', $releaseBranch) | Out-Null
-    $behindRaw = Invoke-Git -gitArgs @('rev-list', '--count', "HEAD..origin/$releaseBranch")
-    $behindCount = 0
-    [void][int]::TryParse($behindRaw, [ref]$behindCount)
-    if ($behindCount -gt 0) {
-        Write-Host "Release branch '$releaseBranch' is behind origin by $behindCount commit(s); rebasing before release." -ForegroundColor Yellow
-        Invoke-Git -gitArgs @('pull', '--rebase', 'origin', $releaseBranch) | Out-Null
-    }
-
-    Write-Host "Release mode enabled: auto-version patch + manifest update + git release steps." -ForegroundColor Cyan
-}
-
-# ---------------- 02. Validate environment -----------------------------------
-$manifestPath = Join-Path $ModuleRoot 'TechToolbox.psd1'
-if (-not (Test-Path -LiteralPath $manifestPath)) {
-    throw "Manifest not found: $manifestPath"
-}
-
-# ---------------- Helper: Import manifest ------------------------------------
-$manifest = Import-PowerShellDataFile -Path $manifestPath
-$manifestDescription = [string]$manifest.Description
-$manifestReleaseNotes = [string]$manifest.PrivateData.PSData.ReleaseNotes
-$manifestPowerShellVersion = '7.6.5'
-
-# ---------------- 03. Compute new values -------------------------------------
-$oldGuid = $manifest.Guid
-$newGuid = if ($RegenerateGuid) { [guid]::NewGuid().Guid } else { $oldGuid }
-
-$oldVersion = [version]$manifest.ModuleVersion
-$newVersion = if ($AutoVersionPatch) {
-    $build = if ($oldVersion.Build -ge 0) { $oldVersion.Build } else { 0 }
-    [version]::new($oldVersion.Major, $oldVersion.Minor, $build + 1)
-}
-else { $oldVersion }
-
-# Paths
-$publicFolder = Join-Path $ModuleRoot 'Public'
-$manifestPath = Join-Path $ModuleRoot 'TechToolbox.psd1'
-
-# Collect public function names from file basenames
-$publicFiles = Get-ChildItem -LiteralPath $publicFolder -Filter *.ps1 -File -Recurse
-$publicFuns = $publicFiles.BaseName | Sort-Object -Unique
-
-# Preserve explicit non-Public exports (wrappers/entry points in .psm1)
-$nonPublicExports = @()
-
-$mergedExports = @($publicFuns + $nonPublicExports) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
-
-# Fall back to '*' only if nothing found (e.g., dev shell without Public yet)
-$functionsToExport = if ($mergedExports.Count -gt 0) { $mergedExports } else { @('*') }
-
-# Keep aliases explicit (avoid '*') for faster module analysis
-$aliasesToExport = @()  # set to concrete alias names when you have them
-
-# Preserve existing PrivateData (both top-level keys and PSData)
-$privateData = [ordered]@{}
-if ($manifest.PrivateData) {
-    $privateData = [ordered]@{} + $manifest.PrivateData
-}
-
-$psdata = [ordered]@{}
-if ($privateData.PSData) {
-    $psdata = [ordered]@{} + $privateData.PSData
-}
-
-# Normalize tags so gallery metadata remains valid (example: "active directory" -> "active-directory" then filter both deprecated forms).
-if (($psdata.Keys -contains 'Tags') -and $null -ne $psdata.Tags) {
-    $deprecatedTags = @('active-directory', 'active directory')
-
-    $normalizedTags = @(
-        $psdata.Tags | ForEach-Object {
-            if ($_ -is [string]) {
-                ($_ -replace '\s+', '-').Trim('-')
-            }
-            else {
-                $_
-            }
-        }
-    ) | Where-Object {
-        -not [string]::IsNullOrWhiteSpace([string]$_) -and
-        ($deprecatedTags -notcontains [string]$_)
-    } | Select-Object -Unique
-
-    $psdata['Tags'] = $normalizedTags
-}
-
-# Rebuild full PrivateData with normalized PSData
-$privateData['PSData'] = $psdata
-
-# Update manifest once (both exports and PrivateData)
-Update-ModuleManifest -Path $manifestPath `
-    -FunctionsToExport $functionsToExport `
-    -AliasesToExport   $aliasesToExport `
-    -Description       $manifestDescription `
-    -ReleaseNotes      $manifestReleaseNotes `
-    -PowerShellVersion $manifestPowerShellVersion `
-    -PrivateData       $privateData
-
-# ---------------- 04. Dirty check & update manifest --------------------------
-$manifestChanged = $false
-$exportsChanged = ($manifest.FunctionsToExport -join ',') -ne ($functionsToExport -join ',')
-
-if ($oldGuid -ne $newGuid -or $oldVersion -ne $newVersion -or $exportsChanged) {
-    if ($PSCmdlet.ShouldProcess($manifestPath, "Update manifest")) {
-        Update-ModuleManifest -Path $manifestPath `
-            -ModuleVersion $newVersion `
-            -Guid $newGuid `
-            -FunctionsToExport $functionsToExport `
-            -AliasesToExport   $aliasesToExport `
-            -Description       $manifestDescription `
-            -ReleaseNotes      $manifestReleaseNotes `
-            -PowerShellVersion $manifestPowerShellVersion `
-            -PrivateData $privateData
-        $manifestChanged = $true
-        Write-Host "Manifest updated → Version: $oldVersion → $newVersion; Guid: $oldGuid → $newGuid" -ForegroundColor Cyan
-    }
-}
-else {
-    Write-Host "Manifest unchanged (no updates needed)." -ForegroundColor DarkCyan
-}
-
-# ---------------- 05. (Optional) PSSA analysis --------------------------------
-$pssaIssues = @()
-if ($analyzeEnabled) {
-    try {
-        if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
-            Write-Warning "PSScriptAnalyzer module not found. Skipping analysis."
-        }
-        else {
-            Import-Module PSScriptAnalyzer -ErrorAction Stop
-            Write-Host "Running PSSA (ScriptAnalyzer)..." -ForegroundColor Cyan
-            $pssaIssues = Invoke-ScriptAnalyzer -Path $ModuleRoot `
-                -Settings $pssaSettings -Recurse
-            if ($pssaIssues.Count -gt 0) {
-                # Store a machine-readable report under CodeAnalysis\
-                $caDir = Join-Path $ModuleRoot 'CodeAnalysis'
-                New-Item -ItemType Directory -Force -Path $caDir | Out-Null
-                $reportPath = Join-Path $caDir ("PSSA-Report_{0:yyyyMMdd_HHmmss}.json" -f (Get-Date))
-                $pssaIssues | ConvertTo-Json -Depth 6 | Out-File -LiteralPath $reportPath -Encoding UTF8
-                Write-Host "PSSA found $($pssaIssues.Count) issue(s). Report: $reportPath" -ForegroundColor Yellow
-                if ($failOnPssa -and -not $Interactive) {
-                    throw "Build failed due to ScriptAnalyzer findings."
-                }
-            }
-            else {
-                Write-Host "PSSA clean." -ForegroundColor Green
-            }
-        }
-    }
-    catch {
-        throw "PSSA run failed: $($_.Exception.Message)"
-    }
-}
-
-# ---------------- 06. Signing -------------------------------------------------
-function Get-CodeSigningCert {
-    param([Parameter(Mandatory)] [string]$Thumb)
-    $stores = @('Cert:\CurrentUser\My', 'Cert:\LocalMachine\My')
-    foreach ($store in $stores) {
-        $found = Get-ChildItem $store -ErrorAction SilentlyContinue |
-        Where-Object { $_.Thumbprint -eq $Thumb }
-        if ($found -and $found.HasPrivateKey) { return $found }
-    }
-    return $null
-}
-
-$ok = 0; $skip = 0; $warn = 0
-if ($SkipSigning) {
-    Write-Host "Signing skipped (-SkipSigning)." -ForegroundColor DarkYellow
-}
-else {
-    if (-not $Thumbprint) {
-        if ($Interactive) { $Thumbprint = Read-Host "Enter code signing thumbprint" }
-        else { throw "Thumbprint not provided (set Config\build.config.json signing.thumbprint or pass -Thumbprint)." }
-    }
-    $cert = Get-CodeSigningCert -Thumb $Thumbprint
-    if (-not $cert) { throw "Code signing cert not found or missing private key for thumbprint $Thumbprint." }
-
-    # What to sign
-    $search = @{ Path = $ModuleRoot; Include = '*.ps1', '*.psm1'; File = $true; Recurse = $true }
-    $files = Get-ChildItem @search | Where-Object {
-        $_.FullName -notmatch '\\(Out|Bin|CodeAnalysis|\.git)\\'
-    }
-
-    Write-Host "Signing $(($files|Measure-Object).Count) file(s)..." -ForegroundColor Cyan
-    foreach ($f in $files) {
-        try {
-            if ($SkipValidSigs) {
-                $sig = Get-AuthenticodeSignature -FilePath $f.FullName
-                if ($sig.Status -eq 'Valid') { $skip++; continue }
-            }
-            $params = @{
-                FilePath      = $f.FullName
-                Certificate   = $cert
-                HashAlgorithm = 'SHA256'
-            }
-            if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
-            $r = Set-AuthenticodeSignature @params
-            if ($r.Status -eq 'Valid') { $ok++ } else { $warn++ }
-        }
-        catch {
-            $warn++
-        }
-    }
-    Write-Host "Signing complete → OK: $ok  Skipped: $skip  Warnings/Errors: $warn" -ForegroundColor Cyan
-}
-
-# ---------------- 07. (Optional) Package -------------------------------------
-$artifact = $null
-if ($Pack) {
-    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-    $zip = Join-Path $outDir ("TechToolbox_{0}.zip" -f $newVersion)
-    if (Test-Path $zip) { Remove-Item $zip -Force }
-    # Zip only module assets
-    $items = @(
-        (Join-Path $ModuleRoot 'TechToolbox.psd1'),
-        (Join-Path $ModuleRoot 'TechToolbox.psm1'),
-        (Join-Path $ModuleRoot 'Public\*'),
-        (Join-Path $ModuleRoot 'Private\*'),
-        (Join-Path $ModuleRoot 'Config\*')
-    )
-    Compress-Archive -Path $items -DestinationPath $zip
-    $artifact = $zip
-    Write-Host "Packaged → $artifact" -ForegroundColor Green
-}
-
-# ---------------- 08. (Optional) Release commit/tag/push ---------------------
-$releaseTag = $null
-$releaseCommit = $null
-$releasePushed = $false
-if ($Release) {
-    $releaseTag = "v$newVersion"
-
-    $existingTag = Invoke-Git -gitArgs @('tag', '--list', $releaseTag)
-    if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
-        throw "Tag already exists: $releaseTag"
-    }
-
-    $branchName = Invoke-Git -gitArgs @('rev-parse', '--abbrev-ref', 'HEAD')
-
-    Invoke-Git -gitArgs @('add', '-A') | Out-Null
-    & git -C $ModuleRoot diff --cached --quiet
-    if ($LASTEXITCODE -eq 0) {
-        throw "No staged changes detected after release build. Nothing to commit/tag."
-    }
-
-    $commitMessage = "release: $releaseTag"
-    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create release commit ($commitMessage)")) {
-        Invoke-Git -gitArgs @('commit', '-m', $commitMessage) | Out-Null
-        $releaseCommit = Invoke-Git -gitArgs @('rev-parse', '--short', 'HEAD')
-        Write-Host "Release commit created: $releaseCommit" -ForegroundColor Green
-    }
-
-    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create git tag $releaseTag")) {
-        Invoke-Git -gitArgs @('tag', '-a', $releaseTag, '-m', "Release $releaseTag") | Out-Null
-        Write-Host "Tag created: $releaseTag" -ForegroundColor Green
-    }
-
-    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push branch '$branchName' and tag '$releaseTag' to origin")) {
-        Invoke-Git -gitArgs @('push', 'origin', $branchName) | Out-Null
-        Invoke-Git -gitArgs @('push', 'origin', $releaseTag) | Out-Null
-        $releasePushed = $true
-        Write-Host "Pushed branch + tag. Tag push should trigger .github/workflows/publish.yml" -ForegroundColor Green
-    }
-}
-
-# ---------------- 09. Emit summary -------------------------------------------
-$result = [pscustomobject]@{
-    ManifestPath    = $manifestPath
-    Version         = [pscustomobject]@{ Old = $oldVersion; New = $newVersion }
-    Guid            = [pscustomobject]@{ Old = $oldGuid; New = $newGuid }
-    ManifestUpdated = $manifestChanged
-    PssaIssues      = $pssaIssues.Count
-    FilesSigned     = $ok
-    FilesSkipped    = $skip
-    FilesWarned     = $warn
-    ArtifactPath    = $artifact
-    Release         = [pscustomobject]@{
-        Enabled      = [bool]$Release
-        Commit       = $releaseCommit
-        Tag          = $releaseTag
-        Pushed       = $releasePushed
-        PipelineHint = if ($releasePushed -and $releaseTag) { "GitHub Actions publish workflow triggers on pushed v* tags." } else { $null }
-    }
-}
-$result
+& $buildScript @PSBoundParameters
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDUlNQ10T80C/da
-# oXRYSa/z8iklsS9V0uEY7hbvzkBckaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDkLC7RVJdaqOIL
+# 2USCn9foTQrPPfaLHQOA6b87G52sZaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -535,34 +161,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDoiLQHra6O
-# bogjZVwall65/E5xNm9wb0KpO8N5lzntHDANBgkqhkiG9w0BAQEFAASCAgBhTOS/
-# 8/DBvJuBn85PYszD24XCLozklgWdUrsG2/7ZBYdiAU2eF/Eu8YlsnZXieBBcrV9c
-# snE5E6A2Yfl8UxuWHeAqOEBF2ZZ9kPRLHobx3s9QKej2G0ly4IjJShuGxQ2Mbca9
-# MX5y5/5ZvT8G7CblwbHnZBekL9nDqLpRKgrrAoYQoYWR1FqdYFkyrvuo2HZ7bJ3S
-# 0c4vsOUDzhe1JLGTknY52ENMYNMOjcPam0XbjeIKhI1iTJo1dEuXJIY4igUST7Px
-# 1mCpth10YYoIjrirJ7hzGdYs8wmF0B4A1UOK8UufTOX5WTD4HTJhja81R6JmkYQa
-# siQEf6SoBFtktM7Ba1xVB2ylrcIe1VUaHEnFq0Ox5QEd/MW5XVXP19UuX0ETlPxS
-# zcLmXNrDthjS97CwZjidQYRfXX2vDcJnMdHOgpj7vJX4wVtq8FFF3GX8LywQHu09
-# JDX1hHXStgHgcf//sTmqfRBpqXqegkA8lqVeU0obilIU2+lM+YdwgyxMIAgDGiFx
-# bpapem/NgeaK8Vl32kbEpAao7gAQ5cMchVBlg55K+BXKRzHOjNHTKGy1OdiaYnjD
-# KOvubgs7Fy8OK33eGQ9bBJWPo8gopMsxRC7JGG9PPrtfklligKpV4ofQRPz9jk/w
-# Jp1Q/ZqwguFb4PNMZmPs0ehKn1PMzhJBvwnbAKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAY7EyV1CXb
+# Qh8WGxNd3OxMrQjn5/WugHs+0MluYdcgLjANBgkqhkiG9w0BAQEFAASCAgBktDmX
+# 9QwsjLO2fyNUBPVfIm4WcIn7iqu4XN5U4qWnvNeiraU5kbLWhWPSWSj5Dv/Vae7d
+# T/a2CJ42JIE4hatyLjMLsqG0BUUpL1V+iEuxg87XwMtQ5NB1U03qydq/3OXCBJkA
+# N9oPIfZX0A7sis9AaeAZvveXzMl5Pr+1wpcxh/bC7hC44iDxqwFyPd3VFvGKXjVZ
+# eXNA4m7jvZkEiyk0EJgONVnJBKb5RUFVrfjdDSrMbmjtiPrr38FI2cA2EASXiGR1
+# aasrF247gfrCckWOVhmK5RD7BD6wibue0l5c8S8v/1Vut02X0rHUggKa7BrtACDs
+# QdsCb3etQm2tpMQhUn2AuRISVFfmoWJvO2z9yn9XRSjjrJrxJ9Y+uolcM5HC5w+w
+# FXUNtlESADlVXIXFzX5d11vsrhyE5UVAZw3d1cq8TOyCbwNsG58b/WJakU2LU3ms
+# u8c5vLUmm1gtx101Zr1Az++xaJSZR54Go+axGGvDQW8pF2e2tdFQhZXf3v4MmZq9
+# CJjzAZ321xRf4rByFevOmV0duDzDoe66uQocCTjLNUpbZmE26uNcSY8qd7HslZdf
+# agyZetNMm7DoC4Omfjf0GY8sJu0QXm/UeUF4idzMHj21pa4UcehXiaqzxCC1ebzS
+# M9cMBEEjgJPlWZcTNkktP69NTH28lFpbA77Uy6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MjAwMzQyNDVaMC8GCSqGSIb3DQEJBDEiBCAc/i9Ej9YhHBCboNac
-# 44sjyOY03XXtUxKS6G8BIJOGUTANBgkqhkiG9w0BAQEFAASCAgAvgH6Cg4x3xDf1
-# SlC4RZilXu7mggXhqb4m9s/EDY1w1k1gV8u8s2bSXyPuHgwpIxtRKIzLf/ju9lft
-# lq/JNZ6BgnpJi7iJz2wpjtSMSg56RWYDs2xBIoJcQJqvaUJzsFDhP0o80DPnjiIJ
-# UtyGS77pXt14IH0wC1Q8QhidZlVOzB2B5BZbFlfrVGKduTbEWGarzMq7TwX+gpw6
-# 34wC0J9MCAV5C/xJj3ewuW+sHZX55edKWtgJsN6t8SGtfWlftsSFRkKiq9SIs7mt
-# z6kakKRyZTyWVn27IEOD+NSjAEI/LjgK70QleKDR1uBnLwY58k71M0dSbHHg5tIh
-# CxTSqKsXSABFLomVuOxVt/CTJG+yTAlBE3Fy0lmVpQ75EyRIQg8LdLoHB6BlCpFv
-# 8A5huDKHFTFsrp3ucdTZmbf4SBg18YX9s4PNQKAPEgNSGfkm6/vP6RQ8dIzpADsO
-# UEiVGhfuBPX26zxGnF4gk02+1+jH9iNhgyBqBtSW1z1KZMERsjhIJ1J8hg1Ug+lx
-# bl6dQZtXqrNt95QG6PwLddLLTJPsLVpoVdyGSYKASZFpSkfK/Q0KLIUywthyEagI
-# XBuDvCuNB423j1ryGPGeH0odTHZ+voSl/WKk45H/mjScWtjv47V+LRK+AYPnlJGn
-# Vgx0iMFJgaaBquCCCdd3MXFd4qhhEA==
+# BTEPFw0yNjA4MjAwMzUzMzdaMC8GCSqGSIb3DQEJBDEiBCBwISJQMnn0Lw7wxEwQ
+# +6UI3nCYNfKjwmEIVtGw1GY9hzANBgkqhkiG9w0BAQEFAASCAgAvn//Do4ffh9XA
+# sM8LyJpeGSAIVM5KxNoM6WEa5TpW9ZzxMRZDgK40ZraheL23kNUPNF86JE3JevYS
+# DzZ/A0aHOUbcaK3jQQHaxH/b7MR+M2BaWB93pZw03OzJsNvXEkq6ok/P3K2rQrES
+# JKgbfGO5clMOUCxBhFNJcaC5qcCbebYi/3r8xIhT23rXKyfFMBi3A3YGAyj7fnz2
+# BJE2WmD0x1a95RXMyogB1ulTyg2p97pdOoreAB04ZLFP0mkLHtYjGzqhvj6mjRSR
+# l1m5HxAz/530PtTPiWvFs+dQMyfY7hrLFuXV7uomvNbN6dXfnue9i5sHmAOPlfEo
+# cp+LCziJQAA2x5Y5TqbLGx0z/EgmEbdYlje9HtqBuVI807kMJP+AfkMKaCCuNrBT
+# FHppBtzYLM5ap8CsuEO+w675xCpc6A7+J7PnYcrjVsQ5nZJ6bmL+j/+uUtTRY0Vh
+# KYp3VjooIX4B+fuNS5WXWIQYbqjLb9FgPG47pqWtNF/vSd39jqdqJ46lpEB/X7de
+# ZLmFnUVDqLgWa27lDHrCUTBIgWYCSwFk5++mctSaSkus9l5U/4inYe3HeR5y8l8Y
+# NV2DPnHB/sNuuQ2zKC8BtT3/eJp5mBC/ca6F2KTEoKCnEjvXjxKxLETtwgR0QcGz
+# HRPSQjE7oV0H8x6/QpB5dDoayQFADg==
 # SIG # End signature block
