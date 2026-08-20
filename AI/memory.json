@@ -18,24 +18,24 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.35,
-      "avgDurationMs": 149529,
-      "avgToolCalls": 1,
+      "successRate": 0.4,
+      "avgDurationMs": 113110,
+      "avgToolCalls": 1.2,
       "statusCounts": {
-        "success": 7,
-        "error": 13
+        "error": 12,
+        "success": 8
       },
       "outcomeCounts": {
-        "completed": 7,
-        "llm-failure": 3,
+        "llm-failure": 2,
+        "completed": 8,
         "iteration-limit": 10
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "qwen3.8:27b",
-      "lastRunTimestampUtc": "2026-08-20T01:47:27.3309901\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-20T01:47:27.3322023\u002B00:00",
-      "avgPromptPreflightScore": 67,
+      "lastModel": "qwen3.5:9b",
+      "lastRunTimestampUtc": "2026-08-20T23:15:07.0393475\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-20T23:15:07.0407069\u002B00:00",
+      "avgPromptPreflightScore": 63,
       "executionModeCounts": {
         "chat": 6,
         "execute": 14
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-20T01:47:27.3322268\u002B00:00",
+      "generatedUtc": "2026-08-20T23:15:07.0407330\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 11,
       "indexEntries": 0,
@@ -73,79 +73,6 @@
     "fact.tool-usage-for.64540e90": "tool usage: for"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-18T04:53:30.6171458+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Can you summarize the GitHub issues from today and output the summary details in the console in markdown format? GitHub had issues with API requests and authentication today. I am curious what the root cause was.",
-      "model": "qwen3.8:27b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 283569,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "fetch_url"
-      ],
-      "outputPreview": "## GitHub Incident Summary - August 17-18, 2026\n\nBased on the search results I was able to gather (direct GitHub pages are blocked in this sandbox), here is what is known about today\u0027s incident:\n\n### What Happened\n\n- High error rates of approximately 20% across web experiences and API traffic.\n- Archive downloads and raw repository content downloads hit roughly a 50% error rate.\n- SAML and OIDC authentication, SCIM provisioning, and Team Sync were all impacted.\n- Users reported 500 errors when loading pull request and issue pages.\n\n### Root Cause\n\nAs of the latest status page update (about 7 hours ago), GitHub marked the incident as **resolved** but noted that a detailed root cause analysis would be shared once available. One earlier incident in their history (April 2026) was traced to an **expired TLS certificate used for internal service-to-service communication**, which is a plausible pattern, but GitHub has not yet confirmed whether that was the cause this time.\n\nA third-party tracker (Statusfield) suggested the root cause \u0022appears to be related to a database infrastructure issue,\u0022 though that is their characterization, not an official GitHub statement.\n\n### Timeline (from community discussion thread)\n\n1. Users began reporting elevated error rates on API and web traffic.\n2. GitHub acknowledged the incident and opened a community discussion thread (#205164).\n3. Engineering teams investigated; SAML/OIDC, SCIM, and Team Sync were confirmed impacted.\n4. Incident was marked resolved; RCA pending at time of last update.\n\n### What You Can Do\n\n- Watch https://www.githubstatus.com/ for the official root cause analysis post.\n- Check the GitHub community discussion thread #205164 for any follow-up updates from the engineering team.\n- If your CI/CD pipelines or SSO integrations were affected, verify that tokens and certificates are still valid after the resolution.\n\n### Caveat\n\nI could not fetch the full incident thread or status page directly (github.com is not on this sandbox\u0027s allowed-host list), so the details above are compiled from search snippets. The official RCA may contain more specific technical detail once published.",
-      "runSummary": {
-        "intent": "Can you summarize the GitHub issues from today and output the summary details in the console in markdown format? GitHub had issues with API requests and authentication today. I am curious what the root cause was.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-18T05:11:48.8696442+00:00",
-      "status": "error",
-      "outcome": "llm-failure",
-      "prompt": "Can you summarize the GitHub issues from today and output the summary details in the console in markdown format? GitHub had issues with API requests and authentication today. I am curious what the root cause was. I added githubstatus.com to the allowed hosts list.",
-      "model": "qwen3.8:27b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 587071,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
-      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
-      "runSummary": {
-        "intent": "Can you summarize the GitHub issues from today and output the summary details in the console in markdown format? GitHub had issues with API requests and authentication today. I am curious what the root cause was. I added...",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-18T22:58:25.0548347+00:00",
       "status": "error",
@@ -716,11 +643,87 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-20T23:11:28.4559978+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for the upcoming weekend in Crivitz Wisconsin (Friday thru Sunday night). Output the results to console in markdown format.",
+      "model": "qwen3.5:9b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 91975,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 6,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "# Weather Forecast for Crivitz Wisconsin (Friday through Sunday Night)\n\nBased on available weather data sources:\n\n## Friday\n- **Conditions**: Thundershowers, Overcast\n- **Temperature**: Warm\n- **Wind**: 4 mph ESE\n- **UV Index**: 3/Low\n- **Precipitation Chance**: ~60%\n\n## Saturday  \n- **Conditions**: Thundershowers, Cloudy\n- **Temperature**: Warm\n- **Wind**: 5 mph East\n- **UV Index**: 3/Low\n- **Precipitation Chance**: ~50%\n\n## Sunday\n- **Conditions**: Sunny\n- **Temperature**: Warm\n- **Wind**: 9 mph Northeast\n- **UV Index**: 5/Moderate\n- **Precipitation Chance**: 0%\n\n---\n**Note**: This forecast is based on data from NOAA National Weather Service and other weather monitoring sources. The weekend looks active with thunderstorms Friday-Saturday, clearing up by Sunday.",
+      "runSummary": {
+        "intent": "Please look at the weather for the upcoming weekend in Crivitz Wisconsin (Friday thru Sunday night). Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-20T23:15:07.0393475+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for the upcoming weekend in Crivitz Wisconsin (Friday thru Sunday night). Output the results to console in markdown format. Be as detailed as possible please.",
+      "model": "qwen3.5:9b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 50272,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "# Crivitz Wisconsin Weather Forecast\n## Upcoming Weekend (Friday through Sunday Night)\n\nBased on current weather data for Crivitz, WI:\n\n### Friday\n- **Conditions**: Thundershowers, Overcast\n- **Temperature**: Warm\n- **Wind**: 4 mph from ESE\n- **UV Index**: 3 (Low)\n- **Precipitation Probability**: ~60%\n- **Notes**: Expect thunderstorms throughout the day with overcast skies. Carry rain gear.\n\n### Saturday\n- **Conditions**: Thundershowers, Cloudy\n- **Temperature**: Warm\n- **Wind**: 5 mph from E\n- **UV Index**: 3 (Low)\n- **Precipitation Probability**: ~50%\n- **Notes**: Continued thunderstorm activity with cloudy conditions. Rain expected but slightly less than Friday.\n\n### Sunday\n- **Conditions**: Sunny, Clearing\n- **Temperature**: Warm\n- **Wind**: 9 mph from NE\n- **UV Index**: 5 (Moderate)\n- **Precipitation Probability**: ~0%\n- **Notes**: Best day of the weekend with sunny skies and no expected precipitation. Good conditions for outdoor activities.\n\n### Summary\nThe weekend starts stormy Friday-Saturday with thunderstorms, then clears significantly by Sunday. Pack rain gear for Friday and Saturday, but Sunday should be pleasant and dry.",
+      "runSummary": {
+        "intent": "Please look at the weather for the upcoming weekend in Crivitz Wisconsin (Friday thru Sunday night). Output the results to console in markdown format. Be as detailed as possible please.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-20T01:47:27.3323607\u002B00:00",
+    "generatedUtc": "2026-08-20T23:15:07.0408633\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 11,
     "indexEntries": 0,
