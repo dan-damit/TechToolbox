@@ -32,7 +32,7 @@
 <div align="center">
   <p style="font-size:1.2em; font-weight:600; margin-top:1em;">
 
-  ## _Modular. Worker-Driven. PowerShell Automation at Scale._
+  ## _The PowerShell Operator Framework for Modern Automation_
 
   <br>
 
@@ -44,7 +44,7 @@
 
 ## Contents
 
-- [_Modular. Worker-Driven. PowerShell Automation at Scale._](#modular-worker-driven-powershell-automation-at-scale)
+- [_The PowerShell Operator Framework for Modern Automation_](#the-powershell-operator-framework-for-modern-automation)
 - [Contents](#contents)
 - [Quick Start](#quick-start)
   - [One-Liner Demos](#one-liner-demos)
