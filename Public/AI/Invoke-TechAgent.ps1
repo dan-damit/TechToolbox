@@ -536,10 +536,10 @@ function Invoke-TechAgent {
         }
         elseif ($locationMatch.Success) {
             $locationName = $locationMatch.Groups['location'].Value.Trim().TrimEnd(',', '.')
-            "the weather forecast for $locationName from the official weather website"
+            "the weather forecast for $locationName using the official NOAA API (api.weather.gov)"
         }
         elseif ([regex]::IsMatch($normalized, '(?i)\bweather\b')) {
-            'the weather forecast for the specified location from the official weather website'
+            'the weather forecast for the specified location using the official NOAA API (api.weather.gov)'
         }
         else {
             'the specific file, service, module, or URL'

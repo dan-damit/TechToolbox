@@ -252,7 +252,7 @@ Constraints: <scope, safety, no-write/read-only if applicable>.
 Good examples:
 
 ```powershell
-Invoke-TechAgent -Prompt "Fetch tomorrow's weather for Green Bay, Wisconsin from https://weather.gov and return a markdown forecast summary with temperatures, precipitation chance, and wind." -Mode execute
+Invoke-TechAgent -Prompt "Fetch tomorrow's weather for Green Bay, Wisconsin using the official NOAA API and return a markdown forecast summary with temperatures, precipitation chance, and wind." -Mode execute
 
 # If preflight warnings appear, print an improved prompt suggestion without changing the current run
 Invoke-TechAgent -Prompt "Check weather" -Mode execute -AutoPromptHint

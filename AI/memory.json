@@ -18,27 +18,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.4,
-      "avgDurationMs": 113110,
-      "avgToolCalls": 1.2,
+      "successRate": 0.45,
+      "avgDurationMs": 68715,
+      "avgToolCalls": 1.4,
       "statusCounts": {
-        "error": 12,
-        "success": 8
+        "success": 9,
+        "error": 11
       },
       "outcomeCounts": {
-        "llm-failure": 2,
-        "completed": 8,
+        "completed": 9,
+        "llm-failure": 1,
         "iteration-limit": 10
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.5:9b",
-      "lastRunTimestampUtc": "2026-08-20T23:15:07.0393475\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-20T23:15:07.0407069\u002B00:00",
-      "avgPromptPreflightScore": 63,
+      "lastRunTimestampUtc": "2026-08-20T23:45:41.3630882\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-20T23:45:41.3646126\u002B00:00",
+      "avgPromptPreflightScore": 61,
       "executionModeCounts": {
-        "chat": 6,
-        "execute": 14
+        "execute": 14,
+        "chat": 6
       },
       "outputContractCounts": {
         "markdown": 9,
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-20T23:15:07.0407330\u002B00:00",
+      "generatedUtc": "2026-08-20T23:45:41.3646391\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 11,
       "indexEntries": 0,
@@ -73,46 +73,6 @@
     "fact.tool-usage-for.64540e90": "tool usage: for"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-18T22:58:25.0548347+00:00",
-      "status": "error",
-      "outcome": "llm-failure",
-      "prompt": "Can you summarize the GitHub issues from today and output the summary details in the console in markdown format? GitHub had issues with API requests and authentication today. Find out what the root cause was if they listed any reason.",
-      "model": "qwen3.8:27b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 1001215,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 6,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url"
-      ],
-      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
-      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
-      "runSummary": {
-        "intent": "Can you summarize the GitHub issues from today and output the summary details in the console in markdown format? GitHub had issues with API requests and authentication today. Find out what the root cause was if they list...",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request timed out after 180 seconds.",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-18T23:02:01.7391211+00:00",
       "status": "success",
@@ -719,11 +679,54 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-20T23:45:41.3630882+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for the upcoming weekend in Crivitz Wisconsin (Friday thru Sunday night). Output the results to console in markdown format.",
+      "model": "qwen3.5:9b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 113322,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 10,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "search_web",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "outputPreview": "## Weather Forecast for Crivitz Wisconsin (Friday - Sunday Night)\n\nBased on available search results, here\u0027s what I found:\n\n### Friday\n- **Conditions**: Thundershowers, Overcast, Warm\n- **Wind**: 4 mph ESE\n- **UV Index**: 3/Low\n\n### Saturday\n- **Conditions**: Thundershowers, Cloudy, Warm\n- **Wind**: 5 mph East\n- **UV Index**: 3/Low\n\n### Sunday\n- **Conditions**: Sunny, Warm\n- **Wind**: 9 mph NE\n- **UV Index**: 5/Moderate\n\n---\n\n**Note**: I was unable to retrieve the complete detailed forecast from weather.gov because the page returns HTML with embedded JavaScript and maps rather than clean text data. The National Weather Service site is on my allowed hosts list, but it doesn\u0027t provide easily parseable text forecasts in its standard format.\n\nFor more detailed planning, you may want to check:\n- [National Weather Service Crivitz](https://forecast.weather.gov/MapClick.php?lat=45.2329\u0026lon=-88.0003)\n- Or visit local weather apps for real-time updates",
+      "runSummary": {
+        "intent": "Please look at the weather for the upcoming weekend in Crivitz Wisconsin (Friday thru Sunday night). Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-20T23:15:07.0408633\u002B00:00",
+    "generatedUtc": "2026-08-20T23:45:41.3647876\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 11,
     "indexEntries": 0,
