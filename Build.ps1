@@ -26,7 +26,7 @@ param(
     [switch]$Pack,            # Zip to .\Out\TechToolbox_<version>.zip
     [switch]$Interactive,     # Allow prompts when data is missing
     [string]$ModuleRoot = $PSScriptRoot,
-    [string]$ConfigPath = (Join-Path $PSScriptRoot 'Config\build.config.json'),
+    [string]$ConfigPath,
     [string]$TimestampServer,
     [string]$Thumbprint
 )
@@ -48,15 +48,43 @@ function Invoke-Git {
 }
 
 # ---------------- 01. Load config --------------------------------------------
+$defaultConfigDir = Join-Path $ModuleRoot 'Config'
+$defaultConfigPath = Join-Path $defaultConfigDir 'build.config.json'
+$legacyConfigPath = Join-Path $ModuleRoot 'build.config.json'
+
+if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
+    if (Test-Path -LiteralPath $defaultConfigPath) {
+        $ConfigPath = $defaultConfigPath
+    }
+    elseif (Test-Path -LiteralPath $legacyConfigPath) {
+        Write-Warning "Legacy build config found at '$legacyConfigPath'. Move it to '$defaultConfigPath'."
+        $ConfigPath = $legacyConfigPath
+    }
+    else {
+        $ConfigPath = $defaultConfigPath
+    }
+}
+elseif (-not [System.IO.Path]::IsPathRooted($ConfigPath)) {
+    $ConfigPath = Join-Path $ModuleRoot $ConfigPath
+}
+
 $cfg = $null
 if (Test-Path -LiteralPath $ConfigPath) {
     $cfg = Get-Content -Raw -LiteralPath $ConfigPath | ConvertFrom-Json
 }
+else {
+    throw "Build config not found at '$ConfigPath'. Expected '$defaultConfigPath' or a valid override path."
+}
 
 $TimestampServer = $cfg.signing.timestamp ?? 'http://timestamp.digicert.com'
 $Thumbprint = $cfg.signing.thumbprint
-$outDir = $cfg.artifacts.outDir ?? (Join-Path $ModuleRoot 'Out')
-$pssaSettings = $cfg.quality.pssaSettings ?? (Join-Path $ModuleRoot 'PSScriptAnalyzerSettings.psd1')
+
+$rawOutDir = if ($null -ne $cfg.artifacts -and $null -ne $cfg.artifacts.outDir) { [string]$cfg.artifacts.outDir } else { '.\Out' }
+$outDir = if ([System.IO.Path]::IsPathRooted($rawOutDir)) { $rawOutDir } else { Join-Path $ModuleRoot $rawOutDir }
+
+$rawPssaSettings = if ($null -ne $cfg.quality -and $null -ne $cfg.quality.pssaSettings) { [string]$cfg.quality.pssaSettings } else { '.\PSScriptAnalyzerSettings.psd1' }
+$pssaSettings = if ([System.IO.Path]::IsPathRooted($rawPssaSettings)) { $rawPssaSettings } else { Join-Path $ModuleRoot $rawPssaSettings }
+
 $analyzeEnabled = $Analyze.IsPresent -or ($cfg.quality.analyze -eq $true)
 $failOnPssa = $FailOnPssa.IsPresent -or ($cfg.quality.failOnPssa -eq $true)
 
@@ -373,8 +401,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAo1byw0CYdJOwW
-# 8dZzl+QnOFR+n9OQPo6PbD4japoHx6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDUlNQ10T80C/da
+# oXRYSa/z8iklsS9V0uEY7hbvzkBckaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -507,34 +535,34 @@ $result
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBLv6wbW5MI
-# 9KHJ4NI6oiWR+fNHUWn2GQycXmdCPc7JiDANBgkqhkiG9w0BAQEFAASCAgC5/Amv
-# s1hCwN1DiaE3vqa6+GgGpmyAxQK58jfvZAhrVe3NqVnjLUPdlUPta4wgdzIMVhHM
-# BL2GIGq8sa25YvPQmZfElDgr/TU2MEfR9mOLMjFpC0HWdfak0KnIMx17X40IsNv8
-# Z5ls8V2ekV+qhiizKy4aHeHm1EI3Z8bZ2nH6LMTdWYF5bwvaVDlMwE1VkDdnseZP
-# 6JObLTytKlqLftCOQCVCkZ/L5o7aOJkniLEiDSfGY0lVo/EI1GmsyddUeY4hpNID
-# 28Ek3z2Z7L6liqyN9oLx+qDaUoZ8FVFJcHalIQ++H2XPMO0teADAHosqQ5wTQksL
-# u84QNaB1ESh+RNqILkBWQk5oqz7bP1i5KacUadaXT4qqjQIUe9KWgvmxT9f5WbtG
-# bw3fHGDHLBwq8Jc1eAj+rypC/h+NkgNQgx5YkJBZrapSc9okd465y3pCCE+5BSnF
-# fCQSZ5W6yIsubyaTmYvTGhreXsbbj6z/U8Jg18lgD4gOP+D92QEeCEDFKNREb/V0
-# htP7l0dHaaqBVcJtXlNeTQos8k6njZkLe3W8bTqvqApkDcKe3r23E4myj88fJhiG
-# UexmbaeHnMAjZBhnPObdwPXZJNWCMlT2+vm7tEa2S8vMgh9+1fkcl2CxZH3SxsUb
-# 5V6sQgPbE63RlDxKKUZ7ee5VTGi/8SFht4Z7rKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDoiLQHra6O
+# bogjZVwall65/E5xNm9wb0KpO8N5lzntHDANBgkqhkiG9w0BAQEFAASCAgBhTOS/
+# 8/DBvJuBn85PYszD24XCLozklgWdUrsG2/7ZBYdiAU2eF/Eu8YlsnZXieBBcrV9c
+# snE5E6A2Yfl8UxuWHeAqOEBF2ZZ9kPRLHobx3s9QKej2G0ly4IjJShuGxQ2Mbca9
+# MX5y5/5ZvT8G7CblwbHnZBekL9nDqLpRKgrrAoYQoYWR1FqdYFkyrvuo2HZ7bJ3S
+# 0c4vsOUDzhe1JLGTknY52ENMYNMOjcPam0XbjeIKhI1iTJo1dEuXJIY4igUST7Px
+# 1mCpth10YYoIjrirJ7hzGdYs8wmF0B4A1UOK8UufTOX5WTD4HTJhja81R6JmkYQa
+# siQEf6SoBFtktM7Ba1xVB2ylrcIe1VUaHEnFq0Ox5QEd/MW5XVXP19UuX0ETlPxS
+# zcLmXNrDthjS97CwZjidQYRfXX2vDcJnMdHOgpj7vJX4wVtq8FFF3GX8LywQHu09
+# JDX1hHXStgHgcf//sTmqfRBpqXqegkA8lqVeU0obilIU2+lM+YdwgyxMIAgDGiFx
+# bpapem/NgeaK8Vl32kbEpAao7gAQ5cMchVBlg55K+BXKRzHOjNHTKGy1OdiaYnjD
+# KOvubgs7Fy8OK33eGQ9bBJWPo8gopMsxRC7JGG9PPrtfklligKpV4ofQRPz9jk/w
+# Jp1Q/ZqwguFb4PNMZmPs0ehKn1PMzhJBvwnbAKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTUwMzQzNDRaMC8GCSqGSIb3DQEJBDEiBCDaoJ93Wtg9SKgo22XS
-# weOaCmzc8MCb/w8m6MHDSAn0pDANBgkqhkiG9w0BAQEFAASCAgCxqaYQ3DIyYTtn
-# 48rp+PZX+Wcg/5jivGmFTfA6oWbgyDQSBizYQTUxWmWh8kzgq3844uIkkqM3hVHr
-# snL10T+bXrGwD8qyrzWmICCQsMFPypWInvfAAZF8NxW2irZsNHBTteq+RjIkoybd
-# LvDGIHlD+kR7aaUJBI/tew2XCtPsfnHUxgMukLluBCsEonbDwxj8cAjmDtLD5Z6l
-# jziwOC7EvZ4uPRn2K+TR4ImvLyQN1MenCap2PSsjLf8dZYC8dvGIO0aH2vjjqvXX
-# mapiU57nQ0QFZEZ3ajsEFtjJ5D/AI3Qr40o9rux0EPEZ6CWbt7azIMROsdMfTmkO
-# DOSfif4jK/aB8FPPScC1LZUcVWCrimwXkPSCGURdJXWw97XpTcHoB5v/8RV1S4sv
-# 9hf8fyQ6lQWtXXj64/SJTlWOp18hnvMgmrY+L9OXUH+kfzb8D5ebOjmn+KUZGXLq
-# F0tmxlVOLqKM+cTLc2CYWRW2OlgQ31C7/HBRRQ7dH+m7pSZzD5Lt30ssznOFUhnO
-# w57LFY1PseMtlLTnK6oPQ4nFQKH9JUzsrX8XMjS3fPG/qV8U0R0HeRtzPyfP83wO
-# XEpijq8JqiDWT6CSfJNS2X3GdVR5wXlclPFUiadTJBU8JRmL3fHViiIOFHUB5m0S
-# eTm7YkW3obZ5hVeuwf4m+qqpQOoxOQ==
+# BTEPFw0yNjA4MjAwMzQyNDVaMC8GCSqGSIb3DQEJBDEiBCAc/i9Ej9YhHBCboNac
+# 44sjyOY03XXtUxKS6G8BIJOGUTANBgkqhkiG9w0BAQEFAASCAgAvgH6Cg4x3xDf1
+# SlC4RZilXu7mggXhqb4m9s/EDY1w1k1gV8u8s2bSXyPuHgwpIxtRKIzLf/ju9lft
+# lq/JNZ6BgnpJi7iJz2wpjtSMSg56RWYDs2xBIoJcQJqvaUJzsFDhP0o80DPnjiIJ
+# UtyGS77pXt14IH0wC1Q8QhidZlVOzB2B5BZbFlfrVGKduTbEWGarzMq7TwX+gpw6
+# 34wC0J9MCAV5C/xJj3ewuW+sHZX55edKWtgJsN6t8SGtfWlftsSFRkKiq9SIs7mt
+# z6kakKRyZTyWVn27IEOD+NSjAEI/LjgK70QleKDR1uBnLwY58k71M0dSbHHg5tIh
+# CxTSqKsXSABFLomVuOxVt/CTJG+yTAlBE3Fy0lmVpQ75EyRIQg8LdLoHB6BlCpFv
+# 8A5huDKHFTFsrp3ucdTZmbf4SBg18YX9s4PNQKAPEgNSGfkm6/vP6RQ8dIzpADsO
+# UEiVGhfuBPX26zxGnF4gk02+1+jH9iNhgyBqBtSW1z1KZMERsjhIJ1J8hg1Ug+lx
+# bl6dQZtXqrNt95QG6PwLddLLTJPsLVpoVdyGSYKASZFpSkfK/Q0KLIUywthyEagI
+# XBuDvCuNB423j1ryGPGeH0odTHZ+voSl/WKk45H/mjScWtjv47V+LRK+AYPnlJGn
+# Vgx0iMFJgaaBquCCCdd3MXFd4qhhEA==
 # SIG # End signature block
