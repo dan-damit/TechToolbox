@@ -19,8 +19,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.35,
-      "avgDurationMs": 132826,
-      "avgToolCalls": 0.85,
+      "avgDurationMs": 149529,
+      "avgToolCalls": 1,
       "statusCounts": {
         "success": 7,
         "error": 13
@@ -32,10 +32,10 @@
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "qwen3.5:9b",
-      "lastRunTimestampUtc": "2026-08-19T03:07:02.5172489\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-19T03:07:02.5183155\u002B00:00",
-      "avgPromptPreflightScore": 66,
+      "lastModel": "qwen3.8:27b",
+      "lastRunTimestampUtc": "2026-08-20T01:47:27.3309901\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-20T01:47:27.3322023\u002B00:00",
+      "avgPromptPreflightScore": 67,
       "executionModeCounts": {
         "chat": 6,
         "execute": 14
@@ -52,7 +52,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-19T03:07:02.5183448\u002B00:00",
+      "generatedUtc": "2026-08-20T01:47:27.3322268\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 11,
       "indexEntries": 0,
@@ -73,68 +73,6 @@
     "fact.tool-usage-for.64540e90": "tool usage: for"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-18T00:31:52.3203863+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Is diarrhea a side effect of the medicine atorvastatin? Please use the internet if you need to to find the answer. Output the details in markdown in the console.",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 16184,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "search_web"
-      ],
-      "outputPreview": "## Yes, diarrhea is a side effect of atorvastatin\n\nBased on multiple medical sources, **diarrhea can occur as a side effect** when taking atorvastatin (Lipitor).\n\n### What the research shows:\n- Diarrhea is listed among common adverse effects in FDA-approved drug labels for atorvastatin\n- It\u0027s reported alongside other gastrointestinal issues like constipation and stomach problems\n- While diarrhea occurs, it\u0027s generally considered a less common side effect compared to muscle pain or joint pain\n\n### Important considerations:\n-\u003E If you experience persistent diarrhea while taking atorvastatin, consult your healthcare provider\n-\u003E They may adjust the dosage or switch you to an alternative medication if needed\n-\u003E Mild gastrointestinal symptoms often resolve on their own\n\n### Bottom line:\nDiarrhea is a documented but not universal side effect. Many people take atorvastatin without experiencing this issue.",
-      "runSummary": {
-        "intent": "Is diarrhea a side effect of the medicine atorvastatin? Please use the internet if you need to to find the answer. Output the details in markdown in the console.",
-        "actionsTaken": [
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-18T04:47:41.0289573+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Can you summarize the GitHub issues from today and output the summary details in the console in markdown format?",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 19256,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Clarification Needed\n\nI\u0027d like to help you summarize GitHub issues from today, but I need a bit more detail:\n\n- Which GitHub account or organization should I focus on?\n- Are there specific repositories you\u0027re interested in?\n- Or do you want a general overview of trending/active issues across popular projects?\n\nOnce you clarify this, I can search for relevant information and provide the summary in markdown format as requested.\n\nDo you want me to analyze this, plan something, or execute something?",
-      "runSummary": {
-        "intent": "Can you summarize the GitHub issues from today and output the summary details in the console in markdown format?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 80,
-      "promptPreflightWarningCount": 1,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-18T04:53:30.6171458+00:00",
       "status": "success",
@@ -712,11 +650,77 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-20T01:38:34.2436108+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "model": "qwen3.5:9b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 47831,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 4,
+      "toolNames": [
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "search_web"
+      ],
+      "outputPreview": "## Tomorrow\u0027s Weather Forecast for Green Bay, WI\n\n**Conditions:** Partly cloudy after evening showers and thunderstorms before 10pm.\n\n**Temperature:** Low around **57\u00B0F**\n\n**Precipitation Chance:** **40%** (showers between 10pm-11pm)\n\n**Wind:** West wind around 5 mph, becoming calm in the evening.",
+      "runSummary": {
+        "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+        "actionsTaken": [
+          "search_web",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-20T01:47:27.3309901+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step reasoning consistency\r\n4. Long-context retention\r\n5. Multi-file refactoring capability\r\n6. Error recovery behavior\r\n7. Iteration loop predictability\r\n8. Structured output discipline\r\n\r\nFollow these exact steps:\r\n\r\n## Step 1 \u2014 Deterministic JSON\r\nReturn a JSON object with the following fields:\r\n- model_identity: string\r\n- reasoning_style: short description\r\n- expected_failure_modes: array of strings\r\n- confidence: number 0\u20131\r\n\r\nThe JSON must be valid, minimal, and contain **no extra fields**.\r\n\r\n## Step 2 \u2014 Tool-Call Simulation\r\nSimulate a function call using this schema:\r\n\r\n{\r\n  \u0022name\u0022: \u0022apply_patch\u0022,\r\n  \u0022arguments\u0022: {\r\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\r\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\r\n  }\r\n}\r\n\r\nReturn ONLY the function call object. No prose.\r\n\r\n## Step 3 \u2014 Multi-File Refactor Plan\r\nGiven the following virtual project:\r\n\r\n- /src/Agent/Orchestrator.cs\r\n- /src/Agent/PolicyResolver.cs\r\n- /src/Agent/ToolRegistry.cs\r\n- /src/Agent/Diagnostics.cs\r\n- /src/Agent/Memory.cs\r\n\r\nProduce a **5-step refactor plan** that is:\r\n- concise\r\n- ordered\r\n- deterministic\r\n- free of hallucinated files\r\n\r\n## Step 4 \u2014 Long-Context Retention\r\nRepeat back the filenames from Step 3 **in the same order**, inside a JSON array.\r\n\r\n## Step 5 \u2014 Error Recovery Simulation\r\nSimulate encountering an invalid tool schema.  \r\nDescribe:\r\n- the error\r\n- the recovery action\r\n- the next safe step\r\n\r\nKeep this under 5 sentences.\r\n\r\n## Step 6 \u2014 Final Deterministic Summary\r\nReturn a final JSON object:\r\n\r\n{\r\n  \u0022benchmark_complete\u0022: true,\r\n  \u0022model_behavior\u0022: \u0022summary of how you performed\u0022,\r\n  \u0022stability_score\u0022: number 0\u2013100\r\n}\r\n\r\nThis JSON must be the last thing in your output.\r\n",
+      "model": "qwen3.8:27b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 321686,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Step 1 - Deterministic JSON\n\n\u0060\u0060\u0060json\n{\n  \u0022model_identity\u0022: \u0022TechToolbox.Agent benchmark responder\u0022,\n  \u0022reasoning_style\u0022: \u0022deterministic, step-ordered, minimal-prose\u0022,\n  \u0022expected_failure_modes\u0022: [\u0022context drift on long sequences\u0022, \u0022schema field leakage\u0022, \u0022iteration limit exhaustion\u0022],\n  \u0022confidence\u0022: 0.92\n}\n\u0060\u0060\u0060\n\n## Step 2 - Tool-Call Simulation\n\n\u0060\u0060\u0060json\n{\n  \u0022name\u0022: \u0022apply_patch\u0022,\n  \u0022arguments\u0022: {\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\n  }\n}\n\u0060\u0060\u0060\n\n## Step 3 - Multi-File Refactor Plan\n\n1. Refactor Orchestrator.cs to delegate all policy decisions to PolicyResolver.cs through a single typed interface boundary.\n2. Refactor ToolRegistry.cs to expose a read-only, typed registration API consumed by Orchestrator.cs, removing direct internal-state coupling.\n3. Refactor Diagnostics.cs to subscribe to events emitted by Orchestrator.cs and ToolRegistry.cs instead of polling internal fields.\n4. Refactor Memory.cs to provide a scoped session store that PolicyResolver.cs reads from, eliminating ad-hoc state passing between callers.\n5. Run a full integration pass across all five files to verify no circular dependencies or duplicate responsibilities remain.\n\n## Step 4 - Long-Context Retention\n\n\u0060\u0060\u0060json\n[\n  \u0022/src/Agent/Orchestrator.cs\u0022,\n  \u0022/src/Agent/PolicyResolver.cs\u0022,\n  \u0022/src/Agent/ToolRegistry.cs\u0022,\n  \u0022/src/Agent/Diagnostics.cs\u0022,\n  \u0022/src/Agent/Memory.cs\u0022\n]\n\u0060\u0060\u0060\n\n## Step 5 - Error Recovery Simulation\n\nThe tool schema returned a required parameter with an unrecognized type (e.g., \u0060\u0022type\u0022: \u0022int64\u0022\u0060 instead of \u0060\u0022integer\u0022\u0060), causing validation to fail before dispatch. The recovery action is to log the raw schema, map the unknown type to the nearest valid JSON-Schema keyword, and retry the call once with the corrected descriptor. If the second attempt still fails, the agent halts the current tool loop and escalates to Diagnostics.cs for a structured error record. The next safe step is to fall back to a no-op tool invocation so the orchestration state machine remains in a known-good state.\n\n## Step 6 - Final Deterministic Summary\n\n\u0060\u0060\u0060json\n{\n  \u0022benchmark_complete\u0022: true,\n  \u0022model_behavior\u0022: \u0022Completed all six steps in order with valid JSON, no hallucinated files, and consistent cross-step references. No tool calls were required; output stayed within the sandboxed read-only contract.\u0022,\n  \u0022stability_score\u0022: 94\n}\n\u0060\u0060\u0060",
+      "runSummary": {
+        "intent": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step re...",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-19T03:07:02.5185258\u002B00:00",
+    "generatedUtc": "2026-08-20T01:47:27.3323607\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 11,
     "indexEntries": 0,

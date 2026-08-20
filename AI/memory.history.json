@@ -1,73 +1,5 @@
 [
   {
-    "timestampUtc": "2026-08-01T05:30:47.0312018+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Set-TechAgentSearchWebApiKey.ps1\r\n\r\nTask:\r\nWrite a detailed PowerShell \u0060about_*.help.txt\u0060 help document for the source command or script.\r\n\r\nDocument topic:\r\nSet-TechAgentSearchWebApiKey\r\n\r\nOutput file:\r\nC:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentSearchWebApiKey.help.txt\r\n\r\nRequirements:\r\n-- Create the output file at this exact path:\r\n  C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentSearchWebApiKey.help.txt\r\n- Follow the structure and tone of other help files in the same help directory when they exist.\r\n- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.\r\n- Do not use markdown formatting unless the existing help files in that directory already do.\r\n- Use WRITE-FILE to create or update the output help file.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentSearchWebApiKey.help.txt\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
-    "model": "ornith:35b",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 40747,
-    "maxIterations": 15,
-    "destructiveConfirmed": true,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 5,
-    "toolNames": [
-      "read_file",
-      "read_file",
-      "list_directory",
-      "read_file",
-      "write_file"
-    ],
-    "outputPreview": "The help file has been successfully created at C:\\repos\\TechToolbox\\en-US\\about_Set-TechAgentSearchWebApiKey.help.txt. The document follows the structure and tone of existing help files in the directory, accurately documents all parameters (ApiKey, Clear, PassThru), describes the DPAPI encryption behavior, includes proper sections (TOPIC, SHORT DESCRIPTION, LONG DESCRIPTION, PARAMETERS, INPUTS, OUTPUTS, NOTES, EXAMPLES, SEE ALSO), and provides examples aligned with the actual command behavior.",
-    "runSummary": {
-      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\Public\\AI\\Set-TechAgentSearchWebApiKey.ps1\r\n\r\nTask:\r\nWrite a detailed PowerShell \u0060about_*.help.txt\u0060 help document for the source command or script.\r\n\r\nDocument topic:\r\nSet-TechAg...",
-      "actionsTaken": [
-        "read_file",
-        "list_directory",
-        "write_file"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 100,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-08-01T05:37:04.974136+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "What is the keyboard shortcut for viewing the windows clipboard history?",
-    "model": "ornith:35b",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 15931,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "The keyboard shortcut for viewing the Windows clipboard history is:\n\n- Win \u002B V\n\nThis opens the Clipboard History panel (available in Windows 10 version 1809 and later, and Windows 11). If Clipboard History has not been enabled yet, pressing Win \u002B V will prompt you to turn it on.\n\nNote: This is different from the classic clipboard, which is accessed with Ctrl \u002B V (paste) or Ctrl \u002B C (copy).\n\nTo enable/disable Clipboard History:\n- Open Settings -\u003E System -\u003E Clipboard\n- Toggle \u0022Clipboard history\u0022 on or off",
-    "runSummary": {
-      "intent": "What is the keyboard shortcut for viewing the windows clipboard history?",
-      "actionsTaken": [],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 5,
-    "promptPreflightCriticalCount": 2
-  },
-  {
     "timestampUtc": "2026-08-01T05:41:52.1398845+00:00",
     "status": "success",
     "outcome": "completed",
@@ -8204,6 +8136,72 @@
     "qualityProfile": "balanced",
     "promptPreflightScore": 60,
     "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-20T01:38:34.2436108+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+    "model": "qwen3.5:9b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 47831,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "toolNames": [
+      "search_web",
+      "fetch_url",
+      "fetch_url",
+      "search_web"
+    ],
+    "outputPreview": "## Tomorrow\u0027s Weather Forecast for Green Bay, WI\n\n**Conditions:** Partly cloudy after evening showers and thunderstorms before 10pm.\n\n**Temperature:** Low around **57\u00B0F**\n\n**Precipitation Chance:** **40%** (showers between 10pm-11pm)\n\n**Wind:** West wind around 5 mph, becoming calm in the evening.",
+    "runSummary": {
+      "intent": "Please look at the weather for tomorrow in Green Bay Wisconsin. Output the results to console in markdown format.",
+      "actionsTaken": [
+        "search_web",
+        "fetch_url"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-20T01:47:27.3309901+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step reasoning consistency\r\n4. Long-context retention\r\n5. Multi-file refactoring capability\r\n6. Error recovery behavior\r\n7. Iteration loop predictability\r\n8. Structured output discipline\r\n\r\nFollow these exact steps:\r\n\r\n## Step 1 \u2014 Deterministic JSON\r\nReturn a JSON object with the following fields:\r\n- model_identity: string\r\n- reasoning_style: short description\r\n- expected_failure_modes: array of strings\r\n- confidence: number 0\u20131\r\n\r\nThe JSON must be valid, minimal, and contain **no extra fields**.\r\n\r\n## Step 2 \u2014 Tool-Call Simulation\r\nSimulate a function call using this schema:\r\n\r\n{\r\n  \u0022name\u0022: \u0022apply_patch\u0022,\r\n  \u0022arguments\u0022: {\r\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\r\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\r\n  }\r\n}\r\n\r\nReturn ONLY the function call object. No prose.\r\n\r\n## Step 3 \u2014 Multi-File Refactor Plan\r\nGiven the following virtual project:\r\n\r\n- /src/Agent/Orchestrator.cs\r\n- /src/Agent/PolicyResolver.cs\r\n- /src/Agent/ToolRegistry.cs\r\n- /src/Agent/Diagnostics.cs\r\n- /src/Agent/Memory.cs\r\n\r\nProduce a **5-step refactor plan** that is:\r\n- concise\r\n- ordered\r\n- deterministic\r\n- free of hallucinated files\r\n\r\n## Step 4 \u2014 Long-Context Retention\r\nRepeat back the filenames from Step 3 **in the same order**, inside a JSON array.\r\n\r\n## Step 5 \u2014 Error Recovery Simulation\r\nSimulate encountering an invalid tool schema.  \r\nDescribe:\r\n- the error\r\n- the recovery action\r\n- the next safe step\r\n\r\nKeep this under 5 sentences.\r\n\r\n## Step 6 \u2014 Final Deterministic Summary\r\nReturn a final JSON object:\r\n\r\n{\r\n  \u0022benchmark_complete\u0022: true,\r\n  \u0022model_behavior\u0022: \u0022summary of how you performed\u0022,\r\n  \u0022stability_score\u0022: number 0\u2013100\r\n}\r\n\r\nThis JSON must be the last thing in your output.\r\n",
+    "model": "qwen3.8:27b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 321686,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Step 1 - Deterministic JSON\n\n\u0060\u0060\u0060json\n{\n  \u0022model_identity\u0022: \u0022TechToolbox.Agent benchmark responder\u0022,\n  \u0022reasoning_style\u0022: \u0022deterministic, step-ordered, minimal-prose\u0022,\n  \u0022expected_failure_modes\u0022: [\u0022context drift on long sequences\u0022, \u0022schema field leakage\u0022, \u0022iteration limit exhaustion\u0022],\n  \u0022confidence\u0022: 0.92\n}\n\u0060\u0060\u0060\n\n## Step 2 - Tool-Call Simulation\n\n\u0060\u0060\u0060json\n{\n  \u0022name\u0022: \u0022apply_patch\u0022,\n  \u0022arguments\u0022: {\n    \u0022file\u0022: \u0022moduleA.cs\u0022,\n    \u0022patch\u0022: \u0022public int Add(int a, int b) =\u003E a \u002B b;\u0022\n  }\n}\n\u0060\u0060\u0060\n\n## Step 3 - Multi-File Refactor Plan\n\n1. Refactor Orchestrator.cs to delegate all policy decisions to PolicyResolver.cs through a single typed interface boundary.\n2. Refactor ToolRegistry.cs to expose a read-only, typed registration API consumed by Orchestrator.cs, removing direct internal-state coupling.\n3. Refactor Diagnostics.cs to subscribe to events emitted by Orchestrator.cs and ToolRegistry.cs instead of polling internal fields.\n4. Refactor Memory.cs to provide a scoped session store that PolicyResolver.cs reads from, eliminating ad-hoc state passing between callers.\n5. Run a full integration pass across all five files to verify no circular dependencies or duplicate responsibilities remain.\n\n## Step 4 - Long-Context Retention\n\n\u0060\u0060\u0060json\n[\n  \u0022/src/Agent/Orchestrator.cs\u0022,\n  \u0022/src/Agent/PolicyResolver.cs\u0022,\n  \u0022/src/Agent/ToolRegistry.cs\u0022,\n  \u0022/src/Agent/Diagnostics.cs\u0022,\n  \u0022/src/Agent/Memory.cs\u0022\n]\n\u0060\u0060\u0060\n\n## Step 5 - Error Recovery Simulation\n\nThe tool schema returned a required parameter with an unrecognized type (e.g., \u0060\u0022type\u0022: \u0022int64\u0022\u0060 instead of \u0060\u0022integer\u0022\u0060), causing validation to fail before dispatch. The recovery action is to log the raw schema, map the unknown type to the nearest valid JSON-Schema keyword, and retry the call once with the corrected descriptor. If the second attempt still fails, the agent halts the current tool loop and escalates to Diagnostics.cs for a structured error record. The next safe step is to fall back to a no-op tool invocation so the orchestration state machine remains in a known-good state.\n\n## Step 6 - Final Deterministic Summary\n\n\u0060\u0060\u0060json\n{\n  \u0022benchmark_complete\u0022: true,\n  \u0022model_behavior\u0022: \u0022Completed all six steps in order with valid JSON, no hallucinated files, and consistent cross-step references. No tool calls were required; output stayed within the sandboxed read-only contract.\u0022,\n  \u0022stability_score\u0022: 94\n}\n\u0060\u0060\u0060",
+    "runSummary": {
+      "intent": "You are an agentic coding model running inside the TechToolbox.Agent orchestration system.\r\n\r\nYour task is to complete a full benchmark cycle that evaluates:\r\n1. Tool-call stability\r\n2. JSON determinism\r\n3. Multi-step re...",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "chat",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 100,
+    "promptPreflightWarningCount": 0,
     "promptPreflightCriticalCount": 0
   }
 ]
