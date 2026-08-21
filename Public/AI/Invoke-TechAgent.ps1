@@ -617,9 +617,50 @@ function Invoke-TechAgent {
         return @{ Achieved = $true; Reason = '' }
     }
 
+    $expandOptionZipFollowUpPrompt = {
+        param(
+            [string]$PromptText,
+            [string]$Mode
+        )
+
+        if ([string]::IsNullOrWhiteSpace($PromptText)) {
+            return $PromptText
+        }
+
+        if ($Mode -ne 'execute') {
+            return $PromptText
+        }
+
+        $trimmed = $PromptText.Trim()
+        $zipOnlyMatch = [regex]::Match(
+            $trimmed,
+            '(?i)^(?:option\s*)?b\s*[:\-]?\s*(?<zip>\d{5}(?:-\d{4})?)\s*$'
+        )
+
+        if (-not $zipOnlyMatch.Success) {
+            return $PromptText
+        }
+
+        $zip = $zipOnlyMatch.Groups['zip'].Value
+        return (
+            "Continue the pending weather forecast task using alternate location ZIP code $zip. " +
+            "Call GET-NOAA-FORECAST with zipCode='$zip' and include Friday through Sunday night periods. " +
+            "Return the final answer in markdown. Constraints: execute only bounded steps and avoid unrelated changes."
+        )
+    }
+
     $resolvedExecutionMode = & $resolveExecutionMode -ModeFromParam $Mode -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('Mode')
     $resolvedOutputContract = & $resolveOutputContract -ContractFromParam $OutputContract -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('OutputContract')
     $resolvedQualityProfile = & $resolveQualityProfile -ProfileFromParam $QualityProfile -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('QualityProfile')
+
+    $expandedFollowUpPrompt = & $expandOptionZipFollowUpPrompt -PromptText $Prompt -Mode $resolvedExecutionMode
+    if (-not [string]::Equals($expandedFollowUpPrompt, $Prompt, [System.StringComparison]::Ordinal)) {
+        Write-Log -Level Info -Message (
+            "`nInvoke-TechAgent: normalized terse option follow-up prompt into explicit ZIP-based weather retry prompt."
+        )
+        $Prompt = $expandedFollowUpPrompt
+        $promptSourceLabel = 'option-follow-up normalization'
+    }
 
     $resolvedThinkingMode = if ($PSBoundParameters.ContainsKey('ThinkingMode') -and -not [string]::IsNullOrWhiteSpace($ThinkingMode)) {
         $ThinkingMode.Trim().ToLowerInvariant()
@@ -1103,9 +1144,26 @@ Hard requirement:
             (Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll')
         )
 
-        $agentAssemblyPath = $assemblyCandidates |
-        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+        $existingAssemblyCandidates = foreach ($candidatePath in $assemblyCandidates) {
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                $candidateFile = Get-Item -LiteralPath $candidatePath
+                [pscustomobject]@{
+                    Path          = $candidatePath
+                    LastWriteTime = $candidateFile.LastWriteTime
+                }
+            }
+        }
+
+        $selectedAssembly = $existingAssemblyCandidates |
+        Sort-Object -Property LastWriteTime -Descending |
         Select-Object -First 1
+
+        $agentAssemblyPath = if ($null -ne $selectedAssembly) {
+            [string]$selectedAssembly.Path
+        }
+        else {
+            $null
+        }
 
         if ([string]::IsNullOrWhiteSpace($agentAssemblyPath)) {
             throw "TechToolbox.Agent assembly not found. Install the packaged agent runtime or build/publish src\TechToolbox.Agent."
