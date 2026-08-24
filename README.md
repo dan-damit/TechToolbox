@@ -331,7 +331,7 @@ Use a prompt similar to the following for consistent results:
 
 ```
 Read this file:
-C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\AgentOrchestrator.cs
+C:\repos\TechToolbox\src\TechToolbox.Agent\Orchestrator\AgentOrchestrator.cs
 
 Task: 
 Add or improve XML documentation comments for every public type, public
@@ -339,7 +339,7 @@ constructor, and public method in this file.
 
 Requirements:
 - Modify the existing file in place at this exact path:
-  C:\repos\TechToolbox\src\TechToolbox.Agent\Agent\AgentOrchestrator.cs
+  C:\repos\TechToolbox\src\TechToolbox.Agent\Orchestrator\AgentOrchestrator.cs
 - Preserve all existing code and behavior.
 - Only add or improve XML documentation comments.
 - Prefer REPLACE-IN-FILE for localized edits to this existing file.
