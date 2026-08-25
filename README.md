@@ -52,6 +52,7 @@
   - [Module Layers](#module-layers)
   - [How the Loader Works](#how-the-loader-works)
   - [Path Tokens](#path-tokens)
+  - [TechAgent Architectural Principle](#techagent-architectural-principle)
 - [Configuration](#configuration)
   - [Environment Variables](#environment-variables)
   - [Configuring Secrets](#configuring-secrets)
@@ -183,6 +184,27 @@ Portable path tokens replace absolute paths for roaming safety:
 | `%TT_Home%`        | Module root by default (or override) | Operational data root (logs, exports, prompt templates, history) |
 | `%TT_LogsRoot%`    | Resolved logs root          | Log file output paths                         |
 | `%TT_ExportsRoot%` | Resolved exports root       | Exported reports / files                      |
+
+### TechAgent Architectural Principle
+
+TechAgent follows an orchestrator-first design philosophy: **the model proposes, the orchestrator decides**.
+
+LLM tool choices are treated as intent proposals, not direct execution commands. Before any tool runs, the orchestrator applies a standard control lifecycle:
+
+1. Eligibility and safety checks (execution mode, tool availability, destructive guardrails).
+2. Argument sufficiency and normalization (required args, coercion, prompt-derived hints).
+3. Uncertainty resolution (rewrite to discovery tools when arguments are incomplete).
+4. Evidence capture and loop control (result fingerprinting, repeated-call non-progress guards).
+5. Evidence-backed finalization (block placeholder final answers when concrete tool evidence exists).
+
+This pattern is intentionally policy-driven so new tools can inherit stable behavior through declarative decision hooks and guard rules instead of one-off logic.
+
+For any tool added or changed, keep regression coverage aligned to this philosophy:
+
+- Standard successful execution path.
+- Uncertainty rewrite and argument hydration path (when applicable).
+- Repeated-call non-progress guard behavior.
+- Final-answer evidence quality behavior.
 
 ---
 
