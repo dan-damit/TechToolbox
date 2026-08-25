@@ -1,94 +1,5 @@
 [
   {
-    "timestampUtc": "2026-08-10T03:03:37.6027451+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "I added those recommendations to the preflight scoring engine for your prompts.",
-    "model": "qwen3.6:35b",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 15770,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "Understood. The recommendations have been integrated into the preflight scoring engine.",
-    "runSummary": {
-      "intent": "I added those recommendations to the preflight scoring engine for your prompts.",
-      "actionsTaken": [],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 5,
-    "promptPreflightCriticalCount": 2
-  },
-  {
-    "timestampUtc": "2026-08-10T17:24:43.4646988+00:00",
-    "status": "error",
-    "outcome": "llm-failure",
-    "prompt": "What is the current weather in Green Bay Wisconsin?",
-    "model": "MAI-Code-1-Flash",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 2091,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022The model \u0060MAI-Code-1-Flash\u0060 does not exist or you do not have access to it.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022model_not_found\u0022\n    }\n}",
-    "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022The model \u0060MAI-Code-1-Flash\u0060 does not exist or you do not have access to it.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022model_not_found\u0022\n    }\n}",
-    "runSummary": {
-      "intent": "What is the current weather in Green Bay Wisconsin?",
-      "actionsTaken": [],
-      "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022The model \u0060MAI-Code-1-Flash\u0060 does not exist or you do not have access to it.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022model_not_found\u0022\n    }\n}",
-      "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 5,
-    "promptPreflightCriticalCount": 2
-  },
-  {
-    "timestampUtc": "2026-08-10T17:25:10.8096078+00:00",
-    "status": "error",
-    "outcome": "llm-failure",
-    "prompt": "What is the current weather in Green Bay Wisconsin?",
-    "model": "GPT-5-mini",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 954,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022The model \u0060GPT-5-mini\u0060 does not exist or you do not have access to it.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022model_not_found\u0022\n    }\n}",
-    "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022The model \u0060GPT-5-mini\u0060 does not exist or you do not have access to it.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022model_not_found\u0022\n    }\n}",
-    "runSummary": {
-      "intent": "What is the current weather in Green Bay Wisconsin?",
-      "actionsTaken": [],
-      "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: NotFound - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022The model \u0060GPT-5-mini\u0060 does not exist or you do not have access to it.\u0022,\n        \u0022type\u0022: \u0022invalid_request_error\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022model_not_found\u0022\n    }\n}",
-      "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 5,
-    "promptPreflightCriticalCount": 2
-  },
-  {
     "timestampUtc": "2026-08-10T17:26:42.5877469+00:00",
     "status": "error",
     "outcome": "llm-failure",
@@ -8299,6 +8210,117 @@
       "get_noaa_forecast"
     ],
     "outputPreview": "## Tomorrow\u0027s Weather Forecast for Green Bay, Wisconsin (ZIP: 54301)\n\n**Forecast Periods:**\n- **Period**: Today through tomorrow night\n- **Conditions**: The forecast indicates a mix of sun and clouds with possible rain showers.\n- **High Temperature**: Expected to be around 72\u00B0F (22\u00B0C).\n- **Low Temperature**: Dropping to approximately 58\u00B0F (14\u00B0C) overnight.\n- **Wind**: Winds from the southwest at 6 to 10 mph, gusting up to 15 mph.\n\n**Summary:**\nExpect partly cloudy skies with a chance of scattered rain showers. Temperatures will remain mild throughout the day and night.",
+    "runSummary": {
+      "intent": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
+      "actionsTaken": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 1
+  },
+  {
+    "timestampUtc": "2026-08-25T22:52:11.8248825+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
+    "model": "qwen3.5:9b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 24255,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 3,
+    "toolNames": [
+      "search_web",
+      "get_noaa_forecast",
+      "get_noaa_forecast"
+    ],
+    "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\n**Forecast Period:** Tomorrow\n\nThe forecast data has been retrieved from NOAA. Please note that the specific details of the weather conditions (such as temperature, precipitation chance, and wind) were not included in the tool response due to a loop guard mechanism triggered by repeated equivalent results.\n\nTo get the detailed forecast for tomorrow in Green Bay, WI (ZIP 54301), you may need to check a local weather service or website directly.",
+    "runSummary": {
+      "intent": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
+      "actionsTaken": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 60,
+    "promptPreflightWarningCount": 2,
+    "promptPreflightCriticalCount": 1
+  },
+  {
+    "timestampUtc": "2026-08-25T22:56:12.4103623+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please look at your most recent output file located here: C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260825_175145_34452.md. Plan why this run did not succeed and recommend steps to take to resolve the NOAA data. Is the loop guard the root cause?",
+    "model": "qwen3.5:9b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 19974,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 4,
+    "toolNames": [
+      "read_file",
+      "get_noaa_forecast",
+      "search_web",
+      "fetch_url"
+    ],
+    "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\n**Location:** Green Bay, WI (ZIP: 54301)\n**Forecast Period:** Tomorrow\n\nThe previous run failed due to a **loop guard mechanism** triggered by repeated equivalent results from the \u0060GET-NOAA-FORECAST\u0060 tool when using coordinates instead of a ZIP code. The NOAA API requires a valid points lookup that includes a forecast URL, which is not always returned for coordinate-based queries.\n\n### Root Cause Analysis:\n1. **Loop Guard Triggered:** The first attempt used latitude/longitude (\u006044.51916,-88.01983\u0060) instead of a 5-digit ZIP code. This often results in no forecast URL being returned by the NOAA API, causing the tool to fail or return incomplete data.\n2. **Repeated Equivalent Results:** The loop guard was activated because multiple attempts with coordinates produced equivalent (empty/incomplete) responses, leading to premature termination before successful retrieval.\n\n### Resolution Steps Taken:\n1. Used \u0060SEARCH-WEB\u0060 to confirm Green Bay\u0027s ZIP code (\u006054301\u0060).\n2. Attempted \u0060GET-NOAA-FORECAST\u0060 again with the correct ZIP code but still failed due to coordinate-based lookup issues.\n3. Fetched the official NWS HTML page via \u0060FETCH-URL\u0060 as a fallback, which contains the forecast data in human-readable format.\n\n### Recommendation:\nFor future NOAA weather requests:\n- Always use a **5-digit US ZIP code** (e.g., \u0060zipCode=\u002254301\u0022\u0060) instead of coordinates when calling \u0060GET-NOAA-FORECAST\u0060.\n- If the tool fails repeatedly, fall back to fetching the official NWS HTML page via \u0060FETCH-URL\u0060 and parse the relevant sections manually if needed.\n\n**Note:** The detailed forecast data (temperature, precipitation chance, wind) was not extracted from the fetched HTML in this run due to truncation limits. To get full details, consider using a dedicated weather parsing tool or scraping additional pages.",
+    "runSummary": {
+      "intent": "Please look at your most recent output file located here: C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260825_175145_34452.md. Plan why this run did not succeed and recommend steps to take to re...",
+      "actionsTaken": [
+        "read_file",
+        "get_noaa_forecast",
+        "search_web",
+        "fetch_url"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 80,
+    "promptPreflightWarningCount": 1,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-25T23:03:52.3026161+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
+    "model": "qwen3.5:9b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 20029,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 3,
+    "toolNames": [
+      "search_web",
+      "get_noaa_forecast",
+      "get_noaa_forecast"
+    ],
+    "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\n**Date:** August 26, 2026 (Tomorrow)\n\n| Period | Time | Temperature | Conditions |\n| :--- | :--- | :--- | :--- |\n| Morning | AM | ~75\u00B0F | Mostly Sunny |\n| Afternoon | PM | ~83\u00B0F | Partly Cloudy |\n| Evening | E | ~69\u00B0F | Clear |\n\n**Additional Details:**\n- **High:** 83\u00B0F (28\u00B0C)\n- **Low:** 69\u00B0F (21\u00B0C)\n- **Wind:** Light winds from the southwest at 5 to 10 mph.\n- **Precipitation Chance:** Less than 10%.",
     "runSummary": {
       "intent": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
       "actionsTaken": [
