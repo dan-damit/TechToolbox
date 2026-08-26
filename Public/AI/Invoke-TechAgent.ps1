@@ -1911,8 +1911,77 @@ Hard requirement:
     $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $request = Get-Content -LiteralPath $env:TT_AGENT_REQUEST_PATH -Raw | ConvertFrom-Json
-Add-Type -Path $env:TT_AGENT_ASSEMBLY_PATH -ErrorAction Stop
-$result = [TechToolbox.Agent.Core.AgentCore]::RunAgent(
+$agentAssemblyPath = [System.IO.Path]::GetFullPath([string]$env:TT_AGENT_ASSEMBLY_PATH)
+if (-not (Test-Path -LiteralPath $agentAssemblyPath -PathType Leaf)) {
+    throw ("TechToolbox.Agent assembly not found at '{0}'." -f $agentAssemblyPath)
+}
+
+$loadedAgentAssembly = [System.Reflection.Assembly]::LoadFrom($agentAssemblyPath)
+$agentCoreType = $loadedAgentAssembly.GetType('TechToolbox.Agent.Core.AgentCore', $false)
+if ($null -eq $agentCoreType) {
+    throw ("Unable to locate type 'TechToolbox.Agent.Core.AgentCore' in assembly '{0}'." -f $agentAssemblyPath)
+}
+
+$runAgentMethod = $agentCoreType.GetMethod(
+    'RunAgent',
+    [System.Reflection.BindingFlags]::Public -bor [System.Reflection.BindingFlags]::Static,
+    $null,
+    @(
+        [string],
+        [string],
+        [bool],
+        [int],
+        [bool],
+        [string],
+        [bool],
+        [bool],
+        [string],
+        [string],
+        [string],
+        [int],
+        [System.Collections.Generic.IEnumerable[string]],
+        [string],
+        [string],
+        [string],
+        [string],
+        [string],
+        [string],
+        [int],
+        [bool],
+        [string],
+        [string],
+        [string],
+        [string],
+        [string],
+        [string],
+        [string],
+        [string],
+        [string],
+        [bool],
+        [int],
+        [int],
+        [int],
+        [string],
+        [string],
+        [string]
+    ),
+    $null
+)
+
+if ($null -eq $runAgentMethod) {
+    throw "Unable to locate the legacy RunAgent overload with the expected parameter signature."
+}
+
+$allowedFetchHosts = [string[]]@()
+if ($null -ne $request.AllowedFetchHosts) {
+    $allowedFetchHosts = @($request.AllowedFetchHosts | ForEach-Object {
+            if ($null -ne $_) {
+                [string]$_
+            }
+        })
+}
+
+$result = $runAgentMethod.Invoke($null, @(
     [string]$request.Prompt,
     [string]$request.Model,
     [bool]$request.Verbose,
@@ -1925,7 +1994,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent(
     [string]$request.DiagnosticTracePath,
     [string]$request.ExpectedOutputPath,
     [int]$request.PromptHistoryItems,
-    [string[]]$request.AllowedFetchHosts,
+    [string[]]$allowedFetchHosts,
     [string]$request.SearchWebProvider,
     [string]$request.SearchWebEndpoint,
     [string]$request.SearchWebApiKeyEnvVar,
@@ -1949,7 +2018,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent(
     [int]$request.PromptPreflightCriticalCount,
     [string]$request.RuntimeProfile,
     [string]$request.RuntimeProfilesJson,
-    [string]$request.ResiliencePolicyJson)
+    [string]$request.ResiliencePolicyJson
+))
 [Console]::Write($result)
 '@
 
@@ -2270,8 +2340,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBm/xEmkm0IhKWu
-# mNyHB4/Bphj6iPN7cB5El0dBUyRx/qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAYVLeJnupts4N2
+# sgAAVLtODoc08s8Drt7shN88GUtMR6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2404,34 +2474,34 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAtqc0OtB/n
-# xyA3YsMZhqeCrrXGsLg6o494Fh5V0T3mCjANBgkqhkiG9w0BAQEFAASCAgCmeF9t
-# 8Z1BXzpXEP0P0eoDfyx1qRthPF7tw84aJznOdM3+WZHF3+28GoZAzgPh8fzWO2/6
-# w8ZYvQv46WGUiZ9k7oGzj0ftru1aNS3+skSMhq86lpUsPRxMHE7+o1CqwOgPmvO+
-# G2KIuPLpaAxbb4b9KT5EbVUlZ4AYO8xSWSqaJp86cqns7fSkvUYMdE64iQ+nQ0n4
-# bAiNQpOCgmvk/Ng3BoQSsezzlRBzeW4auJ4emmyJmy2uhYJhV66tPcqZKFuHK7I7
-# THQP2T83VZcA6MDoD99WpDt+WYTpd+fmcLfzhp+uqnX3iYr3NZyzpeQKcV68nea1
-# oEdOgN/MUJ3qPQpm7gpjlOJqhQjvnq7kmVRWoieL+GcaZ/NxPNO0mk5W0XUBm7bH
-# vxIC0AV4MDbyjfSGzRyoBgvPyUEvsk5ajFpob523zZejDNgX7JEzcC3vxwkKo8xR
-# 09CNUfjWAhe0eMN7H41mBZCh/naqjJhIt9xxLeO3RiPR73LRJuX07LquSRCVJJFB
-# SioNgYK04T4clor3XK7xO4K4IXIy8+zLMvKSdVuIXZi2ZP0PhHiSkfErM5Jy+rnf
-# qRVdeBF9bla4/uLTHYXeLAgT/qAViL0DjapIg7MS1ougNZLvjpoe9ir6jjdtnjOo
-# vwgSENR6TLDtd2Pnqelte170z+l6U+N0v5HRpqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCUOGGXFCWr
+# On0KRBh/W6Wxz0CG9XNa2sw1zFK99H8TlTANBgkqhkiG9w0BAQEFAASCAgC1exmI
+# Hv0pMDV2m6JmFeI2/ICmEmFCR7FWiG+E4JvDBfXSRyOhpxebldOS9+Hx6GApv5wM
+# 8aQwzy2UK4ogX4iZu1uWRtpHyujm2QsGFYhfl4dwNq+3lEycARG7e2wtZQX4KU7t
+# hXlc20Mngy4fgdYvxvTSRKh6zxQPOx2mtxTAie66+haY8arB9Hkfb3pUQIynS/a5
+# 603JaRlRYHFY0hBBw3EUWnPe7huRPCHzKpHFSi62KtPDp/Fl7CcH1HglWf3dEYlP
+# HogRM76+tFmBPz0WDIIGbJxPDe+cVrIeFHKe8/KKYHM82Fgaw0XfAPc/wyAWDUvL
+# /gEQqKlZaUCVB9/d2Cd8f+Pvgk4k60HJZHp/BDBTk0X4rYrrCwlAThA5ehhGXJeU
+# nIbhodn1RdsEHAOleDWU54YSXfwrQUBMzc/MPiqthYvoSJ14pFjvS+jLIpDD8Cuh
+# +o2zXC1yUDytzZRPFP8+jrN36a4z3OJOOtj9+JICFFKZEf6M7lAwcA5ykVXYlD6Z
+# ffAtjVRxrlL+wNMtGWU1XbG+R5mRFnJjYBMRf2ZKGhKdROr0zdKiVqHOxMP2uAQa
+# 8FLubV2rLA4DPimLmTH58ZAUMvFDCRGypoIUNNahGmwVaBlYCCsEmVbmzDDzgyni
+# dQjyTH+dRuk3h95iL0ivVj/K9/xnDdXO3oOGO6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MjQwMzQ4MTVaMC8GCSqGSIb3DQEJBDEiBCBbG5cHL6ltMeV374HK
-# T1b6DhhPh7wP5Z9IfZMCSzkM8jANBgkqhkiG9w0BAQEFAASCAgBT4IPWlt6JQaC1
-# Clwj3Wf1sq8CfO8rQMtkHbc+4RNeifMcpvXFJ2DP1b/MZ+CuYN70rw5IvJFkL8sb
-# xUGCaOsk9Lq64VJ30Ius4Wqa3BQ9fxQxfRWj+uUpnz46vok98uRg+9yqw9xlMrwS
-# uvyPtajk1k0dFcQvn3kk4kZRlgyyPNL5uLVIsrlVQYyH/2z7zkWHWYVx4qZBinIW
-# xKUBa0ebn7lT/Sg6eSOZVWzZyfFPCKRQYVyQ0GNehH3MphbTF41jHfwGT2uCPT1K
-# ZSJBghXJXG14XDbAf8Ou6yIbEFc1vFgqt9ouFh2f4KPYzPv8FIxQ7+MPyeX3n1KX
-# tIxOtA/NmiY1Kk4uKrvCmlZOm1hE1Ghx0mawL/lRCtL1R01Xeh8yM9tnrH9vmHAZ
-# PLe2HeLZgwXDqxWr0XOfwUw1SawJolhj3vofxTn6iJyQOZLuak4t++fyK5mZB7dg
-# NaG4FrMxsxq0DJszr3Swagcbb6ZQ3wjFshS1PAjRuan2feMhWzzAo+13oGWPXaMr
-# EDrTHRsJLp/Jn9GkxKlxFmMEHOqw227mRzuKuVxA4YATX+kd0CTtE0fMAsluq5v3
-# 86/bnp2zaAaCkjd9UOfH7PDovkjFaKe2G07scOYIKLWD52RxxIJQYv/VMOwOqEDI
-# xk+R3YSrIEyMuQLJm+Upj7sZmK+fgg==
+# BTEPFw0yNjA4MjYyMTE4NDlaMC8GCSqGSIb3DQEJBDEiBCCsJoW0QaVgsszrSv5f
+# R41KKKaX/z+P0jJkIDxKFRd4oTANBgkqhkiG9w0BAQEFAASCAgBNYldOCR2N67U+
+# 4snvRSQU54Lm5fXvi59P9+NXvkuQcReu3R1ZudAKE07QpMi5QqHcQ9fYBznalx46
+# NeDKyQQiYwmG86VYkKi/c6UFvS4BNoJhYVd4UZ4XNPxdhQ1U4jsksMEBpxP28g2T
+# RthyYeiCA6ehFYkfyht5reI1b2Oh/iE43Z+y1uu7mp+UrUYHxL6TYM7c/5sNBkJ2
+# ++aHTiFu4vY3yKMNcFFTVCyZxkNNBBfQjYnT1TnmyHOB8u4F2mOhHITz1VB8QUVw
+# Woj2piDuPkevvzNELTjMrU048qn9D37OOHBvAo+6rxBMtYROVXKjTy299Hi4Z771
+# zTnYlO5ZtPOm/mAbC1TMevvqHfYYWMt1gpQAKH/rDzZ5YwPbbWYX7rtKqBZESjmz
+# X/W3CrFUdExHXCTUkjkWApRPG6wlPwOeRL4lt6KPHwZPJdAVxieytQjb/xkUl3zw
+# 9721ehKhxotJZ/aatxeP9vqgKQXl+0OPjO+nR43E8cdwL0LNFvvtiHmDHjs8UmTN
+# KTqAu/7/TotUeAcucfhOBUqPP8gpPHaqBRN/aFpdhp67RyitzB3oI4sMJHk0i3RJ
+# X+uDOkDiXyL5bHN390X46TtxayDE3B8T2eyBPBS2RlBs3w9Hl1ySChifTMt/ny+r
+# h4+Za6NSG6n2Das6lNWrPJeL6Bi+oQ==
 # SIG # End signature block
