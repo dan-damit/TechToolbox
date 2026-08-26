@@ -125,6 +125,18 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Test-TechAgentProvider | Validate LLM provider configuration and optional live connectivity test. | |
 | Use-TechAgentTaskTemplate | List, filter, preview, pick, open, or copy reusable TechAgent task templates. | Interactive |
 
+### TechAgent NOAA Payload Diagnostics
+
+Use this when you need schema/key-shape visibility for NOAA payloads without printing full raw JSON.
+
+Example prompt:
+
+```powershell
+Invoke-TechAgent -Mode execute -Prompt "Call GET-NOAA-FORECAST with toolArgs {\"zipCode\":\"54914\",\"includePayloadShape\":true} and return the payloadShape object only."
+```
+
+The `payloadShape` block includes points/forecast top-level keys, `properties` keys, first-period keys, and period count.
+
 ---
 
 ## Maintainer Note
