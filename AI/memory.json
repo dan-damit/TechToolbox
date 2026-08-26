@@ -17,23 +17,23 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.9,
-      "avgDurationMs": 21208,
-      "avgToolCalls": 2.55,
+      "successRate": 0.95,
+      "avgDurationMs": 16671,
+      "avgToolCalls": 2.5,
       "statusCounts": {
-        "success": 18,
-        "error": 2
+        "success": 19,
+        "error": 1
       },
       "outcomeCounts": {
-        "completed": 18,
-        "iteration-limit": 2
+        "completed": 19,
+        "iteration-limit": 1
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "gpt-5.3-codex",
-      "lastRunTimestampUtc": "2026-08-26T21:22:12.9447959\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-26T21:22:13.0213785\u002B00:00",
-      "avgPromptPreflightScore": 65,
+      "lastModel": "gpt-5.4-nano",
+      "lastRunTimestampUtc": "2026-08-26T21:28:51.0401843\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-26T21:28:51.0412089\u002B00:00",
+      "avgPromptPreflightScore": 63,
       "executionModeCounts": {
         "execute": 19,
         "chat": 1
@@ -49,17 +49,17 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-26T21:22:13.0213933\u002B00:00",
-      "totalPreferences": 2,
+      "generatedUtc": "2026-08-26T21:28:51.0412320\u002B00:00",
+      "totalPreferences": 0,
       "totalFacts": 12,
-      "indexEntries": 15,
-      "averageConfidence": 0.808,
+      "indexEntries": 0,
+      "averageConfidence": 0,
       "deprecatedEntries": 0,
-      "health": "healthy",
+      "health": "low",
       "notes": [
-        "Preferences tracked: 2",
+        "Preferences tracked: 0",
         "Facts tracked: 12",
-        "Index entries: 15"
+        "Index entries: 0"
       ]
     },
     "fact.c-repos-techtoolbox-src-techtoolbox.30d77850": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Your objective is to determine whether the agent currently supports the  OpenAI GPT-5.3-Codex reasoning effort settings:        low      medium      high",
@@ -72,70 +72,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.70b44438": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-24T22:56:35.7396098+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 20886,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "get_noaa_forecast",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\n**Location:** Green Bay, WI (44.51916\u00B0 N, -88.01983\u00B0 W)\n\n*Note: The automated weather service returned a generic or unavailable forecast payload for this location on the specified date.*\n\n-\u003E Please check a local news station or another weather provider for real-time conditions in Green Bay.",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-24T23:13:30.0148887+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 74896,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 30).",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB -\u003E SEARCH-WEB\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 30).",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 30\r\n- max_iterations requested: 30\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-24T23:31:32.579151+00:00",
       "status": "success",
@@ -775,269 +711,83 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-26T21:28:14.2474847+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "What is the weather going to be like tomorrow in Green Bay, Wisconsin? Output the results into console in markdown.",
+      "model": "gpt-5.4-nano",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 1762,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
+      "runSummary": {
+        "intent": "What is the weather going to be like tomorrow in Green Bay, Wisconsin? Output the results into console in markdown.",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-26T21:28:51.0401843+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather for tomorrow in Green Bay, Wisconsin? Output the results into console in markdown.",
+      "model": "gpt-5.4-nano",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 3289,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "search_web"
+      ],
+      "outputPreview": "## Blocked: cannot look up ZIP code\n\nThe web search tool failed because it requires an API key environment variable:\n- \u0060TT_AGENT_SEARCH_WEB_API_KEY\u0060\n\n## What I need next\n- Set \u0060TT_AGENT_SEARCH_WEB_API_KEY\u0060 in the environment where this agent runs, then I can search for the nearest 5-digit ZIP code and call the NOAA forecast tool.\n\n## Next best action (alternative)\n- Tell me the 5-digit ZIP code for Green Bay, WI you want to use (e.g., \u006054301\u0060). Then I can call the NOAA forecast tool directly without web search.",
+      "runSummary": {
+        "intent": "Please check the weather for tomorrow in Green Bay, Wisconsin? Output the results into console in markdown.",
+        "actionsTaken": [
+          "search_web"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
     }
   ],
-  "memoryIndex": {
-    "REPLACE-IN-FILE": {
-      "keyword": "REPLACE-IN-FILE",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999880851,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0212200\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "for": {
-      "keyword": "for",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999948921,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0212907\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "localized": {
-      "keyword": "localized",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999949135,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0212913\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "edits": {
-      "keyword": "edits",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999949243,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0212916\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "this": {
-      "keyword": "this",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999950425,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0212930\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "existing": {
-      "keyword": "existing",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999950425,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0212933\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "not": {
-      "keyword": "not",
-      "value": "Do not stop after analysis",
-      "sourceType": "preference",
-      "confidence": 0.779999999995677,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0212998\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "stop",
-        "after",
-        "analysis"
-      ]
-    },
-    "stop": {
-      "keyword": "stop",
-      "value": "Do not stop after analysis",
-      "sourceType": "preference",
-      "confidence": 0.779999999995677,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0213001\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "stop",
-        "after",
-        "analysis"
-      ]
-    },
-    "after": {
-      "keyword": "after",
-      "value": "Do not stop after analysis",
-      "sourceType": "preference",
-      "confidence": 0.7799999999956878,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0213005\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "stop",
-        "after",
-        "analysis"
-      ]
-    },
-    "analysis": {
-      "keyword": "analysis",
-      "value": "Do not stop after analysis",
-      "sourceType": "preference",
-      "confidence": 0.7799999999956878,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0213008\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "stop",
-        "after",
-        "analysis"
-      ]
-    },
-    "repos": {
-      "keyword": "repos",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "fact",
-      "confidence": 0.8299999999973223,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0213178\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Llm"
-      ]
-    },
-    "TechToolbox": {
-      "keyword": "TechToolbox",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "fact",
-      "confidence": 0.9999999999969531,
-      "frequency": 2,
-      "lastSeenUtc": "2026-08-26T21:22:13.0213193\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Llm"
-      ]
-    },
-    "src": {
-      "keyword": "src",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "fact",
-      "confidence": 0.8299999999973338,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0213184\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Llm"
-      ]
-    },
-    "Agent": {
-      "keyword": "Agent",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "fact",
-      "confidence": 0.8299999999974482,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0213197\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Llm"
-      ]
-    },
-    "Llm": {
-      "keyword": "Llm",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "fact",
-      "confidence": 0.8299999999974597,
-      "frequency": 1,
-      "lastSeenUtc": "2026-08-26T21:22:13.0213200\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Llm"
-      ]
-    }
-  },
+  "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-26T21:22:13.0214013\u002B00:00",
-    "totalPreferences": 2,
+    "generatedUtc": "2026-08-26T21:28:51.0412397\u002B00:00",
+    "totalPreferences": 0,
     "totalFacts": 12,
-    "indexEntries": 15,
-    "averageConfidence": 0.808,
+    "indexEntries": 0,
+    "averageConfidence": 0,
     "deprecatedEntries": 0,
-    "health": "healthy",
+    "health": "low",
     "notes": [
-      "Preferences tracked: 2",
+      "Preferences tracked: 0",
       "Facts tracked: 12",
-      "Index entries: 15"
+      "Index entries: 0"
     ]
   },
   "_memoryFormatVersion": 2
