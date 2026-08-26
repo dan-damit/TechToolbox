@@ -1,79 +1,17 @@
-Your task is to implement full support for OpenAI GPT-5.3-Codex reasoning
-effort modes in the TechToolbox.Agent codebase.
+Primary input file:
+C:\repos\TechToolbox\src\TechToolbox.Agent\Llm\LlmClientFactory.cs
 
-Target directory:
-C:\repos\TechToolbox\src\TechToolbox.Agent
+Task:
+Add or improve XML documentation comments for every public type, public constructor, and public method in this file.
 
-Reasoning effort modes to support:
-    low
-    medium
-    high
-    xhigh
-
-These correspond to the "reasoning.effort" field in the /v1/responses API.
-
-You MUST perform the following actions:
-
-1. Modify AgentConfiguration.cs to add:
-   - ReasoningEffortOverride (string? or enum)
-   - EnableReasoningEffortAuto (bool)
-   - EffectiveReasoningEffort (string? or enum)
-
-2. Modify the PowerShell/CLI parameter ingestion layer so the user may
-   specify:
-   - -ReasoningEffort <low|medium|high|xhigh>
-   - -ReasoningEffortAuto (switch)
-
-3. Implement a new policy method in AgentOrchestrator.cs:
-   ResolveReasoningEffort(AgentConfiguration config)
-   This method must:
-   - Respect explicit override
-   - Use auto mode when override is absent
-   - Map preflight score to effort level
-   - Optionally incorporate ThinkingMode
-   - Store the final value in config.EffectiveReasoningEffort
-
-4. Modify OpenAiCompatibleLlmClient.cs so that the Responses API payload
-   includes:
-       reasoning: { effort: "<value>" }
-   ONLY when provider=openai AND model=gpt-5.3-codex AND effort is non-null.
-
-5. Ensure the reasoning effort value is threaded through the entire call
-   chain:
-   - AgentOrchestrator → LLM client → BuildPayload → SendRequestAsync
-
-6. Add diagnostics:
-   - Selected reasoning effort
-   - Whether override or auto was used
-   - Whether the field was emitted to the payload
-
-7. Add guardrails:
-   - If provider/model does not support reasoning effort, omit the field
-     and log a diagnostic.
-
-8. For EVERY file you modify, you MUST output a WRITE-FILE block with:
-   - The full absolute path
-   - The complete updated file contents
-   - No placeholders
-   - No partial patches
-   - No diff format
-   - The entire file rewritten exactly as it should exist on disk
-
-   Example format:
-   WRITE-FILE
-   Path: C:\repos\TechToolbox\src\TechToolbox.Agent\Configuration\AgentConfiguration.cs
-   <full updated file contents here>
-
-9. After all WRITE-FILE blocks, output a final markdown summary describing:
-   - All files modified
-   - All new fields added
-   - The reasoning-effort policy
-   - The payload changes
-   - Any new parameters
-   - Any new diagnostics
-   - Confirmation that GPT-5.3-Codex reasoning effort is now implemented.
-
-This task is complete only when:
-- All modified files have been emitted via WRITE-FILE blocks
-- The codebase is fully updated
-- The markdown summary reflects the completed implementation
+Requirements:
+- Update this exact file in place:
+  C:\repos\TechToolbox\src\TechToolbox.Agent\Llm\LlmClientFactory.cs
+- Preserve all existing code and behavior.
+- Only add or improve XML documentation comments.
+- Prefer REPLACE-IN-FILE for localized edits to this existing file.
+- Use WRITE-FILE only if a localized replacement is not practical.
+- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file update has succeeded.

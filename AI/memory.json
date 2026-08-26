@@ -1,7 +1,5 @@
 {
   "preferences": {
-    "pref.do-not-use-markdown-formatting-unles.14f6bb67": "Do not use markdown formatting unless the existing help files in that directory already do",
-    "pref.do-not-return-a-final-answer-until-w.b3d117d2": "Do not return a final answer until WRITE-FILE has succeeded",
     "pref.that-fetch-tool-or-search-web-to-gat.40b12d78": "that FETCH-TOOL or SEARCH-WEB to gather results",
     "pref.search-web-and-fetch-url-over-memory.368df598": "SEARCH-WEB and FETCH-URL over memory-based answers when the user asks a factual, informational, or external question",
     "pref.search-web-and-fetch-url-when-the-us.a4283bfc": "SEARCH-WEB and FETCH-URL when the user",
@@ -11,36 +9,37 @@
     "pref.do-not-touch-any-other-accounts.715c302d": "Do not touch any other accounts",
     "pref.do-not-touch-any-other-user.8c32fb32": "Do not touch any other user",
     "pref.do-not-modify-any-user.f9f23aea": "Do not modify any user",
-    "pref.the-internet-if-you-need-to-to-find.28873cdf": "the internet if you need to to find the answer"
+    "pref.the-internet-if-you-need-to-to-find.28873cdf": "the internet if you need to to find the answer",
+    "pref.replace-in-file-for-localized-edits.728edb4e": "REPLACE-IN-FILE for localized edits to this existing file",
+    "pref.do-not-stop-after-analysis.8d0a7598": "Do not stop after analysis"
   },
   "facts": {
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.95,
-      "avgDurationMs": 25865,
-      "avgToolCalls": 3.1,
+      "successRate": 0.9,
+      "avgDurationMs": 21208,
+      "avgToolCalls": 2.55,
       "statusCounts": {
-        "success": 19,
-        "error": 1
+        "success": 18,
+        "error": 2
       },
       "outcomeCounts": {
-        "completed": 19,
-        "iteration-limit": 1
+        "completed": 18,
+        "iteration-limit": 2
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "qwen3.5:9b",
-      "lastRunTimestampUtc": "2026-08-26T00:02:48.7888200\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-26T00:02:48.7898685\u002B00:00",
-      "avgPromptPreflightScore": 58,
+      "lastModel": "gpt-5.3-codex",
+      "lastRunTimestampUtc": "2026-08-26T21:22:12.9447959\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-26T21:22:13.0213785\u002B00:00",
+      "avgPromptPreflightScore": 65,
       "executionModeCounts": {
-        "chat": 2,
-        "execute": 18
+        "execute": 19,
+        "chat": 1
       },
       "outputContractCounts": {
-        "markdown": 19,
-        "plain-text": 1
+        "markdown": 20
       },
       "qualityProfileCounts": {
         "balanced": 20
@@ -50,17 +49,17 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-26T00:02:48.7898871\u002B00:00",
-      "totalPreferences": 0,
-      "totalFacts": 11,
-      "indexEntries": 0,
-      "averageConfidence": 0,
+      "generatedUtc": "2026-08-26T21:22:13.0213933\u002B00:00",
+      "totalPreferences": 2,
+      "totalFacts": 12,
+      "indexEntries": 15,
+      "averageConfidence": 0.808,
       "deprecatedEntries": 0,
-      "health": "low",
+      "health": "healthy",
       "notes": [
-        "Preferences tracked: 0",
-        "Facts tracked: 11",
-        "Index entries: 0"
+        "Preferences tracked: 2",
+        "Facts tracked: 12",
+        "Index entries: 15"
       ]
     },
     "fact.c-repos-techtoolbox-src-techtoolbox.30d77850": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Your objective is to determine whether the agent currently supports the  OpenAI GPT-5.3-Codex reasoning effort settings:        low      medium      high",
@@ -69,85 +68,10 @@
     "fact.tool-usage-powershell.a0d62039": "tool usage: PowerShell",
     "fact.tool-usage-without.0330bfdf": "tool usage: without",
     "fact.tool-usage-for.64540e90": "tool usage: for",
-    "fact.tool-usage-latitude.2621c89d": "tool usage: latitude"
+    "fact.tool-usage-latitude.2621c89d": "tool usage: latitude",
+    "fact.c-repos-techtoolbox-src-techtoolbox.70b44438": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-24T03:40:57.6701426+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 147160,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 14,
-      "toolNames": [
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "search_web",
-        "fetch_url",
-        "fetch_url",
-        "fetch_url",
-        "search_web",
-        "fetch_url"
-      ],
-      "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\n**Date:** August 24, 2026 (Tomorrow)\n\nBased on the National Weather Service data and typical late-August conditions:\n\n### Expected Conditions\n- **High Temperature:** Approximately 78\u00B0F - 82\u00B0F (25\u00B0C - 28\u00B0C)\n- **Low Temperature:** Around 58\u00B0F - 62\u00B0F (14\u00B0C - 17\u00B0C)\n- **Sky Condition:** Mostly sunny to partly cloudy\n- **Precipitation Chance:** Low, around 10%\n- **Wind:** Light winds from the southwest at 5-10 mph\n- **Humidity:** Moderate levels typical for late summer in Wisconsin\n\n### Summary\nExpect pleasant and comfortable weather conditions tomorrow. The forecast suggests clear to partly cloudy skies with warm daytime temperatures ideal for outdoor activities, though evening cooling will bring milder nighttime conditions.\n\n*Note: This is based on historical patterns and available NWS data. For real-time updates, check the National Weather Service Green Bay office at https://www.weather.gov/grb/*",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "fetch_url"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-24T03:41:39.5599764+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Respond with exactly: ok",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 5726,
-      "maxIterations": 2,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "ok",
-      "runSummary": {
-        "intent": "Respond with exactly: ok",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "plain-text",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-24T22:56:35.7396098+00:00",
       "status": "success",
@@ -785,21 +709,335 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-26T21:19:36.2828875+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-5.3-codex",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 36069,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: FETCH-URL -\u003E FETCH-URL -\u003E SEARCH-WEB\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: FETCH-URL -\u003E FETCH-URL -\u003E SEARCH-WEB\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRe...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-26T21:22:12.9447959+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-5.3-codex",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 23666,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "toolNames": [
+        "read_file",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "## Update complete\n\nAdded and improved XML documentation comments in:\n- C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\n\nChanges made:\n- Kept existing class-level XML summary for \u0060LlmClientFactory\u0060.\n- Improved \u0060Create(...)\u0060 documentation by adding a \u0060\u003Cparam\u003E\u0060 entry for \u0060prompt\u0060.\n- Added full XML documentation for public method \u0060SelectModelForPrompt(...)\u0060, including:\n  - \u0060\u003Csummary\u003E\u0060\n  - \u0060\u003Cparam\u003E\u0060 entries for all parameters\n  - \u0060\u003Creturns\u003E\u0060\n\nNo code logic or behavior was changed; only XML documentation comments were updated.",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRe...",
+        "actionsTaken": [
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
-  "memoryIndex": {},
+  "memoryIndex": {
+    "REPLACE-IN-FILE": {
+      "keyword": "REPLACE-IN-FILE",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999880851,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0212200\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "for": {
+      "keyword": "for",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999948921,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0212907\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "localized": {
+      "keyword": "localized",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999949135,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0212913\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "edits": {
+      "keyword": "edits",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999949243,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0212916\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "this": {
+      "keyword": "this",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999950425,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0212930\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "existing": {
+      "keyword": "existing",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999950425,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0212933\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "not": {
+      "keyword": "not",
+      "value": "Do not stop after analysis",
+      "sourceType": "preference",
+      "confidence": 0.779999999995677,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0212998\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "stop",
+        "after",
+        "analysis"
+      ]
+    },
+    "stop": {
+      "keyword": "stop",
+      "value": "Do not stop after analysis",
+      "sourceType": "preference",
+      "confidence": 0.779999999995677,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0213001\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "stop",
+        "after",
+        "analysis"
+      ]
+    },
+    "after": {
+      "keyword": "after",
+      "value": "Do not stop after analysis",
+      "sourceType": "preference",
+      "confidence": 0.7799999999956878,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0213005\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "stop",
+        "after",
+        "analysis"
+      ]
+    },
+    "analysis": {
+      "keyword": "analysis",
+      "value": "Do not stop after analysis",
+      "sourceType": "preference",
+      "confidence": 0.7799999999956878,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0213008\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "stop",
+        "after",
+        "analysis"
+      ]
+    },
+    "repos": {
+      "keyword": "repos",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999973223,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0213178\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Llm"
+      ]
+    },
+    "TechToolbox": {
+      "keyword": "TechToolbox",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.9999999999969531,
+      "frequency": 2,
+      "lastSeenUtc": "2026-08-26T21:22:13.0213193\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Llm"
+      ]
+    },
+    "src": {
+      "keyword": "src",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999973338,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0213184\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Llm"
+      ]
+    },
+    "Agent": {
+      "keyword": "Agent",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999974482,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0213197\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Llm"
+      ]
+    },
+    "Llm": {
+      "keyword": "Llm",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999974597,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-26T21:22:13.0213200\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Llm"
+      ]
+    }
+  },
   "memoryHealth": {
-    "generatedUtc": "2026-08-26T00:02:48.7899815\u002B00:00",
-    "totalPreferences": 0,
-    "totalFacts": 11,
-    "indexEntries": 0,
-    "averageConfidence": 0,
+    "generatedUtc": "2026-08-26T21:22:13.0214013\u002B00:00",
+    "totalPreferences": 2,
+    "totalFacts": 12,
+    "indexEntries": 15,
+    "averageConfidence": 0.808,
     "deprecatedEntries": 0,
-    "health": "low",
+    "health": "healthy",
     "notes": [
-      "Preferences tracked: 0",
-      "Facts tracked: 11",
-      "Index entries: 0"
+      "Preferences tracked: 2",
+      "Facts tracked: 12",
+      "Index entries: 15"
     ]
   },
   "_memoryFormatVersion": 2
