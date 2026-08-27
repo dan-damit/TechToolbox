@@ -18,8 +18,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.95,
-      "avgDurationMs": 16671,
-      "avgToolCalls": 2.5,
+      "avgDurationMs": 15162,
+      "avgToolCalls": 2.2,
       "statusCounts": {
         "success": 19,
         "error": 1
@@ -31,9 +31,9 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.4-nano",
-      "lastRunTimestampUtc": "2026-08-26T21:28:51.0401843\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-26T21:28:51.0412089\u002B00:00",
-      "avgPromptPreflightScore": 63,
+      "lastRunTimestampUtc": "2026-08-27T02:39:33.8282316\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-27T02:39:33.8294725\u002B00:00",
+      "avgPromptPreflightScore": 59,
       "executionModeCounts": {
         "execute": 19,
         "chat": 1
@@ -49,7 +49,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-26T21:28:51.0412320\u002B00:00",
+      "generatedUtc": "2026-08-27T02:39:33.8294936\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 12,
       "indexEntries": 0,
@@ -72,78 +72,6 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.70b44438": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-24T23:31:32.579151+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 19531,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\n**Location:** Green Bay, WI (ZIP: 54301)\n\n*Note: The forecast data was retrieved successfully but the tool output is not directly visible in this session. Based on typical NOAA forecast structure, the forecast would include daily high/low temperatures and conditions for tomorrow.*\n\nTo view the complete official forecast from NOAA:\n- Visit [weather.gov](https://www.weather.gov)\n- Search for \u0022Green Bay WI\u0022 or use ZIP code 54301",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-24T23:37:08.8136708+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 19171,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather Forecast for Tomorrow in Green Bay, Wisconsin\n\nThe weather forecast tool encountered an issue retrieving the official NOAA forecast data. This could be due to a temporary service interruption or API limitation.\n\n**Alternative Action:**\nTo get accurate weather information, please check one of these sources:\n- Visit [weather.gov](https://www.weather.gov) and search for Green Bay, WI\n- Use a trusted weather app on your device\n- Check local news stations for the latest forecast",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Green Bay, Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-24T23:39:34.8276108+00:00",
       "status": "success",
@@ -773,11 +701,69 @@
       "promptPreflightScore": 40,
       "promptPreflightWarningCount": 3,
       "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-27T02:25:32.5626588+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "I have an Intel Core Ultra 7 265k with 64GB system RAM, and a 5080 Founder\u0027s Edition GPU with 16GB VRAM. What is the most capable model we can run?",
+      "model": "gpt-5.4-nano",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 4018,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Most capable model you can run (practical guidance)\n\nWith your hardware (Core Ultra 7 265K, 64GB system RAM, RTX 5080 FE 16GB VRAM), the limiting factor is usually **GPU VRAM**.\n\n### What you can likely run well\n- **Up to ~7B to 14B parameter models** in 4-bit quantization (often the sweet spot for quality vs. speed).\n- **~13B to 34B** models are sometimes possible with heavier quantization (for example 3-bit/2-bit) and/or offloading to system RAM, but performance and stability vary a lot.\n\n### What is the \u201Cmost capable\u201D in practice\n- The most capable model you can run *reliably* on a 16GB VRAM GPU is typically a **14B-class model in 4-bit**.\n- If you are willing to accept slower inference and more tuning (quantization/offload), you can try a **20B to 34B-class model** with aggressive quantization.\n\n## Quick recommendation (if you want a single answer)\n- Start with a **14B model in 4-bit** as the best \u201Cmost capable\u201D option you can run comfortably.\n\n## One question to pin it down\nWhich runtime are you using (e.g., Ollama, LM Studio, llama.cpp, vLLM, Text Generation WebUI)? The exact \u201Cmost capable\u201D model depends on how that runtime handles quantization and CPU/GPU offloading.",
+      "runSummary": {
+        "intent": "I have an Intel Core Ultra 7 265k with 64GB system RAM, and a 5080 Founder\u0027s Edition GPU with 16GB VRAM. What is the most capable model we can run?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
+    },
+    {
+      "timestampUtc": "2026-08-27T02:39:33.8282316+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "I am going to migrate to phi4-reasoning:14b, deepcoder:14b, and medgemma1.5:4b for local inference. Does this fit the hardware profile better than the 27b model?",
+      "model": "gpt-5.4-nano",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 4509,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Short answer\n- Yes, migrating from a 27B model to smaller models like phi4-reasoning:14B, deepcoder:14B, and medgemma1.5:4B generally fits your hardware profile better, especially for local inference with reasonable latency and memory usage.\n\n## Why it fits better\n- Your system has 64GB RAM and an RTX 5080 with 16GB VRAM.\n- A 27B model is much more likely to exceed what can fit comfortably in 16GB VRAM (depending on quantization), forcing heavier CPU offload and/or lower context/throughput.\n- 14B and 4B models are substantially easier to quantize and run with more of the model resident on GPU, which typically improves speed and reduces the burden on system RAM.\n\n## Practical guidance (what to check)\n- The deciding factor is not just parameter count, but the quantization level (e.g., 4-bit vs 8-bit) and your target context length.\n- If you tell me:\n  - the exact 27B model you were considering (name \u002B intended quantization)\n  - the runtime you plan to use (e.g., Ollama, llama.cpp, vLLM, TensorRT-LLM)\n  - target context length (e.g., 4k, 8k, 16k)\nI can give a more concrete \u201Cwill it fit in VRAM\u201D style recommendation.\n\n## Bottom line\n- For local inference on a 16GB VRAM GPU, moving to 14B/4B models is very likely to be a better match than a 27B model, assuming you want good performance without extreme offloading.",
+      "runSummary": {
+        "intent": "I am going to migrate to phi4-reasoning:14b, deepcoder:14b, and medgemma1.5:4b for local inference. Does this fit the hardware profile better than the 27b model?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 20,
+      "promptPreflightWarningCount": 4,
+      "promptPreflightCriticalCount": 2
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-26T21:28:51.0412397\u002B00:00",
+    "generatedUtc": "2026-08-27T02:39:33.8295934\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 12,
     "indexEntries": 0,
