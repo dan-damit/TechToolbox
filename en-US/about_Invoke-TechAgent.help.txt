@@ -30,7 +30,7 @@ PARAMETERS
         This is passed directly to the TechToolbox.Agent runtime.
 
     -Model
-        Optional Ollama model name (e.g., llama3, mistral, qwen2.5-coder).
+        Optional Ollama model name (e.g., phi4-reasoning:14b, deepcoder:14b, medgemma1.5:4b).
         If specified, the function validates the model exists locally via
         `ollama list`. If omitted, defaults to the model configured in
         TechToolbox settings ($script:cfg.settings.agent.model) or the agent's
@@ -129,7 +129,7 @@ EXAMPLES
         Sends a prompt to the default model and returns the response.
 
     Example 2:
-        Invoke-TechAgent "Clean up old temporary files" -Model qwen2.5-coder -MaxIterations 30
+        Invoke-TechAgent "Clean up old temporary files" -Model phi4-reasoning:14b -MaxIterations 30
 
         Description
         -----------

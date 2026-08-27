@@ -172,7 +172,7 @@ Notes:
 Invoke-TechAgent -Prompt "Cleanup the harddrive on localhost"
 
 # Optional examples
-Invoke-TechAgent -Prompt "Run system diagnostics and summarize findings" -Model qwen2.5-coder
+Invoke-TechAgent -Prompt "Run system diagnostics and summarize findings" -Model phi4-reasoning:14b
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -MaxIterations 25 -Quiet
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -AutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetryOnRecursion
@@ -183,7 +183,7 @@ Invoke-TechAgent -Prompt "Summarize host posture" -OutputContract plain-text
 Invoke-TechAgent -Prompt "Return remediation checklist as JSON" -OutputContract json
 Invoke-TechAgent -Prompt "Fix AD sync issue" -StrictPromptPreflight
 Invoke-TechAgent -Prompt "Draft a migration proposal" -QualityProfile creative
-Invoke-TechAgent -Prompt "Investigate repeated login failures" -RuntimeProfile qwen27b_reason
+Invoke-TechAgent -Prompt "Investigate repeated login failures" -RuntimeProfile main_reasoning
 
 # Non-interactive credential context for tools that require -Credential
 $dac = Get-Credential

@@ -15,8 +15,8 @@ function Invoke-TechAgent {
         Invoke-TechAgent attempts to load a default prompt file.
 
     .PARAMETER Model
-        Optional Ollama model name (for example: llama3, mistral,
-        qwen2.5-coder).
+        Optional Ollama model name (for example: phi4-reasoning:14b,
+        deepcoder:14b, medgemma1.5:4b).
 
     .PARAMETER Provider
         LLM provider to use. Supported values: ollama, openai,

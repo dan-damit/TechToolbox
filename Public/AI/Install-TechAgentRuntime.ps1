@@ -31,7 +31,7 @@ function Install-TechAgentRuntime {
         Install-TechAgentRuntime
 
     .EXAMPLE
-        Install-TechAgentRuntime -PullModel -Model "qwen3.5:9b"
+        Install-TechAgentRuntime -PullModel -Model "phi4-reasoning:14b"
 
     .LINK
         https://dan-damit.github.io/TechToolbox-Docs/Install-TechAgentRuntime

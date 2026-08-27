@@ -136,39 +136,40 @@
       "runtimeProfile": "",
       "runtimeProfiles": {
         "enabled": true,
-        "defaultProfileName": "qwen27b_fast",
-        "reasoningProfileName": "qwen27b_reason",
-        "fallbackProfileName": "fallback_small",
+        "defaultProfileName": "main_reasoning",
+        "reasoningProfileName": "main_reasoning",
+        "codingProfileName": "coding_specialist",
+        "fallbackProfileName": "vision_support",
         "profiles": {
-          "qwen27b_fast": {
+          "main_reasoning": {
             "provider": "ollama",
-            "model": "qwen3.8:27b",
-            "maxContextTokens": 6144,
-            "maxOutputTokens": 400,
-            "temperature": 0.2,
-            "topP": 0.9,
-            "repeatPenalty": 1.05,
-            "description": "Fast/default local profile for routine tool orchestration."
-          },
-          "qwen27b_reason": {
-            "provider": "ollama",
-            "model": "qwen3.8:27b",
+            "model": "phi4-reasoning:14b",
             "maxContextTokens": 10240,
             "maxOutputTokens": 800,
             "temperature": 0.15,
             "topP": 0.88,
             "repeatPenalty": 1.08,
-            "description": "Reasoning-heavy local profile for deeper analysis turns."
+            "description": "Primary reasoning profile for default orchestration."
           },
-          "fallback_small": {
+          "coding_specialist": {
             "provider": "ollama",
-            "model": "qwen3.5:9b",
-            "maxContextTokens": 6144,
-            "maxOutputTokens": 500,
+            "model": "deepcoder:14b",
+            "maxContextTokens": 8192,
+            "maxOutputTokens": 700,
+            "temperature": 0.15,
+            "topP": 0.9,
+            "repeatPenalty": 1.05,
+            "description": "Coding specialist profile for implementation-focused turns."
+          },
+          "vision_support": {
+            "provider": "ollama",
+            "model": "medgemma1.5:4b",
+            "maxContextTokens": 4096,
+            "maxOutputTokens": 300,
             "temperature": 0.2,
             "topP": 0.9,
             "repeatPenalty": 1.05,
-            "description": "Latency-optimized fallback profile for degraded retries."
+            "description": "Vision-capable fallback profile for degraded retries."
           }
         }
       },

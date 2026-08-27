@@ -4,7 +4,7 @@ function Invoke-LocalLLM {
         [Parameter(Mandatory)]
         [string]$Prompt,
 
-        [string]$Model = 'qwen2.5-coder:32b',
+        [string]$Model = 'phi4-reasoning:14b',
 
         # Optional override for streaming
         [switch]$ForceStream,
@@ -22,7 +22,7 @@ function Invoke-LocalLLM {
     # STREAMING RULES (deterministic)
     # -----------------------------
     $streamingModels = @(
-        'qwen2.5-coder:14b'   # Known stable streaming model
+        'deepcoder:14b'   # Coding-specialist model
     )
 
     $Stream =
