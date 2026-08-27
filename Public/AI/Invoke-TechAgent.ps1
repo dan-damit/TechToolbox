@@ -15,7 +15,7 @@ function Invoke-TechAgent {
         Invoke-TechAgent attempts to load a default prompt file.
 
     .PARAMETER Model
-        Optional Ollama model name (for example: phi4-reasoning:14b,
+        Optional Ollama model name (for example: phi4:14b,
         deepcoder:14b, medgemma1.5:4b).
 
     .PARAMETER Provider
@@ -450,7 +450,15 @@ function Invoke-TechAgent {
             $normalizedPrompt,
             '(?i)(https?://\S+|\b(url|uri|website|web\s*site|webpage|site|domain|host|weather\.gov)\b)')
 
-        $hasConcreteTarget = $hasPathOrSystemTarget -or $hasWebTarget
+        $isWeatherIntent = [regex]::IsMatch(
+            $normalizedPrompt,
+            '(?i)\b(weather|forecast|temperature|precipitation|wind|noaa)\b')
+
+        $hasWeatherLocationTarget = [regex]::IsMatch(
+            $normalizedPrompt,
+            '(?i)((?<!\d)\d{5}(?:-\d{4})?(?!\d)|\b[A-Za-z][A-Za-z\-''\.\s]+,\s*[A-Za-z][A-Za-z\-''\.\s]+\b)')
+
+        $hasConcreteTarget = $hasPathOrSystemTarget -or $hasWebTarget -or ($isWeatherIntent -and $hasWeatherLocationTarget)
         if ($hasConcreteTarget) { $score += 20 } else { $warnings.Add('Missing concrete target (file, function, module, system, URL, website, or path).') }
 
         $hasExpectedOutcome = [regex]::IsMatch(
@@ -2340,8 +2348,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDT+WoUUNZaZfyw
-# ewkHbwsuUw/RM+6JtKiUygOhCRChvqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCdp+45Ip1UDboq
+# wuZ9oyu47wngn1aaSVV6CkSyQkYOZ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2474,34 +2482,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2JlNPisAu
-# /HvQvAB+i6G/IDyfwVLjqxibjRCh1aUdETANBgkqhkiG9w0BAQEFAASCAgBJQJ9W
-# LOkDot85RR0wpQvUEvLAD5HnuksDVryQnHbZQiQ3ixlujNp+uU9y3ghH/smE5O7i
-# E3F0Wcket/TN/BktY4GHnm6moN2ws9yrsJ3t3+Hnnoab2L3/+jmeXkQoWqaxUyFz
-# U9qKiDxSnG37TGL/hUlBs9tY4vAezDv+wVCjPOtR/A0SDvp3sIvnT7JimavZCbu0
-# Eh7vg9WoiozkXq+hMeL/EPdzRLhfkVEwOGbCe6begQUndXdNHofWE2UDCpl7PUQf
-# jgJmU9/FvMqnpT8iaxshQlGqDWm6lM6d/AVwb0BTS7ceLO+bPJBNaE6KB5/wavuJ
-# YNZtKdW0E7FIba0gHskxNbHqQlXTSiEjuqrczgTc9S2z8CdXVK4FUWV4tiCwkS1V
-# B0zRzyseAZXkpjHjdFiRz83MBsFkmzvh3KICtLYMfmd+0XSsr2fmmRw7xaENUGCL
-# TsXzyGKVy9cY0952J7Jgp90OFpZav3usE6+6YLtWR2HXot85tlTq+HaNoEx+AryA
-# fFEiyLyq5Unp4FxVUfyGhb7I41qAQlxdsOeLDvZ+CQ3OYxt7kViq7TE/S+mArxW6
-# qQZ9kSs9lsfdBXKXQUqe8WpGN9N+NSa5RGqhrxkU81nzwTx6GjV+/d9QmOAXaLRC
-# IpuUHIV2EMM86/XZG+lft5/dYET8DyV1TSUJ6aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDATpLjHFTf
+# 9JDGio0O5WLPg2VVpdFHgaEdDEAxJpB9nzANBgkqhkiG9w0BAQEFAASCAgARXgu7
+# BCrHQSWmyqOyx/vrskY+ooPJGlGY9T7vQ4G39tpqPOTr17naqw5dv4OnU7F1K7w2
+# +1oaaejYr7hKufAxkJIIXABdU/bjIIMRVz5IR/cREUSY8BOBAiwNgwlFncLfHysc
+# 8TGpbHGV8RgSTonQ4beG9TC5R663uz3wZ4f87gKeUXm5tzGiE4eYFB2vBjT+nGjC
+# 4wV21BBwhIQDHDAVNVOM27dq/MsCkRr/7YPN+KEMT8hyqKoBmCqTY9eqy9YYEHXZ
+# ds12V5p3px08+zR2nyy6PcJ0ShJi8XDCFt55YUEXgvPcgagIeup08+0PxTXqVE60
+# 3KC9waee5Rrs8P/i94qxH6i0ZMudHgqb/n8FBNBGXZCoY7ZnD8qz2hNnqw5kAGtJ
+# Z98jj2CMaZt49yapk2Xq45vZo1Kahbc4p02gC5S2AT8jHMd1ryxUYB5PaVnRx+00
+# DWDoOwcGxJc7eNxyTNmWjFYS+b9ty0chZ4UhlfTX/YJVZnoa8wxj7tiQx35bkafU
+# yXO2nDD6XLswR5uPEII9AfWJ8rnIIpky4XgvvJX92sFtPPWERDXK+7z9OlQSnJ+R
+# ZmSKvJ2T2MKhmCu7oIZAaUwQBh93Ueh/Hm8GhlxLtDMk+Wyn+eKzKHXHeZ+NxEl/
+# 4rnMYBcE6tgH+wBVnFbZLnfm3fbo4ASLYu7HSKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MjcwMjUwMzVaMC8GCSqGSIb3DQEJBDEiBCCYg3v4heDA+Mfm4Q3o
-# LOzAEzGUHZneIwL9HjJUrTK18TANBgkqhkiG9w0BAQEFAASCAgB96uCawAPTcfEc
-# d4MnWv8A7RJrLlMUwrt2bVhkstjVXiavj6mFihfM+kxxZNxnpTLI7QfujqhSXSbv
-# obALA7amIapwbC+IWDoBlkMD81PXlBeEZkD3DJicCKdGlju9rYGpdJU+T0UL7OnJ
-# 7SS4FIFmCNicH9RaXdgt/gQwPHDNaPqyg5igPd2tT8/3oi/th5qI19hDqQqfhItz
-# Yt3TLRqKBfknZ3I2ZewbP4TtjyqExIqkolnFWS92JNzRL3ZPZSd74LLpxcn99wCT
-# WpbcG1xSi9fetO2RUAEysfMdMQRKClAT5+BaIkvQM7cg+/eIgxjGNMaBPL/nRRnN
-# FCk/N9h+1qko/WVJq2/Xur9AabuwMvMAh0JqAcOjkUaMNKgCnsZ/2RhvzgjI1A5N
-# NEalM3dGfrBcepqel/jOsnzknvJ7/fe4blRfMqV00n4XDivojEoKEyQX3vtGIuQk
-# Rlv7Y5wSpyiO0kspgZg9jbc8r0lfGA/7CGLoqOPi5QpBvpA4KPF6c5Qf0OGIVaTM
-# v95lDSK+zzhQmVA1lWcL/fHhpSDR+yY+paoGoQqg2uTnEMIPchyFlIlSpZv7twVV
-# Crtwgy2BivkUAmzTFhuOrfMuKCUE0zMdG7hL6Dcl9PXLR2tNfDB3nhIM+PoqNEMh
-# 6QBRKzXPBV0Pt8Cz8uQY27xb6yCiyg==
+# BTEPFw0yNjA4MjcwNDAxNTJaMC8GCSqGSIb3DQEJBDEiBCCofJVbcg8fpUfcoGIp
+# 5bsQlk9TjaHzuym/qJkaapYMRzANBgkqhkiG9w0BAQEFAASCAgAUpg51rcZtAi/z
+# f+G4PaUDJHPeNTe/4CfgJWBPJQ5gWIauJIBvwDMHiZ8W9HNtBoeRUEXAJu3S9dyG
+# CAKAK4MIPjQw18TCeSWWs3znXlrd0Cm8RPaN2RQk6MK26c2K/LyFo7G03XJ0IjHW
+# fpf5JQFacC4TEvZAfxOPxlCNKULhV9ieLU79rzXlwnNMfBWuizxeb/EvKUk9vqRg
+# zx33hFk8qi8x1As3YpFCcgBVLid46AQ2SyMDRNeyAToAdToK9dBk0RChMwr9PhgF
+# bONtrNNrYFp9Rn573ks2Q1nY6YdPRXHm9lkHx9s7xBADMzP7SpowlMmctfqK/6Wy
+# sB3mms+Pi6zsU/jyb7FnzOfy9Uv/a6w8ft/zsfEzSmgm2Ws3Xe/wxYM+WfxDdL8r
+# r08PbMF1WH+8uztDQg2Mx1Urst+9aBaaj2jOPW9X4q62I1QjyBR7GKbC8siPuqsU
+# RYR13ULiyBBsK8ziTG57Ax7hO3yTM7NKQFz7nBOHR9XmlN0j/8/hh2B694na72J4
+# IbrV/ZqIjyNZUvj6RknApm2nVflq+BfN74m0T2/EHM2BgvEDqd3e8KDNV/c7N6GX
+# cFTGp+goU/zBeMgoBq3vmasYndun/IRvb7oVtx5uBhFiwKKmp/MgvSMJ6631GyDE
+# g87TuaJ5ODkGvqedxzao9t2yQxUoXg==
 # SIG # End signature block

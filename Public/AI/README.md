@@ -172,7 +172,7 @@ Notes:
 Invoke-TechAgent -Prompt "Cleanup the harddrive on localhost"
 
 # Optional examples
-Invoke-TechAgent -Prompt "Run system diagnostics and summarize findings" -Model phi4-reasoning:14b
+Invoke-TechAgent -Prompt "Run system diagnostics and summarize findings" -Model phi4:14b
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -MaxIterations 25 -Quiet
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -AutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetryOnRecursion

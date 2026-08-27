@@ -143,7 +143,7 @@
         "profiles": {
           "main_reasoning": {
             "provider": "ollama",
-            "model": "phi4-reasoning:14b",
+            "model": "phi4:14b",
             "maxContextTokens": 10240,
             "maxOutputTokens": 800,
             "temperature": 0.15,

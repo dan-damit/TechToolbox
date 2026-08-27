@@ -36,7 +36,7 @@ Install-TechAgentRuntime
 Pull a specific model:
 
 ```powershell
-Install-TechAgentRuntime -PullModel -Model "phi4-reasoning:14b"
+Install-TechAgentRuntime -PullModel -Model "phi4:14b"
 ```
 
 Call with a deprecated compatibility switch:
@@ -95,7 +95,7 @@ already available.
 ### Example 2: Pull a configured or explicit model
 
 ```powershell
-Install-TechAgentRuntime -PullModel -Model "phi4-reasoning:14b"
+Install-TechAgentRuntime -PullModel -Model "phi4:14b"
 ```
 
 Pulls the specified Ollama model and then returns the updated list of available models.
