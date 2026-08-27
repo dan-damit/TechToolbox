@@ -84,6 +84,30 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 ## [Unreleased]  
 Latest completed enhancements:
 
+### **TechAgent Runtime Reliability & Model Defaults (2026-08-26)**
+
+#### **Improved**
+- Switched TechAgent default local runtime model from `phi4-reasoning:14b` to `phi4:14b` across:
+  - `Config/config.json` runtime profiles (`main_reasoning`)
+  - `Public/AI/Invoke-TechAgent.ps1`
+  - `Private/AI/Invoke-LocalLLM.ps1`
+  - installation/help/readme examples
+- Stabilized weather execution flows to reduce non-progress loops:
+  - Added execute-mode weather concrete-target recognition so weather+location prompts are accepted as actionable targets.
+  - Added repeated-NOAA-call forced-finalization fallback that converts successful NOAA payloads into final markdown output instead of exhausting iteration budget.
+
+#### **Fixed**
+- Hardened agent decision parsing for malformed mixed-prose model replies by:
+  - extracting schema-valid JSON decision objects from embedded content
+  - reducing oversized repair-prompt echo snippets that amplified invalid-JSON loops
+- Reduced weather-run failures where repeated successful `GET-NOAA-FORECAST` calls previously ended with iteration-limit responses.
+
+#### **Tests**
+- Added/updated regression coverage for:
+  - mixed-prose JSON decision recovery
+  - weather prompt target recognition
+  - repeated NOAA-call loop handling and forced finalization behavior
+
 ### **Added**
 - Expanded `AI\Tasks\Templates` with a multi-scenario task template library, including:
   - C# XML docs, refactor, and bug-fix templates
