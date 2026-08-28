@@ -18,26 +18,26 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.7,
-      "avgDurationMs": 130462,
-      "avgToolCalls": 1.85,
+      "avgDurationMs": 131656,
+      "avgToolCalls": 2.4,
       "statusCounts": {
-        "success": 14,
-        "error": 6
+        "error": 6,
+        "success": 14
       },
       "outcomeCounts": {
-        "completed": 14,
         "iteration-limit": 2,
+        "completed": 14,
         "invalid-json": 4
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.4-nano",
-      "lastRunTimestampUtc": "2026-08-28T21:27:56.5280862\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-28T21:27:56.5290592\u002B00:00",
+      "lastRunTimestampUtc": "2026-08-28T21:49:28.1980598\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-28T21:49:28.2049253\u002B00:00",
       "avgPromptPreflightScore": 62,
       "executionModeCounts": {
-        "execute": 19,
-        "chat": 1
+        "chat": 1,
+        "execute": 19
       },
       "outputContractCounts": {
         "markdown": 20
@@ -49,7 +49,7 @@
     "fact.model.5e2c614c": "Model",
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-28T21:27:56.5290765\u002B00:00",
+      "generatedUtc": "2026-08-28T21:49:28.2049663\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 12,
       "indexEntries": 0,
@@ -73,41 +73,6 @@
     "fact.tool-usage-get-noaa-forecast.306bbf72": "tool usage: GET-NOAA-FORECAST"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-26T00:02:48.78882+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please look at the weather for tomorrow in Crivitz, Wisconsin. Output the results to console in markdown format.",
-      "model": "qwen3.5:9b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 10602,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather Forecast for Tomorrow (Thursday) in Crivitz, Wisconsin\n\n- **High**: Near 80\u00B0F\n- **Conditions**: Sunny\n- **Wind**: North northwest wind at 3 to 8 mph\n- **Precipitation Chance**: 1%\n- **Heat Index**: As high as 79\u00B0F",
-      "runSummary": {
-        "intent": "Please look at the weather for tomorrow in Crivitz, Wisconsin. Output the results to console in markdown format.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-26T21:19:36.2828875+00:00",
       "status": "error",
@@ -734,11 +699,57 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-28T21:49:28.1980598+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather for tomorrow in Green Bay, Wisconsin? Output the results into console in markdown.",
+      "model": "gpt-5.4-nano",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 34487,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 13,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather forecast for tomorrow (Green Bay, WI)\n\nI attempted to retrieve the official NOAA/NWS forecast using multiple nearby 5-digit ZIP codes for Green Bay (54229, 54301, 54302, 54303, 54304, 54305, 54306, 54307, 54308, 54311, 54313, 54324). \n\nFor each ZIP code, the NOAA tool failed with:\n- \u0022NOAA forecast returned no matching periods for ZIP=...\u0022\n\n## Next step\n- I can keep trying additional ZIP codes (e.g., 54344 or 54344 range from the search results), but I need your confirmation to continue making more NOAA requests.",
+      "runSummary": {
+        "intent": "Please check the weather for tomorrow in Green Bay, Wisconsin? Output the results into console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-28T21:27:56.5290816\u002B00:00",
+    "generatedUtc": "2026-08-28T21:49:28.2055145\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 12,
     "indexEntries": 0,
