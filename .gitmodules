@@ -1,3 +1,4 @@
 [submodule "src/TechToolbox.Agent"]
 	path = src/TechToolbox.Agent
 	url = https://github.com/dan-damit/TechToolbox.Agent.git
+	branch = main
