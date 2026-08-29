@@ -21,13 +21,33 @@ function Invoke-LocalLLM {
     # -----------------------------
     # STREAMING RULES (deterministic)
     # -----------------------------
-    $streamingModels = @(
-        'deepcoder:14b'   # Coding-specialist model
+    # Use wildcard patterns so model-tag changes (for example qwen3.8 variants)
+    # do not require a code change to preserve expected streaming behavior.
+    $streamingModelPatterns = @(
+        'qwen3.8*'   # Reasoning and coding family
     )
+
+    function Test-ModelPatternMatch {
+        param(
+            [Parameter(Mandatory)]
+            [string]$Name,
+
+            [Parameter(Mandatory)]
+            [string[]]$Patterns
+        )
+
+        foreach ($pattern in $Patterns) {
+            if ($Name -like $pattern) {
+                return $true
+            }
+        }
+
+        return $false
+    }
 
     $Stream =
     if ($ForceStream) { $true }
-    elseif ($streamingModels -contains $Model) { $true }
+    elseif (Test-ModelPatternMatch -Name $Model -Patterns $streamingModelPatterns) { $true }
     else { $false }
 
     # -----------------------------
@@ -374,8 +394,8 @@ function Invoke-LocalLLM {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBWI02kN611DGpB
-# E8H0tyR2zPaBiVybmNTP/ndIqcodt6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD6ljtL9k2Tp5aa
+# oTW2sQXTxJRlhOhaCIoa54ewyDEc56CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -508,34 +528,34 @@ function Invoke-LocalLLM {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAwZie5CLJY
-# 889/5OFWIMoUR/ry5O9kYznS7t4A5p50JTANBgkqhkiG9w0BAQEFAASCAgDdVPvE
-# CI/Bymtks+zHgvq1+RlAP+tMV8ZIof/n0Y9NwVI3nLs6nNDMomkxZfsJZICNPCkS
-# xl530VJ27XqJdjejW0PXPR1fZkAenDWYyCAyC7J/KIGFTGcbPu7aBTZ43Y/1zErO
-# ikWBPAYS2iO6P0ZmgWfCEDIy7xNCQxyKWjfDDr7zMwOo0tl5qa8i7CIjj8ue89OF
-# MKANE77dg/8F1TBrM/sRq6vr46HVgZ0N5epKSXM7r1C5uM4p5sVWF/PEg8daQfHk
-# lShqpSEPdsLtaBJfh06CWzby04dCosL/JT0qt3yly4ZemKvib70rlgSePnRxRCp8
-# iNqXhxnljO8BjqM0gVCq9C5fnIsXKlCqcgs6hsIivwnuuSo+n0icUjHzozv1woqm
-# lYej/8CN6jT/aVvgDL9ZfDlPPNlUV81/LsU20uEqSW26e03lcMCDLOuQSEGTEnx2
-# ZCNteR7ILfpMq+OZBSxo40hnpBKPhSMx2QBCV18+MP4C4pktr1iN52FHn91KGElz
-# BV78BkYwoEOLNSYv52R+5qjBvI5HaVFhGA1y9Scah4K1ZUqcWCGqukeIMlAKirdw
-# U3AiGshuK0mhiYQ7jmUjZazrlsEb+j1TALrDqfTu6r66mZHZD5P4x9HIJrG0nU70
-# h8OcryXnIiVFxwhE8Bsbqt8vbgawJAd57EFa3qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBmje4QXROX
+# mpZn8SQAXuqN2ZhOwlHdNLqRjVpLqA57NTANBgkqhkiG9w0BAQEFAASCAgBrA+Lz
+# NLNHbbmaTrK1HGPYyyH15CSr01O50HDiIXShP+gFggZYSlmDCp2L9N86qpWCSi/4
+# k6s3+C/FRS6cy4SHLBwPdOf6HP5txN5Nj6f1iHXSCQtkB/P1zAr0N+YCsYNRqR4I
+# rE7aErbWsepXhpL47qVbM8VMG7139mIispAE/nxqse/se2uXwY6DEf4TxVo8unfR
+# acaZDfL7+7xh2gAfMILoZx9zoyyiYkcbGn6B9/1uZr8O1oyoYBBuBW3TIisQgLb8
+# QmpYhaFU6JBXUojjlLZOqZnGwwYUj1At++OG3luHhR0LKrynYbLWvnqdeDe+Kyjz
+# qh9lutyNV3MaeZtFVWj141gfyjsD+Mi8fHqIl5iWHOU3T5GcWSIUHy1uxpDlCzTG
+# llntCv/L8wtHlBV/TwngAh9iceXaVRJDhCQbon9uo1GUbiYkd9Y/OGRVIwMXDHvV
+# 8h7GGorjumyviHewYpqXDlwYpVlFIbEgvShLnmFngPSCxa6pPwL4F+PlAXC/GrMv
+# NFeO044W5F4OqnSme+7BbKH5EY46RBifZwmoi1U8ECc8NPD6omsmZReIHZG7osKy
+# Gb1dT96csT1VnN/8LEEe8xEXChcvyU2tC0HFoJY5b3WSA8itBFNjANxQxRLWtxHx
+# S50h26OMzjGs7b0rGd/qQ5G9WjNrW2aBGy8vM6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MjcwNDAxNTFaMC8GCSqGSIb3DQEJBDEiBCCcoKJukd7fdI8MtTmE
-# b2Q85pFmsybgk+pOBBqTTRY7HjANBgkqhkiG9w0BAQEFAASCAgCnPrfmDWO2npob
-# EHU4cIc05d6zXNDbp8u34e5E/KWR/B0DVs/eu/c5I9MiRXIpDTSuaYuxsywONN05
-# 8ZongvljUbL2kiXKImU29JtXNUdHwFaCEVXeuisAIk/4QSMgvSBIV7210y5AoFCX
-# rKGlMc7hJso0BrjC2C/IkwcwxCWHCbT9uit57dVYbxO5Rpx94em4HwJus7OXDT43
-# gEi0xlE5CxAEM3+zUARgip2zq8luSi6+wZAWSp2Md+2r8FKdAcW5fnYXNEfm5OMX
-# 33x/LapJE7rRHBeFcdzRmoA7I6Pkpuwaat4deTnHnfiII5VkjkZnUQvKRKuBthVN
-# 1JVCdAqzQq7V+sT3wLfHN1e8XFzVTQUoaOrt5acxwnhZcJeaN9TULgaqE22Ty1o3
-# 3ZzQJma2h/KX6aylePk4f0yeYhrBkJn5pvBg7+EhowtIbfrCohYrc7L5opmJ3kqk
-# DpVJqoDr+F7sHfvU9qvf01Ctizd5WHctZRki1NnDGQRKo6YUFo4IuLi5qqOaKlxM
-# VM11qmBfbQ9vVLdflb+3PAViCWmyz1epJR8L3Cgf+IJgkQIjvWAy6U2pmWSTpM7v
-# vlt6R/PMB5pET5Zh47IYLJ8Kst0zjz4yxiFsDI3DuczFMWOoZ+QoHH3mlqNEGH1L
-# lnma1C823qmz08Qts1sST15WQt97lQ==
+# BTEPFw0yNjA4MjkwNTIzNDVaMC8GCSqGSIb3DQEJBDEiBCC+JWhjssII3P4nVjaJ
+# QAl5VC9YlZHNk4yVLLahVMjVGTANBgkqhkiG9w0BAQEFAASCAgCSHz+vjWo3cL/g
+# uPt7jNjqQ6w6l26pWeKdNSMMAahlGH6wYE35Akt1N3p4NG7qZHDItKu6AVg9lcyN
+# 8Kei8ZL8jdN0+W5R4HwUKP2nO6J1ZELb3Rke4YeMPyGUqg0nHow3ySHb6ungBTNY
+# R06e04xM4oFLAUYJtcJeo9Ugcws3wwZeHjlwLldPNYem056cjeKc9K3tA1lzCXx6
+# THE++02LBVySPT4cI0piJsb17nNfFtXEmQLvPlb51rmJzUs2I5KEnYKJQcj+7CWz
+# zX//Yd6/CIDKfl1GmwpwfgQq19KORxk/lbMYVqjPpw1ZB/m43MWekMGQp3+GwnX/
+# jUxh9S9qMMNvTD4sFZA0XmkJGX8t8FNgNdpQLCD6VsoH+OUxobNhBOIRPeCEU/IN
+# eXXs1PaMPTrSad+lVYFBKd5dfTTkb53SpXlNRI8Qd5GKDxNDgRPl3755N+k9SMrn
+# khmT3M4RIIOb8C+NZa4hD5HgqZAD92e1QS5D2m75Rt6EHy9Uc2dvOvjFLDFbwm8+
+# rxQWKHv2j7ZQ/LIKzIk/ofggw5d6uYEh0VgB7cmfl2rlg5/plZcarzos7nNvU9J4
+# 6nSa0E+OVKR9jX9cM59pJ6d6HfaAfJ+JJ6JkCSINBGkIPQqo8MlBRAK1/CdLdHQH
+# Aik4psE3b5zK5+1Lh0CzfWJ6FV632A==
 # SIG # End signature block
