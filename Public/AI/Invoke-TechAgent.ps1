@@ -17,6 +17,7 @@ function Invoke-TechAgent {
     .PARAMETER Model
         Optional Ollama model name (for example: phi4:14b,
         deepcoder:14b, medgemma1.5:4b).
+        Mandatory if using OpenAI.
 
     .PARAMETER Provider
         LLM provider to use. Supported values: ollama, openai,
@@ -216,38 +217,26 @@ function Invoke-TechAgent {
         [switch]$Quiet,
 
         [Parameter()]
-        [switch]$ConfirmDestructive
-
-        ,
+        [switch]$ConfirmDestructive,
 
         [Parameter()]
         [ValidateSet('ignore', 'strip')]
         [string]$SignedFilePolicy,
 
         [Parameter()]
-        [switch]$AutoRetryOnRecursion
-
-        ,
+        [switch]$AutoRetryOnRecursion,
 
         [Parameter()]
-        [switch]$DisableAutoRetryOnRecursion
-
-        ,
+        [switch]$DisableAutoRetryOnRecursion,
 
         [Parameter()]
-        [bool]$NoTranscript = $true
-
-        ,
+        [bool]$NoTranscript = $true,
 
         [Parameter()]
-        [switch]$AllowMetaTools
-
-        ,
+        [switch]$AllowMetaTools,
 
         [Parameter()]
-        [pscredential]$ToolCredential
-
-        ,
+        [pscredential]$ToolCredential,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -1317,21 +1306,8 @@ Hard requirement:
 
         Write-Log -Level Info -Message ("Tech agent runtime assembly: {0}" -f $agentAssemblyPath)
 
-        # Load Wait-TerminalState and its dependencies for real-time status animation
-        $waitTerminalStateScript = Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Wait-TerminalState.ps1'
-        $getDotPulseScript = Join-Path $moduleRoot 'Private\System\Utilities\ReusableHelpers\WaitingHeartbeatScripts\Get-DotPulse.ps1'
-
-        $hasWaitTerminalState = $false
-        if ((Test-Path -LiteralPath $waitTerminalStateScript -PathType Leaf) -and (Test-Path -LiteralPath $getDotPulseScript -PathType Leaf)) {
-            try {
-                . $getDotPulseScript
-                . $waitTerminalStateScript
-                $hasWaitTerminalState = $true
-            }
-            catch {
-                $hasWaitTerminalState = $false
-            }
-        }
+        # Invoke-TechAgent now uses an internal terminal-state wait loop.
+        # Keeping this self-contained avoids helper load drift and improves reliability.
 
         if ($Provider -eq 'ollama' -and -not [string]::IsNullOrWhiteSpace($Model)) {
             $normalizedModelName = $Model.Trim()
@@ -2217,29 +2193,17 @@ $result = $runAgentMethod.Invoke($null, @(
                 exitCode               = -1
             }
 
-            # Read stderr asynchronously (non-blocking)
+            # Capture stdout/stderr asynchronously without event callbacks.
+            # This is robust across hosts and still allows internal status polling.
+            $stdoutTask = $agentProc.StandardOutput.ReadToEndAsync()
             $stderrTask = $agentProc.StandardError.ReadToEndAsync()
 
-            # Create output accumulator
-            $stdoutLines = [System.Collections.Generic.List[string]]::new()
-            $stdoutReader = $agentProc.StandardOutput
-
-            # Define the poll script that drives Wait-TerminalState
+            # Define the poll script that drives the internal terminal-state loop.
             $pollScript = {
-                # Read any available lines from the process
                 if ($agentProc.HasExited) {
                     $agentState['processExited'] = $true
                     $agentState['exitCode'] = $agentProc.ExitCode
                     return $agentState
-                }
-
-                # Non-blocking read of next line (returns $null if none available immediately)
-                if ($stdoutReader.Peek() -gt 0) {
-                    $line = $stdoutReader.ReadLine()
-                    if ($line -ne $null) {
-                        $stdoutLines.Add($line)
-                        & $parseAgentTraceLine -TraceLine $line -AgentState $agentState
-                    }
                 }
 
                 return $agentState
@@ -2283,28 +2247,119 @@ $result = $runAgentMethod.Invoke($null, @(
                 }
             }
 
-            # Use Wait-TerminalState to drive the polling loop if available, otherwise fall back to simple blocking read
-            if ($hasWaitTerminalState) {
+            $waitWithInternalTerminalState = {
+                param(
+                    [string]$Target,
+                    [scriptblock]$PollScript,
+                    [scriptblock]$GetStatus,
+                    [hashtable]$TerminalStates,
+                    [int]$TimeoutSeconds,
+                    [int]$PollSeconds = 1,
+                    [int]$TickMs = 250,
+                    [int]$HeartbeatSeconds = 5
+                )
+
+                $interactive = $false
                 try {
-                    $waitResult = Wait-TerminalState `
-                        -Target 'TechToolbox.Agent' `
-                        -PollScript $pollScript `
-                        -GetStatus $getStatus `
-                        -TerminalStates $terminalStates `
-                        -TimeoutSeconds $waitTimeoutSeconds `
-                        -PollSeconds 1 `
-                        -TickMs 250 `
-                        -HeartbeatSeconds 5 `
-                        -ThrowOnTimeout:$true
+                    $interactive = -not [Console]::IsOutputRedirected
                 }
                 catch {
-                    $hasWaitTerminalState = $false
-
-                    # Fall through to the fallback code below
+                    $interactive = $false
                 }
+                $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+                $nextPoll = Get-Date
+                $nextHeartbeat = (Get-Date).AddSeconds($HeartbeatSeconds)
+                $lastStatus = ''
+                $frames = @('| ', '/ ', '- ', '\ ')
+                $frameIndex = 0
+                $lastState = $null
+
+                while ((Get-Date) -lt $deadline) {
+                    $now = Get-Date
+
+                    if ($now -ge $nextPoll) {
+                        $lastState = & $PollScript
+                        $status = ''
+                        if ($null -ne $lastState) {
+                            $status = [string](& $GetStatus $lastState)
+                        }
+
+                        if ([string]::IsNullOrWhiteSpace($status)) {
+                            $status = 'WAITING'
+                        }
+
+                        if ($status -ne $lastStatus) {
+                            if (-not $interactive) {
+                                Write-Log -Level Info -Message ("{0}: Status={1}" -f $Target, $status)
+                            }
+                            $lastStatus = $status
+                        }
+                        elseif ($HeartbeatSeconds -gt 0 -and $now -ge $nextHeartbeat) {
+                            if (-not $interactive) {
+                                Write-Log -Level Info -Message ("{0}: Still waiting (Status={1})..." -f $Target, $status)
+                            }
+                            $nextHeartbeat = (Get-Date).AddSeconds($HeartbeatSeconds)
+                        }
+
+                        if ($TerminalStates.ContainsKey($status)) {
+                            $meta = $TerminalStates[$status]
+                            $level = [string]$meta.Level
+                            $messageText = if ($meta.Message -is [scriptblock]) {
+                                & $meta.Message $lastState $status
+                            }
+                            else {
+                                [string]$meta.Message
+                            }
+
+                            if ($interactive) {
+                                Write-Host -NoNewline ("`r" + (' ' * 140) + "`r")
+                                Write-Host ''
+                            }
+
+                            if (-not [string]::IsNullOrWhiteSpace($messageText)) {
+                                Write-Log -Level $level -Message $messageText
+                            }
+                            return $lastState
+                        }
+
+                        $nextPoll = (Get-Date).AddSeconds($PollSeconds)
+                    }
+
+                    if ($interactive) {
+                        $frame = $frames[$frameIndex % $frames.Count]
+                        $frameIndex++
+                        Write-Host -NoNewline ("`rTechAgent is running... {0}" -f $frame) -ForegroundColor Cyan
+                    }
+
+                    Start-Sleep -Milliseconds $TickMs
+                }
+
+                if ($interactive) {
+                    Write-Host -NoNewline ("`r" + (' ' * 140) + "`r")
+                }
+
+                throw ("Timed out waiting for terminal state. Target='{0}'" -f $Target)
             }
 
-            if (-not $hasWaitTerminalState) {
+            # Use internal wait loop first; if it fails, fall back to simple process wait.
+            $internalWaitSucceeded = $false
+            try {
+                $waitResult = & $waitWithInternalTerminalState `
+                    -Target 'TechToolbox.Agent' `
+                    -PollScript $pollScript `
+                    -GetStatus $getStatus `
+                    -TerminalStates $terminalStates `
+                    -TimeoutSeconds $waitTimeoutSeconds `
+                    -PollSeconds 1 `
+                    -TickMs 1000 `
+                    -HeartbeatSeconds 0
+                $internalWaitSucceeded = $true
+            }
+            catch {
+                Write-Log -Level Warn -Message ("Internal terminal-state wait failed; falling back to basic status mode: {0}" -f $_.Exception.Message)
+            }
+
+            if (-not $internalWaitSucceeded) {
                 # Fallback: simple blocking read without animation
                 Write-Log -Level E-Info -Message "`nAgent is running...`n"
 
@@ -2314,16 +2369,7 @@ $result = $runAgentMethod.Invoke($null, @(
                             break
                         }
 
-                        if ($stdoutReader.Peek() -gt 0) {
-                            $line = $stdoutReader.ReadLine()
-                            if ($line -ne $null) {
-                                $stdoutLines.Add($line)
-                                & $parseAgentTraceLine -TraceLine $line -AgentState $agentState
-                            }
-                        }
-                        else {
-                            Start-Sleep -Milliseconds 100
-                        }
+                        Start-Sleep -Milliseconds 100
                     }
                 }
                 catch {
@@ -2336,24 +2382,29 @@ $result = $runAgentMethod.Invoke($null, @(
                 }
             }
 
-            # Drain any stdout lines still buffered after process exit.
-            # Without this, fast-exiting runs can lose tail lines and appear truncated.
-            if ($stdoutReader) {
-                try {
-                    while (-not $stdoutReader.EndOfStream) {
-                        $line = $stdoutReader.ReadLine()
-                        if ($line -ne $null) {
-                            $stdoutLines.Add($line)
-                            & $parseAgentTraceLine -TraceLine $line -AgentState $agentState
-                        }
-                    }
+            # Ensure process completion before awaiting output tasks.
+            try {
+                if (-not $agentProc.HasExited) {
+                    $agentProc.WaitForExit()
                 }
-                catch {
-                    Write-Log -Level Warn -Message ("Error draining agent stdout: {0}" -f $_.Exception.Message)
+            }
+            catch {
+                Write-Log -Level Warn -Message ("Error waiting for agent completion: {0}" -f $_.Exception.Message)
+            }
+
+            $capturedStdOut = if ($stdoutTask) { [string]$stdoutTask.GetAwaiter().GetResult() } else { '' }
+
+            $stdoutLines = [System.Collections.Generic.List[string]]::new()
+            if (-not [string]::IsNullOrWhiteSpace($capturedStdOut)) {
+                $rawStdoutLines = $capturedStdOut -split "`r?`n"
+                foreach ($line in $rawStdoutLines) {
+                    if ($line -ne $null) {
+                        $stdoutLines.Add($line)
+                        & $parseAgentTraceLine -TraceLine $line -AgentState $agentState
+                    }
                 }
             }
 
-            $capturedStdOut = $stdoutLines -join [Environment]::NewLine
             $capturedStdErr = if ($stderrTask) { [string]$stderrTask.GetAwaiter().GetResult() } else { '' }
 
             # Final check of exit code
@@ -2516,8 +2567,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCANQ4s4fr/nCpb+
-# hkmMrSxuewVrjIEhnBtdtzEVGJxuhaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAKz9n0Df/7tXas
+# FEe8Alz72zVyFZ2ZOgiOJnxPlhIqdqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2650,34 +2701,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDi4X1j6RW4
-# SGlTIkcOwWAg6vjVOci9WnOYPRRE7EGt9DANBgkqhkiG9w0BAQEFAASCAgBDGEKi
-# aMkYYESC2Fc+O6TCDJo1HsfEADXqfWYTZBWMFin4d3tXZKuO8e6/i5gO+lgSDsF0
-# v9e/rHG9MJoFRcVj9s+RkCKV8brk7EwefbMkC9WKfcA4wbQzcLI0WfD3Sl0xUKc5
-# Jov/jFA5rA9rD9456PNsGmjZ590n8xBg45ek8eeU7zXslWoKq4slhXwthljiHS2b
-# Y18kbcYsQqUlshkcG9sc1JceTkWpoxvMXjM25+Hjtzfa9acVXh7qc/ySxh0BNgu9
-# rlPu+UhM9CEYWAyCwImbLbHFCMCt7Nx2xvgHygdmwCIZtFYcq0OlhiX79RAq3D6k
-# zxgt9b3yCmfAni1Vh0TF9lFo2qp2YCpz13zjqwjOoy7mUPL4UD8bz5f+OFhsVsEB
-# KzYYhueYlmUC2WN5xgzL6VnI2vc9MmzNFlwR6fYzMhbpSFHrowQRiCCplM0yo5Vp
-# hau79Kpskm2hqOw4ngKUvXJtVO55WeFWhaVrw0fzD4GtFlPKNUj9vrkqd4T4hN+z
-# sVww2VOPnSPn6pgseVhggO22LF4mxu/TCeLXI2MMgLEOXjNo3kWfNCo+IBsrpHmZ
-# 3aIv7UehZ9r2/VBHq3mZDYEcxE0VECNBcjuPYuwb1WDN/HZ3OsuZ08mUhWloDfAy
-# KTs3izD2CMwnfcjqKdeO8Y9Gf6Znf8/EaWgGwKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBn0nVVedFL
+# AxSEKAcn/EFwlvsI2WMlyKbp4YL7iVPxnjANBgkqhkiG9w0BAQEFAASCAgAKGs2n
+# puR9+MEU16IIRhGMpKYhZiITMv0vJhJzRch6fL0GSOB5gtM4FmVZOXhGjCnNDu4h
+# AIYc1u5dw+naZB26a9n6n+nHMgaj6G+ntkcBifPvtJem1Q8LilExHp7QRaGSQ0oC
+# x53vI6fYKNl7D1ymdZbAmsgzIjMjPr3lt54Y3I1XBg5tbwAB1tMmSCTg9YChnfbg
+# d5t5xtQuujjMK35endAHVzH5h9Vfxl7B5Rk4qfqegUWAu8saBF3721wEpSclcMW6
+# CztSIR/eTLc57L5cbbdwkenlTwkQ4iWNU/ZvhuTkVAZNxgg3qpSV3+UZitx4iqmq
+# hvdYvp9CkIuUa+Hm/da760ECxIFAGglqgy2Nv5Y8HO1f+wzYVfhR1A75td3PrLdC
+# qOjb1YScgJEYtkf9MHXhgHHRAdSrDzgPyd2RgZIul4dTYgqeYgeqNeV/huUzm9ze
+# w4bnw1KKejimcq9eev0xmi+9BC/g80voIl4sxStvaUBy+xRsHb2zYRSD3BvTU+SW
+# kAuxrDMbUTBRfvd+tGbquR+hgfxJci3DfJ94Mqiiv9wt2zSBJEMfiKHIxTm0aOa5
+# 5A/olxLiBcqsQCRpVL2oU0MqWJVvndbGFBreHpMzY0rrwg0Fcventd2Mv0z35cM+
+# wUFo91h67kYAtuSuq5wefG6w3D+xdIxLNI6J8aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MjkwNDQwMDNaMC8GCSqGSIb3DQEJBDEiBCApgs5V5EhtpM7bxXi3
-# mfd2AlUsvIQk3emwrltIBOoB1TANBgkqhkiG9w0BAQEFAASCAgAnx0oXJJOsk1ur
-# i8Q2qFYvOK+aAxJsaGbIWwdYA+6gsUuntAj6xbM0xsZs5AvkyCjj5jBHptE96cCp
-# ki3K6eKnBrCGBOgSFUB23YHvpcdewy4el8j4TlSqz72d9ERYbwLWUYNOFudRaq1A
-# hcSpu3xCIF3l/ZNl9R4tGuc7T6pglK0JvOQEx6VElUP3/cKVLnSKFscsCd/ZuWBN
-# ZyUo0UfXt8u34/SkEdmQhrkVwTrioeDgWj1YxD1SYnxSMzi5Zz0ppC2jRJ5XRxfq
-# wFM/oLFBhQ7RoQJ7hg2upAD/W7B/vCxu4KaSBMcC8/CDZ9NIJti4TkfNFSDitx1P
-# fanLSZGWJ9fMA5ikQ1u3cA6bzUC4IQwuJPTeAKRh6OE+aHTjTA8mIZKn2ri8NBAl
-# 8ovDlSIN+8vhs+Ko+WnMj7M6nvzKkcGFXtq/sWqobfYYQGjrfiMSp07O8m/4uSrK
-# 4Je87lsjkxTfIzRPuB8iNeCqKKOj9y596NZeeb7YYPwtZusNkxL2XHiORegskL+C
-# DabhxcnSb8qZl+tRNxx10ecrRQi3S8Ckx7jE+eTwOwy3MSfvHPT6E1XFepMchqQd
-# cRKHuL6VQ2cT1bXBvlVq05D5JrYgW3dRL2LanOE32/bRgG1hUw1R2bDo0djTnS/E
-# tTxdCUanqHv1HhWJpCYKfZe+HfI0XA==
+# BTEPFw0yNjA4MjkyMTM0MDhaMC8GCSqGSIb3DQEJBDEiBCBEutuQZBUSdl5i0TEx
+# tt0yDplB/NtrbO0+EeZdlW8GPjANBgkqhkiG9w0BAQEFAASCAgA4tuleTK3Y+fcR
+# mDSlqJ5Zh8ejdtyoKhzig/ryn8kOacGER6i+27+JO6O4x/RkIGFOFD4fPgEfE2xI
+# RTZNyNquo5ws5hT6wtbhv8bQpViyy609uQVBC/W5FFuP2cKlSQQzP8Cz40lmnLXv
+# tZJRnFWDk9Wz4gdAVyqgGSAjFjt2eau1EYGgGQI0cPaTXcileK2vsDD/1Q5t+/C+
+# tBoSwBaBTysYoR1OdPju591IEAhcykMpHLNs2WLYFF9ILDpVmaQMpXnDsqhXtXKW
+# wtv0BBJ5pViJguocIK+LFIGCORGiHi7mf4Fy4qieorZQegBEq4fqtYtZZ44C8dXV
+# 5zCeCupbV/GjQnNICX6rZP+Kou9SV8boMteHufSYwQ8sS+9OXPwVFPAJTuqH35bu
+# wAlYWHBOjY90QmhMk56GNPQV839IIi1tNfmj01dBiUzLBKZrNi9PzbmZ0C0nwynt
+# ZZf3PYzYz7A9LM+P+xIQVS11u3fsbqu8QpcPQ5cpdIOl1VsAzzdHN4Qb7oqz1FeZ
+# aXDUYh4/QalSAHnzQd7E6bMm9c5OUc9ttVAXT3u4EznUCmyvpRpODyhSSIwh1Sss
+# PvL4S3/VZk+/QD9zzZ8Za838OGsSMeQ6hNvq/qgQToIb7TAk82UtxJTkF+X5V4DU
+# 1yUuBZCWQvjZ1MwGOvu+6b6WNBco8Q==
 # SIG # End signature block
