@@ -18,23 +18,23 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.8,
-      "avgDurationMs": 119826,
+      "avgDurationMs": 96277,
       "avgToolCalls": 2.45,
       "statusCounts": {
-        "success": 16,
-        "error": 4
+        "error": 4,
+        "success": 16
       },
       "outcomeCounts": {
-        "completed": 16,
         "invalid-json": 3,
-        "iteration-limit": 1
+        "iteration-limit": 1,
+        "completed": 16
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "qwen3.8:27b",
-      "lastRunTimestampUtc": "2026-08-29T04:35:19.1683038\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-29T04:35:19.1698285\u002B00:00",
-      "avgPromptPreflightScore": 73,
+      "lastRunTimestampUtc": "2026-08-29T05:25:53.2584913\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-29T05:25:53.3211982\u002B00:00",
+      "avgPromptPreflightScore": 72,
       "executionModeCounts": {
         "execute": 20
       },
@@ -47,17 +47,17 @@
     },
     "fact.cuda.ab78d989": "CUDA",
     "memoryHealth": {
-      "generatedUtc": "2026-08-29T04:35:19.1698521\u002B00:00",
-      "totalPreferences": 0,
+      "generatedUtc": "2026-08-29T05:25:53.3212113\u002B00:00",
+      "totalPreferences": 1,
       "totalFacts": 12,
-      "indexEntries": 0,
-      "averageConfidence": 0,
+      "indexEntries": 11,
+      "averageConfidence": 0.823,
       "deprecatedEntries": 0,
-      "health": "low",
+      "health": "healthy",
       "notes": [
-        "Preferences tracked: 0",
+        "Preferences tracked: 1",
         "Facts tracked: 12",
-        "Index entries: 0"
+        "Index entries: 11"
       ]
     },
     "fact.c-repos-techtoolbox-src-techtoolbox.30d77850": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Your objective is to determine whether the agent currently supports the  OpenAI GPT-5.3-Codex reasoning effort settings:        low      medium      high",
@@ -72,40 +72,6 @@
     "fact.c-temp-invoke-remotereboot-ps1-use-w.0a7681fe": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-27T03:41:37.2475613+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Fetch tomorrow\u0027s weather forecast for Green Bay, Wisconsin using GET-NOAA-FORECAST with zipCode 54301, then return markdown with temperature, precipitation chance, and wind.",
-      "model": "medgemma1.5:4b",
-      "retryTierUsed": 3,
-      "fallbackActivated": true,
-      "fallbackReason": "Switched to fallback profile \u0027vision_support\u0027 after retryable LLM failures.",
-      "durationMs": 561792,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "Tomorrow\u0027s forecast for Green Bay, Wisconsin (zip code 54301) is:\n\n**Temperature:** High near 78\u00B0F, low around 61\u00B0F",
-      "runSummary": {
-        "intent": "Fetch tomorrow\u0027s weather forecast for Green Bay, Wisconsin using GET-NOAA-FORECAST with zipCode 54301, then return markdown with temperature, precipitation chance, and wind.",
-        "actionsTaken": [
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 80,
-      "promptPreflightWarningCount": 1,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-27T03:54:01.1793283+00:00",
       "status": "error",
@@ -751,21 +717,242 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-29T05:25:53.2584913+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "I need a PowerShell script that will reboot a remote host via PSRemoting. Assume the remot host has PSRemoting enabled. Make sure the script is syntatically correct. Output the script to the console. Make it a stand alone script that assumes no external helpers are available. Name the script file Invoke-RemoteReboot.ps1. Output the file in the directory C:\\Temp.\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\Temp\\Invoke-RemoteReboot.ps1\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "qwen3.8:27b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 90823,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "write_file"
+      ],
+      "outputPreview": "## Result\n\nThe file \u0060C:\\Temp\\Invoke-RemoteReboot.ps1\u0060 was created successfully.\n\n### Script Summary\n\n- **Purpose:** Reboots a remote Windows host via PSRemoting.\n- **Parameters:**\n  - \u0060-ComputerName\u0060 (required) - Target host name or IP.\n  - \u0060-Credential\u0060 (optional) - PSCredential for authentication.\n  - \u0060-Force\u0060 (optional switch) - Forces reboot even with unsaved processes.\n- **Behavior:**\n  - Creates a \u0060PSSession\u0060 to the target.\n  - Runs \u0060shutdown.exe /r /t 0\u0060 (or \u0060/r /f /t 0\u0060 with \u0060-Force\u0060).\n  - Cleans up the session in a \u0060finally\u0060 block.\n  - Reports success or failure via \u0060Write-Host\u0060 / \u0060Write-Error\u0060.\n\n### Usage Examples\n\n\u0060\u0060\u0060\n.\\Invoke-RemoteReboot.ps1 -ComputerName \u0027SERVER01\u0027\n.\\Invoke-RemoteReboot.ps1 -ComputerName \u0027SERVER01\u0027 -Credential $cred -Force\n\u0060\u0060\u0060",
+      "runSummary": {
+        "intent": "I need a PowerShell script that will reboot a remote host via PSRemoting. Assume the remot host has PSRemoting enabled. Make sure the script is syntatically correct. Output the script to the console. Make it a stand alon...",
+        "actionsTaken": [
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 60,
+      "promptPreflightWarningCount": 2,
+      "promptPreflightCriticalCount": 0
     }
   ],
-  "memoryIndex": {},
+  "memoryIndex": {
+    "not": {
+      "keyword": "not",
+      "value": "Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999868591,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3210238\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "WRITE-FILE"
+      ]
+    },
+    "return": {
+      "keyword": "return",
+      "value": "Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999951609,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211069\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "WRITE-FILE"
+      ]
+    },
+    "final": {
+      "keyword": "final",
+      "value": "Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999951609,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211072\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "WRITE-FILE"
+      ]
+    },
+    "answer": {
+      "keyword": "answer",
+      "value": "Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999951501,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211074\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "WRITE-FILE"
+      ]
+    },
+    "until": {
+      "keyword": "until",
+      "value": "Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999952362,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211085\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "WRITE-FILE"
+      ]
+    },
+    "WRITE-FILE": {
+      "keyword": "WRITE-FILE",
+      "value": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.9999999999966637,
+      "frequency": 2,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211288\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "Temp",
+        "Invoke-RemoteReboot",
+        "ps1",
+        "Use",
+        "WRITE-FILE",
+        "create"
+      ]
+    },
+    "Temp": {
+      "keyword": "Temp",
+      "value": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999970591,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211276\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "Temp",
+        "Invoke-RemoteReboot",
+        "ps1",
+        "Use",
+        "WRITE-FILE",
+        "create"
+      ]
+    },
+    "Invoke-RemoteReboot": {
+      "keyword": "Invoke-RemoteReboot",
+      "value": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999970591,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211279\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "Temp",
+        "Invoke-RemoteReboot",
+        "ps1",
+        "Use",
+        "WRITE-FILE",
+        "create"
+      ]
+    },
+    "ps1": {
+      "keyword": "ps1",
+      "value": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999970935,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211284\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "Temp",
+        "Invoke-RemoteReboot",
+        "ps1",
+        "Use",
+        "WRITE-FILE",
+        "create"
+      ]
+    },
+    "Use": {
+      "keyword": "Use",
+      "value": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.829999999997082,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211286\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "Temp",
+        "Invoke-RemoteReboot",
+        "ps1",
+        "Use",
+        "WRITE-FILE",
+        "create"
+      ]
+    },
+    "create": {
+      "keyword": "create",
+      "value": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999971278,
+      "frequency": 1,
+      "lastSeenUtc": "2026-08-29T05:25:53.3211292\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "Temp",
+        "Invoke-RemoteReboot",
+        "ps1",
+        "Use",
+        "WRITE-FILE",
+        "create"
+      ]
+    }
+  },
   "memoryHealth": {
-    "generatedUtc": "2026-08-29T04:35:19.1699864\u002B00:00",
-    "totalPreferences": 0,
+    "generatedUtc": "2026-08-29T05:25:53.3212166\u002B00:00",
+    "totalPreferences": 1,
     "totalFacts": 12,
-    "indexEntries": 0,
-    "averageConfidence": 0,
+    "indexEntries": 11,
+    "averageConfidence": 0.823,
     "deprecatedEntries": 0,
-    "health": "low",
+    "health": "healthy",
     "notes": [
-      "Preferences tracked: 0",
+      "Preferences tracked: 1",
       "Facts tracked: 12",
-      "Index entries: 0"
+      "Index entries: 11"
     ]
   },
   "_memoryFormatVersion": 2
