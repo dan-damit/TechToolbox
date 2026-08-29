@@ -599,7 +599,20 @@ function Invoke-TechAgent {
         $promptLower = $PromptText.Trim().ToLowerInvariant()
         $responseLower = $ResponseText.Trim().ToLowerInvariant()
 
-        if ([regex]::IsMatch($responseLower, '(?i)(i need more detail|need more information|clarification needed|unable to|could not|failed to|not enough information)')) {
+        $hasCompletionSignal = (
+            [regex]::IsMatch($responseLower, '(?im)^\s*##\s*result\b') -or
+            [regex]::IsMatch($responseLower, '(?im)^\s*(created|updated|wrote)\s+file\s*:') -or
+            [regex]::IsMatch($responseLower, '(?is)```(?:powershell|pwsh)?\s*.+?```') -or
+            $responseLower.Contains('script contents') -or
+            $responseLower.Contains('successfully')
+        )
+
+        $hasUncertaintySignal = [regex]::IsMatch(
+            $responseLower,
+            '(?i)(\bi need more (?:detail|information)\b|\bclarification needed\b|\bnot enough information\b|\bi (?:am|''m) unable to\b|\bi could not\b|\bi cannot\b|\bi can''t\b|\bplease provide\b|\brequire (?:more|additional) (?:details|information)\b)'
+        )
+
+        if ($hasUncertaintySignal -and -not $hasCompletionSignal) {
             return @{ Achieved = $false; Reason = 'The response requested more clarification or reported inability to complete the task.' }
         }
 
@@ -619,6 +632,45 @@ function Invoke-TechAgent {
 
             if (-not $hasWeatherResponseSignal) {
                 return @{ Achieved = $false; Reason = 'The response did not include weather or forecast information.' }
+            }
+        }
+
+        $isPowerShellScriptPrompt = (
+            ($promptLower.Contains('powershell') -or $promptLower.Contains('.ps1')) -and
+            $promptLower.Contains('script')
+        )
+
+        if ($isPowerShellScriptPrompt) {
+            $responseFenceCount = [regex]::Matches($ResponseText, '```').Count
+            if (($responseFenceCount % 2) -ne 0) {
+                return @{ Achieved = $false; Reason = 'The response appears to contain an unclosed markdown code fence.' }
+            }
+
+            $codeBlockMatch = [regex]::Match($ResponseText, '(?is)```(?:powershell|pwsh)?\s*(?<code>.*?)```')
+            $candidateCode = if ($codeBlockMatch.Success) {
+                $codeBlockMatch.Groups['code'].Value
+            }
+            else {
+                $ResponseText
+            }
+
+            if (($promptLower.Contains('stand alone') -or $promptLower.Contains('standalone') -or $promptLower.Contains('no external helper')) -and
+                $candidateCode -match '(?im)^\s*write-comment\b') {
+                return @{ Achieved = $false; Reason = 'The script references external helper commands (Write-Comment), which violates standalone/no-helper intent.' }
+            }
+
+            if ($promptLower.Contains('syntactically correct')) {
+                $openBraceCount = [regex]::Matches($candidateCode, '\{').Count
+                $closeBraceCount = [regex]::Matches($candidateCode, '\}').Count
+                if ($openBraceCount -ne $closeBraceCount) {
+                    return @{ Achieved = $false; Reason = 'The script output appears structurally incomplete (mismatched braces).' }
+                }
+
+                $openParenCount = [regex]::Matches($candidateCode, '\(').Count
+                $closeParenCount = [regex]::Matches($candidateCode, '\)').Count
+                if ($openParenCount -ne $closeParenCount) {
+                    return @{ Achieved = $false; Reason = 'The script output appears structurally incomplete (mismatched parentheses).' }
+                }
             }
         }
 
@@ -859,6 +911,12 @@ function Invoke-TechAgent {
     $markdownPath = $null
     $markdownStatus = 'NotStarted'
     $markdownError = $null
+    $markdownRecoveryReason = $null
+    $markdownPostflightReason = $null
+    $markdownPostflightAchieved = $true
+    $markdownResponseLength = 0
+    $markdownKnownFailureDetected = $false
+    $markdownExpectedOutputExists = $false
     $capturedStdOut = ''
     $capturedStdErr = ''
     $runStartedUtc = [DateTime]::UtcNow
@@ -939,7 +997,7 @@ function Invoke-TechAgent {
 
         $fileNameMatch = [regex]::Match(
             $PromptText,
-            '(?is)\b(?:name\s+(?:it|the\s+file)|file\s+should\s+be\s+named|named)\s+["'']?(?<name>[^"''`\r\n]+?\.help\.txt)\b')
+            '(?is)\b(?:name\s+(?:it|the\s+file|the\s+script\s+file|script\s+file)|file\s+should\s+be\s+named|named)\s+["'']?(?<name>[^\s"''`\\/:*?<>|]+?\.[A-Za-z0-9]{1,16})\b')
 
         if (-not $fileNameMatch.Success) {
             return $null
@@ -1017,9 +1075,23 @@ Hard requirement:
             [bool]$DestructiveAuthorized,
             [string]$SignedFilePolicyValue,
             [string]$AutoRetryOnRecursionMode,
+            [string]$ExecutionMode,
+            [string]$OutputContract,
+            [string]$QualityProfile,
+            [string]$PromptSource,
+            [int]$PreflightScore,
+            [string[]]$PreflightWarnings,
+            [string[]]$PreflightCritical,
+            [string]$ExpectedOutputPath,
             [string]$StdOut,
             [string]$StdErr,
             [string]$ErrorText,
+            [string]$RecoveryReason,
+            [bool]$PostflightAchieved,
+            [string]$PostflightReason,
+            [int]$ResponseLength,
+            [bool]$KnownFailureDetected,
+            [bool]$ExpectedOutputExists,
             [int]$ExitCode,
             [string]$TranscriptFile,
             [DateTime]$StartedUtc,
@@ -1056,6 +1128,51 @@ Hard requirement:
             $ErrorText.TrimEnd()
         }
 
+        $rawRecoveryReason = if ([string]::IsNullOrWhiteSpace($RecoveryReason)) {
+            '(none)'
+        }
+        else {
+            $RecoveryReason.TrimEnd()
+        }
+
+        $rawPostflightReason = if ([string]::IsNullOrWhiteSpace($PostflightReason)) {
+            '(none)'
+        }
+        else {
+            $PostflightReason.TrimEnd()
+        }
+
+        $preflightWarnings = @($PreflightWarnings)
+        $preflightCritical = @($PreflightCritical)
+        $preflightWarningsText = if ($preflightWarnings.Count -gt 0) {
+            ($preflightWarnings -join [Environment]::NewLine)
+        }
+        else {
+            '(none)'
+        }
+
+        $preflightCriticalText = if ($preflightCritical.Count -gt 0) {
+            ($preflightCritical -join [Environment]::NewLine)
+        }
+        else {
+            '(none)'
+        }
+
+        $expectedOutputPathText = if ([string]::IsNullOrWhiteSpace($ExpectedOutputPath)) {
+            '(none)'
+        }
+        else {
+            $ExpectedOutputPath
+        }
+
+        $postflightStatus = if ($PostflightAchieved) { 'Achieved' } else { 'NotAchieved' }
+        $expectedOutputExistsText = if ([string]::IsNullOrWhiteSpace($ExpectedOutputPath)) {
+            '(n/a)'
+        }
+        else {
+            [string]$ExpectedOutputExists
+        }
+
         $lines = @(
             '# Tech Agent Run'
             ''
@@ -1076,6 +1193,23 @@ Hard requirement:
             $PromptText
             '```'
             ''
+            '## Preflight'
+            ''
+            '~~~~text'
+            ('Mode: {0}' -f $ExecutionMode)
+            ('OutputContract: {0}' -f $OutputContract)
+            ('QualityProfile: {0}' -f $QualityProfile)
+            ('PromptSource: {0}' -f $PromptSource)
+            ('Score: {0}/100' -f $PreflightScore)
+            ('WarningsCount: {0}' -f $preflightWarnings.Count)
+            'Warnings:'
+            $preflightWarningsText
+            ('CriticalCount: {0}' -f $preflightCritical.Count)
+            'Critical:'
+            $preflightCriticalText
+            ('ExpectedOutputPath: {0}' -f $expectedOutputPathText)
+            '~~~~'
+            ''
             '## Output'
             ''
             $renderedOutput
@@ -1090,6 +1224,23 @@ Hard requirement:
             ''
             '~~~~text'
             $rawException
+            '~~~~'
+            ''
+            '## Postflight'
+            ''
+            '~~~~text'
+            ('Status: {0}' -f $postflightStatus)
+            ('ResponseLengthChars: {0}' -f $ResponseLength)
+            ('KnownFailurePrefixDetected: {0}' -f $KnownFailureDetected)
+            ('ExpectedOutputExists: {0}' -f $expectedOutputExistsText)
+            'Reason:'
+            $rawPostflightReason
+            '~~~~'
+            ''
+            '## Recovery'
+            ''
+            '~~~~text'
+            $rawRecoveryReason
             '~~~~'
         )
 
@@ -2219,11 +2370,15 @@ $result = $runAgentMethod.Invoke($null, @(
 
         $message = ([string]$message).Trim()
         $capturedStdOut = $message
+        $markdownResponseLength = $message.Length
         if ([string]::IsNullOrWhiteSpace($message)) {
             $message = 'Tech agent completed successfully with no output.'
+            $markdownResponseLength = $message.Length
         }
 
         $postflightAssessment = & $evaluatePostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore
+        $markdownPostflightAchieved = [bool]$postflightAssessment.Achieved
+        $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) { '' } else { [string]$postflightAssessment.Reason }
         if (-not $StrictPromptPreflight.IsPresent -and -not $postflightAssessment.Achieved) {
             foreach ($warning in @($preflight.Warnings)) {
                 Write-Warning ("`nInvoke-TechAgent postflight: {0}" -f $warning)
@@ -2235,6 +2390,10 @@ $result = $runAgentMethod.Invoke($null, @(
 
             if (-not [string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) {
                 Write-Warning ("`nInvoke-TechAgent postflight: {0}" -f $postflightAssessment.Reason)
+            }
+
+            if ($markdownStatus -eq 'NotStarted') {
+                $markdownStatus = 'SuccessWithWarnings'
             }
         }
 
@@ -2253,6 +2412,7 @@ $result = $runAgentMethod.Invoke($null, @(
                 break
             }
         }
+        $markdownKnownFailureDetected = $knownFailureDetected
 
         $expectedOutputExists = $false
         if (-not [string]::IsNullOrWhiteSpace($expectedOutputPath)) {
@@ -2261,19 +2421,26 @@ $result = $runAgentMethod.Invoke($null, @(
                 throw ("Tech agent failed: expected output file was not created: {0}" -f $expectedOutputPath)
             }
         }
+        $markdownExpectedOutputExists = $expectedOutputExists
 
         if ($knownFailureDetected) {
             if ($expectedOutputExists) {
-                Write-Log -Level Warn -Message (
-                    "Tech agent reported orchestrator failure text, but expected output file exists. Treating run as success. Message: {0}" -f $message
+                $markdownRecoveryReason = (
+                    "Recovered known orchestrator failure text because expected output file exists at '{0}'. Message: {1}" -f $expectedOutputPath, $message
                 )
+                Write-Log -Level Warn -Message (
+                    "Tech agent reported orchestrator failure text, but expected output file exists. Treating run as recovered success. Message: {0}" -f $message
+                )
+                $markdownStatus = 'SuccessRecovered'
             }
             else {
                 throw ("Tech agent failed: {0}" -f $message)
             }
         }
 
-        $markdownStatus = 'Success'
+        if ($markdownStatus -ne 'SuccessRecovered' -and $markdownStatus -ne 'SuccessWithWarnings') {
+            $markdownStatus = 'Success'
+        }
 
         return $message
     }
@@ -2286,7 +2453,7 @@ $result = $runAgentMethod.Invoke($null, @(
     finally {
         if (-not [string]::IsNullOrWhiteSpace($markdownPath)) {
             try {
-                $exitCode = if ($markdownStatus -eq 'Success') { 0 } else { -1 }
+                $exitCode = if ($markdownStatus -like 'Success*') { 0 } else { -1 }
                 & $writeMarkdownLog `
                     -Path $markdownPath `
                     -Status $markdownStatus `
@@ -2300,9 +2467,23 @@ $result = $runAgentMethod.Invoke($null, @(
                     elseif ($DisableAutoRetryOnRecursion.IsPresent) { 'Disabled' }
                     else { 'Default' }
                 ) `
+                    -ExecutionMode $resolvedExecutionMode `
+                    -OutputContract $resolvedOutputContract `
+                    -QualityProfile $resolvedQualityProfile `
+                    -PromptSource $promptSourceLabel `
+                    -PreflightScore $preflightScore `
+                    -PreflightWarnings @($preflight.Warnings) `
+                    -PreflightCritical @($preflight.Critical) `
+                    -ExpectedOutputPath $expectedOutputPath `
                     -StdOut $capturedStdOut `
                     -StdErr $capturedStdErr `
                     -ErrorText $markdownError `
+                    -RecoveryReason $markdownRecoveryReason `
+                    -PostflightAchieved $markdownPostflightAchieved `
+                    -PostflightReason $markdownPostflightReason `
+                    -ResponseLength $markdownResponseLength `
+                    -KnownFailureDetected $markdownKnownFailureDetected `
+                    -ExpectedOutputExists $markdownExpectedOutputExists `
                     -ExitCode $exitCode `
                     -TranscriptFile $transcriptPath `
                     -StartedUtc $runStartedUtc `
@@ -2335,8 +2516,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBx03nhZzrP/Jr9
-# 7YMG1gghItVgvQ5wyc0R+OinvL0KfKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCANQ4s4fr/nCpb+
+# hkmMrSxuewVrjIEhnBtdtzEVGJxuhaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2469,34 +2650,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBZUlXQXRDB
-# jxfO3SDM24RXbeJviNJjk62T0eawC687rTANBgkqhkiG9w0BAQEFAASCAgByYVID
-# 1u+z1lOlRm/za4KHVdmY+aFNDkiLT1fYBiMhlbQB0WUmFYO81HTbO0E0QyovB2Ia
-# VVIh5FlgCDsaPLUbG9Ze1qJZXOm5BvxgpgaHLyQ+61dG3pnpFCTui+z53IovMi1d
-# SLkyJAc9VrWHOO+I7oYW/ngQcuJS9k2NenOApiim5JjDbJYOCbCuhSskjZdTRpVC
-# DJB3OW2UJAo8WoCjRIFTea2FWzShng2Y2LhNLUdLBt+sxAtVWq9QfV+LCnrvqY+v
-# Kt70CR9NSpr+Kdlxk6iLOShhsAC5FmrmBztmC+Tgu4jKpviNUh3eKE94UwmvlqLn
-# P3AThfJ4/vlpMwduX3FipgkSYPYGXdn12fXqeKBs2pYI6Ayc+IJ+IRG//hzFCPng
-# QZi/Daz1dEAxhTp4Opl6j/nPLnFJJ9V1AcYp9NFlVgh2vVpEVHXoQSdwcLh6IN12
-# fGvapiXskN7qPceKWpBmeWv5eLKuuGsgto+5IwtbG1f0MqzUYWKwqYN3AJQB5Jtd
-# lyOL8qF1iXgImyQcEqsFTE365pBaEmq0tmnhpbd2LfEcvHLeMI2khPYOx78quvUP
-# z7OvBa9kU5640Ebze787bkK8J5/dJDkzYj2IhFa5jey4Tj/ThLlrMwlZAsjD/XQP
-# ijn1Pt+Cjx+J68DwBgfCEIY23Qns08+REO/hiqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDi4X1j6RW4
+# SGlTIkcOwWAg6vjVOci9WnOYPRRE7EGt9DANBgkqhkiG9w0BAQEFAASCAgBDGEKi
+# aMkYYESC2Fc+O6TCDJo1HsfEADXqfWYTZBWMFin4d3tXZKuO8e6/i5gO+lgSDsF0
+# v9e/rHG9MJoFRcVj9s+RkCKV8brk7EwefbMkC9WKfcA4wbQzcLI0WfD3Sl0xUKc5
+# Jov/jFA5rA9rD9456PNsGmjZ590n8xBg45ek8eeU7zXslWoKq4slhXwthljiHS2b
+# Y18kbcYsQqUlshkcG9sc1JceTkWpoxvMXjM25+Hjtzfa9acVXh7qc/ySxh0BNgu9
+# rlPu+UhM9CEYWAyCwImbLbHFCMCt7Nx2xvgHygdmwCIZtFYcq0OlhiX79RAq3D6k
+# zxgt9b3yCmfAni1Vh0TF9lFo2qp2YCpz13zjqwjOoy7mUPL4UD8bz5f+OFhsVsEB
+# KzYYhueYlmUC2WN5xgzL6VnI2vc9MmzNFlwR6fYzMhbpSFHrowQRiCCplM0yo5Vp
+# hau79Kpskm2hqOw4ngKUvXJtVO55WeFWhaVrw0fzD4GtFlPKNUj9vrkqd4T4hN+z
+# sVww2VOPnSPn6pgseVhggO22LF4mxu/TCeLXI2MMgLEOXjNo3kWfNCo+IBsrpHmZ
+# 3aIv7UehZ9r2/VBHq3mZDYEcxE0VECNBcjuPYuwb1WDN/HZ3OsuZ08mUhWloDfAy
+# KTs3izD2CMwnfcjqKdeO8Y9Gf6Znf8/EaWgGwKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MjgyMTMxMTdaMC8GCSqGSIb3DQEJBDEiBCDDYrCTvyRsS7t/pXOf
-# iOq5OZStRh1Zk6jtJ+RQtImlADANBgkqhkiG9w0BAQEFAASCAgCRnY96C8Qw/d0w
-# C0aufK+k3nhKdaO5HUminWZ8ZYIN6uzFcnrgaA/TLShk0lycHxDe9X6tVBfelzs9
-# iwGGQNx2vkBEl/xT4WAuGoCc2cR0TYbRbWKB02vUM2U2HcGJ0/ENz4wDE7rOELlc
-# tndeTK4y4mfjvGKDkd6Ju9AChtNXFyhPQjoXcJ4gCVK8Kbsz4ltkhdlzJG4gkEkF
-# HlQsE9O7FDkqXhhKubGLKuNJWrem41nqf2lmOeWK97G4a4CRmFabJfiwcCaacpPg
-# LKLWQJuvCnX54seoshA29mh8FHYjJoWf/+Zt3Qvk7q3H0HalymysCMEOcAEtXCu4
-# TyoIHtSB5Cfe+UPsSFfIRzLSPcXbUuhTuaIAtKZXCrhMZtONoXSWtkFqz1V0wYF9
-# HHPGGhG1KOV1YDt34qGDjs3NaHstkKkLGGXXY5EO1rY9HcEZvabDsqA0sgKPs285
-# f63CSIjS5D7Nqx3jPnYryOUzblGm2xQez/T0mCZg0XvAT15eM4EwuWBUjadjhGjV
-# ULo7Ln0pOvQrojXZHestSDuTsdGUfK4nwm/pU4/YHHaxUawC2w444rYn/n3KS+O/
-# 4dOykm1+fOv6hzthRBxQL4b4wmTeZ2obOTI030ky5fUMmuI579sXuHDBXMtAw7Mo
-# 5pIiwGbS+isiAP1upcJY0QMEBleAmg==
+# BTEPFw0yNjA4MjkwNDQwMDNaMC8GCSqGSIb3DQEJBDEiBCApgs5V5EhtpM7bxXi3
+# mfd2AlUsvIQk3emwrltIBOoB1TANBgkqhkiG9w0BAQEFAASCAgAnx0oXJJOsk1ur
+# i8Q2qFYvOK+aAxJsaGbIWwdYA+6gsUuntAj6xbM0xsZs5AvkyCjj5jBHptE96cCp
+# ki3K6eKnBrCGBOgSFUB23YHvpcdewy4el8j4TlSqz72d9ERYbwLWUYNOFudRaq1A
+# hcSpu3xCIF3l/ZNl9R4tGuc7T6pglK0JvOQEx6VElUP3/cKVLnSKFscsCd/ZuWBN
+# ZyUo0UfXt8u34/SkEdmQhrkVwTrioeDgWj1YxD1SYnxSMzi5Zz0ppC2jRJ5XRxfq
+# wFM/oLFBhQ7RoQJ7hg2upAD/W7B/vCxu4KaSBMcC8/CDZ9NIJti4TkfNFSDitx1P
+# fanLSZGWJ9fMA5ikQ1u3cA6bzUC4IQwuJPTeAKRh6OE+aHTjTA8mIZKn2ri8NBAl
+# 8ovDlSIN+8vhs+Ko+WnMj7M6nvzKkcGFXtq/sWqobfYYQGjrfiMSp07O8m/4uSrK
+# 4Je87lsjkxTfIzRPuB8iNeCqKKOj9y596NZeeb7YYPwtZusNkxL2XHiORegskL+C
+# DabhxcnSb8qZl+tRNxx10ecrRQi3S8Ckx7jE+eTwOwy3MSfvHPT6E1XFepMchqQd
+# cRKHuL6VQ2cT1bXBvlVq05D5JrYgW3dRL2LanOE32/bRgG1hUw1R2bDo0djTnS/E
+# tTxdCUanqHv1HhWJpCYKfZe+HfI0XA==
 # SIG # End signature block

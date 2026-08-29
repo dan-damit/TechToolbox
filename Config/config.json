@@ -137,9 +137,9 @@
       "runtimeProfiles": {
         "enabled": true,
         "defaultProfileName": "main_reasoning",
-        "reasoningProfileName": "main_reasoning",
+        "reasoningProfileName": "deep_reasoning",
         "codingProfileName": "coding_specialist",
-        "fallbackProfileName": "vision_support",
+        "fallbackProfileName": "main_reasoning",
         "profiles": {
           "main_reasoning": {
             "provider": "ollama",
@@ -149,27 +149,27 @@
             "temperature": 0.15,
             "topP": 0.88,
             "repeatPenalty": 1.08,
-            "description": "Primary reasoning profile for default orchestration."
+            "description": "Fast default profile for routine orchestration."
+          },
+          "deep_reasoning": {
+            "provider": "ollama",
+            "model": "qwen3.8:27b",
+            "maxContextTokens": 10240,
+            "maxOutputTokens": 800,
+            "temperature": 0.15,
+            "topP": 0.88,
+            "repeatPenalty": 1.08,
+            "description": "Deep reasoning profile for complex analysis turns."
           },
           "coding_specialist": {
             "provider": "ollama",
-            "model": "deepcoder:14b",
+            "model": "qwen3.8:27b",
             "maxContextTokens": 8192,
             "maxOutputTokens": 700,
             "temperature": 0.15,
             "topP": 0.9,
             "repeatPenalty": 1.05,
             "description": "Coding specialist profile for implementation-focused turns."
-          },
-          "vision_support": {
-            "provider": "ollama",
-            "model": "medgemma1.5:4b",
-            "maxContextTokens": 4096,
-            "maxOutputTokens": 300,
-            "temperature": 0.2,
-            "topP": 0.9,
-            "repeatPenalty": 1.05,
-            "description": "Vision-capable fallback profile for degraded retries."
           }
         }
       },
