@@ -17,27 +17,24 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.7,
-      "avgDurationMs": 216728,
-      "avgToolCalls": 0.95,
+      "successRate": 1,
+      "avgDurationMs": 30850,
+      "avgToolCalls": 1.5,
       "statusCounts": {
-        "error": 6,
-        "success": 14
+        "success": 20
       },
       "outcomeCounts": {
-        "iteration-limit": 2,
-        "completed": 14,
-        "runtime-error": 1,
-        "llm-failure": 3
+        "completed": 20
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "deepcoder:14b",
-      "lastRunTimestampUtc": "2026-08-30T01:32:16.7152731\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-30T01:32:16.7164389\u002B00:00",
-      "avgPromptPreflightScore": 99,
+      "lastModel": "phi4:14b",
+      "lastRunTimestampUtc": "2026-08-30T04:32:29.2594701\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-30T04:32:29.2604274\u002B00:00",
+      "avgPromptPreflightScore": 65,
       "executionModeCounts": {
-        "execute": 20
+        "execute": 19,
+        "chat": 1
       },
       "outputContractCounts": {
         "markdown": 20
@@ -47,7 +44,7 @@
       }
     },
     "memoryHealth": {
-      "generatedUtc": "2026-08-30T01:32:16.7164639\u002B00:00",
+      "generatedUtc": "2026-08-30T04:32:29.2604485\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 13,
       "indexEntries": 0,
@@ -60,7 +57,6 @@
         "Index entries: 0"
       ]
     },
-    "fact.c-repos-techtoolbox-src-techtoolbox.30d77850": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Your objective is to determine whether the agent currently supports the  OpenAI GPT-5.3-Codex reasoning effort settings:        low      medium      high",
     "fact.gpt-5-3-codex.a3da4ff8": "gpt-5.3-codex",
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
     "fact.tool-usage-powershell.a0d62039": "tool usage: PowerShell",
@@ -71,409 +67,10 @@
     "fact.tool-usage-get-noaa-forecast.306bbf72": "tool usage: GET-NOAA-FORECAST",
     "fact.c-temp-invoke-remotereboot-ps1-use-w.0a7681fe": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.tool-usage-and.c33a30fe": "tool usage: and",
-    "fact.tool-usage-frequently.7823b78d": "tool usage: frequently"
+    "fact.tool-usage-frequently.7823b78d": "tool usage: frequently",
+    "fact.tool-usage-physical.2642ce1b": "tool usage: Physical"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-29T18:53:14.2554348+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out how to figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format.",
-      "model": "qwen3.8:27b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 134467,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E READ-FILE\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out how to figure out why the Wait-TerminalState call in this block fails to ...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T19:42:57.6149819+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format.",
-      "model": "qwen3.8:27b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 2941679,
-      "maxIterations": 80,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 80\r\n- max_iterations requested: 80\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 80).",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 80\r\n- max_iterations requested: 80\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords -\u003E Get-FilesUsingKeywords\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 80).",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the consol...",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 80\r\n- max_iterations requested: 80\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T20:31:37.5234399+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format.",
-      "model": "gpt-5.3-codex",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 48142,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 5,
-      "toolNames": [
-        "read_file",
-        "list_directory",
-        "search_web",
-        "read_file",
-        "get_filesusingkeywords"
-      ],
-      "outputPreview": "## Blocker\nI cannot complete the requested code analysis yet because the target script is not present at the expected local paths, and the repository scan did not return any matching file content.\n\n- Confirmed evidence:\n  - \u0022Tool \u0027READ-FILE\u0027 failed: File not found: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Invoke-TechAgent.ps1\u0022\n  - \u0022Tool \u0027READ-FILE\u0027 failed: File not found: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Public\\AI\\Invoke-TechAgent.ps1\u0022\n  - \u0060Get-FilesUsingKeywords\u0060 over \u0060C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\u0060 returned \u0060{}\u0060\n\n## What this means\n- I do not currently have the local \u0060Invoke-TechAgent\u0060 script content needed to inspect lines 2189-2358.\n- Without that exact block, I cannot safely determine why \u0060Wait-TerminalState\u0060 is not emitting to console in your environment.\n\n## Next best action\nPlease provide one of the following so I can continue immediately:\n- The correct local file path for \u0060Invoke-TechAgent\u0060 in this workspace, or\n- The script snippet for lines 2189-2358 pasted here, or\n- Permission to fetch the PowerShell Gallery copy and analyze that version as a proxy.\n\nOnce you provide one of those, I will analyze the try/catch block and return a focused markdown diagnosis of why console emission is being suppressed and how to fix it.",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the consol...",
-        "actionsTaken": [
-          "read_file",
-          "list_directory",
-          "search_web",
-          "get_filesusingkeywords"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T20:32:45.6144338+00:00",
-      "status": "error",
-      "outcome": "runtime-error",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format. The file is located at C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1",
-      "model": "gpt-5.3-codex",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 6665,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "Error: READ_FILE_NON_PROGRESS_LOOP_GUARD\r\nBlocked READ-FILE because recent successful reads for target C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1 did not produce new evidence.\r\nRepeatedNonProgressCount: 2\r\nLatestCallSignature: READ-FILE::path=C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1|startLine=2189|endLine=2358|autoChunk=True|chunkSize=500\r\nDo not continue read loops that yield equivalent results.\r\nNext action: finalize with existing evidence or switch to a materially different target/context retrieval strategy.",
-      "error": "Error: READ_FILE_NON_PROGRESS_LOOP_GUARD\r\nBlocked READ-FILE because recent successful reads for target C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1 did not produce new evidence.\r\nRepeatedNonProgressCount: 2\r\nLatestCallSignature: READ-FILE::path=C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1|startLine=2189|endLine=2358|autoChunk=True|chunkSize=500\r\nDo not continue read loops that yield equivalent results.\r\nNext action: finalize with existing evidence or switch to a materially different target/context retrieval strategy.",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the consol...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "Error: READ_FILE_NON_PROGRESS_LOOP_GUARD\r\nBlocked READ-FILE because recent successful reads for target C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1 did not produce new evidence.\r\nRepeatedNonProgressCount: 2\r\nLatestCallSignature: READ-FILE::path=C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1|startLine=2189|e...",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T20:41:02.3905682+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format. The file is located at C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1",
-      "model": "gpt-5.3-codex",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 10672,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Analysis: Why \u0060Wait-TerminalState\u0060 may not emit to console\nBased on the provided block, the child process output is being handled asynchronously via \u0060OutputDataReceived\u0060 and queued:\n\n- \u0060add_OutputDataReceived(...)\u0060 registers an event handler.\n- \u0060BeginOutputReadLine()\u0060 starts async line-based capture.\n- The handler only does \u0060Enqueue($eventArgs.Data)\u0060.\n\nThis means output is not written directly to console when received. It is only buffered. If \u0060Wait-TerminalState\u0060 writes output but that queue is not drained frequently (or at all before exit/cleanup), it will look like it never emitted.\n\n## Most likely root cause in this block\n- \u0060Wait-TerminalState\u0060 output is captured into \u0060$stdoutQueue\u0060, not directly displayed.\n- Console visibility depends entirely on the later \u0060$drainStdoutQueue\u0060 scriptblock behavior and when it is invoked.\n- If drain timing is late, conditional, or skipped on certain paths (especially exception/early-exit paths), output appears missing.\n\n## Secondary causes to verify\n- If \u0060Wait-TerminalState\u0060 uses \u0060Write-Host\u0060, host-stream behavior in redirected child processes can differ from standard output capture.\n- If it emits partial/no newline text, \u0060OutputDataReceived\u0060 may not fire until newline is flushed.\n- If process exits quickly and queue is not drained after \u0060WaitForExit\u0060, final lines can be lost from console display.\n\n## Practical fixes\n- Ensure \u0060$drainStdoutQueue\u0060 is called in all paths:\n  - during polling loop\n  - immediately after process exit\n  - in \u0060finally\u0060 before handler removal/disposal\n- Add a final drain after \u0060WaitForExit()\u0060 and before returning.\n- If \u0060Wait-TerminalState\u0060 currently uses \u0060Write-Host\u0060, prefer \u0060Write-Output\u0060/\u0060Write-Information\u0060 (with proper preference) for reliable capture.\n- If real-time console echo is desired, have the drain function both store and write each dequeued line (for example via \u0060Write-Host\u0060 in parent).\n\n## Bottom line\n\u0060Wait-TerminalState\u0060 is likely emitting, but this architecture buffers child stdout and requires explicit draining to surface lines in the parent console. The failure to emit is most likely a drain/flush timing issue, not necessarily a failure inside \u0060Wait-TerminalState\u0060 itself.",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the consol...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T20:42:31.8436001+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format. The file is located at C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1",
-      "model": "gpt-5.3-codex",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 12175,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Findings: Why Wait-TerminalState appears to not emit to console\n\nFrom the block you shared, the most likely reason is that child process output is being fully buffered and only consumed after the process exits.\n\n- You start async full-buffer reads immediately:\n  - \u0060$stdoutTask = $agentProc.StandardOutput.ReadToEndAsync()\u0060\n  - \u0060$stderrTask = $agentProc.StandardError.ReadToEndAsync()\u0060\n- Then you run \u0060Wait-TerminalState\u0060 with polling.\n- But during polling, no stdout lines are read or forwarded.\n- Actual line parsing and any trace handling happen only after completion:\n  - \u0060$capturedStdOut = ... $stdoutTask.GetAwaiter().GetResult()\u0060\n  - split lines\n  - \u0060\u0026 $parseAgentTraceLine -TraceLine $line -AgentState $agentState\u0060\n\nSo even if the child emits progress lines, this code path does not stream them live to console. It defers processing until the end.\n\n## Secondary issue in this block\n\nInside the \u0060Wait-TerminalState\u0060 catch:\n\n- You set \u0060$hasWaitTerminalState = $false\u0060\n- You log warning with \u0060Write-Log -Level Warn ...\u0060\n- Fallback path logs \u0060Write-Log -Level E-Info -Message \u0022\u0060nAgent is running...\u0060n\u0022\u0060\n\nIf your logging system does not surface \u0060E-Info\u0060 to host console (or treats it differently), you may see little/no visible output in fallback mode too.\n\n## What this means\n\n- \u0060Wait-TerminalState\u0060 can still be functioning as a state poller.\n- But console emission is not tied to live stdout in this implementation.\n- The code is architected for post-run capture, not real-time display.\n\n## Practical fixes\n\n- If you want live console output, switch from \u0060ReadToEndAsync()\u0060 to line-by-line async handlers (or a polling reader) that writes each line as it arrives.\n- Keep \u0060Wait-TerminalState\u0060 for status animation/state, but feed it state updated by live line ingestion.\n- Ensure fallback uses a console-visible level (for example \u0060Info\u0060 if \u0060E-Info\u0060 is filtered).\n\n## Minimal root-cause summary\n\n- Root cause: stdout/stderr are consumed with \u0060ReadToEndAsync()\u0060 and parsed only after process exit, so no live emission occurs during \u0060Wait-TerminalState\u0060.\n- Contributing factor: fallback visibility may be reduced by \u0060Write-Log -Level E-Info\u0060 depending on logger configuration.",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the consol...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T20:44:26.8979151+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format. The file is located at C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1",
-      "model": "gpt-5.3-codex",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 12251,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Analysis: why \u0060Wait-TerminalState\u0060 appears to not emit to console\nFrom the provided block, the child process output is being consumed through redirected streams and async reads:\n\n- \u0060StandardOutput.ReadLineAsync()\u0060 is used and lines are stored in \u0060$stdoutLines\u0060\n- each line is passed to \u0060\u0026 $parseAgentTraceLine -TraceLine $line -AgentState $agentState\u0060\n- \u0060StandardError.ReadToEndAsync()\u0060 is also captured\n\nThis architecture means output is not automatically written to the parent console. It is only visible if your code explicitly re-emits it.\n\n## Most likely root cause\n\u0060Wait-TerminalState\u0060 output is being captured as child stdout, then parsed/consumed, but not forwarded to host output in this loop.\n\nIn other words:\n- child emits -\u003E redirected stdout buffer\n- parent reads line async -\u003E parser consumes line\n- no \u0060Write-Host\u0060/\u0060Write-Information\u0060/\u0060Write-Output\u0060 pass-through in the shown drain loop\n- result: user does not see expected console emission\n\n## Why this is consistent with your symptom\nThe comment says this path is intended for \u0022live progress visibility\u0022, but the shown code only accumulates and parses lines. If \u0060parseAgentTraceLine\u0060 updates state silently (common), \u0060Wait-TerminalState\u0060 text can be effectively hidden from the interactive console.\n\n## Additional contributing factors to check\n- If \u0060Wait-TerminalState\u0060 writes to Information/Verbose/Debug streams, those may not appear unless preferences/switches enable them.\n- If emission lacks newline, \u0060ReadLineAsync()\u0060 will not surface it until newline or stream close.\n- If parser filters lines by pattern, \u0060Wait-TerminalState\u0060 lines may be intentionally ignored.\n\n## Practical fix options\n- In \u0060$drainAvailableStdout\u0060, explicitly mirror lines to console before/after parsing, for example via host-visible write.\n- Ensure \u0060Wait-TerminalState\u0060 emits newline-terminated lines when using line-based readers.\n- If using Information/Verbose in child, enable and forward those streams explicitly.\n- Add temporary trace in parser to confirm line arrival and classification.\n\n## Minimal diagnostic conclusion\nGiven the shown code, the failure to emit is most likely not that \u0060Wait-TerminalState\u0060 fails to run, but that its emitted text is intercepted by redirected stdout and never re-written to the parent console.",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the consol...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T20:45:54.0187139+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format. The file is located at C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1",
-      "model": "gpt-5.3-codex",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 15225,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 3,
-      "toolNames": [
-        "read_file",
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Analysis of why Wait-TerminalState is not emitting to console\nFrom the returned block, the key behavior is this pattern:\n- Child process stdout is being consumed asynchronously via \u0060ReadLineAsync()\u0060 into \u0060$stdoutLines\u0060.\n- The code is explicitly designed to avoid direct event callbacks and instead poll/read lines.\n\nGiven that structure, the most likely reason \u0060Wait-TerminalState\u0060 output is not appearing live is:\n- Its output is being captured into the in-memory line buffer (\u0060$stdoutLines\u0060) rather than written through the parent host pipeline in real time.\n- If the loop only appends lines and defers host writes (or conditionally writes), console emission will appear missing even though output exists in the buffer.\n\n## Specific technical causes to check in this block\n- \u0060Wait-TerminalState\u0060 may be writing to a stream that is not line-terminated promptly.\n  - \u0060ReadLineAsync()\u0060 only completes on newline or EOF.\n  - If \u0060Wait-TerminalState\u0060 uses \u0060Write-Host -NoNewline\u0060, progress updates, or carriage-return style updates, those may never surface as lines.\n- Output may be intentionally filtered.\n  - If the loop only forwards selected lines (for example, JSON/tool protocol lines), non-matching status text from \u0060Wait-TerminalState\u0060 will be suppressed.\n- Stream preference mismatch.\n  - If \u0060Wait-TerminalState\u0060 uses \u0060Write-Verbose\u0060 or \u0060Write-Information\u0060, and child preferences suppress those streams, nothing reaches stdout.\n\n## Most probable root cause\n- The parent reader architecture is line-buffered (\u0060ReadLineAsync\u0060) and not a raw stream passthrough.\n- Therefore, \u0060Wait-TerminalState\u0060 console-style/status output is likely buffered, filtered, or never line-completed, so it does not emit live in the parent console.\n\n## Recommended fix options\n- Ensure \u0060Wait-TerminalState\u0060 emits newline-terminated standard output lines (\u0060Write-Output\u0060/\u0060Write-Host\u0060 with newline).\n- If live status is required, avoid line-only reads for that segment:\n  - use chunk/char-based stdout reads, or\n  - explicitly mirror buffered lines to host immediately when read.\n- If \u0060Wait-TerminalState\u0060 uses verbose/information streams, force those preferences in child process so they are emitted.\n- If filtering exists in the polling loop, allow pass-through for \u0060Wait-TerminalState\u0060 status lines.\n\n## Confidence and limitation\n- Confidence is moderate because the tool returned only a compact excerpt, not the full 2189-2358 text.\n- The architecture shown is sufficient to explain the symptom, but exact suppression point (buffering vs filtering vs stream preference) needs the full block text to prove conclusively.",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the consol...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T20:48:41.0450891+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the console. Analyze the code and then please output the results in console in markdown format. The file is located at C:\\repos\\TechToolbox\\Public\\AI\\Invoke-TechAgent.ps1",
-      "model": "gpt-5.3-codex",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 13738,
-      "maxIterations": 30,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "read_file",
-        "read_file"
-      ],
-      "outputPreview": "## Analysis of why Wait-TerminalState is not emitting to console\nFrom the provided block excerpt, the code is using an explicit async stdout polling loop:\n- \u0060ReadLineAsync()\u0060 is started via \u0060$ensureStdoutReadTask\u0060\n- completed lines are drained in \u0060$drainAvailableStdout\u0060\n- stderr is separately buffered with \u0060ReadToEndAsync()\u0060\n\nThis pattern strongly suggests console visibility depends on the polling/drain loop being called frequently and on explicit host writes inside that loop. If \u0060Wait-TerminalState\u0060 emits output through normal pipeline output (or non-host streams) but the surrounding code is only collecting lines into \u0060$stdoutLines\u0060 and not writing each line immediately to host, output can appear suppressed until later or never appear in real time.\n\n## Most likely causes in this block\n- Output is being buffered, not written live:\n  - lines are accumulated in \u0060$stdoutLines\u0060\n  - if no immediate \u0060Write-Host\u0060/\u0060Write-Information\u0060/\u0060Write-Verbose\u0060 call occurs per drained line, nothing appears live\n- Stream ownership conflict handling is retry-based:\n  - the \u0060InvalidOperationException\u0060 branch for \u0060stream is currently in use\u0060 defers reads to next tick\n  - if tick cadence is slow or gated by other waits, emission appears stalled\n- EOF/task state gating can pause reads:\n  - \u0060$stdoutReachedEof\u0060 and \u0060$stdoutLineTask\u0060 guards prevent new reads until state clears\n  - if state is not advanced promptly, no new lines are surfaced\n- Wait-TerminalState may emit to a stream not currently surfaced:\n  - if it uses Verbose/Information and preferences are not enabled, console appears silent\n\n## Practical fix direction\n- Ensure each drained stdout line is immediately written to host when read.\n- Ensure the drain function is invoked continuously during wait loops (short poll interval).\n- If Wait-TerminalState uses Verbose/Information, enable and forward those streams in this execution path.\n- Keep stderr forwarding live as well (not only end-of-process read) if you need immediate diagnostics.\n\n## Bottom line\nGiven this code shape, the failure to emit is most likely not Wait-TerminalState itself, but the surrounding async read/drain buffering path delaying or suppressing host writes. The fix is to flush drained lines to console immediately and keep the drain loop running at high cadence while waiting.",
-      "runSummary": {
-        "intent": "please look at Invoke-TechAgent script centered around the try/catch block between lines 2189 and 2358. Your task is to try and help me figure out why the Wait-TerminalState call in this block fails to emit in the consol...",
-        "actionsTaken": [
-          "read_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T20:56:04.0312422+00:00",
-      "status": "error",
-      "outcome": "llm-failure",
-      "prompt": "Please write a PowerShell script that will reboot a remote host via PSRemoting. Name the file Invoke-RemoteReboot.ps1. The file must work as a stand alone script with no external helpers. Make sure the script is syntactically correct.",
-      "model": "phi4:14b",
-      "retryTierUsed": 3,
-      "fallbackActivated": true,
-      "fallbackReason": "Switched to fallback profile \u0027main_reasoning\u0027 after retryable LLM failures.",
-      "durationMs": 355773,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-      "runSummary": {
-        "intent": "Please write a PowerShell script that will reboot a remote host via PSRemoting. Name the file Invoke-RemoteReboot.ps1. The file must work as a stand alone script with no external helpers. Make sure the script is syntacti...",
-        "actionsTaken": [],
-        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 80,
-      "promptPreflightWarningCount": 1,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-29T21:08:14.4335487+00:00",
-      "status": "error",
-      "outcome": "llm-failure",
-      "prompt": "Please write a PowerShell script that will reboot a remote host via PSRemoting. The script will be named Invoke-RemoteReboot.ps1. The file must work as a stand alone script with no external helpers. Make sure the script is syntactically correct. Output the script to console.",
-      "model": "phi4:14b",
-      "retryTierUsed": 3,
-      "fallbackActivated": true,
-      "fallbackReason": "Switched to fallback profile \u0027main_reasoning\u0027 after retryable LLM failures.",
-      "durationMs": 290960,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-      "runSummary": {
-        "intent": "Please write a PowerShell script that will reboot a remote host via PSRemoting. The script will be named Invoke-RemoteReboot.ps1. The file must work as a stand alone script with no external helpers. Make sure the script ...",
-        "actionsTaken": [],
-        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-29T21:13:34.4739873+00:00",
-      "status": "error",
-      "outcome": "llm-failure",
-      "prompt": "Please write a PowerShell script that will reboot a remote host via PSRemoting. The script will be named Invoke-RemoteReboot.ps1. The script must work as a stand alone script with no external helpers. Make sure the script is syntactically correct. Output the script to console.",
-      "model": "phi4:14b",
-      "retryTierUsed": 3,
-      "fallbackActivated": true,
-      "fallbackReason": "Switched to fallback profile \u0027main_reasoning\u0027 after retryable LLM failures.",
-      "durationMs": 32736,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-      "runSummary": {
-        "intent": "Please write a PowerShell script that will reboot a remote host via PSRemoting. The script will be named Invoke-RemoteReboot.ps1. The script must work as a stand alone script with no external helpers. Make sure the scrip...",
-        "actionsTaken": [],
-        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM request failed: No connection could be made because the target machine actively refused it. (localhost:11434)",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-29T21:16:33.8687446+00:00",
       "status": "success",
@@ -705,11 +302,430 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-30T01:37:42.6344158+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to console.",
+      "model": "gpt-5.3-codex",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 16395,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## PowerShell 5.1\u002B System Information Script\n\n\u0060\u0060\u0060powershell\n#requires -Version 5.1\n[CmdletBinding()]\nparam()\n\nSet-StrictMode -Version Latest\n$ErrorActionPreference = \u0027Stop\u0027\n\nfunction Get-ValueOrNA {\n    param(\n        [Parameter(Mandatory=$true)]\n        $Value\n    )\n    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {\n        return \u0027N/A\u0027\n    }\n    return [string]$Value\n}\n\nfunction Write-Section {\n    param(\n        [Parameter(Mandatory=$true)][string]$Title\n    )\n    Write-Host \u0027\u0027\n    Write-Host (\u0027=\u0027 * 70)\n    Write-Host $Title\n    Write-Host (\u0027=\u0027 * 70)\n}\n\ntry {\n    $os = Get-CimInstance -ClassName Win32_OperatingSystem\n    $cs = Get-CimInstance -ClassName Win32_ComputerSystem\n    $bios = Get-CimInstance -ClassName Win32_BIOS\n    $cpu = Get-CimInstance -ClassName Win32_Processor\n    $memModules = Get-CimInstance -ClassName Win32_PhysicalMemory\n    $disks = Get-CimInstance -ClassName Win32_LogicalDisk -Filter \u0022DriveType=3\u0022\n    $nics = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -Filter \u0022IPEnabled=True\u0022\n\n    $uptime = (Get-Date) - $os.LastBootUpTime\n    $totalMemGB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)\n    $freeMemGB = [math]::Round($os.FreePhysicalMemory * 1KB / 1GB, 2)\n    $usedMemGB = [math]::Round($totalMemGB - $freeMemGB, 2)\n\n    Write-Section -Title \u0027SYSTEM OVERVIEW\u0027\n    Write-Host (\u0027Computer Name        : {0}\u0027 -f (Get-ValueOrNA $env:COMPUTERNAME))\n    Write-Host (\u0027User Name            : {0}\u0027 -f (Get-ValueOrNA $env:USERNAME))\n    Write-Host (\u0027Domain               : {0}\u0027 -f (Get-ValueOrNA $env:USERDOMAIN))\n    Write-Host (\u0027Manufacturer         : {0}\u0027 -f (Get-ValueOrNA $cs.Manufacturer))\n    Write-Host (\u0027Model                : {0}\u0027 -f (Get-ValueOrNA $cs.Model))\n    Write-Host (\u0027System Type          : {0}\u0027 -f (Get-ValueOrNA $cs.SystemType))\n\n    Write-Section -Title \u0027OPERATING SYSTEM\u0027\n    Write-Host (\u0027OS                   : {0}\u0027 -f (Get-ValueOrNA $os.Caption))\n    Write-Host (\u0027Version              : {0}\u0027 -f (Get-ValueOrNA $os.Version))\n    Write-Host (\u0027Build Number         : {0}\u0027 -f (Get-ValueOrNA $os.BuildNumber))\n    Write-Host (\u0027Install Date         : {0}\u0027 -f (Get-ValueOrNA $os.InstallDate))\n    Write-Host (\u0027Last Boot            : {0}\u0027 -f (Get-ValueOrNA $os.LastBootUpTime))\n    Write-Host (\u0027Uptime               : {0} days {1} hours {2} minutes\u0027 -f $uptime.Days, $uptime.Hours, $uptime.Minutes)\n\n    Write-Section -Title \u0027CPU\u0027\n    foreach ($c in $cpu) {\n        Write-Host (\u0027Name                 : {0}\u0027 -f (Get-ValueOrNA $c.Name))\n        Write-Host (\u0027Cores                : {0}\u0027 -f (Get-ValueOrNA $c.NumberOfCores))\n        Write-Host (\u0027Logical Processors   : {0}\u0027 -f (Get-ValueOrNA $c.NumberOfLogicalProcessors))\n        Write-Host (\u0027Max Clock (MHz)      : {0}\u0027 -f (Get-ValueOrNA $c.MaxClockSpeed))\n        Write-Host (\u0027Processor ID         : {0}\u0027 -f (Get-ValueOrNA $c.ProcessorId))\n        Write-Host (\u0027-\u0027 * 70)\n    }\n\n    Write-Section -Title \u0027MEMORY\u0027\n    Write-Host (\u0027Total Physical (GB)  : {0}\u0027 -f $totalMemGB)\n    Write-Host (\u0027Used Physical (GB)   : {0}\u0027 -f $usedMemGB)\n    Write-Host (\u0027Free Physical (GB)   : {0}\u0027 -f $freeMemGB)\n    Write-Host (\u0027Memory Modules       : {0}\u0027 -f $memModules.Count)\n    foreach ($m in $memModules) {\n        $capGB = [math]::Round($m.Capacity / 1GB, 2)\n        Write-Host (\u0027Slot                 : {0}\u0027 -f (Get-ValueOrNA $m.DeviceLocator))\n        Write-Host (\u0027Capacity (GB)        : {0}\u0027 -f $capGB)\n        Write-Host (\u0027Speed (MHz)          : {0}\u0027 -f (Get-ValueOrNA $m.Speed))\n        Write-Host (\u0027Manufacturer         : {0}\u0027 -f (Get-ValueOrNA $m.Manufacturer))\n        Write-Host (\u0027Part Number          : {0}\u0027 -f (Get-ValueOrNA $m.PartNumber))\n        Write-Host (\u0027-\u0027 * 70)\n    }\n\n    Write-Section -Title \u0027BIOS\u0027\n    Write-Host (\u0027Vendor               : {0}\u0027 -f (Get-ValueOrNA $bios.Manufacturer))\n    Write-Host (\u0027Version              : {0}\u0027 -f (Get-ValueOrNA ($bios.SMBIOSBIOSVersion -join \u0027, \u0027)))\n    Write-Host (\u0027Serial Number        : {0}\u0027 -f (Get-ValueOrNA $...",
+      "runSummary": {
+        "intent": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to...",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-30T04:00:32.5369454+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 19305,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "- **Shawano, Wisconsin Weather Forecast for Tomorrow (Sunday):**\n  - **Temperature:** High of 83\u00B0F\n  - **Wind:** Southeast wind at 1 to 5 mph\n  - **Forecast:** Patchy fog with a chance of showers and thunderstorms\n  - **Precipitation Probability:** 31%\n  - **Additional Note:** Heat index values may reach as high as 86\u00B0F.",
+      "runSummary": {
+        "intent": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:02:24.3875574+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 11883,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather Forecast for Green Bay, Wisconsin\n\n- **Tonight**:\n  - Temperature: 66\u00B0F\n  - Wind: 6 mph from the South\n  - Short Forecast: Cloudy then Chance Showers And Thunderstorms\n  - Precipitation Probability: 51%\n\n- **Sunday**:\n  - Temperature: High near 83\u00B0F\n  - Wind: 5 mph from the East\n  - Short Forecast: Chance Showers And Thunderstorms then Slight Chance Showers And Thunderstorms\n  - Precipitation Probability: 27%\n\n- **Sunday Night**:\n  - Temperature: Low around 69\u00B0F\n  - Wind: 5 mph from the ESE\n  - Short Forecast: Mostly Cloudy then Slight Chance Showers And Thunderstorms\n  - Precipitation Probability: 45%\n\n- **Monday**:\n  - Temperature: High near 87\u00B0F\n  - Wind: 3 to 8 mph from the SSW\n  - Short Forecast: Chance Showers And Thunderstorms\n  - Precipitation Probability: 30%\n\n- **Monday Night**:\n  - Temperature: Low around 71\u00B0F\n  - Wind: 1 to 6 mph from the West\n  - Short Forecast: Mostly Cloudy then Slight Chance Showers And Thunderstorms\n  - Precipitation Probability: 23%\n\n- **Tuesday**:\n  - Temperature: High near 87\u00B0F\n  - Wind: 1 to 5 mph from the ESE\n  - Short Forecast: Slight Chance Showers And Thunderstorms\n  - Precipitation Probability: 24%\n\n- **Tuesday Night**:\n  - Temperature: Low around 69\u00B0F\n  - Wind: 3 mph from the SW\n  - Short Forecast: Chance Showers And Thunderstorms\n  - Precipitation Probability: 35%",
+      "runSummary": {
+        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:07:43.1722832+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Appletion Wisconsin tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 11628,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather Forecast for Appleton, Wisconsin Tomorrow\n\n- **Period:** Sunday\n- **Temperature:** High near 84\u00B0F\n- **Wind:** South wind around 7 mph\n- **Forecast:** Partly sunny with a slight chance of showers and thunderstorms before 4pm.\n- **Precipitation Probability:** 24%",
+      "runSummary": {
+        "intent": "Please check the weather in Appletion Wisconsin tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:08:23.3386476+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Ashland Wisconsin tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 8191,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather Forecast for Ashland, Wisconsin\n\n### Tomorrow (Sunday)\n- **Temperature:** High of 75\u00B0F\n- **Wind:** NE at 5 to 15 mph, gusts up to 20 mph\n- **Forecast:** Mostly cloudy with a slight chance of rain showers between 9am and 1pm.\n- **Precipitation Probability:** 22%\n\n### Sunday Night\n- **Temperature:** Low around 64\u00B0F\n- **Wind:** NE at 5 to 10 mph, gusts up to 20 mph\n- **Forecast:** A slight chance of showers and thunderstorms between 11pm and 3am.\n- **Precipitation Probability:** 33%",
+      "runSummary": {
+        "intent": "Please check the weather in Ashland Wisconsin tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:10:50.1173746+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Kenosha Wisconsin tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 7873,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "- **Location:** Kenosha, Wisconsin, United States\n- **Date:** Tomorrow (August 30, 2026)\n- **Period:** Sunday\n- **Temperature:** High of 84\u00B0F\n- **Wind:** Southwest at 10 to 15 mph\n- **Forecast:** Chance of showers and thunderstorms before 3pm, then a chance of showers and thunderstorms.\n- **Precipitation Probability:** 45%",
+      "runSummary": {
+        "intent": "Please check the weather in Kenosha Wisconsin tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:12:36.713041+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Madison Wisconsin tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 7430,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather Forecast for Madison, Wisconsin Tomorrow\n\n- **Period**: Sunday\n- **Temperature**: High of 84\u00B0F\n- **Wind**: Southwest at 10 to 15 mph\n- **Forecast**: Partly sunny with a slight chance of showers and thunderstorms before 1pm, then a chance of showers and thunderstorms between 1pm and 5pm.\n- **Precipitation Probability**: 31%",
+      "runSummary": {
+        "intent": "Please check the weather in Madison Wisconsin tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:14:14.0547204+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Death Vally tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 24417,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 12,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast",
+        "search_web",
+        "fetch_url",
+        "search_web",
+        "fetch_url",
+        "fetch_url",
+        "fetch_url",
+        "search_web",
+        "get_noaa_forecast",
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "- **Location**: Death Valley, CA\n- **ZIP Code**: 92328\n- **Forecast Summary for Tomorrow**:\n  - **Temperature**: High of 95\u00B0F, Low of 60\u00B0F\n  - **Conditions**: Sunny with a slight breeze\n  - **Humidity**: Around 20%\n  - **Wind**: West at 5 to 10 mph\n  - **UV Index**: High",
+      "runSummary": {
+        "intent": "Please check the weather in Death Vally tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast",
+          "fetch_url"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:15:28.2170584+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Nome Alaska tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 8005,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather Forecast for Nome, Alaska Tomorrow\n\n- **Period:** Sunday\n- **Temperature:** High near 46\u00B0F\n- **Wind:** West wind 20 to 30 mph\n- **Forecast:** Rain showers likely. Mostly cloudy.\n- **Precipitation Probability:** 63%\n\n- **Period:** Sunday Night\n- **Temperature:** Low around 37\u00B0F\n- **Wind:** Northwest wind 10 to 30 mph\n- **Forecast:** A chance of rain showers before 4am. Partly cloudy.\n- **Precipitation Probability:** 42%",
+      "runSummary": {
+        "intent": "Please check the weather in Nome Alaska tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:16:33.0460761+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Dutch Harbor Alaska tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 8211,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "- **Location**: Dutch Harbor, Alaska\n- **Date**: Tomorrow (August 31, 2026)\n  - **Daytime Forecast**:\n    - **Temperature**: High near 66\u00B0F\n    - **Wind**: West wind 10 to 20 mph\n    - **Short Forecast**: Light Rain Likely\n    - **Precipitation Probability**: 58%\n  - **Nighttime Forecast**:\n    - **Temperature**: Low around 57\u00B0F\n    - **Wind**: West wind around 15 mph, with gusts as high as 25 mph\n    - **Short Forecast**: Chance Light Rain\n    - **Precipitation Probability**: 35%",
+      "runSummary": {
+        "intent": "Please check the weather in Dutch Harbor Alaska tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-08-30T04:19:05.8761564+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Is it possible to hide the cursor in a PowerShell console?",
+      "model": "deepcoder:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 21708,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "To hide the cursor in a PowerShell console, you can use the following method:\n\n1. Run the command: \u0060[Console]::CursorVisible = $false\u0060\n\nThis will hide the cursor in your PowerShell console.",
+      "runSummary": {
+        "intent": "Is it possible to hide the cursor in a PowerShell console?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-30T04:32:29.2594701+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 11884,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather Forecast for Shawano, Wisconsin Tomorrow\n\n- **Period:** Sunday\n  - **Temperature:** High of 83\u00B0F\n  - **Short Forecast:** Patchy Fog\n  - **Wind:** 1 to 5 mph from the SE\n  - **Precipitation Probability:** 31%\n\n- **Period:** Sunday Night\n  - **Temperature:** Low around 66\u00B0F\n  - **Short Forecast:** Slight Chance Showers And Thunderstorms\n  - **Wind:** 2 to 6 mph from the E\n  - **Precipitation Probability:** 44%",
+      "runSummary": {
+        "intent": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-30T01:32:16.7165565\u002B00:00",
+    "generatedUtc": "2026-08-30T04:32:29.2605380\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 13,
     "indexEntries": 0,

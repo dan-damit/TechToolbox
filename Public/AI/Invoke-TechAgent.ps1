@@ -575,7 +575,7 @@ Hard requirement:
             throw "TechToolbox.Agent assembly not found. Install the packaged agent runtime or build/publish src\TechToolbox.Agent."
         }
 
-        Write-Log -Level Info -Message ("Tech agent runtime assembly: {0}" -f $agentAssemblyPath)
+        Write-Log -Level Info -Message ("Tech agent runtime assembly: {0}`n" -f $agentAssemblyPath)
 
         # Invoke-TechAgent now uses an internal terminal-state wait loop.
         # Keeping this self-contained avoids helper load drift and improves reliability.
@@ -691,7 +691,7 @@ Hard requirement:
         }
 
         if ($ConfirmDestructive.IsPresent) {
-            Write-Log -Level Warn -Message "`nDestructive operations explicitly authorized for this run."
+            Write-Log -Level Warn -Message "Destructive operations explicitly authorized for this run."
         }
 
         $autoRetryOnIterationLimit = $false
@@ -1309,7 +1309,7 @@ $result = $runAgentMethod.Invoke($null, @(
                     -TerminalStates $terminalStates `
                     -TimeoutSeconds $waitTimeoutSeconds `
                     -PollSeconds 1 `
-                    -TickMs 1000 `
+                    -TickMs 125 `
                     -HeartbeatSeconds 0
                 $internalWaitSucceeded = $true
             }
@@ -1525,8 +1525,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCByGkQnq0Gh7PjX
-# h/AUqsvx23Fqvwp1nIswjMzC6uZGmaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAea5cPndwuIcCw
+# QyFGcOIeqGhFh647IlRE0xaHLb8GLaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1659,34 +1659,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXSBRawUwN
-# Iu6oRWYWjXV79TYdmTuOqt0uqJx1zPxnzTANBgkqhkiG9w0BAQEFAASCAgBqXnHm
-# v3clUe+sz2k8+26cJde8YW7kIAQDqAz4CpcRFBQJ/XKgQZUHjn0jNZvkXrfUVgCW
-# /tIT4FbN3WoviBzGoLy6NHOKOTxMMQpmwg94ovgGUN1eTm/QQohJMCGLbWmmUvTs
-# YsoPW7HgHstoanwivHsV7AIgkZk1GviIdNTxbRUd+WqbXl/Be0QwlRUMdMNSjeot
-# ltHUECgdmOJzfPmLPUNTd40JSmLe5RiR0U1ASJpLueHtV1UJGwbZOuRhwM4JC4a0
-# zSig2eWEyOmDB679LCJ4JvavSY81oxT3r5Llr3L5lD/KlbcjSmzkhHm9NycncQ9a
-# NqxCIAGIjzxSkssD+W9aWcuCgi4FykopYsenwWdfIFPh+Jw5xPyXlKgUphzd0hqO
-# 53OpThn/P25hAo+FMP4UtWWmV4qbKtmHxI+E7U90NoTr0rUVD5noL4n+8OfOcUeM
-# 9jvfgS1pBCiRe+hfwj0qB1Wny6oIoENhWV2IPVGTjTJnwHi4TuJsS85ThWvN9Sgc
-# /qWFWn9ojbt0zSzA3ZXEyR7szQ+Lgf7Df7rk+SjFWoGZ7IHXlV8TAxCuIeicgB3o
-# LWQpjqNilSm9GjY6bgTIDIMPYRjEkzfnDH9pdj4Wxm2O30+KqxiiVb6AHorvDjLa
-# 8Jgg9JmorqTWV/Hzyr8msGi201MXNnIPX19j3KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC+KK2QNoHN
+# ypIr/Jvx09M9S54Tgyeh+7R5uRbe3zjwxjANBgkqhkiG9w0BAQEFAASCAgDFF4CP
+# dKy1GSmV1vNK2IImF3/Mrt3blH/2xlGps6EVPY3jCpwJJ++BwBMAZXpPmg0QVvQS
+# bcS+qNUvLnAaT+x5O6IS7W22gxH3nYlrnhuRtTGqRxu+Pxp68FdvtJ1sI58OXhky
+# tDFF4AEHDptxHVZhrHLDGmtGIRdaBsxh1tL9/S7KAWrqrwrKg41ZlCgUiSXIH3LO
+# 7MzK16784jtCdQvVcrHUmzGtz7XmcPIfpgaTc7J2EeYE0SOyttjfQ4qPzglD6pmh
+# wpJvh3m4bOtjXHGtrimyYx589XG0ESezQ5Z2U0snaMRkQAOpRzCgWvQTJL29GcqH
+# 5RU4L3YwQ/HLAldkdkibhY4ffhIF71i0tbK/BR/HVfrLyF+etWok9ckwum5C4kG5
+# THSZSx7r6EMQo8QFgST6GWYjrJCtV23eU/1s0VD5TOdbWlSuBJmq9YsPGvExFtNB
+# /WiiN05UFFHQhiJzeQaGDBxO3AR2TixM+B5FsQdPhcqeMmZyCRu6Gf5rS+GGYQu6
+# raYDFsv9nE7hd8HAvnoopao2MgH6kTcQq+BV2HGsliKY9EVOE7Snyau5QbpDHgnv
+# XalNoEt4TieEQAkgz8BEQx2vb+qQan3o6fOZciwm+EY4ww2s4VWDwDfEq0Yh/Osf
+# 27kCJMaMxVPo1XoiLpKdM8yg5FH+vkwHBZCVZKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MzAwMTIyMTBaMC8GCSqGSIb3DQEJBDEiBCBmqr/aIUDr6UXoYdfL
-# ChYF+3RZDrCXOkdtWnA3UQNHAjANBgkqhkiG9w0BAQEFAASCAgDKSPi+KIJgNcCP
-# 76bgEktmhz15YdLZDyX01MQ9IdH9uXuj4mhznfll3zQeXTVEze55den6FZGA8D9J
-# qMx/+atWhTurah8iorwilW7tTky0O77jky/he/uwqMtDhVJgGeqx5mVr3hcz9gra
-# hTj+TIMl7KM1O8Pg6vMyTLZQPpT7ZTtsjjvdBAmZHXyRkm9TH8WSO4bkb1gOo3Op
-# INp63aheeQUWv7q+G6FVRRmjppJZwfx2gbZPEx51E4G98cz2s3cREGiskvv3kya4
-# RZ81dwcew+yBpi+SNbyNpp+HG/BvfFA2gJNo45mqx6YgnQCFYLq3ilsBBcUMZVVD
-# f3BQq3FDx4T5dGdc7C8KycCOsg5Jb/teEky+gkk0grz4TMMM+K3bCpbmol3XGD7i
-# c/rnzbTbWLk1C7DImAYX6OYaKliLNi9wncV1b9G7SfjE+wcNVTV3BWZxVUjd7IvJ
-# paA3Gi81x4uOisAzUh9tChA+3z55ayRDjAQW1qDIS2uQsYc1ZnVgd31zPHLVm101
-# n+Dffb24LKzz7YwlXc9TmULZUBVhbPq4L5IUvYVso7nBoj+/XZtj4slhMAc0dR82
-# MsglA/LXexRWjtqnITLSS2aclrpfTYyzASBvXv4g1Y2nlbb+LzzsGsoav3kPWobe
-# fH7YlWUEtelHpilnHsB+v+3+7P+gIw==
+# BTEPFw0yNjA4MzAwNDMyMDBaMC8GCSqGSIb3DQEJBDEiBCBzFlMi34B7vK+Kh472
+# 2so0EmIEGqvwdaawcPdo8XzjEzANBgkqhkiG9w0BAQEFAASCAgARLwMknMjpEMRo
+# 5eiRoJG99ndSwrYMLB7PjDM3k2owV47J8HxUWM/usHLQ3ZqFuOASAIRpG+eUyOo2
+# bhveBJdSTw4PCHf4hQPEHPlUM04cf95QpOXRttQfcoBKzMwPdaqY0AbMvMICfbx/
+# oUF6N/08PV5WhLvkDhGk/OOXjahtZV/mI6QXrMksdUtigvnaDYpGCJfE3iKwnh/8
+# uLLv8rv2Y8FbCDYeelT3BFlhRQaeRWeGDeudVMvHtB8rdMZqXN/REqBJFEpmg4wp
+# XUlKsU5cMK7BL+eOh+JdDRZRrOmo0jgc63rm+8cbdPlhXTAQ16tNqeVW3OZaFzo5
+# kYyHvkbDS+O5oE2wLdt1Bat6RbVF9YQESJwjUIztEOAdwN2vDykyZg+Gr96SoPsF
+# okoapnMYoxFSI3ZceCdEYZ9MSsFeHkisBBKVRrviaE5m8cLj/5S0fa7DRY5aHH6T
+# d6MPuFQ9ar7t3lsDcm6f2JAzLKbWi4YPz3jJFRyizKXbVkjiNJPgiANItyF1YEC4
+# 2UXbbuz1qJaVJvmTOIcFDdOr5CSANsvfV4MpRzwNvAg0h+6kfFCu/nmGz9F05NS8
+# uQbqSopeuYuNN2dqcfUhkVfsMwiAFxgGpI0vApPoeSC0hHqqqqFVAjCOal+osNsI
+# 38Wm23l0gasfuAD/76UcsZDKuztOBg==
 # SIG # End signature block

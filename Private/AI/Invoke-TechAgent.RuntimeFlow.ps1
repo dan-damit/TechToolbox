@@ -74,7 +74,7 @@ function Wait-TTInternalTerminalState {
         [hashtable]$TerminalStates,
         [int]$TimeoutSeconds,
         [int]$PollSeconds = 1,
-        [int]$TickMs = 250,
+        [int]$TickMs = 125,
         [int]$HeartbeatSeconds = 5
     )
 
@@ -94,64 +94,74 @@ function Wait-TTInternalTerminalState {
     $frameIndex = 0
     $lastState = $null
 
-    while ((Get-Date) -lt $deadline) {
-        $now = Get-Date
+    if ($interactive) {
+        Write-Host "`e[?25l" -NoNewline   # hide cursor ONCE
+    }
+    try {
+        while ((Get-Date) -lt $deadline) {
+            $now = Get-Date
 
-        if ($now -ge $nextPoll) {
-            $lastState = & $PollScript
-            $status = ''
-            if ($null -ne $lastState) {
-                $status = [string](& $GetStatus $lastState)
+            if ($now -ge $nextPoll) {
+                $lastState = & $PollScript
+                $status = ''
+                if ($null -ne $lastState) {
+                    $status = [string](& $GetStatus $lastState)
+                }
+
+                if ([string]::IsNullOrWhiteSpace($status)) {
+                    $status = 'WAITING'
+                }
+
+                if ($status -ne $lastStatus) {
+                    if (-not $interactive) {
+                        Write-Log -Level Info -Message ('{0}: Status={1}' -f $Target, $status)
+                    }
+                    $lastStatus = $status
+                }
+                elseif ($HeartbeatSeconds -gt 0 -and $now -ge $nextHeartbeat) {
+                    if (-not $interactive) {
+                        Write-Log -Level Info -Message ('{0}: Still waiting (Status={1})...' -f $Target, $status)
+                    }
+                    $nextHeartbeat = (Get-Date).AddSeconds($HeartbeatSeconds)
+                }
+
+                if ($TerminalStates.ContainsKey($status)) {
+                    $meta = $TerminalStates[$status]
+                    $level = [string]$meta.Level
+                    $messageText = if ($meta.Message -is [scriptblock]) {
+                        & $meta.Message $lastState $status
+                    }
+                    else {
+                        [string]$meta.Message
+                    }
+
+                    if ($interactive) {
+                        Write-Host -NoNewline ("`r" + (' ' * 140) + "`r")
+                        Write-Host ''
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($messageText)) {
+                        Write-Log -Level $level -Message $messageText
+                    }
+                    return $lastState
+                }
+
+                $nextPoll = (Get-Date).AddSeconds($PollSeconds)
             }
 
-            if ([string]::IsNullOrWhiteSpace($status)) {
-                $status = 'WAITING'
+            if ($interactive) {
+                $frame = $frames[$frameIndex % $frames.Count]
+                $frameIndex++
+                Write-Host -NoNewline ("`rTechAgent is running... {0}" -f $frame) -ForegroundColor Cyan
             }
 
-            if ($status -ne $lastStatus) {
-                if (-not $interactive) {
-                    Write-Log -Level Info -Message ('{0}: Status={1}' -f $Target, $status)
-                }
-                $lastStatus = $status
-            }
-            elseif ($HeartbeatSeconds -gt 0 -and $now -ge $nextHeartbeat) {
-                if (-not $interactive) {
-                    Write-Log -Level Info -Message ('{0}: Still waiting (Status={1})...' -f $Target, $status)
-                }
-                $nextHeartbeat = (Get-Date).AddSeconds($HeartbeatSeconds)
-            }
-
-            if ($TerminalStates.ContainsKey($status)) {
-                $meta = $TerminalStates[$status]
-                $level = [string]$meta.Level
-                $messageText = if ($meta.Message -is [scriptblock]) {
-                    & $meta.Message $lastState $status
-                }
-                else {
-                    [string]$meta.Message
-                }
-
-                if ($interactive) {
-                    Write-Host -NoNewline ("`r" + (' ' * 140) + "`r")
-                    Write-Host ''
-                }
-
-                if (-not [string]::IsNullOrWhiteSpace($messageText)) {
-                    Write-Log -Level $level -Message $messageText
-                }
-                return $lastState
-            }
-
-            $nextPoll = (Get-Date).AddSeconds($PollSeconds)
+            Start-Sleep -Milliseconds $TickMs
         }
-
+    }
+    finally {
         if ($interactive) {
-            $frame = $frames[$frameIndex % $frames.Count]
-            $frameIndex++
-            Write-Host -NoNewline ("`rTechAgent is running... {0}" -f $frame) -ForegroundColor Cyan
+            Write-Host "`e[?25h" -NoNewline   # show cursor ONCE
         }
-
-        Start-Sleep -Milliseconds $TickMs
     }
 
     if ($interactive) {
@@ -164,8 +174,8 @@ function Wait-TTInternalTerminalState {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCADekeEHWOxdfRm
-# 4sk4YiKpm7Rf/x5shK+w9r3GlKOnyKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBMClKjcvOsaWf4
+# zN+at0/HDh8UWgmf10Lajio9Hpz22KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -298,34 +308,34 @@ function Wait-TTInternalTerminalState {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDSzwGWD44r
-# 7vTQHZMemMIYad4y1DHAWJtrwnzdcHv36zANBgkqhkiG9w0BAQEFAASCAgBN6r3k
-# P1M1HhUzzHf8e+A3iHlUAIm2kXQTRP0ZNUTrYtGwOMWl0JzGX2evxrxj5BLi8yrJ
-# yJ+sn/G9SPkHJHFi9qGhKJsxg5BJsOOer5HkoOfWHEb5CfaqiZhjuRZFaBbymj6H
-# 1eEOuynXNg9gK4vr3nl3wK6fkYwGPAsPQGmWspheTyMCmpCbsdb6qDfvKhFioJ9z
-# AcWWcGoze4gE0Ld8RGCZHxuET/AyJg2aHGRpsX8cFnMK4qXiyRnPgWaT1yuc2foY
-# q1YAyH2VwG5o7SuShzZFaD3kPIas8LuDHIPsbqlnRWGM7sdJqXbH7f9ibqtlXLxT
-# 4UWF2S0MJU4mXvFiBFeXvK8vB8o0Vjvqx1EtOJP8DyJNF6+h5YkHilVCy+x/mW1s
-# Jhog/bO4OjjiQUC70PG/DTp/jgaMekHUOScd+PszfoEJfhhRT4ANfZcopc7ew4WM
-# wHolVLotaeWRBFzr5+2MCIx0uALQFNdgAp3y745rb66U+XY7XqbARY3/eMfxlv+e
-# kzvGWgjIfuZ0t4oGs+W3d5HlkkSrz+PaUs+ZamykC8MGGkB16EnBGVvqiT4yfvY+
-# HZUrbWsbZviDY5BV3oqiUh5wzo1IhAseUBqER2kqd6UAo6tSKtLww9cJyRfqtzCb
-# VATm5pTiawNXBz72PaIHUmp2Sjdn33RG/7F2g6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB0WFeJEELs
+# gqb436Ouqd1ZF3Nzu3P7C5sDVOj/5txvaDANBgkqhkiG9w0BAQEFAASCAgCl0HcU
+# 2Q/EagEZM4nNEirPVh57pH/iCLByc2KRUqoIiQJVXovCPOTK6hABXpdrdCwISAkH
+# y9L+ryd2+lPLNiNU0GzgacHPo/HPQTgAOdZKlkVOcAqHyAawcC55hU8ciK1CPY9K
+# jDQInpj11Rcwt9tPPmNiDKDBzkZbreB8ySJe7Jgal3ZytFpHdpOPxWQ9uGcHfIF5
+# fgSUwVZBf0BnS/3b2U0GLSmJHZHlTcviAwF1rbXgTJ75Al4uDGxImY6pLTALce3E
+# dty8z9FBGfqxHGwxxnAA4EpGu+DPhG0uC/R/+jNLfX7Y42T7uUojwRG8W7Og7sTh
+# aEp1odT2PtuRgmfzZuf2kA2cI4xPUX36fIDpPA1PJnRwp3KMBwpnoLDPzNDy5Zyd
+# rXMycQFmrXFD1BuUgV4vKUwZTih3PULwtQJKnidi+Br/L+FvpRLg5fz/VtFtoMJu
+# ew6hnSjZpZFgR2LU84Q27zM2uajxRWTGmUS6uEBQcJl2Z474ZrFzr1i0EOnJFK/J
+# Szz1Uqjpi2lOrazxOtSQq7k38bBEPxh1eIocg6eQ1gxdcXKlSUVB+BwxlHx/i537
+# CMADRyE8GF7Q3D8GClV3+GEQVBitQZWc8isyCM3clxo1Ez4ttMeeC9mMI/tUG+sX
+# ypTfzj4qMsC93v0+2bKIxGiDRNIlamybC30/0aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MzAwMTMyMzVaMC8GCSqGSIb3DQEJBDEiBCDlboBjXnqhVI6p1O5Y
-# 9wczG7q/LkQfVLs1Y9KHeT3FnDANBgkqhkiG9w0BAQEFAASCAgAjGhoeobMIpq61
-# kUBjp+55Vr+FqJnwIaODAsq4Hd/bEAK0ODvChLut02LEPM2ywu33oWw6P9kaA1+a
-# QTaknsLMxaNLdCiQXm7znGlZTmfbAY4Nat+WWDlbQ+BJPlsO+KZkBqykSMF+hZ6X
-# OWU6ems30I5dmRokGCIsrVGPI/Jf2fnwN9w3t+9ZClnDQ9JTBQUbwJQaCk2woEL5
-# TjC5N7AaZ+/A3Em4QOc0HsSDdf0FiFkYYaXUtU03jR5EOttqqGwuP9PXsozbFZM1
-# UxttqJAUlRxrKe2W+XXpRfSceH3CNpwiX94VBDWBqWn/Tvsflqytow0EYJ7IEGme
-# Y98kw9Dqnoikc8bKlcijZmxr08b60N8ZYNCFQyTGWhSAwKvu8z9GfK+rUByXuzkz
-# KdMVdSHcNKztwqCqH5ICF/DrHgThDHkK6h1VT/1ISxPQG8yytnaBcGEW0wcp1lmW
-# vN9qkByabYC2Tej+dvG4qpsEN9g1ICsh/aDXbEiqlwm9aavKpJUkwK1nOEkm9MVE
-# 0oUwl+3C3SNTUuTL4BAG56SMfkL6Kftwzlu6msRn1DRS0Gbb6e7Rs9ZQvLcFTQmb
-# XEhecU6BEsX0QTw52c0GCPsWD9PJ1ufPEoH95vYSFKFHClNk95Ysv5+GVadNufot
-# hqxe/u0u/OpEO8S820Makc2f3MR2tg==
+# BTEPFw0yNjA4MzAwNDMxNTlaMC8GCSqGSIb3DQEJBDEiBCAoDdpW0bfT/ZJflFKj
+# onLf31gAdgsCI17yzj+b0F5AQDANBgkqhkiG9w0BAQEFAASCAgCm9aOEWQRPjcsf
+# LJtxNyUt9imDv17diiKsG3Wab7Oueq0W+XrQxvQmC/VOYyrwIiDT+fPXKHfMguyc
+# /fOEssKgn39c9aVH0GztxTpN6rqccgY/7qXIo6X3wQxzP/wYJIQN7feAeeX/8a8w
+# y0cQodhJbKGAZSN19TzAWH+1ccV8C2hmcp8BzLsprGQc9PCZ7TIz2Aoa2zNlEcvl
+# rsg1LEFmWSt70wbXWFzQbUczf6ov/RkqlObzTB58i8j5PGg6TjjKvWCqLPm2NOwv
+# CpswsjlHflLCz5g00AdyHr/ChQdC/k4EXvyfzFsaLX+cyIpRekQwyrMk+j0jhUiD
+# 5Qer6U9qSq3YCvTqJttZ8WKwjhqcy7c5ntDCa5WCNOACfr45pOwEmzWjDIcuYzKK
+# 6nSqm41zOpib6UigqpH3zjVl4Tz6V3r4eAUwUklxvrOQVGR9HyFlxA6WZhvdpKq3
+# 6LpDlpUUBWqsuY0qhEank723NQ5WKblYUw3jJBR8FrQ6YHtBii9dSBdKpS79ElCW
+# kCzzJXHc45EM5O8V2g1LMMg7KfbhZVttbvROMqR4nB95B9GdBwqOe7Ld9jl1W2rc
+# LMd9PT4KpsPxXSu2vqqikIhFzu7uVGayDYqLt+UvTlVwHrUOTjjmEQSDCBYfT+Ef
+# oj051CEn9/P+LxdhjTDBFFxU9K5cOw==
 # SIG # End signature block
