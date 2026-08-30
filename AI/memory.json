@@ -18,8 +18,8 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.65,
-      "avgDurationMs": 225929,
-      "avgToolCalls": 1.05,
+      "avgDurationMs": 221699,
+      "avgToolCalls": 1,
       "statusCounts": {
         "success": 13,
         "error": 7
@@ -33,9 +33,9 @@
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "deepcoder:14b",
-      "lastRunTimestampUtc": "2026-08-29T21:43:23.9479178\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-29T21:43:23.9490529\u002B00:00",
-      "avgPromptPreflightScore": 94,
+      "lastRunTimestampUtc": "2026-08-29T23:54:56.9116479\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-29T23:54:56.9127498\u002B00:00",
+      "avgPromptPreflightScore": 96,
       "executionModeCounts": {
         "execute": 20
       },
@@ -47,7 +47,7 @@
       }
     },
     "memoryHealth": {
-      "generatedUtc": "2026-08-29T21:43:23.9490757\u002B00:00",
+      "generatedUtc": "2026-08-29T23:54:56.9127687\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 13,
       "indexEntries": 0,
@@ -74,39 +74,6 @@
     "fact.tool-usage-frequently.7823b78d": "tool usage: frequently"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-29T04:35:19.1683038+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "I need a PowerShell script that will reboot a remote host via PSRemoting. Assume the remot host has PSRemoting enabled. Make sure the script is syntatically correct. Output the script to the console. Make it a stand alone script that assumes no external helpers are available. Name the script file Invoke-RemoteReboot.ps1. Output the file in the directory C:\\Temp.",
-      "model": "qwen3.8:27b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 100344,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 1,
-      "toolNames": [
-        "write_file"
-      ],
-      "outputPreview": "## Result\n\nThe script \u0060Invoke-RemoteReboot.ps1\u0060 has been written to \u0060C:\\Temp\\Invoke-RemoteReboot.ps1\u0060.\n\n### Script overview\n\n- **Purpose:** Reboots a remote Windows host via PSRemoting (assumes PSRemoting is enabled on the target).\n- **Parameters:**\n  - \u0060-ComputerName\u0060 (required) - Name or IP of the remote host.\n  - \u0060-Credential\u0060 (optional) - PSCredential for authentication.\n  - \u0060-Force\u0060 (optional) - Skips the interactive confirmation prompt.\n- **Behavior:**\n  - Prompts for confirmation unless \u0060-Force\u0060 is used.\n  - Creates a PSSession to the target.\n  - Runs \u0060Restart-Computer -Force\u0060 inside that session.\n  - Cleans up the session in a \u0060finally\u0060 block.\n  - Exits with code 1 on failure.\n\n### Usage examples\n\n\u0060\u0060\u0060\n.\\Invoke-RemoteReboot.ps1 -ComputerName \u0027WEB01\u0027\n.\\Invoke-RemoteReboot.ps1 -ComputerName \u0027WEB01\u0027 -Credential (Get-Credential) -Force\n\u0060\u0060\u0060",
-      "runSummary": {
-        "intent": "I need a PowerShell script that will reboot a remote host via PSRemoting. Assume the remot host has PSRemoting enabled. Make sure the script is syntatically correct. Output the script to the console. Make it a stand alon...",
-        "actionsTaken": [
-          "write_file"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-29T05:25:53.2584913+00:00",
       "status": "success",
@@ -714,11 +681,40 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-29T23:54:56.9116479+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to console.",
+      "model": "deepcoder:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 15741,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "\u0060\u0060\u0060powershell\n# Script: Get-SystemInformation.ps1\n# Version: 1.0\n# Description: Self-contained PowerShell script to gather system information\n\nparam(\n    [switch]$ShowConsole = $false,\n    [switch]$SaveFile = $false\n)\n\n# Gather system information\n$systemInfo = @{\n    \u0027Uptime\u0027 = (Get-ComputerInfo).SystemBootTime\n    \u0027DiskSpace\u0027 = (Get-PSDrive -PSDrive C).DriveInfo.DiskSize / 1GB\n    \u0027Memory\u0027 = (Get-MemInfo).TotalMegabytes\n    \u0027CPU\u0027 = (Get-CpuInfo).Name\n}\n\n# Display information\nIf ($ShowConsole) {\n    Write-Host \u0027System Information:\u0027\n    foreach ($key in $systemInfo.Keys) {\n        Write-Host \u0022\u0060t$key: $($systemInfo[$key])\u0022\n    }\n}\n\n# Save to file\nIf ($SaveFile) {\n    $outputPath = \u0022C:\\Temp\\SystemInfo_$((Get-Date).ToString(\u0027yyyyMMddHHmmss\u0027)).txt\u0022\n    $systemInfo | Out-File -FilePath $outputPath\n    Write-Host \u0022Information saved to: $outputPath\u0022\n}\n\n# Return results\n$systemInfo\n\u0060\u0060\u0060",
+      "runSummary": {
+        "intent": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to...",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-29T21:43:23.9491706\u002B00:00",
+    "generatedUtc": "2026-08-29T23:54:56.9128607\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 13,
     "indexEntries": 0,

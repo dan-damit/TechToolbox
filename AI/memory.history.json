@@ -1,34 +1,5 @@
 [
   {
-    "timestampUtc": "2026-08-12T23:05:19.1175522+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "What is the weather going to be like tomorrow in Green Bay Wisconsin USA?",
-    "model": "qwen3.6:35b",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 29423,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Resolve all critical preflight findings, reduce warning count below 2, and rerun validation before executing mutating tools.",
-    "runSummary": {
-      "intent": "What is the weather going to be like tomorrow in Green Bay Wisconsin USA?",
-      "actionsTaken": [],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "chat",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 0,
-    "promptPreflightWarningCount": 5,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-08-12T23:06:13.5428199+00:00",
     "status": "success",
     "outcome": "completed",
@@ -8468,6 +8439,35 @@
     "outputPreview": "\u0060\u0060\u0060powershell\n# Invoke-RemoteReboot.ps1\n# Reboots a remote computer using WS-Man protocol\n\ntry {\n    # Check if WinRM is running on the remote computer\n    if ((Test-WSMan -ComputerName $remoteComputer -ErrorAction SilentlyContinue) -eq $false) {\n        Write-Warning \u0027WinRM service is not running on the remote computer or connection failed.\u0027\n        exit\n    }\n\n    # Get credentials\n    $username = Read-Host \u0027Enter remote computer admin username\u0027\n    $password = Read-Host \u0027Enter remote computer admin password\u0027 -AsSecureString\n    $cred = New-Object System.Management.Automation.PSCredential ($username, $password)\n\n    # Reboot the remote computer\n    Invoke-Command -ComputerName $remoteComputer -Credential $cred -ScriptBlock {\n        Restart-Computer -Force\n    }\n\n    Write-Host \u0027Remote computer is being rebooted...\u0027 -ForegroundColor Green\n} catch {\n    Write-Error \u0027Failed to reboot remote computer.\u0027\n    Write-Error $_.Exception.Message\n}\n\u0060\u0060\u0060",
     "runSummary": {
       "intent": "Please write a PowerShell script that will reboot a remote host using the WS-Man protocol. The script will be named Invoke-RemoteReboot.ps1. The script must work as a stand alone script with no external helpers. Make sur...",
+      "actionsTaken": [],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 100,
+    "promptPreflightWarningCount": 0,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-08-29T23:54:56.9116479+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to console.",
+    "model": "deepcoder:14b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 15741,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "\u0060\u0060\u0060powershell\n# Script: Get-SystemInformation.ps1\n# Version: 1.0\n# Description: Self-contained PowerShell script to gather system information\n\nparam(\n    [switch]$ShowConsole = $false,\n    [switch]$SaveFile = $false\n)\n\n# Gather system information\n$systemInfo = @{\n    \u0027Uptime\u0027 = (Get-ComputerInfo).SystemBootTime\n    \u0027DiskSpace\u0027 = (Get-PSDrive -PSDrive C).DriveInfo.DiskSize / 1GB\n    \u0027Memory\u0027 = (Get-MemInfo).TotalMegabytes\n    \u0027CPU\u0027 = (Get-CpuInfo).Name\n}\n\n# Display information\nIf ($ShowConsole) {\n    Write-Host \u0027System Information:\u0027\n    foreach ($key in $systemInfo.Keys) {\n        Write-Host \u0022\u0060t$key: $($systemInfo[$key])\u0022\n    }\n}\n\n# Save to file\nIf ($SaveFile) {\n    $outputPath = \u0022C:\\Temp\\SystemInfo_$((Get-Date).ToString(\u0027yyyyMMddHHmmss\u0027)).txt\u0022\n    $systemInfo | Out-File -FilePath $outputPath\n    Write-Host \u0022Information saved to: $outputPath\u0022\n}\n\n# Return results\n$systemInfo\n\u0060\u0060\u0060",
+    "runSummary": {
+      "intent": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to...",
       "actionsTaken": [],
       "blockers": "",
       "nextBestStep": ""

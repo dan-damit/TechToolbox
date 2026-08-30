@@ -318,391 +318,11 @@ function Invoke-TechAgent {
         $promptSourceLabel = "default prompt file ($resolvedDefaultPromptPath)"
     }
 
-    $resolveExecutionMode = {
-        param(
-            [string]$ModeFromParam,
-            $ConfigObject,
-            [bool]$ParamWasBound
-        )
-
-        if ($ParamWasBound -and -not [string]::IsNullOrWhiteSpace($ModeFromParam)) {
-            return $ModeFromParam.Trim().ToLowerInvariant()
-        }
-
-        $configMode = $null
-        if ($null -ne $ConfigObject) {
-            $modeProperty = $ConfigObject.PSObject.Properties['executionMode']
-            if ($null -ne $modeProperty -and -not [string]::IsNullOrWhiteSpace([string]$modeProperty.Value)) {
-                $configMode = [string]$modeProperty.Value
-            }
-        }
-
-        if ([string]::IsNullOrWhiteSpace($configMode)) {
-            return 'chat'
-        }
-
-        switch ($configMode.Trim().ToLowerInvariant()) {
-            'plan' { return 'plan' }
-            'analyze' { return 'analyze' }
-            'chat' { return 'chat' }
-            default { return 'chat' }
-        }
-    }
-
-    $resolveOutputContract = {
-        param(
-            [string]$ContractFromParam,
-            $ConfigObject,
-            [bool]$ParamWasBound
-        )
-
-        if ($ParamWasBound -and -not [string]::IsNullOrWhiteSpace($ContractFromParam)) {
-            return $ContractFromParam.Trim().ToLowerInvariant()
-        }
-
-        $configContract = $null
-        if ($null -ne $ConfigObject) {
-            $contractProperty = $ConfigObject.PSObject.Properties['outputContract']
-            if ($null -ne $contractProperty -and -not [string]::IsNullOrWhiteSpace([string]$contractProperty.Value)) {
-                $configContract = [string]$contractProperty.Value
-            }
-        }
-
-        if ([string]::IsNullOrWhiteSpace($configContract)) {
-            return 'markdown'
-        }
-
-        switch ($configContract.Trim().ToLowerInvariant()) {
-            'plain-text' { return 'plain-text' }
-            'json' { return 'json' }
-            default { return 'markdown' }
-        }
-    }
-
-    $resolveQualityProfile = {
-        param(
-            [string]$ProfileFromParam,
-            $ConfigObject,
-            [bool]$ParamWasBound
-        )
-
-        if ($ParamWasBound -and -not [string]::IsNullOrWhiteSpace($ProfileFromParam)) {
-            return $ProfileFromParam.Trim().ToLowerInvariant()
-        }
-
-        $configProfile = $null
-        if ($null -ne $ConfigObject) {
-            $profileProperty = $ConfigObject.PSObject.Properties['qualityProfile']
-            if ($null -ne $profileProperty -and -not [string]::IsNullOrWhiteSpace([string]$profileProperty.Value)) {
-                $configProfile = [string]$profileProperty.Value
-            }
-        }
-
-        if ([string]::IsNullOrWhiteSpace($configProfile)) {
-            return 'balanced'
-        }
-
-        switch ($configProfile.Trim().ToLowerInvariant()) {
-            'precise' { return 'precise' }
-            'creative' { return 'creative' }
-            default { return 'balanced' }
-        }
-    }
-
-    $invokePromptPreflight = {
-        param(
-            [string]$PromptText,
-            [string]$Mode
-        )
-
-        $score = 0
-        $warnings = [System.Collections.Generic.List[string]]::new()
-        $critical = [System.Collections.Generic.List[string]]::new()
-
-        if ([string]::IsNullOrWhiteSpace($PromptText)) {
-            $critical.Add('Prompt is empty.')
-            return [ordered]@{ Score = 0; Warnings = @($warnings); Critical = @($critical) }
-        }
-
-        $normalizedPrompt = $PromptText.Trim()
-
-        $hasTaskVerb = [regex]::IsMatch(
-            $normalizedPrompt,
-            '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement|find|fetch|get|retrieve|collect|report|disable|enable|reset|remove|delete|provision|deprovision|offboard)\b')
-        if ($hasTaskVerb) { $score += 20 } else { $warnings.Add('Missing clear task verb (for example: update, analyze, fix, plan).') }
-
-        $hasPathOrSystemTarget = [regex]::IsMatch(
-            $normalizedPrompt,
-            '(?i)([A-Za-z]:\\[^\r\n]+|\b(file|function|class|module|script|command|service|endpoint|api|workflow|active\s*directory|ad\b|account|user|computer|group|ou|organizational\s+unit|exchange\s*online|entra|azure\s*ad)\b)')
-
-        $hasWebTarget = [regex]::IsMatch(
-            $normalizedPrompt,
-            '(?i)(https?://\S+|\b(url|uri|website|web\s*site|webpage|site|domain|host|weather\.gov)\b)')
-
-        $isWeatherIntent = [regex]::IsMatch(
-            $normalizedPrompt,
-            '(?i)\b(weather|forecast|temperature|precipitation|wind|noaa)\b')
-
-        $hasWeatherLocationTarget = [regex]::IsMatch(
-            $normalizedPrompt,
-            '(?i)((?<!\d)\d{5}(?:-\d{4})?(?!\d)|\b[A-Za-z][A-Za-z\-''\.\s]+,\s*[A-Za-z][A-Za-z\-''\.\s]+\b)')
-
-        $hasConcreteTarget = $hasPathOrSystemTarget -or $hasWebTarget -or ($isWeatherIntent -and $hasWeatherLocationTarget)
-        if ($hasConcreteTarget) { $score += 20 } else { $warnings.Add('Missing concrete target (file, function, module, system, URL, website, or path).') }
-
-        $hasExpectedOutcome = [regex]::IsMatch(
-            $normalizedPrompt,
-            '(?i)\b(expected|outcome|output|result|return|produce|final|success\b|done\b)')
-        if ($hasExpectedOutcome) { $score += 20 } else { $warnings.Add('Missing expected outcome details (what successful output should look like).') }
-
-        $hasConstraints = [regex]::IsMatch(
-            $normalizedPrompt,
-            '(?i)\b(must|should|do not|don''t|avoid|constraint|format|style|security|strict|exact path|preserve|no edits)')
-        if ($hasConstraints) { $score += 20 } else { $warnings.Add('Missing explicit constraints or preferences (style, safety, formatting, scope).') }
-
-        if ($normalizedPrompt.Length -ge 80) {
-            $score += 20
-        }
-        else {
-            $warnings.Add('Prompt is short; add context (environment, errors, affected behavior).')
-        }
-
-        if ($normalizedPrompt.Length -lt 25) {
-            $critical.Add('Prompt is too short for reliable execution.')
-        }
-
-        if ($Mode -eq 'execute' -and -not $hasConcreteTarget) {
-            $critical.Add('Execution mode requires a concrete target to avoid ambiguous changes.')
-        }
-
-        if ($Mode -eq 'execute' -and -not $hasExpectedOutcome) {
-            $critical.Add('Execution mode requires expected outcome details.')
-        }
-
-        return [ordered]@{
-            Score    = $score
-            Warnings = @($warnings)
-            Critical = @($critical)
-        }
-    }
-
-    $buildAutoPromptHint = {
-        param(
-            [string]$PromptText,
-            [string]$Mode,
-            [string]$OutputContract,
-            [int]$WarningCount,
-            [int]$CriticalCount
-        )
-
-        if ([string]::IsNullOrWhiteSpace($PromptText)) {
-            return $null
-        }
-
-        if ($WarningCount -le 0 -and $CriticalCount -le 0) {
-            return $null
-        }
-
-        $normalized = $PromptText.Trim()
-
-        $taskVerbMatch = [regex]::Match(
-            $normalized,
-            '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement|find|fetch|get|retrieve|collect|report)\b')
-        $taskVerb = if ($taskVerbMatch.Success) {
-            $taskVerbMatch.Value
-        }
-        elseif ([regex]::IsMatch($normalized, '(?i)\b(weather|forecast)\b')) {
-            'fetch'
-        }
-        else {
-            'analyze'
-        }
-
-        $urlMatch = [regex]::Match($normalized, '(?i)https?://\S+')
-        $pathMatch = [regex]::Match($normalized, '(?i)[A-Za-z]:\\[^\s"''`\r\n]+')
-        $locationMatch = [regex]::Match(
-            $normalized,
-            '(?i)\b(?:for|in|at|near)\s+(?<location>[A-Za-z][A-Za-z0-9''.,/-]*(?:\s+[A-Za-z0-9''.,/-]+){0,6})(?=\s+(?:from|on|using|with|and|return|output|show|summarize|today|tomorrow|next)\b|$)'
-        )
-
-        $targetHint = if ($urlMatch.Success) {
-            "the data from $($urlMatch.Value)"
-        }
-        elseif ($pathMatch.Success) {
-            "the file at $($pathMatch.Value)"
-        }
-        elseif ($locationMatch.Success) {
-            $locationName = $locationMatch.Groups['location'].Value.Trim().TrimEnd(',', '.')
-            "the weather forecast for $locationName using the official NOAA API (api.weather.gov)"
-        }
-        elseif ([regex]::IsMatch($normalized, '(?i)\bweather\b')) {
-            'the weather forecast for the specified location using the official NOAA API (api.weather.gov)'
-        }
-        else {
-            'the specific file, service, module, or URL'
-        }
-
-        $sourceHint = if ($urlMatch.Success) {
-            "Use $($urlMatch.Value) as the primary source."
-        }
-        elseif ([regex]::IsMatch($normalized, '(?i)\b(website|web\s*site|webpage|url|uri|domain|host|web)\b')) {
-            'Use the specified website or URL as the primary source.'
-        }
-        else {
-            'Use only the minimum required tools and keep the scope bounded.'
-        }
-
-        $contractHint = switch ($OutputContract) {
-            'json' { 'Return valid JSON object or array text only.' }
-            'plain-text' { 'Return plain text only (no markdown).' }
-            default { 'Return the final answer in markdown.' }
-        }
-
-        $modeConstraint = if ($Mode -eq 'execute') {
-            'Constraints: execute only bounded steps and avoid unrelated changes.'
-        }
-        else {
-            "Constraints: respect mode '$Mode'."
-        }
-
-        return (
-            '{0} {1}. {2} {3} {4}' -f $taskVerb, $targetHint, $sourceHint, $contractHint, $modeConstraint
-        )
-    }
-
-    $evaluatePostflightGoal = {
-        param(
-            [string]$PromptText,
-            [string]$ResponseText,
-            [int]$PreflightScore
-        )
-
-        if ([string]::IsNullOrWhiteSpace($PromptText)) {
-            return @{ Achieved = $false; Reason = 'Prompt was empty.' }
-        }
-
-        if ([string]::IsNullOrWhiteSpace($ResponseText)) {
-            return @{ Achieved = $false; Reason = 'No response text was produced.' }
-        }
-
-        $promptLower = $PromptText.Trim().ToLowerInvariant()
-        $responseLower = $ResponseText.Trim().ToLowerInvariant()
-
-        $hasCompletionSignal = (
-            [regex]::IsMatch($responseLower, '(?im)^\s*##\s*result\b') -or
-            [regex]::IsMatch($responseLower, '(?im)^\s*(created|updated|wrote)\s+file\s*:') -or
-            [regex]::IsMatch($responseLower, '(?is)```(?:powershell|pwsh)?\s*.+?```') -or
-            $responseLower.Contains('script contents') -or
-            $responseLower.Contains('successfully')
-        )
-
-        $hasUncertaintySignal = [regex]::IsMatch(
-            $responseLower,
-            '(?i)(\bi need more (?:detail|information)\b|\bclarification needed\b|\bnot enough information\b|\bi (?:am|''m) unable to\b|\bi could not\b|\bi cannot\b|\bi can''t\b|\bplease provide\b|\brequire (?:more|additional) (?:details|information)\b)'
-        )
-
-        if ($hasUncertaintySignal -and -not $hasCompletionSignal) {
-            return @{ Achieved = $false; Reason = 'The response requested more clarification or reported inability to complete the task.' }
-        }
-
-        if ($PreflightScore -lt 60 -and $ResponseText.Trim().Length -lt 80) {
-            return @{ Achieved = $false; Reason = 'The response was too short to clearly satisfy the prompt.' }
-        }
-
-        if ($promptLower.Contains('weather') -or $promptLower.Contains('forecast')) {
-            $weatherTerms = @('weather', 'forecast', 'temperature', 'humidity', 'wind', 'rain', 'conditions', 'precipitation')
-            $hasWeatherResponseSignal = $false
-            foreach ($term in $weatherTerms) {
-                if ($responseLower.Contains($term)) {
-                    $hasWeatherResponseSignal = $true
-                    break
-                }
-            }
-
-            if (-not $hasWeatherResponseSignal) {
-                return @{ Achieved = $false; Reason = 'The response did not include weather or forecast information.' }
-            }
-        }
-
-        $isPowerShellScriptPrompt = (
-            ($promptLower.Contains('powershell') -or $promptLower.Contains('.ps1')) -and
-            $promptLower.Contains('script')
-        )
-
-        if ($isPowerShellScriptPrompt) {
-            $responseFenceCount = [regex]::Matches($ResponseText, '```').Count
-            if (($responseFenceCount % 2) -ne 0) {
-                return @{ Achieved = $false; Reason = 'The response appears to contain an unclosed markdown code fence.' }
-            }
-
-            $codeBlockMatch = [regex]::Match($ResponseText, '(?is)```(?:powershell|pwsh)?\s*(?<code>.*?)```')
-            $candidateCode = if ($codeBlockMatch.Success) {
-                $codeBlockMatch.Groups['code'].Value
-            }
-            else {
-                $ResponseText
-            }
-
-            if (($promptLower.Contains('stand alone') -or $promptLower.Contains('standalone') -or $promptLower.Contains('no external helper')) -and
-                $candidateCode -match '(?im)^\s*write-comment\b') {
-                return @{ Achieved = $false; Reason = 'The script references external helper commands (Write-Comment), which violates standalone/no-helper intent.' }
-            }
-
-            if ($promptLower.Contains('syntactically correct')) {
-                $openBraceCount = [regex]::Matches($candidateCode, '\{').Count
-                $closeBraceCount = [regex]::Matches($candidateCode, '\}').Count
-                if ($openBraceCount -ne $closeBraceCount) {
-                    return @{ Achieved = $false; Reason = 'The script output appears structurally incomplete (mismatched braces).' }
-                }
-
-                $openParenCount = [regex]::Matches($candidateCode, '\(').Count
-                $closeParenCount = [regex]::Matches($candidateCode, '\)').Count
-                if ($openParenCount -ne $closeParenCount) {
-                    return @{ Achieved = $false; Reason = 'The script output appears structurally incomplete (mismatched parentheses).' }
-                }
-            }
-        }
-
-        return @{ Achieved = $true; Reason = '' }
-    }
-
-    $expandOptionZipFollowUpPrompt = {
-        param(
-            [string]$PromptText,
-            [string]$Mode
-        )
-
-        if ([string]::IsNullOrWhiteSpace($PromptText)) {
-            return $PromptText
-        }
-
-        if ($Mode -ne 'execute') {
-            return $PromptText
-        }
-
-        $trimmed = $PromptText.Trim()
-        $zipOnlyMatch = [regex]::Match(
-            $trimmed,
-            '(?i)^(?:option\s*)?b\s*[:\-]?\s*(?<zip>\d{5}(?:-\d{4})?)\s*$'
-        )
-
-        if (-not $zipOnlyMatch.Success) {
-            return $PromptText
-        }
-
-        $zip = $zipOnlyMatch.Groups['zip'].Value
-        return (
-            "Continue the pending weather forecast task using alternate location ZIP code $zip. " +
-            "Call GET-NOAA-FORECAST with zipCode='$zip' and include Friday through Sunday night periods. " +
-            "Return the final answer in markdown. Constraints: execute only bounded steps and avoid unrelated changes."
-        )
-    }
-
-    $resolvedExecutionMode = & $resolveExecutionMode -ModeFromParam $Mode -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('Mode')
-    $resolvedOutputContract = & $resolveOutputContract -ContractFromParam $OutputContract -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('OutputContract')
-    $resolvedQualityProfile = & $resolveQualityProfile -ProfileFromParam $QualityProfile -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('QualityProfile')
-
-    $expandedFollowUpPrompt = & $expandOptionZipFollowUpPrompt -PromptText $Prompt -Mode $resolvedExecutionMode
+    $resolvedExecutionMode = Resolve-TTAgentExecutionMode -ModeFromParam $Mode -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('Mode')
+    $resolvedOutputContract = Resolve-TTAgentOutputContract -ContractFromParam $OutputContract -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('OutputContract')
+    $resolvedQualityProfile = Resolve-TTAgentQualityProfile -ProfileFromParam $QualityProfile -ConfigObject $cfg -ParamWasBound $PSBoundParameters.ContainsKey('QualityProfile')
+
+    $expandedFollowUpPrompt = Expand-TTAgentOptionZipFollowUpPrompt -PromptText $Prompt -Mode $resolvedExecutionMode
     if (-not [string]::Equals($expandedFollowUpPrompt, $Prompt, [System.StringComparison]::Ordinal)) {
         Write-Log -Level Info -Message (
             "`nInvoke-TechAgent: normalized terse option follow-up prompt into explicit ZIP-based weather retry prompt."
@@ -777,7 +397,7 @@ function Invoke-TechAgent {
         }
     }
 
-    $preflight = & $invokePromptPreflight -PromptText $Prompt -Mode $resolvedExecutionMode
+    $preflight = Invoke-TTAgentPromptPreflight -PromptText $Prompt -Mode $resolvedExecutionMode
     $preflightScore = [int]$preflight.Score
     $preflightWarningCount = @($preflight.Warnings).Count
     $preflightCriticalCount = @($preflight.Critical).Count
@@ -803,7 +423,7 @@ function Invoke-TechAgent {
     }
 
     if ($AutoPromptHint.IsPresent) {
-        $hint = & $buildAutoPromptHint `
+        $hint = New-TTAgentAutoPromptHint `
             -PromptText $Prompt `
             -Mode $resolvedExecutionMode `
             -OutputContract $resolvedOutputContract `
@@ -816,7 +436,7 @@ function Invoke-TechAgent {
     }
 
     if ($AutoRerunFromHint.IsPresent) {
-        $rerunHint = & $buildAutoPromptHint `
+        $rerunHint = New-TTAgentAutoPromptHint `
             -PromptText $Prompt `
             -Mode $resolvedExecutionMode `
             -OutputContract $resolvedOutputContract `
@@ -840,7 +460,7 @@ function Invoke-TechAgent {
             $Prompt = $rerunHint
             $promptSourceLabel = 'auto-rerun hint rewrite'
 
-            $preflight = & $invokePromptPreflight -PromptText $Prompt -Mode $resolvedExecutionMode
+            $preflight = Invoke-TTAgentPromptPreflight -PromptText $Prompt -Mode $resolvedExecutionMode
             $preflightScore = [int]$preflight.Score
             $preflightWarningCount = @($preflight.Warnings).Count
             $preflightCriticalCount = @($preflight.Critical).Count
@@ -916,127 +536,7 @@ function Invoke-TechAgent {
     $resolvedApiKey = $null
     $toolCredentialPath = $null
 
-    $resolveExpectedOutputPath = {
-        param(
-            [string]$PromptText
-        )
-
-        $trimDetectedPath = {
-            param([string]$CandidatePath)
-
-            if ([string]::IsNullOrWhiteSpace($CandidatePath)) {
-                return $null
-            }
-
-            $trimmed = $CandidatePath.Trim().TrimEnd('.', ',', ';', ':', ')', ']', '}')
-            if ([string]::IsNullOrWhiteSpace($trimmed)) {
-                return $null
-            }
-
-            return $trimmed
-        }
-
-        $promptIndicatesWriteIntent = {
-            param([string]$Text)
-
-            if ([string]::IsNullOrWhiteSpace($Text)) {
-                return $false
-            }
-
-            return [regex]::IsMatch(
-                $Text,
-                '(?is)\b(write|rewrite|update|edit|modify|insert|create)\b|\buse\s+write(?:-|=|\s*)file\b|\bwrite(?:-|=|\s*)file\b')
-        }
-
-        if ([string]::IsNullOrWhiteSpace($PromptText)) {
-            return $null
-        }
-
-        $directPathMatches = [regex]::Matches(
-            $PromptText,
-            '(?i)(?<path>[A-Za-z]:\\[^\s"''`\r\n]*?\.help\.txt)\b')
-
-        if ($directPathMatches.Count -gt 0) {
-            $directPath = & $trimDetectedPath -CandidatePath $directPathMatches[$directPathMatches.Count - 1].Groups['path'].Value
-            if (-not [string]::IsNullOrWhiteSpace($directPath)) {
-                return $directPath
-            }
-        }
-
-        if (& $promptIndicatesWriteIntent -Text $PromptText) {
-            $genericPathMatches = [regex]::Matches(
-                $PromptText,
-                '(?i)(?<path>[A-Za-z]:\\[^"''`\r\n]*\.[A-Za-z0-9]{1,16})(?=\s|$|[)\],;:])')
-
-            if ($genericPathMatches.Count -gt 0) {
-                for ($i = $genericPathMatches.Count - 1; $i -ge 0; $i--) {
-                    $candidate = & $trimDetectedPath -CandidatePath $genericPathMatches[$i].Groups['path'].Value
-                    if ([string]::IsNullOrWhiteSpace($candidate)) {
-                        continue
-                    }
-
-                    if ($candidate.EndsWith('\', [System.StringComparison]::Ordinal)) {
-                        continue
-                    }
-
-                    return $candidate
-                }
-            }
-        }
-
-        $fileNameMatch = [regex]::Match(
-            $PromptText,
-            '(?is)\b(?:name\s+(?:it|the\s+file|the\s+script\s+file|script\s+file)|file\s+should\s+be\s+named|named)\s+["'']?(?<name>[^\s"''`\\/:*?<>|]+?\.[A-Za-z0-9]{1,16})\b')
-
-        if (-not $fileNameMatch.Success) {
-            return $null
-        }
-
-        $fileName = $fileNameMatch.Groups['name'].Value.Trim()
-        if ([string]::IsNullOrWhiteSpace($fileName)) {
-            return $null
-        }
-
-        $pathMatches = [regex]::Matches($PromptText, '(?i)[A-Za-z]:\\[^\s"''`\r\n]+')
-        if ($pathMatches.Count -eq 0) {
-            return $null
-        }
-
-        $candidateDirs = @()
-        foreach ($match in $pathMatches) {
-            $candidatePath = [string]$match.Value
-            if ([string]::IsNullOrWhiteSpace($candidatePath)) {
-                continue
-            }
-
-            $candidatePath = $candidatePath.Trim().TrimEnd('.', ',', ';')
-            if ($candidatePath -match '(?i)\.[A-Za-z0-9]{1,5}$') {
-                continue
-            }
-
-            $candidateDirs += $candidatePath
-        }
-
-        if ($candidateDirs.Count -eq 0) {
-            return $null
-        }
-
-        $targetDirectory = $candidateDirs |
-        Where-Object { $_ -match '(?i)\\en-US$' } |
-        Select-Object -Last 1
-
-        if ([string]::IsNullOrWhiteSpace($targetDirectory)) {
-            $targetDirectory = $candidateDirs | Select-Object -Last 1
-        }
-
-        if ([string]::IsNullOrWhiteSpace($targetDirectory)) {
-            return $null
-        }
-
-        return (Join-Path -Path $targetDirectory -ChildPath $fileName)
-    }
-
-    $expectedOutputPath = & $resolveExpectedOutputPath -PromptText $Prompt
+    $expectedOutputPath = Resolve-TTAgentExpectedOutputPath -PromptText $Prompt
 
     $effectivePrompt = $Prompt
     if (-not [string]::IsNullOrWhiteSpace($expectedOutputPath)) {
@@ -1052,235 +552,6 @@ Hard requirement:
 
     if ($AutoRetryOnRecursion.IsPresent -and $DisableAutoRetryOnRecursion.IsPresent) {
         throw 'Specify only one of -AutoRetryOnRecursion or -DisableAutoRetryOnRecursion.'
-    }
-
-    $writeMarkdownLog = {
-        param(
-            [string]$Path,
-            [string]$Status,
-            [string]$PromptText,
-            [string]$ModelName,
-            [int]$IterationLimit,
-            [bool]$DestructiveAuthorized,
-            [string]$SignedFilePolicyValue,
-            [string]$AutoRetryOnRecursionMode,
-            [string]$ExecutionMode,
-            [string]$OutputContract,
-            [string]$QualityProfile,
-            [string]$PromptSource,
-            [int]$PreflightScore,
-            [string[]]$PreflightWarnings,
-            [string[]]$PreflightCritical,
-            [string]$ExpectedOutputPath,
-            [string]$StdOut,
-            [string]$StdErr,
-            [string]$ErrorText,
-            [string]$RecoveryReason,
-            [bool]$PostflightAchieved,
-            [string]$PostflightReason,
-            [int]$ResponseLength,
-            [bool]$KnownFailureDetected,
-            [bool]$ExpectedOutputExists,
-            [int]$ExitCode,
-            [string]$TranscriptFile,
-            [DateTime]$StartedUtc,
-            [DateTime]$CompletedUtc
-        )
-
-        if ([string]::IsNullOrWhiteSpace($Path)) {
-            return
-        }
-
-        $dir = Split-Path -Parent $Path
-        if (-not [string]::IsNullOrWhiteSpace($dir)) {
-            $null = New-Item -ItemType Directory -Path $dir -Force
-        }
-
-        $renderedOutput = if ([string]::IsNullOrWhiteSpace($StdOut)) {
-            '(none)'
-        }
-        else {
-            $StdOut.TrimEnd()
-        }
-
-        $rawError = if ([string]::IsNullOrWhiteSpace($StdErr)) {
-            '(none)'
-        }
-        else {
-            $StdErr.TrimEnd()
-        }
-
-        $rawException = if ([string]::IsNullOrWhiteSpace($ErrorText)) {
-            '(none)'
-        }
-        else {
-            $ErrorText.TrimEnd()
-        }
-
-        $rawRecoveryReason = if ([string]::IsNullOrWhiteSpace($RecoveryReason)) {
-            '(none)'
-        }
-        else {
-            $RecoveryReason.TrimEnd()
-        }
-
-        $rawPostflightReason = if ([string]::IsNullOrWhiteSpace($PostflightReason)) {
-            '(none)'
-        }
-        else {
-            $PostflightReason.TrimEnd()
-        }
-
-        $preflightWarnings = @($PreflightWarnings)
-        $preflightCritical = @($PreflightCritical)
-        $preflightWarningsText = if ($preflightWarnings.Count -gt 0) {
-            ($preflightWarnings -join [Environment]::NewLine)
-        }
-        else {
-            '(none)'
-        }
-
-        $preflightCriticalText = if ($preflightCritical.Count -gt 0) {
-            ($preflightCritical -join [Environment]::NewLine)
-        }
-        else {
-            '(none)'
-        }
-
-        $expectedOutputPathText = if ([string]::IsNullOrWhiteSpace($ExpectedOutputPath)) {
-            '(none)'
-        }
-        else {
-            $ExpectedOutputPath
-        }
-
-        $postflightStatus = if ($PostflightAchieved) { 'Achieved' } else { 'NotAchieved' }
-        $expectedOutputExistsText = if ([string]::IsNullOrWhiteSpace($ExpectedOutputPath)) {
-            '(n/a)'
-        }
-        else {
-            [string]$ExpectedOutputExists
-        }
-
-        $lines = @(
-            '# Tech Agent Run'
-            ''
-            ('- Status: {0}' -f $Status)
-            ('- StartedUtc: {0}' -f $StartedUtc.ToString('o'))
-            ('- CompletedUtc: {0}' -f $CompletedUtc.ToString('o'))
-            ('- Model: {0}' -f $(if ([string]::IsNullOrWhiteSpace($ModelName)) { '(default)' } else { $ModelName }))
-            ('- MaxIterations: {0}' -f $IterationLimit)
-            ('- ConfirmDestructive: {0}' -f $DestructiveAuthorized)
-            ('- SignedFilePolicy: {0}' -f $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicyValue)) { '(default)' } else { $SignedFilePolicyValue }))
-            ('- AutoRetryOnRecursion: {0}' -f $AutoRetryOnRecursionMode)
-            ('- ExitCode: {0}' -f $ExitCode)
-            ('- TranscriptPath: {0}' -f $(if ([string]::IsNullOrWhiteSpace($TranscriptFile)) { '(none)' } else { $TranscriptFile }))
-            ''
-            '## Prompt'
-            ''
-            '```text'
-            $PromptText
-            '```'
-            ''
-            '## Preflight'
-            ''
-            '~~~~text'
-            ('Mode: {0}' -f $ExecutionMode)
-            ('OutputContract: {0}' -f $OutputContract)
-            ('QualityProfile: {0}' -f $QualityProfile)
-            ('PromptSource: {0}' -f $PromptSource)
-            ('Score: {0}/100' -f $PreflightScore)
-            ('WarningsCount: {0}' -f $preflightWarnings.Count)
-            'Warnings:'
-            $preflightWarningsText
-            ('CriticalCount: {0}' -f $preflightCritical.Count)
-            'Critical:'
-            $preflightCriticalText
-            ('ExpectedOutputPath: {0}' -f $expectedOutputPathText)
-            '~~~~'
-            ''
-            '## Output'
-            ''
-            $renderedOutput
-            ''
-            '## Error Output'
-            ''
-            '~~~~text'
-            $rawError
-            '~~~~'
-            ''
-            '## Exception'
-            ''
-            '~~~~text'
-            $rawException
-            '~~~~'
-            ''
-            '## Postflight'
-            ''
-            '~~~~text'
-            ('Status: {0}' -f $postflightStatus)
-            ('ResponseLengthChars: {0}' -f $ResponseLength)
-            ('KnownFailurePrefixDetected: {0}' -f $KnownFailureDetected)
-            ('ExpectedOutputExists: {0}' -f $expectedOutputExistsText)
-            'Reason:'
-            $rawPostflightReason
-            '~~~~'
-            ''
-            '## Recovery'
-            ''
-            '~~~~text'
-            $rawRecoveryReason
-            '~~~~'
-        )
-
-        Set-Content -Path $Path -Value ($lines -join [Environment]::NewLine) -Encoding utf8BOM
-    }
-
-    # Helper function to parse agent trace output and update agent state
-    $parseAgentTraceLine = {
-        param(
-            [string]$TraceLine,
-            [hashtable]$AgentState  # Mutable state hashtable passed by reference
-        )
-
-        if ([string]::IsNullOrWhiteSpace($TraceLine)) {
-            return
-        }
-
-        # Detect iteration progress: "Iteration X/Y start messages=N"
-        if ($TraceLine -match 'Iteration\s+(\d+)/(\d+)\s+start') {
-            $currentIter = [int]$Matches[1]
-            $totalIters = [int]$Matches[2]
-
-            $AgentState['currentIteration'] = $currentIter
-            $AgentState['totalIterations'] = $totalIters
-        }
-
-        # Detect early stop via valid decision found during streaming
-        if ($TraceLine -match 'found valid decision during streaming') {
-            $AgentState['foundValidDecision'] = $true
-        }
-
-        # Detect response received (streaming complete or early stopped)
-        if ($TraceLine -match 'response length=(\d+)\s+stoppedEarly=(\w+)') {
-            $responseLength = [int]$Matches[1]
-            $stoppedEarly = $Matches[2] -eq 'true'
-
-            $AgentState['lastResponseLength'] = $responseLength
-            $AgentState['lastStoppedEarly'] = $stoppedEarly
-        }
-
-        # Detect LLM failures
-        if ($TraceLine -match 'consecutive LLM failures=(\d+)') {
-            $failureCount = [int]$Matches[1]
-            $AgentState['consecutiveLlmFailures'] = $failureCount
-        }
-
-        # Detect tool execution
-        if ($TraceLine -match 'executing tool=(\S+)') {
-            $toolName = $Matches[1]
-            $AgentState['lastToolName'] = $toolName
-        }
     }
 
     try {
@@ -1431,224 +702,29 @@ Hard requirement:
             $autoRetryOnIterationLimit = $false
         }
 
-        $getConfigValue = {
-            param(
-                $configObject,
-                [string]$keyName
-            )
-
-            if ($null -eq $configObject -or [string]::IsNullOrWhiteSpace($keyName)) {
-                return $null
-            }
-
-            if ($configObject -is [hashtable] -and $configObject.ContainsKey($keyName)) {
-                return $configObject[$keyName]
-            }
-
-            $property = $configObject.PSObject.Properties[$keyName]
-            if ($null -ne $property) {
-                return $property.Value
-            }
-
-            return $null
-        }
-
-        $resolveCloudApiKey = {
-            param(
-                $configObject,
-                [string]$providerName,
-                [string]$envVarName,
-                [string]$encryptedOverride,
-                [switch]$PreferEncryptedOnly
-            )
-
-            if ($providerName -eq 'ollama') {
-                return @{ Key = $null; Source = 'NotRequired'; Error = $null }
-            }
-
-            if (-not $PreferEncryptedOnly.IsPresent -and -not [string]::IsNullOrWhiteSpace($envVarName)) {
-                $envValue = [Environment]::GetEnvironmentVariable($envVarName)
-                if (-not [string]::IsNullOrWhiteSpace($envValue)) {
-                    return @{ Key = $envValue; Source = "Environment:$envVarName"; Error = $null }
-                }
-            }
-
-            $encryptedValue = $encryptedOverride
-            if ([string]::IsNullOrWhiteSpace($encryptedValue)) {
-                $encryptedValue = [string](& $getConfigValue $configObject 'apiKeyEncrypted')
-            }
-
-            if ([string]::IsNullOrWhiteSpace($encryptedValue)) {
-                return @{ Key = $null; Source = 'Missing'; Error = $null }
-            }
-
-            try {
-                $secureApiKey = $encryptedValue | ConvertTo-SecureString
-                $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey)
-                try {
-                    $plainApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-                }
-                finally {
-                    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-                }
-
-                if ([string]::IsNullOrWhiteSpace($plainApiKey)) {
-                    return @{ Key = $null; Source = 'DPAPI'; Error = 'DPAPI blob decrypted to empty value.' }
-                }
-
-                return @{ Key = $plainApiKey; Source = 'DPAPI'; Error = $null }
-            }
-            catch {
-                return @{ Key = $null; Source = 'DPAPI'; Error = $_.Exception.Message }
-            }
-        }
-
-        $resolveStoredAgentSecret = {
-            param(
-                $configObject,
-                [string]$secretKeyName,
-                [string]$envVarName
-            )
-
-            if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
-                $envValue = [Environment]::GetEnvironmentVariable($envVarName)
-                if (-not [string]::IsNullOrWhiteSpace($envValue)) {
-                    return @{ Key = $envValue; Source = "Environment:$envVarName"; Error = $null }
-                }
-            }
-
-            $encryptedValue = [string](& $getConfigValue $configObject $secretKeyName)
-            if ([string]::IsNullOrWhiteSpace($encryptedValue)) {
-                return @{ Key = $null; Source = 'Missing'; Error = $null }
-            }
-
-            try {
-                $secureValue = $encryptedValue | ConvertTo-SecureString
-                $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureValue)
-                try {
-                    $plainValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-                }
-                finally {
-                    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-                }
-
-                if ([string]::IsNullOrWhiteSpace($plainValue)) {
-                    return @{ Key = $null; Source = 'DPAPI'; Error = 'DPAPI blob decrypted to empty value.' }
-                }
-
-                return @{ Key = $plainValue; Source = 'DPAPI'; Error = $null }
-            }
-            catch {
-                return @{ Key = $null; Source = 'DPAPI'; Error = $_.Exception.Message }
-            }
-        }
-
-        $isInteractiveSession = {
-            if (Get-Command -Name Test-TTInteractive -ErrorAction SilentlyContinue) {
-                return (Test-TTInteractive)
-            }
-
-            try {
-                return ($Host -and $Host.UI -and $Host.UI.RawUI -and -not [Console]::IsInputRedirected)
-            }
-            catch {
-                return $false
-            }
-        }
-
-        $promptAndPersistCloudApiKey = {
-            param(
-                [string]$providerName,
-                [string]$envVarName
-            )
-
-            if ($DisableApiKeyPrompt.IsPresent) {
-                return @{ Key = $null; Source = 'PromptDisabled'; Error = $null }
-            }
-
-            if (-not (& $isInteractiveSession)) {
-                return @{ Key = $null; Source = 'NonInteractive'; Error = $null }
-            }
-
-            Write-Warning (
-                "Cloud provider '{0}' has no usable API key from environment variable or DPAPI config secret." -f $providerName
-            )
-
-            $storeChoice = Read-Host "Store an encrypted API key in config.secrets.json now? [Y/N]"
-            if ([string]::IsNullOrWhiteSpace($storeChoice) -or $storeChoice.Trim().ToUpperInvariant() -ne 'Y') {
-                return @{ Key = $null; Source = 'PromptDeclined'; Error = $null }
-            }
-
-            $secureApiKey = Read-Host "Enter cloud API key" -AsSecureString
-            $encryptedApiKey = ConvertFrom-SecureString $secureApiKey
-
-            $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey)
-            try {
-                $plainApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-            }
-            finally {
-                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-            }
-
-            if ([string]::IsNullOrWhiteSpace($plainApiKey)) {
-                return @{ Key = $null; Source = 'Prompt'; Error = 'Entered API key was empty.' }
-            }
-
-            try {
-                $secrets = Read-Secrets
-                if (-not ($secrets -is [hashtable])) {
-                    $secrets = @{}
-                }
-
-                if (-not $secrets.ContainsKey('settings') -or -not ($secrets.settings -is [hashtable])) {
-                    $secrets.settings = @{}
-                }
-
-                if (-not $secrets.settings.ContainsKey('agent') -or -not ($secrets.settings.agent -is [hashtable])) {
-                    $secrets.settings.agent = @{}
-                }
-
-                $secrets.settings.agent.apiKeyEncrypted = $encryptedApiKey
-                $secretsPath = Write-Secrets -Secrets $secrets
-
-                Write-Log -Level Ok -Message (
-                    "Stored DPAPI-encrypted cloud API key in config secrets file: {0}" -f $secretsPath
-                )
-
-                if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
-                    [Environment]::SetEnvironmentVariable($envVarName, $plainApiKey, 'Process')
-                }
-
-                return @{ Key = $plainApiKey; Source = 'Prompt+DPAPI'; Error = $null }
-            }
-            catch {
-                return @{ Key = $null; Source = 'Prompt+DPAPI'; Error = $_.Exception.Message }
-            }
-        }
-
         if ([string]::IsNullOrWhiteSpace($Endpoint)) {
-            $endpointValue = & $getConfigValue $cfg 'endpoint'
+            $endpointValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'endpoint'
             if (-not [string]::IsNullOrWhiteSpace([string]$endpointValue)) {
                 $Endpoint = [string]$endpointValue
             }
         }
 
         if ([string]::IsNullOrWhiteSpace($Deployment)) {
-            $deploymentValue = & $getConfigValue $cfg 'deployment'
+            $deploymentValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'deployment'
             if (-not [string]::IsNullOrWhiteSpace([string]$deploymentValue)) {
                 $Deployment = [string]$deploymentValue
             }
         }
 
         if ([string]::IsNullOrWhiteSpace($ApiVersion)) {
-            $apiVersionValue = & $getConfigValue $cfg 'apiVersion'
+            $apiVersionValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'apiVersion'
             if (-not [string]::IsNullOrWhiteSpace([string]$apiVersionValue)) {
                 $ApiVersion = [string]$apiVersionValue
             }
         }
 
         if ([string]::IsNullOrWhiteSpace($ApiKeyEnvVar)) {
-            $apiKeyEnvVarValue = & $getConfigValue $cfg 'apiKeyEnvVar'
+            $apiKeyEnvVarValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'apiKeyEnvVar'
             if (-not [string]::IsNullOrWhiteSpace([string]$apiKeyEnvVarValue)) {
                 $ApiKeyEnvVar = [string]$apiKeyEnvVarValue
             }
@@ -1659,11 +735,11 @@ Hard requirement:
         }
 
         if ($Provider -ne 'ollama') {
-            $apiKeyResolution = & $resolveCloudApiKey -configObject $cfg -providerName $Provider -envVarName $ApiKeyEnvVar -encryptedOverride $ApiKeyEncryptedBlob -PreferEncryptedOnly:$ApiKeyEncrypted
+            $apiKeyResolution = Resolve-TTAgentCloudApiKey -ConfigObject $cfg -ProviderName $Provider -EnvVarName $ApiKeyEnvVar -EncryptedOverride $ApiKeyEncryptedBlob -PreferEncryptedOnly:$ApiKeyEncrypted
             $resolvedApiKey = [string]$apiKeyResolution.Key
 
             if ([string]::IsNullOrWhiteSpace($resolvedApiKey)) {
-                $promptResolution = & $promptAndPersistCloudApiKey -providerName $Provider -envVarName $ApiKeyEnvVar
+                $promptResolution = Request-TTAgentCloudApiKeyPersistence -ProviderName $Provider -EnvVarName $ApiKeyEnvVar -DisableApiKeyPrompt $DisableApiKeyPrompt.IsPresent
                 if (-not [string]::IsNullOrWhiteSpace([string]$promptResolution.Key)) {
                     $resolvedApiKey = [string]$promptResolution.Key
                     $apiKeyResolution = $promptResolution
@@ -1786,7 +862,7 @@ Hard requirement:
         }
 
         $runtimeProfilesJson = $null
-        $runtimeProfilesConfig = & $getConfigValue $cfg 'runtimeProfiles'
+        $runtimeProfilesConfig = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'runtimeProfiles'
         if ($null -ne $runtimeProfilesConfig) {
             try {
                 $runtimeProfilesJson = $runtimeProfilesConfig | ConvertTo-Json -Depth 12 -Compress
@@ -1798,9 +874,9 @@ Hard requirement:
         }
 
         $resiliencePolicyJson = $null
-        $resilienceConfig = & $getConfigValue $cfg 'resilience'
+        $resilienceConfig = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'resilience'
         if ($null -eq $resilienceConfig) {
-            $resilienceConfig = & $getConfigValue $cfg 'resiliencePolicy'
+            $resilienceConfig = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'resiliencePolicy'
         }
         if ($null -ne $resilienceConfig) {
             try {
@@ -1813,7 +889,7 @@ Hard requirement:
         }
 
         $memoryPath = $null
-        $memoryPathValue = & $getConfigValue $cfg 'memoryPath'
+        $memoryPathValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'memoryPath'
         if (-not [string]::IsNullOrWhiteSpace([string]$memoryPathValue)) {
             $memoryPath = [string]$memoryPathValue
         }
@@ -1823,7 +899,7 @@ Hard requirement:
             $resolvedPromptHistoryItems = [int]$PromptHistoryItems
         }
         else {
-            $promptHistoryItemsValue = & $getConfigValue $cfg 'promptHistoryItems'
+            $promptHistoryItemsValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'promptHistoryItems'
             if ($null -ne $promptHistoryItemsValue) {
                 [int]$parsedPromptHistoryItems = 0
                 if ([int]::TryParse([string]$promptHistoryItemsValue, [ref]$parsedPromptHistoryItems)) {
@@ -1865,16 +941,16 @@ Hard requirement:
         }
 
         $diagnosticTracePath = $null
-        $diagnosticTracePathValue = & $getConfigValue $cfg 'diagnosticTracePath'
+        $diagnosticTracePathValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'diagnosticTracePath'
         if (-not [string]::IsNullOrWhiteSpace([string]$diagnosticTracePathValue)) {
             $diagnosticTracePath = [string]$diagnosticTracePathValue
             Write-Log -Level Info -Message ("Tech agent diagnostic trace path: {0}" -f $diagnosticTracePath)
         }
 
         $allowedFetchHosts = @()
-        $fetchConfigValue = & $getConfigValue $cfg 'fetch'
+        $fetchConfigValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'fetch'
         if ($null -ne $fetchConfigValue) {
-            $allowedHostsValue = & $getConfigValue $fetchConfigValue 'allowedHosts'
+            $allowedHostsValue = Get-TTAgentConfigValue -ConfigObject $fetchConfigValue -KeyName 'allowedHosts'
             if ($null -ne $allowedHostsValue) {
                 foreach ($host in @($allowedHostsValue)) {
                     $hostText = [string]$host
@@ -1901,39 +977,39 @@ Hard requirement:
         $searchWebLanguage = 'en'
         $searchWebSafeSearch = 'moderate'
         $searchWebDefaultCount = 5
-        $searchWebConfigValue = & $getConfigValue $cfg 'searchWeb'
+        $searchWebConfigValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'searchWeb'
         if ($null -ne $searchWebConfigValue) {
-            $searchProviderValue = & $getConfigValue $searchWebConfigValue 'provider'
+            $searchProviderValue = Get-TTAgentConfigValue -ConfigObject $searchWebConfigValue -KeyName 'provider'
             if (-not [string]::IsNullOrWhiteSpace([string]$searchProviderValue)) {
                 $searchWebProvider = [string]$searchProviderValue
             }
 
-            $searchEndpointValue = & $getConfigValue $searchWebConfigValue 'endpoint'
+            $searchEndpointValue = Get-TTAgentConfigValue -ConfigObject $searchWebConfigValue -KeyName 'endpoint'
             if (-not [string]::IsNullOrWhiteSpace([string]$searchEndpointValue)) {
                 $searchWebEndpoint = [string]$searchEndpointValue
             }
 
-            $searchApiKeyEnvVarValue = & $getConfigValue $searchWebConfigValue 'apiKeyEnvVar'
+            $searchApiKeyEnvVarValue = Get-TTAgentConfigValue -ConfigObject $searchWebConfigValue -KeyName 'apiKeyEnvVar'
             if (-not [string]::IsNullOrWhiteSpace([string]$searchApiKeyEnvVarValue)) {
                 $searchWebApiKeyEnvVar = [string]$searchApiKeyEnvVarValue
             }
 
-            $searchCountryValue = & $getConfigValue $searchWebConfigValue 'country'
+            $searchCountryValue = Get-TTAgentConfigValue -ConfigObject $searchWebConfigValue -KeyName 'country'
             if (-not [string]::IsNullOrWhiteSpace([string]$searchCountryValue)) {
                 $searchWebCountry = [string]$searchCountryValue
             }
 
-            $searchLanguageValue = & $getConfigValue $searchWebConfigValue 'language'
+            $searchLanguageValue = Get-TTAgentConfigValue -ConfigObject $searchWebConfigValue -KeyName 'language'
             if (-not [string]::IsNullOrWhiteSpace([string]$searchLanguageValue)) {
                 $searchWebLanguage = [string]$searchLanguageValue
             }
 
-            $searchSafeSearchValue = & $getConfigValue $searchWebConfigValue 'safeSearch'
+            $searchSafeSearchValue = Get-TTAgentConfigValue -ConfigObject $searchWebConfigValue -KeyName 'safeSearch'
             if (-not [string]::IsNullOrWhiteSpace([string]$searchSafeSearchValue)) {
                 $searchWebSafeSearch = [string]$searchSafeSearchValue
             }
 
-            $searchDefaultCountValue = & $getConfigValue $searchWebConfigValue 'defaultCount'
+            $searchDefaultCountValue = Get-TTAgentConfigValue -ConfigObject $searchWebConfigValue -KeyName 'defaultCount'
             if ($null -ne $searchDefaultCountValue) {
                 [int]$parsedSearchCount = 0
                 if ([int]::TryParse([string]$searchDefaultCountValue, [ref]$parsedSearchCount)) {
@@ -1944,7 +1020,7 @@ Hard requirement:
 
         $resolvedSearchWebApiKey = $null
         if (-not [string]::IsNullOrWhiteSpace($searchWebApiKeyEnvVar)) {
-            $searchWebApiKeyResolution = & $resolveStoredAgentSecret -configObject $cfg -secretKeyName 'searchWebApiKeyEncrypted' -envVarName $searchWebApiKeyEnvVar
+            $searchWebApiKeyResolution = Resolve-TTAgentStoredSecret -ConfigObject $cfg -SecretKeyName 'searchWebApiKeyEncrypted' -EnvVarName $searchWebApiKeyEnvVar
             $resolvedSearchWebApiKey = [string]$searchWebApiKeyResolution.Key
         }
 
@@ -2209,30 +1285,6 @@ $result = $runAgentMethod.Invoke($null, @(
                 return $agentState
             }
 
-            # Define status extraction from agent state
-            $getStatus = {
-                param($state)
-
-                if ($state['processExited']) {
-                    if ($state['exitCode'] -eq 0) {
-                        return 'AGENT_COMPLETED'
-                    }
-                    else {
-                        return 'AGENT_FAILED'
-                    }
-                }
-
-                # Build status string for polling display
-                $status = "Iteration {0}/{1}" -f $state['currentIteration'], $state['totalIterations']
-                if ($state['lastToolName']) {
-                    $status += " | Tool: {0}" -f $state['lastToolName']
-                }
-                if ($state['foundValidDecision']) {
-                    $status += " | Early stop"
-                }
-                return $status
-            }
-
             # Define terminal states
             $terminalStates = @{
                 'AGENT_COMPLETED' = @{
@@ -2247,107 +1299,13 @@ $result = $runAgentMethod.Invoke($null, @(
                 }
             }
 
-            $waitWithInternalTerminalState = {
-                param(
-                    [string]$Target,
-                    [scriptblock]$PollScript,
-                    [scriptblock]$GetStatus,
-                    [hashtable]$TerminalStates,
-                    [int]$TimeoutSeconds,
-                    [int]$PollSeconds = 1,
-                    [int]$TickMs = 250,
-                    [int]$HeartbeatSeconds = 5
-                )
-
-                $interactive = $false
-                try {
-                    $interactive = -not [Console]::IsOutputRedirected
-                }
-                catch {
-                    $interactive = $false
-                }
-                $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-                $nextPoll = Get-Date
-                $nextHeartbeat = (Get-Date).AddSeconds($HeartbeatSeconds)
-                $lastStatus = ''
-                $frames = @('| ', '/ ', '- ', '\ ')
-                $frameIndex = 0
-                $lastState = $null
-
-                while ((Get-Date) -lt $deadline) {
-                    $now = Get-Date
-
-                    if ($now -ge $nextPoll) {
-                        $lastState = & $PollScript
-                        $status = ''
-                        if ($null -ne $lastState) {
-                            $status = [string](& $GetStatus $lastState)
-                        }
-
-                        if ([string]::IsNullOrWhiteSpace($status)) {
-                            $status = 'WAITING'
-                        }
-
-                        if ($status -ne $lastStatus) {
-                            if (-not $interactive) {
-                                Write-Log -Level Info -Message ("{0}: Status={1}" -f $Target, $status)
-                            }
-                            $lastStatus = $status
-                        }
-                        elseif ($HeartbeatSeconds -gt 0 -and $now -ge $nextHeartbeat) {
-                            if (-not $interactive) {
-                                Write-Log -Level Info -Message ("{0}: Still waiting (Status={1})..." -f $Target, $status)
-                            }
-                            $nextHeartbeat = (Get-Date).AddSeconds($HeartbeatSeconds)
-                        }
-
-                        if ($TerminalStates.ContainsKey($status)) {
-                            $meta = $TerminalStates[$status]
-                            $level = [string]$meta.Level
-                            $messageText = if ($meta.Message -is [scriptblock]) {
-                                & $meta.Message $lastState $status
-                            }
-                            else {
-                                [string]$meta.Message
-                            }
-
-                            if ($interactive) {
-                                Write-Host -NoNewline ("`r" + (' ' * 140) + "`r")
-                                Write-Host ''
-                            }
-
-                            if (-not [string]::IsNullOrWhiteSpace($messageText)) {
-                                Write-Log -Level $level -Message $messageText
-                            }
-                            return $lastState
-                        }
-
-                        $nextPoll = (Get-Date).AddSeconds($PollSeconds)
-                    }
-
-                    if ($interactive) {
-                        $frame = $frames[$frameIndex % $frames.Count]
-                        $frameIndex++
-                        Write-Host -NoNewline ("`rTechAgent is running... {0}" -f $frame) -ForegroundColor Cyan
-                    }
-
-                    Start-Sleep -Milliseconds $TickMs
-                }
-
-                if ($interactive) {
-                    Write-Host -NoNewline ("`r" + (' ' * 140) + "`r")
-                }
-
-                throw ("Timed out waiting for terminal state. Target='{0}'" -f $Target)
-            }
-
             # Use internal wait loop first; if it fails, fall back to simple process wait.
             $internalWaitSucceeded = $false
             try {
-                $waitResult = & $waitWithInternalTerminalState `
+                $waitResult = Wait-TTInternalTerminalState `
                     -Target 'TechToolbox.Agent' `
                     -PollScript $pollScript `
-                    -GetStatus $getStatus `
+                    -GetStatus { param($state) Get-TTAgentStatusFromState -State $state } `
                     -TerminalStates $terminalStates `
                     -TimeoutSeconds $waitTimeoutSeconds `
                     -PollSeconds 1 `
@@ -2400,7 +1358,7 @@ $result = $runAgentMethod.Invoke($null, @(
                 foreach ($line in $rawStdoutLines) {
                     if ($line -ne $null) {
                         $stdoutLines.Add($line)
-                        & $parseAgentTraceLine -TraceLine $line -AgentState $agentState
+                        Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
                     }
                 }
             }
@@ -2427,7 +1385,7 @@ $result = $runAgentMethod.Invoke($null, @(
             $markdownResponseLength = $message.Length
         }
 
-        $postflightAssessment = & $evaluatePostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore
+        $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore
         $markdownPostflightAchieved = [bool]$postflightAssessment.Achieved
         $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) { '' } else { [string]$postflightAssessment.Reason }
         if (-not $StrictPromptPreflight.IsPresent -and -not $postflightAssessment.Achieved) {
@@ -2505,7 +1463,7 @@ $result = $runAgentMethod.Invoke($null, @(
         if (-not [string]::IsNullOrWhiteSpace($markdownPath)) {
             try {
                 $exitCode = if ($markdownStatus -like 'Success*') { 0 } else { -1 }
-                & $writeMarkdownLog `
+                Write-TTAgentMarkdownLog `
                     -Path $markdownPath `
                     -Status $markdownStatus `
                     -PromptText $Prompt `
@@ -2567,8 +1525,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAKz9n0Df/7tXas
-# FEe8Alz72zVyFZ2ZOgiOJnxPlhIqdqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCByGkQnq0Gh7PjX
+# h/AUqsvx23Fqvwp1nIswjMzC6uZGmaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2701,34 +1659,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBn0nVVedFL
-# AxSEKAcn/EFwlvsI2WMlyKbp4YL7iVPxnjANBgkqhkiG9w0BAQEFAASCAgAKGs2n
-# puR9+MEU16IIRhGMpKYhZiITMv0vJhJzRch6fL0GSOB5gtM4FmVZOXhGjCnNDu4h
-# AIYc1u5dw+naZB26a9n6n+nHMgaj6G+ntkcBifPvtJem1Q8LilExHp7QRaGSQ0oC
-# x53vI6fYKNl7D1ymdZbAmsgzIjMjPr3lt54Y3I1XBg5tbwAB1tMmSCTg9YChnfbg
-# d5t5xtQuujjMK35endAHVzH5h9Vfxl7B5Rk4qfqegUWAu8saBF3721wEpSclcMW6
-# CztSIR/eTLc57L5cbbdwkenlTwkQ4iWNU/ZvhuTkVAZNxgg3qpSV3+UZitx4iqmq
-# hvdYvp9CkIuUa+Hm/da760ECxIFAGglqgy2Nv5Y8HO1f+wzYVfhR1A75td3PrLdC
-# qOjb1YScgJEYtkf9MHXhgHHRAdSrDzgPyd2RgZIul4dTYgqeYgeqNeV/huUzm9ze
-# w4bnw1KKejimcq9eev0xmi+9BC/g80voIl4sxStvaUBy+xRsHb2zYRSD3BvTU+SW
-# kAuxrDMbUTBRfvd+tGbquR+hgfxJci3DfJ94Mqiiv9wt2zSBJEMfiKHIxTm0aOa5
-# 5A/olxLiBcqsQCRpVL2oU0MqWJVvndbGFBreHpMzY0rrwg0Fcventd2Mv0z35cM+
-# wUFo91h67kYAtuSuq5wefG6w3D+xdIxLNI6J8aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBXSBRawUwN
+# Iu6oRWYWjXV79TYdmTuOqt0uqJx1zPxnzTANBgkqhkiG9w0BAQEFAASCAgBqXnHm
+# v3clUe+sz2k8+26cJde8YW7kIAQDqAz4CpcRFBQJ/XKgQZUHjn0jNZvkXrfUVgCW
+# /tIT4FbN3WoviBzGoLy6NHOKOTxMMQpmwg94ovgGUN1eTm/QQohJMCGLbWmmUvTs
+# YsoPW7HgHstoanwivHsV7AIgkZk1GviIdNTxbRUd+WqbXl/Be0QwlRUMdMNSjeot
+# ltHUECgdmOJzfPmLPUNTd40JSmLe5RiR0U1ASJpLueHtV1UJGwbZOuRhwM4JC4a0
+# zSig2eWEyOmDB679LCJ4JvavSY81oxT3r5Llr3L5lD/KlbcjSmzkhHm9NycncQ9a
+# NqxCIAGIjzxSkssD+W9aWcuCgi4FykopYsenwWdfIFPh+Jw5xPyXlKgUphzd0hqO
+# 53OpThn/P25hAo+FMP4UtWWmV4qbKtmHxI+E7U90NoTr0rUVD5noL4n+8OfOcUeM
+# 9jvfgS1pBCiRe+hfwj0qB1Wny6oIoENhWV2IPVGTjTJnwHi4TuJsS85ThWvN9Sgc
+# /qWFWn9ojbt0zSzA3ZXEyR7szQ+Lgf7Df7rk+SjFWoGZ7IHXlV8TAxCuIeicgB3o
+# LWQpjqNilSm9GjY6bgTIDIMPYRjEkzfnDH9pdj4Wxm2O30+KqxiiVb6AHorvDjLa
+# 8Jgg9JmorqTWV/Hzyr8msGi201MXNnIPX19j3KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MjkyMTM0MDhaMC8GCSqGSIb3DQEJBDEiBCBEutuQZBUSdl5i0TEx
-# tt0yDplB/NtrbO0+EeZdlW8GPjANBgkqhkiG9w0BAQEFAASCAgA4tuleTK3Y+fcR
-# mDSlqJ5Zh8ejdtyoKhzig/ryn8kOacGER6i+27+JO6O4x/RkIGFOFD4fPgEfE2xI
-# RTZNyNquo5ws5hT6wtbhv8bQpViyy609uQVBC/W5FFuP2cKlSQQzP8Cz40lmnLXv
-# tZJRnFWDk9Wz4gdAVyqgGSAjFjt2eau1EYGgGQI0cPaTXcileK2vsDD/1Q5t+/C+
-# tBoSwBaBTysYoR1OdPju591IEAhcykMpHLNs2WLYFF9ILDpVmaQMpXnDsqhXtXKW
-# wtv0BBJ5pViJguocIK+LFIGCORGiHi7mf4Fy4qieorZQegBEq4fqtYtZZ44C8dXV
-# 5zCeCupbV/GjQnNICX6rZP+Kou9SV8boMteHufSYwQ8sS+9OXPwVFPAJTuqH35bu
-# wAlYWHBOjY90QmhMk56GNPQV839IIi1tNfmj01dBiUzLBKZrNi9PzbmZ0C0nwynt
-# ZZf3PYzYz7A9LM+P+xIQVS11u3fsbqu8QpcPQ5cpdIOl1VsAzzdHN4Qb7oqz1FeZ
-# aXDUYh4/QalSAHnzQd7E6bMm9c5OUc9ttVAXT3u4EznUCmyvpRpODyhSSIwh1Sss
-# PvL4S3/VZk+/QD9zzZ8Za838OGsSMeQ6hNvq/qgQToIb7TAk82UtxJTkF+X5V4DU
-# 1yUuBZCWQvjZ1MwGOvu+6b6WNBco8Q==
+# BTEPFw0yNjA4MzAwMTIyMTBaMC8GCSqGSIb3DQEJBDEiBCBmqr/aIUDr6UXoYdfL
+# ChYF+3RZDrCXOkdtWnA3UQNHAjANBgkqhkiG9w0BAQEFAASCAgDKSPi+KIJgNcCP
+# 76bgEktmhz15YdLZDyX01MQ9IdH9uXuj4mhznfll3zQeXTVEze55den6FZGA8D9J
+# qMx/+atWhTurah8iorwilW7tTky0O77jky/he/uwqMtDhVJgGeqx5mVr3hcz9gra
+# hTj+TIMl7KM1O8Pg6vMyTLZQPpT7ZTtsjjvdBAmZHXyRkm9TH8WSO4bkb1gOo3Op
+# INp63aheeQUWv7q+G6FVRRmjppJZwfx2gbZPEx51E4G98cz2s3cREGiskvv3kya4
+# RZ81dwcew+yBpi+SNbyNpp+HG/BvfFA2gJNo45mqx6YgnQCFYLq3ilsBBcUMZVVD
+# f3BQq3FDx4T5dGdc7C8KycCOsg5Jb/teEky+gkk0grz4TMMM+K3bCpbmol3XGD7i
+# c/rnzbTbWLk1C7DImAYX6OYaKliLNi9wncV1b9G7SfjE+wcNVTV3BWZxVUjd7IvJ
+# paA3Gi81x4uOisAzUh9tChA+3z55ayRDjAQW1qDIS2uQsYc1ZnVgd31zPHLVm101
+# n+Dffb24LKzz7YwlXc9TmULZUBVhbPq4L5IUvYVso7nBoj+/XZtj4slhMAc0dR82
+# MsglA/LXexRWjtqnITLSS2aclrpfTYyzASBvXv4g1Y2nlbb+LzzsGsoav3kPWobe
+# fH7YlWUEtelHpilnHsB+v+3+7P+gIw==
 # SIG # End signature block
