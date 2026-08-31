@@ -18,7 +18,7 @@
       "windowItems": 20,
       "runCount": 20,
       "successRate": 0.85,
-      "avgDurationMs": 15940,
+      "avgDurationMs": 23903,
       "avgToolCalls": 1.5,
       "statusCounts": {
         "success": 17,
@@ -30,13 +30,13 @@
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "deepcoder:14b",
-      "lastRunTimestampUtc": "2026-08-30T04:57:58.0324985\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-30T04:57:58.0336490\u002B00:00",
-      "avgPromptPreflightScore": 45,
+      "lastModel": "qwen3.8:27b",
+      "lastRunTimestampUtc": "2026-08-30T05:04:15.3636913\u002B00:00",
+      "trendLastUpdatedUtc": "2026-08-30T05:04:15.3648362\u002B00:00",
+      "avgPromptPreflightScore": 40,
       "executionModeCounts": {
-        "execute": 15,
-        "chat": 5
+        "execute": 14,
+        "chat": 6
       },
       "outputContractCounts": {
         "markdown": 20
@@ -46,7 +46,7 @@
       }
     },
     "memoryHealth": {
-      "generatedUtc": "2026-08-30T04:57:58.0336690\u002B00:00",
+      "generatedUtc": "2026-08-30T05:04:15.3648605\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 13,
       "indexEntries": 0,
@@ -73,35 +73,6 @@
     "fact.tool-usage-physical.2642ce1b": "tool usage: Physical"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-29T21:43:23.9479178+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please write a PowerShell script that will reboot a remote host using the WS-Man protocol. The script will be named Invoke-RemoteReboot.ps1. The script must work as a stand alone script with no external helpers. Make sure the script is syntactically correct and written for PowerShell version 5.1\u002B. Output the script to console.",
-      "model": "deepcoder:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 12760,
-      "maxIterations": 15,
-      "destructiveConfirmed": true,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "\u0060\u0060\u0060powershell\n# Invoke-RemoteReboot.ps1\n# Reboots a remote computer using WS-Man protocol\n\ntry {\n    # Check if WinRM is running on the remote computer\n    if ((Test-WSMan -ComputerName $remoteComputer -ErrorAction SilentlyContinue) -eq $false) {\n        Write-Warning \u0027WinRM service is not running on the remote computer or connection failed.\u0027\n        exit\n    }\n\n    # Get credentials\n    $username = Read-Host \u0027Enter remote computer admin username\u0027\n    $password = Read-Host \u0027Enter remote computer admin password\u0027 -AsSecureString\n    $cred = New-Object System.Management.Automation.PSCredential ($username, $password)\n\n    # Reboot the remote computer\n    Invoke-Command -ComputerName $remoteComputer -Credential $cred -ScriptBlock {\n        Restart-Computer -Force\n    }\n\n    Write-Host \u0027Remote computer is being rebooted...\u0027 -ForegroundColor Green\n} catch {\n    Write-Error \u0027Failed to reboot remote computer.\u0027\n    Write-Error $_.Exception.Message\n}\n\u0060\u0060\u0060",
-      "runSummary": {
-        "intent": "Please write a PowerShell script that will reboot a remote host using the WS-Man protocol. The script will be named Invoke-RemoteReboot.ps1. The script must work as a stand alone script with no external helpers. Make sur...",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-29T23:54:56.9116479+00:00",
       "status": "success",
@@ -726,11 +697,40 @@
       "promptPreflightScore": 0,
       "promptPreflightWarningCount": 5,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-08-30T05:04:15.3636913+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "What are the possible ways to hide the cursor in powershell?",
+      "model": "qwen3.8:27b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 172027,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "Here are the main ways, depending on which cursor you mean.\n\n## Blinking text caret in PowerShell console\n- Hide it for the current session:\n  \u0060[Console]::CursorVisible = $false\u0060\n- Restore it:\n  \u0060[Console]::CursorVisible = $true\u0060\n- Safer pattern so you do not leave the cursor hidden:\n  \u0060$prev = [Console]::CursorVisible\u0060, then set false, run your work, and restore \u0060$prev\u0060 in a \u0060finally\u0060 block.\n\n## Mouse pointer in a PowerShell GUI app\n- For Windows Forms apps:\n  \u0060[System.Windows.Forms.Control]::HideCursor()\u0060\n  \u0060[System.Windows.Forms.Control]::ShowCursor()\u0060\n- For WPF, set the relevant window or control cursor to \u0060Cursors.None\u0060 while you want it hidden.\n\n## Whole-desktop mouse pointer from PowerShell\n- You can call the Windows API \u0060ShowCursor\u0060 with P/Invoke. This is more invasive because it affects the whole desktop until balanced with a matching restore call.\n\n## Notes\n- \u0060[Console]::CursorVisible\u0060 is usually what people mean by hiding the cursor in PowerShell.\n- It works well for scripts, TUI-style output, and temporary hidden-caret sections.\n- If you are using ISE, VS Code terminal, or another host, behavior can vary slightly, but the console API is still the standard approach.",
+      "runSummary": {
+        "intent": "What are the possible ways to hide the cursor in powershell?",
+        "actionsTaken": [],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "chat",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 0,
+      "promptPreflightWarningCount": 5,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-30T04:57:58.0337624\u002B00:00",
+    "generatedUtc": "2026-08-30T05:04:15.3649504\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 13,
     "indexEntries": 0,
