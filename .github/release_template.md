@@ -100,10 +100,10 @@ Import-Module TechToolbox
 ---
 
 ## 🗺 Roadmap  
-### **Next Milestone: v0.6.0 — Cross‑Platform Stabilization**
-- Path normalization across Windows/macOS/Linux  
-- Worker compatibility improvements  
-- Enhanced environment detection  
+### **Next Milestone: v0.6.0 — GUI & Operator Experience Refresh**
+- Native Windows desktop experience for common workflows  
+- Unified operator dashboard and task orchestration surfaces  
+- Improved UX for diagnostics, logs, exports, and AI-assisted actions  
 
 ---
 

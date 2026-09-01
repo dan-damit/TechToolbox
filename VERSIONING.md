@@ -50,10 +50,10 @@ This release marks:
 
 The following MINOR versions represent planned architectural milestones:
 
-### **0.6.0 — Cross‑Platform Stabilization**
-- PowerShell 7+ parity across Windows, macOS, Linux  
-- Path token normalization  
-- Worker compatibility improvements  
+### **0.6.0 — GUI & Operator Experience Refresh**
+- Native Windows desktop experience for common workflows  
+- Unified operator dashboard and task orchestration surfaces  
+- Improved UX for diagnostics, logs, exports, and AI-assisted actions  
 
 ### **0.7.0 — Worker & Remoting Enhancements**
 - Unified worker orchestration  

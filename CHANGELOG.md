@@ -167,10 +167,20 @@ Latest completed enhancements:
 - Updated top-level `README.md` to reflect template-driven TechAgent prompt staging.
 - Updated `COMMANDS.md` to include `Use-TechAgentTaskTemplate` in AI-assisted workflows.
 
-### **0.6.0 — Cross‑Platform Stabilization**
-- Path normalization across Windows/macOS/Linux.
-- Worker compatibility improvements.
-- Enhanced environment detection.
+### **0.6.0 — GUI & Operator Experience Refresh**
+### **Milestone: Windows Operator Desktop**
+
+This release focuses on making TechToolbox easier to operate as a day-to-day Windows automation platform rather than a command-only toolkit. The goal is to improve the human-facing workflow around diagnostics, exports, AI-assisted automation, and repeated operator tasks.
+
+### **Added**
+- Native Windows desktop experience for common operator workflows.
+- Unified dashboard and orchestration surfaces for task execution.
+- Better visibility into logs, exports, diagnostics, and AI activity.
+
+### **Improved**
+- Simplified UX for launching and monitoring common workflows.
+- Better operator feedback during diagnostics and export tasks.
+- More cohesive experience across AI-assisted execution and system operations.
 
 ### **0.7.0 — Worker & Remoting Enhancements**
 - Unified worker orchestration.
