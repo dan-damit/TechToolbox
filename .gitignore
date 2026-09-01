@@ -12,7 +12,11 @@ obj/
 /Bin/
 bin/
 SecureCrimp/
+slash/
 
 # Files
 wordlist.txt
 TechToolbox.log
+Desktop
+LauncherFolder
+MyDocuments
