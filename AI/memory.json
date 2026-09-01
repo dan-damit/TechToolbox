@@ -17,23 +17,24 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.85,
-      "avgDurationMs": 24760,
-      "avgToolCalls": 2.35,
+      "successRate": 0.8,
+      "avgDurationMs": 27349,
+      "avgToolCalls": 3.05,
       "statusCounts": {
-        "success": 17,
-        "error": 3
+        "success": 16,
+        "error": 4
       },
       "outcomeCounts": {
-        "completed": 17,
-        "invalid-json": 3
+        "completed": 16,
+        "invalid-json": 3,
+        "iteration-limit": 1
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "gpt-5.4-nano",
-      "lastRunTimestampUtc": "2026-08-31T20:16:45.8827075\u002B00:00",
-      "trendLastUpdatedUtc": "2026-08-31T20:16:45.8844042\u002B00:00",
-      "avgPromptPreflightScore": 36,
+      "lastModel": "phi4:14b",
+      "lastRunTimestampUtc": "2026-09-01T03:47:14.1878646\u002B00:00",
+      "trendLastUpdatedUtc": "2026-09-01T03:47:14.1888366\u002B00:00",
+      "avgPromptPreflightScore": 30,
       "executionModeCounts": {
         "execute": 14,
         "chat": 6
@@ -46,7 +47,7 @@
       }
     },
     "memoryHealth": {
-      "generatedUtc": "2026-08-31T20:16:45.8844199\u002B00:00",
+      "generatedUtc": "2026-09-01T03:47:14.1888561\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 13,
       "indexEntries": 0,
@@ -73,134 +74,6 @@
     "fact.tool-usage-physical.2642ce1b": "tool usage: Physical"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-30T01:32:16.7152731+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to console.",
-      "model": "deepcoder:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 26020,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "\u0060\u0060\u0060powershell\n# Set execution policy to allow script execution\nSet-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force\n\n# Get system information\nfunction Get-SystemInfo {\n    try {\n        # Operating System Information\n        $osInfo = Get-ComputerInfo |\n            Select-Object -Property OSName, Version, BuildNumber\n\n        # Hardware Information\n        $cpuInfo = Get-CpuInfo |\n            Select-Object -Property Manufacturer, MaxClockSpeed\n        $memoryInfo = Get-PhysicalMemory |\n            Select-Object -Property Manufacturer, Speed, Capacity\n\n        # Disk Information\n        $diskInfo = Get-PSDrive -DriveType Disk |\n            Select-Object -Property Name, Size, Used, Free\n\n        # Running Services\n        $services = Get-Service | Where-Object { $_.Status -eq \u0027Running\u0027 } |\n            Select-Object -Property Name, DisplayName, StartType\n\n        # Network Configuration\n        $network = Get-NetIPAddress |\n            Select-Object -Property IPAddress, DefaultGateway, DNS\n\n        # PowerShell Version\n        $psVersion = $PSVersionTable.PSVersion\n\n        # Execution Policy\n        $executionPolicy = Get-ExecutionPolicy\n\n        # Display all information\n        Write-Host \u0027System Information:\u0027\n        Write-Host \u0027------------------------\u0027\n        Write-Host \u0022OS: $($osInfo.OSName)\u0022 -ForegroundColor Cyan\n        Write-Host \u0022Version: $($osInfo.Version)\u0022 -ForegroundColor Cyan\n        Write-Host \u0022Build: $($osInfo.BuildNumber)\u0022 -ForegroundColor Cyan\n        Write-Host \u0027\u0027\n\n        Write-Host \u0027Processor Information:\u0027\n        Write-Host \u0027------------------------\u0027\n        foreach ($cpu in $cpuInfo) {\n            Write-Host \u0022Manufacturer: $($cpu.Manufacturer)\u0022\n            Write-Host \u0022Max Speed: $($cpu.MaxClockSpeed) MHz\u0022\n            Write-Host \u0027\u0027\n        }\n\n        Write-Host \u0027Memory Information:\u0027\n        Write-Host \u0027------------------------\u0027\n        foreach ($memory in $memoryInfo) {\n            Write-Host \u0022Manufacturer: $($memory.Manufacturer)\u0022\n            Write-Host \u0022Speed: $($memory.Speed) MHz\u0022\n            Write-Host \u0022Capacity: $(($memory.Capacity / 1GB).ToString(\u0027N2\u0027)) GB\u0022\n            Write-Host \u0027\u0027\n        }\n\n        Write-Host \u0027Disk Information:\u0027\n        Write-Host \u0027------------------------\u0027\n        foreach ($disk in $diskInfo) {\n            Write-Host \u0022Drive: $($disk.Name)\u0022\n            Write-Host \u0022Size: $(($disk.Size / 1GB).ToString(\u0027N2\u0027)) GB\u0022\n            Write-Host \u0022Used: $(($disk.Used / 1GB).ToString(\u0027N2\u0027)) GB\u0022\n            Write-Host \u0022Free: $(($disk.Free / 1GB).ToString(\u0027N2\u0027)) GB\u0022\n            Write-Host \u0027\u0027\n        }\n\n        Write-Host \u0027Running Services:\u0027\n        Write-Host \u0027------------------------\u0027\n        foreach ($service in $services) {\n            Write-Host \u0022Name: $($service.Name)\u0022\n            Write-Host \u0022Display Name: $($service.DisplayName)\u0022\n            Write-Host \u0022Start Type: $($service.StartType)\u0022\n            Write-Host \u0027\u0027\n        }\n\n        Write-Host \u0027Network Configuration:\u0027\n        Write-Host \u0027------------------------\u0027\n        foreach ($ip in $network) {\n            Write-Host \u0022IP Address: $($ip.IPAddress)\u0022\n            Write-Host \u0022Default Gateway: $($ip.DefaultGateway)\u0022\n            Write-Host \u0022DNS Servers: $($ip.DNS -join \u0027, \u0027)\u0022\n            Write-Host \u0027\u0027\n        }\n\n        Write-Host \u0027PowerShell Version:\u0027\n        Write-Host \u0027------------------------\u0027\n        Write-Host \u0022Version: $($psVersion.Major).$($psVersion.Minor).$($psVersion.Build)\u0022\n        Write-Host \u0027\u0027\n\n        Write-Host \u0027Execution Policy:\u0027\n        Write-Host \u0027------------------------\u0027\n        Write-Host \u0022Policy: $executionPolicy\u0022\n    } catch {\n        Write-Error \u0022Error gathering system information: $_.Exception.Message\u0022\n    }\n}\n\n# Execute the function\nGet-SystemInfo\n\u0060\u0060\u0060",
-      "runSummary": {
-        "intent": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to...",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-30T01:37:42.6344158+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to console.",
-      "model": "gpt-5.3-codex",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 16395,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## PowerShell 5.1\u002B System Information Script\n\n\u0060\u0060\u0060powershell\n#requires -Version 5.1\n[CmdletBinding()]\nparam()\n\nSet-StrictMode -Version Latest\n$ErrorActionPreference = \u0027Stop\u0027\n\nfunction Get-ValueOrNA {\n    param(\n        [Parameter(Mandatory=$true)]\n        $Value\n    )\n    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {\n        return \u0027N/A\u0027\n    }\n    return [string]$Value\n}\n\nfunction Write-Section {\n    param(\n        [Parameter(Mandatory=$true)][string]$Title\n    )\n    Write-Host \u0027\u0027\n    Write-Host (\u0027=\u0027 * 70)\n    Write-Host $Title\n    Write-Host (\u0027=\u0027 * 70)\n}\n\ntry {\n    $os = Get-CimInstance -ClassName Win32_OperatingSystem\n    $cs = Get-CimInstance -ClassName Win32_ComputerSystem\n    $bios = Get-CimInstance -ClassName Win32_BIOS\n    $cpu = Get-CimInstance -ClassName Win32_Processor\n    $memModules = Get-CimInstance -ClassName Win32_PhysicalMemory\n    $disks = Get-CimInstance -ClassName Win32_LogicalDisk -Filter \u0022DriveType=3\u0022\n    $nics = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -Filter \u0022IPEnabled=True\u0022\n\n    $uptime = (Get-Date) - $os.LastBootUpTime\n    $totalMemGB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)\n    $freeMemGB = [math]::Round($os.FreePhysicalMemory * 1KB / 1GB, 2)\n    $usedMemGB = [math]::Round($totalMemGB - $freeMemGB, 2)\n\n    Write-Section -Title \u0027SYSTEM OVERVIEW\u0027\n    Write-Host (\u0027Computer Name        : {0}\u0027 -f (Get-ValueOrNA $env:COMPUTERNAME))\n    Write-Host (\u0027User Name            : {0}\u0027 -f (Get-ValueOrNA $env:USERNAME))\n    Write-Host (\u0027Domain               : {0}\u0027 -f (Get-ValueOrNA $env:USERDOMAIN))\n    Write-Host (\u0027Manufacturer         : {0}\u0027 -f (Get-ValueOrNA $cs.Manufacturer))\n    Write-Host (\u0027Model                : {0}\u0027 -f (Get-ValueOrNA $cs.Model))\n    Write-Host (\u0027System Type          : {0}\u0027 -f (Get-ValueOrNA $cs.SystemType))\n\n    Write-Section -Title \u0027OPERATING SYSTEM\u0027\n    Write-Host (\u0027OS                   : {0}\u0027 -f (Get-ValueOrNA $os.Caption))\n    Write-Host (\u0027Version              : {0}\u0027 -f (Get-ValueOrNA $os.Version))\n    Write-Host (\u0027Build Number         : {0}\u0027 -f (Get-ValueOrNA $os.BuildNumber))\n    Write-Host (\u0027Install Date         : {0}\u0027 -f (Get-ValueOrNA $os.InstallDate))\n    Write-Host (\u0027Last Boot            : {0}\u0027 -f (Get-ValueOrNA $os.LastBootUpTime))\n    Write-Host (\u0027Uptime               : {0} days {1} hours {2} minutes\u0027 -f $uptime.Days, $uptime.Hours, $uptime.Minutes)\n\n    Write-Section -Title \u0027CPU\u0027\n    foreach ($c in $cpu) {\n        Write-Host (\u0027Name                 : {0}\u0027 -f (Get-ValueOrNA $c.Name))\n        Write-Host (\u0027Cores                : {0}\u0027 -f (Get-ValueOrNA $c.NumberOfCores))\n        Write-Host (\u0027Logical Processors   : {0}\u0027 -f (Get-ValueOrNA $c.NumberOfLogicalProcessors))\n        Write-Host (\u0027Max Clock (MHz)      : {0}\u0027 -f (Get-ValueOrNA $c.MaxClockSpeed))\n        Write-Host (\u0027Processor ID         : {0}\u0027 -f (Get-ValueOrNA $c.ProcessorId))\n        Write-Host (\u0027-\u0027 * 70)\n    }\n\n    Write-Section -Title \u0027MEMORY\u0027\n    Write-Host (\u0027Total Physical (GB)  : {0}\u0027 -f $totalMemGB)\n    Write-Host (\u0027Used Physical (GB)   : {0}\u0027 -f $usedMemGB)\n    Write-Host (\u0027Free Physical (GB)   : {0}\u0027 -f $freeMemGB)\n    Write-Host (\u0027Memory Modules       : {0}\u0027 -f $memModules.Count)\n    foreach ($m in $memModules) {\n        $capGB = [math]::Round($m.Capacity / 1GB, 2)\n        Write-Host (\u0027Slot                 : {0}\u0027 -f (Get-ValueOrNA $m.DeviceLocator))\n        Write-Host (\u0027Capacity (GB)        : {0}\u0027 -f $capGB)\n        Write-Host (\u0027Speed (MHz)          : {0}\u0027 -f (Get-ValueOrNA $m.Speed))\n        Write-Host (\u0027Manufacturer         : {0}\u0027 -f (Get-ValueOrNA $m.Manufacturer))\n        Write-Host (\u0027Part Number          : {0}\u0027 -f (Get-ValueOrNA $m.PartNumber))\n        Write-Host (\u0027-\u0027 * 70)\n    }\n\n    Write-Section -Title \u0027BIOS\u0027\n    Write-Host (\u0027Vendor               : {0}\u0027 -f (Get-ValueOrNA $bios.Manufacturer))\n    Write-Host (\u0027Version              : {0}\u0027 -f (Get-ValueOrNA ($bios.SMBIOSBIOSVersion -join \u0027, \u0027)))\n    Write-Host (\u0027Serial Number        : {0}\u0027 -f (Get-ValueOrNA $...",
-      "runSummary": {
-        "intent": "Please write a powershell script to gather system information. Assume no external helpers, so the script must be self contained. Also make sure it is syntatically correct for PowerShell version 5.1\u002B. Output the script to...",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 100,
-      "promptPreflightWarningCount": 0,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-30T04:00:32.5369454+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
-      "model": "phi4:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 19305,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "- **Shawano, Wisconsin Weather Forecast for Tomorrow (Sunday):**\n  - **Temperature:** High of 83\u00B0F\n  - **Wind:** Southeast wind at 1 to 5 mph\n  - **Forecast:** Patchy fog with a chance of showers and thunderstorms\n  - **Precipitation Probability:** 31%\n  - **Additional Note:** Heat index values may reach as high as 86\u00B0F.",
-      "runSummary": {
-        "intent": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-30T04:02:24.3875574+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console in markdown.",
-      "model": "phi4:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 11883,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather Forecast for Green Bay, Wisconsin\n\n- **Tonight**:\n  - Temperature: 66\u00B0F\n  - Wind: 6 mph from the South\n  - Short Forecast: Cloudy then Chance Showers And Thunderstorms\n  - Precipitation Probability: 51%\n\n- **Sunday**:\n  - Temperature: High near 83\u00B0F\n  - Wind: 5 mph from the East\n  - Short Forecast: Chance Showers And Thunderstorms then Slight Chance Showers And Thunderstorms\n  - Precipitation Probability: 27%\n\n- **Sunday Night**:\n  - Temperature: Low around 69\u00B0F\n  - Wind: 5 mph from the ESE\n  - Short Forecast: Mostly Cloudy then Slight Chance Showers And Thunderstorms\n  - Precipitation Probability: 45%\n\n- **Monday**:\n  - Temperature: High near 87\u00B0F\n  - Wind: 3 to 8 mph from the SSW\n  - Short Forecast: Chance Showers And Thunderstorms\n  - Precipitation Probability: 30%\n\n- **Monday Night**:\n  - Temperature: Low around 71\u00B0F\n  - Wind: 1 to 6 mph from the West\n  - Short Forecast: Mostly Cloudy then Slight Chance Showers And Thunderstorms\n  - Precipitation Probability: 23%\n\n- **Tuesday**:\n  - Temperature: High near 87\u00B0F\n  - Wind: 1 to 5 mph from the ESE\n  - Short Forecast: Slight Chance Showers And Thunderstorms\n  - Precipitation Probability: 24%\n\n- **Tuesday Night**:\n  - Temperature: Low around 69\u00B0F\n  - Wind: 3 mph from the SW\n  - Short Forecast: Chance Showers And Thunderstorms\n  - Precipitation Probability: 35%",
-      "runSummary": {
-        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console in markdown.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-30T04:07:43.1722832+00:00",
       "status": "success",
@@ -751,11 +624,158 @@
       "promptPreflightScore": 60,
       "promptPreflightWarningCount": 2,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-01T03:36:36.2014155+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 55407,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+      "runSummary": {
+        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-09-01T03:42:28.7240815+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 53796,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 14,
+      "toolNames": [
+        "get_noaa_forecast",
+        "search_web",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "- **Weather Forecast Retrieval Issue:**\n  - The GET-NOAA-FORECAST tool was used to fetch the weather forecast for Green Bay, Wisconsin, using various ZIP codes identified from SEARCH-WEB results.\n  - All attempts with the following ZIP codes failed: 54301, 54302, 54303, 54304, 54305, 54306, 54307, 54308, 54311, 54313, 54324, and 54344.\n  - Each attempt resulted in the error: \u0060NOAA forecast returned no matching periods for ZIP=[ZIP_CODE]\u0060.\n- **Conclusion:**\n  - It appears that there is an issue with retrieving weather data for Green Bay, Wisconsin, using the NOAA API for the specified ZIP codes. Further investigation or alternative methods may be required to obtain the desired weather information.",
+      "runSummary": {
+        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+        "actionsTaken": [
+          "get_noaa_forecast",
+          "search_web"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-09-01T03:44:27.1244896+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 8516,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "- **Location:** Green Bay, Wisconsin\n- **Date:** Tomorrow (Tuesday, September 1, 2026)\n- **Temperature:** High of 88\u00B0F\n- **Forecast:** Mostly sunny\n- **Wind:** West southwest wind 0 to 8 mph\n- **Precipitation Probability:** 1%\n\nThe weather in Green Bay, Wisconsin, for tomorrow is expected to be mostly sunny with a high temperature of 88\u00B0F. The wind will be from the west southwest at speeds between 0 to 8 mph, and there is a low chance of precipitation at 1%.",
+      "runSummary": {
+        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-09-01T03:47:14.1878646+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 7656,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "- **Location**: Green Bay, Wisconsin\n- **Date**: Tomorrow (Tuesday, September 1, 2026)\n- **Temperature**: High of 88\u00B0F\n- **Forecast**: Mostly sunny\n- **Wind**: West southwest wind 0 to 8 mph\n- **Precipitation Probability**: 1%\n\nThe weather in Green Bay, Wisconsin tomorrow is expected to be mostly sunny with a high temperature of 88\u00B0F. The wind will be from the west southwest at speeds between 0 to 8 mph, and there is a low chance of precipitation at 1%.",
+      "runSummary": {
+        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
     }
   ],
   "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-08-31T20:16:45.8845451\u002B00:00",
+    "generatedUtc": "2026-09-01T03:47:14.1889524\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 13,
     "indexEntries": 0,
