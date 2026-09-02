@@ -163,7 +163,7 @@
           },
           "coding_specialist": {
             "provider": "ollama",
-            "model": "qwen3.8:27b",
+            "model": "deepcoder:14b",
             "maxContextTokens": 10240,
             "maxOutputTokens": 1000,
             "temperature": 0.15,
