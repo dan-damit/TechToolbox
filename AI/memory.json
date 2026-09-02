@@ -1,7 +1,5 @@
 {
   "preferences": {
-    "pref.search-web-and-fetch-url-when-the-us.a4283bfc": "SEARCH-WEB and FETCH-URL when the user",
-    "pref.unrelated-changes.6c1986ca": "unrelated changes",
     "pref.robotic-phrasing.eebb95d4": "robotic phrasing",
     "pref.do-not-touch-any-other-accounts.e1d22685": "Do NOT touch any other accounts",
     "pref.do-not-touch-any-other-accounts.715c302d": "Do not touch any other accounts",
@@ -11,30 +9,33 @@
     "pref.replace-in-file-for-localized-edits.728edb4e": "REPLACE-IN-FILE for localized edits to this existing file",
     "pref.do-not-stop-after-analysis.8d0a7598": "Do not stop after analysis",
     "pref.do-not-output-the-script-in-console.64e1343e": "Do not output the script in console",
-    "pref.do-not-return-a-final-answer-until-w.b3d117d2": "Do not return a final answer until WRITE-FILE has succeeded"
+    "pref.do-not-return-a-final-answer-until-w.b3d117d2": "Do not return a final answer until WRITE-FILE has succeeded",
+    "pref.do-not-summarize-your-plan-before-ed.f122400d": "Do not summarize your plan before editing",
+    "pref.do-not-return-a-final-answer-until-t.61894c94": "Do not return a final answer until the file update has succeeded"
   },
   "facts": {
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.8,
-      "avgDurationMs": 27349,
-      "avgToolCalls": 3.05,
+      "successRate": 0.75,
+      "avgDurationMs": 29939,
+      "avgToolCalls": 3,
       "statusCounts": {
-        "success": 16,
-        "error": 4
+        "success": 15,
+        "error": 5
       },
       "outcomeCounts": {
-        "completed": 16,
+        "completed": 15,
         "invalid-json": 3,
-        "iteration-limit": 1
+        "iteration-limit": 1,
+        "llm-failure": 1
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
-      "lastModel": "phi4:14b",
-      "lastRunTimestampUtc": "2026-09-01T03:47:14.1878646\u002B00:00",
-      "trendLastUpdatedUtc": "2026-09-01T03:47:14.1888366\u002B00:00",
-      "avgPromptPreflightScore": 30,
+      "lastModel": "gpt-5.6-luna",
+      "lastRunTimestampUtc": "2026-09-02T00:37:19.5355454\u002B00:00",
+      "trendLastUpdatedUtc": "2026-09-02T00:37:19.5762144\u002B00:00",
+      "avgPromptPreflightScore": 36,
       "executionModeCounts": {
         "execute": 14,
         "chat": 6
@@ -47,20 +48,19 @@
       }
     },
     "memoryHealth": {
-      "generatedUtc": "2026-09-01T03:47:14.1888561\u002B00:00",
-      "totalPreferences": 0,
+      "generatedUtc": "2026-09-02T00:37:19.5762226\u002B00:00",
+      "totalPreferences": 4,
       "totalFacts": 13,
-      "indexEntries": 0,
-      "averageConfidence": 0,
+      "indexEntries": 25,
+      "averageConfidence": 0.806,
       "deprecatedEntries": 0,
-      "health": "low",
+      "health": "healthy",
       "notes": [
-        "Preferences tracked: 0",
+        "Preferences tracked: 4",
         "Facts tracked: 13",
-        "Index entries: 0"
+        "Index entries: 25"
       ]
     },
-    "fact.gpt-5-3-codex.a3da4ff8": "gpt-5.3-codex",
     "fact.c-repos-techtoolbox-src-techtoolbox.f99d761e": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent    Reasoning effort modes to support:      low      medium      high      xhigh    These correspond to the",
     "fact.tool-usage-powershell.a0d62039": "tool usage: PowerShell",
     "fact.tool-usage-without.0330bfdf": "tool usage: without",
@@ -71,149 +71,10 @@
     "fact.c-temp-invoke-remotereboot-ps1-use-w.0a7681fe": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.tool-usage-and.c33a30fe": "tool usage: and",
     "fact.tool-usage-frequently.7823b78d": "tool usage: frequently",
-    "fact.tool-usage-physical.2642ce1b": "tool usage: Physical"
+    "fact.tool-usage-physical.2642ce1b": "tool usage: Physical",
+    "fact.c-repos-techtoolbox-src-techtoolbox.441ac2c9": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-30T04:07:43.1722832+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather in Appletion Wisconsin tomorrow. Output the results to the console in markdown.",
-      "model": "phi4:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 11628,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather Forecast for Appleton, Wisconsin Tomorrow\n\n- **Period:** Sunday\n- **Temperature:** High near 84\u00B0F\n- **Wind:** South wind around 7 mph\n- **Forecast:** Partly sunny with a slight chance of showers and thunderstorms before 4pm.\n- **Precipitation Probability:** 24%",
-      "runSummary": {
-        "intent": "Please check the weather in Appletion Wisconsin tomorrow. Output the results to the console in markdown.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-30T04:08:23.3386476+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather in Ashland Wisconsin tomorrow. Output the results to the console in markdown.",
-      "model": "phi4:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 8191,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather Forecast for Ashland, Wisconsin\n\n### Tomorrow (Sunday)\n- **Temperature:** High of 75\u00B0F\n- **Wind:** NE at 5 to 15 mph, gusts up to 20 mph\n- **Forecast:** Mostly cloudy with a slight chance of rain showers between 9am and 1pm.\n- **Precipitation Probability:** 22%\n\n### Sunday Night\n- **Temperature:** Low around 64\u00B0F\n- **Wind:** NE at 5 to 10 mph, gusts up to 20 mph\n- **Forecast:** A slight chance of showers and thunderstorms between 11pm and 3am.\n- **Precipitation Probability:** 33%",
-      "runSummary": {
-        "intent": "Please check the weather in Ashland Wisconsin tomorrow. Output the results to the console in markdown.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-30T04:10:50.1173746+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather in Kenosha Wisconsin tomorrow. Output the results to the console in markdown.",
-      "model": "phi4:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 7873,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "- **Location:** Kenosha, Wisconsin, United States\n- **Date:** Tomorrow (August 30, 2026)\n- **Period:** Sunday\n- **Temperature:** High of 84\u00B0F\n- **Wind:** Southwest at 10 to 15 mph\n- **Forecast:** Chance of showers and thunderstorms before 3pm, then a chance of showers and thunderstorms.\n- **Precipitation Probability:** 45%",
-      "runSummary": {
-        "intent": "Please check the weather in Kenosha Wisconsin tomorrow. Output the results to the console in markdown.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-08-30T04:12:36.713041+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather in Madison Wisconsin tomorrow. Output the results to the console in markdown.",
-      "model": "phi4:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 7430,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 2,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather Forecast for Madison, Wisconsin Tomorrow\n\n- **Period**: Sunday\n- **Temperature**: High of 84\u00B0F\n- **Wind**: Southwest at 10 to 15 mph\n- **Forecast**: Partly sunny with a slight chance of showers and thunderstorms before 1pm, then a chance of showers and thunderstorms between 1pm and 5pm.\n- **Precipitation Probability**: 31%",
-      "runSummary": {
-        "intent": "Please check the weather in Madison Wisconsin tomorrow. Output the results to the console in markdown.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-08-30T04:14:14.0547204+00:00",
       "status": "success",
@@ -771,21 +632,578 @@
       "promptPreflightScore": 40,
       "promptPreflightWarningCount": 3,
       "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-09-01T21:29:12.8618663+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 19428,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather Forecast for Green Bay, Wisconsin Tomorrow\n\n- **This Afternoon:** Mostly Sunny, High near 89\u00B0F, Wind: 7 mph WSW\n- **Tonight:** Mostly Cloudy then Chance of Showers and Thunderstorms, Low around 70\u00B0F, Wind: 0 to 5 mph WSW, Precipitation Probability: 46%\n- **Wednesday:** Areas of Fog, High near 82\u00B0F, Wind: 3 mph NNE, Precipitation Probability: 54%",
+      "runSummary": {
+        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-09-01T22:56:22.2290028+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 42967,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 2,
+      "toolNames": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "outputPreview": "## Weather Forecast for Shawano, Wisconsin\n\n### Wednesday, September 2, 2026\n- **Morning:** Patchy fog and a chance of showers and thunderstorms.\n- **Temperature:** High near 82\u00B0F.\n- **Wind:** North wind 0 to 3 mph.\n- **Precipitation Probability:** 58%\n\n### Wednesday Night\n- **Evening:** Chance of showers and thunderstorms, followed by widespread fog.\n- **Temperature:** Low around 63\u00B0F.\n- **Wind:** Northeast wind around 2 mph.\n- **Precipitation Probability:** 38%",
+      "runSummary": {
+        "intent": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
+        "actionsTaken": [
+          "search_web",
+          "get_noaa_forecast"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 40,
+      "promptPreflightWarningCount": 3,
+      "promptPreflightCriticalCount": 1
+    },
+    {
+      "timestampUtc": "2026-09-02T00:33:00.6999157+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-5.6-luna",
+      "retryTierUsed": 3,
+      "fallbackActivated": false,
+      "durationMs": 5879,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported value: \u0027temperature\u0027 does not support 0.2 with this model. Only the default (1) value is supported.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022temperature\u0022,\n    \u0022code\u0022: \u0022unsupported_value\u0022\n  }\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported value: \u0027temperature\u0027 does not support 0.2 with this model. Only the default (1) value is supported.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022temperature\u0022,\n    \u0022code\u0022: \u0022unsupported_value\u0022\n  }\n}",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file....",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported value: \u0027temperature\u0027 does not support 0.2 with this model. Only the default (1) value is supported.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022temperature\u0022,\n    \u0022code\u0022: \u0022unsup...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-02T00:37:19.5355454+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-5.6-luna",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 18661,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "toolNames": [
+        "read_file_meta",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "Updated C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs in place.\n\n- Added XML documentation for the public PowerShellBridge type.\n- Added XML documentation for PowerShellBridgeTelemetry and all of its positional parameters.\n- Preserved the existing code and behavior.\n- WRITE-FILE completed successfully.",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file....",
+        "actionsTaken": [
+          "read_file_meta",
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
-  "memoryIndex": {},
+  "memoryIndex": {
+    "REPLACE-IN-FILE": {
+      "keyword": "REPLACE-IN-FILE",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999911499,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5760849\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "for": {
+      "keyword": "for",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.779999999996247,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761379\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "localized": {
+      "keyword": "localized",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999962363,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761382\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "edits": {
+      "keyword": "edits",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999962363,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761385\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "this": {
+      "keyword": "this",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999962793,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761391\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "existing": {
+      "keyword": "existing",
+      "value": "REPLACE-IN-FILE for localized edits to this existing file",
+      "sourceType": "preference",
+      "confidence": 0.7799999999962793,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761394\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "REPLACE-IN-FILE",
+        "for",
+        "localized",
+        "edits",
+        "this",
+        "existing"
+      ]
+    },
+    "not": {
+      "keyword": "not",
+      "value": "Do not return a final answer until the file update has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.9999999999967739,
+      "frequency": 3,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761512\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "file"
+      ]
+    },
+    "stop": {
+      "keyword": "stop",
+      "value": "Do not stop after analysis",
+      "sourceType": "preference",
+      "confidence": 0.7799999999966987,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761441\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "stop",
+        "after",
+        "analysis"
+      ]
+    },
+    "after": {
+      "keyword": "after",
+      "value": "Do not stop after analysis",
+      "sourceType": "preference",
+      "confidence": 0.7799999999967094,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761445\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "stop",
+        "after",
+        "analysis"
+      ]
+    },
+    "analysis": {
+      "keyword": "analysis",
+      "value": "Do not stop after analysis",
+      "sourceType": "preference",
+      "confidence": 0.7799999999967094,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761447\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "stop",
+        "after",
+        "analysis"
+      ]
+    },
+    "summarize": {
+      "keyword": "summarize",
+      "value": "Do not summarize your plan before editing",
+      "sourceType": "preference",
+      "confidence": 0.7799999999969138,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761469\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "summarize",
+        "your",
+        "plan",
+        "before",
+        "editing"
+      ]
+    },
+    "your": {
+      "keyword": "your",
+      "value": "Do not summarize your plan before editing",
+      "sourceType": "preference",
+      "confidence": 0.7799999999969138,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761471\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "summarize",
+        "your",
+        "plan",
+        "before",
+        "editing"
+      ]
+    },
+    "plan": {
+      "keyword": "plan",
+      "value": "Do not summarize your plan before editing",
+      "sourceType": "preference",
+      "confidence": 0.7799999999969138,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761474\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "summarize",
+        "your",
+        "plan",
+        "before",
+        "editing"
+      ]
+    },
+    "before": {
+      "keyword": "before",
+      "value": "Do not summarize your plan before editing",
+      "sourceType": "preference",
+      "confidence": 0.779999999996903,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761476\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "summarize",
+        "your",
+        "plan",
+        "before",
+        "editing"
+      ]
+    },
+    "editing": {
+      "keyword": "editing",
+      "value": "Do not summarize your plan before editing",
+      "sourceType": "preference",
+      "confidence": 0.779999999996903,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761478\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "summarize",
+        "your",
+        "plan",
+        "before",
+        "editing"
+      ]
+    },
+    "return": {
+      "keyword": "return",
+      "value": "Do not return a final answer until the file update has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999972687,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761515\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "file"
+      ]
+    },
+    "final": {
+      "keyword": "final",
+      "value": "Do not return a final answer until the file update has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999972471,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761518\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "file"
+      ]
+    },
+    "answer": {
+      "keyword": "answer",
+      "value": "Do not return a final answer until the file update has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999972363,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761520\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "file"
+      ]
+    },
+    "until": {
+      "keyword": "until",
+      "value": "Do not return a final answer until the file update has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999972579,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761524\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "file"
+      ]
+    },
+    "file": {
+      "keyword": "file",
+      "value": "Do not return a final answer until the file update has succeeded",
+      "sourceType": "preference",
+      "confidence": 0.7799999999972579,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761526\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "not",
+        "return",
+        "final",
+        "answer",
+        "until",
+        "file"
+      ]
+    },
+    "repos": {
+      "keyword": "repos",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999979403,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761603\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Execution"
+      ]
+    },
+    "TechToolbox": {
+      "keyword": "TechToolbox",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.9999999999971875,
+      "frequency": 2,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761612\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Execution"
+      ]
+    },
+    "src": {
+      "keyword": "src",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999975168,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761608\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Execution"
+      ]
+    },
+    "Agent": {
+      "keyword": "Agent",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999975627,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761615\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Execution"
+      ]
+    },
+    "Execution": {
+      "keyword": "Execution",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "sourceType": "fact",
+      "confidence": 0.8299999999975627,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T00:37:19.5761617\u002B00:00",
+      "deprecated": false,
+      "keywords": [
+        "repos",
+        "TechToolbox",
+        "src",
+        "TechToolbox",
+        "Agent",
+        "Execution"
+      ]
+    }
+  },
   "memoryHealth": {
-    "generatedUtc": "2026-09-01T03:47:14.1889524\u002B00:00",
-    "totalPreferences": 0,
+    "generatedUtc": "2026-09-02T00:37:19.5762287\u002B00:00",
+    "totalPreferences": 4,
     "totalFacts": 13,
-    "indexEntries": 0,
-    "averageConfidence": 0,
+    "indexEntries": 25,
+    "averageConfidence": 0.806,
     "deprecatedEntries": 0,
-    "health": "low",
+    "health": "healthy",
     "notes": [
-      "Preferences tracked: 0",
+      "Preferences tracked: 4",
       "Facts tracked: 13",
-      "Index entries: 0"
+      "Index entries: 25"
     ]
   },
   "_memoryFormatVersion": 2

@@ -1,130 +1,5 @@
 [
   {
-    "timestampUtc": "2026-08-14T03:16:17.7616702+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "Please review your memory subsystem code and make recommendations on how to improve it.",
-    "model": "qwen3.6:35b",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 88780,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 1,
-    "toolNames": [
-      "search_web"
-    ],
-    "outputPreview": "# Memory Subsystem Review\n\nI do not have access to the internal source code of the TechToolbox memory subsystem (\u0060TechToolbox.Agent.Memory\u0060). The search results indicate that \u0022agentmemory\u0022 refers to third-party open-source projects (e.g., by rohitg00, jayzeng) which are distinct from the proprietary TechToolbox framework.\n\nHowever, based on standard best practices for AI agent memory systems and the visible components in your context (Persistent Memory, Trend Summary, Facts), here are general recommendations to improve such a subsystem:\n\n## 1. Data Structure Optimization\n- **Hybrid Storage**: Combine vector embeddings (for semantic similarity) with structured metadata (for precise filtering). This improves both recall and precision.\n- **TTL (Time-to-Live)**: Implement automatic expiration for ephemeral facts or short-term context to prevent memory bloat and reduce noise in long-running sessions.\n\n## 2. Retrieval Efficiency\n- **Hierarchical Indexing**: Use a two-tier retrieval system where high-level summaries are checked first, followed by detailed vector search only if necessary. This reduces token usage and latency.\n- **Relevance Scoring**: Implement dynamic relevance scoring that weighs recent interactions more heavily than older ones (decay function).\n\n## 3. Context Management\n- **Summarization of Old Memories**: Periodically compress older memory entries into concise summaries to retain key information while freeing up context window space.\n- **Conflict Resolution**: Add logic to detect and resolve conflicting facts (e.g., if a user updates their name, the old name should be archived or marked invalid).\n\n## 4. Persistence \u0026 Reliability\n- **Atomic Writes**: Ensure memory updates are atomic to prevent corruption during crashes or interruptions.\n- **Backup Mechanisms**: Implement regular snapshots of the persistent memory store to allow for recovery in case of data loss.\n\n## 5. Privacy \u0026 Security\n- **Data Minimization**: Only store information that is explicitly necessary for task completion. Avoid storing sensitive PII unless required and encrypted.\n- **Access Controls**: Ensure that memory retrieval respects user permissions and does not leak information across different contexts or users.\n\nIf you can provide the specific source code file path of your TechToolbox memory implementation, I can perform a detailed code review.",
-    "runSummary": {
-      "intent": "Please review your memory subsystem code and make recommendations on how to improve it.",
-      "actionsTaken": [
-        "search_web"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 40,
-    "promptPreflightWarningCount": 3,
-    "promptPreflightCriticalCount": 2
-  },
-  {
-    "timestampUtc": "2026-08-14T03:26:56.5971783+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "What is the weather going to be like in Green Bay, Wisconsin, USA. Use the website https://weather.gov to find the weather and output it to consile using markdown formatting.",
-    "model": "qwen3.6:35b",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 39874,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Address critical preflight findings first, then proceed with bounded read-only verification steps.",
-    "runSummary": {
-      "intent": "What is the weather going to be like in Green Bay, Wisconsin, USA. Use the website https://weather.gov to find the weather and output it to consile using markdown formatting.",
-      "actionsTaken": [],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 60,
-    "promptPreflightWarningCount": 2,
-    "promptPreflightCriticalCount": 1
-  },
-  {
-    "timestampUtc": "2026-08-14T03:29:27.1764525+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "What is the weather going to be like in Green Bay, Wisconsin, USA. Use the website https://weather.gov to find the weather and output it to consile using markdown formatting.",
-    "model": "qwen3.6:35b",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 102682,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 1,
-    "toolNames": [
-      "search_web"
-    ],
-    "outputPreview": "Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step. Suggested preflight remediation: Use narrower scope and explicit termination criteria; similar runs showed instability in recent history.",
-    "runSummary": {
-      "intent": "What is the weather going to be like in Green Bay, Wisconsin, USA. Use the website https://weather.gov to find the weather and output it to consile using markdown formatting.",
-      "actionsTaken": [
-        "search_web"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "chat",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 60,
-    "promptPreflightWarningCount": 2,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-08-14T03:38:26.577002+00:00",
-    "status": "error",
-    "outcome": "iteration-limit",
-    "prompt": "What is the weather going to be like in Green Bay, Wisconsin, USA. Use the website https://weather.gov to find the weather and output it to console using markdown formatting.",
-    "model": "qwen3.6:35b",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 145937,
-    "maxIterations": 3,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 0,
-    "toolNames": [],
-    "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 3\r\n- max_iterations requested: 3\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-    "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 3\r\n- max_iterations requested: 3\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.",
-    "runSummary": {
-      "intent": "What is the weather going to be like in Green Bay, Wisconsin, USA. Use the website https://weather.gov to find the weather and output it to console using markdown formatting.",
-      "actionsTaken": [],
-      "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 3\r\n- max_iterations requested: 3\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect ...",
-      "nextBestStep": "Next best action:"
-    },
-    "executionMode": "execute",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 100,
-    "promptPreflightWarningCount": 0,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-08-14T03:39:17.2519964+00:00",
     "status": "success",
     "outcome": "completed",
@@ -8508,5 +8383,142 @@
     "promptPreflightScore": 40,
     "promptPreflightWarningCount": 3,
     "promptPreflightCriticalCount": 1
+  },
+  {
+    "timestampUtc": "2026-09-01T21:29:12.8618663+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+    "model": "phi4:14b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 19428,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 2,
+    "toolNames": [
+      "search_web",
+      "get_noaa_forecast"
+    ],
+    "outputPreview": "## Weather Forecast for Green Bay, Wisconsin Tomorrow\n\n- **This Afternoon:** Mostly Sunny, High near 89\u00B0F, Wind: 7 mph WSW\n- **Tonight:** Mostly Cloudy then Chance of Showers and Thunderstorms, Low around 70\u00B0F, Wind: 0 to 5 mph WSW, Precipitation Probability: 46%\n- **Wednesday:** Areas of Fog, High near 82\u00B0F, Wind: 3 mph NNE, Precipitation Probability: 54%",
+    "runSummary": {
+      "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
+      "actionsTaken": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 40,
+    "promptPreflightWarningCount": 3,
+    "promptPreflightCriticalCount": 1
+  },
+  {
+    "timestampUtc": "2026-09-01T22:56:22.2290028+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
+    "model": "phi4:14b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 42967,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 2,
+    "toolNames": [
+      "search_web",
+      "get_noaa_forecast"
+    ],
+    "outputPreview": "## Weather Forecast for Shawano, Wisconsin\n\n### Wednesday, September 2, 2026\n- **Morning:** Patchy fog and a chance of showers and thunderstorms.\n- **Temperature:** High near 82\u00B0F.\n- **Wind:** North wind 0 to 3 mph.\n- **Precipitation Probability:** 58%\n\n### Wednesday Night\n- **Evening:** Chance of showers and thunderstorms, followed by widespread fog.\n- **Temperature:** Low around 63\u00B0F.\n- **Wind:** Northeast wind around 2 mph.\n- **Precipitation Probability:** 38%",
+    "runSummary": {
+      "intent": "Please check the weather in Shawano Wisconsin tomorrow. Output the results to the console in markdown.",
+      "actionsTaken": [
+        "search_web",
+        "get_noaa_forecast"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 40,
+    "promptPreflightWarningCount": 3,
+    "promptPreflightCriticalCount": 1
+  },
+  {
+    "timestampUtc": "2026-09-02T00:33:00.6999157+00:00",
+    "status": "error",
+    "outcome": "llm-failure",
+    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "gpt-5.6-luna",
+    "retryTierUsed": 3,
+    "fallbackActivated": false,
+    "durationMs": 5879,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported value: \u0027temperature\u0027 does not support 0.2 with this model. Only the default (1) value is supported.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022temperature\u0022,\n    \u0022code\u0022: \u0022unsupported_value\u0022\n  }\n}",
+    "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported value: \u0027temperature\u0027 does not support 0.2 with this model. Only the default (1) value is supported.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022temperature\u0022,\n    \u0022code\u0022: \u0022unsupported_value\u0022\n  }\n}",
+    "runSummary": {
+      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file....",
+      "actionsTaken": [],
+      "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: BadRequest - {\n  \u0022error\u0022: {\n    \u0022message\u0022: \u0022Unsupported value: \u0027temperature\u0027 does not support 0.2 with this model. Only the default (1) value is supported.\u0022,\n    \u0022type\u0022: \u0022invalid_request_error\u0022,\n    \u0022param\u0022: \u0022temperature\u0022,\n    \u0022code\u0022: \u0022unsup...",
+      "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 100,
+    "promptPreflightWarningCount": 0,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-09-02T00:37:19.5355454+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+    "model": "gpt-5.6-luna",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 18661,
+    "maxIterations": 15,
+    "destructiveConfirmed": true,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 3,
+    "toolNames": [
+      "read_file_meta",
+      "read_file",
+      "write_file"
+    ],
+    "outputPreview": "Updated C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs in place.\n\n- Added XML documentation for the public PowerShellBridge type.\n- Added XML documentation for PowerShellBridgeTelemetry and all of its positional parameters.\n- Preserved the existing code and behavior.\n- WRITE-FILE completed successfully.",
+    "runSummary": {
+      "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file....",
+      "actionsTaken": [
+        "read_file_meta",
+        "read_file",
+        "write_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 100,
+    "promptPreflightWarningCount": 0,
+    "promptPreflightCriticalCount": 0
   }
 ]
