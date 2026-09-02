@@ -1,72 +1,5 @@
 [
   {
-    "timestampUtc": "2026-08-14T17:00:59.8465361+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "fetch the weather for Green Bay wisconsin from the official website, return the final answer in markdown.",
-    "model": "gpt-4o-mini",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 4195,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 2,
-    "toolNames": [
-      "search_web",
-      "search_web"
-    ],
-    "outputPreview": "Unable to retrieve the weather forecast for Green Bay, Wisconsin due to tool limitations. Please check a reliable weather website or app for the latest updates.",
-    "runSummary": {
-      "intent": "fetch the weather for Green Bay wisconsin from the official website, return the final answer in markdown.",
-      "actionsTaken": [
-        "search_web"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "chat",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 80,
-    "promptPreflightWarningCount": 1,
-    "promptPreflightCriticalCount": 0
-  },
-  {
-    "timestampUtc": "2026-08-14T17:02:36.5619705+00:00",
-    "status": "success",
-    "outcome": "completed",
-    "prompt": "fetch the weather for Green Bay wisconsin from the official website, return the final answer in markdown. If you run into a tool limitation, please specify the limitation.",
-    "model": "gpt-4o-mini",
-    "retryTierUsed": 0,
-    "fallbackActivated": false,
-    "durationMs": 3955,
-    "maxIterations": 15,
-    "destructiveConfirmed": false,
-    "signedFilePolicy": "ignore",
-    "autoRetryOnRecursion": false,
-    "toolCalls": 1,
-    "toolNames": [
-      "search_web"
-    ],
-    "outputPreview": "Unable to fetch the weather forecast for Green Bay, Wisconsin, due to a tool limitation. Please check an official weather website for the latest updates.",
-    "runSummary": {
-      "intent": "fetch the weather for Green Bay wisconsin from the official website, return the final answer in markdown. If you run into a tool limitation, please specify the limitation.",
-      "actionsTaken": [
-        "search_web"
-      ],
-      "blockers": "",
-      "nextBestStep": ""
-    },
-    "executionMode": "chat",
-    "outputContract": "markdown",
-    "qualityProfile": "balanced",
-    "promptPreflightScore": 80,
-    "promptPreflightWarningCount": 1,
-    "promptPreflightCriticalCount": 0
-  },
-  {
     "timestampUtc": "2026-08-14T17:20:03.4471304+00:00",
     "status": "success",
     "outcome": "completed",
@@ -8574,6 +8507,76 @@
     "qualityProfile": "balanced",
     "promptPreflightScore": 100,
     "promptPreflightWarningCount": 0,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-09-02T22:42:24.5335075+00:00",
+    "status": "error",
+    "outcome": "iteration-limit",
+    "prompt": "check the agent memory subsystem an offer analysis on how to improve the memory. Create a detailed markdown output in the console with recommendations. The memory subsystem is located at C:\\repos\\TechToolbox\\src\\Memory directory.",
+    "model": "phi4:14b",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 100802,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 0,
+    "toolNames": [],
+    "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: Get-LocalAdminMembers -\u003E Get-SystemSnapshot -\u003E Get-SystemUptime -\u003E Get-SystemTrustDiagnostic -\u003E Get-ErrorEvents -\u003E Get-FilesUsingKeywords -\u003E Get-InstalledPrinters -\u003E Get-RemoteInstalledSoftware\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+    "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: Get-LocalAdminMembers -\u003E Get-SystemSnapshot -\u003E Get-SystemUptime -\u003E Get-SystemTrustDiagnostic -\u003E Get-ErrorEvents -\u003E Get-FilesUsingKeywords -\u003E Get-InstalledPrinters -\u003E Get-RemoteInstalledSoftware\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+    "runSummary": {
+      "intent": "check the agent memory subsystem an offer analysis on how to improve the memory. Create a detailed markdown output in the console with recommendations. The memory subsystem is located at C:\\repos\\TechToolbox\\src\\Memory d...",
+      "actionsTaken": [],
+      "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+      "nextBestStep": "Next best action:"
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 80,
+    "promptPreflightWarningCount": 1,
+    "promptPreflightCriticalCount": 0
+  },
+  {
+    "timestampUtc": "2026-09-02T22:46:44.5720818+00:00",
+    "status": "success",
+    "outcome": "completed",
+    "prompt": "check the agent memory subsystem an offer analysis on how to improve the memory. Create a detailed markdown output in the console with recommendations. The memory subsystem is located at C:\\repos\\TechToolbox\\src\\Memory directory.",
+    "model": "gpt-5.6-luna",
+    "retryTierUsed": 0,
+    "fallbackActivated": false,
+    "durationMs": 36076,
+    "maxIterations": 15,
+    "destructiveConfirmed": false,
+    "signedFilePolicy": "ignore",
+    "autoRetryOnRecursion": false,
+    "toolCalls": 7,
+    "toolNames": [
+      "list_directory",
+      "list_directory",
+      "list_directory",
+      "list_directory",
+      "read_file",
+      "read_file",
+      "read_file"
+    ],
+    "outputPreview": "## Memory subsystem analysis\n\nReviewed:\n- \u0060MemoryModels.cs\u0060\n- \u0060MemoryStore.cs\u0060\n- \u0060MemoryLearner.cs\u0060\n\nThe subsystem has a useful foundation: persistent JSON storage, bounded history, structured run summaries, keyword indexing, confidence scoring, health reporting, and rule-based learning. The main risks are data integrity, privacy, indexing accuracy, concurrency, and overly permissive learning.\n\n## Current architecture\n\n- \u0060MemoryStore\u0060 owns preferences, facts, history, the memory index, persistence, normalization, trend calculations, and health calculations.\n- \u0060MemoryLearner\u0060 extracts preferences and facts from prompts and output using regular expressions, then writes them into the store.\n- \u0060MemoryModels\u0060 defines JSON-serializable payload, history, trend, index, health, and inspection models.\n- Memory is stored in two files:\n  - A primary memory JSON file containing preferences, facts, recent history, the index, and health.\n  - A companion history JSON file containing a larger history window.\n- \u0060MemoryInspector\u0060 provides a read-only projection of indexed preferences and facts.\n\n## Highest-priority recommendations\n\n### 1. Make writes atomic and recoverable\n\n\u0060Save()\u0060 writes directly with \u0060File.WriteAllText\u0060. A process interruption, disk-full condition, or antivirus/file-lock event can leave either file truncated or inconsistent with the other file.\n\nRecommended approach:\n- Serialize each document completely before writing.\n- Write to a temporary file in the same directory.\n- Flush the temporary file to disk where practical.\n- Replace the destination using an atomic move or replace operation.\n- Keep a small backup of the previous valid file.\n- Recover from the backup when JSON parsing fails.\n- Treat the primary file and history file as a coordinated persistence unit, or include a generation identifier in both files.\n\n### 2. Add concurrency protection\n\n\u0060MemoryStore\u0060 is mutable and performs read-modify-write operations without locking. Concurrent calls to \u0060SetFact\u0060, \u0060SetPreference\u0060, \u0060AddRun\u0060, or \u0060MemoryLearner.LearnFromRun\u0060 can lose updates or produce conflicting files.\n\nRecommended approach:\n- Add an instance-level lock or \u0060SemaphoreSlim\u0060 around mutation and save operations.\n- Use a process-wide named mutex if multiple agent processes can share the same memory path.\n- Prefer a single \u0060Save\u0060 operation after a batch of changes rather than saving once for every individual update.\n- Add tests for concurrent writers and overlapping learner calls.\n\n### 3. Stop swallowing load errors silently\n\n\u0060Load()\u0060 catches all exceptions and silently resets state. This can convert a transient file or permission problem into apparent empty memory, followed by a later save that overwrites recoverable data.\n\nRecommended approach:\n- Catch expected exceptions separately from unexpected exceptions.\n- Log the path, exception type, and recovery action without logging sensitive values.\n- Preserve the damaged file with a timestamped quarantine copy before resetting.\n- Expose a load/recovery status in \u0060MemoryHealthSummary\u0060.\n- Distinguish missing files, invalid JSON, access failures, and schema incompatibility.\n\n### 4. Fix confidence scoring and make health meaningful\n\n\u0060RecordMemoryEntry()\u0060 calculates:\n\n\u00600.35 \u002B frequency contribution \u002B 1 / (1 \u002B age contribution)\u0060\n\nFor a new entry, this is already greater than 1.0 and is clamped to 1.0. Consequently, newly observed entries can immediately receive maximum confidence. The health summary can therefore report \u0060healthy\u0060 even when the data has little evidence.\n\nRecommended approach:\n- Use a bounded formula whose initial value is below the healthy threshold.\n- Separate evidence strength, recency, source reliability, and contradiction state.\n- Preserve confidence across index rebuilds rather than recalculating it from scratch.\n- Add explicit confidence tests for first observation, repeated observation, aging, and conflicting values.\n- Consider Bayesian or weighted-evidence scoring instead of a manually clamped additive fo...",
+    "runSummary": {
+      "intent": "check the agent memory subsystem an offer analysis on how to improve the memory. Create a detailed markdown output in the console with recommendations. The memory subsystem is located at C:\\repos\\TechToolbox\\src\\Memory d...",
+      "actionsTaken": [
+        "list_directory",
+        "read_file"
+      ],
+      "blockers": "",
+      "nextBestStep": ""
+    },
+    "executionMode": "execute",
+    "outputContract": "markdown",
+    "qualityProfile": "balanced",
+    "promptPreflightScore": 80,
+    "promptPreflightWarningCount": 1,
     "promptPreflightCriticalCount": 0
   }
 ]

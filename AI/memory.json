@@ -17,27 +17,26 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.8,
-      "avgDurationMs": 49399,
-      "avgToolCalls": 4.15,
+      "successRate": 0.75,
+      "avgDurationMs": 47025,
+      "avgToolCalls": 4.5,
       "statusCounts": {
-        "success": 16,
-        "error": 4
+        "success": 15,
+        "error": 5
       },
       "outcomeCounts": {
-        "completed": 16,
-        "iteration-limit": 2,
+        "completed": 15,
+        "iteration-limit": 3,
         "llm-failure": 2
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.6-luna",
-      "lastRunTimestampUtc": "2026-09-02T02:52:04.7653712\u002B00:00",
-      "trendLastUpdatedUtc": "2026-09-02T02:52:04.8103246\u002B00:00",
-      "avgPromptPreflightScore": 68,
+      "lastRunTimestampUtc": "2026-09-02T22:46:44.5720818\u002B00:00",
+      "trendLastUpdatedUtc": "2026-09-02T22:46:44.6138728\u002B00:00",
+      "avgPromptPreflightScore": 76,
       "executionModeCounts": {
-        "chat": 2,
-        "execute": 18
+        "execute": 20
       },
       "outputContractCounts": {
         "markdown": 20
@@ -47,20 +46,19 @@
       }
     },
     "memoryHealth": {
-      "generatedUtc": "2026-09-02T02:52:04.8103347\u002B00:00",
-      "totalPreferences": 4,
+      "generatedUtc": "2026-09-02T22:46:44.6138799\u002B00:00",
+      "totalPreferences": 0,
       "totalFacts": 13,
-      "indexEntries": 25,
-      "averageConfidence": 0.806,
+      "indexEntries": 3,
+      "averageConfidence": 0.78,
       "deprecatedEntries": 0,
       "health": "healthy",
       "notes": [
-        "Preferences tracked: 4",
+        "Preferences tracked: 0",
         "Facts tracked: 13",
-        "Index entries: 25"
+        "Index entries: 3"
       ]
     },
-    "fact.c-repos-techtoolbox-src-techtoolbox.70b44438": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.tool-usage-get-noaa-forecast.306bbf72": "tool usage: GET-NOAA-FORECAST",
     "fact.c-temp-invoke-remotereboot-ps1-use-w.0a7681fe": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.tool-usage-and.c33a30fe": "tool usage: and",
@@ -71,67 +69,10 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.79e34fe6": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.BuiltInTools.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.c-repos-techtoolbox-src-techtoolbox.058e1e2a": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Noaa.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.c-repos-techtoolbox-src-techtoolbox.0878a0a7": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.ReadFile.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-    "fact.c-repos-techtoolbox-src-techtoolbox.dbaa5519": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded"
+    "fact.c-repos-techtoolbox-src-techtoolbox.dbaa5519": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+    "fact.tool-usage-rather.bd314ef0": "tool usage: rather"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-30T04:57:58.0324985+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "What are the possible ways to hide the cursor in powershell?",
-      "model": "deepcoder:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 12328,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "To hide the cursor in a PowerShell console, you can use one of two methods:\n\n1. **Using Console API**:\n   Run this PowerShell command to hide the cursor:\n   \u0060\u0060\u0060powershell\n   [Console]::SetCursorVisibility([System.ConsoleCursorVisibility]::Hidden)\n   \u0060\u0060\u0060\n\n2. **Generating Output**:\n   You can also hide the cursor by generating a lot of text, which pushes the cursor to the bottom. For example:\n   \u0060\u0060\u0060powershell\n   powershell -command \u0022ls\u0022\n   \u0060\u0060\u0060\n\nIf you need more specific details or troubleshooting steps, feel free to ask!",
-      "runSummary": {
-        "intent": "What are the possible ways to hide the cursor in powershell?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-30T05:04:15.3636913+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "What are the possible ways to hide the cursor in powershell?",
-      "model": "qwen3.8:27b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 172027,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Here are the main ways, depending on which cursor you mean.\n\n## Blinking text caret in PowerShell console\n- Hide it for the current session:\n  \u0060[Console]::CursorVisible = $false\u0060\n- Restore it:\n  \u0060[Console]::CursorVisible = $true\u0060\n- Safer pattern so you do not leave the cursor hidden:\n  \u0060$prev = [Console]::CursorVisible\u0060, then set false, run your work, and restore \u0060$prev\u0060 in a \u0060finally\u0060 block.\n\n## Mouse pointer in a PowerShell GUI app\n- For Windows Forms apps:\n  \u0060[System.Windows.Forms.Control]::HideCursor()\u0060\n  \u0060[System.Windows.Forms.Control]::ShowCursor()\u0060\n- For WPF, set the relevant window or control cursor to \u0060Cursors.None\u0060 while you want it hidden.\n\n## Whole-desktop mouse pointer from PowerShell\n- You can call the Windows API \u0060ShowCursor\u0060 with P/Invoke. This is more invasive because it affects the whole desktop until balanced with a matching restore call.\n\n## Notes\n- \u0060[Console]::CursorVisible\u0060 is usually what people mean by hiding the cursor in PowerShell.\n- It works well for scripts, TUI-style output, and temporary hidden-caret sections.\n- If you are using ISE, VS Code terminal, or another host, behavior can vary slightly, but the console API is still the standard approach.",
-      "runSummary": {
-        "intent": "What are the possible ways to hide the cursor in powershell?",
-        "actionsTaken": [],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-31T20:15:02.7581484+00:00",
       "status": "success",
@@ -805,441 +746,134 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-02T22:42:24.5335075+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "check the agent memory subsystem an offer analysis on how to improve the memory. Create a detailed markdown output in the console with recommendations. The memory subsystem is located at C:\\repos\\TechToolbox\\src\\Memory directory.",
+      "model": "phi4:14b",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 100802,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: Get-LocalAdminMembers -\u003E Get-SystemSnapshot -\u003E Get-SystemUptime -\u003E Get-SystemTrustDiagnostic -\u003E Get-ErrorEvents -\u003E Get-FilesUsingKeywords -\u003E Get-InstalledPrinters -\u003E Get-RemoteInstalledSoftware\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: Get-LocalAdminMembers -\u003E Get-SystemSnapshot -\u003E Get-SystemUptime -\u003E Get-SystemTrustDiagnostic -\u003E Get-ErrorEvents -\u003E Get-FilesUsingKeywords -\u003E Get-InstalledPrinters -\u003E Get-RemoteInstalledSoftware\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+      "runSummary": {
+        "intent": "check the agent memory subsystem an offer analysis on how to improve the memory. Create a detailed markdown output in the console with recommendations. The memory subsystem is located at C:\\repos\\TechToolbox\\src\\Memory d...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 80,
+      "promptPreflightWarningCount": 1,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-02T22:46:44.5720818+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "check the agent memory subsystem an offer analysis on how to improve the memory. Create a detailed markdown output in the console with recommendations. The memory subsystem is located at C:\\repos\\TechToolbox\\src\\Memory directory.",
+      "model": "gpt-5.6-luna",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 36076,
+      "maxIterations": 15,
+      "destructiveConfirmed": false,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 7,
+      "toolNames": [
+        "list_directory",
+        "list_directory",
+        "list_directory",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "read_file"
+      ],
+      "outputPreview": "## Memory subsystem analysis\n\nReviewed:\n- \u0060MemoryModels.cs\u0060\n- \u0060MemoryStore.cs\u0060\n- \u0060MemoryLearner.cs\u0060\n\nThe subsystem has a useful foundation: persistent JSON storage, bounded history, structured run summaries, keyword indexing, confidence scoring, health reporting, and rule-based learning. The main risks are data integrity, privacy, indexing accuracy, concurrency, and overly permissive learning.\n\n## Current architecture\n\n- \u0060MemoryStore\u0060 owns preferences, facts, history, the memory index, persistence, normalization, trend calculations, and health calculations.\n- \u0060MemoryLearner\u0060 extracts preferences and facts from prompts and output using regular expressions, then writes them into the store.\n- \u0060MemoryModels\u0060 defines JSON-serializable payload, history, trend, index, health, and inspection models.\n- Memory is stored in two files:\n  - A primary memory JSON file containing preferences, facts, recent history, the index, and health.\n  - A companion history JSON file containing a larger history window.\n- \u0060MemoryInspector\u0060 provides a read-only projection of indexed preferences and facts.\n\n## Highest-priority recommendations\n\n### 1. Make writes atomic and recoverable\n\n\u0060Save()\u0060 writes directly with \u0060File.WriteAllText\u0060. A process interruption, disk-full condition, or antivirus/file-lock event can leave either file truncated or inconsistent with the other file.\n\nRecommended approach:\n- Serialize each document completely before writing.\n- Write to a temporary file in the same directory.\n- Flush the temporary file to disk where practical.\n- Replace the destination using an atomic move or replace operation.\n- Keep a small backup of the previous valid file.\n- Recover from the backup when JSON parsing fails.\n- Treat the primary file and history file as a coordinated persistence unit, or include a generation identifier in both files.\n\n### 2. Add concurrency protection\n\n\u0060MemoryStore\u0060 is mutable and performs read-modify-write operations without locking. Concurrent calls to \u0060SetFact\u0060, \u0060SetPreference\u0060, \u0060AddRun\u0060, or \u0060MemoryLearner.LearnFromRun\u0060 can lose updates or produce conflicting files.\n\nRecommended approach:\n- Add an instance-level lock or \u0060SemaphoreSlim\u0060 around mutation and save operations.\n- Use a process-wide named mutex if multiple agent processes can share the same memory path.\n- Prefer a single \u0060Save\u0060 operation after a batch of changes rather than saving once for every individual update.\n- Add tests for concurrent writers and overlapping learner calls.\n\n### 3. Stop swallowing load errors silently\n\n\u0060Load()\u0060 catches all exceptions and silently resets state. This can convert a transient file or permission problem into apparent empty memory, followed by a later save that overwrites recoverable data.\n\nRecommended approach:\n- Catch expected exceptions separately from unexpected exceptions.\n- Log the path, exception type, and recovery action without logging sensitive values.\n- Preserve the damaged file with a timestamped quarantine copy before resetting.\n- Expose a load/recovery status in \u0060MemoryHealthSummary\u0060.\n- Distinguish missing files, invalid JSON, access failures, and schema incompatibility.\n\n### 4. Fix confidence scoring and make health meaningful\n\n\u0060RecordMemoryEntry()\u0060 calculates:\n\n\u00600.35 \u002B frequency contribution \u002B 1 / (1 \u002B age contribution)\u0060\n\nFor a new entry, this is already greater than 1.0 and is clamped to 1.0. Consequently, newly observed entries can immediately receive maximum confidence. The health summary can therefore report \u0060healthy\u0060 even when the data has little evidence.\n\nRecommended approach:\n- Use a bounded formula whose initial value is below the healthy threshold.\n- Separate evidence strength, recency, source reliability, and contradiction state.\n- Preserve confidence across index rebuilds rather than recalculating it from scratch.\n- Add explicit confidence tests for first observation, repeated observation, aging, and conflicting values.\n- Consider Bayesian or weighted-evidence scoring instead of a manually clamped additive fo...",
+      "runSummary": {
+        "intent": "check the agent memory subsystem an offer analysis on how to improve the memory. Create a detailed markdown output in the console with recommendations. The memory subsystem is located at C:\\repos\\TechToolbox\\src\\Memory d...",
+        "actionsTaken": [
+          "list_directory",
+          "read_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 80,
+      "promptPreflightWarningCount": 1,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {
-    "REPLACE-IN-FILE": {
-      "keyword": "REPLACE-IN-FILE",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999896121,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8101628\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "for": {
-      "keyword": "for",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999951717,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102217\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "localized": {
-      "keyword": "localized",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999951824,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102223\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "edits": {
-      "keyword": "edits",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.7799999999951717,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102227\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "this": {
-      "keyword": "this",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.779999999995333,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102244\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "existing": {
-      "keyword": "existing",
-      "value": "REPLACE-IN-FILE for localized edits to this existing file",
-      "sourceType": "preference",
-      "confidence": 0.779999999995333,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102247\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "REPLACE-IN-FILE",
-        "for",
-        "localized",
-        "edits",
-        "this",
-        "existing"
-      ]
-    },
-    "not": {
-      "keyword": "not",
-      "value": "Do not return a final answer until the file update has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.9999999999961673,
-      "frequency": 3,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102413\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "file"
-      ]
-    },
-    "stop": {
-      "keyword": "stop",
-      "value": "Do not stop after analysis",
-      "sourceType": "preference",
-      "confidence": 0.7799999999958277,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102306\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "stop",
-        "after",
-        "analysis"
-      ]
-    },
-    "after": {
-      "keyword": "after",
-      "value": "Do not stop after analysis",
-      "sourceType": "preference",
-      "confidence": 0.7799999999958491,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102311\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "stop",
-        "after",
-        "analysis"
-      ]
-    },
-    "analysis": {
-      "keyword": "analysis",
-      "value": "Do not stop after analysis",
-      "sourceType": "preference",
-      "confidence": 0.7799999999958385,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102313\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "stop",
-        "after",
-        "analysis"
-      ]
-    },
-    "summarize": {
-      "keyword": "summarize",
-      "value": "Do not summarize your plan before editing",
-      "sourceType": "preference",
-      "confidence": 0.7799999999961179,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102341\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "summarize",
-        "your",
-        "plan",
-        "before",
-        "editing"
-      ]
-    },
-    "your": {
-      "keyword": "your",
-      "value": "Do not summarize your plan before editing",
-      "sourceType": "preference",
-      "confidence": 0.779999999996161,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102347\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "summarize",
-        "your",
-        "plan",
-        "before",
-        "editing"
-      ]
-    },
-    "plan": {
-      "keyword": "plan",
-      "value": "Do not summarize your plan before editing",
-      "sourceType": "preference",
-      "confidence": 0.7799999999961502,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102349\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "summarize",
-        "your",
-        "plan",
-        "before",
-        "editing"
-      ]
-    },
-    "before": {
-      "keyword": "before",
-      "value": "Do not summarize your plan before editing",
-      "sourceType": "preference",
-      "confidence": 0.7799999999962147,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102357\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "summarize",
-        "your",
-        "plan",
-        "before",
-        "editing"
-      ]
-    },
-    "editing": {
-      "keyword": "editing",
-      "value": "Do not summarize your plan before editing",
-      "sourceType": "preference",
-      "confidence": 0.7799999999962686,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102365\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "summarize",
-        "your",
-        "plan",
-        "before",
-        "editing"
-      ]
-    },
-    "return": {
-      "keyword": "return",
-      "value": "Do not return a final answer until the file update has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.7799999999968062,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102417\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "file"
-      ]
-    },
-    "final": {
-      "keyword": "final",
-      "value": "Do not return a final answer until the file update has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.7799999999968062,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102420\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "file"
-      ]
-    },
-    "answer": {
-      "keyword": "answer",
-      "value": "Do not return a final answer until the file update has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.7799999999967955,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102421\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "file"
-      ]
-    },
-    "until": {
-      "keyword": "until",
-      "value": "Do not return a final answer until the file update has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.779999999996731,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102425\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "file"
-      ]
-    },
-    "file": {
-      "keyword": "file",
-      "value": "Do not return a final answer until the file update has succeeded",
-      "sourceType": "preference",
-      "confidence": 0.779999999996731,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102427\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "not",
-        "return",
-        "final",
-        "answer",
-        "until",
-        "file"
-      ]
-    },
-    "repos": {
-      "keyword": "repos",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+    "tool": {
+      "keyword": "tool",
+      "value": "tool usage: rather",
       "sourceType": "fact",
-      "confidence": 0.8299999999975283,
+      "confidence": 0.7799999999801704,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102518\u002B00:00",
+      "lastSeenUtc": "2026-09-02T22:46:44.6136450\u002B00:00",
       "deprecated": false,
       "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Execution"
+        "tool",
+        "usage",
+        "rather"
       ]
     },
-    "TechToolbox": {
-      "keyword": "TechToolbox",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+    "usage": {
+      "keyword": "usage",
+      "value": "tool usage: rather",
       "sourceType": "fact",
-      "confidence": 0.9999999999966223,
-      "frequency": 2,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102527\u002B00:00",
+      "confidence": 0.7799999999844718,
+      "frequency": 1,
+      "lastSeenUtc": "2026-09-02T22:46:44.6136901\u002B00:00",
       "deprecated": false,
       "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Execution"
+        "tool",
+        "usage",
+        "rather"
       ]
     },
-    "src": {
-      "keyword": "src",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+    "rather": {
+      "keyword": "rather",
+      "value": "tool usage: rather",
       "sourceType": "fact",
-      "confidence": 0.8299999999970935,
+      "confidence": 0.7799999999843965,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102523\u002B00:00",
+      "lastSeenUtc": "2026-09-02T22:46:44.6136905\u002B00:00",
       "deprecated": false,
       "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Execution"
-      ]
-    },
-    "Agent": {
-      "keyword": "Agent",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "fact",
-      "confidence": 0.829999999997185,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102534\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Execution"
-      ]
-    },
-    "Execution": {
-      "keyword": "Execution",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-      "sourceType": "fact",
-      "confidence": 0.829999999997185,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:52:04.8102536\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "repos",
-        "TechToolbox",
-        "src",
-        "TechToolbox",
-        "Agent",
-        "Execution"
+        "tool",
+        "usage",
+        "rather"
       ]
     }
   },
   "memoryHealth": {
-    "generatedUtc": "2026-09-02T02:52:04.8103431\u002B00:00",
-    "totalPreferences": 4,
+    "generatedUtc": "2026-09-02T22:46:44.6138862\u002B00:00",
+    "totalPreferences": 0,
     "totalFacts": 13,
-    "indexEntries": 25,
-    "averageConfidence": 0.806,
+    "indexEntries": 3,
+    "averageConfidence": 0.78,
     "deprecatedEntries": 0,
     "health": "healthy",
     "notes": [
-      "Preferences tracked: 4",
+      "Preferences tracked: 0",
       "Facts tracked: 13",
-      "Index entries: 25"
+      "Index entries: 3"
     ]
   },
   "_memoryFormatVersion": 2
