@@ -137,15 +137,24 @@ PrivateData = @{
 
 **Condensed Release Notes**
 
-- NOAA weather fetch reliability improved with transient retry handling for points and forecast API calls, including retry controls via environment settings in `PowerShellBridge.Noaa.cs:589`.
-- Fixed NOAA precision-redirect failures by adding explicit redirect handling (including relative Location headers) in `PowerShellBridge.Noaa.cs:613` and `PowerShellBridge.Noaa.cs:622`.
-- Added payload-shape diagnostics for weather responses so schema inspection can be done without raw JSON dumps:
-  - Optional includePayloadShape argument wired in `PowerShellBridge.BuiltInTools.cs:263` and `PowerShellBridge.BuiltInTools.cs:360`.
-  - New shape model/helper in `PowerShellBridge.Noaa.cs:37` and `PowerShellBridge.Noaa.cs:278`.
-- Added deterministic unit coverage for payload-shape extraction in `ToolWrapperTests.cs:498`.
-- Added operator documentation and usage example for NOAA diagnostics in `COMMANDS.md:128`.
-
-Net effect: city-level weather prompts now fail more gracefully when ambiguous, ZIP-scoped prompts are more consistently successful, and debugging NOAA payload usage is significantly easier.'
+- Expanded file-ingestion and prompt-retention defaults to reduce truncation during large-task runs.
+- Increased runtime profile budgets for core agent profiles to support larger context and output envelopes.
+- Added provider-aware adaptive limit routing:
+  - Local/loopback paths stay moderate.
+  - Cloud/frontier paths automatically scale higher.
+- Added configurable adaptive profiles in `config.json`, including:
+  - localModerate
+  - frontierHigh
+  - frontierXL
+- Added model matcher routing (first-match-wins) so specific model names/patterns can force profile selection, including Luna-class routing to frontierXL by default.
+- Added effective adaptive-limit preflight capture into markdown logs (instead of console noise).
+- Moved remaining preflight console lines into markdown Preflight output:
+  - Prompt preflight summary
+  - Reasoning effort settings
+  - Runtime assembly path
+- Console output is now cleaner while run metadata is preserved in markdown logs.
+- Updated markdown log writer schema/formatting in `Invoke-TechAgent.PromptAndLogging.ps1` and invocation wiring in `Invoke-TechAgent.ps1`.
+- Documentation updated for adaptive profile behavior, matcher support, and preflight logging behavior in `README.md`.'
 
         # Prerelease string of this module
         # Prerelease = ''
