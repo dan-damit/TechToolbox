@@ -288,6 +288,12 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 - `Use-TechAgentTaskTemplate` can stage a reusable prompt template into that file before you run the agent.
 - `-Prompt` can still be used for inline prompt text, and `-PromptFile` can still target any other file when needed.
 - Provider routing supports `ollama` (default), `openai`, `openai-compatible`, and `azure-openai`.
+- Adaptive limit defaults now auto-select by provider: local-moderate for `ollama` and loopback `openai-compatible`, frontier-high for `openai`, `azure-openai`, and non-loopback `openai-compatible` endpoints.
+- Adaptive profile values are configurable in `settings.agent.adaptiveLimitProfiles` (`enabled`, `modelMatchers`, `localModerate`, `frontierHigh`, `frontierXL`) within `Config\config.json`.
+- Model matchers are evaluated first-match-wins and can route by wildcard or regex (`pattern`, `profile`, optional `useRegex`).
+- Each run now prints an adaptive preflight line with selected profile, matcher hit (if any), and resolved limit values.
+- Explicit environment variables always win over adaptive defaults: `TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS`, `TT_AGENT_MAX_TOOL_RESULT_CHARS`, `TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS`, `TT_AGENT_LLM_MAX_OUTPUT_TOKENS`.
+- Set `TT_AGENT_DISABLE_ADAPTIVE_LIMIT_OVERRIDES=true` to disable adaptive limit injection entirely.
 - Quality controls support `-Mode` (`execute`, `analyze`, `plan`, `chat`), with `chat` as the default, `-OutputContract` (`markdown`, `plain-text`, `json`), `-StrictPromptPreflight`, and `-QualityProfile`.
 - Reasoning controls support `-ReasoningEffort` (`low`, `medium`, `high`, `xhigh`) and `-ReasoningEffortAuto` for automatic selection.
 - Authentication controls support `-ToolCredential` and `-ToolCredentialVariableName` (default: `dac`) for non-interactive tool authentication.

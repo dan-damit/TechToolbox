@@ -402,12 +402,11 @@ function Invoke-TechAgent {
     $preflightWarningCount = @($preflight.Warnings).Count
     $preflightCriticalCount = @($preflight.Critical).Count
 
-    Write-Log -Level Info -Message (
-        "`nTech agent prompt preflight: score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
+    $promptPreflightSummary = (
+        "score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
     )
-
-    Write-Log -Level Info -Message (
-        "Tech agent reasoning effort settings: override={0} auto={1}" -f $(if ([string]::IsNullOrWhiteSpace($resolvedReasoningEffort)) { '(none)' } else { $resolvedReasoningEffort }), $resolvedReasoningEffortAuto
+    $reasoningEffortSettings = (
+        "override={0} auto={1}" -f $(if ([string]::IsNullOrWhiteSpace($resolvedReasoningEffort)) { '(none)' } else { $resolvedReasoningEffort }), $resolvedReasoningEffortAuto
     )
 
     if ($StrictPromptPreflight.IsPresent) {
@@ -465,8 +464,8 @@ function Invoke-TechAgent {
             $preflightWarningCount = @($preflight.Warnings).Count
             $preflightCriticalCount = @($preflight.Critical).Count
 
-            Write-Log -Level Info -Message (
-                "Invoke-TechAgent auto rerun preflight: score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
+            $promptPreflightSummary = (
+                "score={0}/100 mode={1} outputContract={2} qualityProfile={3} source={4}" -f $preflightScore, $resolvedExecutionMode, $resolvedOutputContract, $resolvedQualityProfile, $promptSourceLabel
             )
 
             foreach ($warning in @($preflight.Warnings)) {
@@ -528,6 +527,10 @@ function Invoke-TechAgent {
     $markdownExpectedOutputExists = $false
     $capturedStdOut = ''
     $capturedStdErr = ''
+    $markdownAdaptiveLimitsPreflight = ''
+    $markdownPromptPreflightSummary = ''
+    $markdownReasoningEffortSettings = ''
+    $markdownRuntimeAssemblyPath = ''
     $runStartedUtc = [DateTime]::UtcNow
     $agentProc = $null
     $stdoutTask = $null
@@ -575,7 +578,9 @@ Hard requirement:
             throw "TechToolbox.Agent assembly not found. Install the packaged agent runtime or build/publish src\TechToolbox.Agent."
         }
 
-        Write-Log -Level Info -Message ("Tech agent runtime assembly: {0}`n" -f $agentAssemblyPath)
+        $markdownRuntimeAssemblyPath = $agentAssemblyPath
+        $markdownPromptPreflightSummary = $promptPreflightSummary
+        $markdownReasoningEffortSettings = $reasoningEffortSettings
 
         # Invoke-TechAgent now uses an internal terminal-state wait loop.
         # Keeping this self-contained avoids helper load drift and improves reliability.
@@ -1230,6 +1235,216 @@ $result = $runAgentMethod.Invoke($null, @(
         $startInfo.RedirectStandardError = $true
         $startInfo.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
         $startInfo.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
+
+        $adaptiveOverridesEnabled = $true
+        $adaptiveLimitProfilesConfig = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'adaptiveLimitProfiles'
+        if ($null -ne $adaptiveLimitProfilesConfig) {
+            $adaptiveEnabledConfigValue = Get-TTAgentConfigValue -ConfigObject $adaptiveLimitProfilesConfig -KeyName 'enabled'
+            if ($null -ne $adaptiveEnabledConfigValue) {
+                [bool]$adaptiveEnabledParsed = $true
+                if ([bool]::TryParse([string]$adaptiveEnabledConfigValue, [ref]$adaptiveEnabledParsed)) {
+                    $adaptiveOverridesEnabled = $adaptiveEnabledParsed
+                }
+            }
+        }
+
+        $disableAdaptiveRaw = [Environment]::GetEnvironmentVariable('TT_AGENT_DISABLE_ADAPTIVE_LIMIT_OVERRIDES')
+        if (-not [string]::IsNullOrWhiteSpace($disableAdaptiveRaw)) {
+            [bool]$disableAdaptiveParsed = $false
+            if ([bool]::TryParse($disableAdaptiveRaw, [ref]$disableAdaptiveParsed) -and $disableAdaptiveParsed) {
+                $adaptiveOverridesEnabled = $false
+            }
+        }
+
+        $providerForAdaptive = if ([string]::IsNullOrWhiteSpace($Provider)) {
+            'ollama'
+        }
+        else {
+            $Provider.Trim().ToLowerInvariant()
+        }
+
+        $isLoopbackEndpoint = $false
+        $isEndpointSpecified = -not [string]::IsNullOrWhiteSpace($Endpoint)
+        if ($isEndpointSpecified) {
+            try {
+                $endpointUri = [System.Uri]$Endpoint
+                $endpointHost = $endpointUri.Host.Trim().ToLowerInvariant()
+                if ($endpointHost -eq 'localhost' -or $endpointHost -eq '127.0.0.1' -or $endpointHost -eq '::1') {
+                    $isLoopbackEndpoint = $true
+                }
+            }
+            catch {
+                $isLoopbackEndpoint = $false
+            }
+        }
+
+        $adaptiveLimitProfile = 'local-moderate'
+        switch ($providerForAdaptive) {
+            'openai' { $adaptiveLimitProfile = 'frontier-high' }
+            'azure-openai' { $adaptiveLimitProfile = 'frontier-high' }
+            'openai-compatible' {
+                if ($isEndpointSpecified -and -not $isLoopbackEndpoint) {
+                    $adaptiveLimitProfile = 'frontier-high'
+                }
+            }
+        }
+
+        $adaptiveProfileKey = if ($adaptiveLimitProfile -eq 'frontier-high') {
+            'frontierHigh'
+        }
+        else {
+            'localModerate'
+        }
+
+        $testAdaptiveModelMatch = {
+            param(
+                [string]$ModelName,
+                [string]$Pattern,
+                [bool]$UseRegex
+            )
+
+            if ([string]::IsNullOrWhiteSpace($ModelName) -or [string]::IsNullOrWhiteSpace($Pattern)) {
+                return $false
+            }
+
+            if ($UseRegex) {
+                try {
+                    return [System.Text.RegularExpressions.Regex]::IsMatch($ModelName, $Pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+                }
+                catch {
+                    return $false
+                }
+            }
+
+            if ($Pattern.Contains('*') -or $Pattern.Contains('?')) {
+                return $ModelName -like $Pattern
+            }
+
+            return $ModelName.IndexOf($Pattern, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+        }
+
+        $selectedModelMatcherPattern = $null
+        $selectedModelMatcherProfile = $null
+        if ($null -ne $adaptiveLimitProfilesConfig) {
+            $modelMatchersConfig = Get-TTAgentConfigValue -ConfigObject $adaptiveLimitProfilesConfig -KeyName 'modelMatchers'
+            if ($null -ne $modelMatchersConfig) {
+                foreach ($matcher in @($modelMatchersConfig)) {
+                    if ($null -eq $matcher) {
+                        continue
+                    }
+
+                    $matcherPattern = [string](Get-TTAgentConfigValue -ConfigObject $matcher -KeyName 'pattern')
+                    $matcherProfileRaw = [string](Get-TTAgentConfigValue -ConfigObject $matcher -KeyName 'profile')
+                    $matcherRegexValue = Get-TTAgentConfigValue -ConfigObject $matcher -KeyName 'useRegex'
+
+                    if ([string]::IsNullOrWhiteSpace($matcherPattern) -or [string]::IsNullOrWhiteSpace($matcherProfileRaw)) {
+                        continue
+                    }
+
+                    [bool]$matcherUseRegex = $false
+                    if ($null -ne $matcherRegexValue) {
+                        [bool]$parsedMatcherUseRegex = $false
+                        if ([bool]::TryParse([string]$matcherRegexValue, [ref]$parsedMatcherUseRegex)) {
+                            $matcherUseRegex = $parsedMatcherUseRegex
+                        }
+                    }
+
+                    $normalizedMatcherProfile = $matcherProfileRaw.Trim()
+                    switch -Regex ($normalizedMatcherProfile.ToLowerInvariant()) {
+                        '^local[-_ ]?moderate$' { $normalizedMatcherProfile = 'localModerate'; break }
+                        '^frontier[-_ ]?high$' { $normalizedMatcherProfile = 'frontierHigh'; break }
+                        '^frontier[-_ ]?xl$' { $normalizedMatcherProfile = 'frontierXL'; break }
+                    }
+
+                    if ($normalizedMatcherProfile -ne 'localModerate' -and $normalizedMatcherProfile -ne 'frontierHigh' -and $normalizedMatcherProfile -ne 'frontierXL') {
+                        continue
+                    }
+
+                    if (-not (& $testAdaptiveModelMatch -ModelName $resolvedModel -Pattern $matcherPattern -UseRegex $matcherUseRegex)) {
+                        continue
+                    }
+
+                    $adaptiveProfileKey = $normalizedMatcherProfile
+                    switch ($adaptiveProfileKey) {
+                        'frontierXL' { $adaptiveLimitProfile = 'frontier-xl' }
+                        'frontierHigh' { $adaptiveLimitProfile = 'frontier-high' }
+                        default { $adaptiveLimitProfile = 'local-moderate' }
+                    }
+                    $selectedModelMatcherPattern = $matcherPattern
+                    $selectedModelMatcherProfile = $adaptiveProfileKey
+                    break
+                }
+            }
+        }
+
+        $adaptiveLocalDefaults = @{
+            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS' = '30000'
+            'TT_AGENT_MAX_TOOL_RESULT_CHARS' = '30000'
+            'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '12000'
+        }
+        $adaptiveFrontierDefaults = @{
+            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS' = '90000'
+            'TT_AGENT_MAX_TOOL_RESULT_CHARS' = '90000'
+            'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '30000'
+            'TT_AGENT_LLM_MAX_OUTPUT_TOKENS' = '8192'
+        }
+        $adaptiveFrontierXlDefaults = @{
+            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS' = '120000'
+            'TT_AGENT_MAX_TOOL_RESULT_CHARS' = '120000'
+            'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '45000'
+            'TT_AGENT_LLM_MAX_OUTPUT_TOKENS' = '12000'
+        }
+
+        $adaptiveEnvironmentDefaults = switch ($adaptiveProfileKey) {
+            'frontierXL' { @{} + $adaptiveFrontierXlDefaults; break }
+            'frontierHigh' { @{} + $adaptiveFrontierDefaults; break }
+            default { @{} + $adaptiveLocalDefaults }
+        }
+
+        if ($null -ne $adaptiveLimitProfilesConfig) {
+            $selectedAdaptiveProfile = Get-TTAgentConfigValue -ConfigObject $adaptiveLimitProfilesConfig -KeyName $adaptiveProfileKey
+            if ($null -ne $selectedAdaptiveProfile) {
+                $adaptivePropertyMap = @{
+                    'readFileSummaryThresholdChars' = 'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'
+                    'maxToolResultChars' = 'TT_AGENT_MAX_TOOL_RESULT_CHARS'
+                    'readFilePromptCompactThresholdChars' = 'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS'
+                    'llmMaxOutputTokens' = 'TT_AGENT_LLM_MAX_OUTPUT_TOKENS'
+                }
+
+                foreach ($adaptivePropertyName in $adaptivePropertyMap.Keys) {
+                    $adaptivePropertyValue = Get-TTAgentConfigValue -ConfigObject $selectedAdaptiveProfile -KeyName $adaptivePropertyName
+                    if ($null -eq $adaptivePropertyValue) {
+                        continue
+                    }
+
+                    [int]$parsedAdaptiveValue = 0
+                    if ([int]::TryParse([string]$adaptivePropertyValue, [ref]$parsedAdaptiveValue) -and $parsedAdaptiveValue -gt 0) {
+                        $adaptiveEnvironmentDefaults[[string]$adaptivePropertyMap[$adaptivePropertyName]] = [string]$parsedAdaptiveValue
+                    }
+                }
+            }
+        }
+
+        $resolvedAdaptiveLimits = [ordered]@{}
+        foreach ($key in @($adaptiveEnvironmentDefaults.Keys | Sort-Object)) {
+            $resolvedAdaptiveLimits[$key] = [string]$adaptiveEnvironmentDefaults[$key]
+        }
+
+        $adaptiveOverridesApplied = [System.Collections.Generic.List[string]]::new()
+        $adaptiveOverridesSkipped = [System.Collections.Generic.List[string]]::new()
+        if ($adaptiveOverridesEnabled) {
+            foreach ($entry in $adaptiveEnvironmentDefaults.GetEnumerator()) {
+                $existingValue = [Environment]::GetEnvironmentVariable([string]$entry.Key)
+                if ([string]::IsNullOrWhiteSpace($existingValue)) {
+                    $startInfo.Environment[[string]$entry.Key] = [string]$entry.Value
+                    $adaptiveOverridesApplied.Add(([string]$entry.Key))
+                }
+                else {
+                    $adaptiveOverridesSkipped.Add(([string]$entry.Key))
+                }
+            }
+        }
+
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
         $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
         $startInfo.Environment['TT_AGENT_LLM_TEMPERATURE'] = [string]$qualitySettings.Temperature
@@ -1244,6 +1459,27 @@ $result = $runAgentMethod.Invoke($null, @(
         if (-not [string]::IsNullOrWhiteSpace($toolCredentialPath)) {
             $startInfo.Environment['TT_AGENT_DEFAULT_CREDENTIAL_CLIXML'] = $toolCredentialPath
         }
+
+        if ($adaptiveOverridesEnabled) {
+            $resolvedAdaptiveLimitsJson = $resolvedAdaptiveLimits | ConvertTo-Json -Depth 4 -Compress
+            $markdownAdaptiveLimitsPreflight = (
+                "profile={0}; model={1}; provider={2}; endpointSpecified={3}; loopbackEndpoint={4}; matcherPattern={5}; matcherProfile={6}; applied={7}; skipped={8}; resolvedLimits={9}" -f
+                $adaptiveLimitProfile,
+                $resolvedModel,
+                $providerForAdaptive,
+                $isEndpointSpecified,
+                $isLoopbackEndpoint,
+                $(if ([string]::IsNullOrWhiteSpace($selectedModelMatcherPattern)) { '(none)' } else { $selectedModelMatcherPattern }),
+                $(if ([string]::IsNullOrWhiteSpace($selectedModelMatcherProfile)) { '(none)' } else { $selectedModelMatcherProfile }),
+                $adaptiveOverridesApplied.Count,
+                $adaptiveOverridesSkipped.Count,
+                $resolvedAdaptiveLimitsJson
+            )
+        }
+        else {
+            $markdownAdaptiveLimitsPreflight = 'Adaptive limit overrides disabled by configuration or TT_AGENT_DISABLE_ADAPTIVE_LIMIT_OVERRIDES=true.'
+        }
+
         [void]$startInfo.ArgumentList.Add('-NoProfile')
         [void]$startInfo.ArgumentList.Add('-NonInteractive')
         [void]$startInfo.ArgumentList.Add('-EncodedCommand')
@@ -1483,6 +1719,10 @@ $result = $runAgentMethod.Invoke($null, @(
                     -PreflightScore $preflightScore `
                     -PreflightWarnings @($preflight.Warnings) `
                     -PreflightCritical @($preflight.Critical) `
+                    -PromptPreflightSummary $markdownPromptPreflightSummary `
+                    -ReasoningEffortSettings $markdownReasoningEffortSettings `
+                    -RuntimeAssemblyPath $markdownRuntimeAssemblyPath `
+                    -AdaptiveLimitsPreflight $markdownAdaptiveLimitsPreflight `
                     -ExpectedOutputPath $expectedOutputPath `
                     -StdOut $capturedStdOut `
                     -StdErr $capturedStdErr `
@@ -1525,8 +1765,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAea5cPndwuIcCw
-# QyFGcOIeqGhFh647IlRE0xaHLb8GLaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCALSOw+MDqxdzIE
+# H0ZInaJRuiZ2T0lMGXCy52ehkmPpZ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1659,34 +1899,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC+KK2QNoHN
-# ypIr/Jvx09M9S54Tgyeh+7R5uRbe3zjwxjANBgkqhkiG9w0BAQEFAASCAgDFF4CP
-# dKy1GSmV1vNK2IImF3/Mrt3blH/2xlGps6EVPY3jCpwJJ++BwBMAZXpPmg0QVvQS
-# bcS+qNUvLnAaT+x5O6IS7W22gxH3nYlrnhuRtTGqRxu+Pxp68FdvtJ1sI58OXhky
-# tDFF4AEHDptxHVZhrHLDGmtGIRdaBsxh1tL9/S7KAWrqrwrKg41ZlCgUiSXIH3LO
-# 7MzK16784jtCdQvVcrHUmzGtz7XmcPIfpgaTc7J2EeYE0SOyttjfQ4qPzglD6pmh
-# wpJvh3m4bOtjXHGtrimyYx589XG0ESezQ5Z2U0snaMRkQAOpRzCgWvQTJL29GcqH
-# 5RU4L3YwQ/HLAldkdkibhY4ffhIF71i0tbK/BR/HVfrLyF+etWok9ckwum5C4kG5
-# THSZSx7r6EMQo8QFgST6GWYjrJCtV23eU/1s0VD5TOdbWlSuBJmq9YsPGvExFtNB
-# /WiiN05UFFHQhiJzeQaGDBxO3AR2TixM+B5FsQdPhcqeMmZyCRu6Gf5rS+GGYQu6
-# raYDFsv9nE7hd8HAvnoopao2MgH6kTcQq+BV2HGsliKY9EVOE7Snyau5QbpDHgnv
-# XalNoEt4TieEQAkgz8BEQx2vb+qQan3o6fOZciwm+EY4ww2s4VWDwDfEq0Yh/Osf
-# 27kCJMaMxVPo1XoiLpKdM8yg5FH+vkwHBZCVZKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBP10hb8XZe
+# zcW018Z6ZRF5O6Zx/hPWOAJUROgbz42R3jANBgkqhkiG9w0BAQEFAASCAgB/UrTo
+# 5gTvhrl4SW7V7ojM1su+7LKODbtQ1i/zK5RU+75/wwU4KaiSg+bOlrw+u1LW1q36
+# Z+HmnGp0/AOV/wQ4e29ZeShP9lCAcssz8dndSPuRyziCjXJ66BfemRMivA6xSqtL
+# M7WrWFRzVINCi+zo0h36wb3bOApqVmPbv/rpFR1oZf7Su3IAqs2LqpeNdbZuy0SW
+# edRoJQFhP9d1x3zISZRj1ldofhcKXwabsfA6yJV0dMHyPUTYlB4yBpUO/UyKZyP5
+# WU8WaayefeU5W2/D1roMc0QYvlCFeLAR6PFiAvX41lqPYl9AdPkVdG4f8CWwt3NX
+# NgjuUa8mRFjezB+/6iwkMvpUsC73A0pCTJDAzvF/Vx9B1G9+6AFnZ6mkpXnlOofq
+# EMmsDCseb+1yyVi5/Q9P4bTC2ExgLu5z7TXoEsdFEJXdAzTV3PJhjmvFlFG9M3uH
+# f+eUgZNUD9yAk9Lja6bqNpxArHco0ueBN1owxR/x0GjSwd+9auGXA3NFGArUUWTA
+# WIq8kGNFoHI/vLqqxXF0Idhd/gpLJqgDKAY2iRTrgSktSH8kdKd7ICZtYPcJeDfd
+# vF77u3+PsH5Kr+2VUIsMbwUV/GDIWGKD1hPPajjYen/+RyCjEuwyKbTb8F4iG7dk
+# pZbQQ7UtvN8d2uigCA4iXzYdFYtX84epnYDo8qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MzAwNDMyMDBaMC8GCSqGSIb3DQEJBDEiBCBzFlMi34B7vK+Kh472
-# 2so0EmIEGqvwdaawcPdo8XzjEzANBgkqhkiG9w0BAQEFAASCAgARLwMknMjpEMRo
-# 5eiRoJG99ndSwrYMLB7PjDM3k2owV47J8HxUWM/usHLQ3ZqFuOASAIRpG+eUyOo2
-# bhveBJdSTw4PCHf4hQPEHPlUM04cf95QpOXRttQfcoBKzMwPdaqY0AbMvMICfbx/
-# oUF6N/08PV5WhLvkDhGk/OOXjahtZV/mI6QXrMksdUtigvnaDYpGCJfE3iKwnh/8
-# uLLv8rv2Y8FbCDYeelT3BFlhRQaeRWeGDeudVMvHtB8rdMZqXN/REqBJFEpmg4wp
-# XUlKsU5cMK7BL+eOh+JdDRZRrOmo0jgc63rm+8cbdPlhXTAQ16tNqeVW3OZaFzo5
-# kYyHvkbDS+O5oE2wLdt1Bat6RbVF9YQESJwjUIztEOAdwN2vDykyZg+Gr96SoPsF
-# okoapnMYoxFSI3ZceCdEYZ9MSsFeHkisBBKVRrviaE5m8cLj/5S0fa7DRY5aHH6T
-# d6MPuFQ9ar7t3lsDcm6f2JAzLKbWi4YPz3jJFRyizKXbVkjiNJPgiANItyF1YEC4
-# 2UXbbuz1qJaVJvmTOIcFDdOr5CSANsvfV4MpRzwNvAg0h+6kfFCu/nmGz9F05NS8
-# uQbqSopeuYuNN2dqcfUhkVfsMwiAFxgGpI0vApPoeSC0hHqqqqFVAjCOal+osNsI
-# 38Wm23l0gasfuAD/76UcsZDKuztOBg==
+# BTEPFw0yNjA5MDIwMjQzMjhaMC8GCSqGSIb3DQEJBDEiBCAM17mTt3UmHXeLjhcn
+# yrSwu77b4HZ4UNiToccqs3daYjANBgkqhkiG9w0BAQEFAASCAgAijIDubgxOgExP
+# XvJb7B0OYyVODkTkgkN/q/NQ/TDcGkS4eSl1tlTgLSq6B/cVCKtDtjnUc/xytVIk
+# 4w2KYyYj0W2PTXFDcBxbu8+00EXoLWoyjcuFNtSl6TAz/k5rHz9kq23l37/ntmeK
+# Amz+YnfoH5GpZOHZpWtJNm4T2Bg6zYnxsWsFZ1IlCiOGLjHbtL308XDK9w/t12LF
+# sZPqLnoktXS4xut7f6Lkl7ssKPD/0mhMxPho+MFR1gVAwLGTvNx05g/Pr2dtFUoC
+# Yy2N2KhcW0+QQUw2K2nbklaacYoceEdM4d29Gch+xY4JpS1aN7Jda08+PebPT1H3
+# OKtqNKwlWFifCJH4d2iXJRlj/2AWVerh7X3o+duTA+CmwAq5mBQzPM4ASKKwwZMx
+# fpFFh4xT15mKLHsDlcqP6U5vehqZHPrYT1oquHrodMMP9Dk5npRBtf/qxiXYeXM0
+# 6kOJ1mIEGnU8LEDL3onY8ncXLQbiMZM7LSXkNmuzKqVd41TsS+M/N6jQEccyd9Pz
+# t6GB7T1D3zpWF98bsBGkmWJAIK12ED1inqhpVGgibBz4DufCOKfsOGHxH6Y1MjB2
+# z5mEHuOfq4lefDmommrdNJqXUZTbQmFkPo+MP9XXhaMzoZEsKuILiux4vi78bMUs
+# cKfzx+Zkf+vkx/M24P9F7naNywRBVw==
 # SIG # End signature block

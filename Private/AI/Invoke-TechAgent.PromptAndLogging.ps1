@@ -524,6 +524,10 @@ function Write-TTAgentMarkdownLog {
         [int]$PreflightScore,
         [string[]]$PreflightWarnings,
         [string[]]$PreflightCritical,
+        [string]$PromptPreflightSummary,
+        [string]$ReasoningEffortSettings,
+        [string]$RuntimeAssemblyPath,
+        [string]$AdaptiveLimitsPreflight,
         [string]$ExpectedOutputPath,
         [string]$StdOut,
         [string]$StdErr,
@@ -607,6 +611,34 @@ function Write-TTAgentMarkdownLog {
         $ExpectedOutputPath
     }
 
+    $adaptiveLimitsPreflightText = if ([string]::IsNullOrWhiteSpace($AdaptiveLimitsPreflight)) {
+        '(none)'
+    }
+    else {
+        $AdaptiveLimitsPreflight.TrimEnd()
+    }
+
+    $promptPreflightSummaryText = if ([string]::IsNullOrWhiteSpace($PromptPreflightSummary)) {
+        '(none)'
+    }
+    else {
+        $PromptPreflightSummary.TrimEnd()
+    }
+
+    $reasoningEffortSettingsText = if ([string]::IsNullOrWhiteSpace($ReasoningEffortSettings)) {
+        '(none)'
+    }
+    else {
+        $ReasoningEffortSettings.TrimEnd()
+    }
+
+    $runtimeAssemblyPathText = if ([string]::IsNullOrWhiteSpace($RuntimeAssemblyPath)) {
+        '(none)'
+    }
+    else {
+        $RuntimeAssemblyPath.TrimEnd()
+    }
+
     $postflightStatus = if ($PostflightAchieved) { 'Achieved' } else { 'NotAchieved' }
     $expectedOutputExistsText = if ([string]::IsNullOrWhiteSpace($ExpectedOutputPath)) {
         '(n/a)'
@@ -643,12 +675,17 @@ function Write-TTAgentMarkdownLog {
         ('QualityProfile: {0}' -f $QualityProfile)
         ('PromptSource: {0}' -f $PromptSource)
         ('Score: {0}/100' -f $PreflightScore)
+        ('PromptPreflightSummary: {0}' -f $promptPreflightSummaryText)
+        ('ReasoningEffortSettings: {0}' -f $reasoningEffortSettingsText)
+        ('RuntimeAssemblyPath: {0}' -f $runtimeAssemblyPathText)
         ('WarningsCount: {0}' -f $preflightWarnings.Count)
         'Warnings:'
         $preflightWarningsText
         ('CriticalCount: {0}' -f $preflightCritical.Count)
         'Critical:'
         $preflightCriticalText
+        'AdaptiveLimits:'
+        $adaptiveLimitsPreflightText
         ('ExpectedOutputPath: {0}' -f $expectedOutputPathText)
         '~~~~'
         ''
@@ -692,8 +729,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC1wp7PxLgt3o0D
-# keZWPLtoy3gCTsNOpe2feqa3fzsH6qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC3kHZtKJfP3Uvs
+# cfAj8grx42rKdRyDEyS47aHXTS5fVaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -826,34 +863,34 @@ function Write-TTAgentMarkdownLog {
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCFBtx6Pcng
-# szxofkY8CPS53Pv/JNVjNjjnKMq2dlAXkTANBgkqhkiG9w0BAQEFAASCAgBTbvtw
-# w8Q8A1cJE5LZ7d96uYlbmY9gFByd4b/lLDZLucQa4uKSJZZ2tTkOV4DpBOHB01UM
-# b64K24FUalo2f/W3qHJJQ1u/FGzo8EWqwDWrT7iWaOn7+13ezHWM6Mn8F9GgAsxh
-# 0m6K7nB8pEOZJfOmbRrdUpr6SaRNguuXG24nJsT8453qgdUUUlax+n8UnVKhL5UE
-# rgr/opS9LnCjxDxbExAwYVJhaWbLMtipxZTUbUtDXpm1/yd5vES2HoMUQVXoMSZE
-# RS7VLib6NkIpLSnBiR5kU5uKlObKuSHnh7tmGpyl4qgxbm5KKqNOV3zAUTyJONf0
-# QQqn0wlIlpNrDgBQwl5WDd+DrtD4bCjF+H7VTcc2JI1siucbZ4pcGGMyEuleYQbX
-# mdIH9hUEftMMH+aOBijDoQKB/4VFhxzzbOSxKQ1Hi8T0W1NTiAG93N6E19yEuztD
-# SIhw8KKRSdl1stB2H16P/yUaZpmsLsl+e+lJih/zASlqNP8BcneqTHr+Rt/IYQY/
-# zPsRhmuEVQf90d4AsDA3e+D3D8giSAmEhK4JaOMYPOwY1lY6E8659WNb1TPTY6wo
-# /FDInURFTrampo+wAcUUp4oYJoAPC18bKiZtXK2O4LGHfDBS2223ygkWbSOgCF1K
-# HQuNK67ev/2yeExO30n6jUffxnRTFpA+W5OVcKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDFVhz4well
+# k2eOaKZ0kwSnjEHgDm3MH3NFh/qJJaQUCTANBgkqhkiG9w0BAQEFAASCAgB/XahR
+# zx7xIfbANBGxY8fIXIDzIK8rknURRWlk1FQpFOCsKVytqHgl1yaXNlcojEM9VmtV
+# oyjWSoiNjuH5xjzmhu9onMIbHRqxFcZfoKAOShITMdIkoMqhrySci+PTdxonLOGY
+# 22UEVUWNm0UEkduOsU90zzHqRPJrZz3L8wsVOiAn/SZsCLTd2GR2YM8JaWvsYZI/
+# brXcZ94hgLCCMX682azprwPhKcO+O/bKpq+0bUiBSwHlDtJVxsU5hHbx6h+A5Ktm
+# YXgFzCAbQyP9TYsJN3VUrrZQoh4a8ce2FdYQntyxKTfBZhSTLez+rcWTxp0byqqM
+# 9KPJ3mPfJ5T3VMCAlVYel02I4udaj/j/uRqZ5ciB/geF2Jv8H+05kIj4qZdDi5ZP
+# 82t9Q69MOWy5tiE6YZjBi456djL0Uf9IeaZGV1P6oog67TFPR01lyPbbXpuSd6Mt
+# iuYk8ac+cEdjlMg3bYnk6KjxyqsUwwtwYgPWdQa+ZgYKS6NnICUF6Z3JTKHntII4
+# q+eYxCdDp9hPQE+ZA0j21BlyeIfqaZGWkSvnd2KuSJwg8kH307Vm/u4k0c7Oc0X7
+# LjKp9fPv+I9v+dyhDOg3OhfJnYQWGHhUZwzDx0KeCQur8bcmYXhpTaU+A8lL95yq
+# aL+iXve8EZyWMBz2szHmGWqMBVJE1I+2l73RB6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MzAwMTIyMDhaMC8GCSqGSIb3DQEJBDEiBCBqg6kaltJZ3qHOKu8p
-# ni5Wo5OaiN5jbKQVVeSCeDDP9zANBgkqhkiG9w0BAQEFAASCAgB5jEFRuVMGWlOl
-# ibYu2r9kamlPB66tN8HxGDBZKv/a2+UY56WZ+sGBtUHjSnfVx4j1x2PmIyclZbYy
-# b1hoGq75cEUm/ZzimiGZeFJ20pYUKIIF7Gu3HYWu2yIa8zl7r3Ax/1aNzBLEZIV5
-# JcAohMgKkeDFzgmIk34JXoIlRrPjdF2Cd0lQ3uCFSL3XDkEsGqUZfDwAwzMpvc0H
-# QCK0baYdYH/xXoniE9oai9wsunU7qpErDDI0M85lTpaACUKTU8RWZIpNUf2eac55
-# sYaWs8l2VYGEvytQz4O7ygrSWD3ZKf37HDET4/EWybz5gEaMq9FvMtQJNSwji6Wb
-# E9cT7IgeceXWE/XCj1CsM7hvUSau62wztR9usFYJnxWXeynomSIe9E9smPTzIAG1
-# BM9nCBXTcEfNYHwZS7SFj/6kREVuhPZ/7HSFjkAGlLel4eLf+3fRo8ct6T9fTeoT
-# ew3YgfBLp29Z4L3BztC8livsESLGQ17EXkXlrOaU5pNRPck9RBjrgH9jkAFojWDP
-# JOK31FbGwXK44zPO48DjupsvvkLyUha+THCHmQLnu2mBGqmLN9oBkkaQCqZL0Iam
-# OZ0dTwg4fu4WQesOtlvaA34AXKrLnTC86a21LYfrU+mWZJr0sQtfZv9u778g74vK
-# o79JXx2tpHoeQNAfWVt/LJF/8narrg==
+# BTEPFw0yNjA5MDIwMjQzMjdaMC8GCSqGSIb3DQEJBDEiBCBPQcMMJrlq3Kv6IBsB
+# iU93OqO/YoC+whnopTtHzUlm8DANBgkqhkiG9w0BAQEFAASCAgAJuQUs9/3hUHPS
+# MQbAxcOh5IugFWQMsC4RopS3HzyR19q6uzMQilbmLMAqvho2b6CxWlj9nbqFAISl
+# pJa2k7X2NaV/jbKUakKtGVDs1/eiJPx6ivo8K/WwcPaE1Ram1cflj3DstCDBtMvw
+# XVLhC7h+U0BaZT+MepxYuoDwAtoh0I2yI25kkxlunWWWy7sUibUFioRJh2IdII7A
+# Y4KppBg+rcqXH/dZ8rv6mwkqYmcfhXVk7xyYyMX/B2AKIL2mO+mDj+9HHBD9nzJi
+# 42DYYmxvqQ8MCB2UaLOAZJJB6tJAJKvV/YdxSrgWOmCz9ljKxxY7XDTMhm98NSvx
+# fGwgVLtGUtlPcfFelUl4PkqxLluNMTrgdCnVmurbRvrR+ThtaEVNAM3rlVsNX41g
+# mWtuinEwhQolYAOT+zZQwHWjggb/gzbosAp3BuQGHAp5lNcXKWOwUF6rvpTlTrLz
+# H8Brx6EIxcnGbEjeP529Ef18tRTaLLv1jmqz116P0EQVbCWnVijlua/gYtMCLFyh
+# 623D8/F14QXx5nm4mveWgk6SsOVkeQTirgEmIu5pkcIYtdshfNAfAftVf50FsxN1
+# Fs+Qbx4zy8ukunTEG0uG2ub6t6ax3T6nUW97RZwxPVKzej3Y4ZR+xNh4U7VEWayT
+# hIrJi3szuUOX66VY1k6nWuApGE5IgQ==
 # SIG # End signature block

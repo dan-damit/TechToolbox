@@ -1,12 +1,12 @@
 Primary input file:
-C:\repos\TechToolbox\src\TechToolbox.Agent\Execution\PowerShellBridge.cs
+C:\repos\TechToolbox\src\TechToolbox.Agent\Execution\PowerShellBridge.ReadFile.cs
 
 Task:
 Add or improve XML documentation comments for every public type, public constructor, and public method in this file.
 
 Requirements:
 - Update this exact file in place:
-  C:\repos\TechToolbox\src\TechToolbox.Agent\Execution\PowerShellBridge.cs
+  C:\repos\TechToolbox\src\TechToolbox.Agent\Execution\PowerShellBridge.ReadFile.cs
 - Preserve all existing code and behavior.
 - Only add or improve XML documentation comments.
 - Prefer REPLACE-IN-FILE for localized edits to this existing file.

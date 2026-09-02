@@ -144,8 +144,8 @@
           "main_reasoning": {
             "provider": "ollama",
             "model": "phi4:14b",
-            "maxContextTokens": 10240,
-            "maxOutputTokens": 800,
+            "maxContextTokens": 12288,
+            "maxOutputTokens": 1200,
             "temperature": 0.15,
             "topP": 0.88,
             "repeatPenalty": 1.08,
@@ -154,8 +154,8 @@
           "deep_reasoning": {
             "provider": "ollama",
             "model": "qwen3.8:27b",
-            "maxContextTokens": 10240,
-            "maxOutputTokens": 800,
+            "maxContextTokens": 12288,
+            "maxOutputTokens": 1200,
             "temperature": 0.15,
             "topP": 0.88,
             "repeatPenalty": 1.08,
@@ -164,13 +164,43 @@
           "coding_specialist": {
             "provider": "ollama",
             "model": "qwen3.8:27b",
-            "maxContextTokens": 8192,
-            "maxOutputTokens": 700,
+            "maxContextTokens": 10240,
+            "maxOutputTokens": 1000,
             "temperature": 0.15,
             "topP": 0.9,
             "repeatPenalty": 1.05,
             "description": "Coding specialist profile for implementation-focused turns."
           }
+        }
+      },
+      "adaptiveLimitProfiles": {
+        "enabled": true,
+        "modelMatchers": [
+          {
+            "pattern": "*luna*",
+            "profile": "frontierXL"
+          },
+          {
+            "pattern": "gpt-5.3-codex",
+            "profile": "frontierHigh"
+          }
+        ],
+        "localModerate": {
+          "readFileSummaryThresholdChars": 30000,
+          "maxToolResultChars": 30000,
+          "readFilePromptCompactThresholdChars": 12000
+        },
+        "frontierHigh": {
+          "readFileSummaryThresholdChars": 90000,
+          "maxToolResultChars": 90000,
+          "readFilePromptCompactThresholdChars": 30000,
+          "llmMaxOutputTokens": 8192
+        },
+        "frontierXL": {
+          "readFileSummaryThresholdChars": 120000,
+          "maxToolResultChars": 120000,
+          "readFilePromptCompactThresholdChars": 45000,
+          "llmMaxOutputTokens": 12000
         }
       },
       "resilience": {
