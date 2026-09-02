@@ -696,7 +696,7 @@ Hard requirement:
         }
 
         if ($ConfirmDestructive.IsPresent) {
-            Write-Log -Level Warn -Message "Destructive operations explicitly authorized for this run."
+            Write-Log -Level Warn -Message "`nDestructive operations explicitly authorized for this run."
         }
 
         $autoRetryOnIterationLimit = $false
@@ -1378,21 +1378,21 @@ $result = $runAgentMethod.Invoke($null, @(
         }
 
         $adaptiveLocalDefaults = @{
-            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS' = '30000'
-            'TT_AGENT_MAX_TOOL_RESULT_CHARS' = '30000'
+            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'        = '30000'
+            'TT_AGENT_MAX_TOOL_RESULT_CHARS'                    = '30000'
             'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '12000'
         }
         $adaptiveFrontierDefaults = @{
-            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS' = '90000'
-            'TT_AGENT_MAX_TOOL_RESULT_CHARS' = '90000'
+            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'        = '90000'
+            'TT_AGENT_MAX_TOOL_RESULT_CHARS'                    = '90000'
             'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '30000'
-            'TT_AGENT_LLM_MAX_OUTPUT_TOKENS' = '8192'
+            'TT_AGENT_LLM_MAX_OUTPUT_TOKENS'                    = '8192'
         }
         $adaptiveFrontierXlDefaults = @{
-            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS' = '120000'
-            'TT_AGENT_MAX_TOOL_RESULT_CHARS' = '120000'
+            'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'        = '120000'
+            'TT_AGENT_MAX_TOOL_RESULT_CHARS'                    = '120000'
             'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '45000'
-            'TT_AGENT_LLM_MAX_OUTPUT_TOKENS' = '12000'
+            'TT_AGENT_LLM_MAX_OUTPUT_TOKENS'                    = '12000'
         }
 
         $adaptiveEnvironmentDefaults = switch ($adaptiveProfileKey) {
@@ -1405,10 +1405,10 @@ $result = $runAgentMethod.Invoke($null, @(
             $selectedAdaptiveProfile = Get-TTAgentConfigValue -ConfigObject $adaptiveLimitProfilesConfig -KeyName $adaptiveProfileKey
             if ($null -ne $selectedAdaptiveProfile) {
                 $adaptivePropertyMap = @{
-                    'readFileSummaryThresholdChars' = 'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'
-                    'maxToolResultChars' = 'TT_AGENT_MAX_TOOL_RESULT_CHARS'
+                    'readFileSummaryThresholdChars'       = 'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'
+                    'maxToolResultChars'                  = 'TT_AGENT_MAX_TOOL_RESULT_CHARS'
                     'readFilePromptCompactThresholdChars' = 'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS'
-                    'llmMaxOutputTokens' = 'TT_AGENT_LLM_MAX_OUTPUT_TOKENS'
+                    'llmMaxOutputTokens'                  = 'TT_AGENT_LLM_MAX_OUTPUT_TOKENS'
                 }
 
                 foreach ($adaptivePropertyName in $adaptivePropertyMap.Keys) {
@@ -1765,8 +1765,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCALSOw+MDqxdzIE
-# H0ZInaJRuiZ2T0lMGXCy52ehkmPpZ6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCzVy6pTHFR8tH4
+# wceNgtHbLIgMeBm2if7GJVIqQ58YxqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1899,34 +1899,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBP10hb8XZe
-# zcW018Z6ZRF5O6Zx/hPWOAJUROgbz42R3jANBgkqhkiG9w0BAQEFAASCAgB/UrTo
-# 5gTvhrl4SW7V7ojM1su+7LKODbtQ1i/zK5RU+75/wwU4KaiSg+bOlrw+u1LW1q36
-# Z+HmnGp0/AOV/wQ4e29ZeShP9lCAcssz8dndSPuRyziCjXJ66BfemRMivA6xSqtL
-# M7WrWFRzVINCi+zo0h36wb3bOApqVmPbv/rpFR1oZf7Su3IAqs2LqpeNdbZuy0SW
-# edRoJQFhP9d1x3zISZRj1ldofhcKXwabsfA6yJV0dMHyPUTYlB4yBpUO/UyKZyP5
-# WU8WaayefeU5W2/D1roMc0QYvlCFeLAR6PFiAvX41lqPYl9AdPkVdG4f8CWwt3NX
-# NgjuUa8mRFjezB+/6iwkMvpUsC73A0pCTJDAzvF/Vx9B1G9+6AFnZ6mkpXnlOofq
-# EMmsDCseb+1yyVi5/Q9P4bTC2ExgLu5z7TXoEsdFEJXdAzTV3PJhjmvFlFG9M3uH
-# f+eUgZNUD9yAk9Lja6bqNpxArHco0ueBN1owxR/x0GjSwd+9auGXA3NFGArUUWTA
-# WIq8kGNFoHI/vLqqxXF0Idhd/gpLJqgDKAY2iRTrgSktSH8kdKd7ICZtYPcJeDfd
-# vF77u3+PsH5Kr+2VUIsMbwUV/GDIWGKD1hPPajjYen/+RyCjEuwyKbTb8F4iG7dk
-# pZbQQ7UtvN8d2uigCA4iXzYdFYtX84epnYDo8qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDsONCZqUyH
+# mQr5frfeleFD9bWkZ3o8qdf/GoBC08hn3zANBgkqhkiG9w0BAQEFAASCAgB+x/Hx
+# eXL8fI8Mu9mWJOkmya5egw602nvFSwl11FrB16ah+8kEbMjjWDeeBGw/gKCN6IXN
+# 8oKJVtoQCEUfxk32d9IGNzSmNgcyrfjNYQqn85JGZef98uaNOQlnaC8aqn0VhFdS
+# LzKZia2OvkmsGAC9PlWASh7L/X7Vt/wLhOUYxMRsCzVgZ8i9FP87eXUrhGaGp9G9
+# zc6Il6viZkBU6NWBYZPkygIoJmbDwAwWP5r+uhW+oTuZJqwBJkQ/ABP3pP4Z90hW
+# eyjDhSTLG1y098vZj9bxcb6X7BEe0XbXG859EDbE5mJobw9I1NoDv+n9liFvcACl
+# WpAliEsY6P9dcmAQ/vEVuNImvp0VMTm9957lobDIMAuDRoafeY1Yi8y+uFaSCkRu
+# KYMqjQXmRHeaw04WnuZuG2w4I4YLdO6aLRgspeFSVpyeSw7zD1H9RKX35PxdAhvJ
+# xsc3abwsKWeF/CGqQPA1P/vPKB/h6SPYqqzIA+N1DWYJ0D8zMvW5p56DPpGJhs/X
+# uphoknmGHstupx5y4Qdmid4rhk/jtdX/htBHbyzOR1ZY0pYVdqY8Og4itYcZb7b9
+# xDTpjegfoPYSk/HWjS7rE8FordF1v+yY3abu4mZzs7koYHpB/3Jsd67rmE8W2OHP
+# VRFItJ3TQvDE8QyxI6ua+Y8dWrOwoR0dTOiCYaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDIwMjQzMjhaMC8GCSqGSIb3DQEJBDEiBCAM17mTt3UmHXeLjhcn
-# yrSwu77b4HZ4UNiToccqs3daYjANBgkqhkiG9w0BAQEFAASCAgAijIDubgxOgExP
-# XvJb7B0OYyVODkTkgkN/q/NQ/TDcGkS4eSl1tlTgLSq6B/cVCKtDtjnUc/xytVIk
-# 4w2KYyYj0W2PTXFDcBxbu8+00EXoLWoyjcuFNtSl6TAz/k5rHz9kq23l37/ntmeK
-# Amz+YnfoH5GpZOHZpWtJNm4T2Bg6zYnxsWsFZ1IlCiOGLjHbtL308XDK9w/t12LF
-# sZPqLnoktXS4xut7f6Lkl7ssKPD/0mhMxPho+MFR1gVAwLGTvNx05g/Pr2dtFUoC
-# Yy2N2KhcW0+QQUw2K2nbklaacYoceEdM4d29Gch+xY4JpS1aN7Jda08+PebPT1H3
-# OKtqNKwlWFifCJH4d2iXJRlj/2AWVerh7X3o+duTA+CmwAq5mBQzPM4ASKKwwZMx
-# fpFFh4xT15mKLHsDlcqP6U5vehqZHPrYT1oquHrodMMP9Dk5npRBtf/qxiXYeXM0
-# 6kOJ1mIEGnU8LEDL3onY8ncXLQbiMZM7LSXkNmuzKqVd41TsS+M/N6jQEccyd9Pz
-# t6GB7T1D3zpWF98bsBGkmWJAIK12ED1inqhpVGgibBz4DufCOKfsOGHxH6Y1MjB2
-# z5mEHuOfq4lefDmommrdNJqXUZTbQmFkPo+MP9XXhaMzoZEsKuILiux4vi78bMUs
-# cKfzx+Zkf+vkx/M24P9F7naNywRBVw==
+# BTEPFw0yNjA5MDIwMjU2MTlaMC8GCSqGSIb3DQEJBDEiBCBvoDv7vFCU+jJ6uJBK
+# GkFQp8Fep9FQXVlpNjh4m1gZXzANBgkqhkiG9w0BAQEFAASCAgC7oSNTi6P2aldU
+# YapZKByyVfBHbPq3sdYBk6F79vJFbJORFvNndugS95uRwlYHw8KC0iDqJNhxVRRA
+# fs8Oddsvnzpz9/otiVn8pSA66RMcEDm0ZAZfynPz5VPrCmBCsODSPUV85b6pAnab
+# ASCkyeznTPn37H/hOkZxe4MgpIQKwa+MCz0oYkiAdv1O0HIo3d8HQUaDTiJCm94y
+# AQ0QvkejreWW2p4FzSTovWjtCyl3Usf9O7KV2m5qix9cQIZu9JancIm4frry84s5
+# nyU00sGONElpzzT9D9jAc3cAroXgF8OPcQIXkSKUfiWXBLQo+6IJor7z2rqAsjI0
+# XR8R9gqn0pSDKjp4uArkwbCzHvT/3Gj0u/j/sTA95p/IwmCzzqBMFbNQDSjNrAnA
+# 7N5MngSLbzASobPDBa+yE8XDNfcxHudw+r//yBUI/mwpz3Rel3Sx+SczNGu/+80L
+# UPoc34ujli3GE4WVWdDha7VChxBrqcs2ZuOELsMZ/Myzo8MXir08lVEZCEJ/uQ1Y
+# CdLM/1dYEhFR01W3WS7QvF4QKZPmhhYN9oPXDo/zN6fhC01QBC8VoAI5UBvxC2ra
+# LHlSjXRNRSJZ7NUiaSQLg8Pq/WcKFKUghWJN0luJVkN5gi49huy+lxF6AGXqYe1R
+# r3fjvNAxnpFmHbFoSEYJg3WkXyu8oA==
 # SIG # End signature block

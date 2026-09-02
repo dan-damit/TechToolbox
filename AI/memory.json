@@ -17,28 +17,27 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.75,
-      "avgDurationMs": 49656,
-      "avgToolCalls": 4,
+      "successRate": 0.8,
+      "avgDurationMs": 49399,
+      "avgToolCalls": 4.15,
       "statusCounts": {
-        "error": 5,
-        "success": 15
+        "success": 16,
+        "error": 4
       },
       "outcomeCounts": {
-        "invalid-json": 1,
-        "completed": 15,
+        "completed": 16,
         "iteration-limit": 2,
         "llm-failure": 2
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.6-luna",
-      "lastRunTimestampUtc": "2026-09-02T02:40:01.8716477\u002B00:00",
-      "trendLastUpdatedUtc": "2026-09-02T02:40:01.9128594\u002B00:00",
-      "avgPromptPreflightScore": 63,
+      "lastRunTimestampUtc": "2026-09-02T02:52:04.7653712\u002B00:00",
+      "trendLastUpdatedUtc": "2026-09-02T02:52:04.8103246\u002B00:00",
+      "avgPromptPreflightScore": 68,
       "executionModeCounts": {
-        "chat": 3,
-        "execute": 17
+        "chat": 2,
+        "execute": 18
       },
       "outputContractCounts": {
         "markdown": 20
@@ -48,7 +47,7 @@
       }
     },
     "memoryHealth": {
-      "generatedUtc": "2026-09-02T02:40:01.9128668\u002B00:00",
+      "generatedUtc": "2026-09-02T02:52:04.8103347\u002B00:00",
       "totalPreferences": 4,
       "totalFacts": 13,
       "indexEntries": 25,
@@ -61,7 +60,6 @@
         "Index entries: 25"
       ]
     },
-    "fact.tool-usage-latitude.2621c89d": "tool usage: latitude",
     "fact.c-repos-techtoolbox-src-techtoolbox.70b44438": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Llm\\LlmClientFactory.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.tool-usage-get-noaa-forecast.306bbf72": "tool usage: GET-NOAA-FORECAST",
     "fact.c-temp-invoke-remotereboot-ps1-use-w.0a7681fe": "C:\\Temp\\Invoke-RemoteReboot.ps1  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
@@ -72,39 +70,10 @@
     "fact.c-repos-techtoolbox-src-techtoolbox.20f624a8": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Arguments.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.c-repos-techtoolbox-src-techtoolbox.79e34fe6": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.BuiltInTools.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
     "fact.c-repos-techtoolbox-src-techtoolbox.058e1e2a": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Noaa.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
-    "fact.c-repos-techtoolbox-src-techtoolbox.0878a0a7": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.ReadFile.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded"
+    "fact.c-repos-techtoolbox-src-techtoolbox.0878a0a7": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.ReadFile.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+    "fact.c-repos-techtoolbox-src-techtoolbox.dbaa5519": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-30T04:54:57.7782109+00:00",
-      "status": "error",
-      "outcome": "invalid-json",
-      "prompt": "What are the possible ways to hide the cursor in powershell?",
-      "model": "deepcoder:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 26302,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "Agent returned invalid JSON twice. Last response: {\u0022needsTool\u0022:false,\u0022finalAnswer\u0022:\u0022To hide the cursor in a PowerShell console, you can use these methods:\n\n1. **Using \u0060Set-ConsoleCursor\u0060 (if available)**:\n   \u0060\u0060\u0060powershell\n   Set-ConsoleCursor -Visible $false\n   \u0060\u0060\u0060\n\n2. **Direct Console Methods**:\n   \u0060\u0060\u0060powershell\n   $host.UI.RawUI.CursorVisible = $false\n   \u0060\u0060\u0060\n\n3. **Windows API via PowerShell**:\n   \u0060\u0060\u0060powershell\n   [System.Console]::CursorVisible = $false\n   \u0060\u0060\u0060\n\nChoose based on your PowerShell version and needs.\u0022,\u0022reason\u0022:\u0022Providing concise, actionable steps to hide the cursor in PowerShell.\u0022}",
-      "error": "Agent returned invalid JSON twice. Last response: {\u0022needsTool\u0022:false,\u0022finalAnswer\u0022:\u0022To hide the cursor in a PowerShell console, you can use these methods:\n\n1. **Using \u0060Set-ConsoleCursor\u0060 (if available)**:\n   \u0060\u0060\u0060powershell\n   Set-ConsoleCursor -Visible $false\n   \u0060\u0060\u0060\n\n2. **Direct Console Methods**:\n   \u0060\u0060\u0060powershell\n   $host.UI.RawUI.CursorVisible = $false\n   \u0060\u0060\u0060\n\n3. **Windows API via PowerShell**:\n   \u0060\u0060\u0060powershell\n   [System.Console]::CursorVisible = $false\n   \u0060\u0060\u0060\n\nChoose based on your PowerShell version and needs.\u0022,\u0022reason\u0022:\u0022Providing concise, actionable steps to hide the cursor in PowerShell.\u0022}",
-      "runSummary": {
-        "intent": "What are the possible ways to hide the cursor in powershell?",
-        "actionsTaken": [],
-        "blockers": "Agent returned invalid JSON twice. Last response: {\u0022needsTool\u0022:false,\u0022finalAnswer\u0022:\u0022To hide the cursor in a PowerShell console, you can use these methods:\n\n1. **Using \u0060Set-ConsoleCursor\u0060 (if available)**:\n   \u0060\u0060\u0060powershell\n   Set-ConsoleCursor -Visible $false\n   \u0060\u0060\u0060\n\n2. **Direct Console Methods**:\n   \u0060\u0060\u0060powershell\n   $h...",
-        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
-      },
-      "executionMode": "chat",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 0,
-      "promptPreflightWarningCount": 5,
-      "promptPreflightCriticalCount": 0
-    },
     {
       "timestampUtc": "2026-08-30T04:57:58.0324985+00:00",
       "status": "success",
@@ -799,6 +768,43 @@
       "promptPreflightScore": 100,
       "promptPreflightWarningCount": 0,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-02T02:52:04.7653712+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in this file.\r\n\r\nRequirements:\r\n- Update this exact file in place:\r\n  C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs\r\n- Preserve all existing code and behavior.\r\n- Only add or improve XML documentation comments.\r\n- Prefer REPLACE-IN-FILE for localized edits to this existing file.\r\n- Use WRITE-FILE only if a localized replacement is not practical.\r\n- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.\r\n- Do not stop after analysis.\r\n- Do not summarize your plan before editing.\r\n- Do not return a final answer until the file update has succeeded.\r\n\r\n\r\nHard requirement:\r\n- Create the output file at this exact path: C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs\r\n- Use WRITE-FILE to create/update the file.\r\n- Do not return a final answer until WRITE-FILE has succeeded.",
+      "model": "gpt-5.6-luna",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 21164,
+      "maxIterations": 40,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 3,
+      "toolNames": [
+        "read_file_meta",
+        "read_file",
+        "write_file"
+      ],
+      "outputPreview": "## Completed\n\nUpdated \u0060C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs\u0060 in place.\n\n- Added XML documentation for the public \u0060PowerShellBridge\u0060 type.\n- Added XML documentation for all public methods.\n- Preserved existing code and behavior.\n- File update completed successfully with \u0060WRITE-FILE\u0060.",
+      "runSummary": {
+        "intent": "Primary input file:\r\nC:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs\r\n\r\nTask:\r\nAdd or improve XML documentation comments for every public type, public constructor, and public method in t...",
+        "actionsTaken": [
+          "read_file_meta",
+          "read_file",
+          "write_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
   "memoryIndex": {
@@ -806,9 +812,9 @@
       "keyword": "REPLACE-IN-FILE",
       "value": "REPLACE-IN-FILE for localized edits to this existing file",
       "sourceType": "preference",
-      "confidence": 0.7799999999911068,
+      "confidence": 0.7799999999896121,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127215\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8101628\u002B00:00",
       "deprecated": false,
       "keywords": [
         "REPLACE-IN-FILE",
@@ -823,9 +829,9 @@
       "keyword": "for",
       "value": "REPLACE-IN-FILE for localized edits to this existing file",
       "sourceType": "preference",
-      "confidence": 0.7799999999960749,
+      "confidence": 0.7799999999951717,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127745\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102217\u002B00:00",
       "deprecated": false,
       "keywords": [
         "REPLACE-IN-FILE",
@@ -840,9 +846,9 @@
       "keyword": "localized",
       "value": "REPLACE-IN-FILE for localized edits to this existing file",
       "sourceType": "preference",
-      "confidence": 0.7799999999960534,
+      "confidence": 0.7799999999951824,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127749\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102223\u002B00:00",
       "deprecated": false,
       "keywords": [
         "REPLACE-IN-FILE",
@@ -857,9 +863,9 @@
       "keyword": "edits",
       "value": "REPLACE-IN-FILE for localized edits to this existing file",
       "sourceType": "preference",
-      "confidence": 0.7799999999960642,
+      "confidence": 0.7799999999951717,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127752\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102227\u002B00:00",
       "deprecated": false,
       "keywords": [
         "REPLACE-IN-FILE",
@@ -874,9 +880,9 @@
       "keyword": "this",
       "value": "REPLACE-IN-FILE for localized edits to this existing file",
       "sourceType": "preference",
-      "confidence": 0.7799999999961179,
+      "confidence": 0.779999999995333,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127760\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102244\u002B00:00",
       "deprecated": false,
       "keywords": [
         "REPLACE-IN-FILE",
@@ -891,9 +897,9 @@
       "keyword": "existing",
       "value": "REPLACE-IN-FILE for localized edits to this existing file",
       "sourceType": "preference",
-      "confidence": 0.7799999999961288,
+      "confidence": 0.779999999995333,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127763\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102247\u002B00:00",
       "deprecated": false,
       "keywords": [
         "REPLACE-IN-FILE",
@@ -908,9 +914,9 @@
       "keyword": "not",
       "value": "Do not return a final answer until the file update has succeeded",
       "sourceType": "preference",
-      "confidence": 0.9999999999965671,
+      "confidence": 0.9999999999961673,
       "frequency": 3,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127889\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102413\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -925,9 +931,9 @@
       "keyword": "stop",
       "value": "Do not stop after analysis",
       "sourceType": "preference",
-      "confidence": 0.779999999996419,
+      "confidence": 0.7799999999958277,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127807\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102306\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -940,9 +946,9 @@
       "keyword": "after",
       "value": "Do not stop after analysis",
       "sourceType": "preference",
-      "confidence": 0.7799999999964728,
+      "confidence": 0.7799999999958491,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127815\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102311\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -955,9 +961,9 @@
       "keyword": "analysis",
       "value": "Do not stop after analysis",
       "sourceType": "preference",
-      "confidence": 0.7799999999964621,
+      "confidence": 0.7799999999958385,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127817\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102313\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -970,9 +976,9 @@
       "keyword": "summarize",
       "value": "Do not summarize your plan before editing",
       "sourceType": "preference",
-      "confidence": 0.7799999999966556,
+      "confidence": 0.7799999999961179,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127837\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102341\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -987,9 +993,9 @@
       "keyword": "your",
       "value": "Do not summarize your plan before editing",
       "sourceType": "preference",
-      "confidence": 0.7799999999967417,
+      "confidence": 0.779999999996161,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127847\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102347\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1004,9 +1010,9 @@
       "keyword": "plan",
       "value": "Do not summarize your plan before editing",
       "sourceType": "preference",
-      "confidence": 0.7799999999967524,
+      "confidence": 0.7799999999961502,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127850\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102349\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1021,9 +1027,9 @@
       "keyword": "before",
       "value": "Do not summarize your plan before editing",
       "sourceType": "preference",
-      "confidence": 0.7799999999967524,
+      "confidence": 0.7799999999962147,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127852\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102357\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1038,9 +1044,9 @@
       "keyword": "editing",
       "value": "Do not summarize your plan before editing",
       "sourceType": "preference",
-      "confidence": 0.7799999999966987,
+      "confidence": 0.7799999999962686,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127854\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102365\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1055,9 +1061,9 @@
       "keyword": "return",
       "value": "Do not return a final answer until the file update has succeeded",
       "sourceType": "preference",
-      "confidence": 0.7799999999970643,
+      "confidence": 0.7799999999968062,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127891\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102417\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1072,9 +1078,9 @@
       "keyword": "final",
       "value": "Do not return a final answer until the file update has succeeded",
       "sourceType": "preference",
-      "confidence": 0.7799999999970535,
+      "confidence": 0.7799999999968062,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127894\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102420\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1089,9 +1095,9 @@
       "keyword": "answer",
       "value": "Do not return a final answer until the file update has succeeded",
       "sourceType": "preference",
-      "confidence": 0.7799999999970535,
+      "confidence": 0.7799999999967955,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127896\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102421\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1106,9 +1112,9 @@
       "keyword": "until",
       "value": "Do not return a final answer until the file update has succeeded",
       "sourceType": "preference",
-      "confidence": 0.7799999999970643,
+      "confidence": 0.779999999996731,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127899\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102425\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1123,9 +1129,9 @@
       "keyword": "file",
       "value": "Do not return a final answer until the file update has succeeded",
       "sourceType": "preference",
-      "confidence": 0.7799999999970643,
+      "confidence": 0.779999999996731,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127902\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102427\u002B00:00",
       "deprecated": false,
       "keywords": [
         "not",
@@ -1138,11 +1144,11 @@
     },
     "repos": {
       "keyword": "repos",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.ReadFile.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
       "sourceType": "fact",
-      "confidence": 0.8299999999977113,
+      "confidence": 0.8299999999975283,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127982\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102518\u002B00:00",
       "deprecated": false,
       "keywords": [
         "repos",
@@ -1155,11 +1161,11 @@
     },
     "TechToolbox": {
       "keyword": "TechToolbox",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.ReadFile.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
       "sourceType": "fact",
-      "confidence": 0.999999999997091,
+      "confidence": 0.9999999999966223,
       "frequency": 2,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127991\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102527\u002B00:00",
       "deprecated": false,
       "keywords": [
         "repos",
@@ -1172,11 +1178,11 @@
     },
     "src": {
       "keyword": "src",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.ReadFile.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
       "sourceType": "fact",
-      "confidence": 0.8299999999975054,
+      "confidence": 0.8299999999970935,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127987\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102523\u002B00:00",
       "deprecated": false,
       "keywords": [
         "repos",
@@ -1189,11 +1195,11 @@
     },
     "Agent": {
       "keyword": "Agent",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.ReadFile.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
       "sourceType": "fact",
-      "confidence": 0.8299999999975513,
+      "confidence": 0.829999999997185,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127994\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102534\u002B00:00",
       "deprecated": false,
       "keywords": [
         "repos",
@@ -1206,11 +1212,11 @@
     },
     "Execution": {
       "keyword": "Execution",
-      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.ReadFile.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
+      "value": "C:\\repos\\TechToolbox\\src\\TechToolbox.Agent\\Execution\\PowerShellBridge.Runspace.cs  - Use WRITE-FILE to create/update the file.  - Do not return a final answer until WRITE-FILE has succeeded",
       "sourceType": "fact",
-      "confidence": 0.8299999999975627,
+      "confidence": 0.829999999997185,
       "frequency": 1,
-      "lastSeenUtc": "2026-09-02T02:40:01.9127997\u002B00:00",
+      "lastSeenUtc": "2026-09-02T02:52:04.8102536\u002B00:00",
       "deprecated": false,
       "keywords": [
         "repos",
@@ -1223,7 +1229,7 @@
     }
   },
   "memoryHealth": {
-    "generatedUtc": "2026-09-02T02:40:01.9128723\u002B00:00",
+    "generatedUtc": "2026-09-02T02:52:04.8103431\u002B00:00",
     "totalPreferences": 4,
     "totalFacts": 13,
     "indexEntries": 25,
