@@ -17,24 +17,24 @@
     "trendSummary": {
       "windowItems": 20,
       "runCount": 20,
-      "successRate": 0.75,
-      "avgDurationMs": 47025,
-      "avgToolCalls": 4.5,
+      "successRate": 0.65,
+      "avgDurationMs": 98526,
+      "avgToolCalls": 4.8,
       "statusCounts": {
-        "success": 15,
-        "error": 5
+        "success": 13,
+        "error": 7
       },
       "outcomeCounts": {
-        "completed": 15,
-        "iteration-limit": 3,
-        "llm-failure": 2
+        "completed": 13,
+        "llm-failure": 4,
+        "iteration-limit": 3
       },
       "lastStatus": "success",
       "lastOutcome": "completed",
       "lastModel": "gpt-5.6-luna",
-      "lastRunTimestampUtc": "2026-09-02T22:46:44.5720818\u002B00:00",
-      "trendLastUpdatedUtc": "2026-09-02T22:46:44.6138728\u002B00:00",
-      "avgPromptPreflightScore": 76,
+      "lastRunTimestampUtc": "2026-09-02T23:51:46.9620218\u002B00:00",
+      "trendLastUpdatedUtc": "2026-09-02T23:51:46.9630731\u002B00:00",
+      "avgPromptPreflightScore": 86,
       "executionModeCounts": {
         "execute": 20
       },
@@ -46,17 +46,17 @@
       }
     },
     "memoryHealth": {
-      "generatedUtc": "2026-09-02T22:46:44.6138799\u002B00:00",
+      "generatedUtc": "2026-09-02T23:51:46.9631093\u002B00:00",
       "totalPreferences": 0,
       "totalFacts": 13,
-      "indexEntries": 3,
-      "averageConfidence": 0.78,
+      "indexEntries": 0,
+      "averageConfidence": 0,
       "deprecatedEntries": 0,
-      "health": "healthy",
+      "health": "low",
       "notes": [
         "Preferences tracked: 0",
         "Facts tracked: 13",
-        "Index entries: 3"
+        "Index entries: 0"
       ]
     },
     "fact.tool-usage-get-noaa-forecast.306bbf72": "tool usage: GET-NOAA-FORECAST",
@@ -73,166 +73,6 @@
     "fact.tool-usage-rather.bd314ef0": "tool usage: rather"
   },
   "history": [
-    {
-      "timestampUtc": "2026-08-31T20:15:02.7581484+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather for tomorrow in Green Bay, Wisconsin? Output the results into console in markdown.",
-      "model": "gpt-5.4-nano",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 38884,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 13,
-      "toolNames": [
-        "search_web",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather for tomorrow (Green Bay, WI)\n\nI could not retrieve a NOAA forecast for tomorrow using the available \u0060GET-NOAA-FORECAST\u0060 tool.\n\nEvidence:\n- \u0060GET-NOAA-FORECAST\u0060 failed for each tried Green Bay ZIP code with: \u0022NOAA forecast returned no matching periods for ZIP=...\u0022 (for 54229, 54301, 54302, 54303, 54304, 54305, 54306, 54307, 54308, 54311, 54313, 54324).\n\n## Next best step\n- Tell me whether you want me to try a different ZIP code outside the Green Bay ZIP list (for example, a nearby city/ZIP), or whether you want a different data source (not NOAA) for tomorrow\u2019s forecast.",
-      "runSummary": {
-        "intent": "Please check the weather for tomorrow in Green Bay, Wisconsin? Output the results into console in markdown.",
-        "actionsTaken": [
-          "search_web",
-          "get_noaa_forecast"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-08-31T20:16:45.8827075+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather for tomorrow in Green Bay, Wisconsin? User Zip code 54304. Output the results into console in markdown.",
-      "model": "gpt-5.4-nano",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 10261,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 4,
-      "toolNames": [
-        "get_noaa_forecast",
-        "search_web",
-        "search_web",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "## Weather for tomorrow (Green Bay, WI)\n\nI could not retrieve an official NOAA forecast for tomorrow for ZIP 54304.\n\n- The NOAA forecast tool returned no matching periods for ZIP 54304.\n- A subsequent retry was blocked by the tool\u2019s loop guard because repeated calls produced equivalent results.\n\n## Next step\n- Provide a different 5-digit ZIP code for the Green Bay area (or confirm you want me to try a nearby ZIP code), and I will re-run the NOAA forecast for tomorrow.",
-      "runSummary": {
-        "intent": "Please check the weather for tomorrow in Green Bay, Wisconsin? User Zip code 54304. Output the results into console in markdown.",
-        "actionsTaken": [
-          "get_noaa_forecast",
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 60,
-      "promptPreflightWarningCount": 2,
-      "promptPreflightCriticalCount": 0
-    },
-    {
-      "timestampUtc": "2026-09-01T03:36:36.2014155+00:00",
-      "status": "error",
-      "outcome": "iteration-limit",
-      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
-      "model": "phi4:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 55407,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 0,
-      "toolNames": [],
-      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
-      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST -\u003E GET-NOAA-FORECAST\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
-      "runSummary": {
-        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
-        "actionsTaken": [],
-        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
-        "nextBestStep": "Next best action:"
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
-    {
-      "timestampUtc": "2026-09-01T03:42:28.7240815+00:00",
-      "status": "success",
-      "outcome": "completed",
-      "prompt": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
-      "model": "phi4:14b",
-      "retryTierUsed": 0,
-      "fallbackActivated": false,
-      "durationMs": 53796,
-      "maxIterations": 15,
-      "destructiveConfirmed": false,
-      "signedFilePolicy": "ignore",
-      "autoRetryOnRecursion": false,
-      "toolCalls": 14,
-      "toolNames": [
-        "get_noaa_forecast",
-        "search_web",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast",
-        "get_noaa_forecast"
-      ],
-      "outputPreview": "- **Weather Forecast Retrieval Issue:**\n  - The GET-NOAA-FORECAST tool was used to fetch the weather forecast for Green Bay, Wisconsin, using various ZIP codes identified from SEARCH-WEB results.\n  - All attempts with the following ZIP codes failed: 54301, 54302, 54303, 54304, 54305, 54306, 54307, 54308, 54311, 54313, 54324, and 54344.\n  - Each attempt resulted in the error: \u0060NOAA forecast returned no matching periods for ZIP=[ZIP_CODE]\u0060.\n- **Conclusion:**\n  - It appears that there is an issue with retrieving weather data for Green Bay, Wisconsin, using the NOAA API for the specified ZIP codes. Further investigation or alternative methods may be required to obtain the desired weather information.",
-      "runSummary": {
-        "intent": "Please check the weather in Green Bay Wisconsin tomorrow. Output the results to the console.",
-        "actionsTaken": [
-          "get_noaa_forecast",
-          "search_web"
-        ],
-        "blockers": "",
-        "nextBestStep": ""
-      },
-      "executionMode": "execute",
-      "outputContract": "markdown",
-      "qualityProfile": "balanced",
-      "promptPreflightScore": 40,
-      "promptPreflightWarningCount": 3,
-      "promptPreflightCriticalCount": 1
-    },
     {
       "timestampUtc": "2026-09-01T03:44:27.1244896+00:00",
       "status": "success",
@@ -816,64 +656,186 @@
       "promptPreflightScore": 80,
       "promptPreflightWarningCount": 1,
       "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-02T23:22:47.9218816+00:00",
+      "status": "error",
+      "outcome": "iteration-limit",
+      "prompt": "Please look at the Output section of the log located at C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260902_174606_32828.md. Execute this implementation and only modify the memory subsystem. I will raise your iteration limit for this implementation. If you run into any blocks, please explain the block. Output the results into console in markdown format.",
+      "model": "gpt-5.6-luna",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 27591,
+      "maxIterations": 15,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: READ-FILE -\u003E REPLACE-IN-FILE -\u003E READ-FILE -\u003E REPLACE-IN-FILE -\u003E REPLACE-IN-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E REPLACE-IN-FILE\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+      "error": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspect tool outputs for loops or missing termination cues.\r\n\r\n\r\nProgress checkpoint:\r\n- attempted: READ-FILE -\u003E REPLACE-IN-FILE -\u003E READ-FILE -\u003E REPLACE-IN-FILE -\u003E REPLACE-IN-FILE -\u003E READ-FILE -\u003E READ-FILE -\u003E REPLACE-IN-FILE\r\n- blocked by: none\r\n- blocker target hint: no specific target hint captured\r\n- next step: narrow the target and retry with a focused prompt or higher iteration budget (current limit: 15).",
+      "runSummary": {
+        "intent": "Please look at the Output section of the log located at C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260902_174606_32828.md. Execute this implementation and only modify the memory subsystem. I w...",
+        "actionsTaken": [],
+        "blockers": "## Agent Iteration Limit Reached\r\n\r\nThe agent stopped because it reached its internal reasoning/tool-call limit before a final stop condition.\r\n\r\n- iteration_limit used: 15\r\n- max_iterations requested: 15\r\n\r\nNext best action:\r\n- Retry with a narrower prompt or a higher --max-iterations value.\r\n- If this repeats, inspec...",
+        "nextBestStep": "Next best action:"
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-02T23:23:53.0449638+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Please look at the Output section of the log located at C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260902_174606_32828.md. Execute this implementation and only modify the memory subsystem. I will raise your iteration limit for this implementation. If you run into any blocks, please explain the block. Output the results into console in markdown format.",
+      "model": "gpt-5.6-luna",
+      "retryTierUsed": 3,
+      "fallbackActivated": false,
+      "durationMs": 41554,
+      "maxIterations": 80,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": false,
+      "toolCalls": 1,
+      "toolNames": [
+        "read_file"
+      ],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.6-luna in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 500000, Used 494815, Requested 7385. Please try again in 264ms. Visit https://platform.openai.com/account/rate-limits to learn more.\u0022,\n        \u0022type\u0022: \u0022tokens\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022rate_limit_exceeded\u0022\n    }\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.6-luna in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 500000, Used 494815, Requested 7385. Please try again in 264ms. Visit https://platform.openai.com/account/rate-limits to learn more.\u0022,\n        \u0022type\u0022: \u0022tokens\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022rate_limit_exceeded\u0022\n    }\n}",
+      "runSummary": {
+        "intent": "Please look at the Output section of the log located at C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260902_174606_32828.md. Execute this implementation and only modify the memory subsystem. I w...",
+        "actionsTaken": [
+          "read_file"
+        ],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.6-luna in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 500000, Used 494815, Requested 7385. Please try again in 264ms. Visit http...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-02T23:43:31.3114368+00:00",
+      "status": "error",
+      "outcome": "llm-failure",
+      "prompt": "Please look at the Output section of the log located at C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260902_174606_32828.md. Execute this implementation and only modify the memory subsystem. I will raise your iteration limit for this implementation. If you run into any blocks, please explain the block. Output the results into console in markdown format.",
+      "model": "gpt-5.6-luna",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 860109,
+      "maxIterations": 80,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": true,
+      "toolCalls": 0,
+      "toolNames": [],
+      "outputPreview": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.6-luna in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 500000, Used 500000, Requested 7144. Please try again in 857ms. Visit https://platform.openai.com/account/rate-limits to learn more.\u0022,\n        \u0022type\u0022: \u0022tokens\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022rate_limit_exceeded\u0022\n    }\n}",
+      "error": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.6-luna in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 500000, Used 500000, Requested 7144. Please try again in 857ms. Visit https://platform.openai.com/account/rate-limits to learn more.\u0022,\n        \u0022type\u0022: \u0022tokens\u0022,\n        \u0022param\u0022: null,\n        \u0022code\u0022: \u0022rate_limit_exceeded\u0022\n    }\n}",
+      "runSummary": {
+        "intent": "Please look at the Output section of the log located at C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260902_174606_32828.md. Execute this implementation and only modify the memory subsystem. I w...",
+        "actionsTaken": [],
+        "blockers": "LLM request repeatedly failed (2 consecutive attempts). Last error: LLM error: TooManyRequests - {\n    \u0022error\u0022: {\n        \u0022message\u0022: \u0022Rate limit reached for gpt-5.6-luna in organization org-36s6FcQ9BbauXamJV6gfhwhy on tokens per min (TPM): Limit 500000, Used 500000, Requested 7144. Please try again in 857ms. Visit http...",
+        "nextBestStep": "Retry after addressing the error details captured in outputPreview."
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
+    },
+    {
+      "timestampUtc": "2026-09-02T23:51:46.9620218+00:00",
+      "status": "success",
+      "outcome": "completed",
+      "prompt": "Please look at the Output section of the log located at C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260902_174606_32828.md. Execute this implementation and only modify the memory subsystem. I will raise your iteration limit for this implementation. If you run into any blocks, please explain the block. Output the results into console in markdown format.",
+      "model": "gpt-5.6-luna",
+      "retryTierUsed": 0,
+      "fallbackActivated": false,
+      "durationMs": 259118,
+      "maxIterations": 80,
+      "destructiveConfirmed": true,
+      "signedFilePolicy": "ignore",
+      "autoRetryOnRecursion": true,
+      "toolCalls": 36,
+      "toolNames": [
+        "read_file_meta",
+        "read_file",
+        "list_directory",
+        "list_directory",
+        "list_directory",
+        "list_directory",
+        "read_file",
+        "read_file",
+        "read_file",
+        "replace_in_file",
+        "replace_in_file",
+        "replace_in_file",
+        "replace_in_file",
+        "replace_in_file",
+        "replace_in_file",
+        "read_file",
+        "read_file",
+        "replace_in_file",
+        "replace_in_file",
+        "read_file",
+        "replace_in_file",
+        "replace_in_file",
+        "replace_in_file",
+        "read_file",
+        "read_file",
+        "replace_in_file",
+        "replace_in_file",
+        "replace_in_file",
+        "replace_in_file",
+        "replace_in_file",
+        "read_file",
+        "replace_in_file",
+        "read_file",
+        "replace_in_file",
+        "replace_in_file",
+        "read_file"
+      ],
+      "outputPreview": "## Implementation results\n\nReviewed the Output section of the specified log and applied scoped changes only within the memory subsystem:\n\n- Added XML documentation for public memory index, health, and inspector model members.\n- Added static compiled regular expressions with timeouts for model mentions and tool usage.\n- Added sensitive-data detection for API keys, secrets, passwords, tokens, connection strings, email addresses, and GUIDs.\n- Prevented sensitive extracted values from being persisted by the learner.\n- Reused the static model and tool-usage regular expressions instead of compiling them per call.\n- Adjusted confidence scoring so first observations do not receive maximum confidence.\n- Added source reliability weighting and bounded confidence to 0.95.\n- Preserved index metadata during rebuilds only when the source type and value match.\n- Preserved prior last-seen timestamps during compatible index rebuilds.\n- Corrected trend summary WindowItems to report the actual populated window size.\n\nNo changes were made outside the memory subsystem. The available tools did not include a build or test execution tool, so compilation and automated tests were not run.",
+      "runSummary": {
+        "intent": "Please look at the Output section of the log located at C:\\repos\\TechToolbox\\LogsAndExports\\Logs\\TechAgentMarkdown\\TechAgent_20260902_174606_32828.md. Execute this implementation and only modify the memory subsystem. I w...",
+        "actionsTaken": [
+          "read_file_meta",
+          "read_file",
+          "list_directory",
+          "replace_in_file"
+        ],
+        "blockers": "",
+        "nextBestStep": ""
+      },
+      "executionMode": "execute",
+      "outputContract": "markdown",
+      "qualityProfile": "balanced",
+      "promptPreflightScore": 100,
+      "promptPreflightWarningCount": 0,
+      "promptPreflightCriticalCount": 0
     }
   ],
-  "memoryIndex": {
-    "tool": {
-      "keyword": "tool",
-      "value": "tool usage: rather",
-      "sourceType": "fact",
-      "confidence": 0.7799999999801704,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T22:46:44.6136450\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "tool",
-        "usage",
-        "rather"
-      ]
-    },
-    "usage": {
-      "keyword": "usage",
-      "value": "tool usage: rather",
-      "sourceType": "fact",
-      "confidence": 0.7799999999844718,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T22:46:44.6136901\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "tool",
-        "usage",
-        "rather"
-      ]
-    },
-    "rather": {
-      "keyword": "rather",
-      "value": "tool usage: rather",
-      "sourceType": "fact",
-      "confidence": 0.7799999999843965,
-      "frequency": 1,
-      "lastSeenUtc": "2026-09-02T22:46:44.6136905\u002B00:00",
-      "deprecated": false,
-      "keywords": [
-        "tool",
-        "usage",
-        "rather"
-      ]
-    }
-  },
+  "memoryIndex": {},
   "memoryHealth": {
-    "generatedUtc": "2026-09-02T22:46:44.6138862\u002B00:00",
+    "generatedUtc": "2026-09-02T23:51:46.9632042\u002B00:00",
     "totalPreferences": 0,
     "totalFacts": 13,
-    "indexEntries": 3,
-    "averageConfidence": 0.78,
+    "indexEntries": 0,
+    "averageConfidence": 0,
     "deprecatedEntries": 0,
-    "health": "healthy",
+    "health": "low",
     "notes": [
       "Preferences tracked: 0",
       "Facts tracked: 13",
-      "Index entries: 3"
+      "Index entries: 0"
     ]
   },
   "_memoryFormatVersion": 2
