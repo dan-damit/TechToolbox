@@ -2,6 +2,9 @@
 *.tmp
 *.bak
 *.secrets.json
+memory.json
+memory.history.json
+memory.history.json.*
 
 # Directories
 LogsAndExports/
