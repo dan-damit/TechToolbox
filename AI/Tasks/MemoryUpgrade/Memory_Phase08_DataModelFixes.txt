@@ -1,0 +1,33 @@
+Fix data model inconsistencies and add schema migration support in the memory subsystem.
+Apply changes ONLY within the memory subsystem and memory tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Add/complete XML docs for all public memory model members touched by this phase.
+- Replace unconstrained string fields with enums or validated value objects where safe.
+- Implement explicit in-code migrations for MemoryFormatVersion transitions.
+- Reject or quarantine unsupported future versions with clear diagnostics.
+- Correct health metrics/counts to exclude derived/system metadata entries.
+- Fix TrendSummary.WindowItems to reflect actual analyzed window size.
+- Do not modify unrelated subsystems.
+
+Acceptance criteria:
+- Old supported versions migrate deterministically to current version.
+- Future/unsupported versions do not silently load as valid.
+- Health/trend fields match test fixtures for known inputs.
+
+Validation:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Model|Migration|Health|Trend"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Model and validation changes
+4) Migration path(s)
+5) Tests added/updated
+6) Validation results

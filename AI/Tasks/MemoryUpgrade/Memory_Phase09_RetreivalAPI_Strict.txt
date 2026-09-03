@@ -1,0 +1,52 @@
+STRICT MODE: Add a ranked retrieval API to the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within memory subsystem files and memory tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Memory/MemoryLearner.cs (only if needed for provenance fields)
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Add a read-only query API that returns ranked memory matches.
+- Ranking signals must include exact match, keyword overlap, confidence, recency, and source category/type.
+- Include provenance and concise match reasoning per result.
+- Enforce max-result cap and avoid large prompt-memory injection patterns.
+- Keep session memory, user preferences, and system facts logically separable in filtering/results.
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 9 file edits total.
+3) Validation: 1 build + 1 targeted test run; one repair cycle max.
+4) Stop once criteria pass.
+
+Loop guards:
+- Do not rework scoring function more than 2 times.
+- If ordering assertions fail with unchanged signatures after one repair cycle, stop and report.
+
+Fallback behavior:
+- Fallback A: ship deterministic weighted ranker with stable tie-break first.
+- Fallback B: if full separation model is broad, implement filter flags with explicit defaults now.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION.
+
+Acceptance criteria:
+- Deterministic ordering for equal-score ties.
+- API supports caller-provided max results with safe default cap.
+- Tests cover relevance ordering and separation/filter rules.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Retriev|Query|Rank"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Retrieval API surface
+4) Ranking formula/signals
+5) Tests added/updated
+6) Validation results
+7) Step-budget report (planned vs actual counts)

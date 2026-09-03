@@ -176,6 +176,9 @@ Invoke-TechAgent -Prompt "Run system diagnostics and summarize findings" -Model 
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -MaxIterations 25 -Quiet
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -AutoRetryOnRecursion
 Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetryOnRecursion
+Invoke-TechAgent -Prompt "Review memory subsystem only and propose targeted changes" -RuntimeStrictMode
+Invoke-TechAgent -Prompt "Implement memory phase 2" -RuntimeStrictMode -StrictMaxDiscoveryToolCalls 6 -StrictMaxMutationToolCalls 8 -StrictMaxValidationToolCalls 2 -StrictMaxDecisionRepairCycles 1
+Invoke-TechAgent -Prompt "Implement memory phase 2" -RuntimeStrictMode -StrictDisableSingleFallbackTurn
 Invoke-TechAgent -Prompt "Update Public/Get/Get-ToolboxHelp.ps1" -ConfirmDestructive -SignedFilePolicy strip
 Invoke-TechAgent -Prompt "Explain repeated authentication failures" -Mode analyze
 Invoke-TechAgent -Prompt "Design a remediation approach" -Mode plan
@@ -217,6 +220,15 @@ Invoke-TechAgent -PromptFile AI\Tasks\CurrentTask.txt
 - `-AutoRetryOnRecursion` enables exactly one automatic retry when the packaged C# agent reaches an iteration limit.
 - `-DisableAutoRetryOnRecursion` forces auto-retry off for the current invocation, even if enabled by environment defaults.
 - Only one of these switches can be used at a time.
+
+**Runtime Strict Mode Switches**
+
+- `-RuntimeStrictMode` enables strict runtime budgeting for discovery, mutation, validation, and decision-repair cycles.
+- `-DisableRuntimeStrictMode` disables strict mode for the current run even if config enables it.
+- `-StrictMaxDiscoveryToolCalls`, `-StrictMaxMutationToolCalls`, `-StrictMaxValidationToolCalls`, and `-StrictMaxDecisionRepairCycles` override strict budgets for the current run.
+- `-StrictAllowSingleFallbackTurn` allows one fallback guidance turn after a strict budget exceedance.
+- `-StrictDisableSingleFallbackTurn` forces immediate termination when strict budgets are exceeded.
+- Mutual-exclusion rules: `-RuntimeStrictMode` vs `-DisableRuntimeStrictMode`, and `-StrictAllowSingleFallbackTurn` vs `-StrictDisableSingleFallbackTurn`.
 
 **Execution Mode and Output Contract**
 

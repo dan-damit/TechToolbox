@@ -1,0 +1,51 @@
+STRICT MODE: Improve load diagnostics and recovery behavior in the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Stop silently swallowing load exceptions.
+- Record structured diagnostics: exception type, file path, and selected recovery action (exclude sensitive payloads).
+- Quarantine corrupted/unreadable files with timestamped names.
+- Add load/recovery status fields to MemoryHealthSummary.
+- Explicitly classify: missing file, invalid JSON, access denied/IO failure, unsupported schema/version mismatch.
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If exception classification logic is reworked twice without test improvement, stop and report blocker.
+- If two consecutive runs fail on unchanged error signatures, do not keep iterating.
+
+Fallback behavior:
+- Fallback A: implement minimal failure taxonomy enum/value mapping first, then wire to health summary.
+- Fallback B: if full quarantine restore pipeline is risky, implement quarantine + explicit non-destructive fail state and document pending restore follow-up.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with precise failing assertions.
+
+Acceptance criteria:
+- Corrupt primary file triggers deterministic quarantine + recovery path.
+- Health summary distinguishes failure categories and latest recovery action.
+- Diagnostics avoid sensitive data leakage.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Load|Recovery"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Failure taxonomy
+4) Recovery behavior
+5) Tests added/updated
+6) Validation results
+7) Step-budget report (planned vs actual counts)

@@ -1,0 +1,34 @@
+Add a comprehensive test suite for the memory subsystem.
+Apply changes ONLY to memory-related tests (and memory subsystem code only when required to enable testability).
+
+Concrete scope:
+- src/TechToolbox.Agent/Tests/MemoryLearnerTests.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs (add new files as needed)
+- src/TechToolbox.Agent/Memory/*.cs only for test seams/bug fixes discovered by tests
+
+Requirements:
+- Cover load cases: missing, empty, malformed, truncated, future-version JSON.
+- Cover save/recovery: atomic-save failure simulation and recovery behavior.
+- Cover path handling: relative paths and filename-only paths.
+- Cover concurrency: concurrent saves + overlapping learner updates.
+- Cover learning logic: preference replacement, contradiction handling, durable vs transient classification.
+- Cover confidence progression/decay and index rebuild preservation.
+- Cover data robustness: Unicode, paths, punctuation, long values.
+- Add property-based or randomized invariant tests for serialization/normalization/tokenization (if project dependencies allow; otherwise provide deterministic approximation).
+- Do not modify unrelated subsystems.
+
+Acceptance criteria:
+- New tests are deterministic and do not rely on external network/services.
+- Suite catches at least one previously untested edge case in each major category.
+- Memory-related test run passes cleanly.
+
+Validation:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Learner|Confidence|Index|Recovery"
+
+Output results in markdown using this structure:
+1) Summary
+2) Test files added/updated
+3) Coverage matrix
+4) Notable edge cases now covered
+5) Validation results

@@ -1,0 +1,35 @@
+Add privacy and sensitive-data controls to the memory subsystem.
+Apply changes ONLY within the memory subsystem, AI task docs, and memory tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryLearner.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+- AI/Tasks/MemoryUpgrade/*.txt only if prompt/document updates are required
+
+Requirements:
+- Introduce category allowlist for auto-learning eligibility.
+- Require explicit user-intent signal before learning identity/tenant/account/credential/path categories.
+- Redact or block sensitive patterns: secrets/tokens/connection strings/emails/GUID-like IDs (define exact rule set and false-positive boundaries).
+- Add configurable opt-out and clear-memory operations at memory layer API level.
+- Document memory storage path + access boundaries in code comments or task output.
+- Optional encryption-at-rest: implement only if low-risk and non-breaking; otherwise document as deferred with rationale.
+- Do not modify unrelated subsystems.
+
+Acceptance criteria:
+- Sensitive payloads are not persisted in plain learned values.
+- Explicit-intent requirement is test-covered.
+- Opt-out and clear-memory behavior is deterministic and test-covered.
+
+Validation:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Privacy|Learner"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Privacy policy rules
+4) Redaction/blocking behavior
+5) Tests added/updated
+6) Validation results

@@ -1,0 +1,32 @@
+Improve index rebuild behavior in the memory subsystem.
+Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Preserve metadata on rebuild: frequency/count, first-seen, last-seen, deprecation/stale markers.
+- Merge rebuilt entries with existing index when value/source identity matches.
+- Mark missing historical entries as stale (not hard delete) unless explicitly pruned by policy.
+- Define deterministic rules for non-string values (serialize strategy, comparison strategy, index eligibility).
+- Do not modify unrelated subsystems.
+
+Acceptance criteria:
+- Rebuild is idempotent for unchanged input.
+- Existing metadata survives rebuild cycles.
+- Missing entries become stale with traceable status.
+- Tests prove non-string handling rules.
+
+Validation:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Index|Rebuild"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Rebuild merge rules
+4) Non-string handling rules
+5) Tests added/updated
+6) Validation results

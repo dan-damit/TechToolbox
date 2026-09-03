@@ -1,0 +1,51 @@
+STRICT MODE: Improve index rebuild behavior in the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Preserve metadata on rebuild: frequency/count, first-seen, last-seen, deprecation/stale markers.
+- Merge rebuilt entries with existing index when value/source identity matches.
+- Mark missing historical entries as stale (not hard delete) unless explicitly pruned by policy.
+- Define deterministic rules for non-string values (serialization, comparison, and index eligibility).
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 5 read/search calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; one repair cycle max.
+4) Stop once criteria pass.
+
+Loop guards:
+- No repeated rebuild algorithm rewrites after 2 attempts.
+- If idempotency tests still fail after one repair cycle, stop and report blockers.
+
+Fallback behavior:
+- Fallback A: prioritize metadata preservation and stale-marking first.
+- Fallback B: if non-string strategy is contentious, use explicit exclude-and-reason policy plus tests.
+- Fallback C: terminate with FAILED_VALIDATION after one unsuccessful repair cycle.
+
+Acceptance criteria:
+- Rebuild is idempotent for unchanged input.
+- Existing metadata survives rebuild cycles.
+- Missing entries become stale with traceable status.
+- Tests prove non-string handling rules.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Index|Rebuild"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Rebuild merge rules
+4) Non-string handling rules
+5) Tests added/updated
+6) Validation results
+7) Step-budget report (planned vs actual counts)

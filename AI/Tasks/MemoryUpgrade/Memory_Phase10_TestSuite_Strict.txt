@@ -1,0 +1,53 @@
+STRICT MODE: Add a comprehensive test suite for the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY to memory-related tests, and memory subsystem code only when required for testability or confirmed bug fixes.
+
+Concrete scope:
+- src/TechToolbox.Agent/Tests/MemoryLearnerTests.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs (add new files as needed)
+- src/TechToolbox.Agent/Memory/*.cs only for test seams or memory bugs discovered by tests
+
+Requirements:
+- Cover load cases: missing, empty, malformed, truncated, future-version JSON.
+- Cover save/recovery: atomic-save failure simulation and recovery behavior.
+- Cover path handling: relative paths and filename-only paths.
+- Cover concurrency: concurrent saves and overlapping learner updates.
+- Cover learning logic: preference replacement, contradiction handling, durable vs transient classification.
+- Cover confidence progression/decay and index rebuild preservation.
+- Cover robustness: Unicode, paths, punctuation, long values.
+- Add property-based or randomized invariant tests for serialization/normalization/tokenization when dependencies allow; otherwise implement deterministic approximation.
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 12 file edits total (tests-first).
+3) Validation: 1 build + 1 targeted test run; one repair cycle max.
+4) Stop once criteria pass.
+
+Loop guards:
+- No repeated flaky-test chasing; if non-determinism appears twice, isolate and report.
+- If unchanged failures persist after one repair cycle, stop and emit FAILED_VALIDATION.
+
+Fallback behavior:
+- Fallback A: prioritize deterministic unit tests over integration-heavy scenarios.
+- Fallback B: replace property-based tests with deterministic bounded-random fixtures when library setup cost is high.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with failing test list.
+
+Acceptance criteria:
+- New tests are deterministic and require no network/services.
+- At least one previously untested edge case is covered in each major category.
+- Memory-focused test run passes cleanly.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Learner|Confidence|Index|Recovery"
+
+Output results in markdown using this structure:
+1) Summary
+2) Test files added/updated
+3) Coverage matrix
+4) Notable edge cases now covered
+5) Validation results
+6) Step-budget report (planned vs actual counts)

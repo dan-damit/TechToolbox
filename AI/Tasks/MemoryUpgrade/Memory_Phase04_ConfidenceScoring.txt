@@ -1,0 +1,33 @@
+Redesign confidence scoring in the memory subsystem.
+Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Memory/MemoryLearner.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Replace additive confidence formula that saturates quickly at 1.0.
+- Set bounded initial confidence below healthy/default high-confidence threshold.
+- Include at minimum: evidence strength, recency decay, source reliability, contradiction/conflict state.
+- Ensure confidence is preserved correctly across index rebuild operations.
+- Keep formula deterministic and explainable in code/tests.
+- Do not modify unrelated subsystems.
+
+Acceptance criteria:
+- Tests cover first observation, repeat observation, aging decay, contradiction/conflict adjustment.
+- Confidence remains within defined bounds and progresses smoothly.
+- Index rebuild does not reset valid confidence state.
+
+Validation:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Confidence|Learner|Index"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Scoring model
+4) Migration/compatibility notes
+5) Tests added/updated
+6) Validation results

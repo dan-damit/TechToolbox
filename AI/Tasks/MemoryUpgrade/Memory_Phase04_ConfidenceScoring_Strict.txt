@@ -1,0 +1,52 @@
+STRICT MODE: Redesign confidence scoring in the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Memory/MemoryLearner.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Replace additive confidence formula that saturates quickly at 1.0.
+- Set bounded initial confidence below healthy/high-confidence threshold.
+- Include at minimum: evidence strength, recency decay, source reliability, contradiction/conflict state.
+- Preserve confidence correctly across index rebuild operations.
+- Keep formula deterministic and explainable in code/tests.
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 9 file edits total.
+3) Validation: 1 build + 1 targeted test run, with exactly 1 repair cycle allowed.
+4) Stop when criteria pass.
+
+Loop guards:
+- Do not re-tune coefficients more than 2 times.
+- If confidence bounds fail repeatedly with same pattern, stop and report coefficients + failing cases.
+
+Fallback behavior:
+- Fallback A: implement a simple bounded logistic-like or weighted bounded model before advanced refinements.
+- Fallback B: if aging model complexity causes instability, ship deterministic piecewise decay with tests.
+- Fallback C: after one failed repair cycle, stop and output FAILED_VALIDATION.
+
+Acceptance criteria:
+- Tests cover first observation, repeat observation, aging decay, contradiction/conflict adjustment.
+- Confidence remains within defined bounds and progresses smoothly.
+- Index rebuild does not reset valid confidence state.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Confidence|Learner|Index"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Scoring model
+4) Migration/compatibility notes
+5) Tests added/updated
+6) Validation results
+7) Step-budget report (planned vs actual counts)

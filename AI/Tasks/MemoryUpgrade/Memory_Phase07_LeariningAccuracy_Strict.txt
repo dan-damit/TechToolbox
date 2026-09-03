@@ -1,0 +1,52 @@
+STRICT MODE: Improve learning accuracy in the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryLearner.cs
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Tests/MemoryLearnerTests.cs (plus additional memory tests if needed)
+
+Requirements:
+- Distinguish durable user preferences from one-time task instructions.
+- Replace broad regex-only inference with structured evidence metadata where possible.
+- Require stronger evidence thresholds for permanent factual memory entries.
+- Persist source category and confidence reason/rationale for learned items.
+- Add adversarial tests: quoted text, negation, hypotheticals, examples/counterexamples.
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 9 file edits total.
+3) Validation: 1 build + 1 targeted test run; one repair cycle max.
+4) Stop once criteria pass.
+
+Loop guards:
+- No third pass on heuristic wording tweaks without new evidence from tests.
+- If adversarial tests keep failing after one repair cycle, stop and report pattern-level blocker.
+
+Fallback behavior:
+- Fallback A: implement conservative durable-memory gate first (high precision, lower recall).
+- Fallback B: if structured metadata rollout is too broad, store minimal provenance fields now and document extension path.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION.
+
+Acceptance criteria:
+- One-off instructions are not promoted to durable preferences by default.
+- Learned-item provenance and confidence reason are queryable.
+- Adversarial parsing tests pass and prevent common false positives.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "MemoryLearner|Memory|Preference"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Learning classification rules
+4) Evidence/provenance model
+5) Tests added/updated
+6) Validation results
+7) Step-budget report (planned vs actual counts)

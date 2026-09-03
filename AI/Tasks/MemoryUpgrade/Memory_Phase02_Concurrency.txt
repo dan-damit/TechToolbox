@@ -1,0 +1,32 @@
+Implement concurrency protection for the memory subsystem.
+Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- Primary files: src/TechToolbox.Agent/Memory/MemoryStore.cs, src/TechToolbox.Agent/Memory/MemoryLearner.cs, src/TechToolbox.Agent/Memory/MemoryModels.cs
+- Test files: src/TechToolbox.Agent/Tests/MemoryLearnerTests.cs (and add a new memory-focused test file if needed)
+
+Requirements:
+- Add instance-level synchronization (lock or SemaphoreSlim) around all mutation + save flows.
+- Add optional named mutex support for multi-process coordination (configurable, off by default).
+- Coalesce multiple related updates into one Save() where behavior allows.
+- Ensure overlapping learner calls cannot corrupt memory/index state.
+- Keep public behavior backward compatible unless strictly required for safety.
+- Do not modify unrelated subsystems.
+
+Acceptance criteria:
+- No data races in concurrent in-process writes.
+- Named mutex path is covered by tests (or deterministic seam-based tests if direct multi-process test is impractical).
+- Concurrent learner calls preserve distinct preferences/facts and valid JSON output.
+- Existing memory tests continue to pass.
+
+Validation:
+- Build: dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- Tests: dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Learner|Orchestrator"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Concurrency design
+4) Tests added/updated
+5) Validation results
+6) Risks / follow-ups

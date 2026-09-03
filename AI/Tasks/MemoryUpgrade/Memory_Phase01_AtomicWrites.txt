@@ -1,0 +1,13 @@
+Implement atomic write operations for the memory subsystem. 
+Apply changes ONLY within the Memory directory.
+
+Requirements:
+- Replace direct File.WriteAllText calls with atomic temp-file writes.
+- Flush temp file to disk before replacement.
+- Use File.Replace or Move with overwrite semantics.
+- Maintain a backup copy of the last valid memory file.
+- On load failure, quarantine the corrupted file and restore from backup.
+- Add generation IDs to primary and history files for consistency checks.
+- Do not modify unrelated subsystems.
+
+Output results in markdown.

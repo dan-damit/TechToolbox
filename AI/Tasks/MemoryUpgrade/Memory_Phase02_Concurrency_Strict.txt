@@ -1,0 +1,52 @@
+STRICT MODE: Implement concurrency protection for the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- Primary files: src/TechToolbox.Agent/Memory/MemoryStore.cs, src/TechToolbox.Agent/Memory/MemoryLearner.cs, src/TechToolbox.Agent/Memory/MemoryModels.cs
+- Test files: src/TechToolbox.Agent/Tests/MemoryLearnerTests.cs (and one new memory-focused test file if needed)
+
+Requirements:
+- Add instance-level synchronization (lock or SemaphoreSlim) around mutation + save flows.
+- Add optional named mutex support for multi-process coordination (configurable, default off).
+- Coalesce related updates into one Save() where behavior allows.
+- Ensure overlapping learner calls cannot corrupt memory/index state.
+- Keep public behavior backward compatible unless safety requires a change.
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total, memory subsystem focused.
+3) Validation: 1 build + 1 targeted test run. If failure is clearly caused by this phase, allow exactly 1 repair cycle and re-run validation once.
+4) Stop when acceptance criteria pass. Do not continue optimizing.
+
+Loop guards:
+- If the same edit attempt fails twice, switch to smallest-safe alternative implementation.
+- If two consecutive tool calls produce no net progress, stop and emit BLOCKED with cause.
+- Never re-open already validated files unless tests point to them.
+
+Fallback behavior:
+- Fallback A (ambiguity): Restrict work to MemoryStore.cs + MemoryLearner.cs first; defer wider refactor.
+- Fallback B (multi-process testing impractical): Add seam-based deterministic test coverage for named mutex behavior.
+- Fallback C (validation still failing after one repair cycle): stop and return FAILED_VALIDATION with failing test names and likely root cause.
+
+Acceptance criteria:
+- No data races in concurrent in-process writes.
+- Named mutex path is covered by tests (or seam-based deterministic equivalent).
+- Concurrent learner calls preserve distinct preferences/facts and valid JSON output.
+- Existing memory tests continue to pass.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Learner|Orchestrator"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Concurrency design
+4) Tests added/updated
+5) Validation results
+6) Risks / follow-ups
+7) Step-budget report (planned vs actual counts)

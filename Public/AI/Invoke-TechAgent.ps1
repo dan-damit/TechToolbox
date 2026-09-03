@@ -116,6 +116,38 @@ function Invoke-TechAgent {
         Disables recursion-limit auto-retry for this invocation, overriding
         environment defaults.
 
+    .PARAMETER RuntimeStrictMode
+        Enables runtime strict mode for this invocation. Strict mode enforces
+        bounded tool-category budgets and decision-repair limits.
+
+    .PARAMETER DisableRuntimeStrictMode
+        Disables runtime strict mode for this invocation, overriding
+        configuration defaults.
+
+    .PARAMETER StrictMaxDiscoveryToolCalls
+        Maximum discovery-style tool calls allowed when runtime strict mode is
+        enabled.
+
+    .PARAMETER StrictMaxMutationToolCalls
+        Maximum mutation-style tool calls allowed when runtime strict mode is
+        enabled.
+
+    .PARAMETER StrictMaxValidationToolCalls
+        Maximum validation-style tool calls allowed when runtime strict mode is
+        enabled.
+
+    .PARAMETER StrictMaxDecisionRepairCycles
+        Maximum decision-repair cycles allowed when runtime strict mode is
+        enabled.
+
+    .PARAMETER StrictAllowSingleFallbackTurn
+        Allows one strict-mode fallback guidance turn after a budget is
+        exceeded.
+
+    .PARAMETER StrictDisableSingleFallbackTurn
+        Disables the strict-mode fallback guidance turn. Budget exceedance will
+        terminate immediately.
+
     .PARAMETER NoTranscript
         Disables the per-run console transcript log.
 
@@ -228,6 +260,34 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [switch]$DisableAutoRetryOnRecursion,
+
+        [Parameter()]
+        [switch]$RuntimeStrictMode,
+
+        [Parameter()]
+        [switch]$DisableRuntimeStrictMode,
+
+        [Parameter()]
+        [ValidateRange(1, 200)]
+        [int]$StrictMaxDiscoveryToolCalls,
+
+        [Parameter()]
+        [ValidateRange(1, 200)]
+        [int]$StrictMaxMutationToolCalls,
+
+        [Parameter()]
+        [ValidateRange(1, 200)]
+        [int]$StrictMaxValidationToolCalls,
+
+        [Parameter()]
+        [ValidateRange(0, 50)]
+        [int]$StrictMaxDecisionRepairCycles,
+
+        [Parameter()]
+        [switch]$StrictAllowSingleFallbackTurn,
+
+        [Parameter()]
+        [switch]$StrictDisableSingleFallbackTurn,
 
         [Parameter()]
         [bool]$NoTranscript = $true,
@@ -557,6 +617,14 @@ Hard requirement:
         throw 'Specify only one of -AutoRetryOnRecursion or -DisableAutoRetryOnRecursion.'
     }
 
+    if ($RuntimeStrictMode.IsPresent -and $DisableRuntimeStrictMode.IsPresent) {
+        throw 'Specify only one of -RuntimeStrictMode or -DisableRuntimeStrictMode.'
+    }
+
+    if ($StrictAllowSingleFallbackTurn.IsPresent -and $StrictDisableSingleFallbackTurn.IsPresent) {
+        throw 'Specify only one of -StrictAllowSingleFallbackTurn or -StrictDisableSingleFallbackTurn.'
+    }
+
     try {
         $moduleRoot = Get-ModuleRoot
         $assemblyCandidates = @(
@@ -883,6 +951,75 @@ Hard requirement:
         if ($null -eq $resilienceConfig) {
             $resilienceConfig = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'resiliencePolicy'
         }
+
+        $strictOverrideRequested = (
+            $RuntimeStrictMode.IsPresent -or
+            $DisableRuntimeStrictMode.IsPresent -or
+            $PSBoundParameters.ContainsKey('StrictMaxDiscoveryToolCalls') -or
+            $PSBoundParameters.ContainsKey('StrictMaxMutationToolCalls') -or
+            $PSBoundParameters.ContainsKey('StrictMaxValidationToolCalls') -or
+            $PSBoundParameters.ContainsKey('StrictMaxDecisionRepairCycles') -or
+            $StrictAllowSingleFallbackTurn.IsPresent -or
+            $StrictDisableSingleFallbackTurn.IsPresent
+        )
+
+        if ($strictOverrideRequested -and $null -eq $resilienceConfig) {
+            $resilienceConfig = [pscustomobject]@{}
+        }
+
+        if ($strictOverrideRequested -and $null -ne $resilienceConfig) {
+            $setResilienceProperty = {
+                param(
+                    [object]$Target,
+                    [string]$Name,
+                    $Value
+                )
+
+                if ($Target -is [hashtable]) {
+                    $Target[$Name] = $Value
+                    return
+                }
+
+                $existingProperty = $Target.PSObject.Properties[$Name]
+                if ($null -ne $existingProperty) {
+                    $existingProperty.Value = $Value
+                }
+                else {
+                    $Target | Add-Member -NotePropertyName $Name -NotePropertyValue $Value -Force
+                }
+            }
+
+            if ($RuntimeStrictMode.IsPresent) {
+                & $setResilienceProperty -Target $resilienceConfig -Name 'RuntimeStrictModeEnabled' -Value $true
+            }
+            elseif ($DisableRuntimeStrictMode.IsPresent) {
+                & $setResilienceProperty -Target $resilienceConfig -Name 'RuntimeStrictModeEnabled' -Value $false
+            }
+
+            if ($PSBoundParameters.ContainsKey('StrictMaxDiscoveryToolCalls')) {
+                & $setResilienceProperty -Target $resilienceConfig -Name 'StrictMaxDiscoveryToolCalls' -Value $StrictMaxDiscoveryToolCalls
+            }
+
+            if ($PSBoundParameters.ContainsKey('StrictMaxMutationToolCalls')) {
+                & $setResilienceProperty -Target $resilienceConfig -Name 'StrictMaxMutationToolCalls' -Value $StrictMaxMutationToolCalls
+            }
+
+            if ($PSBoundParameters.ContainsKey('StrictMaxValidationToolCalls')) {
+                & $setResilienceProperty -Target $resilienceConfig -Name 'StrictMaxValidationToolCalls' -Value $StrictMaxValidationToolCalls
+            }
+
+            if ($PSBoundParameters.ContainsKey('StrictMaxDecisionRepairCycles')) {
+                & $setResilienceProperty -Target $resilienceConfig -Name 'StrictMaxDecisionRepairCycles' -Value $StrictMaxDecisionRepairCycles
+            }
+
+            if ($StrictAllowSingleFallbackTurn.IsPresent) {
+                & $setResilienceProperty -Target $resilienceConfig -Name 'StrictAllowSingleFallbackTurn' -Value $true
+            }
+            elseif ($StrictDisableSingleFallbackTurn.IsPresent) {
+                & $setResilienceProperty -Target $resilienceConfig -Name 'StrictAllowSingleFallbackTurn' -Value $false
+            }
+        }
+
         if ($null -ne $resilienceConfig) {
             try {
                 $resiliencePolicyJson = $resilienceConfig | ConvertTo-Json -Depth 12 -Compress

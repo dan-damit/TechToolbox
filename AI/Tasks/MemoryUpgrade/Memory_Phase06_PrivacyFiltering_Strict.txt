@@ -1,0 +1,54 @@
+STRICT MODE: Add privacy and sensitive-data controls to the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the memory subsystem, memory tests, and memory task docs when needed.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryLearner.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+- AI/Tasks/MemoryUpgrade/*.txt only if documentation updates are required
+
+Requirements:
+- Introduce category allowlist for auto-learning eligibility.
+- Require explicit user-intent signal before learning identity/tenant/account/credential/path categories.
+- Redact or block sensitive patterns: secrets, tokens, connection strings, emails, GUID-like IDs.
+- Add configurable opt-out and clear-memory operations at memory-layer API level.
+- Document storage path and access boundaries.
+- Optional encryption-at-rest: implement only if low-risk and non-breaking; otherwise document deferment.
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 9 file edits total.
+3) Validation: 1 build + 1 targeted test run; one repair cycle max.
+4) Stop once criteria pass.
+
+Loop guards:
+- Do not repeatedly adjust redaction patterns without adding/adjusting tests.
+- If false positives regress core memory behavior and one repair cycle fails, stop and report.
+
+Fallback behavior:
+- Fallback A: start with blocklist+allowlist policy and explicit-intent gate before advanced classifiers.
+- Fallback B: if encryption-at-rest is risky, mark as deferred with implementation notes.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with exact failing scenarios.
+
+Acceptance criteria:
+- Sensitive payloads are not persisted as plain learned values.
+- Explicit-intent requirement is test-covered.
+- Opt-out and clear-memory behavior is deterministic and test-covered.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Privacy|Learner"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Privacy policy rules
+4) Redaction/blocking behavior
+5) Tests added/updated
+6) Validation results
+7) Step-budget report (planned vs actual counts)

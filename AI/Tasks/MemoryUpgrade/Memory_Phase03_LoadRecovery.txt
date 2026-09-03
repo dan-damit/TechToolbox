@@ -1,0 +1,32 @@
+Improve load diagnostics and recovery behavior in the memory subsystem.
+Apply changes ONLY within the memory subsystem and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Stop silently swallowing load exceptions.
+- Record structured diagnostics: exception type, file path, and selected recovery action (exclude sensitive payloads).
+- Quarantine corrupted/unreadable files with timestamped names.
+- Add load/recovery status fields to MemoryHealthSummary.
+- Explicitly classify: missing file, invalid JSON, access denied/IO failure, unsupported schema/version mismatch.
+- Do not modify unrelated subsystems.
+
+Acceptance criteria:
+- Corrupt primary file triggers deterministic quarantine + recovery path.
+- Health summary distinguishes failure categories and latest recovery action.
+- Logging/diagnostics do not include memory content secrets.
+
+Validation:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Load|Recovery"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Failure taxonomy
+4) Recovery behavior
+5) Tests added/updated
+6) Validation results

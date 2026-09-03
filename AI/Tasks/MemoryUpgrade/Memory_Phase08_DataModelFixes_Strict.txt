@@ -1,0 +1,52 @@
+STRICT MODE: Fix data model inconsistencies and add schema migration support in the memory subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within memory subsystem files and memory tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Memory/MemoryModels.cs
+- src/TechToolbox.Agent/Memory/MemoryStore.cs
+- src/TechToolbox.Agent/Tests/*Memory*.cs
+
+Requirements:
+- Add or complete XML docs for all public memory model members touched.
+- Replace unconstrained string fields with enums or validated value objects where safe.
+- Implement explicit in-code migrations for MemoryFormatVersion transitions.
+- Reject or quarantine unsupported future versions with clear diagnostics.
+- Correct health metrics/counts to exclude derived/system metadata entries.
+- Fix TrendSummary.WindowItems to reflect actual analyzed window size.
+- Do not modify unrelated subsystems.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 10 file edits total.
+3) Validation: 1 build + 1 targeted test run; one repair cycle max.
+4) Stop once criteria pass.
+
+Loop guards:
+- Avoid repeated schema redesigns; maximum 2 migration strategy attempts.
+- If migration tests fail with same signature after one repair cycle, stop and report.
+
+Fallback behavior:
+- Fallback A: implement explicit versioned migration table first, then type-hardening pass.
+- Fallback B: if full type replacement is high-risk, add validated wrappers with backward-compatible serialization.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION.
+
+Acceptance criteria:
+- Supported old versions migrate deterministically to current version.
+- Unsupported future versions do not silently load as valid.
+- Health and trend fields match fixture expectations.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Memory|Model|Migration|Health|Trend"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Model and validation changes
+4) Migration path(s)
+5) Tests added/updated
+6) Validation results
+7) Step-budget report (planned vs actual counts)
