@@ -135,26 +135,68 @@ PrivateData = @{
         # ReleaseNotes of this module
         ReleaseNotes = '
 
-**Condensed Release Notes**
+## Release Notes — Memory Subsystem Upgrade
 
-- Expanded file-ingestion and prompt-retention defaults to reduce truncation during large-task runs.
-- Increased runtime profile budgets for core agent profiles to support larger context and output envelopes.
-- Added provider-aware adaptive limit routing:
-  - Local/loopback paths stay moderate.
-  - Cloud/frontier paths automatically scale higher.
-- Added configurable adaptive profiles in `config.json`, including:
-  - localModerate
-  - frontierHigh
-  - frontierXL
-- Added model matcher routing (first-match-wins) so specific model names/patterns can force profile selection, including Luna-class routing to frontierXL by default.
-- Added effective adaptive-limit preflight capture into markdown logs (instead of console noise).
-- Moved remaining preflight console lines into markdown Preflight output:
-  - Prompt preflight summary
-  - Reasoning effort settings
-  - Runtime assembly path
-- Console output is now cleaner while run metadata is preserved in markdown logs.
-- Updated markdown log writer schema/formatting in `Invoke-TechAgent.PromptAndLogging.ps1` and invocation wiring in `Invoke-TechAgent.ps1`.
-- Documentation updated for adaptive profile behavior, matcher support, and preflight logging behavior in `README.md`.'
+This release hardens the memory subsystem across concurrency, recovery, confidence modeling, privacy, retrieval, and test coverage. Based on the Memory_Phase*_*_Strict task notes, the focus was on making memory safer, more explainable, and more reliable without broad scope changes outside the memory layer.
+
+### Highlights
+
+- Concurrency protection
+  - Added instance-level synchronization and optional named mutex support for multi-process coordination.
+  - Prevented overlapping learner and save operations from corrupting memory/index state.
+  - Preserved backward compatibility while improving deterministic behavior under concurrent access.
+
+- Improved load and recovery behavior
+  - Stopped silently swallowing load failures.
+  - Added structured diagnostics for missing files, invalid JSON, IO/access errors, schema mismatches, and unsupported versions.
+  - Corrupted files are quarantined with timestamped names and explicit recovery status is tracked.
+
+- Smarter confidence scoring
+  - Reworked confidence to be bounded, explainable, and less prone to saturation.
+  - Included evidence strength, recency decay, source reliability, and contradiction handling.
+  - Preserved confidence correctly across index rebuilds and repeated observations.
+
+- Index preservation and rebuild safety
+  - Improved rebuild logic to preserve metadata such as frequency, first/last seen timestamps, stale markers, and deprecation status.
+  - Merged matching rebuilt entries with existing index data and marked historical gaps as stale instead of dropping them without traceability.
+  - Added deterministic behavior for non-string values and cleaner eligibility rules.
+
+- Privacy and sensitive-data controls
+  - Added allowlist-based learning eligibility and required explicit user intent before learning sensitive categories.
+  - Blocked or redacted secrets, tokens, connection strings, emails, and GUID-like identity values.
+  - Added configurable opt-out and clear-memory operations at the memory API level, with storage-boundary guidance.
+
+- Learning accuracy improvements
+  - Tightened durable preference detection and reduced false promotion of one-off instructions.
+  - Added provenance and rationale fields for learned items.
+  - Improved handling of quoted text, negation, hypotheticals, and examples/counterexamples.
+
+- Data model and migration hardening
+  - Tightened model validation and added explicit versioned migration paths.
+  - Rejected unsupported future versions with clear diagnostics.
+  - Corrected health and trend metrics to exclude derived/system metadata and fixed window-sizing inconsistencies.
+
+- Retrieval API enhancements
+  - Added a ranked, read-only retrieval API for memory queries.
+  - Ranking considers exact match, keyword overlap, confidence, recency, and source category/type.
+  - Included concise matching rationale and enforced safe result caps to avoid large prompt-memory injection.
+
+- Test suite expansion
+  - Added deterministic coverage for missing, malformed, and future-version memory files.
+  - Included save/recovery, path handling, concurrency, confidence progression, rebuild preservation, and adversarial learning scenarios.
+  - Strengthened regression protection around memory reliability and safety.
+
+### Release Impact
+
+- Higher reliability for concurrent memory writes and learner operations
+- Safer handling of corrupted or sensitive memory data
+- More accurate and explainable memory learning and retrieval
+- Better auditability and recovery diagnostics for operational incidents
+- Stronger regression coverage for edge cases and failure modes
+
+### Summary
+
+This release turns the memory subsystem from a mostly best-effort store into a more robust, privacy-aware, and operationally diagnosable component. The work primarily improves safety, determinism, explainability, and maintainability while keeping the changes scoped to the memory layer and its test coverage.'
 
         # Prerelease string of this module
         # Prerelease = ''
