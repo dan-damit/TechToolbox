@@ -135,68 +135,70 @@ PrivateData = @{
         # ReleaseNotes of this module
         ReleaseNotes = '
 
-## Release Notes — Memory Subsystem Upgrade
-
-This release hardens the memory subsystem across concurrency, recovery, confidence modeling, privacy, retrieval, and test coverage. Based on the Memory_Phase*_*_Strict task notes, the focus was on making memory safer, more explainable, and more reliable without broad scope changes outside the memory layer.
-
-### Highlights
-
-- Concurrency protection
-  - Added instance-level synchronization and optional named mutex support for multi-process coordination.
-  - Prevented overlapping learner and save operations from corrupting memory/index state.
-  - Preserved backward compatibility while improving deterministic behavior under concurrent access.
-
-- Improved load and recovery behavior
-  - Stopped silently swallowing load failures.
-  - Added structured diagnostics for missing files, invalid JSON, IO/access errors, schema mismatches, and unsupported versions.
-  - Corrupted files are quarantined with timestamped names and explicit recovery status is tracked.
-
-- Smarter confidence scoring
-  - Reworked confidence to be bounded, explainable, and less prone to saturation.
-  - Included evidence strength, recency decay, source reliability, and contradiction handling.
-  - Preserved confidence correctly across index rebuilds and repeated observations.
-
-- Index preservation and rebuild safety
-  - Improved rebuild logic to preserve metadata such as frequency, first/last seen timestamps, stale markers, and deprecation status.
-  - Merged matching rebuilt entries with existing index data and marked historical gaps as stale instead of dropping them without traceability.
-  - Added deterministic behavior for non-string values and cleaner eligibility rules.
-
-- Privacy and sensitive-data controls
-  - Added allowlist-based learning eligibility and required explicit user intent before learning sensitive categories.
-  - Blocked or redacted secrets, tokens, connection strings, emails, and GUID-like identity values.
-  - Added configurable opt-out and clear-memory operations at the memory API level, with storage-boundary guidance.
-
-- Learning accuracy improvements
-  - Tightened durable preference detection and reduced false promotion of one-off instructions.
-  - Added provenance and rationale fields for learned items.
-  - Improved handling of quoted text, negation, hypotheticals, and examples/counterexamples.
-
-- Data model and migration hardening
-  - Tightened model validation and added explicit versioned migration paths.
-  - Rejected unsupported future versions with clear diagnostics.
-  - Corrected health and trend metrics to exclude derived/system metadata and fixed window-sizing inconsistencies.
-
-- Retrieval API enhancements
-  - Added a ranked, read-only retrieval API for memory queries.
-  - Ranking considers exact match, keyword overlap, confidence, recency, and source category/type.
-  - Included concise matching rationale and enforced safe result caps to avoid large prompt-memory injection.
-
-- Test suite expansion
-  - Added deterministic coverage for missing, malformed, and future-version memory files.
-  - Included save/recovery, path handling, concurrency, confidence progression, rebuild preservation, and adversarial learning scenarios.
-  - Strengthened regression protection around memory reliability and safety.
-
-### Release Impact
-
-- Higher reliability for concurrent memory writes and learner operations
-- Safer handling of corrupted or sensitive memory data
-- More accurate and explainable memory learning and retrieval
-- Better auditability and recovery diagnostics for operational incidents
-- Stronger regression coverage for edge cases and failure modes
+## LLM Client Upgrade Release Notes
 
 ### Summary
+- Completed a seven-phase upgrade plan for reliability, architecture, capability handling, routing, testing, optional enhancements, and future extensibility.
+- Scope remains limited to the LLM client stack, related configuration, orchestration boundaries, and tests.
+- Each phase requires deterministic behavior, explicit ownership boundaries, sensitive-data redaction, resource limits, and bounded validation.
 
-This release turns the memory subsystem from a mostly best-effort store into a more robust, privacy-aware, and operationally diagnosable component. The work primarily improves safety, determinism, explainability, and maintainability while keeping the changes scoped to the memory layer and its test coverage.'
+### Phase highlights
+
+#### Phase 1 - Critical reliability
+- Dispose all HTTP responses and avoid unnecessary private HttpClient instances.
+- Distinguish user cancellation from internal timeouts.
+- Refactor Ollama streaming to use response-header streaming with incremental token delivery.
+- Standardize callback and early-stop behavior across providers.
+- Add reliability characterization tests and enforce dependency and compatibility gates.
+
+#### Phase 2 - Architectural consistency
+- Add injectable transport seams where needed for deterministic testing.
+- Stop mutating caller-provided configuration during client resolution.
+- Prefer pure configuration and profile resolution.
+- Support configurable Ollama endpoints, including HTTPS and remote deployments.
+- Improve thread-safe, predictable provider construction and replace static environment reads where practical.
+
+#### Phase 3 - Capability normalization
+- Centralize provider capability metadata.
+- Normalize streaming, reasoning-effort, sampling, and Responses API support flags.
+- Make OpenAI-compatible streaming or non-streaming behavior explicit.
+- Preserve early-stop behavior even for non-streaming providers.
+- Unify callback semantics and cover provider differences with tests.
+
+#### Phase 4 - Routing heuristics
+- Replace simple substring coding detection with stronger token-based or weighted heuristics.
+- Reduce false-positive routing to coding models.
+- Normalize and validate thinking-mode values case-insensitively.
+- Emit diagnostics for missing, invalid, or fallback runtime profiles.
+- Keep routing deterministic and test the revised decision boundaries.
+
+#### Phase 5 - Comprehensive test suite
+- Add deterministic, network-independent coverage for chat and Responses-style payloads.
+- Test response disposal, cancellation, timeouts, streaming transport, callbacks, and early-stop handling.
+- Cover provider, model, and runtime-profile routing.
+- Cover endpoint overrides, reasoning effort, sampling, refusal extraction, and provider-specific behavior.
+- Require at least one previously untested edge case across payload, transport, routing, and callback areas.
+
+#### Phase 6 - Optional enhancements
+- Add structured error taxonomy only where it reduces ambiguity safely.
+- Introduce low-risk observability seams for timing, retries, and streaming latency.
+- Centralize retry and backoff only when provider behavior remains unchanged.
+- Keep enhancements isolated, testable, and compatible with the existing client behavior.
+- Defer broad rewrites or unsafe optional features rather than expanding scope.
+
+#### Phase 7 - Future proofing
+- Add small, declarative extension hooks for future providers and use cases.
+- Preserve current Ollama, OpenAI-compatible, and Azure OpenAI behavior as the baseline.
+- Avoid speculative multi-model execution, persistent memory, tool-state persistence, and framework-style redesigns.
+- Validate extension seams with characterization and phase-specific tests.
+- Prefer minimal composable abstractions and document gaps when no safe seam exists.
+
+### Cross-phase safeguards
+- Every phase uses bounded discovery, edit, and validation budgets.
+- Validation is based on a Release build and targeted tests with at most one repair cycle.
+- Retry, transport, callback, configuration, routing, and extension ownership must remain explicit.
+- Diagnostics and logging must redact sensitive data and respect resource limits.
+- Scope expansion into multi-model execution, persistent context, compression, or unrelated provider changes is explicitly deferred.'
 
         # Prerelease string of this module
         # Prerelease = ''
