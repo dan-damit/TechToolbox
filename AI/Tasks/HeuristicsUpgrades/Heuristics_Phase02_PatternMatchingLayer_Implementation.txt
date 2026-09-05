@@ -1,0 +1,32 @@
+PHASE 02 IMPLEMENTATION PROMPT - PATTERN MATCHING LAYER
+
+Goal:
+Implement a deterministic pattern-matching layer that emits bounded evidence contributions only.
+
+Inputs:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase02_PatternMatchingLayer_Strict.txt
+- Outputs from Phase 01
+
+Required code work:
+- Implement typed pattern contracts including: pattern id, trigger condition, match strength, ambiguity flag, bounded contribution, override flag, conflict metadata.
+- Implement trigger evaluation for high-confidence, fallback, ambiguity, and explicit override-intent patterns.
+- Add deterministic conflict resolution when multiple patterns match.
+- Enforce maximum pattern count and maximum aggregate pattern contribution.
+- Ensure pattern output feeds score composition but never directly sets authorization/refusal/confirmation/sandbox outcome.
+
+Implementation constraints:
+- Keep pattern evaluation deterministic and auditable.
+- Do not modify cost, session reinforcement, or clarification template policy beyond interface compatibility.
+
+Minimum tests to add/update:
+- Trigger determinism tests.
+- Overlap/conflict resolution tests.
+- Ambiguity routing tests.
+- Tests proving pattern evidence cannot weaken safety gates.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Pattern|Trigger|Ambiguity|Override|Fallback"
+
+Deliverable:
+Return pattern contracts, conflict rules, and test evidence for deterministic behavior.

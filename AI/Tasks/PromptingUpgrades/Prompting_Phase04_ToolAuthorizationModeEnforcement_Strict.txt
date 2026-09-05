@@ -1,0 +1,63 @@
+STRICT MODE: Move tool authorization and mode enforcement into the executor.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the executor-facing authorization and mode enforcement surfaces.
+
+Concrete scope:
+- AI/Tasks/PromptingUpgrades/Overview.txt
+- AI/Tasks/PromptingUpgrades/Prompting_Phase04_ToolAuthorizationModeEnforcement_Strict.txt
+- Tool authorization services, mode checks, destructive-action confirmation gates, and structured unauthorized-call error handling.
+
+Requirements:
+- Add a ToolAuthorizationService that enforces mode rules instead of relying on prompt text alone.
+- Enforce Analyze and Plan mode as no-tool modes.
+- Enforce the Chat-mode allowlist and keep its tool surface explicit.
+- Enforce Execute-mode destructive confirmation before dangerous operations proceed.
+- Reject unauthorized calls deterministically and return structured errors.
+- Define the authorization decision model, the structured unauthorized-call error schema, and the source/version of the allowlist.
+- Clarify how confirmation is bound to the exact action and arguments, and fail closed when mode or policy data is missing or invalid.
+- Keep prompt instructions advisory while the executor becomes the real security boundary.
+- Preserve compatibility with existing tool-selection and orchestration surfaces where possible.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Do not expand into prompt section typing, response-contract validation, memory selection, or recovery hardening beyond what is needed to enforce tool authorization.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If authorization logic starts to re-implement prompt policy, stop and keep the executor boundary explicit.
+- If mode enforcement becomes a general routing redesign, stop and constrain it to authorization checks only.
+
+Fallback behavior:
+- Fallback A: add the authorization service and strict allow/deny checks first, then add structured error responses later.
+- Fallback B: if the full enforcement swap is too risky, preserve current behavior and add only explicit authorization seams and tests.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Tool authorization is enforced by an executor-side service.
+- Analyze and Plan modes are no-tool modes.
+- Chat-mode tool access is allowlisted and explicit.
+- Execute-mode destructive actions require confirmation before proceeding.
+- Unauthorized calls fail deterministically with structured errors.
+- The executor fails closed when authorization data, mode data, or allowlist data is missing or invalid.
+- Characterization or phase-specific tests cover mode enforcement and unauthorized-call rejection.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+- The prompting layer does not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Authorization|Mode|Tool|Safety|Boundary|Strict"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Tool authorization and mode enforcement
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

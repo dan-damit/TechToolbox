@@ -1,0 +1,68 @@
+STRICT MODE: Build the pattern-matching layer for heuristics.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the pattern-matching layer and its direct interfaces.
+
+Concrete scope:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase02_PatternMatchingLayer_Strict.txt
+- Pattern definitions, trigger definitions, tool-chain definitions, confidence boost rules, fallback pattern rules, ambiguity patterns, and override patterns for the heuristics subsystem.
+
+Requirements:
+- Define the pattern library before tuning any scoring or routing rules.
+- Specify the exact trigger conditions for each pattern.
+- Define tool-chain expectations for common heuristic cases.
+- Add confidence boosts only where the pattern evidence is strong.
+- Define fallback patterns for weak, ambiguous, or incomplete signals.
+- Define ambiguity patterns so unclear cases route to clarification instead of unsafe execution.
+- Define override patterns for explicit user or system intent that should supersede weaker signals.
+- Keep pattern behavior deterministic and easy to test.
+- Explicitly assign the pattern layer responsibility for evidence generation only; it must not assign the final score, final decision, authorization status, refusal outcome, confirmation requirement, or safety override.
+- Standardize score composition so pattern evidence is merged with a global scoring contract using the documented order: safety gates -> evidence -> scoring -> cost -> advisory reinforcement -> tie-break -> final decision.
+- Define pattern contracts for versioning, precedence, and ambiguity: include pattern id, trigger condition, match strength, evidence contribution bounds, override status, and conflict resolution behavior when multiple patterns match.
+- Define maximum pattern count, maximum evidence contribution, and conflict-resolution rules for overlapping positive, negative, ambiguity, and override patterns.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into cost modeling, session reinforcement, or clarification template design unless required to define pattern ownership.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated scoring or tool-selection behavior in this phase.
+- Explicitly prohibit pattern evidence from weakening authorization, confirmation, sandboxing, or execution safety.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If pattern definitions begin to duplicate scoring policy, stop and separate matching from scoring.
+- If ambiguity handling is rewritten more than twice, stop and narrow back to the smallest safe rule set.
+
+Fallback behavior:
+- Fallback A: implement a minimal pattern library with only the highest-confidence triggers first.
+- Fallback B: if override logic is too risky, keep explicit ambiguity routing and defer overrides to a later refinement.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- The pattern-matching layer has explicit trigger, fallback, ambiguity, and override definitions.
+- Tool-chain expectations are documented or encoded where needed.
+- Confidence boosts are deterministic and testable.
+- Ambiguous inputs route to safe fallback behavior instead of unsafe execution.
+- Characterization or phase-specific tests cover the revised pattern rules.
+- Dependency and ownership boundaries are explicit for any shared heuristics work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Pattern|Trigger|Ambiguity|Override|Fallback"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Pattern library
+4) Trigger behavior
+5) Ambiguity and override behavior
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

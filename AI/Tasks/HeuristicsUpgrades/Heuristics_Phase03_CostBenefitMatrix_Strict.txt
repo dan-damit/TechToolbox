@@ -1,0 +1,67 @@
+STRICT MODE: Define the cost-benefit matrix for heuristics.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the cost-modeling and routing-cost surfaces of the heuristics subsystem.
+
+Concrete scope:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase03_CostBenefitMatrix_Strict.txt
+- Tool cost definitions, cost multipliers, risk multipliers, confidence dampening rules, cost-aware routing rules, and cost-aware clarification rules.
+
+Requirements:
+- Assign an explicit base cost to each relevant tool or tool class.
+- Define cost multipliers for expensive, risky, or high-latency decisions.
+- Define risk multipliers so safety-sensitive actions are weighted conservatively.
+- Define confidence dampening so weak evidence does not justify expensive tool use.
+- Define cost-aware routing so the system prefers cheaper safe options when confidence is low.
+- Define cost-aware clarification so ambiguous cases can ask once before escalating cost.
+- Keep cost behavior deterministic and easy to test.
+- Standardize a single global score contract for this phase: normalized range, clamping, defaults, composition order, and deterministic tie-breaking.
+- Define exact cost units, scale, and formula, including whether costs are additive, multiplicative, or applied as a post-score damping factor.
+- Define the exact confidence threshold for expensive-tool suppression, the maximum allowed cost contribution, and the maximum risk multiplier.
+- Ensure the cost layer composes after evidence and safety gates, and before final routing, without weakening authorization, confirmation, sandboxing, or execution safety.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into pattern-library creation, session reinforcement, or clarification template details unless required to express the cost model.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated pattern or memory behavior in this phase.
+- Explicitly prohibit cost heuristics from lowering hard safety requirements or reducing required confirmation guards.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If cost multipliers begin to duplicate routing policy, stop and separate cost from decision ownership.
+- If confidence dampening is adjusted repeatedly without clearer thresholds, stop and constrain the model.
+
+Fallback behavior:
+- Fallback A: establish a minimal base-cost table and one conservative dampening rule first.
+- Fallback B: if full cost-aware routing is too risky, keep the routing decision simple and only use cost signals for clarification.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Tool costs and multipliers are explicitly defined.
+- Risk and confidence dampening are deterministic and testable.
+- Cost-aware routing prefers cheaper safe behavior when signals are weak.
+- Cost-aware clarification is available for ambiguous or expensive cases.
+- Characterization or phase-specific tests cover the cost-benefit matrix.
+- Dependency and ownership boundaries are explicit for any shared heuristics work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Cost|Risk|Dampening|Clarification|Routing"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Cost model
+4) Risk multipliers
+5) Cost-aware routing and clarification
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

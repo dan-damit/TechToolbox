@@ -1,0 +1,128 @@
+STRICT MODE: Redesign the heuristics subsystem architecture.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the heuristics architecture and its direct interfaces.
+
+Concrete scope:
+- AI/Tasks/HeuristicsUpgrades/Overview.txt
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase01_ArchitectureRedesign_Strict.txt
+- Any heuristics subsystem design notes or implementation surfaces that define scoring, priors, penalties, boosts, pattern matching, cost modeling, session reinforcement, clarification gating, failure avoidance, tool selection logic, and safety boundaries.
+
+Requirements:
+- Redesign the full heuristics architecture before tuning individual signals.
+- Define the owning abstraction for each major heuristics concern.
+- Separate scoring, routing, gating, and safety boundaries into clearly named responsibilities.
+- Establish a deterministic scoring model that is easy to test.
+- Define the shared score contract for the overall heuristics system: canonical score range, default values, clamping rules, deterministic tie-break rules, and composition order.
+- Define the shared terminology for evidence, score, decision, override, reinforcement, clarification, and refusal so later phases use compatible semantics.
+- Define both contracts explicitly: computational order and authority precedence. Computational order governs how values are assembled; authority precedence governs which rules can block or override others.
+- Preserve hard safety boundaries and explicit refusal conditions.
+- Define how priors, penalties, boosts, cost signals, and session-advisory signals compose in the new model.
+- Keep pattern matching and tool selection logic compatible with later phases.
+- Explicitly state that pattern matching produces evidence only and does not directly decide authorization, confirmation, sandboxing, or execution safety.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Document numeric contribution limits: maximum individual boost, maximum individual penalty, maximum total pattern contribution, and maximum session reinforcement contribution.
+- Define missing or absent evidence behavior: absent evidence is zero unless the signal explicitly defines a neutral prior; neutral priors must be deliberate and bounded.
+- Define the safety gate sequence: precheck, eligibility gate, and final execution gate. A later score cannot override an earlier gate failure.
+- Do not expand into pattern-library details, cost table tuning, session memory policy, or clarification templates unless needed to establish the architecture.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated agent behavior or execution policy in this phase.
+- Explicitly prohibit the heuristics layer from weakening authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If architectural boundaries begin to overlap without a clear owner, stop and re-establish the owning abstraction.
+- If scoring logic is reworked twice without a clearer deterministic model, stop and report the blocker.
+
+Fallback behavior:
+- Fallback A: define a minimal architecture with separate scoring, gating, and safety layers first, then refine composition later.
+- Fallback B: if a full redesign is too risky, preserve current behavior and introduce only explicit ownership boundaries and test seams.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- The heuristics subsystem has explicit ownership boundaries for architecture, scoring, gating, and safety.
+- The scoring model is deterministic and mechanically testable.
+- Safety boundaries are explicit and preserved.
+- Priors, penalties, boosts, and cost signals have a documented composition order.
+- Characterization or phase-specific tests cover the redesigned architecture.
+- Dependency and ownership boundaries are explicit for any shared heuristics work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Heuristic|Scoring|Safety|Boundary|Architecture"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Architecture and ownership boundaries
+4) Scoring model
+5) Safety boundaries
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)
+
+## Phase 01 Architecture Contract
+
+### Ownership boundaries
+- Architecture contract: owns the stable interfaces, composition order, terminology, and dependency direction. It does not calculate scores or authorize execution.
+- Evidence collector: owns bounded extraction of request features, prior outcomes, pattern results, cost signals, and session advisories. It returns evidence only.
+- Pattern matcher: owns pattern recognition and returns typed, bounded evidence. Pattern matching never decides authorization, confirmation, sandboxing, refusal, or execution safety.
+- Score composer: owns deterministic score calculation, defaults, clamping, and composition of priors, boosts, penalties, costs, and advisory reinforcement.
+- Safety gate: owns authorization, confirmation, sandboxing, trust, resource limits, refusal conditions, and final execution safety. It is never subordinate to a heuristic score.
+- Route selector: owns candidate comparison and deterministic tie-breaking after scoring and safety eligibility are known.
+- Clarification gate: owns detection of missing or material ambiguity and routes to clarification without treating it as refusal.
+- Diagnostics boundary: owns bounded, redacted observability. It must not log secrets, credentials, tokens, full prompts, unrestricted tool output, or sensitive raw evidence.
+
+Dependency direction is one-way: architecture -> evidence and pattern interfaces -> scoring -> routing -> clarification/final safety gates. Safety policy is a prerequisite and final authority; no advisory component may call execution directly.
+
+### Deterministic scoring model
+For each eligible route r, use the following conceptual order:
+1. Start with the explicit prior P(r), defaulting to 0.5 when absent.
+2. Add bounded positive boosts B(r).
+3. Subtract bounded negative penalties N(r).
+4. Subtract bounded cost adjustment C(r), where higher cost cannot improve a route.
+5. Add bounded session advisory A(r), with a documented maximum contribution and no policy authority.
+6. Clamp the result to [0.0, 1.0].
+
+S(r) = clamp(P(r) + sum(B(r)) - sum(N(r)) - C(r) + A(r), 0.0, 1.0)
+
+All inputs are finite, normalized, and bounded before composition. Missing or malformed evidence uses the explicit neutral default 0.5 or the owner's documented zero contribution. Arithmetic is invariant and deterministic; no randomness, locale-dependent comparison, or time-dependent score mutation is permitted.
+
+The canonical score range is inclusive [0.0, 1.0]. Scores are suitability estimates, not authorization. Ties resolve by stable route priority, then lower estimated cost, then ordinal tool identifier. Input order never resolves a tie.
+
+### Routing, gating, and safety
+The pipeline is: safety precheck -> bounded evidence collection -> pattern evidence -> score composition -> cost adjustment -> session advisory -> deterministic tie-break -> clarification and final safety/policy gates -> route. Safety and policy results are boolean or enum gates, not scores, and always outrank heuristic output. Explicit overrides may only originate from higher-precedence policy or safety owners.
+
+Pattern evidence remains compatible with later pattern-library phases because the matcher returns evidence records rather than routes. Tool selection consumes scored candidates only after safety eligibility. Clarification is selected for missing or ambiguous information; refusal is selected for unsafe, unauthorized, disallowed, or impossible requests.
+
+### Compatibility and dependency gates
+Phase 02 or later may proceed only after:
+- each concern has one named owner and no circular dependency;
+- score, default, clamp, composition, and tie behavior have boundary tests;
+- existing pattern and tool-selection interfaces have adapters or unchanged compatible contracts;
+- tests prove reinforcement, cost, and pattern evidence cannot bypass safety or confirmation;
+- diagnostics tests prove redaction and event/field limits;
+- build and the targeted heuristic test filter pass.
+
+### Phase-specific test plan
+Add or retain characterization tests for: neutral defaults; lower and upper clamping; malformed/non-finite input handling; exact composition order; cost monotonicity; bounded advisory reinforcement; deterministic ties independent of input order; pattern evidence having no authorization effect; refusal and confirmation precedence; clarification versus refusal; and diagnostic redaction/resource limits. Tests must exercise the public seams without changing unrelated agent behavior.
+
+### Mechanically verifiable acceptance criteria
+- Static review finds distinct owners for architecture, evidence, scoring, routing, clarification, safety, and diagnostics.
+- Boundary tests demonstrate every returned score is finite and within [0.0, 1.0].
+- Composition and tie tests produce identical results for identical inputs and stable results under reordered inputs.
+- Safety tests demonstrate that no score, pattern, cost, or reinforcement signal weakens authorization, confirmation, sandboxing, refusal, or execution checks.
+- Diagnostic tests demonstrate secret redaction and bounded output.
+- The prescribed Release build and targeted test command pass before the next phase.
+
+### Scope and fallback
+This phase does not tune pattern libraries, cost tables, session policy, or clarification templates. If implementation risk prevents a full redesign, preserve current behavior and introduce these ownership and test seams first (Fallback B). If boundaries cannot remain distinct, stop and re-establish ownership before further edits. After one failed repair cycle, report FAILED_VALIDATION with the exact failing assertions.

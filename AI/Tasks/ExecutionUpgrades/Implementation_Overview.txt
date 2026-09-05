@@ -1,0 +1,41 @@
+IMPLEMENTATION PROMPT SET - EXECUTION UPGRADES
+
+Purpose:
+- These prompts convert the execution design-phase specs into implementation tasks that produce actual code and tests.
+- Run phases in order. Each phase assumes prior phases are complete.
+
+Execution model:
+- For each phase, modify production code and tests in the execution subsystem.
+- Keep edits bounded and deterministic.
+- Preserve safety invariants: never weaken authorization, confirmation, sandboxing, refusal rules, or execution safety.
+
+Primary target surfaces:
+- src/TechToolbox.Agent/Execution/*
+- src/TechToolbox.Agent/Tools/* (only direct execution and validation seams)
+- src/TechToolbox.Agent/Orchestrator/* (only direct integration seams)
+- src/TechToolbox.Agent/Tests/*Execution* and related focused test files
+
+Global contracts:
+- Security pipeline order:
+  resolve -> validate -> authorize -> execute -> normalize.
+- Authority precedence:
+  policy/system guardrails > execution safety/authorization/confirmation > explicit intent > execution reliability and routing details.
+- Shared contracts remain stable across phases:
+  error and result model, cancellation semantics, authorization ownership, telemetry ownership, file-operation semantics, rollback and recovery behavior.
+- Logs, telemetry, and diagnostics must be redacted and resource-bounded.
+
+Per-phase output format:
+1) Summary
+2) Files changed
+3) Code changes
+4) Tests added/updated
+5) Validation results
+6) Known risks
+
+Validation baseline per phase:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Execution|Security|Authorization|Runspace|Async|Telemetry|Hardening"
+
+Stop conditions:
+- Stop if a requested change would violate safety invariants.
+- Stop after three focused repair cycles for phase-related failures and report exact failing assertions.

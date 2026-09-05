@@ -1,0 +1,74 @@
+STRICT MODE: Add observability, telemetry, and regression coverage for the execution subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the execution observability, telemetry, and regression-test surfaces.
+
+Concrete scope:
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase04_ObservabilityTelemetryRegressionCoverage_Strict.txt
+- Structured error categories, stable error codes, redaction rules, telemetry for runspace identity/reset/quarantine/process timeouts, and regression tests for the execution subsystem.
+
+Requirements:
+- Add structured error categories for validation, authorization, timeout, transport, tool-failure, and policy-blocked cases.
+- Define whether the error taxonomy is closed or extensible, and whether callers may depend on numeric codes, string codes, or both.
+- Define a stable error-code naming convention and precedence when multiple errors apply.
+- Add stable error codes and redaction rules.
+- Add telemetry for runspace identity, reset status, quarantines, and process timeouts.
+- Define telemetry event names, required fields, correlation identifiers, duration units, and cardinality limits.
+- Clarify what runspace identity means so raw infrastructure identifiers are not exposed by accident.
+- Build a regression test suite covering malicious tool names, invalid parameters, runspace contamination, concurrent execution, atomic writes, regex timeouts, DNS rebinding, NOAA host restrictions, and dotnet process-tree containment.
+- Split regression coverage into mandatory phase gates and optional extended coverage if the suite is too broad for a single phase run.
+- Keep observability bounded so logs, traces, and diagnostics cannot leak secrets or exceed resource limits.
+- Preserve the distinction between telemetry, policy, and execution results.
+- Make diagnostic formats stable enough for automated assertions.
+- Specify exactly which fields are redacted, hashed, truncated, or omitted.
+- Prevent secrets from entering exception chains, replay data, activity tags, or metric labels.
+- Add tests that assert sensitive values are absent from logs and telemetry, not just that events exist.
+- Require observability failures to remain non-fatal unless they block required safety evidence.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into new policy behavior, new routing rules, or new execution capabilities unless required to record and validate observability data.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated execution semantics in this phase.
+- Explicitly prohibit observability changes from weakening authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If telemetry begins to duplicate business logic or policy decisions, stop and restore telemetry as observation only.
+- If regression coverage grows beyond execution-safety and boundary behavior, stop and narrow back to the named cases.
+
+Fallback behavior:
+- Fallback A: implement a minimal error taxonomy and a small set of telemetry fields first, then broaden coverage later.
+- Fallback B: if full telemetry plumbing is too risky, keep stable error categories and add bounded diagnostic snapshots only where needed for tests.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Structured error categories and stable codes are explicit.
+- Telemetry records the required runspace and process lifecycle details.
+- Regression tests cover the listed execution-safety cases.
+- Diagnostics remain redacted and bounded.
+- Multiple simultaneous errors have deterministic precedence.
+- Characterization or phase-specific tests cover observability behavior.
+- Dependency and ownership boundaries are explicit for any shared execution work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Telemetry|Error|Category|Code|Redaction|Regression|Containment"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Error taxonomy and redaction rules
+4) Telemetry and lifecycle events
+5) Regression coverage
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

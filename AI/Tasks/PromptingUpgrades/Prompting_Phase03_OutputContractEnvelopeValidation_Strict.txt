@@ -1,0 +1,61 @@
+STRICT MODE: Make output contracts deterministic and validated outside the prompt.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the response-contract and output-validation surfaces.
+
+Concrete scope:
+- AI/Tasks/PromptingUpgrades/Overview.txt
+- AI/Tasks/PromptingUpgrades/Prompting_Phase03_OutputContractEnvelopeValidation_Strict.txt
+- Response contract models, envelope validation helpers, finalAnswer validators, and prompt formatting instructions that depend on contract type.
+
+Requirements:
+- Define a ResponseContract.cs with a ContractType enum for Markdown, PlainText, and Json.
+- Define the exact outer envelope schema, required fields, allowed fields, nullability, and unknown-field behavior.
+- Add executor-side validation for finalAnswer content, malformed JSON, and contract drift.
+- Separate invalid envelope, invalid contract declaration, invalid finalAnswer, and contract drift into distinct failure cases.
+- Make the outer envelope and inner response contract rules explicit so there is no ambiguity about what the model should return.
+- Generate formatting instructions only when the selected contract requires them.
+- Reject invalid contracts deterministically instead of trying to infer the intended shape from malformed output.
+- Define whether validation runs before or after any recovery layer, and keep repair ownership in Phase 06.
+- Keep JSON envelope handling and finalAnswer validation mechanically testable.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Do not expand into section typing, executor tool authorization, memory budgeting, or recovery hardening beyond what is needed to validate the response contract.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If output-contract ownership starts to overlap with policy centralization or tool authorization, stop and keep the contract boundary explicit.
+- If malformed JSON repair logic drifts into broader recovery policy, stop and re-establish the contract owner.
+
+Fallback behavior:
+- Fallback A: add the contract enum and validator first, then wire envelope-specific formatting instructions later.
+- Fallback B: if full validation is too risky, preserve current behavior and introduce only explicit contract checks and tests.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- The system has a typed response contract for Markdown, PlainText, and Json.
+- finalAnswer validation rejects malformed or contract-drifting output deterministically.
+- Envelope and inner JSON rules are explicit and mechanically testable.
+- Validation distinguishes invalid envelope, invalid contract, invalid finalAnswer, and drift.
+- Characterization or phase-specific tests cover contract validation and drift rejection.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+- The prompting layer does not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Contract|Envelope|Json|FinalAnswer|Validation|Strict"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Response contract and envelope validation
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

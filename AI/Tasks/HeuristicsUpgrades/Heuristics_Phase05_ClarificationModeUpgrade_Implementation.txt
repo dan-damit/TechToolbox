@@ -1,0 +1,33 @@
+PHASE 05 IMPLEMENTATION PROMPT - CLARIFICATION MODE UPGRADE
+
+Goal:
+Implement deterministic clarification triggering and templating, with strict separation between clarification and refusal.
+
+Inputs:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase05_ClarificationModeUpgrade_Strict.txt
+- Outputs from Phases 01-04
+
+Required code work:
+- Implement explicit detectors for vague requests, ambiguity, missing target, missing verb, and missing constraints.
+- Implement deterministic trigger precedence when multiple missing facts exist.
+- Implement concise template selection mapped to missing-fact categories.
+- Implement clarification loop guard: max rounds, unresolved-fact identity, safe fallback on exhaustion.
+- Preserve prior answered facts to avoid repeated questions.
+- Keep refusal path separate for unsafe/unauthorized/forbidden requests.
+
+Implementation constraints:
+- Clarification logic must not weaken safety gates.
+- Template outputs must be bounded, concise, and non-redundant.
+
+Minimum tests to add/update:
+- Trigger classification tests.
+- Template selection determinism tests.
+- Loop-limit and fallback tests.
+- Clarification-vs-refusal boundary tests.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Clarification|Ambiguity|Missing|Vague|Override"
+
+Deliverable:
+Return detector rules, template map, loop guard behavior, and test proof of boundary correctness.

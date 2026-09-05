@@ -1,0 +1,37 @@
+PHASE 02 IMPLEMENTATION PROMPT - RELIABILITY, ISOLATION, AND ASYNC EXECUTION
+
+Goal:
+Implement bounded asynchronous execution with cancellation, lease isolation, and deterministic timeout behavior.
+
+Inputs:
+- AI/Tasks/ExecutionUpgrades/Execution_Phase02_ReliabilityIsolationAsyncExecution_Strict.txt
+- Outputs from Phase 01
+
+Required code work:
+- Implement RunToolAsync and async execution paths for PowerShell, HTTP, file I/O, and process execution.
+- Thread CancellationToken through execution stages and define stage-aware cancellation outcomes.
+- Implement a runspace lease state machine with explicit transitions and ownership rules.
+- Implement runspace reset, quarantine, replacement, and disposal rules for timeout, contamination, reset failure, and unrecoverable faults.
+- Implement explicit contamination detection and health checks instead of timeout-only assumptions.
+- Implement bounded output draining for stdout, stderr, combined output, and post-kill cleanup windows.
+- Implement deterministic precedence and reporting when cancellation and timeout co-occur.
+- Implement stable structured execution results with immutable or assertion-safe fields.
+- Preserve compatibility seams for existing synchronous callers.
+
+Implementation constraints:
+- Reliability logic is not allowed to alter authorization, confirmation, sandboxing, or policy ownership.
+- Keep waits bounded and avoid unbounded post-kill or drain behavior.
+
+Minimum tests to add/update:
+- Cancellation tests for queued, leased, running, terminating, and draining states.
+- Lease state transition and ownership tests.
+- Quarantine and replacement tests.
+- Drain-timeout and output-bound tests.
+- Tests for co-occurring timeout and cancellation result semantics.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Async|Cancellation|Runspace|Lease|Timeout|Drain|Structured"
+
+Deliverable:
+Return async lifecycle model, lease state-machine behavior, structured result schema, and test proof for bounded reliability.

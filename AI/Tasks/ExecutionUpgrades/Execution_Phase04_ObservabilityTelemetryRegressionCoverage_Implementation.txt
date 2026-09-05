@@ -1,0 +1,35 @@
+PHASE 04 IMPLEMENTATION PROMPT - OBSERVABILITY, TELEMETRY, AND REGRESSION COVERAGE
+
+Goal:
+Implement stable, redacted observability contracts and regression coverage for execution-boundary behavior.
+
+Inputs:
+- AI/Tasks/ExecutionUpgrades/Execution_Phase04_ObservabilityTelemetryRegressionCoverage_Strict.txt
+- Outputs from Phases 01-03
+
+Required code work:
+- Implement structured error categories and stable error codes with explicit naming conventions.
+- Implement deterministic precedence for multi-error scenarios.
+- Implement telemetry event contracts with required fields, correlation identifiers, duration units, and cardinality limits.
+- Implement runspace lifecycle telemetry for identity, reset status, quarantine state, and process timeout events.
+- Define and implement redaction policy for paths, arguments, headers, environment values, identifiers, and tool output fragments.
+- Ensure observability failures are non-fatal unless required safety evidence would be lost.
+- Implement mandatory regression gates for core safety boundaries and optional extended gates for broader scenarios.
+
+Implementation constraints:
+- Observability components may observe but may not change policy or execution decisions.
+- Avoid unbounded metric labels or high-cardinality event dimensions.
+
+Minimum tests to add/update:
+- Error-category and code stability tests.
+- Multi-error precedence tests.
+- Redaction absence tests (sensitive values must not appear).
+- Telemetry schema and cardinality tests.
+- Regression tests for malicious tool names, invalid args, contamination, atomic writes, DNS rebinding, NOAA restrictions, and process-tree containment.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Telemetry|Error|Category|Code|Redaction|Regression|Containment"
+
+Deliverable:
+Return error taxonomy, telemetry schema, redaction matrix, regression-gate matrix, and validation evidence.

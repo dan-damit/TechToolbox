@@ -1,0 +1,41 @@
+PHASE 02 IMPLEMENTATION PROMPT - STRUCTURED PROMPT SECTIONS
+
+Goal:
+Implement typed, trust-scoped prompt sections and deterministic composition that isolates untrusted content.
+
+Inputs:
+- AI/Tasks/PromptingUpgrades/Prompting_Phase02_StructuredPromptSections_Strict.txt
+- Outputs from Phase 01
+
+Required code work:
+- Introduce PromptSection model with explicit discriminator and trust enum.
+- Implement section types:
+  - TrustedPolicySection
+  - UntrustedUserGoalSection
+  - UntrustedMemorySection
+  - UntrustedToolMetadataSection
+  - UntrustedToolResultSection
+- Ensure each section carries trust metadata, budget metadata, labeling rules, and escape/encoding behavior.
+- Implement deterministic section ordering for final prompt composition.
+- Define canonical delimiters and delimiter-collision handling so untrusted text cannot spoof boundaries.
+- Budget rendered section output (post-labeling/escaping), not raw input.
+- Ensure registry/history/mode context are represented as explicit sections or explicit composition inputs.
+
+Implementation constraints:
+- Preserve Phase 01 policy ownership and consume it as input, not duplicate it.
+- Keep this phase prompt-construction only; do not move into executor authorization/contract enforcement/recovery.
+- Maintain bounded and redacted diagnostics.
+
+Minimum tests to add/update:
+- Section typing and trust-label tests.
+- Deterministic ordering tests (including stable output for equal-priority inputs).
+- Escaping and delimiter-collision tests against boundary spoofing.
+- Required-section over-budget behavior tests.
+- Empty-section rendering policy tests.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Section|Trust|Budget|Memory|Label|Boundary|Strict"
+
+Deliverable:
+Return section model definitions, ordering/escaping rules, and test proof of injection-resistant composition.

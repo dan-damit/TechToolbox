@@ -1,0 +1,53 @@
+PHASE 01 SUPPLEMENTAL INTEGRATION PROMPT - DIAGNOSTICS BOUND FAILURE REPAIR
+
+Goal:
+Resolve the single remaining Phase 01 failure in PromptPolicy diagnostics bounds by making test expectations and implementation constraints internally consistent, without weakening redaction or safety guarantees.
+
+Concrete target:
+- Test failure in src/TechToolbox.Agent/Tests/PromptPolicyTests.cs
+- Failing test: Diagnostics_AreBoundedAndDoNotIncludePromptContent
+- Observed mismatch: max length 32 requires both keys policyVersion= and policyFingerprint=, which cannot both fit with separators and fingerprint content.
+
+Scope:
+- Allowed production surface: src/TechToolbox.Agent/Prompting/PromptPolicy.cs (only if needed)
+- Required test surface: src/TechToolbox.Agent/Tests/PromptPolicyTests.cs
+- Do not broaden into other phases or unrelated prompt/orchestrator changes.
+
+Required behavior contract:
+- Diagnostics remain bounded by caller-provided max length.
+- Diagnostics remain redacted and must never include prompt body content.
+- Diagnostics continue exposing canonical metadata fields (policy version and fingerprint) when size budget permits.
+- Behavior under tiny limits must be deterministic and safe (truncate predictably, no exceptions).
+
+Implementation instructions:
+- Apply the smallest deterministic fix that preserves current policy ownership semantics.
+- Reconcile the incompatible assertion by one of these acceptable strategies:
+  1) Keep current diagnostics format and update the failing test to use a realistic max length for asserting both field names, and add a separate tiny-limit assertion that verifies strict bounding and redaction.
+  2) If format is adjusted in production, keep diagnostics redacted and deterministic, and update tests to validate both normal-budget metadata presence and tiny-budget truncation behavior.
+- Do not remove bounded behavior checks.
+- Do not remove redaction checks.
+- Do not weaken any safety, authorization, or execution constraints.
+
+Minimum tests to pass/update:
+- Diagnostics_AreBoundedAndDoNotIncludePromptContent must pass.
+- Add or update assertions to prove both:
+  - Normal budget: includes policyVersion= and policyFingerprint=.
+  - Tight budget: output length is bounded and still excludes prompt content.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PromptPolicyTests.Diagnostics_AreBoundedAndDoNotIncludePromptContent"
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Prompt|Policy|Section|Contract|Envelope|Authorization|Budget|Memory|Recovery|Strict"
+
+Stop conditions:
+- Stop if a change would weaken redaction, boundedness, authorization boundaries, confirmation, sandboxing, refusal rules, or execution safety.
+- Stop after one focused repair cycle for any new failure introduced by this supplemental change.
+
+Deliverable format:
+1) Summary
+2) Files changed
+3) Exact failing assertion repaired
+4) Code changes
+5) Tests updated
+6) Validation results
+7) Known risks

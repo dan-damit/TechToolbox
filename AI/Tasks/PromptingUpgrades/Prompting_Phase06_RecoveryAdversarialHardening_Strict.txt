@@ -1,0 +1,61 @@
+STRICT MODE: Harden recovery paths against malformed and adversarial output.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the recovery, parsing, and prompt-repair surfaces.
+
+Concrete scope:
+- AI/Tasks/PromptingUpgrades/Overview.txt
+- AI/Tasks/PromptingUpgrades/Prompting_Phase06_RecoveryAdversarialHardening_Strict.txt
+- Recovery logic, parser diagnostics, invalid-output repair messages, and adversarial test cases for prompt and tool-result handling.
+
+Requirements:
+- Replace replaying invalid model output with structured parser diagnostics, expected schema summaries, and minimal encoded snippets.
+- Ensure any snippet used for recovery is escaped, truncated, and labeled as untrusted.
+- Define the recovery state machine, attempt counting, and stable error codes.
+- Add adversarial tests for fake system messages, fake tool calls, fake JSON envelopes, oversized memory, and malformed tool results.
+- Add explicit protection against delimiter injection, control characters, and nested fake envelopes.
+- Add deterministic failure paths after N recovery attempts so recovery cannot loop forever.
+- Keep recovery from invoking tools or overriding earlier authorization decisions.
+- Keep the recovery path safe, predictable, and injection-resistant.
+- Preserve the earlier policy, section, contract, authorization, and budgeting boundaries while hardening the final recovery layer.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Do not expand into unrelated transport layers or external agent subsystems.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If recovery logic starts to replicate policy or authorization owners, stop and keep recovery bounded to diagnostics and replay handling.
+- If adversarial hardening becomes a broader prompt architecture redesign, stop and constrain it to the recovery path.
+
+Fallback behavior:
+- Fallback A: add structured diagnostics and truncated untrusted snippets first, then add attempt limits and adversarial cases later.
+- Fallback B: if the full hardening pass is too risky, preserve current behavior and add only explicit diagnostics and tests.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Recovery uses structured diagnostics instead of raw replay of invalid output.
+- Adversarial tests cover fake system messages, fake tool calls, fake JSON envelopes, oversized memory, and malformed tool results.
+- Recovery attempts terminate deterministically after the configured limit.
+- Diagnostics remain bounded, escaped, and untrusted even when they contain parser excerpts.
+- Characterization or phase-specific tests cover the hardened recovery path.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+- The prompting layer does not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Recovery|Adversarial|Injection|Validation|Strict"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Recovery and adversarial hardening
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

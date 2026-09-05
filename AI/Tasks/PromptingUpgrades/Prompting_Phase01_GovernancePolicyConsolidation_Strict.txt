@@ -1,0 +1,61 @@
+STRICT MODE: Consolidate prompting governance and policy.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the prompting policy layer and its direct prompt-construction interfaces.
+
+Concrete scope:
+- AI/Tasks/PromptingUpgrades/Overview.txt
+- AI/Tasks/PromptingUpgrades/Prompting_Phase01_GovernancePolicyConsolidation_Strict.txt
+- Prompt policy objects, prompt builders, shared prompt templates, envelope formatting helpers, mode configuration, and output-contract helpers that control Chat, Analyze, Plan, Execute, CodingAgent, and Custom prompts.
+
+Requirements:
+- Create a canonical PromptPolicy.cs that centralizes the JSON envelope schema, tool-authorization rules, safety rules, output-contract rules, and recovery rules.
+- Define PromptPolicy as immutable, serializable, versioned, and usable for both rendering and downstream checks.
+- Clarify ownership boundaries between policy text, mode-specific wording, and downstream composition or executor enforcement.
+- Define precedence rules when mode-specific rules conflict with the canonical policy.
+- Replace repeated string fragments with references to the canonical policy instead of duplicating policy text across prompt builders.
+- Ensure every supported mode inherits the same base policy, even when the mode-specific preamble or tone differs.
+- Keep the policy deterministic, centralized, and mechanically testable.
+- Require a policy version or fingerprint so tests and diagnostics can identify the exact policy used.
+- Preserve current behavior where the task is only to centralize policy text and remove drift.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Do not expand into structured prompt sections, response-contract validation, tool authorization execution logic, memory budgeting, or recovery hardening beyond what is required to centralize policy.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If policy ownership starts to overlap with section composition or executor-side authorization, stop and re-establish the owning abstraction.
+- If repeated string replacement becomes a broader refactor than policy consolidation, stop and keep the phase boundary explicit.
+
+Fallback behavior:
+- Fallback A: introduce the canonical policy object and wire the existing prompt builders to it first, then remove duplicate fragments later.
+- Fallback B: if the full consolidation is too risky, preserve current behavior and introduce only explicit policy constants and test seams.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- One canonical PromptPolicy owns the shared JSON envelope, safety, tool, output-contract, and recovery rules.
+- Every supported mode uses the same base policy text.
+- Repeated policy fragments are removed or replaced by canonical references.
+- Conflicting mode-specific fragments resolve deterministically against the canonical policy.
+- Characterization or phase-specific tests cover the centralized policy behavior.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+- The prompting layer does not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Prompt|Policy|Envelope|Contract|Boundary|Strict"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Policy consolidation contract
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

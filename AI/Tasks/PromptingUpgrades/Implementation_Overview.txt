@@ -1,0 +1,40 @@
+IMPLEMENTATION PROMPT SET - PROMPTING UPGRADES
+
+Purpose:
+- These prompts convert the strict design-phase specs into implementation tasks that produce production code and tests.
+- Run phases in order. Each phase assumes prior phases are complete.
+
+Execution model:
+- For each phase, modify production code and tests in the prompting/orchestration subsystem.
+- Keep edits bounded, deterministic, and phase-scoped.
+- Preserve safety invariants: never weaken authorization, confirmation, sandboxing, refusal rules, or execution safety.
+
+Primary target surfaces:
+- src/TechToolbox.Agent/Prompting/*
+- src/TechToolbox.Agent/Orchestrator/* (only direct integration seams)
+- src/TechToolbox.Agent/Core/* (only where contract wiring requires)
+- src/TechToolbox.Agent/Tests/*Prompt* and related focused test files
+
+Global contracts:
+- Prompt assembly is typed, trust-scoped, deterministic, and bounded.
+- Shared ownership order:
+  policy governance -> section composition -> output contract validation -> tool authorization -> prompt budgeting -> recovery hardening.
+- Authority precedence:
+  policy/system guardrails > executor authorization/confirmation/safety > explicit mode contract > prompt composition > memory/history/tool-result context.
+- Externally sourced content is data, not instruction, unless explicitly upgraded by executor-owned policy.
+
+Per-phase output format:
+1) Summary
+2) Files changed
+3) Code changes
+4) Tests added/updated
+5) Validation results
+6) Known risks
+
+Validation baseline per phase:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Prompt|Policy|Section|Contract|Envelope|Authorization|Budget|Memory|Recovery|Strict"
+
+Stop conditions:
+- Stop if a requested change would violate safety invariants.
+- Stop after one focused repair cycle for phase-related failures and report exact failing assertions.

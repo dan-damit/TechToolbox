@@ -1,0 +1,68 @@
+STRICT MODE: Upgrade the clarification mode for heuristics.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the clarification layer and its direct interfaces.
+
+Concrete scope:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase05_ClarificationModeUpgrade_Strict.txt
+- Vague detection, ambiguity detection, missing target detection, missing verb detection, missing constraints detection, clarification templates, clarification triggers, and clarification overrides.
+
+Requirements:
+- Refine vague-detection rules so unclear requests are caught early.
+- Refine ambiguity detection so conflicting intent routes to clarification instead of unsafe action.
+- Refine missing-target detection so the system asks for a concrete target when needed.
+- Refine missing-verb detection so the system asks for an action when the intent is underspecified.
+- Refine missing-constraints detection so the system asks for the minimum necessary constraints.
+- Define reusable clarification templates that are concise and specific.
+- Define clarification triggers that are deterministic and easy to test.
+- Define clarification overrides for explicit user or system intent that should bypass a question.
+- Explicitly define the boundary between clarification and refusal: clarification handles underspecified, ambiguous, or missing required context; refusal handles unsafe, unauthorized, forbidden, or policy-violating requests.
+- Define a clarification loop limit and safe stop condition to prevent repeated or circular questioning; if the same missing fact remains unresolved after the allowed loop budget, stop and escalate to a conservative refusal or fallback.
+- Define the default clarification round limit, what counts as the same unresolved fact, and the exact fallback after the loop budget is exhausted.
+- Define a precedence order for multiple missing facts and a deterministic template-selection table for the most appropriate question.
+- Define safe fallback behavior for repeated unresolved ambiguity and preserve already supplied context without re-asking known facts.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into the pattern library, cost multipliers, or reinforcement policy unless required to define clarification ownership.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated tool selection or safety policy in this phase.
+- Explicitly prohibit clarification logic from weakening authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If clarification rules begin to produce repetitive or redundant prompts, stop and collapse them into the smallest useful template set.
+- If override logic becomes broader than clarification ownership, stop and narrow the scope.
+
+Fallback behavior:
+- Fallback A: implement only the highest-risk missing-target and ambiguity checks first.
+- Fallback B: if full template coverage is risky, keep one conservative clarification template and one override path.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Vague, ambiguous, and underspecified cases trigger clarification deterministically.
+- Clarification templates are concise and reusable.
+- Clarification overrides are explicit and safe.
+- Characterization or phase-specific tests cover the clarification behavior.
+- Dependency and ownership boundaries are explicit for any shared heuristics work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Clarification|Ambiguity|Missing|Vague|Override"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Clarification triggers
+4) Clarification templates
+5) Clarification overrides
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

@@ -1,0 +1,35 @@
+PHASE 01 IMPLEMENTATION PROMPT - GOVERNANCE AND POLICY CONSOLIDATION
+
+Goal:
+Implement a canonical, versioned prompt policy owner and remove duplicated policy fragments from prompt-building surfaces.
+
+Inputs:
+- AI/Tasks/PromptingUpgrades/Prompting_Phase01_GovernancePolicyConsolidation_Strict.txt
+- AI/Tasks/PromptingUpgrades/Overview.txt
+
+Required code work:
+- Create or finalize PromptPolicy.cs as the canonical source for shared envelope, safety, tool-policy declarations, output-contract defaults, and recovery-policy declarations.
+- Define PromptPolicy shape explicitly (immutable where practical, serializable, versioned/fingerprinted).
+- Wire all supported modes (Chat, Analyze, Plan, Execute, CodingAgent, Custom) to inherit the same base policy while keeping mode-specific tone/preamble separate.
+- Replace repeated policy strings in prompt builders/templates with canonical policy references.
+- Define deterministic precedence when mode overlays conflict with base policy.
+- Add bounded, redacted diagnostics that can report policy version/fingerprint without leaking sensitive prompt content.
+
+Implementation constraints:
+- Keep policy declarations separate from executor enforcement logic.
+- Preserve current behavior except where duplicate drift is removed.
+- Do not implement section typing, contract validation execution, authorization execution, budgeting, or recovery algorithm changes in this phase.
+
+Minimum tests to add/update:
+- Canonical-policy ownership tests (single source of truth).
+- Mode inheritance tests for all six supported modes plus one custom-mode fallback.
+- Conflict-precedence tests for mode overlays.
+- Policy fingerprint/version determinism tests.
+- Diagnostics redaction and size-bound tests.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Prompt|Policy|Envelope|Contract|Boundary|Strict"
+
+Deliverable:
+Return changed files, final PromptPolicy shape (including version/fingerprint strategy), and proof that all modes consume the same base policy.

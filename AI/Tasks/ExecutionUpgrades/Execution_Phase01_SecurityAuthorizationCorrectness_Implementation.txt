@@ -1,0 +1,37 @@
+PHASE 01 IMPLEMENTATION PROMPT - SECURITY, AUTHORIZATION, AND CORRECTNESS
+
+Goal:
+Implement strict execution-boundary controls with fail-closed validation and testable authorization semantics.
+
+Inputs:
+- AI/Tasks/ExecutionUpgrades/Execution_Phase01_SecurityAuthorizationCorrectness_Strict.txt
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+
+Required code work:
+- Implement a strict tool registry schema with explicit required fields, optional fields, defaults, versioning, and unknown-metadata behavior.
+- Implement deterministic registry conflict handling for duplicate tool names, incompatible schemas, and contradictory destructive metadata.
+- Implement one centralized execution pipeline in order: resolve -> validate -> authorize -> execute -> normalize.
+- Implement path-root authorization that handles relative paths, UNC paths, symlinks, junctions, alternate data streams, and non-existent targets safely.
+- Re-check authorization immediately before replacement-write commit.
+- Implement atomic replacement with integrity checks and rollback behavior for interruption or commit failure.
+- Implement endpoint restrictions for SEARCH-WEB providers, NOAA redirects and host checks, and FETCH-URL DNS rebinding defenses.
+- Implement explicit request and transport limits (redirect count, response size, connection and DNS time bounds).
+- Keep confirmation as a distinct gate from authorization and encode explicit ordering.
+
+Implementation constraints:
+- Fail closed for invalid, unknown, or malformed arguments.
+- Do not implement async leasing, architecture decomposition, or broad telemetry changes in this phase.
+
+Minimum tests to add/update:
+- Registry schema and conflict tests.
+- Path traversal and symlink escape tests.
+- Atomic write rollback and integrity tests.
+- Redirect loop and DNS rebinding tests.
+- Tests proving score or tool metadata cannot bypass authorization or confirmation.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Security|Authorization|Path|Atomic|Redirect|DNS|Allowlist"
+
+Deliverable:
+Return registry contract, authorization ordering, endpoint policy behavior, and test evidence for fail-closed correctness.

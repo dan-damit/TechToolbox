@@ -1,0 +1,39 @@
+IMPLEMENTATION PROMPT SET - HEURISTICS UPGRADES
+
+Purpose:
+- These prompts convert the design-phase specs into implementation tasks that produce actual code and tests.
+- Run phases in order. Each phase assumes prior phases are complete.
+
+Execution model:
+- For each phase, modify production code and tests in the heuristics subsystem.
+- Keep edits bounded and deterministic.
+- Preserve safety invariants: never weaken authorization, confirmation, sandboxing, refusal rules, or execution safety.
+
+Primary target surfaces:
+- src/TechToolbox.Agent/Heuristics/HeuristicScoringEngine.cs
+- src/TechToolbox.Agent/Heuristics/* (new files allowed only if needed for clear ownership)
+- src/TechToolbox.Agent/Orchestration/* (only direct integration seams)
+- src/TechToolbox.Agent/Tests/*Heuristic* and related focused test files
+
+Global contracts:
+- Score range is [0.0, 1.0], finite, clamped, deterministic.
+- Computational order:
+  safety precheck -> evidence collection -> pattern matching -> score composition -> cost adjustment -> session reinforcement (advisory only) -> deterministic tie-break -> final routing -> final safety gate.
+- Authority precedence:
+  policy/system guardrails > execution safety/authorization/confirmation > explicit intent > pattern evidence > cost heuristics > session reinforcement > tie-break fallback.
+
+Per-phase output format:
+1) Summary
+2) Files changed
+3) Code changes
+4) Tests added/updated
+5) Validation results
+6) Known risks
+
+Validation baseline per phase:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Heuristic|Scoring|Pattern|Cost|Session|Clarification|Safety"
+
+Stop conditions:
+- Stop if a requested change would violate safety invariants.
+- Stop after one focused repair cycle for phase-related failures and report exact failing assertions.

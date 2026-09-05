@@ -1,0 +1,36 @@
+PHASE 03 IMPLEMENTATION PROMPT - SCALABILITY, ARCHITECTURE, AND MAINTAINABILITY
+
+Goal:
+Implement service decomposition and streaming/text-file abstractions that improve testability without changing policy semantics.
+
+Inputs:
+- AI/Tasks/ExecutionUpgrades/Execution_Phase03_ScalabilityArchitectureMaintainability_Strict.txt
+- Outputs from Phases 01-02
+
+Required code work:
+- Implement explicit service boundaries for tool resolution, authorization, file operations, HTTP fetch, process execution, PowerShell execution, and result normalization.
+- Replace global static state with DI-managed lifetimes that are explicitly defined per dependency.
+- Implement migration seams for existing static callers to avoid parallel behavior drift.
+- Implement large-file streaming with documented thresholds and memory-growth limits.
+- Implement a shared text-file abstraction preserving encoding and line endings.
+- Define behavior for UTF-8 BOM/no-BOM, UTF-16, legacy encodings, invalid byte sequences, and CRLF/LF/CR variants.
+- Implement production and test registrations with clear separation.
+- Implement robust test fakes that can simulate timeout, partial read, cancellation, malformed response, process-tree termination, and filesystem race behavior.
+
+Implementation constraints:
+- Do not modify policy ownership, authorization semantics, or reliability contracts from earlier phases.
+- Keep decomposition incremental and behavior-preserving unless tests explicitly update a contract.
+
+Minimum tests to add/update:
+- Service ownership and DI wiring tests.
+- Streaming threshold and memory-bound tests.
+- Encoding and line-ending preservation tests.
+- Static-caller compatibility tests.
+- Failure-mode fake tests for filesystem, HTTP, and process dependencies.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Architecture|Service|Stream|Encoding|LineEnding|Fake|Dependency"
+
+Deliverable:
+Return service map, DI lifetime decisions, streaming and text-file behavior, and test evidence for maintainable decomposition.

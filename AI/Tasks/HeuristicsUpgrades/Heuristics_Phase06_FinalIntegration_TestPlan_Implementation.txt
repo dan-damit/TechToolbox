@@ -1,0 +1,34 @@
+PHASE 06 IMPLEMENTATION PROMPT - FINAL INTEGRATION AND TEST PLAN
+
+Goal:
+Integrate phases 1-5 into one coherent heuristics flow and finalize invariant-focused test coverage.
+
+Inputs:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase06_FinalIntegration_TestPlan_Strict.txt
+- Outputs from Phases 01-05
+
+Required code work:
+- Merge evidence, pattern, cost, session reinforcement, clarification, and safety gates into one normative routing pipeline.
+- Ensure the final pipeline strictly follows computational order and authority precedence.
+- Implement any missing integration adapters and remove contradictory paths.
+- Add end-to-end decision table coverage in tests for major request classes.
+- Add invariant tests for score bounds, defaults, clamping, precedence, tie-break determinism, and clarification-vs-refusal separation.
+- Add negative tests proving pattern/cost/session signals cannot bypass safety or authorization.
+
+Implementation constraints:
+- Preserve strict-mode safety boundaries and existing policy ownership.
+- Keep diagnostics redacted and bounded.
+- Restrict edits to heuristics and direct integration seams.
+
+Minimum tests to add/update:
+- End-to-end integration path tests.
+- Global invariant tests.
+- Safety non-bypass negative tests.
+- Compatibility tests for existing route/pattern interfaces.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Heuristic|Pattern|Cost|Session|Clarification|Integration|Strict"
+
+Deliverable:
+Return unified algorithm summary, files changed, invariant test matrix, and validation results.

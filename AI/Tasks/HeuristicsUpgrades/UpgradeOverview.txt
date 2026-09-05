@@ -1,0 +1,94 @@
+## **Heuristics Upgrade Overview**
+
+This prompt set is a phased Strict-mode redesign of the heuristics subsystem. Each phase is self-contained, but the phases are ordered from core architecture through final integration.
+
+### Phase Order
+1. **Phase 01 - Heuristics Architecture Redesign**
+2. **Phase 02 - Pattern Matching Layer**
+3. **Phase 03 - Cost-Benefit Matrix**
+4. **Phase 04 - Session Reinforcement Logic**
+5. **Phase 05 - Clarification Mode Upgrade**
+6. **Phase 06 - Final Integration + Test Plan**
+
+### Shared Strict-Mode Rules
+- Keep each phase bounded to its declared scope.
+- Prefer deterministic behavior over broad exploratory changes.
+- Add tests and validation gates with each phase.
+- Preserve safety boundaries, budgets, and strict-mode rules.
+- Do not expand beyond the heuristics subsystem unless a later phase explicitly requires it.
+
+### Shared Contracts and Terminology
+- Score range: all heuristic confidence scores must use a single normalized range of [0.0, 1.0] unless a higher-level safety gate explicitly uses a boolean or enum.
+- Evidence: raw signals, pattern hits, prior outcomes, and feature checks are evidence only. Evidence may inform scoring but must not directly decide execution, refusal, confirmation, authorization, or sandboxing behavior.
+- Decision: a decision is the final tool selection or route chosen by the central heuristics controller after score composition, safety gates, and explicit overrides.
+- Precedence: system policy and safety invariants always outrank user intent, pattern evidence, session reinforcement, and cost heuristics.
+- Computational order: the model must document the stable computational order as: safety precheck -> evidence collection -> pattern matching -> score composition -> cost adjustment -> session reinforcement (advisory only) -> deterministic tie-break -> final routing -> final safety gate.
+- Authority precedence: the model must separately document the authoritative precedence as: policy/system guardrails > execution safety/authorization/confirmation > explicit user or system intent > pattern evidence > cost heuristics > session reinforcement (advisory only) > tie-break fallback.
+- Clamping/defaults: all composite scores must be clamped to legal bounds, defaults must be explicit, and tie-breaks must be deterministic.
+- Session reinforcement: reinforcement is advisory, bounded, isolated to the current session, expiring on time or recency thresholds, and never allowed to override denial, confirmation, or sandboxing rules.
+- Absent evidence: absent or unavailable evidence contributes zero unless a signal has an explicit neutral prior; neutral priors must be intentional, bounded, and documented.
+
+### Global Precedence and Safety Invariants
+- Explicit system authorization, confirmation, security, sandboxing, and refusal requirements are non-negotiable and must remain enforced even when heuristic confidence is low.
+- Pattern matching may contribute evidence, but it must never directly weaken guardrails, override authorization requirements, suppress confirmation prompts, or reduce execution safety checks.
+- If a request would require a dangerous, untrusted, or privileged action, the heuristics layer must route to safe refusal, confirmation, or a more constrained tool path rather than higher-confidence execution.
+- Clarification is for underspecified or ambiguous requests; refusal is for unsafe, unauthorized, or disallowed actions. The agent must not treat them as equivalent.
+- Session memory and reinforcement may improve continuity and reduce repeated failures, but cannot override the precedence of hard policy or safety invariants.
+- A candidate rejected at any safety stage cannot be restored by later score boosts, pattern overrides, cost adjustments, or session reinforcement.
+
+### Shared Numeric Bounds and Defaults
+- Default prior: must be explicit and bounded per signal type; absent evidence is not implicitly positive.
+- Maximum individual boost: must be capped to a documented finite limit.
+- Maximum individual penalty: must be capped to a documented finite limit.
+- Maximum total pattern contribution: must be bounded and included in the contract.
+- Maximum cost contribution: must be bounded before final route selection.
+- Maximum session reinforcement contribution: must be bounded and time-limited.
+- Maximum risk multiplier: must be finite and conservative.
+- Precision and rounding: all scores and contributions must be rounded deterministically and documented.
+- Overflow and invalid values: NaN, infinity, and malformed values must resolve to a safe default or be rejected by validation before use.
+
+### Shared Data Contracts
+- Evidence record: must include at minimum a source id, type, weight, timestamp, session scope, and validity state.
+- Pattern match result: must include the pattern id, trigger status, confidence contribution, ambiguity status, and override status.
+- Score contribution: must include the contribution source, numeric weight, clamped range, and precedence role.
+- Candidate route: must include tool or route id, eligibility status, safety status, score value, and cost estimate.
+- Safety gate result: must include gate type, pass/fail, reason, and blocking authority.
+- Clarification request: must include the missing fact(s), trigger reason, loop count, and fallback path.
+- Decision result: must include final route, final risk status, confirmation requirement, and rationale summary.
+- Diagnostic event: must include redaction status, safe truncation limits, event type, and maximum allowed payload size.
+
+### Safety Gate Sequence
+- Precheck: verifies execution bounds, permissions, dangerous-action rules, and required authorization before evidence collection or route evaluation.
+- Eligibility gate: determines whether a candidate may be scored or routed at all.
+- Final execution gate: validates the selected route immediately before execution and may re-block even if evidence or reinforcement was favorable.
+- The gate sequence is mandatory and must be enforced in the documented order; a later score cannot override an earlier gate failure.
+
+### Session and Diagnostic Limits
+- Session reinforcement must be bounded, isolated, expiring, and advisory only.
+- Default maximum retained successes and failures: must be explicit and limited.
+- Expiration rules: must include time window, turn count, context change, and task-scope reset criteria.
+- Diagnostic limits: maximum event count, maximum field length, maximum payload size, and redaction behavior must be specified and enforced.
+- Raw prompts or sensitive tool results must not be stored in session reinforcement records without explicit redaction and retention limits.
+
+### Phase Execution Contract
+- Each phase is a prompt-and-validation artifact; implementation behavior is only required when the phase explicitly requires code, tests, or a run-time change.
+- Where a phase requires production implementation, the acceptance criteria must still remain bounded to the declared subsystem and safety boundaries.
+- Later phases may build on earlier contracts, but they must remain compatible with the shared terminology, precedence, scope, and guardrail rules defined here.
+
+### Intended Use
+- Use the phase files in order.
+- Treat earlier phases as prerequisites for later ones.
+- Keep the output mechanically verifiable and easy to audit.
+- Preserve clear ownership boundaries between pattern logic, scoring logic, reinforcement logic, and clarification logic.
+
+### Source Alignment
+- Prompt 1 becomes Phase 01.
+- Prompt 2 becomes Phase 02.
+- Prompt 3 becomes Phase 03.
+- Prompt 4 becomes Phase 04.
+- Prompt 5 becomes Phase 05.
+- Prompt 6 becomes Phase 06.
+
+### Completion Standard
+- Each phase should end with explicit acceptance criteria, validation commands, and a budget report.
+- The final phase should merge the subsystem changes into one unified heuristics model and a complete test plan.

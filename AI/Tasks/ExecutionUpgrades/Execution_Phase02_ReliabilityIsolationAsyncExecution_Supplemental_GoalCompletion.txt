@@ -1,0 +1,135 @@
+PHASE 02 SUPPLEMENTAL PROMPT - GOAL COMPLETION (RELIABILITY, ISOLATION, ASYNC EXECUTION)
+
+Goal:
+Complete the missing Phase 02 reliability objectives that were not delivered by the prior compatibility-wrapper pass.
+
+Run context:
+- Prior run added a thin async compatibility layer (`ExecutionResult`, `IAsyncToolExecutor`, `RunToolAsync`) but did not implement the required lease lifecycle, quarantine/replacement behavior, bounded drain controls, or Phase 02 tests.
+- This pass must finish Phase 02 acceptance criteria, not just preserve compatibility wrappers.
+
+Inputs:
+- AI/Tasks/ExecutionUpgrades/Implementation_Overview.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase02_ReliabilityIsolationAsyncExecution_Implementation.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase02_ReliabilityIsolationAsyncExecution_Strict.txt
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+- Latest run markdown in LogsAndExports/Logs/TechAgentMarkdown (most recent TechAgent_*.md)
+
+Primary target surfaces:
+- src/TechToolbox.Agent/Execution/*
+- src/TechToolbox.Agent/Tools/* (only direct execution/validation seams)
+- src/TechToolbox.Agent/Orchestrator/* (only direct async integration seams)
+- src/TechToolbox.Agent/Tests/*Execution* and focused reliability test files
+
+Global invariants (must remain true):
+- Security pipeline order remains: resolve -> validate -> authorize -> execute -> normalize.
+- Authority precedence remains: policy/system guardrails > execution safety/authorization/confirmation > explicit intent > reliability/routing.
+- Reliability changes must not weaken authorization, confirmation, sandboxing, refusal rules, or execution safety.
+- Diagnostics/logging must remain redacted and resource-bounded.
+
+Required completion work:
+
+1) Implement explicit async lifecycle contract beyond wrapper mode
+- Keep `RunToolAsync`, but introduce stage-aware execution states at minimum:
+  - queued
+  - acquired
+  - running
+  - terminating
+  - draining
+  - completed
+- Define deterministic state transitions and ownership for each state.
+- Preserve sync compatibility without duplicating policy logic.
+
+2) Implement runspace lease model with deterministic ownership
+- Add explicit lease abstraction with:
+  - acquire
+  - reset
+  - quarantine
+  - dispose/replace
+- Define legal transitions for:
+  - normal completion
+  - cancellation
+  - timeout
+  - reset failure
+  - unrecoverable execution fault
+- Ensure lease capacity/concurrency limits are explicit and testable.
+
+3) Add contamination detection and health checks
+- Do not treat timeout alone as contamination proof.
+- Add explicit health-check behavior and contamination signals.
+- Quarantine + replace runspace on explicit contamination or unrecoverable reset faults.
+
+4) Add bounded output draining and post-kill behavior
+- Define and enforce separate bounds for:
+  - stdout
+  - stderr
+  - combined output
+  - post-kill drain window
+- Guarantee no unbounded waits in termination/draining paths.
+- Emit deterministic status when drain bounds are hit.
+
+5) Make timeout/cancellation precedence deterministic and observable
+- Define precedence when timeout and cancellation co-occur.
+- Report both flags when appropriate, with one primary outcome rule.
+- Keep `ExecutionResult` stable for assertions (do not make shape ambiguous per tool).
+
+6) Keep reliability-policy separation strict
+- No registry-policy rewrites.
+- No authorization/confirmation ownership migration.
+- No broad telemetry/architecture decomposition beyond minimal reliability ownership seams.
+
+7) Add required Phase 02 tests (must be new or upgraded)
+- Cancellation tests for queued/acquired/running/terminating/draining.
+- Lease transition tests (including reset failure and quarantine).
+- Quarantine-and-replacement tests.
+- Drain timeout and output-bound tests.
+- Co-occurring timeout/cancellation semantic tests.
+- Structured result contract tests (immutable/stable fields and deterministic flags).
+
+Implementation constraints:
+- Keep edits bounded and deterministic.
+- Preserve existing public contracts unless this phase explicitly extends them for reliability.
+- Do not alter unrelated prompt heuristics or Phase 01 endpoint/path policy behavior.
+
+Validation commands:
+1) Required phase gate:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Async|Cancellation|Runspace|Lease|Timeout|Drain|Structured"
+
+2) Compatibility baseline check (report-only unless failure is in Phase 02 surfaces):
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Execution|Security|Authorization|Runspace|Async|Telemetry|Hardening"
+
+Validation decision rule:
+- If required phase gate passes, proceed.
+- If compatibility baseline fails only in unrelated/non-Phase-02 tests (for example LLM transport), report exact assertion as OUT_OF_SCOPE_VALIDATION_FAILURE and continue Phase 02 completion reporting.
+- If any failing assertion is within Phase 02 surfaces, perform exactly one focused repair cycle, then stop.
+
+Step budget (hard limits):
+1) Discovery: <= 8 read/search calls.
+2) Edits: <= 10 file edits.
+3) Validation: 1 build + 1 required phase test run + 1 compatibility baseline check.
+4) Repair cycles: <= 1 (only for in-scope Phase 02 failures).
+5) Stop once acceptance criteria pass.
+
+Stop conditions:
+- Stop immediately if a requested change would weaken safety invariants.
+- After one failed in-scope repair cycle, emit FAILED_VALIDATION with exact failing assertions.
+
+Acceptance criteria (must all pass):
+- Async execution is stage-aware and deterministic (not wrapper-only).
+- Lease lifecycle with acquire/reset/quarantine/dispose is explicit and test-covered.
+- Contamination detection and health checks are explicit and test-covered.
+- Output drain and post-kill behaviors are bounded and test-covered.
+- Timeout/cancellation precedence is deterministic and test-covered.
+- Structured result contract is stable and assertion-safe.
+- Required phase gate passes.
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Async execution model
+4) Lease lifecycle and isolation behavior
+5) Timeout, cancellation, and drain semantics
+6) Tests added/updated
+7) Validation results (required gate + compatibility baseline)
+8) Step-budget report (planned vs actual)
+9) Remaining known risks (if any)

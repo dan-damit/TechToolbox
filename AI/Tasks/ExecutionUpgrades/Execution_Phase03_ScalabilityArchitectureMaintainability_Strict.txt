@@ -1,0 +1,72 @@
+STRICT MODE: Improve scalability, architecture, and maintainability for the execution subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the execution architecture and maintainability surfaces.
+
+Concrete scope:
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase03_ScalabilityArchitectureMaintainability_Strict.txt
+- Injectable services, DI-managed scoped or singleton services, large-file streaming, shared text-file abstraction, encoding and line-ending preservation, and test fakes for filesystem, HTTP, process, and related dependencies.
+
+Requirements:
+- Break the execution subsystem into injectable services with clear ownership boundaries.
+- Name the intended service boundaries explicitly, including tool resolution, authorization, file access, HTTP access, process execution, PowerShell execution, and result normalization.
+- Define service lifetimes for each major dependency instead of treating all services as interchangeable.
+- Replace global static state with DI-managed scoped or singleton services where appropriate.
+- Stream large-file reads instead of loading entire files into memory.
+- Define the large-file threshold, supported streaming APIs, and the memory ceiling or allocation-growth target the refactor must respect.
+- Preserve encoding and line endings through a shared text-file abstraction.
+- Define exact handling for UTF-8 with and without BOM, UTF-16, legacy encodings, invalid sequences, and CRLF/LF/CR preservation.
+- Replace live dependencies in tests with fakes for filesystem, HTTP, process, and other external dependencies.
+- Define the fake behaviors that matter most: timeouts, partial reads, cancellation, malformed responses, process-tree termination, and filesystem races.
+- Define a migration path for existing static callers so the refactor does not create a parallel implementation with different behavior.
+- Add performance acceptance criteria for startup overhead, throughput, and service-resolution overhead where applicable.
+- Keep architecture changes modular so direct execution behavior remains stable while dependencies are reorganized.
+- Ensure the service boundaries do not weaken authorization, validation, or safety policy ownership.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into telemetry, error categorization, or regression suite breadth unless needed to express service ownership.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated tool-policy semantics in this phase.
+- Explicitly prohibit architecture refactoring from weakening authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If service boundaries begin to duplicate policy decisions, stop and move policy back to its own owner.
+- If text-file behavior becomes inconsistent across repeated edits, stop and restore a single shared abstraction before expanding scope.
+
+Fallback behavior:
+- Fallback A: introduce the service interfaces and fakes first, then move one execution path at a time behind them.
+- Fallback B: if full DI migration is too risky, wrap the current static surfaces with adapter services and keep behavior unchanged.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Execution services have explicit ownership boundaries.
+- Large-file operations stream instead of forcing full-memory loads where required.
+- Encoding and line endings are preserved through a shared abstraction.
+- Tests use fakes for external dependencies where practical.
+- Production registrations and test registrations are distinguishable.
+- Characterization or phase-specific tests cover the new architecture seams.
+- Dependency and ownership boundaries are explicit for any shared execution work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Architecture|Service|Stream|Encoding|LineEnding|Fake|Dependency"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Service architecture and ownership boundaries
+4) Streaming and text-file handling
+5) Test doubles and dependency seams
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

@@ -1,0 +1,33 @@
+PHASE 04 IMPLEMENTATION PROMPT - SESSION REINFORCEMENT LOGIC
+
+Goal:
+Implement bounded, expiring, session-local reinforcement that improves continuity without overriding policy or safety.
+
+Inputs:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase04_SessionReinforcementLogic_Strict.txt
+- Outputs from Phases 01-03
+
+Required code work:
+- Implement session records for last success and last failure with explicit task/context keys.
+- Implement continuity boosts and avoidance penalties with hard maximum contribution limits.
+- Implement expiry and reset rules (time window, turn count, context change, safety-context change).
+- Implement failure-loop detection and conservative de-escalation path.
+- Apply reinforcement only as marginal advisory input after cost adjustment and before tie-break.
+
+Implementation constraints:
+- Reinforcement is session-local and advisory only.
+- Reinforcement must not alter authorization/refusal/confirmation/sandboxing outcomes.
+- Redact sensitive data in any reinforcement diagnostics.
+
+Minimum tests to add/update:
+- Expiry/reset behavior tests.
+- Continuity and avoidance bound tests.
+- Failure-loop suppression tests.
+- Tests proving reinforcement cannot override safety gates.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Session|Reinforcement|Stickiness|Continuity|Avoidance"
+
+Deliverable:
+Return record shape, expiration policy, and test evidence for bounded advisory behavior.

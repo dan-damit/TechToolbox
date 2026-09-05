@@ -1,0 +1,78 @@
+STRICT MODE: Lock down security, authorization, and correctness for the execution subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the execution security, authorization, and correctness surfaces.
+
+Concrete scope:
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase01_SecurityAuthorizationCorrectness_Strict.txt
+- Tool registry metadata, parameter schemas, destructive classifications, timeout rules, execution modes, path authorization, atomic replacement, integrity checks, endpoint allowlists, redirect handling, DNS rebinding protections, and argument validation surfaces.
+
+Requirements:
+- Build a strict tool registry before changing any execution policy details.
+- Centralize the execution pipeline as resolve -> validate -> authorize -> execute -> normalize.
+- Define the registry schema explicitly: required fields, optional fields, versioning, default values, and whether unknown metadata is rejected.
+- Fail startup or tool resolution on duplicate tool names, conflicting schemas, or contradictory destructive flags.
+- Enforce path-root authorization for all file operations.
+- Define the authorized path-root model for symlinks, junctions, UNC paths, relative paths, alternate data streams, case handling, and paths that do not yet exist.
+- Re-check authorization immediately before any replacement write is committed to close race windows.
+- Add atomic file replacement with integrity checks for file writes that replace existing content.
+- Define atomic-write behavior across platforms, including temporary-file placement, flush requirements, rename semantics, and rollback after interruption.
+- Restrict SEARCH-WEB to allowlisted providers only.
+- Restrict NOAA redirect handling to approved hostnames and safe redirect targets.
+- Define redirect and fetch limits for request size, redirect count, response size, DNS lookup duration, and connection duration.
+- Define DNS rebinding defense as address pinning plus revalidation after redirects, with rejection of private or link-local destinations where applicable.
+- Add DNS rebinding protection for FETCH-URL and any network fetch surface that resolves hostnames.
+- Make invalid arguments fail closed instead of silently normalizing, coercing, or dropping them.
+- Define explicit metadata for allowed tool names, parameter schemas, destructive classification, timeout rules, and execution mode.
+- Clarify that confirmation is a separate execution gate from authorization and name the ordering explicitly.
+- Add negative acceptance tests for path traversal, symlink escape, malformed schemas, duplicate registry entries, redirect loops, and address changes between resolution and connection.
+- Keep authorization, confirmation, sandboxing, and execution safety as hard boundaries that no tool metadata may weaken.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into async execution, runspace leasing, telemetry, or architecture decomposition unless required to establish security ownership.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated heuristic or prompt behavior in this phase.
+- Explicitly prohibit the execution layer from weakening authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If tool registry metadata begins to duplicate later policy layers, stop and re-establish the registry as metadata only.
+- If path authorization and network authorization become tangled, stop and separate file-root checks from remote-host checks.
+
+Fallback behavior:
+- Fallback A: implement a minimal allowlist registry and one centralized validation pipeline first, then refine metadata later.
+- Fallback B: if full endpoint hardening is too risky, keep current behavior but add explicit authorization checks and fail-closed validation seams.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- The execution subsystem has an explicit allowed-tool registry with metadata for names, schemas, destructive flags, timeouts, and execution mode.
+- Path-root authorization is enforced for file operations.
+- Atomic replacement and integrity checks are present for replacement writes.
+- SEARCH-WEB, NOAA, and FETCH-URL restrictions are explicit and testable.
+- Invalid arguments fail closed.
+- Registry conflicts and unsafe redirects fail deterministically with named outcomes.
+- Characterization or phase-specific tests cover the new security boundaries.
+- Dependency and ownership boundaries are explicit for any shared execution work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Security|Authorization|Path|Atomic|Redirect|DNS|Allowlist"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Tool registry and policy pipeline
+4) Path and endpoint authorization
+5) Atomic replacement and integrity checks
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

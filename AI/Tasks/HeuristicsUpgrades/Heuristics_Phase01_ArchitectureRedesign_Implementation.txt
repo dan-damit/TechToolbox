@@ -1,0 +1,33 @@
+PHASE 01 IMPLEMENTATION PROMPT - ARCHITECTURE REDESIGN
+
+Goal:
+Implement explicit ownership boundaries and deterministic orchestration seams for heuristics architecture.
+
+Inputs:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase01_ArchitectureRedesign_Strict.txt
+- AI/Tasks/HeuristicsUpgrades/UpgradeOverview.txt
+
+Required code work:
+- In heuristics runtime code, establish clear owners for:
+  evidence collection, pattern evidence adapter, score composition, route selection, clarification gate, safety gate, diagnostics.
+- Keep the public behavior compatible unless a test-backed contract update is required.
+- Ensure pattern layer returns evidence only; no direct authorization or execution decisions.
+- Encode deterministic composition and tie-break seams so later phases can plug in without refactoring again.
+
+Implementation constraints:
+- Keep score contract centralized and testable.
+- Preserve existing strict-mode and safety behavior.
+- Add minimal interfaces/records only where they reduce ambiguity.
+- No unrelated subsystem edits.
+
+Minimum tests to add/update:
+- Ownership seam tests (component boundaries are explicit).
+- Deterministic tie-break tests (same inputs => same route, stable under input order changes).
+- Safety precedence tests (score/evidence cannot bypass safety or confirmation).
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Heuristic|Scoring|Safety|Boundary|Architecture"
+
+Deliverable:
+Return changed files and concise rationale for each boundary decision.

@@ -1,0 +1,76 @@
+STRICT MODE: Add advanced hardening and future-proofing for the execution subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the execution hardening and future-proofing surfaces.
+
+Concrete scope:
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase05_AdvancedHardeningFutureProofing_Strict.txt
+- Sandboxing for PowerShell and dotnet builds, per-tool resource budgets, execution replay logs, policy-driven environment isolation, and multi-tenant execution boundaries.
+
+Requirements:
+- Add sandboxing for PowerShell and dotnet builds where feasible.
+- Add per-tool resource budgets for CPU, memory, and output.
+- Add execution replay logs for deterministic debugging.
+- Add policy-driven environment isolation.
+- Define multi-tenant execution boundaries if future agent versions require them.
+- State clearly which hardening controls are advisory and which are enforced, and require a named fallback when a trustworthy boundary is not available.
+- Define the threat model and platform assumptions for PowerShell and dotnet sandboxing, including child processes, filesystem access, network access, credentials, environment variables, and host escape risk.
+- Define resource-budget units and enforcement points for CPU time, wall-clock time, memory, output, process count, child-process lifetime, filesystem usage, and network traffic.
+- Define behavior at each budget boundary: graceful cancellation, kill, quarantine, result classification, and cleanup timeout.
+- Specify whether budgets are inherited by child processes and how process trees are tracked.
+- Define replay-log contents, canonicalization rules, ordering guarantees, size limits, retention, encryption, and secret-redaction behavior.
+- Clarify whether replay means deterministic input capture, event capture, or executable re-run, and keep the chosen meaning consistent.
+- Define the multi-tenant boundary before implementation: tenant identity propagation, resource isolation, data isolation, fair scheduling, cross-tenant telemetry restrictions, and cleanup guarantees.
+- Add explicit compatibility gates for operating-system and sandbox-provider support.
+- Keep all hardening bounded unless a boundary is explicitly required for safety.
+- Preserve earlier authorization, validation, async, architecture, and telemetry contracts.
+- Make hardening behavior deterministic and easy to test.
+- Add rollback or recovery requirements for sandbox failure, budget exhaustion, replay-log overflow, and tenant-isolation failure.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into unrelated routing, prompt, or heuristic behavior unless required to implement the hardening boundary.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken existing execution safety, sandboxing, or authorization requirements while adding future-proofing features.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If sandbox or isolation logic begins to replace core authorization policy, stop and restore the policy boundary.
+- If resource budgets expand into hidden global limits without a clear owner, stop and keep budgets per-tool and explicit.
+
+Fallback behavior:
+- Fallback A: implement per-tool resource budgets and replay logs first, then add sandbox and isolation layers later.
+- Fallback B: if full sandboxing is too risky, keep policy-driven isolation and explicit resource limits while preserving current execution mode.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Sandboxing or isolation boundaries are explicit where introduced.
+- Per-tool resource budgets are deterministic and testable.
+- Replay logs support deterministic debugging without exposing secrets.
+- Any multi-tenant boundary is explicit and bounded.
+- Enforced and advisory controls are clearly distinguished.
+- Platform constraints and unsupported environments are named.
+- Characterization or phase-specific tests cover the hardening behavior.
+- Dependency and ownership boundaries are explicit for any shared execution work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Hardening|Sandbox|Budget|Replay|Isolation|Tenant"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Sandbox and isolation boundaries
+4) Resource budgets
+5) Replay and debugging logs
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

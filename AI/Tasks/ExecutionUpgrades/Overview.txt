@@ -1,0 +1,202 @@
+# **Execution Subsystem — Upgrade Phases (Round 5)**
+
+## **Shared Execution Contracts**
+- Phase order: Phase 01 policy and authorization -> Phase 02 reliability and async execution -> Phase 03 service decomposition and maintainability -> Phase 04 observability and regression coverage -> Phase 05 advanced hardening.
+- Each phase must declare entry criteria, exit criteria, and the artifacts it owns so later phases do not overwrite earlier contracts.
+- Shared contracts that must remain stable across phases:
+  - error/result model
+  - cancellation semantics
+  - authorization ownership
+  - telemetry ownership
+  - file-operation semantics
+  - confirmation ordering
+  - rollback and recovery behavior
+  - validation command and test naming conventions
+- Verification method for every acceptance criterion must be explicit: unit test, integration test, static check, benchmark, manual review, or runtime diagnostic.
+- Common output contract for phase prompts: summary, files changed, phase-specific model, tests added/updated, validation results, and step-budget report.
+- Redaction and resource-limit rules apply to logs, telemetry, replay data, and diagnostics in every phase.
+- Compatibility gates must name supported .NET, PowerShell, OS, and optional-capability expectations where relevant.
+- Acceptance tests should use stable naming so a single targeted filter can find the phase-specific coverage.
+
+## **Phase 01 — Security, Authorization & Correctness**
+This phase locks down the execution boundary so nothing untrusted can slip through.
+
+### **Entry Criteria**
+- Shared execution contracts are in place.
+- The phase owns registry policy, path authorization, endpoint authorization, and write safety only.
+
+### **Exit Criteria**
+- The strict registry, fail-closed validation, path-root checks, endpoint restrictions, and atomic write semantics are defined well enough to implement directly.
+- Negative tests for registry conflicts, path escape, redirect behavior, and DNS rebinding are named.
+
+### **Core Objectives**
+- Build a **strict tool registry** with metadata for:
+  - Allowed tool names  
+  - Parameter schemas  
+  - Destructive classification  
+  - Timeout rules  
+  - Execution mode  
+  *(“Maintain a registry of allowed tool names…”)* 
+- Centralize the security pipeline:
+  - resolve → validate → authorize → execute → normalize  
+  *(“Apply one centralized policy pipeline…”)* 
+- Enforce path-root authorization for all file operations  
+  *(“Path authorization is absent from built-in file operations…”)* 
+- Add atomic file replacement and integrity checks  
+  *(“Write replacement content to a temporary file… then atomically replace…”)* 
+- Restrict external endpoints:
+  - SEARCH-WEB → allowlisted providers only  
+  - NOAA → restrict redirects and hostnames  
+  - FETCH-URL → DNS rebinding protection  
+  *(“Restrict SEARCH-WEB endpoints… NOAA redirects… DNS rebinding protections…”)* 
+- Make invalid arguments fail closed instead of silently normalizing  
+  *(“Invalid values are often silently normalized or dropped…”)* 
+
+### **Outcome**
+The Execution layer becomes a **trusted boundary** instead of a “PowerShell command dispatcher with good intentions.”
+
+---
+
+## **Phase 02 — Reliability, Isolation & Asynchronous Execution**
+This phase makes execution robust under load, cancellation, and failure.
+
+### **Entry Criteria**
+- Phase 01 policy boundaries are already defined and must not be reopened.
+- The shared result/error contract and authorization ordering are available for async consumers.
+
+### **Exit Criteria**
+- The runspace lease state machine, cancellation semantics, bounded draining behavior, and structured result fields are precise enough for direct implementation.
+- Tests for cancellation, timeout, quarantine, and concurrency are named.
+
+### **Core Objectives**
+- Introduce **RunToolAsync** and async implementations for:
+  - PowerShell  
+  - HTTP  
+  - File I/O  
+  - Process execution  
+  *(“Introduce RunToolAsync… async implementations…”)* 
+- Add **CancellationToken** support everywhere  
+- Build a **runspace lease** abstraction:
+  - Acquire  
+  - Reset  
+  - Quarantine  
+  - Dispose  
+  *(“Quarantine and replace a runspace after timeout… add a pool lease abstraction…”)* 
+- Add bounded process-output draining and post-kill timeouts  
+  *(“Timeout handling can still wait indefinitely… apply a bounded post-kill drain timeout…”)* 
+- Add structured execution results:
+  - success/failure  
+  - diagnostics  
+  - exit status  
+  - duration  
+  - truncation metadata  
+  *(“Add structured execution results and error codes…”)* 
+
+### **Outcome**
+Execution becomes **stable, cancellable, predictable**, and resistant to contamination.
+
+---
+
+## **Phase 03 — Scalability, Architecture & Maintainability**
+This phase transforms the Execution layer from a giant static partial class into a clean, testable architecture.
+
+### **Entry Criteria**
+- Phase 01 and Phase 02 contracts are stable.
+- The service decomposition must not change policy or cancellation semantics.
+
+### **Exit Criteria**
+- Service boundaries, lifetimes, streaming semantics, text-file handling, and fake dependency seams are explicit.
+- Migration expectations for static callers and production versus test wiring are named.
+
+### **Core Objectives**
+- Break the subsystem into injectable services:
+  - ToolRegistry  
+  - ToolDispatcher  
+  - PowerShellRunspaceExecutor  
+  - ArgumentBinder  
+  - FileToolService  
+  - ProcessToolService  
+  - HttpFetchService  
+  - NoaaForecastService  
+  - ExecutionPolicy  
+  - ExecutionTelemetry  
+  *(“Recommended decomposition…”)* 
+- Replace global static state with DI-managed scoped/singleton services  
+  *(“Global static state complicates tests…”)* 
+- Stream large-file reads instead of loading entire files  
+  *(“Large-file operations still load entire files into memory…”)* 
+- Preserve encoding and line endings through a shared text-file abstraction  
+  *(“Line and encoding behavior is inconsistent…”)* 
+- Replace live dependencies with fakes for testing  
+  *(“Replace live dependencies in tests with fake filesystem, HTTP, process…”)* 
+
+### **Outcome**
+Execution becomes **modular, testable, and maintainable**, ready for long-term evolution.
+
+---
+
+## **Phase 04 — Observability, Telemetry & Regression Coverage**
+This phase ensures the subsystem is measurable, debuggable, and protected against regressions.
+
+### **Entry Criteria**
+- The shared result/error/cancellation contracts exist and are not rewritten here.
+- Observability may describe behavior, but it may not own policy or execution decisions.
+
+### **Exit Criteria**
+- Error categories, stable codes, telemetry events, redaction rules, and regression coverage are concrete enough to test mechanically.
+- Mandatory regression gates and optional extended gates are separated if the suite is too broad for one run.
+
+### **Core Objectives**
+- Add structured error categories:
+  - validation  
+  - authorization  
+  - timeout  
+  - transport  
+  - tool-failure  
+  - policy-blocked  
+  *(“Define error categories…”)* 
+- Add stable error codes and redaction rules  
+- Add telemetry for:
+  - runspace identity  
+  - reset status  
+  - quarantines  
+  - process timeouts  
+  *(“Record runspace identity and reset status in telemetry…”)* 
+- Build a full regression test suite covering:
+  - malicious tool names  
+  - invalid parameters  
+  - runspace contamination  
+  - concurrent execution  
+  - atomic writes  
+  - regex timeouts  
+  - DNS rebinding  
+  - NOAA host restrictions  
+  - dotnet process-tree containment  
+  *(“Add tests for: Unknown and malicious tool names… etc.”)* 
+
+### **Outcome**
+Execution becomes **observable, diagnosable, and regression-proof**.
+
+---
+
+# **Phase 05 — (Optional) Advanced Hardening & Future-Proofing**
+This is the “bonus round” — the phase that pushes the subsystem into frontier-grade territory.
+
+### **Entry Criteria**
+- Earlier phases are stable and the sandbox/resource boundary threat model is documented.
+- Enforceable controls and advisory controls are distinguished before implementation begins.
+
+### **Exit Criteria**
+- Sandbox, resource-budget, replay, isolation, and tenancy rules are explicit about what is enforced, what is advisory, and what the fallback is when a trustworthy boundary is unavailable.
+- Compatibility and platform support limits are named.
+
+### **Core Objectives**
+- Add sandboxing for PowerShell and dotnet builds  
+- Add per-tool resource budgets (CPU, memory, output)  
+- Add execution replay logs for deterministic debugging  
+- Add policy-driven environment isolation  
+- Add multi-tenant execution boundaries (if future agent versions require it)
+
+### **Outcome**
+Execution becomes **enterprise-grade**, capable of running safely in hostile or
+multi-user environments.

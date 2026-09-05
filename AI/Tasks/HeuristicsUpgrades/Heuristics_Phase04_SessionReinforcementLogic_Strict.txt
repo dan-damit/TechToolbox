@@ -1,0 +1,68 @@
+STRICT MODE: Build the session reinforcement logic for heuristics.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the session reinforcement layer and its direct interfaces.
+
+Concrete scope:
+- AI/Tasks/HeuristicsUpgrades/Heuristics_Phase04_SessionReinforcementLogic_Strict.txt
+- Memory of last successful tool, memory of last failed tool, continuity boosts, avoidance penalties, stickiness logic, and session-based routing.
+
+Requirements:
+- Define how the system remembers the last successful tool.
+- Define how the system remembers the last failed tool.
+- Define continuity boosts that favor consistent follow-up routing when appropriate.
+- Define avoidance penalties that reduce repeated failures or loops.
+- Define stickiness logic so routing stays consistent within a session when signals remain stable.
+- Define session-based routing so prior outcomes can influence later choices without overriding safety.
+- Keep reinforcement behavior deterministic and easy to test.
+- Make session reinforcement bounded, isolated, expiring, and advisory only: it may improve routing within the current session, but must expire after a defined recency window or reset when context changes; it must not persist past the active session unless explicitly designed for a separate durable memory subsystem.
+- Define a clear precedence where session reinforcement can affect only the marginal confidence score after safety gates and evidence scoring, never the final authorization, confirmation, sandboxing, or refusal decision.
+- Specify the session record shape, the maximum retained successes and failures, expiration/reset rules, maximum continuity and avoidance contributions, and failure-loop detection criteria.
+- Define reset triggers: maximum elapsed time, maximum turn count, session boundary change, task-context change, or safety-context change.
+- Define whether failed-tool memory is retained globally or only for the same task signature to avoid over-generalizing failure loops.
+- Ensure raw prompts or sensitive tool results are not stored in reinforcement records without explicit redaction, retention limits, and secure logging rules.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into clarification templates, cost tables, or pattern-library design unless needed to express reinforcement ownership.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated execution policy or safety boundaries in this phase.
+- Explicitly prohibit session reinforcement from weakening authorization, confirmation, sandboxing, or execution safety.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If reinforcement begins to override current evidence too aggressively, stop and reduce the weight of session memory.
+- If stickiness causes repeated failure loops, stop and add a clear avoidance penalty.
+
+Fallback behavior:
+- Fallback A: implement only last-success and last-failure memory first, then add continuity/avoidance weights later.
+- Fallback B: if full session routing is too risky, keep reinforcement advisory only and avoid hard routing changes.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Last-success and last-failure memory are explicitly represented.
+- Continuity boosts and avoidance penalties are deterministic and testable.
+- Session routing improves consistency without weakening safety.
+- Characterization or phase-specific tests cover the session reinforcement behavior.
+- Dependency and ownership boundaries are explicit for any shared heuristics work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Session|Reinforcement|Stickiness|Continuity|Avoidance"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Session memory behavior
+4) Continuity and avoidance behavior
+5) Session-based routing
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

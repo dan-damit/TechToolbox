@@ -1,0 +1,104 @@
+PHASE 01 SUPPLEMENTAL PROMPT - FOCUSED REPAIR (SECURITY, AUTHORIZATION, CORRECTNESS)
+
+Goal:
+Close the specific Phase 01 implementation gaps reported in the latest execution run without reopening completed work.
+
+Run context:
+- Prior run delivered partial Phase 01 baseline (registry + fail-closed args + path-root auth + atomic helper), but did not complete endpoint restrictions, DNS hardening, full replacement-write wiring, or new negative tests.
+- This prompt is a focused repair pass only.
+
+Inputs:
+- AI/Tasks/ExecutionUpgrades/Implementation_Overview.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase01_SecurityAuthorizationCorrectness_Implementation.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase01_SecurityAuthorizationCorrectness_Strict.txt
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+- Latest run markdown in LogsAndExports/Logs/TechAgentMarkdown (most recent TechAgent_*.md)
+
+Primary target surfaces:
+- src/TechToolbox.Agent/Execution/*
+- src/TechToolbox.Agent/Tools/* (only direct execution/validation seams)
+- src/TechToolbox.Agent/Orchestrator/* (only direct integration seams)
+- src/TechToolbox.Agent/Tests/*Execution* and focused security test files
+
+Global invariants (must remain true):
+- Security pipeline order is fixed: resolve -> validate -> authorize -> execute -> normalize.
+- Authority precedence is fixed: policy/system guardrails > execution safety/authorization/confirmation > explicit intent > reliability/routing details.
+- Never weaken authorization, confirmation, sandboxing, refusal rules, or execution safety.
+- Logs/telemetry/diagnostics must remain redacted and resource-bounded.
+
+Required focused repair work:
+1) Wire atomic replacement into all replacement-write paths
+- Ensure replacement semantics are used by WRITE-FILE overwrite flows and REPLACE-IN-FILE commit paths.
+- If APPEND-FILE has a replacement-style branch (rewrite whole file), route through the same atomic commit helper.
+- Re-check authorization immediately before commit for replacement writes.
+- Preserve existing short-overwrite and confirmation safeguards.
+
+2) Complete endpoint policy seams for network execution surfaces
+- SEARCH-WEB must enforce allowlisted providers only (deterministic failure outcome on disallowed provider/endpoint).
+- NOAA fetch paths must enforce approved hostnames and safe redirect targets.
+- FETCH-URL must enforce explicit endpoint policy and DNS rebinding defense.
+- Keep file-root authorization and network authorization separated (no cross-coupling logic).
+
+3) Add explicit transport safety limits
+- Enforce bounded redirect count.
+- Enforce response-size ceiling.
+- Enforce DNS lookup timeout bound.
+- Enforce connection/request timeout bound.
+- Ensure limit failures produce stable, named failure codes/messages suitable for test assertions.
+
+4) Implement DNS rebinding defenses for hostname-based fetch
+- Pin resolved address set for the initial connection decision.
+- Revalidate host/address constraints on redirects.
+- Reject private, loopback, link-local, and other disallowed destination classes unless explicitly policy-allowed.
+- Fail closed on resolution ambiguity or policy-check failure.
+
+5) Expand strict registry coverage only as needed for touched built-ins
+- Keep metadata and validation fail-closed.
+- Do not broaden into unrelated tooling or architectural decomposition.
+
+Minimum tests to add/update (required in this pass):
+- Atomic replacement integration tests for WRITE-FILE overwrite and REPLACE-IN-FILE commit behavior.
+- Pre-commit authorization re-check test for replacement writes.
+- SEARCH-WEB allowlist rejection test.
+- NOAA redirect/host restriction tests (allowed host success + disallowed host failure).
+- FETCH-URL DNS rebinding test (address change or disallowed class between resolution/redirect).
+- Redirect loop or redirect-limit exhaustion test.
+- Request/response size and timeout limit tests (at least one deterministic assertion per limit type).
+
+Implementation constraints:
+- Keep edits bounded and deterministic.
+- Preserve current contracts for error/result model, cancellation semantics, authorization ownership, telemetry ownership, file-operation semantics, rollback/recovery behavior.
+- Do not introduce Phase 02+ work (async leasing, broad architecture decomposition, observability expansion beyond minimal assertions needed by this phase).
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Security|Authorization|Path|Atomic|Redirect|DNS|Allowlist|Fetch|Noaa|Write"
+
+Step budget (hard limits):
+1) Discovery: <= 8 read/search calls.
+2) Edits: <= 10 file edits.
+3) Validation: 1 build + 1 targeted test run.
+4) Repair cycles: at most 1 focused repair cycle for phase-related failures.
+5) Stop once acceptance criteria pass.
+
+Stop conditions:
+- Stop immediately if a requested change would weaken any safety invariant.
+- After one failed repair cycle, emit FAILED_VALIDATION with exact failing assertions and no broad refactor fallback.
+
+Acceptance criteria (must all pass):
+- Atomic replacement helper is integrated into all replacement-write commit paths touched in this phase.
+- Authorization is re-checked immediately before replacement-write commit.
+- SEARCH-WEB/NOAA/FETCH-URL endpoint restrictions are explicit, enforced, and test-covered.
+- Redirect, DNS, connection, and response-size limits are enforced with deterministic failure outcomes.
+- DNS rebinding protections are enforced across initial resolution and redirects.
+- Negative tests exist for traversal/escape-adjacent remote-policy failures, redirect abuse, and rebinding behavior.
+- Build and targeted security tests pass.
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Focused repair changes (atomic writes, endpoint policy, DNS/redirect limits)
+4) Tests added/updated
+5) Validation results
+6) Remaining known risks (if any)
+7) Step-budget report (planned vs actual)

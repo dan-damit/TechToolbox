@@ -1,0 +1,174 @@
+# **Prompting Subsystem Upgrade — Six‑Phase Pipeline**
+
+## **Shared Contract**
+These files are implementation prompts, not open-ended design notes.
+
+Common requirements across all phases:
+- Use shared terminology for policy text, prompt sections, output contracts, tool authorization, memory trust, and recovery diagnostics.
+- Treat each phase as owning one boundary only; do not duplicate ownership across neighboring phases.
+- Preserve backward compatibility for public constructors, serialized configuration, and prompt snapshots unless a breaking change is explicitly called out.
+- Make deterministic ordering, tie-breakers, and failure modes explicit rather than implied.
+- Keep diagnostics bounded and redact sensitive data by default.
+- Add machine-checkable tests for each phase and at least one end-to-end integration check across the full pipeline.
+
+## **Sequencing Notes**
+The six phases are intentionally ordered, but later phases may depend on earlier contracts being named explicitly:
+- Phase 01 establishes policy ownership and shared terminology.
+- Phase 02 introduces typed sections that consume the policy.
+- Phase 05 applies budgeting over the section model defined earlier.
+- Phase 03 defines the response envelope and inner contract rules.
+- Phase 04 moves authorization into the executor boundary.
+- Phase 06 hardens recovery after the parser, validator, and authorization contracts are stable.
+
+## **Phase 01 — Governance & Policy Consolidation**
+**Goal:** Extract all mandatory rules from scattered strings and unify them into a single canonical policy object.
+
+**Core upgrades:**
+- Create a **PromptPolicy.cs** containing:
+  - JSON envelope schema and version/fingerprint metadata  
+  - Tool‑authorization rules as declarations, not executor implementation  
+  - Safety rules (destructive confirmation, file‑write boundaries)  
+  - Output‑contract rules and response-contract defaults  
+  - Recovery rules and diagnostic boundaries  
+- Define the policy shape explicitly: immutable, serializable, versioned, and suitable for both rendering and downstream checks.  
+- Make precedence rules explicit when mode-specific policy fragments conflict with canonical policy.  
+- Replace repeated string fragments with references to this canonical policy.
+- Ensure *every* mode (Chat, Analyze, Plan, Execute, CodingAgent, Custom) inherits the same base policy.
+- Clarify what is policy text, what is executable enforcement, and what is only downstream composition.
+
+**Outcome:**  
+Prompting becomes *governed*, not *string‑assembled*. No drift. No inconsistencies. No silent omissions.
+
+---
+
+## **Phase 02 — Structured Prompt Sections**
+**Goal:** Replace interpolated strings with typed, labeled, trust‑scoped sections.
+
+**Core upgrades:**
+- Introduce a **PromptSection** model:
+  - `TrustedPolicySection`
+  - `UntrustedUserGoalSection`
+  - `UntrustedMemorySection`
+  - `UntrustedToolMetadataSection`
+  - `UntrustedToolResultSection`
+- Treat the concrete section types as typed records or tagged variants with a shared discriminator and explicit trust enum.
+- Each section carries:
+  - Trust level  
+  - Character budget  
+  - Labeling rules  
+  - Escape/encoding rules  
+- Define canonical delimiter and collision handling rules so untrusted content cannot spoof structure.
+- Budget the rendered section output, not the raw source text.
+- Preserve registry, history, and mode context as explicit sections or explicit inputs to the composition pipeline.
+- Build the final prompt by composing sections, not concatenating strings.
+- Define how empty, oversized, or required sections behave when budgets are exhausted.
+
+**Outcome:**  
+Prompt injection becomes materially harder. Every piece of untrusted content is clearly labeled, isolated, and deterministically rendered.
+
+---
+
+## **Phase 03 — Output Contract & Envelope Validation**
+**Goal:** Make output contracts deterministic, validated, and enforced outside the prompt.
+
+**Core upgrades:**
+- Define a **ResponseContract.cs** with:
+  - Contract type enum (`Markdown`, `PlainText`, `Json`)
+  - Exact envelope schema, field requirements, nullability, and unknown-field behavior
+  - Validation logic for `finalAnswer`
+  - Rules for how the outer envelope interacts with inner JSON
+- Add executor‑side validation:
+  - Reject invalid contracts  
+  - Reject malformed JSON  
+  - Reject contract drift  
+- Distinguish invalid envelope, invalid contract declaration, invalid `finalAnswer`, and drift as separate failure cases.
+- Generate formatting instructions *only* when the contract requires them.
+- Define whether validation happens before or after any repair/recovery layer, and keep repair ownership in Phase 06.
+
+**Outcome:**  
+No more ambiguity between “JSON envelope” vs “JSON inside finalAnswer”. The executor enforces correctness.
+
+---
+
+## **Phase 04 — Tool Authorization & Mode Enforcement**
+**Goal:** Move tool‑permission logic out of prompt text and into the executor.
+
+**Core upgrades:**
+- Add a **ToolAuthorizationService**:
+  - Enforces mode rules (Analyze/Plan = no tools)  
+  - Enforces Chat‑mode allowlist  
+  - Enforces Execute‑mode destructive confirmation  
+  - Rejects unauthorized calls deterministically  
+- Define the authorization decision model, the structured error schema, and the source/version of the allowlist.
+- Clarify how confirmation is bound to the exact action and arguments.
+- Add structured error responses for unauthorized tool calls.
+- Treat tool names, metadata, and prompt text as advisory inputs only; the executor owns the boundary.
+
+**Outcome:**  
+Prompt text becomes advisory; the executor becomes the real security boundary.
+
+---
+
+## **Phase 05 — Prompt Budgeting & Memory Selection**
+**Goal:** Introduce global prompt budgets and intelligent memory selection.
+
+**Core upgrades:**
+- Add **PromptBudget.cs**:
+  - Total token/character budget  
+  - Per‑section budgets  
+  - Priority rules (policy > registry > goal > memory > history > tool results)
+- Define whether budgets are hard limits or targets, and whether characters or tokens are authoritative.
+- Add memory relevance scoring:
+  - Prefer recent  
+  - Prefer high‑signal  
+  - Prefer short  
+  - Prefer stable keys  
+- Make scoring deterministic with explicit tie-breakers, duplicate suppression, and timestamp handling.
+- Add provenance markers:
+  - “Memory is advisory, may be stale, and is untrusted.”
+- Emit a bounded budget report so selection decisions are inspectable without leaking content.
+
+**Outcome:**  
+Prompt size becomes predictable, stable, and optimized for Luna’s reasoning window.
+
+---
+
+## **Phase 06 — Recovery & Adversarial Hardening**
+**Goal:** Make recovery deterministic, safe, and injection‑resistant.
+
+**Core upgrades:**
+- Replace replaying invalid model output with:
+  - Structured parser diagnostics  
+  - Expected schema summary  
+  - Minimal encoded snippet (escaped, truncated, labeled untrusted)
+- Define the recovery state machine, attempt counting, and stable error codes.
+- Add adversarial tests:
+  - Fake system messages  
+  - Fake tool calls  
+  - Fake JSON envelopes  
+  - Oversized memory  
+  - Malformed tool results  
+- Add explicit protection against delimiter injection, control characters, and nested fake envelopes.
+- Add deterministic failure paths after N recovery attempts.
+- Keep recovery from invoking tools or overriding earlier authorization decisions.
+
+**Outcome:**  
+Recovery becomes safe, predictable, and hardened against hostile or malformed output.
+
+---
+
+# **Final Deliverable: Prompting Layer v2.0**
+When these six phases are complete, the Prompting subsystem becomes:
+
+- **Governed** (policy‑driven, not string‑driven)  
+- **Structured** (typed sections with trust boundaries)  
+- **Safe** (executor‑enforced tool rules)  
+- **Deterministic** (validated output contracts)  
+- **Efficient** (prompt budgets and relevance‑based memory)  
+- **Resilient** (adversarially hardened recovery paths)
+
+## **Integration Check**
+Before the upgrade is considered complete, the combined pipeline must prove:
+- Shared policy, sectioning, contracts, authorization, budgeting, and recovery all work together without overlap or drift.
+- The end-to-end path remains backward compatible where promised.
+- One machine-readable completion signal or integration test exists for the whole pipeline.

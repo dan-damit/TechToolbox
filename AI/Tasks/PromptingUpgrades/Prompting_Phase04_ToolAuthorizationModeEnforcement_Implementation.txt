@@ -1,0 +1,37 @@
+PHASE 04 IMPLEMENTATION PROMPT - TOOL AUTHORIZATION AND MODE ENFORCEMENT
+
+Goal:
+Implement executor-side tool authorization and deterministic mode enforcement independent of prompt wording.
+
+Inputs:
+- AI/Tasks/PromptingUpgrades/Prompting_Phase04_ToolAuthorizationModeEnforcement_Strict.txt
+- Outputs from Phases 01-03
+
+Required code work:
+- Implement ToolAuthorizationService (or finalize existing service boundary) as executor-owned authorization owner.
+- Enforce Analyze and Plan as no-tool modes.
+- Enforce explicit Chat allowlist with versioned/configurable source.
+- Enforce Execute destructive confirmation bound to specific action and argument set.
+- Define deterministic authorization decision model (for example: Allowed, DeniedByMode, DeniedByAllowlist, RequiresConfirmation, InvalidTool, InvalidArguments).
+- Return structured unauthorized-call errors with stable machine-readable codes.
+- Ensure fail-closed behavior when mode/policy/allowlist configuration is missing or invalid.
+- Keep diagnostics bounded and redact sensitive tool arguments by default.
+
+Implementation constraints:
+- Do not re-implement prompt policy rendering or section composition ownership.
+- Preserve compatibility with existing orchestration surfaces where possible.
+- Do not expand into budgeting or recovery algorithms.
+
+Minimum tests to add/update:
+- Mode enforcement tests (Analyze/Plan deny, Chat allowlist behavior, Execute confirmation gate).
+- Decision-model and error-code stability tests.
+- Missing/invalid mode or config fail-closed tests.
+- Confirmation replay and changed-arguments rejection tests.
+- Sensitive-argument redaction tests for diagnostics/logging.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Authorization|Mode|Tool|Safety|Boundary|Strict"
+
+Deliverable:
+Return authorization decision model, structured error schema, and tests proving deterministic non-bypass behavior.

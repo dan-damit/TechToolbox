@@ -1,0 +1,40 @@
+PHASE 05 IMPLEMENTATION PROMPT - PROMPT BUDGETING AND MEMORY SELECTION
+
+Goal:
+Implement deterministic prompt budgeting and relevance-based memory selection that preserves policy and task signal.
+
+Inputs:
+- AI/Tasks/PromptingUpgrades/Prompting_Phase05_PromptBudgetingMemorySelection_Strict.txt
+- Outputs from Phases 01-04
+
+Required code work:
+- Implement PromptBudget.cs with:
+  - global budget
+  - per-section budgets
+  - explicit section priority order: policy > registry > goal > memory > history > tool results
+- Define budget semantics explicitly (hard limits vs targets) and authoritative unit (characters or tokens) with deterministic fallback if both are present.
+- Implement deterministic memory scoring using recency, signal, brevity, and stable keys.
+- Add explicit tie-breakers, duplicate suppression, and missing/malformed timestamp handling.
+- Ensure memory remains advisory and untrusted through provenance markers.
+- Ensure oversize or low-value memory cannot crowd out required policy and goal sections.
+- Emit bounded budget diagnostics/reports without exposing raw sensitive memory content.
+
+Implementation constraints:
+- Do not alter policy ownership, section trust semantics, contract validation ownership, or authorization boundaries.
+- Keep selection deterministic for identical inputs.
+- Preserve existing safety behavior.
+
+Minimum tests to add/update:
+- Section-priority budget enforcement tests.
+- Memory ranking determinism tests with tie scenarios.
+- Duplicate suppression tests.
+- Missing/malformed timestamp handling tests.
+- Oversized-record truncation/exclusion behavior tests.
+- Redacted budget-report tests.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Budget|Memory|Selection|Relevance|Priority|Strict"
+
+Deliverable:
+Return implemented budget algorithm, memory scoring/tie-break formula, and tests proving deterministic bounded selection.

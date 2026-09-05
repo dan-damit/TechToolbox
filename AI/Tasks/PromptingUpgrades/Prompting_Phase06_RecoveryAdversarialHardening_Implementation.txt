@@ -1,0 +1,37 @@
+PHASE 06 IMPLEMENTATION PROMPT - RECOVERY AND ADVERSARIAL HARDENING
+
+Goal:
+Implement a deterministic, bounded, and injection-resistant recovery path for malformed/adversarial model output.
+
+Inputs:
+- AI/Tasks/PromptingUpgrades/Prompting_Phase06_RecoveryAdversarialHardening_Strict.txt
+- Outputs from Phases 01-05
+
+Required code work:
+- Implement or finalize a recovery state machine with explicit phases (initial parse/validate, retry attempt(s), terminal failure).
+- Define whether attempt limits include initial response and enforce deterministic maximum-attempt termination.
+- Replace raw replay with structured parser diagnostics and expected-schema summaries.
+- Ensure recovery snippets are escaped, truncated, bounded, and labeled untrusted.
+- Neutralize control characters and delimiter injection in diagnostic snippets.
+- Preserve phase boundaries: recovery must not bypass authorization, confirmation, or policy ownership.
+- Ensure recovery-invoked decisions follow the same validation and attempt-accounting rules as initial responses.
+- Provide stable machine-readable recovery error codes.
+
+Implementation constraints:
+- Keep recovery focused on parser/validator hardening and bounded retries.
+- Do not expand into unrelated transport/runtime redesign.
+- Keep diagnostics redacted and resource-limited.
+
+Minimum tests to add/update:
+- Recovery state-machine transition tests.
+- Attempt-limit exhaustion tests (including repeated identical invalid output).
+- Adversarial payload tests: fake system messages, fake tool calls, fake envelopes, oversized memory excerpts, malformed tool results.
+- Control-character and delimiter-injection sanitization tests.
+- Non-bypass tests proving recovery cannot sidestep authorization or confirmation gates.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Recovery|Adversarial|Injection|Validation|Strict"
+
+Deliverable:
+Return recovery state machine summary, error-code table, adversarial test matrix, and deterministic termination proof.

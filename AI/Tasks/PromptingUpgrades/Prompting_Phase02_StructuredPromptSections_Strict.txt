@@ -1,0 +1,63 @@
+STRICT MODE: Introduce structured prompt sections with trust boundaries.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the prompt-construction surfaces and their direct data models.
+
+Concrete scope:
+- AI/Tasks/PromptingUpgrades/Overview.txt
+- AI/Tasks/PromptingUpgrades/Prompting_Phase02_StructuredPromptSections_Strict.txt
+- Prompt section models, section-labeling helpers, escaping and encoding helpers, and the final prompt composition pipeline.
+
+Requirements:
+- Introduce a PromptSection model and the concrete section types needed by the prompting subsystem.
+- Add TrustedPolicySection, UntrustedUserGoalSection, UntrustedMemorySection, UntrustedToolMetadataSection, and UntrustedToolResultSection.
+- Model sections as typed records or tagged variants with an explicit trust enum and stable discriminator.
+- Ensure each section carries trust level, character budget, labeling rules, and escape or encoding rules.
+- Define canonical delimiter and escaping rules so untrusted content cannot spoof section boundaries or system instructions.
+- Budget the rendered section output rather than raw source text, and specify what happens when a required section exceeds budget.
+- Build the final prompt by composing typed sections, not by concatenating undifferentiated strings.
+- Keep untrusted content clearly labeled and isolated so prompt injection is materially harder.
+- Preserve the centralized policy from Phase 01 while moving structure into typed sections.
+- Define deterministic section ordering and a bounded composition model.
+- Preserve registry, history, and mode context as explicit inputs or explicit sections if they participate in composition.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Do not expand into executor-side authorization, response-contract enforcement, memory selection scoring, or recovery hardening beyond what is needed to construct safe sections.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If section typing starts to duplicate policy ownership, stop and keep policy and section responsibilities separate.
+- If the composition pipeline begins to depend on executor decisions, stop and re-establish the prompt-only boundary.
+
+Fallback behavior:
+- Fallback A: introduce typed sections for policy, user goal, memory, and tool data first, then refine budgets and encoding rules later.
+- Fallback B: if full section typing is too risky, preserve current behavior and add only explicit labeling and escaping seams.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- The prompting pipeline uses typed, trust-scoped sections to assemble the final prompt.
+- Untrusted user, memory, and tool content are clearly labeled and isolated.
+- Section order and budget behavior are deterministic and mechanically testable.
+- Labeling and escaping rules prevent section-boundary spoofing.
+- Characterization or phase-specific tests cover section composition and injection-resistant labeling.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+- The prompting layer does not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Section|Trust|Budget|Memory|Label|Boundary|Strict"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Section model and trust boundaries
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

@@ -1,0 +1,61 @@
+STRICT MODE: Add prompt budgeting and memory selection.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within prompt budgeting and memory selection surfaces.
+
+Concrete scope:
+- AI/Tasks/PromptingUpgrades/Overview.txt
+- AI/Tasks/PromptingUpgrades/Prompting_Phase05_PromptBudgetingMemorySelection_Strict.txt
+- Prompt budget models, memory relevance scoring, section-priority logic, and provenance markers for injected memory.
+
+Requirements:
+- Add a PromptBudget.cs that defines the total budget, per-section budgets, and section priority rules.
+- Make the budget order explicit: policy > registry > goal > memory > history > tool results.
+- Define whether budgets are hard limits or targets, and whether characters or tokens are authoritative.
+- Add memory relevance scoring that prefers recent, high-signal, short, and stable-key memory.
+- Make scoring deterministic with explicit tie-breakers, duplicate suppression, and timestamp handling.
+- Add provenance markers stating that memory is advisory, may be stale, and is untrusted.
+- Keep budgeting deterministic so prompt size and selection remain predictable.
+- Prevent oversized or low-value memory from crowding out policy and goal content.
+- Emit a bounded budget report so selection decisions are inspectable without leaking content.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Do not expand into policy centralization, section typing, response-contract validation, tool authorization, or recovery hardening beyond what is needed to budget prompts and select memory.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If memory selection starts to change policy meaning or execution authority, stop and keep memory advisory only.
+- If budget logic expands into unrelated context-management redesign, stop and constrain it to prompt sizing and ranking.
+
+Fallback behavior:
+- Fallback A: add the global budget and section ranking first, then refine memory relevance scoring later.
+- Fallback B: if full selection logic is too risky, preserve current behavior and add only explicit budgets and provenance markers.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Prompt budgets are explicit at the global and section level.
+- Memory selection is relevance-based, bounded, and deterministic.
+- Memory is clearly marked as advisory and untrusted.
+- Budget tie-breakers, duplicate handling, and timestamp behavior are explicit.
+- Characterization or phase-specific tests cover budget enforcement and memory ranking.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+- The prompting layer does not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Budget|Memory|Selection|Relevance|Priority|Strict"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Prompt budget and memory selection
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

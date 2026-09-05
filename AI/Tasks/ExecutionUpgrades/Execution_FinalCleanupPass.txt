@@ -1,0 +1,113 @@
+FINAL CLEANUP PASS PROMPT - EXECUTIONUPGRADES COMPLETION AUDIT
+
+Goal:
+Perform a final completion audit for ExecutionUpgrades and produce a clear GO or NO-GO verdict with evidence.
+
+Purpose:
+- Verify whether Phase 01 through Phase 05 objectives are complete and stable.
+- Confirm shared execution contracts remain intact.
+- Identify and clean up only bounded, in-scope defects that block completion.
+- Do not perform broad redesign or introduce new architecture in this pass.
+
+Inputs:
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+- AI/Tasks/ExecutionUpgrades/Implementation_Overview.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase01_SecurityAuthorizationCorrectness_Implementation.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase01_SecurityAuthorizationCorrectness_Strict.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase02_ReliabilityIsolationAsyncExecution_Implementation.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase02_ReliabilityIsolationAsyncExecution_Strict.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase03_ScalabilityArchitectureMaintainability_Implementation.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase03_ScalabilityArchitectureMaintainability_Strict.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase04_ObservabilityTelemetryRegressionCoverage_Implementation.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase04_ObservabilityTelemetryRegressionCoverage_Strict.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase05_AdvancedHardeningFutureProofing_Implementation.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase05_AdvancedHardeningFutureProofing_Strict.txt
+- Latest run logs in LogsAndExports/Logs/TechAgentMarkdown
+
+Primary target surfaces:
+- src/TechToolbox.Agent/Execution/*
+- src/TechToolbox.Agent/Tools/* (only direct execution and validation seams)
+- src/TechToolbox.Agent/Orchestrator/* (only direct integration seams)
+- src/TechToolbox.Agent/Tests/*Execution* and related focused phase test files
+
+Global invariants (must remain true):
+- Security pipeline order: resolve -> validate -> authorize -> execute -> normalize.
+- Authority precedence: policy and system guardrails > execution safety, authorization, confirmation > explicit intent > reliability and routing details.
+- Shared contracts remain stable: error and result model, cancellation semantics, authorization ownership, telemetry ownership, file-operation semantics, rollback and recovery behavior.
+- No cleanup change may weaken authorization, confirmation, sandboxing, refusal rules, or execution safety.
+- Logs, diagnostics, and telemetry remain redacted and resource-bounded.
+
+Final cleanup workflow:
+
+1) Completion inventory and contract check
+- Build a phase completion matrix for Phase 01 to Phase 05.
+- For each phase, classify every acceptance criterion as:
+	- COMPLETE
+	- PARTIAL
+	- MISSING
+	- OUT_OF_SCOPE_FOR_FINAL_PASS
+- Include concrete evidence for each classification (code location, test name, validation command result, or run-log citation).
+
+2) Stability and drift detection
+- Detect partial-implementation drift such as:
+	- wrapper-only behavior presented as full completion
+	- duplicate ownership between policy and reliability layers
+	- stale fallback paths that bypass newer safeguards
+	- tests that pass only due to broad exception swallowing
+	- inconsistent timeout, cancellation, or result semantics
+- Record drift as blocking or non-blocking with rationale.
+
+3) Bounded remediation (only if completion blockers are in-scope)
+- Apply focused repairs only for high-confidence blockers in target surfaces.
+- Keep edits minimal and deterministic.
+- Do not reopen completed phases unless a discovered defect violates shared contracts or safety invariants.
+- Do not expand into broad architecture decomposition or non-phase prompts.
+
+4) Validation matrix
+- Required baseline:
+	- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+	- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Execution|Security|Authorization|Runspace|Async|Telemetry|Hardening"
+- Phase-targeted confirmation:
+	- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Security|Authorization|Path|Atomic|Redirect|DNS|Allowlist|Fetch|Noaa|Write"
+	- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Async|Cancellation|Runspace|Lease|Timeout|Drain|Structured"
+- Optional broader confidence run only if time budget allows:
+	- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release
+
+5) Final completion decision
+- Return one explicit verdict:
+	- GO_FOR_EXECUTIONUPGRADES_CLOSEOUT
+	- NO_GO_BLOCKED
+- GO requires:
+	- no blocking safety or contract regressions
+	- required validation matrix passes
+	- no unresolved Phase 01 or Phase 02 critical gaps
+	- any remaining gaps are explicitly Phase 05 optional or deferred with owner and rationale
+- NO-GO requires exact blockers, failing assertions, and minimal next-fix set.
+
+Implementation constraints:
+- Keep changes bounded and deterministic.
+- Preserve safety ownership boundaries.
+- Avoid unrelated edits.
+- Do not modify prompts outside AI/Tasks/ExecutionUpgrades unless fixing a completion blocker in execution code or tests.
+
+Step budget (hard limits):
+1) Discovery: <= 12 read/search calls.
+2) Edits: <= 8 file edits.
+3) Validation: 1 build + 3 targeted test runs from the matrix; optional full test run allowed only once.
+4) Repair cycles: <= 2 focused repair cycles for in-scope blockers.
+5) Stop when verdict criteria are satisfied.
+
+Stop conditions:
+- Stop immediately if a requested change would weaken safety invariants.
+- After second failed in-scope repair cycle, emit FAILED_VALIDATION with exact failing assertions and recommended next minimal patch set.
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Completion matrix by phase (criteria, status, evidence)
+4) Drift and stability findings
+5) Repairs applied in this pass
+6) Validation matrix results
+7) Final verdict (GO_FOR_EXECUTIONUPGRADES_CLOSEOUT or NO_GO_BLOCKED)
+8) Remaining risks and defer list (with owner and reason)
+9) Step-budget report (planned vs actual)

@@ -1,0 +1,52 @@
+## Heuristics Upgrade Overview
+
+This phased Strict-mode redesign establishes the architecture before later phases tune individual signals. Phase 01 is the prerequisite contract for all subsequent heuristics work.
+
+### Phase order
+1. Phase 01 - Architecture redesign
+2. Phase 02 - Pattern matching layer
+3. Phase 03 - Cost-benefit matrix
+4. Phase 04 - Session reinforcement logic
+5. Phase 05 - Clarification mode upgrade
+6. Phase 06 - Final integration and test plan
+
+### Shared score contract
+- Every heuristic score is a finite normalized decimal in the inclusive range [0.0, 1.0].
+- Missing, malformed, unavailable, or non-finite evidence contributes the explicit neutral default 0.5 unless the owning component documents a safer zero contribution.
+- Each component clamps its output to [0.0, 1.0] before returning it. The final composition clamps again.
+- The canonical composition order is: safety precheck -> bounded evidence collection -> pattern evidence -> prior -> positive boosts -> negative penalties -> cost adjustment -> bounded session advisory -> deterministic tie-break -> routing and final gates.
+- Safety prechecks and final gates are not scores and cannot be bypassed by a score.
+- Ties are resolved by stable route priority, then lower estimated cost, then ordinal tool identifier. Input order must never decide a tie.
+- Arithmetic is deterministic: fixed decimal precision or an equivalent invariant implementation, no random sampling, time-dependent scoring, or locale-sensitive comparisons.
+
+### Shared terminology
+- Evidence: an observed signal or feature. Evidence informs scoring only.
+- Score: a clamped normalized estimate of route suitability; it is not authorization.
+- Decision: the central controller's final route after scoring, gates, and policy checks.
+- Override: an explicit higher-precedence policy result. Overrides are explainable and cannot be created by pattern matching or reinforcement.
+- Reinforcement: bounded, session-local advisory evidence derived from prior outcomes; it expires and cannot override safety or policy.
+- Clarification: a route used when required information is missing or materially ambiguous.
+- Refusal: a route used when an action is unsafe, unauthorized, disallowed, or cannot satisfy a hard invariant.
+
+### Global precedence and safety invariants
+- System policy, authorization, confirmation, sandboxing, resource limits, and execution safety outrank user intent, evidence, scores, costs, and reinforcement.
+- Pattern matching produces evidence only. It never directly decides authorization, confirmation, sandboxing, refusal, or execution safety.
+- The heuristics layer must not weaken, suppress, or reinterpret required confirmation, authorization, sandboxing, or safety checks.
+- Dangerous, privileged, untrusted, or out-of-budget work routes to refusal, confirmation, or a constrained path as required by the safety owner.
+- Clarification and refusal remain distinct outcomes.
+- Diagnostics redact sensitive values, use bounded event counts and field lengths, and never log secrets, credentials, full prompts, tokens, or unrestricted tool output.
+
+### Compatibility gates
+Later phases may proceed only when Phase 01 demonstrates:
+- one named owner for architecture, evidence, scoring, routing, gating, safety, and diagnostics;
+- deterministic score and tie behavior with boundary tests;
+- compatibility adapters for existing pattern and tool-selection interfaces;
+- proof that advisory signals cannot reach final execution without the safety and policy gates;
+- bounded, redacted diagnostics;
+- build and targeted tests passing.
+
+### Scope rule
+Do not tune pattern libraries, cost tables, session policy, or clarification templates in Phase 01. Later phases may implement those concerns only through the owners and contracts defined here. Unrelated agent behavior and execution policy remain unchanged.
+
+### Completion standard
+Each phase records files changed, ownership boundaries, composition rules, safety rules, tests, validation results, and planned versus actual budget counts. Acceptance criteria must be mechanically verifiable where practical.

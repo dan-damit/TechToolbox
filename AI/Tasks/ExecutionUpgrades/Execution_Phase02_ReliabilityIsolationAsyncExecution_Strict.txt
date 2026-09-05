@@ -1,0 +1,75 @@
+STRICT MODE: Build reliability, isolation, and asynchronous execution for the execution subsystem.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the execution reliability, isolation, and async execution surfaces.
+
+Concrete scope:
+- AI/Tasks/ExecutionUpgrades/Overview.txt
+- AI/Tasks/ExecutionUpgrades/Execution_Phase02_ReliabilityIsolationAsyncExecution_Strict.txt
+- Async tool execution, CancellationToken support, runspace lease lifecycle, quarantine/reset/dispose behavior, bounded process-output draining, post-kill timeouts, structured execution results, and truncation metadata.
+
+Requirements:
+- Introduce RunToolAsync and async implementations for PowerShell, HTTP, file I/O, and process execution.
+- Add CancellationToken support everywhere practical in the execution pipeline.
+- Build a runspace lease abstraction with acquire, reset, quarantine, and dispose behavior.
+- Quarantine and replace a runspace after timeout, contamination, or unrecoverable error.
+- Add bounded process-output draining and a post-kill drain timeout so execution cannot wait indefinitely.
+- Add structured execution results with success/failure, diagnostics, exit status, duration, and truncation metadata.
+- Define cancellation semantics for queued, acquired, running, terminating, draining, and completed states.
+- Define which condition wins when cancellation and timeout occur together, and require the result to report both when appropriate.
+- Define the runspace lease state machine and legal transitions, including what happens on reset failure, user-code exceptions, cancellation, and host termination.
+- Define contamination detection and explicit health checks instead of assuming a timeout proves contamination.
+- Specify concurrency limits, queue behavior, and what happens when lease capacity is exhausted.
+- Define output-drain limits separately for stdout, stderr, combined output, and post-kill draining, using clear byte or character accounting.
+- Make structured results immutable or explicitly stable enough for automated assertions.
+- Preserve compatibility expectations for existing synchronous callers and name the async scheduling model.
+- Keep async control flow isolated from authorization policy so reliability changes cannot weaken safety checks.
+- Preserve deterministic behavior, bounded waits, and observable failure modes.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Define dependency and compatibility gates before moving beyond this phase.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into registry policy, architecture decomposition, telemetry, or observability beyond what is needed for async reliability.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated file authorization, endpoint restrictions, or heuristic behavior in this phase.
+- Explicitly prohibit reliability changes from weakening authorization, confirmation, sandboxing, or execution safety requirements.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If async wrappers start duplicating policy or transport ownership, stop and restore a clean separation between orchestration and policy.
+- If runspace lifecycle logic is rewritten repeatedly without a clearer lease model, stop and narrow back to acquire/reset/quarantine/dispose.
+
+Fallback behavior:
+- Fallback A: introduce async wrappers with cancellation and structured results first, then layer lease quarantine and output-drain controls.
+- Fallback B: if full async conversion is too risky, keep sync behavior as the implementation core and add async-safe wrappers plus bounded waits.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- RunToolAsync exists for the main execution surfaces.
+- CancellationToken support is threaded through the reliability-critical paths.
+- Runspace lease behavior is explicit and testable.
+- Post-kill draining is bounded.
+- Structured execution results include the expected metadata.
+- Cancellation, timeout, quarantine, and concurrency outcomes are named and observable.
+- Characterization or phase-specific tests cover timeout, isolation, and cancellation behavior.
+- Dependency and ownership boundaries are explicit for any shared execution work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Async|Cancellation|Runspace|Lease|Timeout|Drain|Structured"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Async execution model
+4) Runspace lease and isolation
+5) Output draining and timeout behavior
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

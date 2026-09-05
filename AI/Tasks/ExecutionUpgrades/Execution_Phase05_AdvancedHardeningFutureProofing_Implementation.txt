@@ -1,0 +1,37 @@
+PHASE 05 IMPLEMENTATION PROMPT - ADVANCED HARDENING AND FUTURE-PROOFING
+
+Goal:
+Implement enforceable hardening controls, advisory controls, and explicit platform-safe fallbacks for advanced execution protection.
+
+Inputs:
+- AI/Tasks/ExecutionUpgrades/Execution_Phase05_AdvancedHardeningFutureProofing_Strict.txt
+- Outputs from Phases 01-04
+
+Required code work:
+- Implement explicit classification of controls as enforced or advisory with deterministic fallback behavior when enforcement is unavailable.
+- Implement sandboxing controls for PowerShell and dotnet execution where platform support is trustworthy.
+- Implement per-tool resource budgets covering CPU, wall-clock, memory, output, process count, child lifetime, filesystem usage, and network usage.
+- Implement budget enforcement behavior: graceful cancel, forced kill, quarantine, result classification, and bounded cleanup.
+- Implement process-tree inheritance and tracking rules for child budget enforcement.
+- Implement replay logging with canonicalization, ordering guarantees, size limits, retention, encryption controls, and redaction.
+- Implement a single replay semantics contract (input capture, event capture, or executable replay) and apply it consistently.
+- Implement tenant boundary seams for identity propagation, data isolation, resource isolation, fair scheduling, and telemetry isolation.
+- Implement compatibility gating and explicit unsupported-platform behavior.
+
+Implementation constraints:
+- Hardening changes must preserve all prior phase contracts.
+- Do not claim containment on platforms where sandbox controls are not trustworthy.
+
+Minimum tests to add/update:
+- Enforced-versus-advisory classification tests.
+- Budget exhaustion and cleanup-behavior tests.
+- Child-process inheritance and containment tests.
+- Replay redaction, ordering, and size-bound tests.
+- Tenant isolation and cross-tenant telemetry restriction tests.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Hardening|Sandbox|Budget|Replay|Isolation|Tenant"
+
+Deliverable:
+Return hardening control map, enforcement and fallback behavior, platform compatibility matrix, and test evidence for safe future-proofing.
