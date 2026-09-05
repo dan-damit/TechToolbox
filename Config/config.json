@@ -223,6 +223,7 @@
       "apiKeyEnvVar": "TT_AGENT_LLM_API_KEY",
       "defaultPromptFile": "AI\\Tasks\\CurrentTask.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
+      "maxIterations": 50,
       "promptHistoryItems": 2,
       "fetch": {
         "allowedHosts": [

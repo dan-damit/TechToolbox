@@ -52,6 +52,7 @@ function Invoke-TechAgent {
 
     .PARAMETER MaxIterations
         Maximum number of tool/reasoning iterations before the agent concludes.
+        Defaults to settings.agent.maxIterations from config (fallback: 50).
 
     .PARAMETER PromptHistoryItems
         Number of recent memory history entries to inject into prompt context.
@@ -207,7 +208,7 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [ValidateRange(1, 500)]
-        [int]$MaxIterations = 50,
+        [int]$MaxIterations,
 
         [Parameter()]
         [ValidateRange(0, 20)]
@@ -319,6 +320,22 @@ function Invoke-TechAgent {
         $Provider = 'ollama'
     }
     $Provider = $Provider.Trim().ToLowerInvariant()
+
+    [int]$resolvedMaxIterations = 50
+    if ($PSBoundParameters.ContainsKey('MaxIterations')) {
+        $resolvedMaxIterations = [int]$MaxIterations
+    }
+    else {
+        $maxIterationsValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'maxIterations'
+        if ($null -ne $maxIterationsValue) {
+            [int]$parsedMaxIterations = 0
+            if ([int]::TryParse([string]$maxIterationsValue, [ref]$parsedMaxIterations)) {
+                $resolvedMaxIterations = $parsedMaxIterations
+            }
+        }
+    }
+
+    $resolvedMaxIterations = [Math]::Max(1, [Math]::Min(500, $resolvedMaxIterations))
 
     $moduleRoot = Get-ModuleRoot
     $promptSourceLabel = 'inline -Prompt'
@@ -553,7 +570,7 @@ function Invoke-TechAgent {
         }
     }
 
-    $waitTimeoutSeconds = [Math]::Max(300, ($MaxIterations * 180))
+    $waitTimeoutSeconds = [Math]::Max(300, ($resolvedMaxIterations * 180))
     $waitPollSeconds = 15
     $waitHeartbeatSeconds = 120
 
@@ -1182,7 +1199,7 @@ Hard requirement:
             RuntimeProfilesJson          = $runtimeProfilesJson
             ResiliencePolicyJson         = $resiliencePolicyJson
             Verbose                      = $false
-            MaxIterations                = $MaxIterations
+            MaxIterations                = $resolvedMaxIterations
             PromptHistoryItems           = $resolvedPromptHistoryItems
             ConfirmDestructive           = $ConfirmDestructive.IsPresent
             MemoryPath                   = $memoryPath
@@ -1841,7 +1858,7 @@ $result = $runAgentMethod.Invoke($null, @(
                     -Status $markdownStatus `
                     -PromptText $Prompt `
                     -ModelName $resolvedModel `
-                    -IterationLimit $MaxIterations `
+                    -IterationLimit $resolvedMaxIterations `
                     -DestructiveAuthorized $ConfirmDestructive.IsPresent `
                     -SignedFilePolicyValue $SignedFilePolicy `
                     -AutoRetryOnRecursionMode $(
@@ -1902,8 +1919,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCnM0dGxLb2eYax
-# nNg+PKAb0ZcPqwmvMxEz1HReegFOaaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCRLagNAJ4fdciZ
+# K2xQ7j+TQMwhyAgoAuBGXaTVK88gOqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2036,34 +2053,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA6U+dPZMsR
-# 8Qtfjn25yC9UP6Di6ZDhAcG1KTXKm89ezDANBgkqhkiG9w0BAQEFAASCAgAT3oAQ
-# pO7GFfi9XU316NG3J2gcoFPUe2hO6+sw+1SAk2ucJM/MOGei68cD3MiFvJs80Fi8
-# 1AgvTlK6DCL1JXyJiaT1aA/831z4NPMwK4F44WeLJtFj4xWGsKB4Dz100WTJ53bt
-# ugHzn+jYu+p+KTQbGigtnsFfnP6exs2QAXpFz2c27ayKIfbdCIK/yZeQkIWToqee
-# 3S1CbngS39piZR+syQrB/jYKwQ6PMzp/iRyjML0hU0Oc+LgMdw40bpugybx5r8yf
-# Kihi+QCg/4jASHrxUXYGVEdf3Dw7GUT5X8XWEKCBcl90GKnUPKGfYbdOxnhJpYcb
-# WvYVve8IlByG3hxZa8Bza5ZKlYHMRe0QmTG5A4a0/RZMCuRmJ8RNHT8Y6rf+f8xl
-# WwwaFy5WEaSakrHBUNP9I2b+BlFjPuzzB/4rz2FP85Srk6NCA5TQNEZusm4i/in8
-# awziqllbK50o4TyxZ21AbDGVsltc/+xfV0ys7V20Blxi5mBWEbqkdPYgfi5TE+i8
-# 3PqUOXrJUzkjG+FiFaFUekaj3muRiHT8iK0ToBHvJXpD+AWvsXAcYNKksmtzPCtt
-# /bkQBJMBLqgSTc8ZP7qmljBBQ7xAp3uQpeWgwqeKuv6hgnooSv9lqIO7PC86h+Uh
-# EnBpR9hdPXf7BO2dpCiUtXbWsVlg6dLwJCxumKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB9SYWk9JYc
+# ridKXRDnB7QXJuGxOP+tXhTxWkSXcKt4QTANBgkqhkiG9w0BAQEFAASCAgB12s0x
+# pTXtiFfX+Y2YJz0YFD8Qpd6NXIfYjDg+xWmvzKGBsDntydwBqhxgb1RpomoyKneJ
+# /VInYxk/D23cWjsMQtLpZ80iVFujFHKcfwRw5ED0KR5EnqYR4h2VcGHoLJr9u1o3
+# V+MA+HN3rSXrlGSU36OZ/egJoU6Y3oNuWs1NldidqNTE+areNLUoOLRawERMiQGj
+# SU7RpQQgI26mHmCxk1SCP7krJI3ws/DieldamKE+Om9WjGTJgrMPucaZXvMBh0nP
+# 1jKKXNzT/oLcTAMKizvaY0sv6/zmAReVyAQYytcyddW05R4dmoIVBcIVb/pw72j2
+# 7VADG9X1Is0tW1z6CwkKCNKaKsuce5Fe0bu0Xl4jJUnikU0k7Vh471Fkir+naKan
+# 24yUU62B4liNbrIKIjSgvoizOiYveDEcMK0kOGzCZGhDX6bpezMIfqN+c227FUw/
+# W4mQL1MzEvflezoEDvYdz8m+Wc0OGTCTklYkdAUsG8WPs9i5QMg+pEvdPX7hP/Xq
+# 54aan2quc+apQZW9XvFru+iOrE50BbdfM5UB4SDxlzJsEnqYGITXKGojgSNq3Q64
+# 9LbZ4DJef0lRO0+9vWsN//w7dey/Oj6JUOFi/e604D/yqKKdTl4fGOhqUWniUtkO
+# weA5txZM6Zo1K1waFvI60bj5VDGY9elB/B0zKKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDUxNjQ3NTJaMC8GCSqGSIb3DQEJBDEiBCCwSUGqlVDMD0QVdUPQ
-# s8BJ9CtwpyPKG8VGvOH0zi/xRDANBgkqhkiG9w0BAQEFAASCAgAZcSU5rUsKZrjF
-# +Y393EUwsJlIsGdiC3IXN0NoAb+T7e+EECRztKuYYw3LcIyTZ6ffwHQn7MRn2d47
-# LCB+qv2gmhhyjb32l3Bls02fqkVgYoBITSii3s6idf4LVPE+nQ1qq0WH6WwJbCoq
-# U2QcEpFokq3XFlx2q0486UWOKKCGte6FOy5nJuer1yxmc4HpqYgY/UDQ3W6P+ddl
-# Bg2DWQ9lyDW+g7etqmPsfVxyFpalDmZXKgc/tmgwlidieavmtAKM+TRQoy3Wf6y6
-# 4L9x47Zawme9ncTGII3G5eNtMRfdWad8z+/EUvWkrazPXu7FoGg/WZqeQ0BJzgEY
-# P7xbaM4AM7g+TzYcq3cTyi6draAC0PT2jcrNsZ5goxB9RyJC6jFgsdjtzjGx+/Lv
-# 6qDP/LPwJgLyiisN+Wk0XxptvGnyh9gVbpbXOKz0Lr6xJlczQe3Vcb9tuHA81AES
-# ME/jTKP69ucCJrbbqguk8NWJumUxxFWuzH1JD5X4orsPEf5U/2KyTDRT3NhlLZOf
-# nUjuRxck6VawNPkq/CynygRq5vC649bJKjas5khlO9t6JZo/RkAeGbCmNgPGxaip
-# 62BRLf/C6jp6r144E9beg48xPsc/c57Y5YUzlG59GtWuMm4GF4qGeVnQZ2/GZX7A
-# lWRH25z72I74sn1zSALq4xx8jBMUIw==
+# BTEPFw0yNjA5MDUxNzExMzFaMC8GCSqGSIb3DQEJBDEiBCDpFoynF86GZYfcOHk8
+# qvVejV26seBKSf53fyIfAloXFjANBgkqhkiG9w0BAQEFAASCAgCybNmXaypmWGeM
+# g8JKT0Wo2OWcMMP6DkIv+NeUubM44vpgGuC1kS4AiyrHkakYjYIihZ3yNjDu6rJC
+# koBB9BFYs6JhecsYV04Dgm0wstgiT0tNjaI+gveXLUMKy5IK2pc4IdOgvR+4ZzsW
+# 6rwi12DB0+rjZ9v81vPTJNBESQ6Ulgs7zcCzXgYKF329lEjvPsQCdBXzYZXv7Xdu
+# J/OyjKX+2561uqpOe+Sb7MCgR3W8+lfms2TNxpxxLl8lN0LYY1mnV34zVPl6IYPE
+# O2wTEnzVM0/WswzCZOaiKbI018kKJN1w5AM4Aiip14OfL6lkaL+YhHq33/xMhEr7
+# dN3bwoXK2fcCuNwF0ItYxYkIQCO35tec6100LjRzwslXvlSSJl6Oowa3fbZQhoI7
+# f4kuC1ZI3BokbHRQuemuf/grCg7ok6pZAPVhlYr/BzbshmOSIKZdWLsYpLTOG+s2
+# V6oRmeC5oHV3eghMMPWtYrIx6wuewjQGbpIxlhN5YjhBpmRRit6nhvBCsTZ3AiCJ
+# pKNoQG4ydJqmNKzEOcko40SC22RmBgDco9FOWX7bilZFzgHgooVDtoKdMQAATW2L
+# YyJzEGh42wLMtmzRkGRT+jXTYU3QjFiWHafTEa7vq4HgPVCBK31khc6sATxTqDRQ
+# 7QJN2JI6brkldLTuDg+xN14fWiG6Qw==
 # SIG # End signature block
