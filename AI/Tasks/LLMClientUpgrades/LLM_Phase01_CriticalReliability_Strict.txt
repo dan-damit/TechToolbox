@@ -1,0 +1,65 @@
+STRICT MODE: Fix critical reliability issues in the LLM client stack.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the LLM client stack and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Llm/LlmClient.cs
+- src/TechToolbox.Agent/Llm/OpenAiCompatibleLlmClient.cs
+- src/TechToolbox.Agent/Llm/ILlmClient.cs
+- src/TechToolbox.Agent/Tests/LlmClientTests.cs
+- src/TechToolbox.Agent/Tests/AgentOrchestratorTests.cs
+
+Requirements:
+- Dispose every HttpResponseMessage created by the clients.
+- Remove private HttpClient instantiation from client constructors or call paths when a shared or injected transport is available.
+- Distinguish user cancellation from internal timeout and return the correct cancellation-specific response semantics.
+- For Ollama streaming, use HttpRequestMessage plus SendAsync(HttpCompletionOption.ResponseHeadersRead) instead of PostAsJsonAsync.
+- Preserve incremental streaming behavior so callbacks can observe tokens as soon as the response body begins.
+- Enforce callback contract consistency across providers, including early-stop return values.
+- Add characterization and phase-specific tests before or alongside each change in this phase.
+- Define ownership for any overlapping transport, callback, retry, or configuration work within this phase and document the boundaries.
+- Add dependency and compatibility gates before moving beyond this phase, and explicitly note any cross-phase requirements.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into retry relocation, multi-model execution, persistent context, or compression unless specifically approved.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not change unrelated routing or configuration behavior in this phase.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If response-disposal fixes are reworked twice without test improvement, stop and report blocker.
+- If cancellation-vs-timeout semantics remain ambiguous after one repair cycle, do not widen scope.
+
+Fallback behavior:
+- Fallback A: implement response disposal and shared transport first, then wire timeout/cancellation semantics.
+- Fallback B: if full streaming refactor is risky, restore correct callback behavior with a minimal request/response wrapper first.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- No client path leaks HttpResponseMessage instances.
+- Ollama streaming begins with response headers read and does not block token delivery behind full-body buffering.
+- Cancellation and timeout are reported distinctly.
+- Early-stop callback behavior is consistent across providers.
+- Characterization or phase-specific tests cover the changed reliability behavior.
+- Dependency and ownership boundaries are explicit for any shared transport or callback changes.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "LlmClient|OpenAi|Callback|Cancellation|Timeout"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Lifecycle and transport behavior
+4) Cancellation and timeout behavior
+5) Callback contract behavior
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

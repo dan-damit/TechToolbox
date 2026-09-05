@@ -1,0 +1,65 @@
+STRICT MODE: Normalize provider capabilities and shared callback behavior in the LLM client stack.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the LLM client stack and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Llm/LlmClientFactory.cs
+- src/TechToolbox.Agent/Llm/OpenAiCompatibleLlmClient.cs
+- src/TechToolbox.Agent/Llm/LlmClient.cs
+- src/TechToolbox.Agent/Configuration/AgentConfiguration.cs
+- src/TechToolbox.Agent/Tests/LlmClientTests.cs
+- src/TechToolbox.Agent/Tests/AgentOrchestratorTests.cs
+
+Requirements:
+- Make callback behavior uniform where possible across providers.
+- Ensure OpenAI-compatible clients either support streaming where possible or explicitly document non-streaming behavior in code and tests.
+- Respect early-stop signals even when a provider must run in non-streaming mode.
+- Replace scattered model-specific conditionals with centralized capability metadata or a single metadata source.
+- Include capability flags for streaming, reasoning-effort, sampling, and responses-api support.
+- Add characterization and phase-specific tests before or alongside each change in this phase.
+- Define ownership for any overlapping transport, callback, retry, or configuration work within this phase and document the boundaries.
+- Add dependency and compatibility gates before moving beyond this phase, and explicitly note any cross-phase requirements.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into retry relocation, multi-model execution, persistent context, or compression unless specifically approved.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Add or adjust retry/backoff handling only when it is clearly shared and not provider-specific drift.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If capability logic is split into multiple competing sources, stop and consolidate instead of expanding further.
+- If callback semantics diverge again after one repair cycle, report the exact provider gap instead of broadening the refactor.
+
+Fallback behavior:
+- Fallback A: centralize capability metadata first, then use it to gate provider behavior.
+- Fallback B: if streaming support cannot be made uniform, document the provider-specific exception and preserve early-stop behavior.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the provider-specific failing assertions.
+
+Acceptance criteria:
+- Provider capability checks come from one consistent source.
+- Callback semantics are predictable and covered by tests.
+- OpenAI-compatible behavior is explicit about streaming or non-streaming constraints.
+- Early-stop behavior still works when a provider cannot stream.
+- Characterization or phase-specific tests cover provider capability and callback drift.
+- Dependency and ownership boundaries are explicit for any shared capability or retry logic.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Capabilities|Callback|Streaming|Responses|Sampling|Reasoning"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Capability metadata
+4) Callback behavior
+5) Provider-specific behavior
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

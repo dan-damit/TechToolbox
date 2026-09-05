@@ -1,0 +1,59 @@
+STRICT MODE: Prepare the LLM client stack for future extensibility without destabilizing the current implementation.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the LLM client stack and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Llm/*.cs
+- src/TechToolbox.Agent/Configuration/AgentConfiguration.cs
+- src/TechToolbox.Agent/Tests/LlmClientTests.cs
+- src/TechToolbox.Agent/Tests/AgentOrchestratorTests.cs
+
+Requirements:
+- Keep future provider hooks declarative and low-risk.
+- Preserve the current Ollama/OpenAI-compatible/Azure OpenAI behavior as the baseline.
+- Avoid speculative multi-model execution unless the current code already has a safe seam for it.
+- Avoid long-lived memory or tool-state persistence changes unless they are already supported by nearby abstractions.
+- Add characterization and phase-specific tests before or alongside any extension point added here.
+- Define ownership for any overlapping transport, callback, retry, or configuration work within this phase and document the boundaries.
+- Add dependency and compatibility gates before moving beyond this phase, and explicitly note any cross-phase requirements.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into retry relocation, multi-model execution, persistent context, or compression unless specifically approved.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Favor small, composable extension points over framework-like redesigns.
+
+Step budget (hard limits):
+1) Discovery: <= 5 read/search tool calls.
+2) Edits: <= 6 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If future-proofing requires broad new abstractions, stop and report the safe seam that was found instead.
+- If the phase starts duplicating earlier architecture work, defer the duplicate change.
+
+Fallback behavior:
+- Fallback A: introduce only the extension point needed by the nearest identified future use case.
+- Fallback B: if no safe extension seam exists, document that gap and stop.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact blocker.
+
+Acceptance criteria:
+- The codebase gains only safe, minimal extension hooks.
+- Existing provider behavior remains stable.
+- No speculative redesigns are introduced.
+- Characterization or phase-specific tests cover the extension seam and any adjacent behavior.
+- Dependency and ownership boundaries are explicit for any shared extension or configuration work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "LlmClient|OpenAi|Factory|Orchestrator|Extension"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Extension hooks
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

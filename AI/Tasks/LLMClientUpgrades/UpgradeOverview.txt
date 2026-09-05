@@ -1,0 +1,181 @@
+## **Phase 1 — Critical Reliability Fixes (Highest Priority)**  
+These are the “must‑do” items that materially improve correctness, resource safety, and predictable behavior.
+
+### **1. Response & Client Lifecycle**
+- Dispose all `HttpResponseMessage` objects.
+- Establish a clear `HttpClient` lifetime strategy (singleton or injected).
+- Remove private `HttpClient` instantiation inside clients.
+
+### **2. Cancellation vs Timeout Semantics**
+- Distinguish user cancellation from internal timeout.
+- Return a cancellation‑specific `LlmResponse` instead of mislabeling it as a timeout.
+
+### **3. Streaming Correctness (Ollama)**
+- Replace `PostAsJsonAsync` with:
+  - `HttpRequestMessage`
+  - `SendAsync(HttpCompletionOption.ResponseHeadersRead)`
+- Ensure incremental token streaming begins immediately.
+
+### **4. Callback Contract Enforcement**
+- Guarantee consistent callback semantics across providers.
+- Respect early‑stop return values.
+- Document provider differences if unavoidable.
+
+---
+
+## **Phase 2 — Architectural Consistency & Testability**
+
+### **5. Injected Transport Layer**
+- Introduce an `IHttpTransport` abstraction.
+- Allow dependency injection for:
+  - HTTP client
+  - clock/backoff
+  - endpoint configuration
+- Enables deterministic unit tests.
+
+### **6. Immutable Configuration**
+- Stop mutating caller‑provided configuration objects.
+- Introduce:
+  - `ResolvedLlmConfig`
+  - `ResolvedRuntimeProfile`
+- Make factory resolution pure and thread‑safe.
+
+### **7. Endpoint Flexibility**
+- Add:
+  - Ollama endpoint override
+  - HTTPS support
+  - remote deployment support
+- Remove hard‑coded `http://localhost:11434/api/chat`.
+
+### **8. Environment Variable Strategy**
+- Replace static environment reads with:
+  - injected options
+  - reloadable configuration
+- Improves testability and dynamic runtime behavior.
+
+---
+
+## **Phase 3 — Provider Capability Normalization**
+
+### **9. Unified Callback Behavior**
+- OpenAI-compatible client should:
+  - support streaming where possible
+  - or explicitly document non-streaming behavior
+- Respect early-stop signals even in non-streaming mode.
+
+### **10. Centralized Capability Metadata**
+- Replace scattered model-specific conditionals with:
+  - `ModelCapabilities.json`
+  - or a static metadata class
+- Include:
+  - supports_streaming
+  - supports_reasoning_effort
+  - supports_sampling
+  - supports_responses_api
+
+### **11. Retry & Backoff Abstraction**
+- Move retry logic into a shared module.
+- Normalize:
+  - rate-limit handling
+  - exponential backoff
+  - retry-after parsing
+
+---
+
+## **Phase 4 — Routing & Heuristics Improvements**
+
+### **12. Coding Detection Refinement**
+- Replace substring heuristics with:
+  - token-based detection
+  - weighted signals
+  - confidence scoring
+- Prevent accidental routing to coding models.
+
+### **13. Thinking Mode Normalization**
+- Make `"on"` / `"off"` case-insensitive.
+- Add validation + fallback warnings.
+
+### **14. Runtime Profile Validation**
+- Emit diagnostics when:
+  - profile is missing
+  - profile is invalid
+  - profile fallback occurs
+
+---
+
+## **Phase 5 — Comprehensive Test Suite**
+
+### **15. Payload-Level Tests**
+- Validate:
+  - chat payloads
+  - responses payloads
+  - JSON enforcement
+  - refusal content extraction
+
+### **16. Transport Tests**
+- Simulate:
+  - streaming
+  - partial lines
+  - malformed JSON
+  - cancellation
+  - timeouts
+
+### **17. Routing Tests**
+- Ensure:
+  - model selection correctness
+  - profile selection correctness
+  - thinking-mode correctness
+
+### **18. End-to-End Tests**
+- Full pipeline tests for:
+  - Ollama streaming
+  - OpenAI responses
+  - Azure OpenAI
+  - fallback behavior
+
+---
+
+## **Phase 6 — Optional Enhancements**
+
+### **19. Structured Error Taxonomy**
+- Replace string-based error classification with:
+  - `LlmErrorKind`
+  - `LlmTransportError`
+  - `LlmProviderError`
+
+### **20. Observability**
+- Add:
+  - provider timing metrics
+  - retry counters
+  - streaming latency metrics
+  - callback timing metrics
+
+### **21. Pluggable Providers**
+- Introduce:
+  - Anthropic
+  - Gemini
+  - Local GGUF providers
+- All behind the same `ILlmClient` abstraction.
+
+---
+
+## **Phase 7 — Future-Proofing**
+
+### **22. Multi-Model Execution**
+- Allow parallel model execution for:
+  - consensus
+  - cross-checking
+  - fallback
+  - ensemble reasoning
+
+### **23. Persistent Agent Context**
+- Add:
+  - long-lived memory
+  - tool-state persistence
+  - multi-turn reasoning profiles
+
+### **24. Token-Efficient Compression**
+- Add:
+  - semantic compression
+  - chunked context windows
+  - auto-summarization gates

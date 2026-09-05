@@ -1,0 +1,60 @@
+STRICT MODE: Add a comprehensive test suite for the LLM client stack.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY to LLM-related tests, and LLM client code only when required for testability or confirmed bug fixes.
+
+Concrete scope:
+- src/TechToolbox.Agent/Tests/LlmClientTests.cs
+- src/TechToolbox.Agent/Tests/AgentOrchestratorTests.cs
+- src/TechToolbox.Agent/Tests/*Llm*.cs
+- src/TechToolbox.Agent/Llm/*.cs only for test seams or confirmed bugs discovered by tests
+
+Requirements:
+- Cover payload-level behavior for chat and responses-style requests where applicable.
+- Cover response disposal, timeout/cancellation, and streaming transport behavior.
+- Cover callback contracts, including early-stop handling and provider-specific differences.
+- Cover routing decisions for model selection, provider selection, and runtime profile selection.
+- Cover endpoint override, reasoning-effort, sampling, and refusal-content extraction behavior where applicable.
+- Add characterization and phase-specific tests before or alongside any code change made in this phase.
+- Define ownership for any overlapping transport, callback, retry, or configuration work within this phase and document the boundaries.
+- Add dependency and compatibility gates before moving beyond this phase, and explicitly note any cross-phase requirements.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into retry relocation, multi-model execution, persistent context, or compression unless specifically approved.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Prefer deterministic fixtures and local test doubles over network-dependent tests.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 12 file edits total (tests-first).
+3) Validation: 1 build + 1 targeted test run; one repair cycle max.
+4) Stop once criteria pass.
+
+Loop guards:
+- No repeated flaky-test chasing; if non-determinism appears twice, isolate and report.
+- If unchanged failures persist after one repair cycle, stop and emit FAILED_VALIDATION.
+
+Fallback behavior:
+- Fallback A: prioritize deterministic unit tests over integration-heavy scenarios.
+- Fallback B: use narrow stubs or fixtures for provider responses before expanding coverage.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the failing test list.
+
+Acceptance criteria:
+- New tests are deterministic and require no network/services.
+- At least one previously untested edge case is covered for payload, transport, routing, and callback behavior.
+- LLM-focused test run passes cleanly.
+- Characterization or phase-specific coverage exists for all changed behaviors.
+- Dependency and ownership boundaries are explicit for any shared behavior introduced for testability.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "LlmClient|OpenAi|Callback|Routing|Transport|Timeout|Cancellation|Responses"
+
+Output results in markdown using this structure:
+1) Summary
+2) Test files added/updated
+3) Coverage matrix
+4) Notable edge cases now covered
+5) Validation results
+6) Step-budget report (planned vs actual counts)

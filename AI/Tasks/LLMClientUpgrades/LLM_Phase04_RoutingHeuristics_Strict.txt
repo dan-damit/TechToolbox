@@ -1,0 +1,63 @@
+STRICT MODE: Improve routing heuristics and runtime-profile validation for the LLM client stack.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the routing and configuration layers, plus their tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Llm/LlmClientFactory.cs
+- src/TechToolbox.Agent/Configuration/AgentConfiguration.cs
+- src/TechToolbox.Agent/Orchestrator/AgentOrchestrator.Resilience.cs
+- src/TechToolbox.Agent/Tests/LlmClientTests.cs
+- src/TechToolbox.Agent/Tests/AgentOrchestratorTests.cs
+
+Requirements:
+- Replace substring-based coding detection with stronger token-based or weighted heuristics.
+- Prevent accidental routing to coding models when signals are weak or ambiguous.
+- Normalize thinking-mode values so on/off handling is case-insensitive and validated.
+- Emit diagnostics when runtime profiles are missing, invalid, or require fallback.
+- Add characterization and phase-specific tests before or alongside each change in this phase.
+- Define ownership for any overlapping transport, callback, retry, or configuration work within this phase and document the boundaries.
+- Add dependency and compatibility gates before moving beyond this phase, and explicitly note any cross-phase requirements.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into retry relocation, multi-model execution, persistent context, or compression unless specifically approved.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Keep routing decisions deterministic and easy to test.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If routing logic changes begin to fan out into unrelated orchestrator policy, stop and narrow back to the routing boundary.
+- If profile validation emits duplicate diagnostics after one repair cycle, keep the single best diagnostic path and stop.
+
+Fallback behavior:
+- Fallback A: keep the current routing matrix, but tighten the code-detection gate first.
+- Fallback B: if full heuristic scoring is risky, implement a conservative threshold and explicit warning path.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing routing cases.
+
+Acceptance criteria:
+- Coding detection is less prone to false positives than simple substring checks.
+- Thinking-mode input is validated consistently.
+- Missing or invalid runtime profiles produce diagnostics instead of silent fallback.
+- Routing tests cover the revised decision boundaries.
+- Characterization or phase-specific tests cover the routing and profile validation changes.
+- Dependency and ownership boundaries are explicit for any shared routing or configuration work.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Routing|Heuristic|Thinking|RuntimeProfile|Fallback"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Routing behavior
+4) Thinking-mode validation
+5) Runtime profile diagnostics
+6) Tests added/updated
+7) Validation results
+8) Step-budget report (planned vs actual counts)

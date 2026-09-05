@@ -1,0 +1,59 @@
+STRICT MODE: Implement optional LLM client enhancements that are safe to stage after the core reliability and architecture work.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within the LLM client stack and its tests.
+
+Concrete scope:
+- src/TechToolbox.Agent/Llm/*.cs
+- src/TechToolbox.Agent/Configuration/AgentConfiguration.cs
+- src/TechToolbox.Agent/Tests/LlmClientTests.cs
+- src/TechToolbox.Agent/Tests/AgentOrchestratorTests.cs
+
+Requirements:
+- Add structured error taxonomy only if it reduces ambiguity without destabilizing the core clients.
+- Centralize observability hooks for timing, retries, and streaming latency if there is a clear low-risk seam.
+- Move retry/backoff logic into a shared module only when it can be done without changing provider behavior unexpectedly.
+- Keep provider extension points open, but do not add new third-party providers unless they are already needed by the upgrade scope.
+- Add characterization and phase-specific tests before or alongside any enhancement introduced here.
+- Define ownership for any overlapping transport, callback, retry, or configuration work within this phase and document the boundaries.
+- Add dependency and compatibility gates before moving beyond this phase, and explicitly note any cross-phase requirements.
+- Make acceptance criteria mechanically verifiable where possible.
+- Do not expand into retry relocation, multi-model execution, persistent context, or compression unless specifically approved.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Preserve deterministic tests and avoid expanding scope into future-proofing work prematurely.
+
+Step budget (hard limits):
+1) Discovery: <= 5 read/search tool calls.
+2) Edits: <= 6 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If optional features start to alter core client behavior, stop and back out to the smallest safe seam.
+- If observability or error-taxonomy work requires broad rewrites, defer it instead of widening the phase.
+
+Fallback behavior:
+- Fallback A: implement the narrowest version of the enhancement that can be tested locally.
+- Fallback B: if a feature cannot be added safely, document the intended seam and stop.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact blocker.
+
+Acceptance criteria:
+- Any added optional capability is isolated and testable.
+- Core client behavior remains stable.
+- No unrelated provider or orchestrator changes are required.
+- Characterization or phase-specific tests cover the optional enhancement seam.
+- Dependency and ownership boundaries are explicit for any shared observability or retry changes.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "LlmClient|OpenAi|Observability|Retry|ErrorTaxonomy"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Enhancement behavior
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)
