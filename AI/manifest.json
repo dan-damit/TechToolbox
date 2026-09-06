@@ -8,17 +8,18 @@
   },
   "RIPGREP": {
     "Name": "RIPGREP",
-    "Description": "Fast recursive search and line counting",
+    "Description": "Dedicated ripgrep line-counting and search tool.",
     "Parameters": {
-      "directory": { "Mandatory": true, "Type": "System.String", "Help": "Directory to search" },
-      "pattern":   { "Mandatory": false, "Type": "System.String", "Help": "Optional search pattern" },
-      "command":   { "Mandatory": true, "Type": "System.String", "Help": "Allowed command name" }
+      "command":   { "Mandatory": true, "Type": "System.String", "Help": "Allowed command name: count-lines, count-matches, or search." },
+      "directory": { "Mandatory": true, "Type": "System.String", "Help": "Directory to search." },
+      "glob":      { "Mandatory": false, "Type": "System.String", "Help": "Optional glob filter such as *.cs." },
+      "pattern":   { "Mandatory": false, "Type": "System.String", "Help": "Optional search pattern. Required for search commands." }
     },
     "Module": "External",
     "Meta": {
       "Executable": "RESOLVE-RIPGREP",
       "AllowedCommands": {
-        "count-lines": "rg -n \"\" {directory}",
+        "count-lines": "rg --count \"^\" {directory}",
         "count-matches": "rg --count-matches \"\" {directory}",
         "search": "rg {pattern} {directory}"
       }
