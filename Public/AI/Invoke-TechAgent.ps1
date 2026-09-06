@@ -1177,6 +1177,29 @@ Hard requirement:
             }
         }
 
+        $shellAllowedCommands = @()
+        $shellConfigValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'shell'
+        if ($null -ne $shellConfigValue) {
+            $allowedCommandsValue = Get-TTAgentConfigValue -ConfigObject $shellConfigValue -KeyName 'allowedCommands'
+            if ($null -ne $allowedCommandsValue) {
+                foreach ($command in @($allowedCommandsValue)) {
+                    $commandText = [string]$command
+                    if ([string]::IsNullOrWhiteSpace($commandText)) {
+                        continue
+                    }
+
+                    $normalizedCommand = [System.IO.Path]::GetFileNameWithoutExtension(([System.IO.Path]::GetFileName($commandText.Trim().Trim('"', "'")))).ToLowerInvariant()
+                    if ([string]::IsNullOrWhiteSpace($normalizedCommand)) {
+                        continue
+                    }
+
+                    if ($shellAllowedCommands -notcontains $normalizedCommand) {
+                        $shellAllowedCommands += $normalizedCommand
+                    }
+                }
+            }
+        }
+
         $resolvedSearchWebApiKey = $null
         if (-not [string]::IsNullOrWhiteSpace($searchWebApiKeyEnvVar)) {
             $searchWebApiKeyResolution = Resolve-TTAgentStoredSecret -ConfigObject $cfg -SecretKeyName 'searchWebApiKeyEncrypted' -EnvVarName $searchWebApiKeyEnvVar
@@ -1216,6 +1239,7 @@ Hard requirement:
             SearchWebLanguage            = $searchWebLanguage
             SearchWebSafeSearch          = $searchWebSafeSearch
             SearchWebDefaultCount        = $searchWebDefaultCount
+            ShellAllowedCommands         = @($shellAllowedCommands)
             AllowMetaTools               = $AllowMetaTools.IsPresent
             LlmProvider                  = $Provider
             LlmEndpoint                  = $Endpoint
@@ -1304,6 +1328,7 @@ $runAgentMethod = $agentCoreType.GetMethod(
         [string],
         [string],
         [int],
+        [System.Collections.Generic.IEnumerable[string]],
         [bool],
         [string],
         [string],
@@ -1338,6 +1363,15 @@ if ($null -ne $request.AllowedFetchHosts) {
         })
 }
 
+$shellAllowedCommands = [string[]]@()
+if ($null -ne $request.ShellAllowedCommands) {
+    $shellAllowedCommands = @($request.ShellAllowedCommands | ForEach-Object {
+            if ($null -ne $_) {
+                [string]$_
+            }
+        })
+}
+
 $result = $runAgentMethod.Invoke($null, @(
     [string]$request.Prompt,
     [string]$request.Model,
@@ -1359,6 +1393,7 @@ $result = $runAgentMethod.Invoke($null, @(
     [string]$request.SearchWebLanguage,
     [string]$request.SearchWebSafeSearch,
     [int]$request.SearchWebDefaultCount,
+    [string[]]$shellAllowedCommands,
     [bool]$request.AllowMetaTools,
     [string]$request.LlmProvider,
     [string]$request.LlmEndpoint,
@@ -1919,8 +1954,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCRLagNAJ4fdciZ
-# K2xQ7j+TQMwhyAgoAuBGXaTVK88gOqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDVVZ49uYHJFfI0
+# 6aY/K6d+NF+Dnx0K4hovUwLIhOmQpKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2053,34 +2088,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB9SYWk9JYc
-# ridKXRDnB7QXJuGxOP+tXhTxWkSXcKt4QTANBgkqhkiG9w0BAQEFAASCAgB12s0x
-# pTXtiFfX+Y2YJz0YFD8Qpd6NXIfYjDg+xWmvzKGBsDntydwBqhxgb1RpomoyKneJ
-# /VInYxk/D23cWjsMQtLpZ80iVFujFHKcfwRw5ED0KR5EnqYR4h2VcGHoLJr9u1o3
-# V+MA+HN3rSXrlGSU36OZ/egJoU6Y3oNuWs1NldidqNTE+areNLUoOLRawERMiQGj
-# SU7RpQQgI26mHmCxk1SCP7krJI3ws/DieldamKE+Om9WjGTJgrMPucaZXvMBh0nP
-# 1jKKXNzT/oLcTAMKizvaY0sv6/zmAReVyAQYytcyddW05R4dmoIVBcIVb/pw72j2
-# 7VADG9X1Is0tW1z6CwkKCNKaKsuce5Fe0bu0Xl4jJUnikU0k7Vh471Fkir+naKan
-# 24yUU62B4liNbrIKIjSgvoizOiYveDEcMK0kOGzCZGhDX6bpezMIfqN+c227FUw/
-# W4mQL1MzEvflezoEDvYdz8m+Wc0OGTCTklYkdAUsG8WPs9i5QMg+pEvdPX7hP/Xq
-# 54aan2quc+apQZW9XvFru+iOrE50BbdfM5UB4SDxlzJsEnqYGITXKGojgSNq3Q64
-# 9LbZ4DJef0lRO0+9vWsN//w7dey/Oj6JUOFi/e604D/yqKKdTl4fGOhqUWniUtkO
-# weA5txZM6Zo1K1waFvI60bj5VDGY9elB/B0zKKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDjaCjoy8/u
+# QSE4rKCSp2Tafiz0PNmY99Jw+Py9Ry7nrTANBgkqhkiG9w0BAQEFAASCAgCAd0XS
+# aKCUhEnpdXu+nOt3ripC+yqymbdN5rJ/rax+1c2AAcOCMVDpOxyrskBx6NnvVTT3
+# yHhgSGzRe1X8LA6SAKQ0GmZQ9cI/Z1Ybbb2ScKFNmzVIYf5tOfAWm7rGpB6GIfH8
+# JWXm0pMgf+lIEhxfMTRjb9FPOrHWoGWCCp1OadeIRrEGvtGIx/LYwvsSuIz/ReeK
+# ImXhB/OZA2SrOCAlEw44B5TFC4MACrfwk6bsMKaKJVDelPd2K8scpbBV7E+OzuZO
+# SYj9isvbQGwy0K+4F0apnSbgD86a1Hgh52yiWmbrYWSmtH4DlkZIWw+ViXaVg5Zd
+# bJ0ypnRXCRN802e/s6gmvvNhynUUkD0RYYgfVgwvi5AdWS3HlrZ9IURghkIKKgey
+# xeAWDO7Wi6+kG+GML9R7Y8xcHRvkvHndvBFrR4zMnPoK4lSyslysP9A6sYRyPjkf
+# XwZ+i+L7cyDmaBoRTiJMi9Z2h9t4siWnQujAzwBZvrIvOnT0jOp9ZT6NAf6+2pZz
+# 0hV6ZRlifyBgMIaPRBcnewWRhwmLZBm5cF5P5d1csYDgql6/FaevvLo2e8GgIRCy
+# zPjq4JBi933hSOrwXG3+zvt2k7ZsuYrq5COhh7Mn5Z4WO+TgKEzU7lzx1YUf++j5
+# dSdf8BfZJ7hG/vqzFBrEyamsuGGm7NZtXGvlfaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDUxNzExMzFaMC8GCSqGSIb3DQEJBDEiBCDpFoynF86GZYfcOHk8
-# qvVejV26seBKSf53fyIfAloXFjANBgkqhkiG9w0BAQEFAASCAgCybNmXaypmWGeM
-# g8JKT0Wo2OWcMMP6DkIv+NeUubM44vpgGuC1kS4AiyrHkakYjYIihZ3yNjDu6rJC
-# koBB9BFYs6JhecsYV04Dgm0wstgiT0tNjaI+gveXLUMKy5IK2pc4IdOgvR+4ZzsW
-# 6rwi12DB0+rjZ9v81vPTJNBESQ6Ulgs7zcCzXgYKF329lEjvPsQCdBXzYZXv7Xdu
-# J/OyjKX+2561uqpOe+Sb7MCgR3W8+lfms2TNxpxxLl8lN0LYY1mnV34zVPl6IYPE
-# O2wTEnzVM0/WswzCZOaiKbI018kKJN1w5AM4Aiip14OfL6lkaL+YhHq33/xMhEr7
-# dN3bwoXK2fcCuNwF0ItYxYkIQCO35tec6100LjRzwslXvlSSJl6Oowa3fbZQhoI7
-# f4kuC1ZI3BokbHRQuemuf/grCg7ok6pZAPVhlYr/BzbshmOSIKZdWLsYpLTOG+s2
-# V6oRmeC5oHV3eghMMPWtYrIx6wuewjQGbpIxlhN5YjhBpmRRit6nhvBCsTZ3AiCJ
-# pKNoQG4ydJqmNKzEOcko40SC22RmBgDco9FOWX7bilZFzgHgooVDtoKdMQAATW2L
-# YyJzEGh42wLMtmzRkGRT+jXTYU3QjFiWHafTEa7vq4HgPVCBK31khc6sATxTqDRQ
-# 7QJN2JI6brkldLTuDg+xN14fWiG6Qw==
+# BTEPFw0yNjA5MDYxODQ4MDhaMC8GCSqGSIb3DQEJBDEiBCAwy6s9qvYciEAOVGmC
+# d1mhTRH7gxDtyAlWfQlz5erWljANBgkqhkiG9w0BAQEFAASCAgBiX+yjCfDkGDox
+# 40JqFOecqYVUT1nm4QEBoyV7B2yfy3PFWtSNby/weWj4MHK8O1TsB2XEWluriOJE
+# qfRFbRCWPHVlmNTTKQcjYknCh8c61peG1Ewgce2Lu6uDA9gCkkMw3hPSkgl4GCwB
+# gWmgJ13L7+WeTzGd/SIsexoeqsLG7wxyLA1715yh9CbWDMKySYxq75T5uUBHFdVs
+# FHhMTb+tS5Va8WJCdhuE0YGxRKx1+cSxjJNzEY8QhRoS8KzYGWUmTW8yZN6PvqyB
+# J7naqmNQ9/TuGAcJX3cbUD1LtRhtC72pArKm06/GMG4PkzOFlTgThj8Yw+xoqYC8
+# QRIxj0GoGeXHAGuF/0CMzFI5mEdD5gLFwbgrpA8Q7jVZbVx/fvjAaLAvc4iAT5QP
+# Jtn31Pm7wZpwp13OlRl4aVwDybj2h3KxrefmHYgqyrb/YKIf7CogoI/BHF/e92R+
+# el8tcxozqDdJ/FvDm9asET0Tl3ljsktKpLQ4+cNSAU97an5LUWdRBhYomI3SwcPV
+# 6vNuMKL42DrJnSfTvQdavKraUdPHU3sa+xJBWszAcHkcHzFFGL+lEzRhMdreNa5T
+# wW4xINIOCvZt9kE+Inw/6SYTZsgGP3FdLRaqjUSA/QGxzPXP5vg4dpMtu5BE4lmZ
+# DnHJ46Igy+0WadqXpBzGGzXJnSvsCg==
 # SIG # End signature block

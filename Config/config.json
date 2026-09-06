@@ -294,6 +294,11 @@
         "safeSearch": "moderate",
         "defaultCount": 5
       },
+      "shell": {
+        "allowedCommands": [
+          "rg"
+        ]
+      },
       "transcript": {
         "enabled": true,
         "outputRoot": "%TT_LogsRoot%\\TechAgentTranscripts"

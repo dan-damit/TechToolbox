@@ -286,6 +286,7 @@ If your goal is information lookup only, prefer read-only language in the prompt
 **Runtime Profiles and Resilience (Ollama-first)**
 
 - Runtime profiles are configured in `Config\config.json` under `settings.agent.runtimeProfiles`.
+- RUN-SHELL command allowlist is configured in `Config\config.json` under `settings.agent.shell.allowedCommands` (for example `['rg','dotnet']`).
 - Use `-RuntimeProfile <name>` to explicitly pick a configured profile for a run.
 - `settings.agent.resilience.preflightEstimatorEnabled` enables per-turn prompt-pressure estimation and adaptive output-cap tightening.
 - `settings.agent.resilience.tieredRetryEnabled` enables tiered retries for retryable LLM failures.
