@@ -1,1 +1,20 @@
-{}
+{
+  "RIPGREP": {
+    "Name": "RIPGREP",
+    "Description": "Fast recursive search and line counting",
+    "Parameters": {
+      "directory": { "Mandatory": true, "Type": "System.String", "Help": "Directory to search" },
+      "pattern":   { "Mandatory": false, "Type": "System.String", "Help": "Optional search pattern" },
+      "command":   { "Mandatory": true, "Type": "System.String", "Help": "Allowed command name" }
+    },
+    "Module": "External",
+    "Meta": {
+      "Executable": "C:\\Program Files\\ripgrep\\rg.exe",
+      "AllowedCommands": {
+        "count-lines": "rg -n \"\" {directory}",
+        "count-matches": "rg --count-matches \"\" {directory}",
+        "search": "rg {pattern} {directory}"
+      }
+    }
+  }
+}

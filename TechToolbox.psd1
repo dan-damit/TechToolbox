@@ -30,7 +30,7 @@ CompanyName = 'Value Added Companies'
 Copyright = '(c) Dan Damit. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows. Invoke-TechAgent now supports OpenAI API key usage for cloud-based inference, allowing operators to leverage the TechAgent workflows without local inference requirements. First time users should start with Get-TechToolboxConfig and Get-ToolboxHelp. TechToolbox also utilizes the conventional PowerShell help system, so Get-Help <command-name> is your friend.'
+Description = 'A technician-grade toolbox for automation, diagnostics, and enterprise workflows. Invoke-TechAgent now supports OpenAI API key usage for cloud-based inference, allowing operators to leverage the TechAgent workflows without local inference requirements. First time users should start with Get-TechToolboxConfig and Get-ToolboxHelp.'
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '7.6.5'
@@ -135,62 +135,25 @@ PrivateData = @{
         # ReleaseNotes of this module
         ReleaseNotes = '
 
-## Orchestrator Upgrades - Condensed Release Notes
+# Condensed Release Notes — External Tool Provider + Ripgrep Integration
 
-### Summary
-- Reworked orchestration into an explicit, typed state machine with deterministic transitions and centralized state reduction.
-- Added bounded cancellation, deadlines, execution budgets, structured retry semantics, and per-tool time limits.
-- Centralized tool policy and authorization with fail-closed mutation and path-safety checks.
-- Hardened decision validation, repair handling, and no-progress loop detection.
-- Improved weather and NOAA routing with provenance-aware ZIP candidate scoring and clarification fallbacks.
-- Added structured, redacted, and resource-bounded telemetry with memory privacy safeguards and final integration coverage.
+### New: External Tool Provider Architecture
+TechAgent now supports **external, manifest‑defined tools** through a new execution pathway designed for hardened, deterministic process invocation. This system allows tools outside the PowerShell module or built‑in registry to be safely exposed to the orchestrator without PATH scanning or capability inference.
 
-### Phase Highlights
-- Phase 01 - State model and decision pipeline
-  - Split orchestration into explicit planning, validation, policy, authorization, execution, reduction, and continuation stages.
-  - Defined typed outcomes for continue, retry, finalize, clarification, failure, and block.
-  - Added transition, ordering, invariant, and side-effect regression coverage.
+Key capabilities
+- **Manifest‑declared tools** with explicit metadata, parameters, and allowed commands  
+- **Strict safety boundaries** enforced by existing execution policies (timeouts, budgets, sandboxing, output draining)  
+- **Deterministic routing** through the execution layer using hardened external process execution  
+- **Zero discovery** — tools must be explicitly defined, ensuring predictable and secure behavior  
 
-- Phase 02 - Cancellation, budgets, and retries
-  - Propagated CancellationToken through model and tool execution.
-  - Added run-wide limits for time, iterations, tools, and output.
-  - Replaced heuristic retries with structured failure codes and retryability metadata.
-  - Added timeout, deadline, cancellation, and retry-exhaustion tests.
+### **First External Tool: Ripgrep**
+Ripgrep (`rg.exe`) is now available as the first external tool via the manifest system.
 
-- Phase 03 - Tool policy and authorization
-  - Introduced a centralized ToolPolicy registry covering schemas, safety, mutation type, paths, and output constraints.
-  - Enforced resolve -> validate -> authorize -> execute -> normalize ordering.
-  - Added structured tool results, redacted diagnostics, postcondition checks, and fail-closed mutation tests.
-
-- Phase 04 - Validation, repair, and loop progress
-  - Added versioned decision schemas and field-level validation errors.
-  - Added bounded repair attempts and revalidated repair output before execution.
-  - Added recent-history progress signatures distinguishing repeated calls, targets, and evidence.
-  - Added malformed-decision, repair-budget, and no-progress loop coverage.
-
-- Phase 05 - Weather and routing hardening
-  - Added provenance-aware ZIP candidate extraction and scoring.
-  - Rejects unrelated or low-confidence five-digit values from noisy search results.
-  - Requires confidence and winner-margin thresholds before NOAA requests.
-  - Falls back to clarification or blocking when location evidence is insufficient.
-
-- Phase 06 - Telemetry, privacy, and integration
-  - Adds structured run, attempt, iteration, tool, policy, retry, cancellation, and result-size telemetry.
-  - Redacts secrets, tokens, authorization headers, and sensitive path data.
-  - Bounds retention by data class and prevents memory preferences from overriding explicit user constraints.
-  - Adds integration coverage for prompt injection, memory leakage, loop control, safety, determinism, and concurrent runs.
-
-### Cross-Phase Contracts
-- Versioned contracts for run state, decisions, tool results, telemetry, and memory records.
-- Central ownership matrix for state, validation, repair, authorization, retries, execution, finalization, redaction, and memory precedence.
-- Explicit precedence rules for policy, execution semantics, user intent, memory, repair output, and deadlines.
-- Numeric ceilings for runtime, iterations, tool/model calls, repair attempts, loop history, output size, and telemetry retention.
-- Compatibility and fail-closed behavior for unknown contract versions.
-
-### Validation Baseline
-- Release build of the agent project.
-- Focused release tests covering orchestration, execution, tools, safety, retries, loops, policy, authorization, telemetry, and weather routing.
-- End-to-end scenarios for normal execution, blocked mutations, cancellation, retry exhaustion, no-progress loops, low-confidence locations, prompt injection, and concurrent runs.'
+Highlights:
+- Added as a **manifest-only tool** with a curated set of allowed commands  
+- Supports line counting, pattern searching, and match counting  
+- Executed through a dedicated **RipgrepExecutor** using hardened external process execution  
+- Fully governed by TechAgent authorization, timeout, and output policies'
 
         # Prerelease string of this module
         # Prerelease = ''
