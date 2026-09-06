@@ -16,6 +16,7 @@ obj/
 bin/
 SecureCrimp/
 slash/
+AI/Tasks/Archive/
 
 # Files
 wordlist.txt
