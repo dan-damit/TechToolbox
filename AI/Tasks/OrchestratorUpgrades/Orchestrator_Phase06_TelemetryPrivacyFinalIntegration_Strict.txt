@@ -1,0 +1,61 @@
+STRICT MODE: Finalize telemetry, privacy, and integration hardening.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within telemetry, memory privacy, redaction, and final integration ownership.
+
+Concrete scope:
+- AI/Tasks/OrchestratorUpgrades/Overview.txt
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase06_TelemetryPrivacyFinalIntegration_Strict.txt
+- Orchestrator observability, telemetry event definitions, redaction and retention rules, memory-safety checks, and final integration tests.
+
+Requirements:
+- Add structured telemetry fields for run ID, attempt ID, iteration number, tool name, policy outcome, retry reason, and cancellation state.
+- Redact secrets, tokens, authorization headers, passwords, and sensitive path data before persistence.
+- Bound memory retention and add retention or expiration rules by data class.
+- Ensure memory-derived preferences cannot override explicit user constraints.
+- Define telemetry event schemas, versioning, and correlation rules; ensure hashes or summaries are used when full payloads are unnecessary.
+- Centralize redaction before any persistence or emission path so individual callers cannot bypass it.
+- Add integration tests covering memory leakage, prompt injection, concurrent orchestrator use, and bounded telemetry output.
+- Preserve current behavior where the task is only to make observability and privacy controls explicit and safe.
+- Keep the model deterministic, centralized, and mechanically testable.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Do not expand into unrelated refactors beyond telemetry, privacy, and final integration.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+- Define compatibility and rollback behavior for telemetry schema or retention changes that affect persisted operational records.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If telemetry or memory controls start to overlap with execution or validation decisions, stop and re-establish the owning abstraction.
+- If the refactor expands beyond privacy, observability, and final integration, stop and keep the phase boundary explicit.
+
+Fallback behavior:
+- Fallback A: introduce structured event metadata and redaction rules before adding retention controls.
+- Fallback B: keep current telemetry shape and wrap it with explicit redaction and bounded storage safeguards.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- Structured telemetry events include run attempt and policy metadata without raw sensitive payloads.
+- Memory and telemetry persistence are redacted and bounded.
+- Memory-derived preferences cannot override current user constraints.
+- Characterization or phase-specific tests cover privacy and concurrency safety.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+- The orchestration layer does not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Orchestrator|Telemetry|Privacy|Memory|Integration|Concurrency|Strict"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Telemetry and privacy contract
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

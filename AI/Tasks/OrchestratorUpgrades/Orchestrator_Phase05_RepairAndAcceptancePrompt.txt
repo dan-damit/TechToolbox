@@ -1,0 +1,81 @@
+PHASE 05 REPAIR AND ACCEPTANCE PROMPT - RESOLVE THE REMAINING WEATHER AND REGRESSION FAILURES
+
+Goal:
+Fix the specific Phase 05 failures identified in the latest validation run while preserving the newly added provenance-aware weather routing and confidence gates.
+
+Inputs:
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase05_WeatherRoutingHardening_Implementation.txt
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase05_WeatherRoutingHardening_Strict.txt
+- LogsAndExports/Logs/TechAgentMarkdown/TechAgent_20260905_225216_36688.md
+
+Problem statement:
+- The weather-routing hardening patch was implemented, the build passes, and the new weather-specific coverage was added.
+- The targeted validation still fails because one weather extraction assertion remains broken and three unrelated existing regressions remain in the broader orchestrator suite.
+- The weather-specific remaining failure is:
+  - `WeatherRoutingTests.ExtractCandidates_ScoresRequestedCityAndStateAboveUnrelatedZip`
+- The unrelated existing failures are:
+  - `RunAsync_ParsesDecision_WhenFinalAnswerContainsRawMultilineMarkdown`
+  - `RunAsync_ExecuteMode_RepeatedFailingNoaaCallsWithVaryingArgs_TriggersFailureStreakGuard`
+  - `RunAsync_ParsesDecision_WhenFinalAnswerContainsRawAnsiEscapeCharacters`
+- This prompt is a bounded repair pass focused on the exact failing assertions and the still-broken weather extraction logic.
+
+Required code work:
+- Repair the weather candidate extraction logic so unrelated five-digit values such as `90210` are excluded when they are not part of the relevant weather context.
+- Tighten the provenance-aware extraction so the candidate set contains only values that are meaningfully tied to the requested city/state and weather context.
+- Keep the confidence threshold, margin-over-second-place gate, explicit user-ZIP handling, and clarification/block behavior intact.
+- Preserve the general tool policy, authorization, execution-mode guards, retry logic, and loop guards outside the weather-specific layer.
+- Repair the unrelated final-answer parsing and NOAA failure-streak assertions only as necessary to restore the targeted suite without broadening the Phase 05 scope.
+- Do not weaken safety or authorization checks.
+
+Implementation constraints:
+- Keep the fix bounded to the exact remaining failing assertions and the weather candidate logic.
+- Do not broaden into unrelated telemetry privacy or final integration work.
+- Do not remove the weather provenance gates or weaken the user confirmation/authorization logic.
+- Do not reintroduce low-confidence or noisy ZIP selection behavior.
+
+Minimum tests to add/update:
+- Repair and pass the exact weather assertion:
+  - `WeatherRoutingTests.ExtractCandidates_ScoresRequestedCityAndStateAboveUnrelatedZip`
+- Repair and pass the exact existing non-weather regressions named above.
+- Ensure the new weather-routing tests remain green.
+- Preserve the required validation scope:
+  - `Orchestrator|Weather|NOAA|ZIP|Search|Routing|Strict`
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Orchestrator|Weather|NOAA|ZIP|Search|Routing|Strict"
+
+Deliverable:
+Return changed files, the repaired weather routing logic, the final provenance/confidence contract, and proof that the targeted weather and related orchestrator tests pass.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If the fix expands beyond the named failing assertions, stop and keep the patch bounded.
+- If candidate extraction still includes unrelated ZIP values, stop and narrow the extraction evidence boundary.
+- If the user ZIP override or confidence gate is weakened, stop and restore the policy.
+- If the final-answer parsing or NOAA failure-streak fixes broaden beyond the minimal behavior needed to satisfy the targeted assertions, stop and keep the fix narrow.
+
+Fallback behavior:
+- Fallback A: narrow the extraction evidence and scoring boundary so only relevant weather-related ZIP candidates survive.
+- Fallback B: fix the minimal parsing or failure-streak bug needed to satisfy the targeted assertions without changing broader orchestration behavior.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions and the offending logic.
+
+Acceptance criteria:
+- `WeatherRoutingTests.ExtractCandidates_ScoresRequestedCityAndStateAboveUnrelatedZip` passes.
+- The three unrelated named orchestrator regressions pass.
+- Weather candidate extraction remains provenance-aware and does not allow unrelated ZIP values to win.
+- Confidence and margin gates remain enforced.
+- Authorization, validation, and safety invariants remain unchanged.
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Weather routing and compatibility notes
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

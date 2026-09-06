@@ -1,0 +1,35 @@
+PHASE 04 IMPLEMENTATION PROMPT - VALIDATION, REPAIR, AND LOOP PROGRESS HARDENING
+
+Goal:
+Implement structured decision validation, explicit repair budgets, and bounded progress detection so malformed decisions and no-progress loops are caught early.
+
+Inputs:
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase04_ValidationRepairLoopProgress_Strict.txt
+- AI/Tasks/OrchestratorUpgrades/Overview.txt
+
+Required code work:
+- Add a versioned decision schema and structured validation results with field-level error reporting.
+- Introduce a decision-repair budget and enforce it globally.
+- Add bounded validation for long final answers and tool decisions.
+- Replace coarse repeated-call detection with bounded recent-history tracking and progress signatures.
+- Distinguish same-call, same-target, and same-evidence loop detection with explicit actions.
+- Publish the decision schema contract, define validation ordering, and ensure unknown or malformed field combinations are rejected before routing or execution.
+- Ensure repair output is treated as untrusted and passes through the same validation and policy checks again before execution.
+
+Implementation constraints:
+- Keep execution policy, authorization, and retry logic separate from validation and loop detection changes.
+- Preserve current behavior except where malformed decisions and loops are prevented or handled deterministically.
+- Do not implement domain-specific weather routing or memory privacy hardening in this phase.
+
+Minimum tests to add/update:
+- Validation error tests for malformed and unknown tool decisions.
+- Repair budget exhaustion tests.
+- Loop-progress detection and no-progress tests.
+- Regression tests for repeated read/search/NOAA-like behaviors.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Orchestrator|Decision|Validation|Repair|Loop|Guard|Strict"
+
+Deliverable:
+Return changed files, the final validation and loop-progress contract, and proof that malformed decisions and no-progress loops are contained.

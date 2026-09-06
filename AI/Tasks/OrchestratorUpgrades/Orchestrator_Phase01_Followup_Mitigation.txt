@@ -1,0 +1,82 @@
+PHASE 01 FOLLOW-UP MITIGATION PROMPT - COMPLETE STATE-MODEL MIGRATION AND BEHAVIORAL PARITY
+
+Goal:
+Resolve the compatibility-facade gap identified in the Phase 01 implementation report. The explicit state model was introduced, but the live orchestration path still retains mutable run-loop behavior and therefore does not fully use the reducer-owned state model in production execution.
+
+Inputs:
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase01_StateModelAndDecisionPipeline_Implementation.txt
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase01_StateModelAndDecisionPipeline_Strict.txt
+- LogsAndExports/Logs/TechAgentMarkdown/TechAgent_20260905_214408_36688.md
+
+Problem statement:
+- The Phase 01 report explicitly notes that the current state model is behind a compatibility facade.
+- The existing mutable run-loop has not yet been fully migrated to the reducer-based state model.
+- This leaves a deployment risk where orchestration behavior remains partially implicit and may diverge from the new contract.
+- The same report also shows the requested output failed a postflight acceptance check because it did not include weather or forecast information, which must be treated as a behavioral parity and acceptance regression, not a cosmetic issue.
+
+Required code work:
+- Complete the migration from the legacy mutable run-loop to the reducer-owned state model in actual orchestrator runtime execution paths.
+- Remove or tightly constrain the compatibility facade so the runtime flow uses the new state transitions instead of bypassing them.
+- Ensure every state mutation in the orchestration loop is mediated by the centralized reducer or approved transition owner.
+- Keep explicit ownership for run-state, decision validation, repair, authorization, path checks, retry classification, execution, finalization, telemetry redaction, and memory precedence.
+- Preserve the existing safety invariants: authorization, confirmation, sandboxing, refusal rules, execution safety, rejections of unsafe paths, and cancellation or deadline expiration handling.
+- Add compatibility migration or fail-closed rejection behavior for unknown versions, with deterministic rollback guidance when the state contract evolves.
+- Ensure externally visible workflow behavior remains consistent with prior execution semantics while making the lifecycle explicit and testable.
+- Explicitly validate that weather or forecast tasks produce the required content rather than silently returning a noncompliant response.
+
+Implementation constraints:
+- Keep scope bounded to the execution boundary and state-model migration; do not broaden into unrelated orchestration architecture.
+- Do not weaken authorization, confirmation, sandboxing, or refusal logic.
+- Do not reintroduce hidden mutable state in the orchestration loop.
+- Do not create new telemetry, diagnostics, or logging that bypass redaction or resource ceilings.
+- If a compatibility wrapper is retained temporarily, it must be guarded, documented, and covered by migration tests; it may not remain as a silent bypass for the reducer.
+- Any migration code must be fail-closed on unknown state versions or unsupported transitions.
+
+Minimum tests to add/update:
+- Integration tests proving the live orchestration path uses the reducer-backed state transitions rather than legacy mutation.
+- Transition tests covering all legal state flows and rejecting bypass attempts.
+- Cancellation/deadline expiration tests.
+- Duplicate tool-result idempotency tests.
+- Unknown-version compatibility rejection tests.
+- Runtime regression tests for weather or forecast responses ensuring the required output content is present.
+- Backward-compatibility tests for any migration wrapper or persisted state format.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Orchestrator|Execution|Tool|Safety|Retry|Loop|Policy|Telemetry|Weather|Authorization"
+
+Deliverable:
+Return changed files, the migration path from legacy run-loop state to reducer-owned orchestration state, proof that runtime execution is no longer silently bypassing the state contract, and explicit evidence that weather/forecast behavior remains valid and complete.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If state ownership overlaps with tool-policy enforcement or retry timing, stop and re-establish the owning abstraction.
+- If runtime migration work starts turning into a broad architecture rewrite, stop and keep the patch bounded to the live orchestration seam.
+- If the reducer remains a compatibility-only abstraction after the patch, stop and continue the migration until the runtime path is actually reducer-owned.
+- If any postflight acceptance check still fails (including weather or forecast completeness), treat this as a blocking regression.
+
+Fallback behavior:
+- Fallback A: keep the reducer-backed contract but explicitly attach it to the live orchestration seam with a minimal wrapper if needed.
+- Fallback B: if the migration is too risky, preserve behavior and add a verified compatibility shim with fail-closed gating and tests; do not leave the reducer unused in production code.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions, the offending state transition, and the behavioral regression.
+
+Acceptance criteria:
+- The reducer-owned state model is actually used in the live orchestration execution path.
+- Hidden or scattered state updates are eliminated or strictly bounded.
+- State transition ordering remains explicit, deterministic, and safe.
+- Cancellation, deadline, iteration-limit, duplicate tool-result, and unknown-version checks are enforced at runtime.
+- Weather and forecast execution paths are validated for complete, required output content.
+- No safety invariant is weakened, and all authorization/sandboxing requirements remain intact.
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Migration and compatibility notes
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

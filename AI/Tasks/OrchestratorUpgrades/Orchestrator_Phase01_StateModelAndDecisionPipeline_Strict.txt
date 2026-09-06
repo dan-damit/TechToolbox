@@ -1,0 +1,62 @@
+STRICT MODE: Define the orchestrator state model and typed decision pipeline.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes ONLY within orchestrator state, decision-flow ownership, and directly related contracts.
+
+Concrete scope:
+- AI/Tasks/OrchestratorUpgrades/Overview.txt
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase01_StateModelAndDecisionPipeline_Strict.txt
+- Orchestrator state records, iteration flow helpers, decision outcome types, and phase-ordering contracts that own run-state transitions.
+
+Requirements:
+- Replace the mutable `RunLoopState` pattern with explicit state records or a reducer-driven model.
+- Separate orchestration phases into typed outcomes: continue, retry, require clarification, finalize, fail, or block.
+- Make each phase return a structured result instead of mutating shared state in place.
+- Clarify ownership boundaries between planning, validation, policy, tool execution, result reduction, and finalization.
+- Define the complete state record, including immutable fields, derived fields, counters, cancellation state, pending decision, last tool result, and finalization status.
+- Define legal transitions in a table or state-transition diagram and forbid transitions that bypass authorization or proceed after cancellation or deadline expiration.
+- Document reducer idempotency and behavior when the same tool result is reduced twice.
+- Preserve current behavior where the task is only to make state ownership explicit and reduce hidden side effects.
+- Keep the model deterministic, centralized, and mechanically testable.
+- Add characterization or phase-specific tests before or alongside each major change.
+- Do not expand into authorization, tool-policy registry work, retry budgets, or telemetry privacy changes beyond what is required to establish the new state model.
+- Enforce sensitive-data redaction and resource-limit checks in any diagnostics or logging introduced here.
+- Do not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+- Define contract-version handling and compatibility behavior for state records or decision payloads that may be persisted or migrated.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If state ownership starts to overlap with tool-policy enforcement or retry timing, stop and re-establish the owning abstraction.
+- If repeated string replacement becomes a broader architectural refactor than state-model consolidation, stop and keep the phase boundary explicit.
+
+Fallback behavior:
+- Fallback A: introduce explicit state records and typed transition results first, then tighten flow boundaries later.
+- Fallback B: if the full refactor is too risky, preserve current behavior and introduce the state model behind a facade or wrapper.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions.
+
+Acceptance criteria:
+- An explicit run-state model owns orchestrator progress and invariants.
+- Decision phases are separated from tool execution and finalization.
+- State transitions are represented as typed outcomes rather than implicit mutation.
+- Hidden or scattered state updates are removed or bounded.
+- Characterization or phase-specific tests cover state transitions and invariants.
+- Logging and diagnostics redact sensitive data and respect resource limits.
+- The orchestration layer does not weaken authorization, confirmation, sandboxing, or execution safety requirements.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Orchestrator|State|Decision|Pipeline|Transition|Strict"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) State-model contract
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

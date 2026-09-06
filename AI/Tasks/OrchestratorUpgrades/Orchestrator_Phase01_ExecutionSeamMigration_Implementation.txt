@@ -1,0 +1,82 @@
+PHASE 01 FOLLOW-UP IMPLEMENTATION PROMPT - LIVE ORCHESTRATION SEAM MIGRATION
+
+Goal:
+Complete the bounded migration required by the Phase 01 follow-up report: move the live orchestration execution path off the mutable `RunLoopState` flow and onto the reducer-owned state model without weakening safety guarantees.
+
+Inputs:
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase01_StateModelAndDecisionPipeline_Implementation.txt
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase01_StateModelAndDecisionPipeline_Strict.txt
+- LogsAndExports/Logs/TechAgentMarkdown/TechAgent_20260905_215003_36688.md
+
+Problem statement:
+- The explicit reducer contract exists, but the active orchestration seam still mutates `RunLoopState` directly.
+- The current runtime path still performs direct assignments, which bypasses reducer ownership and leaves the state model as a compatibility facade rather than the active runtime source of truth.
+- This violates the acceptance criteria for a reducer-owned execution path and leaves the road to persisted-state and compatibility migration incomplete.
+- The same report also shows weather/forecast completeness is not yet validated at runtime acceptance boundaries.
+
+Required code work:
+- Introduce or complete a reducer-backed state session at the orchestration seam used by the live iterative loop.
+- Route each phase outcome through `OrchestratorStateReducer.Reduce` instead of direct mutation of `RunLoopState`.
+- Remove or strictly bound direct run-loop assignments such as success/failure counters, repair-cycle counters, clarification tracking, and in-loop transition mutation.
+- Preserve the current execution semantics while making the lifecycle explicit, centralized, and testable.
+- Keep ownership boundaries explicit for run-state, decision validation, repair classification, authorization, path checks, execution, finalization, telemetry redaction, and memory precedence.
+- Maintain fail-closed behavior for unknown contract versions and unsupported transitions.
+- Add migration guidance for persisted or backward-compatible state payloads and document deterministic rollback behavior where required.
+- Validate that weather/forecast output remains complete and includes the required content when those execution paths are triggered.
+
+Implementation constraints:
+- Keep scope bounded to the live orchestration seam and directly related contract migration.
+- Do not broaden into unrelated orchestration or tool policy architecture.
+- Do not weaken authorization, confirmation, sandboxing, refusal logic, or execution safety.
+- Do not reintroduce hidden mutable state in the main loop.
+- If a compatibility shim must remain temporarily, it must be explicit, fail-closed, and covered by migration tests.
+- Do not add telemetry or diagnostics that bypass redaction or resource limits.
+
+Minimum tests to add/update:
+- Integration tests proving the live orchestration path goes through reducer-backed state transitions instead of direct mutable assignments.
+- Legal/illegal transition tests covering valid flows, bypass attempts, and terminal-state rejection.
+- Cancellation/deadline expiration tests.
+- Duplicate tool-result idempotency tests.
+- Unknown-version compatibility rejection tests.
+- Backward-compatibility tests for any persisted state or compatibility wrapper.
+- Weather/forecast completeness regression tests validating required output content.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Orchestrator|Execution|Tool|Safety|Retry|Loop|Policy|Telemetry|Weather|Authorization"
+
+Deliverable:
+Return changed files, the migration path from the legacy live loop to reducer-backed state ownership, proof that runtime execution no longer silently bypasses the state contract, and evidence that weather/forecast outputs remain complete and compliant.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If state ownership overlaps with tool-policy enforcement or retry timing, stop and re-establish the owning abstraction.
+- If migration work becomes a broad rewrite, stop and keep changes confined to the orchestration seam.
+- If the reducer is still only a compatibility facade after the patch, stop and continue migration until the live loop is reducer-owned.
+- If weather or forecast acceptance checks fail, treat that as a blocking regression.
+
+Fallback behavior:
+- Fallback A: keep the state contract and route the live loop through a minimal reducer-backed adapter.
+- Fallback B: if full migration is too risky, preserve behavior and add a fail-closed compatibility shim with explicit tests; do not leave reducer ownership unproven.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions and the offending transition or runtime bypass.
+
+Acceptance criteria:
+- The live orchestration execution path is reducer-owned rather than direct mutable-state driven.
+- Hidden or scattered state updates are eliminated or strictly bounded.
+- The transition ordering remains explicit, deterministic, and safe.
+- Cancellation, deadline, iteration-limit, duplicate tool-result, and unknown-version checks are enforced at runtime.
+- Weather and forecast behavior is validated for complete and required output content.
+- No authorization, confirmation, sandboxing, or execution safety invariant is weakened.
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Migration and compatibility notes
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)

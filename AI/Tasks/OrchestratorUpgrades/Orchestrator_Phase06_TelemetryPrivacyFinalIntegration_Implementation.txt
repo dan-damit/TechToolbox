@@ -1,0 +1,34 @@
+PHASE 06 IMPLEMENTATION PROMPT - TELEMETRY, PRIVACY, AND FINAL INTEGRATION
+
+Goal:
+Implement bounded, structured observability and privacy safeguards so orchestration remains diagnosable without exposing sensitive data or becoming unbounded.
+
+Inputs:
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase06_TelemetryPrivacyFinalIntegration_Strict.txt
+- AI/Tasks/OrchestratorUpgrades/Overview.txt
+
+Required code work:
+- Add structured telemetry event metadata for run lifecycle, tool execution, retry reasons, and cancellation states.
+- Enforce redaction and retention limits before persisting data to memory or logs.
+- Prevent memory-derived preferences from overriding explicit user constraints.
+- Define telemetry schema versioning and correlation rules, and use hashes or summaries when full payloads are unnecessary.
+- Centralize redaction before every persistence or emission path so callers cannot bypass it.
+- Add final integration tests covering privacy, concurrency, prompt injection, and bounded telemetry behavior.
+
+Implementation constraints:
+- Keep execution policy, authorization, and validation logic separate from telemetry and privacy work.
+- Preserve current behavior except where observability and privacy controls are explicit and bounded.
+- Do not implement unrelated refactors in this phase.
+
+Minimum tests to add/update:
+- Redaction tests for secrets and sensitive paths.
+- Retention-bounds tests for telemetry and memory.
+- Concurrency tests for multiple orchestrator runs on the same instance.
+- Prompt-injection and memory-preference override tests.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Orchestrator|Telemetry|Privacy|Memory|Integration|Concurrency|Strict"
+
+Deliverable:
+Return changed files, the final telemetry and privacy contract, and proof that orchestrator observability remains safe, bounded, and production-ready.

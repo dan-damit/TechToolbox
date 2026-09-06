@@ -1,0 +1,58 @@
+STRICT MODE: Complete the reducer-backed migration at the live orchestration seam.
+
+Mission:
+- Complete the bounded migration required after the Phase 01 follow-up failure report.
+- Do not stop at a reducer model that remains a compatibility wrapper; make the live execution loop reducer-owned.
+- Keep changes restricted to the execution seam, state migration, and directly associated contract/test surfaces.
+
+Concrete scope:
+- AI/Tasks/OrchestratorUpgrades/Orchestrator_Phase01_StateModelAndDecisionPipeline_Strict.txt
+- AI/Tasks/OrchestratorUpgrades/Overview.txt
+- The live orchestration loop and any state transition wiring that still mutates `RunLoopState` directly.
+- Reducer-backed transition checks, compatibility gating, and migration tests for runtime execution flows.
+
+Requirements:
+- Route each loop outcome through `OrchestratorStateReducer.Reduce` rather than mutating shared run-loop state in place.
+- Replace or tightly bound direct state mutation such as counters, clarification state, repair tracking, transition fields, and finalization flags.
+- Preserve runtime safety and the existing authorization/confirmation/sandboxing semantics.
+- Keep the state model deterministic, centralized, and mechanically testable.
+- Add compatibility migration guidance with fail-closed behavior for unknown versions and unsupported state transitions.
+- Add explicit regression tests for weather/forecast output completeness alongside transition and compatibility coverage.
+- Keep the patch bounded and avoid unrelated architecture work.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search tool calls.
+2) Edits: <= 8 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If direct `RunLoopState` mutation remains in the active iteration path, stop and continue the migration until it is mediated by the reducer.
+- If the compatibility wrapper remains silent, it is not acceptable; add explicit gating and tests.
+- If the patch expands beyond the orchestration seam, stop and re-establish the seam boundary.
+- If any acceptance check still fails—including correctness of weather/forecast output—treat it as blocking.
+
+Fallback behavior:
+- Fallback A: keep the reducer-backed contract and attach it directly to the live loop with the smallest possible adapter.
+- Fallback B: if migration is too risky, add an explicit fail-closed adapter with tests that verify reducer ownership and runtime behavior; do not leave the model unused.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with the exact failing assertions and the offending runtime transition.
+
+Acceptance criteria:
+- The active runtime loop is reducer-owned and no longer directly mutates legacy state in a way that bypasses the reducer.
+- All legal transitions are represented and enforced in one place.
+- Unknown versions and unsupported transitions fail closed.
+- Cancellation/deadline and duplicate-result protections remain active at runtime.
+- Weather/forecast completeness is validated by targeted tests.
+- Authorization and execution safety rules remain intact.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "Orchestrator|Execution|Tool|Safety|Retry|Loop|Policy|Telemetry|Weather|Authorization"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Migration and compatibility notes
+4) Tests added/updated
+5) Validation results
+6) Step-budget report (planned vs actual counts)
