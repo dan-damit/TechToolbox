@@ -1,4 +1,11 @@
 {
+  "RESOLVE-RIPGREP": {
+    "Name": "RESOLVE-RIPGREP",
+    "Description": "Resolve ripgrep executable path from environment or PATH",
+    "Parameters": {},
+    "Module": "TechToolbox.Agent.Builtin",
+    "Meta": {}
+  },
   "RIPGREP": {
     "Name": "RIPGREP",
     "Description": "Fast recursive search and line counting",
@@ -9,7 +16,7 @@
     },
     "Module": "External",
     "Meta": {
-      "Executable": "C:\\Program Files\\ripgrep\\rg.exe",
+      "Executable": "RESOLVE-RIPGREP",
       "AllowedCommands": {
         "count-lines": "rg -n \"\" {directory}",
         "count-matches": "rg --count-matches \"\" {directory}",
