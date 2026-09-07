@@ -1,0 +1,55 @@
+PHASE 03 SUPPLEMENTAL PROMPT - VALIDATION REPAIR
+
+Use this prompt only when Phase 03 implementation is mostly complete but ends with FAILED_VALIDATION (or FALIDATION_FAILED typo in logs).
+
+Goal:
+Apply the smallest safe code and test changes needed to make Phase 03 validation pass.
+
+Phase scope:
+- Parser adapter and diagnostics normalization for GET-DIAGNOSTICS
+- Location mapping and envelope conformance
+- Phase 03 tests and phase-related build/test breakages only
+
+Inputs:
+- AI/Tasks/PowerShellPostflightAnalyzer/Implementation_Overview.txt
+- AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase03_ParserAdapterDiagnostics_Implementation.txt
+- AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase03_ParserAdapterDiagnostics_Strict.txt
+
+Hard operating rules:
+- No redesign and no new architecture layers.
+- No expansion into Phase 04 or Phase 05 work.
+- No broad refactors unrelated to failing assertions.
+- Do not issue the same discovery call shape more than twice.
+- If required discovery call fails twice, return FAILED_PREREQ and stop.
+
+Required execution order:
+1) Read failing build and test output first.
+2) Identify exact failing assertions and map each to one owning file.
+3) Apply minimal fixes only in phase-owned surfaces.
+4) Re-run exactly:
+   - dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+   - dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Diagnostics|Parser|Safety|Location"
+5) If still failing, allow one repair cycle for phase-related failures only.
+6) If failures remain after one repair cycle, return FAILED_VALIDATION with exact failing assertions.
+
+Mandatory safety constraints:
+- Never execute PowerShell scripts.
+- Never create runspaces.
+- Never call pwsh, powershell.exe, or shell wrappers.
+- Never add command discovery, AST projection, or policy-rule evaluation in this pass.
+
+Repair focus checklist:
+- Diagnostics shape matches schemaVersion 1.0 envelope.
+- syntaxErrors and diagnostics arrays are deterministic and always present.
+- command normalization is stable.
+- location metadata uses zero-based offsets and one-based line/column.
+- truncation metadata is accurate when limits apply.
+- unknown/invalid request handling remains fail-closed.
+
+Output structure:
+1) Summary
+2) Failing assertions found
+3) Files changed
+4) Minimal fixes applied
+5) Validation results
+6) Failure code if unresolved: FAILED_PREREQ or FAILED_VALIDATION

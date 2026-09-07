@@ -295,7 +295,9 @@
         "defaultCount": 5
       },
       "shell": {
-        "allowedCommands": []
+        "allowedCommands": [
+          "rg"
+        ]
       },
       "transcript": {
         "enabled": true,

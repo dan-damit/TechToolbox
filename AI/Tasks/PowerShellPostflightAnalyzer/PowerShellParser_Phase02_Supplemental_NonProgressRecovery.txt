@@ -1,0 +1,47 @@
+PHASE 02 SUPPLEMENTAL PROMPT - NO PROGRESS RECOVERY
+
+Use this prompt only when a prior Phase 02 run ended with DECISION_NO_PROGRESS_GUARD or repeated discovery failures.
+
+Goal:
+Complete Phase 02 with a minimal deterministic path and no planning loops.
+
+Phase scope:
+- Manifest entry for POWERSHELL-PARSER
+- Registry integration
+- Execution-security and optional-provider metadata
+- Strict request validation
+- Deterministic error envelope
+- Phase tests and validation commands
+
+Hard operating rules:
+- No brainstorming output.
+- No broad repository exploration.
+- No repeated discovery loops.
+- Do not issue the same tool call shape more than twice.
+- If prerequisite discovery fails twice, return FAILED_PREREQ and stop.
+
+Required execution order:
+1) Run exactly one root listing call.
+2) Read these files exactly once:
+   - AI/Tasks/PowerShellPostflightAnalyzer/Implementation_Overview.txt
+   - AI/Tasks/PowerShellPostflightAnalyzer/Initial_OverviewPrompt.txt
+   - AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase02_ManifestRegistryValidation_Strict.txt
+3) Run one targeted search pass for manifest/registry/validation surfaces.
+4) Implement edits directly in phase-owned files.
+5) Add or update tests for validation and safety boundaries.
+6) Run build and targeted tests.
+7) Return concise markdown results.
+
+Fail-closed fallback:
+- If any required tool call fails twice: return FAILED_PREREQ with exact failing call and expected next operator action.
+- If phase boundaries are unclear after the targeted search pass: return FAILED_PHASE_SCOPE with exact file-level ambiguity.
+- If tests fail after one repair cycle: return FAILED_VALIDATION with exact failing assertions.
+
+Output structure:
+1) Summary
+2) Files changed
+3) Manifest and registry integration
+4) Validation and error envelope
+5) Tests added or updated
+6) Validation results
+7) Failure code (only if failed): FAILED_PREREQ or FAILED_PHASE_SCOPE or FAILED_VALIDATION

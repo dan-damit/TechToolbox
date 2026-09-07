@@ -43,3 +43,20 @@ Validation commands:
 
 Deliverable:
 Return manifest/registry/security implementation details, validation behavior, and test evidence.
+
+Execution stability rules:
+- Before any edit attempt, do one workspace discovery pass only:
+  - list project root once
+  - read the three input prompt files once
+  - locate registry and validation files with one search pass
+- If any discovery tool fails, retry that exact call at most one time.
+- If the retry fails, stop and return FAILED_PREREQ with the failing call and reason.
+- Do not repeat the same tool call shape more than twice.
+- Do not loop on planning text. After discovery, either implement changes or return FAILED_PREREQ.
+- If the run detects non-progress or repeated planner output risk, switch to a minimal execution path:
+  1) manifest entry
+  2) registry/security metadata
+  3) validation and error envelope
+  4) tests
+  5) build and targeted tests
+- If strict phase scope cannot be completed safely, return FAILED_PHASE_SCOPE with exact blockers and no speculative retries.

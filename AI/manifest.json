@@ -29,5 +29,36 @@
         "search": "rg {pattern} {directory}"
       }
     }
+  },
+  "POWERSHELL-PARSER": {
+    "Name": "POWERSHELL-PARSER",
+    "Description": "Governed static-only PowerShell parser contract; no execution, shell, runspace, file, or remote operations.",
+    "Parameters": {
+      "command": { "Mandatory": true, "Type": "System.String", "Help": "Allowed commands: PARSE, GET-AST, GET-DIAGNOSTICS, FIND-COMMANDS, CHECK-POLICY." },
+      "source": { "Mandatory": false, "Type": "System.String", "Help": "PowerShell source text; mutually exclusive with path.", "MaxChars": 1000000 },
+      "path": { "Mandatory": false, "Type": "System.String", "Help": "Governed input path; mutually exclusive with source." },
+      "maxNodes": { "Mandatory": false, "Type": "System.Int32", "Help": "Bounded node limit from 1 through 10000." },
+      "maxDiagnostics": { "Mandatory": false, "Type": "System.Int32", "Help": "Bounded diagnostic limit from 1 through 1000." },
+      "policyProfile": { "Mandatory": false, "Type": "System.String", "Help": "Optional policy profile: default, strict, or static-only." }
+    },
+    "Module": "GovernedStaticOnly",
+    "Meta": {
+      "Provider": "Optional",
+      "Governed": true,
+      "ReadOnly": true,
+      "StaticOnly": true,
+      "ExecutionAllowed": false,
+      "ShellFallbackAllowed": false,
+      "RunspaceAllowed": false,
+      "RemoteOperationsAllowed": false,
+      "AllowedCommands": {
+        "PARSE": "static validation only",
+        "GET-AST": "static contract only",
+        "GET-DIAGNOSTICS": "static diagnostics only",
+        "FIND-COMMANDS": "static discovery only",
+        "CHECK-POLICY": "static policy contract only"
+      },
+      "ResponseSchemaVersion": "1.0"
+    }
   }
 }

@@ -1,0 +1,65 @@
+PHASE 04 SUPPLEMENTAL PROMPT - ACCEPTANCE CLOSURE
+
+Use this prompt only after Phase 04 implementation is mostly complete and the remaining gaps are:
+- Golden snapshot coverage missing or incomplete
+- Final Release build blocked by locked output DLL
+
+Goal:
+Close the Phase 04 acceptance gap with minimal, deterministic changes and full validation evidence.
+
+Phase scope:
+- Golden tests for GET-AST, FIND-COMMANDS, and PARSE
+- Deterministic shape/order/truncation assertions for AST projection and command discovery
+- Final Release build verification after handling output-DLL lock conditions
+
+Inputs:
+- AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase04_AstAndCommandDiscovery_Implementation.txt
+- AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase04_AstAndCommandDiscovery_Strict.txt
+- Existing Phase 04 code changes already landed in registry and runspace routing files
+
+Hard constraints:
+- No Phase 05 policy engine work.
+- No architecture redesign.
+- No runtime command resolution or execution behavior changes.
+- No expansion beyond AST projection, command discovery, and validation artifacts.
+- Keep edits minimal and phase-owned.
+
+Required execution order:
+1) Reproduce current status:
+   - dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+   - dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Ast|Commands|Projection|Deterministic"
+2) If Release build fails due to locked DLL, identify locking process and stop only the locking process safely, then rebuild.
+3) Add or update golden snapshot tests for:
+   - GET-AST baseline output shape and stable node ordering
+   - FIND-COMMANDS output shape, normalized names, qualifiers, and arguments
+   - PARSE composite output with stable arrays and optional sections behavior
+4) Add deterministic truncation tests for maxNodes and astTruncated metadata.
+5) Add allowlist-boundary tests ensuring unsupported or non-allowlisted AST types are not emitted as arbitrary object graphs.
+6) Re-run the exact build and targeted test commands.
+7) Return concise markdown evidence of acceptance closure.
+
+Locked-DLL handling rules:
+- Do not skip build verification.
+- If build lock occurs, report the locking PID/process name and action taken.
+- Do not kill unrelated processes.
+- After unlocking action, rerun the same Release build command and report result.
+
+Acceptance criteria to satisfy in this pass:
+- Golden snapshot tests exist and pass for GET-AST, FIND-COMMANDS, and PARSE.
+- Deterministic ordering and shape assertions are covered by tests.
+- maxNodes truncation and metadata behavior are covered by tests.
+- Release build passes after lock resolution if lock was present.
+- Targeted Phase 04 test filter passes.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Ast|Commands|Projection|Deterministic"
+
+Output structure:
+1) Summary
+2) Remaining gaps detected
+3) Files changed
+4) Golden tests added or updated
+5) Lock handling evidence (if applicable)
+6) Validation results
+7) Failure code if unresolved: FAILED_PREREQ or FAILED_VALIDATION
