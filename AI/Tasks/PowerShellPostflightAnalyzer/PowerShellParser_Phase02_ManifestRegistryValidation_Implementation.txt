@@ -1,0 +1,45 @@
+PHASE 02 IMPLEMENTATION PROMPT - MANIFEST, REGISTRY, SECURITY METADATA, AND VALIDATION
+
+Goal:
+Implement the governed tool surface for POWERSHELL-PARSER with strict request validation and deterministic error envelopes. Do not implement parsing logic in this phase.
+
+Inputs:
+- AI/Tasks/PowerShellPostflightAnalyzer/Implementation_Overview.txt
+- AI/Tasks/PowerShellPostflightAnalyzer/Initial_OverviewPrompt.txt
+- AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase02_ManifestRegistryValidation_Strict.txt
+
+Required code work:
+- Add POWERSHELL-PARSER manifest entry with allowed commands and typed parameters.
+- Add registry integration for discoverability.
+- Add execution-security metadata proving static-only operation.
+- Mark provider optional and governed.
+- Implement strict request validation:
+  - exactly one of source or path
+  - command normalization to uppercase
+  - reject unknown command
+  - reject unknown parameters
+  - reject empty source
+  - enforce bounded maxNodes and maxDiagnostics
+  - reject invalid policyProfile values where applicable
+- Implement deterministic error envelope with schemaVersion 1.0 and stable empty arrays.
+- Ensure routing cannot fall through to shell execution paths.
+
+Implementation constraints:
+- No System.Management.Automation parser calls yet.
+- No AST projection.
+- No command discovery.
+- No policy-rule evaluation.
+
+Minimum tests to add or update:
+- Manifest load and schema tests.
+- Registry and security metadata tests.
+- Validation success and failure matrix.
+- Error envelope determinism tests.
+- Tests proving no shell and no runspace execution path is reachable.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Registry|Validation|Safety|Contract"
+
+Deliverable:
+Return manifest/registry/security implementation details, validation behavior, and test evidence.

@@ -1,0 +1,55 @@
+STRICT MODE: Implement Phase 05 policy engine with versioned deterministic static rules.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes only to policy profile definitions, rule evaluation logic, CHECK-POLICY command, and tests.
+
+Concrete scope:
+- Policy profile definitions for POWERSHELL-PARSER
+- CHECK-POLICY command flow
+- Rule-evaluation output mapping to PolicyViolations
+- Profile selection and unknown-profile rejection
+- Rule and determinism tests
+
+Requirements:
+- Implement default and strict profiles with explicit versioning metadata.
+- Reject unknown policy profiles fail-closed.
+- Evaluate baseline rules over AST/commands/tokens using deterministic ordering.
+- Return structured violations including location, evidence, and remediation.
+- Keep policy findings advisory unless caller declares enforcement.
+- Include incomplete-analysis rule when limits or truncation reduce confidence.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 10 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If policy rules depend on runtime command execution, stop and remove runtime dependence.
+- If profile behavior is implicit, stop and make severity/action mapping explicit per rule.
+
+Fallback behavior:
+- Fallback A: implement rule engine with default profile first, then layer strict overrides.
+- Fallback B: if uncertain dynamic-invocation matching is noisy, classify as warning with explicit rationale.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with exact failing assertions.
+
+Acceptance criteria:
+- CHECK-POLICY returns deterministic structured findings.
+- Profiles are versioned and selectable.
+- Unknown profiles fail closed.
+- Baseline rules are covered by tests.
+- Incomplete-analysis conditions are surfaced in policy findings.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Policy|Profile|StaticAnalysis|Deterministic"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Policy profiles and rule model
+4) CHECK-POLICY behavior
+5) Tests added or updated
+6) Validation results
+7) Step-budget report (planned vs actual)

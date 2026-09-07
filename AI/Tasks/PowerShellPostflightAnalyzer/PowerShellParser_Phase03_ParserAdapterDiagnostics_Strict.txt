@@ -1,0 +1,53 @@
+STRICT MODE: Implement Phase 03 parser adapter with parser-only safety guarantees.
+
+Mission:
+- Complete this phase with bounded steps and deterministic fallback behavior.
+- Apply changes only to parser adapter, diagnostics projection, and related tests.
+
+Concrete scope:
+- Parser adapter and contracts for POWERSHELL-PARSER
+- GET-DIAGNOSTICS command flow
+- Location and diagnostics normalization
+- Safety and limit enforcement tests
+
+Requirements:
+- Use System.Management.Automation.Language.Parser API only.
+- Implement deterministic GET-DIAGNOSTICS output in schemaVersion 1.0 envelope.
+- Preserve stable array fields and metadata fields.
+- Normalize location coordinates and severity values consistently.
+- Bound diagnostics count and mark truncation in metadata.
+- Keep execution guarantees: no runspace, no shell, no script invocation, no remote operations, no writes.
+
+Step budget (hard limits):
+1) Discovery: <= 6 read/search calls.
+2) Edits: <= 10 file edits total.
+3) Validation: 1 build + 1 targeted test run; allow exactly 1 repair cycle if failures are phase-related.
+4) Stop once acceptance criteria pass.
+
+Loop guards:
+- If command-discovery or policy-rule work starts, stop and defer to later phases.
+- If adapter attempts to invoke PowerShell runtime execution APIs, stop and remove that path.
+
+Fallback behavior:
+- Fallback A: complete source-input diagnostics flow first, then layer path mode if already validated.
+- Fallback B: if dependency version causes friction, pin to nearest net8-compatible SMA package and document rationale.
+- Fallback C: after one failed repair cycle, emit FAILED_VALIDATION with exact failing assertions.
+
+Acceptance criteria:
+- GET-DIAGNOSTICS works for valid and invalid scripts.
+- Diagnostic and syntax location metadata is deterministic.
+- Limits and truncation signaling are implemented.
+- Safety tests prove parser-only behavior.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Diagnostics|Parser|Safety|Location"
+
+Output results in markdown using this structure:
+1) Summary
+2) Files changed
+3) Parser adapter design
+4) Diagnostics and location normalization
+5) Tests added or updated
+6) Validation results
+7) Step-budget report (planned vs actual)

@@ -1,0 +1,43 @@
+PHASE 04 IMPLEMENTATION PROMPT - AST PROJECTION AND COMMAND DISCOVERY
+
+Goal:
+Implement bounded normalized AST projection and deterministic command discovery for POWERSHELL-PARSER.
+
+Inputs:
+- AI/Tasks/PowerShellPostflightAnalyzer/Implementation_Overview.txt
+- AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase04_AstAndCommandDiscovery_Strict.txt
+- Outputs from Phases 02-03
+
+Required code work:
+- Implement GET-AST and FIND-COMMANDS command flows.
+- Implement PARSE as composite output using existing diagnostics plus optional AST/tokens.
+- Add PowerShellAstProjector with allowlisted node types and scalar properties only.
+- Preserve source-order traversal and stable child ordering.
+- Implement bounded projection with maxNodes and truncation metadata.
+- Implement command discovery from CommandAst only.
+- Return command records with:
+  - name and normalizedName
+  - invocationKind
+  - moduleQualifier when syntactically present
+  - argument summaries with locations
+- Keep deterministic envelope shape with arrays always present.
+
+Implementation constraints:
+- No runtime command resolution or invocation.
+- No module loading.
+- No reflection-based object graph dumps.
+- No arbitrary AST object serialization.
+
+Minimum tests to add or update:
+- Golden snapshot tests for GET-AST, FIND-COMMANDS, and PARSE.
+- Node allowlist and ordering tests.
+- maxNodes truncation tests.
+- Command discovery tests for aliases, qualifiers, and argument shapes.
+- Deterministic output tests across repeated runs.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Ast|Commands|Projection|Deterministic"
+
+Deliverable:
+Return AST/command projection details, deterministic shape guarantees, and golden test evidence.

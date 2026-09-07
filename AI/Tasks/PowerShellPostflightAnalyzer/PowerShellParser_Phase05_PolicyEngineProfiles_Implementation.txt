@@ -1,0 +1,53 @@
+PHASE 05 IMPLEMENTATION PROMPT - POLICY ENGINE AND VERSIONED PROFILES
+
+Goal:
+Implement deterministic static policy evaluation for POWERSHELL-PARSER with versioned profiles and structured findings.
+
+Inputs:
+- AI/Tasks/PowerShellPostflightAnalyzer/Implementation_Overview.txt
+- AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase05_PolicyEngineProfiles_Strict.txt
+- Outputs from Phases 02-04
+
+Required code work:
+- Implement CHECK-POLICY command.
+- Implement versioned policy profiles, minimum:
+  - default
+  - strict
+- Reject unknown policy profiles explicitly.
+- Implement deterministic rules for:
+  - Invoke-Expression usage
+  - remoting commands and session constructs
+  - destructive command families
+  - unbounded wildcards or broad recursive operations
+  - dynamic invocation patterns that reduce reviewability
+  - incomplete analysis or truncation warning rule
+- Return structured PolicyViolations items with:
+  - ruleId
+  - severity
+  - status
+  - message
+  - commandName when available
+  - location
+  - evidence
+  - remediation
+- Keep analysis static and advisory by default; enforcement is caller-controlled.
+
+Implementation constraints:
+- No runtime execution.
+- No command resolution/import.
+- No external policy fetches over network.
+- No mutation of source content.
+
+Minimum tests to add or update:
+- Rule coverage tests for each baseline rule.
+- Profile severity and behavior difference tests.
+- Unknown profile rejection tests.
+- Deterministic finding-order tests.
+- Truncation/incomplete-analysis policy finding tests.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Policy|Profile|StaticAnalysis|Deterministic"
+
+Deliverable:
+Return policy model, rule behavior matrix, structured violation contract, and test evidence.

@@ -1,0 +1,46 @@
+PHASE 03 IMPLEMENTATION PROMPT - PARSER ADAPTER AND DIAGNOSTICS
+
+Goal:
+Implement a read-only in-process PowerShell Parser SDK adapter that parses source and returns normalized diagnostics without any code execution.
+
+Inputs:
+- AI/Tasks/PowerShellPostflightAnalyzer/Implementation_Overview.txt
+- AI/Tasks/PowerShellPostflightAnalyzer/PowerShellParser_Phase03_ParserAdapterDiagnostics_Strict.txt
+- Outputs from Phase 02
+
+Required code work:
+- Add System.Management.Automation dependency compatible with project target framework.
+- Implement parser adapter using System.Management.Automation.Language.Parser APIs only.
+- Support source input first; path input only if already validated by Phase 02.
+- Implement GET-DIAGNOSTICS command end-to-end.
+- Normalize parser diagnostics and syntax errors into response envelope.
+- Normalize location metadata:
+  - startOffset and endOffset zero-based
+  - line and column one-based
+- Enforce input and output limits:
+  - source size bounds
+  - maxDiagnostics cap
+  - deterministic truncation signaling in metadata
+- Keep array fields present even when empty.
+
+Implementation constraints:
+- No runspace creation.
+- No command invocation.
+- No shell process calls.
+- No module import/execution.
+- No network operations.
+- No file writes.
+
+Minimum tests to add or update:
+- Valid and invalid syntax diagnostics tests.
+- Empty and oversized input tests.
+- Location mapping accuracy tests.
+- Diagnostics truncation metadata tests.
+- Safety tests proving parser-only behavior.
+
+Validation commands:
+- dotnet build src/TechToolbox.Agent/TechToolbox.Agent.csproj -c Release
+- dotnet test src/TechToolbox.Agent/Tests/TechToolbox.Agent.Tests.csproj -c Release --filter "PowerShellParser|Diagnostics|Parser|Safety|Location"
+
+Deliverable:
+Return adapter design, diagnostics contract evidence, safety proof points, and tests.
