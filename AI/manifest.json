@@ -10,17 +10,22 @@
     "Name": "RIPGREP",
     "Description": "Dedicated ripgrep line-counting and search tool.",
     "Parameters": {
-      "command":   { "Mandatory": true, "Type": "System.String", "Help": "Allowed command name: count-lines, count-matches, or search." },
+      "command":   { "Mandatory": true, "Type": "System.String", "Help": "Allowed command names: count, count-lines, count-matches, files, files-with-matches, files-without-match, line-count, or search." },
       "directory": { "Mandatory": true, "Type": "System.String", "Help": "Directory to search." },
       "glob":      { "Mandatory": false, "Type": "System.String", "Help": "Optional glob filter such as *.cs." },
-      "pattern":   { "Mandatory": false, "Type": "System.String", "Help": "Optional search pattern. Required for search commands." }
+      "pattern":   { "Mandatory": false, "Type": "System.String", "Help": "Optional search pattern; required for search-oriented commands." }
     },
     "Module": "External",
     "Meta": {
       "Executable": "RESOLVE-RIPGREP",
       "AllowedCommands": {
+        "count": "rg --count \"^\" {directory}",
         "count-lines": "rg --count \"^\" {directory}",
         "count-matches": "rg --count-matches \"\" {directory}",
+        "files": "rg --files {directory}",
+        "files-with-matches": "rg --files-with-matches {pattern} {directory}",
+        "files-without-match": "rg --files-without-match {pattern} {directory}",
+        "line-count": "rg --count \"^\" {directory}",
         "search": "rg {pattern} {directory}"
       }
     }
