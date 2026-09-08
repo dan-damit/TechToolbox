@@ -277,6 +277,42 @@ function Get-CodeSigningCert {
     return $null
 }
 
+function Sign-FileSet {
+    param(
+        [Parameter(Mandatory)] [string[]]$Files,
+        [Parameter(Mandatory)] [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate,
+        [switch]$SkipValidSigs,
+        [string]$TimestampServer,
+        [ref]$OkCount,
+        [ref]$SkippedCount,
+        [ref]$WarnCount
+    )
+
+    foreach ($f in $Files) {
+        if (-not (Test-Path -LiteralPath $f)) { continue }
+
+        try {
+            if ($SkipValidSigs) {
+                $sig = Get-AuthenticodeSignature -FilePath $f
+                if ($sig.Status -eq 'Valid') { $SkippedCount.Value++; continue }
+            }
+
+            $params = @{
+                FilePath      = $f
+                Certificate   = $Certificate
+                HashAlgorithm = 'SHA256'
+            }
+            if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
+
+            $r = Set-AuthenticodeSignature @params
+            if ($r.Status -eq 'Valid') { $OkCount.Value++ } else { $WarnCount.Value++ }
+        }
+        catch {
+            $WarnCount.Value++
+        }
+    }
+}
+
 $ok = 0; $skip = 0; $warn = 0
 if ($SkipSigning) {
     Write-Host "Signing skipped (-SkipSigning)." -ForegroundColor DarkYellow
@@ -296,37 +332,19 @@ else {
     }
 
     Write-Host "Signing $(($files|Measure-Object).Count) file(s)..." -ForegroundColor Cyan
-    foreach ($f in $files) {
-        try {
-            if ($SkipValidSigs) {
-                $sig = Get-AuthenticodeSignature -FilePath $f.FullName
-                if ($sig.Status -eq 'Valid') { $skip++; continue }
-            }
-            $params = @{
-                FilePath      = $f.FullName
-                Certificate   = $cert
-                HashAlgorithm = 'SHA256'
-            }
-            if ($TimestampServer) { $params['TimestampServer'] = $TimestampServer }
-            $r = Set-AuthenticodeSignature @params
-            if ($r.Status -eq 'Valid') { $ok++ } else { $warn++ }
-        }
-        catch {
-            $warn++
-        }
-    }
+    Sign-FileSet -Files ($files.FullName) -Certificate $cert -SkipValidSigs:$SkipValidSigs -TimestampServer $TimestampServer -OkCount ([ref]$ok) -SkippedCount ([ref]$skip) -WarnCount ([ref]$warn)
     Write-Host "Signing complete → OK: $ok  Skipped: $skip  Warnings/Errors: $warn" -ForegroundColor Cyan
 }
 
 # ---------------- 06A. Build + publish .NET agent projects ------------------
 $dotNetProjects = @(
     [pscustomobject]@{
-        Name       = 'TechToolbox.Agent'
+        Name        = 'TechToolbox.Agent'
         ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
         PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish'
     },
     [pscustomobject]@{
-        Name       = 'TechToolbox.Agent.UI'
+        Name        = 'TechToolbox.Agent.UI'
         ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj'
         PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\bin\Release\net8.0-windows\win-x64\publish'
     }
@@ -357,6 +375,14 @@ foreach ($project in $dotNetProjects) {
     & dotnet @publishArgs
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish failed for $($project.ProjectPath)"
+    }
+
+    if (-not $SkipSigning) {
+        $publishExes = @(Get-ChildItem -LiteralPath $project.PublishDir -Filter *.exe -File -Recurse | Select-Object -ExpandProperty FullName)
+        if ($publishExes.Count -gt 0) {
+            Write-Host "Signing published EXE(s) for $($project.Name): $(($publishExes | Measure-Object).Count) file(s)" -ForegroundColor Cyan
+            Sign-FileSet -Files $publishExes -Certificate $cert -SkipValidSigs:$SkipValidSigs -TimestampServer $TimestampServer -OkCount ([ref]$ok) -SkippedCount ([ref]$skip) -WarnCount ([ref]$warn)
+        }
     }
 
     Write-Host "Build + publish complete for $($project.Name) → $($project.PublishDir)" -ForegroundColor Green
@@ -446,8 +472,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCPDHkyN5m2cc0P
-# DxF0dSj1f617WxDafkMM/jjrIww8JaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD9wP7IquhYXQu4
+# zcvP7UqAVpfI3vIBVkDJ0+6N2Te2mqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -580,34 +606,34 @@ $result
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCrGFYN9MlI
-# fD7VQJccA1auwRc/XkIlkhYbcAdKiRX39zANBgkqhkiG9w0BAQEFAASCAgBYTLWO
-# gcZMKiPWy5q0kBtJ3uFJDorpqQROm4Dyie8KZ3PtchLaVfzJAzu6gAY0Z/NLVjjz
-# 9BrS4Zz7cBw3iCzNqZNpK9joDHTdrvLDLfiYMh8cEKSWl7Dyf6ulz/c/4Q7sYT7M
-# /jp+1XaosHeTRocGUKii1TBLVL6FF02iUmy0U6OydvgaBmqgAQfpohOpB+D1BMVl
-# ZU+zvgVrKSE+fdsqy0Ybzi0rfiW0YIQLKtavvBm4w9Y1bKm8jsxg+g/HlXK8Sv7K
-# hDnVgrPPgMjAt1Ct5Pu0w8JzQgaEw0yqEmmKqftcoVLf/hrbFgAQ2i79zSwlxz3A
-# 7OmDGThKOFtVAI3KoClT8QWPUmhoIy/O4xaeME8IsrLD995IUCjJr35+X6su0TyY
-# WO4rqIwIODm+vEpCoWRo0QzX6qsHCu0ckOBkM/aNCaVB6Uj3+nX9NsvsF93OjSMZ
-# hvIsAtxm0z0GWsQimW4kEC5AsyxrNsycPiYmG1dt7Sa2YydvUc379FqO+noWJasi
-# M7le3hlGk9LilBVjqzdjCqMs+i3svGEmtkwD87HRcWzkBl2BrcUXGkupLGO33KNT
-# rm6/1VPsVn2NnSLP2w8a1QDdGBuZNv3B20MgGIVKTIJxEHKpUtgixaO4NVEJqpuV
-# GxHEYYKK/E+oLO4pC3HelCsvW8tra9PHSgBCxKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCU5jdJRNZe
+# sXiKXRe1QONgq/BuWuQgUlvJCqjQU/97+jANBgkqhkiG9w0BAQEFAASCAgBlkV+e
+# pPY0VZ/bch+Vj1joWNZqe1X/xn3Jm9zk1foAfvenDRBn4QqKByLFjSAxTMB9fhjm
+# VnpSFEfn+Ns/fw+xCbd74rM6TyC+NaN9X3bZPbTWk3pe9uyBIymn0a9RLDArRe2C
+# pr4VWRet4j0RvvKVyDC0OYjuHUvBSJ7gZZf6IZgUb0abeVdVKthfEFkXz5r5EUIP
+# yRo3pzdljA3yifijOmtAGLblCxqxVTK6E11rkSdBEcrMQ1EIVH/VfuIQgckUuK0G
+# msRVFNP6gm+DOJGWM4M03Bnq6WT8N/sj1lqQg3xcysYhdHPjFxd0bv4Ru5nRSOXb
+# 146vbM/Or2kN9BonN8cXzKRS6IfwT75o0BEB77NwaBfpgJqauBwuDwF5VxFRl/Fk
+# K4iQ4og/NV9RS1JDngSS22YpJQrzXZdBLDi4iOWP3VLWq8hdjQDPhBeeWT9e7QCY
+# dugiTfNHyGvSVY5vvy+xbtjAj0pq1E8GezsaVH9yYF6X0FEeoMcSLQjZmZ1J6Ryl
+# MHPfKYV0TiWpLpzELcUCtwNIe60+PNHg4y/fltCyk8fKBw5+meXzAZV5yieEyg9Y
+# xttFH9+egQ7bu2L72r9jRFWnN/o1KF9xo3X659MfzYk5m5H+WiDJZSkgcZwneQoI
+# 1LCNq/JK4u1IG2SW5dDiWYQ/tRhsa25abiMPt6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDgwNDA5MTRaMC8GCSqGSIb3DQEJBDEiBCCyV04lVUda70zY0mMD
-# p5lgyDx/ExYglS0m2ZASymg5qTANBgkqhkiG9w0BAQEFAASCAgBSoVsOhVHNwiGf
-# NW+ic6G3KzUAK75yio3t1IqMkDNI2evrWKaAXbNmWSfXwrwBJYAusrdId5Q/wzZf
-# 6VVQntT53H2KNqLNJBHR+oVDhF2JciS2DN9snHJCVsXM2FJNiRiJYXGdkbYjgxEm
-# GQrVPIAKUmizUMPzR/E8bnhHnDCBd4SgHPiFV/Y0zfsHLbg8hCHz6UwcMjmvnGPf
-# cU5mKW/lel6Nq66tNnpUVs2fDWVuDwmovuDp+TTfSOls4ke/4HsPaQu4OBRpxvhq
-# Eza4vdHb1VZFT48jnlabX/PzDJUUWxXi5BjYF9I3aYY6AVXcKvbOqyM/D9iORg4k
-# 3cKqsPGD/B/18Db2xu4Yxm5nALclTzTmc/BsOS4c1eyEdeLWnq+QhZWNlSA0JT0B
-# /0xQjJywqT9Sxd+tHGLglG+sOiK4K1qhzToctdLVgFQSWIPvrHIJjJCrVCKqN3Ue
-# /BRyPU53okGzEY1OSiRqlByLARvlgOmdvMMM/BwGub/cVgoEtb6ni//Kg+vE78pS
-# dvdGT2MLnXLz44hDrh+MS8IVNo5sgcLpFsfr+8bb7cyAiHk/RLfSIZRvf9pfervD
-# /k8ikD1z6R0qL+m16o9E9c6CXHwbqXYLc6e2RF9M1I5qq/Y6OHtLvMiE8yRpFoFS
-# KxMp9p1O3v+FbdJCpMvaTVleiDfh3g==
+# BTEPFw0yNjA5MDgwNjEzMjNaMC8GCSqGSIb3DQEJBDEiBCA9JHqIbd41STnUEhcE
+# Sd0BDwJO9lElBJRK+rWw3R8mQDANBgkqhkiG9w0BAQEFAASCAgCgv3pZO8COl+dR
+# z1EvnXGBw00nyCFZObXbLETtzGfRfxbmzZ5ZEo8P+mHLJIFfdo8Gvke3HrPk5tZI
+# LaKu3fhPfCWRMHOWUt4kcqH9OfgBqtWLMDMPjuo10OwxwS/PlNwRYbcEQAzYi64j
+# otRn/ETUJOk0+jsAaGQYCZTk9HfD3vou4tX5n3drA1IaRSh82t0wXRAMPZQOtIwo
+# hlyFMGOfeuiduoMpaZ/Z8j7ysi+qunRDFOEMySqs2w4agWvdeNdK+SF5bF5aajFx
+# WYpzK6KBlDwSov72xoSstC2KdfP7bm/qV8n3YRzqBXWRcquoDg3jER1cvDxZOMEn
+# VfUMCmmoKbv8WkIPHnsh9H/jh/Jmd6QgwqHRJlK9EF6rugjH22MMXAnyjwskrmWC
+# 5iJ6eMe84klC92v9PdiGaBEC6mtMtdjdtWpCKYOGVSXP3ob4VMwYTtlyVpm9Zdm1
+# 24LSPUOdb5oQj0oo50/QYVSMlaaImu5zEUYfTzz++SMkLDn7IB+yhOJzNzygnShL
+# alHAvSrkA4ZFCZuZdqwdg6RRxTbwUWVsYpjAAsodqSqJQSjEhEKsMkOL5AJEK5Ml
+# Cp5/iM7TLwOhgL4jJ7RgmPscFqiJRUAd+kTla9djO/W7fuTs/9sxDl+y1VXAddeC
+# wEIyPLbB8r6b43UtK2hrE7bOmQGa6w==
 # SIG # End signature block
