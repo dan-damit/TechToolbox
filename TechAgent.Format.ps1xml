@@ -1,0 +1,88 @@
+<Configuration>
+  <ViewDefinitions>
+
+    <View>
+      <Name>TechAgentGuiLaunchInfo</Name>
+      <ViewSelectedBy>
+        <TypeName>TechAgent.Gui.LaunchInfo</TypeName>
+      </ViewSelectedBy>
+
+      <ListControl>
+        <ListEntries>
+          <ListEntry>
+            <ListItems>
+
+              <ListItem>
+                <Label>TechAgent</Label>
+                <ScriptBlock>
+                  "GUI Launch Report"
+                </ScriptBlock>
+              </ListItem>
+
+              <ListItem>
+                <Label>Launch Profile</Label>
+                <ScriptBlock>
+                  $profile = if ($_.ExecutablePath -match '\\AgentRuntime\\') { 'Packaged Runtime' } elseif ($_.ExecutablePath -match '\\bin\\Release\\') { 'Source Publish' } else { 'Custom Path' }
+                  $profile
+                </ScriptBlock>
+              </ListItem>
+
+              <ListItem>
+                <Label>Executable</Label>
+                <ScriptBlock>
+                  $_.ExecutablePath
+                </ScriptBlock>
+              </ListItem>
+
+              <ListItem>
+                <Label>Working Dir</Label>
+                <ScriptBlock>
+                  $_.WorkingDirectory
+                </ScriptBlock>
+              </ListItem>
+
+              <ListItem>
+                <Label>Process ID</Label>
+                <ScriptBlock>
+                  $_.ProcessId
+                </ScriptBlock>
+              </ListItem>
+
+              <ListItem>
+                <Label>Status</Label>
+                <ScriptBlock>
+                  $status = if ($_.Started) { 'ONLINE' } else { 'NOT STARTED' }
+                  $status
+                </ScriptBlock>
+              </ListItem>
+
+              <ListItem>
+                <Label>Process State</Label>
+                <ScriptBlock>
+                  $running = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+                  if ($running) {
+                    "Running"
+                  }
+                  else {
+                    "Exited"
+                  }
+                </ScriptBlock>
+              </ListItem>
+
+              <ListItem>
+                <Label>Timestamp</Label>
+                <ScriptBlock>
+                  Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+                </ScriptBlock>
+              </ListItem>
+
+            </ListItems>
+          </ListEntry>
+
+        </ListEntries>
+      </ListControl>
+
+    </View>
+
+  </ViewDefinitions>
+</Configuration>
