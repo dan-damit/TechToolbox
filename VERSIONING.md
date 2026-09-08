@@ -35,22 +35,22 @@ Incremented when:
 
 ## 2. Current Version
 
-**TechToolbox v0.5.0 — “AI & Metadata Milestone”**
+**TechToolbox v0.6.0 — “Windows Operator Desktop (First Iteration)”**
 
 This release marks:
-- Introduction of the AI agent bridge  
-- Full metadata export via `Export-ToolboxFunctions`  
-- Enhanced loader and config architecture  
-- Stabilized path token system  
-- Improved developer experience and documentation  
+- First working TechAgent desktop GUI host (`TechToolbox.Agent.UI`)  
+- GUI runtime integration with `Invoke-TechAgent` for console-equivalent orchestration  
+- Module packaging updated to include both core agent and GUI runtime payloads  
+- Initial compatibility hardening for local model `phi4:14b` thinking behavior  
 
 ---
 
 ## 3. Milestone Roadmap
 
-The following MINOR versions represent planned architectural milestones:
+The following MINOR versions represent completed and planned architectural milestones:
 
 ### **0.6.0 — GUI & Operator Experience Refresh**
+Status: Completed (2026-09-07)
 - Native Windows desktop experience for common workflows  
 - Unified operator dashboard and task orchestration surfaces  
 - Improved UX for diagnostics, logs, exports, and AI-assisted actions  

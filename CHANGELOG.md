@@ -6,6 +6,26 @@ This project follows the **Milestone‑Driven Semantic Versioning** model descri
 
 ---
 
+## [0.6.0] — 2026-09-07
+### **Milestone: Windows Operator Desktop (First Iteration)**
+
+Condensed milestone notes for the first working TechAgent GUI iteration.
+
+### **Highlights**
+- Delivered the first usable TechAgent desktop GUI host (`TechToolbox.Agent.UI`) under the tracked `TechToolbox.Agent` submodule path.
+- Wired GUI submit/cancel flows to real agent execution by invoking `Invoke-TechAgent` through a runtime service instead of a placeholder stub.
+- Added GUI runtime packaging so publish output includes both:
+  - `AgentRuntime/TechToolbox.Agent`
+  - `AgentRuntime/TechToolbox.Agent.UI`
+- Corrected moved project references and build isolation so `TechToolbox.Agent` and `TechToolbox.Agent.UI` compile cleanly together.
+- Added compatibility guard for local Ollama model `phi4:14b` by forcing `ThinkingMode` to `off` to prevent unsupported-thinking failures.
+
+### **Operator Impact**
+- TechAgent can now be used from a Windows GUI while preserving console-equivalent orchestration behavior.
+- Packaging now carries GUI runtime assets with the module release payload for easier desktop rollout.
+
+---
+
 ## [0.5.0] — 2026‑06‑10  
 ### **Milestone: AI & Metadata Integration**
 
@@ -167,24 +187,3 @@ Latest completed enhancements:
 - Updated top-level `README.md` to reflect template-driven TechAgent prompt staging.
 - Updated `COMMANDS.md` to include `Use-TechAgentTaskTemplate` in AI-assisted workflows.
 
-### **0.6.0 — GUI & Operator Experience Refresh**
-### **Milestone: Windows Operator Desktop**
-
-This release focuses on making TechToolbox easier to operate as a day-to-day Windows automation platform rather than a command-only toolkit. The goal is to improve the human-facing workflow around diagnostics, exports, AI-assisted automation, and repeated operator tasks.
-
-### **Added**
-- Native Windows desktop experience for common operator workflows.
-- Unified dashboard and orchestration surfaces for task execution.
-- Better visibility into logs, exports, diagnostics, and AI activity.
-
-### **Improved**
-- Simplified UX for launching and monitoring common workflows.
-- Better operator feedback during diagnostics and export tasks.
-- More cohesive experience across AI-assisted execution and system operations.
-
-### **0.7.0 — Worker & Remoting Enhancements**
-- Unified worker orchestration.
-- Credential flow improvements.
-- Remote execution reliability upgrades.
-
----
