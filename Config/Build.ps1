@@ -324,13 +324,11 @@ $dotNetProjects = @(
         Name       = 'TechToolbox.Agent'
         ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
         PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish'
-        RuntimeDir  = Join-Path $ModuleRoot 'AgentRuntime\TechToolbox.Agent'
     },
     [pscustomobject]@{
         Name       = 'TechToolbox.Agent.UI'
         ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj'
         PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\bin\Release\net8.0-windows\win-x64\publish'
-        RuntimeDir  = Join-Path $ModuleRoot 'AgentRuntime\TechToolbox.Agent.UI'
     }
 )
 
@@ -350,10 +348,6 @@ foreach ($project in $dotNetProjects) {
         Remove-Item -LiteralPath $project.PublishDir -Recurse -Force
     }
 
-    if (Test-Path -LiteralPath $project.RuntimeDir) {
-        Remove-Item -LiteralPath $project.RuntimeDir -Recurse -Force
-    }
-
     $publishArgs = @('publish', $project.ProjectPath, '-c', 'Release', '-o', $project.PublishDir)
     if ($project.Name -eq 'TechToolbox.Agent.UI') {
         $publishArgs += @('-r', 'win-x64')
@@ -365,9 +359,7 @@ foreach ($project in $dotNetProjects) {
         throw "dotnet publish failed for $($project.ProjectPath)"
     }
 
-    New-Item -ItemType Directory -Force -Path $project.RuntimeDir | Out-Null
-    Copy-Item -Path (Join-Path $project.PublishDir '*') -Destination $project.RuntimeDir -Recurse -Force
-    Write-Host "Build + publish complete for $($project.Name) → $($project.RuntimeDir)" -ForegroundColor Green
+    Write-Host "Build + publish complete for $($project.Name) → $($project.PublishDir)" -ForegroundColor Green
 }
 
 # ---------------- 07. (Optional) Package -------------------------------------
@@ -384,15 +376,6 @@ if ($Pack) {
         (Join-Path $ModuleRoot 'Private\*'),
         (Join-Path $ModuleRoot 'Config\*')
     )
-
-    foreach ($runtimePath in @(
-        (Join-Path $ModuleRoot 'AgentRuntime\TechToolbox.Agent\*'),
-        (Join-Path $ModuleRoot 'AgentRuntime\TechToolbox.Agent.UI\*')
-    )) {
-        if (Test-Path -LiteralPath $runtimePath) {
-            $items += $runtimePath
-        }
-    }
 
     Compress-Archive -Path $items -DestinationPath $zip
     $artifact = $zip
