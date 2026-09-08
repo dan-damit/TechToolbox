@@ -26,7 +26,7 @@ function Invoke-TechAgentGui {
         Invoke-TechAgentGui -BuildIfMissing
     #>
     [CmdletBinding(SupportsShouldProcess)]
-    [OutputType([pscustomobject])]
+    [OutputType([pscustomobject[]])]
     param(
         [Parameter()]
         [string]$ExecutablePath,
@@ -73,12 +73,13 @@ function Invoke-TechAgentGui {
 
     $resolvedExecutablePath = if ([string]::IsNullOrWhiteSpace($ExecutablePath)) {
         $candidatePaths = @($galleryExecutablePath, $sourceExecutablePath)
-        foreach ($candidatePath in $candidatePaths) {
-            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
-                return $candidatePath
-            }
+        $existingCandidate = $candidatePaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+        if ($existingCandidate) {
+            $existingCandidate
         }
-        $sourceExecutablePath
+        else {
+            $sourceExecutablePath
+        }
     }
     else {
         $ExecutablePath
@@ -121,17 +122,17 @@ function Invoke-TechAgentGui {
         }
 
         $result = [pscustomobject]@{
-            ExecutablePath = $resolvedExecutablePath
+            ExecutablePath   = $resolvedExecutablePath
             WorkingDirectory = $startInfo.WorkingDirectory
-            ProcessId = [int]$process.Id
-            Started = $true
+            ProcessId        = [int]$process.Id
+            Started          = $true
         }
 
         if (-not $NoWait.IsPresent) {
             $process.WaitForInputIdle()
         }
 
-        return $result
+        return @($result)
     }
 
     return $null
@@ -139,8 +140,8 @@ function Invoke-TechAgentGui {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCnfN0Trdd/bDun
-# PRfvlbTNj/wtUvLuGuaUz2RCVIci76CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpYzkQx4rvOxV4
+# 85jNUED4dxRN83/S9m+rEYy+lvWOMaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -273,34 +274,34 @@ function Invoke-TechAgentGui {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCeCw+L07tI
-# 0JkQwrfYHm17UJFqBcJ3cfDkbbbx/xevgTANBgkqhkiG9w0BAQEFAASCAgBGeppn
-# o+2y9xKntRWQEOXgobjEK2qZJuCP0oo3mobxTfe7ZjjQLGBUDzviiHMvtUyAlp7G
-# SiUbYIHtJ3sTbZ/Fsml6/IH0a9rpuvoEO6ijPeK+g+3Yn2mvMCHojSjPlloxCf8T
-# sgRbtjvxShsAPSmjyKZcNg3ucA3u5A/NWQCIBO74SnaI2dPMc2mmCveFhoT4+4/p
-# HFYxwZbLssIjWF87jmr10Lq4rwxkyYZ5VCkcebzn37LB1+195VTbJAkhTxv+i5tl
-# Z1cWx4T2LSQoGz2vF6LL6XIbx7ftpk3wC+vFzq/Ab8riW/WClZGWbun1fSk8SDPf
-# AKTmpB2ReTRmvLFTpxwRyUtEOMoV0zPQKTOgBuiWWlIURVkdrS5zpyYS+quSO5D2
-# iEVx5rYYlmPKRlavREHMen3RD17s3jbSqdvN6tgDglSQf3+scUVBNczYdD5IdJXA
-# h1BgDTMeFH7k4jUSodRNfK+8BHzAVjT6lVuvEMQdirK/khPVAukAUkC1vEy1qMZt
-# FIDzvzHpANe0rt2xMdb97IALgykGt00wyoeRUOmY6I1emZlzk3rc+ZV9x6trAuWh
-# VBn7WmCkS1LDplSZILWKRMJbYwHD1aPKaYNy4NOkARsNQDKBqzl73kiOjQIf+h5q
-# GK/DGM+nuG/xKE1EaI/Ew5ThIjNt4/zLEkN69qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCMQQJzVj3/
+# kdntFvB4rG3HyPvW9FwgT3fKH1WjZrbS2DANBgkqhkiG9w0BAQEFAASCAgBmRM1f
+# OvHouzycj42Y8XOh2YqwPi5DiD/BS1zpRep0X4kEcWxD86HI/0U1rPZ/aek7Z3pd
+# vIF+B700X0o8tw4UHqqYzFjK1qteMTKOpNYuUyZfZucYvNAdipUEul2p/lizeSD0
+# BBNms8roc1SgBp3YXqW9LyPkYU4jpKTgLhzZyrMi5SbqZPG2rPZAbQQ8DgLkdFJL
+# Pnr3+jFIiYM/cnW68IyNejzO9oRqNsYLYgCrjhTIa40MviTAiSoYP+LvPKvQ2OWA
+# 7NbwRGkXUKN+6wjnwybEhY5mAt00aErmaN57jCq+1cem5EQRygztqEl7ftFF1Lq8
+# RUxSBYCpPZoJoTn60CTA/TJ2WjlOWorJFYEBiitht+lW581Ol/24A8FHTMly6bmd
+# oOqXWIpQ9TTB1125KIQJb7bXY6HxfnB6SQpBCbRdFQ9Vs+mPTj/LZV5zby+ipjGc
+# x04zrRJJsCtrt5tj2f0TX7T7TG+OT/pFbWRRZjtO7cdn/3NY/2vzxf7HDMdtm7Jy
+# DRU2JvXmH5+hFJZBb2FWv3m8qC45stut1LreO6tSxUQZVIHOCo8FlglSwHALJ/53
+# U9pXLdqK91Fpf/B0/Po+THTl2MuRYmmBNUNa6F7TybeKSfQWEPfnPE9jerK30VuJ
+# JLNGDyAQWgMHyopb0RbnTKgzHPzoCpabLN/Ss6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDgwNjAwMzVaMC8GCSqGSIb3DQEJBDEiBCCD1qA/SM+PLVdo0JVU
-# TrG9Jq6agDn/tP8nnp3Adf74ajANBgkqhkiG9w0BAQEFAASCAgCkzHbsFf1y7pIa
-# rz1ftUQANJPQit50BiOL71Irp+HPRuLY0Uyz9Nq9+8gq906Yn4T3zCkxhQCh7TI1
-# NuRIn6JX4r9k2Nm1HcVbpl8TIXbuHkXC4nQOr9kwQG3kQBZHNxHX3+2dG6yVpWaq
-# 08d8G8urAV1qYjWhI8qPVTvymyH2z0Zz9e4D4k7a3duZ4Xl/d4MQXWfHqd01mGeW
-# lB6vYXGyIE4fXeBznkD1IJsrhs6OsubgKTsPv2XZjwIoSvC+5CRVdURCFTeA8S+v
-# DwH8cI0glrDB6eq2Pkv6qnL4HggBFswHd4R2GpKevWQ3Z0DXJpSfmvsU6FpMg1W2
-# UcCLJoSW4gspuprE2rjGQatTQiO3XdndYOV8NTyK7BRYsQJ0RHIjOH+AtDqIoDoY
-# aMOKUAJL6vyc+Ue78M5tnylwfZnFPZlpAWTes03xdEY++Pd1bw5IvBycf8FsROD2
-# 1Ty/566DBIMi1c15PKJA9e0Kotl8u1kwHRj3x/oJUNxcZj65eYkM42KJOi9oPuyE
-# bDIStu14QL47Im9JAcr6eMlsUX/iXJXfMK6uzPvsI0JJSY2KnElmeVTrOPQzKB/n
-# jVn4EFOZkshS9e3NrgYEmnUt+l+9WYGehjiVW89DOGwhzIvVmbGUYDr8A3PZuX/l
-# o+1LoPP9e+caIvpYKe5/3iuNv6LE9Q==
+# BTEPFw0yNjA5MDgwNjI1MzFaMC8GCSqGSIb3DQEJBDEiBCDtqElQdsBYjafs0cqn
+# OSq0ShRhUtk2b+1m+DjBYANYyzANBgkqhkiG9w0BAQEFAASCAgBgk6Uc8NbDkBTV
+# owNFugyet+l8SjaD1H73wxEI187uMLJWPZUcq2iVi+GHX5Wh2e8i8UJlL3LCRZJG
+# LTGwNrRP05tfrRil+FunS5lhpvxvRH8C0DA/gr89Wu18lq3MKkYuzssPeRvv4nPN
+# zp4++s9bFFzrgkQWvzF+nDbrlxY048KuWUsyJJx+a2I1z7F7d90kxEGif2XTdCkm
+# 1xJ1Mya8B5e5Tm2mKGgYFM4BY+tOGlOwsE0DlGdjMFz5X6UswEAUrkdZXOK5sh3s
+# RoLbZd064JoNTQO2zzhVEVq0sPaggy3FcS3SYxd0MuOCMWw0OaLlit/WqB3JP1PX
+# 4SB/IZA2CZ60NJ7vBzshyE85bM0VVUA5MEZvCvfe3tzLc8arNxyOHx8HRF0pRObL
+# Ur/9aTnUBOPvK15Cvg76ChQh6B+S0m443nt7LfLoUWXBpKsXxzC9+y0syEtpX4Zz
+# Yh7FQuWUAvGaBOZPK8yC49pjS/X/DSvmYVl9yAH3i9ws6zw4WK5bJIFCjQJ1wsrL
+# LGzqDHOdTItDkm2wKORQD8Wo9aCfv0TjBD3YXU0ywyhODm64NG+gJnOJ5jC+FVZI
+# /j7IftrxmRSnYb9DNJqMWfmzHE7C3XVhAh7zo6UAVXO96z5cavqAKjD5HcHpwCfJ
+# DR2Qdhcs0FM9D7F7SSj3Mwfijs82XA==
 # SIG # End signature block

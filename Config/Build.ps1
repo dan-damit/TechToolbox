@@ -22,6 +22,7 @@ param(
     [switch]$Recurse,
     [switch]$Analyze,         # Run PSSA (PowerShell ScriptAnalyzer)
     [switch]$FailOnPssa,      # Fail build if PSSA finds issues
+    [switch]$SkipProjects,    # Skip .NET project build/publish steps
     [switch]$ExportPublic,    # Export only functions discovered in Public\ (else '*')
     [switch]$Pack,            # Zip to .\Out\TechToolbox_<version>.zip
     [switch]$Interactive,     # Allow prompts when data is missing
@@ -337,55 +338,60 @@ else {
 }
 
 # ---------------- 06A. Build + publish .NET agent projects ------------------
-$dotNetProjects = @(
-    [pscustomobject]@{
-        Name        = 'TechToolbox.Agent'
-        ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
-        PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish'
-    },
-    [pscustomobject]@{
-        Name        = 'TechToolbox.Agent.UI'
-        ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj'
-        PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\bin\Release\net8.0-windows\win-x64\publish'
-    }
-)
-
-foreach ($project in $dotNetProjects) {
-    if (-not (Test-Path -LiteralPath $project.ProjectPath)) {
-        Write-Host "Skipping .NET build/publish for missing project: $($project.ProjectPath)" -ForegroundColor DarkYellow
-        continue
-    }
-
-    Write-Host "Building .NET project: $($project.Name)" -ForegroundColor Cyan
-    & dotnet build $project.ProjectPath -c Release
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet build failed for $($project.ProjectPath)"
-    }
-
-    if (Test-Path -LiteralPath $project.PublishDir) {
-        Remove-Item -LiteralPath $project.PublishDir -Recurse -Force
-    }
-
-    $publishArgs = @('publish', $project.ProjectPath, '-c', 'Release', '-o', $project.PublishDir)
-    if ($project.Name -eq 'TechToolbox.Agent.UI') {
-        $publishArgs += @('-r', 'win-x64')
-    }
-
-    Write-Host "Publishing .NET project: $($project.Name)" -ForegroundColor Cyan
-    & dotnet @publishArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet publish failed for $($project.ProjectPath)"
-    }
-
-    if (-not $SkipSigning) {
-        $publishExes = @(Get-ChildItem -LiteralPath $project.PublishDir -Filter *.exe -File -Recurse | Select-Object -ExpandProperty FullName)
-        if ($publishExes.Count -gt 0) {
-            Write-Host "Signing published EXE(s) for $($project.Name): $(($publishExes | Measure-Object).Count) file(s)" -ForegroundColor Cyan
-            Sign-FileSet -Files $publishExes -Certificate $cert -SkipValidSigs:$SkipValidSigs -TimestampServer $TimestampServer -OkCount ([ref]$ok) -SkippedCount ([ref]$skip) -WarnCount ([ref]$warn)
+if ($SkipProjects) {
+    Write-Host "Skipping .NET project build/publish (-SkipProjects)." -ForegroundColor DarkYellow
+}
+else {
+    $dotNetProjects = @(
+        [pscustomobject]@{
+            Name        = 'TechToolbox.Agent'
+            ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
+            PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish'
+        },
+        [pscustomobject]@{
+            Name        = 'TechToolbox.Agent.UI'
+            ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj'
+            PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\bin\Release\net8.0-windows\win-x64\publish'
         }
-    }
+    )
 
-    Write-Host "Build + publish complete for $($project.Name) → $($project.PublishDir)" -ForegroundColor Green
+    foreach ($project in $dotNetProjects) {
+        if (-not (Test-Path -LiteralPath $project.ProjectPath)) {
+            Write-Host "Skipping .NET build/publish for missing project: $($project.ProjectPath)" -ForegroundColor DarkYellow
+            continue
+        }
+
+        Write-Host "Building .NET project: $($project.Name)" -ForegroundColor Cyan
+        & dotnet build $project.ProjectPath -c Release
+        if ($LASTEXITCODE -ne 0) {
+            throw "dotnet build failed for $($project.ProjectPath)"
+        }
+
+        if (Test-Path -LiteralPath $project.PublishDir) {
+            Remove-Item -LiteralPath $project.PublishDir -Recurse -Force
+        }
+
+        $publishArgs = @('publish', $project.ProjectPath, '-c', 'Release', '-o', $project.PublishDir)
+        if ($project.Name -eq 'TechToolbox.Agent.UI') {
+            $publishArgs += @('-r', 'win-x64')
+        }
+
+        Write-Host "Publishing .NET project: $($project.Name)" -ForegroundColor Cyan
+        & dotnet @publishArgs
+        if ($LASTEXITCODE -ne 0) {
+            throw "dotnet publish failed for $($project.ProjectPath)"
+        }
+
+        if (-not $SkipSigning) {
+            $publishExes = @(Get-ChildItem -LiteralPath $project.PublishDir -Filter *.exe -File -Recurse | Select-Object -ExpandProperty FullName)
+            if ($publishExes.Count -gt 0) {
+                Write-Host "Signing published EXE(s) for $($project.Name): $(($publishExes | Measure-Object).Count) file(s)" -ForegroundColor Cyan
+                Sign-FileSet -Files $publishExes -Certificate $cert -SkipValidSigs:$SkipValidSigs -TimestampServer $TimestampServer -OkCount ([ref]$ok) -SkippedCount ([ref]$skip) -WarnCount ([ref]$warn)
+            }
+        }
+
+        Write-Host "Build + publish complete for $($project.Name) → $($project.PublishDir)" -ForegroundColor Green
+    }
 }
 
 # ---------------- 07. (Optional) Package -------------------------------------
@@ -472,8 +478,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD9wP7IquhYXQu4
-# zcvP7UqAVpfI3vIBVkDJ0+6N2Te2mqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCc3qjfTkVLi6Dn
+# Rqmv5oyfx7Z4wPTbL6MmF/45B+5deKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -606,34 +612,34 @@ $result
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCU5jdJRNZe
-# sXiKXRe1QONgq/BuWuQgUlvJCqjQU/97+jANBgkqhkiG9w0BAQEFAASCAgBlkV+e
-# pPY0VZ/bch+Vj1joWNZqe1X/xn3Jm9zk1foAfvenDRBn4QqKByLFjSAxTMB9fhjm
-# VnpSFEfn+Ns/fw+xCbd74rM6TyC+NaN9X3bZPbTWk3pe9uyBIymn0a9RLDArRe2C
-# pr4VWRet4j0RvvKVyDC0OYjuHUvBSJ7gZZf6IZgUb0abeVdVKthfEFkXz5r5EUIP
-# yRo3pzdljA3yifijOmtAGLblCxqxVTK6E11rkSdBEcrMQ1EIVH/VfuIQgckUuK0G
-# msRVFNP6gm+DOJGWM4M03Bnq6WT8N/sj1lqQg3xcysYhdHPjFxd0bv4Ru5nRSOXb
-# 146vbM/Or2kN9BonN8cXzKRS6IfwT75o0BEB77NwaBfpgJqauBwuDwF5VxFRl/Fk
-# K4iQ4og/NV9RS1JDngSS22YpJQrzXZdBLDi4iOWP3VLWq8hdjQDPhBeeWT9e7QCY
-# dugiTfNHyGvSVY5vvy+xbtjAj0pq1E8GezsaVH9yYF6X0FEeoMcSLQjZmZ1J6Ryl
-# MHPfKYV0TiWpLpzELcUCtwNIe60+PNHg4y/fltCyk8fKBw5+meXzAZV5yieEyg9Y
-# xttFH9+egQ7bu2L72r9jRFWnN/o1KF9xo3X659MfzYk5m5H+WiDJZSkgcZwneQoI
-# 1LCNq/JK4u1IG2SW5dDiWYQ/tRhsa25abiMPt6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDUMAHRlsZJ
+# 73zPxVQKV7lMU0Q3z9KgbGF0KHLMyLyzLjANBgkqhkiG9w0BAQEFAASCAgC0Lggi
+# UTeO5Or7cb4MH8X6eizGefjJ7QXYLFRoVtZCg077mL53uzQRI/Q50i7gg7coHIMp
+# 0Ouf5b/2QsgkgU4Czud8ZfqlrLDfGzFQAGr7mPknDd4ZzL5byT64FPJN8r9e8GWS
+# DAfhuRYR8eq3sr0wGaZygOwEUeHJ2c66MYPxwWA5/heVZQvQBPv4THKLigkIRzYq
+# rAyZ8LzEU11xJSNughVihn3PuHAHczdWU9r1Cdp22exb2ugWDmJbOJQ+n28TY8qB
+# 4xfBbGbVcWZRew5EZmOt62Z+bOJlFy9ZnduDujlBmH4yao+9CGZ0mPfXSOOXd/9r
+# EV3jih6tfxlZ39i4x2D7/9Lo1ELkdt7Au16XevYDDfJLvgOJ6IVHDaHbyMwwAv67
+# 3fzC+XqkonGttNqkGhEFN+XrvA1v9vc9LVzUZevOVdODhGITXJh+4ex76IxvooVI
+# 9vJba4MZtZJ8mcERECG4jQb8LJrZAZfFhD0Yjw49SvHNhld8Lh+7COT0xSrD/S6E
+# /VIM5IpEYNvDjYGhTbvWdgAgOdbzbDe49OKDJsUBjXl9KvJYj0NhprHieC05oxCk
+# o6zy/fxgizPv+cHkx0t2OZp82Qoh7mP45qkRgLLLaMHv726/w9c4mrWMnv55ETyy
+# PE46TOBBUBFKB35Lkd45NJzBYQoqqzkQyVNYMaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDgwNjEzMjNaMC8GCSqGSIb3DQEJBDEiBCA9JHqIbd41STnUEhcE
-# Sd0BDwJO9lElBJRK+rWw3R8mQDANBgkqhkiG9w0BAQEFAASCAgCgv3pZO8COl+dR
-# z1EvnXGBw00nyCFZObXbLETtzGfRfxbmzZ5ZEo8P+mHLJIFfdo8Gvke3HrPk5tZI
-# LaKu3fhPfCWRMHOWUt4kcqH9OfgBqtWLMDMPjuo10OwxwS/PlNwRYbcEQAzYi64j
-# otRn/ETUJOk0+jsAaGQYCZTk9HfD3vou4tX5n3drA1IaRSh82t0wXRAMPZQOtIwo
-# hlyFMGOfeuiduoMpaZ/Z8j7ysi+qunRDFOEMySqs2w4agWvdeNdK+SF5bF5aajFx
-# WYpzK6KBlDwSov72xoSstC2KdfP7bm/qV8n3YRzqBXWRcquoDg3jER1cvDxZOMEn
-# VfUMCmmoKbv8WkIPHnsh9H/jh/Jmd6QgwqHRJlK9EF6rugjH22MMXAnyjwskrmWC
-# 5iJ6eMe84klC92v9PdiGaBEC6mtMtdjdtWpCKYOGVSXP3ob4VMwYTtlyVpm9Zdm1
-# 24LSPUOdb5oQj0oo50/QYVSMlaaImu5zEUYfTzz++SMkLDn7IB+yhOJzNzygnShL
-# alHAvSrkA4ZFCZuZdqwdg6RRxTbwUWVsYpjAAsodqSqJQSjEhEKsMkOL5AJEK5Ml
-# Cp5/iM7TLwOhgL4jJ7RgmPscFqiJRUAd+kTla9djO/W7fuTs/9sxDl+y1VXAddeC
-# wEIyPLbB8r6b43UtK2hrE7bOmQGa6w==
+# BTEPFw0yNjA5MDgwNjI1MzBaMC8GCSqGSIb3DQEJBDEiBCCaJ9wzjJl7qPKG+rfr
+# up1+CiFgumrDNP9xL4i+/zeVLjANBgkqhkiG9w0BAQEFAASCAgCAOWyIFFuEOZgf
+# AJTsJTya+OGYl8eE0xnKTFboWchBM59BNCKH6pTv7//03/K2pRbz7XCQItpBkuZY
+# dFZj5ghWTK67vsVQ1K25jxX9Tt62ZUY7N/U3ZLetyhn7f3BbkKuWRz+OfQgz43H3
+# WOGlFR3ROp1iMn6iLLdVCbWB06zWUTvAhGR4u8oHE83/6AJ8zuhYXFSFLj9XWyqA
+# wbVVRIJr0T710KdWBJwWbHT4AfKr7o/M0/EPJRb1umoiihzlfq65bD6I3ZjRFGZF
+# Zess1iSDfPL0PO/wXJlXlCNmHsHrpgczZeTPk/1xzC4/reSb+WckerAMP6oEsmC5
+# 5J2B8FOi/6VMTp7Vt9Kzez/2XqxiSTGwypmT2wZGXcZ+lAwW83IBJ8L/8WlDwgNm
+# TmH0HmGtn8dZ5yLLztr6jKW9b2+BEk8SNTO0vW/0Hi/lSi0BeyJiNCdr6VWeSSqK
+# d4FcFeXBRNMgY1sdelltuZuxrCpo+CrFi+zcnsnvmeCPv0AR0POXi42n2JLRoZUw
+# t+QsIN2FZ/0I5NJKdALgOewjtBvbfAP3Z+sEcXCPHjzFVI01wD9dBhj/4IdVlLQf
+# WEnw9t1LYrgAf5g0VNMdFTRiI421K1ZW73QhyQkL/IpYGfrzPbc7qzx9fmWHWpOu
+# abKy7RnEu9h9ZmY+7EkMGQ3a2HAipA==
 # SIG # End signature block
