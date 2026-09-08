@@ -318,6 +318,58 @@ else {
     Write-Host "Signing complete → OK: $ok  Skipped: $skip  Warnings/Errors: $warn" -ForegroundColor Cyan
 }
 
+# ---------------- 06A. Build + publish .NET agent projects ------------------
+$dotNetProjects = @(
+    [pscustomobject]@{
+        Name       = 'TechToolbox.Agent'
+        ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
+        PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish'
+        RuntimeDir  = Join-Path $ModuleRoot 'AgentRuntime\TechToolbox.Agent'
+    },
+    [pscustomobject]@{
+        Name       = 'TechToolbox.Agent.UI'
+        ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj'
+        PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\bin\Release\net8.0-windows\win-x64\publish'
+        RuntimeDir  = Join-Path $ModuleRoot 'AgentRuntime\TechToolbox.Agent.UI'
+    }
+)
+
+foreach ($project in $dotNetProjects) {
+    if (-not (Test-Path -LiteralPath $project.ProjectPath)) {
+        Write-Host "Skipping .NET build/publish for missing project: $($project.ProjectPath)" -ForegroundColor DarkYellow
+        continue
+    }
+
+    Write-Host "Building .NET project: $($project.Name)" -ForegroundColor Cyan
+    & dotnet build $project.ProjectPath -c Release
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet build failed for $($project.ProjectPath)"
+    }
+
+    if (Test-Path -LiteralPath $project.PublishDir) {
+        Remove-Item -LiteralPath $project.PublishDir -Recurse -Force
+    }
+
+    if (Test-Path -LiteralPath $project.RuntimeDir) {
+        Remove-Item -LiteralPath $project.RuntimeDir -Recurse -Force
+    }
+
+    $publishArgs = @('publish', $project.ProjectPath, '-c', 'Release', '-o', $project.PublishDir)
+    if ($project.Name -eq 'TechToolbox.Agent.UI') {
+        $publishArgs += @('-r', 'win-x64')
+    }
+
+    Write-Host "Publishing .NET project: $($project.Name)" -ForegroundColor Cyan
+    & dotnet @publishArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet publish failed for $($project.ProjectPath)"
+    }
+
+    New-Item -ItemType Directory -Force -Path $project.RuntimeDir | Out-Null
+    Copy-Item -Path (Join-Path $project.PublishDir '*') -Destination $project.RuntimeDir -Recurse -Force
+    Write-Host "Build + publish complete for $($project.Name) → $($project.RuntimeDir)" -ForegroundColor Green
+}
+
 # ---------------- 07. (Optional) Package -------------------------------------
 $artifact = $null
 if ($Pack) {
@@ -332,6 +384,16 @@ if ($Pack) {
         (Join-Path $ModuleRoot 'Private\*'),
         (Join-Path $ModuleRoot 'Config\*')
     )
+
+    foreach ($runtimePath in @(
+        (Join-Path $ModuleRoot 'AgentRuntime\TechToolbox.Agent\*'),
+        (Join-Path $ModuleRoot 'AgentRuntime\TechToolbox.Agent.UI\*')
+    )) {
+        if (Test-Path -LiteralPath $runtimePath) {
+            $items += $runtimePath
+        }
+    }
+
     Compress-Archive -Path $items -DestinationPath $zip
     $artifact = $zip
     Write-Host "Packaged → $artifact" -ForegroundColor Green
