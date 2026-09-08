@@ -12,7 +12,7 @@
 RootModule = 'TechToolbox.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.5.124'
+ModuleVersion = '0.6.0'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -135,25 +135,9 @@ PrivateData = @{
         # ReleaseNotes of this module
         ReleaseNotes = '
 
-# Condensed Release Notes — External Tool Provider + Ripgrep Integration
-
-### New: External Tool Provider Architecture
-TechAgent now supports **external, manifest‑defined tools** through a new execution pathway designed for hardened, deterministic process invocation. This system allows tools outside the PowerShell module or built‑in registry to be safely exposed to the orchestrator without PATH scanning or capability inference.
-
-Key capabilities
-- **Manifest‑declared tools** with explicit metadata, parameters, and allowed commands  
-- **Strict safety boundaries** enforced by existing execution policies (timeouts, budgets, sandboxing, output draining)  
-- **Deterministic routing** through the execution layer using hardened external process execution  
-- **Zero discovery** — tools must be explicitly defined, ensuring predictable and secure behavior  
-
-### **First External Tool: Ripgrep**
-Ripgrep (`rg.exe`) is now available as the first external tool via the manifest system.
-
-Highlights:
-- Added as a **manifest-only tool** with a curated set of allowed commands  
-- Supports line counting, pattern searching, and match counting  
-- Executed through a dedicated **RipgrepExecutor** using hardened external process execution  
-- Fully governed by TechAgent authorization, timeout, and output policies'
+# Condensed Release Notes
+- Added first iteration of a GUI to the TechAgent
+- v0.6.0 released'
 
         # Prerelease string of this module
         # Prerelease = ''
