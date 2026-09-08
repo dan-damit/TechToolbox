@@ -476,6 +476,7 @@ The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/bl
 | Function                      | Purpose                                                                                      |
 | ----------------------------- | -------------------------------------------------------------------------------------------- |
 | `Invoke-TechAgent`            | Orchestrates the agent-driven workflow engine with provider routing, execution modes, output contracts, and prompt preflight controls |
+| `Invoke-TechAgentGui`        | Launches the packaged TechAgent desktop GUI from the gallery install or repo source tree |
 | `Use-TechAgentTaskTemplate`   | Stages reusable prompt templates to `AI\Tasks\CurrentTask.txt` for repeatable runs |
 | `Test-TechAgentProvider`      | Validates provider configuration and optionally probes live connectivity/auth |
 | `Set-TechAgentApiKey`         | Sets/rotates/clears DPAPI-encrypted API keys used by cloud providers |

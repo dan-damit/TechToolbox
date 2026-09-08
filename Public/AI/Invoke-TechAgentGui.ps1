@@ -1,109 +1,146 @@
-Describe "TechToolbox Module" {
-    BeforeAll {
-        Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
+function Invoke-TechAgentGui {
+    <#
+    .SYNOPSIS
+        Launches the TechAgent desktop GUI application.
+
+    .DESCRIPTION
+        Resolves the published TechToolbox.Agent.UI executable, builds or republishes it
+        when missing, and starts the GUI in a new process.
+
+    .PARAMETER ExecutablePath
+        Optional explicit path to the TechToolbox.Agent.UI executable.
+
+    .PARAMETER ProjectPath
+        Optional explicit path to the UI project file to publish when the executable is missing.
+
+    .PARAMETER BuildIfMissing
+        Publishes the UI project automatically if the executable cannot be found.
+
+    .PARAMETER NoWait
+        Returns immediately after launch without waiting for the process to exit.
+
+    .EXAMPLE
+        Invoke-TechAgentGui
+
+    .EXAMPLE
+        Invoke-TechAgentGui -BuildIfMissing
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter()]
+        [string]$ExecutablePath,
+
+        [Parameter()]
+        [string]$ProjectPath,
+
+        [Parameter()]
+        [switch]$BuildIfMissing,
+
+        [Parameter()]
+        [switch]$NoWait
+    )
+
+    $moduleRoot = $null
+    if ($script:TT -and $script:TT.ModuleRoot) {
+        $moduleRoot = $script:TT.ModuleRoot
+    }
+    elseif ($script:ModuleRoot) {
+        $moduleRoot = $script:ModuleRoot
+    }
+    elseif (Get-Module -Name TechToolbox -ListAvailable) {
+        $moduleRoot = (Get-Module -Name TechToolbox -ListAvailable | Select-Object -First 1).ModuleBase
+    }
+    elseif ($PSScriptRoot) {
+        $moduleRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     }
 
-    Context "Module Load" {
-        It "Should load without errors" {
-            { Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force } | Should -Not -Throw
-        }
-
-        It "Should be available in Get-Module" {
-            $module = Get-Module -Name TechToolbox
-            $module | Should -Not -BeNullOrEmpty
-        }
+    if ([string]::IsNullOrWhiteSpace($moduleRoot)) {
+        throw 'Invoke-TechAgentGui: Could not determine the TechToolbox module root.'
     }
 
-    Context "Exported Functions" {
-        BeforeAll {
-            $expectedFunctions = @(
-                'Clear-BrowserProfileData',
-                'Copy-Directory',
-                'Disable-User',
-                'Enable-NetFx3',
-                'Export-ToolboxFunctions',
-                'Find-LargeFiles',
-                'Get-AllUsers',
-                'Get-AuditSharedMailboxDeletions',
-                'Get-AutodiscoverXmlInteractive',
-                'Get-BatteryHealth',
-                'Get-CUCredentialManagerContents',
-                'Get-DomainAdminCredential',
-                'Get-ErrorEvents',
-                'Get-FilesUsingKeywords',
-                'Get-InstalledPrinters',
-                'Get-LocalAdminMembers',
-                'Get-MessageTrace',
-                'Get-PDQDiagLogs',
-                'Get-RemoteInstalledSoftware',
-                'Get-SharedMailboxPermissions',
-                'Get-SystemSnapshot',
-                'Get-SystemTrustDiagnostic',
-                'Get-SystemUptime',
-                'Get-TechToolboxConfig',
-                'Get-ToolboxHelp',
-                'Get-WindowsProductKey',
-                'Initialize-TTWordList',
-                'Install-TechAgentRuntime',
-                'Invoke-AADSyncRemote',
-                'Invoke-DownloadsCleanup',
-                'Invoke-PurviewPurge',
-                'Invoke-RestartService',
-                'Invoke-SubnetScan',
-                'Invoke-SystemRepair',
-                'Invoke-TechAgent',
-                'Invoke-TechAgentGui',
-                'Get-TechAgentQualitySummary',
-                'New-OnPremUserFromTemplate',
-                'Remove-EpicorEdgeAgent',
-                'Remove-Printers',
-                'Reset-ADPassword',
-                'Reset-WindowsUpdateComponents',
-                'Search-User',
-                'Set-EmailAlias',
-                'Set-OneTimeReboot',
-                'Set-PageFileSize',
-                'Set-ProxyAddress',
-                'Set-TechAgentApiKey',
-                'Set-TechAgentSearchWebApiKey',
-                'Start-DnsQueryLogger',
-                'Start-NewPSRemoteSession',
-                'Start-PDQDiagLocalElevated',
-                'Stop-PSRemoteSession',
-                'Test-MailHeaderAuth',
-                'Test-PathAs',
-                'Test-TechAgentProvider',
-                'Test-TTPathRoots',
-                'Use-TechAgentTaskTemplate',
-                'Watch-ISPConnection'
-            )
-        }
+    $resolvedProjectPath = if ([string]::IsNullOrWhiteSpace($ProjectPath)) {
+        Join-Path $moduleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj'
+    }
+    else {
+        $ProjectPath
+    }
 
-        It "Should export all expected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            foreach ($func in $expectedFunctions) {
-                $exportedFunctions | Should -Contain $func
+    $sourcePublishDir = Join-Path (Split-Path -Parent $resolvedProjectPath) 'bin\Release\net8.0-windows\win-x64\publish'
+    $galleryRuntimeDir = Join-Path $moduleRoot 'AgentRuntime\TechToolbox.Agent.UI'
+    $galleryExecutablePath = Join-Path $galleryRuntimeDir 'TechToolbox.Agent.UI.exe'
+    $sourceExecutablePath = Join-Path $sourcePublishDir 'TechToolbox.Agent.UI.exe'
+
+    $resolvedExecutablePath = if ([string]::IsNullOrWhiteSpace($ExecutablePath)) {
+        $candidatePaths = @($galleryExecutablePath, $sourceExecutablePath)
+        foreach ($candidatePath in $candidatePaths) {
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                return $candidatePath
             }
         }
+        $sourceExecutablePath
+    }
+    else {
+        $ExecutablePath
+    }
 
-        It "Should not export unexpected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            $unexpectedFunctions = @()
-            foreach ($func in $exportedFunctions) {
-                if ($func -notin $expectedFunctions) {
-                    $unexpectedFunctions += $func
-                }
+    if (-not (Test-Path -LiteralPath $resolvedExecutablePath)) {
+        if (-not (Test-Path -LiteralPath $resolvedProjectPath)) {
+            if ((Test-Path -LiteralPath $galleryRuntimeDir -PathType Container) -and (Test-Path -LiteralPath $galleryExecutablePath -PathType Leaf)) {
+                $resolvedExecutablePath = $galleryExecutablePath
             }
-            $unexpectedFunctions | Should -BeNullOrEmpty
+            else {
+                throw "Invoke-TechAgentGui: UI project not found: $resolvedProjectPath"
+            }
+        }
+        else {
+            Write-Verbose ("Invoke-TechAgentGui: Publishing TechAgent GUI from {0}" -f $resolvedProjectPath)
+            $publishDir = if ([string]::IsNullOrWhiteSpace($ExecutablePath)) { $sourcePublishDir } else { Split-Path -Parent $resolvedExecutablePath }
+            & dotnet publish $resolvedProjectPath -c Release -r win-x64 -o $publishDir
+            if ($LASTEXITCODE -ne 0) {
+                throw "Invoke-TechAgentGui: dotnet publish failed for $resolvedProjectPath"
+            }
+
+            $resolvedExecutablePath = Join-Path $publishDir 'TechToolbox.Agent.UI.exe'
         }
     }
+
+    if (-not (Test-Path -LiteralPath $resolvedExecutablePath)) {
+        throw "Invoke-TechAgentGui: Executable still not found after publish: $resolvedExecutablePath"
+    }
+
+    if ($PSCmdlet.ShouldProcess($resolvedExecutablePath, 'Launch TechAgent GUI')) {
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = $resolvedExecutablePath
+        $startInfo.WorkingDirectory = Split-Path -Parent $resolvedExecutablePath
+        $startInfo.UseShellExecute = $true
+
+        $process = [System.Diagnostics.Process]::Start($startInfo)
+        if ($null -eq $process) {
+            throw "Invoke-TechAgentGui: Failed to start process for $resolvedExecutablePath"
+        }
+
+        $result = [pscustomobject]@{
+            ExecutablePath = $resolvedExecutablePath
+            WorkingDirectory = $startInfo.WorkingDirectory
+            ProcessId = [int]$process.Id
+            Started = $true
+        }
+
+        if (-not $NoWait.IsPresent) {
+            $process.WaitForInputIdle()
+        }
+
+        return $result
+    }
+
+    return $null
 }
-
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDoS/1uzTihgmLh
-# 4cSlrK0f6egIMxZUM0l4e6r/WIslsaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCnfN0Trdd/bDun
+# PRfvlbTNj/wtUvLuGuaUz2RCVIci76CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -236,34 +273,34 @@ Describe "TechToolbox Module" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAxDU1peEBK
-# d95tPKgFJxD6+rIHOFjIIf8afg4feSz8ZjANBgkqhkiG9w0BAQEFAASCAgAjduhg
-# TPwbig/WQSXciyywUczD8YuSsIQ2rXlrKtQKZrDW/iLUXRzIiRFlOuXtlVuVkv/9
-# QHY1Z6zSwr5Z0+zmoL+MZeBjTCUw7daHtkPqxCpJ+uiYIXmZS/sdrc+7cmUxbqhT
-# +95G1Qrbm9F55FSKYkBulOdAh0AuMlJhXVGHOmKBiZ08yaIRnzDJw/lgmPnbVf0G
-# vc5IHqFJkgiA/dmeGVMpXm7V17kAx7TPWHLXa2KeVrdt1iDg8XF0bxFmE29WPowI
-# h6deny34m20A8DJAwAkihu4fVFJk3jeDMfb5AsFCDjU+6L5vnFA/ZsQKA/N8eLyf
-# 8m3LjsFWu2466tiaQOgYMqOfJD3t7/rBh6i8zwqL6qWhN+Swk/PGJyPJ8KQH7H9K
-# WJriKHghvIh6/k2OMvRauoq6tglUbflBmkMJNbvaZxsi+rdDTSfKzLk/b1R+mdcR
-# yxe7JD3I1h5kGC0+aMv8gngS1IY5BPkSwBH40AIjvOWNOIWWJKWqo3vg5WMU1qOK
-# 2RvkWbusz7f4i7JHviYlCLXh7aDmiF06n8L//E0Tz6Uz8Ygwqud82zTS5/1XukM8
-# hASojNtirZACgMx+n3HyaNO8m4ys8mZEwJebNQWaLiL2kIZrNcQgcEB0LSfB7YmW
-# R4yAQB0mVuNiV9tD28Ey72kJgWWxS6AtXLRnWaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCeCw+L07tI
+# 0JkQwrfYHm17UJFqBcJ3cfDkbbbx/xevgTANBgkqhkiG9w0BAQEFAASCAgBGeppn
+# o+2y9xKntRWQEOXgobjEK2qZJuCP0oo3mobxTfe7ZjjQLGBUDzviiHMvtUyAlp7G
+# SiUbYIHtJ3sTbZ/Fsml6/IH0a9rpuvoEO6ijPeK+g+3Yn2mvMCHojSjPlloxCf8T
+# sgRbtjvxShsAPSmjyKZcNg3ucA3u5A/NWQCIBO74SnaI2dPMc2mmCveFhoT4+4/p
+# HFYxwZbLssIjWF87jmr10Lq4rwxkyYZ5VCkcebzn37LB1+195VTbJAkhTxv+i5tl
+# Z1cWx4T2LSQoGz2vF6LL6XIbx7ftpk3wC+vFzq/Ab8riW/WClZGWbun1fSk8SDPf
+# AKTmpB2ReTRmvLFTpxwRyUtEOMoV0zPQKTOgBuiWWlIURVkdrS5zpyYS+quSO5D2
+# iEVx5rYYlmPKRlavREHMen3RD17s3jbSqdvN6tgDglSQf3+scUVBNczYdD5IdJXA
+# h1BgDTMeFH7k4jUSodRNfK+8BHzAVjT6lVuvEMQdirK/khPVAukAUkC1vEy1qMZt
+# FIDzvzHpANe0rt2xMdb97IALgykGt00wyoeRUOmY6I1emZlzk3rc+ZV9x6trAuWh
+# VBn7WmCkS1LDplSZILWKRMJbYwHD1aPKaYNy4NOkARsNQDKBqzl73kiOjQIf+h5q
+# GK/DGM+nuG/xKE1EaI/Ew5ThIjNt4/zLEkN69qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDgwNjAwMzZaMC8GCSqGSIb3DQEJBDEiBCAG1ZbfC11nsfebG891
-# hi5knymxHCplJst0N5p2MXx9nTANBgkqhkiG9w0BAQEFAASCAgBRqVy91M4fBuMq
-# kCFy3jbFgnJHb7S30D/cEhexiWo6J2zHr8FVK+PxY1sDVAwXSQlF2oWUrij4Egk8
-# a/qdVbF7GJxohjplod6HvHxxESR4/p0ZFCWjhKn/lPt/ItWi2sg0jpeodNudaA8c
-# pW967/vBWO5+t48ckCwAHpCNA32px1HHYCtcr0pwJ/WxxNxLWKhh4mzMd+As/RW0
-# AqViDf3wh3Nc3a3B1R4VevWHidpkypokfydKYwMU3dcWFWF2byqcBEHfiw0UPJ5X
-# U7I9pO16y4q+4GlFNiCSqGXWmpumwPfape4PiZd6ykM8zJWT2N5YuFGHGetGTKeo
-# G+ZMRrrPoLlRfV8ZhVrAVJNixnmsajhj4trSEnrkNBGitB3NhZEzb8gGZv4tKMN8
-# DnykPagMaQ6UG7FBJHeuHaaJ+85DPxqMZt1KvumEca4XEzf89krEqfB3FgfQI3aO
-# vSQDd+sKuSmZ2BdZ/I/xUM8GGBBnBEX4ey44P9RzkeIZWE6v6SRuXME3NjpzMryW
-# 1MMDCyp1EPiIwV0evUNuPtOUpb7XIIP2nHahrXZJ02N2GVuk2BQ2u1SvLhMFzXNS
-# MWO0qEK61Bja7y08+EaUdQy9PpuM6G8QTuIFrfrORs42v6TwLFpd16f2h62xxaTD
-# +pyraDdUPQtxZzk2X2zmZgy/ehrUfQ==
+# BTEPFw0yNjA5MDgwNjAwMzVaMC8GCSqGSIb3DQEJBDEiBCCD1qA/SM+PLVdo0JVU
+# TrG9Jq6agDn/tP8nnp3Adf74ajANBgkqhkiG9w0BAQEFAASCAgCkzHbsFf1y7pIa
+# rz1ftUQANJPQit50BiOL71Irp+HPRuLY0Uyz9Nq9+8gq906Yn4T3zCkxhQCh7TI1
+# NuRIn6JX4r9k2Nm1HcVbpl8TIXbuHkXC4nQOr9kwQG3kQBZHNxHX3+2dG6yVpWaq
+# 08d8G8urAV1qYjWhI8qPVTvymyH2z0Zz9e4D4k7a3duZ4Xl/d4MQXWfHqd01mGeW
+# lB6vYXGyIE4fXeBznkD1IJsrhs6OsubgKTsPv2XZjwIoSvC+5CRVdURCFTeA8S+v
+# DwH8cI0glrDB6eq2Pkv6qnL4HggBFswHd4R2GpKevWQ3Z0DXJpSfmvsU6FpMg1W2
+# UcCLJoSW4gspuprE2rjGQatTQiO3XdndYOV8NTyK7BRYsQJ0RHIjOH+AtDqIoDoY
+# aMOKUAJL6vyc+Ue78M5tnylwfZnFPZlpAWTes03xdEY++Pd1bw5IvBycf8FsROD2
+# 1Ty/566DBIMi1c15PKJA9e0Kotl8u1kwHRj3x/oJUNxcZj65eYkM42KJOi9oPuyE
+# bDIStu14QL47Im9JAcr6eMlsUX/iXJXfMK6uzPvsI0JJSY2KnElmeVTrOPQzKB/n
+# jVn4EFOZkshS9e3NrgYEmnUt+l+9WYGehjiVW89DOGwhzIvVmbGUYDr8A3PZuX/l
+# o+1LoPP9e+caIvpYKe5/3iuNv6LE9Q==
 # SIG # End signature block
