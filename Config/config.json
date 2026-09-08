@@ -296,7 +296,8 @@
       },
       "shell": {
         "allowedCommands": [
-          "rg"
+          "rg",
+          "dotnet"
         ]
       },
       "transcript": {
