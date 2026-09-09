@@ -87,10 +87,12 @@
 - [Security Notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
 - [Metadata](#metadata)
-  - [v0.5.70 - "Provider Routing \& Quality Controls"](#v0570---provider-routing--quality-controls)
+  - [v0.6.12 - "Weather Output \& GUI Reliability"](#v0612---weather-output--gui-reliability)
     - [Highlights](#highlights)
-  - [v0.5.0 - "AI \& Metadata Milestone"](#v050---ai--metadata-milestone)
+  - [v0.5.70 - "Provider Routing \& Quality Controls"](#v0570---provider-routing--quality-controls)
     - [Highlights](#highlights-1)
+  - [v0.6.0 - "AI \& GUI Milestone"](#v060---ai--gui-milestone)
+    - [Highlights](#highlights-2)
 
 ## Quick Start
 
@@ -621,6 +623,8 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 | Command not found           | Check that it is listed in `FunctionsToExport` in the manifest                                                             |
 | Config errors               | Verify both `config.json` and `config.secrets.json` are valid JSON; use `TT_DisableConfigSecretsMerge=1` to isolate issues |
 | OpenAI/Azure OpenAI auth fails | Run `Test-TechAgentProvider -Provider <name>` and set a key via `Set-TechAgentApiKey` or `TT_AGENT_LLM_API_KEY` |
+| TechAgent weather output shows duplicate markdown headings | Update to a build that includes the 2026-09-09 weather-output reliability fix and restart the session so `Invoke-TechAgent` uses the latest wrapper/runtime binaries |
+| TechAgent GUI shows no final answer while run log has output | Restart the GUI host, ensure the latest `TechToolbox.Agent.UI` and agent runtime are built/published, and verify diagnostics are not only status lines (`Status=Iteration`, `Status=AGENT_COMPLETED`) |
 | Path token resolution fails | Run `Test-TTPathRoots -EnsureDirectories` to validate paths                                                                |
 | Remoting failures           | Verify WinRM is running, auth method matches server config, and credentials have appropriate privileges                    |
 | Purview / EXO errors        | Confirm required roles (Compliance Administrator, etc.) and Exchange Online module installed                               |
@@ -633,9 +637,22 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.5.100
+- **Module version:** 0.6.12
+- **Current milestone:** v0.6.12 - "Weather Output & GUI Reliability"
+- **Milestone date:** 2026-09-09
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
+
+---
+
+### v0.6.12 - "Weather Output & GUI Reliability"
+
+#### Highlights
+
+- Removed duplicate weather markdown headers in final output paths through orchestrator normalization and wrapper-level fallback heading de-duplication.
+- Fixed GUI final-answer visibility gaps where valid markdown could be dropped when stdout included runtime status/prefix noise.
+- Improved GUI runtime output extraction with embedded-content preservation and a whole-stream fallback split path for resilient final-answer rendering.
+- Added regression coverage for duplicate-heading suppression and for prefixed markdown preservation with completion-noise filtering.
 
 ---
 
@@ -651,11 +668,12 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 ---
 
-### v0.5.0 - "AI & Metadata Milestone"
+### v0.6.0 - "AI & GUI Milestone"
 
 #### Highlights
 
 - AI-assisted workflow improvements (Export-ToolboxFunctions, Invoke-TechAgent enhancements)
+- Added GUI final-answer visibility improvements
 - Full help text capture in agent metadata export
 - Config system refinements and path token stabilization
 - [Release Template](https://github.com/dan-damit/TechToolbox/blob/main/.github/release_template.md)

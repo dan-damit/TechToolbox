@@ -138,6 +138,11 @@ Invoke-TechAgent -Mode execute -Prompt "Call GET-NOAA-FORECAST with toolArgs {\"
 
 The `payloadShape` block includes points/forecast top-level keys, `properties` keys, first-period keys, and period count.
 
+### TechAgent Weather and GUI Output Reliability Notes
+
+- If weather markdown output shows repeated headings, update to a build that includes the 2026-09-09 TechAgent weather-output reliability patch and restart the session.
+- If `Invoke-TechAgentGui` shows no final answer while markdown run logs show valid output, restart the GUI host and ensure both `TechToolbox.Agent` and `TechToolbox.Agent.UI` binaries are refreshed from the latest build.
+
 ---
 
 ## Maintainer Note

@@ -277,6 +277,12 @@ Invoke-TechAgent -Prompt "Analyze C:\repos\TechToolbox\README.md and return a pl
 
 If your goal is information lookup only, prefer read-only language in the prompt (for example, "read-only" or "do not modify files") to keep execution bounded.
 
+**Weather and GUI output reliability (2026-09-09)**
+
+- Weather markdown output now applies duplicate-heading suppression as a final fallback, reducing repeated forecast titles in final responses.
+- GUI runtime parsing now preserves embedded markdown answer content while filtering runtime diagnostic lines, improving final-answer rendering consistency in `Invoke-TechAgentGui`.
+- If you still see stale behavior, restart the GUI and ensure both the agent runtime and GUI runtime binaries are refreshed from the latest build.
+
 **Quality Profile**
 
 - `-QualityProfile precise` lowers randomness for deterministic troubleshooting and implementation.

@@ -104,6 +104,20 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 ## [Unreleased]  
 Latest completed enhancements:
 
+### **TechAgent Weather Output and GUI Rendering Reliability (2026-09-09)**
+
+#### **Fixed**
+- Removed duplicate weather markdown headers in final output by adding a fallback markdown heading de-duplication pass in the PowerShell wrapper path and reinforcing orchestrator finalization normalization.
+- Fixed GUI final-answer rendering gaps where valid markdown could be dropped when stdout lines contained runtime status/prefix noise.
+
+#### **Improved**
+- UI runtime output processing now preserves embedded user-facing markdown while continuing to filter diagnostic-only status lines.
+- Added full-stream fallback output splitting in the GUI runtime service so final answer extraction remains resilient to line-framing edge cases.
+
+#### **Tests**
+- Added regression coverage for duplicate-heading cluster suppression in orchestrator markdown output.
+- Added regression coverage for prefixed/embedded markdown preservation and completion-noise filtering in UI runtime parsing.
+
 ### **Condensed Release Notes (2026-08-28)**
 
 #### **Highlights**
