@@ -1691,7 +1691,7 @@ $result = $runAgentMethod.Invoke($null, @(
             # Initialize agent state tracking
             $agentState = @{
                 currentIteration       = 0
-                totalIterations        = 0
+                totalIterations        = $resolvedMaxIterations
                 foundValidDecision     = $false
                 lastResponseLength     = 0
                 lastStoppedEarly       = $false
@@ -1701,13 +1701,48 @@ $result = $runAgentMethod.Invoke($null, @(
                 exitCode               = -1
             }
 
-            # Capture stdout/stderr asynchronously without event callbacks.
-            # This is robust across hosts and still allows internal status polling.
-            $stdoutTask = $agentProc.StandardOutput.ReadToEndAsync()
-            $stderrTask = $agentProc.StandardError.ReadToEndAsync()
+            # Read stdout/stderr incrementally so iteration status can advance while waiting.
+            $stdoutLines = [System.Collections.Generic.List[string]]::new()
+            $stderrLines = [System.Collections.Generic.List[string]]::new()
+            $stdoutReadTask = $agentProc.StandardOutput.ReadLineAsync()
+            $stderrReadTask = $agentProc.StandardError.ReadLineAsync()
 
             # Define the poll script that drives the internal terminal-state loop.
             $pollScript = {
+                while ($true) {
+                    $advanced = $false
+
+                    if ($null -ne $stdoutReadTask -and $stdoutReadTask.IsCompleted) {
+                        $line = $stdoutReadTask.GetAwaiter().GetResult()
+                        if ($null -ne $line) {
+                            $stdoutLines.Add([string]$line)
+                            Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                            $stdoutReadTask = $agentProc.StandardOutput.ReadLineAsync()
+                        }
+                        else {
+                            $stdoutReadTask = $null
+                        }
+
+                        $advanced = $true
+                    }
+
+                    if ($null -ne $stderrReadTask -and $stderrReadTask.IsCompleted) {
+                        $line = $stderrReadTask.GetAwaiter().GetResult()
+                        if ($null -ne $line) {
+                            $stderrLines.Add([string]$line)
+                        }
+                        else {
+                            $stderrReadTask = $null
+                        }
+
+                        $advanced = $true
+                    }
+
+                    if (-not $advanced) {
+                        break
+                    }
+                }
+
                 if ($agentProc.HasExited) {
                     $agentState['processExited'] = $true
                     $agentState['exitCode'] = $agentProc.ExitCode
@@ -1782,20 +1817,44 @@ $result = $runAgentMethod.Invoke($null, @(
                 Write-Log -Level Warn -Message ("Error waiting for agent completion: {0}" -f $_.Exception.Message)
             }
 
-            $capturedStdOut = if ($stdoutTask) { [string]$stdoutTask.GetAwaiter().GetResult() } else { '' }
+            # Drain any remaining async line reads after process completion.
+            while ($null -ne $stdoutReadTask -or $null -ne $stderrReadTask) {
+                $pendingTasks = [System.Collections.Generic.List[System.Threading.Tasks.Task]]::new()
+                if ($null -ne $stdoutReadTask) { $pendingTasks.Add([System.Threading.Tasks.Task]$stdoutReadTask) }
+                if ($null -ne $stderrReadTask) { $pendingTasks.Add([System.Threading.Tasks.Task]$stderrReadTask) }
 
-            $stdoutLines = [System.Collections.Generic.List[string]]::new()
-            if (-not [string]::IsNullOrWhiteSpace($capturedStdOut)) {
-                $rawStdoutLines = $capturedStdOut -split "`r?`n"
-                foreach ($line in $rawStdoutLines) {
-                    if ($line -ne $null) {
-                        $stdoutLines.Add($line)
+                if ($pendingTasks.Count -eq 0) {
+                    break
+                }
+
+                [void][System.Threading.Tasks.Task]::WaitAny($pendingTasks.ToArray(), 250)
+
+                if ($null -ne $stdoutReadTask -and $stdoutReadTask.IsCompleted) {
+                    $line = $stdoutReadTask.GetAwaiter().GetResult()
+                    if ($null -ne $line) {
+                        $stdoutLines.Add([string]$line)
                         Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                        $stdoutReadTask = $agentProc.StandardOutput.ReadLineAsync()
+                    }
+                    else {
+                        $stdoutReadTask = $null
+                    }
+                }
+
+                if ($null -ne $stderrReadTask -and $stderrReadTask.IsCompleted) {
+                    $line = $stderrReadTask.GetAwaiter().GetResult()
+                    if ($null -ne $line) {
+                        $stderrLines.Add([string]$line)
+                        $stderrReadTask = $agentProc.StandardError.ReadLineAsync()
+                    }
+                    else {
+                        $stderrReadTask = $null
                     }
                 }
             }
 
-            $capturedStdErr = if ($stderrTask) { [string]$stderrTask.GetAwaiter().GetResult() } else { '' }
+            $capturedStdOut = ($stdoutLines -join [Environment]::NewLine)
+            $capturedStdErr = ($stderrLines -join [Environment]::NewLine)
 
             # Final check of exit code
             if ($agentProc.ExitCode -ne 0) {
@@ -1961,8 +2020,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWPhfGsSnoaH0t
-# LwZQSrF1d5uFBPAKq0RsPdpzYkPatKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAu8Z/brxGYxUdQ
+# DgKVZyIZhqG4CslgcHLkGUGXVCHZpKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2095,34 +2154,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqVANKYZoD
-# 23nGxh1/PVELTqlarIsSNZ0hGX3eslJ4bjANBgkqhkiG9w0BAQEFAASCAgA3MkP2
-# M3yrHJy9VL/PHwRvEZzZGkA6FYIe8xnj9rgkKDg1H6qzpr2o5iMeh6JMXn7IjMSs
-# or7UjBGTXmA5VDQuDy3ziakP3JKmu09o186QrLpDGazCCR3UAP9yEAYY6DaEX7jE
-# ESE7YsNrdku8S1SMU0taqccegfmhg71WUP4FN4Esbq9qeGtrHFWNCikBVx54rC16
-# kJyOFELZnOFhsP2Fyi0BGqiBMvlLtvQXE3M8SQk7GxtjNCFEv6B2IESBvGssG8Mk
-# SIVxFWDj+ClSrUIYtvMphAZFFmRjl6Jeh5SlV5QnMZX8dd8iwAnfKkVh/P0vck6H
-# YOCJjlxtpEYvrYzWwTf6JQ48KqxysNM1YpzKXop6N/3H31X58n07IaVaC0Y1qdmF
-# bh6W7r5H4sKJcOlwOYgRhTJHUF1RoOxty1OQfw+S84DlfLHxdlX4zz4Z6prstUNp
-# 1icKRaBTopUZA1qNuXdRoW/ch/mk/HE3b4+TKg96O3uIBH9IHl50XHKBn2Ix49oc
-# I653Ved5ykrEeMRLCuoLQmM0qxn4J9KEA8yJU2pOeYNoi2OUK5NXXEscnSuKWGZS
-# GNl2AUoGQHRxkZiBsCPEECWQcXRTCOq8gRnszyEFcl6ghgdQz1BlB/pmOW1dW8pZ
-# Yvj/tk8uqADrtGunPpjDUxC/Rez293hWprpZj6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCUe9COKQnj
+# HDZMTxU8H2UQS7qvs+OAzhK07RW+74Iu4DANBgkqhkiG9w0BAQEFAASCAgBzEnhc
+# W+dSt8YLeKJAA/wfEiWFK/vvfGKN30/y8Ebc5SgyOi7akCdovqGwuNOVhe0sCuCz
+# R7Awf6eLn4P43SpwyrWLvJSJcXofgkHUBm90wu7lEgXkHyqcyqBVAY8QJ7aDJ0MC
+# bWp7Q7lXjKMFL/6tJsv7+3bHtpmpPhMzSbPn11E0FWTZk0cGvaW0l6bsRqtlfQRa
+# 9v7om+rf7gpI2zx8RZtzbzGDPyxCyCXTob0WN+QTULWVT4+u9Henoj6T4gEgJDOc
+# YRY2tlezB1lOdqp4R4uTsHFD2vztMEHMMQ8PYAcLN+ebS+qRldJipuy9yxli4RIS
+# bw+gEVkYOP/hTCbbut/nfuYvmQNvz97FLEXVRv5SOJoDaBlwfhN/MGuxcciEjtVV
+# YswVH1MG+AKdOVavCzPitujY5jVwtFzcngeYYDCbvKbdG+Q5rJvTNzL3cxq/oz87
+# n0Pq53WS7PnW79O4Qyt2zStCEkt2PBrFDUvWRWBNcJcWv3TftJ51uxm5uJPWPISm
+# xbcuwbDzaTtYC94aDRJeF7EsCSQoDUdKOJqR2gcz87l0ShsycZJT8WYQDB+iuyu2
+# 6H86mK5Z49CUMT5m9RIyEWf2wKFGTNdDHSFhCnIhBLJ4hD2SlHOxJk4IeMm3Qt7n
+# ZEZ3F7No2Fd2uc6rQArzyoInxunzbSuJ8LnmvKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDgwMzQzMTJaMC8GCSqGSIb3DQEJBDEiBCBmxnUHwBlEopcYnO/M
-# tBhSyJAKlUVivzk0QojXEw5uDDANBgkqhkiG9w0BAQEFAASCAgBa/6Lw0H5ptrz5
-# CmqbL5oNuQRt/mj1Ik72i0OsxSyxYD5P9CWuLgUL26eYMEJW6ZEKknWCbMmh0fDl
-# 84YJuIzd3YHMME7lbWKadCop425pvTHKMKNXW7te08lX4Jq1v0Xcn285GIL1NxQd
-# NkxTqyUzVbMLzk17A7hYQvIg8tVGgNwH1lgfIF9ZVctGa4QDqD/9QN6ypI/K6690
-# R5b/k2B7zCRb8RCd4GDJOp9iXclHjjGOceidukAnvQycIj+5ALLZ2LL0HF/ugtv3
-# smWhxjdc4p0hO0gyNeA7yxCKWbxk/rlpZmRAZ1wUpvdR5ojoBIfMKLkaQzQGDJbR
-# GEIEDIs/lKd/nN4x7nToHDy8JckKG2Auc0UOl0j5bBTiV+lArBOnWnYto0w29azH
-# nxa2znJhelVsEpq7UKutaeytnUzgFORLJpAiV9z0XbIVPPDXD3Uj6k5Ej8eMg94/
-# hlbkiwewCsjENUKNi2hoUOSvk/vQ2Kkx9UEhGNpcwLTHl8ds4ZVqPczW5MfJsND2
-# jPvKrfIqRrxD1z2+r+mqE+YSOSMnH15ePvct3rxVIbe+IQGjE+Tqe8GSuWfQPeGK
-# EL/GdpkWeupg7C2Bpw6qNPD+Tx3VU16p+lXabj6Qobu93X7NkcDwudrghieZnCJC
-# x7coDshxfWvcZ7Yw+te8UjiWJC+A4Q==
+# BTEPFw0yNjA5MDkwMjEwNDRaMC8GCSqGSIb3DQEJBDEiBCDyHIlABWehgHbhQ4My
+# dkjWOT4Pdog298fmx032WeLqCzANBgkqhkiG9w0BAQEFAASCAgAswBPNU0XzwN8I
+# kKTpkD7MNXn8ozPDsxdkVYqmzm9YZDHYZHRO6usloGKpUcFI2m9sGvA3aFCW0VL9
+# T+rJpvggUvfbCqU7CTlfBhoyAHq4QL/IwdmVo4JVqf/rPrbIVGWEpe1cRK1WWgfs
+# 37LIp4E2axsKmjaOnpFc429d0q9MHeB2OEPAaHqf5Kc78/DWoLL9/J0HSRSS9qi5
+# 4Rp0D14HLxiL7lOq23ffhBLI4eCbZ/V8R9XuJx2wXIEaakgsHOsw46ulwro3uC3v
+# x2KESH7gQmN6zVocm2AsA4AOMmZoCHQ0DrqcM0k9Yh8WBVqOBLDNCXZOFUzKrZ4G
+# 7WTe1eRDPkXHaQolNaxa+PPVGrYsP9JVhW/qgioXiDmwg547LXZkBknVtRYEEVqc
+# RVcmHWMmUxrgCcmWjj+VeRVlSPOnDETAKmrQs4++S31YP5IIyxra/g/1tlv/WhTs
+# EKnJHxtG+kDuplNqXowaDTUOyGY4wMwPav4g96rxKGbxmrkuaBg+RSh4srFYyDMK
+# pUK6ARwNLcDByCdHZUK5RseoTeZ3gHFLng219eLYqNFKp9WgOQbB8aXW36YoAGp2
+# XcLCtfasM22E8DvWC3Lo0WrSSHaZq+pAdr+HJJ2tk1ZOnToIqvjesEgNBOvFWqB3
+# STJ4aO93gL9ejmwRHHr+2SVlAnmYSw==
 # SIG # End signature block
