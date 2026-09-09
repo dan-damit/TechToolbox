@@ -61,6 +61,58 @@ function Resolve-TTAgentOutputContract {
     }
 }
 
+function Remove-TTAgentDuplicateMarkdownHeadings {
+    [CmdletBinding()]
+    param(
+        [string]$Markdown,
+        [int]$WindowLines = 40
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Markdown)) {
+        return $Markdown
+    }
+
+    if ($WindowLines -lt 1) {
+        $WindowLines = 1
+    }
+
+    $normalized = ($Markdown -replace "`r`n", "`n") -replace "`r", "`n"
+    $lines = $normalized.Split("`n")
+    $headingPattern = '^\s*(#{1,6})\s+(.+?)\s*$'
+    $lastSeenByHeading = [System.Collections.Generic.Dictionary[string, int]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $keptLines = [System.Collections.Generic.List[string]]::new()
+
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $line = [string]$lines[$i]
+        $match = [regex]::Match($line, $headingPattern)
+        if (-not $match.Success) {
+            $keptLines.Add($line)
+            continue
+        }
+
+        $level = $match.Groups[1].Value.Length
+        $headingText = $match.Groups[2].Value.Trim()
+        if ([string]::IsNullOrWhiteSpace($headingText)) {
+            $keptLines.Add($line)
+            continue
+        }
+
+        $key = ('{0}|{1}' -f $level, $headingText)
+        [int]$lastSeenLine = 0
+        if ($lastSeenByHeading.TryGetValue($key, [ref]$lastSeenLine)) {
+            if (($i - $lastSeenLine) -le $WindowLines) {
+                $lastSeenByHeading[$key] = $i
+                continue
+            }
+        }
+
+        $lastSeenByHeading[$key] = $i
+        $keptLines.Add($line)
+    }
+
+    return ($keptLines -join "`n").TrimEnd()
+}
+
 function Resolve-TTAgentQualityProfile {
     [CmdletBinding()]
     param(
@@ -733,8 +785,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBxE3jlMLEHXqYn
-# rteEZOwzFjTLX86GNtDvmtqV1qvyl6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDZyrj6em/MjzVU
+# w5KRlDph5xviSvT1VyYh2TkILHq2UqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -867,34 +919,34 @@ function Write-TTAgentMarkdownLog {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAJPUVzp/df
-# Xg2gkv5vXleqJpKK9sGAArGXr4pyiPbotDANBgkqhkiG9w0BAQEFAASCAgCfBIwN
-# Yzvm7g0Jrbd+FeO+QPlB3C5HIm+U06YPg/3BZ3s1oKSO2YSJ9t9sSx9spS4ek6HJ
-# ug3L8oEqjB5iNv1pPvSeZoZaDg2zwEkyhz0Bd4vvuhPwCrTbADeN8UHL7KzZcdam
-# ziRZgQhxdGHK2+vW9MRB5h9/C/KYkLB2yjdK+9TP92OS2FTGZo7fpzYRnF31tIs7
-# fcur28vNxQe0L76UwHbIbd0M004tpT9svc+UdNsDdzBW3/RxL9DNYozjgkfQNn8O
-# TtAZXmWN2yBNKszh+zh6BAYO4khw+xlHkoirtf5i06FdHENlrSDG/WZYbOStQREI
-# hH9YnfCqAR2homU7DhJbx3aW6SaJPi9lLftvhdtJf4X0Gia41lGNyBvqQL4m1zW7
-# 3wz01iECyCXZ7XDG0fi7PIilakPxPOrGZnkP6KjDNJnFBk1HEwivm2kx2KsHaxm7
-# 30ZMxorP8IXkGXIRD1tutRbQbwXRZL4cauxhVRCB2audJzlUHyOvTdDpFkiCEe51
-# 3mhctxiKB0zpkt6nEaac/zkkBLBKwjrZX1Ih8rRNTfBWZcqt6JzWCmOeBKyegAMc
-# dn5/uXXPrk4i2vgdwhA2HwEA4BIdkIwkXzzVx8Y4dKpHx7a5KbrXLaHyDmJ03Q8m
-# RbMnWnVSadve8JYVLNgb5P4+0z7R8IcGS4glJKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBGl7PCimJ/
+# 8S5tDoWgrai0e5lZVKvdaGpDS2beNFFroDANBgkqhkiG9w0BAQEFAASCAgBbWuLF
+# U0mET6tRpoRQTCh3MfrY+4NHPzKy1pefeJU/DCmF0ZaWy6K+SIEmttXDGn/bqd0s
+# u8zR8Hn1+4FyEA54utXCEB0oVV1H0r3w+gD7pAFkYxgRWIGs7DFJfiQ/RLS0PmWC
+# 6gr42GNM0EOXSs+QBofBvTkblADxzJ0nd6Tr69+AQMkjZUCisfGWUaEfKDlijrnv
+# ZxS2ZDRlwEBvJFi84fp3TYN8gQ6aNmCcFXTCiFzicK2JdJFpsXyP+Hyo8Vi9A9Rr
+# KyNZNx/784EdlQ2XJSPuKNRXEQtSeOOPK+1psC1TkhpsHwCIaJie3nlwAzIqEZDp
+# w1rPuRQ7DOkrwaD46q4Ewd1N8dUh5jVCrdaGzSJnzpGoCeoGAiFd51YKIlprVLMb
+# L4q5XwZAYLx8cdQkjjBmD4hdvpDwiUwYJLYi6vIT7O28ukFL+SM21UcLDtkXA86k
+# ouOT+88fsiq9RJ72VFAPBu7VL8EDOrOgndFgLPJg3XEK+52g0OCJGIlWBwbAKZuY
+# foAwP/dFF9sRf2zXZPr6fPfhUqq5c7as8eJnUM0HzXvAecFVa92BmB2/oYN95bUc
+# V5fcpiaJL9GFKpGC6OlPQ3FkiZ45ryib8/Hhmu0N6oFYWXUIFdl496RZGB4+onRf
+# HAWkqP3O07md025orD6LdQHVcK+bTVirS1UC6qGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDgxNDUzNTVaMC8GCSqGSIb3DQEJBDEiBCA+w9g1CCaNZKTyvhQV
-# WGkZwLCvc39cgHQ0FYWDc5+ZhDANBgkqhkiG9w0BAQEFAASCAgAZYHtN9CwgZ0P+
-# gOM3OnZP/UwbhwxKooj9rxCWy927QS8dhbejZQc0sru/aO66i0OowBlcku+IIWKl
-# uJvwCRFPh+mbFi2KcH5SxqTmlEqBqUKbtxanparFU575eNNUR8HL6JjGUcO0dUM+
-# MNSdF4hu0ucrtpwup0TDOVFJ2WDY411jGIljVDZcY1sQvCP0tC4vmhHscgvXLv7p
-# JHyyQ4o5PFhB7CAIettGp8b5HjCixxNoHkXgut+BXhUmokh0wAVman28EB+KFjgr
-# gFk5jiFNCal+CGGTpBzpr0Ev2Gj+geXv9ofGnZuGw5hTXyjmePUDA8TM6ET1IgQI
-# GGs0D8p7KRY4LkNLjzwLCA5uDaUS0z+aqM26T2PsovuhXhVDdT/4S3vkdBpfUSMz
-# od+51c6n+JwifPwMtECHQfWXW98xkhvwhpvTWw5Z8v022SRjKS0vVbECx2IKkutM
-# 0Ip3hqiPhbm8JWeUHTbJPWNxvV13r4kEVsa17n5TGE/gT2XhXyejgaAFyM+6MPnX
-# QT8wkjHFO2tTWSTEG2o7b0/KiXinsh9onGbMMRHytZuz3ZLyMdashUkolUVCOKqW
-# D2DFaKzl2T9Qr6XMRTLnOL//cAo2PZFq+iZdP9wubYsMMkI9LetmVxNHirS57NaE
-# O1UkVjYj/aOxBgjjMagtM8j03y1GxA==
+# BTEPFw0yNjA5MDkyMzIwMzNaMC8GCSqGSIb3DQEJBDEiBCA/oeqkjG7L8O/1gZOm
+# r2FbS40HeFvJPElxQcVTdI+0yDANBgkqhkiG9w0BAQEFAASCAgA3NFWTf1T7AYaJ
+# ABm9fi5vHVwyftFj85HdMTH4vmp20l3dAKgpCqostiGWNNrUyvMddxBXDtoZF+fQ
+# 1p138cEU+8hzkoQrYmowIkw06yVCGLFmrGMB9tQfOZvKZiRtD+s178X57Q/Q8Qtd
+# 1WDapA4oo09JoTwZiCAPOataoYica1nX0aqQIkLa6tds64eVKBAXc0ZXs86qU/ak
+# hOlZqmk1RhJaFTVL/4U2nKz8AZySTjitupeyaV9U5oVKB2hhzT6V0rG3GErUSiwC
+# XbWO7nhjLqT2HWka4zF2/Zzyp68cEEHbXq2nwNRmsyCmaZWJyZ/lGhGgoI72cEP8
+# v+SfAtDgClmU4x4e/06svP6xTHa3gzUU4sUECSCl+fvnU/tj9EXfpwJwgsO2rF7T
+# 2Es0oHDhfgwIQxg2IW7Zl5rvE+jpKCOJ49zAaTWAsG+MO7X6NZhhX8SCFeVvVlMa
+# COEsK++uSrm7tp4IdnNR9uhSXeAZ+2LZDZ949MAGluR497kxIzNiw+SJbO2ISDoX
+# UcWj4BorPr4jrpz+zWBIMau8BwvGI1BF3bcXkpW4pioRu0XEckDoPkZboK69p8tE
+# RucKC3IHAyyXJNrqrH/uAThgf+/oKmcqX0TNh8IxW/gM+RAhAYT/LSdlAm4F5WNU
+# Jqse5p21Y/I2Lb7j2esMiK1W+gPDSw==
 # SIG # End signature block
