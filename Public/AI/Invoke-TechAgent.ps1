@@ -1818,6 +1818,7 @@ $result = $runAgentMethod.Invoke($null, @(
             }
 
             # Drain any remaining async line reads after process completion.
+            $drainRemainderSynchronously = $false
             while ($null -ne $stdoutReadTask -or $null -ne $stderrReadTask) {
                 $pendingTasks = [System.Collections.Generic.List[System.Threading.Tasks.Task]]::new()
                 if ($null -ne $stdoutReadTask) { $pendingTasks.Add([System.Threading.Tasks.Task]$stdoutReadTask) }
@@ -1828,6 +1829,7 @@ $result = $runAgentMethod.Invoke($null, @(
                 }
 
                 [void][System.Threading.Tasks.Task]::WaitAny($pendingTasks.ToArray(), 250)
+                $madeProgress = $false
 
                 if ($null -ne $stdoutReadTask -and $stdoutReadTask.IsCompleted) {
                     $line = $stdoutReadTask.GetAwaiter().GetResult()
@@ -1839,6 +1841,8 @@ $result = $runAgentMethod.Invoke($null, @(
                     else {
                         $stdoutReadTask = $null
                     }
+
+                    $madeProgress = $true
                 }
 
                 if ($null -ne $stderrReadTask -and $stderrReadTask.IsCompleted) {
@@ -1850,6 +1854,44 @@ $result = $runAgentMethod.Invoke($null, @(
                     else {
                         $stderrReadTask = $null
                     }
+
+                    $madeProgress = $true
+                }
+
+                if (-not $madeProgress -and $agentProc.HasExited -and ($null -ne $stdoutReadTask -or $null -ne $stderrReadTask)) {
+                    $drainRemainderSynchronously = $true
+                    break
+                }
+            }
+
+            if ($drainRemainderSynchronously) {
+                try {
+                    $stdoutTail = $agentProc.StandardOutput.ReadToEnd()
+                    if (-not [string]::IsNullOrEmpty($stdoutTail)) {
+                        foreach ($line in ($stdoutTail -split "`r?`n")) {
+                            if ($null -ne $line) {
+                                $stdoutLines.Add([string]$line)
+                                Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                            }
+                        }
+                    }
+                }
+                catch {
+                    Write-Log -Level Warn -Message ("Error draining remaining agent stdout: {0}" -f $_.Exception.Message)
+                }
+
+                try {
+                    $stderrTail = $agentProc.StandardError.ReadToEnd()
+                    if (-not [string]::IsNullOrEmpty($stderrTail)) {
+                        foreach ($line in ($stderrTail -split "`r?`n")) {
+                            if ($null -ne $line) {
+                                $stderrLines.Add([string]$line)
+                            }
+                        }
+                    }
+                }
+                catch {
+                    Write-Log -Level Warn -Message ("Error draining remaining agent stderr: {0}" -f $_.Exception.Message)
                 }
             }
 
@@ -1871,6 +1913,9 @@ $result = $runAgentMethod.Invoke($null, @(
         $message = ([string]$message).Trim()
         if ($resolvedOutputContract -eq 'markdown' -and -not [string]::IsNullOrWhiteSpace($message)) {
             $message = Remove-TTAgentDuplicateMarkdownHeadings -Markdown $message -WindowLines 40
+        }
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            $message = Remove-TTAgentAdjacentDuplicateLines -Text $message -MinimumLineLength 24
         }
         $capturedStdOut = $message
         $markdownResponseLength = $message.Length
@@ -2023,8 +2068,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBxyK/1wAm11uTE
-# HMK8ZYrcTy5a45CFdCK4oCuq/lw4FaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlEQyQf0Rhesbw
+# Tj0ltKmTF81ealuqg60xFbNiPMB846CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2157,34 +2202,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBGuTsPefas
-# gOy5e9yjGD3KvESUAmw3sJndQE5eKfJ4rzANBgkqhkiG9w0BAQEFAASCAgCdzwKr
-# s9cxQU9+FfkBU/ZhDry1jRMB5J2Rvl480oqupZbpIW1EUXI1HEKjT6owSjay9eXp
-# 7ETo/WuCiz2mCQMKbpjhcSgKENMf+dyCOO276FaI7m3n/sdhzT2fgW6rL57UtWZg
-# W5h1znEZk7SWYAC4/n9KwOuNMjrME2DKNrybn2s0H+Yvnsg0S3bn+J4aNBSasOF3
-# gBT9H/317fufGvkc2ldHyPMMaTK9r1slJsz0kjuzVY9H1XvjEkYA6dXmEltbYTvW
-# bn6dXdLPb8cgOWlVM5KBN18bsAZiPMO0279XOZemkQxsCcXqBkjQm7AcTEaId7nn
-# nC20In94gfIL/ZLHATnxFv00YM/lhEkVIqTEls0ZuKuBt1dWI/4GDqsw0EYsXKig
-# 614RtVFKDrW8GBXGYfLGR/ViiRTh9GTM+OaK5Q6MiRnl5ihdA6vHkixazshNwF6V
-# PzKO7BGJwddM2bOsjgFuJaK3xSITLj2/bLFZYYxYhO1aa5IxCou1TO4mI9Db/bKB
-# qxKX5ovFJqIiQQk4SnB9rUjpArtB0dr5BZPPbXpeVo/6fqJJkX6lMxogj6XrhW55
-# H4Xj4VSBY2wlpMY2hla2XGjURA14lb+QW2WDFUG+2VQUo3fTufJ1nXJcqiCWqT8Z
-# M1S5/y2eM1SWNtKur7o0MHOMTAoksR+GR45P56GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDzRqWoLo8T
+# ubOW/DaDv69WLb8FplgOP+Cvjt4AVokBjDANBgkqhkiG9w0BAQEFAASCAgBURVks
+# 980omr6EvcExNcWMOwV6fmp1yXZcidBsmoT327qLsN5+thFr+9tSHoI+uZHvEAgm
+# nA00ZGI5mlpGeCgZ9g3RpLHPuADc9tDmFDcPjfD9nqIW70TlMA64K2/iwy7l3eJD
+# fdZaqzfF3Ynlweot2HkwmeMVXCCYN5qxPmMTF+vFwQxZd1B395JvQqeT77v8M/L2
+# 1831Rqw0EH42IKvF3ggM/3h+4/YCckyG3RL5z8cM+Ybizg0G3eRsUp90BGCn08Ny
+# 2SPCjklE0vzUTI80FnKbQFJJnhs97ru9BPjYbBFdVbDwr8G2DI+IdLtrIOmzWXTa
+# 8csB6gRMnNb0c5vFJNk4a8az9ufpvEq1YkvjF8Qbfi4DLseLDzSTDj9IMMiVoFyG
+# enkMZKXQ425DGNwW5LPy0NBle+D2ZATrHQgyRlsqWS6BT0DHSI2gh4Zd2VJJnllH
+# XGLcwTT6GMABT3c4yolT3QtMUl0iCFl2swk3zwYDUoqdRXoSTPJc0vAHhNr27EQO
+# XZaQW9E/9uKrq140464iizSrODZbl/keLGvT1wGyXr36h0153x+MXGw8bZXWfuPZ
+# HdzT/FQj14ZIv6dW2lzf+yIWZc2k2fr1mAB5/nTw/pvBb4gHR9Y0wgH/OxKiuPiY
+# YfOXq9aNPe3cGIzF2+Nv5MbJdu5gS6z1Z3yldKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDkyMzIwMzRaMC8GCSqGSIb3DQEJBDEiBCDVBudwC3jv9BTglhj+
-# AxsEVFE8Zq3T+mDj9WY9Uuc1pzANBgkqhkiG9w0BAQEFAASCAgCsM8Hbp189qSqE
-# LoZwvT1hTeNY0u7Wdfogjt97xjJm8OLfXIIjualclJfFURY/NBshOADCmE3gixjd
-# EIl9B0iBhI0EHfRxkwUc871UIR+I8IbIDgx6X4QDgzyfFQFGqns1TxXfVYv3BdUN
-# L4Z6cGv4C265VWmQPaI8z+ukE8lDshYVPwzl28BEYfGatk8GMEtdHKPhWVogSU2A
-# lBMevxWzkdVLg3Uta7c9VhoBaeFjQw0QjrhfWtSz8IbtvQ2nd8gBwOrAope2wjnw
-# 4siAClzrJEKg9YWVeIc+lcADweieI/vLONf3/aMqt58mdKQ9ATtcvzzpIdM8xFFH
-# 0oz0/c783xMd0Sww9SMeYUtLXYTH84RJoE2Pir/zczkmnrTUO68ztTiocIUyoiQ0
-# oteVifbt8AQ8tIQq5kS8GW8FSNAohsgRHOlRymS5nQMegubNi8nEYLvbkgUx2v7i
-# VWNazptIih+BmLzmMFRnyWOjuD1UFGGcIQq2x58+/ACwTPKKkLqN94c6psTtPf4O
-# Ko/dWqsJ0reZjHnKRl/MprpVeqYQN0V8lB7GzkQjnK9sfJTCYflnyLrcMPBG0Clc
-# LBxUGSg14blAyIKRWvlzB9tWyNl6R7xZaRwWEhTQcLZu1LqVs27Rj1DMsgw5Iep6
-# /g8GAMHeTxmrcKCNzGAcNHtl15MbaQ==
+# BTEPFw0yNjA5MTAwMDQwMjdaMC8GCSqGSIb3DQEJBDEiBCB8gOXLtrripXwN9UJH
+# Gc9tdKoui00fJ/sacVet571v9DANBgkqhkiG9w0BAQEFAASCAgAEjV5nskMzAMVJ
+# WaYZmD1lEcS1nPd3qJuNwRHBhqguu9/cvORO9s9nmnoJvZVF7mfIcsvaXRax7unS
+# tddZCGvGW5gdbtY853KcmlLoXWsxSuD+xG5VcPgajph+wrbna7JAHGGcDRaLIUSm
+# 9dgayYNPH63rcqflNngyyQc/Nc5zv1YvJEDUUPC1WH+6HRDucrSjU/Vdh4YyZkAZ
+# d4Op4Qf3Oemz3Rx3kWXopWyvj9nTv5mC2t2jgtgorHbPCJDs6Kk258EzLR7YNJ58
+# iOPdOm2CB0cr1D4T4T7keQUuIilQPMfy8Bt51bEO/RS9DWwioGB6fPMipp7Iw+5E
+# eUftCTovNRNuOoBVcuve4nF73QfiJvoUDgbzg+mrc6hbCsI7TOse6EeVvLq1xeW/
+# nai7Ts4GP6TQtdtOxlub6eQYGw7EAyWiGtxOmCvVksxZBeqqUQpSCtyppc44gGcL
+# rEOq9A67b2pIO60O6GpO8yNnZTQMr9T86SygxTjtkmGklKILqovqbpOhEvVg/xb5
+# dE8yBkcy4K3uM5yi369eRlPVDpEAYczsQNhXRKrbbey/Mq5YShZLp5TCUdQYStdr
+# /AJVPEQYoDd1NyUyGXEXugXXLxWEP0MaO0oKSjGvC4D1KeXzMpI2me5hXtTmvJxk
+# 3q8M1zprdkda673q4aF3Ocrp2HlX/w==
 # SIG # End signature block

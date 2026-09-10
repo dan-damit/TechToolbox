@@ -72,10 +72,16 @@ function Invoke-TechAgentGui {
     $sourceExecutablePath = Join-Path $sourcePublishDir 'TechToolbox.Agent.UI.exe'
 
     $resolvedExecutablePath = if ([string]::IsNullOrWhiteSpace($ExecutablePath)) {
-        $candidatePaths = @($galleryExecutablePath, $sourceExecutablePath)
-        $existingCandidate = $candidatePaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-        if ($existingCandidate) {
-            $existingCandidate
+        # Prefer source publish output so local code fixes are reflected in GUI launches.
+        if (Test-Path -LiteralPath $sourceExecutablePath -PathType Leaf) {
+            $sourceExecutablePath
+        }
+        elseif (Test-Path -LiteralPath $resolvedProjectPath -PathType Leaf) {
+            # Force publish of source project when available, even if gallery runtime exists.
+            $sourceExecutablePath
+        }
+        elseif (Test-Path -LiteralPath $galleryExecutablePath -PathType Leaf) {
+            $galleryExecutablePath
         }
         else {
             $sourceExecutablePath
@@ -141,8 +147,8 @@ function Invoke-TechAgentGui {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDyiwcTE8Xyw/7m
-# GsCnPxdlIst6C/JDPFEbQaPeeZlaGaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDFf3CT3n6YtFDa
+# kGxWWqbRVDHLXsrfHPwSVc7FJS/JxaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -275,34 +281,34 @@ function Invoke-TechAgentGui {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBFpKiWvzaK
-# T7pbwQalVCbs6eB4ZbwzbrmXwbukz0e6FDANBgkqhkiG9w0BAQEFAASCAgCZh3uj
-# fKV2V+ccxkppNO1niWINez0j1LT3ms5EB4czdflN0hCkmjOP5ln7CUQMjYF3lLr9
-# EuEeVilksz+fZy+6bY6AA+LPE55xT6CxcyGCGPIn/WFc6JPOA9+wO11OlJizFlBF
-# oLvW4jLlPoW8o2yygbUQLo50v6ILnlccHSVk4I7LeF5j7c3amRWqoK4EvyCJy+RM
-# iQ4aa8jafb1ukN2LvG5IUejo0AFYaJGhkmRb+oT69uVx9ljSY3e8Xp0Lm/LDUpbu
-# Jl6DmwNGH7HBmmx/vFTRb8YGTeBQ4CJWTLGU2CnQs762nFXS6fNs5xx9ZGaTudjT
-# EDl7JMHPV1o4hkVo4KrOXoVETHPGulmTEABuLvvYKZM2vGKJDblwkRbR9QZOKyO0
-# WradZA/g5vwby0TRLa15v5HUfAwzzBSMlP1uhm2so7ecABG0ex2FEmqykZEcjipg
-# is1+4jC/fIp62GIYotAEOlq1zBVa252bUFjhY6pKKB52C0K5F6f36Au/ebOVnKIM
-# MXgoIvTsj41wxv/4qV6JKp1LANBG8IuCxCA+tsKopP/xPp4JccaVcagm7eAZqnkV
-# 0NPAGjEJClNiK2e2Dxkx2KG/tkvXobFZfsXmWNbLt5Qah8psHwrgKk2PctLTxLgC
-# mrdEGuKGryrdnU8+4iQ9ULbg8dSXiTgSnYuSu6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA7DMbMnfOu
+# RBmqXBwYuAu/826SKDVlYBtsy0R9wCBvVjANBgkqhkiG9w0BAQEFAASCAgCkVk61
+# ALdZuhNgCj5JPbPS5L7Ezty1IZeWAIKfkTdvYhDp2hxV6WNIKW3j/hdTdgLqXTth
+# 54cKIgeGHcFZ18o3YaDOh9msN13it08Qc/IlzClE2xiZlWTydFvjwQsQAi3MwIXR
+# ztcyX7/5DTcowC5z7oAcDRI8nZ7AhGL8VXkEX8S3OQWxf+7cFpyoBmMiQ1nBGqwX
+# 0QUnemO4pWT4nBoJXzCaQT0cvVWzmSCsmaFyleq7uZF3TtbPoFZAJhWzeHYRncgF
+# Iyc+B/qiaIad11hXfIfi7IRqFZ3oMaCl30HOwdTfxQkFP/dz2LlWZv+agUvcrhB2
+# Tq3+9yvGxG7w8pvkssL41zJ5h/QYTltKkize4CfpQvB5VcQ/skXv2YJw3r1CivCR
+# nXk7ARu/jJpLcqIyC+yc5u64dojBRrUOUdiy/WbvkCi43P8iP4EjlLBwY4Ng5bDr
+# jht4P0qpkAjR6mFyKju69Jxfyt8ByjftD80BGpd7YXh6oGSqjFFcL3URHS6SuXUY
+# lwlTB9C6w9YumNps+GWCq5jG+GQLtXQ7kReEO/BtWRiGGmNcj5q2c1O/puvbs4KB
+# j3sPs4a4Z1hDhwbJ3lInDMLdEmU0pYqr4vOXSk5EM1+TqK9B0mUQxMoT72hxikNc
+# r0N5bCbVR30UUPF3Gb2hVg3siUFnPhy77RZ3hqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MDgwNjQ2MDJaMC8GCSqGSIb3DQEJBDEiBCAkB2x5XQVPhjb2Nv+l
-# UqVc8hU7vaGMCZcD7s3bq1EcUzANBgkqhkiG9w0BAQEFAASCAgCK0lBpNXNS9OHS
-# z25KHhMNT1ecZiM3MB73S4P6z2YP4HoYHklzkXACsBrL25/m+u/f7uI0xuqfAqA+
-# A7c0kC27lj1Ls9AABh7DECL/i4FbBNMPbPsXmT/VhyeWAKMrQvKYlaUci0Yzx5Q+
-# tkSgnw3XIA9OKPAcYU4PWCS/O66GCeSmkOKbr3RL0uYQzTX4UhKmJyd94CkSnLxH
-# m6CO8MgWc9omK+RtrJt+mTvCyO/0twtXusREu/2KR+aATNP68wgjotr1ZBhtA6ix
-# SX1/UBpH47ysyIqgox9AvpsC94+zSlbOaIYuIZkj22gwPiL02F5BIZCIQ6ptqKv3
-# TXMWO23OhyIPS7q9kMcHksNrErv2NdLIdD+xmKW4Fa2zORQ5H8xzK8bO1xxjZTPL
-# pbIMTSDEFLtnIMIonuzG0bWWGglYfVzC7cq08+pcunoXmhRciX/GXNAsnewaJPqm
-# Y/8tYSP43yNR6ueq+s1AEX90k4hwlItDYD4E+zdqY6bQiYwTJbpFfrA2N5APczrY
-# U2YI73WJHXeaKTch8iFGcOfoG1SQh9MCe32aSw/m63TYEWTeKr4c6QSSAyxOpVWf
-# 4TDRtJlCiyXVW75Phryt3ncAUuhjlC8hUeDqq6a7M/OQ/6+5VK5er8hHKLetu8tP
-# Gw9a+WkZWOBwS2bApaEcy3H4W9zz3Q==
+# BTEPFw0yNjA5MTAwMDQwMjdaMC8GCSqGSIb3DQEJBDEiBCB6r0xLu08vkNKfVXRO
+# KsG72JSUgR2YOnpu66MUNuXpvzANBgkqhkiG9w0BAQEFAASCAgCeLlfdFikaBaXM
+# cE3+GGv5uQ869Ns2sY7hQrtx9sE+4Bnd+etKryy+B1OBkJsvKu6jWWa40ZF0XLbY
+# xCETlrNpz8wQfn+kCy4Uhs2kRGa96Z7+XDl6/esKDuD/fk71B2xRfQXRmnHBsECY
+# jQkT/Z37ONjBdQKlUp4TDsbJXkomW9UptSDcZTPpQunvi0YdjJfPlUKyID5k0nax
+# NzpPl8cypsYOqdncMp2UiDfO2pn5DoqP7oJjNiZK++4b0HznO21+771biqqylb9m
+# hciaoSYeNOY2OctUOI1ljki8L5rJN7YINZ6Ox5a0obI7ZxBp1OiTFk21NLDRRMz2
+# pbS5LuFxzl3zt+UVJjtZ2hUEuEbbZ65EKDZ8yBqpPLuM2n+bQ8Dd5ZTsQK8H5alZ
+# YV/Js0IxyuL+qwqezscdlRDw2sQkRGOCsDJL1ulgvnXYxz4FT6tfTA/JiAfVkRjA
+# /TT6BNoipIXk6JivkrFuxVQcgYUjUOAGmfqsTw3XuOtT2l2fa5rT4tLkbiPD7VyL
+# 8ysL4UDj4tPOYZh8xGPomOEtm3jCtlCQsOf6EYRk1ETgLEfWYUAB5dQNstapfrT4
+# EdymFvSyDCt6ekqMoQDeMZjcbYJoP3qy1szlpd6wz8kcgO48LSSBB5Elb/ccNTPD
+# ijmE0AZGYEtFT5ssPqlARp65ztEXYg==
 # SIG # End signature block
