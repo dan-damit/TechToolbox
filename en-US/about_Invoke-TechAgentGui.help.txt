@@ -1,0 +1,77 @@
+about_Invoke-TechAgentGui
+
+TOPIC
+    about_Invoke-TechAgentGui
+
+SHORT DESCRIPTION
+    Launches the TechAgent desktop GUI application.
+
+LONG DESCRIPTION
+    Invoke-TechAgentGui resolves the published TechToolbox.Agent.UI executable,
+    builds or republishes it when missing, and starts the GUI in a new process.
+
+    The function supports:
+    - Specifying an explicit path to the UI executable
+    - Specifying an explicit path to the UI project file for publishing
+    - Automatically building/publishing the UI project if the executable is not found
+    - Returning immediately after launch without waiting for the process to exit
+
+PARAMETERS
+    -ExecutablePath
+        Optional explicit path to the TechToolbox.Agent.UI executable. If omitted,
+        the function searches for the published executable in standard output locations.
+
+    -ProjectPath
+        Optional explicit path to the UI project file (e.g., .csproj) to publish
+        when the executable is missing and -BuildIfMissing is specified.
+
+    -BuildIfMissing
+        When specified, publishes the UI project automatically if the executable
+        cannot be found in the default search paths. This requires a working dotnet
+        SDK environment.
+
+    -NoWait
+        Returns immediately after launching the GUI process without waiting for it
+        to exit. By default, the function waits for the GUI process to terminate.
+
+INPUTS
+    None
+
+OUTPUTS
+    System.Management.Automation.PSCustomObject[] - Process information about the launched GUI application.
+
+NOTES
+    - Requires the TechToolbox.Agent.UI project to be present in the repository or
+      at the path specified by -ProjectPath.
+    - When -BuildIfMissing is used, a dotnet SDK must be available on PATH.
+    - The function supports ShouldProcess (-WhatIf and -Confirm) for safe testing.
+    - The GUI executable is expected to be a published .NET application output.
+
+EXAMPLES
+    Example 1:
+        Invoke-TechAgentGui
+
+        Description
+        -----------
+        Launches the TechAgent GUI using the default executable search paths.
+
+    Example 2:
+        Invoke-TechAgentGui -BuildIfMissing
+
+        Description
+        -----------
+        Launches the TechAgent GUI, building/publishing the UI project first if the
+        executable is not found.
+
+    Example 3:
+        Invoke-TechAgentGui -ExecutablePath "C:\Apps\TechAgent\TechToolbox.Agent.UI.exe" -NoWait
+
+        Description
+        -----------
+        Launches a specific executable path and returns immediately without waiting
+        for the process to exit.
+
+SEE ALSO
+    - about_Invoke-TechAgent
+    - Install-TechAgentRuntime
+    - Get-ToolboxHelp
