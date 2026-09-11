@@ -18,7 +18,7 @@ Condensed milestone notes for the first working TechAgent GUI iteration.
   - `AgentRuntime/TechToolbox.Agent`
   - `AgentRuntime/TechToolbox.Agent.UI`
 - Corrected moved project references and build isolation so `TechToolbox.Agent` and `TechToolbox.Agent.UI` compile cleanly together.
-- Added compatibility guard for local Ollama model `phi4:14b` by forcing `ThinkingMode` to `off` to prevent unsupported-thinking failures.
+- Added compatibility guard for local Ollama model `qwen3.5:9b` by forcing `ThinkingMode` to `off` to prevent unsupported-thinking failures.
 
 ### **Operator Impact**
 - TechAgent can now be used from a Windows GUI while preserving console-equivalent orchestration behavior.

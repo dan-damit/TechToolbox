@@ -41,7 +41,7 @@ This release marks:
 - First working TechAgent desktop GUI host (`TechToolbox.Agent.UI`)  
 - GUI runtime integration with `Invoke-TechAgent` for console-equivalent orchestration  
 - Module packaging updated to include both core agent and GUI runtime payloads  
-- Initial compatibility hardening for local model `phi4:14b` thinking behavior  
+- Initial compatibility hardening for local model `qwen3.5:9b` thinking behavior
 
 ---
 
