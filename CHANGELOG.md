@@ -121,7 +121,7 @@ Latest completed enhancements:
 ### **Condensed Release Notes (2026-08-28)**
 
 #### **Highlights**
-- Refined TechAgent model routing: fast/default remains `phi4:14b`, while deep reasoning and coding-specialist paths now use `qwen3.8:27b`.
+- Refined TechAgent model routing: fast/default remains `qwen3.5:9b`, while deep reasoning and coding-specialist paths now use `qwen3.8:27b`.
 - Removed deprecated vision runtime profile (`vision_support` / `medgemma1.5:4b`) and repointed fallback profile to `main_reasoning`.
 - Strengthened expected output path inference for script-authoring prompts, including name+directory phrasing such as "name the script file ..." and "output the file in directory ...".
 - Improved run-log clarity with richer markdown diagnostics:
@@ -136,7 +136,7 @@ Latest completed enhancements:
 ### **TechAgent Runtime Reliability & Model Defaults (2026-08-26)**
 
 #### **Improved**
-- Switched TechAgent default local runtime model from `phi4-reasoning:14b` to `phi4:14b` across:
+- Switched TechAgent default local runtime model from `phi4-reasoning:14b` to `qwen3.5:9b` across:
   - `Config/config.json` runtime profiles (`main_reasoning`)
   - `Public/AI/Invoke-TechAgent.ps1`
   - `Private/AI/Invoke-LocalLLM.ps1`
