@@ -1635,6 +1635,56 @@ $result = $runAgentMethod.Invoke($null, @(
             }
         }
 
+        $allowedRoots = [System.Collections.Generic.List[string]]::new()
+        $seenAllowedRoots = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+        $addAllowedRoot = {
+            param([string]$Candidate)
+
+            if ([string]::IsNullOrWhiteSpace($Candidate)) {
+                return
+            }
+
+            try {
+                $fullRoot = [System.IO.Path]::GetFullPath($Candidate)
+            }
+            catch {
+                return
+            }
+
+            if (-not $seenAllowedRoots.Add($fullRoot)) {
+                return
+            }
+
+            $allowedRoots.Add($fullRoot)
+        }
+
+        $configuredAllowedRootsRaw = [Environment]::GetEnvironmentVariable('TT_AGENT_ALLOWED_PATH_ROOTS')
+        if (-not [string]::IsNullOrWhiteSpace($configuredAllowedRootsRaw)) {
+            foreach ($root in ($configuredAllowedRootsRaw -split [System.IO.Path]::PathSeparator)) {
+                & $addAllowedRoot -Candidate $root
+            }
+        }
+        else {
+            & $addAllowedRoot -Candidate (Get-Location).Path
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($expectedOutputPath)) {
+            try {
+                $expectedOutputDirectory = Split-Path -Path $expectedOutputPath -Parent
+                if (-not [string]::IsNullOrWhiteSpace($expectedOutputDirectory)) {
+                    & $addAllowedRoot -Candidate $expectedOutputDirectory
+                }
+            }
+            catch {
+                # Best-effort: if expected path cannot be normalized, keep baseline authorized roots.
+            }
+        }
+
+        if ($allowedRoots.Count -gt 0) {
+            $startInfo.Environment['TT_AGENT_ALLOWED_PATH_ROOTS'] = [string]::Join([System.IO.Path]::PathSeparator, $allowedRoots)
+        }
+
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
         $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
         $startInfo.Environment['TT_AGENT_LLM_TEMPERATURE'] = [string]$qualitySettings.Temperature
@@ -1944,7 +1994,9 @@ $result = $runAgentMethod.Invoke($null, @(
         $knownFailurePrefixes = @(
             'Agent returned invalid JSON twice.',
             'LLM request repeatedly failed',
-            'Iteration limit reached.'
+            'Iteration limit reached.',
+            '## Agent Iteration Limit Reached',
+            'DECISION_NO_PROGRESS_GUARD:'
         )
 
         $knownFailureDetected = $false
@@ -1967,12 +2019,41 @@ $result = $runAgentMethod.Invoke($null, @(
 
         if ($knownFailureDetected) {
             if ($expectedOutputExists) {
+                $knownFailureMessage = $message
                 $markdownRecoveryReason = (
-                    "Recovered known orchestrator failure text because expected output file exists at '{0}'. Message: {1}" -f $expectedOutputPath, $message
+                    "Recovered known orchestrator failure text because expected output file exists at '{0}'. Message: {1}" -f $expectedOutputPath, $knownFailureMessage
                 )
                 Write-Log -Level Warn -Message (
-                    "Tech agent reported orchestrator failure text, but expected output file exists. Treating run as recovered success. Message: {0}" -f $message
+                    "Tech agent reported orchestrator failure text, but expected output file exists. Treating run as recovered success. Message: {0}" -f $knownFailureMessage
                 )
+
+                $recoveredOutputMessage = Resolve-TTAgentRecoveredOutputMessage `
+                    -KnownFailureMessage $knownFailureMessage `
+                    -ExpectedOutputPath $expectedOutputPath
+
+                if (-not [string]::IsNullOrWhiteSpace($recoveredOutputMessage)) {
+                    $message = $recoveredOutputMessage.Trim()
+                }
+
+                if ($resolvedOutputContract -eq 'markdown' -and -not [string]::IsNullOrWhiteSpace($message)) {
+                    $message = Remove-TTAgentDuplicateMarkdownHeadings -Markdown $message -WindowLines 40
+                }
+
+                if (-not [string]::IsNullOrWhiteSpace($message)) {
+                    $message = Remove-TTAgentAdjacentDuplicateLines -Text $message -MinimumLineLength 24
+                }
+
+                if ([string]::IsNullOrWhiteSpace($message)) {
+                    $message = ("Recovered output file was created at {0}." -f $expectedOutputPath)
+                }
+
+                $capturedStdOut = $message
+                $markdownResponseLength = $message.Length
+
+                $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore
+                $markdownPostflightAchieved = [bool]$postflightAssessment.Achieved
+                $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) { '' } else { [string]$postflightAssessment.Reason }
+
                 $markdownStatus = 'SuccessRecovered'
             }
             else {
@@ -2062,8 +2143,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDv7oCwnROAtX6w
-# qs8d5NJ9LmnjZ0LPD/yp5dKqicSkPKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCs2xGA8v8hekLe
+# GRdZFR5Qvs8w+svda1IS9wTH+nmw9qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2196,34 +2277,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBHCbWMi3qU
-# 7IWcpl+wcDOmT6XV71MR/GiT1UsQIBObvTANBgkqhkiG9w0BAQEFAASCAgCFiDsu
-# cAPLmlAXK67kU76fCNwjTmy50ZElNpP9mlN13YjFsq61LCqMjVM8jAcSP636tsYs
-# AXUxY6S63N+N7dDOem9hZ1i+mOuMKjIzHtcu/Llep3UZO8uJb7bPHA6gsH5D6eHe
-# yPfV9SL3j6p8DX5JHwtCb5xOQWo19d4IsHQ1oeU4gpJhc8RzNI7HAzptHHdgo4Qm
-# I7G2+1a9lgCC6ByZePcZ4Zz6WcrhHuYqBl7vo6wL/oUs+PGAKIKDRtSSb8pk2fKA
-# +il3vA6cLzHH+vnjUQMU+Gvit/+ba7Lifv9faUuqPkGvDI9ep9wkm1v20LK5zsfe
-# Kwg9HscDb5WH6+i7VFHhSBfGGQ4997tA5OZvPv3ozRKpEMV80FEMZ1NWjAfI+GAG
-# sxOd87W3ndFd4hduYXHvquYAklvgP6QulMqfBjA7ziIwmWBiuqINglG8URAkCcyK
-# Hk+S2WIiYaLlGdoUIdV83L4dS+ruxEAT7W+Y+UhYsx+R8YoFCeui0vF1llpJtvqS
-# Gyu3XxrkicawyshIZr8wCknBCPpVBKhvrulY1Gx/CvgkMnL+nk8VzSgYhXCVVgRm
-# i0jsjOA0PsD9p3lkdsiwL0nHxIlX/b/VgIuPG6twDDDbjf23vMDNi1g4vp1ZKoVE
-# x2+BOPaEeK/E5M0fb5mUBVY4UtGDa7BtpaCki6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC21StiTJuB
+# h1NBIFy5duWCCr5LCGsC/OnsXEfSkq8nPDANBgkqhkiG9w0BAQEFAASCAgDCirNo
+# 9I4H6znLsEQEd4VnQqwvxxrjArSWn1+2ZJBRrhAdrmn5+faCBceHdX+TgPxJ6A/Q
+# Nf6q4ns8oyqclP5s+zd8vhmtpzphYpBL0kPawIDtXlDjHOEgI9i8PcGjZiqP8Ram
+# v6Nop4gOzEElImo/7eU3jW1zYp6dojDRCFIJYjGbJC27k3cDTDRg8eISmugPTTi2
+# nijF06zLKh1S/J1LnB+Nw+FWuPtMKcm8iIc8Jmtl/hbtjFmYKZGOSZ1wc/CmIm6j
+# F6vMP7rXHPsHBPzuf530V4ZyX/L6COa8k7iOtuHgfw/dnTBsau4hUr+TX4PdsjTn
+# sVRkODullkpDYr1fnyuPiA4SC8bcr2EDM8FRselWApju/GtWcJx6r0K0W9hSf2zH
+# a0UjyYM0dDIynJ2hVwlopV4U3bI1513GZ+HiJJ/n52IZvXaooIO47CjsI1M+wUBU
+# FC/WEuztXQLDKmYV5m9LfBdDWB/e/le8kEt+Un7sj+UTO79+X6ex7TvHr8AYvfQY
+# JHMeqG26k5og1SmojZZHAMxrDOfTt349t05uuZ6yuQaQbfrMGbWTL6iCQy29FLnA
+# D3PxUGaqyZKiL0J36kx1PW/oaNDRd4TLLD/BeDUSvfO1WiedH6SfA0gI3B8plNN2
+# 5rEMwm+V85qB9WZqjVte7eVGVxcLQdMpWnEGg6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTIwMzAxMzhaMC8GCSqGSIb3DQEJBDEiBCCKeGx/EMQnQJCh7wJJ
-# /zTtusx0V/11nZf6H+yhJOVrtDANBgkqhkiG9w0BAQEFAASCAgCqfUb76W1dm4lz
-# Fs4Pk+jdz5OQPFfouuJ4PxhTnPYjlAk/hjMPslRLaZgAf7v/HFha2gLQUmxBmjBj
-# dlj5LJ1wstNnxhiOTDmLZeRc8c/ffm2If6tslLPC9TNGhbCBlXBfJFuRoJIP1w+R
-# y7tqbcnCRVsHopVikNjjQGYdZz4ZEyluetQeNlhmKpCl40ngq0i2d0lX/C4Iuh2a
-# JIQFGUD/xkSJ9W1p2XdE24A5ziB1W3JBbRMi5cHhIYEzR35aXSjb1GUdUSaHDs5m
-# eijGJ4PJnXfsdpjvbjb9Hed8iAr9cpgXpjcTr+1/2ciXW7cyUpz8WIoeehfRkJdu
-# EgqFUuRPBubiQQDlRutKolect8WXrs7pBaR8zKV3RlJHfZnomHPmk45ZeHjaccGc
-# jYYROjunvSIehG7Ci+OZyXgo+S1phFatthscwDl7AmsCQbquoXuQfYYTPe3BLEjF
-# Na0tg8NXLpSag7Ej5H5zUWe9aeNLnurDX4PeBZBQeAEaFjQx/Nuu/TjNy7RX9n+k
-# MYXP9y9uPSxQFhvsR0YvmAub1ST316HCgMUSYNuiLxq8W6EyX6y/W7E5cVXOWU0B
-# mCknbq4pgxhspyPPjQE50Fb3W8dOYlzyO+EuFe4pkmVlx9Im0WPE6oAGGC1bsRKU
-# D/lulbDgnY2GgobJ9MpwQ/F5qOTrEg==
+# BTEPFw0yNjA5MTIwNDA3NTdaMC8GCSqGSIb3DQEJBDEiBCCRK0SN4aa5ODjSRwsj
+# /eD1y481TsDDW2RO627DqDHzyTANBgkqhkiG9w0BAQEFAASCAgCDP5vVS5wKKUaP
+# 9wgNixkY9Zz/mRJ+HBiFUXoYxyPkvUfT4CQD3saYtp6BKC2P5QusIV5YjKPMaPin
+# GXsNP1vIxP3NKG5mrOtqjiDWVN7hE8GfNElpyDOl9uCdI0jqxxBzsv760ODs0eAT
+# 1CaGnN5xotRcKF+nTcOzaoOCFe9Zqno/J/zQsBAkTHSFWMpGF1M3QVys3d6lp5sQ
+# g6CY698NyACqBc9acmQnZiTa8ttIUB2w3XG2l/4hz9AZvtnw4I9EPA1xr3PS8Baq
+# KhYRR4ZkHT0YN68Ff0ELNj/eCfzL4YfMRDsQzQlbD9GAfyPuN01QhcNT8UyICxfA
+# XRUGZhP/6phIqNkod6d+74WA1QUNu2xncrJ6MReco+kDn6Pvc21lcTq8dnBc7Ied
+# VKkg3ljugWNc8NkaP9L1PKStmvxqF1Shu4soWIq+1ZFNvsHmO9Lf6HUi+Q+NMs+u
+# Rb+GTPAg4vgMEDhz5vDJeWYTTuozDxTsnj5il1YtjBdcd0Yw0HgfLjTYQCHvIqQM
+# bl5NcpauHcf4/4CfOT/VOX1j7dAfV/ejKUE7cvK9gOtAiTEmcbKP9pcmXNKEnmbf
+# /D60AvPPyz6b8ghYSW1sGLDtntjVey1jSg4fTHibKP+b9VF2qXvp0/f9VbRSaohw
+# yzIKNQCwZnuC3c8BdclYPKuuwWZSzg==
 # SIG # End signature block

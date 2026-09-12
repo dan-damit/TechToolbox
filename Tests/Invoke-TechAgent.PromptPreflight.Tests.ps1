@@ -49,13 +49,45 @@ Describe "Invoke-TechAgent Prompt Preflight" {
             $result | Should -Be $input
         }
     }
+
+    It "Infers expected output path from directory and named-file phrasing" {
+        InModuleScope TechToolbox {
+            $tempRoot = Join-Path -Path $env:TEMP -ChildPath ('tt-agent-path-parse-' + [guid]::NewGuid().ToString('N'))
+            $prompt = "Please create a PowerShell script. Output the script to $tempRoot and name the file Invoke-RebootRemoteHost.ps1"
+
+            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+            $resolved | Should -Be (Join-Path -Path $tempRoot -ChildPath 'Invoke-RebootRemoteHost.ps1')
+        }
+    }
+
+    It "Normalizes recovered invalid-json envelope to finalAnswer text" {
+        InModuleScope TechToolbox {
+            $message = 'Agent returned invalid JSON twice. Last response: {"needsTool":false,"finalAnswer":"## Ready\nScript created.","reason":"done"}'
+
+            $resolved = Resolve-TTAgentRecoveredOutputMessage -KnownFailureMessage $message -ExpectedOutputPath 'C:\Temp\Invoke-RebootRemoteHost.ps1'
+
+            $resolved | Should -Be "## Ready`nScript created."
+        }
+    }
+
+    It "Builds fallback recovered summary when envelope cannot be parsed" {
+        InModuleScope TechToolbox {
+            $message = 'DECISION_NO_PROGRESS_GUARD: bounded recent-history progress did not change.'
+
+            $resolved = Resolve-TTAgentRecoveredOutputMessage -KnownFailureMessage $message -ExpectedOutputPath 'C:\Temp\Invoke-RebootRemoteHost.ps1'
+
+            $resolved | Should -Match 'Run Recovered'
+            $resolved | Should -Match 'C:\\Temp\\Invoke-RebootRemoteHost.ps1'
+        }
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAQ45RYnmWxm1ak
-# cJoUzHfKZPpgvzeFV/KdIftKWMWIu6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQB++XfvtdG7aP
+# ANhly7XWnVbWdTVg5hYJ6SYBlM0TSKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -188,34 +220,34 @@ Describe "Invoke-TechAgent Prompt Preflight" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAnLwAOMSTU
-# /kEylQsPbjkN2TZlalJPe5/YHIKfiRWeCTANBgkqhkiG9w0BAQEFAASCAgBeqP/w
-# dsxNODpxa5FQM0xIsotqiVdsYy6DRQaTAF0SqoqnOkCs2Vn+nbFn9D0Su0a5zM+h
-# K1ZFBRYw+l/ORKKUf+srFIjDn8ibOYMjeUG+YOQiY2fkbSdjk/GxQjrRhsL95ZwJ
-# G/nZzT7xQcFBJn16yguu3W2To5WO10wofq6qi/aAbRJIj6uNnIgzP3miKkEmNHCx
-# OUFH9Bl+SX33efCgGM5bd5dTLAcAqV9XBha6n2evbQwcGNsFKXfR4JCVE/INwXtR
-# oYq0rGXZwV/DjrCqwQuhzBWKFd35sxwJDPXKl4sZj90i695BioAkM18uDJUsG5Tc
-# HCY3qgNPHqQSQWOp+Zhe8YnoFzprPLPk7n6YtnE881WEKDS8Q9PrrB0n52+lZak3
-# EpkxpvShe7Um8aV/Cw22KBVzL37t+wcxJ3C7BVG6KL3MsgVJ2PYt98AFQDzJeCf3
-# KLcGEbDNjTEh1AIZnB+S6DS0sHhYoeyRfQzTHNiVw8vWIsH/urocV1DGNVjQQl2r
-# ae+XqGS6RG5o2OIndN3U1TKiJOMAz/zpmpfaPG4icQUkIvoN8CSNJeiC2hUBvucv
-# iJBnXlCuwLh6kTrfsvvin9q3Sji7VuFMvr1qsmlrr/iRJNiHEJ3yrRR/JFYOI4xU
-# YDcO50SzwALE3pV2YOa+KUCbcoJsITcT3tCsK6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAZiQqVaY/W
+# eEaOMEGaEMzpTVz25ttl5UC5yx+voV5AdTANBgkqhkiG9w0BAQEFAASCAgDNVWH/
+# sidyiNC14EbfDcP0O7IqNMV2/pOtOP39hgKgJHyWL01rl1JH5Wj8Eus+D09tG3uj
+# gnWbhoej/SfMAY0kurasuUAINqdd41u1o84Nf3erL5FaQKItUr5O0HLKuSKa4acK
+# Mxz9BGLNRhQZuCHbox0HDo6Zp/ZV6yFhPYarzGxw7CNaLvZuWBDwknx70/NsNfOv
+# 6wSEfPEYqOD+Vx0/oqoInqXT3Y3PVTBxWqIC31EbID3THp996pLr948SlsJup08W
+# gKdCMUlsE/GMtowdLABDD8plHh4Yj1e+E2sSs/lqVe0QxV9LuIlYifNycCNL/hE4
+# 4VkRWH0yMbyBvW5eXiYTzWvbamM0EILnEEEnv31tKyfQFSHav7IMBpEhOw5vgmdw
+# +XwCtvVi8ueDZZbCGnA+ltVdQ1GdEWwIMFaP4CsRNp08njgSbnkQ/FFomrnbTIs4
+# r96Dqfm3jqA0Z5Co3VZqCNZu/AjATNXL2lNL2zUDtfT6CQEk3EHwd2W1eKU0+ojV
+# pnZOMYIAtZKh/IRodv/Ki8d3oAzzv2PiPBdgNN4v+pD+471pQJXU9UgBobmk1MB/
+# 3qfbctfwTPHJDXExYZjKJqERmbyLyo2hVyMP9MCRgOMd84i6ck4ZhrqkeFS5OdHY
+# GD5Yl68ciE8B+Mmd/5jt2TQtNrZ3D+Or7eWhXaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTAwMDAzMzJaMC8GCSqGSIb3DQEJBDEiBCDk1x2xaQQi8ABpPPnq
-# P0Qg87kNL0parYey+wo5D/1BUDANBgkqhkiG9w0BAQEFAASCAgArwUSThc+zbBLz
-# xiCgMF0+ZijxdHoTdASrsknBkHobGoKo30AKSZz5ej4PdM/7e1y7JAgbR54X7k8v
-# C9X/VbL3avKCd6hqK4KTrnoi78nz1TK8EZy/8/Bjnsiccj/9dpMuhfzSoh7ZWj0H
-# WoFRuzXXeCTdB9OmFFfOiOVPcj3l01c7cIYUwbd3ye/CPm+ptm0FVdzFiDmphcPH
-# 2Nqu8+w7UmmOH0qWVUa/v4bBVPJFeVM84x2huhWdhLaZxmt2V6kiedI6g/paHJjy
-# W8P44SK/mwEMvjrZVQ3MQ8qn058CwtqK6az7bExuP7gVdSIbxwH39Eq7l/iidAii
-# f8OMKwH9yYJRz1L9LHquxg8+jpwfCamjw8Cnu41TohgXpQZu0MBREOB76pJWT5IE
-# u0KINrUpOppgy7c3wDUWkZ1S1a22UDOt0s9Y8ePF7mH4d6XLseKHQbhdvsohhlB7
-# ElDZVqNikmBrDQMXjmDQ4F8jATCpGSqax13afHjg/5KKg+3e955fuiVEdhsR++ov
-# rEPj4YK/AQVZRzXBXi3Hn7vJjrEM9EKuitFwiL+ykHApA6PnZR8JFHBpD+SADzhw
-# w1JbpzHD/CP6d7x1hxzZdJYJYyzC1mZ339YxWpI0/fx3qGHjlgOI48D2iNfXCT8z
-# k09sLQNJecyxBY1wXncbxgZBj8bIoQ==
+# BTEPFw0yNjA5MTIwNDA3NTdaMC8GCSqGSIb3DQEJBDEiBCA+VFTeUBa03jigEHNV
+# fmJN6Gdf3FzE8Yy6pZ0cepvs8TANBgkqhkiG9w0BAQEFAASCAgBkmU050M4srn93
+# CF2hxz7QoLGUts1JBwoRhCmbji8Ntzi+LLCB5Sp+MqpGVLdwWeueuayuRpeJci0k
+# HsvkLifo5t3DGEKXv05w7umAG7ddnP3wQtegTU9H3a7jXm+nQgX4ECzRQ5R0ddR9
+# iVMKxAQ+hDT0Rq1MrAiiTlt1CYgihr3v//Al9GXjpH+AdPSZyImmUfQTBQdd8VOQ
+# UGhWx2ej1lOuLmYnSx8ZMgPScu4f2gkbUElIdgd+6mRgLniHEfU+3XI9XDlgpHF5
+# B+34ySa+8o1mxUx2ZAqirL/KkBb5lfF8W3zNjsJGlbSol64Ey8+rKAKoXFUN6BbA
+# kyTY/0JwcC0xOjzxr5nfZ1CDsK2yraUvaq2M9ONj1lxChgmX7P1uP1qq1FfFGmtL
+# CLx8Kl7xF/JUy2qSYWLHWLLEPBINfybK/NhbxG1ZgWkEBpQMtje5fjHXya434GOX
+# Nw238fCAH8vx4YcY+CDZMh4v0tJgu/UVTrWRZbhoK2FGnqVrHpSzrQUb6iT1FiMh
+# lHmB0IGydPUUMLnWhkylZgeckfEmWCAdjlkY9blat5OQRkSyH5p7ay2q7g+atHKy
+# TKGp3MR9vUdx6CtjFtsYY7SjMvZ4Gm2XPF1Vzoi5gTijz/nM0A4DGqtf3fUz33Fm
+# wssuyjj55rAFJq0pvzb2ljPtlQnZnQ==
 # SIG # End signature block

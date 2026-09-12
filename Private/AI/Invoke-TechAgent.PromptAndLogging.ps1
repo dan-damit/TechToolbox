@@ -508,6 +508,36 @@ function Resolve-TTAgentExpectedOutputPath {
         return $trimmed
     }
 
+    $tryNormalizeDirectoryAndNamedFileInstruction = {
+        param([string]$CandidatePath)
+
+        if ([string]::IsNullOrWhiteSpace($CandidatePath)) {
+            return $null
+        }
+
+        $match = [regex]::Match(
+            $CandidatePath,
+            '(?is)^(?<dir>[A-Za-z]:\\[^\r\n]*?)\s+and\s+(?:name\s+(?:it|the\s+file|the\s+script\s+file|script\s+file)|call\s+(?:it|the\s+file|the\s+script\s+file|script\s+file)|file\s+should\s+be\s+named|named)\s+["'']?(?<name>[^\s"''`\\/:*?<>|]+?\.[A-Za-z0-9]{1,16})\b')
+
+        if (-not $match.Success) {
+            return $null
+        }
+
+        $targetDirectory = $match.Groups['dir'].Value.Trim().TrimEnd('.', ',', ';', ':', ')', ']', '}')
+        $fileName = $match.Groups['name'].Value.Trim().Trim('"', "'").TrimEnd('.', ',', ';', ':', ')', ']', '}')
+
+        if ([string]::IsNullOrWhiteSpace($targetDirectory) -or [string]::IsNullOrWhiteSpace($fileName)) {
+            return $null
+        }
+
+        $normalizedDirectory = $targetDirectory.TrimEnd('\', '/')
+        if ([string]::IsNullOrWhiteSpace($normalizedDirectory)) {
+            return $null
+        }
+
+        return (Join-Path -Path $normalizedDirectory -ChildPath $fileName)
+    }
+
     $promptIndicatesWriteIntent = {
         param([string]$Text)
 
@@ -545,6 +575,11 @@ function Resolve-TTAgentExpectedOutputPath {
                 $candidate = & $trimDetectedPath -CandidatePath $genericPathMatches[$i].Groups['path'].Value
                 if ([string]::IsNullOrWhiteSpace($candidate)) {
                     continue
+                }
+
+                $normalizedNamedPath = & $tryNormalizeDirectoryAndNamedFileInstruction -CandidatePath $candidate
+                if (-not [string]::IsNullOrWhiteSpace($normalizedNamedPath)) {
+                    return $normalizedNamedPath
                 }
 
                 if ($candidate.EndsWith('\\', [System.StringComparison]::Ordinal)) {
@@ -606,6 +641,49 @@ function Resolve-TTAgentExpectedOutputPath {
     }
 
     return (Join-Path -Path $targetDirectory -ChildPath $fileName)
+}
+
+function Resolve-TTAgentRecoveredOutputMessage {
+    [CmdletBinding()]
+    param(
+        [string]$KnownFailureMessage,
+        [string]$ExpectedOutputPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($KnownFailureMessage)) {
+        return $null
+    }
+
+    $message = $KnownFailureMessage.Trim()
+    $invalidJsonEnvelopeMatch = [regex]::Match(
+        $message,
+        '(?is)^\s*Agent returned invalid JSON twice\.\s*Last response:\s*(?<json>\{.*\})\s*$')
+
+    if ($invalidJsonEnvelopeMatch.Success) {
+        $jsonCandidate = $invalidJsonEnvelopeMatch.Groups['json'].Value
+        if (-not [string]::IsNullOrWhiteSpace($jsonCandidate)) {
+            try {
+                $decision = $jsonCandidate | ConvertFrom-Json -ErrorAction Stop
+                $finalAnswer = [string]$decision.finalAnswer
+                if (-not [string]::IsNullOrWhiteSpace($finalAnswer)) {
+                    return $finalAnswer.Trim()
+                }
+            }
+            catch {
+                # Keep fallback behavior when the envelope cannot be parsed.
+            }
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedOutputPath)) {
+        return (
+            "## Run Recovered`n`n" +
+            "- Output file created successfully at $ExpectedOutputPath.`n" +
+            "- The planner emitted recovery diagnostics during execution; see the Recovery section in the markdown log for details."
+        )
+    }
+
+    return $null
 }
 
 function Write-TTAgentMarkdownLog {
@@ -831,8 +909,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBNyAvW4B2Shv3R
-# jJkVQSrlMO3AbZyzCmaxVgGpZWM69aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCswCevv6sb4+TN
+# iuxIt1KUgchr4tgBo9JvNnHJwfa8CqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -965,34 +1043,34 @@ function Write-TTAgentMarkdownLog {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB2e67FUjJj
-# 6TZtU/c75+D+cxc7Yejq8u7ifu4Ko89S4zANBgkqhkiG9w0BAQEFAASCAgBDWd0a
-# BxIipjrH7/pSheMAYvdeqaDEivIxDQFyOfzPrjjHyQeXmxqLBPS+unHA0kDFdb0+
-# VansSCQuzU4tLaW25E86BmpXCxR25QMVbv2GtUI0QFB3nPDvZW2ec9aC4cRiyG4A
-# ZRPHsSDDZnHqks39jaBpirDUUCxUope8rnffPkTh7/qwPajlVwEXYLr2B3GTE86H
-# JWMhFgxVAgFOE+Nr2pD2h5BY7YB2rU7FVoQoO8Qn9//CqpdT3yMyLH03Frf8ft4u
-# SDxaDsH1YKpIJQHOTu+yiFWRqpYXECbY3wjNSenYs9eH0hborwdQGz/TJUtGwtKT
-# O4qSlj4hNU4N1HiOD82GyYW3nN6oFV4I7niQc75y/juNhbLLIoda6ODXoWb40N3r
-# 6p7JUfF4ECPbFBSekMe4xBBOQDIVUqLq70ka4mxUd/khwL3ZIJUR2+xd8//mU14/
-# zrTadQjJm22s0cEpr90+zvcWj9oK7iUVQhtIq0UoKQb/9GYzlen0+ENmWEIcAl0+
-# 9K2uiQVw5au/ztSPsu2WftEAqE4tRd9uEJNVlNOHUirf5s8Cb5j5EbCwvXgsLPlO
-# 7YOAl0Qud1twvJHlRRaIbelpGXGPf4Klw+TtVhIM82wDKg+8FEK88kpgW+28KV0v
-# 76aCfV7o+Sqz2t342ON0elVkICU52qDqRYviwaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBefADnzCmL
+# fPE/VFiD+/nqB34yMQqRg44dPIPe16vU6TANBgkqhkiG9w0BAQEFAASCAgAkz25b
+# eA+cJGG92/njdrd31M82zyUFia6Srs9liXjt8ZMYEz8wMe2ebaEwCYxyxzv8lkO5
+# YYMRg+nPkiIn0KFWw64PNzLrDuXNPxiZiVmxwA5P+qL5zUhSecW0fPPCmBDrwJ0l
+# 3/lJRjUc8KTle+bH2sj9ajYY8bwtYoDwENy9MhvoC9sFIsnsu3IqsR3n+Fu75MM+
+# o8APFx1inYiHk6iXFzyoenYrwjcIM1LzNzxXZ/qGAeTktM6K4tMGxyRMjSAhNT/h
+# 1Mc0oyp8En+HI+sC/ER1k8NNx3xS7g7boUHItIObp0ktd2RhVS8uqmODhs7R6Smk
+# 64avJlAb56zJ7RLCTUn7UL2CUrC5Ln1tp9ZYd5OdQfLs1Jvy5vnEChpo5D/5ZZT6
+# kP34JWDhPU5pIavLPX8BGuG5T5NFiLXGjTeSt5Cw2HZMjGTbu+Zvduln/NvtVE+H
+# 9cfdv7+EdpclFlAj/yVER7vktDoGAO+Mvtl1FIp824E5Z1TREgtTuHtLozV4rrZW
+# EFbAvmKNR83BL2K73NypavYFbNxxGLBDjNVJGXBcEvnXVaB3cbuKAIebZXNFv0LC
+# WfG4oUFkXGCNtTi1BVJnDGYHsaLWeedSQAQWcnwIcMALQFICgMrzEhaBGHuNsGQf
+# yp1KDB63zLc8C2ewyle9/nfKahDz8alceDKP86GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTAwMDAzMzFaMC8GCSqGSIb3DQEJBDEiBCDjTXyCedPyc049pxHL
-# eg/trGqF120a/JQKYvwYXY6DujANBgkqhkiG9w0BAQEFAASCAgCXcxop2N44m1ad
-# mjCJRuYjc3I6V2ZoG3IOxVvbj93moV3K5dPBudTVysyOXNOmBAJD/Cj+C2kKMdf+
-# 8fyzGYgZnP8qWiG+Js13kknQjYBP+RKkIBv0CdPa05xTnYBZqVhlDZIgcqvDD6De
-# 5hTYQLscJ7IVRRhknELVhaEoOV0G5wxfAKfoVvLjouG0U0P7lF0tW4WZmQKPX1rj
-# /rb1VGgv6KS3cScTOZJ7tkN9KxA+0eLSdpkZ7J/1Z8n6VMB7gGtPfFmDLhYH3/zm
-# XyW1wbJDOV8z+MdAL0byT2wSrmRy8izp+S5j81ifQjpt42YdG9i2dtWSmb3oXHLL
-# aBPzlHgh3fuQW2QHeCA/9QHIARu6Qp/+A37OtQ4kMu9aZcGCijKliiBS3N7nVyDj
-# 2/jQrxDBpkVTv4U5lJet/RhDEdYoBXjOli2asnH/pImSnTMu6+EllJ3WJGH1H3ko
-# dB3sYa/BAuzcz9HaMUvMnKxZyrLeLd6Lu/8mIuwMtNN+SB+E6wSJRGaE9uFTvGrS
-# C1J818x9RhR5T/c5INVsPo8SZQXRj62M+RQ3JiQFduwAWvdin1DOCmMkArI3vv8B
-# gU8h9RXCXkkl7oUuSM34ZFoPEKNc/60pb1QWInaQPLHNYQUj2VouPMfMuKffGoTS
-# EfQPL7bXOfgck7CQud3hlNkyaB2d8A==
+# BTEPFw0yNjA5MTIwNDA3NTZaMC8GCSqGSIb3DQEJBDEiBCAAMg4t1mcrUWFl9ePG
+# 6mzRJGRp4it0bV4vI343rA37XTANBgkqhkiG9w0BAQEFAASCAgAUYBmafX2zO3yH
+# ZfUI/84TjJdgaPKzByPY1wT/18u8PhGVT6e29T0g5EVohkRCqg81ukGtFW4RX/UE
+# 8Ev2XAq7gM+rw3iChgTjepJHeozwA8mN2qsGwghfexlChZH/NC4oi+4NMDIByOs8
+# VfRa86/MQeORpLwFcSwrdi5aiO2brdOAMG0yxFroeqBNGlIaCVSq9+Ezr88O9hKI
+# E9N/zHwOS09K9Ub05FFImPC88YUwQBCoG5YDaTdq1xWJF83ULLf+P/V2EcOZRcUu
+# oWhLeeIxYAJLjWZJETY9UPMPsEkl6ziS9e5BVACcACB9cLF69QbZL/jfYzyXLvOR
+# f2sZVSm4A1X5H8aF9gDrSIPjyFVoHz0yCKOn9BH9FR+rHeTNjfuMg8k+x1L4oVcm
+# biVjJRsQ9SGtmEFVYSJm634iZcp3cANWoFiX9kFE3mPxNlsawhBdydbKFb9j5oEP
+# kK1pHN0EHKBYLHac9gMb8EqvtP4CZxqV2FUhPnYDcGadtdJG5ALdfaVLJTOC2Bt3
+# GtciYZQs1AFQmKEA66j+M5hOeDfS5g4hCNiXpzZkJqS062f0vWkxcIkPuzncyciV
+# cCQ2t4nRPuCHqJhpXm3F1zlncIlvqk6wYyebHR9x7PaLWHksRubu7/b+kkjmS7wS
+# +dSJgfh9omgD+nGUIVbNx36tZ9cbhA==
 # SIG # End signature block
