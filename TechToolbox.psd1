@@ -134,22 +134,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = '
-
-# Condensed Release Notes
-- Added first iteration of a GUI to the TechAgent
-- v0.6.0 released
-
-Condensed release notes for v0.6.0:
-
-Milestone: Windows Operator Desktop (First Iteration).
-Delivered first working TechAgent GUI host inside the tracked agent submodule layout.
-Replaced placeholder GUI execution with real agent invocation via Invoke-TechAgent runtime wiring.
-Packaging now includes both runtime payloads for release output:
-AgentRuntime/TechToolbox.Agent
-AgentRuntime/TechToolbox.Agent.UI
-Fixed project reference and build isolation issues after UI move into the agent tree.
-Added compatibility guard for phi4:14b by forcing thinking mode off to prevent unsupported-thinking failures.'
+        ReleaseNotes = 'https://github.com/dan-damit/TechToolbox/releases/latest'
 
         # Prerelease string of this module
         # Prerelease = ''
