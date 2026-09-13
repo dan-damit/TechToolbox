@@ -17,6 +17,7 @@ bin/
 SecureCrimp/
 slash/
 AI/Tasks/Archive/
+ModelTraining/
 
 # Files
 wordlist.txt

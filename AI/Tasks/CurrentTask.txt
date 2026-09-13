@@ -1,17 +1,66 @@
-Primary input file:
-C:\repos\TechToolbox\Public\AI\Invoke-TechAgentGui.ps1
+Please write a complete Python script that crawls the TechAgent Markdown archive and produces a clean JSONL training dataset suitable for LoRA fine-tuning on TechToolbox agent behavior.
 
-Task:
-Write a detailed PowerShell `about_*.help.txt` help document for the source command or script.
+Required source directory:
+C:\repos\TechToolbox\LogsAndExports\Logs\TechAgentMarkdown\Archive
 
-Requirements:
-- Create the output file at this exact path:
-  C:\repos\TechToolbox\en-US\about_Invoke-TechAgentGui.help.txt
-- Follow the structure and tone of other help files in the same help directory when they exist.
-- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.
-- Do not use markdown formatting unless the existing help files in that directory already do.
-- Use WRITE-FILE to create or update the output help file.
-- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
-- Do not stop after analysis.
-- Do not summarize your plan before editing.
-- Do not return a final answer until the file update has succeeded.
+Required file pattern:
+- Parse every file matching TechAgent_*.md
+- Ignore non-matching files
+
+Primary objective:
+- Extract high-quality instruction/response pairs from successful TechAgent runs
+- Write exactly one JSON object per line to dataset.jsonl in the current working directory
+
+Hard requirements:
+1. Read each markdown file and locate the section starting at "## Prompt" and ending at the next "## " heading that follows it.
+2. Extract only the text between "## Prompt" and the next "## " section, and strip markdown fences and surrounding whitespace.
+3. Locate the section starting at "## Output" and ending at the next "## " heading that follows it.
+4. Extract only the text between "## Output" and the next "## " section.
+5. Ignore any text under Preflight, Error Output, Exception, Recovery, and Postflight headings.
+6. Keep only runs whose file contains "- Status: Success" exactly.
+7. Drop any file that contains either:
+   - an "## Exception" section with content
+   - an "## Error Output" section with non-empty content
+   - any explicit failure state or stack trace
+8. Normalize whitespace in both prompt and output text.
+9. Drop prompts shorter than 25 words after normalization.
+10. Drop empty responses, placeholder responses, or obvious generic filler such as:
+   - "n/a"
+   - "none"
+   - "not available"
+   - "thanks"
+   - "happy to help"
+   - repeated punctuation-only output
+   - responses under 40 characters unless they are substantive task responses
+11. Deduplicate by exact normalized instruction text only.
+12. Keep the original source file name in the JSON field source_file.
+13. Set status to exactly "success" for every row.
+14. Assign a category using this deterministic heuristic:
+   - coding: prompt contains terms like PowerShell, script, function, module, command, cmdlet, code, regex, parser, API, automation, .ps1, function name
+   - operator: prompt contains terms like reboot, host, server, service, remote, AD, user, system, diagnostic, health, network, device, VM, patch, logs, permissions
+   - reasoning: prompt contains terms like analyze, review, diagnose, explain, root cause, investigate, architecture, compare, evaluate, summarize, decide, assess, reason
+   - safety: prompt contains terms like destructive, dangerous, remove, delete, disable, stop, kill, force, confirm, authorization, safe, rollback, escalation
+   - if no rule matches, default to reasoning
+15. Preserve only valid UTF-8 JSON records with keys exactly in this order:
+   instruction, response, source_file, category, status
+16. Write output to dataset.jsonl in the current working directory.
+17. Print a summary to stdout after writing the file:
+   - total files scanned
+   - total valid rows written
+   - total rows skipped
+   - first 5 source files included
+
+Implementation requirements:
+- Use Python 3.x
+- Use only the standard library (no external dependencies)
+- Build the script as a single self-contained script
+- Do not ask for confirmation at runtime
+- Do not write any temporary files
+- Do not produce markdown in the output except the final summary lines
+- If a file cannot be parsed cleanly, skip it silently and continue
+
+Expected output:
+A JSONL file named dataset.jsonl containing clean, deduplicated instruction/response rows suitable for LoRA training on TechToolbox agent behavior.
+
+Goal:
+Produce the highest-quality reliable dataset possible from the archive, with minimal noise and maximal domain relevance to TechToolbox tasks.

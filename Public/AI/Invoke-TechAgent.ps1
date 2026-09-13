@@ -1748,35 +1748,41 @@ $result = $runAgentMethod.Invoke($null, @(
             # Read stdout/stderr incrementally so iteration status can advance while waiting.
             $stdoutLines = [System.Collections.Generic.List[string]]::new()
             $stderrLines = [System.Collections.Generic.List[string]]::new()
-            $stdoutReadTask = $agentProc.StandardOutput.ReadLineAsync()
-            $stderrReadTask = $agentProc.StandardError.ReadLineAsync()
+            $streamReadState = @{
+                stdoutReadTask = $agentProc.StandardOutput.ReadLineAsync()
+                stderrReadTask = $agentProc.StandardError.ReadLineAsync()
+            }
 
             # Define the poll script that drives the internal terminal-state loop.
             $pollScript = {
                 while ($true) {
                     $advanced = $false
 
-                    if ($null -ne $stdoutReadTask -and $stdoutReadTask.IsCompleted) {
-                        $line = $stdoutReadTask.GetAwaiter().GetResult()
+                    if ($null -ne $streamReadState['stdoutReadTask'] -and $streamReadState['stdoutReadTask'].IsCompleted) {
+                        $line = $streamReadState['stdoutReadTask'].GetAwaiter().GetResult()
                         if ($null -ne $line) {
                             $stdoutLines.Add([string]$line)
                             Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
-                            $stdoutReadTask = $agentProc.StandardOutput.ReadLineAsync()
+                            $streamReadState['stdoutReadTask'] = $agentProc.StandardOutput.ReadLineAsync()
                         }
                         else {
-                            $stdoutReadTask = $null
+                            $streamReadState['stdoutReadTask'] = $null
                         }
 
                         $advanced = $true
                     }
 
-                    if ($null -ne $stderrReadTask -and $stderrReadTask.IsCompleted) {
-                        $line = $stderrReadTask.GetAwaiter().GetResult()
+                    if ($null -ne $streamReadState['stderrReadTask'] -and $streamReadState['stderrReadTask'].IsCompleted) {
+                        $line = $streamReadState['stderrReadTask'].GetAwaiter().GetResult()
                         if ($null -ne $line) {
-                            $stderrLines.Add([string]$line)
+                            Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                            if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
+                                $stderrLines.Add([string]$line)
+                            }
+                            $streamReadState['stderrReadTask'] = $agentProc.StandardError.ReadLineAsync()
                         }
                         else {
-                            $stderrReadTask = $null
+                            $streamReadState['stderrReadTask'] = $null
                         }
 
                         $advanced = $true
@@ -1863,10 +1869,10 @@ $result = $runAgentMethod.Invoke($null, @(
 
             # Drain any remaining async line reads after process completion.
             $drainRemainderSynchronously = $false
-            while ($null -ne $stdoutReadTask -or $null -ne $stderrReadTask) {
+            while ($null -ne $streamReadState['stdoutReadTask'] -or $null -ne $streamReadState['stderrReadTask']) {
                 $pendingTasks = [System.Collections.Generic.List[System.Threading.Tasks.Task]]::new()
-                if ($null -ne $stdoutReadTask) { $pendingTasks.Add([System.Threading.Tasks.Task]$stdoutReadTask) }
-                if ($null -ne $stderrReadTask) { $pendingTasks.Add([System.Threading.Tasks.Task]$stderrReadTask) }
+                if ($null -ne $streamReadState['stdoutReadTask']) { $pendingTasks.Add([System.Threading.Tasks.Task]$streamReadState['stdoutReadTask']) }
+                if ($null -ne $streamReadState['stderrReadTask']) { $pendingTasks.Add([System.Threading.Tasks.Task]$streamReadState['stderrReadTask']) }
 
                 if ($pendingTasks.Count -eq 0) {
                     break
@@ -1875,34 +1881,37 @@ $result = $runAgentMethod.Invoke($null, @(
                 [void][System.Threading.Tasks.Task]::WaitAny($pendingTasks.ToArray(), 250)
                 $madeProgress = $false
 
-                if ($null -ne $stdoutReadTask -and $stdoutReadTask.IsCompleted) {
-                    $line = $stdoutReadTask.GetAwaiter().GetResult()
+                if ($null -ne $streamReadState['stdoutReadTask'] -and $streamReadState['stdoutReadTask'].IsCompleted) {
+                    $line = $streamReadState['stdoutReadTask'].GetAwaiter().GetResult()
                     if ($null -ne $line) {
                         $stdoutLines.Add([string]$line)
                         Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
-                        $stdoutReadTask = $agentProc.StandardOutput.ReadLineAsync()
+                        $streamReadState['stdoutReadTask'] = $agentProc.StandardOutput.ReadLineAsync()
                     }
                     else {
-                        $stdoutReadTask = $null
+                        $streamReadState['stdoutReadTask'] = $null
                     }
 
                     $madeProgress = $true
                 }
 
-                if ($null -ne $stderrReadTask -and $stderrReadTask.IsCompleted) {
-                    $line = $stderrReadTask.GetAwaiter().GetResult()
+                if ($null -ne $streamReadState['stderrReadTask'] -and $streamReadState['stderrReadTask'].IsCompleted) {
+                    $line = $streamReadState['stderrReadTask'].GetAwaiter().GetResult()
                     if ($null -ne $line) {
-                        $stderrLines.Add([string]$line)
-                        $stderrReadTask = $agentProc.StandardError.ReadLineAsync()
+                        Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                        if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
+                            $stderrLines.Add([string]$line)
+                        }
+                        $streamReadState['stderrReadTask'] = $agentProc.StandardError.ReadLineAsync()
                     }
                     else {
-                        $stderrReadTask = $null
+                        $streamReadState['stderrReadTask'] = $null
                     }
 
                     $madeProgress = $true
                 }
 
-                if (-not $madeProgress -and $agentProc.HasExited -and ($null -ne $stdoutReadTask -or $null -ne $stderrReadTask)) {
+                if (-not $madeProgress -and $agentProc.HasExited -and ($null -ne $streamReadState['stdoutReadTask'] -or $null -ne $streamReadState['stderrReadTask'])) {
                     $drainRemainderSynchronously = $true
                     break
                 }
@@ -1929,7 +1938,10 @@ $result = $runAgentMethod.Invoke($null, @(
                     if (-not [string]::IsNullOrEmpty($stderrTail)) {
                         foreach ($line in ($stderrTail -split "`r?`n")) {
                             if ($null -ne $line) {
-                                $stderrLines.Add([string]$line)
+                                Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                                if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
+                                    $stderrLines.Add([string]$line)
+                                }
                             }
                         }
                     }
@@ -2143,8 +2155,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCs2xGA8v8hekLe
-# GRdZFR5Qvs8w+svda1IS9wTH+nmw9qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWCeFmSoUw2Vn5
+# OwAZdIQvBqPGT2meZqJR7NP7S85PpqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2277,34 +2289,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC21StiTJuB
-# h1NBIFy5duWCCr5LCGsC/OnsXEfSkq8nPDANBgkqhkiG9w0BAQEFAASCAgDCirNo
-# 9I4H6znLsEQEd4VnQqwvxxrjArSWn1+2ZJBRrhAdrmn5+faCBceHdX+TgPxJ6A/Q
-# Nf6q4ns8oyqclP5s+zd8vhmtpzphYpBL0kPawIDtXlDjHOEgI9i8PcGjZiqP8Ram
-# v6Nop4gOzEElImo/7eU3jW1zYp6dojDRCFIJYjGbJC27k3cDTDRg8eISmugPTTi2
-# nijF06zLKh1S/J1LnB+Nw+FWuPtMKcm8iIc8Jmtl/hbtjFmYKZGOSZ1wc/CmIm6j
-# F6vMP7rXHPsHBPzuf530V4ZyX/L6COa8k7iOtuHgfw/dnTBsau4hUr+TX4PdsjTn
-# sVRkODullkpDYr1fnyuPiA4SC8bcr2EDM8FRselWApju/GtWcJx6r0K0W9hSf2zH
-# a0UjyYM0dDIynJ2hVwlopV4U3bI1513GZ+HiJJ/n52IZvXaooIO47CjsI1M+wUBU
-# FC/WEuztXQLDKmYV5m9LfBdDWB/e/le8kEt+Un7sj+UTO79+X6ex7TvHr8AYvfQY
-# JHMeqG26k5og1SmojZZHAMxrDOfTt349t05uuZ6yuQaQbfrMGbWTL6iCQy29FLnA
-# D3PxUGaqyZKiL0J36kx1PW/oaNDRd4TLLD/BeDUSvfO1WiedH6SfA0gI3B8plNN2
-# 5rEMwm+V85qB9WZqjVte7eVGVxcLQdMpWnEGg6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBGf7dRFUql
+# 3UethcVfitA/4kiZdazgXQ5PAjq4Q+2LbTANBgkqhkiG9w0BAQEFAASCAgBXbqJ0
+# UGB4RSZ+Ngwh2plqVeUrj6fR5en4YhtfF9yryNSWSudkFbeLOoxm1WU9/0hC0/z/
+# L+2iDIRRsuKV7T4AyfruZFwOCeNODJ35kL5/AOi3F4NvrsxAL5XOQLVHA04eDzUx
+# XhyJkgcx9ye/V0fRBBw5aBTUUZYdXKsiZEtlNJR2g7GMhAHYFXE3b6WGH+FD+iQv
+# vUHbTkO7zlyeYGXYwUCsnSXbUDg1lnbkUC3EP86QBoFfmKNyyPmGv7OUMQGEB3ri
+# g43pOviJHwiMOfHiM3a0xnRqAkMIcc1XOEuwupAklWyb2j9dYcGqUS3thEOtSNxI
+# ZfX/ccFHK8iolGWYv4SyOEYpjmyGx6RI83HxtZXs3KBi5YpZiEcS2y7f4KXTk8+x
+# VUvvd8C0yZCcJ8osf3uea4sOnjqbE3/C95YTAGotE6AdWAf6qN30lDp/J7nGag5X
+# l1Ig7HyWCTsZ4mt2/tziST4IO/QO/rVdRdwU/ZhEdCiOloiyFXFZ9r+J71W+NQ2E
+# hWBcJxMwls2ywmyr3Dph/n2xYta+uyz3YCxFIFhp8x9EJpvgPog3Qr6KKMAyZiON
+# PUW+NcmRi19cys1hIHT+QfCsQvMpEomscivYsNu98HDgLpHU47/cXYy0LoYuW2pJ
+# I5zqWFHJUs+DPIIkFnpgIodC7SRyuJeUg4PnOKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTIwNDA3NTdaMC8GCSqGSIb3DQEJBDEiBCCRK0SN4aa5ODjSRwsj
-# /eD1y481TsDDW2RO627DqDHzyTANBgkqhkiG9w0BAQEFAASCAgCDP5vVS5wKKUaP
-# 9wgNixkY9Zz/mRJ+HBiFUXoYxyPkvUfT4CQD3saYtp6BKC2P5QusIV5YjKPMaPin
-# GXsNP1vIxP3NKG5mrOtqjiDWVN7hE8GfNElpyDOl9uCdI0jqxxBzsv760ODs0eAT
-# 1CaGnN5xotRcKF+nTcOzaoOCFe9Zqno/J/zQsBAkTHSFWMpGF1M3QVys3d6lp5sQ
-# g6CY698NyACqBc9acmQnZiTa8ttIUB2w3XG2l/4hz9AZvtnw4I9EPA1xr3PS8Baq
-# KhYRR4ZkHT0YN68Ff0ELNj/eCfzL4YfMRDsQzQlbD9GAfyPuN01QhcNT8UyICxfA
-# XRUGZhP/6phIqNkod6d+74WA1QUNu2xncrJ6MReco+kDn6Pvc21lcTq8dnBc7Ied
-# VKkg3ljugWNc8NkaP9L1PKStmvxqF1Shu4soWIq+1ZFNvsHmO9Lf6HUi+Q+NMs+u
-# Rb+GTPAg4vgMEDhz5vDJeWYTTuozDxTsnj5il1YtjBdcd0Yw0HgfLjTYQCHvIqQM
-# bl5NcpauHcf4/4CfOT/VOX1j7dAfV/ejKUE7cvK9gOtAiTEmcbKP9pcmXNKEnmbf
-# /D60AvPPyz6b8ghYSW1sGLDtntjVey1jSg4fTHibKP+b9VF2qXvp0/f9VbRSaohw
-# yzIKNQCwZnuC3c8BdclYPKuuwWZSzg==
+# BTEPFw0yNjA5MTMwMzAwMTNaMC8GCSqGSIb3DQEJBDEiBCA/+20mWFAoZMheJ0SD
+# UIYD/sm3Usd6S3oN20Zme9ZPZjANBgkqhkiG9w0BAQEFAASCAgCkO0BLzhRPXkyO
+# CYx+a2qQx17mOwdODbbgIk3lvoxaZ70IvaiTzoHLyZqnzWPi5ND41u6VE5roxe8g
+# SJIHgxuYUcPlw9AgiasxqLvqn3tTYCcwmXKpPjGZZOqZFJL4okliPckjjTGfiLY1
+# zUNNMgNAkuTT0xIhIcLtn5wOHNXe5Xt7pXu7w4HdX0LuRJ0pugm7TXMeBFjXU6tN
+# St1DtVOHaFeAxzl6mKl9xnNT2CI6i+1RAUeopBWd/z2JKevCDry7fT60CBgL083k
+# exsDz7mZ2SDo4wvY8OcGOlqrWDg6A4pJvLYbAfmfS9AxbpsEDtClTpwcjMfF9lpN
+# fBWWSvyEkpTPMilN4j++qGHEr5mTFIvHrp7OKjcisOg7JzGtw+oFYvEtdM8liwiu
+# eQxMtUX0QF3CmAri5uL7tN4nhrzaYBKV7vYHZqwB4mvTZnOBJfkXXv9HhpODOhFC
+# Jtjur4I58tWnQgQ2zgoCqrzZREHLTva4UxryzB32e5FFkSpQvWjiXsLBHsTByjEh
+# YE+7LLqOEAj+l+VUhAmZ/bc/3mkbxqqrvu1qKIjlPsaYE89T4b5D45dWZD76FFUg
+# f7TBS8tttjryaTrDNUpf6G96FcYeOM/Ck2b5q77SDlqLQxQccC6OMhn+3D9APLrg
+# Po31lwvySKhEPoWhIwCkO9NgCEjpFA==
 # SIG # End signature block
