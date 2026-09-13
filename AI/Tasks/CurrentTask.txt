@@ -1,66 +1,61 @@
-Please write a complete Python script that crawls the TechAgent Markdown archive and produces a clean JSONL training dataset suitable for LoRA fine-tuning on TechToolbox agent behavior.
-
-Required source directory:
-C:\repos\TechToolbox\LogsAndExports\Logs\TechAgentMarkdown\Archive
-
-Required file pattern:
-- Parse every file matching TechAgent_*.md
-- Ignore non-matching files
-
-Primary objective:
-- Extract high-quality instruction/response pairs from successful TechAgent runs
-- Write exactly one JSON object per line to dataset.jsonl in the current working directory
-
-Hard requirements:
-1. Read each markdown file and locate the section starting at "## Prompt" and ending at the next "## " heading that follows it.
-2. Extract only the text between "## Prompt" and the next "## " section, and strip markdown fences and surrounding whitespace.
-3. Locate the section starting at "## Output" and ending at the next "## " heading that follows it.
-4. Extract only the text between "## Output" and the next "## " section.
-5. Ignore any text under Preflight, Error Output, Exception, Recovery, and Postflight headings.
-6. Keep only runs whose file contains "- Status: Success" exactly.
-7. Drop any file that contains either:
-   - an "## Exception" section with content
-   - an "## Error Output" section with non-empty content
-   - any explicit failure state or stack trace
-8. Normalize whitespace in both prompt and output text.
-9. Drop prompts shorter than 25 words after normalization.
-10. Drop empty responses, placeholder responses, or obvious generic filler such as:
-   - "n/a"
-   - "none"
-   - "not available"
-   - "thanks"
-   - "happy to help"
-   - repeated punctuation-only output
-   - responses under 40 characters unless they are substantive task responses
-11. Deduplicate by exact normalized instruction text only.
-12. Keep the original source file name in the JSON field source_file.
-13. Set status to exactly "success" for every row.
-14. Assign a category using this deterministic heuristic:
-   - coding: prompt contains terms like PowerShell, script, function, module, command, cmdlet, code, regex, parser, API, automation, .ps1, function name
-   - operator: prompt contains terms like reboot, host, server, service, remote, AD, user, system, diagnostic, health, network, device, VM, patch, logs, permissions
-   - reasoning: prompt contains terms like analyze, review, diagnose, explain, root cause, investigate, architecture, compare, evaluate, summarize, decide, assess, reason
-   - safety: prompt contains terms like destructive, dangerous, remove, delete, disable, stop, kill, force, confirm, authorization, safe, rollback, escalation
-   - if no rule matches, default to reasoning
-15. Preserve only valid UTF-8 JSON records with keys exactly in this order:
-   instruction, response, source_file, category, status
-16. Write output to dataset.jsonl in the current working directory.
-17. Print a summary to stdout after writing the file:
-   - total files scanned
-   - total valid rows written
-   - total rows skipped
-   - first 5 source files included
-
-Implementation requirements:
-- Use Python 3.x
-- Use only the standard library (no external dependencies)
-- Build the script as a single self-contained script
-- Do not ask for confirmation at runtime
-- Do not write any temporary files
-- Do not produce markdown in the output except the final summary lines
-- If a file cannot be parsed cleanly, skip it silently and continue
-
-Expected output:
-A JSONL file named dataset.jsonl containing clean, deduplicated instruction/response rows suitable for LoRA training on TechToolbox agent behavior.
+Implement a narrow timeout-alignment patch so Invoke-TechAgent and TechToolbox.Agent orchestrator use a consistent run deadline, while preserving safety guardrails.
 
 Goal:
-Produce the highest-quality reliable dataset possible from the archive, with minimal noise and maximal domain relevance to TechToolbox tasks.
+- Keep a hard deadline (do not remove it).
+- Make the orchestrator run deadline configurable and bounded.
+- Align defaults with existing behavior unless explicitly overridden.
+
+Scope:
+1. Update `AgentOrchestrator.Run.cs` to replace the fixed TimeSpan.FromMinutes(10) run budget with a configurable value.
+2. Add configuration plumbing in `AgentConfiguration.cs` for orchestrator run deadline (seconds or minutes, choose one and use consistently).
+3. Ensure request/build path from `Invoke-TechAgent.ps1` passes the configured deadline into the runtime configuration object (or environment variable if that is the established pattern).
+4. Add/update config default in `config.json` under agent settings.
+5. Add tests in `Tests` that verify default, override, and clamp behavior.
+
+Required behavior:
+1. Default behavior remains effectively current-safe:
+- If no override is set, orchestrator deadline should remain 10 minutes.
+2. Override support:
+- Respect configured value from agent config (and/or environment variable if already used in this subsystem).
+3. Clamp bounds for safety:
+- Minimum 300 seconds (5 minutes).
+- Maximum 1800 seconds (30 minutes).
+4. On timeout, existing error text and failure classification should continue to work unless a change is required for correctness.
+5. No unrelated refactors.
+
+Implementation detail expectations:
+1. Prefer a single source of truth for effective deadline resolution (helper method).
+2. Include trace logging of effective orchestrator deadline at run start.
+3. Keep naming explicit, for example:
+- agent.orchestratorRunDeadlineSeconds
+or
+- agent.runDeadlineSeconds
+4. If both config and env var are supported, define precedence clearly in code comments and tests.
+
+Tests to add/update:
+1. Default deadline test:
+- No override => effective deadline equals 600 seconds.
+2. Lower bound clamp test:
+- Configure below 300 => effective deadline is 300.
+3. Upper bound clamp test:
+- Configure above 1800 => effective deadline is 1800.
+4. Valid override test:
+- Configure 1200 => effective deadline is 1200.
+5. Optional integration-level test:
+- Validate Invoke-TechAgent request wiring includes the deadline setting when provided.
+
+Validation to run:
+1. dotnet test for touched TechToolbox.Agent test projects/files.
+2. Any relevant PowerShell tests if `Invoke-TechAgent.ps1` plumbing is modified.
+3. Report exact pass/fail counts and list changed files.
+
+Output format:
+1. Short root-cause summary.
+2. Files changed with concise per-file rationale.
+3. Test results with command + outcome.
+4. Residual risk notes if any.
+
+Constraints:
+- Preserve current public behavior except timeout configurability and bounded alignment.
+- Keep patch minimal and readable.
+- Do not change unrelated retry, iteration, or tool timeout logic.

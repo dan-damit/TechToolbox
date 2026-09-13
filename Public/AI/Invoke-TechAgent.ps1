@@ -337,6 +337,16 @@ function Invoke-TechAgent {
 
     $resolvedMaxIterations = [Math]::Max(1, [Math]::Min(500, $resolvedMaxIterations))
 
+    [int]$resolvedOrchestratorRunDeadlineSeconds = 600
+    $orchestratorRunDeadlineValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'orchestratorRunDeadlineSeconds'
+    if ($null -ne $orchestratorRunDeadlineValue) {
+        [int]$parsedRunDeadlineSeconds = 0
+        if ([int]::TryParse([string]$orchestratorRunDeadlineValue, [ref]$parsedRunDeadlineSeconds)) {
+            $resolvedOrchestratorRunDeadlineSeconds = $parsedRunDeadlineSeconds
+        }
+    }
+    $resolvedOrchestratorRunDeadlineSeconds = [Math]::Max(300, [Math]::Min(1800, $resolvedOrchestratorRunDeadlineSeconds))
+
     $moduleRoot = Get-ModuleRoot
     $promptSourceLabel = 'inline -Prompt'
 
@@ -1246,6 +1256,7 @@ Hard requirement:
             LlmEndpoint                  = $Endpoint
             LlmDeployment                = $Deployment
             LlmApiVersion                = $ApiVersion
+            OrchestratorRunDeadlineSeconds = $resolvedOrchestratorRunDeadlineSeconds
         }
 
         $requestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-request-{0}.json" -f ([guid]::NewGuid().ToString('N')))
@@ -1346,7 +1357,8 @@ $runAgentMethod = $agentCoreType.GetMethod(
         [int],
         [string],
         [string],
-        [string]
+        [string],
+        [int]
     ),
     $null
 )
@@ -1411,7 +1423,8 @@ $result = $runAgentMethod.Invoke($null, @(
     [int]$request.PromptPreflightCriticalCount,
     [string]$request.RuntimeProfile,
     [string]$request.RuntimeProfilesJson,
-    [string]$request.ResiliencePolicyJson
+    [string]$request.ResiliencePolicyJson,
+    [int]$request.OrchestratorRunDeadlineSeconds
 ))
 [Console]::Write($result)
 '@
@@ -2082,6 +2095,16 @@ $result = $runAgentMethod.Invoke($null, @(
     catch {
         $markdownStatus = 'Error'
         $markdownError = $_.Exception.Message
+        # A late failure supersedes any earlier postflight assessment. Keep the
+        # markdown record internally consistent rather than implying success.
+        $markdownPostflightAchieved = $false
+        $lateFailureReason = "Run failed after postflight assessment: $($_.Exception.Message)"
+        if ([string]::IsNullOrWhiteSpace($markdownPostflightReason)) {
+            $markdownPostflightReason = $lateFailureReason
+        }
+        else {
+            $markdownPostflightReason = "$markdownPostflightReason; $lateFailureReason"
+        }
         Write-Log -Level Error -Message ("Invoke-TechAgent failed: {0}" -f $_.Exception.Message)
         throw
     }
@@ -2155,8 +2178,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWCeFmSoUw2Vn5
-# OwAZdIQvBqPGT2meZqJR7NP7S85PpqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCg+CA2uT9skoEv
+# I5WBB1ckw6STOPF0RGrZcFOirIxWh6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2289,34 +2312,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBGf7dRFUql
-# 3UethcVfitA/4kiZdazgXQ5PAjq4Q+2LbTANBgkqhkiG9w0BAQEFAASCAgBXbqJ0
-# UGB4RSZ+Ngwh2plqVeUrj6fR5en4YhtfF9yryNSWSudkFbeLOoxm1WU9/0hC0/z/
-# L+2iDIRRsuKV7T4AyfruZFwOCeNODJ35kL5/AOi3F4NvrsxAL5XOQLVHA04eDzUx
-# XhyJkgcx9ye/V0fRBBw5aBTUUZYdXKsiZEtlNJR2g7GMhAHYFXE3b6WGH+FD+iQv
-# vUHbTkO7zlyeYGXYwUCsnSXbUDg1lnbkUC3EP86QBoFfmKNyyPmGv7OUMQGEB3ri
-# g43pOviJHwiMOfHiM3a0xnRqAkMIcc1XOEuwupAklWyb2j9dYcGqUS3thEOtSNxI
-# ZfX/ccFHK8iolGWYv4SyOEYpjmyGx6RI83HxtZXs3KBi5YpZiEcS2y7f4KXTk8+x
-# VUvvd8C0yZCcJ8osf3uea4sOnjqbE3/C95YTAGotE6AdWAf6qN30lDp/J7nGag5X
-# l1Ig7HyWCTsZ4mt2/tziST4IO/QO/rVdRdwU/ZhEdCiOloiyFXFZ9r+J71W+NQ2E
-# hWBcJxMwls2ywmyr3Dph/n2xYta+uyz3YCxFIFhp8x9EJpvgPog3Qr6KKMAyZiON
-# PUW+NcmRi19cys1hIHT+QfCsQvMpEomscivYsNu98HDgLpHU47/cXYy0LoYuW2pJ
-# I5zqWFHJUs+DPIIkFnpgIodC7SRyuJeUg4PnOKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDlhrFteVoY
+# yRs0x1ig6bxD/nAgkjqCdoc7g95Tu742BDANBgkqhkiG9w0BAQEFAASCAgBKpWsn
+# 2sZrlb0mkVWXr3lk1jjLfEscdKd6rWTpb5+GJ8bCsQfKq1xtHmf6TbWBq1kRfnRl
+# eyDYeyU3I/y5ZiJV19F3hdEKPuOgtc/q/V5L1g9shVaC53xjVYSktGljiTS8y7XR
+# 6HNlV3wHPzySo2p+d40WmVFtIKZPW+Sc7lg0WBXRKWMWaZdFyttHq6+Y/6q2YVg1
+# kMkD2t8pv2J8vOuyxlpD/xmu3x9DiPhZtdk3mvbVl7qq35nyGPQRrNmMbcTGybSy
+# 1YwE7dKCNgs/O9KbxSweaDvIaXh66LHuAUPdjbDd20ej9XW3u3wkVr+1fEqRAs35
+# VUJRktZBqghOCS72Z593eMMJ4iH8z1jIsICUXHeiDZqAYoJ627yRr4P0AjZtjc6S
+# yxcjz91m8pR7zsff4SGsMVIe8OhUqwNY4E/L4jBxHXBbiL66Mkj1c/uYFPABC2rV
+# 6rfJzXtN4/Hfd0y8l/6D78PZF4ta608Q4haaYoULiDvzNRLbgq3hvVSJa2E8cCHV
+# YmC5ONmbUkYFlIE6jT9zsFakrP+YrbD4mTlz98EnD9itt4nUWpKBcFobTSh1+xJ8
+# XS6cPN8SP5EQIHubi9hqMkeATGQmC39Ch0BSCa1xDkjdC5VFYk7muVAfTDUmA3l5
+# bA+o8lIf/k72yIm5TR+v6aIoYW3LYqpLzcVNU6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTMwMzAwMTNaMC8GCSqGSIb3DQEJBDEiBCA/+20mWFAoZMheJ0SD
-# UIYD/sm3Usd6S3oN20Zme9ZPZjANBgkqhkiG9w0BAQEFAASCAgCkO0BLzhRPXkyO
-# CYx+a2qQx17mOwdODbbgIk3lvoxaZ70IvaiTzoHLyZqnzWPi5ND41u6VE5roxe8g
-# SJIHgxuYUcPlw9AgiasxqLvqn3tTYCcwmXKpPjGZZOqZFJL4okliPckjjTGfiLY1
-# zUNNMgNAkuTT0xIhIcLtn5wOHNXe5Xt7pXu7w4HdX0LuRJ0pugm7TXMeBFjXU6tN
-# St1DtVOHaFeAxzl6mKl9xnNT2CI6i+1RAUeopBWd/z2JKevCDry7fT60CBgL083k
-# exsDz7mZ2SDo4wvY8OcGOlqrWDg6A4pJvLYbAfmfS9AxbpsEDtClTpwcjMfF9lpN
-# fBWWSvyEkpTPMilN4j++qGHEr5mTFIvHrp7OKjcisOg7JzGtw+oFYvEtdM8liwiu
-# eQxMtUX0QF3CmAri5uL7tN4nhrzaYBKV7vYHZqwB4mvTZnOBJfkXXv9HhpODOhFC
-# Jtjur4I58tWnQgQ2zgoCqrzZREHLTva4UxryzB32e5FFkSpQvWjiXsLBHsTByjEh
-# YE+7LLqOEAj+l+VUhAmZ/bc/3mkbxqqrvu1qKIjlPsaYE89T4b5D45dWZD76FFUg
-# f7TBS8tttjryaTrDNUpf6G96FcYeOM/Ck2b5q77SDlqLQxQccC6OMhn+3D9APLrg
-# Po31lwvySKhEPoWhIwCkO9NgCEjpFA==
+# BTEPFw0yNjA5MTMxODQzMDVaMC8GCSqGSIb3DQEJBDEiBCAIhL9JRY/9C43x0X9P
+# g25h2oUYefwwueZ0i4+DGxVl1zANBgkqhkiG9w0BAQEFAASCAgA+tL1gDQhFCSMX
+# KBO0488za809zBT+bAirRoamvW7UqQ/9/oPPgrnILXIznYDrImES/7kpBQt0oYYi
+# LKIx0D6aIo4pydjsukHg30maOBH2iDOlflxzrrKu2novoPm7RuqhMr+JXostQy3R
+# 5HYPE1u4tYOYfhJGqscPhwXWCzaqBF0HQemHgMwM+XqqeSbT4sL+Za2TFiBHw3bH
+# tUfPPPPL3D/+Hov1IkaZBH3Zb8J/rCddm9AaiRAWEHx1/y1VlzmNu0Gf5+F2Cj2D
+# 6DfYg18qDBpHTel4ZSIbowY9efQ6OFp50XHBsoq7bNSZzT9Uy1DEyL2BV3nCwWd6
+# XuKWb1DgeGnVxCTweH1bvgF3wrjijjYFTXqR0pwB3sjtLz2DF5hLudPwE2V6OHxv
+# a+BGOuZV0kyPO0ZQQdPr4aH3/ofd/Yw7F29t8iB9eQbnw1fpP89KL4MFYueulMIH
+# SeOWJLs5FoQaej1L/otscWUKFHIyGocvepuxL/GOmb2ZyfENwhc/P25esTmnr1yS
+# Pk0mYnCg+JhyZ4EKVAaKHac5otSkP9r4Pif/qOMeJxbtjorEdt3iF9lmLZiXmtnZ
+# h8sU7PGXeZcSa8o3LVh+GlhKHVxiCQsirXbznBiLiISws8Or0q0kvHN1es3yqt/m
+# 4bb0jAm9Cyz2Jv4iNpojzvCLMs1FYw==
 # SIG # End signature block

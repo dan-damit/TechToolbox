@@ -224,6 +224,7 @@
       "defaultPromptFile": "AI\\Tasks\\CurrentTask.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
       "maxIterations": 50,
+      "orchestratorRunDeadlineSeconds": 600,
       "promptHistoryItems": 2,
       "fetch": {
         "allowedHosts": [

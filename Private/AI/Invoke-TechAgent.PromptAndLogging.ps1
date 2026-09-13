@@ -554,6 +554,21 @@ function Resolve-TTAgentExpectedOutputPath {
         return $null
     }
 
+    # Prefer deterministic directory-plus-name parsing so sentence prose cannot be
+    # swallowed into the directory token before a later filename extension.
+    $directoryAndNamedFileMatch = [regex]::Match(
+        $PromptText,
+        '(?is)\b(?:output|save|write)\s+(?:the\s+)?(?:script|file|output)\s+to\s+(?<dir>[A-Za-z]:\\[^\r\n.?!]*?)(?:\.|\s+and\s+)(?:\s*)?(?:name\s+(?:the\s+)?(?:script|file)|the\s+(?:script|file)\s+is\s+named|named)\s+["''`]*(?<name>[^\s"''`\\/:*?<>|]+?\.[A-Za-z0-9]{1,16})\b'
+    )
+
+    if ($directoryAndNamedFileMatch.Success) {
+        $directory = $directoryAndNamedFileMatch.Groups['dir'].Value.Trim().TrimEnd('.', ',', ';', ':', ')', ']', '}')
+        $name = $directoryAndNamedFileMatch.Groups['name'].Value.Trim().Trim('"', "'", '`').TrimEnd('.', ',', ';', ':', ')', ']', '}')
+        if (-not [string]::IsNullOrWhiteSpace($directory) -and -not [string]::IsNullOrWhiteSpace($name)) {
+            return (Join-Path -Path $directory.TrimEnd('\', '/') -ChildPath $name)
+        }
+    }
+
     $directPathMatches = [regex]::Matches(
         $PromptText,
         '(?i)(?<path>[A-Za-z]:\\[^\s"''`\r\n]*?\.help\.txt)\b')
@@ -909,8 +924,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCswCevv6sb4+TN
-# iuxIt1KUgchr4tgBo9JvNnHJwfa8CqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAE0fmVbYxV+hB2
+# 67ZYannYorUWDY7VCPntqJ3U8wRYIKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1043,34 +1058,34 @@ function Write-TTAgentMarkdownLog {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBefADnzCmL
-# fPE/VFiD+/nqB34yMQqRg44dPIPe16vU6TANBgkqhkiG9w0BAQEFAASCAgAkz25b
-# eA+cJGG92/njdrd31M82zyUFia6Srs9liXjt8ZMYEz8wMe2ebaEwCYxyxzv8lkO5
-# YYMRg+nPkiIn0KFWw64PNzLrDuXNPxiZiVmxwA5P+qL5zUhSecW0fPPCmBDrwJ0l
-# 3/lJRjUc8KTle+bH2sj9ajYY8bwtYoDwENy9MhvoC9sFIsnsu3IqsR3n+Fu75MM+
-# o8APFx1inYiHk6iXFzyoenYrwjcIM1LzNzxXZ/qGAeTktM6K4tMGxyRMjSAhNT/h
-# 1Mc0oyp8En+HI+sC/ER1k8NNx3xS7g7boUHItIObp0ktd2RhVS8uqmODhs7R6Smk
-# 64avJlAb56zJ7RLCTUn7UL2CUrC5Ln1tp9ZYd5OdQfLs1Jvy5vnEChpo5D/5ZZT6
-# kP34JWDhPU5pIavLPX8BGuG5T5NFiLXGjTeSt5Cw2HZMjGTbu+Zvduln/NvtVE+H
-# 9cfdv7+EdpclFlAj/yVER7vktDoGAO+Mvtl1FIp824E5Z1TREgtTuHtLozV4rrZW
-# EFbAvmKNR83BL2K73NypavYFbNxxGLBDjNVJGXBcEvnXVaB3cbuKAIebZXNFv0LC
-# WfG4oUFkXGCNtTi1BVJnDGYHsaLWeedSQAQWcnwIcMALQFICgMrzEhaBGHuNsGQf
-# yp1KDB63zLc8C2ewyle9/nfKahDz8alceDKP86GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqzTcggB55
+# uQyK/i56K9T0uDHHW+aqq9fB0+10laG7BzANBgkqhkiG9w0BAQEFAASCAgB39L7p
+# v8VV9TorUBCo/TAMOjpY1VmhNnci/nzaPrhSoHmHzYD1tBLN9+eEdAODQBbmMfay
+# fyd/gwzDqB60UDG0YlWhOSRav8sRZ6elUan/2BDQUeh2DXANHCHsJMA/rAn4Y7mi
+# D4QKYquVWddKe0dbl9JytAfKq+MNRS3Jagq2YWIIUTH45IDx9ozt2D1/CCIBAkwT
+# lrJdcsOXGwn+Ogwa7mnDqgx0dMRT1EaKvnFUjR6n/1ringpwOcxotk+MPSv5FiWu
+# OSicAzl+jmBje4+MhauWikA9mVjLgRkmHR4uNhSx8yc0IKb4+ITH4QMbCu77xFhA
+# t969L/26rQhyyhn3/fe24heJUPKhBNpahnEmqBm2b4XoULIPjcUHw/uX9oPjbJDI
+# iuqpdksM0A+fNldYg2wJ5B7+NIGh3dM4pWeWKPjgJJxopHtV8jRsnW1ypgpuVcqu
+# Xn+U2PhwS8qeqlihYd9xx6rS+2sg6aKwcpASezOD9ldgURdUn1Gtu2CgprKPIyAz
+# X29atHJ+JfLfYtuotDDHglpSjn8JbNH4xMv+MllViG75dFGZaZs6dTTyHlxgXWkG
+# lDA8s+joyvtX9HvLeusU/PTWrmRXa6X1TbFtdf1wiWmKbiCcxifd9dXGJSn7u3Fj
+# 5kQmqI4/7lZ345CmWzKEeXTGTg9gPVwaV33q8KGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTIwNDA3NTZaMC8GCSqGSIb3DQEJBDEiBCAAMg4t1mcrUWFl9ePG
-# 6mzRJGRp4it0bV4vI343rA37XTANBgkqhkiG9w0BAQEFAASCAgAUYBmafX2zO3yH
-# ZfUI/84TjJdgaPKzByPY1wT/18u8PhGVT6e29T0g5EVohkRCqg81ukGtFW4RX/UE
-# 8Ev2XAq7gM+rw3iChgTjepJHeozwA8mN2qsGwghfexlChZH/NC4oi+4NMDIByOs8
-# VfRa86/MQeORpLwFcSwrdi5aiO2brdOAMG0yxFroeqBNGlIaCVSq9+Ezr88O9hKI
-# E9N/zHwOS09K9Ub05FFImPC88YUwQBCoG5YDaTdq1xWJF83ULLf+P/V2EcOZRcUu
-# oWhLeeIxYAJLjWZJETY9UPMPsEkl6ziS9e5BVACcACB9cLF69QbZL/jfYzyXLvOR
-# f2sZVSm4A1X5H8aF9gDrSIPjyFVoHz0yCKOn9BH9FR+rHeTNjfuMg8k+x1L4oVcm
-# biVjJRsQ9SGtmEFVYSJm634iZcp3cANWoFiX9kFE3mPxNlsawhBdydbKFb9j5oEP
-# kK1pHN0EHKBYLHac9gMb8EqvtP4CZxqV2FUhPnYDcGadtdJG5ALdfaVLJTOC2Bt3
-# GtciYZQs1AFQmKEA66j+M5hOeDfS5g4hCNiXpzZkJqS062f0vWkxcIkPuzncyciV
-# cCQ2t4nRPuCHqJhpXm3F1zlncIlvqk6wYyebHR9x7PaLWHksRubu7/b+kkjmS7wS
-# +dSJgfh9omgD+nGUIVbNx36tZ9cbhA==
+# BTEPFw0yNjA5MTMxODQzMDRaMC8GCSqGSIb3DQEJBDEiBCDYddpMF2HmW+dTsnhl
+# pAjptce4QfwvYXlZGz2vLwu7kjANBgkqhkiG9w0BAQEFAASCAgBe7mOZFuAMvn/T
+# qdfLTDdazdH9zsk1Dm7wV/ZCHaxVUaGoNg/2P8RAEGW797Ze/zjPQ/AGWO/a8K3W
+# 5p0oijcGg5x+bhYtmjzyYsXLGSFdEfYIlizxqAu02rXQ6580bXxCK2KdK8iktnDF
+# aJBEmGs6pFIe4yn+CfVhmYLLfuXgfrXMdAXREWkyJ5aI6oXGefpC9CxyEFh+D0gY
+# N/iz5ahMxCoLw9WRGBLrb/16UT4w7owPdw88RfXuom9axCwxD3gyuIsyvLVtcaqo
+# IFG2I5+126MpRP7FcsxifQPhfk6FoM3p/1zYv3dhBOJ7dsG2TRKZsSZTcC0Ss1Tq
+# hxtV3Tk5sesrAW8uMcfT8WaXuSweC5KvdzBAMyuJ0hm32uQf7Y3aHalnTRwiXtPV
+# qU36fYnr2JFMJuPVONMdEXS4EzYQckvDbjCcckLCOnYTny8T+88Vip5lqaz5KVIE
+# 70/EL5Mvo2qL1IXd6gTn01IIWtth7CWvWTpBI5BRXg3KXeZstVdqGt7hMzdBhPY0
+# 0j9sXVpyz83xuX7hQ1OTkogyMvZio1MtSu3zOQE/Qi9RodiIOwupR5mIQo3k9Vsq
+# tiRSTcwjTHmjHKYjyc16vao1taWkMadfEs9LN+vkXItcZGmUJbkiH5BHOaBwKaOr
+# DCKeO4uI09iHNfIv0n+IALDJUKhYRw==
 # SIG # End signature block
