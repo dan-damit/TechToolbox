@@ -508,6 +508,31 @@ function Resolve-TTAgentExpectedOutputPath {
         return $trimmed
     }
 
+    $normalizeWildcardDirectoryPath = {
+        param([string]$CandidatePath)
+
+        if ([string]::IsNullOrWhiteSpace($CandidatePath)) {
+            return $null
+        }
+
+        $match = [regex]::Match(
+            $CandidatePath,
+            '(?is)^(?<dir>[A-Za-z]:\\.*?)(?:\\|/)?\*(?:\\|/)?(?<name>[^\\/:*?<>|]+?\.[A-Za-z0-9]{1,16})$')
+
+        if (-not $match.Success) {
+            return $null
+        }
+
+        $targetDirectory = $match.Groups['dir'].Value.Trim().TrimEnd('\', '/')
+        $fileName = $match.Groups['name'].Value.Trim().Trim('"', "'", '`')
+
+        if ([string]::IsNullOrWhiteSpace($targetDirectory) -or [string]::IsNullOrWhiteSpace($fileName)) {
+            return $null
+        }
+
+        return (Join-Path -Path $targetDirectory.TrimEnd('\', '/') -ChildPath $fileName)
+    }
+
     $tryNormalizeDirectoryAndNamedFileInstruction = {
         param([string]$CandidatePath)
 
@@ -563,6 +588,7 @@ function Resolve-TTAgentExpectedOutputPath {
 
     if ($directoryAndNamedFileMatch.Success) {
         $directory = $directoryAndNamedFileMatch.Groups['dir'].Value.Trim().TrimEnd('.', ',', ';', ':', ')', ']', '}')
+        $directory = $directory.TrimEnd('*')
         $name = $directoryAndNamedFileMatch.Groups['name'].Value.Trim().Trim('"', "'", '`').TrimEnd('.', ',', ';', ':', ')', ']', '}')
         if (-not [string]::IsNullOrWhiteSpace($directory) -and -not [string]::IsNullOrWhiteSpace($name)) {
             return (Join-Path -Path $directory.TrimEnd('\', '/') -ChildPath $name)
@@ -595,6 +621,11 @@ function Resolve-TTAgentExpectedOutputPath {
                 $normalizedNamedPath = & $tryNormalizeDirectoryAndNamedFileInstruction -CandidatePath $candidate
                 if (-not [string]::IsNullOrWhiteSpace($normalizedNamedPath)) {
                     return $normalizedNamedPath
+                }
+
+                $normalizedWildcardPath = & $normalizeWildcardDirectoryPath -CandidatePath $candidate
+                if (-not [string]::IsNullOrWhiteSpace($normalizedWildcardPath)) {
+                    return $normalizedWildcardPath
                 }
 
                 if ($candidate.EndsWith('\\', [System.StringComparison]::Ordinal)) {
@@ -636,7 +667,12 @@ function Resolve-TTAgentExpectedOutputPath {
             continue
         }
 
-        $candidateDirs += $candidatePath
+        $candidatePath = $candidatePath.TrimEnd('\', '/')
+        if ($candidatePath.EndsWith('*', [System.StringComparison]::Ordinal)) {
+            $candidatePath = $candidatePath.TrimEnd('*')
+        }
+
+        $candidateDirs += $candidatePath.TrimEnd('\', '/')
     }
 
     if ($candidateDirs.Count -eq 0) {
@@ -655,7 +691,7 @@ function Resolve-TTAgentExpectedOutputPath {
         return $null
     }
 
-    return (Join-Path -Path $targetDirectory -ChildPath $fileName)
+    return (Join-Path -Path $targetDirectory.TrimEnd('\', '/') -ChildPath $fileName)
 }
 
 function Resolve-TTAgentRecoveredOutputMessage {
@@ -924,8 +960,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAE0fmVbYxV+hB2
-# 67ZYannYorUWDY7VCPntqJ3U8wRYIKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCFmTXb3fH4RP61
+# MHpc+TgtsVUzKllljQlLMIHEyo4iuKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1058,34 +1094,34 @@ function Write-TTAgentMarkdownLog {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqzTcggB55
-# uQyK/i56K9T0uDHHW+aqq9fB0+10laG7BzANBgkqhkiG9w0BAQEFAASCAgB39L7p
-# v8VV9TorUBCo/TAMOjpY1VmhNnci/nzaPrhSoHmHzYD1tBLN9+eEdAODQBbmMfay
-# fyd/gwzDqB60UDG0YlWhOSRav8sRZ6elUan/2BDQUeh2DXANHCHsJMA/rAn4Y7mi
-# D4QKYquVWddKe0dbl9JytAfKq+MNRS3Jagq2YWIIUTH45IDx9ozt2D1/CCIBAkwT
-# lrJdcsOXGwn+Ogwa7mnDqgx0dMRT1EaKvnFUjR6n/1ringpwOcxotk+MPSv5FiWu
-# OSicAzl+jmBje4+MhauWikA9mVjLgRkmHR4uNhSx8yc0IKb4+ITH4QMbCu77xFhA
-# t969L/26rQhyyhn3/fe24heJUPKhBNpahnEmqBm2b4XoULIPjcUHw/uX9oPjbJDI
-# iuqpdksM0A+fNldYg2wJ5B7+NIGh3dM4pWeWKPjgJJxopHtV8jRsnW1ypgpuVcqu
-# Xn+U2PhwS8qeqlihYd9xx6rS+2sg6aKwcpASezOD9ldgURdUn1Gtu2CgprKPIyAz
-# X29atHJ+JfLfYtuotDDHglpSjn8JbNH4xMv+MllViG75dFGZaZs6dTTyHlxgXWkG
-# lDA8s+joyvtX9HvLeusU/PTWrmRXa6X1TbFtdf1wiWmKbiCcxifd9dXGJSn7u3Fj
-# 5kQmqI4/7lZ345CmWzKEeXTGTg9gPVwaV33q8KGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDPeCti/Ph0
+# g+/nu9HqgQb1St30RFcN6XqUmPPVvRtBzDANBgkqhkiG9w0BAQEFAASCAgBVmYhM
+# QoaHVi2Jh1ofGIAH10lM02OUN/DK8JqV0LKIL2HKcdgjqGJdg84AvQD6SFFbLXxk
+# I3djc2KwNvoDELX4M6Ndklob2EtS50ufKwCupyujgB2rFI+q+3QYnzoywyuaWEWX
+# 1czjLwVaEP2fKvBOBEDvoX87Z9QMrxDSSohTYdFX//aDUcZMp/w/xM8ACWfwWH1D
+# iz1EaRofkWyCqos6qQlypWdFil/SMgKyYLfQ3pCqAt5+JD1q0b8RIqRc+ip/0IrI
+# G2wh25kC1gnsVL9K2NZqUezJEKR1S8UpffHkwxeC/QEB5yWiQs4O3NpF/vPAVxn4
+# VtxnWjT/U7zT5np52FomwJv4fdW8ixAkN3pbR5xRq5MDHaaGRByUKMCgpDfK0yQ2
+# j6UEiut4NJClxwYYYdi8v2TA7Di5Zt6HHd3e25KHnkiXEBzW2u/TZ7Qz3OmqRd/C
+# LZUawydkjZWIMJV+8R5MSBAvWGIgj5zd7JnoXrzsI+QChoOWTUcERpbzxYyRjHcF
+# oe86Tf3YqkboB47EkPlD+AcH3sF225T3/Le5Us2txtM6V0NcVWbiRTvTBveNXwmK
+# ++MYJB625DrUE/KrQkPpWqnx9dBVhA3kRdsNRjgEFHLPmX1L1TRJnd4BNhf8YoBL
+# 99xWuhWONEunTcuWsg4R38lNmpLAeyP/9d2NZaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTMxODQzMDRaMC8GCSqGSIb3DQEJBDEiBCDYddpMF2HmW+dTsnhl
-# pAjptce4QfwvYXlZGz2vLwu7kjANBgkqhkiG9w0BAQEFAASCAgBe7mOZFuAMvn/T
-# qdfLTDdazdH9zsk1Dm7wV/ZCHaxVUaGoNg/2P8RAEGW797Ze/zjPQ/AGWO/a8K3W
-# 5p0oijcGg5x+bhYtmjzyYsXLGSFdEfYIlizxqAu02rXQ6580bXxCK2KdK8iktnDF
-# aJBEmGs6pFIe4yn+CfVhmYLLfuXgfrXMdAXREWkyJ5aI6oXGefpC9CxyEFh+D0gY
-# N/iz5ahMxCoLw9WRGBLrb/16UT4w7owPdw88RfXuom9axCwxD3gyuIsyvLVtcaqo
-# IFG2I5+126MpRP7FcsxifQPhfk6FoM3p/1zYv3dhBOJ7dsG2TRKZsSZTcC0Ss1Tq
-# hxtV3Tk5sesrAW8uMcfT8WaXuSweC5KvdzBAMyuJ0hm32uQf7Y3aHalnTRwiXtPV
-# qU36fYnr2JFMJuPVONMdEXS4EzYQckvDbjCcckLCOnYTny8T+88Vip5lqaz5KVIE
-# 70/EL5Mvo2qL1IXd6gTn01IIWtth7CWvWTpBI5BRXg3KXeZstVdqGt7hMzdBhPY0
-# 0j9sXVpyz83xuX7hQ1OTkogyMvZio1MtSu3zOQE/Qi9RodiIOwupR5mIQo3k9Vsq
-# tiRSTcwjTHmjHKYjyc16vao1taWkMadfEs9LN+vkXItcZGmUJbkiH5BHOaBwKaOr
-# DCKeO4uI09iHNfIv0n+IALDJUKhYRw==
+# BTEPFw0yNjA5MTMyMjIzMTZaMC8GCSqGSIb3DQEJBDEiBCBT3eczRrwMWf/oA1Ev
+# Y2at2aA5wNlpSqFrqAR6BlH8vjANBgkqhkiG9w0BAQEFAASCAgB2YE6YZGc0bYxF
+# TRlTj2G6RxyH5v/oerWrd/yE5o4cwFNA8ewRTZGz5WcuCjg7+tXdcGvPwQDV8IJV
+# e9f3zYHDpRiox4PCO47kEJxiWzijc5xoU8pIML6FvQ2nefm5qq2s0u1eex/6Dqu2
+# GsVWs0Ebb1O/V6Ync+j5ra4OInMpankXy2UXU5ahOFUawCvmbfcQzMJ9QeN+qEaF
+# aM0g7UE2VPv/0LaxQopXLlzDdx+LwHRggF+bykDlb0cuS/B17p8Zr6TgCrN+r+u7
+# FdGTZ53lC2jjFEsveDbpwuLBnNuAPFIO5QqDTZVteitiEDNOYq35XMpBA/O4k3lp
+# 5ClqHEcuo75Hkiqu1YewLk07DvI9aNJHailyur29jnGiXHXMc7rB1DZHv+knavUQ
+# aS4gvayB7QJEbu3lnYywGDUw5f6AJPbOg7xwVYPMnUCIc9MXPkrjlN5F2wIieetX
+# g6gU2yIElvxGboNmKN6dquppbSMuO4V3huClnAtA5s6JfPGf3ekpxDd4ebufQCiM
+# c3bo0zXowibSJZcWLwzxYfAPEmkRZosuzUWSmqmOdKYFhQ36Ztz2xlH3spEBi9Vo
+# PT9o4uoT6cybirSJTVaQH5BWRFsKkgLeDFShHose0L5YrCUGSwMu40+EdHimzLz3
+# K9oaxHANRxIZMz3PNAgD/iOJfVjSXg==
 # SIG # End signature block

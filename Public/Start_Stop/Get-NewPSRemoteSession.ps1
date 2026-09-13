@@ -1,123 +1,62 @@
-Describe "Invoke-TechAgent Prompt Preflight" {
-    BeforeAll {
-        Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
+function Get-NewPSRemoteSession {
+    <#
+    .SYNOPSIS
+        Lists all available PSSessions and selects the first one into a session variable.
+
+    .DESCRIPTION
+        - Enumerates every PSSession in the current runspace via Get-PSSession.
+        - Outputs each session as a PSCustomObject with common properties.
+        - After the list is enumerated and output, picks the first session and
+          stores it in the session-scoped variable $script:ActivePSSession so it
+          can be used by other scripts (e.g. Start-NewPSRemoteSession / Stop-PSRemoteSession).
+
+    .OUTPUTS
+        PSCustomObject[] - one object per PSSession with Id, Name,
+        ComputerName, ConfigurationName, State, Availability, and Created.
+
+    .EXAMPLE
+        Get-NewPSRemoteSession
+
+    .LINK
+        Start-NewPSRemoteSession
+        Stop-PSRemoteSession
+    #>
+    [CmdletBinding()]
+    param()
+
+    $sessions = @(Get-PSSession)
+
+    if ($sessions.Count -eq 0) {
+        Write-Log -Level "Warn" -Message 'No PSSessions found in the current runspace.'
+        return
     }
 
-    It "Does not emit common false warnings for conversational weather prompts" {
-        InModuleScope TechToolbox {
-            $result = Invoke-TTAgentPromptPreflight `
-                -PromptText "Please check the weather for today and tomorrow in Green Bay Wisconsin. Output the details to console in markdown." `
-                -Mode "chat"
-
-            $result.Critical.Count | Should -Be 0
-            $result.Warnings | Should -Not -Contain "Missing clear task verb (for example: update, analyze, fix, plan)."
-            $result.Warnings | Should -Not -Contain "Missing concrete target (file, function, module, system, URL, website, or path)."
-            $result.Warnings | Should -Not -Contain "Missing explicit constraints or preferences (style, safety, formatting, scope)."
-            $result.Score | Should -BeGreaterThan 40
+    # Build and output the list as PSCustomObject.
+    $output = foreach ($s in $sessions) {
+        [PSCustomObject]@{
+            Id                = $s.Id
+            Name              = $s.Name
+            ComputerName      = $s.ComputerName
+            ConfigurationName = $s.ConfigurationName
+            State             = $s.State
+            Availability      = $s.Availability
+            Created           = $s.Created
         }
     }
 
-    It "Still warns for truly ambiguous short prompts" {
-        InModuleScope TechToolbox {
-            $result = Invoke-TTAgentPromptPreflight -PromptText "help with this?" -Mode "chat"
+    $output | Format-Table -AutoSize
+    $output
 
-            $result.Warnings | Should -Contain "Missing clear task verb (for example: update, analyze, fix, plan)."
-            $result.Warnings | Should -Contain "Missing concrete target (file, function, module, system, URL, website, or path)."
-            $result.Critical | Should -Contain "Prompt is too short for reliable execution."
-        }
-    }
-
-    It "Collapses adjacent duplicate long lines in agent output" {
-        InModuleScope TechToolbox {
-            $input = @(
-                'Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.',
-                'Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.'
-            ) -join "`n"
-
-            $result = Remove-TTAgentAdjacentDuplicateLines -Text $input -MinimumLineLength 24
-
-            $result | Should -Be 'Clarification needed: I need a bit more detail about the target file, service, or symptom before I can choose the safest next step.'
-        }
-    }
-
-    It "Preserves adjacent duplicate short lines when below minimum length" {
-        InModuleScope TechToolbox {
-            $input = @('ok', 'ok') -join "`n"
-
-            $result = Remove-TTAgentAdjacentDuplicateLines -Text $input -MinimumLineLength 24
-
-            $result | Should -Be $input
-        }
-    }
-
-    It "Infers expected output path from directory and named-file phrasing" {
-        InModuleScope TechToolbox {
-            $tempRoot = Join-Path -Path $env:TEMP -ChildPath ('tt-agent-path-parse-' + [guid]::NewGuid().ToString('N'))
-            $prompt = "Please create a PowerShell script. Output the script to $tempRoot and name the file Invoke-RebootRemoteHost.ps1"
-
-            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
-
-            $resolved | Should -Be (Join-Path -Path $tempRoot -ChildPath 'Invoke-RebootRemoteHost.ps1')
-        }
-    }
-
-    It "Combines a directory sentence with a separate Name the script phrase" {
-        InModuleScope TechToolbox {
-            $prompt = 'Please create a PowerShell script. Output the script to C:\\repos\\TechToolbox\\Bin. Name the script `Invoke-RemoteRebootHost.ps1`'
-
-            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
-
-            $resolved | Should -Be (Join-Path -Path 'C:\\repos\\TechToolbox\\Bin' -ChildPath 'Invoke-RemoteRebootHost.ps1')
-            $resolved | Should -Not -Match 'Bin\. Name'
-        }
-    }
-    It "Resolves wildcard directory shorthand to a concrete output path" {
-        InModuleScope TechToolbox {
-            $prompt = 'Please create a PowerShell script named Get-NewPSRemoteSession.ps1 to accompany the other two PSRemote session related scripts in C:\repos\TechToolbox\Public\Start_Stop\*. I want the script to get and output a list of all available PSSessions. After the list is enumerated and output as a PSCustomObject, I want the script to pick the first one to bring into a session variable. Output the script to the same directory as the other two PSSession related scripts.'
-
-            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
-
-            $resolved | Should -Be 'C:\repos\TechToolbox\Public\Start_Stop\Get-NewPSRemoteSession.ps1'
-            $resolved | Should -Not -Match '\*'
-        }
-    }
-    It "Does not resolve a malformed path containing prose" {
-        InModuleScope TechToolbox {
-            $prompt = 'Please create a script and write it to C:\\repos\\TechToolbox\\Bin. Name the script later.'
-
-            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
-
-            $resolved | Should -BeNullOrEmpty
-        }
-    }
-
-    It "Normalizes recovered invalid-json envelope to finalAnswer text" {
-        InModuleScope TechToolbox {
-            $message = 'Agent returned invalid JSON twice. Last response: {"needsTool":false,"finalAnswer":"## Ready\nScript created.","reason":"done"}'
-
-            $resolved = Resolve-TTAgentRecoveredOutputMessage -KnownFailureMessage $message -ExpectedOutputPath 'C:\Temp\Invoke-RebootRemoteHost.ps1'
-
-            $resolved | Should -Be "## Ready`nScript created."
-        }
-    }
-
-    It "Builds fallback recovered summary when envelope cannot be parsed" {
-        InModuleScope TechToolbox {
-            $message = 'DECISION_NO_PROGRESS_GUARD: bounded recent-history progress did not change.'
-
-            $resolved = Resolve-TTAgentRecoveredOutputMessage -KnownFailureMessage $message -ExpectedOutputPath 'C:\Temp\Invoke-RebootRemoteHost.ps1'
-
-            $resolved | Should -Match 'Run Recovered'
-            $resolved | Should -Match 'C:\\Temp\\Invoke-RebootRemoteHost.ps1'
-        }
-    }
+    # Pick the first session into a session variable.
+    $script:ActivePSSession = $sessions[0]
+    Write-Log -Level "Info" -Message "Selected session '$($script:ActivePSSession.Name)' (Id $($script:ActivePSSession.Id)) into `$script:ActivePSSession."
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB6wWWrmCk4WANC
-# /n8KKb1ZwbaRxEZUVmmxFjOu44We46CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDqaweYNOE1MGNd
+# DHItbKSOdeJ1hbepoMTgotC4+DGFF6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -250,34 +189,34 @@ Describe "Invoke-TechAgent Prompt Preflight" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCJ1bKkU6bv
-# rbLqg4iYA1yBuA5v7lr52z1CrWYDNkpnJjANBgkqhkiG9w0BAQEFAASCAgCPzGXu
-# 5t1ilEe5SQHda8ldEL2bWWdS2P8XP2A4fquIZLJINDD4ssKYf7oEfSR5Vis7cvnt
-# qh/zqVWQTDhBIFyC0DTsTyWSYBe68FJAj+bV+RAXqan5gbFSHBF8/Y+uwEJN1bf4
-# DiwIrJiBkp6CYZmr+Q/Z53N4JAk1q/PxwWy7jnuHIR/6Aifkk3+npek+LmzQRKcb
-# L0EPIt3MnCtFY3X3vktVukWZm9/y7Y0sp3jj5ibQqx4rcJE5KKi0+bCjpnNmWL3a
-# RuAtsHJw39PkBCkX7TuCZU1dFoyUgZnnvfFl20Aj4jHLXoChwF+QuBfgm1raR0Rr
-# Xu5J3ejPKC90w8x0SXmgvlHb1oCAZPYt1BI9w8X42d1+WdxnoscO+dGH0GuTJE47
-# 3r0z+1C8imEwKprZpwC04jeZotu2R1mSLl/gLQBfdg7mT/a5uwvhsvcprPeYJ8lD
-# 4ZpEDI9YbrJgAJdmgYf/inr/udoaZZwaGKZFL7GAiJWks3e6jyOWLmyfqYK6K35D
-# wWXCK7CGMCv6agU9HW7FP+SaCGA1VbYMkZEUSw1tD1n5Dn79jZRvdsOFuxPKUb1i
-# 14qHbN3oXtxGpm0++qwgNTjA9voiZa4QnC8OhG8OJ5noG53wqBF+91gu3rRVB0oP
-# SHebTbn1B2C//5aviYJ8lGM/oc6/FLHAoiKC3qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA+k5AliQMV
+# wmHxrzWA5ZEYzz9VnnSeVTKue3U0c9B/qjANBgkqhkiG9w0BAQEFAASCAgCryHij
+# KzdMfm5lbC5kj+6JmxVRhyXzHSGWi8sjJXfa0IiZkmqwzAx9tTA5QVU4P8DXI0En
+# H+hQnVyLBDeEdhrCLV4NFkNM5XOIEX9OE2dN/e+j9L0BmPQn9v3o91GimzBWC7D1
+# Mvu6haL3TYmeEaxQrtsSCg5u+BmzuYqofDHNIi3TCSIqvzGXIWY2MQQSEpcuf+yv
+# h80c57ME1+VGFDS1dNZdJ56fWYuh/KY72es7FaQiT6rpRU+wxoEFT/IJByFBQnTl
+# mKR+BqVljWZYsuHh4xFmzABz8vg+/fIWIsqC4+O1A6p51qjc9t1IEo15n+MVUGom
+# hu9spXYum3j+yOdcSZVlD6myuK1Wh/jNYN11IEPdtiwuqQpawjlF7P2d6M9G0n4K
+# 4i31MRjEIRhxU53SARjowWwV1WwhpxI6ZfPI0/uuBO0tHUatVJktR+kq/U+yilKu
+# vOlWwUj4i2BMiFRRJNk7SjpEApwwSOqkqIHcWFdU6jKrPNMY0i/dlvkCtP3/drQ0
+# RJHEXktWiZ3ikv4JhIHEt1dBzLpn2YltAartYIxcOTBlnFitVE3IOtUDD+kZuzcD
+# h2ob64BNmg3ijLqxfeZMxgnt3A6I538ol268FXbF4m+T0MwisMqLQg7+prEG6liU
+# DFOXrKaLMnJlWrg47JNXdmYP1sttixvjpp7YnKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTMyMjIzMThaMC8GCSqGSIb3DQEJBDEiBCAZmGb8IBFyGKEskA+t
-# +Rw+5mH43hJ6pV1T02Q7J++BzDANBgkqhkiG9w0BAQEFAASCAgCJVWKTsS1HfOFb
-# fIR+L9ts6mZ0L+0dMwsVn1FeyIOOTCGee2Cjw8HLMAthxjikkCNrIC8q8E6y5EkD
-# 24EAzpTrJyT4UphrzthS4fYNyT7Apdsv2fCNTd1U4fpP+uxiORR1bWoFmpTiaHzd
-# iX7K1FGbSDAYnuViUO8M3apm7C491GiFZmrAZUe+jLodGoyFtWSDlX5WuqZB37V8
-# 1CvgrTFAPuRBHef2tbO+egpfPRl2OnfQo+DFROuWjyy/LZBSjIzXwG4NKzbANJ16
-# e3tKS0MWN9KB74uYYGif2OtI2M+HJ8TFRlRFnKPmbyTeiSUoRoFPBThI+qj8O4cf
-# XgTcLBgoIW3O7DrDT7YiVtPF7Io2AAqmSKHAryWpyibnR1hCNiOmQeeKsrsWInL0
-# btgqeGn0q2J9GbMDMUid+0rw7v3jewRzv3XXbBAhE8VqGZHxDYLuf3VQJBMZFq3s
-# JJUhx2f8wPdcV4sw143qCeJ/l/qyrtJc07C7hTXQM8ARnmM8zMalUaDqfiWtQ7V+
-# 0i6/Uhc2kHIKh02vRGCXxh1+UmwAKky1IOu40YOSFda8shIAwI2fRlwCqDQ936fA
-# YeRM+wIxprMUyoeELpBVJP4rNZFdZJtoWFqkQYs8UHxadbCMHU0wk9uwXkOjbRK7
-# u71Cw7OAjZnhD50LZqSzeJdU9uRtiQ==
+# BTEPFw0yNjA5MTMyMjI2NDVaMC8GCSqGSIb3DQEJBDEiBCDPAqcFliRj5Vb0buZ9
+# 1OwFNCDU/2ojDbXs3YuwZxM1oDANBgkqhkiG9w0BAQEFAASCAgBpY96bS1xRdggH
+# uQgHVzUeUg+MFOr7KpBIfs/oVPsrA2j0GxxxnQp5idGBdWsPvGn24BI3ZEXzgHhV
+# 1u3swALx4LiPot5eH3XctI4AfztmTJivHJGNXRbMXiuGLh4SmoKWPGUJH4PVoRUw
+# jW52Psw4MWACAQQBS2lQIxSI8UdU5iRjEfVJWK1qeeXXE4svdCFVjCgJ6olkLkOk
+# 2GnocZsedvcA0B8gVAh6mw6r/hsetPJq2CRQHQeByrTdCm02lBSCtXZRD3NaDKZ7
+# l3/9/pP9kqFERlBeWbH9C4j+wQk5XUYgatTdrTSVgphQSSLDOS8OVi614sH0ii5P
+# U3DYKPwriVtepQaep9At++f//PhpzE+//a6cjDKEPtO7mCy1adad5U43zPAxi7Nd
+# onu4lezR7/Axh+IBFz1nIZneX40ZWsWVI/OGCazNowVc6QGO9y+tx7mVqazMzfvi
+# qnaLwiibC1r35Ls6umTVoZP6jMbtZSnMhIf9RvoK23f0yhIQtogDROstVM+irxc5
+# rjOjedaOLfbJCYhJUyEIUH7gsP4VzmwP7O0ImPdIFIfUuONNqb+gBsJ6xIyndK54
+# W55gg7Tf0vEvYwoIyJgC3EJRCtewI319VQPtAePGpTYyq9H4zB2MegnTeBZxhqxU
+# 9oDBqMdN3z533stBM/xGZU1iTGef5w==
 # SIG # End signature block
