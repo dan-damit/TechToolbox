@@ -87,12 +87,10 @@
 - [Security Notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
 - [Metadata](#metadata)
-  - [v0.6.12 - "Weather Output \& GUI Reliability"](#v0612---weather-output--gui-reliability)
+  - [v0.6.0 - "AI \& GUI Milestone"](#v060---ai--gui-milestone)
     - [Highlights](#highlights)
   - [v0.5.70 - "Provider Routing \& Quality Controls"](#v0570---provider-routing--quality-controls)
     - [Highlights](#highlights-1)
-  - [v0.6.0 - "AI \& GUI Milestone"](#v060---ai--gui-milestone)
-    - [Highlights](#highlights-2)
 
 ## Quick Start
 
@@ -637,34 +635,11 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.6.12
-- **Current milestone:** v0.6.12 - "Weather Output & GUI Reliability"
+- **Module version:** 0.6.21
+- **Current milestone:** v0.6.0 - "AI & GUI Milestone"
 - **Milestone date:** 2026-09-09
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
-
----
-
-### v0.6.12 - "Weather Output & GUI Reliability"
-
-#### Highlights
-
-- Removed duplicate weather markdown headers in final output paths through orchestrator normalization and wrapper-level fallback heading de-duplication.
-- Fixed GUI final-answer visibility gaps where valid markdown could be dropped when stdout included runtime status/prefix noise.
-- Improved GUI runtime output extraction with embedded-content preservation and a whole-stream fallback split path for resilient final-answer rendering.
-- Added regression coverage for duplicate-heading suppression and for prefixed markdown preservation with completion-noise filtering.
-
----
-
-### v0.5.70 - "Provider Routing & Quality Controls"
-
-#### Highlights
-
-- Provider-based LLM routing in TechAgent (`ollama`, `openai`, `openai-compatible`, `azure-openai`)
-- Cloud API key support with environment variable fallback and DPAPI-backed local secret storage
-- Prompt quality preflight scoring with strict-gate mode for higher-confidence runs
-- Execution mode contracts (`execute`, `analyze`, `plan`) and output contracts (`markdown`, `plain-text`, `json`)
-- Persisted run telemetry in agent memory plus quick quality rollups via `Get-TechAgentQualitySummary`
 
 ---
 
@@ -677,3 +652,15 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 - Full help text capture in agent metadata export
 - Config system refinements and path token stabilization
 - [Release Template](https://github.com/dan-damit/TechToolbox/blob/main/.github/release_template.md)
+
+---
+
+### v0.5.70 - "Provider Routing & Quality Controls"
+
+#### Highlights
+
+- Provider-based LLM routing in TechAgent (`ollama`, `openai`, `openai-compatible`, `azure-openai`)
+- Cloud API key support with environment variable fallback and DPAPI-backed local secret storage
+- Prompt quality preflight scoring with strict-gate mode for higher-confidence runs
+- Execution mode contracts (`execute`, `analyze`, `plan`) and output contracts (`markdown`, `plain-text`, `json`)
+- Persisted run telemetry in agent memory plus quick quality rollups via `Get-TechAgentQualitySummary`
