@@ -101,7 +101,7 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 
 ---
 
-## [Unreleased]  
+## [Details]  
 Latest completed enhancements:
 
 ### **TechAgent Weather Output and GUI Rendering Reliability (2026-09-09)**
