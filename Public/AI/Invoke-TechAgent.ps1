@@ -1218,44 +1218,44 @@ Hard requirement:
         }
 
         $request = [ordered]@{
-            Prompt                       = $effectivePrompt
-            Model                        = $resolvedModel
-            ExecutionMode                = $resolvedExecutionMode
-            OutputContract               = $resolvedOutputContract
-            QualityProfile               = $resolvedQualityProfile
-            ThinkingMode                 = $resolvedThinkingMode
-            ReasoningEffort              = $resolvedReasoningEffort
-            ReasoningEffortAuto          = $resolvedReasoningEffortAuto
-            PromptPreflightScore         = $preflightScore
-            PromptPreflightWarningCount  = $preflightWarningCount
-            PromptPreflightCriticalCount = $preflightCriticalCount
-            RuntimeProfile               = $RuntimeProfile
-            RuntimeProfilesJson          = $runtimeProfilesJson
-            ResiliencePolicyJson         = $resiliencePolicyJson
-            Verbose                      = $false
-            MaxIterations                = $resolvedMaxIterations
-            PromptHistoryItems           = $resolvedPromptHistoryItems
-            ConfirmDestructive           = $ConfirmDestructive.IsPresent
-            MemoryPath                   = $memoryPath
-            AutoRetryOnRecursion         = $autoRetryOnIterationLimit
-            ReturnMetadata               = $false
-            SignedFilePolicy             = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
-            DiagnosticTracePath          = $diagnosticTracePath
-            ExpectedOutputPath           = $expectedOutputPath
-            AllowedFetchHosts            = @($allowedFetchHosts)
-            SearchWebProvider            = $searchWebProvider
-            SearchWebEndpoint            = $searchWebEndpoint
-            SearchWebApiKeyEnvVar        = $searchWebApiKeyEnvVar
-            SearchWebCountry             = $searchWebCountry
-            SearchWebLanguage            = $searchWebLanguage
-            SearchWebSafeSearch          = $searchWebSafeSearch
-            SearchWebDefaultCount        = $searchWebDefaultCount
-            ShellAllowedCommands         = @($shellAllowedCommands)
-            AllowMetaTools               = $AllowMetaTools.IsPresent
-            LlmProvider                  = $Provider
-            LlmEndpoint                  = $Endpoint
-            LlmDeployment                = $Deployment
-            LlmApiVersion                = $ApiVersion
+            Prompt                         = $effectivePrompt
+            Model                          = $resolvedModel
+            ExecutionMode                  = $resolvedExecutionMode
+            OutputContract                 = $resolvedOutputContract
+            QualityProfile                 = $resolvedQualityProfile
+            ThinkingMode                   = $resolvedThinkingMode
+            ReasoningEffort                = $resolvedReasoningEffort
+            ReasoningEffortAuto            = $resolvedReasoningEffortAuto
+            PromptPreflightScore           = $preflightScore
+            PromptPreflightWarningCount    = $preflightWarningCount
+            PromptPreflightCriticalCount   = $preflightCriticalCount
+            RuntimeProfile                 = $RuntimeProfile
+            RuntimeProfilesJson            = $runtimeProfilesJson
+            ResiliencePolicyJson           = $resiliencePolicyJson
+            Verbose                        = $false
+            MaxIterations                  = $resolvedMaxIterations
+            PromptHistoryItems             = $resolvedPromptHistoryItems
+            ConfirmDestructive             = $ConfirmDestructive.IsPresent
+            MemoryPath                     = $memoryPath
+            AutoRetryOnRecursion           = $autoRetryOnIterationLimit
+            ReturnMetadata                 = $false
+            SignedFilePolicy               = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
+            DiagnosticTracePath            = $diagnosticTracePath
+            ExpectedOutputPath             = $expectedOutputPath
+            AllowedFetchHosts              = @($allowedFetchHosts)
+            SearchWebProvider              = $searchWebProvider
+            SearchWebEndpoint              = $searchWebEndpoint
+            SearchWebApiKeyEnvVar          = $searchWebApiKeyEnvVar
+            SearchWebCountry               = $searchWebCountry
+            SearchWebLanguage              = $searchWebLanguage
+            SearchWebSafeSearch            = $searchWebSafeSearch
+            SearchWebDefaultCount          = $searchWebDefaultCount
+            ShellAllowedCommands           = @($shellAllowedCommands)
+            AllowMetaTools                 = $AllowMetaTools.IsPresent
+            LlmProvider                    = $Provider
+            LlmEndpoint                    = $Endpoint
+            LlmDeployment                  = $Deployment
+            LlmApiVersion                  = $ApiVersion
             OrchestratorRunDeadlineSeconds = $resolvedOrchestratorRunDeadlineSeconds
         }
 
@@ -2178,8 +2178,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCg+CA2uT9skoEv
-# I5WBB1ckw6STOPF0RGrZcFOirIxWh6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCALZe1VEBZW+RPG
+# Wjo+sj0ggvhwvHsuCMJ9q/fGlpVcsqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2312,34 +2312,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDlhrFteVoY
-# yRs0x1ig6bxD/nAgkjqCdoc7g95Tu742BDANBgkqhkiG9w0BAQEFAASCAgBKpWsn
-# 2sZrlb0mkVWXr3lk1jjLfEscdKd6rWTpb5+GJ8bCsQfKq1xtHmf6TbWBq1kRfnRl
-# eyDYeyU3I/y5ZiJV19F3hdEKPuOgtc/q/V5L1g9shVaC53xjVYSktGljiTS8y7XR
-# 6HNlV3wHPzySo2p+d40WmVFtIKZPW+Sc7lg0WBXRKWMWaZdFyttHq6+Y/6q2YVg1
-# kMkD2t8pv2J8vOuyxlpD/xmu3x9DiPhZtdk3mvbVl7qq35nyGPQRrNmMbcTGybSy
-# 1YwE7dKCNgs/O9KbxSweaDvIaXh66LHuAUPdjbDd20ej9XW3u3wkVr+1fEqRAs35
-# VUJRktZBqghOCS72Z593eMMJ4iH8z1jIsICUXHeiDZqAYoJ627yRr4P0AjZtjc6S
-# yxcjz91m8pR7zsff4SGsMVIe8OhUqwNY4E/L4jBxHXBbiL66Mkj1c/uYFPABC2rV
-# 6rfJzXtN4/Hfd0y8l/6D78PZF4ta608Q4haaYoULiDvzNRLbgq3hvVSJa2E8cCHV
-# YmC5ONmbUkYFlIE6jT9zsFakrP+YrbD4mTlz98EnD9itt4nUWpKBcFobTSh1+xJ8
-# XS6cPN8SP5EQIHubi9hqMkeATGQmC39Ch0BSCa1xDkjdC5VFYk7muVAfTDUmA3l5
-# bA+o8lIf/k72yIm5TR+v6aIoYW3LYqpLzcVNU6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC6WcaMv/5K
+# jnx5sJq5EyUvb4yD4o7h7GGbunc52ibaMTANBgkqhkiG9w0BAQEFAASCAgBx4El3
+# PcJEUUFHkAtDDig+s1uQLsG64DKKLF6CCkcbQ2Ztl8udt/3vIBJwk4vo6ONwltvy
+# uR/CTobjy7qCN9GpOn+sDRmJTnUVmhXa2x15zn7KZI9Tuzq6JsTekCjTb/cJCeZ8
+# 5mY+qzTy6varXyskOkBHdcLG3i90AihnyPSRgLNaklRuHSvGuKB/MVuy2cMbGiVV
+# avk53tPLHaa4pPmc3T/56dwrXhUxzjVNuJgWHJxT+RWiUgJQVrmUGToogcVEhvW/
+# yW1WmcdwPfxNZ4WYV/4Sly30ePX14SwrvI3ZuUC/8HyegV37gKSwBcJryzsFen+V
+# pE7+Rhr/TrJ36Fql0PFgEBccdH+cebtcWDQojXePL50i7PwTNy6BRn/KXZNppChM
+# PvprI09qM5ypO6pHJpq7JmZXKVega/OAsUgKpB4bkvsrqQ90cmhitjsvXCP7Xw0w
+# csIqFI69y0reAMl6CCg0Se8iX7R16WNhI4e9RzPG5wF5vZaYG08aW3sRsVhLG4fr
+# Fx5IgbXokscr0YwNczYXZJfqYkfz2vQoUty2NfoTDln3uoInEerAfTXbN39Lfilc
+# l0DsDY2r578QyoFKvQUJzdCqNunITQb+gM3LLTSpYAXr0U58DYrH20GKJii9Jvaj
+# w9Y8xVBafiCM/uqyad9q2M5CX5NsjHadSnJaPKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTMxODQzMDVaMC8GCSqGSIb3DQEJBDEiBCAIhL9JRY/9C43x0X9P
-# g25h2oUYefwwueZ0i4+DGxVl1zANBgkqhkiG9w0BAQEFAASCAgA+tL1gDQhFCSMX
-# KBO0488za809zBT+bAirRoamvW7UqQ/9/oPPgrnILXIznYDrImES/7kpBQt0oYYi
-# LKIx0D6aIo4pydjsukHg30maOBH2iDOlflxzrrKu2novoPm7RuqhMr+JXostQy3R
-# 5HYPE1u4tYOYfhJGqscPhwXWCzaqBF0HQemHgMwM+XqqeSbT4sL+Za2TFiBHw3bH
-# tUfPPPPL3D/+Hov1IkaZBH3Zb8J/rCddm9AaiRAWEHx1/y1VlzmNu0Gf5+F2Cj2D
-# 6DfYg18qDBpHTel4ZSIbowY9efQ6OFp50XHBsoq7bNSZzT9Uy1DEyL2BV3nCwWd6
-# XuKWb1DgeGnVxCTweH1bvgF3wrjijjYFTXqR0pwB3sjtLz2DF5hLudPwE2V6OHxv
-# a+BGOuZV0kyPO0ZQQdPr4aH3/ofd/Yw7F29t8iB9eQbnw1fpP89KL4MFYueulMIH
-# SeOWJLs5FoQaej1L/otscWUKFHIyGocvepuxL/GOmb2ZyfENwhc/P25esTmnr1yS
-# Pk0mYnCg+JhyZ4EKVAaKHac5otSkP9r4Pif/qOMeJxbtjorEdt3iF9lmLZiXmtnZ
-# h8sU7PGXeZcSa8o3LVh+GlhKHVxiCQsirXbznBiLiISws8Or0q0kvHN1es3yqt/m
-# 4bb0jAm9Cyz2Jv4iNpojzvCLMs1FYw==
+# BTEPFw0yNjA5MTUwMjM3MjZaMC8GCSqGSIb3DQEJBDEiBCDS1HM9xuCvaOE7WQG9
+# IQOJdWD8awLR2VlZyMHUNt2e2jANBgkqhkiG9w0BAQEFAASCAgAutlMxGujapiwO
+# lYEj2a3zgyx0dmpLfUB8Hhu1GihhSmt2ka/qUzI1mxDFHqC3epxAYKYLZBgFfY2A
+# 5wUbTVEBu/+SvCvvQLkCZ8rx7ozv7Rmlq6t4abV4BbOZRYsB/iLjhn+HBXXrS1W/
+# 0a3JIWGpyofjGHvXsCR35yWRe6MJwyaowDMpf4EKPpPdJKmzHwp3/g47obBg5cIX
+# ZGxdbbmKu0zuRA6W9NPh7P1RogVFe075LNO+RvYLkafgOrK3Mi4bkSYzK6tqmRz+
+# FYxeRNhAS8vhZwbkfym4dVyiaTkculFa2AzXWNFh6o65wqAAWHZ4fG/fn1GpRlW1
+# fpWpj11xW4Lm9xZ4IjSFYuBF/c9t/S7vvgyG8uQfFwDcjLJDT2tahHu64KKm8rK0
+# MbFFLrwPj4+6tThtOZGRb0JHBLKamrh9Ete6BArLXqzPzGVuhKk+eait4spjBtpi
+# ednmKP+Ket3sDMRxfUipnh8pu7ZmYc9gvwuRSSnAT96sN9V8TFVEQxCr/oCGY4EF
+# 8msi1TzmXqb9c6JamubdgNc5wv5lllNdMQ4BiN7vToSAWDalu7w7FD6vcRADmU0o
+# v1QqfS5qNiFyDCdYi7weGaxH/GMT7DNREpY1bJdfnOrdj1SJ7XgBbhyAlg2M5oY8
+# 0wBxqFy0a7/Y1EUgts2L1Q/NxWelwQ==
 # SIG # End signature block
