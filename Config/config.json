@@ -296,10 +296,7 @@
         "defaultCount": 5
       },
       "shell": {
-        "allowedCommands": [
-          "rg",
-          "dotnet"
-        ]
+        "allowedCommands": ["rg", "dotnet"]
       },
       "transcript": {
         "enabled": true,
@@ -309,6 +306,20 @@
         "timeoutSeconds": 2700,
         "pollSeconds": 5,
         "heartbeatSeconds": 60
+      },
+      "mcp": {
+        "enabled": true,
+        "servers": [
+          {
+            "name": "fs",
+            "enabled": true,
+            "transport": "StreamableHttp",
+            "endpoint": "http://localhost:3000/mcp",
+            "authMode": "None",
+            "namespacePrefix": "fs",
+            "requestTimeoutSeconds": 30
+          }
+        ]
       }
     },
     "messageTrace": {
