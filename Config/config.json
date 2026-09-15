@@ -326,8 +326,10 @@
             "enabled": true,
             "transport": "Stdio",
             "command": "npx",
-            "arguments": ["tavily-mcp"],
+            "arguments": ["-y", "tavily-mcp"],
             "authMode": "None",
+            "credentialEnvironmentVariable": "TAVILY_API_KEY",
+            "credentialSecretKeyName": "Tavily",
             "namespacePrefix": "tavily",
             "requestTimeoutSeconds": 30
           }

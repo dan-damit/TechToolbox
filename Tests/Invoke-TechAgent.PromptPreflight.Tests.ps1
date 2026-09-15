@@ -27,6 +27,45 @@ Describe "Invoke-TechAgent Prompt Preflight" {
         }
     }
 
+    It "Accepts read-only web research prompts as concrete targets in execute mode" {
+        InModuleScope TechToolbox {
+            $result = Invoke-TTAgentPromptPreflight `
+                -PromptText "Use the web search tool to find the official Green Bay Packers 2026 schedule, then output the schedule to console in markdown." `
+                -Mode "execute"
+
+            $result.Critical.Count | Should -Be 0
+            $result.Warnings | Should -Not -Contain "Missing concrete target (file, function, module, system, URL, website, or path)."
+            $result.Warnings | Should -Not -Contain "Missing clear task verb (for example: update, analyze, fix, plan)."
+            $result.Warnings | Should -Not -Contain "Missing expected outcome details (what successful output should look like)."
+        }
+    }
+
+    It "Accepts direct research-and-print prompts in execute mode" {
+        InModuleScope TechToolbox {
+            $result = Invoke-TTAgentPromptPreflight `
+                -PromptText "Research the Green Bay Packers 2026 schedule from the official NFL website and print a markdown summary to the console." `
+                -Mode "execute"
+
+            $result.Critical.Count | Should -Be 0
+            $result.Warnings | Should -Not -Contain "Missing clear task verb (for example: update, analyze, fix, plan)."
+            $result.Warnings | Should -Not -Contain "Missing expected outcome details (what successful output should look like)."
+        }
+    }
+
+    It "Formats tool traces with source attribution for MCP and built-in tools" {
+        InModuleScope TechToolbox {
+            $toolTrace = Convert-TTAgentToolTrace -ToolNames @(
+                'SEARCH-WEB',
+                'mcp.tavily.search',
+                'READ-FILE'
+            )
+
+            $toolTrace | Should -Contain 'SEARCH-WEB [Built-in web tool]'
+            $toolTrace | Should -Contain 'mcp.tavily.search [MCP]' 
+            $toolTrace | Should -Contain 'READ-FILE [Built-in file/system tool]'
+        }
+    }
+
     It "Collapses adjacent duplicate long lines in agent output" {
         InModuleScope TechToolbox {
             $input = @(
@@ -116,8 +155,8 @@ Describe "Invoke-TechAgent Prompt Preflight" {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB6wWWrmCk4WANC
-# /n8KKb1ZwbaRxEZUVmmxFjOu44We46CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCOm8PoVR123AHQ
+# NBhZBAgjop/6M3wYj8lhhIcXQbcHSKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -250,34 +289,34 @@ Describe "Invoke-TechAgent Prompt Preflight" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCJ1bKkU6bv
-# rbLqg4iYA1yBuA5v7lr52z1CrWYDNkpnJjANBgkqhkiG9w0BAQEFAASCAgCPzGXu
-# 5t1ilEe5SQHda8ldEL2bWWdS2P8XP2A4fquIZLJINDD4ssKYf7oEfSR5Vis7cvnt
-# qh/zqVWQTDhBIFyC0DTsTyWSYBe68FJAj+bV+RAXqan5gbFSHBF8/Y+uwEJN1bf4
-# DiwIrJiBkp6CYZmr+Q/Z53N4JAk1q/PxwWy7jnuHIR/6Aifkk3+npek+LmzQRKcb
-# L0EPIt3MnCtFY3X3vktVukWZm9/y7Y0sp3jj5ibQqx4rcJE5KKi0+bCjpnNmWL3a
-# RuAtsHJw39PkBCkX7TuCZU1dFoyUgZnnvfFl20Aj4jHLXoChwF+QuBfgm1raR0Rr
-# Xu5J3ejPKC90w8x0SXmgvlHb1oCAZPYt1BI9w8X42d1+WdxnoscO+dGH0GuTJE47
-# 3r0z+1C8imEwKprZpwC04jeZotu2R1mSLl/gLQBfdg7mT/a5uwvhsvcprPeYJ8lD
-# 4ZpEDI9YbrJgAJdmgYf/inr/udoaZZwaGKZFL7GAiJWks3e6jyOWLmyfqYK6K35D
-# wWXCK7CGMCv6agU9HW7FP+SaCGA1VbYMkZEUSw1tD1n5Dn79jZRvdsOFuxPKUb1i
-# 14qHbN3oXtxGpm0++qwgNTjA9voiZa4QnC8OhG8OJ5noG53wqBF+91gu3rRVB0oP
-# SHebTbn1B2C//5aviYJ8lGM/oc6/FLHAoiKC3qGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBigvapGfyH
+# fFhmQ1SuPgQoEXLF3hF3zSsoghApr/Ta2DANBgkqhkiG9w0BAQEFAASCAgBsp/8S
+# TPf2p8ZxBCv43S4hrmiEZvWnPNt4wakkeiyrv1iDM2tX/RGx4AsFitziWVDecrB2
+# vCkVdrIY7WXOAHIKFCe7o6Ds5DlpwDRTutbKvBsf40zir7Kv83JRzQGmoV5id3i2
+# ChlRJRR0HF2GSkaTYcQIKlarIA96/vgp32mQH0F6Y+DvGxIAYK46cHuFSCQKr3p2
+# xlDxG832lIx37kC+uOUHmN3m1gzqJLbuXvx4Lycz77X6IIZoPyMMuiaQ/K686WSs
+# +sZguc/mKlY+Retw6+eATixgQNY+gz6jG86k3OuoJLKuV4/CBr1v5FwiTSHczVuB
+# K1yHjq545ycfojZGavt5OHycGG/sYGRlQHbvfU9SI6i0yKWSgbaJNNV8xIdA9gX8
+# ngmn4Y5pc/GNdZB9Kh4jE4hircA4FqHfxhlayUxqmRsApjPIU9F7F3tyk9110Rwx
+# gcJAYNhJ+zOhk05S1N0wB7A86pnJkZ7HYxiMu4JOhOkbRQg2ToLvJFYWpy6/1cc+
+# Azzz06zMoXnRRIeFum1IJKJ72S/RNDDMRxDp6pISJNXc5rUkw/qzyQ5e4G+gBLDQ
+# uTXHYSBFc47Br7QQBvJrL2JSjwCD8XIt7zzwY8FoRgWrOCefpSY4Viy7CVsGa4B7
+# irHxeamaK6esNbyzBc7uzuyKaUmX5HqsGtayaKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTMyMjIzMThaMC8GCSqGSIb3DQEJBDEiBCAZmGb8IBFyGKEskA+t
-# +Rw+5mH43hJ6pV1T02Q7J++BzDANBgkqhkiG9w0BAQEFAASCAgCJVWKTsS1HfOFb
-# fIR+L9ts6mZ0L+0dMwsVn1FeyIOOTCGee2Cjw8HLMAthxjikkCNrIC8q8E6y5EkD
-# 24EAzpTrJyT4UphrzthS4fYNyT7Apdsv2fCNTd1U4fpP+uxiORR1bWoFmpTiaHzd
-# iX7K1FGbSDAYnuViUO8M3apm7C491GiFZmrAZUe+jLodGoyFtWSDlX5WuqZB37V8
-# 1CvgrTFAPuRBHef2tbO+egpfPRl2OnfQo+DFROuWjyy/LZBSjIzXwG4NKzbANJ16
-# e3tKS0MWN9KB74uYYGif2OtI2M+HJ8TFRlRFnKPmbyTeiSUoRoFPBThI+qj8O4cf
-# XgTcLBgoIW3O7DrDT7YiVtPF7Io2AAqmSKHAryWpyibnR1hCNiOmQeeKsrsWInL0
-# btgqeGn0q2J9GbMDMUid+0rw7v3jewRzv3XXbBAhE8VqGZHxDYLuf3VQJBMZFq3s
-# JJUhx2f8wPdcV4sw143qCeJ/l/qyrtJc07C7hTXQM8ARnmM8zMalUaDqfiWtQ7V+
-# 0i6/Uhc2kHIKh02vRGCXxh1+UmwAKky1IOu40YOSFda8shIAwI2fRlwCqDQ936fA
-# YeRM+wIxprMUyoeELpBVJP4rNZFdZJtoWFqkQYs8UHxadbCMHU0wk9uwXkOjbRK7
-# u71Cw7OAjZnhD50LZqSzeJdU9uRtiQ==
+# BTEPFw0yNjA5MTUwNDAwMTJaMC8GCSqGSIb3DQEJBDEiBCA2rRa2lPVwG5kAnd1q
+# naN6eGoTcsnq/mk7W2IqNFL9ozANBgkqhkiG9w0BAQEFAASCAgCvPyFV0PCsLVw/
+# XV8XAsK0Ip5nMwqVl+WHB1VajC1SxmNnq1Fh6R5A+JLoQ3PtyE1ihMxcWRRemNL0
+# /rMyd/aIFmTo4V/E1wqMdfB19pzBKjYVrXjJ0QRB+5pRgKcWzlXCLCGs4vd5wXRx
+# T1RmWGczYl1bBKC10XgBMxx+mzlv8+sAsvAOQ0s+cfC6qV8QyYRJlb4KRPrX+Z4d
+# fUzbvnVSSS/d9svteitgtvJJCk1RqGuvMGzMnK4LQg+eoqofyBfFw54lHe0Qfj0z
+# pMHDCwy+4KYeg41yRE4eTMjToVR61F6ukC2gbLVi/pztR2X9ygdOobzVKR4HzY33
+# 8ZgSYzNcyeeg5zsEYYOq1kBaKOuz8Wz7gPeS3/cBQyBL4cNX8bn/YlT+NK4MD4fK
+# D34N38arpCItdknEsssf4WazlP/UdcBn5FpZDE5yBIP2iSFBLtRSv3Moc60pBA7N
+# H4hGhRtf/nNPjj7d+1dnMtdoZzwaf61kCGi0g3GrkDLkVg+CNJZ71VOeV33vTHq9
+# 4PKCHRtJIGMNQIS8IeS7qdXdKWwijEpoYv5ex8RxxeQBmDIy3flw8bsrcfxfsnKe
+# u2Cq0+LTBQbE+jmoWNUENulCLICsYHhW6oACwp9rhkxqz2MdoM/IwuLdxhBWchkA
+# TQz7ISzpZMwaXBo9dzxZlwDMt1fm+g==
 # SIG # End signature block

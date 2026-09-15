@@ -210,8 +210,12 @@ function Invoke-TTAgentPromptPreflight {
 
     $hasTaskVerb = [regex]::IsMatch(
         $normalizedPrompt,
-        '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|summari[sz]e|plan|implement|find|fetch|get|retrieve|collect|report|check|show|tell|lookup|look\s+up|disable|enable|reset|remove|delete|provision|deprovision|offboard)\b')
+        '(?i)\b(create|write|update|edit|modify|fix|analy[sz]e|review|refactor|investigate|research|summari[sz]e|plan|implement|find|fetch|get|retrieve|collect|report|check|show|tell|lookup|look\s+up|print|disable|enable|reset|remove|delete|provision|deprovision|offboard)\b')
     if ($hasTaskVerb) { $score += 20 } else { $warnings.Add('Missing clear task verb (for example: update, analyze, fix, plan).') }
+
+    $hasMutationVerb = [regex]::IsMatch(
+        $normalizedPrompt,
+        '(?i)\b(create|write|update|edit|modify|fix|disable|enable|reset|remove|delete|provision|deprovision|offboard|install|uninstall|rename|move|copy|save|upload|download|patch|apply)\b')
 
     $hasPathOrSystemTarget = [regex]::IsMatch(
         $normalizedPrompt,
@@ -220,6 +224,14 @@ function Invoke-TTAgentPromptPreflight {
     $hasWebTarget = [regex]::IsMatch(
         $normalizedPrompt,
         '(?i)(https?://\S+|\b(url|uri|website|web\s*site|webpage|site|domain|host|weather\.gov)\b)')
+
+    $hasReadOnlyResearchIntent = [regex]::IsMatch(
+        $normalizedPrompt,
+        '(?i)\b(research|lookup|look\s+up|search|find|fetch|get|retrieve|check|review|inspect|summari[sz]e|report|show|tell|collect)\b')
+
+    $hasReadOnlyResearchTarget = [regex]::IsMatch(
+        $normalizedPrompt,
+        '(?i)\b(official|schedule|roster|player|team|standing|game|event|news|forecast|weather|report|status|service|document|site|website|webpage|conference|calendar|season)\b')
 
     $isWeatherIntent = [regex]::IsMatch(
         $normalizedPrompt,
@@ -233,12 +245,13 @@ function Invoke-TTAgentPromptPreflight {
         $normalizedPrompt,
         '(?i)\b(?:for|in|at|near)\s+[A-Za-z][A-Za-z0-9''.,/-]*(?:\s+[A-Za-z0-9''.,/-]+){0,6}(?=\s+(?:from|on|using|with|and|return|output|show|summari[sz]e|today|tomorrow|next|this|tonight|weekend)\b|[.?!]|$)')
 
-    $hasConcreteTarget = $hasPathOrSystemTarget -or $hasWebTarget -or ($isWeatherIntent -and ($hasWeatherLocationTarget -or $hasWeatherLocationPhrase))
+    $hasReadOnlyResearchTargetPhrase = $hasReadOnlyResearchIntent -and $hasReadOnlyResearchTarget -and -not $hasMutationVerb
+    $hasConcreteTarget = $hasPathOrSystemTarget -or $hasWebTarget -or $hasReadOnlyResearchTargetPhrase -or ($isWeatherIntent -and ($hasWeatherLocationTarget -or $hasWeatherLocationPhrase))
     if ($hasConcreteTarget) { $score += 20 } else { $warnings.Add('Missing concrete target (file, function, module, system, URL, website, or path).') }
 
     $hasExpectedOutcome = [regex]::IsMatch(
         $normalizedPrompt,
-        '(?i)\b(expected|outcome|output|result|return|produce|final|success\b|done\b)')
+        '(?i)\b(expected|outcome|output|result|return|produce|final|success\b|done\b|summary|print|display|console|markdown|output\s+to\s+console)')
     if ($hasExpectedOutcome) { $score += 20 } else { $warnings.Add('Missing expected outcome details (what successful output should look like).') }
 
     $hasConstraints = [regex]::IsMatch(
@@ -737,6 +750,65 @@ function Resolve-TTAgentRecoveredOutputMessage {
     return $null
 }
 
+function Convert-TTAgentToolTrace {
+    [CmdletBinding()]
+    param(
+        [string[]]$ToolNames
+    )
+
+    $normalizedTools = @()
+    foreach ($toolName in @($ToolNames)) {
+        if ($null -eq $toolName) {
+            continue
+        }
+
+        $value = [string]$toolName
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            continue
+        }
+
+        $trimmed = $value.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            continue
+        }
+
+        $normalizedTools += $trimmed
+    }
+
+    if ($normalizedTools.Count -eq 0) {
+        return @('No tool calls recorded.')
+    }
+
+    $formatted = [System.Collections.Generic.List[string]]::new()
+    foreach ($tool in $normalizedTools) {
+        $toolName = [string]$tool
+        if ($toolName -match '^(?:mcp\.|MCP\.)') {
+            $formatted.Add(('{0} [MCP]' -f $toolName))
+            continue
+        }
+
+        switch ($toolName.ToUpperInvariant()) {
+            'SEARCH-WEB' { $formatted.Add('SEARCH-WEB [Built-in web tool]'); continue }
+            'FETCH-URL' { $formatted.Add('FETCH-URL [Built-in fetch tool]'); continue }
+            'READ-FILE' { $formatted.Add('READ-FILE [Built-in file/system tool]'); continue }
+            'WRITE-FILE' { $formatted.Add('WRITE-FILE [Built-in file/system tool]'); continue }
+            'APPEND-FILE' { $formatted.Add('APPEND-FILE [Built-in file/system tool]'); continue }
+            'REPLACE-IN-FILE' { $formatted.Add('REPLACE-IN-FILE [Built-in file/system tool]'); continue }
+            'RUN-SHELL' { $formatted.Add('RUN-SHELL [Built-in shell tool]'); continue }
+            default {
+                if ($toolName -match '(?i)(?:^|\.)tavily\b|(?:^|\.)search\b') {
+                    $formatted.Add(('{0} [MCP]' -f $toolName))
+                }
+                else {
+                    $formatted.Add(('{0} [Unknown tool source]' -f $toolName))
+                }
+            }
+        }
+    }
+
+    return @($formatted)
+}
+
 function Write-TTAgentMarkdownLog {
     [CmdletBinding()]
     param(
@@ -766,6 +838,7 @@ function Write-TTAgentMarkdownLog {
         [string]$RecoveryReason,
         [bool]$PostflightAchieved,
         [string]$PostflightReason,
+        [string[]]$ToolTrace,
         [int]$ResponseLength,
         [bool]$KnownFailureDetected,
         [bool]$ExpectedOutputExists,
@@ -817,6 +890,13 @@ function Write-TTAgentMarkdownLog {
     }
     else {
         $PostflightReason.TrimEnd()
+    }
+
+    $toolTraceText = if ($null -ne $ToolTrace -and $ToolTrace.Count -gt 0) {
+        ($ToolTrace | ForEach-Object { $_.TrimEnd() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join [Environment]::NewLine
+    }
+    else {
+        '(none)'
     }
 
     $preflightWarnings = @($PreflightWarnings)
@@ -943,6 +1023,8 @@ function Write-TTAgentMarkdownLog {
         ('ResponseLengthChars: {0}' -f $ResponseLength)
         ('KnownFailurePrefixDetected: {0}' -f $KnownFailureDetected)
         ('ExpectedOutputExists: {0}' -f $expectedOutputExistsText)
+        'ToolTrace:'
+        $toolTraceText
         'Reason:'
         $rawPostflightReason
         '~~~~'
@@ -960,8 +1042,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCFmTXb3fH4RP61
-# MHpc+TgtsVUzKllljQlLMIHEyo4iuKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCvo0veEDJgoW8h
+# IJzc+/gAuntHVkM3Tj4ZM+SwohF5kqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1094,34 +1176,34 @@ function Write-TTAgentMarkdownLog {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDPeCti/Ph0
-# g+/nu9HqgQb1St30RFcN6XqUmPPVvRtBzDANBgkqhkiG9w0BAQEFAASCAgBVmYhM
-# QoaHVi2Jh1ofGIAH10lM02OUN/DK8JqV0LKIL2HKcdgjqGJdg84AvQD6SFFbLXxk
-# I3djc2KwNvoDELX4M6Ndklob2EtS50ufKwCupyujgB2rFI+q+3QYnzoywyuaWEWX
-# 1czjLwVaEP2fKvBOBEDvoX87Z9QMrxDSSohTYdFX//aDUcZMp/w/xM8ACWfwWH1D
-# iz1EaRofkWyCqos6qQlypWdFil/SMgKyYLfQ3pCqAt5+JD1q0b8RIqRc+ip/0IrI
-# G2wh25kC1gnsVL9K2NZqUezJEKR1S8UpffHkwxeC/QEB5yWiQs4O3NpF/vPAVxn4
-# VtxnWjT/U7zT5np52FomwJv4fdW8ixAkN3pbR5xRq5MDHaaGRByUKMCgpDfK0yQ2
-# j6UEiut4NJClxwYYYdi8v2TA7Di5Zt6HHd3e25KHnkiXEBzW2u/TZ7Qz3OmqRd/C
-# LZUawydkjZWIMJV+8R5MSBAvWGIgj5zd7JnoXrzsI+QChoOWTUcERpbzxYyRjHcF
-# oe86Tf3YqkboB47EkPlD+AcH3sF225T3/Le5Us2txtM6V0NcVWbiRTvTBveNXwmK
-# ++MYJB625DrUE/KrQkPpWqnx9dBVhA3kRdsNRjgEFHLPmX1L1TRJnd4BNhf8YoBL
-# 99xWuhWONEunTcuWsg4R38lNmpLAeyP/9d2NZaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAcfaelhKHK
+# UKYaJGiKNi7iTfvz2iWzpzoYSIkALtDlszANBgkqhkiG9w0BAQEFAASCAgCB0cnU
+# SdgxiP46XeXuaVPurqMirHO2XAcO5kNQBJ98AjaQun6yryvIkxQcbPOhtUyow9Dh
+# OQFkhlnDTSpiYw0j4fAOkf87zszfZ2GbWoXH2DsJbZ+Z9WI903Wt7OtI1zDXc2go
+# 98nO+1Xb0Ids9Q2DJ9jtqRo/qU5AHv6bLEnCaqpysUPyQ/hq/zS93+WXLo7mAhev
+# hs+z4tgWawh61M8ahg6aVLBCRI39DkE0YeIjk0Ct4YtHBr7pJm7IkSTI2816lnUE
+# rdSsiCP+51dXn41MScXEM6B1iD1WwosiGTvekKwSVdZU+XKUEeTIcAM7QXhEU7r/
+# ctTqIm7033YnJTJb1crP4YUFKps1gOZak7KcKGyRr2jsLJiKT3NaZbIgd6pCTlrO
+# pyR0/qi3ca62utnksnbgPwBhgfR0ubWp7Zrb18ZX1GZ5WiGuUT3zd4wDsM7YedY0
+# FuojlQjNnRmFfT5tMcCNQvx58guNMHP9KvhcYBB1aV6PSPMjjO7rrbBjA5TbiU+l
+# YRzy35Z3pzuTE8daAPO6KuEJv4lIlAqVqUvILxzDyfFvyor70P5fav8aj5iP6uND
+# 8VoWuMbNlfP8/5esUnWUxRsYRu05ibE5awz3E3CD18cs2Fb2Gl8OBZ6HzAOOsbOM
+# ac2PYKVgYtJrZ/1hnPBoBqy7NhrTNm8Dsvks3aGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTMyMjIzMTZaMC8GCSqGSIb3DQEJBDEiBCBT3eczRrwMWf/oA1Ev
-# Y2at2aA5wNlpSqFrqAR6BlH8vjANBgkqhkiG9w0BAQEFAASCAgB2YE6YZGc0bYxF
-# TRlTj2G6RxyH5v/oerWrd/yE5o4cwFNA8ewRTZGz5WcuCjg7+tXdcGvPwQDV8IJV
-# e9f3zYHDpRiox4PCO47kEJxiWzijc5xoU8pIML6FvQ2nefm5qq2s0u1eex/6Dqu2
-# GsVWs0Ebb1O/V6Ync+j5ra4OInMpankXy2UXU5ahOFUawCvmbfcQzMJ9QeN+qEaF
-# aM0g7UE2VPv/0LaxQopXLlzDdx+LwHRggF+bykDlb0cuS/B17p8Zr6TgCrN+r+u7
-# FdGTZ53lC2jjFEsveDbpwuLBnNuAPFIO5QqDTZVteitiEDNOYq35XMpBA/O4k3lp
-# 5ClqHEcuo75Hkiqu1YewLk07DvI9aNJHailyur29jnGiXHXMc7rB1DZHv+knavUQ
-# aS4gvayB7QJEbu3lnYywGDUw5f6AJPbOg7xwVYPMnUCIc9MXPkrjlN5F2wIieetX
-# g6gU2yIElvxGboNmKN6dquppbSMuO4V3huClnAtA5s6JfPGf3ekpxDd4ebufQCiM
-# c3bo0zXowibSJZcWLwzxYfAPEmkRZosuzUWSmqmOdKYFhQ36Ztz2xlH3spEBi9Vo
-# PT9o4uoT6cybirSJTVaQH5BWRFsKkgLeDFShHose0L5YrCUGSwMu40+EdHimzLz3
-# K9oaxHANRxIZMz3PNAgD/iOJfVjSXg==
+# BTEPFw0yNjA5MTUwNDAwMTFaMC8GCSqGSIb3DQEJBDEiBCAvAxk0nCWqFBh71wkQ
+# qpoP+fDPliQXwbOppipCWZTYqDANBgkqhkiG9w0BAQEFAASCAgBMoqDSHR1H3p9q
+# OrFsy5/GHpvlxzyzwWA2rDFDomXRW2zV1mY6b9vh4KvuutWljLAVLM4IJoI7bMzr
+# 0FPljCElAlo4OXdpvuORvAC9e/s675lBNM7RCI1/EiH0mpbzEn8taSteP4SPBq9b
+# VowwhIU/CI08B9UsIq8p2THQVTifEoa89MVkPsYUmrlFIhlWzQCUeX1+gT3Zi0c6
+# +4Jr3tvz66Z1IEFgc92X1d8YngXZ81R5xg+g04YkXfJyCCo0tlO7JThUQWqYuBpD
+# tWQAnmMQADFTEzQnaz1B1MOTCKzKQgEzrbskZYDY5i2gce7bVePKiCZIH9rjYoMj
+# t0N5cOThybWWboiQF/sBuQV18d4MZweosEeAy+JtwUm/+7FxoVQGZLYU86p62RnN
+# DeATHTq13qqAzYEDy2svpGiBVAyZFg4azVt+ol7CHffEy5Hzd36D3oFcx/QnvTQm
+# Eptml2laoNK1MbLRMz9fWJwURummumG2AslBaV6K3aCM+c4l1WKxvxKMUEili/AF
+# A5leKR55mJZmFS6in0vnuvm2PLyN6g/O38lnQR/ETPt7e4GTptlzrezOGJ9Tz1JE
+# 4GR2ec2nsMz5vdZnTU6wbBhsQ/xH4FC0K3qyl/9sIpOe2RKLRxn8l6z87+E4dCM/
+# 8NJ7Wu3D4kgSdrFlAgIDrSVYm3SJdA==
 # SIG # End signature block

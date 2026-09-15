@@ -612,6 +612,9 @@ function Invoke-TechAgent {
     $markdownResponseLength = 0
     $markdownKnownFailureDetected = $false
     $markdownExpectedOutputExists = $false
+    $markdownToolTrace = @()
+    $agentMetadataToolNames = @()
+    $agentMetadataParsed = $false
     $capturedStdOut = ''
     $capturedStdErr = ''
     $markdownAdaptiveLimitsPreflight = ''
@@ -620,6 +623,7 @@ function Invoke-TechAgent {
     $markdownRuntimeAssemblyPath = ''
     $runStartedUtc = [DateTime]::UtcNow
     $agentProc = $null
+    $agentState = $null
     $stdoutTask = $null
     $stderrTask = $null
     $requestPath = $null
@@ -1218,6 +1222,7 @@ Hard requirement:
         }
 
         $resolvedMcpBearerCredentials = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $serializedMcpConfigForChild = $null
         $mcpConfigValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'
         if ($null -ne $mcpConfigValue) {
             [bool]$mcpEnabled = $false
@@ -1230,6 +1235,13 @@ Hard requirement:
                 elseif ($mcpEnabledValue -is [bool]) {
                     $mcpEnabled = [bool]$mcpEnabledValue
                 }
+            }
+
+            try {
+                $serializedMcpConfigForChild = ($mcpConfigValue | ConvertTo-Json -Depth 16 -Compress)
+            }
+            catch {
+                $serializedMcpConfigForChild = $null
             }
 
             if ($mcpEnabled) {
@@ -1257,11 +1269,21 @@ Hard requirement:
 
                     $transport = [string](Get-TTAgentConfigValue -ConfigObject $mcpServer -KeyName 'transport')
                     $authMode = [string](Get-TTAgentConfigValue -ConfigObject $mcpServer -KeyName 'authMode')
-                    if (-not [string]::Equals($transport, 'StreamableHttp', [System.StringComparison]::OrdinalIgnoreCase)) {
-                        continue
-                    }
+                    $credentialEnvironmentVariable = [string](Get-TTAgentConfigValue -ConfigObject $mcpServer -KeyName 'credentialEnvironmentVariable')
+                    $isHttpBearerServer = (
+                        [string]::Equals($transport, 'StreamableHttp', [System.StringComparison]::OrdinalIgnoreCase) -and
+                        [string]::Equals($authMode, 'BearerEnvironmentVariable', [System.StringComparison]::OrdinalIgnoreCase)
+                    )
 
-                    if (-not [string]::Equals($authMode, 'BearerEnvironmentVariable', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    # For stdio MCP servers (for example tavily-mcp), allow explicit
+                    # credentialEnvironmentVariable + credentialSecretKeyName hydration
+                    # from config secrets even when authMode is None.
+                    $isStdioCredentialHydration = (
+                        [string]::Equals($transport, 'Stdio', [System.StringComparison]::OrdinalIgnoreCase) -and
+                        -not [string]::IsNullOrWhiteSpace($credentialEnvironmentVariable)
+                    )
+
+                    if (-not $isHttpBearerServer -and -not $isStdioCredentialHydration) {
                         continue
                     }
 
@@ -1272,6 +1294,12 @@ Hard requirement:
                     $mcpCredentialError = [string]$mcpCredentialResolution.Error
 
                     if ([string]::IsNullOrWhiteSpace($mcpCredentialValue)) {
+                        if (-not $isHttpBearerServer) {
+                            # Best effort for stdio credential hydration: skip when no
+                            # value is available rather than failing unrelated MCP startup.
+                            continue
+                        }
+
                         if (-not [string]::IsNullOrWhiteSpace($mcpCredentialError)) {
                             throw (
                                 "MCP server '{0}' bearer credential resolution failed via {1}: {2}" -f $mcpServerName, $mcpCredentialResolution.Source, $mcpCredentialError
@@ -1319,13 +1347,14 @@ Hard requirement:
             RuntimeProfile                 = $RuntimeProfile
             RuntimeProfilesJson            = $runtimeProfilesJson
             ResiliencePolicyJson           = $resiliencePolicyJson
+            McpConfigJson                  = $serializedMcpConfigForChild
             Verbose                        = $false
             MaxIterations                  = $resolvedMaxIterations
             PromptHistoryItems             = $resolvedPromptHistoryItems
             ConfirmDestructive             = $ConfirmDestructive.IsPresent
             MemoryPath                     = $memoryPath
             AutoRetryOnRecursion           = $autoRetryOnIterationLimit
-            ReturnMetadata                 = $false
+            ReturnMetadata                 = $true
             SignedFilePolicy               = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
             DiagnosticTracePath            = $diagnosticTracePath
             ExpectedOutputPath             = $expectedOutputPath
@@ -1391,6 +1420,9 @@ Hard requirement:
     $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $request = Get-Content -LiteralPath $env:TT_AGENT_REQUEST_PATH -Raw | ConvertFrom-Json
+if ($null -ne $request.McpConfigJson -and -not [string]::IsNullOrWhiteSpace([string]$request.McpConfigJson)) {
+    [Environment]::SetEnvironmentVariable('TT_AGENT_MCP_CONFIG_JSON', [string]$request.McpConfigJson, 'Process')
+}
 $agentAssemblyPath = [System.IO.Path]::GetFullPath([string]$env:TT_AGENT_ASSEMBLY_PATH)
 if (-not (Test-Path -LiteralPath $agentAssemblyPath -PathType Leaf)) {
     throw ("TechToolbox.Agent assembly not found at '{0}'." -f $agentAssemblyPath)
@@ -1801,6 +1833,9 @@ $result = $runAgentMethod.Invoke($null, @(
                 $startInfo.Environment[[string]$mcpCredentialEntry.Key] = [string]$mcpCredentialEntry.Value
             }
         }
+        if (-not [string]::IsNullOrWhiteSpace($serializedMcpConfigForChild)) {
+            $startInfo.Environment['TT_AGENT_MCP_CONFIG_JSON'] = $serializedMcpConfigForChild
+        }
         if (-not [string]::IsNullOrWhiteSpace($toolCredentialPath)) {
             $startInfo.Environment['TT_AGENT_DEFAULT_CREDENTIAL_CLIXML'] = $toolCredentialPath
         }
@@ -1846,6 +1881,7 @@ $result = $runAgentMethod.Invoke($null, @(
                 lastStoppedEarly       = $false
                 consecutiveLlmFailures = 0
                 lastToolName           = ''
+                toolNames              = [System.Collections.Generic.List[string]]::new()
                 processExited          = $false
                 exitCode               = -1
             }
@@ -2072,6 +2108,33 @@ $result = $runAgentMethod.Invoke($null, @(
         }
 
         $message = ([string]$message).Trim()
+
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            try {
+                $metadataEnvelope = $message | ConvertFrom-Json -ErrorAction Stop
+                if ($null -ne $metadataEnvelope -and $metadataEnvelope.PSObject.Properties['Output']) {
+                    $agentMetadataParsed = $true
+                    $message = [string]$metadataEnvelope.Output
+
+                    $metadataObject = $metadataEnvelope.PSObject.Properties['Metadata'].Value
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['UsedTools']) {
+                        $agentMetadataToolNames = @($metadataObject.UsedTools | ForEach-Object {
+                                if ($null -ne $_) { [string]$_ }
+                            })
+                    }
+                }
+            }
+            catch {
+                # Fall back to runtime trace extraction if metadata envelope parsing fails.
+            }
+        }
+
+        if ($agentMetadataParsed) {
+            $markdownToolTrace = Convert-TTAgentToolTrace -ToolNames @($agentMetadataToolNames)
+        }
+        elseif ($null -ne $agentState -and $agentState.ContainsKey('toolNames')) {
+            $markdownToolTrace = Convert-TTAgentToolTrace -ToolNames @($agentState['toolNames'])
+        }
         if ($resolvedOutputContract -eq 'markdown' -and -not [string]::IsNullOrWhiteSpace($message)) {
             $message = Remove-TTAgentDuplicateMarkdownHeadings -Markdown $message -WindowLines 40
         }
@@ -2235,6 +2298,7 @@ $result = $runAgentMethod.Invoke($null, @(
                     -RecoveryReason $markdownRecoveryReason `
                     -PostflightAchieved $markdownPostflightAchieved `
                     -PostflightReason $markdownPostflightReason `
+                    -ToolTrace @($markdownToolTrace) `
                     -ResponseLength $markdownResponseLength `
                     -KnownFailureDetected $markdownKnownFailureDetected `
                     -ExpectedOutputExists $markdownExpectedOutputExists `
@@ -2270,8 +2334,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCvHIYRZHbWLU3s
-# 08rtt4YNaBsMvA5588sArMFHkIK/O6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBfNTd0qMNrIKns
+# ZZF2X4BZnV6A5ynJVPp412asrPhTh6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2404,34 +2468,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAqK7sJM6Xn
-# KFXoFP6v6Qm3vnQTzixe/ukI4WiWhA6ImzANBgkqhkiG9w0BAQEFAASCAgAMVoPl
-# UYzR1ELaNfZsj+C+/MR6a6sCBOAZ5xO7RrFfxxXyuuTxYYnuUQHmwEtNilnWFEA5
-# GmcEs7XBlB91SBpdTvXc1KoQ2mBFiOULqZGzaZUJxwZbK2JIDbhlUiNPuBcb2X/1
-# y56T4YNf7+Xab8rQnkFQ8InRxGmxo0ERjvDjtNb0aON/taldNC+mxAcEloLYaipP
-# Ewi1rqiA+FjAbGhU8nPWU60wU5QzJbgCHn/q5RMiE6kPhRMp59wj6FffIU0QpsXe
-# ai8PCLiKaKZQxBnru51OsKnYrUgrA5aMW9H/r+zBM2JXYVGylKMabu85iQ02RCic
-# B6+xh57b8LHSfoQWX7J9TbWCTBGF4ljXWnd2wgidXsmaAfNPHgApYd2UQweeBg/c
-# tYIXNVF+ZZYJq91l9gUz2N8LTzTHT9PcEX7bBdpUwBHWSSY81slWxTTsMYf8uR+m
-# +I6STjC+PDc+bvTCk61GWt8iQVgg6f8yzNJOg8ESFjW6Gml1BzY5tH/D1JgNsGgT
-# aZsuUwSE3weQCnWU3+j/F/zmGG++jlMWq8gOKQw5jGiLrXw2FxEepSLR0yWMGMH8
-# vm8hEC1IIh/ToiniOXxESjWghNA2k171f+7IT3kcL7I3LtLWH1eL9JxmBWU1mRm1
-# /IGk5sPZ47U6lTeU/peeCw87hgN9UJUQQRmkF6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBxCUFLbM9m
+# TXwu61g7m4PtrpEjtM81AIZ6XsYgYU51ZjANBgkqhkiG9w0BAQEFAASCAgBD/+Qs
+# uJi7peD6DHClOX6LJdjtMEpmQEl9pfNcZzdqL7J/qR5iI6I/jOzRTd1pJdJ618KH
+# wwPNW5Q57MD820aFsCrzZcCJJqfRcf0JD+ScmlVhTg0Zzs4R5lDOGm7Lexl+LAjp
+# XQbfHu8Hk8Y1KaAaKX4ZmBKtb5MFhsjMar9Ya93NJDr3dwX/xOqBTrlLQs4IZdj3
+# VzhfYGid5dnA6p0nwHDsEDwjZvdsWCJreQrpyTU4gaFDEVoK1xeVjrentesYRmS5
+# kPpPLJ1PhutNC1RlTNYXZ6vY/o/0uvQhEImkqpy9KWuopVjaNYzAG2qrJHOZ8xc8
+# TobD+ypeyiMzlFj9L7T4HHNEsN+7VPIyhBGJ5/NodUiQv6LmT5NmyL4NS99Y7IDR
+# UgrfP30c/YFyuU8LtfzGVP8fOCF4h4tFH99JiKtodSm3FqGEmGXwN5Jw8UssfU/0
+# pnPh0U1WJW73iscsEbejqwp8BH5LPqB3+ni0QS/hoEk3V0ZFXtFMdyiv76rDQ6tx
+# l7yd3FKYqyN74uQUVKJnc2h8a2ZVSDVi7a78BOzN1E0UknC2Txk2Y2xjSBmJNQkl
+# tb04NfUdzgazCtYuwG08OrUeYLkEmYaL3/GDbhHG5QuDrt+qys6SWhKROvdf0Kq/
+# EkwkBgKakzbLzbihUq3OO9SAIps8s590xK6cRqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTUwMjU5MTJaMC8GCSqGSIb3DQEJBDEiBCCSsJdWnCO4dEbSvuJP
-# bvLCdXA5x8MRNW1psNJ+3yEUdzANBgkqhkiG9w0BAQEFAASCAgCqsHTSk5jAWW61
-# kOpGhUpyWyO3JwKTJwNLp3iimbB8L4EfYU5NUN2ZUBdEn06z9uRvF1LS4kuVuBBS
-# JHxGX3pNoUT6BSq0ZMVIh8B1DWaW95cqlnmcEPs9aphtA7cj2zsWoggdUVWfR8zc
-# JInYKjIngtxZ2C8m7D0okrU61ytGm/mq7HFlzWqYxnj6I2NRFUvSXLsxUyixPsPD
-# HiwWpz7f2joEP2E/jsNYxgdt1KZQ4n/bK3hBFLMeMIkK9KlaTP7IcZCuzu6cb+RW
-# DsC0caTiNFw9/8Q+xTWE6itWCkxH3rY/ijbrV0X/LLyYRdCeVmZ9Mk0ulKiPeHPn
-# MFPBJWORQZ/1ax03EWisSOr9PN8h1pRn3PVVIE0JHCJ/+csS0bP5GTXtVjI6yLrM
-# U5GGGrBuu6Rlc2vNeyPhdsYeRT6MabKtcc87pQhEt2EC259v3M1ozu/ksZ1yo1Gn
-# CWnbq7SghTqSoa2PCoCGrfexBNf4Xj1cOAXahhauQ8FTeY8bF1W+1uAR1uPKl90Z
-# uFKNRjs/nsjgQilp6+A2CoaGUqTJbsrBvjGScdj9PoW/roywWFK0TvuPwb+dzUGs
-# n9R15IyBo0P7a/EgnT1fj8ngKzgcYSIHh3jcPznT1gGeuSJgPY/BNpqsKUh8DuKF
-# CXmTInEeAmMA+tLsfa2EwoyDI820LA==
+# BTEPFw0yNjA5MTUwNTAzNDZaMC8GCSqGSIb3DQEJBDEiBCBplT8CKCLbbijGbgSq
+# gzpzFgjtfvPKdWWuEDeTj6QcdDANBgkqhkiG9w0BAQEFAASCAgCkYv+z2OWWjvKo
+# orscNhAkKNtGQeCDyqZLox9eKSvOQogeQYmm9Y8RO+LogJEIj82TTIAnvjhU5kdn
+# 9OaHIesozFn6W8TEJcl9n30b4IavJ9HJqxb6mOi+n4OxNlhOnSYp4zmh/a7xglq6
+# aSPY501E1u9H1tt/KAikGdm/CKqVLeJlpDo8bfi4SvJilttsyEZdOWiHxiyuMQCI
+# oUVTKt2D0Z4xxS1Z6FGxNORP0k54qsgljTbU8UAUmdIWzzF30NhkMm0WX8KPL+qR
+# 3tMYpgSjwh86LbI0iYr3kdXy29iX8MMl5FuPChXWLvJXSgat8pVInmUzEizdbz24
+# M7j3sIQW1AcF/pjkDMij0KY4LJRoNv5qcrM4MkduoHsyCEZ++m/Wz0qFXOYMQNVZ
+# autQy0S4tABqTpMKapLcoqqXZjeL7vPEnIUvQHG9fWQrRxyDnnkOVFi7Bdidd2n9
+# 41qurLk6XVr72JLGoZN3eQv+atB0NdMLE5cjf3h3pYDjqTlUWGzk0d6QtzbAdRNF
+# 5fLH5oPVdttPYvC91WsqraakI1ojvG5DwnUEiHq44HOJIiVL0KVBBIm0OV4SQpFe
+# L1l6ieKvvX4VthHjMXCl5OT52qTODNn0Z7m7nZdDeqVNsbGaTUbPP8kmLvf2ObJQ
+# 7Dj3XtKERKY00T848mPuqYcZdZ3S/A==
 # SIG # End signature block
