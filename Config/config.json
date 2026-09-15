@@ -316,6 +316,8 @@
             "transport": "StreamableHttp",
             "endpoint": "http://localhost:3000/mcp",
             "authMode": "None",
+            "credentialEnvironmentVariable": "TT_AGENT_MCP_FS_TOKEN",
+            "credentialSecretKeyName": "mcpFsApiKeyEncrypted",
             "namespacePrefix": "fs",
             "requestTimeoutSeconds": 30
           },

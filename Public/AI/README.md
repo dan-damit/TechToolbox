@@ -154,6 +154,22 @@ Notes:
 - If neither source is available and session is interactive, commands can prompt once to capture and persist a DPAPI-protected key.
 - Use `-DisableApiKeyPrompt` to suppress this behavior in automation.
 - Use `Set-TechAgentApiKey` for explicit key rotation/removal workflows.
+- MCP bearer auth supports the same precedence pattern per server: configured environment variable first, then encrypted override, then `settings.agent.<credentialSecretKeyName>`.
+- Use `Set-TechAgentMcpApiKey` to set, rotate, or clear per-server MCP DPAPI secrets.
+
+MCP DPAPI setup examples:
+
+```powershell
+# Resolve the secret key from MCP server config by server name
+Set-TechAgentMcpApiKey -ServerName tavily
+
+# Or write directly to a specific secret key name
+$secure = Read-Host 'Enter MCP API key' -AsSecureString
+Set-TechAgentMcpApiKey -SecretKeyName mcpTavilyApiKeyEncrypted -ApiKey $secure
+
+# Clear a stored MCP secret
+Set-TechAgentMcpApiKey -ServerName tavily -Clear
+```
 
 `FETCH-URL` host allowlist is configured in `Config\config.json` under:
 

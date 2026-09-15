@@ -1,102 +1,96 @@
-Describe "TechToolbox Module" {
+Describe 'Resolve-TTAgentMcpBearerSecret' {
     BeforeAll {
         Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
     }
 
-    Context "Module Load" {
-        It "Should load without errors" {
-            { Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force } | Should -Not -Throw
-        }
+    BeforeEach {
+        [Environment]::SetEnvironmentVariable('TT_TEST_MCP_TOKEN', $null, 'Process')
+    }
 
-        It "Should be available in Get-Module" {
-            $module = Get-Module -Name TechToolbox
-            $module | Should -Not -BeNullOrEmpty
+    It 'prefers process environment variable value over all other sources' {
+        InModuleScope TechToolbox {
+            [Environment]::SetEnvironmentVariable('TT_TEST_MCP_TOKEN', 'env-token', 'Process')
+
+            $secure = ConvertTo-SecureString -String 'dpapi-token' -AsPlainText -Force
+            $blob = ConvertFrom-SecureString -SecureString $secure
+            $cfg = @{ mcpSecretEncrypted = $blob }
+            $server = [pscustomobject]@{
+                name = 'demo'
+                credentialEnvironmentVariable = 'TT_TEST_MCP_TOKEN'
+                credentialSecretKeyName = 'mcpSecretEncrypted'
+            }
+
+            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject $cfg -ServerConfigObject $server
+
+            $result.Key | Should -Be 'env-token'
+            $result.Source | Should -Be 'Environment:TT_TEST_MCP_TOKEN'
+            $result.Error | Should -BeNullOrEmpty
         }
     }
 
-    Context "Exported Functions" {
-        BeforeAll {
-            $expectedFunctions = @(
-                'Clear-BrowserProfileData',
-                'Copy-Directory',
-                'Disable-User',
-                'Enable-NetFx3',
-                'Export-ToolboxFunctions',
-                'Find-LargeFiles',
-                'Get-AllUsers',
-                'Get-AuditSharedMailboxDeletions',
-                'Get-AutodiscoverXmlInteractive',
-                'Get-BatteryHealth',
-                'Get-CUCredentialManagerContents',
-                'Get-DomainAdminCredential',
-                'Get-ErrorEvents',
-                'Get-FilesUsingKeywords',
-                'Get-InstalledPrinters',
-                'Get-LocalAdminMembers',
-                'Get-MessageTrace',
-                'Get-NewPSRemoteSession',
-                'Get-PDQDiagLogs',
-                'Get-RemoteInstalledSoftware',
-                'Get-SharedMailboxPermissions',
-                'Get-SystemSnapshot',
-                'Get-SystemTrustDiagnostic',
-                'Get-SystemUptime',
-                'Get-TechToolboxConfig',
-                'Get-ToolboxHelp',
-                'Get-WindowsProductKey',
-                'Initialize-TTWordList',
-                'Install-TechAgentRuntime',
-                'Invoke-AADSyncRemote',
-                'Invoke-DownloadsCleanup',
-                'Invoke-PurviewPurge',
-                'Invoke-RestartService',
-                'Invoke-SubnetScan',
-                'Invoke-SystemRepair',
-                'Invoke-TechAgent',
-                'Invoke-TechAgentGui',
-                'Get-TechAgentQualitySummary',
-                'New-OnPremUserFromTemplate',
-                'Remove-EpicorEdgeAgent',
-                'Remove-Printers',
-                'Reset-ADPassword',
-                'Reset-WindowsUpdateComponents',
-                'Search-User',
-                'Set-EmailAlias',
-                'Set-OneTimeReboot',
-                'Set-PageFileSize',
-                'Set-ProxyAddress',
-                'Set-TechAgentApiKey',
-                'Set-TechAgentMcpApiKey',
-                'Set-TechAgentSearchWebApiKey',
-                'Start-DnsQueryLogger',
-                'Start-NewPSRemoteSession',
-                'Start-PDQDiagLocalElevated',
-                'Stop-PSRemoteSession',
-                'Test-MailHeaderAuth',
-                'Test-PathAs',
-                'Test-TechAgentProvider',
-                'Test-TTPathRoots',
-                'Use-TechAgentTaskTemplate',
-                'Watch-ISPConnection'
-            )
-        }
-
-        It "Should export all expected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            foreach ($func in $expectedFunctions) {
-                $exportedFunctions | Should -Contain $func
+    It 'uses encrypted override when environment variable is not present' {
+        InModuleScope TechToolbox {
+            $secure = ConvertTo-SecureString -String 'override-token' -AsPlainText -Force
+            $overrideBlob = ConvertFrom-SecureString -SecureString $secure
+            $server = [pscustomobject]@{
+                name = 'demo'
+                credentialEnvironmentVariable = 'TT_TEST_MCP_TOKEN'
+                credentialSecretEncryptedOverride = $overrideBlob
             }
-        }
 
-        It "Should not export unexpected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            $unexpectedFunctions = @()
-            foreach ($func in $exportedFunctions) {
-                if ($func -notin $expectedFunctions) {
-                    $unexpectedFunctions += $func
-                }
+            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject @{} -ServerConfigObject $server
+
+            $result.Key | Should -Be 'override-token'
+            $result.Source | Should -Be 'McpCredentialSecretEncryptedOverride'
+            $result.Error | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'uses settings agent secret key when env and override are absent' {
+        InModuleScope TechToolbox {
+            $secure = ConvertTo-SecureString -String 'secret-key-token' -AsPlainText -Force
+            $blob = ConvertFrom-SecureString -SecureString $secure
+            $cfg = @{ mcpTavilyApiKeyEncrypted = $blob }
+            $server = [pscustomobject]@{
+                name = 'tavily'
+                credentialEnvironmentVariable = 'TT_TEST_MCP_TOKEN'
+                credentialSecretKeyName = 'mcpTavilyApiKeyEncrypted'
             }
-            $unexpectedFunctions | Should -BeNullOrEmpty
+
+            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject $cfg -ServerConfigObject $server
+
+            $result.Key | Should -Be 'secret-key-token'
+            $result.Source | Should -Be 'DPAPI:settings.agent.mcpTavilyApiKeyEncrypted'
+            $result.Error | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'returns missing when no source is available' {
+        InModuleScope TechToolbox {
+            $server = [pscustomobject]@{
+                name = 'tavily'
+                credentialEnvironmentVariable = 'TT_TEST_MCP_TOKEN'
+            }
+
+            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject @{} -ServerConfigObject $server
+
+            $result.Key | Should -BeNullOrEmpty
+            $result.Source | Should -Be 'Missing'
+            $result.Error | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'returns explicit error when credentialEnvironmentVariable is absent' {
+        InModuleScope TechToolbox {
+            $server = [pscustomobject]@{
+                name = 'tavily'
+            }
+
+            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject @{} -ServerConfigObject $server
+
+            $result.Key | Should -BeNullOrEmpty
+            $result.Source | Should -Be 'MissingEnvironmentVariableName'
+            $result.Error | Should -Match 'credentialEnvironmentVariable is required'
         }
     }
 }
@@ -104,8 +98,8 @@ Describe "TechToolbox Module" {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDFtUfdavw2fKwX
-# YZ4yMZyvn7kEXMYKCIqkDTyymMW9kqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCxDdU3J6DwvHKW
+# XzLfy7kmMByMPk9u+d1YTA4RvZjn1KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -238,34 +232,34 @@ Describe "TechToolbox Module" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDiYwHKzFgX
-# sPaOlpjModbSXdC5gfODLqMeoKucUUKD1jANBgkqhkiG9w0BAQEFAASCAgBmSuWc
-# gn/8F7Z2rzeSW9FFCfSzGb0eWpIQpyZLH0QPMxa1g2RIYWUcV7pAqjsAR/nn5i1s
-# r2YKT1Rbzn209GZl6IpWxX4Ehh6i8hUSa7X2ciE7i7ZG30yuprcsic+iaenE+z2N
-# QfNdKYsHzX1IivjQaUb39vnOdlSEfJ+1c+mYub7/W60GQUtEx/1pi9YPd7wMkDBX
-# VDs2fcHo4D8TaV1sPNwa84XURoQbMRLzveAMu/nIai1K/Rjy6WJe25RvCHHMA561
-# oi/XwylamdBr5Znns6Xz24HpxcchIHofTaW4zYNYLKP6q3m64SKaPUzyn6geHDic
-# 7tn9hHvOGpTcm2e9fZxNqZ18kAigb81mKBWDywQJmWsyIoOBM8AK5m0cxSxMdeso
-# 5DngA5aj775ZnOO849U4/08JO5JpyoBnkfmo/twz6um1Ct+yFu66kz+cve4qoPIG
-# WhVP43L9Isqb5ZRQtWptq6IC7yrK7gZLBj9dJm1Fmr3fmK8Ph6XkMAZ2XAlAtSIv
-# xQ0rJ8WWw0gQ+ktRZp9OhBPfzChvDq29wpjYY+azmnHsvUpQe+ZcOU81UHblnb5C
-# skhOPyraWzMf6Y3IV64VvLDBmBBvuM5gHe6c6004Vq/C/N4PrZmwwo5oIzJlAVZ5
-# 9IZJyGSBTlyb+6CP1aMbGRoPbk4fCFgE9nPodKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD2lEmbQ8f/
+# cn/vPl+CKDv77VS59wlEK7RFqAUg8xeCVTANBgkqhkiG9w0BAQEFAASCAgAJZC8P
+# uG0HNHAkuL25f7hBBwU7uM6wtmFIIKye+WN8tzZR4dzJPhgwCoN+Dx0pJnk4FR+n
+# nnyhiqaELGxNXeuEbzTnsvpOTq5LJYB23rB7kd4nhMzV9iixLdt0FsVqATFXRPQi
+# wv+DBBC8NhODebepo6YKwQYOKkai7Brnh6eOFCorQu9w2WL2Iz5db2dxxoXrLXtM
+# +U4lvbAIKZJJLU8rTJKiFA7ayXHHSMKn6WM/xxpe6mccr9LtUp0c/rZV9cI6JI9g
+# nJNed1CqrPg1fvGvUyVQBLeITQG/EU1NOqVMAOrJkmSmRRAL2hrzdhqvpRMBu6sY
+# a/aYnF2dwNXS5pEYbkVlIP9RNX8xlX7/ZBhazHFd0Jhcfi+dz31q9jLuf+QymWI0
+# 0/Qou+o+RNW1BrOxNG7I3Eqa9KXib5o3Ci4cuf5WyrmFyswQe4SVyrMWjredGaUU
+# ug2BkZtiP6Mbj/YMD8820MIFnlLkUlQ21QBXexPKfpa8Zm8tmpce9AbyowYKdUUZ
+# lm8u04iSWgXbpBiBWcwdULI056qgzHmcW4b1xsEqWoRPCT8W4kpKAdxVceEjmHiB
+# 6LtqHoZpQmuQEPoUGWp1w01VoDlJ07TOCL877s+cLWTBiNYoM0UWenFBvvQfR2Hq
+# DoMNmW8Ui60K0YNOVvomg5H81u0Zs/6GQbQHhqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTUwMjU5MTNaMC8GCSqGSIb3DQEJBDEiBCBhkXtgfgwZEeJt3VuX
-# RQp/tXxYHGs057/KCqc8dXFFwDANBgkqhkiG9w0BAQEFAASCAgAl3vpVb14AOzQF
-# fU2lcNyc1IzQsdReB+/ZMlm4DCSwCBQpYRx29JiAX5REkdQkbpBooXMJLB1ta8aW
-# 96kH0uvRzUBXxGj6D2Mb7iDRBQn4mio1O+8sMmbc4lAG+/X/8omPc9SUIdYMsW4m
-# FPKBUsbsQEeDDl7nVwTyGirm2Q2kMre489uvNfq9ltUIPhUCfpkfyWfnBNvpBlTm
-# TUSQPtM91WwY7KOzwCLkg5ILnQ/poMMssugHBDonMoE1gpy4MD7lNLXsEShnc+2N
-# rNM08R8CmCI83KPCkMoXh3tjIeylSRVWLZOAVtxKP6wBhF6/cZ8N2xM+uUiDZPHb
-# D1IIf0hzJAyx70e0sDVGqk9scEmxAxS47/mDThc8sKEBKUBxqWH9Hz1AD8Vzb5um
-# 9beVqgzI+z8BnGaXKwJv/vNkfJLAzawQj4wpZKm7iKisW6WKv3KPkNi3h2ypnN6s
-# 1sxEpP4xrJ6RAyrxojrVf7ilT2odl4uKV5aKrmWw4Oq4drVr3F2/t1cmjBo00L5v
-# GavRKeWDm+av5Om5LMqRDPVjjNRng8hWSw2m11J/l98q7s+3U5y/JnuEuuukYwyl
-# hZmL+NxwJCPcMMO/5/V4149BXEHacT6w7eAx0uwcQ/wPopszxV+3q3NLFfYxejqW
-# l1/IY+WA7dp/P4glbgQJBOgVLHLlGQ==
+# BTEPFw0yNjA5MTUwMjU5MTNaMC8GCSqGSIb3DQEJBDEiBCBqtyYSujGQ2TWp37ey
+# bBRcE+bPM18ylxUsT9gf6rXOuzANBgkqhkiG9w0BAQEFAASCAgAvVT9aVf84lOGi
+# J5m6eIaTiMiie8hWSBPEP3N31BgOBo3lpbUfuh2V53HybTT2lTZ8YwiN37cLR2vo
+# Cro6PRqPlFTKcfxNaPHwYD1zSzXcnUSHCk8NDQJYhIj5NVdRhTT1KvUHmKH6w6H9
+# PUUmxn414rbplCygkro8Oeg74ZErc1zV/TN2OMnG+c/vUjcVyNKlnUjUD2/OrsB/
+# HUpR0+RaFFfBPbYgkBXQLKjoKQHJ0HOhBGruj29q2zcjgVdvnLCZc1LxB4+Ftjkm
+# +NnBPEtCF/0f41k1ghkFx6SFtOaILB/XB1QYJnDD5vo0CrtLBkCV6enb5GOzBL2z
+# uM4vY04UH55VQx/Tx9H4ahs5SQuV8S7pUbJLkgpFai/LEXo4aWod0e7BJ0Va0g1X
+# EqfX0IEYo0W1YTrfntZOs6GnBsP8zFIpWExl1chT9sIsb8sXQzJxnCzM+n2rBMa/
+# rL1tFIwcmcwAkBeAZMVgANNbuRfkCz4bvtWVaOt4lLkltOK88AwrayJtBxwL6Rne
+# w9kPWfjQgDZgi3UGShOMHBjlr1bCBMMhAFu23Qeg8U5OTLy9i3y0Q177zuX7GeO+
+# M3nJNb7yEihTuKtbSqSnPrte5AcbPQ4WrWzLyvx+S+mnwjV+7OcFLq19bLpuVH8t
+# IdCe38+bYFcYhBME7ybgAZiWrSAkMg==
 # SIG # End signature block

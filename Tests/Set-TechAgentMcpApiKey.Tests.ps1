@@ -1,102 +1,115 @@
-Describe "TechToolbox Module" {
+Describe 'Set-TechAgentMcpApiKey' {
     BeforeAll {
         Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
     }
 
-    Context "Module Load" {
-        It "Should load without errors" {
-            { Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force } | Should -Not -Throw
-        }
+    BeforeEach {
+        InModuleScope TechToolbox {
+            $script:cfg = [pscustomobject]@{
+                settings = [pscustomobject]@{
+                    agent = [pscustomobject]@{
+                        mcp = [pscustomobject]@{
+                            servers = @(
+                                [pscustomobject]@{
+                                    name = 'tavily'
+                                    credentialSecretKeyName = 'mcpTavilyApiKeyEncrypted'
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
-        It "Should be available in Get-Module" {
-            $module = Get-Module -Name TechToolbox
-            $module | Should -Not -BeNullOrEmpty
+            $script:seedSecrets = @{
+                settings = @{
+                    agent = @{}
+                }
+            }
+
+            Remove-Variable -Name writtenSecrets -Scope Script -ErrorAction SilentlyContinue
+
+            Mock Initialize-TechToolboxRuntime {}
+            Mock Read-Secrets { $script:seedSecrets }
+            Mock Write-Secrets {
+                param([hashtable]$Secrets)
+                $script:writtenSecrets = $Secrets
+                'C:\temp\config.secrets.json'
+            }
+            Mock Write-Log {}
+            Mock Test-TTInteractive { $false }
         }
     }
 
-    Context "Exported Functions" {
-        BeforeAll {
-            $expectedFunctions = @(
-                'Clear-BrowserProfileData',
-                'Copy-Directory',
-                'Disable-User',
-                'Enable-NetFx3',
-                'Export-ToolboxFunctions',
-                'Find-LargeFiles',
-                'Get-AllUsers',
-                'Get-AuditSharedMailboxDeletions',
-                'Get-AutodiscoverXmlInteractive',
-                'Get-BatteryHealth',
-                'Get-CUCredentialManagerContents',
-                'Get-DomainAdminCredential',
-                'Get-ErrorEvents',
-                'Get-FilesUsingKeywords',
-                'Get-InstalledPrinters',
-                'Get-LocalAdminMembers',
-                'Get-MessageTrace',
-                'Get-NewPSRemoteSession',
-                'Get-PDQDiagLogs',
-                'Get-RemoteInstalledSoftware',
-                'Get-SharedMailboxPermissions',
-                'Get-SystemSnapshot',
-                'Get-SystemTrustDiagnostic',
-                'Get-SystemUptime',
-                'Get-TechToolboxConfig',
-                'Get-ToolboxHelp',
-                'Get-WindowsProductKey',
-                'Initialize-TTWordList',
-                'Install-TechAgentRuntime',
-                'Invoke-AADSyncRemote',
-                'Invoke-DownloadsCleanup',
-                'Invoke-PurviewPurge',
-                'Invoke-RestartService',
-                'Invoke-SubnetScan',
-                'Invoke-SystemRepair',
-                'Invoke-TechAgent',
-                'Invoke-TechAgentGui',
-                'Get-TechAgentQualitySummary',
-                'New-OnPremUserFromTemplate',
-                'Remove-EpicorEdgeAgent',
-                'Remove-Printers',
-                'Reset-ADPassword',
-                'Reset-WindowsUpdateComponents',
-                'Search-User',
-                'Set-EmailAlias',
-                'Set-OneTimeReboot',
-                'Set-PageFileSize',
-                'Set-ProxyAddress',
-                'Set-TechAgentApiKey',
-                'Set-TechAgentMcpApiKey',
-                'Set-TechAgentSearchWebApiKey',
-                'Start-DnsQueryLogger',
-                'Start-NewPSRemoteSession',
-                'Start-PDQDiagLocalElevated',
-                'Stop-PSRemoteSession',
-                'Test-MailHeaderAuth',
-                'Test-PathAs',
-                'Test-TechAgentProvider',
-                'Test-TTPathRoots',
-                'Use-TechAgentTaskTemplate',
-                'Watch-ISPConnection'
-            )
-        }
+    It 'stores encrypted key when SecretKeyName is specified' {
+        InModuleScope TechToolbox {
+            $secure = ConvertTo-SecureString -String 'abc123' -AsPlainText -Force
 
-        It "Should export all expected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            foreach ($func in $expectedFunctions) {
-                $exportedFunctions | Should -Contain $func
-            }
-        }
+            $result = Set-TechAgentMcpApiKey -SecretKeyName 'mcpCustomApiKeyEncrypted' -ApiKey $secure -PassThru -Confirm:$false
 
-        It "Should not export unexpected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            $unexpectedFunctions = @()
-            foreach ($func in $exportedFunctions) {
-                if ($func -notin $expectedFunctions) {
-                    $unexpectedFunctions += $func
+            $result.Success | Should -BeTrue
+            $result.KeyStored | Should -BeTrue
+            $result.SecretKeyName | Should -Be 'mcpCustomApiKeyEncrypted'
+            $script:writtenSecrets.settings.agent.ContainsKey('mcpCustomApiKeyEncrypted') | Should -BeTrue
+            [string]::IsNullOrWhiteSpace([string]$script:writtenSecrets.settings.agent.mcpCustomApiKeyEncrypted) | Should -BeFalse
+        }
+    }
+
+    It 'clears existing secret key value' {
+        InModuleScope TechToolbox {
+            $script:seedSecrets = @{
+                settings = @{
+                    agent = @{
+                        mcpTavilyApiKeyEncrypted = 'encrypted-value'
+                    }
                 }
             }
-            $unexpectedFunctions | Should -BeNullOrEmpty
+
+            $result = Set-TechAgentMcpApiKey -SecretKeyName 'mcpTavilyApiKeyEncrypted' -Clear -PassThru -Confirm:$false
+
+            $result.Success | Should -BeTrue
+            $result.KeyStored | Should -BeFalse
+            $script:writtenSecrets.settings.agent.ContainsKey('mcpTavilyApiKeyEncrypted') | Should -BeFalse
+        }
+    }
+
+    It 'resolves secret key name from matching MCP server config' {
+        InModuleScope TechToolbox {
+            $secure = ConvertTo-SecureString -String 'from-server-config' -AsPlainText -Force
+
+            $result = Set-TechAgentMcpApiKey -ServerName 'tavily' -ApiKey $secure -PassThru -Confirm:$false
+
+            $result.Success | Should -BeTrue
+            $result.SecretKeyName | Should -Be 'mcpTavilyApiKeyEncrypted'
+            $result.Source | Should -Be 'ServerConfig'
+        }
+    }
+
+    It 'derives secret key name from server name when config does not define one' {
+        InModuleScope TechToolbox {
+            $script:cfg.settings.agent.mcp.servers = @(
+                [pscustomobject]@{
+                    name = 'my-http-server'
+                }
+            )
+
+            $secure = ConvertTo-SecureString -String 'derived-value' -AsPlainText -Force
+            $result = Set-TechAgentMcpApiKey -ServerName 'my-http-server' -ApiKey $secure -PassThru -Confirm:$false
+
+            $result.Success | Should -BeTrue
+            $result.SecretKeyName | Should -Be 'mcpMyHttpServerApiKeyEncrypted'
+            $result.Source | Should -Be 'DerivedFromServerName'
+        }
+    }
+
+    It 'throws when neither ServerName nor SecretKeyName is supplied' {
+        InModuleScope TechToolbox {
+            { Set-TechAgentMcpApiKey -Confirm:$false } | Should -Throw
+        }
+    }
+
+    It 'throws in non-interactive mode when ApiKey is omitted' {
+        InModuleScope TechToolbox {
+            { Set-TechAgentMcpApiKey -SecretKeyName 'mcpAnyEncrypted' -Confirm:$false } | Should -Throw
         }
     }
 }
@@ -104,8 +117,8 @@ Describe "TechToolbox Module" {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDFtUfdavw2fKwX
-# YZ4yMZyvn7kEXMYKCIqkDTyymMW9kqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCoX00kboLudHHU
+# P8WtMnIUZY8wS7Wtd8q2H84fvKmDoaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -238,34 +251,34 @@ Describe "TechToolbox Module" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDiYwHKzFgX
-# sPaOlpjModbSXdC5gfODLqMeoKucUUKD1jANBgkqhkiG9w0BAQEFAASCAgBmSuWc
-# gn/8F7Z2rzeSW9FFCfSzGb0eWpIQpyZLH0QPMxa1g2RIYWUcV7pAqjsAR/nn5i1s
-# r2YKT1Rbzn209GZl6IpWxX4Ehh6i8hUSa7X2ciE7i7ZG30yuprcsic+iaenE+z2N
-# QfNdKYsHzX1IivjQaUb39vnOdlSEfJ+1c+mYub7/W60GQUtEx/1pi9YPd7wMkDBX
-# VDs2fcHo4D8TaV1sPNwa84XURoQbMRLzveAMu/nIai1K/Rjy6WJe25RvCHHMA561
-# oi/XwylamdBr5Znns6Xz24HpxcchIHofTaW4zYNYLKP6q3m64SKaPUzyn6geHDic
-# 7tn9hHvOGpTcm2e9fZxNqZ18kAigb81mKBWDywQJmWsyIoOBM8AK5m0cxSxMdeso
-# 5DngA5aj775ZnOO849U4/08JO5JpyoBnkfmo/twz6um1Ct+yFu66kz+cve4qoPIG
-# WhVP43L9Isqb5ZRQtWptq6IC7yrK7gZLBj9dJm1Fmr3fmK8Ph6XkMAZ2XAlAtSIv
-# xQ0rJ8WWw0gQ+ktRZp9OhBPfzChvDq29wpjYY+azmnHsvUpQe+ZcOU81UHblnb5C
-# skhOPyraWzMf6Y3IV64VvLDBmBBvuM5gHe6c6004Vq/C/N4PrZmwwo5oIzJlAVZ5
-# 9IZJyGSBTlyb+6CP1aMbGRoPbk4fCFgE9nPodKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCHnn1ZAnew
+# 7XImqH+7dqyzR6MzNccgIeJ2NUT/51YnqzANBgkqhkiG9w0BAQEFAASCAgDFIRYw
+# T8MOkoJUJGqXjyJpck4kD2318RXi8bs/3Q6wmYfDIvxOfJvSxvqYs+9MIeKFjUmD
+# 8CgMJhNbHmjjlnSyfWedrQgOVIhXZ8c38BnKhdHGIi7nU3kEtfHjjmZXDrMuT0se
+# 3wdRz98nxMZcncZtCkCOrTf2ewiAKvIU5DVLGXFQaDSWpGtBRlXOpn41HrNONuTS
+# okXj60+yReIhOT5Ww2Yre91DEMVbihC+YzRgYyF5SWMr/AOujVimNgdaML7T+DRv
+# 8HKP1/hanP+KaTd/bGNyfhR9GbvHgJvGsgn81jM0KF7a/sgHS8EuRoVeuuux+7Ux
+# Y0RnQNhAzRYGCDjYL+cqFP030os2RmPVmAX6L2kGcqFxeDOwKiCxWGJwAJ9AdSkN
+# cHgG/poYgRnuJzHwIcNRQrPjuqLV5SyFrLEqAPJS2MfAxPAEbBxHbf7yR3maYlOr
+# BkJrDKnfUbRWDehyxXXzuf6nQ8rMUVolABoSo9caGHe0giKkLGqlP0EnTGJ9gUrC
+# z1oYw0kG6nx7RAoKdshMs97ar4lJetzsw3Yg9FCgpHPgrflQ7wJ622VDl//mlY8Y
+# gg9RxrO6wDpCDSyLsZG0UR5ocxuaMsqGz6ZADGwTMP/dv5IYYo0G2aiHchcKmoA/
+# aY6SE6KkQvq8zMqdrSiULwdl6nIYmZnif0ddyaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTUwMjU5MTNaMC8GCSqGSIb3DQEJBDEiBCBhkXtgfgwZEeJt3VuX
-# RQp/tXxYHGs057/KCqc8dXFFwDANBgkqhkiG9w0BAQEFAASCAgAl3vpVb14AOzQF
-# fU2lcNyc1IzQsdReB+/ZMlm4DCSwCBQpYRx29JiAX5REkdQkbpBooXMJLB1ta8aW
-# 96kH0uvRzUBXxGj6D2Mb7iDRBQn4mio1O+8sMmbc4lAG+/X/8omPc9SUIdYMsW4m
-# FPKBUsbsQEeDDl7nVwTyGirm2Q2kMre489uvNfq9ltUIPhUCfpkfyWfnBNvpBlTm
-# TUSQPtM91WwY7KOzwCLkg5ILnQ/poMMssugHBDonMoE1gpy4MD7lNLXsEShnc+2N
-# rNM08R8CmCI83KPCkMoXh3tjIeylSRVWLZOAVtxKP6wBhF6/cZ8N2xM+uUiDZPHb
-# D1IIf0hzJAyx70e0sDVGqk9scEmxAxS47/mDThc8sKEBKUBxqWH9Hz1AD8Vzb5um
-# 9beVqgzI+z8BnGaXKwJv/vNkfJLAzawQj4wpZKm7iKisW6WKv3KPkNi3h2ypnN6s
-# 1sxEpP4xrJ6RAyrxojrVf7ilT2odl4uKV5aKrmWw4Oq4drVr3F2/t1cmjBo00L5v
-# GavRKeWDm+av5Om5LMqRDPVjjNRng8hWSw2m11J/l98q7s+3U5y/JnuEuuukYwyl
-# hZmL+NxwJCPcMMO/5/V4149BXEHacT6w7eAx0uwcQ/wPopszxV+3q3NLFfYxejqW
-# l1/IY+WA7dp/P4glbgQJBOgVLHLlGQ==
+# BTEPFw0yNjA5MTUwMjU5MTNaMC8GCSqGSIb3DQEJBDEiBCC1mzs0qreYm72g4431
+# vHQ1PnYGp/7iSxGAn6b6DKiGYzANBgkqhkiG9w0BAQEFAASCAgCWejabjDtUjazN
+# VdLwvza0GOYUWQHbl8lCeGf1UztJhWLAMMD6WTqE/RHiVsui1XVuOEzXrvf8FnSd
+# HliB7+EpAZXGorcbiWo/UfSzbcGsmZJ1NIXheZ9rKKlgDGNlPXM8/LcRTCK7ONoF
+# +iupFVuL0FP6ldK/MNPYiBlSjv4Bl+GJtBUJ+8pxCG3FbFAgTa8yUtNnsTS2DThb
+# lUkT/aFoRGzG2FvYYIzY/FXC6WPDmnpOwOKYsyn7Okyiv/kGSQLFz359zHLrIGK7
+# NDZrXSHaMUVfwU6mmU57HS17Uyv+J5n4WaDKLwvrvUDlIcZo/E6qahAb52dVYPjg
+# u3I2UD/NcmsYEb6H75caDunttCxI559AXaFH63xt8L1uPjosa2sihen3F1rQwtpW
+# iSNUcrPlNkSqs8vadKdKMQtC4/4dueUmIGp7ucJI/Rqc6aRiPSpnOv3RNIehyx96
+# Bk7kD3mtEcjSXBcosTeoLNE0zbCE03bBN2gqfOo7yJHJ9el6LyG6Y7y4xPfiv6SE
+# ghTobVrw5/+192cuul0k5ewKKkqrk7ybCcaiUuSKaIrldiddY2mxm3wUjW/rj07S
+# 6wYB4luMUOvhhkEKTIgOCMT1wV2u7eDH8x20mViy1Hf8vIah5vm7Z/5fS5qm0dxZ
+# EOhkOtRnPrZZpTSWDScNXfhLtRO0Ng==
 # SIG # End signature block

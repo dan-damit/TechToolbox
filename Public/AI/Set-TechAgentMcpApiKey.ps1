@@ -1,111 +1,213 @@
-Describe "TechToolbox Module" {
-    BeforeAll {
-        Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
+function Set-TechAgentMcpApiKey {
+    <#
+    .SYNOPSIS
+        Securely sets, rotates, or clears DPAPI-encrypted API keys for MCP servers.
+
+    .DESCRIPTION
+        Stores secrets under settings.agent.<secretKeyName> in config.secrets.json
+        using DPAPI. This command never writes plain-text keys to disk.
+
+    .PARAMETER ServerName
+        Optional MCP server name from settings.agent.mcp.servers in config.json.
+        When supplied without -SecretKeyName, the command uses the server's
+        credentialSecretKeyName if present, otherwise derives one.
+
+    .PARAMETER SecretKeyName
+        Explicit secret key name under settings.agent.
+
+    .PARAMETER ApiKey
+        Secure API key value to store. If omitted in Set mode and running
+        interactively, you will be prompted.
+
+    .PARAMETER Clear
+        Removes the stored encrypted key for the resolved secret key name.
+
+    .PARAMETER PassThru
+        Returns an object summarizing the operation.
+
+    .EXAMPLE
+        Set-TechAgentMcpApiKey -ServerName tavily
+
+    .EXAMPLE
+        $secure = Read-Host 'Enter MCP API key' -AsSecureString
+        Set-TechAgentMcpApiKey -SecretKeyName mcpTavilyApiKeyEncrypted -ApiKey $secure
+
+    .EXAMPLE
+        Set-TechAgentMcpApiKey -ServerName tavily -Clear
+    #>
+
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+    param(
+        [Parameter()]
+        [string]$ServerName,
+
+        [Parameter()]
+        [ValidatePattern('^[A-Za-z0-9._-]{1,128}$')]
+        [string]$SecretKeyName,
+
+        [Parameter(ParameterSetName = 'Set')]
+        [securestring]$ApiKey,
+
+        [Parameter(ParameterSetName = 'Clear', Mandatory)]
+        [switch]$Clear,
+
+        [Parameter()]
+        [switch]$PassThru
+    )
+
+    Initialize-TechToolboxRuntime
+
+    if ([string]::IsNullOrWhiteSpace($ServerName) -and [string]::IsNullOrWhiteSpace($SecretKeyName)) {
+        throw 'Provide -ServerName or -SecretKeyName.'
     }
 
-    Context "Module Load" {
-        It "Should load without errors" {
-            { Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force } | Should -Not -Throw
+    $cfg = $script:cfg.settings.agent
+
+    $resolvedSecretKeyName = $SecretKeyName
+    $resolvedServerName = $ServerName
+    $resolutionSource = 'Parameter'
+
+    if ([string]::IsNullOrWhiteSpace($resolvedSecretKeyName) -and -not [string]::IsNullOrWhiteSpace($ServerName)) {
+        $mcpConfig = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'
+        $mcpServers = @()
+        if ($null -ne $mcpConfig) {
+            $mcpServers = @(Get-TTAgentConfigValue -ConfigObject $mcpConfig -KeyName 'servers')
         }
 
-        It "Should be available in Get-Module" {
-            $module = Get-Module -Name TechToolbox
-            $module | Should -Not -BeNullOrEmpty
-        }
-    }
+        $matchingServer = $null
+        foreach ($candidate in $mcpServers) {
+            if ($null -eq $candidate) {
+                continue
+            }
 
-    Context "Exported Functions" {
-        BeforeAll {
-            $expectedFunctions = @(
-                'Clear-BrowserProfileData',
-                'Copy-Directory',
-                'Disable-User',
-                'Enable-NetFx3',
-                'Export-ToolboxFunctions',
-                'Find-LargeFiles',
-                'Get-AllUsers',
-                'Get-AuditSharedMailboxDeletions',
-                'Get-AutodiscoverXmlInteractive',
-                'Get-BatteryHealth',
-                'Get-CUCredentialManagerContents',
-                'Get-DomainAdminCredential',
-                'Get-ErrorEvents',
-                'Get-FilesUsingKeywords',
-                'Get-InstalledPrinters',
-                'Get-LocalAdminMembers',
-                'Get-MessageTrace',
-                'Get-NewPSRemoteSession',
-                'Get-PDQDiagLogs',
-                'Get-RemoteInstalledSoftware',
-                'Get-SharedMailboxPermissions',
-                'Get-SystemSnapshot',
-                'Get-SystemTrustDiagnostic',
-                'Get-SystemUptime',
-                'Get-TechToolboxConfig',
-                'Get-ToolboxHelp',
-                'Get-WindowsProductKey',
-                'Initialize-TTWordList',
-                'Install-TechAgentRuntime',
-                'Invoke-AADSyncRemote',
-                'Invoke-DownloadsCleanup',
-                'Invoke-PurviewPurge',
-                'Invoke-RestartService',
-                'Invoke-SubnetScan',
-                'Invoke-SystemRepair',
-                'Invoke-TechAgent',
-                'Invoke-TechAgentGui',
-                'Get-TechAgentQualitySummary',
-                'New-OnPremUserFromTemplate',
-                'Remove-EpicorEdgeAgent',
-                'Remove-Printers',
-                'Reset-ADPassword',
-                'Reset-WindowsUpdateComponents',
-                'Search-User',
-                'Set-EmailAlias',
-                'Set-OneTimeReboot',
-                'Set-PageFileSize',
-                'Set-ProxyAddress',
-                'Set-TechAgentApiKey',
-                'Set-TechAgentMcpApiKey',
-                'Set-TechAgentSearchWebApiKey',
-                'Start-DnsQueryLogger',
-                'Start-NewPSRemoteSession',
-                'Start-PDQDiagLocalElevated',
-                'Stop-PSRemoteSession',
-                'Test-MailHeaderAuth',
-                'Test-PathAs',
-                'Test-TechAgentProvider',
-                'Test-TTPathRoots',
-                'Use-TechAgentTaskTemplate',
-                'Watch-ISPConnection'
-            )
-        }
-
-        It "Should export all expected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            foreach ($func in $expectedFunctions) {
-                $exportedFunctions | Should -Contain $func
+            $candidateName = [string](Get-TTAgentConfigValue -ConfigObject $candidate -KeyName 'name')
+            if ([string]::Equals($candidateName, $ServerName, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $matchingServer = $candidate
+                $resolvedServerName = $candidateName
+                break
             }
         }
 
-        It "Should not export unexpected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            $unexpectedFunctions = @()
-            foreach ($func in $exportedFunctions) {
-                if ($func -notin $expectedFunctions) {
-                    $unexpectedFunctions += $func
+        if ($null -ne $matchingServer) {
+            $configuredSecretKeyName = [string](Get-TTAgentConfigValue -ConfigObject $matchingServer -KeyName 'credentialSecretKeyName')
+            if (-not [string]::IsNullOrWhiteSpace($configuredSecretKeyName)) {
+                $resolvedSecretKeyName = $configuredSecretKeyName.Trim()
+                $resolutionSource = 'ServerConfig'
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($resolvedSecretKeyName)) {
+            $nameParts = @()
+            foreach ($part in ($ServerName -split '[^A-Za-z0-9]+')) {
+                if ([string]::IsNullOrWhiteSpace($part)) {
+                    continue
                 }
+
+                $nameParts += ($part.Substring(0, 1).ToUpperInvariant() + $part.Substring(1).ToLowerInvariant())
             }
-            $unexpectedFunctions | Should -BeNullOrEmpty
+
+            if ($nameParts.Count -eq 0) {
+                throw ("Unable to derive a secret key name from server name '{0}'. Provide -SecretKeyName explicitly." -f $ServerName)
+            }
+
+            $resolvedSecretKeyName = ('mcp{0}ApiKeyEncrypted' -f ($nameParts -join ''))
+            $resolutionSource = 'DerivedFromServerName'
         }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($resolvedSecretKeyName)) {
+        throw 'Failed to resolve a secret key name. Provide -SecretKeyName explicitly.'
+    }
+
+    if ($resolvedSecretKeyName.Length -gt 128) {
+        throw 'Resolved secret key name exceeds the 128-character limit.'
+    }
+
+    if ($resolvedSecretKeyName -notmatch '^[A-Za-z0-9._-]+$') {
+        throw 'Resolved secret key name contains unsupported characters.'
+    }
+
+    $result = [ordered]@{
+        Success       = $false
+        Action        = if ($Clear.IsPresent) { 'Clear' } else { 'Set' }
+        ServerName    = if ([string]::IsNullOrWhiteSpace($resolvedServerName)) { $null } else { $resolvedServerName }
+        SecretKeyName = $resolvedSecretKeyName
+        Source        = $resolutionSource
+        SecretsPath   = $null
+        KeyStored     = $false
+        Detail        = $null
+    }
+
+    $isInteractive = $false
+    if (Get-Command -Name Test-TTInteractive -ErrorAction SilentlyContinue) {
+        $isInteractive = (Test-TTInteractive)
+    }
+
+    $secrets = Read-Secrets
+    if (-not ($secrets -is [hashtable])) {
+        $secrets = @{}
+    }
+
+    if (-not $secrets.ContainsKey('settings') -or -not ($secrets.settings -is [hashtable])) {
+        $secrets.settings = @{}
+    }
+
+    if (-not $secrets.settings.ContainsKey('agent') -or -not ($secrets.settings.agent -is [hashtable])) {
+        $secrets.settings.agent = @{}
+    }
+
+    if ($Clear.IsPresent) {
+        if ($PSCmdlet.ShouldProcess("settings.agent.$resolvedSecretKeyName", 'Remove DPAPI-encrypted MCP API key')) {
+            if ($secrets.settings.agent.ContainsKey($resolvedSecretKeyName)) {
+                [void]$secrets.settings.agent.Remove($resolvedSecretKeyName)
+            }
+
+            $result.SecretsPath = Write-Secrets -Secrets $secrets
+            $result.Success = $true
+            $result.KeyStored = $false
+            $result.Detail = ("Cleared MCP API key secret '{0}'." -f $resolvedSecretKeyName)
+            Write-Log -Level Warn -Message $result.Detail
+        }
+
+        if ($PassThru.IsPresent) {
+            return [pscustomobject]$result
+        }
+
+        return
+    }
+
+    if ($null -eq $ApiKey) {
+        if (-not $isInteractive) {
+            throw 'ApiKey was not provided and session is non-interactive. Pass -ApiKey as SecureString.'
+        }
+
+        $ApiKey = Read-Host 'Enter MCP API key' -AsSecureString
+    }
+
+    $encryptedApiKey = ConvertFrom-SecureString -SecureString $ApiKey
+    if ([string]::IsNullOrWhiteSpace($encryptedApiKey)) {
+        throw 'Failed to encrypt API key. No value was produced.'
+    }
+
+    if ($PSCmdlet.ShouldProcess("settings.agent.$resolvedSecretKeyName", 'Store DPAPI-encrypted MCP API key')) {
+        $secrets.settings.agent[$resolvedSecretKeyName] = $encryptedApiKey
+        $result.SecretsPath = Write-Secrets -Secrets $secrets
+        $result.Success = $true
+        $result.KeyStored = $true
+        $result.Detail = ("Stored MCP API key in settings.agent.{0} as DPAPI-encrypted secret." -f $resolvedSecretKeyName)
+        Write-Log -Level Ok -Message $result.Detail
+    }
+
+    if ($PassThru.IsPresent) {
+        return [pscustomobject]$result
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDFtUfdavw2fKwX
-# YZ4yMZyvn7kEXMYKCIqkDTyymMW9kqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCUesQKRaZwcAvW
+# wZ2YKlrrVNHwEYvFEtvPxmh0B4QWhqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -238,34 +340,34 @@ Describe "TechToolbox Module" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDiYwHKzFgX
-# sPaOlpjModbSXdC5gfODLqMeoKucUUKD1jANBgkqhkiG9w0BAQEFAASCAgBmSuWc
-# gn/8F7Z2rzeSW9FFCfSzGb0eWpIQpyZLH0QPMxa1g2RIYWUcV7pAqjsAR/nn5i1s
-# r2YKT1Rbzn209GZl6IpWxX4Ehh6i8hUSa7X2ciE7i7ZG30yuprcsic+iaenE+z2N
-# QfNdKYsHzX1IivjQaUb39vnOdlSEfJ+1c+mYub7/W60GQUtEx/1pi9YPd7wMkDBX
-# VDs2fcHo4D8TaV1sPNwa84XURoQbMRLzveAMu/nIai1K/Rjy6WJe25RvCHHMA561
-# oi/XwylamdBr5Znns6Xz24HpxcchIHofTaW4zYNYLKP6q3m64SKaPUzyn6geHDic
-# 7tn9hHvOGpTcm2e9fZxNqZ18kAigb81mKBWDywQJmWsyIoOBM8AK5m0cxSxMdeso
-# 5DngA5aj775ZnOO849U4/08JO5JpyoBnkfmo/twz6um1Ct+yFu66kz+cve4qoPIG
-# WhVP43L9Isqb5ZRQtWptq6IC7yrK7gZLBj9dJm1Fmr3fmK8Ph6XkMAZ2XAlAtSIv
-# xQ0rJ8WWw0gQ+ktRZp9OhBPfzChvDq29wpjYY+azmnHsvUpQe+ZcOU81UHblnb5C
-# skhOPyraWzMf6Y3IV64VvLDBmBBvuM5gHe6c6004Vq/C/N4PrZmwwo5oIzJlAVZ5
-# 9IZJyGSBTlyb+6CP1aMbGRoPbk4fCFgE9nPodKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDDleUBcmGc
+# 2AOddGiZU6YAftLgmxyPg1clX38IB5la1DANBgkqhkiG9w0BAQEFAASCAgA1sUzt
+# S3D1VJgTKdfzGAXyAT8wt7jCeTvt83ttx60DY3j/eqs2WS4U+smPRcZAesEucBjk
+# 2asA2dp6Bvui0LiCSxOvasUVtAWGZ5B5cCjX/ZCveUmef+ezFmtLra0SJOO1lIlJ
+# 4QxTEID7TblAvmPdF/bZFBeI//UCvMmzLXqOWZ2TkA6MAYhy33K4ia5DyWMQdhpt
+# kPO3/swOQ010BQig8PecegEniUsa3ufc0dNpPoLYtZR0lV06/Md7+7pkpL90ERiJ
+# sqXvsMHCz+QERY/FYCPWVYy4lCDhwLOO/T+lCx2Ga8viayjmpsv8Jymcsx/a1j2t
+# 6NnhjoQpyg8vm/ivqjWwz8TrR8jhi9nXB8JbYqACKfH+NBA/1Fx35Bl+E/lbaQ7o
+# US1630uIfY/l5gnyLrzfsvXNJjg+zlawKK7G4GQeehX1VFzo7Shht5ECbBqt7SHd
+# 1BnU9MNrjRknlRIHTPnlxjJQ/j4/WUU+oM1mDiMC/JPvyUG9ibBGlg+J8XX1UWWB
+# OAqt1ySSwAa+fVXmVvIsNTwrh5szGxhwaArp22wJGgJsOYDcn/Ezhy5ATIuUcd2E
+# kisSnkI05FLWzizek14Fivt7yB3S6k37DLIqbqbZZkYiHbJmaf73uI8Xb+P9vZeh
+# 65ykUcFDyQyhBbIfsVErVnY1QnB66Zm8MQvRXaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTUwMjU5MTNaMC8GCSqGSIb3DQEJBDEiBCBhkXtgfgwZEeJt3VuX
-# RQp/tXxYHGs057/KCqc8dXFFwDANBgkqhkiG9w0BAQEFAASCAgAl3vpVb14AOzQF
-# fU2lcNyc1IzQsdReB+/ZMlm4DCSwCBQpYRx29JiAX5REkdQkbpBooXMJLB1ta8aW
-# 96kH0uvRzUBXxGj6D2Mb7iDRBQn4mio1O+8sMmbc4lAG+/X/8omPc9SUIdYMsW4m
-# FPKBUsbsQEeDDl7nVwTyGirm2Q2kMre489uvNfq9ltUIPhUCfpkfyWfnBNvpBlTm
-# TUSQPtM91WwY7KOzwCLkg5ILnQ/poMMssugHBDonMoE1gpy4MD7lNLXsEShnc+2N
-# rNM08R8CmCI83KPCkMoXh3tjIeylSRVWLZOAVtxKP6wBhF6/cZ8N2xM+uUiDZPHb
-# D1IIf0hzJAyx70e0sDVGqk9scEmxAxS47/mDThc8sKEBKUBxqWH9Hz1AD8Vzb5um
-# 9beVqgzI+z8BnGaXKwJv/vNkfJLAzawQj4wpZKm7iKisW6WKv3KPkNi3h2ypnN6s
-# 1sxEpP4xrJ6RAyrxojrVf7ilT2odl4uKV5aKrmWw4Oq4drVr3F2/t1cmjBo00L5v
-# GavRKeWDm+av5Om5LMqRDPVjjNRng8hWSw2m11J/l98q7s+3U5y/JnuEuuukYwyl
-# hZmL+NxwJCPcMMO/5/V4149BXEHacT6w7eAx0uwcQ/wPopszxV+3q3NLFfYxejqW
-# l1/IY+WA7dp/P4glbgQJBOgVLHLlGQ==
+# BTEPFw0yNjA5MTUwMjU5MTJaMC8GCSqGSIb3DQEJBDEiBCClqdvG2oOORavZGiNI
+# SnErzT56c6cGkE36UMzlOgnQqDANBgkqhkiG9w0BAQEFAASCAgCnvJjhUO1NQQrT
+# TzIP7QCCkbhHzXG0DlcMRjJ2X8/fYRV1El1yQoY3buxZr8AafV7YjhYH94sUBZuo
+# U0zrYgIQ+N3DjQnkGjY6qX25u7Jk1ndE1OhjBxWLRSKm1HRburXR/3GADwP+Hn0O
+# Qt/C+maZzT6gihMFSZA53pnovyDcp2NfQ7emq7Zc0CreqCRnwZq2/+cvHDo9wlUG
+# WFsBnok7KVXd5ETr2DyaPQk866XO4Cpykff1gKliVseryr3q5B2IfyznoIXxyTqb
+# iNC52BYeVGqdwVpTSpynxWSRVCOV23pOlXzBYXeNAU5Evex87A2G/2hAfiVqcRLC
+# lSFZqfMX++4IB+MBoAjxkJSjyy76VqmH+Z+0IHx3Bco0aYeUn5eXtxERLqN7INGL
+# A9RdJuMQjFYnJ1Aje3hYDYvulAwwnBJ/OUf5WHgSlXsqdchNRoxgfkZbgifBTUST
+# hIGkkSgiy63/2K+ybGjxFnH4KyHyEbnU2tcpYfbHukFRF1B++lcedRtlm22wsfjY
+# NE6FC7eFgo8Dd9ojJjVxvrcP3hNYFLviLXhlORYFKwHpB0NB0F7QDIsY3MMcl3wd
+# 3v3HlF9x5ctXQO//CIBJ5c6fNWvpbJsp3lGGVGwjEXatvkLy9j+BY6r39LF/Ki1v
+# +ja+RLh7FkywiujSgWWM9rV6TIVLdA==
 # SIG # End signature block

@@ -89,12 +89,12 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User'
                'Remove-Printers', 'Reset-ADPassword', 
                'Reset-WindowsUpdateComponents', 'Search-User', 'Set-EmailAlias', 
                'Set-OneTimeReboot', 'Set-PageFileSize', 'Set-ProxyAddress', 
-               'Set-TechAgentApiKey', 'Set-TechAgentSearchWebApiKey', 
-               'Start-DnsQueryLogger', 'Start-NewPSRemoteSession', 
-               'Start-PDQDiagLocalElevated', 'Stop-PSRemoteSession', 
-               'Test-MailHeaderAuth', 'Test-PathAs', 'Test-TechAgentProvider', 
-               'Test-TTPathRoots', 'Use-TechAgentTaskTemplate', 
-               'Watch-ISPConnection'
+               'Set-TechAgentApiKey', 'Set-TechAgentMcpApiKey', 
+               'Set-TechAgentSearchWebApiKey', 'Start-DnsQueryLogger', 
+               'Start-NewPSRemoteSession', 'Start-PDQDiagLocalElevated', 
+               'Stop-PSRemoteSession', 'Test-MailHeaderAuth', 'Test-PathAs', 
+               'Test-TechAgentProvider', 'Test-TTPathRoots', 
+               'Use-TechAgentTaskTemplate', 'Watch-ISPConnection'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'

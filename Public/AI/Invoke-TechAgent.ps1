@@ -1217,6 +1217,93 @@ Hard requirement:
             $resolvedSearchWebApiKey = [string]$searchWebApiKeyResolution.Key
         }
 
+        $resolvedMcpBearerCredentials = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $mcpConfigValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'
+        if ($null -ne $mcpConfigValue) {
+            [bool]$mcpEnabled = $false
+            $mcpEnabledValue = Get-TTAgentConfigValue -ConfigObject $mcpConfigValue -KeyName 'enabled'
+            if ($null -ne $mcpEnabledValue) {
+                [bool]$parsedMcpEnabled = $false
+                if ([bool]::TryParse([string]$mcpEnabledValue, [ref]$parsedMcpEnabled)) {
+                    $mcpEnabled = $parsedMcpEnabled
+                }
+                elseif ($mcpEnabledValue -is [bool]) {
+                    $mcpEnabled = [bool]$mcpEnabledValue
+                }
+            }
+
+            if ($mcpEnabled) {
+                $mcpServers = @(Get-TTAgentConfigValue -ConfigObject $mcpConfigValue -KeyName 'servers')
+                foreach ($mcpServer in $mcpServers) {
+                    if ($null -eq $mcpServer) {
+                        continue
+                    }
+
+                    [bool]$serverEnabled = $false
+                    $serverEnabledValue = Get-TTAgentConfigValue -ConfigObject $mcpServer -KeyName 'enabled'
+                    if ($null -ne $serverEnabledValue) {
+                        [bool]$parsedServerEnabled = $false
+                        if ([bool]::TryParse([string]$serverEnabledValue, [ref]$parsedServerEnabled)) {
+                            $serverEnabled = $parsedServerEnabled
+                        }
+                        elseif ($serverEnabledValue -is [bool]) {
+                            $serverEnabled = [bool]$serverEnabledValue
+                        }
+                    }
+
+                    if (-not $serverEnabled) {
+                        continue
+                    }
+
+                    $transport = [string](Get-TTAgentConfigValue -ConfigObject $mcpServer -KeyName 'transport')
+                    $authMode = [string](Get-TTAgentConfigValue -ConfigObject $mcpServer -KeyName 'authMode')
+                    if (-not [string]::Equals($transport, 'StreamableHttp', [System.StringComparison]::OrdinalIgnoreCase)) {
+                        continue
+                    }
+
+                    if (-not [string]::Equals($authMode, 'BearerEnvironmentVariable', [System.StringComparison]::OrdinalIgnoreCase)) {
+                        continue
+                    }
+
+                    $mcpCredentialResolution = Resolve-TTAgentMcpBearerSecret -ConfigObject $cfg -ServerConfigObject $mcpServer
+                    $mcpServerName = [string]$mcpCredentialResolution.ServerName
+                    $mcpEnvVarName = [string]$mcpCredentialResolution.EnvVarName
+                    $mcpCredentialValue = [string]$mcpCredentialResolution.Key
+                    $mcpCredentialError = [string]$mcpCredentialResolution.Error
+
+                    if ([string]::IsNullOrWhiteSpace($mcpCredentialValue)) {
+                        if (-not [string]::IsNullOrWhiteSpace($mcpCredentialError)) {
+                            throw (
+                                "MCP server '{0}' bearer credential resolution failed via {1}: {2}" -f $mcpServerName, $mcpCredentialResolution.Source, $mcpCredentialError
+                            )
+                        }
+
+                        if ([string]::IsNullOrWhiteSpace($mcpEnvVarName)) {
+                            throw (
+                                "MCP server '{0}' requires credentialEnvironmentVariable for bearer authentication." -f $mcpServerName
+                            )
+                        }
+
+                        throw (
+                            "MCP server '{0}' requires bearer credential '{1}'. Set environment variable '{1}' or configure settings.agent.mcp.servers[].credentialSecretKeyName with a DPAPI secret in config.secrets.json under settings.agent.<secretKeyName>." -f $mcpServerName, $mcpEnvVarName
+                        )
+                    }
+
+                    if ($resolvedMcpBearerCredentials.ContainsKey($mcpEnvVarName)) {
+                        if (-not [string]::Equals($resolvedMcpBearerCredentials[$mcpEnvVarName], $mcpCredentialValue, [System.StringComparison]::Ordinal)) {
+                            throw (
+                                "MCP credential conflict: multiple servers resolved different values for credential environment variable '{0}'." -f $mcpEnvVarName
+                            )
+                        }
+
+                        continue
+                    }
+
+                    $resolvedMcpBearerCredentials[$mcpEnvVarName] = $mcpCredentialValue
+                }
+            }
+        }
+
         $request = [ordered]@{
             Prompt                         = $effectivePrompt
             Model                          = $resolvedModel
@@ -1709,6 +1796,11 @@ $result = $runAgentMethod.Invoke($null, @(
         if (-not [string]::IsNullOrWhiteSpace($resolvedSearchWebApiKey)) {
             $startInfo.Environment[$searchWebApiKeyEnvVar] = $resolvedSearchWebApiKey
         }
+        foreach ($mcpCredentialEntry in $resolvedMcpBearerCredentials.GetEnumerator()) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$mcpCredentialEntry.Key) -and -not [string]::IsNullOrWhiteSpace([string]$mcpCredentialEntry.Value)) {
+                $startInfo.Environment[[string]$mcpCredentialEntry.Key] = [string]$mcpCredentialEntry.Value
+            }
+        }
         if (-not [string]::IsNullOrWhiteSpace($toolCredentialPath)) {
             $startInfo.Environment['TT_AGENT_DEFAULT_CREDENTIAL_CLIXML'] = $toolCredentialPath
         }
@@ -2178,8 +2270,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCALZe1VEBZW+RPG
-# Wjo+sj0ggvhwvHsuCMJ9q/fGlpVcsqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCvHIYRZHbWLU3s
+# 08rtt4YNaBsMvA5588sArMFHkIK/O6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2312,34 +2404,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC6WcaMv/5K
-# jnx5sJq5EyUvb4yD4o7h7GGbunc52ibaMTANBgkqhkiG9w0BAQEFAASCAgBx4El3
-# PcJEUUFHkAtDDig+s1uQLsG64DKKLF6CCkcbQ2Ztl8udt/3vIBJwk4vo6ONwltvy
-# uR/CTobjy7qCN9GpOn+sDRmJTnUVmhXa2x15zn7KZI9Tuzq6JsTekCjTb/cJCeZ8
-# 5mY+qzTy6varXyskOkBHdcLG3i90AihnyPSRgLNaklRuHSvGuKB/MVuy2cMbGiVV
-# avk53tPLHaa4pPmc3T/56dwrXhUxzjVNuJgWHJxT+RWiUgJQVrmUGToogcVEhvW/
-# yW1WmcdwPfxNZ4WYV/4Sly30ePX14SwrvI3ZuUC/8HyegV37gKSwBcJryzsFen+V
-# pE7+Rhr/TrJ36Fql0PFgEBccdH+cebtcWDQojXePL50i7PwTNy6BRn/KXZNppChM
-# PvprI09qM5ypO6pHJpq7JmZXKVega/OAsUgKpB4bkvsrqQ90cmhitjsvXCP7Xw0w
-# csIqFI69y0reAMl6CCg0Se8iX7R16WNhI4e9RzPG5wF5vZaYG08aW3sRsVhLG4fr
-# Fx5IgbXokscr0YwNczYXZJfqYkfz2vQoUty2NfoTDln3uoInEerAfTXbN39Lfilc
-# l0DsDY2r578QyoFKvQUJzdCqNunITQb+gM3LLTSpYAXr0U58DYrH20GKJii9Jvaj
-# w9Y8xVBafiCM/uqyad9q2M5CX5NsjHadSnJaPKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAqK7sJM6Xn
+# KFXoFP6v6Qm3vnQTzixe/ukI4WiWhA6ImzANBgkqhkiG9w0BAQEFAASCAgAMVoPl
+# UYzR1ELaNfZsj+C+/MR6a6sCBOAZ5xO7RrFfxxXyuuTxYYnuUQHmwEtNilnWFEA5
+# GmcEs7XBlB91SBpdTvXc1KoQ2mBFiOULqZGzaZUJxwZbK2JIDbhlUiNPuBcb2X/1
+# y56T4YNf7+Xab8rQnkFQ8InRxGmxo0ERjvDjtNb0aON/taldNC+mxAcEloLYaipP
+# Ewi1rqiA+FjAbGhU8nPWU60wU5QzJbgCHn/q5RMiE6kPhRMp59wj6FffIU0QpsXe
+# ai8PCLiKaKZQxBnru51OsKnYrUgrA5aMW9H/r+zBM2JXYVGylKMabu85iQ02RCic
+# B6+xh57b8LHSfoQWX7J9TbWCTBGF4ljXWnd2wgidXsmaAfNPHgApYd2UQweeBg/c
+# tYIXNVF+ZZYJq91l9gUz2N8LTzTHT9PcEX7bBdpUwBHWSSY81slWxTTsMYf8uR+m
+# +I6STjC+PDc+bvTCk61GWt8iQVgg6f8yzNJOg8ESFjW6Gml1BzY5tH/D1JgNsGgT
+# aZsuUwSE3weQCnWU3+j/F/zmGG++jlMWq8gOKQw5jGiLrXw2FxEepSLR0yWMGMH8
+# vm8hEC1IIh/ToiniOXxESjWghNA2k171f+7IT3kcL7I3LtLWH1eL9JxmBWU1mRm1
+# /IGk5sPZ47U6lTeU/peeCw87hgN9UJUQQRmkF6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTUwMjM3MjZaMC8GCSqGSIb3DQEJBDEiBCDS1HM9xuCvaOE7WQG9
-# IQOJdWD8awLR2VlZyMHUNt2e2jANBgkqhkiG9w0BAQEFAASCAgAutlMxGujapiwO
-# lYEj2a3zgyx0dmpLfUB8Hhu1GihhSmt2ka/qUzI1mxDFHqC3epxAYKYLZBgFfY2A
-# 5wUbTVEBu/+SvCvvQLkCZ8rx7ozv7Rmlq6t4abV4BbOZRYsB/iLjhn+HBXXrS1W/
-# 0a3JIWGpyofjGHvXsCR35yWRe6MJwyaowDMpf4EKPpPdJKmzHwp3/g47obBg5cIX
-# ZGxdbbmKu0zuRA6W9NPh7P1RogVFe075LNO+RvYLkafgOrK3Mi4bkSYzK6tqmRz+
-# FYxeRNhAS8vhZwbkfym4dVyiaTkculFa2AzXWNFh6o65wqAAWHZ4fG/fn1GpRlW1
-# fpWpj11xW4Lm9xZ4IjSFYuBF/c9t/S7vvgyG8uQfFwDcjLJDT2tahHu64KKm8rK0
-# MbFFLrwPj4+6tThtOZGRb0JHBLKamrh9Ete6BArLXqzPzGVuhKk+eait4spjBtpi
-# ednmKP+Ket3sDMRxfUipnh8pu7ZmYc9gvwuRSSnAT96sN9V8TFVEQxCr/oCGY4EF
-# 8msi1TzmXqb9c6JamubdgNc5wv5lllNdMQ4BiN7vToSAWDalu7w7FD6vcRADmU0o
-# v1QqfS5qNiFyDCdYi7weGaxH/GMT7DNREpY1bJdfnOrdj1SJ7XgBbhyAlg2M5oY8
-# 0wBxqFy0a7/Y1EUgts2L1Q/NxWelwQ==
+# BTEPFw0yNjA5MTUwMjU5MTJaMC8GCSqGSIb3DQEJBDEiBCCSsJdWnCO4dEbSvuJP
+# bvLCdXA5x8MRNW1psNJ+3yEUdzANBgkqhkiG9w0BAQEFAASCAgCqsHTSk5jAWW61
+# kOpGhUpyWyO3JwKTJwNLp3iimbB8L4EfYU5NUN2ZUBdEn06z9uRvF1LS4kuVuBBS
+# JHxGX3pNoUT6BSq0ZMVIh8B1DWaW95cqlnmcEPs9aphtA7cj2zsWoggdUVWfR8zc
+# JInYKjIngtxZ2C8m7D0okrU61ytGm/mq7HFlzWqYxnj6I2NRFUvSXLsxUyixPsPD
+# HiwWpz7f2joEP2E/jsNYxgdt1KZQ4n/bK3hBFLMeMIkK9KlaTP7IcZCuzu6cb+RW
+# DsC0caTiNFw9/8Q+xTWE6itWCkxH3rY/ijbrV0X/LLyYRdCeVmZ9Mk0ulKiPeHPn
+# MFPBJWORQZ/1ax03EWisSOr9PN8h1pRn3PVVIE0JHCJ/+csS0bP5GTXtVjI6yLrM
+# U5GGGrBuu6Rlc2vNeyPhdsYeRT6MabKtcc87pQhEt2EC259v3M1ozu/ksZ1yo1Gn
+# CWnbq7SghTqSoa2PCoCGrfexBNf4Xj1cOAXahhauQ8FTeY8bF1W+1uAR1uPKl90Z
+# uFKNRjs/nsjgQilp6+A2CoaGUqTJbsrBvjGScdj9PoW/roywWFK0TvuPwb+dzUGs
+# n9R15IyBo0P7a/EgnT1fj8ngKzgcYSIHh3jcPznT1gGeuSJgPY/BNpqsKUh8DuKF
+# CXmTInEeAmMA+tLsfa2EwoyDI820LA==
 # SIG # End signature block
