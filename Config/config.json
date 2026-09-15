@@ -318,6 +318,16 @@
             "authMode": "None",
             "namespacePrefix": "fs",
             "requestTimeoutSeconds": 30
+          },
+          {
+            "name": "tavily",
+            "enabled": true,
+            "transport": "Stdio",
+            "command": "npx",
+            "arguments": ["tavily-mcp"],
+            "authMode": "None",
+            "namespacePrefix": "tavily",
+            "requestTimeoutSeconds": 30
           }
         ]
       }
