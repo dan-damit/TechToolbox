@@ -1,87 +1,27 @@
-You are an agentic coding model working inside the TechToolbox repository.
+Inspect MCP server registrations and connection state.
 
-Your task is to perform the analysis groundwork for an MCP server client implementation in the C# project under /src/TechToolbox.Agent, and produce a markdown log that explains the architecture, integration points, risks, and next steps.
+For every configured MCP server return:
 
-Repository target:
-- /src/TechToolbox.Agent
-- Relevant surrounding areas: TechToolbox orchestration, config models, tool execution, LLM client factory, runtime plumbing, tests, and any existing agent/tool abstractions
+- Name
+- Endpoint
+- Enabled
+- Authentication mode
+- Connection status
+- Last connection error
+- OAuth status
+- Number of tools registered
+- Number of resources registered
+- Number of prompts registered
 
-Goal:
-- Analyze the current C# agent runtime and document what is needed to add a client that can communicate with an MCP server.
-- Ground the work in what already exists in this repository, not assumptions or generic MCP boilerplate.
-- Produce an evidence-based markdown analysis log suitable for a follow-on implementation task.
+If no MCP servers are connected, explain why.
 
-Required analysis areas:
-1. Runtime architecture
-   - Identify the main execution flow from request entry into orchestration and final output.
-   - Note the current agent runtime components, execution boundaries, and configuration flow.
+Use a tool if necessary.
 
-2. Tooling and protocol integration points
-   - Inspect how tools are registered, invoked, and constrained.
-   - Identify where an MCP client layer would fit without disturbing the existing orchestration model.
-   - Explain whether the current design is better suited to a thin client adapter, a tool bridge, or a deeper runtime integration.
+Search the registry for any tool whose:
+- name contains "deploy"
+- name contains "device"
+- name contains "inventory"
+- name contains "automation"
+- name contains "group"
 
-3. Configuration and dependency model
-   - Review configuration patterns used by the agent.
-   - Identify where transport settings, endpoints, auth, retry policies, and runtime profiles would be added for an MCP server client.
-   - Check whether the project already has a pattern for external service clients that can be reused.
-
-4. Safety and failure handling
-   - Document current retry/error-handling conventions.
-   - Highlight how MCP transport failures, malformed server responses, and tool invocation errors should be surfaced in the existing safety model.
-
-5. Design recommendation
-   - Recommend a minimal viable design for integrating an MCP server client.
-   - State architecture assumptions, likely extension points, and any known risks or unknowns.
-
-Execution instructions:
-- Read only the relevant project files needed to answer the above questions.
-- Prefer source evidence over speculation.
-- Use exact repository paths when naming files and classes.
-- Do not invent files, classes, or APIs that are not present.
-- Do not implement the MCP client yet; this task is analysis groundwork only.
-- Keep the output in markdown and make it suitable for a log or design review.
-
-Expected output structure:
-
-# MCP Server Client Analysis Log
-
-## 1. Scope and objective
-Briefly describe what is being analyzed and why.
-
-## 2. Repository evidence
-List the files and components reviewed, with short rationale for why each matters.
-
-## 3. Current runtime architecture
-Describe how the agent executes work today and where the natural extension points are.
-
-## 4. Tooling and protocol integration assessment
-Explain where an MCP client would attach, what abstraction layer it should use, and what constraints must be preserved.
-
-## 5. Configuration and dependency considerations
-Describe configuration patterns, environment settings, and operational constraints relevant to MCP connectivity.
-
-## 6. Safety, resilience, and failure modes
-Capture retry behavior, contract assumptions, and failure handling expectations.
-
-## 7. Recommended design direction
-Give a concrete, minimal integration recommendation with the tradeoffs and caveats.
-
-## 8. Open questions and risks
-Call out missing information, unknowns, and implementation risks.
-
-## 9. Proposed next implementation steps
-Provide a staged sequence for the actual coding work after this analysis is approved.
-
-Constraints:
-- Keep the response grounded in the existing codebase.
-- Be concise but complete.
-- Avoid broad refactors or speculative architecture without evidence.
-- If a decision cannot be supported by the repo, call it out as an assumption or open question.
-- The final answer should be a markdown log, not a patch or code diff.
-
-Success criteria:
-- The analysis is repository-specific and evidence-based.
-- The document clearly identifies the best insertion points for an MCP server client under /src/TechToolbox.Agent.
-- The document clearly states what is unknown and what should be validated before implementation.
-- The result is usable as groundwork for the next engineering step.
+Return matching tool names only.

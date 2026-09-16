@@ -1,0 +1,259 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "pdq-mcp-debug-check",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 5 -AsJson"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pdq-mcp-debug-check",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 5 -AsJson"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pdq-mcp-debug-check",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 8 -AsJson"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pdq-metadata-check",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$urls=@('https://app.pdq.com/.well-known/openid-configuration','https://app.pdq.com/.well-known/oauth-authorization-server'); foreach($u in $urls){ try { $r=Invoke-WebRequest -Uri $u -Method Get -TimeoutSec 20; Write-Output ('URL: ' + $u); Write-Output ('Status: ' + [int]$r.StatusCode); Write-Output ('BodySnippet: ' + ($r.Content.Substring(0,[Math]::Min(300,$r.Content.Length)).Replace(\"`r\",\" \").Replace(\"`n\",\" \"))); } catch { Write-Output ('URL: ' + $u); Write-Output ('ERROR: ' + $_.Exception.Message) } ; Write-Output '---' }"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pdq-openid-check",
+			"type": "shell",
+			"command": "pwsh -NoProfile -Command \"try { $r = Invoke-WebRequest -Uri 'https://app.pdq.com/.well-known/openid-configuration' -TimeoutSec 20; Write-Output ('Status: ' + [int]$r.StatusCode); Write-Output $r.Content } catch { Write-Output ('ERROR: ' + $_.Exception.Message) }\"",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-oauth-as-check",
+			"type": "shell",
+			"command": "pwsh -NoProfile -Command \"try { $r = Invoke-WebRequest -Uri 'https://app.pdq.com/.well-known/oauth-authorization-server' -TimeoutSec 20; Write-Output ('Status: ' + [int]$r.StatusCode); Write-Output $r.Content } catch { Write-Output ('ERROR: ' + $_.Exception.Message) }\"",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-openid-check",
+			"type": "shell",
+			"command": "try { $r = Invoke-WebRequest -Uri 'https://app.pdq.com/.well-known/openid-configuration' -TimeoutSec 20; Write-Output ('Status: ' + [int]$r.StatusCode); Write-Output $r.Content } catch { Write-Output ('ERROR: ' + $_.Exception.Message) }",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-oauth-as-check",
+			"type": "shell",
+			"command": "try { $r = Invoke-WebRequest -Uri 'https://app.pdq.com/.well-known/oauth-authorization-server' -TimeoutSec 20; Write-Output ('Status: ' + [int]$r.StatusCode); Write-Output $r.Content } catch { Write-Output ('ERROR: ' + $_.Exception.Message) }",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-openid-check2",
+			"type": "shell",
+			"command": "try { $r = Invoke-WebRequest -Uri 'https://app.pdq.com/.well-known/openid-configuration' -TimeoutSec 20; Write-Output ('Status: ' + [int]$r.StatusCode); Write-Output $r.Content } catch { Write-Output ('ERROR: ' + $_.Exception.Message) }",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-oauth-as-check2",
+			"type": "shell",
+			"command": "try { $r = Invoke-WebRequest -Uri 'https://app.pdq.com/.well-known/oauth-authorization-server' -TimeoutSec 20; Write-Output ('Status: ' + [int]$r.StatusCode); Write-Output $r.Content } catch { Write-Output ('ERROR: ' + $_.Exception.Message) }",
+			"isBackground": false
+		},
+		{
+			"label": "publish-agent-release",
+			"type": "shell",
+			"command": "dotnet publish .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "test-oauth-relative-metadata",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj --filter \"FullyQualifiedName~RelativeMetadataEndpoints_AreResolvedAgainstIssuer|FullyQualifiedName~MetadataDiscovery_FollowsRedirectsToAuthorizationServerDocument\"",
+			"isBackground": false
+		},
+		{
+			"label": "test-oauth-relative-metadata",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj --filter 'FullyQualifiedName~RelativeMetadataEndpoints_AreResolvedAgainstIssuer|FullyQualifiedName~MetadataDiscovery_FollowsRedirectsToAuthorizationServerDocument'",
+			"isBackground": false
+		},
+		{
+			"label": "test-oauth-redirect",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj --filter FullyQualifiedName~MetadataDiscovery_FollowsRedirectsToAuthorizationServerDocument",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-mcp-debug-check",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 8 -AsJson",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-auth-metadata-live",
+			"type": "shell",
+			"command": "try { $r = Invoke-WebRequest -Uri 'https://app.pdq.com/.well-known/oauth-authorization-server' -TimeoutSec 20; $j = $r.Content | ConvertFrom-Json; [pscustomobject]@{ issuer=$j.issuer; authorization_endpoint=$j.authorization_endpoint; token_endpoint=$j.token_endpoint; response_types_supported=($j.response_types_supported -join ','); code_challenge_methods_supported=($j.code_challenge_methods_supported -join ','); scopes_supported=($j.scopes_supported -join ',') } | ConvertTo-Json -Depth 4 } catch { 'ERROR: ' + $_.Exception.Message }",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-authorize-probe",
+			"type": "shell",
+			"command": "$base='https://auth2.pdq.com/oauth/authorize'; $client='c9403ceb-ba30-4e2d-9cef-7a2884b7452b'; $redir='http://localhost:3000/oauth/callback'; $state='debugstate'; $cc='abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG'; $tests=@('openid profile pdq.connect','devices:read groups:read deployments:read'); foreach($scope in $tests){ $uri = \"$base?response_type=code&client_id=$([uri]::EscapeDataString($client))&redirect_uri=$([uri]::EscapeDataString($redir))&scope=$([uri]::EscapeDataString($scope))&state=$state&code_challenge=$cc&code_challenge_method=S256\"; try { $r=Invoke-WebRequest -Uri $uri -MaximumRedirection 0 -ErrorAction Stop; Write-Output ('SCOPE='+$scope); Write-Output ('STATUS='+[int]$r.StatusCode) } catch { $resp=$_.Exception.Response; if($resp){ Write-Output ('SCOPE='+$scope); Write-Output ('STATUS='+[int]$resp.StatusCode); try { $sr=[System.IO.StreamReader]::new($resp.GetResponseStream()); $body=$sr.ReadToEnd(); $sr.Dispose(); Write-Output ('BODY='+($body.Substring(0,[Math]::Min(180,$body.Length)).Replace(\"`r\",' ').Replace(\"`n\",' '))) } catch {} } else { Write-Output ('SCOPE='+$scope); Write-Output ('ERROR='+$_.Exception.Message) } }; Write-Output '---' }",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-mcp-debug-check",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 20 | Format-List Name,Endpoint,ConnectionStatus,FailureCode,OAuthStatus,LastConnectionError",
+			"isBackground": false
+		},
+		{
+			"label": "port-3000-owner",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess,@{n='ProcessName';e={(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName}} | Format-Table -AutoSize",
+			"isBackground": false
+		},
+		{
+			"label": "port-3000-owner",
+			"type": "shell",
+			"command": "netstat -ano | findstr :3000",
+			"isBackground": false
+		},
+		{
+			"label": "port-3000-owner-netstat",
+			"type": "shell",
+			"command": "netstat -ano | findstr :3000",
+			"isBackground": false
+		},
+		{
+			"label": "check-nettcp-cmdlet",
+			"type": "shell",
+			"command": "Get-Command Get-NetTCPConnection | Select-Object Name,Source",
+			"isBackground": false
+		},
+		{
+			"label": "port-3000-owner-check2",
+			"type": "shell",
+			"command": "$rows = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue; if($rows){ $rows | Select-Object State,LocalAddress,LocalPort,OwningProcess,@{n='ProcessName';e={(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName}} | Format-Table -AutoSize } else { 'No active TCP bindings on port 3000.' }",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-authorize-status-check",
+			"type": "shell",
+			"command": "$scope='deployments:read devices:read groups:read'; $uri=\"https://auth2.pdq.com/oauth/authorize?response_type=code&client_id=c9403ceb-ba30-4e2d-9cef-7a2884b7452b&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth%2Fcallback&scope=$([uri]::EscapeDataString($scope))&state=diagstate&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG&code_challenge_method=S256\"; try { $r=Invoke-WebRequest -Uri $uri -MaximumRedirection 0 -ErrorAction Stop; 'STATUS=' + [int]$r.StatusCode } catch { if($_.Exception.Response){ 'STATUS=' + [int]$_.Exception.Response.StatusCode } else { 'ERROR=' + $_.Exception.Message } }",
+			"isBackground": false
+		},
+		{
+			"label": "build-agent-after-pdq-flow",
+			"type": "shell",
+			"command": "dotnet build .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "publish-agent-after-pdq-flow",
+			"type": "shell",
+			"command": "dotnet publish .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-mcp-external-flow-check",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 10 -AsJson",
+			"isBackground": false
+		},
+		{
+			"label": "test-oauth-integration",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\TechToolbox.Agent.Tests.csproj -c Release --filter McpOAuthIntegrationTests",
+			"isBackground": false
+		},
+		{
+			"label": "build-agent-after-cancel-fix",
+			"type": "shell",
+			"command": "dotnet build .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "test-oauth-integration-fixed",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj -c Release --filter McpOAuthIntegrationTests",
+			"isBackground": false
+		},
+		{
+			"label": "test-agent-all",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "publish-agent-final",
+			"type": "shell",
+			"command": "dotnet publish .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-mcp-external-flow-check-2",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 10 -AsJson",
+			"isBackground": false
+		},
+		{
+			"label": "build-agent-external-callback-userenv",
+			"type": "shell",
+			"command": "dotnet build .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "publish-agent-external-callback-userenv",
+			"type": "shell",
+			"command": "dotnet publish .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-check-after-userenv",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 10 -AsJson",
+			"isBackground": false
+		},
+		{
+			"label": "pdq-synthetic-callback-path",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; $env:TT_AGENT_MCP_OAUTH_CALLBACK_URL_PDQ_CONNECT='?code=fake-code'; Test-TechAgentMcpConnection -ServerName pdq-connect -TimeoutSeconds 20 -AsJson",
+			"isBackground": false
+		},
+		{
+			"label": "git-status-after-pdq-flow",
+			"type": "shell",
+			"command": "git status --short",
+			"isBackground": false
+		},
+		{
+			"label": "validate-pdq-oauth-helper",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Get-Command Set-TechAgentMcpOAuthCallback | Format-List Name,CommandType,Source; Set-TechAgentMcpOAuthCallback -ServerName pdq-connect -CallbackUrl 'https://auth2.pdq.com/oidc/test/callback?code=abc123&state=xyz' | Format-List *",
+			"isBackground": false
+		}
+	]
+}

@@ -90,9 +90,10 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User'
                'Reset-WindowsUpdateComponents', 'Search-User', 'Set-EmailAlias', 
                'Set-OneTimeReboot', 'Set-PageFileSize', 'Set-ProxyAddress', 
                'Set-TechAgentApiKey', 'Set-TechAgentMcpApiKey', 
-               'Set-TechAgentSearchWebApiKey', 'Start-DnsQueryLogger', 
-               'Start-NewPSRemoteSession', 'Start-PDQDiagLocalElevated', 
-               'Stop-PSRemoteSession', 'Test-MailHeaderAuth', 'Test-PathAs', 
+               'Set-TechAgentMcpOAuthCallback', 'Set-TechAgentSearchWebApiKey', 
+               'Start-DnsQueryLogger', 'Start-NewPSRemoteSession', 
+               'Start-PDQDiagLocalElevated', 'Stop-PSRemoteSession', 
+               'Test-MailHeaderAuth', 'Test-PathAs', 'Test-TechAgentMcpConnection', 
                'Test-TechAgentProvider', 'Test-TTPathRoots', 
                'Use-TechAgentTaskTemplate', 'Watch-ISPConnection'
 
