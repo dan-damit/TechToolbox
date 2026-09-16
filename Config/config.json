@@ -306,43 +306,6 @@
         "timeoutSeconds": 2700,
         "pollSeconds": 5,
         "heartbeatSeconds": 60
-      },
-      "mcp": {
-        "enabled": true,
-        "servers": [
-          {
-            "name": "tavily",
-            "enabled": true,
-            "transport": "Stdio",
-            "command": "npx",
-            "arguments": ["-y", "tavily-mcp"],
-            "authMode": "None",
-            "credentialEnvironmentVariable": "TAVILY_API_KEY",
-            "credentialSecretKeyName": "Tavily",
-            "namespacePrefix": "tavily",
-            "requestTimeoutSeconds": 30
-          },
-          {
-            "name": "pdq-connect",
-            "enabled": true,
-            "transport": "StreamableHttp",
-            "endpoint": "https://app.pdq.com/mcp",
-            "authMode": "OAuth2",
-            "profileId": "default",
-            "oauth": {
-              "issuerUrl": "https://app.pdq.com",
-              "clientId": "<replace-with-your-pdq-client-id>",
-              "scopes": ["openid", "profile", "pdq.connect"],
-              "redirectUri": "http://localhost:3000/oauth/callback",
-              "allowedRedirectUris": ["http://localhost:3000/oauth/callback"],
-              "tokenCacheIdentity": "pdq/default",
-              "redirectPolicy": "ExactAllowlist",
-              "tokenCacheStoragePolicy": "ProcessMemory"
-            },
-            "namespacePrefix": "pdq",
-            "requestTimeoutSeconds": 30
-          }
-        ]
       }
     },
     "messageTrace": {
