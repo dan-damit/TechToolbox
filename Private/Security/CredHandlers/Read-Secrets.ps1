@@ -11,8 +11,8 @@ function Read-Secrets {
                 domainAdminCred = @{
                     usernameEncrypted = ''
                     passwordEncrypted = ''
-                    username = ''
-                    password = ''
+                    username          = ''
+                    password          = ''
                 }
             }
         }
