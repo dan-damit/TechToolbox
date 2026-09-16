@@ -254,6 +254,144 @@
 			"type": "shell",
 			"command": "Import-Module .\\TechToolbox.psd1 -Force; Get-Command Set-TechAgentMcpOAuthCallback | Format-List Name,CommandType,Source; Set-TechAgentMcpOAuthCallback -ServerName pdq-connect -CallbackUrl 'https://auth2.pdq.com/oidc/test/callback?code=abc123&state=xyz' | Format-List *",
 			"isBackground": false
+		},
+		{
+			"label": "tavily-mcp-check-after-path-fallback",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName tavily -TimeoutSeconds 20 -AsJson",
+			"isBackground": false
+		},
+		{
+			"label": "publish-agent-after-npx-fallback",
+			"type": "shell",
+			"command": "dotnet publish .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "tavily-mcp-check-after-republish",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName tavily -TimeoutSeconds 20 -AsJson",
+			"isBackground": false
+		},
+		{
+			"label": "invoke-techagent-tavily-repro-after-fix",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Invoke-TechAgent -Prompt \"Use Tavily MCP Tools ONLY to find the Chicago Bears 2026 schedule from nfl.com. Output results to console in markdown.\" -Mode execute -OutputContract markdown -Provider openai -Model gpt-5.6-luna",
+			"isBackground": false
+		},
+		{
+			"label": "invoke-techagent-tavily-repro-after-fix-quoted",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Invoke-TechAgent -Prompt 'Use Tavily MCP Tools ONLY to find the Chicago Bears 2026 schedule from nfl.com. Output results to console in markdown.' -Mode execute -OutputContract markdown -Provider openai -Model gpt-5.6-luna",
+			"isBackground": false
+		},
+		{
+			"label": "invoke-techagent-tavily-debug-verbose",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; $VerbosePreference='Continue'; Invoke-TechAgent -Prompt 'Use Tavily MCP Tools ONLY to find the Chicago Bears 2026 schedule from nfl.com. Output results to console in markdown.' -Mode execute -OutputContract markdown -Provider openai -Model gpt-5.6-luna -Verbose",
+			"isBackground": false
+		},
+		{
+			"label": "diagnose-tavily-secret-hydration",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; & (Get-Module TechToolbox) { Initialize-TechToolboxRuntime; $cfg = $script:cfg.settings.agent; $mcp = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'; $servers = @(Get-TTAgentConfigValue -ConfigObject $mcp -KeyName 'servers'); $tavily = $servers | Where-Object { [string]::Equals([string](Get-TTAgentConfigValue -ConfigObject $_ -KeyName 'name'),'tavily',[System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1; if($null -eq $tavily){ 'TavilyServer=missing'; return }; $res = Resolve-TTAgentMcpBearerSecret -ConfigObject $cfg -ServerConfigObject $tavily; [pscustomobject]@{ Server=[string]$res.ServerName; EnvVar=[string]$res.EnvVarName; Source=[string]$res.Source; HasKey= -not [string]::IsNullOrWhiteSpace([string]$res.Key); KeyLength=([string]$res.Key).Length; Error=[string]$res.Error } | ConvertTo-Json -Compress }",
+			"isBackground": false
+		},
+		{
+			"label": "probe-tavily-mcp-cli",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; & (Get-Module TechToolbox) { Initialize-TechToolboxRuntime; $cfg=$script:cfg.settings.agent; $mcp=Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'; $srv=@(Get-TTAgentConfigValue -ConfigObject $mcp -KeyName 'servers') | Where-Object { [string]::Equals([string](Get-TTAgentConfigValue -ConfigObject $_ -KeyName 'name'),'tavily',[System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1; $res=Resolve-TTAgentMcpBearerSecret -ConfigObject $cfg -ServerConfigObject $srv; if(-not [string]::IsNullOrWhiteSpace([string]$res.Key)){ $env:TAVILY_API_KEY=[string]$res.Key }; & 'C:\\Program Files\\nodejs\\npx.cmd' -y tavily-mcp --help }",
+			"isBackground": false
+		},
+		{
+			"label": "publish-agent-after-stdio-path-bootstrap",
+			"type": "shell",
+			"command": "dotnet publish .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "invoke-techagent-tavily-repro-after-node-path-fix",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Invoke-TechAgent -Prompt 'Use Tavily MCP Tools ONLY to find the Chicago Bears 2026 schedule from nfl.com. Output results to console in markdown.' -Mode execute -OutputContract markdown -Provider openai -Model gpt-5.6-luna",
+			"isBackground": false
+		},
+		{
+			"label": "tavily-mcp-check-after-node-path-fix",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Test-TechAgentMcpConnection -ServerName tavily -TimeoutSeconds 20 -AsJson",
+			"isBackground": false
+		},
+		{
+			"label": "list-tavily-tool-names",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; & (Get-Module TechToolbox) { Initialize-TechToolboxRuntime; $agent=$script:cfg.settings.agent; $mcp=Get-TTAgentConfigValue -ConfigObject $agent -KeyName 'mcp'; $server=@(Get-TTAgentConfigValue -ConfigObject $mcp -KeyName 'servers') | Where-Object { [string]::Equals([string](Get-TTAgentConfigValue -ConfigObject $_ -KeyName 'name'),'tavily',[System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1; $single=[ordered]@{ enabled=$true; servers=@($server) }; $json=$single|ConvertTo-Json -Depth 64 -Compress; [void][System.Reflection.Assembly]::LoadFrom((Join-Path $script:ModuleRoot 'src\\TechToolbox.Agent\\bin\\Release\\net8.0\\publish\\TechToolbox.Agent.dll')); $mcpType=[Type]::GetType('TechToolbox.Agent.Configuration.McpConfiguration, TechToolbox.Agent',$true); $agentType=[Type]::GetType('TechToolbox.Agent.Configuration.AgentConfiguration, TechToolbox.Agent',$true); $modeType=[Type]::GetType('TechToolbox.Agent.Configuration.AgentMode, TechToolbox.Agent',$true); $bootType=[Type]::GetType('TechToolbox.Agent.Mcp.McpBootstrap, TechToolbox.Agent',$true); $opts=[System.Text.Json.JsonSerializerOptions]::new(); $opts.PropertyNameCaseInsensitive=$true; $opts.Converters.Add([System.Text.Json.Serialization.JsonStringEnumConverter]::new()); $mcpCfg=[System.Text.Json.JsonSerializer]::Deserialize($json,$mcpType,$opts); $mode=[System.Enum]::Parse($modeType,'TechToolbox'); $cfg=$agentType.GetMethod('CreateForMode',[type[]]@($modeType)).Invoke($null,@($mode)); $cfg.Mcp=$mcpCfg; $runtime=$bootType.GetMethod('InitializeAsync',[type[]]@($agentType,[System.Threading.CancellationToken])).Invoke($null,@($cfg,[System.Threading.CancellationToken]::None)).GetAwaiter().GetResult(); foreach($p in @($runtime.Providers)){ foreach($t in @($p.DiscoverTools())){ $t.Name } }; $runtime.DisposeAsync().AsTask().GetAwaiter().GetResult() }",
+			"isBackground": false
+		},
+		{
+			"label": "test-agent-tavily-guards",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj -c Release --filter \"FullyQualifiedName~HeuristicScoringEngineTests|FullyQualifiedName~AgentOrchestratorTests\"",
+			"isBackground": false
+		},
+		{
+			"label": "test-agent-tavily-guards-quoted",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj -c Release --filter 'FullyQualifiedName~HeuristicScoringEngineTests|FullyQualifiedName~AgentOrchestratorTests'",
+			"isBackground": false
+		},
+		{
+			"label": "publish-agent-after-tavily-final-guard",
+			"type": "shell",
+			"command": "dotnet publish .\\src\\TechToolbox.Agent\\TechToolbox.Agent.csproj -c Release",
+			"isBackground": false
+		},
+		{
+			"label": "invoke-techagent-tavily-repro-after-final-guard",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Invoke-TechAgent -Prompt 'Use Tavily MCP Tools ONLY to find the Chicago Bears 2026 schedule from nfl.com. Output results to console in markdown.' -Mode execute -OutputContract markdown -Provider openai -Model gpt-5.6-luna",
+			"isBackground": false
+		},
+		{
+			"label": "inspect-runtime-agent-mcp-presence",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; & (Get-Module TechToolbox) { Initialize-TechToolboxRuntime; $agent=$script:cfg.settings.agent; [pscustomobject]@{ DisableSecretsMerge=$env:TT_DisableConfigSecretsMerge; HasMcp=($null -ne (Get-TTAgentConfigValue -ConfigObject $agent -KeyName 'mcp')); McpEnabled=[string](Get-TTAgentConfigValue -ConfigObject (Get-TTAgentConfigValue -ConfigObject $agent -KeyName 'mcp') -KeyName 'enabled'); ServerCount=@(Get-TTAgentConfigValue -ConfigObject (Get-TTAgentConfigValue -ConfigObject $agent -KeyName 'mcp') -KeyName 'servers').Count } | Format-List }",
+			"isBackground": false
+		},
+		{
+			"label": "validate-mcp-json-deserialize-shape",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; & (Get-Module TechToolbox) { Initialize-TechToolboxRuntime; $cfg=$script:cfg.settings.agent; $mcp=Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'; $json=([ordered]@{ enabled=[bool](Get-TTAgentConfigValue -ConfigObject $mcp -KeyName 'enabled'); servers=@(Get-TTAgentConfigValue -ConfigObject $mcp -KeyName 'servers') } | ConvertTo-Json -Depth 16 -Compress); [void][System.Reflection.Assembly]::LoadFrom((Join-Path $script:ModuleRoot 'src\\TechToolbox.Agent\\bin\\Release\\net8.0\\publish\\TechToolbox.Agent.dll')); $opts=[System.Text.Json.JsonSerializerOptions]::new(); $opts.PropertyNameCaseInsensitive=$true; $opts.Converters.Add([System.Text.Json.Serialization.JsonStringEnumConverter]::new()); $t=[Type]::GetType('TechToolbox.Agent.Configuration.McpConfiguration, TechToolbox.Agent',$true); $obj=[System.Text.Json.JsonSerializer]::Deserialize($json,$t,$opts); [pscustomobject]@{ JsonLength=$json.Length; Enabled=$obj.Enabled; ServerCount=@($obj.Servers).Count; FirstTransport=[string]$obj.Servers[0].Transport; SecondTransport=[string]$obj.Servers[1].Transport } | Format-List }",
+			"isBackground": false
+		},
+		{
+			"label": "inspect-serialized-mcp-json-fragment",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; & (Get-Module TechToolbox) { Initialize-TechToolboxRuntime; $cfg=$script:cfg.settings.agent; $mcp=Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'; $json=([ordered]@{ enabled=[bool](Get-TTAgentConfigValue -ConfigObject $mcp -KeyName 'enabled'); servers=@(Get-TTAgentConfigValue -ConfigObject $mcp -KeyName 'servers') } | ConvertTo-Json -Depth 16 -Compress); $obj = $json | ConvertFrom-Json -Depth 32; $pdq = @($obj.servers | Where-Object { $_.name -eq 'pdq-connect' })[0]; [pscustomobject]@{ AllowedRedirectUrisType=($pdq.oauth.allowedRedirectUris.GetType().FullName); AllowedRedirectUrisJson=($pdq.oauth.allowedRedirectUris | ConvertTo-Json -Depth 8 -Compress); RedirectUri= [string]$pdq.oauth.redirectUri } | Format-List }",
+			"isBackground": false
+		},
+		{
+			"label": "inspect-runtime-allowedRedirectUris-type",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; & (Get-Module TechToolbox) { Initialize-TechToolboxRuntime; $cfg=$script:cfg.settings.agent; $mcp=Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'; $pdq=@(Get-TTAgentConfigValue -ConfigObject $mcp -KeyName 'servers') | Where-Object { [string](Get-TTAgentConfigValue -ConfigObject $_ -KeyName 'name') -eq 'pdq-connect' } | Select-Object -First 1; $v=Get-TTAgentConfigValue -ConfigObject (Get-TTAgentConfigValue -ConfigObject $pdq -KeyName 'oauth') -KeyName 'allowedRedirectUris'; [pscustomobject]@{ Type=if($null -eq $v){'null'}else{$v.GetType().FullName}; Value=($v | ConvertTo-Json -Compress) } | Format-List }",
+			"isBackground": false
+		},
+		{
+			"label": "invoke-techagent-tavily-after-mcp-json-normalization",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Invoke-TechAgent -Prompt 'Use Tavily MCP Tools ONLY to find the Chicago Bears 2026 schedule from nfl.com. Output results to console in markdown.' -Mode execute -OutputContract markdown -Provider openai -Model gpt-5.6-luna",
+			"isBackground": false
+		},
+		{
+			"label": "invoke-techagent-tavily-after-oauth-null-guard",
+			"type": "shell",
+			"command": "Import-Module .\\TechToolbox.psd1 -Force; Invoke-TechAgent -Prompt 'Use Tavily MCP Tools ONLY to find the Chicago Bears 2026 schedule from nfl.com. Output results to console in markdown.' -Mode execute -OutputContract markdown -Provider openai -Model gpt-5.6-luna",
+			"isBackground": false
+		},
+		{
+			"label": "test-mcp-configuration-after-fixes",
+			"type": "shell",
+			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj -c Release --filter 'FullyQualifiedName~McpConfigurationTests'",
+			"isBackground": false
 		}
 	]
 }

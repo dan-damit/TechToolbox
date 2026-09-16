@@ -1231,6 +1231,40 @@ Hard requirement:
                 $mcpServers = @($mcpServersValue)
             }
 
+            $normalizedMcpServersForChild = @()
+            foreach ($mcpServer in $mcpServers) {
+                if ($null -eq $mcpServer) {
+                    continue
+                }
+
+                $serverClone = $mcpServer | ConvertTo-Json -Depth 64 | ConvertFrom-Json -Depth 64
+                $oauthProperty = $serverClone.PSObject.Properties['oauth']
+                if ($null -ne $oauthProperty -and $null -ne $oauthProperty.Value) {
+                    $oauthConfig = $oauthProperty.Value
+                    $allowedRedirectUris = @()
+                    foreach ($uri in @((Get-TTAgentConfigValue -ConfigObject $oauthConfig -KeyName 'allowedRedirectUris'))) {
+                        if ($null -eq $uri) {
+                            continue
+                        }
+
+                        $uriText = [string]$uri
+                        if (-not [string]::IsNullOrWhiteSpace($uriText)) {
+                            $allowedRedirectUris += $uriText
+                        }
+                    }
+
+                    $oauthAllowedRedirectUrisProperty = $oauthConfig.PSObject.Properties['allowedRedirectUris']
+                    if ($null -ne $oauthAllowedRedirectUrisProperty) {
+                        $oauthAllowedRedirectUrisProperty.Value = @($allowedRedirectUris)
+                    }
+                    else {
+                        $oauthConfig | Add-Member -NotePropertyName 'allowedRedirectUris' -NotePropertyValue @($allowedRedirectUris)
+                    }
+                }
+
+                $normalizedMcpServersForChild += $serverClone
+            }
+
             [bool]$mcpEnabled = $false
             $mcpEnabledValue = Get-TTAgentConfigValue -ConfigObject $mcpConfigValue -KeyName 'enabled'
             if ($null -ne $mcpEnabledValue) {
@@ -1246,7 +1280,7 @@ Hard requirement:
             try {
                 $normalizedMcpConfigForChild = [ordered]@{
                     enabled = $mcpEnabled
-                    servers = @($mcpServers)
+                    servers = @($normalizedMcpServersForChild)
                 }
                 $serializedMcpConfigForChild = ($normalizedMcpConfigForChild | ConvertTo-Json -Depth 16 -Compress)
             }
@@ -2343,8 +2377,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDDZwBy8Ig9XScw
-# dH2bk5q16HJrSUqirUYovNYlPrd8hKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDCReKF4aPIugQZ
+# n48atsB07WBqARqU0KwO1he7A/0QmqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2477,34 +2511,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB14/j/o3mT
-# rOpbdOFMIYVyrdrXG4sn6OKX5vDw5t8KgzANBgkqhkiG9w0BAQEFAASCAgBAhV5y
-# Wi3zgHrE4ejgGn/CQ8vFkRlCOJKOQBbzeq4h/39ZJSYbBoXm1t+fQxCS2h56q42K
-# hKpcZ+YRpME8q6x/76tLQQ5pggqWS2KINmTckFEvfNe9+YzDKX+9MjHuc4i54rfW
-# VHaRP74ZC2jNfPdSMv+EgFMp6IUgpjQVb3GEDJvHyfZEiPIKkKNPN9Ta5XcNmYjD
-# IVnannPzTnsvMGDpacv10idvpg8+qmCp7ocz06mtRIrPCQu1o3iKoJXzt5Deaya3
-# E2Ikb5eiHITVF8a3e7hFcWae6Ef/nvxu6JQpyOaaCGj1/T1vY+eQzYby2px6cpzF
-# 9R3S2EBtoJZwqub+DKXFmslsk50K8nnNahA7+zFJqFOoq/8ok3159QwhqMQM64fb
-# mcQq+GVwcd4I/iOfQL+iTpAyAaDYhREgxmYYKrg1ZkiU5cGP4MTUC4rKz/aiQalv
-# vvMc1m6EzJA0DEsW6bd+m3F/ib27+hirP6LMKJcO+oUqO7r16lmHtGWGC4i+onrF
-# lDz8LBszyDwp09Hz395wR6TOi+oi+CBzINKu3byx2+7cJbIR7Q0ON5uXvzYgJAT0
-# zqt1Hic0D6fV2fPDWML4qa6ZvHnPTf49oyzHdUCXi9ikc2QSd0Ic1AxT7ZoJnwLQ
-# B9XqFwW95ZnOjB/fQRCEgcdqQKAEi5ssZTFmp6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBwSpwkceAY
+# tWsVMNYnYchsIcNn5FpDQuQp2dj4rWWMsDANBgkqhkiG9w0BAQEFAASCAgDINtwi
+# RmnPb+mst+K+znH8Gp34obuAaz4YUbw6zA/C4vQfJQJmVSfcp/eYaBgOSkMZPniv
+# a6TsGggoov4XQ7s91jZUTK98q9GgQPUKuZ0Y5gZvK5/mN7ZU5uqumRBNHJQS281l
+# gj7wQi4disiffeXnW3WJTAXKufqbNnOFy/FU2oZlfwgc6ozSl2Pv8YSjuIDLgseu
+# pmftupvw1xqC1y7pdxz57VZIWcwqjr4GrSyKlRRaVDx4XUe5x4egsEzjkiR1Uc5/
+# 2XAINN2OjESo5Ffhu0/5m9nW+l1VAnDSJ8pOlJsebYp4DUCEPX7DcEIdNPpzpwe/
+# hZ2m4h/bevtUuAnN/P6V+Kv++FGbRJlbNJ6+kymtDirfl7DHWhg04YJ3YAZe+brH
+# N6oNr97dyrceTb8TsnAggDZFrp802DKAN92HcHhM6tapsTjwBwKyqOQE6+5ckM3o
+# r7xY8ff3jAqr4TAdWHABqhRl9BYYE1XpXhGsPdxXFIwPHYbNgZi8AvRp5wCKLIGF
+# wqIHVMQC8qkss1yvDAA8EVsk7GnGWd3pSKcyKI9I53sBTpLumvIkQdfDACxP4YDC
+# 8SSFzLaYQiXehvCE9+o8GehBpc8RFanl3eW5aFZLJAWkekrQjbmRIXY+nOdsaigM
+# vQk0W0qc5c6PJUGQin7PsznSEElelKZbt59uSqGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTYwMjQ0NDRaMC8GCSqGSIb3DQEJBDEiBCD2zJX7DSy5gX+XR7fa
-# MEOkfSiwALKCzt1m36fYrsRhZjANBgkqhkiG9w0BAQEFAASCAgCd1sdrZW7bQHxu
-# Sq4lhOQxUjouX6r+tnQgdVWfRDch2jSxjkYckN39M7x2mtJNe8UZgadJDIicn66z
-# TdhYXMMU7fqjdCKlj/gL2jRlJU1wZudFxnvaipDo6TAoWQd4nafr105fyBEietTB
-# +Q3mTYtCLkGaiwTaCrlXxglT6Tyc7ZCGOUtMXlIGyqTr2b/uFU7xU3GFIwL7k8C2
-# e5DcvMxSNB8hqHCRfxMHEomXuLkNve6yFLb6YM3Vxs0j2uCpulCBm8uXQ4TSsP3S
-# gj2npOYjUsFAb39Hp4HrYBeFqIaf3f6WRVzzv7ZPrVxQUfb1vdx6pciYxkIifLlZ
-# sPdDERKylU6xlCkXixQnEx9aPngE62rMkehRB1eY1GlSKSd0qMfH5l0ketoqEhsX
-# IcvAM27uKGCc4ruvex5Qx5PHAPv1grAoMcZ6RsZ+3MRZqqdR8teJp2+jZ2shQhR2
-# +Q8q6+nBSrXBvo2TNwgCtbLCV7r3mdWQzR5mL4G5xcT03Fo54raKvRcIg+18mRWv
-# FVawiyz8XWaRDIne30Q+EDSFv64oMguZhFfk2QpCkbBm7oYw/gl8W38Dw/6XMDAi
-# +OTdaAzZaaYXTbijRdJqKptt1OJP7W0Eo3Y6/EvRT1FBbJjZ8Lq8izTK4l8KO1Pj
-# 9rUrwUJT2tSv6ybA0oTzTFlzqr5aLg==
+# BTEPFw0yNjA5MTYxODQyMTZaMC8GCSqGSIb3DQEJBDEiBCALeDFR83vHUpfoFXKL
+# VFBZogx/ZyD6Sd5SvmGLzKAL/DANBgkqhkiG9w0BAQEFAASCAgAV23ACsGnSiJma
+# 6QB7tdQxBJXJGanbIfro7xtBfx7eGDs+djzU7+AVxWI4bXxlU4hpTQOz9d1WzF+t
+# HxFwqHdg5zCq1z2hXj3OwmM0D48aJtOyMDnGaSwEahNSJDlzS7JjemiaM3zlSejE
+# /acaTwRWNZpXYs2WvLsyWcVikgw42sz2o0QehJErAeiQrQWNC5WlLxo9CFWE5kWP
+# JwnM+b5wcQqDoBKn3R4EQ3nfYBTWDuqUTpPzJ1CR0jxqKd7mCthYA1cBgOQ1wpz7
+# CD4GQdBy6W1UROIZvM0JbOhoJNLD2qNm/yolAUKEtbTz2AfWmjC2axpc9zZ3XjUO
+# 0GU9429UxIYVJBqhdKpUjweLNGBzKUFZDWqW41Cky4ZFDlg4HioOBJNYjNvDsBGj
+# 8ca7BRgTXWT1OTiZ+pPO+/YIGnH2lJtQ2247/CRBNRNhLNtw1wFp/l6MeKzHLTQW
+# YvzvgZQhBPjXJZ1uiYJG0P8/TcKesoIqzlHLw6nSFkr4E63gKfWwlg7KANynQxm7
+# vtgIxYllMq4xnIaSUwJk+lKjYNfp4m7R6MaF0ZGJsEz7oc4LdITMsMuiWggGFiFx
+# cUq3buZjLmmf35mCjphjuo4WrEum1n7tuPsTv8XiElsskd6IcjlCn9UOTsWp8GZU
+# mPdndsKnlW4CBsWTkGGsK6628U7U6Q==
 # SIG # End signature block
