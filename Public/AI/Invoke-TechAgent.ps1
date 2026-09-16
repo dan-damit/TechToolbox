@@ -1225,6 +1225,12 @@ Hard requirement:
         $serializedMcpConfigForChild = $null
         $mcpConfigValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'mcp'
         if ($null -ne $mcpConfigValue) {
+            $mcpServers = @()
+            $mcpServersValue = Get-TTAgentConfigValue -ConfigObject $mcpConfigValue -KeyName 'servers'
+            if ($null -ne $mcpServersValue) {
+                $mcpServers = @($mcpServersValue)
+            }
+
             [bool]$mcpEnabled = $false
             $mcpEnabledValue = Get-TTAgentConfigValue -ConfigObject $mcpConfigValue -KeyName 'enabled'
             if ($null -ne $mcpEnabledValue) {
@@ -1238,14 +1244,17 @@ Hard requirement:
             }
 
             try {
-                $serializedMcpConfigForChild = ($mcpConfigValue | ConvertTo-Json -Depth 16 -Compress)
+                $normalizedMcpConfigForChild = [ordered]@{
+                    enabled = $mcpEnabled
+                    servers = @($mcpServers)
+                }
+                $serializedMcpConfigForChild = ($normalizedMcpConfigForChild | ConvertTo-Json -Depth 16 -Compress)
             }
             catch {
                 $serializedMcpConfigForChild = $null
             }
 
             if ($mcpEnabled) {
-                $mcpServers = @(Get-TTAgentConfigValue -ConfigObject $mcpConfigValue -KeyName 'servers')
                 foreach ($mcpServer in $mcpServers) {
                     if ($null -eq $mcpServer) {
                         continue
@@ -2334,8 +2343,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBfNTd0qMNrIKns
-# ZZF2X4BZnV6A5ynJVPp412asrPhTh6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDDZwBy8Ig9XScw
+# dH2bk5q16HJrSUqirUYovNYlPrd8hKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2468,34 +2477,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBxCUFLbM9m
-# TXwu61g7m4PtrpEjtM81AIZ6XsYgYU51ZjANBgkqhkiG9w0BAQEFAASCAgBD/+Qs
-# uJi7peD6DHClOX6LJdjtMEpmQEl9pfNcZzdqL7J/qR5iI6I/jOzRTd1pJdJ618KH
-# wwPNW5Q57MD820aFsCrzZcCJJqfRcf0JD+ScmlVhTg0Zzs4R5lDOGm7Lexl+LAjp
-# XQbfHu8Hk8Y1KaAaKX4ZmBKtb5MFhsjMar9Ya93NJDr3dwX/xOqBTrlLQs4IZdj3
-# VzhfYGid5dnA6p0nwHDsEDwjZvdsWCJreQrpyTU4gaFDEVoK1xeVjrentesYRmS5
-# kPpPLJ1PhutNC1RlTNYXZ6vY/o/0uvQhEImkqpy9KWuopVjaNYzAG2qrJHOZ8xc8
-# TobD+ypeyiMzlFj9L7T4HHNEsN+7VPIyhBGJ5/NodUiQv6LmT5NmyL4NS99Y7IDR
-# UgrfP30c/YFyuU8LtfzGVP8fOCF4h4tFH99JiKtodSm3FqGEmGXwN5Jw8UssfU/0
-# pnPh0U1WJW73iscsEbejqwp8BH5LPqB3+ni0QS/hoEk3V0ZFXtFMdyiv76rDQ6tx
-# l7yd3FKYqyN74uQUVKJnc2h8a2ZVSDVi7a78BOzN1E0UknC2Txk2Y2xjSBmJNQkl
-# tb04NfUdzgazCtYuwG08OrUeYLkEmYaL3/GDbhHG5QuDrt+qys6SWhKROvdf0Kq/
-# EkwkBgKakzbLzbihUq3OO9SAIps8s590xK6cRqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB14/j/o3mT
+# rOpbdOFMIYVyrdrXG4sn6OKX5vDw5t8KgzANBgkqhkiG9w0BAQEFAASCAgBAhV5y
+# Wi3zgHrE4ejgGn/CQ8vFkRlCOJKOQBbzeq4h/39ZJSYbBoXm1t+fQxCS2h56q42K
+# hKpcZ+YRpME8q6x/76tLQQ5pggqWS2KINmTckFEvfNe9+YzDKX+9MjHuc4i54rfW
+# VHaRP74ZC2jNfPdSMv+EgFMp6IUgpjQVb3GEDJvHyfZEiPIKkKNPN9Ta5XcNmYjD
+# IVnannPzTnsvMGDpacv10idvpg8+qmCp7ocz06mtRIrPCQu1o3iKoJXzt5Deaya3
+# E2Ikb5eiHITVF8a3e7hFcWae6Ef/nvxu6JQpyOaaCGj1/T1vY+eQzYby2px6cpzF
+# 9R3S2EBtoJZwqub+DKXFmslsk50K8nnNahA7+zFJqFOoq/8ok3159QwhqMQM64fb
+# mcQq+GVwcd4I/iOfQL+iTpAyAaDYhREgxmYYKrg1ZkiU5cGP4MTUC4rKz/aiQalv
+# vvMc1m6EzJA0DEsW6bd+m3F/ib27+hirP6LMKJcO+oUqO7r16lmHtGWGC4i+onrF
+# lDz8LBszyDwp09Hz395wR6TOi+oi+CBzINKu3byx2+7cJbIR7Q0ON5uXvzYgJAT0
+# zqt1Hic0D6fV2fPDWML4qa6ZvHnPTf49oyzHdUCXi9ikc2QSd0Ic1AxT7ZoJnwLQ
+# B9XqFwW95ZnOjB/fQRCEgcdqQKAEi5ssZTFmp6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTUwNTAzNDZaMC8GCSqGSIb3DQEJBDEiBCBplT8CKCLbbijGbgSq
-# gzpzFgjtfvPKdWWuEDeTj6QcdDANBgkqhkiG9w0BAQEFAASCAgCkYv+z2OWWjvKo
-# orscNhAkKNtGQeCDyqZLox9eKSvOQogeQYmm9Y8RO+LogJEIj82TTIAnvjhU5kdn
-# 9OaHIesozFn6W8TEJcl9n30b4IavJ9HJqxb6mOi+n4OxNlhOnSYp4zmh/a7xglq6
-# aSPY501E1u9H1tt/KAikGdm/CKqVLeJlpDo8bfi4SvJilttsyEZdOWiHxiyuMQCI
-# oUVTKt2D0Z4xxS1Z6FGxNORP0k54qsgljTbU8UAUmdIWzzF30NhkMm0WX8KPL+qR
-# 3tMYpgSjwh86LbI0iYr3kdXy29iX8MMl5FuPChXWLvJXSgat8pVInmUzEizdbz24
-# M7j3sIQW1AcF/pjkDMij0KY4LJRoNv5qcrM4MkduoHsyCEZ++m/Wz0qFXOYMQNVZ
-# autQy0S4tABqTpMKapLcoqqXZjeL7vPEnIUvQHG9fWQrRxyDnnkOVFi7Bdidd2n9
-# 41qurLk6XVr72JLGoZN3eQv+atB0NdMLE5cjf3h3pYDjqTlUWGzk0d6QtzbAdRNF
-# 5fLH5oPVdttPYvC91WsqraakI1ojvG5DwnUEiHq44HOJIiVL0KVBBIm0OV4SQpFe
-# L1l6ieKvvX4VthHjMXCl5OT52qTODNn0Z7m7nZdDeqVNsbGaTUbPP8kmLvf2ObJQ
-# 7Dj3XtKERKY00T848mPuqYcZdZ3S/A==
+# BTEPFw0yNjA5MTYwMjQ0NDRaMC8GCSqGSIb3DQEJBDEiBCD2zJX7DSy5gX+XR7fa
+# MEOkfSiwALKCzt1m36fYrsRhZjANBgkqhkiG9w0BAQEFAASCAgCd1sdrZW7bQHxu
+# Sq4lhOQxUjouX6r+tnQgdVWfRDch2jSxjkYckN39M7x2mtJNe8UZgadJDIicn66z
+# TdhYXMMU7fqjdCKlj/gL2jRlJU1wZudFxnvaipDo6TAoWQd4nafr105fyBEietTB
+# +Q3mTYtCLkGaiwTaCrlXxglT6Tyc7ZCGOUtMXlIGyqTr2b/uFU7xU3GFIwL7k8C2
+# e5DcvMxSNB8hqHCRfxMHEomXuLkNve6yFLb6YM3Vxs0j2uCpulCBm8uXQ4TSsP3S
+# gj2npOYjUsFAb39Hp4HrYBeFqIaf3f6WRVzzv7ZPrVxQUfb1vdx6pciYxkIifLlZ
+# sPdDERKylU6xlCkXixQnEx9aPngE62rMkehRB1eY1GlSKSd0qMfH5l0ketoqEhsX
+# IcvAM27uKGCc4ruvex5Qx5PHAPv1grAoMcZ6RsZ+3MRZqqdR8teJp2+jZ2shQhR2
+# +Q8q6+nBSrXBvo2TNwgCtbLCV7r3mdWQzR5mL4G5xcT03Fo54raKvRcIg+18mRWv
+# FVawiyz8XWaRDIne30Q+EDSFv64oMguZhFfk2QpCkbBm7oYw/gl8W38Dw/6XMDAi
+# +OTdaAzZaaYXTbijRdJqKptt1OJP7W0Eo3Y6/EvRT1FBbJjZ8Lq8izTK4l8KO1Pj
+# 9rUrwUJT2tSv6ybA0oTzTFlzqr5aLg==
 # SIG # End signature block
