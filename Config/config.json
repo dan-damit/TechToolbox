@@ -338,13 +338,17 @@
             "enabled": true,
             "transport": "StreamableHttp",
             "endpoint": "https://app.pdq.com/mcp",
-            "authMode": "OAuth",
+            "authMode": "OAuth2",
+            "profileId": "default",
             "oauth": {
-              "issuer": "https://app.pdq.com",
-              "clientId": null,
-              "redirectUri": "http://localhost:3000/oauth/callback",
+              "issuerUrl": "https://app.pdq.com",
+              "clientId": "<replace-with-your-pdq-client-id>",
               "scopes": ["openid", "profile", "pdq.connect"],
-              "profile": "default"
+              "redirectUri": "http://localhost:3000/oauth/callback",
+              "allowedRedirectUris": ["http://localhost:3000/oauth/callback"],
+              "tokenCacheIdentity": "pdq/default",
+              "redirectPolicy": "ExactAllowlist",
+              "tokenCacheStoragePolicy": "ProcessMemory"
             },
             "namespacePrefix": "pdq",
             "requestTimeoutSeconds": 30
