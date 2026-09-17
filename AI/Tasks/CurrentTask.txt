@@ -6,7 +6,6 @@ Test all available MCP tools.
    - Create a test file named "mcp-test.txt" in the workspace root.
    - Write the text "MCP file operations working." into it.
    - Read the file back and show the contents.
-   - Delete the file.
 
 4. For the Ripgrep MCP server:
    - Search the workspace for the string "TechToolbox".

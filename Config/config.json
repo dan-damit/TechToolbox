@@ -275,6 +275,7 @@
             "authMode": "None",
             "namespacePrefix": "filesystem",
             "allowedTools": [
+              "read_file",
               "read_text_file",
               "read_media_file",
               "read_multiple_files",
@@ -286,7 +287,6 @@
               "directory_tree",
               "get_file_info",
               "list_allowed_directories",
-              "delete_file",
               "search_files",
               "move_file"
             ],
