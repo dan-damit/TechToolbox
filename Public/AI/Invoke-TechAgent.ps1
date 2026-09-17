@@ -2103,36 +2103,42 @@ $result = $runAgentMethod.Invoke($null, @(
             }
 
             if ($drainRemainderSynchronously) {
-                try {
-                    $stdoutTail = $agentProc.StandardOutput.ReadToEnd()
-                    if (-not [string]::IsNullOrEmpty($stdoutTail)) {
-                        foreach ($line in ($stdoutTail -split "`r?`n")) {
-                            if ($null -ne $line) {
-                                $stdoutLines.Add([string]$line)
-                                Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
-                            }
-                        }
-                    }
-                }
-                catch {
-                    Write-Log -Level Warn -Message ("Error draining remaining agent stdout: {0}" -f $_.Exception.Message)
-                }
-
-                try {
-                    $stderrTail = $agentProc.StandardError.ReadToEnd()
-                    if (-not [string]::IsNullOrEmpty($stderrTail)) {
-                        foreach ($line in ($stderrTail -split "`r?`n")) {
-                            if ($null -ne $line) {
-                                Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
-                                if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
-                                    $stderrLines.Add([string]$line)
+                # Avoid calling ReadToEnd() while a prior ReadLineAsync is still active on the same stream,
+                # which can race after process exit and produce the noisy "stream is currently in use" warnings.
+                if ($null -eq $streamReadState['stdoutReadTask']) {
+                    try {
+                        $stdoutTail = $agentProc.StandardOutput.ReadToEnd()
+                        if (-not [string]::IsNullOrEmpty($stdoutTail)) {
+                            foreach ($line in ($stdoutTail -split "`r?`n")) {
+                                if ($null -ne $line) {
+                                    $stdoutLines.Add([string]$line)
+                                    Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
                                 }
                             }
                         }
                     }
+                    catch {
+                        # Ignore these as a benign race after process shutdown; the stream is already drained by the line-loop.
+                    }
                 }
-                catch {
-                    Write-Log -Level Warn -Message ("Error draining remaining agent stderr: {0}" -f $_.Exception.Message)
+
+                if ($null -eq $streamReadState['stderrReadTask']) {
+                    try {
+                        $stderrTail = $agentProc.StandardError.ReadToEnd()
+                        if (-not [string]::IsNullOrEmpty($stderrTail)) {
+                            foreach ($line in ($stderrTail -split "`r?`n")) {
+                                if ($null -ne $line) {
+                                    Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                                    if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
+                                        $stderrLines.Add([string]$line)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch {
+                        # Ignore these as a benign race after process shutdown; the stream is already drained by the line-loop.
+                    }
                 }
             }
 
