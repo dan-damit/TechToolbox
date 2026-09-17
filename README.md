@@ -87,10 +87,6 @@
 - [Security Notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
 - [Metadata](#metadata)
-  - [v0.6.0 - "AI \& GUI Milestone"](#v060---ai--gui-milestone)
-    - [Highlights](#highlights)
-  - [v0.5.70 - "Provider Routing \& Quality Controls"](#v0570---provider-routing--quality-controls)
-    - [Highlights](#highlights-1)
 
 ## Quick Start
 
@@ -635,32 +631,8 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 0.6.21
-- **Current milestone:** v0.6.0 - "AI & GUI Milestone"
-- **Milestone date:** 2026-09-09
+- **Module version:** 1.0.1
+- **Current milestone:** v1.0.1 - "MCP Integration"
+- **Milestone date:** 2026-09-16
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
-
----
-
-### v0.6.0 - "AI & GUI Milestone"
-
-#### Highlights
-
-- AI-assisted workflow improvements (Export-ToolboxFunctions, Invoke-TechAgent enhancements)
-- Added GUI final-answer visibility improvements
-- Full help text capture in agent metadata export
-- Config system refinements and path token stabilization
-- [Release Template](https://github.com/dan-damit/TechToolbox/blob/main/.github/release_template.md)
-
----
-
-### v0.5.70 - "Provider Routing & Quality Controls"
-
-#### Highlights
-
-- Provider-based LLM routing in TechAgent (`ollama`, `openai`, `openai-compatible`, `azure-openai`)
-- Cloud API key support with environment variable fallback and DPAPI-backed local secret storage
-- Prompt quality preflight scoring with strict-gate mode for higher-confidence runs
-- Execution mode contracts (`execute`, `analyze`, `plan`) and output contracts (`markdown`, `plain-text`, `json`)
-- Persisted run telemetry in agent memory plus quick quality rollups via `Get-TechAgentQualitySummary`
