@@ -156,6 +156,8 @@ Notes:
 - Use `Set-TechAgentApiKey` for explicit key rotation/removal workflows.
 - MCP bearer auth supports the same precedence pattern per server: configured environment variable first, then encrypted override, then `settings.agent.<credentialSecretKeyName>`.
 - Use `Set-TechAgentMcpApiKey` to set, rotate, or clear per-server MCP DPAPI secrets.
+- The agent runtime is MCP-native by default: configured MCP servers are discovered dynamically, while legacy file/search/process built-ins remain deprecated compatibility paths only.
+- Keep `settings.agent.mcp.servers` focused on bounded, discoverable capabilities such as filesystem, ripgrep/search, workspace/project, process runner, git, formatter/linter, dependency, and Tavily servers.
 
 MCP DPAPI setup examples:
 
