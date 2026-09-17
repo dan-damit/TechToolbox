@@ -129,7 +129,7 @@
     "agent": {
       "provider": "ollama",
       "model": "techtoolbox-qwen2_5-7b-lora:latest",
-      "executionMode": "chat",
+      "executionMode": "execute",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
       "thinkingMode": "auto",

@@ -7,7 +7,13 @@ function Resolve-TTAgentExecutionMode {
     )
 
     if ($ParamWasBound -and -not [string]::IsNullOrWhiteSpace($ModeFromParam)) {
-        return $ModeFromParam.Trim().ToLowerInvariant()
+        $normalizedMode = $ModeFromParam.Trim().ToLowerInvariant()
+        if ($normalizedMode -eq 'chat') {
+            Write-Warning "`nInvoke-TechAgent: Execution mode 'chat' is deprecated and maps to 'analyze'."
+            return 'analyze'
+        }
+
+        return $normalizedMode
     }
 
     $configMode = $null
@@ -19,14 +25,18 @@ function Resolve-TTAgentExecutionMode {
     }
 
     if ([string]::IsNullOrWhiteSpace($configMode)) {
-        return 'chat'
+        return 'execute'
     }
 
     switch ($configMode.Trim().ToLowerInvariant()) {
+        'execute' { return 'execute' }
         'plan' { return 'plan' }
         'analyze' { return 'analyze' }
-        'chat' { return 'chat' }
-        default { return 'chat' }
+        'chat' {
+            Write-Warning "`nInvoke-TechAgent: Config executionMode 'chat' is deprecated and maps to 'analyze'."
+            return 'analyze'
+        }
+        default { return 'execute' }
     }
 }
 

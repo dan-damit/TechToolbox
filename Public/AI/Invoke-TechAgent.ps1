@@ -61,7 +61,8 @@ function Invoke-TechAgent {
     .PARAMETER Mode
         Controls whether the agent should execute tools (`execute`), produce a
         no-tool implementation plan (`plan`), or provide no-tool analysis
-        (`analyze`), or stay in sandboxed chat mode (`chat`).
+        (`analyze`). Legacy value `chat` is accepted for compatibility and
+        maps to `analyze`.
 
     .PARAMETER StrictPromptPreflight
         Turns prompt preflight warnings into a blocking validation failure when
@@ -434,7 +435,7 @@ function Invoke-TechAgent {
     switch ($resolvedThinkingMode) {
         'on' { $resolvedThinkingEnabled = $true }
         'off' { $resolvedThinkingEnabled = $false }
-        default { $resolvedThinkingEnabled = $resolvedExecutionMode -eq 'analyze' -or $resolvedExecutionMode -eq 'plan' -or $resolvedExecutionMode -eq 'chat' }
+        default { $resolvedThinkingEnabled = $resolvedExecutionMode -eq 'analyze' -or $resolvedExecutionMode -eq 'plan' }
     }
 
     $resolvedReasoningEffort = $null
