@@ -234,6 +234,111 @@
         "timeoutSeconds": 2700,
         "pollSeconds": 5,
         "heartbeatSeconds": 60
+      },
+      "mcp": {
+        "enabled": true,
+        "servers": [
+          {
+            "name": "tavily",
+            "enabled": true,
+            "transport": "Stdio",
+            "command": "npx",
+            "arguments": ["-y", "tavily-mcp"],
+            "authMode": "None",
+            "credentialEnvironmentVariable": "TAVILY_API_KEY",
+            "credentialSecretKeyName": "Tavily",
+            "namespacePrefix": "tavily",
+            "requestTimeoutSeconds": 30
+          },
+          {
+            "name": "filesystem",
+            "enabled": true,
+            "transport": "Stdio",
+            "command": "npx",
+            "arguments": [
+              "-y",
+              "@modelcontextprotocol/server-filesystem",
+              "C:\\repos\\TechToolbox"
+            ],
+            "authMode": "None",
+            "namespacePrefix": "filesystem",
+            "allowedTools": [
+              "read_text_file",
+              "read_media_file",
+              "read_multiple_files",
+              "write_file",
+              "edit_file",
+              "create_directory",
+              "list_directory",
+              "list_directory_with_sizes",
+              "directory_tree",
+              "get_file_info",
+              "list_allowed_directories",
+              "delete_file",
+              "search_files",
+              "move_file"
+            ],
+            "requestTimeoutSeconds": 60
+          },
+          {
+            "name": "ripgrep",
+            "enabled": true,
+            "transport": "Stdio",
+            "command": "npx",
+            "arguments": ["-y", "ripgrep-mcp@latest"],
+            "authMode": "None",
+            "namespacePrefix": "ripgrep",
+            "allowedTools": [
+              "search",
+              "advanced-search",
+              "count-matches",
+              "list-files",
+              "list-file-types"
+            ],
+            "requestTimeoutSeconds": 60
+          },
+          {
+            "name": "git",
+            "enabled": true,
+            "transport": "Stdio",
+            "command": "uvx",
+            "arguments": ["mcp-server-git"],
+            "authMode": "None",
+            "namespacePrefix": "git",
+            "allowedTools": [
+              "git_init",
+              "git_clone",
+              "git_status",
+              "git_clean",
+              "git_add",
+              "git_commit",
+              "git_diff",
+              "git_diff_unstaged",
+              "git_diff_staged",
+              "git_log",
+              "git_show",
+              "git_blame",
+              "git_reflog",
+              "git_branch",
+              "git_checkout",
+              "git_merge",
+              "git_rebase",
+              "git_cherry_pick",
+              "git_remote",
+              "git_fetch",
+              "git_pull",
+              "git_push",
+              "git_tag",
+              "git_stash",
+              "git_reset",
+              "git_worktree",
+              "git_set_working_dir",
+              "git_clear_working_dir",
+              "git_wrapup_instructions"
+            ],
+            "requestTimeoutSeconds": 60
+          }
+        ]
       }
     },
     "messageTrace": {
