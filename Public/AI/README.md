@@ -253,8 +253,8 @@ Invoke-TechAgent -PromptFile AI\Tasks\CurrentTask.txt
 - `-Mode execute` allows tool invocation and file/system actions.
 - `-Mode plan` disallows tool calls and requires a plan-style final response.
 - `-Mode analyze` disallows tool calls and requires analysis/recommendations only.
-- `-Mode chat` disallows tool calls and keeps the agent in clarification-first, read-only chat mode.
-- If `-Mode` is omitted, chat is the default.
+- If `-Mode` is omitted, `execute` is the default.
+- Legacy compatibility: `-Mode chat` is accepted and mapped to `analyze` with a warning.
 - `-OutputContract markdown` allows markdown-style final answers (default).
 - `-OutputContract plain-text` rejects markdown constructs in final answers.
 - `-OutputContract json` requires final answers to be valid JSON object/array text.
