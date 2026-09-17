@@ -299,14 +299,14 @@
             "command": "npx",
             "arguments": [
               "-y",
-              "ripgrep-mcp@latest"
+              "@atef_andrus/mcp-ripgrep"
             ],
             "authMode": "None",
             "namespacePrefix": "ripgrep",
             "allowedTools": [
               "search",
-              "advanced-search",
-              "count-matches",
+              "search-and-replace",
+              "search-count",
               "list-files",
               "list-file-types"
             ],
