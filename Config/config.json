@@ -52,7 +52,10 @@
       "default": "%TT_ModuleRoot%\\Private\\System"
     },
     "largeFileSearch": {
-      "defaultSearchDirectory": ["C:\\", "D:\\"],
+      "defaultSearchDirectory": [
+        "C:\\",
+        "D:\\"
+      ],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
       "exportDirectory": "%TT_Home%\\LogsAndExports\\Exports\\LargeFileSearch"
@@ -82,8 +85,14 @@
     },
     "secureCrimp": {
       "server": "securecrimp-1.yourdomain.local",
-      "stackTasks": ["Secure Crimp - Run Server", "Secure Crimp - Nginx"],
-      "auxTasks": ["Secure Crimp - Monitor TCP", "Secure Crimp - Run Schedule"]
+      "stackTasks": [
+        "Secure Crimp - Run Server",
+        "Secure Crimp - Nginx"
+      ],
+      "auxTasks": [
+        "Secure Crimp - Monitor TCP",
+        "Secure Crimp - Run Schedule"
+      ]
     },
     "passwords": {
       "wordListPath": "%TT_ModuleRoot%\\Config\\wordlist.txt",
@@ -243,7 +252,10 @@
             "enabled": true,
             "transport": "Stdio",
             "command": "npx",
-            "arguments": ["-y", "tavily-mcp"],
+            "arguments": [
+              "-y",
+              "tavily-mcp"
+            ],
             "authMode": "None",
             "credentialEnvironmentVariable": "TAVILY_API_KEY",
             "credentialSecretKeyName": "Tavily",
@@ -285,7 +297,10 @@
             "enabled": true,
             "transport": "Stdio",
             "command": "npx",
-            "arguments": ["-y", "ripgrep-mcp@latest"],
+            "arguments": [
+              "-y",
+              "ripgrep-mcp@latest"
+            ],
             "authMode": "None",
             "namespacePrefix": "ripgrep",
             "allowedTools": [
@@ -302,7 +317,9 @@
             "enabled": true,
             "transport": "Stdio",
             "command": "uvx",
-            "arguments": ["mcp-server-git"],
+            "arguments": [
+              "mcp-server-git"
+            ],
             "authMode": "None",
             "namespacePrefix": "git",
             "allowedTools": [
@@ -568,12 +585,18 @@
       "logDir": "%TT_Home%\\LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": ["/E", "/COPYALL"]
+      "copyFlags": [
+        "/E",
+        "/COPYALL"
+      ]
     },
     "downloadsCleanup": {
       "dryRun": false,
       "cutoffYear": 2024,
-      "excludeExtensions": [".pst", ".ost"],
+      "excludeExtensions": [
+        ".pst",
+        ".ost"
+      ],
       "includeExtensions": null
     },
     "teams": {
