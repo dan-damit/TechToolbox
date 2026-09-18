@@ -197,7 +197,7 @@ Invoke-TechAgent -Prompt "Investigate repeated login failures" -DisableAutoRetry
 Invoke-TechAgent -Prompt "Review memory subsystem only and propose targeted changes" -RuntimeStrictMode
 Invoke-TechAgent -Prompt "Implement memory phase 2" -RuntimeStrictMode -StrictMaxDiscoveryToolCalls 6 -StrictMaxMutationToolCalls 8 -StrictMaxValidationToolCalls 2 -StrictMaxDecisionRepairCycles 1
 Invoke-TechAgent -Prompt "Implement memory phase 2" -RuntimeStrictMode -StrictDisableSingleFallbackTurn
-Invoke-TechAgent -Prompt "Update Public/Get/Get-ToolboxHelp.ps1" -ConfirmDestructive -SignedFilePolicy strip
+Invoke-TechAgent -Prompt "Update Public/Get/Get-ToolboxHelp.ps1" -SignedFilePolicy strip
 Invoke-TechAgent -Prompt "Explain repeated authentication failures" -Mode analyze
 Invoke-TechAgent -Prompt "Design a remediation approach" -Mode plan
 Invoke-TechAgent -Prompt "Summarize host posture" -OutputContract plain-text
@@ -208,15 +208,15 @@ Invoke-TechAgent -Prompt "Investigate repeated login failures" -RuntimeProfile m
 
 # Non-interactive credential context for tools that require -Credential
 $dac = Get-Credential
-Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive -ToolCredential $dac
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ToolCredential $dac
 
 # Use default credential variable lookup (ToolCredentialVariableName defaults to 'dac')
 $dac = Get-Credential
-Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute
 
 # Use a custom session variable name for credential lookup
 $domainAdmin = Get-Credential
-Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive -ToolCredentialVariableName domainAdmin
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ToolCredentialVariableName domainAdmin
 
 # Cloud examples (API key loaded from env var)
 $env:TT_AGENT_LLM_API_KEY = '<your-key>'

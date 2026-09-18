@@ -102,9 +102,6 @@ function Invoke-TechAgent {
     .PARAMETER Quiet
         Legacy compatibility switch. Agent traces are now suppressed by default.
 
-    .PARAMETER ConfirmDestructive
-        Explicitly authorizes destructive operations for this run.
-
     .PARAMETER SignedFilePolicy
         Policy to use when overwriting an existing Authenticode-signed
         PowerShell file. 'ignore' blocks the overwrite and 'strip' allows the
@@ -249,9 +246,6 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [switch]$Quiet,
-
-        [Parameter()]
-        [switch]$ConfirmDestructive,
 
         [Parameter()]
         [ValidateSet('ignore', 'strip')]
@@ -793,10 +787,6 @@ Hard requirement:
                 $markdownPath = $null
                 Write-Log -Level Warn -Message ("Tech agent markdown log could not be initialized: {0}" -f $_.Exception.Message)
             }
-        }
-
-        if ($ConfirmDestructive.IsPresent) {
-            Write-Log -Level Warn -Message "`nDestructive operations explicitly authorized for this run."
         }
 
         $autoRetryOnIterationLimit = $false
@@ -1395,7 +1385,6 @@ Hard requirement:
             Verbose                        = $false
             MaxIterations                  = $resolvedMaxIterations
             PromptHistoryItems             = $resolvedPromptHistoryItems
-            ConfirmDestructive             = $ConfirmDestructive.IsPresent
             MemoryPath                     = $memoryPath
             AutoRetryOnRecursion           = $autoRetryOnIterationLimit
             ReturnMetadata                 = $true
@@ -1553,7 +1542,6 @@ $result = $runAgentMethod.Invoke($null, @(
     [string]$request.Model,
     [bool]$request.Verbose,
     [int]$request.MaxIterations,
-    [bool]$request.ConfirmDestructive,
     [string]$request.MemoryPath,
     [bool]$request.AutoRetryOnRecursion,
     [bool]$request.ReturnMetadata,
@@ -2323,7 +2311,6 @@ $result = $runAgentMethod.Invoke($null, @(
                     -PromptText $Prompt `
                     -ModelName $resolvedModel `
                     -IterationLimit $resolvedMaxIterations `
-                    -DestructiveAuthorized $ConfirmDestructive.IsPresent `
                     -SignedFilePolicyValue $SignedFilePolicy `
                     -AutoRetryOnRecursionMode $(
                     if ($AutoRetryOnRecursion.IsPresent) { 'Enabled' }
@@ -2384,8 +2371,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB4dL/j5jkTbUE8
-# 8jNOJThdu6z2gZzy+4l5a3YGnjBD26CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCClyohXKyb1Jq1m
+# SyayRkG8UfMl5BEqTtBpX+FlOjWfN6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2518,34 +2505,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDkYp0DDOgn
-# pr564BVRck2Z4GQ5jOrqp0BkoxB9rJ2dIDANBgkqhkiG9w0BAQEFAASCAgB88gH0
-# 5998BeYcBvPwQfthEJHctF/wfFuW3TmwFtxiDvBu4ktm4B8crDwDJkH5J762aWYj
-# a6sBq4D2jdmLsnt8Hka3eqoy6eS7bJLBUxBBSQ2fzqSOzqlj7SwVnW3PqqlwqCPy
-# iy+3Y3un5iK41RMm2s1FUVUazDaOhgirKSXZm+IaVNBRB+wgtpMUXlNjxtXPvPHn
-# hZAkj7TwqozTNjmkUbe7a5msK1QayMVEh5CwXMP2pr80ThMdAT/cq1XWUF7LAA8K
-# 5mhD+KQzpl92XLDgXhE5TscYg4hVAm4Jb23fnOGulNT7gsfkwUMA+WtKCgGsGk3s
-# ggjUV9h4fD2DRrpgD+r0oNsivadL0W6uCtJFUHT3PEsIJV8xy3dpR0P1JGkPlziJ
-# ofZx60UTNttAI4yckheTeVmkX0s7fvUP7fbkglNBaQPa9MOTVohAEE8Dpzd3gtsn
-# t/FtQ+wVlwVV2Wc/9zsMm/dSUc/OeBC5M7gQOzSg/0mZrgOqVPX2Em9KDBV3dPTO
-# tKnd6WAkffjvcsj4BVRo1p2YyRG47E6duBfZzlS5/z0crKbt2EWRs3wHEIvHNlh/
-# h1wUAwgw9siLFc9tYw6G/mvPAcdgWtiMhNRhdYrj2TGDTjvqe5xGKaKxGTnglTRw
-# vhk5B5Z15g7jd6e+PY4khrJa1//BJdxE4lbixaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCp2ovgcCT+
+# pRhVOQxRVCBLTWQtxgAegT2bzj6jJlJOXTANBgkqhkiG9w0BAQEFAASCAgBGLNtE
+# zFomrB9PA9P7BWZ8bLuHW4hsofOP9RR+hl1D3kvFVI3bc9Tct0lnCDY9EczLF7Ny
+# ZZ2qYaniY95Ng6Avy9Rf0Evl/lN/XEMdaK0dhhS08pG7qsYeFBy2U5zD/QJ/AQXJ
+# BoAvBNGcJFDtF3i9qm+z2AmjlUertg/TZvtfDYPE6S2jec5TF8pl2yK7SuX1XpTc
+# 8+BJe1cUJoI8wlawa1eUf189Jzq6dvkco1G1XyFTaQTm2wrRECPzRy/XwbRvCozZ
+# uZeKVEor6w5fEVdhinzRkueBN/X5P43JIiwfw7hhzbtiYnbgOzXqCrB2dH/cgolq
+# qPAUVOHq5U74ZpTtfsajqpL1zhHf9+h5+t3uMJJpzmWz9EoSG5dyRsyku9lWfWJI
+# j8mq63Qv1QeZMYP3HgnKez7PCMSMCRbUFK3ZeazSX29Co9z6sjy/g72R3u5flg9y
+# QxKYSX0hGP1y7Y0TXCTysbcwd1Zqd3ftc4OPLlo2lZb+4wheEBSqdnE6wtyEUEwx
+# sUIbH9N6gzIrYC/aYwrV+na4ll4o/d7NmfaKgweWwmCsDWerwGLyNecxnGfW0d1j
+# C5Q2Q2pDnmmzqCr/wruE9aab8MneFt3ZuDBdpNigfq29t7WYf3YC2EwruzjnctZ/
+# xp1GKoP97/ppG59wNiKzVj6XBT2FO9TfdpQimaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTcwNTE5MjZaMC8GCSqGSIb3DQEJBDEiBCDw+JUUvhlH6LIiqoHi
-# wVU1rQeNvCag/k52rXApeu0LwjANBgkqhkiG9w0BAQEFAASCAgAnykbBbZtjp7pS
-# YaPCZ3xvCr04CqBr7UwxSXryYM+ZwKVqVx4toQ80MFlUrcFHK5OhBBtfW0sKw9To
-# f/bAIaiX1O7DwN998Uy1wNtrrYZ3Ba7B/HuDs+l0+IP9WS8Ta+ls1CU58ZjIlSTT
-# i66zqVxi+sIXEnk9JrQWAkrLGtTtSpYwqGaJFhRIwTrEjRV/hXJ6hvaWN2N6qQQ5
-# NjdVauSJIIn97cVQP4iV8grXmUA5WFHStVNpN8A393Sbw0L6hwa2Bia+I41N9rXU
-# c5BCrv+noqPD5hLU0jgp0YO/a3Om+DI+dnq/iBh8nuc2//KD4Sc8gFiCRRR6fA9s
-# XS95N/kzvd899HL1w1o2gPh4ftH/I+bz9pnpoHzpWW2FTpq9fDGTDItv6ba4m0CM
-# Vp9/jsP52j4Bd7VK/eTLaB+QWxK0wp+iqYs9FBi6BwL6cNdi0xzXHOZo0odKdzSy
-# Hk8+vCuZIeZLg9XG8dbNdHExzDmwSwC5B91tELej1jHAcxi31VlOQZLn6bzqwJI+
-# n+QHkwsnxXxFeKaz3vR9WLuTCND11+WxiIlx6AqZ1h7/QSFinG9PV6ttPkfqlMqI
-# aDRSItoBHBNhAxoX3wfpMJt3yZT0kTJyo3SmuClj03t0tR/0tYoebDkq+E8rm5ID
-# Mt2vapWmHZNHSlfn03JFjVSYrwtDYw==
+# BTEPFw0yNjA5MTgwMjMxNDVaMC8GCSqGSIb3DQEJBDEiBCCcwVI7oj2Qm5vQ6/De
+# 7c61Z5Td45PYzElBQip0MiaZRzANBgkqhkiG9w0BAQEFAASCAgBAexh5of8dKf/X
+# T7QgfcUsg7XvYkpWYgsAAofLWjWoihFpXuK8KZm98IP4ZoQIWW+wDRTTQ3m+T34n
+# 21FaZsHQj4s7h0k3GlSxPhEKOVGZEwzDxgY8FNXrnGH6qrIJ43OVeVjCijzJwwOs
+# D5viDY0myqviy8aBZ+DNaKQs9/hv+nisq6jHyIYnpes/TLwAzDzv00QKDKfgrtrW
+# SBd1nJBrQ5yTK0eprcufXRakBT7K/LPo+gDnAAmB8D3cixeBu9AHUHyCNehvpzUR
+# 5wL1ocStlfKAQjByIe4bgFkXztBqjduxOGrST6y5c3XqbT5B+ayxLH4ZDczSrrxe
+# vBFKog2XFwDJClCfPp1AmXpkGu+HCHwW1uVSvKkK1Kn2ty4O9qsVM5Z5fA1UICx4
+# 3MlhEYRDsWeyrfcwPGh2PAQPsBXbLRAupU9vi1u8jpq+bOgocye/pvWisUx+izaG
+# bPrTh13vtQWmEsFHo2cQRRpHI9R1sk5F6hxmZBq25Vr5Oh0v/nFEbDq70coPh7fO
+# PvaLisXoacNESvn29ilWYjXPo7V61U5DiZNWcfvuhp2+UJGK3jPcC6omZbeNaBWu
+# GLVpBiyGfcdBtUG/wqkArTPyScHkSQqNLHVLNG+fC2zJ8z5nq+Cioptz3A00R8zE
+# Z6r4fJ9Y1SYYXpAQvwuwYlSgIXsKJw==
 # SIG # End signature block

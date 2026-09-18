@@ -329,11 +329,11 @@ Get-TechAgentQualitySummary -Window 30 -IncludeRecent 10 -AsJson
 
 # Non-interactive credential context for tool calls
 $dac = Get-Credential
-Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive -ToolCredential $dac
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ToolCredential $dac
 
 # Default variable lookup (ToolCredentialVariableName defaults to 'dac')
 $dac = Get-Credential
-Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ConfirmDestructive
+Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute
 ```
 
 ### Example: stage a task, then run it
