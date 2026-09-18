@@ -249,7 +249,7 @@
         "servers": [
           {
             "name": "techtoolbox-local",
-            "enabled": false,
+            "enabled": true,
             "transport": "Stdio",
             "command": "dotnet",
             "arguments": [
