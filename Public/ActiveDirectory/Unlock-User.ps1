@@ -1,112 +1,119 @@
-Describe "TechToolbox Module" {
-    BeforeAll {
-        Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
+function Unlock-User {
+    <#
+    .SYNOPSIS
+    Unlocks an Active Directory user account if it is currently locked out.
+
+    .DESCRIPTION
+    Resolves the target identity using Search-User, checks the current lock state,
+    and calls Unlock-ADAccount only when needed. The command supports WhatIf/Confirm
+    and returns a summary object describing the operation outcome.
+
+    .PARAMETER Identity
+    AD user identity to unlock. Accepts sAMAccountName, UPN, or other identities
+    supported by Search-User.
+
+    .PARAMETER Credential
+    Optional credential used for Search-User and AD unlock operations.
+
+    .EXAMPLE
+    Unlock-User -Identity jdoe
+
+    .EXAMPLE
+    Unlock-User -Identity jdoe@company.com -Credential (Get-Credential)
+
+    .EXAMPLE
+    Unlock-User -Identity jdoe -WhatIf
+
+    .LINK
+    Search-User
+
+    .LINK
+    https://dan-damit.github.io/TechToolbox-Docs/unlock-user
+    #>
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Identity,
+
+        [System.Management.Automation.PSCredential]$Credential
+    )
+
+    Initialize-TechToolboxRuntime
+    Write-Log -Level Info -Message ("Starting Unlock-User for '{0}'" -f $Identity)
+
+    Get-ActiveDirectoryModule
+    if (-not (Get-Module ActiveDirectory) -and -not (Get-Module ActiveDirectory -ListAvailable)) {
+        Write-Log -Level Error -Message "ActiveDirectory module unavailable. Install RSAT or ensure AD tools are accessible."
+        throw "Missing ActiveDirectory module."
     }
 
-    Context "Module Load" {
-        It "Should load without errors" {
-            { Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force } | Should -Not -Throw
-        }
+    $suParams = @{ Identity = $Identity }
+    if ($Credential) { $suParams.Credential = $Credential }
 
-        It "Should be available in Get-Module" {
-            $module = Get-Module -Name TechToolbox
-            $module | Should -Not -BeNullOrEmpty
+    $user = Search-User @suParams
+    if (-not $user) {
+        throw "User '$Identity' not found."
+    }
+
+    $lockedBefore = [bool]$user.Locked
+    if (-not $lockedBefore) {
+        Write-Log -Level Ok -Message ("Account is already unlocked: {0}" -f $user.SamAccountName)
+        return [pscustomobject]@{
+            SamAccountName    = $user.SamAccountName
+            UserPrincipalName = $user.UserPrincipalName
+            DistinguishedName = $user.DistinguishedName
+            WasLocked         = $false
+            UnlockAttempted   = $false
+            UnlockSucceeded   = $true
+            LockedAfter       = $false
+            Timestamp         = (Get-Date)
         }
     }
 
-    Context "Exported Functions" {
-        BeforeAll {
-            $expectedFunctions = @(
-                'Clear-BrowserProfileData',
-                'Copy-Directory',
-                'Disable-User',
-                'Enable-NetFx3',
-                'Export-ToolboxFunctions',
-                'Find-LargeFiles',
-                'Get-AllUsers',
-                'Get-AuditSharedMailboxDeletions',
-                'Get-AutodiscoverXmlInteractive',
-                'Get-BatteryHealth',
-                'Get-CUCredentialManagerContents',
-                'Get-DomainAdminCredential',
-                'Get-ErrorEvents',
-                'Get-FilesUsingKeywords',
-                'Get-InstalledPrinters',
-                'Get-LocalAdminMembers',
-                'Get-MessageTrace',
-                'Get-NewPSRemoteSession',
-                'Get-PDQDiagLogs',
-                'Get-RemoteInstalledSoftware',
-                'Get-SharedMailboxPermissions',
-                'Get-SystemSnapshot',
-                'Get-SystemTrustDiagnostic',
-                'Get-SystemUptime',
-                'Get-TechToolboxConfig',
-                'Get-ToolboxHelp',
-                'Get-WindowsProductKey',
-                'Initialize-TTWordList',
-                'Install-TechAgentRuntime',
-                'Invoke-AADSyncRemote',
-                'Invoke-DownloadsCleanup',
-                'Invoke-PurviewPurge',
-                'Invoke-RestartService',
-                'Invoke-SubnetScan',
-                'Invoke-SystemRepair',
-                'Invoke-TechAgent',
-                'Invoke-TechAgentGui',
-                'Get-TechAgentQualitySummary',
-                'New-OnPremUserFromTemplate',
-                'Remove-EpicorEdgeAgent',
-                'Remove-Printers',
-                'Reset-ADPassword',
-                'Reset-WindowsUpdateComponents',
-                'Search-User',
-                'Set-EmailAlias',
-                'Set-OneTimeReboot',
-                'Set-PageFileSize',
-                'Set-ProxyAddress',
-                'Set-TechAgentApiKey',
-                'Set-TechAgentMcpApiKey',
-                'Set-TechAgentSearchWebApiKey',
-                'Start-DnsQueryLogger',
-                'Start-NewPSRemoteSession',
-                'Start-PDQDiagLocalElevated',
-                'Stop-PSRemoteSession',
-                'Test-MailHeaderAuth',
-                'Test-PathAs',
-                'Test-TechAgentProvider',
-                'Test-TTPathRoots',
-                'Unlock-User',
-                'Use-TechAgentTaskTemplate',
-                'Watch-ISPConnection'
-            )
-        }
-
-        It "Should export all expected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            foreach ($func in $expectedFunctions) {
-                $exportedFunctions | Should -Contain $func
+    if ($PSCmdlet.ShouldProcess($user.SamAccountName, 'Unlock AD account')) {
+        try {
+            $unlockParams = @{
+                Identity    = $user.DistinguishedName
+                ErrorAction = 'Stop'
             }
-        }
+            if ($Credential) { $unlockParams['Credential'] = $Credential }
 
-        It "Should not export unexpected functions" {
-            $exportedFunctions = (Get-Command -Module TechToolbox).Name
-            $unexpectedFunctions = @()
-            foreach ($func in $exportedFunctions) {
-                if ($func -notin $expectedFunctions) {
-                    $unexpectedFunctions += $func
-                }
-            }
-            $unexpectedFunctions | Should -BeNullOrEmpty
+            Unlock-ADAccount @unlockParams
+            Write-Log -Level Ok -Message ("Account unlocked: {0}" -f $user.SamAccountName)
         }
+        catch {
+            Write-Log -Level Error -Message ("Failed to unlock account '{0}': {1}" -f $user.SamAccountName, $_.Exception.Message)
+            throw
+        }
+    }
+
+    $verifyParams = @{
+        Identity    = $user.DistinguishedName
+        Properties  = @('LockedOut')
+        ErrorAction = 'Stop'
+    }
+    if ($Credential) { $verifyParams['Credential'] = $Credential }
+
+    $postUser = Get-ADUser @verifyParams
+    $lockedAfter = if ($postUser.PSObject.Properties['LockedOut']) { [bool]$postUser.LockedOut } else { $false }
+
+    [pscustomobject]@{
+        SamAccountName    = $user.SamAccountName
+        UserPrincipalName = $user.UserPrincipalName
+        DistinguishedName = $user.DistinguishedName
+        WasLocked         = $lockedBefore
+        UnlockAttempted   = $true
+        UnlockSucceeded   = (-not $lockedAfter)
+        LockedAfter       = $lockedAfter
+        Timestamp         = (Get-Date)
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAhp/W6scNKRjH/
-# 0c+g040rqsjL6o/tRp6y2AyR4b73rqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCzmR1PeB9pYwbp
+# w+BhhSC7UXrzb/BjL0384RmW+YftMaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -239,34 +246,34 @@ Describe "TechToolbox Module" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDchDp9PpZx
-# sGz2OC+xE8cgfEQzJEr97/qvW2+aXSa5STANBgkqhkiG9w0BAQEFAASCAgB0S/52
-# sMHLtWEhDo4OdzltTh9Mu8cQIEOkKqBhtEUbK9A68dN5TSf96kvpHU/wBp4JrxZ2
-# rs3VurUdYvvqXNBuFQvcmGTas12To0wAXrMLvxm8xYrSkAu0dC9pkcVanoKw3f5n
-# BG+mESpqow2wQtmzfuWkQW2iq77d/xeStXDL6rVDzsQ5TUu19Pum3KilpTHzMBA2
-# 6Iq5mN51kKOS2Sm3xJ9/VItMBZSd+hCxlMpRHyXXt0RmfExmpnj/lF8s9epdv0kJ
-# m2orVJME0oSUZFvKL26q5cB4kPDfoG7oY7xyv/EMimsXRv35gdf1yDIZsaXJMh0F
-# xwH11YC6izLdpxCyuatOHs1MB079tw1p/AY/KJJ6CqJt/pXiatjXTZb5Fy+cyc45
-# 5j+g7Zik3lUDhW4tjcF815SGXBbMggVd8IBIXQMf5nxTCYgFx308RpMzA2WgY1P2
-# 0EvXoaeRL3WARqFO0WSendB5VXkAX447kPz1SbsQ7MIijD0bnkMfQ8XHLMhcY2LR
-# a74IUJ9EO5vO9JwMB3KSr0acJbp04YbSiZZuYmxi/XfdskztZF66QXagOBoyascN
-# BVRTH7HP0RPpzmBpQl8RMBAZXlTHXYNUBERl0lypqhUwo8J730opSjYujHoVnSdt
-# UE6vNw+b+GbNh4sOVtdm+CnDgnTMz1J7OW7oLKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAX3i6aiMJn
+# wSY+kEgsfAXfSUxEocAdb6DbOBTAHxTUtTANBgkqhkiG9w0BAQEFAASCAgAjewSr
+# AIHJRPtAlOT9Z5dOoHKy901NlWmaVodkPzm54YS3EasoprGe1EOXe7FT2uds/GVg
+# ZHeua2eLux2vLCMFSxmV421hNQMJ5I3i3W9frw2N1qBMcIyPGhTSesMEwRJ54NEx
+# pEL1hMqjSqODuggrEOVQNJIO+gEOWgK1F4U+JUNc10EnY/1OaFtpQSKL7MhV3ILM
+# vF6INxs1oeJIMR+PV0TpEgjRxVKT8E+elzkF/gwcofurTRHEbTvD/kORmPKe4IQm
+# Y1XnWHUiY3x9KWr/DqneVzicjqD0vYGqyfh7VK5Lg8M4h68Id2vs39Qh0avL8U87
+# b3c0E5iyS/+WFABHFUVBj6zyuWVjD9s5w5P/TwbWXKFKspxvWwM7ab8bDNZpNauS
+# /XBG6TA1UdbVJqsY1ylaWuXBfcz3L5Nq8FV2RYOwAPflz+0Lhx8KWhQ+rUqizman
+# Y2wx28aLtNHcqUHgZ8ABSdmtMAYRuWQq9X+yBIYwggfKhOJmGvl8pcnQGptIy+bM
+# rls619O4gNfoYetbqhPN4lwkqtLF01ce6sOfQmG7AXkG2+Wz8uyfTIXjr5GuR4XQ
+# smmNhujen/h8Yc8awb43bPNggibHt+H3nytUKI1ALRv8ptkzoMxxLEkdm7ld68EL
+# IxVuFb3H8I65ICI4HHE7InAcXPjtIxEBN3A+t6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTgxNzMzNTRaMC8GCSqGSIb3DQEJBDEiBCBhUpH2jl5MoG1Od/ib
-# 7h/YyrN/lRDTq20HhK8DMFEoaTANBgkqhkiG9w0BAQEFAASCAgAxL+U8oiczZBvB
-# aL5R2MD53LCNrAs3Gw2CEtdknSvmyduRlcZ+qMsbHVLIoQfQROPCxkB1vTbzoiHb
-# nDDgXjoDJmBFmFDB/Z9KI+xjbj2Ptb7pPpg8F18ZDGelE6eGeQhq24E8REclrfDp
-# uf4X05Iiq1KLrEfYcikl8K1wuEU7WIpCN866lVyjkKGjXnMqHTrGFoTtTk8WL7ug
-# UZhciYrIfw/5GyvRSnJqM3y8OULmJYV7407MUknbEQ0wl2uwvKh5xdikc49lop3I
-# Cp8z8Ban6u4REG4oaxDRi20ltlDtRVpqs9oZN9fvV6Exx/O87RuahgeSBEXAKq9U
-# DxfJ/u7755veX960Y8b4r8ga4xaKN0T4tZsm9joIsJIzRCqvycqg+x6baTWkTNRV
-# OtBa8YBbqAqbzb302OJeNafKCm4bc3f3uyQK+864xZQ/T6FFEeU6XUcMat70IUrX
-# jeKyFHk6mJMVJPC39HuPVPghz0iDNsv29Qj8beDKPGwTmuROQkvx5w37YWhaKze9
-# c/s+AFAYV04L3RdpGdpFBdYrRgnM6di+zxs2yBdlr8ELlqJc0+gEbbxQw2MHxVs2
-# 6xkJVhQ7RTsXI59O3djxPHsc2i80RYSyqrUZJj4pAdAXk6OgubP+6M4KXGR7GN0+
-# WV0oZbmlersCcLDsHH7T7PtPv9Yl8Q==
+# BTEPFw0yNjA5MTgxNzM2MTNaMC8GCSqGSIb3DQEJBDEiBCDWQhFcHW1rDXpu3qJc
+# A6DT67E0M0SzGuW+BUjrUw1qkTANBgkqhkiG9w0BAQEFAASCAgCabwnWP+PmlCOc
+# e3tjrivjBIZWuY8XTZEujevIT0kpQ5GgApb067jgdAHTkmrY2+x+7/h6OvrJl4iy
+# Qb0ncecm2anUNcAqvSdHwfm1AvZcC9lGBGRGOdVPFhKGBPAWRjiKPK3fg96RveU9
+# 1NomXHqjjvAsF8swl96umoWP11ikSv4Zy4H/22AK1/WN8pWeBKkzZ5zAiJXAZAHC
+# UWxhCVrEe+mE7pqCm0RJawOYk0VC6UTwyZkVslaFm3Mu38QfnQ0aa7Cy8xnhEAut
+# s8J25M3FrUyfosRRKQvAkxDzOQ1etbqqYwB4RICXIs0xNGyWRuYxodDYvnuNxGA5
+# BQNFJauz45tVJxNYh1RPEUochlB2HeABL/saJOuMFrFV/vA/2BUPTi978Fb+dHEo
+# XyeDpP7C3qAlFsYzDzM4D5ZHhf3VmZQBR0P5A6i00tg4wGLP2SWx0UvTGlSPWDvy
+# aveuxnhbzfxOsZoP6jKRXhkYCZJ52QvjKbh2uCt5MwxNWisoDfp6QCLgsylDvZYP
+# /npCNlF5kyfYtC8BDsTlRmhiez/FPEhm/n8o7OKv09PuxitbCRKd7gOv+aZpkP26
+# utcejbTtM+LxwxWBXV7vnUfC4oQOp3JBum2zhCZWRkYyHYfuZmsVyfNd7gpGy4Bb
+# 6eQbMCru8ci1WVlZkSVxdWYN/3KNqQ==
 # SIG # End signature block

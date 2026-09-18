@@ -1,0 +1,54 @@
+about_Unlock-User
+--------------------------
+
+SHORT DESCRIPTION
+    Unlocks a locked Active Directory user account.
+
+LONG DESCRIPTION
+    Unlock-User resolves a user with Search-User, checks whether the
+    account is currently locked, and unlocks it only when required.
+
+    The command supports WhatIf and Confirm via ShouldProcess and returns a
+    summary object with pre/post lock state and operation status.
+
+PARAMETERS
+    -Identity
+        AD user identity to unlock. Accepts sAMAccountName, UPN, or other
+        identities supported by Search-User.
+
+    -Credential
+        Optional PSCredential used for Search-User and AD cmdlets.
+
+    -WhatIf
+        Shows what would happen if the cmdlet runs.
+
+    -Confirm
+        Prompts for confirmation before unlocking the account.
+
+OUTPUTS
+    [pscustomobject]
+    - SamAccountName
+    - UserPrincipalName
+    - DistinguishedName
+    - WasLocked (bool)
+    - UnlockAttempted (bool)
+    - UnlockSucceeded (bool)
+    - LockedAfter (bool)
+    - Timestamp
+
+EXAMPLES
+    Example 1
+        Unlock-User -Identity jdoe
+
+        Unlocks jdoe if the account is currently locked out.
+
+    Example 2
+        Unlock-User -Identity jdoe@company.com -WhatIf
+
+        Shows what would be unlocked without changing AD.
+
+SEE ALSO
+    Search-User, Unlock-ADAccount, Write-Log
+
+KEYWORDS
+    Unlock-User, unlock user, Active Directory, locked out, TechToolbox

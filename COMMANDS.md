@@ -54,6 +54,7 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Search-User | Search AD users by lifecycle, attributes, or stale criteria. | |
 | Set-EmailAlias | Add or update AD email alias attributes. | Risk |
 | Set-ProxyAddress | Manage proxyAddresses for hybrid identity scenarios. | Risk |
+| Unlock-User | Unlock a locked AD user account. | WhatIf |
 
 ## Exchange, Purview, and Messaging
 

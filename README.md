@@ -396,6 +396,7 @@ The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/bl
 | `Reset-ADPassword`           | Resets an AD user password                      |
 | `New-OnPremUserFromTemplate` | Creates an on-prem user from a template         |
 | `Search-User`                | Searches for AD users by criteria               |
+| `Unlock-User`                | Unlocks a locked AD user account                |
 | `Get-AllUsers`               | Enumerates all AD users (with filters)          |
 | `Get-LocalAdminMembers`      | Lists members of the local Administrators group |
 | `Initialize-TTWordList`      | Initializes word list for Password generator    |

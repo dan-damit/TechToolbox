@@ -539,6 +539,7 @@
         "memberOf",
         "distinguishedName",
         "objectSid",
+        "lockedOut",
         "msDS-UserPasswordExpiryTimeComputed",
         "pwdLastSet"
       ]
