@@ -392,6 +392,30 @@
 			"type": "shell",
 			"command": "dotnet test .\\src\\TechToolbox.Agent\\Tests\\TechToolbox.Agent.Tests.csproj -c Release --filter 'FullyQualifiedName~McpConfigurationTests'",
 			"isBackground": false
+		},
+		{
+			"label": "dryrun-validate-publish-preview",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-File",
+				"C:\\Users\\dan\\AppData\\Local\\Temp\\tt_dryrun_validate.ps1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "dryrun-validate-publish-preview",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-File",
+				"C:\\Users\\dan\\AppData\\Local\\Temp\\tt_dryrun_validate.ps1"
+			],
+			"isBackground": false
 		}
 	]
 }

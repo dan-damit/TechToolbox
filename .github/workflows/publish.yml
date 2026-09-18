@@ -233,6 +233,21 @@ jobs:
           New-Item -ItemType Directory -Path $localMcpRuntimePath -Force | Out-Null
           Copy-Item -Path (Join-Path $env:TECH_LOCAL_MCP_ADAPTER_PUBLISH_DIR '*') -Destination $localMcpRuntimePath -Recurse -Force
 
+          $configPath = Join-Path $stagePath 'Config\config.json'
+          if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+            $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -Depth 128
+            $servers = @($config.settings.agent.mcp.servers)
+            $localServer = @($servers | Where-Object { [string]$_.name -eq 'techtoolbox-local' }) | Select-Object -First 1
+            if ($null -ne $localServer) {
+              $localArgs = @($localServer.arguments)
+              if ($localArgs.Count -gt 0) {
+                $localArgs[0] = '%TT_ModuleRoot%\\AgentRuntime\\TechToolbox.LocalMcpAdapter\\TechToolbox.LocalMcpAdapter.dll'
+                $localServer.arguments = $localArgs
+                $config | ConvertTo-Json -Depth 128 | Set-Content -LiteralPath $configPath -Encoding utf8
+              }
+            }
+          }
+
           $files = Get-ChildItem -LiteralPath $stagePath -Recurse -File |
             ForEach-Object {
               $_.FullName.Substring($stagePath.Length + 1).Replace('\\', '/')
@@ -415,6 +430,21 @@ jobs:
           $localMcpAdapterRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.LocalMcpAdapter'
           New-Item -ItemType Directory -Path $localMcpAdapterRuntimePath -Force | Out-Null
           Copy-Item -Path (Join-Path $LocalMcpAdapterPublishDir '*') -Destination $localMcpAdapterRuntimePath -Recurse -Force
+
+          $configPath = Join-Path $stagePath 'Config\config.json'
+          if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+            $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -Depth 128
+            $servers = @($config.settings.agent.mcp.servers)
+            $localServer = @($servers | Where-Object { [string]$_.name -eq 'techtoolbox-local' }) | Select-Object -First 1
+            if ($null -ne $localServer) {
+              $localArgs = @($localServer.arguments)
+              if ($localArgs.Count -gt 0) {
+                $localArgs[0] = '%TT_ModuleRoot%\\AgentRuntime\\TechToolbox.LocalMcpAdapter\\TechToolbox.LocalMcpAdapter.dll'
+                $localServer.arguments = $localArgs
+                $config | ConvertTo-Json -Depth 128 | Set-Content -LiteralPath $configPath -Encoding utf8
+              }
+            }
+          }
 
           $manifest = Join-Path $stagePath "TechToolbox.psd1"
 
