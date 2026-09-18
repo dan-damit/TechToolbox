@@ -15,6 +15,40 @@ Analysis can run locally or against a configured cloud provider, depending on `s
 
 ## **Available Commands**
 
+### Local MCP adapter mode
+The local adapter is the safest way to expose a small, allowlisted set of TechToolbox PowerShell functions as a native MCP server.
+
+Enable it in `Config\config.json` by setting the `techtoolbox-local` entry to `enabled: true` and keep the `allowedTools` list narrow. Recommended first-wave defaults are the read-only/system diagnostics tools:
+
+```json
+{
+  "name": "techtoolbox-local",
+  "enabled": true,
+  "transport": "Stdio",
+  "command": "dotnet",
+  "arguments": [
+    "src\\TechToolbox.Agent\\TechToolbox.LocalMcpAdapter\\bin\\Release\\net8.0\\TechToolbox.LocalMcpAdapter.dll",
+    "--server-name",
+    "techtoolbox-local",
+    "--module-name",
+    "TechToolbox"
+  ],
+  "allowedTools": [
+    "Get-AllUsers",
+    "Get-SystemUptime",
+    "Get-SystemSnapshot",
+    "Get-TechToolboxConfig"
+  ]
+}
+```
+
+Then verify the adapter directly:
+
+```powershell
+. ./Public/AI/Test-TechAgentLocalMcpAdapter.ps1
+Test-TechAgentLocalMcpAdapter -ServerName techtoolbox-local -AllowedTools Get-SystemSnapshot,Get-TechToolboxConfig
+```
+
 ### `Invoke-TechAgent`
 Runs the TechToolbox AI agent for natural-language task execution and guidance.
 

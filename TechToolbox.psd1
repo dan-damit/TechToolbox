@@ -93,9 +93,10 @@ FunctionsToExport = 'Clear-BrowserProfileData', 'Copy-Directory', 'Disable-User'
                'Set-TechAgentMcpOAuthCallback', 'Set-TechAgentSearchWebApiKey', 
                'Start-DnsQueryLogger', 'Start-NewPSRemoteSession', 
                'Start-PDQDiagLocalElevated', 'Stop-PSRemoteSession', 
-               'Test-MailHeaderAuth', 'Test-PathAs', 'Test-TechAgentMcpConnection', 
-               'Test-TechAgentProvider', 'Test-TTPathRoots', 'Unlock-User', 
-               'Use-TechAgentTaskTemplate', 'Watch-ISPConnection'
+               'Test-MailHeaderAuth', 'Test-PathAs', 'Test-TechAgentLocalMcpAdapter', 
+               'Test-TechAgentMcpConnection', 'Test-TechAgentProvider', 
+               'Test-TTPathRoots', 'Unlock-User', 'Use-TechAgentTaskTemplate', 
+               'Watch-ISPConnection'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'

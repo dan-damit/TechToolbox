@@ -248,6 +248,28 @@
         "enabled": true,
         "servers": [
           {
+            "name": "techtoolbox-local",
+            "enabled": false,
+            "transport": "Stdio",
+            "command": "dotnet",
+            "arguments": [
+              "src\\TechToolbox.Agent\\TechToolbox.LocalMcpAdapter\\bin\\Release\\net8.0\\TechToolbox.LocalMcpAdapter.dll",
+              "--server-name",
+              "techtoolbox-local",
+              "--module-name",
+              "TechToolbox"
+            ],
+            "authMode": "None",
+            "namespacePrefix": "tt",
+            "allowedTools": [
+              "Get-AllUsers",
+              "Get-SystemUptime",
+              "Get-SystemSnapshot",
+              "Get-TechToolboxConfig"
+            ],
+            "requestTimeoutSeconds": 60
+          },
+          {
             "name": "tavily",
             "enabled": true,
             "transport": "Stdio",
