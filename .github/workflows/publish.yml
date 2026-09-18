@@ -235,7 +235,7 @@ jobs:
 
           $configPath = Join-Path $stagePath 'Config\config.json'
           if (Test-Path -LiteralPath $configPath -PathType Leaf) {
-            $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -Depth 128
+            $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -Depth 100
             $servers = @($config.settings.agent.mcp.servers)
             $localServer = @($servers | Where-Object { [string]$_.name -eq 'techtoolbox-local' }) | Select-Object -First 1
             if ($null -ne $localServer) {
@@ -243,7 +243,7 @@ jobs:
               if ($localArgs.Count -gt 0) {
                 $localArgs[0] = '%TT_ModuleRoot%\\AgentRuntime\\TechToolbox.LocalMcpAdapter\\TechToolbox.LocalMcpAdapter.dll'
                 $localServer.arguments = $localArgs
-                $config | ConvertTo-Json -Depth 128 | Set-Content -LiteralPath $configPath -Encoding utf8
+                $config | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $configPath -Encoding utf8
               }
             }
           }
@@ -433,7 +433,7 @@ jobs:
 
           $configPath = Join-Path $stagePath 'Config\config.json'
           if (Test-Path -LiteralPath $configPath -PathType Leaf) {
-            $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -Depth 128
+            $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -Depth 100
             $servers = @($config.settings.agent.mcp.servers)
             $localServer = @($servers | Where-Object { [string]$_.name -eq 'techtoolbox-local' }) | Select-Object -First 1
             if ($null -ne $localServer) {
@@ -441,7 +441,7 @@ jobs:
               if ($localArgs.Count -gt 0) {
                 $localArgs[0] = '%TT_ModuleRoot%\\AgentRuntime\\TechToolbox.LocalMcpAdapter\\TechToolbox.LocalMcpAdapter.dll'
                 $localServer.arguments = $localArgs
-                $config | ConvertTo-Json -Depth 128 | Set-Content -LiteralPath $configPath -Encoding utf8
+                $config | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $configPath -Encoding utf8
               }
             }
           }
