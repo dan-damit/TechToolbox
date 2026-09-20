@@ -1,8 +1,58 @@
-Use the Ripgrep MCP server.
+Create the next-best recommendation dataset build scripts from ModelTraining file history, then run the full pipeline.
 
-Search for:
-pattern = "TechToolbox"
+Repository root: C:\repos\TechToolbox
+Primary scope: C:\repos\TechToolbox\ModelTraining
 
-path = "C:\repos\TechToolbox"
+Mission:
+1) Analyze script/report history to determine the highest-value next dataset strategy.
+2) Implement new dataset build script(s) that encode that strategy with explicit, minimal examples.
+3) Execute build -> merge -> split -> train -> evaluate.
+4) Return a recommendation based on measured results.
 
-Return the raw MCP request and raw MCP response.
+History and evidence requirements:
+- Use git history and current files to ground decisions.
+- Inspect prior dataset builders: Build-AgentControl*.ps1.
+- Inspect evaluator and packs: Evaluate-DecisionPack.py, decision_eval_pack*.json.
+- Inspect historical reports: decision_eval_report*.json.
+- Compare against strongest known anchor and latest runs.
+
+Hard constraints:
+- Keep changes surgical and explicit; no broad synthetic churn.
+- Preserve known-good policy behavior.
+- Prioritize exact boundaries: canonical tool selection, retry-vs-stop transition, terminal blockers, partial payload finalization, malformed payload stop behavior.
+- Do not invent new policy categories unless supported by existing failure evidence.
+
+Implementation requirements:
+1) Add one new builder script in ModelTraining with a clear name, for example:
+   - Build-AgentControlRecommendationDataset.ps1
+2) Script output should be deterministic, small, and high-signal.
+3) Ensure generated records use supported shapes for Merge-LoRaDataset.ps1.
+4) Add or update minimal validation tests if needed.
+
+Execution requirements (must run, not just propose):
+1) Run the new builder.
+2) Merge dataset to JSONL.
+3) Split into train/validation.
+4) Train with Train-QwenLoRA.ps1 using the new split.
+5) Evaluate with Evaluate-DecisionPack.py against decision_eval_pack_extended.json.
+6) Save report to a new report filename (for example decision_eval_report_recommendation.json).
+
+Decision rule for recommendation:
+- Rank by overallPass first.
+- Break ties by stricter policy correctness evidence in failed-case analysis.
+- Explicitly state whether the new run beats, ties, or underperforms the current anchor.
+
+Output format:
+1) Files analyzed.
+2) Key history findings that drove script design.
+3) Files created/modified.
+4) Exact commands executed.
+5) Train/eval outputs with pass/fail counts.
+6) Final recommendation:
+   - adopt new dataset,
+   - keep current anchor,
+   - or run one additional micro-pass (with exact target cases listed).
+
+Quality bar:
+- No unverifiable claims.
+- If blocked, report exact blocker and smallest viable fallback that still runs.

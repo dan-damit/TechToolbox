@@ -632,7 +632,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 1.0.1
+- **Module version:** 1.0.8
 - **Current milestone:** v1.0.1 - "MCP Integration"
 - **Milestone date:** 2026-09-16
 - **PowerShell requirement:** 7+ (Core)
