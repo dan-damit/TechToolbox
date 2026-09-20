@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Checkout repository (PAT)
         if: env.TECHTOOLBOX_AGENT_PAT != ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Use a PAT when the TechToolbox.Agent submodule is private and outside this repo.
           token: ${{ env.TECHTOOLBOX_AGENT_PAT }}
@@ -31,7 +31,7 @@ jobs:
 
       - name: Checkout repository (default token)
         if: env.TECHTOOLBOX_AGENT_PAT == ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
