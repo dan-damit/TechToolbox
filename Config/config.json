@@ -285,6 +285,31 @@
             "requestTimeoutSeconds": 30
           },
           {
+            "name": "powershell",
+            "enabled": true,
+            "transport": "Stdio",
+            "command": "npx",
+            "arguments": [
+              "-y",
+              "@imrrd/powershell-mcp@latest"
+            ],
+            "authMode": "None",
+            "namespacePrefix": "powershell",
+            "allowedTools": [
+              "run_powershell",
+              "run_program",
+              "list_services",
+              "get_service",
+              "control_service",
+              "system_info",
+              "ssh_exec",
+              "winrm_exec",
+              "sftp_upload",
+              "sftp_download"
+            ],
+            "requestTimeoutSeconds": 120
+          },
+          {
             "name": "filesystem",
             "enabled": true,
             "transport": "Stdio",

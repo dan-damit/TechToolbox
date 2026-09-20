@@ -49,6 +49,45 @@ Then verify the adapter directly:
 Test-TechAgentLocalMcpAdapter -ServerName techtoolbox-local -AllowedTools Get-SystemSnapshot,Get-TechToolboxConfig
 ```
 
+### PowerShell MCP server mode
+TechToolbox now includes a default MCP server profile for headless Windows operations using `@imrrd/powershell-mcp`.
+
+Configured server entry (`Config\config.json`):
+
+```json
+{
+  "name": "powershell",
+  "enabled": true,
+  "transport": "Stdio",
+  "command": "npx",
+  "arguments": [
+    "-y",
+    "@imrrd/powershell-mcp@latest"
+  ],
+  "authMode": "None",
+  "namespacePrefix": "powershell",
+  "allowedTools": [
+    "run_powershell",
+    "run_program",
+    "list_services",
+    "get_service",
+    "control_service",
+    "system_info",
+    "ssh_exec",
+    "winrm_exec",
+    "sftp_upload",
+    "sftp_download"
+  ],
+  "requestTimeoutSeconds": 120
+}
+```
+
+Operational notes:
+
+- Keep the `allowedTools` list bounded to only the operations you want exposed.
+- For unattended/air-gapped usage, pin a package version instead of `@latest`.
+- To disable upstream telemetry for this MCP server process, set `POWERSHELL_MCP_NO_TELEMETRY=1` in the host environment before running `Invoke-TechAgent`.
+
 ### `Invoke-TechAgent`
 Runs the TechToolbox AI agent for natural-language task execution and guidance.
 
@@ -191,7 +230,7 @@ Notes:
 - MCP bearer auth supports the same precedence pattern per server: configured environment variable first, then encrypted override, then `settings.agent.<credentialSecretKeyName>`.
 - Use `Set-TechAgentMcpApiKey` to set, rotate, or clear per-server MCP DPAPI secrets.
 - The agent runtime is MCP-native by default: configured MCP servers are discovered dynamically, while legacy file/search/process built-ins remain deprecated compatibility paths only.
-- Keep `settings.agent.mcp.servers` focused on bounded, discoverable capabilities such as filesystem, ripgrep/search, workspace/project, process runner, git, formatter/linter, dependency, and Tavily servers.
+- Keep `settings.agent.mcp.servers` focused on bounded, discoverable capabilities such as filesystem, ripgrep/search, workspace/project, process runner, git, formatter/linter, dependency, Tavily servers, and the PowerShell MCP server profile.
 
 MCP DPAPI setup examples:
 
