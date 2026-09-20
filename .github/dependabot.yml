@@ -1,17 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "nuget"
-    directory: "/src/TechToolbox.Agent"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - ".NET"
-
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
