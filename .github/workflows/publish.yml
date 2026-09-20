@@ -1,5 +1,8 @@
 name: Publish to PowerShell Gallery
 
+permissions:
+  contents: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
