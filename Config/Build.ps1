@@ -134,7 +134,7 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
 $manifest = Import-PowerShellDataFile -Path $manifestPath
 $manifestDescription = [string]$manifest.Description
 $manifestReleaseNotes = [string]$manifest.PrivateData.PSData.ReleaseNotes
-$manifestPowerShellVersion = '7.6.6'
+$manifestPowerShellVersion = '7.4.0'
 
 # ---------------- 03. Compute new values -------------------------------------
 $oldGuid = $manifest.Guid
@@ -352,11 +352,6 @@ else {
             Name        = 'TechToolbox.LocalMcpAdapter'
             ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.csproj'
             PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\publish'
-        },
-        [pscustomobject]@{
-            Name        = 'TechToolbox.Agent.UI'
-            ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj'
-            PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.UI\bin\Release\net8.0-windows\win-x64\publish'
         }
     )
 
@@ -377,9 +372,6 @@ else {
         }
 
         $publishArgs = @('publish', $project.ProjectPath, '-c', 'Release', '-o', $project.PublishDir)
-        if ($project.Name -eq 'TechToolbox.Agent.UI') {
-            $publishArgs += @('-r', 'win-x64')
-        }
 
         Write-Host "Publishing .NET project: $($project.Name)" -ForegroundColor Cyan
         & dotnet @publishArgs
@@ -483,8 +475,8 @@ $result
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDL8NNShKnaKAtC
-# 24efTrfw1KLvH8b3QVpQOBGUuWQSGKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAwiol0zBtFuC2R
+# s222/fueXE9DOWjKpyUBzwpKREqsi6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -617,34 +609,34 @@ $result
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBq3I/vVqib
-# fi5D/SlR1MRaMW60kgedSqj2a0BWErf/9DANBgkqhkiG9w0BAQEFAASCAgB74Gxi
-# p8zD3at8ZBKMWIoIZBnkPykPZ8cPPcGZ8IJIjs/CZxElZUi1wp4ILk+uQl5rd565
-# IBPkATSpC1/nmQxQMjaZAm8X2b57EtJBQ676QSG7gX9boyp53kDmMJiN5gQvrrQC
-# RQ89lUb9mzdiI61wghLo4xqN8Un01ofSE3qy7Y46cNnqlrXlcfmlSIHdY1Dap7kr
-# 4rBHBMgMX+V+nDzuXKZsBiY2u5Hu+G0TyKwBhav4Mcg+lYVASAeGH5aTBtrECNox
-# UYxBLgMdEmBpOnCOMYwPT/W86NXGqdaoogR5sT/LKLgP6uKF+zzuLoK8MNMgnvZe
-# SNRBn473E997neG/m5cbxVD/AR54YpnHUlieuPnvX/y2zMo33uvOB3QeJDoMVQ1x
-# b16WWwGhAnBsGPQ9P2NpznITXQ8sQyqpBQJCDMwzUsfK3OkhGLtnBUsViZiX5sm2
-# dVTz2TLuOSNF3C5I+tW7TCHcW8+ptYnXbJZadpKGNr7hI0f7WXDD/4yAr4OR3OK/
-# roY7MEBLtC74bsUldHNaRmIKYYzDwohjD85SBySLPuqCVxlF1zJwUwd7v1EkzV6c
-# ycF+d0+blt2M8jun5hPvrLK2RiM1nIfHXoH4rUYbtWyxdpmJ12fCuplwUvp3MPkB
-# A9NC/7ZWpMi54FLo1rtj1cRj+ZXStADxM+kEMKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAabMs7nYlI
+# bLjJC9VYLwvfdTR7oPxbSwEkW6Hc7UgHtjANBgkqhkiG9w0BAQEFAASCAgBhpov5
+# c1E1xVQAq3gZwjW0IcK3STnyYvPvhF9vOWGCFWdHqLm7ijV89DLNldx99pgBGqY5
+# JM3bVp/s85J8vJyVsTtdUvvCPCQRIXwjOax9OBUt1KzVTt2B/EqGbPf2QbRZUgNR
+# RU6BSfnX6+XF7plN7fYazvh2t0iJPG8yi8FD346A/HjvHjWyHn784hVW20UNdoPu
+# tsjs/qviNFku/VEQDSv3NHwzv3RBdhz9uylGbNjYC1fD85XxcRXfitLp9ItjV7Cn
+# vximFmG5Hy86b3QRLWh6k57aa/HPSG/i684aaYCX0gJ5qxwLIw3BwAplY/pghspB
+# cLNnf8QkxIsM0rMYZ9ihS5h269EaUQJN/mrRy8QVj7SBXjXMAIa7k4Dry3mV6ZXy
+# pfxsbaxw4/6AOd6l9mRqRB2zzaQQ6x1AsBxF4uW6TLiJEOtfexJkxW/I+zedz/I5
+# SnzoN8cLdI6P3XHBelcSQ6jgx2r4TtScMjXzE1KzqAaL2hOeSj5Af42MZfn5noei
+# JMpVpDnZ41Fg/tMzG0MYNGyczBfp2HOhbSNzepSm+cRJFTuig6WR94oPKmG7HKRR
+# QCMu7itGiS0dn5VXI/1ATfqaXhbSKjVbucvtuebytZj3TgR8OKI1Sg9EA9GQmOuA
+# gYzGTEoSkM+/KIZGoLR79XcMOGo3D9obwIniM6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTgyMTE3NThaMC8GCSqGSIb3DQEJBDEiBCB8JH1cl5Ch6UEAtbmb
-# H0BkEarwryEqI2kQCR+UF76GqTANBgkqhkiG9w0BAQEFAASCAgBZz5VFKALZzgtu
-# L+vaWSTuEBZyGcW+STI3RNEh1YqOFW+IrC/mh26OTa3NndWp0irEhP4HRZuZ6ja/
-# 8ZwQ62qVbXzio8GBI/nXgpQncVmuQ10isLAf63XnrED7VBMhNsdYc7qn7optnNNf
-# J91J1rOi/aMCqjgJ1HuvJSe6J6/FFSlj/S3U6b+P66dZoz6EsV3s4ESjG47wAOHf
-# q1DLncQUlcDUq7hyYMJKRrTmoVugJzE4/m7mJB6MjaTRqNTkybqCSYT4Ug0+4ZBN
-# Sp0UX52Aa534opdCAqTQWUtdKLOOQd41wJ4xFzJL0WVv5EVEdlpMD0EjWKG+0r6B
-# 7LacBmVgA48aurZ2eZ6VoQzyilB8f21K7VquIHLvtHDPE66TyvimuDCy+fRuA9si
-# 8FFNd7+hsFg7IGFESF8GG2LAnmnXLT01ktluUEetwl6RM9Uzkj6lUVQGSYmm0lkm
-# mnDlBqicOHDgPeYzN7xMD/TzQsK899kEjf2boARbv133xXNrMoCgAWwvP+dmHTjc
-# yU8BT5qTYi1FL89aN93Gxe5/rkIV3gfYB5LXx1wOss7YHDOpaq6B4fg4ZAjj+1JX
-# 62efFW1tjbcTsvCRsUU7C5H9OLy906VNjLUuyfXRTMdGuHXWRyPZHVQ09xxsX29w
-# 8ZKCA2QncNGwSW9PVQOIvBXz8Z7lww==
+# BTEPFw0yNjA5MjAxNTQ1NDZaMC8GCSqGSIb3DQEJBDEiBCBGJ/L2P9+LTwVukO+6
+# yAdLaFa7NvEmAUwDOsLy3qUiKDANBgkqhkiG9w0BAQEFAASCAgCMFQk0ulSjXWLK
+# EvGbTt00z6BoDWdMrcCoJ9+ydnbzyR8BjqGHILOnrlGt5qnNDEMzrM9E1tK/cAoO
+# zaLFQJDHv+hr9PSO+Fux/s6/TGHGgjtLI2FzCE9dhZBkIw1BOc5foFZPQD+a1ROS
+# 1odR/fiZY/3pklOdTozfb+7A+FM7TrVL3h8kb3S6qeYXHBgglcML/L+ozOjqyoi7
+# Z6MyFevBMIMIpXWOghOeI+XK5RAQLqK2vjrEaGIU2mms7n9ndeYD2fb6VSyywpnV
+# jOUjYdc0bw6MP4WfWkEWt9hiPGhka0NiFruOEf0xOrtZr6ZrYHoPx6n+7X5GlUsR
+# k6RUrGAgcUrPjW3nabYFkwBpwYKPz0Ok5Kq2CjfFk1ETddqtInw9Xh4g6Lbs+hFw
+# VEH//2Kq7+9msRTyH88iMhd/RCGSywFwf0hAJRflrQEAHbk7Lukb2XyjAQF3lau1
+# mSE/a2P4/CXW26AbZ1Jh6Wcwg6BcbDrmUwkn3qf0VgmbTd5JAS6TwgHVMrjJYuZf
+# lgIGPjcFdlwvx5y8oQCwTBfz/VLvA7wyyZvf/ofC1O/mp8NRi9JmsgeKzNyGBi3o
+# igodLD679BFfKOEvKe4c0AUhDuyKYGP+ymbFk0nppO0l2sYg89+Ah0Dgww6zBjdL
+# ks0inT2uD3mD4AiC9A3oiAl7WoctwQ==
 # SIG # End signature block

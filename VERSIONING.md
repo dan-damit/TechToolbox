@@ -38,9 +38,8 @@ Incremented when:
 **TechToolbox v0.6.0 — “Windows Operator Desktop (First Iteration)”**
 
 This release marks:
-- First working TechAgent desktop GUI host (`TechToolbox.Agent.UI`)  
-- GUI runtime integration with `Invoke-TechAgent` for console-equivalent orchestration  
-- Module packaging updated to include both core agent and GUI runtime payloads  
+- Stabilized TechAgent runtime packaging around core agent and local MCP adapter payloads  
+- Provider-routing and execution reliability hardening for `Invoke-TechAgent` workflows  
 - Initial compatibility hardening for local model `qwen3.5:9b` thinking behavior
 
 ---

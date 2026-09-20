@@ -9,20 +9,18 @@ This project follows the **Milestone‑Driven Semantic Versioning** model descri
 ## [0.6.0] — 2026-09-07
 ### **Milestone: Windows Operator Desktop (First Iteration)**
 
-Condensed milestone notes for the first working TechAgent GUI iteration.
+Condensed milestone notes for the TechAgent runtime integration and packaging refresh.
 
 ### **Highlights**
-- Delivered the first usable TechAgent desktop GUI host (`TechToolbox.Agent.UI`) under the tracked `TechToolbox.Agent` submodule path.
-- Wired GUI submit/cancel flows to real agent execution by invoking `Invoke-TechAgent` through a runtime service instead of a placeholder stub.
-- Added GUI runtime packaging so publish output includes both:
-  - `AgentRuntime/TechToolbox.Agent`
-  - `AgentRuntime/TechToolbox.Agent.UI`
-- Corrected moved project references and build isolation so `TechToolbox.Agent` and `TechToolbox.Agent.UI` compile cleanly together.
+- Delivered a packaged TechAgent runtime (`TechToolbox.Agent`) under the tracked `TechToolbox.Agent` submodule path.
+- Wired runtime execution flows to `Invoke-TechAgent` through the C# runtime bridge instead of placeholder behavior.
+- Added runtime packaging so publish output includes `AgentRuntime/TechToolbox.Agent`.
+- Corrected moved project references and build isolation so runtime projects compile and publish cleanly together.
 - Added compatibility guard for local Ollama model `techtoolbox-qwen2_5-7b-lora:latest` by forcing `ThinkingMode` to `off` to prevent unsupported-thinking failures.
 
 ### **Operator Impact**
-- TechAgent can now be used from a Windows GUI while preserving console-equivalent orchestration behavior.
-- Packaging now carries GUI runtime assets with the module release payload for easier desktop rollout.
+- TechAgent runtime orchestration is now packaged as part of the module release payload.
+- Runtime delivery and compatibility behavior are more consistent across local and published installs.
 
 ---
 

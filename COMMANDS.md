@@ -121,7 +121,6 @@ Get-Command -Module TechToolbox | Sort-Object Name
 | Install-TechAgentRuntime | Verify Ollama runtime and optionally pull the Tech agent model. | Risk |
 | Get-TechAgentQualitySummary | Summarize TechAgent run quality telemetry from memory history and trend data. | |
 | Invoke-TechAgent | Run tool-using AI agent prompt workflow (Ollama local by default, cloud providers optional). | Interactive |
-| Invoke-TechAgentGui | Launch the packaged TechAgent desktop GUI from the installed module or source tree. | |
 | Set-TechAgentApiKey | Set, rotate, or clear DPAPI-encrypted cloud API key used by TechAgent providers. | Risk, Interactive |
 | Set-TechAgentSearchWebApiKey | Set, rotate, or clear DPAPI-encrypted SEARCH-WEB API key used by the web search tool. | Risk, Interactive |
 | Test-TechAgentProvider | Validate LLM provider configuration and optional live connectivity test. | |
@@ -139,10 +138,9 @@ Invoke-TechAgent -Mode execute -Prompt "Call GET-NOAA-FORECAST with toolArgs {\"
 
 The `payloadShape` block includes points/forecast top-level keys, `properties` keys, first-period keys, and period count.
 
-### TechAgent Weather and GUI Output Reliability Notes
+### TechAgent Weather Output Reliability Notes
 
 - If weather markdown output shows repeated headings, update to a build that includes the 2026-09-09 TechAgent weather-output reliability patch and restart the session.
-- If `Invoke-TechAgentGui` shows no final answer while markdown run logs show valid output, restart the GUI host and ensure both `TechToolbox.Agent` and `TechToolbox.Agent.UI` binaries are refreshed from the latest build.
 
 ---
 

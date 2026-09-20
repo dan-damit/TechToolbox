@@ -473,7 +473,6 @@ The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/bl
 | Function                      | Purpose                                                                                      |
 | ----------------------------- | -------------------------------------------------------------------------------------------- |
 | `Invoke-TechAgent`            | Orchestrates the agent-driven workflow engine with provider routing, execution modes, output contracts, and prompt preflight controls |
-| `Invoke-TechAgentGui`        | Launches the packaged TechAgent desktop GUI from the gallery install or repo source tree |
 | `Use-TechAgentTaskTemplate`   | Stages reusable prompt templates to `AI\Tasks\CurrentTask.txt` for repeatable runs |
 | `Test-TechAgentProvider`      | Validates provider configuration and optionally probes live connectivity/auth |
 | `Set-TechAgentApiKey`         | Sets/rotates/clears DPAPI-encrypted API keys used by cloud providers |
@@ -619,7 +618,6 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 | Config errors               | Verify both `config.json` and `config.secrets.json` are valid JSON; use `TT_DisableConfigSecretsMerge=1` to isolate issues |
 | OpenAI/Azure OpenAI auth fails | Run `Test-TechAgentProvider -Provider <name>` and set a key via `Set-TechAgentApiKey` or `TT_AGENT_LLM_API_KEY` |
 | TechAgent weather output shows duplicate markdown headings | Update to a build that includes the 2026-09-09 weather-output reliability fix and restart the session so `Invoke-TechAgent` uses the latest wrapper/runtime binaries |
-| TechAgent GUI shows no final answer while run log has output | Restart the GUI host, ensure the latest `TechToolbox.Agent.UI` and agent runtime are built/published, and verify diagnostics are not only status lines (`Status=Iteration`, `Status=AGENT_COMPLETED`) |
 | Path token resolution fails | Run `Test-TTPathRoots -EnsureDirectories` to validate paths                                                                |
 | Remoting failures           | Verify WinRM is running, auth method matches server config, and credentials have appropriate privileges                    |
 | Purview / EXO errors        | Confirm required roles (Compliance Administrator, etc.) and Exchange Online module installed                               |

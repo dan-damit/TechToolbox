@@ -39,13 +39,9 @@ jobs:
         shell: pwsh
         run: |
           $agentProjectPath = Join-Path $PWD.Path 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
-          $agentUiProjectPath = Join-Path $PWD.Path 'src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj'
           $localMcpAdapterProjectPath = Join-Path $PWD.Path 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.csproj'
           if (-not (Test-Path -LiteralPath $agentProjectPath -PathType Leaf)) {
             throw "Missing $agentProjectPath. If TechToolbox.Agent is a private submodule, set repository secret 'TECHTOOLBOX_AGENT_REPO_PAT' with read access to dan-damit/TechToolbox.Agent."
-          }
-          if (-not (Test-Path -LiteralPath $agentUiProjectPath -PathType Leaf)) {
-            throw "Missing $agentUiProjectPath. Verify TechToolbox.Agent.UI project path under the TechToolbox.Agent submodule."
           }
           if (-not (Test-Path -LiteralPath $localMcpAdapterProjectPath -PathType Leaf)) {
             throw "Missing $localMcpAdapterProjectPath. Verify TechToolbox.LocalMcpAdapter project path under the TechToolbox.Agent submodule."
@@ -67,23 +63,6 @@ jobs:
           }
 
           "TECH_AGENT_PUBLISH_DIR=$publishDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: Publish TechToolbox.Agent.UI runtime
-        shell: pwsh
-        run: |
-          $publishDir = Join-Path $env:RUNNER_TEMP 'TechToolbox.Agent.UI.publish'
-          if (Test-Path -LiteralPath $publishDir) {
-            Remove-Item -LiteralPath $publishDir -Recurse -Force
-          }
-
-          dotnet publish .\src\TechToolbox.Agent\TechToolbox.Agent.UI\TechToolbox.Agent.UI.csproj -c Release -o $publishDir
-
-          $agentUiExe = Join-Path $publishDir 'TechToolbox.Agent.UI.exe'
-          if (-not (Test-Path -LiteralPath $agentUiExe -PathType Leaf)) {
-            throw "TechToolbox.Agent.UI publish did not produce $agentUiExe"
-          }
-
-          "TECH_AGENT_UI_PUBLISH_DIR=$publishDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Publish TechToolbox.LocalMcpAdapter runtime
         shell: pwsh
@@ -205,14 +184,6 @@ jobs:
             throw "Published TechToolbox.Agent runtime directory not found: $env:TECH_AGENT_PUBLISH_DIR"
           }
 
-          if ([string]::IsNullOrWhiteSpace($env:TECH_AGENT_UI_PUBLISH_DIR)) {
-            throw "Missing TECH_AGENT_UI_PUBLISH_DIR environment variable from UI publish step."
-          }
-
-          if (-not (Test-Path -LiteralPath $env:TECH_AGENT_UI_PUBLISH_DIR -PathType Container)) {
-            throw "Published TechToolbox.Agent.UI runtime directory not found: $env:TECH_AGENT_UI_PUBLISH_DIR"
-          }
-
           if ([string]::IsNullOrWhiteSpace($env:TECH_LOCAL_MCP_ADAPTER_PUBLISH_DIR)) {
             throw "Missing TECH_LOCAL_MCP_ADAPTER_PUBLISH_DIR environment variable from LocalMcpAdapter publish step."
           }
@@ -224,10 +195,6 @@ jobs:
           $agentRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.Agent'
           New-Item -ItemType Directory -Path $agentRuntimePath -Force | Out-Null
           Copy-Item -Path (Join-Path $env:TECH_AGENT_PUBLISH_DIR '*') -Destination $agentRuntimePath -Recurse -Force
-
-          $agentUiRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.Agent.UI'
-          New-Item -ItemType Directory -Path $agentUiRuntimePath -Force | Out-Null
-          Copy-Item -Path (Join-Path $env:TECH_AGENT_UI_PUBLISH_DIR '*') -Destination $agentUiRuntimePath -Recurse -Force
 
           $localMcpRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.LocalMcpAdapter'
           New-Item -ItemType Directory -Path $localMcpRuntimePath -Force | Out-Null
@@ -272,10 +239,6 @@ jobs:
 
           if ([string]::IsNullOrWhiteSpace($env:PWSH_PUBLISH_EXE)) {
             throw "Missing PWSH_PUBLISH_EXE environment variable from install step."
-          }
-
-          if ([string]::IsNullOrWhiteSpace($env:TECH_AGENT_UI_PUBLISH_DIR)) {
-            throw "Missing TECH_AGENT_UI_PUBLISH_DIR environment variable from UI publish step."
           }
 
           if ([string]::IsNullOrWhiteSpace($env:TECH_LOCAL_MCP_ADAPTER_PUBLISH_DIR)) {
@@ -368,8 +331,6 @@ jobs:
             [Parameter(Mandatory)]
             [string]$AgentPublishDir,
             [Parameter(Mandatory)]
-            [string]$AgentUiPublishDir,
-            [Parameter(Mandatory)]
             [string]$LocalMcpAdapterPublishDir,
             [Parameter(Mandatory)]
             [string]$RequiredPowerShellVersion
@@ -411,10 +372,6 @@ jobs:
             throw "Published TechToolbox.Agent runtime directory not found: $AgentPublishDir"
           }
 
-          if (-not (Test-Path -LiteralPath $AgentUiPublishDir -PathType Container)) {
-            throw "Published TechToolbox.Agent.UI runtime directory not found: $AgentUiPublishDir"
-          }
-
           if (-not (Test-Path -LiteralPath $LocalMcpAdapterPublishDir -PathType Container)) {
             throw "Published TechToolbox.LocalMcpAdapter runtime directory not found: $LocalMcpAdapterPublishDir"
           }
@@ -422,10 +379,6 @@ jobs:
           $agentRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.Agent'
           New-Item -ItemType Directory -Path $agentRuntimePath -Force | Out-Null
           Copy-Item -Path (Join-Path $AgentPublishDir '*') -Destination $agentRuntimePath -Recurse -Force
-
-          $agentUiRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.Agent.UI'
-          New-Item -ItemType Directory -Path $agentUiRuntimePath -Force | Out-Null
-          Copy-Item -Path (Join-Path $AgentUiPublishDir '*') -Destination $agentUiRuntimePath -Recurse -Force
 
           $localMcpAdapterRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.LocalMcpAdapter'
           New-Item -ItemType Directory -Path $localMcpAdapterRuntimePath -Force | Out-Null
@@ -517,4 +470,4 @@ jobs:
           '@ | Set-Content -LiteralPath $publishScriptPath -Encoding UTF8
 
           $modulePath = $PWD.Path
-          & $env:PWSH_PUBLISH_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON -ExpectedVersion $tagVersion -AgentPublishDir $env:TECH_AGENT_PUBLISH_DIR -AgentUiPublishDir $env:TECH_AGENT_UI_PUBLISH_DIR -LocalMcpAdapterPublishDir $env:TECH_LOCAL_MCP_ADAPTER_PUBLISH_DIR -RequiredPowerShellVersion $requiredPowerShellVersion
+          & $env:PWSH_PUBLISH_EXE -NoLogo -NoProfile -File $publishScriptPath -ModulePath $modulePath -NuGetKey $env:NUGET_KEY -ExcludeJson $env:PSGALLERY_EXCLUDE_JSON -ExpectedVersion $tagVersion -AgentPublishDir $env:TECH_AGENT_PUBLISH_DIR -LocalMcpAdapterPublishDir $env:TECH_LOCAL_MCP_ADAPTER_PUBLISH_DIR -RequiredPowerShellVersion $requiredPowerShellVersion
