@@ -23,3 +23,56 @@ The repository contains substantial RAG contracts, pipeline components, prompt i
 ### Conclusion
 
 RAG supplies bounded external evidence while the recommendation micro-pass LoRA adapts response behavior, allowing Qwen2.5-7B to act more like a domain-specialized, grounded system without requiring a much larger base model. The project artifacts show a small improvement on the evaluated decision pack; the combined benefit remains conditional on enabling and validating retrieval in the runtime.
+
+---
+
+## Short answer
+
+Yes — in this codebase they are separate settings, so they can both be active at the same time, but they are used for different jobs.
+
+- The main LLM model is resolved from `-Model` / `settings.agent.model` in `Invoke-TechAgent.ps1:878-926`.
+- Retrieval is a separate config object, with its own `Enabled` and `Model` fields, in `AgentRetrievalConfiguration.cs:7-18`.
+
+## What wins for the actual answer model?
+
+`-Model` is the effective generation model when supplied. The script does:
+
+- `$resolvedModel = $Model`
+- then only falls back to config if `-Model` is empty
+
+That behavior is in `Invoke-TechAgent.ps1:900-926`.
+
+So if you call:
+
+- `-Model qwen3.8:27b`
+
+then the run’s main model is `qwen3.8:27b` for the agent response generation.
+
+## What does retrieval use?
+
+Retrieval is checked separately in the orchestrator before the prompt is built:
+
+- it evaluates `_retrievalConfiguration.Enabled`
+- then calls `RetrieveAsync(...)`
+- and injects the retrieved context into the prompt
+
+See `AgentOrchestrator.RunLoop.cs:11-31`.
+
+The retrieval config explicitly says the model is separate from the provider/model used for the main LLM:
+
+> “Provider endpoints, credentials, and transport options belong to LLM configuration instead.”  
+> from `AgentRetrievalConfiguration.cs:1-8`
+
+## So in your example
+
+If:
+
+- retrieval is enabled with a local 7b custom retrieval model
+- and the call site passes `-Model qwen3.8:27b`
+
+then:
+
+- the retrieval path may use the local 7b retrieval model for retrieval context
+- the agent’s actual generation still uses `qwen3.8:27b`
+
+So the answer is: yes, both can participate, but they are not competing for the same slot — they are used in different phases.
