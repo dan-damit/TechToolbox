@@ -136,6 +136,15 @@
       "consolidated": false
     },
     "agent": {
+      "retrieval": {
+        "enabled": false,
+        "backend": "local",
+        "model": "",
+        "embeddingModel": null,
+        "maxContextTokens": 2048,
+        "maxResults": 5,
+        "timeoutSeconds": 10
+      },
       "provider": "ollama",
       "model": "qwen3.5:9b",
       "executionMode": "execute",
@@ -233,7 +242,7 @@
       "defaultPromptFile": "AI\\Tasks\\CurrentTask.txt",
       "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
       "maxIterations": 50,
-      "orchestratorRunDeadlineSeconds": 600,
+      "orchestratorRunDeadlineSeconds": 1200,
       "promptHistoryItems": 2,
       "transcript": {
         "enabled": true,

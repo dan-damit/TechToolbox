@@ -1,68 +1,18 @@
-Resume the recommendation micro-pass dataset workflow and produce verifiable build/test artifacts.
+Summarize the RAG and LoRA adapter bolted onto the Qwen2.5:7B model, and explain how the combination increases the effectiveness of the smaller 7B model.
 
-Repository root: C:\repos\TechToolbox
-Primary scope: C:\repos\TechToolbox\ModelTraining
+Requirements:
+- Focus on the architecture: retrieval-augmented generation (RAG) for grounding and fresh context, plus a LoRA adapter tuned on the recommendation micro-pass dataset.
+- Explain how the system uses the 7B base model as the reasoning core while augmenting it with external knowledge and task-specific adaptation.
+- Describe the practical effect: better relevance, lower hallucination risk, improved instruction following, and more consistent decisions for the recommendation domain.
+- Use concrete, evidence-based language tied to the repository context and the model training workflow in this project.
+- Keep the summary concise but technically grounded.
+- Clearly state why the combined approach is more effective than a plain 7B model without retrieval or adapter tuning.
+- Include the observed project workflow: dataset generation, train/validation JSONL creation, bounded LoRA training, and evaluation against generated artifacts.
+- Mention that the adapter is trained on localized recommendation data and evaluated against pass metrics, not just raw model quality.
+- End with a short conclusion that the RAG + LoRA stack makes the smaller Qwen2.5-7B model behave more like a domain-specialized, grounded, and higher-performing system without requiring a much larger base model.
 
-Objective:
-- Build dataset artifacts for the recommendation micro pass.
-- Run a bounded training pass with repo-root virtual environment resolution.
-- Run evaluation and report score deltas from generated artifacts only.
-
-Critical safety constraints:
-- Never write to, replace, or mutate any file under C:\repos\TechToolbox\.venv\.
-- Never use WRITE-FILE or REPLACE-IN-FILE on executable files.
-- Do not claim training or evaluation success without a completed output artifact.
-- If any command fails, capture exact command, exact stderr/exception, and stop after one focused retry.
-
-Execution plan (in order):
-1) Environment precheck:
-   - Verify interpreter path and version:
-  - .\\.venv\\Scripts\\python.exe --version
-   - Verify required files exist:
-     - ModelTraining\Build-AgentControlRecommendationMicroPass2Dataset.ps1
-     - ModelTraining\Train-QwenLoRA.ps1
-     - ModelTraining\Evaluate-DecisionPack.py
-     - ModelTraining\decision_eval_pack_extended.json
-
-2) Rebuild deterministic pass-2 dataset:
-   - Run:
-     - pwsh -NoProfile -File .\ModelTraining\Build-AgentControlRecommendationMicroPass2Dataset.ps1
-   - Capture sample count and output path.
-
-3) Rebuild train/validation jsonl for pass-2:
-   - Confirm these files exist and are non-empty:
-     - ModelTraining\train-recommendation-micro-pass2.jsonl
-     - ModelTraining\validation-recommendation-micro-pass2.jsonl
-   - If missing, identify exact missing generation step and run only that step.
-
-4) Bounded training run (no blind long run):
-   - Run Train-QwenLoRA with explicit pass-2 files and a dedicated output dir:
-     - .\ModelTraining\Train-QwenLoRA.ps1 -TrainJsonl .\ModelTraining\train-recommendation-micro-pass2.jsonl -ValidationJsonl .\ModelTraining\validation-recommendation-micro-pass2.jsonl -OutputDir .\ModelTraining\lora-recommendation-micro-pass3\final
-   - Report exit code and final adapter output path.
-
-5) Evaluation run:
-   - Run evaluator with:
-     - base model: Qwen/Qwen2.5-7B-Instruct
-     - adapter dir: .\ModelTraining\lora-recommendation-micro-pass3\final
-     - prompt pack: .\ModelTraining\decision_eval_pack_extended.json
-     - output report: .\ModelTraining\decision_eval_report_extended_recommendation_micro_pass3.json
-   - Use repo-root venv python directly.
-
-6) Compare to current anchor:
-   - Compare new report overall pass metrics to:
-     - ModelTraining\decision_eval_report_extended.json
-     - ModelTraining\decision_eval_report_recommendation_micro.json
-   - State clearly: improved, tied, or regressed.
-
-Output format:
-1) Commands executed.
-2) Artifacts generated (paths + existence + size).
-3) Training result (exit code, adapter output path).
-4) Evaluation result (overall pass counts and delta).
-5) Final verdict: improved, tied, regressed, or blocked.
-6) If blocked, provide exactly one next command to isolate the blocker.
-
-Quality bar:
-- Use only observed command output and generated artifacts as evidence.
-- No speculation words when evidence exists.
-- Keep retries minimal and targeted.
+Output style:
+- Professional summary for an engineering or technical stakeholder.
+- Use clear sections with bullet points.
+- Avoid marketing language and speculation.
+- Ground every claim in the workflow, artifacts, and evaluation evidence already present in the repository.
