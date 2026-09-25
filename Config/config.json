@@ -137,9 +137,9 @@
     },
     "agent": {
       "retrieval": {
-        "enabled": false,
+        "enabled": true,
         "backend": "local",
-        "model": "",
+        "model": "techtoolbox/qwen2-5-7b-lora-tiny-r2:latest",
         "embeddingModel": null,
         "maxContextTokens": 2048,
         "maxResults": 5,
@@ -151,7 +151,7 @@
       "outputContract": "markdown",
       "qualityProfile": "balanced",
       "thinkingMode": "auto",
-      "runtimeProfile": "",
+      "runtimeProfile": "tiny_r2_canary",
       "runtimeProfiles": {
         "enabled": true,
         "defaultProfileName": "main_reasoning",
@@ -168,6 +168,16 @@
             "topP": 0.88,
             "repeatPenalty": 1.08,
             "description": "Fast default profile for routine orchestration."
+          },
+          "tiny_r2_canary": {
+            "provider": "ollama",
+            "model": "techtoolbox/qwen2-5-7b-lora-tiny-r2:latest",
+            "maxContextTokens": 12288,
+            "maxOutputTokens": 1200,
+            "temperature": 0.15,
+            "topP": 0.88,
+            "repeatPenalty": 1.08,
+            "description": "Canary profile for the tiny-r2 LoRA adapter exported to Ollama."
           },
           "deep_reasoning": {
             "provider": "ollama",

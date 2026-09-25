@@ -16,3 +16,4 @@ Output style:
 - Use clear sections with bullet points.
 - Avoid marketing language and speculation.
 - Ground every claim in the workflow, artifacts, and evaluation evidence already present in the repository.
+- Output the file to the Module Root.
