@@ -137,7 +137,7 @@
     },
     "agent": {
       "retrieval": {
-        "enabled": true,
+        "enabled": false,
         "backend": "local",
         "model": "techtoolbox/qwen2-5-7b-lora-tiny-r2:latest",
         "embeddingModel": null,
