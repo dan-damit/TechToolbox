@@ -15,13 +15,9 @@ obj/
 /Bin/
 bin/
 SecureCrimp/
-slash/
 AI/Tasks/Archive/
 ModelTraining/
 
 # Files
 wordlist.txt
 TechToolbox.log
-Desktop
-LauncherFolder
-MyDocuments
