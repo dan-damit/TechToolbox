@@ -59,6 +59,7 @@
   - [Baseline Settings (config.json)](#baseline-settings-configjson)
 - [Invoke-TechAgent Prompt Example](#invoke-techagent-prompt-example)
   - [Preferred prompt workflow](#preferred-prompt-workflow)
+  - [Retrieval backends (RAG)](#retrieval-backends-rag)
   - [Reasoning effort (GPT-5.3-Codex)](#reasoning-effort-gpt-53-codex)
   - [Example: provider and quality controls](#example-provider-and-quality-controls)
   - [Example: stage a task, then run it](#example-stage-a-task-then-run-it)
@@ -672,8 +673,8 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 1.0.8
-- **Current milestone:** v1.0.1 - "MCP Integration"
+- **Module version:** 1.2.3
+- **Current milestone:** v1.2.3 - "RAG + LoRA Integration"
 - **Milestone date:** 2026-09-16
 - **PowerShell requirement:** 7+ (Core)
 - **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
