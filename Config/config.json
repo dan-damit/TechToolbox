@@ -138,12 +138,20 @@
     "agent": {
       "retrieval": {
         "enabled": true,
-        "backend": "local",
+        "backend": "rg",
         "model": "techtoolbox/qwen2-5-7b-lora-tiny-r2:latest",
         "embeddingModel": null,
         "maxContextTokens": 2048,
         "maxResults": 5,
-        "timeoutSeconds": 10
+        "timeoutSeconds": 10,
+        "directories": [],
+        "includeGlobs": [],
+        "excludeGlobs": [
+          ".git/**",
+          "bin/**",
+          "obj/**"
+        ],
+        "maxMatchesPerQuery": 500
       },
       "provider": "ollama",
       "model": "qwen3.5:9b",

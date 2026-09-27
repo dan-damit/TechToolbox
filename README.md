@@ -295,6 +295,48 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 - Authentication controls support `-ToolCredential` and `-ToolCredentialVariableName` (default: `dac`) for non-interactive tool authentication.
 - For tool auth, prefer Invoke-TechAgent parameters over embedding `-Credential $dac` inside prompt text.
 
+### Retrieval backends (RAG)
+
+- Retrieval settings live under `settings.agent.retrieval` in `Config\config.json`.
+- `backend: "local"` uses local memory history snapshots.
+- `backend: "rg"` uses ripgrep to gather code-pattern context from the workspace root plus optional `directories` overrides.
+- `rg` is fail-closed: invalid/unauthorized directories or missing ripgrep prevent retrieval startup.
+
+```json
+{
+  "settings": {
+    "agent": {
+      "retrieval": {
+        "enabled": true,
+        "backend": "rg",
+        "model": "techtoolbox/qwen2-5-7b-lora-tiny-r2:latest",
+        "maxContextTokens": 2048,
+        "maxResults": 5,
+        "timeoutSeconds": 10,
+        "directories": [
+          "src",
+          "Public"
+        ],
+        "includeGlobs": [
+          "*.ps1",
+          "*.psm1",
+          "*.cs"
+        ],
+        "excludeGlobs": [
+          ".git/**",
+          "bin/**",
+          "obj/**"
+        ],
+        "maxMatchesPerQuery": 500
+      }
+    }
+  }
+}
+```
+
+- To pin the executable path explicitly, set `TT_AGENT_RIPGREP_PATH`.
+- Directory authorization still follows `TT_AGENT_ALLOWED_PATH_ROOTS`.
+
 ### Reasoning effort (GPT-5.3-Codex)
 
 - `-ReasoningEffort` sets an explicit override and takes precedence over auto mode.
