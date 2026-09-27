@@ -607,6 +607,15 @@ function Invoke-TechAgent {
     $markdownResponseLength = 0
     $markdownKnownFailureDetected = $false
     $markdownExpectedOutputExists = $false
+    $markdownRagUsed = $false
+    $markdownRagStatus = 'Unknown'
+    $markdownRagModelEffective = '(none)'
+    $markdownRagModelSource = 'none'
+    $markdownRagEnabledConfigured = $false
+    $markdownRagAttempted = $false
+    $markdownRagProviderType = '(unknown)'
+    $markdownRagModelConfigured = '(none)'
+    $markdownRagStatusReason = '(none)'
     $markdownToolTrace = @()
     $agentMetadataToolNames = @()
     $agentMetadataParsed = $false
@@ -975,6 +984,18 @@ Hard requirement:
             catch {
                 Write-Log -Level Warn -Message ("Failed to serialize settings.agent.runtimeProfiles: {0}" -f $_.Exception.Message)
                 $runtimeProfilesJson = $null
+            }
+        }
+
+        $retrievalConfigJson = $null
+        $retrievalConfig = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'retrieval'
+        if ($null -ne $retrievalConfig) {
+            try {
+                $retrievalConfigJson = $retrievalConfig | ConvertTo-Json -Depth 12 -Compress
+            }
+            catch {
+                Write-Log -Level Warn -Message ("Failed to serialize settings.agent.retrieval: {0}" -f $_.Exception.Message)
+                $retrievalConfigJson = $null
             }
         }
 
@@ -1878,6 +1899,9 @@ $result = $runAgentMethod.Invoke($null, @(
         if (-not [string]::IsNullOrWhiteSpace($serializedMcpConfigForChild)) {
             $startInfo.Environment['TT_AGENT_MCP_CONFIG_JSON'] = $serializedMcpConfigForChild
         }
+        if (-not [string]::IsNullOrWhiteSpace($retrievalConfigJson)) {
+            $startInfo.Environment['TT_AGENT_RETRIEVAL_CONFIG_JSON'] = $retrievalConfigJson
+        }
         if (-not [string]::IsNullOrWhiteSpace($toolCredentialPath)) {
             $startInfo.Environment['TT_AGENT_DEFAULT_CREDENTIAL_CLIXML'] = $toolCredentialPath
         }
@@ -2170,6 +2194,60 @@ $result = $runAgentMethod.Invoke($null, @(
                                 if ($null -ne $_) { [string]$_ }
                             })
                     }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagUsed']) {
+                        $markdownRagUsed = [bool]$metadataObject.RagUsed
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagStatus']) {
+                        $resolvedRagStatus = [string]$metadataObject.RagStatus
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedRagStatus)) {
+                            $markdownRagStatus = $resolvedRagStatus
+                        }
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagModelEffective']) {
+                        $resolvedRagModel = [string]$metadataObject.RagModelEffective
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedRagModel)) {
+                            $markdownRagModelEffective = $resolvedRagModel
+                        }
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagModelSource']) {
+                        $resolvedRagModelSource = [string]$metadataObject.RagModelSource
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedRagModelSource)) {
+                            $markdownRagModelSource = $resolvedRagModelSource
+                        }
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagEnabledConfigured']) {
+                        $markdownRagEnabledConfigured = [bool]$metadataObject.RagEnabledConfigured
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagAttempted']) {
+                        $markdownRagAttempted = [bool]$metadataObject.RagAttempted
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagProviderType']) {
+                        $resolvedRagProviderType = [string]$metadataObject.RagProviderType
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedRagProviderType)) {
+                            $markdownRagProviderType = $resolvedRagProviderType
+                        }
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagModelConfigured']) {
+                        $resolvedRagModelConfigured = [string]$metadataObject.RagModelConfigured
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedRagModelConfigured)) {
+                            $markdownRagModelConfigured = $resolvedRagModelConfigured
+                        }
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagStatusReason']) {
+                        $resolvedRagStatusReason = [string]$metadataObject.RagStatusReason
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedRagStatusReason)) {
+                            $markdownRagStatusReason = $resolvedRagStatusReason
+                        }
+                    }
                 }
             }
             catch {
@@ -2349,6 +2427,15 @@ $result = $runAgentMethod.Invoke($null, @(
                     -ResponseLength $markdownResponseLength `
                     -KnownFailureDetected $markdownKnownFailureDetected `
                     -ExpectedOutputExists $markdownExpectedOutputExists `
+                    -RagUsed $markdownRagUsed `
+                    -RagStatus $markdownRagStatus `
+                    -RagModelEffective $markdownRagModelEffective `
+                    -RagModelSource $markdownRagModelSource `
+                    -RagEnabledConfigured $markdownRagEnabledConfigured `
+                    -RagAttempted $markdownRagAttempted `
+                    -RagProviderType $markdownRagProviderType `
+                    -RagModelConfigured $markdownRagModelConfigured `
+                    -RagStatusReason $markdownRagStatusReason `
                     -ExitCode $exitCode `
                     -TranscriptFile $transcriptPath `
                     -StartedUtc $runStartedUtc `
@@ -2381,8 +2468,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAlYDHnn7Yz2fS2
-# ifgEU0kH1oOLuMXDExJnRq/F7OmexaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDtraz/bsj3GTXX
+# trF0ZsnbZvLX2/CUcx2gkuA+/P2sg6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2515,34 +2602,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCiZ4WnM4h2
-# 4mFAkK64Jj4xaZwQfhB3AjtI0uFhqL3WJzANBgkqhkiG9w0BAQEFAASCAgCym3su
-# r2Xh7fEkUnIxOPUGRy4lASKHNZMur7KjnqZ7ZfE2R3exJKpwLaMXOnLsmFfDTJeB
-# iFyKihL3MIXNMoAzyrN6+Abhqxlyvq3neRKOO9Qm4MugzDPEJQe2dKBdu4urllzi
-# ylOr/PFu7uwcGaqQGHNMCA/kMkRNCwGS6bkS2TC8+f04dt6SQVuM/EdTw3ZBCN2G
-# OJau91+0q7FgtmtlOJE/QPCuW1aoXMKV8WN/HVXF5b4VQH3EukMwAFml44rvpK9U
-# uFzeapHCAwxcFxobkGlKxrDEIhEalZDd6n1nJYg6jyaihHaUneITXXGBo7qCTYPh
-# pKPdzFyiRj53iUisuJh15H343oFnOBSrkSrWrTmSB7FdmOKV0i+SisgQ6tzFb6au
-# bFkCeyAapK8CZGL0ePqDgMS1aU4ARcpHEV89qq7vrGgPv/Yx+Ut0srjZHlKLalTb
-# 1QIisaEpaQYrBSXIdIBk51OkGltNGQRfzqlAB7LHRHLgVYvIF9Jl0SVyfvHAmYMg
-# 8gGtkfcHulVtGuQJemKOy2uZm0mN5Q3eQmE7DbVURGI3Ga0CdHwdzE06R/NQxrj+
-# XFNXD/4Tzt2UBWoKAKE0pabp+35E+91NOm0Zao/wpGcno0xETHzucmJzhqooWWdY
-# /nCUyT5T3nUBab9jZu6Mv9R+hpxq+KLa3jFU+aGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBzd5HNpx9Q
+# VvpaiBc4vwOcBnUPa5Jale78varClUmIpjANBgkqhkiG9w0BAQEFAASCAgDIaSRM
+# Ko1C4t8BjOR6qBrcivSvW9eNSrKLffBbW7ciPgXpZTjqWj2jOTN2QemKB1Jx9nQz
+# TQjYMdHpRf2XsgnBpCeEEAC/pE996D/8aKleJC5bYTsirtFzDWVMWntq6DJimKoz
+# IjBZwM2GDAyTC4h7nnufKrEsGswnNGv2jFEXEM+8o+qdr28Ii2Tdhnq5M2Whmq2L
+# 3HISqaxQ0LG0EcJ+NYE1/ZBLdgFwl3vLNEPaip4I8LKoYQqdaYbLegWd0fn/kInu
+# L3V6xkeHqbrRQMg7gs0OxV/pab83gyVrJpe9SeieQcRJsSgrnWUHaUI/9Zs64bY1
+# NELrIutaPcuRtdFqpjJR6Nw7IjQ+lPjesGro5DL9PhBD0Jk4Zlj6zVYcqhpW+5Xp
+# /EVp7obT93DYTqd42cY6pfg63Hri1eUoqQrMjnp7wRtBuoJP/lifE8+kh31GCHwg
+# PYkO0mFnzO10ZnJ+v6EgTKocnmK6aYKs4Cryej7VN1I2kzjCKtclPvA+WRCYNxbu
+# n3fXfX5rSSN9qGv82Vj6HSpO+hMnPrxzahI5WocBFeityRElMjvfAGdxO1sPEK9G
+# fCEp24d4D4p7tWrrEAJFTX+71zMDAWduuWZJgbSaFamXpth7l0qi0E6eKvYCbHLv
+# kfItJl6h3NsDrxcSgayUzSgdhZSlsZuXeZ8nkaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTgyMzA0MTJaMC8GCSqGSIb3DQEJBDEiBCCardACUsZTKBe/Vv2V
-# ZBgNhn0CYxYCJgrIk+NCfjLb7jANBgkqhkiG9w0BAQEFAASCAgArWT0tmZjl8WJk
-# RQgbQmJKpu9SpUb3s1N6FTsAgBEF0e71aOfuEF8MJIy2Ybk1Maz8jY5sBaTazeCo
-# A3PrI7caV/bgkn/n7wozqRxVSudd+LLezv/aoEFMeMAAGhO3Ckp/b/MZFTyVidPJ
-# 2vu30Ei4wn3xdBTtaw6VwLw+4D1niADcJfp5+OtdjLVFI0G+3cO6DDXzHhrgPRa+
-# v9aqy3qpVqhn4+oovk1bOuwXvToDZRLjQV1j5QNZutnIyysKuTgXeeUZipA+lTRW
-# jPMnP6S+KDSJxJg08G746xi5V23VO9ySSFjj+ojn4EQ5PmKaBB6PNYkfjQQ1guQL
-# AizYfxvsaaRJOlj6UNoNgh3MAM4WSlyGsEOH786RuhkXcX7PHIY5Q6dRvrrN1p3E
-# nINFXCT71pvX+SeNsh1YVBftv59Q2yXr1A6z6yxJgdxsgJinvRzZvdyC3KosDsbV
-# 5Xyv51yPQn58M+iNtB5ezpII35tjNclRBAQpnTrY0ljTVJXpS5n16mNYZungkwB3
-# qRY0tFGKlPo6RnZFuPT+2xh9a3h7RCidI58SP9P1ezi+ylABdYVUV4MEMqaF+zK6
-# 9OnMKNlUmXqx1xJ8au82piRtEH+hhnoEj3YJh1zJFjKcHSWmeG2LE/UtJJyHl0YU
-# cJpDtbDdnPFyX1NEtPMFHJroozpF9A==
+# BTEPFw0yNjA5MjcxNTAzMDRaMC8GCSqGSIb3DQEJBDEiBCAZlHMnSA5PVE94R2hq
+# El26097ZitpfbVwN+hfxlSTN7TANBgkqhkiG9w0BAQEFAASCAgAM/7MqYDml20ZJ
+# hfG/bG5GS4xVg4WHjbjYz51Mq5+4S5AEP1FseG5HDt1IQ+fP6p7pp9oM7hgrug5T
+# Cvl9w7smu2EWStrmXI/3q/jcW5NCOSvh7Ecnp+I5+1T3FcYeejVyx8BAwmK7BqMV
+# aM7KbQWrTrhhUr932tRKwjyEHOXnPsR1ZDQzcZIyXMx/HYaoViiDObRkNo+/9xU7
+# KuWxpoQnNLLsgSz1qIyJ2fJ3qUsydQYvCx2ZtbZvlsJobMj5i/eBRESFImeZbJ88
+# gg+BF2gL58CnS/9iCgYas1Oo0wQAA/cdV2InScOgkK2bKm3+x4xm00uDIxOJycDT
+# 4nRBymKSskQTi4alrWtA2A+dxJ2oDa8sK83hid54z9orUpcASvGIk2zmeAV/9tdH
+# WhkpKGt+JMCxL/06HBfWHflSu6dhYE7juqgq7G3KMGkFURekzGEa76xTdK7X7s/E
+# q1TgCli3pvNz9mF/R2gAAllnX+bceoJsN/dWXtgqCbHL6NctGlb2EI9MtJo4yyoi
+# cG0Dw4pXEjidBv4fz+8FXGRZTpLR9d8E+TYzWObI7V2beI5pGzKko4Nlymj+SbjP
+# DA6+a18wSvtunBz2q/pqMtz75FkHNSmJlSwYb2yAI68mXLHir4o2B5LIz77GQgyw
+# WBLskl9K3cINOUeZblCopcJ284wdFw==
 # SIG # End signature block

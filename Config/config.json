@@ -151,7 +151,7 @@
       "outputContract": "markdown",
       "qualityProfile": "balanced",
       "thinkingMode": "auto",
-      "runtimeProfile": "tiny_r2_canary",
+      "runtimeProfile": "main_reasoning",
       "runtimeProfiles": {
         "enabled": true,
         "defaultProfileName": "main_reasoning",

@@ -851,6 +851,15 @@ function Write-TTAgentMarkdownLog {
         [int]$ResponseLength,
         [bool]$KnownFailureDetected,
         [bool]$ExpectedOutputExists,
+        [bool]$RagUsed,
+        [string]$RagStatus,
+        [string]$RagModelEffective,
+        [string]$RagModelSource,
+        [bool]$RagEnabledConfigured,
+        [bool]$RagAttempted,
+        [string]$RagProviderType,
+        [string]$RagModelConfigured,
+        [string]$RagStatusReason,
         [int]$ExitCode,
         [string]$TranscriptFile,
         [DateTime]$StartedUtc,
@@ -966,6 +975,42 @@ function Write-TTAgentMarkdownLog {
     else {
         [string]$ExpectedOutputExists
     }
+    $ragStatusText = if ([string]::IsNullOrWhiteSpace($RagStatus)) {
+        'Unknown'
+    }
+    else {
+        $RagStatus.TrimEnd()
+    }
+    $ragModelEffectiveText = if ([string]::IsNullOrWhiteSpace($RagModelEffective)) {
+        '(none)'
+    }
+    else {
+        $RagModelEffective.TrimEnd()
+    }
+    $ragModelSourceText = if ([string]::IsNullOrWhiteSpace($RagModelSource)) {
+        'none'
+    }
+    else {
+        $RagModelSource.TrimEnd()
+    }
+    $ragProviderTypeText = if ([string]::IsNullOrWhiteSpace($RagProviderType)) {
+        '(unknown)'
+    }
+    else {
+        $RagProviderType.TrimEnd()
+    }
+    $ragModelConfiguredText = if ([string]::IsNullOrWhiteSpace($RagModelConfigured)) {
+        '(none)'
+    }
+    else {
+        $RagModelConfigured.TrimEnd()
+    }
+    $ragStatusReasonText = if ([string]::IsNullOrWhiteSpace($RagStatusReason)) {
+        '(none)'
+    }
+    else {
+        $RagStatusReason.TrimEnd()
+    }
 
     $lines = @(
         '# Tech Agent Run'
@@ -1031,6 +1076,15 @@ function Write-TTAgentMarkdownLog {
         ('ResponseLengthChars: {0}' -f $ResponseLength)
         ('KnownFailurePrefixDetected: {0}' -f $KnownFailureDetected)
         ('ExpectedOutputExists: {0}' -f $expectedOutputExistsText)
+        ('RagUsed: {0}' -f $RagUsed)
+        ('RagStatus: {0}' -f $ragStatusText)
+        ('RagModelEffective: {0}' -f $ragModelEffectiveText)
+        ('RagModelSource: {0}' -f $ragModelSourceText)
+        ('RagEnabledConfigured: {0}' -f $RagEnabledConfigured)
+        ('RagAttempted: {0}' -f $RagAttempted)
+        ('RagProviderType: {0}' -f $ragProviderTypeText)
+        ('RagModelConfigured: {0}' -f $ragModelConfiguredText)
+        ('RagStatusReason: {0}' -f $ragStatusReasonText)
         'ToolTrace:'
         $toolTraceText
         'Reason:'
@@ -1050,8 +1104,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAo9+oiw58VskDn
-# +x7dBdAJJFQf96SZYxbrKWzlcS5vqKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBPA3qcl02uYCDN
+# TJRJF98v0r3TEEW9w5rlUd+Q5XzwbaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -1184,34 +1238,34 @@ function Write-TTAgentMarkdownLog {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA3odI8n0ys
-# /GmxRrM5B2agZLcB2zHaEKirn4G0sYwcaTANBgkqhkiG9w0BAQEFAASCAgCs9rQN
-# 1aBRA9qfE1+O9M87B7AjL4nWAuncka64CG4b2Q8TnOg/bJh1luPjhWAScXWjSZ7/
-# t8OfF0gJUCGsfJtcuMdUWUvBgYEuA/rMo7pDCNDu3Uvk+8vmCOrE8FCFHUD0xhmf
-# XrLp7UXFDAPeafXUZGUUO4cgkTUfGnTqM3zj8+mWvkJ6Z+EG3fsg72HTyWY9U1DC
-# HRuUNctxTfQh0+fD+rEj5WgQtY9bx9wTwrxkGI0kljEFkq+gaWjh2HLW31ePOMV/
-# 6dDCO4Jn/S+7uHvuFncGKwpYt3njF6WCZVK6jc73MjUGTRxE2pef4vumJ8HrQlrr
-# 05jpXMa3pMSc8tgC3OCYbIHQFbc3N1HEAUloiMlu8PnTcCaRm/JKNXX43sj0J2PD
-# tlyjsQHUAV6qMyFcCbTUDCwn0FqeDuVJqX72uOcddX47WdbE2cQytyjlNC5lF28L
-# Nf0zYnUODnlUr0Gv+UvE86ruCHTCg2ZJ1Wq7Ubpo4hjrnV0KZYpB49npo/31sKhj
-# 9e8Gptey9OTXP/+sM/kYEsU1dybfwqAyyT/H3A2WHdLYUY8zsj1g3Wdy1hMbCDDe
-# sbaqjLDjx/7D0EiqNxL8ef/0k1s1XMMWGG+cX6Bp+/JsIKFOsfJpyDQZ7pkTekTt
-# Vye4ddJhgS8Q5dQ4OCq/11KdAZxdXr0Krnfo46GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCkUF3AJxoR
+# aJK3yCi83dcMCJEI7Q46CDlkWPBM4a1pIjANBgkqhkiG9w0BAQEFAASCAgCm7bTA
+# a7moLon+HWOE+oilTDjbqgpeWIxYTBjroKNlFfDEWaUI+tinmV48H75/YMz0w5DT
+# Ao7JHbfj/pmSqRV93PS906UQwRtQJg2SK/EYX2pSwGlIjaBFLytrcYoKUFI5T2ty
+# qnZhlCaSJp3u32XuHx5u6jYH6dHrtjxH6BR8NqOn9Q4biVul1wgeFHMRJTdlhJMP
+# 5UHciB72TKYu+3kg7BTl8SX/SQabDRx4uXUpGMNTR+S8I/NQ//g2KEr4/Ns39/C9
+# YDMoMVhhEHAXsungQoZBjWpK0h7MPm4qx7ZdFABD2o7lRXcspL9fuNI5Qf6fkgYt
+# 4iRC+zUhtadhvICoDi2E0zEVHLUf5zTiCjP4SPgcw6Ci7Izwm7A28y3JRvDaRjmY
+# F7lL7G3QgZAJHRBQcGX5ebcr6O2hCxKq2qJhax9lckc2qfr+fXUIxrAnWjejsTRN
+# NFXiDcbt7LlLkQpdMzezaAn8pUA0VevfFm1xxKupYEQ72wePJLyubuIW+T9k0dL4
+# jY0zwfsbU+3EYm7rg6JrfqWUTToa/ONr3fBW6ldJw4bpXFqAtrZJuvO6bF2WzYo3
+# oLQ4fxUNXsbPK2GEfBh0pgP1ZEnG4nvSIHyu85pV0RyP9yjYsCIU6w6ImahxNfud
+# 4RgFXYrTpXdltHShpeyzMQRnz6vfQyGmhnYZeKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTgwMjMxNDRaMC8GCSqGSIb3DQEJBDEiBCBzwZRi9pUvXwBoKc0I
-# +KOnxGMgWNhkVGdSDqVEzv9jwjANBgkqhkiG9w0BAQEFAASCAgCI+cmx2M0ZtJn3
-# 6Ow18Qk7VLlq8p2ay6u7mf/4TpYr+JWIV6t7erRNJbUmFVIN+a7G/DBEWe+ALx52
-# nAklmqdZkDEWG5vhDUO8zH0CTyG1B7LhX5WU8h6+WnrJJRhaVq4s2rLbmeFJBe1r
-# 76oNTiaSfAQ//Sqptjc4jla/Rjmdye0W3+L+JKYfP0pdz4T/ftepi6jkrDGAG+QK
-# GX6xWoA0Hls9UJ+O++mOAOkGZa5aBt3hps2AHdcrYgGXh7FjgfqYHqAp/QIDWE3A
-# B2yZcq2taKs+R8PVvaFqgE431bVmuZuiA6DS6wYWBXDQ704+6o/JBV9QrIfCx8ot
-# NueyExXbLKvlKsK2o2LmI40KRlLcnOlZCyHDxB4+R7aCAdsajUSehqibbbp+B/m7
-# oav+3ut1v8XycBQiLDBaB++FqDZHZIO5DkdQJSmsCPVfs/ys64pkmsazcoSXH/5l
-# s9g054APMIkO8TR+Nt8qRZOvz8tKwCy9t6vsnJOgUgGJ0Sq8AhlZ0bIdNBr2zZ8Q
-# ezj/6D0SMz6X8Jc+SGJTLA+Jpq3bkevIbdW/uSgKETLJwHMsbr1RiQQiqm5Yod/k
-# klaMfJSBVT+TMzs1Pxq0RyiCkS4/CmU3K5aFE8dG3LZ+1IE/j3+79U8ABIxIpA4P
-# RVpEbVmxGDzu7JZFhpImAzNbkCTXxA==
+# BTEPFw0yNjA5MjcxNTAzMDNaMC8GCSqGSIb3DQEJBDEiBCCzR1BZ1BS34D8RCbaR
+# F4G3ZAchuXPigCFcRE2fi0ldjDANBgkqhkiG9w0BAQEFAASCAgADKG+ZEetlszWt
+# jFZtEWH5Seg8UvvxlpMASsQgxEI54E9a/D0HKjstPQIvors6ExPZJjOLzAhMjcsP
+# aY35KqMBvZmFkByABlJFu1SRABzsSreo27rJg66cbiUgr5FfJZHUe2m6OL70ThKx
+# 8YYAJVQsJ7gqYiqhi41/HDMCQ5n+V+AL3ZXmSuDtqxtH84o2u6vUp8VLyeEd3XhY
+# Xj6XU1G+LCFDKgOCwUQgGsKq2jz4+Vuy2dmdO8YFvLEFb+ucXX1n1O/tz2XbP+MA
+# aH8yzFCz+I5XVyfaU/YIJU3WPpH9HYdZB33oWeTGJrJ1rx1qlP4a9k0LZHOTPqoZ
+# PwMbmqjueztYkv9i8KYgk79JYCFnrnVo8suEJLVf44UVKnDffsymsOcaOwJefAtU
+# KaZdSY8FogYFW1qsc55Rf7Km3MTtz8Zx8aRLNz39iMJPRSSYA+Don5i8ETP5fIk0
+# SVwy2y9VDwHwZvA/1hriHdMGj1DK57wdZzELj8/GO6wJo1rwbRDEG0tysZQpZPHx
+# Dp5s894kU3VDYSC+mQeNrCb1YbD+qcBlliVpj70EJS+Fs/+iRiKPM0MINEJt9mkx
+# lBMNmWo4uJWoYBMyJAKqVBx1DZEjoH5LBueSLtwkN3qBQRZSD9EPTrnpOEcMpi4B
+# jKuymB68R8A83yHXiSKBYq7BR2O5bw==
 # SIG # End signature block
