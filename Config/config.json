@@ -52,10 +52,7 @@
       "default": "%TT_ModuleRoot%\\Private\\System"
     },
     "largeFileSearch": {
-      "defaultSearchDirectory": [
-        "C:\\",
-        "D:\\"
-      ],
+      "defaultSearchDirectory": ["C:\\", "D:\\"],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
       "exportDirectory": "%TT_Home%\\LogsAndExports\\Exports\\LargeFileSearch"
@@ -85,14 +82,8 @@
     },
     "secureCrimp": {
       "server": "securecrimp-1.yourdomain.local",
-      "stackTasks": [
-        "Secure Crimp - Run Server",
-        "Secure Crimp - Nginx"
-      ],
-      "auxTasks": [
-        "Secure Crimp - Monitor TCP",
-        "Secure Crimp - Run Schedule"
-      ]
+      "stackTasks": ["Secure Crimp - Run Server", "Secure Crimp - Nginx"],
+      "auxTasks": ["Secure Crimp - Monitor TCP", "Secure Crimp - Run Schedule"]
     },
     "passwords": {
       "wordListPath": "%TT_ModuleRoot%\\Config\\wordlist.txt",
@@ -146,11 +137,7 @@
         "timeoutSeconds": 10,
         "directories": [],
         "includeGlobs": [],
-        "excludeGlobs": [
-          ".git/**",
-          "bin/**",
-          "obj/**"
-        ],
+        "excludeGlobs": [".git/**", "bin/**", "obj/**"],
         "maxMatchesPerQuery": 500
       },
       "provider": "ollama",
@@ -301,10 +288,7 @@
             "enabled": true,
             "transport": "Stdio",
             "command": "npx",
-            "arguments": [
-              "-y",
-              "tavily-mcp"
-            ],
+            "arguments": ["-y", "tavily-mcp"],
             "authMode": "None",
             "credentialEnvironmentVariable": "TAVILY_API_KEY",
             "credentialSecretKeyName": "Tavily",
@@ -316,10 +300,7 @@
             "enabled": true,
             "transport": "Stdio",
             "command": "npx",
-            "arguments": [
-              "-y",
-              "@imrrd/powershell-mcp@latest"
-            ],
+            "arguments": ["-y", "@imrrd/powershell-mcp@latest"],
             "authMode": "None",
             "namespacePrefix": "powershell",
             "allowedTools": [
@@ -371,10 +352,7 @@
             "enabled": true,
             "transport": "Stdio",
             "command": "npx",
-            "arguments": [
-              "-y",
-              "@atef_andrus/mcp-ripgrep"
-            ],
+            "arguments": ["-y", "@atef_andrus/mcp-ripgrep"],
             "authMode": "None",
             "namespacePrefix": "ripgrep",
             "allowedTools": [
@@ -391,9 +369,7 @@
             "enabled": true,
             "transport": "Stdio",
             "command": "uvx",
-            "arguments": [
-              "mcp-server-git"
-            ],
+            "arguments": ["mcp-server-git"],
             "authMode": "None",
             "namespacePrefix": "git",
             "allowedTools": [
@@ -579,22 +555,23 @@
     },
     "userSearch": {
       "licenseMap": {
-        "53818b1b-4a27-454b-8896-0dba576410e6": "Project Plan 3",
-        "06ebc4ee-1bb5-47dd-8120-11324bc54e06": "Office 365 E5",
-        "4b9405b0-7788-4568-add1-99614e613b69": "Microsoft 365 F3",
-        "a4585165-0533-458a-bf7c-5e2d8c699c13": "Project Plan 1",
-        "9c0dab89-a30c-4117-86e7-97bda240acd2": "Visio Plan 1",
-        "6fd2c87f-b296-42f0-b197-1e91e994b900": "Microsoft 365 E3",
-        "e7bfbdf0-0a0b-4d8b-bd3d-7c6f0f2b5c3a": "Visio Plan 2",
-        "4b585984-651b-448a-9e53-3b10f069cf7f": "Exchange Online Plan 1",
-        "94763226-9b3c-4e75-a931-5c89701abe66": "Teams Phone Standard",
-        "f30db892-07e9-47e9-837c-80727f46fd3d": "Microsoft 365 Business Premium",
-        "18181a46-0d4e-45cd-891e-60aabd171b4e": "Microsoft 365 F1",
-        "c2273bd0-dff7-4215-9ef5-2c7bcfb06425": "Microsoft 365 Business Standard",
-        "05e9a617-0261-4cee-bb44-138d3ef5d965": "Office 365 E3",
-        "e6778190-713e-4e4f-9119-8b8238de25df": "Microsoft 365 Business Basic",
-        "c7df2760-2c81-4ef7-b578-5b5392b571df": "Microsoft 365 E5",
-        "c42b9cae-ea4f-4ab7-9717-81576235ccac": "Exchange Online Plan 2"
+        "a6d18b68-a67e-4cbd-ba00-8744bc468faa": "Business Premium + Microsoft 365 Copilot",
+        "19ec0d23-8335-4cbd-94ac-6050e30712fa": "Exchange Online Plan 2",
+        "4b9405b0-7788-4568-add1-99614e613b69": "Exchange Online Plan 1",
+        "f30db892-07e9-47e9-837c-80727f46fd3d": "Power Automate Free",
+        "50f60901-3181-4b75-8a2c-4c8e4c1d5a72": "Microsoft 365 F1 Communications",
+        "0c266dff-15dd-4b49-8397-2bb16070ed52": "Audio Conferencing",
+        "ae2343d1-0999-43f6-ae18-d816516f6e78": "Teams Essentials",
+        "639dec6b-bb19-468b-871c-c5c441c4b0cb": "Microsoft 365 Copilot",
+        "3b555118-da6a-4418-894f-7df1e2096870": "Microsoft 365 Business Basic",
+        "a403ebcc-fae0-4ca2-8c8c-7a907fd6c235": "Power BI Free/Standard",
+        "5b631642-bd26-49fe-bd20-1daaa972ef80": "Power Apps Developer",
+        "beb6439c-caad-48d3-bf46-0c82871e12be": "Project Plan 1",
+        "8c4ce438-32a7-4ac5-91a6-e22ae08d9c8b": "Azure Rights Management Ad Hoc",
+        "cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46": "Microsoft 365 Business Premium",
+        "1f2f344a-700d-42c9-9427-5cea1d5d7ba6": "Microsoft Stream",
+        "c5928f49-12ba-48f7-ada3-0d743a3601d5": "Visio Desktop",
+        "6470687e-a428-4b7a-bef2-8a291ad947c9": "Windows Store for Business"
       },
       "includeEXO": true,
       "includeTeams": true,
@@ -661,18 +638,12 @@
       "logDir": "%TT_Home%\\LogsAndExports\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
-      "copyFlags": [
-        "/E",
-        "/COPYALL"
-      ]
+      "copyFlags": ["/E", "/COPYALL"]
     },
     "downloadsCleanup": {
       "dryRun": false,
       "cutoffYear": 2024,
-      "excludeExtensions": [
-        ".pst",
-        ".ost"
-      ],
+      "excludeExtensions": [".pst", ".ost"],
       "includeExtensions": null
     },
     "teams": {
