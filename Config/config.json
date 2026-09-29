@@ -629,7 +629,8 @@
         "department",
         "company",
         "office",
-        "manager"
+        "manager",
+        "title"
       ],
       "samPattern": "flast",
       "upnPattern": "flast"
