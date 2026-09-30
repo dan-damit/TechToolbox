@@ -173,16 +173,8 @@ function Get-DomainAdminCredential {
     $storedUserBlob = [string]$secretsNode.usernameEncrypted
     $storedPassBlob = [string]$secretsNode.passwordEncrypted
 
-    # Legacy fields retained for backward compatibility during migration.
-    $legacyUserSecrets = [string]$secretsNode.username
-    $legacyPassSecrets = [string]$secretsNode.password
-    $legacyUserCfg = [string]$cfgNode.username
-
     $hasStoredUserBlob = -not [string]::IsNullOrWhiteSpace($storedUserBlob)
     $hasStoredPassBlob = -not [string]::IsNullOrWhiteSpace($storedPassBlob)
-    $hasLegacyUserSecrets = -not [string]::IsNullOrWhiteSpace($legacyUserSecrets)
-    $hasLegacyPassSecrets = -not [string]::IsNullOrWhiteSpace($legacyPassSecrets)
-    $hasLegacyUserCfg = -not [string]::IsNullOrWhiteSpace($legacyUserCfg)
 
     function Convert-SecureStringToPlainText {
         param([Parameter(Mandatory)][securestring]$SecureString)
@@ -206,9 +198,11 @@ function Get-DomainAdminCredential {
                 $secretsNode.usernameEncrypted = ''
                 $secretsNode.passwordEncrypted = ''
 
-                # Clear legacy keys too so old values cannot be accidentally reused.
-                $secretsNode.username = ''
-                $secretsNode.password = ''
+                foreach ($legacyKey in @('username', 'password')) {
+                    if ($secretsNode.ContainsKey($legacyKey)) {
+                        $secretsNode.Remove($legacyKey)
+                    }
+                }
 
                 Write-Secrets -Secrets $secrets | Out-Null
 
@@ -232,7 +226,6 @@ function Get-DomainAdminCredential {
     # --- If not forcing prompt, try to rebuild from stored values ---
     $resolvedUser = ''
     $resolvedSecurePass = $null
-    $migrationNeeded = $false
 
     if ($hasStoredUserBlob) {
         try {
@@ -240,17 +233,6 @@ function Get-DomainAdminCredential {
         }
         catch {
             Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Failed to decrypt usernameEncrypted (DPAPI). Details: $($_.Exception.Message)"
-        }
-    }
-
-    if ([string]::IsNullOrWhiteSpace($resolvedUser)) {
-        if ($hasLegacyUserSecrets) {
-            $resolvedUser = $legacyUserSecrets
-            $migrationNeeded = $true
-        }
-        elseif ($hasLegacyUserCfg) {
-            $resolvedUser = $legacyUserCfg
-            $migrationNeeded = $true
         }
     }
 
@@ -263,16 +245,6 @@ function Get-DomainAdminCredential {
         }
     }
 
-    if ($null -eq $resolvedSecurePass -and $hasLegacyPassSecrets) {
-        try {
-            $resolvedSecurePass = $legacyPassSecrets | ConvertTo-SecureString
-            $migrationNeeded = $true
-        }
-        catch {
-            Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Failed to decrypt legacy password field (DPAPI). Details: $($_.Exception.Message)"
-        }
-    }
-
     $hasUser = -not [string]::IsNullOrWhiteSpace($resolvedUser)
     $hasPass = $resolvedSecurePass -is [securestring]
 
@@ -280,21 +252,9 @@ function Get-DomainAdminCredential {
         try {
             $script:domainAdminCred = [PSCredential]::new($resolvedUser, $resolvedSecurePass)
 
-            # One-time migration: normalize legacy/plaintext fields to encrypted fields.
-            if ($migrationNeeded -or -not $hasStoredUserBlob -or -not $hasStoredPassBlob) {
-                try {
-                    $secretsNode.usernameEncrypted = ConvertFrom-SecureString (ConvertTo-SecureString -String $resolvedUser -AsPlainText -Force)
-                    $secretsNode.passwordEncrypted = ConvertFrom-SecureString $resolvedSecurePass
-
-                    # Remove legacy representation after successful migration.
-                    $secretsNode.username = ''
-                    $secretsNode.password = ''
-
-                    Write-Secrets -Secrets $secrets | Out-Null
-                    Write-Log -Level 'Debug' -Message "[Get-DomainAdminCredential] Migrated domain admin credential to usernameEncrypted/passwordEncrypted in config.secrets.json."
-                }
-                catch {
-                    Write-Log -Level 'Warn' -Message "[Get-DomainAdminCredential] Rebuilt credential, but failed to persist encrypted migration values: $($_.Exception.Message)"
+            foreach ($legacyKey in @('username', 'password')) {
+                if ($secretsNode.ContainsKey($legacyKey)) {
+                    $secretsNode.Remove($legacyKey)
                 }
             }
 
@@ -327,9 +287,11 @@ function Get-DomainAdminCredential {
                 $secretsNode.usernameEncrypted = ConvertFrom-SecureString (ConvertTo-SecureString -String $cred.UserName -AsPlainText -Force)
                 $secretsNode.passwordEncrypted = ConvertFrom-SecureString $cred.Password
 
-                # Clear legacy fields now that canonical encrypted fields are populated.
-                $secretsNode.username = ''
-                $secretsNode.password = ''
+                foreach ($legacyKey in @('username', 'password')) {
+                    if ($secretsNode.ContainsKey($legacyKey)) {
+                        $secretsNode.Remove($legacyKey)
+                    }
+                }
 
                 Write-Secrets -Secrets $secrets | Out-Null
 
@@ -348,8 +310,8 @@ function Get-DomainAdminCredential {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDzY3iWeF2m4nq9
-# c2iSWzfmnkDYkNTm0QaP1Gd2AWxJqaCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCN0tjhCGfEvIDl
+# 6c9SDxTmg6j3HdtOCwpS2BfnhbC5k6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -442,25 +404,25 @@ function Get-DomainAdminCredential {
 # YTptMSbhdhGQDpOXgpIUsWTjd6xpR6oaQf/DJbg3s6KCLPAlZ66RzIg9sC+NJpud
 # /v4+7RWsWCiKi9EOLLHfMR2ZyJ/+xhCx9yHbxtl5TPau1j/1MIDpMPx0LckTetiS
 # uEtQvLsNz3Qbp7wGWqbIiOWCnb5WqxL3/BAPvIXKUjPSxyZsq8WhbaM2tszWkPZP
-# ubdcMIIG7TCCBNWgAwIBAgIQCoDvGEuN8QWC0cR2p5V0aDANBgkqhkiG9w0BAQsF
+# ubdcMIIG7TCCBNWgAwIBAgIQCE/cM09+RU7bww+P+ZIYNTANBgkqhkiG9w0BAQsF
 # ADBpMQswCQYDVQQGEwJVUzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNV
 # BAMTOERpZ2lDZXJ0IFRydXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hB
-# MjU2IDIwMjUgQ0ExMB4XDTI1MDYwNDAwMDAwMFoXDTM2MDkwMzIzNTk1OVowYzEL
+# MjU2IDIwMjUgQ0ExMB4XDTI2MDgwNTAwMDAwMFoXDTM3MTEwNDIzNTk1OVowYzEL
 # MAkGA1UEBhMCVVMxFzAVBgNVBAoTDkRpZ2lDZXJ0LCBJbmMuMTswOQYDVQQDEzJE
-# aWdpQ2VydCBTSEEyNTYgUlNBNDA5NiBUaW1lc3RhbXAgUmVzcG9uZGVyIDIwMjUg
-# MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBANBGrC0Sxp7Q6q5gVrMr
-# V7pvUf+GcAoB38o3zBlCMGMyqJnfFNZx+wvA69HFTBdwbHwBSOeLpvPnZ8ZN+vo8
-# dE2/pPvOx/Vj8TchTySA2R4QKpVD7dvNZh6wW2R6kSu9RJt/4QhguSssp3qome7M
-# rxVyfQO9sMx6ZAWjFDYOzDi8SOhPUWlLnh00Cll8pjrUcCV3K3E0zz09ldQ//nBZ
-# ZREr4h/GI6Dxb2UoyrN0ijtUDVHRXdmncOOMA3CoB/iUSROUINDT98oksouTMYFO
-# nHoRh6+86Ltc5zjPKHW5KqCvpSduSwhwUmotuQhcg9tw2YD3w6ySSSu+3qU8DD+n
-# igNJFmt6LAHvH3KSuNLoZLc1Hf2JNMVL4Q1OpbybpMe46YceNA0LfNsnqcnpJeIt
-# K/DhKbPxTTuGoX7wJNdoRORVbPR1VVnDuSeHVZlc4seAO+6d2sC26/PQPdP51ho1
-# zBp+xUIZkpSFA8vWdoUoHLWnqWU3dCCyFG1roSrgHjSHlq8xymLnjCbSLZ49kPmk
-# 8iyyizNDIXj//cOgrY7rlRyTlaCCfw7aSUROwnu7zER6EaJ+AliL7ojTdS5PWPsW
-# eupWs7NpChUk555K096V1hE0yZIXe+giAwW00aHzrDchIc2bQhpp0IoKRR7YufAk
-# prxMiXAJQ1XCmnCfgPf8+3mnAgMBAAGjggGVMIIBkTAMBgNVHRMBAf8EAjAAMB0G
-# A1UdDgQWBBTkO/zyMe39/dfzkXFjGVBDz2GM6DAfBgNVHSMEGDAWgBTvb1NK6eQG
+# aWdpQ2VydCBTSEEyNTYgUlNBNDA5NiBUaW1lc3RhbXAgUmVzcG9uZGVyIDIwMjYg
+# MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBALZ7pvLJ/s1K+NSbTGWz
+# /TjGMPh8CQ6RucZCLv5anHzWJjF/NWJrFIhy24fcpKXlgRiky4WAawDfU3YP0BMx
+# t9l3Dm5oCG5Z69AqEN1kgHg2epx+l+lZBcmJCcN0ASURML5uFIS80sZsDwO3BSkU
+# xDjLJhBI+qiZP3aixAC/qEGLjsBNlLol9VZ7pfGEXiMlneJIC5/YKuizVzNFKZZE
+# eoy/0B8Zm+nzKBgSWG52lCO1w+nCg6XpCtklTJXeIg283hw7TmmsZXR+SMbjbrEO
+# vZ3fP2VxIgeR28Y90ZStd3F9VuA5RVynb/whITPAo9b75Zr4Ta6Mj3URm26QZYMn
+# /FnbuTegcoRcFEZ9FOqM5T6MTdtr/n74lIT/ug0eeOzmZ6QTFg33otX+bFRsIolv
+# ykE1jive4PuESaT8zzVeFWDAMDtozNgLctkGD1ZjkEyZtJrLl5ya0m5doH/ScpaZ
+# CZVl6pNUOCybMc/kxC6EAmSJY24L0yYKD1Nkddsnb/ItVKi/2nXpQNMu1PT5prW8
+# 3vV8d67WowuUs0HdY4H8AMLGvdL/WHEj3ZnqMqAQQP9u3Ai9t+5eQ02GDwy0ODjd
+# zi0xlp70W+ow63/0++YDEX1M0iwgUHwbrJvfpklkZQvw3+kv3vUPItdwroczk9ic
+# flf55W1zOEKAcJVAIXpcMCU9AgMBAAGjggGVMIIBkTAMBgNVHRMBAf8EAjAAMB0G
+# A1UdDgQWBBQUyWOKMC7USvtulPPm40B+9ezN4jAfBgNVHSMEGDAWgBTvb1NK6eQG
 # fHrK4pBW9i/USezLTjAOBgNVHQ8BAf8EBAMCB4AwFgYDVR0lAQH/BAwwCgYIKwYB
 # BQUHAwgwgZUGCCsGAQUFBwEBBIGIMIGFMCQGCCsGAQUFBzABhhhodHRwOi8vb2Nz
 # cC5kaWdpY2VydC5jb20wXQYIKwYBBQUHMAKGUWh0dHA6Ly9jYWNlcnRzLmRpZ2lj
@@ -468,48 +430,48 @@ function Get-DomainAdminCredential {
 # NTYyMDI1Q0ExLmNydDBfBgNVHR8EWDBWMFSgUqBQhk5odHRwOi8vY3JsMy5kaWdp
 # Y2VydC5jb20vRGlnaUNlcnRUcnVzdGVkRzRUaW1lU3RhbXBpbmdSU0E0MDk2U0hB
 # MjU2MjAyNUNBMS5jcmwwIAYDVR0gBBkwFzAIBgZngQwBBAIwCwYJYIZIAYb9bAcB
-# MA0GCSqGSIb3DQEBCwUAA4ICAQBlKq3xHCcEua5gQezRCESeY0ByIfjk9iJP2zWL
-# pQq1b4URGnwWBdEZD9gBq9fNaNmFj6Eh8/YmRDfxT7C0k8FUFqNh+tshgb4O6Lgj
-# g8K8elC4+oWCqnU/ML9lFfim8/9yJmZSe2F8AQ/UdKFOtj7YMTmqPO9mzskgiC3Q
-# YIUP2S3HQvHG1FDu+WUqW4daIqToXFE/JQ/EABgfZXLWU0ziTN6R3ygQBHMUBaB5
-# bdrPbF6MRYs03h4obEMnxYOX8VBRKe1uNnzQVTeLni2nHkX/QqvXnNb+YkDFkxUG
-# tMTaiLR9wjxUxu2hECZpqyU1d0IbX6Wq8/gVutDojBIFeRlqAcuEVT0cKsb+zJNE
-# suEB7O7/cuvTQasnM9AWcIQfVjnzrvwiCZ85EE8LUkqRhoS3Y50OHgaY7T/lwd6U
-# Arb+BOVAkg2oOvol/DJgddJ35XTxfUlQ+8Hggt8l2Yv7roancJIFcbojBcxlRcGG
-# 0LIhp6GvReQGgMgYxQbV1S3CrWqZzBt1R9xJgKf47CdxVRd/ndUlQ05oxYy2zRWV
-# FjF7mcr4C34Mj3ocCVccAvlKV9jEnstrniLvUxxVZE/rptb7IRE2lskKPIJgbaP5
-# t2nGj/ULLi49xTcBZU8atufk+EMF/cWuiC7POGT75qaL6vdCvHlshtjdNXOCIUjs
-# arfNZzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
+# MA0GCSqGSIb3DQEBCwUAA4ICAQCNxTphHp1SCt+ZrAmAfn0oQLFr0mLywSLaDXQI
+# ENoyKqxrFbJblzCVP/pkXmwXOdrOpWygLzlT12os5ipDCy35RBCg2UMeApEtrfGh
+# z45F4Wt4WGdNdIbRWt3YTYJmpR+b7lr4d7Uwn+H600u4D7RnOGf8Wj4UNgAdZkfH
+# hHv1mx9EVh71SJelcEN/oORSjXzdjfw1iZH9d8Nh/thn6hH23d+VsPAr6GAYyzSA
+# 02nXD1nYLI7Ijmiv+xLCiYC41DSFYL3GhTiy0PxpawPtGRyaBVGzq+UiTfM8pD7K
+# VyF5aQyWP4KhVGUUTnmm/RlYJoW3TiXA/+t0YcT2oRVBm3JETjajHug2AL+v5jht
+# KVnd3D0rbHXEu27o+Q8p4sEWPMqKDB+qbceb6T/6WcwTwXmQ9lOCLLYcsQeSWmvK
+# qzpAec9etE14jOQAzLKWdE3w/TCaKtLRaRT7LCkRYVnhA2D73FLje1O5b3HR5eHs
+# 0NzU/+xX7NbEdcofy0W3Wdwd1XOqtlpg/JgwtKfZM5dqO94lbUveOiJBI+xZEbGR
+# sMNbXmMREUTgu+Oca7Y73MPWcslIx2VhkSKSXjDbD6rgg39H5Mh7QfieAIjWagkJ
+# Nt68Yfim6cjEzVSiLSeZfdkr5dtFPTW6jATlWJdYeeDRGCyatf8R1hSjzSvdN8yW
+# QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCLtQ6uTzgm
-# 6slWbd62ZbXhpDMogx5RRtGELskdtVOa6TANBgkqhkiG9w0BAQEFAASCAgA6L6cI
-# GCX9mVXoX93KpzFhGgRtDfeKMwZp0oxC0+VPQf2i+W/RABb49cICADG6JtHGXBhd
-# jOdNZS4eAC9/ezENkrgouATGxFiXbOp/q1/aOtWAgNKVIhCoSKbdOLsKQo0/xRH9
-# ulGCdaxBsjX08ayUD6Q/4qqkBD/e2tSCaPc0K3UBmFtRr58I8IhZ/O2k/4ZC/1p9
-# h7aqRE4x9CjCNEd1gqpPtTHMHcVM/gGIAAbDmewpcMhmLgsGJbr6cTXVaW7V6VCT
-# EnSUueZ7XkQwtyUJCIW2hcseqDaEuDbfcBmAYCA6HxhfdklVkpSqHGwY4OsFopCf
-# zvnTTvbGMWjVU0fcnnTE4EnDDlfWfKHWd/3K//l6U7C1fjYzWECowr5XBpN2nb5j
-# lmlg6jYDlmX++4cUZVjLsbt3j5l4KfohFtlmtbOtvIlmkItOORW0nTbkrvgMoccy
-# Y8ievpRq7AjTC05F2BbSbQNfo0wccaZdWd25alALzass9veYom5ITxw1P0Axu7pY
-# DaoNxMJyYy6sEe8HiZpxBFHkUMuLItkieaseaZo2pYtIwWT2QYTRJmTGy3K/rcer
-# hPquLn5Ejhf4uPOJh60ZeTvxnDJwGsHiWLvATjRcYJoV++9/jH3WPLwJWSLdZmA6
-# iWCId7Ib5+zMP/PrsA2ajYifCkOyMN3ycWN0TKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBvwnI/C7jp
+# fRT8F3PMPjQiJcxNBAaYpNgJzqCbxGKHczANBgkqhkiG9w0BAQEFAASCAgBEz/Mp
+# po57vApaXy099XqOB9vXMQQrKlK61kSJbH+AJTU8LxvUl0YjKIxAGOH6e6l20t0C
+# fSzZdIBleB/WvtG1Ia9Ol3r14CH/9A46C0rF94EbuwwQu8DU6AYCKiE/GnnuoR5Z
+# X1uz9AqENchH1EDLQxX0WCqpiYBlVaFTyzX7jLDcjskoxhMKPXnSN3RNHKvmLojg
+# wZGF+8vWRjcix3aAU/KUtCuxdY2VzcU+Ox7ZwqPOOONbTJ4/uTqrXSBZ6mClpanU
+# aO+aDREVtDcfFEQaM4ZuhW7ju4Mxuc7e4h+B6PhD7C1dnVox7RTJB52xZOR02DvO
+# MkmoDyPlQ7+FmCwEjawBlaIne+RXieVUB8y2Pbed6AoeW9HcfAexiga8andQyXN/
+# 7cY7iOOotP0KA1mvzTZa+46E8vs3/oRRiiZsi2mj+Sb2BSA6cSDB1ft/4IPaiRgn
+# ce7gnHkY6VdOneK+s9POe/lqbUQP+Puss5l3CO+DnQE9OwRQnRCs5QNt7/qHjYEz
+# qxeiQhbXwmaN2nC2Ddjfm3HBQM0X6KIWvqE+bZi8sKrrLn6lsZC0P9nYvTV1eJYR
+# 386GwFusW1GK+77uvi6+fNJDCSG9+OCcPXkvLCCOgmD+INAyTWM+w6qNujiz2yQS
+# rK3huhV4Q+xBWTWL+EY9/x04ZMj6esQjnxquraGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
-# UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZI
+# UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA4MTcxNDQ3MjdaMC8GCSqGSIb3DQEJBDEiBCA6Ulu4ElzWdlIXDpAr
-# jcSwpjuE+D9SAXGmh3b8AeMZPjANBgkqhkiG9w0BAQEFAASCAgCVfiky9ZBmXxW3
-# BwoO7DJAMX1XMyZyT3cjUxKFnTfKU3iXX8jkisXrSIafCwuJK+yLvA5b+ECDCor6
-# GxfKyGHaX1H6zjQMPI9cGp/LRvVkZ5l2twDXdjXVFLE90g+F6ilOFMotg3jmRxBh
-# 6xMm1teacDNlKIyWNvuc8i1tqzzDPrZ1AwPax9TqM0Mr9nFjCNLVL1Ag//NOY2Lp
-# SODxGSK74PhwTGqRmExXNWbeHbrs2p9kIcvn9BuGh29sDbgdDQi7RmzUWHqpK+ai
-# 93SQnQm9X4vk7A9/+MklCDbTlohfePtcbCytz1jbSItTK4jSYbJLN5axayXkL1Gx
-# EKtvM6ds0wboeOkY1vUjgxmxG1Jbot1Ad470c+ThR6d9kB9S6bbcbKvt4Aui2Yus
-# 02Zjl0r5DYJWvJY92aUJ28m+7IaxzSNnpR2bW29DqRjts1XuwCGCzwmKhxhKUyq2
-# tGKudKwG94pPiVneG9B95Mt10FJ74BWZ+5iLLyCInpmKvnMuIsgD8/ZpeEsMQFPM
-# 0vgy+4DFy+PQ5J7K8mJOxYxJRxXpNYPLugnTnlgrfJj8iGpgFfBOfT24BPtITqFP
-# /zm8wVU3sAxwcbb5VB7KTmSjZBbm/rY22bFFz2wD3Yfms9ZGoMB2jLOFmOi2d75t
-# m+sQqQShEbXHjTeEWiQ/YG4DWgV2Xg==
+# BTEPFw0yNjA5MzAxODI1NDZaMC8GCSqGSIb3DQEJBDEiBCAQpU7Kpz0br657fIgM
+# TVH61n2wFJQ4mizfzIynYdkw2DANBgkqhkiG9w0BAQEFAASCAgAg146E3S1Ar4EP
+# cVu6acjeync/L1lXnTs73VHV/VlTjB7Sb2222u9CZN1OaJkK6xWqgu8mo4344Epf
+# ghqJ06RsPa4QjwPB+s0pgcJ2+B32QApUkafHjRiVlPRO1XKclCaD1oay5TQL84Nt
+# mlQvSImJub4a+JOvceOtpNYX61sv84Yx3Ov2qBSZxC5QcP7nsXZhHPFvFXsfqBvi
+# 1TGn/DgZeUKr+TwK+7WkhTslW6xqsteHyMrWGQMvEjd6rlvJnAIBfOneouELgQgI
+# EsbEynv9MPrW/kXROuMAtjHC/oppooOrwaNe7c5OpWb0NZ3Ovq2JkVDKHeXAggQE
+# EWDollrS9+aWlj4UcxcXPtwhewXO72qwd4E3VPrzm8BI5WOXabpOWVMX1B6dK7a7
+# JyLnwK7Uor+3UH7aXgJtuRA36lnnGrOF0p++MhAaqfm8NJIwbbB0s4ftDkS67lKr
+# +1tpbQScjOwFF6N0zN8nXorKo0YVRNsTtkWSMj3r3+CrYsnKBUYwt6WgIMWx3Lbu
+# qCmdUs6LjxXP6zNjgdhu/ZEEV/twA7cwvGiGaTBFgufEvzH135iT+lEsPRsbKLAA
+# srX45zZn7C3r22IQfIqgZ3WoTRrECO2v2lKb9YNMWjgSBKznmwi1OxaqA0W21Wyx
+# D08uf6D1Qa5rFG1qgpBJHXBWtl3+ww==
 # SIG # End signature block

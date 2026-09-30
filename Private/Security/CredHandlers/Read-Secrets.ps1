@@ -5,14 +5,12 @@ function Read-Secrets {
     $path = Get-SecretsPath
 
     if (-not (Test-Path -LiteralPath $path)) {
-        # Return a writable hashtable shape
+        # Return a writable hashtable shape using the canonical encrypted storage model only.
         return @{
             passwords = @{
                 domainAdminCred = @{
                     usernameEncrypted = ''
                     passwordEncrypted = ''
-                    username          = ''
-                    password          = ''
                 }
             }
         }
@@ -85,19 +83,10 @@ function Read-Secrets {
             $secrets.passwords.domainAdminCred.passwordEncrypted = [string]$secrets.passwords.domainAdminCred.passwordEncrypted
         }
 
-        # Legacy fields remain normalized for one-way migration compatibility.
-        if (-not $secrets.passwords.domainAdminCred.ContainsKey('username') -or $null -eq $secrets.passwords.domainAdminCred.username) {
-            $secrets.passwords.domainAdminCred.username = ''
-        }
-        else {
-            $secrets.passwords.domainAdminCred.username = [string]$secrets.passwords.domainAdminCred.username
-        }
-
-        if (-not $secrets.passwords.domainAdminCred.ContainsKey('password') -or $null -eq $secrets.passwords.domainAdminCred.password) {
-            $secrets.passwords.domainAdminCred.password = ''
-        }
-        else {
-            $secrets.passwords.domainAdminCred.password = [string]$secrets.passwords.domainAdminCred.password
+        foreach ($legacyKey in @('username', 'password')) {
+            if ($secrets.passwords.domainAdminCred.ContainsKey($legacyKey)) {
+                $secrets.passwords.domainAdminCred.Remove($legacyKey)
+            }
         }
 
         return $secrets
@@ -110,8 +99,8 @@ function Read-Secrets {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAM+1HLOfWGzpOz
-# W0fWY1WWqNmLqUzqz8h18v98/64sW6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDg5Iq0cp+5P0B2
+# kFLxwjgC2Fa8lzCm+LE/oJ6VW1zt36CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -244,34 +233,34 @@ function Read-Secrets {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBkVyA/0K31
-# /Bd8PwkJZr2T7tLeBCe8wMrzRoSN3dGjhzANBgkqhkiG9w0BAQEFAASCAgCwWy84
-# 6VhwpzG76Pg+8XTZwaKY6+cKQXmPWPK/lcbQcJmxjPEf7dWjO4tO7IFowQKhve2u
-# P9F8DEijwtUISC4jSuFH8sgvhIVXWXWL87YemauKVBgaY6HAqgYgjMVn1E7tRvXP
-# zVpI+GL4pid3w0OOwXBzJ5UH2Re2nr/oMVmupYt+TgewAWHeyIpwO2b3IRS07/wk
-# +VyisvvFB04rZ0Ks4HwDvO5FbcUnA9D/z40DRsd96DHYrDUEJ1VqmpwFSHxiHtl+
-# SOZFaGITT6JIsGhfkNz3dGPOurU4rdBEZrHn1Bqk6Tll8I5QIFHW27jahwu9oDu6
-# SnVgfnR12DJYAYqQJpQaqbNpMzIpl2wPUotkFgSVDVDtEecI8ntsX+8F2nuY7xfH
-# BVaKY99zjoilOEaZPgSVjTYVBhKpb+S7LsR6xKSmwd5AVgAUO7VV93LBpo5IAin1
-# DJdZhPuo46yhywvP7znJrRhQjD+GCHM0QAtJhTAaPe8hw1bfwIapEMubQ+r+c97E
-# 4Wn1idTphNzFTYIJaSP1oOxVyNw7p5wK0K6tun1z/CVbT+GlkRADRcQWDofqz6ic
-# 53d5cNRu+Drmq0Fka9fvAYOnylYoHrqQ/GUpmkegupMFbFmaaevEQyNvYa5SoUST
-# 3PGv+WMmZK1a8tpUIj72lX50N9fqwSwYvRxvWaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAWdGrjmoB1
+# vQdjVTWsNqVRxafFjTK87KlxqwCLxMCe4zANBgkqhkiG9w0BAQEFAASCAgAQHcfV
+# mXgfhyXe+KrRAcDiipc0eU+Q4nqZ6BvCETHH9Y9npEsQTdaqLiowTXrrGK0nQzpX
+# EEvVINVrooQdCuxa+rTMtS55NpX6+rXpCmi6njlqLGvpo+FzpG7sh2QHp7UmW44R
+# ZKzPRQg+ANQrwlxdfVLhAZ4VyLhlARZPGOqVWyjqminydJeaDISLNjfoPv5YKPA0
+# 1kTBojjiWmLCxQZrF39Y0XXU1wGW3IOvsTmaile1CmOhKaqENS+VSH1Y73fLvkgp
+# mxoe25YsLmVKkk3gb91VLOQ5/J/xDH7faA0HajSow0LdKT9jSAan/16nJyVQ2z4z
+# WjdaETGoHojlUgAZ/nL37dMjxVwGSUGRoEzcH+ayfkLiKzFXCRxIXwLecRCaedr/
+# htKoTo6oee+aoi+e7MSu2GEv1Q4LckrmAz0MPo1FaJx/DiGKCqC9Tq1bLOqqW6Qi
+# y2PsnPYIyfAADO9vn7Zfr5D6r/r3Tot0kRy6qWMjbMYVFaxi7h5ZlWpVy+Yy8avb
+# EwSm7Cw44lyiO769NaN5cXd82+ivBOLLyfZdWq5UOd1qZQmGM7qGReoqiAKALKdJ
+# aT9u1VuAZnm8w+7ACyJC4qrboanU5kIszKIDcEEoImQigGVsUG5CoSmInCAn89gC
+# H7te973ctv6K/jQxnMKscZss8ALGiqaPiL2N76GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTYwMjE3NTlaMC8GCSqGSIb3DQEJBDEiBCDE+/tLDG9qnl37FYbK
-# H18Q7kOtP2ejKrN2RKlmK8WqDjANBgkqhkiG9w0BAQEFAASCAgBg6Eq1Z76Tj/l5
-# 0I4e7gUCe/GIT2dMNeRNrpf6AG8BtDwRk8Hsg+RtfKyfguN8SMs8OBBj7n6TWktG
-# n+5H7SSPvL/xsh7/1devxZeRqkxvEmVU1VVpVLCMoznWMVNRpb7RF3Wa/eU2VCng
-# 9sSRqQ2ydywTEJI4rP90yJ3uz1srhwuIPC7P5PHahO2SoBE2mFBHYSHiizjBDgr+
-# nOGNVitvwxpzTbZ4YLk9DnwUg+TYw29tEe4czxJhf5o5ieYMVu/B/wMkjN+gkYPS
-# tk4WBGPk1ItNIlwqutXm2D+iF36tsM1kctz7nf+pGR7+nQXFWstv/YNqlnkdDhMX
-# draW+j+bDWLpks7q7PJr841pjqbh1Lz9G7Yk+YCqr1yHqe7Vzzk57u0UDjikN5Wc
-# Wa+rIX4KrQGfwfY2cN8ioQ0SRoeGx9xmKMBcSFnTgLuxMADLiiqkxVSdceQKD8xL
-# tdICuH++NZIrwioQ/5EmkQlEdcLu5uo5qr6pHt1xqLG9usxDYn2s3CVBCd1wXqUi
-# 1pas/mp7K1wyeJ8qRHWTMy5XDL3BUxBTSXP4SI5Cl4f4o5OBKGX5B/jh2Qns9vAm
-# eyqr/4cl1L/MV4B8e7YH2p2JDc7h8b+WBegy4PC/Hf2zpUDo/v+G2afjieUpQcj3
-# agMsdQz+BF75iqhIAcN4xXX17/HJxA==
+# BTEPFw0yNjA5MzAxODE1MjBaMC8GCSqGSIb3DQEJBDEiBCCFjh1OLHigU4z3SlSR
+# 6yzqgvEJwI6+3HdZIjwsh+VPgTANBgkqhkiG9w0BAQEFAASCAgCpIvEpaVuPAZ6y
+# qhj86w00ht2C7iVqb2FPSKGnxqXs7Gtc0P8xMWk4H7Ld0fVvlCEANaYMbv0S236N
+# ygEqAjolAbfDAaDwKYcfliPnG0DlJGdtqmgRYx8QfRLzc/cvMcZXGkxCbq0+fdjB
+# KPImkd79hOFKXiB3i3ne4U/PEO7F7whvAiIqHT274DeOiDt6IpPwrKUhb9DkWla8
+# Oq4Woj84YHxPaanmFSpsczCNDCYKD/qnrBUDDSBY0A4GlY5N53llCr79w1HkHvW7
+# 0EBMgkQSsazPLWCwb7J8+mAUHOD+MgXxIFjdQJnTU/kdQfwxExzF5uSabp4Sifgt
+# GiKXZFA/XCHsF/y6QU3tPPZl9KPqF6gbPvNLZcIuWS7f1e6U4Nh2St8aLH2uvMvN
+# g+h1UNYBc3tXdTfrTUi6frjBFVgLGq86FhRMeVREXOZOKOEZLHuraxPCBNFslvZH
+# BfxVC8rnOxmztXY7BiFtNrmIv/2tIPj7A/t3/rOmh9WZfDTok+4QWuLR7jyHNR73
+# 9HBRqtIGQaWPn8RuAc7eBSb1sVhqNBto4WBHVMa9li8N4UEhY+1dU39TkmuZtVKN
+# a1VwLtQA3p6sgevSaNPBxw0l2DKvGrtNLIW0lSH3SKXUrdkYnbBABkCNJSVZOMNo
+# kHQa2v1XCNu/zZIQ0DeayL/AgLXJFQ==
 # SIG # End signature block

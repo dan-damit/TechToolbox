@@ -102,13 +102,38 @@ Describe "TechToolbox Module" {
             $unexpectedFunctions | Should -BeNullOrEmpty
         }
     }
+
+    Context "Domain admin credential secret shape" {
+        It "does not retain the deprecated legacy plaintext username/password keys" {
+            $tempSecretsPath = Join-Path $TestDrive 'config.secrets.json'
+            @{
+                passwords = @{
+                    domainAdminCred = @{
+                        usernameEncrypted = ''
+                        passwordEncrypted = ''
+                        username = 'legacy-user'
+                        password = 'legacy-pass'
+                    }
+                }
+            } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $tempSecretsPath -Encoding UTF8
+
+            InModuleScope TechToolbox {
+                Mock Get-SecretsPath { $tempSecretsPath }
+
+                $secrets = Read-Secrets
+
+                $secrets.passwords.domainAdminCred.ContainsKey('username') | Should -BeFalse
+                $secrets.passwords.domainAdminCred.ContainsKey('password') | Should -BeFalse
+            }
+        }
+    }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDU6IV5fM2fpDE9
-# B+g0EzSQmV55BVSGJK1N8OHRZCuwcqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD/361qgRO32yIB
+# RLR5UGwmRN9c7qqYwgfR3EghGv+0GqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -241,34 +266,34 @@ Describe "TechToolbox Module" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBW7nWqJZet
-# Lq5aOhEnOQPBCkbIVJpgIV0VysiTTgXfKjANBgkqhkiG9w0BAQEFAASCAgDPYBXI
-# +muT1NuB/Q6CAhyC8Fn8DiFwIX9ENrKfUh8zFI4T42p/w/ViOLxWJZ/5BLhamqTU
-# qwzIPVGi+UFMlWMJIcbVuZyGJru9dZ74P7pXpc6WzaNZCDqbp9T17eLk2Kuly6FK
-# xnhOOcwAJP9/M3hqhAZ3FsuA0wo7futsEqiBewGcWI60g1VzL7I+Dtggo9UlV0dp
-# kbSbxEj3mAsbgtqxQwADBL0147q95RVUtnv4Eh3G8G7e+IXB5bV9sJzo9bwdO64b
-# s7ZbVlYnnoLQxFrV1qRWGM2RavNp1y5HqcdjINUMqkPZRs70ElfM5oYVOElFzM2a
-# 8z8YnpBbWBknrFJK++NA/+sRMRcWIPJshOc2iWaK0IS4gzvuPtCG8tC6uE4kWr2Y
-# Dv4XjrgWHUmOd6Db6k6W6yJ8hN6jk0VPj0QyZT+76gPx+kctYDdm+IBk3ZMpOO0G
-# IKKdpK4RCPGtJHJNS3Tn5xkkkPE0JywfTtYMEZn1HEE8/JWrDF7pBvSGr1rlSig/
-# fgBbHRnGLINgeuSY3jYbD+fHsPr8OdbrFPeguRtrpsufOhnm2Fd9mSCmeZDPEa+P
-# 8AeF1X9QG95VHe7VtQ3S02N8Lq4wCd1t54zacYYEuL+zx2UR1PiF7X+gVWwB+E+9
-# DQr41N/amzJ4MUFRKIjcZZaQuX80UBYEUY2fGqGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqqu0UPJVG
+# BhigTSF5KrqL1/VOFES5vGxtt1X5Pl6GAjANBgkqhkiG9w0BAQEFAASCAgAFtvH5
+# IgZaxYI6JQekj7rXs4aNNMrxa/v55N7NiJvPXYPE64sGvfxOy1QdKUEdyRSjfhmh
+# Od2hkHqe+cnd0PgGD5eaSSqFGmjNZbE0yIc8GXGYs5R65u4DtmVEntsu+TsFBXld
+# ndVxq+hVLXrwZN33fTsQ35KbAiUJmf9tDswIoyrvUoQenUMw6vgMyTQ5Gl5PD0Wd
+# MWXul8NwtZBNYIComQ7h5DPN2/4lIL0W8I+g/y4rS+kgLlvFVBUwrLnBwYxTYp+g
+# Bx3kOxbDCGIQXHvq4kyHJkwAMPj7OIOiTOAsQ/CWZNY4rTnQXV797FXvmprHcPdO
+# 40lsM7QZdPLl/MTM7IAwzQrFRHefiHNtQbZJaVoXsKBHaV3LPBgn/0iIY28kY5Gf
+# qx9Mzmj+WvnniO6ml7V10bWGSyn2UX9vltbytFTSRFlm8I6QChD1SY1knViNt+ry
+# 3XV6FpAloPTzKLN3nKIcGHk6/KiQMQwEvcHpPYL5VqYt4Ym4NH/TeBaZkUgcVeAX
+# /LZLiLuVkTGuKifLoVRO32SmTzdDtDTLgvTAAQmqg22npHw5uMte+hW00IVFob7u
+# AB3BGLkiTNHcP3/roPt/SVGOlTwGRrQ5dA7SC2carOUHgv0kbvSshXHD9gvv/5nw
+# csxDAjhrCFnZihO9VsybyFp5C+zXSDaC5wD8VaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MjAxNTQ1NDhaMC8GCSqGSIb3DQEJBDEiBCC7iS0wVdKNanYtdBOc
-# 6touJ55Jie2fCQk3O8NiJi7pXjANBgkqhkiG9w0BAQEFAASCAgAioIcAk8wvBRhh
-# KD4nDlndZduQtL+Lf+bD2sgORhwclozOkw7u4T0kPi7rqMp8DA8fbBDA81pEmoov
-# 3RhWl11RMquJ9RuhOgTjo0qTd8xXDUu2qEFGSilGiqicns0UTH50yGBwLyq6984u
-# XvnDgT0D25Vfsh06ktlM6emgeTFXJkvXN2mKumtID+JE3Vn8GSmXzy9qjtP23wUS
-# 6LCsOgeNnsUAHhdVuHeYtFDICjb3x1xe640Gc6ziaWycC3bIHgYAv3r24J/AztkU
-# i6uITAhEJPKKevuh7MNoZmpe81f1G5I1D6A4TwgXoR267nlrc7YEbkc8NFYsNHoM
-# j9JQjbkwjinkhX4cgIR4sw/gCp0pMHH4moOGD0PcvH+XB1swJvtr4n5zi9AdkhU6
-# cFXn9ibDUm1Por9LXp133AitRBNLXBLpRBeY4D6EaLSgFYsD39rkXR3ywX8D9RXb
-# MMMbCHQq+xGqIXXR4CBHrMt0c82Pf6RyAOXM9cxxfhxWhZaK+0VxopKXv6jiGkm/
-# 7+mZ8Tf2FYpNrJqU+zTPUrP5Uh3E3twuxRH4xUf0NEfavPRva/64ozfqRPZbwbAc
-# ZncnHkJQXeR6OrM6TllhoMhwKAD2QK+c0rW65K4hVUfkTGnAnufR3ZVo862PBVhT
-# 0t9LgFOosTpeQPPYW7Rv71a+RRR/8A==
+# BTEPFw0yNjA5MzAxODI1NDhaMC8GCSqGSIb3DQEJBDEiBCAo2/lamso/NpmVhklj
+# SZOK7Sc0nLfhFz7TlE63utFnCjANBgkqhkiG9w0BAQEFAASCAgAr1BmW4R/XCkJW
+# 48MAtTBb4cxqhzi6bEvoYdww5c5nREjxBcOyC6nnEag1Cwf4QlGoPD+D3hIo5+eo
+# qYVwtPWgeRC8osFpzrqpvTHKt5MnJHFEqTwHWfqRt5BqDvNRrik/QOZ1Qh+XI3Bc
+# RdyNQgndVzVqoOrVDoRZdLNNocOBfQLLQj5qJd86tt9rBTlPynNSNfiiG3n91tUJ
+# BkRhosYMZceIpWYFfYsrdx7nA/bm+sP50zgTIDKYcWKkM6KPDsSQhZgwjKVhPenP
+# 1UAjnY17UI3kCSPCjBPclopIFDsSRXJ4BbVUdXfI/CEXxIuO0c7aMW7eOJAdBOmC
+# 5Z0bWq8rotrLc5A8R0BwG6EMMyhGwOFkuKuoXpzlBhzl+HRPqEJ2dT3BsJv0wOAd
+# y3EbVEoW2f9nvQEe90opOrdgulN2eLyB4jL65ivPV80igy2YWG415Z/o51LaonZp
+# u7wLT1VoRPtCRR1AjwWRle0RQc/sq0yPuCkQKJgd1Ye2LSwZGgAFFgSZxAzFzGjm
+# uj70wks0gCXMpxgHHd+Ous4viOrkwcumYzTA4uJfwzsjLzuW5LUmnGKh1aByqVAY
+# QuzmaD+TPWyZFGOpokMPsN/r9CUbxt90bjD4Hjb56cVb5dLkZ0lPVMIJfAsUeDUc
+# d1nplllPN/cLcOIqsbki9ESkjTS58w==
 # SIG # End signature block
