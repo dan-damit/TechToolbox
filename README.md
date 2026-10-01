@@ -48,6 +48,7 @@
 - [Contents](#contents)
 - [Quick Start](#quick-start)
   - [One-Liner Demos](#one-liner-demos)
+  - [Updatable Help Feed (Maintainers)](#updatable-help-feed-maintainers)
 - [Architecture Overview](#architecture-overview)
   - [Module Layers](#module-layers)
   - [How the Loader Works](#how-the-loader-works)
@@ -706,7 +707,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 1.2.4
+- **Module version:** 1.3.1
 - **Current milestone:** v1.2.3 - "RAG + LoRA Integration"
 - **Milestone date:** 2026-09-27
 - **PowerShell requirement:** 7+ (Core)
