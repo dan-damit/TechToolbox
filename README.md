@@ -301,6 +301,9 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 - Retrieval settings live under `settings.agent.retrieval` in `Config\config.json`.
 - `backend: "local"` uses local memory history snapshots.
 - `backend: "rg"` uses ripgrep to gather code-pattern context from the workspace root plus optional `directories` overrides.
+- `backend: "state-world"` uses workspace and environment signals with deterministic packing.
+- `backend: "hybrid"` fuses local memory and state-world evidence into one bounded retrieval context.
+- `hybridLocalMemoryWeight` and `hybridStateWorldWeight` tune source influence for `backend: "hybrid"` (defaults: `0.5` and `0.5`).
 - `rg` is fail-closed: invalid/unauthorized directories or missing ripgrep prevent retrieval startup.
 
 ```json
