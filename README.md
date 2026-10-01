@@ -673,7 +673,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 1.2.3
+- **Module version:** 1.2.4
 - **Current milestone:** v1.2.3 - "RAG + LoRA Integration"
 - **Milestone date:** 2026-09-27
 - **PowerShell requirement:** 7+ (Core)
