@@ -614,6 +614,14 @@ function Invoke-TechAgent {
     $markdownRagEnabledConfigured = $false
     $markdownRagAttempted = $false
     $markdownRagProviderType = '(unknown)'
+    $markdownRagExecutionMode = 'unknown'
+    $markdownRagEnvironmentContextIncluded = $false
+    $markdownRagEnvironmentContextProfile = 'standard'
+    $markdownRagSourcesScanned = 0
+    $markdownRagCandidatesScored = 0
+    $markdownRagCandidatesSelected = 0
+    $markdownRagCandidatesPacked = 0
+    $markdownRagContextCharacters = 0
     $markdownRagModelConfigured = '(none)'
     $markdownRagStatusReason = '(none)'
     $markdownToolTrace = @()
@@ -2235,6 +2243,44 @@ $result = $runAgentMethod.Invoke($null, @(
                         }
                     }
 
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagExecutionMode']) {
+                        $resolvedRagExecutionMode = [string]$metadataObject.RagExecutionMode
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedRagExecutionMode)) {
+                            $markdownRagExecutionMode = $resolvedRagExecutionMode
+                        }
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagEnvironmentContextIncluded']) {
+                        $markdownRagEnvironmentContextIncluded = [bool]$metadataObject.RagEnvironmentContextIncluded
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagEnvironmentContextProfile']) {
+                        $resolvedRagEnvironmentContextProfile = [string]$metadataObject.RagEnvironmentContextProfile
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedRagEnvironmentContextProfile)) {
+                            $markdownRagEnvironmentContextProfile = $resolvedRagEnvironmentContextProfile
+                        }
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagSourcesScanned']) {
+                        $markdownRagSourcesScanned = [int]$metadataObject.RagSourcesScanned
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagCandidatesScored']) {
+                        $markdownRagCandidatesScored = [int]$metadataObject.RagCandidatesScored
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagCandidatesSelected']) {
+                        $markdownRagCandidatesSelected = [int]$metadataObject.RagCandidatesSelected
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagCandidatesPacked']) {
+                        $markdownRagCandidatesPacked = [int]$metadataObject.RagCandidatesPacked
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagContextCharacters']) {
+                        $markdownRagContextCharacters = [int]$metadataObject.RagContextCharacters
+                    }
+
                     if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagModelConfigured']) {
                         $resolvedRagModelConfigured = [string]$metadataObject.RagModelConfigured
                         if (-not [string]::IsNullOrWhiteSpace($resolvedRagModelConfigured)) {
@@ -2434,6 +2480,14 @@ $result = $runAgentMethod.Invoke($null, @(
                     -RagEnabledConfigured $markdownRagEnabledConfigured `
                     -RagAttempted $markdownRagAttempted `
                     -RagProviderType $markdownRagProviderType `
+                    -RagExecutionMode $markdownRagExecutionMode `
+                    -RagEnvironmentContextIncluded $markdownRagEnvironmentContextIncluded `
+                    -RagEnvironmentContextProfile $markdownRagEnvironmentContextProfile `
+                    -RagSourcesScanned $markdownRagSourcesScanned `
+                    -RagCandidatesScored $markdownRagCandidatesScored `
+                    -RagCandidatesSelected $markdownRagCandidatesSelected `
+                    -RagCandidatesPacked $markdownRagCandidatesPacked `
+                    -RagContextCharacters $markdownRagContextCharacters `
                     -RagModelConfigured $markdownRagModelConfigured `
                     -RagStatusReason $markdownRagStatusReason `
                     -ExitCode $exitCode `
@@ -2468,8 +2522,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDtraz/bsj3GTXX
-# trF0ZsnbZvLX2/CUcx2gkuA+/P2sg6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBH3WYL//GRtTVX
+# n+uhmFsSfgX+Lx0v+KQ/7ZXZlFkgnqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2602,34 +2656,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBzd5HNpx9Q
-# VvpaiBc4vwOcBnUPa5Jale78varClUmIpjANBgkqhkiG9w0BAQEFAASCAgDIaSRM
-# Ko1C4t8BjOR6qBrcivSvW9eNSrKLffBbW7ciPgXpZTjqWj2jOTN2QemKB1Jx9nQz
-# TQjYMdHpRf2XsgnBpCeEEAC/pE996D/8aKleJC5bYTsirtFzDWVMWntq6DJimKoz
-# IjBZwM2GDAyTC4h7nnufKrEsGswnNGv2jFEXEM+8o+qdr28Ii2Tdhnq5M2Whmq2L
-# 3HISqaxQ0LG0EcJ+NYE1/ZBLdgFwl3vLNEPaip4I8LKoYQqdaYbLegWd0fn/kInu
-# L3V6xkeHqbrRQMg7gs0OxV/pab83gyVrJpe9SeieQcRJsSgrnWUHaUI/9Zs64bY1
-# NELrIutaPcuRtdFqpjJR6Nw7IjQ+lPjesGro5DL9PhBD0Jk4Zlj6zVYcqhpW+5Xp
-# /EVp7obT93DYTqd42cY6pfg63Hri1eUoqQrMjnp7wRtBuoJP/lifE8+kh31GCHwg
-# PYkO0mFnzO10ZnJ+v6EgTKocnmK6aYKs4Cryej7VN1I2kzjCKtclPvA+WRCYNxbu
-# n3fXfX5rSSN9qGv82Vj6HSpO+hMnPrxzahI5WocBFeityRElMjvfAGdxO1sPEK9G
-# fCEp24d4D4p7tWrrEAJFTX+71zMDAWduuWZJgbSaFamXpth7l0qi0E6eKvYCbHLv
-# kfItJl6h3NsDrxcSgayUzSgdhZSlsZuXeZ8nkaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBLi8VJC+Qt
+# sX/XSFRXwID3Py95DwBtu1Xs72e6VfYWqjANBgkqhkiG9w0BAQEFAASCAgCaKdW2
+# rKje+w+ZWLsJcH/BVWRVc4fi05shg7ea6MoEkZR0rYZiIWLe6BfK2sIiHulfsWq4
+# wzVKNOTGV6OFm7UuMyIRZVaOolSmIhDQaRs2xbhiYBfAyKGGgRGw8Qc66naT/oMc
+# se4z0LZeV5kS7sRlSQ34CUrOffyWly2F8cv30VlLYclzA5OMS+doZKD+EUeWsBKG
+# 91HAB6OGYk11dUtb5bFQNLNY77clernzIZ/oULJWO9eVOm9ZBYLobm+EzV+pLBtu
+# 6+D9iRBxhNgFCG7lfQ5fhHsepEsu+Z+aLE6FvKf1g3zQGn6ATR4f2KIyqT+BUxsJ
+# gdurcGevKehQWKsbO63lT1JpIDZ44wYiLVy/PlnkxVyUq5mbJ7nIuHHdvr+N+GtN
+# BFlog9Ih872b2s4yP95pYW7yyRQwJpbH+FHZmQp54/kkUgx1CGpKS8W4EDHTy77d
+# 28k8LB3w8JqDsTxjOwmDwKIDDGc3FPwnabpWFLzvK0xgqgKk/INcxuNR4Dtt05dU
+# 0RLGT5Y/C20L/rAhw4Sde9pmFN1NGV6Q6On8fRcTOtkhM1utx+ZvmhEYY8CgW491
+# 7zR3rHyUkLOWiHWa9qG7qNufvEdtUFhPTKHr09q56LqCStfF4zectVxa/2taqjmw
+# ra+IyWB3ydg870mbvfMyX5awX4HuoAK545XlWaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MjcxNTAzMDRaMC8GCSqGSIb3DQEJBDEiBCAZlHMnSA5PVE94R2hq
-# El26097ZitpfbVwN+hfxlSTN7TANBgkqhkiG9w0BAQEFAASCAgAM/7MqYDml20ZJ
-# hfG/bG5GS4xVg4WHjbjYz51Mq5+4S5AEP1FseG5HDt1IQ+fP6p7pp9oM7hgrug5T
-# Cvl9w7smu2EWStrmXI/3q/jcW5NCOSvh7Ecnp+I5+1T3FcYeejVyx8BAwmK7BqMV
-# aM7KbQWrTrhhUr932tRKwjyEHOXnPsR1ZDQzcZIyXMx/HYaoViiDObRkNo+/9xU7
-# KuWxpoQnNLLsgSz1qIyJ2fJ3qUsydQYvCx2ZtbZvlsJobMj5i/eBRESFImeZbJ88
-# gg+BF2gL58CnS/9iCgYas1Oo0wQAA/cdV2InScOgkK2bKm3+x4xm00uDIxOJycDT
-# 4nRBymKSskQTi4alrWtA2A+dxJ2oDa8sK83hid54z9orUpcASvGIk2zmeAV/9tdH
-# WhkpKGt+JMCxL/06HBfWHflSu6dhYE7juqgq7G3KMGkFURekzGEa76xTdK7X7s/E
-# q1TgCli3pvNz9mF/R2gAAllnX+bceoJsN/dWXtgqCbHL6NctGlb2EI9MtJo4yyoi
-# cG0Dw4pXEjidBv4fz+8FXGRZTpLR9d8E+TYzWObI7V2beI5pGzKko4Nlymj+SbjP
-# DA6+a18wSvtunBz2q/pqMtz75FkHNSmJlSwYb2yAI68mXLHir4o2B5LIz77GQgyw
-# WBLskl9K3cINOUeZblCopcJ284wdFw==
+# BTEPFw0yNjEwMDEwNDA1MTVaMC8GCSqGSIb3DQEJBDEiBCC+pqfk0d1bVZ157B1X
+# kbOq1NfygxqD1GqLUO8MKLohcTANBgkqhkiG9w0BAQEFAASCAgCVg1VaGDlkSUfB
+# yqjQgam8uc9Vu0o1CmoQgYuAP6OpE3VyUdxbrAV8V9BW9crivigfwLi3XlErEa1W
+# Cy779kJmdAid8Xf40i+9j9cZ1py4Ibvlgfn3zBcCVI6Iz4DT4yPCMJb8fvZagC2q
+# qJ07sDeeTaLdmmeMZyxWrD2t+aU03Wk2Ys7Y6wB1dPw5JcLfJezjvsimVBrIj0bF
+# 9PBbxo1ECNpz9UXESATaG9FZPMl7m9NsxtVuGynvZm1/QKmNxJy8CJRChP1OiBvT
+# TIaPpkMgiPE8nUOBU+Dn/LUUWY0CsloysOAQvlTnLUI6kqkROAqvoRdIou1C2Cbk
+# C7/ot0KD4lzYbzbnkyWqO3l271TuSRaFYe/dULaf0gti4hnv8XCiRkSlufvRBs3F
+# 70cz6upTJLNho8VoA3QmKww1EEsC64jqROOkvv5PwtA6P/tBleIKRbyyHIacb7V8
+# WDYVTy7VpvnMc30EkDwPmbUEm4thGvWEzM993kC9fzoaPLg9YJwsVYEn/r5eFSdc
+# UJbd3XrFi76VTJVXgbB3Bd+TKIeaaLOy9iKVftWdDQV6lsWEts9dp0rqAV77pNHZ
+# xoDdoqZmavZlwgro8vszzeajOWp+f5LcWIuwQwh6TO/Cf/i9pmsgDJWnFGumnHe+
+# YItQ/XLUzx8ZAU5Oiz0ciX1wwoqFbA==
 # SIG # End signature block

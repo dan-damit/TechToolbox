@@ -129,8 +129,8 @@
     "agent": {
       "retrieval": {
         "enabled": true,
-        "backend": "rg",
-        "model": "techtoolbox/qwen2-5-7b-lora-tiny-r2:latest",
+        "backend": "state-world",
+        "model": "qwen3.5:9b",
         "embeddingModel": null,
         "maxContextTokens": 2048,
         "maxResults": 5,
@@ -138,7 +138,14 @@
         "directories": [],
         "includeGlobs": [],
         "excludeGlobs": [".git/**", "bin/**", "obj/**"],
-        "maxMatchesPerQuery": 500
+        "maxMatchesPerQuery": 500,
+        "stateWorldMaxCandidateFiles": 120,
+        "stateWorldFreshnessHalfLifeHours": 72,
+        "stateWorldFreshnessWeight": 0.3,
+        "stateWorldIncludeEnvironmentContext": true,
+        "stateWorldEnvironmentContextMaxFacts": 20,
+        "stateWorldEnvironmentContextProfile": "standard",
+        "stateWorldRequireEnvironmentContextForEnvironmentIntent": true
       },
       "provider": "ollama",
       "model": "qwen3.5:9b",
