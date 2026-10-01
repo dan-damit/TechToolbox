@@ -416,6 +416,19 @@
 				"C:\\Users\\dan\\AppData\\Local\\Temp\\tt_dryrun_validate.ps1"
 			],
 			"isBackground": false
+		},
+		{
+			"label": "build-updatable-help-feed",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-File",
+				".\\Config\\Build-UpdatableHelp.ps1",
+				"-Clean"
+			],
+			"isBackground": false
 		}
 	]
 }

@@ -114,6 +114,36 @@ Get-SystemSnapshot
 Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Custodian-01 -WhatIf
 ```
 
+### Updatable Help Feed (Maintainers)
+
+TechToolbox now includes a build script for `Update-Help` feed artifacts.
+
+Build local artifacts:
+
+```powershell
+pwsh -NoProfile -File .\Config\Build-UpdatableHelp.ps1 -Clean
+```
+
+This emits:
+
+- `Out\UpdatableHelp\en-US\TechToolbox_<GUID>_HelpInfo.xml`
+- `Out\UpdatableHelp\en-US\TechToolbox_<GUID>_en-US_HelpContent.cab`
+
+Publish both files to the static site root used by `HelpInfoURI` in `TechToolbox.psd1` (`https://dan-damit.github.io/TechToolbox-Docs/`).
+
+Validation after publish:
+
+```powershell
+Update-Help -Module TechToolbox -Force -Verbose
+Get-Help about_Clear-BrowserProfileData
+```
+
+Optional command-help XML inclusion:
+
+- Generate or store `*-help.xml` in a folder.
+- Rebuild with `-ExternalHelpPath <path>` so those XML files are packed into the CAB with your `about_*.help.txt` files.
+- Detailed maintainer guide: `UPDATABLE-HELP.md`.
+
 ---
 
 ## Architecture Overview
