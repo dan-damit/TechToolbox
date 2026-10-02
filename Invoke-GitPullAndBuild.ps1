@@ -1,39 +1,39 @@
-# Sync-TechToolbox.ps1
 param(
     [switch]$UpdateSubmodulesToRemote = $true
 )
 
 Write-Host "🔄 Syncing TechToolbox repo..." -ForegroundColor Cyan
 
-# 1. Move to script directory (repo root)
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ScriptRoot
 
-# 2. Pull main repo
 Write-Host "📥 Pulling main repo..."
 git pull --recurse-submodules
 
-# 3. Update submodules to the commit the parent repo expects
 Write-Host "📦 Updating submodules to pinned commits..."
 git submodule update --init --recursive
 
-# 4. OPTIONAL: Fast-forward submodules to their remote branches
 if ($UpdateSubmodulesToRemote) {
     Write-Host "🚀 Fast-forwarding submodules to remote branches..."
     git submodule update --remote --merge
 }
 
-# 5. Run build
-Write-Host "🔨 Running build.ps1..."
+Write-Host "`n📋 Submodule Status" -ForegroundColor Cyan
+git submodule status --recursive
+
+Write-Host "`n🔍 Checking for local submodule changes" -ForegroundColor Cyan
+git submodule foreach 'git status --short'
+
+Write-Host "`n🔨 Running build.ps1..."
 & "$ScriptRoot\Build.ps1"
 
-Write-Host "✅ Sync complete!"
+Write-Host "`n✅ Sync complete!" -ForegroundColor Green
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDFahWcOtQisEl3
-# xPOYmYF8Jm0ojMdnFeI5zuHRLL/Q9qCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCANEfwZMUvfOaUf
+# gWSKOrG5QsdXpz9PBEnnZ8WfRaVZrqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -166,34 +166,34 @@ Write-Host "✅ Sync complete!"
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBtjHGd09tg
-# KGWdKtS/mbaQR6IxOWklFas6g7WCehPOMTANBgkqhkiG9w0BAQEFAASCAgCLrcpr
-# WEve1Bd8u+CgNrpNynKVnd44JjyrBDo07emeOJEcuL/Qr8oaRLamhCcP3zAoijkp
-# xrwK1Qi4IvP1nR4UMKmWsVkiuVxRYMjjSBw2RyNd7xpz0Eqzz+Uu5RqgRRJia5xZ
-# nXt7OL1aBLAVZC8yVZ695fJYucrJ9DBlsH3ekt/0nl9wB6KqXrVorz+CIbGeHSEE
-# XAAErf15nUOqHLQvsgI5AFBF2LjHZOebI1aJI4G5X5O/AYn5kM2eTC3YGST+CCh9
-# hy4Vw8C4+43YcFLUDniacmptQ8Z2/BrVTb3xENrLiOEsM2SI0huzeKgz5vd/5lnj
-# B5fhSE72bPzGyluHHo/rehZHQLfm6SOHQraYBE6J6Qqlg6+MQhVOE6Iz2XREhv3V
-# ENod6vIkPEveYO0EiDx6mbPYxlu4gujp4yrBy2fuA3Uk9/JFYUXZewvDAiP2TKBl
-# upPr2X7xmJYnP7nHUbW5CLqmlMtjpnRvKV8moLv0WksLANAEBOs1WxBNcxGr/u8H
-# zKonzKgYklOBZcpacuLdbWnM29hkIkrCtBceyKBtMYyDme2rZU/EKVjnWIOQQdY9
-# lVlEnFLL5qCa9ihj48/C1FWYnlqalxqhjKXrE+D9FPVZYvkoSZYTKrogtXJau8oJ
-# M1GAvxkBkcsaggmjt0y2Xu0juvHBpSeXPQk5u6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD1H0emWgbA
+# WsUTOT6LYVCPtGetLvHAHHjDqbt8wqFOLTANBgkqhkiG9w0BAQEFAASCAgBA+L2y
+# Csl5B/wPftQVjapME+3gAeEuqBQrXevvfOgwBv93eYaw3zigWiaY3BUJSrOtV4aY
+# PhJSOqYEUt8Fjew7gK+rLF/QnFP3HVL776LD/eMugau5UHHq8AGY7UInbnkM6i7H
+# m/G4886TlqTq7Esd2n1YR1VMydRm++ZcaRyUpwuvYODFK2pLxN/m3OnwWuWpjfx6
+# 3UY5sSp2Agu8LEz+KLs1ZCiQ5XmO3NmLHan/Pqn4o9zESA97D5I6WC6ouIVDlSMK
+# id87YIWUhrCF/v3qtHIOJa0ndVIedVA+LAgfq9NXHlu+sXrbA8fTEcRGKAn1LtZJ
+# 8DbINGr9q+Golfk/mMZG4Mr8sj70rL6J1tJZzjMayo/Q2lt98y8Y1Jpr95cL7zVk
+# TxSqQXJIfV9WVE9dQH5wHHVpsP1gVTdRpJnZujPU7o0bnE3//nGrRkaKleAOOfHO
+# /rpdTkOFxl/PvD8v3Ww2oiakAjyaR+ngFirKxcYi538fKC+WO5C9oqQe8LlxMoCD
+# UWn1MkHqob5A7ixMhIyI2w0MhEcTDYisE5RTuAFg496THAMt3FRjWQudOb5Ur5X2
+# kp9ZOBH2vte3ISeTuKqZ5eMgHbo9HFGgXZpwWIuZkq35jdaR8cowx1dZPaTlM+IR
+# kaKxXKYflStfLmhirDeGQglJw1rCyTwRYo03oKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTgxNDQ3NDhaMC8GCSqGSIb3DQEJBDEiBCDE45SZbrZixDsBQQ9a
-# sIzF/qWgfrchueJEcTEMLqqeVTANBgkqhkiG9w0BAQEFAASCAgA9PJMjjrsfqGOJ
-# TG3aTqhqbE4wIcd3hWtHELqjebBc2SiLOVWeaMs3KJDU7grwZxcaW7qiNrN0kL+2
-# OA2RXmzCv6wkHSpvdCZw6OP6TvUyn9KxU5i9AtH3HVk5zjBN/BAJDw00m3v0llf9
-# 8rWEyjvRGSQHYR82Byhs3TQrDpf1yHztz8rmdCIu/kxELUcdj7DVqJJ/yc+a/Oou
-# UJUu8Ia4X1zRfix/xNEyec7wbGu3hDkApW0iAPXTgT2bhdTvqt1/HcWSSChQi94U
-# 4MQGir6Y5F+qz45eNZcBrq5FCUiaNEQw1BPHNm9OXGwZ9Ll8UxYvyZIRcI7O+2a/
-# BevbNL+kQeyJ+pFbL7i/xFMnorfq3HtXaJQ8VFdJbLsAed0kQL4F059/WQv5bp/+
-# u88v4l0BREYUO/t5mD+cI+LVv/Zvhzi4avYeZZva9XIsGaxsOUfA5MLgG1hHxHSm
-# Vy1+BSCCDyPgTMi+JTKRZWbGPNTSkVdnyBru9uGbsCrRa0MV0uzxmeh1BQB9q0Pz
-# EplbNgCG14XFbvCI+AOsUNvQd8z8nTqJm42Q5R60VTF06KSDN860nkJ83u6NXCBU
-# 8SSOquCBBvb9dcoMV0VNczgRc1Ty/TG+IjrYGZD9M3s9UQygoUiLqcN3GdYKBCU1
-# ZswuuvuOwy6lUguSJhWtE9MkViQ59Q==
+# BTEPFw0yNjEwMDIxNjEwMzJaMC8GCSqGSIb3DQEJBDEiBCBT7yCWd8xhtLDQIk+3
+# JyaonhXK3LuFD3/VZScHn35dZzANBgkqhkiG9w0BAQEFAASCAgBKS04svLKve8ra
+# uvIejIO5MuWJT0NLuMO26AwvlqLvi2T64zYp+gKJbMKydrOM180PEitkm+Q9v5VL
+# QO4OYfpeBpYYfSHv5DkcwLiSoIeStsvcONnvsTAizNNgWwawQW1Z5CQiW0RkKcHC
+# N5m3FIL+qO97j6xyoiI6MFFr745aZCQVHgmw86APJR7UJXCil4f7AdPCYBXY/T84
+# hDeAfP9tPo0CtmOETKcXG2EzXdMvgCBOOQ6ggfJa0rQA+D87i84LaGJoK9edMbxN
+# xxWiab01a+LEy0PnvOXYM0mSKQ88qUZJNRnPr1s9QKAgES8eefn5eFBlkGTfcCU+
+# PW2kXJSxgIyysX+tSbOw2mV+BFC2WqlwXFjWi/gwGUiKM7IJHjqvksEZ28XiLEc4
+# aIfw5TuSFxro2kki8nSrzlnqIGcmbSQfhHN1rgXoHTE1TDbPD/ibfS20u47ygBRq
+# m56A47YUYDEp/6Rt5DU9jthfl4FUoWgNJCIHgw2SLlkE1nAMYtt+DNRA/Ep/Gwuq
+# 2SH88VOroMgosCb+eSDfAa6hOodpPBbx8oTAFuOy7rLzQqr/4a/UZpUTf0WnBu1L
+# EpwYdNS7sq3xN1qodv7uncAAC35mdIck616+Al0bm2Os4FPlN7/b4sVJBMs5En2O
+# 9AV7WEeiHRR/FL2Qld4bUpst6My4/w==
 # SIG # End signature block
