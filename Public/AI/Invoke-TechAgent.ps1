@@ -2366,6 +2366,18 @@ $result = $runAgentMethod.Invoke($null, @(
             if (-not $expectedOutputExists) {
                 throw ("Tech agent failed: expected output file was not created: {0}" -f $expectedOutputPath)
             }
+
+            $outputValidation = Test-TTAgentExpectedOutputFile -Path $expectedOutputPath
+            if (-not $outputValidation.IsValid) {
+                $parseErrorText = if ([string]::IsNullOrWhiteSpace($outputValidation.Error)) {
+                    'unknown validation error'
+                }
+                else {
+                    $outputValidation.Error
+                }
+
+                throw ("Tech agent failed: expected output file exists but is not valid PowerShell content at '{0}'. Validation error: {1}" -f $expectedOutputPath, $parseErrorText)
+            }
         }
         $markdownExpectedOutputExists = $expectedOutputExists
 
@@ -2522,8 +2534,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBH3WYL//GRtTVX
-# n+uhmFsSfgX+Lx0v+KQ/7ZXZlFkgnqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCgVLGdnC+tiwHJ
+# Z3/NxhN7g/vyriCKxRE9G4g8KypprqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2656,34 +2668,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBLi8VJC+Qt
-# sX/XSFRXwID3Py95DwBtu1Xs72e6VfYWqjANBgkqhkiG9w0BAQEFAASCAgCaKdW2
-# rKje+w+ZWLsJcH/BVWRVc4fi05shg7ea6MoEkZR0rYZiIWLe6BfK2sIiHulfsWq4
-# wzVKNOTGV6OFm7UuMyIRZVaOolSmIhDQaRs2xbhiYBfAyKGGgRGw8Qc66naT/oMc
-# se4z0LZeV5kS7sRlSQ34CUrOffyWly2F8cv30VlLYclzA5OMS+doZKD+EUeWsBKG
-# 91HAB6OGYk11dUtb5bFQNLNY77clernzIZ/oULJWO9eVOm9ZBYLobm+EzV+pLBtu
-# 6+D9iRBxhNgFCG7lfQ5fhHsepEsu+Z+aLE6FvKf1g3zQGn6ATR4f2KIyqT+BUxsJ
-# gdurcGevKehQWKsbO63lT1JpIDZ44wYiLVy/PlnkxVyUq5mbJ7nIuHHdvr+N+GtN
-# BFlog9Ih872b2s4yP95pYW7yyRQwJpbH+FHZmQp54/kkUgx1CGpKS8W4EDHTy77d
-# 28k8LB3w8JqDsTxjOwmDwKIDDGc3FPwnabpWFLzvK0xgqgKk/INcxuNR4Dtt05dU
-# 0RLGT5Y/C20L/rAhw4Sde9pmFN1NGV6Q6On8fRcTOtkhM1utx+ZvmhEYY8CgW491
-# 7zR3rHyUkLOWiHWa9qG7qNufvEdtUFhPTKHr09q56LqCStfF4zectVxa/2taqjmw
-# ra+IyWB3ydg870mbvfMyX5awX4HuoAK545XlWaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDIjBfkwqZD
+# zQGPLpnfcUgtHuLYNQ7yWrXHPGmq5qlj4DANBgkqhkiG9w0BAQEFAASCAgAr99MZ
+# SJbP/HEYSj6J8t1YCDKhuq4eMnYTg2NnmjU20fYJmsEd8ZOAS+eHoh5uUFNh+4c4
+# ow9MhnU1OQtLp2HQGzAMaWtIuNCgpQ09wuP6QiXBpZAX/S7KqgTPxlGNbWzo2rfc
+# 2m4YzZxYSV8xcMI+SaJPTqqNqh1QZKpxgT6uz8RlJeMG4gVUufeZi1W1gnJJqom2
+# D+VRfM9QqF3npGyM/6mt92SS2ba3qE23oAkAMLgWSV5kJT5qGZQ1n12UJaB+MdTo
+# 5O5b7DzxHREk3QVhIP7fcVG7tMx574k20DMmt0xuzedUWj8tYsZuerFYMovc1Ef/
+# zbur+3U5SvDGZbzXTP2IJvjqXa6m1cKzEseMjE5oE7HBMiGmVSonTifCxlUlOIvc
+# I7m0bHzh9JLHx4JLIzyRxzMBPXztv11OtbuCimS6g06BFYb5soSDUQIFL+IqfefA
+# NYm/8VrfNZ/HjtR8jMULsD7KpUE4t9ZjSG6b4k8p9TWhJ/bfwmfXIrJ0pRlOwTcj
+# J2qNW7Ux8tb8Xs/EI6udiLrZxNoKPeWicOWnFNk3pvGxb8WuNjgBuofs5kE/yAfh
+# Nxk2IA3vXcJFeT27cbPI2dFGZNR2SAj0/37FR47K2d1IQb/8amh1qqq3IAROMoqd
+# CMVu9jVLcoBIvUBdkZKnlPmgGc6wuQF+YX9wr6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjEwMDEwNDA1MTVaMC8GCSqGSIb3DQEJBDEiBCC+pqfk0d1bVZ157B1X
-# kbOq1NfygxqD1GqLUO8MKLohcTANBgkqhkiG9w0BAQEFAASCAgCVg1VaGDlkSUfB
-# yqjQgam8uc9Vu0o1CmoQgYuAP6OpE3VyUdxbrAV8V9BW9crivigfwLi3XlErEa1W
-# Cy779kJmdAid8Xf40i+9j9cZ1py4Ibvlgfn3zBcCVI6Iz4DT4yPCMJb8fvZagC2q
-# qJ07sDeeTaLdmmeMZyxWrD2t+aU03Wk2Ys7Y6wB1dPw5JcLfJezjvsimVBrIj0bF
-# 9PBbxo1ECNpz9UXESATaG9FZPMl7m9NsxtVuGynvZm1/QKmNxJy8CJRChP1OiBvT
-# TIaPpkMgiPE8nUOBU+Dn/LUUWY0CsloysOAQvlTnLUI6kqkROAqvoRdIou1C2Cbk
-# C7/ot0KD4lzYbzbnkyWqO3l271TuSRaFYe/dULaf0gti4hnv8XCiRkSlufvRBs3F
-# 70cz6upTJLNho8VoA3QmKww1EEsC64jqROOkvv5PwtA6P/tBleIKRbyyHIacb7V8
-# WDYVTy7VpvnMc30EkDwPmbUEm4thGvWEzM993kC9fzoaPLg9YJwsVYEn/r5eFSdc
-# UJbd3XrFi76VTJVXgbB3Bd+TKIeaaLOy9iKVftWdDQV6lsWEts9dp0rqAV77pNHZ
-# xoDdoqZmavZlwgro8vszzeajOWp+f5LcWIuwQwh6TO/Cf/i9pmsgDJWnFGumnHe+
-# YItQ/XLUzx8ZAU5Oiz0ciX1wwoqFbA==
+# BTEPFw0yNjEwMDIwMjIwNDBaMC8GCSqGSIb3DQEJBDEiBCBOEBOXLiJGUfQXtrwG
+# 2QBO9D+aruY6AczDf6poPT8tnjANBgkqhkiG9w0BAQEFAASCAgCnzg/2FcK3tRXw
+# a3yiAOcbt9wxi5k/rsK+Y6LBgfY+idYxaIysBfaJK5j0U+SIwdatWmHUf1nO2tT9
+# eD+Q0XNTABziWp32DYaMVfa2hJXF2hlRPV4gdqBAhjkbZdUlb4pW3QnDy8k6vFlo
+# oD2sXMc9YsfxquJiqkvUkRLMZ4oZilaot7Ge6lM271EMhzEquDYpAnf4WdYJUTUe
+# +z/bj9eoE7tNYBT7EYToPda0mUMT6nOrKUF5mKjqEEt5yBZu0lqvZvYSDHCmh7su
+# 94e9jng1PHW2bK+95pmZ2PbEvyiveqqOzS+hFO47zcwKJFCWe+Hds3TtZRV3ZsFc
+# /FzEuwBdZw9rH/zPUJT2KhrhElT2CfB3/q/2j+Qpf8VBdAhOdhDvfF2s19mKQ6pS
+# bs422okZGwY8koIrGMt1dcLL4IbujJMQHp2DTsb2i0LYcPkNYNvTPBQ1Jhr+QqHl
+# ZHqkpbyiseqwjz8oINy6DueqFJC6HfDxx2dQbpS6m7dQ2S1Pxr+0rvBUczpDOhGF
+# kn71WJqbNsOq8ApMTKfOxsyf70nFS2PAQxcVPaOYYqk402z2/eXhV4OhcLm2rAdv
+# 5sXrNxp28BOasz8NDRo/TIwfg8g7+uUKCb65uqhDSL7BjZ3+Mm5aNUGU4XmjiDd3
+# eJyLHFfxus72/y4JurcBA/OpASgThA==
 # SIG # End signature block

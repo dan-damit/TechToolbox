@@ -130,6 +130,28 @@ Describe "Invoke-TechAgent Prompt Preflight" {
         }
     }
 
+    It "Rejects generated PowerShell files that fail parser validation" {
+        InModuleScope TechToolbox {
+            $path = Join-Path $env:TEMP ('tt-agent-invalid-ps-' + [guid]::NewGuid().ToString('N') + '.ps1')
+            Set-Content -LiteralPath $path -Value @'
+[CmdletBinding()]
+param(
+    [string]$Name
+
+foreach ($item in 1..2) {
+    Write-Host $item
+}
+'@
+
+            $result = Test-TTAgentExpectedOutputFile -Path $path
+
+            $result.IsValid | Should -BeFalse
+            $result.Error | Should -Match 'Unexpected|Missing|parameter|closing|syntax'
+
+            Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+        }
+    }
+
     It "Normalizes recovered invalid-json envelope to finalAnswer text" {
         InModuleScope TechToolbox {
             $message = 'Agent returned invalid JSON twice. Last response: {"needsTool":false,"finalAnswer":"## Ready\nScript created.","reason":"done"}'
@@ -155,8 +177,8 @@ Describe "Invoke-TechAgent Prompt Preflight" {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCOm8PoVR123AHQ
-# NBhZBAgjop/6M3wYj8lhhIcXQbcHSKCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBjJL/9UFtc6KDI
+# g+H9vntXchdztfU9OlfB1FYfDDH87KCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -289,34 +311,34 @@ Describe "Invoke-TechAgent Prompt Preflight" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBigvapGfyH
-# fFhmQ1SuPgQoEXLF3hF3zSsoghApr/Ta2DANBgkqhkiG9w0BAQEFAASCAgBsp/8S
-# TPf2p8ZxBCv43S4hrmiEZvWnPNt4wakkeiyrv1iDM2tX/RGx4AsFitziWVDecrB2
-# vCkVdrIY7WXOAHIKFCe7o6Ds5DlpwDRTutbKvBsf40zir7Kv83JRzQGmoV5id3i2
-# ChlRJRR0HF2GSkaTYcQIKlarIA96/vgp32mQH0F6Y+DvGxIAYK46cHuFSCQKr3p2
-# xlDxG832lIx37kC+uOUHmN3m1gzqJLbuXvx4Lycz77X6IIZoPyMMuiaQ/K686WSs
-# +sZguc/mKlY+Retw6+eATixgQNY+gz6jG86k3OuoJLKuV4/CBr1v5FwiTSHczVuB
-# K1yHjq545ycfojZGavt5OHycGG/sYGRlQHbvfU9SI6i0yKWSgbaJNNV8xIdA9gX8
-# ngmn4Y5pc/GNdZB9Kh4jE4hircA4FqHfxhlayUxqmRsApjPIU9F7F3tyk9110Rwx
-# gcJAYNhJ+zOhk05S1N0wB7A86pnJkZ7HYxiMu4JOhOkbRQg2ToLvJFYWpy6/1cc+
-# Azzz06zMoXnRRIeFum1IJKJ72S/RNDDMRxDp6pISJNXc5rUkw/qzyQ5e4G+gBLDQ
-# uTXHYSBFc47Br7QQBvJrL2JSjwCD8XIt7zzwY8FoRgWrOCefpSY4Viy7CVsGa4B7
-# irHxeamaK6esNbyzBc7uzuyKaUmX5HqsGtayaKGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBUrGKA3Bic
+# HKGUhfIxcNjci2HJpTUHTMS88XnftWHlITANBgkqhkiG9w0BAQEFAASCAgBFL22P
+# u5mAmlzQjFk7xp9ZMHKbBqKnZkUKdjM0qJjngw/WRUvc23sCjpJNyfjhUcwWxhxK
+# 9TVlvT4w4dxQVZE7serfocqKWE95qIjFVNpbFcCnTcFky3qWnmu/Hfkjc2weMM1/
+# hYcJqbb6d8depQkLUVe4fiKu+vnFczlI1Gy7EaBspxQPG3XfedT6lrrmOZx1l+u+
+# +UjRFkew6W6rjBKFJCAHWHhj0aAqh1xy0yBlyp0dlH4BiK5yfAA2B2kMDqZx4BWD
+# uUBWz33SxK5QEw8YDZLxeT4bRJbn8pq87pp1vtYNyYClRoknW53k7ZTJ9TSFKLMY
+# rYfUAyqdu0HU5tpc0LYxwRp97GJcVWAgQq2r5lEdfRckPpW4RH2CjIbMfl9+z3iw
+# o0CPPONHVvMQekbCkepdvZYFOq2+Q5qZCJVh0WKkxjCDqNCdq5eEle/a3BX5v91F
+# 6vKqxeXQrJX30h6/+eez8jDN3rOUyzltUhIi56WyB9doutRvcUQCdq+eFfH8a4gp
+# hCeJdNFaSEm9PBKUzMjdq83iWibYL9fza+wCzXz7gMvfqYQhZGA4uLNw+5J8vnYk
+# iV0DPuqzBNPWrFt5uRwMLmAEUId50lOe3QmLTSACE9+35uvBR8h7gZTqU80zoPMQ
+# qD0ip0bGKvu92kKlwTpSgypb94Ba6ppLnihbiaGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTUwNDAwMTJaMC8GCSqGSIb3DQEJBDEiBCA2rRa2lPVwG5kAnd1q
-# naN6eGoTcsnq/mk7W2IqNFL9ozANBgkqhkiG9w0BAQEFAASCAgCvPyFV0PCsLVw/
-# XV8XAsK0Ip5nMwqVl+WHB1VajC1SxmNnq1Fh6R5A+JLoQ3PtyE1ihMxcWRRemNL0
-# /rMyd/aIFmTo4V/E1wqMdfB19pzBKjYVrXjJ0QRB+5pRgKcWzlXCLCGs4vd5wXRx
-# T1RmWGczYl1bBKC10XgBMxx+mzlv8+sAsvAOQ0s+cfC6qV8QyYRJlb4KRPrX+Z4d
-# fUzbvnVSSS/d9svteitgtvJJCk1RqGuvMGzMnK4LQg+eoqofyBfFw54lHe0Qfj0z
-# pMHDCwy+4KYeg41yRE4eTMjToVR61F6ukC2gbLVi/pztR2X9ygdOobzVKR4HzY33
-# 8ZgSYzNcyeeg5zsEYYOq1kBaKOuz8Wz7gPeS3/cBQyBL4cNX8bn/YlT+NK4MD4fK
-# D34N38arpCItdknEsssf4WazlP/UdcBn5FpZDE5yBIP2iSFBLtRSv3Moc60pBA7N
-# H4hGhRtf/nNPjj7d+1dnMtdoZzwaf61kCGi0g3GrkDLkVg+CNJZ71VOeV33vTHq9
-# 4PKCHRtJIGMNQIS8IeS7qdXdKWwijEpoYv5ex8RxxeQBmDIy3flw8bsrcfxfsnKe
-# u2Cq0+LTBQbE+jmoWNUENulCLICsYHhW6oACwp9rhkxqz2MdoM/IwuLdxhBWchkA
-# TQz7ISzpZMwaXBo9dzxZlwDMt1fm+g==
+# BTEPFw0yNjEwMDIwMjIwNDFaMC8GCSqGSIb3DQEJBDEiBCDh27vBMv5s8swgBo7j
+# iiG3ilwIRbdHKYJA6d1io6SWkTANBgkqhkiG9w0BAQEFAASCAgAeY04yAUIgJNtF
+# JTad/1b1Ys1WyXozU5WPimwODwNtLnsuxck7a/e7xqhU8bqIEYHpAaF9QZdZ13r5
+# W6oySsRC8piz4gVRFwDd2aJwR1cekfY7paZjn+4CNXPivBu+Fi0E0JKWypzusMFj
+# t74VpLGgzq6yG3f378caE+aIqPFMIj38wzfXIiDOLNe32JsboG5HfNVmBdbbhjW3
+# gWw91tRHUFXGgjgxPcuF7KQ8EPEFwUdaFUya3LcZWtOYX4LXdCTMXQ9TKbl6ehwm
+# z/dJ7O4fC/W+S71BC8RK/GlHoVfcTozaJvho2Dd6XdzXni7pYl505Be+WELrmnXd
+# hWsBUEcfS+YSlYt9kyxJ7+N9vSWJpNqWc3qBa00G+UgyUzu6dqI+wgOYoEtBUvba
+# 6o8u+9NZMZ6j26yWnZQMZQXDdhFetSUyQwxUQNJ+Pa3bgO9l+Zzbo0ugPOWMRu4O
+# 3goDU/+BRV/YavZqYT4dYFx5OfXRPnwpn9nPeSq3msRuxage/fJbuHSUquy6VLxI
+# 5IpdOicognXMVSsGDRu40nu9DFBoGRAJSJ+qPkULlLUJGVeR/vE4r8SUyk5J4z5o
+# 75tOHYtFp1dYZtJJWh8PogZ4vXlzbtFfWQyPSS+uoalBQ/n0o31UZPJLI2yf5qXl
+# Dv/91FbFS8/rumW5h3eQLAwCZkdOzA==
 # SIG # End signature block
