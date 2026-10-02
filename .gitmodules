@@ -2,3 +2,6 @@
 	path = src/TechToolbox.Agent
 	url = https://github.com/dan-damit/TechToolbox.Agent.git
 	branch = main
+[submodule "src/TechShell"]
+	path = src/TechShell
+	url = https://github.com/dan-damit/TechShell.git
