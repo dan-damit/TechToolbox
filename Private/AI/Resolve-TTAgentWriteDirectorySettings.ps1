@@ -1,105 +1,91 @@
-Describe 'Resolve-TTAgentMcpBearerSecret' {
-    BeforeAll {
-        Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
-    }
+function Resolve-TTAgentWriteDirectorySettings {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string[]]$WriteDirectory
+    )
 
-    BeforeEach {
-        [Environment]::SetEnvironmentVariable('TT_TEST_MCP_TOKEN', $null, 'Process')
-    }
+    $resolvedDirectories = [System.Collections.Generic.List[string]]::new()
+    $seenDirectories = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
-    It 'prefers process environment variable value over all other sources' {
-        InModuleScope TechToolbox {
-            [Environment]::SetEnvironmentVariable('TT_TEST_MCP_TOKEN', 'env-token', 'Process')
+    foreach ($candidate in @($WriteDirectory)) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
 
-            $secure = ConvertTo-SecureString -String 'dpapi-token' -AsPlainText -Force
-            $blob = ConvertFrom-SecureString -SecureString $secure
-            $cfg = @{ mcpSecretEncrypted = $blob }
-            $server = [pscustomobject]@{
-                name                          = 'demo'
-                credentialEnvironmentVariable = 'TT_TEST_MCP_TOKEN'
-                credentialSecretKeyName       = 'mcpSecretEncrypted'
-            }
+        $trimmedCandidate = $candidate.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmedCandidate)) {
+            continue
+        }
 
-            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject $cfg -ServerConfigObject $server
+        try {
+            $fullPath = [System.IO.Path]::GetFullPath($trimmedCandidate)
+        }
+        catch {
+            continue
+        }
 
-            $result.Key | Should -Be 'env-token'
-            $result.Source | Should -Be 'Environment:TT_TEST_MCP_TOKEN'
-            $result.Error | Should -BeNullOrEmpty
+        if ($seenDirectories.Add($fullPath)) {
+            $resolvedDirectories.Add($fullPath)
         }
     }
 
-    It 'uses encrypted override when environment variable is not present' {
-        InModuleScope TechToolbox {
-            $secure = ConvertTo-SecureString -String 'override-token' -AsPlainText -Force
-            $overrideBlob = ConvertFrom-SecureString -SecureString $secure
-            $server = [pscustomobject]@{
-                name                              = 'demo'
-                credentialEnvironmentVariable     = 'TT_TEST_MCP_TOKEN'
-                credentialSecretEncryptedOverride = $overrideBlob
+    if ($resolvedDirectories.Count -eq 0) {
+        $fallbackRoots = @(
+            $env:TT_AGENT_FILESYSTEM_ROOT,
+            $env:TT_AGENT_ALLOWED_PATH_ROOTS,
+            $env:TT_ModuleRoot,
+            $env:TT_Home,
+            (Get-Location).Path
+        )
+
+        foreach ($candidate in $fallbackRoots) {
+            if ([string]::IsNullOrWhiteSpace($candidate)) {
+                continue
             }
 
-            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject @{} -ServerConfigObject $server
+            foreach ($root in ($candidate -split [System.IO.Path]::PathSeparator)) {
+                $trimmedRoot = $root.Trim()
+                if ([string]::IsNullOrWhiteSpace($trimmedRoot)) {
+                    continue
+                }
 
-            $result.Key | Should -Be 'override-token'
-            $result.Source | Should -Be 'McpCredentialSecretEncryptedOverride'
-            $result.Error | Should -BeNullOrEmpty
+                try {
+                    $fullRoot = [System.IO.Path]::GetFullPath($trimmedRoot)
+                }
+                catch {
+                    continue
+                }
+
+                if ($seenDirectories.Add($fullRoot)) {
+                    $resolvedDirectories.Add($fullRoot)
+                }
+            }
         }
     }
 
-    It 'uses settings agent secret key when env and override are absent' {
-        InModuleScope TechToolbox {
-            $secure = ConvertTo-SecureString -String 'secret-key-token' -AsPlainText -Force
-            $blob = ConvertFrom-SecureString -SecureString $secure
-            $cfg = @{ mcpTavilyApiKeyEncrypted = $blob }
-            $server = [pscustomobject]@{
-                name                          = 'tavily'
-                credentialEnvironmentVariable = 'TT_TEST_MCP_TOKEN'
-                credentialSecretKeyName       = 'mcpTavilyApiKeyEncrypted'
-            }
-
-            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject $cfg -ServerConfigObject $server
-
-            $result.Key | Should -Be 'secret-key-token'
-            $result.Source | Should -Be 'DPAPI:settings.agent.mcpTavilyApiKeyEncrypted'
-            $result.Error | Should -BeNullOrEmpty
-        }
+    if ($resolvedDirectories.Count -eq 0) {
+        $currentRoot = [System.IO.Path]::GetFullPath((Get-Location).Path)
+        $resolvedDirectories.Add($currentRoot)
     }
 
-    It 'returns missing when no source is available' {
-        InModuleScope TechToolbox {
-            $server = [pscustomobject]@{
-                name                          = 'tavily'
-                credentialEnvironmentVariable = 'TT_TEST_MCP_TOKEN'
-            }
+    $filesystemRoot = $resolvedDirectories[0]
+    $allowedRoots = @($resolvedDirectories.ToArray())
+    $normalizedArguments = @('-y', '@modelcontextprotocol/server-filesystem') + $allowedRoots
 
-            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject @{} -ServerConfigObject $server
-
-            $result.Key | Should -BeNullOrEmpty
-            $result.Source | Should -Be 'Missing'
-            $result.Error | Should -BeNullOrEmpty
-        }
-    }
-
-    It 'returns explicit error when credentialEnvironmentVariable is absent' {
-        InModuleScope TechToolbox {
-            $server = [pscustomobject]@{
-                name = 'tavily'
-            }
-
-            $result = Resolve-TTAgentMcpBearerSecret -ConfigObject @{} -ServerConfigObject $server
-
-            $result.Key | Should -BeNullOrEmpty
-            $result.Source | Should -Be 'MissingEnvironmentVariableName'
-            $result.Error | Should -Match 'credentialEnvironmentVariable is required'
-        }
+    return [pscustomobject]@{
+        FilesystemRoot = $filesystemRoot
+        AllowedRoots = $allowedRoots
+        EnvironmentRoots = ([string]::Join([System.IO.Path]::PathSeparator, $allowedRoots))
+        Arguments = $normalizedArguments
     }
 }
 
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBB8d2ym/8GQfxI
-# dBNI4v4VWvUu5NgtOIEanbn186o8+aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBTU5t1PnTMRl/U
+# noRShqOzeXApD4OyF9dTbnBKiCbh46CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -232,34 +218,34 @@ Describe 'Resolve-TTAgentMcpBearerSecret' {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBUdMjfXVvp
-# 49Xlgl84P2ExutjzEiA58AfdM0pgh5EygDANBgkqhkiG9w0BAQEFAASCAgBHd9PD
-# 5TdCjhT9ZwsEJjrbtasi3TR+o43DGCu0s2bdw0Wd+VPGVwpoNt9LMfx885d1OreU
-# LJ2ug4i1XYERjzvyn+NL0DN24H197mKF7FVIzE6cecl2NEPmz9DyCwM58a3/Dd8v
-# Bpq9Vrfl9lpjnSjOoi7BZdqdJqz6AbwBDd8klpkn6wokc6/ftdHTMmkCZvLKz3NI
-# rl0f1ChBkUVB6n8QYOXO/8xrrT7Km8Ni63Xv/zEdpHU4fdaUL/l4nIb3JcSJxPbC
-# txBqUs07V6afNwjObjbbI8mFtz+2+EDF9qxcM9wWQQS9FMZxYPw6pSrISlgUIqTG
-# v6/RxDx1s+5fOd0zDv93FwlhBhKayGMh5TodQzdP5eC6OPXPaUapLVZOPfYZbN9Q
-# O6ttiytVK+aNw/Xy34Xc3XF+wBtXwm/uVsfzfu7jRgNjfBH6KS35jRzMx4ZP2NKS
-# yQmxrdAK3Q9yQv1md1UWY63//K6n8X+BobflY2wT43A8LyLmusq/P7qWzc3A8KK3
-# XXR0oPQjmguflaS0EHW4/tBnRRswFcaA2VOmiKtWoxocqnlMZCj2hgEovOMeFz+2
-# WO6rSYoumyp37jyzYJBd8RQax4ZtovE6sYi+OoBBsDQxcBWtnQFnNFlfeAgz8NjF
-# I8Ihn/q2x5P6Vq3LgqYi72AKHTxzMTOvKVYAb6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDu8q0LZfTT
+# wdG8+mknqHVurgHogV3kFYZ2s9Tu1hZoqTANBgkqhkiG9w0BAQEFAASCAgAhGUmw
+# dj+M570Z/sDuO94SGR/jg/OCG47WDepk8gixTTrKpCd/KId2Di6b60NN7iF2yLei
+# zkIP7D2G7o2mY4W02QFKWZMu9tIWPs429a+ev+BMocaJU5mFCyk9RGYsG3JYR9r8
+# aTUL+Pmqp14+IJXX0GFOh2J+QAgPkq1WwP63sNdt0Uvao1BWyNdQfZC0gEGXhs+Y
+# qd3R0jVDw8dL18yaaNSWi9Q/QYDf2VqZRJes2CWvqzYNQDZttlKVQt5jc0d+a1JI
+# 6XUJy/C7eC8ICBt2uw4hkMJ80HzYg9uqadQnLhvxqdhVkGRGWPDa69iERPFs2FvE
+# kgCeDi5WQiymPGXz5ahfE0Y+PJmEWWc+/Etm1iqccUIVRXfuasg6MrSLPYWmPjVl
+# 5vmKo7lOneOYlmwTviXxJDfd9LAM5Z2rkSMqsZEWiJ/Ol2DFXQXZhKAsFirTzXvQ
+# iYz7/3lQBblD9WvZdCwavAQulDLbV9fyjAHihMcLRK89IyBPe49de1ymInthTT9u
+# kU/zuA0Bnxu+gNuM4KcfUFuz7USbberbj89I9fJs+YGYKBoxnhu2lORlXf8DHt1l
+# C52Ig93hoYBExMPJW+E6KLLgSg/WUeOea/n0MeMOfbRfSmStdNZKFrH7fowhFSwo
+# O/5wlmgIIla6mGuwTAlvjpwdpPNLOk1p/eKTfKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjEwMDIwMzMwMTFaMC8GCSqGSIb3DQEJBDEiBCAMFfuPhrKDkTpMBRNN
-# aei0k7+gNe90WJT9FPtVQR7iujANBgkqhkiG9w0BAQEFAASCAgBvXyJgmlq8h7GC
-# CiKgyXh2z0xvbA/4eJhOCjIU//PvKoTsTJ6WdpihbOliQ6hD/DHCuBuf34mXjRKx
-# MUFb8IQ2vu6fzVHDzIskPggd2gUs7DlABkJpE86ORYTPbryNmH/j5rZUF/0UqQxc
-# 4AwIXxYjxZofCMIB772wH9afZBHjIpN9GiXAkW0W8hidjPcK/mbVfuod54lGqUtR
-# OfSnhO+QM24kNuDMiatXsA5jeGbh6G4bm3tN3N8mj4OZ9V9hwg33+qtHHXSM3pgb
-# h9t4d5Q9PUreWbtK74gMRae9Yj0bF9c7u0Hp0PBXsHAUXilyqDUvZBgYBKByfrew
-# /m0/Mfo2fEmZluN+0wAfvj239bp4LQPdbBnQKP1kPYTuMPqLKMetzeY+/8bRaFyv
-# 6CkRahVH6gaW2QenZpXmDh9JS6TAKs395Ys2/V0UFYaWv+R6Qu5JjAaK1dqHxz7X
-# gwJLudf+nMFUftYp5NrXpsUHi1ieNu7HjObM+NvmO5H0i8dtC0NN4RJT/mBcGa/E
-# s+MXc91WCrqOPjln8NgEPnkrgn68ntMUo8qI+EI4DySJebHnRr0rTQ6JueC9eb2y
-# 8uvVUNX+e62JHmOHIfTt6O+wj34+SUN1NLlYnAxZ/YoRdmHGsNw2BNOAjGr8wcbE
-# 6Cz6CLGeFRByjYaapESVkBzdNjhP9g==
+# BTEPFw0yNjEwMDIwMzMwMDlaMC8GCSqGSIb3DQEJBDEiBCAqYnZ+tW6dJc2+XOQK
+# QRLpL/mK+kzfHakkJd5YE9fnHzANBgkqhkiG9w0BAQEFAASCAgCH5YYQuq3ic2x0
+# /CzWCFp2DyrTYW3rrdpQO0VuTQqkwvLaQGmdq8qwG1OsGwi6OarTf4SAiPsTn18l
+# E9lM7IW2iu+NyUX6YCedq0GMjRq3Z1kvcRTQO6A164ryv7psafEx/GcflA/Di8rx
+# hSGXMSxY7Q1qMFQ3rlgbpknBNyjeXk5jj4HCQEBy4yHcQBcmamJLXsmCjDoBq+nQ
+# khpy5GCG5qgmfXDlAlPql/xBI3DZIw2V4GF1GvdfrP29VClt2IjobZ4B89GEVLKl
+# BcA+f56B4tbInWPHVP8iD+p5+C+yA/mXsQ5YiaD6p+dGuw8keBjqd09SbhPBRAZ9
+# 7CgxJSOqwaLynJ8AbUeUyVVNfttkVZVLNpDrQWyY0d8gorBIWil465ll0XtAi8q5
+# jqY4sw1A6OAopWoIgAfDv8FbrfudEe4gPDkuz1WQehzQVdxxeCcrvJBzYQXz/kj0
+# v33oVx9j4gN1Cxl2FKJ00pitipYHZG0480+HXfTK158NHEq6jEr3bKrrjV24HoF3
+# g6ZGQmuGpeM1HRQ01VStq6/v4f7XupEFc+49w9mmT5i9oNT1im+daOLVQj8AIjFT
+# gd/mlO/KxQykMtb1l/gyqfeN8DCyqPntmS/zES1zh+TgfUnRJKs8vkpr8S4eQbjC
+# lE0MBCnZLkBm+BK9SkCMX9C1h0Okkg==
 # SIG # End signature block

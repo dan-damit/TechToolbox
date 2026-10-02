@@ -12,6 +12,27 @@ Describe "TechToolbox Module" {
             $module = Get-Module -Name TechToolbox
             $module | Should -Not -BeNullOrEmpty
         }
+
+        It "Should default agent filesystem and allowed-path roots to the module root when no env override is set" {
+            $moduleRoot = $env:TT_ModuleRoot
+            $moduleRoot | Should -Not -BeNullOrEmpty
+
+            $agentFilesystemRoot = $env:TT_AGENT_FILESYSTEM_ROOT
+            $agentAllowedRoots = $env:TT_AGENT_ALLOWED_PATH_ROOTS
+
+            $agentFilesystemRoot | Should -Be $moduleRoot
+            $agentAllowedRoots | Should -Not -BeNullOrEmpty
+            ($agentAllowedRoots -split [System.IO.Path]::PathSeparator) | Should -Contain $moduleRoot
+        }
+
+        It "Should honor a callsite WriteDirectory override for filesystem access" {
+            InModuleScope TechToolbox {
+                $result = Resolve-TTAgentWriteDirectorySettings -WriteDirectory @('C:\Temp\Alpha', 'D:\Temp\Beta')
+                $result.FilesystemRoot | Should -Be 'C:\Temp\Alpha'
+                $result.AllowedRoots | Should -Contain 'C:\Temp\Alpha'
+                $result.AllowedRoots | Should -Contain 'D:\Temp\Beta'
+            }
+        }
     }
 
     Context "Exported Functions" {
@@ -105,19 +126,19 @@ Describe "TechToolbox Module" {
 
     Context "Domain admin credential secret shape" {
         It "does not retain the deprecated legacy plaintext username/password keys" {
-            $tempSecretsPath = Join-Path $TestDrive 'config.secrets.json'
-            @{
-                passwords = @{
-                    domainAdminCred = @{
-                        usernameEncrypted = ''
-                        passwordEncrypted = ''
-                        username = 'legacy-user'
-                        password = 'legacy-pass'
-                    }
-                }
-            } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $tempSecretsPath -Encoding UTF8
-
             InModuleScope TechToolbox {
+                $tempSecretsPath = Join-Path ([System.IO.Path]::GetTempPath()) ("config.secrets.{0}.json" -f [System.Guid]::NewGuid().ToString('N'))
+                @{
+                    passwords = @{
+                        domainAdminCred = @{
+                            usernameEncrypted = ''
+                            passwordEncrypted = ''
+                            username          = 'legacy-user'
+                            password          = 'legacy-pass'
+                        }
+                    }
+                } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $tempSecretsPath -Encoding UTF8
+
                 Mock Get-SecretsPath { $tempSecretsPath }
 
                 $secrets = Read-Secrets
@@ -132,8 +153,8 @@ Describe "TechToolbox Module" {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD/361qgRO32yIB
-# RLR5UGwmRN9c7qqYwgfR3EghGv+0GqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAYztfZzfdAZ/G0
+# aDU+ilHJmLpXILfFcletyku01GN+y6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -266,34 +287,34 @@ Describe "TechToolbox Module" {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCqqu0UPJVG
-# BhigTSF5KrqL1/VOFES5vGxtt1X5Pl6GAjANBgkqhkiG9w0BAQEFAASCAgAFtvH5
-# IgZaxYI6JQekj7rXs4aNNMrxa/v55N7NiJvPXYPE64sGvfxOy1QdKUEdyRSjfhmh
-# Od2hkHqe+cnd0PgGD5eaSSqFGmjNZbE0yIc8GXGYs5R65u4DtmVEntsu+TsFBXld
-# ndVxq+hVLXrwZN33fTsQ35KbAiUJmf9tDswIoyrvUoQenUMw6vgMyTQ5Gl5PD0Wd
-# MWXul8NwtZBNYIComQ7h5DPN2/4lIL0W8I+g/y4rS+kgLlvFVBUwrLnBwYxTYp+g
-# Bx3kOxbDCGIQXHvq4kyHJkwAMPj7OIOiTOAsQ/CWZNY4rTnQXV797FXvmprHcPdO
-# 40lsM7QZdPLl/MTM7IAwzQrFRHefiHNtQbZJaVoXsKBHaV3LPBgn/0iIY28kY5Gf
-# qx9Mzmj+WvnniO6ml7V10bWGSyn2UX9vltbytFTSRFlm8I6QChD1SY1knViNt+ry
-# 3XV6FpAloPTzKLN3nKIcGHk6/KiQMQwEvcHpPYL5VqYt4Ym4NH/TeBaZkUgcVeAX
-# /LZLiLuVkTGuKifLoVRO32SmTzdDtDTLgvTAAQmqg22npHw5uMte+hW00IVFob7u
-# AB3BGLkiTNHcP3/roPt/SVGOlTwGRrQ5dA7SC2carOUHgv0kbvSshXHD9gvv/5nw
-# csxDAjhrCFnZihO9VsybyFp5C+zXSDaC5wD8VaGCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDglARUpLFK
+# A6u4CWCQIbv/OyiRaj79ZGQt3B7Sc8hqZzANBgkqhkiG9w0BAQEFAASCAgCG0Mwu
+# SWC+IWN8QTJaqmcn6nbCR3DTxZO7vBim8gqdWRNME4kLCVSuNW4NJ44mstfM67LC
+# AtgJa1+K6p/GPOoB6XMfPV5twPe18WaEwgclLphIPEa0H8B/973+bazAVdEXphCQ
+# iG0qYsXuo+OWcqJlaJeR56YOVa3eBefudrSZ4th0+Ow8rDNdAloNdNj3IdnDyRQx
+# DD2LN/aWOc1H/8zpRPGh21MwKzXIeqxsm/8Ew+KK3PebGR5SAKFtL3t3LP1TTVpE
+# QMEMShGGKl6SWkphGVuLlNcFbzwcmaujq0TzT06dxM3U/s8fv6aEtKzGYg4GTpzy
+# 8dMMVj//wcphwg89lHavlbUZe6p1jvix8l37PFP44iBhB+EtYGZQrCjDVSwFVgv3
+# 1QSp5k0BKn9AZvk3ZEzHfkAgSdZC7rYwq0L1OcaV8oIyCCcS2s/SnsXRipoAHfPp
+# e9G+r+VHHCIoK9YMODsamd4Cnbhjrn9ihZDTWl3ISk1OoM+5Np01WtlvOcNVcN+g
+# 3m07ycJ0i+slPxCq1+ujkyCAHl3xtn3KoA3QYkETwYx9idR49MOl5dii2to+lFqi
+# QyVLCGI4cwx+LQoRF6IS/tCnYjV/TElXaOR0E1zGAmrkDIbo7Bif/cL7rStflEhZ
+# DJscm37ViNjMSZKDZLgerll3q1/d2M8/9PqBTKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MzAxODI1NDhaMC8GCSqGSIb3DQEJBDEiBCAo2/lamso/NpmVhklj
-# SZOK7Sc0nLfhFz7TlE63utFnCjANBgkqhkiG9w0BAQEFAASCAgAr1BmW4R/XCkJW
-# 48MAtTBb4cxqhzi6bEvoYdww5c5nREjxBcOyC6nnEag1Cwf4QlGoPD+D3hIo5+eo
-# qYVwtPWgeRC8osFpzrqpvTHKt5MnJHFEqTwHWfqRt5BqDvNRrik/QOZ1Qh+XI3Bc
-# RdyNQgndVzVqoOrVDoRZdLNNocOBfQLLQj5qJd86tt9rBTlPynNSNfiiG3n91tUJ
-# BkRhosYMZceIpWYFfYsrdx7nA/bm+sP50zgTIDKYcWKkM6KPDsSQhZgwjKVhPenP
-# 1UAjnY17UI3kCSPCjBPclopIFDsSRXJ4BbVUdXfI/CEXxIuO0c7aMW7eOJAdBOmC
-# 5Z0bWq8rotrLc5A8R0BwG6EMMyhGwOFkuKuoXpzlBhzl+HRPqEJ2dT3BsJv0wOAd
-# y3EbVEoW2f9nvQEe90opOrdgulN2eLyB4jL65ivPV80igy2YWG415Z/o51LaonZp
-# u7wLT1VoRPtCRR1AjwWRle0RQc/sq0yPuCkQKJgd1Ye2LSwZGgAFFgSZxAzFzGjm
-# uj70wks0gCXMpxgHHd+Ous4viOrkwcumYzTA4uJfwzsjLzuW5LUmnGKh1aByqVAY
-# QuzmaD+TPWyZFGOpokMPsN/r9CUbxt90bjD4Hjb56cVb5dLkZ0lPVMIJfAsUeDUc
-# d1nplllPN/cLcOIqsbki9ESkjTS58w==
+# BTEPFw0yNjEwMDIwMzMwMTFaMC8GCSqGSIb3DQEJBDEiBCAzbwOqQbzPC+R01C7Z
+# uVv6024ZgFve5IXQU4W26H9najANBgkqhkiG9w0BAQEFAASCAgAGiDHrmsdMlGpD
+# 8HPLEHRDSSH4BGZLWTKBOpGb3SUZxbPJgCDLWA1LHepxipgYIfksPGs98YrBQbLm
+# zxMuVCp9x1JLBK5rRA+W+FwzE4YMmi6Y2xHz68KmNn/Psl6sKmK9n/j5RbwhSHks
+# 2pmo540oxSrLuSRwonBqFuOeV0Wfzr71Yd/l4QRvLAIDDRgdM0zBvZPAjV+YO8Tp
+# kauAjEwJ/kZEAlSyJBXtkhmgfC7JZ7EaqYgbYYcFLdGTr48w66g7NT1hbOC12+OA
+# sI+wiEMc07P6XTzgbVYzf5fPS72Nu5nfpEDK3E4cTGmmhRGEczycfld8TEe1cfLD
+# S1lyzg39bjeMQ4jRZ1ximpm7W7CqE8OxM65K3KiX3JSBRkaOg66g/l/RqR1PHyxg
+# 8uEvLtAOt7GBVQ176C+r2W4pCfyXYoWZJHAhn2Qo4Y6NIQPHN7v8lkBLTcl8pyR7
+# IdbGqBDBHsyGkWoYfiRH/Tyt1DIlEu/ep1d98dIP7yKOXdXkw/snS80ButmSONTp
+# LApye3m47U4aUbaH8AiqhWYy84OeGgPt7c9lh7SlW34QErarMGmcgOyGilajqE73
+# a9OL6UOqYDnMa2vpY8ka3fUpSiNLkuiBVrvmq1qDT7Np8u7bfK7+/zKwVPTr21WM
+# L5aNuJ6J6SmMAf+3ykTATMd2WBM3uw==
 # SIG # End signature block

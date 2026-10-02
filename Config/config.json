@@ -276,7 +276,7 @@
             "transport": "Stdio",
             "command": "dotnet",
             "arguments": [
-              "src\\TechToolbox.Agent\\TechToolbox.LocalMcpAdapter\\bin\\Release\\net8.0\\TechToolbox.LocalMcpAdapter.dll",
+              "%TT_AGENT_LOCAL_MCP_ADAPTER_PATH%",
               "--server-name",
               "techtoolbox-local",
               "--module-name",
@@ -334,7 +334,7 @@
             "arguments": [
               "-y",
               "@modelcontextprotocol/server-filesystem",
-              "C:\\repos\\TechToolbox"
+              "%TT_AGENT_FILESYSTEM_ROOT%"
             ],
             "authMode": "None",
             "namespacePrefix": "filesystem",

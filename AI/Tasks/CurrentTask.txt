@@ -1,17 +1,18 @@
-Primary input file:
+Read the file located at the directory:
 C:\repos\TechToolbox\Public\Start_Stop\Get-NewPSRemoteSession.ps1
 
 Task:
-Write a detailed PowerShell `about_Get-NewPSRemoteSession.help.txt` help document for the source command or script.
+Write a markdown document for the topic described below.
 
 Requirements:
 - Create the output file at this exact path:
-  C:\repos\TechToolbox\en-US\Get-NewPSRemoteSession.help.txt
-- Follow the structure and tone of other help files in the same help directory when they exist.
-- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.
-- Do not use markdown formatting unless the existing help files in that directory already do.
-- Use WRITE-FILE to create or update the output help file.
-- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
+  C:\repos\TechToolbox-Docs\Get-NewPSRemoteSession.md
+- Use accurate technical details based on the source inputs.
+- Structure the document for fast scanning with concise headings and examples when useful.
+- Keep the tone practical and specific to this repository or scenario.
+- Use the active file-write MCP tool(s) to create or update the markdown document.
+- If output must be chunked, use the active file-write MCP tool(s) on the same path and finalize the write before finalAnswer.
+- Do not rely on the removed primitive built-ins; use the current MCP-backed file tools only.
 - Do not stop after analysis.
 - Do not summarize your plan before editing.
 - Do not return a final answer until the file update has succeeded.

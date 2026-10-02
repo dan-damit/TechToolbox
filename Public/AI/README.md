@@ -27,7 +27,7 @@ Enable it in `Config\config.json` by setting the `techtoolbox-local` entry to `e
   "transport": "Stdio",
   "command": "dotnet",
   "arguments": [
-    "src\\TechToolbox.Agent\\TechToolbox.LocalMcpAdapter\\bin\\Release\\net8.0\\TechToolbox.LocalMcpAdapter.dll",
+    "%TT_AGENT_LOCAL_MCP_ADAPTER_PATH%",
     "--server-name",
     "techtoolbox-local",
     "--module-name",

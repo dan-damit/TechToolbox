@@ -11,16 +11,30 @@ function Test-TechAgentLocalMcpAdapter {
         [string]$ModuleName = 'TechToolbox'
     )
 
-    $repoRoot = Split-Path -Parent $PSScriptRoot
-    $repoRoot = Split-Path -Parent $repoRoot
-    $adapterDll = Join-Path $repoRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\TechToolbox.LocalMcpAdapter.dll'
+    $moduleRoot = Get-ModuleRoot
+    $adapterCandidates = @(
+        $env:TT_AGENT_LOCAL_MCP_ADAPTER_PATH,
+        (Join-Path $moduleRoot 'AgentRuntime\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.dll'),
+        (Join-Path $moduleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\publish\TechToolbox.LocalMcpAdapter.dll'),
+        (Join-Path $moduleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\TechToolbox.LocalMcpAdapter.dll')
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+    $adapterDll = $adapterCandidates |
+        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+        Select-Object -First 1
 
     if (-not (Test-Path -LiteralPath $adapterDll -PathType Leaf)) {
-        $project = Join-Path $repoRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.csproj'
+        $project = Join-Path $moduleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.csproj'
+        if (-not (Test-Path -LiteralPath $project -PathType Leaf)) {
+            throw 'Local MCP adapter runtime not found. Install the packaged AgentRuntime or build src\\TechToolbox.Agent\\TechToolbox.LocalMcpAdapter.'
+        }
+
         & dotnet build $project -c Release | Out-Null
         if ($LASTEXITCODE -ne 0) {
             throw 'Local MCP adapter failed to build.'
         }
+
+        $adapterDll = (Join-Path $moduleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\TechToolbox.LocalMcpAdapter.dll')
     }
 
     $payload = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
@@ -68,8 +82,8 @@ function Test-TechAgentLocalMcpAdapter {
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDJW1UGYBQ1wV//
-# ZYacrYxBazqr3lFhP1cMmWGuV5kkF6CCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAnFbVr2LogsZxi
+# jL9+y9iBRTPUSfRMx9kH8dwYU4rFIqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -202,34 +216,34 @@ function Test-TechAgentLocalMcpAdapter {
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBxOrwjN7Br
-# TIhtA9vX7JTLvhXjW3A4QUAZjA8arGtzxTANBgkqhkiG9w0BAQEFAASCAgCj+WlB
-# U3n6a2vZPrYVcloGx6vHUBZ5PPhuwKt/k1YuMRzUc+A1vLWMI2zGV2/ZMTYbgD+G
-# N4uogZmzGH0xj/O93kVM0IOwDJGb75fFmo1GNSmo1buRCDy3U3Curfedg1pI+IHD
-# gtR9zePDmAklOC/N1iw8KDR5K83uavYgngAX+9GYrfOvcDAbCNEmd8TjRy7UHu46
-# afXiF0xElLz4X6Qn9LshbYns000raM0kXfbfnG5sGmN9ljiNEmLhuxn2o4SuVBDQ
-# S0ejkBpwEwrH94mhfQKtRk+7WUXHn9VokZ5Fvot49sFgRQ0iZeyQFPMIW8wIhvZU
-# MIZSI4k3llwgxmYGYNZvCZzt10X5LlkUV0kIANTnLwXQjshpGuyztpOXPSL5CJve
-# uXgUeXrR+XzYYhtz2UGYE91+SZJlaKn4KZ2FJBsaSgE0dMfE5X+HQmBJrLD0x7Wk
-# lqSbe5hszRjPaWjBtu8s4xxSpUBwqutFnfCL73r3mdfzBbA3JNJfKHedm8dvbVDU
-# 0htb47fxBTJOKmXcZ5RMOY0ESWw1QoH+XXVqhzi71ocCkFGotvcOgD9Q/KLX6hts
-# SmjI2NDN+YOP3WYChEhhNp4W8eLHAaPK3gE+0iyLRX6dqzBu0Ctgpe65ht0UQ2Pz
-# Whe1FH0qA80Fh9+LRK1qGBZ2xIoLoN8sOo/d/6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAwyZ5GToMt
+# 8WUwtWhcALUNrL645Jt8soldIdfHeAu/ljANBgkqhkiG9w0BAQEFAASCAgBaIUcr
+# pp4HhYAwM3kpA9Scpg0IuOjLqxC9E5gbjH+qci7WiT/BVQX+IFT/ziAS1LnHDStQ
+# qwNPgWAfdUpRJH0YrgxKQI5DY6rC9QfxYCys7hCJtceff4JfJoHz7HG4OWvCxh51
+# aa+7s/lavQNLUMNPVHm5ITL7Y2gFt5/k+9IPzpwZfBVnWqA6uFUlWnwbyM2aLuzM
+# ZDCBNeHjoC1zHs/Nj7IJiw1G7aqERKNsTirAtzXDA5nUVVPJ7MFCM6tfNdUs0CSM
+# eFQXsfxjRHAGcDiTJAXdIotbn6zNCJ7oc7BOQVYPhqXRFfzDqYIV7WBYjB4b7o32
+# NN2Ddb/C80UK8wFORW/maM1GhOhBTEN8JzLYWvGOYb85L8/FOvzjUTcviHWEZRtW
+# fH1VyhWu9IKoyxxCgRyct/C/FsNGbnMLMC/Lry/19cGAQIfkOOrgfPa1HO0eIcts
+# 0GK6FSodpdfKqoxrmtDYsa/LSUByezuwrKz5PlQex3TH8M5dp2S2GQW70F3/AJiS
+# wZvVoi+lI3/mdzIeOjzvidAliazGgmIl4mEVKTSuktbp4IjlsmWDySWg7f3xTeaf
+# mmM8W7cdN8wsQ6UHDikQCLHF05fJ18Co1debG4B5r/2oySyErhhg+43FmDWVjmzg
+# WvY7ONeCEMlfmIWEupQUme6pWd91cbpSZboeGKGCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjA5MTgyMTE4MDFaMC8GCSqGSIb3DQEJBDEiBCDBevaR/Hx5X8yes4QU
-# XyR54TdHhM8tTCAV8gGeRbui6TANBgkqhkiG9w0BAQEFAASCAgCupRbzQzu+9Q3v
-# xAaxgn5u0zwjW53o87Llg8ke4cEelUC2Na4bcETUU6hingDHSEgba6eG8eBliP2z
-# i0G0gv3Zp5EL78NN4r09M58CLvF/Y1FJtNQUiYYHHK/d4A49dAnm3yoHjb/RgJ3P
-# fW1ASWz331BcxVNCG6OGlyBAnRn6vd9VUEUHmXeN9hvyyeeF69ip/OeLjH8Ny5i2
-# gGcazAvKwdbqK647BwXYd3yz3jmh0HlCdA7geryhTlBjaq8pfWuw3UtGaMU2hFoK
-# 66l4VhDirEx/FC+cXBU92umUmvCrgHWHAE7fO8uFaM70X+Q9/Z9kKwzujyNU7HTM
-# D1S3a6EwkNdIFOnrIiu/XhVbWEycre/5BI96aOldl//tN4JrGwI+E1T3WblK/+2v
-# r3Wb4e5tBochODqnZqeFUIf6dbMX22RkFGN5IVhBUzlgpdZ6v7SoXLEnImA6eKZz
-# tC7unsplqD1RiFN883GPum8NlcDxo2cw6L3vJDi2+FiwAeO89hn03cayqcYh3MCe
-# xG+vQr6/mjb9gja9kkT0hplipzMZBLJL0SMn/+FBswhKDHTfAqsEpAn/xucqPGW8
-# /t26818A7ylx6ck1AhzTzqi9G/PszOm1s4d8Lr4se1cxiqUlL3Cp6/WvogbHIinr
-# uM/FqI7ox1hC7OgWIrQbM3Oowke2Iw==
+# BTEPFw0yNjEwMDIwMzQxMzlaMC8GCSqGSIb3DQEJBDEiBCBEgx6/2qxiSZyoTWNs
+# WrdjjpH72OML8f1jI8W/PXW1BDANBgkqhkiG9w0BAQEFAASCAgCDnVoepMW3vM6T
+# TpIlDaGjXsIUoJsByxpsf+dxnurgx6ytGVC9oAHx611CjEPjFkH033oe28PU890H
+# U7mhQUGOydfguTWjqF9NPxs9ZNh40PflaM3C1qKvdS4SkNSTJcCH62hZsxQoB+nZ
+# 1zgLB167JxC+Ua7/s+pVTrzg8O5nvtUlUUMt4zNvbdSbtQnZW2u2UIRWZnddyzFD
+# zNAdOZJgO2YcWZV40RVp3mOwXbxTpCLFoQczhoyolepew9HQeT5oRGSqcgtgQJUt
+# A7ZiQhuPy6Eg/vgJGQnjZ9HyKcgIxrN9HT939DQB11K6mXo+fvHbMRvqkhrNpRCT
+# j7IDamJ57qAAPHGJmatYu4VqxAjVmg2Nd3nMKl4/gcJD34TiNLL2Kpee6uYO5+vo
+# f/zzNyEZu9o2DFaMdGiyNiqHENF+86N7Hx7Jh7oWQaOcPOl0vzqq7hDtnrYyT/88
+# 2DHA6SBa3x9Ug9ayimMVCY74UsOJN8RT1igJjgGUvnigJnxxNwld85zyChG2rHXU
+# qK8Rxr6AEC/xmrJ461VEUhTJB+iCSAXIsiXljVnlxzS2K6LdU6vpNVUC8psaDA1F
+# WhhDsJq+SNWU3xD0wms+WM6b+1fIBtrdYKjszdwfyEEY2ArnlwSex1azmrylhWA8
+# Ua3YxoXN5ppkYLVQswMTqCKxUTdEGA==
 # SIG # End signature block

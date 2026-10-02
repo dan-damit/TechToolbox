@@ -292,6 +292,9 @@ function Invoke-TechAgent {
         [switch]$AllowMetaTools,
 
         [Parameter()]
+        [string[]]$WriteDirectory,
+
+        [Parameter()]
         [pscredential]$ToolCredential,
 
         [Parameter()]
@@ -331,6 +334,12 @@ function Invoke-TechAgent {
     }
 
     $resolvedMaxIterations = [Math]::Max(1, [Math]::Min(500, $resolvedMaxIterations))
+
+    $resolvedWriteDirectorySettings = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
+    if ($PSBoundParameters.ContainsKey('WriteDirectory') -and $resolvedWriteDirectorySettings.AllowedRoots.Count -gt 0) {
+        $env:TT_AGENT_FILESYSTEM_ROOT = $resolvedWriteDirectorySettings.FilesystemRoot
+        $env:TT_AGENT_ALLOWED_PATH_ROOTS = $resolvedWriteDirectorySettings.EnvironmentRoots
+    }
 
     [int]$resolvedOrchestratorRunDeadlineSeconds = 600
     $orchestratorRunDeadlineValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'orchestratorRunDeadlineSeconds'
@@ -1291,6 +1300,11 @@ Hard requirement:
                     }
                 }
 
+                if ($serverClone.name -eq 'filesystem') {
+                    $filesystemWriteSettings = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
+                    $serverClone.arguments = $filesystemWriteSettings.Arguments
+                }
+
                 $normalizedMcpServersForChild += $serverClone
             }
 
@@ -1869,7 +1883,16 @@ $result = $runAgentMethod.Invoke($null, @(
             }
         }
         else {
-            & $addAllowedRoot -Candidate (Get-Location).Path
+            $defaultAllowedRoots = @()
+            foreach ($candidate in @($env:TT_ModuleRoot, $env:TT_Home, (Get-Location).Path)) {
+                if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+                    $defaultAllowedRoots += $candidate
+                }
+            }
+
+            foreach ($root in ($defaultAllowedRoots | Select-Object -Unique)) {
+                & $addAllowedRoot -Candidate $root
+            }
         }
 
         if (-not [string]::IsNullOrWhiteSpace($expectedOutputPath)) {
@@ -1884,8 +1907,16 @@ $result = $runAgentMethod.Invoke($null, @(
             }
         }
 
+        $effectiveWriteDirectoryPolicy = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
+        foreach ($root in $effectiveWriteDirectoryPolicy.AllowedRoots) {
+            & $addAllowedRoot -Candidate $root
+        }
+
         if ($allowedRoots.Count -gt 0) {
             $startInfo.Environment['TT_AGENT_ALLOWED_PATH_ROOTS'] = [string]::Join([System.IO.Path]::PathSeparator, $allowedRoots)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($effectiveWriteDirectoryPolicy.FilesystemRoot)) {
+            $startInfo.Environment['TT_AGENT_FILESYSTEM_ROOT'] = $effectiveWriteDirectoryPolicy.FilesystemRoot
         }
 
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
@@ -2534,8 +2565,8 @@ $result = $runAgentMethod.Invoke($null, @(
 # SIG # Begin signature block
 # MIIfAgYJKoZIhvcNAQcCoIIe8zCCHu8CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCgVLGdnC+tiwHJ
-# Z3/NxhN7g/vyriCKxRE9G4g8KypprqCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBxMMywF1knY4Is
+# xDmMkNxpS0iF9zP0SbxuwX9whr1n2aCCGEowggUMMIIC9KADAgECAhAR+U4xG7FH
 # qkyqS9NIt7l5MA0GCSqGSIb3DQEBCwUAMB4xHDAaBgNVBAMME1ZBRFRFSyBDb2Rl
 # IFNpZ25pbmcwHhcNMjUxMjE5MTk1NDIxWhcNMjYxMjE5MjAwNDIxWjAeMRwwGgYD
 # VQQDDBNWQURURUsgQ29kZSBTaWduaW5nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
@@ -2668,34 +2699,34 @@ $result = $runAgentMethod.Invoke($null, @(
 # QPT9gzGCBg4wggYKAgEBMDIwHjEcMBoGA1UEAwwTVkFEVEVLIENvZGUgU2lnbmlu
 # ZwIQEflOMRuxR6pMqkvTSLe5eTANBglghkgBZQMEAgEFAKCBhDAYBgorBgEEAYI3
 # AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisG
-# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDIjBfkwqZD
-# zQGPLpnfcUgtHuLYNQ7yWrXHPGmq5qlj4DANBgkqhkiG9w0BAQEFAASCAgAr99MZ
-# SJbP/HEYSj6J8t1YCDKhuq4eMnYTg2NnmjU20fYJmsEd8ZOAS+eHoh5uUFNh+4c4
-# ow9MhnU1OQtLp2HQGzAMaWtIuNCgpQ09wuP6QiXBpZAX/S7KqgTPxlGNbWzo2rfc
-# 2m4YzZxYSV8xcMI+SaJPTqqNqh1QZKpxgT6uz8RlJeMG4gVUufeZi1W1gnJJqom2
-# D+VRfM9QqF3npGyM/6mt92SS2ba3qE23oAkAMLgWSV5kJT5qGZQ1n12UJaB+MdTo
-# 5O5b7DzxHREk3QVhIP7fcVG7tMx574k20DMmt0xuzedUWj8tYsZuerFYMovc1Ef/
-# zbur+3U5SvDGZbzXTP2IJvjqXa6m1cKzEseMjE5oE7HBMiGmVSonTifCxlUlOIvc
-# I7m0bHzh9JLHx4JLIzyRxzMBPXztv11OtbuCimS6g06BFYb5soSDUQIFL+IqfefA
-# NYm/8VrfNZ/HjtR8jMULsD7KpUE4t9ZjSG6b4k8p9TWhJ/bfwmfXIrJ0pRlOwTcj
-# J2qNW7Ux8tb8Xs/EI6udiLrZxNoKPeWicOWnFNk3pvGxb8WuNjgBuofs5kE/yAfh
-# Nxk2IA3vXcJFeT27cbPI2dFGZNR2SAj0/37FR47K2d1IQb/8amh1qqq3IAROMoqd
-# CMVu9jVLcoBIvUBdkZKnlPmgGc6wuQF+YX9wr6GCAyYwggMiBgkqhkiG9w0BCQYx
+# AQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAcCTWIqmKT
+# 2KvaBqDQxGnFVFOfR9VZpFf8lTVxLm7MhzANBgkqhkiG9w0BAQEFAASCAgBK8bBU
+# 8MhN7MFvPOI3UB/4pwES7WS9Q+6APSXMmvrWaeJ3nFBiOmUEqw4OVhaM9nOFgaU0
+# CdLxdfKm9qMbVqOBJGtV23qJajlqFwduMfx8fORTrP+krTweSDNBsYof97tbNEdG
+# pKxZ3MMe9toxarJFbuBhICvjd+MyoHL7uVpVMIckKdnD81ayo1Jqe8Joe04wtR/k
+# 2yOJXCDjo57QOcDCUBTjmi05JP/7MOqLuuPcNP4gdtt399MPpx5UaS5f8BB3Pc9E
+# lurFiQJxbN7YXWCbO9ac4CVI0wj3IIB0nw2iDRiykYoUe42JSBa72SSdB3Z0OkSq
+# jsDaH8wUTndAoigN2IDRv44Fj2JlLYHiC+kGKvLUB0cuF7wvpuRYAIoO6zjtAO8+
+# PuK9bypxPnolULtiMbtkxHBDtsnF2MXVAsduFEkvDj+JSCan7tsPMEcI/CIbpOR1
+# xJ5E2waDKQZyBEMxcPCXoVm4B3SmVHNAU9VpBqlJ/U7Bf26TXphA+nILNnldwfdL
+# x+58hzw5xi6qnb0BJcIy3DYacWeoFg1DcAXDW0CiwcWAzBAX6pgLqRK5FeUuQ6nr
+# Vzvt7EVV8nQYv3r9fnNXas00x3en8X5W43Wsscl/k+hET/p+XsjOlMkK9utZ7M4/
+# YWUlzMS+RFRGsJeQenUQ4eJnfrp3xA/DKQuzS6GCAyYwggMiBgkqhkiG9w0BCQYx
 # ggMTMIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwg
 # SW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcg
 # UlNBNDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZI
 # AWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-# BTEPFw0yNjEwMDIwMjIwNDBaMC8GCSqGSIb3DQEJBDEiBCBOEBOXLiJGUfQXtrwG
-# 2QBO9D+aruY6AczDf6poPT8tnjANBgkqhkiG9w0BAQEFAASCAgCnzg/2FcK3tRXw
-# a3yiAOcbt9wxi5k/rsK+Y6LBgfY+idYxaIysBfaJK5j0U+SIwdatWmHUf1nO2tT9
-# eD+Q0XNTABziWp32DYaMVfa2hJXF2hlRPV4gdqBAhjkbZdUlb4pW3QnDy8k6vFlo
-# oD2sXMc9YsfxquJiqkvUkRLMZ4oZilaot7Ge6lM271EMhzEquDYpAnf4WdYJUTUe
-# +z/bj9eoE7tNYBT7EYToPda0mUMT6nOrKUF5mKjqEEt5yBZu0lqvZvYSDHCmh7su
-# 94e9jng1PHW2bK+95pmZ2PbEvyiveqqOzS+hFO47zcwKJFCWe+Hds3TtZRV3ZsFc
-# /FzEuwBdZw9rH/zPUJT2KhrhElT2CfB3/q/2j+Qpf8VBdAhOdhDvfF2s19mKQ6pS
-# bs422okZGwY8koIrGMt1dcLL4IbujJMQHp2DTsb2i0LYcPkNYNvTPBQ1Jhr+QqHl
-# ZHqkpbyiseqwjz8oINy6DueqFJC6HfDxx2dQbpS6m7dQ2S1Pxr+0rvBUczpDOhGF
-# kn71WJqbNsOq8ApMTKfOxsyf70nFS2PAQxcVPaOYYqk402z2/eXhV4OhcLm2rAdv
-# 5sXrNxp28BOasz8NDRo/TIwfg8g7+uUKCb65uqhDSL7BjZ3+Mm5aNUGU4XmjiDd3
-# eJyLHFfxus72/y4JurcBA/OpASgThA==
+# BTEPFw0yNjEwMDIwMzMwMTBaMC8GCSqGSIb3DQEJBDEiBCCKui3BbKlvNfcazbsT
+# ZEYh1aavv1sS8BmG13vAXBYZwTANBgkqhkiG9w0BAQEFAASCAgB0E5f3A0bud1IM
+# PsnHAkAQagaPS2/PDIT8J7FCWRIrUAcSQhxLiklLiImvNWo+bK0xGvL7axlszwIY
+# biUKOvaW7MG6KqUQReg1gLnyjmtvXtqGJT+9iwP67Ok7p/JEUaZEB5l2GBs148WL
+# ug2GvlxfGVhV2APw2Q8i4TNYKs+hh0zk4wXDmG0TCxz4boPL1F/Q4Npln8ADzZzW
+# QOS7/vTNXu5WGHJN7iboCYCRDLscgF/l/rgJjOO+wPiW/BwUs9ZrKIqtRDBaJXWz
+# 4XjWKWKf03kC724M5oDXzVoTETKCawnkRfRVzjOfgV8xOqH6ynuDQd1QJyquspYQ
+# g4PRBYt8+Hg+rnHdgTs2YioAjgC+SHRrU4OSDsF2VCnUM8kiQ1QzoHZuhbm0uAZx
+# +rGQs6/e2VcVW82TS4+nqNO2xn5l2YOI1+k/Da5W3gsCsDiimxwyrf3zOlkENGoC
+# 84rbHaCG82WOJ2GLxSovH/1wiBo48W943TILUL6G0UbsDSyRhMJ9hV+T8ntsDGPV
+# a0b+KlrhpHIS1fE4FaEF2V4UkTS5i+t3qu4OkdpOtAhDYuwtYtDYDTksvjRcka7a
+# hZJ+o8JuWvMqSDeTyVVQYWvDQGbNZPqYYHYUIensu7CYIPbe9/LSbgyIEdpgqp0T
+# 2OLYoP3wgwwb3W4XiJg+sNv6Rj2BSg==
 # SIG # End signature block

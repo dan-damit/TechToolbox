@@ -1,0 +1,71 @@
+help about_Get-NewPSRemoteSession
+online version https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_Remote
+
+TOPIC
+    about_Get-NewPSRemoteSession
+
+SHORT DESCRIPTION
+    Lists available PSSessions, displays a summary, and selects the first session.
+
+LONG DESCRIPTION
+    The Get-NewPSRemoteSession function gets the PSSession objects available in
+    the current runspace by calling Get-PSSession. When sessions are found, it
+    writes a summary table to the host with each session's Id, Name,
+    ComputerName, ConfigurationName, State, and Availability.
+
+    The function then selects the first session returned by Get-PSSession,
+    stores that PSSession in $script:ActivePSSession, writes an informational
+    log message, and returns the selected PSSession to the pipeline. The summary
+    table is displayed with Format-Table and Out-Host; it is not the function's
+    pipeline output.
+
+    If no PSSessions are available, the function logs a warning through
+    Write-Log and returns without a session object.
+
+PARAMETERS
+    None. This function does not accept parameters.
+
+INPUTS
+    None. This function does not accept pipeline input.
+
+OUTPUTS
+    System.Management.Automation.Runspaces.PSSession
+        The first PSSession returned by Get-PSSession, when one is available.
+        The function also displays a summary table to the host; that table is
+        not returned as pipeline output.
+
+EXAMPLES
+    Example 1: List sessions and return the selected session
+    --------------------------------------------------------
+    PS C:\> $session = Get-NewPSRemoteSession
+
+    Displays a summary table of sessions in the current runspace and assigns
+    the first session returned by Get-PSSession to $session. The same session
+    is stored in $script:ActivePSSession.
+
+    Example 2: Use the selected session
+    -----------------------------------
+    PS C:\> Get-NewPSRemoteSession
+    PS C:\> $script:ActivePSSession
+
+    Displays the session summary and then references the script-scoped variable
+    containing the selected PSSession. The variable is assigned in the script
+    scope where the function runs.
+
+NOTES
+    - The selected session is the first object returned by Get-PSSession; the
+      function does not provide a parameter for choosing a different session.
+    - If no sessions are found, Write-Log is called with level Warn and no
+      session object is returned.
+    - On success, Write-Log is called with level Info to record the selected
+      session name and Id.
+    - The function depends on Get-PSSession and Write-Log being available in
+      its execution environment.
+
+RELATED TOPICS
+    about_Remote
+    about_PSSessions
+    Get-PSSession
+    Start-NewPSRemoteSession
+    Stop-PSRemoteSession
+    Remove-PSSession
