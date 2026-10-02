@@ -1,0 +1,44 @@
+name: Validate Winget Manifests
+
+on:
+  pull_request:
+    paths:
+      - 'packaging/winget/**'
+      - 'Config/Test-WingetManifest.ps1'
+      - '.github/workflows/winget-manifest-validate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packaging/winget/**'
+      - 'Config/Test-WingetManifest.ps1'
+      - '.github/workflows/winget-manifest-validate.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate all TechShell winget versions
+        shell: pwsh
+        run: |
+          $manifestRoot = Join-Path $PWD.Path 'packaging\winget\TechToolbox.TechShell'
+          if (-not (Test-Path -LiteralPath $manifestRoot -PathType Container)) {
+            Write-Host "No winget manifest root found at $manifestRoot. Nothing to validate."
+            exit 0
+          }
+
+          $versions = @(Get-ChildItem -LiteralPath $manifestRoot -Directory | Sort-Object Name | Select-Object -ExpandProperty Name)
+          if ($versions.Count -eq 0) {
+            Write-Host "No version folders found under $manifestRoot. Nothing to validate."
+            exit 0
+          }
+
+          foreach ($version in $versions) {
+            Write-Host "Validating TechToolbox.TechShell version $version"
+            pwsh -NoProfile -File .\Config\Test-WingetManifest.ps1 -PackageVersion $version -SkipWingetCliValidation
+          }

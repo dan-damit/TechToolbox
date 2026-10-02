@@ -347,11 +347,19 @@ else {
             Name        = 'TechToolbox.Agent'
             ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
             PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish'
+            Publish      = $true
         },
         [pscustomobject]@{
             Name        = 'TechToolbox.LocalMcpAdapter'
             ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.csproj'
             PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\publish'
+            Publish      = $true
+        },
+        [pscustomobject]@{
+            Name        = 'TechShell.UI'
+            ProjectPath = Join-Path $ModuleRoot 'src\TechShell\src\TechShell.UI\TechShell.UI.csproj'
+            PublishDir  = $null
+            Publish      = $false
         }
     )
 
@@ -367,27 +375,32 @@ else {
             throw "dotnet build failed for $($project.ProjectPath)"
         }
 
-        if (Test-Path -LiteralPath $project.PublishDir) {
-            Remove-Item -LiteralPath $project.PublishDir -Recurse -Force
-        }
-
-        $publishArgs = @('publish', $project.ProjectPath, '-c', 'Release', '-o', $project.PublishDir)
-
-        Write-Host "Publishing .NET project: $($project.Name)" -ForegroundColor Cyan
-        & dotnet @publishArgs
-        if ($LASTEXITCODE -ne 0) {
-            throw "dotnet publish failed for $($project.ProjectPath)"
-        }
-
-        if (-not $SkipSigning) {
-            $publishExes = @(Get-ChildItem -LiteralPath $project.PublishDir -Filter *.exe -File -Recurse | Select-Object -ExpandProperty FullName)
-            if ($publishExes.Count -gt 0) {
-                Write-Host "Signing published EXE(s) for $($project.Name): $(($publishExes | Measure-Object).Count) file(s)" -ForegroundColor Cyan
-                Sign-FileSet -Files $publishExes -Certificate $cert -SkipValidSigs:$SkipValidSigs -TimestampServer $TimestampServer -OkCount ([ref]$ok) -SkippedCount ([ref]$skip) -WarnCount ([ref]$warn)
+        if ($project.Publish) {
+            if (Test-Path -LiteralPath $project.PublishDir) {
+                Remove-Item -LiteralPath $project.PublishDir -Recurse -Force
             }
-        }
 
-        Write-Host "Build + publish complete for $($project.Name) → $($project.PublishDir)" -ForegroundColor Green
+            $publishArgs = @('publish', $project.ProjectPath, '-c', 'Release', '-o', $project.PublishDir)
+
+            Write-Host "Publishing .NET project: $($project.Name)" -ForegroundColor Cyan
+            & dotnet @publishArgs
+            if ($LASTEXITCODE -ne 0) {
+                throw "dotnet publish failed for $($project.ProjectPath)"
+            }
+
+            if (-not $SkipSigning) {
+                $publishExes = @(Get-ChildItem -LiteralPath $project.PublishDir -Filter *.exe -File -Recurse | Select-Object -ExpandProperty FullName)
+                if ($publishExes.Count -gt 0) {
+                    Write-Host "Signing published EXE(s) for $($project.Name): $(($publishExes | Measure-Object).Count) file(s)" -ForegroundColor Cyan
+                    Sign-FileSet -Files $publishExes -Certificate $cert -SkipValidSigs:$SkipValidSigs -TimestampServer $TimestampServer -OkCount ([ref]$ok) -SkippedCount ([ref]$skip) -WarnCount ([ref]$warn)
+                }
+            }
+
+            Write-Host "Build + publish complete for $($project.Name) → $($project.PublishDir)" -ForegroundColor Green
+        }
+        else {
+            Write-Host "Build complete for $($project.Name) (publish skipped by policy)." -ForegroundColor Green
+        }
     }
 }
 
