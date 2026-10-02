@@ -1,67 +1,17 @@
-STATE-OF-THE-WORLD RAG PROVIDER - PLANNING PACK
+Primary input file:
+C:\repos\TechToolbox\Public\Start_Stop\Get-NewPSRemoteSession.ps1
 
-Purpose:
-- Analyze and design a repo-native state-of-the-world retrieval provider for the TechToolbox module agent.
-- Keep the design grounded in the current architecture and repository patterns rather than broad speculative AI design.
-- Produce a concrete implementation plan the agent can execute in phases.
+Task:
+Write a detailed PowerShell `about_Get-NewPSRemoteSession.help.txt` help document for the source command or script.
 
-Working principle:
-- The model proposes; the orchestrator decides.
-- Retrieval provides evidence and fresh context, but never overrides policy, authorization, or execution safety.
-- The provider must be fail-closed, bounded, and auditable.
-
-Source of truth:
-- README.md
-- Public/AI/README.md
-- Public/AI/Invoke-TechAgent.ps1
-- Config/config.json
-- src/TechToolbox.Agent/*
-- RAG-LoRA-Summary.md
-- AI/Tasks/Archive/RagLoRaUpgrades/Overview.txt
-
-Phase order:
-- Phase 01: Architecture and repo fit
-  - Map the current agent runtime, retrieval settings, MCP/web-discovery surfaces, and safety boundaries.
-  - Identify where a state-of-the-world provider fits without violating the orchestrator-first model.
-- Phase 02: Provider contract and configuration
-  - Define the provider contract, config schema, required/optional fields, defaults, bounds, validation, redaction, and precedence rules.
-  - Separate provider settings from LLM transport settings and preserve current runtime profile behavior.
-- Phase 03: Retrieval lifecycle and source selection
-  - Define retrieval flow: query normalization, source discovery, freshness policy, ranking, evidence packaging, failure handling, and bounded context assembly.
-  - Integrate with current allowed data sources such as local memory, rg-backed workspace retrieval, MCP tools, and approved search/fetch providers.
-- Phase 04: Prompt integration and operational safeguards
-  - Define how retrieved evidence is inserted into the prompt as untrusted data only.
-  - Add trust precedence, timeout/cancellation rules, empty-result handling, and deterministic fallback behavior.
-- Phase 05: Validation plan and regression coverage
-  - Define the tests and acceptance criteria for invalid config, empty/missing results, timeout conditions, unauthorized paths, stale state, and policy-safe behavior.
-  - Keep the plan incremental and repo-grounded.
-
-Required deliverables:
-- A concise engineering design for the state-of-the-world provider.
-- A mapping from current repo architecture to the new provider responsibilities.
-- A minimal implementation plan with phase-by-phase tasks and exact file/module targets.
-- Risk assessment and trade-offs, especially around freshness, determinism, trust boundaries, and operational scope.
-- Validation strategy with specific regression checks and success criteria.
-
-Constraints:
-- Do not invent a broad, unsupported architecture.
-- Preserve orchestrator-first safety and fail-closed behavior.
-- Keep retrieval bounded, traceable, and auditable.
-- The provider should be an evidence layer, not a policy override layer.
-- No implementation until the plan is reviewed and accepted.
-
-Output requirements:
-- Produce a markdown plan with sections:
-  1. Summary
-  2. Current repo fit
-  3. Proposed architecture
-  4. Config and contract changes
-  5. Phase-by-phase implementation plan
-  6. Risks and safeguards
-  7. Validation and acceptance criteria
-- Keep the plan concise but technically grounded and evidence-based.
-- Base every claim on repository facts and existing runtime patterns.
-- Do not speculate beyond the project’s current architecture.
-
-Completion target:
-- Stop after producing the implementation plan and acceptance criteria. Do not perform speculative code changes until the design is approved.
+Requirements:
+- Create the output file at this exact path:
+  C:\repos\TechToolbox\en-US\Get-NewPSRemoteSession.help.txt
+- Follow the structure and tone of other help files in the same help directory when they exist.
+- Preserve technical accuracy and keep examples aligned with the actual parameters and behavior in the source file.
+- Do not use markdown formatting unless the existing help files in that directory already do.
+- Use WRITE-FILE to create or update the output help file.
+- Use APPEND-FILE only if output must be chunked; if APPEND-FILE is used, call FINALIZE-FILE-WRITE on the same path before finalAnswer.
+- Do not stop after analysis.
+- Do not summarize your plan before editing.
+- Do not return a final answer until the file update has succeeded.

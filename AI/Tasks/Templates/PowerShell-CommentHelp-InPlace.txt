@@ -10,8 +10,9 @@ Requirements:
 - Preserve all existing code and behavior.
 - Only add or improve documentation comments.
 - Use PowerShell comment-based help, not C# XML documentation comments.
-- Prefer REPLACE-IN-FILE for localized edits to this existing file.
-- Use WRITE-FILE only if a localized replacement is not practical.
+- Prefer the active file-editing MCP tool(s) for localized edits to this existing file.
+- Use the active file-write MCP tool(s) only if a localized replacement is not practical.
+- Do not rely on the removed primitive built-ins; use the current MCP-backed file tools only.
 - Do not document nested helper functions unless the existing style clearly expects it.
 - Do not stop after analysis.
 - Do not summarize your plan before editing.

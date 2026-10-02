@@ -15,8 +15,9 @@ Requirements:
 - Focus on the task details above.
 - Avoid unrelated cleanup.
 - Prefer small, localized edits over broad rewrites.
-- Prefer REPLACE-IN-FILE for localized edits to this existing file.
-- Use WRITE-FILE only if a localized replacement is not practical.
+- Prefer the active file-editing MCP tool(s) for localized edits to this existing file.
+- Use the active file-write MCP tool(s) only if a localized replacement is not practical.
+- Do not rely on the removed primitive built-ins; use the current MCP-backed file tools only.
 - Run focused validation after the first substantive edit.
 - Do not stop after analysis.
 - Do not summarize your plan before editing.

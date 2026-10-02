@@ -2,7 +2,7 @@ Additional context:
 <REPO_CONTEXT>
 
 Task:
-Use FETCH-URL to research the question below using only approved HTTPS sources.
+Use the active web-fetch MCP tool(s) to research the question below using only approved HTTPS sources.
 
 Question:
 <QUESTION_TOPIC>
@@ -12,10 +12,11 @@ Source hints:
 
 Requirements:
 - Prefer primary sources, vendor documentation, release notes, and authoritative references.
-- Use FETCH-URL only for HTTPS sources on the allowlist.
+- Use the configured web-fetch MCP tool(s) only for approved HTTPS sources on the allowlist.
 - If a needed host is not allowed, say so directly and do not work around the restriction.
 - Summarize the answer first, then provide supporting evidence.
 - Distinguish verified facts from inference or speculation.
 - Call out stale, conflicting, or missing source material.
 - Keep quoted excerpts short and relevant.
+- Do not rely on the removed primitive built-ins; use the current MCP-backed web tools only.
 - Do not make file changes unless explicitly requested.

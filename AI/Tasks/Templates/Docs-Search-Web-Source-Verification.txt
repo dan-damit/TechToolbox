@@ -5,7 +5,7 @@ Additional context:
 <REPO_CONTEXT>
 
 Task:
-Use SEARCH-WEB to locate likely sources for the documentation claim below, then verify the best matches with FETCH-URL if allowed.
+Use the active web-search MCP tool(s) to locate likely sources for the documentation claim below, then verify the best matches with the active web-fetch MCP tool(s) if allowed.
 
 Claim to verify:
 <CLAIM_TO_VERIFY>
@@ -18,8 +18,9 @@ Source hints:
 
 Requirements:
 - Search for official or authoritative sources first.
-- Use FETCH-URL only on approved HTTPS URLs and only for verification.
+- Use the active web-fetch MCP tool(s) only on approved HTTPS URLs and only for verification.
 - If the live source differs, provide corrected wording that can be pasted back into docs.
 - Distinguish confirmed facts from search-result inference.
 - If verification is blocked by host allowlists or missing sources, explain the blocker.
+- Do not rely on the removed primitive built-ins; use the current MCP-backed web tools only.
 - Do not make file changes unless explicitly requested.
