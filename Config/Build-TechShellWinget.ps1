@@ -32,6 +32,10 @@ function Resolve-AbsolutePath {
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $repoRoot 'src\TechShell\src\TechShell.UI\TechShell.UI.csproj'
+$rustProjectPath = Join-Path $repoRoot 'src\TechShell\src\TechShell.Core'
+$rustManifestPath = Join-Path $rustProjectPath 'Cargo.toml'
+$rustBinaryName = 'techshell-core.exe'
+$rustBinaryPath = Join-Path $rustProjectPath (Join-Path 'target\release' $rustBinaryName)
 $explorerRegistrationScript = Join-Path $repoRoot 'src\TechShell\Register-TechShellExplorerIntegration.ps1'
 $explorerInstallScript = Join-Path $repoRoot 'src\TechShell\Install-TechShellExplorerIntegration.ps1'
 $buildConfigPath = Join-Path $PSScriptRoot 'build.config.json'
@@ -153,6 +157,19 @@ $publishArgs = @(
     '-p:UapAppxPackageBuildMode=SideloadOnly'
 )
 
+Write-Host "Building TechShell Rust backend for packaging..." -ForegroundColor Cyan
+& cargo build --manifest-path $rustManifestPath --release
+if ($LASTEXITCODE -ne 0) {
+    throw "cargo build failed for TechShell.Core"
+}
+
+if (-not (Test-Path -LiteralPath $rustBinaryPath -PathType Leaf)) {
+    throw "Rust backend release binary was not produced: $rustBinaryPath"
+}
+
+$packagedRustBinaryDestination = Join-Path $appxOutDir $rustBinaryName
+Copy-Item -LiteralPath $rustBinaryPath -Destination $packagedRustBinaryDestination -Force
+
 Write-Host "Publishing TechShell MSIX ($RuntimeIdentifier)..." -ForegroundColor Cyan
 & dotnet @publishArgs
 if ($LASTEXITCODE -ne 0) {
@@ -172,6 +189,9 @@ Copy-Item -LiteralPath $msix.FullName -Destination $installerPath -Force
 
 $registrationScriptDestination = Join-Path $installerOutDir 'Register-TechShellExplorerIntegration.ps1'
 $installScriptDestination = Join-Path $installerOutDir 'Install-TechShellExplorerIntegration.ps1'
+
+# Keep the generated installer payload aligned with the canonical source scripts.
+# The files under Out/TechShell are build artifacts, not editable source-of-truth.
 Copy-Item -LiteralPath $explorerRegistrationScript -Destination $registrationScriptDestination -Force
 Copy-Item -LiteralPath $explorerInstallScript -Destination $installScriptDestination -Force
 
@@ -219,8 +239,8 @@ if (-not $SkipManifestValidation) {
 # SIG # Begin signature block
 # MIIcLwYJKoZIhvcNAQcCoIIcIDCCHBwCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBqoTQ6FWio112t
-# Yg2eaargzKIQjJWNJ1GjXdqO03zDB6CCFmgwggMqMIICEqADAgECAhAUclYcLlB0
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBk33AxYqJIOS+Q
+# 9z9MLeyWt2kOKrBS7eQE+HZSDLPzcaCCFmgwggMqMIICEqADAgECAhAUclYcLlB0
 # o0+hlxGb32/OMA0GCSqGSIb3DQEBCwUAMC0xKzApBgNVBAMMIlRlY2hUb29sYm94
 # IFRlY2hTaGVsbCBDb2RlIFNpZ25pbmcwHhcNMjYxMDAzMDE0MjMyWhcNMjgxMDAz
 # MDE1MjMxWjAtMSswKQYDVQQDDCJUZWNoVG9vbGJveCBUZWNoU2hlbGwgQ29kZSBT
@@ -344,28 +364,28 @@ if (-not $SkipManifestValidation) {
 # bCBDb2RlIFNpZ25pbmcCEBRyVhwuUHSjT6GXEZvfb84wDQYJYIZIAWUDBAIBBQCg
 # gYQwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYB
 # BAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0B
-# CQQxIgQgCKgowO9chfGWcB1wz7LHsmpo4UbLjeErHJxXwJQ7QDowDQYJKoZIhvcN
-# AQEBBQAEggEAdHoyUOkavBbJplydZgr4gx7IafMIenWWrwWpp3WV2Aq1hBGY5do7
-# kF4ZzjT4/74ImciHPvmn0c7cj5+rXwyqSIX2ViwZYi5zkc1sVAygN4POUF1rdKfT
-# xv/iokmJib8cp4/QsKCQVKCCA2s3gdRt5RJf/EdJ/ikQR1hgvG1GuC0uqcZNdaPF
-# FXv64v6w326397r8MNyR57r+GTcXsnaRLG2l6tsxFh32zomzz7RUMy3iXosqGA7O
-# iD7HMtGcaBoFq3ictSLyDzua9Lce/IIv04WYUahnkJyU05FgGQUHIQ1V8n2oiiAH
-# Ruc0nvIwUXEAZ9IaqxLA4beFYCnxIWZAX6GCAyYwggMiBgkqhkiG9w0BCQYxggMT
+# CQQxIgQgRdbKI2/hdDcopd7SMFX9rlD+QgmbMGGKTmjJswxBEYgwDQYJKoZIhvcN
+# AQEBBQAEggEAe6lqC9s9RF+hYmLIQeKax6zhqMnuiekHOXMrcmN/asKKNgt/vYlG
+# ptxhWU+w33A3DNrmddlZbVDUJ5/UgOal+LcOuAIuVS8VhmlhHvLdR80Fa9yOjL61
+# oRopsR2AXVqJeU43Ob/PHQh7tvYLt4DR6MZUGtFrMqzZKnmbmt2i8WKHGy1dwXXW
+# nBFw5EPl5tTgEYnKsTgZdXUGndRGwx+LwtnKzKb4Wd8AQAA5c7t1iCECfOsqgfiR
+# v6TO1bO02/qXVav8OR/PhCLwOEV8LGYZha6su+io0l/MpnberfCR4gLVfPFTIqfr
+# 3kpDOWiOSpGUqz2A3rfNWQlMd1d5EJLZFqGCAyYwggMiBgkqhkiG9w0BCQYxggMT
 # MIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5j
 # LjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNB
 # NDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZIAWUD
 # BAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEP
-# Fw0yNjEwMDMwMzU0MzhaMC8GCSqGSIb3DQEJBDEiBCBb8uTbuqhiFfwaTatWKGpN
-# kR6UyuCOy+lLYQnGTNglSjANBgkqhkiG9w0BAQEFAASCAgA6D+TV7JsFdIRKo0cA
-# j6MTo8Dl83CNeOfB/gHxO6wKJahlDziAGo5yp+IeD4QUHYT+iNF/ug4rdeVmymzA
-# zTbjvC5K3dkplYWAdttEN2DlIpRATWDzUQGhnQN0mCA2hEYtM5cEHgZpuB/xfHXR
-# n45Ul2n2ZAyIIgecImiPP2A+2CeMWfMPmfQFRvRhIkJ6gy8iqXtEwOvEhBIO44SS
-# hniazz9gpbM/iNRIH2cBgPt/AFcHA1+9m4nZvugWgW5pimrYxHYdc0nL5ZPg3Vjh
-# rFNHIaOzQdFP/ODd4vqqR0d7oIOfk4wMjhohO2kGbECmgyJwgdlkK/MjHhqoIP6P
-# IiXfMepSQRYG4O7xrmNTVms7QisNzPZhykfz6qmIlujjlH19AzsP5zcKUzgZA4Rf
-# utuWuwztv6mMkyLzNQ8INaajvkAwapuS8or6/+OKn9lkGZ713d4xWyJstruuI7Ao
-# G6RiTw39D7GOXVFR1fQFchWzrbf8kuUJ/zV4HaoFF/KBp9HSTFhtckqwcgzTObWL
-# Gcw5zE0DzsA5OwzaJhd1LfzlqZVfvxhyDE8ztUdTF+XJp8gsGRbdNw8YyefIJJZW
-# 4l1rm+6zB4Ab8WUHSJMUJd7KxIWyim601SyO1tI912kY+1H4OiV7G9etg5y41Jbq
-# k+jjyTijnhJC950MnLSbXlmoUw==
+# Fw0yNjEwMDMwNDM2NDhaMC8GCSqGSIb3DQEJBDEiBCCal+sdYz+LWMp/2ZhnCt37
+# pjvc6nO71ePv7itoGJU1SDANBgkqhkiG9w0BAQEFAASCAgAXs9Wjgkgd2yis4c2M
+# /e3pLIG6FiscWHzkaV6Uz7btwh5mW2HSAFuSLp5Tqko3VX6NJy2l8j9jZqbdizjS
+# iPmeWMj9EwtKuu2J2bfnvVTzoO2ba4Co9sEEE7JLtoGsNXCzC0P9QTwFP6GGvaBx
+# 9tPIgqhYqSp8ynVYqJJFdGmFFLAbTZrXvcNNWxB/ZqzZfKzxR2PLS//tlyQqKqIL
+# CN9S/SRD59XjpXxcIo+O/t7sKw3YuVhpBDq/RqENB2WtJvsOgJjWBob6hltUWJZq
+# 5OIWd4848vz4DNXzO+0G402nWvGmj9aLq6IHBLZiEyQt0WEsuQ06J/AJRSQM3v4M
+# 97kUJfcrmMtIsXCfzXn7pIFFMvHlWkY3zX9JYTNdsnNe2VQIrtAz8PHvH51figyS
+# fepgMNMXbsYPwaYc1Bi7wF2JeDvbmpKx+gCP/+Fe1tTQmC1GBoYOATBjw0kwOyvR
+# zeYRAJCOmJZox1QusgJcdsDKV45+vbW4z0T95PjXRv5XM0Wcmw8SCLwdO7t8BE8J
+# 68c1IBDdUHdvBM6MxlE3do9848Wv4eFhujicAQUbv1MU5hYapPO1aOfbKbHF1Qhl
+# 6i06cAWXAjVmPWn+ezMmXIfiI4ooenHatwzTvhAP8bnqOOaaVwrzFNfM/Ccha1x5
+# m4gW1jFutNQyiFneY+wI7YxPgg==
 # SIG # End signature block
