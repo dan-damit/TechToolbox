@@ -17,10 +17,16 @@ This guide adds a separate, PowerShell-friendly release path for the Windows She
   - `TECHSHELL_CODE_SIGNING_PFX_BASE64`
   - `TECHSHELL_CODE_SIGNING_PFX_PASSWORD`
   - `TECHSHELL_CODE_SIGNING_THUMBPRINT`
+  - `TECHTOOLBOX_SUBMODULES_PAT` (token with read access to `dan-damit/TechShell` and `dan-damit/TechToolbox.Agent` for submodule checkout)
 - GitHub Actions secrets for winget-pkgs submission:
   - `WINGET_PKGS_PAT` (token with access to your `winget-pkgs` fork)
   - `WINGET_PKGS_FORK` (for example `yourname/winget-pkgs`)
   - `WINGET_PKGS_FORK_OWNER` (for example `yourname`)
+
+- GitHub Actions repository variable to enable submission job:
+  - `ENABLE_WINGET_SUBMISSION`
+  - Set to `false` during local/private testing (default behavior when unset)
+  - Set to `true` when you are ready to open automated PRs to `microsoft/winget-pkgs`
 
 The workflow can be manually controlled through the `submit_winget_pr` input on workflow dispatch. If you want a hard approval gate, add an environment gate to the submission job in your local workflow configuration.
 
@@ -126,6 +132,8 @@ Behavior:
 
 - Tag push (`v*`): submission job runs automatically after release build.
 - Manual dispatch: you can toggle submission with `submit_winget_pr` input.
+
+Note: the submission job runs only when `ENABLE_WINGET_SUBMISSION` is set to `true`.
 
 What it does:
 

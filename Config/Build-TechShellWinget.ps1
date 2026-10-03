@@ -12,6 +12,7 @@ param(
     [string]$OutputRoot,
     [string]$Thumbprint,
     [string]$TimestampServer,
+    [switch]$EnforcePublicTrustPreflight,
     [switch]$SkipManifestWrite,
     [switch]$SkipManifestValidation
 )
@@ -65,7 +66,7 @@ function Get-CodeSigningCert {
 
     foreach ($store in @('Cert:\CurrentUser\My', 'Cert:\LocalMachine\My')) {
         $found = Get-ChildItem -LiteralPath $store -ErrorAction SilentlyContinue |
-            Where-Object { $_.Thumbprint -eq $Thumb }
+        Where-Object { $_.Thumbprint -eq $Thumb }
 
         if ($found -and $found.HasPrivateKey) {
             return $found
@@ -73,6 +74,32 @@ function Get-CodeSigningCert {
     }
 
     return $null
+}
+
+function Test-CodeSigningTrustPreflight {
+    param(
+        [Parameter(Mandatory)] [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+    )
+
+    $chain = New-Object System.Security.Cryptography.X509Certificates.X509Chain
+    $chain.ChainPolicy.RevocationMode = [System.Security.Cryptography.X509Certificates.X509RevocationMode]::NoCheck
+    $chain.ChainPolicy.VerificationFlags = [System.Security.Cryptography.X509Certificates.X509VerificationFlags]::NoFlag
+
+    $chainBuildSucceeded = $chain.Build($Certificate)
+    $statuses = @($chain.ChainStatus | ForEach-Object { $_.Status.ToString() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    $isSelfSigned = [string]::Equals($Certificate.Subject, $Certificate.Issuer, [System.StringComparison]::OrdinalIgnoreCase)
+    $hasUntrustedRoot = $statuses -contains 'UntrustedRoot'
+
+    $isPublicTrustReady = $chainBuildSucceeded -and -not $isSelfSigned -and -not $hasUntrustedRoot
+    $statusText = if ($statuses.Count -gt 0) { $statuses -join ', ' } else { 'None' }
+
+    [pscustomobject]@{
+        IsPublicTrustReady  = $isPublicTrustReady
+        IsSelfSigned        = $isSelfSigned
+        ChainBuildSucceeded = $chainBuildSucceeded
+        ChainStatuses       = $statuses
+        StatusText          = $statusText
+    }
 }
 
 function Invoke-MsixSigning {
@@ -152,10 +179,28 @@ if ([string]::IsNullOrWhiteSpace($Thumbprint)) {
     throw 'No code signing thumbprint was provided and none was found in Config\build.config.json.'
 }
 
+$signingCertificate = Get-CodeSigningCert -Thumb $Thumbprint
+if (-not $signingCertificate) {
+    throw "The configured signing certificate was not found in CurrentUser\My or LocalMachine\My for thumbprint $Thumbprint."
+}
+
+$trustPreflight = Test-CodeSigningTrustPreflight -Certificate $signingCertificate
+if (-not $trustPreflight.IsPublicTrustReady) {
+    $preflightMessage = "Code-signing trust preflight detected a non-public trust chain for thumbprint $Thumbprint. SelfSigned=$($trustPreflight.IsSelfSigned); ChainBuildSucceeded=$($trustPreflight.ChainBuildSucceeded); ChainStatuses=$($trustPreflight.StatusText)."
+    if ($EnforcePublicTrustPreflight) {
+        throw "$preflightMessage Use a publicly trusted code-signing certificate or rerun without -EnforcePublicTrustPreflight for local-only testing."
+    }
+
+    Write-Warning "$preflightMessage Continuing because -EnforcePublicTrustPreflight was not specified."
+}
+else {
+    Write-Host "Code-signing trust preflight passed for thumbprint $Thumbprint." -ForegroundColor Green
+}
+
 Write-Host "Signing TechShell installer bundle with certificate thumbprint $Thumbprint..." -ForegroundColor Cyan
 Invoke-MsixSigning -FilePath $installerPath -Thumb $Thumbprint -Timestamp $TimestampServer
-Set-AuthenticodeSignature -FilePath $registrationScriptDestination -Certificate (Get-CodeSigningCert -Thumb $Thumbprint) -HashAlgorithm SHA256 -TimestampServer $TimestampServer | Out-Null
-Set-AuthenticodeSignature -FilePath $installScriptDestination -Certificate (Get-CodeSigningCert -Thumb $Thumbprint) -HashAlgorithm SHA256 -TimestampServer $TimestampServer | Out-Null
+Set-AuthenticodeSignature -FilePath $registrationScriptDestination -Certificate $signingCertificate -HashAlgorithm SHA256 -TimestampServer $TimestampServer | Out-Null
+Set-AuthenticodeSignature -FilePath $installScriptDestination -Certificate $signingCertificate -HashAlgorithm SHA256 -TimestampServer $TimestampServer | Out-Null
 
 $installerUrl = "https://github.com/dan-damit/TechToolbox/releases/download/$ReleaseTag/$InstallerFileName"
 $newManifestScript = Join-Path $PSScriptRoot 'New-WingetManifestData.ps1'
@@ -169,13 +214,13 @@ if (-not $SkipManifestValidation) {
     & $testManifestScript -PackageVersion $PackageVersion -PackageIdentifier $PackageIdentifier
 }
 
-[pscustomobject]@{ PackageVersion = $PackageVersion; RuntimeIdentifier = $RuntimeIdentifier; ReleaseTag = $ReleaseTag; ProjectPath = $projectPath; PublishedMsixPath = $msix.FullName; InstallerPath = $installerPath; ExplorerRegistrationScriptPath = $registrationScriptDestination; ExplorerInstallScriptPath = $installScriptDestination; InstallerUrl = $installerUrl; SigningThumbprint = $Thumbprint; SigningTimestampServer = $TimestampServer; ManifestWritten = (-not $SkipManifestWrite); ManifestValidated = (-not $SkipManifestValidation); ManifestResult = $manifestResult }
+[pscustomobject]@{ PackageVersion = $PackageVersion; RuntimeIdentifier = $RuntimeIdentifier; ReleaseTag = $ReleaseTag; ProjectPath = $projectPath; PublishedMsixPath = $msix.FullName; InstallerPath = $installerPath; ExplorerRegistrationScriptPath = $registrationScriptDestination; ExplorerInstallScriptPath = $installScriptDestination; InstallerUrl = $installerUrl; SigningThumbprint = $Thumbprint; SigningTimestampServer = $TimestampServer; PublicTrustPreflightPassed = $trustPreflight.IsPublicTrustReady; PublicTrustPreflightSelfSigned = $trustPreflight.IsSelfSigned; PublicTrustPreflightChainStatuses = @($trustPreflight.ChainStatuses); ManifestWritten = (-not $SkipManifestWrite); ManifestValidated = (-not $SkipManifestValidation); ManifestResult = $manifestResult }
 
 # SIG # Begin signature block
 # MIIcLwYJKoZIhvcNAQcCoIIcIDCCHBwCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBzZfiFqwsIG2p4
-# 7ER+H5gZZBnC2aSE01NkJvx5P+IyrqCCFmgwggMqMIICEqADAgECAhAUclYcLlB0
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBqoTQ6FWio112t
+# Yg2eaargzKIQjJWNJ1GjXdqO03zDB6CCFmgwggMqMIICEqADAgECAhAUclYcLlB0
 # o0+hlxGb32/OMA0GCSqGSIb3DQEBCwUAMC0xKzApBgNVBAMMIlRlY2hUb29sYm94
 # IFRlY2hTaGVsbCBDb2RlIFNpZ25pbmcwHhcNMjYxMDAzMDE0MjMyWhcNMjgxMDAz
 # MDE1MjMxWjAtMSswKQYDVQQDDCJUZWNoVG9vbGJveCBUZWNoU2hlbGwgQ29kZSBT
@@ -299,28 +344,28 @@ if (-not $SkipManifestValidation) {
 # bCBDb2RlIFNpZ25pbmcCEBRyVhwuUHSjT6GXEZvfb84wDQYJYIZIAWUDBAIBBQCg
 # gYQwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYB
 # BAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0B
-# CQQxIgQgZfpKhhIwgWkFaN8R99BaB21KaSx83eqe6Qr+cW+zLkEwDQYJKoZIhvcN
-# AQEBBQAEggEAaMTp5myrpEWIFtTlqMygKUyRyk36nJpHe07ZSk24R2eZXYwaIWri
-# efD41sotO4A/NLXzEHecrHLtmjkM4aI7k2fffTOnfeZJDu8LN36tg9FYqh7URwX3
-# hqLurR+jwOAPgvtmSY4W6uw/5WVSPdxk390bHBeXbgfIhlzfjiqtCTG1iP5dI5gU
-# JgyWnG5sLX5qz2PNcJ2xN4ctn5hT4bv+dX0GpCd1RzCrkaEZCftvX1OWyI5ugh4q
-# jFCk818fMKjBLCZcMiab02Z5ivAPum/hXjzbWdA14iBE0issLFVivCEOrfZ75EUS
-# WFBvcWjjqokYoW1IRwgMFh8flYPQREOxaaGCAyYwggMiBgkqhkiG9w0BCQYxggMT
+# CQQxIgQgCKgowO9chfGWcB1wz7LHsmpo4UbLjeErHJxXwJQ7QDowDQYJKoZIhvcN
+# AQEBBQAEggEAdHoyUOkavBbJplydZgr4gx7IafMIenWWrwWpp3WV2Aq1hBGY5do7
+# kF4ZzjT4/74ImciHPvmn0c7cj5+rXwyqSIX2ViwZYi5zkc1sVAygN4POUF1rdKfT
+# xv/iokmJib8cp4/QsKCQVKCCA2s3gdRt5RJf/EdJ/ikQR1hgvG1GuC0uqcZNdaPF
+# FXv64v6w326397r8MNyR57r+GTcXsnaRLG2l6tsxFh32zomzz7RUMy3iXosqGA7O
+# iD7HMtGcaBoFq3ictSLyDzua9Lce/IIv04WYUahnkJyU05FgGQUHIQ1V8n2oiiAH
+# Ruc0nvIwUXEAZ9IaqxLA4beFYCnxIWZAX6GCAyYwggMiBgkqhkiG9w0BCQYxggMT
 # MIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5j
 # LjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNB
 # NDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZIAWUD
 # BAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEP
-# Fw0yNjEwMDMwMjE2MzRaMC8GCSqGSIb3DQEJBDEiBCCWxAfrqii9hLo/Nj+7buYV
-# ImWWD26BHas+jWWurvTE1TANBgkqhkiG9w0BAQEFAASCAgB6JFeDyUOsTYstmlbU
-# ZIaJLKslPGwK0Nxu6x6La0CPhplZF7mnr9qYXIwQ5iulIz8fjq6UsfTm93tIr1fi
-# tAUtGse6Y1f0AlVKlgJqKkHYoeS/naj+V7dFSec2QyWwwm6+Oz1V0iqhXDku0Ni2
-# /jKOqMoXUXozUt4HyqZH9wzltjfnW4DtjmFbToq20bV4kNGzyFwpuRzX09c8HxW/
-# DjORUuzhHphYDibcGWBkslseN4MStHIiohdLlD1nHsaZpDRi+PpiRRLv8ljC01zj
-# Cm3L0cviy03g5sA9+Dxp3efb/6M/gRRQpeKDDim/JvKfY2KvTX7a7ZFOUBm699Re
-# Z+6gxqOn94ehG0Beg5+KP63IxiLoeUM3hBAV3tucUvNXCa7TQY+3TbYiWrZHnsq/
-# L1j2YmYH5ntN9i/qL7wOiaDo1AGUtuZrlWeRa7lbevAYIJL6f2/fAerUNVYNn5Y8
-# XVLdYs/EUFfKG5z7IU08mtX+tPCpQvvx20oxevDw/nw8Q3WQ3Ba3haDlzamAvmS7
-# yYE5AxMHehnJ27mIN1B0BTJMijM2qVUIP+fruMbaCAUJRTOLyH/xghqRS8fz/iuH
-# yIPpgcIxkpSmXhavMHD6zkOas6petunBubv8k/kl1pVVH9ScsFy0ePOG7ja0zfGm
-# KjFfGQMJEBvR79HFfsQbHb3D+Q==
+# Fw0yNjEwMDMwMzU0MzhaMC8GCSqGSIb3DQEJBDEiBCBb8uTbuqhiFfwaTatWKGpN
+# kR6UyuCOy+lLYQnGTNglSjANBgkqhkiG9w0BAQEFAASCAgA6D+TV7JsFdIRKo0cA
+# j6MTo8Dl83CNeOfB/gHxO6wKJahlDziAGo5yp+IeD4QUHYT+iNF/ug4rdeVmymzA
+# zTbjvC5K3dkplYWAdttEN2DlIpRATWDzUQGhnQN0mCA2hEYtM5cEHgZpuB/xfHXR
+# n45Ul2n2ZAyIIgecImiPP2A+2CeMWfMPmfQFRvRhIkJ6gy8iqXtEwOvEhBIO44SS
+# hniazz9gpbM/iNRIH2cBgPt/AFcHA1+9m4nZvugWgW5pimrYxHYdc0nL5ZPg3Vjh
+# rFNHIaOzQdFP/ODd4vqqR0d7oIOfk4wMjhohO2kGbECmgyJwgdlkK/MjHhqoIP6P
+# IiXfMepSQRYG4O7xrmNTVms7QisNzPZhykfz6qmIlujjlH19AzsP5zcKUzgZA4Rf
+# utuWuwztv6mMkyLzNQ8INaajvkAwapuS8or6/+OKn9lkGZ713d4xWyJstruuI7Ao
+# G6RiTw39D7GOXVFR1fQFchWzrbf8kuUJ/zV4HaoFF/KBp9HSTFhtckqwcgzTObWL
+# Gcw5zE0DzsA5OwzaJhd1LfzlqZVfvxhyDE8ztUdTF+XJp8gsGRbdNw8YyefIJJZW
+# 4l1rm+6zB4Ab8WUHSJMUJd7KxIWyim601SyO1tI912kY+1H4OiV7G9etg5y41Jbq
+# k+jjyTijnhJC950MnLSbXlmoUw==
 # SIG # End signature block
