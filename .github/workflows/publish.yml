@@ -25,6 +25,16 @@ jobs:
       TECHTOOLBOX_AGENT_PAT: ${{ secrets.TECHTOOLBOX_AGENT_REPO_PAT }}
 
     steps:
+      - name: Validate required submodule auth secrets
+        shell: pwsh
+        run: |
+          $submodulePat = "${{ secrets.TECHTOOLBOX_SUBMODULES_PAT }}"
+          $agentPat = "${{ secrets.TECHTOOLBOX_AGENT_REPO_PAT }}"
+
+          if ([string]::IsNullOrWhiteSpace($submodulePat) -and [string]::IsNullOrWhiteSpace($agentPat)) {
+            throw "Missing GitHub Actions secret 'TECHTOOLBOX_SUBMODULES_PAT' or 'TECHTOOLBOX_AGENT_REPO_PAT'. This repo contains private submodules and checkout must use a PAT with read access to dan-damit/TechToolbox.Agent and dan-damit/TechShell."
+          }
+
       - name: Checkout repository (submodule PAT)
         if: env.TECHTOOLBOX_SUBMODULES_PAT != ''
         uses: actions/checkout@v7
