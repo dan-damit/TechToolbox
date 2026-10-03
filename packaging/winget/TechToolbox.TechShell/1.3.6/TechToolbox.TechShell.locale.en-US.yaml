@@ -1,0 +1,9 @@
+PackageIdentifier: TechToolbox.TechShell
+PackageVersion: 1.3.6
+PackageLocale: en-US
+Publisher: VADTEK
+PackageName: TechShell
+ShortDescription: TechToolbox Windows shell experience.
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0
+
