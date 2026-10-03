@@ -55,6 +55,96 @@ function Invoke-Git {
     return ($output | Out-String).Trim()
 }
 
+function Resolve-DotNetInvocation {
+    $sdkScopedPattern = '[\\/]sdk[\\/][^\\/]+[\\/]dotnet(?:\.exe)?$'
+    $dotnetHost = $null
+
+    $resolved = Get-Command dotnet -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($resolved) {
+        $resolvedPath = [string]$resolved.Source
+        if ([string]::IsNullOrWhiteSpace($resolvedPath)) {
+            $resolvedPath = [string]$resolved.Path
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($resolvedPath) -and $resolvedPath -notmatch $sdkScopedPattern) {
+            $dotnetHost = $resolvedPath
+        }
+    }
+
+    $fallbackCandidates = @()
+    if (-not [string]::IsNullOrWhiteSpace($env:DOTNET_ROOT)) {
+        $fallbackCandidates += (Join-Path $env:DOTNET_ROOT 'dotnet.exe')
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
+        $fallbackCandidates += (Join-Path $env:ProgramFiles 'dotnet\dotnet.exe')
+    }
+
+    foreach ($candidate in ($fallbackCandidates | Select-Object -Unique)) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            $dotnetHost = $candidate
+            break
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($dotnetHost)) {
+        if ($resolved) {
+            $resolvedPathForError = [string]$resolved.Source
+            if ([string]::IsNullOrWhiteSpace($resolvedPathForError)) {
+                $resolvedPathForError = [string]$resolved.Path
+            }
+
+            if ($resolvedPathForError -match $sdkScopedPattern) {
+                throw "Resolved 'dotnet' to SDK-scoped host path '$resolvedPathForError', which is invalid. Ensure a valid .NET host is available at DOTNET_ROOT\dotnet.exe or Program Files\dotnet\dotnet.exe."
+            }
+        }
+
+        throw ".NET host executable 'dotnet' could not be resolved. Install/repair .NET SDK and ensure dotnet.exe is available."
+    }
+
+    $versionOutput = & $dotnetHost --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        return [pscustomobject]@{
+            HostPath       = $dotnetHost
+            Prefix         = @()
+            DisplayCommand = $dotnetHost
+        }
+    }
+
+    $listSdkOutput = & $dotnetHost --list-sdks 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw ".NET host '$dotnetHost' failed --version and --list-sdks checks. --version output: $($versionOutput -join [Environment]::NewLine)"
+    }
+
+    $sdkCandidates = @()
+    foreach ($sdkLine in $listSdkOutput) {
+        if ($sdkLine -match '^\s*([0-9]+\.[0-9]+\.[0-9]+)\s+\[(.+)\]\s*$') {
+            $sdkVersionText = $matches[1]
+            $sdkRoot = $matches[2]
+            $sdkDotNetDll = Join-Path (Join-Path $sdkRoot $sdkVersionText) 'dotnet.dll'
+            if (Test-Path -LiteralPath $sdkDotNetDll -PathType Leaf) {
+                $sdkCandidates += [pscustomobject]@{
+                    Version    = [version]$sdkVersionText
+                    VersionRaw = $sdkVersionText
+                    DotNetDll  = $sdkDotNetDll
+                }
+            }
+        }
+    }
+
+    foreach ($sdkCandidate in ($sdkCandidates | Sort-Object Version -Descending)) {
+        & $dotnetHost exec $sdkCandidate.DotNetDll --version *> $null
+        if ($LASTEXITCODE -eq 0) {
+            return [pscustomobject]@{
+                HostPath       = $dotnetHost
+                Prefix         = @('exec', $sdkCandidate.DotNetDll)
+                DisplayCommand = "$dotnetHost exec $($sdkCandidate.DotNetDll)"
+            }
+        }
+    }
+
+    throw ".NET host '$dotnetHost' is present but could not execute any installed SDK command host. --version output: $($versionOutput -join [Environment]::NewLine)"
+}
+
 # ---------------- 01. Load config --------------------------------------------
 $defaultConfigDir = Join-Path $ModuleRoot 'Config'
 $defaultConfigPath = Join-Path $defaultConfigDir 'build.config.json'
@@ -350,6 +440,11 @@ if ($SkipProjects) {
     Write-Host "Skipping .NET project build/publish (-SkipProjects)." -ForegroundColor DarkYellow
 }
 else {
+    $dotnetInvocation = Resolve-DotNetInvocation
+    $dotnetExe = $dotnetInvocation.HostPath
+    $dotnetPrefix = @($dotnetInvocation.Prefix)
+    Write-Host "Using dotnet command: $($dotnetInvocation.DisplayCommand)" -ForegroundColor DarkGray
+
     $dotNetProjects = @(
         [pscustomobject]@{
             Name        = 'TechToolbox.Agent'
@@ -378,7 +473,7 @@ else {
         }
 
         Write-Host "Building .NET project: $($project.Name)" -ForegroundColor Cyan
-        & dotnet build $project.ProjectPath -c Release
+        & $dotnetExe @dotnetPrefix build $project.ProjectPath -c Release
         if ($LASTEXITCODE -ne 0) {
             throw "dotnet build failed for $($project.ProjectPath)"
         }
@@ -391,7 +486,7 @@ else {
             $publishArgs = @('publish', $project.ProjectPath, '-c', 'Release', '-o', $project.PublishDir)
 
             Write-Host "Publishing .NET project: $($project.Name)" -ForegroundColor Cyan
-            & dotnet @publishArgs
+            & $dotnetExe @dotnetPrefix @publishArgs
             if ($LASTEXITCODE -ne 0) {
                 throw "dotnet publish failed for $($project.ProjectPath)"
             }
@@ -426,14 +521,14 @@ if ($BuildTechShellWinget) {
 
     $resolvedTechShellTag = if ([string]::IsNullOrWhiteSpace($TechShellReleaseTag)) { "v$newVersion" } else { $TechShellReleaseTag }
     $techShellArgs = @{
-        PackageVersion          = $newVersion.ToString()
-        ReleaseTag              = $resolvedTechShellTag
-        RuntimeIdentifier       = $TechShellRuntimeIdentifier
-        InstallerFileName       = $TechShellInstallerFileName
-        Thumbprint              = $Thumbprint
-        TimestampServer         = $TimestampServer
-        SkipManifestWrite       = $SkipTechShellManifestWrite
-        SkipManifestValidation  = $SkipTechShellManifestValidation
+        PackageVersion         = $newVersion.ToString()
+        ReleaseTag             = $resolvedTechShellTag
+        RuntimeIdentifier      = $TechShellRuntimeIdentifier
+        InstallerFileName      = $TechShellInstallerFileName
+        Thumbprint             = $Thumbprint
+        TimestampServer        = $TimestampServer
+        SkipManifestWrite      = $SkipTechShellManifestWrite
+        SkipManifestValidation = $SkipTechShellManifestValidation
     }
 
     Write-Host "Building TechShell winget bundle for version $($newVersion.ToString()) (tag $resolvedTechShellTag)..." -ForegroundColor Cyan
@@ -514,13 +609,13 @@ $result = [pscustomobject]@{
     ArtifactPath    = $artifact
     TechShellWinget = if ($null -ne $techShellWingetResult) {
         [pscustomobject]@{
-            Enabled                  = $true
-            ReleaseTag               = $techShellWingetResult.ReleaseTag
-            RuntimeIdentifier        = $techShellWingetResult.RuntimeIdentifier
-            InstallerPath            = $techShellWingetResult.InstallerPath
-            ManifestWritten          = $techShellWingetResult.ManifestWritten
-            ManifestValidated        = $techShellWingetResult.ManifestValidated
-            SigningThumbprint        = $techShellWingetResult.SigningThumbprint
+            Enabled           = $true
+            ReleaseTag        = $techShellWingetResult.ReleaseTag
+            RuntimeIdentifier = $techShellWingetResult.RuntimeIdentifier
+            InstallerPath     = $techShellWingetResult.InstallerPath
+            ManifestWritten   = $techShellWingetResult.ManifestWritten
+            ManifestValidated = $techShellWingetResult.ManifestValidated
+            SigningThumbprint = $techShellWingetResult.SigningThumbprint
         }
     }
     else {
@@ -675,17 +770,17 @@ $result
 # LjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNB
 # NDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZIAWUD
 # BAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEP
-# Fw0yNjEwMDMwMjE2MzRaMC8GCSqGSIb3DQEJBDEiBCAWaP3xbkV5rdFeJ2mykAJy
-# O9Tip6WlFRN6UI4E5HZu8TANBgkqhkiG9w0BAQEFAASCAgBh/nVVb3E1cKPK1H3X
-# Xnpao9vrBhB9E+08D6LF26yJLDHm8DZvZ8ghZh8WwhBx3ACfMw+KCf2q0sHE7Yva
-# Re8pnJDHocJ+q8t9yJ7MU2RP+6Y26i/0DoHVwLtkPxYzIQ55CCYm2NihAkD6CsHM
-# qfldKYcZipkGuv0Ae1zgqbiJPxQ2U9hf6WP4fubH22D6nEffPknh9+OWbUTxWLCS
-# 9HkCSJIve6/c7S/ZtEu1+xGPx5em7ecykIvEynf8EHfGKCk6YCR7HQurtc/8erqW
-# x3yfB4wutc7Bk44PpmugWfQqJbpK4b/xOHzIotW5Go1AHFZtKwZ3PdzX4hNMWiM1
-# AGZvRY4Dm5T7GUnbYA9fipqjHh6Ho/fKkM9cGW2kUEqs4xffE67QYNEll34LPUOz
-# KjZubdJrAcVKwXUCoTRA+T2K4TZLpq9VIPtLfodtjXq1UTyqXmI0LiFuzB9ko+fJ
-# c7wCzvaM5hW7iP/PzyT4b3d/HVBhd8sENVUMqIIRiGDw+grB6bKRaWToho6oPIRD
-# yEI7EOm/DMr1nBA36hjc9LwPX5QCKb84X5SLpQ2CJvGUV7ZB3/vsg2dxaiCVCj78
-# uK0Q6NRlQyeRQB7LcRTR+kN4dh7CwRN7kx6thyv4mwQv5D2s/Y5imnGdGCqBUNbk
-# q9Zix5Lax/k1SiXPWA7N3ItikA==
+# Fw0yNjEwMDMyMDE3MjRaMC8GCSqGSIb3DQEJBDEiBCAWaP3xbkV5rdFeJ2mykAJy
+# O9Tip6WlFRN6UI4E5HZu8TANBgkqhkiG9w0BAQEFAASCAgBbqYCOzJ3BjcJZFnHb
+# Okuj9vyjA37Z5cBZ+dgdUJyOWX86/ViKtbC0BsQNXl5m1jjP1mm1CqFt4NoCQkyZ
+# SWZp6SmnWPsc4wCcIxfJ8gTtBtKnsukrJ0ggmaIUfOFLVuACMRAD+lRDKicZPhun
+# VqzqF9QtN+FUeXx4u7xlW7GOxrWxE1IhPvd/s9/3/IdlcQ8FoxUCjAsBQWb3reE6
+# Fz8u52H9hRp2GwtxJZX5EfKo+7SqQBDuDB9JGGyRu1PF4gV+FV47t/lFP/ZyQoUA
+# yLaE2ORhzjctZZGu0HJP3Ds9XTF5JeANHbBX5LS/ZM685nRmXjjukaXW7feCDNdh
+# WDGrqXAYPCuj+K2BMMJfBLZ7mYCl2d0zsJ6TXW9gV3Vm9I3xMwGaPpeooXidX4Vp
+# J8n5TElLjzKs64lEt4QBQulCbLIQ6nTHdBX9dywHokMWZ5PFmXmekFZptY17ZtOH
+# VFNSJU/qImW8OlvDpv/cB9Nqw1it9yoRs7VciJnDcF/5yQl6moOB4PkvkmqcXecI
+# Wma+4o4JZiSUsnzkcIvLjaaNsyCf/IvC514v+SGZBIpYxhzk+7jEGAYTVMvOfzIe
+# jmbbRPDrU4BW2eCenX0AWMCr+YekKqiAayQZOkjyo/jUKET0M0aI+yOzOrC55K8K
+# EXf5Lb+czI5neMuYapmGAQJK1w==
 # SIG # End signature block

@@ -30,6 +30,96 @@ function Resolve-AbsolutePath {
     return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
 }
 
+function Resolve-DotNetInvocation {
+    $sdkScopedPattern = '[\\/]sdk[\\/][^\\/]+[\\/]dotnet(?:\.exe)?$'
+    $dotnetHost = $null
+
+    $resolved = Get-Command dotnet -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($resolved) {
+        $resolvedPath = [string]$resolved.Source
+        if ([string]::IsNullOrWhiteSpace($resolvedPath)) {
+            $resolvedPath = [string]$resolved.Path
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($resolvedPath) -and $resolvedPath -notmatch $sdkScopedPattern) {
+            $dotnetHost = $resolvedPath
+        }
+    }
+
+    $fallbackCandidates = @()
+    if (-not [string]::IsNullOrWhiteSpace($env:DOTNET_ROOT)) {
+        $fallbackCandidates += (Join-Path $env:DOTNET_ROOT 'dotnet.exe')
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
+        $fallbackCandidates += (Join-Path $env:ProgramFiles 'dotnet\dotnet.exe')
+    }
+
+    foreach ($candidate in ($fallbackCandidates | Select-Object -Unique)) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            $dotnetHost = $candidate
+            break
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($dotnetHost)) {
+        if ($resolved) {
+            $resolvedPathForError = [string]$resolved.Source
+            if ([string]::IsNullOrWhiteSpace($resolvedPathForError)) {
+                $resolvedPathForError = [string]$resolved.Path
+            }
+
+            if ($resolvedPathForError -match $sdkScopedPattern) {
+                throw "Resolved 'dotnet' to SDK-scoped host path '$resolvedPathForError', which is invalid. Ensure a valid .NET host is available at DOTNET_ROOT\dotnet.exe or Program Files\dotnet\dotnet.exe."
+            }
+        }
+
+        throw ".NET host executable 'dotnet' could not be resolved. Install/repair .NET SDK and ensure dotnet.exe is available."
+    }
+
+    $versionOutput = & $dotnetHost --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        return [pscustomobject]@{
+            HostPath       = $dotnetHost
+            Prefix         = @()
+            DisplayCommand = $dotnetHost
+        }
+    }
+
+    $listSdkOutput = & $dotnetHost --list-sdks 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw ".NET host '$dotnetHost' failed --version and --list-sdks checks. --version output: $($versionOutput -join [Environment]::NewLine)"
+    }
+
+    $sdkCandidates = @()
+    foreach ($sdkLine in $listSdkOutput) {
+        if ($sdkLine -match '^\s*([0-9]+\.[0-9]+\.[0-9]+)\s+\[(.+)\]\s*$') {
+            $sdkVersionText = $matches[1]
+            $sdkRoot = $matches[2]
+            $sdkDotNetDll = Join-Path (Join-Path $sdkRoot $sdkVersionText) 'dotnet.dll'
+            if (Test-Path -LiteralPath $sdkDotNetDll -PathType Leaf) {
+                $sdkCandidates += [pscustomobject]@{
+                    Version    = [version]$sdkVersionText
+                    VersionRaw = $sdkVersionText
+                    DotNetDll  = $sdkDotNetDll
+                }
+            }
+        }
+    }
+
+    foreach ($sdkCandidate in ($sdkCandidates | Sort-Object Version -Descending)) {
+        & $dotnetHost exec $sdkCandidate.DotNetDll --version *> $null
+        if ($LASTEXITCODE -eq 0) {
+            return [pscustomobject]@{
+                HostPath       = $dotnetHost
+                Prefix         = @('exec', $sdkCandidate.DotNetDll)
+                DisplayCommand = "$dotnetHost exec $($sdkCandidate.DotNetDll)"
+            }
+        }
+    }
+
+    throw ".NET host '$dotnetHost' is present but could not execute any installed SDK command host. --version output: $($versionOutput -join [Environment]::NewLine)"
+}
+
 function ConvertTo-AppxPackageVersion {
     param([Parameter(Mandatory)][string]$Version)
 
@@ -235,8 +325,12 @@ try {
     [void]$appAssemblyIdentityNode.SetAttribute('version', $appxPackageVersion)
     $appManifestXml.Save($appManifestPath)
 
+    $dotnetInvocation = Resolve-DotNetInvocation
+    $dotnetExe = $dotnetInvocation.HostPath
+    $dotnetPrefix = @($dotnetInvocation.Prefix)
+    Write-Host "Using dotnet command: $($dotnetInvocation.DisplayCommand)" -ForegroundColor DarkGray
     Write-Host "Publishing TechShell MSIX ($RuntimeIdentifier) with package identity version $appxPackageVersion..." -ForegroundColor Cyan
-    & dotnet @publishArgs
+    & $dotnetExe @dotnetPrefix @publishArgs
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish failed for TechShell.UI"
     }
@@ -309,8 +403,8 @@ if (-not $SkipManifestValidation) {
 # SIG # Begin signature block
 # MIIcLwYJKoZIhvcNAQcCoIIcIDCCHBwCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBk33AxYqJIOS+Q
-# 9z9MLeyWt2kOKrBS7eQE+HZSDLPzcaCCFmgwggMqMIICEqADAgECAhAUclYcLlB0
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDKPNRetx7a6G2K
+# yVrzNkqiEa9GWIFEIpHOIfhqpxQcH6CCFmgwggMqMIICEqADAgECAhAUclYcLlB0
 # o0+hlxGb32/OMA0GCSqGSIb3DQEBCwUAMC0xKzApBgNVBAMMIlRlY2hUb29sYm94
 # IFRlY2hTaGVsbCBDb2RlIFNpZ25pbmcwHhcNMjYxMDAzMDE0MjMyWhcNMjgxMDAz
 # MDE1MjMxWjAtMSswKQYDVQQDDCJUZWNoVG9vbGJveCBUZWNoU2hlbGwgQ29kZSBT
@@ -434,28 +528,28 @@ if (-not $SkipManifestValidation) {
 # bCBDb2RlIFNpZ25pbmcCEBRyVhwuUHSjT6GXEZvfb84wDQYJYIZIAWUDBAIBBQCg
 # gYQwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYB
 # BAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0B
-# CQQxIgQgRdbKI2/hdDcopd7SMFX9rlD+QgmbMGGKTmjJswxBEYgwDQYJKoZIhvcN
-# AQEBBQAEggEAe6lqC9s9RF+hYmLIQeKax6zhqMnuiekHOXMrcmN/asKKNgt/vYlG
-# ptxhWU+w33A3DNrmddlZbVDUJ5/UgOal+LcOuAIuVS8VhmlhHvLdR80Fa9yOjL61
-# oRopsR2AXVqJeU43Ob/PHQh7tvYLt4DR6MZUGtFrMqzZKnmbmt2i8WKHGy1dwXXW
-# nBFw5EPl5tTgEYnKsTgZdXUGndRGwx+LwtnKzKb4Wd8AQAA5c7t1iCECfOsqgfiR
-# v6TO1bO02/qXVav8OR/PhCLwOEV8LGYZha6su+io0l/MpnberfCR4gLVfPFTIqfr
-# 3kpDOWiOSpGUqz2A3rfNWQlMd1d5EJLZFqGCAyYwggMiBgkqhkiG9w0BCQYxggMT
+# CQQxIgQga2yD3JJOyalM8uXy1ytoFslCJrUyjawhD0U3ocImt54wDQYJKoZIhvcN
+# AQEBBQAEggEAe37u1ghWE8iBkmbrVOp0DK7aoRtYABoNQgQV/dOaTvhjspEJACL2
+# 2Go9ga0jYkVPyHwSzNt+sGwNufho+EUcHOfX+qvySmwZVxHGi/evkRzPSWSxa+uI
+# iXklgYQzESMcG5E6DVHIQb+WsoPqyJygf0uh+iVryJ/ORDozoUjyClAFtyRtNQqQ
+# /iYND0B2cLB9x2gY9L/ieKuX0twGqaqeGGLvlsKR7Xv1cymL53VG4jrFxkute1rk
+# F+PaHOF4eCpRXUkCmOfJirX0hD5mn49ezRqjXqkbSfF0SyLf+XwMxnwCb3JwsHi6
+# cOwhnCAyqPiEcVc52+fVY+noNIO08MKCe6GCAyYwggMiBgkqhkiG9w0BCQYxggMT
 # MIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5j
 # LjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNB
 # NDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZIAWUD
 # BAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEP
-# Fw0yNjEwMDMwNDM2NDhaMC8GCSqGSIb3DQEJBDEiBCCal+sdYz+LWMp/2ZhnCt37
-# pjvc6nO71ePv7itoGJU1SDANBgkqhkiG9w0BAQEFAASCAgAXs9Wjgkgd2yis4c2M
-# /e3pLIG6FiscWHzkaV6Uz7btwh5mW2HSAFuSLp5Tqko3VX6NJy2l8j9jZqbdizjS
-# iPmeWMj9EwtKuu2J2bfnvVTzoO2ba4Co9sEEE7JLtoGsNXCzC0P9QTwFP6GGvaBx
-# 9tPIgqhYqSp8ynVYqJJFdGmFFLAbTZrXvcNNWxB/ZqzZfKzxR2PLS//tlyQqKqIL
-# CN9S/SRD59XjpXxcIo+O/t7sKw3YuVhpBDq/RqENB2WtJvsOgJjWBob6hltUWJZq
-# 5OIWd4848vz4DNXzO+0G402nWvGmj9aLq6IHBLZiEyQt0WEsuQ06J/AJRSQM3v4M
-# 97kUJfcrmMtIsXCfzXn7pIFFMvHlWkY3zX9JYTNdsnNe2VQIrtAz8PHvH51figyS
-# fepgMNMXbsYPwaYc1Bi7wF2JeDvbmpKx+gCP/+Fe1tTQmC1GBoYOATBjw0kwOyvR
-# zeYRAJCOmJZox1QusgJcdsDKV45+vbW4z0T95PjXRv5XM0Wcmw8SCLwdO7t8BE8J
-# 68c1IBDdUHdvBM6MxlE3do9848Wv4eFhujicAQUbv1MU5hYapPO1aOfbKbHF1Qhl
-# 6i06cAWXAjVmPWn+ezMmXIfiI4ooenHatwzTvhAP8bnqOOaaVwrzFNfM/Ccha1x5
-# m4gW1jFutNQyiFneY+wI7YxPgg==
+# Fw0yNjEwMDMyMDE3MjRaMC8GCSqGSIb3DQEJBDEiBCCLZ/tJSXMHnymiZSLU9kWp
+# ULHZMCKATvIHRPKn3F9E2TANBgkqhkiG9w0BAQEFAASCAgAcK71mW7cR057yjqgt
+# m5WaKCVxB2235aWr3Hcv3ZlzdkbWiO/vpX6ehZm03kC3SKlqTpEqk4oB3LdN3auX
+# Ph6zPiTKfOILmD9j3NBa37V+yCa40t6bsyZ37bDW8fiwGyLSPEzygYEN52iaKCUV
+# DMu4v/ZkR5Gm8MuZgoXisVtFllEUzwYw3udHCjfjSX2ZXMuPEvHo37/A0kjfePAG
+# GhgdiyQp+5lqR96zFZZqdaV1s0m1tYXdSwrzytuHoYxDEFSRUylEfkxdlPu5CXCP
+# +tC4VOQdmsMFDiRISX+UE52Jve4p/j3Z9H0wXBXugfC5Jd3rA4NCTnmFBn0xTDQ7
+# T51Uskc5fNJsktTlahqX3gZeRMpRlGGn/dCBL6xcchNGMGsiBQO0hOyVLbe6Jmp7
+# 3rN41SNT9cSgmO9JBF7U2k/1TBlIsRb8L1YRyrRpkem1ApUBDCxAmP61g6i00NZk
+# eJUctXBBv0ducxw+6cx7fumQo5Cp0h7NzSBpFEOtADjuBtyyRPz8l7e/bVUlASsC
+# bcZ7yT/9ctKYerWNAJH9O0FR2rK7GxYU20AhCBkq/9CUx/o5kPoaK6q0NUdURywO
+# kn53FmnZvB824pPT1ooSK8ZLa+GzakwjZaCQiyrwctxED+o/rvytJ9d6PUcKU3iR
+# 9CRlJolr3HoenA3Y5RIEPLOxVA==
 # SIG # End signature block
