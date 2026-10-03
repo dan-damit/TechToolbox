@@ -30,6 +30,46 @@ function Resolve-AbsolutePath {
     return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
 }
 
+function Ensure-RustMsvcToolchain {
+    $linkCommand = Get-Command link.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $linkCommand) {
+        return
+    }
+
+    $vswherePath = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    $vsInstallPath = $null
+    if (Test-Path -LiteralPath $vswherePath -PathType Leaf) {
+        $vsInstallPath = & $vswherePath -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null | Select-Object -First 1
+    }
+
+    if ([string]::IsNullOrWhiteSpace($vsInstallPath)) {
+        $fallbackInstallRoot = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\2022\BuildTools'
+        if (Test-Path -LiteralPath $fallbackInstallRoot -PathType Container) {
+            $vsInstallPath = $fallbackInstallRoot
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($vsInstallPath)) {
+        $vcToolsDir = Join-Path $vsInstallPath 'VC\Tools\MSVC'
+        if (Test-Path -LiteralPath $vcToolsDir -PathType Container) {
+            $linkCandidates = Get-ChildItem -LiteralPath $vcToolsDir -Recurse -Filter link.exe -File -ErrorAction SilentlyContinue | Select-Object -First 20
+            if ($null -ne $linkCandidates -and $linkCandidates.Count -gt 0) {
+                $linkDir = $linkCandidates[0].DirectoryName
+                if (-not [string]::IsNullOrWhiteSpace($linkDir)) {
+                    $env:PATH = [string]::Join(';', @($linkDir, $env:PATH))
+                    return
+                }
+            }
+        }
+    }
+
+    throw @"
+Rust packaging requires the MSVC linker (`link.exe`), but it is not installed or not on PATH.
+Install Visual Studio 2022 Build Tools and select: 'Desktop development with C++' and 'MSVC v143 - VS 2022 C++ x64/x86 build tools'.
+Then reopen the terminal and rerun this script.
+"@
+}
+
 function Resolve-DotNetInvocation {
     $sdkScopedPattern = '[\\/]sdk[\\/][^\\/]+[\\/]dotnet(?:\.exe)?$'
     $dotnetHost = $null
@@ -288,6 +328,7 @@ $publishArgs = @(
 )
 
 Write-Host "Building TechShell Rust backend for packaging..." -ForegroundColor Cyan
+Ensure-RustMsvcToolchain
 & cargo build --manifest-path $rustManifestPath --release
 if ($LASTEXITCODE -ne 0) {
     throw "cargo build failed for TechShell.Core"
