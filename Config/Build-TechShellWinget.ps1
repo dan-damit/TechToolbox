@@ -30,8 +30,39 @@ function Resolve-AbsolutePath {
     return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
 }
 
+function ConvertTo-AppxPackageVersion {
+    param([Parameter(Mandatory)][string]$Version)
+
+    $parts = $Version.Split('.')
+    if ($parts.Count -lt 1 -or $parts.Count -gt 4) {
+        throw "PackageVersion '$Version' must have between 1 and 4 numeric version segments for MSIX versioning."
+    }
+
+    $normalized = @()
+    foreach ($part in $parts) {
+        if ($part -notmatch '^\d+$') {
+            throw "PackageVersion '$Version' contains non-numeric segment '$part', which is not valid for MSIX package versioning."
+        }
+
+        $value = [int]$part
+        if ($value -lt 0 -or $value -gt 65535) {
+            throw "PackageVersion segment '$part' is out of range for MSIX package versioning (0..65535)."
+        }
+
+        $normalized += $value
+    }
+
+    while ($normalized.Count -lt 4) {
+        $normalized += 0
+    }
+
+    return ($normalized -join '.')
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $repoRoot 'src\TechShell\src\TechShell.UI\TechShell.UI.csproj'
+$packageManifestPath = Join-Path $repoRoot 'src\TechShell\src\TechShell.UI\Package.appxmanifest'
+$appManifestPath = Join-Path $repoRoot 'src\TechShell\src\TechShell.UI\app.manifest'
 $rustProjectPath = Join-Path $repoRoot 'src\TechShell\src\TechShell.Core'
 $rustManifestPath = Join-Path $rustProjectPath 'Cargo.toml'
 $rustBinaryName = 'techshell-core.exe'
@@ -41,6 +72,10 @@ $explorerInstallScript = Join-Path $repoRoot 'src\TechShell\Install-TechShellExp
 $buildConfigPath = Join-Path $PSScriptRoot 'build.config.json'
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
     throw "TechShell UI project not found: $projectPath"
+}
+
+if (-not (Test-Path -LiteralPath $packageManifestPath -PathType Leaf)) {
+    throw "TechShell package manifest not found: $packageManifestPath"
 }
 
 if (-not (Test-Path -LiteralPath $explorerRegistrationScript -PathType Leaf)) {
@@ -140,6 +175,7 @@ if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
 $outputRootResolved = Resolve-AbsolutePath -Path $OutputRoot
 $appxOutDir = Join-Path $outputRootResolved 'Appx'
 $installerOutDir = Join-Path $outputRootResolved 'Installer'
+$appxPackageVersion = ConvertTo-AppxPackageVersion -Version $PackageVersion
 
 New-Item -ItemType Directory -Path $appxOutDir -Force | Out-Null
 New-Item -ItemType Directory -Path $installerOutDir -Force | Out-Null
@@ -152,6 +188,10 @@ $publishArgs = @(
     '-r',
     $RuntimeIdentifier,
     '-p:GenerateAppxPackageOnBuild=true',
+    '-p:Version=' + $appxPackageVersion,
+    '-p:AssemblyVersion=' + $appxPackageVersion,
+    '-p:FileVersion=' + $appxPackageVersion,
+    '-p:PackageVersion=' + $appxPackageVersion,
     "-p:AppxPackageDir=$($appxOutDir)\\",
     '-p:AppxBundle=Never',
     '-p:UapAppxPackageBuildMode=SideloadOnly'
@@ -170,10 +210,40 @@ if (-not (Test-Path -LiteralPath $rustBinaryPath -PathType Leaf)) {
 $packagedRustBinaryDestination = Join-Path $appxOutDir $rustBinaryName
 Copy-Item -LiteralPath $rustBinaryPath -Destination $packagedRustBinaryDestination -Force
 
-Write-Host "Publishing TechShell MSIX ($RuntimeIdentifier)..." -ForegroundColor Cyan
-& dotnet @publishArgs
-if ($LASTEXITCODE -ne 0) {
-    throw "dotnet publish failed for TechShell.UI"
+$originalPackageManifestContent = Get-Content -LiteralPath $packageManifestPath -Raw
+$originalAppManifestContent = Get-Content -LiteralPath $appManifestPath -Raw
+try {
+    [xml]$packageManifestXml = $originalPackageManifestContent
+    $nsManager = New-Object System.Xml.XmlNamespaceManager($packageManifestXml.NameTable)
+    $nsManager.AddNamespace('pkg', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+    $identityNode = $packageManifestXml.SelectSingleNode('/pkg:Package/pkg:Identity', $nsManager)
+    if ($null -eq $identityNode) {
+        throw "Could not find /Package/Identity node in $packageManifestPath."
+    }
+
+    [void]$identityNode.SetAttribute('Version', $appxPackageVersion)
+    $packageManifestXml.Save($packageManifestPath)
+
+    [xml]$appManifestXml = $originalAppManifestContent
+    $appManifestNs = New-Object System.Xml.XmlNamespaceManager($appManifestXml.NameTable)
+    $appManifestNs.AddNamespace('asm', 'urn:schemas-microsoft-com:asm.v1')
+    $appAssemblyIdentityNode = $appManifestXml.SelectSingleNode('/asm:assembly/asm:assemblyIdentity', $appManifestNs)
+    if ($null -eq $appAssemblyIdentityNode) {
+        throw "Could not find /assembly/assemblyIdentity node in $appManifestPath."
+    }
+
+    [void]$appAssemblyIdentityNode.SetAttribute('version', $appxPackageVersion)
+    $appManifestXml.Save($appManifestPath)
+
+    Write-Host "Publishing TechShell MSIX ($RuntimeIdentifier) with package identity version $appxPackageVersion..." -ForegroundColor Cyan
+    & dotnet @publishArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet publish failed for TechShell.UI"
+    }
+}
+finally {
+    Set-Content -LiteralPath $packageManifestPath -Value $originalPackageManifestContent -Encoding utf8
+    Set-Content -LiteralPath $appManifestPath -Value $originalAppManifestContent -Encoding utf8
 }
 
 $msix = Get-ChildItem -LiteralPath $appxOutDir -Filter *.msix -File -Recurse |
@@ -234,7 +304,7 @@ if (-not $SkipManifestValidation) {
     & $testManifestScript -PackageVersion $PackageVersion -PackageIdentifier $PackageIdentifier
 }
 
-[pscustomobject]@{ PackageVersion = $PackageVersion; RuntimeIdentifier = $RuntimeIdentifier; ReleaseTag = $ReleaseTag; ProjectPath = $projectPath; PublishedMsixPath = $msix.FullName; InstallerPath = $installerPath; ExplorerRegistrationScriptPath = $registrationScriptDestination; ExplorerInstallScriptPath = $installScriptDestination; InstallerUrl = $installerUrl; SigningThumbprint = $Thumbprint; SigningTimestampServer = $TimestampServer; PublicTrustPreflightPassed = $trustPreflight.IsPublicTrustReady; PublicTrustPreflightSelfSigned = $trustPreflight.IsSelfSigned; PublicTrustPreflightChainStatuses = @($trustPreflight.ChainStatuses); ManifestWritten = (-not $SkipManifestWrite); ManifestValidated = (-not $SkipManifestValidation); ManifestResult = $manifestResult }
+[pscustomobject]@{ PackageVersion = $PackageVersion; AppxPackageVersion = $appxPackageVersion; RuntimeIdentifier = $RuntimeIdentifier; ReleaseTag = $ReleaseTag; ProjectPath = $projectPath; PublishedMsixPath = $msix.FullName; InstallerPath = $installerPath; ExplorerRegistrationScriptPath = $registrationScriptDestination; ExplorerInstallScriptPath = $installScriptDestination; InstallerUrl = $installerUrl; SigningThumbprint = $Thumbprint; SigningTimestampServer = $TimestampServer; PublicTrustPreflightPassed = $trustPreflight.IsPublicTrustReady; PublicTrustPreflightSelfSigned = $trustPreflight.IsSelfSigned; PublicTrustPreflightChainStatuses = @($trustPreflight.ChainStatuses); ManifestWritten = (-not $SkipManifestWrite); ManifestValidated = (-not $SkipManifestValidation); ManifestResult = $manifestResult }
 
 # SIG # Begin signature block
 # MIIcLwYJKoZIhvcNAQcCoIIcIDCCHBwCAQExDzANBglghkgBZQMEAgEFADB5Bgor

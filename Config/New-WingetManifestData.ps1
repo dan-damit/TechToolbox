@@ -10,6 +10,7 @@ param(
     [string]$InstallerUrl = 'https://github.com/dan-damit/TechToolbox/releases/download/v<version>/TechShell.msix',
     [string]$Publisher = 'VADTEK',
     [string]$PackageName = 'TechShell',
+    [string]$License = 'MIT',
     [string]$ShortDescription = 'TechToolbox Windows shell experience.',
     [string]$MinimumOSVersion = '10.0.17763.0',
     [ValidateSet('msix', 'exe', 'msi', 'zip')]
@@ -64,12 +65,14 @@ $result = [pscustomobject]@{
     InstallerSha256   = $sha256
     Publisher         = $Publisher
     PackageName       = $PackageName
+    License           = $License
     ShortDescription  = $ShortDescription
     MinimumOSVersion  = $MinimumOSVersion
     GeneratedAtUtc    = (Get-Date).ToUniversalTime().ToString('o')
 }
 
 $installerYaml = @"
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
 PackageIdentifier: $PackageIdentifier
 PackageVersion: $PackageVersion
 MinimumOSVersion: $MinimumOSVersion
@@ -84,18 +87,22 @@ ManifestVersion: 1.10.0
 "@
 
 $versionYaml = @"
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.10.0.schema.json
 PackageIdentifier: $PackageIdentifier
 PackageVersion: $PackageVersion
+DefaultLocale: en-US
 ManifestType: version
 ManifestVersion: 1.10.0
 "@
 
 $localeYaml = @"
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
 PackageIdentifier: $PackageIdentifier
 PackageVersion: $PackageVersion
 PackageLocale: en-US
 Publisher: $Publisher
 PackageName: $PackageName
+License: $License
 ShortDescription: $ShortDescription
 ManifestType: defaultLocale
 ManifestVersion: 1.10.0

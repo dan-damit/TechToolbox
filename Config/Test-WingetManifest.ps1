@@ -70,10 +70,20 @@ if (-not $SkipWingetCliValidation) {
         $warnings.Add('winget CLI not found; skipped winget validate.')
     }
     else {
-        & winget validate --manifest $versionPath
+        $wingetOutput = & winget validate --manifest $versionPath 2>&1
+        $wingetOutputText = ($wingetOutput | Out-String)
+        if (-not [string]::IsNullOrWhiteSpace($wingetOutputText)) {
+            Write-Host $wingetOutputText.TrimEnd()
+        }
+
         $wingetValidationExitCode = $LASTEXITCODE
         if ($wingetValidationExitCode -ne 0) {
-            $errors.Add("winget validate failed with exit code $wingetValidationExitCode")
+            if ($wingetOutputText -match 'Manifest validation succeeded with warnings\.') {
+                $warnings.Add("winget validate succeeded with warnings (exit code $wingetValidationExitCode).")
+            }
+            else {
+                $errors.Add("winget validate failed with exit code $wingetValidationExitCode")
+            }
         }
     }
 }
