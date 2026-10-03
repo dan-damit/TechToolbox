@@ -14,6 +14,11 @@ on:
         description: "GitHub release tag to publish the installer under. Defaults to the current tag or v<package_version>."
         required: false
         type: string
+      submit_winget_pr:
+        description: "Create a PR to microsoft/winget-pkgs after build completes (requires winget submission secrets)."
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -21,6 +26,9 @@ permissions:
 jobs:
   build-msix-and-release:
     runs-on: windows-latest
+    outputs:
+      package_version: ${{ steps.version.outputs.package_version }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -28,6 +36,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
@@ -129,3 +139,81 @@ jobs:
           name: techshell-winget-manifests
           path: packaging/winget/TechToolbox.TechShell/**/*
           if-no-files-found: warn
+
+  submit-winget-pr:
+    needs: build-msix-and-release
+    runs-on: ubuntu-latest
+    if: needs.build-msix-and-release.result == 'success' && (github.event_name == 'push' || github.event.inputs.submit_winget_pr == 'true')
+    steps:
+      - name: Download winget manifests artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: techshell-winget-manifests
+          path: winget-manifests
+
+      - name: Prepare winget-pkgs manifest branch and PR
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_PKGS_PAT }}
+          WINGET_PKGS_FORK: ${{ secrets.WINGET_PKGS_FORK }}
+          WINGET_PKGS_FORK_OWNER: ${{ secrets.WINGET_PKGS_FORK_OWNER }}
+          PACKAGE_VERSION: ${{ needs.build-msix-and-release.outputs.package_version }}
+          RELEASE_TAG: ${{ needs.build-msix-and-release.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ] || [ -z "${WINGET_PKGS_FORK:-}" ] || [ -z "${WINGET_PKGS_FORK_OWNER:-}" ]; then
+            echo "Missing one or more required secrets: WINGET_PKGS_PAT, WINGET_PKGS_FORK, WINGET_PKGS_FORK_OWNER"
+            exit 1
+          fi
+
+          SOURCE_DIR="winget-manifests/${PACKAGE_VERSION}"
+          if [ ! -d "$SOURCE_DIR" ]; then
+            SOURCE_DIR="winget-manifests/packaging/winget/TechToolbox.TechShell/${PACKAGE_VERSION}"
+          fi
+
+          if [ ! -d "$SOURCE_DIR" ]; then
+            echo "Unable to find generated manifests for version ${PACKAGE_VERSION} in downloaded artifact."
+            ls -R winget-manifests || true
+            exit 1
+          fi
+
+          BRANCH_NAME="techtoolbox-techshell-${PACKAGE_VERSION}-${GITHUB_RUN_NUMBER}"
+          TARGET_DIR="manifests/t/TechToolbox/TechShell/${PACKAGE_VERSION}"
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${WINGET_PKGS_FORK}.git" winget-pkgs
+          cd winget-pkgs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH_NAME"
+          mkdir -p "$TARGET_DIR"
+          cp -f "../${SOURCE_DIR}/TechToolbox.TechShell.yaml" "$TARGET_DIR/"
+          cp -f "../${SOURCE_DIR}/TechToolbox.TechShell.installer.yaml" "$TARGET_DIR/"
+          cp -f "../${SOURCE_DIR}/TechToolbox.TechShell.locale.en-US.yaml" "$TARGET_DIR/"
+
+          if git diff --quiet -- "$TARGET_DIR"; then
+            echo "No manifest changes detected for ${PACKAGE_VERSION}. Skipping PR creation."
+            exit 0
+          fi
+
+          git add "$TARGET_DIR"
+          git commit -m "Add TechToolbox.TechShell ${PACKAGE_VERSION}"
+          git push --set-upstream origin "$BRANCH_NAME"
+
+          EXISTING_PR_URL="$(gh pr list \
+            --repo microsoft/winget-pkgs \
+            --head "${WINGET_PKGS_FORK_OWNER}:${BRANCH_NAME}" \
+            --state open \
+            --json url \
+            --jq '.[0].url')"
+          if [ -n "$EXISTING_PR_URL" ] && [ "$EXISTING_PR_URL" != "null" ]; then
+            echo "A PR already exists for branch ${BRANCH_NAME}: $EXISTING_PR_URL"
+            exit 0
+          fi
+
+          gh pr create \
+            --repo microsoft/winget-pkgs \
+            --base master \
+            --head "${WINGET_PKGS_FORK_OWNER}:${BRANCH_NAME}" \
+            --title "Add TechToolbox.TechShell version ${PACKAGE_VERSION}" \
+            --body "Automated submission from TechToolbox release workflow for ${RELEASE_TAG}."

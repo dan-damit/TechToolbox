@@ -17,6 +17,12 @@ This guide adds a separate, PowerShell-friendly release path for the Windows She
   - `TECHSHELL_CODE_SIGNING_PFX_BASE64`
   - `TECHSHELL_CODE_SIGNING_PFX_PASSWORD`
   - `TECHSHELL_CODE_SIGNING_THUMBPRINT`
+- GitHub Actions secrets for winget-pkgs submission:
+  - `WINGET_PKGS_PAT` (token with access to your `winget-pkgs` fork)
+  - `WINGET_PKGS_FORK` (for example `yourname/winget-pkgs`)
+  - `WINGET_PKGS_FORK_OWNER` (for example `yourname`)
+
+The workflow can be manually controlled through the `submit_winget_pr` input on workflow dispatch. If you want a hard approval gate, add an environment gate to the submission job in your local workflow configuration.
 
 The release workflow imports the PFX certificate into the runner before building the MSIX so the signing step happens during the automated release flow rather than on a local workstation.
 
@@ -111,6 +117,22 @@ winget install TechToolbox.TechShell
 ```
 
 8. Keep PSGallery release flow unchanged for the PowerShell module.
+
+## Automated winget-pkgs submission (new)
+
+The `techshell-winget-release.yml` workflow now includes a second job that can create a PR to `microsoft/winget-pkgs` automatically after a successful build/sign/upload.
+
+Behavior:
+
+- Tag push (`v*`): submission job runs automatically after release build.
+- Manual dispatch: you can toggle submission with `submit_winget_pr` input.
+
+What it does:
+
+1. Downloads the generated winget manifest artifact.
+2. Clones your `winget-pkgs` fork.
+3. Copies manifests into `manifests/t/TechToolbox/TechShell/<version>/`.
+4. Creates/pushes a branch and opens a PR to `microsoft/winget-pkgs`.
 
 ## Notes for this repository
 
