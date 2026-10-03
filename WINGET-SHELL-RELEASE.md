@@ -13,6 +13,12 @@ This guide adds a separate, PowerShell-friendly release path for the Windows She
 - Public HTTPS download URL for each release asset
 - `winget` available locally for validation
 - Repository root open in PowerShell
+- GitHub Actions secrets for release signing:
+  - `TECHSHELL_CODE_SIGNING_PFX_BASE64`
+  - `TECHSHELL_CODE_SIGNING_PFX_PASSWORD`
+  - `TECHSHELL_CODE_SIGNING_THUMBPRINT`
+
+The release workflow imports the PFX certificate into the runner before building the MSIX so the signing step happens during the automated release flow rather than on a local workstation.
 
 ## Recommended repo layout
 
@@ -45,6 +51,33 @@ This returns:
 - `ManifestFiles` output containing the exact paths written under `packaging/winget`
 
 You can still run in preview mode (no file writes) by omitting `-WriteManifestFiles`.
+
+## Build + manifest helper (recommended)
+
+Use the dedicated helper to publish the TechShell MSIX, stage a stable installer filename,
+and generate/validate winget manifests in one pass:
+
+```powershell
+pwsh -NoProfile -File .\Config\Build-TechShellWinget.ps1 `
+  -PackageVersion 0.6.1 `
+  -RuntimeIdentifier win-x64
+```
+
+Notes:
+
+- This script keeps TechShell packaging independent from PSGallery module publishing.
+- It writes outputs under `Out\TechShell\<version>\<runtime>\`.
+- It also stages `Register-TechShellExplorerIntegration.ps1` beside the `.msix` so the shell context-menu helper ships with the release bundle.
+- Use `-SkipManifestWrite` to dry-run metadata generation only.
+- Use `-SkipManifestValidation` to bypass local validation temporarily.
+
+After install, run the one-click installer helper:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\Install-TechShellExplorerIntegration.ps1 -AutoDetect
+```
+
+This automatically locates the installed TechShell executable and registers the Explorer context-menu integration without replacing File Explorer.
 
 ## Validate manifest files (CI/local)
 

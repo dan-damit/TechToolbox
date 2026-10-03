@@ -1,26 +1,19 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [string]$InstallerPath,
-
-    [Parameter(Mandatory)]
     [string]$PackageVersion,
 
+    [string]$ReleaseTag,
     [string]$PackageIdentifier = 'TechToolbox.TechShell',
-    [string]$InstallerUrl = 'https://github.com/dan-damit/TechToolbox/releases/download/v<version>/TechShell.msix',
-    [string]$Publisher = 'VADTEK',
-    [string]$PackageName = 'TechShell',
-    [string]$ShortDescription = 'TechToolbox Windows shell experience.',
-    [string]$MinimumOSVersion = '10.0.17763.0',
-    [ValidateSet('msix', 'exe', 'msi', 'zip')]
-    [string]$InstallerType = 'msix',
-    [ValidateSet('x64', 'x86', 'arm64', 'neutral')]
-    [string]$Architecture = 'x64',
-    [ValidateSet('machine', 'user')]
-    [string]$Scope = 'machine',
-    [switch]$AsJson,
-    [switch]$WriteManifestFiles,
-    [string]$ManifestRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) 'packaging\winget')
+    [ValidateSet('win-x64', 'win-x86', 'win-arm64')]
+    [string]$RuntimeIdentifier = 'win-x64',
+    [string]$Configuration = 'Release',
+    [string]$InstallerFileName = 'TechShell.msix',
+    [string]$OutputRoot,
+    [string]$Thumbprint,
+    [string]$TimestampServer,
+    [switch]$SkipManifestWrite,
+    [switch]$SkipManifestValidation
 )
 
 Set-StrictMode -Version 3.0
@@ -36,118 +29,153 @@ function Resolve-AbsolutePath {
     return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
 }
 
-$resolvedInstallerPath = Resolve-AbsolutePath -Path $InstallerPath
-if (-not (Test-Path -LiteralPath $resolvedInstallerPath -PathType Leaf)) {
-    throw "Installer file not found: $resolvedInstallerPath"
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$projectPath = Join-Path $repoRoot 'src\TechShell\src\TechShell.UI\TechShell.UI.csproj'
+$explorerRegistrationScript = Join-Path $repoRoot 'src\TechShell\Register-TechShellExplorerIntegration.ps1'
+$explorerInstallScript = Join-Path $repoRoot 'src\TechShell\Install-TechShellExplorerIntegration.ps1'
+$buildConfigPath = Join-Path $PSScriptRoot 'build.config.json'
+if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
+    throw "TechShell UI project not found: $projectPath"
 }
 
-$sha256 = (Get-FileHash -LiteralPath $resolvedInstallerPath -Algorithm SHA256).Hash.ToUpperInvariant()
-$installerFileName = [System.IO.Path]::GetFileName($resolvedInstallerPath)
-
-if ($InstallerUrl -match '<version>') {
-    $InstallerUrl = $InstallerUrl -replace '<version>', $PackageVersion
+if (-not (Test-Path -LiteralPath $explorerRegistrationScript -PathType Leaf)) {
+    throw "TechShell Explorer integration helper not found: $explorerRegistrationScript"
 }
 
-if ($InstallerUrl -match '<file>') {
-    $InstallerUrl = $InstallerUrl -replace '<file>', $installerFileName
+if (-not (Test-Path -LiteralPath $explorerInstallScript -PathType Leaf)) {
+    throw "TechShell Explorer installer helper not found: $explorerInstallScript"
 }
 
-$result = [pscustomobject]@{
-    PackageIdentifier = $PackageIdentifier
-    PackageVersion    = $PackageVersion
-    InstallerPath     = $resolvedInstallerPath
-    InstallerFileName = $installerFileName
-    InstallerUrl      = $InstallerUrl
-    InstallerType     = $InstallerType
-    Architecture      = $Architecture
-    Scope             = $Scope
-    InstallerSha256   = $sha256
-    Publisher         = $Publisher
-    PackageName       = $PackageName
-    ShortDescription  = $ShortDescription
-    MinimumOSVersion  = $MinimumOSVersion
-    GeneratedAtUtc    = (Get-Date).ToUniversalTime().ToString('o')
+if ([string]::IsNullOrWhiteSpace($Thumbprint) -and (Test-Path -LiteralPath $buildConfigPath -PathType Leaf)) {
+    $buildConfig = Get-Content -LiteralPath $buildConfigPath -Raw | ConvertFrom-Json
+    $Thumbprint = [string]$buildConfig.signing.thumbprint
 }
 
-$installerYaml = @"
-PackageIdentifier: $PackageIdentifier
-PackageVersion: $PackageVersion
-MinimumOSVersion: $MinimumOSVersion
-Installers:
-  - Architecture: $Architecture
-    InstallerType: $InstallerType
-    Scope: $Scope
-    InstallerUrl: $InstallerUrl
-    InstallerSha256: $sha256
-ManifestType: installer
-ManifestVersion: 1.10.0
-"@
+if ([string]::IsNullOrWhiteSpace($TimestampServer) -and (Test-Path -LiteralPath $buildConfigPath -PathType Leaf)) {
+    $buildConfig = Get-Content -LiteralPath $buildConfigPath -Raw | ConvertFrom-Json
+    $TimestampServer = [string]$buildConfig.signing.timestamp
+}
 
-$versionYaml = @"
-PackageIdentifier: $PackageIdentifier
-PackageVersion: $PackageVersion
-ManifestType: version
-ManifestVersion: 1.10.0
-"@
+if ([string]::IsNullOrWhiteSpace($TimestampServer)) {
+    $TimestampServer = 'http://timestamp.digicert.com'
+}
 
-$localeYaml = @"
-PackageIdentifier: $PackageIdentifier
-PackageVersion: $PackageVersion
-PackageLocale: en-US
-Publisher: $Publisher
-PackageName: $PackageName
-ShortDescription: $ShortDescription
-ManifestType: defaultLocale
-ManifestVersion: 1.10.0
-"@
+function Get-CodeSigningCert {
+    param([Parameter(Mandatory)] [string]$Thumb)
 
-$manifestOutput = $null
-if ($WriteManifestFiles) {
-    $resolvedManifestRoot = Resolve-AbsolutePath -Path $ManifestRoot
-    $versionFolder = Join-Path (Join-Path $resolvedManifestRoot $PackageIdentifier) $PackageVersion
-    New-Item -ItemType Directory -Path $versionFolder -Force | Out-Null
+    foreach ($store in @('Cert:\CurrentUser\My', 'Cert:\LocalMachine\My')) {
+        $found = Get-ChildItem -LiteralPath $store -ErrorAction SilentlyContinue |
+            Where-Object { $_.Thumbprint -eq $Thumb }
 
-    $versionManifestPath = Join-Path $versionFolder ("{0}.yaml" -f $PackageIdentifier)
-    $installerManifestPath = Join-Path $versionFolder ("{0}.installer.yaml" -f $PackageIdentifier)
-    $localeManifestPath = Join-Path $versionFolder ("{0}.locale.en-US.yaml" -f $PackageIdentifier)
+        if ($found -and $found.HasPrivateKey) {
+            return $found
+        }
+    }
 
-    Set-Content -LiteralPath $versionManifestPath -Value ($versionYaml.Trim() + [Environment]::NewLine) -Encoding utf8
-    Set-Content -LiteralPath $installerManifestPath -Value ($installerYaml.Trim() + [Environment]::NewLine) -Encoding utf8
-    Set-Content -LiteralPath $localeManifestPath -Value ($localeYaml.Trim() + [Environment]::NewLine) -Encoding utf8
+    return $null
+}
 
-    $manifestOutput = [pscustomobject]@{
-        ManifestRoot = $resolvedManifestRoot
-        ManifestVersionPath = $versionFolder
-        VersionManifestPath = $versionManifestPath
-        InstallerManifestPath = $installerManifestPath
-        LocaleManifestPath = $localeManifestPath
+function Invoke-MsixSigning {
+    param(
+        [Parameter(Mandatory)] [string]$FilePath,
+        [Parameter(Mandatory)] [string]$Thumb,
+        [Parameter(Mandatory)] [string]$Timestamp
+    )
+
+    $signtool = Get-Command 'signtool.exe' -ErrorAction SilentlyContinue
+    if (-not $signtool) {
+        throw 'signtool.exe was not found in PATH. Install the Windows SDK signing tools or configure PATH.'
+    }
+
+    $certificate = Get-CodeSigningCert -Thumb $Thumb
+    if (-not $certificate) {
+        throw "The configured signing certificate was not found in CurrentUser\My or LocalMachine\My for thumbprint $Thumb."
+    }
+
+    & $signtool.Source sign /fd SHA256 /td SHA256 /tr $Timestamp /sha1 $Thumb /v $FilePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Signing failed for $FilePath using thumbprint $Thumb."
     }
 }
 
-if ($AsJson) {
-    [pscustomobject]@{
-        Metadata = $result
-        InstallerYaml = $installerYaml.Trim()
-        VersionYaml = $versionYaml.Trim()
-        DefaultLocaleYaml = $localeYaml.Trim()
-        ManifestFiles = $manifestOutput
-    } | ConvertTo-Json -Depth 5
+if ([string]::IsNullOrWhiteSpace($ReleaseTag)) {
+    $ReleaseTag = "v$PackageVersion"
 }
-else {
-    [pscustomobject]@{
-        Metadata = $result
-        InstallerYaml = $installerYaml.Trim()
-        VersionYaml       = $versionYaml.Trim()
-        DefaultLocaleYaml = $localeYaml.Trim()
-        ManifestFiles = $manifestOutput
-    }
+
+if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
+    $OutputRoot = Join-Path $repoRoot ("Out\TechShell\$PackageVersion\$RuntimeIdentifier")
 }
+
+$outputRootResolved = Resolve-AbsolutePath -Path $OutputRoot
+$appxOutDir = Join-Path $outputRootResolved 'Appx'
+$installerOutDir = Join-Path $outputRootResolved 'Installer'
+
+New-Item -ItemType Directory -Path $appxOutDir -Force | Out-Null
+New-Item -ItemType Directory -Path $installerOutDir -Force | Out-Null
+
+$publishArgs = @(
+    'publish',
+    $projectPath,
+    '-c',
+    $Configuration,
+    '-r',
+    $RuntimeIdentifier,
+    '-p:GenerateAppxPackageOnBuild=true',
+    "-p:AppxPackageDir=$($appxOutDir)\\",
+    '-p:AppxBundle=Never',
+    '-p:UapAppxPackageBuildMode=SideloadOnly'
+)
+
+Write-Host "Publishing TechShell MSIX ($RuntimeIdentifier)..." -ForegroundColor Cyan
+& dotnet @publishArgs
+if ($LASTEXITCODE -ne 0) {
+    throw "dotnet publish failed for TechShell.UI"
+}
+
+$msix = Get-ChildItem -LiteralPath $appxOutDir -Filter *.msix -File -Recurse |
+Sort-Object LastWriteTime -Descending |
+Select-Object -First 1
+
+if ($null -eq $msix) {
+    throw "No MSIX artifact found under: $appxOutDir"
+}
+
+$installerPath = Join-Path $installerOutDir $InstallerFileName
+Copy-Item -LiteralPath $msix.FullName -Destination $installerPath -Force
+
+$registrationScriptDestination = Join-Path $installerOutDir 'Register-TechShellExplorerIntegration.ps1'
+$installScriptDestination = Join-Path $installerOutDir 'Install-TechShellExplorerIntegration.ps1'
+Copy-Item -LiteralPath $explorerRegistrationScript -Destination $registrationScriptDestination -Force
+Copy-Item -LiteralPath $explorerInstallScript -Destination $installScriptDestination -Force
+
+if ([string]::IsNullOrWhiteSpace($Thumbprint)) {
+    throw 'No code signing thumbprint was provided and none was found in Config\build.config.json.'
+}
+
+Write-Host "Signing TechShell installer bundle with certificate thumbprint $Thumbprint..." -ForegroundColor Cyan
+Invoke-MsixSigning -FilePath $installerPath -Thumb $Thumbprint -Timestamp $TimestampServer
+Set-AuthenticodeSignature -FilePath $registrationScriptDestination -Certificate (Get-CodeSigningCert -Thumb $Thumbprint) -HashAlgorithm SHA256 -TimestampServer $TimestampServer | Out-Null
+Set-AuthenticodeSignature -FilePath $installScriptDestination -Certificate (Get-CodeSigningCert -Thumb $Thumbprint) -HashAlgorithm SHA256 -TimestampServer $TimestampServer | Out-Null
+
+$installerUrl = "https://github.com/dan-damit/TechToolbox/releases/download/$ReleaseTag/$InstallerFileName"
+$newManifestScript = Join-Path $PSScriptRoot 'New-WingetManifestData.ps1'
+$testManifestScript = Join-Path $PSScriptRoot 'Test-WingetManifest.ps1'
+
+$manifestArgs = @{ InstallerPath = $installerPath; PackageVersion = $PackageVersion; PackageIdentifier = $PackageIdentifier; InstallerUrl = $installerUrl; WriteManifestFiles = (-not $SkipManifestWrite) }
+
+$manifestResult = & $newManifestScript @manifestArgs
+
+if (-not $SkipManifestValidation) {
+    & $testManifestScript -PackageVersion $PackageVersion -PackageIdentifier $PackageIdentifier
+}
+
+[pscustomobject]@{ PackageVersion = $PackageVersion; RuntimeIdentifier = $RuntimeIdentifier; ReleaseTag = $ReleaseTag; ProjectPath = $projectPath; PublishedMsixPath = $msix.FullName; InstallerPath = $installerPath; ExplorerRegistrationScriptPath = $registrationScriptDestination; ExplorerInstallScriptPath = $installScriptDestination; InstallerUrl = $installerUrl; SigningThumbprint = $Thumbprint; SigningTimestampServer = $TimestampServer; ManifestWritten = (-not $SkipManifestWrite); ManifestValidated = (-not $SkipManifestValidation); ManifestResult = $manifestResult }
 
 # SIG # Begin signature block
 # MIIcLwYJKoZIhvcNAQcCoIIcIDCCHBwCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBN+rjEjUcePSuI
-# 8hFE4h3r5nsf35ARAHLlaHlllLSVvqCCFmgwggMqMIICEqADAgECAhAUclYcLlB0
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBzZfiFqwsIG2p4
+# 7ER+H5gZZBnC2aSE01NkJvx5P+IyrqCCFmgwggMqMIICEqADAgECAhAUclYcLlB0
 # o0+hlxGb32/OMA0GCSqGSIb3DQEBCwUAMC0xKzApBgNVBAMMIlRlY2hUb29sYm94
 # IFRlY2hTaGVsbCBDb2RlIFNpZ25pbmcwHhcNMjYxMDAzMDE0MjMyWhcNMjgxMDAz
 # MDE1MjMxWjAtMSswKQYDVQQDDCJUZWNoVG9vbGJveCBUZWNoU2hlbGwgQ29kZSBT
@@ -271,28 +299,28 @@ else {
 # bCBDb2RlIFNpZ25pbmcCEBRyVhwuUHSjT6GXEZvfb84wDQYJYIZIAWUDBAIBBQCg
 # gYQwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYB
 # BAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0B
-# CQQxIgQgng74rnY8pef9BlFplN2UaGkGzi+w2N98ZFyMrxGHBuQwDQYJKoZIhvcN
-# AQEBBQAEggEAMcHq1txmm/znBE7zH+mBNoF0LcDJfFoaAkoeCvk2eg1zTJYzF/z6
-# x9phGXuTEYHuNe8w4WsHrBKlMek4BiSl2j5PkuAPY38H/KlqaOm5L0/r5RFaYEIW
-# 4igmOnAYGneX+4FnuuGNlpaKrdSPLI73TsiVPm+rsGFR3bJnQI5BZyWY+UN3L4S1
-# Czc/BPYopdZVCke21atgDUaC99IW4fuqfwvzRDvb3Cwg15L737t2htVWJuEVlQP4
-# sGqsOznZZehADizWC6kwZrmeYHPreID3TnzpklqibkgoGMCGD+j/9LOgHWkT4Len
-# TkV5RQEEMWjpV/0KWkP0YIm8z7GxGj+tnKGCAyYwggMiBgkqhkiG9w0BCQYxggMT
+# CQQxIgQgZfpKhhIwgWkFaN8R99BaB21KaSx83eqe6Qr+cW+zLkEwDQYJKoZIhvcN
+# AQEBBQAEggEAaMTp5myrpEWIFtTlqMygKUyRyk36nJpHe07ZSk24R2eZXYwaIWri
+# efD41sotO4A/NLXzEHecrHLtmjkM4aI7k2fffTOnfeZJDu8LN36tg9FYqh7URwX3
+# hqLurR+jwOAPgvtmSY4W6uw/5WVSPdxk390bHBeXbgfIhlzfjiqtCTG1iP5dI5gU
+# JgyWnG5sLX5qz2PNcJ2xN4ctn5hT4bv+dX0GpCd1RzCrkaEZCftvX1OWyI5ugh4q
+# jFCk818fMKjBLCZcMiab02Z5ivAPum/hXjzbWdA14iBE0issLFVivCEOrfZ75EUS
+# WFBvcWjjqokYoW1IRwgMFh8flYPQREOxaaGCAyYwggMiBgkqhkiG9w0BCQYxggMT
 # MIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5j
 # LjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNB
 # NDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZIAWUD
 # BAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEP
-# Fw0yNjEwMDMwMjE2MzRaMC8GCSqGSIb3DQEJBDEiBCCROjed36f/cl5YmtA6KKm+
-# UxzOwQI7euSJ3WTT0L+VUzANBgkqhkiG9w0BAQEFAASCAgAtCEMwpvxCMM2j42fj
-# gpi/vw61vok0fuCWLDeQHX977I77Q8lIZZJumirVtJ7E/ZIcM4ShFuvtFmQW9vnK
-# 9akcqsplh+lpYag0YW6GG0uatFTcuTcGAe0BZwVDQ7AOpxgJ5C5W2/bHTD8qD2As
-# bR00CXrsDbza19KwHhnZets7vWqfAvPyaOjHAqOaWgKrIpENeDAIZJdoXYzdTcFD
-# LUx8jZce2/hIy59ueqHOL2WeLITAenmyWzCJjmc9N43oP5o4nqwMNoBNSvx3/xMr
-# e3dl1cZwsKec71pUopQLyS28avFj0Jci2tRRVamlDl9fooXSGJjogrn8lGTEEUqA
-# v3N+vDvqHkycp10sCU47dy908h2nWAC6OyHhFbk+6wP7hAYgJfckxzXhDxzAiDiD
-# 7FEXCNbhetLxzTIdyWPjC57YPqjDSXiN3YBMHJE6/gvkKsikgO3/s6flUmV66WUr
-# xDnzaNG/EFs4QJnYyCctuM59yFSy0h9kapiHFsk1X4+FF6jF9HeYQ1i/aNVRssHN
-# taTqotqvG6Vk0K2FnUYCjilWgV+0r1BOnnpOgtAaFWSaXOWoG51/c2kWDs3ZICIG
-# 01YNFAgbvtp6tD7e3wN5x11X4hCGpUQJ2zYeticX8KLRynQCIg9sSXm6g76uHgIz
-# HsJwaQTmT/FmBnpEnAxbIeTCsA==
+# Fw0yNjEwMDMwMjE2MzRaMC8GCSqGSIb3DQEJBDEiBCCWxAfrqii9hLo/Nj+7buYV
+# ImWWD26BHas+jWWurvTE1TANBgkqhkiG9w0BAQEFAASCAgB6JFeDyUOsTYstmlbU
+# ZIaJLKslPGwK0Nxu6x6La0CPhplZF7mnr9qYXIwQ5iulIz8fjq6UsfTm93tIr1fi
+# tAUtGse6Y1f0AlVKlgJqKkHYoeS/naj+V7dFSec2QyWwwm6+Oz1V0iqhXDku0Ni2
+# /jKOqMoXUXozUt4HyqZH9wzltjfnW4DtjmFbToq20bV4kNGzyFwpuRzX09c8HxW/
+# DjORUuzhHphYDibcGWBkslseN4MStHIiohdLlD1nHsaZpDRi+PpiRRLv8ljC01zj
+# Cm3L0cviy03g5sA9+Dxp3efb/6M/gRRQpeKDDim/JvKfY2KvTX7a7ZFOUBm699Re
+# Z+6gxqOn94ehG0Beg5+KP63IxiLoeUM3hBAV3tucUvNXCa7TQY+3TbYiWrZHnsq/
+# L1j2YmYH5ntN9i/qL7wOiaDo1AGUtuZrlWeRa7lbevAYIJL6f2/fAerUNVYNn5Y8
+# XVLdYs/EUFfKG5z7IU08mtX+tPCpQvvx20oxevDw/nw8Q3WQ3Ba3haDlzamAvmS7
+# yYE5AxMHehnJ27mIN1B0BTJMijM2qVUIP+fruMbaCAUJRTOLyH/xghqRS8fz/iuH
+# yIPpgcIxkpSmXhavMHD6zkOas6petunBubv8k/kl1pVVH9ScsFy0ePOG7ja0zfGm
+# KjFfGQMJEBvR79HFfsQbHb3D+Q==
 # SIG # End signature block

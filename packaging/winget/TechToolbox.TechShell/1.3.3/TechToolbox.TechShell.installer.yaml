@@ -6,6 +6,7 @@ Installers:
     InstallerType: msix
     Scope: machine
     InstallerUrl: https://github.com/dan-damit/TechToolbox/releases/download/v1.3.3/TechShell.msix
-    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    InstallerSha256: 982C536755069E3B2459A3E55E7DACB036A2D15159C8EF97499B5DE42BCA3DA7
 ManifestType: installer
 ManifestVersion: 1.10.0
+

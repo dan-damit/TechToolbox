@@ -1,0 +1,131 @@
+name: TechShell MSIX / Winget Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: "TechShell package version to build (for example 0.1.0). Defaults to the tag version without the leading v."
+        required: false
+        type: string
+      release_tag:
+        description: "GitHub release tag to publish the installer under. Defaults to the current tag or v<package_version>."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-msix-and-release:
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve TechShell version and release tag
+        id: version
+        shell: pwsh
+        run: |
+          $tagName = "${{ github.ref_name }}"
+          $packageVersion = "${{ github.event.inputs.package_version }}"
+          if ([string]::IsNullOrWhiteSpace($packageVersion)) {
+            if (-not [string]::IsNullOrWhiteSpace($tagName) -and $tagName.StartsWith('v')) {
+              $packageVersion = $tagName.Substring(1)
+            }
+          }
+
+          if ([string]::IsNullOrWhiteSpace($packageVersion)) {
+            throw "Unable to determine the TechShell package version. Provide package_version or trigger from a v* tag."
+          }
+
+          $releaseTag = "${{ github.event.inputs.release_tag }}"
+          if ([string]::IsNullOrWhiteSpace($releaseTag)) {
+            if (-not [string]::IsNullOrWhiteSpace($tagName) -and $tagName.StartsWith('v')) {
+              $releaseTag = $tagName
+            }
+            else {
+              $releaseTag = "v$packageVersion"
+            }
+          }
+
+          "package_version=$packageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "release_tag=$releaseTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Import code-signing certificate
+        shell: pwsh
+        env:
+          TECHSHELL_CODE_SIGNING_PFX_BASE64: ${{ secrets.TECHSHELL_CODE_SIGNING_PFX_BASE64 }}
+          TECHSHELL_CODE_SIGNING_PFX_PASSWORD: ${{ secrets.TECHSHELL_CODE_SIGNING_PFX_PASSWORD }}
+          TECHSHELL_CODE_SIGNING_THUMBPRINT: ${{ secrets.TECHSHELL_CODE_SIGNING_THUMBPRINT }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TECHSHELL_CODE_SIGNING_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:TECHSHELL_CODE_SIGNING_PFX_PASSWORD)) {
+            throw "Missing GitHub Actions secrets TECHSHELL_CODE_SIGNING_PFX_BASE64 and/or TECHSHELL_CODE_SIGNING_PFX_PASSWORD."
+          }
+
+          $pfxBytes = [System.Convert]::FromBase64String($env:TECHSHELL_CODE_SIGNING_PFX_BASE64)
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'TechShellCodeSigning.pfx'
+          [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+
+          $securePassword = ConvertTo-SecureString -String $env:TECHSHELL_CODE_SIGNING_PFX_PASSWORD -AsPlainText -Force
+          Import-PfxCertificate -FilePath $pfxPath -Password $securePassword -CertStoreLocation 'Cert:\CurrentUser\My' | Out-Null
+
+          $thumbprint = $env:TECHSHELL_CODE_SIGNING_THUMBPRINT
+          if ([string]::IsNullOrWhiteSpace($thumbprint)) {
+            $thumbprint = (Get-ChildItem 'Cert:\CurrentUser\My' | Where-Object { $_.HasPrivateKey } | Select-Object -First 1).Thumbprint
+          }
+
+          if ([string]::IsNullOrWhiteSpace($thumbprint)) {
+            throw "No code-signing certificate thumbprint was available after import."
+          }
+
+          $cert = Get-ChildItem 'Cert:\CurrentUser\My' | Where-Object { $_.Thumbprint -eq $thumbprint }
+          if (-not $cert) {
+            throw "The imported certificate with thumbprint $thumbprint was not found in CurrentUser\My."
+          }
+
+          Write-Host "Imported signing certificate: $($cert.Subject) [$thumbprint]"
+
+      - name: Build TechShell MSIX and generate winget manifests
+        shell: pwsh
+        env:
+          TECHSHELL_CODE_SIGNING_THUMBPRINT: ${{ secrets.TECHSHELL_CODE_SIGNING_THUMBPRINT }}
+        run: |
+          $thumbprint = $env:TECHSHELL_CODE_SIGNING_THUMBPRINT
+          if ([string]::IsNullOrWhiteSpace($thumbprint)) {
+            $thumbprint = '7168509FC1A2AE7AFC4C40342D6A8FED7413029C'
+          }
+
+          pwsh -NoProfile -File .\Config\Build-TechShellWinget.ps1 `
+            -PackageVersion "${{ steps.version.outputs.package_version }}" `
+            -ReleaseTag "${{ steps.version.outputs.release_tag }}" `
+            -RuntimeIdentifier win-x64 `
+            -InstallerFileName TechShell.msix `
+            -Thumbprint $thumbprint
+
+      - name: Upload TechShell MSIX to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          files: |
+            Out/TechShell/${{ steps.version.outputs.package_version }}/win-x64/Installer/TechShell.msix
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      - name: Upload generated winget manifests as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: techshell-winget-manifests
+          path: packaging/winget/TechToolbox.TechShell/**/*
+          if-no-files-found: warn

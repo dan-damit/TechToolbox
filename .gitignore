@@ -9,6 +9,7 @@ memory.history.json.*
 # Directories
 LogsAndExports/
 Out/
+/Out/TechShell/
 EndpointTrackingScripts/
 .venv/
 obj/
@@ -17,6 +18,11 @@ bin/
 SecureCrimp/
 AI/Tasks/Archive/
 ModelTraining/
+
+# TechShell packaging artifacts
+/src/TechShell/**/AppPackages/
+/src/TechShell/**/publish/
+/src/TechShell/**/*.msix
 
 # Files
 wordlist.txt
