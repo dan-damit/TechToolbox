@@ -160,6 +160,7 @@ jobs:
             'Config/build.config.json',
             'AI/memory.json',
             'AI/memory.history.json',
+            'packaging',
             'src'
           )
 
