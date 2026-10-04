@@ -72,6 +72,9 @@ function Write-TTLoadedLine {
 
     Write-Host ("`n[{0}] {1} v{2} {3} ({4})  PS {5} {6}" -f $ts, $name, $version, $who, $Status, $psv, $ed) `
         -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "Run `Update-Help -Culture en-US -Module TechToolbox` " -ForegroundColor DarkGray
+    Write-Host "Then Get-Help <CommandName> TechToolbox for usage information." -ForegroundColor DarkGray
 }
 
 # --------------------------------------------
