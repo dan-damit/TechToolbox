@@ -23,7 +23,8 @@ param(
     [switch]$Analyze,         # Run PSSA (PowerShell ScriptAnalyzer)
     [switch]$FailOnPssa,      # Fail build if PSSA finds issues
     [switch]$SkipProjects,    # Skip .NET project build/publish steps
-    [switch]$BuildTechShellWinget, # Build/sign TechShell MSIX + winget manifests via Config\Build-TechShellWinget.ps1
+    [switch]$BuildTechShellWinget, # Opt-in: build/sign TechShell MSIX + winget manifests via Config\Build-TechShellWinget.ps1
+    [switch]$SkipTechShell,    # Explicitly disable TechShell build/publish even when release or caller opts in
     [string]$TechShellReleaseTag,
     [ValidateSet('win-x64', 'win-x86', 'win-arm64')]
     [string]$TechShellRuntimeIdentifier = 'win-x64',
@@ -189,7 +190,6 @@ $failOnPssa = $FailOnPssa.IsPresent -or ($cfg.quality.failOnPssa -eq $true)
 # Release mode implies patch bump + manifest update flow, then git commit/tag/push.
 if ($Release) {
     $AutoVersionPatch = $true
-    $BuildTechShellWinget = $true
 
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         throw "git is required for -Release but was not found in PATH."
@@ -509,7 +509,7 @@ else {
 
 # ---------------- 06B. (Optional) Build TechShell winget bundle -------------
 $techShellWingetResult = $null
-if ($BuildTechShellWinget) {
+if ($BuildTechShellWinget -and -not $SkipTechShell) {
     if ($SkipSigning) {
         throw "TechShell winget build requires signing; remove -SkipSigning or disable -BuildTechShellWinget."
     }
