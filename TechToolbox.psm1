@@ -18,13 +18,20 @@ function Show-TTBannerOncePerSession {
     if (-not $Force -and -not (Test-TTInteractive)) { return }
     if (-not $Force -and $env:TT_BANNER_SHOWN -eq '1') { return }
 
-    Write-Host @"
+    $m = Get-Module -Name TechToolbox -ErrorAction SilentlyContinue
+    $version = if ($m -and $m.Version) { $m.Version.ToString() } else {
+        try {
+            $psd1 = Join-Path $ExecutionContext.SessionState.Module.ModuleBase 'TechToolbox.psd1'
+            if (Test-Path $psd1) { (Import-PowerShellDataFile $psd1).ModuleVersion.ToString() } else { '?' }
+        }
+        catch { '?' }
+    }
 
-╔══════════════════════════════════════╗
-║        T E C H T O O L B O X         ║
-║   Technician-Grade PowerShell Tools  ║
-╚══════════════════════════════════════╝
-"@ -ForegroundColor Green
+    $ts = (Get-Date).ToString('HH:mm:ss')
+    Write-Host "" 
+    Write-Host ("[{0}] TechToolbox v{1} loaded" -f $ts, $version) -ForegroundColor Green
+    Write-Host "Quick start: Get-Command -Module TechToolbox" -ForegroundColor DarkGray
+    Write-Host "Help: Get-Help <CommandName> -Online" -ForegroundColor DarkGray
 
     $env:TT_BANNER_SHOWN = '1'
 }
@@ -70,11 +77,9 @@ function Write-TTLoadedLine {
     $ed = $PSVersionTable.PSEdition
     $who = if ($author) { "by $author" } else { "" }
 
-    Write-Host ("`n[{0}] {1} v{2} {3} ({4})  PS {5} {6}" -f $ts, $name, $version, $who, $Status, $psv, $ed) `
-        -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host "Run `Update-Help -Culture en-US -Module TechToolbox` " -ForegroundColor DarkGray
-    Write-Host "Then Get-Help <CommandName> TechToolbox for usage information." -ForegroundColor DarkGray
+    Write-Host ("[{0}] {1} v{2} {3} ({4})  PS {5} {6}" -f $ts, $name, $version, $who, $Status, $psv, $ed) -ForegroundColor DarkGray
+    Write-Host "Quick start: Get-Command -Module TechToolbox" -ForegroundColor DarkGray
+    Write-Host "Help: Get-Help <CommandName> -Online" -ForegroundColor DarkGray
 }
 
 # --------------------------------------------
@@ -296,12 +301,11 @@ __tt_trace "Import complete"
 
 # --- Call on import ---
 Show-TTBannerOncePerSession
-Write-TTLoadedLine -Status Loaded
 # SIG # Begin signature block
 # MIIcLwYJKoZIhvcNAQcCoIIcIDCCHBwCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAoZ+qm/WoLj3xx
-# inK4YVDFzuMX7i4WybsOdD5SqtRPyKCCFmgwggMqMIICEqADAgECAhAUclYcLlB0
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDPmILW0dkSoC3G
+# +brJ7uVyXlAgI7OUfYOttL4PrX3YsKCCFmgwggMqMIICEqADAgECAhAUclYcLlB0
 # o0+hlxGb32/OMA0GCSqGSIb3DQEBCwUAMC0xKzApBgNVBAMMIlRlY2hUb29sYm94
 # IFRlY2hTaGVsbCBDb2RlIFNpZ25pbmcwHhcNMjYxMDAzMDE0MjMyWhcNMjgxMDAz
 # MDE1MjMxWjAtMSswKQYDVQQDDCJUZWNoVG9vbGJveCBUZWNoU2hlbGwgQ29kZSBT
@@ -425,28 +429,28 @@ Write-TTLoadedLine -Status Loaded
 # bCBDb2RlIFNpZ25pbmcCEBRyVhwuUHSjT6GXEZvfb84wDQYJYIZIAWUDBAIBBQCg
 # gYQwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYB
 # BAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0B
-# CQQxIgQguVmRGujWLP+1fHhGBEd+VJOsv4PM1yO5OFvc0sKOhC0wDQYJKoZIhvcN
-# AQEBBQAEggEAdyPDowbGADOT0hvNTE/YZQkKrWihGwTYf9DVYotBMurr9PfPx27/
-# q6bCR06lqTFKquS469N81FuKZYRtFIkYo4EkHeJtPQy4dRJBRZExK/GMqaCF9sk9
-# saVEVWTPH0OwkWOSGjRp3z2r9nBqJzAiIkpO6OKWNhMOzj++oQNrnxlaB0aZ0EXp
-# a61DHUw+ar5a11atNqhe4Ki0y4hdHZim4jZuBlCUDz/yMcfQR1t5D1NshXIXDx08
-# dnj9GW4a2EAaBmZFL+ynldI4wzEIRprsxkJmnjeKNcYOcQ1h5xxOj8JuM83zm25p
-# cYhkuaJhIkxi7LR2ySlNFW8RAFR+XRZEB6GCAyYwggMiBgkqhkiG9w0BCQYxggMT
+# CQQxIgQg25NkINBQazbXFFXy9WhocovgGcFNNyQJ1V59AE0rpV8wDQYJKoZIhvcN
+# AQEBBQAEggEAfRCI2wEwDlZKUUuMf7uvcX57DqXOmS0u2SLxe6eqdtFzDTj/6CC2
+# Kw7YLrSF3fXjod3u1ShNFPUaWOAVAUUy/ovUPLPCwVzeAWtLYf1Z9SrOarSNUNho
+# ExDRXLnq0hlDepjNJMf32pQfmFwRQgQS7Ye088o2KJGvK3za6gKgV+xaVw3XZn0f
+# lXTBXHShnFQt70AGRdvaqQGEIe+bPg+z5SzdmCx7M1oudfg73bw0LWEVjp9i34zo
+# nNkPt7Qz/NWXtObGtcatR8xdqP+OZGLV4NYW4fx6iMSCjz2TQlWvX+7uSmujgdVH
+# BMTWxNrguDiK+xnPHUDqpiDG4CBMZ8lycaGCAyYwggMiBgkqhkiG9w0BCQYxggMT
 # MIIDDwIBATB9MGkxCzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5j
 # LjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNB
 # NDA5NiBTSEEyNTYgMjAyNSBDQTECEAhP3DNPfkVO28MPj/mSGDUwDQYJYIZIAWUD
 # BAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEP
-# Fw0yNjEwMDQxNjM0NTZaMC8GCSqGSIb3DQEJBDEiBCCsY02LgCK5JN+AwFX2+nOO
-# CK9cGpAnEO+FjRtA31q8YjANBgkqhkiG9w0BAQEFAASCAgBBiO01sGBSNRiywrme
-# PSb29aZUUE/Xt8QchC+BiwSYv6wKsYaSBOHk/qLRzmvsqa5C2bGd1XLIDB3/Iwdb
-# WpBSsIk+RPMMpwZFBHs9mcy13GGUvR3ik9QbO+gL84Xe4DOrWVg+k4gVuvLhZsh4
-# tQ1I4nNt3OL3aGVqcGDQDf2SIgPk3PJfuBi6fMuK+DP+sKDIPPg1c19Du/olrESg
-# O0Q48XC2D1GxCWGIb2cXGDUhNXtc7ICMXK0SXKPu02cgGcDsdCMU+utdMPv1Z8UP
-# WTBuvvHAXt7/h/SkafNgYTqkV7rUn/tD3fw/0F1yuZmyAE87+HgCk3xCG6Y5/XSx
-# AnCf5z/Ks9RZfNAKJB+SFXZ6f1YkgaQDNFPRSr6t/F2vnlLayI2WVrMFUeD3NTbb
-# tLOhdP8JrlEd79MpjcANg2bW1UfFebNWNFMAd1gGtv54nvVJf2znHAyckHbC8+9H
-# HwA5NAC6CZiB4mBvhnrCm+7aR62vaYmKABh9mMtkWSkD2rv8Bl8tzYY5u/PJUcoe
-# 4BarDUZREO9SLZTFt6ef9k/UIE7Sl3/ap4ATXIS1Oi997VxLQaUlvve2FGuoM0fZ
-# qpEhNVV7X8eC5wbJf728cCL7IhDKzsP67Q0038VjAJpv3O/qRPOJmc21zFRfIgJ0
-# CuBs/u1bncywHaeKnzErjpkpZg==
+# Fw0yNjEwMDQxNzA2NDZaMC8GCSqGSIb3DQEJBDEiBCBzKIOBRBf5U0iKt9xx/Muq
+# V6eH3YmtPDLAde3JU3+/UDANBgkqhkiG9w0BAQEFAASCAgBWQyCzBDslbAOk6jJP
+# IBOW0p+SZQ5Ne1jDU5s0zLVkFTAIoDc/fkXfnLx85WQ7O0FmS6i3ySkylMURlGpL
+# Lc8ECO7YtULdUdjQ2QgJASEBqJqJZWjDxqGmCn1mZmAihRzqXESuiqU0eAAF6AQA
+# L2r9UM8BrakMHvUQ3Bz0b/iLn+6IeXuwv3H0awCTBY9buTVBFLFzdAXybVsvCVPC
+# bcjpBzUo4lU1ZpRYkJ99IjU9wdaio46AS4DnqZW94M3eFqi/AmhWUrkFxO+gsy6M
+# AGl7zQhxs15sJ2a5DU7XvOQRHA9AfPjevBSb2tWNXatQihprqPK2/mHW+aevzkRq
+# lo0hydfRPwsmHHaDhF/np00++eQE/iCRhtI1XuPNgHs54ET+9TCg4tqvYvqr4dhV
+# ZdvhrFmdo6iYRyCZPuMdUuWSG/zdIBYxh0FGyLtzEwcGqfhmg6wNFIYAgh8lyEcr
+# AMlBTiRumbHmryXdzSAOtZdO4Zg+vWq7yht9Vn3taFxSebkVJ0CK9/j93SEoR2SL
+# 80zZTaJz2LLzFc6J3x9CzZbP80h6AHtIWnkeqXyqLXB+ppi0W/rmGZKzngUcSxnB
+# OVTip9lhRmTF7jdF8CGqQsVuBEXfgAkPURf/4V/FKzgHPc3UZ0FEjmopx5AF6UZo
+# MmizBVOnVeplHfwMgvwI9kx+6g==
 # SIG # End signature block
