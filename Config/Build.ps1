@@ -216,7 +216,7 @@ $isReleaseTechAgent = $ReleaseTechAgent
 $isReleaseTechShell = $ReleaseTechShell
 
 # Release mode implies patch bump + manifest update flow, then git commit/tag/push.
-if ($isReleaseTechToolbox -or $isReleaseTechAgent) {
+if ($isReleaseTechToolbox -or $isReleaseTechAgent -or $isReleaseTechShell) {
     if ($isReleaseTechToolbox) {
         $AutoVersionPatch = $true
     }
@@ -252,8 +252,11 @@ if ($isReleaseTechToolbox -or $isReleaseTechAgent) {
     if ($isReleaseTechToolbox) {
         Write-Host "TechToolbox release mode enabled: auto-version patch + manifest update + git release steps." -ForegroundColor Cyan
     }
-    else {
+    elseif ($isReleaseTechAgent) {
         Write-Host "TechAgent release mode enabled: git tag + release push using the provided version tag." -ForegroundColor Cyan
+    }
+    else {
+        Write-Host "TechShell release mode enabled: winget/MSIX build + git tag push for workflow trigger." -ForegroundColor Cyan
     }
 }
 
@@ -628,9 +631,27 @@ if ($Pack) {
 $releaseTag = $null
 $releaseCommit = $null
 $releasePushed = $false
-if ($isReleaseTechToolbox -or $isReleaseTechAgent) {
-    $resolvedReleaseVersion = if ($Version) { [string]$Version } elseif ($isReleaseTechToolbox) { [string]$newVersion } else { [string]$oldVersion }
-    $releaseTag = if ($isReleaseTechToolbox) { "v$resolvedReleaseVersion" } else { "agent-v$resolvedReleaseVersion" }
+if ($isReleaseTechToolbox -or $isReleaseTechAgent -or $isReleaseTechShell) {
+    if ($isReleaseTechToolbox) {
+        $resolvedReleaseVersion = if ($Version) { [string]$Version } else { [string]$newVersion }
+        $releaseTag = "v$resolvedReleaseVersion"
+    }
+    elseif ($isReleaseTechAgent) {
+        $resolvedReleaseVersion = if ($Version) { [string]$Version } else { [string]$oldVersion }
+        $releaseTag = "agent-v$resolvedReleaseVersion"
+    }
+    else {
+        if ($techShellWingetResult -and -not [string]::IsNullOrWhiteSpace($techShellWingetResult.ReleaseTag)) {
+            $releaseTag = [string]$techShellWingetResult.ReleaseTag
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($TechShellReleaseTag)) {
+            $releaseTag = [string]$TechShellReleaseTag
+        }
+        else {
+            $resolvedReleaseVersion = if ($Version) { [string]$Version } else { [string]$newVersion }
+            $releaseTag = "v$resolvedReleaseVersion"
+        }
+    }
 
     $existingTag = Invoke-Git -gitArgs @('tag', '--list', $releaseTag)
     if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
@@ -667,11 +688,18 @@ if ($isReleaseTechToolbox -or $isReleaseTechAgent) {
             Write-Host "Pushed branch + tag. Tag push should trigger .github/workflows/publish.yml" -ForegroundColor Green
         }
     }
-    else {
+    elseif ($isReleaseTechAgent) {
         if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push tag '$releaseTag' to origin")) {
             Invoke-Git -gitArgs @('push', 'origin', $releaseTag) | Out-Null
             $releasePushed = $true
             Write-Host "Pushed tag '$releaseTag' for the TechAgent release lane. It does not match the PSGallery v* trigger." -ForegroundColor Green
+        }
+    }
+    else {
+        if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push tag '$releaseTag' to origin")) {
+            Invoke-Git -gitArgs @('push', 'origin', $releaseTag) | Out-Null
+            $releasePushed = $true
+            Write-Host "Pushed tag '$releaseTag' for the TechShell release lane. Tag push should trigger .github/workflows/techshell-winget-release.yml." -ForegroundColor Green
         }
     }
 }
@@ -702,14 +730,25 @@ $result = [pscustomobject]@{
         [pscustomobject]@{ Enabled = $false }
     }
     Release         = [pscustomobject]@{
-        Enabled      = [bool]($isReleaseTechToolbox -or $isReleaseTechAgent)
+        Enabled      = [bool]($isReleaseTechToolbox -or $isReleaseTechAgent -or $isReleaseTechShell)
         TechToolbox  = [bool]$isReleaseTechToolbox
         TechAgent    = [bool]$isReleaseTechAgent
         TechShell    = [bool]$isReleaseTechShell
         Commit       = $releaseCommit
         Tag          = $releaseTag
         Pushed       = $releasePushed
-        PipelineHint = if ($releasePushed -and $releaseTag) { "GitHub Actions publish workflow triggers on pushed v* tags." } else { $null }
+        PipelineHint = if ($releasePushed -and $releaseTag) {
+            if ($isReleaseTechToolbox) {
+                "GitHub Actions publish workflow triggers on pushed v* tags."
+            }
+            elseif ($isReleaseTechShell) {
+                "GitHub Actions TechShell winget workflow triggers on pushed v* tags."
+            }
+            else {
+                "TechAgent release pushes agent-v* tags."
+            }
+        }
+        else { $null }
     }
 }
 $result
@@ -717,8 +756,8 @@ $result
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCABOazVKODlr1Cx
-# /domzRqkAa+g6JECoXK7QgFsLv0Cq6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBYzYkWfnZZUWLX
+# Uth3aR4uArQeWDssqm+PO4X3MpS25aCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -895,31 +934,31 @@ $result
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAR
-# /rhLd3TmHpeoX4fO9Tg82Qld4fjUR32whjNpa34HUTANBgkqhkiG9w0BAQEFAASC
-# AYBGhoUOU3TLshwEvImiiiqY2OhqNfxn8IrED2o+NYhcnFCE6tJODgr1+PkycK06
-# 2UvuVEMh1hpJ/WM2AwnJh0qnNNKJ105yNc1tWM1mlZ3fBWI9OJlF+lm1EyrpWdIl
-# 4C9riq0zgxN2tg0qNM2fHqcTm9cL1+mXlTfSqPkmvuFDehBOQHT2FADP6KHK+bVR
-# fVg/zReQOANLFViwyz9fyIV2Qvc+lB7wHdrHhb2QppfD9tIluWM7q6b6qPw0zpGs
-# 4GzbfXhj/7tzxuPAmcHy9sXStn53WbIlaJ2PK1opJyv87Ztp01IurUnUnlANJl7Y
-# eJ7SJXfCSI2KTbAsQA8QWhNT3XpVU1iOLdNBMsrWQAe8BB40N8wIjIBaLqxRe2J7
-# Rr5lFunzS05Vn3MvTcAUZJLlWvkCTWY+2OO9Z75dVS5cXswYR8p1oe/ZPI3yioD+
-# 0rNpomAiJ54JE1u70ZRx8A5P9GvIorxgg5/1S4XVl/J8tzBFNg+My10ThmhB/A53
-# O4qhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAY
+# r57ra87qM+BaUM4yBGRZbEZ32X2V0tpKzsTjw7lFgTANBgkqhkiG9w0BAQEFAASC
+# AYDX+D5Nlh5ooeazYiYHvP8fMgRfnfBY9/WaFTiQCa8x1V7FqNlg8pn6G0gMwIE0
+# oxMaZNXPDCk5KMSeRr75ufe7mZF9dk/MxgEjcDe6FrG0e7fYKFyX17Z2MB51AGIw
+# LY5yf1mT0G4wTT+7Qu4R/VlpFp3s97Z4bUUq8+7/hIn4Osiun5JRQCdOKEJrK6pb
+# 2KdpMyAIqLHDpzmlB6ZJMeALGZdI2BGg81LohAHWU8ZthdfULlOKv2pDjulP8MwN
+# 3p+p0MvFFxSp2WO2Q+gGIj56zj4tRw9jSnPJRuu6404xSbDpIJ/zJ3826uau8RqX
+# PIuSOIDcXy7pBrHY9zY32ZB20XMPJ6QvTznjlpoyjumFzbP1EJEHuaMcM//kyT75
+# iwRfhb6FW3BqXU2N3eDaRUInfKPHm6YPxZX4cGiQ7GqflSxi69cEIaVe1SZZAOEO
+# jBuQiYQsIkQuULTTTc/MAOzoBEZZmsVnBeAxaaTAWKkABhd3PB8/6rLIUUfLZY5+
+# RoKhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDA1MTYyNzE4WjAvBgkqhkiG
-# 9w0BCQQxIgQgBfHNWiFLhSZ+YegnZJ8pqzbTMTJsFebs73gNsttNYBgwDQYJKoZI
-# hvcNAQEBBQAEggIANQncH0OwdjaRZtg6bIGeh9spG0mSDUaX1M/0h6y2fMHEJ5JF
-# nMzzdrD0DaaweJRMyX7fmGzv82OEEJpcnpVd8IqRhc3WQScfTraJBlP0plKblnpV
-# 1nWLkvgM7P8OjQ5DkxDdKwicElGpny6EbA4ZORBQemfyU7cr7IcF6mhEwdYY1NpW
-# wdC/N4fQt93p1b2SzcA/GQZccN1Y+XcKVlVdbgNgbROCHx3/qr/+L9rYkoBhZT7F
-# /sbmBG4zm7RcZki4Pp8KjyfnJ4MBuZ6qLhdfRd/JjuEjYRbcxviaXZ21m/lEO39p
-# P8oAlVYcnb/2seU6Bq3GB28ruBrrKYZC6fGcBx5nZ0CeZ7UMzTTm5DiMr3ijYRf6
-# XNDKH/JVtAvK+XLrK4iwajfPW8viXbXG/apl4WPHsflBuH4qy7jwfqEz7PF1WioP
-# vbx5dXoy1mCbYt+PFp6TDQUiMttG2e+jX1ofj4Uu3yBopuxx7/BgJ+PrDFlErYDT
-# CrjyAMgjm0THLbcwjnYY8eO3OEpdb4IEtsqaWfRXF2Z/SDaZoqsP+dGmCQFTy/LJ
-# 7CuCs8KpvKjtw+cMP5JkIi9EsqyVe5vne8HmtiL9aNmidAfWaLKZZqBDquJZ1Nv4
-# I0qt4DkQ8L5fWoePWLeZhFdV6RbSwHKoClW+/062+ZghfnCN7ym00/Ad0GA=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDA1MjAwOTI0WjAvBgkqhkiG
+# 9w0BCQQxIgQg2jkkR/CXXv6dflY5j43DS34ToFbHzZR4GYF7ymRmMhAwDQYJKoZI
+# hvcNAQEBBQAEggIAKTaHFbVDczVKIYpb7JV0TJy4HkxEWlZHYibYiILGREKgR4mL
+# H8MqEUc5FI8+mn51yPCATFUGZpqSueYksaN/XB3jDMh0/Sk7CiwAJR6D7Dg5Mv9F
+# CxmkO8rf9LBavMITxWBuy3txt9Dkf8MxrfkxKu1WlnOZ3ktplMDaqZE9pWGRcNHg
+# dfQyB6bRJlTokyM2MQkdi1eXiKcz5plLhccsK9TA3HHGVKq+i/8oMl5eZ23swD93
+# vVnWDjTm3g+HqWHats0tX9jy/FX+cdLy5LrTrfxbS3XC4jhtXnYHXUilMQufxN0w
+# nMdJz/1rFsNFBDHnDaKD9qzvmr3GPkXDhqfGaqPeH603pMCjFrJSI6f962wiek1C
+# fb5Pzk7J2tD2Zf9BFRQWs322KgHMYy0yo0giYAg3A2YwSi2rF5jBjRyxlVrWj03T
+# ta7Cle/eTMZ/mhE/u1rESQUWLJwQeJwHSYUFQGteNreouSZ6W9ygKBed3M1daXi6
+# 1wo+OL2om31YQBkKyKqGnki7pHUiE3OOky9BAUOgegpZ8/3OSpyN3lfbuKsv1fDh
+# Un6/0jp1fWBTYGkIU7GPS2yb+L+wZG9t3I4Nxh/1mydOKM/Q3x/GKssMtaC+ON8A
+# 8Xvlvc7B7ZQ2YvrmWK/+CAzoChfLww7Z6msKVY3ygU3XeLSIma+oZNo3+MA=
 # SIG # End signature block

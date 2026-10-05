@@ -93,6 +93,7 @@ Use `-ReleaseTechToolbox` for the PSGallery/module release path, `-ReleaseTechAg
 Notes:
 
 - This script keeps TechShell packaging independent from PSGallery module publishing.
+- `-ReleaseTechShell` now also creates and pushes the release tag (defaults to `v<version>` unless `-TechShellReleaseTag` is specified), which triggers `techshell-winget-release.yml`.
 - It writes outputs under `Out\TechShell\<version>\<runtime>\`.
 - It also stages `Register-TechShellExplorerIntegration.ps1` beside the `.msix` so the shell context-menu helper ships with the release bundle.
 - Use `-SkipManifestWrite` to dry-run metadata generation only.
