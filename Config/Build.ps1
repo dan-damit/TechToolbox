@@ -15,7 +15,9 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [switch]$AutoVersionPatch,
-    [switch]$Release,
+    [switch]$ReleaseTechToolbox,
+    [switch]$ReleaseTechAgent,
+    [switch]$ReleaseTechShell,
     [switch]$RegenerateGuid,
     [switch]$SkipSigning,
     [bool]$SkipValidSigs = $true,
@@ -188,27 +190,54 @@ $pssaSettings = if ([System.IO.Path]::IsPathRooted($rawPssaSettings)) { $rawPssa
 $analyzeEnabled = $Analyze.IsPresent -or ($cfg.quality.analyze -eq $true)
 $failOnPssa = $FailOnPssa.IsPresent -or ($cfg.quality.failOnPssa -eq $true)
 
+$releaseSwitches = @($ReleaseTechToolbox, $ReleaseTechAgent, $ReleaseTechShell) | Where-Object { $_ -is [bool] -and $_ }
+if ($releaseSwitches.Count -gt 1) {
+    throw "Use only one release switch at a time: -ReleaseTechToolbox, -ReleaseTechAgent, or -ReleaseTechShell."
+}
+
+if ($ReleaseTechShell -and $BuildTechShellWinget) {
+    throw "Use -ReleaseTechShell by itself. Do not combine it with -BuildTechShellWinget."
+}
+
+if ($ReleaseTechToolbox -and $BuildTechShellWinget) {
+    throw "Use -ReleaseTechToolbox for the module release path. For TechShell packaging, run -ReleaseTechShell or call the bundle script directly."
+}
+
+if ($ReleaseTechAgent -and $BuildTechShellWinget) {
+    throw "Use -ReleaseTechAgent for the runtime release path. Do not combine it with -BuildTechShellWinget."
+}
+
+if ($ReleaseTechShell) {
+    $BuildTechShellWinget = $true
+}
+
+$isReleaseTechToolbox = $ReleaseTechToolbox
+$isReleaseTechAgent = $ReleaseTechAgent
+$isReleaseTechShell = $ReleaseTechShell
+
 # Release mode implies patch bump + manifest update flow, then git commit/tag/push.
-if ($Release) {
-    $AutoVersionPatch = $true
+if ($isReleaseTechToolbox -or $isReleaseTechAgent) {
+    if ($isReleaseTechToolbox) {
+        $AutoVersionPatch = $true
+    }
 
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        throw "git is required for -Release but was not found in PATH."
+        throw "git is required for release mode but was not found in PATH."
     }
 
     $repoRoot = Invoke-Git -gitArgs @('rev-parse', '--show-toplevel')
     if (-not $repoRoot) {
-        throw "-Release requires running inside a git repository."
+        throw "Release mode requires running inside a git repository."
     }
 
     $preReleaseDirty = Invoke-Git -gitArgs @('status', '--porcelain')
     if (-not [string]::IsNullOrWhiteSpace($preReleaseDirty)) {
-        throw "Working tree is not clean. Commit or stash local changes before running -Release."
+        throw "Working tree is not clean. Commit or stash local changes before running a release."
     }
 
     $releaseBranch = Invoke-Git -gitArgs @('rev-parse', '--abbrev-ref', 'HEAD')
     if ([string]::Equals($releaseBranch, 'HEAD', [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "-Release requires a named branch checkout (detached HEAD is not supported for release pushes)."
+        throw "Release mode requires a named branch checkout (detached HEAD is not supported for release pushes)."
     }
 
     Invoke-Git -gitArgs @('fetch', 'origin', $releaseBranch) | Out-Null
@@ -220,7 +249,12 @@ if ($Release) {
         Invoke-Git -gitArgs @('pull', '--rebase', 'origin', $releaseBranch) | Out-Null
     }
 
-    Write-Host "Release mode enabled: auto-version patch + manifest update + git release steps." -ForegroundColor Cyan
+    if ($isReleaseTechToolbox) {
+        Write-Host "TechToolbox release mode enabled: auto-version patch + manifest update + git release steps." -ForegroundColor Cyan
+    }
+    else {
+        Write-Host "TechAgent release mode enabled: git tag + release push using the provided version tag." -ForegroundColor Cyan
+    }
 }
 
 # ---------------- 02. Validate environment -----------------------------------
@@ -245,6 +279,10 @@ $newVersion = if ($AutoVersionPatch) {
     [version]::new($oldVersion.Major, $oldVersion.Minor, $build + 1)
 }
 else { $oldVersion }
+
+if ($Version -and $isReleaseTechToolbox) {
+    $newVersion = [version]$Version
+}
 
 # Paths
 $publicFolder = Join-Path $ModuleRoot 'Public'
@@ -590,8 +628,9 @@ if ($Pack) {
 $releaseTag = $null
 $releaseCommit = $null
 $releasePushed = $false
-if ($Release) {
-    $releaseTag = "v$newVersion"
+if ($isReleaseTechToolbox -or $isReleaseTechAgent) {
+    $resolvedReleaseVersion = if ($Version) { [string]$Version } elseif ($isReleaseTechToolbox) { [string]$newVersion } else { [string]$oldVersion }
+    $releaseTag = if ($isReleaseTechToolbox) { "v$resolvedReleaseVersion" } else { "agent-v$resolvedReleaseVersion" }
 
     $existingTag = Invoke-Git -gitArgs @('tag', '--list', $releaseTag)
     if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
@@ -600,17 +639,19 @@ if ($Release) {
 
     $branchName = Invoke-Git -gitArgs @('rev-parse', '--abbrev-ref', 'HEAD')
 
-    Invoke-Git -gitArgs @('add', '-A') | Out-Null
-    & git -C $ModuleRoot diff --cached --quiet
-    if ($LASTEXITCODE -eq 0) {
-        throw "No staged changes detected after release build. Nothing to commit/tag."
-    }
+    if ($isReleaseTechToolbox) {
+        Invoke-Git -gitArgs @('add', '-A') | Out-Null
+        & git -C $ModuleRoot diff --cached --quiet
+        if ($LASTEXITCODE -eq 0) {
+            throw "No staged changes detected after release build. Nothing to commit/tag."
+        }
 
-    $commitMessage = "release: $releaseTag"
-    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create release commit ($commitMessage)")) {
-        Invoke-Git -gitArgs @('commit', '-m', $commitMessage) | Out-Null
-        $releaseCommit = Invoke-Git -gitArgs @('rev-parse', '--short', 'HEAD')
-        Write-Host "Release commit created: $releaseCommit" -ForegroundColor Green
+        $commitMessage = "release: $releaseTag"
+        if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create release commit ($commitMessage)")) {
+            Invoke-Git -gitArgs @('commit', '-m', $commitMessage) | Out-Null
+            $releaseCommit = Invoke-Git -gitArgs @('rev-parse', '--short', 'HEAD')
+            Write-Host "Release commit created: $releaseCommit" -ForegroundColor Green
+        }
     }
 
     if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create git tag $releaseTag")) {
@@ -618,11 +659,20 @@ if ($Release) {
         Write-Host "Tag created: $releaseTag" -ForegroundColor Green
     }
 
-    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push branch '$branchName' and tag '$releaseTag' to origin")) {
-        Invoke-Git -gitArgs @('push', 'origin', $branchName) | Out-Null
-        Invoke-Git -gitArgs @('push', 'origin', $releaseTag) | Out-Null
-        $releasePushed = $true
-        Write-Host "Pushed branch + tag. Tag push should trigger .github/workflows/publish.yml" -ForegroundColor Green
+    if ($isReleaseTechToolbox) {
+        if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push branch '$branchName' and tag '$releaseTag' to origin")) {
+            Invoke-Git -gitArgs @('push', 'origin', $branchName) | Out-Null
+            Invoke-Git -gitArgs @('push', 'origin', $releaseTag) | Out-Null
+            $releasePushed = $true
+            Write-Host "Pushed branch + tag. Tag push should trigger .github/workflows/publish.yml" -ForegroundColor Green
+        }
+    }
+    else {
+        if ($PSCmdlet.ShouldProcess($ModuleRoot, "Push tag '$releaseTag' to origin")) {
+            Invoke-Git -gitArgs @('push', 'origin', $releaseTag) | Out-Null
+            $releasePushed = $true
+            Write-Host "Pushed tag '$releaseTag' for the TechAgent release lane. It does not match the PSGallery v* trigger." -ForegroundColor Green
+        }
     }
 }
 
@@ -652,7 +702,10 @@ $result = [pscustomobject]@{
         [pscustomobject]@{ Enabled = $false }
     }
     Release         = [pscustomobject]@{
-        Enabled      = [bool]$Release
+        Enabled      = [bool]($isReleaseTechToolbox -or $isReleaseTechAgent)
+        TechToolbox  = [bool]$isReleaseTechToolbox
+        TechAgent    = [bool]$isReleaseTechAgent
+        TechShell    = [bool]$isReleaseTechShell
         Commit       = $releaseCommit
         Tag          = $releaseTag
         Pushed       = $releasePushed

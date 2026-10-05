@@ -82,11 +82,13 @@ pwsh -NoProfile -File .\Config\Build-TechShellWinget.ps1 `
   -RuntimeIdentifier win-x64
 ```
 
-If you need to override the TechShell package version from the main build flow, pass `-Version` (or `-PackageVersion`) to the wrapper/build script, for example:
+If you need to override the TechShell package version, pass `-Version` (or `-PackageVersion`) to the bundle script or use the dedicated TechShell release switch:
 
 ```powershell
-pwsh -NoProfile -File .\Config\Build.ps1 -Release -BuildTechShellWinget -Version 1.3.11
+pwsh -NoProfile -File .\Config\Build.ps1 -ReleaseTechShell -Version 1.3.11
 ```
+
+Use `-ReleaseTechToolbox` for the PSGallery/module release path, `-ReleaseTechAgent` for the runtime/agent release lane, and `-ReleaseTechShell` for the standalone shell package lane. Do not combine more than one release route in the same invocation.
 
 Notes:
 

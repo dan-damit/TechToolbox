@@ -16,6 +16,13 @@ on:
         description: "Version to publish (optional; defaults to manifest ModuleVersion)"
         required: false
         type: string
+      release_product:
+        description: "PSGallery publishing is reserved for TechToolbox only."
+        required: true
+        default: "TechToolbox"
+        type: choice
+        options:
+          - TechToolbox
 
 jobs:
   publish:
@@ -25,6 +32,24 @@ jobs:
       TECHTOOLBOX_AGENT_PAT: ${{ secrets.TECHTOOLBOX_AGENT_REPO_PAT }}
 
     steps:
+      - name: Enforce TechToolbox-only PSGallery publish
+        shell: pwsh
+        run: |
+          $eventName = "${{ github.event_name }}"
+          $refName = "${{ github.ref_name }}"
+          $dispatchProduct = "${{ inputs.release_product }}"
+
+          if ($eventName -eq 'push') {
+            if ($refName -notmatch '^v[0-9]') {
+              throw "This PSGallery workflow only accepts TechToolbox v* tags. Ref '$refName' is not eligible."
+            }
+          }
+          elseif ($eventName -eq 'workflow_dispatch') {
+            if ($dispatchProduct -ne 'TechToolbox') {
+              throw "PSGallery publish is restricted to TechToolbox. Manual dispatch must use release_product=TechToolbox."
+            }
+          }
+
       - name: Validate required submodule auth secrets
         shell: pwsh
         run: |
