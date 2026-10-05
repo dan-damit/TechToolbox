@@ -82,18 +82,18 @@ pwsh -NoProfile -File .\Config\Build-TechShellWinget.ps1 `
   -RuntimeIdentifier win-x64
 ```
 
-If you need to override the TechShell package version, pass `-Version` (or `-PackageVersion`) to the bundle script or use the dedicated TechShell release switch:
+If you need to override the TechShell package version, pass `-Version` (or `-PackageVersion`) to the dedicated TechShell builder instead of using the module release script:
 
 ```powershell
-pwsh -NoProfile -File .\Config\Build.ps1 -ReleaseTechShell -Version 1.3.11
+pwsh -NoProfile -File .\Config\Build-TechShell.ps1 -Version 1.3.11 -CreateTag -PushTag
 ```
 
-Use `-ReleaseTechToolbox` for the PSGallery/module release path, `-ReleaseTechAgent` for the runtime/agent release lane, and `-ReleaseTechShell` for the standalone shell package lane. Do not combine more than one release route in the same invocation.
+Use `-ReleaseTechToolbox` for the PSGallery/module release path and `-ReleaseTechAgent` for the runtime/agent release lane. TechShell packaging is intentionally decoupled from the module release pipeline and uses a dedicated `techshell-*` tag route instead of `v*`.
 
 Notes:
 
 - This script keeps TechShell packaging independent from PSGallery module publishing.
-- `-ReleaseTechShell` now also creates and pushes the release tag (defaults to `v<version>` unless `-TechShellReleaseTag` is specified), which triggers `techshell-winget-release.yml`.
+- The dedicated TechShell builder creates `techshell-v<version>` tags by default, which avoids the PSGallery `v*` trigger and keeps the shell release flow isolated.
 - It writes outputs under `Out\TechShell\<version>\<runtime>\`.
 - It also stages `Register-TechShellExplorerIntegration.ps1` beside the `.msix` so the shell context-menu helper ships with the release bundle.
 - Use `-SkipManifestWrite` to dry-run metadata generation only.
@@ -146,7 +146,7 @@ The `techshell-winget-release.yml` workflow now includes a second job that can c
 
 Behavior:
 
-- Tag push (`v*`): submission job runs automatically after release build.
+- Tag push (`techshell-*`): submission job runs automatically after release build.
 - Manual dispatch: you can toggle submission with `submit_winget_pr` input.
 
 Note: the submission job runs only when `ENABLE_WINGET_SUBMISSION` is set to `true`.

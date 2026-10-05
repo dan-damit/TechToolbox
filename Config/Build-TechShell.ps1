@@ -1,36 +1,136 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [switch]$AutoVersionPatch,
-    [switch]$ReleaseTechToolbox,
-    [switch]$ReleaseTechAgent,
-    [switch]$RegenerateGuid,
-    [switch]$SkipSigning,
-    [bool]$SkipValidSigs = $true,
-    [switch]$SkipProjects,
-    [switch]$Recurse,
-    [switch]$Analyze,
-    [switch]$FailOnPssa,
-    [switch]$ExportPublic,
-    [switch]$Pack,
-    [switch]$Interactive,
-    [string]$ModuleRoot = $PSScriptRoot,
-    [string]$ConfigPath,
+    [string]$Version,
+    [string]$PackageVersion,
+    [string]$TagName,
+    [ValidateSet('win-x64', 'win-x86', 'win-arm64')]
+    [string]$RuntimeIdentifier = 'win-x64',
+    [string]$InstallerFileName = 'TechShell.msix',
+    [string]$Thumbprint,
     [string]$TimestampServer,
-    [string]$Thumbprint
+    [switch]$SkipManifestWrite,
+    [switch]$SkipManifestValidation,
+    [switch]$CreateTag,
+    [switch]$PushTag,
+    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 )
 
-$buildScript = Join-Path $PSScriptRoot 'Config\Build.ps1'
-if (-not (Test-Path -LiteralPath $buildScript)) {
-    throw "Build implementation not found at '$buildScript'."
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+function Normalize-TechShellVersion {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Value,
+        [string]$Source = 'TechShell version input'
+    )
+
+    $trimmed = $Value.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+        throw "TechShell version is empty. Provide -Version or -PackageVersion."
+    }
+
+    $normalized = $trimmed
+    foreach ($prefix in @('techshell-', 'techshell-v', 'v')) {
+        if ($normalized.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $normalized = $normalized.Substring($prefix.Length)
+            break
+        }
+    }
+
+    if ($normalized -match '^[0-9]+(\.[0-9]+){0,3}$') {
+        return $normalized
+    }
+
+    throw "TechShell version '$trimmed' from $Source is invalid. Use a numeric .NET-style version such as 1.0.11 or v1.0.11."
 }
 
-& $buildScript @PSBoundParameters
+function Ensure-GitRepository {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Root
+    )
+
+    if (-not (Test-Path -LiteralPath (Join-Path $Root '.git') -PathType Container)) {
+        throw "Repository root '$Root' does not contain a .git directory. Run this from the TechToolbox repository or pass -RepositoryRoot."
+    }
+
+    $gitAvailable = Get-Command git -ErrorAction SilentlyContinue
+    if ($null -eq $gitAvailable) {
+        throw "git is required to create or push TechShell tags but it is not on PATH."
+    }
+}
+
+$resolvedPackageVersion = if (-not [string]::IsNullOrWhiteSpace($PackageVersion)) { $PackageVersion } else { $Version }
+if ([string]::IsNullOrWhiteSpace($resolvedPackageVersion)) {
+    throw "A TechShell package version is required. Pass -PackageVersion or -Version."
+}
+
+$resolvedPackageVersion = Normalize-TechShellVersion -Value $resolvedPackageVersion -Source 'PackageVersion'
+$resolvedTagName = if (-not [string]::IsNullOrWhiteSpace($TagName)) { $TagName.Trim() } else { "techshell-v$resolvedPackageVersion" }
+$resolvedTagName = $resolvedTagName.Trim()
+if ([string]::IsNullOrWhiteSpace($resolvedTagName)) {
+    throw "TagName is empty after trimming."
+}
+
+if ($resolvedTagName.StartsWith('v', [System.StringComparison]::OrdinalIgnoreCase) -and -not $resolvedTagName.StartsWith('techshell-v', [System.StringComparison]::OrdinalIgnoreCase)) {
+    $resolvedTagName = "techshell-$resolvedTagName"
+}
+elseif ($resolvedTagName.StartsWith('techshell-', [System.StringComparison]::OrdinalIgnoreCase) -and -not $resolvedTagName.StartsWith('techshell-v', [System.StringComparison]::OrdinalIgnoreCase)) {
+    $resolvedTagName = "techshell-v$($resolvedTagName.Substring('techshell-'.Length))"
+}
+
+$builderScript = Join-Path $PSScriptRoot 'Build-TechShellWinget.ps1'
+if (-not (Test-Path -LiteralPath $builderScript -PathType Leaf)) {
+    throw "TechShell bundle script not found: $builderScript"
+}
+
+Write-Host "Building TechShell bundle for version $resolvedPackageVersion with tag '$resolvedTagName'..." -ForegroundColor Cyan
+
+$buildResult = & $builderScript @{
+    PackageVersion         = $resolvedPackageVersion
+    ReleaseTag             = $resolvedTagName
+    RuntimeIdentifier      = $RuntimeIdentifier
+    InstallerFileName      = $InstallerFileName
+    Thumbprint             = $Thumbprint
+    TimestampServer        = $TimestampServer
+    SkipManifestWrite      = $SkipManifestWrite
+    SkipManifestValidation = $SkipManifestValidation
+}
+
+if ($CreateTag -or $PushTag) {
+    Ensure-GitRepository -Root $RepositoryRoot
+    $gitRoot = (Resolve-Path $RepositoryRoot).Path
+    $existingTag = & git -C $gitRoot tag --list $resolvedTagName 2>$null
+    if ([string]::IsNullOrWhiteSpace($existingTag)) {
+        if ($PSCmdlet.ShouldProcess($gitRoot, "Create git tag '$resolvedTagName'")) {
+            & git -C $gitRoot tag -a $resolvedTagName -m "TechShell release $resolvedTagName"
+            if ($LASTEXITCODE -ne 0) {
+                throw "git tag failed for '$resolvedTagName'."
+            }
+        }
+    }
+    elseif ($PSCmdlet.ShouldProcess($gitRoot, "Reuse existing git tag '$resolvedTagName'")) {
+        Write-Host "Tag '$resolvedTagName' already exists; reusing it for this TechShell build." -ForegroundColor Yellow
+    }
+
+    if ($PushTag) {
+        if ($PSCmdlet.ShouldProcess($gitRoot, "Push tag '$resolvedTagName' to origin")) {
+            & git -C $gitRoot push origin $resolvedTagName
+            if ($LASTEXITCODE -ne 0) {
+                throw "git push for tag '$resolvedTagName' failed."
+            }
+        }
+    }
+}
+
+return $buildResult
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+1Tpm90sCeXAt
-# BxCN7N782hFqBcMlt2yYJIp4pjWtB6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDq80ot9Y4ALIw6
+# k4UR/B5mIZUA/asGEwy1GaQA3rYlJaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -207,31 +307,31 @@ if (-not (Test-Path -LiteralPath $buildScript)) {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAo
-# Bj1T1+JFi3+cAyTvqbO0fkRQ6tOGdXFrBb9he/vj9jANBgkqhkiG9w0BAQEFAASC
-# AYBm5Q25U5soibyP+IKU+VZ16hiEP28U5WdrB40mqxQqjlUHgenc6VlBFGZQv9Ry
-# yZqlTq6SFrAKIO4Btozfpw/Xd1ZKRPxjI24Z6S9A766donp3VZVyKqUS63wddpgd
-# B/mITqaxXeeyAYaGlhjxaKwxXi5KeYTl0brB+qgvvOca/N8YZ7lQOokQT/tyO4o6
-# B1jbCT3tCcM6gcqrd5KLoEECnPGz1aeXXKm64XVyRedBgP6lhrCqG5T/vIZ58y85
-# ICXQDuNKViq0KrX9Z6dDK3r8RAD2c0K3QH5UC9lTRf0laZlqkw8tejHeQMUSx2ra
-# s6qJdv0WySDFcWeJ29tL3bSInVs8pTc7rx1Ws+yjqEs6WnUTJeL1vW3Mi/pvKWYV
-# i6cAwrg2MjjJ76tnlE8PYuxkolsDEfIawP3veGqTCRgBagDwMQ/0nFoGuZlPXwgn
-# Ft/rUS5duM8tgvOy6O0sXtCWbwAFDbpzpotP2rRiFAtwgKaNJDkUjxmOdUmK3Bfe
-# 5qahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBD
+# HxTqjvV2IPnD4jbUtwXoxQ6Dknqek6DuPLyvVS9EZDANBgkqhkiG9w0BAQEFAASC
+# AYAYFmEOpdhqK4mnlTijjDg4ufS7+9nMpWUHJo15Z0sdsPHstgfN+uCZvw7gSpSc
+# KCHVs2a6Rc+1SQM5UiskAeNs05KHlwOVl2zFAmYVzsMF7WTaVOldIiDUk0gAPBB4
+# 5EYNitT/I4rN/IXhBA5BI9O+VfpWZY6t7ajdurA+woNOBaYg6wen61Ar979H4UfY
+# 5Xp+JOikFqsHhqdeJR2rwJaznWylnxvySLb16FJ9hLaArzhwdXgvM+AM0WrukmJe
+# bLMF+hXzk2gDrz23AB7ZrnALCFi9OFVafzw/VO5KYm9Ne1w+HnquvBW/Q0XwAmK5
+# i+zUhvT4zIoFNHn3es/+T7DK8muTsy/Obf6ySULIe66F28eKAmkCHeCzqGGmdYoe
+# lRmRaRryZzVAVJKzbu0FyuNR7k3De+W7VDsV+mgjCN1M2+tgMVnrtudx4E7fSW+9
+# PXuZr2Y5TE6eHEOpkTthakk/KGvaaF+lmhrpzuIW478aRFFN88fWjBh5BLC5C9wp
+# RImhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDA1MjE0NzQyWjAvBgkqhkiG
-# 9w0BCQQxIgQgeTqWFtxhkXedYzzexTPLqesbDYbc97PuMqSNJF0fENswDQYJKoZI
-# hvcNAQEBBQAEggIAtWBP0t+L2GsUNXN6PQhXZQv51LPiVtIIhG4w9f3HYujEeb29
-# MHJrIuUkmJW6fqRHdPMrJv+W/PJzurp7h8nDut4nXJw7o9KycCB2x9tlhtfXj73s
-# sQt3Eufl57V3LgaqWi+xSqtJSDxYPR3zFG+yJFYJHReWEFqYCW6c3eOHP7yOY1yc
-# cihbY3V5vl5ySqPh/mqLFqmdrFWME+A1oZBcM/zPsz7Te6p21CE5Ir1uudFx4JMm
-# 7RIirh3+Yn0sHzzQISLLZHRoUIjFBpQ4PLxURyiw2Y7ma9VdcbAN6P8u/pHoxWFz
-# 1/ltvLgdNeb0fX6J9js9Af4Y8cVLhMHCW+1aqmVgMmHlA0EjuQkllxdlM7x3T1wQ
-# qk2c3lQExGVPhBG6l/L0kCCUXApUmakPjDx2x/ArW4YANhqfggzoLKckUhaqeVVX
-# tlG5CXi5FmZqGUD9RELowl4bWcv/n7B83sQNY+DcCzUi9Z1qCRZq6ZNptloTFRrX
-# UwJOgBmlF47HnWfnDAHAEow79nIQd0+QPpWejGjIX5xoBD0mm5LCoWWhGiwQQN1N
-# jN2I7JJ0RcqTVuMgTFyVR9dNL35CBvCx+b3HFJkzQiONGb8d7bmLe7M8613mwPNU
-# qGc6ZjjtBZOaWgB1Y66WDgi8IeVINzlnAGkhrITlvQwhAnUg7TTBxGN7/64=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDA1MjE0NzI4WjAvBgkqhkiG
+# 9w0BCQQxIgQg+vNwQVo0x83xOKq7uC0LyVyCIccSrJxlf7OamMJyfzcwDQYJKoZI
+# hvcNAQEBBQAEggIAMX4wfr3+9WcfVKB7Ueyeg4uDCM2/87efp5+Jp25UtgGZ2qwF
+# EHXivGnWRIDWAVF78BTS+0Obq2TKbPVXXVCxgLc+8UWi6L6bxBU9CIS+5MLviCOe
+# vzQURVxGrz4cpPpKXBymRP0EWZkbO3xAcBRjLVWC5baBi0T8V5q8J9Pqyx0jezCC
+# 8ym7QAuHfEuwDkxn+5fg95j/KrWFc8XPyluX8gO2uHmzM3bnCUaVrEUBath2IgYG
+# cAq+EINND6H55HL7vBlZWIz2WzkhfI7Nwyu3R53UuhEx6IEFD6zpvWtu5oNd24sn
+# Few79aWQAaSHKcgUkgHDojGHc3dv7ttF5OokELaMgG18czdZoWu52uzGpLYpgYpQ
+# v33W8Y1cTDrFThhNMX6zEgTFUFpeVNGMaQWBFtHUYLhIG7QHlsfChqPH2Nm90t+1
+# gRa6I0V8t/eD8tD15+3rKSOgAZ875HRRwD392ZcbfnFAJz5Ex6esAbWEOnhEcHhH
+# Ckxu6jAn9BRK9DTi871G051Rasj6kUxSm2pldbg9JRAvuiaJR+BCAQDTN0zIJ7fD
+# g4IGN0VZMPFXgEyR5sj1+snCZGc/iojUzePGrNaNtt+KK3cjBrejMdTBjPzQ6EUZ
+# 6l7fuKgryx35pp+GZ4CaiOmB9X8K/wlkCm9fPflXg7UKyiezRSi4OdfZaYY=
 # SIG # End signature block
