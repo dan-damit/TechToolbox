@@ -1,12 +1,12 @@
 Read the file located at the directory:
-C:\repos\TechToolbox\Public\Start_Stop\Get-NewPSRemoteSession.ps1
+C:\repos\TechToolbox\Public\ActiveDirectory\Unlock-User.ps1
 
 Task:
 Write a markdown document for the topic described below.
 
 Requirements:
 - Create the output file at this exact path:
-  C:\repos\TechToolbox-Docs\Get-NewPSRemoteSession.md
+  C:\repos\TechToolbox-Docs\Unlock-User.md
 - Use accurate technical details based on the source inputs.
 - Structure the document for fast scanning with concise headings and examples when useful.
 - Keep the tone practical and specific to this repository or scenario.
