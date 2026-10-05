@@ -97,8 +97,6 @@ jobs:
         id: resolve-signing-cert
         shell: pwsh
         env:
-          TECHSHELL_CODE_SIGNING_PFX_BASE64: ${{ secrets.TECHSHELL_CODE_SIGNING_PFX_BASE64 }}
-          TECHSHELL_CODE_SIGNING_PFX_PASSWORD: ${{ secrets.TECHSHELL_CODE_SIGNING_PFX_PASSWORD }}
           TECHSHELL_CODE_SIGNING_THUMBPRINT: ${{ secrets.TECHSHELL_CODE_SIGNING_THUMBPRINT }}
         run: |
           function Get-CodeSigningCertFromStores {
@@ -119,34 +117,9 @@ jobs:
             return $null
           }
 
-          $defaultThumbprint = '12E12BC4EAE3860B1BB64F3055498852F8CB5098'
           $thumbprint = $env:TECHSHELL_CODE_SIGNING_THUMBPRINT
           if ([string]::IsNullOrWhiteSpace($thumbprint)) {
-            $thumbprint = $defaultThumbprint
-          }
-          $usingPfxImport = -not [string]::IsNullOrWhiteSpace($env:TECHSHELL_CODE_SIGNING_PFX_BASE64)
-          $pfxPath = Join-Path $env:RUNNER_TEMP 'TechShellCodeSigning.pfx'
-
-          if ($usingPfxImport) {
-            if ([string]::IsNullOrWhiteSpace($env:TECHSHELL_CODE_SIGNING_PFX_PASSWORD)) {
-              throw "TECHSHELL_CODE_SIGNING_PFX_PASSWORD is required when TECHSHELL_CODE_SIGNING_PFX_BASE64 is provided."
-            }
-
-            $pfxBytes = [System.Convert]::FromBase64String($env:TECHSHELL_CODE_SIGNING_PFX_BASE64)
-            [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
-
-            $securePassword = ConvertTo-SecureString -String $env:TECHSHELL_CODE_SIGNING_PFX_PASSWORD -AsPlainText -Force
-            $importedCert = Import-PfxCertificate -FilePath $pfxPath -Password $securePassword -CertStoreLocation 'Cert:\CurrentUser\My'
-            if (-not $importedCert) {
-              throw "Import-PfxCertificate did not return an imported certificate."
-            }
-
-            if ([string]::IsNullOrWhiteSpace($thumbprint)) {
-              $thumbprint = $importedCert.Thumbprint
-            }
-          }
-          if ([string]::IsNullOrWhiteSpace($thumbprint)) {
-            throw "No code-signing certificate thumbprint was available."
+            throw "Missing GitHub Actions secret TECHSHELL_CODE_SIGNING_THUMBPRINT. HSM signing flow requires an explicit thumbprint."
           }
 
           $cert = Get-CodeSigningCertFromStores -Thumbprint $thumbprint
@@ -154,16 +127,8 @@ jobs:
             throw "Code-signing certificate with private key for thumbprint $thumbprint was not found in CurrentUser\My or LocalMachine\My."
           }
 
-          if ($usingPfxImport) {
-            Write-Host "Imported signing certificate: $($cert.Subject) [$thumbprint]"
-          }
-          else {
-            Write-Host "Using pre-provisioned signing certificate from certificate store: $($cert.Subject) [$thumbprint]"
-          }
-
+          Write-Host "Using HSM-backed signing certificate from certificate store: $($cert.Subject) [$thumbprint]"
           "thumbprint=$thumbprint" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "source=$(if ($usingPfxImport) { 'pfx' } else { 'store' })" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Remove-Item -LiteralPath $pfxPath -Force -ErrorAction SilentlyContinue
 
       - name: Build TechShell MSIX and generate winget manifests
         shell: pwsh
