@@ -60,7 +60,7 @@ jobs:
           submodules: recursive
 
       - name: Setup .NET 10 SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         env:
           DOTNET_INSTALL_DIR: ${{ runner.temp }}\dotnet
         with:
