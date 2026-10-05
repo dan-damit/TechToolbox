@@ -59,6 +59,25 @@ function Invoke-Git {
     return ($output | Out-String).Trim()
 }
 
+function Normalize-ReleaseTag {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [string]$Source = 'release configuration'
+    )
+
+    $trimmed = $Tag.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+        throw "Release tag from $Source is empty after trimming whitespace."
+    }
+
+    if ($trimmed -match '\s') {
+        throw "Release tag '$trimmed' from $Source is invalid. Tags cannot contain whitespace."
+    }
+
+    return $trimmed
+}
+
 function Resolve-DotNetInvocation {
     $sdkScopedPattern = '[\\/]sdk[\\/][^\\/]+[\\/]dotnet(?:\.exe)?$'
     $dotnetHost = $null
@@ -589,8 +608,9 @@ if ($BuildTechShellWinget -and -not $SkipTechShell) {
         throw "TechShell winget build script not found: $techShellWingetScript"
     }
 
-    $techShellPackageVersion = if ([string]::IsNullOrWhiteSpace($Version)) { $newVersion.ToString() } else { $Version }
-    $resolvedTechShellTag = if ([string]::IsNullOrWhiteSpace($TechShellReleaseTag)) { "v$techShellPackageVersion" } else { $TechShellReleaseTag }
+    $techShellPackageVersion = if ([string]::IsNullOrWhiteSpace($Version)) { $newVersion.ToString() } else { $Version.Trim() }
+    $resolvedTechShellTag = if ([string]::IsNullOrWhiteSpace($TechShellReleaseTag)) { "v$techShellPackageVersion" } else { $TechShellReleaseTag.Trim() }
+    $resolvedTechShellTag = Normalize-ReleaseTag -Tag $resolvedTechShellTag -Source 'TechShell release inputs'
     $techShellArgs = @{
         PackageVersion         = $techShellPackageVersion
         ReleaseTag             = $resolvedTechShellTag
@@ -633,11 +653,11 @@ $releaseCommit = $null
 $releasePushed = $false
 if ($isReleaseTechToolbox -or $isReleaseTechAgent -or $isReleaseTechShell) {
     if ($isReleaseTechToolbox) {
-        $resolvedReleaseVersion = if ($Version) { [string]$Version } else { [string]$newVersion }
+        $resolvedReleaseVersion = if ($Version) { [string]$Version.Trim() } else { [string]$newVersion }
         $releaseTag = "v$resolvedReleaseVersion"
     }
     elseif ($isReleaseTechAgent) {
-        $resolvedReleaseVersion = if ($Version) { [string]$Version } else { [string]$oldVersion }
+        $resolvedReleaseVersion = if ($Version) { [string]$Version.Trim() } else { [string]$oldVersion }
         $releaseTag = "agent-v$resolvedReleaseVersion"
     }
     else {
@@ -648,10 +668,11 @@ if ($isReleaseTechToolbox -or $isReleaseTechAgent -or $isReleaseTechShell) {
             $releaseTag = [string]$TechShellReleaseTag
         }
         else {
-            $resolvedReleaseVersion = if ($Version) { [string]$Version } else { [string]$newVersion }
+            $resolvedReleaseVersion = if ($Version) { [string]$Version.Trim() } else { [string]$newVersion }
             $releaseTag = "v$resolvedReleaseVersion"
         }
     }
+    $releaseTag = Normalize-ReleaseTag -Tag $releaseTag -Source 'release pipeline'
 
     $existingTag = Invoke-Git -gitArgs @('tag', '--list', $releaseTag)
     if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
