@@ -365,7 +365,7 @@ function Invoke-MsixSigning {
 }
 
 if ([string]::IsNullOrWhiteSpace($ReleaseTag)) {
-    $ReleaseTag = "v$PackageVersion"
+    $ReleaseTag = "techshell-v$PackageVersion"
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {

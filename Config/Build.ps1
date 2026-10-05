@@ -609,7 +609,7 @@ if ($BuildTechShellWinget -and -not $SkipTechShell) {
     }
 
     $techShellPackageVersion = if ([string]::IsNullOrWhiteSpace($Version)) { $newVersion.ToString() } else { $Version.Trim() }
-    $resolvedTechShellTag = if ([string]::IsNullOrWhiteSpace($TechShellReleaseTag)) { "v$techShellPackageVersion" } else { $TechShellReleaseTag.Trim() }
+    $resolvedTechShellTag = if ([string]::IsNullOrWhiteSpace($TechShellReleaseTag)) { "techshell-v$techShellPackageVersion" } else { $TechShellReleaseTag.Trim() }
     $resolvedTechShellTag = Normalize-ReleaseTag -Tag $resolvedTechShellTag -Source 'TechShell release inputs'
     $techShellArgs = @{
         PackageVersion         = $techShellPackageVersion
@@ -651,6 +651,7 @@ if ($Pack) {
 $releaseTag = $null
 $releaseCommit = $null
 $releasePushed = $false
+$releaseTagPreExisting = $false
 if ($isReleaseTechToolbox -or $isReleaseTechAgent -or $isReleaseTechShell) {
     if ($isReleaseTechToolbox) {
         $resolvedReleaseVersion = if ($Version) { [string]$Version.Trim() } else { [string]$newVersion }
@@ -669,14 +670,24 @@ if ($isReleaseTechToolbox -or $isReleaseTechAgent -or $isReleaseTechShell) {
         }
         else {
             $resolvedReleaseVersion = if ($Version) { [string]$Version.Trim() } else { [string]$newVersion }
-            $releaseTag = "v$resolvedReleaseVersion"
+            $releaseTag = "techshell-v$resolvedReleaseVersion"
         }
     }
     $releaseTag = Normalize-ReleaseTag -Tag $releaseTag -Source 'release pipeline'
 
     $existingTag = Invoke-Git -gitArgs @('tag', '--list', $releaseTag)
     if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
-        throw "Tag already exists: $releaseTag"
+        $releaseTagPreExisting = $true
+        $existingTagCommit = Invoke-Git -gitArgs @('rev-list', '-n', '1', $releaseTag)
+        $headCommit = Invoke-Git -gitArgs @('rev-parse', 'HEAD')
+
+        if ([string]::Equals($existingTagCommit, $headCommit, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Warning "Tag '$releaseTag' already exists at HEAD ($headCommit). Reusing existing tag for this release run."
+        }
+        else {
+            $tagMetadata = Invoke-Git -gitArgs @('for-each-ref', "refs/tags/$releaseTag", '--format=%(creatordate:iso8601) %(taggername) %(objectname)')
+            throw "Tag already exists: $releaseTag (tag commit: $existingTagCommit, HEAD: $headCommit, metadata: $tagMetadata). Use a new -Version or an explicit -TechShellReleaseTag."
+        }
     }
 
     $branchName = Invoke-Git -gitArgs @('rev-parse', '--abbrev-ref', 'HEAD')
@@ -696,9 +707,11 @@ if ($isReleaseTechToolbox -or $isReleaseTechAgent -or $isReleaseTechShell) {
         }
     }
 
-    if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create git tag $releaseTag")) {
-        Invoke-Git -gitArgs @('tag', '-a', $releaseTag, '-m', "Release $releaseTag") | Out-Null
-        Write-Host "Tag created: $releaseTag" -ForegroundColor Green
+    if (-not $releaseTagPreExisting) {
+        if ($PSCmdlet.ShouldProcess($ModuleRoot, "Create git tag $releaseTag")) {
+            Invoke-Git -gitArgs @('tag', '-a', $releaseTag, '-m', "Release $releaseTag") | Out-Null
+            Write-Host "Tag created: $releaseTag" -ForegroundColor Green
+        }
     }
 
     if ($isReleaseTechToolbox) {
@@ -757,13 +770,14 @@ $result = [pscustomobject]@{
         TechShell    = [bool]$isReleaseTechShell
         Commit       = $releaseCommit
         Tag          = $releaseTag
+        TagPreExisting = $releaseTagPreExisting
         Pushed       = $releasePushed
         PipelineHint = if ($releasePushed -and $releaseTag) {
             if ($isReleaseTechToolbox) {
                 "GitHub Actions publish workflow triggers on pushed v* tags."
             }
             elseif ($isReleaseTechShell) {
-                "GitHub Actions TechShell winget workflow triggers on pushed v* tags."
+                "GitHub Actions TechShell winget workflow triggers on pushed techshell-v* tags."
             }
             else {
                 "TechAgent release pushes agent-v* tags."
@@ -777,8 +791,8 @@ $result
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBXPtrUKQCF93fo
-# 3H4xLQY6Qmv57e5gKI/X8yNwT3i9KaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAZxQm0M+/bgYaO
+# nxt9QPpbmrU/UbAoWeluK6oln504waCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -955,31 +969,31 @@ $result
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAS
-# XaiSc4RabfApwVcBH9+KUmqpuVmIe4FF5njwvRH+XDANBgkqhkiG9w0BAQEFAASC
-# AYBYkUKVK0PoGKNwhvgeoyLYIdtgShQKEigleLgaXMvyO/yfb+SEIk8rfToejCIl
-# uK53dO9M03wb3g8ji7vJw0aZiUy507VXuzDn38ZxK4q5HQ5olfyDpqGCJGfNPRDs
-# r1xuFGa7AM4EFsu2zwSTMOsKK2JPGD1GMWFgt+x/BwZaDfdp345w6tb+9T16QRI6
-# ryK6ICHVazrjNzbXHiavv19O3s1I27voMUuEYSgFG08ACZjNz7IxMtSN49+6y3Ee
-# HrH8+rv0cb/avhMaqz2UepRCdFuNL3DywyTDE7nmjfKmA99D2ZgPu9G7HH9n5dxn
-# J1mI4adHvaiDJCAWCwgvK/GfHc1PmTFndTh8e5FdBmboc1mk+i0rn8wHt8w6B0Sk
-# TZrV760fhxLaq8+TiZ2z3fAdmy/gfsgZpWr4FlQsefh532B5b4DjdgcFKHkJtzKH
-# 79ebYM6zfQaXDpEuuGDkqCWmjF447u38WbX+bNu3245oJtzVEDRtWam0Cx0713na
-# jNehggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCa
+# XwmXUrLIMmVW1n2GdruZzUoWFgFjzPCS5uHoRioa/jANBgkqhkiG9w0BAQEFAASC
+# AYCfRVNM4Bo/43pvsvk8P4sLfqCviwz9NhAmGTnI4/dBnXuzEMNHw/SLAmzLaMc4
+# liFFw8AxKka6smALbIy4vAY3twTZa5rHbGA5VJINgiv5JwimH2wFHjLNarbCyUcx
+# 9E/LO+li8+NYsmDDn9dUqL5Wu5WGSDxciJ/fHDTKtXcEe0casHvqMiYiLepMGkzO
+# 4Ziot6eZic76cK5htI5uFaNJZnCaJV9vVxtI+wwh8E07kUdBWhn0w2FwTjBsFtdN
+# 4bMo6ucHjfI9jIo+YcBVG5uhLSfo7+ZBza4twoG7poz2W5Uq2rVTwVSWlWFMJeFv
+# MhfSAziFcBj7cK/q4eDMHn6nbRNXniUMNtUb715Op51pQbAqhNr+8GxfiuT+L55x
+# K1SeuYHwFGGazm0caz9rux6E544nodPrvmabw75lwn6wB/pvzWSSCt8XROIZYAvQ
+# qBftiE3GNZysuqW0eFD6HCkRFpWIFWUULJN3n3zmMHl36ksKoKouxQeRg23PWXJI
+# X2yhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDA1MjAyMTA5WjAvBgkqhkiG
-# 9w0BCQQxIgQgH1I6LRAomfbwwQzh5Fvc2E25EYxTyKeUGuc9c8xtJzowDQYJKoZI
-# hvcNAQEBBQAEggIAlg2wE9qb2v9Cxzb7YpjI3aaVQgPM2xoT1jCgd56dFXsLiz5D
-# 0gEdIRZdoMkqp3QC5hSZt//UQ7kYdEEpRO76swHITHNvx+oib0GqTU7b5B6yUTbL
-# hva88hfyId3c9wcSAZSW9XsO+mX7d1DMSkXm8Sra8f1n2LcadP8lUItF/lAy/8hu
-# B9P5UNCfrqoX614+BNSdgXDCnj5FidBJfbMnD+hvLKzYfbSqAqwW0w8ncaI5tdJC
-# Sjbp0oYGW+CzYA1Wc3FRGUqHYcKHwikFfLkAKaWVyCxCbv2rZXjmmSRRf0k/HBje
-# t4gakLFAu+IhTUuqeNbAbYNmCG/dP2a11KoQYLByqc2aYxjH2TzMYTfeohUXX/lT
-# LmVxb46O5xGZYk734oL4RboAvq1T8XtnbIznrTYd8HKZhWMw3mbYLESX7nhzxU9Z
-# MVn9BnmDwrNA2yL2As29YzSam2PnSA/FlmET8nA6EQtXIbYqU1aVWsmBxitPUF9D
-# H7l9Uqgdq+wsQpn7Q6c5EreqVmsVQMl6+M1y485ME64babysMERpzK0l6zuELqHj
-# XYClLAhTGOKwmMFgNdSXTc1nD46XU3k2WJlXiqoflvqEaEDx2hsFNlziR6fNJ+2H
-# oUiKjv6Fyy1EZYY/vrJFQ3OXT4LKkWyrtiPrUECvawQdNeovDC7LYgfNM3A=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDA1MjAyNjM2WjAvBgkqhkiG
+# 9w0BCQQxIgQgQOsjWlvTol1042RHJDTUT1weA3+eJrZa0Ghy2fweVEAwDQYJKoZI
+# hvcNAQEBBQAEggIAaqIlwXEIerEFZLZelTSJCNaYY1QKBbhHH/pLouSH9mjFMZn1
+# sikqY4v7ydCs6Wcv/It+h4dururqiibvsvjV8kcYUx5Maenjq/JfEVHJRa7jfWCX
+# RYU3+kHemYg9kMprQwSWeZNBZrSM5gxT2CwUIZUUczt916vzULraRd5hbXlY1JbX
+# WsmXbVYgqLD44PMvfVdxsGi/VLeyzL5hSKt4xk50DxAkVNdHjtsNDwEEK1zDppxO
+# 9533DqluQl0AbC1jJwgsFRhyD4KZHH+OG+YUYmd7AA65aVaOnr5atSZGDeCyN+Cj
+# D22B/Dt8+y5jjHxDKepXaZmjs95f+8AHWhRGiEmb72wyN6AFAF1Q5zsZnLD+RwOp
+# Q19xckJvqdm3c7TmeoYGANOjNgSuxig+femJEmE9CaCgGWiNbyvT49sh8gKraHKS
+# Tp93TQRTdY+SK/9Jia6Xg6RHx8FX01u883hYpENGzLYVExpsXoVo7C1CAl0J8yra
+# 6r1spzTlL9lROPt67OKKx0yMwrxmySGHk1mLI9exCxi8pejFT7GLSnv/H6jvEfu4
+# YRH1pI6aKdz1RLzkQAKfZZTBkWAEsoC4h/c3flAksICQIv7/WYDt5eRbPgfLU+YF
+# dR0gjZ1ue8fVLoJB7lYoIVDfqqE4ZrA6WIsWnACstjPnASZiA3uhK2Gdero=
 # SIG # End signature block

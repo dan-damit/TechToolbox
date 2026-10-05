@@ -3,15 +3,15 @@ name: TechShell MSIX / Winget Release
 on:
   push:
     tags:
-      - "v*"
+      - "techshell-v*"
   workflow_dispatch:
     inputs:
       package_version:
-        description: "TechShell package version to build (for example 0.1.0). Defaults to the tag version without the leading v."
+        description: "TechShell package version to build (for example 0.1.0). Defaults to the tag version without the leading techshell-v prefix."
         required: false
         type: string
       release_tag:
-        description: "GitHub release tag to publish the installer under. Defaults to the current tag or v<package_version>."
+        description: "GitHub release tag to publish the installer under. Defaults to the current tag or techshell-v<package_version>."
         required: false
         type: string
       submit_winget_pr:
@@ -73,22 +73,22 @@ jobs:
           $tagName = "${{ github.ref_name }}"
           $packageVersion = "${{ github.event.inputs.package_version }}"
           if ([string]::IsNullOrWhiteSpace($packageVersion)) {
-            if (-not [string]::IsNullOrWhiteSpace($tagName) -and $tagName.StartsWith('v')) {
-              $packageVersion = $tagName.Substring(1)
+            if (-not [string]::IsNullOrWhiteSpace($tagName) -and $tagName.StartsWith('techshell-v')) {
+              $packageVersion = $tagName.Substring('techshell-v'.Length)
             }
           }
 
           if ([string]::IsNullOrWhiteSpace($packageVersion)) {
-            throw "Unable to determine the TechShell package version. Provide package_version or trigger from a v* tag."
+            throw "Unable to determine the TechShell package version. Provide package_version or trigger from a techshell-v* tag."
           }
 
           $releaseTag = "${{ github.event.inputs.release_tag }}"
           if ([string]::IsNullOrWhiteSpace($releaseTag)) {
-            if (-not [string]::IsNullOrWhiteSpace($tagName) -and $tagName.StartsWith('v')) {
+            if (-not [string]::IsNullOrWhiteSpace($tagName) -and $tagName.StartsWith('techshell-v')) {
               $releaseTag = $tagName
             }
             else {
-              $releaseTag = "v$packageVersion"
+              $releaseTag = "techshell-v$packageVersion"
             }
           }
 

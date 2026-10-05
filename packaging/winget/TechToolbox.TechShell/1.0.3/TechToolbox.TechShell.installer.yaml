@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
+PackageIdentifier: TechToolbox.TechShell
+PackageVersion: 1.0.3
+MinimumOSVersion: 10.0.17763.0
+Installers:
+  - Architecture: x64
+    InstallerType: msix
+    Scope: machine
+    InstallerUrl: https://github.com/dan-damit/TechToolbox/releases/download/v1.0.3/TechShell.msix
+    InstallerSha256: D1546FA111C7569CCA72F34CE908992B746F2BA0A3EE06EA871184FE6EEE807F
+ManifestType: installer
+ManifestVersion: 1.10.0
+

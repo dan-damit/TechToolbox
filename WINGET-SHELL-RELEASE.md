@@ -93,7 +93,7 @@ Use `-ReleaseTechToolbox` for the PSGallery/module release path, `-ReleaseTechAg
 Notes:
 
 - This script keeps TechShell packaging independent from PSGallery module publishing.
-- `-ReleaseTechShell` now also creates and pushes the release tag (defaults to `v<version>` unless `-TechShellReleaseTag` is specified), which triggers `techshell-winget-release.yml`.
+- `-ReleaseTechShell` now also creates and pushes the release tag (defaults to `techshell-v<version>` unless `-TechShellReleaseTag` is specified), which triggers `techshell-winget-release.yml`.
 - It writes outputs under `Out\TechShell\<version>\<runtime>\`.
 - It also stages `Register-TechShellExplorerIntegration.ps1` beside the `.msix` so the shell context-menu helper ships with the release bundle.
 - Use `-SkipManifestWrite` to dry-run metadata generation only.
@@ -146,7 +146,7 @@ The `techshell-winget-release.yml` workflow now includes a second job that can c
 
 Behavior:
 
-- Tag push (`v*`): submission job runs automatically after release build.
+- Tag push (`techshell-v*`): submission job runs automatically after release build.
 - Manual dispatch: you can toggle submission with `submit_winget_pr` input.
 
 Note: the submission job runs only when `ENABLE_WINGET_SUBMISSION` is set to `true`.
