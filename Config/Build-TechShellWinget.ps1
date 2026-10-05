@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)]
+    [string]$Version,
     [string]$PackageVersion,
 
     [string]$ReleaseTag,
@@ -18,6 +18,14 @@ param(
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
+    $PackageVersion = $Version
+}
+
+if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
+    throw "PackageVersion is required. Pass -PackageVersion or -Version."
+}
 
 function Resolve-AbsolutePath {
     param([Parameter(Mandatory)][string]$Path)

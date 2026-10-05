@@ -82,6 +82,12 @@ pwsh -NoProfile -File .\Config\Build-TechShellWinget.ps1 `
   -RuntimeIdentifier win-x64
 ```
 
+If you need to override the TechShell package version from the main build flow, pass `-Version` (or `-PackageVersion`) to the wrapper/build script, for example:
+
+```powershell
+pwsh -NoProfile -File .\Config\Build.ps1 -Release -BuildTechShellWinget -Version 1.3.11
+```
+
 Notes:
 
 - This script keeps TechShell packaging independent from PSGallery module publishing.

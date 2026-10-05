@@ -220,6 +220,11 @@ jobs:
             exit 1
           fi
 
+          if gh api "repos/microsoft/winget-pkgs/contents/manifests/t/TechToolbox/TechShell/${PACKAGE_VERSION}" --jq '.name' >/dev/null 2>&1; then
+            echo "Version ${PACKAGE_VERSION} already exists in microsoft/winget-pkgs. Skipping PR creation."
+            exit 0
+          fi
+
           BRANCH_NAME="techtoolbox-techshell-${PACKAGE_VERSION}-${GITHUB_RUN_NUMBER}"
           TARGET_DIR="manifests/t/TechToolbox/TechShell/${PACKAGE_VERSION}"
 
