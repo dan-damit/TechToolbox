@@ -189,14 +189,34 @@ jobs:
             exit 1
           fi
 
-          SOURCE_DIR="winget-manifests/${PACKAGE_VERSION}"
-          if [ ! -d "$SOURCE_DIR" ]; then
-            SOURCE_DIR="winget-manifests/packaging/winget/TechToolbox.TechShell/${PACKAGE_VERSION}"
+          export GIT_TERMINAL_PROMPT=0
+
+          WINGET_PKGS_FORK="${WINGET_PKGS_FORK#https://github.com/}"
+          WINGET_PKGS_FORK="${WINGET_PKGS_FORK#git@github.com:}"
+          WINGET_PKGS_FORK="${WINGET_PKGS_FORK%.git}"
+
+          if [ -z "${WINGET_PKGS_FORK:-}" ] || [[ "${WINGET_PKGS_FORK}" != */* ]]; then
+            echo "WINGET_PKGS_FORK must be set to a GitHub fork in owner/repo format, for example: yourname/winget-pkgs"
+            exit 1
           fi
 
-          if [ ! -d "$SOURCE_DIR" ]; then
+          SOURCE_DIR=""
+          for candidate in \
+            "winget-manifests/${PACKAGE_VERSION}" \
+            "winget-manifests/packaging/winget/TechToolbox.TechShell/${PACKAGE_VERSION}" \
+            "winget-manifests/TechToolbox.TechShell/${PACKAGE_VERSION}" \
+            "winget-manifests/packaging/winget/TechToolbox.TechShell" \
+            "winget-manifests/TechToolbox.TechShell"; do
+            if [ -f "${candidate}/TechToolbox.TechShell.yaml" ] && [ -f "${candidate}/TechToolbox.TechShell.installer.yaml" ] && [ -f "${candidate}/TechToolbox.TechShell.locale.en-US.yaml" ]; then
+              SOURCE_DIR="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$SOURCE_DIR" ]; then
             echo "Unable to find generated manifests for version ${PACKAGE_VERSION} in downloaded artifact."
-            ls -R winget-manifests || true
+            echo "Downloaded artifact layout:"
+            find winget-manifests -maxdepth 5 -print 2>/dev/null || true
             exit 1
           fi
 
