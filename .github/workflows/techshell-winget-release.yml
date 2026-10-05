@@ -54,7 +54,7 @@ jobs:
           Write-Host "Runner hardening checks passed for '$env:RUNNER_NAME' (environment=$env:RUNNER_ENVIRONMENT, os=$env:RUNNER_OS)." -ForegroundColor Green
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.TECHTOOLBOX_SUBMODULES_PAT }}
           submodules: recursive
