@@ -30,7 +30,29 @@ This guide adds a separate, PowerShell-friendly release path for the Windows She
 
 The workflow can be manually controlled through the `submit_winget_pr` input on workflow dispatch. If you want a hard approval gate, add an environment gate to the submission job in your local workflow configuration.
 
-The release workflow imports the PFX certificate into the runner before building the MSIX so the signing step happens during the automated release flow rather than on a local workstation.
+The release workflow resolves a signing certificate before building the MSIX. It supports either importing a PFX on the runner or using a pre-provisioned certificate/private-key provider already available in the Windows certificate store.
+
+Important:
+
+- `TECHSHELL_CODE_SIGNING_PFX_BASE64` must be a Base64-encoded **PFX that includes the private key**.
+- A public certificate (`.cer`) alone is not enough for signing.
+- `TECHSHELL_CODE_SIGNING_THUMBPRINT` should match the certificate in that PFX (or can be omitted and the workflow will use the imported cert thumbprint automatically).
+- When no thumbprint secret is provided, the workflow defaults to `12E12BC4EAE3860B1BB64F3055498852F8CB5098`.
+
+Example Base64 export (PowerShell):
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\codesigning.pfx")) | Set-Clipboard
+```
+
+Cloud/HSM signing mode (for example Certum Desktop):
+
+- Leave `TECHSHELL_CODE_SIGNING_PFX_BASE64` and `TECHSHELL_CODE_SIGNING_PFX_PASSWORD` unset.
+- Set `TECHSHELL_CODE_SIGNING_THUMBPRINT` to the certificate thumbprint exposed by your signing provider.
+- Run the release job on a Windows runner where the provider software is installed and the certificate/private-key provider is available in the Windows certificate store.
+- Set repository variable `TECHSHELL_RELEASE_RUNNER` to your self-hosted Windows runner label so the workflow runs in your Certum-capable environment.
+- The workflow now fails fast unless it is running on a self-hosted Windows runner and `TECHSHELL_RELEASE_RUNNER` is set.
+- Self-signed or otherwise non-public-trust signing certificates are blocked by the build/signing preflight checks.
 
 ## Recommended repo layout
 

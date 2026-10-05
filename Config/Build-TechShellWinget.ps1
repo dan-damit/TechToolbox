@@ -12,7 +12,6 @@ param(
     [string]$OutputRoot,
     [string]$Thumbprint,
     [string]$TimestampServer,
-    [switch]$EnforcePublicTrustPreflight,
     [switch]$SkipManifestWrite,
     [switch]$SkipManifestValidation
 )
@@ -412,11 +411,7 @@ if (-not $signingCertificate) {
 $trustPreflight = Test-CodeSigningTrustPreflight -Certificate $signingCertificate
 if (-not $trustPreflight.IsPublicTrustReady) {
     $preflightMessage = "Code-signing trust preflight detected a non-public trust chain for thumbprint $Thumbprint. SelfSigned=$($trustPreflight.IsSelfSigned); ChainBuildSucceeded=$($trustPreflight.ChainBuildSucceeded); ChainStatuses=$($trustPreflight.StatusText)."
-    if ($EnforcePublicTrustPreflight) {
-        throw "$preflightMessage Use a publicly trusted code-signing certificate or rerun without -EnforcePublicTrustPreflight for local-only testing."
-    }
-
-    Write-Warning "$preflightMessage Continuing because -EnforcePublicTrustPreflight was not specified."
+    throw "$preflightMessage Use a publicly trusted code-signing certificate."
 }
 else {
     Write-Host "Code-signing trust preflight passed for thumbprint $Thumbprint." -ForegroundColor Green

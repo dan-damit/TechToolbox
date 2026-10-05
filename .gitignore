@@ -18,6 +18,7 @@ bin/
 SecureCrimp/
 AI/Tasks/Archive/
 ModelTraining/
+actions-runner/
 
 # TechShell packaging artifacts
 /src/TechShell/**/AppPackages/

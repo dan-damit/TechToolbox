@@ -376,6 +376,29 @@ function Get-CodeSigningCert {
     return $null
 }
 
+function Test-CodeSigningTrustPreflight {
+    param(
+        [Parameter(Mandatory)] [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+    )
+
+    $chain = New-Object System.Security.Cryptography.X509Certificates.X509Chain
+    $chain.ChainPolicy.RevocationMode = [System.Security.Cryptography.X509Certificates.X509RevocationMode]::NoCheck
+    $chain.ChainPolicy.VerificationFlags = [System.Security.Cryptography.X509Certificates.X509VerificationFlags]::NoFlag
+
+    $chainBuildSucceeded = $chain.Build($Certificate)
+    $statuses = @($chain.ChainStatus | ForEach-Object { $_.Status.ToString() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    $isSelfSigned = [string]::Equals($Certificate.Subject, $Certificate.Issuer, [System.StringComparison]::OrdinalIgnoreCase)
+    $hasUntrustedRoot = $statuses -contains 'UntrustedRoot'
+
+    [pscustomobject]@{
+        IsPublicTrustReady  = $chainBuildSucceeded -and -not $isSelfSigned -and -not $hasUntrustedRoot
+        IsSelfSigned        = $isSelfSigned
+        ChainBuildSucceeded = $chainBuildSucceeded
+        ChainStatuses       = $statuses
+        StatusText          = if ($statuses.Count -gt 0) { $statuses -join ', ' } else { 'None' }
+    }
+}
+
 function Sign-FileSet {
     param(
         [Parameter(Mandatory)] [string[]]$Files,
@@ -423,6 +446,11 @@ else {
     }
     $cert = Get-CodeSigningCert -Thumb $Thumbprint
     if (-not $cert) { throw "Code signing cert not found or missing private key for thumbprint $Thumbprint." }
+    $trustPreflight = Test-CodeSigningTrustPreflight -Certificate $cert
+    if (-not $trustPreflight.IsPublicTrustReady) {
+        throw "Code-signing trust preflight detected a non-public trust chain for thumbprint $Thumbprint. SelfSigned=$($trustPreflight.IsSelfSigned); ChainBuildSucceeded=$($trustPreflight.ChainBuildSucceeded); ChainStatuses=$($trustPreflight.StatusText). Use a publicly trusted code-signing certificate."
+    }
+    Write-Host "Code-signing trust preflight passed for thumbprint $Thumbprint." -ForegroundColor Green
 
     # What to sign
     $search = @{ Path = $ModuleRoot; Include = '*.ps1', '*.psm1'; File = $true; Recurse = $true }

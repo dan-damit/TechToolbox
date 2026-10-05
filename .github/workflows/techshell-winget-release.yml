@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   build-msix-and-release:
-    runs-on: windows-latest
+    runs-on: ${{ vars.TECHSHELL_RELEASE_RUNNER != '' && vars.TECHSHELL_RELEASE_RUNNER || 'windows-latest' }}
     outputs:
       package_version: ${{ steps.version.outputs.package_version }}
       release_tag: ${{ steps.version.outputs.release_tag }}
@@ -34,6 +34,25 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
     steps:
+      - name: Enforce hardened runner requirements
+        shell: pwsh
+        env:
+          TECHSHELL_RELEASE_RUNNER: ${{ vars.TECHSHELL_RELEASE_RUNNER }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TECHSHELL_RELEASE_RUNNER)) {
+            throw "Repository variable TECHSHELL_RELEASE_RUNNER must be set to a dedicated self-hosted Windows runner label."
+          }
+
+          if (-not [string]::Equals($env:RUNNER_ENVIRONMENT, 'self-hosted', [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "This workflow is hardened for self-hosted execution only. Current runner environment: '$env:RUNNER_ENVIRONMENT'."
+          }
+
+          if (-not [string]::Equals($env:RUNNER_OS, 'Windows', [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "This workflow requires a Windows runner. Current runner OS: '$env:RUNNER_OS'."
+          }
+
+          Write-Host "Runner hardening checks passed for '$env:RUNNER_NAME' (environment=$env:RUNNER_ENVIRONMENT, os=$env:RUNNER_OS)." -ForegroundColor Green
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -74,48 +93,84 @@ jobs:
           "package_version=$packageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "release_tag=$releaseTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Import code-signing certificate
+      - name: Resolve code-signing certificate
+        id: resolve-signing-cert
         shell: pwsh
         env:
           TECHSHELL_CODE_SIGNING_PFX_BASE64: ${{ secrets.TECHSHELL_CODE_SIGNING_PFX_BASE64 }}
           TECHSHELL_CODE_SIGNING_PFX_PASSWORD: ${{ secrets.TECHSHELL_CODE_SIGNING_PFX_PASSWORD }}
           TECHSHELL_CODE_SIGNING_THUMBPRINT: ${{ secrets.TECHSHELL_CODE_SIGNING_THUMBPRINT }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:TECHSHELL_CODE_SIGNING_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:TECHSHELL_CODE_SIGNING_PFX_PASSWORD)) {
-            throw "Missing GitHub Actions secrets TECHSHELL_CODE_SIGNING_PFX_BASE64 and/or TECHSHELL_CODE_SIGNING_PFX_PASSWORD."
+          function Get-CodeSigningCertFromStores {
+            param(
+              [Parameter(Mandatory)]
+              [string]$Thumbprint
+            )
+
+            foreach ($store in @('Cert:\CurrentUser\My', 'Cert:\LocalMachine\My')) {
+              $candidate = Get-ChildItem -LiteralPath $store -ErrorAction SilentlyContinue |
+                Where-Object { $_.Thumbprint -eq $Thumbprint -and $_.HasPrivateKey } |
+                Select-Object -First 1
+              if ($candidate) {
+                return $candidate
+              }
+            }
+
+            return $null
           }
 
-          $pfxBytes = [System.Convert]::FromBase64String($env:TECHSHELL_CODE_SIGNING_PFX_BASE64)
-          $pfxPath = Join-Path $env:RUNNER_TEMP 'TechShellCodeSigning.pfx'
-          [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
-
-          $securePassword = ConvertTo-SecureString -String $env:TECHSHELL_CODE_SIGNING_PFX_PASSWORD -AsPlainText -Force
-          Import-PfxCertificate -FilePath $pfxPath -Password $securePassword -CertStoreLocation 'Cert:\CurrentUser\My' | Out-Null
-
+          $defaultThumbprint = '12E12BC4EAE3860B1BB64F3055498852F8CB5098'
           $thumbprint = $env:TECHSHELL_CODE_SIGNING_THUMBPRINT
           if ([string]::IsNullOrWhiteSpace($thumbprint)) {
-            $thumbprint = (Get-ChildItem 'Cert:\CurrentUser\My' | Where-Object { $_.HasPrivateKey } | Select-Object -First 1).Thumbprint
+            $thumbprint = $defaultThumbprint
           }
+          $usingPfxImport = -not [string]::IsNullOrWhiteSpace($env:TECHSHELL_CODE_SIGNING_PFX_BASE64)
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'TechShellCodeSigning.pfx'
 
+          if ($usingPfxImport) {
+            if ([string]::IsNullOrWhiteSpace($env:TECHSHELL_CODE_SIGNING_PFX_PASSWORD)) {
+              throw "TECHSHELL_CODE_SIGNING_PFX_PASSWORD is required when TECHSHELL_CODE_SIGNING_PFX_BASE64 is provided."
+            }
+
+            $pfxBytes = [System.Convert]::FromBase64String($env:TECHSHELL_CODE_SIGNING_PFX_BASE64)
+            [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+
+            $securePassword = ConvertTo-SecureString -String $env:TECHSHELL_CODE_SIGNING_PFX_PASSWORD -AsPlainText -Force
+            $importedCert = Import-PfxCertificate -FilePath $pfxPath -Password $securePassword -CertStoreLocation 'Cert:\CurrentUser\My'
+            if (-not $importedCert) {
+              throw "Import-PfxCertificate did not return an imported certificate."
+            }
+
+            if ([string]::IsNullOrWhiteSpace($thumbprint)) {
+              $thumbprint = $importedCert.Thumbprint
+            }
+          }
           if ([string]::IsNullOrWhiteSpace($thumbprint)) {
-            throw "No code-signing certificate thumbprint was available after import."
+            throw "No code-signing certificate thumbprint was available."
           }
 
-          $cert = Get-ChildItem 'Cert:\CurrentUser\My' | Where-Object { $_.Thumbprint -eq $thumbprint }
+          $cert = Get-CodeSigningCertFromStores -Thumbprint $thumbprint
           if (-not $cert) {
-            throw "The imported certificate with thumbprint $thumbprint was not found in CurrentUser\My."
+            throw "Code-signing certificate with private key for thumbprint $thumbprint was not found in CurrentUser\My or LocalMachine\My."
           }
 
-          Write-Host "Imported signing certificate: $($cert.Subject) [$thumbprint]"
+          if ($usingPfxImport) {
+            Write-Host "Imported signing certificate: $($cert.Subject) [$thumbprint]"
+          }
+          else {
+            Write-Host "Using pre-provisioned signing certificate from certificate store: $($cert.Subject) [$thumbprint]"
+          }
+
+          "thumbprint=$thumbprint" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "source=$(if ($usingPfxImport) { 'pfx' } else { 'store' })" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Remove-Item -LiteralPath $pfxPath -Force -ErrorAction SilentlyContinue
 
       - name: Build TechShell MSIX and generate winget manifests
         shell: pwsh
-        env:
-          TECHSHELL_CODE_SIGNING_THUMBPRINT: ${{ secrets.TECHSHELL_CODE_SIGNING_THUMBPRINT }}
         run: |
-          $thumbprint = $env:TECHSHELL_CODE_SIGNING_THUMBPRINT
+          $thumbprint = "${{ steps.resolve-signing-cert.outputs.thumbprint }}"
           if ([string]::IsNullOrWhiteSpace($thumbprint)) {
-            $thumbprint = '7168509FC1A2AE7AFC4C40342D6A8FED7413029C'
+            throw "Signing thumbprint output from the certificate resolution step was empty."
           }
 
           pwsh -NoProfile -File .\Config\Build-TechShellWinget.ps1 `
