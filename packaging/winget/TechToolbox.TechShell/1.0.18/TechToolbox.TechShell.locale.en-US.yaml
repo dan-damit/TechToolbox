@@ -2,7 +2,7 @@
 PackageIdentifier: TechToolbox.TechShell
 PackageVersion: 1.0.18
 PackageLocale: en-US
-Publisher: VADTEK
+Publisher: Open Source Developer Daniel Damit
 PackageName: TechShell
 License: MIT
 ShortDescription: TechToolbox Windows shell experience.
