@@ -169,7 +169,7 @@ jobs:
           fail_on_unmatched_files: true
 
       - name: Upload generated winget manifests as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: techshell-winget-manifests
           path: packaging/winget/TechToolbox.TechShell/**/*
