@@ -249,12 +249,21 @@ if ([string]::IsNullOrWhiteSpace($TimestampServer)) {
 function Get-CodeSigningCert {
     param([Parameter(Mandatory)] [string]$Thumb)
 
-    foreach ($store in @('Cert:\CurrentUser\My', 'Cert:\LocalMachine\My')) {
-        $found = Get-ChildItem -LiteralPath $store -ErrorAction SilentlyContinue |
-        Where-Object { $_.Thumbprint -eq $Thumb }
+    foreach ($store in @(
+            [pscustomobject]@{ Path = 'Cert:\CurrentUser\My'; Scope = 'CurrentUser'; IsMachineStore = $false },
+            [pscustomobject]@{ Path = 'Cert:\LocalMachine\My'; Scope = 'LocalMachine'; IsMachineStore = $true }
+        )) {
+        $found = Get-ChildItem -LiteralPath $store.Path -ErrorAction SilentlyContinue |
+        Where-Object { $_.Thumbprint -eq $Thumb } |
+        Select-Object -First 1
 
-        if ($found -and $found.HasPrivateKey) {
-            return $found
+        if ($null -ne $found -and $found.HasPrivateKey) {
+            return [pscustomobject]@{
+                Certificate    = $found
+                StorePath      = $store.Path
+                StoreScope     = $store.Scope
+                IsMachineStore = $store.IsMachineStore
+            }
         }
     }
 
@@ -306,10 +315,11 @@ function Invoke-MsixSigning {
         [Parameter(Mandatory)] [string]$Timestamp
     )
 
-    $certificate = Get-CodeSigningCert -Thumb $Thumb
-    if (-not $certificate) {
+    $resolvedCertificate = Get-CodeSigningCert -Thumb $Thumb
+    if (-not $resolvedCertificate) {
         throw "The configured signing certificate was not found in CurrentUser\My or LocalMachine\My for thumbprint $Thumb."
     }
+    $certificate = $resolvedCertificate.Certificate
 
     $providerName = $null
     $keyContainerName = $null
@@ -346,7 +356,10 @@ function Invoke-MsixSigning {
         throw 'signtool.exe was not found in PATH or Windows Kits. Install the Windows SDK signing tools or configure PATH.'
     }
 
-    $signArgs = @('sign', '/fd', 'SHA256', '/td', 'SHA256', '/tr', $Timestamp, '/sha1', $Thumb, '/v')
+    $signArgs = @('sign', '/fd', 'SHA256', '/td', 'SHA256', '/tr', $Timestamp, '/s', 'My', '/sha1', $Thumb, '/v')
+    if ($resolvedCertificate.IsMachineStore) {
+        $signArgs += '/sm'
+    }
     if (-not [string]::IsNullOrWhiteSpace($providerName) -and -not [string]::IsNullOrWhiteSpace($keyContainerName)) {
         $signArgs += @('/csp', $providerName, '/kc', $keyContainerName)
     }
@@ -370,7 +383,7 @@ function Invoke-MsixSigning {
         }
     }
 
-    throw "Signing failed for $FilePath using thumbprint $Thumb. Attempted signtool candidates: $($attemptFailures -join '; ')."
+    throw "Signing failed for $FilePath using thumbprint $Thumb from $($resolvedCertificate.StoreScope)\My. Attempted signtool candidates: $($attemptFailures -join '; ')."
 }
 
 if ([string]::IsNullOrWhiteSpace($ReleaseTag)) {
@@ -483,10 +496,11 @@ if ([string]::IsNullOrWhiteSpace($Thumbprint)) {
     throw 'No code signing thumbprint was provided and none was found in Config\build.config.json.'
 }
 
-$signingCertificate = Get-CodeSigningCert -Thumb $Thumbprint
-if (-not $signingCertificate) {
+$resolvedSigningCertificate = Get-CodeSigningCert -Thumb $Thumbprint
+if (-not $resolvedSigningCertificate) {
     throw "The configured signing certificate was not found in CurrentUser\My or LocalMachine\My for thumbprint $Thumbprint."
 }
+$signingCertificate = $resolvedSigningCertificate.Certificate
 
 $trustPreflight = Test-CodeSigningTrustPreflight -Certificate $signingCertificate
 if (-not $trustPreflight.IsPublicTrustReady) {
@@ -502,7 +516,7 @@ if (-not [string]::Equals($manifestPublisher, $signingCertificate.Subject, [Syst
     throw "MSIX signing certificate subject does not match package identity publisher. Manifest publisher='$manifestPublisher'; cert subject='$($signingCertificate.Subject)'. Update Package.appxmanifest to match the active signing certificate."
 }
 
-Write-Host "Signing TechShell installer bundle with certificate thumbprint $Thumbprint..." -ForegroundColor Cyan
+Write-Host "Signing TechShell installer bundle with certificate thumbprint $Thumbprint from $($resolvedSigningCertificate.StoreScope)\My..." -ForegroundColor Cyan
 Invoke-MsixSigning -FilePath $installerPath -Thumb $Thumbprint -Timestamp $TimestampServer
 Set-AuthenticodeSignature -FilePath $registrationScriptDestination -Certificate $signingCertificate -HashAlgorithm SHA256 -TimestampServer $TimestampServer | Out-Null
 Set-AuthenticodeSignature -FilePath $installScriptDestination -Certificate $signingCertificate -HashAlgorithm SHA256 -TimestampServer $TimestampServer | Out-Null
