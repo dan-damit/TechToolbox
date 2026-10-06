@@ -10,6 +10,7 @@ This guide adds a separate, PowerShell-friendly release path for the Windows She
 ## Prerequisites
 
 - Signed Shell installer artifact (recommended: MSIX)
+- MSIX package family name (for TechShell default: `C7E250C2-5AB3-4BD6-8DD7-14708E00A38B_zb2d6w29f13w6`)
 - Public HTTPS download URL for each release asset
 - `winget` available locally for validation
 - Repository root open in PowerShell
@@ -68,6 +69,8 @@ This returns:
 - `Metadata` object including `InstallerSha256`
 - YAML content for the three manifests
 - `ManifestFiles` output containing the exact paths written under `packaging/winget`
+
+For MSIX manifests, `PackageFamilyName` is emitted automatically by `New-WingetManifestData.ps1` and can be overridden with `-PackageFamilyName` if package identity ever changes.
 
 You can still run in preview mode (no file writes) by omitting `-WriteManifestFiles`.
 

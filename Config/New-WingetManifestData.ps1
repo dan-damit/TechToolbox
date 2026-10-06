@@ -19,6 +19,7 @@ param(
     [string]$Architecture = 'x64',
     [ValidateSet('machine', 'user')]
     [string]$Scope = 'machine',
+    [string]$PackageFamilyName = 'C7E250C2-5AB3-4BD6-8DD7-14708E00A38B_zb2d6w29f13w6',
     [switch]$AsJson,
     [switch]$WriteManifestFiles,
     [string]$ManifestRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) 'packaging\winget')
@@ -53,6 +54,16 @@ if ($InstallerUrl -match '<file>') {
     $InstallerUrl = $InstallerUrl -replace '<file>', $installerFileName
 }
 
+$installerTypeNormalized = $InstallerType.ToLowerInvariant()
+$packageFamilyNameSegment = ''
+if ($installerTypeNormalized -eq 'msix') {
+    if ([string]::IsNullOrWhiteSpace($PackageFamilyName)) {
+        throw 'PackageFamilyName is required when InstallerType is msix.'
+    }
+
+    $packageFamilyNameSegment = "`r`n    PackageFamilyName: $PackageFamilyName"
+}
+
 $result = [pscustomobject]@{
     PackageIdentifier = $PackageIdentifier
     PackageVersion    = $PackageVersion
@@ -62,6 +73,7 @@ $result = [pscustomobject]@{
     InstallerType     = $InstallerType
     Architecture      = $Architecture
     Scope             = $Scope
+    PackageFamilyName = $PackageFamilyName
     InstallerSha256   = $sha256
     Publisher         = $Publisher
     PackageName       = $PackageName
@@ -79,7 +91,7 @@ MinimumOSVersion: $MinimumOSVersion
 Installers:
   - Architecture: $Architecture
     InstallerType: $InstallerType
-    Scope: $Scope
+    Scope: $Scope$packageFamilyNameSegment
     InstallerUrl: $InstallerUrl
     InstallerSha256: $sha256
 ManifestType: installer

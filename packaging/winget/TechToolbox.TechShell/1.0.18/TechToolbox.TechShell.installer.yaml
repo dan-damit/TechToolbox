@@ -6,8 +6,8 @@ Installers:
   - Architecture: x64
     InstallerType: msix
     Scope: machine
+    PackageFamilyName: C7E250C2-5AB3-4BD6-8DD7-14708E00A38B_zb2d6w29f13w6
     InstallerUrl: https://github.com/dan-damit/TechToolbox/releases/download/techshell-v1.0.18/TechShell.msix
     InstallerSha256: 01FDF924E4BA221257B72B383E9B0B36372A8976E7BF33FB87E0CEF0F223AA80
 ManifestType: installer
 ManifestVersion: 1.10.0
-

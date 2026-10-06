@@ -51,6 +51,11 @@ if (Test-Path -LiteralPath $installerFile -PathType Leaf) {
     if ($installerText -notmatch '(?m)^\s*InstallerType\s*:\s*(msix|msi|exe|zip)\s*$') {
         $warnings.Add("InstallerType not found or outside common values (msix/msi/exe/zip) in $installerFile")
     }
+
+    if ($installerText -match '(?m)^\s*InstallerType\s*:\s*msix\s*$' -and
+        $installerText -notmatch '(?m)^\s*PackageFamilyName\s*:\s*.+\S\s*$') {
+        $errors.Add("PackageFamilyName is required for msix installers in $installerFile")
+    }
 }
 
 if (Test-Path -LiteralPath $manifestFile -PathType Leaf) {
