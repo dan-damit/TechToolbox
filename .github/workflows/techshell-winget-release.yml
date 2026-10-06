@@ -234,7 +234,7 @@ jobs:
             exit 0
           fi
 
-          BRANCH_NAME="techtoolbox-techshell-${PACKAGE_VERSION}-${GITHUB_RUN_NUMBER}"
+          BRANCH_NAME="techtoolbox-techshell-${PACKAGE_VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
           TARGET_DIR="manifests/t/TechToolbox/TechShell/${PACKAGE_VERSION}"
 
           git clone "https://x-access-token:${GH_TOKEN}@github.com/${WINGET_PKGS_FORK}.git" winget-pkgs
