@@ -181,7 +181,7 @@ jobs:
     if: needs.build-msix-and-release.result == 'success' && vars.ENABLE_WINGET_SUBMISSION == 'true' && (github.event_name == 'push' || github.event.inputs.submit_winget_pr == 'true')
     steps:
       - name: Download winget manifests artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: techshell-winget-manifests
           path: winget-manifests
