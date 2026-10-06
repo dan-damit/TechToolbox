@@ -157,7 +157,7 @@ jobs:
             -Thumbprint $thumbprint
 
       - name: Upload TechShell MSIX to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.release_tag }}
           name: TechShell ${{ steps.version.outputs.package_version }}
