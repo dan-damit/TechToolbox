@@ -248,12 +248,12 @@ jobs:
           cp -f "../${SOURCE_DIR}/TechToolbox.TechShell.installer.yaml" "$TARGET_DIR/"
           cp -f "../${SOURCE_DIR}/TechToolbox.TechShell.locale.en-US.yaml" "$TARGET_DIR/"
 
-          if git diff --quiet -- "$TARGET_DIR"; then
+          git add "$TARGET_DIR"
+          if git diff --cached --quiet -- "$TARGET_DIR"; then
             echo "No manifest changes detected for ${PACKAGE_VERSION}. Skipping PR creation."
             exit 0
           fi
 
-          git add "$TARGET_DIR"
           git commit -m "Add TechToolbox.TechShell ${PACKAGE_VERSION}"
           git push --set-upstream origin "$BRANCH_NAME"
 
