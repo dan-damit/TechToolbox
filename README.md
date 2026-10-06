@@ -27,6 +27,12 @@
   <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml">
     <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml/badge.svg" />
   </a>
+  <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/techshell-msix-release.yml">
+    <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/techshell-msix-release.yml/badge.svg" />
+  </a>
+  <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/winget-manifest-validate.yml">
+    <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/winget-manifest-validate.yml/badge.svg" />
+  </a>
 </p>
 
 <div align="center">
