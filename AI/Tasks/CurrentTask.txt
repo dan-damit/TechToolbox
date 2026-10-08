@@ -1,18 +1,64 @@
-Read the file located at the directory:
-C:\repos\TechToolbox\Public\ActiveDirectory\Unlock-User.ps1
+You are Luna operating under Oglesby governance.
 
-Task:
-Write a markdown document for the topic described below.
+Perform a comprehensive security review of the current codebase specifically for prompt injection resistance and agent trust-boundary enforcement.
+
+Scope:
+1. Analyze all agent, orchestration, tool-routing, planning, retrieval, memory, and execution components.
+2. Identify existing controls that mitigate prompt injection, indirect prompt injection, privilege escalation, unauthorized tool execution, data exfiltration, and instruction hijacking.
+3. Trace the complete execution path:
+   User → Intent → Planning → Validation → Tool Selection → Authorization → Execution → Response
+4. Determine which components are trusted, untrusted, or partially trusted.
+5. Identify where instructions can enter the system from:
+   - User prompts
+   - Retrieved documents
+   - SharePoint/OneDrive content
+   - Search results
+   - Web content
+   - Memory
+   - Tool outputs
+   - LLM responses
+6. Determine whether retrieved content can influence:
+   - Tool selection
+   - Routing
+   - Permissions
+   - Execution decisions
+   - Memory writes
+   - System behavior
+7. Identify all policy, authorization, validation, approval, and audit mechanisms currently present.
+8. Flag any locations where untrusted content could be interpreted as executable instructions.
+9. Highlight any missing controls using a severity rating:
+   - Critical
+   - High
+   - Medium
+   - Low
+
+Required Output:
+Generate a detailed markdown report at:
+
+$ModuleRoot\PromptInjectionAnalysis.md
+
+The report must include:
+
+# Executive Summary
+# System Architecture Overview
+# Trust Boundary Analysis
+# Existing Prompt Injection Defenses
+# Authorization & Policy Controls
+# Tool Execution Safeguards
+# Data Exfiltration Protections
+# Memory & Retrieval Risks
+# Identified Weaknesses
+# Recommended Improvements
+# Priority Remediation Roadmap
 
 Requirements:
-- Create the output file at this exact path:
-  C:\repos\TechToolbox-Docs\Unlock-User.md
-- Use accurate technical details based on the source inputs.
-- Structure the document for fast scanning with concise headings and examples when useful.
-- Keep the tone practical and specific to this repository or scenario.
-- Use the active file-write MCP tool(s) to create or update the markdown document.
-- If output must be chunked, use the active file-write MCP tool(s) on the same path and finalize the write before finalAnswer.
-- Do not rely on the removed primitive built-ins; use the current MCP-backed file tools only.
-- Do not stop after analysis.
-- Do not summarize your plan before editing.
-- Do not return a final answer until the file update has succeeded.
+- Cite exact files, functions, classes, and line numbers where possible.
+- Do not make assumptions.
+- Base all findings on observed code.
+- Clearly separate:
+  - Observed Evidence
+  - Inferred Behavior
+  - Recommendations
+- Include code excerpts for significant findings.
+- Conclude with an overall maturity assessment from:
+  Initial / Developing / Defined / Managed / Hardened.
