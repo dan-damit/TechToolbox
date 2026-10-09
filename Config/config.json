@@ -149,6 +149,8 @@
         "hybridLocalMemoryWeight": 0.5,
         "hybridStateWorldWeight": 0.5
       },
+      "policyStartupMode": "Enforce",
+      "allowedPathRoots": ["C:\\repos\\TechToolbox"],
       "provider": "ollama",
       "model": "qwen3.5:9b",
       "executionMode": "execute",
