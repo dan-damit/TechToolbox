@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "pid": 10112,
+  "startedUtc": "2026-10-09T19:14:27.501Z",
+  "capturedUtc": "2026-10-09T19:14:27.501Z",
+  "extensionVersion": "0.3.18",
+  "workspaceFolders": [
+    "c:\\repos\\TechToolbox"
+  ],
+  "generation": 0,
+  "environments": [],
+  "totals": {
+    "sessions": 0,
+    "consumers": 0
+  },
+  "truncated": false
+}
