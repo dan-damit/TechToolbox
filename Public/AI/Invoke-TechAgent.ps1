@@ -1433,6 +1433,7 @@ Hard requirement:
             RuntimeProfile                 = $RuntimeProfile
             RuntimeProfilesJson            = $runtimeProfilesJson
             ResiliencePolicyJson           = $resiliencePolicyJson
+            RetrievalConfigJson            = $retrievalConfigJson
             McpConfigJson                  = $serializedMcpConfigForChild
             Verbose                        = $false
             MaxIterations                  = $resolvedMaxIterations
@@ -1507,6 +1508,9 @@ Hard requirement:
 $request = Get-Content -LiteralPath $env:TT_AGENT_REQUEST_PATH -Raw | ConvertFrom-Json
 if ($null -ne $request.McpConfigJson -and -not [string]::IsNullOrWhiteSpace([string]$request.McpConfigJson)) {
     [Environment]::SetEnvironmentVariable('TT_AGENT_MCP_CONFIG_JSON', [string]$request.McpConfigJson, 'Process')
+}
+if ($null -ne $request.RetrievalConfigJson -and -not [string]::IsNullOrWhiteSpace([string]$request.RetrievalConfigJson)) {
+    [Environment]::SetEnvironmentVariable('TT_AGENT_RETRIEVAL_CONFIG_JSON', [string]$request.RetrievalConfigJson, 'Process')
 }
 $agentAssemblyPath = [System.IO.Path]::GetFullPath([string]$env:TT_AGENT_ASSEMBLY_PATH)
 if (-not (Test-Path -LiteralPath $agentAssemblyPath -PathType Leaf)) {
@@ -1594,34 +1598,16 @@ $approvalDelegateType = [System.Func`2[
     System.Boolean
 ]]
 
-$destructiveApprovalCallback = $approvalDelegateType::new({
-    param(
-        [TechToolbox.Agent.Registry.ToolAuthorizationRequest]$request
-    )
+$approvalMethod = [TechToolbox.Agent.Core.HostDestructiveApprovalAdapter].GetMethod(
+    'RequestApproval',
+    [System.Reflection.BindingFlags]::Public -bor [System.Reflection.BindingFlags]::Static
+)
 
-    if ($null -eq $request) {
-        return $false
-    }
+if ($null -eq $approvalMethod) {
+    throw "Unable to locate TechToolbox.Agent.Core.HostDestructiveApprovalAdapter.RequestApproval."
+}
 
-    $argumentSummary = @()
-    if ($null -ne $request.Arguments) {
-        foreach ($entry in $request.Arguments.GetEnumerator()) {
-            $key = [string]$entry.Key
-            $value = $entry.Value
-            $serializedValue = if ($null -eq $value) { '<null>' } else { $value | ConvertTo-Json -Compress -Depth 8 }
-            $argumentSummary += ("{0}={1}" -f $key, $serializedValue)
-        }
-    }
-
-    $summaryText = if ($argumentSummary.Count -gt 0) { $argumentSummary -join '; ' } else { '[no arguments]' }
-    $response = Read-Host -Prompt (
-        "Destructive action approval required.`n" +
-        "Tool: {0}`nArgs: {1}`nType 'yes' or 'authorized' to approve this single-use destructive action. Anything else denies it." -f $request.ToolName, $summaryText
-    )
-
-    $normalized = if ($null -ne $response) { $response.Trim() } else { '' }
-    return ($normalized -match '^(?:y|yes|authorized|allow|approve)$') -or ($normalized -ieq 'authorized')
-})
+$destructiveApprovalCallback = [System.Delegate]::CreateDelegate($approvalDelegateType, $approvalMethod)
 
 $config = [TechToolbox.Agent.Configuration.AgentConfiguration]::new()
 $config.Model = [string]$request.Model
@@ -1671,10 +1657,14 @@ $config.SearchWebCountry = if ([string]::IsNullOrWhiteSpace([string]$request.Sea
 $config.SearchWebLanguage = if ([string]::IsNullOrWhiteSpace([string]$request.SearchWebLanguage)) { 'en' } else { [string]$request.SearchWebLanguage }
 $config.SearchWebSafeSearch = if ([string]::IsNullOrWhiteSpace([string]$request.SearchWebSafeSearch)) { 'moderate' } else { [string]$request.SearchWebSafeSearch }
 $config.SearchWebDefaultCount = [int]$request.SearchWebDefaultCount
+$jsonDeserializeOptions = [System.Text.Json.JsonSerializerOptions]::new()
+$jsonDeserializeOptions.PropertyNameCaseInsensitive = $true
+$jsonDeserializeOptions.Converters.Add([System.Text.Json.Serialization.JsonStringEnumConverter]::new())
 if (-not [string]::IsNullOrWhiteSpace([string]$request.RuntimeProfilesJson)) {
     $resolvedRuntimeProfiles = [System.Text.Json.JsonSerializer]::Deserialize(
         [string]$request.RuntimeProfilesJson,
-        [TechToolbox.Agent.Configuration.AgentRuntimeProfilesConfiguration]
+        [TechToolbox.Agent.Configuration.AgentRuntimeProfilesConfiguration],
+        $jsonDeserializeOptions
     )
     if ($null -ne $resolvedRuntimeProfiles) {
         $config.RuntimeProfiles = $resolvedRuntimeProfiles
@@ -1683,16 +1673,28 @@ if (-not [string]::IsNullOrWhiteSpace([string]$request.RuntimeProfilesJson)) {
 if (-not [string]::IsNullOrWhiteSpace([string]$request.ResiliencePolicyJson)) {
     $resolvedResiliencePolicy = [System.Text.Json.JsonSerializer]::Deserialize(
         [string]$request.ResiliencePolicyJson,
-        [TechToolbox.Agent.Configuration.AgentResilienceConfiguration]
+        [TechToolbox.Agent.Configuration.AgentResilienceConfiguration],
+        $jsonDeserializeOptions
     )
     if ($null -ne $resolvedResiliencePolicy) {
         $config.ResiliencePolicy = $resolvedResiliencePolicy
     }
 }
+if (-not [string]::IsNullOrWhiteSpace([string]$request.RetrievalConfigJson)) {
+    $resolvedRetrievalConfig = [System.Text.Json.JsonSerializer]::Deserialize(
+        [string]$request.RetrievalConfigJson,
+        [TechToolbox.Agent.Configuration.AgentRetrievalConfiguration],
+        $jsonDeserializeOptions
+    )
+    if ($null -ne $resolvedRetrievalConfig) {
+        $config.Retrieval = $resolvedRetrievalConfig
+    }
+}
 if (-not [string]::IsNullOrWhiteSpace([string]$request.McpConfigJson)) {
     $resolvedMcpConfig = [System.Text.Json.JsonSerializer]::Deserialize(
         [string]$request.McpConfigJson,
-        [TechToolbox.Agent.Mcp.McpConfiguration]
+        [TechToolbox.Agent.Configuration.McpConfiguration],
+        $jsonDeserializeOptions
     )
     if ($null -ne $resolvedMcpConfig) {
         $config.Mcp = $resolvedMcpConfig
@@ -1710,6 +1712,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
         $startInfo.FileName = $childPwsh
         $startInfo.UseShellExecute = $false
         $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardInput = $true
         $startInfo.RedirectStandardOutput = $true
         $startInfo.RedirectStandardError = $true
         $startInfo.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
@@ -2049,6 +2052,83 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                 throw 'Failed to start child PowerShell process for TechToolbox.Agent.'
             }
 
+            $approvalRequestPrefix = '__TT_APPROVAL_REQUEST__:'
+            $approvalDecisionCache = [System.Collections.Generic.Dictionary[string, bool]]::new([System.StringComparer]::Ordinal)
+            $processAgentStdOutLine = {
+                param([string]$line)
+
+                if ([string]::IsNullOrEmpty($line) -or -not $line.StartsWith($approvalRequestPrefix, [System.StringComparison]::Ordinal)) {
+                    return $false
+                }
+
+                $toolName = '(unknown)'
+                $argumentSummary = '[no arguments]'
+                $payloadJson = $line.Substring($approvalRequestPrefix.Length)
+                $approvalCacheKey = if ([string]::IsNullOrWhiteSpace($payloadJson)) { $line } else { $payloadJson }
+                [bool]$cachedApprovalDecision = $false
+                $hasCachedDecision = $approvalDecisionCache.TryGetValue($approvalCacheKey, [ref]$cachedApprovalDecision)
+
+                try {
+                    $approvalRequest = $payloadJson | ConvertFrom-Json -Depth 16 -ErrorAction Stop
+                    if ($null -ne $approvalRequest -and $approvalRequest.PSObject.Properties['toolName']) {
+                        $resolvedToolName = [string]$approvalRequest.toolName
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedToolName)) {
+                            $toolName = $resolvedToolName
+                        }
+                    }
+
+                    if ($null -ne $approvalRequest -and $approvalRequest.PSObject.Properties['arguments']) {
+                        $pairs = [System.Collections.Generic.List[string]]::new()
+                        $argumentsObject = $approvalRequest.arguments
+                        if ($null -ne $argumentsObject) {
+                            foreach ($prop in $argumentsObject.PSObject.Properties) {
+                                $key = [string]$prop.Name
+                                $value = $prop.Value
+                                $serializedValue = if ($null -eq $value) { '<null>' } else { $value | ConvertTo-Json -Compress -Depth 8 }
+                                $pairs.Add(("{0}={1}" -f $key, $serializedValue))
+                            }
+                        }
+
+                        if ($pairs.Count -gt 0) {
+                            $argumentSummary = $pairs -join '; '
+                        }
+                    }
+                }
+                catch {
+                    Write-Log -Level Warn -Message ("Failed to parse destructive approval payload from child process: {0}" -f $_.Exception.Message)
+                }
+
+                $allowApproval = $cachedApprovalDecision
+                if (-not $hasCachedDecision) {
+                    $allowApproval = $false
+                    $canPromptForApproval = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected
+                    if ($canPromptForApproval) {
+                        $response = Read-Host -Prompt (
+                            "Destructive action approval required.`n" +
+                            "Tool: {0}`nArgs: {1}`nType 'yes' or 'authorized' to approve this single-use destructive action. Anything else denies it." -f $toolName, $argumentSummary
+                        )
+                        $normalized = if ($null -ne $response) { $response.Trim() } else { '' }
+                        $allowApproval = ($normalized -match '^(?:y|yes|authorized|allow|approve)$') -or ($normalized -ieq 'authorized')
+                    }
+                    else {
+                        Write-Warning "Destructive action denied because interactive approval is unavailable in non-interactive host mode."
+                    }
+
+                    $approvalDecisionCache[$approvalCacheKey] = $allowApproval
+                }
+
+                $responseText = if ($allowApproval) { 'authorized' } else { 'denied' }
+                try {
+                    $agentProc.StandardInput.WriteLine($responseText)
+                    $agentProc.StandardInput.Flush()
+                }
+                catch {
+                    throw ("Tech agent failed while sending destructive approval response: {0}" -f $_.Exception.Message)
+                }
+
+                return $true
+            }
+
             # Initialize agent state tracking
             $agentState = @{
                 currentIteration       = 0
@@ -2079,8 +2159,10 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                     if ($null -ne $streamReadState['stdoutReadTask'] -and $streamReadState['stdoutReadTask'].IsCompleted) {
                         $line = $streamReadState['stdoutReadTask'].GetAwaiter().GetResult()
                         if ($null -ne $line) {
-                            $stdoutLines.Add([string]$line)
-                            Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                            if (-not (& $processAgentStdOutLine -line ([string]$line))) {
+                                $stdoutLines.Add([string]$line)
+                                Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                            }
                             $streamReadState['stdoutReadTask'] = $agentProc.StandardOutput.ReadLineAsync()
                         }
                         else {
@@ -2202,8 +2284,10 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                 if ($null -ne $streamReadState['stdoutReadTask'] -and $streamReadState['stdoutReadTask'].IsCompleted) {
                     $line = $streamReadState['stdoutReadTask'].GetAwaiter().GetResult()
                     if ($null -ne $line) {
-                        $stdoutLines.Add([string]$line)
-                        Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                        if (-not (& $processAgentStdOutLine -line ([string]$line))) {
+                            $stdoutLines.Add([string]$line)
+                            Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                        }
                         $streamReadState['stdoutReadTask'] = $agentProc.StandardOutput.ReadLineAsync()
                     }
                     else {
@@ -2243,7 +2327,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                         $stdoutTail = $agentProc.StandardOutput.ReadToEnd()
                         if (-not [string]::IsNullOrEmpty($stdoutTail)) {
                             foreach ($line in ($stdoutTail -split "`r?`n")) {
-                                if ($null -ne $line) {
+                                if ($null -ne $line -and -not (& $processAgentStdOutLine -line ([string]$line))) {
                                     $stdoutLines.Add([string]$line)
                                     Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
                                 }
@@ -2637,8 +2721,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA//ywilMRPJzBh
-# wbegaF8mJguB6F0rkZemYgJKNshjaaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCGf8KIunKDI+JE
+# UfgLEUL9DcMSPZKHMJ8ummoi+1XoHKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -2815,31 +2899,31 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA9
-# pMA4fMef/6z33ciJ+X065tvLD9QV6PbBDUydAQStZjANBgkqhkiG9w0BAQEFAASC
-# AYCrVEP3uU+jGVOObVVsRs8e+EHL4PIezjfIfae6De9BPz0t96vN1sPsrorKPLEY
-# R857uOpv0ZTE/CC5MsD6wvRbNatxFadi/mbOvglv8PqeggW9X2gPW8r6Z+t7QWCT
-# mvYhkQ2sYbk+y3/gpfGnbrzLbLkF/9mthsMiMBMtrLrTnb42HYxDphXjmE1qgTNo
-# jm+uSzJnpfr7N8FAC0PEanqXInNFGb/ZRJAnWeeK21WexECrAC/VjRyovhcm17fY
-# bWN+mB7f3cFkARlAijSisYUo8E9t8Dc/Q4HaGG2DFuWDZyLjYwHo072l44feSkqk
-# wyP4oJkCRpkMJRl4xmMpB78BWlRh9iAJdAcgOgA1FTUCwaNBoFeU4QgtgVZxiJZ8
-# KbhGnTeOUWPgi8vFfAoFYh7MGqf578Vawvw8H2oK9ERwTBj+ve8UrIFvD8eh/y+L
-# nCjSmJuNWEJSTs8TEPd/Vc0sQ6ku540RMC6zVYLz6l6LU6NYt+mlFTiiuQZep6pc
-# eHihggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCw
+# Y7VK56RUgNVsSuSiuWjJ28mQMVjcCsALL0LzijHoAjANBgkqhkiG9w0BAQEFAASC
+# AYCeo4TOXSdE68Y8zYRspUd5dJbeXHTF6Lh9eNRB4NzDhJpuocsU0NeJAWlLZm/C
+# TMd0SSzMlPM0tblvTlrmd7IEJsQVHr9ymvHFjw3l1BpMqM5s900jOcUQm1oabgK8
+# nKkX0MUXq1QrvZXqBEweqEmfuSu0ALEc+fqFpeppDC5wTKs0yrd4fwlgX0XNzFZW
+# DUVURL0Csgad1wPDSC8o9fmhwOkOpDmT5Gh9C6uP2gDImpe1eSBKGVBBw92c3sit
+# EtKjpaSzZvcaqzmpjkhSfuJBMHxLKZ3LoM65hd9gxYG6bicjuJdiEy/4vEDX9zE6
+# Q8GADm/qps3XPOgkb6YJOoV6dDo682kYVVK5naHJk9AxfPiDreq8wK43gDAKZsvJ
+# 0BQp4tjHxat3tP0qUzzILKiKlUL+UONdi9uIIxTmKccN5iGCHtSlFkYlO8yMpcKf
+# 0FU7hAHWA/+/zys2S8dIrzAMoeSh97h2aRFYONpxnGWdtEQSCb1Ha5b84HqqLJLK
+# amahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDEwMDMyNTIzWjAvBgkqhkiG
-# 9w0BCQQxIgQgVF8OAvvQEMBrR0PNWqn1Wvih2G8PcBIhbrc1AaBsNyowDQYJKoZI
-# hvcNAQEBBQAEggIAp0X7PfUr6AjmnMt2mnwFHC5SGuw2rlOz5BO6TlvbkA/9tPj6
-# rg13EEfvPH39aU8IrufZQBzjDWfEkd0+yLefmi/zur8iC5C9IfnQirKQhcY2qlL2
-# xhR1GB+C4pDzncsexUksFm8dWEdKQikZCcRG2KTaYKLLcE/fH17h5QE52yCIHNg1
-# 9SCuzrodCuNP6rc/Bz9vdzkz+RkVTZgOpUaD6m08f00Y/2/8Ld5D7Y55K3lmJVF0
-# zB0YLBoDeoejJzttO0SgAdlgqjA6GR6vJUnN/o0HQPDFY7R8lHW95VqRBvpkrRO6
-# QAfKxC6s6TrgiAHyILflhbNQy1JQVJWD0JYJSph5/xrBet9ZdXs+iyCyFjRooRW0
-# 3qjux69gi12ypdzTGiKSC9hB0Ko9N66AM30cJEG2F3/9+U1Qqbhwc75xVdvIe+lN
-# ZOVMGto7/FDKa2gxaoWh5titjsXvAlZMkJsodr0fmcUvsxrBhf+xm9E39qIBGeV2
-# +kuGDM930AoW3Wkibx3IFM/pMKe+us0qRcGlJ9Bw43ffdeY/ojKugft2851onBoj
-# QOZFRmMnmef5/nMOEo9/HzY1bycAwH2P8ss/80kQONdDy0KJHq0huKmM+mjFSFrM
-# CWKH5pmfNgdh3oLNvSmk4JViKSIktANpdOKU+vrWcoJxN+/R/okfeLh7kb4=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDEwMDUxOTM5WjAvBgkqhkiG
+# 9w0BCQQxIgQgmaEDewUHq1AHRwhH59lGcPHyFJEa4s9hl2udFISi/YcwDQYJKoZI
+# hvcNAQEBBQAEggIAfV8tCYufmgi6AvCEXTtU5WaHpzkKGfB/zth+w2DcE7HXU/5J
+# oDhkvcMidzy4q5JMrIBM/2G2gGY7APzoLrG9cb5FA7YMKtNyO+KrWl9TJ6m/8aU4
+# 3YDIZJfgnbWQ6raKE6TDBD90QeW48xW0+CRio/XeAZI7mA8/VeIsBXZjI1vpBEPJ
+# AItjL25G2FAROnedlM3//h8RmtFIedC02paeUeJdsn8nXi7NlI3SezFwxbAbqsOZ
+# 5ycRrkzYsQzV16UsZP8NqcnFeSU3c4Gn/ttU/Mu1LLtm7AWEqytagGXO4guFkWlv
+# Fk4gW1klFbraV3c0WC439JzxHyB7a/uBuFRBq2mdxSDoCuxE+GWq9rH0f48NNlxz
+# TnsrUoyhFFOeHLxma2qpiDzRPDTii5oIfBUyQQkydoSNLFMsgwYaV1yeYQwZrj28
+# IM25CxGe4DQAxsIyKUzZtcQ+tvJY6MNULNXt8WJBrocLxB2cRGnYaqmombtjLV7H
+# hidV1BT8W1GNjwEXrz5Hfuupsh+sO3S4DUTtDSxRyBnjV9DBHZkiCHiCeqHUC9pA
+# eoGmJCsmThu6f2GScyGeArUZq/nzZZV9C6DkHs8vok2/sNNvVeVFPJoNh6ny8C2/
+# R9MBs2YyBv9qwQYv8nabhAToJ+OXSAde8UOKZDru408nad0ZR3Z0ugeA4f8=
 # SIG # End signature block
