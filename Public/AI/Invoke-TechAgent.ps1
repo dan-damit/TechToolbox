@@ -2056,6 +2056,23 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
             $approvalDecisionCache = [System.Collections.Generic.Dictionary[string, bool]]::new([System.StringComparer]::Ordinal)
             $approvalArgumentPreviewLimit = 5
             $approvalArgumentValueMaxChars = 150
+            $clearTransientStatusLine = {
+                if (-not [Environment]::UserInteractive -or [Console]::IsOutputRedirected) {
+                    return
+                }
+
+                try {
+                    $windowWidth = [Console]::WindowWidth
+                    if ($windowWidth -le 0) {
+                        $windowWidth = 120
+                    }
+
+                    [Console]::Write("`r{0}`r" -f (' ' * $windowWidth))
+                }
+                catch {
+                    # Best-effort UX cleanup only.
+                }
+            }
             $approvalNoisyArgumentKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
             foreach ($noisyKey in @('content', 'edits', 'patch', 'diff', 'body', 'script', 'payload', 'json', 'data')) {
                 [void]$approvalNoisyArgumentKeys.Add($noisyKey)
@@ -2237,6 +2254,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                     $allowApproval = $false
                     $canPromptForApproval = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected
                     if ($canPromptForApproval) {
+                        & $clearTransientStatusLine
                         Write-Host ''
                         Write-Host '=== Destructive Action Approval Required ===' -ForegroundColor Yellow
                         Write-Host ("Tool: {0}" -f $toolName) -ForegroundColor Cyan
@@ -2257,6 +2275,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                         $allowApproval = ($normalized -match '^(?:y|yes|authorized|allow|approve)$') -or ($normalized -ieq 'authorized')
                     }
                     else {
+                        & $clearTransientStatusLine
                         Write-Warning "Destructive action denied because interactive approval is unavailable in non-interactive host mode."
                     }
 
@@ -2867,8 +2886,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBovvFSLBHTVPYH
-# F7daISYKQRIiYTzS9aVGO8Vn4O9uIaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWZMhcO01kRCF2
+# v2AvCcSeQ/BIOQIBXE/CQMx+cHSt4qCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3045,31 +3064,31 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBA
-# KpE6+lOr3BEN0sBWAqIyovMLM+8+ewGQTudURW3zAzANBgkqhkiG9w0BAQEFAASC
-# AYA7eeqn2q4rak8uqMRBMi7ld8IXmN4OT477WKOyOXUc2vhscnPbebRlyIcrsPec
-# JXzfRUAubCk30OJW2mpPBI6TZHyjMwT28A2V4Y9GFNkLxty+8tpwGRvhQZaA8fbM
-# rEHf/ERwmWhiRXe7aTyBLJh/B+tb1N/xRZf+yq77kYSkCBHSWk1DXAjYy+/XW07D
-# w4uPUvEhaVqeEwTqEY5dXmBLiVQKQCvftOCwaLlKqGbRmQqn3sDuHdAkgOaJUKfc
-# An/cEcOHlcM28kb/3cVl2JnaqwHOcElq4MERivDOp0C0MPT64MZ7wbwwNkhLFmWV
-# IBkvgsk+BukZkk0hFdU1Kd2caJee91LJ1ukBriEYSw5imD3GCx2wOvMqpoPfhFGa
-# eyG3hj018xROIewr0eZlCaiimSQ43NohG4efhy93JRDzdhp7fwLRvUxi72E9xIJ/
-# UrY4/laMqpXsBqxolmSUsyBUHkNXyPbAYXT8KlVeXU8Ejfd73ufEdG1AXKIlIL31
-# q+mhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBh
+# 2isFt8U0EVb1fwCpsq+9E2yLJBSeeZXlCbUWOqcX7jANBgkqhkiG9w0BAQEFAASC
+# AYAT7/QEYxBzfjwJSc8iY1CDhTfwxee//jp5Y1xHJBbY4cpuCJj9W/DeBBaRbi6r
+# 8TuI1tSaWAU57tHFfTs+ggLWx9tQabk0El+i3OHRqxK9I4wuqILnIUrn0/IKPDak
+# 7MME5ywwxID16oI3uNusJDaKXg7jBfbUA5TX63nB2nfRjzfoEW215WiFNZBffekB
+# VOK3zN86nA/ydacfWk+j4xHH540x0/1WUSXo1kDKfe516Tp/K9B3DQCEoqmB0NXl
+# ACKfxCn5tKKPmViBtnyeBw+sffm3r8qMa7SU7aOGqMOumzjNUREWn3xZUiWXdfEq
+# X10e1RDs0HlG4NnQeq1136EI+IyBOlPJKgAZsZ+t/ijqwZQeAwypQSf5J4sPdkBV
+# yI72gN+0/Dujhae6uZwkx1bQiCJKFI1H+oXWUeov0K3PT6WJ69Xuk+rtLPH5XP8j
+# RdlSi9UwQvDvJ1qOcr+RBaJMsB2XRKyi3qx1UJ6LLIy1tUBcspnUGhdnzdiJEa+4
+# zIKhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDExMDMxNzM0WjAvBgkqhkiG
-# 9w0BCQQxIgQgAGrjvCubgaIG9y/Bs/vOHeZVBrHoEJ4OMDKZUCg9BZowDQYJKoZI
-# hvcNAQEBBQAEggIAXEaBDT9+VNPcti9C83DTh7kvqNOcFUlfdAOERuxhzAPxiy7V
-# qyx9uxXLiqObzZC+Yo03AB7iU3gJGCm4/wJUzxQ/vVT7k/7ECItlMqFYW6+dfXWs
-# MjxIvzCaytxJf8OX1gj+C6rbcdX2dc/+0jaKtBbwy1+eEX6niz1XYPP9siLc9YyI
-# Wo/mW5lHRE5CCrv1lmoM+hO+YHHj/d09h4qvQ8HE+4yA+baSuR3gsRdl2xwdZ9y6
-# +IlNOTqHBLV1wS/UVtHGXuoDaYf0A8wSavlZyie1VY+APxDobuVtPvRYmjrycSar
-# EZGkeoBOTYcJ1Z+e/tsAGBwG0CDnkPEVz5L+WU79YIreBnf7S4DE0i72i5rmHa61
-# xJFnoT1Hd4CLcmFPdFLk6k81P6YRv2RrP3ICO+wzsBJ/bvZlDjOKaohXWond/hzP
-# KJTdzZIQGHfWiFL+3ybMQMJS3sM+CMOn55VQ0D4fYGe/vIrbygVjPAoJ+wOCkmub
-# J7GdzbCFTGg3sBQ0fqq+VKXbptJMASqdLJtTd6Q9kkGukIL6YQHsBbyYEryiGSNK
-# GDT81tgmAXdsL97VmCVJUHT9pT4kjE0MKTptwH92WFwoE1qsizQpUUYvrn8CSsWM
-# p+IE/gxHfrTgO1O2pc7iSaCJDN9jrXUWqR8obOlA276WdeN7OEV26vXF2dM=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDExMDM0NDMwWjAvBgkqhkiG
+# 9w0BCQQxIgQgrCsiQwygo51RRuQPHe0HHf9kJNHOeI37jVkSGOqyYeEwDQYJKoZI
+# hvcNAQEBBQAEggIAFNzUvYDyZmSehYv6piIdmF2qusD1f+rnJcA+w5nJrUtfBlHn
+# N4tbgEGFCZMl3wcRsfuS7jXQ+1nB7BJGKVGb+2p95X4VBi6I0NIUUUD0LHGGMVhx
+# ofG4hEmZhWNc75bPXtCBZjWAEwcE4WvhxfiN5BPqJfM4XLwNmYWgeaUu04vZtOJT
+# /bJ6O+ywAs4MIzb3q2TDrsDNIG9aQifq3GGowqi4sv9wBAQGUev4AIGigG+M1uxJ
+# lNwB43fA/EJPFVEaFCq+eUcNh0FTUGim4h6InTgVeN1Xj6aNxpkSmNVVimRlj+Zg
+# Zi2AcKFv50/3IvgjRE3TTHtaG4ceMkqRj3UtdMzs+dghqtnSKjzMoJ5prVN3ixov
+# T8dWXsBsdNzcqIHmepgaywnYuU3n7m3bJPyDasuHp27pTGcd51YMfmm/UBqOfG+i
+# yrwrv8L573e/9M2RSqFjXXayEeeF2M9V1hmfygGqog2GsFdizRfK2lK60SOmBRb4
+# 04sB33gvaVdR+71RQCERIb5xTbYu3NzX9wHqg+0x+iinm1Mvq5LKK5F1yNfxCzd4
+# qRJJ9wA1miqV0F7jOPz2es3P/oiKaYBrcIj88FtSKlHif9UX7kaA+4XHsp0MkRMy
+# 5K6hp2Rika01RXeUR9zJBH18KaEfRzIPINooVJLe0Jf0LwpxRkvlFw3aT1o=
 # SIG # End signature block
