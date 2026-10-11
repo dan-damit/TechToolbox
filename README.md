@@ -192,9 +192,9 @@ TechToolbox/
 │   ├── config.json           # Base settings (git-tracked)
 │   └── config.secrets.json   # Tenant secrets (git-ignored)
 ├── src/
-│   └── TechToolbox.Agent/    # Private C# agent source (git submodule)
-│       ├── TechToolbox.Agent.csproj
-│       └── Tests/            # xUnit tests for agent runtime
+│   ├── TechToolbox.Agent/    # Private C# agent source (git submodule)
+│   |   ├── TechToolbox.Agent.csproj
+│   |   └── Tests/            # xUnit tests for agent runtime
 │   └── TechShell/
 │       ├── TechShell.csproj  # Private WinUI3/C#/Rust project for TechShell runtime
 │       └── Tests/            # xUnit tests for TechShell runtime
