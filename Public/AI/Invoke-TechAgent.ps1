@@ -2054,6 +2054,79 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 
             $approvalRequestPrefix = '__TT_APPROVAL_REQUEST__:'
             $approvalDecisionCache = [System.Collections.Generic.Dictionary[string, bool]]::new([System.StringComparer]::Ordinal)
+            $approvalArgumentPreviewLimit = 5
+            $approvalArgumentValueMaxChars = 150
+            $approvalNoisyArgumentKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            foreach ($noisyKey in @('content', 'edits', 'patch', 'diff', 'body', 'script', 'payload', 'json', 'data')) {
+                [void]$approvalNoisyArgumentKeys.Add($noisyKey)
+            }
+            $renderApprovalArgumentRawValue = {
+                param(
+                    $Value
+                )
+
+                $rendered = ''
+                if ($null -eq $Value) {
+                    $rendered = '<null>'
+                }
+                elseif ($Value -is [string]) {
+                    $rendered = [string]$Value
+                }
+                else {
+                    try {
+                        $rendered = $Value | ConvertTo-Json -Compress -Depth 6
+                    }
+                    catch {
+                        $rendered = [string]$Value
+                    }
+                }
+
+                if ([string]::IsNullOrEmpty($rendered)) {
+                    return $rendered
+                }
+
+                return $rendered
+            }
+            $truncateApprovalArgumentValue = {
+                param(
+                    [string]$Text,
+                    [int]$MaxChars
+                )
+
+                if ([string]::IsNullOrEmpty($Text)) {
+                    return $Text
+                }
+
+                if ($Text.Length -le $MaxChars) {
+                    return $Text
+                }
+
+                return ("{0}... [truncated, {1} chars total]" -f $Text.Substring(0, $MaxChars), $Text.Length)
+            }
+            $getApprovalArgumentPriority = {
+                param([string]$Key)
+
+                if ([string]::IsNullOrWhiteSpace($Key)) {
+                    return 0
+                }
+
+                $normalized = $Key.Trim()
+                switch -Regex ($normalized) {
+                    '^(?i:path|file(path)?|directory|paths|target(path)?|destination|dest(path)?|source(path)?|workspace(root)?|root|cwd)$' { return 100 }
+                    '^(?i:operation|action|mode|name|command|program|arguments|pattern|include|exclude|recursive|recurse|force|whatif|confirm|timeout)$' { return 80 }
+                    '^(?i:destructiveapprovaltoken|__destructive_approval_token|token|apikey|api_key|secret|password)$' { return -100 }
+                    default { return 30 }
+                }
+            }
+            $isSensitiveApprovalArgument = {
+                param([string]$Key)
+
+                if ([string]::IsNullOrWhiteSpace($Key)) {
+                    return $false
+                }
+
+                return $Key -match '(?i)(token|apikey|api_key|secret|password|credential)'
+            }
             $processAgentStdOutLine = {
                 param([string]$line)
 
@@ -2062,7 +2135,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                 }
 
                 $toolName = '(unknown)'
-                $argumentSummary = '[no arguments]'
+                $argumentSummaryLines = [System.Collections.Generic.List[string]]::new()
                 $payloadJson = $line.Substring($approvalRequestPrefix.Length)
                 $approvalCacheKey = if ([string]::IsNullOrWhiteSpace($payloadJson)) { $line } else { $payloadJson }
                 [bool]$cachedApprovalDecision = $false
@@ -2078,24 +2151,85 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                     }
 
                     if ($null -ne $approvalRequest -and $approvalRequest.PSObject.Properties['arguments']) {
-                        $pairs = [System.Collections.Generic.List[string]]::new()
+                        $argumentDescriptors = [System.Collections.Generic.List[object]]::new()
                         $argumentsObject = $approvalRequest.arguments
                         if ($null -ne $argumentsObject) {
                             foreach ($prop in $argumentsObject.PSObject.Properties) {
                                 $key = [string]$prop.Name
+                                if ([string]::IsNullOrWhiteSpace($key)) {
+                                    continue
+                                }
+
                                 $value = $prop.Value
-                                $serializedValue = if ($null -eq $value) { '<null>' } else { $value | ConvertTo-Json -Compress -Depth 8 }
-                                $pairs.Add(("{0}={1}" -f $key, $serializedValue))
+                                $priority = & $getApprovalArgumentPriority -Key $key
+                                if ($priority -lt 0) {
+                                    continue
+                                }
+
+                                $isSensitive = & $isSensitiveApprovalArgument -Key $key
+                                $rawValue = & $renderApprovalArgumentRawValue -Value $value
+                                $isNoisy = $approvalNoisyArgumentKeys.Contains($key) -or ($rawValue.Length -gt ($approvalArgumentValueMaxChars * 2))
+
+                                $displayValue = if ($isSensitive) {
+                                    '<redacted>'
+                                }
+                                elseif ($isNoisy) {
+                                    "<omitted noisy payload; $($rawValue.Length) chars>"
+                                }
+                                else {
+                                    & $truncateApprovalArgumentValue -Text $rawValue -MaxChars $approvalArgumentValueMaxChars
+                                }
+
+                                $argumentDescriptors.Add([pscustomobject]@{
+                                        Key      = $key
+                                        Priority = $priority
+                                        IsNoisy  = $isNoisy
+                                        Display  = $displayValue
+                                    })
                             }
                         }
 
-                        if ($pairs.Count -gt 0) {
-                            $argumentSummary = $pairs -join '; '
+                        if ($argumentDescriptors.Count -gt 0) {
+                            $ordered = @($argumentDescriptors | Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Key'; Descending = $false })
+                            $preferred = @($ordered | Where-Object { -not $_.IsNoisy })
+                            $selected = [System.Collections.Generic.List[object]]::new()
+
+                            foreach ($entry in $preferred) {
+                                if ($selected.Count -ge $approvalArgumentPreviewLimit) {
+                                    break
+                                }
+
+                                $selected.Add($entry)
+                            }
+
+                            if ($selected.Count -eq 0 -and $ordered.Count -gt 0) {
+                                $selected.Add($ordered[0])
+                            }
+
+                            foreach ($entry in $selected) {
+                                $argumentSummaryLines.Add(("{0}={1}" -f $entry.Key, $entry.Display))
+                            }
+
+                            $omittedCount = $ordered.Count - $selected.Count
+                            if ($omittedCount -gt 0) {
+                                $omittedNoisyCount = @($ordered | Where-Object { $_.IsNoisy }).Count
+                                if ($omittedNoisyCount -gt 0) {
+                                    $argumentSummaryLines.Add(("... +{0} more argument(s), including {1} noisy payload field(s) omitted" -f $omittedCount, $omittedNoisyCount))
+                                }
+                                else {
+                                    $argumentSummaryLines.Add(("... +{0} more argument(s)" -f $omittedCount))
+                                }
+                            }
                         }
                     }
                 }
                 catch {
                     Write-Log -Level Warn -Message ("Failed to parse destructive approval payload from child process: {0}" -f $_.Exception.Message)
+                    if (-not [string]::IsNullOrWhiteSpace($payloadJson)) {
+                        $fallbackPayload = & $truncateApprovalArgumentValue -Text $payloadJson -MaxChars $approvalArgumentValueMaxChars
+                        $argumentSummaryLines.Clear()
+                        $argumentSummaryLines.Add(("rawPayload={0}" -f $fallbackPayload))
+                    }
                 }
 
                 $allowApproval = $cachedApprovalDecision
@@ -2103,10 +2237,22 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                     $allowApproval = $false
                     $canPromptForApproval = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected
                     if ($canPromptForApproval) {
-                        $response = Read-Host -Prompt (
-                            "Destructive action approval required.`n" +
-                            "Tool: {0}`nArgs: {1}`nType 'yes' or 'authorized' to approve this single-use destructive action. Anything else denies it." -f $toolName, $argumentSummary
-                        )
+                        Write-Host ''
+                        Write-Host '=== Destructive Action Approval Required ===' -ForegroundColor Yellow
+                        Write-Host ("Tool: {0}" -f $toolName) -ForegroundColor Cyan
+                        if ($argumentSummaryLines.Count -eq 0) {
+                            Write-Host 'Arguments: [no arguments]' -ForegroundColor DarkYellow
+                        }
+                        else {
+                            Write-Host 'Arguments:' -ForegroundColor DarkYellow
+                            foreach ($summaryLine in $argumentSummaryLines) {
+                                Write-Host ("  - {0}" -f $summaryLine) -ForegroundColor Gray
+                            }
+                        }
+
+                        Write-Host "Type 'yes' or 'authorized' to approve this single-use destructive action." -ForegroundColor Yellow
+                        Write-Host 'Anything else denies it.' -ForegroundColor Yellow
+                        $response = Read-Host -Prompt 'Approval'
                         $normalized = if ($null -ne $response) { $response.Trim() } else { '' }
                         $allowApproval = ($normalized -match '^(?:y|yes|authorized|allow|approve)$') -or ($normalized -ieq 'authorized')
                     }
@@ -2721,8 +2867,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCGf8KIunKDI+JE
-# UfgLEUL9DcMSPZKHMJ8ummoi+1XoHKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBovvFSLBHTVPYH
+# F7daISYKQRIiYTzS9aVGO8Vn4O9uIaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -2899,31 +3045,31 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCw
-# Y7VK56RUgNVsSuSiuWjJ28mQMVjcCsALL0LzijHoAjANBgkqhkiG9w0BAQEFAASC
-# AYCeo4TOXSdE68Y8zYRspUd5dJbeXHTF6Lh9eNRB4NzDhJpuocsU0NeJAWlLZm/C
-# TMd0SSzMlPM0tblvTlrmd7IEJsQVHr9ymvHFjw3l1BpMqM5s900jOcUQm1oabgK8
-# nKkX0MUXq1QrvZXqBEweqEmfuSu0ALEc+fqFpeppDC5wTKs0yrd4fwlgX0XNzFZW
-# DUVURL0Csgad1wPDSC8o9fmhwOkOpDmT5Gh9C6uP2gDImpe1eSBKGVBBw92c3sit
-# EtKjpaSzZvcaqzmpjkhSfuJBMHxLKZ3LoM65hd9gxYG6bicjuJdiEy/4vEDX9zE6
-# Q8GADm/qps3XPOgkb6YJOoV6dDo682kYVVK5naHJk9AxfPiDreq8wK43gDAKZsvJ
-# 0BQp4tjHxat3tP0qUzzILKiKlUL+UONdi9uIIxTmKccN5iGCHtSlFkYlO8yMpcKf
-# 0FU7hAHWA/+/zys2S8dIrzAMoeSh97h2aRFYONpxnGWdtEQSCb1Ha5b84HqqLJLK
-# amahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBA
+# KpE6+lOr3BEN0sBWAqIyovMLM+8+ewGQTudURW3zAzANBgkqhkiG9w0BAQEFAASC
+# AYA7eeqn2q4rak8uqMRBMi7ld8IXmN4OT477WKOyOXUc2vhscnPbebRlyIcrsPec
+# JXzfRUAubCk30OJW2mpPBI6TZHyjMwT28A2V4Y9GFNkLxty+8tpwGRvhQZaA8fbM
+# rEHf/ERwmWhiRXe7aTyBLJh/B+tb1N/xRZf+yq77kYSkCBHSWk1DXAjYy+/XW07D
+# w4uPUvEhaVqeEwTqEY5dXmBLiVQKQCvftOCwaLlKqGbRmQqn3sDuHdAkgOaJUKfc
+# An/cEcOHlcM28kb/3cVl2JnaqwHOcElq4MERivDOp0C0MPT64MZ7wbwwNkhLFmWV
+# IBkvgsk+BukZkk0hFdU1Kd2caJee91LJ1ukBriEYSw5imD3GCx2wOvMqpoPfhFGa
+# eyG3hj018xROIewr0eZlCaiimSQ43NohG4efhy93JRDzdhp7fwLRvUxi72E9xIJ/
+# UrY4/laMqpXsBqxolmSUsyBUHkNXyPbAYXT8KlVeXU8Ejfd73ufEdG1AXKIlIL31
+# q+mhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDEwMDUxOTM5WjAvBgkqhkiG
-# 9w0BCQQxIgQgmaEDewUHq1AHRwhH59lGcPHyFJEa4s9hl2udFISi/YcwDQYJKoZI
-# hvcNAQEBBQAEggIAfV8tCYufmgi6AvCEXTtU5WaHpzkKGfB/zth+w2DcE7HXU/5J
-# oDhkvcMidzy4q5JMrIBM/2G2gGY7APzoLrG9cb5FA7YMKtNyO+KrWl9TJ6m/8aU4
-# 3YDIZJfgnbWQ6raKE6TDBD90QeW48xW0+CRio/XeAZI7mA8/VeIsBXZjI1vpBEPJ
-# AItjL25G2FAROnedlM3//h8RmtFIedC02paeUeJdsn8nXi7NlI3SezFwxbAbqsOZ
-# 5ycRrkzYsQzV16UsZP8NqcnFeSU3c4Gn/ttU/Mu1LLtm7AWEqytagGXO4guFkWlv
-# Fk4gW1klFbraV3c0WC439JzxHyB7a/uBuFRBq2mdxSDoCuxE+GWq9rH0f48NNlxz
-# TnsrUoyhFFOeHLxma2qpiDzRPDTii5oIfBUyQQkydoSNLFMsgwYaV1yeYQwZrj28
-# IM25CxGe4DQAxsIyKUzZtcQ+tvJY6MNULNXt8WJBrocLxB2cRGnYaqmombtjLV7H
-# hidV1BT8W1GNjwEXrz5Hfuupsh+sO3S4DUTtDSxRyBnjV9DBHZkiCHiCeqHUC9pA
-# eoGmJCsmThu6f2GScyGeArUZq/nzZZV9C6DkHs8vok2/sNNvVeVFPJoNh6ny8C2/
-# R9MBs2YyBv9qwQYv8nabhAToJ+OXSAde8UOKZDru408nad0ZR3Z0ugeA4f8=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDExMDMxNzM0WjAvBgkqhkiG
+# 9w0BCQQxIgQgAGrjvCubgaIG9y/Bs/vOHeZVBrHoEJ4OMDKZUCg9BZowDQYJKoZI
+# hvcNAQEBBQAEggIAXEaBDT9+VNPcti9C83DTh7kvqNOcFUlfdAOERuxhzAPxiy7V
+# qyx9uxXLiqObzZC+Yo03AB7iU3gJGCm4/wJUzxQ/vVT7k/7ECItlMqFYW6+dfXWs
+# MjxIvzCaytxJf8OX1gj+C6rbcdX2dc/+0jaKtBbwy1+eEX6niz1XYPP9siLc9YyI
+# Wo/mW5lHRE5CCrv1lmoM+hO+YHHj/d09h4qvQ8HE+4yA+baSuR3gsRdl2xwdZ9y6
+# +IlNOTqHBLV1wS/UVtHGXuoDaYf0A8wSavlZyie1VY+APxDobuVtPvRYmjrycSar
+# EZGkeoBOTYcJ1Z+e/tsAGBwG0CDnkPEVz5L+WU79YIreBnf7S4DE0i72i5rmHa61
+# xJFnoT1Hd4CLcmFPdFLk6k81P6YRv2RrP3ICO+wzsBJ/bvZlDjOKaohXWond/hzP
+# KJTdzZIQGHfWiFL+3ybMQMJS3sM+CMOn55VQ0D4fYGe/vIrbygVjPAoJ+wOCkmub
+# J7GdzbCFTGg3sBQ0fqq+VKXbptJMASqdLJtTd6Q9kkGukIL6YQHsBbyYEryiGSNK
+# GDT81tgmAXdsL97VmCVJUHT9pT4kjE0MKTptwH92WFwoE1qsizQpUUYvrn8CSsWM
+# p+IE/gxHfrTgO1O2pc7iSaCJDN9jrXUWqR8obOlA276WdeN7OEV26vXF2dM=
 # SIG # End signature block
