@@ -23,7 +23,9 @@ param(
     [switch]$Recurse,
     [switch]$Analyze,         # Run PSSA (PowerShell ScriptAnalyzer)
     [switch]$FailOnPssa,      # Fail build if PSSA finds issues
-    [switch]$SkipProjects,    # Skip .NET project build/publish steps
+    [switch]$SkipTechShell,   # Skip the TechShell .NET build
+    [switch]$SkipTechAgent,   # Skip the TechAgent .NET build/publish steps
+    [switch]$SkipProjects,    # Deprecated: skips both TechShell and TechAgent builds
     [string]$Version,
     [switch]$ExportPublic,    # Export only functions discovered in Public\ (else '*')
     [switch]$Pack,            # Zip to .\Out\TechToolbox_<version>.zip
@@ -495,9 +497,11 @@ else {
     Write-Host "Signing complete → OK: $ok  Skipped: $skip  Warnings/Errors: $warn" -ForegroundColor Cyan
 }
 
-# ---------------- 06A. Build + publish .NET agent projects ------------------
-if ($SkipProjects) {
-    Write-Host "Skipping .NET project build/publish (-SkipProjects)." -ForegroundColor DarkYellow
+# ---------------- 06A. Build + publish .NET projects ----------------------
+$skipTechShellBuild = $SkipTechShell -or $SkipProjects
+$skipTechAgentBuild = $SkipTechAgent -or $SkipProjects
+if ($skipTechShellBuild -and $skipTechAgentBuild) {
+    Write-Host "Skipping .NET project build/publish (-SkipTechShell, -SkipTechAgent, and/or -SkipProjects)." -ForegroundColor DarkYellow
 }
 else {
     $dotnetInvocation = Resolve-DotNetInvocation
@@ -511,22 +515,31 @@ else {
             ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.Agent.csproj'
             PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish'
             Publish     = $true
+            Skip        = $skipTechAgentBuild
         },
         [pscustomobject]@{
             Name        = 'TechToolbox.LocalMcpAdapter'
             ProjectPath = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.csproj'
             PublishDir  = Join-Path $ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\publish'
             Publish     = $true
+            Skip        = $skipTechAgentBuild
         },
         [pscustomobject]@{
             Name        = 'TechShell.UI'
             ProjectPath = Join-Path $ModuleRoot 'src\TechShell\src\TechShell.UI\TechShell.UI.csproj'
             PublishDir  = $null
             Publish     = $false
+            Skip        = $skipTechShellBuild
         }
     )
 
     foreach ($project in $dotNetProjects) {
+        if ($project.Skip) {
+            $skipReason = if ($project.Name -eq 'TechShell.UI') { '-SkipTechShell' } else { '-SkipTechAgent' }
+            Write-Host "Skipping .NET build/publish for $($project.Name) ($skipReason or deprecated -SkipProjects)." -ForegroundColor DarkYellow
+            continue
+        }
+
         if (-not (Test-Path -LiteralPath $project.ProjectPath)) {
             Write-Host "Skipping .NET build/publish for missing project: $($project.ProjectPath)" -ForegroundColor DarkYellow
             continue
@@ -696,8 +709,8 @@ $result
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDh3h6+PBbpASoW
-# j6JcVUJQqTkZI6FTQiLU4c73a2HWyaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAupSGw1/Zd+CMI
+# 22FhzDayqsJdcHwNbx2uw9ChK3H3WKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -874,31 +887,31 @@ $result
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCC
-# NDfA45mKy9DTIVzN28RlXYWjyHS/8f0LdNXxSrahnzANBgkqhkiG9w0BAQEFAASC
-# AYCVb4gz72MNIPy/pqLLnd3WM3cMTPRgN31wPY3zPpXYVNow5K8mNNOShdEz70Le
-# b5mCINQBHZPn5HJ5xllTQT0SM8Z6/r9ssjhLQZGzegkfCBbs0cR+xZanSv132/q4
-# aj63ma/tUt5FQVpPMrJH6s0cZMvw1k+zztVzkrOZ+A1gTvNRtEWqjAyynG0kU9Vl
-# ryb+sMjZhEjp9ZW1CQlkL2T2hpvRPzGDvWK1MDdNwn1yFjtnRTEbDUOSPbVztVFR
-# eLALMH6mQka+fp7hX8SlYWzqQRm0uB5aSTJIZGc23/r80UKyzBV/nRE6dvgIshMU
-# 5EAYHYFCYEkgw6Sxg0xlfgI4+Q/DAKnj4rC+TS2FmvzTeXLU2AZFvr/A6VcWu1GU
-# lzdicbCe8JPMibmgjjem0PiQTNbzncSPhm/aSFudfeAeSN8uBpHYRVMFtxUrZZ4q
-# jFguzO9P9wZGN06MsphkZSNbjAcah6KjRmEXWw/F9t6Y21RLUyOQU1IoJYawrbmG
-# 2f+hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCe
+# HxrVrqim2gl9nweslhKQB/arGXl7cPCcb8p5xQL+gTANBgkqhkiG9w0BAQEFAASC
+# AYBSiHEHQi8dPqUzseDBRTigcNT7Bshkwc+9Jv0rqNnF/tpXBZJlSfZimShAAXJs
+# kzypU/0NAHcRqAfUr3Ty8/GUQ3+dXQkg/iCJjLw0Mm6PQvJDC3SgNn0HSC87BMmU
+# bWxx4a6CxWFQ+DcHxGosYKFzFpxcCLFwCKMCah0zPrruE72rqIVu27jWadOAOeWo
+# pKER+Tc1faNau5jRUBwUaHvonz2mNRfO8IyHpgmQjIVMF/VqlSvT+sovvjo3yTYv
+# QFzXRsUJ0+hEFeueK68vU9Xj+grXlKCvlk+yRUAFSqpsb4Fe3fm41Mn+4TvRpJgM
+# YZPpBWcReWn0Y3vaHECWn/KEiBxPhMG6w3RFLWI/jrM3+Rgv6gJC+TObM4LPuEZ3
+# ZoatF+nFRpq7TWEo+HwUV5HZkfznvgxtotB8+2Z4/pyM3+1t3sU4EiJEfcJoXgth
+# GNw6QGtMmiNOrBt0FcBq96g0MtPwYVe371u9QYMrADXHAcEpMxvRGsMzjTLRxR27
+# 3kShggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDA1MjE0NzMwWjAvBgkqhkiG
-# 9w0BCQQxIgQgREQCVZCHcx1c/GA/17xD2e+BSwrvXT9JLcq+Kk25ldAwDQYJKoZI
-# hvcNAQEBBQAEggIAXorwem61rwGu5iRVlV+WPT+OUE8yQrYa6VgZaxgIHe9Weedz
-# 0b8nAtvBRow8Yy67I81t6brc97/IUH9zP1DqGrtOkS4jOI2TqF2KGEbL63tJIj2Q
-# KTO/zWdmmv705Do16UZr0T45I6AddwK9c+VvbCROUZy6oFGKaWZ4p8wypmZzUUL4
-# HzhWTvFjUKx/gW4RUhu4Cg41slE8t8YQoF/JoTENO/bjML2P5UK1FLcIwKefus/0
-# z35wMsoamlhkMBO4Zritd1J+g3sTZ0qthPTtpBIDQAObwOmKmjIi2evPlAS//mZP
-# 8tviMkq1lqca78mbrPhcVX/B0gIbPj9BvPTpvjVMOKA+E/Kk1G1CDLEqs1Zr9UNk
-# hBVfv0uvc9qZ8k2/dVdFodAjrubno7n5L0DzAejT1mtHdOPrCa8Bbk9G9XWSlwH5
-# 813vMl89kDiQ3MGH3N78SofGm9dI/kvJe7aBBpT+IkOZ7WBr6jHr7YMmebvCZFmQ
-# kN9rzLSIdJLNnujHAqA3hZ2NDj2godzDpjLdkeIlEbVj0d134V9jw9k4v+kJG/EO
-# mBWHq3DuDC4VdNAEsLoD5UL7IXmL/17CyNrvw8gMWDKvlkEM7mnyaHUcDgJGknTd
-# aHbjXwEXXRFdibqU7VS0I/dV0othqDL9e1WRf5WLq8uiBFwS22l8QQuZhKU=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDExMDQyMTI1WjAvBgkqhkiG
+# 9w0BCQQxIgQgXuhAnSzTusPAhAxeNE5BwWSBDIBfQeI/UZcUmESGXE8wDQYJKoZI
+# hvcNAQEBBQAEggIAaGOxZJxrXA5Uz3iCM6AuTYZakrKVn7W/qJ8W77KGwxy6qAST
+# NHN5rkt9PUw4qSt9hvhtwF9g/AfY0ylQK1NnasKUteF3zarRl+wI59BHGo+Lx4uV
+# 5KN9JQ8cDD01D5/fa+exEAhXyK/2DvPCgAxeeH89/ZQNopzv5TtoePDJIWFmBvdd
+# iUMmhk2MKcGSaosABG5APEQsiI5FVJga6p5B2cFMMilMj4G0TDkPNFpTE61IOj1m
+# j6jCSj/dwR3XUz7qyWVXK8L5lCyEllTpEczuleWeW6qzeDEWdAjIvRo97swiYGXa
+# Ium1E9ar1QXCpXy9BwoZXAclt2VRoXDrLdT3FrtCTH3HDcAZnkCcf/pRyav4yKoy
+# smbTHBpvW6JPZA4Vg9g/LwTxZar4AZFoZ46tbrK9VyrvggWvPHDCoBHJiyOzYMEW
+# k/XXvnn55rOut7uAIh0l6Xkiq9C8G5RYVnnP3iEuAcdTqaPzDzxTWIwmXQ569Wfz
+# sxXkVHZCVG2VPfvMSQm3RA0wUceCP/AOV8Iugaxy2WiEh2Y2sRQEqwwbHhja/qJl
+# vQ4vcs/GdIAf1dgfMP4T30BPG2JfPkVEMsyvuQvlWenuN0bUVOOdH+pZxK1s3LRd
+# /2Cyw7PwEYU5uD2TFKgUyRObvLTXbLbdmqbregxvDAytf6BnyolYogGeyqE=
 # SIG # End signature block
