@@ -35,22 +35,24 @@
   </a>
 </p>
 
-<div align="center">
-  <p style="font-size:1.2em; font-weight:600; margin-top:1em;">
+## Executive Summary
 
-  ## _The PowerShell Operator Framework for Modern Automation_
+TechToolbox brings together identity, security, compliance, system diagnostics,
+remote execution, browser cleanup, networking, and AI-assisted operations in one
+portable, scriptable module. It standardizes configuration, logging, worker
+patterns, and reusable automation flows so teams can move from ad hoc scripting
+to governed, repeatable operational workflows.
 
-  <br>
-
-  TechToolbox unifies practical admin tooling into a single, predictable, portable module with shared configuration, logging, worker patterns, and a clean development model. It targets real-world enterprise operations: Active Directory lifecycle, Exchange Online / Purview workflows, remote diagnostics, browser cleanup, subnet tooling, and AI-assisted automation. The TechAgent runtime supports provider-based LLM routing (Ollama, OpenAI, OpenAI-compatible, Azure OpenAI) with quality controls and telemetry-backed reporting.
-  </p>
-</div>
-
----
+Built for real-world enterprise environments, TechToolbox supports Active
+Directory lifecycle tasks, Exchange Online and Purview operations, remote
+diagnostics, endpoint maintenance, and provider-based AI execution with Ollama,
+OpenAI, Azure OpenAI, and compatible APIs. With built-in quality controls,
+telemetry, and operational safety patterns, it helps admins and engineers
+automate complex work with clarity, confidence, and consistency.
 
 ## Contents
 
-- [_The PowerShell Operator Framework for Modern Automation_](#the-powershell-operator-framework-for-modern-automation)
+- [Executive Summary](#executive-summary)
 - [Contents](#contents)
 - [Quick Start](#quick-start)
   - [One-Liner Demos](#one-liner-demos)
