@@ -11,41 +11,70 @@ function Format-Number {
     return "{0:N0}" -f $n
 }
 
-function Get-PSGalleryDownloadCount {
+function Get-PSGalleryVersionDownloadCount {
     param(
-        [string]$ModuleName = "TechToolbox"
+        [Parameter(Mandatory = $true)]
+        [psobject]$Module
     )
 
-    try {
-        $module = Find-Module -Name $ModuleName -ErrorAction Stop
-        $candidateFields = @(
-            "downloadCount",
-            "TotalDownloads",
-            "versionDownloadCount"
-        )
+    $candidateFields = @(
+        "downloadCount",
+        "TotalDownloads",
+        "versionDownloadCount",
+        "VersionDownloadCount"
+    )
 
+    foreach ($field in $candidateFields) {
+        if ($Module.PSObject.Properties.Match($field)) {
+            $value = $Module.$field
+            $downloadCount = 0
+            if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$downloadCount) -and $downloadCount -ge 0) {
+                return $downloadCount
+            }
+        }
+    }
+
+    if ($Module.PSObject.Properties.Match('AdditionalMetadata')) {
+        $additional = $Module.AdditionalMetadata
         foreach ($field in $candidateFields) {
-            if ($module.PSObject.Properties.Match($field)) {
-                $value = $module.$field
+            if ($additional.PSObject.Properties.Match($field)) {
+                $value = $additional.$field
                 $downloadCount = 0
                 if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$downloadCount) -and $downloadCount -ge 0) {
                     return $downloadCount
                 }
             }
         }
+    }
 
-        if ($module.PSObject.Properties.Match('AdditionalMetadata')) {
-            $additional = $module.AdditionalMetadata
-            foreach ($field in $candidateFields) {
-                if ($additional.PSObject.Properties.Match($field)) {
-                    $value = $additional.$field
-                    $downloadCount = 0
-                    if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$downloadCount) -and $downloadCount -ge 0) {
-                        return $downloadCount
-                    }
-                }
-            }
+    return 0
+}
+
+function Get-PSGalleryDownloadCount {
+    param(
+        [string]$ModuleName = "TechToolbox",
+        [switch]$AllVersions
+    )
+
+    try {
+        $modules = @()
+        if ($AllVersions) {
+            $modules = @(Find-Module -Name $ModuleName -AllVersions -ErrorAction Stop)
         }
+        else {
+            $modules = @(Find-Module -Name $ModuleName -ErrorAction Stop)
+        }
+
+        if (-not $modules -or $modules.Count -eq 0) {
+            return 0
+        }
+
+        $total = 0
+        foreach ($module in $modules) {
+            $total += Get-PSGalleryVersionDownloadCount -Module $module
+        }
+
+        return $total
     }
     catch {
         Write-Warning "Failed to resolve PSGallery download count for ${ModuleName}: $_"
@@ -69,7 +98,14 @@ try {
     $psVersion = $module.Version.ToString()
 
     # Prefer the package's structured metadata over scraping HTML tables.
-    $psDownloads = Get-PSGalleryDownloadCount -ModuleName "TechToolbox"
+    # `Find-Module -AllVersions` is the most stable non-HTML source for package totals,
+    # because PSGallery exposes per-version download counts in the metadata rather than
+    # a single total on the current module object.
+    $psDownloads = Get-PSGalleryDownloadCount -ModuleName "TechToolbox" -AllVersions
+    if ($psDownloads -le 0) {
+        $psDownloads = Get-PSGalleryDownloadCount -ModuleName "TechToolbox"
+    }
+
     if ($psDownloads -gt 0) {
         Write-Host "  Using PSGallery total downloads: $psDownloads" -ForegroundColor DarkGreen
     }
