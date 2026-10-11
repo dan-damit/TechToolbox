@@ -1,64 +1,139 @@
-You are Luna operating under Oglesby governance.
+**Task:**  
+Apply a minimal, surgical refactor to `ToolWrapper.cs` that removes legacy support for the `FETCH-URL` and `SEARCH-WEB` tool names.  
+Do **not** modify any other logic, behavior, or signatures except where explicitly required by the removal.
 
-Perform a comprehensive security review of the current codebase specifically for prompt injection resistance and agent trust-boundary enforcement.
+---
 
-Scope:
-1. Analyze all agent, orchestration, tool-routing, planning, retrieval, memory, and execution components.
-2. Identify existing controls that mitigate prompt injection, indirect prompt injection, privilege escalation, unauthorized tool execution, data exfiltration, and instruction hijacking.
-3. Trace the complete execution path:
-   User → Intent → Planning → Validation → Tool Selection → Authorization → Execution → Response
-4. Determine which components are trusted, untrusted, or partially trusted.
-5. Identify where instructions can enter the system from:
-   - User prompts
-   - Retrieved documents
-   - SharePoint/OneDrive content
-   - Search results
-   - Web content
-   - Memory
-   - Tool outputs
-   - LLM responses
-6. Determine whether retrieved content can influence:
-   - Tool selection
-   - Routing
-   - Permissions
-   - Execution decisions
-   - Memory writes
-   - System behavior
-7. Identify all policy, authorization, validation, approval, and audit mechanisms currently present.
-8. Flag any locations where untrusted content could be interpreted as executable instructions.
-9. Highlight any missing controls using a severity rating:
-   - Critical
-   - High
-   - Medium
-   - Low
+## **Patch Requirements**
 
-Required Output:
-Generate a detailed markdown report at:
+### **1. Remove the FETCH‑URL argument injection block**
 
-$ModuleRoot\PromptInjectionAnalysis.md
+Delete this entire block:
 
-The report must include:
+```
+if (
+    string.Equals(toolName, "FETCH-URL", StringComparison.OrdinalIgnoreCase)
+    && !args.ContainsKey("__allowed_fetch_hosts")
+)
+{
+    args["__allowed_fetch_hosts"] = normalizedFetchHosts;
+}
+```
 
-# Executive Summary
-# System Architecture Overview
-# Trust Boundary Analysis
-# Existing Prompt Injection Defenses
-# Authorization & Policy Controls
-# Tool Execution Safeguards
-# Data Exfiltration Protections
-# Memory & Retrieval Risks
-# Identified Weaknesses
-# Recommended Improvements
-# Priority Remediation Roadmap
+---
 
-Requirements:
-- Cite exact files, functions, classes, and line numbers where possible.
-- Do not make assumptions.
-- Base all findings on observed code.
-- Clearly separate:
-  - Observed Evidence
-  - Inferred Behavior
-  - Recommendations
-- Include code excerpts for significant findings.
-- Conclude with an overall maturity assessment from:
-  Initial / Developing / Defined / Managed / Hardened.
+### **2. Remove the SEARCH‑WEB argument injection block**
+
+Delete this entire block:
+
+```
+if (string.Equals(toolName, "SEARCH-WEB", StringComparison.OrdinalIgnoreCase))
+{
+    if (!HasArgument(args, "__search_web_provider"))
+        args["__search_web_provider"] = normalizedSearchWebProvider;
+
+    if (!HasArgument(args, "__search_web_endpoint"))
+        args["__search_web_endpoint"] = normalizedSearchWebEndpoint;
+
+    if (!HasArgument(args, "__search_web_api_key_env_var"))
+        args["__search_web_api_key_env_var"] = normalizedSearchWebApiKeyEnvVar;
+
+    if (!HasArgument(args, "__search_web_country")
+        && !string.IsNullOrWhiteSpace(normalizedSearchWebCountry))
+    {
+        args["__search_web_country"] = normalizedSearchWebCountry;
+    }
+
+    if (!HasArgument(args, "__search_web_language")
+        && !string.IsNullOrWhiteSpace(normalizedSearchWebLanguage))
+    {
+        args["__search_web_language"] = normalizedSearchWebLanguage;
+    }
+
+    if (!HasArgument(args, "__search_web_safe_search")
+        && !string.IsNullOrWhiteSpace(normalizedSearchWebSafeSearch))
+    {
+        args["__search_web_safe_search"] = normalizedSearchWebSafeSearch;
+    }
+
+    if (!HasArgument(args, "count") && normalizedSearchWebDefaultCount > 0)
+    {
+        args["count"] = normalizedSearchWebDefaultCount;
+    }
+}
+```
+
+---
+
+### **3. Remove unused normalization variables**
+
+Delete these local variables from the top of `BuildTools`:
+
+```
+var normalizedFetchHosts = NormalizeFetchHosts(allowedFetchHosts);
+
+var normalizedSearchWebProvider = NormalizeSearchWebProvider(searchWebProvider);
+var normalizedSearchWebEndpoint = NormalizeSearchWebEndpoint(searchWebEndpoint);
+var normalizedSearchWebApiKeyEnvVar = NormalizeSearchWebApiKeyEnvVar(searchWebApiKeyEnvVar);
+var normalizedSearchWebCountry = NormalizeSearchWebCountry(searchWebCountry);
+var normalizedSearchWebLanguage = NormalizeSearchWebLanguage(searchWebLanguage);
+var normalizedSearchWebSafeSearch = NormalizeSearchWebSafeSearch(searchWebSafeSearch);
+var normalizedSearchWebDefaultCount = Math.Clamp(searchWebDefaultCount, 1, 50);
+```
+
+---
+
+### **4. Remove the normalization helper methods**
+
+Delete these methods entirely:
+
+```
+NormalizeFetchHosts
+NormalizeSearchWebProvider
+NormalizeSearchWebEndpoint
+NormalizeSearchWebApiKeyEnvVar
+NormalizeSearchWebCountry
+NormalizeSearchWebLanguage
+NormalizeSearchWebSafeSearch
+```
+
+---
+
+### **5. Remove unused parameters from both BuildTools overloads**
+
+Remove the following parameters from **both** method signatures:
+
+```
+IEnumerable<string>? allowedFetchHosts
+string? searchWebProvider
+string? searchWebEndpoint
+string? searchWebApiKeyEnvVar
+string? searchWebCountry
+string? searchWebLanguage
+string? searchWebSafeSearch
+int searchWebDefaultCount
+```
+
+Ensure all call sites and overloads are updated accordingly.
+
+---
+
+## **Constraints**
+
+- Do **not** modify any other logic.  
+- Do **not** alter destructive approval behavior.  
+- Do **not** alter RUN‑SHELL behavior.  
+- Do **not** alter compatibility executor behavior.  
+- Do **not** rename or restructure unrelated code.  
+- Do **not** introduce new functionality.  
+- This patch must be **strictly subtractive**.
+
+---
+
+## **Expected Output**
+
+Produce:
+
+1. A unified diff (`.patch`) showing the exact deletions.  
+2. A short confirmation summary of what was removed.  
+3. No additional commentary.
