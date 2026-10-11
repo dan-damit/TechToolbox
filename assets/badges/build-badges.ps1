@@ -11,20 +11,47 @@ function Format-Number {
     return "{0:N0}" -f $n
 }
 
-function Get-SectionDownloadCount {
+function Get-PSGalleryDownloadCount {
     param(
-        [string]$Html,
-        [string]$SectionPattern
+        [string]$ModuleName = "TechToolbox"
     )
 
-    $total = 0
-    foreach ($match in [regex]::Matches($Html, $SectionPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
-        foreach ($rowMatch in [regex]::Matches($match.Groups['body'].Value, '<td>\s*(?<downloads>[\d,]+)\s*</td>', [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
-            $total += [long](($rowMatch.Groups['downloads'].Value) -replace ',', '')
+    try {
+        $module = Find-Module -Name $ModuleName -ErrorAction Stop
+        $candidateFields = @(
+            "downloadCount",
+            "TotalDownloads",
+            "versionDownloadCount"
+        )
+
+        foreach ($field in $candidateFields) {
+            if ($module.PSObject.Properties.Match($field)) {
+                $value = $module.$field
+                $downloadCount = 0
+                if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$downloadCount) -and $downloadCount -ge 0) {
+                    return $downloadCount
+                }
+            }
+        }
+
+        if ($module.PSObject.Properties.Match('AdditionalMetadata')) {
+            $additional = $module.AdditionalMetadata
+            foreach ($field in $candidateFields) {
+                if ($additional.PSObject.Properties.Match($field)) {
+                    $value = $additional.$field
+                    $downloadCount = 0
+                    if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$downloadCount) -and $downloadCount -ge 0) {
+                        return $downloadCount
+                    }
+                }
+            }
         }
     }
+    catch {
+        Write-Warning "Failed to resolve PSGallery download count for ${ModuleName}: $_"
+    }
 
-    return $total
+    return 0
 }
 
 # -----------------------------
@@ -34,7 +61,6 @@ Write-Host "`n[1/4] Fetching PSGallery data..." -ForegroundColor Yellow
 
 $psVersion = "N/A"
 $psDownloads = 0
-$apiDownloads = 0
 
 try {
     $module = Find-Module -Name "TechToolbox" -ErrorAction Stop
@@ -42,77 +68,19 @@ try {
     # Version
     $psVersion = $module.Version.ToString()
 
-    # API Downloads (property may not exist)
-    if ($module.PSObject.Properties.Match('TotalDownloads')) {
-        $value = $module.TotalDownloads
-        if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$apiDownloads) -and $apiDownloads -ge 0) {
-            $psDownloads = $apiDownloads
-        }
+    # Prefer the package's structured metadata over scraping HTML tables.
+    $psDownloads = Get-PSGalleryDownloadCount -ModuleName "TechToolbox"
+    if ($psDownloads -gt 0) {
+        Write-Host "  Using PSGallery total downloads: $psDownloads" -ForegroundColor DarkGreen
     }
 }
 catch {
-    Write-Warning "Failed to fetch PSGallery data: $_"
+    Write-Warning "Failed to fetch PSGallery metadata: $_"
 }
 
-# Primary source: sum per-version downloads from PSGallery HTML.
-# Fallbacks: package total in HTML, then API total if available.
-Write-Host "  Fetching per-version download totals from package HTML..." -ForegroundColor DarkYellow
-try {
-    $pageHtml = (Invoke-WebRequest -Uri "https://www.powershellgallery.com/packages/TechToolbox/" -UseBasicParsing -ErrorAction Stop).Content
-
-    $versionHistoryTotal = Get-SectionDownloadCount -Html $pageHtml -SectionPattern '<tbody class="[^"]*\bno-border\b[^"]*"[^>]*>(?<body>.*?)</tbody>'
-    if ($versionHistoryTotal -gt 0) {
-        $psDownloads = $versionHistoryTotal
-        Write-Host "  Using per-version total: $psDownloads" -ForegroundColor DarkGreen
-    }
-    elseif ($pageHtml -match '<li class="package-details-info-main">\s*([\d,]+)\s*<br\s*/?>\s*<text[^>]*>\s*Downloads\s*</text>') {
-        $psDownloads = [long]($Matches[1] -replace ',', '')
-        Write-Host "  Per-version rows unavailable; using package total: $psDownloads" -ForegroundColor DarkGreen
-    }
-    elseif ($apiDownloads -gt 0) {
-        $psDownloads = $apiDownloads
-        Write-Host "  HTML scrape unavailable; using API total: $psDownloads" -ForegroundColor DarkGreen
-    }
-    else {
-        Write-Warning "Could not determine PSGallery download count from version rows, package total, or API."
-    }
+if ($psDownloads -le 0) {
+    Write-Warning "PSGallery did not return a valid total download count for TechToolbox."
 }
-catch {
-    if ($apiDownloads -gt 0) {
-        $psDownloads = $apiDownloads
-        Write-Warning "HTML scrape failed; using API total downloads instead: $apiDownloads"
-    }
-    else {
-        Write-Warning "Failed to fetch PSGallery HTML and no API total was available: $_"
-    }
-}
-
-<#
-# Fallback: scrape the PSGallery package page if the API returned 0
-if ($psDownloads -eq 0) {
-    Write-Host "  API returned 0 downloads — attempting HTML scrape fallback..." -ForegroundColor DarkYellow
-    try {
-        $pageHtml = (Invoke-WebRequest -Uri "https://www.powershellgallery.com/packages/TechToolbox/" -UseBasicParsing -ErrorAction Stop).Content
-
-        # Regex that tolerates spans, whitespace, <br>, and commas
-        $regex = '<li class="package-details-info-main">.*?([\d,]+).*?<br\s*/?>\s*<text[^>]*>\s*Downloads\s*</text>'
-
-        if ($pageHtml -match $regex) {
-            $scraped = [long]($Matches[1] -replace ',', '')
-            if ($scraped -gt 0) {
-                $psDownloads = $scraped
-                Write-Host "  Scraped downloads: $psDownloads" -ForegroundColor DarkGreen
-            }
-        }
-        else {
-            Write-Warning "Scrape fallback: could not locate download count in PSGallery HTML."
-        }
-    }
-    catch {
-        Write-Warning "Scrape fallback failed: $_"
-    }
-}
-#>
 
 # Format for badges
 $psDownloadsFormatted = Format-Number $psDownloads
