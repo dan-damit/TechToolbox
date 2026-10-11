@@ -195,6 +195,9 @@ TechToolbox/
 │   └── TechToolbox.Agent/    # Private C# agent source (git submodule)
 │       ├── TechToolbox.Agent.csproj
 │       └── Tests/            # xUnit tests for agent runtime
+│   └── TechShell/
+│       ├── TechShell.csproj  # Private WinUI3/C#/Rust project for TechShell runtime
+│       └── Tests/            # xUnit tests for TechShell runtime
 ├── AgentRuntime/             # Packaged C# TechToolbox agent runtime for PSGallery installs
 └── commands.md               # Full command catalog with examples
 ```
@@ -713,7 +716,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 1.3.10
+- **Module version:** 1.5.3
 - **Current milestone:** v1.2.3 - "RAG + LoRA Integration"
 - **Milestone date:** 2026-09-27
 - **PowerShell requirement:** 7+ (Core)
