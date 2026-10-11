@@ -14,9 +14,7 @@ function Format-Number {
 function Get-PSGalleryVersionDownloadCount {
     param(
         [Parameter(Mandatory = $true)]
-        [psobject]$Module,
-
-        [switch]$AllowAggregate
+        [psobject]$Module
     )
 
     $versionFields = @(
@@ -40,34 +38,6 @@ function Get-PSGalleryVersionDownloadCount {
                 $downloadCount = 0
                 if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$downloadCount) -and $downloadCount -ge 0) {
                     return $downloadCount
-                }
-            }
-        }
-    }
-
-    if ($AllowAggregate) {
-        $aggregateFields = @(
-            "downloadCount",
-            "TotalDownloads"
-        )
-
-        foreach ($field in $aggregateFields) {
-            if ($Module.PSObject.Properties.Match($field)) {
-                $value = $Module.$field
-                $downloadCount = 0
-                if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$downloadCount) -and $downloadCount -ge 0) {
-                    return $downloadCount
-                }
-            }
-
-            if ($Module.PSObject.Properties.Match('AdditionalMetadata')) {
-                $additional = $Module.AdditionalMetadata
-                if ($additional.PSObject.Properties.Match($field)) {
-                    $value = $additional.$field
-                    $downloadCount = 0
-                    if ($null -ne $value -and [long]::TryParse($value.ToString(), [ref]$downloadCount) -and $downloadCount -ge 0) {
-                        return $downloadCount
-                    }
                 }
             }
         }
@@ -105,7 +75,7 @@ function Get-PSGalleryDownloadCount {
             return 0
         }
 
-        return Get-PSGalleryVersionDownloadCount -Module $module -AllowAggregate
+        return Get-PSGalleryVersionDownloadCount -Module $module
     }
     catch {
         Write-Warning "Failed to resolve PSGallery download count for ${ModuleName}: $_"
