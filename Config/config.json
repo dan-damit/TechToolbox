@@ -132,7 +132,7 @@
         "backend": "hybrid",
         "model": "qwen3.5:9b",
         "embeddingModel": null,
-        "maxContextTokens": 2048,
+        "maxContextTokens": 4096,
         "maxResults": 5,
         "timeoutSeconds": 10,
         "directories": [],
@@ -145,7 +145,7 @@
         "stateWorldIncludeEnvironmentContext": true,
         "stateWorldEnvironmentContextMaxFacts": 20,
         "stateWorldEnvironmentContextProfile": "standard",
-        "stateWorldRequireEnvironmentContextForEnvironmentIntent": true,
+        "stateWorldRequireEnvironmentContextForEnvironmentIntent": false,
         "hybridLocalMemoryWeight": 0.5,
         "hybridStateWorldWeight": 0.5
       },

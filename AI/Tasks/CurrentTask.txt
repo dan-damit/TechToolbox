@@ -1,139 +1,60 @@
-**Task:**  
-Apply a minimal, surgical refactor to `ToolWrapper.cs` that removes legacy support for the `FETCH-URL` and `SEARCH-WEB` tool names.  
-Do **not** modify any other logic, behavior, or signatures except where explicitly required by the removal.
+You are Oglesby, operating inside a governed agent architecture with deterministic tool execution, strict schemas, and fail‑closed destructive approvals.
 
----
+Your task is to analyze the current system and produce a detailed, technically rigorous plan for implementing semantic indexing across the agent’s environment. Focus on retrieval, context routing, tool selection, and safety.
 
-## **Patch Requirements**
+Your output must include:
 
-### **1. Remove the FETCH‑URL argument injection block**
+1. **Indexing Goals**
+   - What semantic indexing should accomplish in this architecture.
+   - Which agent capabilities will benefit most.
 
-Delete this entire block:
+2. **Index Types**
+   - Codebase index (source files, chunking strategy).
+   - Documentation index (architecture docs, policies, configs).
+   - Tool index (MCP tool schemas, descriptions, examples).
+   - Memory index (run logs, prior tasks, errors).
 
-```
-if (
-    string.Equals(toolName, "FETCH-URL", StringComparison.OrdinalIgnoreCase)
-    && !args.ContainsKey("__allowed_fetch_hosts")
-)
-{
-    args["__allowed_fetch_hosts"] = normalizedFetchHosts;
-}
-```
+3. **Chunking Strategy**
+   - Optimal chunk sizes.
+   - Overlap rules.
+   - How to preserve semantic boundaries.
+   - How to handle large files and multi‑file contexts.
 
----
+4. **Embedding Model Selection**
+   - Recommended embedding model.
+   - Tradeoffs (speed, cost, accuracy).
+   - How to handle updates and re‑indexing.
 
-### **2. Remove the SEARCH‑WEB argument injection block**
+5. **Index Storage & Retrieval**
+   - ANN structure (HNSW vs IVF vs PQ).
+   - How to store vectors.
+   - How retrieval should work at runtime.
+   - How to rerank results.
 
-Delete this entire block:
+6. **Governance Filters**
+   - How to ensure retrieved context never violates policy.
+   - How to prevent unsafe tool suggestions.
+   - How to filter out destructive or forbidden content.
 
-```
-if (string.Equals(toolName, "SEARCH-WEB", StringComparison.OrdinalIgnoreCase))
-{
-    if (!HasArgument(args, "__search_web_provider"))
-        args["__search_web_provider"] = normalizedSearchWebProvider;
+7. **Integration Points**
+   - How semantic indexing plugs into:
+     - Tool selection
+     - READ-FILE workflows
+     - Policy explanations
+     - Memory recall
+     - Code navigation
+     - Documentation lookup
 
-    if (!HasArgument(args, "__search_web_endpoint"))
-        args["__search_web_endpoint"] = normalizedSearchWebEndpoint;
+8. **Performance Considerations**
+   - Index update frequency.
+   - Caching strategy.
+   - Token efficiency improvements.
 
-    if (!HasArgument(args, "__search_web_api_key_env_var"))
-        args["__search_web_api_key_env_var"] = normalizedSearchWebApiKeyEnvVar;
+9. **Full Implementation Plan**
+   - Step-by-step rollout phases.
+   - Required code changes.
+   - Required new components.
+   - Testing strategy.
+   - Safety validation.
 
-    if (!HasArgument(args, "__search_web_country")
-        && !string.IsNullOrWhiteSpace(normalizedSearchWebCountry))
-    {
-        args["__search_web_country"] = normalizedSearchWebCountry;
-    }
-
-    if (!HasArgument(args, "__search_web_language")
-        && !string.IsNullOrWhiteSpace(normalizedSearchWebLanguage))
-    {
-        args["__search_web_language"] = normalizedSearchWebLanguage;
-    }
-
-    if (!HasArgument(args, "__search_web_safe_search")
-        && !string.IsNullOrWhiteSpace(normalizedSearchWebSafeSearch))
-    {
-        args["__search_web_safe_search"] = normalizedSearchWebSafeSearch;
-    }
-
-    if (!HasArgument(args, "count") && normalizedSearchWebDefaultCount > 0)
-    {
-        args["count"] = normalizedSearchWebDefaultCount;
-    }
-}
-```
-
----
-
-### **3. Remove unused normalization variables**
-
-Delete these local variables from the top of `BuildTools`:
-
-```
-var normalizedFetchHosts = NormalizeFetchHosts(allowedFetchHosts);
-
-var normalizedSearchWebProvider = NormalizeSearchWebProvider(searchWebProvider);
-var normalizedSearchWebEndpoint = NormalizeSearchWebEndpoint(searchWebEndpoint);
-var normalizedSearchWebApiKeyEnvVar = NormalizeSearchWebApiKeyEnvVar(searchWebApiKeyEnvVar);
-var normalizedSearchWebCountry = NormalizeSearchWebCountry(searchWebCountry);
-var normalizedSearchWebLanguage = NormalizeSearchWebLanguage(searchWebLanguage);
-var normalizedSearchWebSafeSearch = NormalizeSearchWebSafeSearch(searchWebSafeSearch);
-var normalizedSearchWebDefaultCount = Math.Clamp(searchWebDefaultCount, 1, 50);
-```
-
----
-
-### **4. Remove the normalization helper methods**
-
-Delete these methods entirely:
-
-```
-NormalizeFetchHosts
-NormalizeSearchWebProvider
-NormalizeSearchWebEndpoint
-NormalizeSearchWebApiKeyEnvVar
-NormalizeSearchWebCountry
-NormalizeSearchWebLanguage
-NormalizeSearchWebSafeSearch
-```
-
----
-
-### **5. Remove unused parameters from both BuildTools overloads**
-
-Remove the following parameters from **both** method signatures:
-
-```
-IEnumerable<string>? allowedFetchHosts
-string? searchWebProvider
-string? searchWebEndpoint
-string? searchWebApiKeyEnvVar
-string? searchWebCountry
-string? searchWebLanguage
-string? searchWebSafeSearch
-int searchWebDefaultCount
-```
-
-Ensure all call sites and overloads are updated accordingly.
-
----
-
-## **Constraints**
-
-- Do **not** modify any other logic.  
-- Do **not** alter destructive approval behavior.  
-- Do **not** alter RUN‑SHELL behavior.  
-- Do **not** alter compatibility executor behavior.  
-- Do **not** rename or restructure unrelated code.  
-- Do **not** introduce new functionality.  
-- This patch must be **strictly subtractive**.
-
----
-
-## **Expected Output**
-
-Produce:
-
-1. A unified diff (`.patch`) showing the exact deletions.  
-2. A short confirmation summary of what was removed.  
-3. No additional commentary.
+Your final output should be a structured, comprehensive plan that I can use as a blueprint to implement semantic indexing in the governed agent system.
