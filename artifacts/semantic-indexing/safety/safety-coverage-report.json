@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0",
+  "generatedUtc": "2026-10-13T05:55:09.3669165+00:00",
+  "syntheticOnlyEvidence": true,
+  "retrievedContentClassification": "untrusted-reference-material",
+  "piiRedaction": {
+    "total": 4,
+    "detected": 4,
+    "recall": 1,
+    "threshold": 0.95,
+    "passed": true
+  },
+  "injectionDetection": {
+    "total": 5,
+    "detected": 5,
+    "recall": 1,
+    "threshold": 0.9,
+    "passed": true
+  },
+  "falsePositiveRate": {
+    "total": 5,
+    "detected": 0,
+    "recall": 0,
+    "threshold": 0.05,
+    "passed": true
+  },
+  "externalInjectionPatternsAvailable": false,
+  "externalInjectionPatternsValidated": false,
+  "injectionPatternMode": "built-in-conservative-defaults",
+  "configurationWarning": "External injection-pattern configuration is unavailable; conservative built-in patterns are active.",
+  "passed": true
+}

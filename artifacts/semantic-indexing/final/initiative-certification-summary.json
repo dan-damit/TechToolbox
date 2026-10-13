@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "1.0",
+  "generatedUtc": "2026-10-13T05:44:03.1039849+00:00",
+  "initiative": "C# Full System Build final certification",
+  "overallStatus": "FAIL",
+  "releaseBound": "production-bound evidence review",
+  "runtimeContext": "stage",
+  "productionDeploymentPerformed": false,
+  "retrievedContentClassification": "untrusted-reference-material",
+  "validation": {
+    "releaseBuild": {
+      "status": "PASS",
+      "command": "dotnet build src/TechToolbox.Agent/SemanticIndexing/SemanticIndexing.csproj -c Release",
+      "warnings": 0,
+      "errors": 0
+    },
+    "filteredTests": {
+      "status": "PASS",
+      "passed": 73,
+      "failed": 0,
+      "skipped": 0,
+      "notes": "Background test run completed after approximately 3 minutes. Synchronous tool calls timed out; captured output confirmed the passing result."
+    }
+  },
+  "gates": {
+    "benchmark": {
+      "status": "FAIL",
+      "reason": "No end-to-end benchmark with measured retrieval results was completed. The requested benchmark report was absent at preflight. Unit-test success is not benchmark evidence."
+    },
+    "safety": {
+      "status": "PASS",
+      "evidence": {
+        "syntheticOnly": true,
+        "piiRedaction": {"detected": 4, "total": 4, "recall": 1.0, "threshold": 0.95},
+        "injectionDetection": {"detected": 5, "total": 5, "recall": 1.0, "threshold": 0.9},
+        "falsePositiveRate": {"detected": 0, "total": 5, "rate": 0.0, "maximum": 0.05}
+      }
+    },
+    "performance": {
+      "status": "PASS",
+      "targetHost": "http://127.0.0.1:8080",
+      "targetClassification": "non-production-required",
+      "targetHostValidatedNonProduction": true,
+      "loadExecuted": true,
+      "passed": true,
+      "requests": 2620496,
+      "errors": 0,
+      "timeouts": 59,
+      "p95LatencyMs": 18.0067,
+      "p99LatencyMs": 22.4131
+    },
+    "governance": {
+      "status": "PASS",
+      "reason": "Governance tests were included in the successful required filtered suite; prior evidence describes fail-closed policy and append-only audit behavior."
+    },
+    "auditCompliance": {
+      "status": "PASS",
+      "reason": "Audit/compliance tests were included in the successful required filtered suite; prior evidence covers hash-chain integrity, tampering and retention checks, privacy-minimized SIEM output, and append-only semantics."
+    }
+  },
+  "injectionPatternConfiguration": {
+    "path": "config/security/injection-patterns.yaml",
+    "available": false,
+    "validated": false,
+    "mode": "built-in-conservative-defaults",
+    "warning": "External injection-pattern configuration is unavailable; conservative built-in patterns are active. The external file was not validated."
+  },
+  "residualRisks": [
+    {
+      "risk": "Benchmark gate lacks measured end-to-end retrieval results.",
+      "followUp": "Run benchmark using the deterministic dataset and actual dense/hybrid retrieval paths, publish measured metrics, and evaluate regression thresholds."
+    },
+    {
+      "risk": "External injection-pattern configuration is unavailable and not validated.",
+      "followUp": "Provide and validate external configuration if required; retain conservative built-in fallback behavior until then."
+    },
+    {
+      "risk": "Loopback load evidence does not establish production readiness.",
+      "followUp": "No deployment was performed; obtain required reviewer and approver sign-offs before any production release decision."
+    },
+    {
+      "risk": "Required reviewer and approver sign-offs are not verified by available evidence.",
+      "followUp": "Obtain security, runtime, retrieval, performance, compliance, and platform approvals before any production release decision."
+    }
+  ],
+  "evidenceFiles": [
+    "artifacts/semantic-indexing/benchmarks/retrieval-benchmark-report.json",
+    "artifacts/semantic-indexing/benchmarks/retrieval-benchmark-summary.md",
+    "artifacts/semantic-indexing/safety/safety-coverage-report.json",
+    "artifacts/semantic-indexing/safety/safety-coverage-summary.md",
+    "artifacts/semantic-indexing/performance/load-test-report.json",
+    "artifacts/semantic-indexing/performance/load-test-summary.md",
+    "artifacts/semantic-indexing/audit/audit-compliance-summary.md"
+  ]
+}
