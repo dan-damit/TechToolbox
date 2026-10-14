@@ -1,9 +1,42 @@
 {
-  "nonProductionConfirmed": false,
-  "embeddingModel": "text-embedding-3-large",
-  "benchmarkCasesPath": "C:\\stage-data\\semantic-indexing\\benchmark-cases.json",
-  "corpusPath": "C:\\stage-data\\semantic-indexing\\corpus-records.jsonl",
-  "vectorIndexPath": "C:\\stage-data\\semantic-indexing\\index\\semantic-index.faiss",
-  "embeddingAuthSource": "env:STAGE_EMBEDDING_API_KEY",
-  "notes": "Copy this file to stage-benchmark-prereqs.json and replace with real stage paths/secret source."
+  "schemaVersion": "1.0",
+  "generatedUtc": "2026-10-14T00:07:19Z",
+  "datasetName": "semantic-indexing-prototype",
+  "status": "BLOCKED",
+  "validation": "NOT_RUN",
+  "blockedReason": "Benchmark prerequisite inputs are unavailable in the repository and no approved non-production embedding access was provided at runtime.",
+  "prerequisiteChecks": {
+    "nonProductionConfirmed": false,
+    "benchmarkCasesPath": {
+      "path": "C:\\stage-data\\semantic-indexing\\benchmark-cases.json",
+      "exists": false
+    },
+    "corpusPath": {
+      "path": "C:\\stage-data\\semantic-indexing\\corpus-records.jsonl",
+      "exists": false
+    },
+    "vectorIndexPath": {
+      "path": "C:\\stage-data\\semantic-indexing\\index\\semantic-index.faiss",
+      "exists": false
+    },
+    "embeddingAuthSource": "env:STAGE_EMBEDDING_API_KEY",
+    "embeddingAuthAvailable": false
+  },
+  "retrievalModes": [
+    "dense",
+    "hybrid-ready"
+  ],
+  "requireMeasuredResults": true,
+  "requests": 0,
+  "modes": [],
+  "externalInjectionPatternsAvailable": false,
+  "configurationWarning": "External injection-pattern configuration is unavailable; conservative built-in patterns are active. External file was not validated.",
+  "warnings": [
+    "No judged benchmark cases file was available at the configured path.",
+    "No corpus records file was available at the configured path.",
+    "No FAISS index file was available at the configured path.",
+    "Embedding authentication source was unavailable at runtime."
+  ],
+  "productionDeploymentPerformed": false,
+  "retrievedContentClassification": "untrusted-reference-material"
 }

@@ -1101,6 +1101,88 @@ function Write-TTAgentMarkdownLog {
         $RagStatusReason.TrimEnd()
     }
 
+    $ingestionSummaryCandidates = [System.Collections.Generic.List[string]]::new()
+    $repoRoot = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) '.'))
+    $defaultSummaryPaths = @(
+        (Join-Path $repoRoot 'artifacts\semantic-indexing\runtime\source-discovery-run-summary.md'),
+        (Join-Path $repoRoot 'artifacts\semantic-indexing\runtime\ingestion-run-summary.md')
+    )
+    foreach ($candidate in $defaultSummaryPaths) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+            $ingestionSummaryCandidates.Add($candidate)
+        }
+    }
+
+    $pathPattern = '(?im)[A-Za-z]:\\[^\r\n`"]+?(?:source-discovery|ingestion)[^\r\n`"]*?run-summary\.md'
+    foreach ($match in [System.Text.RegularExpressions.Regex]::Matches([string]$PromptText, $pathPattern)) {
+        $candidatePath = [string]$match.Value
+        if (-not [string]::IsNullOrWhiteSpace($candidatePath)) {
+            $ingestionSummaryCandidates.Add($candidatePath.Trim())
+        }
+    }
+    foreach ($match in [System.Text.RegularExpressions.Regex]::Matches([string]$StdOut, $pathPattern)) {
+        $candidatePath = [string]$match.Value
+        if (-not [string]::IsNullOrWhiteSpace($candidatePath)) {
+            $ingestionSummaryCandidates.Add($candidatePath.Trim())
+        }
+    }
+
+    $ingestionSummaryPath = $null
+    foreach ($candidate in ($ingestionSummaryCandidates | Select-Object -Unique)) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+
+        $resolvedCandidate = $null
+        try {
+            $resolvedCandidate = [System.IO.Path]::GetFullPath($candidate)
+        }
+        catch {
+            continue
+        }
+
+        if (Test-Path -LiteralPath $resolvedCandidate -PathType Leaf) {
+            $ingestionSummaryPath = $resolvedCandidate
+            break
+        }
+    }
+
+    $ingestionSummarySection = @(
+        '## Ingestion Run Summary Artifact'
+        ''
+        '~~~~text'
+    )
+    if ([string]::IsNullOrWhiteSpace($ingestionSummaryPath)) {
+        $ingestionSummarySection += 'Status: not found'
+        $ingestionSummarySection += '~~~~'
+    }
+    else {
+        $summaryContent = '(unavailable)'
+        try {
+            $rawSummary = Get-Content -LiteralPath $ingestionSummaryPath -Raw -ErrorAction Stop
+            if (-not [string]::IsNullOrWhiteSpace($rawSummary)) {
+                $trimmedSummary = $rawSummary.TrimEnd()
+                if ($trimmedSummary.Length -gt 8000) {
+                    $summaryContent = $trimmedSummary.Substring(0, 8000) + "`n...[truncated]"
+                }
+                else {
+                    $summaryContent = $trimmedSummary
+                }
+            }
+            else {
+                $summaryContent = '(empty file)'
+            }
+        }
+        catch {
+            $summaryContent = 'Error reading summary artifact: ' + $_.Exception.Message
+        }
+
+        $ingestionSummarySection += ('Path: {0}' -f $ingestionSummaryPath)
+        $ingestionSummarySection += 'Content:'
+        $ingestionSummarySection += $summaryContent
+        $ingestionSummarySection += '~~~~'
+    }
+
     $lines = @(
         '# Tech Agent Run'
         ''
@@ -1188,6 +1270,8 @@ function Write-TTAgentMarkdownLog {
         $rawPostflightReason
         '~~~~'
         ''
+    ) + @($ingestionSummarySection) + @(
+        ''
         '## Recovery'
         ''
         '~~~~text'
@@ -1201,8 +1285,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDQ9rWIjg5nDSKh
-# MsM7J2OflP4Tg0gHUfbjc/zTjbmpy6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBlU0UWbJtrLnqE
+# F7AAmRpU1oo/p9S2A67bR5hp6ifeLqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -1379,31 +1463,31 @@ function Write-TTAgentMarkdownLog {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCj
-# Tf+HbPqFTLfMZhOK2VjP3o+2mD7sUdS1Pt3OaRjmWDANBgkqhkiG9w0BAQEFAASC
-# AYCvVB3q0eRZp7gJmHkAV6qS+Z1Knta+v5ayr7T3VYuVl5ZWOuz+mfPtdo3npQ16
-# qNK6y8fzAH2/1AbMkfU+buRp7NL/8HbaDX3cwLSlZBixLHX2l37y0rftpT7JXJ8k
-# IXxc/pKj8BVRWDZD4gKvBMNnDRgR3J/UrFHsVpIOAVbOqBdA7zwVTJN6uauirxus
-# zY718FN3GQa4qA+JQSjX867qciTiHHPFU3P/cBIFwGtAqTZWYQqdPsEciNiKQUd8
-# VIQlfdlwl2kglsHMgxD0B7c/j43iEYG/fhMgeW8bFDZUfrGjE+VvQeUeUElomK9H
-# uEq1lxKJD/AA52UhISM7RqvkQh2t5SqIOewMiIMwNQP/L3/dFpTL4gOyom4fuYtS
-# 5qT5H9YbsUtYet1c7VyDgTqRhmn8cTLhJfapvSyziuY2NP6mKiKs6UIz0a6pEye/
-# 9/zHBRS4NpMmJyUjVtRGRYLr39VFzzASUNbNKrD04YdL949OvuyuF3L2ULtQ33K9
-# EvihggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAO
+# f7H+eHRdnuldKtwlj+bfjf1qY26JE3ipg4xbdHseXDANBgkqhkiG9w0BAQEFAASC
+# AYCdiQpRz6xj+oco+j25eegzMMJme9+ap+LVLcsAXe4NnuoyQgJ2+0mRWva+Jgik
+# JzYW3XEg/4viP15b/Pvd82K57256C6NnHBFxQjfi4ghsm9f39K6OZBSV9vmoZnig
+# zR7z1lKp3UDVIL9dSDCqGGEDMpIlEmoMIPZpjBMwL+KQKmObDq5mjcBfCcayHK0p
+# FzDoj67wqKlwK6sspHGVSgPHherm7EUOX5mlKmRQNCmSChQqzGOQNpveqQA1Q9Yf
+# QjE5q51bzdMLMg7Qpen/6CRjiYEVTQxtMIwrzNdB2y5paM9RW2iYEdxVb/VZiaGh
+# fAuk+MWSkDyXURkf/DXP1dYN2yA5wEhWg9msODdvdMYhKL94/oVhSzbCh4m7Y2Kb
+# bwJe/jamqnaCSil+Ye/4ZV4hPBuRPXTaBI52QaGtLEWfkx4vga61OLWSyB5qOf+R
+# Gy5fgpZhz8yM4rApUknDxHP2NL7CH4DmBKnsYel53MHB18/xyXeDbLtqCbDKe2Uf
+# 56yhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDEwMDUxOTM1WjAvBgkqhkiG
-# 9w0BCQQxIgQgCLKAwurBq5f46k3rkPLnMF+zQbocNFi0A5x2erF4504wDQYJKoZI
-# hvcNAQEBBQAEggIAT/JTH6UiEK+k3dJsXJf5Ku7FtJ4EiahOcsCT8gk3+uGJ1hSv
-# 9vJBQCtjt9EPSB/hTrm6sPS6AGAIeriqj0VHNZpQ83VIj3v0W5ZEVKhX3JfVdA4/
-# HExLlI3fgQqIv/i4izennm/bSeKNf1eddKgQv8q8bF0bG2EeD7eYroFaIQblXHbg
-# XgZx9Z7vbCkK2swTZG+VfJ3VJseCXGl+wnrccX/vUVd4Ek05GL7NvEPcgC7jpTkQ
-# JA3um9j/YQUqtgP4KGDm4Pkd9OBIIoP3R+CDEVR/QyLD+1OfMoZSfVLxYoAmsVRC
-# +de2zR8i9jyMpHEfEHkXqYJMA3RY2e0eNiMDjaX4ZOqXxsJouAFgk2GD5JtPNU/9
-# VLoC6tYr2Pj8jKL/uGYZK7Wzt3xWw7+U8JmFS66+C7rrUxqijvrZTQ0NVX5NuwCR
-# QtbaKbimSXWZcaq4CshXdSa0cbEYoylzXXsZI7dvDy2Wc5PvOOhAzg7/W35qn5kq
-# zh+lbAfHQBfGHgZR4KRMfSigw/HA0HaFO44157mXl1Jqc32ptOkglyBtBrXJHBwX
-# OsQYk+l1zbLdzzDsO1unpJmVEJ2G9meIWSO4m/5zCuZqcsKhmdPuJx8Asxcuk3hV
-# vhsOn1NmDMt6ZJ5x1qJpI7S/w3MLomdPs07rNZOYoOJ6YtEJoqVsk45cVPQ=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDE0MDAzODExWjAvBgkqhkiG
+# 9w0BCQQxIgQgntzrW1mUQpAPnrEmUgcpKpUpGhC05p+0ydAlCDrCIJ8wDQYJKoZI
+# hvcNAQEBBQAEggIAa7/NBltGv48X0yJUCd4L1DgoEQOKP9AsaN3hvsMCj+W8QH5K
+# yf0G5z0f37YpVvEjkg9jzpUTrT/JwZYvt7Pc8d47j5vmQ3tnL4Y1A2NDJCqCvNt0
+# RvTI0ErsCDuLklQwMj2IKBvS8hlvtH61eHwRZ4JTfjF/Ra2UAdzBLwwLKf8C/dBc
+# yEFxEhkIIEnAyiJn+dEn636tjXubRu3DZg51YpHiO2b0CjLHoT6Kua3HxkDheA8w
+# RUhYdBq+FntHmq6Cbg4iIFRsErPVpdXN3ZHNe1ZHooNiXl8q6AJrmTZnN0OFZQl4
+# xQGnS8UzTa47r5J5HNo7ZPONBqp9vrlsYWu79L9s2bnZ0fbK6Vpgt0rnOlawvkj6
+# 4O6xZN3jC1k1pKX8HM2mc6tPJfxX7tA5C/BSnf4h3AA65Ap3I3LGmljXjoLeD/Jt
+# IF9jmtLGMXpdcCkOWXfD+vEC43UmG2JWIg/H8/Tjg/XzM7RLKfjVi3t/XH6D9vFq
+# SwczX7vjJEGbZMLm0v6GWFqata4hT8i5T/Ui4iXww17j0rX/W5Zrq9PYRpgM4DzK
+# XctMg3dzKIdAgPBdaq4ZuR1+PaeR7+mrAQuGodpNDPaL5h6/LuR3CUynPxdIqf60
+# SFbh5D7hnb2A+T748cchqOsZQ8pItv/BEOn3IArZXBRJuOWSE6BcbEugoG8=
 # SIG # End signature block

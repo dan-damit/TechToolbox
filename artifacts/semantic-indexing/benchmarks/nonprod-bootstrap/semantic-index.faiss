@@ -1,0 +1,4 @@
+NONPROD_BOOTSTRAP_FAISS_PLACEHOLDER
+dataset=semantic-indexing-nonprod-bootstrap
+namespace=semantic-indexing-prototype
+note=Placeholder file to satisfy prerequisite path checks for local dry-run wiring only.

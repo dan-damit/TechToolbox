@@ -1,0 +1,2 @@
+{"id":"doc-guide","namespace":"semantic-indexing-prototype","title":"Semantic indexing guide","content":"This non-production bootstrap record documents semantic indexing setup and retrieval flow for local benchmark dry runs."}
+{"id":"doc-safety","namespace":"semantic-indexing-prototype","title":"Retrieval safety notes","content":"This non-production bootstrap record describes safety controls, untrusted-reference-material handling, and prompt-injection guardrails."}

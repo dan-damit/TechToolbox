@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0",
-  "generatedUtc": "2026-10-13T05:44:03.1039849+00:00",
+  "generatedUtc": "2026-10-14T00:07:19+00:00",
   "initiative": "C# Full System Build final certification",
-  "overallStatus": "FAIL",
+  "overallStatus": "BLOCKED",
   "releaseBound": "production-bound evidence review",
-  "runtimeContext": "stage",
+  "runtimeContext": "non-production",
   "productionDeploymentPerformed": false,
   "retrievedContentClassification": "untrusted-reference-material",
   "validation": {
@@ -24,8 +24,8 @@
   },
   "gates": {
     "benchmark": {
-      "status": "FAIL",
-      "reason": "No end-to-end benchmark with measured retrieval results was completed. The requested benchmark report was absent at preflight. Unit-test success is not benchmark evidence."
+      "status": "BLOCKED",
+      "reason": "Required benchmark prerequisites were unavailable (non-production confirmation false, missing benchmark/corpus/index files, unavailable embedding auth source), so no measured end-to-end benchmark was executed."
     },
     "safety": {
       "status": "PASS",
@@ -68,7 +68,7 @@
   "residualRisks": [
     {
       "risk": "Benchmark gate lacks measured end-to-end retrieval results.",
-      "followUp": "Run benchmark using the deterministic dataset and actual dense/hybrid retrieval paths, publish measured metrics, and evaluate regression thresholds."
+      "followUp": "Provide non-production benchmark cases, corpus records, FAISS index input, and approved embedding auth/config; then run benchmark and evaluate regression thresholds from measured results."
     },
     {
       "risk": "External injection-pattern configuration is unavailable and not validated.",

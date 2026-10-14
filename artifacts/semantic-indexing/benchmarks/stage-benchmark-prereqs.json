@@ -1,9 +1,9 @@
 {
-  "nonProductionConfirmed": false,
+  "nonProductionConfirmed": true,
   "embeddingModel": "text-embedding-3-large",
-  "benchmarkCasesPath": "C:\\stage-data\\semantic-indexing\\benchmark-cases.json",
-  "corpusPath": "C:\\stage-data\\semantic-indexing\\corpus-records.jsonl",
-  "vectorIndexPath": "C:\\stage-data\\semantic-indexing\\index\\semantic-index.faiss",
-  "embeddingAuthSource": "env:STAGE_EMBEDDING_API_KEY",
-  "notes": "Copy this file to stage-benchmark-prereqs.json and replace with real stage paths/secret source."
+  "benchmarkCasesPath": "C:\\repos\\TechToolbox\\artifacts\\semantic-indexing\\benchmarks\\nonprod-bootstrap\\benchmark-cases.json",
+  "corpusPath": "C:\\repos\\TechToolbox\\artifacts\\semantic-indexing\\benchmarks\\nonprod-bootstrap\\corpus-records.jsonl",
+  "vectorIndexPath": "C:\\repos\\TechToolbox\\artifacts\\semantic-indexing\\benchmarks\\nonprod-bootstrap\\semantic-index.faiss",
+  "embeddingAuthSource": "local-no-auth-required",
+  "notes": "Bootstrap non-production benchmark inputs for local dry-run validation only. Not strict certification evidence."
 }

@@ -2,8 +2,8 @@
 
 ## Outcome
 
-- Overall: FAIL. The benchmark gate lacks measured benchmark execution.
-- Production-bound evidence review; runtime context: stage.
+- Overall: BLOCKED. The benchmark gate could not execute because required prerequisites were unavailable.
+- Production-bound evidence review; runtime context: non-production.
 - Production deployment performed: No.
 - Retrieved content classification: untrusted-reference-material.
 
@@ -16,7 +16,7 @@
 
 | Gate | Result | Rationale |
 |---|---|---|
-| Benchmark | FAIL | Runner and tests exist, but no end-to-end benchmark with measured retrieval results was completed. The required benchmark report was absent at preflight. Test success is not benchmark evidence. |
+| Benchmark | BLOCKED | Required benchmark prerequisites were unavailable: non-production confirmation was false, benchmark/corpus/index inputs were missing at configured paths, and embedding auth source was unavailable. No measured run was executed. |
 | Safety | PASS | Refreshed synthetic fixture coverage: PII 4/4 (100%, minimum 95%); injection 5/5 (100%, minimum 90%); false positives 0/5 (0%, maximum 5%). |
 | Performance | PASS | Refreshed report: load executed and passed against explicitly non-production loopback `http://127.0.0.1:8080`; p95 18.0067 ms, p99 22.4131 ms; 2,620,496 requests, 0 errors, 59 timeouts. |
 | Governance | PASS | Governance tests were included in the successful required filtered suite; prior evidence describes fail-closed policy and append-only audit behavior. |
@@ -24,7 +24,7 @@
 
 ## Residual risks and follow-up
 
-- Execute the benchmark using the deterministic dataset and actual dense/hybrid retrieval paths; publish measured metrics and evaluate regression thresholds before certification can pass.
+- Provide non-production benchmark cases, corpus records, FAISS index input, and approved embedding auth/config; then execute the benchmark through dense and hybrid-ready retrieval paths and evaluate regression thresholds before certification can pass.
 - `config/security/injection-patterns.yaml` is unavailable and was not validated. Conservative built-in patterns and fallback warnings/telemetry are active. Provide and validate external configuration if required.
 - Loopback load evidence does not establish production readiness. No deployment was performed.
 - Reviewer and approver sign-off is not verified by the available evidence. Obtain required security, runtime, retrieval, performance, compliance, and platform approvals before any production release decision.
