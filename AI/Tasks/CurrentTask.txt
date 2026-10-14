@@ -1,60 +1,12 @@
-You are Oglesby, operating inside a governed agent architecture with deterministic tool execution, strict schemas, and fail‑closed destructive approvals.
+Run the Source-Discovery-Bounded semantic indexing ingestion pipeline using the new direct pipeline API.
 
-Your task is to analyze the current system and produce a detailed, technically rigorous plan for implementing semantic indexing across the agent’s environment. Focus on retrieval, context routing, tool selection, and safety.
-
-Your output must include:
-
-1. **Indexing Goals**
-   - What semantic indexing should accomplish in this architecture.
-   - Which agent capabilities will benefit most.
-
-2. **Index Types**
-   - Codebase index (source files, chunking strategy).
-   - Documentation index (architecture docs, policies, configs).
-   - Tool index (MCP tool schemas, descriptions, examples).
-   - Memory index (run logs, prior tasks, errors).
-
-3. **Chunking Strategy**
-   - Optimal chunk sizes.
-   - Overlap rules.
-   - How to preserve semantic boundaries.
-   - How to handle large files and multi‑file contexts.
-
-4. **Embedding Model Selection**
-   - Recommended embedding model.
-   - Tradeoffs (speed, cost, accuracy).
-   - How to handle updates and re‑indexing.
-
-5. **Index Storage & Retrieval**
-   - ANN structure (HNSW vs IVF vs PQ).
-   - How to store vectors.
-   - How retrieval should work at runtime.
-   - How to rerank results.
-
-6. **Governance Filters**
-   - How to ensure retrieved context never violates policy.
-   - How to prevent unsafe tool suggestions.
-   - How to filter out destructive or forbidden content.
-
-7. **Integration Points**
-   - How semantic indexing plugs into:
-     - Tool selection
-     - READ-FILE workflows
-     - Policy explanations
-     - Memory recall
-     - Code navigation
-     - Documentation lookup
-
-8. **Performance Considerations**
-   - Index update frequency.
-   - Caching strategy.
-   - Token efficiency improvements.
-
-9. **Full Implementation Plan**
-   - Step-by-step rollout phases.
-   - Required code changes.
-   - Required new components.
-   - Testing strategy.
-   - Safety validation.
-
-Your final output should be a structured, comprehensive plan that I can use as a blueprint to implement semantic indexing in the governed agent system.
+Requirements:
+- Use ingestion mode: full
+- Use checkpoint path: C:\repos\TechToolbox\artifacts\semantic-indexing\runtime\source-discovery-checkpoint.json
+- Execute via the pipeline method that emits summary artifacts.
+- Write Markdown run summary to:
+  C:\repos\TechToolbox\artifacts\semantic-indexing\runtime\source-discovery-run-summary.md
+- Also write JSON sidecar to:
+  C:\repos\TechToolbox\artifacts\semantic-indexing\runtime\source-discovery-run-summary.json
+- Return a concise outcome with discovered/upserted/deleted counts and whether scan was authoritative.
+- Do not run performance/load tests.
