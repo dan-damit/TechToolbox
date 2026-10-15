@@ -130,13 +130,12 @@
       "retrieval": {
         "enabled": true,
         "backend": "hybrid",
-        "model": "gpt-6-luna",
+        "model": "qwen3.5:9b",
         "embeddingModel": null,
         "maxContextTokens": 4096,
         "maxResults": 5,
         "timeoutSeconds": 10,
         "directories": [
-          "/*",
           "src/TechToolbox.Agent",
           "src/TechShell/src",
           "Private",
@@ -192,7 +191,7 @@
         "hybridStateWorldWeight": 0.5
       },
       "policyStartupMode": "Observe",
-      "allowedPathRoots": ["C:\\repos\\TechToolbox", "C:\\SCS-bak-10-15-2026"],
+      "allowedPathRoots": ["C:\\repos\\TechToolbox"],
       "provider": "ollama",
       "model": "qwen3.5:9b",
       "executionMode": "execute",
@@ -252,6 +251,10 @@
       "adaptiveLimitProfiles": {
         "enabled": true,
         "modelMatchers": [
+          {
+            "pattern": "*sol*",
+            "profile": "frontierXL"
+          },
           {
             "pattern": "*luna*",
             "profile": "frontierXL"
