@@ -136,6 +136,7 @@
         "maxResults": 5,
         "timeoutSeconds": 10,
         "directories": [
+          "C:\\SCS-bak-10-15-2026",
           "src/TechToolbox.Agent",
           "src/TechShell/src",
           "Private",
@@ -147,6 +148,8 @@
           ".txt",
           ".cs",
           ".json",
+          ".py",
+          ".html",
           ".yml",
           ".yaml",
           ".ps1",
@@ -188,8 +191,8 @@
         "hybridLocalMemoryWeight": 0.5,
         "hybridStateWorldWeight": 0.5
       },
-      "policyStartupMode": "Enforce",
-      "allowedPathRoots": ["C:\\repos\\TechToolbox"],
+      "policyStartupMode": "Observe",
+      "allowedPathRoots": ["C:\\repos\\TechToolbox", "C:\\SCS-bak-10-15-2026"],
       "provider": "ollama",
       "model": "qwen3.5:9b",
       "executionMode": "execute",

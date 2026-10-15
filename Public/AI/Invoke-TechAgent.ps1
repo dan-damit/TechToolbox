@@ -1253,6 +1253,46 @@ Hard requirement:
             }
         }
 
+        $allowedPathRoots = @()
+        $allowedPathRootsValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'allowedPathRoots'
+        if ($null -ne $allowedPathRootsValue) {
+            $seenAllowedPathRoots = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            foreach ($root in @($allowedPathRootsValue)) {
+                $rootText = [string]$root
+                if ([string]::IsNullOrWhiteSpace($rootText)) {
+                    continue
+                }
+
+                try {
+                    $normalizedRoot = [System.IO.Path]::GetFullPath($rootText.Trim())
+                }
+                catch {
+                    throw ("Invalid settings.agent.allowedPathRoots entry '{0}': {1}" -f $rootText, $_.Exception.Message)
+                }
+
+                if ($seenAllowedPathRoots.Add($normalizedRoot)) {
+                    $allowedPathRoots += $normalizedRoot
+                }
+            }
+        }
+
+        $resolvedPolicyStartupMode = $null
+        $policyStartupModeValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'policyStartupMode'
+        if ($null -ne $policyStartupModeValue) {
+            $policyStartupModeText = [string]$policyStartupModeValue
+            if (-not [string]::IsNullOrWhiteSpace($policyStartupModeText)) {
+                switch -Regex ($policyStartupModeText.Trim()) {
+                    '^(?i:observe|enforce)$' {
+                        $resolvedPolicyStartupMode = $Matches[0].ToLowerInvariant()
+                        break
+                    }
+                    default {
+                        throw ("Invalid settings.agent.policyStartupMode value '{0}'. Supported values: observe, enforce." -f $policyStartupModeText)
+                    }
+                }
+            }
+        }
+
         $resolvedSearchWebApiKey = $null
         if (-not [string]::IsNullOrWhiteSpace($searchWebApiKeyEnvVar)) {
             $searchWebApiKeyResolution = Resolve-TTAgentStoredSecret -ConfigObject $cfg -SecretKeyName 'searchWebApiKeyEncrypted' -EnvVarName $searchWebApiKeyEnvVar
@@ -1444,6 +1484,8 @@ Hard requirement:
             SignedFilePolicy               = $(if ([string]::IsNullOrWhiteSpace($SignedFilePolicy)) { 'ignore' } else { $SignedFilePolicy })
             DiagnosticTracePath            = $diagnosticTracePath
             ExpectedOutputPath             = $expectedOutputPath
+            AllowedPathRoots               = @($allowedPathRoots)
+            PolicyStartupMode              = $resolvedPolicyStartupMode
             AllowedFetchHosts              = @($allowedFetchHosts)
             SearchWebProvider              = $searchWebProvider
             SearchWebEndpoint              = $searchWebEndpoint
@@ -1627,6 +1669,22 @@ $config.ReturnMetadata = [bool]$request.ReturnMetadata
 $config.SignedFilePolicy = if ([string]::IsNullOrWhiteSpace([string]$request.SignedFilePolicy)) { 'ignore' } else { [string]$request.SignedFilePolicy }
 $config.DiagnosticTracePath = if ([string]::IsNullOrWhiteSpace([string]$request.DiagnosticTracePath)) { $null } else { [string]$request.DiagnosticTracePath }
 $config.ExpectedOutputPath = if ([string]::IsNullOrWhiteSpace([string]$request.ExpectedOutputPath)) { $null } else { [string]$request.ExpectedOutputPath }
+$config.AllowedPathRoots = [System.Collections.Generic.List[string]]::new()
+if ($null -ne $request.AllowedPathRoots) {
+    foreach ($rootEntry in @($request.AllowedPathRoots)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$rootEntry)) {
+            $null = $config.AllowedPathRoots.Add([string]$rootEntry)
+        }
+    }
+}
+if (-not [string]::IsNullOrWhiteSpace([string]$request.PolicyStartupMode)) {
+    $parsedPolicyStartupMode = $null
+    if (-not [System.Enum]::TryParse([TechToolbox.Agent.Registry.ToolPolicyStartupMode], [string]$request.PolicyStartupMode, $true, [ref]$parsedPolicyStartupMode)) {
+        throw ("Invalid policy startup mode '{0}' in child request payload." -f [string]$request.PolicyStartupMode)
+    }
+
+    $config.PolicyStartupMode = [TechToolbox.Agent.Registry.ToolPolicyStartupMode]$parsedPolicyStartupMode
+}
 $config.RecentHistoryItemsInPrompt = [int]$request.PromptHistoryItems
 $config.AllowMetaTools = [bool]$request.AllowMetaTools
 $config.LlmEndpoint = if ([string]::IsNullOrWhiteSpace([string]$request.LlmEndpoint)) { $null } else { [string]$request.LlmEndpoint }
@@ -2886,8 +2944,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWZMhcO01kRCF2
-# v2AvCcSeQ/BIOQIBXE/CQMx+cHSt4qCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB/ON1GvRD9k+9Z
+# BwXYiCqXBXJYZ8SjUVJQ9fS+Mx1fA6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3064,31 +3122,31 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBh
-# 2isFt8U0EVb1fwCpsq+9E2yLJBSeeZXlCbUWOqcX7jANBgkqhkiG9w0BAQEFAASC
-# AYAT7/QEYxBzfjwJSc8iY1CDhTfwxee//jp5Y1xHJBbY4cpuCJj9W/DeBBaRbi6r
-# 8TuI1tSaWAU57tHFfTs+ggLWx9tQabk0El+i3OHRqxK9I4wuqILnIUrn0/IKPDak
-# 7MME5ywwxID16oI3uNusJDaKXg7jBfbUA5TX63nB2nfRjzfoEW215WiFNZBffekB
-# VOK3zN86nA/ydacfWk+j4xHH540x0/1WUSXo1kDKfe516Tp/K9B3DQCEoqmB0NXl
-# ACKfxCn5tKKPmViBtnyeBw+sffm3r8qMa7SU7aOGqMOumzjNUREWn3xZUiWXdfEq
-# X10e1RDs0HlG4NnQeq1136EI+IyBOlPJKgAZsZ+t/ijqwZQeAwypQSf5J4sPdkBV
-# yI72gN+0/Dujhae6uZwkx1bQiCJKFI1H+oXWUeov0K3PT6WJ69Xuk+rtLPH5XP8j
-# RdlSi9UwQvDvJ1qOcr+RBaJMsB2XRKyi3qx1UJ6LLIy1tUBcspnUGhdnzdiJEa+4
-# zIKhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCA
+# hfrURgA2vVZ/07Ol36mPenc0dxQP9sNttEAJ+Dq1MzANBgkqhkiG9w0BAQEFAASC
+# AYAVBAidvLWS0TiCikIwb+DePigZGSCBdpYInRgagf4tJ1WTGXCEyT1JY4nO+Ltg
+# fY3VHjbsChtxU14qdlH7DroN3OkXKDwyXzrR8RHYuJUpH5KzIwAbqwxpl8njIHD7
+# HfWmmbhPzn3GwXIDGtCaTw9UJhYlRRiGCrFX1Ue/0TrawcbJyYPL/1LD10EyV0zV
+# qV7NzNEDV+CchGQR/bVF/Wf2EMtYayrJ8XZKuRjyYLHG+hLjhKG6QdHz3IeY0jza
+# v9qcpnRymuPl8IVJGkeiej9edRLv5X+awL8a9utS9GJRb1kMMJomPtpQTZCzUrmr
+# auDCAwObuP172BXHHXnmXAC6TFQIi8f0AGFKQFYPT9muU0GcJDeh5QDE61VQKHi0
+# T/Tu1g6wrED9H7vJhAJhEOv/bIAULv/r/Ld3miexsmA36TVF0HY/JiFKXV72wFlb
+# 6rGUnkvImzpSBF3pbPyM+dySvHVZ4/aTZdyoZ1dpSnQTPb2GejJ12wEuoVQhrOFN
+# uhGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDExMDM0NDMwWjAvBgkqhkiG
-# 9w0BCQQxIgQgrCsiQwygo51RRuQPHe0HHf9kJNHOeI37jVkSGOqyYeEwDQYJKoZI
-# hvcNAQEBBQAEggIAFNzUvYDyZmSehYv6piIdmF2qusD1f+rnJcA+w5nJrUtfBlHn
-# N4tbgEGFCZMl3wcRsfuS7jXQ+1nB7BJGKVGb+2p95X4VBi6I0NIUUUD0LHGGMVhx
-# ofG4hEmZhWNc75bPXtCBZjWAEwcE4WvhxfiN5BPqJfM4XLwNmYWgeaUu04vZtOJT
-# /bJ6O+ywAs4MIzb3q2TDrsDNIG9aQifq3GGowqi4sv9wBAQGUev4AIGigG+M1uxJ
-# lNwB43fA/EJPFVEaFCq+eUcNh0FTUGim4h6InTgVeN1Xj6aNxpkSmNVVimRlj+Zg
-# Zi2AcKFv50/3IvgjRE3TTHtaG4ceMkqRj3UtdMzs+dghqtnSKjzMoJ5prVN3ixov
-# T8dWXsBsdNzcqIHmepgaywnYuU3n7m3bJPyDasuHp27pTGcd51YMfmm/UBqOfG+i
-# yrwrv8L573e/9M2RSqFjXXayEeeF2M9V1hmfygGqog2GsFdizRfK2lK60SOmBRb4
-# 04sB33gvaVdR+71RQCERIb5xTbYu3NzX9wHqg+0x+iinm1Mvq5LKK5F1yNfxCzd4
-# qRJJ9wA1miqV0F7jOPz2es3P/oiKaYBrcIj88FtSKlHif9UX7kaA+4XHsp0MkRMy
-# 5K6hp2Rika01RXeUR9zJBH18KaEfRzIPINooVJLe0Jf0LwpxRkvlFw3aT1o=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDE1MTYzNzQ4WjAvBgkqhkiG
+# 9w0BCQQxIgQgDHdMU7G0Vl+iDtAOz97q4NH92smc2qKylQdoG6SNqSMwDQYJKoZI
+# hvcNAQEBBQAEggIAr1uCPinfWB4YgqAFPBwTurTniLT6WIZuF6owtwM/DBl4qC8b
+# vJImyqiStHPlgPWpZ3PjrAeIGanHrrzOyFOCwuybgS3NVg8aGx2bA+L2o4+Qdzpm
+# iUHHeumxVhQJbX4KuJ3zU9gMRfT2D1/0UkBH0w7fNfgXlNHPlJoQoItivbxqphOu
+# GY82fKvlO1lOzkXzHAHIqVvhby9P9DOBpAqLHZ33YnE8Yz0UqN+R1nrwAx2GUUI4
+# K5Kz9BuTepZKDPYsMNXyscFpQsLtVV7XSH0HIqZdop7HsTk2cgVsS6HD9l7HMxB2
+# Yxi44BxrjrzYgRQPYQcJqs67lfvt1J/KHJIWJTMnl4rttQqKSVjxF1/nUS9KT9hR
+# Atev6m22zFsiigE3N1RfS16GmqutpZ9YpJGuymzwArfBCQY0uXcNMYKzF9Ot3kp+
+# LMDYMm9IhwOmVfR1xKY5Hp5R0hfVC7dxPyGerdaQxNnv5G2NhFRjGCfiV/JgkyS/
+# Mi0OpcXjDoHZfk1EYZY1DHf124s5CcdSVPFPdBBFw20kQapQTUAeM9rTSN/jPc2L
+# wzLkrsujy6enjq25V02z8Ji/MzriSH+cvaV5XbdRdk19zZ1SMCH3/P2ycnJv770N
+# XejXt0OesGUFhG/kM8u3akZjYiSoNwrjZrdoYCrinat+AhbA2HGUedfbdrI=
 # SIG # End signature block
