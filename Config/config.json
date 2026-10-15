@@ -130,13 +130,13 @@
       "retrieval": {
         "enabled": true,
         "backend": "hybrid",
-        "model": "qwen3.5:9b",
+        "model": "gpt-6-luna",
         "embeddingModel": null,
         "maxContextTokens": 4096,
         "maxResults": 5,
         "timeoutSeconds": 10,
         "directories": [
-          "C:\\SCS-bak-10-15-2026",
+          "/*",
           "src/TechToolbox.Agent",
           "src/TechShell/src",
           "Private",
