@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/AGIReadmeHeader.png" alt="TechToolbox" width="100%" style="max-width:900px; opacity:1;" />
+  <img src="assets/TechToolbox-Banner-10152026.png" alt="TechToolbox" width="100%" style="max-width:900px; opacity:1;" />
 </p>
 
 <p align="center">
