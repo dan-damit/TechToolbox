@@ -1,17 +1,72 @@
-Review the implemented polling patch.
-Patch located at: C:\SCS-bak-10-15-2026\data\templates\data\daily_count.html
-Diff located at: C:\SCS-bak-10-15-2026\PollingPatchReport.md
+Rewrite and refresh the architecture overview document so it matches the current implementation and recent architecture adjustments since the original document was created.
 
-Address only the remaining high-confidence issue:
+Critical guardrail
+- Do not trigger the orchestrator's DECISION_NO_PROGRESS_GUARD by repeating the same decision shape or equivalent progress signature without a real change in state, evidence, or outcome.
+- The agent must make progress on every decision cycle: each step should either change the target, evidence, tool call, or conclusion, or explicitly terminate with a valid final answer. Repeatedly returning the same decision pattern is not acceptable.
+- If evidence is stale or ambiguous, vary the plan, cite new facts, or state the limitation instead of cycling on the same no-progress loop.
 
-If an AJAX request never settles, polling can remain permanently blocked.
+Scope
+- Update the existing architecture document for the implementation under src/TechToolbox.Agent.
+- Use the current code as the source of truth; do not rely on assumptions from the original document alone.
+- Treat this as a source-grounded architecture rewrite, not a generic summary.
 
-Implement the smallest safe change that introduces a bounded client-side request timeout and guarantees release of the in-flight state.
+Primary objective
+- Rebuild TechAgent_Architecture_Breakdown.md so it reflects the current architecture as it exists in the repository today, including the changes and adjustments that have happened since the document's inception.
 
-Do not modify any other behavior.
+Requirements
+- Review the current implementation across the major agent layers, especially:
+  - AgentCore composition root and run flow
+  - AgentConfiguration and policy/configuration model
+  - mode detection and execution modes
+  - prompt construction and prompt policy sections
+  - LLM client abstraction and provider factory behavior
+  - orchestrator responsibilities and partial-file structure
+  - tool registry, provider discovery, and execution pipeline
+  - PowerShell, external, and MCP tool execution paths
+  - MCP lifecycle, OAuth, identity, redaction, and bootstrap behavior
+  - memory, heuristics, scoring, and routing logic
+  - observability and UI/runtime concerns
+  - safety and authorization boundaries
+- Incorporate architecture changes that have occurred since the original version, including:
+  - MCP-first tool discovery and provider composition
+  - removal of legacy compatibility/provider bridge assumptions
+  - current path authorization and destructive-tool policy model
+  - two-stage execution planner/executor flow and resilience behavior
+  - current runtime budgets, retry/fallback logic, and cancellation controls
+  - revised prompt and orchestration patterns
+  - any newer configuration or safety boundaries now enforced in code
+- Identify the primary request-to-result flow end to end.
+- Call out execution modes, safety boundaries, tool policy boundaries, and runtime constraints accurately.
+- Include extension points and test coverage areas relevant to the current implementation.
+- Distinguish architecture overview from exhaustive implementation detail.
+- Ensure each architectural observation is supported by a concrete implementation fact from the current repo rather than a generic statement.
 
-Produce:
-- files changed
-- unified diff
-- rationale
-- rollback plan
+Output expectations
+- Produce a revised markdown architecture document that is accurate for the current codebase.
+- Keep the document structured and readable, with updated sections covering:
+  - high-level architecture
+  - primary request-to-result flow
+  - execution modes
+  - configuration model
+  - tool architecture
+  - execution and safety boundaries
+  - orchestrator responsibilities
+  - prompt and policy pipeline
+  - MCP and OAuth architecture
+  - observability and UI integration
+  - extension points
+  - test coverage map
+  - operational summary
+- Ensure the final document reflects the current architecture adjustments rather than a historical snapshot.
+- Explicitly mention when a conclusion depends on code evidence versus inferred behavior.
+
+Important constraints
+- Do not rewrite the document as a generic tutorial or a high-level product description.
+- Do not invent features or behaviors not present in the code.
+- Stay grounded in the repository and current implementation.
+- If something is uncertain, say so explicitly and keep the language precise.
+- Prefer new evidence, changed state, or explicit boundary explanations over repeated re-assertions of the same decision.
+- Keep the rewrite iterative and non-redundant; avoid repeated loops, duplicate section text, or identical decision cycles.
+
+Deliverable
+- A refreshed, source-grounded version of TechAgent_Architecture_Breakdown.md that brings the document up to date with the current architecture while maintaining valid, non-repetitive progress throughout the task.

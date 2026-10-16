@@ -1,244 +1,251 @@
-# TechToolbox Agent Architecture Breakdown
+# TechAgent architecture breakdown (source-grounded current snapshot)
 
-- Scope
-  - This document is a source-grounded overview of the implementation under `src/TechToolbox.Agent`.
-  - It describes the major layers, responsibilities, execution flow, safety boundaries, and extension points visible in the project structure and core implementation.
-  - It is an architecture overview, not a claim that every implementation detail or runtime deployment setting is captured here.
+This document is a current, source-grounded summary of the implementation under `src/TechToolbox.Agent` as reflected in the repository code inspected for this review. It is intentionally scoped to what is evidenced in the code and avoids treating deployment assumptions, host wiring, or UI runtime behavior as guaranteed project features unless they appear in the inspected implementation.
 
-- High-level architecture
-  - Public entry point and composition root
-    - `Core/AgentCore.cs` exposes synchronous and asynchronous agent run methods.
-    - It converts parameter-based calls into `AgentConfiguration` instances for compatibility and composition.
-    - It coordinates MCP initialization, tool discovery, tool wrapping, optional memory initialization, LLM client creation, orchestration, optional two-stage execution, and result metadata.
-  - Configuration and policy
-    - `Configuration/AgentConfiguration.cs` centralizes model, provider, execution mode, output contract, quality, reasoning, runtime profile, resilience, tool, memory, search, shell, and safety settings.
-    - `Configuration/AgentMode.cs` and `Configuration/AgentModeDetector.cs` define and detect operating modes.
-    - `Configuration/McpConfiguration.cs` and `Configuration/McpOAuthConfiguration.cs` hold MCP and OAuth-related settings.
-  - Prompt construction
-    - `Prompting/PromptBuilder.cs` and its partial files assemble system and goal context.
-    - `Prompting/PromptPolicy.cs` and `Prompting/PromptSections.cs` define prompt policy and reusable prompt sections.
-  - LLM abstraction
-    - `Llm/ILlmClient.cs` defines the client contract.
-    - `Llm/LlmClient.cs` provides shared client behavior.
-    - `Llm/OpenAiCompatibleLlmClient.cs` supports OpenAI-compatible transports.
-    - `Llm/LlmClientFactory.cs` constructs the provider client and resolves runtime-profile model settings.
-  - Orchestration
-    - `Orchestrator/AgentOrchestrator.cs` and its partial files implement the model/tool decision loop, validation, retries, budgets, cancellation, finalization, and related routing behavior.
-  - Tool registry and providers
-    - `Registry/IToolProvider.cs` defines the provider abstraction.
-    - `Registry/ToolRegistry.cs` builds the discovered tool specification registry.
-    - Generic, external, PowerShell, and MCP providers supply tool definitions through provider-specific implementations.
-  - Tool execution
-    - `Execution/IToolExecutor.cs` defines execution contracts.
-    - `Execution/PowerShellToolExecutor.cs` handles PowerShell-backed tools.
-    - `Execution/McpToolExecutor.cs` handles MCP-backed tools.
-    - `Tools/ToolWrapper.cs` converts registered tool specifications into callable wrappers and applies execution-related policy inputs.
-  - MCP subsystem
-    - `Mcp/IMcpClient.cs`, `Mcp/McpBootstrap.cs`, and `Mcp/McpLifecycle.cs` cover client setup and lifecycle.
-    - `Mcp/McpIdentity.cs` and `Mcp/McpIdentityRegistry.cs` represent server identities.
-    - `Mcp/McpAuthChallenge.cs`, `Mcp/McpOAuth.cs`, `Mcp/McpOAuthFactory.cs`, and `Mcp/McpOAuthSessionManager.cs` cover OAuth challenge, creation, and session-management concerns.
-    - `Mcp/McpRedaction.cs` provides MCP-specific redaction behavior.
-  - Memory and heuristics
-    - `Memory/MemoryStore.cs`, `Memory/MemoryModels.cs`, and `Memory/MemoryLearner.cs` provide optional persistent run-history and learning support.
-    - `Heuristics/HeuristicScoringEngine.cs`, `HeuristicRoutingPipeline.cs`, `HeuristicCostModel.cs`, `PatternEvidenceMatcher.cs`, and `SessionReinforcement.cs` support evidence-based routing and scoring behavior.
-  - Verification
-    - `Tests/` contains coverage for core execution, orchestration, tools, reliability, memory, MCP, OAuth integration, and routing.
+## Scope and method
 
-- Primary request-to-result flow
-  - A caller invokes `AgentCore.RunAgent` or `AgentCore.RunAgentAsync`.
-  - Input validation rejects an empty prompt or null configuration.
-  - Parameter-based overloads map individual arguments into `AgentConfiguration`.
-  - Optional runtime-profile and resilience JSON payloads are parsed with defaults used when payloads are absent or invalid.
-  - MCP configuration is validated before provider discovery and client creation.
-  - `McpBootstrap.InitializeAsync` creates the MCP runtime when configured.
-  - Configured tool providers are combined with MCP providers.
-  - `ToolRegistry.BuildToolRegistry` creates the tool specification map.
-  - Meta-tools are filtered unless `AllowMetaTools` is enabled.
-  - Chat mode restricts the registry to the configured web-discovery tools exposed by the active registry and provider set.
-  - Empty non-chat registries terminate with an explicit discovery error.
-  - `ToolWrapper.BuildTools` creates executable tool delegates and receives safety, fetch-host, search, shell-allowlist, and executor settings.
-  - An optional `MemoryStore` is initialized when `MemoryPath` is configured.
-  - `LlmClientFactory` creates the LLM client.
-  - `AgentOrchestrator` receives the client, registry, tool delegates, memory, model, safety settings, iteration limits, output settings, prompt-preflight data, and complete configuration.
-  - The orchestrator runs the prompt/tool loop and returns an `AgentResult`.
-  - Optional metadata includes provider, model, execution settings, used tools, tool-call count, duration, retry information, fallback information, and iteration-limit status.
-  - MCP resources are disposed through the asynchronous MCP runtime lifetime.
+This is an architecture overview, not an exhaustive map of every runtime deployment setting or every possible provider configuration. The current implementation indicates a layered design in which:
 
-- Execution modes
-  - `execute`
-    - Supports the full configured tool workflow.
-    - May use the optional two-stage planner/executor flow when enabled for the applicable provider and policy.
-  - `plan`
-    - Produces planning-oriented output rather than performing the normal execution workflow.
-  - `analyze`
-    - Provides analysis behavior controlled by the orchestrator and prompt policy.
-  - Output contracts include `markdown`, `plain-text`, and `json`.
+- `AgentCore` composes the runtime,
+- configuration objects encode policy, routing, and runtime limits,
+- tool providers and registries separate discovery from execution,
+- the orchestrator owns the iterative decision loop,
+- MCP and PowerShell execution are separated behind provider-specific executors,
+- memory and retrieval are optional context sources,
+- safety and authorization are enforced through policy and execution-time checks.
 
-- Optional two-stage resilience flow
-  - The two-stage path is enabled only when the configured resilience policy enables it, the provider is Ollama, and the execution mode is `execute`.
-  - A planning configuration changes the execution mode to `plan`, reduces the planning iteration budget, and selects the configured reasoning profile when available.
-  - The planning prompt requests numbered steps, assumptions, and stop criteria.
-  - A terminal or empty planning result causes a fallback to the normal single-stage execution.
-  - Otherwise, the original task is executed with the planning result supplied as guidance.
-  - The execution stage is instructed to verify each step with current tools and system/file state.
+Where evidence is incomplete or runtime-specific, the text below states that explicitly.
 
-- Configuration model
-  - Provider and model controls
-    - Provider identifiers include Ollama, OpenAI, OpenAI-compatible, and Azure OpenAI.
-    - Endpoint, deployment, and API-version properties support provider-specific transport configuration.
-    - `Model` may identify a concrete model or participate in automatic routing.
-  - Runtime profiles
-    - Named profiles define provider, model, context budget, output budget, sampling values, and descriptions.
-    - The configuration distinguishes default, reasoning, coding, and fallback profile names.
-    - Resolved profile limits and diagnostics are retained on the configuration for downstream use and metadata.
-  - Reasoning and quality
-    - Quality profiles are `precise`, `balanced`, and `creative`.
-    - Thinking modes are `auto`, `on`, and `off`.
-    - Reasoning effort supports `low`, `medium`, `high`, and `xhigh` when applicable.
-    - Prompt preflight score, warning count, and critical count are passed into orchestration.
-  - Runtime limits
-    - Maximum iterations are configurable.
-    - The orchestrator run deadline is clamped by configuration resolution to 300 through 1800 seconds.
-    - The documented default max-iteration fallback is 50 when configuration cannot provide a positive value.
-  - Memory and diagnostics
-    - `MemoryPath` enables persistent memory.
-    - Recent history injection is configurable.
-    - Diagnostic traces and expected output paths can be supplied.
-    - `ReturnMetadata` enables structured output containing result text and run metadata.
+## High-level architecture
 
-- Tool architecture
-  - Tool discovery is provider-based rather than hard-coded solely in the orchestrator.
-  - `McpBootstrap` discovers tools dynamically from configured MCP servers and applies server-level safety filters before registration.
-  - `McpToolProvider` supplies tools exposed by initialized MCP servers.
-  - Legacy compatibility/provider-bridge discovery adapters were removed; MCP provider composition is now the primary tool discovery path.
-  - `ExternalToolProvider` supports external tool definitions.
-  - `McpToolSchemaTranslator` adapts MCP schemas into the internal tool model.
-  - `ToolPolicy` provides policy controls around tool availability and execution boundaries.
+### Composition root and orchestration entry
 
-- Execution and safety boundaries
-  - PowerShell execution is separated behind `PowerShellToolExecutor` and bridge implementations.
-  - `Execution/PowerShellBridge.cs` and its partial files handle compatibility execution paths and argument normalization when a provider surface still routes through that layer.
-  - `Execution/ExecutionSecurity.cs`, `Execution/AdvancedHardening.cs`, and `Execution/ExecutionArchitecture.cs` represent execution-security and hardening concerns.
-  - `Execution/AsyncExecution.cs` and `Execution/Reliability.cs` support bounded asynchronous execution and reliability behavior.
-  - Shell-capable tool surfaces remain subject to executable allowlists, working-directory authorization, timeout bounds, and output caps when the provider exposes them.
-  - Fetch operations are controlled by an allowed-host list; an empty list blocks external fetch requests.
-  - Destructive operations require the configured confirmation state.
-  - Signed-file behavior is controlled by `ignore`, `warn`, or `require` policy values.
-  - Meta-tools are disabled by default to prevent recursive orchestration and nested assistant loops.
-  - Expected output-path configuration can constrain where `WRITE-FILE` is permitted to write.
+The observed composition path starts in `AgentCore`. Current code shows it constructing runtime configuration, validating inputs, resolving optional memory, choosing retrieval providers, creating the LLM client, and then handing the assembled runtime to `AgentOrchestrator` for the run loop.
 
-- Orchestrator responsibilities
-  - `AgentOrchestrator` is split into focused partial files rather than one monolithic implementation.
-  - Run-loop files cover iteration, control flow, tool flow, tool execution, post-processing, helpers, and decision repair.
-  - Supporting files cover reasoning, prompt heuristics, path inference, finalization, decision validation, resilience, state, utilities, and weather routing.
-  - `RunBudget` and `OrchestratorStateModel` represent run limits and state tracking.
-  - Tool-loop guards protect against repeated or non-progressing calls.
-  - Decision validation handles structured model decisions and repair behavior.
-  - Finalization normalizes and returns the selected output contract.
-  - Resilience features include retry tiers, fallback behavior, iteration-limit handling, strict runtime-mode budgets, cancellation budgets, and terminal-failure detection.
-  - The project README highlights runtime safeguards such as strict budgeting and Markdown heading de-duplication.
+The source also shows `AgentCore` handling several runtime concerns that are relevant to architecture:
 
-- Prompt and policy pipeline
-  - Prompt sections separate system instructions, goal context, policy material, and other reusable context.
-  - Prompt policy establishes behavioral constraints and output expectations.
-  - Prompt builders incorporate configuration and runtime context into the LLM request.
-  - Heuristic scoring and routing can use prompt complexity and evidence patterns to inform model or profile selection.
-  - Memory can contribute recent run-history context when enabled.
+- parameter-based overloads are converted into `AgentConfiguration`,
+- runtime-profile and resilience JSON payloads are parsed with defaults when absent or invalid,
+- MCP configuration is validated before provider discovery,
+- tool providers are combined, including MCP-backed providers,
+- optional memory is initialized when `MemoryPath` is configured,
+- the LLM client is created through `LlmClientFactory`,
+- `AgentOrchestrator` is invoked with tool registry, LLM client, memory, safety settings, iteration limits, and output settings.
 
-- MCP and OAuth architecture
-  - MCP is modeled as an independent subsystem rather than as an LLM provider setting.
-  - MCP configuration is validated before provider discovery and client construction.
-  - Bootstrap produces MCP providers and, when available, an MCP executor.
-  - The tool-wrapper layer can compose MCP execution with the PowerShell executor through `McpCompositeToolExecutor`.
-  - MCP lifecycle management is asynchronous and owned by the core run path.
-  - OAuth-related classes separate identity, authentication challenge, OAuth construction, and session management responsibilities.
-  - Redaction is represented explicitly in the MCP layer for handling sensitive protocol data.
-  - The project contains dedicated MCP configuration, lifecycle, redaction, and OAuth integration tests.
+This suggests a single composition root with a clear dependency boundary, rather than a monolithic orchestration implementation.
 
-- Observability and UI integration
-  - `Execution/Observability.cs` and `Execution/OrchestratorObservability.cs` provide execution and orchestration observability components.
-  - UI observability safety is separated in `UI/ObservabilitySafety.cs`.
-  - UI contracts and view models are separated from runtime services.
-  - `UI/PowerShellUiRuntimeService.cs` integrates UI execution with the runtime.
-  - `UI/StateConcurrency.cs` addresses UI state concurrency.
-  - `UI/Accessibility.cs` and the accessibility tests provide UI accessibility coverage.
-  - The project README documents stdout parsing fallback that preserves embedded answer Markdown while filtering runtime status noise.
+### Configuration and policy model
 
-- Extension points
-  - Add or replace an LLM transport through `ILlmClient` and the client factory.
-  - Add tool sources through `IToolProvider` and register them in configuration.
-  - Add execution backends through `IToolExecutor`.
-  - Add or modify provider-backed PowerShell execution surfaces through the bridge/provider layers.
-  - Add MCP server integrations through MCP configuration, identity, bootstrap, provider, and executor components.
-  - Add routing or evidence behavior through the heuristics pipeline and scoring components.
-  - Add mode-specific prompting through prompt sections, policy, and builder components.
-  - Extend UI behavior through the UI contracts, view models, and runtime service boundaries.
+`AgentConfiguration` is the central runtime object. The current code exposes configuration for:
 
-- Test coverage map
-  - Core and orchestration tests cover agent execution, state models, chat-mode orchestration, cancellation, budgets, retries, and final behavior.
-  - LLM tests cover clients and transport behavior.
-  - Tool tests cover wrappers, policies, provider integration boundaries, and reliability.
-  - MCP tests cover configuration, lifecycle, schema registry, redaction, and OAuth integration.
-  - Heuristic and memory tests cover scoring, routing evidence, and learning behavior.
-  - UI tests cover foundation contracts, preflight, state concurrency, accessibility, and observability safety.
-  - Weather routing tests cover the specialized weather path.
+- model/provider selection,
+- execution mode and output contract,
+- quality and reasoning behavior,
+- runtime profiles,
+- resilience and retry behavior,
+- tool provider registration,
+- memory and retrieval settings,
+- fetch and path authorization boundaries,
+- shell execution policy,
+- safety and signed-file settings.
 
-- Operational summary
-  - The architecture is a layered, provider-driven agent runtime.
-  - `AgentCore` composes configuration, providers, executors, memory, LLM transport, and orchestration.
-  - `AgentOrchestrator` owns the iterative decision process and resilience controls.
-  - Registries and providers decouple tool discovery from execution.
-  - Separate executors isolate PowerShell, MCP, and external-process concerns.
-  - Configuration and policy objects make safety, routing, runtime budgets, output contracts, and resilience explicit.
-  - Tests are organized around the major boundaries, including MCP/OAuth and UI integration.
+`AgentMode.cs` and `AgentModeDetector.cs` define mode semantics, while `McpConfiguration` and `McpOAuthConfiguration` hold MCP and OAuth-specific settings. The architecture therefore treats policy as explicit configuration rather than hidden behavior in the orchestrator.
 
----
+### Prompt construction and prompt policy
 
-Tech agent completed.
-## Summary
+The prompt pipeline is split into reusable prompt sections, prompt policies, and builders. The code indicates a structured separation between:
 
-In this code, `allowedPathRoots` is an authorization boundary for write tools, not a blanket grant of filesystem write access. The policy checks that every supplied target path resolves within a configured root. It does not itself perform the write or override operating-system permissions.
+- system instructions,
+- goal/context payloads,
+- policy and safety framing,
+- retrieval evidence,
+- memory/history context,
+- tool instructions and output expectations.
 
-The core logic is in `src/TechToolbox.Agent/Registry/ToolPolicy.cs`; the orchestrator calls it from `AgentOrchestrator.ToolPolicy.cs`, and destructive approvals are enforced again by the tool execution layer.
+This is consistent with a design where the LLM call is not a raw dump of the task but a policy-shaped, bounded prompt.
 
-## Write-tool policies
+### LLM abstraction and provider selection
 
-`BuildPolicies()` registers these write-capable tools as mutations with `MutationType.Update` and `EnforcePath: true`:
+The LLM layer is separated behind `ILlmClient` and `LlmClientFactory`. The current source shows factory logic that:
 
-- `mcp.filesystem.write_file` and `mcp.filesystem.append_file`: require `path` and `content`. Their allowed arguments include `createDirectories`, `createIfMissing`, `dryRun`, `encoding`, `lineEnding`, and `truncateFirst`.
-- `mcp.filesystem.replace_in_file`: requires `path`, `oldText`, and `newText`; accepts `replaceAll`, `dryRun`, and `expectedReplacements` as well.
-- `mcp.filesystem.edit_file`: requires `path` and `edits`; accepts `dryRun` as well.
+- normalizes provider aliases,
+- checks supported providers and model capabilities,
+- chooses runtime profiles for the prompt,
+- creates provider-specific clients, including OpenAI-compatible transport handling,
+- rejects unsupported provider/model combinations.
 
-All four policies have `RequiresAuthorization: true`, `RequiresConfirmation: false`, a 16,000-character argument limit, and a 20-second policy timeout. The explicit approval behavior comes from their destructive-tool classification and approval-token checks, not the `RequiresConfirmation` property.
+The code suggests that provider selection and runtime-profile selection are explicit concerns, rather than hidden within the orchestrator.
 
-## Authorization sequence
+## Primary request-to-result flow
 
-1. **The orchestrator builds the request.** `TryAuthorizeToolPolicy()` parses the tool arguments, determines destructive status with `Safety.IsDestructive(toolName)`, resolves workspace context from configured trusted roots, and supplies `_allowedPathRoots` to `ToolPolicyRegistry.Authorize()`.
-2. **The write operation is classified as destructive.** `Safety.IsDestructive()` explicitly lists the filesystem write, append, replace, and edit tools (and their uppercase aliases). The orchestrator may ask its host approval callback for approval when no token is present; if approved, it mints a token and injects it into the arguments.
-3. **The policy validates the request.** `Authorize()` rejects unknown tools, unexpected or missing arguments, oversized arguments, disallowed execution modes, missing required workspace authorization context, and invalid paths. For destructive requests, it first validates the supplied approval token without consuming it.
-4. **Path containment is checked.** Since each write policy has `EnforcePath: true`, `ValidatePaths()` extracts the path arguments and rejects the request if there is no usable candidate path, no configured root, or any candidate falls outside all roots. A rejection is returned as `PATH_NOT_ALLOWED`.
-5. **The orchestrator rechecks before execution.** `ExecuteToolAsync()` checks authorization before proceeding and again immediately before handing arguments to the tool executor. For `replace_in_file`, it also rechecks before its file preflight. That preflight reads the target and requires an existing file and an exact `oldText` match; without `replaceAll`, multiple matches block execution.
-6. **The execution layer consumes destructive approval.** The MCP executor validates the token with `consumeToken: true` before invoking the remote tool. The wrapper also consumes it for delegate-based execution. The tests cover replay rejection after token consumption. Thus, in the normal orchestrator flow, authorization checks can validate the token before execution, while the executor consumes it for the actual call.
+The current observed flow is:
 
-## Exact path boundary behavior
+1. Caller invokes `AgentCore.RunAgent` / `RunAgentAsync`.
+2. Input validation rejects empty prompts or invalid configuration.
+3. Parameter overloads map to `AgentConfiguration`.
+4. Retrieval, resilience, and runtime-profile defaults are resolved.
+5. MCP configuration validation occurs before tool discovery.
+6. `McpBootstrap.InitializeAsync` creates the MCP runtime when configured.
+7. Tool providers are discovered and composed.
+8. `ToolRegistry.BuildToolRegistry` produces the tool specification registry.
+9. Meta-tools are filtered unless allowed by configuration.
+10. `ToolWrapper.BuildTools` creates callable delegates with execution policy inputs.
+11. An optional `MemoryStore` is initialized if configured.
+12. `LlmClientFactory` creates the LLM client.
+13. `AgentOrchestrator` executes the iteration loop and returns an `AgentResult`.
+14. MCP resources are disposed through the runtime lifecyle.
 
-`TrustedPathRoots.Canonicalize()` trims and fully resolves configured roots, deduplicates and sorts them using platform-appropriate case comparison, and rejects invalid roots and roots that traverse reparse points. `IsCandidateAllowed()` fully resolves each candidate against `Environment.CurrentDirectory` (the code comment says this matches the filesystem executor's base for relative arguments). It then allows an exact root match or a path whose next character after the root is a directory separator. This separator check prevents a sibling such as `C:\repo-other` from matching a root of `C:\repo`.
+The design is therefore composition-first and policy-aware. A request is not just “prompt the model”; it is assembled from configuration, tool registry, memory, safety state, and active providers before the decision loop begins.
 
-Candidate paths are also rejected for certain invalid or unsafe forms, including NUL characters, non-fully-qualified rooted paths, and reparse-point traversal. A candidate need not already exist to pass this policy check: the code checks reparse points when paths exist but does not require the target file or directory to exist. Whether parent directories are created is governed separately by the tool's execution behavior and its creation arguments.
+## Execution modes
 
-The configured roots, rather than `WorkspaceRoot` or the candidate path itself, determine containment. Tests explicitly cover multiple roots, traversal, missing trusted roots, symlink/reparse-point traversal, and a candidate outside the configured root. They also show that an empty `content` string is accepted by the policy for `write_file`.
+The current source indicates these primary execution modes:
 
-## What authorization does not guarantee
+- `execute`: the normal tool-enabled run path.
+- `plan`: a planning-oriented path that produces a plan rather than normal execution behavior.
+- `analyze`: analysis-oriented execution under orchestrator and prompt policy.
+- output contracts include Markdown, plain text, and JSON.
 
-- A path under an allowed root passes this policy check; that alone does not guarantee the host process or remote filesystem can write there.
-- The policy does not establish that directories exist or that creation flags are enabled.
-- `ToolPolicyRegistry.Authorize()` validates destructive tokens without consuming them. Consumption is an execution-layer check, so calling the registry method alone is not equivalent to running the complete orchestrated tool flow.
-- `AgentOrchestrator.ToolPolicy.cs` has an observe-mode bypass for a tool with no registered policy. That is separate from the registered write-tool policies described above; enforce mode is intended to reject missing policy coverage.
+The implementation also includes a two-stage planner/executor path, but the code indicates this is gated by provider and resilience settings rather than universally active. The current source shows that the planner path is enabled only when the configured resilience policy allows it, the provider is Ollama, and execution mode is `execute`.
+
+## Configuration model
+
+The architecture is driven by explicit configuration objects rather than scattered ad hoc state.
+
+### Provider and model controls
+
+The code supports provider identifiers including Ollama, OpenAI, OpenAI-compatible, and Azure OpenAI. Endpoint, deployment, API version, and model selection are all represented in configuration and resolved through the client factory.
+
+### Runtime profiles
+
+The runtime profile model distinguishes default, reasoning, coding, and other profiles. The code also includes logic that resolves profile-limited values and retains the effective profile information for downstream use.
+
+### Safety and policy controls
+
+The current implementation exposes policy settings for:
+
+- allowed fetch hosts,
+- allowed path roots,
+- destructive-tool confirmation,
+- signed-file handling,
+- shell allowlists,
+- working-directory constraints,
+- output-path restrictions,
+- confirm/authorize gates for destructive operations.
+
+This is a meaningful part of the architecture and should be treated as a first-class design boundary, not a secondary concern.
+
+## Tool architecture
+
+The current architecture separates tool discovery and execution.
+
+### Providers and registry
+
+The code shows `IToolProvider` and `ToolRegistry`. The observed model is provider-driven rather than hard-coded within the orchestrator. MCP bootstrap discovers server tools and registers provider-backed tool definitions. Generic, external, PowerShell, and MCP providers all participate through the provider abstraction.
+
+The architecture therefore separates:
+
+- what a tool is (`ToolRegistry` / tool schema),
+- where it comes from (provider/discovery layer),
+- how it executes (`IToolExecutor`),
+- how it is authorized and constrained (policy layer).
+
+### Execution backends
+
+The execution layer currently includes distinct handling for PowerShell and MCP tool execution. The source shows dedicated executors and bridging behavior, with policy checks being applied before the actual tool call. The architecture is therefore not a single “generic shell runner”; it is a layered execution model with provider-specific execution semantics.
+
+### Security and authorization boundaries
+
+The code is specifically concerned with path authorization, destructive-tool classification, confirmation, and execution enforcement. The current implementation treats write tools as mutation operations that require path validation and approval under configured authorization conditions. The architecture is explicit that authorization is not the same as raw filesystem permission; it is an application-level gate layered above the underlying OS and executor behavior.
+
+## Retrieval, memory, heuristics, and LLM routing
+
+The current source shows retrieval as a separate context-preparation layer. `AgentCore` can resolve a retrieval provider based on configuration and pass it to the orchestrator. The retrieval boundary enforces timeouts, cancellation handling, payload caps, and normalization before content reaches the prompt.
+
+The implementation indicates the following design intent:
+
+- retrieval is separate from transport,
+- retrieval content is untrusted evidence and not policy,
+- provider selection is explicit,
+- payloads are bounded,
+- provider status and candidate counts are tracked in metadata.
+
+`MemoryStore` is optional and persists structured memory state, history, and indexed entries. The code indicates bounded history windows, persistence safeguards, and privacy-aware handling. The architecture treats memory as contextual evidence that can influence prompting, but not as a higher-authority source than current user intent or verified current tool results.
+
+`HeuristicScoringEngine` and the routing pipeline are advisory. The current implementation makes clear that safety gates, authorization checks, and execution policy outrank heuristics and routing recommendations. `LlmClientFactory` also includes prompt-complexity heuristics and runtime-profile selection, further separating “how to route or choose a model” from “whether execution is allowed.”
+
+This is an important architectural boundary: heuristics influence decisions, but they do not replace safety or authorization.
+
+## MCP and OAuth architecture
+
+The project treats MCP as a first-class subsystem, not merely an LLM setting. Current code and tests cover:
+
+- MCP configuration,
+- bootstrap and lifecycle,
+- tool discovery and schema translation,
+- server identities,
+- OAuth challenge/session handling,
+- redaction behaviors,
+- executor composition.
+
+The architecture separates MCP identity, auth challenge generation, session management, and tool execution. This is a materially different design from a simple “tool names in configuration” model.
+
+One important caution: the implementation appears to be more mature in MCP/tool policy than in UI/runtime host integration. The inspected code evidence supports MCP and orchestration behavior clearly; it does not make equivalent claims about broader deployment or host UI surfaces unless those code paths are actually present.
+
+## Observability and UI/runtime concerns
+
+The code shows observability components for execution traces, redaction, and bounded event reporting. Observability is treated as metadata and diagnostics, not as a permission boundary. The current implementation additionally includes retry, iteration-limit, and status metadata in the result structure.
+
+The inspected `src/TechToolbox.Agent` tree does not show a distinct UI runtime layer comparable to the agent runtime itself. The source evidence supports:
+
+- console iteration signals,
+- execution and orchestrator observability,
+- redacted trace behavior,
+- metadata reporting.
+
+It does not support a broad claim that the project owns GUI, accessibility, or host UI runtime behavior beyond the code actually present.
+
+## Extension points
+
+The current implementation suggests a few natural extension seams:
+
+- Add or replace an LLM provider through `ILlmClient` and the factory.
+- Add new tool sources via `IToolProvider` and register them in the runtime configuration.
+- Add new execution backends through `IToolExecutor`.
+- Add new MCP integrations through MCP bootstrap, schema translation, lifecycle, and auth configuration.
+- Extend retrieval through `IRetrievalContextProvider` and bounded retrieval-context logic.
+- Extend memory and learning through `MemoryStore` and `MemoryLearner` while preserving provenance and privacy boundaries.
+- Extend heuristics and routing behavior without allowing them to override safety or authorization.
+
+These extension points are structurally visible in the code, but the exact host integration points for runtime deployment remain outside the inspected source.
+
+## Test coverage map
+
+The repository includes tests covering major boundaries. Based on the current source tree, these are the most relevant categories:
+
+- composition and orchestration: `AgentCoreTests`, `AgentOrchestratorTests`, `OrchestratorStateModelTests`
+- cancellation, scheduling, retries, and hardening: orchestration reliability and hardening tests
+- prompt and retrieval: prompt policy and retrieval provider tests
+- MCP and OAuth: lifecycle, configuration, redaction, schema, and OAuth integration tests
+- memory and heuristics: memory and scoring tests
+- LLM client behavior: LLM transport/client tests
+- safety and policy: tool-policy and authorization tests
+
+This indicates broad boundary coverage, but it does not prove complete coverage for every deployment environment or every provider variant.
+
+## Operational summary
+
+The current implementation reflects a layered agent runtime with a clear separation of responsibilities:
+
+- `AgentCore` composes configuration, providers, LLM client, memory, and orchestration state.
+- `AgentOrchestrator` owns the bounded iterative decision loop and tool policy checks.
+- tool discovery and execution are separated from policy and authorization.
+- MCP is a first-class subsystem with its own lifecycle and auth concerns.
+- retrieval and memory are optional context sources rather than execution authority.
+- heuristics are advisory and never a substitute for safety gates and policy enforcement.
+
+The strongest evidence in the current code points to a provider-driven, policy-aware runtime with explicit safety boundaries. The weakest area in the code evidence is broad host/UI/runtime assumptions, which should be treated cautiously unless directly confirmed by the inspected implementation.
 
 ## Bottom line
 
-A write is authorized by the application when the tool has a registered
-path-enforcing mutation policy, its arguments pass validation, every target
-resolves within one of the configured `allowedPathRoots`, and the destructive
-approval token passes the checks required by the execution path. Actual success
-still depends on the executor and underlying filesystem permissions.
+The current code supports a defensible architectural description of a layered, provider-driven agent runtime with explicit configuration, tool policy, retrieval, memory, and MCP boundaries. It does not support a blanket claim that every deployment, host integration, or UI concern is implemented in this project unless that behavior is directly visible in the inspected source.
