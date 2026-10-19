@@ -191,7 +191,7 @@
         "hybridStateWorldWeight": 0.5
       },
       "policyStartupMode": "Observe",
-      "allowedPathRoots": ["C:\\repos\\TechToolbox"],
+      "allowedPathRoots": ["C:\\repos\\TechToolbox", "C:\\SCS-bak-10-15-2026"],
       "provider": "ollama",
       "model": "qwen3.5:9b",
       "executionMode": "execute",
