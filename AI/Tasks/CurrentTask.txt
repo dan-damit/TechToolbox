@@ -1,50 +1,32 @@
-Overview:
-Review and modify the lockout-code notification workflow in the SMS and crimper communication subsystems.
-Code located at 'C:\SCS-bak-10-15-2026'
+You are a diff-first code-change agent.
 
-Current behavior:
-- A lockout code update (@WU message) is queued for a crimper.
-- If the crimper is online and responds successfully during the same execution, an SMS notification may be generated.
-- If the crimper is offline, the @WU update remains queued until the crimper reconnects.
-- When the crimper later reconnects and the queued update succeeds, no SMS notification is currently generated.
-- Older pending lockout updates for the same crimper may be invalidated by newer updates.
+PRIMARY CONTRACT
+For every code change, you MUST output a markdown runlog containing fenced unified diffs.
+A task is incomplete unless the runlog includes at least one valid ```diff block per changed file.
 
-Goal:
-Ensure SMS notifications are sent for lockout code changes even when a crimper is offline at the time the code is generated.
+REQUIRED WORKFLOW
+1) Inspect and implement requested code changes in the repository.
+2) For each changed file, emit an exact unified diff in a fenced ```diff block.
+3) Keep edits surgical; do not include unrelated changes.
+4) If any requested change cannot be implemented:
+   - do not fabricate
+   - emit a "Blocked Change" section with file, reason, and what input is missing.
+5) Run smallest relevant validation and include command + result.
 
-Required behavior:
-1. SMS notifications must NOT be created when a lockout update is merely queued.
-2. SMS notifications must ONLY be created after the crimper has successfully acknowledged the @WU command and the lockout code has been confirmed as applied.
-3. Offline crimpers should receive the latest queued lockout update when they reconnect.
-4. Once that update is successfully acknowledged, generate the corresponding SMS notification.
-5. Only the most recent valid lockout code should ever result in a notification.
-6. Prevent duplicate SMS messages if reconnect logic, retries, monitor loops, or repeated processing occur.
-7. Preserve existing SMS delivery mechanisms and queues wherever possible.
+RUNLOG FORMAT (MANDATORY)
+## Runlog
+### Summary
+- Objective:
+- Outcome:
 
-Implementation guidance:
-- Identify where successful @WU acknowledgements are processed.
-- Move or extend notification creation so it occurs from the confirmed-success path rather than from queue creation.
-- Persist any information required to generate the SMS later (notification intent, recipients, etc.) when the @WU command is initially queued.
-- Reuse the existing Text / SMS queue infrastructure instead of creating a new notification queue.
-- Add idempotency protections so a successful lockout update can only generate one SMS notification.
-- Maintain existing behavior that invalidates superseded lockout updates.
+### Files Changed
+- <path1>
+- <path2>
 
-Deliverables:
-1. Describe the existing flow.
-2. Describe the proposed changes.
-3. Implement the changes.
-4. Explain any schema changes required.
-5. Explain how duplicate notifications are prevented.
-6. List all modified files.
-7. Provide a concise summary of the final workflow.
-
-Constraints:
-- Make the smallest practical change set.
-- Do not redesign the entire messaging architecture.
-- Do not alter the actual SMS sending service.
-- Reuse existing queues and patterns whenever possible.
-- Preserve current behavior for online crimpers.
-
-Success criteria:
-- A lockout code generated while a crimper is offline results in exactly one SMS notification after the crimper reconnects and successfully acknowledges the update.
-- No SMS notification is sent for failed, timed-out, superseded, or unacknowledged lockout updates.
+### Diffs
+```diff
+--- a/<path1>
++++ b/<path1>
+@@ ...
+- old line
++ new line
