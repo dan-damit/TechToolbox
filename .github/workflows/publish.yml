@@ -174,20 +174,33 @@ jobs:
             'CodeAnalysis',
             'LogsAndExports',
             'Bin',
+            'Assets',
             'Build.ps1',
+            'Invoke-GitPullAndBuild.ps1',
             'TechToolbox.code-workspace',
             'dotnet-tools.json',
             'PSScriptAnalyzerSettings.psd1',
             'VERSIONING.md',
             'CHANGELOG.md',
+            'UPDATABLE-HELP.md',
+            'WINGET-SHELL-RELEASE.md',
             'commands.md',
-            'Config/Build.ps1',
-            'Config/build.config.json',
             'AI/memory.json',
             'AI/memory.history.json',
             'packaging',
-            'src'
+            'src',
+            'Tests'
           )
+
+          $allowedConfigFiles = @('config.json', 'config.secrets.example.json')
+          $configDir = Join-Path $PWD 'Config'
+          if (Test-Path -LiteralPath $configDir -PathType Container) {
+            $exclude += Get-ChildItem -LiteralPath $configDir -Force | Where-Object {
+              $allowedConfigFiles -notcontains $_.Name
+            } | ForEach-Object {
+              "Config/$($_.Name)"
+            }
+          }
 
           $excludeJson = $exclude | ConvertTo-Json -Compress
           $delimiter = "EOF$([Guid]::NewGuid().ToString('N'))"
