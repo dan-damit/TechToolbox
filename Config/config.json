@@ -161,6 +161,7 @@
           ".targets"
         ],
         "persistencePath": "%TT_Home%\\Artifacts\\semantic-indexing\\VectorStore",
+        "autoIngestBeforeRun": true,
         "includeGlobs": [],
         "excludeGlobs": [
           ".git/**",

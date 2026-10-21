@@ -418,6 +418,6 @@
     "file:config.secrets.example.json",
     "file:config.secrets.json"
   ],
-  "updatedAtUtc": "2026-10-14T04:18:50.0295479+00:00",
-  "lastScanAuthoritativeComplete": true
+  "updatedAtUtc": "2026-10-21T02:52:33.9042248+00:00",
+  "lastScanAuthoritativeComplete": false
 }

@@ -183,13 +183,47 @@ foreach ($item in 1..2) {
             $resolved | Should -Match 'C:\\Temp\\Invoke-RebootRemoteHost.ps1'
         }
     }
+
+    It "Selects the newest ingestion summary artifact when multiple candidates exist" {
+        InModuleScope TechToolbox {
+            $tempRoot = Join-Path $env:TEMP ('tt-agent-ingestion-summary-' + [guid]::NewGuid().ToString('N'))
+            $null = New-Item -ItemType Directory -Path $tempRoot -Force
+
+            $olderPath = Join-Path $tempRoot 'source-discovery-run-summary.md'
+            $newerPath = Join-Path $tempRoot 'ingestion-run-summary.md'
+            Set-Content -LiteralPath $olderPath -Value '# older'
+            Set-Content -LiteralPath $newerPath -Value '# newer'
+
+            [System.IO.File]::SetLastWriteTimeUtc($olderPath, [datetime]::UtcNow.AddDays(-7))
+            [System.IO.File]::SetLastWriteTimeUtc($newerPath, [datetime]::UtcNow)
+
+            $selection = Resolve-TTAgentIngestionSummaryArtifact -CandidatePaths @($olderPath, $newerPath)
+
+            $selection.Path | Should -Be $newerPath
+            $selection.LastWriteTimeUtc | Should -Be ([System.IO.File]::GetLastWriteTimeUtc($newerPath))
+
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Returns null selection when no ingestion summary candidates exist" {
+        InModuleScope TechToolbox {
+            $selection = Resolve-TTAgentIngestionSummaryArtifact -CandidatePaths @(
+                '',
+                'C:\path\that\does\not\exist\ingestion-run-summary.md'
+            )
+
+            $selection.Path | Should -BeNullOrEmpty
+            $selection.LastWriteTimeUtc | Should -BeNullOrEmpty
+        }
+    }
 }
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDTnhdKKfiEszUX
-# Xg3eZLwKpPkHBy0ek5f2FlEK2L+ZMKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCSIwzCqMcTWmWC
+# JmqPhRSmUNAwvSkAg6w4JbVZK9fm3aCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -366,31 +400,31 @@ foreach ($item in 1..2) {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCa
-# MjXZ3LkOPIKQQMUfcbohiYwzNy+sZ225SSVJQ+qjIzANBgkqhkiG9w0BAQEFAASC
-# AYBi7y/HoQ1oBDCjjCXw+m0bUJ4AGtZgIt41AAgWhD7eFk6hcNNquu3yRb4Y5Vri
-# yUz4RtmafLS1dTYELpG+Uf23DeGa08jYy9/qSB8id2VjZf1Qqg5JJvH+ZeLMY5a8
-# UnSSK8gl7WIar8VXk8eQtw2wW4Y73ay2jyY3tRZnlUENGFFmCiaZZXsrxmZ6mG+d
-# gqPNrr28GIuzSsDJv4aocdsLWIV/IPkiTfJrrG1t++/xJMRwpzvIuXjtL+1cSqkX
-# 9zH/VnazzizUP3iAdU83OWGYwWGZnTU9OD39eEahL1F1ZCBIan8CydLfD8eDIkoM
-# SmAiNM4/cHoxmvsacmqfvB0vh7LLfKixnyyg3wA+k31r5FtMahxUBwHRBOJw6yRu
-# cPPl4AJVc1z2h2g1iEmuPKp8KokctJXpWaINvYCx7LSl+51/rtnOyUCdyei4zwfT
-# JgBk70sCGfcd64YZ24RxdBWWIhHNaofzLDinkb4Wp6fnIXqBn422IHHwKXXQv0ni
-# 9D2hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2
+# CPXpo2gUVfUEXbrLbstelavrqF6IpZA1S0BnzLM4kjANBgkqhkiG9w0BAQEFAASC
+# AYBr0AOWuRph14tKHC9zRljwp/OPa90qfLYcruITtxoc7fCd9NIcj4Qm2Bjfcbav
+# UPvwP3qGC6Rp+yuTW9WB2rDMJEq0UHvVyZrLxmheptHMfThhm6own1pSNfWH/4yR
+# wlfp/eqJRp9v3z8X0SU8ggSyQvOxBQcb2wzk62VfoRoZofIkqJ5qd3uRvlgfewFU
+# oTrtO2HAS+xxJ5jSFTbIa5D1Bk8IwdC3Zmeqrm4SRbNv0D9aeeeoRkoEgnYjFn/N
+# pwnRPcACiaXHHvrMSS90jZnoNJunHo6WkmLTkVLv0VFFrcix3mDNzIlG290H4zZH
+# yasrfDtqyrGyK86s7SWvdY3J9D7HEJya0MheJnu9wntcwkiLAS0T1ND0LwqTy1oJ
+# f/MV2jEw1uzGfCocTteKHUYCD+P6FhtA8zaK1WkgZysRT73hAG7LDrz6CbUcF1UR
+# r31Ujx34onrD1Fl8z69eBoE2t8iJSibg9utBKRCwDeUr0ByNNPM7yXNqgYDpEW7W
+# roGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDEwMDUxOTQxWjAvBgkqhkiG
-# 9w0BCQQxIgQgPmqUVUUeDOfuE3GKEsQzsOPLvUuQw1HsDw3e/tpPGpQwDQYJKoZI
-# hvcNAQEBBQAEggIARd8/70gBYQckrN/GRmKDQesihvxRp2aQBHBQk5qg6/V+bDqb
-# rVAXd/kdawjsTvwnXb5qQdV98/B5KaRsW/M74F8dCL23AJL33VzKZyhChWTCl6Xv
-# 32QIpZMZEejSG7rhfBc91MGhFcjed2LBF8rtJBKW2KJs7QT2zHAq0gW0FoSyTmH8
-# TJ969aU9exAyj4YWBq7af9YLjtF0qjUCyIMEilk43QgV29xD0xRmpmQVsrV8lVMj
-# BXB+YDf+htxPORiGPmwmt1ug8xkAgILmZW0871ZwKJP55v04TGu0cuYzXf02qBlI
-# fKVxnADPjRzmYGd3zm4DTNhmJvSo8ZJNC5dUu1GW7nOaxxvk1RQSNIH0E9Jttnse
-# jmkxxfZoPfm4ZgBusKc1HuDRPEBvbTyveJNcP471n75NjJ3NNIT59czlxMbLa6J8
-# TZbhqNUrR+2sfVDi+AnXyyWNwvAY1nmso6EjmypTwBFUm2imep0S4TYBqyHtrmqZ
-# Pnkh9Qcyn+qEqTZvtHKAQQDrJ6maL499bX6Bsb6VrjSs37y7ludohGeLMv1pEbid
-# 72ZpGzXTYJhWarrlizKZ5JyH/GiCspwa0YlfiJ/BEuIkySdPWhPeJx03jQ774mxx
-# 8FskL1FN4GPHgY859pkS+c+3jZJGzYd0Q6GKYiDuRNQzzqqLZWA14QWtsNM=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDIxMDIwODU0WjAvBgkqhkiG
+# 9w0BCQQxIgQgp58lZx5GXhlSxyW87gpQyAtKq6BGHHH+3PfWg7cRoGgwDQYJKoZI
+# hvcNAQEBBQAEggIAi0IFasHWdMUnmkDPFaQxowfBcaXy80rjtK6igJr4HlBcZspm
+# BhgUHKrFdEQOiCBWYxTxZeKSjJlp8AMT2T8qdHih+LH8nGGmqk/LSn0IIWtOItv/
+# O0dwK06cLrXUI7SUo07JKadNVK/irezxz/WsmyWcAJBc8ly7hAs66j/Bglnihvn+
+# kuF+TXPq53u7iSYuzig9rN00zEtZcWDyUBkMRphDqr/b8ONS3kllTJ9w9qckUunN
+# Ti/A5upQwpVaWBs7dhXgH38QfoYp5EHEyoVdQgXD5UgbdQpkzLYNIkXCnyc5mGvz
+# 2Zpi6P2sIodGSawGDF3ISwO9syk5FwOp/xtypGIKewwa+1dyde5WtlkMMlm3dX/+
+# SutIuQPlVVNmyzrNtTDgsdR7r5bcNSntZFdPXNyYOps4hHtWfr25Iu3AUfU0qXOo
+# XTI4gBYpvYmIOfCyJna7WvMJiB315pZ+SMVMPvp61KR0DmDwFpgJteyFDkU/GrXx
+# vYXimR6gCpmPR15kuMAO0rFa0B3hb1nFN3y/E9vKpJF/KDsGc3qrhS7YqXGGRz+7
+# 7r8gbzcgVM1kRRYuOiIcNSJOFGuSHETVP5+f4thvwCgAt/Hy6qsNqvHt+ue4jqsG
+# nu2/i+mOCrFT0uGG6bY8xDqDm+oacuTMlPyLmhhGtaal4K2Fi7qqgNzy92Q=
 # SIG # End signature block

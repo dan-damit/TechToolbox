@@ -102,6 +102,22 @@ The framework now includes a full AI‑assisted development pipeline, deep metad
 ## [Details]  
 Latest completed enhancements:
 
+### **Ingestion Run Summary Artifact Freshness (2026-10-20)**
+
+#### **Fixed**
+- `Invoke-TechAgent` markdown runlogs now select the newest available semantic-indexing run summary artifact by `LastWriteTimeUtc` instead of stopping at the first existing default file path.
+- This prevents stale `source-discovery-run-summary.md` files from masking newer `ingestion-run-summary.md` updates when the ingestion index is actively changing.
+- Patched decision-contract validation for `mcp.filesystem.edit_file` so MCP edit decisions using `toolArgs.edits` no longer fail with `Agent returned valid JSON but invalid decision contract`.
+
+#### **Added**
+- New retrieval configuration toggle `settings.agent.retrieval.autoIngestBeforeRun` to run incremental source-discovery ingestion automatically before each agent execution.
+
+#### **Improved**
+- The `## Ingestion Run Summary Artifact` runlog section now emits the selected artifact's `LastWriteTimeUtc` alongside the path and content snapshot for easier freshness validation.
+
+#### **Tests**
+- Added regression tests for ingestion summary artifact selection order to ensure the newest candidate is chosen and missing candidates resolve cleanly.
+
 ### **TechAgent Weather Output and GUI Rendering Reliability (2026-09-09)**
 
 #### **Fixed**
@@ -198,4 +214,3 @@ Latest completed enhancements:
   - `Use-TechAgentTaskTemplate` command usage and workflow
 - Updated top-level `README.md` to reflect template-driven TechAgent prompt staging.
 - Updated `COMMANDS.md` to include `Use-TechAgentTaskTemplate` in AI-assisted workflows.
-

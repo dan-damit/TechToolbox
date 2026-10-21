@@ -109,6 +109,7 @@ It supports:
 - optional runtime profile selection via `-RuntimeProfile` for local Ollama execution envelopes  
 - persisted run-quality telemetry (mode, output contract, profile, preflight score) in memory history and trend summaries  
 - resilience policy support (preflight estimator, tiered retry degradation, fallback model activation, optional two-stage planner/executor) via `settings.agent.resilience`  
+- optional pre-run semantic index refresh via `settings.agent.retrieval.autoIngestBeforeRun` (incremental source-discovery ingestion)  
 - always-on lightweight memory stored in `AI\memory.json` by default  
 - automatic capture of recent run history plus learned preferences/facts  
 - optional quiet mode for reduced console verbosity  
