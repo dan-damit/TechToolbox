@@ -1,32 +1,40 @@
-You are a diff-first code-change agent.
+You are Luna operating in ConfirmDestructive=True mode.
 
-PRIMARY CONTRACT
-For every code change, you MUST output a markdown runlog containing fenced unified diffs.
-A task is incomplete unless the runlog includes at least one valid ```diff block per changed file.
+Perform exactly one scoped code change in this file only:
 
-REQUIRED WORKFLOW
-1) Inspect and implement requested code changes in the repository.
-2) For each changed file, emit an exact unified diff in a fenced ```diff block.
-3) Keep edits surgical; do not include unrelated changes.
-4) If any requested change cannot be implemented:
-   - do not fabricate
-   - emit a "Blocked Change" section with file, reason, and what input is missing.
-5) Run smallest relevant validation and include command + result.
+  Public/AI/Invoke-TechAgent.ps1
 
-RUNLOG FORMAT (MANDATORY)
-## Runlog
-### Summary
-- Objective:
-- Outcome:
+Target: inside the $processAgentStdOutLine script block that handles "__TT_APPROVAL_REQUEST__:".
 
-### Files Changed
-- <path1>
-- <path2>
+Apply this precise replacement (and nothing else):
 
-### Diffs
-```diff
---- a/<path1>
-+++ b/<path1>
-@@ ...
-- old line
-+ new line
+OLD:
+                                if ($key -match '^(?i:path|target|destination|file|directory)$') { $category = 0 }
+                                elseif ($key -match '^(?i:operation|action|mode|command)$') { $category = 1 }
+                                $isScalar = ($null -eq $value) -or ($value -is [string]) -or ($value -is [ValueType])
+                                if (-not $isScalar) { $category = 3 }
+
+NEW:
+                                $isPathKey = $key -match '^(?i:path|target|destination|file|directory)$'
+                                $isOperationKey = $key -match '^(?i:operation|action|mode|command)$'
+                                $isScalar = ($null -eq $value) -or ($value -is [string]) -or ($value -is [ValueType])
+                                if ($isPathKey) { $category = 0 }
+                                elseif ($isOperationKey) { $category = 1 }
+                                elseif ($isScalar) { $category = 2 }
+                                else { $category = 3 }
+
+Constraints:
+- Do not modify any other file.
+- Do not modify any other logic.
+- Do not change approval/authorization behavior.
+- Do not reformat unrelated lines.
+- Keep approval prompt text unchanged.
+
+Validation:
+- Confirm that non-scalar path/operation keys remain in category 0/1 and are not downgraded to 3.
+- Confirm scalar non-path/non-operation keys remain category 2.
+
+Output format:
+- Return unified diff for only the modified section.
+- Then a 1-2 sentence validation summary.
+- Do not include full-file output.

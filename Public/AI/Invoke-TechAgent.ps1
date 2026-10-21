@@ -2216,97 +2216,122 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                 [bool]$cachedApprovalDecision = $false
                 $hasCachedDecision = $approvalDecisionCache.TryGetValue($approvalCacheKey, [ref]$cachedApprovalDecision)
 
+                $argumentsParseFailed = $false
+                $escapeApprovalText = {
+                    param([string]$Text)
+                    if ($null -eq $Text) { return '' }
+                    $jsonText = ConvertTo-Json -InputObject $Text -Compress
+                    return $jsonText.Substring(1, $jsonText.Length - 2)
+                }
+                $formatApprovalValue = {
+                    param($Value, [string]$Key, [int]$Depth)
+                    if ($Key -match '(?i)(token|apikey|api_key|secret|password|credential|key|auth)') { return '<redacted>' }
+                    $isLargeField = $Key -match '^(?i:content|edits|patch|diff|body|script|payload|json|data)$'
+                    if ($isLargeField) {
+                        $size = 0
+                        if ($Value -is [string]) { $size = $Value.Length }
+                        elseif ($null -ne $Value) {
+                            try { $size = (ConvertTo-Json -InputObject $Value -Compress -Depth 8).Length } catch { $size = 0 }
+                        }
+                        return "[omitted; approx $size chars]"
+                    }
+                    if ($null -eq $Value) { return 'null' }
+                    if ($Value -is [string]) {
+                        $escaped = & $escapeApprovalText -Text $Value
+                        if ($escaped.Length -gt 160) { $escaped = $escaped.Substring(0, 157) + '...' }
+                        return '"' + $escaped + '"'
+                    }
+                    if ($Value -is [bool]) { return $Value.ToString().ToLowerInvariant() }
+                    if ($Value -is [ValueType]) { return [Convert]::ToString($Value, [Globalization.CultureInfo]::InvariantCulture) }
+                    $properties = @()
+                    if ($Value -is [System.Collections.IDictionary]) {
+                        foreach ($propertyKey in @($Value.Keys | ForEach-Object { [string]$_ } | Sort-Object -Culture 'en-US')) {
+                            $properties += [pscustomobject]@{ Key = $propertyKey; Value = $Value[$propertyKey] }
+                        }
+                    }
+                    elseif ($Value -is [System.Collections.IEnumerable]) {
+                        $items = @($Value)
+                        $previewParts = @()
+                        if ($Depth -lt 2) {
+                            foreach ($item in @($items | Select-Object -First 2)) { $previewParts += (& $formatApprovalValue -Value $item -Key '' -Depth ($Depth + 1)) }
+                        }
+                        $preview = [string]::Join(', ', $previewParts)
+                        if ($preview.Length -gt 90) { $preview = $preview.Substring(0, 87) + '...' }
+                        return "[omitted; $($items.Count) items, preview: `"$preview`"]"
+                    }
+                    else {
+                        foreach ($property in @($Value.PSObject.Properties | Sort-Object -Property Name -Culture 'en-US')) {
+                            $properties += [pscustomobject]@{ Key = [string]$property.Name; Value = $property.Value }
+                        }
+                    }
+                    if ($Depth -ge 2) { return "[omitted; $($properties.Count) properties, preview: {...}]" }
+                    $previewProperties = @()
+                    foreach ($property in @($properties | Select-Object -First 2)) {
+                        $safePropertyKey = & $escapeApprovalText -Text ([string]$property.Key)
+                        $safePropertyValue = & $formatApprovalValue -Value $property.Value -Key ([string]$property.Key) -Depth ($Depth + 1)
+                        $previewProperties += ('"' + $safePropertyKey + '":' + $safePropertyValue)
+                    }
+                    $previewObject = [string]::Join(',', $previewProperties)
+                    if ($previewObject.Length -gt 85) { $previewObject = $previewObject.Substring(0, 82) + '...' }
+                    return "[omitted; $($properties.Count) properties, preview: {$previewObject}]"
+                }
                 try {
                     $approvalRequest = $payloadJson | ConvertFrom-Json -Depth 16 -ErrorAction Stop
                     if ($null -ne $approvalRequest -and $approvalRequest.PSObject.Properties['toolName']) {
                         $resolvedToolName = [string]$approvalRequest.toolName
                         if (-not [string]::IsNullOrWhiteSpace($resolvedToolName)) {
-                            $toolName = $resolvedToolName
+                            $toolName = & $escapeApprovalText -Text $resolvedToolName
+                            if ($toolName.Length -gt 200) { $toolName = $toolName.Substring(0, 197) + '...' }
                         }
                     }
-
                     if ($null -ne $approvalRequest -and $approvalRequest.PSObject.Properties['arguments']) {
                         $argumentDescriptors = [System.Collections.Generic.List[object]]::new()
                         $argumentsObject = $approvalRequest.arguments
                         if ($null -ne $argumentsObject) {
                             foreach ($prop in $argumentsObject.PSObject.Properties) {
                                 $key = [string]$prop.Name
-                                if ([string]::IsNullOrWhiteSpace($key)) {
-                                    continue
-                                }
-
+                                if ([string]::IsNullOrWhiteSpace($key)) { continue }
                                 $value = $prop.Value
-                                $priority = & $getApprovalArgumentPriority -Key $key
-                                if ($priority -lt 0) {
-                                    continue
-                                }
-
-                                $isSensitive = & $isSensitiveApprovalArgument -Key $key
-                                $rawValue = & $renderApprovalArgumentRawValue -Value $value
-                                $isNoisy = $approvalNoisyArgumentKeys.Contains($key) -or ($rawValue.Length -gt ($approvalArgumentValueMaxChars * 2))
-
-                                $displayValue = if ($isSensitive) {
-                                    '<redacted>'
-                                }
-                                elseif ($isNoisy) {
-                                    "<omitted noisy payload; $($rawValue.Length) chars>"
-                                }
-                                else {
-                                    & $truncateApprovalArgumentValue -Text $rawValue -MaxChars $approvalArgumentValueMaxChars
-                                }
-
-                                $argumentDescriptors.Add([pscustomobject]@{
-                                        Key      = $key
-                                        Priority = $priority
-                                        IsNoisy  = $isNoisy
-                                        Display  = $displayValue
-                                    })
+                                $isPathKey = $key -match '^(?i:path|target|destination|file|directory)$'
+                                $isOperationKey = $key -match '^(?i:operation|action|mode|command)$'
+                                $isScalar = ($null -eq $value) -or ($value -is [string]) -or ($value -is [ValueType])
+                                if ($isPathKey) { $category = 0 }
+                                elseif ($isOperationKey) { $category = 1 }
+                                elseif ($isScalar) { $category = 2 }
+                                else { $category = 3 }
+                                $displayValue = & $formatApprovalValue -Value $value -Key $key -Depth 0
+                                $isNoisy = ($key -match '^(?i:content|edits|patch|diff|body|script|payload|json|data)$') -or (-not $isScalar) -or ($displayValue.Length -gt 160)
+                                $safeKey = & $escapeApprovalText -Text $key
+                                $lineText = ('{0}={1}' -f $safeKey, $displayValue)
+                                if ($lineText.Length -gt 200) { $lineText = $lineText.Substring(0, 197) + '...' }
+                                $argumentDescriptors.Add([pscustomobject]@{ Key = $key; Category = $category; Display = $lineText; IsNoisy = $isNoisy })
                             }
                         }
-
-                        if ($argumentDescriptors.Count -gt 0) {
-                            $ordered = @($argumentDescriptors | Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Key'; Descending = $false })
-                            $preferred = @($ordered | Where-Object { -not $_.IsNoisy })
-                            $selected = [System.Collections.Generic.List[object]]::new()
-
-                            foreach ($entry in $preferred) {
-                                if ($selected.Count -ge $approvalArgumentPreviewLimit) {
-                                    break
-                                }
-
-                                $selected.Add($entry)
-                            }
-
-                            if ($selected.Count -eq 0 -and $ordered.Count -gt 0) {
-                                $selected.Add($ordered[0])
-                            }
-
-                            foreach ($entry in $selected) {
-                                $argumentSummaryLines.Add(("{0}={1}" -f $entry.Key, $entry.Display))
-                            }
-
-                            $omittedCount = $ordered.Count - $selected.Count
-                            if ($omittedCount -gt 0) {
-                                $omittedNoisyCount = @($ordered | Where-Object { $_.IsNoisy }).Count
-                                if ($omittedNoisyCount -gt 0) {
-                                    $argumentSummaryLines.Add(("... +{0} more argument(s), including {1} noisy payload field(s) omitted" -f $omittedCount, $omittedNoisyCount))
-                                }
-                                else {
-                                    $argumentSummaryLines.Add(("... +{0} more argument(s)" -f $omittedCount))
-                                }
-                            }
+                        $ordered = @($argumentDescriptors | Sort-Object -Property @{ Expression = 'Category'; Ascending = $true }, @{ Expression = 'Key'; Ascending = $true })
+                        $selectedCount = [Math]::Min(12, $ordered.Count)
+                        $shown = 0
+                        $previewLength = 0
+                        for ($i = 0; $i -lt $selectedCount; $i++) {
+                            $entry = $ordered[$i]
+                            $nextLength = $previewLength + $entry.Display.Length + $(if ($shown -gt 0) { 1 } else { 0 })
+                            if ($nextLength -gt 2200) { break }
+                            $argumentSummaryLines.Add($entry.Display)
+                            $previewLength = $nextLength
+                            $shown++
+                        }
+                        $omittedCount = $ordered.Count - $shown
+                        if ($omittedCount -gt 0) { $argumentSummaryLines.Add("... $omittedCount additional safe argument(s) omitted by display limit") }
+                        $noisyCount = @($ordered | Where-Object { $_.IsNoisy }).Count
+                        if ($noisyCount -gt 0) { $argumentSummaryLines.Add("Noisy/large fields summarized: $noisyCount") }
+                        while (($argumentSummaryLines -join "`n").Length -gt 2400 -and $argumentSummaryLines.Count -gt 1) {
+                            $argumentSummaryLines.RemoveAt($argumentSummaryLines.Count - 1)
                         }
                     }
                 }
                 catch {
-                    Write-Log -Level Warn -Message ("Failed to parse destructive approval payload from child process: {0}" -f $_.Exception.Message)
-                    if (-not [string]::IsNullOrWhiteSpace($payloadJson)) {
-                        $fallbackPayload = & $truncateApprovalArgumentValue -Text $payloadJson -MaxChars $approvalArgumentValueMaxChars
-                        $argumentSummaryLines.Clear()
-                        $argumentSummaryLines.Add(("rawPayload={0}" -f $fallbackPayload))
-                    }
+                    $argumentsParseFailed = $true
+                    $argumentSummaryLines.Clear()
                 }
-
                 $allowApproval = $cachedApprovalDecision
                 if (-not $hasCachedDecision) {
                     $allowApproval = $false
@@ -2316,7 +2341,10 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                         Write-Host ''
                         Write-Host '=== Destructive Action Approval Required ===' -ForegroundColor Yellow
                         Write-Host ("Tool: {0}" -f $toolName) -ForegroundColor Cyan
-                        if ($argumentSummaryLines.Count -eq 0) {
+                        if ($argumentsParseFailed) {
+                            Write-Host 'Arguments: [parse failure; sanitized summary only]' -ForegroundColor DarkYellow
+                        }
+                        elseif ($argumentSummaryLines.Count -eq 0) {
                             Write-Host 'Arguments: [no arguments]' -ForegroundColor DarkYellow
                         }
                         else {
@@ -2944,8 +2972,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB/ON1GvRD9k+9Z
-# BwXYiCqXBXJYZ8SjUVJQ9fS+Mx1fA6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCS9tgSdtyxu4db
+# 9CNg41LRuaYUsGIEPQiKiHy3jmaXLqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3122,31 +3150,31 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCA
-# hfrURgA2vVZ/07Ol36mPenc0dxQP9sNttEAJ+Dq1MzANBgkqhkiG9w0BAQEFAASC
-# AYAVBAidvLWS0TiCikIwb+DePigZGSCBdpYInRgagf4tJ1WTGXCEyT1JY4nO+Ltg
-# fY3VHjbsChtxU14qdlH7DroN3OkXKDwyXzrR8RHYuJUpH5KzIwAbqwxpl8njIHD7
-# HfWmmbhPzn3GwXIDGtCaTw9UJhYlRRiGCrFX1Ue/0TrawcbJyYPL/1LD10EyV0zV
-# qV7NzNEDV+CchGQR/bVF/Wf2EMtYayrJ8XZKuRjyYLHG+hLjhKG6QdHz3IeY0jza
-# v9qcpnRymuPl8IVJGkeiej9edRLv5X+awL8a9utS9GJRb1kMMJomPtpQTZCzUrmr
-# auDCAwObuP172BXHHXnmXAC6TFQIi8f0AGFKQFYPT9muU0GcJDeh5QDE61VQKHi0
-# T/Tu1g6wrED9H7vJhAJhEOv/bIAULv/r/Ld3miexsmA36TVF0HY/JiFKXV72wFlb
-# 6rGUnkvImzpSBF3pbPyM+dySvHVZ4/aTZdyoZ1dpSnQTPb2GejJ12wEuoVQhrOFN
-# uhGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBl
+# /fpft77krIzSZX5bPVEU6LgyqMqWwhcvfBfIBXeqgjANBgkqhkiG9w0BAQEFAASC
+# AYCAY7cRnAot1vaseUf1eN/rEIkzfXPnkNX4DkXPwwtuQpn9A/snAszhyiU+a5gS
+# gzohnFc61YHV0FYhTDxK0rnaWJJK5QrKrYISdbD1vBrgsgnpFIVViu4RNacNnrhL
+# Qtgf8IzBMCx18yrsp/gNF9v9CVr9bQcnzIoFcQs4gPUiWniRkHx71jCGtxt8UcG0
+# WbC9xQtiE0qPKZSYdr0EgR1nvB0x3tHOC6nDp0she8qUUJHEBlL+RnpZPtm8gAz2
+# M270t541P1y6eGAaJbwsMPmc0/le/+LoVZiexggZO3mTLBFrQ8fYnKMNFBo3SfxO
+# aT0BHwCFTYe+ogDcNl5mkFwYwwd3Tqrh+WCzDDbhE8a6GaOJbBJnW0QV/DwsBYHO
+# YvIf5GVU07Q2wNsap+0E9fkabhCA2H4wDH+P96Jsn6TkOTUbfM8Z77fPJW1Hc2+S
+# SvXnm2rQqVITt1IsS4yQs6DrGoI8YtQBK7EyTZuPOqtoxwrQ85fcq3QlnX9DjBjo
+# K6ChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDE1MTYzNzQ4WjAvBgkqhkiG
-# 9w0BCQQxIgQgDHdMU7G0Vl+iDtAOz97q4NH92smc2qKylQdoG6SNqSMwDQYJKoZI
-# hvcNAQEBBQAEggIAr1uCPinfWB4YgqAFPBwTurTniLT6WIZuF6owtwM/DBl4qC8b
-# vJImyqiStHPlgPWpZ3PjrAeIGanHrrzOyFOCwuybgS3NVg8aGx2bA+L2o4+Qdzpm
-# iUHHeumxVhQJbX4KuJ3zU9gMRfT2D1/0UkBH0w7fNfgXlNHPlJoQoItivbxqphOu
-# GY82fKvlO1lOzkXzHAHIqVvhby9P9DOBpAqLHZ33YnE8Yz0UqN+R1nrwAx2GUUI4
-# K5Kz9BuTepZKDPYsMNXyscFpQsLtVV7XSH0HIqZdop7HsTk2cgVsS6HD9l7HMxB2
-# Yxi44BxrjrzYgRQPYQcJqs67lfvt1J/KHJIWJTMnl4rttQqKSVjxF1/nUS9KT9hR
-# Atev6m22zFsiigE3N1RfS16GmqutpZ9YpJGuymzwArfBCQY0uXcNMYKzF9Ot3kp+
-# LMDYMm9IhwOmVfR1xKY5Hp5R0hfVC7dxPyGerdaQxNnv5G2NhFRjGCfiV/JgkyS/
-# Mi0OpcXjDoHZfk1EYZY1DHf124s5CcdSVPFPdBBFw20kQapQTUAeM9rTSN/jPc2L
-# wzLkrsujy6enjq25V02z8Ji/MzriSH+cvaV5XbdRdk19zZ1SMCH3/P2ycnJv770N
-# XejXt0OesGUFhG/kM8u3akZjYiSoNwrjZrdoYCrinat+AhbA2HGUedfbdrI=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDIxMDAzODEwWjAvBgkqhkiG
+# 9w0BCQQxIgQg+VQB4NwS9tFnPyUVbVr0X0nlL01DXB+u3D22uQgAdrMwDQYJKoZI
+# hvcNAQEBBQAEggIApJwxz+KLYOHVAKVkY0zNhwWLaQHubgb0Y36oqbvsXCEC1HhN
+# e0b4Mtr520ddpeawVtL69gP2smIqS5IWZsGV+IPc5zVRpnoXGxwsnJ1ddgOIsT3k
+# OQXaoZlG3IVip5VVadgiZ/AOfS/wqjUUwpnDUfCLCQD++nLTJJwlu4Id5LLDjDG9
+# 6uaVJEXb5VeEaiNPhYeJpjvjRe57GDNAZR5lYEOk+FHXWxNDVc3IoRCQK3ZV3AFF
+# Qdp3BoWLxzKBqevokxm2wX7+7nPhmnbKj2ThcZ/VwvEhXfEBwqr23Nx78SKpg8ht
+# oRIH6IUfkKa/g5DDDdAEsngAqdZK6xMzFi2IJ89NqZUJmEKn550pD6bMk0BRasA+
+# BCMVyriKSHNhd31/5A0D8/71q5JOdCbXCjLrUlrsuko1ekVkFX1NG+TgFkaO/PTZ
+# sExp+5ZP/1qKkyHEWd6MuXIJ4vVDNiCzB8rjRrvjc8wLEHP2xKDjCE5QuEDWQGyp
+# D9M2im8RAwDRvlzon4mQ5tvau+xO2N0Ht+Njvrgw9AT/wERK4ZjG6aaRtNccBI/u
+# eVi+HtSjaREigN75EUJtxJFAptI9+HPfKCEV1B2bGyGTPiYggA9b/9U2ASjnhdX9
+# 6mEOrhwx+es39OzW0k926TxXJCK3K3rwSfjY9dXx11po0HrhXmJcmnYDBfw=
 # SIG # End signature block

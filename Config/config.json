@@ -276,10 +276,10 @@
           "llmMaxOutputTokens": 8192
         },
         "frontierXL": {
-          "readFileSummaryThresholdChars": 120000,
-          "maxToolResultChars": 120000,
-          "readFilePromptCompactThresholdChars": 45000,
-          "llmMaxOutputTokens": 12000
+          "readFileSummaryThresholdChars": 450000,
+          "maxToolResultChars": 300000,
+          "readFilePromptCompactThresholdChars": 90000,
+          "llmMaxOutputTokens": 60000
         }
       },
       "resilience": {
