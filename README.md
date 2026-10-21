@@ -718,7 +718,7 @@ Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
 
 - **Author:** Dan Damit
 - **License:** MIT License
-- **Module version:** 2.0.1
+- **Module version:** 2.1.1
 - **Current milestone:** v2.0.1 - "Semantic Indexing"
 - **Milestone date:** 2026-10-13
 - **PowerShell requirement:** 7+ (Core)
