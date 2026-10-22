@@ -362,7 +362,6 @@
             "namespacePrefix": "powershell",
             "allowedTools": [
               "run_powershell",
-              "run_program",
               "list_services",
               "get_service",
               "control_service",
