@@ -1,9 +1,0 @@
-{
-  "nonProductionConfirmed": false,
-  "embeddingModel": "text-embedding-3-large",
-  "benchmarkCasesPath": "C:\\stage-data\\semantic-indexing\\benchmark-cases.json",
-  "corpusPath": "C:\\stage-data\\semantic-indexing\\corpus-records.jsonl",
-  "vectorIndexPath": "C:\\stage-data\\semantic-indexing\\index\\semantic-index.faiss",
-  "embeddingAuthSource": "env:STAGE_EMBEDDING_API_KEY",
-  "notes": "Copy this file to stage-benchmark-prereqs.json and replace with real stage paths/secret source."
-}
