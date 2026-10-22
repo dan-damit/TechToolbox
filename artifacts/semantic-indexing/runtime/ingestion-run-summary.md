@@ -10,8 +10,8 @@
 - Discovered documents: 416
 - Upserted: 416
 - Inserted: 0
-- Updated: 0
-- Unchanged: 416
+- Updated: 1
+- Unchanged: 415
 - Deleted: 0
 - Known sources after run: 417
 

@@ -130,10 +130,10 @@
       "retrieval": {
         "enabled": true,
         "backend": "hybrid",
-        "model": "qwen3.5:9b",
+        "model": "gpt-6-luna",
         "embeddingModel": null,
-        "maxContextTokens": 4096,
-        "maxResults": 5,
+        "maxContextTokens": 250000,
+        "maxResults": 30,
         "timeoutSeconds": 10,
         "directories": [
           "src/TechToolbox.Agent",
@@ -192,16 +192,16 @@
         "hybridStateWorldWeight": 0.5
       },
       "policyStartupMode": "Observe",
-      "allowedPathRoots": ["C:\\repos\\TechToolbox", "C:\\SCS-bak-10-15-2026"],
-      "provider": "ollama",
-      "model": "qwen3.5:9b",
+      "allowedPathRoots": ["C:\\repos\\TechToolbox"],
+      "provider": "openai",
+      "model": "gpt-6-luna",
       "executionMode": "execute",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
       "thinkingMode": "auto",
       "runtimeProfile": "main_reasoning",
       "runtimeProfiles": {
-        "enabled": true,
+        "enabled": false,
         "defaultProfileName": "main_reasoning",
         "reasoningProfileName": "deep_reasoning",
         "codingProfileName": "coding_specialist",
@@ -277,9 +277,9 @@
           "llmMaxOutputTokens": 8192
         },
         "frontierXL": {
-          "readFileSummaryThresholdChars": 450000,
-          "maxToolResultChars": 300000,
-          "readFilePromptCompactThresholdChars": 90000,
+          "readFileSummaryThresholdChars": 1500000,
+          "maxToolResultChars": 1000000,
+          "readFilePromptCompactThresholdChars": 300000,
           "llmMaxOutputTokens": 60000
         }
       },

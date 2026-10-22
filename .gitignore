@@ -15,6 +15,7 @@ EndpointTrackingScripts/
 obj/
 /Bin/
 bin/
+artifacts/
 SecureCrimp/
 AI/Tasks/Archive/
 ModelTraining/
