@@ -4,19 +4,17 @@
   NAME: about_Test-TTPathRoots
 
 .DESCRIPTION
-  The Test-TTPathRoots function displays the effective TechToolbox path roots
-  and key resolved configuration paths. It derives these values from environment
-  variables (such as TT_Home, TT_ModuleRoot, TT_LogsRoot) and runtime defaults.
-  If specific environment variables are not set, it falls back to calculated
-  defaults based on the OneDrive or User Profile directory.
+  The Test-TTPathRoots function displays the authoritative TechToolbox paths
+  and key resolved configuration paths. Packaged application paths derive from
+  the currently executing module root. Mutable runtime data defaults to
+  $env:LOCALAPPDATA\TechToolbox, independently of the module installation.
 
-  The function optionally creates the effective logs and exports root
-  directories if they do not already exist when the EnsureDirectories parameter
-  is used.
+  The function optionally creates the LocalDataRoot, Config, Logs, and Exports
+  directories if they do not already exist when EnsureDirectories is used.
 
 .PARAMETER EnsureDirectories
-  Creates the effective logs and exports root directories if they do not exist.
-  This switch does not accept pipeline input by property name.
+  Creates the LocalDataRoot, Config, Logs, and Exports directories if they do not
+  exist. This switch does not accept pipeline input by property name.
 
 .INPUTS
   None. You cannot pipe objects to Test-TTPathRoots.
@@ -34,8 +32,8 @@
 .EXAMPLE
   Test-TTPathRoots -EnsureDirectories
 
-  Description: Shows effective TechToolbox path roots and ensures that the logs
-  and exports root directories are created if they do not exist.
+  Description: Shows authoritative packaged and LocalDataRoot paths and ensures
+  that LocalDataRoot, Config, Logs, and Exports directories exist.
 
 .LINK
   [TechToolbox](https://github.com/dan-damit/TechToolbox)

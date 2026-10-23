@@ -118,7 +118,7 @@ if (-not (Test-Path -Path 'variable:script:TT')) {
 
         WorkerPath  = $null        # main worker .ps1 path staged on remote (or local if used)
 
-        LogRoot     = (Join-Path $env:TEMP 'TechToolbox')
+        LogRoot     = $null
     }
 }
 
@@ -130,6 +130,7 @@ $script:TT['SecretsTemplatePath'] = Join-Path $script:TT.ModuleRoot 'Config\conf
 $script:TT['SecretsPath'] = Join-Path $script:TT.LocalDataRoot 'Config\config.secrets.json'
 $script:TT['LogsRoot'] = Join-Path $script:TT.LocalDataRoot 'Logs'
 $script:TT['ExportsRoot'] = Join-Path $script:TT.LocalDataRoot 'Exports'
+$script:TT['LogRoot'] = $script:TT.LogsRoot
 $script:TT['AgentHistoryFile'] = Join-Path $script:TT.LocalDataRoot 'AgentHistory.jsonl'
 $script:ConfigPath = $script:TT.ConfigPath
 $script:SecretsPath = $script:TT.SecretsPath
@@ -149,12 +150,19 @@ if (-not (Test-Path -LiteralPath $script:TT.SecretsPath -PathType Leaf)) {
     if (-not (Test-Path -LiteralPath $script:TT.SecretsTemplatePath -PathType Leaf)) {
         throw "Packaged secrets template not found: $($script:TT.SecretsTemplatePath)"
     }
-    Copy-Item -LiteralPath $script:TT.SecretsTemplatePath -Destination $script:TT.SecretsPath -ErrorAction Stop
+    try {
+        # Create-only copy: a concurrent import must not overwrite an existing user file.
+        [System.IO.File]::Copy($script:TT.SecretsTemplatePath, $script:TT.SecretsPath, $false)
+    }
+    catch [System.IO.IOException] {
+        if (-not (Test-Path -LiteralPath $script:TT.SecretsPath -PathType Leaf)) { throw }
+    }
 }
 
 # Compatibility values are derived from the authoritative runtime state.
 $script:TT['Home'] = $script:TT.LocalDataRoot
 $env:TT_Home = $script:TT.LocalDataRoot
+$env:TT_LocalDataRoot = $script:TT.LocalDataRoot
 $env:TT_ModuleRoot = $script:TT.ModuleRoot
 $env:TT_LogsRoot = $script:TT.LogsRoot
 $env:TT_ExportsRoot = $script:TT.ExportsRoot
@@ -179,9 +187,9 @@ else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
 # --- Publish resolved runtime roots for child processes ---
 $TT_ModuleRoot = $script:TT.ModuleRoot
 $TT_Home = $script:TT.LocalDataRoot
-$env:TT_AGENT_FILESYSTEM_ROOT = if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)) { $TT_ModuleRoot } else { $env:TT_AGENT_FILESYSTEM_ROOT }
+$env:TT_AGENT_FILESYSTEM_ROOT = if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)) { $script:TT.LocalDataRoot } else { $env:TT_AGENT_FILESYSTEM_ROOT }
 if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_ALLOWED_PATH_ROOTS)) {
-    $env:TT_AGENT_ALLOWED_PATH_ROOTS = [string]::Join([System.IO.Path]::PathSeparator, @($TT_ModuleRoot, $script:TT.LocalDataRoot))
+    $env:TT_AGENT_ALLOWED_PATH_ROOTS = $script:TT.LocalDataRoot
 }
 
 if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_LOCAL_MCP_ADAPTER_PATH)) {

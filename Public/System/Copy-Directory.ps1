@@ -63,7 +63,7 @@ function Copy-Directory {
 
     $runRemote = $copy.runRemote ?? $true
     $defaultComp = $copy.defaultComputerName
-    $logDir = $copy.logDir ?? "C:\LogsAndExports\TechToolbox\Logs\Robocopy"
+    $logDir = $copy.logDir ?? (Join-Path $script:TT.LogsRoot 'Robocopy')
     $retryCount = $copy.retryCount ?? 2
     $waitSeconds = $copy.waitSeconds ?? 5
     $copyFlags = $copy.copyFlags ?? @("/E", "/COPYALL")

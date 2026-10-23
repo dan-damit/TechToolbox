@@ -265,6 +265,13 @@ jobs:
           New-Item -ItemType Directory -Path $localMcpRuntimePath -Force | Out-Null
           Copy-Item -Path (Join-Path $env:TECH_LOCAL_MCP_ADAPTER_PUBLISH_DIR '*') -Destination $localMcpRuntimePath -Recurse -Force
 
+          $secretsExamplePath = Join-Path $stagePath 'Config\config.secrets.example.json'
+          $secretsTemplatePath = Join-Path $stagePath 'Config\config.secrets.json'
+          if (-not (Test-Path -LiteralPath $secretsExamplePath -PathType Leaf)) {
+            throw "Packaged secrets template source not found: $secretsExamplePath"
+          }
+          Copy-Item -LiteralPath $secretsExamplePath -Destination $secretsTemplatePath -Force
+
           $configPath = Join-Path $stagePath 'Config\config.json'
           if (Test-Path -LiteralPath $configPath -PathType Leaf) {
             $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -Depth 100
@@ -448,6 +455,13 @@ jobs:
           $localMcpAdapterRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.LocalMcpAdapter'
           New-Item -ItemType Directory -Path $localMcpAdapterRuntimePath -Force | Out-Null
           Copy-Item -Path (Join-Path $LocalMcpAdapterPublishDir '*') -Destination $localMcpAdapterRuntimePath -Recurse -Force
+
+          $secretsExamplePath = Join-Path $stagePath 'Config\config.secrets.example.json'
+          $secretsTemplatePath = Join-Path $stagePath 'Config\config.secrets.json'
+          if (-not (Test-Path -LiteralPath $secretsExamplePath -PathType Leaf)) {
+            throw "Packaged secrets template source not found: $secretsExamplePath"
+          }
+          Copy-Item -LiteralPath $secretsExamplePath -Destination $secretsTemplatePath -Force
 
           $configPath = Join-Path $stagePath 'Config\config.json'
           if (Test-Path -LiteralPath $configPath -PathType Leaf) {

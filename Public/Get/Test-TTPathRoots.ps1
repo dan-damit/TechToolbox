@@ -4,11 +4,11 @@ function Test-TTPathRoots {
     Shows effective TechToolbox path roots and key resolved config paths.
 
     .DESCRIPTION
-    Returns the active module/home/log/export roots derived from environment
-    variables and runtime defaults. Optionally creates the root directories.
+    Returns authoritative packaged and LocalAppData runtime paths from the
+    module's resolved $script:TT state. Optionally creates runtime directories.
 
     .PARAMETER EnsureDirectories
-    Creates the effective logs and exports root directories if they do not exist.
+    Creates the LocalDataRoot, Config, Logs, and Exports directories if missing.
 
     .EXAMPLE
     Test-TTPathRoots
@@ -49,7 +49,14 @@ function Test-TTPathRoots {
         LogsRoot             = $logsRoot
         ExportsRoot          = $exportsRoot
         LocalDataRootExists  = Test-Path -LiteralPath $localDataRoot -PathType Container
+        ConfigPathExists     = Test-Path -LiteralPath $script:TT.ConfigPath -PathType Leaf
+        SecretsTemplateExists = Test-Path -LiteralPath $script:TT.SecretsTemplatePath -PathType Leaf
         SecretsPathExists    = Test-Path -LiteralPath $script:TT.SecretsPath -PathType Leaf
+        SecretsPathUnderLocalDataRoot = $script:TT.SecretsPath.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        LogsRootUnderLocalDataRoot = $logsRoot.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        ExportsRootUnderLocalDataRoot = $exportsRoot.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        ConfigPathUnderModuleRoot = $script:TT.ConfigPath.StartsWith($moduleRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        SecretsTemplateUnderModuleRoot = $script:TT.SecretsTemplatePath.StartsWith($moduleRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
         LogsRootExists       = Test-Path -LiteralPath $logsRoot -PathType Container
         ExportsRootExists    = Test-Path -LiteralPath $exportsRoot -PathType Container
         ConfigLoggingLogPath = $script:cfg.settings.logging.logPath

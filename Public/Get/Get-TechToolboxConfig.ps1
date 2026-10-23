@@ -155,12 +155,13 @@ function Get-TechToolboxConfig {
 
         if ($Node -is [string]) {
             $resolved = [Environment]::ExpandEnvironmentVariables($Node)
-            $resolved = $resolved.Replace((Join-Path $PathRoots.LocalDataRoot 'LogsAndExports\Logs'), $PathRoots.LogsRoot)
-            $resolved = $resolved.Replace((Join-Path $PathRoots.LocalDataRoot 'LogsAndExports\Exports'), $PathRoots.ExportsRoot)
             $resolved = $resolved.Replace('%TT_Home%', $PathRoots.LocalDataRoot)
             $resolved = $resolved.Replace('%TT_LocalDataRoot%', $PathRoots.LocalDataRoot)
             $resolved = $resolved.Replace('%TT_ModuleRoot%', $PathRoots.ModuleRoot)
             $resolved = $resolved.Replace('%TT_LogsAndExportsRoot%', $PathRoots.LocalDataRoot)
+            # Normalize legacy log/export suffixes after all root tokens have resolved.
+            $resolved = $resolved.Replace((Join-Path $PathRoots.LocalDataRoot 'LogsAndExports\Logs'), $PathRoots.LogsRoot)
+            $resolved = $resolved.Replace((Join-Path $PathRoots.LocalDataRoot 'LogsAndExports\Exports'), $PathRoots.ExportsRoot)
             $resolved = $resolved.Replace('%TT_LogsRoot%', $PathRoots.LogsRoot)
             $resolved = $resolved.Replace('%TT_ExportsRoot%', $PathRoots.ExportsRoot)
 

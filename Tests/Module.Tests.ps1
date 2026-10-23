@@ -13,16 +13,18 @@ Describe "TechToolbox Module" {
             $module | Should -Not -BeNullOrEmpty
         }
 
-        It "Should default agent filesystem and allowed-path roots to the module root when no env override is set" {
+        It "Should default agent filesystem and allowed-path roots to LocalDataRoot when no env override is set" {
             $moduleRoot = $env:TT_ModuleRoot
             $moduleRoot | Should -Not -BeNullOrEmpty
 
+            $localDataRoot = Join-Path $env:LOCALAPPDATA 'TechToolbox'
             $agentFilesystemRoot = $env:TT_AGENT_FILESYSTEM_ROOT
             $agentAllowedRoots = $env:TT_AGENT_ALLOWED_PATH_ROOTS
 
-            $agentFilesystemRoot | Should -Be $moduleRoot
+            $agentFilesystemRoot | Should -Be $localDataRoot
             $agentAllowedRoots | Should -Not -BeNullOrEmpty
-            ($agentAllowedRoots -split [System.IO.Path]::PathSeparator) | Should -Contain $moduleRoot
+            ($agentAllowedRoots -split [System.IO.Path]::PathSeparator) | Should -Contain $localDataRoot
+            ($agentAllowedRoots -split [System.IO.Path]::PathSeparator) | Should -Not -Contain $moduleRoot
         }
 
         It "Should honor a callsite WriteDirectory override for filesystem access" {
@@ -31,6 +33,45 @@ Describe "TechToolbox Module" {
                 $result.FilesystemRoot | Should -Be 'C:\Temp\Alpha'
                 $result.AllowedRoots | Should -Contain 'C:\Temp\Alpha'
                 $result.AllowedRoots | Should -Contain 'D:\Temp\Beta'
+            }
+        }
+
+        It "Should resolve runtime paths beneath LocalAppData and packaged paths beneath the executing module" {
+            InModuleScope TechToolbox {
+                $paths = Test-TTPathRoots
+                $expectedLocalDataRoot = Join-Path $env:LOCALAPPDATA 'TechToolbox'
+
+                $paths.ModuleRoot | Should -Be $script:TT.ModuleRoot
+                $paths.ModuleRoot | Should -Be $ExecutionContext.SessionState.Module.ModuleBase
+                $paths.LocalDataRoot | Should -Be $expectedLocalDataRoot
+                $paths.ConfigPath | Should -Be (Join-Path $paths.ModuleRoot 'Config\config.json')
+                $paths.SecretsTemplatePath | Should -Be (Join-Path $paths.ModuleRoot 'Config\config.secrets.json')
+                $paths.SecretsPath | Should -Be (Join-Path $paths.LocalDataRoot 'Config\config.secrets.json')
+                $paths.LogsRoot | Should -Be (Join-Path $paths.LocalDataRoot 'Logs')
+                $paths.ExportsRoot | Should -Be (Join-Path $paths.LocalDataRoot 'Exports')
+                $paths.ConfigPathsLogs | Should -Be $paths.LogsRoot
+                $script:cfg.settings.systemUptime.exportPath | Should -Be (Join-Path $paths.ExportsRoot 'SystemUptime')
+                $paths.SecretsPathUnderLocalDataRoot | Should -BeTrue
+                $paths.LogsRootUnderLocalDataRoot | Should -BeTrue
+                $paths.ExportsRootUnderLocalDataRoot | Should -BeTrue
+                $paths.ConfigPathUnderModuleRoot | Should -BeTrue
+                $paths.SecretsTemplateUnderModuleRoot | Should -BeTrue
+                $paths.LocalDataRootExists | Should -BeTrue
+                $paths.SecretsPathExists | Should -BeTrue
+                $paths.LogsRootExists | Should -BeTrue
+                $paths.ExportsRootExists | Should -BeTrue
+            }
+        }
+
+        It "Should leave existing LocalDataRoot secrets untouched on reimport" {
+            InModuleScope TechToolbox {
+                $secretsPath = $script:TT.SecretsPath
+                $beforeHash = (Get-FileHash -LiteralPath $secretsPath -Algorithm SHA256).Hash
+
+                Import-Module -Name (Join-Path $script:TT.ModuleRoot 'TechToolbox.psd1') -Force -ErrorAction Stop
+
+                $afterHash = (Get-FileHash -LiteralPath $secretsPath -Algorithm SHA256).Hash
+                $afterHash | Should -Be $beforeHash
             }
         }
     }
