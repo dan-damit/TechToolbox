@@ -2,15 +2,12 @@ function Get-SecretsPath {
     [CmdletBinding()]
     param()
 
-    if ($script:SecretsPath) { return $script:SecretsPath }
-
-    if (-not $script:ConfigPath) {
-        throw "[Get-SecretsPath] ConfigPath not set. Run Initialize-Config/Initialize-TechToolboxRuntime first."
+    if (-not $script:TT -or -not $script:TT.SecretsPath) {
+        throw '[Get-SecretsPath] Authoritative secrets path is not initialized. Import TechToolbox before requesting secrets.'
     }
 
-    $dir = Split-Path -Parent $script:ConfigPath
-    $script:SecretsPath = Join-Path $dir 'config.secrets.json'
-    return $script:SecretsPath
+    $script:SecretsPath = $script:TT.SecretsPath
+    return $script:TT.SecretsPath
 }
 
 # SIG # Begin signature block

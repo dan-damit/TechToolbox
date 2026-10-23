@@ -62,7 +62,7 @@ function Get-SystemSnapshot {
 
         # OutDir default
         if (-not $PSBoundParameters.ContainsKey('OutDir')) {
-            $OutDir = if ($ss.exportPath) { [string]$ss.exportPath } else { Join-Path (Get-ModuleRoot) "Exports/SystemSnapshot" }
+            $OutDir = if ($ss.exportPath) { [string]$ss.exportPath } else { Join-Path $script:TT.ExportsRoot 'SystemSnapshot' }
         }
         if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
 

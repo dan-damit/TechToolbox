@@ -5,18 +5,7 @@ function Initialize-ModulePath {
         [string]$Scope = 'User',
 
         [Parameter()]
-        [string]$ModuleRoot = $(
-            if ($env:TT_ModuleRoot) {
-                $env:TT_ModuleRoot
-            }
-            else {
-                $oneDriveRoot = $env:OneDriveCommercial
-                if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDrive }
-                if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDriveConsumer }
-                if (-not $oneDriveRoot) { $oneDriveRoot = $env:USERPROFILE }
-                Join-Path $oneDriveRoot 'TechToolbox'
-            }
-        )
+        [string]$ModuleRoot = $script:TT.ModuleRoot
     )
 
     $conventionalRootCandidates = @(
@@ -50,12 +39,6 @@ function Initialize-ModulePath {
     if (-not $isConventionalModuleRoot) {
         Write-Verbose "Skipping PSModulePath update for non-conventional module root: $ModuleRoot"
         return
-    }
-
-    # Ensure directory exists
-    if (-not (Test-Path -LiteralPath $ModuleRoot)) {
-        New-Item -ItemType Directory -Path $ModuleRoot -Force | Out-Null
-        Write-Information "Created module root: [$ModuleRoot]" -InformationAction Continue
     }
 
     # Load persisted PSModulePath for the chosen scope (seed from process if empty)

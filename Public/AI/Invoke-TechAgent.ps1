@@ -794,7 +794,7 @@ Hard requirement:
 
         if ($transcriptEnabled) {
             if ([string]::IsNullOrWhiteSpace($transcriptRoot)) {
-                $transcriptRoot = Join-Path $moduleRoot 'LogsAndExports\Logs\TechAgentTranscripts'
+                $transcriptRoot = Join-Path $script:TT.LogsRoot 'TechAgentTranscripts'
             }
 
             try {
@@ -811,7 +811,7 @@ Hard requirement:
 
         if ($markdownEnabled) {
             if ([string]::IsNullOrWhiteSpace($markdownRoot)) {
-                $markdownRoot = Join-Path $moduleRoot 'LogsAndExports\Logs\TechAgentMarkdown'
+                $markdownRoot = Join-Path $script:TT.LogsRoot 'TechAgentMarkdown'
             }
 
             try {

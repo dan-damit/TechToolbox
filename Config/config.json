@@ -160,7 +160,7 @@
           ".props",
           ".targets"
         ],
-        "persistencePath": "%TT_Home%\\Artifacts\\semantic-indexing\\VectorStore",
+        "persistencePath": "%TT_LocalDataRoot%\\Artifacts\\semantic-indexing\\VectorStore",
         "autoIngestBeforeRun": true,
         "includeGlobs": [],
         "excludeGlobs": [
@@ -301,8 +301,8 @@
       "deployment": "",
       "apiVersion": "2024-10-21",
       "apiKeyEnvVar": "TT_AGENT_LLM_API_KEY",
-      "defaultPromptFile": "AI\\Tasks\\CurrentTask.txt",
-      "memoryPath": "%TT_ModuleRoot%\\AI\\memory.json",
+      "defaultPromptFile": "%TT_LocalDataRoot%\\CurrentTask.txt",
+      "memoryPath": "%TT_LocalDataRoot%\\AI\\memory.json",
       "maxIterations": 50,
       "orchestratorRunDeadlineSeconds": 1200,
       "promptHistoryItems": 2,

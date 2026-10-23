@@ -6,20 +6,14 @@ function Initialize-Config {
     # active session are picked up. That function keeps its own mtime-based cache
     # and returns quickly when nothing has changed.
 
-    # Ensure ModuleRoot is set
-    if (-not $script:ModuleRoot) {
-        $script:ModuleRoot = $ExecutionContext.SessionState.Module.ModuleBase
+    # Use the currently executing module's packaged config. ModuleRoot is bound
+    # during import and must never be rediscovered from another installation.
+    if (-not $script:TT -or -not $script:TT.ModuleRoot) {
+        throw '[Initialize-Config] Authoritative module path state is not initialized.'
     }
 
-    # Ensure ConfigPath is set
-    if (-not $script:ConfigPath) {
-        $configDir = Join-Path $script:ModuleRoot 'Config'
-        $script:ConfigPath = Join-Path $configDir 'config.json'
-
-        if (-not (Test-Path -LiteralPath $configDir)) {
-            New-Item -Path $configDir -ItemType Directory -Force | Out-Null
-        }
-    }
+    $script:ConfigPath = $script:TT.ConfigPath
+    $script:SecretsPath = $script:TT.SecretsPath
 
     try {
         $script:cfg = Get-TechToolboxConfig -Path $script:ConfigPath

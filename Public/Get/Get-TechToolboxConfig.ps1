@@ -91,40 +91,15 @@ function Get-TechToolboxConfig {
     function Get-TechToolboxPathRoots {
         param([Parameter(Mandatory)][string]$ConfigFilePath)
 
-        $oneDriveRoot = $env:OneDriveCommercial
-        if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDrive }
-        if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDriveConsumer }
-        if (-not $oneDriveRoot) { $oneDriveRoot = $env:USERPROFILE }
-
-        $ttHome = if ($env:TT_Home) {
-            $env:TT_Home
-        }
-        else {
-            Join-Path $oneDriveRoot 'TechToolbox'
-        }
-
-        $defaultModuleRoot = Split-Path -Parent (Split-Path -Parent $ConfigFilePath)
-        $moduleRoot = if ($env:TT_ModuleRoot) { $env:TT_ModuleRoot } else { $defaultModuleRoot }
-
-        $logsRoot = if ($env:TT_LogsRoot) {
-            $env:TT_LogsRoot
-        }
-        else {
-            Join-Path (Join-Path $ttHome 'LogsAndExports') 'Logs'
-        }
-
-        $exportsRoot = if ($env:TT_ExportsRoot) {
-            $env:TT_ExportsRoot
-        }
-        else {
-            Join-Path (Join-Path $ttHome 'LogsAndExports') 'Exports'
+        if (-not $script:TT -or -not $script:TT.ModuleRoot -or -not $script:TT.LocalDataRoot) {
+            throw 'Authoritative TechToolbox path state is not initialized.'
         }
 
         return @{
-            ModuleRoot  = $moduleRoot.TrimEnd('\\')
-            LogsRoot    = $logsRoot.TrimEnd('\\')
-            ExportsRoot = $exportsRoot.TrimEnd('\\')
-            HomeRoot    = $ttHome.TrimEnd('\\')
+            ModuleRoot  = $script:TT.ModuleRoot.TrimEnd('\\')
+            LocalDataRoot = $script:TT.LocalDataRoot.TrimEnd('\\')
+            LogsRoot    = $script:TT.LogsRoot.TrimEnd('\\')
+            ExportsRoot = $script:TT.ExportsRoot.TrimEnd('\\')
         }
     }
 
@@ -180,9 +155,12 @@ function Get-TechToolboxConfig {
 
         if ($Node -is [string]) {
             $resolved = [Environment]::ExpandEnvironmentVariables($Node)
-            $resolved = $resolved.Replace('%TT_Home%', $PathRoots.HomeRoot)
+            $resolved = $resolved.Replace((Join-Path $PathRoots.LocalDataRoot 'LogsAndExports\Logs'), $PathRoots.LogsRoot)
+            $resolved = $resolved.Replace((Join-Path $PathRoots.LocalDataRoot 'LogsAndExports\Exports'), $PathRoots.ExportsRoot)
+            $resolved = $resolved.Replace('%TT_Home%', $PathRoots.LocalDataRoot)
+            $resolved = $resolved.Replace('%TT_LocalDataRoot%', $PathRoots.LocalDataRoot)
             $resolved = $resolved.Replace('%TT_ModuleRoot%', $PathRoots.ModuleRoot)
-            $resolved = $resolved.Replace('%TT_LogsAndExportsRoot%', (Join-Path $PathRoots.HomeRoot 'LogsAndExports'))
+            $resolved = $resolved.Replace('%TT_LogsAndExportsRoot%', $PathRoots.LocalDataRoot)
             $resolved = $resolved.Replace('%TT_LogsRoot%', $PathRoots.LogsRoot)
             $resolved = $resolved.Replace('%TT_ExportsRoot%', $PathRoots.ExportsRoot)
 
@@ -226,15 +204,8 @@ function Get-TechToolboxConfig {
             return $null
         }
 
-        $configDir = Split-Path -Parent $ConfigFilePath
-        $secretsPath = if ([string]::IsNullOrWhiteSpace($env:TT_ConfigSecretsPath)) {
-            Join-Path $configDir 'config.secrets.json'
-        }
-        else {
-            [Environment]::ExpandEnvironmentVariables($env:TT_ConfigSecretsPath)
-        }
-
-        if (-not (Test-Path -LiteralPath $secretsPath)) {
+        $secretsPath = $script:TT.SecretsPath
+        if (-not (Test-Path -LiteralPath $secretsPath -PathType Leaf)) {
             return $null
         }
 
@@ -257,14 +228,9 @@ function Get-TechToolboxConfig {
     $fi = Get-Item -LiteralPath $Path
 
     $pathRoots = Get-TechToolboxPathRoots -ConfigFilePath $Path
-    $pathFingerprint = '{0}|{1}|{2}|{3}' -f $pathRoots.ModuleRoot, $pathRoots.LogsRoot, $pathRoots.ExportsRoot, $pathRoots.HomeRoot
+    $pathFingerprint = '{0}|{1}|{2}|{3}' -f $pathRoots.ModuleRoot, $pathRoots.LocalDataRoot, $pathRoots.LogsRoot, $pathRoots.ExportsRoot
 
-    $secretsPath = if ([string]::IsNullOrWhiteSpace($env:TT_ConfigSecretsPath)) {
-        Join-Path (Split-Path -Parent $fi.FullName) 'config.secrets.json'
-    }
-    else {
-        [Environment]::ExpandEnvironmentVariables($env:TT_ConfigSecretsPath)
-    }
+    $secretsPath = $script:TT.SecretsPath
 
     $secretsLastWrite = ''
     if (Test-Path -LiteralPath $secretsPath) {

@@ -27,42 +27,34 @@ function Test-TTPathRoots {
 
     Initialize-TechToolboxRuntime
 
-    $oneDriveRoot = $env:OneDriveCommercial
-    if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDrive }
-    if (-not $oneDriveRoot) { $oneDriveRoot = $env:OneDriveConsumer }
-    if (-not $oneDriveRoot) { $oneDriveRoot = $env:USERPROFILE }
-
-    $homeRoot = if ($env:TT_Home) {
-        $env:TT_Home
-    }
-    else {
-        Join-Path $oneDriveRoot 'TechToolbox'
-    }
-
-    $moduleRoot = if ($env:TT_ModuleRoot) { $env:TT_ModuleRoot } else { Get-ModuleRoot }
-    $logsRoot = if ($env:TT_LogsRoot) { $env:TT_LogsRoot } else { Join-Path $homeRoot 'LogsAndExports\Logs' }
-    $exportsRoot = if ($env:TT_ExportsRoot) { $env:TT_ExportsRoot } else { Join-Path $homeRoot 'LogsAndExports\Exports' }
+    $moduleRoot = $script:TT.ModuleRoot
+    $localDataRoot = $script:TT.LocalDataRoot
+    $logsRoot = $script:TT.LogsRoot
+    $exportsRoot = $script:TT.ExportsRoot
 
     if ($EnsureDirectories) {
-        foreach ($p in @($logsRoot, $exportsRoot)) {
-            if (-not (Test-Path -LiteralPath $p)) {
+        foreach ($p in @($localDataRoot, (Join-Path $localDataRoot 'Config'), $logsRoot, $exportsRoot)) {
+            if (-not (Test-Path -LiteralPath $p -PathType Container)) {
                 New-Item -ItemType Directory -Path $p -Force | Out-Null
             }
         }
     }
 
     [pscustomobject]@{
-        OneDriveRoot         = $oneDriveRoot
-        TechToolboxHome      = $homeRoot
         ModuleRoot           = $moduleRoot
+        LocalDataRoot        = $localDataRoot
+        ConfigPath           = $script:TT.ConfigPath
+        SecretsTemplatePath  = $script:TT.SecretsTemplatePath
+        SecretsPath          = $script:TT.SecretsPath
         LogsRoot             = $logsRoot
         ExportsRoot          = $exportsRoot
-        ConfigPath           = $script:ConfigPath
+        LocalDataRootExists  = Test-Path -LiteralPath $localDataRoot -PathType Container
+        SecretsPathExists    = Test-Path -LiteralPath $script:TT.SecretsPath -PathType Leaf
+        LogsRootExists       = Test-Path -LiteralPath $logsRoot -PathType Container
+        ExportsRootExists    = Test-Path -LiteralPath $exportsRoot -PathType Container
         ConfigLoggingLogPath = $script:cfg.settings.logging.logPath
         ConfigDefaultsPath   = $script:cfg.settings.defaults.configPath
         ConfigPathsLogs      = $script:cfg.paths.logs
-        LogsRootExists       = Test-Path -LiteralPath $logsRoot
-        ExportsRootExists    = Test-Path -LiteralPath $exportsRoot
     }
 }
 

@@ -11,7 +11,7 @@ function Resolve-UptimeExportPath {
         if ($cfgPath) { return [string]$cfgPath }
     }
 
-    $fallback = Join-Path $script:ModuleRoot 'Exports\SystemUptime'
+    $fallback = Join-Path $script:TT.ExportsRoot 'SystemUptime'
     if (-not (Test-Path -LiteralPath $fallback)) {
         New-Item -ItemType Directory -Path $fallback -Force | Out-Null
     }

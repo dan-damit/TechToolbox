@@ -122,11 +122,42 @@ if (-not (Test-Path -Path 'variable:script:TT')) {
     }
 }
 
-# --- Config/data paths bootstrap (final binding happens after home resolution) ---
-$script:TT['Home'] = $script:ModuleRoot
-$script:TT['AgentHistoryFile'] = Join-Path $script:TT.Home 'AgentHistory.jsonl'
+# --- Authoritative application and runtime data roots ---
+$script:TT['ModuleRoot'] = $script:ModuleRoot
+$script:TT['LocalDataRoot'] = Join-Path $env:LOCALAPPDATA 'TechToolbox'
+$script:TT['ConfigPath'] = Join-Path $script:TT.ModuleRoot 'Config\config.json'
+$script:TT['SecretsTemplatePath'] = Join-Path $script:TT.ModuleRoot 'Config\config.secrets.json'
+$script:TT['SecretsPath'] = Join-Path $script:TT.LocalDataRoot 'Config\config.secrets.json'
+$script:TT['LogsRoot'] = Join-Path $script:TT.LocalDataRoot 'Logs'
+$script:TT['ExportsRoot'] = Join-Path $script:TT.LocalDataRoot 'Exports'
+$script:TT['AgentHistoryFile'] = Join-Path $script:TT.LocalDataRoot 'AgentHistory.jsonl'
+$script:ConfigPath = $script:TT.ConfigPath
+$script:SecretsPath = $script:TT.SecretsPath
 
-if (-not (Test-Path $script:TT.Home)) { New-Item -ItemType Directory -Path $script:TT.Home | Out-Null }
+foreach ($path in @(
+    $script:TT.LocalDataRoot,
+    (Join-Path $script:TT.LocalDataRoot 'Config'),
+    $script:TT.LogsRoot,
+    $script:TT.ExportsRoot
+)) {
+    if (-not (Test-Path -LiteralPath $path -PathType Container)) {
+        New-Item -ItemType Directory -Path $path -Force | Out-Null
+    }
+}
+
+if (-not (Test-Path -LiteralPath $script:TT.SecretsPath -PathType Leaf)) {
+    if (-not (Test-Path -LiteralPath $script:TT.SecretsTemplatePath -PathType Leaf)) {
+        throw "Packaged secrets template not found: $($script:TT.SecretsTemplatePath)"
+    }
+    Copy-Item -LiteralPath $script:TT.SecretsTemplatePath -Destination $script:TT.SecretsPath -ErrorAction Stop
+}
+
+# Compatibility values are derived from the authoritative runtime state.
+$script:TT['Home'] = $script:TT.LocalDataRoot
+$env:TT_Home = $script:TT.LocalDataRoot
+$env:TT_ModuleRoot = $script:TT.ModuleRoot
+$env:TT_LogsRoot = $script:TT.LogsRoot
+$env:TT_ExportsRoot = $script:TT.ExportsRoot
 
 # Guard re-import (but still print status line)
 if ($script:TT_Initialized) {
@@ -145,101 +176,28 @@ $initHelper = Join-Path $script:ModuleRoot 'Private\Loader\Initialize-TechToolbo
 if (Test-Path $initHelper) { . $initHelper; __tt_trace "Sourced Initialize-TechToolboxHome.ps1" }
 else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
 
-# --- Resolve runtime/data roots (module-root by default) ---
-try {
-    if ($env:TT_SkipHomeInit -ne '1') {
-
-        # -------------------------------------------------------
-        # Determine TechToolbox home (config/data root)
-        # Priority: $env:TT_Home > ModuleRoot
-        # -------------------------------------------------------
-        if ($env:TT_Home) {
-            try {
-                $TT_Home = [System.IO.Path]::GetFullPath($env:TT_Home)
-            }
-            catch {
-                $TT_Home = $env:TT_Home
-            }
-        }
-        else {
-            $TT_Home = $script:ModuleRoot
-        }
-
-        # --- TechToolbox module root is always the actual import location ---
-        # Decoupled from config/home path. This keeps the module's code
-        # location independent of where logs/configs are stored.
-        $TT_ModuleRoot = $script:ModuleRoot
-
-        # --- Export for child sessions ---
-        $env:TT_Home = $TT_Home
-        $env:TT_ModuleRoot = $TT_ModuleRoot
-
-        # Agent filesystem and path authorization defaults are environment-driven so
-        # gallery installs and local dev both work without hardcoded repo paths.
-        if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)) {
-            $env:TT_AGENT_FILESYSTEM_ROOT = $TT_ModuleRoot
-        }
-
-        if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_ALLOWED_PATH_ROOTS)) {
-            $defaultAllowedRoots = @(
-                $TT_ModuleRoot,
-                $TT_Home
-            ) |
-                Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-                ForEach-Object { [System.IO.Path]::GetFullPath($_) } |
-                Select-Object -Unique
-
-            $defaultAllowedRoots = @($defaultAllowedRoots)
-            if ($defaultAllowedRoots.Count -gt 0) {
-                $env:TT_AGENT_ALLOWED_PATH_ROOTS = [string]::Join([System.IO.Path]::PathSeparator, $defaultAllowedRoots)
-            }
-        }
-
-        if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_LOCAL_MCP_ADAPTER_PATH)) {
-            $localMcpAdapterCandidates = @(
-                (Join-Path $TT_ModuleRoot 'AgentRuntime\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.dll'),
-                (Join-Path $TT_ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\publish\TechToolbox.LocalMcpAdapter.dll'),
-                (Join-Path $TT_ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\TechToolbox.LocalMcpAdapter.dll'),
-                (Join-Path $TT_ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Debug\net8.0\TechToolbox.LocalMcpAdapter.dll')
-            )
-
-            $resolvedLocalMcpAdapterPath = $localMcpAdapterCandidates |
-                Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
-                Select-Object -First 1
-
-            if ([string]::IsNullOrWhiteSpace($resolvedLocalMcpAdapterPath)) {
-                $resolvedLocalMcpAdapterPath = $localMcpAdapterCandidates[0]
-            }
-
-            $env:TT_AGENT_LOCAL_MCP_ADAPTER_PATH = $resolvedLocalMcpAdapterPath
-        }
-
-        # Rebind runtime container paths to the effective home.
-        $script:TT['Home'] = $TT_Home
-        $script:TT['AgentHistoryFile'] = Join-Path $script:TT.Home 'AgentHistory.jsonl'
-
-        # --- Centralized path roots (OneDrive-aware) ---
-        $TT_LogsAndExportsRoot = Join-Path $TT_Home 'LogsAndExports'
-        $env:TT_LogsAndExportsRoot = $TT_LogsAndExportsRoot
-        $env:TT_LogsRoot = Join-Path $TT_LogsAndExportsRoot 'Logs'
-        $env:TT_ExportsRoot = Join-Path $TT_LogsAndExportsRoot 'Exports'
-
-        # Ensure runtime folders exist. No self-copy or self-heal staging is performed.
-        foreach ($path in @($TT_LogsAndExportsRoot, $env:TT_LogsRoot, $env:TT_ExportsRoot)) {
-            if (-not (Test-Path -LiteralPath $path)) {
-                New-Item -ItemType Directory -Path $path -Force | Out-Null
-            }
-        }
-
-        __tt_trace "Runtime folders ensured (no home copy)."
-    }
-    else {
-        __tt_trace "Home init skipped via TT_SkipHomeInit=1"
-    }
+# --- Publish resolved runtime roots for child processes ---
+$TT_ModuleRoot = $script:TT.ModuleRoot
+$TT_Home = $script:TT.LocalDataRoot
+$env:TT_AGENT_FILESYSTEM_ROOT = if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)) { $TT_ModuleRoot } else { $env:TT_AGENT_FILESYSTEM_ROOT }
+if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_ALLOWED_PATH_ROOTS)) {
+    $env:TT_AGENT_ALLOWED_PATH_ROOTS = [string]::Join([System.IO.Path]::PathSeparator, @($TT_ModuleRoot, $script:TT.LocalDataRoot))
 }
-catch {
-    Write-Warning "Initialize-TechToolboxHome failed: $($_.Exception.Message)"
+
+if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_LOCAL_MCP_ADAPTER_PATH)) {
+    $localMcpAdapterCandidates = @(
+        (Join-Path $TT_ModuleRoot 'AgentRuntime\TechToolbox.LocalMcpAdapter\TechToolbox.LocalMcpAdapter.dll'),
+        (Join-Path $TT_ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\publish\TechToolbox.LocalMcpAdapter.dll'),
+        (Join-Path $TT_ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Release\net8.0\TechToolbox.LocalMcpAdapter.dll'),
+        (Join-Path $TT_ModuleRoot 'src\TechToolbox.Agent\TechToolbox.LocalMcpAdapter\bin\Debug\net8.0\TechToolbox.LocalMcpAdapter.dll')
+    )
+    $resolvedLocalMcpAdapterPath = $localMcpAdapterCandidates |
+        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+        Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($resolvedLocalMcpAdapterPath)) { $resolvedLocalMcpAdapterPath = $localMcpAdapterCandidates[0] }
+    $env:TT_AGENT_LOCAL_MCP_ADAPTER_PATH = $resolvedLocalMcpAdapterPath
 }
+__tt_trace "Local runtime folders ensured under $($script:TT.LocalDataRoot)."
 
 # --- Load Private functions ---
 $privateRoot = Join-Path $script:ModuleRoot 'Private'

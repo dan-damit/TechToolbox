@@ -10,7 +10,7 @@ function Initialize-TTWordList {
 
     .PARAMETER Path
     The file path where the word list will be written. Default:
-    '<TechToolboxModuleRoot>\\Config\\wordlist.txt'
+    '<TechToolboxLocalDataRoot>\\Config\\wordlist.txt'
 
     .PARAMETER NoAmbiguous
     If specified, filters out words containing the letters i, l, or o.
@@ -31,7 +31,7 @@ function Initialize-TTWordList {
     )
 
     if (-not $Path) {
-        $Path = Join-Path (Get-ModuleRoot) 'Config\wordlist.txt'
+        $Path = Join-Path (Join-Path $script:TT.LocalDataRoot 'Config') 'wordlist.txt'
     }
 
     # Curated starter list (add to this as you like)

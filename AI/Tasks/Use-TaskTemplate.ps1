@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Helps reuse prompt templates stored under AI/Tasks/Templates by listing them
-    or copying one template into AI/Tasks/CurrentTask.txt or another destination
+    or copying one template into the LocalDataRoot CurrentTask.txt or another destination
     path.
 
 .PARAMETER Template
@@ -14,7 +14,7 @@
 
 .PARAMETER Destination
     Destination file path for the copied template. Defaults to
-    AI/Tasks/CurrentTask.txt.
+    <TechToolboxLocalDataRoot>/CurrentTask.txt.
 
 .PARAMETER List
     Lists available templates and exits.
@@ -48,7 +48,7 @@
 .EXAMPLE
     .\AI\Tasks\Use-TaskTemplate.ps1 -Template PowerShell-BugFix-InPlace.txt
 
-    Copies the selected template into AI/Tasks/CurrentTask.txt.
+    Copies the selected template into the LocalDataRoot CurrentTask.txt.
 
 .EXAMPLE
     .\AI\Tasks\Use-TaskTemplate.ps1 -Template CSharp-BugFix-InPlace -Show
@@ -63,7 +63,7 @@
 .EXAMPLE
     .\AI\Tasks\Use-TaskTemplate.ps1 -Pick
 
-    Presents an interactive picker and copies the selected template into AI/Tasks/CurrentTask.txt.
+    Presents an interactive picker and copies the selected template into the LocalDataRoot CurrentTask.txt.
 
 .EXAMPLE
     .\AI\Tasks\Use-TaskTemplate.ps1 -Pick -Show
@@ -96,7 +96,7 @@ $moduleRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $taskRoot = Join-Path $moduleRoot 'AI\Tasks'
 
 if ([string]::IsNullOrWhiteSpace($Destination)) {
-    $Destination = Join-Path $taskRoot 'CurrentTask.txt'
+    $Destination = Join-Path (Join-Path $env:LOCALAPPDATA 'TechToolbox') 'CurrentTask.txt'
 }
 
 $templateRoot = Join-Path $taskRoot 'Templates'
