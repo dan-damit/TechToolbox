@@ -361,7 +361,6 @@
             "authMode": "None",
             "namespacePrefix": "powershell",
             "allowedTools": [
-              "run_powershell",
               "list_services",
               "get_service",
               "control_service",
