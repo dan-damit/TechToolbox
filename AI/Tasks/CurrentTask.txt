@@ -3,51 +3,70 @@ TechToolbox v2.2 Runtime Data Root Migration
 
 Goal
 ----
-Refactor TechToolbox so that the installed module directory contains only
-versioned application content and is treated as immutable/read-only during
-normal TechToolbox operation.
-
-All TechToolbox-owned mutable, persistent, or runtime-generated user data
-must live under:
+Perform a complete, safe, governed migration of all TechToolbox runtime data
+from the installed module directory (ModuleRoot) into the machine-local,
+non-roaming runtime root:
 
     $env:LOCALAPPDATA\TechToolbox\
 
-This is an intentional breaking architectural change for TechToolbox v2.2.
+This migration includes analysis, diff generation, and code implementation.
+All phases are authorized within this single task, but must follow the
+governed multi-phase workflow defined below.
 
-The goal is NOT to relocate the TechToolbox module installation.
+Multi‑Phase Workflow (Unified)
+------------------------------
 
-The existing publishing/install architecture should remain intact unless
-a specific change is required to support this migration.
+Phase A: Analysis
+    - Analyze the current TechToolbox path architecture.
+    - Identify all affected files, consumers, and path dependencies.
+    - Produce the proposed path dependency graph.
+    - Identify all required changes.
+    - No code mutation is allowed in Phase A.
 
+Phase B: Diff Generation
+    - Produce literal, line-accurate diffs for every file identified in Phase A.
+    - Diffs must be complete patch blocks that can be applied directly.
+    - Diffs must correspond exactly to the Phase A plan.
+    - No code mutation is allowed in Phase B.
+    - If any diff cannot be produced without guessing, request clarification.
 
-Core Architectural Rule
------------------------
-ModuleRoot contains things TechToolbox ships.
+Phase C: Implementation
+    - Apply only the diffs produced in Phase B.
+    - Modify only the files listed in Phase A.
+    - No additional changes may be invented.
+    - All mutations must follow the v2.2 migration contract.
+    - All mutations must integrate with the existing $script:TT architecture.
+    - All mutations must preserve packaged assets under ModuleRoot.
+    - All mutations must ensure LocalDataRoot is authoritative for runtime state.
+    - All mutations must preserve call-site export overrides.
+    - All mutations must be idempotent.
+    - After mutation, produce a full diff summary of all modified files.
 
-LocalDataRoot contains things TechToolbox creates, modifies, or persists
-at runtime for the user.
+Phase D: Validation
+    - Validate all acceptance criteria.
+    - Confirm no runtime writes occur under ModuleRoot.
+    - Confirm all runtime paths resolve exclusively through LocalDataRoot.
+    - Confirm packaged assets remain untouched.
+    - Confirm Test-TTPathRoots reports correct invariants.
+    - Confirm initialization is idempotent.
+    - Confirm Update-Module does not require runtime-state migration.
 
-In short:
+Phase E: Regression Testing
+    - Run all path-resolution tests.
+    - Run all logging/export tests.
+    - Run all secrets initialization tests.
+    - Run all AI/AgentRuntime path-consumption tests.
+    - Run all cross-version coexistence tests.
+    - Report any remaining ModuleRoot writes.
 
-    ModuleRoot    = immutable application assets
-    LocalDataRoot = mutable runtime/user state
+Architectural Contract
+----------------------
+ModuleRoot = immutable application assets.
+LocalDataRoot = mutable runtime/user state.
 
-The module installation should be treated as immutable during normal
-TechToolbox operation.
+No normal runtime operation may write to ModuleRoot.
 
-
-Scope Boundary
---------------
-This migration applies to mutable user/runtime data.
-
-Do NOT relocate, redesign, or otherwise unnecessarily modify packaged
-application assets merely because the module installation may itself
-reside beneath Documents or OneDrive.
-
-Existing packaged directories such as the following remain under
-ModuleRoot and continue to be packaged and deployed through the existing
-publish process:
-
+Packaged assets remain under ModuleRoot:
     AgentRuntime\
     AI\
     artifacts\
@@ -58,654 +77,67 @@ publish process:
     Public\
     Workers\
 
-Likewise, packaged files such as manifests, module files, help files,
-documentation, formatting definitions, AI assets, and AgentRuntime assets
-remain under ModuleRoot.
+Live runtime state must reside under:
+    $env:LOCALAPPDATA\TechToolbox\
 
-Specifically:
+This includes:
+    Config\config.secrets.json
+    Logs\
+    Exports\
+    any future runtime state
 
-    AI\ and AgentRuntime\ remain application content.
-
-This task must not redesign or relocate the TechToolbox AI or AgentRuntime
-architecture unless analysis discovers a direct dependency that must be
-adjusted solely to consume the newly resolved runtime paths.
-
-Do not interpret "move user configuration to LocalDataRoot" as "move the
-entire packaged Config directory to LocalDataRoot."
-
-
-Target Layout
--------------
-Versioned module installation should remain conceptually similar to the
-existing published package:
-
-    Modules\
-        TechToolbox\
-            2.2.0\
-                AgentRuntime\
-                AI\
-                artifacts\
-                Config\
-                    config.json
-                    config.secrets.json
-                en-US\
-                Formats\
-                Private\
-                Public\
-                Workers\
-                global.json
-                LICENSE
-                PSGetModuleInfo.xml
-                README.md
-                SECURITY.md
-                TechAgent_Architecture_Breakdown.md
-                TechToolbox.psd1
-                TechToolbox.psm1
-
-Persistent runtime/user data:
-
-    $env:LOCALAPPDATA\
-        TechToolbox\
-            Config\
-                config.secrets.json
-            Logs\
-            Exports\
-
-
-Configuration Ownership
------------------------
-The existence of Config directories under both roots is intentional and
-they have different ownership semantics.
-
-ModuleRoot\Config
-    Packaged application configuration, defaults, schemas, and templates
-    owned by the installed TechToolbox version.
-
-LocalDataRoot\Config
-    Mutable/persistent user configuration owned by the local TechToolbox
-    runtime environment.
-
-Therefore:
-
-    ModuleRoot\Config\config.json
-
-remains packaged application configuration unless analysis identifies a
-strong architectural reason otherwise.
-
-And:
-
-    ModuleRoot\Config\config.secrets.json
-
-remains a packaged initialization/template/schema source.
-
-The authoritative live user secrets configuration becomes:
-
-    LocalDataRoot\Config\config.secrets.json
-
-Do not remove the packaged Config directory merely because mutable user
-configuration is moving to LocalDataRoot.
-
-
-OneDrive / Cloud-Sync Safety Requirement
-----------------------------------------
-The current module installation can reside beneath the user's Documents
-directory, and Documents may itself be redirected into a OneDrive-synchronized
-location.
-
-This creates an undesirable condition where mutable runtime data, including
-config.secrets.json, can unintentionally reside within the user's OneDrive
-synchronization scope.
-
-TechToolbox v2.2 must correct this architecture.
-
-TechToolbox must NOT choose any of the following as the default location
-for its mutable runtime/user data:
-
-    ModuleRoot
-    Documents
-    OneDriveRoot
-    PSModulePath
-    any path derived from the installed module version
-
-Instead, the authoritative default runtime root is:
-
-    $env:LOCALAPPDATA\TechToolbox
-
-This requirement specifically applies to:
-
-    live user configuration/secrets
-    logs
-    default exports
-    future persistent runtime state
-
-TechToolbox may still be INSTALLED within Documents/OneDrive because that
-is application content.
-
-The security concern is mutable runtime/user data defaulting into the
-OneDrive synchronization scope, not the presence of the published module
-itself there.
-
-Call-site overrides remain authoritative. If the user explicitly directs
-an export into Documents, OneDrive, a network share, or another location,
-honor that explicit request.
-
-The rule is:
-
-    TechToolbox must not implicitly CHOOSE a cloud-synchronized location
-    for mutable runtime/user data.
-
-The user may explicitly choose an output location.
-
+Secrets Initialization Contract
+-------------------------------
+During module import:
+    - Ensure LocalDataRoot and its subdirectories exist.
+    - If LocalDataRoot\Config\config.secrets.json exists:
+          leave it untouched.
+    - If it does not exist:
+          initialize it from ModuleRoot\Config\config.secrets.json.
+    - Never overwrite an existing LocalDataRoot secrets file.
+    - Never search older module versions for secrets.
 
 Path Authority
 --------------
-There should be exactly two authoritative root concepts:
-
+There are exactly two authoritative roots:
     ModuleRoot
-        The root of the CURRENTLY EXECUTING module.
-
-        Derive this directly from the executing module / $PSScriptRoot.
-
-        Do not discover ModuleRoot by searching installed module versions.
-
     LocalDataRoot
-        Join-Path $env:LOCALAPPDATA 'TechToolbox'
 
-All other TechToolbox paths should derive from one of these two roots.
+All other paths must derive from these.
 
-Eliminate or refactor redundant path-resolution logic that can result in
-different TechToolbox versions being referenced simultaneously.
-
-There is a confirmed existing condition where TechToolbox 2.1.2 is loaded,
-but TechToolboxHome, LogsRoot, ExportsRoot, and related config-derived
-paths can still resolve into the 2.1.1 installation directory.
-
-For example, the observed runtime state included:
-
-    Loaded module version   -> 2.1.2
-    ModuleRoot              -> 2.1.2
-    ConfigPath              -> 2.1.2
-
-while simultaneously:
-
-    TechToolboxHome         -> 2.1.1
-    LogsRoot                -> 2.1.1
-    ExportsRoot             -> 2.1.1
-    related logging paths   -> 2.1.1
-
-This split-brain path state must no longer be possible.
-
-
-Runtime Paths
--------------
-Default runtime paths should resolve approximately as follows:
-
-    LocalDataRoot
-        $env:LOCALAPPDATA\TechToolbox
-
-    SecretsPath
-        $env:LOCALAPPDATA\TechToolbox\Config\config.secrets.json
-
-    LogsRoot
-        $env:LOCALAPPDATA\TechToolbox\Logs
-
-    ExportsRoot
-        $env:LOCALAPPDATA\TechToolbox\Exports
-
-Packaged paths should resolve approximately as follows:
-
-    ModuleRoot
-        root of the currently executing TechToolbox version
-
-    ConfigPath
-        ModuleRoot\Config\config.json
-
-    SecretsTemplatePath
-        ModuleRoot\Config\config.secrets.json
-
-
-Exports
--------
-Preserve the existing TechToolbox export architecture.
-
-Cmdlets that support explicit/call-site export path overrides must continue
-to honor those overrides.
-
-LocalDataRoot\Exports is only the default export location when the caller
-does not provide an override.
-
-Conceptually:
-
-    explicit call-site override
-        >
-    configured/default export behavior
-        >
-    LocalDataRoot\Exports fallback
-
-Do not regress or remove existing call-site export path behavior.
-
-
-Initialization
---------------
-Add or refactor module initialization so the runtime filesystem is prepared
-during module import.
-
-Initialization should ensure the following exist:
-
-    $env:LOCALAPPDATA\TechToolbox
-    $env:LOCALAPPDATA\TechToolbox\Config
-    $env:LOCALAPPDATA\TechToolbox\Logs
-    $env:LOCALAPPDATA\TechToolbox\Exports
-
-Initialization must be idempotent and safe to run on every module import.
-
-Runtime initialization should integrate with the existing $script:TT
-architecture rather than introduce competing path state.
-
-
-Secrets Initialization
-----------------------
-TechToolbox v2.2 establishes a new runtime-data contract.
-
-Do NOT automatically discover, inspect, select, copy, or migrate
-config.secrets.json files from previous installed TechToolbox versions.
-
-Normal module initialization must never search older installed versions
-for runtime state.
-
-During module import:
-
-1. Ensure the following exist:
-
-       $env:LOCALAPPDATA\TechToolbox
-       $env:LOCALAPPDATA\TechToolbox\Config
-       $env:LOCALAPPDATA\TechToolbox\Logs
-       $env:LOCALAPPDATA\TechToolbox\Exports
-
-2. Resolve the authoritative live secrets path as:
-
-       $env:LOCALAPPDATA\TechToolbox\Config\config.secrets.json
-
-3. If the LocalDataRoot config.secrets.json already exists:
-
-       LEAVE IT UNTOUCHED.
-
-   Existing LocalDataRoot user configuration is authoritative.
-
-4. If the LocalDataRoot config.secrets.json does not exist:
-
-       initialize it from:
-
-       ModuleRoot\Config\config.secrets.json
-
-   using the template shipped with the CURRENTLY EXECUTING module.
-
-5. Never overwrite an existing LocalDataRoot config.secrets.json during
-   normal module import, Update-Module, or installation of another version.
-
-6. The packaged config.secrets.json must never become the authoritative
-   runtime secrets file.
-
-After initialization:
-
-    ModuleRoot\Config\config.secrets.json
-        = packaged template/schema source
-
-    LocalDataRoot\Config\config.secrets.json
-        = authoritative live user configuration
-
-
-Pre-v2.2 Configuration Boundary
--------------------------------
-TechToolbox v2.2 intentionally establishes a clean break from the legacy
-runtime-storage architecture.
-
-Pre-v2.2 config.secrets.json files must NOT be automatically discovered or
-treated as alternate runtime configuration sources.
-
-Do not search:
-
-    older installed TechToolbox versions
+No path may derive from:
     Documents
     OneDrive
     PSModulePath
-
-for legacy runtime configuration during normal module initialization.
-
-Users upgrading from a pre-v2.2 release are responsible for deliberately
-transferring any legacy secrets/configuration they wish to retain into:
-
-    $env:LOCALAPPDATA\TechToolbox\Config\config.secrets.json
-
-This is intentional.
-
-From v2.2 onward, LocalDataRoot is the sole authoritative location for
-mutable TechToolbox user/runtime state.
-
-If explicit legacy migration support is later considered desirable, it
-should be implemented as a separately invoked operation and must not become
-part of normal module initialization.
-
-
-Legacy Logs and Exports
------------------------
-Do not automatically migrate historical Logs or Exports.
-
-New runtime output must use LocalDataRoot defaults.
-
-Existing historical data inside previous module versions may remain
-untouched.
-
-Do not search previous module versions for runtime state during normal
-module initialization.
-
-Do not delete historical LogsAndExports directories from previous installed
-module versions as part of module import.
-
-
-TT Runtime State
-----------------
-Integrate the new paths into the existing $script:TT runtime-state
-architecture rather than introducing independent global/path variables.
-
-Prefer one-time authoritative path resolution during module initialization.
-
-Consumers should use resolved $script:TT path state rather than independently
-attempting to rediscover TechToolbox locations.
-
-Avoid multiple copies or representations of the same authoritative path
-where possible.
-
-Determine whether TechToolboxHome remains useful after the introduction of
-a clear ModuleRoot / LocalDataRoot distinction.
-
-Do not preserve redundant path concepts merely for historical reasons if they
-create ambiguity, but account for compatibility before removing or renaming
-publicly observable behavior.
-
-
-Test-TTPathRoots
-----------------
-Update Test-TTPathRoots to expose and validate the new architecture.
-
-It should clearly report, at minimum:
-
-    ModuleRoot
-    LocalDataRoot
-    ConfigPath
-    SecretsTemplatePath
-    SecretsPath
-    LogsRoot
-    ExportsRoot
-
-And appropriate existence checks such as:
-
-    LocalDataRootExists
-    SecretsPathExists
-    LogsRootExists
-    ExportsRootExists
-
-Test-TTPathRoots should make version/path inconsistencies obvious.
-
-Expected invariant:
-
-    ModuleRoot
-        -> current loaded module version
-
-    ConfigPath
-        -> current loaded module version
-
-    SecretsTemplatePath
-        -> current loaded module version
-
-    LocalDataRoot
-        -> version-independent
-
-    SecretsPath
-        -> version-independent
-
-    LogsRoot
-        -> version-independent
-
-    ExportsRoot
-        -> version-independent
-
-No mutable runtime root should accidentally point into an installed
-TechToolbox version.
-
-No packaged/module path should accidentally resolve against a different
-installed TechToolbox version than the one currently executing.
-
-
-Compatibility / Analysis Requirements
--------------------------------------
-Before modifying code:
-
-1. Trace the existing TTPathRoots architecture.
-
-2. Identify every source of truth currently used to determine:
-       module paths
-       configuration paths
-       secrets paths
-       logging paths
-       export paths
-
-3. Identify every consumer of affected paths.
-
-4. Identify config.json properties that currently persist or derive
-   module-relative/runtime paths.
-
-5. Identify any code that writes to ModuleRoot.
-
-6. Categorize each ModuleRoot write as:
-       packaged/build-time behavior
-       runtime mutable state
-       intentional exception
-
-7. Identify export call-site override behavior and preserve it.
-
-8. Identify tests and diagnostics affected by the migration.
-
-9. Determine whether TechToolboxHome remains necessary or should be
-   deprecated/replaced by ModuleRoot and LocalDataRoot.
-
-10. Identify dependencies from AI and AgentRuntime on existing path state.
-
-    Preserve AI and AgentRuntime architecture.
-
-    Adjust only path consumption that is directly affected by the new
-    ModuleRoot/LocalDataRoot contract.
-
-11. Inspect the build/publish workflow sufficiently to ensure this runtime
-    migration does not unintentionally remove required packaged application
-    assets from published releases.
-
-Do not perform broad unrelated refactoring.
-
-
-Explicit Non-Goals
-------------------
-This migration is NOT intended to:
-
-- relocate the installed TechToolbox module
-- redesign the publish workflow unless specifically required
-- move AI out of ModuleRoot
-- move AgentRuntime out of ModuleRoot
-- move Public, Private, Workers, Formats, en-US, or other packaged assets
-  out of ModuleRoot
-- move all contents of Config out of ModuleRoot
-- redesign TechAgent
-- redesign TechToolbox AI
-- migrate historical logs unless required
-- migrate historical exports unless required
-- remove existing call-site export overrides
-- broadly refactor unrelated TechToolbox architecture
-
-Keep the change focused on runtime state ownership and path resolution.
-
-
-Implementation Principle
-------------------------
-
-    ModuleRoot = immutable application assets.
-    LocalDataRoot = mutable runtime/user state.
-
-After this change, running:
-
-    Update-Module TechToolbox
-
-or installing a new TechToolbox version must not require copying live runtime
-state from one versioned module directory to another.
-
-TechToolbox v2.2 is a deliberate runtime-state boundary.
-
-No runtime state should need to be copied between versioned module
-directories.
-
-Normal v2.2 module initialization must not inspect previous installed
-TechToolbox versions to establish runtime state.
-
-From v2.2 onward:
-
-    ModuleRoot
-        = application assets belonging to the currently executing version
-
-    LocalDataRoot
-        = persistent user/runtime state independent of module version
-
-
-A module upgrade should conceptually look like:
-
-    Modules\
-        TechToolbox\
-            2.1.2\
-            2.2.0\
-                AgentRuntime\
-                AI\
-                Config\
-                Private\
-                Public\
-                Workers\
-                ...
-
-    LocalAppData\
-        TechToolbox\
-            Config\
-                config.secrets.json
-            Logs\
-            Exports\
-
-The LocalAppData tree remains independent of the installed module version.
-
-
-Security Invariant
-------------------
-TechToolbox must choose a machine-local, non-roaming location for mutable
-runtime/user data by default.
-
-An installation under OneDrive/Documents is permitted for versioned
-application assets.
-
-Mutable user configuration, secrets, logs, and implicit/default exports
-must not default into that synchronized module installation.
-
-The caller retains the ability to explicitly select an output location.
-
+    older module versions
 
 Acceptance Criteria
 -------------------
-Consider the migration successful only when:
+Migration is successful only when:
+    - ModuleRoot is immutable.
+    - LocalDataRoot is authoritative.
+    - No runtime writes occur under ModuleRoot.
+    - Packaged assets remain intact.
+    - Secrets survive Update-Module.
+    - Logs survive Update-Module.
+    - Exports survive Update-Module.
+    - Call-site overrides remain authoritative.
+    - Test-TTPathRoots reports correct invariants.
+    - Initialization is idempotent.
+    - No legacy config is discovered.
+    - No cross-version path bleed occurs.
+    - No cloud-synced location is chosen implicitly.
 
-- The currently executing TechToolbox version is the sole authority for
-  ModuleRoot.
+Authorization
+-------------
+This unified task explicitly authorizes:
+    - Phase A analysis
+    - Phase B diff generation
+    - Phase C code mutation
+    - Phase D validation
+    - Phase E regression testing
 
-- No normal runtime operation writes mutable user/runtime state beneath
-  ModuleRoot. Any remaining ModuleRoot write must be identified, justified,
-  and reported as an intentional exception.
-
-- Existing packaged application assets remain available from ModuleRoot.
-
-- AI remains operational from the packaged module structure.
-
-- AgentRuntime remains operational from the packaged module structure.
-
-- ModuleRoot\Config\config.json remains available as packaged application
-  configuration.
-
-- ModuleRoot\Config\config.secrets.json remains available as the packaged
-  template/schema source.
-
-- Secrets survive Update-Module.
-
-- Logs survive Update-Module.
-
-- Default exports survive Update-Module.
-
-- Explicit export path overrides continue working.
-
-- Existing LocalAppData secrets are never silently overwritten.
-
-- Multiple installed TechToolbox versions cannot cause runtime path
-  resolution to point into the wrong version.
-
-- TechToolbox does not implicitly choose OneDrive/Documents as the default
-  location for mutable runtime state.
-
-- Test-TTPathRoots accurately exposes the final resolved state.
-
-- Module import remains idempotent.
-
-- Existing publishing behavior remains intact except for changes explicitly
-  required by this architecture.
-  
-- The live config.secrets.json resolves exclusively through LocalDataRoot
-  after initialization.
-
-- A fresh v2.2 installation initializes LocalDataRoot config.secrets.json
-  from the template shipped with the currently executing module.
-
-- An existing LocalDataRoot config.secrets.json is never silently
-  overwritten.
-
-- Installing or importing a newer TechToolbox version does not replace
-  existing LocalDataRoot user configuration.
-
-- Normal module initialization does not search previous installed
-  TechToolbox versions for configuration or runtime state.
-
-- Pre-v2.2 config.secrets.json files are not automatically discovered,
-  copied, migrated, deleted, or treated as alternate configuration sources.
-
-- From v2.2 onward, Update-Module requires no runtime-state migration
-  between versioned TechToolbox installations.
-
-
-Deliverable
------------
-FIRST analyze the current implementation and produce an exact implementation
-plan containing:
-
-- affected files
-- existing path dependency graph
-- proposed path dependency graph
-- affected consumers
-- v2.2 initialization and pre-v2.2 compatibility behavior
-- compatibility implications
-- security implications
-- risks
-- tests
-- exact proposed diffs/changes
-
-Do not begin mutation until the analysis has established the current path
-architecture and the migration plan.
-
-Then implement using the established TechToolbox coding conventions and
-$script:TT runtime architecture.
-
-Keep implementation focused on the TechToolbox v2.2 runtime-data-root
-migration.
-
-After implementation, validate all acceptance criteria and report any
-remaining runtime writes that still target ModuleRoot.
+Code mutation is authorized ONLY in Phase C and ONLY using the exact diffs
+generated in Phase B.
 
 The model proposes. The orchestrator decides.
