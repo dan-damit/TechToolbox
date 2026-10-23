@@ -136,7 +136,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = 'https://github.com/dan-damit/TechToolbox/releases/latest'
+        ReleaseNotes = 'https://github.com/dan-damit/TechToolbox/releases/'
 
         # Prerelease string of this module
         # Prerelease = ''
