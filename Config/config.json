@@ -192,7 +192,7 @@
         "hybridStateWorldWeight": 0.5
       },
       "policyStartupMode": "Observe",
-      "allowedPathRoots": ["C:\\repos\\TechToolbox"],
+      "allowedPathRoots": ["C:\\repos\\TechToolbox", "%TT_LocalDataRoot%", "%TT_ModuleRoot%"],
       "provider": "openai",
       "model": "gpt-6-luna",
       "executionMode": "execute",
