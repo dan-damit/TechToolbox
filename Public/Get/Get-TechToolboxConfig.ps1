@@ -19,6 +19,8 @@ function Get-TechToolboxConfig {
         - Validates that schemaVersion and settings exist at the top level.
         - Validates that settings.passwords.default contains separator, style,
             length, and digits.
+        - Safely merges user/secrets overrides when packaged defaults contain
+            null-valued branches.
         - Preserves raw values exactly as stored in the JSON and does not trim or
             mutate configuration values.
     .PARAMETER Path
@@ -180,9 +182,17 @@ function Get-TechToolboxConfig {
 
     function Merge-TechToolboxConfigNode {
         param(
-            [Parameter(Mandatory)]$Base,
-            [Parameter(Mandatory)]$Override
+            $Base,
+            $Override
         )
+
+        if ($null -eq $Override) {
+            return $null
+        }
+
+        if ($null -eq $Base) {
+            return $Override
+        }
 
         if ($Override -is [System.Collections.IDictionary] -and $Base -is [System.Collections.IDictionary]) {
             foreach ($key in $Override.Keys) {
@@ -319,12 +329,11 @@ function Get-TechToolboxConfig {
     return $data
 }
 
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA7GTvjJgjeyCQX
-# xI8vELXFnwenfOEamAnFgkGAVGaq7qCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB7WbRyUECAEZvf
+# p5kIJg0VYzpCmC3k9Byv+piCnJjaIaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -501,31 +510,31 @@ function Get-TechToolboxConfig {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDR
-# NiGsBQuiWQWvIRdYx5wa2dLpoJTTizf1SvXOQP31xTANBgkqhkiG9w0BAQEFAASC
-# AYAh3xEHiARQekEC69WX+gVa2hjztEZgppAZ7KB9Dvd2hsoGHm1MtkALbfXdv/Kr
-# AYPnVDB4tjjPfDfHGVOScF6xRSpEoEHdBehsevjdq+22LkS6n5pyEFfGtqwP6uFd
-# WugJfKNvMacuy7QnZi+bK2EoGv7y56kwzHTTRRsLv5cVuYLVF3HrmfTv3UrDVUQF
-# yqJh3pEpoR6K3oADvfe/MQAnC46dIgOeofSytTqWg7Xco7v6OT1qMPIMNo8G6d32
-# ZYz0ix2Ol4h0X9fuewEOyJ7E5LkQ7CSdj+4wu0ZZXpkl53CvONLHXP2NiZzhq+rh
-# bkL6oYVH4jD1Jl9Tmlta+a/oYYCLk131UQnTRDDDyFuwiCphmEd5ZCzwgoNPHNsS
-# dXCIT+Nz3kmqYmSXYlaRSGRKffRPZ19efRNDxXukqpx6lfCEaS2KOx/Ocex5Yvic
-# X6AjANv9xPc09GJ0Y2jLIwl0Ifutm/CGdliqMBbWr+Mh4RmvmpCYVtv+RdwH/tM4
-# J0ahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA5
+# l/4SgpY62Z2MXLJllB+gBbVmicEAzXDkO8WuSOy5xTANBgkqhkiG9w0BAQEFAASC
+# AYBaWB8B4g7rrlo+wdiAzftjv9v5EvqbHBSxKtYpiy1eIOoaJwJHUyDLstTo6gb3
+# BnS7iJPsxpzCbqWUItlGoR5fO3r6MMLeFVij0ots8i8mcAl8pWVE+X0zavaOGw7L
+# C/b5MABcN/2H2i2RQV/28tO9nyZvBILWvaEY6upUWzze9ay6Jzw7hmG17KRkpAZV
+# hkduTQwjkwE35mzZ2MmfAM1QCbyMGcWwijqvK4J0yTaytz3WB3uXKyrodvG6lhvG
+# 3X7JUWH9kKSYI2kSvWdUIa58jsnzJLqstVbv3NRNAIqQkDuDX3JpvfkPhMkI/PLg
+# ISkYyOB3JvVSedyh9jl9YrsMlAlJKdekxB1hEuG9au3GLO5zcdEtKnubKO5O75sz
+# c7t/SpVpjeCBHWjAXEaThJVJaUfulElTc9U20vZCW3nk7JLEMaBsmDkiwxFWBBCK
+# UUjgFXjBrBcvmhoxLUiebbBpH1ETE/OXLuEao6EeM2RvVmz28yoEPuMDgpWLiu53
+# obahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI1MDIxNDU4WjAvBgkqhkiG
-# 9w0BCQQxIgQgjrZmvD1phb3NNhhwU08HbIECZIB3ZUn1o/WeRUxrLBAwDQYJKoZI
-# hvcNAQEBBQAEggIAfx5NE7LxN7Rr+0ewv5erDka47c1QR+rMud6m+EjckVVABmJ8
-# oDKmysOhSUsoqnxIZlPT2lT2v1N5ouLT0eX98wkLSSULwqo4cJl7v8zifdmUuSaI
-# EonfhhXmWXHgtYfUGb130gd2Azbi5sXB/yewktO0sDUEc2r/gpb5XKl6OdOSQT2O
-# 5j9W4ocxx3rIUw4U3c2zrV68kqJLB+jlUCNBN83103nP1dHn/phVB54HBhFli/7f
-# NjX2w0buxZbYvW1gkvRlwIeJLGdJzCC5t/7UD6BYx+4+H8JHmO94HeJ0Uxu5i+WY
-# gTwU/X6EuFjH4f5qhjO0TQ6bVEPYxQMNjMM7/FnpxgAOebflUTcqocJsFONeASXO
-# wILBNhuGo508K1QhCGPVCXQg9OHkYCuVTqtaRDoh52UTtsvNfdulbOFTlzAETYiq
-# 5rJYLkzlXuHZ7dbTx7Pvru9ciflaiUNMpLxwxoAnJmt2AXA46X1J+JGQxlDbt8Xm
-# 0EKn11Lf0Dx8enpSSClH5khta4letfNjmtZrqz2Ybvwu4FWjyEW6oonmq/D0OtUU
-# TXqbDvvnWWkgH02IWjsdZCPHbZ0E8ondc1mWFUK2SdctnByKS55quq6PiSdj7XbW
-# AyzipZxNEp2SvxNJ6x/HSiJc8KPCgF9fGA7QL2IzMWVggJYBSiGhWBlmBAc=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI1MTYxMDA5WjAvBgkqhkiG
+# 9w0BCQQxIgQgTZAzdh8P4PfcwgYCdaFTPjpKKqaXbH4bd8WcEHC+ZpcwDQYJKoZI
+# hvcNAQEBBQAEggIAPNAOJUj9anhk00oCoGFvcJeWz1DOj6sYjnrKRjvZb2vcHHJr
+# qTRnEk+rb9ksL4GbTRQmVMChxhTryrSQRawHSyXI0NpsOyxsWvpqTAYCPAJlk/Su
+# 0AiHDvWor0R2m+h+axBBZgxVoZluT/oQ3ocQxiFucBV9Z3Oy4One3dnNuFBph+Ow
+# B1H53bpIhh1aTFtSAJ3k+SHoiUPwZxX7J5/1y5mEHawH61CzIq7lJ5cRB8qFIbKt
+# 3DlgpQ6ScvSQuy1TwdZZV7DgQ6XwM1N1cyF7gCbc0nTZ2WwsRyZQISoupz0OMtRC
+# z3jy/qJGx4PlFduqD5yuZ3pjpS5NgUlwetJGm61W5cDLmry5d1Oym3dJzCZFh+gg
+# x49/RlrkXp+6aOkfuieluhSXOSJQNYpEx19YQb0O8uPccAMOyUUkW+glaLAcc/F7
+# EiV+/dp5FXLMnbpFc/wxYW/hrCSzOJNhlBeOZKGGZEevYD/abF+SEdPu7hsFjD5z
+# pzXLB53Wa5kkYszeXErzA/GNjzJcxYucg4yJTRctJ0hw7jwAsZUK9zTTXEAk/Ske
+# eGbSTQSMl1UtMMsJBDbHmvq20WTyLZuVxB9XvNCl1lvvBrELvlJtwzFUFhEumcJC
+# qHSL/D/nNkr/hZeHSSNPzMNVm+3LErv7VVTHsdLdzQGrZqsyiXcJ9m+FmC8=
 # SIG # End signature block

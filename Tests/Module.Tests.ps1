@@ -71,7 +71,7 @@ Describe "TechToolbox Module" {
                 try {
                     @{
                         schemaVersion = 1
-                        settings = @{
+                        settings      = @{
                             oneTimeReboot = @{ at = '02:30' }
                         }
                     } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $userConfigPath -Encoding UTF8
@@ -81,6 +81,29 @@ Describe "TechToolbox Module" {
                     $config.settings.oneTimeReboot.at | Should -Be '02:30'
                     $config.settings.oneTimeReboot.taskNamePrefix | Should -Be 'TT_OneTimeReboot'
                     (Test-Path -LiteralPath $script:TT.ConfigDefaultsPath -PathType Leaf) | Should -BeTrue
+                }
+                finally {
+                    Remove-Item -LiteralPath $userConfigPath -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
+
+        It "Should merge user overrides when packaged defaults contain null values" {
+            InModuleScope TechToolbox {
+                $userConfigPath = Join-Path ([System.IO.Path]::GetTempPath()) ("config.user.null-merge.{0}.json" -f [System.Guid]::NewGuid().ToString('N'))
+                try {
+                    @{
+                        schemaVersion = 1
+                        settings      = @{
+                            browserCleanup = @{
+                                defaultProfiles = @('Default', 'Profile 1')
+                            }
+                        }
+                    } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $userConfigPath -Encoding UTF8
+
+                    $config = Get-TechToolboxConfig -Path $script:TT.ConfigDefaultsPath -UserConfigPath $userConfigPath
+
+                    $config.settings.browserCleanup.defaultProfiles | Should -Be @('Default', 'Profile 1')
                 }
                 finally {
                     Remove-Item -LiteralPath $userConfigPath -Force -ErrorAction SilentlyContinue
@@ -239,12 +262,12 @@ Describe "TechToolbox Module" {
             }
         }
     }
-
+}
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDRDy/ingo94zr6
-# 7ELZH18POjvG7WiFliBriW8Ncr6Wk6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDq5I/tseE4dTBx
+# vfGf6kDTMsbkOtwi+/SisoXZWTbT36CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -421,31 +444,31 @@ Describe "TechToolbox Module" {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCN
-# BTQJNHJwiTKytTijoqAW6I6SSMkzH14a6IWpErOyWTANBgkqhkiG9w0BAQEFAASC
-# AYAd4rd/1A28TDqRf/qhSf49coZNLRFxIe+8axPnUZEJyzCY0FW3OlBjXzQ9KDH3
-# q82DsJ/4qazRfeHt+Qdy0liK1ieWeNLeyXDxubSh/LebG4fwdkF4KaburxlAD7jb
-# 2JkPYnUVpMID5IPlJbTDmiga4AQEz2uRLc4JCMmdPU0xK4FVL0CaiIxbkCYIrese
-# H9AJ0ZDtzQ8PIxgiXPiPC0H5iVQa6Rkd5UEzo56IpRva7vZq8sfXChuXkzUuX1Uk
-# QPd4IHAGB+x0GjfZNGkE8m37r0pt97V7doKjehXMC9bBLFytYVGm5lwy9/lXceSl
-# UlSS/AAxF89zEfU5bGF3I9qERA9A+yHpREaARbYrduqektmTkI6CFWlPB03decKv
-# GtSWMTiDpQdqNVkS2yQUGhIJA8gTxaa2y2jL5hXLuxT0z0adx8sL03RNRm1EmNcS
-# I5W7gDuG7S6N7JWkNbsO6B+sR2kEurRgzEwzr4X+Yc7AEmYsPQg54zKt4Relgq39
-# EL6hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCy
+# QXAayrxkQ4O1+4pZUYWcU3RnGiUtEJQixvOYkn/REjANBgkqhkiG9w0BAQEFAASC
+# AYDATOqmWfvU04B3+CnFMxeoe6PMk6f2IgYFyG1SKQ5z6wBNbi+obYNDvsDFRZ0n
+# HOIgfj46h9cWzkKgzY404yjNUrgxsUSabGG0xYPtHBhbJetPvjo8QKYYMFuX+AEJ
+# YnSw3SkpmONtkFCoSJe1qlLPcHhVidkQLej69sNrg2anidxKnQcyRcdL+C/2LgZY
+# BcrjkImZFacmWTqKoFpRkH48pTsImZvAFMQtL8myFkFG5AU/ulv7up8B3lJ4GRvf
+# QN3TUhnk+MJANClILSdE6hpdf/+f49bi+k7g/BkH7aPrdPReV+S8ji5zsNotDhDY
+# eb1JLCkzt72OczFBx8ObH2YCFDuZRxB8seQwtyx0UubE5KoGE2wXWuetLENRknxc
+# WKyLWKG7Xj2FiUrP2N0mmzBKP4WzFq7nNLqESCGAEA70wSxoJqmJ7cTAMEU4Ex/h
+# 0ByGsk55CMatYA6hklYVEsVOulqikErruNOFGFhlnG9nbkD1b991KghbxpvAxiWb
+# 21uhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI1MDIxMjU0WjAvBgkqhkiG
-# 9w0BCQQxIgQgUZTZ1cD0cq2/l+9h/P+KDlCYdj6xKkJetcaOZFt6hO4wDQYJKoZI
-# hvcNAQEBBQAEggIAJ9OANztQaMAGC2CWS93XwFpx/4o/ZvMKbRz1iX9QY+GZvofr
-# RizyOW6osIZ1sTU99f0iO+SjiLDQT94MYehD61K/Z5VLq8gaETxFXFAG6xUjyt2Q
-# FI/7UMvfraZtFvbFemt9cXwv8NA4HVxkEyZOvymGKFKCV6zPETNwEAK3jNPkY/Mp
-# tXu8ZsidZxiQHYG1ofWxDIDD++ZvmVf3ZYDWfUBII3fDQz4FfGkSDK7nZ/hSay2T
-# JlOotGsGaSCstGV+vRHQjSZhcBo99jw2hNjhUirTgKh4fovILpVMEKqPkjnfkM7L
-# ec9TblFhS1jYmBdbxmfmoEoiZkwFcsK+J444b7rdQX1wofwSbS/iDF2Rev8zcfT+
-# Mh2pgHUvdHVTd4Gr7FT6N3yUDMdmO+LMRfHS2PvvTqnY6IGhTS5HZ6l1ooDBuunI
-# APotd6n44V1IZOSlCvr4AnfTdE3zipuT5LzxjTfVzPR5Zj+W4EsXhpWxOOT+DAls
-# eljZNW16pIjzn7MQVgZ+Hecj+69nEJkmEZDFnzjQJjP2b+uEVoo/qKHlxg3OBqyo
-# XhO1kA88VwAySkTD/dm9SghNc7xJcujjG6aqrqLsL6qRt71kqMgJvlkNEa2yivlN
-# pp3B+2byhHc+OpArMdlgwV70xQ1F9oXt8QFEuF7CwKk4YLLntZzlyfKZ2Fc=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI1MTYxMDExWjAvBgkqhkiG
+# 9w0BCQQxIgQgITdOFpWIWRHCdMpn6Oi2NCsPxJlnXMn6TKll9uylCqAwDQYJKoZI
+# hvcNAQEBBQAEggIATNF+3IKljgZ3Q7PK7cjHl4xlu1bZIWrsusSFK2ED41kinJ0j
+# 1gco4DHn8dtPP1eepn6aG+vHlRWPgpVZ2EdK4NmH3/wyVY6xPHx/T95Ln7ZjpzVX
+# 5pdMeIk1Rzj5pMV1WjvskGXw5E70SjPBJEreKU3EjNT6ajAuF1mc27LQGdyiPPfy
+# akLLl1c6+TkYXUQOm3Pasas2EPJtdcqB7ogyd9Spksq8zxwL3IBi/wGmw4CjPmgM
+# 5hm9TmfMP/py4WPulGj8MrQZ1swBUTEP+l9GESqskvMONtHta22+KEquGhDkrd43
+# Fh7GEwhF52VDVa3T1SlendStpzRZD74/moxMpb94JnKHbI2nm1qcj9Vn/hLr5KPs
+# 4kt4z9jbK9u+yLSGhZMC8LNAlmdB5EzgiUrqFYP3VwU5OL77gGKqQL0O7TDzXgiv
+# V8CITV2WPXCZYl2s+/DBSOKTU1p1Lrjtx7obdDPeK1zqxlxgnzsByujaxWrQG+P3
+# q5VhJIy0q0Mz1fg3Tvu8eZdoK3ZeVd8C2l81KNpY0tL38C/bIZxuhRnKr/8sz8Zh
+# 3NN1kWsRyGnna+rtRLxtfl7Q+2ldUgaNQ0khn5iGgHvpqSPmsBdPIBuojykPqaD2
+# ibMrSO2k/FW2fqe+og3m4H9MsiHOQysPiXSy9qcRtjR2V7zBH0hEAP7Cejg=
 # SIG # End signature block
