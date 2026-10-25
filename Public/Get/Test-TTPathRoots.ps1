@@ -41,34 +41,37 @@ function Test-TTPathRoots {
     }
 
     [pscustomobject]@{
-        ModuleRoot           = $moduleRoot
-        LocalDataRoot        = $localDataRoot
-        ConfigPath           = $script:TT.ConfigPath
-        SecretsTemplatePath  = $script:TT.SecretsTemplatePath
-        SecretsPath          = $script:TT.SecretsPath
-        LogsRoot             = $logsRoot
-        ExportsRoot          = $exportsRoot
-        LocalDataRootExists  = Test-Path -LiteralPath $localDataRoot -PathType Container
-        ConfigPathExists     = Test-Path -LiteralPath $script:TT.ConfigPath -PathType Leaf
-        SecretsTemplateExists = Test-Path -LiteralPath $script:TT.SecretsTemplatePath -PathType Leaf
-        SecretsPathExists    = Test-Path -LiteralPath $script:TT.SecretsPath -PathType Leaf
-        SecretsPathUnderLocalDataRoot = $script:TT.SecretsPath.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
-        LogsRootUnderLocalDataRoot = $logsRoot.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
-        ExportsRootUnderLocalDataRoot = $exportsRoot.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
-        ConfigPathUnderModuleRoot = $script:TT.ConfigPath.StartsWith($moduleRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        ModuleRoot                     = $moduleRoot
+        LocalDataRoot                  = $localDataRoot
+        ConfigDefaultsPath             = $script:TT.ConfigDefaultsPath
+        ConfigPath                     = $script:TT.ConfigPath
+        SecretsTemplatePath            = $script:TT.SecretsTemplatePath
+        SecretsPath                    = $script:TT.SecretsPath
+        LogsRoot                       = $logsRoot
+        ExportsRoot                    = $exportsRoot
+        LocalDataRootExists            = Test-Path -LiteralPath $localDataRoot -PathType Container
+        ConfigDefaultsExists           = Test-Path -LiteralPath $script:TT.ConfigDefaultsPath -PathType Leaf
+        ConfigPathExists               = Test-Path -LiteralPath $script:TT.ConfigPath -PathType Leaf
+        SecretsTemplateExists          = Test-Path -LiteralPath $script:TT.SecretsTemplatePath -PathType Leaf
+        SecretsPathExists              = Test-Path -LiteralPath $script:TT.SecretsPath -PathType Leaf
+        SecretsPathUnderLocalDataRoot  = $script:TT.SecretsPath.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        LogsRootUnderLocalDataRoot     = $logsRoot.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        ExportsRootUnderLocalDataRoot  = $exportsRoot.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        ConfigDefaultsUnderModuleRoot  = $script:TT.ConfigDefaultsPath.StartsWith($moduleRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        ConfigPathUnderLocalDataRoot   = $script:TT.ConfigPath.StartsWith($localDataRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
         SecretsTemplateUnderModuleRoot = $script:TT.SecretsTemplatePath.StartsWith($moduleRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)
-        LogsRootExists       = Test-Path -LiteralPath $logsRoot -PathType Container
-        ExportsRootExists    = Test-Path -LiteralPath $exportsRoot -PathType Container
-        ConfigLoggingLogPath = $script:cfg.settings.logging.logPath
-        ConfigDefaultsPath   = $script:cfg.settings.defaults.configPath
-        ConfigPathsLogs      = $script:cfg.paths.logs
+        LogsRootExists                 = Test-Path -LiteralPath $logsRoot -PathType Container
+        ExportsRootExists              = Test-Path -LiteralPath $exportsRoot -PathType Container
+        ConfigLoggingLogPath           = $script:cfg.settings.logging.logPath
+        ConfigPathsLogs                = $script:cfg.paths.logs
     }
 }
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCWNfOHt0ZBpKec
-# u1sTz/S9WjuESiPeZDd4hJrmu1Tv9qCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCcFKz4DFG9vqgM
+# REasZ78x5weIND8nXz1acvx0wTKrI6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -245,31 +248,31 @@ function Test-TTPathRoots {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDU
-# RbMZhCV9T5qr7pkjF0CrV/DVmcBkOx1RJoSc674+CjANBgkqhkiG9w0BAQEFAASC
-# AYCZLeKeUFJVI/ob/NyHtu+hUw7Le3AowkMAW5AajXSnscpSTVtgZWyUTnWbV4uP
-# NvMgO73sVhjXPLSphn4KzL06xtUJVAltU8H24IpgXfPtTqPe+DnUCyLxW/S0zxZc
-# DmRpABJWgGEMbOy0FRGgSlwJQ68VjZQ7ey/v6XTG0GYZndlOW5C/yBV53bt30bog
-# nk2rJ4KjXGWIDRGrcr/TnB0hN0F3IomSFHq+9RXoveoJ+ux252S7a/8vSkfAK+Fo
-# sFzcRuFPbpBWV9p2wtqUIaQxaH8Cy9s4SzdkRvZujJjIblcaDuKdFfV6eUk2wAA2
-# TbE+vDDHTO7cVKzVHv/pi0JsO/hdSlffurDmWyokW16pxNrSEYARotIRTMlToxqr
-# MKX8iBZLaZne8XOVPINsVQwK2EAQUFysz6TCva698S/geIgIT+4UJbMs5egpbZBO
-# 1b6B+9atYgALC2HLWte8uxKbUYeENRnRh1A2qk7cAKqC6rXHDSz1anfUL8wd9vcs
-# pquhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB/
+# c07Xz7tzO8TmNAcWRgEC9OsbS80GFyHa6cJGVfi8czANBgkqhkiG9w0BAQEFAASC
+# AYAURJNRC9ATbWsfIDp8ZjM4UZvTO6mOMno3PNOW3E7gKDb0E/ksWN2S9z84xdYz
+# xJX6cMO0q1N/rFrBe5Kn7J1VmozHHKMqkP3nbPEFpiWl2AkSmgpnhHb13pf76Io5
+# xuMCR1hk8XCC4f8t7nuPBT2AadxpjtGUcYdCpu+jJ4LbpPdUNDs1Vpr0EA/wHn3C
+# Yy6elr88NLqhMwg5fwka8XwAHLIzwEUZ+J+t/m77x8QtspMA8VnJfi5rXzK8RVq7
+# 6SyTLbF6WnkCWFWMW7ZHi8DoIpF0YFdQIdbLGsJqxA3CLTLPnSoLI+pX4NbcSZXA
+# +SpBu0WNZYxvCD5g9qqbFCST6QmTbvxHslJa3zwPdjyeGj/cGpAYTr7w7gLKGDIa
+# OyYgQ2pTrJQH3hagfcMWx/1emLp8+F6AQJnHvSxgQy5HFzhQdk3O+DNvc1fNrXh+
+# nxZ630MP3QSc0jIUT6lt6gOxhHAudKOmdcQmzDdlMcYLFcDNm0yQPJ1X4L8YYRf4
+# XrGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDIzMDIzMTQ3WjAvBgkqhkiG
-# 9w0BCQQxIgQgzO9x9FtglpTa5d1bmROBelZVq4xTInP3CXQ0E9XINvEwDQYJKoZI
-# hvcNAQEBBQAEggIASzNXa2xBH8UUfrDLvJgr508VGvuaBeDGWJVEtYKZ7lAsNv6D
-# jsswS6MzDDqUPIufhbL7g7+cVzNHt28OTxjex5a5f/oZx4P1dtbjyiCr3hbtn29/
-# O7lrxgXWSfopvq5Q1foTIGDsm9Yesb58rM98zD965Q9Pts+GlzNxzzLdMGWHhYnT
-# dxYbPqVZQt8xagEXEX9PH3s09Q+Uml2jq5lRYIrs0gF2gEkd+OpimvLHB6zd3aXt
-# aWAoLifu81DJdBBF8KJ/jtObkDWBan8f20EPp4DWp105k+BXdFwvJCwtkWHBCirn
-# C5/BkB81dpYJKqyZk09+263O/iy07SS67LRLFmRkyFxQIwCE0AiHorr5E9nJxFqN
-# qEeM7IQDk6hUFo50GUXOGx8j5aMvlIaTmE8rbrDi/dZLFN086Oi9jmRCbHfOUaGJ
-# oG1QBmbsY9bQSDeqdnzrJmM1Z8t29PkKlhuxkmTtNtbZut1IvUItp2x0u1S5sE6r
-# BkxBWZJr+WAnnpIJqgbHPUcdDcNcjrOnnmUCtFa9BaML0uyW72NuCo2VUHoCbgSg
-# ASq3c+O/G/sHuBjDdcOc02ixlijyJyB/jRXqarJ3mQPlwnOMIiMQxnBFcJ65FlnV
-# +s+wLSirRSe8w4Opolfa3hxyiZ4d/lbWR2glavtSmk2UhalSpFOH3X085n8=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI1MDIxMzMxWjAvBgkqhkiG
+# 9w0BCQQxIgQgcakbF0IMU2TkgLIf2BPORet13BaXCxA19w4QXHItQgcwDQYJKoZI
+# hvcNAQEBBQAEggIAPug840okHrChirUUZnaJQPrhjMOEVmwWd96hWW4tDPT7T3AC
+# 8sRTNuqq0jrWu1aKs2PQhJ1DjODFkhrxW/XWD933dzy38VX82VEd139qonDdpCs/
+# l/ZcaThXzxPaRzIGaVCPVu67mJve4BiHQ7kNQikRlRBSRuK6G3EOg9I7R9jBn4Lk
+# N2NFFW/tb1hOl8Yw3HdRNC59hL72J2PD+nb38l0ZVgSJIijH9UGsE3eNjL8Lf/OO
+# WASGb2xaXwRIInbEpU6AFrRRC9SgTaMLW9yW+dV1Vu33Ccz/grgHfC+9DlWpGzBX
+# FhEkJ+D2Oh9d5KLHhRlI0TyXT0Z2UY2dxZubM8FLdkyQBMM/31LgVXbmVLQn4v3s
+# q7xKGsFJ0SlzDUJTc7wFwNgU6yF9no0uej0vbAXfzwIOHidYH8NnFbEEmGCwp/Ct
+# 1rCmzOfX7NFbmcD6EX4QzqufYLJ4qDvpO4KcyhiHZGB2nls28H3QkddhAXVJCu6O
+# latdWCKNt5t5xF3MoVVZ3dsUve02rPUB4zt3J+KOTUer1JHvvkUeIF4pRmNCeUTu
+# 1CoMb0FoipLCZWXxceS4Kns+PkjJ74rSzCxr2VSloPEwExNQ8jfv6zkftgppQhYM
+# xzmVS+o6HO2AYmyuhoJEa0PV2ONMzknysS8Bo7NCT0qIvmDlkfkZ8/TAK9Q=
 # SIG # End signature block

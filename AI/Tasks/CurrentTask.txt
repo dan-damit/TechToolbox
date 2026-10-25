@@ -1,11 +1,18 @@
 Current TASK:
 
-The main gap is that the ingestion checkpoint/summaries and component audit
-defaults still use working-directory-relative artifact paths. Consolidating
-mutable per-user semantic-indexing state under LocalDataRoot is the more
-upgrade-safe design; retain the repository artifacts tree only for intentionally
-repository-owned outputs. This was a review only; no files were changed.
+I ran the tests, but the update to `Tests/Module.Tests.ps1` was blocked with the
+output below:
 
-Please close the gap mentioned above so that the ingestion checkpoint/summaries
-and component audit defaults use LocalDataRoot-relative artifact paths instead
-of working-directory-relative paths.
+[19:54:48] TechToolbox [ main ! ? ]
+PWSH :: Invoke-Pester -Path .\Tests\Module.Tests.ps1
+
+Running tests from 1 files.
+[-] TechToolbox Module.Module Load.Should save first-run effective config only to LocalDataRoot config path 62ms
+ PropertyNotFoundException: The property 'domainAdminCred' cannot be found on this object. Verify that the property exists.
+ at Save-Config, C:\repos\TechToolbox\Private\Security\CredHandlers\Save-Config.ps1:28
+ at <ScriptBlock>, C:\repos\TechToolbox\Tests\Module.Tests.ps1:101
+Tests completed in 621ms
+Tests Passed: 10, Failed: 1, Skipped: 0, Inconclusive: 0, NotRun: 0
+
+Please patch the Save-Config function to handle the case where the
+'domainAdminCred' property is missing from the configuration.

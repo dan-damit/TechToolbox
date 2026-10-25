@@ -44,7 +44,8 @@ Describe "TechToolbox Module" {
                 $paths.ModuleRoot | Should -Be $script:TT.ModuleRoot
                 $paths.ModuleRoot | Should -Be $ExecutionContext.SessionState.Module.ModuleBase
                 $paths.LocalDataRoot | Should -Be $expectedLocalDataRoot
-                $paths.ConfigPath | Should -Be (Join-Path $paths.ModuleRoot 'Config\config.json')
+                $paths.ConfigDefaultsPath | Should -Be (Join-Path $paths.ModuleRoot 'Config\config.json')
+                $paths.ConfigPath | Should -Be (Join-Path $paths.LocalDataRoot 'Config\config.json')
                 $paths.SecretsTemplatePath | Should -Be (Join-Path $paths.ModuleRoot 'Config\config.secrets.json')
                 $paths.SecretsPath | Should -Be (Join-Path $paths.LocalDataRoot 'Config\config.secrets.json')
                 $paths.LogsRoot | Should -Be (Join-Path $paths.LocalDataRoot 'Logs')
@@ -54,12 +55,61 @@ Describe "TechToolbox Module" {
                 $paths.SecretsPathUnderLocalDataRoot | Should -BeTrue
                 $paths.LogsRootUnderLocalDataRoot | Should -BeTrue
                 $paths.ExportsRootUnderLocalDataRoot | Should -BeTrue
-                $paths.ConfigPathUnderModuleRoot | Should -BeTrue
+                $paths.ConfigDefaultsUnderModuleRoot | Should -BeTrue
+                $paths.ConfigPathUnderLocalDataRoot | Should -BeTrue
                 $paths.SecretsTemplateUnderModuleRoot | Should -BeTrue
                 $paths.LocalDataRootExists | Should -BeTrue
                 $paths.SecretsPathExists | Should -BeTrue
                 $paths.LogsRootExists | Should -BeTrue
                 $paths.ExportsRootExists | Should -BeTrue
+            }
+        }
+
+        It "Should merge LocalDataRoot user settings over packaged config defaults" {
+            InModuleScope TechToolbox {
+                $userConfigPath = Join-Path ([System.IO.Path]::GetTempPath()) ("config.user.{0}.json" -f [System.Guid]::NewGuid().ToString('N'))
+                try {
+                    @{
+                        schemaVersion = 1
+                        settings = @{
+                            oneTimeReboot = @{ at = '02:30' }
+                        }
+                    } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $userConfigPath -Encoding UTF8
+
+                    $config = Get-TechToolboxConfig -Path $script:TT.ConfigDefaultsPath -UserConfigPath $userConfigPath
+
+                    $config.settings.oneTimeReboot.at | Should -Be '02:30'
+                    $config.settings.oneTimeReboot.taskNamePrefix | Should -Be 'TT_OneTimeReboot'
+                    (Test-Path -LiteralPath $script:TT.ConfigDefaultsPath -PathType Leaf) | Should -BeTrue
+                }
+                finally {
+                    Remove-Item -LiteralPath $userConfigPath -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
+
+        It "Should save first-run effective config only to LocalDataRoot config path" {
+            InModuleScope TechToolbox {
+                $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("tt-config-save.{0}" -f [System.Guid]::NewGuid().ToString('N'))
+                $userConfigPath = Join-Path $tempRoot 'Config\config.json'
+                $previousConfigPath = $script:ConfigPath
+                $previousConfig = $script:cfg
+                $script:ConfigPath = $userConfigPath
+                $script:cfg = Get-TechToolboxConfig -Path $script:TT.ConfigDefaultsPath -UserConfigPath $userConfigPath
+
+                try {
+                    Save-Config
+
+                    (Test-Path -LiteralPath $userConfigPath -PathType Leaf) | Should -BeTrue
+                    $savedConfig = Get-Content -LiteralPath $userConfigPath -Raw | ConvertFrom-Json -AsHashtable
+                    $savedConfig.settings.oneTimeReboot.taskNamePrefix | Should -Be 'TT_OneTimeReboot'
+                    (Test-Path -LiteralPath $script:TT.ConfigDefaultsPath -PathType Leaf) | Should -BeTrue
+                }
+                finally {
+                    Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+                    $script:ConfigPath = $previousConfigPath
+                    $script:cfg = $previousConfig
+                }
             }
         }
 
@@ -189,12 +239,12 @@ Describe "TechToolbox Module" {
             }
         }
     }
-}
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBLJ78gO+k/yIbP
-# E6wpLukwb9SvHU3IWdTbBBv3tev3KKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDRDy/ingo94zr6
+# 7ELZH18POjvG7WiFliBriW8Ncr6Wk6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -371,31 +421,31 @@ Describe "TechToolbox Module" {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA4
-# EgczpB4LISPJI5Kk7F7biNk/r/21fH9Pqn8E2WpI/jANBgkqhkiG9w0BAQEFAASC
-# AYDO01DGiQPSJD/ao0s+4k10ZvfjTUp3AotERYvkxAH2qx7/421qd4L4nVwg4rR0
-# 6ATyR8I2mDyBtQpZDQWAam9tSIf4fWOetUZG/G/+dQpECewLALMyLlTG9r3hCQs0
-# cfdQrjbf0D2prgPJn7lBA8HW37J+Jfy97X1TH8l2wWHqTQyeQbaJ+cTLfDkf+kgJ
-# e0RxeyIXP/v7mEVMmRZ7zyDfb24DzaRG9JceFFVHDDcdBB1TQ5z15fKevSZkPGmZ
-# WkhEq5as5xQwwJItz4iwzm9OyMtzfuagDBC6KH4GQ1zxm97YZ90YxZYwNeSeTbXA
-# 0I416N4FpUbuade/Hq/KgXhTIkGFlUpE1RI3Ag8X7T5533n5toGTqsT0+nXrJK3N
-# idEXJWXiq94Y1y1GDrMprq8uIv4hw933LGaJtw5Et6jbinx9XsFcq9KZbIk2UQhA
-# ycSnV20ridwF0U53K6Bf7pFfZpxtvsy+5c8oVG7P502erHL8giCVw4RAjEdnD2xU
-# OB6hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCN
+# BTQJNHJwiTKytTijoqAW6I6SSMkzH14a6IWpErOyWTANBgkqhkiG9w0BAQEFAASC
+# AYAd4rd/1A28TDqRf/qhSf49coZNLRFxIe+8axPnUZEJyzCY0FW3OlBjXzQ9KDH3
+# q82DsJ/4qazRfeHt+Qdy0liK1ieWeNLeyXDxubSh/LebG4fwdkF4KaburxlAD7jb
+# 2JkPYnUVpMID5IPlJbTDmiga4AQEz2uRLc4JCMmdPU0xK4FVL0CaiIxbkCYIrese
+# H9AJ0ZDtzQ8PIxgiXPiPC0H5iVQa6Rkd5UEzo56IpRva7vZq8sfXChuXkzUuX1Uk
+# QPd4IHAGB+x0GjfZNGkE8m37r0pt97V7doKjehXMC9bBLFytYVGm5lwy9/lXceSl
+# UlSS/AAxF89zEfU5bGF3I9qERA9A+yHpREaARbYrduqektmTkI6CFWlPB03decKv
+# GtSWMTiDpQdqNVkS2yQUGhIJA8gTxaa2y2jL5hXLuxT0z0adx8sL03RNRm1EmNcS
+# I5W7gDuG7S6N7JWkNbsO6B+sR2kEurRgzEwzr4X+Yc7AEmYsPQg54zKt4Relgq39
+# EL6hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDIzMDIzMTUyWjAvBgkqhkiG
-# 9w0BCQQxIgQgrglm7SOqqq2/SCFqu0kx9UalVi4xviMgFrgqVSE+Fu0wDQYJKoZI
-# hvcNAQEBBQAEggIANuaiwCSUTg6MAFtCj6/deqqQBvxl5Vqgm5INkOJ/EVBFPRmi
-# V/5m6N9VHKDNoSPZEgKGKGlCrGKA7J1EHh1IU804BYcarr2FzdrmWGuYCR0edDIj
-# C2mK+BoSLdoaigWydE/UP79C+sUcwc48QKH4cXs+ugNi6EhiNIsZQsC5SETpe5Nl
-# WHSR6hzOI5LES8b0u/7UwEIs3d1WX+b4D3re/+N9KEQ9uhvuUTC3tpsnT99sBFpz
-# IttYtWptXCvt/11LvhArJ6fAiU+W/9s/hWiwcX4NiHOHEdncnVfbzb26c+08k3y9
-# wmSvQ+3MDsU3hOagNtCK81tMQMpZWV3SODHIv17Lbf+JQr/XXzemv0bpj/tnR29d
-# fQ73HCzA8Gi1kVEV+e7lz6Z1Q/30XqFHaN2p3ENGifrn/GRQELMsnqrIzqzltABh
-# IuBty+IdHIOpaB6qeoVmj7j99PsfTH6LWJFCmiFvIER1XxkCkruUHilaj+xq+6u/
-# 83tIk2mHpG/euvx+15fHH+q8iDmW9WaDUxU8IPjUKRKtjLYMs/doHAYGhNOXZB+A
-# Z5Mvo6SmG4eAoHPfPS+SEz+MqA30B9mltN7hxI0FvgUYWjSfQQ3uTZzZcfnxMkos
-# PKsYwfhPCMkIvXiRR2yYbDCCQC9vHNcV8t4ZkA7eMkhbVrFN+OYqoeqRLhc=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI1MDIxMjU0WjAvBgkqhkiG
+# 9w0BCQQxIgQgUZTZ1cD0cq2/l+9h/P+KDlCYdj6xKkJetcaOZFt6hO4wDQYJKoZI
+# hvcNAQEBBQAEggIAJ9OANztQaMAGC2CWS93XwFpx/4o/ZvMKbRz1iX9QY+GZvofr
+# RizyOW6osIZ1sTU99f0iO+SjiLDQT94MYehD61K/Z5VLq8gaETxFXFAG6xUjyt2Q
+# FI/7UMvfraZtFvbFemt9cXwv8NA4HVxkEyZOvymGKFKCV6zPETNwEAK3jNPkY/Mp
+# tXu8ZsidZxiQHYG1ofWxDIDD++ZvmVf3ZYDWfUBII3fDQz4FfGkSDK7nZ/hSay2T
+# JlOotGsGaSCstGV+vRHQjSZhcBo99jw2hNjhUirTgKh4fovILpVMEKqPkjnfkM7L
+# ec9TblFhS1jYmBdbxmfmoEoiZkwFcsK+J444b7rdQX1wofwSbS/iDF2Rev8zcfT+
+# Mh2pgHUvdHVTd4Gr7FT6N3yUDMdmO+LMRfHS2PvvTqnY6IGhTS5HZ6l1ooDBuunI
+# APotd6n44V1IZOSlCvr4AnfTdE3zipuT5LzxjTfVzPR5Zj+W4EsXhpWxOOT+DAls
+# eljZNW16pIjzn7MQVgZ+Hecj+69nEJkmEZDFnzjQJjP2b+uEVoo/qKHlxg3OBqyo
+# XhO1kA88VwAySkTD/dm9SghNc7xJcujjG6aqrqLsL6qRt71kqMgJvlkNEa2yivlN
+# pp3B+2byhHc+OpArMdlgwV70xQ1F9oXt8QFEuF7CwKk4YLLntZzlyfKZ2Fc=
 # SIG # End signature block

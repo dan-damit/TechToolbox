@@ -1,0 +1,17 @@
+--- a/Private/Security/CredHandlers/Save-Config.ps1
++++ b/Private/Security/CredHandlers/Save-Config.ps1
+@@
+-    if (-not $fileCfg.settings) { $fileCfg.settings = @{} }
+-    if (-not $fileCfg.settings.passwords) { $fileCfg.settings.passwords = @{} }
+-    if (-not $fileCfg.settings.passwords.domainAdminCred) {
+-        $fileCfg.settings.passwords.domainAdminCred = @{}
+-    }
++    if (-not $fileCfg.Contains('settings') -or $null -eq $fileCfg['settings']) {
++        $fileCfg['settings'] = @{}
++    }
++    if (-not $fileCfg['settings'].Contains('passwords') -or $null -eq $fileCfg['settings']['passwords']) {
++        $fileCfg['settings']['passwords'] = @{}
++    }
++    if (-not $fileCfg['settings']['passwords'].Contains('domainAdminCred') -or $null -eq $fileCfg['settings']['passwords']['domainAdminCred']) {
++        $fileCfg['settings']['passwords']['domainAdminCred'] = @{}
++    }
