@@ -361,6 +361,7 @@
             "authMode": "None",
             "namespacePrefix": "powershell",
             "allowedTools": [
+              "run_program",
               "list_services",
               "get_service",
               "control_service",
@@ -421,7 +422,7 @@
           },
           {
             "name": "git",
-            "enabled": true,
+            "enabled": false,
             "transport": "Stdio",
             "command": "uvx",
             "arguments": ["mcp-server-git"],
