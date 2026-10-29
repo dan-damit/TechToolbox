@@ -188,6 +188,9 @@ jobs:
             'commands.md',
             'AI/memory.json',
             'AI/memory.history.json',
+            'AgentRuntime/TechToolbox.Agent/TechToolbox.Agent.pdb',
+            'AgentRuntime/TechToolbox.Agent/TechToolbox.Agent.SemanticIndexing.pdb',
+            'AgentRuntime/TechToolbox.LocalMcpAdapter/TechToolbox.LocalMcpAdapter.pdb',
             'packaging',
             'src',
             'Tests'
@@ -264,6 +267,14 @@ jobs:
           $localMcpRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.LocalMcpAdapter'
           New-Item -ItemType Directory -Path $localMcpRuntimePath -Force | Out-Null
           Copy-Item -Path (Join-Path $env:TECH_LOCAL_MCP_ADAPTER_PUBLISH_DIR '*') -Destination $localMcpRuntimePath -Recurse -Force
+
+          foreach ($entry in ($exclude | Where-Object { $_ -match '[\\/]' })) {
+            $relativePath = $entry -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
+            $excludePath = Join-Path $stagePath $relativePath
+            if (Test-Path -LiteralPath $excludePath) {
+              Remove-Item -LiteralPath $excludePath -Recurse -Force
+            }
+          }
 
           $secretsExamplePath = Join-Path $stagePath 'Config\config.secrets.example.json'
           $secretsTemplatePath = Join-Path $stagePath 'Config\config.secrets.json'
@@ -455,6 +466,14 @@ jobs:
           $localMcpAdapterRuntimePath = Join-Path $stagePath 'AgentRuntime\TechToolbox.LocalMcpAdapter'
           New-Item -ItemType Directory -Path $localMcpAdapterRuntimePath -Force | Out-Null
           Copy-Item -Path (Join-Path $LocalMcpAdapterPublishDir '*') -Destination $localMcpAdapterRuntimePath -Recurse -Force
+
+          foreach ($entry in ($exclude | Where-Object { $_ -match '[\\/]' })) {
+            $relativePath = $entry -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
+            $excludePath = Join-Path $stagePath $relativePath
+            if (Test-Path -LiteralPath $excludePath) {
+              Remove-Item -LiteralPath $excludePath -Recurse -Force
+            }
+          }
 
           $secretsExamplePath = Join-Path $stagePath 'Config\config.secrets.example.json'
           $secretsTemplatePath = Join-Path $stagePath 'Config\config.secrets.json'

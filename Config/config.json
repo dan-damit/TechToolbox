@@ -304,7 +304,7 @@
       "defaultPromptFile": "%TT_LocalDataRoot%\\CurrentTask.txt",
       "memoryPath": "%TT_LocalDataRoot%\\AI\\memory.json",
       "maxIterations": 50,
-      "orchestratorRunDeadlineSeconds": 1200,
+      "orchestratorRunDeadlineSeconds": 2700,
       "promptHistoryItems": 2,
       "transcript": {
         "enabled": true,
