@@ -15,7 +15,11 @@ aria-label="Total Downloads">
 
   <g font-family="Consolas, Menlo, monospace" font-size="12">
     <text x="10" y="20" fill="#9ca3af">Total Downloads</text>
+<<<<<<< Updated upstream
     <text x="150" y="20" fill="#e5e7eb">1,508</text>
+=======
+    <text x="150" y="20" fill="#e5e7eb">1,351</text>
+>>>>>>> Stashed changes
   </g>
 </svg>
   

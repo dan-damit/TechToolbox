@@ -132,7 +132,7 @@
         "backend": "hybrid",
         "model": "gpt-6-luna",
         "embeddingModel": null,
-        "maxContextTokens": 250000,
+        "maxContextTokens": 128000,
         "maxResults": 30,
         "timeoutSeconds": 10,
         "directories": [
@@ -161,7 +161,7 @@
           ".targets"
         ],
         "persistencePath": "%TT_LocalDataRoot%\\Artifacts\\semantic-indexing\\VectorStore",
-        "autoIngestBeforeRun": false,
+        "autoIngestBeforeRun": true,
         "sourceIndexLifecycleEnabled": true,
         "knowledgeRetrievalEnabled": false,
         "includeGlobs": [],
