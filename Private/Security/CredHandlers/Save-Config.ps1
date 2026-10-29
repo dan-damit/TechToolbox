@@ -2,44 +2,53 @@ function Save-Config {
     [CmdletBinding()]
     param()
 
-    if (-not $script:cfg) { throw "[Save-Config] Config not loaded." }
-    if (-not $script:ConfigPath) { throw "[Save-Config] ConfigPath not set." }
+    if (-not $script:cfg) { throw '[Save-Config] Config not loaded.' }
+    if (-not $script:ConfigPath) { throw '[Save-Config] ConfigPath not set.' }
 
-    # The packaged config is read-only defaults. Create the user config only when
-    # an explicit save occurs; do not copy defaults during normal module import.
     $configDirectory = Split-Path -Parent $script:ConfigPath
     if (-not (Test-Path -LiteralPath $configDirectory -PathType Container)) {
-        New-Item -Path $configDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        [void][System.IO.Directory]::CreateDirectory($configDirectory)
     }
 
-    if (Test-Path -LiteralPath $script:ConfigPath -PathType Leaf) {
-        $fileJson = Get-Content -LiteralPath $script:ConfigPath -Raw -ErrorAction Stop
-        $fileCfg = ConvertFrom-Json -InputObject $fileJson -AsHashtable
-    }
-    else {
-        # On first save, persist the effective config (packaged defaults plus any
-        # user overrides already loaded in memory) as the initial user config.
-        # Normalize to a hashtable so optional settings can be added safely under StrictMode.
-        $fileCfg = $script:cfg | ConvertTo-Json -Depth 50 | ConvertFrom-Json -AsHashtable
-    }
-
-    if (-not $fileCfg.Contains('settings') -or $null -eq $fileCfg['settings']) {
-        $fileCfg['settings'] = @{}
-    }
-    if (-not $fileCfg['settings'].Contains('passwords') -or $null -eq $fileCfg['settings']['passwords']) {
-        $fileCfg['settings']['passwords'] = @{}
-    }
-    if (-not $fileCfg['settings']['passwords'].Contains('domainAdminCred') -or $null -eq $fileCfg['settings']['passwords']['domainAdminCred']) {
-        $fileCfg['settings']['passwords']['domainAdminCred'] = @{}
-    }
-
-    foreach ($legacyKey in @('username', 'password')) {
-        if ($fileCfg.settings.passwords.domainAdminCred.Contains($legacyKey)) {
-            $fileCfg.settings.passwords.domainAdminCred.Remove($legacyKey)
+    $mutex = Enter-TTConfigMutex -Path $script:ConfigPath
+    try {
+        if (Test-Path -LiteralPath $script:ConfigPath -PathType Leaf) {
+            # Validate the root and re-read only after taking the same cross-process lock.
+            $fileCfg = Read-TTConfigJsonRoot -Path $script:ConfigPath
         }
-    }
+        else {
+            if (-not $script:TT -or -not $script:TT.ConfigDefaultsPath) { throw '[Save-Config] Packaged defaults path is unavailable.' }
+            $fileCfg = Read-TTConfigJsonRoot -Path $script:TT.ConfigDefaultsPath
+            if ($fileCfg -isnot [System.Collections.IDictionary]) {
+                throw '[Save-Config] Configuration root must be a JSON object.'
+            }
+        }
 
-    $fileCfg | ConvertTo-Json -Depth 50 | Set-Content -LiteralPath $script:ConfigPath -Encoding UTF8
+        if (-not $fileCfg.Contains('settings') -or $fileCfg['settings'] -isnot [System.Collections.IDictionary]) {
+            $fileCfg['settings'] = @{}
+        }
+        $settings = $fileCfg['settings']
+        if (-not $settings.Contains('passwords') -or $settings['passwords'] -isnot [System.Collections.IDictionary]) {
+            $settings['passwords'] = @{}
+        }
+        $passwords = $settings['passwords']
+        if (-not $passwords.Contains('domainAdminCred') -or $passwords['domainAdminCred'] -isnot [System.Collections.IDictionary]) {
+            $passwords['domainAdminCred'] = @{}
+        }
+
+        foreach ($legacyKey in @('username', 'password')) {
+            if ($passwords['domainAdminCred'].Contains($legacyKey)) {
+                $passwords['domainAdminCred'].Remove($legacyKey)
+            }
+        }
+
+        Remove-TTConfigSecretValues -Config $fileCfg
+        Remove-TTConfigLegacySecrets -Config $fileCfg
+        Write-TTConfigAtomic -Path $script:ConfigPath -Value $fileCfg
+    }
+    finally {
+        Exit-TTConfigMutex -Mutex $mutex
+    }
 }
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor

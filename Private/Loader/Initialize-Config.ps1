@@ -2,12 +2,6 @@ function Initialize-Config {
     [CmdletBinding()]
     param()
 
-    # Always refresh from disk through Get-TechToolboxConfig so config edits in an
-    # active session are picked up. That function keeps its own mtime-based cache
-    # and returns quickly when nothing has changed.
-
-    # Use the currently executing module's packaged config. ModuleRoot is bound
-    # during import and must never be rediscovered from another installation.
     if (-not $script:TT -or -not $script:TT.ModuleRoot) {
         throw '[Initialize-Config] Authoritative module path state is not initialized.'
     }
@@ -16,6 +10,7 @@ function Initialize-Config {
     $script:SecretsPath = $script:TT.SecretsPath
 
     try {
+        Initialize-TTConfigPersistence -DefaultsPath $script:TT.ConfigDefaultsPath -ConfigPath $script:ConfigPath
         $script:cfg = Get-TechToolboxConfig -Path $script:TT.ConfigDefaultsPath -UserConfigPath $script:ConfigPath
         # Persist a raw defaults-plus-user merge. The effective in-memory config
         # also contains secrets overlays and resolved path tokens, so do not save it.
@@ -76,10 +71,8 @@ function Initialize-Config {
         throw "[Initialize-Config] Failed to load or persist config.json at '$script:ConfigPath': $($_.Exception.Message)"
     }
 
-    # Maintain legacy/global handle
     $script:TechToolboxConfig = $script:cfg
 }
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
