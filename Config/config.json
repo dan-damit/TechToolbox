@@ -163,7 +163,7 @@
         "persistencePath": "%TT_LocalDataRoot%\\Artifacts\\semantic-indexing\\VectorStore",
         "autoIngestBeforeRun": true,
         "sourceIndexLifecycleEnabled": true,
-        "knowledgeRetrievalEnabled": true,
+        "knowledgeRetrievalEnabled": false,
         "includeGlobs": [],
         "excludeGlobs": [
           ".git/**",
