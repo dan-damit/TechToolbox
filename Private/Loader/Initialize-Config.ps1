@@ -2,12 +2,6 @@ function Initialize-Config {
     [CmdletBinding()]
     param()
 
-    # Always refresh from disk through Get-TechToolboxConfig so config edits in an
-    # active session are picked up. That function keeps its own mtime-based cache
-    # and returns quickly when nothing has changed.
-
-    # Use the currently executing module's packaged config. ModuleRoot is bound
-    # during import and must never be rediscovered from another installation.
     if (-not $script:TT -or -not $script:TT.ModuleRoot) {
         throw '[Initialize-Config] Authoritative module path state is not initialized.'
     }
@@ -16,16 +10,69 @@ function Initialize-Config {
     $script:SecretsPath = $script:TT.SecretsPath
 
     try {
+        Initialize-TTConfigPersistence -DefaultsPath $script:TT.ConfigDefaultsPath -ConfigPath $script:ConfigPath
         $script:cfg = Get-TechToolboxConfig -Path $script:TT.ConfigDefaultsPath -UserConfigPath $script:ConfigPath
+        # Persist a raw defaults-plus-user merge. The effective in-memory config
+        # also contains secrets overlays and resolved path tokens, so do not save it.
+        if ([System.IO.Path]::GetFullPath($script:TT.ConfigDefaultsPath) -eq [System.IO.Path]::GetFullPath($script:ConfigPath)) {
+            throw 'The user config path must not point to the packaged defaults file.'
+        }
+        function ConvertTo-ConfigHashtable {
+            param($Value)
+            if ($Value -is [System.Collections.IDictionary]) {
+                $result = @{}
+                foreach ($key in $Value.Keys) { $result[$key] = ConvertTo-ConfigHashtable $Value[$key] }
+                return ,$result
+            }
+            if ($Value -is [pscustomobject]) {
+                $result = @{}
+                foreach ($property in $Value.PSObject.Properties) { $result[$property.Name] = ConvertTo-ConfigHashtable $property.Value }
+                return ,$result
+            }
+            if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+                return ,@($Value | ForEach-Object { ConvertTo-ConfigHashtable $_ })
+            }
+            return ,$Value
+        }
+        function Merge-ConfigHashtable {
+            param($Defaults, $UserConfig)
+            if ($Defaults -is [System.Collections.IDictionary] -and $UserConfig -is [System.Collections.IDictionary]) {
+                foreach ($key in $UserConfig.Keys) {
+                    if ($Defaults.Contains($key)) { $Defaults[$key] = Merge-ConfigHashtable $Defaults[$key] $UserConfig[$key] }
+                    else { $Defaults[$key] = $UserConfig[$key] }
+                }
+                return ,$Defaults
+            }
+            return ,$UserConfig
+        }
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            $persistedConfig = Get-Content -LiteralPath $script:TT.ConfigDefaultsPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -AsHashtable
+        } else {
+            $persistedConfig = ConvertTo-ConfigHashtable (Get-Content -LiteralPath $script:TT.ConfigDefaultsPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json)
+        }
+        if (Test-Path -LiteralPath $script:ConfigPath -PathType Leaf) {
+            $userJson = Get-Content -LiteralPath $script:ConfigPath -Raw -Encoding UTF8 -ErrorAction Stop
+            if (-not [string]::IsNullOrWhiteSpace($userJson)) {
+                if ($PSVersionTable.PSVersion.Major -ge 7) { $userConfig = $userJson | ConvertFrom-Json -AsHashtable }
+                else { $userConfig = ConvertTo-ConfigHashtable ($userJson | ConvertFrom-Json) }
+                $persistedConfig = Merge-ConfigHashtable $persistedConfig $userConfig
+            }
+        }
+        if ($persistedConfig.settings.passwords.domainAdminCred -is [System.Collections.IDictionary]) {
+            foreach ($legacySecretKey in @('username', 'password')) { $persistedConfig.settings.passwords.domainAdminCred.Remove($legacySecretKey) }
+        }
+        $configDirectory = Split-Path -Parent $script:ConfigPath
+        if (-not (Test-Path -LiteralPath $configDirectory -PathType Container)) {
+            New-Item -Path $configDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        }
+        $persistedConfig | ConvertTo-Json -Depth 50 | Set-Content -LiteralPath $script:ConfigPath -Encoding UTF8 -ErrorAction Stop
     }
     catch {
-        throw "[Initialize-Config] Failed to load config.json from '$script:ConfigPath': $($_.Exception.Message)"
+        throw "[Initialize-Config] Failed to load or persist config.json at '$script:ConfigPath': $($_.Exception.Message)"
     }
 
-    # Maintain legacy/global handle
     $script:TechToolboxConfig = $script:cfg
 }
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG

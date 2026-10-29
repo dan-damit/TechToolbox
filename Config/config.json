@@ -161,7 +161,7 @@
           ".targets"
         ],
         "persistencePath": "%TT_LocalDataRoot%\\Artifacts\\semantic-indexing\\VectorStore",
-        "autoIngestBeforeRun": true,
+        "autoIngestBeforeRun": false,
         "sourceIndexLifecycleEnabled": true,
         "knowledgeRetrievalEnabled": false,
         "includeGlobs": [],
