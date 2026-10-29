@@ -2967,6 +2967,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
         }
 
     }
+}
+
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
