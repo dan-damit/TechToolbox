@@ -58,8 +58,19 @@ function Initialize-Config {
                 $persistedConfig = Merge-ConfigHashtable $persistedConfig $userConfig
             }
         }
-        if ($persistedConfig.settings.passwords.domainAdminCred -is [System.Collections.IDictionary]) {
-            foreach ($legacySecretKey in @('username', 'password')) { $persistedConfig.settings.passwords.domainAdminCred.Remove($legacySecretKey) }
+        $settingsNode = $null
+        if ($persistedConfig -is [System.Collections.IDictionary] -and $persistedConfig.Contains('settings')) {
+            $settingsNode = $persistedConfig['settings']
+        }
+        if ($settingsNode -is [System.Collections.IDictionary] -and $settingsNode.Contains('passwords')) {
+            $passwordsNode = $settingsNode['passwords']
+            if ($passwordsNode -is [System.Collections.IDictionary] -and $passwordsNode.Contains('domainAdminCred') -and $passwordsNode['domainAdminCred'] -is [System.Collections.IDictionary]) {
+                foreach ($legacySecretKey in @('username', 'password')) {
+                    if ($passwordsNode['domainAdminCred'].Contains($legacySecretKey)) {
+                        $passwordsNode['domainAdminCred'].Remove($legacySecretKey)
+                    }
+                }
+            }
         }
         $configDirectory = Split-Path -Parent $script:ConfigPath
         if (-not (Test-Path -LiteralPath $configDirectory -PathType Container)) {
@@ -76,8 +87,8 @@ function Initialize-Config {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA39VylKwBsZPRB
-# uFzx/CzoHxXQFCXnoIqCXx2YgjKAcKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDFv/DmbBJiKQ6b
+# Tso4v6VzjI+wrP6auI/qI+x2Eh/K5qCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -254,31 +265,31 @@ function Initialize-Config {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAV
-# ZAd08WA9Mn//IxVWB/PLatsDC57TpfneyOPDR03CqzANBgkqhkiG9w0BAQEFAASC
-# AYCoLcfOrQaByoND/xRHRqgTYVgXfnYgpYkNFhqA97TRRQ4pcUhlKOJGieq1DIIR
-# CkovnFT5LSNgjE7q7a4doxUlxazt+a6+u73rPoickWtQm1GJdWdo1ZDgIQ/JwdZ2
-# yTeAFNNDNlUft65qO1xmZXMUjwRtUrjlDsDgR7mOwzMPv1bTR0dVapOHjfhxlw92
-# 4xoNrfta399AJQDcngpggyx1LbxHnDaKiWD35mgVoyh6EjXYq5JPM3Yiu6X2/55v
-# +k7JsWOu0syonlW/s5/obcSrPOs9sBoh1lEU5SjUpnj/FPr5kVK79awfmAClk9xD
-# 6+JnMtS+ALRWWzrSZ5ZTBlMo9f7SkwoPzXtGMRiPgY78lai9FF4VhzD2wOJU2j9m
-# LvyLEHaPaKMlLdVZBHGfYVrt80MTpgBDwr/Fiui5bgd6lOwzYql9BQ5d9mPg9OJ8
-# aYiacRSc7OlfM3I72hqOJ0VxiYKTCzm3ozn9N8zNZMCQhQyAJi6seT2XsKcVxPGK
-# K2uhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBw
+# MTxPQM4PbyjKFV+V7O9TI8FBBI+RFcKtEHTHaFhnwTANBgkqhkiG9w0BAQEFAASC
+# AYDKGFC31Vd1G0czHXjwZwtwrcYCsEmZD36STjo5YIYKbsKONBt2qX/UvIyPMjlA
+# bBd/SzTzQhKOP2nTL76/iTybCyhtm5V0ZC/oLcj7XMzpaEhwr8zLbtn1M3lx7wv6
+# bmeQtYTqNNxIBE0FQ9bfrNf7q4acj45A6pkqK+exiR2AzNTTNQbs0PKYv82oNDc8
+# 4ftv/L+ya8PrTc5A7lIG/V4DN9Ui95kMXPQLTTYK2BOQKEcuY//+DItFIKbzX4Ef
+# LGnzkLAEa2JYgBXb+acuTAFO02MPeWNzKU/DgjfbLzp2J9CDzx/WfPcmmbWoqR3m
+# z7AGxNbkAvRDoaCYllIBWa82dybrRJOfxCpI3wmAcDx73vBEmf7+wJzqfCPpkQEW
+# jAvojzEolE8YxBSoYXzL2CA5Fa3h2GSTqcCt3RDg+AugjKp/GGPXjEQ0/F7Hcr9Y
+# aA4zjt9aW9hEdiEbyYEZq4J+ar6yFpueq1uC6+u6wxT3EmnjaNnvUbUM7FiZVW8F
+# pCmhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI5MTY1NzMwWjAvBgkqhkiG
-# 9w0BCQQxIgQg/LG4dvIfeY/K8wTkQeBtrJlixPuRQPwMf+3/dqI9xLYwDQYJKoZI
-# hvcNAQEBBQAEggIAqKQYe1JDvcZs4exbXV3RrgxbX2cnLyXC/MOncI3EhSq7vUPo
-# qNoDLCJw/zlzeticPe1SdxG8guK500YTC6Hv9ULF6YwzUI6/Ub2qfGcZFueRWUpp
-# Nb0HFgl+J3ifuR9+A/BmI9xyRJ0mp5qaEz2d97Y9PyAaGtphBwJ20e3M3ZrVDhr9
-# FTuL5a9jyQTF43WKaxOEx7b/QpbD8YYDRMPimaT4q838PcIBFuThaQ7R2ulLqr5o
-# BnowDbUZeMi9GTOsJ2JWK2/EI+jE1rN6gUvWpwX2x0KVOBjOHDoK8BaWUz37TCdD
-# vHMOz/TUL/n5bpdAbTZ8gx9sghAnbgXzgwPXYcEfqDs4Va3jLyy294KqsgNMKQU3
-# aedQZTCfU8Kom9J0AFeNIAFUxOC46h1oTvQpleQPjNnUilC89l98rGB7+WRcma10
-# R7PblC9irCTXt8/iCHLHjfO06nbSub6Id8+Rbe0+Kt9BqHX/a8Xf4/mZJXJodaHZ
-# jS974bqhj2up3f9fOgQHdhyMfJmRUc38vLTVNxvzUhg53InPfWmvs1uNKoDMn9ZM
-# C7N6Gpija9k6mRO6Dc0x0qW1fSvscJjGFokx0iO3b4LVNoMqGcD6aThCSycF7WUq
-# c7XjHWcRElVkzd6/baZ5fx9zrtZSxwyT0Zamodv10E1uKbsxNROknxNKC24=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI5MjIyOTI4WjAvBgkqhkiG
+# 9w0BCQQxIgQgvCVbBUpA59tydStXXuuhyvSqAKtTdOlYqsP11uolxWIwDQYJKoZI
+# hvcNAQEBBQAEggIAE94UW5FlyexfUR1QbNYIToT4eRlLEBoB1r9Huuvg0go4YH6U
+# HqS+GnQFDrwCS+KGt307FcHbSzfM4W6C0WzWAvNlpQYEkSjrnLXig0p7HQidUuzt
+# hASdyrYaG9n/IlWAj71wp3f97OZ75hJhb8WoCfg02Za+TL0Bx+yL3vEryRVdu6DT
+# N8/8ughzLHRbhSLMdBakyA6HEAyV+CTHZPw62HkANykn0RCCYJSm0G6Wt6XJIdVk
+# YZJmSGV9/GY0a2GXvExSjpPLl0TeChYmGFJh+A97w2aaEvmDxRhZw/+Mj46nfz3q
+# CzKHUx92l3rX1y2JDO3i+qPNrVvmtKwH1T5OfIpc/gqUW1aAVxBG/hXLe4sQp231
+# q1YpoQBn0PXhr1+YSXDnVqFPTAPnRuXYDAgDJE6ITMs8yyWG7D7Rlbwwm2qiJlFt
+# zZ4NpxkfUbddqNP07TphWd+1a36uXdZrvDehslHNhAu0zgrKhrS646F66biH5cel
+# T8gZ+ytFnugzjN7mo3R+hZraNxLYsdsUZxtVMMvwPPHAUR6ebDHpK2iio0zzU0q3
+# 9QotZCvbdMNOqxE6iocif0zQ28rM3crnBaxxPmHSYoG+mvx2npu3RTenuX155A4B
+# MYcKybvEzafuwsffW+Di78Lvx9suvuLK2mQuN4J88NVsbswWVRqHEuL9if8=
 # SIG # End signature block
