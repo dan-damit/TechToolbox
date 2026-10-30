@@ -161,7 +161,7 @@
           ".targets"
         ],
         "persistencePath": "%TT_LocalDataRoot%\\Artifacts\\semantic-indexing\\VectorStore",
-        "autoIngestBeforeRun": true,
+        "autoIngestBeforeRun": false,
         "sourceIndexLifecycleEnabled": true,
         "knowledgeRetrievalEnabled": true,
         "includeGlobs": [],
@@ -196,7 +196,7 @@
         "hybridStateWorldWeight": 0.5
       },
       "policyStartupMode": "Observe",
-      "allowedPathRoots": ["%TT_LocalDataRoot%", "%TT_ModuleRoot%"],
+      "allowedPathRoots": ["%TT_LocalDataRoot%"],
       "provider": "ollama",
       "model": "qwen3.8:27b",
       "executionMode": "execute",
