@@ -42,8 +42,8 @@
     },
     "systemUptime": {
       "logFileNameFormat": "SystemUptime_{yyyyMMdd}.log",
-      "exportPath": "%TT_Home%\\LogsAndExports\\Exports\\SystemUptime",
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\SystemUptime"
+      "exportPath": "%TT_LocalDataRoot%\\Exports\\SystemUptime",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\SystemUptime"
     },
     "workerPath": {
       "default": "%TT_ModuleRoot%\\Workers"
@@ -55,26 +55,26 @@
       "defaultSearchDirectory": ["C:\\", "D:\\"],
       "exportFileNamePattern": "LargeFiles_{yyyyMMdd_HHmmss}.csv",
       "defaultMinSizeMB": 256,
-      "exportDirectory": "%TT_Home%\\LogsAndExports\\Exports\\LargeFileSearch"
+      "exportDirectory": "%TT_LocalDataRoot%\\Exports\\LargeFileSearch"
     },
     "errorEvents": {
-      "exportPath": "%TT_Home%\\LogsAndExports\\Exports\\ErrorEvents"
+      "exportPath": "%TT_LocalDataRoot%\\Exports\\ErrorEvents"
     },
     "fileSearch": {
-      "exportDirectory": "%TT_Home%\\LogsAndExports\\Exports\\FilesSearches",
+      "exportDirectory": "%TT_LocalDataRoot%\\Exports\\FilesSearches",
       "exportFileNamePattern": "Get-FilesUsingKeywords-{computer}-{yyyyMMdd_HHmmss}.csv",
       "singleFileNamePattern": "Get-FilesUsingKeywords-{computer}.csv",
       "appendToSingleFile": true
     },
     "systemRepair": {
       "logFileNameFormat": "SystemRepair_{yyyyMMdd}.log",
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\SystemRepair",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\SystemRepair",
       "defaultRepairSource": "\\\\fileserver\\OS-Files\\sources\\sxs",
       "defaultRepairSourceIndex": 6,
       "retryWithoutSourceOnNotFound": true,
       "useCredSSPByDefault": true,
       "defaultComputerName": null,
-      "logDir": "%TT_Home%\\LogsAndExports\\Logs\\SystemRepair",
+      "logDir": "%TT_LocalDataRoot%\\Logs\\SystemRepair",
       "runRemote": true
     },
     "remoting": {
@@ -96,9 +96,9 @@
     },
     "batteryReport": {
       "waitTimeoutSeconds": 10,
-      "debugInfo": "%TT_Home%\\LogsAndExports\\Exports\\BatteryReports\\",
-      "reportPath": "%TT_Home%\\LogsAndExports\\Exports\\BatteryReports\\",
-      "outputJson": "%TT_Home%\\LogsAndExports\\Exports\\BatteryReports\\",
+      "debugInfo": "%TT_LocalDataRoot%\\Exports\\BatteryReports\\",
+      "reportPath": "%TT_LocalDataRoot%\\Exports\\BatteryReports\\",
+      "outputJson": "%TT_LocalDataRoot%\\Exports\\BatteryReports\\",
       "reportFileNamePattern": "BatteryReport.html",
       "jsonFileNamePattern": "InstalledBatteries.json",
       "debugFileNamePattern": "BatteryReportDebug.log"
@@ -110,15 +110,15 @@
       "autoConnect": true
     },
     "sharedMailboxAudit": {
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\SharedMailboxAudit",
-      "exportPath": "%TT_Home%\\LogsAndExports\\Exports\\SharedMailboxAudit",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\SharedMailboxAudit",
+      "exportPath": "%TT_LocalDataRoot%\\Exports\\SharedMailboxAudit",
       "workerPath": "%TT_ModuleRoot%\\Workers\\Get-SharedMailboxDeletions.worker.ps1",
       "logFileNameFormat": "SharedMailboxAudit_{yyyyMMdd}.log",
       "exportPathFileNameFormat": "SharedMailboxDeletions_{yyyyMMdd_HHmmss}.csv"
     },
     "remoteSoftwareInventory": {
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\RemoteSoftwareInventory",
-      "outDir": "%TT_Home%\\LogsAndExports\\Exports\\RemoteSoftwareInventory",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\RemoteSoftwareInventory",
+      "outDir": "%TT_LocalDataRoot%\\Exports\\RemoteSoftwareInventory",
       "throttleLimit": 32,
       "includeAppx": false,
       "logFile": "RemoteSoftwareInventory.log",
@@ -506,7 +506,7 @@
       "promptForMissingInputs": true,
       "defaultLookbackHours": 48,
       "timestampFormat": "yyyyMMdd-HHmmss",
-      "defaultExportFolder": "%TT_Home%\\LogsAndExports\\Exports\\MessageTraces",
+      "defaultExportFolder": "%TT_LocalDataRoot%\\Exports\\MessageTraces",
       "summaryFileNamePattern": "MessageTraceSummary_{0}.csv",
       "detailsFileNamePattern": "MessageTraceDetails_{0}.csv"
     },
@@ -554,7 +554,7 @@
       "promptForContentMatchQuery": true
     },
     "browserCleanup": {
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\BrowserCleanup",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\BrowserCleanup",
       "killProcesses": true,
       "includeCookies": true,
       "includeCache": true,
@@ -566,7 +566,7 @@
     },
     "logging": {
       "includeTimestamps": true,
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs",
+      "logPath": "%TT_LocalDataRoot%\\Logs",
       "enableConsole": true,
       "enableFileLogging": true,
       "logFile": "TechToolbox.log",
@@ -592,17 +592,17 @@
     },
     "dnsLogging": {
       "autoEnableDiagnostics": true,
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\DNS",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\DNS",
       "enabled": true,
       "parseMode": "simple",
       "maxLogSizeMB": 50
     },
     "aadSync": {
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\AADSync",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\AADSync",
       "defaultPolicyType": "Delta",
       "defaultPort": 5985,
       "logFile": "AADSync.log",
-      "logDir": "%TT_Home%\\LogsAndExports\\Logs\\AADSync",
+      "logDir": "%TT_LocalDataRoot%\\Logs\\AADSync",
       "allowKerberos": true
     },
     "systemSnapshot": {
@@ -620,11 +620,11 @@
         "Get-SnapshotOS.ps1",
         "Get-SnapshotServices.ps1"
       ],
-      "exportPath": "%TT_Home%\\LogsAndExports\\Exports\\SystemSnapshot"
+      "exportPath": "%TT_LocalDataRoot%\\Exports\\SystemSnapshot"
     },
     "offboarding": {
       "log": {
-        "dir": "%TT_Home%\\LogsAndExports\\Logs\\Offboarding",
+        "dir": "%TT_LocalDataRoot%\\Logs\\Offboarding",
         "fileNameFormat": "Offboarding_{yyyyMMdd}.log",
         "retentionDays": 90
       },
@@ -636,8 +636,8 @@
     "subnetScan": {
       "resolveNames": true,
       "pingTimeoutMs": 250,
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\SubnetScan",
-      "exportDir": "%TT_Home%\\LogsAndExports\\Exports\\SubnetScan",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\SubnetScan",
+      "exportDir": "%TT_LocalDataRoot%\\Exports\\SubnetScan",
       "httpTimeoutMs": 1000,
       "defaultPort": 80,
       "httpBanner": true,
@@ -691,8 +691,8 @@
     },
     "windowsUpdate": {
       "logFileNameFormat": "WindowsUpdate_{yyyyMMdd}.log",
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\WindowsUpdate",
-      "logDir": "%TT_Home%\\LogsAndExports\\Logs\\WindowsUpdate"
+      "logPath": "%TT_LocalDataRoot%\\Logs\\WindowsUpdate",
+      "logDir": "%TT_LocalDataRoot%\\Logs\\WindowsUpdate"
     },
     "naming": {
       "copyAttributes": [
@@ -724,12 +724,12 @@
       }
     },
     "copyDirectory": {
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\Robocopy",
+      "logPath": "%TT_LocalDataRoot%\\Logs\\Robocopy",
       "waitSeconds": 5,
       "retryCount": 2,
       "mirror": false,
       "runRemote": true,
-      "logDir": "%TT_Home%\\LogsAndExports\\Logs\\Robocopy",
+      "logDir": "%TT_LocalDataRoot%\\Logs\\Robocopy",
       "defaultComputerName": null,
       "logFileNameFormat": "Robocopy_{yyyyMMdd}.log",
       "copyFlags": ["/E", "/COPYALL"]
@@ -744,15 +744,16 @@
       "includeInOffboarding": true
     },
     "ispConnection": {
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\ISPConnection"
+      "logPath": "%TT_LocalDataRoot%\\Logs\\ISPConnection"
     },
     "windowsActivation": {
       "logFileNameFormat": "ActivationInfo_{computer}_{yyyyMMdd-HHmmss}.txt",
-      "logPath": "%TT_Home%\\LogsAndExports\\Logs\\WindowsActivation",
-      "logDir": "%TT_Home%\\LogsAndExports\\Logs\\WindowsActivation"
+      "logPath": "%TT_LocalDataRoot%\\Logs\\WindowsActivation",
+      "logDir": "%TT_LocalDataRoot%\\Logs\\WindowsActivation"
     }
   },
   "paths": {
-    "logs": "%TT_Home%\\LogsAndExports\\Logs"
+    "logs": "%TT_LocalDataRoot%\\Logs"
   }
 }
+
