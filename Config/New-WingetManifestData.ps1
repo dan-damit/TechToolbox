@@ -84,7 +84,7 @@ $result = [pscustomobject]@{
 }
 
 $installerYaml = @"
-# yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
 PackageIdentifier: $PackageIdentifier
 PackageVersion: $PackageVersion
 MinimumOSVersion: $MinimumOSVersion
@@ -95,20 +95,20 @@ Installers:
     InstallerUrl: $InstallerUrl
     InstallerSha256: $sha256
 ManifestType: installer
-ManifestVersion: 1.10.0
+ManifestVersion: 1.28.0
 "@
 
 $versionYaml = @"
-# yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.10.0.schema.json
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.28.0.schema.json
 PackageIdentifier: $PackageIdentifier
 PackageVersion: $PackageVersion
 DefaultLocale: en-US
 ManifestType: version
-ManifestVersion: 1.10.0
+ManifestVersion: 1.28.0
 "@
 
 $localeYaml = @"
-# yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.28.0.schema.json
 PackageIdentifier: $PackageIdentifier
 PackageVersion: $PackageVersion
 PackageLocale: en-US
@@ -117,7 +117,7 @@ PackageName: $PackageName
 License: $License
 ShortDescription: $ShortDescription
 ManifestType: defaultLocale
-ManifestVersion: 1.10.0
+ManifestVersion: 1.28.0
 "@
 
 $manifestOutput = $null
