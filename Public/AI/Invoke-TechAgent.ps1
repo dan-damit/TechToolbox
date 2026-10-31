@@ -713,6 +713,25 @@ Hard requirement:
 
         # Invoke-TechAgent now uses an internal terminal-state wait loop.
         # Keeping this self-contained avoids helper load drift and improves reliability.
+        $destructiveAuthorizationScopeTypeLoaded = $false
+        try {
+            $null = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]
+            $destructiveAuthorizationScopeTypeLoaded = $true
+        }
+        catch {
+            try {
+                [void][System.Reflection.Assembly]::LoadFrom($agentAssemblyPath)
+                $null = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]
+                $destructiveAuthorizationScopeTypeLoaded = $true
+            }
+            catch {
+                throw ("Unable to load required TechToolbox.Agent runtime types from '{0}': {1}" -f $agentAssemblyPath, $_.Exception.Message)
+            }
+        }
+
+        if (-not $destructiveAuthorizationScopeTypeLoaded) {
+            throw ("Unable to load required type 'TechToolbox.Agent.Core.DestructiveAuthorizationScope' from '{0}'." -f $agentAssemblyPath)
+        }
 
         if ($Provider -eq 'ollama' -and -not [string]::IsNullOrWhiteSpace($Model)) {
             $normalizedModelName = $Model.Trim()
@@ -1637,16 +1656,16 @@ if ($null -ne $request.ShellAllowedCommands) {
 
 $approvalDelegateType = [System.Func`2[
     TechToolbox.Agent.Registry.ToolAuthorizationRequest,
-    System.Boolean
+    TechToolbox.Agent.Core.DestructiveAuthorizationScope
 ]]
 
 $approvalMethod = [TechToolbox.Agent.Core.HostDestructiveApprovalAdapter].GetMethod(
-    'RequestApproval',
+    'RequestAuthorizationScope',
     [System.Reflection.BindingFlags]::Public -bor [System.Reflection.BindingFlags]::Static
 )
 
 if ($null -eq $approvalMethod) {
-    throw "Unable to locate TechToolbox.Agent.Core.HostDestructiveApprovalAdapter.RequestApproval."
+    throw "Unable to locate TechToolbox.Agent.Core.HostDestructiveApprovalAdapter.RequestAuthorizationScope."
 }
 
 $destructiveApprovalCallback = [System.Delegate]::CreateDelegate($approvalDelegateType, $approvalMethod)
@@ -2111,7 +2130,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
             }
 
             $approvalRequestPrefix = '__TT_APPROVAL_REQUEST__:'
-            $approvalDecisionCache = [System.Collections.Generic.Dictionary[string, bool]]::new([System.StringComparer]::Ordinal)
+            $approvalDecisionCache = [System.Collections.Generic.Dictionary[string, TechToolbox.Agent.Core.DestructiveAuthorizationScope]]::new([System.StringComparer]::Ordinal)
             $approvalArgumentPreviewLimit = 5
             $approvalArgumentValueMaxChars = 150
             $clearTransientStatusLine = {
@@ -2213,7 +2232,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                 $argumentSummaryLines = [System.Collections.Generic.List[string]]::new()
                 $payloadJson = $line.Substring($approvalRequestPrefix.Length)
                 $approvalCacheKey = if ([string]::IsNullOrWhiteSpace($payloadJson)) { $line } else { $payloadJson }
-                [bool]$cachedApprovalDecision = $false
+                [TechToolbox.Agent.Core.DestructiveAuthorizationScope]$cachedApprovalDecision = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::None
                 $hasCachedDecision = $approvalDecisionCache.TryGetValue($approvalCacheKey, [ref]$cachedApprovalDecision)
 
                 $argumentsParseFailed = $false
@@ -2332,9 +2351,9 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                     $argumentsParseFailed = $true
                     $argumentSummaryLines.Clear()
                 }
-                $allowApproval = $cachedApprovalDecision
+                $authorizationScope = $cachedApprovalDecision
                 if (-not $hasCachedDecision) {
-                    $allowApproval = $false
+                    $authorizationScope = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::None
                     $canPromptForApproval = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected
                     if ($canPromptForApproval) {
                         & $clearTransientStatusLine
@@ -2354,21 +2373,32 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
                             }
                         }
 
-                        Write-Host "Type 'yes' or 'authorized' to approve this single-use destructive action." -ForegroundColor Yellow
-                        Write-Host 'Anything else denies it.' -ForegroundColor Yellow
-                        $response = Read-Host -Prompt 'Approval'
-                        $normalized = if ($null -ne $response) { $response.Trim() } else { '' }
-                        $allowApproval = ($normalized -match '^(?:y|yes|authorized|allow|approve)$') -or ($normalized -ieq 'authorized')
+                        Write-Host '1 = Authorize this destructive action only.' -ForegroundColor Yellow
+                        Write-Host '2 = Authorize destructive actions for this TechAgent run.' -ForegroundColor Yellow
+                        Write-Host 'Anything else denies this action.' -ForegroundColor Yellow
+                        $response = Read-Host -Prompt 'Authorization scope (1 or 2)'
+                        if ($response -ceq '1') {
+                            $authorizationScope = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::SingleUse
+                        }
+                        elseif ($response -ceq '2') {
+                            $authorizationScope = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::Run
+                        }
                     }
                     else {
                         & $clearTransientStatusLine
                         Write-Warning "Destructive action denied because interactive approval is unavailable in non-interactive host mode."
                     }
 
-                    $approvalDecisionCache[$approvalCacheKey] = $allowApproval
+                    if ($authorizationScope -ne [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::Run) {
+                        $approvalDecisionCache[$approvalCacheKey] = $authorizationScope
+                    }
                 }
 
-                $responseText = if ($allowApproval) { 'authorized' } else { 'denied' }
+                $responseText = switch ($authorizationScope) {
+                    ([TechToolbox.Agent.Core.DestructiveAuthorizationScope]::SingleUse) { '1'; break }
+                    ([TechToolbox.Agent.Core.DestructiveAuthorizationScope]::Run) { '2'; break }
+                    default { '' }
+                }
                 try {
                     $agentProc.StandardInput.WriteLine($responseText)
                     $agentProc.StandardInput.Flush()
@@ -2968,12 +2998,11 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 
     }
 }
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDHs9TkNuhrIwja
-# 5YxjrfHo+EQtqZhMZR/XiH+WfDnJzqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBI2zKg59jaxzz3
+# CX+FyV3pQDyOmOUUzMlKK5X2FVM7maCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3150,31 +3179,31 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD+
-# zqKNkFrEnsVJfV/0L18eCCR1YZ3W0Mjb7oFpqckD8DANBgkqhkiG9w0BAQEFAASC
-# AYCpstVzgKJ6bW1MhD/UlCyU47F+FgWD4W3z+VC28TKNjeVfwtMOuZQqsfnK19Ki
-# f56K8CncMxuC0tsN/HpPoPmIsU3l+V2UGHzeBI6+PhuWJBIfPgesa/5TCo1Ggy8E
-# zaTQVD35V5DB0VaY0OJAtD5ML3y9J5XroJBdtkdGd9cMCBenYBJUostG8SthEWnN
-# AGZG5NNE8f8jTaEoeczH5wIJ3MkfUxzTABjmXDrhW8TLXDnMeKzOomod4BVyN5nW
-# skYU+RHl+auU11WVk7IGqTQVi47jIQ7ZPXBEvITjc9Ae7o7Q8L0j2YuXMuo8DO+e
-# t5g0Gxu5gcFIVdGtLtBaqmKLM8hKheSyQ3PFCDLHOw0h2gXKn003b8RQENlEXv7X
-# c9IhyfZMetADXxzxTErRzWBe99a/aQ3Dlfs2ZS4bcSubUXCAl3UrKJoc5kmaJMLw
-# V2lDkPyY2IJ7LfQ4iRKLPNYmOLsID3qH+empDUhYMv/ZasJJT2eZrlJw7oHP1jMQ
-# qROhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDw
+# 1B6Bn/O+d8AMGG9N7pBwZ3/WvmFX2jb+1dBgo9m/+TANBgkqhkiG9w0BAQEFAASC
+# AYCsyQkp7jKNVjojPtUQCQvAu5KYKhEy9wtyvQFZhO/Rahah9AIvIhPruEA3K4dU
+# /l2r2yMJimcq6K9aAAL9ahKqVyj9KwasXQ1cXHQ+ownEGFz8u83zKbP2+hm9g79U
+# 5rj//GVfBVSxwstXDpzcOk7tqaS/Ho/yqc03BUfjfzTftSgtXwPESk1Kg0qkbMaz
+# pVWEVQXEjX0n03rf5QLi1ZI0WPec4RHcUJU745JOce4TRJOaWPjx8fgxQmLb8jDy
+# iRAma11ynSLkypsWVUAtT9zqT9+pKveTLiowfJkc9/bFGH0r4YX5D+TRnqvsFccY
+# 9+kxmJdTn4fKN3eNrWcpDaYe8yTcu8YYoGQ2Qs6DNvBcnJyZuMe6btg9drVun91N
+# quMd/tMfkCm8juyBcYhlrqhTPSFDMC9t/IUfjl4NknzW5jdn441Uh/PHGpWS3v0s
+# LRbOb5rtvht+QeQjeIG5qgsw6Bj7dvk/NjwxYDnw+Kkm8kFibt6njoL7wvzDhbmv
+# dMGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI5MTY1NzQwWjAvBgkqhkiG
-# 9w0BCQQxIgQg5HCLNlmopWRNvrNgam9V+TlAUZbl9GU+qZk/O9aBy+kwDQYJKoZI
-# hvcNAQEBBQAEggIAXNB060tY7h9kj5wnqoqL/qVV4n1EL8t9lmACXxlIprNRO0oq
-# ocanYfDzuKFvtU3OmQ8d2mw2YKnC526z1nlabQmG9NtbJV4JSLSY8yC0JHrCDCrV
-# Yl7BUlco63yBhl+TFb/HFGYt+WPXD2+oU8gz2Xwer08E9P3/tWiUC7ef5UiUxB3L
-# 7gYE7dQbfoT1S5RQF9gU9SVh7uePQDU8TvNE+Cn+Sy0PTPWvRlyJvW1k+ikKYdC5
-# 670jtjez+mxPIKMxmbgKDGXNyshG+y/XpIo+pCn05Na6qCdIJ+9GXy8g0Fi4BWOK
-# IaDkhCjuI8D9pszQSlwAzKWSb9Sry8fC6+iWB7kesh2M759EpyGkMN9ng1gaZg2p
-# xlB3XalqH5rk5QyxltzzPfZ3q+ZL9Cpr1MXzy0Mr40l/i8HxdhtFkxFMsHWJMYpy
-# fE2fnxvAJglHLfwwVLL3B1joWQtKwlsdlQyvqjh0ecy44IpqT+KarAmyc7bwntIL
-# DANhzshVVzef4PS1xq59XUEZSkIbYWbBYv8b6VSsx8vBwTYY97zO9ybGSmMGqvjo
-# 5x/tQ38ukbqFwTsemggjPRPxm9/dkqVrSUgokFMPHIaOv9Z7DOwCapiR2/vjr/Es
-# GsjLPGJesIX8T6VXJ5A6qr2jKqhqzrJjTlNS3QQsuXoEvBx4RnGB0/WPuBs=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDMwMjM0MjA5WjAvBgkqhkiG
+# 9w0BCQQxIgQgLmOrBXtd4LN0JT8JMvtEMOi1LJzm6+uh/hhcaTqSxgQwDQYJKoZI
+# hvcNAQEBBQAEggIAec0KLITQkHEMRP0vwlZFAxRimxqCU7qsMc+FjgeRNj8G1i/Z
+# FxVpSwOedgDGfl7Zpf4jS1gwEHQEQ3t19KNbbVW8dNZD12YWcpV6piYC5kMMnb+9
+# aDGg0z4l0c9sCePqoH6mrnrSmMoU10nA0GVoTbevlbyj/1SU7P+3daxoMs5YhKGy
+# Tag/teZwGhTc7ITQWlynl4+G09at1tHw7X5tnZifq0vib/j940YVy6cj5TUYIkud
+# Ygf5LSS90aa8a4w8+C4ONjGzinKvKJcSJo6Ee8leaPW7RK3/pDBRnnYa5cUjF2Kr
+# 1H1R32t+7XH0oEApwGac4EIQKLArgIahggG+tmfbCF+A3ja9XWMvrkb7+qVZUzla
+# +k8SXLl0u0b/k4sRUte9RAM/mIurvXlXf04xS6tn0265Y05mDgleTN4+1Xs+/Rbr
+# ObqIBC8A5Zh+Erl+SvD41RdN0QmqTHRN+jF7rYH3YMLz0HmOg0hbkqxWUMbPLGTr
+# PAQRri1nxPR/dtlq3AN/Zee3z7Z4+AbXXDtGh9LRlyHvkW7WifOjLlq1aoYSl4Ko
+# MegKhUc802kA3qZfc5IKBAkuMuSfvhPFb+FbYKFYQZKoBD4IZdO6KakSjrchhdlK
+# 0SdaYs6r0HLsxGrxKdkmJ08ebPmcFvfbeZhmBLomWYIpvzdF5/302le8uSU=
 # SIG # End signature block
