@@ -116,10 +116,14 @@ function Invoke-SystemRepairLocal {
 }
 "@
 
+        # Use EncodedCommand to avoid command-line tokenization issues with
+        # embedded JSON/paths (for example values containing " - ").
+        $encodedCmd = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($cmd))
+
         $p = Start-Process -FilePath $psExe -Verb RunAs -ArgumentList @(
             '-NoProfile',
             '-ExecutionPolicy', 'Bypass',
-            '-Command', $cmd
+            '-EncodedCommand', $encodedCmd
         ) -PassThru
 
         if (-not $p) { throw "Invoke-SystemRepairLocal: Failed to start elevated process." }
