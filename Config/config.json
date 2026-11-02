@@ -130,8 +130,7 @@
       "retrieval": {
         "enabled": true,
         "backend": "hybrid",
-        "model": "qwen3.8:27b",
-        "embeddingModel": null,
+        "model": "qwen3.5:9b",
         "maxContextTokens": 128000,
         "maxResults": 30,
         "timeoutSeconds": 10,
@@ -193,12 +192,14 @@
         "stateWorldEnvironmentContextProfile": "standard",
         "stateWorldRequireEnvironmentContextForEnvironmentIntent": false,
         "hybridLocalMemoryWeight": 0.5,
-        "hybridStateWorldWeight": 0.5
+        "hybridStateWorldWeight": 0.5,
+        "embeddingModel": null,
+        "embeddingDimension": null
       },
       "policyStartupMode": "Observe",
       "allowedPathRoots": ["%TT_LocalDataRoot%"],
       "provider": "ollama",
-      "model": "qwen3.8:27b",
+      "model": "qwen3.5:9b",
       "executionMode": "execute",
       "outputContract": "markdown",
       "qualityProfile": "balanced",
@@ -756,4 +757,3 @@
     "logs": "%TT_LocalDataRoot%\\Logs"
   }
 }
-
