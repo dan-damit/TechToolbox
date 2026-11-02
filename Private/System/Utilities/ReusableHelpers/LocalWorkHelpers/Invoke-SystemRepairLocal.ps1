@@ -49,29 +49,6 @@ function Invoke-SystemRepairLocal {
         $resultPath = Join-Path $tmpRoot 'result.json'
         $errorPath = Join-Path $tmpRoot 'error.txt'
 
-        # Build param tokens from explicitly bound params (only emit true switches)
-        $paramTokens = foreach ($kv in $PSBoundParameters.GetEnumerator()) {
-            if ($kv.Key -in @('NoSelfElevate', 'ElevatedResultPath', 'ElevatedErrorPath', 'KeepElevatedArtifacts')) { continue }
-
-            if ($kv.Value -is [switch] -or $kv.Value -is [bool]) {
-                if ([bool]$kv.Value) { "-$($kv.Key)" }
-                continue
-            }
-
-            if ($kv.Value -is [string]) {
-                "-$($kv.Key) `"$($kv.Value)`""
-            }
-            else {
-                "-$($kv.Key) $($kv.Value)"
-            }
-        }
-
-        # Prevent recursion + pass IPC paths
-        $paramTokens += '-NoSelfElevate'
-        $paramTokens += "-ElevatedResultPath `"$resultPath`""
-        $paramTokens += "-ElevatedErrorPath `"$errorPath`""
-        if ($KeepElevatedArtifacts) { $paramTokens += '-KeepElevatedArtifacts' }
-
         # Prefer pwsh, fallback to Windows PowerShell
         $psExe = (Get-Command pwsh -ErrorAction SilentlyContinue)?.Source
         if (-not $psExe) { $psExe = (Get-Command powershell -ErrorAction Stop).Source }
@@ -85,19 +62,26 @@ function Invoke-SystemRepairLocal {
         $resultEsc = $resultPath.Replace('"', '`"')
         $errorEsc = $errorPath.Replace('"', '`"')
 
-        # Tokens passed to the PUBLIC wrapper in the elevated process
-        $elevatedTokens = @('-Local')
+        # Build explicit invoke parameters and serialize them for robust cross-process passing.
+        # This avoids fragile tokenized command text that can break on paths/special characters.
+        $elevatedParams = @{
+            Local                   = $true
+            Confirm                 = $false
+            RepairSourceIndex       = $RepairSourceIndex
+            OperationTimeoutMinutes = $OperationTimeoutMinutes
+            WaitPollSeconds         = $WaitPollSeconds
+            WaitHeartbeatSeconds    = $WaitHeartbeatSeconds
+        }
 
-        if ($RestoreHealth) { $elevatedTokens += '-RestoreHealth' }
-        if ($StartComponentCleanup) { $elevatedTokens += '-StartComponentCleanup' }
-        if ($ResetBase) { $elevatedTokens += '-ResetBase' }
-        if ($SfcScannow) { $elevatedTokens += '-SfcScannow' }
-        if ($ResetUpdateComponents) { $elevatedTokens += '-ResetUpdateComponents' }
-        if (-not [string]::IsNullOrWhiteSpace($RepairSource)) { $elevatedTokens += "-RepairSource `"$RepairSource`"" }
-        if ($LimitAccess) { $elevatedTokens += '-LimitAccess' }
+        if ($RestoreHealth) { $elevatedParams.RestoreHealth = $true }
+        if ($StartComponentCleanup) { $elevatedParams.StartComponentCleanup = $true }
+        if ($ResetBase) { $elevatedParams.ResetBase = $true }
+        if ($SfcScannow) { $elevatedParams.SfcScannow = $true }
+        if ($ResetUpdateComponents) { $elevatedParams.ResetUpdateComponents = $true }
+        if (-not [string]::IsNullOrWhiteSpace($RepairSource)) { $elevatedParams.RepairSource = $RepairSource }
+        if ($LimitAccess) { $elevatedParams.LimitAccess = $true }
 
-        # Avoid any ShouldProcess prompts in the elevated process
-        $elevatedTokens += '-Confirm:$false'
+        $elevatedParamsJson = ($elevatedParams | ConvertTo-Json -Depth 5 -Compress).Replace("'", "''")
 
         # Elevated session script:
         # - Import module from manifest
@@ -114,7 +98,12 @@ function Invoke-SystemRepairLocal {
     Import-Module "$manifestEsc" -Force
 
     # Call the EXPORTED wrapper so module-internal init works
-    `$r = Invoke-SystemRepair $($elevatedTokens -join ' ')
+    `$invokeParamsObject = ConvertFrom-Json -InputObject '$elevatedParamsJson'
+    `$invokeParams = @{}
+    foreach (`$prop in `$invokeParamsObject.PSObject.Properties) {
+      `$invokeParams[`$prop.Name] = `$prop.Value
+    }
+    `$r = Invoke-SystemRepair @invokeParams
 
     (`$r | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath "$resultEsc" -Encoding UTF8 -Force
     exit 0
@@ -464,19 +453,19 @@ function Invoke-SystemRepairLocal {
     $overallSw = [System.Diagnostics.Stopwatch]::StartNew()
 
     $results = [ordered]@{
-        ComputerName          = $env:COMPUTERNAME
-        StartedAt             = $overallStartedAt
-        EffectiveRepairSource = $null
-        RestoreHealthSourceResult = $null
+        ComputerName                = $env:COMPUTERNAME
+        StartedAt                   = $overallStartedAt
+        EffectiveRepairSource       = $null
+        RestoreHealthSourceResult   = $null
         RestoreHealthFallbackResult = $null
-        RestoreHealthFallbackUsed = $false
-        RestoreHealthResult   = $null
-        StartComponentCleanup = $null
-        ResetBaseResult       = $null
-        SfcResult             = $null
-        ResetWUResult         = $null
-        CompletedAt           = $null
-        DurationSeconds       = $null
+        RestoreHealthFallbackUsed   = $false
+        RestoreHealthResult         = $null
+        StartComponentCleanup       = $null
+        ResetBaseResult             = $null
+        SfcResult                   = $null
+        ResetWUResult               = $null
+        CompletedAt                 = $null
+        DurationSeconds             = $null
     }
 
     if ($RestoreHealth) {
