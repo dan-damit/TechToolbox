@@ -33,24 +33,24 @@ function Invoke-SystemRepairCore {
     $system32 = Join-Path $env:SystemRoot 'System32'
 
     $results = [ordered]@{
-        ComputerName          = $env:COMPUTERNAME
-        RunContext            = [pscustomobject]@{
+        ComputerName                = $env:COMPUTERNAME
+        RunContext                  = [pscustomobject]@{
             UserName = $currentIdentity.Name
             IsAdmin  = $isAdmin
             IsSystem = $isSystem
         }
-        RepairSource          = $RepairSource
-        RepairSourceIndex     = $RepairSourceIndex
-        EffectiveRepairSource = $null
-        RestoreHealthSourceResult = $null
+        RepairSource                = $RepairSource
+        RepairSourceIndex           = $RepairSourceIndex
+        EffectiveRepairSource       = $null
+        RestoreHealthSourceResult   = $null
         RestoreHealthFallbackResult = $null
-        RestoreHealthFallbackUsed = $false
-        LimitAccess           = [bool]$LimitAccess
-        RestoreHealthResult   = $null
-        StartComponentCleanup = $null
-        ResetBaseResult       = $null
-        SfcResult             = $null
-        ResetWUResult         = $null
+        RestoreHealthFallbackUsed   = $false
+        LimitAccess                 = [bool]$LimitAccess
+        RestoreHealthResult         = $null
+        StartComponentCleanup       = $null
+        ResetBaseResult             = $null
+        SfcResult                   = $null
+        ResetWUResult               = $null
     }
 
     function New-AdminRequiredResult {
@@ -117,7 +117,7 @@ function Invoke-SystemRepairCore {
         $proc = $job.Process
         $deadline = $opStartedAt.AddMinutes($TimeoutMinutes)
         $state = [pscustomobject]@{
-            TimedOut       = $false
+            TimedOut        = $false
             LastHeartbeatAt = $opStartedAt
         }
 
@@ -186,12 +186,12 @@ function Invoke-SystemRepairCore {
             -PollSeconds $WaitPollSeconds `
             -HeartbeatSeconds $WaitHeartbeatSeconds `
             -OnStatusChange {
-                param($obj, $status, $lastStatus)
+            param($obj, $status, $lastStatus)
 
-                if ($status -ne $lastStatus) {
-                    Write-Information ("[{0}] status: {1}" -f $Label, $status) -InformationAction Continue
-                }
+            if ($status -ne $lastStatus) {
+                Write-Information ("[{0}] status: {1}" -f $Label, $status) -InformationAction Continue
             }
+        }
 
         $sw.Stop()
         $opCompletedAt = Get-Date
