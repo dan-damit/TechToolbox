@@ -6,6 +6,23 @@ This project follows the **Milestone‑Driven Semantic Versioning** model descri
 
 ---
 
+## [3.3.1] — 2026-11-01
+### **Milestone: Destructive Confirmation Propagation Fix**
+
+This patch release fixes a destructive safety issue in the semantic-index maintenance workflow by ensuring confirmation/guardrail propagation behaves correctly during index-pruning operations.
+
+### **Fixed**
+- Corrected destructive confirmation propagation in the index-pruning workflow so destructive maintenance actions enforce the expected safety checks.
+- Hardened semantic-index maintenance tool policy and argument binding for index lifecycle cleanup actions.
+- Added regression coverage for destructive workflow execution and maintenance tool policy validation.
+
+### **Improved**
+- Strengthened the TechToolbox.Agent safety and tool-policy path for maintenance operations that may affect retrieval indexes.
+- Improved operational clarity around destructive maintenance flows and index lifecycle cleanup behavior.
+- Updated release metadata and module version references to reflect the 3.3.1 patch release.
+
+---
+
 ## [0.6.0] — 2026-09-07
 ### **Milestone: Windows Operator Desktop (First Iteration)**
 
