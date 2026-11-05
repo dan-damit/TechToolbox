@@ -193,6 +193,7 @@
         "stateWorldRequireEnvironmentContextForEnvironmentIntent": false,
         "hybridLocalMemoryWeight": 0.5,
         "hybridStateWorldWeight": 0.5,
+        "embeddingEndpoint": null,
         "embeddingModel": null,
         "embeddingDimension": null
       },

@@ -24,9 +24,17 @@ function Invoke-TechAgent {
         openai-compatible, azure-openai.
 
     .PARAMETER Endpoint
-        Optional provider endpoint URL.
+        Optional reasoning-provider endpoint URL.
         For Azure OpenAI, this should be the resource endpoint
-        (for example https://name.openai.azure.com).
+        (for example https://name.openai.azure.com). This does not select the embedding endpoint.
+
+    .PARAMETER SemanticKnowledgeRetrieval
+        Per-run semantic committed-knowledge retrieval policy: Inherit, Enabled, or Disabled.
+        Inherit uses persisted retrieval.knowledgeRetrievalEnabled.
+
+    .PARAMETER AutoIngestBeforeRun
+        Per-run pre-ingestion policy: Inherit, Enabled, or Disabled.
+        This is independent from SemanticKnowledgeRetrieval.
 
     .PARAMETER Deployment
         Azure OpenAI deployment name.
@@ -184,6 +192,14 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [string]$Endpoint,
+
+        [Parameter()]
+        [ValidateSet('Inherit', 'Enabled', 'Disabled')]
+        [string]$SemanticKnowledgeRetrieval = 'Inherit',
+
+        [Parameter()]
+        [ValidateSet('Inherit', 'Enabled', 'Disabled')]
+        [string]$AutoIngestBeforeRun = 'Inherit',
 
         [Parameter()]
         [string]$Deployment,
@@ -1493,6 +1509,8 @@ Hard requirement:
             RuntimeProfilesJson            = $runtimeProfilesJson
             ResiliencePolicyJson           = $resiliencePolicyJson
             RetrievalConfigJson            = $retrievalConfigJson
+            SemanticKnowledgeRetrieval     = $SemanticKnowledgeRetrieval
+            AutoIngestBeforeRun            = $AutoIngestBeforeRun
             McpConfigJson                  = $serializedMcpConfigForChild
             Verbose                        = $false
             MaxIterations                  = $resolvedMaxIterations
@@ -1766,6 +1784,16 @@ if (-not [string]::IsNullOrWhiteSpace([string]$request.RetrievalConfigJson)) {
     if ($null -ne $resolvedRetrievalConfig) {
         $config.Retrieval = $resolvedRetrievalConfig
     }
+}
+$config.SemanticKnowledgeRetrievalOverride = switch ([string]$request.SemanticKnowledgeRetrieval) {
+    'Enabled' { $true }
+    'Disabled' { $false }
+    default { $null }
+}
+$config.AutoIngestBeforeRunOverride = switch ([string]$request.AutoIngestBeforeRun) {
+    'Enabled' { $true }
+    'Disabled' { $false }
+    default { $null }
 }
 if (-not [string]::IsNullOrWhiteSpace([string]$request.McpConfigJson)) {
     $resolvedMcpConfig = [System.Text.Json.JsonSerializer]::Deserialize(
@@ -2997,12 +3025,12 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
         }
 
     }
-}
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBI2zKg59jaxzz3
-# CX+FyV3pQDyOmOUUzMlKK5X2FVM7maCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBQAT/ObuuLvGwX
+# mRkQ37NKNPlEnltVxdtd2T5REz1p66CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3179,31 +3207,31 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDw
-# 1B6Bn/O+d8AMGG9N7pBwZ3/WvmFX2jb+1dBgo9m/+TANBgkqhkiG9w0BAQEFAASC
-# AYCsyQkp7jKNVjojPtUQCQvAu5KYKhEy9wtyvQFZhO/Rahah9AIvIhPruEA3K4dU
-# /l2r2yMJimcq6K9aAAL9ahKqVyj9KwasXQ1cXHQ+ownEGFz8u83zKbP2+hm9g79U
-# 5rj//GVfBVSxwstXDpzcOk7tqaS/Ho/yqc03BUfjfzTftSgtXwPESk1Kg0qkbMaz
-# pVWEVQXEjX0n03rf5QLi1ZI0WPec4RHcUJU745JOce4TRJOaWPjx8fgxQmLb8jDy
-# iRAma11ynSLkypsWVUAtT9zqT9+pKveTLiowfJkc9/bFGH0r4YX5D+TRnqvsFccY
-# 9+kxmJdTn4fKN3eNrWcpDaYe8yTcu8YYoGQ2Qs6DNvBcnJyZuMe6btg9drVun91N
-# quMd/tMfkCm8juyBcYhlrqhTPSFDMC9t/IUfjl4NknzW5jdn441Uh/PHGpWS3v0s
-# LRbOb5rtvht+QeQjeIG5qgsw6Bj7dvk/NjwxYDnw+Kkm8kFibt6njoL7wvzDhbmv
-# dMGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCi
+# cW6sz1ZjSBznIfAEje2pC36EytIyDqg8bTf8ceys7TANBgkqhkiG9w0BAQEFAASC
+# AYCtsSfDGcnF3dcnrPDss7x4MSm9GHh0qhw5XGE/hf1HQsczNOR31JKoa6pzncwG
+# jJXj9+INOgugtFahISvtwxc61drvNjtDEEZkGjL9I1B5loR0hWFFJkPkHNWPbh5s
+# OUo0t+s6FFHo6FDH6y4Mf1MTAwRf2q/wMz/ytorqb1OZvSW2jyYDExEoN2sh8mNe
+# f6DzhcZvs5nt3tsC1HnaumdDesidUQ2wjOc+RpAwh3yHhJUV2dFSH3QzDKOh1ZXX
+# SPos5H9HSK0r7RtAA8OLiZf6zMJOPcANY/2J1ji6aaIWd9g/blY0tPW9ReunDTgr
+# hQhV3n60oQ6kkEk6vrDqwupEDnzipYpwoeOrIaxThONL7JsryqnpymPH6UwIpRN6
+# PvPSbYcdWwtDkcrg1RdKL2CP19mZwgWCmjNBKbkpReqNPUoBwJq+bqToNOzKar0/
+# bLzY9EYmJlkVqalLF6pYP9fXV6iJwiCXlqoaLYwJykxw7EPYavTOeYdhBYbRKoPb
+# 12ihggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDMwMjM0MjA5WjAvBgkqhkiG
-# 9w0BCQQxIgQgLmOrBXtd4LN0JT8JMvtEMOi1LJzm6+uh/hhcaTqSxgQwDQYJKoZI
-# hvcNAQEBBQAEggIAec0KLITQkHEMRP0vwlZFAxRimxqCU7qsMc+FjgeRNj8G1i/Z
-# FxVpSwOedgDGfl7Zpf4jS1gwEHQEQ3t19KNbbVW8dNZD12YWcpV6piYC5kMMnb+9
-# aDGg0z4l0c9sCePqoH6mrnrSmMoU10nA0GVoTbevlbyj/1SU7P+3daxoMs5YhKGy
-# Tag/teZwGhTc7ITQWlynl4+G09at1tHw7X5tnZifq0vib/j940YVy6cj5TUYIkud
-# Ygf5LSS90aa8a4w8+C4ONjGzinKvKJcSJo6Ee8leaPW7RK3/pDBRnnYa5cUjF2Kr
-# 1H1R32t+7XH0oEApwGac4EIQKLArgIahggG+tmfbCF+A3ja9XWMvrkb7+qVZUzla
-# +k8SXLl0u0b/k4sRUte9RAM/mIurvXlXf04xS6tn0265Y05mDgleTN4+1Xs+/Rbr
-# ObqIBC8A5Zh+Erl+SvD41RdN0QmqTHRN+jF7rYH3YMLz0HmOg0hbkqxWUMbPLGTr
-# PAQRri1nxPR/dtlq3AN/Zee3z7Z4+AbXXDtGh9LRlyHvkW7WifOjLlq1aoYSl4Ko
-# MegKhUc802kA3qZfc5IKBAkuMuSfvhPFb+FbYKFYQZKoBD4IZdO6KakSjrchhdlK
-# 0SdaYs6r0HLsxGrxKdkmJ08ebPmcFvfbeZhmBLomWYIpvzdF5/302le8uSU=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA1MDIwNzA3WjAvBgkqhkiG
+# 9w0BCQQxIgQgwO8IriqnPhe0oyaihQD3RwgulXmO83czduk434Omh+kwDQYJKoZI
+# hvcNAQEBBQAEggIAYRdE55GWeGKjklvjuh6GHDqsGpboCdnyqHjj9O1wBQI7wPR8
+# N3jGHD8JsjkG4jWp4pXbJq/Qp8EvV0O2YvquXRHB4ybOiDZyozjdwvbF9UDtzGti
+# zBOBfZFtDDDyhFBXVyFKHbvJcMugEUJ7gilA79fwKKCMfQVZaJspWzxouIVwU2WF
+# Gf9pvs09mry11nFB7LHZQ/Og5yAM7K1/t1kdrrQWd4HwNHAUH4d398IjSpwdlTae
+# 44NfeC9ZCCCvUnIFL4NP78vsFVy38JW89jEQPI7CeWyacwQmhU1TVdgZEcbZ/G0z
+# tHzlulI80262pBN0Ds7lJiqJRjNGBINPE53QG8oG5DgWGaCqWWVnIRxo5PHhwWPh
+# ui+BywP35s7WRC+AZdbx9Xx0PKwcCMkqTxhOsH1qE2wE1TcVepoffp0kPBwCA7yP
+# iAx1tnWypbvGxyaU2pA8Sw+O3V9tBwIChAV61fuCfyURYLnUBVeb0VLB9okJbXUQ
+# eElbGqxaeRT3IMjL5sSya1SLuFC4lAJBV/x6Bdal+W4mLqG9+esj4y637csJDKt4
+# qAPaRGkjypZeAsUwEFM0Kt+NJBUUq9GoWtJGftt/sGiUjJp9vTH9Lv151NU2x0q5
+# qkAKROk+aXNJcpFB/L1GGNjaO1arBfAKTl3d1NpWP8cSIWdUUUk26nJTQ6U=
 # SIG # End signature block
