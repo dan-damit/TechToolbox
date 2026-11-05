@@ -110,6 +110,7 @@ It supports:
 - persisted run-quality telemetry (mode, output contract, profile, preflight score) in memory history and trend summaries  
 - resilience policy support (preflight estimator, tiered retry degradation, fallback model activation, optional two-stage planner/executor) via `settings.agent.resilience`  
 - optional pre-run semantic index refresh via `settings.agent.retrieval.autoIngestBeforeRun` (incremental source-discovery ingestion)  
+- independent per-invocation `-SemanticKnowledgeRetrieval` and `-AutoIngestBeforeRun` policies (`Inherit`, `Enabled`, or `Disabled`)
 - always-on lightweight memory stored in `AI\memory.json` by default  
 - automatic capture of recent run history plus learned preferences/facts  
 - optional quiet mode for reduced console verbosity  
@@ -129,6 +130,28 @@ AI\Tasks\CurrentTask.txt
 
 This keeps the active task prompt decoupled from the command itself while making
 template-driven workflows easier to reuse.
+
+#### Semantic retrieval and ingestion policies
+
+`-SemanticKnowledgeRetrieval` controls queries against committed semantic knowledge; `-AutoIngestBeforeRun` independently controls ordinary pre-run ingestion. Both default to `Inherit`, which uses the corresponding persisted `settings.agent.retrieval` value. Explicit overrides apply to one invocation and do not rewrite persistent or user configuration. Keeping embedding settings configured does not activate embeddings when no requested operation needs them, so there is no need to remove or null `embeddingModel`, `embeddingDimension`, or `embeddingEndpoint` when disabling semantic retrieval or changing reasoning providers.
+
+Reasoning and embedding providers/models are independent. `-Endpoint` selects only the reasoning endpoint. `retrieval.embeddingEndpoint`, when configured, is authoritative for embeddings regardless of reasoning provider. If it is absent, compatibility behavior uses the reasoning `LlmEndpoint` for Ollama reasoning, or the local Ollama default for non-Ollama reasoning. Diagnostics report the endpoint source, not its raw value.
+
+```powershell
+# A. OpenAI reasoning; semantic retrieval and pre-run ingestion disabled
+Invoke-TechAgent -Prompt "..." -Provider openai -Model gpt-6-luna -SemanticKnowledgeRetrieval Disabled -AutoIngestBeforeRun Disabled
+
+# B. OpenAI reasoning with independently configured local Ollama semantic retrieval
+Invoke-TechAgent -Prompt "..." -Provider openai -Model gpt-6-luna -SemanticKnowledgeRetrieval Enabled -AutoIngestBeforeRun Disabled
+
+# C. Local Qwen reasoning and independently configured Ollama semantic retrieval
+Invoke-TechAgent -Prompt "..." -Provider ollama -Model <qwen-model> -SemanticKnowledgeRetrieval Enabled -AutoIngestBeforeRun Disabled
+
+# D. Explicitly opt into pre-run ingestion for this invocation
+Invoke-TechAgent -Prompt "..." -AutoIngestBeforeRun Enabled
+```
+
+With ingestion disabled, compatible committed semantic generations may still be queried when retrieval is enabled. Enabling ingestion does not implicitly enable semantic query retrieval. Provider errors for requested embedding operations fail closed.
 
 ### `Test-TechAgentProvider`
 Validates provider settings used by `Invoke-TechAgent` and optionally runs a live connectivity/auth test.

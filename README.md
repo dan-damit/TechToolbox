@@ -347,6 +347,22 @@ Use the ignored overlay for site-specific values. Start from `Config/config.secr
 - `backend: "hybrid"` fuses local memory and state-world evidence into one bounded retrieval context.
 - `hybridLocalMemoryWeight` and `hybridStateWorldWeight` tune source influence for `backend: "hybrid"` (defaults: `0.5` and `0.5`).
 - Semantic dense embeddings are selected only by an explicit `embeddingModel` plus positive `embeddingDimension`; optional `embeddingEndpoint` configures the independent Ollama transport and does not enable semantic mode by itself. Endpoint precedence is explicit `embeddingEndpoint`, then `LlmEndpoint` only for Ollama reasoning, then `http://localhost:11434`. Non-Ollama reasoning endpoints are never used for embeddings, and the reasoning model is never inferred as an embedding model. The resolved endpoint is transport metadata, not semantic fingerprint identity.
+- `Invoke-TechAgent -SemanticKnowledgeRetrieval Inherit|Enabled|Disabled` controls committed semantic retrieval per invocation. `-AutoIngestBeforeRun Inherit|Enabled|Disabled` independently controls ordinary pre-run ingestion. Both default to `Inherit`, using persisted `settings.agent.retrieval.knowledgeRetrievalEnabled` and `autoIngestBeforeRun` respectively. Overrides do not rewrite persistent retrieval settings or user configuration.
+- Keeping persistent `embeddingModel`, `embeddingDimension`, and `embeddingEndpoint` configured does not activate embeddings when no requested operation needs them. There is no need to remove or null those values when disabling semantic retrieval or changing reasoning provider/model. `Invoke-TechAgent -Endpoint` remains the reasoning endpoint; explicit `retrieval.embeddingEndpoint` wins for embeddings regardless of reasoning provider. Diagnostics identify endpoint source without exposing its raw value.
+
+```powershell
+# OpenAI reasoning with semantic retrieval disabled
+Invoke-TechAgent -Prompt "..." -Provider openai -Model gpt-6-luna -SemanticKnowledgeRetrieval Disabled -AutoIngestBeforeRun Disabled
+
+# OpenAI reasoning with local Ollama semantic retrieval
+Invoke-TechAgent -Prompt "..." -Provider openai -Model gpt-6-luna -SemanticKnowledgeRetrieval Enabled -AutoIngestBeforeRun Disabled
+
+# Qwen reasoning with independent Ollama semantic embeddings
+Invoke-TechAgent -Prompt "..." -Provider ollama -Model <qwen-model> -SemanticKnowledgeRetrieval Enabled -AutoIngestBeforeRun Disabled
+
+# Explicitly opt into pre-run ingestion
+Invoke-TechAgent -Prompt "..." -AutoIngestBeforeRun Enabled
+```
 - `rg` is fail-closed: invalid/unauthorized directories or missing ripgrep prevent retrieval startup.
 
 ```json

@@ -30,11 +30,43 @@ PARAMETERS
         This is passed directly to the TechToolbox.Agent runtime.
 
     -Model
-        Optional Ollama model name (e.g., techtoolbox-qwen2_5-7b-lora:latest, deepcoder:14b, medgemma1.5:4b).
-        If specified, the function validates the model exists locally via
-        `ollama list`. If omitted, defaults to the model configured in
-        TechToolbox settings ($script:cfg.settings.agent.model) or the agent's
-        default model.
+        Reasoning model name. For Ollama, if specified, the function validates
+        the model exists locally via `ollama list`. If omitted, defaults to the
+        configured reasoning model or the agent's default model. This does not
+        select the semantic embedding model.
+
+    -Provider
+        Reasoning provider: ollama, openai, openai-compatible, or azure-openai.
+        Provider and model select reasoning only; semantic embeddings are an
+        independent role.
+
+    -Endpoint
+        Optional reasoning-provider endpoint. This is not the embedding
+        endpoint. Persistent retrieval.embeddingEndpoint takes precedence for
+        embeddings regardless of reasoning provider. For compatibility, when
+        embeddingEndpoint is absent, Ollama reasoning may supply its endpoint;
+        other reasoning providers use the local Ollama default.
+
+    -SemanticKnowledgeRetrieval
+        Per-invocation semantic committed-knowledge retrieval policy:
+        Inherit, Enabled, or Disabled. Defaults to Inherit, which uses the
+        persisted settings.agent.retrieval.knowledgeRetrievalEnabled value.
+
+    -AutoIngestBeforeRun
+        Per-invocation ordinary pre-run ingestion policy: Inherit, Enabled, or
+        Disabled. Defaults to Inherit, which uses the persisted
+        settings.agent.retrieval.autoIngestBeforeRun value. This is independent
+        from semantic query retrieval and governed maintenance.
+
+        These invocation policies do not modify Config/config.json, user
+        configuration, or persistent embeddingModel, embeddingDimension, and
+        embeddingEndpoint settings. Persistent embedding configuration need not
+        be removed when semantic retrieval is disabled or the reasoning provider
+        changes. Embedding provider composition is lazy and occurs only when an
+        operation requires embeddings; configured embeddings alone do not
+        activate them. Explicit embeddingEndpoint wins regardless of reasoning
+        provider. Diagnostics identify endpoint source without exposing the raw
+        sensitive endpoint.
 
     -MaxIterations
         Integer between 1 and 500, default 15. Limits the maximum number of tool/
