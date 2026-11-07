@@ -365,7 +365,7 @@ function Invoke-TechAgent {
             $resolvedOrchestratorRunDeadlineSeconds = $parsedRunDeadlineSeconds
         }
     }
-    $resolvedOrchestratorRunDeadlineSeconds = [Math]::Max(300, [Math]::Min(2700, $resolvedOrchestratorRunDeadlineSeconds))
+    $resolvedOrchestratorRunDeadlineSeconds = [Math]::Max(300, [Math]::Min(5400, $resolvedOrchestratorRunDeadlineSeconds))
 
     $moduleRoot = Get-ModuleRoot
     $promptSourceLabel = 'inline -Prompt'
