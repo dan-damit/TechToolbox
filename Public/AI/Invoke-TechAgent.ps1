@@ -1,3 +1,5 @@
+$script:TTAgentDestructiveApprovalResponseSourceForTesting = $null
+
 function Invoke-TechAgent {
     <#
     .SYNOPSIS
@@ -697,29 +699,7 @@ Hard requirement:
 
     try {
         $moduleRoot = Get-ModuleRoot
-        $assemblyCandidates = @(
-            (Join-Path $moduleRoot 'AgentRuntime\TechToolbox.Agent\TechToolbox.Agent.dll'),
-            (Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\publish\TechToolbox.Agent.dll'),
-            (Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll'),
-            (Join-Path $moduleRoot 'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll')
-        )
-
-        $existingAssemblyCandidates = @(
-            foreach ($candidatePath in $assemblyCandidates) {
-                if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
-                    Get-Item -LiteralPath $candidatePath -ErrorAction SilentlyContinue
-                }
-            }
-        )
-
-        $agentAssemblyPath = $null
-        if ($existingAssemblyCandidates.Count -gt 0) {
-            $agentAssemblyPath = [string](
-                $existingAssemblyCandidates |
-                Sort-Object -Property LastWriteTimeUtc -Descending |
-                Select-Object -First 1 -ExpandProperty FullName
-            )
-        }
+        $agentAssemblyPath = Resolve-TTAgentRuntimeAssemblyPath -ModuleRoot $moduleRoot
 
         if ([string]::IsNullOrWhiteSpace($agentAssemblyPath)) {
             throw "TechToolbox.Agent assembly not found. Install the packaged agent runtime or build/publish src\TechToolbox.Agent."
@@ -2393,63 +2373,35 @@ finally {
                     $argumentsParseFailed = $true
                     $argumentSummaryLines.Clear()
                 }
-                $authorizationScope = $cachedApprovalDecision
-                if (-not $hasCachedDecision) {
-                    $authorizationScope = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::None
-                    $canPromptForApproval = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected
-                    if ($canPromptForApproval) {
-                        & $clearTransientStatusLine
-                        Write-Host ''
-                        Write-Host '=== Destructive Action Approval Required ===' -ForegroundColor Yellow
-                        Write-Host ("Tool: {0}" -f $toolName) -ForegroundColor Cyan
-                        if ($argumentsParseFailed) {
-                            Write-Host 'Arguments: [parse failure; sanitized summary only]' -ForegroundColor DarkYellow
-                        }
-                        elseif ($argumentSummaryLines.Count -eq 0) {
-                            Write-Host 'Arguments: [no arguments]' -ForegroundColor DarkYellow
-                        }
-                        else {
-                            Write-Host 'Arguments:' -ForegroundColor DarkYellow
-                            foreach ($summaryLine in $argumentSummaryLines) {
-                                Write-Host ("  - {0}" -f $summaryLine) -ForegroundColor Gray
-                            }
-                        }
-
-                        Write-Host '1 = Authorize this destructive action only.' -ForegroundColor Yellow
-                        Write-Host '2 = Authorize destructive actions for this TechAgent run.' -ForegroundColor Yellow
-                        Write-Host 'Anything else denies this action.' -ForegroundColor Yellow
-                        $response = Read-Host -Prompt 'Authorization scope (1 or 2)'
-                        if ($response -ceq '1') {
-                            $authorizationScope = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::SingleUse
-                        }
-                        elseif ($response -ceq '2') {
-                            $authorizationScope = [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::Run
-                        }
+                return Invoke-TTAgentApprovalProtocolLine `
+                    -Line $line `
+                    -ApprovalRequestPrefix $approvalRequestPrefix `
+                    -AgentProcess $agentProc `
+                    -ApprovalDecisionCache $approvalDecisionCache `
+                    -CanPromptForApproval ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) `
+                    -PromptAction {
+                    & $clearTransientStatusLine
+                    Write-Host ''
+                    Write-Host '=== Destructive Action Approval Required ===' -ForegroundColor Yellow
+                    Write-Host ("Tool: {0}" -f $toolName) -ForegroundColor Cyan
+                    if ($argumentsParseFailed) {
+                        Write-Host 'Arguments: [parse failure; sanitized summary only]' -ForegroundColor DarkYellow
+                    }
+                    elseif ($argumentSummaryLines.Count -eq 0) {
+                        Write-Host 'Arguments: [no arguments]' -ForegroundColor DarkYellow
                     }
                     else {
-                        & $clearTransientStatusLine
-                        Write-Warning "Destructive action denied because interactive approval is unavailable in non-interactive host mode."
+                        Write-Host 'Arguments:' -ForegroundColor DarkYellow
+                        foreach ($summaryLine in $argumentSummaryLines) {
+                            Write-Host ("  - {0}" -f $summaryLine) -ForegroundColor Gray
+                        }
                     }
 
-                    if ($authorizationScope -ne [TechToolbox.Agent.Core.DestructiveAuthorizationScope]::Run) {
-                        $approvalDecisionCache[$approvalCacheKey] = $authorizationScope
-                    }
-                }
-
-                $responseText = switch ($authorizationScope) {
-                    ([TechToolbox.Agent.Core.DestructiveAuthorizationScope]::SingleUse) { '1'; break }
-                    ([TechToolbox.Agent.Core.DestructiveAuthorizationScope]::Run) { '2'; break }
-                    default { '' }
-                }
-                try {
-                    $agentProc.StandardInput.WriteLine($responseText)
-                    $agentProc.StandardInput.Flush()
-                }
-                catch {
-                    throw ("Tech agent failed while sending destructive approval response: {0}" -f $_.Exception.Message)
-                }
-
-                return $true
+                    Write-Host '1 = Authorize this destructive action only.' -ForegroundColor Yellow
+                    Write-Host '2 = Authorize destructive actions for this TechAgent run.' -ForegroundColor Yellow
+                    Write-Host 'Anything else denies this action.' -ForegroundColor Yellow
+                } `
+                    -DenialAction { & $clearTransientStatusLine }
             }
 
             # Initialize agent state tracking
@@ -3089,106 +3041,12 @@ finally {
     }
 }
 
-function Get-TTAgentPostflightDecision {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)][string]$RuntimeStatusPath,
-        [Parameter(Mandatory = $true)][int]$ProcessId,
-        [Parameter(Mandatory = $true)][string]$RunId,
-        [bool]$TaskExecutionSucceeded = $true,
-        [bool]$PostflightSucceeded = $true,
-        [bool]$PostflightCompleted = $false,
-        [bool]$LegacyTextFailure = $false,
-        [switch]$FinalizeArtifact
-    )
-
-    # Read only bounded terminal metadata. This artifact is status evidence, not
-    # authorization. Missing, malformed, or uncorrelated status is ignored.
-    $status = $null
-    $correlated = $false
-    if (Test-Path -LiteralPath $RuntimeStatusPath -PathType Leaf) {
-        try {
-            $candidate = Get-Content -LiteralPath $RuntimeStatusPath -Raw | ConvertFrom-Json -ErrorAction Stop
-            $artifactProcessId = 0
-            if ($null -ne $candidate -and
-                [int]::TryParse([string]$candidate.ProcessId, [ref]$artifactProcessId) -and
-                $artifactProcessId -eq $ProcessId -and
-                -not [string]::IsNullOrWhiteSpace([string]$candidate.RunId) -and
-                [string]$candidate.RunId -ceq $RunId) {
-                $status = $candidate
-                $correlated = $true
-            }
-        }
-        catch {
-            $status = $null
-            $correlated = $false
-        }
-    }
-
-    $terminalCode = ''
-    $terminalState = ''
-    if ($correlated) {
-        $terminalCode = [string]$status.TerminalCode
-        $terminalState = [string]$status.TerminalState
-        if ($terminalCode.Length -gt 64) { $terminalCode = $terminalCode.Substring(0, 64) }
-        if ($terminalState.Length -gt 64) { $terminalState = $terminalState.Substring(0, 64) }
-    }
-
-    $runtimeFailure = $terminalCode -in @(
-        'CANCELED', 'ORCHESTRATOR_DEADLINE_EXCEEDED', 'PROVIDER_TIMEOUT',
-        'PROVIDER_FAILURE', 'TOOL_TIMEOUT', 'FAILED'
-    )
-    $knownFailure = $runtimeFailure -or $LegacyTextFailure
-    $achieved = $TaskExecutionSucceeded -and $PostflightSucceeded -and -not $knownFailure
-    $completed = $PostflightCompleted
-
-    if ($FinalizeArtifact -and $correlated) {
-        try {
-            if ($status.PostflightStarted) {
-                $status.PostflightCompleted = $true
-                $completed = $true
-            }
-            $status.LastProgressUtc = [DateTime]::UtcNow.ToString('o')
-            if ($terminalCode -eq 'COMPLETED' -and $achieved) {
-                $status.Phase = 'Completed'
-                $status.TerminalState = 'Completed'
-                $terminalState = 'Completed'
-            }
-            elseif ($terminalCode -eq 'COMPLETED' -or [string]::IsNullOrWhiteSpace($terminalCode)) {
-                $status.Phase = 'Failed'
-                $status.TerminalState = 'Failed'
-                $status.TerminalCode = 'FAILED'
-                $terminalCode = 'FAILED'
-                $terminalState = 'Failed'
-            }
-            $status.CurrentOperation = ''
-            $status.CurrentToolName = ''
-            $status.CurrentOperationStartedUtc = $null
-            $tempPath = "$RuntimeStatusPath.$([guid]::NewGuid().ToString('N')).tmp"
-            $status | ConvertTo-Json -Depth 5 -Compress | Set-Content -LiteralPath $tempPath -Encoding utf8
-            [System.IO.File]::Move($tempPath, $RuntimeStatusPath, $true)
-        }
-        catch {
-            # Final status persistence is best-effort, matching the caller's
-            # existing postflight behavior.
-        }
-    }
-
-    [pscustomobject]@{
-        ArtifactCorrelated   = $correlated
-        RuntimeTerminalCode  = $terminalCode
-        RuntimeTerminalState = $terminalState
-        KnownFailureDetected = $knownFailure
-        TaskAchieved         = $achieved
-        PostflightCompleted  = $completed
-    }
-}
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCClYNnA5ytSvSTi
-# 0uojuQr4P3kXvW90P9NUHxTZGh7pD6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDpfwNZn0MSSBVK
+# t/xFSVTwH0ttyV85jcEufC92VE9hvaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3365,31 +3223,31 @@ function Get-TTAgentPostflightDecision {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDa
-# nEomxgcGlXpO5LTTt/lG1DJjbjXIFDoYCs/hOU0ycDANBgkqhkiG9w0BAQEFAASC
-# AYAI9vpG8zl6a4cksv9yxYlaAPBpMtkN7Y85Ho2rQW+ghyIpHmeIFDi2dtMm45JW
-# gdxh0y9TU0oIx/+Ryvco9dcKG2W/IWuTWKGU6+ZzfgAQnEhus93HIDwq/nIj3H9T
-# B0DD+iIXk1yymkfT5wQiKJckcm/6h5WeHTwzSpNVdQSXpnGCEdtUn8s3X7PFyuxX
-# y5pe30aBLjs6lnFcg3QHclz+x3o6F16fIj++BLPG7eyMMW419F2MZ1WPY8DKqWxd
-# mI/6JsVrUdhxGpwur596R3mQKy3xXCXqj2brXgGYEeav/muODk8oEYvwAJeVlNzU
-# HjS1X4v28acmxAugsa8k2/QukR5FHJQuwp1YkCWbbJZ0AUNTzIh60rTwWJTrPRoR
-# v3/EYiKoBwDrBkkASXHeICP1ZI/nw4fEt/becc66XdbPcbn+NRBqkI5+C3oD9jWR
-# lS4FmFAYQ/g1CbkqzRNIzkf2Y9/HxbdltSmNguQMk6Y5vicfKEsEylWPawg46STG
-# 7c+hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2
+# 5iWkff38OmzDUVjXqEYE1HxzkgMe6dDreD0z0cC2mzANBgkqhkiG9w0BAQEFAASC
+# AYDD2UYKC/3Mskk+yy/46rKEAPNh6co7xhjoo0Wxly2sDDc9+jSBtXeV0H7mTMVO
+# pYLvB1t/6YK3+cnYQyRm+r3J+tY71ocCdvuyJ2xXMNoD+FuIzsK3jYwpyqw9ChRR
+# Yv1MU8r0z5mumteXcvMq4qdMR4TM4MZYcfnmCEv4BBzjDEp9YuYILrGoK0hhF+q8
+# liqTtdebCs5yv5OA7IpBnFH4SZ20SEmIPqm9M24eptKe7rchR8OXgyLIccIF7QZ1
+# hUcfGnHrtvj9oovyX0yOs7I1hjg8HP+WpJVkYdfjGktZhLZkqaSAcbLnIQU62EVM
+# 8/sQg2osOF8zMXhLjrSp4UUs3jhQ5ixeuWgk3oDKz7AIwIrcM7LAhw42n6tjrens
+# U68HvDrSaGESHKy9ZPV1gEBhrGMuaNc5j3eHbMYE3aZgGh2aUZc4qIPwlbfbRuxb
+# oIwq8TuzJrNWZsO0mKUk6Tr/2LTSGVLlxVIw9FkPGBn2iyDLC2/IaS3/3NQdZf5a
+# WDyhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MDQwNDA2WjAvBgkqhkiG
-# 9w0BCQQxIgQg32b7nFtIP+FewPlwtHEgYoTjBXNscEoQkhdAPc4TlkYwDQYJKoZI
-# hvcNAQEBBQAEggIAhHGEbGXE5Df7Elqxt8Y69K6tnQjwg5rxOpHVEcRUnl8g+uBp
-# 6YL7CS0NilF3A1MGLav2tIFhomoRc90nYe8JPVDlIlbXas32NkPDUYqPq+LAMQTu
-# w2BTGwAKWFPzR6rGpp3eqMeQoa46+hM22JA242WC+HuF31nMf/asqaGgtzsqehIV
-# JurmMVp9psCzc0R42w3eKopEJU8vn5euvSdhmKLn9Lcx8q8n+VnAfPZrhcgAbKNk
-# lPJAJ2cWnYV/jl/VmkbgXI3wa7uIWkWvfK7l8AvMGS6RNXaqKZSJNLWbSdH8zjzP
-# hJfmSVlyaE9fWho0GZ8RnBoM//Skm8JlivNLaG4JM7eDbybWdwr1u3pSXywTSAvz
-# ut738rxhyXn9ynZOCxKREoAs/d/8ruvyMcywYNcn0Whqa5WaCAfLkcurj/4f+fUa
-# CF3jILph2uzv5q8OAqXO1Tha86QF2OKq9Ov6MXKJwXitVrBn2HLCBop/WDQqtggN
-# NuEIIzG3nlPzfeB4u144j1vuz0nxsn4qjZFBdjO9nAukpzhuiLNwqUX1be18pbk+
-# kJ4jVyHOcgaHthsLu9LlcZUsn9GSg85NOZ9onXjBw4LyS8I1y1+6SPyaBuHkq0YK
-# oZmx47LiD3jWJk48AgXQEVqRGKm1ATP/1rXlkrGdA3NFrs0O2hKFkoAGx2M=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MTg1NzQ1WjAvBgkqhkiG
+# 9w0BCQQxIgQg1mHYBLPFWBHozyy28KKhVk2t8J9xNkCU8UZ91ah0ThwwDQYJKoZI
+# hvcNAQEBBQAEggIAgRi61VpdCikOwsHbAmlZX8BsCWUHoKtQRiqfsKPitZqc3QhK
+# Aq4el2O2RoAWO6JmVrfSLIOnQXX84X8Wu0U3p6F8QfhsFoBxT6pvTE36lpaaoejX
+# 8Eda5oSPHraDy+pXC5jx7XRNZDycE+BPHmwcCtjBneoquoZ/cl1//CRtA+eU3Kf3
+# dn12Jh1pxvwgYUODbiLGbWb5zQaWJb3wDy1qZVsGFJali2TiLRPGfikOxC2jhol9
+# /53Hp+OrOa29XwFhRQdYDvXCAUFhj1Ow5sr67YR9G5eyoFfiRe2FE894jepUgJ+o
+# e6M3ipKsBksPuzsEVJkFDMXsx3jg66D9LcpBmUe71IOlq5gkwUTTFIhm6fP/uXuW
+# 2JuOpnVkvwK6sFPwynzqRmdk2W9AQ7IdzN9A9igcbeffTu5sdXBryXdyYHhQDE8k
+# 2dHkBZFXGLUPKFi37L3sidD33wPuJB7qrCThH0emof1ND4Cn8wYsmz53h3uktYjU
+# R4NL4bydfK0LdozAyEY0fnZUath0x4qPXDcYwiHPIlVrk6c3D7nWByh/a1TDmUVr
+# yY+RJOJ56u1+zjQjBGkvchi9KZI3BOIprmYTFgSmjhiRqMmRuU78M7fkoaoHWxyR
+# 42rHCQd6XLa0a1/w9RjkTpyZvVtCNJKn/5URQZ96MGFSMrh0VmZadgZKKSw=
 # SIG # End signature block

@@ -34,9 +34,9 @@ Describe 'Invoke-TechAgent runtime terminal-status postflight' {
 
     It 'rejects mismatched ProcessId and mismatched RunId without failing the current invocation' {
         foreach ($artifact in @(
-            @{ ProcessId = $script:expectedProcessId + 1; RunId = $script:expectedRunId; TerminalCode = 'FAILED' },
-            @{ ProcessId = $script:expectedProcessId; RunId = 'run-stale'; TerminalCode = 'FAILED' }
-        )) {
+                @{ ProcessId = $script:expectedProcessId + 1; RunId = $script:expectedRunId; TerminalCode = 'FAILED' },
+                @{ ProcessId = $script:expectedProcessId; RunId = 'run-stale'; TerminalCode = 'FAILED' }
+            )) {
             $artifact | ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
             $result = Get-TTAgentPostflightDecision -RuntimeStatusPath $script:statusPath -ProcessId $script:expectedProcessId -RunId $script:expectedRunId
             $result.ArtifactCorrelated | Should -BeFalse
@@ -60,7 +60,7 @@ Describe 'Invoke-TechAgent runtime terminal-status postflight' {
 
     It 'keeps correlated COMPLETED evidence successful when task and postflight succeed' {
         @{ ProcessId = $script:expectedProcessId; RunId = $script:expectedRunId; TerminalState = 'Completed'; TerminalCode = 'COMPLETED'; PostflightStarted = $true } |
-            ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
+        ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
         $result = Get-TTAgentPostflightDecision -RuntimeStatusPath $script:statusPath -ProcessId $script:expectedProcessId -RunId $script:expectedRunId -TaskExecutionSucceeded $true -PostflightSucceeded $true -PostflightCompleted $true
         $result.TaskAchieved | Should -BeTrue
         $result.PostflightCompleted | Should -BeTrue
@@ -69,9 +69,9 @@ Describe 'Invoke-TechAgent runtime terminal-status postflight' {
     }
 
     It 'rejects every correlated runtime failure code as task failure and preserves terminal evidence' {
-        foreach ($code in @('CANCELED', 'ORCHESTRATOR_DEADLINE_EXCEEDED', 'PROVIDER_TIMEOUT', 'PROVIDER_FAILURE', 'TOOL_TIMEOUT', 'FAILED')) {
+        foreach ($code in @('CANCELED', 'ORCHESTRATOR_DEADLINE_EXCEEDED', 'PROVIDER_TIMEOUT', 'PROVIDER_FAILURE', 'EMBEDDING_PROVIDERUNAVAILABLE', 'TOOL_TIMEOUT', 'FAILED')) {
             @{ ProcessId = $script:expectedProcessId; RunId = $script:expectedRunId; TerminalState = 'Failed'; TerminalCode = $code; PostflightStarted = $true } |
-                ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
+            ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
             $result = Get-TTAgentPostflightDecision -RuntimeStatusPath $script:statusPath -ProcessId $script:expectedProcessId -RunId $script:expectedRunId -TaskExecutionSucceeded $true -PostflightSucceeded $true -PostflightCompleted $true
             $result.RuntimeTerminalCode | Should -Be $code
             $result.KnownFailureDetected | Should -BeTrue
@@ -95,7 +95,7 @@ Describe 'Invoke-TechAgent runtime terminal-status postflight' {
 
     It 'keeps structured terminal failure authoritative over successful-looking legacy text' {
         @{ ProcessId = $script:expectedProcessId; RunId = $script:expectedRunId; TerminalState = 'Failed'; TerminalCode = 'PROVIDER_FAILURE' } |
-            ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
+        ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
         $result = Get-TTAgentPostflightDecision -RuntimeStatusPath $script:statusPath -ProcessId $script:expectedProcessId -RunId $script:expectedRunId -TaskExecutionSucceeded $true -PostflightSucceeded $true -LegacyTextFailure $false
         $result.TaskAchieved | Should -BeFalse
         $result.KnownFailureDetected | Should -BeTrue
@@ -110,7 +110,7 @@ Describe 'Invoke-TechAgent runtime terminal-status postflight' {
 
     It 'finalizes only a correlated artifact and marks postflight completion separately' {
         @{ ProcessId = $script:expectedProcessId; RunId = $script:expectedRunId; TerminalState = 'Running'; TerminalCode = 'COMPLETED'; PostflightStarted = $true; PostflightCompleted = $false; LastProgressUtc = ''; CurrentOperation = 'postflight'; CurrentToolName = ''; CurrentOperationStartedUtc = $null; Phase = 'Postflight' } |
-            ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
+        ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
         $result = Get-TTAgentPostflightDecision -RuntimeStatusPath $script:statusPath -ProcessId $script:expectedProcessId -RunId $script:expectedRunId -TaskExecutionSucceeded $true -PostflightSucceeded $true -FinalizeArtifact
         $written = Get-Content -LiteralPath $script:statusPath -Raw | ConvertFrom-Json
         $result.TaskAchieved | Should -BeTrue
@@ -118,17 +118,99 @@ Describe 'Invoke-TechAgent runtime terminal-status postflight' {
         $written.TerminalState | Should -Be 'Completed'
     }
 
+    It 'finalizes successful reconciliation runtime evidence with exact correlated counters' {
+        @{
+            ProcessId             = $script:expectedProcessId
+            RunId                 = $script:expectedRunId
+            TerminalState         = 'Completed'
+            TerminalCode          = 'COMPLETED'
+            ToolCallsPrepared     = 1
+            ToolCallsStarted      = 1
+            ToolCallsCompleted    = 1
+            FinalResponseProduced = $true
+            PostflightStarted     = $true
+            PostflightCompleted   = $true
+            Phase                 = 'Postflight'
+        } | ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
+
+        $result = Get-TTAgentPostflightDecision -RuntimeStatusPath $script:statusPath -ProcessId $script:expectedProcessId -RunId $script:expectedRunId -TaskExecutionSucceeded $true -PostflightSucceeded $true -PostflightCompleted $true -FinalizeArtifact
+        $written = Get-Content -LiteralPath $script:statusPath -Raw | ConvertFrom-Json
+
+        $result.ArtifactCorrelated | Should -BeTrue
+        $result.TaskAchieved | Should -BeTrue
+        $result.RuntimeTerminalCode | Should -Be 'COMPLETED'
+        $result.PostflightCompleted | Should -BeTrue
+        $written.ToolCallsPrepared | Should -Be 1
+        $written.ToolCallsStarted | Should -Be 1
+        $written.ToolCallsCompleted | Should -Be 1
+        $written.FinalResponseProduced | Should -BeTrue
+        $written.PostflightCompleted | Should -BeTrue
+        $written.TerminalState | Should -Be 'Completed'
+    }
+
+    It 'preserves failed reconciliation terminal evidence through successful-looking postflight and legacy text' {
+        @{
+            ProcessId             = $script:expectedProcessId
+            RunId                 = $script:expectedRunId
+            TerminalState         = 'Failed'
+            TerminalCode          = 'EMBEDDING_PROVIDERUNAVAILABLE'
+            ToolCallsPrepared     = 1
+            ToolCallsStarted      = 1
+            ToolCallsCompleted    = 0
+            FinalResponseProduced = $false
+            PostflightStarted     = $true
+            PostflightCompleted   = $false
+            Phase                 = 'Postflight'
+        } | ConvertTo-Json | Set-Content -LiteralPath $script:statusPath -Encoding utf8
+
+        $result = Get-TTAgentPostflightDecision -RuntimeStatusPath $script:statusPath -ProcessId $script:expectedProcessId -RunId $script:expectedRunId -TaskExecutionSucceeded $true -PostflightSucceeded $true -LegacyTextFailure $false -FinalizeArtifact
+        $written = Get-Content -LiteralPath $script:statusPath -Raw | ConvertFrom-Json
+
+        $result.ArtifactCorrelated | Should -BeTrue
+        $result.KnownFailureDetected | Should -BeTrue
+        $result.TaskAchieved | Should -BeFalse
+        $result.RuntimeTerminalCode | Should -Be 'EMBEDDING_PROVIDERUNAVAILABLE'
+        $result.PostflightCompleted | Should -BeTrue
+        $written.ToolCallsPrepared | Should -Be 1
+        $written.ToolCallsStarted | Should -Be 1
+        $written.ToolCallsCompleted | Should -Be 0
+        $written.TerminalCode | Should -Be 'EMBEDDING_PROVIDERUNAVAILABLE'
+        $written.TerminalState | Should -Be 'Failed'
+    }
+
+    It 'keeps reconciliation runtime evidence bounded to counters and terminal metadata' {
+        @{
+            ProcessId          = $script:expectedProcessId
+            RunId              = $script:expectedRunId
+            TerminalState      = 'Failed'
+            TerminalCode       = 'EMBEDDING_PROVIDERUNAVAILABLE'
+            ToolCallsPrepared  = 1
+            ToolCallsStarted   = 1
+            ToolCallsCompleted = 0
+        } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $script:statusPath -Encoding utf8
+
+        $decision = Get-TTAgentPostflightDecision -RuntimeStatusPath $script:statusPath -ProcessId $script:expectedProcessId -RunId $script:expectedRunId -TaskExecutionSucceeded $true -PostflightSucceeded $true -LegacyTextFailure $false -FinalizeArtifact
+        $status = Get-Content -LiteralPath $script:statusPath -Raw | ConvertFrom-Json
+        $statusText = Get-Content -LiteralPath $script:statusPath -Raw
+
+        $decision.TaskAchieved | Should -BeFalse
+        $decision.RuntimeTerminalCode | Should -Be 'EMBEDDING_PROVIDERUNAVAILABLE'
+        @($status.PSObject.Properties.Name | Sort-Object) | Should -Be @('ProcessId', 'RunId', 'TerminalCode', 'TerminalState', 'ToolCallsCompleted', 'ToolCallsPrepared', 'ToolCallsStarted')
+        foreach ($marker in @('synthetic-provider-secret', 'synthetic-source-content', 'synthetic-complete-tool-argument-body', '[9,8,7]', 'synthetic-stack-trace', ('x' * 256))) {
+            $statusText | Should -Not -Match ([regex]::Escape($marker))
+        }
+    }
+
     It 'wires Invoke-TechAgent to the shared production decision helper' {
         $source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\Public\AI\Invoke-TechAgent.ps1') -Raw
         $source | Should -Match 'Get-TTAgentPostflightDecision'
     }
 }
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAI7rw/pHNjFq4n
-# 0STDKOF+1DmZxr5Ky2qVHCqhTt5/i6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAttCtqZEy2N3PE
+# L3G9SqhfkWYBP90/eJ4WOPNFLDw2SqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -305,31 +387,31 @@ Describe 'Invoke-TechAgent runtime terminal-status postflight' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAt
-# 2qGDqwaCEXDNNTTB6ZNKxR8Ue79zpj4K88ffjTWXYDANBgkqhkiG9w0BAQEFAASC
-# AYC4HpWXYc4DcqYV0umf/iZuLUpfhfDl8nBasHmE2sj09JuabFTYc5gISGLt1+7P
-# gH8X3kvW/BptazBveW0SCU6IKMVj8mZoXsAsy+Lv1LtvvRg/+IF0h7Uqom2vhJeq
-# d7rl3LomPHGRnID1hhFJZLZyNUiWkMojjJy9BxecZiPZ5UgiX8gzAXyVvygxSE0V
-# eAuEFE8npRgK7thA8pjgDTUcZS8EDGJ79//rOIr7tAKUA/Df2spFPYjVsXhuNELG
-# zG5jyFxnR9RRJdAyGfluIupD/vIJo2/VUybSdcM03+QT/NqssWeFNWt04iwfJdcp
-# AjQ2ULrwBjrYJ94ASfzSiFQuevWwUhHDW8dz9SgkPlegfVTqGw22yf/JvCOAkmVy
-# CPe2VnjnuidihHSgr+x9MsoYoX2mUFmx3PXGLH8KugIaHMQBCR505rJ6WMeyit3x
-# 1+sndj3OdowIk6cz0UJ7RwYst8jnnVyugvY96VvigC61XqMFk67diqtPh8qkHIcf
-# XU2hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDS
+# g93enHzvAxbPkTNxUR8f+w1Zz6k9H9pxca/idxEBhzANBgkqhkiG9w0BAQEFAASC
+# AYCFUFI4yW+0ZaYdlNiC/86rXJC8V5yYA8buMfdzkFk9KnEjPK+cAHu5XI77PpCj
+# diy2Z9sWzxDW0Z8weBloKSPDtDhKCqdiR132c/4XpTk7+VTBjkAvy6UKiPbm83Zr
+# 2J1pyosfuc38oqrVWBUjzrlFgTEy9PbAJfQDnLC1094Fdp8jDiqhFt2eHmFU8JXw
+# tOG6+KaG08NhAzu7T81n90o8v/S+IVcahCe4Cm+MWe0LV2ix/dR69iWnyqqDRvwO
+# BpZDsUxresyd62Y7XaIS+n1RHo/Qv35HEaMT9yIhs9+qSf+Flr85CsiuSXVHyAr1
+# gYOu0Rz6ADWoNENC2s+M7H1N4Nrcg5K9zk7CDPU+EKzRzsR6l+TgyQWATuyP08Oq
+# o9APD/xTDMT++gfi32h1+52leuC35iE5pjKQiBWM2Y1uwaHuee+EIv2FV4bf/wrI
+# jh7WpXvnKDg0YI8om88a4OfjqAbGkB2bUW2+40b297DnrTDIswz0kKBMl8paoV7S
+# HK2hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MDQwMjQ3WjAvBgkqhkiG
-# 9w0BCQQxIgQgU9YzV2T1c0k7dzJVOXCm4nXWBq7z71CNdlVRQZlaGIYwDQYJKoZI
-# hvcNAQEBBQAEggIAAEYMU9iQMV4cHRGPcWhwM+q5fwgTyVJOoRC4EaCrpvK9VrF0
-# QKDf0bkIZmceet5UHLbRhxHNeDU7lS/xwcRhzhpTK8czsa1QpzCC6/qvIWOlCaXe
-# k/UzQqtauQPPyCfAN781h2gQJd4yRvrM8PBSlQRLVTFONbqP/IbRvRu9hqwpkiii
-# Os8awtwTYloKY5/6HoO/bRYfe/M0GLA5ARaAygHUMCtFJegp/9rSMFl1NRLwYu3z
-# OF+i22f262dFseeXdkBWyCRc4suiv6kdXYictI0YuI/m/atOW0Ypr284u4atQ3aQ
-# kD2IfSttNlgSrgWS2Q/2nYiymsvcq9kl+JS2oSiQZOaRZftEbCwOFA+4W+/Uax9a
-# Jbdc+6KSpLE+tLPW3oxAvWWEhKZihkxzdgweESlMnOt+NKPdgiUwwgPOXKV77+yS
-# uSrfgEKHRXZDOFdRvcyR+OdDMyEnez05+VRPao4xr3/bFkoflkL/92oNV+4/BGna
-# 1m4tbLIiCpNR74BVUsX2iJPfV+AGBGcqG8uFJAhgyzq0dAr2O3a9YyiXc/Pmsqks
-# wY1yeKwwKx2HWUOi6aeobMyxiGfcm6WIerPwPAwpZLoyKXkxIJty0vlazk03yTZA
-# XcTjrPJSxMWmxbeysOS3+U2D3CHAwoD8wQbp5yTbpnM7PbqQK54vd070+WQ=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MTYwMzAzWjAvBgkqhkiG
+# 9w0BCQQxIgQgvlDPuxgD/+LkRUvwoUSf4hKJM5FHrHJBp0Q0E/ItLtkwDQYJKoZI
+# hvcNAQEBBQAEggIAmgdhElczKEOwnS+f9P5lymrXsXwRfqrcWOpVmN2DN64ePyg0
+# t53cf8hSG5HwbRGRdNcOKKObUQsd8WA5YhYZLnkENcVjRI1bECnc/vYYdFa4Yi4h
+# GTYZks2zbaYp6x1Qri2cFMSTvuCUSU9Pu3DaGes7nCSfvbRRBV1YP013FEH5ha4T
+# AsU5x+TJ4eS1TzHycIxex1fAjscc8lRB+95FY/TEhisjoxeGOwv1Pec6FDvLVTfQ
+# YjtOhBj6nvcpM0Pop5R99SvqAbLGJcT+gOMhfdwhqayWdwPtRjv+bmfd1Svzd4eA
+# 0w193Nu6pIcUQ3GWNWRSQxwjIhKbmG3vK/su5PlaDMxdAdzoDo8QAatxFvouRiZK
+# DJLAELeIJqZrL2aKXonwbjVO3VkvRcXUKbtnK43B/R49Y1SqTSfSizHH4hwdl0AW
+# mWgCVX4Wozh8Shmqs+wUkeVcRfQ5MCzuahr7mPamJx8ey/WsghFhGEIEnERwpAGm
+# Vky41YKcTRjTmH58/cMBu3gR7b4Xd3q6Wu7Wisob6ycIrWqd0Lc13KTRZDoHq7F1
+# s/PNWO4DafPdmCIEvXtGcrIrLBLhx+cxGmLpn1QtFuS+7yWrlsekZ8hIGxuQU0hp
+# PBXhIshAZxn+4IH/zji7EnVCdQEzn3ZeU8hK595Z4i1cPWrEG/41cuHj5G4=
 # SIG # End signature block
