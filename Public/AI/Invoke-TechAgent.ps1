@@ -638,6 +638,8 @@ function Invoke-TechAgent {
     $markdownRagModelSource = 'none'
     $markdownRagEnabledConfigured = $false
     $markdownRagAttempted = $false
+    $runtimeRunId = [guid]::NewGuid().ToString('N')
+    $runtimeStatusPath = $null
     $markdownRagProviderType = '(unknown)'
     $markdownRagExecutionMode = 'unknown'
     $markdownRagEnvironmentContextIncluded = $false
@@ -1808,8 +1810,17 @@ if (-not [string]::IsNullOrWhiteSpace([string]$request.McpConfigJson)) {
 $config.DestructiveConfirmed = $false
 $config.DestructiveApprovalCallback = $destructiveApprovalCallback
 
-$result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request.Prompt)
-[Console]::Write($result)
+$runCancellation = [System.Threading.CancellationTokenSource]::new()
+$cancelHandler = [System.ConsoleCancelEventHandler]{ param($sender, $eventArgs) $eventArgs.Cancel = $true; $runCancellation.Cancel() }
+[System.Console]::add_CancelKeyPress($cancelHandler)
+try {
+    $result = [TechToolbox.Agent.Core.AgentCore]::RunAgentAsync($config, [string]$request.Prompt, $runCancellation.Token).GetAwaiter().GetResult()
+    [Console]::Write($result)
+}
+finally {
+    [System.Console]::remove_CancelKeyPress($cancelHandler)
+    $runCancellation.Dispose()
+}
 '@
 
         $encodedChildScript = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($childScript))
@@ -2100,6 +2111,8 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
         }
 
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
+        $startInfo.Environment['TT_LocalDataRoot'] = $script:TT.LocalDataRoot
+        $startInfo.Environment['TT_AGENT_RUNTIME_RUN_ID'] = $runtimeRunId
         $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
         $startInfo.Environment['TT_AGENT_LLM_TEMPERATURE'] = [string]$qualitySettings.Temperature
         $startInfo.Environment['TT_AGENT_LLM_TOP_P'] = [string]$qualitySettings.TopP
@@ -2156,6 +2169,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
             if (-not $agentProc.Start()) {
                 throw 'Failed to start child PowerShell process for TechToolbox.Agent.'
             }
+            $runtimeStatusPath = Join-Path $script:TT.LocalDataRoot 'Artifacts\agent-runtime\current-status.json'
 
             $approvalRequestPrefix = '__TT_APPROVAL_REQUEST__:'
             $approvalDecisionCache = [System.Collections.Generic.Dictionary[string, TechToolbox.Agent.Core.DestructiveAuthorizationScope]]::new([System.StringComparer]::Ordinal)
@@ -2816,6 +2830,23 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
             $markdownResponseLength = $message.Length
         }
 
+        if (Test-Path -LiteralPath $runtimeStatusPath -PathType Leaf) {
+            try {
+                $runtimeStatus = Get-Content -LiteralPath $runtimeStatusPath -Raw | ConvertFrom-Json
+                if ($null -ne $runtimeStatus -and $null -ne $agentProc -and [int]$runtimeStatus.ProcessId -eq $agentProc.Id -and [string]$runtimeStatus.RunId -eq $runtimeRunId) {
+                    $runtimeStatus.Phase = 'Postflight'
+                    $runtimeStatus.PostflightStarted = $true
+                    $runtimeStatus.LastProgressUtc = [DateTime]::UtcNow.ToString('o')
+                    $runtimeStatusTempPath = "$runtimeStatusPath.$([guid]::NewGuid().ToString('N')).tmp"
+                    $runtimeStatus | ConvertTo-Json -Depth 5 -Compress | Set-Content -LiteralPath $runtimeStatusTempPath -Encoding utf8
+                    [System.IO.File]::Move($runtimeStatusTempPath, $runtimeStatusPath, $true)
+                }
+            }
+            catch { Write-Log -Level Warn -Message 'Unable to update bounded agent runtime postflight status.' }
+        }
+
+        $runtimeTerminalCode = ''
+
         $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore
         $markdownPostflightAchieved = [bool]$postflightAssessment.Achieved
         $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) { '' } else { [string]$postflightAssessment.Reason }
@@ -2840,6 +2871,7 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
         # Surface orchestrator-level failures as real failures so markdown status
         # and caller behavior do not report false positives.
         $knownFailurePrefixes = @(
+            'Error:',
             'Agent returned invalid JSON twice.',
             'LLM request repeatedly failed',
             'Iteration limit reached.',
@@ -2847,13 +2879,23 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
             'DECISION_NO_PROGRESS_GUARD:'
         )
 
-        $knownFailureDetected = $false
+        $legacyTextFailure = $false
         foreach ($failurePrefix in $knownFailurePrefixes) {
             if ($message.StartsWith($failurePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-                $knownFailureDetected = $true
+                $legacyTextFailure = $true
                 break
             }
         }
+        $postflightDecision = Get-TTAgentPostflightDecision `
+            -RuntimeStatusPath $runtimeStatusPath `
+            -ProcessId $(if ($null -ne $agentProc) { $agentProc.Id } else { 0 }) `
+            -RunId $runtimeRunId `
+            -TaskExecutionSucceeded (-not $legacyTextFailure) `
+            -PostflightSucceeded ([bool]$postflightAssessment.Achieved) `
+            -LegacyTextFailure $legacyTextFailure
+        $runtimeTerminalCode = [string]$postflightDecision.RuntimeTerminalCode
+        $knownFailureDetected = [bool]$postflightDecision.KnownFailureDetected
+        $markdownPostflightAchieved = [bool]$postflightDecision.TaskAchieved
         $markdownKnownFailureDetected = $knownFailureDetected
 
         $expectedOutputExists = $false
@@ -2878,6 +2920,16 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
         $markdownExpectedOutputExists = $expectedOutputExists
 
         if ($knownFailureDetected) {
+            $markdownPostflightAchieved = $false
+            if ([string]::IsNullOrWhiteSpace($markdownPostflightReason)) {
+                $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($runtimeTerminalCode)) { 'Agent runtime returned a terminal failure; task result is not achieved.' } else { "Agent runtime terminal code $runtimeTerminalCode; task result is not achieved." }
+            }
+            if ($runtimeTerminalCode -in @('CANCELED', 'ORCHESTRATOR_DEADLINE_EXCEEDED', 'PROVIDER_TIMEOUT', 'PROVIDER_FAILURE', 'TOOL_TIMEOUT', 'FAILED') -or $message.StartsWith('Error:', [System.StringComparison]::OrdinalIgnoreCase) -or $message.StartsWith('LLM request repeatedly failed', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $markdownPostflightAchieved = $false
+                $markdownPostflightReason = 'Agent runtime returned a terminal failure; task result is not achieved.'
+                throw ("Tech agent failed: {0}" -f $message)
+            }
+
             if ($expectedOutputExists) {
                 $knownFailureMessage = $message
                 $markdownRecoveryReason = (
@@ -2944,6 +2996,16 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
         throw
     }
     finally {
+        if ($null -ne $agentProc) {
+            $null = Get-TTAgentPostflightDecision `
+                -RuntimeStatusPath $runtimeStatusPath `
+                -ProcessId $agentProc.Id `
+                -RunId $runtimeRunId `
+                -TaskExecutionSucceeded ($markdownStatus -like 'Success*') `
+                -PostflightSucceeded $markdownPostflightAchieved `
+                -PostflightCompleted $false `
+                -FinalizeArtifact
+        }
         if (-not [string]::IsNullOrWhiteSpace($markdownPath)) {
             try {
                 $exitCode = if ($markdownStatus -like 'Success*') { 0 } else { -1 }
@@ -3027,11 +3089,106 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
     }
 }
 
+function Get-TTAgentPostflightDecision {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$RuntimeStatusPath,
+        [Parameter(Mandatory = $true)][int]$ProcessId,
+        [Parameter(Mandatory = $true)][string]$RunId,
+        [bool]$TaskExecutionSucceeded = $true,
+        [bool]$PostflightSucceeded = $true,
+        [bool]$PostflightCompleted = $false,
+        [bool]$LegacyTextFailure = $false,
+        [switch]$FinalizeArtifact
+    )
+
+    # Read only bounded terminal metadata. This artifact is status evidence, not
+    # authorization. Missing, malformed, or uncorrelated status is ignored.
+    $status = $null
+    $correlated = $false
+    if (Test-Path -LiteralPath $RuntimeStatusPath -PathType Leaf) {
+        try {
+            $candidate = Get-Content -LiteralPath $RuntimeStatusPath -Raw | ConvertFrom-Json -ErrorAction Stop
+            $artifactProcessId = 0
+            if ($null -ne $candidate -and
+                [int]::TryParse([string]$candidate.ProcessId, [ref]$artifactProcessId) -and
+                $artifactProcessId -eq $ProcessId -and
+                -not [string]::IsNullOrWhiteSpace([string]$candidate.RunId) -and
+                [string]$candidate.RunId -ceq $RunId) {
+                $status = $candidate
+                $correlated = $true
+            }
+        }
+        catch {
+            $status = $null
+            $correlated = $false
+        }
+    }
+
+    $terminalCode = ''
+    $terminalState = ''
+    if ($correlated) {
+        $terminalCode = [string]$status.TerminalCode
+        $terminalState = [string]$status.TerminalState
+        if ($terminalCode.Length -gt 64) { $terminalCode = $terminalCode.Substring(0, 64) }
+        if ($terminalState.Length -gt 64) { $terminalState = $terminalState.Substring(0, 64) }
+    }
+
+    $runtimeFailure = $terminalCode -in @(
+        'CANCELED', 'ORCHESTRATOR_DEADLINE_EXCEEDED', 'PROVIDER_TIMEOUT',
+        'PROVIDER_FAILURE', 'TOOL_TIMEOUT', 'FAILED'
+    )
+    $knownFailure = $runtimeFailure -or $LegacyTextFailure
+    $achieved = $TaskExecutionSucceeded -and $PostflightSucceeded -and -not $knownFailure
+    $completed = $PostflightCompleted
+
+    if ($FinalizeArtifact -and $correlated) {
+        try {
+            if ($status.PostflightStarted) {
+                $status.PostflightCompleted = $true
+                $completed = $true
+            }
+            $status.LastProgressUtc = [DateTime]::UtcNow.ToString('o')
+            if ($terminalCode -eq 'COMPLETED' -and $achieved) {
+                $status.Phase = 'Completed'
+                $status.TerminalState = 'Completed'
+                $terminalState = 'Completed'
+            }
+            elseif ($terminalCode -eq 'COMPLETED' -or [string]::IsNullOrWhiteSpace($terminalCode)) {
+                $status.Phase = 'Failed'
+                $status.TerminalState = 'Failed'
+                $status.TerminalCode = 'FAILED'
+                $terminalCode = 'FAILED'
+                $terminalState = 'Failed'
+            }
+            $status.CurrentOperation = ''
+            $status.CurrentToolName = ''
+            $status.CurrentOperationStartedUtc = $null
+            $tempPath = "$RuntimeStatusPath.$([guid]::NewGuid().ToString('N')).tmp"
+            $status | ConvertTo-Json -Depth 5 -Compress | Set-Content -LiteralPath $tempPath -Encoding utf8
+            [System.IO.File]::Move($tempPath, $RuntimeStatusPath, $true)
+        }
+        catch {
+            # Final status persistence is best-effort, matching the caller's
+            # existing postflight behavior.
+        }
+    }
+
+    [pscustomobject]@{
+        ArtifactCorrelated   = $correlated
+        RuntimeTerminalCode  = $terminalCode
+        RuntimeTerminalState = $terminalState
+        KnownFailureDetected = $knownFailure
+        TaskAchieved         = $achieved
+        PostflightCompleted  = $completed
+    }
+}
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBS9I03x5ptk+cw
-# JIpuLD7YitfTsD2JIU6tDuLC8NXKmKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCClYNnA5ytSvSTi
+# 0uojuQr4P3kXvW90P9NUHxTZGh7pD6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3208,31 +3365,31 @@ $result = [TechToolbox.Agent.Core.AgentCore]::RunAgent($config, [string]$request
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDm
-# a/p4tTEjxSMMrJQm3c+to91hkkbzrkMdR2NRB4rzNTANBgkqhkiG9w0BAQEFAASC
-# AYCGWJm6cR1kanfY1OryhA+TYTZE89GKhhqQnHEIEncRyDJ87+keI7XeWgxhY/Iq
-# KLkoSp4LRqsYsQ7Y8dBs4+cRg4ugZpZrAT7F9hehF+kU+iAQRC0V2ZT2zhl449vP
-# P5qBTARSIC2C+J7GIkGE8Ihi4GWkklsnAsW0e5t4xDRKmf9M9z7DYeClBTohBIKg
-# 9NFlDqyWfZ4jQCilev0t3LsyXqJdZx7wVCYMLr+x/ZbstwQ3m6aXrAmg6Zh7/Buu
-# RVSacbs274EcmZZyKqkTlNYjglej6CYNVjbF+2saXnVd2iF8DjbPHm7Y4wheLqU2
-# 1Kt78GrQdjk+yi7Ju4lPVzrLVmrN1fcZBaKwPIqFsa4PrVyNXCXgwV173nMzr6PC
-# tudujfj7t6BvNXfVQRLsQuaGwoxxX0j3xCanmcVs7wVwHNufNZCaPqJMgGiGAhrv
-# alj/rbW7Fyi/gF6JAsKrhrNCJSBlnZH2JLMUaGvjqcnCgO5K7FKXCzH/nWXjoPcY
-# knShggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDa
+# nEomxgcGlXpO5LTTt/lG1DJjbjXIFDoYCs/hOU0ycDANBgkqhkiG9w0BAQEFAASC
+# AYAI9vpG8zl6a4cksv9yxYlaAPBpMtkN7Y85Ho2rQW+ghyIpHmeIFDi2dtMm45JW
+# gdxh0y9TU0oIx/+Ryvco9dcKG2W/IWuTWKGU6+ZzfgAQnEhus93HIDwq/nIj3H9T
+# B0DD+iIXk1yymkfT5wQiKJckcm/6h5WeHTwzSpNVdQSXpnGCEdtUn8s3X7PFyuxX
+# y5pe30aBLjs6lnFcg3QHclz+x3o6F16fIj++BLPG7eyMMW419F2MZ1WPY8DKqWxd
+# mI/6JsVrUdhxGpwur596R3mQKy3xXCXqj2brXgGYEeav/muODk8oEYvwAJeVlNzU
+# HjS1X4v28acmxAugsa8k2/QukR5FHJQuwp1YkCWbbJZ0AUNTzIh60rTwWJTrPRoR
+# v3/EYiKoBwDrBkkASXHeICP1ZI/nw4fEt/becc66XdbPcbn+NRBqkI5+C3oD9jWR
+# lS4FmFAYQ/g1CbkqzRNIzkf2Y9/HxbdltSmNguQMk6Y5vicfKEsEylWPawg46STG
+# 7c+hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA1MDMwNjA3WjAvBgkqhkiG
-# 9w0BCQQxIgQg8zTTWhByhkF3K/F+7ja4dHCHI+F4CBhzTdmTzsgG08kwDQYJKoZI
-# hvcNAQEBBQAEggIAoKfEgH2IE2cUtYx2Hm29lWEFEikU5RO35MFwAH749SA0PEHw
-# NQ5p9+xeNu9X0jyew3Ju1nsdE5pLQe5lBzejQZ3kxlHHBnzqFSHEyb8sUKfKKgnX
-# n5Bz8u+sFJB3us1t98IHTByDvjPcL+Qzul2c/2GVHo+PReRDmHTJbqQ3dz0cCFhO
-# Kz+g+wD4ll5VC5giruV5VYZX2eB2Td7ll7LhlwhPlDGQjCrsvYepCQ4SYaCyLJsX
-# EtTWhqqbn8b1JvRLclIwnLA2BYblxBb+gijcYuA4dgQ0MutabBMNyhnGHvMb7mlE
-# FFHtq5VCxD6Xe6kDQgOzUGltvOiO63deniP3P4EVAuYtsjjhgOt9Knq9Wxe8Sm62
-# /6gyZil0KvCWTNgKau3HZx/ecPcARXcv3McRzaTkKGm7PU+IDe5eFGA9oR02nV7/
-# XGU6Ab65yRe6XmP9WohXZqkL9hsh8/9ZhKeNoDDc9//gGA6knjOz6LRZq3xEZP9V
-# oxsJZ3eTwjMfw/W02m7cOzjG7P3vqRvRiKEVpUDej0mxRLnefL1ETMuM7N4guQJZ
-# v93T/6wxHm7RhiQep77AecsnMmY4a5/+26dIP4Q9kWjwBBru3uqV4m9/KkyYeEun
-# iinX5yM+1xPF8Z824XoYCuOw7NPm4/1xfayLKZ0zKN5JC7+g9IkEvlH8y4g=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MDQwNDA2WjAvBgkqhkiG
+# 9w0BCQQxIgQg32b7nFtIP+FewPlwtHEgYoTjBXNscEoQkhdAPc4TlkYwDQYJKoZI
+# hvcNAQEBBQAEggIAhHGEbGXE5Df7Elqxt8Y69K6tnQjwg5rxOpHVEcRUnl8g+uBp
+# 6YL7CS0NilF3A1MGLav2tIFhomoRc90nYe8JPVDlIlbXas32NkPDUYqPq+LAMQTu
+# w2BTGwAKWFPzR6rGpp3eqMeQoa46+hM22JA242WC+HuF31nMf/asqaGgtzsqehIV
+# JurmMVp9psCzc0R42w3eKopEJU8vn5euvSdhmKLn9Lcx8q8n+VnAfPZrhcgAbKNk
+# lPJAJ2cWnYV/jl/VmkbgXI3wa7uIWkWvfK7l8AvMGS6RNXaqKZSJNLWbSdH8zjzP
+# hJfmSVlyaE9fWho0GZ8RnBoM//Skm8JlivNLaG4JM7eDbybWdwr1u3pSXywTSAvz
+# ut738rxhyXn9ynZOCxKREoAs/d/8ruvyMcywYNcn0Whqa5WaCAfLkcurj/4f+fUa
+# CF3jILph2uzv5q8OAqXO1Tha86QF2OKq9Ov6MXKJwXitVrBn2HLCBop/WDQqtggN
+# NuEIIzG3nlPzfeB4u144j1vuz0nxsn4qjZFBdjO9nAukpzhuiLNwqUX1be18pbk+
+# kJ4jVyHOcgaHthsLu9LlcZUsn9GSg85NOZ9onXjBw4LyS8I1y1+6SPyaBuHkq0YK
+# oZmx47LiD3jWJk48AgXQEVqRGKm1ATP/1rXlkrGdA3NFrs0O2hKFkoAGx2M=
 # SIG # End signature block
