@@ -1,19 +1,19 @@
 Describe 'Invoke-TechAgent harmless isolated E2E' {
- BeforeAll {
-  . (Join-Path $PSScriptRoot 'Support\Invoke-TechAgent.E2EFixture.ps1')
-  $script:manifest=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\TechToolbox.psd1'))
-  $script:live=if($env:LOCALAPPDATA){Join-Path $env:LOCALAPPDATA 'TechToolbox'}else{$null}
-  $script:names=@('TT_Home','TT_LocalDataRoot','TT_ModuleRoot','TT_LogsRoot','TT_ExportsRoot','TT_AGENT_FILESYSTEM_ROOT','TT_AGENT_ALLOWED_PATH_ROOTS','TT_AGENT_LOCAL_MCP_ADAPTER_PATH','TT_APPROVAL_RESPONSE','TT_AGENT_APPROVAL_RESPONSE','TT_AGENT_LLM_API_KEY')
-  $script:parentEnvironment=Get-TTE2EParentEnvironment -Names $script:names
-  function Inventory($r){Get-TTE2EInventory -Root $r}
- }
- It 'invokes real TechAgent once in fresh isolated pwsh using local deterministic provider' {
-  $root=$null;$before=Inventory $script:live;$p=$null;$ticks=0L;$server=$null
-  try {
-   $root=New-TTE2EOwnedRoot -Prefix 'tt-e2e-';$pwsh=Resolve-TTE2EPwsh;$ev=Join-Path $root evidence.json
-   $responseBody='{"choices":[{"index":0,"message":{"role":"assistant","content":"{\"needsTool\":false,\"finalAnswer\":\"E2E_FIXTURE_OK\",\"reason\":\"Deterministic harmless E2E final response.\"}"},"finish_reason":"stop"}]}'
-   $server=New-TTE2ELoopbackEndpoint -ResponseBody $responseBody
-   $code=@'
+   BeforeAll {
+      . (Join-Path $PSScriptRoot 'Support\Invoke-TechAgent.E2EFixture.ps1')
+      $script:manifest = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\TechToolbox.psd1'))
+      $script:live = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'TechToolbox' }else { $null }
+      $script:names = @('TT_Home', 'TT_LocalDataRoot', 'TT_ModuleRoot', 'TT_LogsRoot', 'TT_ExportsRoot', 'TT_AGENT_FILESYSTEM_ROOT', 'TT_AGENT_ALLOWED_PATH_ROOTS', 'TT_AGENT_LOCAL_MCP_ADAPTER_PATH', 'TT_APPROVAL_RESPONSE', 'TT_AGENT_APPROVAL_RESPONSE', 'TT_AGENT_LLM_API_KEY')
+      $script:parentEnvironment = Get-TTE2EParentEnvironment -Names $script:names
+      function Inventory($r) { Get-TTE2EInventory -Root $r }
+   }
+   It 'invokes real TechAgent once in fresh isolated pwsh using local deterministic provider' {
+      $root = $null; $before = Inventory $script:live; $p = $null; $ticks = 0L; $server = $null
+      try {
+         $root = New-TTE2EOwnedRoot -Prefix 'tt-e2e-'; $pwsh = Resolve-TTE2EPwsh; $ev = Join-Path $root evidence.json
+         $responseBody = '{"choices":[{"index":0,"message":{"role":"assistant","content":"{\"needsTool\":false,\"finalAnswer\":\"E2E_FIXTURE_OK\",\"reason\":\"Deterministic harmless E2E final response.\"}"},"finish_reason":"stop"}]}'
+         $server = New-TTE2ELoopbackEndpoint -ResponseBody $responseBody
+         $code = @'
 $ErrorActionPreference='Stop';$root=$env:TT_TEST_ROOT;$life=Join-Path $root 'lifecycle.txt';function Mark($s){[IO.File]::AppendAllText($life,$s+[Environment]::NewLine)};Mark 'child-start';$local=Join-Path $root local;[void](New-Item -ItemType Directory $local -Force);$env:LOCALAPPDATA=$local;Mark 'localappdata-set'
 foreach($n in @('TT_Home','TT_LocalDataRoot','TT_ModuleRoot','TT_LogsRoot','TT_ExportsRoot','TT_AGENT_FILESYSTEM_ROOT','TT_AGENT_ALLOWED_PATH_ROOTS','TT_AGENT_LOCAL_MCP_ADAPTER_PATH','TT_APPROVAL_RESPONSE','TT_AGENT_APPROVAL_RESPONSE','TT_AGENT_LLM_API_KEY')){Remove-Item "Env:$n" -EA SilentlyContinue}
 $env:TT_AGENT_LLM_API_KEY='fixture-key';$c=Join-Path $local 'TechToolbox\Config';[void](New-Item -ItemType Directory $c -Force);[IO.File]::WriteAllText((Join-Path $c config.secrets.json),'{}');[IO.File]::WriteAllText((Join-Path $c 'settings.json'),'{"agent":{"orchestratorRunDeadlineSeconds":15}}');$env:TT_TEST_LIFECYCLE=Join-Path $root 'lifecycle.txt'
@@ -29,33 +29,34 @@ try {
    [IO.File]::WriteAllText($env:TT_TEST_EVIDENCE,($e|ConvertTo-Json -Depth 10 -Compress),[Text.Encoding]::UTF8)
 } catch { $failure=$_.Exception.ToString();$statusText=if($path -and (Test-Path $path)){[IO.File]::ReadAllText($path)}else{''};[IO.File]::WriteAllText($env:TT_TEST_EVIDENCE,(@{Failure=$failure;RuntimeStatus=$statusText;Lifecycle=[IO.File]::ReadAllText($life)}|ConvertTo-Json -Depth 8 -Compress),[Text.Encoding]::UTF8);throw }
 '@
-   $si=New-TTE2EProcessStartInfo -Executable $pwsh -Arguments @('-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code))) -LocalAppData (Join-Path $root bootstrap) -Environment @{TT_TEST_ROOT=$root;TT_TEST_MANIFEST=$script:manifest;TT_TEST_EVIDENCE=$ev;TT_TEST_ENDPOINT_URL=$server.Url}
-   $p=[Diagnostics.Process]::new();$p.StartInfo=$si;if(!$p.Start()){throw 'Fresh pwsh start failed'};$ticks=$p.StartTime.ToUniversalTime().Ticks;$o=$p.StandardOutput.ReadToEndAsync();$er=$p.StandardError.ReadToEndAsync()
-   $processResult=Wait-TTE2EProcessAndPipes -Process $p -StandardOutputTask $o -StandardErrorTask $er -TimeoutMilliseconds 25000 -EvidencePath $ev
-   $e=$processResult.Evidence|ConvertFrom-Json;if($processResult.ExitCode){throw "Child failed: $($e.Failure); runtime=$($e.RuntimeStatus); stages=$($e.Lifecycle)"}
-   $e|Add-Member -NotePropertyName Count -NotePropertyValue $server.RequestCount
-   $e|Add-Member -NotePropertyName Prompt -NotePropertyValue ($server.LastBody.Contains('harmless Invoke-TechAgent E2E prompt'))
-   $e|Add-Member -NotePropertyName Valid -NotePropertyValue ($server.LastMethod -eq 'POST' -and $server.LastPath -eq '/v1/chat/completions' -and $server.LastBody.Contains('test-owned-harmless-e2e-model'))
-   $e|Add-Member -NotePropertyName RequestPath -NotePropertyValue $server.LastPath
-   $e.Runtime|Should -BeExactly $e.Expected;$e.Expected|Should -Not -Match '[\\/]bin[\\/]Debug[\\/]';$e.Pid|Should -BeGreaterThan 0;$e.Gone|Should -BeTrue
-   $e.Count|Should -Be 1;$e.Prompt|Should -BeTrue;$e.Valid|Should -BeTrue;$e.RequestPath|Should -BeExactly '/v1/chat/completions';$e.Output|Should -Match 'E2E_FIXTURE_OK'
-   $s=$e.Status;if($s.TerminalState -ne 'Completed'){throw "Agent terminal failure: $($s|ConvertTo-Json -Compress -Depth 8); invocation output: $($e.Output)"};$s.ProcessId|Should -Be $e.Pid;$s.RunId|Should -Not -BeNullOrEmpty;$s.LlmCallsStarted|Should -Be 1;$s.LlmCallsCompleted|Should -Be 1;$s.ToolCallsPrepared|Should -Be 0;$s.ToolCallsStarted|Should -Be 0;$s.ToolCallsCompleted|Should -Be 0;$s.FinalResponseProduced|Should -BeTrue;$s.TerminalState|Should -Be 'Completed';$s.TerminalCode|Should -Be 'COMPLETED';$s.DeadlineExceeded|Should -BeFalse;$s.CancellationObserved|Should -BeFalse
-   $e.Post.ArtifactCorrelated|Should -BeTrue;$e.Post.KnownFailureDetected|Should -BeFalse;$e.Post.TaskAchieved|Should -BeTrue;$badMarkers=@($e.Bad|Where-Object{-not [string]::IsNullOrEmpty([string]$_)});if($badMarkers.Count -ne 0){throw "Runtime artifact contains forbidden markers: $($badMarkers -join ', ')"}
-   [IO.Path]::GetFullPath($e.Data).StartsWith(([IO.Path]::GetFullPath($root).TrimEnd('\')+'\'),[StringComparison]::OrdinalIgnoreCase)|Should -BeTrue
-  } finally {
-   if($p){try{if($ticks){Stop-TTE2EOwnedProcess -Process $p -ProcessId $p.Id -StartTimeUtcTicks $ticks}}finally{$p.Dispose()}}
-   if($server){Stop-TTE2ELoopbackEndpoint -Endpoint $server}
-   $after=Inventory $script:live;foreach($k in $before.Keys){if(!$after.ContainsKey($k)-or $before[$k] -cne $after[$k]){throw "Live state changed: $k"}};foreach($k in $after.Keys){if(!$before.ContainsKey($k)){throw "Live state created: $k"}}
-   Assert-TTE2EParentEnvironmentUnchanged -Snapshot $script:parentEnvironment
-   if($root -and (Test-Path $root)){Remove-TTE2EOwnedRoot -Path $root -ExpectedPrefix 'tt-e2e-'};if($root){Test-Path $root|Should -BeFalse}
-  }
- }
+         $si = New-TTE2EProcessStartInfo -Executable $pwsh -Arguments @('-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code))) -LocalAppData (Join-Path $root bootstrap) -Environment @{TT_TEST_ROOT = $root; TT_TEST_MANIFEST = $script:manifest; TT_TEST_EVIDENCE = $ev; TT_TEST_ENDPOINT_URL = $server.Url }
+         $p = [Diagnostics.Process]::new(); $p.StartInfo = $si; if (!$p.Start()) { throw 'Fresh pwsh start failed' }; $ticks = $p.StartTime.ToUniversalTime().Ticks; $o = $p.StandardOutput.ReadToEndAsync(); $er = $p.StandardError.ReadToEndAsync()
+         $processResult = Wait-TTE2EProcessAndPipes -Process $p -StandardOutputTask $o -StandardErrorTask $er -TimeoutMilliseconds 25000 -EvidencePath $ev
+         $e = $processResult.Evidence | ConvertFrom-Json; if ($processResult.ExitCode) { throw "Child failed: $($e.Failure); runtime=$($e.RuntimeStatus); stages=$($e.Lifecycle)" }
+         $e | Add-Member -NotePropertyName Count -NotePropertyValue $server.RequestCount
+         $e | Add-Member -NotePropertyName Prompt -NotePropertyValue ($server.LastBody.Contains('harmless Invoke-TechAgent E2E prompt'))
+         $e | Add-Member -NotePropertyName Valid -NotePropertyValue ($server.LastMethod -eq 'POST' -and $server.LastPath -eq '/v1/chat/completions' -and $server.LastBody.Contains('test-owned-harmless-e2e-model'))
+         $e | Add-Member -NotePropertyName RequestPath -NotePropertyValue $server.LastPath
+         $e.Runtime | Should -BeExactly $e.Expected; $e.Expected | Should -Not -Match '[\\/]bin[\\/]Debug[\\/]'; $e.Pid | Should -BeGreaterThan 0; $e.Gone | Should -BeTrue
+         $e.Count | Should -Be 1; $e.Prompt | Should -BeTrue; $e.Valid | Should -BeTrue; $e.RequestPath | Should -BeExactly '/v1/chat/completions'; $e.Output | Should -Match 'E2E_FIXTURE_OK'
+         $s = $e.Status; if ($s.TerminalState -ne 'Completed') { throw "Agent terminal failure: $($s|ConvertTo-Json -Compress -Depth 8); invocation output: $($e.Output)" }; $s.ProcessId | Should -Be $e.Pid; $s.RunId | Should -Not -BeNullOrEmpty; $s.LlmCallsStarted | Should -Be 1; $s.LlmCallsCompleted | Should -Be 1; $s.ToolCallsPrepared | Should -Be 0; $s.ToolCallsStarted | Should -Be 0; $s.ToolCallsCompleted | Should -Be 0; $s.FinalResponseProduced | Should -BeTrue; $s.TerminalState | Should -Be 'Completed'; $s.TerminalCode | Should -Be 'COMPLETED'; $s.DeadlineExceeded | Should -BeFalse; $s.CancellationObserved | Should -BeFalse
+         $e.Post.ArtifactCorrelated | Should -BeTrue; $e.Post.KnownFailureDetected | Should -BeFalse; $e.Post.TaskAchieved | Should -BeTrue; $badMarkers = @($e.Bad | Where-Object { -not [string]::IsNullOrEmpty([string]$_) }); if ($badMarkers.Count -ne 0) { throw "Runtime artifact contains forbidden markers: $($badMarkers -join ', ')" }
+         [IO.Path]::GetFullPath($e.Data).StartsWith(([IO.Path]::GetFullPath($root).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase) | Should -BeTrue
+      }
+      finally {
+         if ($p) { try { if ($ticks) { Stop-TTE2EOwnedProcess -Process $p -ProcessId $p.Id -StartTimeUtcTicks $ticks } }finally { $p.Dispose() } }
+         if ($server) { Stop-TTE2ELoopbackEndpoint -Endpoint $server }
+         $after = Inventory $script:live; foreach ($k in $before.Keys) { if (!$after.ContainsKey($k) -or $before[$k] -cne $after[$k]) { throw "Live state changed: $k" } }; foreach ($k in $after.Keys) { if (!$before.ContainsKey($k)) { throw "Live state created: $k" } }
+         Assert-TTE2EParentEnvironmentUnchanged -Snapshot $script:parentEnvironment
+         if ($root -and (Test-Path $root)) { Remove-TTE2EOwnedRoot -Path $root -ExpectedPrefix 'tt-e2e-' }; if ($root) { Test-Path $root | Should -BeFalse }
+      }
+   }
 }
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDVeRNavmxKUYiM
-# t6EGSPkW32eDYLus9ZUGuVBU4Awmd6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA17ATP8IeNxe++
+# sBuU4Hkq89PBEyba8oF/CbL4eYoNtqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -232,31 +233,31 @@ try {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAh
-# xOHjudooUaMOt7XXWETv9QW3k6S2EKwO3cC4tBy7ijANBgkqhkiG9w0BAQEFAASC
-# AYAYqjdDNXtsQ8l156kidIrBhemjUgW7pW1h963+jmeTDKQ84zkvjU2itI9xu5/n
-# 53HiNYv7cEFVCBz9e1gyU/4sEGLophrHYohZDSUXvQ9jsW3GkjpZSc9Nkwg99Ylj
-# aRK9ZTKVhggp39hr5S3j/2MaHEEKlBNmKj8rZLAga4QqG+NSQWA990TPLwLcCvss
-# XuAgWqVnfJ3FUIaqiPGbWRTEv3q8iKzN0LTXhyTezpi4jGA5XCE3AU5DaQt70Zzz
-# bqSNA2LwDcONN/opmYPrbm+VzS9eZ8TCwabsAMyWAFiU8ywGhXsFRgAVB23c1gHE
-# 7aHElB0HfzH4OONlzpyz6q5Xn9MR/Ttw6LYyAYwvKmq/I7P+bPe2or49Pohuw7JY
-# wLe1PlEx9AaL0mM44FO3X0IZu1s9xmmBGmnBS93c9ebHlYyWZf4s+Z+4pPDatcKW
-# P6hCJ4P975k071peWOuAxQeK2JEHIkVrCpTsULnOX9SbAgh+JEq1+IWDcPFHfXU3
-# pcGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8
+# YzNnAIm0y5kirPbLrCDoy9zF1HJ+2kvbGY0cx50ZCzANBgkqhkiG9w0BAQEFAASC
+# AYCgK6koOGO2RRyhueJqGloDC7fFw6c5fEKj6jwL326pe3j0zGJo1ZDvYUc+Ab5V
+# 4WV0kDrkG6p0KNSZLp+I7+9BsgE6MdNpcC8PUPAgSyH/Olun9FMU8AMMrT1NP+G8
+# 0quoDQzKWuZ+OGGeruP/02r3fGkw0QcWLd89hYPOd8cGHanzaCxO30aXXbzub+Wu
+# IDcw2Mnv37/tUHJiLQ2KBwYzhhxGhCciOlffHCcN+t2nvrLmyTjAL6X4Ct8luBm0
+# uDiVaEwnvs+DsfaZCKzLLc60cWWWHadmH8Ddono1s4fCmRr/knQ6qgtlOa2yNB9I
+# puT0wRLD3Gisqdrg7Q1qGQSyTWEItsNTCtsIB/XOvrJmIuq1Blxj5kvlyoh/KeUM
+# A1pJIjy3mWSLs7mAt3+RZ6G8POen1vPBh3FCfAL4GC5YrV082yALsveN2LonC7Iz
+# fAGJKQ3pMtiALh6T+hsmYcKGmLoVOxgLI7fwqU/v7S37iwqd0bwx6ZK/vJv1DLmA
+# 34ihggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjQ0WjAvBgkqhkiG
-# 9w0BCQQxIgQgaOthZDhPH3MFPKAdur34leVJeGCWos23YdlImwoYmJcwDQYJKoZI
-# hvcNAQEBBQAEggIAS0QIOhY0pQlAnlJ0/VhgdZn2DAY44uQ1Rgvus0xVujEfppTy
-# jB2prvPs6Yyd9G1wVm7/8USPq4VQdF+y1oE9DgjYP17xHiquUnQQhqFarplVKUev
-# oNOCqE12/D20XzXljHB7UVuh7OnzJB1jk+06bMGh7Dp5vfaikmQ4cUvVY5NPpqPM
-# kxWbMI4v2fig0B6bWnANsE+8F0rtNkp7utsp/bUdhMuqRmuwb3UYFVzHJJG0kLTf
-# YxNpn2XNZPODGM51Rdy11CvjRPFh8rBhHi7Wf8hnkLn3NkSfj9KO/oIuLvjncbJm
-# kbWXeHOsFNRHXr1O0tOJMQOHGWxwc8svt2/CWrWdsjkLFIAdssZr47EJ51sqCxzl
-# KbNY+I56txWolmxve6X836nQ2zcQk/f/q1jPt8y6MCP+3v9beG+cJsox2ArOwhXx
-# tfaeqZcDfL0gVvp5DqmQv2CQ5Rwjxj6/hisA217iFq3kAlAJqkWgthe2CDmDK0Uj
-# pq7DFJAkgKkprYDSNPWeU/h7c/TEriWZijABqhOyQ5+m7cz9XvQvm/hRpDMPHiKd
-# gwOeq99hJnOhoZKj5borQfokffEChPhaMwJhl5SKJRaqZjLlcjzBTUonnhp31MU8
-# gX9iHnVMk7meWmIZMpAcnnadbu/MA8W7u8n6ZkeaTXU1llMWp8XB9p0OOdU=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUwMDUxWjAvBgkqhkiG
+# 9w0BCQQxIgQgj8YncJ5LA0Uf+1xQ90bGLhYqTsn09g1sr6iwPE5s/lQwDQYJKoZI
+# hvcNAQEBBQAEggIAVEYH3UUp6BPK2bhNEszB9A7bzb4xm7RYvza0ogO1xgEEkkqA
+# r+8R2rfsjTqOVSH5rqWMRRKC8yJtFWcFE1JAaBNfIX1mmRGaF48tJo1EoEZuUNPF
+# G8doNSUGK6A0pObYA0YrtuCyotU0UZY/ToTKRIP/ZbZhs+OfGJGEHsnCQIwApbHi
+# F6lBPSyKhsNjgf3sNOZ3zCmAXsLbdpvzJ9r6GGP+MUtYIpxss/HLJTy1Q/BpE9x8
+# /i0G/KZyb9mbZdnscshNNEdBHM3pUAMxOOHvK5xmA6UfcWJEehC5lKpwOnUKtuQN
+# j0Q+HPTZUwhH4jtx73IAH5C0BtfqoFc2DIYy1ubGDIwPO7PFUZFHC9SwZdJurqpo
+# Vi5VRvoZvybpe9nQrfdcsOA58tvgWbLsdqdNof+YxAATPSzmJJiETEa03ihBJhvl
+# 3xX2ghs14cjx5BDPpe9ew8EUWSSNSBWwGEWl4e2N57kmFkB2cq4IqkfKC5zquQfc
+# zoPJXvZfWAtIoprjKB3sIYJiW/5TJxH54P7uN5IcHrXfkNXy9xOYdwq3dxwUvL9N
+# 1Bk233iIWC21V5Mnz7lfrrw+9l/pcNOneLihuR+9SrTrWG+B5OgEhA5SXLn+J4o4
+# TrEQRw+6DgKnh3SrXBmgpJ8jzXs8oKE+OKbioL9DQtD88wW5CvcueD8GuTg=
 # SIG # End signature block

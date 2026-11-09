@@ -9,12 +9,12 @@ Describe 'Invoke-TechAgent semantic policy public parameter boundary' {
         $script:command.Parameters.ContainsKey('AutoIngestBeforeRun') | Should -BeTrue
 
         $script:command.Parameters['SemanticKnowledgeRetrieval'].Attributes |
-            Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] } |
-            ForEach-Object ValidValues | Should -Be @('Inherit', 'Enabled', 'Disabled')
+        Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] } |
+        ForEach-Object ValidValues | Should -Be @('Inherit', 'Enabled', 'Disabled')
 
         $script:command.Parameters['AutoIngestBeforeRun'].Attributes |
-            Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] } |
-            ForEach-Object ValidValues | Should -Be @('Inherit', 'Enabled', 'Disabled')
+        Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] } |
+        ForEach-Object ValidValues | Should -Be @('Inherit', 'Enabled', 'Disabled')
 
         $source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\Public\AI\Invoke-TechAgent.ps1') -Raw
         $source | Should -Match "\[string\]\`$SemanticKnowledgeRetrieval = 'Inherit'"
@@ -47,34 +47,34 @@ Describe 'Invoke-TechAgent semantic policy public parameter boundary' {
 
     It 'rejects invalid semantic retrieval values at parameter binding' {
         { Invoke-TechAgent -Prompt 'must not run' -SemanticKnowledgeRetrieval Invalid } |
-            Should -Throw
+        Should -Throw
     }
 
     It 'rejects invalid auto-ingestion values at parameter binding' {
         { Invoke-TechAgent -Prompt 'must not run' -AutoIngestBeforeRun Invalid } |
-            Should -Throw
+        Should -Throw
     }
 
     It 'rejects empty policy values at parameter binding' {
         { Invoke-TechAgent -Prompt 'must not run' -SemanticKnowledgeRetrieval '' } |
-            Should -Throw
+        Should -Throw
         { Invoke-TechAgent -Prompt 'must not run' -AutoIngestBeforeRun '' } |
-            Should -Throw
+        Should -Throw
     }
 
     It 'defines null policy binding behavior at the PowerShell boundary' {
         { Invoke-TechAgent -Prompt 'must not run' -SemanticKnowledgeRetrieval $null } |
-            Should -Throw
+        Should -Throw
         { Invoke-TechAgent -Prompt 'must not run' -AutoIngestBeforeRun $null } |
-            Should -Throw
+        Should -Throw
     }
 }
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDTSbPIFB/m/YVW
-# k14zyadNF1irWNoq+EB3/PZ1RbYAa6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAVfnS7lR2erDfO
+# 9kaeXykr+0aFYd5+tbY+xRMCNBB5DKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -251,31 +251,31 @@ Describe 'Invoke-TechAgent semantic policy public parameter boundary' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC2
-# 2xG0ul1zB7zd1geu3m5HKw6B6TXX0HeZfuRJP/WJ3zANBgkqhkiG9w0BAQEFAASC
-# AYAiVE9QLGq0iSwdwRQ8CbI21lxooXywuUzcjF6QALTa+aOYHsedelVgNVhUwMEq
-# xifZN9jt3E9vcFuN9OWKtpl7c2d2ZBqQ5KhMhZ7P9fNeYfeOqrXYuYAgkS2nnHpT
-# 2gd2+rwO09I4vQA7YWuXSpgIRu9k4HRV2MRzb2nYXu/KQcckWkxp9uQYApuC0LCm
-# wtEGUfDwziP+McEqrF+GZ7TDl/pPTGztK964fMiV683SMLQWgXOfxoyFm2modr0b
-# J31o03Ir13JePBay+g/4XvndNJNykXicJ4lMfnlhcCLG6BmXmn84xBm27tkF7LXw
-# l0+N2382vmf9UCELX/ls51jV67tvPNSHY/nfjposm2qxsYMAqn7n6Qa6xMYedAut
-# Of25S4iIrHTc720hUt7ugD4+xeaq9LLk0Sfls+7WKLxrVK+6uCBdvOv3ZjCc+HR9
-# mSNPVMrrooEVbpppqKAcBl49Wlt1XuRZLvBu5CyDsmbbMOPjL2Eukopxliux1jEs
-# bbuhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBO
+# DnG3HB2HtNePUiki1HJ8zYFvscBwTdIIyXcCJ+9w9zANBgkqhkiG9w0BAQEFAASC
+# AYDSnZRmy2yPnP/hNgxccfD+f3W/RF2bN4POQ/OukIy5flAiWo6+voBtUx297EIM
+# 12lHENt6EicND8uWkXZVcWWTevbpBdtyR1kGRMeWhou7U31SCeO4U9xbepKt7p5R
+# Y1xcFUv5LlxYYu+zReZZxGyrB3rtE3RedyRHykWo8CBFDxM1BndlOwHEmQEBhN8Q
+# UZh72Adfl0GEdMwN87BR+us2PkoBt/CIMwW2dPGDNSReegkcGFETfldxXo91Ub4k
+# 6Hi3Tw76AjmQYnpeR1VKW2Vi9Fd3jkMjGnhRHsILZcR4kc/zhuOvcfx/EJNU/PRM
+# JJuwhl8tF2SpZY5wgy0/BOdejaUvOdckrk1nk6bdIroaNdrdsXQugmaTLh1lAv4K
+# ub/2ia2hh5M4QeiA+noEu9UQLF2bYvfqbsGcigI6U/9iaet1aE0WGhR5Z9adrC9m
+# gPwGrNaYkSBSRAUj1360OXoZRSGZLrRYfoO7pjNWoZsldoMzv6dBk3980flL+k7T
+# CXmhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA1MDMwNjA5WjAvBgkqhkiG
-# 9w0BCQQxIgQgDQUupvXbejw5aO0n5B2plnnqI65OVy2xPfswZuK6skEwDQYJKoZI
-# hvcNAQEBBQAEggIAjzzOTo9m35q45hrJNACNNpnW5/qlMpH+3M0GXBMsxLrF6ks/
-# Ncxbs512QVcQ9nrB8zj8cTAkvoawDv7Y7LUJQiZ1HMOaR8lmsl5fmkAx1PyoQMyE
-# OA209PWuoUfzW9TirfR05g6vE+BrjooIEbVR2ZPz6cjfIHfDMfQkJ366qydGXnui
-# /9Vf7k2y6HKyHssbpN4Rl8Xi4noDnK6jyerJJwhK9Wd8IMI1x4jx89dFyXd1n4gN
-# hOK6eX7K4scpRcLE+eUaVcRRBkMbNdmUX91KgrvyoNxsB+xXzc0w0jujGQks+hN+
-# JIimZFn0TaRUw6AR9c/4KwCY1rAo2sXm1OL04630P9O1uxRsgO+5vQD1NnlEVJxJ
-# sdGUZtJt/k9TjDyergBVLl6B04AOI2vx+/IaqHrsBICgyFvNKHQQIuM6svbQgv3+
-# 4vmsRa7MLq+HSHAILuz25KflzNFMvKXCKXcLOMFENvckQwfrOR0rxXPScmNP/8na
-# s3pyu71n6/SyH3k2bNhjTvPzhf+w5Xru7e+NluvSuV+QTF8azp0Lg5DGxbJnBpeu
-# Ka14hksNg6W4h8ySnTx38MeXnqg67rt5j4EmN87wwo1EOfVc8Jpk/UDRk8ERgYJb
-# gLRweYlf53i+/OgBMs8a+6w6l0vdbftjpFYlymRe6rMPxK0KxueRI/ofwAw=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUwMDU1WjAvBgkqhkiG
+# 9w0BCQQxIgQgrnk1b0rQ0N0XatdrIvzQcbXDjD9nzYkrc39KLiEgli4wDQYJKoZI
+# hvcNAQEBBQAEggIAiAiCsTB7GagiR5Q6cUxhV3Z1/1w7mEGIqybMgEheDzDYy+o3
+# 1+OIYAVSsD+Ejtm1hxJsm3VrcjsbwS/g60YlJMWb8ETvvzKUlN4TWL06Utjf1G4K
+# 3/Zb0eavR16QXHdTPzR/VMPE6x2UR9GLDsBcnxXvEvp0cPRiTQnLzSxSDoQtuM2n
+# yjA+av0rSPzQKqDDM/2Yzjy+2qudInBBgcQwtlCcMN4AMdw8z4roMne5a6KMh9bT
+# KOLLA8vxdjHVP25dIhn3My8LXQWo2rySFVU0uJqZfBy2XiIc+PW2JX5KfzrVLzL7
+# bIDBht0OcXyef4UpVruSz7YTg5G9HfkgKdz+d/svkQJOG0F0wUNZdY6eaAM6/B7V
+# 7vy5QH7P71NPI5E+sXpKVxnWVzLTnvaT/UalPfPubIVGDAuSAQ8v2VGev5hDCosu
+# jg9BoDDa93JzhEHMLB6yAcvprx7FqeDsMnq1UKvPaNKoTGfe4CErUl+EUD3wsU3X
+# NQM9YNajECR1SYIY4Ga4rH5r6WyCGiXxP9PKLB7/pj8HJ5eLkxrPDY2a8c7xep0h
+# c5Mu9uwkwrPKlsTpO/15kFcdfwvDNpzocC3nOTjwyTzoyd1WZvlrgKVucxblhvh8
+# zPJw8ErPq1/97FBKvyguUhxtAXgTq5MEfGyo9975rjRehDNIXmALzdGHhz8=
 # SIG # End signature block

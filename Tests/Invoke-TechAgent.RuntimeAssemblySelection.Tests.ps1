@@ -37,10 +37,10 @@ Describe 'Invoke-TechAgent runtime assembly selection' {
 
         try {
             $files = @{
-                'AgentRuntime\TechToolbox.Agent\TechToolbox.Agent.dll' = 'packaged';
+                'AgentRuntime\TechToolbox.Agent\TechToolbox.Agent.dll'                   = 'packaged';
                 'src\TechToolbox.Agent\bin\Release\net8.0\publish\TechToolbox.Agent.dll' = 'published';
-                'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll' = 'release';
-                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll' = 'debug'
+                'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll'         = 'release';
+                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll'           = 'debug'
             }
 
             New-TestRuntimeLayout -Root $runtimeRoot -Files $files
@@ -62,8 +62,8 @@ Describe 'Invoke-TechAgent runtime assembly selection' {
         try {
             $files = @{
                 'src\TechToolbox.Agent\bin\Release\net8.0\publish\TechToolbox.Agent.dll' = 'published';
-                'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll' = 'release';
-                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll' = 'debug'
+                'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll'         = 'release';
+                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll'           = 'debug'
             }
 
             New-TestRuntimeLayout -Root $runtimeRoot -Files $files
@@ -85,7 +85,7 @@ Describe 'Invoke-TechAgent runtime assembly selection' {
         try {
             $files = @{
                 'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll' = 'release';
-                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll' = 'debug'
+                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll'   = 'debug'
             }
 
             New-TestRuntimeLayout -Root $runtimeRoot -Files $files
@@ -129,8 +129,8 @@ Describe 'Invoke-TechAgent runtime assembly selection' {
         try {
             $files = @{
                 'src\TechToolbox.Agent\bin\Release\net8.0\publish\TechToolbox.Agent.dll' = 'published';
-                'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll' = 'release';
-                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll' = 'debug'
+                'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll'         = 'release';
+                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll'           = 'debug'
             }
 
             New-TestRuntimeLayout -Root $runtimeRoot -Files $files
@@ -155,9 +155,9 @@ Describe 'Invoke-TechAgent runtime assembly selection' {
 
         try {
             $files = @{
-                'AgentRuntime\TechToolbox.Agent\TechToolbox.Agent.dll' = 'packaged';
+                'AgentRuntime\TechToolbox.Agent\TechToolbox.Agent.dll'           = 'packaged';
                 'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll' = 'release';
-                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll' = 'debug'
+                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll'   = 'debug'
             }
 
             New-TestRuntimeLayout -Root $runtimeRoot -Files $files
@@ -183,7 +183,7 @@ Describe 'Invoke-TechAgent runtime assembly selection' {
         try {
             $files = @{
                 'src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll' = 'release';
-                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll' = 'debug'
+                'src\TechToolbox.Agent\bin\Debug\net8.0\TechToolbox.Agent.dll'   = 'debug'
             }
 
             New-TestRuntimeLayout -Root $runtimeRoot -Files $files
@@ -219,11 +219,13 @@ Describe 'Invoke-TechAgent runtime assembly selection' {
         }
     }
 }
+
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCbuVaQYqzyIa69
-# FxRiITy+KTRovLauNId38fHoXxktuaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCZcEDxxD+DQNa1
+# M/SiC8vaBIn8Zvse4/DX38sf6iYdz6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -400,31 +402,31 @@ Describe 'Invoke-TechAgent runtime assembly selection' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAb
-# cbCxlxdJtVZZ1Yhhj5XAyMEUutAbZmXbs2MkhuOoVDANBgkqhkiG9w0BAQEFAASC
-# AYBd30D23c1elUGDKQmaIi7dgvGUn7ofc7QeBKdet354Aq238WmnN5XGSqeoFeQF
-# wCDT8XmoKj66Vmqerelq0W8mifK15Z1iwCRXEEbOA78djEbL759AIDEE64qhWdB+
-# O9M0C41hcSz0JkZ5mHgdQ20FOIMOJP2HOdP5UR1cKKQGFYk72+N1AB3IZ4xYgtUP
-# U2WsDsYzvM+eidvEPg38H38p/LtVdcqL7EZuAZ0crgD6RByVxD7GTsmM3HesR83J
-# KMRO6y1TMN0KQCvCVF7aAgDkqs2iBn7uMRFbGTH3jZh4oCSkatUm6Cdn9hOXI7tN
-# C7dKl3B28DCiB0176fLgFyPui/bRGGW8HAtLplJEIT5WBFvloVQK9xxQLViS7iZy
-# URAIPAHA0/02oPcTKQyB44RLUVdgrIaiR8IIQrLDSvPArRUffDGoFY4E/tZq01HQ
-# zo8CyV8AOrH0kCXWQmkA/N4hIoEANTUb96ntljNyQq5ak1m6hysqy9S8ZmZ0k1lr
-# /WKhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAo
+# ftJU9ehHQPe2sqtJmb/vzoCglg9W6ZcohOXarwRuRTANBgkqhkiG9w0BAQEFAASC
+# AYDFHmpeOT1fyt83rQuU4g/o/fy+T5c2T72CEjWwapYcCW5m0MM9q0Gu1KsEsZvh
+# dCTFcTJ46zTtknFeP2cYQaq5D5XnX5GurbE8QXabvPAbK11NwJfSZQ6m43x1qw43
+# 78sPjCrRQTqPtbWnKWe/kjxtgwApRLnAYzfFNqawLp0AYFTIUAlk33h4q0OgAjp/
+# EcC3gFD7HmIrWcLdX6LupvyRUITfWU6IzpOjpXxpoBgrMse5yeVfi4lYP0JzxEY4
+# 8sgXNJ3a7cT09EgCz5uruCsYYlOSbZSgoPKlInhV4EeBudE/ckuGtZgac2smHQJr
+# mpcOP/OVrggvbuCZ0vnOG8VMr7KLpeIIlI+uf7+6fFNSyxi/V6fi3fMttmBBXaxj
+# FHotKndbwwaipLT6jCzJkoCtL0Tq1XjJ8eTZUCtMy+0gvcqpNf3v/n81Pdpj+8+X
+# fNl/tvNY4ePxXiGsg+s/0VqPjH7xP0FmDGnFy35eTTCKtz6ALUXanU2DtmlHl8tL
+# Qx2hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjQ3WjAvBgkqhkiG
-# 9w0BCQQxIgQgEKBMXjgFIPNN5YgSeUEu3Q585rnleWpKufhTgXEOanswDQYJKoZI
-# hvcNAQEBBQAEggIAVlp9FTnsky/QHtvy3IipN9T6MnQ3ba6DuNVIPynOJqtyZkFW
-# L3M433jaEm2rd1Qb4PRdRftKhSNNfEz9XB7CX97U7jYAA4U/4jLkya7ZBixX+giY
-# BOnzdCimHjSvAJd0bVPp84cMct9YDoJJIm0okllPLbIsmP9JmCVHUxGh/q/f4cjn
-# rGc2X3oA/RQf0PViUVl5sJYzmVjuCQeChHlWXTys76nLPMZ0LmnzGSh9tOunWMSb
-# QEl6/BLkNopGbRLVIp+YMsH6FdPopj5fLuzw6UtBncI/Gz/hdb41Ljje7Uj/xrVi
-# pEQXhD71HyvqUm4qR5r8H+X8ErQjtXc7QjNRtV5hzr++C24fCRIR6b+Mq2XzgxOv
-# 08rnROXDRACv8uQ+JiukPQkoKKy+RuS+wUYG+ZRWN5Hcl7nvceLTz8c5HR1UmrBf
-# 4HABfc6V2xjtSlOho3DgkzAVw/lRt6dpd+vjG9i+wlJrJX4uggPAlChxkZoy8ola
-# nAqC7WN06HhZjSichElBQW7s5Z3RvbYqdzdXRITaK8lbSSHUvhSih6PFzbq0Ps+R
-# pF4+KBieiB9Uxb0Df9B9/ylMHCGguzpHq1o43vtr5kgr1bmkwMnmhEc+1SlYxS89
-# ckDj1qJK5YoSsGONWyadb6EH8MAn3RIiaV2DXBWaIvsBi9WxNLpGVdVdbJE=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUwMTI3WjAvBgkqhkiG
+# 9w0BCQQxIgQgmOJoiq9ddQa1SscKakfJkFE3+pyx9PHocvZyYuPjXLowDQYJKoZI
+# hvcNAQEBBQAEggIAnH+6cyTU6d5T18SwShgH4kuYY3rlEhH59dv6q/1OZngzSjnf
+# G2W/hZOcLQDQAVv8OGLzhPTFwQiPK23x9HuSEREWlv6vqk3Oif1E+37gBcAx59PX
+# ENoej8XvHEfu+JF5qDCg6IZFYuN4ST3VDOc2C4fmXQ9kyBa0XF0TV6T8GcuzSAIT
+# WD11+Wkj5IK91i0bmcvfrqA3jbxN+CYWMhAEGtbqHRan6uuFjk4FTDQFsB1H+U3s
+# WH02M10epKo+qnKOaTuF57p0fYH/hJB0JBWVXctgnUVyjXrURvryt2F4lFqz02iK
+# Ef/iuqCwk+b4wwgkHK441WObopMmgmh7ZXuCaBtVJVSoBnSHOyXeUtL6PIRyqtPc
+# L8rBSEFjS5CcV/NsQ6fmdafGY01VKTeNtxnEq04Xxaob08SHneXO6CHq5YLjQodu
+# 5Cso5L1utNf18S7aVj8IGWDSXyZdnLaV7juTfS2PYKn21Bsdfa9BHSJthA3y+RGv
+# EeqiTDD+VsAgO9TyghE10pKCkuLlc5zUaZdHcIvsJT9Tlqy5A1ZI6/sBrUFOIgDO
+# 5LgMWQJe3fok3Hocmcxg5jrQR70Gqpiouyeh5/OOFyURr4619aKtqvSffkw3Tx+Y
+# UW7RMB17yRUq0RWWNd6s5gVt3UV73b6dVNZgviaMSwGD97h9RShq0ahq84s=
 # SIG # End signature block

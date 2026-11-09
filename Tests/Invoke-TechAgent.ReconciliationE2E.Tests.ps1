@@ -1,9 +1,91 @@
 Describe 'Invoke-TechAgent synthetic snapshot reconciliation fixture' {
     BeforeAll {
         . (Join-Path $PSScriptRoot 'Support\Invoke-TechAgent.E2EFixture.ps1')
-        $script:fixtureAssemblyRoot = Join-Path $PSScriptRoot '..\src\TechToolbox.Agent\bin\Release\net8.0'
-        $script:agentAssembly = Join-Path $script:fixtureAssemblyRoot 'TechToolbox.Agent.dll'
-        $script:semanticAssembly = Join-Path $script:fixtureAssemblyRoot 'TechToolbox.Agent.SemanticIndexing.dll'
+        . (Join-Path $PSScriptRoot 'Support\Initialize-TTAgentPesterRuntime.ps1')
+        $script:agentRuntime = Initialize-TTAgentPesterRuntime
+        $script:agentAssembly = $script:agentRuntime.AgentAssemblyPath
+        $script:semanticAssembly = $script:agentRuntime.SemanticAssemblyPath
+        $script:fixtureAssemblyRoot = Split-Path -Parent $script:agentAssembly
+    }
+
+    It 'round-trips the isolated Scenario A retrieval configuration through the production loader' {
+        $root = $null
+        $priorLocalData = [Environment]::GetEnvironmentVariable('TT_LocalDataRoot', 'Process')
+        $priorLocalAppData = [Environment]::GetEnvironmentVariable('LOCALAPPDATA', 'Process')
+        try {
+            $root = New-TTE2EOwnedRoot -Prefix 'tt-scenario-a-retrieval-config-'
+            $localDataRoot = Join-Path $root 'local-data'
+            $sourceRoot = Join-Path $root 'sources'
+            [void](New-Item -ItemType Directory -Path $localDataRoot -Force)
+            [void](New-Item -ItemType Directory -Path $sourceRoot -Force)
+            [Environment]::SetEnvironmentVariable('TT_LocalDataRoot', $localDataRoot, 'Process')
+            [Environment]::SetEnvironmentVariable('LOCALAPPDATA', (Join-Path $root 'local-app-data'), 'Process')
+
+            foreach ($assembly in @($script:semanticAssembly, $script:agentAssembly)) {
+                if (!(Test-Path -LiteralPath $assembly -PathType Leaf)) { throw "Production assembly unavailable: $assembly" }
+                [void][Reflection.Assembly]::LoadFrom([IO.Path]::GetFullPath($assembly))
+            }
+
+            $retrieval = [TechToolbox.Agent.Configuration.AgentRetrievalConfiguration]::new()
+            $retrieval.Directories = [Collections.Generic.List[string]]::new()
+            $retrieval.Directories.Add($sourceRoot)
+            $retrieval.AllowedFileExtensions = [Collections.Generic.List[string]]::new()
+            $retrieval.AllowedFileExtensions.Add('.txt')
+            $retrieval.IncludeGlobs = [Collections.Generic.List[string]]::new()
+            $retrieval.IncludeGlobs.Add('*.txt')
+            $retrieval.ExcludeGlobs = [Collections.Generic.List[string]]::new()
+            $retrieval.ExcludeGlobs.Add('bin/**')
+            $retrieval.SourceIndexLifecycleEnabled = $true
+            $retrieval.EmbeddingModel = 'scenario-a-embedding'
+            $retrieval.EmbeddingDimension = 3
+            $retrieval.EmbeddingEndpoint = 'http://127.0.0.1:12345'
+            $retrieval.PersistencePath = Join-Path $localDataRoot 'Artifacts\SemanticIndexing\VectorStore'
+
+            $retrievalConfigPath = Join-Path $localDataRoot 'worker-runtime-retrieval-config.json'
+            $jsonOptions = [Text.Json.JsonSerializerOptions]::new()
+            $jsonOptions.PropertyNamingPolicy = [Text.Json.JsonNamingPolicy]::CamelCase
+            $serialized = [Text.Json.JsonSerializer]::Serialize($retrieval, $jsonOptions)
+            [IO.File]::WriteAllText($retrievalConfigPath, $serialized, [Text.UTF8Encoding]::new($false))
+
+            # AgentCore resolves TT_AGENT_RETRIEVAL_CONFIG_JSON with this production validation/deserialization path.
+            $roundTripped = [TechToolbox.Agent.Configuration.AgentRetrievalConfiguration]::ParseAndValidate(
+                [IO.File]::ReadAllText($retrievalConfigPath))
+            $directoriesType = $roundTripped.Directories.GetType()
+            $extensionsType = $roundTripped.AllowedFileExtensions.GetType()
+            $directoriesType | Should -Be ([Collections.Generic.List[string]])
+            $extensionsType | Should -Be ([Collections.Generic.List[string]])
+            @($roundTripped.Directories).Count | Should -Be 1
+            $roundTripped.Directories[0] | Should -BeExactly $sourceRoot
+            @($roundTripped.AllowedFileExtensions).Count | Should -Be 1
+            $roundTripped.AllowedFileExtensions[0] | Should -BeExactly '.txt'
+            @($roundTripped.Directories | Select-Object -Unique).Count | Should -Be 1
+            @($roundTripped.AllowedFileExtensions | Select-Object -Unique).Count | Should -Be 1
+            $roundTripped.IncludeGlobs.GetType() | Should -Be ([Collections.Generic.List[string]])
+            @($roundTripped.IncludeGlobs).Count | Should -Be 1
+            $roundTripped.IncludeGlobs[0] | Should -BeExactly '*.txt'
+            $roundTripped.ExcludeGlobs.GetType() | Should -Be ([Collections.Generic.List[string]])
+            @($roundTripped.ExcludeGlobs).Count | Should -Be 1
+            $roundTripped.ExcludeGlobs[0] | Should -BeExactly 'bin/**'
+            $roundTripped.SourceIndexLifecycleEnabled | Should -BeTrue
+            $roundTripped.EmbeddingModel | Should -BeExactly 'scenario-a-embedding'
+            $roundTripped.EmbeddingDimension | Should -Be 3
+            $roundTripped.EmbeddingEndpoint | Should -BeExactly 'http://127.0.0.1:12345'
+            $roundTripped.PersistencePath | Should -BeExactly (Join-Path $localDataRoot 'Artifacts\SemanticIndexing\VectorStore')
+
+            $lifecycle = [TechToolbox.Agent.Retrieval.ProductionSourceIndexLifecycleConfiguration]::CreateDefault()
+            $writablePaths = @($sourceRoot, $localDataRoot, $retrievalConfigPath, $roundTripped.PersistencePath,
+                $lifecycle.ManifestRoot, $lifecycle.DenseRoot, $lifecycle.LexicalRoot)
+            foreach ($path in $writablePaths) {
+                { Assert-TTE2EPathUnderRoot -Path $path -Root $root } | Should -Not -Throw
+            }
+        }
+        finally {
+            [Environment]::SetEnvironmentVariable('TT_LocalDataRoot', $priorLocalData, 'Process')
+            [Environment]::SetEnvironmentVariable('LOCALAPPDATA', $priorLocalAppData, 'Process')
+            if ($root -and (Test-Path -LiteralPath $root)) {
+                Remove-TTE2EOwnedRoot -Path $root -ExpectedPrefix 'tt-scenario-a-retrieval-config-'
+            }
+        }
     }
 
     It 'constructs and proves one isolated production-compatible planned reconciliation row' {
@@ -251,7 +333,10 @@ Describe 'Invoke-TechAgent synthetic snapshot reconciliation fixture' {
             if (!$artifact.ExecutionRequiresExplicitApproval -or $artifact.PublicationOccurred -or !$row[0].NewDenseGenerationRequired -or !$row[0].NewLexicalGenerationRequired -or $row[0].ApprovedPlan.ReusesLexicalGeneration) { throw 'Plan authority or generation change requirements mismatch.' }
             if ($artifact.SemanticEmbeddingEndpoint -cne $endpoint.Url) { throw 'Plan endpoint is not the harness-owned embedding listener.' }
             $retrievalConfigPath = Join-Path $localDataRoot 'worker-runtime-retrieval-config.json'
-            [IO.File]::WriteAllText($retrievalConfigPath, ($retrieval | ConvertTo-Json -Depth 12 -Compress), [Text.UTF8Encoding]::new($false))
+            $retrievalJsonOptions = [Text.Json.JsonSerializerOptions]::new()
+            $retrievalJsonOptions.PropertyNamingPolicy = [Text.Json.JsonNamingPolicy]::CamelCase
+            $retrievalConfigJson = [Text.Json.JsonSerializer]::Serialize($retrieval, $retrievalJsonOptions)
+            [IO.File]::WriteAllText($retrievalConfigPath, $retrievalConfigJson, [Text.UTF8Encoding]::new($false))
             Assert-TTE2EPathUnderRoot -Path $sourcePath -Root $localDataRoot
             foreach ($path in @($artifactPath, $retrievalConfigPath)) { Assert-TTE2EPathUnderRoot -Path $path -Root $localDataRoot }
 
@@ -365,14 +450,14 @@ Describe 'Invoke-TechAgent synthetic snapshot reconciliation fixture' {
 
         $decisionOne = [ordered]@{
             needsTool = $true
-            toolName = $script:scenarioAExecuteToolName
-            toolArgs = [ordered]@{ approvedPlanJson = $script:scenarioAApprovedPlanJson }
-            reason = 'Execute the exact reviewed synthetic reconciliation plan.'
+            toolName  = $script:scenarioAExecuteToolName
+            toolArgs  = [ordered]@{ approvedPlanJson = $script:scenarioAApprovedPlanJson }
+            reason    = 'Execute the exact reviewed synthetic reconciliation plan.'
         } | ConvertTo-Json -Compress -Depth 8
         $decisionTwo = [ordered]@{
-            needsTool = $false
+            needsTool   = $false
             finalAnswer = 'SCENARIO_A_LAUNCH_OK'
-            reason = 'The tool result confirms completion.'
+            reason      = 'The tool result confirms completion.'
         } | ConvertTo-Json -Compress -Depth 8
         $responseOne = [ordered]@{ choices = @([ordered]@{ index = 0; message = [ordered]@{ role = 'assistant'; content = $decisionOne }; finish_reason = 'stop' }) } | ConvertTo-Json -Compress -Depth 8
         $responseTwo = [ordered]@{ choices = @([ordered]@{ index = 0; message = [ordered]@{ role = 'assistant'; content = $decisionTwo }; finish_reason = 'stop' }) } | ConvertTo-Json -Compress -Depth 8
@@ -541,20 +626,20 @@ try {
 }
 '@
             $environment = @{
-                TT_TEST_ROOT = $root
-                TT_TEST_MANIFEST = $manifest
-                TT_TEST_EVIDENCE = $evidencePath
-                TT_TEST_ENDPOINT_URL = $endpoint.Url
-                TT_TEST_FIXTURE_ARTIFACT = $script:scenarioAWorkerArtifactPath
-                TT_TEST_PLAN_RUN_ID = $script:scenarioAPlanRunId
-                TT_TEST_ARTIFACT_SHA256 = $script:scenarioAArtifactSha256
-                TT_TEST_APPROVED_PLAN_JSON = $script:scenarioAApprovedPlanJson
-                TT_TEST_WORKER_LOCAL_DATA_ROOT = $script:scenarioAWorkerLocalDataRoot
-                TT_TEST_WORKER_ALLOWED_ROOTS = $script:scenarioAWorkerSourceRoot
-                TT_TEST_WORKER_RETRIEVAL_CONFIG = $script:scenarioAWorkerRetrievalJson
+                TT_TEST_ROOT                      = $root
+                TT_TEST_MANIFEST                  = $manifest
+                TT_TEST_EVIDENCE                  = $evidencePath
+                TT_TEST_ENDPOINT_URL              = $endpoint.Url
+                TT_TEST_FIXTURE_ARTIFACT          = $script:scenarioAWorkerArtifactPath
+                TT_TEST_PLAN_RUN_ID               = $script:scenarioAPlanRunId
+                TT_TEST_ARTIFACT_SHA256           = $script:scenarioAArtifactSha256
+                TT_TEST_APPROVED_PLAN_JSON        = $script:scenarioAApprovedPlanJson
+                TT_TEST_WORKER_LOCAL_DATA_ROOT    = $script:scenarioAWorkerLocalDataRoot
+                TT_TEST_WORKER_ALLOWED_ROOTS      = $script:scenarioAWorkerSourceRoot
+                TT_TEST_WORKER_RETRIEVAL_CONFIG   = $script:scenarioAWorkerRetrievalJson
                 TT_TEST_WORKER_EMBEDDING_ENDPOINT = $script:scenarioAWorkerEndpoint.Url
             }
-            $startInfo = New-TTE2EProcessStartInfo -Executable $pwsh -Arguments @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand',[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code))) -LocalAppData (Join-Path $root 'bootstrap') -Environment $environment
+            $startInfo = New-TTE2EProcessStartInfo -Executable $pwsh -Arguments @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code))) -LocalAppData (Join-Path $root 'bootstrap') -Environment $environment
             $process = [Diagnostics.Process]::new()
             $process.StartInfo = $startInfo
             if (!$process.Start()) { throw 'Fresh isolated governed-launch process did not start.' }
@@ -670,7 +755,7 @@ try {
                         throw 'Detached worker plan/artifact correlation changed.'
                     }
                     $bounded = [ordered]@{}
-                    foreach ($name in @('CreatedAtUtc','StartedAtUtc','CompletedAtUtc','UpdatedAtUtc','State','Phase','FailureCode','FailureType','ProcessId','ProcessStartedAtUtc','ProcessExitCode','ProcessDiagnostic','TerminalOutcome','TerminalResultPersisted','TotalApprovedSources','ProcessedSources','Succeeded','SucceededSources','Failed','FailedSources','Conflicted','ConflictedSources','Publications','PublicationCount','LastProgressUtc')) {
+                    foreach ($name in @('CreatedAtUtc', 'StartedAtUtc', 'CompletedAtUtc', 'UpdatedAtUtc', 'State', 'Phase', 'FailureCode', 'FailureType', 'ProcessId', 'ProcessStartedAtUtc', 'ProcessExitCode', 'ProcessDiagnostic', 'LaunchExceptionType', 'LaunchNativeErrorCode', 'LaunchAttemptKind', 'LaunchAttemptCount', 'LaunchAttemptHistory', 'ExecutableResolutionSource', 'ExecutableResolved', 'ExecutableExists', 'AgentAssemblyExists', 'WorkingDirectoryExists', 'WorkerMode', 'ArgumentCount', 'EnvironmentInheritance', 'ProcessStartFailureAtUtc', 'TerminalOutcome', 'TerminalResultPersisted', 'TotalApprovedSources', 'ProcessedSources', 'Succeeded', 'SucceededSources', 'Failed', 'FailedSources', 'Conflicted', 'ConflictedSources', 'Publications', 'PublicationCount', 'LastProgressUtc')) {
                         $property = $candidate.PSObject.Properties[$name]
                         if ($property) {
                             $value = $property.Value
@@ -686,15 +771,16 @@ try {
                     $bounded.PlanRunId = $candidate.PlanRunId
                     $bounded.ArtifactSha256 = $candidate.ArtifactSha256
                     $bounded.FailureSummaries = @($candidate.RecentFailureSummaries | Select-Object -First 16 | ForEach-Object {
-                        [ordered]@{ SourceIdToken = $_.SourceIdToken; SourceSequence = $_.SourceSequence; AttemptId = $_.AttemptId; FailureCode = $_.FailureCode; AttemptPhase = $_.AttemptPhase; TimestampUtc = $_.TimestampUtc }
-                    })
+                            [ordered]@{ SourceIdToken = $_.SourceIdToken; SourceSequence = $_.SourceSequence; AttemptId = $_.AttemptId; FailureCode = $_.FailureCode; AttemptPhase = $_.AttemptPhase; TimestampUtc = $_.TimestampUtc }
+                        })
                     if ($candidate.ProcessId -is [int] -and $candidate.ProcessId -gt 0 -and $candidate.ProcessStartedAtUtc) {
                         $workerStartTicks = ([DateTimeOffset]::Parse([string]$candidate.ProcessStartedAtUtc)).UtcDateTime.Ticks
                         $ownedWorker = $null
                         try {
                             $ownedWorker = [Diagnostics.Process]::GetProcessById([int]$candidate.ProcessId)
                             $workerIdentityEvidence = [pscustomobject]@{ ProcessId = [int]$candidate.ProcessId; ProcessStartedAtUtc = [string]$candidate.ProcessStartedAtUtc; IdentityMatches = (Test-TTE2EOwnedProcessIdentity -Process $ownedWorker -ProcessId ([int]$candidate.ProcessId) -StartTimeUtcTicks $workerStartTicks) }
-                        } catch [ArgumentException] { $workerIdentityEvidence = [pscustomobject]@{ ProcessId = [int]$candidate.ProcessId; ProcessStartedAtUtc = [string]$candidate.ProcessStartedAtUtc; IdentityMatches = $false } }
+                        }
+                        catch [ArgumentException] { $workerIdentityEvidence = [pscustomobject]@{ ProcessId = [int]$candidate.ProcessId; ProcessStartedAtUtc = [string]$candidate.ProcessStartedAtUtc; IdentityMatches = $false } }
                         finally { if ($ownedWorker) { $ownedWorker.Dispose() } }
                     }
                     $fingerprint = $bounded | ConvertTo-Json -Compress -Depth 5
@@ -702,7 +788,7 @@ try {
                         $statusSnapshots.Add([pscustomobject]@{ ObservedAtUtc = [DateTimeOffset]::UtcNow.ToString('O'); StatusFileLastWriteTimeUtc = (Get-Item -LiteralPath $statusPath).LastWriteTimeUtc.ToString('O'); WorkerIdentity = $workerIdentityEvidence; Status = $bounded })
                         $lastSnapshotFingerprint = $fingerprint
                     }
-                    if ($candidate.State -in @('succeeded','failed','canceled','abandoned')) { $status = $candidate; break }
+                    if ($candidate.State -in @('succeeded', 'failed', 'canceled', 'abandoned')) { $status = $candidate; break }
                 }
                 Start-Sleep -Milliseconds 100
             }
@@ -718,13 +804,13 @@ try {
                 if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
                     $rawResult = [IO.File]::ReadAllText($resultPath) | ConvertFrom-Json
                     $resultMetadata = [ordered]@{}
-                    foreach ($name in @('JobId','PlanRunId','ArtifactSha256','TerminalOutcome','TerminalResultPersisted','ProcessedPlans','Succeeded','Failed','Conflicted','Publications','PublicationCount')) {
+                    foreach ($name in @('JobId', 'PlanRunId', 'ArtifactSha256', 'TerminalOutcome', 'TerminalResultPersisted', 'ProcessedPlans', 'Succeeded', 'Failed', 'Conflicted', 'Publications', 'PublicationCount')) {
                         $property = $rawResult.PSObject.Properties[$name]
                         if ($property) { $resultMetadata[$name] = $property.Value }
                     }
                 }
                 $inputMetadata = [ordered]@{}
-                foreach ($name in @('JobId','PlanRunId','ArtifactSha256','Operation','ExplicitlyApproved')) {
+                foreach ($name in @('JobId', 'PlanRunId', 'ArtifactSha256', 'Operation', 'ExplicitlyApproved')) {
                     $property = $script:scenarioALaunchEvidence.JobInput.PSObject.Properties[$name]
                     if ($property) { $inputMetadata[$name] = $property.Value }
                 }
@@ -733,32 +819,50 @@ try {
                     foreach ($failure in $snapshot.Status.FailureSummaries) {
                         if ($failure.FailureCode -match '(?i)RETRIEVAL|INVALIDOPERATION') {
                             $retrievalFailureObservations.Add([ordered]@{
-                                FailureCode = $failure.FailureCode; SourceSequence = $failure.SourceSequence; AttemptId = $failure.AttemptId
-                                AttemptPhase = $failure.AttemptPhase; TimestampUtc = $failure.TimestampUtc
-                                ObservedAtUtc = $snapshot.ObservedAtUtc; StatusFileLastWriteTimeUtc = $snapshot.StatusFileLastWriteTimeUtc
-                                Writer = 'SemanticIndexMaintenanceRunner.UpdateSemanticRebuildStatus'
-                            })
+                                    FailureCode = $failure.FailureCode; SourceSequence = $failure.SourceSequence; AttemptId = $failure.AttemptId
+                                    AttemptPhase = $failure.AttemptPhase; TimestampUtc = $failure.TimestampUtc
+                                    ObservedAtUtc = $snapshot.ObservedAtUtc; StatusFileLastWriteTimeUtc = $snapshot.StatusFileLastWriteTimeUtc
+                                    Writer = 'SemanticIndexMaintenanceRunner.UpdateSemanticRebuildStatus'
+                                })
                         }
                     }
                 }
                 $baselineRequestNumbers = @($script:scenarioAWorkerInitialRequestEvidence | ForEach-Object { ([string]$_ | ConvertFrom-Json).requestNumber })
                 $baselineRequestNumber = if ($baselineRequestNumbers.Count) { [int]($baselineRequestNumbers | Measure-Object -Maximum).Maximum } else { 0 }
                 $allEmbeddingRequests = @($script:scenarioAWorkerEndpoint.RequestEvidence | ForEach-Object { [string]$_ | ConvertFrom-Json })
+                $launchFailureAt = if ($status.ProcessStartFailureAtUtc) { [DateTimeOffset]::Parse([string]$status.ProcessStartFailureAtUtc) } else { $null }
+                $endpointTimeline = @($allEmbeddingRequests | ForEach-Object {
+                        $requestTime = [DateTimeOffset]::Parse([string]$_.timestampUtc)
+                        [ordered]@{
+                            RequestNumber = $_.requestNumber; Path = $_.path; Type = $_.type; TimestampUtc = $_.timestampUtc
+                            RelativeToLaunchFailure = if (!$launchFailureAt) { 'unknown' } elseif ($requestTime -lt $launchFailureAt) { 'before' } else { 'after-or-at' }
+                        }
+                    })
                 $diagnostic = [ordered]@{
                     JobId = $jobId; PlanRunId = $script:scenarioAPlanRunId; ArtifactSha256 = $script:scenarioAArtifactSha256
                     InputPath = $script:scenarioALaunchEvidence.JobInputPath; InputMetadata = $inputMetadata
                     StatusPath = $statusPath; ResultPath = $resultPath; ResultMetadata = $resultMetadata
                     WorkerProcessId = $status.ProcessId; WorkerProcessStartedAtUtc = $status.ProcessStartedAtUtc
-                    WorkerIdentity = $workerIdentityEvidence
+                    WorkerIdentity                          = $workerIdentityEvidence
                     StatusSnapshots = @($statusSnapshots); TerminalStatus = @($statusSnapshots | Select-Object -Last 1).Status
-                    RetrievalFailureObservations = @($retrievalFailureObservations)
-                    EmbeddingRequestEvidence = @($allEmbeddingRequests)
-                    PreLaunchEmbeddingRequestEvidence = @($allEmbeddingRequests | Where-Object { $_.requestNumber -le $baselineRequestNumber })
-                    PostLaunchEmbeddingRequestEvidence = @($allEmbeddingRequests | Where-Object { $_.requestNumber -gt $baselineRequestNumber })
-                    PreLaunchEmbeddingRequestCount = $baselineRequestNumber
-                    PostLaunchEmbeddingRequestCount = @($allEmbeddingRequests | Where-Object { $_.requestNumber -gt $baselineRequestNumber }).Count
-                    ParentLaunchFailureWriter = 'SemanticIndexMaintenanceRunner.Launch catch block: RUNNER_START_FAILED / ProcessStartException'
-                    ParentLaunchFailureWriterEvidenceTime = @($statusSnapshots | Where-Object { $_.Status.FailureCode -eq 'RUNNER_START_FAILED' } | Select-Object -First 1).StatusFileLastWriteTimeUtc
+                    LaunchFailureEvidence                   = [ordered]@{
+                        ExceptionType = $status.LaunchExceptionType; NativeErrorCode = $status.LaunchNativeErrorCode
+                        AttemptKind = $status.LaunchAttemptKind; AttemptCount = $status.LaunchAttemptCount
+                        AttemptHistory = $status.LaunchAttemptHistory; ExecutableResolutionSource = $status.ExecutableResolutionSource
+                        ExecutableResolved = $status.ExecutableResolved; ExecutableExists = $status.ExecutableExists
+                        AgentAssemblyExists = $status.AgentAssemblyExists; WorkingDirectoryExists = $status.WorkingDirectoryExists
+                        WorkerMode = $status.WorkerMode; ArgumentCount = $status.ArgumentCount
+                        EnvironmentInheritance = $status.EnvironmentInheritance; FailureAtUtc = $status.ProcessStartFailureAtUtc
+                    }
+                    EndpointTimelineRelativeToLaunchFailure = $endpointTimeline
+                    RetrievalFailureObservations            = @($retrievalFailureObservations)
+                    EmbeddingRequestEvidence                = @($allEmbeddingRequests)
+                    PreLaunchEmbeddingRequestEvidence       = @($allEmbeddingRequests | Where-Object { $_.requestNumber -le $baselineRequestNumber })
+                    PostLaunchEmbeddingRequestEvidence      = @($allEmbeddingRequests | Where-Object { $_.requestNumber -gt $baselineRequestNumber })
+                    PreLaunchEmbeddingRequestCount          = $baselineRequestNumber
+                    PostLaunchEmbeddingRequestCount         = @($allEmbeddingRequests | Where-Object { $_.requestNumber -gt $baselineRequestNumber }).Count
+                    ParentLaunchFailureWriter               = 'SemanticIndexMaintenanceRunner.Launch catch block: RUNNER_START_FAILED / ProcessStartException'
+                    ParentLaunchFailureWriterEvidenceTime   = @($statusSnapshots | Where-Object { $_.Status.FailureCode -eq 'RUNNER_START_FAILED' } | Select-Object -First 1).StatusFileLastWriteTimeUtc
                 }
                 $diagnosticPath = Join-Path $root 'scenario-a-worker-diagnostics.json'
                 [IO.File]::WriteAllText($diagnosticPath, ($diagnostic | ConvertTo-Json -Depth 12 -Compress), [Text.Encoding]::UTF8)
@@ -853,8 +957,8 @@ try {
             $script:scenarioAWorkerEndpoint.Url | Should -Match '^http://127\.0\.0\.1:[0-9]+$'
             $script:scenarioAWorkerEndpoint.Url | Should -Not -Match '11434'
 
-            foreach ($forbidden in @('scenario-a-loopback-key','approvedPlanJson','__destructive_approval_token','Authorization:',
-                    'Synthetic changed approved snapshot for the production-persistent worker fixture','"vectors"','"embedding"','stackTrace')) {
+            foreach ($forbidden in @('scenario-a-loopback-key', 'approvedPlanJson', '__destructive_approval_token', 'Authorization:',
+                    'Synthetic changed approved snapshot for the production-persistent worker fixture', '"vectors"', '"embedding"', 'stackTrace')) {
                 $resultRaw | Should -Not -Match ([regex]::Escape($forbidden))
                 [IO.File]::ReadAllText($statusPath) | Should -Not -Match ([regex]::Escape($forbidden))
                 $script:scenarioALaunchEvidence.RuntimeStatusRaw | Should -Not -Match ([regex]::Escape($forbidden))
@@ -879,7 +983,8 @@ try {
                         Stop-TTE2EOwnedProcess -Process $worker -ProcessId ([int]$status.ProcessId) -StartTimeUtcTicks $ticks -TimeoutMilliseconds 5000
                     }
                     $worker.Dispose()
-                } catch [ArgumentException] { }
+                }
+                catch [ArgumentException] { }
             }
             if ($script:scenarioAWorkerEndpoint) { $script:scenarioAWorkerEndpoint.Dispose(); $script:scenarioAWorkerEndpoint = $null }
             if ($workerValidated -and !$retainWorkerFixture -and $root -and (Test-Path -LiteralPath $root)) {
@@ -932,8 +1037,8 @@ try {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD8kg+QVK8qN2OA
-# 1ibYonb4f9MS6oHJRFEpEAcJNA/zhaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAPxytfMrFMaof9
+# PclBQn2FuiI/Gs/xXo9yHIZ7ssUgZaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -1110,31 +1215,31 @@ try {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAV
-# HdrFu/WQE3wCPMTAPVusFVARDXy5/0wlbVX9+beWJTANBgkqhkiG9w0BAQEFAASC
-# AYBlIsoywhASR/shbVMoTvkUiQKYUzOZMb7mJL6psf0m51oR/zWkbLgz7ejddEZL
-# vQe3Ve+9xM/TfLCVQ2eVXoIgJ7V26sYjdrFICwARa1RoBEcZUQ+QEnYNQTlnyKaP
-# 1eqWxIPz2e47TDqZNd+vwdsbhfs+icorly50ijpN25y5uf6/KD0oaWkyTWdQxJiJ
-# ULOTD5q6xLFbO3OZSVCgLsJq1/pTsEzh/UQlT+gnFo6ggK7oi0mdl7cSAQneEH81
-# uL/vQDhFPFMWksHLO0909H+ypU6mVG1e7W17wXYLDsWopsOcdxXh//DtSQgiY3ov
-# ZO2vy5YxWBk9Luxxt70kM7y+YppEY9j0jO2blXpAHZ93tndDiP7G1PnQ4pwjxezM
-# WujDzqgWQNBBvUB70G2Nb+xZWtaUI4dsG7xLX2yf70PdkgGpi0fEgrZ71okcTzV+
-# L/dGG7KSe4sg0PhQY1KfSQT+sJQxOOyMUwabB2vcOwvVndhrha6xgb7xrHRTAz5h
-# 5nShggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCo
+# O5NFeJuwAxjwKo1Mscz8urRCc9q0iV73lUQZpYnmHzANBgkqhkiG9w0BAQEFAASC
+# AYBwxnFembqLnWgu2i65YnDvXXr/kb6aPoAsIdLDIw1jKFg3UmiUKpp5/mrPnW85
+# RJgJVpiiA6j/NSPNbBwFPoce+NG6tUpNcQDD/vIqPrSszMJRbFzrCxfV7X7WkTS3
+# q3Q8lYRedKrJtT4Jl5M+IKQeLmUDC1iVQf8lSAS0HveqeokNa2yi9uQwBzyxOLSe
+# SUHBFdePFJDkxsaLbHweW3B0BFJ+Hw1QDcVUcGMYiq3427+6uDtZGD7rSe9UnPHC
+# /Dwsn79/ZM0lRmlCK4XP0GqWhyLhz+UXofDBr65lX6GElKGaWma3Kzd1UAWdK5qp
+# HLISFgduIOjSe3H70WsksSoibKro+6LHG+pl32sVdj7mTVUUdm3dhU1MhbtC9wcm
+# KF4dcuxdeizd6hn665wCF6WhdkkNDbPdLreXn/zi/z2JsAPvJ7mGbebIIfDco7Id
+# R1CjnMyWKBvNJ1WJrcaBKoTlKpcEtZR5x3xBzSmozm1PsGsn2LwNUlss/9ODOUuF
+# 7bahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjQ1WjAvBgkqhkiG
-# 9w0BCQQxIgQg/DFMghxTKt4xVtqX7Nx3gVzYKKaoNvnKjExlNgIQ5TcwDQYJKoZI
-# hvcNAQEBBQAEggIAYeVW56dJmW1tQIuTx3Xp+2NiUes+vMZhQNuvv0ZU5Q0mw0k4
-# +4/kzvdF2zXxWs0tAkRJqm34EkLD1ZDK05I65Mee/fRhM7Y1ZlDcljfjr8WNwJJr
-# WoKrs++ulb4IJcyDlcb7SO3/qf7ZlJA1VXblS1wYb0utdlSvUEYXR1kABhfTqClt
-# MQf5/QARPbPvODW9m4ws2wt9mBYawDZj0fIv3b67GvPDEfg3f26EYhLH96us/Yr/
-# jHray44DVXPGuznApG4xtvjVHOeu53aM/889GwOlJP+4cSdhIjCZq2Kkka+LmhAh
-# 9m4lX/9+WARB7JT7X5covDZro2jcPPGRw8W5ZtPN/fGUPSC2BRWZgIsU7IAVjmKT
-# uOnS3ZtRGaC9OAPs2UChRI2ls/N/EInU40Yyj5qRL+YE2yTUc3ZLRaih9PVsRmrt
-# 1DYYAEIWGyWybR3L0VnvrtpWkIz41RiEAxM3gPa4JUC7mGsIYIapRIUZLH7xsGKQ
-# bu4nOc52GWWcZQ0H6OcaAJvtUYBW+AbqsdF361ktfxogRP3D2XqxGM80Eff5exXj
-# TYlhoo+Y3zrt6WC3l+0EXkYzOzITGBdcJZc1aoMHV8W0Zzo+/wTMdtA/2KtvLfN8
-# bjQXp6+jaCS+/Ku2gSb6X+cPX6SKqBD6ZulzxE8QcEPcoO8amit4j9Lmb0E=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDQ1NzMwWjAvBgkqhkiG
+# 9w0BCQQxIgQg9/EESwTT80jMjGt0rrl+HNgpURPrDIGlzY3NvkKRGLUwDQYJKoZI
+# hvcNAQEBBQAEggIArFLTp8RH80j6FGZ9Ft8Njf+RGI2SUr3m0UM8TLV/2wQDcdzJ
+# wb7n6QUuQDrzhlsjyBXE2i0qpAhf2fDnpTPzIfLzoRawrmjJjijGbT0FQ+IxzfVf
+# QzAGR7O+KltG5onTOYw9eZ+uYX80eDbfV/pyNwjGbCJb4D0L9eQNNGJif/5HeS90
+# 31ElZQEb7fo37ZK31DYM5KRufwGTbfSLiTXAYZMXnNmnks8a+OVdk5D8BeFh7fh0
+# z8CDeY2uZngUifqSFD5FPtuST6mzUBEvTN4gZ2EnMzyDROs32qN96N59fJUPhJBG
+# jmPj4hhKhTwW8h8rJxK3mZR9W9IecWfsaK/Ozf5kD0BH+xy6SudiS0dDCriwFSDH
+# 0WUL7p/l0SscS/aBOlC+iEtAqRXzR26S38njhumNZuVOFOLNPRw411TSkd/qIvpD
+# +12TCfCAV/92yQ4ybyp2WuZpBCDw+BYDew8zRQ1QLug5BqJh12KF2QOmk9rti3Ei
+# GeTIwmu9hWKQg3Fc6QLmvfxyI/SeSZkmGr6itnWHf+uorsZWo6941MlhvzZAbnPb
+# pBq4ErWSwJZXfAul1YjUlml9GBX0HOOZe6f2C37IfLLACzkTKdse+U5eBkP905HF
+# K6DjTlNU87+Sc05kmsmHsCxztmsxWsbccJm1to/Tq6OC3z79T7Y+WfQJAIY=
 # SIG # End signature block

@@ -82,11 +82,11 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
 
     It 'does not expose the test source through Invoke-TechAgent public parameters or helper arguments' {
         (Get-Command Invoke-TechAgent -ErrorAction Stop).Parameters.Keys |
-            Should -Not -Contain 'TTAgentDestructiveApprovalResponseSourceForTesting'
+        Should -Not -Contain 'TTAgentDestructiveApprovalResponseSourceForTesting'
         (Get-Command Invoke-TechAgent -ErrorAction Stop).Parameters.Keys |
-            Should -Not -Contain 'ApprovalResponseSource'
+        Should -Not -Contain 'ApprovalResponseSource'
         (Get-Command Read-TTAgentDestructiveApprovalResponse -ErrorAction Stop).Parameters.Count |
-            Should -Be 0
+        Should -Be 0
     }
 
     It 'keeps production approval marker dispatch wired to the shared handler' {
@@ -150,12 +150,16 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
         Read-TTAgentDestructiveApprovalResponse | Should -BeExactly 'subsequent-ordinary-response'
         Should -Invoke Read-Host -Times 1 -Exactly
     }
+}
+
+
+
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCPj9WSc5F+dAMK
-# GifJaLlUma+INQ06yO0OjM44OG5Jq6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNqXQnH4lOgLwh
+# hvUiBakB3WUaD3rOOtnaSwPFA+VAp6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -332,31 +336,31 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC3
-# 2waAqWZd0luiViJw5xJo5SOft+5EipKEu9lt/5bZ9TANBgkqhkiG9w0BAQEFAASC
-# AYCPMuiArRRcmerFfa85IW2/JUFxxi85nL8ZY2oNU2kf+qXt3Zp/tEjYkEzuVcQ4
-# KmhLYzDyEN9yDjEIyA+oLT6IVPC72xlrLRGKCJwhQXve0qGxLBwj71Uh3DO0hXGn
-# 1UCfjuyELBYvv8i3krG69D5q3DlbyXi/3Me3ordhCC+weZgnHODtzI0CWEhe8oSC
-# jwMMaAR+uqzD3a6NgGaatwnW21f2Aj6pzvRHmW+nVEXAa0JW+lgq89L7lK/X4+9y
-# mmuxSwO0r7L2rHPOk2AuDUNYeTrikOb1XVY+ySWr3vMEMSWTrAK3lWl3qXx2AYNd
-# TbdRfYLzV9YknE7KjGo0mW6Nt9iiW4ySuMpCOF9IMxuJxUWj+epcmLjZofqmcDL0
-# yxKtKdy3+NmrD49x9RIonlEAO0Rp1o9jfqbjwk5jqXKvcO1uaIuF4agFgJji3jpa
-# GEs0POy9/C2qzSHvKBxNpQ/DNDX9qiFPKqSBcvRIUNHd6CdG61OghN7sA9osnMbK
-# QdKhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAW
+# x1LjrHBHP7MlI7Z9YlxGBscA+105b7gPbAfLEOFwhzANBgkqhkiG9w0BAQEFAASC
+# AYB+YwRw93hRh1NJ4FZmTmJUp0f2nipZY6dk13eK6S6YlOhhCGm0gmn3n0X0h+51
+# qSaoYIaFd6BYi7IPi/yVwHjqE5Aw8XuWi5Iyg3DrLvFQobs+BGC0/tF6if1+71vM
+# fsCT+85jBWil2WzDvAXNN33tGC2WoYCVydEMLrHwEoI36BZGKIOQpyuYR5J5i4H5
+# zj++1TveJrziM4RMzp2NunTS46HgAGJD4M1oDJeZv+dQb1pPa1XmrbtMbFgHbP68
+# Zyb1KI3OwYpgImcIBastlD9C77MYroLBtq2/Sokx387zj0+ajc0Es+SNQ2qoAXn0
+# Vuxn4peKMgHC76sntgswXWL0guBtEAuje1b3bcOWwL1AqTJ3IJoX7gxytKpjaByR
+# JMKZ+vF18ngdQJRBSJffNgtc4A12e6c6zDnyO1yaEDrHUyshEjXIpg7erUPuB9NJ
+# ydy+qqxwtT4iaeIcBgMiVFrd2/cmE7bnWBTb6FC9uYwm4uHLJz6QOutTI2zQaYah
+# zyGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjQwWjAvBgkqhkiG
-# 9w0BCQQxIgQgAVCxX83H2BCNc0LVKe7AwZKmcYxUm7Hfzch5TVdB5PMwDQYJKoZI
-# hvcNAQEBBQAEggIAMlEfN/j2cxHWp5Whf4Mw6xmZEr+nGk+iPjWjcUlo9lhCdx1a
-# W5sBXUlw6yBSAIQ4D9cAtUTfVdblRwR1MNds5NQNQvp1ThWSF6aIJrIV1bVlU8iq
-# l5H+EMbSE+H/2DSmBV/yl3H8SGQSBJWFrk92UiOTff4F1uZSEa75ogYWINpzFpHq
-# LOIPymJSJbkts8hUy+zlZ/cEck/bal053YL6RkEKP5x7wq++bP9ZERvysythcoJJ
-# DrCEDT6xXMMaLyKUqgpVXrPet+mcDbS+bj6aYTA/xPazde+VD/u2bB6/MM4Y+D0k
-# 05nVhoNkLJtvUYA+Sv52hzptVTrnOX1h7LnlAnm8pnARF4Bu4E92lc8EaOv2i7I+
-# k9q67NJyC1AbnpkRg2obLRttrdlp3C7Q6u8CSrmALkYCnXnhcxzDpGE7Rmydt3p8
-# 86cw9VDRzrF4GE2t0z4+3DSa8Ab2EvQfwTDcAcKMRI+BZUlRJtF6zuJFs9KnVbEz
-# WQbTWV5uKz+7fk4QrRbk2oYG083cCb2SbPSrPzG7LwFD+n1OFnG7HDAiw+HD0YU0
-# HN/3rvOBB9I/0FD1tIXc2k2DeUgZD5gxUbt6vvCg1gb5/vJ/WezTHFbh/61us17p
-# yIiCXFNDeQGYClnRPidHkVDmtCHIpgyhR3/DBeTn6DrBx6z6shgLBSL17BU=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUwMDQ4WjAvBgkqhkiG
+# 9w0BCQQxIgQgtsfEoPmYuxNl65+1fH+GwuPqh+UgAnuEYh35E1bv77kwDQYJKoZI
+# hvcNAQEBBQAEggIAEVJw4KJCbgCfkRBlQfm20Y5034YHrbuMR/0yh9RYCgvHPBlJ
+# eY5hJ7uFEG8g9Yutr57/kfEWR4LsdHIjjL4cZS06vkWVHaEuL4vnUt9H4tUeJref
+# zVgqsjIJbaOVC4EXsH0B4CFuNMWBeUpTC+Llq7zwNFQjMDqYs7dcITKbxXLgHZ9n
+# bv2VkvvCnWRJ1hdgs6s/nDPXK2eG6UlL3ERQg4X8dAL1pHqsvR+IY7qUE1ufWHX6
+# CivIcVDj78OUlOylyOZiu+IbVMkpXAFKaz3QNs6wegTesrIDfkZ1tiSdrgupw69C
+# 5K54IW6q/HXBs4abt0ozbrbbDPwC/me93k6j859+KwMjEgKenCI5vKwn4QXNF1qR
+# kmtUyeL7RzWKOkTv5YxBkapRu0Scqa3gIKSCaoMK+UhtIXyfaojgkVA91oC4dqIj
+# eNJcTuiuJzPA0UFf0lmegvc4QAmo+ukOm7U1Qybv6zlv+y3sfSEhivVtrd9a+O1e
+# lbP8OKCLvjz7rcXzbD60yu/nuZRkSp0Wh3wr2xcjgUWaCh5dSoIA7WgGCROD3mMQ
+# x1CG6dNCgq4tRwVIm5men1WvWolwKwFwfVEo9cP1pxvlew8J3rK/m0n0Z+PoaZbw
+# w+prbXLchOE3rl72oN0XPJ3hkROe2Tir3xxC+1T8snHwoNEC7TLfdgf6m30=
 # SIG # End signature block

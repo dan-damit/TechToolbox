@@ -14,7 +14,7 @@ Describe 'Invoke-TechAgent fresh-process isolation bootstrap' {
       function Assert-Evidence($e, $root, $runtime) { if (!$e.ImportSucceeded) { throw 'Module import failed.' }; if ([IO.Path]::GetFullPath($e.LocalAppData) -ine [IO.Path]::GetFullPath($root)) { throw 'LOCALAPPDATA mismatch.' }; $prefix = [IO.Path]::GetFullPath($root).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar; if (![IO.Path]::GetFullPath($e.LocalDataRoot).StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'LocalDataRoot escaped root.' }; foreach ($p in $e.CreatedPaths) { if (![IO.Path]::GetFullPath($p).StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw "Created path escaped root: $p" } }; if (!$e.PrivateLoaded) { throw 'Private helpers missing or exported.' }; if (!$e.PublicCommand) { throw 'Invoke-TechAgent is unavailable.' }; if ([IO.Path]::GetFullPath($e.RuntimeAssemblyPath) -ine [IO.Path]::GetFullPath($runtime)) { throw 'Runtime provenance unacceptable.' }; if ($e.AgentLaunchCount -ne 0) { throw "Unexpected Agent launch count: $($e.AgentLaunchCount); descendants: $($e.DescendantProcessIds -join ',')" }; if ($e.DescendantCount -ne 0) { throw "Unexpected fixture-child descendants remain: $($e.DescendantProcessIds -join ',')" } }
       function Start-Child($root, $exe, $manifest) {
          if (!(Test-Path -LiteralPath $root -PathType Container)) { throw 'Isolated root cannot be created.' }; if (!(Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'pwsh cannot be resolved.' }
-         $token = [guid]::NewGuid().ToString('N'); $logPath = Join-Path $root 'lifecycle.log'; $evidencePath = Join-Path $root 'evidence.json'; $parentId = $PID; $baselineDescendants = @(Get-Descendants $parentId); [IO.File]::AppendAllText($logPath,('{0}|{1}|parent-descendant-baseline={2}{3}' -f $token,$parentId,(($baselineDescendants | ForEach-Object { '{0}:{1}:{2}' -f $_.ProcessId,$_.ParentProcessId,$_.Name }) -join ','),[Environment]::NewLine),[Text.Encoding]::UTF8)
+         $token = [guid]::NewGuid().ToString('N'); $logPath = Join-Path $root 'lifecycle.log'; $evidencePath = Join-Path $root 'evidence.json'; $parentId = $PID; $baselineDescendants = @(Get-Descendants $parentId); [IO.File]::AppendAllText($logPath, ('{0}|{1}|parent-descendant-baseline={2}{3}' -f $token, $parentId, (($baselineDescendants | ForEach-Object { '{0}:{1}:{2}' -f $_.ProcessId, $_.ParentProcessId, $_.Name }) -join ','), [Environment]::NewLine), [Text.Encoding]::UTF8)
          $code = @'
 $ErrorActionPreference='Stop';$token=$env:TT_TEST_TOKEN;$log=$env:TT_TEST_LIFECYCLE_LOG
 function Mark([string]$name){[IO.File]::AppendAllText($log,('{0}|{1}|{2}{3}' -f $token,$PID,$name,[Environment]::NewLine),[Text.Encoding]::UTF8)}
@@ -29,16 +29,17 @@ try{Mark 'module-import-started';$m=Import-Module $env:TT_TEST_MANIFEST -Force -
          $si = [Diagnostics.ProcessStartInfo]::new(); $si.FileName = $exe; $si.Arguments = '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ' + [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code)); $si.UseShellExecute = $false; $si.CreateNoWindow = $true; $si.RedirectStandardOutput = $true; $si.RedirectStandardError = $true; $si.Environment['LOCALAPPDATA'] = $root; $si.Environment['TT_TEST_ROOT'] = $root; $si.Environment['TT_TEST_MANIFEST'] = $manifest; $si.Environment['TT_TEST_TOKEN'] = $token; $si.Environment['TT_TEST_LIFECYCLE_LOG'] = $logPath; $si.Environment['TT_TEST_EVIDENCE'] = $evidencePath; $p = [Diagnostics.Process]::new(); $p.StartInfo = $si; $ownedId = $null
          try {
             if (!$p.Start()) { throw 'Child did not start.' }; $ownedId = $p.Id; $ownedStarted = $p.StartTime.ToUniversalTime().Ticks; $p.Refresh(); $ownedParent = $p.Parent?.Id
-            [IO.File]::AppendAllText($logPath,('{0}|{1}|{2}|child-created;parent={3};startTicks={4}{5}' -f $token,$parentId,$ownedId,$ownedParent,$ownedStarted,[Environment]::NewLine),[Text.Encoding]::UTF8)
+            [IO.File]::AppendAllText($logPath, ('{0}|{1}|{2}|child-created;parent={3};startTicks={4}{5}' -f $token, $parentId, $ownedId, $ownedParent, $ownedStarted, [Environment]::NewLine), [Text.Encoding]::UTF8)
             $o = $p.StandardOutput.ReadToEndAsync(); $er = $p.StandardError.ReadToEndAsync()
             try { $result = Wait-TTE2EProcessAndPipes -Process $p -StandardOutputTask $o -StandardErrorTask $er -TimeoutMilliseconds 18000 -EvidencePath $evidencePath -MaximumEvidenceBytes 1048576 }
             catch { $stages = if (Test-Path $logPath) { [IO.File]::ReadAllText($logPath) } else { '<no checkpoints>' }; throw "Owned child wait failed; pid=$ownedId; token=$token; last checkpoints: $stages; $($_.Exception.Message)" }
-            [IO.File]::AppendAllText($logPath,('{0}|{1}|child-exit-observed;exit={2}{3}' -f $token,$ownedId,$result.ExitCode,[Environment]::NewLine),[Text.Encoding]::UTF8)
-            [IO.File]::AppendAllText($logPath,('{0}|{1}|stdout-stderr-eof{2}' -f $token,$ownedId,[Environment]::NewLine),[Text.Encoding]::UTF8)
+            [IO.File]::AppendAllText($logPath, ('{0}|{1}|child-exit-observed;exit={2}{3}' -f $token, $ownedId, $result.ExitCode, [Environment]::NewLine), [Text.Encoding]::UTF8)
+            [IO.File]::AppendAllText($logPath, ('{0}|{1}|stdout-stderr-eof{2}' -f $token, $ownedId, [Environment]::NewLine), [Text.Encoding]::UTF8)
             $jsonText = $result.Evidence; $e = $jsonText | ConvertFrom-Json; if ($result.StandardOutput -notmatch [regex]::Escape($jsonText.Trim())) { throw "JSON stdout evidence mismatch; pid=$ownedId; token=$token" }; if ($result.ExitCode -ne 0) { throw "Child bootstrap failed: $($e.Error)" }; if ($e.ProcessId -ne $ownedId -or $e.ParentProcessId -ne $parentId) { throw "Child ownership chain mismatch; expected child=$ownedId parent=$parentId, observed child=$($e.ProcessId) parent=$($e.ParentProcessId)" }; $e
-         } finally {
+         }
+         finally {
             if ($ownedId) { try { Stop-TTE2EOwnedProcess -Process $p -ProcessId $ownedId -StartTimeUtcTicks $ownedStarted -TimeoutMilliseconds 5000 } catch { throw "Owned child cleanup failed; pid=$ownedId; token=$token; $($_.Exception.Message)" } }
-            if ($ownedId) { $p.Dispose(); [IO.File]::AppendAllText($logPath,('{0}|{1}|process-object-disposed{2}' -f $token,$ownedId,[Environment]::NewLine),[Text.Encoding]::UTF8) } else { $p.Dispose() }
+            if ($ownedId) { $p.Dispose(); [IO.File]::AppendAllText($logPath, ('{0}|{1}|process-object-disposed{2}' -f $token, $ownedId, [Environment]::NewLine), [Text.Encoding]::UTF8) } else { $p.Dispose() }
          }
       }
    }
@@ -55,8 +56,8 @@ try{Mark 'module-import-started';$m=Import-Module $env:TT_TEST_MANIFEST -Force -
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD9mgwzJjQHYYEj
-# F6SWOHk0AVgY9uzscuxBXYzKXpJBzqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCmL0NfrWE44pn2
+# 0CSnIu5xYlf0XqOhk0uLxkJvTDbXY6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -233,31 +234,31 @@ try{Mark 'module-import-started';$m=Import-Module $env:TT_TEST_MANIFEST -Force -
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBF
-# UgoFBq0R2QYRz/TJ8Q4JcBRGTNRnzY3WYOd/mjF2ZTANBgkqhkiG9w0BAQEFAASC
-# AYBRVzVyJejBOpg5XoVHLC8m5deQOXstVOuL3kUdECYnv/ZSma9EVfjDf7JDBn56
-# BrqX7lh3p1L2eSDl43XHYBV4JrJwxyrjAks4G5ZzPThYgG0t3lgXYz5Dld0kFBcH
-# giiM/xEurxc9L8S3qtX8aNlw3Ykv1Wc44nL92xnhc0lvUfTMPmWE0fneqR0WSH+K
-# Z8r68mjI+lOpwAwHUn8UNqV0xU/1iJIfOpAePpwrWC1n+Db5Q46/1EHceb/VBrYv
-# M6Yp3W6+Ov9WKMBHa/4Vw4c0EUDvSTZ98ih7yvwArHEe25ekrq5z9Ga5hPQlDa1b
-# zp9wntuLgCTgnhLfo/aMlvX3qp8bRGsnu4t3towuVRa67Aj3Lqs3NrnOmbwjC1SA
-# avDd6S6zqHyrSheTdhxbviL2aJOznLMN8PQNBnmoSE/X7RzWXlIqGZ8OZ8P7oG4h
-# OMgJXlnXSNV0iVImamn2pqm75aPlUeK0u3V0Fcad2vyfZuiSu9j+cI5m1pjOVX2W
-# yQmhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB/
+# NoHOxOoCZdB11GuH+34jEM9nZ0b6TX2fV1vnIp2YfzANBgkqhkiG9w0BAQEFAASC
+# AYAhcE21pNIS1Jf2S+q8km3pqyZqkmWJP9EQfyYsoKhh97WAHadbthcGpkoiIhZ2
+# mvDheS9y3FNFz++6zwfHFt6z+L+/n9/t/l1ySkFxbsNBk4l/wxXuLoRTbrg+T9xk
+# gQeHtlgd9FLWc4vrXRcSsxy2If4/hcYQ2MF7JL8k9wbmUVD+8BGU1zQn1fz1zKc8
+# TZmz48DgZn3ODEF5PXCzN0qETzxUUKPoJQgoHuNXYsAJfQxBL/CKjA8GEW+8ukn7
+# VSXMu/CG/XBSUnRueOm0uEI1pBmm0eGrBmptcTow/dIktCjvVXdkbL9o73et3H5I
+# VYaP0yx8RgEjnyzctTOMW/cADCjD7Pw+CxR5thYiTOAPQzLi7ZyYFRVV1XrV9smr
+# IF5x8KGRp849CRLDj/MCy57ULq+9VSBw7Z51DAHOuN6YFu78KGEaJpXNq6KNnsQu
+# GIPaOZsbBoMdI/GyuTwuNR0tv1U4+8jo9wU7xJ7YWXPvAbZBj35fQCXgBDWOvQYG
+# nj2hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjQxWjAvBgkqhkiG
-# 9w0BCQQxIgQgkVt+r4qcTRVqlLkOs8dEvKKgK4+Nl0BRAKyHOBFYNKwwDQYJKoZI
-# hvcNAQEBBQAEggIAIeKumy/dZ3I0vzAG+qritwpVlaabCgKIwsBiRvdoUH+XDQg6
-# bA01CsrUshDzF8Cx0aUoDrc8y8IqLN+X9iRKkbsMrtAHpbLXBp2YIKLYzuGGcQvx
-# pVGHsjv5qkVmaDLV3OoROqv2lGN3v0YAFz5jl+8v+Pe5IPs8+o9ZG2mCa4LQITxB
-# SnX0xcnsLDVHMNMI9rBqRL3benKTD+4QSsQ8L0wAXt+qOvn9EX9/hDbGSDx1QtsB
-# aw1Lt1+nHKsVLAr+OPO4WrvTk0QFyjV91BczYVbEqaWKhuTFU2PkqKyi+1ppeyJ4
-# Yl+FRm7QU9FTV2ttMLDIDCQ2Oj/ST2sioP1BdAu/InUP072GnboeJKGoGg/jI6NY
-# TgaQStTT1IotvDgU+rNZKy8xFHTgXhbVhpzXd+zdf5CmtitGjMXefjysgpgHZ+TP
-# /Xz/HiYtXJjTglk+znki20bn+NOQwHgKP5ytaKcaXWiId8F/Qux7QBxb+55iODh4
-# nZ+jn45bO+uDm7BMuN2lnyI1vCZlrCkqhflBxX2epo9L25n+V2oFfZAsblkx1fXX
-# R6qbTjEEronM4fAI0VAhC1eBVfaA/WmHjWO/Q4Hz0L34gqb462VgyGSif56swU1M
-# jqbbKDzScM2u9Y88ggEqTFTOdPmPr2fwAVH5eaz3ZL113igAnKRLHbmQCPE=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUwMDQ5WjAvBgkqhkiG
+# 9w0BCQQxIgQgvfL9Gb9hY31BSlBO8xWh2R8hU2Y79RmA47aIweEFGfQwDQYJKoZI
+# hvcNAQEBBQAEggIASO+5amvrvS8UydgIKWnOo+DfFo3PQnaBkyxOReotflffQJap
+# N0gbmsoeVoPx+LQhhkuUbwAPwF1VNJy5iKoRq4ROnwzJvMAaRp69gd87dA7E2kXC
+# Nlgq5huOHD3uJVvpJp+6a4F/H5HgS4HVcmwV4mHG2PJwuxLdxRHSOPSkOlsDY+3C
+# 5MXj9NCwy+45zLVXABxnJ1ylXWh+WXnhuZW/dH4/3ylpg/RsXJWTNFLTcIkgXp5Z
+# mcwHzthi0ebaWR+MCULd3YgD34EDxoHZ+9rFjXgX7eXaz0TDBBXu/MfVJ9sWmxS3
+# hES0QuliwSUxHhzy6m81mbGC6MntlIof+IYmUsQ4Gzsyqv5L1qUpaIXyvmeskkke
+# 5wNSQ8udpynnUw3BvNKhQaPNSOkvlbiynym2xXT9zOAoJRkqMV5Kxt4ENGqUzDoR
+# yHeF+roIyGsOMaG9cLFsaSpqfK7pU0eo/pFRW2xny6uzm9dP69qhy1XIr4DF4VZD
+# 8rxEF8uLJ2UVPQAx4HpDJ5upcajsLMdYS9+kRM4YEPSO7fGmbqgjPS+6NNk6mUG5
+# 9ZQi0JeJ7Gao6FfkZAYiqD4XhPxDRaRLWOgvdsroUzlNXF7X6BZgS+Z23ONB9bxa
+# FkD5fDuQd/NmKpS2AU9F7JxTf4do1UQsXhoAi9zKV0QvBdYhrruthyD1jb8=
 # SIG # End signature block

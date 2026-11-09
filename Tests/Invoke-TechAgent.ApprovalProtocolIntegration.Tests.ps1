@@ -197,21 +197,21 @@ function global:Invoke-TestApprovalChildProtocol {
         $responseLine = $receivedLine.Substring('RECEIVED:'.Length)
         $repositoryFiles = @(Get-ChildItem -LiteralPath $script:approvalProtocolTempRoot -File -Recurse | Where-Object { $_.DirectoryName -eq $testDirectory })
         return [pscustomobject]@{
-            MarkerRecognized = [bool]$recognized
-            ResponseSourceCalls = $responseState.Calls
-            ReceivedLines = @($responseLine)
-            ExitCode = $process.ExitCode
-            ProcessExited = $process.HasExited
-            StandardInputClosed = $stdin.BaseStream -is [System.IO.Stream] -and $stdin.BaseStream.CanWrite -eq $false
-            StandardOutputClosed = $stdout.BaseStream -is [System.IO.Stream] -and $stdout.BaseStream.CanRead -eq $false
-            StandardErrorClosed = $stderr.BaseStream -is [System.IO.Stream] -and $stderr.BaseStream.CanRead -eq $false
-            ToolDispatches = 0
-            SemanticMutations = 0
-            ApprovalTokensCreated = 0
+            MarkerRecognized             = [bool]$recognized
+            ResponseSourceCalls          = $responseState.Calls
+            ReceivedLines                = @($responseLine)
+            ExitCode                     = $process.ExitCode
+            ProcessExited                = $process.HasExited
+            StandardInputClosed          = $stdin.BaseStream -is [System.IO.Stream] -and $stdin.BaseStream.CanWrite -eq $false
+            StandardOutputClosed         = $stdout.BaseStream -is [System.IO.Stream] -and $stdout.BaseStream.CanRead -eq $false
+            StandardErrorClosed          = $stderr.BaseStream -is [System.IO.Stream] -and $stderr.BaseStream.CanRead -eq $false
+            ToolDispatches               = 0
+            SemanticMutations            = 0
+            ApprovalTokensCreated        = 0
             DirectAuthorityCreatedBySeam = 0
-            SingleUseAuthoritiesCreated = 0
-            RunAuthoritiesCreated = 0
-            RepositoryFilesCreated = $repositoryFiles.Count
+            SingleUseAuthoritiesCreated  = 0
+            RunAuthoritiesCreated        = 0
+            RepositoryFilesCreated       = $repositoryFiles.Count
         }
     }
     finally {
@@ -227,12 +227,14 @@ function global:Invoke-TestApprovalChildProtocol {
         }
         if (Test-Path -LiteralPath $testDirectory) { Remove-Item -LiteralPath $testDirectory -Recurse -Force }
     }
+}
+
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDIxIuR+ViWSlmr
-# bL3FzIgi2/f5RbnsSK2QClEIzOa9fqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDIb6nT2bRUHheq
+# /c1pE+br2zOPQ3ki5MCGvjlTMYjrlaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -409,31 +411,31 @@ function global:Invoke-TestApprovalChildProtocol {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAr
-# ijNJJef5TGxqwNsnxPY9v1VoYnN1cKgyI40+aVVysDANBgkqhkiG9w0BAQEFAASC
-# AYAeShsEQL1cbT+0XQxOpNWApjornqEzuZSC1oxy9m6RZD+rOlOO0/+OtZw0SgTa
-# yvfZMTpo7Fudsqv33RH76RTZinD3cI7p9y2ni8gwJNRA1+48LBQOLwL3xLOdjIDO
-# WYTpSvHQGYazC9+3OK5US3f68i5SVWmg4SW2Ce5P0hcP0GsTMGKQqhckyTyaHKp+
-# aHl2cgWBTwWL/umZUrEA4rsTd1XMPeka8nrLQiKDPg5NTzz8ly8KMOX1AreiwSJo
-# yvl6DebYyP0+aFewRFuQzxZxNuEaDty16UxhCEB2Jt7hRwFj6Dc/+Cv+wg3+BpsF
-# HLRuVz8XCFD5CRxRaWa9Omnc4+eUPb5URonXcPAN49zrsr3wpCKu9TdiV8Vf0JEZ
-# uEQ2MqK/l1NeZO4kWMHUVHTtq8KuAaOsVo8rixBTZXz6WmaixRP58g9a8/u9uJF4
-# Vhxg28bBzzyqnLp+/4itJgb4oFln8qNT5D3QFGQJWwP9AK7fRl05i7XJbb1vkbJy
-# +gehggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBo
+# zxSRvMKLnOYkD8S5ar7tp+MMWoJiPlKW6564rrS7+jANBgkqhkiG9w0BAQEFAASC
+# AYDMyL+oxoZJgB6knm/1sOpLSnrt9vpXJ3GdsI8ta/aSV/eti+rht60Txxe344oe
+# OvnAjVam+JcW2bMy7qBsQXIvpuFeQi4qjL2tQrQwYSKJWTcj3vjnBdB8oirIuQ6T
+# BMt1v3RXXB5zyZGphJ5GT3GlCVfMCqGdQmMq3FfVEGPCe9PIvIKwj7YKflmsrZ/g
+# dMQEyNiAXf5NzOJ54Qwmldh3P6VFLLugzz3ovZtKotyaIb0xrSGRj1MZMsWhneFR
+# phiaQ//iRuAYVhMHHTRfGFkDQNcr3hhj3YR6qD/C/HiqQP98bWQ28lva4KlglKhn
+# ZW6ZM+azjHQNYchacBKAeQTYXTml4ZHz6E2rC+ZoczLml+W8G7dGm6J0J3mJ5e5j
+# WQGhOUo/GepMoF+KIEd5iQtzj3watvefjy4AKnD5SSu4A43/VlfN6itK1rusgEuv
+# evxt2jPpS6RP5MRM4ObLzYiUfSUmwYt5X6iWX0Vrcajz7cngUzEv8fSceHXucQUF
+# 2gqhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjM4WjAvBgkqhkiG
-# 9w0BCQQxIgQgo1zyvQDNNPBXLtI+RaYSnCNjTgIrksClgX1qe0R7HaMwDQYJKoZI
-# hvcNAQEBBQAEggIArvAhI07yAs+8k5Uxu/UIl8MpTjdfemoaCr0+lvkCfxLS9h2V
-# E2zjHf82or7AWv1G49JJYXusLEhWJDyKb3ra1xWvT5BaxT5oRlLVz6MbT7ONlpG6
-# enCrsDSn3GExiZDWu9x8GH/4F2B5fXBAe5ejimb6Nzhk3VSc6zXVMUWQbGQ9bWUD
-# dpyaOaY/bZuzENIfkY1FEN+sQUHn2e6TZgi0Ld2DVd+2S8/egbm3fi2jvoeVQhfr
-# v6bzBPaPPmXQIHx9IfjAtSbOGen8BQmFz8lXKWgc23HxYLnjsBlh4ufdh/8gs1kV
-# eAMhbiE4JzN7HB3Ousvv5Ki39UKrvGokcsEVX/zUb3agjB8kGqV4Q3QUZvhQx8Ms
-# SimzxkQbCBr05BUdyvpMSt/eD6DdGdXSodIsOQCxvWTjIws09V6hysrZV/ojQ/nZ
-# AVc60T78qgInc/hsaidIclkr18VMNjW0WW8TZvAC1vIg4WFdAePePBSiBTyjEeiY
-# ozCPJIic8NLOBbp139o0sAJc5yDpjzEJXBOtgxUxtVPm64p9W/FuNMFUI+tmFnoB
-# 0WneeObSWu94LaPxK/ouMcdP7eaH3CS1sqBY58nLplv/5SHvkZI2q+WpaGjUK8c1
-# ng1UYhD2fQMa8csWC1IoAK8s1WRI/6szQUOyVph4JgLU9uCoWLY8cTi4Cgs=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUwMDQ3WjAvBgkqhkiG
+# 9w0BCQQxIgQgBXizBdIar+IBxcweGwy2e1z6kpcOpN0TwSvMEXMUgAowDQYJKoZI
+# hvcNAQEBBQAEggIAi/nVTb3UanLE1hTYlMOy8wVmsic72ZsvwNONVtrg6pYH903q
+# 716vgL3D7PNa07FS1hg0CNhzXcYN3c2kfCaoilJZuvP6535LaMVpSSZJIUaJpETL
+# z8iKDK4snKJbhppV0ZeMU9+bx9mrLPHQsvWLEIrOeJxXhg4+Xd7AWra+OrJ/ygPF
+# wa+HCSWLZ1P79faW2Atx/Mb1Zw0UnWy9EC01rN7JyR1lGatjX5yjLxkYQy0cMleJ
+# crTqkKKOG8P1R8VwNdBTQhN6HnJ8f4Sy2rhd360fYhM1AiV6xic5JX7CfI4hia3C
+# 2PbQABfl7Ocjt14ERh1hX0ezRL5vnmUieDAlhloOjx86p+lw7Vl5awO2fTPCDUaE
+# 5jun8Nfquf01/SX/DGMIQMygsADx46T1Ul2NmkjTh3YPtFeoG3dG7hMoOxS4IC62
+# vVisTVO5btYJpaMpqTuBW1fS6+ppP58yEr+yRlD2b+QoFL/hugECqPB5JVrFaj09
+# dStTF/WVWhKMxUaeMVp2MCz3DGDjY5s1UEOnXk8uWQrUDkcarYAnrY9sieetM81A
+# 5ihaVWfbXv52L0OVojdZw0M1w67DEwvjkHu00usCKNmfCwpjCDZPpEF3Cl0vQzAE
+# B4Ypd7q4r8fxx9GzZt5TpJhU4tBg0lVnNX4RC+fUVjct3HG8NNW+T8HFZ6Q=
 # SIG # End signature block
