@@ -1,8 +1,13 @@
 Describe 'Invoke-TechAgent destructive approval response-source seam' {
     BeforeAll {
+        Import-Module -Name (Join-Path $PSScriptRoot '..\TechToolbox.psd1') -Force -ErrorAction Stop
+        . (Join-Path $PSScriptRoot 'Support\Import-TTInvokeTechAgentPrivateHelpers.ps1')
         $script:invokeTechAgentPath = Join-Path $PSScriptRoot '..\Public\AI\Invoke-TechAgent.ps1'
         $script:invokeTechAgentSource = Get-Content -LiteralPath $script:invokeTechAgentPath -Raw
-        . $script:invokeTechAgentPath
+        $script:approvalProtocolHelperPath = Join-Path $PSScriptRoot '..\Private\AI\Invoke-TTAgentApprovalProtocolLine.ps1'
+        $script:approvalResponseHelperPath = Join-Path $PSScriptRoot '..\Private\AI\Read-TTAgentDestructiveApprovalResponse.ps1'
+        $script:approvalProtocolHelperSource = Get-Content -LiteralPath $script:approvalProtocolHelperPath -Raw
+        $script:approvalResponseHelperSource = Get-Content -LiteralPath $script:approvalResponseHelperPath -Raw
     }
 
     AfterEach {
@@ -88,7 +93,7 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
         $script:invokeTechAgentSource | Should -Match "\$approvalRequestPrefix = '__TT_APPROVAL_REQUEST__:'"
         $script:invokeTechAgentSource | Should -Match 'Invoke-TTAgentApprovalProtocolLine'
         $protocolHelper = [regex]::Match(
-            $script:invokeTechAgentSource,
+            $script:approvalProtocolHelperSource,
             '(?s)function Invoke-TTAgentApprovalProtocolLine\s*\{.*?\n\}'
         ).Value
         $protocolHelper | Should -Match '\$response = Read-TTAgentDestructiveApprovalResponse'
@@ -100,7 +105,7 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
 
     It 'does not derive the test response source from user-controlled configuration or request content' {
         $helper = [regex]::Match(
-            $script:invokeTechAgentSource,
+            $script:approvalResponseHelperSource,
             '(?s)function Read-TTAgentDestructiveApprovalResponse\s*\{.*?\n\}'
         ).Value
         $helper | Should -Not -BeNullOrEmpty
@@ -116,7 +121,7 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
             '(?s)Invoke-TTAgentApprovalProtocolLine.*?-CanPromptForApproval \(\[Environment\]::UserInteractive -and -not \[Console\]::IsInputRedirected\)'
         ).Value
         $protocolHelper = [regex]::Match(
-            $script:invokeTechAgentSource,
+            $script:approvalProtocolHelperSource,
             '(?s)function Invoke-TTAgentApprovalProtocolLine\s*\{.*?\n\}'
         ).Value
 
@@ -145,12 +150,12 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
         Read-TTAgentDestructiveApprovalResponse | Should -BeExactly 'subsequent-ordinary-response'
         Should -Invoke Read-Host -Times 1 -Exactly
     }
-}
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBJ7n3bH6ScuevA
-# bifuLWwzXsxLzF96suXI5llmWyiIs6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCPj9WSc5F+dAMK
+# GifJaLlUma+INQ06yO0OjM44OG5Jq6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -327,31 +332,31 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDp
-# Qo6/gbQ7BXofAajXgKvGX/DZxL4FdqMNOax9urxrszANBgkqhkiG9w0BAQEFAASC
-# AYAQECdCiEijTa7oujuxwciWcl9m4A1stCtkXNmMonNZY5ODNgF8jffJDkewr4rU
-# qr92xN3nOWTVR+vEj3ewrGRr6J8HTQjTUN7pztfbpKL+xO+IM/XnxB4r47B6yrw/
-# HZqmkljFpElpvcfA2zVV2ccTjonPrvZjz+AXiH6iIlDRz6sSm6v7NS4TkBEFy+R+
-# xbC92xB7u5lyhT/Z6OwcA7ePfpECodXqnbRg3Hsa8JByfZVngfNAVkc4sEyrB9Ip
-# Cfaa6PfSMoWbs8170Jz5bDJ+S0bj+eL32SGk9FRJ7ikf1MMR8ejCsxvw0MfuCciZ
-# i1sw45Kex7Kr6gVF4UaBKjfB4yUHVy/HKiK5mYFyLhLEvq47ZQHsmeO91Tmdc49Q
-# JKO5O9SwhvN64CdcBjbc3ehRoBkRLHfpxzdMMhgUtqpx7ob3fRx+EtyZLbH/6pqY
-# J/XrPD41HgoMq/Wb4Vu75lbK+NcrcWzRkCAHAzNSvw49245BpvKOsOfWb0Fgq+No
-# OMChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC3
+# 2waAqWZd0luiViJw5xJo5SOft+5EipKEu9lt/5bZ9TANBgkqhkiG9w0BAQEFAASC
+# AYCPMuiArRRcmerFfa85IW2/JUFxxi85nL8ZY2oNU2kf+qXt3Zp/tEjYkEzuVcQ4
+# KmhLYzDyEN9yDjEIyA+oLT6IVPC72xlrLRGKCJwhQXve0qGxLBwj71Uh3DO0hXGn
+# 1UCfjuyELBYvv8i3krG69D5q3DlbyXi/3Me3ordhCC+weZgnHODtzI0CWEhe8oSC
+# jwMMaAR+uqzD3a6NgGaatwnW21f2Aj6pzvRHmW+nVEXAa0JW+lgq89L7lK/X4+9y
+# mmuxSwO0r7L2rHPOk2AuDUNYeTrikOb1XVY+ySWr3vMEMSWTrAK3lWl3qXx2AYNd
+# TbdRfYLzV9YknE7KjGo0mW6Nt9iiW4ySuMpCOF9IMxuJxUWj+epcmLjZofqmcDL0
+# yxKtKdy3+NmrD49x9RIonlEAO0Rp1o9jfqbjwk5jqXKvcO1uaIuF4agFgJji3jpa
+# GEs0POy9/C2qzSHvKBxNpQ/DNDX9qiFPKqSBcvRIUNHd6CdG61OghN7sA9osnMbK
+# QdKhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MTgzOTU5WjAvBgkqhkiG
-# 9w0BCQQxIgQguTgJ4tfH3LB6rp6ee0G+P8+haZ39c+dOjg7jGDpo0DUwDQYJKoZI
-# hvcNAQEBBQAEggIAjRCB46pz+UxEvtt3PQ0kiCMOFCBdOHrUDgCDHzlDQYiNAEW7
-# Dtg1KeU7YH8dKr2n+DRZsSeYPmmtd5BmygPM6E/3FoRCsfrjiH9284v7bbYE1kIT
-# 0g9KEH4ezixrVK2ufJ2dpwawSzcoWX+oUOVywLhtA97w1UX0ayjc4JAjFgZgF7OD
-# ihi3DrXuBPd/aTYIan5ukIdh6pE3gHAkHzd/HZKb/hPmfufDTNTofwXvbbh7x9y+
-# 8MsXQhK2M+vXvXr+JTxFTppEKxN7UktrYvMieyP3/VlButnaGIz5wWn560ADfoch
-# erilhblDIpGC5514fzHmXUSyKAn0S2xWqDiPrk4QLMaEBfUOxR7awbvYsTWLSja8
-# uZ8j3jzevqWdsvPBvxuFupMx+WD2oUkjvepwwnNGUFePz8h4/uF/ZG6DGuoAm4fa
-# 1/ZEkeRQKtwaLp2RgMHcrW/UcbbFa/I/JR97QKzR05s9lGI/RNDGpBz9xgUxD2kf
-# CuwIA2cKsKM/Kl6a8Te4E1hME039Gi3iU/fck5IvDOC0ng05Ds4uRQx946INk7gj
-# /rwO3tQMKMNWTKFzG7XKl0caBO/ydJMvSlWP5uoEE5oR7qLT2S8JwFwBihjtfGeh
-# r370ASa6MiqdGhNc0krHnHWT+yXL84IU+z7YzCzaAOxsVSbVUlZYlj+ADbI=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjQwWjAvBgkqhkiG
+# 9w0BCQQxIgQgAVCxX83H2BCNc0LVKe7AwZKmcYxUm7Hfzch5TVdB5PMwDQYJKoZI
+# hvcNAQEBBQAEggIAMlEfN/j2cxHWp5Whf4Mw6xmZEr+nGk+iPjWjcUlo9lhCdx1a
+# W5sBXUlw6yBSAIQ4D9cAtUTfVdblRwR1MNds5NQNQvp1ThWSF6aIJrIV1bVlU8iq
+# l5H+EMbSE+H/2DSmBV/yl3H8SGQSBJWFrk92UiOTff4F1uZSEa75ogYWINpzFpHq
+# LOIPymJSJbkts8hUy+zlZ/cEck/bal053YL6RkEKP5x7wq++bP9ZERvysythcoJJ
+# DrCEDT6xXMMaLyKUqgpVXrPet+mcDbS+bj6aYTA/xPazde+VD/u2bB6/MM4Y+D0k
+# 05nVhoNkLJtvUYA+Sv52hzptVTrnOX1h7LnlAnm8pnARF4Bu4E92lc8EaOv2i7I+
+# k9q67NJyC1AbnpkRg2obLRttrdlp3C7Q6u8CSrmALkYCnXnhcxzDpGE7Rmydt3p8
+# 86cw9VDRzrF4GE2t0z4+3DSa8Ab2EvQfwTDcAcKMRI+BZUlRJtF6zuJFs9KnVbEz
+# WQbTWV5uKz+7fk4QrRbk2oYG083cCb2SbPSrPzG7LwFD+n1OFnG7HDAiw+HD0YU0
+# HN/3rvOBB9I/0FD1tIXc2k2DeUgZD5gxUbt6vvCg1gb5/vJ/WezTHFbh/61us17p
+# yIiCXFNDeQGYClnRPidHkVDmtCHIpgyhR3/DBeTn6DrBx6z6shgLBSL17BU=
 # SIG # End signature block

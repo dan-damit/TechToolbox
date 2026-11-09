@@ -3,6 +3,19 @@ Describe "Invoke-TechAgent Prompt Preflight" {
         Import-Module -Name "$PSScriptRoot/../TechToolbox.psd1" -Force -ErrorAction Stop
     }
 
+    It "Accepts concise completed answers in non-execute modes without relaxing genuine failure checks" {
+        InModuleScope TechToolbox {
+            $analyze = Test-TTAgentPostflightGoal -PromptText "analyze this request" -ResponseText "Done." -PreflightScore 20 -Mode "analyze"
+            $analyze.Achieved | Should -BeTrue
+
+            $execute = Test-TTAgentPostflightGoal -PromptText "analyze this request" -ResponseText "Done." -PreflightScore 20 -Mode "execute"
+            $execute.Achieved | Should -BeFalse
+
+            $uncertain = Test-TTAgentPostflightGoal -PromptText "analyze this request" -ResponseText "Please provide more information." -PreflightScore 100 -Mode "analyze"
+            $uncertain.Achieved | Should -BeFalse
+        }
+    }
+
     It "Does not emit common false warnings for conversational weather prompts" {
         InModuleScope TechToolbox {
             $result = Invoke-TTAgentPromptPreflight `
@@ -218,12 +231,11 @@ foreach ($item in 1..2) {
         }
     }
 }
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCSIwzCqMcTWmWC
-# JmqPhRSmUNAwvSkAg6w4JbVZK9fm3aCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCYM2mGbRm3qafr
+# YTrlgciDlqQWBxB/qTgdP5rQc0u57KCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -400,31 +412,31 @@ foreach ($item in 1..2) {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2
-# CPXpo2gUVfUEXbrLbstelavrqF6IpZA1S0BnzLM4kjANBgkqhkiG9w0BAQEFAASC
-# AYBr0AOWuRph14tKHC9zRljwp/OPa90qfLYcruITtxoc7fCd9NIcj4Qm2Bjfcbav
-# UPvwP3qGC6Rp+yuTW9WB2rDMJEq0UHvVyZrLxmheptHMfThhm6own1pSNfWH/4yR
-# wlfp/eqJRp9v3z8X0SU8ggSyQvOxBQcb2wzk62VfoRoZofIkqJ5qd3uRvlgfewFU
-# oTrtO2HAS+xxJ5jSFTbIa5D1Bk8IwdC3Zmeqrm4SRbNv0D9aeeeoRkoEgnYjFn/N
-# pwnRPcACiaXHHvrMSS90jZnoNJunHo6WkmLTkVLv0VFFrcix3mDNzIlG290H4zZH
-# yasrfDtqyrGyK86s7SWvdY3J9D7HEJya0MheJnu9wntcwkiLAS0T1ND0LwqTy1oJ
-# f/MV2jEw1uzGfCocTteKHUYCD+P6FhtA8zaK1WkgZysRT73hAG7LDrz6CbUcF1UR
-# r31Ujx34onrD1Fl8z69eBoE2t8iJSibg9utBKRCwDeUr0ByNNPM7yXNqgYDpEW7W
-# roGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAN
+# 60YLV21BTVhSOEG8Sjmi4GONcG6y2IhCxLQIA1kVrDANBgkqhkiG9w0BAQEFAASC
+# AYBRid8b6BpEOA17XDzILS61fK6gBLwkrXGIF7lhBZfoLC6dVoVHOxhYd1LfIExa
+# VDilIWeMq7gnBWJ944eQ7I4fe6iXS89HzKd0svL0NgWp0Dp6EWHjl+Rhjy/Z8R2D
+# ufb+KPNvOza4SIKesbszfjidbhenKQP2zBS1a6E8l1MqjbyWFBQ8YgU/hBnP9Ybz
+# qli6bniZ137JXLEJHV4zjq8+N9xABs1oNWqvKlhcXXUEqZuzUhyXdwIrHJ2vFamo
+# h08JgRncbnswNXa0iq9/mE1mxa/Avl0qhhO/LaPD1J/06ENNIL9O3vQEf5/JEOta
+# 0UieOJcHnJYBt+NeMPCB4vZ/x2eo5JWYHT5+sqVNduWUtBQEeOD8eT7fTOfb7Ko9
+# cbB3u3SZdzO5vzw6ttVhOWFqMdqeQMw/sR9cH3o6qhxeL3Enrm67tckUy7TU31lK
+# S4R+r/fZS10iJ28TVAAbnk4yFNf91V9Q1w0jLWmn5N+GDXdysqlgbmqPXZbOgrNm
+# KeehggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDIxMDIwODU0WjAvBgkqhkiG
-# 9w0BCQQxIgQgp58lZx5GXhlSxyW87gpQyAtKq6BGHHH+3PfWg7cRoGgwDQYJKoZI
-# hvcNAQEBBQAEggIAi0IFasHWdMUnmkDPFaQxowfBcaXy80rjtK6igJr4HlBcZspm
-# BhgUHKrFdEQOiCBWYxTxZeKSjJlp8AMT2T8qdHih+LH8nGGmqk/LSn0IIWtOItv/
-# O0dwK06cLrXUI7SUo07JKadNVK/irezxz/WsmyWcAJBc8ly7hAs66j/Bglnihvn+
-# kuF+TXPq53u7iSYuzig9rN00zEtZcWDyUBkMRphDqr/b8ONS3kllTJ9w9qckUunN
-# Ti/A5upQwpVaWBs7dhXgH38QfoYp5EHEyoVdQgXD5UgbdQpkzLYNIkXCnyc5mGvz
-# 2Zpi6P2sIodGSawGDF3ISwO9syk5FwOp/xtypGIKewwa+1dyde5WtlkMMlm3dX/+
-# SutIuQPlVVNmyzrNtTDgsdR7r5bcNSntZFdPXNyYOps4hHtWfr25Iu3AUfU0qXOo
-# XTI4gBYpvYmIOfCyJna7WvMJiB315pZ+SMVMPvp61KR0DmDwFpgJteyFDkU/GrXx
-# vYXimR6gCpmPR15kuMAO0rFa0B3hb1nFN3y/E9vKpJF/KDsGc3qrhS7YqXGGRz+7
-# 7r8gbzcgVM1kRRYuOiIcNSJOFGuSHETVP5+f4thvwCgAt/Hy6qsNqvHt+ue4jqsG
-# nu2/i+mOCrFT0uGG6bY8xDqDm+oacuTMlPyLmhhGtaal4K2Fi7qqgNzy92Q=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MjE1OTAyWjAvBgkqhkiG
+# 9w0BCQQxIgQgxO1hYU6OlMZp/upT27drhZadcTjSh31rjOCe09vedp0wDQYJKoZI
+# hvcNAQEBBQAEggIAihXZtJktcgLfZww/UEIcQtkKAmRZOxGbGqnuzUe5mSbcnq9S
+# NRrSQb44aQdTKb0vjJRYuHNMae242+OvXSd/duypLi49xm716YhrREbq+vTqGr7x
+# mpG8M8/NUCam5FhH3Qh8M5gAwqGVPcnnzW+zb1Jsw41EtORaMx64AINKl5iBJEro
+# Anz6WLvXuz0i6EQYXS3QS+g59DoQq1VFcPRaguTsOVVUH9RjQjHnh+CefUhd6yLr
+# hHCWU5YBGaQbgWJDT+mG7duOgFtskk4FYjO1gjxhWUacqoAh6Kyn4egYxL1ZODKO
+# BY1fiMY4gPsHmtb7FX6gMPXtn07QF0KvUeAnLHpj1+xnqm25tNqQbr07zXLWT71N
+# 54qz/ekZgm4wKWOFBUN7e6OOud6s9iQ4hHBkGhvPqcKGHPUbkFCXv8Sbqja693tA
+# /kwGpLXKo38l2E7EQRWVKySM85sTXjAWeKB/FKMnu6q1AgNr2ZyOidFfcSaZKfrR
+# g4WtFoUgUX2CuPVDG+pyW56OGUbtOcQdiql9W+p9pnMlq0/2MaKlYYWIzp7I4K32
+# bGBZ4AgMO+F9kiADVvy8qPI1xMblTMUGdK1YHdV6RcsTvKcWwkO87wjNWDFTcL0p
+# uI2fLl66FLuzEU5v/EpMSzjIlr2OcC6MnhyhFC3jdnkcfyo1vP/6pHKoMo0=
 # SIG # End signature block

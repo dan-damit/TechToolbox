@@ -1,6 +1,7 @@
 Describe 'Invoke-TechAgent host-to-child destructive approval protocol' {
     BeforeAll {
         Import-Module -Name (Join-Path $PSScriptRoot '..\TechToolbox.psd1') -Force -ErrorAction Stop
+        . (Join-Path $PSScriptRoot 'Support\Import-TTInvokeTechAgentPrivateHelpers.ps1')
         $agentAssemblyPath = Join-Path $PSScriptRoot '..\src\TechToolbox.Agent\bin\Release\net8.0\TechToolbox.Agent.dll'
         if (-not (Test-Path -LiteralPath $agentAssemblyPath -PathType Leaf)) {
             throw 'The built TechToolbox.Agent assembly required by the production approval protocol helper is unavailable.'
@@ -59,6 +60,19 @@ Describe 'Invoke-TechAgent host-to-child destructive approval protocol' {
         $result.RepositoryFilesCreated | Should -Be 0
     }
 
+    It 'accepts a generic decision cache without Contains overload failures' {
+        $result = Invoke-TestApprovalChildProtocol -OperatorResponse '1' -UseGenericDecisionCache
+        $result.MarkerRecognized | Should -BeTrue
+        $result.ResponseSourceCalls | Should -Be 1
+        $result.ReceivedLines | Should -HaveCount 1
+        $result.ReceivedLines[0] | Should -BeExactly '1'
+        $result.ExitCode | Should -Be 0
+        $result.ProcessExited | Should -BeTrue
+        $result.StandardInputClosed | Should -BeTrue
+        $result.StandardOutputClosed | Should -BeTrue
+        $result.StandardErrorClosed | Should -BeTrue
+    }
+
     It 'uses the production marker handler to deny an unrecognized response to a real child' {
         $result = Invoke-TestApprovalChildProtocol -OperatorResponse 'deny'
         $result.MarkerRecognized | Should -BeTrue
@@ -108,7 +122,10 @@ Describe 'Invoke-TechAgent host-to-child destructive approval protocol' {
 }
 
 function global:Invoke-TestApprovalChildProtocol {
-    param([Parameter(Mandatory = $true)][string]$OperatorResponse)
+    param(
+        [Parameter(Mandatory = $true)][string]$OperatorResponse,
+        [switch]$UseGenericDecisionCache
+    )
 
     $testDirectory = Join-Path $script:approvalProtocolTempRoot ([guid]::NewGuid().ToString('N'))
     [void][System.IO.Directory]::CreateDirectory($testDirectory)
@@ -149,7 +166,12 @@ function global:Invoke-TestApprovalChildProtocol {
             $responseState.Calls++
             $OperatorResponse
         }.GetNewClosure()
-        $decisionCache = @{}
+        $decisionCache = if ($UseGenericDecisionCache.IsPresent) {
+            [System.Collections.Generic.Dictionary[string, TechToolbox.Agent.Core.DestructiveAuthorizationScope]]::new([System.StringComparer]::Ordinal)
+        }
+        else {
+            @{}
+        }
         $recognized = Invoke-TTAgentApprovalProtocolLine `
             -Line $markerLine `
             -ApprovalRequestPrefix $script:approvalProtocolPrefix `
@@ -205,13 +227,12 @@ function global:Invoke-TestApprovalChildProtocol {
         }
         if (Test-Path -LiteralPath $testDirectory) { Remove-Item -LiteralPath $testDirectory -Recurse -Force }
     }
-}
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDVie57lTs7Xkvg
-# qi72xLrhuKKqi1FJGKPza0fHT64TrqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDIxIuR+ViWSlmr
+# bL3FzIgi2/f5RbnsSK2QClEIzOa9fqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -388,31 +409,31 @@ function global:Invoke-TestApprovalChildProtocol {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDT
-# WKDus02jjHFjRywEjwPcTweHRc+tkYkj0hXQWflv5jANBgkqhkiG9w0BAQEFAASC
-# AYBMLkUpRZVr7ZZp1vwNn2tL0DoWPFNOiVhSDAlPlvc5vsaNYRGWajPhTkRZAfM3
-# B+mJHOqqgGslSYZ3weWlQSdOxmOAYDpQ02HhoIKM8xeEkBdGH6Iksnrk5822zENE
-# bqNodj26OOkj+0URiF21ZYGSx/VgBdL9FfHH1T0/0G6aHaKW2R/SxdLZYvXRII6s
-# pBVMw23H81KSm+GnMMM0vBjb76iQ1eVsvKawliwj52j5b9j4KWeW5VdYZEvqBTQS
-# kJbvjr1ekzmtFp0hYDvELvt8hpb+/dEDXuGjuAqO4bU22u3wSwW2fF1JKpnVJ/2W
-# f0lFbdstd0d6MfpDkugjejv444IAHXNeD1wR2eLnuSHoTF6wObTI+BuciPcNZrTB
-# c7XPcpBeSL6Jf/dH7Z3/eFgwgOGeDAIwVOtESE0Szvqyc2kIbgAewg7ZjaxB8AVX
-# AintZXqlBhGNXLHuRbZExjdYmLRBVGg5QJ2Ka4xA6cz6CPMC0nlrL5Kcqt8nYSgl
-# vS+hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAr
+# ijNJJef5TGxqwNsnxPY9v1VoYnN1cKgyI40+aVVysDANBgkqhkiG9w0BAQEFAASC
+# AYAeShsEQL1cbT+0XQxOpNWApjornqEzuZSC1oxy9m6RZD+rOlOO0/+OtZw0SgTa
+# yvfZMTpo7Fudsqv33RH76RTZinD3cI7p9y2ni8gwJNRA1+48LBQOLwL3xLOdjIDO
+# WYTpSvHQGYazC9+3OK5US3f68i5SVWmg4SW2Ce5P0hcP0GsTMGKQqhckyTyaHKp+
+# aHl2cgWBTwWL/umZUrEA4rsTd1XMPeka8nrLQiKDPg5NTzz8ly8KMOX1AreiwSJo
+# yvl6DebYyP0+aFewRFuQzxZxNuEaDty16UxhCEB2Jt7hRwFj6Dc/+Cv+wg3+BpsF
+# HLRuVz8XCFD5CRxRaWa9Omnc4+eUPb5URonXcPAN49zrsr3wpCKu9TdiV8Vf0JEZ
+# uEQ2MqK/l1NeZO4kWMHUVHTtq8KuAaOsVo8rixBTZXz6WmaixRP58g9a8/u9uJF4
+# Vhxg28bBzzyqnLp+/4itJgb4oFln8qNT5D3QFGQJWwP9AK7fRl05i7XJbb1vkbJy
+# +gehggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MTgzOTU3WjAvBgkqhkiG
-# 9w0BCQQxIgQgHquTy1dAGa06XmkECdfkd60+MQC3+92XJAI817ZT+BkwDQYJKoZI
-# hvcNAQEBBQAEggIAO06KblIc5nlZbYoTvsk8S7iqpXd+bAdUghoa9uXmkC5/8bhp
-# /0ecf5Yxv0oFcSqGZeCkng3prex32SKUgszUWjAGUjn1GSuHcI2iTPVWN2gA8DsE
-# lN+feRPYFu1YX2btpqp3Q5jUmh4XQC3aaL1SmbCHNOmxHMHJRkWChTc/n7BS3Lq4
-# S2WPZMPDbfI2fS7QHPlXoXl8rsvgTNm0XLjCIQQF9jsu9JRXbI9x0sZaB0ofw6Xq
-# TC0Y7IFJiLx6LLNY60qJQfuwgX3B5GlCsxZ1uts4X6yzhXAftH2NXjiE4pEM24js
-# veGK9r9fkimEdAZ/RQUjLkI/y6EqU05W7jUb6WMWvgkUGXHpyytp9sXX1QvvBdAw
-# Ax78IwM++kHh7jIOjNKSbxrQr6pjQRLL1b4sQpAEH4zWNzQMihVPRPaXYW4+9D3a
-# Wde/JFCTgdc2wY+LPLn3ITLPBE1FTNje4abSPLwxPc4TDhWzk+wZOC4x8zoUxtIT
-# pxMIsXcpVKMFkpTbaIANx0Th5ujuMwRds+mt4JZxFzyO46M9Yq8kQry/h1g6k51i
-# X8dUdJqzE0wXbVXwGovk3Km2/1KryrNyEgv5Cki4WOPjzioA/h/cIXwV96ACHLjY
-# wufX0gTtZ1oIWs8lDH/J73wKiGT9vPSQQ/GnK2RSPc4oxIEPSKRBvYTK2XA=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjM4WjAvBgkqhkiG
+# 9w0BCQQxIgQgo1zyvQDNNPBXLtI+RaYSnCNjTgIrksClgX1qe0R7HaMwDQYJKoZI
+# hvcNAQEBBQAEggIArvAhI07yAs+8k5Uxu/UIl8MpTjdfemoaCr0+lvkCfxLS9h2V
+# E2zjHf82or7AWv1G49JJYXusLEhWJDyKb3ra1xWvT5BaxT5oRlLVz6MbT7ONlpG6
+# enCrsDSn3GExiZDWu9x8GH/4F2B5fXBAe5ejimb6Nzhk3VSc6zXVMUWQbGQ9bWUD
+# dpyaOaY/bZuzENIfkY1FEN+sQUHn2e6TZgi0Ld2DVd+2S8/egbm3fi2jvoeVQhfr
+# v6bzBPaPPmXQIHx9IfjAtSbOGen8BQmFz8lXKWgc23HxYLnjsBlh4ufdh/8gs1kV
+# eAMhbiE4JzN7HB3Ousvv5Ki39UKrvGokcsEVX/zUb3agjB8kGqV4Q3QUZvhQx8Ms
+# SimzxkQbCBr05BUdyvpMSt/eD6DdGdXSodIsOQCxvWTjIws09V6hysrZV/ojQ/nZ
+# AVc60T78qgInc/hsaidIclkr18VMNjW0WW8TZvAC1vIg4WFdAePePBSiBTyjEeiY
+# ozCPJIic8NLOBbp139o0sAJc5yDpjzEJXBOtgxUxtVPm64p9W/FuNMFUI+tmFnoB
+# 0WneeObSWu94LaPxK/ouMcdP7eaH3CS1sqBY58nLplv/5SHvkZI2q+WpaGjUK8c1
+# ng1UYhD2fQMa8csWC1IoAK8s1WRI/6szQUOyVph4JgLU9uCoWLY8cTi4Cgs=
 # SIG # End signature block

@@ -212,9 +212,9 @@ function Resolve-TTAgentIngestionSummaryArtifact {
         }
 
         $existingCandidates.Add([pscustomobject]@{
-            Path             = $resolvedCandidate
-            LastWriteTimeUtc = $lastWriteTimeUtc
-        })
+                Path             = $resolvedCandidate
+                LastWriteTimeUtc = $lastWriteTimeUtc
+            })
     }
 
     if ($existingCandidates.Count -eq 0) {
@@ -225,8 +225,8 @@ function Resolve-TTAgentIngestionSummaryArtifact {
     }
 
     $selected = $existingCandidates |
-        Sort-Object -Property @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true }, @{ Expression = { $_.Path }; Descending = $false } |
-        Select-Object -First 1
+    Sort-Object -Property @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true }, @{ Expression = { $_.Path }; Descending = $false } |
+    Select-Object -First 1
 
     return [pscustomobject]@{
         Path             = $selected.Path
@@ -450,7 +450,8 @@ function Test-TTAgentPostflightGoal {
     param(
         [string]$PromptText,
         [string]$ResponseText,
-        [int]$PreflightScore
+        [int]$PreflightScore,
+        [string]$Mode = 'execute'
     )
 
     if ([string]::IsNullOrWhiteSpace($PromptText)) {
@@ -481,7 +482,7 @@ function Test-TTAgentPostflightGoal {
         return @{ Achieved = $false; Reason = 'The response requested more clarification or reported inability to complete the task.' }
     }
 
-    if ($PreflightScore -lt 60 -and $ResponseText.Trim().Length -lt 80) {
+    if ($Mode -eq 'execute' -and $PreflightScore -lt 60 -and $ResponseText.Trim().Length -lt 80) {
         return @{ Achieved = $false; Reason = 'The response was too short to clearly satisfy the prompt.' }
     }
 
@@ -792,17 +793,17 @@ function Test-TTAgentExpectedOutputFile {
     $trimmedPath = $Path.Trim()
     if ([string]::IsNullOrWhiteSpace($trimmedPath)) {
         return [pscustomobject]@{
-            Path = $Path
+            Path    = $Path
             IsValid = $false
-            Error = 'Expected output path is empty.'
+            Error   = 'Expected output path is empty.'
         }
     }
 
     if (-not (Test-Path -LiteralPath $trimmedPath -PathType Leaf)) {
         return [pscustomobject]@{
-            Path = $trimmedPath
+            Path    = $trimmedPath
             IsValid = $false
-            Error = 'Expected output file does not exist.'
+            Error   = 'Expected output file does not exist.'
         }
     }
 
@@ -810,9 +811,9 @@ function Test-TTAgentExpectedOutputFile {
     $psExtensions = @('.ps1', '.psm1', '.psd1', '.ps1xml', '.pssc', '.psrc')
     if ($psExtensions -notcontains $extension.ToLowerInvariant()) {
         return [pscustomobject]@{
-            Path = $trimmedPath
+            Path    = $trimmedPath
             IsValid = $true
-            Error = $null
+            Error   = $null
         }
     }
 
@@ -830,23 +831,23 @@ function Test-TTAgentExpectedOutputFile {
             $combinedMessage = ($messages | Select-Object -Unique) -join '; '
 
             return [pscustomobject]@{
-                Path = $trimmedPath
+                Path    = $trimmedPath
                 IsValid = $false
-                Error = $combinedMessage
+                Error   = $combinedMessage
             }
         }
 
         return [pscustomobject]@{
-            Path = $trimmedPath
+            Path    = $trimmedPath
             IsValid = $true
-            Error = $null
+            Error   = $null
         }
     }
     catch {
         return [pscustomobject]@{
-            Path = $trimmedPath
+            Path    = $trimmedPath
             IsValid = $false
-            Error = $_.Exception.Message
+            Error   = $_.Exception.Message
         }
     }
 }
@@ -1337,11 +1338,12 @@ function Write-TTAgentMarkdownLog {
 
     Set-Content -Path $Path -Value ($lines -join [Environment]::NewLine) -Encoding utf8BOM
 }
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAAyszVu7qxInUf
-# Xi4VRmxSjazAKEw1/nPXdOT9QtgrdqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC/215WWhRaLW+y
+# Dlw+WKf0pbgBh0H52COkQTSXc5e0WKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -1518,31 +1520,31 @@ function Write-TTAgentMarkdownLog {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBt
-# 4/rHD6cBQce7kaMmW8ImOIcVGlGZmPmc72NiWTOFrzANBgkqhkiG9w0BAQEFAASC
-# AYDAYSBvsqUUcMiK+Tr/NhSWpc6+GzaGlgn/lJWo1KJTjqIWYsMByPYsK+p7UtIl
-# aS7v6j1OUmVeeV3ptQozWGxgOxykwlaP4jyDWKk4GJ0lQNka67Unrs7WLV+VoA1v
-# dlfksTxQyTI9lFy5e3ZZQKYUr5Z2LS5KqNhTCkQPH7aiBOmu6C+WBUMwsMaSKorg
-# BwdaonWNGeuSfAHf0vNTXCO9vvDj+p50cQ89dFd49/Z1woMiY+aDpU/TDMFe9kux
-# XzvYjp0gPq4LFqAQP/4J5xS2YT1FSVkaF1I92k2yP9ZivlJTaZB7v13CIb/gLUL3
-# Y9PqgjztEXt39Av1Ubnd/OOe/7wluDTikaFUbEkTwvUu8DPSBIPHI65130eW3xaU
-# Ac+fgsE3ERvnvY2qeeczxEwT3MtM4spBSudSEgrMdnOJ8DKP2Wc/QbmNLQkN8IPU
-# toMsmAzcDiavqObZF3qMmogvl5D16Tej68aoioqvhpx041ypSwBoQnVJJFipwgGE
-# eoOhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAd
+# sEL25MTFg2s/Bp7SLqKpmYjxLaGtzLOEnNjrO1vw+TANBgkqhkiG9w0BAQEFAASC
+# AYAzlLN0JWzMqePET0+N6VFT9ofaWdtYFOk5RqjR7cjqODSO9pmkF9IeH5JOrFa/
+# i7CnTLMfIQJixPcBTRyAayKqzff3/1yrx6W71BSSqOwzk18uZTk30DbYk+X5zm5Y
+# UsuolAJ/bK0RqLGJYIeUByBrgb/n3ybtlzYfbuzsjFcbKZsy0KQ4c+Ued4dMV0l8
+# AhzOrPmmr4UxyzIaNLgGP2UEabHR+klq01uNNHCgOeAhlvOc3ggvR7jlMZcziS6E
+# 2xbcoitzU4na54nulqFYcFm7f07N1IavzldfMy1OqSE/PPT8dwsjm/ikF1Oxvd3x
+# nuvf2y7MLKfVRBY01jBRt2Dk0dhV4NkNSD2Tk/2F8nQ2FMW7K6gSTSVa59Z9DwS7
+# L1k7wlbPH5UNbQmHueO2EzxIPSyqjF26m0hEYJGFjMA++LSEexUHXak+9kMyLbRh
+# Q8zEZ1UMJHDzRJwhbW/8myorCdH2EBwLaBPVlt0RO/MJVlgOJ+ZJz4Sekmw/vYK1
+# 5RmhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI5MTY1NzI3WjAvBgkqhkiG
-# 9w0BCQQxIgQgxbOrICiWuX578k8St0elisJaelptJC/I/kDqo64uMtgwDQYJKoZI
-# hvcNAQEBBQAEggIAXeoKwayOQvxaqMSMVwuuxDItw0etf5IKEI2yqbTrWF4mTxbt
-# Rtf7baTF6EORU0XITaNY5rMJkBiBsRsQzq71cHls0YfSJ6gb2S+E8u08InpxlPjt
-# pPz6oFfAY496xY9uOBIOdYtL4T11iyXvQyXOH26tSrc4n5FUEzn0UAEmn6R5AtTV
-# PRuw69SpIsdttENQCXyGuDfTNHT+oYRgpUz7uCMmK5ms8XHnV06a6+zt7XSLpNFo
-# W/UDpJz1r+kWvF/pVNYj/gYsoPZnop55G61LrW9ngrfJtzm+lwvPtpJBXY4yQBsD
-# 4LYaApaI8WnYxhfJxowPPXG7cC/FDHmWktwgFFsrLIxXa78NxJmUXVCBGqzKNJdO
-# pjrZQ2GeJ2YtaaS1V3UPBzcx2Mso7bJHGcYiIHWKGlO5bPmkZxQ7iM7O4aK0TonB
-# bMzGeuH88x28chabWjVN7XzOyfGske36wEcO+3H7IRPPtNt2XxteQrj6tXwwvP+m
-# fddmUARYxVWF5kczyUre3zS2jUF4FpJB9zhdKJ5Cpz/QV9Orxx6UYathKF8WjZwd
-# hY9e2EPL+rjbEVyxZPORHnGr3/KUACOiBbnoGFaqxnP2032ntQSDFxoDzl5ug9Sz
-# PFIqetBtdEyZvv8WrK8yMSFAMAsKJCr0Cgs0uvgfwo/PyfvqvcXQoRT2H1k=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MjIwMDM5WjAvBgkqhkiG
+# 9w0BCQQxIgQgWBszGaKBw0x2NfLQ78+Gs45svy4MUGtw9R1NT0Mj/+AwDQYJKoZI
+# hvcNAQEBBQAEggIASGMgkz9UXqAgeS5KJPpeawFckwzBLB6VUw9gxZhCsP5tDSE7
+# 8H8BV3EebWJ3VeYKbJ0dP6+au4ucLVpXVajjij5eWjuoSbVIRl9rBNV6QxK98LYM
+# buEzhDDVEy32IlBLm18IVfxoCePKTdQum8s/nFBT47QLau78pY0IAi28jnQb0Fu7
+# MaAz1P0VyxIH2wezjQaFEogURhjLPDa6xt2OlXPTVJ6EpdWBE2FU2uXf3SuG/h8j
+# PUVVYDFee+rSGrU3YoLqlFolQ0umYZXF6IhPd7x1jhPbKopHAR+Xhu2xYYh7P7ID
+# QnGjUQtiQzTL+mIUupL2+/Wr4/+YRIHcYAmKiqv4ESZFEDmzK4W6n4+SuCqKnrex
+# VcqgckWeQh7CbIOHLl6TzoJvV9skhirrgB7vqaajoo5z49n1FutE1T0o1bVkVACv
+# MZIG9N0I84zxd643Bu0Z3/Jd/7GBwnUEFSBDRURY8YxrRgAh7fy4TOtJVzOPOlkR
+# uWjI1pGbzJ9sct8qkCCCz0YMIDH+Nkn3jWGO4RioWpgmTGtHoFfkQiwDu1fEqQq8
+# qfikPV3fAhiMw+YRoq5HCVk1A7AgW8aXs4WvRnY+oOt9DobH32WGp3VUzE7nS1u/
+# H1CGn15VgqKLfKJfZ8LGgLWZbfvS+FSB0YR4eJ+9jfAD+YXwQwcD8pBNtko=
 # SIG # End signature block

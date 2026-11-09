@@ -2378,7 +2378,7 @@ finally {
                     -ApprovalRequestPrefix $approvalRequestPrefix `
                     -AgentProcess $agentProc `
                     -ApprovalDecisionCache $approvalDecisionCache `
-                    -CanPromptForApproval ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) `
+                    -CanPromptForApproval (([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) -or $null -ne $script:TTAgentDestructiveApprovalResponseSourceForTesting) `
                     -PromptAction {
                     & $clearTransientStatusLine
                     Write-Host ''
@@ -2799,7 +2799,7 @@ finally {
 
         $runtimeTerminalCode = ''
 
-        $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore
+        $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore -Mode $resolvedExecutionMode
         $markdownPostflightAchieved = [bool]$postflightAssessment.Achieved
         $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) { '' } else { [string]$postflightAssessment.Reason }
         if (-not $StrictPromptPreflight.IsPresent -and -not $postflightAssessment.Achieved) {
@@ -2914,7 +2914,7 @@ finally {
                 $capturedStdOut = $message
                 $markdownResponseLength = $message.Length
 
-                $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore
+                $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore -Mode $resolvedExecutionMode
                 $markdownPostflightAchieved = [bool]$postflightAssessment.Achieved
                 $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) { '' } else { [string]$postflightAssessment.Reason }
 
@@ -3040,13 +3040,11 @@ finally {
 
     }
 }
-
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDpfwNZn0MSSBVK
-# t/xFSVTwH0ttyV85jcEufC92VE9hvaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA5YZrXC3r1c62C
+# VKjWLXye88DO4ZSCfvxN1pZDfN8itqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3223,31 +3221,31 @@ finally {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA2
-# 5iWkff38OmzDUVjXqEYE1HxzkgMe6dDreD0z0cC2mzANBgkqhkiG9w0BAQEFAASC
-# AYDD2UYKC/3Mskk+yy/46rKEAPNh6co7xhjoo0Wxly2sDDc9+jSBtXeV0H7mTMVO
-# pYLvB1t/6YK3+cnYQyRm+r3J+tY71ocCdvuyJ2xXMNoD+FuIzsK3jYwpyqw9ChRR
-# Yv1MU8r0z5mumteXcvMq4qdMR4TM4MZYcfnmCEv4BBzjDEp9YuYILrGoK0hhF+q8
-# liqTtdebCs5yv5OA7IpBnFH4SZ20SEmIPqm9M24eptKe7rchR8OXgyLIccIF7QZ1
-# hUcfGnHrtvj9oovyX0yOs7I1hjg8HP+WpJVkYdfjGktZhLZkqaSAcbLnIQU62EVM
-# 8/sQg2osOF8zMXhLjrSp4UUs3jhQ5ixeuWgk3oDKz7AIwIrcM7LAhw42n6tjrens
-# U68HvDrSaGESHKy9ZPV1gEBhrGMuaNc5j3eHbMYE3aZgGh2aUZc4qIPwlbfbRuxb
-# oIwq8TuzJrNWZsO0mKUk6Tr/2LTSGVLlxVIw9FkPGBn2iyDLC2/IaS3/3NQdZf5a
-# WDyhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAr
+# 7HeAuCtakBzDDiYfPMS/zVn0FB41mNsXWYWnwe7WhDANBgkqhkiG9w0BAQEFAASC
+# AYCjz3+9SIcZwssJjZht2izjL8d7/ItCU7qF0LLkkrKT/n0fa3uNm9ef5prn5tt1
+# +hLbO8h/7gEs1dsRbstAK1/w8e8gYLhspBjJFRzvdyP8LI5r5UaIvPYPixDqo/g6
+# Ust227bDrWNup9Z1Oqe3b25RbfRqZtR8G8eyMtvKZTI78Y1vaQTgAAHmyfNQVBt2
+# eGx4nt0Ym2GKkyPoDiGvqUKOhiP6DLw1RJGHof/RgGSbo7OyUoY2AkM8IUk0PpIn
+# ohOh3+2TK8wIFS7x70gLqJlKWcRZP1/9IBMdd6tt2sK3IhkSKuiHdDfDRpEHn0cu
+# UA0ACJt5DAKp7beXUUWC5vY8brAIAjzqsp/ak9ifbgrwbacz8k0jzQtnvLOY4DPq
+# GAkilyB4rQfFPaeilRMJ/sPOHwOHCwbXC+ndZVptQ0SpOQ6YGJF5L4W1amYeYa04
+# q8rKV8AE1BKWFA34bvDwLIYVqA8t41Nt7qaUdJI72C0UcQVlprC8UjgSdL1PvOqf
+# C5KhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MTg1NzQ1WjAvBgkqhkiG
-# 9w0BCQQxIgQg1mHYBLPFWBHozyy28KKhVk2t8J9xNkCU8UZ91ah0ThwwDQYJKoZI
-# hvcNAQEBBQAEggIAgRi61VpdCikOwsHbAmlZX8BsCWUHoKtQRiqfsKPitZqc3QhK
-# Aq4el2O2RoAWO6JmVrfSLIOnQXX84X8Wu0U3p6F8QfhsFoBxT6pvTE36lpaaoejX
-# 8Eda5oSPHraDy+pXC5jx7XRNZDycE+BPHmwcCtjBneoquoZ/cl1//CRtA+eU3Kf3
-# dn12Jh1pxvwgYUODbiLGbWb5zQaWJb3wDy1qZVsGFJali2TiLRPGfikOxC2jhol9
-# /53Hp+OrOa29XwFhRQdYDvXCAUFhj1Ow5sr67YR9G5eyoFfiRe2FE894jepUgJ+o
-# e6M3ipKsBksPuzsEVJkFDMXsx3jg66D9LcpBmUe71IOlq5gkwUTTFIhm6fP/uXuW
-# 2JuOpnVkvwK6sFPwynzqRmdk2W9AQ7IdzN9A9igcbeffTu5sdXBryXdyYHhQDE8k
-# 2dHkBZFXGLUPKFi37L3sidD33wPuJB7qrCThH0emof1ND4Cn8wYsmz53h3uktYjU
-# R4NL4bydfK0LdozAyEY0fnZUath0x4qPXDcYwiHPIlVrk6c3D7nWByh/a1TDmUVr
-# yY+RJOJ56u1+zjQjBGkvchi9KZI3BOIprmYTFgSmjhiRqMmRuU78M7fkoaoHWxyR
-# 42rHCQd6XLa0a1/w9RjkTpyZvVtCNJKn/5URQZ96MGFSMrh0VmZadgZKKSw=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjMzWjAvBgkqhkiG
+# 9w0BCQQxIgQgbRqIu2CV03WOqrcQM9cyWT6J3rvLIP/1o+QLIFbMa90wDQYJKoZI
+# hvcNAQEBBQAEggIALoy/XQHat9jnB7utZ0pTARBKgt55Zuxyrb28KMkchwzMW9Qe
+# gyPBwfnS+LN2cBpJQeyovF8qojqgT78l7zW3+WG0B/cvnR3kIhcNnudHGPPwZUgJ
+# Seex91vJUR8w1wpXmmxcLcub+bltd72VYr+euLAxnYzxlDMDBHmaR7v9I4rT/TXF
+# JDaYDkDYC7ARd9SmofATzt94iGp9pRsCIXWMAXYaXqzxxoRZoqTxkPY7YBcVXTLZ
+# wpjUmxUc5NgVHGlp4K5JfPKwQ5nzEelaGnS8F01y6D7x1fboQQooZys1Ikhe2WS5
+# JVjhJVnkjEBMSl9c3aP94uUPTHL1m59KyuAT6nwph7FPUZsqrsvm4Utqpnt9Rhsl
+# 9U+UURSNTDcwZqqPNGRF1dMzz1qFhea4IgjETppiVGLz4XXKVzjUyJdqkjEp27AD
+# ZN+lVp6jzDNUYgEeAkZoJk2zCFAOr5TNy9ymUrIQlKnQkdU5978RAXsZQUSyTzOn
+# KZuAqjbA9KunWrCtEC8P/jvU7UTcKj6bA9ZGYgzsEinfVqW87yHB7LqOnDFeA1PI
+# C9J45KEfilfJjoi1wgnq8zVGAM4FPYJTrKi7UFFjDEE8qPXfTIW0X0ZGqdWFg8v4
+# a6yy/Wrj8TYzCwy3cBOghDbmQE8DS4zOgZndiFbDNTZVh7k180Dndbf/C8A=
 # SIG # End signature block
