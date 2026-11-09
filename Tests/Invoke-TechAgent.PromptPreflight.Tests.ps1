@@ -102,6 +102,31 @@ Describe "Invoke-TechAgent Prompt Preflight" {
         }
     }
 
+    It "Does not infer expected output path from authoritative input read-only prompts" {
+        InModuleScope TechToolbox {
+            $prompt = @'
+Read C:\repos\TechToolbox\AI\Tasks\ScenarioA-ExtractionMap.md completely before editing.
+Treat it as the authoritative input and authoritative implementation specification.
+Implement the required changes in Tests\Support\Invoke-TechAgent.ScenarioA.ps1 and Tests\Invoke-TechAgent.ReconciliationE2E.Tests.ps1.
+No output file is requested.
+'@
+
+            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+            $resolved | Should -BeNullOrEmpty
+        }
+    }
+
+    It "Prefers an explicit save path over a read-only reference path" {
+        InModuleScope TechToolbox {
+            $prompt = 'Read C:\repos\TechToolbox\AI\Tasks\ScenarioA-ExtractionMap.md and save your report to C:\repos\TechToolbox\artifacts\scenarioA-report.md.'
+
+            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+            $resolved | Should -Be 'C:\repos\TechToolbox\artifacts\scenarioA-report.md'
+        }
+    }
+
     It "Infers expected output path from directory and named-file phrasing" {
         InModuleScope TechToolbox {
             $tempRoot = Join-Path -Path $env:TEMP -ChildPath ('tt-agent-path-parse-' + [guid]::NewGuid().ToString('N'))
@@ -231,11 +256,16 @@ foreach ($item in 1..2) {
         }
     }
 }
+
+
+
+
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCYM2mGbRm3qafr
-# YTrlgciDlqQWBxB/qTgdP5rQc0u57KCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCoy3+NzU/tpbyp
+# VXVND32NePl0eHhW1X+xs6TICcT8oKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -412,31 +442,31 @@ foreach ($item in 1..2) {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAN
-# 60YLV21BTVhSOEG8Sjmi4GONcG6y2IhCxLQIA1kVrDANBgkqhkiG9w0BAQEFAASC
-# AYBRid8b6BpEOA17XDzILS61fK6gBLwkrXGIF7lhBZfoLC6dVoVHOxhYd1LfIExa
-# VDilIWeMq7gnBWJ944eQ7I4fe6iXS89HzKd0svL0NgWp0Dp6EWHjl+Rhjy/Z8R2D
-# ufb+KPNvOza4SIKesbszfjidbhenKQP2zBS1a6E8l1MqjbyWFBQ8YgU/hBnP9Ybz
-# qli6bniZ137JXLEJHV4zjq8+N9xABs1oNWqvKlhcXXUEqZuzUhyXdwIrHJ2vFamo
-# h08JgRncbnswNXa0iq9/mE1mxa/Avl0qhhO/LaPD1J/06ENNIL9O3vQEf5/JEOta
-# 0UieOJcHnJYBt+NeMPCB4vZ/x2eo5JWYHT5+sqVNduWUtBQEeOD8eT7fTOfb7Ko9
-# cbB3u3SZdzO5vzw6ttVhOWFqMdqeQMw/sR9cH3o6qhxeL3Enrm67tckUy7TU31lK
-# S4R+r/fZS10iJ28TVAAbnk4yFNf91V9Q1w0jLWmn5N+GDXdysqlgbmqPXZbOgrNm
-# KeehggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCC
+# AhZZxYr4LpIiLzShE51lhv+tz0VTmXW7wKuU20rbuTANBgkqhkiG9w0BAQEFAASC
+# AYCpymi45fITndg6ew9ginGW58LVJGz9tsd7Yv4DTL6NT07IBlRGzH82HPUQ2c3S
+# Vy3V5UBrDLFAqcVdwnqYNOmRn+K5vMMUgOQjZSiPQxV/+qYGlTlCb3rLQtLs4qza
+# kNvCoCnb+vXO70A0fssyCwJPCVUjijAEYCHiNYViP/acfNQCDrrYd+16V+/pvjpu
+# yaVxsfM+VUXzYkMcfuPsU42t1oV8N8ZpPdgGtogZCcOpkC6xws4GDteEfK0AV/zD
+# v+lD+2M6XS8KlR8WFPJB4MB9SoteNtJZBSRSUNJGF7mimchvPYjL1HGn+1Bg9JFV
+# CQn3L+4icaWKX8wp6IAO4XXW07OMldtwD1MUNrlEaPTnbQ/Ha9rcQvxJe5ZPDIR9
+# hfMQa3DeDMgQ3vbOiI7NwXNna4iJFuSHGYcn5uEVlCupYyjK8gt+ALuop2zipVoT
+# uBtSa3/O9Ig/rXDGR0O3Zfu9kSftq+VBCZCsJWEsPfw7ZEKSwzl6U4fH+uMfaO10
+# 2NyhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA4MjE1OTAyWjAvBgkqhkiG
-# 9w0BCQQxIgQgxO1hYU6OlMZp/upT27drhZadcTjSh31rjOCe09vedp0wDQYJKoZI
-# hvcNAQEBBQAEggIAihXZtJktcgLfZww/UEIcQtkKAmRZOxGbGqnuzUe5mSbcnq9S
-# NRrSQb44aQdTKb0vjJRYuHNMae242+OvXSd/duypLi49xm716YhrREbq+vTqGr7x
-# mpG8M8/NUCam5FhH3Qh8M5gAwqGVPcnnzW+zb1Jsw41EtORaMx64AINKl5iBJEro
-# Anz6WLvXuz0i6EQYXS3QS+g59DoQq1VFcPRaguTsOVVUH9RjQjHnh+CefUhd6yLr
-# hHCWU5YBGaQbgWJDT+mG7duOgFtskk4FYjO1gjxhWUacqoAh6Kyn4egYxL1ZODKO
-# BY1fiMY4gPsHmtb7FX6gMPXtn07QF0KvUeAnLHpj1+xnqm25tNqQbr07zXLWT71N
-# 54qz/ekZgm4wKWOFBUN7e6OOud6s9iQ4hHBkGhvPqcKGHPUbkFCXv8Sbqja693tA
-# /kwGpLXKo38l2E7EQRWVKySM85sTXjAWeKB/FKMnu6q1AgNr2ZyOidFfcSaZKfrR
-# g4WtFoUgUX2CuPVDG+pyW56OGUbtOcQdiql9W+p9pnMlq0/2MaKlYYWIzp7I4K32
-# bGBZ4AgMO+F9kiADVvy8qPI1xMblTMUGdK1YHdV6RcsTvKcWwkO87wjNWDFTcL0p
-# uI2fLl66FLuzEU5v/EpMSzjIlr2OcC6MnhyhFC3jdnkcfyo1vP/6pHKoMo0=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDYyMTU3WjAvBgkqhkiG
+# 9w0BCQQxIgQgbQDL8QD4uU/Ccy+v9c0NfTQ0hsnxljOfzH5g7KnSi3AwDQYJKoZI
+# hvcNAQEBBQAEggIAAkmzb2kS+W6iw/GgiXwQEiIk6NEQtiF/DNfBOv19im4ouljh
+# 2ZrB0jWjZBOQapv/XYekKqa9VHOCw61LkBn9VICGwS/jfSDvLKrp3Yu63KZpxiYN
+# WqNie4WAuVzcbSvqzX1l4i9VxV1e7bGLtQiKOOyh+o4bqM6IwQi04XFW/JKwFUve
+# V3KQiciY1kxYWkIpop1e9+oWIRqb8AVml0oM8nsaSrnoSFif/BFq0AB/QhnZIph6
+# BC29Vxb8x7HWDO6JU7aHVBSLZay/1SMcnlQFDKWoNIgPnqAcCrtn/eyj34BPu84b
+# A/b49jjCK43Nd+eWKjjOFnr9oBoIw49+xTh6NB6jGfrslRwvq2LAhXfmrecGeaLC
+# An4vhB1Zmyw5fCkf/mxH6rqvXC6oVYENZNyJOz6DEKALjnNkdQEIM88OAUM2RzEg
+# F2/VpOHSQSxUzIfUHHwRfFBG+J/RVJPm7wVV4BHWSLWnPPJoGSWAsmwciLGFxDe7
+# yHLc1CngOImnNbHGBitWw0tC/fCffZciB6s9J7kT2iyEBr/ONYg9J9W0doj4Hhc6
+# MXJe2w9ochwuMUZbGwJZI4/351sK3y2sXaaa2DI1tHcIIYhmGqjMrFg3Y65dnwa0
+# bsdjtApB+VMtEbfXqFbWhHLSOn1/x7IUcYOeJ2IUKWnVtsCIA4ZatCZTiQ8=
 # SIG # End signature block

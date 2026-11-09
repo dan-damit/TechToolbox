@@ -18,10 +18,39 @@ $failureCode = $null
 $pesterResult = $null
 $selectedTests = @()
 $resultPathFull = $null
+$requiredPowerShellVersion = $null
 $mode = if ($DiscoveryOnly) { 'DiscoveryOnly' } else { 'Execution' }
 $discoveredCount = 0
 $selectedCount = 0
 $testsExecuted = 0
+$failures = [System.Collections.Generic.List[object]]::new()
+$failureEvidenceTruncated = $false
+$maxFailureEntries = 10
+$maxErrorsPerTest = 3
+$maxFailureMessageCharacters = 1024
+$maxFailureFieldCharacters = 256
+
+function Get-TTPesterPropertyValue {
+    param(
+        [Parameter(Mandatory = $true)] $InputObject,
+        [Parameter(Mandatory = $true)] [string] $Name
+    )
+    $property = $InputObject.PSObject.Properties[$Name]
+    if ($null -ne $property) { return $property.Value }
+    return $null
+}
+
+function ConvertTo-TTBoundedFailureText {
+    param(
+        [AllowNull()] $Value,
+        [Parameter(Mandatory = $true)] [int] $MaximumCharacters
+    )
+    if ($null -eq $Value) { return [pscustomobject]@{ Value = $null; Truncated = $false } }
+    if ($Value -isnot [string]) { return [pscustomobject]@{ Value = $null; Truncated = $false } }
+    $text = [string]$Value
+    if ($text.Length -le $MaximumCharacters) { return [pscustomobject]@{ Value = $text; Truncated = $false } }
+    return [pscustomobject]@{ Value = $text.Substring(0, $MaximumCharacters); Truncated = $true }
+}
 
 try {
     if ([string]::IsNullOrWhiteSpace($ResultPath)) { throw 'ResultPath is required.' }
@@ -46,6 +75,18 @@ try {
         if (($existingResult.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'ResultPath cannot be a reparse point.' }
     }
     $resultPathFull = $resolvedResultPath
+
+    $manifestPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'TechToolbox.psd1'
+    $manifestText = [IO.File]::ReadAllText($manifestPath)
+    $versionMatch = [regex]::Match($manifestText, '(?m)^\s*PowerShellVersion\s*=\s*''([^'']+)''\s*(?:#.*)?$')
+    if (!$versionMatch.Success) { throw 'The TechToolbox manifest PowerShellVersion requirement could not be read.' }
+    $requiredPowerShellVersion = [version]$versionMatch.Groups[1].Value
+    $currentPowerShellVersion = [version]$PSVersionTable.PSVersion
+    $currentPowerShellEdition = [string]$PSVersionTable.PSEdition
+    if ($currentPowerShellEdition -ne 'Core' -or $currentPowerShellVersion -lt $requiredPowerShellVersion) {
+        $failureCode = 'UnsupportedPowerShellVersion'
+        throw 'The current PowerShell host does not meet the TechToolbox module runtime requirement.'
+    }
 
     if ([string]::IsNullOrWhiteSpace($Path) -or !(Test-Path -LiteralPath $Path)) {
         $failureCode = 'InvalidPath'
@@ -106,13 +147,69 @@ try {
             $selectedTests = @(
                 foreach ($test in $pesterTests) {
                     $testResult = [string]$test.Result
-                    if ($testResult -ne 'NotRun' -and $test.ExpandedName) {
-                        [string]$test.ExpandedName
+                    if ($testResult -ne 'NotRun' -and $test.ExpandedPath) {
+                        [string]$test.ExpandedPath
                     }
                 }
             )
             $selectedCount = [int]$pesterResult.TotalCount - [int]$pesterResult.NotRunCount
             $testsExecuted = [int]$pesterResult.PassedCount + [int]$pesterResult.FailedCount + [int]$pesterResult.SkippedCount
+            foreach ($test in $pesterTests) {
+                if ([string]$test.Result -ne 'Failed') { continue }
+                $rawErrors = Get-TTPesterPropertyValue -InputObject $test -Name 'ErrorRecord'
+                if ($null -eq $rawErrors) { $rawErrors = Get-TTPesterPropertyValue -InputObject $test -Name 'ErrorRecords' }
+                $testErrors = @($rawErrors | Where-Object { $null -ne $_ })
+                if ($testErrors.Count -eq 0) {
+                    $parentBlock = Get-TTPesterPropertyValue -InputObject $test -Name 'Block'
+                    while ($null -ne $parentBlock -and $testErrors.Count -eq 0) {
+                        $parentErrors = Get-TTPesterPropertyValue -InputObject $parentBlock -Name 'ErrorRecord'
+                        $testErrors = @($parentErrors | Where-Object { $null -ne $_ })
+                        $parentBlock = Get-TTPesterPropertyValue -InputObject $parentBlock -Name 'Parent'
+                    }
+                }
+                if ($testErrors.Count -eq 0) { $testErrors = @($null) }
+                $errorLimit = [Math]::Min($testErrors.Count, $maxErrorsPerTest)
+                if ($testErrors.Count -gt $maxErrorsPerTest) { $failureEvidenceTruncated = $true }
+                for ($errorIndex = 0; $errorIndex -lt $errorLimit; $errorIndex++) {
+                    if ($failures.Count -ge $maxFailureEntries) { $failureEvidenceTruncated = $true; break }
+                    $errorRecord = $testErrors[$errorIndex]
+                    $exception = if ($null -ne $errorRecord) { Get-TTPesterPropertyValue -InputObject $errorRecord -Name 'Exception' } else { $null }
+                    $invocation = if ($null -ne $errorRecord) { Get-TTPesterPropertyValue -InputObject $errorRecord -Name 'InvocationInfo' } else { $null }
+                    $messageText = if ($null -ne $exception) { Get-TTPesterPropertyValue -InputObject $exception -Name 'Message' } else { $null }
+                    $typeText = if ($null -ne $exception) { Get-TTPesterPropertyValue -InputObject $exception -Name 'FullName' } else { $null }
+                    if ($null -eq $typeText -and $null -ne $exception) { $typeText = $exception.GetType().FullName }
+                    $scriptBlock = Get-TTPesterPropertyValue -InputObject $test -Name 'ScriptBlock'
+                    $fileText = if ($scriptBlock -is [scriptblock]) { $scriptBlock.File } else { $null }
+                    if ($null -eq $fileText -and $null -ne $invocation) { $fileText = Get-TTPesterPropertyValue -InputObject $invocation -Name 'ScriptName' }
+                    $lineValue = Get-TTPesterPropertyValue -InputObject $test -Name 'StartLine'
+                    if ($null -eq $lineValue -and $null -ne $invocation) { $lineValue = Get-TTPesterPropertyValue -InputObject $invocation -Name 'ScriptLineNumber' }
+                    $errorId = if ($null -ne $errorRecord) { Get-TTPesterPropertyValue -InputObject $errorRecord -Name 'FullyQualifiedErrorId' } else { $null }
+                    $fullName = Get-TTPesterPropertyValue -InputObject $test -Name 'ExpandedPath'
+                    if ($null -eq $fullName) { $fullName = Get-TTPesterPropertyValue -InputObject $test -Name 'FullName' }
+                    if ($null -eq $fullName) { $fullName = Get-TTPesterPropertyValue -InputObject $test -Name 'ExpandedName' }
+                    $testName = Get-TTPesterPropertyValue -InputObject $test -Name 'ExpandedName'
+                    if ($null -eq $testName) { $testName = Get-TTPesterPropertyValue -InputObject $test -Name 'Name' }
+                    $boundedMessage = ConvertTo-TTBoundedFailureText -Value $messageText -MaximumCharacters $maxFailureMessageCharacters
+                    $boundedType = ConvertTo-TTBoundedFailureText -Value $typeText -MaximumCharacters $maxFailureFieldCharacters
+                    $boundedName = ConvertTo-TTBoundedFailureText -Value $testName -MaximumCharacters $maxFailureFieldCharacters
+                    $boundedFullName = ConvertTo-TTBoundedFailureText -Value $fullName -MaximumCharacters $maxFailureFieldCharacters
+                    $boundedFile = ConvertTo-TTBoundedFailureText -Value $fileText -MaximumCharacters $maxFailureFieldCharacters
+                    $boundedErrorId = ConvertTo-TTBoundedFailureText -Value $errorId -MaximumCharacters $maxFailureFieldCharacters
+                    $entryTruncated = $boundedMessage.Truncated -or $boundedType.Truncated -or $boundedName.Truncated -or $boundedFullName.Truncated -or $boundedFile.Truncated -or $boundedErrorId.Truncated
+                    if ($entryTruncated) { $failureEvidenceTruncated = $true }
+                    $failures.Add([ordered]@{
+                            FullName     = $boundedFullName.Value
+                            Name         = $boundedName.Value
+                            Result       = 'Failed'
+                            ErrorType    = $boundedType.Value
+                            ErrorMessage = $boundedMessage.Value
+                            File         = $boundedFile.Value
+                            Line         = if ($null -ne $lineValue -and [string]$lineValue -match '^\d+$') { [int]$lineValue } else { $null }
+                            FailureKind  = $boundedErrorId.Value
+                            Truncated    = $entryTruncated
+                        })
+                }
+            }
         }
     }
 
@@ -131,23 +228,30 @@ catch {
 }
 
 $hasResult = $null -ne $pesterResult
+$agentAssemblyLoaded = [bool](@([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -like 'TechToolbox.Agent*' }).Count -gt 0)
 $envelope = [ordered]@{
-    Mode = $mode
-    SelectedPath = $selectedPath
-    FullNameFilter = $FullNameFilter
-    DiscoveredCount = $discoveredCount
-    SelectedCount = $selectedCount
-    TotalCount = if ($hasResult) { [int]$pesterResult.TotalCount } else { 0 }
-    PassedCount = if ($DiscoveryOnly) { 0 } elseif ($hasResult) { [int]$pesterResult.PassedCount } else { 0 }
-    FailedCount = if ($DiscoveryOnly) { 0 } elseif ($hasResult) { [int]$pesterResult.FailedCount } else { 0 }
-    SkippedCount = if ($DiscoveryOnly) { 0 } elseif ($hasResult) { [int]$pesterResult.SkippedCount } else { 0 }
-    NotRunCount = if ($hasResult) { [int]$pesterResult.NotRunCount } else { 0 }
-    TestsExecuted = $testsExecuted
-    Duration = if ($hasResult -and $pesterResult.Duration -is [timespan]) { [double]$pesterResult.Duration.TotalMilliseconds } elseif ($hasResult) { [string]$pesterResult.Duration } else { $null }
-    Result = if ($failureCode) { 'Failed' } elseif ($DiscoveryOnly) { 'Discovered' } elseif ($hasResult) { [string]$pesterResult.Result } else { 'Failed' }
-    ProcessId = $PID
-    SelectedTests = @($selectedTests)
-    FailureCode = $failureCode
+    Mode                      = $mode
+    SelectedPath              = $selectedPath
+    FullNameFilter            = $FullNameFilter
+    DiscoveredCount           = $discoveredCount
+    SelectedCount             = $selectedCount
+    TotalCount                = if ($hasResult) { [int]$pesterResult.TotalCount } else { 0 }
+    PassedCount               = if ($DiscoveryOnly) { 0 } elseif ($hasResult) { [int]$pesterResult.PassedCount } else { 0 }
+    FailedCount               = if ($DiscoveryOnly) { 0 } elseif ($hasResult) { [int]$pesterResult.FailedCount } else { 0 }
+    SkippedCount              = if ($DiscoveryOnly) { 0 } elseif ($hasResult) { [int]$pesterResult.SkippedCount } else { 0 }
+    NotRunCount               = if ($hasResult) { [int]$pesterResult.NotRunCount } else { 0 }
+    TestsExecuted             = $testsExecuted
+    Duration                  = if ($hasResult -and $pesterResult.Duration -is [timespan]) { [double]$pesterResult.Duration.TotalMilliseconds } elseif ($hasResult) { [string]$pesterResult.Duration } else { $null }
+    Result                    = if ($failureCode) { 'Failed' } elseif ($DiscoveryOnly) { 'Discovered' } elseif ($hasResult) { [string]$pesterResult.Result } else { 'Failed' }
+    ProcessId                 = $PID
+    SelectedTests             = @($selectedTests)
+    Failures                  = if ($DiscoveryOnly) { , ([object[]]@()) } else { , ([object[]]$failures.ToArray()) }
+    FailureEvidenceTruncated  = if ($DiscoveryOnly) { $false } else { $failureEvidenceTruncated }
+    FailureCode               = $failureCode
+    AgentAssemblyLoaded       = $agentAssemblyLoaded
+    PowerShellVersion         = if ($PSVersionTable.PSVersion.ToString().Length -le 32) { $PSVersionTable.PSVersion.ToString() } else { $PSVersionTable.PSVersion.ToString().Substring(0, 32) }
+    PowerShellEdition         = if ([string]$PSVersionTable.PSEdition -and ([string]$PSVersionTable.PSEdition).Length -le 16) { [string]$PSVersionTable.PSEdition } elseif ([string]$PSVersionTable.PSEdition) { ([string]$PSVersionTable.PSEdition).Substring(0, 16) } else { $null }
+    RequiredPowerShellVersion = if ($null -ne $requiredPowerShellVersion) { $requiredPowerShellVersion.ToString() } else { $null }
 }
 
 $envelope.SchemaVersion = 1
@@ -176,7 +280,7 @@ try {
     }
 
     $parsed = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($tempResultPath, $utf8)) -ErrorAction Stop
-    foreach ($field in @('Mode', 'SelectedPath', 'FullNameFilter', 'DiscoveredCount', 'SelectedCount', 'TotalCount', 'PassedCount', 'FailedCount', 'SkippedCount', 'NotRunCount', 'TestsExecuted', 'Duration', 'Result', 'ProcessId', 'SelectedTests', 'FailureCode', 'SchemaVersion', 'CompletedUtc', 'RunnerExitCode')) {
+    foreach ($field in @('Mode', 'SelectedPath', 'FullNameFilter', 'DiscoveredCount', 'SelectedCount', 'TotalCount', 'PassedCount', 'FailedCount', 'SkippedCount', 'NotRunCount', 'TestsExecuted', 'Duration', 'Result', 'ProcessId', 'SelectedTests', 'Failures', 'FailureEvidenceTruncated', 'FailureCode', 'AgentAssemblyLoaded', 'PowerShellVersion', 'PowerShellEdition', 'RequiredPowerShellVersion', 'SchemaVersion', 'CompletedUtc', 'RunnerExitCode')) {
         if ($null -eq $parsed.PSObject.Properties[$field]) { throw "Result envelope is missing field: $field" }
     }
 
@@ -205,8 +309,8 @@ exit $runnerExitCod
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCoDmjIPx3YmcJ/
-# L6T0DuPiZkbWuEf4bWjcqDKeV6oPGKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC/8gbVnjzTXJ1x
+# 5DJJKA6xISFt2dGJ65cV+nDSHY6kMKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -383,31 +487,31 @@ exit $runnerExitCod
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAw
-# 2u4aTxR5kwxDFUmEknpywaobpONHzL3lipw09cvX5zANBgkqhkiG9w0BAQEFAASC
-# AYCs8cPPtI0SXGuq4khItphQ8QycPQPduPTHE9d5laUAndZBui6VeEyNE5VHIsPh
-# 1r+mlTW7go379HBHK7hVnf0XL6yoR1ufry79xlIHXnSLRSqEPChFXmoanohB6dNW
-# 4iBSShmKJ1LhCv9IIE6ktg5tghz3ZIZ+WiSPN5Br8AMhb7nhXVnEU+yiGJ5Kn+A/
-# Egk1POVdvOxxpPwAaLSVSqd3F03DX62HLOhgp5SW42Yp+Z4P7rghwDIEOTJKuVKL
-# JY9j4xj7nRZW+ywsdSx7GbTWUMkSd+MzUXF5ZXg2BMeLgPeC2eLC+eCw02ZA/+Xf
-# sESlb1LyaU2uNqa3+pjTy9VbhzjzfUSZuD9qn1L+3nSmfDNQOdWxXndvDUVPuXe4
-# c7FnZ0hvtEsIA2m9AdLaE2NyE9+EEYJ8ZOZFw/wmdrdRjUtWHrPF7giAFQr9XrLm
-# KzC9ak/BSvFrpnmJQMNipEMFpzE4gJO6JiU9BJ4nZ4LnzHgloIVpCy3jIcInnQCK
-# fFahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCn
+# ouC0fIgm2CNSMulprXu1HxVISzCwTzLUeX1Dz8ZtPzANBgkqhkiG9w0BAQEFAASC
+# AYBV3RQBd9CnnNuqGpfVDqVbL9Fw5DJtHEBz3e/H4HH93zJuUcpPLaasIa4tog0U
+# TD5V/kA+EeMgBbS3gQu9Xp+sj3ES1I1TMLPoO14ikSRZgcnKj4r9yhlgN3OrPSqW
+# a12Jv3+RpWEQ1WI/nJ8/8fWWnhTJ0IlZKZp8vpMSXaRExn622p5zEfGfKOebw2C1
+# 1l9TcRoI007jDHufvptNfaV/HpSn9XySLAVqJiRqeuc2fR2/CAJg5tftRBmtsjCy
+# SNFg3LwfuVVfS4sieww4ZbzxwAFxfhOUuJoKPwrmi35YUzEK/zBkeNTMouBuWuny
+# jak67epe08QqZ1MLy8gGYBvXHG3EUre0TgOv1FhzYe2FZAA0h2/7BSyi1JxE6HtU
+# QHF2yt/r0FXKyMMN/qGgFlp1G/uax/g00jfEed+Pt508GLFPnL6SlFmQV1YytOqC
+# HB5BmSlYPineJ+RB0CLYvsBY0IKjNbYLa2qKR5db3bAfH1ZlhIcO7nALZURX1+gl
+# wsChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDQ1NzI5WjAvBgkqhkiG
-# 9w0BCQQxIgQg+xw3daAIlaMXJE3XnVV2QmbhlncYwrSbL59WwmpdnhUwDQYJKoZI
-# hvcNAQEBBQAEggIAsRE1zmB2Kg9Ow6kFf64ObbdD9/UlorGL55ZW4urHL3l9Fckj
-# ni2JWZWJlLbJmLoUeKtpCXI+Efky8TcNyv6vYUeAiW5+GyAkqdH1Zq0zI4kKrmdL
-# YUJn7lr53VNpZoNBPI0kYohC1q9pKrBdyS7y5oEa1bYMP7LGqtUGtimvSE0/ooXc
-# SvrCFTaq5n82FOVjJOL37KwSIMsaz75S5N+wQsbQ+40Ti/XfdIh4GO0FFBvZTjHt
-# uUAdc1W+ZQCeVcelEmOrl4tBH7gPDrhdZ60D1DEl7tKZvPWY4fP51jZmmkLXtfnT
-# lvBWO61cWbsi8VKtWZl2GHFaYEhb+oElpnHr3Jua15oL5kMtGobhSdsI47AyHhyN
-# F7FWofmIwK1VNDC3xNYl3BIEICtDXbomwhMgHOvDJqoN9TgbGY6MnCki/ZkyUjQX
-# oX/e+v+6tPQwPA2kpGmxQaPYoWkvPiy/8wiBSgxHZHcYtrdeYpnujlrARnqW8eY7
-# UAusz11Mx3c1N4MWNLNmdwyDgBI6AykQkexUuSjSxCEJN43PB32FL4s8/cI4jgGA
-# 1BmKToJGxS0xTdkqiym/9JrhlvtRFw+DCfJXDoNZZLUJDlW8ARi3l+hN4eE1gnTV
-# 8bXceIyyADQA2ujYfVwD0XAMhyeti7FZZSklL6f3190dSbDhG+NVlFoHHPI=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUyNjA0WjAvBgkqhkiG
+# 9w0BCQQxIgQgOzQkygqxThY9uXlKA6cEK8L4bcHnuKFvFu7tFFNj5G0wDQYJKoZI
+# hvcNAQEBBQAEggIAMpC9IFdaaAFpHuXxqd7Un/XSq+3Omgfpha9ISFmqasF5jqmr
+# qemIl7gi3fvLcnVfvTOB4Fd74G81F4i3bbAancjYc+/tQ0u0TeveKnjEFi+NVp9N
+# JzpP2GnZ2eP7SiBAboOIrtPRsA9zd1itcSco3dTGXyiWuXfecVNadjlsc979jWFw
+# Xtdn+oZ1/Z7+eOGxayRHdJ0M466P4Y8+7+dBwgw4jfIxcBXOiWjvLH6zm57ZioU4
+# LT2TZp+aBFNwel8gVOLM0zuT0Q9GKM3Q+mtSGgCtoO0edjETWbDADAjHKrH/g/Sn
+# lAYvddu/0+p9J/OmM8ysagysEKB7O064xUh4tBfg1Hsg2UucO17i3lCXrne1sdeZ
+# rr8AeX+7xN+m92WsuDFQUWKvVOpZY9PUiozouuZPZDRyjLNaab0MNT2xB7WjUwTY
+# GZkN/wuv7sPSUhzS2Gv2rTrz/OquIdkr+V0WY7tNziCBixN/YMQAJ+E10MThhYPu
+# 4Uc1iuyfrlubFqgPWUiEm7taqsIMnvYKJtJflDMC20CbupvpfxOuQEsv2L7iRDwG
+# 6/Y9/O/Td/oGvCIm9ZSD+/ufA9pkiKpWnEmMZwZcFP3WiEfXVWNGvdrQMbXrcHxj
+# WdUDSU/QDlcAW4AYTovtJ806LfvcJcdfCQKAqu2WSXnVVHu7dZfZ42QufT0=
 # SIG # End signature block
