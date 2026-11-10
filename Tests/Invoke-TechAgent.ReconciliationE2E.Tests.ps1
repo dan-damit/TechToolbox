@@ -731,10 +731,6 @@ try {
         $resultPath = Join-Path $jobRoot ($jobId + '.result.json')
         $priorLocalData = [Environment]::GetEnvironmentVariable('TT_LocalDataRoot', 'Process')
         $priorLocalAppData = [Environment]::GetEnvironmentVariable('LOCALAPPDATA', 'Process')
-        $workerValidated = $false
-        $retainWorkerFixture = $false
-        $statusSnapshots = [Collections.Generic.List[object]]::new()
-        $lastSnapshotFingerprint = $null
         $liveRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'TechToolbox' } else { $null }
         $liveBefore = Get-TTE2EInventory -Root $liveRoot
         try {
@@ -749,47 +745,12 @@ try {
 
             $deadline = [DateTimeOffset]::UtcNow.AddMinutes(3)
             $status = $null
-            $workerIdentityEvidence = $null
             while ([DateTimeOffset]::UtcNow -lt $deadline) {
                 if (Test-Path -LiteralPath $statusPath -PathType Leaf) {
                     $candidate = [IO.File]::ReadAllText($statusPath) | ConvertFrom-Json
                     if ($candidate.JobId -cne $jobId) { throw 'Detached worker status JobId changed.' }
                     if ($candidate.PlanRunId -cne $script:scenarioAPlanRunId -or $candidate.ArtifactSha256 -cne $script:scenarioAArtifactSha256) {
                         throw 'Detached worker plan/artifact correlation changed.'
-                    }
-                    $bounded = [ordered]@{}
-                    foreach ($name in @('CreatedAtUtc', 'StartedAtUtc', 'CompletedAtUtc', 'UpdatedAtUtc', 'State', 'Phase', 'FailureCode', 'FailureType', 'ProcessId', 'ProcessStartedAtUtc', 'ProcessExitCode', 'ProcessDiagnostic', 'LaunchExceptionType', 'LaunchNativeErrorCode', 'LaunchAttemptKind', 'LaunchAttemptCount', 'LaunchAttemptHistory', 'ExecutableResolutionSource', 'ExecutableResolved', 'ExecutableExists', 'AgentAssemblyExists', 'WorkingDirectoryExists', 'WorkerMode', 'ArgumentCount', 'EnvironmentInheritance', 'ProcessStartFailureAtUtc', 'TerminalOutcome', 'TerminalResultPersisted', 'TotalApprovedSources', 'ProcessedSources', 'Succeeded', 'SucceededSources', 'Failed', 'FailedSources', 'Conflicted', 'ConflictedSources', 'Publications', 'PublicationCount', 'LastProgressUtc')) {
-                        $property = $candidate.PSObject.Properties[$name]
-                        if ($property) {
-                            $value = $property.Value
-                            if ($name -eq 'ProcessDiagnostic' -and $null -ne $value) {
-                                $value = [string]$value -replace '[\r\n\t]+', ' '
-                                if ($value -match '(?i)stacktrace| at [\w`.+<>]+\(') { $value = $null }
-                                elseif ($value.Length -gt 512) { $value = $value.Substring(0, 512) }
-                            }
-                            $bounded[$name] = $value
-                        }
-                    }
-                    $bounded.JobId = $candidate.JobId
-                    $bounded.PlanRunId = $candidate.PlanRunId
-                    $bounded.ArtifactSha256 = $candidate.ArtifactSha256
-                    $bounded.FailureSummaries = @($candidate.RecentFailureSummaries | Select-Object -First 16 | ForEach-Object {
-                            [ordered]@{ SourceIdToken = $_.SourceIdToken; SourceSequence = $_.SourceSequence; AttemptId = $_.AttemptId; FailureCode = $_.FailureCode; AttemptPhase = $_.AttemptPhase; TimestampUtc = $_.TimestampUtc }
-                        })
-                    if ($candidate.ProcessId -is [int] -and $candidate.ProcessId -gt 0 -and $candidate.ProcessStartedAtUtc) {
-                        $workerStartTicks = ([DateTimeOffset]::Parse([string]$candidate.ProcessStartedAtUtc)).UtcDateTime.Ticks
-                        $ownedWorker = $null
-                        try {
-                            $ownedWorker = [Diagnostics.Process]::GetProcessById([int]$candidate.ProcessId)
-                            $workerIdentityEvidence = [pscustomobject]@{ ProcessId = [int]$candidate.ProcessId; ProcessStartedAtUtc = [string]$candidate.ProcessStartedAtUtc; IdentityMatches = (Test-TTE2EOwnedProcessIdentity -Process $ownedWorker -ProcessId ([int]$candidate.ProcessId) -StartTimeUtcTicks $workerStartTicks) }
-                        }
-                        catch [ArgumentException] { $workerIdentityEvidence = [pscustomobject]@{ ProcessId = [int]$candidate.ProcessId; ProcessStartedAtUtc = [string]$candidate.ProcessStartedAtUtc; IdentityMatches = $false } }
-                        finally { if ($ownedWorker) { $ownedWorker.Dispose() } }
-                    }
-                    $fingerprint = $bounded | ConvertTo-Json -Compress -Depth 5
-                    if ($fingerprint -cne $lastSnapshotFingerprint -and $statusSnapshots.Count -lt 512) {
-                        $statusSnapshots.Add([pscustomobject]@{ ObservedAtUtc = [DateTimeOffset]::UtcNow.ToString('O'); StatusFileLastWriteTimeUtc = (Get-Item -LiteralPath $statusPath).LastWriteTimeUtc.ToString('O'); WorkerIdentity = $workerIdentityEvidence; Status = $bounded })
-                        $lastSnapshotFingerprint = $fingerprint
                     }
                     if ($candidate.State -in @('succeeded', 'failed', 'canceled', 'abandoned')) { $status = $candidate; break }
                 }
@@ -800,77 +761,8 @@ try {
             $allStatusFiles = @(Get-ChildItem -LiteralPath $jobRoot -Filter '*.status.json' -File -ErrorAction Stop)
             $allStatusFiles | Should -HaveCount 1
             if ($status.State -cne 'succeeded') {
-                $retainWorkerFixture = $true
-                $script:scenarioAWorkerFailureRetain = $true
                 $failureSummaries = @($status.RecentFailureSummaries | ForEach-Object { $_.FailureCode })
-                $resultMetadata = $null
-                if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
-                    $rawResult = [IO.File]::ReadAllText($resultPath) | ConvertFrom-Json
-                    $resultMetadata = [ordered]@{}
-                    foreach ($name in @('JobId', 'PlanRunId', 'ArtifactSha256', 'TerminalOutcome', 'TerminalResultPersisted', 'ProcessedPlans', 'Succeeded', 'Failed', 'Conflicted', 'Publications', 'PublicationCount')) {
-                        $property = $rawResult.PSObject.Properties[$name]
-                        if ($property) { $resultMetadata[$name] = $property.Value }
-                    }
-                }
-                $inputMetadata = [ordered]@{}
-                foreach ($name in @('JobId', 'PlanRunId', 'ArtifactSha256', 'Operation', 'ExplicitlyApproved')) {
-                    $property = $script:scenarioALaunchEvidence.JobInput.PSObject.Properties[$name]
-                    if ($property) { $inputMetadata[$name] = $property.Value }
-                }
-                $retrievalFailureObservations = [Collections.Generic.List[object]]::new()
-                foreach ($snapshot in $statusSnapshots) {
-                    foreach ($failure in $snapshot.Status.FailureSummaries) {
-                        if ($failure.FailureCode -match '(?i)RETRIEVAL|INVALIDOPERATION') {
-                            $retrievalFailureObservations.Add([ordered]@{
-                                    FailureCode = $failure.FailureCode; SourceSequence = $failure.SourceSequence; AttemptId = $failure.AttemptId
-                                    AttemptPhase = $failure.AttemptPhase; TimestampUtc = $failure.TimestampUtc
-                                    ObservedAtUtc = $snapshot.ObservedAtUtc; StatusFileLastWriteTimeUtc = $snapshot.StatusFileLastWriteTimeUtc
-                                    Writer = 'SemanticIndexMaintenanceRunner.UpdateSemanticRebuildStatus'
-                                })
-                        }
-                    }
-                }
-                $baselineRequestNumbers = @($script:scenarioAWorkerInitialRequestEvidence | ForEach-Object { ([string]$_ | ConvertFrom-Json).requestNumber })
-                $baselineRequestNumber = if ($baselineRequestNumbers.Count) { [int]($baselineRequestNumbers | Measure-Object -Maximum).Maximum } else { 0 }
-                $allEmbeddingRequests = @($script:scenarioAWorkerEndpoint.RequestEvidence | ForEach-Object { [string]$_ | ConvertFrom-Json })
-                $launchFailureAt = if ($status.ProcessStartFailureAtUtc) { [DateTimeOffset]::Parse([string]$status.ProcessStartFailureAtUtc) } else { $null }
-                $endpointTimeline = @($allEmbeddingRequests | ForEach-Object {
-                        $requestTime = [DateTimeOffset]::Parse([string]$_.timestampUtc)
-                        [ordered]@{
-                            RequestNumber = $_.requestNumber; Path = $_.path; Type = $_.type; TimestampUtc = $_.timestampUtc
-                            RelativeToLaunchFailure = if (!$launchFailureAt) { 'unknown' } elseif ($requestTime -lt $launchFailureAt) { 'before' } else { 'after-or-at' }
-                        }
-                    })
-                $diagnostic = [ordered]@{
-                    JobId = $jobId; PlanRunId = $script:scenarioAPlanRunId; ArtifactSha256 = $script:scenarioAArtifactSha256
-                    InputPath = $script:scenarioALaunchEvidence.JobInputPath; InputMetadata = $inputMetadata
-                    StatusPath = $statusPath; ResultPath = $resultPath; ResultMetadata = $resultMetadata
-                    WorkerProcessId = $status.ProcessId; WorkerProcessStartedAtUtc = $status.ProcessStartedAtUtc
-                    WorkerIdentity                          = $workerIdentityEvidence
-                    StatusSnapshots = @($statusSnapshots); TerminalStatus = @($statusSnapshots | Select-Object -Last 1).Status
-                    LaunchFailureEvidence                   = [ordered]@{
-                        ExceptionType = $status.LaunchExceptionType; NativeErrorCode = $status.LaunchNativeErrorCode
-                        AttemptKind = $status.LaunchAttemptKind; AttemptCount = $status.LaunchAttemptCount
-                        AttemptHistory = $status.LaunchAttemptHistory; ExecutableResolutionSource = $status.ExecutableResolutionSource
-                        ExecutableResolved = $status.ExecutableResolved; ExecutableExists = $status.ExecutableExists
-                        AgentAssemblyExists = $status.AgentAssemblyExists; WorkingDirectoryExists = $status.WorkingDirectoryExists
-                        WorkerMode = $status.WorkerMode; ArgumentCount = $status.ArgumentCount
-                        EnvironmentInheritance = $status.EnvironmentInheritance; FailureAtUtc = $status.ProcessStartFailureAtUtc
-                    }
-                    EndpointTimelineRelativeToLaunchFailure = $endpointTimeline
-                    RetrievalFailureObservations            = @($retrievalFailureObservations)
-                    EmbeddingRequestEvidence                = @($allEmbeddingRequests)
-                    PreLaunchEmbeddingRequestEvidence       = @($allEmbeddingRequests | Where-Object { $_.requestNumber -le $baselineRequestNumber })
-                    PostLaunchEmbeddingRequestEvidence      = @($allEmbeddingRequests | Where-Object { $_.requestNumber -gt $baselineRequestNumber })
-                    PreLaunchEmbeddingRequestCount          = $baselineRequestNumber
-                    PostLaunchEmbeddingRequestCount         = @($allEmbeddingRequests | Where-Object { $_.requestNumber -gt $baselineRequestNumber }).Count
-                    ParentLaunchFailureWriter               = 'SemanticIndexMaintenanceRunner.Launch catch block: RUNNER_START_FAILED / ProcessStartException'
-                    ParentLaunchFailureWriterEvidenceTime   = @($statusSnapshots | Where-Object { $_.Status.FailureCode -eq 'RUNNER_START_FAILED' } | Select-Object -First 1).StatusFileLastWriteTimeUtc
-                }
-                $diagnosticPath = Join-Path $root 'scenario-a-worker-diagnostics.json'
-                [IO.File]::WriteAllText($diagnosticPath, ($diagnostic | ConvertTo-Json -Depth 12 -Compress), [Text.Encoding]::UTF8)
-                Write-Host "Retained Scenario A diagnostic fixture: $root"
-                throw "Detached worker terminal failure: state=$($status.State); code=$($status.FailureCode); type=$($status.FailureType); diagnostic=$($status.ProcessDiagnostic); terminal=$($status.TerminalOutcome); failureSummaries=$($failureSummaries -join ','); diagnostics=$diagnosticPath"
+                throw "Detached worker terminal failure: state=$($status.State); code=$($status.FailureCode); type=$($status.FailureType); terminal=$($status.TerminalOutcome); failureSummaries=$($failureSummaries -join ',')"
             }
             $status.State | Should -BeExactly 'succeeded'
             $status.Operation | Should -BeExactly 'semanticSnapshotReconciliation'
@@ -983,9 +875,7 @@ try {
                     $script:scenarioALaunchEvidence.IsolatedArtifact, $script:scenarioALaunchEvidence.JobInputPath)) {
                 Assert-TTE2EPathUnderRoot -Path $path -Root $root
             }
-            $workerValidated = $true
             $script:scenarioAWorkerTerminalStatus = $status
-            $script:scenarioAWorkerStatusSnapshots = @($statusSnapshots)
             $script:scenarioAWorkerTerminalResult = $result
         }
         finally {
@@ -1003,7 +893,7 @@ try {
                 catch [ArgumentException] { }
             }
             if ($script:scenarioAWorkerEndpoint) { $script:scenarioAWorkerEndpoint.Dispose(); $script:scenarioAWorkerEndpoint = $null }
-            if ($workerValidated -and !$retainWorkerFixture -and $root -and (Test-Path -LiteralPath $root)) {
+            if ($root -and (Test-Path -LiteralPath $root)) {
                 Remove-TTE2EOwnedRoot -Path $root -ExpectedPrefix 'tt-reconciliation-worker-fixture-'
                 $script:scenarioAWorkerFixtureRoot = $null
             }
@@ -1039,8 +929,7 @@ try {
     AfterAll {
         if ($script:scenarioAWorkerFixtureRoot -and (Test-Path -LiteralPath $script:scenarioAWorkerFixtureRoot)) {
             if ($script:scenarioAWorkerEndpoint) { $script:scenarioAWorkerEndpoint.Dispose(); $script:scenarioAWorkerEndpoint = $null }
-            if ($script:scenarioAWorkerFailureRetain) { Write-Host "Retained Scenario A diagnostic fixture: $script:scenarioAWorkerFixtureRoot" }
-            else { Remove-TTE2EOwnedRoot -Path $script:scenarioAWorkerFixtureRoot -ExpectedPrefix 'tt-reconciliation-worker-fixture-' }
+            Remove-TTE2EOwnedRoot -Path $script:scenarioAWorkerFixtureRoot -ExpectedPrefix 'tt-reconciliation-worker-fixture-'
         }
         if ($script:scenarioAFixtureRoot -and $script:scenarioAFixtureRoot -cne $script:scenarioAWorkerFixtureRoot -and (Test-Path -LiteralPath $script:scenarioAFixtureRoot)) {
             Remove-TTE2EOwnedRoot -Path $script:scenarioAFixtureRoot -ExpectedPrefix 'tt-reconciliation-e2e-'
@@ -1050,11 +939,12 @@ try {
     }
 }
 
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+A9ccnhtaViV9
-# dVuyqKnbwN3wTf9QH2NgdMcnymKOEKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDcgZ+aeHxJgFzG
+# c6qxXKfObImOd0WITTx5BR2mDDbqLKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -1231,31 +1121,31 @@ try {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBv
-# yZJpa5pVUZMtq0f8cX+/jtm+M6ekXWQwFTH03ucsQDANBgkqhkiG9w0BAQEFAASC
-# AYBA7P7O9qJBo4HUCyKSaGLV36G4kFEPf0OFxlZ0PaLa8uv7kMBqEqKYxnN1AwVr
-# TN/bkvTjy0CnMx6uiaMZlwD7v6e+kki5L/oEG68bnd1aYEffD3z1d78NbIWKamLX
-# 2y7JeDKCf7Hkxmp8eSdz4f4hfs5uCam3I6gs2Ip4iha1CbdGyRpMWUjuhxah8Xoa
-# dJVA3uqS6Dq7PiJOVPjMWKbU8ZxTvAdZ0fbqZRbRzuqaSjwLXE4UL5Zn+VVe3mZy
-# hA/AUkXo8MrJBo6bdUSs6B9J4i5wybGr6M9H9s/7MT7/gQbNgVUDZ14uf6ryKB0U
-# A35UuUaxxHB9sPCH9mk9qlYlV+n3Xw/k6VTBRcQptxkTMVKUx8+62Oux6RAoVyfh
-# zpdr+1VdYEA4b+kGV/nqfnrk1xw5BoUAVLb05SzeMmJmSF87plE2T0VaA3lSGmnz
-# i6IgDrJVaQTH5REHRkbzOF00Sm7HtrirE8ot0Jrd+pAPGHQ0cY31uMVPXk5IfFkt
-# dyChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC/
+# Lr3g190Gwt/E1GNo3/3jY/7p6nA3cdJDBrJH5LLDWTANBgkqhkiG9w0BAQEFAASC
+# AYAt9Prvs8v+nzn0yLNMl6m56YCrH6vDNP0GD4D+w6jsnE9u+TA5Shu11BG7IVkH
+# L/2pD/iELQpKNLBn0Kye/Uj6XHp73tfAhT+3ykgTxGZttkqwgJt6YYlaOo5SZJ3n
+# 11ARXjvM5EpHSBUGaMETn8zDr52cvgvDpf/l6D40ur3ypaREv4193/Ve4y18rkou
+# Tn0PAyZYz84IEaHCU2k3i0plEfemneQgIRwRVlC6aDePlxgxyFIpW/OtcI6AxccN
+# tgS7ji0YKD0T8J2wNijbm1IeEhGOkkwWxJM8am47ik5Qo3ISb36mnVWIBsvZMWLu
+# QJk0+Ufmy+bmP/Wodnh6KS9CZTIyK/Givi4iKO9Xwd/iFvms2ZlukFaGz/2cMbTs
+# IbWQAWPxmoLe72FYXsTOOFupxW8GRFG0vwyIzGPQ2zhss6Uk8dvWNuVQ802mFVGW
+# RRB9FS+BCo/lf3RW27NVykvvujU4flfqvp0b3frcoBttm/1xOhRIXaJOjzvyKjBn
+# WWOhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTEwMDMxMjA1WjAvBgkqhkiG
-# 9w0BCQQxIgQgKYhJsb7VlIGyLVfgmusiek4Ih87eW1x+fhcylr/epJgwDQYJKoZI
-# hvcNAQEBBQAEggIAhpDLeYO4KY0EwjDgMklb/omPUbNyonvKim1s37yp54l4pWPZ
-# HW4Mzs9RtJngknBJSFm/ELpyFY/Meyt2MTLljDBDpKhI1cwUiOl5L7EsA0tynDka
-# //6wKsuuJgb41Tz3AievI0zT7MJ7+gNwYfYnACteBz9EjDRzjsVe/uzzk2/BbaL3
-# o0gOjQ9W/NpsDWKNxksafygKM9rzRtGdFAWOeOTUpf00pY4q07CT6OkzfgubplvD
-# bDEFZ1qp0dqsB5XoSoZ03VG0TLWgW7ZAxnUfP6qRpHYPkhUNGEC9DJJPv5Wfj1Vx
-# OLq6MqKFs1al7vQxY9O/b4neoCzlYInAg2rYfNzE0uDIBp11eyUkKk7jrouDEAc7
-# jLPCgiUydsoldbgIIw+uu91WXsrzNYpWzByvy+HOQsM6bGAy4AnlAhBjzU9gx9O7
-# RUch8Mn8bU6sasE+r+vEDKESh1b58VyXAkq2NxMLUybuOOi1my4BLwdxwqBrEIoG
-# c+u4pVG/uU1OUO2xxgLqHXDAnvdvC2oz9NgcaXCunb2Qp1NAFTsHNSn7EPa/W6Me
-# osYlTe8Zx1df1jR7MZUithY8CcK/ZeRpRrMKGM64+gkL3F0H/Sgp2kKCJSXAkg74
-# SMGxQcbJ4KunlZYAbZgdrIWtk5KmbX1DVfhl0Z5GdnBzRoGJZOWWjtYg4KA=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTEwMDMzMjQzWjAvBgkqhkiG
+# 9w0BCQQxIgQgjc/LgNSg9fwE5NBHA7CaJd68J96GSBt+e6wp7dhT6ccwDQYJKoZI
+# hvcNAQEBBQAEggIAJePMDJ5zxFAGisvNZbmizZ/Uk5AJXtJy52SUU6VwuESzGbk5
+# rBZHjuFTxVil4ZrHCoCVaVc4hnlXt5pIxoa604lDTfhj1kBBs//46mIBJtA1qJFn
+# xP9sLmDEHHnBMsiY0qr8uO7WWrnIA18ufh1eM5es06amXdnUXKdbeoi/+sLwFJfK
+# 5kP/P6UacyKnabibvGpfjGi0mcADPiGDCAjuzFwHxI4yUEfR7aFzhDzI3fnUe0oe
+# 3R6LPbmfE3NVjzzyx3uEmg7D0LjcBQGTgR+oaq6nTRg/BLCaTMwEngjjCADPAV/3
+# Yoi/lrNgFNYu2VKvdf/hx/gZxAutxFO69WWM/zl5p7Mwsaj3+DA4nQiV+o8CiBEg
+# sSJ5OlU+ElOgxEiJ1gv0+F7zVcU6HAG0KW8oN6+1VS7gsMANgzHhHbV7lD4bMdgq
+# YEYTSlu1Yfae6Zp3bS4dc0hsHcYysEE2Oy2DLzFaJ0BYxox2zUWmNy+4kbHANrti
+# kAfSmPmWAbvlK3trjKjhtS3NULMvj8Ye8/UJ3bTRyLK8ecfQ80bJlkJNaxQv2Q9f
+# +JmZbEMW717fmebBGUZJEbdlBnSGfC7h9CRF9yhu6pqZyGeB/SoKg1tQVGdT1eTC
+# 7Ls/3bFZERT67lAokvp96IshTBXtPSVmVVf5Oo/9ymqvcDUKpsFwFvlC1ck=
 # SIG # End signature block
